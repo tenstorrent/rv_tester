@@ -1,0 +1,39 @@
+load("@rules_hdl//verilog:providers.bzl", "verilog_library")
+
+verilog_library(
+    name = "pkg",
+    srcs = [
+        "rv_tester_pkg.sv",
+    ]
+)
+
+verilog_library(
+    name = "defines",
+    srcs = [
+        "rv_tester_defines.sv",
+    ],
+    deps = [
+        "pkg",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+verilog_library(
+    name = "rv_tester",
+    srcs = [
+        "rv_tester.sv",
+    ],
+    deps = [
+        "defines",
+        "@axi-sw//:axi_sw",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "dpi",
+    deps = [
+        "@axi-sw//:axi_sw_dpi",
+    ],
+    visibility = ["//visibility:public"],
+)
