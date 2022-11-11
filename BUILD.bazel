@@ -26,6 +26,7 @@ verilog_library(
     deps = [
         "defines",
         "@axi-sw//:axi_sw",
+        "//system_model:system_model",
     ],
     visibility = ["//visibility:public"],
 )
@@ -34,6 +35,7 @@ cc_library(
     name = "dpi",
     deps = [
         "@axi-sw//:axi_sw_dpi",
+        "//system_model:system_model_dpi",
     ],
     visibility = ["//visibility:public"],
 )

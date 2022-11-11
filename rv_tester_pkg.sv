@@ -13,4 +13,9 @@ package rv_tester_pkg;
       int unsigned AXI_ID_WIDTH  ;
     } cfg_t;
 
+    typedef struct packed {
+        logic external;
+        logic timer;
+    } interrupt_t;
+
 endpackage

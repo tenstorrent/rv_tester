@@ -1,8 +1,9 @@
 module rv_tester #(
-    parameter int RESET_CLOCKS   = 10,
-    parameter bit EXTERNAL_CLOCK =  0,
-    parameter int CLOCK_PERIOD   =  5,
-    rv_tester_pkg::cfg_t CFG     = '0,
+    parameter int  RESET_CLOCKS           =    10,
+    parameter bit  EXTERNAL_CLOCK         =     0,
+    parameter time CLOCK_PERIOD           = 500ps,
+    parameter time SW_CLOCK_UPDATE_PERIOD = 100ns,
+    rv_tester_pkg::cfg_t CFG              =    '0,
     `RV_TESTER_PARAMETERS(CFG)
 ) (
     input clk_ext,
@@ -13,17 +14,21 @@ module rv_tester #(
         assign clk = clk_ext;
     end else begin
         logic clkgen = '0;
-        initial forever #CLOCK_PERIOD clkgen = !clkgen;
+        initial forever #(CLOCK_PERIOD/2) clkgen = !clkgen;
         assign clk = clkgen;
     end
 
-    int clocks = 0;
-    always @(posedge clk) begin
-        clocks <= clocks + 1;
-    end
-
-    assign reset = clocks < RESET_CLOCKS;
-    assign bootstrap.boot_addr = 1 << 31;
+    rv_tester_system_model#(
+        .RESET_CLOCKS(RESET_CLOCKS),
+        .CLOCK_PERIOD(CLOCK_PERIOD),
+        .SW_CLOCK_UPDATE_PERIOD(SW_CLOCK_UPDATE_PERIOD),
+        .CFG(CFG)
+    ) system_model (
+        .clk,
+        .reset,
+        .bootstrap,
+        .interrupt
+    );
 
     for (genvar p = 0; p < CFG.AXI_PORTS; p++) begin
         axi_sw #(

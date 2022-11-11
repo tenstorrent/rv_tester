@@ -84,9 +84,10 @@
     }
 
 `define _RV_TESTER_PORTS(input,output)                                         \
-    input              clk      ,                                              \
-    input              reset    ,                                              \
-    input  bootstrap_t bootstrap,                                              \
+    input                             clk      ,                               \
+    input                             reset    ,                               \
+    input  bootstrap_t                bootstrap,                               \
+    input  rv_tester_pkg::interrupt_t interrupt,                               \
                                                                                \
     output rvfi_t      rvfi_instr [CFG.NRET],                                  \
     output axi_req_t   axi_req    [CFG.AXI_PORTS],                             \
@@ -94,9 +95,10 @@
 
 
 `define RV_TESTER_VARS(CFG)                                                    \
-    logic       clk      ;                                                     \
-    logic       reset    ;                                                     \
-    bootstrap_t bootstrap;                                                     \
+    logic                      clk      ;                                      \
+    logic                      reset    ;                                      \
+    bootstrap_t                bootstrap;                                      \
+    rv_tester_pkg::interrupt_t interrupt;                                      \
                                                                                \
     rvfi_t      rvfi_instr [CFG.NRET];                                         \
     axi_req_t   axi_req    [CFG.AXI_PORTS];                                    \
