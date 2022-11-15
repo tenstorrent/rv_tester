@@ -48,4 +48,9 @@ module rv_tester_system_model #(
         /* verilator lint_on BLKANDNBLK */
     endfunction
 
+    always_ff @(posedge clk) begin
+        interrupt_q <= interrupt_d;
+        interrupt_d <= '0;
+    end
+
 endmodule

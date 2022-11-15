@@ -14,7 +14,7 @@ package rv_tester_pkg;
     } cfg_t;
 
     typedef struct packed {
-        logic external;
+        logic external; // FIXME need an array for multiple IRQ?
         logic timer;
     } interrupt_t;
 
