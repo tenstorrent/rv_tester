@@ -32,7 +32,7 @@ def rv_tester_repositories():
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/axi-sw/-/archive/{commit}/axi-sw-{commit}.tar.bz2".format(commit=axi_sw_hash),
     )
 
-    cosim_hash="e49d63abc3c6e6f62eeef3e61327897322d31061"
+    cosim_hash="31cb32805b0adc39519d0751430efec7565bd8cb"
     git_repository(
       name = "cosim",
       commit = cosim_hash,
