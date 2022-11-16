@@ -1,0 +1,35 @@
+load("@rules_hdl//verilog:providers.bzl", "verilog_library")
+load("@rules_hdl//verilog:build_defs.bzl", "verilog_flist")
+
+verilog_library(
+    name = "axi_sw",
+    srcs = [
+        "axi_sw.sv"
+    ],
+    visibility = ["//visibility:public"],
+)
+
+verilog_flist(
+    name = "axi_sw.f",
+    srcs = [":axi_sw"],
+)
+
+cc_library(
+    name = "axi_sw_dpi",
+    srcs = [
+        "axi_sw.cpp",
+        "axi.cpp",
+    ],
+    hdrs = [
+        "axi_sw.h",
+        "axi.h",
+        "intf.h",
+        "safe_queue.h",
+    ],
+    deps = [
+      "//:common",
+      "//system_model:system_model_plugin",
+    ],
+    alwayslink = True,
+    visibility = ["//visibility:public"],
+)

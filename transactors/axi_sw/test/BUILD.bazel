@@ -1,0 +1,73 @@
+load("@rules_verilator//verilator:defs.bzl", "verilator_cc_library")
+load("@rules_vcs//vcs:defs.bzl", "vcs_simv")
+load("@rules_hdl//verilog:providers.bzl", "verilog_library")
+load("@rules_hdl//verilog:build_defs.bzl", "verilog_flist")
+
+verilog_library(
+    name = "tb",
+    srcs = ["tb.sv"],
+    deps = ["//:axi_sw"],
+)
+
+verilog_flist(
+    name = "tb.f",
+    srcs = [":tb"],
+)
+
+cc_library(
+    name = "tb_dpi",
+    srcs = ["tb.cpp"],
+    alwayslink = True,
+)
+
+cc_library(
+    name = "dpi",
+    deps = ["//:axi_sw_dpi", ":tb_dpi"],
+    alwayslink = True,
+    linkstatic = True,
+)
+
+cc_binary(
+    name = "libdpi.so",
+    deps = [":dpi"],
+    linkshared = True,
+    linkopts = ["-lpthread"],
+)
+
+vcs_simv(
+    name  = "tb_vcs",
+    flist = "tb.f",
+    opts  = ["-assert svaext"],
+    dpi   = [":libdpi.so"],
+)
+
+verilator_cc_library(
+    name = "tb_veri_lib",
+    mtop = "tb",
+    vopts = [
+        "--assert",
+        "-Wall",
+        "-Wpedantic",
+        "-Wno-WIDTH",
+        "-Wno-DECLFILENAME",
+        "-Wno-PINCONNECTEMPTY",
+    ],
+    flist = "tb.f",
+)
+
+cc_binary(
+    name = "tb_veri",
+    srcs = ["top.cpp"],
+    deps = [":dpi", ":tb_veri_lib"],
+    linkopts = ["-lpthread"],
+)
+
+[
+    sh_test(
+       name = "tb_{sim}_test".format(sim = sim),
+       srcs = ["nop.sh"],
+       data = [":tb_{sim}".format(sim = sim)],
+       args = ["$(location :tb_{sim})".format(sim = sim)],
+    )
+    for sim in ["vcs", "veri"]
+]
