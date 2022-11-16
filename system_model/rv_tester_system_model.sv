@@ -12,7 +12,7 @@ module rv_tester_system_model #(
 );
     import "DPI-C" context function chandle sysmod_new(string memmap);
     import "DPI-C" function void sysmod_load_program(chandle sysmod_p, string prog);
-    import "DPI-C" function void sysmod_tick(chandle sysmod_p);
+    import "DPI-C" function void sysmod_tick(chandle sysmod_p, longint unsigned clocks);
     import "DPI-C" context function void sysmod_flush_cbs(chandle sysmod_p);
 
     chandle _sm = null;
@@ -37,14 +37,6 @@ module rv_tester_system_model #(
     assign reset = clocks < LU'(RESET_CLOCKS);
     assign bootstrap.boot_addr = 1 << 31;
 
-    function automatic sysmod_timer_interrupt (int hartid);
-    endfunction
-    export "DPI-C" function sysmod_timer_interrupt;
-
-    function automatic sysmod_sw_interrupt (int hartid);
-    endfunction
-    export "DPI-C" function sysmod_sw_interrupt;
-
     function automatic sysmod_terminate ();
         // exit gracefully
         $display("terminating");
@@ -52,28 +44,28 @@ module rv_tester_system_model #(
     endfunction
     export "DPI-C" function sysmod_terminate;
 
-    /*
-    import "DPI-C" function void clock_update(longint unsigned clocks);
     always @(posedge clk) begin
+        // FIXME: should be queued up in separate thread
         if (0 == (clocks % (SW_CLOCK_UPDATE_PERIOD/CLOCK_PERIOD))) begin
-            clock_update(clocks);
+            sysmod_tick(_sm, clocks);
         end
     end
-    */
 
     rv_tester_pkg::interrupt_t interrupt_d, interrupt_q;
     assign interrupt = interrupt_q;
 
-    function void set_interrupt(byte unsigned is_timer);
-        /* verilator lint_off BLKANDNBLK */
-        if (is_timer != 0) interrupt_d.timer    = '1;
-        else               interrupt_d.external = '1;
-        /* verilator lint_on BLKANDNBLK */
+    function automatic sysmod_timer_interrupt (unsigned hartid, unsigned val);
+      interrupt_d.timer = val;
     endfunction
+    export "DPI-C" function sysmod_timer_interrupt;
+
+    function automatic sysmod_sw_interrupt (unsigned hartid, unsigned val);
+      interrupt_d.ipi = val;
+    endfunction
+    export "DPI-C" function sysmod_sw_interrupt;
 
     always_ff @(posedge clk) begin
         interrupt_q <= interrupt_d;
-        interrupt_d <= '0;
 
         // FIXME: add poll
         sysmod_flush_cbs(_sm);

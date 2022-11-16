@@ -14,6 +14,7 @@ package rv_tester_pkg;
     } cfg_t;
 
     typedef struct packed {
+        // FIXME: need per hart interrupt
         logic external; // FIXME need an array for multiple IRQ?
         logic ipi;
         logic timer;

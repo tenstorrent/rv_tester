@@ -57,10 +57,10 @@ public:
   virtual void write(uint64_t addr, size_t length, const data_t& data,
                       const strb_t& strb, cbs_t& cbs) override;
 
-  virtual void tick(cbs_t& cbs) override
+  virtual void tick(uint64_t new_clock, cbs_t& cbs) override
   {
     std::lock_guard<std::mutex> lock(mutex_);
-    timer_++;
+    timer_ = new_clock;
     processTimerInterrupts(cbs);
   }
 
@@ -73,7 +73,7 @@ protected:
   {
     for (unsigned i = 0; i < hartCount_; ++i)
       {
-	bool flag = timeCompare_.at(i) >= timer_;
+        bool flag = timer_ >= timeCompare_.at(i);
 	timerInterrupt(i, flag, cbs);
       }
   }
@@ -81,15 +81,13 @@ protected:
   // Used to assert/deassert a software interrupt (PIPI) for given hart.
   virtual void softwareInterrupt(unsigned hart, bool flag, cbs_t& cbs)
   {
-    if (flag)
-      cbs.push_back(cb_t{Callback::SW_INT, hart});
+    cbs.push_back(cb_t{Callback::SW_INT, hart, flag});
   }
 
   // Used to assert/deassert a timer interrupt for given hart.
   virtual void timerInterrupt(unsigned hart, bool flag, cbs_t& cbs)
   {
-    if (flag)
-      cbs.push_back(cb_t{Callback::TIMER_INT, hart}); 
+    cbs.push_back(cb_t{Callback::TIMER_INT, hart, flag});
   }
 
   // Start a thread to increment timer after n microseconds.
@@ -108,4 +106,4 @@ private:
 
   std::thread timerThread_;
 };
-  
+

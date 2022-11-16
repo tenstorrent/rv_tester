@@ -26,7 +26,8 @@ class device {
 
     typedef struct {
       Callback cb;
-      unsigned arg;
+      unsigned hart;
+      unsigned val;
     } cb_t;
 
     typedef std::vector<cb_t> cbs_t;
@@ -40,7 +41,7 @@ class device {
                       data_t& data,
                       cbs_t& cbs) = 0;
 
-    virtual void tick(cbs_t& cbs) { };
+    virtual void tick(uint64_t new_clock, cbs_t& cbs) { };
 
     device(std::string tag, uint64_t addr, size_t size)
       : tag_(tag), addr_(addr), size_(size)

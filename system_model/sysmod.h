@@ -20,7 +20,7 @@ class sysmod {
     void load_prog(const std::string& prog);
     void write(uint64_t addr, size_t length, const device::data_t& data, const device::strb_t& strb);
     void read(uint64_t addr, size_t length, device::data_t& data);
-    void tick();
+    void tick(uint64_t new_clock);
     void flush_cbs();
 
   private:

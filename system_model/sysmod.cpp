@@ -7,11 +7,11 @@
 #include "htif/htif.h"
 
 extern "C" {
-  // used by CLINT for timer interrupt
-  void sysmod_timer_interrupt(int hartid);
+  // used by CLINT to assert/deassert timer interrupt
+  void sysmod_timer_interrupt(unsigned hartid, unsigned val);
 
-  // used by CLINT for sw interrupt
-  void sysmod_sw_interrupt(int hartid);
+  // used by CLINT to assert/deassert sw interrupt
+  void sysmod_sw_interrupt(unsigned hartid, unsigned val);
 
   // used by HTIF to indicate program end
   void sysmod_terminate();
@@ -105,12 +105,12 @@ sysmod::read(uint64_t addr, size_t length, device::data_t& data)
 }
 
 void
-sysmod::tick()
+sysmod::tick(uint64_t new_clock)
 {
   std::lock_guard<std::mutex> lock(sys_m);
   for (auto& d : devices_) {
       device::cbs_t cbs;
-      d->tick(cbs);
+      d->tick(new_clock, cbs);
       handle_callbacks(cbs);
   }
 }
@@ -122,9 +122,12 @@ sysmod::flush_cbs()
   svSetScope(scope_);
   for (auto& res : callbacks_) {
     switch (res.cb) {
-      case device::Callback::TIMER_INT: sysmod_timer_interrupt(res.arg); break;
-      case device::Callback::SW_INT:    sysmod_sw_interrupt(res.arg); break;
-      case device::Callback::TERMINATE: sysmod_terminate(); break;
+      case device::Callback::TIMER_INT: sysmod_timer_interrupt(res.hart, res.val);
+                                        break;
+      case device::Callback::SW_INT:    sysmod_sw_interrupt(res.hart, res.val);
+                                        break;
+      case device::Callback::TERMINATE: sysmod_terminate();
+                                        break;
       default: assert(false);
     }
   }
@@ -143,8 +146,8 @@ extern "C" {
     s->load_prog(std::string(prog));
   }
 
-  void sysmod_tick(sysmod* s) {
-    s->tick();
+  void sysmod_tick(sysmod* s, uint64_t new_clock) {
+    s->tick(new_clock);
   }
 
   void sysmod_flush_cbs(sysmod* s) {
