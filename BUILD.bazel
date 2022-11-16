@@ -27,6 +27,7 @@ verilog_library(
         "defines",
         "//system_model:system_model",
         "//transactors/axi_sw:axi_sw",
+        "@cosim//:cosim",
     ],
     visibility = ["//visibility:public"],
 )
@@ -36,6 +37,7 @@ cc_library(
     deps = [
         "//transactors/axi_sw:axi_sw_dpi",
         "//system_model:system_model_dpi",
+        "@cosim//:cosim_dpi",
     ],
     visibility = ["//visibility:public"],
 )
