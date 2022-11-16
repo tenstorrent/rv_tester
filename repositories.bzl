@@ -1,3 +1,4 @@
+load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 load("@bazel_tools//tools/build_defs/repo:utils.bzl", "maybe")
 
@@ -20,4 +21,20 @@ def rv_tester_repositories():
         sha256 = "3bedc45854d31a2d4b84e6f753217b23f80a8ca409c69be4ca819da820c25d0d",
         strip_prefix = "bazel_rules_hdl-{commit}".format(commit=rules_hdl_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/bazel_rules_hdl/-/archive/{commit}/bazel_rules_hdl-{commit}.tar.bz2".format(commit=rules_hdl_hash),
+    )
+
+    axi_sw_hash="56215c19e85065cf81e71b0732b35ab51c27167f"
+    maybe(
+        http_archive,
+        name = "axi-sw",
+        sha256 = "c8e5f01446dbb719deaa376f48acfd6d74de5bb0ee129372490e630e85cb2f92",
+        strip_prefix = "axi-sw-{commit}".format(commit=axi_sw_hash),
+        url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/axi-sw/-/archive/{commit}/axi-sw-{commit}.tar.bz2".format(commit=axi_sw_hash),
+    )
+
+    cosim_hash="e49d63abc3c6e6f62eeef3e61327897322d31061"
+    git_repository(
+      name = "cosim",
+      commit = cosim_hash,
+      remote = "git@aus-gitlab.local.tenstorrent.com:manees/cosim.git",
     )

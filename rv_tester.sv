@@ -30,6 +30,16 @@ module rv_tester #(
         .interrupt
     );
 
+    for (genvar n = 0; n < CFG.NRET; n++) begin
+        cosim #(
+            .CFG(CFG)
+        ) cosim (
+            .clk,
+            .reset,
+            .rvfi(rvfi_instr[n])
+        );
+    end
+
     for (genvar p = 0; p < CFG.AXI_PORTS; p++) begin
         axi_sw #(
             .ADDR_WIDTH(CFG.AXI_ADDR_WIDTH),
