@@ -44,8 +44,8 @@ cc_library(
 
 cc_library(
     name = "common",
-    hdrs = [ "common/svdpi.h" ],
-    includes = [ "common/" ],
+    hdrs = [ "common/svdpi.h", "common/transactor.h", "common/endpoint.h" ],
+    strip_include_prefix = "common/",
     visibility = ["//visibility:public"],
 )
 

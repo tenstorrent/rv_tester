@@ -23,12 +23,10 @@ cc_library(
     hdrs = [
         "axi_sw.h",
         "axi.h",
-        "intf.h",
         "safe_queue.h",
     ],
     deps = [
       "//:common",
-      "//system_model:system_model_plugin",
     ],
     alwayslink = True,
     visibility = ["//visibility:public"],

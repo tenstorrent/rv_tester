@@ -88,7 +88,7 @@ module axi_sw #(
     typedef byte    unsigned UB;
     typedef longint unsigned UL;
 
-    import "DPI-C" context function chandle axi_sw_new(chandle sysmod_p, byte unsigned poll, int unsigned data_width, string tag, int unsigned r_q_max, int unsigned r_q_ptr_max);
+    import "DPI-C" context function chandle axi_sw_new(chandle endpoint_p, byte unsigned poll, int unsigned data_width, string tag, int unsigned r_q_max, int unsigned r_q_ptr_max);
     import "DPI-C" function void axi_sw_aw(chandle axi_sw_p, int unsigned id, longint unsigned addr, byte unsigned len, byte unsigned size, byte unsigned burst);
     import "DPI-C" function void axi_sw_ar(chandle axi_sw_p, int unsigned id, longint unsigned addr, byte unsigned len, byte unsigned size, byte unsigned burst);
     import "DPI-C" function void axi_sw_w(chandle axi_sw_p, dpi_data data, dpi_strb strb, byte unsigned last);
@@ -118,6 +118,7 @@ module axi_sw #(
         if (!$value$plusargs("axi_sw_r_poll:%d", r_poll)) begin
             r_poll = POLL_DEFAULT;
         end
+        // can be generalized to non-system model
         axi_sw_p = axi_sw_new(top.tester.system_model.init(), byte'(r_poll), DATA_WIDTH, tag, R_FIFO_DEPTH, 1 << $bits(r_queue_ptr_t));
     end
 

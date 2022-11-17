@@ -1,0 +1,7 @@
+cc_library(
+  name = "htif",
+  srcs = ["htif.cpp"],
+  hdrs = ["htif.h"],
+  deps = ["//system_model:device"],
+  visibility = ["//visibility:public"],
+)

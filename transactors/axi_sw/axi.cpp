@@ -55,10 +55,10 @@ void axi::operator()() {
                 if (a.w) {
                     auto w = w_q_.dequeue();
                     assert(!!w.last == last);
-                    intf::write(start, len, w.data, w.strb);
+                    transactor::write(start, len, w.data, w.strb);
                 } else {
                     axi::data_t data(data_width(), 0);
-                    intf::read(start, len, data);
+                    transactor::read(start, len, data);
                     r_q_.enqueue(r_t{a.id, data, last});
                 }
             }

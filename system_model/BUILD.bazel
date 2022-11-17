@@ -7,12 +7,9 @@ verilog_library(
 )
 
 cc_library(
-    name = "system_model_plugin",
-    hdrs = [ "sysmod.h",
-             "device.h",
-    ],
-    deps = [ "//:common" ],
-    includes = [ "./" ],
+    name = "device",
+    hdrs = ["device.h"],
+    strip_include_prefix = "//system_model",
     visibility = ["//visibility:public"],
 )
 
@@ -20,21 +17,16 @@ cc_library(
     name = "system_model_dpi",
     srcs = [
       "sysmod.cpp",
-      "clint/clint.cpp",
-      "htif/htif.cpp",
-      "mem/mem.cpp",
-      "mem/SparseMem.cpp",
     ],
     hdrs = [
       "sysmod.h",
       "device.h",
-      "clint/clint.h",
-      "htif/htif.h",
-      "mem/mem.h",
-      "mem/SparseMem.hpp",
     ],
-    deps = [ "//:common" ],
-    includes = [ "./" ],
+    deps = [
+      "//:common",
+      "//system_model/clint:clint",
+      "//system_model/htif:htif",
+      "//system_model/mem:mem" ],
     alwayslink = True,
     visibility = ["//:__pkg__"],
 )

@@ -2,9 +2,10 @@
 
 #include <mutex>
 #include "device.h"
+#include "endpoint.h"
 #include "svdpi.h"
 
-class sysmod {
+class sysmod : public endpoint {
 
   public:
 
@@ -15,11 +16,11 @@ class sysmod {
     device& dev(uint64_t addr);
     device& dev(const std::string& tag);
 
-    void compose(const std::string& spec);
+    void write(uint64_t addr, size_t length, const device::data_t& data, const device::strb_t& strb) override;
+    void read(uint64_t addr, size_t length, device::data_t& data) override;
 
+    void compose(const std::string& spec);
     void load_prog(const std::string& prog);
-    void write(uint64_t addr, size_t length, const device::data_t& data, const device::strb_t& strb);
-    void read(uint64_t addr, size_t length, device::data_t& data);
     void tick(uint64_t advance);
     void flush_cbs();
 

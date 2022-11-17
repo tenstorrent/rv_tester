@@ -1,0 +1,7 @@
+cc_library(
+    name = "mem",
+    srcs = ["mem.cpp", "SparseMem.cpp"],
+    hdrs = ["mem.h", "SparseMem.hpp"],
+    deps = ["//system_model:device"],
+    visibility = ["//visibility:public"],
+)

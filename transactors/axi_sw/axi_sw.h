@@ -9,7 +9,6 @@
 #include <iostream>
 #include "axi.h"
 #include "axi_sw.h"
-#include "sysmod.h"
 #include "svdpi.h"
 
 class axi_sw {
@@ -38,7 +37,7 @@ class axi_sw {
 
     public:
 
-        axi_sw(const svScope& scope, sysmod* s, bool r_poll, const axi::data_width_t& data_width, const std::string& tag, const r_q_ptr_t& r_q_max, const r_q_ptr_t& r_q_ptr_max);
+        axi_sw(const svScope& scope, endpoint* s, bool r_poll, const axi::data_width_t& data_width, const std::string& tag, const r_q_ptr_t& r_q_max, const r_q_ptr_t& r_q_ptr_max);
 
         ~axi_sw();
 

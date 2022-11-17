@@ -4,10 +4,9 @@
 #include "safe_queue.h"
 #include <iostream>
 #include <functional>
-#include "intf.h"
-#include "sysmod.h"
+#include "transactor.h"
 
-class axi : public intf {
+class axi : public transactor {
 
     public:
 
@@ -75,8 +74,8 @@ class axi : public intf {
 
     public:
 
-        axi(sysmod* s, const data_width_t& data_width, const std::string& tag)
-          : intf(s, tag), data_width_(data_width)
+        axi(endpoint* e, const data_width_t& data_width, const std::string& tag)
+          : transactor(e, tag), data_width_(data_width)
         { run(); }
 
         axi(axi&&) = delete;
