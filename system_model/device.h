@@ -41,7 +41,7 @@ class device {
                       data_t& data,
                       cbs_t& cbs) = 0;
 
-    virtual void tick(uint64_t new_clock, cbs_t& cbs) { };
+    virtual void tick(uint64_t advance, cbs_t& cbs) { };
 
     device(std::string tag, uint64_t addr, size_t size)
       : tag_(tag), addr_(addr), size_(size)

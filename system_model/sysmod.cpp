@@ -105,12 +105,12 @@ sysmod::read(uint64_t addr, size_t length, device::data_t& data)
 }
 
 void
-sysmod::tick(uint64_t new_clock)
+sysmod::tick(uint64_t advance)
 {
   std::lock_guard<std::mutex> lock(sys_m);
   for (auto& d : devices_) {
       device::cbs_t cbs;
-      d->tick(new_clock, cbs);
+      d->tick(advance, cbs);
       handle_callbacks(cbs);
   }
 }

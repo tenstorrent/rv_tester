@@ -12,7 +12,7 @@ module rv_tester_system_model #(
 );
     import "DPI-C" context function chandle sysmod_new(string memmap);
     import "DPI-C" function void sysmod_load_program(chandle sysmod_p, string prog);
-    import "DPI-C" function void sysmod_tick(chandle sysmod_p, longint unsigned clocks);
+    import "DPI-C" function void sysmod_tick(chandle sysmod_p, longint unsigned advance);
     import "DPI-C" context function void sysmod_flush_cbs(chandle sysmod_p);
 
     chandle _sm = null;
@@ -39,7 +39,6 @@ module rv_tester_system_model #(
 
     function automatic sysmod_terminate ();
         // exit gracefully
-        $display("terminating");
         $finish();
     endfunction
     export "DPI-C" function sysmod_terminate;
@@ -47,7 +46,7 @@ module rv_tester_system_model #(
     always @(posedge clk) begin
         // FIXME: should be queued up in separate thread
         if (0 == (clocks % (SW_CLOCK_UPDATE_PERIOD/CLOCK_PERIOD))) begin
-            sysmod_tick(_sm, clocks);
+            sysmod_tick(_sm, (SW_CLOCK_UPDATE_PERIOD/CLOCK_PERIOD));
         end
     end
 

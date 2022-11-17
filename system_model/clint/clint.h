@@ -57,10 +57,10 @@ public:
   virtual void write(uint64_t addr, size_t length, const data_t& data,
                       const strb_t& strb, cbs_t& cbs) override;
 
-  virtual void tick(uint64_t new_clock, cbs_t& cbs) override
+  virtual void tick(uint64_t advance, cbs_t& cbs) override
   {
     std::lock_guard<std::mutex> lock(mutex_);
-    timer_ = new_clock;
+    timer_ += advance;
     processTimerInterrupts(cbs);
   }
 
