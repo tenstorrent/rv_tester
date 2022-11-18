@@ -23,15 +23,6 @@ def rv_tester_repositories():
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/bazel_rules_hdl/-/archive/{commit}/bazel_rules_hdl-{commit}.tar.bz2".format(commit=rules_hdl_hash),
     )
 
-    axi_sw_hash="56215c19e85065cf81e71b0732b35ab51c27167f"
-    maybe(
-        http_archive,
-        name = "axi-sw",
-        sha256 = "c8e5f01446dbb719deaa376f48acfd6d74de5bb0ee129372490e630e85cb2f92",
-        strip_prefix = "axi-sw-{commit}".format(commit=axi_sw_hash),
-        url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/axi-sw/-/archive/{commit}/axi-sw-{commit}.tar.bz2".format(commit=axi_sw_hash),
-    )
-
     cosim_hash="70371df590c527a9194e15ff5e15c6a8f360f027"
     maybe(
         git_repository,
