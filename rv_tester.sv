@@ -18,12 +18,12 @@ module rv_tester #(
         assign clk = clkgen;
     end
 
-    rv_tester_system_model#(
+    sysmod#(
         .RESET_CLOCKS(RESET_CLOCKS),
         .CLOCK_PERIOD(CLOCK_PERIOD),
         .SW_CLOCK_UPDATE_PERIOD(SW_CLOCK_UPDATE_PERIOD),
         .CFG(CFG)
-    ) system_model (
+    ) sysmod (
         .clk,
         .reset,
         .bootstrap,

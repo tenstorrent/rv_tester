@@ -120,7 +120,7 @@ module axi_sw #(
             r_poll = POLL_DEFAULT;
         end
         // can be generalized to non-system model
-        axi_sw_p = axi_sw_new(top.tester.system_model.init(), byte'(r_poll), DATA_WIDTH, tag, R_FIFO_DEPTH, 1 << $bits(r_queue_ptr_t));
+        axi_sw_p = axi_sw_new(sysmod.init(), byte'(r_poll), DATA_WIDTH, tag, R_FIFO_DEPTH, 1 << $bits(r_queue_ptr_t));
     end
 
     function automatic axi_sw_r (int unsigned id, dpi_data data, byte unsigned last);

@@ -1,4 +1,4 @@
-module rv_tester_system_model #(
+module sysmod #(
     parameter int  RESET_CLOCKS           =    10,
     parameter time CLOCK_PERIOD           = 500ps,
     parameter time SW_CLOCK_UPDATE_PERIOD = 100ns,
