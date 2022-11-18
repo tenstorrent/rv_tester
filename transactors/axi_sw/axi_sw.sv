@@ -81,6 +81,7 @@ module axi_sw #(
     typedef byte unsigned dpi_data[DATA_WIDTH/$bits(byte)];
     typedef byte unsigned dpi_strb[STRB_WIDTH/$bits(byte)];
 
+    typedef logic[$clog2(R_FIFO_DEPTH  )-1:0] r_queue_idx_t;
     typedef logic[$clog2(R_FIFO_DEPTH+1)-1:0] r_queue_ptr_t;
     localparam r_queue_ptr_t RFD = r_queue_ptr_t'(R_FIFO_DEPTH);
 
@@ -131,17 +132,17 @@ module axi_sw #(
             d[8*i +: 8] = data[i];
         end
         r = '{id: id_t'(id), data: data_t'(d), resp: B_OKAY, last: 1'(last)};
-        r_queue[r_queue_wptr % RFD] = r;
+        r_queue[r_queue_idx_t'(r_queue_wptr % RFD)] = r;
         r_queue_wptr++;
     endfunction
     export "DPI-C" function axi_sw_r;
 
     assign r_queue_size  = r_queue_wptr - r_queue_rptr;
     assign r_queue_full  = r_queue_size == RFD;
-    assign r_queue_empty = !r_queue_size;
+    assign r_queue_empty = r_queue_size == 0;
 
     always_comb begin
-        automatic r_t r = r_queue[r_queue_rptr % RFD];
+        automatic r_t r = r_queue[r_queue_idx_t'(r_queue_rptr % RFD)];
         axi_slv_r_id    = r.id  ;
         axi_slv_r_data  = r.data;
         axi_slv_r_resp  = r.resp;
@@ -160,7 +161,7 @@ module axi_sw #(
                 r_queue_rptr_incremented <= '0;
             end
             if (r_queue_rptr_incremented) begin
-                axi_sw_r_ptr(axi_sw_p, r_queue_rptr);
+                axi_sw_r_ptr(axi_sw_p, int'(r_queue_rptr));
             end
             if(r_poll) begin
                 axi_sw_r_poll(axi_sw_p);
