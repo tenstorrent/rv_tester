@@ -5,6 +5,7 @@ module axi_sw #(
     parameter int unsigned ID_WIDTH   = 32'd0,
 
     parameter bit POLL_DEFAULT        = 1'd0,
+    parameter int SYSMOD_NUM          =   -1,
     parameter string tag = "notag",
     parameter int unsigned R_FIFO_DEPTH = 32'd2,
 
@@ -120,7 +121,7 @@ module axi_sw #(
             r_poll = POLL_DEFAULT;
         end
         // can be generalized to non-system model
-        axi_sw_p = axi_sw_new(sysmod.init(), byte'(r_poll), DATA_WIDTH, tag, R_FIFO_DEPTH, 1 << $bits(r_queue_ptr_t));
+        axi_sw_p = axi_sw_new(sysmod_pkg::get(SYSMOD_NUM), byte'(r_poll), DATA_WIDTH, tag, R_FIFO_DEPTH, 1 << $bits(r_queue_ptr_t));
     end
 
     function automatic axi_sw_r (int unsigned id, dpi_data data, byte unsigned last);

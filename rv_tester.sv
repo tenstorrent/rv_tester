@@ -1,9 +1,9 @@
 module rv_tester #(
-    parameter int  RESET_CLOCKS           =    10,
-    parameter bit  EXTERNAL_CLOCK         =     0,
-    parameter time CLOCK_PERIOD           = 500ps,
-    parameter time SW_CLOCK_UPDATE_PERIOD = 100ns,
-    rv_tester_pkg::cfg_t CFG              =    '0,
+    parameter int RESET_CLOCKS              =      10,
+    parameter bit EXTERNAL_CLOCK            =       0,
+    parameter int CLOCK_PERIOD_PS           =     500,
+    parameter int SW_CLOCK_UPDATE_PERIOD_PS = 100_000,
+    rv_tester_pkg::cfg_t CFG                =      '0,
     `RV_TESTER_PARAMETERS(CFG)
 ) (
     input clk_ext,
@@ -14,15 +14,16 @@ module rv_tester #(
         assign clk = clk_ext;
     end else begin
         logic clkgen = '0;
-        initial forever #(CLOCK_PERIOD/2) clkgen = !clkgen;
+        initial forever #(CLOCK_PERIOD_PS*1ps/2) clkgen = !clkgen;
         assign clk = clkgen;
     end
 
     sysmod#(
         .RESET_CLOCKS(RESET_CLOCKS),
-        .CLOCK_PERIOD(CLOCK_PERIOD),
-        .SW_CLOCK_UPDATE_PERIOD(SW_CLOCK_UPDATE_PERIOD),
-        .CFG(CFG)
+        .CLOCK_PERIOD_PS(CLOCK_PERIOD_PS),
+        .SW_CLOCK_UPDATE_PERIOD_PS(SW_CLOCK_UPDATE_PERIOD_PS),
+        .CFG(CFG),
+        .NUM(0)
     ) sysmod (
         .clk,
         .reset,
@@ -30,6 +31,7 @@ module rv_tester #(
         .interrupt
     );
 
+`ifndef NO_COSIM
     for (genvar n = 0; n < CFG.NRET; n++) begin
         cosim #(
             .CFG(CFG)
@@ -39,13 +41,15 @@ module rv_tester #(
             .rvfi(rvfi_instr[n])
         );
     end
+`endif
 
     for (genvar p = 0; p < CFG.AXI_PORTS; p++) begin
         axi_sw #(
             .ADDR_WIDTH(CFG.AXI_ADDR_WIDTH),
             .DATA_WIDTH(CFG.AXI_DATA_WIDTH),
             .ID_WIDTH  (CFG.AXI_ID_WIDTH  ),
-            .POLL_DEFAULT(1) // Use 0 or runtime +axi_sw_r_poll for Zebu
+            .POLL_DEFAULT(1), // Use 0 or runtime +axi_sw_r_poll for Zebu
+            .SYSMOD_NUM(0)
         ) axi_sw(
             .clk,
             .reset_n(~reset),

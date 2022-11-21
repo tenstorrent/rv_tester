@@ -9,7 +9,7 @@ class sysmod : public endpoint {
 
   public:
 
-    sysmod(svScope& scope, const std::string& spec);
+    sysmod();
 
     ~sysmod();
 
@@ -23,6 +23,7 @@ class sysmod : public endpoint {
     void load_prog(const std::string& prog);
     void tick(uint64_t advance);
     void flush_cbs();
+    void set_scope(svScope s) { scope_ = s; }
 
   private:
 

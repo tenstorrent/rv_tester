@@ -1,6 +1,7 @@
 #include <iostream>
 #include <thread>
 #include <cassert>
+#include <unordered_map>
 #include "sysmod.h"
 #include "mem/mem.h"
 #include "clint/clint.h"
@@ -17,11 +18,9 @@ extern "C" {
   void sysmod_terminate();
 }
 
-sysmod::sysmod(svScope& scope, const std::string& memmap)
-  : scope_(scope)
-{
-  compose(memmap);
-}
+sysmod::sysmod()
+  : scope_(nullptr)
+{}
 
 sysmod::~sysmod()
 {
@@ -137,12 +136,17 @@ sysmod::flush_cbs()
 
 extern "C" {
 
-  sysmod* sysmod_new(const char* memmap) {
+  void sysmod_set_scope(sysmod* s) {
     svScope scope = svGetScope();
-    return new sysmod(scope, std::string(memmap));
+    s->set_scope(scope);
+  }
+
+  void sysmod_compose(sysmod* s, const char* memmap) {
+    s->compose(std::string(memmap));
   }
 
   void sysmod_load_program(sysmod* s, const char* prog) {
+    std::cout << "loading " << prog << "\n";
     s->load_prog(std::string(prog));
   }
 
@@ -152,5 +156,21 @@ extern "C" {
 
   void sysmod_flush_cbs(sysmod* s) {
     s->flush_cbs();
+  }
+
+  sysmod* sysmod_get(int num) {
+      std::cout << "getting sysmod\n";
+      static std::unordered_map<int, sysmod> sysmods;
+      auto it = sysmods.find(num);
+
+      if (it == sysmods.end()) {
+        std::cout << "creating sysmod\n";
+          it = sysmods.emplace(
+                  std::piecewise_construct,
+                  std::make_tuple(num),
+                  std::make_tuple()
+                  ).first;
+      }
+      return &(it->second);
   }
 }

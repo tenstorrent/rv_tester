@@ -1,8 +1,9 @@
 module sysmod #(
-    parameter int  RESET_CLOCKS           =    10,
-    parameter time CLOCK_PERIOD           = 500ps,
-    parameter time SW_CLOCK_UPDATE_PERIOD = 100ns,
-    rv_tester_pkg::cfg_t CFG              =    '0,
+    parameter int RESET_CLOCKS              =      10,
+    parameter int CLOCK_PERIOD_PS           =     500,
+    parameter int SW_CLOCK_UPDATE_PERIOD_PS = 100_000,
+    rv_tester_pkg::cfg_t CFG                =      '0,
+    parameter int  NUM                      =      -1,
     `RV_TESTER_PARAMETERS(CFG)
 )(
     input clk,
@@ -10,22 +11,23 @@ module sysmod #(
     output bootstrap_t bootstrap,
     output rv_tester_pkg::interrupt_t interrupt
 );
-    import "DPI-C" context function chandle sysmod_new(string memmap);
-    import "DPI-C" function void sysmod_load_program(chandle sysmod_p, string prog);
     import "DPI-C" function void sysmod_tick(chandle sysmod_p, longint unsigned advance);
     import "DPI-C" context function void sysmod_flush_cbs(chandle sysmod_p);
 
-    chandle _sm = null;
-    string prog;
-    function chandle init();
-        if (_sm == null) begin
-            _sm = sysmod_new("memmap.json");
-        end
+    import "DPI-C" function chandle sysmod_set_scope(chandle sysmod_p);
+    import "DPI-C" function void sysmod_compose(chandle sysmod_p, string memmap);
+    import "DPI-C" function void sysmod_load_program(chandle sysmod_p, string prog);
+
+    chandle _sm;
+    initial begin 
+        string prog;
+        _sm = sysmod_pkg::get(NUM);
+        sysmod_set_scope(_sm);
+        sysmod_compose(_sm, "memmap.json");
         if ($value$plusargs("hex=%s", prog)) begin
           sysmod_load_program(_sm, prog);
         end
-        return _sm;
-    endfunction
+    end
 
     longint unsigned clocks = 0;
     always @(posedge clk) begin
@@ -43,10 +45,11 @@ module sysmod #(
     endfunction
     export "DPI-C" function sysmod_terminate;
 
+    localparam int TICKS = SW_CLOCK_UPDATE_PERIOD_PS/CLOCK_PERIOD_PS;
     always @(posedge clk) begin
         // FIXME: should be queued up in separate thread
-        if (0 == (clocks % (SW_CLOCK_UPDATE_PERIOD/CLOCK_PERIOD))) begin
-            sysmod_tick(_sm, (SW_CLOCK_UPDATE_PERIOD/CLOCK_PERIOD));
+        if (0 == (clocks % TICKS)) begin
+            sysmod_tick(_sm, TICKS);
         end
     end
 

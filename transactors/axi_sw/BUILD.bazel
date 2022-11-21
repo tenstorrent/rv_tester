@@ -6,6 +6,9 @@ verilog_library(
     srcs = [
         "axi_sw.sv"
     ],
+    deps = [
+        "//sysmod:sysmod_pkg",
+    ],
     visibility = ["//visibility:public"],
 )
 
