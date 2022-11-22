@@ -23,7 +23,7 @@ def rv_tester_repositories():
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/bazel_rules_hdl/-/archive/{commit}/bazel_rules_hdl-{commit}.tar.bz2".format(commit=rules_hdl_hash),
     )
 
-    cosim_hash="042a2e72e9516cf7b10881cfe6309f180abe10b5"
+    cosim_hash="fec036837a380c21291dcd36340f6dcb58202091"
     maybe(
         git_repository,
           name = "cosim",
