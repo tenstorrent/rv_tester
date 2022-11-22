@@ -14,14 +14,17 @@ module sysmod #(
     import "DPI-C" function void sysmod_tick(chandle sysmod_p, longint unsigned advance);
     import "DPI-C" context function void sysmod_flush_cbs(chandle sysmod_p);
 
-    import "DPI-C" function chandle sysmod_set_scope(chandle sysmod_p);
+    import "DPI-C" function chandle sysmod_get(int num);
+
+    import "DPI-C" context function void sysmod_set_scope(chandle sysmod_p);
     import "DPI-C" function void sysmod_compose(chandle sysmod_p, string memmap);
     import "DPI-C" function void sysmod_load_program(chandle sysmod_p, string prog);
 
     chandle _sm;
     initial begin 
         string prog;
-        _sm = sysmod_pkg::get(NUM);
+        _sm = sysmod_get(NUM);
+        $display("setting scope %m");
         sysmod_set_scope(_sm);
         sysmod_compose(_sm, "memmap.json");
         if ($value$plusargs("hex=%s", prog)) begin
@@ -45,7 +48,7 @@ module sysmod #(
     endfunction
     export "DPI-C" function sysmod_terminate;
 
-    localparam int TICKS = SW_CLOCK_UPDATE_PERIOD_PS/CLOCK_PERIOD_PS;
+    localparam longint unsigned TICKS = LU'(SW_CLOCK_UPDATE_PERIOD_PS)/LU'(CLOCK_PERIOD_PS);
     always @(posedge clk) begin
         // FIXME: should be queued up in separate thread
         if (0 == (clocks % TICKS)) begin

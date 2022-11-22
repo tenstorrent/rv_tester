@@ -40,6 +40,8 @@ sysmod::compose(const std::string& memmap)
   devices_.push_back(new mem("memory", 0x80000000, 0xc000000));
   devices_.push_back(new clint("clint", 0x200000, 1));
   devices_.push_back(new htif("htif", 0x70000000));
+  //devices_.push_back(new clint("clint", 0x2000000, 1));
+  //devices_.push_back(new htif("htif", 0x70081168));
 }
 
 device&
@@ -159,12 +161,10 @@ extern "C" {
   }
 
   sysmod* sysmod_get(int num) {
-      std::cout << "getting sysmod\n";
       static std::unordered_map<int, sysmod> sysmods;
       auto it = sysmods.find(num);
 
       if (it == sysmods.end()) {
-        std::cout << "creating sysmod\n";
           it = sysmods.emplace(
                   std::piecewise_construct,
                   std::make_tuple(num),
