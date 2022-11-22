@@ -39,8 +39,6 @@ module rv_tester #(
         .reset,
         .rvfi(rvfi_instr)
     );
-        );
-    end
 `endif
 
     for (genvar p = 0; p < CFG.AXI_PORTS; p++) begin
