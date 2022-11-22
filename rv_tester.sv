@@ -32,13 +32,13 @@ module rv_tester #(
     );
 
 `ifndef NO_COSIM
-    for (genvar n = 0; n < CFG.NRET; n++) begin
-        cosim #(
-            .CFG(CFG)
-        ) cosim (
-            .clk,
-            .reset,
-            .rvfi(rvfi_instr[n])
+    cosim #(
+        .CFG(CFG)
+    ) cosim (
+        .clk,
+        .reset,
+        .rvfi(rvfi_instr)
+    );
         );
     end
 `endif
