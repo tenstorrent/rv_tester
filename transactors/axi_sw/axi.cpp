@@ -1,5 +1,6 @@
 #include <thread>
 #include <cassert>
+#include <algorithm>
 #include "axi.h"
 
 void axi::a(const a_t& p) {
@@ -55,10 +56,40 @@ void axi::operator()() {
                 if (a.w) {
                     auto w = w_q_.dequeue();
                     assert(!!w.last == last);
-                    transactor::write(start, len, w.data, w.strb);
+
+                    // use std::shift_left in C++20
+                    std::rotate(
+                            std::begin(w.data),
+                            std::next(std::begin(w.data), lower_byte_lane),
+                            std::end(w.data)
+                            );
+
+                    std::rotate(
+                            std::begin(w.strb),
+                            std::next(std::begin(w.strb), lower_byte_lane*8),
+                            std::end(w.strb)
+                            );
+
+                    transactor::write(
+                            start,
+                            len,
+                            w.data,
+                            w.strb
+                    );
                 } else {
-                    axi::data_t data(data_width(), 0);
-                    transactor::read(start, len, data);
+                    axi::data_t data(data_bus_bytes, 0);
+                    transactor::read(
+                            start,
+                            len,
+                            data
+                            );
+
+                    // use std::shift_right in C++20
+                    std::rotate(
+                            std::begin(data),
+                            std::next(std::begin(data), data_bus_bytes - lower_byte_lane),
+                            std::end(data)
+                            );
                     r_q_.enqueue(r_t{a.id, data, last});
                 }
             }
@@ -71,8 +102,7 @@ void axi::operator()() {
                             addr = lower_wrap_boundary;
                         }
                     }
-                }
-                else {
+                } else {
                     addr = aligned_addr + num_bytes;
                     aligned = true;
                 }
