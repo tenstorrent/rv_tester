@@ -49,6 +49,7 @@ class axi_sw {
 
         void r(bool block = false);
 
-        axi::data_width_t data_width() const { return axi_->data_width(); }
+        axi::data_width_t   data_width()   const { return axi_->data_width()  ; }
+        axi::strobe_width_t strobe_width() const { return axi_->strobe_width(); }
 
 };

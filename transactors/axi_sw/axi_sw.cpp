@@ -73,7 +73,7 @@ extern "C" {
   }
 
   void axi_sw_w(axi_sw* a, const axi::datum_t* data, const axi::strbum_t* strb, axi::last_t last) {
-    axi::strb_t vstrb(a->data_width(), false);
+    axi::strb_t vstrb(a->strobe_width(), false);
     for (std::size_t i = 0; i < vstrb.size(); i++) {
         vstrb[i] = (strb[i/8] >> (i%8)) & 1;
     }

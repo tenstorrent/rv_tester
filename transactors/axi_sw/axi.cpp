@@ -66,7 +66,7 @@ void axi::operator()() {
 
                     std::rotate(
                             std::begin(w.strb),
-                            std::next(std::begin(w.strb), lower_byte_lane*8),
+                            std::next(std::begin(w.strb), lower_byte_lane),
                             std::end(w.strb)
                             );
 
