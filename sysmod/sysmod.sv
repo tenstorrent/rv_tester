@@ -19,6 +19,7 @@ module sysmod #(
     import "DPI-C" context function void sysmod_set_scope(chandle sysmod_p);
     import "DPI-C" function void sysmod_compose(chandle sysmod_p, string memmap);
     import "DPI-C" function void sysmod_load_program(chandle sysmod_p, string prog);
+    import "DPI-C" function void sysmod_reset(chandle sysmod_p);
 
     chandle _sm;
     initial begin 

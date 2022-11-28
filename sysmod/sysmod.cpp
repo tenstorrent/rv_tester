@@ -136,6 +136,15 @@ sysmod::flush_cbs()
   callbacks_.clear();
 }
 
+void
+sysmod::reset()
+{
+  std::lock_guard<std::mutex> lock(sys_m);
+  for (auto& d: devices_) {
+    d->reset();
+  }
+}
+
 extern "C" {
 
   void sysmod_set_scope(sysmod* s) {
@@ -172,5 +181,9 @@ extern "C" {
                   ).first;
       }
       return &(it->second);
+  }
+
+  void sysmod_reset(sysmod* s) {
+    s->reset();
   }
 }

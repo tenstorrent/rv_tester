@@ -18,6 +18,9 @@ class mem : public device {
         virtual void read(uint64_t addr, size_t length,
                           data_t& data, cbs_t& cbs) override;
 
+        virtual void reset() override
+        { m_.clear(); }
+
         // add max mem size
         mem(const std::string& tag, uint64_t addr, size_t size) : device(tag, addr, size) {}
 
