@@ -70,6 +70,7 @@ module sysmod #(
     export "DPI-C" function sysmod_sw_interrupt;
 
     always_ff @(posedge clk) begin
+        if (reset) interrupt_d <= '0;
         interrupt_q <= interrupt_d;
 
         // FIXME: add poll
