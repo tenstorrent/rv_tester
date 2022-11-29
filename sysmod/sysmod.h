@@ -23,6 +23,7 @@ class sysmod : public endpoint {
     void load_prog(const std::string& prog);
     void tick(uint64_t advance);
     void flush_cbs();
+    void reset();
     void set_scope(svScope s) { scope_ = s; }
 
   private:

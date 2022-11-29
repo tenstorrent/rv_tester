@@ -64,6 +64,16 @@ public:
     processTimerInterrupts(cbs);
   }
 
+  virtual void reset() override
+  {
+    timer_ = 0;
+    for (unsigned i = 0; i < hartCount_; ++i)
+      {
+        soft_.at(i) = 0;
+        timeCompare_.at(i) = 0;
+      }
+  }
+
 protected:
 
   /// Assert/deassert the timer interrupt for each hart where the
