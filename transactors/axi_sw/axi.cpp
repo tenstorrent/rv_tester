@@ -3,6 +3,86 @@
 #include <algorithm>
 #include "axi.h"
 
+template <typename T> void atop_arithmetic(const axi::data_t& read_data, axi::data_t& write_data, const axi::atop_operation operation, const axi::len_t& len) {
+
+    T read = 0, write = 0;
+    for (axi::len_t i = 0; i < len; i++) {
+        read  |= read_data [i] << (8*i);
+        write |= write_data[i] << (8*i);
+    }
+
+    T result;
+
+    if (operation == axi::ATOP_SMAX || operation == axi::ATOP_UMAX)
+        result = std::max(read, write);
+    else if(operation == axi::ATOP_SMIN || operation == axi::ATOP_UMIN)
+        result = std::min(read, write);
+    else if(operation == axi::ATOP_ADD)
+        result = read + write;
+    else
+        assert(false && "unknown operation");
+
+    for (axi::len_t i = 0; i < len; i++) {
+        write_data[i] = (result >> (8*i)) & 0xff;
+    }
+}
+
+void axi::atop_modify_write_data(const atop_t& atop, const data_t& read_data, data_t& write_data, const len_t& len) {
+    if (atop.transaction == NON_ATOMIC) return;
+    assert(atop.transaction == ATOMIC_LOAD && "only atomic loads supported");
+
+    atop_operation op = atop.operation;
+    const std::array<atop_operation, 3> bitwise_ops = {
+        ATOP_CLR,
+        ATOP_EOR,
+        ATOP_SET,
+    };
+    bool bitwise = std::find(bitwise_ops.begin(), bitwise_ops.end(), op) != bitwise_ops.end();
+
+    if (!bitwise) {
+        bool sign = op == ATOP_SMIN || op == ATOP_SMAX;
+
+        switch(len) {
+            case 1:
+                if (sign) atop_arithmetic<std::int8_t>(read_data, write_data, op, len);
+                else      atop_arithmetic<std::uint8_t>(read_data, write_data, op, len);
+                break;
+            case 2:
+                if (sign) atop_arithmetic<std::int16_t>(read_data, write_data, op, len);
+                else      atop_arithmetic<std::uint16_t>(read_data, write_data, op, len);
+                break;
+            case 4:
+                if (sign) atop_arithmetic<std::int32_t>(read_data, write_data, op, len);
+                else      atop_arithmetic<std::uint32_t>(read_data, write_data, op, len);
+                break;
+            case 8:
+                if (sign) atop_arithmetic<std::int64_t>(read_data, write_data, op, len);
+                else      atop_arithmetic<std::uint64_t>(read_data, write_data, op, len);
+                break;
+            default:
+                assert(false && "unknown len");
+        }
+
+    } else {
+
+        for (len_t i = 0; i < len; i++) {
+            switch(op) {
+                case ATOP_CLR:
+                    write_data[i] = read_data[i] & ~write_data[i];
+                    break;
+                case ATOP_EOR:
+                    write_data[i] = read_data[i] ^  write_data[i];
+                    break;
+                case ATOP_SET:
+                    write_data[i] = read_data[i] |  write_data[i];
+                    break;
+                default:
+                    assert(false && "unknown op");
+            }
+        }
+    }
+}
+
 void axi::a(const a_t& p) {
     a_q_.enqueue(p);
 }
@@ -53,9 +133,20 @@ void axi::operator()() {
                 addr_t start  = (addr / strobe_width()) * strobe_width() + lower_byte_lane;
                 addr_t len    = upper_byte_lane - lower_byte_lane + 1;
 
+                bool do_read = !a.w || a.atop.transaction != NON_ATOMIC;
+                axi::data_t read_data(data_bus_bytes, 0);
+                if (do_read) {
+                    transactor::read(
+                            start,
+                            len,
+                            read_data
+                            );
+                }
+
                 if (a.w) {
                     auto w = w_q_.dequeue();
                     assert(!!w.last == last);
+                    std::cout << "atop " << a.atop.transaction << " " << a.atop.operation << "\n";
 
                     // use std::shift_left in C++20
                     std::rotate(
@@ -70,27 +161,25 @@ void axi::operator()() {
                             std::end(w.strb)
                             );
 
+
+                    atop_modify_write_data(a.atop, read_data, w.data, len);
+
                     transactor::write(
                             start,
                             len,
                             w.data,
                             w.strb
                     );
-                } else {
-                    axi::data_t data(data_bus_bytes, 0);
-                    transactor::read(
-                            start,
-                            len,
-                            data
-                            );
+                }
 
+                if (do_read) {
                     // use std::shift_right in C++20
                     std::rotate(
-                            std::begin(data),
-                            std::next(std::begin(data), data_bus_bytes - lower_byte_lane),
-                            std::end(data)
+                            std::begin(read_data),
+                            std::next(std::begin(read_data), data_bus_bytes - lower_byte_lane),
+                            std::end(read_data)
                             );
-                    r_q_.enqueue(r_t{a.id, data, last});
+                    r_q_.enqueue(r_t{a.id, read_data, last});
                 }
             }
 

@@ -7,6 +7,7 @@
     parameter type axi_id_t     = logic [CFG.AXI_ID_WIDTH  -1:0],              \
     parameter type axi_strb_t   = logic [    AXI_STRB_WIDTH-1:0],              \
                                                                                \
+    parameter type axi_atop_t   = logic [5:0],                                 \
     parameter type axi_burst_t  = logic [1:0],                                 \
     parameter type axi_resp_t   = logic [1:0],                                 \
     parameter type axi_len_t    = logic [7:0],                                 \
@@ -57,6 +58,7 @@
         axi_len_t               aw_len   ;                                     \
         axi_size_t              aw_size  ;                                     \
         axi_burst_t             aw_burst ;                                     \
+        axi_atop_t              aw_atop  ;                                     \
                                                                                \
         logic                   w_valid  ;                                     \
         axi_data_t              w_data   ;                                     \

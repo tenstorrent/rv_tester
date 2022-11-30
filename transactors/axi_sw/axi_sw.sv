@@ -17,6 +17,7 @@ module axi_sw #(
     parameter type strb_t   = logic [STRB_WIDTH-1:0],
 
     parameter type burst_t  = logic [1:0],
+    parameter type atop_t   = logic [5:0],
     parameter type resp_t   = logic [1:0],
     parameter type len_t    = logic [7:0],
     parameter type size_t   = logic [2:0]
@@ -43,6 +44,7 @@ module axi_sw #(
     input  size_t            axi_mst_aw_size,
     input  burst_t           axi_mst_aw_burst,
     // verilator lint_off UNUSED
+    input  atop_t            axi_mst_aw_atop,
     input  logic             axi_mst_aw_lock,
     // verilator lint_on UNUSED
 
@@ -91,7 +93,7 @@ module axi_sw #(
     typedef longint unsigned UL;
 
     import "DPI-C" context function chandle axi_sw_new(chandle endpoint_p, byte unsigned poll, int unsigned data_width, string tag, int unsigned r_q_max, int unsigned r_q_ptr_max);
-    import "DPI-C" function void axi_sw_aw(chandle axi_sw_p, int unsigned id, longint unsigned addr, byte unsigned len, byte unsigned size, byte unsigned burst);
+    import "DPI-C" function void axi_sw_aw(chandle axi_sw_p, int unsigned id, longint unsigned addr, byte unsigned len, byte unsigned size, byte unsigned burst, byte unsigned atop);
     import "DPI-C" function void axi_sw_ar(chandle axi_sw_p, int unsigned id, longint unsigned addr, byte unsigned len, byte unsigned size, byte unsigned burst);
     import "DPI-C" function void axi_sw_w(chandle axi_sw_p, dpi_data data, dpi_strb strb, byte unsigned last);
     import "DPI-C" function void axi_sw_r_ptr(chandle axi_sw_p, int unsigned r_ptr);
@@ -210,7 +212,7 @@ module axi_sw #(
     always_ff @(posedge clk) begin
         if (reset_n) begin
             if (axi_mst_aw_valid && axi_slv_aw_ready) begin
-                axi_sw_aw(axi_sw_p, UI'(axi_mst_aw_id), UL'(axi_mst_aw_addr), UB'(axi_mst_aw_len), UB'(axi_mst_aw_size), UB'(axi_mst_aw_burst));
+                axi_sw_aw(axi_sw_p, UI'(axi_mst_aw_id), UL'(axi_mst_aw_addr), UB'(axi_mst_aw_len), UB'(axi_mst_aw_size), UB'(axi_mst_aw_burst), UB'(axi_mst_aw_atop));
             end
             if (axi_mst_ar_valid && axi_slv_ar_ready) begin
                 axi_sw_ar(axi_sw_p, UI'(axi_mst_ar_id), UL'(axi_mst_ar_addr), UB'(axi_mst_ar_len), UB'(axi_mst_ar_size), UB'(axi_mst_ar_burst));

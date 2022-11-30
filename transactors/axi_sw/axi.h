@@ -28,6 +28,39 @@ class axi : public transactor {
         typedef std::uint8_t  last_t      ;
         typedef std::uint16_t beat_t      ;
 
+        typedef enum {
+            NON_ATOMIC,
+            ATOMIC_STORE,
+            ATOMIC_LOAD,
+            ATOMIC_SWAP,
+            ATOMIC_COMPARE,
+        } atop_transaction;
+
+        typedef enum {
+            ATOP_ADD,
+            ATOP_CLR,
+            ATOP_EOR,
+            ATOP_SET,
+            ATOP_SMAX,
+            ATOP_SMIN,
+            ATOP_UMAX,
+            ATOP_UMIN,
+            ATOP_INVALID,
+        } atop_operation;
+
+        struct atop_t {
+            const atop_transaction transaction;
+            const atop_operation   operation;
+            constexpr atop_t(std::uint8_t raw) :
+                transaction(
+                        atop_transaction(
+                            raw >> 4 == 3 ? 
+                            ((raw >> 4) + (raw & 1)) :
+                            raw >> 4
+                        )),
+                operation(atop_operation(raw & 0xf)) {}
+        };
+
         struct a_t {
             bool    w    ;
             id_t    id   ;
@@ -35,6 +68,7 @@ class axi : public transactor {
             len_t   len  ;
             sz_t    size ;
             burst_t burst;
+            atop_t  atop = atop_t(0);
         };
 
         struct w_t {
@@ -71,6 +105,7 @@ class axi : public transactor {
 
         void operator()();
         void run();
+        void atop_modify_write_data(const atop_t& atop, const data_t& read_data, data_t& write_data, const len_t& len);
 
     public:
 

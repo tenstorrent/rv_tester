@@ -64,6 +64,7 @@ module rv_tester #(
             .axi_mst_aw_len  (axi_req[p].aw_len),
             .axi_mst_aw_size (axi_req[p].aw_size),
             .axi_mst_aw_burst(axi_req[p].aw_burst),
+            .axi_mst_aw_atop (axi_req[p].aw_atop),
          
             .axi_mst_w_valid(axi_req[p].w_valid),
             .axi_mst_w_data (axi_req[p].w_data),
