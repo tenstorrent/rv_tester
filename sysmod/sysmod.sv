@@ -57,7 +57,8 @@ module sysmod #(
         end
     end
 
-    rv_tester_pkg::interrupt_t interrupt_d, interrupt_q;
+    rv_tester_pkg::interrupt_t /* verilator lint_off BLKANDNBLK */ interrupt_d /* verilator lint_on BLKANDNBLK */;
+    rv_tester_pkg::interrupt_t interrupt_q;
     assign interrupt = interrupt_q;
 
     function automatic sysmod_timer_interrupt (unsigned hartid, unsigned val);
