@@ -146,7 +146,6 @@ void axi::operator()() {
                 if (a.w) {
                     auto w = w_q_.dequeue();
                     assert(!!w.last == last);
-                    std::cout << "atop " << a.atop.transaction << " " << a.atop.operation << "\n";
 
                     // use std::shift_left in C++20
                     std::rotate(

@@ -69,7 +69,6 @@ extern "C" {
   }
 
   void axi_sw_ar(axi_sw* a, axi::id_t id, axi::addr_t addr, axi::len_t len, axi::sz_t size, axi::burst_t burst) {
-      std::cout << "ar" << "\n";
     a->a(axi::a_t{false, id, addr, len, size, burst});
   }
 
