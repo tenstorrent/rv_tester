@@ -19,6 +19,10 @@ class axi : public transactor {
             BURST_INCR ,
             BURST_WRAP ,
         } burst_t;
+        typedef enum : std::uint8_t {
+            RESP_OKAY  ,
+            RESP_EXOKAY,
+        } resp_t;
         typedef std::uint8_t  datum_t ;
         typedef std::uint8_t  strbum_t;
         typedef std::vector<datum_t > data_t;
@@ -68,6 +72,7 @@ class axi : public transactor {
             len_t   len  ;
             sz_t    size ;
             burst_t burst;
+            bool    lock ;
             atop_t  atop = atop_t(0);
         };
 
@@ -84,6 +89,7 @@ class axi : public transactor {
 
         struct r_t {
             id_t   id  ;
+            resp_t resp;
             data_t data;
             last_t last;
 

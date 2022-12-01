@@ -2,7 +2,7 @@
 
 extern "C" {
 
-  void axi_sw_r(axi::id_t id, const axi::datum_t* data, axi::last_t last);
+  void axi_sw_r(axi::id_t id, axi::resp_t resp, const axi::datum_t* data, axi::last_t last);
 }
 
 axi_sw::axi_sw(const svScope& scope, endpoint* e, bool r_poll, const axi::data_width_t& data_width, const std::string& tag, const r_q_ptr_t& r_q_max, const r_q_ptr_t& r_q_ptr_max)
@@ -35,7 +35,7 @@ void axi_sw::r(bool block) {
       }
       r_q_wptr_ = (r_q_wptr_ + 1) % r_q_ptr_max_;
       svSetScope(scope_);
-      axi_sw_r(r.id, r.data.data(), r.last);
+      axi_sw_r(r.id, r.resp, r.data.data(), r.last);
     } else {
       std::unique_lock<std::mutex> lock(r_q_rptr_m_);
       if ( (r_q_wptr_ - r_q_rptr_) >= r_q_max_ ) {
@@ -47,7 +47,7 @@ void axi_sw::r(bool block) {
       }
       r_q_wptr_ = (r_q_wptr_ + 1) % r_q_ptr_max_;
       svSetScope(scope_);
-      axi_sw_r(r.id, r.data.data(), r.last);
+      axi_sw_r(r.id, r.resp, r.data.data(), r.last);
     }
 }
 
@@ -64,12 +64,12 @@ extern "C" {
     return new axi_sw(scope, e, r_poll, data_width, tag, r_q_max, r_q_ptr_max);
   }
 
-  void axi_sw_aw(axi_sw* a, axi::id_t id, axi::addr_t addr, axi::len_t len, axi::sz_t size, axi::burst_t burst, std::uint8_t atop) {
-    a->a(axi::a_t{true , id, addr, len, size, burst, atop});
+  void axi_sw_aw(axi_sw* a, axi::id_t id, axi::addr_t addr, axi::len_t len, axi::sz_t size, axi::burst_t burst, std::uint8_t lock, std::uint8_t atop) {
+    a->a(axi::a_t{true , id, addr, len, size, burst, lock != 0, atop});
   }
 
-  void axi_sw_ar(axi_sw* a, axi::id_t id, axi::addr_t addr, axi::len_t len, axi::sz_t size, axi::burst_t burst) {
-    a->a(axi::a_t{false, id, addr, len, size, burst});
+  void axi_sw_ar(axi_sw* a, axi::id_t id, axi::addr_t addr, axi::len_t len, axi::sz_t size, axi::burst_t burst, std::uint8_t lock) {
+    a->a(axi::a_t{false, id, addr, len, size, burst, lock != 0});
   }
 
   void axi_sw_w(axi_sw* a, const axi::datum_t* data, const axi::strbum_t* strb, axi::last_t last) {

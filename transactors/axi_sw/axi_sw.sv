@@ -33,9 +33,7 @@ module axi_sw #(
     input  len_t             axi_mst_ar_len,
     input  size_t            axi_mst_ar_size,
     input  burst_t           axi_mst_ar_burst,
-    // verilator lint_off UNUSED
     input  logic             axi_mst_ar_lock,
-    // verilator lint_on UNUSED
 
     input  logic             axi_mst_aw_valid,
     input  id_t              axi_mst_aw_id,
@@ -43,10 +41,8 @@ module axi_sw #(
     input  len_t             axi_mst_aw_len,
     input  size_t            axi_mst_aw_size,
     input  burst_t           axi_mst_aw_burst,
-    // verilator lint_off UNUSED
     input  atop_t            axi_mst_aw_atop,
     input  logic             axi_mst_aw_lock,
-    // verilator lint_on UNUSED
 
     input  logic             axi_mst_w_valid,
     input  data_t            axi_mst_w_data,
@@ -72,7 +68,8 @@ module axi_sw #(
 
 );
 
-    localparam B_OKAY   = 2'b00;
+    localparam RESP_OKAY   = 2'b00;
+    localparam RESP_EXOKAY = 2'b01;
 
     typedef struct packed {
         id_t   id  ;
@@ -93,8 +90,8 @@ module axi_sw #(
     typedef longint unsigned UL;
 
     import "DPI-C" context function chandle axi_sw_new(chandle endpoint_p, byte unsigned poll, int unsigned data_width, string tag, int unsigned r_q_max, int unsigned r_q_ptr_max);
-    import "DPI-C" function void axi_sw_aw(chandle axi_sw_p, int unsigned id, longint unsigned addr, byte unsigned len, byte unsigned size, byte unsigned burst, byte unsigned atop);
-    import "DPI-C" function void axi_sw_ar(chandle axi_sw_p, int unsigned id, longint unsigned addr, byte unsigned len, byte unsigned size, byte unsigned burst);
+    import "DPI-C" function void axi_sw_aw(chandle axi_sw_p, int unsigned id, longint unsigned addr, byte unsigned len, byte unsigned size, byte unsigned burst, byte unsigned lock, byte unsigned atop);
+    import "DPI-C" function void axi_sw_ar(chandle axi_sw_p, int unsigned id, longint unsigned addr, byte unsigned len, byte unsigned size, byte unsigned burst, byte unsigned lock);
     import "DPI-C" function void axi_sw_w(chandle axi_sw_p, dpi_data data, dpi_strb strb, byte unsigned last);
     import "DPI-C" function void axi_sw_r_ptr(chandle axi_sw_p, int unsigned r_ptr);
     import "DPI-C" context function void axi_sw_r_poll(chandle axi_sw_p);
@@ -126,7 +123,7 @@ module axi_sw #(
         axi_sw_p = axi_sw_new(sysmod_pkg::get(SYSMOD_NUM), byte'(r_poll), DATA_WIDTH, tag, R_FIFO_DEPTH, 1 << $bits(r_queue_ptr_t));
     end
 
-    function automatic axi_sw_r (int unsigned id, dpi_data data, byte unsigned last);
+    function automatic axi_sw_r (int unsigned id, byte unsigned resp, dpi_data data, byte unsigned last);
         data_t d;
         r_t r;
         assert(!r_queue_full);
@@ -134,7 +131,7 @@ module axi_sw #(
         for (int i = 0; i < $size(dpi_data); i++) begin
             d[8*i +: 8] = data[i];
         end
-        r = '{id: id_t'(id), data: data_t'(d), resp: B_OKAY, last: 1'(last)};
+        r = '{id: id_t'(id), data: data_t'(d), resp: 2'(resp), last: 1'(last)};
         r_queue[r_queue_idx_t'(r_queue_wptr % RFD)] = r;
         r_queue_wptr++;
     endfunction
@@ -174,24 +171,26 @@ module axi_sw #(
         end
     end
 
+    logic b_queue_aw_lock;
+
     assign axi_slv_aw_ready = !b_queue_full;
     assign axi_slv_ar_ready = '1;
     assign axi_slv_w_ready  = !axi_mst_w_last || !w_last_queue_full;
     assign axi_slv_b_valid  = !b_queue_empty && !w_last_queue_empty;
-    assign axi_slv_b_resp   = B_OKAY;
+    assign axi_slv_b_resp   = b_queue_aw_lock ? RESP_EXOKAY : RESP_OKAY;
     assign axi_slv_r_valid  = !r_queue_empty;
 
     axi_sw_fifo #(
         .D         (1),
-        .T         (id_t)
+        .T         (logic[$bits(id_t)+1-1:0])
     ) b_queue (
         .clk         (clk                                 ),
         .reset_n     (reset_n                             ),
         .full        (b_queue_full                        ),
         .empty       (b_queue_empty                       ),
-        .d           (axi_mst_aw_id                       ),
+        .d           ({axi_mst_aw_id, axi_mst_aw_lock}    ),
         .push        (axi_mst_aw_valid && axi_slv_aw_ready),
-        .q           (axi_slv_b_id                        ),
+        .q           ({axi_slv_b_id , b_queue_aw_lock}    ),
         .pop         (axi_slv_b_valid && axi_mst_b_ready  )
     );
 
@@ -212,10 +211,10 @@ module axi_sw #(
     always_ff @(posedge clk) begin
         if (reset_n) begin
             if (axi_mst_aw_valid && axi_slv_aw_ready) begin
-                axi_sw_aw(axi_sw_p, UI'(axi_mst_aw_id), UL'(axi_mst_aw_addr), UB'(axi_mst_aw_len), UB'(axi_mst_aw_size), UB'(axi_mst_aw_burst), UB'(axi_mst_aw_atop));
+                axi_sw_aw(axi_sw_p, UI'(axi_mst_aw_id), UL'(axi_mst_aw_addr), UB'(axi_mst_aw_len), UB'(axi_mst_aw_size), UB'(axi_mst_aw_burst), UB'(axi_mst_aw_lock), UB'(axi_mst_aw_atop));
             end
             if (axi_mst_ar_valid && axi_slv_ar_ready) begin
-                axi_sw_ar(axi_sw_p, UI'(axi_mst_ar_id), UL'(axi_mst_ar_addr), UB'(axi_mst_ar_len), UB'(axi_mst_ar_size), UB'(axi_mst_ar_burst));
+                axi_sw_ar(axi_sw_p, UI'(axi_mst_ar_id), UL'(axi_mst_ar_addr), UB'(axi_mst_ar_len), UB'(axi_mst_ar_size), UB'(axi_mst_ar_burst), UB'(axi_mst_ar_lock));
             end
             if (axi_mst_w_valid && axi_slv_w_ready) begin
                 automatic dpi_data data;
