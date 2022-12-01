@@ -51,6 +51,7 @@
         axi_len_t               ar_len   ;                                     \
         axi_size_t              ar_size  ;                                     \
         axi_burst_t             ar_burst ;                                     \
+        logic                   ar_lock  ;                                     \
                                                                                \
         logic                   aw_valid ;                                     \
         axi_id_t                aw_id    ;                                     \
@@ -58,6 +59,7 @@
         axi_len_t               aw_len   ;                                     \
         axi_size_t              aw_size  ;                                     \
         axi_burst_t             aw_burst ;                                     \
+        logic                   aw_lock  ;                                     \
         axi_atop_t              aw_atop  ;                                     \
                                                                                \
         logic                   w_valid  ;                                     \
