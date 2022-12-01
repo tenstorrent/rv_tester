@@ -29,7 +29,11 @@ template <typename T> void atop_arithmetic(const axi::data_t& read_data, axi::da
 
 void axi::atop_modify_write_data(const atop_t& atop, const data_t& read_data, data_t& write_data, const len_t& len) {
     if (atop.transaction == NON_ATOMIC) return;
-    assert(atop.transaction == ATOMIC_LOAD && "only atomic loads supported");
+    if (atop.transaction == ATOMIC_SWAP) return;
+    if (atop.transaction == ATOMIC_COMPARE) {
+        assert(false && "atomic compare not supported");
+        return;
+    }
 
     atop_operation op = atop.operation;
     const std::array<atop_operation, 3> bitwise_ops = {
@@ -133,9 +137,8 @@ void axi::operator()() {
                 addr_t start  = (addr / strobe_width()) * strobe_width() + lower_byte_lane;
                 addr_t len    = upper_byte_lane - lower_byte_lane + 1;
 
-                bool do_read = !a.w || a.atop.transaction != NON_ATOMIC;
                 axi::data_t read_data(data_bus_bytes, 0);
-                if (do_read) {
+                if (!a.w || a.atop.transaction != NON_ATOMIC) {
                     transactor::read(
                             start,
                             len,
@@ -171,7 +174,7 @@ void axi::operator()() {
                     );
                 }
 
-                if (do_read) {
+                if (!a.w || (a.atop.transaction != NON_ATOMIC && a.atop.transaction != ATOMIC_STORE)) {
                     // use std::shift_right in C++20
                     std::rotate(
                             std::begin(read_data),
