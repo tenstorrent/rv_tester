@@ -21,12 +21,6 @@ public:
   virtual void write(uint64_t addr, size_t length, const data_t& data,
 		     const strb_t& strb, cbs_t& cbs) override;
 
-  virtual void reset() override
-  {
-    to_ = 0;
-    from_ = 0;
-  }
-
   // Copy n bytes from the given integer, x, to the data iterator
   // following little endian convention. If n is larger than the size
   // of x, then copy zero bytes after copying the bytes of x.

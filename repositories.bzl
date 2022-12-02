@@ -30,3 +30,10 @@ def rv_tester_repositories():
           commit = cosim_hash,
           remote = "git@aus-gitlab.local.tenstorrent.com:manees/cosim.git",
     )
+
+    maybe(
+        git_repository,
+          name = "com_github_gflags_gflags",
+          tag = "v2.2.2",
+          remote = "https://github.com/gflags/gflags.git",
+    )

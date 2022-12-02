@@ -3,9 +3,17 @@
 #include <cassert>
 #include <unordered_map>
 #include "sysmod.h"
+#include "rv_tester_flags.h"
 #include "mem/mem.h"
 #include "clint/clint.h"
 #include "htif/htif.h"
+
+
+// shared flag
+DEFINE_string(memmap, "", "Path to memory map json");
+
+// internal flags
+DEFINE_string(hex, "", "hex file (program) to load into memory");
 
 extern "C" {
   // used by CLINT to assert/deassert timer interrupt
@@ -25,15 +33,18 @@ sysmod::sysmod()
 sysmod::~sysmod()
 {
   for (auto& d : devices_)
-    if (d) {
-      delete d;
-      d = nullptr;
-    }
+    delete d;
+  devices_.clear();
 }
 
 void
 sysmod::compose(const std::string& memmap)
 {
+  std::lock_guard<std::mutex> lock(sys_m);
+  for (auto& d : devices_)
+    delete d;
+  devices_.clear();
+
   // ariane specifies bootrom/debug module regions we don't have here
   devices_.push_back(new mem("scratch", 0x8000000, 0x100000));
   // full length in ariane cfg is 0x40000000
@@ -136,29 +147,11 @@ sysmod::flush_cbs()
   callbacks_.clear();
 }
 
-void
-sysmod::reset()
-{
-  std::lock_guard<std::mutex> lock(sys_m);
-  for (auto& d: devices_) {
-    d->reset();
-  }
-}
-
 extern "C" {
 
   void sysmod_set_scope(sysmod* s) {
     svScope scope = svGetScope();
     s->set_scope(scope);
-  }
-
-  void sysmod_compose(sysmod* s, const char* memmap) {
-    s->compose(std::string(memmap));
-  }
-
-  void sysmod_load_program(sysmod* s, const char* prog) {
-    std::cout << "loading " << prog << "\n";
-    s->load_prog(std::string(prog));
   }
 
   void sysmod_tick(sysmod* s, uint64_t new_clock) {
@@ -184,6 +177,9 @@ extern "C" {
   }
 
   void sysmod_reset(sysmod* s) {
-    s->reset();
+    // possibly compose once?
+    s->compose(FLAGS_memmap);
+    std::cout << "loading " << FLAGS_hex << "\n";
+    s->load_prog(FLAGS_hex);
   }
 }

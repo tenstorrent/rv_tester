@@ -1,4 +1,4 @@
-load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")                                                                                                    
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
 
 
@@ -59,6 +59,7 @@ cc_library(
     deps = [
         "//transactors/axi_sw:axi_sw_dpi",
         "//sysmod:sysmod_dpi",
+        ":common"
     ] + select({
         ":cosim_off": [],
         "//conditions:default": ["@cosim//:cosim_dpi"],
@@ -68,7 +69,11 @@ cc_library(
 
 cc_library(
     name = "common",
-    hdrs = [ "common/svdpi.h", "common/transactor.h", "common/endpoint.h" ],
+    hdrs = ["common/svdpi.h",
+            "common/transactor.h",
+            "common/endpoint.h",
+            "common/rv_tester_flags.h"],
+    deps = ["@com_github_gflags_gflags//:gflags_nothreads"],
     strip_include_prefix = "common/",
     visibility = ["//visibility:public"],
 )

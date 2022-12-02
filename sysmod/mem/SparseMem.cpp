@@ -133,15 +133,6 @@ SparseMem::write(uint64_t addr, unsigned size, uint64_t val)
 }
 
 
-void
-SparseMem::clear()
-{
-  for (auto& kv : pageMap_)
-    delete [] kv.second;
-  pageMap_.clear();
-}
-
-
 bool
 SparseMem::writeHexFile(const std::string& path) const
 {

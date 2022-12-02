@@ -13,30 +13,24 @@ module sysmod #(
 );
     import "DPI-C" function void sysmod_tick(chandle sysmod_p, longint unsigned advance);
     import "DPI-C" context function void sysmod_flush_cbs(chandle sysmod_p);
-
     import "DPI-C" function chandle sysmod_get(int num);
-
     import "DPI-C" context function void sysmod_set_scope(chandle sysmod_p);
-    import "DPI-C" function void sysmod_compose(chandle sysmod_p, string memmap);
-    import "DPI-C" function void sysmod_load_program(chandle sysmod_p, string prog);
     import "DPI-C" function void sysmod_reset(chandle sysmod_p);
-
-    chandle _sm;
-    initial begin 
-        string prog;
-        _sm = sysmod_get(NUM);
-        $display("setting scope %m");
-        sysmod_set_scope(_sm);
-        sysmod_compose(_sm, "memmap.json");
-        if ($value$plusargs("hex=%s", prog)) begin
-          sysmod_load_program(_sm, prog);
-        end
-    end
 
     longint unsigned clocks = 0;
     always @(posedge clk) begin
         clocks <= clocks + 1;
     end
+
+    chandle _sm;
+    function void new_test();
+      if (_sm == null) begin
+        _sm = sysmod_get(NUM);
+        sysmod_set_scope(_sm);
+      end
+      clocks = 0;
+      sysmod_reset(_sm);
+    endfunction
 
     typedef longint unsigned LU;
 
@@ -51,9 +45,13 @@ module sysmod #(
 
     localparam longint unsigned TICKS = LU'(SW_CLOCK_UPDATE_PERIOD_PS)/LU'(CLOCK_PERIOD_PS);
     always @(posedge clk) begin
-        // FIXME: should be queued up in separate thread
         if (0 == (clocks % TICKS)) begin
-            sysmod_tick(_sm, TICKS);
+            if (_sm != null) begin
+              sysmod_tick(_sm, TICKS);
+            end
+            else begin
+              $display("[SYSMOD] warning: sysmod not initialized");
+            end
         end
     end
 
@@ -74,9 +72,12 @@ module sysmod #(
     always_ff @(posedge clk) begin
         if (reset) interrupt_d <= '0;
         interrupt_q <= interrupt_d;
-
-        // FIXME: add poll
-        sysmod_flush_cbs(_sm);
+        if (_sm != null) begin
+          sysmod_flush_cbs(_sm);
+        end
+        else begin
+          $display("[SYSMOD] warning: sysmod not initialized");
+        end
     end
 
 endmodule

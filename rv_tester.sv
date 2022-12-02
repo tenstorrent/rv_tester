@@ -41,6 +41,22 @@ module rv_tester #(
     );
 `endif
 
+    string gflagfile;
+    import "DPI-C" function void parse_flags(string path);
+    function void new_test();
+      // order is important here!
+      $display("[RVTESTER]: parsing flagfile");
+      parse_flags(gflagfile);
+      sysmod.new_test();
+    endfunction
+
+    initial begin
+      if (! $value$plusargs("flagfile=%s", gflagfile)) begin
+        $display("[RVTESTER] warning: no flagfile specified");
+      end
+      new_test();
+    end
+
     for (genvar p = 0; p < CFG.AXI_PORTS; p++) begin
         axi_sw #(
             .ADDR_WIDTH(CFG.AXI_ADDR_WIDTH),
