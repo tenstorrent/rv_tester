@@ -74,7 +74,9 @@ protected:
     for (unsigned i = 0; i < hartCount_; ++i)
       {
         bool flag = timer_ >= timeCompare_.at(i);
-	timerInterrupt(i, flag, cbs);
+        if (timerIntPrev_.at(i) != flag)
+          timerInterrupt(i, flag, cbs);
+        timerIntPrev_.at(i) = flag;
       }
   }
 
@@ -99,6 +101,7 @@ private:
 
   std::vector<uint32_t> soft_;  // Software interrupt: one per hart.
   std::vector<uint64_t> timeCompare_;  // One per hart.
+  std::vector<bool> timerIntPrev_; // Previous value of timer interrupt
   uint64_t timer_ = 0;
 
   std::atomic<bool> terminate_ = false;

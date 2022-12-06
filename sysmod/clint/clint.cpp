@@ -2,7 +2,7 @@
 
 clint::clint(const std::string& tag, uint64_t addr, unsigned hartCount)
   : device(tag, addr, 0xc000 /* size */), hartCount_(hartCount), soft_(hartCount),
-    timeCompare_(hartCount), timer_(0)
+    timeCompare_(hartCount), timerIntPrev_(hartCount), timer_(0)
 {
 }
 
