@@ -47,7 +47,6 @@ module rv_tester #(
       // order is important here!
       $display("[RVTESTER]: parsing flagfile");
       parse_flags(gflagfile);
-      sysmod.new_test();
     endfunction
 
     initial begin

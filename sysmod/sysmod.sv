@@ -17,20 +17,17 @@ module sysmod #(
     import "DPI-C" context function void sysmod_set_scope(chandle sysmod_p);
     import "DPI-C" function void sysmod_reset(chandle sysmod_p);
 
+    chandle _sm;
+
     longint unsigned clocks = 0;
     always @(posedge clk) begin
         clocks <= clocks + 1;
+        if (clocks == 0) begin
+            _sm = sysmod_get(NUM);
+            sysmod_set_scope(_sm);
+            sysmod_reset(_sm);
+        end
     end
-
-    chandle _sm;
-    function void new_test();
-      if (_sm == null) begin
-        _sm = sysmod_get(NUM);
-        sysmod_set_scope(_sm);
-      end
-      clocks = 0;
-      sysmod_reset(_sm);
-    endfunction
 
     typedef longint unsigned LU;
 
