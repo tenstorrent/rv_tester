@@ -116,7 +116,7 @@ module axi_sw #(
     bit r_poll;
     string prog;
     initial begin
-        if (!$value$plusargs("axi_sw_r_poll:%d", r_poll)) begin
+        if (!$value$plusargs("axi_sw_r_poll=%d", r_poll)) begin
             r_poll = POLL_DEFAULT;
         end
         // can be generalized to non-system model

@@ -56,25 +56,19 @@ verilog_library(
 
 cc_library(
     name = "dpi",
+    srcs = [
+        "rv_tester.cpp",
+    ],
     deps = [
         "//transactors/axi_sw:axi_sw_dpi",
         "//sysmod:sysmod_dpi",
-        ":common"
+        "//common:common",
+        "@cvm//:plusargs",
     ] + select({
         ":cosim_off": [],
         "//conditions:default": ["@cosim//:cosim_dpi"],
     }),
-    visibility = ["//visibility:public"],
-)
-
-cc_library(
-    name = "common",
-    hdrs = ["common/svdpi.h",
-            "common/transactor.h",
-            "common/endpoint.h",
-            "common/rv_tester_flags.h"],
-    deps = ["@com_github_gflags_gflags//:gflags_nothreads"],
-    strip_include_prefix = "common/",
+    alwayslink = True,
     visibility = ["//visibility:public"],
 )
 

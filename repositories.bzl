@@ -31,9 +31,11 @@ def rv_tester_repositories():
           remote = "git@aus-gitlab.local.tenstorrent.com:manees/cosim.git",
     )
 
+    cvm_hash="dcd72e384bf9b66b708ad54dc48afcd4bf20abb0"
     maybe(
-        git_repository,
-          name = "com_github_gflags_gflags",
-          tag = "v2.2.2",
-          remote = "https://github.com/gflags/gflags.git",
+        http_archive,
+        name = "cvm",
+        sha256 = "d4a4210c6d685d64c827d45fededfe07efec3af5ebd0132a35e6793eeee4922c",
+        strip_prefix = "cvm-{commit}".format(commit=cvm_hash),
+        url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/{commit}/cvm-{commit}.tar.bz2".format(commit=cvm_hash),
     )

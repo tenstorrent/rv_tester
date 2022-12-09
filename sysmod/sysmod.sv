@@ -1,5 +1,4 @@
 module sysmod #(
-    parameter int RESET_CLOCKS              =      10,
     parameter int CLOCK_PERIOD_PS           =     500,
     parameter int SW_CLOCK_UPDATE_PERIOD_PS = 100_000,
     rv_tester_pkg::cfg_t CFG                =      '0,
@@ -7,7 +6,8 @@ module sysmod #(
     `RV_TESTER_PARAMETERS(CFG)
 )(
     input clk,
-    output reset,
+    input reset,
+    input longint unsigned clocks,
     output bootstrap_t bootstrap,
     output rv_tester_pkg::interrupt_t interrupt
 );
@@ -19,35 +19,40 @@ module sysmod #(
 
     chandle _sm;
 
-    longint unsigned clocks = 0;
     always @(posedge clk) begin
-        clocks <= clocks + 1;
-        if (clocks == 0) begin
+        if (reset) begin
+            /* verilator lint_off BLKSEQ */
             _sm = sysmod_get(NUM);
+            /* verilator lint_on BLKSEQ */
             sysmod_set_scope(_sm);
             sysmod_reset(_sm);
         end
     end
 
-    typedef longint unsigned LU;
-
-    assign reset = clocks < LU'(RESET_CLOCKS);
     assign bootstrap.boot_addr = 1 << 31;
+
+    logic terminated = '0;
+    always_ff @(posedge clk) begin 
+        if (reset) begin
+            terminated <= '0;
+        end
+    end
 
     function automatic sysmod_terminate ();
         // exit gracefully
-        $finish();
+        if ($test$plusargs("nosysmod_terminate") == 0) begin
+            $finish();
+        end
+        terminated = '1;
     endfunction
     export "DPI-C" function sysmod_terminate;
 
+    typedef longint unsigned LU;
     localparam longint unsigned TICKS = LU'(SW_CLOCK_UPDATE_PERIOD_PS)/LU'(CLOCK_PERIOD_PS);
     always @(posedge clk) begin
         if (0 == (clocks % TICKS)) begin
             if (_sm != null) begin
               sysmod_tick(_sm, TICKS);
-            end
-            else begin
-              $display("[SYSMOD] warning: sysmod not initialized");
             end
         end
     end
@@ -67,13 +72,12 @@ module sysmod #(
     export "DPI-C" function sysmod_sw_interrupt;
 
     always_ff @(posedge clk) begin
-        if (reset) interrupt_d <= '0;
         interrupt_q <= interrupt_d;
+        if (reset) begin
+            interrupt_d <= '0;
+        end
         if (_sm != null) begin
           sysmod_flush_cbs(_sm);
-        end
-        else begin
-          $display("[SYSMOD] warning: sysmod not initialized");
         end
     end
 

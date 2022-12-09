@@ -10,6 +10,8 @@ module rv_tester #(
     `_RV_TESTER_PORTS(output,input)
 );
 
+    typedef longint unsigned LU;
+
     if (EXTERNAL_CLOCK) begin
         assign clk = clk_ext;
     end else begin
@@ -18,15 +20,34 @@ module rv_tester #(
         assign clk = clkgen;
     end
 
+    import "DPI-C" function void rv_tester_parse_flags();
+
+    logic rv_tester_reset = '1;
+    logic sysmod_reset = '0;
+    LU clocks = 0;
+
+    always @(posedge clk) begin
+        rv_tester_reset <= '0;
+        sysmod_reset <= 0;
+        clocks <= clocks + 1;
+        if (rv_tester_reset) begin
+            $display("[RVTESTER]: new test");
+            rv_tester_parse_flags();
+            clocks <= 0;
+            sysmod_reset <= '1;
+        end
+    end
+    assign reset = clocks < LU'(RESET_CLOCKS) || rv_tester_reset || sysmod_reset;
+
     sysmod#(
-        .RESET_CLOCKS(RESET_CLOCKS),
         .CLOCK_PERIOD_PS(CLOCK_PERIOD_PS),
         .SW_CLOCK_UPDATE_PERIOD_PS(SW_CLOCK_UPDATE_PERIOD_PS),
         .CFG(CFG),
         .NUM(0)
     ) sysmod (
         .clk,
-        .reset,
+        .reset(sysmod_reset),
+        .clocks,
         .bootstrap,
         .interrupt
     );
@@ -40,21 +61,6 @@ module rv_tester #(
         .rvfi(rvfi_instr)
     );
 `endif
-
-    string gflagfile;
-    import "DPI-C" function void parse_flags(string path);
-    function void new_test();
-      // order is important here!
-      $display("[RVTESTER]: parsing flagfile");
-      parse_flags(gflagfile);
-    endfunction
-
-    initial begin
-      if (! $value$plusargs("flagfile=%s", gflagfile)) begin
-        $display("[RVTESTER] warning: no flagfile specified");
-      end
-      new_test();
-    end
 
     for (genvar p = 0; p < CFG.AXI_PORTS; p++) begin
         axi_sw #(

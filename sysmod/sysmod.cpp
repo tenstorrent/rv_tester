@@ -2,8 +2,8 @@
 #include <thread>
 #include <cassert>
 #include <unordered_map>
+#include "cvm/plusargs.hpp"
 #include "sysmod.h"
-#include "rv_tester_flags.h"
 #include "mem/mem.h"
 #include "clint/clint.h"
 #include "htif/htif.h"
@@ -48,7 +48,8 @@ sysmod::compose(const std::string& memmap)
   // ariane specifies bootrom/debug module regions we don't have here
   devices_.push_back(new mem("scratch", 0x8000000, 0x100000));
   // full length in ariane cfg is 0x40000000
-  devices_.push_back(new mem("memory", 0x80000000, 0xc000000));
+  devices_.push_back(new mem("memory", 0x80000000, 
+                                       0x80000000));
   devices_.push_back(new clint("clint", 0x200000, 1));
   devices_.push_back(new htif("htif", 0x70000000));
   //devices_.push_back(new clint("clint", 0x2000000, 1));

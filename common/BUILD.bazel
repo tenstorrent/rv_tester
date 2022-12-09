@@ -1,0 +1,9 @@
+cc_library(
+    name = "common",
+    hdrs = ["svdpi.h",
+            "transactor.h",
+            "endpoint.h",
+            ],
+    strip_include_prefix = ".",
+    visibility = ["//:__subpackages__"],
+)

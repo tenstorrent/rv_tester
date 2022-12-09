@@ -29,7 +29,7 @@ cc_library(
         "safe_queue.h",
     ],
     deps = [
-      "//:common",
+      "//common:common",
     ],
     alwayslink = True,
     visibility = ["//visibility:public"],

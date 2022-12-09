@@ -30,10 +30,12 @@ cc_library(
       "device.h",
     ],
     deps = [
-      "//:common",
+      "//common:common",
       "//sysmod/clint:clint",
       "//sysmod/htif:htif",
-      "//sysmod/mem:mem" ],
+      "//sysmod/mem:mem",
+      "@cvm//:plusargs",
+    ],
     alwayslink = True,
     visibility = ["//:__pkg__"],
 )
