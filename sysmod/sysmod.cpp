@@ -14,6 +14,7 @@ DEFINE_string(memmap, "", "Path to memory map json");
 
 // internal flags
 DEFINE_string(hex, "", "hex file (program) to load into memory");
+DEFINE_bool(sysmod_terminate, true, "Call $finish on write to tohost");
 
 extern "C" {
   // used by CLINT to assert/deassert timer interrupt
@@ -23,7 +24,7 @@ extern "C" {
   void sysmod_sw_interrupt(unsigned hartid, unsigned val);
 
   // used by HTIF to indicate program end
-  void sysmod_terminate();
+  void sysmod_terminate(std::uint8_t call_finish);
 }
 
 sysmod::sysmod()
@@ -139,7 +140,7 @@ sysmod::flush_cbs()
                                         break;
       case device::Callback::SW_INT:    sysmod_sw_interrupt(res.hart, res.val);
                                         break;
-      case device::Callback::TERMINATE: sysmod_terminate();
+      case device::Callback::TERMINATE: sysmod_terminate(FLAGS_sysmod_terminate);
                                         break;
       default: assert(false);
     }

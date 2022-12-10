@@ -38,9 +38,9 @@ module sysmod #(
         end
     end
 
-    function automatic sysmod_terminate ();
+    function automatic void sysmod_terminate (byte unsigned call_finish);
         // exit gracefully
-        if ($test$plusargs("nosysmod_terminate") == 0) begin
+        if (call_finish) begin
             $finish();
         end
         terminated = '1;
