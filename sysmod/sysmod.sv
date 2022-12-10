@@ -40,7 +40,7 @@ module sysmod #(
 
     function automatic void sysmod_terminate (byte unsigned call_finish);
         // exit gracefully
-        if (call_finish) begin
+        if (call_finish != 0) begin
             $finish();
         end
         terminated = '1;
