@@ -54,11 +54,14 @@ module rv_tester #(
 
 `ifndef NO_COSIM
     cosim #(
-        .CFG(CFG)
+        .CFG(CFG),
+        .NUM(0)
     ) cosim (
         .clk,
-        .reset,
-        .rvfi(rvfi_instr)
+        .reset(sysmod_reset),
+        .clocks,
+        .rvfi(rvfi_instr),
+        .interrupt
     );
 `endif
 
