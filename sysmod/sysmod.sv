@@ -32,7 +32,7 @@ module sysmod #(
     assign bootstrap.boot_addr = 1 << 31;
 
     logic terminated = '0;
-    always_ff @(posedge clk) begin 
+    always @(posedge clk) begin
         if (reset) begin
             terminated <= '0;
         end
