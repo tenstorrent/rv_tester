@@ -7,8 +7,8 @@ template <typename T> void atop_arithmetic(const axi::data_t& read_data, axi::da
 
     T read = 0, write = 0;
     for (axi::len_t i = 0; i < len; i++) {
-        read  |= read_data [i] << (8*i);
-        write |= write_data[i] << (8*i);
+        read  |= T(read_data [i]) << (8*i);
+        write |= T(write_data[i]) << (8*i);
     }
 
     T result;
