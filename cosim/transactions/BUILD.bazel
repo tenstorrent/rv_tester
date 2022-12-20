@@ -1,0 +1,25 @@
+load("@rules_hdl//verilog:providers.bzl", "verilog_library")
+load("@cvm//:defs.bzl", "packet_gen")
+
+packet_gen(
+    name = "transactions",
+    src  = "transactions.yml",
+    cc_attrs = {
+        'alwayslink': True,
+        'linkstatic': True,
+    }
+)
+
+cc_library(
+    name = "cpp_lib",
+    deps = ["transactions_cc"],
+    alwayslink = True,
+    linkstatic = True,
+    visibility = ["//visibility:public"],
+)
+
+verilog_library(
+    name = "sv_lib",
+    deps = ["transactions_sv"],
+    visibility = ["//visibility:public"],
+)

@@ -50,10 +50,35 @@ def rv_tester_repositories():
 cc_library(
     name = "json",
     hdrs = glob(["single_include/nlohmann/json.hpp"]),
-    strip_include_prefix = "single_include",
+    strip_include_prefix = "single_include/",
     linkopts = ["-lpthread"],
     visibility = ["//visibility:public"],
 )
     """
     )
 
+    whisper_hash="4512d60f4b53f7a71d082e7cdba58b765262e2ed"
+    maybe(
+        git_repository,
+        name = "whisper",
+        commit = whisper_hash,
+        shallow_since = "1656867071 -0400",
+        remote = "git@aus-gitlab.local.tenstorrent.com:riscv/swerv-iss.git",
+    )
+    
+    core_arch_checker_hash="234a5e4f318b7d44352c3d89ffb93f380aaf9d09"
+    maybe(
+        http_archive,
+        name = "CoreArchChecker",
+        strip_prefix = "CoreArchChecker-{commit}".format(commit=core_arch_checker_hash),
+        url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/CoreArchChecker/-/archive/{commit}/CoreArchChecker-{commit}.tar.bz2".format(commit=core_arch_checker_hash),
+    )
+
+    rules_python_version = "0.11.0"
+    maybe(
+        http_archive,
+        name = "rules_python",
+        sha256 = "1fe4f7f532a7af16bbe157a7757d7550c23f64798be07638f1f2df521bcf0d3c",
+        strip_prefix = "rules_python-{}".format(rules_python_version),
+        url = "https://github.com/bazelbuild/rules_python/archive/{}.zip".format(rules_python_version),
+    )

@@ -1,18 +1,19 @@
 #pragma once
 
+#include <iostream>
 #include <fstream>
 #include <unordered_map>
 #include "nlohmann/json.hpp"
 #include "cvm/plusargs.hpp"
 
-DEFINE_string(memmap_json_path, "", "Path to memory map json");
+DECLARE_string(memmap_json_path);
 
 namespace memmap {
 
   using memmap_t = std::unordered_map<std::string, uint64_t>;
   using memmap_list_t = std::unordered_map<std::string, memmap_t>;
 
-  void load(memmap_list_t& m) {
+  inline void load(memmap_list_t& m) {
     std::ifstream f(FLAGS_memmap_json_path);
     if (!f.good()) {
       std::cerr << "Error: Failed to open memmap config file: " << FLAGS_memmap_json_path << "\n"; 

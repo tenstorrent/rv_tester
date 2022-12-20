@@ -8,6 +8,9 @@
 #include "clint/clint.h"
 #include "htif/htif.h"
 
+// shared flags
+DEFINE_string(memmap_json_path, "", "Path to memory map json");
+
 // internal flags
 DEFINE_string(hex, "", "hex file (program) to load into memory");
 DEFINE_bool(sysmod_terminate, true, "Call $finish on write to tohost");

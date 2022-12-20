@@ -49,7 +49,7 @@ verilog_library(
         "//transactors/axi_sw:axi_sw",
     ] + select({
         ":cosim_off": [":no_cosim"],
-        "//conditions:default": ["@cosim//:cosim"],
+        "//conditions:default": ["//cosim:cosim"],
     }),
     visibility = ["//visibility:public"],
 )
@@ -61,12 +61,12 @@ cc_library(
     ],
     deps = [
         "//transactors/axi_sw:axi_sw_dpi",
-        "//sysmod:sysmod_dpi",
         "//common:common",
+        "//sysmod:sysmod_dpi",
         "@cvm//:plusargs",
     ] + select({
         ":cosim_off": [],
-        "//conditions:default": ["@cosim//:cosim_dpi"],
+        "//conditions:default": ["//cosim:cosim_dpi"],
     }),
     alwayslink = True,
     visibility = ["//visibility:public"],

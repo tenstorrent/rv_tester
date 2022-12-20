@@ -1,0 +1,14 @@
+cc_library(
+    name = "rvfi",
+    hdrs = ["rvfi.h"],
+    srcs = ["rvfi.cpp"],
+    deps = [
+            "//cosim/transactions:cpp_lib",
+            "//cosim/bridge_if:bridge_if",
+            "//cosim/bridge:bridge",
+            "@cvm//:plusargs",
+           ],
+    alwayslink = True,
+    visibility = ["//visibility:public"],
+    strip_include_prefix = ".",
+)

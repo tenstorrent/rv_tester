@@ -1,0 +1,5 @@
+Multiple misc fixes
+
+- Fix bug with incorrect PC resynch
+- Handle exceptions by stepping whisper an extra time
+- Add reset function to support test chaining

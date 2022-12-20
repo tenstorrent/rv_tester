@@ -1,0 +1,21 @@
+load("@rules_hdl//verilog:providers.bzl", "verilog_library")
+
+verilog_library(
+    name = "cosim",
+    srcs = ["cosim.sv"],
+    deps = [
+            "//:defines",
+            "//cosim/transactions:sv_lib",
+           ],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "cosim_dpi",
+    srcs = ["cosim_dpi.cpp"],
+    deps = [
+            "//cosim/dut_if/rvfi:rvfi",
+           ],
+    alwayslink = True,
+    visibility = ["//visibility:public"],
+)

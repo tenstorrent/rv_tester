@@ -1,0 +1,20 @@
+cc_library(
+    name     = "bridge",
+    hdrs     = ["bridge_base.h", "bridge.h"],
+    srcs     = ["bridge.cpp"],
+    deps     = [
+                "//cosim/whisper_if:whisper_if",
+                "//cosim/bridge_if:bridge_if",
+                "//cosim/vpi:vpi_user",
+                "//common:common",
+                "@CoreArchChecker//src:caccore",
+                "@cvm//:plusargs",
+               ],
+    data     = [
+                "@whisper//:whisper",
+               ],
+    alwayslink = True,
+    visibility = ["//visibility:public"],
+    strip_include_prefix = ".",
+)
+

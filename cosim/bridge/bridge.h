@@ -1,0 +1,95 @@
+// Licensed under the Apache License, Version 2.0, see LICENSE.TT for details
+
+#pragma once
+
+#include <string>
+
+#include "bridge_base.h"
+#include "memmap.h"
+#include "src/cacCore.h"        // CoreArchChecker
+
+class bridge : public bridge_base {
+
+public:
+  bridge(int num_harts, int xlen, int vlen);
+  ~bridge();
+
+  // DUT Interface API
+  // Process instruction called on retire
+  //   - Metadata
+  //   - PC
+  //   - Register Read/Write
+  //   - CSRs
+  //   - Memory Access
+  //   - AMO
+  //   - Table Walks 
+  //   - Exceptions/interrupt
+  virtual void process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) override;
+  
+  // Process memory access
+  //   - Read (Ld completion)
+  //   - Insert (St merge buffer insertion)
+  //   - Write (St cache write)
+  virtual void process_dut_mem_read(hart_id_t hart, mem_t& m) override;
+  virtual void process_dut_mb_insert(hart_id_t hart, mem_t& m) override;
+  virtual void process_dut_mb_drain(hart_id_t hart, mem_cl_t& m) override;
+
+  void reset();
+
+private:
+
+  typedef enum {
+    int_reg = 0,
+    fp_reg = 1,
+    vec_reg = 4
+  } resource_t;
+
+  typedef enum {
+    dut,
+    whisper
+  } src_t;
+
+private:
+  
+  std::string get_whisper_cmd();
+ 
+  void update_dut_state(hart_id_t hart, const rv_instr_t& d);
+  void update_whisper_state(hart_id_t hart, whisper_state_t& w);
+  void step(hart_id_t hart, whisper_state_t& w);
+  void print_instr(hart_id_t hart, const whisper_state_t& w);
+  void print_resource(hart_id_t hart, const whisper_state_t& w);
+  void update_pc(hart_id_t hart, src_t src, uint64_t data);
+  void update_regs(hart_id_t hart, const rv_instr_t& d);
+  void update_regs(hart_id_t hart, const whisper_state_t& w);
+  void update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, size8BytesT dword_array[]);
+
+  void handle_interrupt(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
+  void handle_exception(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
+  void handle_wfi(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
+
+  bool is_ecall(const whisper_state_t& w);
+  bool does_instr_match_resynch_list(const whisper_state_t& w);
+  bool does_instr_match_resynch_condition(const rv_instr_t& d, const whisper_state_t& w);
+  bool clint_read(const rv_instr_t& d);
+  bool htif_read(const rv_instr_t& d);
+  bool mhpm_counter_read(const whisper_state_t& w);
+  bool xtval_read(const whisper_state_t& w);
+  void resynch(hart_id_t hart, const rv_instr_t& d);
+  
+private:
+  int num_harts_ = 0;
+  int xlen_ = 0;
+  int vlen_ = 0;
+  CacCore cac_;
+
+  // Create a copy of whisper instr in similar format as dut
+  rv_instr_t w_;
+
+  bool intr_in_progress_ = false;
+  bool ecall_ = false;
+
+  static constexpr int whisper_connect_timeout_milliseconds = 10000;
+
+  // Memmap
+  memmap::memmap_list_t memmap_;
+};

@@ -1,0 +1,10 @@
+cc_library(
+    name     = "bridge_if",
+    hdrs     = [
+                "bridge_if.h",
+                "bridge_params.h",
+               ],
+    alwayslink = True,
+    visibility = ["//visibility:public"],
+    strip_include_prefix = ".",
+)

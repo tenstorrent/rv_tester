@@ -1,0 +1,16 @@
+cc_library(
+    name     = "whisper_if",
+    hdrs     = [
+                "whisper_client.h",
+                "whisper_client_wrap.h",
+                "WhisperMessage.h"
+               ],
+    srcs     = ["whisper_client.cpp"],
+    deps     = [
+                "//cosim/svdpi:svdpi",
+               ],
+    alwayslink = True,
+    visibility = ["//visibility:public"],
+    strip_include_prefix = ".",
+)
+
