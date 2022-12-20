@@ -4,6 +4,7 @@
 #include "device.h"
 #include "endpoint.h"
 #include "svdpi.h"
+#include "memmap.h"
 
 class sysmod : public endpoint {
 
@@ -19,7 +20,7 @@ class sysmod : public endpoint {
     void write(uint64_t addr, size_t length, const device::data_t& data, const device::strb_t& strb) override;
     void read(uint64_t addr, size_t length, device::data_t& data) override;
 
-    void compose(const std::string& spec);
+    void compose();
     void load_prog(const std::string& prog);
     void tick(uint64_t advance);
     void flush_cbs();
@@ -37,4 +38,7 @@ class sysmod : public endpoint {
 
     // queue up callbacks for emu to flush later (need main thread to call DPI)
     std::vector<device::cb_t> callbacks_;
+
+    // Memmap
+    memmap::memmap_list_t memmap_;
 };

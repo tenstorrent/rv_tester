@@ -39,3 +39,21 @@ def rv_tester_repositories():
         strip_prefix = "cvm-{commit}".format(commit=cvm_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/{commit}/cvm-{commit}.tar.bz2".format(commit=cvm_hash),
     )
+
+    maybe(
+        http_archive,
+        name = "nlohmann_json",
+        url = "https://github.com/nlohmann/json/archive/refs/tags/v3.11.2.tar.gz",
+        strip_prefix = "json-3.11.2",
+        sha256 = "d69f9deb6a75e2580465c6c4c5111b89c4dc2fa94e3a85fcd2ffcd9a143d9273",
+        build_file_content = """
+cc_library(
+    name = "json",
+    hdrs = glob(["single_include/nlohmann/json.hpp"]),
+    strip_include_prefix = "single_include",
+    linkopts = ["-lpthread"],
+    visibility = ["//visibility:public"],
+)
+    """
+    )
+

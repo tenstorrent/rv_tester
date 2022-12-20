@@ -8,10 +8,6 @@
 #include "clint/clint.h"
 #include "htif/htif.h"
 
-
-// shared flag
-DEFINE_string(memmap, "", "Path to memory map json");
-
 // internal flags
 DEFINE_string(hex, "", "hex file (program) to load into memory");
 DEFINE_bool(sysmod_terminate, true, "Call $finish on write to tohost");
@@ -39,22 +35,26 @@ sysmod::~sysmod()
 }
 
 void
-sysmod::compose(const std::string& memmap)
+sysmod::compose()
 {
   std::lock_guard<std::mutex> lock(sys_m);
   for (auto& d : devices_)
     delete d;
   devices_.clear();
 
-  // ariane specifies bootrom/debug module regions we don't have here
-  devices_.push_back(new mem("scratch", 0x8000000, 0x100000));
-  // full length in ariane cfg is 0x40000000
-  devices_.push_back(new mem("memory", 0x80000000, 
-                                       0x80000000));
-  devices_.push_back(new clint("clint", 0x200000, 1));
-  devices_.push_back(new htif("htif", 0x70000000));
-  devices_.push_back(new clint("clint", 0x2000000, 1));
-  //devices_.push_back(new htif("htif", 0x80081168));
+  // Load memmap
+  memmap::load(memmap_);
+
+  try {
+    // ariane specifies bootrom/debug module regions we don't have here
+    devices_.push_back(new mem("scratch", memmap_.at("scratch").at("base"), memmap_.at("scratch").at("size")));
+    devices_.push_back(new mem("memory", memmap_.at("memory0").at("base"), memmap_.at("memory0").at("size"))); 
+    devices_.push_back(new htif("htif", memmap_.at("htif").at("base")));
+    devices_.push_back(new clint("clint", memmap_.at("clint").at("base"), 1));
+  }
+  catch (std::exception& e) {
+    std::cerr << "Error: Memmap access exception.\n" << "  Message: " << e.what() << "\n";
+  }
 }
 
 device&
@@ -180,7 +180,7 @@ extern "C" {
 
   void sysmod_reset(sysmod* s) {
     // possibly compose once?
-    s->compose(FLAGS_memmap);
+    s->compose();
     std::cout << "loading " << FLAGS_hex << "\n";
     s->load_prog(FLAGS_hex);
   }

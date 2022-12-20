@@ -3,7 +3,12 @@ cc_library(
     hdrs = ["svdpi.h",
             "transactor.h",
             "endpoint.h",
+            "memmap.h"
             ],
+    deps = [
+            "@nlohmann_json//:json",
+            "@cvm//:plusargs",
+           ],
     strip_include_prefix = ".",
     visibility = ["//:__subpackages__"],
 )
