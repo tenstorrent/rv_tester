@@ -7,7 +7,7 @@ cc_library(
                ],
     srcs     = ["whisper_client.cpp"],
     deps     = [
-                "//cosim/svdpi:svdpi",
+                "//common:common",
                ],
     alwayslink = True,
     visibility = ["//visibility:public"],

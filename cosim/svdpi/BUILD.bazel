@@ -1,7 +1,0 @@
-cc_library(
-    name     = "svdpi",
-    hdrs     = ["svdpi.h"],
-    alwayslink = True,
-    visibility = ["//visibility:public"],
-    strip_include_prefix = ".",
-)
