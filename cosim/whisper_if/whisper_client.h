@@ -54,6 +54,10 @@ extern "C"
 bool
 whisperReset(int hart, bool& valid);
 
+extern "C"
+bool
+whisperQuit();
+
 
 extern "C"
 bool

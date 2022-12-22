@@ -44,9 +44,10 @@ bool whisper_connect_api(std::string cmd, int timeout) {
   }
 }
 
-// Whisper disconnect
-void whisper_disconnect_api() {
-  whisperDisconnect();
+// Whisper quit and disconnect
+void whisper_quit_api() {
+  std::cout << "Whisper quit...\n";
+  whisperQuit();
 }
 
 }

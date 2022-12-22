@@ -33,20 +33,22 @@ bridge::bridge(int num_harts, int xlen, int vlen)
 
 // Destructor
 bridge::~bridge() {
-  cosim::whisper_disconnect_api();
+  cosim::whisper_quit_api();
 }
 
 void bridge::reset() {
-  cosim::whisper_disconnect_api();
   
+  memmap::load(memmap_);
+
   cac_.reset();
   cac_.configureVlen(vlen_);
-
-  memmap::load(memmap_);
 
   if (!cosim::whisper_connect_api(get_whisper_cmd(), whisper_connect_timeout_milliseconds)) {
     vpi_control(vpiFinish);
   }
+
+  bool valid;
+  cosim::whisper_api(whisperReset, 0, valid);
 }
 
 // Whisper command options
