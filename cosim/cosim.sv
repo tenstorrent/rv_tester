@@ -14,6 +14,7 @@ module cosim #(
     import "DPI-C" function void rvfi_reset(chandle rvfi_p);
 
     chandle _rvfi;
+    bit cosim_enabled;
 
     always @(posedge clk) begin
         if (reset) begin
@@ -21,6 +22,9 @@ module cosim #(
             _rvfi = rvfi_get(NUM);
             /* verilator lint_on BLKSEQ */
             rvfi_reset(_rvfi);
+            /* verilator lint_off BLKSEQ */
+            cosim_enabled = cvm_plusargs::get_bool("cosim");
+            /* verilator lint_on BLKSEQ */
         end
     end
     
@@ -29,7 +33,7 @@ module cosim #(
 
     // m_rvfi
     for (genvar n = 0; n < CFG.NRET; n++) begin
-        assign tx_dom_1.m_rvfis[n].valid = ~reset & rvfi[n].valid;
+        assign tx_dom_1.m_rvfis[n].valid = ~reset & rvfi[n].valid & cosim_enabled;
         assign tx_dom_1.m_rvfis[n].data.cycle = clocks;
         assign tx_dom_1.m_rvfis[n].data.order = rvfi[n].order;
         assign tx_dom_1.m_rvfis[n].data.insn = rvfi[n].insn;

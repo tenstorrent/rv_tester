@@ -70,11 +70,11 @@ module rv_tester #(
             .ADDR_WIDTH(CFG.AXI_ADDR_WIDTH),
             .DATA_WIDTH(CFG.AXI_DATA_WIDTH),
             .ID_WIDTH  (CFG.AXI_ID_WIDTH  ),
-            .POLL_DEFAULT(1), // Use 0 or runtime +axi_sw_r_poll for Zebu
             .SYSMOD_NUM(0)
         ) axi_sw(
             .clk,
             .reset_n(~reset),
+            .sys_reset(sysmod_reset),
             .axi_mst_ar_valid(axi_req[p].ar_valid),
             .axi_mst_ar_id   (axi_req[p].ar_id),
             .axi_mst_ar_addr (axi_req[p].ar_addr),

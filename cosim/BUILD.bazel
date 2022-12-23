@@ -6,6 +6,7 @@ verilog_library(
     deps = [
             "//:defines",
             "//cosim/transactions:sv_lib",
+            "@cvm//:plusargs_sv",
            ],
     visibility = ["//visibility:public"],
 )
@@ -15,6 +16,7 @@ cc_library(
     srcs = ["cosim_dpi.cpp"],
     deps = [
             "//cosim/dut_if/rvfi:rvfi",
+            "@cvm//:plusargs",
            ],
     alwayslink = True,
     visibility = ["//visibility:public"],

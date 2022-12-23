@@ -1,4 +1,7 @@
 #include "axi_sw.h"
+#include "cvm/plusargs.hpp"
+
+DEFINE_bool(axi_sw_r_poll, true, "poll for read data every cycle, or asynchronously push read data");
 
 extern "C" {
 
@@ -20,10 +23,10 @@ axi_sw::axi_sw(const svScope& scope, endpoint* e, bool r_poll, const axi::data_w
 }
 
 axi_sw::~axi_sw() {
-  if (not axi_) {
-    delete axi_;
-    axi_ = nullptr;
-  }
+    if (axi_) {
+        delete axi_;
+        axi_ = nullptr;
+    }
 }
 
 void axi_sw::r(bool block) {
@@ -58,10 +61,10 @@ void axi_sw::r_q_rptr(const r_q_ptr_t& r_q_rptr) {
 }
 
 extern "C" {
-  axi_sw* axi_sw_new(endpoint* e, std::uint8_t r_poll, axi::data_width_t data_width, const char* tag,
+  axi_sw* axi_sw_new(endpoint* e, axi::data_width_t data_width, const char* tag,
     axi_sw::r_q_ptr_t r_q_max, axi_sw::r_q_ptr_t r_q_ptr_max) {
     svScope scope = svGetScope();
-    return new axi_sw(scope, e, r_poll, data_width, tag, r_q_max, r_q_ptr_max);
+    return new axi_sw(scope, e, FLAGS_axi_sw_r_poll, data_width, tag, r_q_max, r_q_ptr_max);
   }
 
   void axi_sw_aw(axi_sw* a, axi::id_t id, axi::addr_t addr, axi::len_t len, axi::sz_t size, axi::burst_t burst, std::uint8_t lock, std::uint8_t atop) {

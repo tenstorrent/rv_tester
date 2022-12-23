@@ -4,7 +4,6 @@ module axi_sw #(
     parameter int unsigned DATA_WIDTH = 32'd0,
     parameter int unsigned ID_WIDTH   = 32'd0,
 
-    parameter bit POLL_DEFAULT        = 1'd0,
     parameter int SYSMOD_NUM          =   -1,
     parameter string tag = "notag",
     parameter int unsigned R_FIFO_DEPTH = 32'd2,
@@ -26,6 +25,7 @@ module axi_sw #(
 
     input  clk,
     input  reset_n,
+    input  sys_reset,
 
     input  logic             axi_mst_ar_valid,
     input  id_t              axi_mst_ar_id,
@@ -89,7 +89,7 @@ module axi_sw #(
     typedef byte    unsigned UB;
     typedef longint unsigned UL;
 
-    import "DPI-C" context function chandle axi_sw_new(chandle endpoint_p, byte unsigned poll, int unsigned data_width, string tag, int unsigned r_q_max, int unsigned r_q_ptr_max);
+    import "DPI-C" context function chandle axi_sw_new(chandle endpoint_p, int unsigned data_width, string tag, int unsigned r_q_max, int unsigned r_q_ptr_max);
     import "DPI-C" function void axi_sw_aw(chandle axi_sw_p, int unsigned id, longint unsigned addr, byte unsigned len, byte unsigned size, byte unsigned burst, byte unsigned lock, byte unsigned atop);
     import "DPI-C" function void axi_sw_ar(chandle axi_sw_p, int unsigned id, longint unsigned addr, byte unsigned len, byte unsigned size, byte unsigned burst, byte unsigned lock);
     import "DPI-C" function void axi_sw_w(chandle axi_sw_p, dpi_data data, dpi_strb strb, byte unsigned last);
@@ -112,15 +112,18 @@ module axi_sw #(
     logic w_last_queue_full, w_last_queue_empty;
     logic r_queue_full     , r_queue_empty     ;
 
-    chandle axi_sw_p;
-    bit r_poll;
-    string prog;
-    initial begin
-        if (!$value$plusargs("axi_sw_r_poll=%d", r_poll)) begin
-            r_poll = POLL_DEFAULT;
+    chandle axi_sw_p = null;
+    bit r_poll = '1;
+    always @(posedge clk) begin
+        if (sys_reset) begin
+            /* verilator lint_off BLKSEQ */
+            if (axi_sw_p == null) begin
+                // FIXME add a reset for the axi xtor
+                axi_sw_p = axi_sw_new(sysmod_pkg::get(SYSMOD_NUM), DATA_WIDTH, tag, R_FIFO_DEPTH, 1 << $bits(r_queue_ptr_t));
+            end
+            r_poll = cvm_plusargs::get_bool("axi_sw_r_poll");
+            /* verilator lint_on BLKSEQ */
         end
-        // can be generalized to non-system model
-        axi_sw_p = axi_sw_new(sysmod_pkg::get(SYSMOD_NUM), byte'(r_poll), DATA_WIDTH, tag, R_FIFO_DEPTH, 1 << $bits(r_queue_ptr_t));
     end
 
     function automatic axi_sw_r (int unsigned id, byte unsigned resp, dpi_data data, byte unsigned last);
