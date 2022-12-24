@@ -14,6 +14,7 @@ DEFINE_string(memmap_json_path, "", "Path to memory map json");
 // internal flags
 DEFINE_string(hex, "", "hex file (program) to load into memory");
 DEFINE_bool(sysmod_terminate, true, "Call $finish on write to tohost");
+DEFINE_bool(sysmod_poll, true, "Poll for sysmod callbacks");
 
 extern "C" {
   // used by CLINT to assert/deassert timer interrupt
@@ -28,7 +29,17 @@ extern "C" {
 
 sysmod::sysmod()
   : scope_(nullptr)
-{}
+{
+
+    if(!FLAGS_sysmod_poll) {
+        std::thread([&] () {
+                while(1) {
+                    flush_cbs();
+                }
+                }).detach();
+    }
+
+}
 
 sysmod::~sysmod()
 {
@@ -136,7 +147,9 @@ void
 sysmod::flush_cbs()
 {
   std::lock_guard<std::mutex> lock(sys_m);
-  svSetScope(scope_);
+  if (callbacks_.size()) {
+      svSetScope(scope_);
+  }
   for (auto& res : callbacks_) {
     switch (res.cb) {
       case device::Callback::TIMER_INT: sysmod_timer_interrupt(res.hart, res.val);

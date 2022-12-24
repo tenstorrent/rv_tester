@@ -9,7 +9,10 @@ verilog_library(
 verilog_library(
     name = "sysmod",
     srcs = ["sysmod.sv"],
-    deps = [":sysmod_pkg"],
+    deps = [
+        ":sysmod_pkg",
+        "@cvm//:plusargs_sv",
+    ],
     visibility = ["//:__pkg__"],
 )
 

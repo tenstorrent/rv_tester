@@ -18,14 +18,16 @@ module sysmod #(
     import "DPI-C" function void sysmod_reset(chandle sysmod_p);
 
     chandle _sm;
+    bit sysmod_poll = '1;
 
     always @(posedge clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */
             _sm = sysmod_get(NUM);
-            /* verilator lint_on BLKSEQ */
             sysmod_set_scope(_sm);
             sysmod_reset(_sm);
+            sysmod_poll = cvm_plusargs::get_bool("sysmod_poll") != '0;
+            /* verilator lint_on BLKSEQ */
         end
     end
 
@@ -76,7 +78,7 @@ module sysmod #(
         if (reset) begin
             interrupt_d <= '0;
         end
-        if (_sm != null) begin
+        if (_sm != null && sysmod_poll) begin
           sysmod_flush_cbs(_sm);
         end
     end
