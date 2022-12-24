@@ -121,7 +121,7 @@ module axi_sw #(
                 // FIXME add a reset for the axi xtor
                 axi_sw_p = axi_sw_new(sysmod_pkg::get(SYSMOD_NUM), DATA_WIDTH, tag, R_FIFO_DEPTH, 1 << $bits(r_queue_ptr_t));
             end
-            r_poll = cvm_plusargs::get_bool("axi_sw_r_poll");
+            r_poll = cvm_plusargs::get_bool("axi_sw_r_poll") != '0;
             /* verilator lint_on BLKSEQ */
         end
     end

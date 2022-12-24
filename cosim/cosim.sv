@@ -23,7 +23,7 @@ module cosim #(
             /* verilator lint_on BLKSEQ */
             rvfi_reset(_rvfi);
             /* verilator lint_off BLKSEQ */
-            cosim_enabled = cvm_plusargs::get_bool("cosim");
+            cosim_enabled = cvm_plusargs::get_bool("cosim") != '0;
             /* verilator lint_on BLKSEQ */
         end
     end
