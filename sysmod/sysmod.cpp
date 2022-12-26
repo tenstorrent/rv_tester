@@ -7,6 +7,7 @@
 #include "mem/mem.h"
 #include "clint/clint.h"
 #include "htif/htif.h"
+#include "trickbox/trickbox.h"
 
 // shared flags
 DEFINE_string(memmap_json_path, "", "Path to memory map json");
