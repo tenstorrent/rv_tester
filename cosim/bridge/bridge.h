@@ -6,6 +6,7 @@
 
 #include "bridge_base.h"
 #include "memmap.h"
+#include "cvm/logger.hpp"
 #include "src/cacCore.h"        // CoreArchChecker
 
 class bridge : public bridge_base {
@@ -77,6 +78,9 @@ private:
   void resynch(hart_id_t hart, const rv_instr_t& d);
   
 private:
+
+  cvm::file_logger log;
+
   int num_harts_ = 0;
   int xlen_ = 0;
   int vlen_ = 0;

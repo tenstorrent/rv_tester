@@ -66,7 +66,7 @@ cc_library(
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv/swerv-iss.git",
     )
     
-    core_arch_checker_hash="234a5e4f318b7d44352c3d89ffb93f380aaf9d09"
+    core_arch_checker_hash="b944577c128e2c09dda8db43555a84f599280a82"
     maybe(
         http_archive,
         name = "CoreArchChecker",

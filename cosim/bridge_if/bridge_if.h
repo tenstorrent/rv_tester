@@ -141,6 +141,8 @@ typedef struct mem_cl_s {
 typedef struct rv_instr_s {
   // Metadata
   bool valid;
+  uint8_t hart;
+  uint64_t id;
   uint64_t cycle;
   uint64_t tag;
   uint32_t opcode;

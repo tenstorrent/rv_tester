@@ -10,8 +10,7 @@
 #include <cstring>          // strlen
 #include <sstream>          // stringstream
 
-DEFINE_string(cosim_tracer, "", "Enable bridge trace prints");
-DEFINE_int32(cosim_tracer_step_num, 0, "Enable bridge trace prints since instruction step number");
+DEFINE_bool(cosim_tracer, false, "Enable bridge trace prints");
 DEFINE_string(load, "", "ELF file to load");
 DECLARE_string(hex);
 DEFINE_string(bootrom_path, "", "Path to bootrom object file");
@@ -24,7 +23,8 @@ DEFINE_int32(max_instr, 100000000, "Max instruction limit to terminate the sim")
 
 // Constructor
 bridge::bridge(int num_harts, int xlen, int vlen)
-  : num_harts_(num_harts),
+  : log("bridge.log"),
+    num_harts_(num_harts),
     xlen_(xlen),
     vlen_(vlen),
     cac_(CacCore(num_harts))    
@@ -110,17 +110,16 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   // Error on mismatch
   if (!cac_.getStatus(hart)) {
     if (FLAGS_cosim_resynch) {
-      if ((FLAGS_cosim_tracer == "MED" || FLAGS_cosim_tracer == "HIGH") &&
-          (cac_.getStep(hart) > FLAGS_cosim_tracer_step_num)) {
+      if (FLAGS_cosim_tracer) {
         print_instr(hart, w);
-        std::cout << cac_.getStatusStr(hart);
+        log(cvm::MEDIUM, "{}", cac_.getStatusStr(hart));
       }
       resynch(hart, d);
       cac_.resetStatus(hart);
     } else {
       print_instr(hart, w);
-      std::cout << cac_.getStatusStr(hart);
-      std::cout << "\nError: Core Arch Checker Mismatch\n";
+      cvm::log(cvm::NONE, "{}", cac_.getStatusStr(hart));
+      cvm::log(cvm::NONE, "Error: Core Arch Checker Mismatch\n");
       vpi_control(vpiFinish);
     }
   }
@@ -128,7 +127,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   // End test on max_instr
   if (cac_.getStep(hart) > FLAGS_max_instr) {
     print_instr(hart, w);
-    std::cout << "\nError: max_instr limit reached: " << FLAGS_max_instr;
+    cvm::log(cvm::NONE, "Error: max_instr limit reached: {}", FLAGS_max_instr);
     vpi_control(vpiFinish);
   }
 }
@@ -157,9 +156,8 @@ void bridge::handle_interrupt(hart_id_t hart, const rv_instr_t& d, whisper_state
   if (!d.intr)
     return;
   
-  if ((FLAGS_cosim_tracer == "MED" || FLAGS_cosim_tracer == "HIGH") &&
-      (cac_.getStep(hart) > FLAGS_cosim_tracer_step_num)) {
-    std::cout << "<" << std::dec << w.time << "> Interrupt detected. cause:[" << d.icause << "]\n"; 
+  if (FLAGS_cosim_tracer) {
+    log(cvm::MEDIUM, "<{}> Interrupt detected. cause: [{}]\n", w.time, d.icause);
   }
 
   // Poke mip before invoking whisper step
@@ -170,10 +168,8 @@ void bridge::handle_interrupt(hart_id_t hart, const rv_instr_t& d, whisper_state
   }
 
   step(hart, w);
-  if ((FLAGS_cosim_tracer == "HIGH") &&
-      (cac_.getStep(hart) > FLAGS_cosim_tracer_step_num)) {
-    std::cout << "<" << std::dec << w.time << ">" 
-      << " Whisper Step #" << cac_.getStep(hart) << ": Extra step due to interrupt" << "\n"; 
+  if (FLAGS_cosim_tracer) {
+    log(cvm::MEDIUM, "<{} Whisper Step #{}: Extra step due to interrupt\n", w.time, cac_.getStep(hart));
   }
 
   intr_in_progress_ = true;
@@ -182,7 +178,7 @@ void bridge::handle_interrupt(hart_id_t hart, const rv_instr_t& d, whisper_state
 void bridge::handle_exception(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
   if (!w.trap && d.excp && !ecall_) {
     print_instr(hart, w);
-    std::cout << "Error: DUT took exception, Whisper did not. cause:[" << d.ecause << "]\n"; 
+    cvm::log(cvm::NONE, "Error: DUT took exception, Whisper did not. cause:[{}]\n", d.ecause);
     vpi_control(vpiFinish);
   }
 
@@ -197,21 +193,18 @@ void bridge::handle_exception(hart_id_t hart, const rv_instr_t& d, whisper_state
     ecall_ = false;
   }
 
-  if ((FLAGS_cosim_tracer == "MED" || FLAGS_cosim_tracer == "HIGH") &&
-      (cac_.getStep(hart) > FLAGS_cosim_tracer_step_num)) {
+  if (FLAGS_cosim_tracer) {
     print_instr(hart, w);
-    std::cout << "<" << std::dec << w.time << "> Exception detected. csrs:[";
+    log(cvm::MEDIUM, "<{}> Exception detected. csrs:[", w.time);
     for (auto& c : w_.csr) {
-      std::cout << std::hex << c.csr_addr << "=" << c.csr_wdata << ",";
+      log(cvm::MEDIUM, "{}={},", c.csr_addr, c.csr_wdata);
     }
-    std::cout << "]\n";
+    log(cvm::MEDIUM, "]\n");
   }
 
   step(hart, w);
-  if ((FLAGS_cosim_tracer == "HIGH") &&
-      (cac_.getStep(hart) > FLAGS_cosim_tracer_step_num)) {
-    std::cout << "<" << std::dec << w.time << ">" 
-      << " Whisper Step #" << cac_.getStep(hart) << ": Extra step due to exception" << "\n"; 
+  if (FLAGS_cosim_tracer) {
+    log(cvm::HIGH, "<{}> Whisper Step #{}: Extra step due to exception\n", w.time, cac_.getStep(hart));
   }
   update_whisper_state(hart,w);
 }
@@ -221,10 +214,8 @@ void bridge::handle_wfi(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w)
   std::string disasm(w.buffer);
   if (disasm.find("wfi") != std::string::npos) {
     step(hart, w);
-    if ((FLAGS_cosim_tracer == "HIGH") &&
-        (cac_.getStep(hart) > FLAGS_cosim_tracer_step_num)) {
-      std::cout << "<" << std::dec << w.time << ">" 
-        << " Whisper Step #" << cac_.getStep(hart) << ": Extra step due to wfi" << "\n"; 
+    if (FLAGS_cosim_tracer) {
+      log(cvm::HIGH, "<{}> Whisper Step #{}: Extra step due to wfi\n", w.time, cac_.getStep(hart));
     }
   }
 }
@@ -246,8 +237,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
         w.valid)) {
       vpi_control(vpiFinish);
     }
-    if ((FLAGS_cosim_tracer == "HIGH") &&
-        (cac_.getStep(hart) > FLAGS_cosim_tracer_step_num)) {
+    if (FLAGS_cosim_tracer) {
       print_resource(hart, w);
     }
     // FIXME if (w.resource == 'r' || w.resource == 'f' || w.resource == 'v') {
@@ -274,28 +264,13 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
 
 // Print functions
 void bridge::print_instr(hart_id_t hart, const whisper_state_t& w) {
-  std::cout << "<" << std::dec << w.time << ">" 
-    << " Whisper Step #" << cac_.getStep(hart) << ": " 
-    << "[Hart=" << hart << ","
-    << " Mode=" << w.priv_mode << ","
-    << " InstrTag=" << std::dec << w.tag << ","
-    << " ChangeCount=" << std::dec << w.change_count << ","
-    << " PC=0x" << std::hex << w.pc << ","
-    << " Opcode=0x" << std::hex << w.opcode << ","
-    << " " << w.buffer
-    << "]\n";
+  log(cvm::MEDIUM, "<{}> Whisper Step #{}: [Hart={}, Mode={}, Tag={}, ChangeCount={}, PC={:#x}, Opcode={:#x}, 
+    Disasm={}]\n", w.time, cac_.getStep(hart), hart, w.priv_mode, w.tag, w.change_count, w.pc, w.opcode, w.buffer);
 }
   
 void bridge::print_resource(hart_id_t hart, const whisper_state_t& w) {
-  std::cout << "<" << std::dec << w.time << ">" 
-    << " Whisper Step #" << cac_.getStep(hart) << ": " 
-    << "[Hart=" << hart << ","
-    << " Mode=" << w.priv_mode << ","
-    << " InstrTag=" << std::dec << w.tag << ","
-    << " Resource=" << (char)w.resource << ","
-    << " Addr=0x" << std::hex << w.address << ","
-    << " Data=0x" << std::hex << w.value 
-    << "]\n";
+  log(cvm::MEDIUM, "<{}> Whisper Step #{}: [Hart={}, Mode={}, Tag={}, Resource={}, Addr={}, Data={}]\n",
+    w.time, cac_.getStep(hart), hart, w.priv_mode, w.tag, (char)w.resource, w.address, w.value);
 }
 
 void bridge::step(hart_id_t hart, whisper_state_t& w) {
@@ -303,8 +278,7 @@ void bridge::step(hart_id_t hart, whisper_state_t& w) {
       w.priv_mode, w.fp_flags, w.trap, w.stop)) {
     vpi_control(vpiFinish);
   }
-  if ((FLAGS_cosim_tracer == "HIGH") &&
-      (cac_.getStep(hart) > FLAGS_cosim_tracer_step_num)) {
+  if (FLAGS_cosim_tracer) {
     print_instr(hart, w);
   }
 }
@@ -458,10 +432,8 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
   bool valid = false;
 
   if (d.pc.pc_rdata != w_.pc.pc_rdata) {
-    if ((FLAGS_cosim_tracer == "HIGH") &&
-        (cac_.getStep(hart) > FLAGS_cosim_tracer_step_num)) {
-      std::cout << "<" << std::dec << d.cycle << ">" 
-        << " Whisper Step #" << cac_.getStep(hart) << ": Resynch: PC=0x" << std::hex << d.pc.pc_rdata << "\n"; 
+    if (FLAGS_cosim_tracer) {
+      log(cvm::HIGH, "<{}> Whisper Step #{}: Resynch: PC={:x}\n", d.cycle, cac_.getStep(hart), d.pc.pc_rdata);
     }
     if (!cosim::whisper_api(whisperPoke, hart, 'p', 0, d.pc.pc_rdata, valid)) {
       vpi_control(vpiFinish);
@@ -469,11 +441,9 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
   }
 
   if (w_.gpr.valid) {
-    if ((FLAGS_cosim_tracer == "HIGH") &&
-        (cac_.getStep(hart) > FLAGS_cosim_tracer_step_num)) {
-      std::cout << "<" << std::dec << d.cycle << ">" 
-        << " Whisper Step #" << cac_.getStep(hart) << ": Resynch: X" << d.gpr.rd_addr << "=0x" 
-        << std::hex << d.gpr.rd_wdata << "\n"; 
+    if (FLAGS_cosim_tracer) {
+      log(cvm::HIGH, "<{}> Whisper Step #{}: Resynch: X{}={:x}\n", d.cycle, cac_.getStep(hart), d.gpr.rd_addr, 
+        d.gpr.rd_wdata);
     }
     if (!cosim::whisper_api(whisperPoke, hart, 'r', d.gpr.rd_addr, d.gpr.rd_wdata, valid)) {
       vpi_control(vpiFinish);

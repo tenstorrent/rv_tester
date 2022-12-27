@@ -1,6 +1,9 @@
 #pragma once
 
+#include <fstream>
+
 #include "cvm/messenger.hpp"
+#include "cvm/logger.hpp"
 #include "cosim/transactions/transactions.hpp"
 
 #include "bridge_if.h"
@@ -38,10 +41,14 @@ class rvfi {
 
   private:
 
+    cvm::file_logger log;
+
     std::unique_ptr<bridge> bridge_;
 
-    bool intr = false;
-    bool excp = false;
-    uint64_t icause = 0;
-    uint64_t ecause = 0;
+    uint64_t count_ = 0;
+
+    bool intr_ = false;
+    bool excp_ = false;
+    uint64_t icause_ = 0;
+    uint64_t ecause_ = 0;
 };
