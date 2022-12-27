@@ -264,8 +264,8 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
 
 // Print functions
 void bridge::print_instr(hart_id_t hart, const whisper_state_t& w) {
-  log(cvm::MEDIUM, "<{}> Whisper Step #{}: [Hart={}, Mode={}, Tag={}, ChangeCount={}, PC={:#x}, Opcode={:#x}, 
-    Disasm={}]\n", w.time, cac_.getStep(hart), hart, w.priv_mode, w.tag, w.change_count, w.pc, w.opcode, w.buffer);
+  log(cvm::MEDIUM, "<{}> Whisper Step #{}: [Hart={}, Mode={}, Tag={}, ChangeCount={}, PC={:#x}, Opcode={:#x}, Disasm={}]\n", 
+    w.time, cac_.getStep(hart), hart, w.priv_mode, w.tag, w.change_count, w.pc, w.opcode, w.buffer);
 }
   
 void bridge::print_resource(hart_id_t hart, const whisper_state_t& w) {
