@@ -60,6 +60,16 @@ module cosim #(
         assign tx_dom_1.m_traps[n].data.cause = rvfi[n].cause;
     end
 
+    // FIXME derive transactions depth from NRET
+    for (genvar n = CFG.NRET; n < 8; n++) begin
+        assign tx_dom_1.m_rvfis[n].valid = '0;
+        assign tx_dom_1.m_traps[n].valid = '0;
+    end
+
+    if (CFG.NRET > 8) begin
+        $error("NRET %d exceeds transactions.yml depth 8", CFG.NRET);
+    end
+
     // m_intr
     logic timer_d1, ipi_d1, external_d1;
     logic timer_assert, timer_deassert;

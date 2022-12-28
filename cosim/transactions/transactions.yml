@@ -5,7 +5,7 @@ msg:
 
 m_rvfi:
     domain: 1 
-    num: 2
+    num: 8
     fields:
         cycle:
             width: 64
@@ -44,7 +44,7 @@ m_rvfi:
 
 m_trap:
     domain: 1
-    num: 2
+    num: 8
     fields:
         cycle:
             width: 64
