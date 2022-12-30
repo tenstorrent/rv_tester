@@ -3,8 +3,8 @@
 
 #include <iostream>
 
+DEFINE_bool(rvfi, true, "Enable rvfi logging");
 DEFINE_bool(cosim, false, "Enable cosim checking");
-DEFINE_bool(rvfi_tracer, false, "Enable rvfi trace prints");
 
 rvfi::rvfi() : log("dut_rvfi.log") {
   if (FLAGS_cosim) {
@@ -63,7 +63,7 @@ void rvfi::process(const transactions::m_intr& m_intr) {
    if (!m_intr.pos_edge)
      //bridge_->deassert_interrupt(cause);
 
-  if (!FLAGS_rvfi_tracer)
+  if (!FLAGS_rvfi)
     return;
    
    if (m_intr.pos_edge) {
@@ -107,7 +107,7 @@ void rvfi::make_instr(const transactions::m_rvfi& m_rvfi, rv_instr_t& instr) {
 }
 
 void rvfi::print_instr(rv_instr_t& instr) {
-  if (!FLAGS_rvfi_tracer)
+  if (!FLAGS_rvfi)
     return;
 
   log(cvm::NONE, "#{} {} {} {} {:016x} {:08x}", instr.id, instr.cycle, instr.hart, instr.priv, instr.pc.pc_rdata, 

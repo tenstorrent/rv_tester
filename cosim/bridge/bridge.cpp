@@ -20,6 +20,8 @@ DEFINE_bool(cosim_resynch, false, "Resynch whisper with dut state on every instr
 DEFINE_string(cosim_resynch_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
 DEFINE_bool(mcm, false, "Enable memory consistency checker");
 DEFINE_int32(max_instr, 100000000, "Max instruction limit to terminate the sim");
+DEFINE_int32(max_cycle, 1000000000, "Max cycle limit to terminate the sim");
+DEFINE_int32(max_stall_cycle, 50000, "Max stall cycle limit to terminate the sim");
 
 // Constructor
 bridge::bridge(int num_harts, int xlen, int vlen)

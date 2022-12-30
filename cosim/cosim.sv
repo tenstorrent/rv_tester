@@ -14,7 +14,7 @@ module cosim #(
     import "DPI-C" function void rvfi_reset(chandle rvfi_p);
 
     chandle _rvfi;
-    bit cosim_enabled;
+    bit rvfi_enabled;
 
     always @(posedge clk) begin
         if (reset) begin
@@ -23,7 +23,7 @@ module cosim #(
             /* verilator lint_on BLKSEQ */
             rvfi_reset(_rvfi);
             /* verilator lint_off BLKSEQ */
-            cosim_enabled = cvm_plusargs::get_bool("cosim") != '0;
+            rvfi_enabled = cvm_plusargs::get_bool("rvfi") != '0;
             /* verilator lint_on BLKSEQ */
         end
     end
@@ -33,7 +33,7 @@ module cosim #(
 
     // m_rvfi
     for (genvar n = 0; n < CFG.NRET; n++) begin
-        assign tx_dom_1.m_rvfis[n].valid = ~reset & rvfi[n].valid & cosim_enabled;
+        assign tx_dom_1.m_rvfis[n].valid = ~reset & rvfi[n].valid & rvfi_enabled;
         assign tx_dom_1.m_rvfis[n].data.cycle = clocks;
         assign tx_dom_1.m_rvfis[n].data.order = rvfi[n].order;
         assign tx_dom_1.m_rvfis[n].data.insn = rvfi[n].insn;
@@ -94,4 +94,37 @@ module cosim #(
     assign tx_dom_1.m_intrs[0].data.timer = (timer_assert || timer_deassert);
     assign tx_dom_1.m_intrs[0].data.ipi = (ipi_assert || ipi_deassert);
     assign tx_dom_1.m_intrs[0].data.external = (external_assert || external_deassert);
+
+
+    // Timeout checks
+    int max_stall_cycle = 50000;
+    int max_cycle;
+    int cycles_since_retire;
+
+    always @(posedge clk) begin
+        if (reset) begin
+            /* verilator lint_off BLKSEQ */
+            max_cycle = cvm_plusargs::get_int("max_cycle");
+            max_stall_cycle = cvm_plusargs::get_int("max_stall_cycle");
+            /* verilator lint_on BLKSEQ */
+            cycles_since_retire <= 0;
+        end else begin
+            cycles_since_retire <= cycles_since_retire + 1;
+        end
+    end
+
+    always @(posedge clk) begin
+      if (rvfi[0].valid !== 0) begin
+        cycles_since_retire <= 0;
+      end
+      if (cycles_since_retire > max_stall_cycle) begin
+        $display("Error: No instruction retired for max_stall_cycle (%0d) cycles", max_stall_cycle); 
+        $finish;
+      end
+      if (clocks > max_cycle) begin
+        $display("Error: Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", max_cycle);
+        $finish;
+      end
+    end
+
 endmodule
