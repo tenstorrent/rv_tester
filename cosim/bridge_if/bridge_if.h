@@ -161,8 +161,8 @@ typedef struct rv_instr_s {
   std::vector<csr_t> csr;
 
   // Memory
-  std::vector<mem_t> mem_write;
-  std::vector<mem_t> mem_read;
+  mem_t mem_read;
+  mem_t mem_write;
 
   rv_instr_s() {
     clear();

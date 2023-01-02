@@ -74,6 +74,7 @@ private:
   bool clint_read(const rv_instr_t& d);
   bool htif_read(const rv_instr_t& d);
   bool mhpm_counter_read(const whisper_state_t& w);
+  bool lrsc_fail(const whisper_state_t& w);
   bool xtval_read(const whisper_state_t& w);
   void resynch(hart_id_t hart, const rv_instr_t& d);
   

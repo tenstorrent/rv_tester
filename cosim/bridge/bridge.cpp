@@ -18,6 +18,7 @@ DEFINE_string(whisper_path, "", "Path to whisper executable");
 DEFINE_string(whisper_json_path, "", "Path to whisper json config");
 DEFINE_bool(cosim_resynch, false, "Resynch whisper with dut state on every instruction");
 DEFINE_string(cosim_resynch_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
+DEFINE_bool(lrsc_resynch, false, "Resynch whisper with dut state on LRSC fail condition");
 DEFINE_bool(mcm, false, "Enable memory consistency checker");
 DEFINE_int32(max_instr, 100000000, "Max instruction limit to terminate the sim");
 DEFINE_int32(max_cycle, 1000000000, "Max cycle limit to terminate the sim");
@@ -25,7 +26,7 @@ DEFINE_int32(max_stall_cycle, 50000, "Max stall cycle limit to terminate the sim
 
 // Constructor
 bridge::bridge(int num_harts, int xlen, int vlen)
-  : log("bridge.log"),
+  : log("cosim.log"),
     num_harts_(num_harts),
     xlen_(xlen),
     vlen_(vlen),
@@ -242,7 +243,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
     if (FLAGS_cosim_tracer) {
       print_resource(hart, w);
     }
-    // FIXME if (w.resource == 'r' || w.resource == 'f' || w.resource == 'v') {
+    // Populate w_ with bridge_if struct
     if (w.resource == 'r') {
       w_.gpr.valid = true;
       w_.gpr.rd_addr = w.address;
@@ -261,6 +262,11 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
       c.csr_wdata = w.value;
       w_.csr.push_back(c);
     }
+    if (w.resource == 'm') {
+      w_.mem_write.valid = true;
+      w_.mem_write.addr = w.address;
+      w_.mem_write.data = w.value;
+    }
   }
 }
 
@@ -271,7 +277,7 @@ void bridge::print_instr(hart_id_t hart, const whisper_state_t& w) {
 }
   
 void bridge::print_resource(hart_id_t hart, const whisper_state_t& w) {
-  log(cvm::MEDIUM, "<{}> Whisper Step #{}: [Hart={}, Mode={}, Tag={}, Resource={}, Addr={}, Data={}]\n",
+  log(cvm::MEDIUM, "<{}> Whisper Step #{}: [Hart={}, Mode={}, Tag={}, Resource={}, Addr={:#x}, Data={:#x}]\n",
     w.time, cac_.getStep(hart), hart, w.priv_mode, w.tag, (char)w.resource, w.address, w.value);
 }
 
@@ -385,22 +391,22 @@ bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const whisp
   // Case #3
   if (mhpm_counter_read(w))
     return true;
+  if (FLAGS_lrsc_resynch && lrsc_fail(w))
+    return true;
 
   return false;
 }
 
 bool bridge::clint_read(const rv_instr_t& d) {
-  for (auto& m : d.mem_read)
-    if (m.addr >= memmap_.at("clint").at("base") && 
-        m.addr < memmap_.at("clint").at("end"))
-      return true;
+  if (d.mem_read.addr >= memmap_.at("clint").at("base") && 
+      d.mem_read.addr < memmap_.at("clint").at("end"))
+    return true;
   return false;
 }
 
 bool bridge::htif_read(const rv_instr_t& d) {
-  for (auto& m : d.mem_read)
-    if (m.addr == memmap_.at("htif").at("base"))
-      return true;
+  if (d.mem_read.addr == memmap_.at("htif").at("base"))
+    return true;
   return false;
 }
 
@@ -408,6 +414,17 @@ bool bridge::mhpm_counter_read(const whisper_state_t& w) {
   std::string disasm(w.buffer);
   if (disasm.find("mhpmcounter") != std::string::npos)
     return true;
+  return false;
+}
+
+bool bridge::lrsc_fail(const whisper_state_t& w) {
+  std::string disasm(w.buffer);
+  if ((disasm.find("sc.d") != std::string::npos) ||
+      (disasm.find("sc.d") != std::string::npos)) {
+    uint64_t fail_code = 1;
+    if (w_.gpr.rd_wdata == fail_code)
+      return true;
+  }
   return false;
 }
 
@@ -435,16 +452,16 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
 
   if (d.pc.pc_rdata != w_.pc.pc_rdata) {
     if (FLAGS_cosim_tracer) {
-      log(cvm::HIGH, "<{}> Whisper Step #{}: Resynch: PC={:x}\n", d.cycle, cac_.getStep(hart), d.pc.pc_rdata);
+      log(cvm::HIGH, "<{}> Whisper Step #{}: Resynch: PC={:#x}\n", d.cycle, cac_.getStep(hart), d.pc.pc_rdata);
     }
     if (!cosim::whisper_api(whisperPoke, hart, 'p', 0, d.pc.pc_rdata, valid)) {
       vpi_control(vpiFinish);
     }
   }
 
-  if (w_.gpr.valid) {
+  if (d.gpr.valid) {
     if (FLAGS_cosim_tracer) {
-      log(cvm::HIGH, "<{}> Whisper Step #{}: Resynch: X{}={:x}\n", d.cycle, cac_.getStep(hart), d.gpr.rd_addr, 
+      log(cvm::HIGH, "<{}> Whisper Step #{}: Resynch: X{}={:#x}\n", d.cycle, cac_.getStep(hart), d.gpr.rd_addr, 
         d.gpr.rd_wdata);
     }
     if (!cosim::whisper_api(whisperPoke, hart, 'r', d.gpr.rd_addr, d.gpr.rd_wdata, valid)) {
@@ -452,8 +469,22 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
     }
   }
   
-  if (w_.fpr.valid) {
+  if (d.fpr.valid) {
+    if (FLAGS_cosim_tracer) {
+      log(cvm::HIGH, "<{}> Whisper Step #{}: Resynch: F{}={:#x}\n", d.cycle, cac_.getStep(hart), d.fpr.frd_addr, 
+        d.fpr.frd_wdata);
+    }
     if (!cosim::whisper_api(whisperPoke, hart, 'f', d.fpr.frd_addr, d.fpr.frd_wdata, valid)) {
+      vpi_control(vpiFinish);
+    }
+  }
+
+  if (d.mem_write.valid) {
+    if (FLAGS_cosim_tracer) {
+      log(cvm::HIGH, "<{}> Whisper Step #{}: Resynch: M[{:#x}]={:#x}\n", d.cycle, cac_.getStep(hart), d.mem_write.addr, 
+        d.mem_write.data);
+    }
+    if (!cosim::whisper_api(whisperPoke, hart, 'm', d.mem_write.addr, d.mem_write.data, valid)) {
       vpi_control(vpiFinish);
     }
   }

@@ -94,16 +94,48 @@ void rvfi::make_instr(const transactions::m_rvfi& m_rvfi, rv_instr_t& instr) {
   instr.pc.pc_rdata = m_rvfi.pc_rdata;
 
   // GPR
-  instr.gpr.valid = true;
+  instr.gpr.valid = (m_rvfi.rd_addr != 0);
   instr.gpr.rd_addr = m_rvfi.rd_addr;
   instr.gpr.rd_wdata = m_rvfi.rd_wdata;
 
   // Mem reads
-  mem_t m;
-  m.addr = m_rvfi.mem_addr;
-  //m.size = m_rvfi.mem_rmask;
-  m.data = m_rvfi.mem_rdata;
-  instr.mem_read.push_back(m);
+  instr.mem_read.valid = (m_rvfi.mem_rmask != 0);
+  auto [raddr, rdata, rsize] = get_mem_attributes(m_rvfi.mem_addr, m_rvfi.mem_rmask, m_rvfi.mem_rdata);
+  instr.mem_read.addr = raddr;
+  instr.mem_read.data = rdata;
+  instr.mem_read.size = rsize;
+
+  // Mem writes
+  instr.mem_write.valid = (m_rvfi.mem_wmask != 0);
+  auto [waddr, wdata, wsize] = get_mem_attributes(m_rvfi.mem_addr, m_rvfi.mem_wmask, m_rvfi.mem_wdata);
+  instr.mem_write.addr = waddr;
+  instr.mem_write.data = wdata;
+  instr.mem_write.size = wsize;
+}
+
+std::tuple<uint64_t, uint64_t, uint8_t> rvfi::get_mem_attributes(uint64_t addr, uint8_t mask, uint64_t data) {
+  uint64_t aligned_addr = 0;
+  uint64_t aligned_data = 0;
+  uint8_t size = 0;
+
+  uint8_t offset = 0;
+  if (mask != 0)
+    while ((mask & 1) == 0) {
+      offset++;
+      mask >>= 1;
+    }
+
+  aligned_data = data >> (offset * 8);
+  aligned_data &= mask;
+  aligned_addr = addr | offset;
+
+  if (mask != 0)
+    while (mask != 0) {
+      size++;
+      mask >>= 1;
+    }
+
+  return std::make_tuple(aligned_addr, aligned_data, size);
 }
 
 void rvfi::print_instr(rv_instr_t& instr) {

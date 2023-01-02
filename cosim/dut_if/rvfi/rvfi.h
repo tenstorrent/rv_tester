@@ -35,6 +35,8 @@ class rvfi {
     void process(const transactions::m_trap& m_trap);
     void process(const transactions::m_intr& m_intr);
     
+    std::tuple<uint64_t, uint64_t, uint8_t> get_mem_attributes(uint64_t addr, uint8_t mask, uint64_t data);
+
     void make_instr(const transactions::m_rvfi& m_rvfi, rv_instr_t& instr);
     void print_instr(rv_instr_t& instr);
     void send_instr(rv_instr_t& instr);
