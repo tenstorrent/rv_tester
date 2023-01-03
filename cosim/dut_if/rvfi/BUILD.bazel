@@ -8,6 +8,7 @@ cc_library(
             "//cosim/bridge:bridge",
             "@cvm//:plusargs",
             "@cvm//:logger",
+            "@cvm//:bitmanip",
            ],
     alwayslink = True,
     visibility = ["//visibility:public"],

@@ -1,5 +1,6 @@
 #include "rvfi.h"
 #include "cvm/plusargs.hpp"
+#include "cvm/bitmanip.hpp"
 
 #include <iostream>
 
@@ -126,7 +127,6 @@ std::tuple<uint64_t, uint64_t, uint8_t> rvfi::get_mem_attributes(uint64_t addr, 
     }
 
   aligned_data = data >> (offset * 8);
-  aligned_data &= mask;
   aligned_addr = addr | offset;
 
   if (mask != 0)
@@ -134,6 +134,8 @@ std::tuple<uint64_t, uint64_t, uint8_t> rvfi::get_mem_attributes(uint64_t addr, 
       size++;
       mask >>= 1;
     }
+
+  aligned_data &= cvm::bitmanip::mask<decltype(aligned_data)>(8*size);
 
   return std::make_tuple(aligned_addr, aligned_data, size);
 }
