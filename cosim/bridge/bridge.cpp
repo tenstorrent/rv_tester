@@ -419,7 +419,7 @@ bool bridge::mhpm_counter_read(const whisper_state_t& w) {
 
 bool bridge::lrsc_fail(const whisper_state_t& w) {
   std::string disasm(w.buffer);
-  if ((disasm.find("sc.d") != std::string::npos) ||
+  if ((disasm.find("sc.w") != std::string::npos) ||
       (disasm.find("sc.d") != std::string::npos)) {
     uint64_t fail_code = 1;
     if (w_.gpr.rd_wdata == fail_code)
