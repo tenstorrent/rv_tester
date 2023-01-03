@@ -10,6 +10,8 @@ module cosim #(
     input rv_tester_pkg::interrupt_t interrupt
 );
 
+    typedef longint unsigned LU;
+
     import "DPI-C" function chandle rvfi_get(int num);
     import "DPI-C" function void rvfi_reset(chandle rvfi_p);
 
@@ -121,7 +123,7 @@ module cosim #(
         $display("Error: No instruction retired for max_stall_cycle (%0d) cycles", max_stall_cycle); 
         $finish;
       end
-      if (clocks > max_cycle) begin
+      if (clocks > LU'(max_cycle)) begin
         $display("Error: Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", max_cycle);
         $finish;
       end
