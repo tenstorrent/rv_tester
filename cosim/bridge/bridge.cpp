@@ -231,6 +231,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
   w_.valid = true;
   w_.cycle = w.time;
   w_.tag = w.tag;
+  w_.priv = w.priv_mode;
 
   w_.pc.valid = true;
   w_.pc.pc_rdata = w.pc;
@@ -318,7 +319,6 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
 
 // Push DUT mem state to cac
 void bridge::update_mem(hart_id_t hart, rv_instr_t& d) {
-  d.mem_write.pa = translate(hart, d.mem_write.va, d.priv, memclass_t::write); 
 }
 
 // Push whisper register state to cac
@@ -488,11 +488,12 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
   }
 
   if (d.mem_write.valid) {
+    uint64_t pa = translate(hart, d.mem_write.va, w_.priv, memclass_t::write);
     if (FLAGS_cosim_tracer) {
-      log(cvm::HIGH, "<{}> Whisper Step #{}: Resynch: M[{:#x}]={:#x}\n", d.cycle, cac_.getStep(hart), d.mem_write.pa, 
+      log(cvm::HIGH, "<{}> Whisper Step #{}: Resynch: M[{:#x}]={:#x}\n", d.cycle, cac_.getStep(hart), pa, 
         d.mem_write.data);
     }
-    if (!cosim::whisper_api(whisperPoke, hart, 'm', d.mem_write.pa, d.mem_write.data, valid)) {
+    if (!cosim::whisper_api(whisperPoke, hart, 'm', pa, d.mem_write.data, valid)) {
       vpi_control(vpiFinish);
     }
   }
@@ -535,6 +536,10 @@ void bridge::process_dut_mb_drain(hart_id_t hart, mem_cl_t& m) {
 
 uint64_t bridge::translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t memclass) {
   uint64_t pa = va;
+
+  if (priv == 0x3)
+    return pa;
+
   bool valid;
   bool r = (memclass == memclass_t::read);
   bool w = (memclass == memclass_t::write);
