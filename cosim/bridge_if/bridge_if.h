@@ -108,7 +108,8 @@ typedef struct mem_s {
   bool valid;
   uint64_t cycle;
   uint64_t tag;
-  uint64_t addr;
+  uint64_t va;
+  uint64_t pa;
   uint8_t size;
   uint64_t data;
 

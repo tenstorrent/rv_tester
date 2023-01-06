@@ -102,14 +102,16 @@ void rvfi::make_instr(const transactions::m_rvfi& m_rvfi, rv_instr_t& instr) {
   // Mem reads
   instr.mem_read.valid = (m_rvfi.mem_rmask != 0);
   auto [raddr, rdata, rsize] = get_mem_attributes(m_rvfi.mem_addr, m_rvfi.mem_rmask, m_rvfi.mem_rdata);
-  instr.mem_read.addr = raddr;
+  instr.mem_read.va = raddr;
+  instr.mem_read.pa = raddr;
   instr.mem_read.data = rdata;
   instr.mem_read.size = rsize;
 
   // Mem writes
   instr.mem_write.valid = (m_rvfi.mem_wmask != 0);
   auto [waddr, wdata, wsize] = get_mem_attributes(m_rvfi.mem_addr, m_rvfi.mem_wmask, m_rvfi.mem_wdata);
-  instr.mem_write.addr = waddr;
+  instr.mem_write.va = waddr;
+  instr.mem_write.pa = waddr;
   instr.mem_write.data = wdata;
   instr.mem_write.size = wsize;
 }
