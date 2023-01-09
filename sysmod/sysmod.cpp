@@ -23,6 +23,8 @@ extern "C" {
 
   // used by CLINT to assert/deassert sw interrupt
   void sysmod_sw_interrupt(unsigned hartid, unsigned val);
+  
+  //void setHartDelayedITP(unsigned hartid, unsigned val,unsigned flag, unsigned delay);
 
   // used by HTIF to indicate program end
   void sysmod_terminate(std::uint8_t call_finish);
@@ -159,6 +161,8 @@ sysmod::flush_cbs()
                                         break;
       case device::Callback::TERMINATE: sysmod_terminate(FLAGS_sysmod_terminate);
                                         break;
+      //case device::Callback::TRICKBOX_EVT: setHartDelayedITP(res.hart,res.val,res.trickbox_itp_num,res.trickbox_delay);
+      //                                  break;
       default: assert(false);
     }
   }

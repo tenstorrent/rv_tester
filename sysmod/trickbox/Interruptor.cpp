@@ -1,7 +1,7 @@
 #include <stdexcept>
 #include <cassert>
 #include <iostream>
-#include "Intteruptor.h"
+#include "Interruptor.h"
 
 
 Interruptor::Interruptor(unsigned n, uint64_t addr)

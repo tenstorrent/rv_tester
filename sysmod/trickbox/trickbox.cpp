@@ -4,10 +4,13 @@
 #include <termios.h>
 #include <poll.h>
 #include "trickbox.h"
+#include "Interruptor.h"
 
 trickbox::trickbox(const std::string& tag, uint64_t addr)
   : device(tag, addr, 16 /* size */)
 {
+  Interruptor ic(100,addr);
+   //Interrupt ic1(100,addr);
 }
 
 
@@ -51,31 +54,32 @@ trickbox::write(uint64_t addr, size_t length, const data_t& data,
       from_ = dword;
       return;
     }
-
+  
   // Writing to-host.
   //uint64_t payload = (dword << 16) >> 16;
   //unsigned cmd = (dword >> 48) & 0xff;
   //unsigned dev = (dword >> 56) & 0xff;
-  if(offset == 0){
-   //immidiate interrupt
-  unsigned hart = dword & 0xfff;
-  unsigned  event = (dword >> 12) & 0xff;
-  unsigned eventValue = (dword >> 20);
-  bool flag = eventValue != 0;
-  trickbox::trickboxInterrupt(hart, flag, event, cbs);
-  }else if(offset < 1000){
-  //delayed interrupt
+  //itp.handle_itp(offset,dword,cbs);
+  //if(offset == 0){
+  // //immidiate interrupt
   //unsigned hart = dword & 0xfff;
   //unsigned  event = (dword >> 12) & 0xff;
   //unsigned eventValue = (dword >> 20);
-  //unsigned flag = eventValue != 0;
-  //delayed interrupts
-    unsigned event = (addr>> 7 )& 0xf; //[10:7];//(value >> 12) & 0xff;
-    unsigned eventValue_delay = (dword>>12) & 0x7ffff;//[30:0] ;
-    unsigned flag_m = dword & 0x80000000;
-    bool flag = flag_m !=0;
-    unsigned hart = dword & 0xfff; //
-  trickbox::trickboxDelayedInterrupt(hart, flag, event,eventValue_delay, cbs);
-  }
+  //bool flag = eventValue != 0;
+  //trickbox::trickboxInterrupt(hart, flag, event, cbs);
+  //}else if(offset < 1000){
+  ////delayed interrupt
+  ////unsigned hart = dword & 0xfff;
+  ////unsigned  event = (dword >> 12) & 0xff;
+  ////unsigned eventValue = (dword >> 20);
+  ////unsigned flag = eventValue != 0;
+  ////delayed interrupts
+  //  unsigned event = (addr>> 7 )& 0xf; //[10:7];//(value >> 12) & 0xff;
+  //  unsigned eventValue_delay = (dword>>12) & 0x7ffff;//[30:0] ;
+  //  unsigned flag_m = dword & 0x80000000;
+  //  bool flag = flag_m !=0;
+  //  unsigned hart = dword & 0xfff; //
+  //trickbox::trickboxDelayedInterrupt(hart, flag, event,eventValue_delay, cbs);
+  //}
 
 }

@@ -1,7 +1,8 @@
 // -*- c++ -*-
 
 #include "device.h"
-
+#pragma once
+#include "Interruptor.h"
 /// Model an trickbox (host target interface) device
 class trickbox : public device
 {
@@ -31,7 +32,7 @@ public:
   // different than 8 are ignored.
   virtual void write(uint64_t addr, size_t length, const data_t& data,
 		     const strb_t& strb, cbs_t& cbs) override;
-
+  //extern virtual void handle_itp(uint64_t offset,uint64_t dword,cbs_t& cbs);
   // Copy n bytes from the given integer, x, to the data iterator
   // following little endian convention. If n is larger than the size
   // of x, then copy zero bytes after copying the bytes of x.
@@ -52,6 +53,7 @@ public:
       x |= INT(data[i]) << i*8;
   }
 
+  Interruptor* ic;
 private:
 
   uint64_t to_ = 0;
