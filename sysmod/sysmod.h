@@ -1,6 +1,7 @@
 #pragma once
 
 #include <mutex>
+#include <memory>
 #include "device.h"
 #include "endpoint.h"
 #include "svdpi.h"
@@ -34,7 +35,7 @@ class sysmod : public endpoint {
     svScope scope_;
 
     mutable std::mutex sys_m;
-    std::vector<device*> devices_;
+    std::vector<std::unique_ptr<device> > devices_;
 
     // queue up callbacks for emu to flush later (need main thread to call DPI)
     std::vector<device::cb_t> callbacks_;

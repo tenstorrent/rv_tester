@@ -406,14 +406,14 @@ bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const whisp
 }
 
 bool bridge::clint_read(const rv_instr_t& d) {
-  if (d.mem_read.pa >= memmap_.at("clint").at("base") && 
-      d.mem_read.pa < memmap_.at("clint").at("end"))
+  if (d.mem_read.pa >= memmap_.at("clint").base && 
+      d.mem_read.pa < memmap_.at("clint").end)
     return true;
   return false;
 }
 
 bool bridge::htif_read(const rv_instr_t& d) {
-  if (d.mem_read.pa == memmap_.at("htif").at("base"))
+  if (d.mem_read.pa == memmap_.at("htif").base)
     return true;
   return false;
 }
