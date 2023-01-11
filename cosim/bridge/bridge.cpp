@@ -232,6 +232,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
   w_.cycle = w.time;
   w_.tag = w.tag;
   w_.priv = w.priv_mode;
+  w_.opcode = w.opcode;
 
   w_.pc.valid = true;
   w_.pc.pc_rdata = w.pc;

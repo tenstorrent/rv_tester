@@ -7,6 +7,7 @@ module cosim #(
     input reset,
     input longint unsigned clocks,
     input rvfi_t rvfi[CFG.NRET],
+    input mcmi_t mcmi_store[CFG.STQ_PORTS],
     input rv_tester_pkg::interrupt_t interrupt
 );
 
@@ -55,6 +56,16 @@ module cosim #(
         assign tx_dom_1.m_rvfis[n].data.mem_wdata = rvfi[n].mem_wdata;
     end
 
+    // m_mcmi_store
+    for (genvar n = 0; n < CFG.STQ_PORTS; n++) begin
+        assign tx_dom_1.m_mcmi_stores[n].valid = ~reset & mcmi_store[n].valid;
+        assign tx_dom_1.m_mcmi_stores[n].data.cycle = clocks;
+        assign tx_dom_1.m_mcmi_stores[n].data.order = mcmi_store[n].order;
+        assign tx_dom_1.m_mcmi_stores[n].data.addr = mcmi_store[n].addr;
+        assign tx_dom_1.m_mcmi_stores[n].data.size = mcmi_store[n].size;
+        assign tx_dom_1.m_mcmi_stores[n].data.data = mcmi_store[n].data;
+    end
+    
     // m_trap
     for (genvar n = 0; n < CFG.NRET; n++) begin
         assign tx_dom_1.m_traps[n].valid = ~reset & (rvfi[n].cause != 0);

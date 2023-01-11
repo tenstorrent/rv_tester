@@ -6,6 +6,7 @@ cc_library(
             "//cosim/transactions:cpp_lib",
             "//cosim/bridge_if:bridge_if",
             "//cosim/bridge:bridge",
+            "//cosim/utils/eot:eot",
             "@cvm//:plusargs",
             "@cvm//:logger",
             "@cvm//:bitmanip",

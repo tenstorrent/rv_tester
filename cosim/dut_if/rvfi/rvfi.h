@@ -8,7 +8,7 @@
 
 #include "bridge_if.h"
 #include "bridge.h"
-
+#include "eot.h"
 
 class rvfi {
 
@@ -46,6 +46,7 @@ class rvfi {
     cvm::file_logger log;
 
     std::unique_ptr<bridge> bridge_;
+    std::unique_ptr<eot> eot_;
 
     uint64_t count_ = 0;
 

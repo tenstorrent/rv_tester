@@ -11,6 +11,12 @@ package rv_tester_pkg;
       int unsigned AXI_ADDR_WIDTH;
       int unsigned AXI_DATA_WIDTH;
       int unsigned AXI_ID_WIDTH  ;
+
+      int unsigned PA_WIDTH;
+      int unsigned STQ_PORTS;
+      int unsigned L1DC_LD_PORTS;
+      int unsigned L1DC_ST_PORTS;
+      int unsigned L1DC_DATA_WIDTH;
     } cfg_t;
 
     typedef struct packed {

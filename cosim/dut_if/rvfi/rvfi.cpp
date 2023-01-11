@@ -6,11 +6,10 @@
 
 DEFINE_bool(rvfi, true, "Enable rvfi logging");
 DEFINE_bool(cosim, false, "Enable cosim checking");
+DEFINE_bool(eot, true, "Enable end-of-test mechanism using tohost cache writes");
 
 rvfi::rvfi() : log("dut_rvfi.log") {
-  if (FLAGS_cosim) {
-    init();
-  }
+  init();
 
   connect<
     transactions::m_rvfi,
@@ -20,8 +19,14 @@ rvfi::rvfi() : log("dut_rvfi.log") {
 }
 
 void rvfi::init() {
-  cvm::log(cvm::MEDIUM, "[RVFI] Constructing bridge...\n");
-  bridge_ = std::make_unique<bridge>(num_harts, xlen, vlen);
+  if (FLAGS_cosim) {
+    cvm::log(cvm::MEDIUM, "[RVFI] Constructing bridge...\n");
+    bridge_ = std::make_unique<bridge>(num_harts, xlen, vlen);
+  }
+
+  if (FLAGS_eot) {
+    eot_ = std::make_unique<eot>();;
+  }
 }
 
 void rvfi::reset() {
@@ -148,6 +153,12 @@ void rvfi::print_instr(rv_instr_t& instr) {
 
   log(cvm::NONE, "#{} {} {} {} {:016x} {:08x}", instr.id, instr.cycle, instr.hart, instr.priv, instr.pc.pc_rdata, 
       instr.opcode); 
+
+  if (instr.gpr.valid)
+    log(cvm::NONE, " r {:016x} {:016x}", instr.gpr.rd_addr, instr.gpr.rd_wdata);
+
+  if (instr.mem_write.valid)
+    log(cvm::NONE, " m {:016x} {:016x}", instr.mem_write.va, instr.mem_write.data);
 
   if (instr.intr)
     log(cvm::NONE, " (interrupt:{})", instr.icause);

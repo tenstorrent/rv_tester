@@ -44,6 +44,15 @@
         logic [CFG.XLEN-1:0]        mem_wdata;                                 \
     },                                                                         \
                                                                                \
+    parameter type mcmi_t    = struct packed {                                 \
+        logic                       valid;                                     \
+        logic [64-1:0]              order;                                     \
+        logic [CFG.PA_WIDTH-1:0]    addr ;                                     \
+        logic [8-1:0]               size ;                                     \
+        logic [CFG.XLEN-1:0]        data ;                                     \
+        logic                       data_src;                                  \
+    },                                                                         \
+                                                                               \
     parameter type axi_req_t = struct packed {                                 \
         logic                   ar_valid ;                                     \
         axi_id_t                ar_id    ;                                     \
@@ -93,9 +102,10 @@
     input  bootstrap_t                bootstrap,                               \
     input  rv_tester_pkg::interrupt_t interrupt,                               \
                                                                                \
-    output rvfi_t      rvfi_instr [CFG.NRET],                                  \
-    output axi_req_t   axi_req    [CFG.AXI_PORTS],                             \
-    input  axi_rsp_t   axi_rsp    [CFG.AXI_PORTS]
+    output rvfi_t      rvfi_instr   [CFG.NRET],                                \
+    output mcmi_t      mcmi_store   [CFG.STQ_PORTS],                           \
+    output axi_req_t   axi_req      [CFG.AXI_PORTS],                           \
+    input  axi_rsp_t   axi_rsp      [CFG.AXI_PORTS]
 
 
 `define RV_TESTER_VARS(CFG)                                                    \
@@ -104,8 +114,9 @@
     bootstrap_t                bootstrap;                                      \
     rv_tester_pkg::interrupt_t interrupt;                                      \
                                                                                \
-    rvfi_t      rvfi_instr [CFG.NRET];                                         \
-    axi_req_t   axi_req    [CFG.AXI_PORTS];                                    \
-    axi_rsp_t   axi_rsp    [CFG.AXI_PORTS];
+    rvfi_t      rvfi_instr   [CFG.NRET];                                       \
+    mcmi_t      mcmi_store   [CFG.STQ_PORTS];                                  \
+    axi_req_t   axi_req      [CFG.AXI_PORTS];                                  \
+    axi_rsp_t   axi_rsp      [CFG.AXI_PORTS];
 
 `define RV_TESTER_PORTS `_RV_TESTER_PORTS(input,output)
