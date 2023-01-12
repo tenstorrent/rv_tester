@@ -7,6 +7,7 @@ cc_library(
             "//cosim/transactions:cpp_lib",
             "//cosim/utils/general:util",
             "//cosim/vpi:vpi_user",
+            "//common:common",
             "@cvm//:logger",
             "@cvm//:plusargs",
            ],
