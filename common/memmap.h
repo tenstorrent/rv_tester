@@ -10,7 +10,13 @@ DECLARE_string(memmap_json_path);
 
 namespace memmap {
 
-  using memmap_t = std::unordered_map<std::string, uint64_t>;
+  struct memmap_t {
+      std::uint64_t base;
+      std::uint64_t size;
+      std::string   type;
+      std::string   tag ;
+      std::uint64_t end ;
+  };
   using memmap_list_t = std::unordered_map<std::string, memmap_t>;
 
   inline void load(memmap_list_t& m) {
@@ -40,15 +46,17 @@ namespace memmap {
     std::cout << "----Memory map----\n";
     for (auto& el : j) {
       memmap_t map;
-      map["base"] = std::stoull((std::string)el.at("base"), nullptr, 16);
-      map["size"] = std::stoull((std::string)el.at("size"), nullptr, 16);
-      map["end"] = map["base"] + map["size"];
+      map.base = std::stoull((std::string)el.at("base"), nullptr, 16);
+      map.size = std::stoull((std::string)el.at("size"), nullptr, 16);
+      map.end  = map.base + map.size;
+      map.tag  = el.at("tag");
+      map.type = el.at("type");
 
-      m[(std::string)el.at("tag")] = map;
+      m[map.tag] = map;
 
-      std::cout << (std::string)el.at("tag") << ": " << 
-        " Base: 0x" << std::hex << map["base"] <<
-        " Size: 0x" << std::hex << map["size"] << "\n";
+      std::cout << map.tag << ": " << 
+        " Base: 0x" << std::hex << map.base <<
+        " Size: 0x" << std::hex << map.size << "\n";
     }
     std::cout << "------------------\n";
   }

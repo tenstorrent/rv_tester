@@ -46,28 +46,40 @@ sysmod::sysmod()
 
 sysmod::~sysmod()
 {
-  for (auto& d : devices_)
-    delete d;
-  devices_.clear();
 }
 
 void
 sysmod::compose()
 {
   std::lock_guard<std::mutex> lock(sys_m);
-  for (auto& d : devices_)
-    delete d;
   devices_.clear();
 
   // Load memmap
   memmap::load(memmap_);
 
+
   try {
-    // ariane specifies bootrom/debug module regions we don't have here
-    devices_.push_back(new mem("scratch", memmap_.at("scratch").at("base"), memmap_.at("scratch").at("size")));
-    devices_.push_back(new mem("memory", memmap_.at("memory0").at("base"), memmap_.at("memory0").at("size"))); 
-    devices_.push_back(new htif("htif", memmap_.at("htif").at("base")));
-    devices_.push_back(new clint("clint", memmap_.at("clint").at("base"), 1));
+    for(auto& d : memmap_) {
+      auto& base = d.second.base;
+      auto& size = d.second.size;
+      auto& type = d.second.type;
+      auto& tag  = d.second.tag;
+
+      device* device = nullptr;
+
+      if (type == "memory") {
+        device = new mem(tag, base, size);
+      } else if (type == "htif") {
+        device = new htif(tag, base);
+      } else if (type == "clint") {
+        device = new clint(tag, base, 1);
+      } else {
+        std::cerr << "Error: unknown type " << type << "\n";
+        assert(false);
+      }
+
+      devices_.emplace_back(device);
+    }
   }
   catch (std::exception& e) {
     std::cerr << "Error: Memmap access exception.\n" << "  Message: " << e.what() << "\n";

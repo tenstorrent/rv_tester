@@ -31,11 +31,11 @@ def rv_tester_repositories():
           remote = "git@aus-gitlab.local.tenstorrent.com:manees/cosim.git",
     )
 
-    cvm_hash="522dcf50eb3e23b771d1d5491d16646efa008539"
+    cvm_hash="e1595e62574584bc379d7e5e9c2a819d0e094e3c"
     maybe(
         http_archive,
         name = "cvm",
-        sha256 = "0457381ac471ef4c1ee362dcd39291d9aa686afe75b9350758c9d249676d7aa4",
+        sha256 = "9bbae9e368fe73f99468f1c9e501be3da511529c7f8278e38ab57c40ea705320",
         strip_prefix = "cvm-{commit}".format(commit=cvm_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/{commit}/cvm-{commit}.tar.bz2".format(commit=cvm_hash),
     )
@@ -57,7 +57,7 @@ cc_library(
     """
     )
 
-    whisper_hash="4512d60f4b53f7a71d082e7cdba58b765262e2ed"
+    whisper_hash="8fd6df7efffd20c14b64a5de8005d2e281ec3460"
     maybe(
         git_repository,
         name = "whisper",
@@ -66,7 +66,7 @@ cc_library(
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv/swerv-iss.git",
     )
     
-    core_arch_checker_hash="234a5e4f318b7d44352c3d89ffb93f380aaf9d09"
+    core_arch_checker_hash="b944577c128e2c09dda8db43555a84f599280a82"
     maybe(
         http_archive,
         name = "CoreArchChecker",

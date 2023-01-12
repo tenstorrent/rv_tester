@@ -108,7 +108,8 @@ typedef struct mem_s {
   bool valid;
   uint64_t cycle;
   uint64_t tag;
-  uint64_t addr;
+  uint64_t va;
+  uint64_t pa;
   uint8_t size;
   uint64_t data;
 
@@ -141,6 +142,8 @@ typedef struct mem_cl_s {
 typedef struct rv_instr_s {
   // Metadata
   bool valid;
+  uint8_t hart;
+  uint64_t id;
   uint64_t cycle;
   uint64_t tag;
   uint32_t opcode;
@@ -159,8 +162,8 @@ typedef struct rv_instr_s {
   std::vector<csr_t> csr;
 
   // Memory
-  std::vector<mem_t> mem_write;
-  std::vector<mem_t> mem_read;
+  mem_t mem_read;
+  mem_t mem_write;
 
   rv_instr_s() {
     clear();

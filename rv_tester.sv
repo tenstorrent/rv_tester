@@ -61,6 +61,7 @@ module rv_tester #(
         .reset(sysmod_reset),
         .clocks,
         .rvfi(rvfi_instr),
+        .mcmi_store(mcmi_store),
         .interrupt
     );
 `endif

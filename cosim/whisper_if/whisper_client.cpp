@@ -621,6 +621,36 @@ whisperPageTableWalk(int hart, bool isInstr, bool isAddr,
   return true;
 }
 
+// Send a whisper translate command. Retrun true on successful comunication
+// and false on failure. Set valid to false if traslation fails.
+// Exactly one of r/w/x (read/write/exec) must be true. If supervisor
+// is false, translation is doe for user mode. If successful, physical
+// address is placed in paddr.
+extern "C"
+bool
+whisperTranslate(int hart, uint64_t vaddr, bool r, bool w, bool x,
+         bool supervisor, uint64_t& paddr, bool& valid)
+{
+  WhisperMessage req(hart, WhisperMessageType::Translate);
+  req.address = vaddr;
+  req.flags = 0;
+
+  if      (r) req.flags |= 1;
+  else if (w) req.flags |= 2;
+  else if (x) req.flags |= 4;
+
+  if (supervisor) req.flags |= 8;
+
+  WhisperMessage reply;
+
+  if (not whisperCommand(req, reply))
+    return false;
+
+  valid = reply.type != WhisperMessageType::Invalid;
+  if (valid)
+    paddr = reply.address;
+  return true;
+}
 
 #if 0
 

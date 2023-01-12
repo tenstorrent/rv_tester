@@ -6,6 +6,7 @@
 
 #include "bridge_base.h"
 #include "memmap.h"
+#include "cvm/logger.hpp"
 #include "src/cacCore.h"        // CoreArchChecker
 
 class bridge : public bridge_base {
@@ -49,11 +50,17 @@ private:
     whisper
   } src_t;
 
+  typedef enum {
+    read,
+    write,
+    fetch
+  } memclass_t;
+
 private:
   
   std::string get_whisper_cmd();
  
-  void update_dut_state(hart_id_t hart, const rv_instr_t& d);
+  void update_dut_state(hart_id_t hart, rv_instr_t& d);
   void update_whisper_state(hart_id_t hart, whisper_state_t& w);
   void step(hart_id_t hart, whisper_state_t& w);
   void print_instr(hart_id_t hart, const whisper_state_t& w);
@@ -62,6 +69,9 @@ private:
   void update_regs(hart_id_t hart, const rv_instr_t& d);
   void update_regs(hart_id_t hart, const whisper_state_t& w);
   void update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, size8BytesT dword_array[]);
+  void update_mem(hart_id_t hart, rv_instr_t& d);
+
+  uint64_t translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t memclass);
 
   void handle_interrupt(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   void handle_exception(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
@@ -73,10 +83,14 @@ private:
   bool clint_read(const rv_instr_t& d);
   bool htif_read(const rv_instr_t& d);
   bool mhpm_counter_read(const whisper_state_t& w);
+  bool lrsc_fail(const whisper_state_t& w);
   bool xtval_read(const whisper_state_t& w);
   void resynch(hart_id_t hart, const rv_instr_t& d);
   
 private:
+
+  cvm::file_logger log;
+
   int num_harts_ = 0;
   int xlen_ = 0;
   int vlen_ = 0;

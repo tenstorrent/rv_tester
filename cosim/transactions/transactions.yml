@@ -5,7 +5,7 @@ msg:
 
 m_rvfi:
     domain: 1 
-    num: 2
+    num: 8
     fields:
         cycle:
             width: 64
@@ -42,9 +42,24 @@ m_rvfi:
         mem_wdata:
             width: 64
 
+m_mcmi_store:
+    domain: 1 
+    num: 2
+    fields:
+        cycle:
+            width: 64
+        order:
+            width: 64
+        addr:
+            width: 56
+        size:
+            width: 8
+        data:
+            width: 64
+
 m_trap:
     domain: 1
-    num: 2
+    num: 8
     fields:
         cycle:
             width: 64

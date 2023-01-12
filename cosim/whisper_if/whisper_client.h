@@ -64,3 +64,8 @@ bool
 whisperPageTableWalk(int hart, bool isInstr, bool isAddr,
 		     svOpenArrayHandle items, unsigned& itemCount,
 		     bool& valid);
+
+extern "C"
+bool
+whisperTranslate(int hart, uint64_t vaddr, bool r, bool w, bool x,
+         bool supervisor, uint64_t& paddr, bool& valid);
