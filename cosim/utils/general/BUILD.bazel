@@ -1,0 +1,8 @@
+cc_library(
+    name     = "util",
+    hdrs     = glob(["*.h"]),
+    srcs     = glob(["*.cc", "*.cpp", "*.h"]),
+    visibility = ["//visibility:public"],
+    strip_include_prefix = ".",
+)
+
