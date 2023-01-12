@@ -1,0 +1,15 @@
+
+cc_library(
+    name = "trickbox",
+    hdrs = glob(["*.h"]),
+    srcs = glob(["*.h", "*.cpp"]),
+    deps = [
+            "//cosim/transactions:cpp_lib",
+            "//cosim/utils/general:util",
+            "//cosim/vpi:vpi_user",
+            "@cvm//:logger",
+            "@cvm//:plusargs",
+           ],
+    visibility = ["//visibility:public"],
+    strip_include_prefix = ".",
+)
