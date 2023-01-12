@@ -7,7 +7,7 @@ cc_library(
             "//cosim/bridge_if:bridge_if",
             "//cosim/bridge:bridge",
             "//cosim/utils/eot:eot",
-            "//cosim/utils/eot:trickbox",
+            "//cosim/utils/trickbox:trickbox",
             "@cvm//:plusargs",
             "@cvm//:logger",
             "@cvm//:bitmanip",
