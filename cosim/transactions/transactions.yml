@@ -45,6 +45,7 @@ m_rvfi:
 m_mcmi_store:
     domain: 1 
     num: 2
+    context: true
     fields:
         cycle:
             width: 64

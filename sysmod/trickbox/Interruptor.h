@@ -39,10 +39,12 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include "device.h"
+#include "svdpi.h"
 #pragma once
 //#include "vpi_user.h"  
 //#include "trickbox.h"
 
+//svScope g_scope;
 /// This must be implemented on the verilog side: set the machine interrupt
 /// pending CSR (MIP) bit corresponding to the given interript id (must be
 /// between 0 and 64) for the given hart to the given value.
@@ -59,7 +61,7 @@ public:
   enum Event { SS = 1, VSS = 2, MS = 3, ST = 5, MT = 7, SE = 9, VSE = 10, ME = 11 };
 
   /// Constructor. Throw an exception if hartCount is is larger than 4094.
-  Interruptor(unsigned hartCount = 0, uint64_t address = 0);
+  Interruptor(unsigned hartCount = 0, uint64_t address = 0,uint64_t size = 0);
 
   /// Destructor
   ~Interruptor();
@@ -75,6 +77,7 @@ public:
   /// return false if hart or event ids encoded in value are out of
   /// bouneds.
   bool handleWrite(uint64_t addr, uint64_t value,cbs_t& cbs);
+  bool handleWriteHelper(uint64_t addr, uint64_t value);
 
   /// This is called by handleWrite whenever there is a write
   /// targeting this object.  An override of this method is expected
@@ -103,7 +106,7 @@ public:
 		     const strb_t& strb, cbs_t& cbs) override; 
   //trickbox tbox{"tbox",0x800};
 private:
-
+  static std::map<std::string, svScope> g_sv_scope;
   unsigned hartCount_ = 0;
   uint64_t addr_ = 0;
   std::vector<std::string> eventNames_;

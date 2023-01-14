@@ -9,6 +9,7 @@
 #include "bridge_if.h"
 #include "bridge.h"
 #include "eot.h"
+#include "trickbox_helper.h"
 
 class rvfi {
 
@@ -47,6 +48,7 @@ class rvfi {
 
     std::unique_ptr<bridge> bridge_;
     std::unique_ptr<eot> eot_;
+    std::unique_ptr<trickbox_helper> trickbox_helper_;
 
     uint64_t count_ = 0;
 

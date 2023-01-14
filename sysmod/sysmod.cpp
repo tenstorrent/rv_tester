@@ -25,7 +25,6 @@ extern "C" {
   void sysmod_sw_interrupt(unsigned hartid, unsigned val);
   
   //void setHartDelayedITP(unsigned hartid, unsigned val,unsigned flag, unsigned delay);
-
   // used by HTIF to indicate program end
   void sysmod_terminate(std::uint8_t call_finish);
 }
@@ -73,6 +72,8 @@ sysmod::compose()
         device = new htif(tag, base);
       } else if (type == "clint") {
         device = new clint(tag, base, 1);
+      } else if (type == "trickbox") {
+        device = new trickbox(tag, base,size);
       } else {
         std::cerr << "Error: unknown type " << type << "\n";
         assert(false);
@@ -90,6 +91,7 @@ device&
 sysmod::dev(uint64_t addr)
 {
   for (auto& d : devices_) {
+    std::cout<<"Checking Device :"<<d->tag()<<"for Addr: "<<std::hex<<addr<<" Addr Range: "<<std::hex<<d->addr() <<" to "<<std::hex<<d->addr() + d->size() <<"\n";
     if (d->has_addr(addr))
       return *d;
   }

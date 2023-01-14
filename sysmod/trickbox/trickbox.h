@@ -8,7 +8,7 @@ class trickbox : public device
 {
 public:
 
-  trickbox(const std::string& tag, uint64_t addr);
+  trickbox(const std::string& tag, uint64_t addr,uint64_t size);
 
   virtual ~trickbox();
 // Used to assert/deassert a software interrupt (PIPI) for given hart.
@@ -16,7 +16,10 @@ public:
   {
     cbs.push_back(cb_t{Callback::TRICKBOX_EVT, hart, flag,event,0});
   }
-
+  virtual void write_helper(uint64_t addr, uint64_t data){
+    std::cout<<"\n INside trickbox Write helper calling ic->handleWritehelper\n";
+    ic->handleWriteHelper(addr,data);
+  }
   // Used to assert/deassert a timer interrupt for given hart.
   virtual void trickboxDelayedInterrupt(unsigned hart, bool flag,unsigned event, unsigned delay, cbs_t& cbs)
   {

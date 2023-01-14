@@ -6,10 +6,12 @@
 #include "trickbox.h"
 #include "Interruptor.h"
 
-trickbox::trickbox(const std::string& tag, uint64_t addr)
-  : device(tag, addr, 16 /* size */)
+trickbox::trickbox(const std::string& tag, uint64_t addr,uint64_t size)
+  : device(tag, addr, size /* size */)
 {
-  Interruptor ic(100,addr);
+  std::cout<<"CONST: Constructing Trickbox  with addr: "<<std::hex<<addr<<" Size :"<<size<<"\n";
+  Interruptor ic1(100,addr,size);
+  ic = &ic1;
    //Interrupt ic1(100,addr);
 }
 
@@ -54,7 +56,8 @@ trickbox::write(uint64_t addr, size_t length, const data_t& data,
       from_ = dword;
       return;
     }
-  
+  std::cout<<"PRT TRICKBOX Addr: "<<std::hex<< addr <<" data :" <<dword<<" \n";
+  ic->handleWrite(addr,dword,cbs);
   // Writing to-host.
   //uint64_t payload = (dword << 16) >> 16;
   //unsigned cmd = (dword >> 48) & 0xff;
