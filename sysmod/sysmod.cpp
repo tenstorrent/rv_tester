@@ -91,7 +91,7 @@ device&
 sysmod::dev(uint64_t addr)
 {
   for (auto& d : devices_) {
-    std::cout<<"Checking Device :"<<d->tag()<<"for Addr: "<<std::hex<<addr<<" Addr Range: "<<std::hex<<d->addr() <<" to "<<std::hex<<d->addr() + d->size() <<"\n";
+    //std::cout<<"Checking Device :"<<d->tag()<<"for Addr: "<<std::hex<<addr<<" Addr Range: "<<std::hex<<d->addr() <<" to "<<std::hex<<d->addr() + d->size() <<"\n";
     if (d->has_addr(addr))
       return *d;
   }

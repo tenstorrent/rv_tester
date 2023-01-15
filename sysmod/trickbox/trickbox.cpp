@@ -56,7 +56,7 @@ trickbox::write(uint64_t addr, size_t length, const data_t& data,
       from_ = dword;
       return;
     }
-  std::cout<<"PRT TRICKBOX Addr: "<<std::hex<< addr <<" data :" <<dword<<" \n";
+  //std::cout<<"PRT TRICKBOX Addr: "<<std::hex<< addr <<" data :" <<dword<<" \n";
   ic->handleWrite(addr,dword,cbs);
   // Writing to-host.
   //uint64_t payload = (dword << 16) >> 16;

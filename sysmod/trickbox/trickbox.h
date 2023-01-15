@@ -17,7 +17,7 @@ public:
     cbs.push_back(cb_t{Callback::TRICKBOX_EVT, hart, flag,event,0});
   }
   virtual void write_helper(uint64_t addr, uint64_t data){
-    std::cout<<"\n INside trickbox Write helper calling ic->handleWritehelper\n";
+    //std::cout<<"\n INside trickbox Write helper calling ic->handleWritehelper\n";
     ic->handleWriteHelper(addr,data);
   }
   // Used to assert/deassert a timer interrupt for given hart.
