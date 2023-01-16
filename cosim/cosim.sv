@@ -123,21 +123,18 @@ module cosim #(
             cycles_since_retire <= 0;
         end else begin
             cycles_since_retire <= cycles_since_retire + 1;
+            if (rvfi[0].valid !== 0) begin
+              cycles_since_retire <= 0;
+            end
+            if (cycles_since_retire > max_stall_cycle) begin
+              $display("Error: No instruction retired for max_stall_cycle (%0d) cycles", max_stall_cycle); 
+              $finish;
+            end
+            if (clocks > LU'(max_cycle)) begin
+              $display("Error: Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", max_cycle);
+              $finish;
+            end
         end
-    end
-
-    always @(posedge clk) begin
-      if (rvfi[0].valid !== 0) begin
-        cycles_since_retire <= 0;
-      end
-      if (cycles_since_retire > max_stall_cycle) begin
-        $display("Error: No instruction retired for max_stall_cycle (%0d) cycles", max_stall_cycle); 
-        $finish;
-      end
-      if (clocks > LU'(max_cycle)) begin
-        $display("Error: Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", max_cycle);
-        $finish;
-      end
     end
 
 endmodule
