@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include "cvm/plusargs.hpp"
 #include "sysmod.h"
-#include "mem/mem.h"
+#include "mem/sysmod_mem.h"
 #include "clint/clint.h"
 #include "htif/htif.h"
 
@@ -13,6 +13,7 @@ DEFINE_string(memmap_json_path, "", "Path to memory map json");
 
 // internal flags
 DEFINE_string(hex, "", "hex file (program) to load into memory");
+DEFINE_string(load, "", "elf file (program) to load into memory");
 DEFINE_bool(sysmod_terminate, true, "Call $finish on write to tohost");
 DEFINE_bool(sysmod_poll, true, "Poll for sysmod callbacks");
 
@@ -65,7 +66,7 @@ sysmod::compose()
       device* device = nullptr;
 
       if (type == "memory") {
-        device = new mem(tag, base, size);
+        device = new sysmod_mem(tag, base, size);
       } else if (type == "htif") {
         device = new htif(tag, base);
       } else if (type == "clint") {
@@ -106,11 +107,19 @@ sysmod::dev(const std::string& tag)
 }
 
 void
-sysmod::load_prog(const std::string& prog)
+sysmod::load_prog()
 {
   std::lock_guard<std::mutex> lock(sys_m);
-  if (not dynamic_cast<mem&>(dev("memory")).init_hex(prog))
-    exit(0);
+  if (FLAGS_load != "") {
+    std::cout << "loading " << FLAGS_load << "\n";
+    if (not dynamic_cast<sysmod_mem&>(dev("memory")).init_elf(FLAGS_load))
+      exit(1);
+  }
+  if (FLAGS_hex != "") {
+    std::cout << "loading " << FLAGS_hex << "\n";
+    if (not dynamic_cast<sysmod_mem&>(dev("memory")).init_hex(FLAGS_hex))
+      exit(1);
+  }
 }
 
 void
@@ -216,7 +225,6 @@ extern "C" {
   void sysmod_reset(sysmod* s) {
     // possibly compose once?
     s->compose();
-    std::cout << "loading " << FLAGS_hex << "\n";
-    s->load_prog(FLAGS_hex);
+    s->load_prog();
   }
 }

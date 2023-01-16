@@ -11,7 +11,7 @@
 #include <sstream>          // stringstream
 
 DEFINE_bool(cosim_tracer, false, "Enable bridge trace prints");
-DEFINE_string(load, "", "ELF file to load");
+DECLARE_string(load);
 DECLARE_string(hex);
 DEFINE_string(bootrom_path, "", "Path to bootrom object file");
 DEFINE_string(whisper_path, "", "Path to whisper executable");

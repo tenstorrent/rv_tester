@@ -82,3 +82,12 @@ cc_library(
         strip_prefix = "rules_python-{}".format(rules_python_version),
         url = "https://github.com/bazelbuild/rules_python/archive/{}.zip".format(rules_python_version),
     )
+
+    mem_manager_hash="5352b31b63cdea84827d39cf0a1f42bfb56bac92"
+    maybe(
+        http_archive,
+        name = "mem_manager",
+        sha256 = "7338feab848772b5b02271e0d7a666d150302fa01c3b7dba600259d9be3c61e7",
+        strip_prefix = "mem-manager-{commit}".format(commit=mem_manager_hash),
+        url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/mem-manager/-/archive/{commit}/mem-manager-{commit}.tar.bz2".format(commit=mem_manager_hash),
+    )

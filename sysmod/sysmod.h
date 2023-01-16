@@ -22,7 +22,7 @@ class sysmod : public endpoint {
     void read(uint64_t addr, size_t length, device::data_t& data) override;
 
     void compose();
-    void load_prog(const std::string& prog);
+    void load_prog();
     void tick(uint64_t advance);
     void flush_cbs();
     void reset();
