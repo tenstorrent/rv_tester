@@ -28,6 +28,8 @@ class sysmod : public endpoint {
     void reset();
     void set_scope(svScope s) { scope_ = s; }
 
+    void add_callback(const device::cb_t& cb);
+
   private:
 
     void handle_callbacks(const device::cbs_t& cbs);

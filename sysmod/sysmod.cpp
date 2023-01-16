@@ -177,6 +177,13 @@ sysmod::flush_cbs()
   callbacks_.clear();
 }
 
+void sysmod::add_callback(const device::cb_t& cb) {
+  std::lock_guard<std::mutex> lock(sys_m);
+  device::cbs_t cbs;
+  cbs.push_back(cb);
+  handle_callbacks(cbs);
+}
+
 extern "C" {
 
   void sysmod_set_scope(sysmod* s) {

@@ -40,5 +40,5 @@ cc_library(
       "@cvm//:plusargs",
     ],
     alwayslink = True,
-    visibility = ["//:__pkg__"],
+    visibility = ["//visibility:public"],
 )
