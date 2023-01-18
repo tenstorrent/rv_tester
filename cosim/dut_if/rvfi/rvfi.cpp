@@ -5,7 +5,7 @@
 #include <iostream>
 
 DEFINE_bool(rvfi, true, "Enable rvfi logging");
-DEFINE_bool(cosim, false, "Enable cosim checking");
+DEFINE_bool(cosim, true, "Enable cosim checking");
 DEFINE_bool(eot, true, "Enable end-of-test mechanism using tohost cache writes");
 DEFINE_bool(bot, true, "Enable begin-of-test handling");
 

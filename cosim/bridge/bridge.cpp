@@ -10,7 +10,7 @@
 #include <cstring>          // strlen
 #include <sstream>          // stringstream
 
-DEFINE_bool(cosim_tracer, false, "Enable bridge trace prints");
+DEFINE_bool(cosim_tracer, true, "Enable bridge trace prints");
 DECLARE_string(load);
 DECLARE_string(hex);
 DEFINE_string(bootrom_path, "", "Path to bootrom object file");
@@ -121,6 +121,8 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
       cac_.resetStatus(hart);
     } else {
       print_instr(hart, w);
+      cvm::log(cvm::NONE, "<{} Whisper Step #{}: [Hart={}, Mode={}, Tag={}, ChangeCount={}, PC={:#x}, Opcode={:#x}, Disasm={}]\n",
+        w.time, cac_.getStep(hart), hart, w.priv_mode, w.tag, w.change_count, w.pc, w.opcode, w.buffer);
       cvm::log(cvm::NONE, "{}", cac_.getStatusStr(hart));
       cvm::log(cvm::NONE, "Error: Core Arch Checker Mismatch\n");
       vpi_control(vpiFinish);
