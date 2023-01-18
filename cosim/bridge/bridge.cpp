@@ -414,7 +414,8 @@ bool bridge::clint_read(const rv_instr_t& d) {
 }
 
 bool bridge::htif_read(const rv_instr_t& d) {
-  if (d.mem_read.pa == memmap_.at("htif").base)
+  if (d.mem_read.pa >= memmap_.at("htif").base &&
+      d.mem_read.pa < memmap_.at("htif").end)
     return true;
   return false;
 }
