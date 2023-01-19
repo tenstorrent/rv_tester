@@ -128,6 +128,9 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
       vpi_control(vpiFinish);
     }
   }
+  else {
+      log(cvm::HIGH, "{}", cac_.getStatusStr(hart));
+  }
 
   // End test on max_instr
   if (cac_.getStep(hart) > FLAGS_max_instr) {
