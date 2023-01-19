@@ -20,13 +20,13 @@ void trickbox_helper::process(const transactions::m_mcmi_store& m_mcmi_store) {
        m_mcmi_store.addr < trickbox_helper_addr_end){
    
     uint64_t cycle = m_mcmi_store.cycle;
-    //cvm::log(cvm::NONE, "<{}> ------------------trickbox_helper ADDR --------------\n", cycle);
-    //std::cout << "trickbox_helper Addr : " << m_mcmi_store.addr << " \n";
-    //std::cout << "trickbox_helper Addr ###########################\n";
+    cvm::log(cvm::NONE, "<{}> ------------------trickbox_helper ADDR --------------\n", cycle);
+    std::cout << "trickbox_helper Addr : " <<std::hex<< m_mcmi_store.addr << " \n";
+    std::cout << "trickbox_helper Addr ###########################\n";
     tbox.write_helper(m_mcmi_store.addr,m_mcmi_store.data);
   }else{
    
-   // std::cout << "trickbox_helper Addr : " << m_mcmi_store.addr << " \n";
+    std::cout << "Non trickbox_helper Addr : " <<std::hex<< m_mcmi_store.addr << " \n";
 
   }
 

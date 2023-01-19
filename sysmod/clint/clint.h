@@ -7,7 +7,7 @@
 #include <thread>
 #include <unistd.h>
 #include "device.h"
-
+#include <iostream>
 // Define a core local interruptor (Clint) at the given address
 // and for the given hart count. The size will be 48k bytes.
 class clint : public device

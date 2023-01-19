@@ -1,6 +1,8 @@
 {
+    "tlb_entries"           : 0,
+
     "xlen"                  : 64,
-    "isa"                   : "rv64imafdc",
+    "isa"                   : "rv64imabfdvuszfh_zba_zbb_zbc_zbs",
     "reset_vec"             : "0x80000000",
 
     "memmap" : {
@@ -13,12 +15,19 @@
     "Comment"                    : "Print memory addres of ld/st instructions in trace log.",
     "print_load_store_address"   : "true",
 
+    "vector" : {
+      "bytes_per_vec"       : 16,
+      "min_bytes_per_elem"  : 1,
+      "Comment"             : "Hardware supports 32-bit ELEN plus some widening operations from 32 to 64-bit",
+      "max_bytes_per_elem"  : 8
+    },
+
     "csr" : {
       "misa" : {
-          "reset-comment"   : "imafdcsu",
-          "reset"           : "0x800000000014112d",
+          "reset-comment"   : "imafdcvbsu",
+          "reset"           : "0x800000000034112f",
           "mask-comment"    : "Misa is not writable by CSR instructions",
-          "mask"            : "0x0"
+          "mask"            : "0x000000000034112f"
       },
 
       "mip"      : {
@@ -29,8 +38,8 @@
       "mstatus" : {
           "reset-comment"   : "SXL=10, UXL=10",
           "reset"           : "0x0000000a00000000",
-          "mask-comment"    : "Readonly fields: SXL, UXL, XS",
-          "mask"            : "0xfffffff0fffe7fff"
+          "mask-comment"    : "Readonly fields: SXL, UXL",
+          "mask"            : "0xfffffff0ffffffff"
         },
 
       "satp" : {
@@ -50,7 +59,7 @@
       "medeleg" : {
           "medeleg-comment"   : "FIXME : Hardwired to zero except for FS, VS, and SD.",
           "reset"           : "0x0",
-          "mask"            : "0xffff0000fff00fff",
+          "mask"            : "0xffff0000fff0ffff",
           "poke_mask"       : "0x0"
       },
 
