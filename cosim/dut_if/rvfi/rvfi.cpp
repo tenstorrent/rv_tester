@@ -7,7 +7,9 @@
 DEFINE_bool(rvfi, true, "Enable rvfi logging");
 DEFINE_bool(cosim, true, "Enable cosim checking");
 DEFINE_bool(eot, true, "Enable end-of-test mechanism using tohost cache writes");
+DEFINE_bool(trickbox_helper, true, "trickbox helper until device writes are supported");
 DEFINE_bool(bot, true, "Enable begin-of-test handling");
+
 
 rvfi::rvfi() : log("dut_rvfi.log") {
   init();
@@ -32,6 +34,10 @@ void rvfi::init() {
   if (FLAGS_eot) {
     eot_ = std::make_unique<eot>();;
   }
+ if (FLAGS_trickbox_helper) {
+    trickbox_helper_ = std::make_unique<trickbox_helper>();;
+  } 
+
 }
 
 void rvfi::reset() {

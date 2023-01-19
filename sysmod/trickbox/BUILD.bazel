@@ -1,0 +1,15 @@
+load("@rules_hdl//verilog:providers.bzl", "verilog_library")
+cc_library(
+  name = "trickbox",
+  srcs = ["trickbox.cpp",
+           "Interruptor.cpp",
+	   ],
+  hdrs = ["Interruptor.h",
+           "trickbox.h",
+	  ],
+  deps = ["//common:common",
+           "//sysmod:device",
+           ],
+  strip_include_prefix = ".",
+  visibility = ["//visibility:public"],
+)

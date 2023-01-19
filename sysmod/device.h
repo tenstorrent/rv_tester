@@ -21,6 +21,7 @@ class device {
       TIMER_INT = 1,
       SW_INT = 2,
       TERMINATE = 3,
+      TRICKBOX_EVT = 4,
       MAX = NONE
     };
 
@@ -28,6 +29,9 @@ class device {
       Callback cb;
       unsigned hart;
       unsigned val;
+      unsigned trickbox_delay;
+      unsigned trickbox_itp_num;
+      
     } cb_t;
 
     typedef std::vector<cb_t> cbs_t;
