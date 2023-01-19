@@ -36,7 +36,9 @@ module sysmod #(
     logic terminated = '0;
     always @(posedge clk) begin
         if (reset) begin
+            /* verilator lint_off BLKANDNBLK */
             terminated <= '0;
+            /* verilator lint_on BLKANDNBLK */
         end
     end
 

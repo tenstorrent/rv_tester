@@ -8,6 +8,8 @@ cc_library(
             "//cosim/bridge:bridge",
             "//cosim/utils/eot:eot",
             "//cosim/utils/trickbox_helper:trickbox_helper",
+            "//cosim/utils/bot:bot",
+            "//cosim/utils/trickbox:trickbox",
             "@cvm//:plusargs",
             "@cvm//:logger",
             "@cvm//:bitmanip",

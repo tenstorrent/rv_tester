@@ -10,8 +10,8 @@
 #include <cstring>          // strlen
 #include <sstream>          // stringstream
 
-DEFINE_bool(cosim_tracer, false, "Enable bridge trace prints");
-DEFINE_string(load, "", "ELF file to load");
+DEFINE_bool(cosim_tracer, true, "Enable bridge trace prints");
+DECLARE_string(load);
 DECLARE_string(hex);
 DEFINE_string(bootrom_path, "", "Path to bootrom object file");
 DEFINE_string(whisper_path, "", "Path to whisper executable");
@@ -62,7 +62,7 @@ std::string bridge::get_whisper_cmd() {
   std::string out_log = " --logfile iss_cosim.log";
   std::string cmd_log = " --commandlog iss_cmd.log";
   std::string mcm = FLAGS_mcm ? " --mcm --mcmls 64" : "";
-  std::string test = (FLAGS_hex == "") ? FLAGS_load : ("--hex " + FLAGS_hex);
+  std::string test = (FLAGS_load != "") ? FLAGS_load : ("--hex " + FLAGS_hex);
 
   std::string cmd = FLAGS_whisper_path + " " + test + " " + FLAGS_bootrom_path +
     harts + config + trace + out_log + cmd_log + " --raw --server whisper_connect &";
@@ -121,16 +121,21 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
       cac_.resetStatus(hart);
     } else {
       print_instr(hart, w);
+      cvm::log(cvm::NONE, "<{} Whisper Step #{}: [Hart={}, Mode={}, Tag={}, ChangeCount={}, PC={:#x}, Opcode={:#x}, Disasm={}]\n",
+        w.time, cac_.getStep(hart), hart, w.priv_mode, w.tag, w.change_count, w.pc, w.opcode, w.buffer);
       cvm::log(cvm::NONE, "{}", cac_.getStatusStr(hart));
       cvm::log(cvm::NONE, "Error: Core Arch Checker Mismatch\n");
       vpi_control(vpiFinish);
     }
   }
+  else {
+      log(cvm::HIGH, "{}", cac_.getStatusStr(hart));
+  }
 
   // End test on max_instr
   if (cac_.getStep(hart) > FLAGS_max_instr) {
     print_instr(hart, w);
-    cvm::log(cvm::NONE, "Error: max_instr limit reached: {}", FLAGS_max_instr);
+    cvm::log(cvm::NONE, "Error: max_instr limit reached: {}\n", FLAGS_max_instr);
     vpi_control(vpiFinish);
   }
 }
@@ -414,7 +419,8 @@ bool bridge::clint_read(const rv_instr_t& d) {
 }
 
 bool bridge::htif_read(const rv_instr_t& d) {
-  if (d.mem_read.pa == memmap_.at("htif").base)
+  if (d.mem_read.pa >= memmap_.at("htif").base &&
+      d.mem_read.pa < memmap_.at("htif").end)
     return true;
   return false;
 }
