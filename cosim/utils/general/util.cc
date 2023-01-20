@@ -10,7 +10,7 @@
 
 
 // https://stackoverflow.com/a/478960
-std::string util::exec(const char* cmd)
+std::string cosim_util::exec(const char* cmd)
  {
     std::array<char, 128> buffer;
     std::string result;
@@ -26,7 +26,7 @@ std::string util::exec(const char* cmd)
 
 // https://stackoverflow.com/a/217605
 // trim from end (in place)
-void util::rtrim(std::string &s) {
+void cosim_util::rtrim(std::string &s) {
     s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {
                 return !std::isspace(ch);
                 }).base(), s.end());

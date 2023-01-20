@@ -30,7 +30,7 @@ void bot::run_iss_standalone() {
 
   cvm::log(cvm::NONE, "Standalone whisper command: {}\n", cmd);
 
-  std::string status = util::exec(cmd.c_str());
+  std::string status = cosim_util::exec(cmd.c_str());
   if (status.find("Error") != std::string::npos) {
     cvm::log(cvm::NONE, "{}", status);
     sysmod_get(0)->add_callback(device::cb_t{device::Callback::TERMINATE, 0, 0}); //vpi_control(vpiFinish);
