@@ -7,7 +7,7 @@ DECLARE_string(load);
 void eot::get_tohost_addr() {
 
   std::string cmd = "nm " + FLAGS_load + " | grep -w tohost";
-  std::string result = util::exec(cmd.c_str());
+  std::string result = cosim_util::exec(cmd.c_str());
   std::string addr_str = result.substr(0, 16);
 
   try {
