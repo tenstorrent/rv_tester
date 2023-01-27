@@ -179,23 +179,27 @@ void bridge::handle_interrupt(hart_id_t hart, const rv_instr_t& d, whisper_state
     vpi_control(vpiFinish);
   }
 
+  intr_in_progress_ = true;
+
+  if (FLAGS_retire_ucode_trap)
+    return;
+
   step(hart, w);
   if (FLAGS_cosim_tracer) {
     log(cvm::MEDIUM, "<{} Whisper Step #{}: Extra step due to interrupt\n", w.time, cac_.getStep(hart));
   }
-
-  intr_in_progress_ = true;
 }
 
 void bridge::handle_exception(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
-  if (!w.trap && d.excp && !ecall_) {
+  
+  if (!d.excp)
+    return;
+
+  if (!w.trap && !ecall_) {
     print_instr(hart, w);
     cvm::log(cvm::NONE, "Error: DUT took exception, Whisper did not. cause:[{}]\n", d.ecause);
     vpi_control(vpiFinish);
   }
-
-  if (!w.trap)
-    return;
 
   // Special case - ecall - No extra step
   if (is_ecall(w)) {
@@ -212,12 +216,6 @@ void bridge::handle_exception(hart_id_t hart, const rv_instr_t& d, whisper_state
       log(cvm::MEDIUM, "{:#x}={:#x},", c.csr_addr, c.csr_wdata);
     }
     log(cvm::MEDIUM, "]\n");
-  }
-
-  if (!d.excp) {
-    print_instr(hart, w);
-    cvm::log(cvm::NONE, "Error: Whisper took exception, DUT did not.\n");
-    vpi_control(vpiFinish);
   }
 
   // If DUT indicates retire on ucode trap handler, extra step not needed
