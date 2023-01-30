@@ -9,7 +9,7 @@ pip_parse(
     name = "pypi",
     # (Optional) You can set quiet to False if you want to see pip output.
     #quiet = False,
-    requirements_lock = "@cvm//py:requirements_lock.txt",
+    requirements_lock = "@cvm//deps:requirements_lock.txt",
 )
 
 load("@pypi//:requirements.bzl", "install_deps")
