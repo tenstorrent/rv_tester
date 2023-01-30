@@ -6,16 +6,18 @@ DECLARE_string(load);
 
 void clint_helper::process(const transactions::m_mcmi_store& m_mcmi_store) {
  //0x02000000 0x0000c000
- std::cout <<"CLINT HELPER  :process() Addr:"<<std::hex<<m_mcmi_store.addr<<" data: "<<m_mcmi_store.data<<"\n";
+ //std::cout <<"CLINT HELPER  :process() Addr:"<<std::hex<<m_mcmi_store.addr<<" data: "<<m_mcmi_store.data<<"\n";
  uint64_t addr = m_mcmi_store.addr;
  if (not has_addr(addr))
     return;
 
-  uint64_t offset = addr - 0x200000;
-  std::cout<<"CLINT HELPER: FIRST OFFSET "<<std::hex<<offset<<" data :"<<m_mcmi_store.data <<"\n";
+  uint64_t offset = addr - 0x2000000;
+  //std::cout<<"CLINT HELPER: FIRST OFFSET "<<std::hex<<offset<<" data :"<<m_mcmi_store.data <<"\n";
   if (offset < 0x4000)
     {
       // Sofware interrupt: 1 word per hart.
+      svScope scope = svGetScopeFromName("top.tester.sysmod");
+      svSetScope(scope); 
       unsigned hartIx = offset / 4;
       if ((offset % 4) != 0  or hartIx >= hartCount_)
 	return;
@@ -28,7 +30,7 @@ void clint_helper::process(const transactions::m_mcmi_store& m_mcmi_store) {
 
       offset -= 0x4000;
 
-     std::cout<<"CLINT HELPER: SECOND OFFSET "<<std::hex<<offset<<"\n";
+     //std::cout<<"CLINT HELPER: SECOND OFFSET "<<std::hex<<offset<<"\n";
       if (offset == 0x7ff8)
 	       timer_ = m_mcmi_store.data;
       else
@@ -80,12 +82,12 @@ void clint_helper::process(const transactions::m_mcmi_store& m_mcmi_store) {
 void
 clint_helper::selfTick(useconds_t delta)
 {
-    std::cout<<"\nCLINT HELPER: SELF TICK \n";
+    //std::cout<<"\nCLINT HELPER: SELF TICK \n";
   auto func = [this, delta]() {
     while (true)
       {
 	usleep(delta);
-  std::cout<<"CLINT TMR SELF TICK\n";
+  //std::cout<<"CLINT TMR SELF TICK\n";
 	if (terminate_)
 	  return;
 	else

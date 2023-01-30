@@ -55,10 +55,10 @@ class clint_helper {
   private:
 
     void process(const transactions::m_mcmi_store& m_mcmi_store);
-    bool has_addr(uint64_t val)   const { return val >= 0x200000 && (val < 0x20c000); }
+    bool has_addr(uint64_t val)   const { return val >= 0x2000000 && (val < 0x20c0000); }
     void tick(uint64_t advance) 
   {
-    std::cout<<"\nCLINT HELPER: tick() timer "<<timer_<<" timercompare "<<timeCompare_.at(0)<<"\n";
+   // std::cout<<"\nCLINT HELPER: tick() timer "<<timer_<<" timercompare "<<timeCompare_.at(0)<<"\n";
     //std::lock_guard<std::mutex> lock(mutex_);
     timer_ += advance;
     processTimerInterrupts();
@@ -70,15 +70,22 @@ class clint_helper {
   /// value.
   void processTimerInterrupts()
   {
-    std::cout<<"\nCLINT HELPER process TMR ITP\n";
+    //svScope scope = svGetScopeFromName("top.tester.sysmod");
+    //svSetScope(scope); 
+    //std::cout<<"\nCLINT HELPER process TMR ITP\n";
     for (unsigned i = 0; i < hartCount_; ++i)
       {
         if(timeCompare_.at(i) >0){
         bool flag = timer_ >= timeCompare_.at(i);
-        std::cout<<"\nCLINT HELPER :processTimerInterrupts  iter: "<<i<<" timerIntPrev_.at(i) "<< timerIntPrev_.at(i) <<" timer "<<timer_<<" timercompare "<<timeCompare_.at(i)<<" flag "<<flag<<"\n";
+        //std::cout<<"\nCLINT HELPER :processTimerInterrupts  iter: "<<i<<" timerIntPrev_.at(i) "<< timerIntPrev_.at(i) <<" timer "<<timer_<<" timercompare "<<timeCompare_.at(i)<<" flag "<<flag<<"\n";
         //if (timerIntPrev_.at(i) != flag){
         if (flag){
-          timerInterrupt(i, flag);
+          //timerInterrupt(i, flag);
+	 svScope scope = svGetScopeFromName("top.tester.sysmod");
+         svSetScope(scope); 
+    //cbs.push_back(cb_t{Callback::TIMER_INT, hart, flag});
+        std::cout<<"\nCLINT HELPER : CALL TMR ITP DPI WITH FLAG "<<flag<<"\n";
+        sysmod_timer_interrupt(i, flag);
         timerIntPrev_.at(i) = 0;
         timeCompare_.at(i) = 0;
         timer_ = 0;
@@ -92,8 +99,8 @@ class clint_helper {
   // Used to assert/deassert a software interrupt (PIPI) for given hart.
   virtual void softwareInterrupt(unsigned hart, bool flag)
   {
-    svScope scope = svGetScopeFromName("top.tester.sysmod");
-    svSetScope(scope); 
+    //svScope scope = svGetScopeFromName("top.tester.sysmod");
+    //svSetScope(scope); 
     //cbs.push_back(cb_t{Callback::SW_INT, hart, flag});
     std::cout<<"\nCLINT HELPER : CALL SW ITP DPI WITH FLAG "<<flag<<"\n";
     sysmod_sw_interrupt(hart, flag);
@@ -102,8 +109,8 @@ class clint_helper {
   // Used to assert/deassert a timer interrupt for given hart.
   virtual void timerInterrupt(unsigned hart, bool flag)
   {
-    svScope scope = svGetScopeFromName("top.tester.sysmod");
-    svSetScope(scope); 
+    //svScope scope = svGetScopeFromName("top.tester.sysmod");
+    //svSetScope(scope); 
     //cbs.push_back(cb_t{Callback::TIMER_INT, hart, flag});
     std::cout<<"\nCLINT HELPER : CALL TMR ITP DPI WITH FLAG "<<flag<<"\n";
     sysmod_timer_interrupt(hart, flag);
