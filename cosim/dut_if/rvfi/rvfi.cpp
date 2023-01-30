@@ -5,10 +5,12 @@
 #include <iostream>
 
 DEFINE_bool(rvfi, true, "Enable rvfi logging");
-DEFINE_bool(cosim, false, "Enable cosim checking");
+DEFINE_bool(cosim, true, "Enable cosim checking");
 DEFINE_bool(eot, true, "Enable end-of-test mechanism using tohost cache writes");
 DEFINE_bool(trickbox_helper, true, "trickbox helper until device writes are supported");
 DEFINE_bool(clint_helper, true, "clint helper until device writes are supported");
+DEFINE_bool(bot, true, "Enable begin-of-test handling");
+
 
 rvfi::rvfi() : log("dut_rvfi.log") {
   init();
@@ -24,6 +26,10 @@ void rvfi::init() {
   if (FLAGS_cosim) {
     cvm::log(cvm::MEDIUM, "[RVFI] Constructing bridge...\n");
     bridge_ = std::make_unique<bridge>(num_harts, xlen, vlen);
+  }
+
+  if (FLAGS_bot) {
+    bot_ = std::make_unique<bot>();;
   }
 
   if (FLAGS_eot) {

@@ -111,7 +111,9 @@ Interruptor::handleWriteHelper(uint64_t addr, uint64_t value)
 
     std::cout <<"Interrupt HandleWrite: "<<std::hex<< addr<<" data "<<value;
     std::cout <<"\nTrickBox Addr: "<<std::hex<< addr_<<" \n";
-    svScope scope = svGetScopeFromName("top.genblk1.dut_harness");
+    //std::cout <<"Interrupt HandleWrite: "<<std::hex<< addr<<" data "<<value;
+    //std::cout <<"\nTrickBox Addr: "<<std::hex<< addr_<<" \n";
+    svScope scope = svGetScopeFromName("top.dut_harness");
     svSetScope(scope); 
     std::cout << "Scope is " << svGetNameFromScope(svGetScope()) << std::endl; 
     std::cout <<"Trigger Interrupt: "<<std::hex<< addr<<" data "<<value;

@@ -1,11 +1,13 @@
 #include "eot.h"
+#include "sysmod/sysmod.h"
+extern "C" sysmod* sysmod_get(int num);
 
 DECLARE_string(load);
 
 void eot::get_tohost_addr() {
 
   std::string cmd = "nm " + FLAGS_load + " | grep -w tohost";
-  std::string result = util::exec(cmd.c_str());
+  std::string result = cosim_util::exec(cmd.c_str());
   std::string addr_str = result.substr(0, 16);
 
   try {
@@ -37,12 +39,12 @@ void eot::process(const transactions::m_mcmi_store& m_mcmi_store) {
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
     cvm::log(cvm::NONE, "<{}> Pass condition detected - tohost[0]=1, tohost[47:1]=0\n", cycle);
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
-    vpi_control(vpiFinish);
+    sysmod_get(0)->add_callback(device::cb_t{device::Callback::TERMINATE, 0, 0}); //vpi_control(vpiFinish);
   } else {
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
     cvm::log(cvm::NONE, "<{}> Error: Fail condition detected - tohost[0]=1, tohost[47:1]={:#x}\n", cycle, 
       exit_code);
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
-    vpi_control(vpiFinish);
+    sysmod_get(0)->add_callback(device::cb_t{device::Callback::TERMINATE, 0, 0}); //vpi_control(vpiFinish);
   }
 }

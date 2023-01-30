@@ -9,6 +9,7 @@ cc_library(
             "//cosim/utils/eot:eot",
             "//cosim/utils/clint_helper:clint_helper",
             "//cosim/utils/trickbox_helper:trickbox_helper",
+            "//cosim/utils/bot:bot",
             "@cvm//:plusargs",
             "@cvm//:logger",
             "@cvm//:bitmanip",

@@ -1,10 +1,9 @@
 
 cc_library(
-    name = "eot",
-    hdrs = ["eot.h"],
-    srcs = ["eot.cpp"],
+    name = "bot",
+    hdrs = ["bot.h"],
+    srcs = ["bot.cpp"],
     deps = [
-            "//cosim/transactions:cpp_lib",
             "//cosim/utils/general:util",
             "//sysmod:sysmod_dpi",
             "//cosim/vpi:vpi_user",

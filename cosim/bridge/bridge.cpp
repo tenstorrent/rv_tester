@@ -10,8 +10,8 @@
 #include <cstring>          // strlen
 #include <sstream>          // stringstream
 
-DEFINE_bool(cosim_tracer, false, "Enable bridge trace prints");
-DEFINE_string(load, "", "ELF file to load");
+DEFINE_bool(cosim_tracer, true, "Enable bridge trace prints");
+DECLARE_string(load);
 DECLARE_string(hex);
 DEFINE_string(bootrom_path, "", "Path to bootrom object file");
 DEFINE_string(whisper_path, "", "Path to whisper executable");
@@ -19,6 +19,7 @@ DEFINE_string(whisper_json_path, "", "Path to whisper json config");
 DEFINE_bool(cosim_resynch, false, "Resynch whisper with dut state on every instruction");
 DEFINE_string(cosim_resynch_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
 DEFINE_bool(lrsc_resynch, false, "Resynch whisper with dut state on LRSC fail condition");
+DEFINE_bool(retire_ucode_trap, true, "DUT indicates retire on a trap after executing the ucode trap handler");
 DEFINE_bool(mcm, false, "Enable memory consistency checker");
 DEFINE_int32(max_instr, 100000000, "Max instruction limit to terminate the sim");
 DEFINE_int32(max_cycle, 1000000000, "Max cycle limit to terminate the sim");
@@ -62,7 +63,7 @@ std::string bridge::get_whisper_cmd() {
   std::string out_log = " --logfile iss_cosim.log";
   std::string cmd_log = " --commandlog iss_cmd.log";
   std::string mcm = FLAGS_mcm ? " --mcm --mcmls 64" : "";
-  std::string test = (FLAGS_hex == "") ? FLAGS_load : ("--hex " + FLAGS_hex);
+  std::string test = (FLAGS_load != "") ? FLAGS_load : ("--hex " + FLAGS_hex);
 
   std::string cmd = FLAGS_whisper_path + " " + test + " " + FLAGS_bootrom_path +
     harts + config + trace + out_log + cmd_log + " --raw --server whisper_connect &";
@@ -121,16 +122,21 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
       cac_.resetStatus(hart);
     } else {
       print_instr(hart, w);
+      cvm::log(cvm::NONE, "<{} Whisper Step #{}: [Hart={}, Mode={}, Tag={}, ChangeCount={}, PC={:#x}, Opcode={:#x}, Disasm={}]\n",
+        w.time, cac_.getStep(hart), hart, w.priv_mode, w.tag, w.change_count, w.pc, w.opcode, w.buffer);
       cvm::log(cvm::NONE, "{}", cac_.getStatusStr(hart));
       cvm::log(cvm::NONE, "Error: Core Arch Checker Mismatch\n");
       vpi_control(vpiFinish);
     }
   }
+  else {
+      log(cvm::HIGH, "{}", cac_.getStatusStr(hart));
+  }
 
   // End test on max_instr
   if (cac_.getStep(hart) > FLAGS_max_instr) {
     print_instr(hart, w);
-    cvm::log(cvm::NONE, "Error: max_instr limit reached: {}", FLAGS_max_instr);
+    cvm::log(cvm::NONE, "Error: max_instr limit reached: {}\n", FLAGS_max_instr);
     vpi_control(vpiFinish);
   }
 }
@@ -173,23 +179,27 @@ void bridge::handle_interrupt(hart_id_t hart, const rv_instr_t& d, whisper_state
     vpi_control(vpiFinish);
   }
 
+  intr_in_progress_ = true;
+
+  if (FLAGS_retire_ucode_trap)
+    return;
+
   step(hart, w);
   if (FLAGS_cosim_tracer) {
     log(cvm::MEDIUM, "<{} Whisper Step #{}: Extra step due to interrupt\n", w.time, cac_.getStep(hart));
   }
-
-  intr_in_progress_ = true;
 }
 
 void bridge::handle_exception(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
-  if (!w.trap && d.excp && !ecall_) {
+  
+  if (!d.excp)
+    return;
+
+  if (!w.trap && !ecall_) {
     print_instr(hart, w);
     cvm::log(cvm::NONE, "Error: DUT took exception, Whisper did not. cause:[{}]\n", d.ecause);
     vpi_control(vpiFinish);
   }
-
-  if (!w.trap)
-    return;
 
   // Special case - ecall - No extra step
   if (is_ecall(w)) {
@@ -203,14 +213,18 @@ void bridge::handle_exception(hart_id_t hart, const rv_instr_t& d, whisper_state
     print_instr(hart, w);
     log(cvm::MEDIUM, "<{}> Exception detected. csrs:[", w.time);
     for (auto& c : w_.csr) {
-      log(cvm::MEDIUM, "{}={},", c.csr_addr, c.csr_wdata);
+      log(cvm::MEDIUM, "{:#x}={:#x},", c.csr_addr, c.csr_wdata);
     }
     log(cvm::MEDIUM, "]\n");
   }
 
+  // If DUT indicates retire on ucode trap handler, extra step not needed
+  if (FLAGS_retire_ucode_trap)
+    return;
+
   step(hart, w);
   if (FLAGS_cosim_tracer) {
-    log(cvm::HIGH, "<{}> Whisper Step #{}: Extra step due to exception\n", w.time, cac_.getStep(hart));
+    log(cvm::MEDIUM, "<{}> Whisper Step #{}: Extra step due to exception\n", w.time, cac_.getStep(hart));
   }
   update_whisper_state(hart,w);
 }
@@ -221,7 +235,7 @@ void bridge::handle_wfi(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w)
   if (disasm.find("wfi") != std::string::npos) {
     step(hart, w);
     if (FLAGS_cosim_tracer) {
-      log(cvm::HIGH, "<{}> Whisper Step #{}: Extra step due to wfi\n", w.time, cac_.getStep(hart));
+      log(cvm::MEDIUM, "<{}> Whisper Step #{}: Extra step due to wfi\n", w.time, cac_.getStep(hart));
     }
   }
 }
@@ -414,7 +428,8 @@ bool bridge::clint_read(const rv_instr_t& d) {
 }
 
 bool bridge::htif_read(const rv_instr_t& d) {
-  if (d.mem_read.pa == memmap_.at("htif").base)
+  if (d.mem_read.pa >= memmap_.at("htif").base &&
+      d.mem_read.pa < memmap_.at("htif").end)
     return true;
   return false;
 }

@@ -1,14 +1,14 @@
 #pragma once
 
 #include "device.h"
-#include "SparseMem.hpp"
 #include <string>
+#include <mem_manager.h>
 
-class mem : public device {
+class sysmod_mem : public device {
 
     private:
 
-        WdRiscv::SparseMem m_;
+        mem_manager m_;
 
     public:
         virtual void write(uint64_t addr, size_t length,
@@ -19,9 +19,12 @@ class mem : public device {
                           data_t& data, cbs_t& cbs) override;
 
         // add max mem size
-        mem(const std::string& tag, uint64_t addr, size_t size) : device(tag, addr, size) {}
+        sysmod_mem(const std::string& tag, uint64_t addr, size_t size) : device(tag, addr, size) {}
 
         /// Initialize memory with hex file.
         bool init_hex(const std::string& path);
+
+        /// Initialize memory with elf file.
+        bool init_elf(const std::string& path);
 
 };
