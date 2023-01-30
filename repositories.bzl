@@ -78,9 +78,9 @@ cc_library(
     maybe(
         http_archive,
         name = "rules_python",
-        sha256 = "1fe4f7f532a7af16bbe157a7757d7550c23f64798be07638f1f2df521bcf0d3c",
+        sha256 = "94e2f4790b55823cf2a58d5e48fccf932ff879b5e868b10bd1e0fa9100ac0311",
         strip_prefix = "rules_python-{}".format(rules_python_version),
-        url = "https://github.com/bazelbuild/rules_python/archive/{}.zip".format(rules_python_version),
+        url = "https://aus-gitlab.local.tenstorrent.com/riscv/forks/rules_python/-/archive/{VERSION}/rules_python-{VERSION}.tar.bz2".format(VERSION=rules_python_version)
     )
 
     mem_manager_hash="5352b31b63cdea84827d39cf0a1f42bfb56bac92"
