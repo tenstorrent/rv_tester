@@ -31,11 +31,11 @@ def rv_tester_repositories():
           remote = "git@aus-gitlab.local.tenstorrent.com:manees/cosim.git",
     )
 
-    cvm_hash="e1595e62574584bc379d7e5e9c2a819d0e094e3c"
+    cvm_hash="0049d4814d878b0ba7212d182590f13132b1743f"
     maybe(
         http_archive,
         name = "cvm",
-        sha256 = "9bbae9e368fe73f99468f1c9e501be3da511529c7f8278e38ab57c40ea705320",
+        sha256 = "4bf5d983c3ca033cc297a063790a6086888eb17506ce38d9b77bd8fc0b0b5032",
         strip_prefix = "cvm-{commit}".format(commit=cvm_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/{commit}/cvm-{commit}.tar.bz2".format(commit=cvm_hash),
     )
@@ -43,9 +43,9 @@ def rv_tester_repositories():
     maybe(
         http_archive,
         name = "nlohmann_json",
-        url = "https://github.com/nlohmann/json/archive/refs/tags/v3.11.2.tar.gz",
-        strip_prefix = "json-3.11.2",
-        sha256 = "d69f9deb6a75e2580465c6c4c5111b89c4dc2fa94e3a85fcd2ffcd9a143d9273",
+        url = "https://aus-gitlab.local.tenstorrent.com/riscv/forks/nlohmann-json/-/archive/v3.11.2/nlohmann-json-v3.11.2.tar.gz",
+        strip_prefix = "nlohmann-json-v3.11.2",
+        sha256 = "be269122c74edb6b92371a816d7c358c00aec948219f049e8152d4c23548b1ec",
         build_file_content = """
 cc_library(
     name = "json",
