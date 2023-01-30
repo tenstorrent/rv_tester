@@ -48,6 +48,8 @@ void Interruptor::triggerDelayedInterrupt(int hart, int eventId, int flag,int de
 bool
 Interruptor::handleWrite(uint64_t addr, uint64_t value,cbs_t& cbs)
 {
+  int sysmod_mode =1;
+  if(sysmod_mode){
   std::cout <<"HandleWrite: "<<std::hex<< addr<<" data "<<value;
   //if (addr != addr_){
   if ((addr >= addr_)&& (addr <= (addr_ + 0x1000))){
@@ -96,6 +98,8 @@ Interruptor::handleWrite(uint64_t addr, uint64_t value,cbs_t& cbs)
   }else{
      std::cout << "PRT DBG  Interruptor Addr :"<<std::hex<<addr<<"  data : "<<value<<std::endl;;
   return false;
+  }}else{
+    return 0;
   }
 }
 
@@ -105,12 +109,14 @@ bool
 Interruptor::handleWriteHelper(uint64_t addr, uint64_t value)
 {
 
+    std::cout <<"Interrupt HandleWrite: "<<std::hex<< addr<<" data "<<value;
+    std::cout <<"\nTrickBox Addr: "<<std::hex<< addr_<<" \n";
     //std::cout <<"Interrupt HandleWrite: "<<std::hex<< addr<<" data "<<value;
     //std::cout <<"\nTrickBox Addr: "<<std::hex<< addr_<<" \n";
     svScope scope = svGetScopeFromName("top.dut_harness");
     svSetScope(scope); 
-    //std::cout << "Scope is " << svGetNameFromScope(svGetScope()) << std::endl; 
-    //std::cout <<"Trigger Interrupt: "<<std::hex<< addr<<" data "<<value;
+    std::cout << "Scope is " << svGetNameFromScope(svGetScope()) << std::endl; 
+    std::cout <<"Trigger Interrupt: "<<std::hex<< addr<<" data "<<value;
     if(addr==0x9000000){
     unsigned hart = value & 0xfff;
     int event = (value >> 12) & 0xff;
