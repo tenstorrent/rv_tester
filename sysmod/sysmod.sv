@@ -27,7 +27,7 @@ module sysmod #(
             _sm = sysmod_get(NUM);
             sysmod_set_scope(_sm);
             sysmod_reset(_sm);
-            sysmod_poll = cvm_plusargs::get_bool("cb_fast") != '0;
+            sysmod_poll = cvm_plusargs::get_bool("cb_async") != '0;
             /* verilator lint_on BLKSEQ */
         end
     end
@@ -85,7 +85,7 @@ module sysmod #(
       $display("[SYSMOD] mti = %d", val);
       interrupt_d.mti = val;
     endfunction
-    export "DPI-C" function timer_interrupt;
+    export "DPI-C" function sysmod_timer_interrupt;
 
     function automatic sysmod_sw_interrupt (unsigned hartid, unsigned val);
       $display("[SYSMOD] msi = %d", val);
