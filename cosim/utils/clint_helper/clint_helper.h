@@ -60,8 +60,11 @@ class clint_helper {
   {
    // std::cout<<"\nCLINT HELPER: tick() timer "<<timer_<<" timercompare "<<timeCompare_.at(0)<<"\n";
     //std::lock_guard<std::mutex> lock(mutex_);
+    if(run_timer_){
     timer_ += advance;
+     //std::cout<<"\nCLINT HELPER: tick() timer "<<timer_<<" timercompare "<<timeCompare_.at(0)<<"\n";
     processTimerInterrupts();
+    }
   }
 
 
@@ -72,19 +75,19 @@ class clint_helper {
   {
     //svScope scope = svGetScopeFromName("top.tester.sysmod");
     //svSetScope(scope); 
-    //std::cout<<"\nCLINT HELPER process TMR ITP\n";
+    //std::cout<<"\nCLINT HELPER processTimerInterrupts\n";
     for (unsigned i = 0; i < hartCount_; ++i)
       {
         if(timeCompare_.at(i) >0){
         bool flag = timer_ >= timeCompare_.at(i);
-        //std::cout<<"\nCLINT HELPER :processTimerInterrupts  iter: "<<i<<" timerIntPrev_.at(i) "<< timerIntPrev_.at(i) <<" timer "<<timer_<<" timercompare "<<timeCompare_.at(i)<<" flag "<<flag<<"\n";
+         //std::cout<<"\nCLINT HELPER :processTimerInterrupts  iter: "<<i<<" timerIntPrev_.at(i) "<< timerIntPrev_.at(i) <<" timer "<<timer_<<" timercompare "<<timeCompare_.at(i)<<" flag "<<flag<<"\n";
         //if (timerIntPrev_.at(i) != flag){
         if (flag){
           //timerInterrupt(i, flag);
 	 svScope scope = svGetScopeFromName("top.tester.sysmod");
          svSetScope(scope); 
     //cbs.push_back(cb_t{Callback::TIMER_INT, hart, flag});
-        std::cout<<"\nCLINT HELPER : CALL TMR ITP DPI WITH FLAG "<<flag<<"\n";
+        //std::cout<<"\nCLINT HELPER : CALL TMR ITP DPI WITH FLAG "<<flag<<"\n";
         sysmod_timer_interrupt(i, flag);
         timerIntPrev_.at(i) = 0;
         timeCompare_.at(i) = 0;
@@ -128,6 +131,7 @@ class clint_helper {
     std::vector<uint64_t> timeCompare_;  // One per hart.
     std::vector<bool> timerIntPrev_; // Previous value of timer interrupt
     uint64_t timer_ = 0;
+    uint64_t run_timer_ = 0;
 
     std::atomic<bool> terminate_ = false;
     std::mutex mutex_;
