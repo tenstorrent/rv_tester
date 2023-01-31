@@ -12,11 +12,19 @@ module sysmod #(
     output rv_tester_pkg::interrupt_t interrupt,
     output terminate
 );
+<<<<<<< HEAD
     import "DPI-C" function void sysmod_tick(dpic_pkg::c_handle sysmod_p, longint unsigned advance);
     import "DPI-C" context function void sysmod_flush_cbs(dpic_pkg::c_handle sysmod_p);
     import "DPI-C" function dpic_pkg::c_handle sysmod_get(int num);
     import "DPI-C" context function void sysmod_set_scope(dpic_pkg::c_handle sysmod_p);
     import "DPI-C" function void sysmod_reset(dpic_pkg::c_handle sysmod_p);
+=======
+    import "DPI-C" function void sysmod_tick(chandle sysmod_p, longint unsigned advance);
+    import "DPI-C" function chandle sysmod_get(int num);
+    import "DPI-C" context function void sysmod_set_scope(chandle sysmod_p);
+    import "DPI-C" function void sysmod_reset(chandle sysmod_p);
+    import "DPI-C" function void sysmod_flush_cbs();
+>>>>>>> faa5d99 (fix bugs)
 
     dpic_pkg::c_handle _sm;
     bit sysmod_poll = '1;
@@ -27,7 +35,7 @@ module sysmod #(
             _sm = sysmod_get(NUM);
             sysmod_set_scope(_sm);
             sysmod_reset(_sm);
-            sysmod_poll = cvm_plusargs::get_bool("cb_async") != '0;
+            sysmod_poll = cvm_plusargs::get_bool("cb_async") == '0;
             /* verilator lint_on BLKSEQ */
         end
     end

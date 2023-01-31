@@ -51,7 +51,7 @@ sysmod::timer_interrupt(unsigned hart, bool flag) {
 void
 sysmod::sw_interrupt(unsigned hart, bool flag) {
   cvm::callbacks::push(
-                  scope_
+                  scope_,
                   [&hart, &flag]() {
                     sysmod_sw_interrupt(hart, flag);
                   });
@@ -60,7 +60,7 @@ sysmod::sw_interrupt(unsigned hart, bool flag) {
 void
 sysmod::terminate() {
   cvm::callbacks::push(
-                  scope_
+                  scope_,
                   [&FLAGS_sysmod_terminate]() {
                     sysmod_terminate(FLAGS_sysmod_terminate);
                   });
@@ -194,6 +194,11 @@ extern "C" {
 
   void sysmod_tick(sysmod* s, uint64_t new_clock) {
     s->tick(new_clock);
+  }
+
+  void sysmod_flush_cbs() {
+    // FIXME: should this go here?
+    cvm::callbacks::flush();
   }
 
   sysmod* sysmod_get(int num) {
