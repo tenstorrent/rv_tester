@@ -1,5 +1,7 @@
 // -*- c++ -*-
 
+#include <boost/signals2.hpp>
+#include <functional>
 #include "device.h"
 
 /// Model an htif (host target interface) device
@@ -13,13 +15,12 @@ public:
 
   // Reads outside of device range are ignored. Reads with length
   // different than 8 are ignored.
-  virtual void read(uint64_t addr, size_t length, data_t& data,
-                    cbs_t& cbs) override;
+  virtual void read(uint64_t addr, size_t length, data_t& data) override;
 
   // Writes outside of device range are ignored. Writes with length
   // different than 8 are ignored.
   virtual void write(uint64_t addr, size_t length, const data_t& data,
-		     const strb_t& strb, cbs_t& cbs) override;
+		     const strb_t& strb) override;
 
   // Copy n bytes from the given integer, x, to the data iterator
   // following little endian convention. If n is larger than the size
@@ -41,8 +42,16 @@ public:
       x |= INT(data[i]) << i*8;
   }
 
+  typedef std::function<void()> listener;
+  void registerTerminate(const listener& l)
+  {
+    terminateSignal_.connect(l);
+  }
+
 private:
 
   uint64_t to_ = 0;
   uint64_t from_ = 0;
+
+  boost::signals2::signal<void()> terminateSignal_;
 };

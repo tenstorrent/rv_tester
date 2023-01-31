@@ -24,23 +24,21 @@ class sysmod : public endpoint {
     void compose();
     void load_prog();
     void tick(uint64_t advance);
-    void flush_cbs();
     void reset();
     void set_scope(svScope s) { scope_ = s; }
 
-    void add_callback(const device::cb_t& cb);
+  protected:
+
+    void timer_interrupt(unsigned hart, bool flag);
+    void sw_interrupt(unsigned hart, bool flag);
+    void terminate();
 
   private:
-
-    void handle_callbacks(const device::cbs_t& cbs);
 
     svScope scope_;
 
     mutable std::mutex sys_m;
     std::vector<std::unique_ptr<device> > devices_;
-
-    // queue up callbacks for emu to flush later (need main thread to call DPI)
-    std::vector<device::cb_t> callbacks_;
 
     // Memmap
     memmap::memmap_t memmap_;

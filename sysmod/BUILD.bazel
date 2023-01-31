@@ -22,6 +22,9 @@ verilog_library(
 cc_library(
     name = "device",
     hdrs = ["device.h"],
+    deps = [
+      "@cvm//:callbacks",
+    ],
     strip_include_prefix = "//sysmod",
     visibility = ["//visibility:public"],
 )

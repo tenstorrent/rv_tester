@@ -18,15 +18,10 @@ DEFINE_string(memmap_json_path, "", "Path to memory map json");
 DEFINE_string(hex, "", "hex file (program) to load into memory");
 DEFINE_string(load, "", "elf file (program) to load into memory");
 DEFINE_bool(sysmod_terminate, true, "Call $finish on write to tohost");
-DEFINE_bool(sysmod_poll, true, "Poll for sysmod callbacks");
 
 extern "C" {
-  // used by CLINT to assert/deassert timer interrupt
   void sysmod_timer_interrupt(unsigned hartid, unsigned val);
-
-  // used by CLINT to assert/deassert sw interrupt
   void sysmod_sw_interrupt(unsigned hartid, unsigned val);
-  
   // used by TRICKBOX to assert/deassert  interrupt
   void sysmod_tbox_interrupt(unsigned hartid, unsigned val, unsigned int_val);
 
@@ -37,19 +32,38 @@ extern "C" {
 sysmod::sysmod()
   : scope_(nullptr)
 {
-
-    if(!FLAGS_sysmod_poll) {
-        std::thread([&] () {
-                while(1) {
-                    flush_cbs();
-                }
-                }).detach();
-    }
-
 }
 
 sysmod::~sysmod()
 {
+}
+
+// forwarding functions for devices
+void
+sysmod::timer_interrupt(unsigned hart, bool flag) {
+  cvm::callbacks::push(
+                  scope_,
+                  [&hart, &flag]() {
+                    sysmod_timer_interrupt(hart, flag);
+                  });
+}
+
+void
+sysmod::sw_interrupt(unsigned hart, bool flag) {
+  cvm::callbacks::push(
+                  scope_
+                  [&hart, &flag]() {
+                    sysmod_sw_interrupt(hart, flag);
+                  });
+}
+
+void
+sysmod::terminate() {
+  cvm::callbacks::push(
+                  scope_
+                  [&FLAGS_sysmod_terminate]() {
+                    sysmod_terminate(FLAGS_sysmod_terminate);
+                  });
 }
 
 void
@@ -77,9 +91,9 @@ sysmod::compose()
       } else if (type == "null_dev") {
         device = new null_dev(tag, type,base, size);
       } else if (type == "htif") {
-        device = new htif(tag,type, base);
+        device = new htif(tag, type, base);
       } else if (type == "clint") {
-        device = new clint(tag, type,base, 1);
+        device = new clint(tag, type, base, 1);
       } else if (type == "trickbox") {
         device = new trickbox(tag,type, base, 1);
       } else {
@@ -145,23 +159,12 @@ sysmod::load_prog()
 }
 
 void
-sysmod::handle_callbacks(const device::cbs_t& cbs)
-{
-  for (const auto& c : cbs) {
-    if (c.cb != device::Callback::NONE)
-      callbacks_.push_back(c);
-  }
-}
-
-void
 sysmod::write(uint64_t addr, size_t length, const device::data_t& data, const device::strb_t& strb)
 {
   std::lock_guard<std::mutex> lock(sys_m);
   //std::cout << std::hex << "write req at: " << addr << '\n';
   auto& d = dev(addr);
-  device::cbs_t cbs;
-  d.write(addr, length, data, strb, cbs);
-  handle_callbacks(cbs);
+  d.write(addr, length, data, strb);
 }
 
 void
@@ -170,9 +173,7 @@ sysmod::read(uint64_t addr, size_t length, device::data_t& data)
   std::lock_guard<std::mutex> lock(sys_m);
   //std::cout << std::hex << "read req at: " << addr << '\n';
   auto& d = dev(addr);
-  device::cbs_t cbs;
-  d.read(addr, length, data, cbs);
-  handle_callbacks(cbs);
+  d.read(addr, length, data);
 }
 
 void
@@ -180,50 +181,8 @@ sysmod::tick(uint64_t advance)
 {
   std::lock_guard<std::mutex> lock(sys_m);
   for (auto& d : devices_) {
-      device::cbs_t cbs;
-      d->tick(advance, cbs);
-      handle_callbacks(cbs);
+      d->tick(advance);
   }
-}
-
-void
-sysmod::reset()
-{
-  std::lock_guard<std::mutex> lock(sys_m);
-  std::cout<<"[SYSMOD]: resetting devices\n";
-  for (auto& d : devices_) {
-      d->reset();
-  }
-}
-void
-sysmod::flush_cbs()
-{
-  std::lock_guard<std::mutex> lock(sys_m);
-  if (callbacks_.size()) {
-      svSetScope(scope_);
-  }
-  for (auto& res : callbacks_) {
-    switch (res.cb) {
-      case device::Callback::TIMER_INT: sysmod_timer_interrupt(res.hart, res.val);
-                                        break;
-      case device::Callback::SW_INT:    sysmod_sw_interrupt(res.hart, res.val);
-                                        break;
-      case device::Callback::TRICKBOX_INTR:    sysmod_tbox_interrupt(res.hart, res.intr_select, res.intr_value);
-                                        break;
-      case device::Callback::TERMINATE: sysmod_terminate(FLAGS_sysmod_terminate);
-                                        break;
-      default: assert(false);
-    }
-  }
-
-  callbacks_.clear();
-}
-
-void sysmod::add_callback(const device::cb_t& cb) {
-  std::lock_guard<std::mutex> lock(sys_m);
-  device::cbs_t cbs;
-  cbs.push_back(cb);
-  handle_callbacks(cbs);
 }
 
 extern "C" {
@@ -235,10 +194,6 @@ extern "C" {
 
   void sysmod_tick(sysmod* s, uint64_t new_clock) {
     s->tick(new_clock);
-  }
-
-  void sysmod_flush_cbs(sysmod* s) {
-    s->flush_cbs();
   }
 
   sysmod* sysmod_get(int num) {

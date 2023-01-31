@@ -37,7 +37,7 @@ clint::selfTick(useconds_t delta)
 
 
 void
-clint::read(uint64_t addr, size_t length, data_t& data, cbs_t& cbs)
+clint::read(uint64_t addr, size_t length, data_t& data)
 {
   if (not has_addr(addr))
     return;
@@ -72,7 +72,7 @@ clint::read(uint64_t addr, size_t length, data_t& data, cbs_t& cbs)
 
 void
 clint::write(uint64_t addr, size_t length, const data_t& data,
-		 const strb_t& strb, cbs_t& cbs)
+		 const strb_t& strb)
 {
   if (not has_addr(addr))
     return;
@@ -87,7 +87,7 @@ clint::write(uint64_t addr, size_t length, const data_t& data,
       unsigned word = 0;
       deserializeInt(data, word);
       soft_.at(hartIx) = word & 1;
-      softwareInterrupt(hartIx, word & 1, cbs);
+      softwareInterrupt(hartIx, word & 1);
     }
 
   if (length == 8)
@@ -110,6 +110,6 @@ clint::write(uint64_t addr, size_t length, const data_t& data,
 	  timeCompare_.at(hartIx) = dword;
 	}
 
-      processTimerInterrupts(cbs);
+      processTimerInterrupts();
     }
 }

@@ -17,37 +17,15 @@ class device {
     typedef std::vector<uint8_t> data_t;
     typedef std::vector<bool> strb_t;
 
-    enum class Callback : uint32_t {
-      NONE = 0,
-      TIMER_INT = 1,
-      SW_INT = 2,
-      TERMINATE = 3,
-      TRICKBOX_INTR = 4,
-      MAX = NONE
-    };
-
-    typedef struct {
-      Callback cb;
-      unsigned hart;
-      unsigned val;
-      unsigned intr_select;
-      unsigned intr_value;
-      
-    } cb_t;
-
-    typedef std::vector<cb_t> cbs_t;
-
     virtual void write(uint64_t addr, size_t length,
                        const data_t& data,
-                       const strb_t& strb,
-                       cbs_t& cbs) = 0;
+                       const strb_t& strb) = 0;
 
     virtual void read(uint64_t addr, size_t length,
-                      data_t& data,
-                      cbs_t& cbs) = 0;
+                      data_t& data) = 0;
 
     virtual void tick(uint64_t advance, cbs_t& cbs) { };
-    
+
     virtual void reset() { };
 
     device(std::string tag, std::string type, uint64_t addr, size_t size)

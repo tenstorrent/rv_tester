@@ -12,11 +12,10 @@ class sysmod_mem : public device {
 
     public:
         virtual void write(uint64_t addr, size_t length,
-                            const data_t& data, const strb_t& strb,
-                            cbs_t& cbs) override;
+                            const data_t& data, const strb_t& strb) override;
 
         virtual void read(uint64_t addr, size_t length,
-                          data_t& data, cbs_t& cbs) override;
+                          data_t& data) override;
 
         // add max mem size
         sysmod_mem(const std::string& tag, const std::string& type, uint64_t addr, size_t size) : device(tag, type, addr, size) {}

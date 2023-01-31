@@ -27,7 +27,7 @@ module sysmod #(
             _sm = sysmod_get(NUM);
             sysmod_set_scope(_sm);
             sysmod_reset(_sm);
-            sysmod_poll = cvm_plusargs::get_bool("sysmod_poll") != '0;
+            sysmod_poll = cvm_plusargs::get_bool("cb_fast") != '0;
             /* verilator lint_on BLKSEQ */
         end
     end
@@ -85,19 +85,19 @@ module sysmod #(
       $display("[SYSMOD] mti = %d", val);
       interrupt_d.mti = val;
     endfunction
-    export "DPI-C" function sysmod_timer_interrupt;
+    export "DPI-C" function timer_interrupt;
 
     function automatic sysmod_sw_interrupt (unsigned hartid, unsigned val);
       $display("[SYSMOD] msi = %d", val);
       interrupt_d.msi = val;
     endfunction
     export "DPI-C" function sysmod_sw_interrupt;
-    
+
     function automatic sysmod_tbox_interrupt (int unsigned hartid, int unsigned intr_select,int unsigned intr_value);
       $display("\n[SYSMOD] trickbox interrupt select %d with value %d\n",intr_select,intr_value);
       for(int i =0;i<6;i++)begin
         if(intr_select[i])
-          interrupt_d[i] = intr_value[i]; 
+          interrupt_d[i] = intr_value[i];
       end
     endfunction
     export "DPI-C" function sysmod_tbox_interrupt;
