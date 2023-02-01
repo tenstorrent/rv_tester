@@ -39,14 +39,14 @@ void clint_helper::process(const transactions::m_mcmi_store& m_mcmi_store) {
           //std::cout<<"CLINT HELPER: STOPPING TIMER 1\n";
           //std::cout<<"CLINT HELPER: SECOND OFFSET  data: "<<m_mcmi_store.data<<"\n";
 	       timer_ = m_mcmi_store.data;
-         if(m_mcmi_store.data == 0){
-          sysmod_timer_interrupt(0, 0);
-          run_timer_ = 0;
-          std::cout<<"CLINT HELPER: Deasserting Timer Interrupt\n";
-         }else{
-          std::cout<<"CLINT HELPER: Deasserting Timer Interrupt\n";
-          sysmod_timer_interrupt(0, 0);
-         }
+        // if(m_mcmi_store.data == 0){
+        //  sysmod_timer_interrupt(0, 0);
+         //run_timer_ = 1;
+        //  std::cout<<"CLINT HELPER: Deasserting Timer Interrupt\n";
+        // }else{
+        //  std::cout<<"CLINT HELPER: Deasserting Timer Interrupt\n";
+        //  sysmod_timer_interrupt(0, 0);
+        // }
 	  }
     else
 	  {
@@ -58,8 +58,9 @@ void clint_helper::process(const transactions::m_mcmi_store& m_mcmi_store) {
 	  // Time compare. 1 double word per hart.
 	  uint64_t dword = m_mcmi_store.data;
 	  timeCompare_.at(hartIx) = dword;
-    std::cout << "CLINT HELPER: Programming timercompare with "<<dword<<"for hart "<<hartIx<<"\n";
-    run_timer_ = 1;
+          std::cout << "CLINT HELPER: Programming timercompare with "<<dword<<"for hart "<<hartIx<<"\n";
+          //run_timer_ = 0;
+          sysmod_timer_interrupt(0, 0);
   	}
 
     //std::cout<<"CLINT HELPER: 59: processtimerItp\n";
