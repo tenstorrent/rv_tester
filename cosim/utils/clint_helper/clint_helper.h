@@ -60,11 +60,11 @@ class clint_helper {
   {
    // std::cout<<"\nCLINT HELPER: tick() timer "<<timer_<<" timercompare "<<timeCompare_.at(0)<<"\n";
     //std::lock_guard<std::mutex> lock(mutex_);
-    if(run_timer_){
+    //if(run_timer_){
     timer_ += advance;
      //std::cout<<"\nCLINT HELPER: tick() timer "<<timer_<<" timercompare "<<timeCompare_.at(0)<<"\n";
     processTimerInterrupts();
-    }
+   // }
   }
 
 
