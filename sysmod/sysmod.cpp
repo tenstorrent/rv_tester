@@ -79,6 +79,9 @@ sysmod::compose()
   memmap::get(memmap_);
 
   try {
+
+    using namespace std::placeholders;
+
     for(auto& d : memmap_) {
       auto& base = d.second.base;
       auto& size = d.second.size;
@@ -88,17 +91,17 @@ sysmod::compose()
       device* device = nullptr;
 
       if (type == "memory") {
-        device = new sysmod_mem(tag,type, base, size);
+        device = new sysmod_mem(tag, type, base, size);
       } else if (type == "io_dev") {
-        device = new io_dev(tag, type,base, size);
+        device = new io_dev(tag, type, base, size);
       } else if (type == "null_dev") {
-        device = new null_dev(tag, type,base, size);
+        device = new null_dev(tag, type, base, size);
       } else if (type == "htif") {
         device = new htif(tag, type, base);
       } else if (type == "clint") {
         device = new clint(tag, type, base, 1);
       } else if (type == "trickbox") {
-        device = new trickbox(tag,type, base, 1);
+        device = new trickbox(tag, type, base, 1);
       } else {
         std::cerr << "Error: unknown type " << type << "\n";
         assert(false);
