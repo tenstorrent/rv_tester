@@ -11,7 +11,7 @@ class sysmod : public endpoint {
 
   public:
 
-    sysmod();
+    sysmod(int num);
 
     ~sysmod();
 
@@ -27,6 +27,8 @@ class sysmod : public endpoint {
     void reset();
     void set_scope(svScope s) { scope_ = s; }
 
+    int num() { return num_; }
+
   protected:
 
     void timer_interrupt(unsigned hart, bool flag);
@@ -36,6 +38,7 @@ class sysmod : public endpoint {
   private:
 
     svScope scope_;
+    int num_;
 
     mutable std::mutex sys_m;
     std::vector<std::unique_ptr<device> > devices_;

@@ -12,19 +12,12 @@ module sysmod #(
     output rv_tester_pkg::interrupt_t interrupt,
     output terminate
 );
-<<<<<<< HEAD
     import "DPI-C" function void sysmod_tick(dpic_pkg::c_handle sysmod_p, longint unsigned advance);
     import "DPI-C" context function void sysmod_flush_cbs(dpic_pkg::c_handle sysmod_p);
     import "DPI-C" function dpic_pkg::c_handle sysmod_get(int num);
     import "DPI-C" context function void sysmod_set_scope(dpic_pkg::c_handle sysmod_p);
     import "DPI-C" function void sysmod_reset(dpic_pkg::c_handle sysmod_p);
-=======
-    import "DPI-C" function void sysmod_tick(chandle sysmod_p, longint unsigned advance);
-    import "DPI-C" function chandle sysmod_get(int num);
-    import "DPI-C" context function void sysmod_set_scope(chandle sysmod_p);
-    import "DPI-C" function void sysmod_reset(chandle sysmod_p);
-    import "DPI-C" function void sysmod_flush_cbs();
->>>>>>> faa5d99 (fix bugs)
+    import "DPI-C" function void sysmod_flush_cbs(dpic_pkg::c_handle sysmod_p);
 
     dpic_pkg::c_handle _sm;
     bit sysmod_poll = '1;

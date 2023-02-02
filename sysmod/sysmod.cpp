@@ -29,8 +29,8 @@ extern "C" {
   void sysmod_terminate(std::uint8_t call_finish);
 }
 
-sysmod::sysmod()
-  : scope_(nullptr)
+sysmod::sysmod(int num)
+  : scope_(nullptr), num_(num)
 {
 }
 
@@ -43,6 +43,7 @@ void
 sysmod::timer_interrupt(unsigned hart, bool flag) {
   cvm::callbacks::push(
                   scope_,
+                  "sysmod" + std::to_string(num_),
                   [&hart, &flag]() {
                     sysmod_timer_interrupt(hart, flag);
                   });
@@ -52,6 +53,7 @@ void
 sysmod::sw_interrupt(unsigned hart, bool flag) {
   cvm::callbacks::push(
                   scope_,
+                  "sysmod" + std::to_string(num_),
                   [&hart, &flag]() {
                     sysmod_sw_interrupt(hart, flag);
                   });
@@ -61,6 +63,7 @@ void
 sysmod::terminate() {
   cvm::callbacks::push(
                   scope_,
+                  "sysmod" + std::to_string(num_),
                   [&FLAGS_sysmod_terminate]() {
                     sysmod_terminate(FLAGS_sysmod_terminate);
                   });
@@ -196,9 +199,8 @@ extern "C" {
     s->tick(new_clock);
   }
 
-  void sysmod_flush_cbs() {
-    // FIXME: should this go here?
-    cvm::callbacks::flush();
+  void sysmod_flush_cbs(sysmod* s) {
+    cvm::callbacks::flush("sysmod" + std::to_string(s->num()));
   }
 
   sysmod* sysmod_get(int num) {
@@ -209,7 +211,7 @@ extern "C" {
           it = sysmods.emplace(
                   std::piecewise_construct,
                   std::make_tuple(num),
-                  std::make_tuple()
+                  std::make_tuple(num)
                   ).first;
       }
       return &(it->second);

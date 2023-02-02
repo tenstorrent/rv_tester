@@ -22,9 +22,6 @@ verilog_library(
 cc_library(
     name = "device",
     hdrs = ["device.h"],
-    deps = [
-      "@cvm//:callbacks",
-    ],
     strip_include_prefix = "//sysmod",
     visibility = ["//visibility:public"],
 )
@@ -47,6 +44,7 @@ cc_library(
       "//sysmod/io_dev:io_dev",
       "//sysmod/null_dev:null_dev",
       "@cvm//:plusargs",
+      "@cvm//:callbacks",
     ],
     alwayslink = True,
     visibility = ["//visibility:public"],
