@@ -3,13 +3,19 @@
 #include <cassert>
 #include <unordered_map>
 #include "cvm/plusargs.hpp"
+#include "cvm/callbacks.hpp"
 #include "sysmod.h"
 #include "mem/sysmod_mem.h"
 #include "clint/clint.h"
+<<<<<<< HEAD
 #include "io_dev/io_dev.h"
 #include "null_dev/null_dev.h"
+=======
+// #include "io_dev/io_dev.h"
+>>>>>>> 56d6cca (minimal changes for c->sv to compile. trickbox and cosim need to be reviewed)
 #include "trickbox/trickbox.h"
 #include "htif/htif.h"
+// #include "trickbox/trickbox.h"
 
 // shared flags
 DEFINE_string(memmap_json_path, "", "Path to memory map json");
@@ -63,7 +69,7 @@ sysmod::terminate() {
   cvm::callbacks::push(
                   scope_,
                   "sysmod" + std::to_string(num_),
-                  [&FLAGS_sysmod_terminate]() {
+                  []() {
                     sysmod_terminate(FLAGS_sysmod_terminate);
                   });
 }
@@ -78,8 +84,6 @@ sysmod::compose()
   memmap::get(memmap_);
 
   try {
-
-    using namespace std::placeholders;
 
     for(auto& d : memmap_) {
       auto& base = d.second.base;

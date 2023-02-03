@@ -28,6 +28,7 @@ class sysmod : public endpoint {
     void set_scope(svScope s) { scope_ = s; }
 
     int num() { return num_; }
+    svScope scope() { return scope_; }
 
   protected:
 

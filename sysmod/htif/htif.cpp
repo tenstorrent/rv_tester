@@ -4,7 +4,6 @@
 #include <termios.h>
 #include <poll.h>
 #include "htif.h"
-#include "cvm/plusargs.hpp"
 
 DECLARE_bool(sysmod_terminate);
 
@@ -118,7 +117,7 @@ htif::write(uint64_t addr, size_t length, const data_t& data,
       if (payload & 1)
 	{
 	  std::cerr << "Terminating because of write tohost\n";
-          if (terminateSignal_.connected())
+          if (not terminateSignal_.empty())
             terminateSignal_();
 	}
     }

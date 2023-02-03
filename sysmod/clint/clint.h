@@ -67,6 +67,18 @@ public:
     processTimerInterrupts();
   }
 
+  /// register event handlers
+  typedef std::function<void(unsigned, unsigned)> listener;
+  void registerSoftwareInterrupt(const listener& l)
+  {
+    swSignal_.connect(l);
+  }
+
+  void registerTimerInterrupt(const listener& l)
+  {
+    timerSignal_.connect(l);
+  }
+
 protected:
 
   /// Assert/deassert the timer interrupt for each hart where the
@@ -86,26 +98,15 @@ protected:
   // Used to assert/deassert a software interrupt (IPI) for given hart.
   virtual void softwareInterrupt(unsigned hart, bool flag)
   {
-    if (swSignal_.connected())
+    if (not swSignal_.empty())
       swSignal_(hart, flag);
   }
 
   // Used to assert/deassert a timer interrupt for given hart.
   virtual void timerInterrupt(unsigned hart, bool flag)
   {
-    if (timerSignal_.connected())
+    if (not timerSignal_.empty())
       timerSignal_(hart, flag);
-  }
-
-  typedef std::function<void(unsigned, unsigned)> listener;
-  void registerSoftwareInterrupt(const listener& l)
-  {
-    swSignal_.connect(l);
-  }
-
-  void registerTimerInterrupt(const listener& l)
-  {
-    timerSignal_.connect(l);
   }
 
   // Start a thread to increment timer after n microseconds.

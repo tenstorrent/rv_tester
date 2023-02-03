@@ -42,6 +42,7 @@ public:
       x |= INT(data[i]) << i*8;
   }
 
+  // register event handlers
   typedef std::function<void()> listener;
   void registerTerminate(const listener& l)
   {

@@ -38,7 +38,7 @@ cc_library(
     deps = [
       "//common:common",
       "//sysmod/clint:clint",
-      "//sysmod/trickbox:trickbox",
+      # "//sysmod/trickbox:trickbox",
       "//sysmod/htif:htif",
       "//sysmod/mem:mem",
       "//sysmod/io_dev:io_dev",

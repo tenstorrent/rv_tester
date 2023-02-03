@@ -6,6 +6,7 @@
 #include "cvm/plusargs.hpp"
 #include "cvm/logger.hpp"
 #include "cvm/messenger.hpp"
+#include "cvm/callbacks.hpp"
 #include "cosim/transactions/transactions.hpp"
 
 #include "vpi_user.h"
