@@ -1,9 +1,8 @@
 // -*- c++ -*-
 
+#include <boost/signals2.hpp>
 #include <functional>
-#include "cvm/messenger.hpp"
 #include "device.h"
-#include "defines.h"
 
 /// Model an htif (host target interface) device
 class htif : public device
@@ -43,9 +42,16 @@ public:
       x |= INT(data[i]) << i*8;
   }
 
+  typedef std::function<void()> listener;
+  void registerTerminate(const listener& l)
+  {
+    terminateSignal_.connect(l);
+  }
+
 private:
 
   uint64_t to_ = 0;
   uint64_t from_ = 0;
 
+  boost::signals2::signal<void()> terminateSignal_;
 };

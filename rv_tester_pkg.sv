@@ -21,12 +21,9 @@ package rv_tester_pkg;
 
     typedef struct packed {
         // FIXME: need per hart interrupt
-        logic mei; // FIXME need an array for multiple IRQ?
-        logic sei;
-        logic mti;
-        logic sti;
-        logic msi;
-        logic ssi;
+        logic external; // FIXME need an array for multiple IRQ?
+        logic ipi;
+        logic timer;
     } interrupt_t;
 
     typedef longint unsigned c_handle; 

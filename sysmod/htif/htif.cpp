@@ -118,7 +118,8 @@ htif::write(uint64_t addr, size_t length, const data_t& data,
       if (payload & 1)
 	{
 	  std::cerr << "Terminating because of write tohost\n";
-    cvm::messenger<rv_tester::terminate_t>::signal(FLAGS_sysmod_terminate);
+          if (terminateSignal_.connected())
+            terminateSignal_();
 	}
     }
   else

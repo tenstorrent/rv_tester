@@ -46,7 +46,7 @@ class clint_helper {
       soft_.push_back(0);
       timeCompare_.push_back(0);
       timerIntPrev_.push_back(0); 
-      //selfTick(100);
+      selfTick(100);
       connect<
         transactions::m_mcmi_store
       >();

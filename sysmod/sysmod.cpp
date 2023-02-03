@@ -3,8 +3,6 @@
 #include <cassert>
 #include <unordered_map>
 #include "cvm/plusargs.hpp"
-#include "cvm/callbacks.hpp"
-#include "cvm/messenger.hpp"
 #include "sysmod.h"
 #include "mem/sysmod_mem.h"
 #include "clint/clint.h"
@@ -41,42 +39,32 @@ sysmod::~sysmod()
 
 // forwarding functions for devices
 void
-sysmod::timer_interrupt(rv_tester::timerint_t t) {
+sysmod::timer_interrupt(unsigned hart, bool flag) {
   cvm::callbacks::push(
                   scope_,
                   "sysmod" + std::to_string(num_),
-                  [&t]() {
-                    sysmod_timer_interrupt(t.hart, t.val);
+                  [&hart, &flag]() {
+                    sysmod_timer_interrupt(hart, flag);
                   });
 }
 
 void
-sysmod::sw_interrupt(rv_tester::swint_t s) {
+sysmod::sw_interrupt(unsigned hart, bool flag) {
   cvm::callbacks::push(
                   scope_,
                   "sysmod" + std::to_string(num_),
-                  [&s]() {
-                    sysmod_sw_interrupt(s.hart, s.val);
+                  [&hart, &flag]() {
+                    sysmod_sw_interrupt(hart, flag);
                   });
 }
 
-//void
-//sysmod::interrupt(trickbox::interrupt_t i) {
-//  cvm::callbacks::push(
-//                  scope_,
-//                  "sysmod" + std::to_string(num_),
-//                  [&i]() {
-//                    sysmod_interrupt(i.hart, i.val);
-//                  });
-//}
-
 void
-sysmod::terminate(rv_tester::terminate_t t) {
+sysmod::terminate() {
   cvm::callbacks::push(
                   scope_,
                   "sysmod" + std::to_string(num_),
-                  [&t]() {
-                    sysmod_terminate(t);
+                  [&FLAGS_sysmod_terminate]() {
+                    sysmod_terminate(FLAGS_sysmod_terminate);
                   });
 }
 

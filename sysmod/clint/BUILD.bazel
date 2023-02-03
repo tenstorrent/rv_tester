@@ -2,10 +2,6 @@ cc_library(
     name = "clint",
     srcs = ["clint.cpp"],
     hdrs = ["clint.h"],
-    deps = [
-            "//sysmod:device",
-            "//common:common",
-            "@cvm//:messenger",
-    ],
+    deps = ["//sysmod:device"],
     visibility = ["//visibility:public"],
 )

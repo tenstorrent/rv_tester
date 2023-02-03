@@ -1,4 +1,6 @@
 #include "eot.h"
+#include "sysmod/sysmod.h"
+extern "C" sysmod* sysmod_get(int num);
 
 DEFINE_string(eot, "tohost", "Enable end-of-test mechanism. Supported options: tohost, max_instr");
 DECLARE_string(load);
@@ -40,12 +42,12 @@ void eot::process(const transactions::m_mcmi_store& m_mcmi_store) {
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
     cvm::log(cvm::NONE, "<{}> Pass condition detected - tohost[0]=1, tohost[47:1]=0\n", cycle);
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
-    cvm::messenger<rv_tester::terminate_t>::signal(true);
+    sysmod_get(0)->add_callback(device::cb_t{device::Callback::TERMINATE, 0, 0}); //vpi_control(vpiFinish);
   } else {
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
     cvm::log(cvm::NONE, "<{}> Error: Fail condition detected - tohost[0]=1, tohost[47:1]={:#x}\n", cycle, 
       exit_code);
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
-    cvm::messenger<rv_tester::terminate_t>::signal(true);
+    sysmod_get(0)->add_callback(device::cb_t{device::Callback::TERMINATE, 0, 0}); //vpi_control(vpiFinish);
   }
 }

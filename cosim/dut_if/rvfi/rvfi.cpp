@@ -7,6 +7,8 @@
 DEFINE_bool(rvfi, true, "Enable rvfi logging");
 DEFINE_bool(cosim, true, "Enable cosim checking");
 DEFINE_bool(eot, true, "Enable end-of-test mechanism using tohost cache writes");
+DEFINE_bool(trickbox_helper, true, "trickbox helper until device writes are supported");
+DEFINE_bool(clint_helper, true, "clint helper until device writes are supported");
 DEFINE_bool(bot, true, "Enable begin-of-test handling");
 
 
@@ -36,6 +38,13 @@ void rvfi::init() {
   if (FLAGS_eot) {
     eot_ = std::make_unique<eot>();;
   }
+ if (FLAGS_trickbox_helper) {
+    trickbox_helper_ = std::make_unique<trickbox_helper>();;
+  } 
+ if (FLAGS_clint_helper) {
+    clint_helper_ = std::make_unique<clint_helper>();;
+  } 
+
 }
 
 void rvfi::reset() {
@@ -73,6 +82,19 @@ void rvfi::process(const transactions::m_trap& m_trap) {
 }
 
 void rvfi::process(const transactions::m_intr& m_intr) {
+   uint64_t cause = (m_intr.timer << 7) | (m_intr.ipi << 3) | (m_intr.external << 11);
+
+   if (!m_intr.pos_edge)
+     //bridge_->deassert_interrupt(cause);
+
+  if (!FLAGS_rvfi)
+    return;
+   
+   if (m_intr.pos_edge) {
+     log(cvm::NONE, "#{} {} 0 (assert interrupt:{})", m_intr.cycle, count_, cause);
+   } else {
+     log(cvm::NONE, "#{} {} 0 (deassert interrupt:{})", m_intr.cycle, count_, cause);
+   }
 }
 
 void rvfi::process(const transactions::m_debug& m_debug) {

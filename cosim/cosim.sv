@@ -96,8 +96,29 @@ module cosim #(
     end
 
     // m_intr
-    assign tx_dom_1.m_intrs[0].valid = ~reset & 1'b0;
+    logic timer_d1, ipi_d1, external_d1;
+    logic timer_assert, timer_deassert;
+    logic ipi_assert, ipi_deassert;
+    logic external_assert, external_deassert;
+    always @(posedge clk) begin
+      timer_d1 <= interrupt.timer;
+      ipi_d1 <= interrupt.ipi;
+      external_d1 <= interrupt.external;
+    end
+    assign timer_assert = interrupt.timer & ~timer_d1;
+    assign timer_deassert = ~interrupt.timer & timer_d1;
+    assign ipi_assert = interrupt.ipi & ~ipi_d1;
+    assign ipi_deassert = ~interrupt.ipi & ipi_d1;
+    assign external_assert = interrupt.external & ~external_d1;
+    assign external_deassert = ~interrupt.external & external_d1;
+
+    assign tx_dom_1.m_intrs[0].valid = ~reset & (timer_assert | timer_deassert) & (ipi_assert | ipi_deassert) & 
+      (external_assert | external_deassert);
     assign tx_dom_1.m_intrs[0].data.cycle = clocks;
+    assign tx_dom_1.m_intrs[0].data.pos_edge = (timer_assert | ipi_assert | external_assert);
+    assign tx_dom_1.m_intrs[0].data.timer = (timer_assert || timer_deassert);
+    assign tx_dom_1.m_intrs[0].data.ipi = (ipi_assert || ipi_deassert);
+    assign tx_dom_1.m_intrs[0].data.external = (external_assert || external_deassert);
 
     // Timeout checks
     int max_stall_cycle = 50000;
