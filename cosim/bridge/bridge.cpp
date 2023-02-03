@@ -10,6 +10,7 @@
 #include <cstring>          // strlen
 #include <sstream>          // stringstream
 
+// Plusargs
 DEFINE_bool(cosim_tracer, true, "Enable bridge trace prints");
 DECLARE_string(load);
 DECLARE_string(hex);
@@ -57,6 +58,18 @@ void bridge::reset() {
 
 // Whisper command options
 std::string bridge::get_whisper_cmd() {
+  // Validate flags
+  if ((FLAGS_load == "") && (FLAGS_hex == "")) {
+    cvm::log(cvm::NONE, "Error: Need to provide at least one of +load <elf> or +hex <hex>\n");
+    vpi_control(vpiFinish);
+  }
+
+  if ((FLAGS_whisper_path == "") || (FLAGS_whisper_json_path == "")) {
+    cvm::log(cvm::NONE, "Error: +whisper_path or +whisper_json_path cannot be empty\n");
+    vpi_control(vpiFinish);
+  }
+
+  // Command components
   std::string harts = " --harts " + std::to_string(num_harts_);
   std::string config = " --configfile " + FLAGS_whisper_json_path;
   std::string trace = " --traceload --traceptw";
