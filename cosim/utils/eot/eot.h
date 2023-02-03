@@ -7,6 +7,7 @@
 #include "cvm/logger.hpp"
 #include "cvm/messenger.hpp"
 #include "cosim/transactions/transactions.hpp"
+#include "defines.h"
 
 #include "vpi_user.h"
 #include "util.h"

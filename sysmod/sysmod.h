@@ -6,6 +6,10 @@
 #include "endpoint.h"
 #include "svdpi.h"
 #include "memmap.h"
+#include "mem/sysmod_mem.h"
+#include "clint/clint.h"
+#include "htif/htif.h"
+//#include "trickbox/trickbox.h"
 
 class sysmod : public endpoint {
 
@@ -31,9 +35,9 @@ class sysmod : public endpoint {
 
   protected:
 
-    void timer_interrupt(unsigned hart, bool flag);
-    void sw_interrupt(unsigned hart, bool flag);
-    void terminate();
+    void timer_interrupt(rv_tester::timerint_t timerint);
+    void sw_interrupt(rv_tester::swint_t swint);
+    void terminate(rv_tester::terminate_t terminate);
 
   private:
 

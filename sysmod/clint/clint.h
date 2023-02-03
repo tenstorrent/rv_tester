@@ -8,8 +8,9 @@
 #include <unistd.h>
 #include <iostream>
 #include <functional>
-#include <boost/signals2.hpp>
+#include "cvm/messenger.hpp"
 #include "device.h"
+#include "defines.h"
 
 // Define a core local interruptor (Clint) at the given address
 // and for the given hart count. The size will be 48k bytes.
@@ -86,26 +87,15 @@ protected:
   // Used to assert/deassert a software interrupt (IPI) for given hart.
   virtual void softwareInterrupt(unsigned hart, bool flag)
   {
-    if (swSignal_.connected())
-      swSignal_(hart, flag);
+    rv_tester::swint_t swint = {hart, flag};
+    cvm::messenger<rv_tester::swint_t>::signal(swint);
   }
 
   // Used to assert/deassert a timer interrupt for given hart.
   virtual void timerInterrupt(unsigned hart, bool flag)
   {
-    if (timerSignal_.connected())
-      timerSignal_(hart, flag);
-  }
-
-  typedef std::function<void(unsigned, unsigned)> listener;
-  void registerSoftwareInterrupt(const listener& l)
-  {
-    swSignal_.connect(l);
-  }
-
-  void registerTimerInterrupt(const listener& l)
-  {
-    timerSignal_.connect(l);
+    rv_tester::timerint_t timerint = {hart, flag};
+    cvm::messenger<rv_tester::timerint_t>::signal(timerint);
   }
 
   // Start a thread to increment timer after n microseconds.
@@ -124,8 +114,5 @@ private:
   std::mutex mutex_;
 
   std::thread timerThread_;
-
-  boost::signals2::signal<void(unsigned, unsigned)> timerSignal_;
-  boost::signals2::signal<void(unsigned, unsigned)> swSignal_;
 };
 

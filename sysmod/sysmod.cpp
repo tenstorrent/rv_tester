@@ -3,6 +3,8 @@
 #include <cassert>
 #include <unordered_map>
 #include "cvm/plusargs.hpp"
+#include "cvm/callbacks.hpp"
+#include "cvm/messenger.hpp"
 #include "sysmod.h"
 #include "mem/sysmod_mem.h"
 #include "clint/clint.h"
@@ -24,9 +26,8 @@ extern "C" {
   void sysmod_sw_interrupt(unsigned hartid, unsigned val);
   // used by TRICKBOX to assert/deassert  interrupt
   void sysmod_tbox_interrupt(unsigned hartid, unsigned val, unsigned int_val);
-
-  // used by HTIF to indicate program end
-  void sysmod_terminate(std::uint8_t call_finish);
+  //void sysmod_interrupt(unsigned hartid, unsigned interruptid, unsigned val);
+  void sysmod_terminate(uint8_t call_finish);
 }
 
 sysmod::sysmod(int num)
@@ -40,32 +41,42 @@ sysmod::~sysmod()
 
 // forwarding functions for devices
 void
-sysmod::timer_interrupt(unsigned hart, bool flag) {
+sysmod::timer_interrupt(rv_tester::timerint_t t) {
   cvm::callbacks::push(
                   scope_,
                   "sysmod" + std::to_string(num_),
-                  [&hart, &flag]() {
-                    sysmod_timer_interrupt(hart, flag);
+                  [&t]() {
+                    sysmod_timer_interrupt(t.hart, t.val);
                   });
 }
 
 void
-sysmod::sw_interrupt(unsigned hart, bool flag) {
+sysmod::sw_interrupt(rv_tester::swint_t s) {
   cvm::callbacks::push(
                   scope_,
                   "sysmod" + std::to_string(num_),
-                  [&hart, &flag]() {
-                    sysmod_sw_interrupt(hart, flag);
+                  [&s]() {
+                    sysmod_sw_interrupt(s.hart, s.val);
                   });
 }
 
+//void
+//sysmod::interrupt(trickbox::interrupt_t i) {
+//  cvm::callbacks::push(
+//                  scope_,
+//                  "sysmod" + std::to_string(num_),
+//                  [&i]() {
+//                    sysmod_interrupt(i.hart, i.val);
+//                  });
+//}
+
 void
-sysmod::terminate() {
+sysmod::terminate(rv_tester::terminate_t t) {
   cvm::callbacks::push(
                   scope_,
                   "sysmod" + std::to_string(num_),
-                  [&FLAGS_sysmod_terminate]() {
-                    sysmod_terminate(FLAGS_sysmod_terminate);
+                  [&t]() {
+                    sysmod_terminate(t);
                   });
 }
 

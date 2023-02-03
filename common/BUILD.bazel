@@ -1,6 +1,8 @@
 cc_library(
     name = "common",
-    hdrs = ["svdpi.h",
+    hdrs = [
+            "defines.h",
+            "svdpi.h",
             "transactor.h",
             "endpoint.h",
             "pcg_random.hpp",

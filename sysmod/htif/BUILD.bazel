@@ -2,6 +2,11 @@ cc_library(
   name = "htif",
   srcs = ["htif.cpp"],
   hdrs = ["htif.h"],
-  deps = ["//sysmod:device"],
+  deps = [
+          "//sysmod:device",
+          "//common:common",
+          "@cvm//:messenger",
+          "@cvm//:plusargs",
+  ],
   visibility = ["//visibility:public"],
 )

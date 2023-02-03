@@ -6,6 +6,8 @@
 #include "htif.h"
 #include "cvm/plusargs.hpp"
 
+DECLARE_bool(sysmod_terminate);
+
 htif::htif(const std::string& tag, const std::string& type, uint64_t addr)
   : device(tag, type, addr, 16 /* size */)
 {
@@ -116,8 +118,7 @@ htif::write(uint64_t addr, size_t length, const data_t& data,
       if (payload & 1)
 	{
 	  std::cerr << "Terminating because of write tohost\n";
-          if (terminateSignal_.connected())
-            terminateSignal_();
+    cvm::messenger<rv_tester::terminate_t>::signal(FLAGS_sysmod_terminate);
 	}
     }
   else

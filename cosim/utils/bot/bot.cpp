@@ -1,6 +1,4 @@
 #include "bot.h"
-#include "sysmod/sysmod.h"
-extern "C" sysmod* sysmod_get(int num);
 
 DEFINE_bool(standalone, true, "Enable  whisper standalone run at beginning of sim");
 DEFINE_bool(preload, false, "Enable preload log generation");
@@ -34,6 +32,5 @@ void bot::run_iss_standalone() {
   std::string status = cosim_util::exec(cmd.c_str());
   if (status.find("Error") != std::string::npos) {
     cvm::log(cvm::NONE, "{}", status);
-    sysmod_get(0)->add_callback(device::cb_t{device::Callback::TERMINATE, 0, 0}); //vpi_control(vpiFinish);
   }
 }
