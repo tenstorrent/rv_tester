@@ -38,6 +38,7 @@
         logic [CFG.XLEN-1:0]        pc_wdata ;                                 \
                                                                                \
         logic [CFG.XLEN-1:0]        mem_addr ;                                 \
+        logic [CFG.XLEN-1:0]        mem_paddr;                                 \
         logic [(CFG.XLEN/8)-1:0]    mem_rmask;                                 \
         logic [(CFG.XLEN/8)-1:0]    mem_wmask;                                 \
         logic [CFG.XLEN-1:0]        mem_rdata;                                 \

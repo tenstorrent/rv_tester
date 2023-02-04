@@ -153,6 +153,8 @@ typedef struct rv_instr_s {
   bool excp;
   uint64_t icause;
   uint64_t ecause;
+  uint64_t mem_va;
+  uint64_t mem_pa;
 
   // Registers
   pc_t pc;

@@ -152,6 +152,10 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
     cvm::log(cvm::NONE, "Error: max_instr limit reached: {}\n", FLAGS_max_instr);
     vpi_control(vpiFinish);
   }
+
+  // TLB checks 
+  translation_check(hart, d, w);
+  
 }
 
 void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
@@ -580,4 +584,27 @@ uint64_t bridge::translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t
   }
 
   return pa;
+}
+
+// LS Translation check
+void bridge::translation_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w){
+  
+  if (d.mem_va == 0)
+  return;
+
+  uint64_t va = d.mem_va;
+  uint64_t bit57 = va & (1ull << 56);
+  va &= ((1ull << 57) - 1);             // Clear all bits to the left of 57th bit
+  if (bit57) {  va |= (~0ull) << 57; } // sign extend the 57th bit to [63:58]
+
+  uint64_t pa = translate(hart, va, w.priv_mode, memclass_t::read);
+  if (pa != d.mem_pa){
+    log(cvm::MEDIUM, "<{}> Whisper Step #{}: [Hart={}, Mode={}, Tag={}, PC={:#x}, VA={:#x}, RTL-PA={:#x}, ISS-PA={:#x}]\n", w.time, (cac_.getStep(hart)-1), hart, w.priv_mode, w.tag, w.pc, d.mem_va, d.mem_pa, pa); 
+    log(cvm::HIGH, "Error: PA MISMATCH !! :\n"); 
+    vpi_control(vpiFinish); 
+  } 
+  else {
+    log(cvm::MEDIUM, "<{}> Whisper Step #{}: [Hart={}, Mode={}, Tag={}, PC={:#x}, VA={:#x}, PA={:#x}]\n", w.time, cac_.getStep(hart), hart, w.priv_mode, w.tag, w.pc, d.mem_va, pa); 
+  }
+
 }
