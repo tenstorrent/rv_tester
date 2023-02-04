@@ -119,6 +119,10 @@ void rvfi::make_instr(const transactions::m_rvfi& m_rvfi, rv_instr_t& instr) {
   instr.gpr.rd_addr = m_rvfi.rd_addr;
   instr.gpr.rd_wdata = m_rvfi.rd_wdata;
 
+  // tlb
+  instr.mem_va = m_rvfi.mem_addr; 
+  instr.mem_pa = m_rvfi.mem_paddr;
+  
   // Mem reads
   instr.mem_read.valid = (m_rvfi.mem_rmask != 0);
   auto [raddr, rdata, rsize] = get_mem_attributes(m_rvfi.mem_addr, m_rvfi.mem_rmask, m_rvfi.mem_rdata);

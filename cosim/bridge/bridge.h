@@ -70,6 +70,7 @@ private:
   void update_regs(hart_id_t hart, const whisper_state_t& w);
   void update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, size8BytesT dword_array[]);
   void update_mem(hart_id_t hart, rv_instr_t& d);
+  void translation_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
 
   uint64_t translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t memclass);
 

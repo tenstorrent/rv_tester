@@ -50,6 +50,7 @@ module cosim #(
         assign tx_dom_1.m_rvfis[n].data.pc_rdata = rvfi[n].pc_rdata;
         assign tx_dom_1.m_rvfis[n].data.pc_wdata = rvfi[n].pc_wdata;
         assign tx_dom_1.m_rvfis[n].data.mem_addr = rvfi[n].mem_addr;
+        assign tx_dom_1.m_rvfis[n].data.mem_paddr = rvfi[n].mem_paddr;
         assign tx_dom_1.m_rvfis[n].data.mem_rmask = rvfi[n].mem_rmask;
         assign tx_dom_1.m_rvfis[n].data.mem_rdata = rvfi[n].mem_rdata;
         assign tx_dom_1.m_rvfis[n].data.mem_wmask = rvfi[n].mem_wmask;

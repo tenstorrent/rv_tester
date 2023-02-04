@@ -33,6 +33,8 @@ m_rvfi:
             width: 64
         mem_addr:
             width: 64
+        mem_paddr:
+            width: 64
         mem_rmask:
             width: 8
         mem_rdata:
