@@ -7,7 +7,6 @@
 #include "mem/sysmod_mem.h"
 #include "clint/clint.h"
 #include "htif/htif.h"
-#include "trickbox/trickbox.h"
 
 // shared flags
 DEFINE_string(memmap_json_path, "", "Path to memory map json");
@@ -25,7 +24,6 @@ extern "C" {
   // used by CLINT to assert/deassert sw interrupt
   void sysmod_sw_interrupt(unsigned hartid, unsigned val);
   
-  //void setHartDelayedITP(unsigned hartid, unsigned val,unsigned flag, unsigned delay);
   // used by HTIF to indicate program end
   void sysmod_terminate(std::uint8_t call_finish);
 }
@@ -73,8 +71,6 @@ sysmod::compose()
         device = new htif(tag, base);
       } else if (type == "clint") {
         device = new clint(tag, base, 1);
-      } else if (type == "trickbox") {
-        device = new trickbox(tag, base,size);
       } else {
         std::cerr << "Error: unknown type " << type << "\n";
         assert(false);
@@ -92,7 +88,6 @@ device&
 sysmod::dev(uint64_t addr)
 {
   for (auto& d : devices_) {
-    //std::cout<<"Checking Device :"<<d->tag()<<"for Addr: "<<std::hex<<addr<<" Addr Range: "<<std::hex<<d->addr() <<" to "<<std::hex<<d->addr() + d->size() <<"\n";
     if (d->has_addr(addr))
       return *d;
   }
@@ -184,8 +179,6 @@ sysmod::flush_cbs()
                                         break;
       case device::Callback::TERMINATE: sysmod_terminate(FLAGS_sysmod_terminate);
                                         break;
-      //case device::Callback::TRICKBOX_EVT: setHartDelayedITP(res.hart,res.val,res.trickbox_itp_num,res.trickbox_delay);
-      //                                  break;
       default: assert(false);
     }
   }

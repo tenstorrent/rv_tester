@@ -18,7 +18,6 @@ clint::~clint()
 void
 clint::selfTick(useconds_t delta)
 {
-  std::cout <<"CLINT:SELFTICK\n";
   auto func = [this, delta]() {
     while (true)
       {

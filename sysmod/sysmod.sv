@@ -66,14 +66,14 @@ module sysmod #(
     assign interrupt = interrupt_q;
 
     function automatic sysmod_timer_interrupt (unsigned hartid, unsigned val);
-      $display("SYSMOD DPI CLINT DRIVE TMR ITP %d \n", val);
-      interrupt_d.timer = val;
+      $display("[SYSMOD] mti = %d", val);
+      interrupt_d.mti = val;
     endfunction
     export "DPI-C" function sysmod_timer_interrupt;
 
     function automatic sysmod_sw_interrupt (unsigned hartid, unsigned val);
-      $display("SYSMOD CLINT DRIVE SW ITP %d \n", val);
-      interrupt_d.ipi = val;
+      $display("[SYSMOD] msi = %d", val);
+      interrupt_d.msi = val;
     endfunction
     export "DPI-C" function sysmod_sw_interrupt;
 
