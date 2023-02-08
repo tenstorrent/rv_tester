@@ -42,6 +42,7 @@ verilog_library(
     name = "rv_tester",
     srcs = [
         "rv_tester.sv",
+        "rv_tester_clkgen.sv",
     ],
     deps = [
         "defines",

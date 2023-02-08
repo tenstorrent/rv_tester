@@ -15,9 +15,7 @@ module rv_tester #(
     if (EXTERNAL_CLOCK) begin
         assign clk = clk_ext;
     end else begin
-        logic clkgen = '0;
-        initial forever #(CLOCK_PERIOD_PS*1ps/2) clkgen = !clkgen;
-        assign clk = clkgen;
+        rv_tester_clkgen clkgen(.*);
     end
 
     import "DPI-C" function void rv_tester_parse_flags();
