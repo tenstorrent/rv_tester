@@ -599,12 +599,12 @@ void bridge::translation_check(hart_id_t hart, const rv_instr_t& d, whisper_stat
 
   uint64_t pa = translate(hart, va, w.priv_mode, memclass_t::read);
   if (pa != d.mem_pa){
-    log(cvm::MEDIUM, "<{}> Whisper Step #{}: [Hart={}, Mode={}, Tag={}, PC={:#x}, VA={:#x}, RTL-PA={:#x}, ISS-PA={:#x}]\n", w.time, (cac_.getStep(hart)-1), hart, w.priv_mode, w.tag, w.pc, d.mem_va, d.mem_pa, pa); 
-    log(cvm::HIGH, "Error: PA MISMATCH !! :\n"); 
+    cvm::log(cvm::NONE, "<{}> Whisper Step #{}: [Hart={}, Mode={}, Tag={}, PC={:#x}, VA={:#x}, RTL-PA={:#x}, ISS-PA={:#x}]\n", w.time, (cac_.getStep(hart)-1), hart, w.priv_mode, w.tag, w.pc, d.mem_va, d.mem_pa, pa); 
+    cvm::log(cvm::NONE, "Error: PA MISMATCH !! :\n"); 
     vpi_control(vpiFinish); 
   } 
   else {
-    log(cvm::MEDIUM, "<{}> Whisper Step #{}: [Hart={}, Mode={}, Tag={}, PC={:#x}, VA={:#x}, PA={:#x}]\n", w.time, cac_.getStep(hart), hart, w.priv_mode, w.tag, w.pc, d.mem_va, pa); 
+    log(cvm::MEDIUM, "<{}> Whisper Step #{}: [Hart={}, Mode={}, Tag={}, PC={:#x}, VA={:#x}, PA={:#x}]\n", w.time, (cac_.getStep(hart)-1), hart, w.priv_mode, w.tag, w.pc, d.mem_va, pa); 
   }
 
 }
