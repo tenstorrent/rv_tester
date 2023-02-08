@@ -25,6 +25,7 @@ DEFINE_bool(mcm, false, "Enable memory consistency checker");
 DEFINE_int32(max_instr, 100000000, "Max instruction limit to terminate the sim");
 DEFINE_int32(max_cycle, 1000000000, "Max cycle limit to terminate the sim");
 DEFINE_int32(max_stall_cycle, 50000, "Max stall cycle limit to terminate the sim");
+DEFINE_bool(translation_check, true, "Do VA-PA translation check");
 
 // Constructor
 bridge::bridge(int num_harts, int xlen, int vlen)
@@ -588,6 +589,9 @@ uint64_t bridge::translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t
 
 // LS Translation check
 void bridge::translation_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w){
+
+  if (!FLAGS_translation_check)
+    return;
   
   if (d.mem_va == 0)
   return;
