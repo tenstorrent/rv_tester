@@ -80,7 +80,7 @@ std::string bridge::get_whisper_cmd() {
   std::string test = (FLAGS_load != "") ? FLAGS_load : ("--hex " + FLAGS_hex);
 
   std::string cmd = FLAGS_whisper_path + " " + test + " " + FLAGS_bootrom_path +
-    harts + config + trace + out_log + cmd_log + " --raw --server whisper_connect &";
+    harts + config + trace + out_log + cmd_log +  " --raw --server whisper_connect &";
 
   return cmd;
 }
@@ -136,7 +136,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
       cac_.resetStatus(hart);
     } else {
       print_instr(hart, w);
-      cvm::log(cvm::NONE, "<{} Whisper Step #{}: [Hart={}, Mode={}, Tag={}, ChangeCount={}, PC={:#x}, Opcode={:#x}, Disasm={}]\n",
+      cvm::log(cvm::NONE, "<{}> Whisper Step #{}: [Hart={}, Mode={}, Tag={}, ChangeCount={}, PC={:#x}, Opcode={:#x}, Disasm={}]\n",
         w.time, cac_.getStep(hart), hart, w.priv_mode, w.tag, w.change_count, w.pc, w.opcode, w.buffer);
       cvm::log(cvm::NONE, "{}", cac_.getStatusStr(hart));
       cvm::log(cvm::NONE, "Error: Core Arch Checker Mismatch\n");
@@ -204,7 +204,7 @@ void bridge::handle_interrupt(hart_id_t hart, const rv_instr_t& d, whisper_state
 
   step(hart, w);
   if (FLAGS_cosim_tracer) {
-    log(cvm::MEDIUM, "<{} Whisper Step #{}: Extra step due to interrupt\n", w.time, cac_.getStep(hart));
+    log(cvm::MEDIUM, "<{}> Whisper Step #{}: Extra step due to interrupt\n", w.time, cac_.getStep(hart));
   }
 }
 
@@ -424,16 +424,24 @@ bool bridge::is_ecall(const whisper_state_t& w) {
 
 bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const whisper_state_t& w) {
   // Case #1
-  if (clint_read(d))
+  if (clint_read(d)) {
+    log(cvm::HIGH, "<{}> Resynch: Reason=[clint_read]\n", w.time);
     return true;
+  }
   // Case #2
-  if (htif_read(d))
+  if (htif_read(d)) {
+    log(cvm::HIGH, "<{}> Resynch: Reason=[htif_read]\n", w.time);
     return true;
+  }
   // Case #3
-  if (mhpm_counter_read(w))
+  if (mhpm_counter_read(w)) {
+    log(cvm::HIGH, "<{}> Resynch: Reason=[mhpm_counter_read]\n", w.time);
     return true;
-  if (FLAGS_lrsc_resynch && lrsc_fail(w))
+  }
+  if (FLAGS_lrsc_resynch && lrsc_fail(w)) {
+    log(cvm::HIGH, "<{}> Resynch: Reason=[lrsc_fail]\n", w.time);
     return true;
+  }
 
   return false;
 }
@@ -482,6 +490,7 @@ bool bridge::does_instr_match_resynch_list(const whisper_state_t& w) {
     std::getline(ss, instr, ',' );
 
     if (disasm.find(instr) != std::string::npos) {
+      log(cvm::HIGH, "<{}> Resynch: Reason=[+cosim_resynch_instr={} for instr={}]\n", w.time, FLAGS_cosim_resynch_instr, instr);
       return true;
     }
   }
