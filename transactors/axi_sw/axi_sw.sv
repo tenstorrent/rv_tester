@@ -129,7 +129,9 @@ module axi_sw #(
     function automatic axi_sw_r (int unsigned id, byte unsigned resp, dpi_data data, byte unsigned last);
         data_t d;
         r_t r;
+        `ifndef IMMEDIATE_ASSERTIONS_IN_DPI_UNSUPPORTED
         assert(!r_queue_full);
+        `endif
         // stream pack unsupported by verilator
         for (int i = 0; i < $size(dpi_data); i++) begin
             d[8*i +: 8] = data[i];
