@@ -7,6 +7,7 @@ verilog_library(
         "axi_sw.sv"
     ],
     deps = [
+        "//:dpic_pkg",
         "//sysmod:sysmod_pkg",
         "@cvm//:plusargs_sv",
     ],

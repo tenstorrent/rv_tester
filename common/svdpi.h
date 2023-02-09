@@ -186,7 +186,7 @@ XXTERN int svSizeOfArray(const svOpenArrayHandle);
 
 /*
  * Return a pointer to an element of the array
- * or NULL if index outside the range or null pointer
+ * or NULL if index outside the range or dpic_pkg::nil pointer
  */
 XXTERN void *svGetArrElemPtr(const svOpenArrayHandle, int indx1, ...);
 

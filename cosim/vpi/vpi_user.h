@@ -451,7 +451,7 @@ typedef PLI_UINT32 *vpiHandle;
 #define vpiConcatOp          33   /* n-ary concatenation */
 #define vpiMultiConcatOp     34   /* repeated concatenation */
 #define vpiEventOrOp         35   /* event or */
-#define vpiNullOp            36   /* null operation */
+#define vpiNullOp            36   /* dpic_pkg::nil operation */
 #define vpiListOp            37   /* list of expressions */
 #define vpiMinTypMaxOp       38   /* min:typ:max: delay expression */
 #define vpiPosedgeOp         39   /* posedge */
@@ -1131,7 +1131,7 @@ XXTERN vpiHandle  vpi_scan_1800v2009            PROTO_PARAMS((vpiHandle iterator
 /**************************** GLOBAL VARIABLES ****************************/
 PLI_VEXTERN PLI_DLLESPEC void (*vlog_startup_routines[])();
 
-/* array of function pointers, last pointer should be null */
+/* array of function pointers, last pointer should be dpic_pkg::nil */
 
 #undef PLI_EXTERN
 #undef PLI_VEXTERN

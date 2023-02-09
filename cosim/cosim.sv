@@ -13,10 +13,10 @@ module cosim #(
 
     typedef longint unsigned LU;
 
-    import "DPI-C" function chandle rvfi_get(int num);
-    import "DPI-C" function void rvfi_reset(chandle rvfi_p);
+    import "DPI-C" function dpic_pkg::c_handle rvfi_get(int num);
+    import "DPI-C" function void rvfi_reset(dpic_pkg::c_handle rvfi_p);
 
-    chandle _rvfi;
+    dpic_pkg::c_handle _rvfi;
     bit rvfi_enabled;
 
     always @(posedge clk) begin
