@@ -76,11 +76,12 @@ std::string bridge::get_whisper_cmd() {
   std::string trace = " --traceload --traceptw";
   std::string out_log = " --logfile iss_cosim.log";
   std::string cmd_log = " --commandlog iss_cmd.log";
+  std::string nostdout = " --stdout /dev/null";
   std::string mcm = FLAGS_mcm ? " --mcm --mcmls 64" : "";
   std::string test = (FLAGS_load != "") ? FLAGS_load : ("--hex " + FLAGS_hex);
 
   std::string cmd = FLAGS_whisper_path + " " + test + " " + FLAGS_bootrom_path +
-    harts + config + trace + out_log + cmd_log +  " --raw --server whisper_connect &";
+    harts + config + trace + out_log + cmd_log + nostdout + " --raw --server whisper_connect &";
 
   return cmd;
 }
