@@ -47,7 +47,8 @@ module rv_tester #(
         .reset(sysmod_reset),
         .clocks,
         .bootstrap,
-        .interrupt
+        .interrupt,
+        .terminate
     );
 
 `ifndef NO_COSIM
