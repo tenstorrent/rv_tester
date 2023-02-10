@@ -76,7 +76,16 @@ module sysmod #(
       interrupt_d.msi = val;
     endfunction
     export "DPI-C" function sysmod_sw_interrupt;
-
+    
+    function automatic sysmod_tbox_interrupt (int unsigned hartid, int unsigned val,int unsigned int_val);
+      $display("\n[SYSMOD] trickbox interrupt %d with value %d\n",val,int_val);
+      for(int i =0;i<6;i++)begin
+        if(val[i])
+          interrupt[i] = int_val[i]; 
+      end
+      //interrupt_d[3] = 'b1;
+    endfunction
+    export "DPI-C" function sysmod_tbox_interrupt;
     always_ff @(posedge clk) begin
         interrupt_q <= interrupt_d;
         if (reset) begin

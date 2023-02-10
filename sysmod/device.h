@@ -21,6 +21,7 @@ class device {
       TIMER_INT = 1,
       SW_INT = 2,
       TERMINATE = 3,
+      TRICKBOX_INT = 4,
       MAX = NONE
     };
 
@@ -28,6 +29,7 @@ class device {
       Callback cb;
       unsigned hart;
       unsigned val;
+      unsigned int_val;
       
     } cb_t;
 

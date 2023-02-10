@@ -6,6 +6,7 @@
 #include "sysmod.h"
 #include "mem/sysmod_mem.h"
 #include "clint/clint.h"
+#include "trickbox/trickbox.h"
 #include "htif/htif.h"
 
 // shared flags
@@ -24,6 +25,9 @@ extern "C" {
   // used by CLINT to assert/deassert sw interrupt
   void sysmod_sw_interrupt(unsigned hartid, unsigned val);
   
+  // used by TRICKBOX to assert/deassert  interrupt
+  void sysmod_tbox_interrupt(unsigned hartid, unsigned val, unsigned int_val);
+
   // used by HTIF to indicate program end
   void sysmod_terminate(std::uint8_t call_finish);
 }
@@ -71,6 +75,8 @@ sysmod::compose()
         device = new htif(tag, base);
       } else if (type == "clint") {
         device = new clint(tag, base, 1);
+      } else if (type == "trickbox") {
+        device = new trickbox(tag, base, 1);
       } else {
         std::cerr << "Error: unknown type " << type << "\n";
         assert(false);
@@ -135,7 +141,7 @@ void
 sysmod::write(uint64_t addr, size_t length, const device::data_t& data, const device::strb_t& strb)
 {
   std::lock_guard<std::mutex> lock(sys_m);
-  // std::cout << std::hex << "write req at: " << addr << '\n';
+   std::cout << std::hex << "write req at: " << addr << '\n';
   auto& d = dev(addr);
   device::cbs_t cbs;
   d.write(addr, length, data, strb, cbs);
@@ -146,7 +152,7 @@ void
 sysmod::read(uint64_t addr, size_t length, device::data_t& data)
 {
   std::lock_guard<std::mutex> lock(sys_m);
-  // std::cout << std::hex << "read req at: " << addr << '\n';
+   std::cout << std::hex << "read req at: " << addr << '\n';
   auto& d = dev(addr);
   device::cbs_t cbs;
   d.read(addr, length, data, cbs);
@@ -176,6 +182,8 @@ sysmod::flush_cbs()
       case device::Callback::TIMER_INT: sysmod_timer_interrupt(res.hart, res.val);
                                         break;
       case device::Callback::SW_INT:    sysmod_sw_interrupt(res.hart, res.val);
+                                        break;
+      case device::Callback::TRICKBOX_INT:    sysmod_tbox_interrupt(res.hart, res.val, res.int_val);
                                         break;
       case device::Callback::TERMINATE: sysmod_terminate(FLAGS_sysmod_terminate);
                                         break;
