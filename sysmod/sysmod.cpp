@@ -141,7 +141,7 @@ void
 sysmod::write(uint64_t addr, size_t length, const device::data_t& data, const device::strb_t& strb)
 {
   std::lock_guard<std::mutex> lock(sys_m);
-   std::cout << std::hex << "write req at: " << addr << '\n';
+  //std::cout << std::hex << "write req at: " << addr << '\n';
   auto& d = dev(addr);
   device::cbs_t cbs;
   d.write(addr, length, data, strb, cbs);
@@ -152,7 +152,7 @@ void
 sysmod::read(uint64_t addr, size_t length, device::data_t& data)
 {
   std::lock_guard<std::mutex> lock(sys_m);
-   std::cout << std::hex << "read req at: " << addr << '\n';
+  //std::cout << std::hex << "read req at: " << addr << '\n';
   auto& d = dev(addr);
   device::cbs_t cbs;
   d.read(addr, length, data, cbs);

@@ -1,9 +1,28 @@
+#include "cvm/plusargs.hpp"
 #include "trickbox.h"
 
+DEFINE_bool(RANDOM_ITP, false, "Drive random interrups");
+DEFINE_int32(ITP_DELAY_MIN, 3, "Minimum Delay between 2 consecutive interrupts");
+DEFINE_int32(ITP_DELAY_MAX, 5, "Maximum Delay between 2 consecutive interrupts");
+//DECLARE_int32(ITP_DELAY_MIN, 4, "Minimum Delay between 2 consecutive interrupts");
+//DECLARE_int32(ITP_DELAY_MAX, 7, "Maximum Delay between 2 consecutive interrupts");
+DEFINE_int32(seed, 1, "Simulation seed passed down for randomization");
 trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned hartCount)
   : device(tag, addr, 0xc0000 /* size */), hartCount_(hartCount), soft_(hartCount),
-    timeCompare_(hartCount), timerIntPrev_(hartCount), timer_(0)
+    timeCompare_(6),IntHart_(6),delayedRandomIntValid_(6),IntValue_(6), timerIntPrev_(hartCount), timer_(0)
 {
+  rng.seed(FLAGS_seed);
+  if(FLAGS_RANDOM_ITP){
+      //std::cout<<"EN RNDM ITP "<<FLAGS_RANDOM_ITP<<"\n";
+      //generate random number between max_delay and min-delay
+      //uint32_t rand_num =  (rng() % ( FLAGS_ITP_DELAY_MAX - FLAGS_ITP_DELAY_MIN + 1)) + FLAGS_ITP_DELAY_MIN;
+      uint32_t rand_num =  (rng() %  2)+1;
+      //std::cout<<"RAND NUM "<<rand_num<<"\n";
+      timer_ = 0;
+      timer_rand_itp = timer_ +(rand_num*timer_advance);
+      //std::cout<<"RAND NUM "<<rand_num<<" timer "<<timer_<<" timer_rand "<<timer_rand_itp<<"\n";
+
+    }
 }
 
 
@@ -42,31 +61,6 @@ trickbox::read(uint64_t addr, size_t length, data_t& data, cbs_t& cbs)
   if (not has_addr(addr))
     return;
 
- // uint64_t offset = addr - device::addr();
- // if (offset < 0x4000)
- //   {
- //     // Sofware interrupt: 1 word per hart.
- //     if ((offset % 4) != 0)
- //       return;  // Address must be a multiple of 4.
- //     unsigned hartIx = offset / 4;
- //     uint32_t word = (hartIx < hartCount_) ? soft_.at(hartIx) : 0;
- //     serializeInt(word, length, data);
- //     return;
- //   }
-
- // if (offset == 0xbff8)
- //   {
- //     serializeInt(timer_, length, data);
- //     return;
- //   }
-
- // // Time compare. 1 double word per hart.
- // if ((offset % 8) != 0)
- //   return;
- // offset -= 0x4000;
- // unsigned hartIx = offset / 8;
- // uint64_t dword = hartIx < hartCount_ ? timeCompare_.at(hartIx) : 0;
- // serializeInt(dword, length, data);
 }
 
 
@@ -74,64 +68,40 @@ void
 trickbox::write(uint64_t addr, size_t length, const data_t& data,
 		 const strb_t& strb, cbs_t& cbs)
 {
-  std::cout<<"Trickbox write: 0x"<<std::hex<<addr;
+  //std::cout<<"Trickbox write: 0x"<<std::hex<<addr;
   if (not has_addr(addr))
     return;
   uint64_t t_data=0;
   deserializeInt(data, t_data);
   if(addr==0x9000000){
-    
     unsigned hart = t_data & 0xfff;
     unsigned event = (t_data >> 12) & 0xff;
     unsigned eventValue = (t_data >> 20);
     trickboxInterrupt(hart,event,eventValue,cbs); 
-    // SetHartITP(hart,event,eventValue);
     }else if((addr > 0x9000000)&& (addr < 0x9001000)){
-   
-     int itp_loc  = addr & 0xfc;  
+     //std::cout<<"\nTrickbox DELAYED write: 0x"<<std::hex<<addr<<" data: "<<std::hex<<t_data<<"\n";
+     int itp_loc  = addr & 0xf8;  
+     itp_loc = (itp_loc >>3);
      unsigned hart = t_data & 0xfff; 
      int eventFlag = (t_data >> 12) & 0x1;
      int eventDelay = (t_data >> 13); 
-     //SetHartDelayedITP(hart,itp_loc,eventFlag,eventDelay);
+     timeCompare_.at(itp_loc) = timer_ + (eventDelay * timer_advance);
+     IntHart_.at(itp_loc) = hart;  // Hart to be interrupted.
+     delayedRandomIntValid_.at(itp_loc) = 1; // Valid 
+     IntValue_.at(itp_loc) = eventFlag;
+     //std::cout<<"\nTrickbox DELAYED write: 0x"<<std::hex<<addr<<" itp_loc: "<<itp_loc<<" time: "<<timer_<<" eventDelay: "<<eventDelay<<" timercompare :"<<timeCompare_.at(itp_loc)<<" hart "<<hart<<" flag: "<<eventFlag<<"\n";
     }else if(addr==0x9004000){
      unsigned hart = t_data & 0xfff; 
      int eventFlag = (t_data >> 12) & 0x1; 
-     //SetHartRandomITP(hart,eventFlag);
+     //TODO 
     }
+    if(FLAGS_RANDOM_ITP){
+      //std::cout<<"EN RNDM ITP "<<FLAGS_RANDOM_ITP<<"\n";
+      //generate random number between max_delay and min-delay
+      //uint32_t rand_num =  (rng() % ( FLAGS_ITP_DELAY_MAX - FLAGS_ITP_DELAY_MIN + 1)) + FLAGS_ITP_DELAY_MIN;
+      //std::cout<<"RAND NUM "<<rand_num<<"\n";
+      //timer_rand_itp = timer_ +(rand_num*timer_advance);
 
-  // uint64_t offset = addr - device::addr();
-  // if (offset < 0x4000)
-  //   {
-  //     // Sofware interrupt: 1 word per hart.
-  //     unsigned hartIx = offset / 4;
-  //     if ((offset % 4) != 0 or length < 4 or hartIx >= hartCount_)
-	// return;
-  //     unsigned word = 0;
-  //     deserializeInt(data, word);
-  //     soft_.at(hartIx) = word & 1;
-  //     softwareInterrupt(hartIx, word & 1, cbs);
-  //   }
-
-  // if (length == 8)
-  //   {
-  //     std::lock_guard<std::mutex> lock(mutex_);
-
-  //     offset -= 0x4000;
-
-  //     if (offset == 0x7ff8)
-	// deserializeInt(data, timer_);
-  //     else
-	// {
-	//   unsigned hartIx = offset / 8;
-	//   if (hartIx >= hartCount_)
-	//     return;
-
-	//   // Time compare. 1 double word per hart.
-	//   uint64_t dword = 0;
-	//   deserializeInt(data, dword);
-	//   timeCompare_.at(hartIx) = dword;
-	// }
-
-  //     processTimerInterrupts(cbs);
-  //   }
+    }
+    
 }
