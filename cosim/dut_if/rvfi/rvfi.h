@@ -35,6 +35,7 @@ class rvfi {
     void process(const transactions::m_rvfi& m_rvfi);
     void process(const transactions::m_trap& m_trap);
     void process(const transactions::m_intr& m_intr);
+    void process(const transactions::m_debug& m_debug);
     
     std::tuple<uint64_t, uint64_t, uint8_t> get_mem_attributes(uint64_t addr, uint8_t mask, uint64_t data);
 

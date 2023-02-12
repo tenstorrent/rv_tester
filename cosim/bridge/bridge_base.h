@@ -12,5 +12,7 @@ public:
   virtual void process_dut_mem_read(hart_id_t hart, mem_t &m) = 0;
   virtual void process_dut_mb_insert(hart_id_t hart, mem_t &m) = 0;
   virtual void process_dut_mb_drain(hart_id_t hart, mem_cl_t &m) = 0;
+  virtual void enter_debug_mode(rv_debug_t &d) = 0;
+  virtual void exit_debug_mode(rv_debug_t &d) = 0;
 
 };

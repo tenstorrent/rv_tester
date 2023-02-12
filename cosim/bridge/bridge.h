@@ -35,6 +35,10 @@ public:
   virtual void process_dut_mb_insert(hart_id_t hart, mem_t& m) override;
   virtual void process_dut_mb_drain(hart_id_t hart, mem_cl_t& m) override;
 
+  // Debug mode
+  virtual void enter_debug_mode(rv_debug_t& d) override;
+  virtual void exit_debug_mode(rv_debug_t& d) override;
+
   void reset();
 
 private:
@@ -74,6 +78,7 @@ private:
 
   uint64_t translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t memclass);
 
+  void handle_debug(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   void handle_interrupt(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   void handle_exception(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   void handle_wfi(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
@@ -102,6 +107,7 @@ private:
 
   bool intr_in_progress_ = false;
   bool ecall_ = false;
+  bool debug_mode_ = false;
 
   static constexpr int whisper_connect_timeout_milliseconds = 10000;
 

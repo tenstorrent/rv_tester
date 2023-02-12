@@ -26,6 +26,7 @@ DEFINE_int32(max_instr, 100000000, "Max instruction limit to terminate the sim")
 DEFINE_int32(max_cycle, 1000000000, "Max cycle limit to terminate the sim");
 DEFINE_int32(max_stall_cycle, 50000, "Max stall cycle limit to terminate the sim");
 DEFINE_bool(translation_check, true, "Do VA-PA translation check");
+DEFINE_bool(emulate_debug_mode, false, "Emulate debug mode by forcing whisper to be in sync with DUT");
 
 // Constructor
 bridge::bridge(int num_harts, int xlen, int vlen)
@@ -95,6 +96,11 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   w.tag = d.tag;
 
   // Handle pre-step conditions
+  if (FLAGS_emulate_debug_mode) {
+    handle_debug(hart, d, w);
+  } else {
+    return;
+  }
   handle_interrupt(hart, d, w);
   handle_wfi(hart, d, w);
 
@@ -168,6 +174,10 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
   if (d.mem_write.valid) {
     update_mem(hart, d);
   }
+}
+
+void bridge::handle_debug(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
+  return;
 }
 
 void bridge::handle_interrupt(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
@@ -620,4 +630,21 @@ void bridge::translation_check(hart_id_t hart, const rv_instr_t& d, whisper_stat
     log(cvm::MEDIUM, "<{}> Whisper Step #{}: [Hart={}, Mode={}, Tag={}, PC={:#x}, VA={:#x}, PA={:#x}]\n", w.time, (cac_.getStep(hart)-1), hart, w.priv_mode, w.tag, w.pc, d.mem_va, pa); 
   }
 
+}
+
+// Debug Mode
+void bridge::enter_debug_mode(rv_debug_t& d) {
+  log(cvm::NONE, "<{}> Enter debug mode", d.cycle);
+  debug_mode_ = true;
+  if (!cosim::whisper_api(whisperEnterDebug)) {
+    vpi_control(vpiFinish);
+  }
+}
+
+void bridge::exit_debug_mode(rv_debug_t& d) {
+  log(cvm::NONE, "<{}> Exit debug mode", d.cycle);
+  debug_mode_ = false;
+  if (!cosim::whisper_api(whisperExitDebug)) {
+    vpi_control(vpiFinish);
+  }
 }
