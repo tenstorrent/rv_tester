@@ -82,3 +82,14 @@ m_intr:
             width: 1
         external:
             width: 1
+
+m_debug:
+    domain: 1
+    num: 1
+    fields:
+        cycle:
+            width: 64
+        enter:
+            width: 1
+        exit:
+            width: 1

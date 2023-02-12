@@ -182,3 +182,9 @@ typedef struct rv_instr_s {
     csr.clear();
   }
 } rv_instr_t;
+
+typedef struct rv_debug_s {
+  bool enter;
+  bool exit;
+  uint64_t cycle;
+} rv_debug_t;

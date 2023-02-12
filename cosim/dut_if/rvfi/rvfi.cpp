@@ -16,7 +16,8 @@ rvfi::rvfi() : log("dut_rvfi.log") {
   connect<
     transactions::m_rvfi,
     transactions::m_trap,
-    transactions::m_intr
+    transactions::m_intr,
+    transactions::m_debug
   >();
 }
 
@@ -83,6 +84,31 @@ void rvfi::process(const transactions::m_intr& m_intr) {
    } else {
      log(cvm::NONE, "#{} {} 0 (deassert interrupt:{})", m_intr.cycle, count_, cause);
    }
+}
+
+void rvfi::process(const transactions::m_debug& m_debug) {
+  if (!FLAGS_rvfi)
+    return;
+
+  if (m_debug.enter) {
+     log(cvm::NONE, "#{} {} 0 (enter debug mode)\n", count_, m_debug.cycle);
+  } else {
+     log(cvm::NONE, "#{} {} 0 (exit debug mode)\n", count_, m_debug.cycle);
+  }
+
+  if (!FLAGS_cosim)
+    return;
+
+  rv_debug_t debug;
+  debug.enter   = m_debug.enter;
+  debug.exit    = m_debug.exit;
+  debug.cycle   = m_debug.cycle;
+
+  if (m_debug.enter) {
+    bridge_->enter_debug_mode(debug);
+  } else {
+    bridge_->exit_debug_mode(debug);
+  }
 }
 
 void rvfi::make_instr(const transactions::m_rvfi& m_rvfi, rv_instr_t& instr) {
