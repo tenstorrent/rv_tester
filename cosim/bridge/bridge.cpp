@@ -97,10 +97,12 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   w.tag = d.tag;
 
   // Handle pre-step conditions
-  if (FLAGS_emulate_debug_mode) {
-    handle_debug(hart, d, w);
-  } else {
-    return;
+  if (debug_mode_) {
+    if (FLAGS_emulate_debug_mode) {
+      handle_debug(hart, d, w);
+    } else {
+      return;
+    }
   }
   handle_interrupt(hart, d, w);
   handle_wfi(hart, d, w);
@@ -635,7 +637,7 @@ void bridge::translation_check(hart_id_t hart, const rv_instr_t& d, whisper_stat
 
 // Debug Mode
 void bridge::enter_debug_mode(rv_debug_t& d) {
-  log(cvm::NONE, "<{}> Enter debug mode", d.cycle);
+  log(cvm::NONE, "<{}> Enter debug mode\n", d.cycle);
   debug_mode_ = true;
   if (!cosim::whisper_api(whisperEnterDebug)) {
     vpi_control(vpiFinish);
@@ -643,7 +645,7 @@ void bridge::enter_debug_mode(rv_debug_t& d) {
 }
 
 void bridge::exit_debug_mode(rv_debug_t& d) {
-  log(cvm::NONE, "<{}> Exit debug mode", d.cycle);
+  log(cvm::NONE, "<{}> Exit debug mode\n", d.cycle);
   debug_mode_ = false;
   if (!cosim::whisper_api(whisperExitDebug)) {
     vpi_control(vpiFinish);
