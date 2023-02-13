@@ -21,6 +21,7 @@ class device {
       TIMER_INT = 1,
       SW_INT = 2,
       TERMINATE = 3,
+      TRICKBOX_INTR = 4,
       MAX = NONE
     };
 
@@ -28,6 +29,8 @@ class device {
       Callback cb;
       unsigned hart;
       unsigned val;
+      unsigned intr_select;
+      unsigned intr_value;
       
     } cb_t;
 
@@ -43,6 +46,8 @@ class device {
                       cbs_t& cbs) = 0;
 
     virtual void tick(uint64_t advance, cbs_t& cbs) { };
+    
+    virtual void reset() { };
 
     device(std::string tag, uint64_t addr, size_t size)
       : tag_(tag), addr_(addr), size_(size)

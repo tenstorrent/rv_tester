@@ -1,0 +1,12 @@
+cc_library(
+    name = "trickbox",
+    srcs = ["trickbox.cpp"],
+    hdrs = ["trickbox.h"
+            ],
+    deps = [
+             "//common:common",
+             "//sysmod:device",
+             "@cvm//:plusargs",
+           ],
+    visibility = ["//visibility:public"],
+)

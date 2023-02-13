@@ -3,6 +3,9 @@ cc_library(
     hdrs = ["svdpi.h",
             "transactor.h",
             "endpoint.h",
+            "pcg_random.hpp",
+            "pcg_extras.hpp",
+            "pcg_uint128.hpp",
             "memmap.h"
             ],
     deps = [
