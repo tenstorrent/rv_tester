@@ -171,6 +171,15 @@ sysmod::tick(uint64_t advance)
 }
 
 void
+sysmod::reset()
+{
+  std::lock_guard<std::mutex> lock(sys_m);
+  std::cout<<"[SYSMOD]: resetting devices\n";
+  for (auto& d : devices_) {
+      d->reset();
+  }
+}
+void
 sysmod::flush_cbs()
 {
   std::lock_guard<std::mutex> lock(sys_m);
@@ -183,7 +192,7 @@ sysmod::flush_cbs()
                                         break;
       case device::Callback::SW_INT:    sysmod_sw_interrupt(res.hart, res.val);
                                         break;
-      case device::Callback::TRICKBOX_INT:    sysmod_tbox_interrupt(res.hart, res.val, res.int_val);
+      case device::Callback::TRICKBOX_INTR:    sysmod_tbox_interrupt(res.hart, res.intr_select, res.intr_value);
                                         break;
       case device::Callback::TERMINATE: sysmod_terminate(FLAGS_sysmod_terminate);
                                         break;

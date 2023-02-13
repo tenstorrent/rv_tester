@@ -93,13 +93,12 @@ module sysmod #(
     endfunction
     export "DPI-C" function sysmod_sw_interrupt;
     
-    function automatic sysmod_tbox_interrupt (int unsigned hartid, int unsigned val,int unsigned int_val);
-      $display("\n[SYSMOD] trickbox interrupt %d with value %d\n",val,int_val);
+    function automatic sysmod_tbox_interrupt (int unsigned hartid, int unsigned intr_select,int unsigned intr_value);
+      $display("\n[SYSMOD] trickbox interrupt select %d with value %d\n",intr_select,intr_value);
       for(int i =0;i<6;i++)begin
-        if(val[i])
-          interrupt[i] = int_val[i]; 
+        if(intr_select[i])
+          interrupt_d[i] = intr_value[i]; 
       end
-      //interrupt_d[3] = 'b1;
     endfunction
     export "DPI-C" function sysmod_tbox_interrupt;
 
