@@ -13,10 +13,13 @@ trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned hartCount)
 {
   rng.seed(FLAGS_seed);
   if(FLAGS_RANDOM_ITP){
-      //std::cout<<"EN RNDM ITP "<<FLAGS_RANDOM_ITP<<"\n";
+      std::cout<<"TRICKBOX: EN RNDM ITP "<<FLAGS_RANDOM_ITP<<"\n";
       //generate random number between max_delay and min-delay
       //uint32_t rand_num =  (rng() % ( FLAGS_ITP_DELAY_MAX - FLAGS_ITP_DELAY_MIN + 1)) + FLAGS_ITP_DELAY_MIN;
       uint32_t rand_num =  (rng() %  2)+1;
+      if(FLAGS_ITP_DELAY_MIN){
+         rand_num = (rng() % ( FLAGS_ITP_DELAY_MAX - FLAGS_ITP_DELAY_MIN + 1)) + FLAGS_ITP_DELAY_MIN;
+      }
       //std::cout<<"RAND NUM "<<rand_num<<"\n";
       timer_ = 0;
       timer_rand_itp = timer_ +(rand_num*timer_advance);
