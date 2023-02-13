@@ -652,6 +652,32 @@ whisperTranslate(int hart, uint64_t vaddr, bool r, bool w, bool x,
   return true;
 }
 
+extern "C"
+bool
+whisperEnterDebug()
+{
+  WhisperMessage req(0 /*hart*/, WhisperMessageType::EnterDebug);
+  WhisperMessage reply;
+
+  if (not whisperCommand(req, reply))
+    return false;
+
+  return true;
+}
+
+extern "C"
+bool
+whisperExitDebug()
+{
+  WhisperMessage req(0 /*hart*/, WhisperMessageType::ExitDebug);
+  WhisperMessage reply;
+
+  if (not whisperCommand(req, reply))
+    return false;
+
+  return true;
+}
+
 #if 0
 
 int

@@ -47,7 +47,6 @@ m_rvfi:
 m_mcmi_store:
     domain: 1 
     num: 2
-    context: true
     fields:
         cycle:
             width: 64
@@ -82,4 +81,15 @@ m_intr:
         ipi:
             width: 1
         external:
+            width: 1
+
+m_debug:
+    domain: 1
+    num: 1
+    fields:
+        cycle:
+            width: 64
+        enter:
+            width: 1
+        exit:
             width: 1

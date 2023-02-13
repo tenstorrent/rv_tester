@@ -15,9 +15,7 @@ module rv_tester #(
     if (EXTERNAL_CLOCK) begin
         assign clk = clk_ext;
     end else begin
-        logic clkgen = '0;
-        initial forever #(CLOCK_PERIOD_PS*1ps/2) clkgen = !clkgen;
-        assign clk = clkgen;
+        rv_tester_clkgen clkgen(.*);
     end
 
     import "DPI-C" function void rv_tester_parse_flags();
@@ -49,7 +47,8 @@ module rv_tester #(
         .reset(sysmod_reset),
         .clocks,
         .bootstrap,
-        .interrupt
+        .interrupt,
+        .terminate
     );
 
 `ifndef NO_COSIM
@@ -62,7 +61,8 @@ module rv_tester #(
         .clocks,
         .rvfi(rvfi_instr),
         .mcmi_store(mcmi_store),
-        .interrupt
+        .interrupt,
+        .debug_mode
     );
 `endif
 
@@ -76,7 +76,7 @@ module rv_tester #(
             .clk,
             .reset_n(~reset),
             .sys_reset(sysmod_reset),
-            .axi_mst_ar_valid(axi_req[p].ar_valid),
+            .axi_mst_ar_valid(axi_req[p].ar_valid & (axi_req[p].ar_addr >= 'h1000)),
             .axi_mst_ar_id   (axi_req[p].ar_id),
             .axi_mst_ar_addr (axi_req[p].ar_addr),
             .axi_mst_ar_len  (axi_req[p].ar_len),
@@ -84,7 +84,7 @@ module rv_tester #(
             .axi_mst_ar_lock (axi_req[p].ar_lock),
             .axi_mst_ar_burst(axi_req[p].ar_burst),
          
-            .axi_mst_aw_valid(axi_req[p].aw_valid),
+            .axi_mst_aw_valid(axi_req[p].aw_valid & (axi_req[p].aw_addr >= 'h1000)),
             .axi_mst_aw_id   (axi_req[p].aw_id),
             .axi_mst_aw_addr (axi_req[p].aw_addr),
             .axi_mst_aw_len  (axi_req[p].aw_len),
@@ -93,7 +93,7 @@ module rv_tester #(
             .axi_mst_aw_lock (axi_req[p].aw_lock),
             .axi_mst_aw_atop (axi_req[p].aw_atop),
          
-            .axi_mst_w_valid(axi_req[p].w_valid),
+            .axi_mst_w_valid(axi_req[p].w_valid & (axi_req[p].aw_addr >= 'h1000)),
             .axi_mst_w_data (axi_req[p].w_data),
             .axi_mst_w_strb (axi_req[p].w_strb),
             .axi_mst_w_last (axi_req[p].w_last),

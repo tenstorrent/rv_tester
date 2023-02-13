@@ -34,6 +34,12 @@ verilog_library(
 )
 
 verilog_library(
+    name = "dpic_pkg",
+    srcs = ["dpic_pkg.sv"],
+    visibility = ["//visibility:public"],
+)
+
+verilog_library(
     name = "no_cosim",
     srcs = ["define_no_cosim.sv"],
 )
@@ -42,6 +48,7 @@ verilog_library(
     name = "rv_tester",
     srcs = [
         "rv_tester.sv",
+        "rv_tester_clkgen.sv",
     ],
     deps = [
         "defines",

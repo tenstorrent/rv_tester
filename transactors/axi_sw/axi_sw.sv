@@ -89,12 +89,12 @@ module axi_sw #(
     typedef byte    unsigned UB;
     typedef longint unsigned UL;
 
-    import "DPI-C" context function chandle axi_sw_new(chandle endpoint_p, int unsigned data_width, string tag, int unsigned r_q_max, int unsigned r_q_ptr_max);
-    import "DPI-C" function void axi_sw_aw(chandle axi_sw_p, int unsigned id, longint unsigned addr, byte unsigned len, byte unsigned size, byte unsigned burst, byte unsigned lock, byte unsigned atop);
-    import "DPI-C" function void axi_sw_ar(chandle axi_sw_p, int unsigned id, longint unsigned addr, byte unsigned len, byte unsigned size, byte unsigned burst, byte unsigned lock);
-    import "DPI-C" function void axi_sw_w(chandle axi_sw_p, dpi_data data, dpi_strb strb, byte unsigned last);
-    import "DPI-C" function void axi_sw_r_ptr(chandle axi_sw_p, int unsigned r_ptr);
-    import "DPI-C" context function void axi_sw_r_poll(chandle axi_sw_p);
+    import "DPI-C" context function dpic_pkg::c_handle axi_sw_new(dpic_pkg::c_handle endpoint_p, int unsigned data_width, string tag, int unsigned r_q_max, int unsigned r_q_ptr_max);
+    import "DPI-C" function void axi_sw_aw(dpic_pkg::c_handle axi_sw_p, int unsigned id, longint unsigned addr, byte unsigned len, byte unsigned size, byte unsigned burst, byte unsigned lock, byte unsigned atop);
+    import "DPI-C" function void axi_sw_ar(dpic_pkg::c_handle axi_sw_p, int unsigned id, longint unsigned addr, byte unsigned len, byte unsigned size, byte unsigned burst, byte unsigned lock);
+    import "DPI-C" function void axi_sw_w(dpic_pkg::c_handle axi_sw_p, dpi_data data, dpi_strb strb, byte unsigned last);
+    import "DPI-C" function void axi_sw_r_ptr(dpic_pkg::c_handle axi_sw_p, int unsigned r_ptr);
+    import "DPI-C" context function void axi_sw_r_poll(dpic_pkg::c_handle axi_sw_p);
 
     if ($bits(r_queue_ptr_t) > $bits(int unsigned))
         $error("not enough bits");
@@ -112,12 +112,12 @@ module axi_sw #(
     logic w_last_queue_full, w_last_queue_empty;
     logic r_queue_full     , r_queue_empty     ;
 
-    chandle axi_sw_p = null;
+    dpic_pkg::c_handle axi_sw_p = dpic_pkg::nil;
     bit r_poll = '1;
     always @(posedge clk) begin
         if (sys_reset) begin
             /* verilator lint_off BLKSEQ */
-            if (axi_sw_p == null) begin
+            if (axi_sw_p == dpic_pkg::nil) begin
                 // FIXME add a reset for the axi xtor
                 axi_sw_p = axi_sw_new(sysmod_pkg::get(SYSMOD_NUM), DATA_WIDTH, tag, R_FIFO_DEPTH, 1 << $bits(r_queue_ptr_t));
             end
@@ -129,7 +129,9 @@ module axi_sw #(
     function automatic axi_sw_r (int unsigned id, byte unsigned resp, dpi_data data, byte unsigned last);
         data_t d;
         r_t r;
+        `ifndef IMMEDIATE_ASSERTIONS_IN_DPI_UNSUPPORTED
         assert(!r_queue_full);
+        `endif
         // stream pack unsupported by verilator
         for (int i = 0; i < $size(dpi_data); i++) begin
             d[8*i +: 8] = data[i];

@@ -69,3 +69,11 @@ extern "C"
 bool
 whisperTranslate(int hart, uint64_t vaddr, bool r, bool w, bool x,
          bool supervisor, uint64_t& paddr, bool& valid);
+
+extern "C"
+bool
+whisperEnterDebug();
+
+extern "C"
+bool
+whisperExitDebug();

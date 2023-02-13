@@ -102,6 +102,8 @@
     input                             reset    ,                               \
     input  bootstrap_t                bootstrap,                               \
     input  rv_tester_pkg::interrupt_t interrupt,                               \
+    output                            debug_mode,                              \
+    input                             terminate,                               \
                                                                                \
     output rvfi_t      rvfi_instr   [CFG.NRET],                                \
     output mcmi_t      mcmi_store   [CFG.STQ_PORTS],                           \
@@ -114,6 +116,8 @@
     logic                      reset    ;                                      \
     bootstrap_t                bootstrap;                                      \
     rv_tester_pkg::interrupt_t interrupt;                                      \
+    logic                      debug_mode;                                     \
+    logic                      terminate;                                      \
                                                                                \
     rvfi_t      rvfi_instr   [CFG.NRET];                                       \
     mcmi_t      mcmi_store   [CFG.STQ_PORTS];                                  \

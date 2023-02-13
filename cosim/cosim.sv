@@ -8,15 +8,16 @@ module cosim #(
     input longint unsigned clocks,
     input rvfi_t rvfi[CFG.NRET],
     input mcmi_t mcmi_store[CFG.STQ_PORTS],
-    input rv_tester_pkg::interrupt_t interrupt
+    input rv_tester_pkg::interrupt_t interrupt,
+    input debug_mode
 );
 
     typedef longint unsigned LU;
 
-    import "DPI-C" function chandle rvfi_get(int num);
-    import "DPI-C" function void rvfi_reset(chandle rvfi_p);
+    import "DPI-C" function dpic_pkg::c_handle rvfi_get(int num);
+    import "DPI-C" function void rvfi_reset(dpic_pkg::c_handle rvfi_p);
 
-    chandle _rvfi;
+    dpic_pkg::c_handle _rvfi;
     bit rvfi_enabled;
 
     always @(posedge clk) begin
@@ -73,6 +74,12 @@ module cosim #(
         assign tx_dom_1.m_traps[n].data.cycle = clocks;
         assign tx_dom_1.m_traps[n].data.cause = rvfi[n].cause;
     end
+
+    // m_debug
+    assign tx_dom_1.m_debugs[0].valid = ~reset & ($rose(debug_mode,@(posedge clk)) | $fell(debug_mode,@(posedge clk)));
+    assign tx_dom_1.m_debugs[0].data.cycle = clocks;
+    assign tx_dom_1.m_debugs[0].data.enter = debug_mode;
+    assign tx_dom_1.m_debugs[0].data.exit = ~debug_mode;
 
     // FIXME derive transactions depth from NRET
     for (genvar n = CFG.NRET; n < 8; n++) begin
