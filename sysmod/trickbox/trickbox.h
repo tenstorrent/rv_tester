@@ -18,7 +18,7 @@
 #include "cvm/plusargs.hpp"
 DECLARE_int32(ITP_DELAY_MIN);//, 4, "Minimum Delay between 2 consecutive interrupts");
 DECLARE_int32(ITP_DELAY_MAX);//, 7, "Maximum Delay between 2 consecutive interrupts");
-DEFINE_bool(RANDOM_ITP);//, false, "Drive random interrups");
+DECLARE_bool(RANDOM_ITP);//, false, "Drive random interrups");
 // Define a core local interruptor (trickbox) at the given address
 // and for the given hart count. The size will be 48k bytes.
 class trickbox : public device
