@@ -76,7 +76,11 @@ module cosim #(
     end
 
     // m_debug
-    assign tx_dom_1.m_debugs[0].valid = ~reset & ($rose(debug_mode,@(posedge clk)) | $fell(debug_mode,@(posedge clk)));
+    logic debug_mode_d1;
+    always @(posedge clk) begin
+      debug_mode_d1 <= debug_mode;
+    end
+    assign tx_dom_1.m_debugs[0].valid = ~reset & ((debug_mode & ~debug_mode_d1) | (~debug_mode & debug_mode_d1));
     assign tx_dom_1.m_debugs[0].data.cycle = clocks;
     assign tx_dom_1.m_debugs[0].data.enter = debug_mode;
     assign tx_dom_1.m_debugs[0].data.exit = ~debug_mode;
