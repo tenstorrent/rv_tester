@@ -243,5 +243,6 @@ extern "C" {
     // possibly compose once?
     s->compose();
     s->load_prog();
+    s->reset();
   }
 }
