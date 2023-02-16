@@ -5,6 +5,8 @@
 #include "cvm/plusargs.hpp"
 
 #include "vpi_user.h"       // vpi_printf
+#include "sysmod/sysmod.h"
+extern "C" sysmod* sysmod_get(int num);
 
 #include <iostream>         // cout
 #include <cstring>          // strlen
@@ -14,6 +16,7 @@
 DEFINE_bool(cosim_tracer, true, "Enable bridge trace prints");
 DECLARE_string(load);
 DECLARE_string(hex);
+DECLARE_string(eot);
 DEFINE_string(bootrom_path, "", "Path to bootrom object file");
 DEFINE_string(whisper_path, "", "Path to whisper executable");
 DEFINE_string(whisper_json_path, "", "Path to whisper json config");
@@ -158,9 +161,14 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   // End test on max_instr
   if (cac_.getStep(hart) > FLAGS_max_instr) {
-    print_instr(hart, w);
-    cvm::log(cvm::NONE, "Error: max_instr limit reached: {}\n", FLAGS_max_instr);
-    vpi_control(vpiFinish);
+    if (FLAGS_eot == "max_instr") {
+      cvm::log(cvm::NONE, "<{}> Stop condition detected: +eot=max_instr +max_instr={}\n", w.time, FLAGS_max_instr);
+      sysmod_get(0)->add_callback(device::cb_t{device::Callback::TERMINATE, 0, 0}); //vpi_control(vpiFinish);
+    } else {
+      print_instr(hart, w);
+      cvm::log(cvm::NONE, "Error: max_instr limit reached: {}\n", FLAGS_max_instr);
+      vpi_control(vpiFinish);
+    }
   }
 
   // TLB checks 

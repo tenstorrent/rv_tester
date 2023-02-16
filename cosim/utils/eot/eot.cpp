@@ -2,6 +2,7 @@
 #include "sysmod/sysmod.h"
 extern "C" sysmod* sysmod_get(int num);
 
+DEFINE_string(eot, "tohost", "Enable end-of-test mechanism. Supported options: tohost, max_instr");
 DECLARE_string(load);
 
 void eot::get_tohost_addr() {
