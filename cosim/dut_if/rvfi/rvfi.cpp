@@ -36,8 +36,6 @@ void rvfi::init() {
     bridge_ = std::make_unique<bridge>(num_harts, xlen, vlen);
   }
 
-  bot_ = std::make_unique<bot>();;
-  eot_ = std::make_unique<eot>(loc_);;
   if (FLAGS_bot) {
     bot_ = std::make_unique<bot>();;
   }
