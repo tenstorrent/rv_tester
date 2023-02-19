@@ -7,8 +7,6 @@
 
 DEFINE_bool(rvfi, true, "Enable rvfi logging");
 DEFINE_bool(cosim, true, "Enable cosim checking");
-DEFINE_bool(eot, true, "Enable end-of-test mechanism using tohost cache writes");
-DEFINE_bool(bot, true, "Enable begin-of-test handling");
 
 REGISTRY_register(rvfi, platform, 0);
 
@@ -36,14 +34,8 @@ void rvfi::init() {
     bridge_ = std::make_unique<bridge>(num_harts, xlen, vlen);
   }
 
-  if (FLAGS_bot) {
-    bot_ = std::make_unique<bot>();;
-  }
-
-  if (FLAGS_eot) {
-    eot_ = std::make_unique<eot>(loc_);;
-  }
-
+  bot_ = std::make_unique<bot>();;
+  eot_ = std::make_unique<eot>(loc_);;
 }
 
 void rvfi::reset() {
