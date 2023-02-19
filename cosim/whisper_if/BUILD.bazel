@@ -14,6 +14,7 @@ cc_library(
                 "//common:common",
                ],
     alwayslink = True,
+    linkopts = ["-lrt"],
     visibility = ["//visibility:public"],
     strip_include_prefix = ".",
 )
