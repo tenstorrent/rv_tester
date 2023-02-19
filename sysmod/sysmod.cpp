@@ -57,8 +57,7 @@ sysmod::compose()
   devices_.clear();
 
   // Load memmap
-  memmap::load(memmap_);
-
+  memmap::get(memmap_);
 
   try {
     for(auto& d : memmap_) {

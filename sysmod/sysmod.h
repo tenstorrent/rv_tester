@@ -43,5 +43,5 @@ class sysmod : public endpoint {
     std::vector<device::cb_t> callbacks_;
 
     // Memmap
-    memmap::memmap_list_t memmap_;
+    memmap::memmap_t memmap_;
 };

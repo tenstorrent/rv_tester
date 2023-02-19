@@ -48,7 +48,7 @@ bridge::~bridge() {
 
 void bridge::reset() {
   
-  memmap::load(memmap_);
+  memmap::get(memmap_);
 
   cac_.reset();
   cac_.configureVlen(vlen_);

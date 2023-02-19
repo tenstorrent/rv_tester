@@ -112,5 +112,5 @@ private:
   static constexpr int whisper_connect_timeout_milliseconds = 10000;
 
   // Memmap
-  memmap::memmap_list_t memmap_;
+  memmap::memmap_t memmap_;
 };

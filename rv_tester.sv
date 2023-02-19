@@ -19,6 +19,7 @@ module rv_tester #(
     end
 
     import "DPI-C" function void rv_tester_parse_flags();
+    import "DPI-C" function void rv_tester_parse_memmap();
 
     logic rv_tester_reset = '1;
     logic sysmod_reset = '0;
@@ -31,6 +32,7 @@ module rv_tester #(
         if (rv_tester_reset) begin
             $display("[RVTESTER]: new test");
             rv_tester_parse_flags();
+            rv_tester_parse_memmap();
             clocks <= 0;
             sysmod_reset <= '1;
         end

@@ -8,6 +8,9 @@ cc_library(
             "pcg_uint128.hpp",
             "memmap.h"
             ],
+    srcs = [
+            "memmap.cpp",
+           ],
     deps = [
             "@nlohmann_json//:json",
             "@cvm//:plusargs",
