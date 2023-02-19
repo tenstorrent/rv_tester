@@ -1,7 +1,6 @@
 // Licensed under the Apache License, Version 2.0, see LICENSE.TT for details
 
 #include "bridge.h"
-#include "whisper_client_wrap.h"
 #include "cvm/plusargs.hpp"
 
 #include "vpi_user.h"       // vpi_printf
@@ -11,6 +10,9 @@ extern "C" sysmod* sysmod_get(int num);
 #include <iostream>         // cout
 #include <cstring>          // strlen
 #include <sstream>          // stringstream
+#include <thread>           // std::this_thread::sleep_for
+#include <chrono>           // std::chrono::seconds
+#include <cstdlib>          // system
 
 // Plusargs
 DEFINE_bool(cosim_tracer, true, "Enable bridge trace prints");
@@ -30,6 +32,7 @@ DEFINE_int32(max_cycle, 1000000000, "Max cycle limit to terminate the sim");
 DEFINE_int32(max_stall_cycle, 50000, "Max stall cycle limit to terminate the sim");
 DEFINE_bool(translation_check, false, "Do VA-PA translation check");
 DEFINE_bool(emulate_debug_mode, false, "Emulate debug mode by forcing whisper to be in sync with DUT");
+DEFINE_string(whisper_client, "socket", "Select whisper client to communicate - socket, or shm (shared mem)");
 
 // Constructor
 bridge::bridge(int num_harts, int xlen, int vlen)
@@ -43,7 +46,28 @@ bridge::bridge(int num_harts, int xlen, int vlen)
 
 // Destructor
 bridge::~bridge() {
-  cosim::whisper_quit_api();
+  client_->whisperQuit();
+}
+
+bool bridge::whisper_connect(std::string cmd, int timeout) {
+  
+  std::cout << "Cosim whisper command: " << cmd << "\n";
+  system(cmd.c_str());
+
+  auto start = std::chrono::high_resolution_clock::now();
+  while (true) {
+    std::this_thread::sleep_for (std::chrono::milliseconds(30));
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    if (client_->whisperConnect("whisper_connect") >= 0) {
+      std::cout << "Whisper connect succeeded in " << std::dec << duration << " ms\n";
+      return true;
+    }
+    else if (duration > timeout) {
+      std::cout << "Error: Whisper connect failed. Stopping after " << duration << " ms.\n";
+      return false;
+    }
+  }
 }
 
 void bridge::reset() {
@@ -53,12 +77,21 @@ void bridge::reset() {
   cac_.reset();
   cac_.configureVlen(vlen_);
 
-  if (!cosim::whisper_connect_api(get_whisper_cmd(), whisper_connect_timeout_milliseconds)) {
+  if (FLAGS_whisper_client == "socket") {
+    client_ = std::make_unique<whisperClientSocket>();
+  } else if (FLAGS_whisper_client == "shm") {
+    client_ = std::make_unique<whisperClientShm>();
+  } else {
+    cvm::log(cvm::NONE, "Error: Invalid option passed for +whisper_client. Should be one of {socket, shm}.");
+    vpi_control(vpiFinish);
+  }
+
+  if (!whisper_connect(get_whisper_cmd(), whisper_connect_timeout_milliseconds)) {
     vpi_control(vpiFinish);
   }
 
   bool valid;
-  cosim::whisper_api(whisperReset, 0, valid);
+  client_->whisperReset(0, valid);
 }
 
 // Whisper command options
@@ -81,11 +114,12 @@ std::string bridge::get_whisper_cmd() {
   std::string out_log = " --logfile iss_cosim.log";
   std::string cmd_log = " --commandlog iss_cmd.log";
   std::string nostdout = " --stdout /dev/null";
+  std::string client = (FLAGS_whisper_client == "shm") ? " --shm" : "";
   std::string mcm = FLAGS_mcm ? " --mcm --mcmls 64" : "";
   std::string test = (FLAGS_load != "") ? FLAGS_load : ("--hex " + FLAGS_hex);
 
   std::string cmd = FLAGS_whisper_path + " " + test + " " + FLAGS_bootrom_path +
-    harts + config + trace + out_log + cmd_log + nostdout + " --raw --server whisper_connect &";
+    harts + config + trace + out_log + cmd_log + nostdout + client + " --raw --server whisper_connect &";
 
   return cmd;
 }
@@ -199,7 +233,7 @@ void bridge::handle_interrupt(hart_id_t hart, const rv_instr_t& d, whisper_state
   if (intr_in_progress_) {
     intr_in_progress_ = false;
     bool valid = false;
-    if (!cosim::whisper_api(whisperPoke, hart, 'c', mip, 0, valid)) {
+    if (!client_->whisperPoke(hart, 'c', mip, 0, valid)) {
       vpi_control(vpiFinish);
     }
   }
@@ -214,7 +248,7 @@ void bridge::handle_interrupt(hart_id_t hart, const rv_instr_t& d, whisper_state
   // Poke mip before invoking whisper step
   bool valid = false;
   uint64_t cause = (1ull << d.icause);
-  if (!cosim::whisper_api(whisperPoke, hart, 'c', mip, cause, valid)) {
+  if (!client_->whisperPoke(hart, 'c', mip, cause, valid)) {
     vpi_control(vpiFinish);
   }
 
@@ -294,7 +328,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
   //TODO:update_priv(hart, src_t::whisper, w.priv_mode);
 
   for (auto i = 0u; i < w.change_count; i++) {
-    if (!cosim::whisper_api(whisperChange, hart, w.resource, w.address, w.value, 
+    if (!client_->whisperChange(hart, w.resource, w.address, w.value, 
         w.valid)) {
       vpi_control(vpiFinish);
     }
@@ -340,7 +374,7 @@ void bridge::print_resource(hart_id_t hart, const whisper_state_t& w) {
 }
 
 void bridge::step(hart_id_t hart, whisper_state_t& w) {
-  if (!cosim::whisper_api(whisperStep, hart, w.time, w.tag,  w.pc, w.opcode, w.change_count, w.buffer, w.buffer_size, 
+  if (!client_->whisperStep(hart, w.time, w.tag,  w.pc, w.opcode, w.change_count, w.buffer, w.buffer_size, 
       w.priv_mode, w.fp_flags, w.trap, w.stop)) {
     vpi_control(vpiFinish);
   }
@@ -526,7 +560,7 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
     if (FLAGS_cosim_tracer) {
       log(cvm::HIGH, "<{}> Whisper Step #{}: Resynch: PC={:#x}\n", d.cycle, cac_.getStep(hart), d.pc.pc_rdata);
     }
-    if (!cosim::whisper_api(whisperPoke, hart, 'p', 0, d.pc.pc_rdata, valid)) {
+    if (!client_->whisperPoke(hart, 'p', 0, d.pc.pc_rdata, valid)) {
       vpi_control(vpiFinish);
     }
   }
@@ -536,7 +570,7 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
       log(cvm::HIGH, "<{}> Whisper Step #{}: Resynch: X{}={:#x}\n", d.cycle, cac_.getStep(hart), d.gpr.rd_addr, 
         d.gpr.rd_wdata);
     }
-    if (!cosim::whisper_api(whisperPoke, hart, 'r', d.gpr.rd_addr, d.gpr.rd_wdata, valid)) {
+    if (!client_->whisperPoke(hart, 'r', d.gpr.rd_addr, d.gpr.rd_wdata, valid)) {
       vpi_control(vpiFinish);
     }
   }
@@ -546,7 +580,7 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
       log(cvm::HIGH, "<{}> Whisper Step #{}: Resynch: F{}={:#x}\n", d.cycle, cac_.getStep(hart), d.fpr.frd_addr, 
         d.fpr.frd_wdata);
     }
-    if (!cosim::whisper_api(whisperPoke, hart, 'f', d.fpr.frd_addr, d.fpr.frd_wdata, valid)) {
+    if (!client_->whisperPoke(hart, 'f', d.fpr.frd_addr, d.fpr.frd_wdata, valid)) {
       vpi_control(vpiFinish);
     }
   }
@@ -557,7 +591,7 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
       log(cvm::HIGH, "<{}> Whisper Step #{}: Resynch: M[{:#x}]={:#x}\n", d.cycle, cac_.getStep(hart), pa, 
         d.mem_write.data);
     }
-    if (!cosim::whisper_api(whisperPoke, hart, 'm', pa, d.mem_write.data, valid)) {
+    if (!client_->whisperPoke(hart, 'm', pa, d.mem_write.data, valid)) {
       vpi_control(vpiFinish);
     }
   }
@@ -568,7 +602,7 @@ void bridge::process_dut_mem_read(hart_id_t hart, mem_t& m) {
   unsigned size_in_bytes = 1 << m.size;
   bool internal = false;
   bool valid = false;
-  if (!cosim::whisper_api(whisperMcmRead, hart, m.cycle, m.tag, m.pa, size_in_bytes, m.data, internal, valid)) {
+  if (!client_->whisperMcmRead(hart, m.cycle, m.tag, m.pa, size_in_bytes, m.data, internal, valid)) {
     vpi_control(vpiFinish);
   }
 }
@@ -577,7 +611,7 @@ void bridge::process_dut_mem_read(hart_id_t hart, mem_t& m) {
 void bridge::process_dut_mb_insert(hart_id_t hart, mem_t& m) {
   unsigned size_in_bytes = 1 << m.size;
   bool valid = false;
-  if (!cosim::whisper_api(whisperMcmInsert, hart, m.cycle, m.tag, m.pa, size_in_bytes, m.data, valid)) {
+  if (!client_->whisperMcmInsert(hart, m.cycle, m.tag, m.pa, size_in_bytes, m.data, valid)) {
     vpi_control(vpiFinish);
   }
 }
@@ -593,7 +627,7 @@ void bridge::process_dut_mb_drain(hart_id_t hart, mem_cl_t& m) {
   }
 
   bool valid = false;
-  if (!cosim::whisper_api(whisperMcmWrite, hart, m.cycle, addr, size_in_bytes, data, m.mask, valid)) {
+  if (!client_->whisperMcmWrite(hart, m.cycle, addr, size_in_bytes, data, m.mask, valid)) {
     vpi_control(vpiFinish);
   }
 }
@@ -610,7 +644,7 @@ uint64_t bridge::translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t
   bool x = (memclass == memclass_t::fetch);
   bool sup = (priv == 0x1);
 
-  if (!cosim::whisper_api(whisperTranslate, hart, va, r, w, x, sup, pa, valid)) {
+  if (!client_->whisperTranslate(hart, va, r, w, x, sup, pa, valid)) {
     vpi_control(vpiFinish);
   }
 
@@ -647,7 +681,7 @@ void bridge::translation_check(hart_id_t hart, const rv_instr_t& d, whisper_stat
 void bridge::enter_debug_mode(rv_debug_t& d) {
   log(cvm::NONE, "<{}> Enter debug mode\n", d.cycle);
   debug_mode_ = true;
-  if (!cosim::whisper_api(whisperEnterDebug)) {
+  if (!client_->whisperEnterDebug()) {
     vpi_control(vpiFinish);
   }
 }
@@ -655,7 +689,7 @@ void bridge::enter_debug_mode(rv_debug_t& d) {
 void bridge::exit_debug_mode(rv_debug_t& d) {
   log(cvm::NONE, "<{}> Exit debug mode\n", d.cycle);
   debug_mode_ = false;
-  if (!cosim::whisper_api(whisperExitDebug)) {
+  if (!client_->whisperExitDebug()) {
     vpi_control(vpiFinish);
   }
 }

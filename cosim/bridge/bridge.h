@@ -7,7 +7,10 @@
 #include "bridge_base.h"
 #include "memmap.h"
 #include "cvm/logger.hpp"
-#include "src/cacCore.h"        // CoreArchChecker
+#include "src/cacCore.h"
+
+#include "whisper_client_socket.h"
+#include "whisper_client_shm.h"
 
 class bridge : public bridge_base {
 
@@ -40,6 +43,7 @@ public:
   virtual void exit_debug_mode(rv_debug_t& d) override;
 
   void reset();
+  bool whisper_connect(std::string cmd, int timeout);
 
 private:
 
@@ -94,6 +98,8 @@ private:
   void resynch(hart_id_t hart, const rv_instr_t& d);
   
 private:
+
+  std::unique_ptr<whisperClient> client_;
 
   cvm::file_logger log;
 

@@ -2,10 +2,14 @@ cc_library(
     name     = "whisper_if",
     hdrs     = [
                 "whisper_client.h",
-                "whisper_client_wrap.h",
+                "whisper_client_socket.h",
+                "whisper_client_shm.h",
                 "WhisperMessage.h"
                ],
-    srcs     = ["whisper_client.cpp"],
+    srcs     = [
+                "whisper_client_socket.cpp",
+                "whisper_client_shm.cpp"
+               ],
     deps     = [
                 "//common:common",
                ],
