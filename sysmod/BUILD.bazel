@@ -1,27 +1,19 @@
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
 
 verilog_library(
-    name = "sysmod_pkg",
-    srcs = ["sysmod_pkg.sv"],
-    deps = [
-        "//:dpic_pkg",
-    ],
-    visibility = ["//visibility:public"],
-)
-
-verilog_library(
     name = "sysmod",
     srcs = ["sysmod.sv"],
     deps = [
-        ":sysmod_pkg",
         "@cvm//:plusargs_sv",
+        "@cvm//:topology_sv",
     ],
-    visibility = ["//:__pkg__"],
+    visibility = ["//visibility:public"],
 )
 
 cc_library(
     name = "device",
     hdrs = ["device.h"],
+    deps = ["@cvm//:topology"],
     strip_include_prefix = "//sysmod",
     visibility = ["//visibility:public"],
 )
@@ -43,6 +35,9 @@ cc_library(
       ":device",
       "@cvm//:plusargs",
       "@cvm//:callbacks",
+      "@cvm//:messenger",
+      "@cvm//:topology",
+      "@cvm//:registry",
     ],
     alwayslink = True,
     visibility = ["//visibility:public"],

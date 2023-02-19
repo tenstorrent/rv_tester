@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <functional>
+#include "cvm/topology.hpp"
 
 class device {
 
@@ -11,6 +12,7 @@ class device {
     const std::string type_;
     const uint64_t addr_;
     const size_t size_;
+    const cvm::topology::loc_t loc_;
 
   public:
 
@@ -24,12 +26,12 @@ class device {
     virtual void read(uint64_t addr, size_t length,
                       data_t& data) = 0;
 
-    virtual void tick(uint64_t advance, cbs_t& cbs) { };
+    virtual void tick(uint64_t advance) { };
 
     virtual void reset() { };
 
-    device(std::string tag, std::string type, uint64_t addr, size_t size)
-      : tag_(tag), type_(type), addr_(addr), size_(size)
+    device(std::string tag, std::string type, uint64_t addr, size_t size, cvm::topology::loc_t loc)
+      : tag_(tag), addr_(addr), size_(size), loc_(loc)
     { };
 
     virtual ~device() { };
@@ -38,6 +40,7 @@ class device {
     std::string type()            const { return type_          ; }
     uint64_t addr()               const { return addr_         ; }
     size_t size()                 const { return size_         ; }
+    cvm::topology::loc_t loc()    const { return loc_          ; }
 
     bool has_addr(uint64_t val)   const { return val >= addr_ && (val < (addr_ + size_)); }
 };

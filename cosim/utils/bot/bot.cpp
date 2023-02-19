@@ -1,6 +1,4 @@
 #include "bot.h"
-#include "sysmod/sysmod.h"
-extern "C" sysmod* sysmod_get(int num);
 
 DEFINE_bool(standalone, true, "Enable  whisper standalone run at beginning of sim");
 DEFINE_bool(preload, false, "Enable preload log generation");

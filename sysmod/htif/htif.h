@@ -1,15 +1,16 @@
 // -*- c++ -*-
+#pragma once
 
-#include <boost/signals2.hpp>
-#include <functional>
 #include "device.h"
+#include "cvm/messenger.hpp"
+#include "cvm/topology.hpp"
 
 /// Model an htif (host target interface) device
 class htif : public device
 {
 public:
 
-  htif(const std::string& tag, const std::string& type, uint64_t addr);
+  htif(const std::string& tag, const std::string& type, uint64_t addr, cvm::topology::loc_t loc);
 
   virtual ~htif();
 
@@ -42,17 +43,12 @@ public:
       x |= INT(data[i]) << i*8;
   }
 
-  // register event handlers
-  typedef std::function<void()> listener;
-  void registerTerminate(const listener& l)
-  {
-    terminateSignal_.connect(l);
-  }
+  struct terminate_t {
+    bool terminate;
+  };
 
 private:
 
   uint64_t to_ = 0;
   uint64_t from_ = 0;
-
-  boost::signals2::signal<void()> terminateSignal_;
 };

@@ -115,8 +115,8 @@ class axi : public transactor {
 
     public:
 
-        axi(endpoint* e, const data_width_t& data_width, const std::string& tag)
-          : transactor(e, tag), data_width_(data_width)
+        axi(const data_width_t& data_width, const cvm::topology::loc_t loc, const std::string& tag)
+          : transactor(loc, tag), data_width_(data_width)
         { run(); }
 
         axi(axi&&) = delete;

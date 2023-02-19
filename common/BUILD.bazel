@@ -1,22 +1,23 @@
 cc_library(
     name = "common",
-    hdrs = ["svdpi.h",
-            "transactor.h",
-            "endpoint.h",
-            "pcg_random.hpp",
-            "pcg_extras.hpp",
-            "pcg_uint128.hpp",
-            "memmap.h"
-            ],
-    srcs = [
-            "memmap.cpp",
-           ],
+    srcs = ["memmap.cpp"],
+    hdrs = [
+        "svdpi.h",
+        "transactor.h",
+        "pcg_random.hpp",
+        "pcg_extras.hpp",
+        "pcg_uint128.hpp",
+        "memmap.h"
+    ],
     deps = [
-            "@nlohmann_json//:json",
-            "@cvm//:plusargs",
-           ],
+        "@nlohmann_json//:json",
+        "@cvm//:plusargs",
+        "@cvm//:messenger",
+    ],
+    alwayslink = True,
+    linkstatic = True,
     strip_include_prefix = ".",
-    visibility = ["//:__subpackages__"],
+    visibility = ["//visibility:public"],
 )
 
 cc_library(

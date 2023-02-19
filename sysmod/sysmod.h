@@ -3,43 +3,62 @@
 #include <mutex>
 #include <memory>
 #include "device.h"
-#include "endpoint.h"
 #include "svdpi.h"
 #include "memmap.h"
+#include "transactor.h"
+#include "clint/clint.h"
+#include "htif/htif.h"
+#include "cvm/topology.hpp"
 
-class sysmod : public endpoint {
+class sysmod {
 
   public:
 
-    sysmod(int num);
+    sysmod(cvm::topology::loc_t loc, unsigned id);
 
     ~sysmod();
 
     device& dev(uint64_t addr);
     device& dev(const std::string& tag);
 
-    void write(uint64_t addr, size_t length, const device::data_t& data, const device::strb_t& strb) override;
-    void read(uint64_t addr, size_t length, device::data_t& data) override;
+    void write(uint64_t addr, size_t length, const device::data_t& data, const device::strb_t& strb);
+    void read(uint64_t addr, size_t length, device::data_t& data);
 
-    void compose();
-    void load_prog();
-    void tick(uint64_t advance);
-    void reset();
+    struct scope_t {
+      svScope scope;
+    };
+
+    struct tick_t {
+      uint64_t advance;
+    };
+
+    struct reset_t {
+      std::string hex;
+      std::string load;
+    };
+
+    struct flush_t {};
+
     void set_scope(svScope s) { scope_ = s; }
-
-    int num() { return num_; }
-    svScope scope() { return scope_; }
+    void tick(uint64_t advance);
+    void compose();
+    void load_prog(const std::string& hex, const std::string& load);
+    std::string tag() { return "sysmod" + std::to_string(id()); }
 
   protected:
 
-    void timer_interrupt(unsigned hart, bool flag);
-    void sw_interrupt(unsigned hart, bool flag);
-    void terminate();
+    void timer_interrupt(clint::timer_t t);
+    void sw_interrupt(clint::sw_t s);
+    void terminate(htif::terminate_t t);
 
   private:
 
+    svScope scope() { return scope_; }
+    unsigned id() { return id_; }
+
     svScope scope_;
-    int num_;
+    cvm::topology::loc_t loc_;
+    unsigned id_;
 
     mutable std::mutex sys_m;
     std::vector<std::unique_ptr<device> > devices_;

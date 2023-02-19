@@ -4,7 +4,8 @@ module rv_tester #(
     parameter int CLOCK_PERIOD_PS           =     500,
     parameter int SW_CLOCK_UPDATE_PERIOD_PS = 100_000,
     rv_tester_pkg::cfg_t CFG                =      '0,
-    `RV_TESTER_PARAMETERS(CFG)
+    `RV_TESTER_PARAMETERS(CFG),
+    `TOPOLOGY
 ) (
     input clk_ext,
     `_RV_TESTER_PORTS(output,input)
@@ -43,7 +44,9 @@ module rv_tester #(
         .CLOCK_PERIOD_PS(CLOCK_PERIOD_PS),
         .SW_CLOCK_UPDATE_PERIOD_PS(SW_CLOCK_UPDATE_PERIOD_PS),
         .CFG(CFG),
-        .NUM(0)
+        .NUM(0),
+        .TOPOLOGY(TOPOLOGY),
+        .topology(topology)
     ) sysmod (
         .clk,
         .reset(sysmod_reset),
@@ -56,7 +59,9 @@ module rv_tester #(
 `ifndef NO_COSIM
     cosim #(
         .CFG(CFG),
-        .NUM(0)
+        .NUM(0),
+        .TOPOLOGY(TOPOLOGY),
+        .topology(topology)
     ) cosim (
         .clk,
         .reset(sysmod_reset),

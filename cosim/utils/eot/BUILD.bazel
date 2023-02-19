@@ -1,16 +1,1 @@
-
-cc_library(
-    name = "eot",
-    hdrs = ["eot.h"],
-    srcs = ["eot.cpp"],
-    deps = [
-            "//cosim/transactions:cpp_lib",
-            "//cosim/utils/general:util",
-            "//sysmod:sysmod_dpi",
-            "//cosim/vpi:vpi_user",
-            "@cvm//:logger",
-            "@cvm//:plusargs",
-           ],
-    visibility = ["//visibility:public"],
-    strip_include_prefix = ".",
-)
+exports_files(["eot.cpp", "eot.h"])

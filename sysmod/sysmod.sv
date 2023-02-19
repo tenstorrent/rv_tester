@@ -3,7 +3,8 @@ module sysmod #(
     parameter int SW_CLOCK_UPDATE_PERIOD_PS = 100_000,
     rv_tester_pkg::cfg_t CFG                =      '0,
     parameter int  NUM                      =      -1,
-    `RV_TESTER_PARAMETERS(CFG)
+    `RV_TESTER_PARAMETERS(CFG),
+    `TOPOLOGY
 )(
     input clk,
     input reset,
@@ -12,22 +13,20 @@ module sysmod #(
     output rv_tester_pkg::interrupt_t interrupt,
     output terminate
 );
-    import "DPI-C" function void sysmod_tick(dpic_pkg::c_handle sysmod_p, longint unsigned advance);
-    import "DPI-C" context function void sysmod_flush_cbs(dpic_pkg::c_handle sysmod_p);
-    import "DPI-C" function dpic_pkg::c_handle sysmod_get(int num);
-    import "DPI-C" context function void sysmod_set_scope(dpic_pkg::c_handle sysmod_p);
-    import "DPI-C" function void sysmod_reset(dpic_pkg::c_handle sysmod_p);
-    import "DPI-C" function void sysmod_flush_cbs(dpic_pkg::c_handle sysmod_p);
+    import "DPI-C" context function void sysmod_set_scope(longint unsigned loc);
+    import "DPI-C" function void sysmod_tick(longint unsigned loc, longint unsigned advance);
+    import "DPI-C" function void sysmod_reset(longint unsigned loc);
+    import "DPI-C" function void sysmod_flush_cbs(longint unsigned loc);
 
-    dpic_pkg::c_handle _sm;
+    longint unsigned loc = cvm_topology::nil;
     bit sysmod_poll = '1;
 
     always @(posedge clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */
-            _sm = sysmod_get(NUM);
-            sysmod_set_scope(_sm);
-            sysmod_reset(_sm);
+            loc = cvm_topology::get_location(topology.PLATFORM, 0);
+            sysmod_set_scope(loc);
+            sysmod_reset(loc);
             sysmod_poll = cvm_plusargs::get_bool("cb_async") == '0;
             /* verilator lint_on BLKSEQ */
         end
@@ -72,8 +71,8 @@ module sysmod #(
     localparam longint unsigned TICKS = LU'(SW_CLOCK_UPDATE_PERIOD_PS)/LU'(CLOCK_PERIOD_PS);
     always @(posedge clk) begin
         if (0 == (clocks % TICKS)) begin
-            if (_sm != dpic_pkg::nil) begin
-              sysmod_tick(_sm, TICKS);
+            if (loc != cvm_topology::nil) begin
+              sysmod_tick(loc, TICKS);
             end
         end
     end
@@ -108,8 +107,8 @@ module sysmod #(
         if (reset) begin
             interrupt_d <= '0;
         end
-        if (_sm != dpic_pkg::nil && sysmod_poll) begin
-          sysmod_flush_cbs(_sm);
+        if (loc != cvm_topology::nil && sysmod_poll) begin
+          sysmod_flush_cbs(loc);
         end
     end
 

@@ -4,42 +4,45 @@
 
 #include "cvm/messenger.hpp"
 #include "cvm/logger.hpp"
-#include "cosim/transactions/transactions.hpp"
+#include "cosim_transactions.hpp"
 
 #include "bridge_if.h"
 #include "bridge.h"
-#include "eot.h"
 #include "bot.h"
+#include "cosim/utils/eot/eot.h"
 
 class rvfi {
 
-  template<typename T, typename... Args> void connect() {
+  template<typename T, typename... Args> void connect(cvm::topology::loc_t loc) {
     cvm::messenger<T>::connect(
+      loc,
       [this] (const T& v) {
         return this->process(v);
       }
     );
     if constexpr (sizeof...(Args)) {
-      connect<Args...>();
+      connect<Args...>(loc);
     }
   }
 
   public:
 
-    rvfi();
+    rvfi(cvm::topology::loc_t loc, unsigned id);
+
+    struct reset_t{};
     void reset();
 
   private:
 
     void init();
-    void process(const transactions::m_rvfi& m_rvfi);
-    void process(const transactions::m_trap& m_trap);
-    void process(const transactions::m_intr& m_intr);
-    void process(const transactions::m_debug& m_debug);
+    void process(const cosim_transactions::m_rvfi& m_rvfi);
+    void process(const cosim_transactions::m_trap& m_trap);
+    void process(const cosim_transactions::m_intr& m_intr);
+    void process(const cosim_transactions::m_debug& m_debug);
     
     std::tuple<uint64_t, uint64_t, uint8_t> get_mem_attributes(uint64_t addr, uint8_t mask, uint64_t data);
 
-    void make_instr(const transactions::m_rvfi& m_rvfi, rv_instr_t& instr);
+    void make_instr(const cosim_transactions::m_rvfi& m_rvfi, rv_instr_t& instr);
     void print_instr(rv_instr_t& instr);
     void send_instr(rv_instr_t& instr);
 
@@ -52,6 +55,8 @@ class rvfi {
     std::unique_ptr<bot> bot_;
 
     uint64_t count_ = 0;
+
+    cvm::topology::loc_t loc_;
 
     bool intr_ = false;
     bool excp_ = false;

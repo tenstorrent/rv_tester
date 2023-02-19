@@ -4,11 +4,12 @@
 #include <termios.h>
 #include <poll.h>
 #include "htif.h"
+#include "cvm/plusargs.hpp"
 
-DECLARE_bool(sysmod_terminate);
+DEFINE_bool(htif_terminate, true, "Call $finish on write to tohost");
 
-htif::htif(const std::string& tag, const std::string& type, uint64_t addr)
-  : device(tag, type, addr, 16 /* size */)
+htif::htif(const std::string& tag, const std::string& type, uint64_t addr, cvm::topology::loc_t loc)
+  : device(tag, type, addr, 16 /* size */, loc)
 {
 }
 
@@ -117,8 +118,7 @@ htif::write(uint64_t addr, size_t length, const data_t& data,
       if (payload & 1)
 	{
 	  std::cerr << "Terminating because of write tohost\n";
-          if (not terminateSignal_.empty())
-            terminateSignal_();
+          cvm::messenger<terminate_t>::signal(loc(), terminate_t{FLAGS_htif_terminate});
 	}
     }
   else

@@ -1,7 +1,8 @@
 module cosim #(
     rv_tester_pkg::cfg_t CFG              =    '0,
     parameter int NUM                     =    -1,
-    `RV_TESTER_PARAMETERS(CFG)
+    `RV_TESTER_PARAMETERS(CFG),
+    `TOPOLOGY
 )(
     input clk,
     input reset,
@@ -14,18 +15,17 @@ module cosim #(
 
     typedef longint unsigned LU;
 
-    import "DPI-C" function dpic_pkg::c_handle rvfi_get(int num);
-    import "DPI-C" function void rvfi_reset(dpic_pkg::c_handle rvfi_p);
+    import "DPI-C" function void rvfi_reset(longint unsigned loc);
 
-    dpic_pkg::c_handle _rvfi;
+    longint unsigned loc = cvm_topology::nil;
     bit rvfi_enabled;
 
     always @(posedge clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */
-            _rvfi = rvfi_get(NUM);
+            loc = cvm_topology::get_location(topology.PLATFORM, 0);
             /* verilator lint_on BLKSEQ */
-            rvfi_reset(_rvfi);
+            rvfi_reset(loc);
             /* verilator lint_off BLKSEQ */
             rvfi_enabled = cvm_plusargs::get_bool("rvfi") != '0;
             /* verilator lint_on BLKSEQ */
@@ -33,7 +33,7 @@ module cosim #(
     end
     
     // CVM transactions
-    `TRANSACTIONS_DOMAIN(1, clk)
+    `COSIM_TRANSACTIONS_DOMAIN(1, clk)
 
     // m_rvfi
     for (genvar n = 0; n < CFG.NRET; n++) begin
@@ -96,29 +96,8 @@ module cosim #(
     end
 
     // m_intr
-    logic timer_d1, ipi_d1, external_d1;
-    logic timer_assert, timer_deassert;
-    logic ipi_assert, ipi_deassert;
-    logic external_assert, external_deassert;
-    always @(posedge clk) begin
-      timer_d1 <= interrupt.timer;
-      ipi_d1 <= interrupt.ipi;
-      external_d1 <= interrupt.external;
-    end
-    assign timer_assert = interrupt.timer & ~timer_d1;
-    assign timer_deassert = ~interrupt.timer & timer_d1;
-    assign ipi_assert = interrupt.ipi & ~ipi_d1;
-    assign ipi_deassert = ~interrupt.ipi & ipi_d1;
-    assign external_assert = interrupt.external & ~external_d1;
-    assign external_deassert = ~interrupt.external & external_d1;
-
-    assign tx_dom_1.m_intrs[0].valid = ~reset & (timer_assert | timer_deassert) & (ipi_assert | ipi_deassert) & 
-      (external_assert | external_deassert);
+    assign tx_dom_1.m_intrs[0].valid = ~reset & 1'b0;
     assign tx_dom_1.m_intrs[0].data.cycle = clocks;
-    assign tx_dom_1.m_intrs[0].data.pos_edge = (timer_assert | ipi_assert | external_assert);
-    assign tx_dom_1.m_intrs[0].data.timer = (timer_assert || timer_deassert);
-    assign tx_dom_1.m_intrs[0].data.ipi = (ipi_assert || ipi_deassert);
-    assign tx_dom_1.m_intrs[0].data.external = (external_assert || external_deassert);
 
     // Timeout checks
     int max_stall_cycle = 50000;

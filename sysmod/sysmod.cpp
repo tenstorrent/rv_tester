@@ -2,8 +2,10 @@
 #include <thread>
 #include <cassert>
 #include <unordered_map>
-#include "cvm/plusargs.hpp"
 #include "cvm/callbacks.hpp"
+#include "cvm/plusargs.hpp"
+#include "cvm/topology.hpp"
+#include "cvm/registry.hpp"
 #include "sysmod.h"
 #include "mem/sysmod_mem.h"
 #include "clint/clint.h"
@@ -17,26 +19,55 @@
 #include "htif/htif.h"
 // #include "trickbox/trickbox.h"
 
-// shared flags
-DEFINE_string(memmap_json_path, "", "Path to memory map json");
-
 // internal flags
 DEFINE_string(hex, "", "hex file (program) to load into memory");
 DEFINE_string(load, "", "elf file (program) to load into memory");
-DEFINE_bool(sysmod_terminate, true, "Call $finish on write to tohost");
+
+REGISTRY_register(sysmod, platform, 0);
 
 extern "C" {
   void sysmod_timer_interrupt(unsigned hartid, unsigned val);
   void sysmod_sw_interrupt(unsigned hartid, unsigned val);
   // used by TRICKBOX to assert/deassert  interrupt
   void sysmod_tbox_interrupt(unsigned hartid, unsigned val, unsigned int_val);
-  //void sysmod_interrupt(unsigned hartid, unsigned interruptid, unsigned val);
   void sysmod_terminate(uint8_t call_finish);
 }
 
-sysmod::sysmod(int num)
-  : scope_(nullptr), num_(num)
+sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
+  : scope_(nullptr), loc_(loc), id_(id)
 {
+  cvm::messenger<scope_t>::connect(
+      loc_,
+      [&](scope_t s) { return this->set_scope(s.scope); });
+
+  cvm::messenger<tick_t>::connect(
+      loc_,
+      [&](tick_t t) { return this->tick(t.advance); });
+
+  cvm::messenger<reset_t>::connect(
+      loc_,
+      [&](reset_t r) {
+        this->compose();
+        this->load_prog(r.hex, r.load);
+      });
+
+  cvm::messenger<flush_t>::connect(
+      loc_,
+      [&](flush_t f) {
+        return cvm::callbacks::flush(this->tag());
+      });
+
+  cvm::messenger<transactor::write_t>::connect(
+      loc_,
+      [&](transactor::write_t w) {
+        return this->write(w.addr, w.length, w.data, w.strb);
+      });
+
+  cvm::messenger<transactor::read_t>::connect(
+      loc_,
+      [&](transactor::read_t r) {
+        return this->read(r.addr, r.length, r.data);
+      });
 }
 
 sysmod::~sysmod()
@@ -45,32 +76,32 @@ sysmod::~sysmod()
 
 // forwarding functions for devices
 void
-sysmod::timer_interrupt(unsigned hart, bool flag) {
+sysmod::timer_interrupt(clint::timer_t t) {
   cvm::callbacks::push(
-                  scope_,
-                  "sysmod" + std::to_string(num_),
-                  [&hart, &flag]() {
-                    sysmod_timer_interrupt(hart, flag);
+                  scope(),
+                  tag(),
+                  [&t]() {
+                    sysmod_timer_interrupt(t.hart, t.flag);
                   });
 }
 
 void
-sysmod::sw_interrupt(unsigned hart, bool flag) {
+sysmod::sw_interrupt(clint::sw_t s) {
   cvm::callbacks::push(
-                  scope_,
-                  "sysmod" + std::to_string(num_),
-                  [&hart, &flag]() {
-                    sysmod_sw_interrupt(hart, flag);
+                  scope(),
+                  tag(),
+                  [&s]() {
+                    sysmod_sw_interrupt(s.hart, s.flag);
                   });
 }
 
 void
-sysmod::terminate() {
+sysmod::terminate(htif::terminate_t t) {
   cvm::callbacks::push(
-                  scope_,
-                  "sysmod" + std::to_string(num_),
-                  []() {
-                    sysmod_terminate(FLAGS_sysmod_terminate);
+                  scope(),
+                  tag(),
+                  [&t]() {
+                    sysmod_terminate(t.terminate);
                   });
 }
 
@@ -84,12 +115,11 @@ sysmod::compose()
   memmap::get(memmap_);
 
   try {
-
-    for(auto& d : memmap_) {
-      auto& base = d.second.base;
-      auto& size = d.second.size;
-      auto& type = d.second.type;
-      auto& tag  = d.second.tag;
+    for(const auto& d : memmap_) {
+      const auto base = d.second.base;
+      const auto size = d.second.size;
+      const auto type = d.second.type;
+      const auto tag  = d.second.tag;
 
       device* device = nullptr;
 
@@ -100,11 +130,20 @@ sysmod::compose()
       } else if (type == "null_dev") {
         device = new null_dev(tag, type, base, size);
       } else if (type == "htif") {
-        device = new htif(tag, type, base);
+        device = new htif(tag, type, base, loc_);
+        cvm::messenger<htif::terminate_t>::connect(
+            loc_,
+            [&](htif::terminate_t t) { return this->terminate(t); });
       } else if (type == "clint") {
-        device = new clint(tag, type, base, 1);
+        device = new clint(tag, type, base, 1, loc_);
+        cvm::messenger<clint::timer_t>::connect(
+            loc_,
+            [&](clint::timer_t t) { return this->timer_interrupt(t); });
+        cvm::messenger<clint::sw_t>::connect(
+            loc_,
+            [&](clint::sw_t s) { return this->sw_interrupt(s); });
       } else if (type == "trickbox") {
-        device = new trickbox(tag, type, base, 1);
+        // device = new trickbox(tag, base, 1);
       } else {
         std::cerr << "Error: unknown type " << type << "\n";
         assert(false);
@@ -141,18 +180,18 @@ sysmod::dev(const std::string& tag)
 }
 
 void
-sysmod::load_prog()
+sysmod::load_prog(const std::string& hex, const std::string& load)
 {
   std::lock_guard<std::mutex> lock(sys_m);
-  if (FLAGS_load != "") {
-    std::cout << "loading " << FLAGS_load << "\n";
-    if (not dynamic_cast<sysmod_mem&>(dev("memory")).init_elf(FLAGS_load))
-      exit(1);
+  if (load != "") {
+    std::cout << "loading " << load << "\n";
+    if (not dynamic_cast<sysmod_mem&>(dev("memory")).init_elf(load))
+      assert(false);
   }
-  if (FLAGS_hex != "") {
-    std::cout << "loading " << FLAGS_hex << "\n";
-    if (not dynamic_cast<sysmod_mem&>(dev("memory")).init_hex(FLAGS_hex))
-      exit(1);
+  if (hex != "") {
+    std::cout << "loading " << hex << "\n";
+    if (not dynamic_cast<sysmod_mem&>(dev("memory")).init_hex(hex))
+      assert(false);
   }
   
   for (auto& d : devices_) {
@@ -196,37 +235,32 @@ sysmod::tick(uint64_t advance)
 
 extern "C" {
 
-  void sysmod_set_scope(sysmod* s) {
+  void sysmod_set_scope(cvm::topology::loc_t loc) {
+    typedef sysmod sm;
     svScope scope = svGetScope();
-    s->set_scope(scope);
+    cvm::messenger<sm::scope_t>::signal(
+        loc,
+        sm::scope_t{scope});
   }
 
-  void sysmod_tick(sysmod* s, uint64_t new_clock) {
-    s->tick(new_clock);
+  void sysmod_tick(cvm::topology::loc_t loc, uint64_t new_clock) {
+    typedef sysmod sm;
+    cvm::messenger<sm::tick_t>::signal(
+        loc,
+        sm::tick_t{new_clock});
   }
 
-  void sysmod_flush_cbs(sysmod* s) {
-    cvm::callbacks::flush("sysmod" + std::to_string(s->num()));
+  void sysmod_flush_cbs(cvm::topology::loc_t loc) {
+    typedef sysmod sm;
+    cvm::messenger<sm::flush_t>::signal(
+        loc,
+        sysmod::flush_t{});
   }
 
-  sysmod* sysmod_get(int num) {
-      static std::unordered_map<int, sysmod> sysmods;
-      auto it = sysmods.find(num);
-
-      if (it == sysmods.end()) {
-          it = sysmods.emplace(
-                  std::piecewise_construct,
-                  std::make_tuple(num),
-                  std::make_tuple(num)
-                  ).first;
-      }
-      return &(it->second);
-  }
-
-  void sysmod_reset(sysmod* s) {
-    // possibly compose once?
-    s->compose();
-    s->load_prog();
-    s->reset();
+  void sysmod_reset(cvm::topology::loc_t loc) {
+    typedef sysmod sm;
+    cvm::messenger<sm::reset_t>::signal(
+        loc,
+        sysmod::reset_t{FLAGS_hex, FLAGS_load});
   }
 }

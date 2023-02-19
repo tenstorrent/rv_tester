@@ -8,8 +8,8 @@
 #include <unistd.h>
 #include <iostream>
 #include <functional>
-#include <boost/signals2.hpp>
 #include "device.h"
+#include "cvm/messenger.hpp"
 
 // Define a core local interruptor (Clint) at the given address
 // and for the given hart count. The size will be 48k bytes.
@@ -19,7 +19,8 @@ public:
 
   /// Define a CLINT device at the given address for the given hart count.
   /// Range of addresses reserved is: [addr, addr + 0xbfff]
-  clint(const std::string& tag, const std::string& type, uint64_t addr, unsigned hartCount);
+  clint(const std::string& tag, const std::string& type, uint64_t addr, unsigned hartCount,
+        cvm::topology::loc_t loc);
 
   // Destructor.
   virtual ~clint();
@@ -67,17 +68,15 @@ public:
     processTimerInterrupts();
   }
 
-  /// register event handlers
-  typedef std::function<void(unsigned, unsigned)> listener;
-  void registerSoftwareInterrupt(const listener& l)
-  {
-    swSignal_.connect(l);
-  }
+  struct timer_t {
+    unsigned hart;
+    unsigned flag;
+  };
 
-  void registerTimerInterrupt(const listener& l)
-  {
-    timerSignal_.connect(l);
-  }
+  struct sw_t {
+    unsigned hart;
+    unsigned flag;
+  };
 
 protected:
 
@@ -95,18 +94,16 @@ protected:
       }
   }
 
-  // Used to assert/deassert a software interrupt (IPI) for given hart.
-  virtual void softwareInterrupt(unsigned hart, bool flag)
-  {
-    if (not swSignal_.empty())
-      swSignal_(hart, flag);
-  }
-
   // Used to assert/deassert a timer interrupt for given hart.
   virtual void timerInterrupt(unsigned hart, bool flag)
   {
-    if (not timerSignal_.empty())
-      timerSignal_(hart, flag);
+    cvm::messenger<timer_t>::signal(loc(), timer_t{hart, flag});
+  }
+
+  // Used to assert/deassert a software interrupt (IPI) for given hart.
+  virtual void softwareInterrupt(unsigned hart, bool flag)
+  {
+    cvm::messenger<sw_t>::signal(loc(), sw_t{hart, flag});
   }
 
   // Start a thread to increment timer after n microseconds.
@@ -125,8 +122,5 @@ private:
   std::mutex mutex_;
 
   std::thread timerThread_;
-
-  boost::signals2::signal<void(unsigned, unsigned)> timerSignal_;
-  boost::signals2::signal<void(unsigned, unsigned)> swSignal_;
 };
 
