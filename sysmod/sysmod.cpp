@@ -6,6 +6,7 @@
 #include "sysmod.h"
 #include "mem/sysmod_mem.h"
 #include "clint/clint.h"
+#include "io_dev/io_dev.h"
 #include "trickbox/trickbox.h"
 #include "htif/htif.h"
 
@@ -70,6 +71,8 @@ sysmod::compose()
 
       if (type == "memory") {
         device = new sysmod_mem(tag, base, size);
+      } else if (type == "io_dev") {
+        device = new io_dev(tag, base, size);
       } else if (type == "htif") {
         device = new htif(tag, base);
       } else if (type == "clint") {
