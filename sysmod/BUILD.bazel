@@ -41,6 +41,7 @@ cc_library(
       "//sysmod/trickbox:trickbox",
       "//sysmod/htif:htif",
       "//sysmod/mem:mem",
+      "//sysmod/io_dev:io_dev",
       "@cvm//:plusargs",
     ],
     alwayslink = True,
