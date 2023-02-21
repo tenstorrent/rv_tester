@@ -17,7 +17,8 @@ module sysmod #(
     import "DPI-C" function void sysmod_tick(longint unsigned loc, longint unsigned advance);
     import "DPI-C" function void sysmod_flush_cbs(longint unsigned loc);
 
-    longint unsigned loc = cvm_topology::nil;
+    typedef longint unsigned LU;
+    LU loc = cvm_topology::nil;
     bit sysmod_poll = '1;
 
     always @(posedge clk) begin
