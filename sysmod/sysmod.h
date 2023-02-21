@@ -32,11 +32,6 @@ class sysmod {
       uint64_t advance;
     };
 
-    struct reset_t {
-      std::string hex;
-      std::string load;
-    };
-
     struct flush_t {};
 
     void set_scope(svScope s) { scope_ = s; }
@@ -52,6 +47,8 @@ class sysmod {
     void terminate(htif::terminate_t t);
 
   private:
+
+    void reset();
 
     svScope scope() { return scope_; }
     unsigned id() { return id_; }

@@ -14,8 +14,11 @@
 #include "null_dev/null_dev.h"
 =======
 // #include "io_dev/io_dev.h"
+<<<<<<< HEAD
 >>>>>>> 56d6cca (minimal changes for c->sv to compile. trickbox and cosim need to be reviewed)
 #include "trickbox/trickbox.h"
+=======
+>>>>>>> fd24f5b (some more fixes, now passing on cva6)
 #include "htif/htif.h"
 // #include "trickbox/trickbox.h"
 
@@ -44,13 +47,6 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
       loc_,
       [&](tick_t t) { return this->tick(t.advance); });
 
-  cvm::messenger<reset_t>::connect(
-      loc_,
-      [&](reset_t r) {
-        this->compose();
-        this->load_prog(r.hex, r.load);
-      });
-
   cvm::messenger<flush_t>::connect(
       loc_,
       [&](flush_t f) {
@@ -68,6 +64,8 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
       [&](transactor::read_t r) {
         return this->read(r.addr, r.length, r.data);
       });
+
+  reset();
 }
 
 sysmod::~sysmod()
@@ -80,7 +78,7 @@ sysmod::timer_interrupt(clint::timer_t t) {
   cvm::callbacks::push(
                   scope(),
                   tag(),
-                  [&t]() {
+                  [t]() {
                     sysmod_timer_interrupt(t.hart, t.flag);
                   });
 }
@@ -90,7 +88,7 @@ sysmod::sw_interrupt(clint::sw_t s) {
   cvm::callbacks::push(
                   scope(),
                   tag(),
-                  [&s]() {
+                  [s]() {
                     sysmod_sw_interrupt(s.hart, s.flag);
                   });
 }
@@ -100,9 +98,15 @@ sysmod::terminate(htif::terminate_t t) {
   cvm::callbacks::push(
                   scope(),
                   tag(),
-                  [&t]() {
+                  [t]() {
                     sysmod_terminate(t.terminate);
                   });
+}
+
+void
+sysmod::reset() {
+  compose();
+  load_prog(FLAGS_hex, FLAGS_load);
 }
 
 void
@@ -126,9 +130,9 @@ sysmod::compose()
       if (type == "memory") {
         device = new sysmod_mem(tag, type, base, size);
       } else if (type == "io_dev") {
-        device = new io_dev(tag, type, base, size);
+        // device = new io_dev(tag, type, base, size);
       } else if (type == "null_dev") {
-        device = new null_dev(tag, type, base, size);
+        // device = new null_dev(tag, type, base, size);
       } else if (type == "htif") {
         device = new htif(tag, type, base, loc_);
         cvm::messenger<htif::terminate_t>::connect(
@@ -255,12 +259,5 @@ extern "C" {
     cvm::messenger<sm::flush_t>::signal(
         loc,
         sysmod::flush_t{});
-  }
-
-  void sysmod_reset(cvm::topology::loc_t loc) {
-    typedef sysmod sm;
-    cvm::messenger<sm::reset_t>::signal(
-        loc,
-        sysmod::reset_t{FLAGS_hex, FLAGS_load});
   }
 }

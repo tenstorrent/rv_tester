@@ -1,1 +1,1 @@
-exports_files(["cosim_dpi.cpp", "cosim.sv"])
+exports_files(["cosim.sv"])

@@ -15,7 +15,6 @@ module sysmod #(
 );
     import "DPI-C" context function void sysmod_set_scope(longint unsigned loc);
     import "DPI-C" function void sysmod_tick(longint unsigned loc, longint unsigned advance);
-    import "DPI-C" function void sysmod_reset(longint unsigned loc);
     import "DPI-C" function void sysmod_flush_cbs(longint unsigned loc);
 
     longint unsigned loc = cvm_topology::nil;
@@ -26,7 +25,6 @@ module sysmod #(
             /* verilator lint_off BLKSEQ */
             loc = cvm_topology::get_location(topology.PLATFORM, 0);
             sysmod_set_scope(loc);
-            sysmod_reset(loc);
             sysmod_poll = cvm_plusargs::get_bool("cb_async") == '0;
             /* verilator lint_on BLKSEQ */
         end
@@ -82,19 +80,19 @@ module sysmod #(
     assign interrupt = interrupt_q;
 
     function automatic sysmod_timer_interrupt (unsigned hartid, unsigned val);
-      $display("[SYSMOD] mti = %d", val);
+      $display("[SYSMOD] mti = %0d", val);
       interrupt_d.mti = val;
     endfunction
     export "DPI-C" function sysmod_timer_interrupt;
 
     function automatic sysmod_sw_interrupt (unsigned hartid, unsigned val);
-      $display("[SYSMOD] msi = %d", val);
+      $display("[SYSMOD] msi = %0d", val);
       interrupt_d.msi = val;
     endfunction
     export "DPI-C" function sysmod_sw_interrupt;
 
     function automatic sysmod_tbox_interrupt (int unsigned hartid, int unsigned intr_select,int unsigned intr_value);
-      $display("\n[SYSMOD] trickbox interrupt select %d with value %d\n",intr_select,intr_value);
+      $display("\n[SYSMOD] trickbox interrupt select %0d with value %0d\n",intr_select,intr_value);
       for(int i =0;i<6;i++)begin
         if(intr_select[i])
           interrupt_d[i] = intr_value[i];

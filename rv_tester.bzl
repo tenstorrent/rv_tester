@@ -1,7 +1,7 @@
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
 load("@rv_tester//cosim:cosim.bzl", "cosim_gen")
 
-def rv_tester_gen(name, topology, cosim = False, visibility = None, cc_attrs = {}, **kwargs):
+def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
 
     prefix = "rv_tester"
     rv_tester_dpi = name + "_dpi"
@@ -10,6 +10,7 @@ def rv_tester_gen(name, topology, cosim = False, visibility = None, cc_attrs = {
     cosim_gen(
         name = prefix + "_cosim",
         topology = topology,
+        cc_attrs = cc_attrs,
     )
 
     verilog_library(
@@ -24,7 +25,7 @@ def rv_tester_gen(name, topology, cosim = False, visibility = None, cc_attrs = {
             "@rv_tester//transactors/axi_sw:axi_sw",
             topology + "_sv",
         ] + select({
-          "@rv_tester//:cosim_off": ["@rv_tester//:no_coism"],
+          "@rv_tester//:cosim_off": ["@rv_tester//:no_cosim"],
           "//conditions:default":   [prefix + "_cosim_sv"],
         }),
         visibility = visibility,
@@ -38,6 +39,8 @@ def rv_tester_gen(name, topology, cosim = False, visibility = None, cc_attrs = {
             "@rv_tester//common:common",
             "@rv_tester//sysmod:sysmod_dpi",
             "@cvm//:plusargs",
+            "@cvm//:messenger",
+            "@cvm//:registry",
             topology + "_cc",
         ] + select({
           "@rv_tester//:cosim_off": [],

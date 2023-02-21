@@ -20,6 +20,8 @@ module rv_tester #(
     end
 
     import "DPI-C" function void rv_tester_parse_flags();
+    import "DPI-C" function void rv_tester_reset_messenger();
+    import "DPI-C" function void rv_tester_reset_registry();
     import "DPI-C" function void rv_tester_parse_memmap();
 
     logic rv_tester_reset = '1;
@@ -34,6 +36,10 @@ module rv_tester #(
             $display("[RVTESTER]: new test");
             rv_tester_parse_flags();
             rv_tester_parse_memmap();
+            $display("[RVTESTER]: disconnecting all messenger connections");
+            rv_tester_reset_messenger();
+            $display("[RVTESTER]: reconstructing registry");
+            rv_tester_reset_registry();
             clocks <= 0;
             sysmod_reset <= '1;
         end

@@ -20,34 +20,19 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     cosim_transactions::m_intr,
     cosim_transactions::m_debug
   >(loc);
-
-  cvm::messenger<rvfi::reset_t>::connect(
-      loc,
-      [&](reset_t r) {
-        this->reset();
-      });
 }
 
 void rvfi::init() {
   if (FLAGS_cosim) {
     cvm::log(cvm::MEDIUM, "[RVFI] Constructing bridge...\n");
     bridge_ = std::make_unique<bridge>(num_harts, xlen, vlen);
+    bridge_->reset();
+    cvm::log(cvm::NONE, "Instr Cycle Hart Mode PC Opcode\n");
+    count_ = 0;
   }
 
   bot_ = std::make_unique<bot>();;
   eot_ = std::make_unique<eot>(loc_);;
-}
-
-void rvfi::reset() {
-  if (!FLAGS_cosim)
-    return;
-
-  cvm::log(cvm::MEDIUM, "[RVFI] Hard reset for test chaining...\n");
-  bridge_->reset();
-
-  log(cvm::NONE, "Instr Cycle Hart Mode PC Opcode\n");
-
-  count_ = 0;
 }
 
 void rvfi::process(const cosim_transactions::m_rvfi& m_rvfi) {

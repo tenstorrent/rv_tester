@@ -38,7 +38,6 @@ def cosim_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
                 "@cvm//:registry",
                ],
         alwayslink = True,
-        linkstatic = True,
         visibility = visibility,
     )
 
@@ -56,13 +55,11 @@ def cosim_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
 
     native.cc_library(
         name = cosim_dpi,
-        srcs = ["@rv_tester//cosim:cosim_dpi.cpp"],
         deps = [
                 prefix + "_rvfi",
                 "@cvm//:plusargs",
                 "cosim_transactions_cc"
                ],
         alwayslink = True,
-        linkstatic = True,
         visibility = visibility,
     )

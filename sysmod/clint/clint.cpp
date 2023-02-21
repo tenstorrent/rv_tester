@@ -3,7 +3,7 @@
 clint::clint(const std::string& tag, const std::string& type, uint64_t addr, unsigned hartCount,
              cvm::topology::loc_t loc)
   : device(tag, type, addr, 0xc000 /* size */, loc), hartCount_(hartCount), soft_(hartCount),
-    timeCompare_(hartCount), timerIntPrev_(hartCount), timer_(0)
+    timeCompare_(hartCount), timerIntPrev_(hartCount, 0), timer_(0)
 {
 }
 

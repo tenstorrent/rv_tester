@@ -29,9 +29,6 @@ class rvfi {
 
     rvfi(cvm::topology::loc_t loc, unsigned id);
 
-    struct reset_t{};
-    void reset();
-
   private:
 
     void init();
