@@ -74,6 +74,8 @@ sysmod::compose()
         device = new sysmod_mem(tag,type, base, size);
       } else if (type == "io_dev") {
         device = new io_dev(tag, type,base, size);
+      } else if (type == "null_dev") {
+        device = new null_dev(tag, type,base, size);
       } else if (type == "htif") {
         device = new htif(tag,type, base);
       } else if (type == "clint") {
