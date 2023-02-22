@@ -5,8 +5,8 @@
  DEFINE_int32(intr_delay_min, 3, "Minimum Delay between 2 consecutive interrupts");
  DEFINE_int32(intr_delay_max, 5, "Maximum Delay between 2 consecutive interrupts");
  DEFINE_int32(seed, 1, "Simulation seed passed down for randomization");
-interrupter::interrupter(const std::string& tag, uint64_t addr, unsigned hartCount)
-  : device(tag, addr, 0x4000 /* size */), hartCount_(hartCount), 
+interrupter::interrupter(const std::string& tag, const std::string& type, uint64_t addr, unsigned hartCount)
+  : device(tag, type, addr, 0x4000 /* size */), hartCount_(hartCount), 
     timeCompare_(6),IntrHart_(6),delayedRandomIntValid_(6),IntrValue_(6), timerIntPrev_(hartCount), timer_(0)
 {
   rng.seed(FLAGS_seed);

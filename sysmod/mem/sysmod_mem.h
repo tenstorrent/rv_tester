@@ -19,7 +19,7 @@ class sysmod_mem : public device {
                           data_t& data, cbs_t& cbs) override;
 
         // add max mem size
-        sysmod_mem(const std::string& tag, uint64_t addr, size_t size) : device(tag, addr, size) {}
+        sysmod_mem(const std::string& tag, const std::string& type, uint64_t addr, size_t size) : device(tag, type, addr, size) {}
 
         /// Initialize memory with hex file.
         bool init_hex(const std::string& path);

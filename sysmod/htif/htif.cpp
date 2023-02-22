@@ -5,8 +5,8 @@
 #include <poll.h>
 #include "htif.h"
 
-htif::htif(const std::string& tag, uint64_t addr)
-  : device(tag, addr, 16 /* size */)
+htif::htif(const std::string& tag, const std::string& type, uint64_t addr)
+  : device(tag, type, addr, 16 /* size */)
 {
 }
 

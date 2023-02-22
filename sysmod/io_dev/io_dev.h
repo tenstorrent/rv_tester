@@ -19,7 +19,7 @@ class io_dev : public device {
                           data_t& data, cbs_t& cbs) override;
 
         // add max mem size
-        io_dev(const std::string& tag, uint64_t addr, size_t size) : device(tag, addr, size) {}
+        io_dev(const std::string& tag, const std::string& type, uint64_t addr, size_t size) : device(tag, type, addr, size) {}
 
            /// Initialize memory with elf file.
         bool init_elf(const std::string& path);

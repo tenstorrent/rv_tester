@@ -130,7 +130,14 @@ sysmod::load_prog()
   }
   
   for (auto& d : devices_) {
-   
+    if(d->type() == "io_dev"){
+      if (FLAGS_load != "") {
+        std::cout << "loading " << FLAGS_load << "\n";
+        //if (not dynamic_cast<sysmod_mem&>(dev("memory")).init_elf(FLAGS_load))
+        if (not dynamic_cast<io_dev&>(*d).init_elf(FLAGS_load))
+          exit(1);
+      }
+    }
   }
 }
 

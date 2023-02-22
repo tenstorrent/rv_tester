@@ -2,8 +2,8 @@
 #include "debugger.h"
 
 
-debugger::debugger(const std::string& tag, uint64_t addr, unsigned hartCount)
-  : device(tag, addr, 0x4000 /* size */), hartCount_(hartCount), soft_(hartCount),
+debugger::debugger(const std::string& tag, const std::string& type, uint64_t addr, unsigned hartCount)
+  : device(tag, type, addr, 0x4000 /* size */), hartCount_(hartCount), soft_(hartCount),
     timeCompare_(6),IntrHart_(6),delayedRandomIntValid_(6),IntrValue_(6), timerIntPrev_(hartCount), timer_(0)
 {
   debugger_base = addr;
