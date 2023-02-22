@@ -7,6 +7,7 @@
 #include "mem/sysmod_mem.h"
 #include "clint/clint.h"
 #include "io_dev/io_dev.h"
+#include "null_dev/null_dev.h"
 #include "trickbox/trickbox.h"
 #include "htif/htif.h"
 
