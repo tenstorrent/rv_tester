@@ -2,23 +2,14 @@
 #include <thread>
 #include <cassert>
 #include <unordered_map>
-#include "cvm/callbacks.hpp"
 #include "cvm/plusargs.hpp"
 #include "cvm/topology.hpp"
 #include "cvm/registry.hpp"
 #include "sysmod.h"
 #include "mem/sysmod_mem.h"
 #include "clint/clint.h"
-<<<<<<< HEAD
-#include "io_dev/io_dev.h"
-#include "null_dev/null_dev.h"
-=======
 // #include "io_dev/io_dev.h"
-<<<<<<< HEAD
->>>>>>> 56d6cca (minimal changes for c->sv to compile. trickbox and cosim need to be reviewed)
-#include "trickbox/trickbox.h"
-=======
->>>>>>> fd24f5b (some more fixes, now passing on cva6)
+// #include "null_dev/null_dev.h"
 #include "htif/htif.h"
 // #include "trickbox/trickbox.h"
 
@@ -39,27 +30,21 @@ extern "C" {
 sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
   : scope_(nullptr), loc_(loc), id_(id)
 {
-  cvm::messenger<scope_t>::connect(
+  cvm::registry::messenger.connect<scope_t>(
       loc_,
       [&](scope_t s) { return this->set_scope(s.scope); });
 
-  cvm::messenger<tick_t>::connect(
+  cvm::registry::messenger.connect<tick_t>(
       loc_,
       [&](tick_t t) { return this->tick(t.advance); });
 
-  cvm::messenger<flush_t>::connect(
-      loc_,
-      [&](flush_t f) {
-        return cvm::callbacks::flush(this->tag());
-      });
-
-  cvm::messenger<transactor::write_t>::connect(
+  cvm::registry::messenger.connect<transactor::write_t>(
       loc_,
       [&](transactor::write_t w) {
         return this->write(w.addr, w.length, w.data, w.strb);
       });
 
-  cvm::messenger<transactor::read_t>::connect(
+  cvm::registry::messenger.connect<transactor::read_t>(
       loc_,
       [&](transactor::read_t r) {
         return this->read(r.addr, r.length, r.data);
@@ -75,9 +60,8 @@ sysmod::~sysmod()
 // forwarding functions for devices
 void
 sysmod::timer_interrupt(clint::timer_t t) {
-  cvm::callbacks::push(
+  cvm::registry::callbacks.push(
                   scope(),
-                  tag(),
                   [t]() {
                     sysmod_timer_interrupt(t.hart, t.flag);
                   });
@@ -85,9 +69,8 @@ sysmod::timer_interrupt(clint::timer_t t) {
 
 void
 sysmod::sw_interrupt(clint::sw_t s) {
-  cvm::callbacks::push(
+  cvm::registry::callbacks.push(
                   scope(),
-                  tag(),
                   [s]() {
                     sysmod_sw_interrupt(s.hart, s.flag);
                   });
@@ -95,9 +78,8 @@ sysmod::sw_interrupt(clint::sw_t s) {
 
 void
 sysmod::terminate(htif::terminate_t t) {
-  cvm::callbacks::push(
+  cvm::registry::callbacks.push(
                   scope(),
-                  tag(),
                   [t]() {
                     sysmod_terminate(t.terminate);
                   });
@@ -135,15 +117,15 @@ sysmod::compose()
         // device = new null_dev(tag, type, base, size);
       } else if (type == "htif") {
         device = new htif(tag, type, base, loc_);
-        cvm::messenger<htif::terminate_t>::connect(
+        cvm::registry::messenger.connect<htif::terminate_t>(
             loc_,
             [&](htif::terminate_t t) { return this->terminate(t); });
       } else if (type == "clint") {
         device = new clint(tag, type, base, 1, loc_);
-        cvm::messenger<clint::timer_t>::connect(
+        cvm::registry::messenger.connect<clint::timer_t>(
             loc_,
             [&](clint::timer_t t) { return this->timer_interrupt(t); });
-        cvm::messenger<clint::sw_t>::connect(
+        cvm::registry::messenger.connect<clint::sw_t>(
             loc_,
             [&](clint::sw_t s) { return this->sw_interrupt(s); });
       } else if (type == "trickbox") {
@@ -242,22 +224,15 @@ extern "C" {
   void sysmod_set_scope(cvm::topology::loc_t loc) {
     typedef sysmod sm;
     svScope scope = svGetScope();
-    cvm::messenger<sm::scope_t>::signal(
+    cvm::registry::messenger.signal<sm::scope_t>(
         loc,
         sm::scope_t{scope});
   }
 
   void sysmod_tick(cvm::topology::loc_t loc, uint64_t new_clock) {
     typedef sysmod sm;
-    cvm::messenger<sm::tick_t>::signal(
+    cvm::registry::messenger.signal<sm::tick_t>(
         loc,
         sm::tick_t{new_clock});
-  }
-
-  void sysmod_flush_cbs(cvm::topology::loc_t loc) {
-    typedef sysmod sm;
-    cvm::messenger<sm::flush_t>::signal(
-        loc,
-        sysmod::flush_t{});
   }
 }

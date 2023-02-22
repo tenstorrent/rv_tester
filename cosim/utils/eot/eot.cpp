@@ -43,13 +43,13 @@ void eot::process(const cosim_transactions::m_mcmi_store& m_mcmi_store) {
     cvm::log(cvm::NONE, "<{}> Pass condition detected - tohost[0]=1, tohost[47:1]=0\n", cycle);
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
     auto location = cvm::topology::get("platform", 0);
-    cvm::messenger<htif::terminate_t>::signal(location, htif::terminate_t{FLAGS_htif_terminate});
+    cvm::registry::messenger.signal<htif::terminate_t>(location, htif::terminate_t{FLAGS_htif_terminate});
   } else {
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
     cvm::log(cvm::NONE, "<{}> Error: Fail condition detected - tohost[0]=1, tohost[47:1]={:#x}\n", cycle, 
       exit_code);
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
     auto location = cvm::topology::get("platform", 0);
-    cvm::messenger<htif::terminate_t>::signal(location, htif::terminate_t{FLAGS_htif_terminate});
+    cvm::registry::messenger.signal<htif::terminate_t>(location, htif::terminate_t{FLAGS_htif_terminate});
   }
 }

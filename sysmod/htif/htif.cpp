@@ -5,6 +5,7 @@
 #include <poll.h>
 #include "htif.h"
 #include "cvm/plusargs.hpp"
+#include "cvm/registry.hpp"
 
 DEFINE_bool(htif_terminate, true, "Call $finish on write to tohost");
 
@@ -118,7 +119,7 @@ htif::write(uint64_t addr, size_t length, const data_t& data,
       if (payload & 1)
 	{
 	  std::cerr << "Terminating because of write tohost\n";
-          cvm::messenger<terminate_t>::signal(loc(), terminate_t{FLAGS_htif_terminate});
+          cvm::registry::messenger.signal<terminate_t>(loc(), terminate_t{FLAGS_htif_terminate});
 	}
     }
   else

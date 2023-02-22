@@ -13,20 +13,17 @@ module sysmod #(
     output rv_tester_pkg::interrupt_t interrupt,
     output terminate
 );
-    import "DPI-C" context function void sysmod_set_scope(longint unsigned loc);
-    import "DPI-C" function void sysmod_tick(longint unsigned loc, longint unsigned advance);
-    import "DPI-C" function void sysmod_flush_cbs(longint unsigned loc);
+    import "DPI-C" context function void sysmod_set_scope(int unsigned loc);
+    import "DPI-C" function void sysmod_tick(int unsigned loc, longint unsigned advance);
 
     typedef longint unsigned LU;
-    LU loc = cvm_topology::nil;
-    bit sysmod_poll = '1;
+    int unsigned loc = cvm_topology::nil;
 
     always @(posedge clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */
             loc = cvm_topology::get_location(topology.PLATFORM, 0);
             sysmod_set_scope(loc);
-            sysmod_poll = cvm_plusargs::get_bool("cb_async") == '0;
             /* verilator lint_on BLKSEQ */
         end
     end
@@ -66,7 +63,6 @@ module sysmod #(
 
     assign terminate = ready_to_terminate;
 
-    typedef longint unsigned LU;
     localparam longint unsigned TICKS = LU'(SW_CLOCK_UPDATE_PERIOD_PS)/LU'(CLOCK_PERIOD_PS);
     always @(posedge clk) begin
         if (0 == (clocks % TICKS)) begin
@@ -105,9 +101,6 @@ module sysmod #(
         interrupt_q <= interrupt_d;
         if (reset) begin
             interrupt_d <= '0;
-        end
-        if (loc != cvm_topology::nil && sysmod_poll) begin
-          sysmod_flush_cbs(loc);
         end
     end
 

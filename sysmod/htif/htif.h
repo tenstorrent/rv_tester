@@ -2,7 +2,6 @@
 #pragma once
 
 #include "device.h"
-#include "cvm/messenger.hpp"
 #include "cvm/topology.hpp"
 
 /// Model an htif (host target interface) device

@@ -12,7 +12,7 @@ cc_library(
     deps = [
         "@nlohmann_json//:json",
         "@cvm//:plusargs",
-        "@cvm//:messenger",
+        "@cvm//:registry",
     ],
     alwayslink = True,
     linkstatic = True,

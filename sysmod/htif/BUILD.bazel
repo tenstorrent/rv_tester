@@ -4,9 +4,9 @@ cc_library(
   hdrs = ["htif.h"],
   deps = [
       "//sysmod:device",
-      "@cvm//:messenger",
       "@cvm//:plusargs",
       "@cvm//:topology",
+      "@cvm//:registry",
     ],
   visibility = ["//visibility:public"],
 )

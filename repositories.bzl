@@ -31,11 +31,11 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:manees/cosim.git",
     )
 
-    cvm_hash="f6116dd38beaa746414c0e04ccb48bfa048bf4f8"
+    cvm_hash="e9ec2f80c6f7280be1d29cb73cd9bfbb14513d5d"
     maybe(
         http_archive,
         name = "cvm",
-        sha256 = "79d146c54381cac257c850923f5d1935205274148dd115480d57c523dedef310",
+        sha256 = "476a0b9a1b9d1a8b1ab9b049be249a97533fcc9d4794875bb00f0dd9ef247ebe",
         strip_prefix = "cvm-{commit}".format(commit=cvm_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/{commit}/cvm-{commit}.tar.bz2".format(commit=cvm_hash),
     )

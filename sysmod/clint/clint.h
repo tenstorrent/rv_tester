@@ -9,7 +9,7 @@
 #include <iostream>
 #include <functional>
 #include "device.h"
-#include "cvm/messenger.hpp"
+#include "cvm/registry.hpp"
 
 // Define a core local interruptor (Clint) at the given address
 // and for the given hart count. The size will be 48k bytes.
@@ -97,13 +97,13 @@ protected:
   // Used to assert/deassert a timer interrupt for given hart.
   virtual void timerInterrupt(unsigned hart, bool flag)
   {
-    cvm::messenger<timer_t>::signal(loc(), timer_t{hart, flag});
+    cvm::registry::messenger.signal<timer_t>(loc(), timer_t{hart, flag});
   }
 
   // Used to assert/deassert a software interrupt (IPI) for given hart.
   virtual void softwareInterrupt(unsigned hart, bool flag)
   {
-    cvm::messenger<sw_t>::signal(loc(), sw_t{hart, flag});
+    cvm::registry::messenger.signal<sw_t>(loc(), sw_t{hart, flag});
   }
 
   // Start a thread to increment timer after n microseconds.

@@ -5,7 +5,7 @@
 
 #include "cvm/plusargs.hpp"
 #include "cvm/logger.hpp"
-#include "cvm/messenger.hpp"
+#include "cvm/registry.hpp"
 #include "cvm/callbacks.hpp"
 #include "cvm/topology.hpp"
 #include "cosim_transactions.hpp"
@@ -16,7 +16,7 @@
 class eot {
 
   template<typename T, typename... Args> void connect(cvm::topology::loc_t loc) {
-    cvm::messenger<T>::connect(
+    cvm::registry::messenger.connect<T>(
       loc,
       [this] (const T& v) {
         return this->process(v);

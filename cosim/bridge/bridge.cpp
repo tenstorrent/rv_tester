@@ -2,7 +2,7 @@
 
 #include "bridge.h"
 #include "cvm/plusargs.hpp"
-#include "cvm/messenger.hpp"
+#include "cvm/registry.hpp"
 #include "cvm/topology.hpp"
 #include "sysmod/htif/htif.h"
 
@@ -201,7 +201,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
       cvm::log(cvm::NONE, "<{}> Stop condition detected: +eot=max_instr +max_instr={}\n", w.time, FLAGS_max_instr);
 
       auto location = cvm::topology::get("platform", 0);
-      cvm::messenger<htif::terminate_t>::signal(location, htif::terminate_t{FLAGS_htif_terminate});
+      cvm::registry::messenger.signal<htif::terminate_t>(location, htif::terminate_t{FLAGS_htif_terminate});
     } else {
       print_instr(hart, w);
       cvm::log(cvm::NONE, "Error: max_instr limit reached: {}\n", FLAGS_max_instr);

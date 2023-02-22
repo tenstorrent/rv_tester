@@ -20,13 +20,14 @@ module rv_tester #(
     end
 
     import "DPI-C" function void rv_tester_parse_flags();
-    import "DPI-C" function void rv_tester_reset_messenger();
-    import "DPI-C" function void rv_tester_reset_registry();
     import "DPI-C" function void rv_tester_parse_memmap();
+    import "DPI-C" function void rv_tester_reset_registry();
+    import "DPI-C" function void rv_tester_flush_callbacks();
 
     logic rv_tester_reset = '1;
     logic sysmod_reset = '0;
     LU clocks = 0;
+    bit cb_poll = '0;
 
     always @(posedge clk) begin
         rv_tester_reset <= '0;
@@ -36,12 +37,14 @@ module rv_tester #(
             $display("[RVTESTER]: new test");
             rv_tester_parse_flags();
             rv_tester_parse_memmap();
-            $display("[RVTESTER]: disconnecting all messenger connections");
-            rv_tester_reset_messenger();
             $display("[RVTESTER]: reconstructing registry");
             rv_tester_reset_registry();
             clocks <= 0;
             sysmod_reset <= '1;
+        end
+        cb_poll = cvm_plusargs::get_bool("cb_async") != '1;
+        if (cb_poll) begin
+          rv_tester_flush_callbacks();
         end
     end
     assign reset = clocks < LU'(RESET_CLOCKS) || rv_tester_reset || sysmod_reset;

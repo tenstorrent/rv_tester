@@ -34,8 +34,6 @@ cc_library(
       # "//sysmod/null_dev:null_dev",
       ":device",
       "@cvm//:plusargs",
-      "@cvm//:callbacks",
-      "@cvm//:messenger",
       "@cvm//:topology",
       "@cvm//:registry",
     ],

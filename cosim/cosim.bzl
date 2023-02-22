@@ -33,8 +33,6 @@ def cosim_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
                 "@cvm//:plusargs",
                 "@cvm//:logger",
                 "@cvm//:bitmanip",
-                "@cvm//:messenger",
-                "@cvm//:callbacks",
                 "@cvm//:registry",
                ],
         alwayslink = True,

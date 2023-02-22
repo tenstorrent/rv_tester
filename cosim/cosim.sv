@@ -15,7 +15,7 @@ module cosim #(
 
     typedef longint unsigned LU;
 
-    LU loc = cvm_topology::nil;
+    int unsigned loc = cvm_topology::nil;
     bit rvfi_enabled;
 
     always @(posedge clk) begin
@@ -26,14 +26,14 @@ module cosim #(
             /* verilator lint_on BLKSEQ */
         end
     end
-    
+
     // CVM transactions
     `COSIM_TRANSACTIONS_DOMAIN(1, clk)
 
     // m_rvfi
     for (genvar n = 0; n < CFG.NRET; n++) begin
         assign tx_dom_1.m_rvfis[n].valid = ~reset & rvfi[n].valid & rvfi_enabled;
-        assign tx_dom_1.m_rvfis[n].location = loc;
+        assign tx_dom_1.m_rvfis[n].data.location = loc;
         assign tx_dom_1.m_rvfis[n].data.cycle = clocks;
         assign tx_dom_1.m_rvfis[n].data.order = rvfi[n].order;
         assign tx_dom_1.m_rvfis[n].data.insn = rvfi[n].insn;
@@ -57,7 +57,7 @@ module cosim #(
     // m_mcmi_store
     for (genvar n = 0; n < CFG.STQ_PORTS; n++) begin
         assign tx_dom_1.m_mcmi_stores[n].valid = ~reset & mcmi_store[n].valid;
-        assign tx_dom_1.m_mcmi_stores[n].location = loc;
+        assign tx_dom_1.m_mcmi_stores[n].data.location = loc;
         assign tx_dom_1.m_mcmi_stores[n].data.cycle = clocks;
         assign tx_dom_1.m_mcmi_stores[n].data.order = mcmi_store[n].order;
         assign tx_dom_1.m_mcmi_stores[n].data.addr = mcmi_store[n].addr;
@@ -68,7 +68,7 @@ module cosim #(
     // m_trap
     for (genvar n = 0; n < CFG.NRET; n++) begin
         assign tx_dom_1.m_traps[n].valid = ~reset & (rvfi[n].cause != 0);
-        assign tx_dom_1.m_traps[n].location = loc;
+        assign tx_dom_1.m_traps[n].data.location = loc;
         assign tx_dom_1.m_traps[n].data.cycle = clocks;
         assign tx_dom_1.m_traps[n].data.cause = rvfi[n].cause;
     end
@@ -79,7 +79,7 @@ module cosim #(
       debug_mode_d1 <= debug_mode;
     end
     assign tx_dom_1.m_debugs[0].valid = ~reset & ((debug_mode & ~debug_mode_d1) | (~debug_mode & debug_mode_d1));
-    assign tx_dom_1.m_debugs[0].location = loc;
+    assign tx_dom_1.m_debugs[0].data.location = loc;
     assign tx_dom_1.m_debugs[0].data.cycle = clocks;
     assign tx_dom_1.m_debugs[0].data.enter = debug_mode;
     assign tx_dom_1.m_debugs[0].data.exit = ~debug_mode;
@@ -96,7 +96,7 @@ module cosim #(
 
     // m_intr
     assign tx_dom_1.m_intrs[0].valid = ~reset & 1'b0;
-    assign tx_dom_1.m_intrs[0].location = loc;
+    assign tx_dom_1.m_intrs[0].data.location = loc;
     assign tx_dom_1.m_intrs[0].data.cycle = clocks;
 
     // Timeout checks

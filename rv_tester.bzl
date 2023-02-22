@@ -39,7 +39,6 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             "@rv_tester//common:common",
             "@rv_tester//sysmod:sysmod_dpi",
             "@cvm//:plusargs",
-            "@cvm//:messenger",
             "@cvm//:registry",
             topology + "_cc",
         ] + select({

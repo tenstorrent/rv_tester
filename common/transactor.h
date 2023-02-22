@@ -2,7 +2,7 @@
 
 #include <vector>
 #include "cvm/topology.hpp"
-#include "cvm/messenger.hpp"
+#include "cvm/registry.hpp"
 
 class transactor {
 
@@ -23,7 +23,7 @@ class transactor {
 
     void write(uint64_t addr, size_t length, const std::vector<uint8_t>& data, const std::vector<bool>& strb)
     {
-      cvm::messenger<write_t>::signal(
+      cvm::registry::messenger.signal<write_t>(
         loc_,
         write_t{addr, length, data, strb});
     }
@@ -36,7 +36,7 @@ class transactor {
 
     void read(uint64_t addr, size_t length, std::vector<uint8_t>& data)
     {
-      cvm::messenger<read_t>::signal(
+      cvm::registry::messenger.signal<read_t>(
           loc_,
           read_t{addr, length, data});
     }

@@ -32,8 +32,6 @@ class sysmod {
       uint64_t advance;
     };
 
-    struct flush_t {};
-
     void set_scope(svScope s) { scope_ = s; }
     void tick(uint64_t advance);
     void compose();
