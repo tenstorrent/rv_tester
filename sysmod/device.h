@@ -8,6 +8,7 @@ class device {
 
   private:
     const std::string tag_;
+    const std::string type_;
     const uint64_t addr_;
     const size_t size_;
 
@@ -49,13 +50,14 @@ class device {
     
     virtual void reset() { };
 
-    device(std::string tag, uint64_t addr, size_t size)
+    device(std::string tag, std::string type, uint64_t addr, size_t size)
       : tag_(tag), addr_(addr), size_(size)
     { };
 
     virtual ~device() { };
 
     std::string tag()             const { return tag_          ; }
+    std::string type()            const { return type_          ; }
     uint64_t addr()               const { return addr_         ; }
     size_t size()                 const { return size_         ; }
 

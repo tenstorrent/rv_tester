@@ -21,5 +21,7 @@ class io_dev : public device {
         // add max mem size
         io_dev(const std::string& tag, uint64_t addr, size_t size) : device(tag, addr, size) {}
 
+           /// Initialize memory with elf file.
+        bool init_elf(const std::string& path);
 
 };

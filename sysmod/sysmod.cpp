@@ -70,15 +70,15 @@ sysmod::compose()
       device* device = nullptr;
 
       if (type == "memory") {
-        device = new sysmod_mem(tag, base, size);
+        device = new sysmod_mem(tag,type, base, size);
       } else if (type == "io_dev") {
-        device = new io_dev(tag, base, size);
+        device = new io_dev(tag, type,base, size);
       } else if (type == "htif") {
-        device = new htif(tag, base);
+        device = new htif(tag,type, base);
       } else if (type == "clint") {
-        device = new clint(tag, base, 1);
+        device = new clint(tag, type,base, 1);
       } else if (type == "trickbox") {
-        device = new trickbox(tag, base, 1);
+        device = new trickbox(tag,type, base, 1);
       } else {
         std::cerr << "Error: unknown type " << type << "\n";
         assert(false);
@@ -127,6 +127,10 @@ sysmod::load_prog()
     std::cout << "loading " << FLAGS_hex << "\n";
     if (not dynamic_cast<sysmod_mem&>(dev("memory")).init_hex(FLAGS_hex))
       exit(1);
+  }
+  
+  for (auto& d : devices_) {
+   
   }
 }
 

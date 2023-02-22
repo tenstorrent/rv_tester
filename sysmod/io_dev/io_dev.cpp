@@ -25,3 +25,12 @@ void io_dev::read(uint64_t addr, size_t length, data_t& data, cbs_t& cbs) {
 }
 
 
+bool io_dev::init_elf(const std::string& path) {
+    try {
+        m_.load_ELF(path);
+    } catch(const std::exception& e) {
+        std::cerr << e.what() << "\n";
+        return false;
+    }
+    return true;
+}
