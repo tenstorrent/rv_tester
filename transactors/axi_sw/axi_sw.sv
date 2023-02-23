@@ -126,7 +126,7 @@ module axi_sw #(
         end
     end
 
-    function automatic axi_sw_r (int unsigned id, byte unsigned resp, dpi_data data, byte unsigned last);
+    function void axi_sw_r (int unsigned id, byte unsigned resp, dpi_data data, byte unsigned last);
         data_t d;
         r_t r;
         `ifndef IMMEDIATE_ASSERTIONS_IN_DPI_UNSUPPORTED

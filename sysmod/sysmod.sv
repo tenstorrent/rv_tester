@@ -59,7 +59,7 @@ module sysmod #(
         end
     end
 
-    function automatic void sysmod_terminate (byte unsigned call_finish);
+    function void sysmod_terminate (byte unsigned call_finish);
         call_finish_on_terminate = call_finish;
         ready_to_terminate = '1;
     endfunction
@@ -81,19 +81,19 @@ module sysmod #(
     rv_tester_pkg::interrupt_t interrupt_q;
     assign interrupt = interrupt_q;
 
-    function automatic sysmod_timer_interrupt (unsigned hartid, unsigned val);
+    function void sysmod_timer_interrupt (unsigned hartid, unsigned val);
       $display("[SYSMOD] mti = %d", val);
       interrupt_d.mti = val;
     endfunction
     export "DPI-C" function sysmod_timer_interrupt;
 
-    function automatic sysmod_sw_interrupt (unsigned hartid, unsigned val);
+    function void sysmod_sw_interrupt (unsigned hartid, unsigned val);
       $display("[SYSMOD] msi = %d", val);
       interrupt_d.msi = val;
     endfunction
     export "DPI-C" function sysmod_sw_interrupt;
     
-    function automatic sysmod_tbox_interrupt (int unsigned hartid, int unsigned intr_select,int unsigned intr_value);
+    function void sysmod_tbox_interrupt (int unsigned hartid, int unsigned intr_select,int unsigned intr_value);
       $display("\n[SYSMOD] trickbox interrupt select %d with value %d\n",intr_select,intr_value);
       for(int i =0;i<6;i++)begin
         if(intr_select[i])
