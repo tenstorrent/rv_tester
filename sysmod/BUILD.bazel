@@ -42,6 +42,7 @@ cc_library(
       "//sysmod/htif:htif",
       "//sysmod/mem:mem",
       "//sysmod/io_dev:io_dev",
+      "//sysmod/null_dev:null_dev",
       "@cvm//:plusargs",
     ],
     alwayslink = True,

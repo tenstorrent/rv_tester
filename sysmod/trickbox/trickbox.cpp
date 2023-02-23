@@ -1,12 +1,12 @@
 #include "cvm/plusargs.hpp"
 #include "trickbox.h"
 
-trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned hartCount)
-  : device(tag, addr, 0xc0000 /* size */), hartCount_(hartCount)
+trickbox::trickbox(const std::string& tag, const std::string& type, uint64_t addr, unsigned hartCount)
+  : device(tag, type, addr, 0xc0000 /* size */), hartCount_(hartCount)
 {
   device* subdevice = nullptr;
   interrupter_base = addr;
-  subdevice = new interrupter("interrupter", interrupter_base, 1);
+  subdevice = new interrupter("interrupter", "interrupter" ,interrupter_base, 1);
   subdevices_.emplace_back(subdevice); 
 }
 

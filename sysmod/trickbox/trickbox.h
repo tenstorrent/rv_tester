@@ -26,7 +26,7 @@ public:
 
   /// Define a trickbox device at the given address for the given hart count.
   /// Range of addresses reserved is: [addr, addr + 0xbfff]
-  trickbox(const std::string& tag, uint64_t addr, unsigned hartCount);
+  trickbox(const std::string& tag, const std::string& type, uint64_t addr, unsigned hartCount);
 
   // Destructor.
   virtual ~trickbox();

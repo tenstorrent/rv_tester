@@ -7,7 +7,7 @@ class htif : public device
 {
 public:
 
-  htif(const std::string& tag, uint64_t addr);
+  htif(const std::string& tag, const std::string& type, uint64_t addr);
 
   virtual ~htif();
 

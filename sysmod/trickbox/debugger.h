@@ -26,7 +26,7 @@ public:
 
   /// Define a debugger device at the given address for the given hart count.
   /// Range of addresses reserved is: [addr, addr + 0xbfff]
-  debugger(const std::string& tag, uint64_t addr, unsigned hartCount);
+  debugger(const std::string& tag, const std::string& type, uint64_t addr, unsigned hartCount);
 
   // Destructor.
   virtual ~debugger();
