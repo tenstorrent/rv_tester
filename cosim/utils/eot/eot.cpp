@@ -1,9 +1,9 @@
 #include "eot.h"
-#include "sysmod/sysmod.h"
-extern "C" sysmod* sysmod_get(int num);
+#include "sysmod/htif/htif.h"
 
 DEFINE_string(eot, "tohost", "Enable end-of-test mechanism. Supported options: tohost, max_instr");
 DECLARE_string(load);
+DECLARE_bool(htif_terminate);
 
 void eot::get_tohost_addr() {
 
@@ -24,7 +24,7 @@ void eot::get_tohost_addr() {
 
 }
 
-void eot::process(const transactions::m_mcmi_store& m_mcmi_store) {
+void eot::process(const cosim_transactions::m_mcmi_store& m_mcmi_store) {
 
   if (tohost_addr_ != m_mcmi_store.addr)
     return;
@@ -42,12 +42,14 @@ void eot::process(const transactions::m_mcmi_store& m_mcmi_store) {
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
     cvm::log(cvm::NONE, "<{}> Pass condition detected - tohost[0]=1, tohost[47:1]=0\n", cycle);
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
-    sysmod_get(0)->add_callback(device::cb_t{device::Callback::TERMINATE, 0, 0}); //vpi_control(vpiFinish);
+    auto location = cvm::topology::get("platform", 0);
+    cvm::registry::messenger.signal<htif::terminate_t>(location, htif::terminate_t{FLAGS_htif_terminate});
   } else {
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
     cvm::log(cvm::NONE, "<{}> Error: Fail condition detected - tohost[0]=1, tohost[47:1]={:#x}\n", cycle, 
       exit_code);
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
-    sysmod_get(0)->add_callback(device::cb_t{device::Callback::TERMINATE, 0, 0}); //vpi_control(vpiFinish);
+    auto location = cvm::topology::get("platform", 0);
+    cvm::registry::messenger.signal<htif::terminate_t>(location, htif::terminate_t{FLAGS_htif_terminate});
   }
 }

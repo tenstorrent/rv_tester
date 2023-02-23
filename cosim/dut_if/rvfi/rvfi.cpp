@@ -1,47 +1,41 @@
 #include "rvfi.h"
 #include "cvm/plusargs.hpp"
 #include "cvm/bitmanip.hpp"
+#include "cvm/registry.hpp"
 
 #include <iostream>
 
 DEFINE_bool(rvfi, true, "Enable rvfi logging");
 DEFINE_bool(cosim, true, "Enable cosim checking");
 
+REGISTRY_register(rvfi, platform, 0);
 
-rvfi::rvfi() : log("dut_rvfi.log") {
+rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
+  : log("dut_rvfi.log"), loc_(loc) {
   init();
 
   connect<
-    transactions::m_rvfi,
-    transactions::m_trap,
-    transactions::m_intr,
-    transactions::m_debug
-  >();
+    cosim_transactions::m_rvfi,
+    cosim_transactions::m_trap,
+    cosim_transactions::m_intr,
+    cosim_transactions::m_debug
+  >(loc);
 }
 
 void rvfi::init() {
   if (FLAGS_cosim) {
     cvm::log(cvm::MEDIUM, "[RVFI] Constructing bridge...\n");
     bridge_ = std::make_unique<bridge>(num_harts, xlen, vlen);
+    bridge_->reset();
+    cvm::log(cvm::NONE, "Instr Cycle Hart Mode PC Opcode\n");
+    count_ = 0;
   }
 
   bot_ = std::make_unique<bot>();;
-  eot_ = std::make_unique<eot>();;
+  eot_ = std::make_unique<eot>(loc_);;
 }
 
-void rvfi::reset() {
-  if (!FLAGS_cosim)
-    return;
-
-  cvm::log(cvm::MEDIUM, "[RVFI] Hard reset for test chaining...\n");
-  bridge_->reset();
-
-  log(cvm::NONE, "Instr Cycle Hart Mode PC Opcode\n");
-
-  count_ = 0;
-}
-
-void rvfi::process(const transactions::m_rvfi& m_rvfi) {
+void rvfi::process(const cosim_transactions::m_rvfi& m_rvfi) {
   // Construct rv_instr_t and send to bridge
   rv_instr_t instr;
   make_instr(m_rvfi, instr);
@@ -53,7 +47,7 @@ void rvfi::process(const transactions::m_rvfi& m_rvfi) {
   excp_ = false;
 }
 
-void rvfi::process(const transactions::m_trap& m_trap) {
+void rvfi::process(const cosim_transactions::m_trap& m_trap) {
   if ((m_trap.cause >> 63) & 0x1) {
     intr_ = true;
     icause_ = (m_trap.cause & 0x3f);
@@ -63,7 +57,7 @@ void rvfi::process(const transactions::m_trap& m_trap) {
   }
 }
 
-void rvfi::process(const transactions::m_intr& m_intr) {
+void rvfi::process(const cosim_transactions::m_intr& m_intr) {
    uint64_t cause = (m_intr.timer << 7) | (m_intr.ipi << 3) | (m_intr.external << 11);
 
    if (!m_intr.pos_edge)
@@ -79,7 +73,7 @@ void rvfi::process(const transactions::m_intr& m_intr) {
    }
 }
 
-void rvfi::process(const transactions::m_debug& m_debug) {
+void rvfi::process(const cosim_transactions::m_debug& m_debug) {
   if (!FLAGS_rvfi)
     return;
 
@@ -104,7 +98,7 @@ void rvfi::process(const transactions::m_debug& m_debug) {
   }
 }
 
-void rvfi::make_instr(const transactions::m_rvfi& m_rvfi, rv_instr_t& instr) {
+void rvfi::make_instr(const cosim_transactions::m_rvfi& m_rvfi, rv_instr_t& instr) {
 
   // Metadata
   instr.valid = true;

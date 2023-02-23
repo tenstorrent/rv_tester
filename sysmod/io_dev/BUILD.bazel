@@ -5,6 +5,8 @@ cc_library(
     deps = [
         "//sysmod:device",
         "@mem_manager//:mem_manager",
+        "@cvm//:plusargs",
+        "@cvm//:topology",
     ],
     visibility = ["//visibility:public"],
 )

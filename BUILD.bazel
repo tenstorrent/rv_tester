@@ -1,25 +1,11 @@
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
 
-
-bool_flag(
-    name = "cosim",
-    build_setting_default = True,
-    visibility = ["//visibility:public"],
-)
-
-config_setting(
-    name = "cosim_off",
-    flag_values = {
-        ":cosim": "False",
-    }
-)
-
 verilog_library(
     name = "pkg",
     srcs = [
         "rv_tester_pkg.sv",
-    ]
+    ],
 )
 
 verilog_library(
@@ -44,38 +30,17 @@ verilog_library(
     srcs = ["define_no_cosim.sv"],
 )
 
-verilog_library(
-    name = "rv_tester",
-    srcs = [
-        "rv_tester.sv",
-        "rv_tester_clkgen.sv",
-    ],
-    deps = [
-        "defines",
-        "//sysmod:sysmod",
-        "//transactors/axi_sw:axi_sw",
-    ] + select({
-        ":cosim_off": [":no_cosim"],
-        "//conditions:default": ["//cosim:cosim"],
-    }),
+bool_flag(
+    name = "cosim",
+    build_setting_default = True,
     visibility = ["//visibility:public"],
 )
 
-cc_library(
-    name = "dpi",
-    srcs = [
-        "rv_tester.cpp",
-    ],
-    deps = [
-        "//transactors/axi_sw:axi_sw_dpi",
-        "//common:common",
-        "//sysmod:sysmod_dpi",
-        "@cvm//:plusargs",
-    ] + select({
-        ":cosim_off": [],
-        "//conditions:default": ["//cosim:cosim_dpi"],
-    }),
-    alwayslink = True,
-    visibility = ["//visibility:public"],
+config_setting(
+    name = "cosim_off",
+    flag_values = {
+      ":cosim" : "False",
+    }
 )
 
+exports_files(["rv_tester.cpp", "rv_tester.sv", "rv_tester_clkgen.sv"])

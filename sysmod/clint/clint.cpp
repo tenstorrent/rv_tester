@@ -1,8 +1,9 @@
 #include "clint.h"
 
-clint::clint(const std::string& tag,const std::string& type, uint64_t addr, unsigned hartCount)
-  : device(tag, type, addr, 0xc000 /* size */), hartCount_(hartCount), soft_(hartCount),
-    timeCompare_(hartCount), timerIntPrev_(hartCount), timer_(0)
+clint::clint(const std::string& tag, uint64_t addr, unsigned hartCount,
+             cvm::topology::loc_t loc)
+  : device(tag, addr, 0xc000 /* size */, loc), hartCount_(hartCount), soft_(hartCount),
+    timeCompare_(hartCount), timerIntPrev_(hartCount, 0), timer_(0)
 {
 }
 
@@ -37,7 +38,7 @@ clint::selfTick(useconds_t delta)
 
 
 void
-clint::read(uint64_t addr, size_t length, data_t& data, cbs_t& cbs)
+clint::read(uint64_t addr, size_t length, data_t& data)
 {
   if (not has_addr(addr))
     return;
@@ -72,7 +73,7 @@ clint::read(uint64_t addr, size_t length, data_t& data, cbs_t& cbs)
 
 void
 clint::write(uint64_t addr, size_t length, const data_t& data,
-		 const strb_t& strb, cbs_t& cbs)
+		 const strb_t& strb)
 {
   if (not has_addr(addr))
     return;
@@ -87,7 +88,7 @@ clint::write(uint64_t addr, size_t length, const data_t& data,
       unsigned word = 0;
       deserializeInt(data, word);
       soft_.at(hartIx) = word & 1;
-      softwareInterrupt(hartIx, word & 1, cbs);
+      softwareInterrupt(hartIx, word & 1);
     }
 
   if (length == 8)
@@ -110,6 +111,6 @@ clint::write(uint64_t addr, size_t length, const data_t& data,
 	  timeCompare_.at(hartIx) = dword;
 	}
 
-      processTimerInterrupts(cbs);
+      processTimerInterrupts();
     }
 }

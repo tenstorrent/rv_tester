@@ -4,6 +4,7 @@ cc_library(
     hdrs = ["null_dev.h"],
     deps = [
         "//sysmod:device",
+        "@cvm//:topology",
     ],
     visibility = ["//visibility:public"],
 )

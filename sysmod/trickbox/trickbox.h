@@ -16,6 +16,7 @@
 #include <cmath>
 #include "pcg_random.hpp"
 #include "cvm/plusargs.hpp"
+#include "cvm/topology.hpp"
 #include "interrupter.h"
 
 // Define a core local  (trickbox) at the given address
@@ -26,7 +27,7 @@ public:
 
   /// Define a trickbox device at the given address for the given hart count.
   /// Range of addresses reserved is: [addr, addr + 0xbfff]
-  trickbox(const std::string& tag, const std::string& type, uint64_t addr, unsigned hartCount);
+  trickbox(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc);
 
   // Destructor.
   virtual ~trickbox();
@@ -54,24 +55,17 @@ public:
   /// Read length bytes from the given address to the data iterator.
   /// No-op if address is outside the range of this trickbox or if
   /// address is not properly aligned.
-  virtual void read(uint64_t addr, size_t length, data_t& data, cbs_t& cbs) override;
+  virtual void read(uint64_t addr, size_t length, data_t& data) override;
 
-  // Write to this trickbox. 
+  // Write to this trickbox.
   virtual void write(uint64_t addr, size_t length, const data_t& data,
-                      const strb_t& strb, cbs_t& cbs) override;
+                      const strb_t& strb) override;
 
-  virtual void tick(uint64_t advance, cbs_t& cbs) override
+  virtual void tick(uint64_t advance) override
   {
     for (auto& d : subdevices_) {
-      d->tick(advance,cbs);
+      d->tick(advance);
     }
-  }
-
-  void reset(){
-      std::cout<<"[TRICKBOX]: Reset\n";
-      for (auto& d : subdevices_) {
-        d->reset();
-      }
   }
 
 private:
@@ -85,7 +79,7 @@ private:
   uint64_t debugger_size    =    0x4000;
   uint64_t scratch_base     = 0x9008000;
   uint64_t scratch_size     =    0x4000;
-  
+
   std::atomic<bool> terminate_ = false;
   std::mutex mutex_;
 

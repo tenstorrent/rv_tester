@@ -1,18 +1,1 @@
-cc_library(
-    name = "rvfi",
-    hdrs = ["rvfi.h"],
-    srcs = ["rvfi.cpp"],
-    deps = [
-            "//cosim/transactions:cpp_lib",
-            "//cosim/bridge_if:bridge_if",
-            "//cosim/bridge:bridge",
-            "//cosim/utils/eot:eot",
-            "//cosim/utils/bot:bot",
-            "@cvm//:plusargs",
-            "@cvm//:logger",
-            "@cvm//:bitmanip",
-           ],
-    alwayslink = True,
-    visibility = ["//visibility:public"],
-    strip_include_prefix = ".",
-)
+exports_files(["rvfi.cpp", "rvfi.h"])

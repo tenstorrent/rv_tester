@@ -2,8 +2,7 @@
 #include "sysmod_mem.h"
 
 
-void sysmod_mem::write(uint64_t addr, size_t length, const data_t& data, const strb_t& strb,
-                cbs_t& cbs) {
+void sysmod_mem::write(uint64_t addr, size_t length, const data_t& data, const strb_t& strb) {
   if (not has_addr(addr))
     return;
 
@@ -15,7 +14,7 @@ void sysmod_mem::write(uint64_t addr, size_t length, const data_t& data, const s
   return;
 }
 
-void sysmod_mem::read(uint64_t addr, size_t length, data_t& data, cbs_t& cbs) {
+void sysmod_mem::read(uint64_t addr, size_t length, data_t& data) {
   if (not has_addr(addr))
     return;
 

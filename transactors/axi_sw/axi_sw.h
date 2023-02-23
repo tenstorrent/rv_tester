@@ -37,7 +37,7 @@ class axi_sw {
 
     public:
 
-        axi_sw(const svScope& scope, endpoint* s, bool r_poll, const axi::data_width_t& data_width, const std::string& tag, const r_q_ptr_t& r_q_max, const r_q_ptr_t& r_q_ptr_max);
+        axi_sw(const svScope& scope, unsigned num, bool r_poll, const axi::data_width_t& data_width, const std::string& tag, const r_q_ptr_t& r_q_max, const r_q_ptr_t& r_q_ptr_max);
 
         ~axi_sw();
 

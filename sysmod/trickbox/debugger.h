@@ -26,7 +26,7 @@ public:
 
   /// Define a debugger device at the given address for the given hart count.
   /// Range of addresses reserved is: [addr, addr + 0xbfff]
-  debugger(const std::string& tag, const std::string& type, uint64_t addr, unsigned hartCount);
+  debugger(const std::string& tag, uint64_t addr, unsigned hartCount);
 
   // Destructor.
   virtual ~debugger();
@@ -54,13 +54,13 @@ public:
   /// Read length bytes from the given address to the data iterator.
   /// No-op if address is outside the range of this debugger or if
   /// address is not properly aligned.
-  virtual void read(uint64_t addr, size_t length, data_t& data, cbs_t& cbs) override;
+  virtual void read(uint64_t addr, size_t length, data_t& data) override;
 
   // Write to this debugger.
   virtual void write(uint64_t addr, size_t length, const data_t& data,
-                      const strb_t& strb, cbs_t& cbs) override;
+                      const strb_t& strb) override;
 
-  virtual void tick(uint64_t advance, cbs_t& cbs) override
+  virtual void tick(uint64_t advance) override
   {
     //std::cout<<"[debugger]: tick\n";
     std::lock_guard<std::mutex> lock(mutex_);

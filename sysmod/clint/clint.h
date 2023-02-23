@@ -6,8 +6,11 @@
 #include <atomic>
 #include <thread>
 #include <unistd.h>
-#include "device.h"
 #include <iostream>
+#include <functional>
+#include "device.h"
+#include "cvm/registry.hpp"
+
 // Define a core local interruptor (Clint) at the given address
 // and for the given hart count. The size will be 48k bytes.
 class clint : public device
@@ -16,7 +19,8 @@ public:
 
   /// Define a CLINT device at the given address for the given hart count.
   /// Range of addresses reserved is: [addr, addr + 0xbfff]
-  clint(const std::string& tag, const std::string& type, uint64_t addr, unsigned hartCount);
+  clint(const std::string& tag, uint64_t addr, unsigned hartCount,
+        cvm::topology::loc_t loc);
 
   // Destructor.
   virtual ~clint();
@@ -44,7 +48,7 @@ public:
   /// Read length bytes from the given address to the data iterator.
   /// No-op if address is outside the range of this clint or if
   /// address is not properly aligned.
-  virtual void read(uint64_t addr, size_t length, data_t& data, cbs_t& cbs) override;
+  virtual void read(uint64_t addr, size_t length, data_t& data) override;
 
   // Write to this clint. Call softwareInterrupt with flag set to 0/1
   // if a hart software interrupt entry is written. Update time
@@ -55,41 +59,51 @@ public:
   // software interrupt entries, if length is not 8 for
   // timer/time-compare entries.
   virtual void write(uint64_t addr, size_t length, const data_t& data,
-                      const strb_t& strb, cbs_t& cbs) override;
+                      const strb_t& strb) override;
 
-  virtual void tick(uint64_t advance, cbs_t& cbs) override
+  virtual void tick(uint64_t advance) override
   {
     std::lock_guard<std::mutex> lock(mutex_);
     timer_ += advance;
-    processTimerInterrupts(cbs);
+    processTimerInterrupts();
   }
+
+  struct timer_t {
+    unsigned hart;
+    unsigned flag;
+  };
+
+  struct sw_t {
+    unsigned hart;
+    unsigned flag;
+  };
 
 protected:
 
   /// Assert/deassert the timer interrupt for each hart where the
   /// time-compare value is greater-than-or-equal/less-than the timer
   /// value.
-  void processTimerInterrupts(cbs_t& cbs)
+  void processTimerInterrupts()
   {
     for (unsigned i = 0; i < hartCount_; ++i)
       {
         bool flag = timer_ >= timeCompare_.at(i);
         if (timerIntPrev_.at(i) != flag)
-          timerInterrupt(i, flag, cbs);
+          timerInterrupt(i, flag);
         timerIntPrev_.at(i) = flag;
       }
   }
 
-  // Used to assert/deassert a software interrupt (PIPI) for given hart.
-  virtual void softwareInterrupt(unsigned hart, bool flag, cbs_t& cbs)
+  // Used to assert/deassert a timer interrupt for given hart.
+  virtual void timerInterrupt(unsigned hart, bool flag)
   {
-    cbs.push_back(cb_t{Callback::SW_INT, hart, flag});
+    cvm::registry::messenger.signal<timer_t>(loc(), timer_t{hart, flag});
   }
 
-  // Used to assert/deassert a timer interrupt for given hart.
-  virtual void timerInterrupt(unsigned hart, bool flag, cbs_t& cbs)
+  // Used to assert/deassert a software interrupt (IPI) for given hart.
+  virtual void softwareInterrupt(unsigned hart, bool flag)
   {
-    cbs.push_back(cb_t{Callback::TIMER_INT, hart, flag});
+    cvm::registry::messenger.signal<sw_t>(loc(), sw_t{hart, flag});
   }
 
   // Start a thread to increment timer after n microseconds.
