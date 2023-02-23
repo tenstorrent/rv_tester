@@ -15,7 +15,7 @@ void eot::get_tohost_addr() {
     tohost_addr_ = std::stoul(addr_str, nullptr, 16);
   }
   catch (...) {
-    if (eot == "tohost") {
+    if (FLAGS_eot == "tohost") {
       cvm::log(cvm::NONE, "Error: No tohost symbol in elf\n");
     }
   }
