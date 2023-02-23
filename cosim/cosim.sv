@@ -1,7 +1,8 @@
 module cosim #(
     rv_tester_pkg::cfg_t CFG              =    '0,
     parameter int NUM                     =    -1,
-    `RV_TESTER_PARAMETERS(CFG)
+    `RV_TESTER_PARAMETERS(CFG),
+    `TOPOLOGY
 )(
     input clk,
     input reset,
@@ -14,30 +15,25 @@ module cosim #(
 
     typedef longint unsigned LU;
 
-    import "DPI-C" function dpic_pkg::c_handle rvfi_get(int num);
-    import "DPI-C" function void rvfi_reset(dpic_pkg::c_handle rvfi_p);
-
-    dpic_pkg::c_handle _rvfi;
+    int unsigned loc = cvm_topology::nil;
     bit rvfi_enabled;
 
     always @(posedge clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */
-            _rvfi = rvfi_get(NUM);
-            /* verilator lint_on BLKSEQ */
-            rvfi_reset(_rvfi);
-            /* verilator lint_off BLKSEQ */
+            loc = cvm_topology::get_location(topology.PLATFORM, 0);
             rvfi_enabled = cvm_plusargs::get_bool("rvfi") != '0;
             /* verilator lint_on BLKSEQ */
         end
     end
-    
+
     // CVM transactions
-    `TRANSACTIONS_DOMAIN(1, clk)
+    `COSIM_TRANSACTIONS_DOMAIN(1, clk)
 
     // m_rvfi
     for (genvar n = 0; n < CFG.NRET; n++) begin
         assign tx_dom_1.m_rvfis[n].valid = ~reset & rvfi[n].valid & rvfi_enabled;
+        assign tx_dom_1.m_rvfis[n].data.location = loc;
         assign tx_dom_1.m_rvfis[n].data.cycle = clocks;
         assign tx_dom_1.m_rvfis[n].data.order = rvfi[n].order;
         assign tx_dom_1.m_rvfis[n].data.insn = rvfi[n].insn;
@@ -61,6 +57,7 @@ module cosim #(
     // m_mcmi_store
     for (genvar n = 0; n < CFG.STQ_PORTS; n++) begin
         assign tx_dom_1.m_mcmi_stores[n].valid = ~reset & mcmi_store[n].valid;
+        assign tx_dom_1.m_mcmi_stores[n].data.location = loc;
         assign tx_dom_1.m_mcmi_stores[n].data.cycle = clocks;
         assign tx_dom_1.m_mcmi_stores[n].data.order = mcmi_store[n].order;
         assign tx_dom_1.m_mcmi_stores[n].data.addr = mcmi_store[n].addr;
@@ -71,6 +68,7 @@ module cosim #(
     // m_trap
     for (genvar n = 0; n < CFG.NRET; n++) begin
         assign tx_dom_1.m_traps[n].valid = ~reset & (rvfi[n].cause != 0);
+        assign tx_dom_1.m_traps[n].data.location = loc;
         assign tx_dom_1.m_traps[n].data.cycle = clocks;
         assign tx_dom_1.m_traps[n].data.cause = rvfi[n].cause;
     end
@@ -81,6 +79,7 @@ module cosim #(
       debug_mode_d1 <= debug_mode;
     end
     assign tx_dom_1.m_debugs[0].valid = ~reset & ((debug_mode & ~debug_mode_d1) | (~debug_mode & debug_mode_d1));
+    assign tx_dom_1.m_debugs[0].data.location = loc;
     assign tx_dom_1.m_debugs[0].data.cycle = clocks;
     assign tx_dom_1.m_debugs[0].data.enter = debug_mode;
     assign tx_dom_1.m_debugs[0].data.exit = ~debug_mode;
@@ -97,6 +96,7 @@ module cosim #(
 
     // m_intr
     assign tx_dom_1.m_intrs[0].valid = ~reset & 1'b0;
+    assign tx_dom_1.m_intrs[0].data.location = loc;
     assign tx_dom_1.m_intrs[0].data.cycle = clocks;
 
     // Timeout checks

@@ -4,9 +4,13 @@
 #include <termios.h>
 #include <poll.h>
 #include "htif.h"
+#include "cvm/plusargs.hpp"
+#include "cvm/registry.hpp"
 
-htif::htif(const std::string& tag, const std::string& type, uint64_t addr)
-  : device(tag, type, addr, 16 /* size */)
+DEFINE_bool(htif_terminate, true, "Call $finish on write to tohost");
+
+htif::htif(const std::string& tag, uint64_t addr, cvm::topology::loc_t loc)
+  : device(tag, addr, 16 /* size */, loc)
 {
 }
 
@@ -17,7 +21,7 @@ htif::~htif()
 
 
 void
-htif::read(uint64_t addr, size_t length, data_t& data, cbs_t& cbs)
+htif::read(uint64_t addr, size_t length, data_t& data)
 {
   if (not has_addr(addr) or length != 8 or (addr % 8) != 0)
     return;
@@ -70,7 +74,7 @@ readCharNonBlocking(int fd)
 
 void
 htif::write(uint64_t addr, size_t length, const data_t& data,
-	    const strb_t& strb, cbs_t& cbs)
+	    const strb_t& strb)
 {
   if (not has_addr(addr) or length != 8 or (addr % 8) != 0)
     return;
@@ -115,7 +119,7 @@ htif::write(uint64_t addr, size_t length, const data_t& data,
       if (payload & 1)
 	{
 	  std::cerr << "Terminating because of write tohost\n";
-          cbs.push_back(cb_t{Callback::TERMINATE});
+          cvm::registry::messenger.signal<terminate_t>(loc(), terminate_t{FLAGS_htif_terminate});
 	}
     }
   else

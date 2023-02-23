@@ -16,6 +16,8 @@
 #include <cmath>
 #include "pcg_random.hpp"
 #include "cvm/plusargs.hpp"
+#include "cvm/topology.hpp"
+#include "cvm/registry.hpp"
 #include "interrupter.h"
 
 DECLARE_int32(intr_delay_min);//, 4, "Minimum Delay between 2 consecutive interrupts");
@@ -29,7 +31,7 @@ public:
 
   /// Define a interrupter device at the given address for the given hart count.
   /// Range of addresses reserved is: [addr, addr + 0xbfff]
-  interrupter(const std::string& tag, const std::string& type, uint64_t addr, unsigned hartCount);
+  interrupter(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc);
 
   // Destructor.
   virtual ~interrupter();
@@ -57,7 +59,7 @@ public:
   /// Read length bytes from the given address to the data iterator.
   /// No-op if address is outside the range of this interrupter or if
   /// address is not properly aligned.
-  virtual void read(uint64_t addr, size_t length, data_t& data, cbs_t& cbs) override;
+  virtual void read(uint64_t addr, size_t length, data_t& data) override;
 
   // Write to this interrupter. Call softwareInterrupt with flag set to 0/1
   // if a hart software interrupt entry is written. Update time
@@ -68,15 +70,15 @@ public:
   // software interrupt entries, if length is not 8 for
   // timer/time-compare entries.
   virtual void write(uint64_t addr, size_t length, const data_t& data,
-                      const strb_t& strb, cbs_t& cbs) override;
+                      const strb_t& strb) override;
 
-  virtual void tick(uint64_t advance, cbs_t& cbs) override
+  virtual void tick(uint64_t advance) override
   {
     //std::cout<<"[interrupter]: tick\n";
     std::lock_guard<std::mutex> lock(mutex_);
     timer_ += advance;
     timer_advance = advance;
-    processDelayedRandomInterrupts(cbs);
+    processDelayedRandomInterrupts();
   }
 
   void reset(){
@@ -91,14 +93,20 @@ public:
       timer_rand_intr = timer_ +(rand_num*timer_advance);
 
     }
-
   }
+
+  struct interrupt_t {
+    unsigned hart;
+    unsigned intr_select;
+    unsigned intr_value;
+  };
+
 protected:
 
   /// Assert/deassert the timer interrupt for each hart where the
   /// time-compare value is greater-than-or-equal/less-than the timer
   /// value.
-  void processDelayedRandomInterrupts(cbs_t& cbs)
+  void processDelayedRandomInterrupts()
   {
     for (unsigned i = 0; i < numInterrupts_; ++i)
       {
@@ -107,29 +115,29 @@ protected:
           unsigned intr_select, intr_value;
           intr_select = 1<<i;
           intr_value = IntrValue_.at(i)<<i;
-          cbs.push_back(cb_t{Callback::TRICKBOX_INTR,IntrHart_.at(i) ,0, intr_select, intr_value});
+          cvm::registry::messenger.signal(loc(), interrupt_t{IntrHart_.at(i), intr_select, intr_value});
           delayedRandomIntValid_.at(i) = 0;
           timeCompare_.at(i) = 0xffffffffffffffff;
         }
       }
     //RANDOM INTR
     if(FLAGS_random_intr){
-    if(timer_ >= timer_rand_intr){
-       unsigned rand_intr = 1 << rng(5); //select random pin between 0 to 5
-       std::cout<<"[TRICKBOX]: Drive random interrupts "<<rand_intr<<"\n";
-       cbs.push_back(cb_t{Callback::TRICKBOX_INTR,0 , 0,rand_intr, rand_intr});
-       uint32_t rand_num =  (rng() % ( FLAGS_intr_delay_max - FLAGS_intr_delay_min + 1)) + FLAGS_intr_delay_min;
-       timer_rand_intr = timer_ +(rand_num*timer_advance);
-    }
+      if(timer_ >= timer_rand_intr){
+         unsigned rand_intr = 1 << rng(5); //select random pin between 0 to 5
+         std::cout<<"[TRICKBOX]: Drive random interrupts "<<rand_intr<<"\n";
+         cvm::registry::messenger.signal(loc(), interrupt_t{0, rand_intr, rand_intr});
+         uint32_t rand_num =  (rng() % ( FLAGS_intr_delay_max - FLAGS_intr_delay_min + 1)) + FLAGS_intr_delay_min;
+         timer_rand_intr = timer_ +(rand_num*timer_advance);
+      }
     }
 
   }
   // Used to assert/deassert a interrupter interrupt (PIPI) for given hart.
-  virtual void driveInterrupt(unsigned hart, unsigned intr_select, unsigned intr_value, cbs_t& cbs)
+  virtual void driveInterrupt(unsigned hart, unsigned intr_select, unsigned intr_value)
   {
-    unsigned val =0;
-    cbs.push_back(cb_t{Callback::TRICKBOX_INTR, hart, val,intr_select, intr_value});
+    cvm::registry::messenger.signal(loc(), interrupt_t{hart, intr_select, intr_value});
   }
+
   // Start a thread to increment timer after n microseconds.
   void selfTick(useconds_t n);
 

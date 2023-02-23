@@ -12,9 +12,9 @@ namespace memmap {
       std::string   tag ;
       uint64_t end ;
   };
-  
+
   using memmap_t = std::unordered_map<std::string, memmap_entry_t>;
-  
+
   extern memmap_t m;
 
   void get(memmap_t& memmap);

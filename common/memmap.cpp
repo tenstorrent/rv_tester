@@ -5,7 +5,7 @@
 #include "nlohmann/json.hpp"
 #include "cvm/plusargs.hpp"
 
-DECLARE_string(memmap_json_path);
+DEFINE_string(memmap_json_path, "", "Path to memory map json");
 
 namespace memmap {
 

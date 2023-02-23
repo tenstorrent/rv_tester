@@ -1,28 +1,50 @@
 #pragma once
 
 #include <vector>
-#include "endpoint.h"
+#include "cvm/topology.hpp"
+#include "cvm/registry.hpp"
 
 class transactor {
 
   public:
 
-    transactor(endpoint* e, const std::string& tag)
-      : e_(e), tag_(tag)
+    transactor(cvm::topology::loc_t loc, const std::string& tag)
+      : loc_(loc), tag_(tag)
     { };
 
     virtual ~transactor() = default;
 
+    struct write_t {
+        uint64_t addr;
+        size_t length;
+        const std::vector<uint8_t>& data;
+        const std::vector<bool>& strb;
+    };
+
     void write(uint64_t addr, size_t length, const std::vector<uint8_t>& data, const std::vector<bool>& strb)
-    { e_->write(addr, length, data, strb); }
+    {
+      cvm::registry::messenger.signal<write_t>(
+        loc_,
+        write_t{addr, length, data, strb});
+    }
+
+    struct read_t {
+        uint64_t addr;
+        size_t length;
+        std::vector<uint8_t>& data;
+    };
 
     void read(uint64_t addr, size_t length, std::vector<uint8_t>& data)
-    { e_->read(addr, length, data); }
+    {
+      cvm::registry::messenger.signal<read_t>(
+          loc_,
+          read_t{addr, length, data});
+    }
 
     std::string tag() { return tag_; }
 
   private:
 
-    endpoint* e_;
+    const cvm::topology::loc_t loc_;
     const std::string tag_;
 };

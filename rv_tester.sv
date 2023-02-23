@@ -4,7 +4,8 @@ module rv_tester #(
     parameter int CLOCK_PERIOD_PS           =     500,
     parameter int SW_CLOCK_UPDATE_PERIOD_PS = 100_000,
     rv_tester_pkg::cfg_t CFG                =      '0,
-    `RV_TESTER_PARAMETERS(CFG)
+    `RV_TESTER_PARAMETERS(CFG),
+    `TOPOLOGY
 ) (
     input clk_ext,
     `_RV_TESTER_PORTS(output,input)
@@ -20,10 +21,13 @@ module rv_tester #(
 
     import "DPI-C" function void rv_tester_parse_flags();
     import "DPI-C" function void rv_tester_parse_memmap();
+    import "DPI-C" function void rv_tester_reset_registry();
+    import "DPI-C" function void rv_tester_flush_callbacks();
 
     logic rv_tester_reset = '1;
     logic sysmod_reset = '0;
     LU clocks = 0;
+    bit cb_poll = '0;
 
     always @(posedge clk) begin
         rv_tester_reset <= '0;
@@ -33,8 +37,14 @@ module rv_tester #(
             $display("[RVTESTER]: new test");
             rv_tester_parse_flags();
             rv_tester_parse_memmap();
+            $display("[RVTESTER]: reconstructing registry");
+            rv_tester_reset_registry();
             clocks <= 0;
             sysmod_reset <= '1;
+        end
+        cb_poll = cvm_plusargs::get_bool("cb_async") != '1;
+        if (cb_poll) begin
+          rv_tester_flush_callbacks();
         end
     end
     assign reset = clocks < LU'(RESET_CLOCKS) || rv_tester_reset || sysmod_reset;
@@ -43,7 +53,9 @@ module rv_tester #(
         .CLOCK_PERIOD_PS(CLOCK_PERIOD_PS),
         .SW_CLOCK_UPDATE_PERIOD_PS(SW_CLOCK_UPDATE_PERIOD_PS),
         .CFG(CFG),
-        .NUM(0)
+        .NUM(0),
+        .TOPOLOGY(TOPOLOGY),
+        .topology(topology)
     ) sysmod (
         .clk,
         .reset(sysmod_reset),
@@ -56,7 +68,9 @@ module rv_tester #(
 `ifndef NO_COSIM
     cosim #(
         .CFG(CFG),
-        .NUM(0)
+        .NUM(0),
+        .TOPOLOGY(TOPOLOGY),
+        .topology(topology)
     ) cosim (
         .clk,
         .reset(sysmod_reset),

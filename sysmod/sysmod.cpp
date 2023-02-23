@@ -3,53 +3,100 @@
 #include <cassert>
 #include <unordered_map>
 #include "cvm/plusargs.hpp"
+#include "cvm/topology.hpp"
+#include "cvm/registry.hpp"
 #include "sysmod.h"
 #include "mem/sysmod_mem.h"
 #include "clint/clint.h"
 #include "io_dev/io_dev.h"
 #include "null_dev/null_dev.h"
-#include "trickbox/trickbox.h"
 #include "htif/htif.h"
-
-// shared flags
-DEFINE_string(memmap_json_path, "", "Path to memory map json");
+#include "trickbox/trickbox.h"
 
 // internal flags
 DEFINE_string(hex, "", "hex file (program) to load into memory");
 DEFINE_string(load, "", "elf file (program) to load into memory");
-DEFINE_bool(sysmod_terminate, true, "Call $finish on write to tohost");
-DEFINE_bool(sysmod_poll, true, "Poll for sysmod callbacks");
+
+REGISTRY_register(sysmod, platform, 0);
 
 extern "C" {
-  // used by CLINT to assert/deassert timer interrupt
   void sysmod_timer_interrupt(unsigned hartid, unsigned val);
-
-  // used by CLINT to assert/deassert sw interrupt
   void sysmod_sw_interrupt(unsigned hartid, unsigned val);
-  
-  // used by TRICKBOX to assert/deassert  interrupt
   void sysmod_tbox_interrupt(unsigned hartid, unsigned val, unsigned int_val);
-
-  // used by HTIF to indicate program end
-  void sysmod_terminate(std::uint8_t call_finish);
+  void sysmod_terminate(uint8_t call_finish);
 }
 
-sysmod::sysmod()
-  : scope_(nullptr)
+sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
+  : scope_(nullptr), loc_(loc), id_(id)
 {
+  cvm::registry::messenger.connect<scope_t>(
+      loc_,
+      [&](scope_t s) { return this->set_scope(s.scope); });
 
-    if(!FLAGS_sysmod_poll) {
-        std::thread([&] () {
-                while(1) {
-                    flush_cbs();
-                }
-                }).detach();
-    }
+  cvm::registry::messenger.connect<tick_t>(
+      loc_,
+      [&](tick_t t) { return this->tick(t.advance); });
 
+  cvm::registry::messenger.connect<transactor::write_t>(
+      loc_,
+      [&](transactor::write_t w) {
+        return this->write(w.addr, w.length, w.data, w.strb);
+      });
+
+  cvm::registry::messenger.connect<transactor::read_t>(
+      loc_,
+      [&](transactor::read_t r) {
+        return this->read(r.addr, r.length, r.data);
+      });
+
+  reset();
 }
 
 sysmod::~sysmod()
 {
+}
+
+// forwarding functions for devices
+void
+sysmod::timer_interrupt(clint::timer_t t) {
+      cvm::registry::callbacks.push(
+        scope(),
+        [t]() {
+          sysmod_timer_interrupt(t.hart, t.flag);
+        });
+}
+
+void
+sysmod::sw_interrupt(clint::sw_t s) {
+  cvm::registry::callbacks.push(
+      scope(),
+      [s]() {
+        sysmod_sw_interrupt(s.hart, s.flag);
+      });
+}
+
+void
+sysmod::tbox_interrupt(interrupter::interrupt_t i) {
+  cvm::registry::callbacks.push(
+      scope(),
+      [i]() {
+        sysmod_tbox_interrupt(i.hart, i.intr_select, i.intr_value);
+      });
+}
+
+void
+sysmod::terminate(htif::terminate_t t) {
+  cvm::registry::callbacks.push(
+      scope(),
+      [t]() {
+        sysmod_terminate(t.terminate);
+      });
+}
+
+void
+sysmod::reset() {
+  compose();
+  load_prog(FLAGS_hex, FLAGS_load);
 }
 
 void
@@ -62,26 +109,38 @@ sysmod::compose()
   memmap::get(memmap_);
 
   try {
-    for(auto& d : memmap_) {
-      auto& base = d.second.base;
-      auto& size = d.second.size;
-      auto& type = d.second.type;
-      auto& tag  = d.second.tag;
+    for(const auto& d : memmap_) {
+      const auto base = d.second.base;
+      const auto size = d.second.size;
+      const auto type = d.second.type;
+      const auto tag  = d.second.tag;
 
       device* device = nullptr;
 
       if (type == "memory") {
-        device = new sysmod_mem(tag,type, base, size);
+        device = new sysmod_mem(tag, base, size);
       } else if (type == "io_dev") {
-        device = new io_dev(tag, type,base, size);
+        device = new io_dev(tag, base, size);
       } else if (type == "null_dev") {
-        device = new null_dev(tag, type,base, size);
+        device = new null_dev(tag, base, size);
       } else if (type == "htif") {
-        device = new htif(tag,type, base);
+        device = new htif(tag, base, loc_);
+        cvm::registry::messenger.connect<htif::terminate_t>(
+            loc_,
+            [&](htif::terminate_t t) { return this->terminate(t); });
       } else if (type == "clint") {
-        device = new clint(tag, type,base, 1);
+        device = new clint(tag, base, 1, loc_);
+        cvm::registry::messenger.connect<clint::timer_t>(
+            loc_,
+            [&](clint::timer_t t) { return this->timer_interrupt(t); });
+        cvm::registry::messenger.connect<clint::sw_t>(
+            loc_,
+            [&](clint::sw_t s) { return this->sw_interrupt(s); });
       } else if (type == "trickbox") {
-        device = new trickbox(tag,type, base, 1);
+        device = new trickbox(tag, base, 1, loc_);
+        cvm::registry::messenger.connect<interrupter::interrupt_t>(
+            loc_,
+            [&](interrupter::interrupt_t i) { return this->tbox_interrupt(i); });
       } else {
         std::cerr << "Error: unknown type " << type << "\n";
         assert(false);
@@ -118,38 +177,18 @@ sysmod::dev(const std::string& tag)
 }
 
 void
-sysmod::load_prog()
+sysmod::load_prog(const std::string& hex, const std::string& load)
 {
   std::lock_guard<std::mutex> lock(sys_m);
-  if (FLAGS_load != "") {
-    std::cout << "loading " << FLAGS_load << "\n";
-    if (not dynamic_cast<sysmod_mem&>(dev("memory")).init_elf(FLAGS_load))
-      exit(1);
+  if (load != "") {
+    std::cout << "loading " << load << "\n";
+    if (not dynamic_cast<sysmod_mem&>(dev("memory")).init_elf(load))
+      assert(false);
   }
-  if (FLAGS_hex != "") {
-    std::cout << "loading " << FLAGS_hex << "\n";
-    if (not dynamic_cast<sysmod_mem&>(dev("memory")).init_hex(FLAGS_hex))
-      exit(1);
-  }
-  
-  for (auto& d : devices_) {
-    if(d->type() == "io_dev"){
-      if (FLAGS_load != "") {
-        std::cout << "loading " << FLAGS_load << "\n";
-        //if (not dynamic_cast<sysmod_mem&>(dev("memory")).init_elf(FLAGS_load))
-        if (not dynamic_cast<io_dev&>(*d).init_elf(FLAGS_load))
-          exit(1);
-      }
-    }
-  }
-}
-
-void
-sysmod::handle_callbacks(const device::cbs_t& cbs)
-{
-  for (const auto& c : cbs) {
-    if (c.cb != device::Callback::NONE)
-      callbacks_.push_back(c);
+  if (hex != "") {
+    std::cout << "loading " << hex << "\n";
+    if (not dynamic_cast<sysmod_mem&>(dev("memory")).init_hex(hex))
+      assert(false);
   }
 }
 
@@ -159,9 +198,7 @@ sysmod::write(uint64_t addr, size_t length, const device::data_t& data, const de
   std::lock_guard<std::mutex> lock(sys_m);
   //std::cout << std::hex << "write req at: " << addr << '\n';
   auto& d = dev(addr);
-  device::cbs_t cbs;
-  d.write(addr, length, data, strb, cbs);
-  handle_callbacks(cbs);
+  d.write(addr, length, data, strb);
 }
 
 void
@@ -170,9 +207,7 @@ sysmod::read(uint64_t addr, size_t length, device::data_t& data)
   std::lock_guard<std::mutex> lock(sys_m);
   //std::cout << std::hex << "read req at: " << addr << '\n';
   auto& d = dev(addr);
-  device::cbs_t cbs;
-  d.read(addr, length, data, cbs);
-  handle_callbacks(cbs);
+  d.read(addr, length, data);
 }
 
 void
@@ -180,85 +215,24 @@ sysmod::tick(uint64_t advance)
 {
   std::lock_guard<std::mutex> lock(sys_m);
   for (auto& d : devices_) {
-      device::cbs_t cbs;
-      d->tick(advance, cbs);
-      handle_callbacks(cbs);
+      d->tick(advance);
   }
-}
-
-void
-sysmod::reset()
-{
-  std::lock_guard<std::mutex> lock(sys_m);
-  std::cout<<"[SYSMOD]: resetting devices\n";
-  for (auto& d : devices_) {
-      d->reset();
-  }
-}
-void
-sysmod::flush_cbs()
-{
-  std::lock_guard<std::mutex> lock(sys_m);
-  if (callbacks_.size()) {
-      svSetScope(scope_);
-  }
-  for (auto& res : callbacks_) {
-    switch (res.cb) {
-      case device::Callback::TIMER_INT: sysmod_timer_interrupt(res.hart, res.val);
-                                        break;
-      case device::Callback::SW_INT:    sysmod_sw_interrupt(res.hart, res.val);
-                                        break;
-      case device::Callback::TRICKBOX_INTR:    sysmod_tbox_interrupt(res.hart, res.intr_select, res.intr_value);
-                                        break;
-      case device::Callback::TERMINATE: sysmod_terminate(FLAGS_sysmod_terminate);
-                                        break;
-      default: assert(false);
-    }
-  }
-
-  callbacks_.clear();
-}
-
-void sysmod::add_callback(const device::cb_t& cb) {
-  std::lock_guard<std::mutex> lock(sys_m);
-  device::cbs_t cbs;
-  cbs.push_back(cb);
-  handle_callbacks(cbs);
 }
 
 extern "C" {
 
-  void sysmod_set_scope(sysmod* s) {
+  void sysmod_set_scope(cvm::topology::loc_t loc) {
+    typedef sysmod sm;
     svScope scope = svGetScope();
-    s->set_scope(scope);
+    cvm::registry::messenger.signal<sm::scope_t>(
+        loc,
+        sm::scope_t{scope});
   }
 
-  void sysmod_tick(sysmod* s, uint64_t new_clock) {
-    s->tick(new_clock);
-  }
-
-  void sysmod_flush_cbs(sysmod* s) {
-    s->flush_cbs();
-  }
-
-  sysmod* sysmod_get(int num) {
-      static std::unordered_map<int, sysmod> sysmods;
-      auto it = sysmods.find(num);
-
-      if (it == sysmods.end()) {
-          it = sysmods.emplace(
-                  std::piecewise_construct,
-                  std::make_tuple(num),
-                  std::make_tuple()
-                  ).first;
-      }
-      return &(it->second);
-  }
-
-  void sysmod_reset(sysmod* s) {
-    // possibly compose once?
-    s->compose();
-    s->load_prog();
-    s->reset();
+  void sysmod_tick(cvm::topology::loc_t loc, uint64_t new_clock) {
+    typedef sysmod sm;
+    cvm::registry::messenger.signal<sm::tick_t>(
+        loc,
+        sm::tick_t{new_clock});
   }
 }

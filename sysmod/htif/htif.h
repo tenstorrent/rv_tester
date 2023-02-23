@@ -1,25 +1,26 @@
 // -*- c++ -*-
+#pragma once
 
 #include "device.h"
+#include "cvm/topology.hpp"
 
 /// Model an htif (host target interface) device
 class htif : public device
 {
 public:
 
-  htif(const std::string& tag, const std::string& type, uint64_t addr);
+  htif(const std::string& tag, uint64_t addr, cvm::topology::loc_t loc);
 
   virtual ~htif();
 
   // Reads outside of device range are ignored. Reads with length
   // different than 8 are ignored.
-  virtual void read(uint64_t addr, size_t length, data_t& data,
-                    cbs_t& cbs) override;
+  virtual void read(uint64_t addr, size_t length, data_t& data) override;
 
   // Writes outside of device range are ignored. Writes with length
   // different than 8 are ignored.
   virtual void write(uint64_t addr, size_t length, const data_t& data,
-		     const strb_t& strb, cbs_t& cbs) override;
+		     const strb_t& strb) override;
 
   // Copy n bytes from the given integer, x, to the data iterator
   // following little endian convention. If n is larger than the size
@@ -40,6 +41,10 @@ public:
     for (unsigned i = 0; i < sizeof(x); ++i)
       x |= INT(data[i]) << i*8;
   }
+
+  struct terminate_t {
+    bool terminate;
+  };
 
 private:
 

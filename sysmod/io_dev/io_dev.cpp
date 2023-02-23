@@ -1,9 +1,23 @@
 #include <iostream>
+#include <cassert>
+#include "cvm/plusargs.hpp"
 #include "io_dev.h"
 
 
-void io_dev::write(uint64_t addr, size_t length, const data_t& data, const strb_t& strb,
-                cbs_t& cbs) {
+DECLARE_string(load);
+
+
+io_dev::io_dev(const std::string& tag, uint64_t addr, size_t size)
+  : device(tag, addr, size, cvm::topology::null)
+{
+  if (FLAGS_load != "") {
+    std::cout << "loading " << FLAGS_load << "\n";
+    if (not init_elf(FLAGS_load))
+      assert(false);
+  }
+}
+
+void io_dev::write(uint64_t addr, size_t length, const data_t& data, const strb_t& strb) {
   if (not has_addr(addr))
     return;
 
@@ -15,7 +29,7 @@ void io_dev::write(uint64_t addr, size_t length, const data_t& data, const strb_
   return;
 }
 
-void io_dev::read(uint64_t addr, size_t length, data_t& data, cbs_t& cbs) {
+void io_dev::read(uint64_t addr, size_t length, data_t& data) {
   if (not has_addr(addr))
     return;
 

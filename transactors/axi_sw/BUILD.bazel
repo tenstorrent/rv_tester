@@ -8,7 +8,6 @@ verilog_library(
     ],
     deps = [
         "//:dpic_pkg",
-        "//sysmod:sysmod_pkg",
         "@cvm//:plusargs_sv",
     ],
     visibility = ["//visibility:public"],
@@ -33,6 +32,7 @@ cc_library(
     deps = [
       "//common:common",
       "@cvm//:plusargs",
+      "@cvm//:topology",
     ],
     alwayslink = True,
     visibility = ["//visibility:public"],

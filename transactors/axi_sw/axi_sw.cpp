@@ -1,4 +1,5 @@
 #include "axi_sw.h"
+#include "cvm/topology.hpp"
 #include "cvm/plusargs.hpp"
 
 DEFINE_bool(axi_sw_r_poll, true, "poll for read data every cycle, or asynchronously push read data");
@@ -8,10 +9,11 @@ extern "C" {
   void axi_sw_r(axi::id_t id, axi::resp_t resp, const axi::datum_t* data, axi::last_t last);
 }
 
-axi_sw::axi_sw(const svScope& scope, endpoint* e, bool r_poll, const axi::data_width_t& data_width, const std::string& tag, const r_q_ptr_t& r_q_max, const r_q_ptr_t& r_q_ptr_max)
+axi_sw::axi_sw(const svScope& scope, unsigned num, bool r_poll, const axi::data_width_t& data_width, const std::string& tag, const r_q_ptr_t& r_q_max, const r_q_ptr_t& r_q_ptr_max)
   : scope_(scope), r_poll_(r_poll), r_q_max_(r_q_max), r_q_ptr_max_(r_q_ptr_max), r_q_rptr_(0), r_q_wptr_(0) {
 
-    axi_ = new axi(e, data_width, tag);
+    auto location = cvm::topology::get("platform", num);
+    axi_ = new axi(data_width, location, tag);
 
     if (!r_poll_) {
         std::thread([&] () {
@@ -61,10 +63,10 @@ void axi_sw::r_q_rptr(const r_q_ptr_t& r_q_rptr) {
 }
 
 extern "C" {
-  axi_sw* axi_sw_new(endpoint* e, axi::data_width_t data_width, const char* tag,
+  axi_sw* axi_sw_new(unsigned num, axi::data_width_t data_width, const char* tag,
     axi_sw::r_q_ptr_t r_q_max, axi_sw::r_q_ptr_t r_q_ptr_max) {
     svScope scope = svGetScope();
-    return new axi_sw(scope, e, FLAGS_axi_sw_r_poll, data_width, tag, r_q_max, r_q_ptr_max);
+    return new axi_sw(scope, num, FLAGS_axi_sw_r_poll, data_width, tag, r_q_max, r_q_ptr_max);
   }
 
   void axi_sw_aw(axi_sw* a, axi::id_t id, axi::addr_t addr, axi::len_t len, axi::sz_t size, axi::burst_t burst, std::uint8_t lock, std::uint8_t atop) {

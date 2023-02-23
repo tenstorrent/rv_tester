@@ -26,16 +26,16 @@ def rv_tester_repositories():
     cosim_hash="1eedf35dec879eef3eca59c9ac2731b8252de727"
     maybe(
         git_repository,
-          name = "cosim",
-          commit = cosim_hash,
-          remote = "git@aus-gitlab.local.tenstorrent.com:manees/cosim.git",
+        name = "cosim",
+        commit = cosim_hash,
+        remote = "git@aus-gitlab.local.tenstorrent.com:manees/cosim.git",
     )
 
-    cvm_hash="48091f0372e3589119c7ba370a732680ffdd59cd"
+    cvm_hash="195b6b3f87a8094697d0f7fbc2b2a0e056945724"
     maybe(
         http_archive,
         name = "cvm",
-        sha256 = "b2c657ffdfa0e0895fb45325edb6aa0d4f880cf77bedc7e2ca2e0507bfcbb204",
+        sha256 = "1f071a1ce36d4937505437a83be2d2e7f527ba516bf90bda89287519bbbccc5b",
         strip_prefix = "cvm-{commit}".format(commit=cvm_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/{commit}/cvm-{commit}.tar.bz2".format(commit=cvm_hash),
     )
@@ -65,7 +65,7 @@ cc_library(
         shallow_since = "1656867071 -0400",
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv/swerv-iss.git",
     )
-    
+
     core_arch_checker_hash="b944577c128e2c09dda8db43555a84f599280a82"
     maybe(
         http_archive,
