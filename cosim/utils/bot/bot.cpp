@@ -9,6 +9,7 @@ DECLARE_string(hex);
 DECLARE_string(bootrom_path);
 DECLARE_string(whisper_path);
 DECLARE_string(whisper_json_path);
+DECLARE_int32(max_instr);
 
 bot::bot() {
 
@@ -22,7 +23,7 @@ void bot::run_iss_standalone() {
   std::string trace = " --traceload --traceptw";
   std::string out_log = " --logfile iss_standalone.log";
   std::string test = (FLAGS_load != "") ? FLAGS_load : ("--hex " + FLAGS_hex);
-  std::string max_inst = " --maxinst 200000";
+  std::string max_inst = " --maxinst " + std::to_string(FLAGS_max_instr);
   std::string init_state = FLAGS_preload ? " --initstate preload.csv" : "";
 
   std::string cmd = FLAGS_whisper_path + " " + test + " " + FLAGS_bootrom_path +
