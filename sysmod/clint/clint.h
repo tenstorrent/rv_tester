@@ -19,7 +19,7 @@ public:
 
   /// Define a CLINT device at the given address for the given hart count.
   /// Range of addresses reserved is: [addr, addr + 0xbfff]
-  clint(const std::string& tag, const std::string& type, uint64_t addr, unsigned hartCount,
+  clint(const std::string& tag, uint64_t addr, unsigned hartCount,
         cvm::topology::loc_t loc);
 
   // Destructor.

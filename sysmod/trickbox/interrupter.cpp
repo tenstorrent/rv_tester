@@ -5,13 +5,14 @@
  DEFINE_int32(intr_delay_min, 3, "Minimum Delay between 2 consecutive interrupts");
  DEFINE_int32(intr_delay_max, 5, "Maximum Delay between 2 consecutive interrupts");
  DEFINE_int32(seed, 1, "Simulation seed passed down for randomization");
-interrupter::interrupter(const std::string& tag, const std::string& type, uint64_t addr, unsigned hartCount)
-  : device(tag, type, addr, 0x4000 /* size */), hartCount_(hartCount), 
+interrupter::interrupter(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc)
+  : device(tag, addr, 0x4000 /* size */, loc), hartCount_(hartCount), 
     timeCompare_(6),IntrHart_(6),delayedRandomIntValid_(6),IntrValue_(6), timerIntPrev_(hartCount), timer_(0)
 {
   rng.seed(FLAGS_seed);
   interrupter_base = addr;
   
+  reset();
 }
 
 
@@ -45,7 +46,7 @@ interrupter::selfTick(useconds_t delta)
 
 
 void
-interrupter::read(uint64_t addr, size_t length, data_t& data, cbs_t& cbs)
+interrupter::read(uint64_t addr, size_t length, data_t& data)
 {
   if (not has_addr(addr))
     return;
@@ -55,7 +56,7 @@ interrupter::read(uint64_t addr, size_t length, data_t& data, cbs_t& cbs)
 
 void
 interrupter::write(uint64_t addr, size_t length, const data_t& data,
-		 const strb_t& strb, cbs_t& cbs)
+		 const strb_t& strb)
 {
   //std::cout<<"interrupter write: 0x"<<std::hex<<addr;
   if (not has_addr(addr))
@@ -67,7 +68,7 @@ interrupter::write(uint64_t addr, size_t length, const data_t& data,
     unsigned hart = t_data & 0xfff;
     unsigned event = (t_data >> 12) & 0xff;
     unsigned eventValue = (t_data >> 20);
-    driveInterrupt(hart,event,eventValue,cbs); 
+    driveInterrupt(hart,event,eventValue); 
     }
     else if((addr > interrupter_base)&& (addr < (interrupter_base + 0x1000)))
     {

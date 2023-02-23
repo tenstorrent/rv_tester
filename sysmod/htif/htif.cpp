@@ -9,8 +9,8 @@
 
 DEFINE_bool(htif_terminate, true, "Call $finish on write to tohost");
 
-htif::htif(const std::string& tag, const std::string& type, uint64_t addr, cvm::topology::loc_t loc)
-  : device(tag, type, addr, 16 /* size */, loc)
+htif::htif(const std::string& tag, uint64_t addr, cvm::topology::loc_t loc)
+  : device(tag, addr, 16 /* size */, loc)
 {
 }
 

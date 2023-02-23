@@ -13,6 +13,8 @@ cc_library(
              "//sysmod:device",
              "@mem_manager//:mem_manager",
              "@cvm//:plusargs",
+             "@cvm//:registry",
+             "@cvm//:topology",
            ],
     visibility = ["//visibility:public"],
 )

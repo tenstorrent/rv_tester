@@ -8,10 +8,10 @@
 #include "sysmod.h"
 #include "mem/sysmod_mem.h"
 #include "clint/clint.h"
-// #include "io_dev/io_dev.h"
-// #include "null_dev/null_dev.h"
+#include "io_dev/io_dev.h"
+#include "null_dev/null_dev.h"
 #include "htif/htif.h"
-// #include "trickbox/trickbox.h"
+#include "trickbox/trickbox.h"
 
 // internal flags
 DEFINE_string(hex, "", "hex file (program) to load into memory");
@@ -22,7 +22,6 @@ REGISTRY_register(sysmod, platform, 0);
 extern "C" {
   void sysmod_timer_interrupt(unsigned hartid, unsigned val);
   void sysmod_sw_interrupt(unsigned hartid, unsigned val);
-  // used by TRICKBOX to assert/deassert  interrupt
   void sysmod_tbox_interrupt(unsigned hartid, unsigned val, unsigned int_val);
   void sysmod_terminate(uint8_t call_finish);
 }
@@ -60,29 +59,38 @@ sysmod::~sysmod()
 // forwarding functions for devices
 void
 sysmod::timer_interrupt(clint::timer_t t) {
-  cvm::registry::callbacks.push(
-                  scope(),
-                  [t]() {
-                    sysmod_timer_interrupt(t.hart, t.flag);
-                  });
+      cvm::registry::callbacks.push(
+        scope(),
+        [t]() {
+          sysmod_timer_interrupt(t.hart, t.flag);
+        });
 }
 
 void
 sysmod::sw_interrupt(clint::sw_t s) {
   cvm::registry::callbacks.push(
-                  scope(),
-                  [s]() {
-                    sysmod_sw_interrupt(s.hart, s.flag);
-                  });
+      scope(),
+      [s]() {
+        sysmod_sw_interrupt(s.hart, s.flag);
+      });
+}
+
+void
+sysmod::tbox_interrupt(interrupter::interrupt_t i) {
+  cvm::registry::callbacks.push(
+      scope(),
+      [i]() {
+        sysmod_tbox_interrupt(i.hart, i.intr_select, i.intr_value);
+      });
 }
 
 void
 sysmod::terminate(htif::terminate_t t) {
   cvm::registry::callbacks.push(
-                  scope(),
-                  [t]() {
-                    sysmod_terminate(t.terminate);
-                  });
+      scope(),
+      [t]() {
+        sysmod_terminate(t.terminate);
+      });
 }
 
 void
@@ -110,18 +118,18 @@ sysmod::compose()
       device* device = nullptr;
 
       if (type == "memory") {
-        device = new sysmod_mem(tag, type, base, size);
+        device = new sysmod_mem(tag, base, size);
       } else if (type == "io_dev") {
-        // device = new io_dev(tag, type, base, size);
+        device = new io_dev(tag, base, size);
       } else if (type == "null_dev") {
-        // device = new null_dev(tag, type, base, size);
+        device = new null_dev(tag, base, size);
       } else if (type == "htif") {
-        device = new htif(tag, type, base, loc_);
+        device = new htif(tag, base, loc_);
         cvm::registry::messenger.connect<htif::terminate_t>(
             loc_,
             [&](htif::terminate_t t) { return this->terminate(t); });
       } else if (type == "clint") {
-        device = new clint(tag, type, base, 1, loc_);
+        device = new clint(tag, base, 1, loc_);
         cvm::registry::messenger.connect<clint::timer_t>(
             loc_,
             [&](clint::timer_t t) { return this->timer_interrupt(t); });
@@ -129,7 +137,10 @@ sysmod::compose()
             loc_,
             [&](clint::sw_t s) { return this->sw_interrupt(s); });
       } else if (type == "trickbox") {
-        // device = new trickbox(tag, base, 1);
+        device = new trickbox(tag, base, 1, loc_);
+        cvm::registry::messenger.connect<interrupter::interrupt_t>(
+            loc_,
+            [&](interrupter::interrupt_t i) { return this->tbox_interrupt(i); });
       } else {
         std::cerr << "Error: unknown type " << type << "\n";
         assert(false);
@@ -178,17 +189,6 @@ sysmod::load_prog(const std::string& hex, const std::string& load)
     std::cout << "loading " << hex << "\n";
     if (not dynamic_cast<sysmod_mem&>(dev("memory")).init_hex(hex))
       assert(false);
-  }
-  
-  for (auto& d : devices_) {
-    if(d->type() == "io_dev"){
-      if (FLAGS_load != "") {
-        std::cout << "loading " << FLAGS_load << "\n";
-        //if (not dynamic_cast<sysmod_mem&>(dev("memory")).init_elf(FLAGS_load))
-        if (not dynamic_cast<io_dev&>(*d).init_elf(FLAGS_load))
-          exit(1);
-      }
-    }
   }
 }
 

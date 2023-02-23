@@ -8,6 +8,7 @@
 #include "transactor.h"
 #include "clint/clint.h"
 #include "htif/htif.h"
+#include "trickbox/interrupter.h"
 #include "cvm/topology.hpp"
 
 class sysmod {
@@ -36,12 +37,12 @@ class sysmod {
     void tick(uint64_t advance);
     void compose();
     void load_prog(const std::string& hex, const std::string& load);
-    std::string tag() { return "sysmod" + std::to_string(id()); }
 
   protected:
 
     void timer_interrupt(clint::timer_t t);
     void sw_interrupt(clint::sw_t s);
+    void tbox_interrupt(interrupter::interrupt_t i);
     void terminate(htif::terminate_t t);
 
   private:

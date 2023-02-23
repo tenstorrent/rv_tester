@@ -9,7 +9,7 @@ class htif : public device
 {
 public:
 
-  htif(const std::string& tag, const std::string& type, uint64_t addr, cvm::topology::loc_t loc);
+  htif(const std::string& tag, uint64_t addr, cvm::topology::loc_t loc);
 
   virtual ~htif();
 
