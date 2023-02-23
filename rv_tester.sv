@@ -39,9 +39,12 @@ module rv_tester #(
             rv_tester_parse_memmap();
             $display("[RVTESTER]: reconstructing registry");
             rv_tester_reset_registry();
-            cb_poll = cvm_plusargs::get_bool("cb_async") != '1;
             clocks <= 0;
             sysmod_reset <= '1;
+
+            /* verilator lint_off BLKSEQ */
+            cb_poll <= cvm_plusargs::get_bool("cb_async") != '1;
+            /* verilator lint_on BLKSEQ */
         end
         if (cb_poll) begin
           rv_tester_flush_callbacks();
