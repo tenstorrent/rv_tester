@@ -1,5 +1,6 @@
 cc_library(
     name = "null_dev",
+    srcs = ["null_dev.cpp"],
     hdrs = ["null_dev.h"],
     deps = [
         "//sysmod:device",
