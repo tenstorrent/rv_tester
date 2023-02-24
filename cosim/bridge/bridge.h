@@ -115,8 +115,6 @@ private:
   bool ecall_ = false;
   bool debug_mode_ = false;
 
-  static constexpr int whisper_connect_timeout_milliseconds = 10000;
-
   // Memmap
   memmap::memmap_t memmap_;
 };

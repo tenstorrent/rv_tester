@@ -35,6 +35,7 @@ DEFINE_int32(max_stall_cycle, 50000, "Max stall cycle limit to terminate the sim
 DEFINE_bool(translation_check, false, "Do VA-PA translation check");
 DEFINE_bool(emulate_debug_mode, false, "Emulate debug mode by forcing whisper to be in sync with DUT");
 DEFINE_string(whisper_client, "socket", "Select whisper client to communicate - socket, or shm (shared mem)");
+DEFINE_int32(whisper_connect_timeout_ms, 10000, "Set whisper connect timeout in milliseconds");
 
 // Constructor
 bridge::bridge(int num_harts, int xlen, int vlen)
@@ -58,7 +59,7 @@ bool bridge::whisper_connect(std::string cmd, int timeout) {
 
   auto start = std::chrono::high_resolution_clock::now();
   while (true) {
-    std::this_thread::sleep_for (std::chrono::milliseconds(30));
+    std::this_thread::sleep_for (std::chrono::milliseconds(10));
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
     if (client_->whisperConnect("whisper_connect") >= 0) {
@@ -88,7 +89,7 @@ void bridge::reset() {
     vpi_control(vpiFinish);
   }
 
-  if (!whisper_connect(get_whisper_cmd(), whisper_connect_timeout_milliseconds)) {
+  if (!whisper_connect(get_whisper_cmd(), FLAGS_whisper_connect_timeout_ms)) {
     vpi_control(vpiFinish);
   }
 

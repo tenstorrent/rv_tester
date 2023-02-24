@@ -10,7 +10,8 @@
 
 
 static int whisperSoc = -1;
-
+static int socketFailCount = 0;
+static int socketFailCountLimit = 1000;
 
 // Connect to the whisper process running at the given host and
 // listening to the given port. Return non-negative connected socket
@@ -51,7 +52,9 @@ whisperClientSocket::whisperConnectHostPort(const char* host, unsigned port)
   // 4. Connect socket to socket address.
   if (connect(soc, (struct sockaddr*) &serverAddr, sizeof(serverAddr)) < 0)
     {
-      std::cerr << "Socket connection failed\n";
+      socketFailCount++;
+      if (socketFailCount > socketFailCountLimit)
+        std::cerr << "Socket connection failed\n";
       return -1;
     }
 
