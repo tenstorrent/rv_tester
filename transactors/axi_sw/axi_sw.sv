@@ -64,7 +64,9 @@ module axi_sw #(
 
     output logic             axi_slv_aw_ready,
     output logic             axi_slv_ar_ready,
+    /* verilator lint_off UNOPTFLAT */
     output logic             axi_slv_w_ready
+    /* verilator lint_on UNOPTFLAT */
 
 );
 
