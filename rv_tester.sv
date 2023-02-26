@@ -22,7 +22,7 @@ module rv_tester #(
     import "DPI-C" function void rv_tester_parse_flags();
     import "DPI-C" function void rv_tester_parse_memmap();
     import "DPI-C" function void rv_tester_reset_registry();
-    import "DPI-C" function void rv_tester_flush_callbacks();
+    import "DPI-C" context function void rv_tester_flush_callbacks();
 
     logic rv_tester_reset = '1;
     logic sysmod_reset = '0;
