@@ -23,16 +23,16 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
 }
 
 void rvfi::init() {
+  bot_ = std::make_unique<bot>();;
+  eot_ = std::make_unique<eot>(loc_);;
+
   if (FLAGS_cosim) {
     cvm::log(cvm::MEDIUM, "[RVFI] Constructing bridge...\n");
     bridge_ = std::make_unique<bridge>(num_harts, xlen, vlen);
     bridge_->reset();
-    cvm::log(cvm::NONE, "Instr Cycle Hart Mode PC Opcode\n");
+    log(cvm::NONE, "Instr Cycle Hart Mode PC Opcode\n");
     count_ = 0;
   }
-
-  bot_ = std::make_unique<bot>();;
-  eot_ = std::make_unique<eot>(loc_);;
 }
 
 void rvfi::process(const cosim_transactions::m_rvfi& m_rvfi) {
@@ -67,9 +67,9 @@ void rvfi::process(const cosim_transactions::m_intr& m_intr) {
     return;
    
    if (m_intr.pos_edge) {
-     log(cvm::NONE, "#{} {} 0 (assert interrupt:{})", m_intr.cycle, count_, cause);
+     log(cvm::NONE, "#{} {} 0 (assert interrupt:{})\n", m_intr.cycle, count_, cause);
    } else {
-     log(cvm::NONE, "#{} {} 0 (deassert interrupt:{})", m_intr.cycle, count_, cause);
+     log(cvm::NONE, "#{} {} 0 (deassert interrupt:{})\n", m_intr.cycle, count_, cause);
    }
 }
 
