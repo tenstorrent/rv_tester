@@ -190,6 +190,17 @@ sysmod::load_prog(const std::string& hex, const std::string& load)
     if (not dynamic_cast<sysmod_mem&>(dev("memory")).init_hex(hex))
       assert(false);
   }
+  
+  memmap::get(memmap_);
+
+    for(const auto& d : memmap_) {
+      const auto type = d.second.type;
+      const auto tag  = d.second.tag;
+      if(type == "memory"){
+        if (not dynamic_cast<sysmod_mem&>(dev(tag)).init_elf(load))
+          assert(false);
+      }
+    }
 }
 
 void
