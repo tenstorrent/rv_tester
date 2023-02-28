@@ -182,17 +182,6 @@ sysmod::load_prog(const std::string& hex, const std::string& load)
   std::lock_guard<std::mutex> lock(sys_m);
   if (load != "") {
     std::cout << "loading " << load << "\n";
-    if (not dynamic_cast<sysmod_mem&>(dev("memory")).init_elf(load))
-      assert(false);
-  }
-  if (hex != "") {
-    std::cout << "loading " << hex << "\n";
-    if (not dynamic_cast<sysmod_mem&>(dev("memory")).init_hex(hex))
-      assert(false);
-  }
-  
-  memmap::get(memmap_);
-
     for(const auto& d : memmap_) {
       const auto type = d.second.type;
       const auto tag  = d.second.tag;
@@ -201,6 +190,12 @@ sysmod::load_prog(const std::string& hex, const std::string& load)
           assert(false);
       }
     }
+  }
+  if (hex != "") {
+    std::cout << "loading " << hex << "\n";
+    if (not dynamic_cast<sysmod_mem&>(dev("memory")).init_hex(hex))
+      assert(false);
+  }
 }
 
 void
