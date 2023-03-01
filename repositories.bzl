@@ -36,7 +36,7 @@ def rv_tester_repositories():
         git_repository,
         name = "corearchcoverage",
         commit = core_arch_coverage_hash,
-        recursive_init_submodules = True,
+        #recursive_init_submodules = True,
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv/dv/corearchcoverage.git",
     )
 
