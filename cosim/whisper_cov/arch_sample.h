@@ -4,7 +4,6 @@
 #include "bridge_if.h"
 #include "cvm/logger.hpp"
 #include "src/cosim_sample/cosim_sample.h"
-#include "arch/common/Points.hpp"
 #include "svdpi.h"
 
 class ArchSample {
