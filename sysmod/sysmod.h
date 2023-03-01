@@ -9,6 +9,7 @@
 #include "clint/clint.h"
 #include "htif/htif.h"
 #include "trickbox/interrupter.h"
+#include "trickbox/debugger.h"
 #include "cvm/topology.hpp"
 
 class sysmod {
@@ -42,6 +43,7 @@ class sysmod {
 
     void timer_interrupt(clint::timer_t t);
     void sw_interrupt(clint::sw_t s);
+    void dmi_write(debugger::dmi_data_t s);
     void tbox_interrupt(interrupter::interrupt_t i);
     void terminate(htif::terminate_t t);
 

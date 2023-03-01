@@ -3,8 +3,8 @@
 #include "debugger.h"
 
 
-debugger::debugger(const std::string& tag, uint64_t addr, unsigned hartCount)
-  : device(tag, addr, 0x4000 /* size */, cvm::topology::null), hartCount_(hartCount), soft_(hartCount),
+debugger::debugger(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc)
+  : device(tag, addr, 0x4000 /* size */, loc), hartCount_(hartCount), soft_(hartCount),
     timeCompare_(6),IntrHart_(6),delayedRandomIntValid_(6),IntrValue_(6), timerIntPrev_(hartCount), timer_(0)
 {
   debugger_base = addr;
@@ -46,7 +46,7 @@ debugger::write(uint64_t addr, size_t length, const data_t& data,
     upper_dmi_data = t_data >>32;
     lower_dmi_data = t_data & 0xffffffff;
     hart = 0; //hart bits position TBD, till TBD it is always zero
-    //trickboxDmiWrite(hart,upper_dmi_data,lower_dmi_data,cbs); Commented until DMI PORT is not in master
+    trickboxDmiWrite(hart,upper_dmi_data,lower_dmi_data);// Commented until DMI PORT is not in master
  
   }
     

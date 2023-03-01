@@ -23,6 +23,7 @@ extern "C" {
   void sysmod_timer_interrupt(unsigned hartid, unsigned val);
   void sysmod_sw_interrupt(unsigned hartid, unsigned val);
   void sysmod_tbox_interrupt(unsigned hartid, unsigned val, unsigned int_val);
+  void sysmod_dmi_write(unsigned hartid, unsigned upper_val, unsigned lower_val);
   void sysmod_terminate(uint8_t call_finish);
 }
 
@@ -85,6 +86,15 @@ sysmod::tbox_interrupt(interrupter::interrupt_t i) {
 }
 
 void
+sysmod::dmi_write(debugger::dmi_data_t i) {
+  cvm::registry::callbacks.push(
+      scope(),
+      [i]() {
+        sysmod_dmi_write(i.hart,i.upper_dmi_data,i.lower_dmi_data);
+      });
+}
+
+void
 sysmod::terminate(htif::terminate_t t) {
   cvm::registry::callbacks.push(
       scope(),
@@ -141,6 +151,9 @@ sysmod::compose()
         cvm::registry::messenger.connect<interrupter::interrupt_t>(
             loc_,
             [&](interrupter::interrupt_t i) { return this->tbox_interrupt(i); });
+        cvm::registry::messenger.connect<debugger::dmi_data_t>(
+            loc_,
+            [&](debugger::dmi_data_t i) { return this->dmi_write(i); });
       } else {
         std::cerr << "Error: unknown type " << type << "\n";
         assert(false);

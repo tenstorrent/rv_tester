@@ -18,6 +18,8 @@
 #include "cvm/plusargs.hpp"
 #include "cvm/topology.hpp"
 #include "interrupter.h"
+#include "debugger.h"
+
 
 // Define a core local  (trickbox) at the given address
 // and for the given hart count. The size will be 48k bytes.
