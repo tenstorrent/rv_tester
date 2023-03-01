@@ -8,6 +8,8 @@ trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned hartCount, cv
   interrupter_base = addr;
   subdevice = new interrupter("interrupter", interrupter_base, 1, loc);
   subdevices_.emplace_back(subdevice); 
+  subdevice = new debugger("debugger", addr + 0x50000, 1, loc);
+  subdevices_.emplace_back(subdevice); 
 }
 
 

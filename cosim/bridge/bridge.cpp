@@ -29,8 +29,9 @@ DEFINE_string(cosim_resynch_instr, "", "List of instruction mnemonics to resynch
 DEFINE_bool(lrsc_resynch, false, "Resynch whisper with dut state on LRSC fail condition");
 DEFINE_bool(retire_ucode_trap, true, "DUT indicates retire on a trap after executing the ucode trap handler");
 DEFINE_bool(mcm, false, "Enable memory consistency checker");
-DEFINE_int32(max_instr, 100000, "Max instruction limit to terminate the sim");
-DEFINE_int32(max_cycle, 1000000, "Max cycle limit to terminate the sim");
+DEFINE_int32(max_instr, 100000000, "Max instruction limit to terminate the sim");
+DEFINE_int32(max_cycle, 1000000000, "Max cycle limit to terminate the sim");
+DEFINE_int32(debug_excp_mcause, 24, "MCAUSE value for debug exception");
 DEFINE_int32(max_stall_cycle, 50000, "Max stall cycle limit to terminate the sim");
 DEFINE_bool(translation_check, false, "Do VA-PA translation check");
 DEFINE_bool(emulate_debug_mode, false, "Emulate debug mode by forcing whisper to be in sync with DUT");
@@ -684,10 +685,21 @@ void bridge::translation_check(hart_id_t hart, const rv_instr_t& d, whisper_stat
 
 // Debug Mode
 void bridge::enter_debug_mode(rv_debug_t& d) {
+
   log(cvm::NONE, "<{}> Enter debug mode\n", d.cycle);
   debug_mode_ = true;
   if (!client_->whisperEnterDebug()) {
     vpi_control(vpiFinish);
+  }
+  //whisper: if debug_exc -> poke mcause with 24<configurable cmdline> 
+  // Poke mip before invoking whisper step
+  bool valid = false;
+  uint64_t mcause = 0x342;
+  uint64_t cause = FLAGS_debug_excp_mcause; //24 for cva6
+  if (!client_->whisperPoke(d.hart, 'c', mcause, cause, valid)) {
+    vpi_control(vpiFinish);
+  }else{
+    std::cout <<"whisper poke mcause with "<<FLAGS_debug_excp_mcause<<"\n";
   }
 }
 

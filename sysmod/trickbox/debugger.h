@@ -16,6 +16,8 @@
 #include <cmath>
 #include "pcg_random.hpp"
 #include "cvm/plusargs.hpp"
+#include "cvm/topology.hpp"
+#include "cvm/registry.hpp"
 #include "debugger.h"
 
 // Define a core local  (debugger) at the given address
@@ -26,7 +28,7 @@ public:
 
   /// Define a debugger device at the given address for the given hart count.
   /// Range of addresses reserved is: [addr, addr + 0xbfff]
-  debugger(const std::string& tag, uint64_t addr, unsigned hartCount);
+  debugger(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc);
 
   // Destructor.
   virtual ~debugger();
@@ -72,6 +74,23 @@ public:
       std::cout<<"[TRICKBOX]: Reset debugger\n";
   }
 
+  struct dmi_data_t {
+    unsigned hart;
+    unsigned upper_dmi_data;
+    unsigned lower_dmi_data;
+  };
+
+  // Used to assert/deassert a trickbox interrupt (PIPI) for given hart.
+  //virtual void trickboxDmiWrite(unsigned hart, unsigned upper_dmi_data, unsigned lower_dmi_data, cbs_t& cbs)
+  virtual void trickboxDmiWrite(unsigned hart, unsigned upper_dmi_data, unsigned lower_dmi_data)
+  {
+    unsigned val =0;
+    std::cout<<"TrickBox DMI Write to hart "<<hart<<" upper dmi data "<<upper_dmi_data<<" lower dmi data "<<lower_dmi_data<<" \n";
+    //cbs.push_back(cb_t{Callback::TRICKBOX_DMI_WR, hart, upper_dmi_data, lower_dmi_data, 0});
+    cvm::registry::messenger.signal(loc(), dmi_data_t{hart, upper_dmi_data, lower_dmi_data});
+    //cvm::messenger::send(dmi_t, dmi_pkt);
+  }
+
 
 private:
 
@@ -88,7 +107,7 @@ private:
   uint64_t timer_ = 0;
   uint64_t timer_advance = 200;
   uint64_t timer_rand_intr = 500;
-  uint64_t debugger_base = 0x9004000;
+  uint64_t debugger_base = 0x9050000;
   uint64_t debugger_size = 0x4000;
   
   std::atomic<bool> terminate_ = false;

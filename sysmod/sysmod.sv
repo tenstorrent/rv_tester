@@ -11,6 +11,7 @@ module sysmod #(
     input longint unsigned clocks,
     output bootstrap_t bootstrap,
     output rv_tester_pkg::interrupt_t interrupt,
+    output rv_tester_pkg::dm_write_t  dmi_write,
     output terminate
 );
     import "DPI-C" context function void sysmod_set_scope(int unsigned loc);
@@ -18,6 +19,10 @@ module sysmod #(
 
     typedef longint unsigned LU;
     int unsigned loc = cvm_topology::nil;
+     
+    bit dmi_write_begin = '0;
+    bit dmi_write_end = '0;
+    bit [63:0] dm_wdata = '0;
 
     always @(posedge clk) begin
         if (reset) begin
@@ -87,7 +92,7 @@ module sysmod #(
       interrupt_d.msi = val;
     endfunction
     export "DPI-C" function sysmod_sw_interrupt;
-
+    
     function void sysmod_tbox_interrupt (int unsigned hartid, int unsigned intr_select,int unsigned intr_value);
       $display("\n[SYSMOD] trickbox interrupt select %0d with value %0d\n",intr_select,intr_value);
       for(int i =0;i<6;i++)begin
@@ -96,12 +101,34 @@ module sysmod #(
       end
     endfunction
     export "DPI-C" function sysmod_tbox_interrupt;
+    
+    function sysmod_dmi_write (int unsigned hartid, int unsigned upper_value,int unsigned lower_value);
+      $display("\n[SYSMOD] trickbox DMI write upper value: %d lower value: %d\n",upper_value,lower_value);
+      dmi_write_begin = '1;
+      dm_wdata = {upper_value,lower_value};
+    endfunction
+    export "DPI-C"  function sysmod_dmi_write;   
 
     always @(posedge clk) begin
         interrupt_q <= interrupt_d;
         if (reset) begin
             interrupt_d <= '0;
+            dmi_write   <= '0;
         end
+        else if(dmi_write_end)begin
+            dmi_write.dm_wdata <= '0;
+            dmi_write.dm_wvalid <= '0;
+            dmi_write_begin <= '0;
+            dmi_write_end <= '0;
+            $display("\n[SYSMOD] trickbox DMI Deassert write : %d time: %t\ n",dmi_write.dm_wdata,$time);
+        end
+        else if(dmi_write_begin)begin
+            dmi_write.dm_wvalid <= '1;
+            dmi_write.dm_wdata <= dm_wdata;
+            dmi_write_end <='1; 
+            $display("\n[SYSMOD] trickbox DMI Assert write : %d time: %t\ n",dmi_write.dm_wdata,$time);
+        end
+
     end
 
 endmodule

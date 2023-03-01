@@ -187,4 +187,5 @@ typedef struct rv_debug_s {
   bool enter;
   bool exit;
   uint64_t cycle;
+  uint64_t hart;
 } rv_debug_t;
