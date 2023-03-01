@@ -7,6 +7,8 @@
 
 DEFINE_bool(rvfi, true, "Enable rvfi logging");
 DEFINE_bool(cosim, true, "Enable cosim checking");
+DEFINE_int32(debug_entry_pc, 0x800, "Debug Mode entry PC");
+DEFINE_int32(debug_exit_pc, 0x860, "Debug Mode exit PC");
 
 REGISTRY_register(rvfi, platform, 0);
 
@@ -40,8 +42,9 @@ void rvfi::process(const cosim_transactions::m_rvfi& m_rvfi) {
   rv_instr_t instr;
   make_instr(m_rvfi, instr);
   print_instr(instr);
+  enter_debug_mode(instr);
   send_instr(instr);
-
+  exit_debug_mode(instr);
   // Clear state
   intr_ = false;
   excp_ = false;
@@ -76,26 +79,7 @@ void rvfi::process(const cosim_transactions::m_intr& m_intr) {
 void rvfi::process(const cosim_transactions::m_debug& m_debug) {
   if (!FLAGS_rvfi)
     return;
-
-  if (m_debug.enter) {
-     log(cvm::NONE, "#{} {} 0 (enter debug mode)\n", count_, m_debug.cycle);
-  } else {
-     log(cvm::NONE, "#{} {} 0 (exit debug mode)\n", count_, m_debug.cycle);
-  }
-
-  if (!FLAGS_cosim)
-    return;
-
-  rv_debug_t debug;
-  debug.enter   = m_debug.enter;
-  debug.exit    = m_debug.exit;
-  debug.cycle   = m_debug.cycle;
-
-  if (m_debug.enter) {
-    bridge_->enter_debug_mode(debug);
-  } else {
-    bridge_->exit_debug_mode(debug);
-  }
+ 
 }
 
 void rvfi::make_instr(const cosim_transactions::m_rvfi& m_rvfi, rv_instr_t& instr) {
@@ -197,4 +181,45 @@ void rvfi::send_instr(rv_instr_t& instr) {
     return;
 
   bridge_->process_dut_instr_retire(instr.hart, instr);
+}
+
+void rvfi::enter_debug_mode(rv_instr_t& instr) {
+  if (!FLAGS_cosim)
+    return;
+
+  if (instr.pc.pc_rdata == FLAGS_debug_entry_pc) {
+    
+    rv_debug_t debug;
+    std::cout <<" Enter Debug Mode debug_entry_pc :"<<std::hex<<FLAGS_debug_entry_pc<<"\n";
+    
+    debug.cycle = instr.cycle;
+    debug.enter = true;
+    debug.exit  = false;
+    debug.hart  = instr.hart;
+
+    log(cvm::NONE, "#{} {} 0 (enter debug mode)\n", count_, debug.cycle);
+
+    bridge_->enter_debug_mode(debug);
+  } 
+}
+
+void rvfi::exit_debug_mode(rv_instr_t& instr) {
+  if (!FLAGS_cosim)
+    return;
+
+  if (instr.pc.pc_rdata == FLAGS_debug_exit_pc) {
+    
+    rv_debug_t debug;
+    std::cout <<" Exit Debug Mode debug_exit_pc :"<<std::hex<<FLAGS_debug_exit_pc<<"\n";
+    
+    debug.cycle = instr.cycle;
+    debug.enter = false;
+    debug.exit  = true;
+    debug.hart  = instr.hart;
+
+    log(cvm::NONE, "#{} {} 0 (exit debug mode)\n", count_, debug.cycle);
+
+    bridge_->exit_debug_mode(debug);
+  } 
+  
 }

@@ -42,6 +42,8 @@ class rvfi {
     void make_instr(const cosim_transactions::m_rvfi& m_rvfi, rv_instr_t& instr);
     void print_instr(rv_instr_t& instr);
     void send_instr(rv_instr_t& instr);
+    void enter_debug_mode(rv_instr_t& instr);
+    void exit_debug_mode(rv_instr_t& instr);
 
   private:
 

@@ -107,7 +107,7 @@ private:
   uint64_t timer_ = 0;
   uint64_t timer_advance = 200;
   uint64_t timer_rand_intr = 500;
-  uint64_t debugger_base = 0x9004000;
+  uint64_t debugger_base = 0x9050000;
   uint64_t debugger_size = 0x4000;
   
   std::atomic<bool> terminate_ = false;
