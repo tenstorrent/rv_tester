@@ -8,6 +8,7 @@ cc_library(
                 "//cosim/vpi:vpi_user",
                 "//common:common",
                 "@CoreArchChecker//src:caccore",
+                "//cosim/whisper_cov:archsample", 
                 "@cvm//:plusargs",
                 "@cvm//:logger",
                 "@cvm//:topology",

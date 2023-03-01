@@ -23,6 +23,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             "@rv_tester//:defines",
             "@rv_tester//sysmod:sysmod",
             "@rv_tester//transactors/axi_sw:axi_sw",
+            "@rv_tester//cosim/whisper_cov:archsample_sv",
             topology + "_sv",
         ] + select({
           "@rv_tester//:cosim_off": ["@rv_tester//:no_cosim"],
@@ -38,6 +39,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             "@rv_tester//transactors/axi_sw:axi_sw_dpi",
             "@rv_tester//common:common",
             "@rv_tester//sysmod:sysmod_dpi",
+            "@rv_tester//cosim/whisper_cov:archsample",
             "@cvm//:plusargs",
             "@cvm//:registry",
             topology + "_cc",

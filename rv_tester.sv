@@ -68,6 +68,13 @@ module rv_tester #(
         .terminate
     );
 
+    arch_sample #(
+        .NUM(0)
+    ) arch_sample (
+        .clk(clk),
+        .reset(sysmod_reset)
+    );
+    
 `ifndef NO_COSIM
     cosim #(
         .CFG(CFG),

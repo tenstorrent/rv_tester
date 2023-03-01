@@ -1,0 +1,30 @@
+load("@rules_hdl//verilog:providers.bzl" , "verilog_library")
+
+cc_library(
+    name = "archsample",
+    hdrs = ["arch_sample.h"],
+    srcs = ["arch_sample.cpp"],
+    deps = [
+         "@corearchcoverage//src/cosim_sample:cosim_sample",
+         "@corearchcoverage//arch/sample:archsample",
+         "@corearchcoverage//arch/common:points",
+         "@bazel_tools//tools/cpp/runfiles",
+         "//cosim/bridge_if:bridge_if",
+         "//cosim/vpi:vpi_user",
+         "//common:common",
+         "@cvm//:plusargs",
+         "@cvm//:logger",     
+    ],
+    alwayslink = True,
+    strip_include_prefix = ".",
+    visibility = ["//visibility:public"],
+)
+
+verilog_library(
+    name = "archsample_sv",
+    srcs = ["arch_sample.sv"],
+    deps = [ "@corearchcoverage//covergroups:cov_model",
+            "@cvm//:plusargs_sv",
+    ],
+    visibility = ["//visibility:public"],
+)

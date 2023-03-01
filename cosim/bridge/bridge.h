@@ -8,6 +8,7 @@
 #include "memmap.h"
 #include "cvm/logger.hpp"
 #include "src/cacCore.h"
+#include "arch_sample.h"        // ArchSample
 
 #include "whisper_client_socket.h"
 #include "whisper_client_shm.h"
@@ -107,6 +108,7 @@ private:
   int xlen_ = 0;
   int vlen_ = 0;
   CacCore cac_;
+  ArchSample archcov;
 
   // Create a copy of whisper instr in similar format as dut
   rv_instr_t w_;
