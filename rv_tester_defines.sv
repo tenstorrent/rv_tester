@@ -117,6 +117,7 @@
     logic                      reset    ;                                      \
     bootstrap_t                bootstrap;                                      \
     rv_tester_pkg::interrupt_t interrupt;                                      \
+    rv_tester_pkg::dm_write_t  dmi_write;                                      \
     logic                      debug_mode;                                     \
     logic                      terminate;                                      \
                                                                                \
