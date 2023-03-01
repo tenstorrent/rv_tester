@@ -37,6 +37,7 @@ DEFINE_bool(translation_check, false, "Do VA-PA translation check");
 DEFINE_bool(emulate_debug_mode, false, "Emulate debug mode by forcing whisper to be in sync with DUT");
 DEFINE_string(whisper_client, "socket", "Select whisper client to communicate - socket, or shm (shared mem)");
 DEFINE_int32(whisper_connect_timeout_ms, 10000, "Set whisper connect timeout in milliseconds");
+DEFINE_bool(cov, false, "Enable Arch coverage");
 
 // Constructor
 bridge::bridge(int num_harts, int xlen, int vlen)
@@ -44,7 +45,8 @@ bridge::bridge(int num_harts, int xlen, int vlen)
     num_harts_(num_harts),
     xlen_(xlen),
     vlen_(vlen),
-    cac_(CacCore(num_harts))    
+    cac_(CacCore(num_harts)),
+    archcov(ArchSample(num_harts))    
 {
 }
 
@@ -213,7 +215,11 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   // TLB checks 
   translation_check(hart, d, w);
-  
+
+  // coverage
+  if (FLAGS_cov){ 
+    archcov.coverage_sample(hart, (cac_.getStep(hart)-1), w); 
+  }
 }
 
 void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
