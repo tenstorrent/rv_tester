@@ -109,13 +109,13 @@ module sysmod #(
       dm_wdata = {upper_value,lower_value};
     endfunction
     export "DPI-C"  function sysmod_dmi_write;   
-    `ifndef VERILATOR
     always @(posedge clk) begin
         interrupt_q = interrupt_d;
         if (reset) begin
             interrupt_d = '0;
             dmi_write   = '0;
         end
+    `ifndef VERILATOR
         else if(dmi_write_end)begin
             dmi_write.dm_wdata = '0;
             dmi_write.dm_wvalid = '0;
@@ -130,7 +130,7 @@ module sysmod #(
             $display("\n[SYSMOD] trickbox DMI Assert write : %d time: %t\ n",dmi_write.dm_wdata,$time);
         end
 
-    end
     `endif
+    end
 
 endmodule
