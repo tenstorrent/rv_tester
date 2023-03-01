@@ -64,6 +64,7 @@ module rv_tester #(
         .reset(sysmod_reset),
         .clocks,
         .bootstrap,
+        .dmi_write,
         .interrupt,
         .terminate
     );

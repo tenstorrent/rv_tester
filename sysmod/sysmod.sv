@@ -22,6 +22,7 @@ module sysmod #(
      
     bit dmi_write_begin = '0;
     bit dmi_write_end = '0;
+    bit [63:0] dm_wdata = '0;
 
     always @(posedge clk) begin
         if (reset) begin
@@ -103,8 +104,8 @@ module sysmod #(
     
     function sysmod_dmi_write (int unsigned hartid, int unsigned upper_value,int unsigned lower_value);
       $display("\n[SYSMOD] trickbox DMI write upper value: %d lower value: %d\n",upper_value,lower_value);
-      dmi_write_begin <= '1;
-      dmi_write.dm_wdata <= {upper_value,lower_value};
+      dmi_write_begin = '1;
+      dm_wdata = {upper_value,lower_value};
     endfunction
     export "DPI-C"  function sysmod_dmi_write;   
 
@@ -114,18 +115,17 @@ module sysmod #(
             interrupt_d <= '0;
             dmi_write   <= '0;
         end
-
-        if(dmi_write_end)begin
-            dmi_write.dm_wdata = '0;
-            dmi_write.dm_wvalid = '0;
-            dmi_write_begin = '0;
-            dmi_write_end = '0;
+        else if(dmi_write_end)begin
+            dmi_write.dm_wdata <= '0;
+            dmi_write.dm_wvalid <= '0;
+            dmi_write_begin <= '0;
+            dmi_write_end <= '0;
             $display("\n[SYSMOD] trickbox DMI Deassert write : %d time: %t\ n",dmi_write.dm_wdata,$time);
         end
-
-        if(dmi_write_begin)begin
-            dmi_write.dm_wvalid = '1;
-            dmi_write_end ='1; 
+        else if(dmi_write_begin)begin
+            dmi_write.dm_wvalid <= '1;
+            dmi_write.dm_wdata <= dm_wdata;
+            dmi_write_end <='1; 
             $display("\n[SYSMOD] trickbox DMI Assert write : %d time: %t\ n",dmi_write.dm_wdata,$time);
         end
 

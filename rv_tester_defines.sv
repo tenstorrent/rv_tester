@@ -102,6 +102,7 @@
     input                             reset    ,                               \
     input  bootstrap_t                bootstrap,                               \
     input  rv_tester_pkg::interrupt_t interrupt,                               \
+    input  rv_tester_pkg::dm_write_t  dmi_write,                               \
     output                            debug_mode,                              \
     input                             terminate,                               \
                                                                                \
