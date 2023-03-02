@@ -3,9 +3,8 @@ load("@rules_hdl//verilog:providers.bzl", "verilog_library")
 
 verilog_library(
     name = "pkg",
-    srcs = [
-        "rv_tester_pkg.sv",
-    ],
+    srcs = ["rv_tester_pkg.sv"],
+    visibility = ["//visibility:public"],
 )
 
 verilog_library(
@@ -13,9 +12,7 @@ verilog_library(
     srcs = [
         "rv_tester_defines.sv",
     ],
-    deps = [
-        "pkg",
-    ],
+    deps = ["pkg"],
     visibility = ["//visibility:public"],
 )
 
@@ -41,6 +38,14 @@ config_setting(
     flag_values = {
       ":cosim" : "False",
     }
+)
+
+filegroup(
+    name = "rv_tester_topology",
+    srcs = [
+      "rv_tester_topology.yml",
+    ],
+    visibility = ["//visibility:public"],
 )
 
 exports_files(["rv_tester.cpp", "rv_tester.sv", "rv_tester_clkgen.sv"])

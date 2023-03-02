@@ -3,9 +3,8 @@ module rv_tester #(
     parameter bit EXTERNAL_CLOCK            =       0,
     parameter int CLOCK_PERIOD_PS           =     500,
     parameter int SW_CLOCK_UPDATE_PERIOD_PS = 100_000,
-    rv_tester_pkg::cfg_t CFG                =      '0,
-    `RV_TESTER_PARAMETERS(CFG),
-    `TOPOLOGY
+    `TOPOLOGY,
+    `RV_TESTER_PARAMETERS(topology)
 ) (
     input clk_ext,
     `_RV_TESTER_PORTS(output,input)
@@ -55,10 +54,8 @@ module rv_tester #(
     sysmod#(
         .CLOCK_PERIOD_PS(CLOCK_PERIOD_PS),
         .SW_CLOCK_UPDATE_PERIOD_PS(SW_CLOCK_UPDATE_PERIOD_PS),
-        .CFG(CFG),
         .NUM(0),
-        .TOPOLOGY(TOPOLOGY),
-        .topology(topology)
+        `TOPOLOGY_CFG
     ) sysmod (
         .clk,
         .reset(sysmod_reset),
@@ -78,10 +75,8 @@ module rv_tester #(
     
 `ifndef NO_COSIM
     cosim #(
-        .CFG(CFG),
         .NUM(0),
-        .TOPOLOGY(TOPOLOGY),
-        .topology(topology)
+        `TOPOLOGY_CFG
     ) cosim (
         .clk,
         .reset(sysmod_reset),
@@ -93,11 +88,11 @@ module rv_tester #(
     );
 `endif
 
-    for (genvar p = 0; p < CFG.AXI_PORTS; p++) begin
+    for (genvar p = 0; p < topology.CORE.AXI_PORTS; p++) begin
         axi_sw #(
-            .ADDR_WIDTH(CFG.AXI_ADDR_WIDTH),
-            .DATA_WIDTH(CFG.AXI_DATA_WIDTH),
-            .ID_WIDTH  (CFG.AXI_ID_WIDTH  ),
+            .ADDR_WIDTH(topology.CORE.AXI_ADDR_WIDTH),
+            .DATA_WIDTH(topology.CORE.AXI_DATA_WIDTH),
+            .ID_WIDTH  (topology.CORE.AXI_ID_WIDTH  ),
             .SYSMOD_NUM(0)
         ) axi_sw(
             .clk,
