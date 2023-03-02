@@ -83,16 +83,6 @@ module cosim #(
     assign tx_dom_1.m_debugs[0].data.enter = debug_mode;
     assign tx_dom_1.m_debugs[0].data.exit = ~debug_mode;
 
-    // FIXME derive transactions depth from NRET
-    for (genvar n = topology.CORE.NRET; n < 8; n++) begin
-        assign tx_dom_1.m_rvfis[n].valid = '0;
-        assign tx_dom_1.m_traps[n].valid = '0;
-    end
-
-    if (topology.CORE.NRET > 8) begin
-        $error("NRET %d exceeds transactions.yml depth 8", topology.CORE.NRET);
-    end
-
     // m_intr
     assign tx_dom_1.m_intrs[0].valid = ~reset & 1'b0;
     assign tx_dom_1.m_intrs[0].data.location = location;

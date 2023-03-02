@@ -4,8 +4,8 @@ msg:
             width: 32
 
 m_rvfi:
-    domain: 1 
-    num: 8
+    domain: 1
+    num: ${core.NRET}
     fields:
         cycle:
             width: 64
@@ -46,7 +46,7 @@ m_rvfi:
 
 m_mcmi_store:
     domain: 1 
-    num: 2
+    num: ${core.STQ_PORTS}
     fields:
         cycle:
             width: 64
@@ -61,7 +61,7 @@ m_mcmi_store:
 
 m_trap:
     domain: 1
-    num: 8
+    num: ${core.NRET}
     fields:
         cycle:
             width: 64
