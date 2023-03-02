@@ -11,7 +11,7 @@ def rv_tester_repositories():
         "https://mirror.bazel.build/github.com/bazelbuild/bazel-skylib/releases/download/1.2.0/bazel-skylib-1.2.0.tar.gz",
         "https://github.com/bazelbuild/bazel-skylib/releases/download/1.2.0/bazel-skylib-1.2.0.tar.gz",
         ],
-        sha256 = "af87959afe497dc8dfd4c6cb66e1279cb98ccc84284619ebfec27d9c09a903de",
+        #sha256 = "af87959afe497dc8dfd4c6cb66e1279cb98ccc84284619ebfec27d9c09a903de",
     )
 
     rules_hdl_hash="03472b2c6bf723c999c4d584359fadbeb76161fe"
@@ -31,7 +31,7 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:manees/cosim.git",
     )
     
-    core_arch_coverage_hash="71d5d6b94c71724f5c7fa9584285a0ff59476668"
+    core_arch_coverage_hash="dd954c9c0456878c91bfe6985b3470d7deed14f8"
     maybe(
         git_repository,
         name = "corearchcoverage",
