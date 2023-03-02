@@ -1,10 +1,10 @@
-`define RV_TESTER_PARAMETERS(CFG)                                              \
+`define RV_TESTER_PARAMETERS(topology)                                         \
                                                                                \
-    parameter int unsigned AXI_STRB_WIDTH = CFG.AXI_DATA_WIDTH / 8,            \
+    parameter int unsigned AXI_STRB_WIDTH = topology.CORE.AXI_DATA_WIDTH / 8,  \
                                                                                \
-    parameter type axi_addr_t   = logic [CFG.AXI_ADDR_WIDTH-1:0],              \
-    parameter type axi_data_t   = logic [CFG.AXI_DATA_WIDTH-1:0],              \
-    parameter type axi_id_t     = logic [CFG.AXI_ID_WIDTH  -1:0],              \
+    parameter type axi_addr_t   = logic [topology.CORE.AXI_ADDR_WIDTH-1:0],    \
+    parameter type axi_data_t   = logic [topology.CORE.AXI_DATA_WIDTH-1:0],    \
+    parameter type axi_id_t     = logic [topology.CORE.AXI_ID_WIDTH  -1:0],    \
     parameter type axi_strb_t   = logic [    AXI_STRB_WIDTH-1:0],              \
                                                                                \
     parameter type axi_atop_t   = logic [5:0],                                 \
@@ -14,43 +14,43 @@
     parameter type axi_size_t   = logic [2:0],                                 \
                                                                                \
     parameter type bootstrap_t = struct packed {                               \
-        logic  [CFG.VLEN-1:0] boot_addr;                                       \
+        logic  [topology.CORE.VLEN-1:0] boot_addr;                             \
     },                                                                         \
                                                                                \
     parameter type rvfi_t   = struct packed {                                  \
         logic                       valid    ;                                 \
         logic [64-1:0]              order    ;                                 \
-        logic [CFG.ILEN-1:0]        insn     ;                                 \
+        logic [topology.CORE.ILEN-1:0]        insn     ;                       \
         logic                       trap     ;                                 \
-        logic [CFG.XLEN-1:0]        cause    ;                                 \
+        logic [topology.CORE.XLEN-1:0]        cause    ;                       \
         logic                       halt     ;                                 \
         logic                       intr     ;                                 \
         logic [2-1:0]               mode     ;                                 \
         logic [2-1:0]               ixl      ;                                 \
         logic [5-1:0]               rs1_addr ;                                 \
         logic [5-1:0]               rs2_addr ;                                 \
-        logic [CFG.XLEN-1:0]        rs1_rdata;                                 \
-        logic [CFG.XLEN-1:0]        rs2_rdata;                                 \
+        logic [topology.CORE.XLEN-1:0]        rs1_rdata;                       \
+        logic [topology.CORE.XLEN-1:0]        rs2_rdata;                       \
         logic [5-1:0]               rd_addr  ;                                 \
-        logic [CFG.XLEN-1:0]        rd_wdata ;                                 \
+        logic [topology.CORE.XLEN-1:0]        rd_wdata ;                       \
                                                                                \
-        logic [CFG.XLEN-1:0]        pc_rdata ;                                 \
-        logic [CFG.XLEN-1:0]        pc_wdata ;                                 \
+        logic [topology.CORE.XLEN-1:0]        pc_rdata ;                       \
+        logic [topology.CORE.XLEN-1:0]        pc_wdata ;                       \
                                                                                \
-        logic [CFG.XLEN-1:0]        mem_addr ;                                 \
-        logic [CFG.XLEN-1:0]        mem_paddr;                                 \
-        logic [(CFG.XLEN/8)-1:0]    mem_rmask;                                 \
-        logic [(CFG.XLEN/8)-1:0]    mem_wmask;                                 \
-        logic [CFG.XLEN-1:0]        mem_rdata;                                 \
-        logic [CFG.XLEN-1:0]        mem_wdata;                                 \
+        logic [topology.CORE.XLEN-1:0]        mem_addr ;                       \
+        logic [topology.CORE.XLEN-1:0]        mem_paddr;                       \
+        logic [(topology.CORE.XLEN/8)-1:0]    mem_rmask;                       \
+        logic [(topology.CORE.XLEN/8)-1:0]    mem_wmask;                       \
+        logic [topology.CORE.XLEN-1:0]        mem_rdata;                       \
+        logic [topology.CORE.XLEN-1:0]        mem_wdata;                       \
     },                                                                         \
                                                                                \
     parameter type mcmi_t    = struct packed {                                 \
         logic                       valid;                                     \
         logic [64-1:0]              order;                                     \
-        logic [CFG.PA_WIDTH-1:0]    addr ;                                     \
+        logic [topology.CORE.PA_WIDTH-1:0]    addr ;                           \
         logic [8-1:0]               size ;                                     \
-        logic [CFG.XLEN-1:0]        data ;                                     \
+        logic [topology.CORE.XLEN-1:0]        data ;                           \
         logic                       data_src;                                  \
     },                                                                         \
                                                                                \
@@ -106,13 +106,13 @@
     output                            debug_mode,                              \
     input                             terminate,                               \
                                                                                \
-    output rvfi_t      rvfi_instr   [CFG.NRET],                                \
-    output mcmi_t      mcmi_store   [CFG.STQ_PORTS],                           \
-    output axi_req_t   axi_req      [CFG.AXI_PORTS],                           \
-    input  axi_rsp_t   axi_rsp      [CFG.AXI_PORTS]
+    output rvfi_t      rvfi_instr   [topology.CORE.NRET],                      \
+    output mcmi_t      mcmi_store   [topology.CORE.STQ_PORTS],                 \
+    output axi_req_t   axi_req      [topology.CORE.AXI_PORTS],                 \
+    input  axi_rsp_t   axi_rsp      [topology.CORE.AXI_PORTS]
 
 
-`define RV_TESTER_VARS(CFG)                                                    \
+`define RV_TESTER_VARS(topology)                                               \
     logic                      clk      ;                                      \
     logic                      reset    ;                                      \
     bootstrap_t                bootstrap;                                      \
@@ -121,9 +121,9 @@
     logic                      debug_mode;                                     \
     logic                      terminate;                                      \
                                                                                \
-    rvfi_t      rvfi_instr   [CFG.NRET];                                       \
-    mcmi_t      mcmi_store   [CFG.STQ_PORTS];                                  \
-    axi_req_t   axi_req      [CFG.AXI_PORTS];                                  \
-    axi_rsp_t   axi_rsp      [CFG.AXI_PORTS];
+    rvfi_t      rvfi_instr   [topology.CORE.NRET];                             \
+    mcmi_t      mcmi_store   [topology.CORE.STQ_PORTS];                        \
+    axi_req_t   axi_req      [topology.CORE.AXI_PORTS];                        \
+    axi_rsp_t   axi_rsp      [topology.CORE.AXI_PORTS];
 
 `define RV_TESTER_PORTS `_RV_TESTER_PORTS(input,output)

@@ -1,10 +1,9 @@
 module sysmod #(
     parameter int CLOCK_PERIOD_PS           =     500,
     parameter int SW_CLOCK_UPDATE_PERIOD_PS = 100_000,
-    rv_tester_pkg::cfg_t CFG                =      '0,
     parameter int  NUM                      =      -1,
-    `RV_TESTER_PARAMETERS(CFG),
-    `TOPOLOGY
+    `TOPOLOGY,
+    `RV_TESTER_PARAMETERS(topology)
 )(
     input clk,
     input reset,
@@ -14,11 +13,11 @@ module sysmod #(
     output rv_tester_pkg::dm_write_t  dmi_write,
     output terminate
 );
-    import "DPI-C" context function void sysmod_set_scope(int unsigned loc);
-    import "DPI-C" function void sysmod_tick(int unsigned loc, longint unsigned advance);
+    import "DPI-C" context function void sysmod_set_scope(int unsigned location);
+    import "DPI-C" function void sysmod_tick(int unsigned location, longint unsigned advance);
 
     typedef longint unsigned LU;
-    int unsigned loc = cvm_topology::nil;
+    int unsigned location = cvm_topology::nil;
      
     /* verilator lint_off BLKANDNBLK */
     bit dmi_write_begin = '0;
@@ -30,8 +29,8 @@ module sysmod #(
     always @(posedge clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */
-            loc = cvm_topology::get_location(topology.PLATFORM, 0);
-            sysmod_set_scope(loc);
+            location = cvm_topology::get_location(topology.PLATFORM.id, 0);
+            sysmod_set_scope(location);
             /* verilator lint_on BLKSEQ */
         end
     end
@@ -74,8 +73,8 @@ module sysmod #(
     localparam longint unsigned TICKS = LU'(SW_CLOCK_UPDATE_PERIOD_PS)/LU'(CLOCK_PERIOD_PS);
     always @(posedge clk) begin
         if (0 == (clocks % TICKS)) begin
-            if (loc != cvm_topology::nil) begin
-              sysmod_tick(loc, TICKS);
+            if (location != cvm_topology::nil) begin
+              sysmod_tick(location, TICKS);
             end
         end
     end

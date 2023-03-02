@@ -3,12 +3,11 @@ load("@rv_tester//cosim:cosim.bzl", "cosim_gen")
 
 def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
 
-    prefix = "rv_tester"
     rv_tester_dpi = name + "_dpi"
     rv_tester_sv = name + "_sv"
 
     cosim_gen(
-        name = prefix + "_cosim",
+        name = name + "_cosim",
         topology = topology,
         cc_attrs = cc_attrs,
     )
@@ -27,7 +26,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             topology + "_sv",
         ] + select({
           "@rv_tester//:cosim_off": ["@rv_tester//:no_cosim"],
-          "//conditions:default":   [prefix + "_cosim_sv"],
+          "//conditions:default":   [name + "_cosim_sv"],
         }),
         visibility = visibility,
     )
@@ -45,7 +44,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             topology + "_cc",
         ] + select({
           "@rv_tester//:cosim_off": [],
-          "//conditions:default":   [prefix + "_cosim_dpi"],
+          "//conditions:default":   [name + "_cosim_dpi"],
         }),
         alwayslink = True,
         visibility = visibility,

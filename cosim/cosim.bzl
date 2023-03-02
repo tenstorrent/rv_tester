@@ -3,19 +3,19 @@ load("@cvm//:defs.bzl", "packet_gen")
 
 def cosim_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
 
-    prefix = "cosim"
     cosim_dpi = name + "_dpi"
     cosim_sv = name + "_sv"
 
     packet_gen(
-        name = prefix + "_transactions",
+        name = name + "_transactions",
         src = "@rv_tester//cosim/transactions:transactions.yml",
+        package = "cosim_transactions",
         topology = topology,
         cc_attrs = cc_attrs,
     )
 
     native.cc_library(
-        name = prefix + "_rvfi",
+        name = name + "_rvfi",
         srcs = [
             "@rv_tester//cosim/dut_if/rvfi:rvfi.cpp",
             "@rv_tester//cosim/utils/eot:eot.cpp",
@@ -25,7 +25,7 @@ def cosim_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             "@rv_tester//cosim/utils/eot:eot.h",
         ],
         deps = [
-                "cosim_transactions_cc",
+                name + "_transactions_cc",
                 "@rv_tester//sysmod/htif:htif",
                 "@rv_tester//cosim/bridge_if:bridge_if",
                 "@rv_tester//cosim/bridge:bridge",
@@ -46,7 +46,7 @@ def cosim_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
                 "@rv_tester//:defines",
                 "@cvm//:plusargs_sv",
                 "@cvm//:topology_sv",
-                "cosim_transactions_sv",
+                name + "_transactions_sv",
                ],
         visibility = visibility,
     )
@@ -54,9 +54,9 @@ def cosim_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
     native.cc_library(
         name = cosim_dpi,
         deps = [
-                prefix + "_rvfi",
+                name + "_rvfi",
                 "@cvm//:plusargs",
-                "cosim_transactions_cc"
+                name + "_transactions_cc"
                ],
         alwayslink = True,
         visibility = visibility,

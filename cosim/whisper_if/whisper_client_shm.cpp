@@ -61,9 +61,11 @@ whisperClientShm::whisperDisconnect()
   if (fd > 0) {
     close(fd);
   }
+
   if (shm) {
     munmap(shm, 4096);
   }
+
   if (shm_unlink(path.c_str()) < 0) {
     std::cerr << "Failed shm unlink\n";
   }
