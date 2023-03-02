@@ -31,7 +31,7 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:manees/cosim.git",
     )
     
-    core_arch_coverage_hash="48c4e2999ae6cf02da763e8f8bd90f86dc715bd8"
+    core_arch_coverage_hash="71d5d6b94c71724f5c7fa9584285a0ff59476668"
     maybe(
         git_repository,
         name = "corearchcoverage",
