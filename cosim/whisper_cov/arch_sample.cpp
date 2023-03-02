@@ -12,12 +12,7 @@
 
 using namespace WdRiscv;
 
-typedef struct  {
-  uint64_t cp;
-  uint64_t val;
-} cp_pkt;
-
-extern "C" void cov_sample(const cp_pkt*);
+extern "C" void cov_sample(uint64_t cp, uint64_t val);
 
 // Constructor
 ArchSample::ArchSample(int num_harts) : log("cov.log"), scope_(nullptr) {
@@ -54,10 +49,7 @@ void ArchSample::coverage_sample(int hart, int step, const whisper_state_t& w) {
         }
 
       log(cvm::HIGH, "coverpoint : {}, value : {}\n", entry.first, entry.second);
-      cp_pkt pkt;
-      pkt.cp = entry.first;
-      pkt.val = entry.second; 
-      cov_sample(&pkt);
+      cov_sample(entry.first, entry.second);
       }
     }
    }

@@ -19,8 +19,6 @@ module arch_sample#(
   //cg_pagingmode               cg0_paging = new();
   cg_fpaginglevel             cg1_paging = new();
   cg_dpaginglevel             cg2_paging = new();
-
-  export "DPI-C" function cov_sample;
 `endif 
 
     always @(posedge clk) begin
@@ -29,19 +27,24 @@ module arch_sample#(
         end
     end
 
+  function void cov_sample(
+      longint unsigned cp,
+      longint unsigned val
+  );
 `ifndef COVERAGE_UNSUPPORTED
-  function void cov_sample(input cp_pkt pkt);
-    case($unsigned(pkt.cp))
+    case($unsigned(cp))
       POINT_FPAGINGLEVEL : begin
-        $cast(fpaginglevel_var,  pkt.val);
+        $cast(fpaginglevel_var,  val);
         cg1_paging.sample(fpaginglevel_var);
       end
       POINT_DPAGINGLEVEL : begin
-        $cast(dpaginglevel_var,  pkt.val);
+        $cast(dpaginglevel_var,  val);
         cg2_paging.sample(dpaginglevel_var); 
       end
     endcase 
-  endfunction  
 `endif
+  endfunction  
+
+  export "DPI-C" function cov_sample;
 
 endmodule

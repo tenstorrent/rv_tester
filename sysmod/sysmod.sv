@@ -20,10 +20,12 @@ module sysmod #(
     typedef longint unsigned LU;
     int unsigned loc = cvm_topology::nil;
      
+    /* verilator lint_off BLKANDNBLK */
     bit dmi_write_begin = '0;
     bit dmi_write_begin_d = '0;
     bit dmi_write_end = '0;
     bit [63:0] dm_wdata = '0;
+    /* verilator lint_on BLKANDNBLK */
 
     always @(posedge clk) begin
         if (reset) begin
@@ -109,28 +111,27 @@ module sysmod #(
       dm_wdata = {upper_value,lower_value};
     endfunction
     export "DPI-C"  function sysmod_dmi_write;   
+
     always @(posedge clk) begin
-        interrupt_q = interrupt_d;
+        interrupt_q <= interrupt_d;
         if (reset) begin
-            interrupt_d = '0;
-            dmi_write   = '0;
+            interrupt_d <= '0;
+            dmi_write   <= '0;
         end
-    `ifndef VERILATOR
         else if(dmi_write_end)begin
-            dmi_write.dm_wdata = '0;
-            dmi_write.dm_wvalid = '0;
-            dmi_write_begin = '0;
-            dmi_write_end = '0;
+            dmi_write.dm_wdata <= '0;
+            dmi_write.dm_wvalid <= '0;
+            dmi_write_begin <= '0;
+            dmi_write_end <= '0;
             $display("\n[SYSMOD] trickbox DMI Deassert write : %d time: %t\ n",dmi_write.dm_wdata,$time);
         end
         else if(dmi_write_begin)begin
-            dmi_write.dm_wvalid = '1;
-            dmi_write.dm_wdata = dm_wdata;
-            dmi_write_end ='1; 
+            dmi_write.dm_wvalid <= '1;
+            dmi_write.dm_wdata <= dm_wdata;
+            dmi_write_end <='1; 
             $display("\n[SYSMOD] trickbox DMI Assert write : %d time: %t\ n",dmi_write.dm_wdata,$time);
         end
 
-    `endif
     end
 
 endmodule
