@@ -4,12 +4,13 @@ module rv_tester_clkgen #(
     output logic clk
 );
 
-    initial begin
-        `ifdef IXCOM_COMPILE
-            $ixc_ctrl("map_delays");
-        `endif
-        clk = '0;
-        forever  #(CLOCK_PERIOD_PS*1ps/2) clk = ~clk;
-    end
+    `ifdef IXCOM_COMPILE
+        IXCclkgen #(CLOCK_PERIOD_PS/2) uclk (clk);
+    `else
+        initial begin
+            clk = '0;
+            forever  #(CLOCK_PERIOD_PS*1ps/2) clk = ~clk;
+        end
+    `endif
 
 endmodule
