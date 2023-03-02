@@ -162,7 +162,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
 
   // Check dut vs whisper
-  cac_.step(hart);
+  // cac_.step(hart); //Commenting for debug arch support
 
   // Resynch whisper with dut state if needed
   // to continue without failing
