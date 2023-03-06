@@ -16,6 +16,7 @@
 // internal flags
 DEFINE_string(hex, "", "hex file (program) to load into memory");
 DEFINE_string(load, "", "elf file (program) to load into memory");
+DEFINE_string(load_io, "", "load specified io dev with content from memory");
 
 REGISTRY_register(sysmod, platform, 0);
 
@@ -107,6 +108,7 @@ void
 sysmod::reset() {
   compose();
   load_prog(FLAGS_hex, FLAGS_load);
+  load_io(FLAGS_load_io);
 }
 
 void
@@ -187,6 +189,33 @@ sysmod::dev(const std::string& tag)
   }
   std::cerr << "bus error: tag not mapped: " << tag << '\n';
   assert(false);
+}
+
+void
+sysmod::load_io(const std::string& io)
+{
+  if (io == "")
+    return;
+
+  std::stringstream ss(io);
+  while(ss.good()) {
+    std::string io_str;
+    std::getline(ss, io_str, ',' );
+    std::size_t pos = io_str.find(':');
+    if (pos != std::string::npos) {
+      std::string tag = io_str.substr(0, pos);
+      std::string offset_str = io_str.substr(pos + 1);
+      uint64_t offset = std::stoul(offset_str, nullptr, 16);
+
+      device::data_t data(8);
+      device::strb_t strb(8);
+      for (size_t i = 0; i < 8; i++) strb[i] = true;
+
+      // Read from memory and write to requested dev tag
+      dev("memory").backdoor_read(dev(tag).addr()+offset, 8, data);
+      dev(tag).write(dev(tag).addr()+offset, 8, data, strb);
+    }
+  }
 }
 
 void

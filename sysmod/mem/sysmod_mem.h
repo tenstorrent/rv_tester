@@ -17,6 +17,8 @@ class sysmod_mem : public device {
         virtual void read(uint64_t addr, size_t length,
                           data_t& data) override;
 
+        virtual void backdoor_read(uint64_t addr, size_t length, data_t& data) override;
+
         // add max mem size
         sysmod_mem(const std::string& tag, uint64_t addr, size_t size)
                     : device(tag, addr, size, cvm::topology::null) {}

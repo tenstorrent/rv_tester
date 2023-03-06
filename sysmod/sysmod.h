@@ -38,6 +38,7 @@ class sysmod {
     void tick(uint64_t advance);
     void compose();
     void load_prog(const std::string& hex, const std::string& load);
+    void load_io(const std::string& io);
 
   protected:
 

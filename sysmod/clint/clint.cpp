@@ -75,6 +75,7 @@ void
 clint::write(uint64_t addr, size_t length, const data_t& data,
 		 const strb_t& strb)
 {
+
   if (not has_addr(addr))
     return;
 
