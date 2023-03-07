@@ -23,6 +23,8 @@
 DECLARE_int32(intr_delay_min);//, 4, "Minimum Delay between 2 consecutive interrupts");
 DECLARE_int32(intr_delay_max);//, 7, "Maximum Delay between 2 consecutive interrupts");
 DECLARE_bool(random_intr);//, false, "Drive random interrups");
+DECLARE_int32(max_simul_intr ); 
+DECLARE_int32(tbox_start_delay); 
 // Define a core local interruptor (interrupter) at the given address
 // and for the given hart count. The size will be 48k bytes.
 class interrupter : public device
@@ -90,9 +92,11 @@ public:
          rand_num = (rng() % ( FLAGS_intr_delay_max - FLAGS_intr_delay_min + 1)) + FLAGS_intr_delay_min;
       }
       timer_ = 0;
-      timer_rand_intr = timer_ +(rand_num*timer_advance);
+      
+      timer_rand_intr = timer_ + FLAGS_tbox_start_delay +(rand_num*timer_advance);
 
     }
+
   }
 
   struct interrupt_t {
@@ -123,8 +127,31 @@ protected:
     //RANDOM INTR
     if(FLAGS_random_intr){
       if(timer_ >= timer_rand_intr){
-         unsigned rand_intr = 1 << rng(5); //select random pin between 0 to 5
-         std::cout<<"[TRICKBOX]: Drive random interrupts "<<rand_intr<<"\n";
+         unsigned rand_intr = 0;//1 << rng(5); //select random pin between 0 to 5
+         unsigned iter = 1;
+         unsigned values[FLAGS_max_simul_intr] = {};
+         if( (FLAGS_max_simul_intr >1 ) && (FLAGS_max_simul_intr < (numInterrupts_ +1))){
+           iter = (rng() % (FLAGS_max_simul_intr +1 )) + 1 ; //gen iter between 1 to max simul instr
+         } 
+         
+         //std::cout<<"[TRICKBOX]: iteration interrupts "<<iter<<"\n";
+         for (int i = 0; i < iter; ++i) {
+           values[i] = rng() % (numInterrupts_) ;
+           for (int j = 0; j < i; ++j) {
+               if (values[i] == values[j]) {
+                i--;
+                 break;
+                }
+            }
+          
+          rand_intr =  rand_intr |(1<<values[i]);
+
+         //std::cout<<"[TRICKBOX]: UNIQRAND random interrupts "<< values[i]<<" rand intr :"<<std::hex<<rand_intr<<"\n";
+         }
+
+
+         
+         //std::cout<<"[TRICKBOX]: Drive random interrupts "<<rand_intr<<"\n";
          cvm::registry::messenger.signal(loc(), interrupt_t{0, rand_intr, rand_intr});
          uint32_t rand_num =  (rng() % ( FLAGS_intr_delay_max - FLAGS_intr_delay_min + 1)) + FLAGS_intr_delay_min;
          timer_rand_intr = timer_ +(rand_num*timer_advance);
