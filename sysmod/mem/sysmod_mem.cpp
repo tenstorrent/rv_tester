@@ -23,6 +23,12 @@ void sysmod_mem::read(uint64_t addr, size_t length, data_t& data) {
   return;
 }
 
+void sysmod_mem::backdoor_read(uint64_t addr, size_t length, data_t& data) {
+  m_.read(addr, length, data.data());
+
+  return;
+}
+
 bool sysmod_mem::init_hex(const std::string& path) {
     try {
         m_.load_verilog_hex(path);
