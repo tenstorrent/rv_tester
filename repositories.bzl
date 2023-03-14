@@ -92,11 +92,11 @@ cc_library(
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/forks/rules_python/-/archive/{VERSION}/rules_python-{VERSION}.tar.bz2".format(VERSION=rules_python_version)
     )
 
-    mem_manager_hash="5352b31b63cdea84827d39cf0a1f42bfb56bac92"
+    mem_manager_hash="74b08eb05d153e792d48841f0509965ea566e9ea"
     maybe(
         http_archive,
         name = "mem_manager",
-        sha256 = "7338feab848772b5b02271e0d7a666d150302fa01c3b7dba600259d9be3c61e7",
+        sha256 = "ef31c29408f30b2163e96e7d7978cd9fd9226e4d569d344367a85047a7c5769e",
         strip_prefix = "mem-manager-{commit}".format(commit=mem_manager_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/mem-manager/-/archive/{commit}/mem-manager-{commit}.tar.bz2".format(commit=mem_manager_hash),
     )
