@@ -29,12 +29,14 @@ DEFINE_string(cosim_resynch_instr, "", "List of instruction mnemonics to resynch
 DEFINE_bool(lrsc_resynch, false, "Resynch whisper with dut state on LRSC fail condition");
 DEFINE_bool(retire_ucode_trap, true, "DUT indicates retire on a trap after executing the ucode trap handler");
 DEFINE_bool(mcm, false, "Enable memory consistency checker");
-DEFINE_int32(max_instr, 100000000, "Max instruction limit to terminate the sim");
-DEFINE_int32(max_cycle, 1000000000, "Max cycle limit to terminate the sim");
+DEFINE_int32(max_instr, 100000, "Max instruction limit to terminate the sim");
+DEFINE_int32(max_cycle, 1000000, "Max cycle limit to terminate the sim");
 DEFINE_int32(debug_excp_mcause, 24, "MCAUSE value for debug exception");
 DEFINE_int32(max_stall_cycle, 50000, "Max stall cycle limit to terminate the sim");
 DEFINE_bool(translation_check, false, "Do VA-PA translation check");
 DEFINE_bool(emulate_debug_mode, false, "Emulate debug mode by forcing whisper to be in sync with DUT");
+DEFINE_bool(whisper_stdin_null, false, "Redirect whisoer stdin to null");
+DEFINE_bool(whisper_stdout_null, false, "Redirect whisoer stdout to null");
 DEFINE_string(whisper_client, "socket", "Select whisper client to communicate - socket, or shm (shared mem)");
 DEFINE_int32(whisper_connect_timeout_ms, 10000, "Set whisper connect timeout in milliseconds");
 DEFINE_bool(cov, false, "Enable Arch coverage");
@@ -119,13 +121,14 @@ std::string bridge::get_whisper_cmd() {
   std::string trace = " --traceload --traceptw";
   std::string out_log = " --logfile iss_cosim.log";
   std::string cmd_log = " --commandlog iss_cmd.log";
-  std::string nostdout = " --stdout /dev/null";
+  std::string std_out = FLAGS_whisper_stdout_null ? " --stdout /dev/null" : "";
+  std::string std_in = FLAGS_whisper_stdin_null ? " --stdin /dev/null" : "";
   std::string client = (FLAGS_whisper_client == "shm") ? " --shm" : "";
   std::string mcm = FLAGS_mcm ? " --mcm --mcmls 64" : "";
   std::string test = (FLAGS_load != "") ? FLAGS_load : ("--hex " + FLAGS_hex);
 
   std::string cmd = FLAGS_whisper_path + " " + test + " " + FLAGS_bootrom_path +
-    harts + config + trace + out_log + cmd_log + nostdout + client + " --raw --server whisper_connect &";
+    harts + config + trace + out_log + cmd_log + std_out + std_in + client + " --raw --server whisper_connect &";
 
   return cmd;
 }
