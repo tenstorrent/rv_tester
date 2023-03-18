@@ -23,8 +23,8 @@ module cosim #(
             /* verilator lint_off BLKSEQ */
             location = cvm_topology::get_location(topology.PLATFORM.id, 0);
             rvfi_enabled = cvm_plusargs::get_bool("rvfi") != '0;
-            /* verilator lint_on BLKSEQ */
             instr_retired = 0;
+            /* verilator lint_on BLKSEQ */
         end
     end
 
