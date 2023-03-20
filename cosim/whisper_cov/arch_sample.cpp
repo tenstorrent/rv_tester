@@ -10,7 +10,7 @@
 #include "cvm/plusargs.hpp"
 #include "vpi_user.h"      
 
-using namespace WdRiscv;
+using namespace ArchCov;
 
 extern "C" void cov_sample(uint64_t cp, uint64_t val);
 
@@ -24,7 +24,7 @@ ArchSample::~ArchSample() {
 }
 
 void ArchSample::reset(){
-
+    assert(sampleConnect("tracer_ext") > 0);
 }
 
 void ArchSample::coverage_sample(int hart, int step, const whisper_state_t& w) {
