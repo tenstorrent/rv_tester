@@ -2,9 +2,6 @@
 
 DEFINE_bool(standalone, true, "Enable  whisper standalone run at beginning of sim");
 DEFINE_bool(preload, false, "Enable preload log generation");
-DEFINE_string(archsample_lib_path, "", "Path to libarchsample.so");
-DEFINE_string(whisper_cov_path, "", "Path to whisper_cov_path");
-DEFINE_string(whisper_cov_json, "", "Path to whisper-cov json");
 DECLARE_string(load);
 DECLARE_string(hex);
 DECLARE_string(bootrom_path);
@@ -27,14 +24,6 @@ void bot::run_iss_standalone() {
   std::string test = (FLAGS_load != "") ? FLAGS_load : ("--hex " + FLAGS_hex);
   std::string max_inst = " --maxinst " + std::to_string(FLAGS_max_instr);
   std::string init_state = FLAGS_preload ? " --initstate preload.csv" : "";
-
-  // Arch coverage
-  if (FLAGS_cov){
-  std::string cov_cmd = FLAGS_whisper_cov_path + " " + "--tracerlib" + " " + FLAGS_archsample_lib_path + ":tracer_ext" + " " + "--target" + " " + FLAGS_load + " " + "--config" + " " + FLAGS_whisper_cov_json + " " + "--memorysize 0x40000000000000 &";
-
-  cvm::log(cvm::NONE, "Coverage : Compile the archsample library : {}\n", cov_cmd); 
-  system(cov_cmd.c_str());
-  }
 
   // standalone whisper 
   std::string cmd = FLAGS_whisper_path + " " + test + " " + FLAGS_bootrom_path +

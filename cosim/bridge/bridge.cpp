@@ -40,6 +40,7 @@ DEFINE_bool(whisper_stdout_null, false, "Redirect whisoer stdout to null");
 DEFINE_string(whisper_client, "socket", "Select whisper client to communicate - socket, or shm (shared mem)");
 DEFINE_int32(whisper_connect_timeout_ms, 10000, "Set whisper connect timeout in milliseconds");
 DEFINE_bool(cov, false, "Enable Arch coverage");
+DEFINE_string(archsample_lib_path, "", "Path to libarchsample.so");
 
 // Constructor
 bridge::bridge(int num_harts, int xlen, int vlen)
@@ -64,9 +65,15 @@ bool bridge::whisper_connect(std::string cmd, int timeout) {
 
   auto start = std::chrono::high_resolution_clock::now();
   while (true) {
-    std::this_thread::sleep_for (std::chrono::milliseconds(10));
+    std::this_thread::sleep_for (std::chrono::seconds(5));
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+
+    // need to connect to archsample before whisper connection (whisper loads tracerlib first)
+    if (FLAGS_cov) {
+      archcov.reset();
+    }
+
     if (client_->whisperConnect("whisper_connect") >= 0) {
       std::cout << "Whisper connect succeeded in " << std::dec << duration << " ms\n";
       return true;
@@ -130,6 +137,12 @@ std::string bridge::get_whisper_cmd() {
   std::string cmd = FLAGS_whisper_path + " " + test + " " + FLAGS_bootrom_path +
     harts + config + trace + out_log + cmd_log + std_out + std_in + client + " --raw --server whisper_connect &";
 
+  if (FLAGS_cov){  
+    std::string cov_cmd = " --tracerlib " + FLAGS_archsample_lib_path + ":tracer_ext ";
+    size_t raw_pos = cmd.find("--raw");
+    cmd.insert(raw_pos, cov_cmd);
+  }
+
   return cmd;
 }
 
@@ -162,7 +175,6 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   
   // Handle post-step conditions
   handle_exception(hart, d, w);
-
 
   // Check dut vs whisper
   cac_.step(hart);
