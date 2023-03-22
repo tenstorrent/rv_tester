@@ -66,12 +66,8 @@ module rv_tester #(
         .terminate
     );
 
-    arch_sample #(
-        .NUM(0)
-    ) arch_sample (
-        .clk(clk),
-        .reset(sysmod_reset)
-    );
+    // coverage 
+    arch_sample arch_sample ();
     
 `ifndef NO_COSIM
     cosim #(
