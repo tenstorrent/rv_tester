@@ -5,7 +5,7 @@ cc_library(
     hdrs = ["arch_sample.h"],
     srcs = ["arch_sample.cpp"],
     deps = [
-         "@corearchcoverage//src/cosim_sample:cosim_sample",
+         "@corearchcoverage//src:cov_socket",
          "@corearchcoverage//arch/sample:archsample",
          "@corearchcoverage//arch/common:points",
          "@bazel_tools//tools/cpp/runfiles",
