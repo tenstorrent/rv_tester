@@ -39,6 +39,9 @@ DEFINE_bool(emulate_debug_mode, false, "Emulate debug mode by forcing whisper to
 DEFINE_bool(delay_satp_update, false, "Delay satp update till next sfence.vma");
 DEFINE_bool(whisper_stdin_null, false, "Redirect whisoer stdin to null");
 DEFINE_bool(whisper_stdout_null, false, "Redirect whisoer stdout to null");
+DEFINE_bool(whisper_clint, false, "Set clint addr in whisper command");
+DEFINE_bool(whisper_tohost, true, "Set tohost addr in whisper command");
+DEFINE_bool(whisper_fromhost, true, "Set fromhost addr in whisper command");
 DEFINE_string(whisper_client, "socket", "Select whisper client to communicate - socket, or shm (shared mem)");
 DEFINE_int32(whisper_connect_timeout_ms, 10000, "Set whisper connect timeout in milliseconds");
 DEFINE_bool(cov, false, "Enable Arch coverage");
@@ -134,10 +137,10 @@ std::string bridge::get_whisper_cmd() {
   std::string std_in = FLAGS_whisper_stdin_null ? " --stdin /dev/null" : "";
   std::string client = (FLAGS_whisper_client == "shm") ? " --shm" : "";
   std::string mcm = FLAGS_mcm ? " --mcm --mcmls 64" : "";
-  std::string clint = " --clint " + memmap_.at("clint").base_str;
+  std::string clint = FLAGS_whisper_clint ? " --clint " + memmap_.at("clint").base_str : "";
   std::string htif = memmap_.at("htif").base_str;
-  std::string tohost = " --tohost " + htif;
-  std::string fromhost = " --fromhost " + htif.replace(htif.size() - 1, 1, "8");
+  std::string tohost = FLAGS_whisper_tohost ? " --tohost " + htif : "";
+  std::string fromhost = FLAGS_whisper_fromhost ? " --fromhost " + htif.replace(htif.size() - 1, 1, "8") : "";
   std::string test = (FLAGS_load != "") ? FLAGS_load : ("--hex " + FLAGS_hex);
 
   std::string cmd = FLAGS_whisper_path + " " + test + " " + FLAGS_bootrom_path +
