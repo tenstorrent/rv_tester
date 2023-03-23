@@ -86,10 +86,12 @@ private:
   void handle_debug(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   void handle_interrupt(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   void handle_exception(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
+  void handle_satp(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   void handle_wfi(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
 
   bool is_ecall(const whisper_state_t& w);
   bool does_instr_match_resynch_list(const whisper_state_t& w);
+  bool does_prev_instr_match_resynch_list(const whisper_state_t& w);
   bool does_instr_match_resynch_condition(const rv_instr_t& d, const whisper_state_t& w);
   bool clint_read(const rv_instr_t& d);
   bool htif_read(const rv_instr_t& d);
@@ -110,12 +112,18 @@ private:
   CacCore cac_;
   ArchSample archcov;
 
+  // Previous instruction's whisper state
+  whisper_state_t pw_;
+
   // Create a copy of whisper instr in similar format as dut
   rv_instr_t w_;
 
   bool intr_in_progress_ = false;
   bool ecall_ = false;
   bool debug_mode_ = false;
+
+  uint64_t satp_ = 0;
+  uint64_t new_satp_ = 0;
 
   // Memmap
   memmap::memmap_t memmap_;

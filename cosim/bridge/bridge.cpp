@@ -26,6 +26,7 @@ DEFINE_string(whisper_path, "", "Path to whisper executable");
 DEFINE_string(whisper_json_path, "", "Path to whisper json config");
 DEFINE_bool(cosim_resynch, false, "Resynch whisper with dut state on every instruction");
 DEFINE_string(cosim_resynch_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
+DEFINE_string(cosim_resynch_prev_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
 DEFINE_bool(lrsc_resynch, false, "Resynch whisper with dut state on LRSC fail condition");
 DEFINE_bool(retire_ucode_trap, true, "DUT indicates retire on a trap after executing the ucode trap handler");
 DEFINE_bool(mcm, false, "Enable memory consistency checker");
@@ -35,6 +36,7 @@ DEFINE_int32(debug_excp_mcause, 24, "MCAUSE value for debug exception");
 DEFINE_int32(max_stall_cycle, 50000, "Max stall cycle limit to terminate the sim");
 DEFINE_bool(translation_check, false, "Do VA-PA translation check");
 DEFINE_bool(emulate_debug_mode, false, "Emulate debug mode by forcing whisper to be in sync with DUT");
+DEFINE_bool(delay_satp_update, false, "Delay satp update till next sfence.vma");
 DEFINE_bool(whisper_stdin_null, false, "Redirect whisoer stdin to null");
 DEFINE_bool(whisper_stdout_null, false, "Redirect whisoer stdout to null");
 DEFINE_string(whisper_client, "socket", "Select whisper client to communicate - socket, or shm (shared mem)");
@@ -175,6 +177,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   
   // Handle post-step conditions
   handle_exception(hart, d, w);
+  handle_satp(hart, d, w);
 
   // Check dut vs whisper
   cac_.step(hart);
@@ -182,6 +185,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   // Resynch whisper with dut state if needed
   // to continue without failing
   if (does_instr_match_resynch_list(w) || 
+      does_prev_instr_match_resynch_list(pw_) ||
       does_instr_match_resynch_condition(d, w)) {
     resynch(hart, d);
     cac_.resetStatus(hart);
@@ -191,6 +195,9 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   if (w_.fpr.valid) { 
     cac_.resetStatus(hart);
   }
+
+  // Save whisper state
+  pw_ = w;
 
   // Error on mismatch
   if (!cac_.getStatus(hart)) {
@@ -295,7 +302,7 @@ void bridge::handle_exception(hart_id_t hart, const rv_instr_t& d, whisper_state
   if (!d.excp)
     return;
 
-  if (!w.trap && !ecall_) {
+  if (!w.trap && !ecall_ && !FLAGS_cosim_resynch) {
     print_instr(hart, w);
     cvm::log(cvm::NONE, "Error: DUT took exception, Whisper did not. cause:[{}]\n", d.ecause);
     vpi_control(vpiFinish);
@@ -309,6 +316,21 @@ void bridge::handle_exception(hart_id_t hart, const rv_instr_t& d, whisper_state
     ecall_ = false;
   }
 
+  // If resynch, poke CSR values to whisper
+  if (FLAGS_cosim_resynch) {
+    for (auto& c : w_.csr) {
+      if (FLAGS_cosim_tracer) {
+        log(cvm::HIGH, "<{}> Whisper Step #{}: Resynch: C{:#x}={:#x}\n", d.cycle, cac_.getStep(hart), 
+          c.csr_addr, c.csr_wdata);
+      }
+      bool valid;
+      if (!client_->whisperPoke(hart, 'c', c.csr_addr, c.csr_wdata, valid)) {
+        vpi_control(vpiFinish);
+      }
+    }
+  }
+
+  // Print exception info
   if (FLAGS_cosim_tracer) {
     print_instr(hart, w);
     log(cvm::MEDIUM, "<{}> Exception detected. csrs:[", w.time);
@@ -327,6 +349,51 @@ void bridge::handle_exception(hart_id_t hart, const rv_instr_t& d, whisper_state
     log(cvm::MEDIUM, "<{}> Whisper Step #{}: Extra step due to exception\n", w.time, cac_.getStep(hart));
   }
   update_whisper_state(hart,w);
+}
+
+void bridge::handle_satp(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
+  if (!FLAGS_delay_satp_update)
+    return;
+
+  // Save satp updates and apply only when sfence.vma is seen
+  std::string disasm(w.buffer);
+  if (disasm.find("satp") != std::string::npos) {
+    for (auto& c : w_.csr) {
+      if (c.csr_addr == 0x180) {
+        new_satp_ = c.csr_wdata;
+
+        uint16_t new_mode_asid = (new_satp_ >> 44) & 0xffff;
+        uint16_t mode_asid = (satp_ >> 44) & 0xffff;
+        if (new_mode_asid != mode_asid) {
+          satp_ = new_satp_;
+          return;
+        }
+
+        if (FLAGS_cosim_tracer) {
+          log(cvm::MEDIUM, "<{}> Whisper Step #{}: SATP write, don't apply till sfence.vma\n", w.time, cac_.getStep(hart));
+        }
+        bool valid = false;
+        if (!client_->whisperPoke(hart, 'c', 0x180, satp_, valid)) {
+          vpi_control(vpiFinish);
+        }
+      }
+    }
+  }
+
+  if (disasm.find("sfence.vma") != std::string::npos) {
+    if (satp_ == new_satp_)
+      return;
+
+    satp_ = new_satp_;
+
+    if (FLAGS_cosim_tracer) {
+      log(cvm::MEDIUM, "<{}> Whisper Step #{}: sfence.vma, apply SATP write\n", w.time, cac_.getStep(hart));
+    }
+    bool valid = false;
+    if (!client_->whisperPoke(hart, 'c', 0x180, new_satp_, valid)) {
+      vpi_control(vpiFinish);
+    }
+  }
 }
 
 void bridge::handle_wfi(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
@@ -579,6 +646,24 @@ bool bridge::does_instr_match_resynch_list(const whisper_state_t& w) {
   return false;
 }
 
+bool bridge::does_prev_instr_match_resynch_list(const whisper_state_t& w) {
+  if (FLAGS_cosim_resynch_prev_instr == "")
+    return false;
+
+  std::string disasm(w.buffer);
+  std::stringstream ss(FLAGS_cosim_resynch_prev_instr);
+
+  while(ss.good()) {
+    std::string instr;
+    std::getline(ss, instr, ',' );
+
+    if (disasm.find(instr) != std::string::npos) {
+      log(cvm::HIGH, "<{}> Resynch: Reason=[+cosim_resynch_prev_instr={} for instr={}]\n", w.time, FLAGS_cosim_resynch_prev_instr, instr);
+      return true;
+    }
+  }
+  return false;
+}
 // Poke resources in whisper
 void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
   bool valid = false;
