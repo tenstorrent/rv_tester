@@ -43,6 +43,7 @@ void parse() {
   std::cout << "----Memory map----\n";
   for (auto& el : j) {
     memmap_entry_t map;
+    map.base_str = el.at("base");
     map.base = std::stoull((std::string)el.at("base"), nullptr, 16);
     map.size = std::stoull((std::string)el.at("size"), nullptr, 16);
     map.end  = map.base + map.size;

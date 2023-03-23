@@ -134,10 +134,15 @@ std::string bridge::get_whisper_cmd() {
   std::string std_in = FLAGS_whisper_stdin_null ? " --stdin /dev/null" : "";
   std::string client = (FLAGS_whisper_client == "shm") ? " --shm" : "";
   std::string mcm = FLAGS_mcm ? " --mcm --mcmls 64" : "";
+  std::string clint = " --clint " + memmap_.at("clint").base_str;
+  std::string htif = memmap_.at("htif").base_str;
+  std::string tohost = " --tohost " + htif;
+  std::string fromhost = " --fromhost " + htif.replace(htif.size() - 1, 1, "8");
   std::string test = (FLAGS_load != "") ? FLAGS_load : ("--hex " + FLAGS_hex);
 
   std::string cmd = FLAGS_whisper_path + " " + test + " " + FLAGS_bootrom_path +
-    harts + config + trace + out_log + cmd_log + std_out + std_in + client + " --raw --server whisper_connect &";
+    harts + config + trace + out_log + cmd_log + std_out + std_in + client + 
+    clint + tohost + fromhost + " --raw --server whisper_connect &";
 
   if (FLAGS_cov){  
     std::string cov_cmd = " --tracerlib " + FLAGS_archsample_lib_path + ":tracer_ext ";

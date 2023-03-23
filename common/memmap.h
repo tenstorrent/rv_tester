@@ -6,6 +6,7 @@
 namespace memmap {
 
   struct memmap_entry_t {
+      std::string base_str;
       uint64_t base;
       uint64_t size;
       std::string   type;
