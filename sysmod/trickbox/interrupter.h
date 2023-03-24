@@ -131,7 +131,7 @@ protected:
          unsigned iter = 1;
          unsigned values[FLAGS_max_simul_intr] = {};
          if( (FLAGS_max_simul_intr >1 ) && (FLAGS_max_simul_intr < (numInterrupts_ +1))){
-           iter = (rng() % (FLAGS_max_simul_intr +1 )) + 1 ; //gen iter between 1 to max simul instr
+           iter = (rng() % (FLAGS_max_simul_intr )) + 1 ; //gen iter between 1 to max simul instr
          } 
          
          //std::cout<<"[TRICKBOX]: iteration interrupts "<<iter<<"\n";
