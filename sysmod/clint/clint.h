@@ -63,7 +63,6 @@ public:
 
   virtual void tick(uint64_t advance) override
   {
-    std::lock_guard<std::mutex> lock(mutex_);
     timer_ += advance;
     processTimerInterrupts();
   }
@@ -85,13 +84,12 @@ protected:
   /// value.
   void processTimerInterrupts()
   {
-    for (unsigned i = 0; i < hartCount_; ++i)
-      {
-        bool flag = timer_ >= timeCompare_.at(i);
-        if (timerIntPrev_.at(i) != flag)
-          timerInterrupt(i, flag);
-        timerIntPrev_.at(i) = flag;
-      }
+    for (unsigned i = 0; i < hartCount_; ++i) {
+      bool flag = timer_ >= timeCompare_.at(i);
+      if (timerIntPrev_.at(i) != flag)
+        timerInterrupt(i, flag);
+      timerIntPrev_.at(i) = flag;
+    }
   }
 
   // Used to assert/deassert a timer interrupt for given hart.
@@ -106,9 +104,6 @@ protected:
     cvm::registry::messenger.signal<sw_t>(loc(), sw_t{hart, flag});
   }
 
-  // Start a thread to increment timer after n microseconds.
-  void selfTick(useconds_t n);
-
 private:
 
   unsigned hartCount_ = 1;
@@ -118,9 +113,6 @@ private:
   std::vector<bool> timerIntPrev_; // Previous value of timer interrupt
   uint64_t timer_ = 0;
 
-  std::atomic<bool> terminate_ = false;
   std::mutex mutex_;
-
-  std::thread timerThread_;
 };
 

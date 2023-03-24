@@ -12,8 +12,12 @@ verilog_library(
 
 cc_library(
     name = "device",
+    srcs = ["device.cpp"],
     hdrs = ["device.h"],
-    deps = ["@cvm//:topology"],
+    deps = [
+        "@cvm//:topology",
+        "@cvm//:plusargs",
+    ],
     strip_include_prefix = "//sysmod",
     visibility = ["//visibility:public"],
 )

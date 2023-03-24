@@ -5,6 +5,8 @@ cc_library(
     deps = [
       "//sysmod:device",
       "@cvm//:registry",
+      "@cvm//:plusargs",
+      "@cvm//:logger",
     ],
     visibility = ["//visibility:public"],
 )
