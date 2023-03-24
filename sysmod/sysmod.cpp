@@ -119,6 +119,7 @@ sysmod::compose()
 
   // Load memmap
   memmap::get(memmap_);
+  
 
   try {
     for(const auto& d : memmap_) {

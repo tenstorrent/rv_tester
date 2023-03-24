@@ -1,12 +1,16 @@
 cc_library(
     name = "common",
-    srcs = ["memmap.cpp"],
+    srcs = ["memmap.cpp",
+            "remote_bitbang.cc",
+            "SimJTAG.cc"
+    ],
     hdrs = [
         "svdpi.h",
         "transactor.h",
         "pcg_random.hpp",
         "pcg_extras.hpp",
         "pcg_uint128.hpp",
+        "remote_bitbang.h",
         "memmap.h"
     ],
     deps = [
