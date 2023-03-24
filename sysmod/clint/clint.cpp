@@ -5,63 +5,50 @@
 #include "cvm/plusargs.hpp"
 #include "cvm/logger.hpp"
 
-DECLARE_string(device_load_dir);
-DECLARE_string(device_save_dir);
-
 clint::clint(const std::string& tag, uint64_t addr, unsigned hartCount,
              cvm::topology::loc_t loc)
   : device(tag, addr, 0xc000 /* size */, loc), hartCount_(hartCount), soft_(hartCount),
     timeCompare_(hartCount), timerIntPrev_(hartCount, 0), timer_(0)
 {
-  if (not FLAGS_device_load_dir.empty()) {
-    std::ifstream ifs(FLAGS_device_load_dir + "/" + tag);
-    if (not ifs) {
-      cvm::log(cvm::LOW, "Could not find " + tag + " under snapshot save directory, will skip\n");
-    }
-    else {
-      std::string line;
-      while (std::getline(ifs, line)) {
-        // expect clint format
-        std::string type, val;
+  std::ifstream ifs;
+  if (load_snapshot(ifs)) {
+    std::string line;
+    while (std::getline(ifs, line)) {
+      // expect clint format
+      std::string type, val;
 
-        std::istringstream iss(line);
-        assert(iss >> type);
+      std::istringstream iss(line);
+      assert(iss >> type);
 
-        if (type == "timer")
-          timer_ = strtoull(val.c_str(), nullptr, 0);
-        else if (type == "cmp") {
-          assert(iss >> val);
-          uint64_t num = strtoull(val.c_str(), nullptr, 0);
-          assert(iss >> val);
-          // TODO: error check number < hartCount
-          timeCompare_.at(num) = strtoull(val.c_str(), nullptr, 0);
-        }
-        else {
-          cvm::log(cvm::NONE, "Error: unrecognized line " + type + " in " + tag + " snapshot dir\n");
-        }
+      if (type == "timer")
+        timer_ = strtoull(val.c_str(), nullptr, 0);
+      else if (type == "cmp") {
+        assert(iss >> val);
+        uint64_t num = strtoull(val.c_str(), nullptr, 0);
+        assert(iss >> val);
+        // TODO: error check number < hartCount
+        timeCompare_.at(num) = strtoull(val.c_str(), nullptr, 0);
       }
-
-      ifs.close();
+      else {
+        cvm::log(cvm::NONE, "Error: unrecognized line " + type + " for " + tag + "\n");
+      }
     }
+
+    ifs.close();
   }
 }
 
 
 clint::~clint()
 {
-  if (not FLAGS_device_save_dir.empty()) {
-    std::ofstream ofs(FLAGS_device_save_dir + "/" + tag());
-    if (not ofs) {
-      cvm::log(cvm::NONE, "Error: Could not open " + FLAGS_device_save_dir + " for saving snapshot\n");
-    }
-    else {
-      // no point in saving interrupt status
-      ofs << "timer " << std::dec << timer_ << '\n';
-      for (unsigned i = 0; i < timeCompare_.size(); i++) {
-        ofs << "cmp " << std::dec << i << " " << timeCompare_.at(i) << '\n';
-      }
-    }
+  std::stringstream ss;
+  // no point in saving interrupt status
+  ss << "timer " << std::dec << timer_ << '\n';
+  for (unsigned i = 0; i < timeCompare_.size(); i++) {
+    ss << "cmp " << std::dec << i << " " << timeCompare_.at(i) << '\n';
   }
+
+  save_snapshot(ss);
 }
 
 

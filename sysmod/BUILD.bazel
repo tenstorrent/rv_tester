@@ -17,7 +17,10 @@ cc_library(
     deps = [
         "@cvm//:topology",
         "@cvm//:plusargs",
+        "@cvm//:logger",
     ],
+    alwayslink = True,
+    linkstatic = True,
     strip_include_prefix = "//sysmod",
     visibility = ["//visibility:public"],
 )

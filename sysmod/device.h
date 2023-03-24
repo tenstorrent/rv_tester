@@ -3,6 +3,8 @@
 #include <string>
 #include <vector>
 #include <functional>
+#include <fstream>
+#include <sstream>
 #include "cvm/topology.hpp"
 
 class device {
@@ -17,6 +19,10 @@ class device {
 
     typedef std::vector<uint8_t> data_t;
     typedef std::vector<bool> strb_t;
+
+    bool load_snapshot(std::ifstream& ifs);
+
+    bool save_snapshot(const std::stringstream& ss);
 
     virtual void write(uint64_t addr, size_t length,
                        const data_t& data,
