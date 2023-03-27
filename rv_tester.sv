@@ -18,7 +18,7 @@ module rv_tester #(
         rv_tester_clkgen clkgen(.*);
     end
 
-    import "DPI-C" function void rv_tester_parse_flags();
+    import "DPI-C" context function void rv_tester_parse_flags(); // context forces zebu to serialize this call. this needs to happen at the start of the test before other DPIs.
     import "DPI-C" function void rv_tester_parse_memmap();
     import "DPI-C" function void rv_tester_reset_registry();
     import "DPI-C" context function void rv_tester_flush_callbacks();
