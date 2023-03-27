@@ -598,7 +598,7 @@ whisperClientSocket::whisperPageTableWalk(int hart, bool isInstr, bool isAddr,
 	  uint64_t* replyData = reinterpret_cast<uint64_t*>(reply.buffer);
 	  itemCount = itemsSize < reply.size ? itemsSize : reply.size;
 	  for (unsigned i = 0; i < itemCount; ++i)
-	    *((uint64_t*) svGetArrElemPtr(items, i)) = replyData[i];
+	    *((uint64_t*) svGetArrElemPtr1(items, i)) = replyData[i];
 	}
     }
 

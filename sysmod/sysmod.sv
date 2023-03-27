@@ -15,9 +15,11 @@ module sysmod #(
 );
     import "DPI-C" context function void sysmod_set_scope(int unsigned location);
     import "DPI-C" function void sysmod_tick(int unsigned location, longint unsigned advance);
+    import "DPI-C" function int sysmod_tick_with_return(int unsigned location, longint unsigned advance);
 
     typedef longint unsigned LU;
     int unsigned location = cvm_topology::nil;
+    bit sysmod_tick_async = '1;
      
     /* verilator lint_off BLKANDNBLK */
     bit dmi_write_begin = '0;
@@ -29,6 +31,7 @@ module sysmod #(
     always @(posedge clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */
+            sysmod_tick_async = cvm_plusargs::get_bool("sysmod_tick_async") != '0;
             location = cvm_topology::get_location(topology.PLATFORM.id, 0);
             sysmod_set_scope(location);
             /* verilator lint_on BLKSEQ */
@@ -74,7 +77,11 @@ module sysmod #(
     always @(posedge clk) begin
         if (0 == (clocks % TICKS)) begin
             if (location != cvm_topology::nil) begin
-              sysmod_tick(location, TICKS);
+                if (sysmod_tick_async) begin
+                    sysmod_tick(location, TICKS);
+                end else begin
+                    void'(sysmod_tick_with_return(location, TICKS));
+                end
             end
         end
     end

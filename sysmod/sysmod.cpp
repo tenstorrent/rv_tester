@@ -17,6 +17,7 @@
 DEFINE_string(hex, "", "hex file (program) to load into memory");
 DEFINE_string(load, "", "elf file (program) to load into memory");
 DEFINE_string(load_io, "", "load specified io dev with content from memory");
+DEFINE_bool(sysmod_tick_async, true, "Asynchronous sysmod_tick calls");
 
 REGISTRY_register(sysmod, platform, 0);
 
@@ -282,5 +283,10 @@ extern "C" {
     cvm::registry::messenger.signal<sm::tick_t>(
         loc,
         sm::tick_t{new_clock});
+  }
+
+  int sysmod_tick_with_return(cvm::topology::loc_t loc, uint64_t new_clock) {
+    sysmod_tick(loc, new_clock);
+    return 0;
   }
 }
