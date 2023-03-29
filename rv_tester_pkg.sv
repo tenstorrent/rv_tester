@@ -9,11 +9,16 @@ package rv_tester_pkg;
         logic msi;
         logic ssi;
     } interrupt_t;
-    
+
     typedef struct packed {
         logic        dm_wvalid;
         logic [63:0] dm_wdata;
     } dm_write_t;
+
+    typedef struct packed {
+        logic terminate;
+        logic call_finish;
+    } terminate_t;
 
     typedef longint unsigned c_handle;
     parameter c_handle nil = '0;

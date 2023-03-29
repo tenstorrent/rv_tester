@@ -9,11 +9,13 @@ module cosim #(
     input rvfi_t rvfi[topology.CORE.NRET],
     input mcmi_t mcmi_store[topology.CORE.STQ_PORTS],
     input rv_tester_pkg::interrupt_t interrupt,
-    input debug_mode
+    input debug_mode,
+    output rv_tester_pkg::terminate_t terminate
 );
 
-    typedef longint unsigned LU;
+    import "DPI-C" context function void cosim_set_scope(int unsigned location);
 
+    typedef longint unsigned LU;
     int unsigned location = cvm_topology::nil;
     bit rvfi_enabled;
     int instr_retired;
@@ -24,11 +26,19 @@ module cosim #(
             /* verilator lint_off BLKSEQ */
             location = cvm_topology::get_location(topology.PLATFORM.id, 0);
             rvfi_enabled = cvm_plusargs::get_bool("rvfi") != '0;
+            cosim_set_scope(location);
             instr_retired = 0;
             stores_drained = 0;
             /* verilator lint_on BLKSEQ */
         end
+        terminate.terminate = '0;
     end
+
+    function void cosim_terminate (byte unsigned call_finish);
+        terminate.terminate = '1;
+        terminate.call_finish = call_finish;
+    endfunction
+    export "DPI-C" function cosim_terminate;
 
     // CVM transactions
     `COSIM_TRANSACTIONS_DOMAIN(1, clk)
@@ -67,7 +77,7 @@ module cosim #(
         assign tx_dom_1.m_mcmi_stores[n].data.size = mcmi_store[n].size;
         assign tx_dom_1.m_mcmi_stores[n].data.data = mcmi_store[n].data;
     end
-    
+
     // m_trap
     for (genvar n = 0; n < topology.CORE.NRET; n++) begin
         assign tx_dom_1.m_traps[n].valid = ~reset & (rvfi[n].cause != 0);
@@ -124,7 +134,7 @@ module cosim #(
               cycles_since_retire <= 0;
             end
             if (max_stall_cycle > 0 && cycles_since_retire > max_stall_cycle) begin
-              $display("Error: No instruction retired for max_stall_cycle (%0d) cycles", max_stall_cycle); 
+              $display("Error: No instruction retired for max_stall_cycle (%0d) cycles", max_stall_cycle);
               $finish;
             end
             if (max_cycle > 0 && clocks > LU'(max_cycle)) begin
@@ -134,7 +144,7 @@ module cosim #(
         end
     end
 
-    final begin 
+    final begin
         $display("INFO_PASS_METRIC:{\"instr_retired\": \"%0d\"}", instr_retired);
         $display("INFO_PASS_METRIC:{\"stores_drained\": \"%0d\"}", stores_drained);
     end

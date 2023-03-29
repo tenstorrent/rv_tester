@@ -10,7 +10,6 @@
 #include "cvm/topology.hpp"
 #include "cosim_transactions.hpp"
 
-#include "vpi_user.h"
 #include "util.h"
 
 class eot {
@@ -26,16 +25,16 @@ class eot {
       connect<Args...>(loc);
     }
   }
-  
+
   public:
 
     // End-of-test (eot) options:
     // eot=tohost -- Look for mem store to 'tohost' address = success/fail
-    
+
     eot(cvm::topology::loc_t loc) {
       // Read tohost symbol address from elf
       get_tohost_addr();
-      
+
       connect<
         cosim_transactions::m_mcmi_store
       >(loc);

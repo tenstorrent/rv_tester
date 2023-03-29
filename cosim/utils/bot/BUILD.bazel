@@ -5,7 +5,6 @@ cc_library(
     srcs = ["bot.cpp"],
     deps = [
             "//cosim/utils/general:util",
-            "//cosim/vpi:vpi_user",
             "@cvm//:logger",
             "@cvm//:plusargs",
            ],

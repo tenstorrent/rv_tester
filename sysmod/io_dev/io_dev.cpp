@@ -1,6 +1,6 @@
 #include <iostream>
-#include <cassert>
 #include "cvm/plusargs.hpp"
+#include "cvm/topology.hpp"
 #include "io_dev.h"
 
 
@@ -12,8 +12,7 @@ io_dev::io_dev(const std::string& tag, uint64_t addr, size_t size)
 {
   if (FLAGS_load != "") {
     std::cout << "loading " << FLAGS_load << "\n";
-    if (not init_elf(FLAGS_load))
-      assert(false);
+    init_elf(FLAGS_load);
   }
 }
 

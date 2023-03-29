@@ -11,7 +11,7 @@ module sysmod #(
     output bootstrap_t bootstrap,
     output rv_tester_pkg::interrupt_t interrupt,
     output rv_tester_pkg::dm_write_t  dmi_write,
-    output terminate
+    output rv_tester_pkg::terminate_t terminate
 );
     import "DPI-C" context function void sysmod_set_scope(int unsigned location);
     import "DPI-C" function void sysmod_tick(int unsigned location, longint unsigned advance);
@@ -20,7 +20,7 @@ module sysmod #(
     typedef longint unsigned LU;
     int unsigned location = cvm_topology::nil;
     bit sysmod_tick_async = '1;
-     
+
     /* verilator lint_off BLKANDNBLK */
     bit dmi_write_begin = '0;
     bit dmi_write_begin_d = '0;
@@ -36,42 +36,16 @@ module sysmod #(
             sysmod_set_scope(location);
             /* verilator lint_on BLKSEQ */
         end
+        terminate.terminate = '0;
     end
 
     assign bootstrap.boot_addr = 1 << 31;
 
-    logic ready_to_terminate = '0;
-    logic terminate_after_n_clocks = '0;
-    logic terminated = '0;
-    byte unsigned call_finish_on_terminate = '0;
-    always @(posedge clk) begin
-        if (reset) begin
-            /* verilator lint_off BLKANDNBLK */
-            ready_to_terminate <= '0;
-            terminate_after_n_clocks <= '0;
-            terminated <= '0;
-            /* verilator lint_on BLKANDNBLK */
-        end
-        if (ready_to_terminate) begin
-          terminate_after_n_clocks <= terminate_after_n_clocks + 1;
-        end
-        // Call finish after n clocks
-        if (terminate_after_n_clocks == 1) begin
-          // exit gracefully
-          if (call_finish_on_terminate != 0) begin
-              $finish();
-          end
-          terminated <= '1;
-        end
-    end
-
     function void sysmod_terminate (byte unsigned call_finish);
-        call_finish_on_terminate = call_finish;
-        ready_to_terminate = '1;
+        terminate.terminate = '1;
+        terminate.call_finish = call_finish;
     endfunction
     export "DPI-C" function sysmod_terminate;
-
-    assign terminate = ready_to_terminate;
 
     localparam longint unsigned TICKS = LU'(SW_CLOCK_UPDATE_PERIOD_PS)/LU'(CLOCK_PERIOD_PS);
     always @(posedge clk) begin
@@ -101,7 +75,7 @@ module sysmod #(
       interrupt_d.msi = val;
     endfunction
     export "DPI-C" function sysmod_sw_interrupt;
-    
+
     function void sysmod_tbox_interrupt (int unsigned hartid, int unsigned intr_select,int unsigned intr_value);
       $display("\n[SYSMOD] trickbox interrupt select %0d with value %0d\n",intr_select,intr_value);
       for(int i =0;i<6;i++)begin
@@ -110,13 +84,13 @@ module sysmod #(
       end
     endfunction
     export "DPI-C" function sysmod_tbox_interrupt;
-    
+
     function sysmod_dmi_write (int unsigned hartid, int unsigned upper_value,int unsigned lower_value);
       $display("\n[SYSMOD] trickbox DMI write upper value: %d lower value: %d\n",upper_value,lower_value);
       dmi_write_begin = '1;
       dm_wdata = {upper_value,lower_value};
     endfunction
-    export "DPI-C"  function sysmod_dmi_write;   
+    export "DPI-C"  function sysmod_dmi_write;
 
     always @(posedge clk) begin
         interrupt_q <= interrupt_d;
@@ -134,7 +108,7 @@ module sysmod #(
         else if(dmi_write_begin)begin
             dmi_write.dm_wvalid <= '1;
             dmi_write.dm_wdata <= dm_wdata;
-            dmi_write_end <='1; 
+            dmi_write_end <='1;
             $display("\n[SYSMOD] trickbox DMI Assert write : %d time: %t\ n",dmi_write.dm_wdata,$time);
         end
 

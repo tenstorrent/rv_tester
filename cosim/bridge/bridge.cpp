@@ -6,8 +6,6 @@
 #include "cvm/topology.hpp"
 #include "sysmod/htif/htif.h"
 
-#include "vpi_user.h"       // vpi_printf
-
 #include <iostream>         // cout
 #include <cstring>          // strlen
 #include <sstream>          // stringstream
@@ -20,7 +18,6 @@ DEFINE_bool(cosim_tracer, true, "Enable bridge trace prints");
 DECLARE_string(load);
 DECLARE_string(hex);
 DECLARE_string(eot);
-DECLARE_bool(htif_terminate);
 DEFINE_string(bootrom_path, "", "Path to bootrom object file");
 DEFINE_string(whisper_path, "", "Path to whisper executable");
 DEFINE_string(whisper_json_path, "", "Path to whisper json config");
@@ -48,13 +45,14 @@ DEFINE_bool(cov, false, "Enable Arch coverage");
 DEFINE_string(archsample_lib_path, "", "Path to libarchsample.so");
 
 // Constructor
-bridge::bridge(int num_harts, int xlen, int vlen)
+bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc)
   : log("cosim.log"),
     num_harts_(num_harts),
     xlen_(xlen),
     vlen_(vlen),
+    loc_(loc),
     cac_(CacCore(num_harts)),
-    archcov(ArchSample(num_harts))    
+    archcov(ArchSample(num_harts))
 {
 }
 
@@ -64,7 +62,7 @@ bridge::~bridge() {
 }
 
 bool bridge::whisper_connect(std::string cmd, int timeout) {
-  
+
   std::cout << "Cosim whisper command: " << cmd << "\n";
   system(cmd.c_str());
 
@@ -91,7 +89,7 @@ bool bridge::whisper_connect(std::string cmd, int timeout) {
 }
 
 void bridge::reset() {
-  
+
   memmap::get(memmap_);
 
   cac_.reset();
@@ -103,11 +101,13 @@ void bridge::reset() {
     client_ = std::make_unique<whisperClientShm>();
   } else {
     cvm::log(cvm::NONE, "Error: Invalid option passed for +whisper_client. Should be one of {socket, shm}.");
-    vpi_control(vpiFinish);
+    cvm::registry::messenger.signal<terminate_t>(loc_, {false});
+    return;
   }
 
   if (!whisper_connect(get_whisper_cmd(), FLAGS_whisper_connect_timeout_ms)) {
-    vpi_control(vpiFinish);
+    cvm::registry::messenger.signal<terminate_t>(loc_, {false});
+    return;
   }
 
   bool valid;
@@ -119,12 +119,14 @@ std::string bridge::get_whisper_cmd() {
   // Validate flags
   if ((FLAGS_load == "") && (FLAGS_hex == "")) {
     cvm::log(cvm::NONE, "Error: Need to provide at least one of +load <elf> or +hex <hex>\n");
-    vpi_control(vpiFinish);
+    cvm::registry::messenger.signal<terminate_t>(loc_, {false});
+    return {};
   }
 
   if ((FLAGS_whisper_path == "") || (FLAGS_whisper_json_path == "")) {
     cvm::log(cvm::NONE, "Error: +whisper_path or +whisper_json_path cannot be empty\n");
-    vpi_control(vpiFinish);
+    cvm::registry::messenger.signal<terminate_t>(loc_, {false});
+    return {};
   }
 
   // Command components
@@ -144,10 +146,10 @@ std::string bridge::get_whisper_cmd() {
   std::string test = (FLAGS_load != "") ? FLAGS_load : ("--hex " + FLAGS_hex);
 
   std::string cmd = FLAGS_whisper_path + " " + test + " " + FLAGS_bootrom_path +
-    harts + config + trace + out_log + cmd_log + std_out + std_in + client + 
+    harts + config + trace + out_log + cmd_log + std_out + std_in + client +
     clint + tohost + fromhost + " --raw --server whisper_connect &";
 
-  if (FLAGS_cov){  
+  if (FLAGS_cov){
     std::string cov_cmd = " --tracerlib " + FLAGS_archsample_lib_path + ":tracer_ext ";
     size_t raw_pos = cmd.find("--raw");
     cmd.insert(raw_pos, cov_cmd);
@@ -182,7 +184,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   // Update cac with whisper state
   update_whisper_state(hart, w);
-  
+
   // Handle post-step conditions
   handle_exception(hart, d, w);
   handle_satp(hart, d, w);
@@ -192,15 +194,15 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   // Resynch whisper with dut state if needed
   // to continue without failing
-  if (does_instr_match_resynch_list(w) || 
+  if (does_instr_match_resynch_list(w) ||
       does_prev_instr_match_resynch_list(pw_) ||
       does_instr_match_resynch_condition(d, w)) {
     resynch(hart, d);
     cac_.resetStatus(hart);
   }
-  
+
   // FIXME Temporarily disable FP checking
-  if (w_.fpr.valid) { 
+  if (w_.fpr.valid) {
     cac_.resetStatus(hart);
   }
 
@@ -222,7 +224,8 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
         w.time, cac_.getStep(hart), hart, w.priv_mode, w.tag, w.change_count, w.pc, w.opcode, w.buffer);
       cvm::log(cvm::NONE, "{}", cac_.getStatusStr(hart));
       cvm::log(cvm::NONE, "Error: Core Arch Checker Mismatch\n");
-      vpi_control(vpiFinish);
+      cvm::registry::messenger.signal<terminate_t>(loc_, {false});
+      return;
     }
   }
   else {
@@ -235,20 +238,22 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
       cvm::log(cvm::NONE, "<{}> Stop condition detected: +eot=max_instr +max_instr={}\n", w.time, FLAGS_max_instr);
 
       auto location = cvm::topology::get("platform", 0);
-      cvm::registry::messenger.signal<htif::terminate_t>(location, htif::terminate_t{FLAGS_htif_terminate});
+      cvm::registry::registry::messenger.signal<terminate_t>(location, {false});
+      return;
     } else {
       print_instr(hart, w);
       cvm::log(cvm::NONE, "Error: max_instr limit reached: {}\n", FLAGS_max_instr);
-      vpi_control(vpiFinish);
+      cvm::registry::messenger.signal<terminate_t>(loc_, {false});
+      return;
     }
   }
 
-  // TLB checks 
+  // TLB checks
   translation_check(hart, d, w);
 
   // coverage
-  if (FLAGS_cov){ 
-    archcov.coverage_sample(hart, (cac_.getStep(hart)-1), w); 
+  if (FLAGS_cov){
+    archcov.coverage_sample(hart, (cac_.getStep(hart)-1), w);
   }
 }
 
@@ -268,7 +273,7 @@ void bridge::handle_debug(hart_id_t hart, const rv_instr_t& d, whisper_state_t& 
 }
 
 void bridge::handle_interrupt(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
-  
+
   uint64_t mip = 0x344;
 
   // Clear mip one step after it's set
@@ -276,13 +281,15 @@ void bridge::handle_interrupt(hart_id_t hart, const rv_instr_t& d, whisper_state
     intr_in_progress_ = false;
     bool valid = false;
     if (!client_->whisperPoke(hart, 'c', mip, 0, valid)) {
-      vpi_control(vpiFinish);
+      cvm::log(cvm::NONE, "Error: failed to clear interrupt\n");
+      cvm::registry::messenger.signal<terminate_t>(loc_, {false});
+      return;
     }
   }
 
   if (!d.intr)
     return;
-  
+
   if (FLAGS_cosim_tracer) {
     log(cvm::MEDIUM, "<{}> Interrupt detected. cause: [{}]\n", w.time, d.icause);
   }
@@ -291,7 +298,9 @@ void bridge::handle_interrupt(hart_id_t hart, const rv_instr_t& d, whisper_state
   bool valid = false;
   uint64_t cause = (1ull << d.icause);
   if (!client_->whisperPoke(hart, 'c', mip, cause, valid)) {
-    vpi_control(vpiFinish);
+    cvm::log(cvm::NONE, "Error: failed to poke interrupt\n");
+    cvm::registry::messenger.signal<terminate_t>(loc_, {false});
+    return;
   }
 
   intr_in_progress_ = true;
@@ -306,7 +315,7 @@ void bridge::handle_interrupt(hart_id_t hart, const rv_instr_t& d, whisper_state
 }
 
 void bridge::handle_exception(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
-  
+
   if (!d.excp)
     return;
 
@@ -319,7 +328,8 @@ void bridge::handle_exception(hart_id_t hart, const rv_instr_t& d, whisper_state
   if (!w.trap && !ecall_ && !FLAGS_cosim_resynch) {
     print_instr(hart, w);
     cvm::log(cvm::NONE, "Error: DUT took exception, Whisper did not. cause:[{}]\n", d.ecause);
-    vpi_control(vpiFinish);
+    cvm::registry::messenger.signal<terminate_t>(loc_, {false});
+    return;
   }
 
   // Special case - ecall - No extra step
@@ -334,12 +344,14 @@ void bridge::handle_exception(hart_id_t hart, const rv_instr_t& d, whisper_state
   if (FLAGS_cosim_resynch) {
     for (auto& c : w_.csr) {
       if (FLAGS_cosim_tracer) {
-        log(cvm::HIGH, "<{}> Whisper Step #{}: Resynch: C{:#x}={:#x}\n", d.cycle, cac_.getStep(hart), 
+        log(cvm::HIGH, "<{}> Whisper Step #{}: Resynch: C{:#x}={:#x}\n", d.cycle, cac_.getStep(hart),
           c.csr_addr, c.csr_wdata);
       }
       bool valid;
       if (!client_->whisperPoke(hart, 'c', c.csr_addr, c.csr_wdata, valid)) {
-        vpi_control(vpiFinish);
+        cvm::log(cvm::NONE, "Error: Failed to resync CSR values\n");
+        cvm::registry::messenger.signal<terminate_t>(loc_, {false});
+        return;
       }
     }
   }
@@ -388,7 +400,9 @@ void bridge::handle_satp(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w
         }
         bool valid = false;
         if (!client_->whisperPoke(hart, 'c', 0x180, satp_, valid)) {
-          vpi_control(vpiFinish);
+          cvm::log(cvm::NONE, "Error: failed to poke SATP\n");
+          cvm::registry::messenger.signal<terminate_t>(loc_, {false});
+          return;
         }
       }
     }
@@ -405,7 +419,9 @@ void bridge::handle_satp(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w
     }
     bool valid = false;
     if (!client_->whisperPoke(hart, 'c', 0x180, new_satp_, valid)) {
-      vpi_control(vpiFinish);
+      cvm::log(cvm::NONE, "Error: failed to poke new SATP\n");
+      cvm::registry::messenger.signal<terminate_t>(loc_, {false});
+      return;
     }
   }
 }
@@ -436,9 +452,11 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
   //TODO:update_priv(hart, src_t::whisper, w.priv_mode);
 
   for (auto i = 0u; i < w.change_count; i++) {
-    if (!client_->whisperChange(hart, w.resource, w.address, w.value, 
+    if (!client_->whisperChange(hart, w.resource, w.address, w.value,
         w.valid)) {
-      vpi_control(vpiFinish);
+      cvm::log(cvm::NONE, "Error: Failed to get whisper changes\n");
+      cvm::registry::messenger.signal<terminate_t>(loc_, {false});
+      return;
     }
     if (FLAGS_cosim_tracer) {
       print_resource(hart, w);
@@ -472,19 +490,21 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
 
 // Print functions
 void bridge::print_instr(hart_id_t hart, const whisper_state_t& w) {
-  log(cvm::MEDIUM, "<{}> Whisper Step #{}: [Hart={}, Mode={}, Tag={}, ChangeCount={}, PC={:#x}, Opcode={:#x}, Disasm={}]\n", 
+  log(cvm::MEDIUM, "<{}> Whisper Step #{}: [Hart={}, Mode={}, Tag={}, ChangeCount={}, PC={:#x}, Opcode={:#x}, Disasm={}]\n",
     w.time, cac_.getStep(hart), hart, w.priv_mode, w.tag, w.change_count, w.pc, w.opcode, w.buffer);
 }
-  
+
 void bridge::print_resource(hart_id_t hart, const whisper_state_t& w) {
   log(cvm::MEDIUM, "<{}> Whisper Step #{}: [Hart={}, Mode={}, Tag={}, Resource={}, Addr={:#x}, Data={:#x}]\n",
     w.time, cac_.getStep(hart), hart, w.priv_mode, w.tag, (char)w.resource, w.address, w.value);
 }
 
 void bridge::step(hart_id_t hart, whisper_state_t& w) {
-  if (!client_->whisperStep(hart, w.time, w.tag,  w.pc, w.opcode, w.change_count, w.buffer, w.buffer_size, 
+  if (!client_->whisperStep(hart, w.time, w.tag,  w.pc, w.opcode, w.change_count, w.buffer, w.buffer_size,
       w.priv_mode, w.fp_flags, w.trap, w.stop)) {
-    vpi_control(vpiFinish);
+    cvm::log(cvm::NONE, "Error: Failed to step whisper\n");
+    cvm::registry::messenger.signal<terminate_t>(loc_, {false});
+    return;
   }
   if (FLAGS_cosim_tracer) {
     print_instr(hart, w);
@@ -500,7 +520,7 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
   }
   // FPR
   if (d.fpr.valid) {
-    size8BytesT dword_array [1] = {d.fpr.frd_wdata}; 
+    size8BytesT dword_array [1] = {d.fpr.frd_wdata};
     update_regs(hart, src_t::dut, resource_t::fp_reg, d.fpr.frd_addr, dword_array);
   }
   // VR
@@ -531,12 +551,12 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w) {
       break;
     case 'f':
       dword_array [0] = w.value;
-      update_regs(hart, src_t::whisper, resource_t::fp_reg, w.address, dword_array); 
+      update_regs(hart, src_t::whisper, resource_t::fp_reg, w.address, dword_array);
       break;
     case 'v':
       //TODO:dword_vec_array [i % entries] = w.value;
       //TODO:if ((i % entries) == (entries - 1))
-      //TODO:  update_regs(hart, src_t::whisper, resource_t::vec_reg, w.address, dword_vec_array); 
+      //TODO:  update_regs(hart, src_t::whisper, resource_t::vec_reg, w.address, dword_vec_array);
       break;
     default:
       break;
@@ -544,7 +564,7 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w) {
 }
 
 // Utility functions
-void bridge::update_pc(hart_id_t hart, src_t src, uint64_t data) { 
+void bridge::update_pc(hart_id_t hart, src_t src, uint64_t data) {
   size8BytesT dword_array [1] = {data};
   if (src == src_t::dut) {
     cac_.updateRegister(hart, CAC_STATE_PC_ID, dword_array);
@@ -553,7 +573,7 @@ void bridge::update_pc(hart_id_t hart, src_t src, uint64_t data) {
   }
 }
 
-//TODO:void bridge::update_priv(hart_id_t hart, src_t src, uint32_t data) { 
+//TODO:void bridge::update_priv(hart_id_t hart, src_t src, uint32_t data) {
 //TODO:  size8BytesT dword_array [1] = {data};
 //TODO:  if (src == src_t::dut) {
 //TODO:    cac_.updateRegister(hart, CAC_STATE_PRIV_MODE, dword_array);
@@ -610,7 +630,7 @@ bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const whisp
 }
 
 bool bridge::clint_read(const rv_instr_t& d) {
-  if (d.mem_read.pa >= memmap_.at("clint").base && 
+  if (d.mem_read.pa >= memmap_.at("clint").base &&
       d.mem_read.pa < memmap_.at("clint").end)
     return true;
   return false;
@@ -687,38 +707,46 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
       log(cvm::HIGH, "<{}> Whisper Step #{}: Resynch: PC={:#x}\n", d.cycle, cac_.getStep(hart), d.pc.pc_rdata);
     }
     if (!client_->whisperPoke(hart, 'p', 0, d.pc.pc_rdata, valid)) {
-      vpi_control(vpiFinish);
+      cvm::log(cvm::NONE, "Error: Failed to resync PC\n");
+      cvm::registry::messenger.signal<terminate_t>(loc_, {false});
+      return;
     }
   }
 
   if (d.gpr.valid) {
     if (FLAGS_cosim_tracer) {
-      log(cvm::HIGH, "<{}> Whisper Step #{}: Resynch: X{}={:#x}\n", d.cycle, cac_.getStep(hart), d.gpr.rd_addr, 
+      log(cvm::HIGH, "<{}> Whisper Step #{}: Resynch: X{}={:#x}\n", d.cycle, cac_.getStep(hart), d.gpr.rd_addr,
         d.gpr.rd_wdata);
     }
     if (!client_->whisperPoke(hart, 'r', d.gpr.rd_addr, d.gpr.rd_wdata, valid)) {
-      vpi_control(vpiFinish);
+      cvm::log(cvm::NONE, "Error: Failed to resync GPR\n");
+      cvm::registry::messenger.signal<terminate_t>(loc_, {false});
+      return;
     }
   }
-  
+
   if (d.fpr.valid) {
     if (FLAGS_cosim_tracer) {
-      log(cvm::HIGH, "<{}> Whisper Step #{}: Resynch: F{}={:#x}\n", d.cycle, cac_.getStep(hart), d.fpr.frd_addr, 
+      log(cvm::HIGH, "<{}> Whisper Step #{}: Resynch: F{}={:#x}\n", d.cycle, cac_.getStep(hart), d.fpr.frd_addr,
         d.fpr.frd_wdata);
     }
     if (!client_->whisperPoke(hart, 'f', d.fpr.frd_addr, d.fpr.frd_wdata, valid)) {
-      vpi_control(vpiFinish);
+      cvm::log(cvm::NONE, "Error: Failed to resync FP\n");
+      cvm::registry::messenger.signal<terminate_t>(loc_, {false});
+      return;
     }
   }
 
   if (d.mem_write.valid) {
     uint64_t pa = translate(hart, d.mem_write.va, w_.priv, memclass_t::write);
     if (FLAGS_cosim_tracer) {
-      log(cvm::HIGH, "<{}> Whisper Step #{}: Resynch: M[{:#x}]={:#x}\n", d.cycle, cac_.getStep(hart), pa, 
+      log(cvm::HIGH, "<{}> Whisper Step #{}: Resynch: M[{:#x}]={:#x}\n", d.cycle, cac_.getStep(hart), pa,
         d.mem_write.data);
     }
     if (!client_->whisperPoke(hart, 'm', pa, d.mem_write.data, valid)) {
-      vpi_control(vpiFinish);
+      cvm::log(cvm::NONE, "Error: Failed to resync memory\n");
+      cvm::registry::messenger.signal<terminate_t>(loc_, {false});
+      return;
     }
   }
 }
@@ -729,7 +757,9 @@ void bridge::process_dut_mem_read(hart_id_t hart, mem_t& m) {
   bool internal = false;
   bool valid = false;
   if (!client_->whisperMcmRead(hart, m.cycle, m.tag, m.pa, size_in_bytes, m.data, internal, valid)) {
-    vpi_control(vpiFinish);
+    cvm::log(cvm::NONE, "Error: Failed mcm load resolve\n");
+    cvm::registry::messenger.signal<terminate_t>(loc_, {false});
+    return;
   }
 }
 
@@ -738,14 +768,16 @@ void bridge::process_dut_mb_insert(hart_id_t hart, mem_t& m) {
   unsigned size_in_bytes = 1 << m.size;
   bool valid = false;
   if (!client_->whisperMcmInsert(hart, m.cycle, m.tag, m.pa, size_in_bytes, m.data, valid)) {
-    vpi_control(vpiFinish);
+    cvm::log(cvm::NONE, "Error: Failed mcm store insert\n");
+    cvm::registry::messenger.signal<terminate_t>(loc_, {false});
+    return;
   }
 }
 
 // Process mem accesses - store drains
 void bridge::process_dut_mb_drain(hart_id_t hart, mem_cl_t& m) {
   unsigned size_in_bytes = 64;
-  
+
   uint64_t addr = (m.addr >> 6) << 6;
   char data[64] = {0};
   for (unsigned i=0; i<size_in_bytes; i++) {
@@ -754,7 +786,9 @@ void bridge::process_dut_mb_drain(hart_id_t hart, mem_cl_t& m) {
 
   bool valid = false;
   if (!client_->whisperMcmWrite(hart, m.cycle, addr, size_in_bytes, data, m.mask, valid)) {
-    vpi_control(vpiFinish);
+    cvm::log(cvm::NONE, "Error: Failed mcm store drain\n");
+    cvm::registry::messenger.signal<terminate_t>(loc_, {false});
+    return;
   }
 }
 
@@ -771,7 +805,8 @@ uint64_t bridge::translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t
   bool sup = (priv == 0x1);
 
   if (!client_->whisperTranslate(hart, va, r, w, x, sup, pa, valid)) {
-    vpi_control(vpiFinish);
+    cvm::log(cvm::NONE, "Error: Failed VA translation\n");
+    cvm::registry::messenger.signal<terminate_t>(loc_, {false});
   }
 
   return pa;
@@ -782,7 +817,7 @@ void bridge::translation_check(hart_id_t hart, const rv_instr_t& d, whisper_stat
 
   if (!FLAGS_translation_check)
     return;
-  
+
   if (d.mem_va == 0)
   return;
 
@@ -793,12 +828,13 @@ void bridge::translation_check(hart_id_t hart, const rv_instr_t& d, whisper_stat
 
   uint64_t pa = translate(hart, va, w.priv_mode, memclass_t::read);
   if (pa != d.mem_pa){
-    cvm::log(cvm::NONE, "<{}> Whisper Step #{}: [Hart={}, Mode={}, Tag={}, PC={:#x}, VA={:#x}, RTL-PA={:#x}, ISS-PA={:#x}]\n", w.time, (cac_.getStep(hart)-1), hart, w.priv_mode, w.tag, w.pc, d.mem_va, d.mem_pa, pa); 
-    cvm::log(cvm::NONE, "Error: PA MISMATCH !! :\n"); 
-    vpi_control(vpiFinish); 
-  } 
+    cvm::log(cvm::NONE, "<{}> Whisper Step #{}: [Hart={}, Mode={}, Tag={}, PC={:#x}, VA={:#x}, RTL-PA={:#x}, ISS-PA={:#x}]\n", w.time, (cac_.getStep(hart)-1), hart, w.priv_mode, w.tag, w.pc, d.mem_va, d.mem_pa, pa);
+    cvm::log(cvm::NONE, "Error: PA MISMATCH !! :\n");
+    cvm::registry::messenger.signal<terminate_t>(loc_, {false});
+    return;
+  }
   else {
-    log(cvm::MEDIUM, "<{}> Whisper Step #{}: [Hart={}, Mode={}, Tag={}, PC={:#x}, VA={:#x}, PA={:#x}]\n", w.time, (cac_.getStep(hart)-1), hart, w.priv_mode, w.tag, w.pc, d.mem_va, pa); 
+    log(cvm::MEDIUM, "<{}> Whisper Step #{}: [Hart={}, Mode={}, Tag={}, PC={:#x}, VA={:#x}, PA={:#x}]\n", w.time, (cac_.getStep(hart)-1), hart, w.priv_mode, w.tag, w.pc, d.mem_va, pa);
   }
 
 }
@@ -809,15 +845,19 @@ void bridge::enter_debug_mode(rv_debug_t& d) {
   log(cvm::NONE, "<{}> Enter debug mode\n", d.cycle);
   debug_mode_ = true;
   if (!client_->whisperEnterDebug()) {
-    vpi_control(vpiFinish);
+    cvm::log(cvm::NONE, "Error: Failed to enter debug mode\n");
+    cvm::registry::messenger.signal<terminate_t>(loc_, {false});
+    return;
   }
-  //whisper: if debug_exc -> poke mcause with 24<configurable cmdline> 
+  //whisper: if debug_exc -> poke mcause with 24<configurable cmdline>
   // Poke mip before invoking whisper step
   bool valid = false;
   uint64_t mcause = 0x342;
   uint64_t cause = FLAGS_debug_excp_mcause; //24 for cva6
   if (!client_->whisperPoke(d.hart, 'c', mcause, cause, valid)) {
-    vpi_control(vpiFinish);
+    cvm::log(cvm::NONE, "Error: Failed to poke mcause\n");
+    cvm::registry::messenger.signal<terminate_t>(loc_, {false});
+    return;
   }else{
     std::cout <<"whisper poke mcause with "<<FLAGS_debug_excp_mcause<<"\n";
   }
@@ -827,6 +867,8 @@ void bridge::exit_debug_mode(rv_debug_t& d) {
   log(cvm::NONE, "<{}> Exit debug mode\n", d.cycle);
   debug_mode_ = false;
   if (!client_->whisperExitDebug()) {
-    vpi_control(vpiFinish);
+    cvm::log(cvm::NONE, "Error: Failed to exit debug mode\n");
+    cvm::registry::messenger.signal<terminate_t>(loc_, {false});
+    return;
   }
 }

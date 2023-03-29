@@ -1,6 +1,5 @@
 #include <iostream>
 #include <thread>
-#include <cassert>
 #include <unordered_map>
 #include "cvm/plusargs.hpp"
 #include "cvm/topology.hpp"
@@ -159,7 +158,7 @@ sysmod::compose()
             [&](debugger::dmi_data_t i) { return this->dmi_write(i); });
       } else {
         std::cerr << "Error: unknown type " << type << "\n";
-        assert(false);
+        terminate({false});
       }
 
       devices_.emplace_back(device);
@@ -170,26 +169,28 @@ sysmod::compose()
   }
 }
 
-device&
+device*
 sysmod::dev(uint64_t addr)
 {
   for (auto& d : devices_) {
     if (d->has_addr(addr))
-      return *d;
+      return d.get();
   }
   std::cerr << "bus error: address not mapped: " << std::hex << addr << '\n';
-  assert(false);
+  terminate({false});
+  return nullptr;
 }
 
-device&
+device*
 sysmod::dev(const std::string& tag)
 {
   for (auto& d : devices_) {
     if (d->tag() == tag)
-      return *d;
+      return d.get();
   }
   std::cerr << "bus error: tag not mapped: " << tag << '\n';
-  assert(false);
+  terminate({false});
+  return nullptr;
 }
 
 void
@@ -213,8 +214,14 @@ sysmod::load_io(const std::string& io)
       for (size_t i = 0; i < 8; i++) strb[i] = true;
 
       // Read from memory and write to requested dev tag
-      dev("memory").backdoor_read(dev(tag).addr()+offset, 8, data);
-      dev(tag).write(dev(tag).addr()+offset, 8, data, strb);
+      if (not dev("memory") or not dev(tag)) {
+        std::cerr << "could not get device: " << tag << '\n';
+        terminate({false});
+        return;
+      }
+
+      dev("memory")->backdoor_read(dev(tag)->addr()+offset, 8, data);
+      dev(tag)->write(dev(tag)->addr()+offset, 8, data, strb);
     }
   }
 }
@@ -225,19 +232,24 @@ sysmod::load_prog(const std::string& hex, const std::string& load)
   std::lock_guard<std::mutex> lock(sys_m);
   if (load != "") {
     std::cout << "loading " << load << "\n";
-    for(const auto& d : memmap_) {
+    for (const auto& d : memmap_) {
       const auto type = d.second.type;
       const auto tag  = d.second.tag;
-      if(type == "memory"){
-        if (not dynamic_cast<sysmod_mem&>(dev(tag)).init_elf(load))
-          assert(false);
+      if (type == "memory") {
+        if (not dev(tag) or not dynamic_cast<sysmod_mem&>(*dev(tag)).init_elf(load)) {
+          terminate({false});
+          return;
+        }
       }
     }
   }
   if (hex != "") {
     std::cout << "loading " << hex << "\n";
-    if (not dynamic_cast<sysmod_mem&>(dev("memory")).init_hex(hex))
-      assert(false);
+    if (not dev("memory") or not dynamic_cast<sysmod_mem&>(*dev("memory")).init_hex(hex)) {
+      std::cerr << "no memory defined" << '\n';
+      terminate({false});
+      return;
+    }
   }
 }
 
@@ -246,8 +258,8 @@ sysmod::write(uint64_t addr, size_t length, const device::data_t& data, const de
 {
   std::lock_guard<std::mutex> lock(sys_m);
   //std::cout << std::hex << "write req at: " << addr << '\n';
-  auto& d = dev(addr);
-  d.write(addr, length, data, strb);
+  auto d = dev(addr);
+  d->write(addr, length, data, strb);
 }
 
 void
@@ -255,8 +267,8 @@ sysmod::read(uint64_t addr, size_t length, device::data_t& data)
 {
   std::lock_guard<std::mutex> lock(sys_m);
   //std::cout << std::hex << "read req at: " << addr << '\n';
-  auto& d = dev(addr);
-  d.read(addr, length, data);
+  auto d = dev(addr);
+  d->read(addr, length, data);
 }
 
 void

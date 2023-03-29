@@ -18,14 +18,14 @@ clint::clint(const std::string& tag, uint64_t addr, unsigned hartCount,
       std::string type, val;
 
       std::istringstream iss(line);
-      assert(iss >> type);
+      iss >> type;
 
       if (type == "timer")
         timer_ = strtoull(val.c_str(), nullptr, 0);
       else if (type == "cmp") {
-        assert(iss >> val);
+        iss >> val;
         uint64_t num = strtoull(val.c_str(), nullptr, 0);
-        assert(iss >> val);
+        iss >> val;
         // TODO: error check number < hartCount
         timeCompare_.at(num) = strtoull(val.c_str(), nullptr, 0);
       }

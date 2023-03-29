@@ -1,6 +1,7 @@
 #include "rvfi.h"
 #include "cvm/plusargs.hpp"
 #include "cvm/bitmanip.hpp"
+#include "cvm/callbacks.hpp"
 #include "cvm/registry.hpp"
 
 #include <iostream>
@@ -12,9 +13,21 @@ DEFINE_int32(debug_exit_pc, 0x860, "Debug Mode exit PC");
 
 REGISTRY_register(rvfi, platform, 0);
 
+extern "C" {
+  void cosim_terminate(uint8_t call_finish);
+}
+
 rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
   : log("dut_rvfi.log"), loc_(loc) {
   init();
+
+  cvm::registry::messenger.connect<scope_t>(
+    loc_,
+    [&](scope_t s) { return this->set_scope(s.scope); });
+
+  cvm::registry::messenger.connect<bridge::terminate_t>(
+    loc_,
+    [&](bridge::terminate_t t) { return this->terminate(t); });
 
   connect<
     cosim_transactions::m_rvfi,
@@ -30,11 +43,17 @@ void rvfi::init() {
 
   if (FLAGS_cosim) {
     cvm::log(cvm::MEDIUM, "[RVFI] Constructing bridge...\n");
-    bridge_ = std::make_unique<bridge>(num_harts, xlen, vlen);
+    bridge_ = std::make_unique<bridge>(num_harts, xlen, vlen, loc_);
     bridge_->reset();
     log(cvm::NONE, "Instr Cycle Hart Mode PC Opcode\n");
     count_ = 0;
   }
+}
+
+void rvfi::terminate(bridge::terminate_t t) {
+  cvm::registry::callbacks.push(
+    scope_,
+    [t]() { cosim_terminate(t.terminate); });
 }
 
 void rvfi::process(const cosim_transactions::m_rvfi& m_rvfi) {
@@ -68,7 +87,7 @@ void rvfi::process(const cosim_transactions::m_intr& m_intr) {
 
   if (!FLAGS_rvfi)
     return;
-   
+
    if (m_intr.pos_edge) {
      log(cvm::NONE, "#{} {} 0 (assert interrupt:{})\n", m_intr.cycle, count_, cause);
    } else {
@@ -79,7 +98,7 @@ void rvfi::process(const cosim_transactions::m_intr& m_intr) {
 void rvfi::process(const cosim_transactions::m_debug& m_debug) {
   if (!FLAGS_rvfi)
     return;
- 
+
 }
 
 void rvfi::make_instr(const cosim_transactions::m_rvfi& m_rvfi, rv_instr_t& instr) {
@@ -108,9 +127,9 @@ void rvfi::make_instr(const cosim_transactions::m_rvfi& m_rvfi, rv_instr_t& inst
   instr.gpr.rd_wdata = m_rvfi.rd_wdata;
 
   // tlb
-  instr.mem_va = m_rvfi.mem_addr; 
+  instr.mem_va = m_rvfi.mem_addr;
   instr.mem_pa = m_rvfi.mem_paddr;
-  
+
   // Mem reads
   instr.mem_read.valid = (m_rvfi.mem_rmask != 0);
   auto [raddr, rdata, rsize] = get_mem_attributes(m_rvfi.mem_addr, m_rvfi.mem_rmask, m_rvfi.mem_rdata);
@@ -158,8 +177,8 @@ void rvfi::print_instr(rv_instr_t& instr) {
   if (!FLAGS_rvfi)
     return;
 
-  log(cvm::NONE, "#{} {} {} {} {:016x} {:08x}", instr.id, instr.cycle, instr.hart, instr.priv, instr.pc.pc_rdata, 
-      instr.opcode); 
+  log(cvm::NONE, "#{} {} {} {} {:016x} {:08x}", instr.id, instr.cycle, instr.hart, instr.priv, instr.pc.pc_rdata,
+      instr.opcode);
 
   if (instr.gpr.valid)
     log(cvm::NONE, " r {:016x} {:016x}", instr.gpr.rd_addr, instr.gpr.rd_wdata);
@@ -188,10 +207,10 @@ void rvfi::enter_debug_mode(rv_instr_t& instr) {
     return;
 
   if (instr.pc.pc_rdata == FLAGS_debug_entry_pc) {
-    
+
     rv_debug_t debug;
     std::cout <<" Enter Debug Mode debug_entry_pc :"<<std::hex<<FLAGS_debug_entry_pc<<"\n";
-    
+
     debug.cycle = instr.cycle;
     debug.enter = true;
     debug.exit  = false;
@@ -200,7 +219,7 @@ void rvfi::enter_debug_mode(rv_instr_t& instr) {
     log(cvm::NONE, "#{} {} 0 (enter debug mode)\n", count_, debug.cycle);
 
     bridge_->enter_debug_mode(debug);
-  } 
+  }
 }
 
 void rvfi::exit_debug_mode(rv_instr_t& instr) {
@@ -208,10 +227,10 @@ void rvfi::exit_debug_mode(rv_instr_t& instr) {
     return;
 
   if (instr.pc.pc_rdata == FLAGS_debug_exit_pc) {
-    
+
     rv_debug_t debug;
     std::cout <<" Exit Debug Mode debug_exit_pc :"<<std::hex<<FLAGS_debug_exit_pc<<"\n";
-    
+
     debug.cycle = instr.cycle;
     debug.enter = false;
     debug.exit  = true;
@@ -220,6 +239,13 @@ void rvfi::exit_debug_mode(rv_instr_t& instr) {
     log(cvm::NONE, "#{} {} 0 (exit debug mode)\n", count_, debug.cycle);
 
     bridge_->exit_debug_mode(debug);
-  } 
-  
+  }
+
+}
+
+extern "C" {
+    void cosim_set_scope(cvm::topology::loc_t loc) {
+      svScope scope = svGetScope();
+      cvm::registry::messenger.signal<rvfi::scope_t>(loc, {scope});
+    }
 }

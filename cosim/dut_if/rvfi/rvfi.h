@@ -6,6 +6,7 @@
 #include "cvm/logger.hpp"
 #include "cosim_transactions.hpp"
 
+#include "svdpi.h"
 #include "bridge_if.h"
 #include "bridge.h"
 #include "bot.h"
@@ -29,14 +30,20 @@ class rvfi {
 
     rvfi(cvm::topology::loc_t loc, unsigned id);
 
+    struct scope_t {
+      svScope scope;
+    };
+
   private:
 
     void init();
+    void set_scope(svScope s) { scope_ = s; }
+    void terminate(bridge::terminate_t t);
     void process(const cosim_transactions::m_rvfi& m_rvfi);
     void process(const cosim_transactions::m_trap& m_trap);
     void process(const cosim_transactions::m_intr& m_intr);
     void process(const cosim_transactions::m_debug& m_debug);
-    
+
     std::tuple<uint64_t, uint64_t, uint8_t> get_mem_attributes(uint64_t addr, uint8_t mask, uint64_t data);
 
     void make_instr(const cosim_transactions::m_rvfi& m_rvfi, rv_instr_t& instr);
@@ -56,6 +63,7 @@ class rvfi {
     uint64_t count_ = 0;
 
     cvm::topology::loc_t loc_;
+    svScope scope_;
 
     bool intr_ = false;
     bool excp_ = false;

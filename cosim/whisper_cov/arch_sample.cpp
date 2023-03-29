@@ -7,9 +7,8 @@
 #include <unordered_map>
 #include "svdpi.h"
 #include "arch_sample.h"
-#include "src/cov_socket.hpp"     
+#include "src/cov_socket.hpp"
 #include "cvm/plusargs.hpp"
-#include "vpi_user.h" 
 
 using namespace ArchCov;
 CovSocket covSocket;
@@ -38,12 +37,12 @@ void ArchSample::reset(){
 void ArchSample::coverage_sample(int hart, int step, const whisper_state_t& w) {
 
    // print instr
-   log(cvm::MEDIUM, "<{}> Whisper Step #{}  : [Hart={}, Mode={}, Tag={}, ChangeCount={}, PC={:#x}, Opcode={:#x}, Disasm={}]\n", 
+   log(cvm::MEDIUM, "<{}> Whisper Step #{}  : [Hart={}, Mode={}, Tag={}, ChangeCount={}, PC={:#x}, Opcode={:#x}, Disasm={}]\n",
     w.time, step, hart, w.priv_mode, w.tag, w.change_count, w.pc, w.opcode, w.buffer);
 
    svScope scope = svGetScopeFromName("top.tester.arch_sample");
    svSetScope(scope);
-   
+
    if (covSocket.sampleConnect("tracer_ext") > 0){
     // donot call recvMsg() post EndOfSim
     if (!sample_done) {
@@ -58,9 +57,9 @@ void ArchSample::coverage_sample(int hart, int step, const whisper_state_t& w) {
         }
         cp_pkt pkt;
         pkt.cp  = entry.first;
-        pkt.val = entry.second; 
+        pkt.val = entry.second;
 
-        //Mark the last packet of the table to indicate instruction boundary 
+        //Mark the last packet of the table to indicate instruction boundary
         if(i == (table.entries_.size()-1)) {
                 pkt.isLastPkt = 1;
         } else {
@@ -68,14 +67,12 @@ void ArchSample::coverage_sample(int hart, int step, const whisper_state_t& w) {
         }
         log(cvm::HIGH, "coverpoint : {}, value : {}\n", entry.first, entry.second);
         //cov_sample(entry.first, entry.second);
-        
+
         i++;
         sample_sv(&pkt);
       }
     }
    }
-   else{
-    cvm::log(cvm::NONE, "Error: [cosim-coverage] Whisper connect failed ...\n");
-    vpi_control(vpiFinish);
-   }
+   else
+    assert(false);
 }

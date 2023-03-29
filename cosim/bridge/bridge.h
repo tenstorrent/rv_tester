@@ -4,6 +4,7 @@
 
 #include <string>
 
+#include "cvm/topology.hpp"
 #include "bridge_base.h"
 #include "memmap.h"
 #include "cvm/logger.hpp"
@@ -16,8 +17,12 @@
 class bridge : public bridge_base {
 
 public:
-  bridge(int num_harts, int xlen, int vlen);
+  bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc);
   ~bridge();
+
+  struct terminate_t {
+    bool terminate;
+  };
 
   // DUT Interface API
   // Process instruction called on retire
@@ -27,10 +32,10 @@ public:
   //   - CSRs
   //   - Memory Access
   //   - AMO
-  //   - Table Walks 
+  //   - Table Walks
   //   - Exceptions/interrupt
   virtual void process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) override;
-  
+
   // Process memory access
   //   - Read (Ld completion)
   //   - Insert (St merge buffer insertion)
@@ -66,9 +71,9 @@ private:
   } memclass_t;
 
 private:
-  
+
   std::string get_whisper_cmd();
- 
+
   void update_dut_state(hart_id_t hart, rv_instr_t& d);
   void update_whisper_state(hart_id_t hart, whisper_state_t& w);
   void step(hart_id_t hart, whisper_state_t& w);
@@ -99,7 +104,7 @@ private:
   bool lrsc_fail(const whisper_state_t& w);
   bool xtval_read(const whisper_state_t& w);
   void resynch(hart_id_t hart, const rv_instr_t& d);
-  
+
 private:
 
   std::unique_ptr<whisperClient> client_;
@@ -109,6 +114,7 @@ private:
   int num_harts_ = 0;
   int xlen_ = 0;
   int vlen_ = 0;
+  cvm::topology::loc_t loc_;
   CacCore cac_;
   ArchSample archcov;
 

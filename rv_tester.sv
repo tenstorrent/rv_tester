@@ -28,6 +28,18 @@ module rv_tester #(
     LU clocks = 0;
     bit cb_poll = '0;
 
+    logic terminated;
+    logic call_finish;
+    rv_tester_pkg::terminate_t sysmod_terminate;
+`ifndef NO_COSIM
+    rv_tester_pkg::terminate_t cosim_terminate;
+    assign terminated = sysmod_terminate.terminate || cosim_terminate.terminate;
+    assign call_finish = sysmod_terminate.call_finish || cosim_terminate.call_finish;
+`else
+    assign terminated = sysmod_terminate.terminate;
+    assign call_finish = sysmod_terminate.call_finish;
+`endif
+
     always @(posedge clk) begin
         rv_tester_reset <= '0;
         sysmod_reset <= 0;
@@ -46,7 +58,12 @@ module rv_tester #(
             /* verilator lint_on BLKSEQ */
         end
         if (cb_poll) begin
-          rv_tester_flush_callbacks();
+            rv_tester_flush_callbacks();
+        end
+        if (terminated && call_finish) begin
+            // exit gracefully
+            $display("[RVTESTER]: exiting gracefully");
+            $finish();
         end
     end
     assign reset = clocks < LU'(RESET_CLOCKS) || rv_tester_reset || sysmod_reset;
@@ -63,12 +80,12 @@ module rv_tester #(
         .bootstrap,
         .dmi_write,
         .interrupt,
-        .terminate
+        .terminate(sysmod_terminate)
     );
 
-    // coverage 
+    // coverage
     arch_sample arch_sample ();
-    
+
 `ifndef NO_COSIM
     cosim #(
         .NUM(0),
@@ -80,7 +97,8 @@ module rv_tester #(
         .rvfi(rvfi_instr),
         .mcmi_store(mcmi_store),
         .interrupt,
-        .debug_mode
+        .debug_mode,
+        .terminate(cosim_terminate)
     );
 `endif
 
@@ -101,7 +119,7 @@ module rv_tester #(
             .axi_mst_ar_size (axi_req[p].ar_size),
             .axi_mst_ar_lock (axi_req[p].ar_lock),
             .axi_mst_ar_burst(axi_req[p].ar_burst),
-         
+
             .axi_mst_aw_valid(axi_req[p].aw_valid),
             .axi_mst_aw_id   (axi_req[p].aw_id),
             .axi_mst_aw_addr (axi_req[p].aw_addr),
@@ -110,25 +128,25 @@ module rv_tester #(
             .axi_mst_aw_burst(axi_req[p].aw_burst),
             .axi_mst_aw_lock (axi_req[p].aw_lock),
             .axi_mst_aw_atop (axi_req[p].aw_atop),
-         
+
             .axi_mst_w_valid(axi_req[p].w_valid),
             .axi_mst_w_data (axi_req[p].w_data),
             .axi_mst_w_strb (axi_req[p].w_strb),
             .axi_mst_w_last (axi_req[p].w_last),
-         
+
             .axi_mst_b_ready(axi_req[p].b_ready),
             .axi_mst_r_ready(axi_req[p].r_ready),
 
             .axi_slv_b_valid(axi_rsp[p].b_valid),
             .axi_slv_b_id   (axi_rsp[p].b_id),
             .axi_slv_b_resp (axi_rsp[p].b_resp),
-         
+
             .axi_slv_r_valid(axi_rsp[p].r_valid),
             .axi_slv_r_id   (axi_rsp[p].r_id),
             .axi_slv_r_data (axi_rsp[p].r_data),
             .axi_slv_r_resp (axi_rsp[p].r_resp),
             .axi_slv_r_last (axi_rsp[p].r_last),
-         
+
             .axi_slv_aw_ready(axi_rsp[p].aw_ready),
             .axi_slv_ar_ready(axi_rsp[p].ar_ready),
             .axi_slv_w_ready (axi_rsp[p].w_ready)

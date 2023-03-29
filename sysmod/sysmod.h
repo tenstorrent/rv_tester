@@ -20,8 +20,8 @@ class sysmod {
 
     ~sysmod();
 
-    device& dev(uint64_t addr);
-    device& dev(const std::string& tag);
+    device* dev(uint64_t addr);
+    device* dev(const std::string& tag);
 
     void write(uint64_t addr, size_t length, const device::data_t& data, const device::strb_t& strb);
     void read(uint64_t addr, size_t length, device::data_t& data);

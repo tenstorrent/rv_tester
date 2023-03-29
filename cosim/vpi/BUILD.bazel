@@ -1,7 +1,0 @@
-cc_library(
-    name     = "vpi_user",
-    hdrs     = ["vpi_user.h"],
-    alwayslink = True,
-    visibility = ["//visibility:public"],
-    strip_include_prefix = ".",
-)
