@@ -32,7 +32,7 @@ module cosim #(
             /* verilator lint_on BLKSEQ */
         end
         /* verilator lint_off BLKSEQ */
-        terminate.terminate <= '0;
+        terminate.terminate = '0;
         /* verilator lint_on BLKSEQ */
     end
 
