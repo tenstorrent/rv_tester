@@ -31,12 +31,12 @@ module cosim #(
             stores_drained = 0;
             /* verilator lint_on BLKSEQ */
         end
-        terminate.terminate = '0;
+        terminate.terminate <= '0;
     end
 
     function void cosim_terminate (byte unsigned call_finish);
         terminate.terminate = '1;
-        terminate.call_finish = call_finish;
+        terminate.call_finish = call_finish[0];
     endfunction
     export "DPI-C" function cosim_terminate;
 

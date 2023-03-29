@@ -36,14 +36,14 @@ module sysmod #(
             sysmod_set_scope(location);
             /* verilator lint_on BLKSEQ */
         end
-        terminate.terminate = '0;
+        terminate.terminate <= '0;
     end
 
     assign bootstrap.boot_addr = 1 << 31;
 
     function void sysmod_terminate (byte unsigned call_finish);
         terminate.terminate = '1;
-        terminate.call_finish = call_finish;
+        terminate.call_finish = call_finish[0];
     endfunction
     export "DPI-C" function sysmod_terminate;
 
