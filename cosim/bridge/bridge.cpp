@@ -310,6 +310,12 @@ void bridge::handle_exception(hart_id_t hart, const rv_instr_t& d, whisper_state
   if (!d.excp)
     return;
 
+  bool custom_nonspec_resync = (d.ecause == 28);
+  if (custom_nonspec_resync) {
+    cvm::log(cvm::MEDIUM, "<{}> Special custom exception detected: NONSPEC_RESYNC\n", d.cycle);
+    return;
+  }
+
   if (!w.trap && !ecall_ && !FLAGS_cosim_resynch) {
     print_instr(hart, w);
     cvm::log(cvm::NONE, "Error: DUT took exception, Whisper did not. cause:[{}]\n", d.ecause);
