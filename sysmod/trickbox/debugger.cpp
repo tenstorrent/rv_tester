@@ -2,13 +2,18 @@
 #include "cvm/topology.hpp"
 #include "debugger.h"
 
+//DECLARE_string(dbg_input_file_path);
+DEFINE_string(dbg_input_file_path, "", "Path to file containing debugger commands");
 
 debugger::debugger(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc)
   : device(tag, addr, 0x4000 /* size */, loc), hartCount_(hartCount), soft_(hartCount),
     timeCompare_(6),IntrHart_(6),delayedRandomIntValid_(6),IntrValue_(6), timerIntPrev_(hartCount), timer_(0)
 {
   debugger_base = addr;
+  debugger_trigger = addr + 0x10000;
   reset(); 
+  //parse_dmi_from_csv();
+  //dbg_trigger = 1; 
 }
 
 
@@ -19,6 +24,95 @@ debugger::~debugger()
 }
 
 
+void debugger::parse_dmi_from_csv()
+{
+  if ((FLAGS_dbg_input_file_path == "")) {
+    dbg_file_mode = 0;
+    }else{
+    std::cout<< "trying to read: "<< FLAGS_dbg_input_file_path<<"\n";
+    std::fstream file (FLAGS_dbg_input_file_path, std::ios::in);
+    if(file.is_open())
+    {
+      std::string line, word;
+      while(getline(file, line))
+      {
+        row.clear();
+  
+        std::stringstream str(line);
+        
+        
+        while(getline(str, word, ',')){
+          row.push_back(word);
+        }
+
+        dmi_req_t dmi_req;
+        dmi_req.op = 0;
+        dmi_req.addr = 0;
+        dmi_req.data = 0;
+        std::string instr;  
+        instr =   row[0];
+        //remove empty spaces from string
+        instr.erase(std::remove_if(instr.begin(), instr.end(), ::isspace), instr.end()); 
+        //convert string to lowercase for uniformity
+        std::transform(instr.begin(), instr.end(), instr.begin(), ::tolower);
+        if(instr == "rd"){
+          dmi_req.op = 1;
+        }else if(instr=="wr"){
+          dmi_req.op = 2;
+        }
+        try{
+        dmi_req.addr = std::stoul(row[1],nullptr,16);
+        } catch (const std::invalid_argument& e) {
+          std::cerr << "Invalid argument for stoul csv arg 1: " << e.what() << std::endl;
+        }
+
+        try{
+        dmi_req.data = std::stoul(row[2],nullptr,16);
+        } catch (const std::invalid_argument& e) {
+          std::cerr << "Invalid argument for stoul csv arg 2 " << e.what() << std::endl;
+        }
+        content.push_back(row);
+        dmi_cmd_q.push(dmi_req);
+        //PRINT CSV DATA
+        std::cout<<"Pushing op:"<<dmi_req.op<<" addr: "<<dmi_req.addr<<" data "<<dmi_req.data<<"\n";
+      
+      }
+    
+   
+	}
+	else{
+		std::cout<<"Could not open debugger input file\n";
+    vpi_control(vpiFinish);
+  }
+    dbg_file_mode = 1;
+  }
+    
+  
+}
+
+
+void debugger::drive_csv_dmi_cmds()
+{
+
+  if(!dmi_cmd_q.empty()) {
+    //std::cout << myQueue.front() << " ";
+    dmi_req_t dmi_req;
+    dmi_req = dmi_cmd_q.front();
+    dmi_cmd_q.pop();//pop front element
+    std::cout<<"Popping dmi request OP:"<<dmi_req.op<<" ADDR: "<<dmi_req.addr<<" DATA: "<<dmi_req.data<<"\n";
+    unsigned upper_dmi_data = 0;
+    unsigned lower_dmi_data = 0;
+    unsigned hart = 0;
+    upper_dmi_data = (dmi_req.addr << 2) | dmi_req.op;
+    lower_dmi_data = dmi_req.data;
+    hart = 0; //hart bits position TBD, till TBD it is always zero
+    trickboxDmiWrite(hart,upper_dmi_data,lower_dmi_data);
+    }else{
+      dbg_trigger = 0;
+    }
+    
+
+}
 
 void
 debugger::read(uint64_t addr, size_t length, data_t& data)
@@ -49,5 +143,14 @@ debugger::write(uint64_t addr, size_t length, const data_t& data,
     trickboxDmiWrite(hart,upper_dmi_data,lower_dmi_data);// Commented until DMI PORT is not in master
  
   }
+  
+  if(addr==debugger_trigger)
+  {
+    std::cout <<"\nDEBUGGER FILE TRIGGER\n";
+      parse_dmi_from_csv();
+      dbg_trigger = 1;
+  }
+
+ 
     
 }
