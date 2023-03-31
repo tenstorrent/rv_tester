@@ -13,7 +13,7 @@
 using namespace ArchCov;
 covSampleInterface covSampleInterface_;
 
-//extern "C" void sample_sv(const cp_pkt*);
+extern "C" void sample_sv(const cp_pkt*);
 
 // Constructor
 ArchSample::ArchSample(int num_harts) : log("cov.log"), scope_(nullptr) {
