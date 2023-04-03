@@ -51,6 +51,9 @@ public:
   void reset();
   bool whisper_connect(std::string cmd, int timeout);
 
+  void final_phase();
+  void report_metrics();
+
 private:
 
   typedef enum {
@@ -133,4 +136,7 @@ private:
 
   // Memmap
   memmap::memmap_t memmap_;
+
+  // Metrics map
+  std::map<std::string, std::uint64_t> metrics_;
 };

@@ -54,6 +54,9 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc)
     cac_(CacCore(num_harts)),
     archcov(ArchSample(num_harts))
 {
+  cvm::registry::messenger.connect<htif::terminate_t>(loc_, [&](htif::terminate_t t) {
+      return this->final_phase();
+  });
 }
 
 // Destructor
@@ -321,7 +324,7 @@ void bridge::handle_exception(hart_id_t hart, const rv_instr_t& d, whisper_state
 
   bool custom_nonspec_resync = (d.ecause == 28);
   if (custom_nonspec_resync) {
-    cvm::log(cvm::MEDIUM, "<{}> Special custom exception detected: NONSPEC_RESYNC\n", d.cycle);
+    log(cvm::MEDIUM, "<{}> Special custom exception detected: NONSPEC_RESYNC\n", d.cycle);
     return;
   }
 
@@ -500,6 +503,7 @@ void bridge::print_resource(hart_id_t hart, const whisper_state_t& w) {
 }
 
 void bridge::step(hart_id_t hart, whisper_state_t& w) {
+  metrics_["steps"]++;
   if (!client_->whisperStep(hart, w.time, w.tag,  w.pc, w.opcode, w.change_count, w.buffer, w.buffer_size,
       w.priv_mode, w.fp_flags, w.trap, w.stop)) {
     cvm::log(cvm::NONE, "Error: Failed to step whisper\n");
@@ -767,6 +771,7 @@ void bridge::process_dut_mem_read(hart_id_t hart, mem_t& m) {
 void bridge::process_dut_mb_insert(hart_id_t hart, mem_t& m) {
   unsigned size_in_bytes = 1 << m.size;
   bool valid = false;
+  metrics_["stores"]++;
   if (!client_->whisperMcmInsert(hart, m.cycle, m.tag, m.pa, size_in_bytes, m.data, valid)) {
     cvm::log(cvm::NONE, "Error: Failed mcm store insert\n");
     cvm::registry::messenger.signal<terminate_t>(loc_, {false});
@@ -871,4 +876,15 @@ void bridge::exit_debug_mode(rv_debug_t& d) {
     cvm::registry::messenger.signal<terminate_t>(loc_, {false});
     return;
   }
+}
+
+void bridge::final_phase() {
+  report_metrics();
+}
+
+void bridge::report_metrics() {
+  cvm::log(cvm::NONE, "[COSIM] Report metrics...\n");
+
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"instr_retired\": \"{}\"}}\n", metrics_["steps"]);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"stores_drained\": \"{}\"}}\n", metrics_["stores"]);
 }

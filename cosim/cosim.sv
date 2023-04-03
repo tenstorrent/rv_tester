@@ -18,8 +18,6 @@ module cosim #(
     typedef longint unsigned LU;
     int unsigned location = cvm_topology::nil;
     bit rvfi_enabled;
-    int instr_retired;
-    int stores_drained;
 
     always @(posedge clk) begin
         if (reset) begin
@@ -27,8 +25,6 @@ module cosim #(
             location = cvm_topology::get_location(topology.PLATFORM.id, 0);
             rvfi_enabled = cvm_plusargs::get_bool("rvfi") != '0;
             cosim_set_scope(location);
-            instr_retired = 0;
-            stores_drained = 0;
             /* verilator lint_on BLKSEQ */
         end
         /* verilator lint_off BLKSEQ */
@@ -118,20 +114,6 @@ module cosim #(
             cycles_since_retire <= 0;
         end else begin
             cycles_since_retire <= cycles_since_retire + 1;
-            for (int n=0; n < topology.CORE.NRET; n++) begin
-              if (tx_dom_1.m_rvfis[n].valid !== 0) begin
-                /* verilator lint_off BLKSEQ */
-                instr_retired = instr_retired + 1;
-                /* verilator lint_on BLKSEQ */
-              end
-            end
-            for (int n=0; n < topology.CORE.STQ_PORTS; n++) begin
-              if (tx_dom_1.m_mcmi_stores[n] !== 0) begin
-                /* verilator lint_off BLKSEQ */
-                stores_drained = stores_drained + 1;
-                /* verilator lint_on BLKSEQ */
-              end
-            end
             if (rvfi[0].valid !== 0) begin
               cycles_since_retire <= 0;
             end
@@ -144,11 +126,6 @@ module cosim #(
               $finish;
             end
         end
-    end
-
-    final begin
-        $display("INFO_PASS_METRIC:{\"instr_retired\": \"%0d\"}", instr_retired);
-        $display("INFO_PASS_METRIC:{\"stores_drained\": \"%0d\"}", stores_drained);
     end
 
 endmodule
