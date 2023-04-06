@@ -1,3 +1,5 @@
+workspace(name = "rv_tester")
+
 load("//:repositories.bzl", "rv_tester_repositories")
 rv_tester_repositories()
 
