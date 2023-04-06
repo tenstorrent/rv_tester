@@ -1,19 +1,21 @@
 workspace(name = "rv_tester")
 
+local_repository(
+    name = "bzsim",
+    path = "infra/bzsim_clone",
+)
+
 load("//:repositories.bzl", "rv_tester_repositories")
 rv_tester_repositories()
 
 load("@bazel_skylib//:workspace.bzl", "bazel_skylib_workspace")
 bazel_skylib_workspace()
 
-load("@rules_python//python:pip.bzl", "pip_parse")
-pip_parse(
-    name = "pypi",
-    # (Optional) You can set quiet to False if you want to see pip output.
-    #quiet = False,
-    requirements_lock = "@cvm//deps:requirements_lock.txt",
-)
+load("@cvm//deps:repositories.bzl", "cvm_dependencies")
+cvm_dependencies()
 
-load("@pypi//:requirements.bzl", "install_deps")
-# Initialize repositories for all packages in requirements_lock.txt.
-install_deps()
+load("@cvm//deps:toolchains1.bzl", "cvm_toolchains1")
+cvm_toolchains1()
+
+load("@cvm//deps:toolchains2.bzl", "cvm_toolchains2")
+cvm_toolchains2()

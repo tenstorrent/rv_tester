@@ -1,0 +1,31 @@
+
+load("@runtime//:runtime.bzl", "runtime_library")
+load("@bzsim//:sim.bzl", "sim_target", "simulator")
+
+load("@rules_vcs//vcs:defs.bzl", "vcs_simv")
+
+
+runtime_library(
+    name = "risc_p_cores_runtime",
+    simtest_data = [
+        "@whisper//:whisper",
+        "//dv/tb/whisper:whisper_config",
+        "//dv/tb/memmap:memmap_json",
+        "@corearchcoverage//arch/sample:archsample",
+    ],
+    plusargs_paths = {
+        "whisper_path"           : "whisper/whisper",
+        "whisper_json_path"      : "risc-p-cores/dv/tb/whisper/whisper.json",
+        "memmap_json_path"       : "risc-p-cores/dv/tb/memmap/memmap.json",
+        "archsample_lib_path"    : "risc-p-cores/_solib_k8/libexternal_Scorearchcoverage_Sarch_Ssample_Slibarchsample.so", 
+        #"memmap_json_path"       : "risc-p-cores/dv/tb/memmap/memmap_freertos.json"
+    },
+    visibility = ["//visibility:public"],
+)
+
+py_library(
+    name = "bzsimconfig",
+    srcs = ["bzsimconfig.py"],
+    visibility = ["//visibility:public"],
+)
+

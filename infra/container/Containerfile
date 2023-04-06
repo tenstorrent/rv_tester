@@ -1,0 +1,121 @@
+FROM rockylinux:8.5 as risc-p-cores/base
+# supreme hack to rename root to not show up as root in external license servers
+RUN sed -i 's/\broot\b/risc-p-cores/g' /etc/passwd /etc/shadow /etc/group /etc/gshadow \
+    && mv /root /risc-p-cores
+
+FROM risc-p-cores/base as risc-p-cores/riscv-gnu-toolchain
+COPY ./opt/riscv /opt/riscv/
+
+FROM risc-p-cores/base as risc-p-cores/verible
+RUN mkdir -p /opt/verible && curl -sSL https://github.com/chipsalliance/verible/releases/download/v0.0-1789-g43d1b6fe/verible-v0.0-1789-g43d1b6fe-CentOS-8.4.2105-na-x86_64.tar.gz | tar xvzf - --strip-components=1 -C /opt/verible
+
+FROM risc-p-cores/base as risc-p-cores/repo
+COPY ./repo /opt/repo
+
+ARG CONTAINER_HUB
+FROM ${CONTAINER_HUB}/riscv/forks/bazel-remote:2a190a646a007cb8c691749aa5edb7005a31fbb6 as bazel-remote
+
+FROM risc-p-cores/base as risc-p-cores/dev
+
+RUN yum install -y epel-release
+
+RUN yum --enablerepo=powertools -y install \
+    bc                                     \
+    libnsl                                 \
+    perl                                   \
+    dtc                                    \
+    make                                   \
+    which                                  \
+    java-devel                             \
+    ksh                                    \
+    unzip                                  \
+    time                                   \
+    python39                               \
+    python2                                \
+    emacs                                  \
+    libXScrnSaver                          \
+    numactl-libs                           \
+    boost                                  \
+    boost-devel                            \
+    libpng12                               \
+    hdf5-devel                             \
+    ninja-build                            \
+    compat-openssl10                       \
+    socat                                  \
+    patch                                  \
+    libpng12                               \
+    csh                                    \
+    langpacks-en                           \
+    ncurses-compat-libs                    \
+    postgresql-libs
+
+RUN yum --enablerepo=powertools -y install \
+    gcc-toolset-11                         \
+    git
+
+RUN alternatives --set python $(which python2)
+RUN python3 -m pip install pandas                                                         \
+                           sqlalchemy                                                     \
+                           pymysql                                                        \
+                           pyyaml                                                         \
+                           typing                                                         \
+                           lxml                                                           \
+                           openpyxl                                                       \
+                           systemrdl-compiler==1.23.0                                     \
+                           peakrdl-uvm                                                    \
+                           pytest                                                         \
+                           prettytable                                                    \
+                           sortedcontainers                                               \
+                           sharepy                                                        \
+                           psutil                                                         \
+                           pyvsc                                                          \
+                           cryptography                                                   \
+                           pika                                                           \
+                           xmltodict                                                      \
+                           bitstring                                                      \
+                           zstd                                                           \
+                           https://github.com/darshakk/banyan/archive/refs/heads/main.zip
+
+RUN curl -ssL https://downloads.mariadb.com/MariaDB/mariadb_repo_setup | bash;  \
+    yum -y install MariaDB-shared MariaDB-devel python39-devel;                 \
+    python3 -m pip install mariadb
+
+
+ARG BAZEL_VERSION=6.0.0
+ARG BAZEL_INSTALLER_URL=https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel-${BAZEL_VERSION}-installer-linux-x86_64.sh
+
+RUN curl -o bazel-installer.sh -sSL ${BAZEL_INSTALLER_URL} \
+    && chmod +x bazel-installer.sh                         \
+    && ./bazel-installer.sh                                \
+    && rm bazel-installer.sh                               \
+    && bazel version
+
+RUN useradd --uid 1000 _replaceme
+RUN chmod go+w /etc/passwd
+RUN su -c "bazel version" - _replaceme
+RUN chmod go+rwx /home/_replaceme /home/_replaceme/.cache/bazel
+
+COPY --from=risc-p-cores/riscv-gnu-toolchain /opt/riscv /usr/local
+COPY --from=risc-p-cores/verible /opt/verible /usr/local
+COPY --from=risc-p-cores/repo /opt/repo /usr/local
+COPY --from=bazel-remote /opt/bazel-remote /usr/local
+
+WORKDIR /work
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["bash"]
+
+FROM risc-p-cores/dev as risc-p-cores/verilator
+ARG VERILATOR_VERSION=4.228
+RUN yum -y install autoconf flex bison m4
+RUN curl -SsL https://github.com/verilator/verilator/archive/refs/tags/v${VERILATOR_VERSION}.tar.gz | tar xvz
+RUN cd verilator-${VERILATOR_VERSION} && scl enable gcc-toolset-11 -- bash -c 'autoconf && ./configure && make -j4 && make install' && cd .. && rm -rf verilator-${VERILATOR_VERSION}
+
+ARG BAZEL_BUILDFARM_VERSION=1.11.2
+
+FROM risc-p-cores/dev as risc-p-cores/bazel-buildfarm
+
+RUN curl -sSL https://github.com/bazelbuild/bazel-buildfarm/archive/refs/tags/${BAZEL_BUILDFARM_VERSION}.tar.gz | tar xvzf - && mv bazel-buildfarm-${BAZEL_BUILDFARM_VERSION} bazel-buildfarm
+RUN cd bazel-buildfarm  \
+    && rm .bazelversion \
+    && bazel build //src/main/java/build/buildfarm:buildfarm-server //src/main/java/build/buildfarm:buildfarm-memory-worker //src/main/java/build/buildfarm:buildfarm-shard-worker

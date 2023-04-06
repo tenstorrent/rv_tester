@@ -1,0 +1,868 @@
+xls: RiscV_Decode.xlsx
+Verilog: rv_autogen_decode.sv
+DefaultInputs:
+  Opcode[6:0]:
+Cols:
+## Format
+# Signal: -- Output signal to autogen
+#   **NOTE: DefaultInputs specified above is always used as primary inputs**
+#   ** Anything below is optional and is only required if you are seeing value collisions **
+#   ** see autogen_riscv_imfv.log for things that need fixing **
+#   Inputs: -- [Optional] list of additional inputs to use for this signal
+#     addn1: -- Use column:addn1 as additional input (along with Opcode[6:0])
+#     addn2: -- Use column:addn2 as additional input ONLY if the next condition in met (if not it is a dont care)
+#       cond_signal
+#       - cond_value -- Use column:addn2 only if column:cond_signal == cond_value
+#       - cond_value2 -- [Optional] Use column:addn2 only if column:cond_signal == cond_value2
+#       - cond_valueN -- [Optional] Any number of cond_values to satisfy
+#     addnN: -- [Optional] Any number of additional input columns to use
+  Instruction:
+    Inputs:
+      funct7[6:0]:
+      funct3[2:0]:
+      # vm:
+      # sew[2:0]:
+      # - V_LD
+      # - V_ST
+      # lmul[2:0]:
+      # - V_LD
+      # - V_ST
+      # mop[1:0]:
+      #   Opcode[6:0]:
+      #   - V_LD
+      #   - V_ST
+      SrcA[5:0]:
+      SrcB[5:0]:
+      #  Opcode[6:0]:
+      #  - V_LD
+      #  - V_ST
+      # nf[2:0]:
+      #   Opcode[6:0]:
+      #   - V_LD
+      #   - V_ST
+#  Ext[1:0]:
+#    ModuleName: Ext
+  EncType[4:0]:
+    ModuleName: EncType
+    Inputs:
+      funct3[2:0]:
+        Opcode[6:0]:
+        - A
+        # - V_OP
+        # - V_LD
+        # - V_ST
+        # - V_SET
+        - "0000111"
+        - "0100111"
+        - "0110011"
+        - "0010011"
+      funct7[6:0]:
+        Opcode[6:0]:
+        - "0110011"
+        - "0010011"
+        # - V_SET
+        # - V_OP
+      # mop[1:0]:
+      #   Opcode[6:0]:
+      #   - V_LD
+      #   - V_ST
+  SrcA[5:0]:
+    ModuleName: SrcA
+    Width: 2
+    Inputs:
+      funct3[2:0]:
+        Opcode[6:0]:
+        - "1110011"
+        # - V_OP
+      funct7[6:0]:
+        Opcode[6:0]:
+        - "1010011"
+        - "1110011"
+        # - V_OP
+  SrcB[5:0]:
+    ModuleName: SrcB
+    Width: 2
+    Inputs:
+      funct7[6:0]:
+        Opcode[6:0]:
+        - "1110011"
+        - "1010011"
+        # - V_SET
+        # - V_OP
+      funct3[2:0]:
+        Opcode[6:0]:
+        - "0100111"
+        - "1110011"
+        # - V_SET
+        # - V_OP
+      # mop[1:0]:
+      #   Opcode[6:0]:
+      #   - V_LD
+      #   - V_ST
+      # vm:
+      #   funct7[6:0]:
+      #   - "010111-"
+  SrcC[5:0]:
+    ModuleName: SrcC
+    Width: 2
+    Inputs:
+      funct3[2:0]:
+      #   Opcode[6:0]:
+      #   - V_ST
+  Dest[1:0]:
+    ModuleName: Dest
+    Inputs:
+      funct3[2:0]:
+        Opcode[6:0]:
+        - "1110011"
+        - "0000111"
+        # - V_SET
+        # - V_OP
+        # - V_LD
+      funct7[6:0]:
+        Opcode[6:0]:
+        - "1010011"
+        - "0000111"
+        # - V_OP
+        # - V_SET
+
+  IncrOldestSpec:
+    Inputs:
+      funct3[2:0]:
+      funct7[6:0]: 
+
+  NumOpsM1[6:0]:
+    ModuleName: NumOpsM1
+    Inputs:
+      funct7[6:0]:
+      funct3[2:0]:
+      SrcB[5:0]:
+      lmul[2:0]:
+        Opcode[6:0]:
+        - V_OP
+      sew[2:0]:
+        Opcode[6:0]:
+        - V_OP
+      vm:
+        Opcode[6:0]:
+        - V_OP
+
+  SeqAddr[6:0]:
+    ModuleName: SeqAddr
+    Inputs:
+      funct7[6:0]:
+      funct3[2:0]:
+      Custom:
+      SrcB[5:0]:
+   
+  IntDbSel[6:0]:
+    ModuleName: IntDbSel
+    Inputs:
+     funct7[6:0]:
+     funct3[2:0]:
+
+
+  FpDbSel[6:0]:
+    ModuleName: FpDbSel
+    Inputs:
+      funct7[6:0]:
+      funct3[2:0]:
+      
+  IntUopForDb1_0[6:0]:
+    ModuleName: IntUopForDb1_0
+    Inputs:
+      funct7[6:0]:
+      funct3[2:0]:
+  
+  IsWFI:
+    Inputs:
+      funct7[6:0]:
+      funct3[2:0]:
+      SrcA[5:0]:
+      SrcB[5:0]:
+
+## Zb-EXT specific ones
+  # Zb_instr[4:0]:
+  #   ModuleName: Zb_instr
+  #   Inputs:
+  #     funct7[6:0]:
+  #     funct3[2:0]:
+  #     SrcB[5:0]:
+
+  OneCycleOp:
+    Inputs:
+      funct7[6:0]:
+      funct3[2:0]:
+
+  NCycleOp[3:0]:
+    ModuleName: NCycleOp
+    Inputs:
+      funct7[6:0]:
+      funct3[2:0]:
+  LdOp:
+    Inputs:
+      funct3[2:0]:
+      funct7[6:0]:
+    
+  StOp:
+    Inputs:
+      funct7[6:0]:
+      funct3[2:0]:
+
+  MulOp:
+    Inputs:
+      funct7[6:0]:
+      funct3[2:0]:
+
+  DivOp:
+    Inputs:
+      funct7[6:0]:
+      funct3[2:0]:
+
+    
+
+  LsOp:
+    Inputs:
+      funct7[6:0]:
+      funct3[2:0]:
+
+  LsLdPipeOp:
+    Inputs:
+      funct7[6:0]:
+      funct3[2:0]:
+
+  LsStPipeOp:
+    Inputs:
+      funct7[6:0]:
+      funct3[2:0]:
+
+  LsLdOp:
+    Inputs:
+      funct7[6:0]:
+      funct3[2:0]:
+
+  LsStOp:
+    Inputs:
+      funct7[6:0]:
+      funct3[2:0]:
+
+  LsAtomicOp:
+    Inputs:
+      funct7[6:0]:
+      funct3[2:0]:
+
+  LsFenceOp:
+    Inputs:
+      funct3[2:0]:
+
+  LsFenceIOp:
+    Inputs:
+      funct3[2:0]:
+
+  LsFenceVmaOp:
+    Inputs:
+      funct3[2:0]:
+      funct7[6:0]:
+
+  LsLdStSz[2:0]:
+    ModuleName: LsLdStSz
+    Inputs:
+      funct3[2:0]:
+
+  LsLdStUnsigned:
+    Inputs:
+      funct3[2:0]:
+
+  LsVecLdStOp:
+    Inputs:
+      mop[1:0]:
+      umop[4:0]:
+
+  BranchOp:
+    Inputs:
+      funct7[6:0]:
+      funct3[2:0]:
+
+  NoDstUsed:
+    Inputs:
+      funct7[6:0]:
+      funct3[2:0]:
+
+  AddOp:
+    Inputs:
+      funct7[6:0]:
+      funct3[2:0]:
+ 
+  Rs1IsImm:
+    Inputs:
+      funct7[6:0]:
+      funct3[2:0]:
+
+  Rs2IsImm:
+    Inputs:
+      funct7[6:0]:
+      funct3[2:0]:
+   
+## F-EXT specific ones
+  fp_rf_rd_op_valid:
+    Inputs:
+      funct7[6:0]:
+        Opcode[6:0]:
+        - "1010011"
+  fp_mad_type_inst:
+    Inputs:
+      funct7[6:0]:
+        Opcode[6:0]:
+        - "1010011"
+  fp_rf_store_rd_en:
+    Inputs:
+      funct3[2:0]:
+        Opcode[6:0]:
+        - "0100111"
+  fp_op_int_rs1:
+    Inputs:
+      funct7[6:0]:
+        Opcode[6:0]:
+        - "1010011"
+  fp_rf_rd_p2_is_rs2:
+    Inputs:
+      funct7[6:0]:
+        Opcode[6:0]:
+        - "1010011"
+  fp_rd_zero_p2:
+    Inputs:
+      funct7[6:0]:
+        Opcode[6:0]:
+        - "1010011"
+  fp_rd_one_p1:
+    Inputs:
+      funct7[6:0]:
+        Opcode[6:0]:
+        - "1010011"
+  fp_rd_neg_p1:
+    Inputs:
+      funct7[6:0]:
+        Opcode[6:0]:
+        - "1010011"
+      funct3[2:0]:
+        Opcode[6:0]:
+        - "1010011"
+  fp_rd_neg_p2:
+    Inputs:
+      funct7[6:0]:
+        Opcode[6:0]:
+        - "1010011"
+  fp_is_f16:
+    Inputs:
+      funct7[6:0]:
+      funct3[2:0]:
+      SrcB[5:0]:
+  fp_take_f16_src:
+    Inputs:
+      funct7[6:0]:
+      funct3[2:0]:
+      SrcB[5:0]:
+  fp_load_vld:
+    Inputs:
+      funct3[2:0]:
+        Opcode[6:0]:
+        - "0000111"
+  int_to_fp_mov:
+    Inputs:
+      funct7[6:0]:
+        Opcode[6:0]:
+        - "1010011"
+  fp_to_int_mov:
+    Inputs:
+      funct3[2:0]:
+        funct7[6:0]:
+          Opcode[6:0]:
+          - "1010011"
+  int_to_fp_cvt:
+    Inputs:
+      funct7[6:0]:
+        Opcode[6:0]:
+        - "1010011"
+
+# ## V_EXT specific ones
+#   out_from_vec_int:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   vfp_mad_type_inst:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_wdeop:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       SrcA[5:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_nrwop:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       SrcA[5:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   vfp_rf_rd_op_valid:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       SrcA[5:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       SrcB[5:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_src1hw:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_rf_store_rd_en:
+#     Inputs:
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_ST
+#   v_math_fmt[3:0]:
+#     ModuleName: v_math_fmt
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_rf_rd_p2_is_rs2:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_acc_val:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_rd_onep1:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_rd_zerop2:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_rf_rdneg0:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_rd_neg1:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_rd_neg2:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_cmpmul:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_rnden:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_saturate:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_mulh:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_usemask:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       vm:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_wrmask:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_inversesub:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_issgn_src2:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_issgn_src1:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_cryorbrw:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_addorsub:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_avg:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_imulop:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_iaddop:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_fp_sel_scalar:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP        
+#   v_sel_scalar:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       vm:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_sel_imm:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_shftop:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_permuteop:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_p1_dest:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_sat_instrn:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_bitwiseop:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       vm:
+#         Opcode[6:0]:
+#         - V_OP
+#       SrcB[5:0]:
+#         funct7[6:0]:
+#         - "010111-"
+#   v_iterate:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       SrcA[5:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_reductop:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       SrcA[5:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_onecycle_iterate:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       SrcA[5:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_vmvgrp:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       SrcA[5:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_scalar_dest:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_mask_only:
+#     Inputs:
+#       funct7[6:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#       SrcA[5:0]:
+#         Opcode[6:0]:
+#         - V_OP
+#   v_ldst_iterations[5:0]:
+#     ModuleName: v_ldst_iterations
+#     Inputs:
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_LD
+#         - V_ST
+#       sew[2:0]:
+#         Opcode[6:0]:
+#         - V_LD
+#         - V_ST
+#       lmul[2:0]:
+#         Opcode[6:0]:
+#         - V_LD
+#         - V_ST
+#       mop[1:0]:
+#         Opcode[6:0]:
+#         - V_LD
+#         - V_ST
+#       nf[2:0]:
+#         Opcode[6:0]:
+#         - V_LD
+#         - V_ST
+#       SrcB[5:0]:
+#         Opcode[6:0]:
+#         - V_LD
+#         - V_ST
+#   v_ldst_dest_incr[7:0]:
+#     ModuleName: v_ldst_dest_incr
+#     Inputs:
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_LD
+#         - V_ST
+#       sew[2:0]:
+#         Opcode[6:0]:
+#         - V_LD
+#         - V_ST
+#       lmul[2:0]:
+#         Opcode[6:0]:
+#         - V_LD
+#         - V_ST
+#       mop[1:0]:
+#         Opcode[6:0]:
+#         - V_LD
+#         - V_ST
+#       nf[2:0]:
+#         Opcode[6:0]:
+#         - V_LD
+#         - V_ST
+#       SrcB[5:0]:
+#         Opcode[6:0]:
+#         - V_LD
+#         - V_ST
+#   v_ldst_index_incr[7:0]:
+#     ModuleName: v_ldst_index_incr
+#     Inputs:
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_LD
+#         - V_ST
+#       sew[2:0]:
+#         Opcode[6:0]:
+#         - V_LD
+#         - V_ST
+#       lmul[2:0]:
+#         Opcode[6:0]:
+#         - V_LD
+#         - V_ST
+#       mop[1:0]:
+#         Opcode[6:0]:
+#         - V_LD
+#         - V_ST
+#       nf[2:0]:
+#         Opcode[6:0]:
+#         - V_LD
+#         - V_ST
+#   v_ldst_index_reset[7:0]:
+#     ModuleName: v_ldst_index_reset
+#     Inputs:
+#       funct3[2:0]:
+#         Opcode[6:0]:
+#         - V_LD
+#         - V_ST
+#       sew[2:0]:
+#         Opcode[6:0]:
+#         - V_LD
+#         - V_ST
+#       lmul[2:0]:
+#         Opcode[6:0]:
+#         - V_LD
+#         - V_ST
+#       mop[1:0]:
+#         Opcode[6:0]:
+#         - V_LD
+#         - V_ST
+#       nf[2:0]:
+#         Opcode[6:0]:
+#         - V_LD
+#         - V_ST

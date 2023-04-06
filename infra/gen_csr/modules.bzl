@@ -1,0 +1,4 @@
+modules = [
+    "mc",    
+    "ls"
+]    

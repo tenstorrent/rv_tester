@@ -1,0 +1,22 @@
+#! /usr/bin/env bash
+
+set -e
+set -o pipefail
+
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+CONTAINER_DIR=$SCRIPT_DIR/podman-scripts
+
+if [ ! -d "$CONTAINER_DIR" ]; then
+    GIT_GETTER=$SCRIPT_DIR/git_getter.py
+    if [ ! -f $GIT_GETTER ]; then
+        echo "No git getter script found at expected ${GIT_GETTER}" 
+        exit 1
+    fi
+    /usr/bin/python3 ${GIT_GETTER}
+fi 
+
+if $CONTAINER_DIR/cannot-run-container ; then
+    exec $SCRIPT_DIR/xls2ver.py "$@"
+fi
+
+PODMAN_RUN_OPTS="-v /tools_risc:/tools_risc" exec $CONTAINER_DIR/container-run-tt python3 $SCRIPT_DIR/xls2ver.py "$@"

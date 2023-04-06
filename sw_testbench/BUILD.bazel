@@ -1,10 +1,10 @@
 load("@cvm//:defs.bzl", "topology_gen")
-load("//:defs.bzl", "rv_tester_gen")
+load("@rv_tester//:defs.bzl", "rv_tester_gen")
 
 topology_gen(
     name = "topology",
     srcs = [
-        "//:rv_tester_topology",
+        "@rv_tester//:rv_tester_topology",
     ]
 )
 

@@ -1,0 +1,14 @@
+load("//infra/gen_csr:gen_csr.bzl", "gen_csr_modules")
+load("//infra/gen_csr:modules.bzl", "modules")
+
+csr_rule_list = gen_csr_modules(
+    name = "gen_csr_all_modules",
+    src  = "//gen:as_csr_xls",
+    modules = modules,
+)
+
+
+filegroup(
+    name = "gen_csr_all",
+    srcs = csr_rule_list,
+)

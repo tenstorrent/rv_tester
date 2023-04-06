@@ -1,0 +1,26 @@
+#! /usr/bin/env bash
+
+set -e
+set -o pipefail
+
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+CONTAINER_DIR=$SCRIPT_DIR/podman-scripts
+
+if [ ! -d "$CONTAINER_DIR" ]; then
+    GIT_GETTER=$SCRIPT_DIR/git_getter.py
+    if [ ! -f $GIT_GETTER ]; then
+        echo "No git getter script found at expected ${GIT_GETTER}" 
+        exit 1
+    fi
+    /usr/bin/python3 ${GIT_GETTER}
+fi 
+
+
+risc_tools=/home/risc/tools
+if [ ! -d "$risc_tools" ]; then
+    risc_tools=/legacy_home/risc/tools
+fi
+
+export PODMAN_RUN_OPTS="${PODMAN_RUN_OPTS} -v $risc_tools:/home/risc/tools"
+
+exec $CONTAINER_DIR/container-run-tt python3 $SCRIPT_DIR/upload_as_interface.py "$@"

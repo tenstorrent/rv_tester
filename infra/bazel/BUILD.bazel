@@ -1,0 +1,10 @@
+load("@bazel_skylib//rules:common_settings.bzl", "string_flag", "string_list_flag", "bool_flag")
+load("@rules_verilator//verilator/internal:versions.bzl", verilator_version = "DEFAULT_VERSION")
+
+cc_library(
+    name = "vpi_user",
+    deps = ["@verilator_v{verilator_version}//:vpi_user".format(verilator_version = verilator_version)],
+    visibility = ["//visibility:public"],
+)
+
+exports_files(["spike_bin.sh"])
