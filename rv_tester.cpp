@@ -2,6 +2,7 @@
 #include "cvm/registry.hpp"
 #include "cvm/callbacks.hpp"
 #include "memmap.h"
+#include "rv_tester.hpp"
 
 extern "C" {
     void rv_tester_parse_flags() {

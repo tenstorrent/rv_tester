@@ -1,0 +1,26 @@
+load("@cvm//:defs.bzl", "topology_gen")
+load("//:defs.bzl", "rv_tester_gen")
+
+topology_gen(
+    name = "topology",
+    srcs = [
+        "//:rv_tester_topology",
+    ]
+)
+
+rv_tester_gen(
+    name = "rv_tester",
+    topology = "topology",
+    cc_attrs = {
+        'alwayslink': True,
+        'linkstatic': True,
+    }
+)
+
+cc_binary(
+    name = "sw_testbench",
+    srcs = ["sw_tb.cpp"],
+    deps = [
+        "rv_tester_dpi",
+    ],
+)

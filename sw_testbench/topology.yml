@@ -1,0 +1,5 @@
+top:
+  cluster:
+    count: 4
+    core:
+      count: 3

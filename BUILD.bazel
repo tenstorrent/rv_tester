@@ -48,4 +48,4 @@ filegroup(
     visibility = ["//visibility:public"],
 )
 
-exports_files(["rv_tester.cpp", "rv_tester.sv", "rv_tester_clkgen.sv"])
+exports_files(["rv_tester.cpp", "rv_tester.hpp", "rv_tester.sv", "rv_tester_clkgen.sv"])
