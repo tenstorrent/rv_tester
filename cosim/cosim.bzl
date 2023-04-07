@@ -29,6 +29,7 @@ def cosim_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
                 "@rv_tester//sysmod/htif:htif",
                 "@rv_tester//cosim/bridge_if:bridge_if",
                 "@rv_tester//cosim/bridge:bridge",
+                "@rv_tester//cosim/dut_if/rvfi:rvfi_extern",
                 "@rv_tester//cosim/utils/bot:bot",
                 "@cvm//:plusargs",
                 "@cvm//:logger",

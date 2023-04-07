@@ -18,3 +18,12 @@ cc_library(
     strip_include_prefix = ".",
     visibility = ["//visibility:public"],
 )
+
+cc_library(
+    name = "archsample_extern",
+    hdrs = ["arch_sample_extern.h"],
+    deps = [
+        "@corearchcoverage//src/cov_sample:cov_sample_interface",
+    ],
+    visibility = ["//visibility:public"],
+)

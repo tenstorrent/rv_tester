@@ -19,10 +19,26 @@ rv_tester_gen(
     }
 )
 
+cc_library(
+    name = "sv_mock",
+    srcs = [
+        "sv_mock.cpp",
+    ],
+    deps = [
+        "//common:common",
+        "//cosim/dut_if/rvfi:rvfi_extern",
+        "//sysmod:sysmod_extern",
+        "//transactors/axi_sw:axi_extern",
+        "//cosim/whisper_cov:archsample_extern",
+        "@cvm//third_party/vpi:vpi"
+    ],
+)
+
 cc_binary(
     name = "sw_testbench",
     srcs = ["sw_tb.cpp"],
     deps = [
         "rv_tester_dpi",
+        "sv_mock",
     ],
 )

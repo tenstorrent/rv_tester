@@ -1,13 +1,10 @@
+#include "axi_extern.h"
 #include "axi_sw.h"
+
 #include "cvm/topology.hpp"
 #include "cvm/plusargs.hpp"
 
 DEFINE_bool(axi_sw_r_poll, true, "poll for read data every cycle, or asynchronously push read data");
-
-extern "C" {
-
-  void axi_sw_r(axi::id_t id, axi::resp_t resp, const axi::datum_t* data, axi::last_t last);
-}
 
 axi_sw::axi_sw(const svScope& scope, unsigned num, bool r_poll, const axi::data_width_t& data_width, const std::string& tag, const r_q_ptr_t& r_q_max, const r_q_ptr_t& r_q_ptr_max)
   : scope_(scope), r_poll_(r_poll), r_q_max_(r_q_max), r_q_ptr_max_(r_q_ptr_max), r_q_rptr_(0), r_q_wptr_(0) {

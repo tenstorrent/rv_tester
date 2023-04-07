@@ -30,10 +30,20 @@ cc_library(
         "safe_queue.h",
     ],
     deps = [
+      "//transactors/axi_sw:axi_extern",
       "//common:common",
       "@cvm//:plusargs",
       "@cvm//:topology",
     ],
     alwayslink = True,
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "axi_extern",
+    hdrs = ["axi.h", "axi_extern.h"],
+    srcs = [
+        "safe_queue.h",
+    ],
     visibility = ["//visibility:public"],
 )

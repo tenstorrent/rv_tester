@@ -39,11 +39,18 @@ cc_library(
       "//sysmod/mem:mem",
       "//sysmod/io_dev:io_dev",
       "//sysmod/null_dev:null_dev",
+      "//sysmod:sysmod_extern",
       ":device",
       "@cvm//:plusargs",
       "@cvm//:topology",
       "@cvm//:registry",
     ],
     alwayslink = True,
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "sysmod_extern",
+    hdrs = ["sysmod_extern.h"],
     visibility = ["//visibility:public"],
 )
