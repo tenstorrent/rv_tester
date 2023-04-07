@@ -67,13 +67,11 @@ module sysmod #(
     assign interrupt = interrupt_q;
 
     function void sysmod_timer_interrupt (unsigned hartid, unsigned val);
-      $display("[SYSMOD] mti = %0d", val);
       interrupt_d.mti = val;
     endfunction
     export "DPI-C" function sysmod_timer_interrupt;
 
     function void sysmod_sw_interrupt (unsigned hartid, unsigned val);
-      $display("[SYSMOD] msi = %0d", val);
       interrupt_d.msi = val;
     endfunction
     export "DPI-C" function sysmod_sw_interrupt;

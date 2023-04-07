@@ -4,6 +4,7 @@
 #include "cvm/plusargs.hpp"
 #include "cvm/topology.hpp"
 #include "cvm/registry.hpp"
+#include "cvm/logger.hpp"
 #include "sysmod.h"
 #include "mem/sysmod_mem.h"
 #include "clint/clint.h"
@@ -64,6 +65,7 @@ sysmod::timer_interrupt(clint::timer_t t) {
       cvm::registry::callbacks.push(
         scope(),
         [t]() {
+          cvm::log(cvm::FULL, "[SYSMOD] mti = {}\n", t.flag);
           sysmod_timer_interrupt(t.hart, t.flag);
         });
 }
@@ -73,6 +75,7 @@ sysmod::sw_interrupt(clint::sw_t s) {
   cvm::registry::callbacks.push(
       scope(),
       [s]() {
+        cvm::log(cvm::FULL, "[SYSMOD] msi = {}\n", s.flag);
         sysmod_sw_interrupt(s.hart, s.flag);
       });
 }
