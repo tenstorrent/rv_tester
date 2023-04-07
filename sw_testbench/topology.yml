@@ -1,5 +1,6 @@
 top:
-  cluster:
-    count: 4
-    core:
-      count: 3
+  core:
+    count: 1
+    <<: *ariane_core
+
+  <<: *rv_tester

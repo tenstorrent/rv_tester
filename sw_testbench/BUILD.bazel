@@ -5,6 +5,8 @@ topology_gen(
     name = "topology",
     srcs = [
         "@rv_tester//:rv_tester_topology",
+        "@cva6-wrapper//:ariane_core_attrs",
+        "topology.yml",
     ]
 )
 
