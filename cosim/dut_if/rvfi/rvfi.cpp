@@ -270,7 +270,7 @@ void rvfi::initialize_perf() {
       while (fgets(buffer_end, sizeof(buffer_end), pipe_end) != NULL)
         perf_end += buffer_end;
 
-
+      std::cout << "here" << std::endl;
       int pos = perf_start.find(" ");
       perf_start_pc = std::strtoll(perf_start.substr(0, pos).c_str(), nullptr, 16);
       pos = perf_end.find(" ");
@@ -290,9 +290,9 @@ void rvfi::initialize_perf() {
 
 void rvfi::collect_perf(const cosim_transactions::m_rvfi& m_rvfi) {
   if (perf_ok) {
-    if (perf_start_pc == m_rvfi.pc_rdata)
+    if (perf_start_pc == uint64_t(m_rvfi.pc_rdata))
       perf_start_cycle = m_rvfi.cycle;
-    if (perf_end_pc == m_rvfi.pc_rdata)
+    if (perf_end_pc == uint64_t(m_rvfi.pc_rdata))
       perf_end_cycle = m_rvfi.cycle;
 
     if (perf_start_cycle)
@@ -303,7 +303,7 @@ void rvfi::collect_perf(const cosim_transactions::m_rvfi& m_rvfi) {
 void rvfi::report_perf() {
   if (perf_ok) {
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_cycles\": \"{}\"}}\n", perf_end_cycle - perf_start_cycle);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_instrs:\": \"{}\"}}\n", perf_instrs);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_instrs\": \"{}\"}}\n", perf_instrs);
   }
 }
 
