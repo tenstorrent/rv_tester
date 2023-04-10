@@ -1,10 +1,20 @@
-load("@bazel_skylib//rules:common_settings.bzl", "string_flag", "string_list_flag", "bool_flag")
-load("@rules_verilator//verilator/internal:versions.bzl", verilator_version = "DEFAULT_VERSION")
 
-cc_library(
-    name = "vpi_user",
-    deps = ["@verilator_v{verilator_version}//:vpi_user".format(verilator_version = verilator_version)],
-    visibility = ["//visibility:public"],
+load("//infra/container:container.bzl", "CONTAINER_IMAGE")
+
+platform(
+    name = "host_platform",
+    parents = ["@local_config_platform//:host"],
+    exec_properties = {
+        'container-image': CONTAINER_IMAGE,
+    },
+    host_platform = True,
 )
 
-exports_files(["spike_bin.sh"])
+platform(
+    name = "target_platform",
+    parents = ["@local_config_platform//:host"],
+    exec_properties = {
+        'container-image': CONTAINER_IMAGE,
+    },
+    target_platform = True,
+)

@@ -101,3 +101,11 @@ cc_library(
         strip_prefix = "cva6-wrapper-{commit}".format(commit=cva6_wrapper_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cva6-wrapper/-/archive/{commit}/cva6-wrapper-{commit}.tar.bz2".format(commit=cva6_wrapper_hash),
     )
+
+    risc_p_cores_hash="592b3c5272218d45212ded44c74e86fd2fa09b84"
+    git_repository(
+        name = "risc-p-cores",
+        commit = risc_p_cores_hash,
+        shallow_since = "1659122452 -0400",
+        remote = "git@aus-gitlab.local.tenstorrent.com:riscv/risc-p-cores.git",
+    )

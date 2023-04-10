@@ -126,13 +126,3 @@ class GitGetter:
             repo = self.git_repos[repo_name]
             self.get_git_repo(repo['url'], repo['sha'], repo_name=repo_name, skip_sha=skip_sha)
 
-if __name__ == "__main__":
-    script_path = Path(__file__).resolve()
-    infra_dir = script_path.parent
-
-    # Get git repos, import container
-    getter = GitGetter(script_path)
-    getter.get_repos()
-    print("Done")
-
-

@@ -1,4 +1,0 @@
-modules = [
-    "mc",    
-    "ls"
-]    

@@ -33,4 +33,10 @@ if [[ -f "${chipfile}" ]] && [[ -f "${revfile}" ]]; then
 
 fi
 
+if [[ $(uname -n) == "sc39pd01"  ]]; then
+    subdir=${REPO_DIR#/proj/ttrentz1/tt}
+    reg_base="/scratch/bazel"
+    obase="$reg_base${subdir}/bazel_output_base"
+fi
+
 echo $obase

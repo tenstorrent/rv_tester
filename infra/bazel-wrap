@@ -5,21 +5,10 @@ set -o pipefail
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 REPO_DIR=$(dirname ${SCRIPT_DIR})
-CONTAINER_DIR=$SCRIPT_DIR/podman-scripts
+CONTAINER_DIR=${SCRIPT_DIR}/podman-scripts
 
-if [ ! -d "$CONTAINER_DIR" ]; then
-    GIT_GETTER=$SCRIPT_DIR/git_getter.py
-    if [ ! -f $GIT_GETTER ]; then
-        echo "No git getter script found at expected ${GIT_GETTER}" 
-        exit 1
-    fi
-    /usr/bin/python3 ${GIT_GETTER}
-fi 
-
-if [[ -z "${SINGULARITY_CONTAINER}" ]]; then
-    if ! $CONTAINER_DIR/cannot-run-container ; then
-        exec $CONTAINER_DIR/container-run-tt ${BASH_SOURCE[0]} "$@"
-    fi
+if ! $CONTAINER_DIR/cannot-run-container ; then
+    exec $CONTAINER_DIR/container-run-tt ${BASH_SOURCE[0]} "$@"
 fi
 
 BAZEL="bazel"
@@ -29,7 +18,8 @@ fi
 
 OUTPUT_USER_ROOT=""
 if [[ ! "$*" =~ "--output_user_root" ]]; then
-    if [[ -d "${HOME}/.cache/bazel/_bazel__replaceme" ]]; then
+    home_output_user_root="${HOME}/.cache/bazel/_bazel__replaceme"
+    if [[ -d "$home_output_user_too" ]] && [[ -w "$home_output_user_root" ]]; then
         OUTPUT_USER_ROOT="--output_user_root ${HOME}/.cache/bazel/_bazel__replaceme"
     else
         OUTPUT_USER_ROOT="--output_user_root ${REPO_DIR}/bazel_output_user_root"
@@ -41,21 +31,6 @@ if [[ ! "$*" =~ "--output_base" ]]; then
     OUTPUT_BASE="--output_base $(${SCRIPT_DIR}/bazel/get-bazel-output-base)"
 fi
 
-if [ -z ${RISC_P_CORES_ENV_SOURCED+x} ]; then
-    . ${SCRIPT_DIR}/env.sh
-fi
+. ${SCRIPT_DIR}/env.sh
 
-# If .bazelrc supplied in bazel-wrap, just exec
-if [[ $@ == *'--bazelrc'* ]] ; then
-    exec ${BAZEL} ${OUTPUT_USER_ROOT} ${OUTPUT_BASE} "$@"
-else
-# Otherwise, look for a .bazelrc and try to add it
-    if [ -f ${SCRIPT_DIR}/bzsim_clone/.bazelrc ] ; then 
-        BAZELRC="--bazelrc ${SCRIPT_DIR}/bzsim_clone/.bazelrc" 
-        exec ${BAZEL} ${OUTPUT_USER_ROOT} ${OUTPUT_BASE} ${BAZELRC} "$@"
-    else 
-        echo "No .bazelrc found at ${SCRIPT_DIR}/bzsim_clone/.bazelrc."
-        echo "Either run ./infra/bzsim -clean to initialize bzsim_clone or supply a bazelrc with --bazelrc=<.bazelrc>"
-        exit
-    fi
-fi
+exec ${BAZEL} ${OUTPUT_USER_ROOT} ${OUTPUT_BASE} "$@"

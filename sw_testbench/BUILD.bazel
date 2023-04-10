@@ -1,5 +1,14 @@
-load("@cvm//:defs.bzl", "topology_gen")
+load("@rules_hdl//verilog:providers.bzl", "verilog_library")
+load("//infra/bazel:verilog.bzl", "verilog_unit", "verilog_dpi_library")
+load("@runtime//:runtime.bzl", "runtime_library")
+load("@cvm//:defs.bzl", "topology_gen", "packet_gen")
 load("@rv_tester//:defs.bzl", "rv_tester_gen")
+
+verilog_dpi_library(
+    name = "dpi",
+    srcs = ["dpi.cpp"],
+    deps = ["rv_tester_dpi"],
+)
 
 topology_gen(
     name = "topology",
@@ -19,26 +28,21 @@ rv_tester_gen(
     }
 )
 
-cc_library(
-    name = "sv_mock",
+verilog_library(
+    name = "top",
     srcs = [
-        "sv_mock.cpp",
+        "top.sv",
     ],
     deps = [
-        "//common:common",
-        "//cosim/dut_if/rvfi:rvfi_extern",
-        "//sysmod:sysmod_extern",
-        "//transactors/axi_sw:axi_extern",
-        "//cosim/whisper_cov:archsample_extern",
-        "@cvm//third_party/vpi:vpi"
-    ],
+        "rv_tester_sv",
+    ]
 )
 
-cc_binary(
+verilog_unit(
     name = "sw_testbench",
-    srcs = ["sw_tb.cpp"],
-    deps = [
-        "rv_tester_dpi",
-        "sv_mock",
-    ],
+    top  = "top",
+    lib  = "top",
+    dpi  = "dpi",
+    runtime = "//infra/bzsim-config:ariane_runtime",
+    verilator_top = "sw_tb.cpp",
 )
