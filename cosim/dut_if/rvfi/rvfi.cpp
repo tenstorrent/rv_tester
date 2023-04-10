@@ -219,7 +219,7 @@ void rvfi::enter_debug_mode(rv_instr_t& instr) {
   if (!FLAGS_cosim)
     return;
 
-  if ((int)instr.pc.pc_rdata == FLAGS_debug_entry_pc) {
+  if ((uint64_t)instr.pc.pc_rdata == FLAGS_debug_entry_pc) {
 
     rv_debug_t debug;
     std::cout <<" Enter Debug Mode debug_entry_pc :"<<std::hex<<FLAGS_debug_entry_pc<<"\n";
@@ -239,7 +239,7 @@ void rvfi::exit_debug_mode(rv_instr_t& instr) {
   if (!FLAGS_cosim)
     return;
 
-  if ((int)instr.pc.pc_rdata == FLAGS_debug_exit_pc) {
+  if ((uint64_t)instr.pc.pc_rdata == FLAGS_debug_exit_pc) {
 
     rv_debug_t debug;
     std::cout <<" Exit Debug Mode debug_exit_pc :"<<std::hex<<FLAGS_debug_exit_pc<<"\n";
