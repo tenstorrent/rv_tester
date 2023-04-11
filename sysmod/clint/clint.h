@@ -61,11 +61,7 @@ public:
   virtual void write(uint64_t addr, size_t length, const data_t& data,
                       const strb_t& strb) override;
 
-  virtual void tick(uint64_t advance) override
-  {
-    timer_ += advance;
-    processTimerInterrupts();
-  }
+  virtual void tick(uint64_t advance) override;
 
   struct timer_t {
     unsigned hart;
@@ -114,5 +110,7 @@ private:
   uint64_t timer_ = 0;
 
   std::mutex mutex_;
+
+  std::uint64_t tickDivisor_;
 };
 

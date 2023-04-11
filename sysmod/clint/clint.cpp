@@ -8,7 +8,8 @@
 clint::clint(const std::string& tag, uint64_t addr, unsigned hartCount,
              cvm::topology::loc_t loc)
   : device(tag, addr, 0xc000 /* size */, loc), hartCount_(hartCount), soft_(hartCount),
-    timeCompare_(hartCount, -1), timerIntPrev_(hartCount, 0), timer_(0)
+    timeCompare_(hartCount, -1), timerIntPrev_(hartCount, 0), timer_(0),
+    tickDivisor_(cvm::topology::attr("clint", "clock_divisor").second)
 {
   std::ifstream ifs;
   if (load_snapshot(ifs)) {
@@ -122,4 +123,13 @@ clint::write(uint64_t addr, size_t length, const data_t& data,
 
     processTimerInterrupts();
   }
+}
+
+void clint::tick(uint64_t advance)
+{
+  if ((advance % tickDivisor_) != 0) {
+    cvm::log(cvm::NONE, "ERROR: Clock advancing by {}, not a multiple of configured divisor {}", advance, tickDivisor_);
+  }
+  timer_ += advance / tickDivisor_;
+  processTimerInterrupts();
 }
