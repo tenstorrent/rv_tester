@@ -1,3 +1,7 @@
 rv_tester: &rv_tester
   platform:
     count: 1
+    clint:
+        count: 1
+        attrs:
+            clock_divisor: 100
