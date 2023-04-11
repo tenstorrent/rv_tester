@@ -8,7 +8,7 @@
 clint::clint(const std::string& tag, uint64_t addr, unsigned hartCount,
              cvm::topology::loc_t loc)
   : device(tag, addr, 0xc000 /* size */, loc), hartCount_(hartCount), soft_(hartCount),
-    timeCompare_(hartCount), timerIntPrev_(hartCount, 0), timer_(0)
+    timeCompare_(hartCount, -1), timerIntPrev_(hartCount, 0), timer_(0)
 {
   std::ifstream ifs;
   if (load_snapshot(ifs)) {
