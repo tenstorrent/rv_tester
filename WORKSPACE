@@ -11,6 +11,9 @@ bzsim_dependencies()
 load("//:repositories.bzl", "rv_tester_repositories")
 rv_tester_repositories()
 
+load("@testgen//:repositories.bzl", "testgen_dependencies")
+testgen_dependencies()
+
 load("@cva6-wrapper//:defs.bzl", "cva6_wrapper_repositories")
 cva6_wrapper_repositories()
 

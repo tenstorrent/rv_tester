@@ -75,6 +75,16 @@ cc_library(
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/CoreArchChecker/-/archive/{commit}/CoreArchChecker-{commit}.tar.bz2".format(commit=core_arch_checker_hash),
     )
 
+    testgen_hash="9249e380eb48050e8fd3c976044da5c27ae68289"
+    maybe(
+        git_repository,
+        name = "testgen",
+        commit = testgen_hash,
+        shallow_since = "1677278961 -0600",
+        recursive_init_submodules = True,
+        remote = "git@aus-gitlab.local.tenstorrent.com:riscv/dv/testgen.git",
+    )
+
     rules_python_version = "0.11.0"
     maybe(
         http_archive,
