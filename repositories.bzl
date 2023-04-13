@@ -44,7 +44,7 @@ def rv_tester_repositories():
     maybe(
         http_archive,
         name = "cvm",
-        sha256 = "27cbc94e3724ac95670005638d9d9bb86bc7c9cb00adb2a1e3c238b3b5f524de",
+        sha256 = "b2da7a598b69d80a7542beaf3e4529f8eb2375019ce91da304913dbd60043f1a",
         strip_prefix = "cvm-{commit}".format(commit=cvm_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/{commit}/cvm-{commit}.tar.bz2".format(commit=cvm_hash),
     )
@@ -66,7 +66,7 @@ cc_library(
     """
     )
 
-    whisper_hash="1c3932b1959d072eaf0257b84cc5a0ee19c193e7"
+    whisper_hash="1539a0653675e2591dd61cd0991003de5b12d742"
     maybe(
         git_repository,
         name = "whisper",
