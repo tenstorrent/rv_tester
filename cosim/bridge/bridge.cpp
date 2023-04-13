@@ -619,21 +619,21 @@ bool bridge::is_ecall(const whisper_state_t& w) {
 bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const whisper_state_t& w) {
   // Case #1
   if (clint_read(d)) {
-    log(cvm::HIGH, "<{}> Resynch: Reason=[clint_read]\n", w.time);
+    log(cvm::MEDIUM, "<{}> Resynch: Reason=[clint_read]\n", w.time);
     return true;
   }
   // Case #2
   if (htif_read(d)) {
-    log(cvm::HIGH, "<{}> Resynch: Reason=[htif_read]\n", w.time);
+    log(cvm::MEDIUM, "<{}> Resynch: Reason=[htif_read]\n", w.time);
     return true;
   }
   // Case #3
   if (mhpm_counter_read(w)) {
-    log(cvm::HIGH, "<{}> Resynch: Reason=[mhpm_counter_read]\n", w.time);
+    log(cvm::MEDIUM, "<{}> Resynch: Reason=[mhpm_counter_read]\n", w.time);
     return true;
   }
   if (FLAGS_lrsc_resynch && lrsc_fail(w)) {
-    log(cvm::HIGH, "<{}> Resynch: Reason=[lrsc_fail]\n", w.time);
+    log(cvm::MEDIUM, "<{}> Resynch: Reason=[lrsc_fail]\n", w.time);
     return true;
   }
 
@@ -648,8 +648,7 @@ bool bridge::clint_read(const rv_instr_t& d) {
 }
 
 bool bridge::htif_read(const rv_instr_t& d) {
-  if (d.mem_read.pa >= memmap_.at("htif").base &&
-      d.mem_read.pa < memmap_.at("htif").end)
+  if (d.mem_read.valid && (d.mem_read.pa == (memmap_.at("htif").base + 8)))
     return true;
   return false;
 }
@@ -684,7 +683,7 @@ bool bridge::does_instr_match_resynch_list(const whisper_state_t& w) {
     std::getline(ss, instr, ',' );
 
     if (disasm.find(instr) != std::string::npos) {
-      log(cvm::HIGH, "<{}> Resynch: Reason=[+cosim_resynch_instr={} for instr={}]\n", w.time, FLAGS_cosim_resynch_instr, instr);
+      log(cvm::MEDIUM, "<{}> Resynch: Reason=[+cosim_resynch_instr={} for instr={}]\n", w.time, FLAGS_cosim_resynch_instr, instr);
       return true;
     }
   }
@@ -703,7 +702,7 @@ bool bridge::does_prev_instr_match_resynch_list(const whisper_state_t& w) {
     std::getline(ss, instr, ',' );
 
     if (disasm.find(instr) != std::string::npos) {
-      log(cvm::HIGH, "<{}> Resynch: Reason=[+cosim_resynch_prev_instr={} for instr={}]\n", w.time, FLAGS_cosim_resynch_prev_instr, instr);
+      log(cvm::MEDIUM, "<{}> Resynch: Reason=[+cosim_resynch_prev_instr={} for instr={}]\n", w.time, FLAGS_cosim_resynch_prev_instr, instr);
       return true;
     }
   }
@@ -715,7 +714,7 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
 
   if (d.pc.pc_rdata != w_.pc.pc_rdata) {
     if (FLAGS_cosim_tracer) {
-      log(cvm::HIGH, "<{}> Whisper Step #{}: Resynch: PC={:#x}\n", d.cycle, cac_.getStep(hart), d.pc.pc_rdata);
+      log(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: PC={:#x}\n", d.cycle, cac_.getStep(hart), d.pc.pc_rdata);
     }
     if (!client_->whisperPoke(hart, 'p', 0, d.pc.pc_rdata, valid)) {
       cvm::log(cvm::NONE, "Error: Failed to resync PC\n");
@@ -726,7 +725,7 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
 
   if (d.gpr.valid) {
     if (FLAGS_cosim_tracer) {
-      log(cvm::HIGH, "<{}> Whisper Step #{}: Resynch: X{}={:#x}\n", d.cycle, cac_.getStep(hart), d.gpr.rd_addr,
+      log(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: X{}={:#x}\n", d.cycle, cac_.getStep(hart), d.gpr.rd_addr,
         d.gpr.rd_wdata);
     }
     if (!client_->whisperPoke(hart, 'r', d.gpr.rd_addr, d.gpr.rd_wdata, valid)) {
@@ -738,7 +737,7 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
 
   if (d.fpr.valid) {
     if (FLAGS_cosim_tracer) {
-      log(cvm::HIGH, "<{}> Whisper Step #{}: Resynch: F{}={:#x}\n", d.cycle, cac_.getStep(hart), d.fpr.frd_addr,
+      log(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: F{}={:#x}\n", d.cycle, cac_.getStep(hart), d.fpr.frd_addr,
         d.fpr.frd_wdata);
     }
     if (!client_->whisperPoke(hart, 'f', d.fpr.frd_addr, d.fpr.frd_wdata, valid)) {
@@ -751,7 +750,7 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
   if (d.mem_write.valid) {
     uint64_t pa = translate(hart, d.mem_write.va, w_.priv, memclass_t::write);
     if (FLAGS_cosim_tracer) {
-      log(cvm::HIGH, "<{}> Whisper Step #{}: Resynch: M[{:#x}]={:#x}\n", d.cycle, cac_.getStep(hart), pa,
+      log(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: M[{:#x}]={:#x}\n", d.cycle, cac_.getStep(hart), pa,
         d.mem_write.data);
     }
     if (!client_->whisperPoke(hart, 'm', pa, d.mem_write.data, valid)) {

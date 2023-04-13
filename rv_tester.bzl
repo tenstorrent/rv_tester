@@ -22,7 +22,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             "@rv_tester//:defines",
             "@rv_tester//sysmod:sysmod",
             "@rv_tester//transactors/axi_sw:axi_sw",
-            "@corearchcoverage//src/cov_sample:sample_sv",
+            "@rv_tester//cosim/whisper_cov:arch_sample",
             topology + "_sv",
         ] + select({
           "@rv_tester//:cosim_off": ["@rv_tester//:no_cosim"],

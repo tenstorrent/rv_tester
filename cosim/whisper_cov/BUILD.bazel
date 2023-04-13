@@ -1,11 +1,26 @@
 load("@rules_hdl//verilog:providers.bzl" , "verilog_library")
+load("@corearchcoverage//:archcov.bzl", "archcov_gen")
+
+archcov_gen(
+  name = "archcov",
+  #whisper_config = "@risc-p-cores//dv/core/testlists:whisper_config.json",
+  whisper_config = "@corearchcoverage//tests:whisper_config.json",
+  visibility = ["//visibility:public"],
+)
+
+verilog_library(
+  name = "arch_sample",
+  srcs = ["@corearchcoverage//src/cov_sample:cov_sample.sv"],
+  deps = [":archcov_sv"],
+  visibility = ["//visibility:public"],
+)
 
 cc_library(
     name = "archsample",
     hdrs = ["arch_sample.h"],
     srcs = ["arch_sample.cpp"],
     deps = [
-         "@corearchcoverage//src/cov_sample:cov_sample_interface",
+         ":archcov_sample_interface",
          "@corearchcoverage//arch/sample:archsample",
          "@corearchcoverage//arch/common:points",
          "@bazel_tools//tools/cpp/runfiles",

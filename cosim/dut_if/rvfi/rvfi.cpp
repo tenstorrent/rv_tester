@@ -8,8 +8,11 @@
 
 DEFINE_bool(rvfi, true, "Enable rvfi logging");
 DEFINE_bool(cosim, true, "Enable cosim checking");
-DEFINE_int32(debug_entry_pc, 0x800, "Debug Mode entry PC");
-DEFINE_int32(debug_exit_pc, 0x860, "Debug Mode exit PC");
+DEFINE_bool(perf, false, "Enable core performance metrics");
+DECLARE_string(load);
+
+DEFINE_uint64(debug_entry_pc, 0x800, "Debug Mode entry PC");
+DEFINE_uint64(debug_exit_pc, 0x860, "Debug Mode exit PC");
 
 REGISTRY_register(rvfi, platform, 0);
 
@@ -37,6 +40,10 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
   >(loc);
 }
 
+rvfi::~rvfi() {
+  report_perf();
+}
+
 void rvfi::init() {
   bot_ = std::make_unique<bot>();;
   eot_ = std::make_unique<eot>(loc_);;
@@ -48,6 +55,9 @@ void rvfi::init() {
     log(cvm::NONE, "Instr Cycle Hart Mode PC Opcode\n");
     count_ = 0;
   }
+
+  // initialize metrics
+  initialize_perf();
 }
 
 void rvfi::terminate(bridge::terminate_t t) {
@@ -67,6 +77,9 @@ void rvfi::process(const cosim_transactions::m_rvfi& m_rvfi) {
   // Clear state
   intr_ = false;
   excp_ = false;
+
+  if (FLAGS_perf)
+    collect_perf(m_rvfi);
 }
 
 void rvfi::process(const cosim_transactions::m_trap& m_trap) {
@@ -206,7 +219,7 @@ void rvfi::enter_debug_mode(rv_instr_t& instr) {
   if (!FLAGS_cosim)
     return;
 
-  if ((int)instr.pc.pc_rdata == FLAGS_debug_entry_pc) {
+  if ((uint64_t)instr.pc.pc_rdata == FLAGS_debug_entry_pc) {
 
     rv_debug_t debug;
     std::cout <<" Enter Debug Mode debug_entry_pc :"<<std::hex<<FLAGS_debug_entry_pc<<"\n";
@@ -226,7 +239,7 @@ void rvfi::exit_debug_mode(rv_instr_t& instr) {
   if (!FLAGS_cosim)
     return;
 
-  if ((int)instr.pc.pc_rdata == FLAGS_debug_exit_pc) {
+  if ((uint64_t)instr.pc.pc_rdata == FLAGS_debug_exit_pc) {
 
     rv_debug_t debug;
     std::cout <<" Exit Debug Mode debug_exit_pc :"<<std::hex<<FLAGS_debug_exit_pc<<"\n";
@@ -241,6 +254,57 @@ void rvfi::exit_debug_mode(rv_instr_t& instr) {
     bridge_->exit_debug_mode(debug);
   }
 
+}
+
+void rvfi::initialize_perf() {
+  if (FLAGS_perf and not FLAGS_load.empty()) {
+    // initialize metrics
+    char buffer_start[128]; char buffer_end[128];
+    std::string perf_start, perf_end;
+    FILE* pipe_start = popen(("nm " + FLAGS_load + " | grep __perf_start").c_str(), "r");
+    FILE* pipe_end = popen(("nm " + FLAGS_load + " | grep __perf_end").c_str(), "r");
+    try {
+      while (fgets(buffer_start, sizeof(buffer_start), pipe_start) != NULL)
+        perf_start += buffer_start;
+
+      while (fgets(buffer_end, sizeof(buffer_end), pipe_end) != NULL)
+        perf_end += buffer_end;
+
+      std::cout << "here" << std::endl;
+      int pos = perf_start.find(" ");
+      perf_start_pc = std::strtoll(perf_start.substr(0, pos).c_str(), nullptr, 16);
+      pos = perf_end.find(" ");
+      perf_end_pc = std::strtoll(perf_end.substr(0, pos).c_str(), nullptr, 16);
+
+    } catch (...) {
+      pclose(pipe_start);
+      pclose(pipe_end);
+      return;
+    }
+
+    pclose(pipe_start);
+    pclose(pipe_end);
+    perf_ok = true;
+  }
+}
+
+void rvfi::collect_perf(const cosim_transactions::m_rvfi& m_rvfi) {
+  if (perf_ok) {
+    if (perf_start_pc == uint64_t(m_rvfi.pc_rdata))
+      perf_start_cycle = m_rvfi.cycle;
+    if (perf_end_pc == uint64_t(m_rvfi.pc_rdata))
+      perf_end_cycle = m_rvfi.cycle;
+
+    if (perf_start_cycle)
+      perf_instrs++;
+  }
+}
+
+void rvfi::report_perf() {
+  if (perf_ok) {
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_cycles\": \"{}\"}}\n", perf_end_cycle - perf_start_cycle);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_instrs\": \"{}\"}}\n", perf_instrs);
+  }
 }
 
 extern "C" {

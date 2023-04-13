@@ -62,18 +62,16 @@ module sysmod #(
         end
     end
 
-    rv_tester_pkg::interrupt_t /* verilator lint_off BLKANDNBLK */ interrupt_d /* verilator lint_on BLKANDNBLK */;
+    rv_tester_pkg::interrupt_t interrupt_d = '0; // FIXME how to reset these?
     rv_tester_pkg::interrupt_t interrupt_q;
     assign interrupt = interrupt_q;
 
     function void sysmod_timer_interrupt (unsigned hartid, unsigned val);
-      $display("[SYSMOD] mti = %0d", val);
       interrupt_d.mti = val;
     endfunction
     export "DPI-C" function sysmod_timer_interrupt;
 
     function void sysmod_sw_interrupt (unsigned hartid, unsigned val);
-      $display("[SYSMOD] msi = %0d", val);
       interrupt_d.msi = val;
     endfunction
     export "DPI-C" function sysmod_sw_interrupt;
@@ -97,7 +95,6 @@ module sysmod #(
     always @(posedge clk) begin
         interrupt_q <= interrupt_d;
         if (reset) begin
-            interrupt_d <= '0;
             dmi_write   <= '0;
         end
         else if(dmi_write_end)begin
