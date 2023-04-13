@@ -15,7 +15,6 @@ topology_gen(
     name = "topology",
     srcs = [
         "@rv_tester//:rv_tester_topology",
-        "@cva6-wrapper//:ariane_core_attrs",
         "topology.yml",
     ]
 )
@@ -44,7 +43,7 @@ verilog_unit(
     top  = "top",
     lib  = "top",
     dpi  = "dpi",
-    runtime_library = "@rv_tester//infra/bzsim-config:runtime",
+    runtime_library = "//infra/bzsim-config:runtime",
     verilator_top = "sw_tb.cpp",
     bzsimconfig = "//infra/bzsim-config:bzsimconfig",
 )
@@ -53,5 +52,17 @@ sim_test_suite(
     name  = "all_smoke",
     testlists  = ["@smoke"],
     sim = None,
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "whisper_json",
+    srcs = ["whisper.json"],
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "memmap_json",
+    srcs = ["memmap.json"],
     visibility = ["//visibility:public"],
 )

@@ -102,20 +102,3 @@ cc_library(
         strip_prefix = "mem-manager-{commit}".format(commit=mem_manager_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/mem-manager/-/archive/{commit}/mem-manager-{commit}.tar.bz2".format(commit=mem_manager_hash),
     )
-
-    cva6_wrapper_hash="9467108f4fd2ff61544df8d2aaadf4df250a0195"
-    maybe(
-        http_archive,
-        name = "cva6-wrapper",
-        sha256 = "b7fd6700cf8bcbc6b8c4a8d05a75befc407086c699d3e3537eab87dc28548c5c",
-        strip_prefix = "cva6-wrapper-{commit}".format(commit=cva6_wrapper_hash),
-        url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cva6-wrapper/-/archive/{commit}/cva6-wrapper-{commit}.tar.bz2".format(commit=cva6_wrapper_hash),
-    )
-
-    risc_p_cores_hash="592b3c5272218d45212ded44c74e86fd2fa09b84"
-    git_repository(
-        name = "risc-p-cores",
-        commit = risc_p_cores_hash,
-        shallow_since = "1659122452 -0400",
-        remote = "git@aus-gitlab.local.tenstorrent.com:riscv/risc-p-cores.git",
-    )
