@@ -4,7 +4,7 @@ load("@runtime//:runtime.bzl", "runtime_library")
 load("@bzsim//:sim.bzl", "sim_target")
 
 runtime_library(
-    name = "ariane_runtime",
+    name = "runtime",
     simtest_data = [
         "@whisper//:whisper",
         "@cva6-wrapper//:ariane_whisper_json",
@@ -19,7 +19,7 @@ runtime_library(
 )
 
 py_library(
-    name = "chips_bzsimconfig",
+    name = "bzsimconfig",
     srcs = ["bzsimconfig.py"],
     visibility = ["//visibility:public"],
 )

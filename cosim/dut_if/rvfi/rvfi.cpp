@@ -1,5 +1,4 @@
 #include "rvfi.h"
-#include "rvfi_extern.h"
 #include "cvm/plusargs.hpp"
 #include "cvm/bitmanip.hpp"
 #include "cvm/callbacks.hpp"
@@ -13,6 +12,10 @@ DEFINE_int32(debug_entry_pc, 0x800, "Debug Mode entry PC");
 DEFINE_int32(debug_exit_pc, 0x860, "Debug Mode exit PC");
 
 REGISTRY_register(rvfi, platform, 0);
+
+extern "C" {
+  void cosim_terminate(uint8_t call_finish);
+}
 
 rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
   : log("dut_rvfi.log"), loc_(loc) {

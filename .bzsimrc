@@ -1,2 +1,1 @@
 --bazel-wrap=infra/bazel-wrap
---lsf-config-repo={repo_path}/infra/lsf_config

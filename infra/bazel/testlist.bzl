@@ -2,7 +2,7 @@ load("@testgen//:defs.bzl", rr_testlist = "testlist")
 
 TESTLISTS = {
     "smoke": {
-        "testlist" : "//dv/testlists:smoke.py",
+        "testlist" : "//sw_testbench/testlists:smoke.py",
     },
 }
 
@@ -11,7 +11,7 @@ def _testlist(name, testlist, **kwargs):
     rr_testlist(
         name = name,
         testlist = testlist,
-        workspace = "@chips",
+        workspace = "@rv_tester",
         **kwargs,
     )
 

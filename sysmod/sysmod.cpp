@@ -5,7 +5,6 @@
 #include "cvm/topology.hpp"
 #include "cvm/registry.hpp"
 #include "sysmod.h"
-#include "sysmod_extern.h"
 #include "mem/sysmod_mem.h"
 #include "clint/clint.h"
 #include "io_dev/io_dev.h"
@@ -20,6 +19,14 @@ DEFINE_string(load_io, "", "load specified io dev with content from memory");
 DEFINE_bool(sysmod_tick_async, true, "Asynchronous sysmod_tick calls");
 
 REGISTRY_register(sysmod, platform, 0);
+
+extern "C" {
+  void sysmod_timer_interrupt(unsigned hartid, unsigned val);
+  void sysmod_sw_interrupt(unsigned hartid, unsigned val);
+  void sysmod_tbox_interrupt(unsigned hartid, unsigned val, unsigned int_val);
+  void sysmod_dmi_write(unsigned hartid, unsigned upper_val, unsigned lower_val);
+  void sysmod_terminate(uint8_t call_finish);
+}
 
 sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
   : scope_(nullptr), loc_(loc), id_(id)

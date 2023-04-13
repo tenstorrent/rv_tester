@@ -5,7 +5,7 @@ unit_map = {
     'CL'                                : '//rtl'                                          ,
     'risc_p_cores_v8_cluster_1core'     : '//dv'                                           ,
     'sw_testbench'                      : '//sw_testbench'                                 ,
-    'all'                               : '//dv'                                           ,
+    'all'                               : '//sw_testbench'                                 ,
     '__default'                         : 'all'                                            ,
 
 }

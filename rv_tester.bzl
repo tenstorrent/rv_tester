@@ -33,7 +33,6 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
 
     native.cc_library(
         name = rv_tester_dpi,
-        hdrs = ["@rv_tester//:rv_tester.hpp"],
         srcs = ["@rv_tester//:rv_tester.cpp"],
         deps = [
             "@rv_tester//transactors/axi_sw:axi_sw_dpi",

@@ -1,8 +1,9 @@
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
-load("//infra/bazel:verilog.bzl", "verilog_unit", "verilog_dpi_library")
+load("@bzsim//:verilog_unit.bzl", "verilog_unit", "verilog_dpi_library")
 load("@runtime//:runtime.bzl", "runtime_library")
 load("@cvm//:defs.bzl", "topology_gen", "packet_gen")
 load("@rv_tester//:defs.bzl", "rv_tester_gen")
+load("@bzsim//:sim.bzl", "sim_test_suite")
 
 verilog_dpi_library(
     name = "dpi",
@@ -43,6 +44,14 @@ verilog_unit(
     top  = "top",
     lib  = "top",
     dpi  = "dpi",
-    runtime = "//infra/bzsim-config:ariane_runtime",
+    runtime_library = "@rv_tester//infra/bzsim-config:runtime",
     verilator_top = "sw_tb.cpp",
+    bzsimconfig = "//infra/bzsim-config:bzsimconfig",
+)
+
+sim_test_suite(
+    name  = "all_smoke",
+    testlists  = ["@smoke"],
+    sim = None,
+    visibility = ["//visibility:public"],
 )

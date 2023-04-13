@@ -1,6 +1,5 @@
 #include <stdio.h>
 
-#include "rv_tester.hpp"
 #include "Vtop.h"
 #include "verilated.h"
 

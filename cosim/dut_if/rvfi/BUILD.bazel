@@ -1,7 +1,1 @@
-exports_files(["rvfi.cpp", "rvfi.h", "rvfi_extern.h"])
-
-cc_library(
-    name = "rvfi_extern",
-    hdrs = ["rvfi_extern.h"],
-    visibility = ["//visibility:public"],
-)
+exports_files(["rvfi.cpp", "rvfi.h"])
