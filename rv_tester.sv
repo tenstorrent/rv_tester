@@ -67,10 +67,8 @@ module rv_tester #(
         if (cb_poll) begin
             rv_tester_flush_callbacks();
         end
-        if (ready_to_terminate && call_finish) begin
+        if ((ready_to_terminate && call_finish) || wait_for_quiesced) begin
             wait_for_quiesced <= '1;
-        end
-        if (wait_for_quiesced) begin
             if (quiesced) begin
               // exit gracefully
               $display("[RVTESTER]: exiting gracefully");

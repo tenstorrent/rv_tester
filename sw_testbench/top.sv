@@ -31,6 +31,7 @@ module top #(
     import "DPI-C" context function void get_stimulus(logic reset, longint unsigned clocks);
 
     longint unsigned clocks = '0;
+    assign quiesced = '1;
 
     always @(posedge clk) begin
         if (!reset) begin
