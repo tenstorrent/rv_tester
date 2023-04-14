@@ -7,6 +7,6 @@ extern "C" void get_stimulus(uint8_t reset, std::uint64_t clocks) {
     static uint64_t pc = 0x80000000;
     write_rvfi(!reset, 0, 0, pc);
     if (!reset) {
-        pc += 4;
+        // pc += 4;
     }
 }
