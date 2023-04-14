@@ -1,0 +1,36 @@
+#! /usr/bin/env bash
+
+set -e
+set -o pipefail
+
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+REPO_DIR=$(dirname ${SCRIPT_DIR})
+CONTAINER_DIR=${SCRIPT_DIR}/podman-scripts
+
+if ! $CONTAINER_DIR/cannot-run-container ; then
+    exec $CONTAINER_DIR/container-run-tt ${BASH_SOURCE[0]} "$@"
+fi
+
+BAZEL="bazel"
+if ! command -v ${BAZEL} > /dev/null; then
+    BAZEL="/home/risc/tools/common/bin/bazel-4.2.1-linux-x86_64"
+fi
+
+OUTPUT_USER_ROOT=""
+if [[ ! "$*" =~ "--output_user_root" ]]; then
+    home_output_user_root="${HOME}/.cache/bazel/_bazel__replaceme"
+    if [[ -d "$home_output_user_too" ]] && [[ -w "$home_output_user_root" ]]; then
+        OUTPUT_USER_ROOT="--output_user_root ${HOME}/.cache/bazel/_bazel__replaceme"
+    else
+        OUTPUT_USER_ROOT="--output_user_root ${REPO_DIR}/bazel_output_user_root"
+    fi
+fi
+
+OUTPUT_BASE=""
+if [[ ! "$*" =~ "--output_base" ]]; then
+    OUTPUT_BASE="--output_base $(${SCRIPT_DIR}/bazel/get-bazel-output-base)"
+fi
+
+. ${SCRIPT_DIR}/env.sh
+
+exec ${BAZEL} ${OUTPUT_USER_ROOT} ${OUTPUT_BASE} "$@"

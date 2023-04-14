@@ -1,0 +1,297 @@
+{
+    "tlb_entries"           : 0,
+
+    "xlen"                  : 64,
+    "isa"                   : "rv64imafcdvuszfh",
+    "reset_vec"             : "0x80000000",
+
+    "memmap" : {
+       "Comment"            : "Set physical memory size to be 56-bits",
+       "size"               : "0x100000000000000",
+       "pma"                : [ { 
+           "low"            : "0x0", 
+           "high"           : "0x7fffffff",
+           "attribs"        : [ "read", "write", "io"] } ]
+    },
+
+    "page_fault_on_first_access" : true,
+
+    "Comment"                    : "Print memory addres of ld/st instructions in trace log.",
+    "print_load_store_address"   : "true",
+
+    "vector" : {
+      "bytes_per_vec"       : 32,
+      "min_bytes_per_elem"  : 1,
+      "Comment"             : "Hardware supports 32-bit ELEN plus some widening operations from 32 to 64-bit",
+      "max_bytes_per_elem"  : 8
+    },
+
+    "csr" : {
+      "misa" : {
+          "reset-comment"   : "imafdcvsu",
+          "reset"           : "0x800000000034112d",
+          "mask-comment"    : "Misa is not writable by CSR instructions",
+          "mask"            : "0x0000000000341029",
+          "poke_mask"       : "0x0000000000341029"
+      },
+
+      "mideleg" : {
+          "reset-comment"   : "imafdcvsu",
+          "reset"           : "0x000000000",
+          "mask-comment"    : "Misa is not writable by CSR instructions",
+          "mask"            : "0x0000000000000222"
+      },
+    "mcycle" : {
+          "reset-comment"   : "imafdcvsu",
+          "reset"           : "0x0000000000000000",
+          "mask-comment"    : "Misa is not writable by CSR instructions",
+          "mask"            : "0xffffffffffffffff"
+      },
+    "menvcfg" : {
+          "reset-comment"   : "imafdcvsu",
+          "reset"           : "0x000000000",
+          "mask-comment"    : "Misa is not writable by CSR instructions",
+          "mask"            : "0xc0000000000000f1"
+      },
+
+      "mip"      : {
+          "reset"           : "0x0",
+          "comment"         : "Configure software interrupt on CPU0 to start the boot process",
+          "mask-comment"    : "mie is not writable by CSR instructions",
+          "mask"            : "0x0000000000000222"
+      },
+
+      "sie"      : {
+          "reset"           : "0x0",
+          "comment"         : "Configure software interrupt on CPU0 to start the boot process",
+          "mask-comment"    : "mie is not writable by CSR instructions",
+          "mask"            : "0x0000000000000222"
+      },
+
+      "sip"      : {
+          "reset"           : "0x0",
+          "comment"         : "Configure software interrupt on CPU0 to start the boot process",
+          "mask-comment"    : "mie is not writable by CSR instructions",
+          "mask"            : "0x0000000000000002"
+      },
+
+      "scounteren"      : {
+          "reset"           : "0x0",
+          "comment"         : "Configure software interrupt on CPU0 to start the boot process",
+          "mask-comment"    : "mie is not writable by CSR instructions",
+          "mask"            : "0x00000000ffffffff"
+      },
+
+      "mtvec"      : {
+          "reset"           : "0x0",
+          "comment"         : "Configure software interrupt on CPU0 to start the boot process",
+          "mask-comment"    : "mie is not writable by CSR instructions",
+          "mask"            : "0xfffffffffffffffc"
+      },
+
+      "mstatus" : {
+          "reset-comment"   : "SXL=10, UXL=10",
+          "reset"           : "0x0000000a00000000",
+          "mask-comment"    : "Readonly fields: SXL, UXL",
+          "mask"            : "0x00000030007fffaa",
+          "poke_mask"       : "0x80000030007fffaa"
+        },
+
+      "satp" : {
+          "satp-comment"    : "Hardwired to zero except for FS, VS, and SD.",
+          "reset"           : "0x0",
+          "mask"            : "0xffffffffffffffff"
+      },
+
+      "c_priv" : {
+          "c_priv-comment"  : "privi_mode xPP U0 S1 H2 M3.",
+          "reset"           : "0x3",
+          "number"          : "0x7c3"
+      },
+
+      "vtype" : {
+          "reset"           : "0xd0",
+          "mask"            : "0xff"
+      },
+
+      "c_satp_spec" : {
+          "c_satp_spec-comment"  : "Speculative version of satp.",
+          "reset"           : "0x0",
+          "number"          : "0x5c0"
+      },
+
+      "c_xtval_spec" : {
+          "c_xtval_spec-comment"  : "Speculative version of mtval/stval that individual units can set when taking a trap/exception.",
+          "reset"           : "0x0",
+          "number"          : "0x5c1"
+      },
+
+      "mie" : {
+          "reset-comment"   : "imafdcvsu",
+          "reset"           : "0x0000000000000000",
+          "mask-comment"    : "mie is not writable by CSR instructions",
+          "mask"            : "0x0000000000000aaa"
+      },
+
+      "stvec" : {
+          "stvec-comment"   : "FIXME : Hardwired to zero except for FS, VS, and SD.",
+          "reset"           : "0x0",
+          "mask"            : "0xffffffffffffffff",
+          "poke_mask"       : "0xffffffffffffffff"
+      },
+
+      "medeleg" : {
+          "medeleg-comment"   : "FIXME : Hardwired to zero except for FS, VS, and SD.",
+          "reset"           : "0x0",
+          "mask"            : "0xfffffffffffff7ff",
+          "poke_mask"       : "0xfffffffffffff7ff"
+      },
+
+      "tselect" : {
+          "Comment"         : "Hardwired to 0",
+          "reset"           : "0x0",
+          "mask"            : "0x0"
+      },
+
+      "tdata1" : {
+          "Comment"         : "Hardwired to 0",
+          "reset"           : "0x0",
+          "mask"            : "0x0"
+      },
+
+      "tdata2" : {
+          "Comment"         : "Hardwired to 0",
+          "reset"           : "0x0",
+          "mask"            : "0x0"
+      },
+
+      "tdata3" : {
+          "Comment"         : "Hardwired to 0",
+          "reset"           : "0x0",
+          "mask"            : "0x0"
+      },
+
+      "dcsr" : {
+          "Comment"         : "Hardwired to 0",
+          "reset"           : "0x0",
+          "mask"            : "0x0"
+      },
+
+      "dpc" : {
+          "Comment"         : "Hardwired to 0",
+          "reset"           : "0x0",
+          "mask"            : "0x0"
+      },
+
+      "dscratch" : {
+          "Comment"         : "Hardwired to 0",
+          "reset"           : "0x0",
+          "mask"            : "0x0"
+      },
+
+      "dscratch1" : {
+          "Comment"         : "Hardwired to 0",
+          "number"          : "0x7b3",
+          "reset"           : "0x0",
+          "mask"            : "0x0"
+      },
+
+      "cycle" : {
+          "exists"          : "true"
+      },
+
+      "instret" : {
+          "exists"          : "true"
+      },
+
+      "time" : {
+          "exists"          : "false"
+      },
+
+      "pmpaddr0"            : { "exists" : "false" },
+      "pmpaddr1"            : { "exists" : "false" },
+      "pmpaddr2"            : { "exists" : "false" },
+      "pmpaddr3"            : { "exists" : "false" },
+      "pmpaddr4"            : { "exists" : "false" },
+      "pmpaddr5"            : { "exists" : "false" },
+      "pmpaddr6"            : { "exists" : "false" },
+      "pmpaddr7"            : { "exists" : "false" },
+      "pmpaddr8"            : { "exists" : "false" },
+      "pmpaddr9"            : { "exists" : "false" },
+      "pmpaddr10"           : { "exists" : "false" },
+      "pmpaddr11"           : { "exists" : "false" },
+      "pmpaddr12"           : { "exists" : "false" },
+      "pmpaddr13"           : { "exists" : "false" },
+      "pmpaddr14"           : { "exists" : "false" },
+      "pmpaddr15"           : { "exists" : "false" },
+      "pmpaddr16"           : { "exists" : "false" },
+      "pmpaddr17"           : { "exists" : "false" },
+      "pmpaddr18"           : { "exists" : "false" },
+      "pmpaddr19"           : { "exists" : "false" },
+      "pmpaddr20"           : { "exists" : "false" },
+      "pmpaddr21"           : { "exists" : "false" },
+      "pmpaddr22"           : { "exists" : "false" },
+      "pmpaddr23"           : { "exists" : "false" },
+      "pmpaddr24"           : { "exists" : "false" },
+      "pmpaddr25"           : { "exists" : "false" },
+      "pmpaddr26"           : { "exists" : "false" },
+      "pmpaddr27"           : { "exists" : "false" },
+      "pmpaddr28"           : { "exists" : "false" },
+      "pmpaddr29"           : { "exists" : "false" },
+      "pmpaddr30"           : { "exists" : "false" },
+      "pmpaddr31"           : { "exists" : "false" },
+      "pmpaddr32"           : { "exists" : "false" },
+      "pmpaddr33"           : { "exists" : "false" },
+      "pmpaddr34"           : { "exists" : "false" },
+      "pmpaddr35"           : { "exists" : "false" },
+      "pmpaddr36"           : { "exists" : "false" },
+      "pmpaddr37"           : { "exists" : "false" },
+      "pmpaddr38"           : { "exists" : "false" },
+      "pmpaddr39"           : { "exists" : "false" },
+      "pmpaddr40"           : { "exists" : "false" },
+      "pmpaddr41"           : { "exists" : "false" },
+      "pmpaddr42"           : { "exists" : "false" },
+      "pmpaddr43"           : { "exists" : "false" },
+      "pmpaddr44"           : { "exists" : "false" },
+      "pmpaddr45"           : { "exists" : "false" },
+      "pmpaddr46"           : { "exists" : "false" },
+      "pmpaddr47"           : { "exists" : "false" },
+      "pmpaddr48"           : { "exists" : "false" },
+      "pmpaddr49"           : { "exists" : "false" },
+      "pmpaddr50"           : { "exists" : "false" },
+      "pmpaddr51"           : { "exists" : "false" },
+      "pmpaddr52"           : { "exists" : "false" },
+      "pmpaddr53"           : { "exists" : "false" },
+      "pmpaddr54"           : { "exists" : "false" },
+      "pmpaddr55"           : { "exists" : "false" },
+      "pmpaddr56"           : { "exists" : "false" },
+      "pmpaddr57"           : { "exists" : "false" },
+      "pmpaddr58"           : { "exists" : "false" },
+      "pmpaddr59"           : { "exists" : "false" },
+      "pmpaddr60"           : { "exists" : "false" },
+      "pmpaddr61"           : { "exists" : "false" },
+      "pmpaddr62"           : { "exists" : "false" },
+      "pmpaddr63"           : { "exists" : "false" }
+    },
+
+    "enable_performance_counters"   : "true",
+    "perf_count_atomic_load_store"  : "true",
+    "perf_count_fp_load_store"      : "true",
+    
+    "Comment"                       : "All performance counters implemented are implemented (mhpmcount3 to 31) and are resynching with RTL on cosim",
+    "num_mmode_perf_regs"           : 2,
+
+    "mmode_perf_event_map" : {
+      "None"         : "0x0",
+      "Mult"         : "0x00000e00",
+      "Div"          : "0x00000f00",
+      "Csr"          : "0x00001000",
+      "MultDiv"      : "0x00003000",
+      "Bitmanip"     : "0x00005000",
+      "FpSingle"     : "0x00006000",
+      "FpHalf"       : "0x00007000",
+      "InstCommited" : "0x00800000",
+      "Load"         : "0x00c00000",
+      "Store"        : "0x00d00000"
+    }
+}

@@ -1,0 +1,49 @@
+include: 
+  - local: 'infra/container/gitlab-container.yml'
+
+.clone-variables: &clone-variables
+    GIT_STRATEGY: none
+    MY_CLONE_PATH: "$CI_PROJECT_DIR/$CI_JOB_ID"
+.bzsim-variables: &bzsim-variables
+    REGRESSION: ""
+
+.clone-script: &clone-script
+    - mkdir -p $MY_CLONE_PATH
+    - cd $MY_CLONE_PATH
+    - git init
+    - git remote add origin $CI_REPOSITORY_URL
+    - git fetch origin --depth=1 $CI_COMMIT_SHA
+    - git reset --hard FETCH_HEAD
+
+.bzsim-setup-script: &bzsim-setup-script
+    - git config --file gitconfig url."https://${CI_REGISTRY_USER}:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/".insteadOf "git@${CI_SERVER_HOST}:"
+    - CANNOT_RUN_CONTAINER=$(! command -v "podman" > /dev/null)
+    - '! $CANNOT_RUN_CONTAINER || export PODMAN_OPTS=""'
+    - '! $CANNOT_RUN_CONTAINER || export XDG_CONFIG_HOME=$(pwd)/xdg_config_home'
+    - '! $CANNOT_RUN_CONTAINER || (mkdir -p $XDG_CONFIG_HOME/git && cp gitconfig $XDG_CONFIG_HOME/git/config)'
+    - export USER=${GITLAB_USER_LOGIN}
+    - export LOGNAME=${GITLAB_USER_LOGIN}
+    - BZSIM="./infra/bzsim --container-run-opt=./gitconfig:$HOME/.gitconfig"
+    - BZSIM_OPTS="--config=ci --lsf --official"
+    - '! $CANNOT_RUN_CONTAINER || BZSIM="${BZSIM} --no-container"'
+
+stages:
+    - build
+
+smoke:
+    stage: build
+    tags:
+        - jacamar-lsf
+        - curation
+    before_script:
+        - *clone-script
+        - *bzsim-setup-script
+    script:
+        # Need to create subdirectory so that `bzsim regress` does not attempt to overwrite BUILD.bazel
+        - mkdir -p testing
+        - cd testing
+        - ../${BZSIM} test ${BZSIM_OPTS} smoke
+    variables:
+        << : *clone-variables
+        << : *bzsim-variables
+    timeout: 1h

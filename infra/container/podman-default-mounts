@@ -1,0 +1,9 @@
+/tools_vendor : /home/soc_tools   
+/tools_vendor
+/home/soc_tools 
+/tech/tsmc/N06 : /home/il_home/tsmc
+/proj_risc 
+/proj_risc_regr
+/site           
+/tools_risc/tt/cosmos 
+/weka_scratch/rv_bazel_cache

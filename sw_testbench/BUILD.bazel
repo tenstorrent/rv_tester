@@ -1,0 +1,68 @@
+load("@rules_hdl//verilog:providers.bzl", "verilog_library")
+load("@bzsim//:verilog_unit.bzl", "verilog_unit", "verilog_dpi_library")
+load("@runtime//:runtime.bzl", "runtime_library")
+load("@cvm//:defs.bzl", "topology_gen", "packet_gen")
+load("@rv_tester//:defs.bzl", "rv_tester_gen")
+load("@bzsim//:sim.bzl", "sim_test_suite")
+
+verilog_dpi_library(
+    name = "dpi",
+    srcs = ["dpi.cpp"],
+    deps = ["rv_tester_dpi"],
+)
+
+topology_gen(
+    name = "topology",
+    srcs = [
+        "@rv_tester//:rv_tester_topology",
+        "topology.yml",
+    ]
+)
+
+rv_tester_gen(
+    name = "rv_tester",
+    topology = "topology",
+    cc_attrs = {
+        'alwayslink': True,
+        'linkstatic': True,
+    }
+)
+
+verilog_library(
+    name = "top",
+    srcs = [
+        "top.sv",
+    ],
+    deps = [
+        "rv_tester_sv",
+    ]
+)
+
+verilog_unit(
+    name = "sw_testbench",
+    top  = "top",
+    lib  = "top",
+    dpi  = "dpi",
+    runtime_library = "//infra/bzsim-config:runtime",
+    verilator_top = "sw_tb.cpp",
+    bzsimconfig = "//infra/bzsim-config:bzsimconfig",
+)
+
+sim_test_suite(
+    name  = "all_smoke",
+    testlists  = ["@smoke"],
+    sim = None,
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "whisper_json",
+    srcs = ["whisper.json"],
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "memmap_json",
+    srcs = ["memmap.json"],
+    visibility = ["//visibility:public"],
+)
