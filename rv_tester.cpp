@@ -3,6 +3,8 @@
 #include "cvm/callbacks.hpp"
 #include "memmap.h"
 
+DEFINE_int32(quiesce_timeout, 500, "cycles to wait after eot condition before calling $finish");
+
 extern "C" {
     void rv_tester_parse_flags() {
         cvm::plusargs::parse();
