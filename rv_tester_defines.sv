@@ -105,6 +105,7 @@
     input  rv_tester_pkg::dm_write_t  dmi_write,                               \
     output                            debug_mode,                              \
     input                             terminate,                               \
+    output                            quiesced,                                \
                                                                                \
     output rvfi_t      rvfi_instr   [topology.CORE.NRET],                      \
     output mcmi_t      mcmi_store   [topology.CORE.STQ_PORTS],                 \
@@ -120,6 +121,7 @@
     rv_tester_pkg::dm_write_t  dmi_write;                                      \
     logic                      debug_mode;                                     \
     logic                      terminate;                                      \
+    logic                      quiesced;                                       \
                                                                                \
     rvfi_t      rvfi_instr   [topology.CORE.NRET];                             \
     mcmi_t      mcmi_store   [topology.CORE.STQ_PORTS];                        \

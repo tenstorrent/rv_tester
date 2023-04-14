@@ -28,17 +28,24 @@ module rv_tester #(
     LU clocks = 0;
     bit cb_poll = '0;
 
-    logic terminated;
+    logic wait_for_quiesced = '0;
+    logic ready_to_terminate;
     logic call_finish;
     rv_tester_pkg::terminate_t sysmod_terminate;
+
+    logic [31:0] quiesce_counter = 0;
+    logic [31:0] quiesce_timeout = 500;
+
 `ifndef NO_COSIM
     rv_tester_pkg::terminate_t cosim_terminate;
-    assign terminated = sysmod_terminate.terminate || cosim_terminate.terminate;
+    assign ready_to_terminate = sysmod_terminate.terminate || cosim_terminate.terminate;
     assign call_finish = sysmod_terminate.call_finish || cosim_terminate.call_finish;
 `else
-    assign terminated = sysmod_terminate.terminate;
+    assign ready_to_terminate = sysmod_terminate.terminate;
     assign call_finish = sysmod_terminate.call_finish;
 `endif
+
+    assign terminate = wait_for_quiesced;
 
     always @(posedge clk) begin
         rv_tester_reset <= '0;
@@ -60,10 +67,21 @@ module rv_tester #(
         if (cb_poll) begin
             rv_tester_flush_callbacks();
         end
-        if (terminated && call_finish) begin
-            // exit gracefully
-            $display("[RVTESTER]: exiting gracefully");
-            $finish();
+        if (ready_to_terminate && call_finish) begin
+            wait_for_quiesced <= '1;
+        end
+        if (wait_for_quiesced) begin
+            if (quiesced) begin
+              // exit gracefully
+              $display("[RVTESTER]: exiting gracefully");
+              $finish();
+            end else begin
+              quiesce_counter <= quiesce_counter + 1;
+            end
+            if (quiesce_counter >= quiesce_timeout) begin
+              $display("Error: Waiting to quiesce for more than %0d cycles", quiesce_timeout);
+              $finish();
+            end
         end
     end
     assign reset = clocks < LU'(RESET_CLOCKS) || rv_tester_reset || sysmod_reset;
