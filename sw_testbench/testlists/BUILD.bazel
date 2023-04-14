@@ -1,1 +1,1 @@
-exports_files(["nop.S"])
+exports_files(["infinite.S", "nop.S"])
