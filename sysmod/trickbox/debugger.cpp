@@ -59,12 +59,25 @@ void debugger::parse_dmi_from_csv()
           dmi_req.op = 1;
         }else if(instr=="wr"){
           dmi_req.op = 2;
+        }else if(instr=="//"){
+          continue; //skip line may be comment
+        }else if(instr=="cp"){
+          //checkpoint
+          dmi_req.op = 3;
+        }else{
+          //invalid
+          std::cerr << "Invalid command in csv file "<< instr << std::endl;
         }
+        //remove underscores from addr
+        row[1].erase(std::remove(row[1].begin(), row[1].end(), '_'), row[1].end());
         try{
         dmi_req.addr = std::stoul(row[1],nullptr,16);
         } catch (const std::invalid_argument& e) {
           std::cerr << "Invalid argument for stoul csv arg 1: " << e.what() << std::endl;
         }
+        
+        //remove underscores from data
+        row[2].erase(std::remove(row[2].begin(), row[2].end(), '_'), row[2].end());
 
         try{
         dmi_req.data = std::stoul(row[2],nullptr,16);
