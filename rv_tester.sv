@@ -45,6 +45,8 @@ module rv_tester #(
     assign call_finish = sysmod_terminate.call_finish;
 `endif
 
+    assign terminate = (quiesce_counter > 0);
+
     always @(posedge clk) begin
         rv_tester_reset <= '0;
         sysmod_reset <= 0;
