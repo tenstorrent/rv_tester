@@ -43,7 +43,7 @@ verilog_unit(
     top  = "top",
     lib  = "top",
     dpi  = "dpi",
-    runtime_library = "//infra/bzsim-config:runtime",
+    runtime_library = ["//infra/bzsim-config:runtime"],
     verilator_top = "sw_tb.cpp",
     bzsimconfig = "//infra/bzsim-config:bzsimconfig",
 )
