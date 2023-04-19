@@ -70,6 +70,11 @@ module axi_sw #(
 
 );
 
+    always @(negedge clk) begin
+        if (axi_mst_ar_valid) $display("%0d axi_mst_ar_valid", rv_tester.clocks);
+        if (axi_slv_r_valid ) $display("%0d axi_slv_r_valid", rv_tester.clocks);
+    end
+
     localparam RESP_OKAY   = 2'b00;
     localparam RESP_EXOKAY = 2'b01;
 
@@ -158,26 +163,6 @@ module axi_sw #(
 
     logic r_queue_rptr_incremented;
 
-    always_ff @(posedge clk) begin
-        if (reset_n) begin
-            if (axi_slv_r_valid && axi_mst_r_ready) begin
-                automatic r_queue_ptr_t n = r_queue_rptr + r_queue_ptr_t'(1);
-                r_queue_rptr <= n;
-                r_queue_rptr_incremented <= '1;
-            end else begin
-                r_queue_rptr_incremented <= '0;
-            end
-            if (r_queue_rptr_incremented) begin
-                axi_sw_r_ptr(axi_sw_p, int'(r_queue_rptr));
-            end
-            if(r_poll) begin
-                axi_sw_r_poll(axi_sw_p);
-            end
-        end else begin
-            r_queue_rptr <= '0;
-        end
-    end
-
     logic b_queue_aw_lock;
 
     assign axi_slv_aw_ready = !b_queue_full;
@@ -216,6 +201,24 @@ module axi_sw #(
     );
 
     always_ff @(posedge clk) begin
+        if (reset_n) begin
+            if (axi_slv_r_valid && axi_mst_r_ready) begin
+                automatic r_queue_ptr_t n = r_queue_rptr + r_queue_ptr_t'(1);
+                r_queue_rptr <= n;
+                r_queue_rptr_incremented <= '1;
+            end else begin
+                r_queue_rptr_incremented <= '0;
+            end
+            if (r_queue_rptr_incremented) begin
+                axi_sw_r_ptr(axi_sw_p, int'(r_queue_rptr));
+            end
+            if(r_poll) begin
+                axi_sw_r_poll(axi_sw_p);
+            end
+        end else begin
+            r_queue_rptr <= '0;
+        end
+
         if (reset_n) begin
             if (axi_mst_aw_valid && axi_slv_aw_ready) begin
                 axi_sw_aw(axi_sw_p, UI'(axi_mst_aw_id), UL'(axi_mst_aw_addr), UB'(axi_mst_aw_len), UB'(axi_mst_aw_size), UB'(axi_mst_aw_burst), UB'(axi_mst_aw_lock), UB'(axi_mst_aw_atop));
