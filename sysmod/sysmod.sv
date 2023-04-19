@@ -50,12 +50,20 @@ module sysmod #(
     export "DPI-C" function sysmod_terminate;
 
     localparam longint unsigned TICKS = LU'(SW_CLOCK_UPDATE_PERIOD_PS)/LU'(CLOCK_PERIOD_PS);
+    // Need to be separate always blocks for zebu, otherwise zebu makes them both blocking
     always @(posedge clk) begin
         if (0 == (clocks % TICKS)) begin
             if (location != cvm_topology::nil) begin
                 if (sysmod_tick_async) begin
                     sysmod_tick(location, TICKS);
-                end else begin
+                end
+            end
+        end
+    end
+    always @(posedge clk) begin
+        if (0 == (clocks % TICKS)) begin
+            if (location != cvm_topology::nil) begin
+                if(!sysmod_tick_async) begin
                     void'(sysmod_tick_with_return(location, TICKS));
                 end
             end
