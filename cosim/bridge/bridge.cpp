@@ -641,7 +641,8 @@ bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const whisp
 }
 
 bool bridge::clint_read(const rv_instr_t& d) {
-  if (d.mem_read.pa >= memmap_.at("clint").base &&
+  if (d.mem_read.valid &&
+      d.mem_read.pa >= memmap_.at("clint").base &&
       d.mem_read.pa < memmap_.at("clint").end)
     return true;
   return false;
