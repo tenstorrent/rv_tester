@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cinttypes>
+#include "cvm/plusargs.hpp"
 
 // temporary defines to remove later
 DEFINE_string(riscv_trace_path, "", "");
