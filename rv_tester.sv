@@ -66,7 +66,7 @@ module rv_tester #(
             /* verilator lint_off BLKSEQ */
             cb_poll <= cvm_plusargs::get_bool("cb_async") == '0;
             quiesce_timeout <= cvm_plusargs::get_int("quiesce_timeout");
-            call_finish <= cvm_plusargs::get_bool("terminate_call_finish");
+            call_finish <= cvm_plusargs::get_bool("terminate_call_finish") == '1;
             /* verilator lint_on BLKSEQ */
         end
         if (ready_to_terminate || quiesce_counter > 0) begin
