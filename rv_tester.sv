@@ -22,12 +22,13 @@ module rv_tester #(
     import "DPI-C" context function void rv_tester_cvm_error_handler();
     import "DPI-C" function void rv_tester_parse_memmap();
     import "DPI-C" function void rv_tester_reset_registry();
-    import "DPI-C" context function void rv_tester_flush_callbacks();
+    import "DPI-C" context function bit rv_tester_flush_callbacks();
 
     logic rv_tester_reset = '1;
     logic sysmod_reset = '0;
     LU clocks = 0;
     bit cb_poll = '0;
+    bit cb_success = '1;
     logic call_finish;
 
     logic terminated = '0; // used for emu trigger
@@ -40,9 +41,6 @@ module rv_tester #(
 
 `ifndef NO_COSIM
     rv_tester_pkg::terminate_t cosim_terminate;
-    assign ready_to_terminate = rv_tester_error_terminate.terminate || sysmod_terminate.terminate || cosim_terminate.terminate;
-`else
-    assign ready_to_terminate = rv_tester_error_terminate.terminate || sysmod_terminate.terminate;
 `endif
 
     assign terminate = (quiesce_counter > 0);
@@ -66,36 +64,50 @@ module rv_tester #(
             /* verilator lint_off BLKSEQ */
             cb_poll <= cvm_plusargs::get_bool("cb_async") == '0;
             quiesce_timeout <= cvm_plusargs::get_int("quiesce_timeout");
-            call_finish <= cvm_plusargs::get_bool("terminate_call_finish") == '1;
+            call_finish <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
             /* verilator lint_on BLKSEQ */
         end
-        if (ready_to_terminate || quiesce_counter > 0) begin
-          quiesce_counter <= quiesce_counter + 1;
-          if (quiesced || quiesce_counter >= quiesce_timeout) begin
 
-            if (quiesced) begin
-              $display("<%0d> [RVTESTER]: exiting gracefully", clocks);
-              $finish();
-            end else if (quiesce_counter == 0) begin
-              $display("<%0d> [RVTESTER]: exiting immediately because +quiesce_counter=0", clocks);
-            end else begin
-              $display("<%0d> Error: Waiting to quiesce for more than %0d cycles", clocks, quiesce_timeout);
-            end
+        /* this should go before terminate evaluation */
+        if (cb_poll) begin
+            /* verilator lint_off BLKSEQ */
+            cb_success = rv_tester_flush_callbacks();
+            /* verilator lint_on BLKSEQ */
+        end
 
-            if (call_finish) begin
-                $finish();
+        if (cb_success) begin
+          /* verilator lint_off BLKSEQ */
+`ifndef NO_COSIM
+          ready_to_terminate = rv_tester_error_terminate.terminate || sysmod_terminate.terminate || cosim_terminate.terminate;
+`else
+          ready_to_terminate = rv_tester_error_terminate.terminate || sysmod_terminate.terminate;
+`endif
+          /* verilator lint_on BLKSEQ */
+
+          // $display("here: %d %d", ready_to_terminate, cosim_terminate.terminate);
+
+          if (ready_to_terminate || quiesce_counter > 0) begin
+            quiesce_counter <= quiesce_counter + 1;
+            if (quiesced || quiesce_counter >= quiesce_timeout) begin
+
+              if (quiesced) begin
+                $display("<%0d> [RVTESTER]: exiting gracefully", clocks);
+              end else if (quiesce_counter == 0) begin
+                $display("<%0d> [RVTESTER]: exiting immediately because +quiesce_counter=0", clocks);
+              end else begin
+                $display("<%0d> Error: Waiting to quiesce for more than %0d cycles", clocks, quiesce_timeout);
+              end
+
+              if (call_finish) begin
+                  $finish();
+              end
+              terminated <= 1;
             end
-            terminated <= 1;
           end
         end
         /* verilator lint_off BLKSEQ */
         rv_tester_error_terminate.terminate = '0;
         /* verilator lint_on BLKSEQ */
-
-        /* this should go last */
-        if (cb_poll) begin
-            rv_tester_flush_callbacks();
-        end
     end
     assign reset = clocks < LU'(RESET_CLOCKS) || rv_tester_reset || sysmod_reset;
 

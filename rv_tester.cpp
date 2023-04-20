@@ -23,8 +23,10 @@ extern "C" {
         cvm::registry::reset();
     }
 
-    void rv_tester_flush_callbacks() {
+    uint8_t rv_tester_flush_callbacks() {
         cvm::registry::callbacks.flush();
+        // force verilator to serialize
+        return true;
     }
 
     void rv_tester_cvm_error_handler() {
