@@ -45,6 +45,7 @@ DEFINE_string(whisper_client, "socket", "Select whisper client to communicate - 
 DEFINE_int32(whisper_connect_timeout_ms, 10000, "Set whisper connect timeout in milliseconds");
 DEFINE_bool(cov, false, "Enable Arch coverage");
 DEFINE_string(archsample_lib_path, "", "Path to libarchsample.so");
+DEFINE_bool(metrics, true, "Enable printing metrics in log file");
 
 // Constructor
 bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc)
@@ -510,16 +511,30 @@ void bridge::print_resource(hart_id_t hart, const whisper_state_t& w) {
 }
 
 void bridge::step(hart_id_t hart, whisper_state_t& w) {
-  metrics_["steps"]++;
   if (!client_->whisperStep(hart, w.time, w.tag,  w.pc, w.opcode, w.change_count, w.buffer, w.buffer_size,
       w.priv_mode, w.fp_flags, w.trap, w.stop)) {
     cvm::log(cvm::NONE, "Error: Failed to step whisper\n");
     cvm::registry::messenger.signal<terminate_t>(loc_, terminate_t{FLAGS_terminate_call_finish});
     return;
   }
+
+  // Print instruction
   if (FLAGS_cosim_tracer) {
     print_instr(hart, w);
   }
+
+  // Collect instruction related metrics
+  metrics_[hart]["num_instructions"] = std::to_string(cac_.getStep(hart));
+  
+  //FIXME metrics_[hart]["instr"] = w.buffer;
+  metrics_[hart]["mode"] = std::to_string(w.priv_mode);
+  metrics_[hart]["trap"] = std::to_string(w.trap);
+  metrics_[hart]["num_changes"] = std::to_string(w.change_count);
+  
+  //FIXME metrics_[hart]["prev_instr"] = pw_.buffer;
+  metrics_[hart]["prev_mode"] = std::to_string(pw_.priv_mode);
+  metrics_[hart]["prev_trap"] = std::to_string(pw_.trap);
+  metrics_[hart]["prev_num_changes"] = std::to_string(pw_.change_count);
 }
 
 // Push DUT register state to cac
@@ -777,12 +792,16 @@ void bridge::process_dut_mem_read(hart_id_t hart, mem_t& m) {
 void bridge::process_dut_mb_insert(hart_id_t hart, mem_t& m) {
   unsigned size_in_bytes = 1 << m.size;
   bool valid = false;
-  metrics_["stores"]++;
+  
   if (!client_->whisperMcmInsert(hart, m.cycle, m.tag, m.pa, size_in_bytes, m.data, valid)) {
     cvm::log(cvm::NONE, "Error: Failed mcm store insert\n");
     cvm::registry::messenger.signal<terminate_t>(loc_, terminate_t{FLAGS_terminate_call_finish});
     return;
   }
+  
+  // Collect metrics 
+  num_stores_++;
+  metrics_[hart]["num_stores"] = std::to_string(num_stores_);
 }
 
 // Process mem accesses - store drains
@@ -889,8 +908,20 @@ void bridge::final_phase() {
 }
 
 void bridge::report_metrics() {
+  if (!FLAGS_metrics)
+    return;
+
   cvm::log(cvm::NONE, "[COSIM] Report metrics...\n");
 
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"instr_retired\": \"{}\"}}\n", metrics_["steps"]);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"stores_drained\": \"{}\"}}\n", metrics_["stores"]);
+  for (int h = 0; h < num_harts_; h++) {
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_instructions\": \"{}\"}}\n", h, metrics_[h]["num_instructions"]);
+    //FIXME cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_instr\": \"{}\"}}\n", h, metrics_[h]["instr"]);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_mode\": \"{}\"}}\n", h, metrics_[h]["mode"]);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_trap\": \"{}\"}}\n", h, metrics_[h]["trap"]);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_changes\": \"{}\"}}\n", h, metrics_[h]["num_changes"]);
+    //FIXME cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_instr\": \"{}\"}}\n", h, metrics_[h]["prev_instr"]);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_mode\": \"{}\"}}\n", h, metrics_[h]["prev_mode"]);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_trap\": \"{}\"}}\n", h, metrics_[h]["prev_trap"]);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_num_changes\": \"{}\"}}\n", h, metrics_[h]["prev_num_changes"]);
+  }
 }

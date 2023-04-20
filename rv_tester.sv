@@ -75,11 +75,11 @@ module rv_tester #(
           if (quiesced || quiesce_counter >= quiesce_timeout) begin
 
             if (quiesced) begin
-              $display("[RVTESTER]: exiting gracefully");
+              $display("<%0d> [RVTESTER]: exiting gracefully", clocks);
             end else if (quiesce_counter == 0) begin
-              $display("[RVTESTER]: exiting immediately because +quiesce_counter=0");
+              $display("<%0d> [RVTESTER]: exiting immediately because +quiesce_counter=0", clocks);
             end else begin
-              $display("Error: Waiting to quiesce for more than %0d cycles", quiesce_timeout);
+              $display("<%0d> Error: Waiting to quiesce for more than %0d cycles", clocks, quiesce_timeout);
             end
 
             if (call_finish) begin

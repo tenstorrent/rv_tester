@@ -3,6 +3,7 @@
 #pragma once
 
 #include <string>
+#include <algorithm>
 
 #include "cvm/topology.hpp"
 #include "bridge_base.h"
@@ -138,5 +139,8 @@ private:
   memmap::memmap_t memmap_;
 
   // Metrics map
-  std::map<std::string, std::uint64_t> metrics_;
+  static constexpr int max_harts = 2;
+  std::array<std::map<std::string, std::string>, max_harts> metrics_;
+
+  int num_stores_ = 0;
 };
