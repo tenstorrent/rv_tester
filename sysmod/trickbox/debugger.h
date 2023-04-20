@@ -94,6 +94,7 @@ public:
   };
   
   struct dmi_req_t {
+    unsigned  func_bits;
     unsigned  addr;
     unsigned  op;
     unsigned  data;
@@ -137,6 +138,10 @@ private:
   std::queue<dmi_req_t> dmi_rsp_q;
   unsigned dbg_file_mode = 0;
   unsigned dbg_trigger = 0;
+  unsigned step_ahead_queue_on =0;
+  unsigned step_quit_queue_on =0;
+  unsigned step_instr_cnt = 0;
+
   std::vector<std::vector<std::string>> content;
 	std::vector<std::string> row;
   //file(FLAGS_dbg_input_file_path);

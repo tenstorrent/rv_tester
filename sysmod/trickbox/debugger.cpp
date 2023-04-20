@@ -49,25 +49,63 @@ void debugger::parse_dmi_from_csv()
         dmi_req.op = 0;
         dmi_req.addr = 0;
         dmi_req.data = 0;
+        dmi_req.func_bits = 0;
         std::string instr;  
+        std::string instr_2char;  
         instr =   row[0];
         //remove empty spaces from string
         instr.erase(std::remove_if(instr.begin(), instr.end(), ::isspace), instr.end()); 
         //convert string to lowercase for uniformity
         std::transform(instr.begin(), instr.end(), instr.begin(), ::tolower);
-        if(instr == "rd"){
+        instr_2char = instr.substr(0,2);
+        if(instr_2char == "rd"){
           dmi_req.op = 1;
-        }else if(instr=="wr"){
+        }else if(instr_2char =="wr"){
           dmi_req.op = 2;
-        }else if(instr=="//"){
+        }else if(instr_2char =="//"){
           continue; //skip line may be comment
-        }else if(instr=="cp"){
+        }else if(instr_2char =="cp"){
           //checkpoint
           dmi_req.op = 3;
+        }else if(instr_2char =="st"){
+          //step ahead/back q
+          if(instr == "step_ahead_queue_on"){
+            step_ahead_queue_on = 1; 
+          }
+          if(instr == "step_ahead_queue_off"){
+            step_ahead_queue_on = 0; 
+          }
+          if(instr == "step_quit_queue_on"){
+            step_quit_queue_on = 1; 
+          }
+          if(instr == "step_quit_queue_off"){
+            step_quit_queue_on = 0; 
+          }
+          if(instr == "step_instr_cnt"){
+            step_instr_cnt = std::stoul(row[1],nullptr,16); 
+            // will continue loop with proper dmi write
+            dmi_req.func_bits = 1;
+            dmi_req.data = step_instr_cnt;
+            content.push_back(row);
+            dmi_cmd_q.push(dmi_req);
+            continue;
+          }
         }else{
           //invalid
           std::cerr << "Invalid command in csv file "<< instr << std::endl;
         }
+        
+        //
+         if(step_ahead_queue_on){
+            dmi_req.func_bits = 2;
+         }
+         if(step_quit_queue_on){
+            dmi_req.func_bits = 4;
+         }
+            
+            
+          }
+        //
         //remove underscores from addr
         row[1].erase(std::remove(row[1].begin(), row[1].end(), '_'), row[1].end());
         try{
@@ -112,11 +150,11 @@ void debugger::drive_csv_dmi_cmds()
     dmi_req_t dmi_req;
     dmi_req = dmi_cmd_q.front();
     dmi_cmd_q.pop();//pop front element
-    std::cout<<"Popping dmi request OP:"<<dmi_req.op<<" ADDR: "<<dmi_req.addr<<" DATA: "<<dmi_req.data<<"\n";
+    std::cout<<"Popping dmi request OP:"<<dmi_req.op<<" ADDR: "<<dmi_req.addr<<" DATA: "<<dmi_req.data<<" Func Bits: "<<dmi_req.func_bits<<"\n";
     unsigned upper_dmi_data = 0;
     unsigned lower_dmi_data = 0;
     unsigned hart = 0;
-    upper_dmi_data = (dmi_req.addr << 2) | dmi_req.op;
+    upper_dmi_data = ( dmi_req.func_bits << 59 )|(dmi_req.addr << 2) | dmi_req.op;
     lower_dmi_data = dmi_req.data;
     hart = 0; //hart bits position TBD, till TBD it is always zero
     trickboxDmiWrite(hart,upper_dmi_data,lower_dmi_data);
