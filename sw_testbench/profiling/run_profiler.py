@@ -19,8 +19,10 @@ class Profiler(ABC):
         self.bzsim_run_cmd = [os.path.join(self.rv_tester_path, "infra", "bzsim"), "run", "verilator:sw_testbench"]
         self.container_run_cmd = [os.path.join(self.rv_tester_path, "infra", "podman-scripts", "container-run-tt")]
         self.elf_file = "{}.elf".format(os.path.splitext(os.path.basename(self.args.input_program))[0])
-        self.common_build_opts = ["--bazel-build-opt=--compilation_mode=opt", "--debug"]
-        self.common_plusargs = ["+load={}".format(self.elf_file), "+nostandalone", "+eot=max_instr", "+max_cycles={}".format(self.args.max_cycles), "+max_instr={}".format(self.args.max_cycles - 20)]
+        self.common_sim_opts = ["--bazel-build-opt=--compilation_mode=opt", "--debug"]
+        if args.no_lsf:
+            self.common_sim_opts.append("--no-lsf")
+        self.common_plusargs = ["+load={}".format(self.elf_file), "+nostandalone", ("+whisper_client=" + ("shm" if args.use_shm else "socket")), "+eot=max_instr", "+max_cycles={}".format(self.args.max_cycles), "+max_instr={}".format(self.args.max_cycles - 20)]
         self.profiler_cmds = [self.compilation_cmd()]
         # output file to be set by subclasses if desired
         self.output_file = None
@@ -68,7 +70,7 @@ class Profiler(ABC):
 class GprofProfiler(Profiler):
     def setup(self):
         self.output_file = open("{}-results.txt".format(self.name()), "w")
-        self.profiler_cmds.append(Command(arg_list=self.bzsim_run_cmd + ['--bazel-build-opt=--copt=-pg'] + self.common_build_opts + ["--"] + self.common_plusargs))
+        self.profiler_cmds.append(Command(arg_list=self.bzsim_run_cmd + ['--bazel-build-opt=--copt=-pg'] + self.common_sim_opts + ["--"] + self.common_plusargs))
         self.profiler_cmds.append(Command(arg_list=self.container_run_cmd + ["gprof", os.path.join(self.rv_tester_path, "bazel-bin/sw_testbench/sw_testbench_verilator"), "gmon.out"], output_to_file=True))
 
     def teardown(self):
@@ -86,7 +88,7 @@ class GprofProfiler(Profiler):
 
 class PerfProfiler(Profiler):
     def setup(self):
-        self.profiler_cmds.append(Command(arg_list=self.bzsim_run_cmd + self.common_build_opts + ["--"] + self.common_plusargs + ["+sim_wrap=perf", "+sim_wrap=record", "+sim_wrap=-o", "+sim_wrap=perf.data"]))
+        self.profiler_cmds.append(Command(arg_list=self.bzsim_run_cmd + self.common_sim_opts + ["--"] + self.common_plusargs + ["+sim_wrap=perf", "+sim_wrap=record", "+sim_wrap=-o", "+sim_wrap=perf.data"]))
 
     def teardown(self):
         self.print('Run "{}" to analyze the output'.format(" ".join(self.container_run_cmd + ["perf", "report"])))
@@ -103,7 +105,7 @@ class GperftoolsProfiler(Profiler):
     def setup(self):
         self.output_file = open("{}-results.txt".format(self.name()), "w")
         timing_args = ['--container-run-opt=--env=CPUPROFILE_REALTIME=1', '--container-run-opt=--env=ITIMER_REAL=1'] if self.args.use_realtime else ['--container-run-opt=--env=CPUPROFILE_REALTIME=0']
-        self.profiler_cmds.append(Command(arg_list=self.bzsim_run_cmd + ['--container-run-opt=--env=CPUPROFILE_FREQUENCY=10000'] + timing_args + ['--container-run-opt=--env=CPUPROFILE=prof.out', '--bazel-build-opt=--linkopt=-Wl,-no-as-needed,-lprofiler'] + self.common_build_opts + ["--"] + self.common_plusargs))
+        self.profiler_cmds.append(Command(arg_list=self.bzsim_run_cmd + ['--container-run-opt=--env=CPUPROFILE_FREQUENCY=10000'] + timing_args + ['--container-run-opt=--env=CPUPROFILE=prof.out', '--bazel-build-opt=--linkopt=-Wl,-no-as-needed,-lprofiler'] + self.common_sim_opts + ["--"] + self.common_plusargs))
         self.profiler_cmds.append(Command(arg_list=self.container_run_cmd + ["pprof", "--text", os.path.join(self.rv_tester_path, "bazel-bin/sw_testbench/sw_testbench_verilator"), "prof.out"], output_to_file=True))
 
     def teardown(self):
@@ -124,7 +126,7 @@ class WallClockProfiler(Profiler):
         self.profiler_cmds.append(Command(arg_list=self.bazel_wrap_cmd + ["build", "@wall_clock_profiler//:wall_clock_profiler"]))
         new_profiler_path = os.path.join(self.rv_tester_path, "wall_clock_profiler")
         self.profiler_cmds.append(Command(arg_list=["mv", "bazel-bin/external/wall_clock_profiler/wall_clock_profiler", new_profiler_path]))
-        self.profiler_cmds.append(Command(arg_list=self.bzsim_run_cmd + self.common_build_opts + ["--"] + self.common_plusargs + ["+sim_wrap={}".format(new_profiler_path), "+sim_wrap={}".format(self.args.samples_per_second)]))
+        self.profiler_cmds.append(Command(arg_list=self.bzsim_run_cmd + self.common_sim_opts + ["--"] + self.common_plusargs + ["+sim_wrap={}".format(new_profiler_path), "+sim_wrap={}".format(self.args.samples_per_second)]))
 
     def teardown(self):
         self.print("See wcOut.txt for the profiling results")
@@ -149,7 +151,12 @@ def construct_profiler_using_args(rv_tester_path: str):
         profiler_map[profiler.name()] = profiler
     parser.add_argument("--max_cycles", type=int, default=999999, help="max number of cycles to run simulation")
     parser.add_argument("--input_program", type=str, default=os.path.join(rv_tester_path, "sw_testbench", "testlists", "infinite.S"), help="path to source input file")
+    parser.add_argument("--use_shm", action='store_true', default=False, help="If true, shared memory to communicate with whisper. Otherwise, use sockets")
+    parser.add_argument("--no_lsf", action='store_true', default=False, help="If true, run sim locally instead of on LSF")
+
     args = parser.parse_args()
+    if (args.profiler is None):
+        raise Exception(parser.format_usage())
     return profiler_map[args.profiler](rv_tester_path, args)
 
 
