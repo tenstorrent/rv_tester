@@ -102,3 +102,12 @@ cc_library(
         strip_prefix = "mem-manager-{commit}".format(commit=mem_manager_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/mem-manager/-/archive/{commit}/mem-manager-{commit}.tar.bz2".format(commit=mem_manager_hash),
     )
+
+    wall_clock_profiler_hash="2b1f62c002734bbd8673204fe38213cdda43219e"
+    maybe(
+        http_archive,
+        name = "wall_clock_profiler",
+        sha256 = "d897f412069f005d10cd2e339bcc2e5dfd085da99887f61e629ed9303a6185a8",
+        strip_prefix = "wall_clock_profiler-{commit}".format(commit=wall_clock_profiler_hash),
+        url = "https://aus-gitlab.local.tenstorrent.com/mboisvert/wall_clock_profiler/-/archive/{commit}/wall_clock_profiler-{commit}.tar.bz2".format(commit=wall_clock_profiler_hash),
+    )
