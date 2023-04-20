@@ -7,8 +7,6 @@
 #include "cvm/plusargs.hpp"
 #include "cvm/registry.hpp"
 
-DEFINE_bool(terminate_call_finish, true, "Call $finish on sim termination");
-
 htif::htif(const std::string& tag, uint64_t addr, cvm::topology::loc_t loc)
   : device(tag, addr, 16 /* size */, loc)
 {
@@ -119,7 +117,7 @@ htif::write(uint64_t addr, size_t length, const data_t& data,
       if (payload & 1)
 	{
 	  std::cerr << "Terminating because of write tohost\n";
-          cvm::registry::messenger.signal<terminate_t>(loc(), terminate_t{FLAGS_terminate_call_finish});
+          cvm::registry::messenger.signal<terminate_t>(loc(), terminate_t{true});
 	}
     }
   else

@@ -17,7 +17,6 @@ package rv_tester_pkg;
 
     typedef struct packed {
         logic terminate;
-        logic call_finish;
     } terminate_t;
 
     typedef longint unsigned c_handle;

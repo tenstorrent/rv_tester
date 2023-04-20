@@ -43,9 +43,8 @@ module sysmod #(
 
     assign bootstrap.boot_addr = 1 << 31;
 
-    function void sysmod_terminate (byte unsigned call_finish);
+    function void sysmod_terminate ();
         terminate.terminate = '1;
-        terminate.call_finish = call_finish[0];
     endfunction
     export "DPI-C" function sysmod_terminate;
 

@@ -26,7 +26,7 @@ extern "C" {
   void sysmod_sw_interrupt(unsigned hartid, unsigned val);
   void sysmod_tbox_interrupt(unsigned hartid, unsigned val, unsigned int_val);
   void sysmod_dmi_write(unsigned hartid, unsigned upper_val, unsigned lower_val);
-  void sysmod_terminate(uint8_t call_finish);
+  void sysmod_terminate();
 }
 
 sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
@@ -103,7 +103,7 @@ sysmod::terminate(htif::terminate_t t) {
   cvm::registry::callbacks.push(
       scope(),
       [t]() {
-        sysmod_terminate(t.terminate);
+        if (t.terminate) sysmod_terminate();
       });
 }
 
@@ -159,10 +159,8 @@ sysmod::compose()
         cvm::registry::messenger.connect<debugger::dmi_data_t>(
             loc_,
             [&](debugger::dmi_data_t i) { return this->dmi_write(i); });
-      } else {
-        std::cerr << "Error: unknown type " << type << "\n";
-        terminate({false});
-      }
+      } else
+        cvm::log(cvm::ERROR, "Error: unknown type %s", type);
 
       devices_.emplace_back(device);
     }
@@ -179,8 +177,7 @@ sysmod::dev(uint64_t addr)
     if (d->has_addr(addr))
       return d.get();
   }
-  std::cerr << "bus error: address not mapped: " << std::hex << addr << '\n';
-  terminate({false});
+  cvm::log(cvm::ERROR, "bus error: address not mapped: 0x%x", addr);
   return nullptr;
 }
 
@@ -191,8 +188,7 @@ sysmod::dev(const std::string& tag)
     if (d->tag() == tag)
       return d.get();
   }
-  std::cerr << "bus error: tag not mapped: " << tag << '\n';
-  terminate({false});
+  cvm::log(cvm::ERROR, "bus error: address not mapped: %s", tag);
   return nullptr;
 }
 
@@ -217,11 +213,8 @@ sysmod::load_io(const std::string& io)
       for (size_t i = 0; i < 8; i++) strb[i] = true;
 
       // Read from memory and write to requested dev tag
-      if (not dev("memory") or not dev(tag)) {
-        std::cerr << "could not get device: " << tag << '\n';
-        terminate({false});
+      if (not dev("memory") or not dev(tag))
         return;
-      }
 
       dev("memory")->backdoor_read(dev(tag)->addr()+offset, 8, data);
       dev(tag)->write(dev(tag)->addr()+offset, 8, data, strb);
@@ -240,7 +233,7 @@ sysmod::load_prog(const std::string& hex, const std::string& load)
       const auto tag  = d.second.tag;
       if (type == "memory") {
         if (not dev(tag) or not dynamic_cast<sysmod_mem&>(*dev(tag)).init_elf(load)) {
-          terminate({false});
+          cvm::log(cvm::ERROR, "Failed to load program");
           return;
         }
       }
@@ -249,8 +242,7 @@ sysmod::load_prog(const std::string& hex, const std::string& load)
   if (hex != "") {
     std::cout << "loading " << hex << "\n";
     if (not dev("memory") or not dynamic_cast<sysmod_mem&>(*dev("memory")).init_hex(hex)) {
-      std::cerr << "no memory defined" << '\n';
-      terminate({false});
+      cvm::log(cvm::ERROR, "No memory defined");
       return;
     }
   }

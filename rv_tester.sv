@@ -19,6 +19,7 @@ module rv_tester #(
     end
 
     import "DPI-C" context function void rv_tester_parse_flags(); // context forces zebu to serialize this call. this needs to happen at the start of the test before other DPIs.
+    import "DPI-C" context function void rv_tester_cvm_error_handler();
     import "DPI-C" function void rv_tester_parse_memmap();
     import "DPI-C" function void rv_tester_reset_registry();
     import "DPI-C" context function void rv_tester_flush_callbacks();
@@ -27,10 +28,11 @@ module rv_tester #(
     logic sysmod_reset = '0;
     LU clocks = 0;
     bit cb_poll = '0;
+    logic call_finish;
 
     logic terminated = '0; // used for emu trigger
     logic ready_to_terminate;
-    logic call_finish;
+    rv_tester_pkg::terminate_t rv_tester_error_terminate;
     rv_tester_pkg::terminate_t sysmod_terminate;
 
     int quiesce_counter = 0;
@@ -38,11 +40,9 @@ module rv_tester #(
 
 `ifndef NO_COSIM
     rv_tester_pkg::terminate_t cosim_terminate;
-    assign ready_to_terminate = sysmod_terminate.terminate || cosim_terminate.terminate;
-    assign call_finish = sysmod_terminate.call_finish || cosim_terminate.call_finish;
+    assign ready_to_terminate = rv_tester_error_terminate.terminate || sysmod_terminate.terminate || cosim_terminate.terminate;
 `else
-    assign ready_to_terminate = sysmod_terminate.terminate;
-    assign call_finish = sysmod_terminate.call_finish;
+    assign ready_to_terminate = rv_tester_error_terminate.terminate || sysmod_terminate.terminate;
 `endif
 
     assign terminate = (quiesce_counter > 0);
@@ -54,6 +54,7 @@ module rv_tester #(
         if (rv_tester_reset) begin
             $display("[RVTESTER]: new test");
             rv_tester_parse_flags();
+            rv_tester_cvm_error_handler();
             rv_tester_parse_memmap();
             $display("[RVTESTER]: reconstructing registry");
             rv_tester_reset_registry();
@@ -65,10 +66,8 @@ module rv_tester #(
             /* verilator lint_off BLKSEQ */
             cb_poll <= cvm_plusargs::get_bool("cb_async") == '0;
             quiesce_timeout <= cvm_plusargs::get_int("quiesce_timeout");
+            call_finish <= cvm_plusargs::get_bool("terminate_call_finish");
             /* verilator lint_on BLKSEQ */
-        end
-        if (cb_poll) begin
-            rv_tester_flush_callbacks();
         end
         if (ready_to_terminate || quiesce_counter > 0) begin
           quiesce_counter <= quiesce_counter + 1;
@@ -88,8 +87,21 @@ module rv_tester #(
             terminated <= 1;
           end
         end
+        /* verilator lint_off BLKSEQ */
+        rv_tester_error_terminate.terminate = '0;
+        /* verilator lint_on BLKSEQ */
+
+        /* this should go last */
+        if (cb_poll) begin
+            rv_tester_flush_callbacks();
+        end
     end
     assign reset = clocks < LU'(RESET_CLOCKS) || rv_tester_reset || sysmod_reset;
+
+    function void rv_tester_terminate ();
+      rv_tester_error_terminate.terminate = '1;
+    endfunction
+    export "DPI-C" function rv_tester_terminate;
 
     sysmod#(
         .CLOCK_PERIOD_PS(CLOCK_PERIOD_PS),

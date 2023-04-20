@@ -17,7 +17,7 @@ DEFINE_uint64(debug_exit_pc, 0x860, "Debug Mode exit PC");
 REGISTRY_register(rvfi, platform, 0);
 
 extern "C" {
-  void cosim_terminate(uint8_t call_finish);
+  void cosim_terminate();
 }
 
 rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
@@ -63,7 +63,7 @@ void rvfi::init() {
 void rvfi::terminate(bridge::terminate_t t) {
   cvm::registry::callbacks.push(
     scope_,
-    [t]() { cosim_terminate(t.terminate); });
+    [t]() { if (t.terminate) cosim_terminate(); });
 }
 
 void rvfi::process(const cosim_transactions::m_rvfi& m_rvfi) {
