@@ -1,2 +1,2 @@
 image:
-    name: $CI_REGISTRY_IMAGE/risc-p-cores/dev:7380f60a60028cc4a6582392ac434c7f847eeeb8ca59c4e33d04adb97977aa91
+    name: aus-gitlab.local.tenstorrent.com:5005/riscv/risc-p-cores/risc-p-cores/dev:7380f60a60028cc4a6582392ac434c7f847eeeb8ca59c4e33d04adb97977aa91
