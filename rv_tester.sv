@@ -75,6 +75,7 @@ module rv_tester #(
 
             if (quiesced) begin
               $display("<%0d> [RVTESTER]: exiting gracefully", clocks);
+              $finish();
             end else if (quiesce_counter == 0) begin
               $display("<%0d> [RVTESTER]: exiting immediately because +quiesce_counter=0", clocks);
             end else begin
