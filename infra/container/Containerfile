@@ -47,8 +47,8 @@ RUN yum --enablerepo=powertools -y install \
     csh                                    \
     langpacks-en                           \
     ncurses-compat-libs                    \
-    perf \
-    gperftools \
+    perf                                   \
+    gperftools                             \
     postgresql-libs
 
 RUN yum --enablerepo=powertools -y install \

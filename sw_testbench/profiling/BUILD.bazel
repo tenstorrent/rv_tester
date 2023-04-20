@@ -1,4 +1,0 @@
-cc_binary(
-    name = "wall_clock_profiler",
-    srcs = ["wall_clock_profiler.cpp"],
-)
