@@ -14,13 +14,19 @@ positional arguments:
 
 optional arguments:
   -h, --help            show this help message and exit
-  --max_cycles MAX_CYCLES
+  --max_cycle MAX_CYCLE
                         max number of cycles to run simulation (default:
                         999999)
   --input_program INPUT_PROGRAM
-                        path to source input file (default: /proj_risc/user_de
-                        v/mboisvert/rv_tester/sw_testbench/testlists/infinite.
-                        S)
+                        name of the input program defined in
+                        rv_tester/sw_testbench/testlists/smoke.py (default:
+                        infinite)
+  --use_shm             If true, shared memory to communicate with whisper.
+                        Otherwise, use sockets (default: False)
+  --no_lsf              If true, run sim locally instead of on LSF (default:
+                        False)
+  --no_cosim            If true, run without cosim (default: False)
+  --no_rvfi             If true, run without rvfi (default: False)
 
 
 [mboisvert@aus-rv-l-4 rv_tester]$ python3 sw_testbench/profiling/run_profiler.py gperftools --help
