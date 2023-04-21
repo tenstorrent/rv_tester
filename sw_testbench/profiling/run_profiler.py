@@ -99,6 +99,22 @@ class PerfProfiler(Profiler):
     def add_arguments(parser):
         pass
 
+# Dummy class to run the same testbench without any profiling overhead
+class NoProfiler(Profiler):
+    def setup(self):
+        self.profiler_cmds.append(Command(arg_list=self.bzsim_run_cmd + self.common_sim_opts + ["--"] + self.common_plusargs))
+
+    def teardown(self):
+        pass
+
+    @staticmethod
+    def name():
+        return "profiling_disabled"
+    
+    @staticmethod
+    def add_arguments(parser):
+        pass
+
 class GperftoolsProfiler(Profiler):
     def setup(self):
         self.output_file = open("{}-results.txt".format(self.name()), "w")
@@ -143,7 +159,7 @@ def construct_profiler_using_args(rv_tester_path: str):
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     subparsers = parser.add_subparsers(dest="profiler")
     profiler_map = {}
-    for profiler in [GprofProfiler, PerfProfiler, GperftoolsProfiler, WallClockProfiler]:
+    for profiler in [GprofProfiler, PerfProfiler, GperftoolsProfiler, WallClockProfiler, NoProfiler]:
         profiler_parser = subparsers.add_parser(profiler.name(), formatter_class=argparse.ArgumentDefaultsHelpFormatter)
         profiler.add_arguments(profiler_parser)
         profiler_map[profiler.name()] = profiler
