@@ -43,6 +43,8 @@ module rv_tester #(
     rv_tester_pkg::terminate_t cosim_terminate;
 `endif
 
+    assign ready_to_terminate = cosim.terminate;
+
     assign terminate = (quiesce_counter > 0);
 
     always @(posedge clk) begin
@@ -83,8 +85,6 @@ module rv_tester #(
           ready_to_terminate = rv_tester_error_terminate.terminate || sysmod_terminate.terminate;
 `endif
           /* verilator lint_on BLKSEQ */
-
-          // $display("here: %d %d", ready_to_terminate, cosim_terminate.terminate);
 
           if (ready_to_terminate || quiesce_counter > 0) begin
             quiesce_counter <= quiesce_counter + 1;

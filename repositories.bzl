@@ -58,7 +58,7 @@ cc_library(
     """
     )
 
-    whisper_hash="67dbddf68fa44b2239f4ba2ddc4207238fc9b6c6"
+    whisper_hash="0da244cdd6cdf57f2e4577418ae2312508c5439c"
     maybe(
         git_repository,
         name = "whisper",

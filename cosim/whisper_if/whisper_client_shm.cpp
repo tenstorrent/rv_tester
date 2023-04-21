@@ -58,17 +58,11 @@ whisperClientShm::whisperConnect(const char* filePath)
 void
 whisperClientShm::whisperDisconnect()
 {
-  if (fd > 0) {
-    close(fd);
-  }
-
-  if (shm) {
+  if (shm)
     munmap(shm, 4096);
-  }
 
-  if (shm_unlink(path.c_str()) < 0) {
-    std::cerr << "Failed shm unlink\n";
-  }
+  if (fd > 0)
+    close(fd);
 
   fd = -1;
   shm = nullptr;
@@ -339,7 +333,7 @@ whisperClientShm::whisperStep(int hart, uint64_t time, uint64_t instrTag, uint64
   fpFlags = flags;
   hasTrap = trap;
   hasStop = stop;
-  
+
   unsigned len = sizeof(reply.buffer);
   if (len > bufferSize)
     len = bufferSize;
@@ -621,5 +615,5 @@ main(int argc, char* argv[])
     }
   return 0;
 }
-    
+
 #endif

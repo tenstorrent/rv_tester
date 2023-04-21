@@ -3,6 +3,7 @@
 #include "cvm/bitmanip.hpp"
 #include "cvm/callbacks.hpp"
 #include "cvm/registry.hpp"
+#include "sysmod/htif/htif.h"
 
 #include <iostream>
 
@@ -28,6 +29,10 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     loc_,
     [&](scope_t s) { return this->set_scope(s.scope); });
 
+  cvm::registry::messenger.connect<htif::terminate_t>(
+      loc_,
+      [&](htif::terminate_t t) { return this->report_perf(); });
+
   cvm::registry::messenger.connect<bridge::terminate_t>(
     loc_,
     [&](bridge::terminate_t t) { return this->terminate(t); });
@@ -41,7 +46,6 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
 }
 
 rvfi::~rvfi() {
-  report_perf();
 }
 
 void rvfi::init() {
@@ -270,7 +274,6 @@ void rvfi::initialize_perf() {
       while (fgets(buffer_end, sizeof(buffer_end), pipe_end) != NULL)
         perf_end += buffer_end;
 
-      std::cout << "here" << std::endl;
       int pos = perf_start.find(" ");
       perf_start_pc = std::strtoll(perf_start.substr(0, pos).c_str(), nullptr, 16);
       pos = perf_end.find(" ");
