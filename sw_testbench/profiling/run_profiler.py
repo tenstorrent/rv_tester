@@ -16,14 +16,17 @@ class Profiler(ABC):
         self.args = args
         self.rv_tester_path = rv_tester_path
         self.bazel_wrap_cmd = [os.path.join(self.rv_tester_path, "infra", "bazel-wrap")]
-        self.bzsim_run_cmd = [os.path.join(self.rv_tester_path, "infra", "bzsim"), "run", "verilator:sw_testbench"]
+        self.bzsim_run_cmd = [os.path.join(self.rv_tester_path, "infra", "bzsim"), "run", "--rerun-test", "@smoke//:{}_verilator".format(self.args.input_program)]
         self.container_run_cmd = [os.path.join(self.rv_tester_path, "infra", "podman-scripts", "container-run-tt")]
-        self.elf_file = "{}.elf".format(os.path.splitext(os.path.basename(self.args.input_program))[0])
         self.common_sim_opts = ["--bazel-build-opt=--compilation_mode=opt", "--debug"]
         if args.no_lsf:
             self.common_sim_opts.append("--no-lsf")
-        self.common_plusargs = ["+load={}".format(self.elf_file), "+nostandalone", ("+whisper_client=" + ("shm" if args.use_shm else "socket")), "+eot=max_instr", "+max_cycles={}".format(self.args.max_cycles), "+max_instr={}".format(self.args.max_cycles - 20)]
-        self.profiler_cmds = [self.compilation_cmd()]
+        self.common_plusargs = ["+nostandalone", ("+whisper_client=" + ("shm" if args.use_shm else "socket")), "+eot=max_instr", "+max_cycle={}".format(self.args.max_cycle), "+max_instr={}".format(self.args.max_cycle - 20)]
+        if args.no_cosim:
+            self.common_plusargs.append("+nocosim")
+        if args.no_rvfi:
+            self.common_plusargs.append("+norvfi")
+        self.profiler_cmds = []
         # output file to be set by subclasses if desired
         self.output_file = None
         
@@ -32,14 +35,9 @@ class Profiler(ABC):
     def print(self, input: str):
         print("\033[96m {}\033[00m".format(input))
 
-    # Returns a command to use for compiling the input program
-    def compilation_cmd(self):    
-        compiler_script = os.path.join(self.rv_tester_path, "compile", "compile_no_main.sh")
-        return Command(arg_list=["sh", compiler_script, self.args.input_program])
-
     # Execute the profiler
     def run(self):
-        self.print("Chosen profiler: {}, input program: {}, max cycles: {}".format(self.name(), self.args.input_program, self.args.max_cycles))
+        self.print("Chosen profiler: {}, input program: {}, max cycles: {}".format(self.name(), self.args.input_program, self.args.max_cycle))
         self.setup()
         for cmd in self.profiler_cmds:
             self.print("Executing command: {}".format(cmd))
@@ -70,7 +68,7 @@ class Profiler(ABC):
 class GprofProfiler(Profiler):
     def setup(self):
         self.output_file = open("{}-results.txt".format(self.name()), "w")
-        self.profiler_cmds.append(Command(arg_list=self.bzsim_run_cmd + ['--bazel-build-opt=--copt=-pg'] + self.common_sim_opts + ["--"] + self.common_plusargs))
+        self.profiler_cmds.append(Command(arg_list=self.bzsim_run_cmd + ["--bazel-build-opt=--copt=-pg"] + self.common_sim_opts + ["--"] + self.common_plusargs))
         self.profiler_cmds.append(Command(arg_list=self.container_run_cmd + ["gprof", os.path.join(self.rv_tester_path, "bazel-bin/sw_testbench/sw_testbench_verilator"), "gmon.out"], output_to_file=True))
 
     def teardown(self):
@@ -104,8 +102,8 @@ class PerfProfiler(Profiler):
 class GperftoolsProfiler(Profiler):
     def setup(self):
         self.output_file = open("{}-results.txt".format(self.name()), "w")
-        timing_args = ['--container-run-opt=--env=CPUPROFILE_REALTIME=1', '--container-run-opt=--env=ITIMER_REAL=1'] if self.args.use_realtime else ['--container-run-opt=--env=CPUPROFILE_REALTIME=0']
-        self.profiler_cmds.append(Command(arg_list=self.bzsim_run_cmd + ['--container-run-opt=--env=CPUPROFILE_FREQUENCY=10000'] + timing_args + ['--container-run-opt=--env=CPUPROFILE=prof.out', '--bazel-build-opt=--linkopt=-Wl,-no-as-needed,-lprofiler'] + self.common_sim_opts + ["--"] + self.common_plusargs))
+        timing_args = ["--container-run-opt=--env=CPUPROFILE_REALTIME=1", "--container-run-opt=--env=ITIMER_REAL=1"] if self.args.use_realtime else ["--container-run-opt=--env=CPUPROFILE_REALTIME=0"]
+        self.profiler_cmds.append(Command(arg_list=self.bzsim_run_cmd + ["--container-run-opt=--env=CPUPROFILE_FREQUENCY=10000"] + timing_args + ["--container-run-opt=--env=CPUPROFILE=prof.out", "--bazel-build-opt=--linkopt=-Wl,-no-as-needed,-lprofiler"] + self.common_sim_opts + ["--"] + self.common_plusargs))
         self.profiler_cmds.append(Command(arg_list=self.container_run_cmd + ["pprof", "--text", os.path.join(self.rv_tester_path, "bazel-bin/sw_testbench/sw_testbench_verilator"), "prof.out"], output_to_file=True))
 
     def teardown(self):
@@ -118,7 +116,7 @@ class GperftoolsProfiler(Profiler):
     
     @staticmethod
     def add_arguments(parser):
-        parser.add_argument("--use_realtime", action='store_true', default=False, help="If true, use realtime for profiling. Otherwise, use CPU time")
+        parser.add_argument("--use_realtime", action="store_true", default=False, help="If true, use realtime for profiling. Otherwise, use CPU time")
 
 # TODO(mboisvert): Figure out why the wall clock profiler isn't working when run from Python
 class WallClockProfiler(Profiler):
@@ -143,16 +141,18 @@ class WallClockProfiler(Profiler):
 # Parses command-line args to construct a profiler
 def construct_profiler_using_args(rv_tester_path: str):
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    subparsers = parser.add_subparsers(dest='profiler')
+    subparsers = parser.add_subparsers(dest="profiler")
     profiler_map = {}
     for profiler in [GprofProfiler, PerfProfiler, GperftoolsProfiler, WallClockProfiler]:
         profiler_parser = subparsers.add_parser(profiler.name(), formatter_class=argparse.ArgumentDefaultsHelpFormatter)
         profiler.add_arguments(profiler_parser)
         profiler_map[profiler.name()] = profiler
-    parser.add_argument("--max_cycles", type=int, default=999999, help="max number of cycles to run simulation")
-    parser.add_argument("--input_program", type=str, default=os.path.join(rv_tester_path, "sw_testbench", "testlists", "infinite.S"), help="path to source input file")
-    parser.add_argument("--use_shm", action='store_true', default=False, help="If true, shared memory to communicate with whisper. Otherwise, use sockets")
-    parser.add_argument("--no_lsf", action='store_true', default=False, help="If true, run sim locally instead of on LSF")
+    parser.add_argument("--max_cycle", type=int, default=999999, help="max number of cycles to run simulation")
+    parser.add_argument("--input_program", type=str, default="infinite", help="name of the input program defined in rv_tester/sw_testbench/testlists/smoke.py")
+    parser.add_argument("--use_shm", action="store_true", default=False, help="If true, shared memory to communicate with whisper. Otherwise, use sockets")
+    parser.add_argument("--no_lsf", action="store_true", default=False, help="If true, run sim locally instead of on LSF")
+    parser.add_argument("--no_cosim", action="store_true", default=False, help="If true, run without cosim")
+    parser.add_argument("--no_rvfi", action="store_true", default=False, help="If true, run without rvfi")
 
     args = parser.parse_args()
     if (args.profiler is None):
