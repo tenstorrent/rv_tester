@@ -43,7 +43,7 @@ module rv_tester #(
     rv_tester_pkg::terminate_t cosim_terminate;
 `endif
 
-    assign ready_to_terminate = cosim.terminate;
+    //assign ready_to_terminate = cosim.terminate;
 
     assign terminate = (quiesce_counter > 0);
 

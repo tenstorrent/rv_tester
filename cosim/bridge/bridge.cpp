@@ -496,6 +496,19 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
       w_.mem_write.data = w.value;
     }
   }
+
+  // Collect metrics
+  if (w.resource == 'r' || w.resource == 'f' || w.resource == 'v' || w.resource == 'c' || w.resource == 'm')
+    metrics_[hart]["dest"] = std::string(1, static_cast<char>(w.resource));
+  else
+    metrics_[hart]["dest"] = "none";
+  std::stringstream ss_a, ss_d;
+  ss_a << std::hex << "0x" << w.address;
+  std::string hex_addr(ss_a.str());
+  metrics_[hart]["dest_addr"] = hex_addr;
+  ss_d << std::hex << "0x" << w.value;
+  std::string hex_data(ss_d.str());
+  metrics_[hart]["dest_data"] = hex_data;
 }
 
 // Print functions
@@ -525,15 +538,15 @@ void bridge::step(hart_id_t hart, whisper_state_t& w) {
   // Collect instruction related metrics
   metrics_[hart]["num_instructions"] = std::to_string(cac_.getStep(hart));
   
-  //FIXME metrics_[hart]["instr"] = w.buffer;
+  metrics_[hart]["instr"] = w.buffer;
   metrics_[hart]["mode"] = std::to_string(w.priv_mode);
   metrics_[hart]["trap"] = std::to_string(w.trap);
-  metrics_[hart]["num_changes"] = std::to_string(w.change_count);
+  metrics_[hart]["num_dest"] = std::to_string(w.change_count);
   
-  //FIXME metrics_[hart]["prev_instr"] = pw_.buffer;
+  metrics_[hart]["prev_instr"] = pw_.buffer;
   metrics_[hart]["prev_mode"] = std::to_string(pw_.priv_mode);
   metrics_[hart]["prev_trap"] = std::to_string(pw_.trap);
-  metrics_[hart]["prev_num_changes"] = std::to_string(pw_.change_count);
+  metrics_[hart]["prev_num_dest"] = std::to_string(pw_.change_count);
 }
 
 // Push DUT register state to cac
@@ -913,14 +926,29 @@ void bridge::report_metrics() {
   cvm::log(cvm::NONE, "[COSIM] Report metrics...\n");
 
   for (int h = 0; h < num_harts_; h++) {
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_instructions\": \"{}\"}}\n", h, metrics_[h]["num_instructions"]);
-    //FIXME cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_instr\": \"{}\"}}\n", h, metrics_[h]["instr"]);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_mode\": \"{}\"}}\n", h, metrics_[h]["mode"]);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_trap\": \"{}\"}}\n", h, metrics_[h]["trap"]);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_changes\": \"{}\"}}\n", h, metrics_[h]["num_changes"]);
-    //FIXME cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_instr\": \"{}\"}}\n", h, metrics_[h]["prev_instr"]);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_mode\": \"{}\"}}\n", h, metrics_[h]["prev_mode"]);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_trap\": \"{}\"}}\n", h, metrics_[h]["prev_trap"]);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_num_changes\": \"{}\"}}\n", h, metrics_[h]["prev_num_changes"]);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_instructions\": {}}}\n", h, metrics_[h]["num_instructions"]);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_instr\": \"{}\"}}\n", h, metrics_[h]["instr"]);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_mode\": {}}}\n", h, metrics_[h]["mode"]);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_trap\": {}}}\n", h, metrics_[h]["trap"]);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_dest\": {}}}\n", h, metrics_[h]["num_dest"]);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dest\": {}}}\n", h, metrics_[h]["dest"]);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dest_addr\": \"{}\"}}\n", h, metrics_[h]["dest_addr"]);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dest_data\": \"{}\"}}\n", h, metrics_[h]["dest_data"]);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_instr\": \"{}\"}}\n", h, metrics_[h]["prev_instr"]);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_mode\": {}}}\n", h, metrics_[h]["prev_mode"]);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_trap\": {}}}\n", h, metrics_[h]["prev_trap"]);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_num_dest\": {}}}\n", h, metrics_[h]["prev_num_dest"]);
+
+    for (auto& csr : csrs) {
+      uint64_t csr_data;
+      bool valid;
+      if (!client_->whisperPeek(h, 'c', csr.address, csr_data, valid)) {
+        cvm::log(cvm::NONE, "Error: Failed to peek CSR values\n");
+      }
+      std::stringstream ss;
+      ss << std::hex << "0x" << csr_data;
+      std::string hex_csr_data(ss.str());
+      cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_csr_{}\": \"{}\"}}\n", h, csr.name, hex_csr_data);
+    }
   }
 }

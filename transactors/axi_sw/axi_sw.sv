@@ -70,11 +70,6 @@ module axi_sw #(
 
 );
 
-    always @(negedge clk) begin
-        if (axi_mst_ar_valid) $display("%0d axi_mst_ar_valid", rv_tester.clocks);
-        if (axi_slv_r_valid ) $display("%0d axi_slv_r_valid", rv_tester.clocks);
-    end
-
     localparam RESP_OKAY   = 2'b00;
     localparam RESP_EXOKAY = 2'b01;
 
