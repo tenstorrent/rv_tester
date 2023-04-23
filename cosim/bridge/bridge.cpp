@@ -53,7 +53,8 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc)
     vlen_(vlen),
     loc_(loc),
     cac_(CacCore(num_harts)),
-    archcov(ArchSample(num_harts))
+    archcov(ArchSample(num_harts)),
+    pw_()
 {
   cvm::registry::messenger.connect<htif::terminate_t>(loc_, [&](htif::terminate_t t) {
       return this->final_phase();
@@ -164,6 +165,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   whisper_state_t w;
   w.time = d.cycle;
   w.tag = d.tag;
+  memset(w.buffer, '\0', sizeof(w.buffer));
 
   // Handle pre-step conditions
   if (debug_mode_) {
