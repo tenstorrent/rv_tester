@@ -149,12 +149,12 @@ void debugger::drive_csv_dmi_cmds()
     //std::cout << myQueue.front() << " ";
     dmi_req_t dmi_req;
     dmi_req = dmi_cmd_q.front();
-    dmi_cmd_q.pop();//pop front element
+    dmi_cmd_q.pop();//pop front eleme7t
     std::cout<<"Popping dmi request OP:"<<dmi_req.op<<" ADDR: "<<dmi_req.addr<<" DATA: "<<dmi_req.data<<" Func Bits: "<<dmi_req.func_bits<<"\n";
     unsigned upper_dmi_data = 0;
     unsigned lower_dmi_data = 0;
     unsigned hart = 0;
-    upper_dmi_data = ( dmi_req.func_bits << 59 )|(dmi_req.addr << 2) | dmi_req.op;
+    upper_dmi_data = ( dmi_req.func_bits << 27 )|(dmi_req.addr << 2) | dmi_req.op;
     lower_dmi_data = dmi_req.data;
     hart = 0; //hart bits position TBD, till TBD it is always zero
     trickboxDmiWrite(hart,upper_dmi_data,lower_dmi_data);
