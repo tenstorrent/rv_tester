@@ -931,7 +931,7 @@ void bridge::report_metrics() {
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_mode\": {}}}\n", h, metrics_[h]["mode"]);
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_trap\": {}}}\n", h, metrics_[h]["trap"]);
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_dest\": {}}}\n", h, metrics_[h]["num_dest"]);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dest\": {}}}\n", h, metrics_[h]["dest"]);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dest\": \"{}\"}}\n", h, metrics_[h]["dest"]);
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dest_addr\": \"{}\"}}\n", h, metrics_[h]["dest_addr"]);
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dest_data\": \"{}\"}}\n", h, metrics_[h]["dest_data"]);
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_instr\": \"{}\"}}\n", h, metrics_[h]["prev_instr"]);
