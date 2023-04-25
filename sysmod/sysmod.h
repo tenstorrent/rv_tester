@@ -11,6 +11,8 @@
 #include "trickbox/interrupter.h"
 #include "trickbox/debugger.h"
 #include "cvm/topology.hpp"
+//#include "SimJTAG.cc"
+#include <string>
 
 class sysmod {
 
@@ -64,4 +66,8 @@ class sysmod {
 
     // Memmap
     memmap::memmap_t memmap_;
+    std::string hostname = "localhost";
+    int port = 50001;
+
+    //remote_bitbang_t remote_bitbang();
 };

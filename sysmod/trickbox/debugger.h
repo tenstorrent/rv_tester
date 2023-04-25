@@ -14,12 +14,20 @@
 #include <map>
 #include <random>
 #include <cmath>
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <queue>
+#include <vector>
 #include "pcg_random.hpp"
 #include "cvm/plusargs.hpp"
 #include "cvm/topology.hpp"
 #include "cvm/registry.hpp"
-#include "debugger.h"
+#include "vpi_user.h"   
 
+//DEFINE_string(dbg_input_file_path, "", "Path to file containing debugger commands");
+DECLARE_string(dbg_input_file_path);
 // Define a core local  (debugger) at the given address
 // and for the given hart count. The size will be 48k bytes.
 class debugger : public device
@@ -68,18 +76,29 @@ public:
     std::lock_guard<std::mutex> lock(mutex_);
     timer_ += advance;
     timer_advance = advance;
+    //if(dbg_trigger){
+      drive_csv_dmi_cmds();
+    //}
   }
 
   void reset(){
       std::cout<<"[TRICKBOX]: Reset debugger\n";
   }
+  void parse_dmi_from_csv();
+  void drive_csv_dmi_cmds();
 
   struct dmi_data_t {
     unsigned hart;
     unsigned upper_dmi_data;
     unsigned lower_dmi_data;
   };
-
+  
+  struct dmi_req_t {
+    unsigned  func_bits;
+    unsigned  addr;
+    unsigned  op;
+    unsigned  data;
+  };
   // Used to assert/deassert a trickbox interrupt (PIPI) for given hart.
   //virtual void trickboxDmiWrite(unsigned hart, unsigned upper_dmi_data, unsigned lower_dmi_data, cbs_t& cbs)
   virtual void trickboxDmiWrite(unsigned hart, unsigned upper_dmi_data, unsigned lower_dmi_data)
@@ -108,10 +127,24 @@ private:
   uint64_t timer_advance = 200;
   uint64_t timer_rand_intr = 500;
   uint64_t debugger_base = 0x9050000;
+  uint64_t debugger_trigger = 0x9060000;
   uint64_t debugger_size = 0x4000;
   
   std::atomic<bool> terminate_ = false;
   std::mutex mutex_;
+
+  std::vector<std::vector<std::string>> csv_data;
+  std::queue<dmi_req_t> dmi_cmd_q;
+  std::queue<dmi_req_t> dmi_rsp_q;
+  unsigned dbg_file_mode = 0;
+  unsigned dbg_trigger = 0;
+  unsigned step_ahead_queue_on =0;
+  unsigned step_quit_queue_on =0;
+  unsigned step_instr_cnt = 0;
+
+  std::vector<std::vector<std::string>> content;
+	std::vector<std::string> row;
+  //file(FLAGS_dbg_input_file_path);
 
 };
 
