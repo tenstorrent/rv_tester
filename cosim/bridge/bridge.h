@@ -4,6 +4,7 @@
 
 #include <string>
 #include <algorithm>
+#include <iomanip>
 
 #include "cvm/topology.hpp"
 #include "bridge_base.h"

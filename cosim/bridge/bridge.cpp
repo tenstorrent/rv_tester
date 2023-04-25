@@ -528,6 +528,13 @@ void bridge::step(hart_id_t hart, whisper_state_t& w) {
 
   // Collect instruction related metrics
   metrics_[hart]["num_instructions"] = std::to_string(cac_.getStep(hart));
+  metrics_[hart]["num_cycles"] = std::to_string(w.time);
+
+  double ipc = static_cast<double>(cac_.getStep(hart)) / static_cast<double>(w.time);
+  std::stringstream ss;
+  ss << std::fixed << std::setprecision(2) << ipc;
+  std::string ipc_str = ss.str();
+  metrics_[hart]["ipc"] = ipc_str;
   
   metrics_[hart]["instr"] = w.buffer;
   metrics_[hart]["mode"] = std::to_string(w.priv_mode);
@@ -918,6 +925,8 @@ void bridge::report_metrics() {
 
   for (int h = 0; h < num_harts_; h++) {
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_instructions\": {}}}\n", h, metrics_[h]["num_instructions"]);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_cycles\": {}}}\n", h, metrics_[h]["num_cycles"]);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_ipc\": {}}}\n", h, metrics_[h]["ipc"]);
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_instr\": \"{}\"}}\n", h, metrics_[h]["instr"]);
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_mode\": {}}}\n", h, metrics_[h]["mode"]);
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_trap\": {}}}\n", h, metrics_[h]["trap"]);
