@@ -554,7 +554,7 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
   }
   // VR
   if (d.vr.valid) {
-    size8BytesT dword_array [vlen_/64] = {0};
+    size8BytesT dword_array [vlen_/64];
     for (int i = 0; i< vlen_/64; i++) {
       dword_array[i] = d.vr.vrd_wdata[i];
     }
