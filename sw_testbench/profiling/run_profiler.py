@@ -26,6 +26,8 @@ class Profiler(ABC):
             self.common_plusargs.append("+nocosim")
         if args.no_rvfi:
             self.common_plusargs.append("+norvfi")
+        if args.linux_time:
+            self.common_plusargs.append("+sim_wrap=time")
         self.profiler_cmds = []
         # output file to be set by subclasses if desired
         self.output_file = None
@@ -41,7 +43,7 @@ class Profiler(ABC):
         self.setup()
         for cmd in self.profiler_cmds:
             self.print("Executing command: {}".format(cmd))
-            subprocess.run(cmd.arg_list, check=True, stdout=(self.output_file if cmd.output_to_file else None))
+            subprocess.run(cmd.arg_list, stdout=(self.output_file if cmd.output_to_file else None))
         self.teardown()
 
     # Prepares the profiler to be run(). This should involve appending to self.profiler_cmds
@@ -58,6 +60,12 @@ class Profiler(ABC):
     @abstractmethod
     def name():
         pass
+
+    # Returns a description for this class.
+    @abstractmethod
+    def description():
+        pass
+
 
     # Optionally adds subparser arguments to use when running this profiler
     @abstractmethod
@@ -78,6 +86,10 @@ class GprofProfiler(Profiler):
     @staticmethod
     def name():
         return "gprof"
+    
+    @staticmethod
+    def description():
+        return "GNU profiler (gprof). Generates call graph of functions using CPU time"
     
     @staticmethod
     def add_arguments(parser):
@@ -110,6 +122,10 @@ class NoProfiler(Profiler):
     @staticmethod
     def name():
         return "profiling_disabled"
+
+    @staticmethod
+    def description():
+        return "Runs rv_tester SW testbench without a profiler."
     
     @staticmethod
     def add_arguments(parser):
@@ -120,7 +136,7 @@ class GperftoolsProfiler(Profiler):
         self.output_file = open("{}-results.txt".format(self.name()), "w")
         timing_args = ["--container-run-opt=--env=CPUPROFILE_REALTIME=1", "--container-run-opt=--env=ITIMER_REAL=1"] if self.args.use_realtime else ["--container-run-opt=--env=CPUPROFILE_REALTIME=0"]
         self.profiler_cmds.append(Command(arg_list=self.bzsim_run_cmd + ["--container-run-opt=--env=CPUPROFILE_FREQUENCY=10000"] + timing_args + ["--container-run-opt=--env=CPUPROFILE=prof.out", "--bazel-build-opt=--linkopt=-Wl,-no-as-needed,-lprofiler"] + self.common_sim_opts + ["--"] + self.common_plusargs))
-        self.profiler_cmds.append(Command(arg_list=self.container_run_cmd + ["pprof", "--text", os.path.join(self.rv_tester_path, "bazel-bin/sw_testbench/sw_testbench_verilator"), "prof.out"], output_to_file=True))
+        self.profiler_cmds.append(Command(arg_list=self.container_run_cmd + ["pprof", "--dot", os.path.join(self.rv_tester_path, "bazel-bin/sw_testbench/sw_testbench_verilator"), "prof.out"], output_to_file=True))
 
     def teardown(self):
         self.print("See {} for the profiling results".format(self.output_file.name))
@@ -129,6 +145,10 @@ class GperftoolsProfiler(Profiler):
     @staticmethod
     def name():
         return "gperftools"
+
+    @staticmethod
+    def description():
+        return "Google's suite of performance analysis tools, most notably pprof. Generates an output dot file containing a function call graph."
     
     @staticmethod
     def add_arguments(parser):
@@ -148,6 +168,10 @@ class WallClockProfiler(Profiler):
     @staticmethod
     def name():
         return "wall_clock_profiler"
+
+    @staticmethod
+    def description():
+        return "Executes a fork of https://github.com/jasonrohrer/wallClockProfiler."
     
     @staticmethod
     def add_arguments(parser):
@@ -160,7 +184,7 @@ def construct_profiler_using_args(rv_tester_path: str):
     subparsers = parser.add_subparsers(dest="profiler")
     profiler_map = {}
     for profiler in [GprofProfiler, PerfProfiler, GperftoolsProfiler, WallClockProfiler, NoProfiler]:
-        profiler_parser = subparsers.add_parser(profiler.name(), formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+        profiler_parser = subparsers.add_parser(profiler.name(), formatter_class=argparse.ArgumentDefaultsHelpFormatter, description=profiler.description())
         profiler.add_arguments(profiler_parser)
         profiler_map[profiler.name()] = profiler
     parser.add_argument("--max_cycle", type=int, default=999999, help="max number of cycles to run simulation")
@@ -169,6 +193,7 @@ def construct_profiler_using_args(rv_tester_path: str):
     parser.add_argument("--no_lsf", action="store_true", default=False, help="If true, run sim locally instead of on LSF")
     parser.add_argument("--no_cosim", action="store_true", default=False, help="If true, run without cosim")
     parser.add_argument("--no_rvfi", action="store_true", default=False, help="If true, run without rvfi")
+    parser.add_argument("--linux_time", action="store_true", default=False, help="If true, wrap profiler with call to 'time'. E.g. 'time bazel-bin/...'")
 
     args = parser.parse_args()
     if (args.profiler is None):

@@ -27,29 +27,35 @@ optional arguments:
                         False)
   --no_cosim            If true, run without cosim (default: False)
   --no_rvfi             If true, run without rvfi (default: False)
+  --linux_time          If true, wrap profiler with call to 'time'. E.g. 'time
+                        bazel-bin/...' (default: False)
 
 
 [mboisvert@aus-rv-l-4 rv_tester]$ python3 sw_testbench/profiling/run_profiler.py gperftools --help
 usage: run_profiler.py gperftools [-h] [--use_realtime]
 
+Google's suite of performance analysis tools, most notably pprof. Generates an
+output dot file containing a function call graph.
+
 optional arguments:
   -h, --help      show this help message and exit
   --use_realtime  If true, use realtime for profiling. Otherwise, use CPU time
                   (default: False)
+
 [mboisvert@aus-rv-l-4 rv_tester]$ python3 sw_testbench/profiling/run_profiler.py gperftools --use_realtime
 ...
 See gperftools-results.txt for the profiling results
 [mboisvert@aus-rv-l-4 rv_tester]$ head gperftools-results.txt 
 Using local file /proj_risc/user_dev/mboisvert/rv_tester/bazel-bin/sw_testbench/sw_testbench_verilator.
 Using local file prof.out.
-Total: 31617 samples
-   30091  95.2%  95.2%    30091  95.2% __GI___nanosleep
-    1231   3.9%  99.1%     1231   3.9% __libc_recv
-     182   0.6%  99.6%      182   0.6% __GI___read
-      19   0.1%  99.7%       19   0.1% __GI___waitpid
-      17   0.1%  99.8%       17   0.1% __libc_send
-      11   0.0%  99.8%       11   0.0% __libc_write
-       9   0.0%  99.8%        9   0.0% __spawnix
+Dropping nodes with <= 76 samples; edges with <= 15 abs(samples)
+digraph "/proj_risc/user_dev/mboisvert/rv_tester/bazel-bin/sw_testbench/sw_testbench_verilator; 15344 samples" {
+node [width=0.375,height=0.25];
+Legend [shape=box,fontsize=24,shape=plaintext,label="/proj_risc/user_dev/mboisvert/rv_tester/bazel-bin/sw_testbench/sw_testbench_verilator\lTotal samples: 15344\lFocusing on: 15344\lDropped nodes with <= 76 abs(samples)\lDropped edges with <= 15 samples\l"];
+N1 [label="__libc_start_main\n0 (0.0%)\rof 15344 (100.0%)\r",shape=box,fontsize=8.0];
+N2 [label="_start\n0 (0.0%)\rof 15344 (100.0%)\r",shape=box,fontsize=8.0];
+N3 [label="main\n4 (0.0%)\rof 15343 (100.0%)\r",shape=box,fontsize=8.8];
+N4 [label="Vtop___024root___eval\n30 (0.2%)\rof 15330 (99.9%)\r",shape=box,fontsize=10.2];
 ```
 
 
