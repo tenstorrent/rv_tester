@@ -129,7 +129,8 @@ protected:
       if(timer_ >= timer_rand_intr){
          unsigned rand_intr = 0;//1 << rng(5); //select random pin between 0 to 5
          unsigned iter = 1;
-         unsigned values[FLAGS_max_simul_intr] = {};
+         unsigned values[FLAGS_max_simul_intr];
+         memset(values, FLAGS_max_simul_intr, 0);
          if( (FLAGS_max_simul_intr >1 ) && (FLAGS_max_simul_intr < (numInterrupts_ +1))){
            iter = (rng() % (FLAGS_max_simul_intr )) + 1 ; //gen iter between 1 to max simul instr
          } 

@@ -49,7 +49,8 @@ RUN yum --enablerepo=powertools -y install \
     ncurses-compat-libs                    \
     perf                                   \
     gperftools                             \
-    postgresql-libs
+    postgresql-libs                        \
+    llvm-toolset
 
 RUN yum --enablerepo=powertools -y install \
     gcc-toolset-11                         \
