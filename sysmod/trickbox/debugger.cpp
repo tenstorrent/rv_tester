@@ -68,28 +68,28 @@ void debugger::parse_dmi_from_csv()
           //checkpoint
           dmi_req.op = 3;
         }else if(instr_2char =="st"){
-          //step ahead/back q
-          if(instr == "step_ahead_queue_on"){
-            step_ahead_queue_on = 1; 
-          }
-          if(instr == "step_ahead_queue_off"){
-            step_ahead_queue_on = 0; 
-          }
-          if(instr == "step_quit_queue_on"){
-            step_quit_queue_on = 1; 
-          }
-          if(instr == "step_quit_queue_off"){
-            step_quit_queue_on = 0; 
-          }
-          if(instr == "step_instr_cnt"){
-            step_instr_cnt = std::stoul(row[1],nullptr,16); 
-            // will continue loop with proper dmi write
-            dmi_req.func_bits = 1;
-            dmi_req.data = step_instr_cnt;
-            content.push_back(row);
-            dmi_cmd_q.push(dmi_req);
-            continue;
-          }
+              //step ahead/back q
+              if(instr == "step_ahead_queue_on"){
+                step_ahead_queue_on = 1; 
+              }
+              if(instr == "step_ahead_queue_off"){
+                step_ahead_queue_on = 0; 
+              }
+              if(instr == "step_quit_queue_on"){
+                step_quit_queue_on = 1; 
+              }
+              if(instr == "step_quit_queue_off"){
+                step_quit_queue_on = 0; 
+              }
+              if(instr == "step_instr_cnt"){
+                step_instr_cnt = std::stoul(row[1],nullptr,16); 
+                // will continue loop with proper dmi write
+                dmi_req.func_bits = 1;
+                dmi_req.data = step_instr_cnt;
+                content.push_back(row);
+                dmi_cmd_q.push(dmi_req);
+                continue;
+              }
         }else{
           //invalid
           std::cerr << "Invalid command in csv file "<< instr << std::endl;
@@ -103,9 +103,6 @@ void debugger::parse_dmi_from_csv()
             dmi_req.func_bits = 4;
          }
             
-            
-          }
-        //
         //remove underscores from addr
         row[1].erase(std::remove(row[1].begin(), row[1].end(), '_'), row[1].end());
         try{
@@ -128,10 +125,8 @@ void debugger::parse_dmi_from_csv()
         std::cout<<"Pushing op:"<<dmi_req.op<<" addr: "<<dmi_req.addr<<" data "<<dmi_req.data<<"\n";
       
       }
-    
-   
-	}
-	else{
+   }
+	 else{
 		std::cout<<"Could not open debugger input file\n";
     vpi_control(vpiFinish);
   }
