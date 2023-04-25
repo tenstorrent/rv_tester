@@ -96,7 +96,6 @@ private:
   void handle_interrupt(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   void handle_exception(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   void handle_satp(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
-  void handle_wfi(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
 
   bool is_ecall(const whisper_state_t& w);
   bool does_instr_match_resynch_list(const whisper_state_t& w);

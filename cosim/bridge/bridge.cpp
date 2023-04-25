@@ -184,7 +184,6 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
     }
   }
   handle_interrupt(hart, d, w);
-  handle_wfi(hart, d, w);
 
   // Step whisper
   w_.clear();
@@ -436,17 +435,6 @@ void bridge::handle_satp(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w
   }
 }
 
-void bridge::handle_wfi(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
-  // Step whisper an extra time on wfi to synch with dut jump to handler
-  std::string disasm(w.buffer);
-  if (disasm.find("wfi") != std::string::npos) {
-    step(hart, w);
-    if (FLAGS_cosim_tracer) {
-      log(cvm::MEDIUM, "<{}> Whisper Step #{}: Extra step due to wfi\n", w.time, cac_.getStep(hart));
-    }
-  }
-}
-
 void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
 
   w_.valid = true;
@@ -498,17 +486,20 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
   }
 
   // Collect metrics
-  if (w.resource == 'r' || w.resource == 'f' || w.resource == 'v' || w.resource == 'c' || w.resource == 'm')
+  if (w.resource == 'r' || w.resource == 'f' || w.resource == 'c' || w.resource == 'm') {
     metrics_[hart]["dest"] = std::string(1, static_cast<char>(w.resource));
-  else
+    std::stringstream ss_a, ss_d;
+    ss_a << std::hex << "0x" << w.address;
+    std::string hex_addr(ss_a.str());
+    metrics_[hart]["dest_addr"] = hex_addr;
+    ss_d << std::hex << "0x" << w.value;
+    std::string hex_data(ss_d.str());
+    metrics_[hart]["dest_data"] = hex_data;
+  } else {
     metrics_[hart]["dest"] = "none";
-  std::stringstream ss_a, ss_d;
-  ss_a << std::hex << "0x" << w.address;
-  std::string hex_addr(ss_a.str());
-  metrics_[hart]["dest_addr"] = hex_addr;
-  ss_d << std::hex << "0x" << w.value;
-  std::string hex_data(ss_d.str());
-  metrics_[hart]["dest_data"] = hex_data;
+    metrics_[hart]["dest_addr"] = "none";
+    metrics_[hart]["dest_data"] = "none";
+  }
 }
 
 // Print functions
