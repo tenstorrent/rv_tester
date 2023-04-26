@@ -2,6 +2,7 @@
 #include "sysmod/htif/htif.h"
 
 DEFINE_string(eot, "tohost", "Enable end-of-test mechanism. Supported options: tohost, max_instr");
+DEFINE_uint32(max_instr, 100000, "Max instruction limit to terminate the sim");
 DECLARE_string(load);
 DECLARE_bool(terminate_call_finish);
 
@@ -16,12 +17,34 @@ void eot::get_tohost_addr() {
   }
   catch (...) {
     if (FLAGS_eot == "tohost") {
-      cvm::log(cvm::NONE, "Error: No tohost symbol in elf\n");
+      cvm::log(cvm::ERROR, "Error: No tohost symbol in elf\n");
     }
   }
 
   cvm::log(cvm::NONE, "eot::get_tohost_addr:: cmd=[{}] addr_str=[{}] addr=[{:#x}]\n", cmd, addr_str, tohost_addr_);
 
+}
+
+void eot::process(const cosim_transactions::m_rvfi& m_rvfi) {
+
+  instr_count_++;
+
+  // End test on max_instr
+  if (FLAGS_max_instr > 0 && instr_count_ > FLAGS_max_instr) {
+    if (FLAGS_eot == "max_instr") {
+      cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", m_rvfi.cycle);
+      cvm::log(cvm::NONE, "<{}> Stop condition detected: +eot=max_instr +max_instr={}\n", m_rvfi.cycle, FLAGS_max_instr);
+      cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", m_rvfi.cycle);
+      auto location = cvm::topology::get("TOP.PLATFORM", 0);
+      cvm::registry::messenger.signal<htif::terminate_t>(location, htif::terminate_t{FLAGS_terminate_call_finish});
+      return;
+    } else {
+      cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", m_rvfi.cycle);
+      cvm::log(cvm::ERROR, "Error: max_instr limit reached: {}\n", m_rvfi.cycle, FLAGS_max_instr);
+      cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", m_rvfi.cycle);
+      return;
+    }
+  }
 }
 
 void eot::process(const cosim_transactions::m_mcmi_store& m_mcmi_store) {
@@ -46,10 +69,8 @@ void eot::process(const cosim_transactions::m_mcmi_store& m_mcmi_store) {
     cvm::registry::messenger.signal<htif::terminate_t>(location, htif::terminate_t{FLAGS_terminate_call_finish});
   } else {
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
-    cvm::log(cvm::NONE, "<{}> Error: Fail condition detected - tohost[0]=1, tohost[47:1]={:#x}\n", cycle,
+    cvm::log(cvm::ERROR, "<{}> Error: Fail condition detected - tohost[0]=1, tohost[47:1]={:#x}\n", cycle,
       exit_code);
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
-    auto location = cvm::topology::get("TOP.PLATFORM", 0);
-    cvm::registry::messenger.signal<htif::terminate_t>(location, htif::terminate_t{FLAGS_terminate_call_finish});
   }
 }

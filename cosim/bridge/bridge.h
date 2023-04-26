@@ -22,10 +22,6 @@ public:
   bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc);
   ~bridge();
 
-  struct terminate_t {
-    bool terminate;
-  };
-
   // DUT Interface API
   // Process instruction called on retire
   //   - Metadata

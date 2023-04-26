@@ -40,7 +40,6 @@ class rvfi {
 
     void init();
     void set_scope(svScope s) { scope_ = s; }
-    void terminate(bridge::terminate_t t);
     void process(const cosim_transactions::m_rvfi& m_rvfi);
     void process(const cosim_transactions::m_trap& m_trap);
     void process(const cosim_transactions::m_intr& m_intr);

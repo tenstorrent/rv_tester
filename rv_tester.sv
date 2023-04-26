@@ -39,10 +39,6 @@ module rv_tester #(
     int quiesce_counter = 0;
     int quiesce_timeout = 500;
 
-`ifndef NO_COSIM
-    rv_tester_pkg::terminate_t cosim_terminate;
-`endif
-
     assign terminate = (quiesce_counter > 0);
 
     always @(posedge clk) begin
@@ -77,11 +73,7 @@ module rv_tester #(
 
         if (cb_success) begin
           /* verilator lint_off BLKSEQ */
-`ifndef NO_COSIM
-          ready_to_terminate = rv_tester_error_terminate.terminate || sysmod_terminate.terminate || cosim_terminate.terminate;
-`else
           ready_to_terminate = rv_tester_error_terminate.terminate || sysmod_terminate.terminate;
-`endif
           /* verilator lint_on BLKSEQ */
 
           if (ready_to_terminate || quiesce_counter > 0) begin
@@ -143,8 +135,7 @@ module rv_tester #(
         .rvfi(rvfi_instr),
         .mcmi_store(mcmi_store),
         .interrupt,
-        .debug_mode,
-        .terminate(cosim_terminate)
+        .debug_mode
     );
 `endif
 

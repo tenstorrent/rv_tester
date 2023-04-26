@@ -9,8 +9,7 @@ module cosim #(
     input rvfi_t rvfi[topology.TOP.CLUSTER.CORE.NRET],
     input mcmi_t mcmi_store[topology.TOP.CLUSTER.CORE.STQ_PORTS],
     input rv_tester_pkg::interrupt_t interrupt,
-    input debug_mode,
-    output rv_tester_pkg::terminate_t terminate
+    input debug_mode
 );
 
     import "DPI-C" context function void cosim_set_scope(int unsigned location);
@@ -27,15 +26,7 @@ module cosim #(
             cosim_set_scope(location);
             /* verilator lint_on BLKSEQ */
         end
-        /* verilator lint_off BLKSEQ */
-        terminate.terminate = '0;
-        /* verilator lint_on BLKSEQ */
     end
-
-    function void cosim_terminate ();
-        terminate.terminate = '1;
-    endfunction
-    export "DPI-C" function cosim_terminate;
 
     // CVM transactions
     `COSIM_TRANSACTIONS_DOMAIN(1, clk)

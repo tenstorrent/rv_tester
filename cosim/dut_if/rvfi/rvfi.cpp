@@ -33,10 +33,6 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     loc_,
     [&](htif::terminate_t t) { return this->report_perf(); });
 
-  cvm::registry::messenger.connect<bridge::terminate_t>(
-    loc_,
-    [&](bridge::terminate_t t) { return this->terminate(t); });
-
   connect<
     cosim_transactions::m_rvfi,
     cosim_transactions::m_trap,
@@ -62,12 +58,6 @@ void rvfi::init() {
 
   // initialize metrics
   initialize_perf();
-}
-
-void rvfi::terminate(bridge::terminate_t t) {
-  cvm::registry::callbacks.push(
-    scope_,
-    [t]() { if (t.terminate) cosim_terminate(); });
 }
 
 void rvfi::process(const cosim_transactions::m_rvfi& m_rvfi) {

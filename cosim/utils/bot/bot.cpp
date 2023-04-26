@@ -7,7 +7,7 @@ DECLARE_string(hex);
 DECLARE_string(bootrom_path);
 DECLARE_string(whisper_path);
 DECLARE_string(whisper_json_path);
-DECLARE_int32(max_instr);
+DECLARE_uint32(max_instr);
 DECLARE_bool(cov);
 
 bot::bot() {
