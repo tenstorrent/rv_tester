@@ -8,9 +8,11 @@
 clint::clint(const std::string& tag, uint64_t addr, unsigned hartCount,
              cvm::topology::loc_t loc)
   : device(tag, addr, 0xc000 /* size */, loc), hartCount_(hartCount), soft_(hartCount),
-    timeCompare_(hartCount, -1), timerIntPrev_(hartCount, 0), timer_(0),
-    tickDivisor_(cvm::topology::attr("clint", "clock_divisor").second)
+    timeCompare_(hartCount, -1), timerIntPrev_(hartCount, 0), timer_(0)
 {
+  auto clint_loc = cvm::topology::get("CLINT", 0);
+  tickDivisor_ = cvm::topology::attr(clint_loc, "clock_divisor").second;
+
   std::ifstream ifs;
   if (load_snapshot(ifs)) {
     std::string line;

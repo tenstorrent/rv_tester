@@ -6,8 +6,8 @@ module cosim #(
     input clk,
     input reset,
     input longint unsigned clocks,
-    input rvfi_t rvfi[topology.CORE.NRET],
-    input mcmi_t mcmi_store[topology.CORE.STQ_PORTS],
+    input rvfi_t rvfi[topology.TOP.CLUSTER.CORE.NRET],
+    input mcmi_t mcmi_store[topology.TOP.CLUSTER.CORE.STQ_PORTS],
     input rv_tester_pkg::interrupt_t interrupt,
     input debug_mode,
     output rv_tester_pkg::terminate_t terminate
@@ -22,7 +22,7 @@ module cosim #(
     always @(posedge clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */
-            location = cvm_topology::get_location(topology.PLATFORM.id, 0);
+            location = cvm_topology::get_location(topology.TOP.PLATFORM.id, 0);
             rvfi_enabled = cvm_plusargs::get_bool("rvfi") != '0;
             cosim_set_scope(location);
             /* verilator lint_on BLKSEQ */
@@ -41,7 +41,7 @@ module cosim #(
     `COSIM_TRANSACTIONS_DOMAIN(1, clk)
 
     // m_rvfi
-    for (genvar n = 0; n < topology.CORE.NRET; n++) begin
+    for (genvar n = 0; n < topology.TOP.CLUSTER.CORE.NRET; n++) begin
         assign tx_dom_1.m_rvfis[n].valid = ~reset & rvfi[n].valid & rvfi_enabled;
         assign tx_dom_1.m_rvfis[n].data.location = location;
         assign tx_dom_1.m_rvfis[n].data.cycle = clocks;
@@ -65,7 +65,7 @@ module cosim #(
     end
 
     // m_mcmi_store
-    for (genvar n = 0; n < topology.CORE.STQ_PORTS; n++) begin
+    for (genvar n = 0; n < topology.TOP.CLUSTER.CORE.STQ_PORTS; n++) begin
         assign tx_dom_1.m_mcmi_stores[n].valid = ~reset & mcmi_store[n].valid;
         assign tx_dom_1.m_mcmi_stores[n].data.location = location;
         assign tx_dom_1.m_mcmi_stores[n].data.cycle = clocks;
@@ -76,7 +76,7 @@ module cosim #(
     end
 
     // m_trap
-    for (genvar n = 0; n < topology.CORE.NRET; n++) begin
+    for (genvar n = 0; n < topology.TOP.CLUSTER.CORE.NRET; n++) begin
         assign tx_dom_1.m_traps[n].valid = ~reset & (rvfi[n].cause != 0);
         assign tx_dom_1.m_traps[n].data.location = location;
         assign tx_dom_1.m_traps[n].data.cycle = clocks;

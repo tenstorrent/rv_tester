@@ -5,7 +5,7 @@ msg:
 
 m_rvfi:
     domain: 1
-    num: ${core.NRET}
+    num: ${TOP.CLUSTER.CORE.NRET}
     fields:
         cycle:
             width: 64
@@ -45,8 +45,8 @@ m_rvfi:
             width: 64
 
 m_mcmi_store:
-    domain: 1 
-    num: ${core.STQ_PORTS}
+    domain: 1
+    num: ${TOP.CLUSTER.CORE.STQ_PORTS}
     fields:
         cycle:
             width: 64
@@ -61,7 +61,7 @@ m_mcmi_store:
 
 m_trap:
     domain: 1
-    num: ${core.NRET}
+    num: ${TOP.CLUSTER.CORE.NRET}
     fields:
         cycle:
             width: 64

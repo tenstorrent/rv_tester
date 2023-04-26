@@ -43,8 +43,6 @@ module rv_tester #(
     rv_tester_pkg::terminate_t cosim_terminate;
 `endif
 
-    //assign ready_to_terminate = cosim.terminate;
-
     assign terminate = (quiesce_counter > 0);
 
     always @(posedge clk) begin
@@ -150,11 +148,11 @@ module rv_tester #(
     );
 `endif
 
-    for (genvar p = 0; p < topology.CORE.AXI_PORTS; p++) begin
+    for (genvar p = 0; p < topology.TOP.CLUSTER.CORE.AXI_PORTS; p++) begin
         axi_sw #(
-            .ADDR_WIDTH(topology.CORE.AXI_ADDR_WIDTH),
-            .DATA_WIDTH(topology.CORE.AXI_DATA_WIDTH),
-            .ID_WIDTH  (topology.CORE.AXI_ID_WIDTH  ),
+            .ADDR_WIDTH(topology.TOP.CLUSTER.CORE.AXI_ADDR_WIDTH),
+            .DATA_WIDTH(topology.TOP.CLUSTER.CORE.AXI_DATA_WIDTH),
+            .ID_WIDTH  (topology.TOP.CLUSTER.CORE.AXI_ID_WIDTH  ),
             .SYSMOD_NUM(0)
         ) axi_sw(
             .clk,

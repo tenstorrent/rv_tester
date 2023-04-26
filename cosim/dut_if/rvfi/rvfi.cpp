@@ -15,7 +15,7 @@ DECLARE_string(load);
 DEFINE_uint64(debug_entry_pc, 0x800, "Debug Mode entry PC");
 DEFINE_uint64(debug_exit_pc, 0x860, "Debug Mode exit PC");
 
-REGISTRY_register(rvfi, platform, 0);
+REGISTRY_register(rvfi, PLATFORM, 0);
 
 extern "C" {
   void cosim_terminate();
@@ -30,8 +30,8 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     [&](scope_t s) { return this->set_scope(s.scope); });
 
   cvm::registry::messenger.connect<htif::terminate_t>(
-      loc_,
-      [&](htif::terminate_t t) { return this->report_perf(); });
+    loc_,
+    [&](htif::terminate_t t) { return this->report_perf(); });
 
   cvm::registry::messenger.connect<bridge::terminate_t>(
     loc_,

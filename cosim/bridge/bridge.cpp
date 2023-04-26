@@ -197,7 +197,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   handle_satp(hart, d, w);
 
   // Check dut vs whisper
-  // cac_.step(hart); //Commenting for debug arch support
+  cac_.step(hart); //Commenting for debug arch support
 
   // Resynch whisper with dut state if needed
   // to continue without failing
@@ -535,12 +535,12 @@ void bridge::step(hart_id_t hart, whisper_state_t& w) {
   ss << std::fixed << std::setprecision(2) << ipc;
   std::string ipc_str = ss.str();
   metrics_[hart]["ipc"] = ipc_str;
-  
+
   metrics_[hart]["instr"] = w.buffer;
   metrics_[hart]["mode"] = std::to_string(w.priv_mode);
   metrics_[hart]["trap"] = std::to_string(w.trap);
   metrics_[hart]["num_dest"] = std::to_string(w.change_count);
-  
+
   metrics_[hart]["prev_instr"] = pw_.buffer;
   metrics_[hart]["prev_mode"] = std::to_string(pw_.priv_mode);
   metrics_[hart]["prev_trap"] = std::to_string(pw_.trap);
@@ -802,14 +802,14 @@ void bridge::process_dut_mem_read(hart_id_t hart, mem_t& m) {
 void bridge::process_dut_mb_insert(hart_id_t hart, mem_t& m) {
   unsigned size_in_bytes = 1 << m.size;
   bool valid = false;
-  
+
   if (!client_->whisperMcmInsert(hart, m.cycle, m.tag, m.pa, size_in_bytes, m.data, valid)) {
     cvm::log(cvm::NONE, "Error: Failed mcm store insert\n");
     cvm::registry::messenger.signal<terminate_t>(loc_, terminate_t{true});
     return;
   }
-  
-  // Collect metrics 
+
+  // Collect metrics
   num_stores_++;
   metrics_[hart]["num_stores"] = std::to_string(num_stores_);
 }

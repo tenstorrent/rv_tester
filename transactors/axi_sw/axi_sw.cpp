@@ -12,7 +12,7 @@ extern "C" {
 axi_sw::axi_sw(const svScope& scope, unsigned num, bool r_poll, const axi::data_width_t& data_width, const std::string& tag, const r_q_ptr_t& r_q_max, const r_q_ptr_t& r_q_ptr_max)
   : scope_(scope), r_poll_(r_poll), r_q_max_(r_q_max), r_q_ptr_max_(r_q_ptr_max), r_q_rptr_(0), r_q_wptr_(0) {
 
-    auto location = cvm::topology::get("platform", num);
+    auto location = cvm::topology::get("TOP.PLATFORM", num);
     axi_ = new axi(data_width, location, tag);
 
     if (!r_poll_) {

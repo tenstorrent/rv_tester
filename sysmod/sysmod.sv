@@ -32,7 +32,7 @@ module sysmod #(
         if (reset) begin
             /* verilator lint_off BLKSEQ */
             sysmod_tick_async = cvm_plusargs::get_bool("sysmod_tick_async") != '0;
-            location = cvm_topology::get_location(topology.PLATFORM.id, 0);
+            location = cvm_topology::get_location(topology.TOP.PLATFORM.id, 0);
             sysmod_set_scope(location);
             /* verilator lint_on BLKSEQ */
         end

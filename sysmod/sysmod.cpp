@@ -19,7 +19,7 @@ DEFINE_string(load, "", "elf file (program) to load into memory");
 DEFINE_string(load_io, "", "load specified io dev with content from memory");
 DEFINE_bool(sysmod_tick_async, true, "Asynchronous sysmod_tick calls");
 
-REGISTRY_register(sysmod, platform, 0);
+REGISTRY_register(sysmod, PLATFORM, 0);
 
 extern "C" {
   void sysmod_timer_interrupt(unsigned hartid, unsigned val);
@@ -122,7 +122,7 @@ sysmod::compose()
 
   // Load memmap
   memmap::get(memmap_);
-  
+
 
   try {
     for(const auto& d : memmap_) {

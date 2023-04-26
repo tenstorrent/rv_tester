@@ -37,19 +37,19 @@ void eot::process(const cosim_transactions::m_mcmi_store& m_mcmi_store) {
 
   uint64_t cycle = m_mcmi_store.cycle;
   uint64_t exit_code = (m_mcmi_store.data >> 1) & 0x7fffffffffff;
-  
+
   if (exit_code == 0) {
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
     cvm::log(cvm::NONE, "<{}> Pass condition detected - tohost[0]=1, tohost[47:1]=0\n", cycle);
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
-    auto location = cvm::topology::get("platform", 0);
+    auto location = cvm::topology::get("TOP.PLATFORM", 0);
     cvm::registry::messenger.signal<htif::terminate_t>(location, htif::terminate_t{FLAGS_terminate_call_finish});
   } else {
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
-    cvm::log(cvm::NONE, "<{}> Error: Fail condition detected - tohost[0]=1, tohost[47:1]={:#x}\n", cycle, 
+    cvm::log(cvm::NONE, "<{}> Error: Fail condition detected - tohost[0]=1, tohost[47:1]={:#x}\n", cycle,
       exit_code);
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
-    auto location = cvm::topology::get("platform", 0);
+    auto location = cvm::topology::get("TOP.PLATFORM", 0);
     cvm::registry::messenger.signal<htif::terminate_t>(location, htif::terminate_t{FLAGS_terminate_call_finish});
   }
 }

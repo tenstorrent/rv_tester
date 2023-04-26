@@ -1,19 +1,23 @@
 top:
-  core:
+  cluster:
     count: 1
-    attrs:
-      NRET: 8
-      ILEN: 32
-      XLEN: 64
-      VLEN: 64
-      AXI_PORTS: 2
-      AXI_ADDR_WIDTH: 63
-      AXI_DATA_WIDTH: 512
-      AXI_ID_WIDTH: 4
-      PA_WIDTH: 56
-      STQ_PORTS: 2
-      L1DC_LD_PORTS: 2
-      L1DC_ST_PORTS: 2
-      L1DC_DATA_WIDTH: 512
+    type: cluster
+    core:
+      count: 1
+      type: core
+      attrs:
+        NRET: 8
+        ILEN: 32
+        XLEN: 64
+        VLEN: 64
+        AXI_PORTS: 2
+        AXI_ADDR_WIDTH: 63
+        AXI_DATA_WIDTH: 512
+        AXI_ID_WIDTH: 4
+        PA_WIDTH: 56
+        STQ_PORTS: 2
+        L1DC_LD_PORTS: 2
+        L1DC_ST_PORTS: 2
+        L1DC_DATA_WIDTH: 512
 
   <<: *rv_tester
