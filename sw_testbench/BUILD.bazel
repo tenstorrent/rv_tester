@@ -10,7 +10,6 @@ verilog_dpi_library(
     srcs = ["dpi.cpp"],
     deps = [
       "rv_tester_dpi",
-      "@cvm//:plusargs",
     ],
 )
 

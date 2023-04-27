@@ -1,13 +1,5 @@
 #include <iostream>
 #include <cinttypes>
-#include "cvm/plusargs.hpp"
-
-// temporary defines to remove later
-DEFINE_string(log, "", "Path to stdout log file");
-DEFINE_string(riscv_trace_path, "", "");
-DEFINE_string(trace_csv_path, "", "");
-DEFINE_string(whisper_csv_path, "", "");
-DEFINE_bool(gdb, true, "gdb");
 
 extern "C" void write_rvfi(uint8_t valid, uint32_t core, uint32_t insn, uint64_t pc);
 
