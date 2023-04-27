@@ -388,7 +388,7 @@ extern "C"
 bool
 whisperStep(int hart, uint64_t time, uint64_t instrTag, uint64_t& pc,
 	    uint32_t& instruction, unsigned& changeCount,
-	    std::string& buffer, uint32_t& privMode,
+	    std::string& disasm, uint32_t& privMode,
 	    uint32_t& fpFlags, bool& hasTrap, bool& hasStop)
 {
   WhisperMessage req(hart, WhisperMessageType::Step);
@@ -414,7 +414,7 @@ whisperStep(int hart, uint64_t time, uint64_t instrTag, uint64_t& pc,
   fpFlags = flags;
   hasTrap = trap;
   hasStop = stop;
-  buffer = reply.buffer;
+  disasm.assign(reply.buffer, sizeof(reply.buffer));
 
   return true;
 }

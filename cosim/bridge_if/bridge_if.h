@@ -15,41 +15,21 @@ typedef int hart_id_t;
 // bridge <-> whisper
 typedef struct whisper_state_s {
   //used in whisperStep
-  uint64_t tag;
-  uint64_t time;
-  uint64_t pc;
-  uint32_t opcode;
-  unsigned change_count;
-  std::string buffer;
+  uint64_t tag = 0;
+  uint64_t time = 0;
+  uint64_t pc = 0;
+  uint32_t opcode = 0;
+  unsigned change_count = 0;
+  std::string disasm = std::string(128, ' ');
   //Used in whisperChange
-  uint32_t resource;
-  uint64_t address;
-  uint64_t value;
-  bool valid;
-  uint32_t priv_mode;
-  uint32_t fp_flags;
-  bool trap;
-  bool stop;
-
-  whisper_state_s(uint64_t tag, uint64_t time) :
-    tag(tag),
-    time(time),
-    pc(0),
-    opcode(0),
-    change_count(0),
-    buffer(""),
-    resource(0),
-    address(0),
-    value(0),
-    valid(false),
-    priv_mode(0),
-    fp_flags(0),
-    trap(false),
-    stop(false)
-  {
-    buffer.reserve(128);
-  }
-  
+  uint32_t resource = 0;
+  uint64_t address = 0;
+  uint64_t value = 0;
+  bool valid = false;
+  uint32_t priv_mode = 0;
+  uint32_t fp_flags = 0;
+  bool trap = false;
+  bool stop = false;
 } whisper_state_t;
 
 // dut <-> bridge

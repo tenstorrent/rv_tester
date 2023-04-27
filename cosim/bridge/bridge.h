@@ -119,7 +119,7 @@ private:
   ArchSample archcov;
 
   // Previous instruction's whisper state
-  whisper_state_t pw_;
+  whisper_state_t pw_ {};
 
   // Create a copy of whisper instr in similar format as dut
   rv_instr_t w_;

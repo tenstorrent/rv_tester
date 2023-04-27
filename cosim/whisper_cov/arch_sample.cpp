@@ -32,7 +32,7 @@ void ArchSample::coverage_sample(int hart, int step, const whisper_state_t& w) {
 
    // print instr
    log(cvm::MEDIUM, "<{}> Whisper Step #{}  : [Hart={}, Mode={}, Tag={}, ChangeCount={}, PC={:#x}, Opcode={:#x}, Disasm={}]\n",
-    w.time, step, hart, w.priv_mode, w.tag, w.change_count, w.pc, w.opcode, w.buffer);
+    w.time, step, hart, w.priv_mode, w.tag, w.change_count, w.pc, w.opcode, w.disasm);
 
    svScope scope = svGetScopeFromName("top.tester.arch_sample");
    svSetScope(scope);

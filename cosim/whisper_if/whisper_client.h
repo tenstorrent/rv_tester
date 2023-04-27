@@ -13,7 +13,7 @@ class whisperClient {
 
     virtual int whisperConnect(const char* filePath) = 0;
     virtual void whisperDisconnect() = 0;
-    virtual bool whisperStep(int hart, uint64_t time, uint64_t instrTag, uint64_t& pc, uint32_t& instruction, unsigned& changeCount, std::string& buffer, uint32_t& privMode, uint32_t& fpFlags, bool& hasTrap, bool& hasStop) = 0;
+    virtual bool whisperStep(int hart, uint64_t time, uint64_t instrTag, uint64_t& pc, uint32_t& instruction, unsigned& changeCount, std::string& disasm, uint32_t& privMode, uint32_t& fpFlags, bool& hasTrap, bool& hasStop) = 0;
     virtual bool whisperSimpleStep(int hart, uint64_t& pc, uint32_t& instruction, unsigned& changeCount) = 0;
     virtual bool whisperChange(int hart, uint32_t& resource, uint64_t& addr, uint64_t& value, bool& valid) = 0;
     virtual bool whisperMcmRead(int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, bool internal, bool& valid) = 0;

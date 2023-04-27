@@ -53,8 +53,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc)
     vlen_(vlen),
     loc_(loc),
     cac_(CacCore(num_harts)),
-    archcov(ArchSample(num_harts)),
-    pw_(0, 0)
+    archcov(ArchSample(num_harts))
 {
   cvm::registry::messenger.connect<htif::terminate_t>(loc_, [&](htif::terminate_t t) {
       return this->final_phase();
@@ -162,7 +161,10 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   // Update cac with dut state
   update_dut_state(hart, d);
 
-  whisper_state_t w(d.tag, d.cycle);
+  whisper_state_t w {
+    .tag = d.tag,
+    .time = d.cycle
+  };
 
   // Handle pre-step conditions
   if (debug_mode_) {
@@ -217,7 +219,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
     } else {
       print_instr(hart, w);
       cvm::log(cvm::NONE, "<{}> Whisper Step #{}: [Hart={}, Mode={}, Tag={}, ChangeCount={}, PC={:#x}, Opcode={:#x}, Disasm={}]\n",
-        w.time, cac_.getStep(hart), hart, w.priv_mode, w.tag, w.change_count, w.pc, w.opcode, w.buffer);
+        w.time, cac_.getStep(hart), hart, w.priv_mode, w.tag, w.change_count, w.pc, w.opcode, w.disasm);
       cvm::log(cvm::NONE, "{}", cac_.getStatusStr(hart));
       cvm::log(cvm::ERROR, "Error: Core Arch Checker Mismatch\n");
       return;
@@ -357,7 +359,7 @@ void bridge::handle_satp(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w
     return;
 
   // Save satp updates and apply only when sfence.vma is seen
-  if (w.buffer.find("satp") != std::string::npos) {
+  if (w.disasm.find("satp") != std::string::npos) {
     for (auto& c : w_.csr) {
       if (c.csr_addr == 0x180) {
         new_satp_ = c.csr_wdata;
@@ -381,7 +383,7 @@ void bridge::handle_satp(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w
     }
   }
 
-  if (w.buffer.find("sfence.vma") != std::string::npos) {
+  if (w.disasm.find("sfence.vma") != std::string::npos) {
     if (satp_ == new_satp_)
       return;
 
@@ -467,7 +469,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
 // Print functions
 void bridge::print_instr(hart_id_t hart, const whisper_state_t& w) {
   log(cvm::MEDIUM, "<{}> Whisper Step #{}: [Hart={}, Mode={}, Tag={}, ChangeCount={}, PC={:#x}, Opcode={:#x}, Disasm={}]\n",
-    w.time, cac_.getStep(hart), hart, w.priv_mode, w.tag, w.change_count, w.pc, w.opcode, w.buffer);
+    w.time, cac_.getStep(hart), hart, w.priv_mode, w.tag, w.change_count, w.pc, w.opcode, w.disasm);
 }
 
 void bridge::print_resource(hart_id_t hart, const whisper_state_t& w) {
@@ -476,7 +478,7 @@ void bridge::print_resource(hart_id_t hart, const whisper_state_t& w) {
 }
 
 void bridge::step(hart_id_t hart, whisper_state_t& w) {
-  if (!client_->whisperStep(hart, w.time, w.tag,  w.pc, w.opcode, w.change_count, w.buffer,
+  if (!client_->whisperStep(hart, w.time, w.tag,  w.pc, w.opcode, w.change_count, w.disasm,
       w.priv_mode, w.fp_flags, w.trap, w.stop)) {
     cvm::log(cvm::ERROR, "Error: Failed to step whisper\n");
     return;
@@ -497,12 +499,12 @@ void bridge::step(hart_id_t hart, whisper_state_t& w) {
   std::string ipc_str = ss.str();
   metrics_[hart]["ipc"] = ipc_str;
 
-  metrics_[hart]["instr"] = w.buffer;
+  metrics_[hart]["instr"] = w.disasm;
   metrics_[hart]["mode"] = std::to_string(w.priv_mode);
   metrics_[hart]["trap"] = std::to_string(w.trap);
   metrics_[hart]["num_dest"] = std::to_string(w.change_count);
 
-  metrics_[hart]["prev_instr"] = pw_.buffer;
+  metrics_[hart]["prev_instr"] = pw_.disasm;
   metrics_[hart]["prev_mode"] = std::to_string(pw_.priv_mode);
   metrics_[hart]["prev_trap"] = std::to_string(pw_.trap);
   metrics_[hart]["prev_num_dest"] = std::to_string(pw_.change_count);
@@ -590,7 +592,7 @@ void bridge::update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_
 }
 
 bool bridge::is_ecall(const whisper_state_t& w) {
-  if (w.buffer.find("ecall") != std::string::npos)
+  if (w.disasm.find("ecall") != std::string::npos)
     return true;
 
   // FIXME Temp workaround to detect ecall
@@ -639,14 +641,14 @@ bool bridge::htif_read(const rv_instr_t& d) {
 }
 
 bool bridge::mhpm_counter_read(const whisper_state_t& w) {
-  if (w.buffer.find("mhpmcounter") != std::string::npos)
+  if (w.disasm.find("mhpmcounter") != std::string::npos)
     return true;
   return false;
 }
 
 bool bridge::lrsc_fail(const whisper_state_t& w) {
-  if ((w.buffer.find("sc.w") != std::string::npos) ||
-      (w.buffer.find("sc.d") != std::string::npos)) {
+  if ((w.disasm.find("sc.w") != std::string::npos) ||
+      (w.disasm.find("sc.d") != std::string::npos)) {
     uint64_t fail_code = 1;
     if (w_.gpr.rd_wdata == fail_code)
       return true;
@@ -664,7 +666,7 @@ bool bridge::does_instr_match_resynch_list(const whisper_state_t& w) {
     std::string instr;
     std::getline(ss, instr, ',' );
 
-    if (w.buffer.find(instr) != std::string::npos) {
+    if (w.disasm.find(instr) != std::string::npos) {
       log(cvm::MEDIUM, "<{}> Resynch: Reason=[+cosim_resynch_instr={} for instr={}]\n", w.time, FLAGS_cosim_resynch_instr, instr);
       return true;
     }
@@ -682,7 +684,7 @@ bool bridge::does_prev_instr_match_resynch_list(const whisper_state_t& w) {
     std::string instr;
     std::getline(ss, instr, ',' );
 
-    if (w.buffer.find(instr) != std::string::npos) {
+    if (w.disasm.find(instr) != std::string::npos) {
       log(cvm::MEDIUM, "<{}> Resynch: Reason=[+cosim_resynch_prev_instr={} for instr={}]\n", w.time, FLAGS_cosim_resynch_prev_instr, instr);
       return true;
     }
