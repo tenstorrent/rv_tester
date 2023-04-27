@@ -379,7 +379,7 @@ whisperClientSocket::whisperPoke(int hart, char resource, uint64_t addr, uint64_
 bool
 whisperClientSocket::whisperStep(int hart, uint64_t time, uint64_t instrTag, uint64_t& pc,
 	    uint32_t& instruction, unsigned& changeCount,
-	    char* buffer, unsigned bufferSize, uint32_t& privMode,
+	    std::string& buffer, uint32_t& privMode,
 	    uint32_t& fpFlags, bool& hasTrap, bool& hasStop)
 {
   WhisperMessage req(hart, WhisperMessageType::Step);
@@ -405,12 +405,8 @@ whisperClientSocket::whisperStep(int hart, uint64_t time, uint64_t instrTag, uin
   fpFlags = flags;
   hasTrap = trap;
   hasStop = stop;
-  
-  unsigned len = sizeof(reply.buffer);
-  if (len > bufferSize)
-    len = bufferSize;
-  if (buffer)
-    strncpy(buffer, reply.buffer, len);
+  buffer = reply.buffer;
+
   return true;
 }
 

@@ -12,6 +12,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <netdb.h>
+#include <string>
 #include "whisper_client_shm.h"
 
 static int fd = -1;
@@ -307,7 +308,7 @@ whisperClientShm::whisperPoke(int hart, char resource, uint64_t addr, uint64_t v
 bool
 whisperClientShm::whisperStep(int hart, uint64_t time, uint64_t instrTag, uint64_t& pc,
 	    uint32_t& instruction, unsigned& changeCount,
-	    char* buffer, unsigned bufferSize, uint32_t& privMode,
+	    std::string& buffer, uint32_t& privMode,
 	    uint32_t& fpFlags, bool& hasTrap, bool& hasStop)
 {
   req.hart = hart;
@@ -333,12 +334,8 @@ whisperClientShm::whisperStep(int hart, uint64_t time, uint64_t instrTag, uint64
   fpFlags = flags;
   hasTrap = trap;
   hasStop = stop;
+  buffer = reply.buffer;
 
-  unsigned len = sizeof(reply.buffer);
-  if (len > bufferSize)
-    len = bufferSize;
-  if (buffer)
-    strncpy(buffer, reply.buffer, len);
   return true;
 }
 

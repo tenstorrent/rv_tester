@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <bitset>
+#include <string>
 #include "bridge_params.h"
 
 // This file defines the structs used by the bridge to communicate
@@ -19,8 +20,7 @@ typedef struct whisper_state_s {
   uint64_t pc;
   uint32_t opcode;
   unsigned change_count;
-  char buffer[128];
-  unsigned buffer_size = 128;
+  std::string buffer;
   //Used in whisperChange
   uint32_t resource;
   uint64_t address;
@@ -30,6 +30,26 @@ typedef struct whisper_state_s {
   uint32_t fp_flags;
   bool trap;
   bool stop;
+
+  whisper_state_s(uint64_t tag, uint64_t time) :
+    tag(tag),
+    time(time),
+    pc(0),
+    opcode(0),
+    change_count(0),
+    buffer(""),
+    resource(0),
+    address(0),
+    value(0),
+    valid(false),
+    priv_mode(0),
+    fp_flags(0),
+    trap(false),
+    stop(false)
+  {
+    buffer.reserve(128);
+  }
+  
 } whisper_state_t;
 
 // dut <-> bridge

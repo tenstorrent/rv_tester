@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 #include "svdpi.h"
 #include "whisper_client.h"
 
@@ -12,7 +14,7 @@ class whisperClientSocket : public whisperClient {
 
     virtual int whisperConnect(const char* filePath) override;
     virtual void whisperDisconnect() override;
-    virtual bool whisperStep(int hart, uint64_t time, uint64_t instrTag, uint64_t& pc, uint32_t& instruction, unsigned& changeCount, char* buffer, unsigned bufferSize, uint32_t& privMode, uint32_t& fpFlags, bool& hasTrap, bool& hasStop) override;
+    virtual bool whisperStep(int hart, uint64_t time, uint64_t instrTag, uint64_t& pc, uint32_t& instruction, unsigned& changeCount, std::string& buffer, uint32_t& privMode, uint32_t& fpFlags, bool& hasTrap, bool& hasStop) override;
     virtual bool whisperSimpleStep(int hart, uint64_t& pc, uint32_t& instruction, unsigned& changeCount) override;
     virtual bool whisperChange(int hart, uint32_t& resource, uint64_t& addr, uint64_t& value, bool& valid) override;
     virtual bool whisperMcmRead(int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, bool internal, bool& valid) override;
