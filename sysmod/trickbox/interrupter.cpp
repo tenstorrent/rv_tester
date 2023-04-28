@@ -68,11 +68,11 @@ interrupter::write(uint64_t addr, size_t length, const data_t& data,
   if(addr==interrupter_base)
   {
     unsigned hart = t_data & 0xfff;
-    unsigned event = (t_data >> 12) & 0xff;
-    unsigned eventValue = (t_data >> 20);
-    if((event & 0x04) == 0 ){ //ignore supervisor timer interrupt
-      driveInterrupt(hart,event,eventValue);
-    } 
+    unsigned event = (t_data >> 12) & 0xfb;//ignore supervisor timer interrupt
+    unsigned eventValue = (t_data >> 20) & 0xfb; //ignore supervisor timer interrupt data
+    
+    driveInterrupt(hart,event,eventValue);
+     
     }
     else if((addr > interrupter_base)&& (addr < (interrupter_base + 0x1000)))
     {
