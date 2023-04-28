@@ -146,6 +146,7 @@ protected:
             }
           
           rand_intr =  rand_intr |(1<<values[i]);
+          rand_intr = rand_intr & 0xfb; // mask supervisor timer interrupt
 
          //std::cout<<"[TRICKBOX]: UNIQRAND random interrupts "<< values[i]<<" rand intr :"<<std::hex<<rand_intr<<"\n";
          }
