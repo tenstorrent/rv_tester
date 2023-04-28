@@ -172,6 +172,7 @@ whisperClientSocket::deserializeMessage(const char buffer[], size_t bufferLen,
   p += sizeof(part);
 
   memcpy(msg.buffer, p, sizeof(msg.buffer));
+  msg.buffer[sizeof(msg.buffer) - 1] = '\0';
   p += sizeof(msg.buffer);
 
   memcpy(msg.tag, p, sizeof(msg.tag));
@@ -405,7 +406,8 @@ whisperClientSocket::whisperStep(int hart, uint64_t time, uint64_t instrTag, uin
   fpFlags = flags;
   hasTrap = trap;
   hasStop = stop;
-  disasm.assign(reply.buffer, sizeof(reply.buffer));
+  reply.buffer[sizeof(reply.buffer) - 1] = '\0';
+  disasm = reply.buffer;
 
   return true;
 }
