@@ -1,6 +1,6 @@
 #pragma once
 
-#include "device.h"
+#include "sysmod/device.h"
 #include "cvm/topology.hpp"
 #include <string>
 

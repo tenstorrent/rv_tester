@@ -21,7 +21,6 @@ cc_library(
     ],
     alwayslink = True,
     linkstatic = True,
-    strip_include_prefix = "//sysmod",
     visibility = ["//visibility:public"],
 )
 

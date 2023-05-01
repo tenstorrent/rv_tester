@@ -1,4 +1,4 @@
-#include "device.h"
+#include "sysmod/device.h"
 #include "cvm/plusargs.hpp"
 #include "cvm/logger.hpp"
 

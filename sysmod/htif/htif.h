@@ -1,7 +1,7 @@
 // -*- c++ -*-
 #pragma once
 
-#include "device.h"
+#include "sysmod/device.h"
 #include "cvm/topology.hpp"
 
 /// Model an htif (host target interface) device

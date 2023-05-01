@@ -1,6 +1,6 @@
 #pragma once
 
-#include "device.h"
+#include "sysmod/device.h"
 #include <string>
 #include <mem_manager.h>
 
