@@ -67,7 +67,6 @@ whisperClientShm::whisperDisconnect()
 
   fd = -1;
   shm = nullptr;
-  path = "";
 }
 
 
