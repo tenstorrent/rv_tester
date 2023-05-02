@@ -6,7 +6,7 @@
 #include <atomic>
 #include <thread>
 #include <unistd.h>
-#include "device.h"
+#include "sysmod/device.h"
 #include <iostream>
 #include <iostream>
 #include <iomanip>

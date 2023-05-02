@@ -8,7 +8,7 @@
 #include <unistd.h>
 #include <iostream>
 #include <functional>
-#include "device.h"
+#include "sysmod/device.h"
 #include "cvm/registry.hpp"
 
 // Define a core local interruptor (Clint) at the given address
