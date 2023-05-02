@@ -72,7 +72,6 @@ bool bridge::whisper_connect(std::string cmd, int timeout) {
 
   auto start = std::chrono::high_resolution_clock::now();
   while (true) {
-    std::this_thread::sleep_for (std::chrono::seconds(5));
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 
@@ -89,6 +88,7 @@ bool bridge::whisper_connect(std::string cmd, int timeout) {
       cvm::log(cvm::ERROR, "Error: Whisper connect failed. Stopping after {} ms.", duration);
       return false;
     }
+    std::this_thread::sleep_for (std::chrono::milliseconds(20));
   }
 }
 
