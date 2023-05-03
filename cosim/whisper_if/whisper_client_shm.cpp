@@ -577,6 +577,45 @@ whisperClientShm::whisperExitDebug()
   return true;
 }
 
+// Send a whisper check_interrupt command. Return true on successful communication
+// and false on failure. Set interrupt to true/false if interrupt is/is-not
+// possible assuming the MIP CSR has the given mip value.
+bool
+whisperClientShm::whisperCheckInterrupt(int hart, uint64_t mip, bool& interrupt)
+{
+  req.hart = hart;
+  req.type = WhisperMessageType::CheckInterrupt;
+  req.address = mip;
+
+  WhisperMessage reply;
+
+  if (not whisperCommand(req, reply))
+    return false;
+
+  interrupt = reply.flags;
+  return true;
+}
+
+
+// Set the supervisor mode external interrupt pin to the given
+// value (0 or 1). Whisper will consider either the SEIP bit in MIP or the
+// the external pin value set by this method for taking a supervisor
+// external interrupt (assuming that interrupt is enabled).
+bool
+whisperClientShm::whisperSetSeiPin(int hart, uint64_t value)
+{
+  req.hart = hart;
+  req.type = WhisperMessageType::SetSeiPin;
+  req.value = value;
+
+  WhisperMessage reply;
+
+  if (not whisperCommand(req, reply))
+    return false;
+
+  return true;
+}
+
 #if 0
 
 int

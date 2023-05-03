@@ -57,7 +57,7 @@ module cosim #(
 
     // m_mcmi_store
     for (genvar n = 0; n < topology.TOP.CLUSTER.CORE.STQ_PORTS; n++) begin
-        assign tx_dom_1.m_mcmi_stores[n].valid = ~reset & mcmi_store[n].valid;
+        assign tx_dom_1.m_mcmi_stores[n].valid = ~reset & mcmi_store[n].valid & rvfi_enabled;
         assign tx_dom_1.m_mcmi_stores[n].data.location = location;
         assign tx_dom_1.m_mcmi_stores[n].data.cycle = clocks;
         assign tx_dom_1.m_mcmi_stores[n].data.order = mcmi_store[n].order;
@@ -68,7 +68,7 @@ module cosim #(
 
     // m_trap
     for (genvar n = 0; n < topology.TOP.CLUSTER.CORE.NRET; n++) begin
-        assign tx_dom_1.m_traps[n].valid = ~reset & (rvfi[n].cause != 0);
+        assign tx_dom_1.m_traps[n].valid = ~reset & (rvfi[n].cause != 0) & rvfi_enabled;
         assign tx_dom_1.m_traps[n].data.location = location;
         assign tx_dom_1.m_traps[n].data.cycle = clocks;
         assign tx_dom_1.m_traps[n].data.cause = rvfi[n].cause;
@@ -79,16 +79,34 @@ module cosim #(
     always @(posedge clk) begin
       debug_mode_d1 <= debug_mode;
     end
-    assign tx_dom_1.m_debugs[0].valid = ~reset & ((debug_mode & ~debug_mode_d1) | (~debug_mode & debug_mode_d1));
+    assign tx_dom_1.m_debugs[0].valid = ~reset & ((debug_mode & ~debug_mode_d1) | (~debug_mode & debug_mode_d1)) & rvfi_enabled;
     assign tx_dom_1.m_debugs[0].data.location = location;
     assign tx_dom_1.m_debugs[0].data.cycle = clocks;
     assign tx_dom_1.m_debugs[0].data.enter = debug_mode;
     assign tx_dom_1.m_debugs[0].data.exit = ~debug_mode;
 
     // m_intr
-    assign tx_dom_1.m_intrs[0].valid = ~reset & 1'b0;
+    rv_tester_pkg::interrupt_t interrupt_d1;
+    always @(posedge clk) begin
+      interrupt_d1 <= interrupt;
+    end
+    assign tx_dom_1.m_intrs[0].valid = ~reset & (|(interrupt & ~interrupt_d1) | |(~interrupt & interrupt_d1)) & rvfi_enabled;
     assign tx_dom_1.m_intrs[0].data.location = location;
     assign tx_dom_1.m_intrs[0].data.cycle = clocks;
+    assign tx_dom_1.m_intrs[0].data.mip_posedge = |(interrupt & ~interrupt_d1);
+    assign tx_dom_1.m_intrs[0].data.mip = get_mip(interrupt);
+    assign tx_dom_1.m_intrs[0].data.seip_posedge = (interrupt.sei & ~interrupt_d1.sei);
+    assign tx_dom_1.m_intrs[0].data.seip_negedge = (~interrupt.sei & interrupt_d1.sei);
+    assign tx_dom_1.m_intrs[0].data.seip = interrupt.sei;
+
+    function bit [63:0] get_mip(rv_tester_pkg::interrupt_t intr);
+      bit [63:0] mip = 'h0;
+      mip[11] = intr.mei;
+      mip[7]  = intr.mti;
+      mip[3]  = intr.msi;
+      mip[1]  = intr.ssi;
+      return mip;
+    endfunction
 
     // Timeout checks
     int max_stall_cycle = 50000;

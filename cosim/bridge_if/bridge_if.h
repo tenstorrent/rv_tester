@@ -189,3 +189,12 @@ typedef struct rv_debug_s {
   uint64_t cycle;
   uint64_t hart;
 } rv_debug_t;
+
+typedef struct rv_intr_s {
+  uint64_t cycle;
+  bool mip_posedge;
+  uint64_t mip;
+  bool seip_posedge;
+  bool seip_negedge;
+  bool seip;
+} rv_intr_t;  

@@ -42,6 +42,9 @@ public:
   virtual void process_dut_mb_insert(hart_id_t hart, mem_t& m) override;
   virtual void process_dut_mb_drain(hart_id_t hart, mem_cl_t& m) override;
 
+  // Interrupts
+  virtual void process_dut_interrupt(hart_id_t hart, rv_intr_t &i) override;
+
   // Debug mode
   virtual void enter_debug_mode(rv_debug_t& d) override;
   virtual void exit_debug_mode(rv_debug_t& d) override;
@@ -94,6 +97,11 @@ private:
   void handle_exception(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   void handle_satp(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
 
+  void check_interrupt(hart_id_t hart);
+  void poke_pend_interrupt(hart_id_t hart);
+  void poke_interrupt(hart_id_t hart, uint64_t mip);
+  void poke_seip(hart_id_t hart, bool val);
+
   bool is_ecall(const whisper_state_t& w);
   bool does_instr_match_resynch_list(const whisper_state_t& w);
   bool does_prev_instr_match_resynch_list(const whisper_state_t& w);
@@ -124,18 +132,23 @@ private:
   // Create a copy of whisper instr in similar format as dut
   rv_instr_t w_;
 
-  bool intr_in_progress_ = false;
+  // State variables
   bool ecall_ = false;
   bool debug_mode_ = false;
 
   uint64_t satp_ = 0;
   uint64_t new_satp_ = 0;
 
+  std::array<bool, max_harts> is_intr_pend_{};
+  std::array<uint64_t, max_harts> pend_intr_{};
+  std::array<uint32_t, max_harts> pend_intr_count_{};
+  std::array<bool, max_harts> is_seip_pend_{};
+  std::array<bool, max_harts> pend_seip_count_{};
+
   // Memmap
   memmap::memmap_t memmap_;
 
   // Metrics map
-  static constexpr int max_harts = 2;
   std::array<std::map<std::string, std::string>, max_harts> metrics_;
 
   int num_stores_ = 0;

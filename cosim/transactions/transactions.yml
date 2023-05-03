@@ -74,13 +74,15 @@ m_intr:
     fields:
         cycle:
             width: 64
-        pos_edge:
+        mip:
+            width: 64
+        seip:
             width: 1
-        timer:
+        mip_posedge:
             width: 1
-        ipi:
+        seip_posedge:
             width: 1
-        external:
+        seip_negedge:
             width: 1
 
 m_debug:

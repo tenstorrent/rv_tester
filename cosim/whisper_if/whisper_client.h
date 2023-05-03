@@ -27,5 +27,7 @@ class whisperClient {
     virtual bool whisperTranslate(int hart, uint64_t vaddr, bool r, bool w, bool x, bool supervisor, uint64_t& paddr, bool& valid) = 0;
     virtual bool whisperEnterDebug() = 0;
     virtual bool whisperExitDebug() = 0;
+    virtual bool whisperCheckInterrupt(int hart, uint64_t mip, bool& interrupt) = 0;
+    virtual bool whisperSetSeiPin(int hart, uint64_t value) = 0;
 
 };
