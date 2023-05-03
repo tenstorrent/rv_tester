@@ -71,3 +71,57 @@ notify_chips:
     << : *notify-template
     trigger:
         project: riscv/chips
+
+asan+ubsan:
+    stage: build
+    tags:
+        - jacamar-lsf
+        - curation
+    before_script:
+        - *clone-script
+        - *bzsim-setup-script
+    script:
+        # Need to create subdirectory so that `bzsim regress` does not attempt to overwrite BUILD.bazel
+        - mkdir -p testing
+        - cd testing
+        - ../${BZSIM} regress ${BZSIM_OPTS} ../sw_testbench/testlists/sanitization.py --config clang --config asan+ubsan
+    variables:
+        << : *clone-variables
+        << : *bzsim-variables
+    timeout: 1h
+
+tsan:
+    stage: build
+    tags:
+        - jacamar-lsf
+        - curation
+    before_script:
+        - *clone-script
+        - *bzsim-setup-script
+    script:
+        # Need to create subdirectory so that `bzsim regress` does not attempt to overwrite BUILD.bazel
+        - mkdir -p testing
+        - cd testing
+        - ../${BZSIM} regress ${BZSIM_OPTS} ../sw_testbench/testlists/sanitization.py --config clang --config tsan
+    variables:
+        << : *clone-variables
+        << : *bzsim-variables
+    timeout: 1h
+    
+valgrind:
+    stage: build
+    tags:
+        - jacamar-lsf
+        - curation
+    before_script:
+        - *clone-script
+        - *bzsim-setup-script
+    script:
+        # Need to create subdirectory so that `bzsim regress` does not attempt to overwrite BUILD.bazel
+        - mkdir -p testing
+        - cd testing
+        - ../${BZSIM} regress ${BZSIM_OPTS} ../sw_testbench/testlists/valgrind.py
+    variables:
+        << : *clone-variables
+        << : *bzsim-variables
+    timeout: 1h
