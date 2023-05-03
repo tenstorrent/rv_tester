@@ -5,6 +5,7 @@
 #include <string>
 #include <algorithm>
 #include <iomanip>
+#include <vector>
 
 #include "cvm/topology.hpp"
 #include "bridge_base.h"
@@ -86,7 +87,7 @@ private:
   void update_pc(hart_id_t hart, src_t src, uint64_t data);
   void update_regs(hart_id_t hart, const rv_instr_t& d);
   void update_regs(hart_id_t hart, const whisper_state_t& w);
-  void update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, size8BytesT dword_array[]);
+  void update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, const std::vector<size8BytesT>&& dword_vec);
   void update_mem(hart_id_t hart, rv_instr_t& d);
   void translation_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
 

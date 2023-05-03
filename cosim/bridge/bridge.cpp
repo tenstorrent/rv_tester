@@ -12,6 +12,7 @@
 #include <thread>           // std::this_thread::sleep_for
 #include <chrono>           // std::chrono::seconds
 #include <cstdlib>          // system
+#include <vector>
 
 // Plusargs
 DECLARE_string(load);
@@ -499,21 +500,15 @@ void bridge::step(hart_id_t hart, whisper_state_t& w) {
 void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
   // GPR
   if (d.gpr.valid) {
-    size8BytesT dword_array [1] = {d.gpr.rd_wdata};
-    update_regs(hart, src_t::dut, resource_t::int_reg, d.gpr.rd_addr, dword_array);
+    update_regs(hart, src_t::dut, resource_t::int_reg, d.gpr.rd_addr, {d.gpr.rd_wdata});
   }
   // FPR
   if (d.fpr.valid) {
-    size8BytesT dword_array [1] = {d.fpr.frd_wdata};
-    update_regs(hart, src_t::dut, resource_t::fp_reg, d.fpr.frd_addr, dword_array);
+    update_regs(hart, src_t::dut, resource_t::fp_reg, d.fpr.frd_addr, {d.fpr.frd_wdata});
   }
   // VR
   if (d.vr.valid) {
-    size8BytesT dword_array [vlen_/64];
-    for (int i = 0; i< vlen_/64; i++) {
-      dword_array[i] = d.vr.vrd_wdata[i];
-    }
-    update_regs(hart, src_t::dut, resource_t::vec_reg, d.vr.vrd_addr, dword_array);
+    update_regs(hart, src_t::dut, resource_t::vec_reg, d.vr.vrd_addr, {d.vr.vrd_wdata, d.vr.vrd_wdata + (vlen_/64)});
   }
 }
 
@@ -524,18 +519,15 @@ void bridge::update_mem(hart_id_t hart, rv_instr_t& d) {
 // Push whisper register state to cac
 void bridge::update_regs(hart_id_t hart, const whisper_state_t& w) {
   // Register changes - r, f, v,
-  size8BytesT dword_array [1] = {0};
   //TODO:size8BytesT dword_vec_array [vlen_/64] = {0};
   //TODO:uint32_t entries = vlen_/64;
 
   switch(w.resource) {
     case 'r':
-      dword_array [0] = w.value;
-      update_regs(hart, src_t::whisper, resource_t::int_reg, w.address, dword_array);
+      update_regs(hart, src_t::whisper, resource_t::int_reg, w.address, {w.value});
       break;
     case 'f':
-      dword_array [0] = w.value;
-      update_regs(hart, src_t::whisper, resource_t::fp_reg, w.address, dword_array);
+      update_regs(hart, src_t::whisper, resource_t::fp_reg, w.address, {w.value});
       break;
     case 'v':
       //TODO:dword_vec_array [i % entries] = w.value;
@@ -549,11 +541,10 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w) {
 
 // Utility functions
 void bridge::update_pc(hart_id_t hart, src_t src, uint64_t data) {
-  size8BytesT dword_array [1] = {data};
   if (src == src_t::dut) {
-    cac_.updateRegister(hart, CAC_STATE_PC_ID, dword_array);
+    cac_.updateRegister(hart, CAC_STATE_PC_ID, {data});
   } else {
-    cac_.updateRefRegister(hart, CAC_STATE_PC_ID, dword_array);
+    cac_.updateRefRegister(hart, CAC_STATE_PC_ID, {data});
   }
 }
 
@@ -566,13 +557,13 @@ void bridge::update_pc(hart_id_t hart, src_t src, uint64_t data) {
 //TODO:  }
 //TODO:}
 
-void bridge::update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, size8BytesT dword_array[]) {
+void bridge::update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, const std::vector<size8BytesT>&& dword_vec) {
   if (src == src_t::dut) {
     if ((resource == resource_t::int_reg) && (addr == 0x0))
       return;
-    cac_.updateRegister(hart, resource, addr, dword_array);
+    cac_.updateRegister(hart, resource, addr, std::move(dword_vec));
   } else {
-    cac_.updateRefRegister(hart, resource, addr, dword_array);
+    cac_.updateRefRegister(hart, resource, addr, std::move(dword_vec));
   }
 }
 
