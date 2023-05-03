@@ -40,13 +40,9 @@ class whisperClientShm : public whisperClient {
     bool sendMessage(char* shm, const WhisperMessage& msg);
     bool whisperCommand(const WhisperMessage& req, WhisperMessage& reply);
 
-  private:
-
-    //static int fd = -1;
-    //static char* shm = nullptr;
-    //static std::string path;
-    //
-    //static WhisperMessage req;
-    //static WhisperMessage reply;
-
+    int fd = -1;
+    char* shm = nullptr;
+    std::string path = "";
+    WhisperMessage req {};
+    WhisperMessage reply {};
 };

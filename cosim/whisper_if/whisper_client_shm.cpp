@@ -15,13 +15,6 @@
 #include <string>
 #include "whisper_client_shm.h"
 
-static int fd = -1;
-static char* shm = nullptr;
-static std::string path;
-
-static WhisperMessage req;
-static WhisperMessage reply;
-
 // Connect to the whisper process defined by the given file.  File
 // should contain a single line consisting of a host name followed by
 // a port number. Example:  good-host 1700
@@ -67,6 +60,7 @@ whisperClientShm::whisperDisconnect()
 
   fd = -1;
   shm = nullptr;
+  path = "";
 }
 
 

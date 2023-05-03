@@ -8,11 +8,6 @@
 #include "svdpi.h"
 #include "whisper_client_socket.h"
 
-
-static int whisperSoc = -1;
-static int socketFailCount = 0;
-static int socketFailCountLimit = 1000;
-
 // Connect to the whisper process running at the given host and
 // listening to the given port. Return non-negative connected socket
 // number on success and -1 on failure.
