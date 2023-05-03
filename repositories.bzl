@@ -23,7 +23,7 @@ def rv_tester_repositories():
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/bazel_rules_hdl/-/archive/{commit}/bazel_rules_hdl-{commit}.tar.bz2".format(commit=rules_hdl_hash),
     )
 
-    corearchcoverage_hash="57f9a9bb674f1739348d40216f155af95243d2d6"
+    corearchcoverage_hash="24333f88f038921aa34fe948e20e2b1568a33cf2"
     maybe(
         git_repository,
         name = "corearchcoverage",
