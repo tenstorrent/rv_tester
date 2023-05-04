@@ -25,12 +25,12 @@ DECLARE_int32(intr_delay_max);//, 7, "Maximum Delay between 2 consecutive interr
 DECLARE_bool(random_intr);//, false, "Drive random interrups");
 DECLARE_int32(max_simul_intr ); 
 DECLARE_int32(tbox_start_delay); 
-DECLARE_bool(disable_swip);
+DECLARE_bool(disable_ssip);
 DECLARE_bool(disable_msip);
 DECLARE_bool(disable_stip);
 DECLARE_bool(disable_mtip);
-DECLARE_bool(disable_sextip);
-DECLARE_bool(disable_mextip);
+DECLARE_bool(disable_seip);
+DECLARE_bool(disable_meip);
 // Define a core local interruptor (interrupter) at the given address
 // and for the given hart count. The size will be 48k bytes.
 class interrupter : public device
@@ -153,7 +153,7 @@ protected:
             }
           
           rand_intr =  rand_intr |(1<<values[i]);
-          disable_mask = (FLAGS_disable_mextip <<5)|(FLAGS_disable_sextip <<4)|(FLAGS_disable_mtip <<3)|(FLAGS_disable_stip <<2)| (FLAGS_disable_msip << 1) |FLAGS_disable_swip;
+          disable_mask = (FLAGS_disable_meip <<5)|(FLAGS_disable_seip <<4)|(FLAGS_disable_mtip <<3)|(FLAGS_disable_stip <<2)| (FLAGS_disable_msip << 1) |FLAGS_disable_ssip;
           disable_mask = ~disable_mask;
           disable_mask = disable_mask & 0xff;
           rand_intr = rand_intr & disable_mask;
