@@ -25,6 +25,12 @@ DECLARE_int32(intr_delay_max);//, 7, "Maximum Delay between 2 consecutive interr
 DECLARE_bool(random_intr);//, false, "Drive random interrups");
 DECLARE_int32(max_simul_intr ); 
 DECLARE_int32(tbox_start_delay); 
+DECLARE_bool(disable_swip);
+DECLARE_bool(disable_msip);
+DECLARE_bool(disable_stip);
+DECLARE_bool(disable_mtip);
+DECLARE_bool(disable_sextip);
+DECLARE_bool(disable_mextip);
 // Define a core local interruptor (interrupter) at the given address
 // and for the given hart count. The size will be 48k bytes.
 class interrupter : public device
@@ -128,6 +134,7 @@ protected:
     if(FLAGS_random_intr){
       if(timer_ >= timer_rand_intr){
          unsigned rand_intr = 0;//1 << rng(5); //select random pin between 0 to 5
+         unsigned disable_mask = 0;
          unsigned iter = 1;
          unsigned values[FLAGS_max_simul_intr];
          memset(values, FLAGS_max_simul_intr, 0);
@@ -146,6 +153,10 @@ protected:
             }
           
           rand_intr =  rand_intr |(1<<values[i]);
+          disable_mask = (FLAGS_disable_mextip <<5)|(FLAGS_disable_sextip <<4)|(FLAGS_disable_mtip <<3)|(FLAGS_disable_stip <<2)| (FLAGS_disable_msip << 1) |FLAGS_disable_swip;
+          disable_mask = ~disable_mask
+          disable_mask = disable_mask & 0xff;
+          rand_intr = rand_intr & disable_mask;
           rand_intr = rand_intr & 0xfb; // mask supervisor timer interrupt
 
          //std::cout<<"[TRICKBOX]: UNIQRAND random interrupts "<< values[i]<<" rand intr :"<<std::hex<<rand_intr<<"\n";
