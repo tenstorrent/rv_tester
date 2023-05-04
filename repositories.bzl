@@ -46,7 +46,7 @@ def rv_tester_repositories():
         name = "nlohmann_json",
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/forks/nlohmann-json/-/archive/v3.11.2/nlohmann-json-v3.11.2.tar.gz",
         strip_prefix = "nlohmann-json-v3.11.2",
-        sha256 = "28bb5d51617e744c67e43cbf02b67a07afb998695554083a0b0c45605e5f0d9f",
+        sha256 = "be269122c74edb6b92371a816d7c358c00aec948219f049e8152d4c23548b1ec",
         build_file_content = """
 cc_library(
     name = "json",
