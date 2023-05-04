@@ -34,6 +34,10 @@ DEFINE_int32(max_stall_cycle, 50000, "Max stall cycle limit to terminate the sim
 DEFINE_bool(translation_check, false, "Do VA-PA translation check");
 DEFINE_bool(emulate_debug_mode, false, "Emulate debug mode by forcing whisper to be in sync with DUT");
 DEFINE_bool(delay_satp_update, false, "Delay satp update till next sfence.vma");
+DEFINE_bool(cov, false, "Enable Arch coverage");
+DEFINE_string(archsample_lib_path, "", "Path to libarchsample.so");
+DEFINE_bool(metrics, true, "Enable printing metrics in log file");
+DEFINE_uint32(pend_intr_threshold, 32, "Number of instructions allowed to retire before a pending interrupt should be taken");
 DEFINE_bool(whisper_stdin_null, false, "Redirect whisoer stdin to null");
 DEFINE_bool(whisper_stdout_null, false, "Redirect whisoer stdout to null");
 DEFINE_bool(whisper_clint, false, "Set clint addr in whisper command");
@@ -41,9 +45,6 @@ DEFINE_bool(whisper_tohost, true, "Set tohost addr in whisper command");
 DEFINE_bool(whisper_fromhost, true, "Set fromhost addr in whisper command");
 DEFINE_string(whisper_client, "socket", "Select whisper client to communicate - socket, or shm (shared mem)");
 DEFINE_int32(whisper_connect_timeout_ms, 10000, "Set whisper connect timeout in milliseconds");
-DEFINE_bool(cov, false, "Enable Arch coverage");
-DEFINE_string(archsample_lib_path, "", "Path to libarchsample.so");
-DEFINE_bool(metrics, true, "Enable printing metrics in log file");
 
 // Constructor
 bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc)
@@ -72,7 +73,6 @@ bool bridge::whisper_connect(std::string cmd, int timeout) {
 
   auto start = std::chrono::high_resolution_clock::now();
   while (true) {
-    std::this_thread::sleep_for (std::chrono::seconds(5));
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 
@@ -89,6 +89,7 @@ bool bridge::whisper_connect(std::string cmd, int timeout) {
       cvm::log(cvm::ERROR, "Error: Whisper connect failed. Stopping after {} ms.", duration);
       return false;
     }
+    std::this_thread::sleep_for (std::chrono::milliseconds(20));
   }
 }
 
@@ -166,7 +167,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
     .time = d.cycle
   };
 
-  // Handle pre-step conditions
+  // Handle pre-step condition - Debug
   if (debug_mode_) {
     if (FLAGS_emulate_debug_mode) {
       handle_debug(hart, d, w);
@@ -174,6 +175,9 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
       return;
     }
   }
+
+  // Handle pre-step condition - Interrupts
+  check_interrupt(hart);
   handle_interrupt(hart, d, w);
 
   // Step whisper
@@ -255,34 +259,15 @@ void bridge::handle_debug(hart_id_t hart, const rv_instr_t& d, whisper_state_t& 
 
 void bridge::handle_interrupt(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
 
-  uint64_t mip = 0x344;
-
-  // Clear mip one step after it's set
-  if (intr_in_progress_) {
-    intr_in_progress_ = false;
-    bool valid = false;
-    if (!client_->whisperPoke(hart, 'c', mip, 0, valid)) {
-      cvm::log(cvm::ERROR, "Error: Failed to clear interrupt\n");
-      return;
-    }
-  }
-
   if (!d.intr)
     return;
 
-  if (FLAGS_cosim_tracer) {
-    log(cvm::MEDIUM, "<{}> Interrupt detected. cause: [{}]\n", w.time, d.icause);
-  }
-
   // Poke mip before invoking whisper step
-  bool valid = false;
-  uint64_t cause = (1ull << d.icause);
-  if (!client_->whisperPoke(hart, 'c', mip, cause, valid)) {
-    cvm::log(cvm::ERROR, "Error: Failed to poke interrupt\n");
-    return;
-  }
+  poke_pend_interrupt(hart);
 
-  intr_in_progress_ = true;
+  if (FLAGS_cosim_tracer) {
+    log(cvm::MEDIUM, "<{}> Interrupt taken. cause: [{}]\n", w.time, d.icause);
+  }
 
   if (FLAGS_retire_ucode_trap)
     return;
@@ -826,6 +811,78 @@ void bridge::translation_check(hart_id_t hart, const rv_instr_t& d, whisper_stat
     log(cvm::MEDIUM, "<{}> Whisper Step #{}: [Hart={}, Mode={}, Tag={}, PC={:#x}, VA={:#x}, PA={:#x}]\n", w.time, (cac_.getStep(hart)-1), hart, w.priv_mode, w.tag, w.pc, d.mem_va, pa);
   }
 
+}
+
+// Interrupts
+void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
+  if (i.mip_posedge) {
+    log(cvm::MEDIUM, "<{}> Interrupt pin(s) asserted. MipEncodedValue: {:#x}\n", i.cycle, i.mip);
+    is_intr_pend_[hart] = true; 
+    pend_intr_[hart] = i.mip;
+    pend_intr_count_[hart] = 0;
+  } else {
+    log(cvm::MEDIUM, "<{}> Interrupt pin(s) deasserted. MipEncodedValue: {:#x}\n", i.cycle, i.mip);
+    poke_interrupt(hart, i.mip);
+  }
+
+  if (i.seip_posedge) {
+    log(cvm::MEDIUM, "<{}> Seip pin asserted\n", i.cycle);
+    is_seip_pend_[hart] = true;
+  } else if (i.seip_negedge) {
+    log(cvm::MEDIUM, "<{}> Seip pin deasserted\n", i.cycle);
+    poke_seip(hart, false);
+  }
+}
+
+void bridge::check_interrupt(hart_id_t hart) {
+  if (!is_intr_pend_[hart])
+    return;
+
+  bool should_be_taken;
+  if (!client_->whisperCheckInterrupt(hart, pend_intr_[hart], should_be_taken)) {
+    cvm::log(cvm::ERROR, "Error: Failed whisper API call - whisperCheckInterrupt\n");
+    return;
+  }
+
+  if (should_be_taken) {
+    pend_intr_count_[hart]++;
+  }
+
+  if (pend_intr_count_[hart] > FLAGS_pend_intr_threshold) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: Interrupt kept pending for pend_intr_threshold({}) instructions\n", 
+      hart, FLAGS_pend_intr_threshold);
+    return;
+  }
+}
+
+// Poke the pending interrupt(s) at DUT taken boundary
+void bridge::poke_pend_interrupt(hart_id_t hart) {
+  if (is_intr_pend_[hart]) {
+    poke_interrupt(hart, pend_intr_[hart]);
+    is_intr_pend_[hart] = false;
+    pend_intr_count_[hart] = 0;
+  }
+  
+  if (is_seip_pend_[hart]) {
+    poke_seip(hart, true);
+    is_seip_pend_[hart] = false;
+    pend_seip_count_[hart] = 0;
+  }
+}
+
+void bridge::poke_interrupt(hart_id_t hart, uint64_t mip) {
+  bool valid;
+  if (!client_->whisperPoke(hart, 'c', 0x344, mip, valid)) {
+    cvm::log(cvm::ERROR, "Error: Failed to poke mip csr");
+    return;
+  }
+}
+
+void bridge::poke_seip(hart_id_t hart, bool val) {
+  if (!client_->whisperSetSeiPin(hart, (uint64_t)val)) {
+    cvm::log(cvm::ERROR, "Error: Failed to poke seip");
+    return;
+  }
 }
 
 // Debug Mode

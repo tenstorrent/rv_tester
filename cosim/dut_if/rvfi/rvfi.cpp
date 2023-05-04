@@ -87,24 +87,22 @@ void rvfi::process(const cosim_transactions::m_trap& m_trap) {
 }
 
 void rvfi::process(const cosim_transactions::m_intr& m_intr) {
-   uint64_t cause = (m_intr.timer << 7) | (m_intr.ipi << 3) | (m_intr.external << 11);
-
-   if (!m_intr.pos_edge)
-     //bridge_->deassert_interrupt(cause);
-
-  if (!FLAGS_rvfi)
+  if (!FLAGS_cosim)
     return;
 
-   if (m_intr.pos_edge) {
-     log(cvm::NONE, "#{} {} 0 (assert interrupt:{})\n", m_intr.cycle, count_, cause);
-   } else {
-     log(cvm::NONE, "#{} {} 0 (deassert interrupt:{})\n", m_intr.cycle, count_, cause);
-   }
+  rv_intr_t intr;
+  intr.cycle = m_intr.cycle;
+  intr.mip_posedge = m_intr.mip_posedge;
+  intr.mip = m_intr.mip;
+  intr.seip_posedge = m_intr.seip_posedge;
+  intr.seip_negedge = m_intr.seip_negedge;
+  intr.seip = m_intr.seip;
+
+  bridge_->process_dut_interrupt(0, intr);
+  log(cvm::NONE, "#{} {} 0 (mip:{:#x} seip:{})\n", count_, intr.cycle, intr.mip, intr.seip);
 }
 
 void rvfi::process(const cosim_transactions::m_debug& m_debug) {
-  if (!FLAGS_rvfi)
-    return;
 
 }
 
@@ -181,9 +179,6 @@ std::tuple<uint64_t, uint64_t, uint8_t> rvfi::get_mem_attributes(uint64_t addr, 
 }
 
 void rvfi::print_instr(rv_instr_t& instr) {
-  if (!FLAGS_rvfi)
-    return;
-
   log(cvm::NONE, "#{} {} {} {} {:016x} {:08x}", instr.id, instr.cycle, instr.hart, instr.priv, instr.pc.pc_rdata,
       instr.opcode);
 

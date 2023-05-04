@@ -28,6 +28,8 @@ class whisperClientShm : public whisperClient {
     virtual bool whisperTranslate(int hart, uint64_t vaddr, bool r, bool w, bool x, bool supervisor, uint64_t& paddr, bool& valid) override;
     virtual bool whisperEnterDebug() override;
     virtual bool whisperExitDebug() override;
+    virtual bool whisperCheckInterrupt(int hart, uint64_t mip, bool& interrupt) override;
+    virtual bool whisperSetSeiPin(int hart, uint64_t value) override;
 
   private:
 
