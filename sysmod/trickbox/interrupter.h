@@ -154,7 +154,7 @@ protected:
           
           rand_intr =  rand_intr |(1<<values[i]);
           disable_mask = (FLAGS_disable_mextip <<5)|(FLAGS_disable_sextip <<4)|(FLAGS_disable_mtip <<3)|(FLAGS_disable_stip <<2)| (FLAGS_disable_msip << 1) |FLAGS_disable_swip;
-          disable_mask = ~disable_mask
+          disable_mask = ~disable_mask;
           disable_mask = disable_mask & 0xff;
           rand_intr = rand_intr & disable_mask;
           rand_intr = rand_intr & 0xfb; // mask supervisor timer interrupt
