@@ -69,6 +69,8 @@ bridge::~bridge() {
 bool bridge::whisper_connect(std::string cmd, int timeout) {
 
   std::cout << "Cosim whisper command: " << cmd << "\n";
+  // Used for gperftools to collect profiling data on whisper and output it to ./whisper.prof
+  setenv("CPUPROFILE", "whisper.prof", 1);
   system(cmd.c_str());
 
   auto start = std::chrono::high_resolution_clock::now();

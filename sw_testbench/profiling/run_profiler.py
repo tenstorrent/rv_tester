@@ -21,6 +21,8 @@ class Profiler(ABC):
         self.common_sim_opts = ["--bazel-build-opt=--compilation_mode=opt", "--debug"]
         if args.no_lsf:
             self.common_sim_opts.append("--no-lsf")
+        if args.use_clang:
+            self.common_sim_opts.append("--config=clang")
         self.common_plusargs = ["+nostandalone", ("+whisper_client=" + ("shm" if args.use_shm else "socket")), "+eot=max_instr", "+max_cycle={}".format(self.args.max_cycle), "+max_instr={}".format(self.args.max_cycle - 20)]
         if args.no_cosim:
             self.common_plusargs.append("+nocosim")
@@ -43,6 +45,9 @@ class Profiler(ABC):
         self.setup()
         for cmd in self.profiler_cmds:
             self.print("Executing command: {}".format(cmd))
+            if cmd.output_to_file:
+                self.output_file.write("===== Command: {} =====".format(cmd))
+                self.output_file.flush()
             subprocess.run(cmd.arg_list, stdout=(self.output_file if cmd.output_to_file else None))
         self.teardown()
 
@@ -135,11 +140,12 @@ class GperftoolsProfiler(Profiler):
     def setup(self):
         self.output_file = open("{}-results.txt".format(self.name()), "w")
         timing_args = ["--container-run-opt=--env=CPUPROFILE_REALTIME=1", "--container-run-opt=--env=ITIMER_REAL=1"] if self.args.use_realtime else ["--container-run-opt=--env=CPUPROFILE_REALTIME=0"]
-        self.profiler_cmds.append(Command(arg_list=self.bzsim_run_cmd + ["--container-run-opt=--env=CPUPROFILE_FREQUENCY=10000"] + timing_args + ["--container-run-opt=--env=CPUPROFILE=prof.out", "--bazel-build-opt=--linkopt=-Wl,-no-as-needed,-lprofiler"] + self.common_sim_opts + ["--"] + self.common_plusargs))
-        self.profiler_cmds.append(Command(arg_list=self.container_run_cmd + ["pprof", "--dot", os.path.join(self.rv_tester_path, "bazel-bin/sw_testbench/sw_testbench_verilator"), "prof.out"], output_to_file=True))
+        self.profiler_cmds.append(Command(arg_list=self.bzsim_run_cmd + ["--container-run-opt=--env=CPUPROFILE_FREQUENCY=10000"] + timing_args + ["--container-run-opt=--env=CPUPROFILE=rv_tester.prof", "--bazel-build-opt=--linkopt=-Wl,-no-as-needed,-lprofiler"] + self.common_sim_opts + ["--"] + self.common_plusargs))
+        self.profiler_cmds.append(Command(arg_list=self.container_run_cmd + ["pprof", "--dot", os.path.join(self.rv_tester_path, "bazel-bin/sw_testbench/sw_testbench_verilator"), "rv_tester.prof"], output_to_file=True))
+        self.profiler_cmds.append(Command(arg_list=self.container_run_cmd + ["pprof", "--dot", os.path.join(self.rv_tester_path, "/proj_risc_regr/asc/a0/user_regr/{}/rv_tester/bazel_output_base/execroot/rv_tester/bazel-out/k8-opt/bin/external/whisper/whisper".format(os.environ.get("USER"))), "whisper.prof"], output_to_file=True))
 
     def teardown(self):
-        self.print("See {} for the profiling results".format(self.output_file.name))
+        self.print("See {} for the profiling results. The cosim call graph is above the whisper call graph. Use https://dreampuf.github.io/GraphvizOnline/ to visualize these graphs".format(self.output_file.name))
         self.output_file.close()
     
     @staticmethod
@@ -194,6 +200,7 @@ def construct_profiler_using_args(rv_tester_path: str):
     parser.add_argument("--no_cosim", action="store_true", default=False, help="If true, run without cosim")
     parser.add_argument("--no_rvfi", action="store_true", default=False, help="If true, run without rvfi")
     parser.add_argument("--linux_time", action="store_true", default=False, help="If true, wrap profiler with call to 'time'. E.g. 'time bazel-bin/...'")
+    parser.add_argument("--use_clang", action="store_true", default=False, help="If true, compile testbench with clang")
 
     args = parser.parse_args()
     if (args.profiler is None):
