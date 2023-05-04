@@ -82,11 +82,11 @@ extern "C" {
     for (std::size_t i = 0; i < vstrb.size(); i++) {
         vstrb[i] = (strb[i/8] >> (i%8)) & 1;
     }
-    a->w(axi::w_t{
+    a->w(axi::w_t(
                 axi::data_t(data, data + a->data_width()/8),
                 vstrb,
                 last
-                }
+                )
         );
   }
 

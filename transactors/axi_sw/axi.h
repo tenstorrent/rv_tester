@@ -81,6 +81,7 @@ class axi : public transactor {
             strb_t strb;
             last_t last;
 
+            w_t(const data_t& data, const strb_t& strb, const last_t& last) : data(data), strb(strb), last(last) {}
             w_t(w_t&&) = default;
             w_t& operator=(w_t&&) = default;
             w_t(const w_t&) = delete;
@@ -93,6 +94,7 @@ class axi : public transactor {
             data_t data;
             last_t last;
 
+            r_t(const id_t& id, const resp_t& resp, const data_t& data, const last_t& last) : id(id), resp(resp), data(data), last(last) {}
             r_t() = default;
             r_t(r_t&&) = default;
             r_t& operator=(r_t&&) = default;

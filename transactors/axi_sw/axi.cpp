@@ -183,7 +183,7 @@ void axi::operator()() {
                             std::next(std::begin(read_data), data_bus_bytes - lower_byte_lane),
                             std::end(read_data)
                             );
-                    r_q_.enqueue(r_t{a.id, a.lock ? RESP_EXOKAY : RESP_OKAY, read_data, last});
+                    r_q_.enqueue(r_t(a.id, a.lock ? RESP_EXOKAY : RESP_OKAY, read_data, last));
                 }
             }
 
