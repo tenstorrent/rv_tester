@@ -232,7 +232,8 @@ whisperClientShm::receiveMessage(char* shm, WhisperMessage& msg)
   // reserve first byte for locking
   std::atomic_char* guard = (std::atomic_char*) shm;
   while (std::atomic_load_explicit(guard, std::memory_order_acquire) != 'c');
-  deserializeMessage(shm + 1, sizeof(msg), msg);
+  char* buffer = shm + (sizeof(uint32_t) - (reinterpret_cast<uintptr_t>(shm) % sizeof(uint32_t)));
+  deserializeMessage(buffer, sizeof(msg), msg);
   return true;
 }
 
@@ -243,7 +244,8 @@ whisperClientShm::sendMessage(char* shm, const WhisperMessage& msg)
   // reserve first byte for locking
   std::atomic_char* guard = (std::atomic_char*) shm;
   // while (std::atomic_load_explicit(guard, std::memory_order_acquire) != 'c');
-  serializeMessage(msg, shm + 1, sizeof(msg));
+  char* buffer = shm + (sizeof(uint32_t) - (reinterpret_cast<uintptr_t>(shm) % sizeof(uint32_t)));
+  serializeMessage(msg, buffer, sizeof(msg));
   std::atomic_store_explicit(guard, 's', std::memory_order_release);
   return true;
 }
