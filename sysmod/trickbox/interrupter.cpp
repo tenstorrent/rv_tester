@@ -8,12 +8,12 @@
  DEFINE_int32(max_simul_intr, 1, "Maximum simultanious interrupts driven in single example");
  DEFINE_int32(tbox_start_delay, 0, "delay after which random interrupts should start");
  DEFINE_string(intr_disable_mask,"0x00","Set bit in hex string to disable random generation of interrupt i.e. +intr_disable_mask=0x01 will disable interrupt corresponding to bit 0 ");
- DEFINE_bool(disable_swip,false,"Disable Random SW interrupt generation ");
- DEFINE_bool(disable_msip,false,"Disable Random MS interrupt generation ");
+ DEFINE_bool(disable_ssip,false,"Disable Random SSW interrupt generation ");
+ DEFINE_bool(disable_msip,false,"Disable Random MSW interrupt generation ");
  DEFINE_bool(disable_stip,false,"Disable Random ST interrupt generation ");
  DEFINE_bool(disable_mtip,false,"Disable Random MT interrupt generation ");
- DEFINE_bool(disable_sextip,false,"Disable Random S EXT interrupt generation ");
- DEFINE_bool(disable_mextip,false,"Disable Random M EXT interrupt generation ");
+ DEFINE_bool(disable_seip,false,"Disable Random S EXT interrupt generation ");
+ DEFINE_bool(disable_meip,false,"Disable Random M EXT interrupt generation ");
 interrupter::interrupter(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc)
   : device(tag, addr, 0x4000 /* size */, loc), hartCount_(hartCount), 
     timeCompare_(6),IntrHart_(6),delayedRandomIntValid_(6),IntrValue_(6), timerIntPrev_(hartCount), timer_(0)
