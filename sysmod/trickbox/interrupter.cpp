@@ -7,6 +7,7 @@
  DEFINE_int32(seed, 1, "Simulation seed passed down for randomization");
  DEFINE_int32(max_simul_intr, 1, "Maximum simultanious interrupts driven in single example");
  DEFINE_int32(tbox_start_delay, 0, "delay after which random interrupts should start");
+ DEFINE_string(intr_disable_mask,"0x00","Set bit in hex string to disable random generation of interrupt i.e. +intr_disable_mask=0x01 will disable interrupt corresponding to bit 0 ");
 interrupter::interrupter(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc)
   : device(tag, addr, 0x4000 /* size */, loc), hartCount_(hartCount), 
     timeCompare_(6),IntrHart_(6),delayedRandomIntValid_(6),IntrValue_(6), timerIntPrev_(hartCount), timer_(0)
