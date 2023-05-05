@@ -84,7 +84,7 @@ asan+ubsan:
         # Need to create subdirectory so that `bzsim regress` does not attempt to overwrite BUILD.bazel
         - mkdir -p testing
         - cd testing
-        - ../${BZSIM} regress ${BZSIM_OPTS} ../sw_testbench/testlists/sanitization.py --config clang --config asan+ubsan
+        - ../${BZSIM} regress ${BZSIM_OPTS} ../sw_testbench/testlists/sanitize.py --config asan+ubsan
     variables:
         << : *clone-variables
         << : *bzsim-variables
@@ -102,12 +102,12 @@ tsan:
         # Need to create subdirectory so that `bzsim regress` does not attempt to overwrite BUILD.bazel
         - mkdir -p testing
         - cd testing
-        - ../${BZSIM} regress ${BZSIM_OPTS} ../sw_testbench/testlists/sanitization.py --config clang --config tsan
+        - ../${BZSIM} regress ${BZSIM_OPTS} ../sw_testbench/testlists/sanitize.py --config tsan
     variables:
         << : *clone-variables
         << : *bzsim-variables
     timeout: 1h
-    
+
 valgrind:
     stage: build
     tags:
