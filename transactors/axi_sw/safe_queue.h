@@ -48,7 +48,7 @@ public:
     return val;
   }
 
-  // Get the "front"-element if not empty
+  // Pop the "front"-element if not empty
   std::pair<bool, T> try_dequeue(void)
   {
     std::unique_lock<std::mutex> lock(m);
@@ -59,6 +59,27 @@ public:
     T val = std::move(q.front());
     q.pop();
     return std::make_pair(std::move(true), std::move(val));
+  }
+
+  // Get the "front"-element if not empty
+  std::pair<bool, T> try_peek(void)
+  {
+    std::unique_lock<std::mutex> lock(m);
+    if(q.empty())
+    {
+        return std::make_pair(false, T());
+    }
+    return std::make_pair(true, q.front());
+  }
+
+  bool empty(void) {
+    std::unique_lock<std::mutex> lock(m);
+    return q.empty();
+  }
+
+  T& front(void) {
+    std::unique_lock<std::mutex> lock(m);
+    return q.front();
   }
 
 private:

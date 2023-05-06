@@ -91,10 +91,12 @@ void axi::atop_modify_write_data(const atop_t& atop, const data_t& read_data, da
 
 void axi::a(const a_t& p) {
     a_q_.enqueue(p);
+    if (synchronous) (*this)(!synchronous);
 }
 
 void axi::w(w_t&& p) {
     w_q_.enqueue(std::move(p));
+    if (synchronous) (*this)(!synchronous);
 }
 
 std::pair<bool, axi::r_t> axi::r(bool block) {
@@ -103,9 +105,27 @@ std::pair<bool, axi::r_t> axi::r(bool block) {
     return r_q_.try_dequeue();
 }
 
-void axi::operator()() {
+void axi::operator()(bool block) {
     while (1)  {
-        auto a = a_q_.dequeue();
+        a_t a;
+
+        if (block) {
+            a = a_q_.dequeue();
+        } else {
+            bool valid;
+            std::tie(valid, a) = a_q_.try_peek();
+            if (!valid) {
+                return;
+            }
+        }
+
+        if (a.w && !block && w_q_.empty()) {
+            return;
+        }
+
+        if(!block) {
+            a_q_.dequeue();
+        }
 
         addr_t num_bytes            = 1 << a.size;
         addr_t burst_len            = a.len + 1;
@@ -205,5 +225,5 @@ void axi::operator()() {
 }
 
 void axi::run() {
-    std::thread([&] () { (*this)(); } ).detach();
+    std::thread([&] () { (*this)(true); } ).detach();
 }

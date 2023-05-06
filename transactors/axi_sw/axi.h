@@ -53,9 +53,9 @@ class axi : public transactor {
         } atop_operation;
 
         struct atop_t {
-            const atop_transaction transaction;
-            const atop_operation   operation;
-            constexpr atop_t(std::uint8_t raw) :
+            atop_transaction transaction;
+            atop_operation   operation;
+            atop_t(std::uint8_t raw) :
                 transaction(
                         atop_transaction(
                             raw >> 4 == 3 ? 
@@ -82,6 +82,7 @@ class axi : public transactor {
             last_t last;
 
             w_t(const data_t& data, const strb_t& strb, const last_t& last) : data(data), strb(strb), last(last) {}
+            w_t() = default;
             w_t(w_t&&) = default;
             w_t& operator=(w_t&&) = default;
             w_t(const w_t&) = delete;
@@ -111,15 +112,17 @@ class axi : public transactor {
         SafeQueue<w_t> w_q_;
         SafeQueue<r_t> r_q_;
 
-        void operator()();
+        void operator()(bool block);
         void run();
         void atop_modify_write_data(const atop_t& atop, const data_t& read_data, data_t& write_data, const len_t& len);
+
+        bool synchronous = true;
 
     public:
 
         axi(const data_width_t& data_width, const cvm::topology::loc_t loc, const std::string& tag)
           : transactor(loc, tag), data_width_(data_width)
-        { run(); }
+        { if (!synchronous) run(); }
 
         axi(axi&&) = delete;
         axi& operator=(axi&&) = delete;
