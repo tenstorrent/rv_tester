@@ -41,4 +41,7 @@ class whisperClientSocket : public whisperClient {
     bool whisperCommand(const WhisperMessage& req, WhisperMessage& reply);
     int openArrayLength(const svOpenArrayHandle h, int d);
 
+    int whisperSoc = -1;
+    int socketFailCount = 0;
+    int socketFailCountLimit = 1000;
 };
