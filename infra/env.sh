@@ -21,7 +21,8 @@ if [[ $(uname -n) == "sc39pd01"  ]]; then
 fi
 
 export PATH=${PATH}:${VCS_HOME}/bin:${VERDI_HOME}/bin:${SPYGLASS_HOME}/bin:${VC_STATIC_HOME}/bin:${CDN_JG_HOME}/bin:${XCELIUM_HOME}/tools.lnx86/inca/bin/64bit:$XCELIUM_HOME/bin:${VXE_HOME}/bin:${IXCOM_HOME}/bin:${HDLICE_HOME}/bin:${LDVHOME}/tools/bin:$XCELIUM_HOME/bin:$XCELIUM_HOME/tools/bin
-export CC=${CC:-$(which gcc)}
+export CC=${CC:-$(which clang)}
+export CXX=${CXX:-$(which clang++)}
 export SNPS_SIM_DEFAULT_GUI=verdi
 export VERDI_ENHANCE_DYNAMIC_OBJECT=1
 export NOVAS_IDLE_LICENSE_CHECKBACK=60
