@@ -99,7 +99,7 @@ module cosim #(
     assign tx_dom_1.m_intrs[0].data.seip_negedge = (~interrupt.sei & interrupt_d1.sei);
     assign tx_dom_1.m_intrs[0].data.seip = interrupt.sei;
 
-    function bit [63:0] get_mip(rv_tester_pkg::interrupt_t intr);
+    function automatic bit [63:0] get_mip(rv_tester_pkg::interrupt_t intr);
       bit [63:0] mip = 'h0;
       mip[11] = intr.mei;
       mip[7]  = intr.mti;
