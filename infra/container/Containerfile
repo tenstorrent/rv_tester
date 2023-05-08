@@ -35,8 +35,7 @@ RUN yum --enablerepo=powertools -y install \
     emacs                                  \
     libXScrnSaver                          \
     numactl-libs                           \
-    boost                                  \
-    boost-devel                            \
+    boost1.78-devel                        \
     libpng12                               \
     hdf5-devel                             \
     ninja-build                            \
@@ -46,14 +45,18 @@ RUN yum --enablerepo=powertools -y install \
     libpng12                               \
     csh                                    \
     langpacks-en                           \
-    ncurses-compat-libs                    \
     perf                                   \
     gperftools                             \
-    postgresql-libs                        \
-    llvm-toolset
+    ncurses-compat-libs                    \
+    postgresql-libs
+
+RUN ln -s /usr/include/boost1.78/boost /usr/include
+RUN cd /usr/lib64 && find -maxdepth 1 -name "libboost_*.so.1.78.0" -type f -exec bash -c 'ln -s "$1" "${1%.1.78.0}"' bash {} \;
 
 RUN yum --enablerepo=powertools -y install \
-    gcc-toolset-11                         \
+    gcc-toolset-12                         \
+    llvm-toolset-14.0.6                    \
+    clang-tools-extra-14.0.6               \
     git
 
 RUN alternatives --set python $(which python2)
@@ -77,6 +80,7 @@ RUN python3 -m pip install pandas                                               
                            xmltodict                                                      \
                            bitstring                                                      \
                            zstd                                                           \
+                           aiofiles                                                       \
                            https://github.com/darshakk/banyan/archive/refs/heads/main.zip
 
 RUN curl -ssL https://downloads.mariadb.com/MariaDB/mariadb_repo_setup | bash;  \
@@ -112,7 +116,7 @@ FROM risc-p-cores/dev as risc-p-cores/verilator
 ARG VERILATOR_VERSION=4.228
 RUN yum -y install autoconf flex bison m4
 RUN curl -SsL https://github.com/verilator/verilator/archive/refs/tags/v${VERILATOR_VERSION}.tar.gz | tar xvz
-RUN cd verilator-${VERILATOR_VERSION} && scl enable gcc-toolset-11 -- bash -c 'autoconf && ./configure && make -j4 && make install' && cd .. && rm -rf verilator-${VERILATOR_VERSION}
+RUN cd verilator-${VERILATOR_VERSION} && scl enable gcc-toolset-12 -- bash -c 'autoconf && ./configure && make -j4 && make install' && cd .. && rm -rf verilator-${VERILATOR_VERSION}
 
 ARG BAZEL_BUILDFARM_VERSION=1.11.2
 
