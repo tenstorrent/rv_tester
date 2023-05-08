@@ -223,11 +223,12 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
       resynch(hart, d);
       cac_.resetStatus(hart);
     } else {
+      std::string instr = w.disasm.substr(0, w.disasm.find(' '));
       print_instr(hart, w);
       cvm::log(cvm::NONE, "<{}> Whisper Step #{}: [Hart={}, Mode={}, Tag={}, ChangeCount={}, PC={:#x}, Opcode={:#x}, Disasm={}]\n",
         w.time, cac_.getStep(hart), hart, w.priv_mode, w.tag, w.change_count, w.pc, w.opcode, w.disasm);
       cvm::log(cvm::NONE, "{}", cac_.getStatusStr(hart));
-      cvm::log(cvm::ERROR, "Error: Core Arch Checker Mismatch\n");
+      cvm::log(cvm::ERROR, "Error: Core Arch Checker Mismatch - {}\n", instr);
       return;
     }
   }
