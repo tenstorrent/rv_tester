@@ -2,11 +2,12 @@ from abc import ABC, abstractmethod
 import argparse
 import os
 import subprocess
+from typing import Optional
 
 class Command:
-    def __init__(self, arg_list: "list[str]", output_to_file: bool = False):
+    def __init__(self, arg_list: "list[str]", output_file_name: "Optional[str]" = None):
         self.arg_list = arg_list
-        self.output_to_file = output_to_file
+        self.output_file_name = output_file_name
 
     def __str__(self):
         return str(self.arg_list)
@@ -21,8 +22,6 @@ class Profiler(ABC):
         self.common_sim_opts = ["--bazel-build-opt=--compilation_mode=opt", "--debug"]
         if args.no_lsf:
             self.common_sim_opts.append("--no-lsf")
-        if args.use_clang:
-            self.common_sim_opts.append("--config=clang")
         self.common_plusargs = ["+nostandalone", ("+whisper_client=" + ("shm" if args.use_shm else "socket")), "+eot=max_instr", "+max_cycle={}".format(self.args.max_cycle), "+max_instr={}".format(self.args.max_cycle - 20)]
         if args.no_cosim:
             self.common_plusargs.append("+nocosim")
@@ -31,8 +30,6 @@ class Profiler(ABC):
         if args.linux_time:
             self.common_plusargs.append("+sim_wrap=time")
         self.profiler_cmds = []
-        # output file to be set by subclasses if desired
-        self.output_file = None
         
 
     # Colorful print to identify messages from this python script
@@ -45,10 +42,13 @@ class Profiler(ABC):
         self.setup()
         for cmd in self.profiler_cmds:
             self.print("Executing command: {}".format(cmd))
-            if cmd.output_to_file:
-                self.output_file.write("===== Command: {} =====".format(cmd))
-                self.output_file.flush()
-            subprocess.run(cmd.arg_list, stdout=(self.output_file if cmd.output_to_file else None))
+            output_file = None if cmd.output_file_name is None else open(cmd.output_file_name, "a")
+            if cmd.output_file_name is not None:
+                output_file.write("===== Command: {} =====\n".format(cmd))
+                output_file.flush()
+            subprocess.run(cmd.arg_list, stdout=output_file)
+            if cmd.output_file_name is not None:
+                output_file.close()
         self.teardown()
 
     # Prepares the profiler to be run(). This should involve appending to self.profiler_cmds
@@ -78,14 +78,16 @@ class Profiler(ABC):
         pass
 
 
+def default_output_file(p: Profiler):
+    return "{}-results.txt".format(p.name())
+
 class GprofProfiler(Profiler):
     def setup(self):
-        self.output_file = open("{}-results.txt".format(self.name()), "w")
         self.profiler_cmds.append(Command(arg_list=self.bzsim_run_cmd + ["--bazel-build-opt=--copt=-pg"] + self.common_sim_opts + ["--"] + self.common_plusargs))
-        self.profiler_cmds.append(Command(arg_list=self.container_run_cmd + ["gprof", os.path.join(self.rv_tester_path, "bazel-bin/sw_testbench/sw_testbench_verilator"), "gmon.out"], output_to_file=True))
+        self.profiler_cmds.append(Command(arg_list=self.container_run_cmd + ["gprof", os.path.join(self.rv_tester_path, "bazel-bin/sw_testbench/sw_testbench_verilator"), "gmon.out"], output_file_name=default_output_file()))
 
     def teardown(self):
-        self.print("See {} for the profiling results".format(self.output_file.name))
+        self.print("See {} for the profiling results".format(default_output_file()))
         self.output_file.close()
 
     @staticmethod
@@ -103,7 +105,7 @@ class GprofProfiler(Profiler):
 
 class PerfProfiler(Profiler):
     def setup(self):
-        self.profiler_cmds.append(Command(arg_list=self.bzsim_run_cmd + self.common_sim_opts + ["--"] + self.common_plusargs + ["+sim_wrap=perf", "+sim_wrap=record", "+sim_wrap=-o", "+sim_wrap=perf.data"]))
+        self.profiler_cmds.append(Command(arg_list=self.bzsim_run_cmd + self.common_sim_opts + ["--"] + self.common_plusargs + ["+sim_wrap=perf"] + ["+sim_wrap={}".format(cmd) for cmd in self.args.perf_cmd.split(" ")] + ["+sim_wrap=-o", "+sim_wrap=perf.data"]))
 
     def teardown(self):
         self.print('Run "{}" to analyze the output'.format(" ".join(self.container_run_cmd + ["perf", "report"])))
@@ -111,10 +113,15 @@ class PerfProfiler(Profiler):
     @staticmethod
     def name():
         return "perf"
+
+    @staticmethod
+    def description():
+        return "Linux perf profiler (https://perf.wiki.kernel.org/index.php/Main_Page)"
     
     @staticmethod
     def add_arguments(parser):
-        pass
+        parser.add_argument("--perf_cmd", type=str, default="record", help="Perf command used to collect info in perf.data (e.g. 'perf mem record -e')")
+
 
 # Dummy class to run the same testbench without any profiling overhead
 class NoProfiler(Profiler):
@@ -141,12 +148,11 @@ class GperftoolsProfiler(Profiler):
         self.output_file = open("{}-results.txt".format(self.name()), "w")
         timing_args = ["--container-run-opt=--env=CPUPROFILE_REALTIME=1", "--container-run-opt=--env=ITIMER_REAL=1"] if self.args.use_realtime else ["--container-run-opt=--env=CPUPROFILE_REALTIME=0"]
         self.profiler_cmds.append(Command(arg_list=self.bzsim_run_cmd + ["--container-run-opt=--env=CPUPROFILE_FREQUENCY=10000"] + timing_args + ["--container-run-opt=--env=CPUPROFILE=rv_tester.prof", "--bazel-build-opt=--linkopt=-Wl,-no-as-needed,-lprofiler"] + self.common_sim_opts + ["--"] + self.common_plusargs))
-        self.profiler_cmds.append(Command(arg_list=self.container_run_cmd + ["pprof", "--dot", os.path.join(self.rv_tester_path, "bazel-bin/sw_testbench/sw_testbench_verilator"), "rv_tester.prof"], output_to_file=True))
-        self.profiler_cmds.append(Command(arg_list=self.container_run_cmd + ["pprof", "--dot", os.path.join(self.rv_tester_path, "/proj_risc_regr/asc/a0/user_regr/{}/rv_tester/bazel_output_base/execroot/rv_tester/bazel-out/k8-opt/bin/external/whisper/whisper".format(os.environ.get("USER"))), "whisper.prof"], output_to_file=True))
+        self.profiler_cmds.append(Command(arg_list=self.container_run_cmd + ["pprof", "--dot", os.path.join(self.rv_tester_path, "bazel-bin/sw_testbench/sw_testbench_verilator"), "rv_tester.prof"], output_file_name="gperftools-cosim-results.txt"))
+        self.profiler_cmds.append(Command(arg_list=self.container_run_cmd + ["pprof", "--dot", os.path.join(self.rv_tester_path, "/proj_risc_regr/asc/a0/user_regr/{}/rv_tester/bazel_output_base/execroot/rv_tester/bazel-out/k8-opt/bin/external/whisper/whisper".format(os.environ.get("USER"))), "whisper.prof"], output_file_name="gperftools-whisper-results.txt"))
 
     def teardown(self):
-        self.print("See {} for the profiling results. The cosim call graph is above the whisper call graph. Use https://dreampuf.github.io/GraphvizOnline/ to visualize these graphs".format(self.output_file.name))
-        self.output_file.close()
+        self.print("See gperftools-cosim-results.txt and gperftools-whisper-results.txt for the profiling results. Use https://dreampuf.github.io/GraphvizOnline/ to visualize these graphs")
     
     @staticmethod
     def name():
@@ -200,7 +206,6 @@ def construct_profiler_using_args(rv_tester_path: str):
     parser.add_argument("--no_cosim", action="store_true", default=False, help="If true, run without cosim")
     parser.add_argument("--no_rvfi", action="store_true", default=False, help="If true, run without rvfi")
     parser.add_argument("--linux_time", action="store_true", default=False, help="If true, wrap profiler with call to 'time'. E.g. 'time bazel-bin/...'")
-    parser.add_argument("--use_clang", action="store_true", default=False, help="If true, compile testbench with clang")
 
     args = parser.parse_args()
     if (args.profiler is None):
