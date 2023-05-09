@@ -7,6 +7,19 @@ include:
 .bzsim-variables: &bzsim-variables
     REGRESSION: ""
 
+.notify-template: &notify-template
+    stage: notify
+    rules:
+        - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+        - if: $UPDATE_REPO_POINTER == "True"
+          when: never
+    variables:
+        UPDATE_REPO_POINTER: "True"
+        SKIP_BUILD: "True"
+        SHA_UPDATE_REPO: "rv_tester"
+        SHA_UPDATE_POINTER: $CI_COMMIT_SHA
+        GIT_STRATEGY: none
+
 .clone-script: &clone-script
     - mkdir -p $MY_CLONE_PATH
     - cd $MY_CLONE_PATH
@@ -29,6 +42,7 @@ include:
 
 stages:
     - build
+    - notify
 
 smoke:
     stage: build
@@ -47,3 +61,13 @@ smoke:
         << : *clone-variables
         << : *bzsim-variables
     timeout: 1h
+
+notify_risc_p_cores:
+    << : *notify-template
+    trigger:
+        project: riscv/risc-p-cores
+
+notify_chips:
+    << : *notify-template
+    trigger:
+        project: riscv/chips
