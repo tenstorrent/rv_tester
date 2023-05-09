@@ -82,6 +82,8 @@ protected:
   {
     for (unsigned i = 0; i < hartCount_; ++i) {
       bool flag = timer_ >= timeCompare_.at(i);
+      std::cout<<"\nflag value: 0x"<<std::hex<<flag;
+      std::cout<<"\ntimerInt Previous: 0x"<<std::hex<<timerIntPrev_.at(i);
       if (timerIntPrev_.at(i) != flag)
         timerInterrupt(i, flag);
       timerIntPrev_.at(i) = flag;
@@ -91,7 +93,9 @@ protected:
   // Used to assert/deassert a timer interrupt for given hart.
   virtual void timerInterrupt(unsigned hart, bool flag)
   {
+    std::cout<<"\nCalling Timer Interrupt (MTI)";
     cvm::registry::messenger.signal<timer_t>(loc(), timer_t{hart, flag});
+  
   }
 
   // Used to assert/deassert a software interrupt (IPI) for given hart.

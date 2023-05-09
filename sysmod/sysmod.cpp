@@ -62,6 +62,7 @@ sysmod::~sysmod()
 // forwarding functions for devices
 void
 sysmod::timer_interrupt(clint::timer_t t) {
+      std::cout<<"\nEnter Sysmod timer interrupt";
       cvm::registry::callbacks.push(
         scope(),
         [t]() {

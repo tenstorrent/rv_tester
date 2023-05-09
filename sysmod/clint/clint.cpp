@@ -107,9 +107,15 @@ clint::write(uint64_t addr, size_t length, const data_t& data,
     softwareInterrupt(hartIx, word & 1);
   }
 
+  std::cout<<"\nlength before loop: 0x"<<std::hex<<length;
   if (length == 8) {
     offset -= 0x4000;
-
+  std::cout<<"\nlength before loop: 0x"<<std::hex<<length;
+  //std::cout<<"\ndata before loop: 0x"<<std::hex<<data;
+  std::cout<<"\ntime before loop: 0x"<<std::hex<<timer_;
+  std::cout<<"\noffset before loop: 0x"<<std::hex<<offset;
+  //std::cout<<"\nhartIx: 0x"<<std::hex<<hartIx;
+  std::cout<<"\nhartCount: 0x"<<std::hex<<hartCount_; 
     if (offset == 0x7ff8)
       deserializeInt(data, timer_);
     else {
@@ -121,6 +127,12 @@ clint::write(uint64_t addr, size_t length, const data_t& data,
       uint64_t dword = 0;
       deserializeInt(data, dword);
       timeCompare_.at(hartIx) = dword;
+  std::cout<<"\nlength after loop: 0x"<<std::hex<<length;
+  std::cout<<"\ndata after loop: 0x"<<std::hex<<dword;
+  std::cout<<"\ntime after loop: 0x"<<std::hex<<timer_;
+  std::cout<<"\noffset after loop: 0x"<<std::hex<<offset;
+  std::cout<<"\nhartIx: 0x"<<std::hex<<hartIx;
+  std::cout<<"\nhartCount: 0x"<<std::hex<<hartCount_;
     }
 
     processTimerInterrupts();
