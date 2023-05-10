@@ -1,18 +1,9 @@
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
-load("@cvm//:defs.bzl", "packet_gen")
 
-def cosim_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
+def cosim_gen(name, packet, topology, visibility = None, cc_attrs = {}, **kwargs):
 
     cosim_dpi = name + "_dpi"
     cosim_sv = name + "_sv"
-
-    packet_gen(
-        name = name + "_transactions",
-        src = "@rv_tester//cosim/transactions:transactions.yml",
-        package = "cosim_transactions",
-        topology = topology,
-        cc_attrs = cc_attrs,
-    )
 
     native.cc_library(
         name = name + "_rvfi",
@@ -25,16 +16,16 @@ def cosim_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             "@rv_tester//cosim/utils/eot:eot.h",
         ],
         deps = [
-                name + "_transactions_cc",
-                "@rv_tester//sysmod/htif:htif",
-                "@rv_tester//cosim/bridge_if:bridge_if",
-                "@rv_tester//cosim/bridge:bridge",
-                "@rv_tester//cosim/utils/bot:bot",
-                "@cvm//:plusargs",
-                "@cvm//:logger",
-                "@cvm//:bitmanip",
-                "@cvm//:registry",
-               ],
+            packet + "_cc",
+            "@rv_tester//sysmod/htif:htif",
+            "@rv_tester//cosim/bridge_if:bridge_if",
+            "@rv_tester//cosim/bridge:bridge",
+            "@rv_tester//cosim/utils/bot:bot",
+            "@cvm//:plusargs",
+            "@cvm//:logger",
+            "@cvm//:bitmanip",
+            "@cvm//:registry",
+         ],
         alwayslink = True,
         visibility = visibility,
     )
@@ -43,21 +34,22 @@ def cosim_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
         name = cosim_sv,
         srcs = ["@rv_tester//cosim:cosim.sv"],
         deps = [
-                "@rv_tester//:defines",
-                "@cvm//:plusargs_sv",
-                "@cvm//:topology_sv",
-                name + "_transactions_sv",
-               ],
+            "@rv_tester//:defines",
+            "@cvm//:plusargs_sv",
+            "@cvm//:topology_sv",
+            packet + "_sv",
+            topology + "_sv",
+         ],
         visibility = visibility,
     )
 
     native.cc_library(
         name = cosim_dpi,
         deps = [
-                name + "_rvfi",
-                "@cvm//:plusargs",
-                name + "_transactions_cc"
-               ],
+            name + "_rvfi",
+            "@cvm//:plusargs",
+            packet + "_cc",
+         ],
         alwayslink = True,
         visibility = visibility,
     )

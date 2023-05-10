@@ -1,9 +1,19 @@
 rv_tester: &rv_tester
   platform:
     count: 1
-    type: platform
-    clint:
-        count: 1
-        type: clint
-        attrs:
-            clock_divisor: 100
+    type:
+      - platform
+    sysmod:
+      count: 1
+      type:
+        - sysmod
+      clint:
+          count: 1
+          type:
+            - clint
+          attrs:
+              clock_divisor: 100
+    cosim:
+      count: 1
+      type:
+        - cosim

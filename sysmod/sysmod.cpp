@@ -19,7 +19,7 @@ DEFINE_string(load, "", "elf file (program) to load into memory");
 DEFINE_string(load_io, "", "load specified io dev with content from memory");
 DEFINE_bool(sysmod_tick_async, true, "Asynchronous sysmod_tick calls");
 
-REGISTRY_register(sysmod, PLATFORM, 0);
+REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 
 extern "C" {
   void sysmod_timer_interrupt(unsigned hartid, unsigned val);
@@ -32,25 +32,29 @@ extern "C" {
 sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
   : scope_(nullptr), loc_(loc), id_(id)
 {
-  cvm::registry::messenger.connect<scope_t>(
+  cvm::registry::messenger.connect<svScope>(
       loc_,
-      [&](scope_t s) { return this->set_scope(s.scope); });
+      [&](svScope s) { return this->set_scope(s); });
 
-  cvm::registry::messenger.connect<tick_t>(
+  cvm::registry::messenger.connect<rv_tester_transactions::tick>(
       loc_,
-      [&](tick_t t) { return this->tick(t.advance); });
+      [&](const rv_tester_transactions::tick& t) { return this->tick(t.advance); });
 
-  cvm::registry::messenger.connect<transactor::write_t>(
-      loc_,
-      [&](transactor::write_t w) {
-        return this->write(w.addr, w.length, w.data, w.strb);
-      });
+  auto sources = cvm::topology::get_from_type("PLATFORM_TRANSACTOR");
 
-  cvm::registry::messenger.connect<transactor::read_t>(
-      loc_,
-      [&](transactor::read_t r) {
-        return this->read(r.addr, r.length, r.data);
-      });
+  for (const auto& source : sources) {
+    cvm::registry::messenger.connect<transactor::write_t>(
+        source,
+        [&](transactor::write_t w) {
+          return this->write(w.addr, w.length, w.data, w.strb);
+        });
+
+    cvm::registry::messenger.connect<transactor::read_t>(
+        source,
+        [&](transactor::read_t r) {
+          return this->read(r.addr, r.length, r.data);
+        });
+  }
 
   reset();
 }
@@ -291,20 +295,8 @@ extern "C" {
   void sysmod_set_scope(cvm::topology::loc_t loc) {
     typedef sysmod sm;
     svScope scope = svGetScope();
-    cvm::registry::messenger.signal<sm::scope_t>(
+    cvm::registry::messenger.signal<svScope>(
         loc,
-        sm::scope_t{scope});
-  }
-
-  void sysmod_tick(cvm::topology::loc_t loc, uint64_t new_clock) {
-    typedef sysmod sm;
-    cvm::registry::messenger.signal<sm::tick_t>(
-        loc,
-        sm::tick_t{new_clock});
-  }
-
-  int sysmod_tick_with_return(cvm::topology::loc_t loc, uint64_t new_clock) {
-    sysmod_tick(loc, new_clock);
-    return 0;
+        scope);
   }
 }

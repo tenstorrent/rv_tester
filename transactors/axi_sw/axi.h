@@ -58,7 +58,7 @@ class axi : public transactor {
             atop_t(std::uint8_t raw) :
                 transaction(
                         atop_transaction(
-                            raw >> 4 == 3 ? 
+                            raw >> 4 == 3 ?
                             ((raw >> 4) + (raw & 1)) :
                             raw >> 4
                         )),
@@ -99,7 +99,7 @@ class axi : public transactor {
             r_t() = default;
             r_t(r_t&&) = default;
             r_t& operator=(r_t&&) = default;
-            r_t(const r_t&) = delete;
+            r_t(const r_t&) = default;
             r_t& operator=(const r_t&) = delete;
         };
 

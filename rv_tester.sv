@@ -3,8 +3,7 @@ module rv_tester #(
     parameter bit EXTERNAL_CLOCK            =       0,
     parameter int CLOCK_PERIOD_PS           =     500,
     parameter int SW_CLOCK_UPDATE_PERIOD_PS = 100_000,
-    `TOPOLOGY,
-    `RV_TESTER_PARAMETERS(topology)
+    `TOPOLOGY
 ) (
     input clk_ext,
     `_RV_TESTER_PORTS(output,input)
@@ -21,7 +20,8 @@ module rv_tester #(
     import "DPI-C" context function void rv_tester_parse_flags(); // context forces zebu to serialize this call. this needs to happen at the start of the test before other DPIs.
     import "DPI-C" context function void rv_tester_cvm_error_handler();
     import "DPI-C" function void rv_tester_parse_memmap();
-    import "DPI-C" function void rv_tester_reset_registry();
+    import "DPI-C" function void rv_tester_build_registry();
+    import "DPI-C" function void rv_tester_shutdown_registry();
     import "DPI-C" context function bit rv_tester_flush_callbacks();
 
     logic rv_tester_reset = '1;
@@ -51,7 +51,7 @@ module rv_tester #(
             rv_tester_cvm_error_handler();
             rv_tester_parse_memmap();
             $display("[RVTESTER]: reconstructing registry");
-            rv_tester_reset_registry();
+            rv_tester_build_registry();
             clocks <= 0;
             sysmod_reset <= '1;
             quiesce_counter <= '0;
@@ -61,43 +61,43 @@ module rv_tester #(
             cb_poll <= cvm_plusargs::get_bool("cb_async") == '0;
             quiesce_timeout <= cvm_plusargs::get_int("quiesce_timeout");
             call_finish <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
+            rv_tester_error_terminate.terminate = '0;
             /* verilator lint_on BLKSEQ */
         end
 
-        /* this should go before terminate evaluation */
         if (cb_poll) begin
             /* verilator lint_off BLKSEQ */
             cb_success = rv_tester_flush_callbacks();
             /* verilator lint_on BLKSEQ */
         end
 
-        if (cb_success) begin
-          /* verilator lint_off BLKSEQ */
-          ready_to_terminate = rv_tester_error_terminate.terminate || sysmod_terminate.terminate;
-          /* verilator lint_on BLKSEQ */
+        /* verilator lint_off BLKSEQ */
+        ready_to_terminate = rv_tester_error_terminate.terminate || sysmod_terminate.terminate;
+        /* verilator lint_on BLKSEQ */
 
-          if (ready_to_terminate || quiesce_counter > 0) begin
-            quiesce_counter <= quiesce_counter + 1;
-            if (quiesced || quiesce_counter >= quiesce_timeout) begin
+        if (ready_to_terminate || quiesce_counter > 0) begin
+          quiesce_counter <= quiesce_counter + 1;
+          if (quiesced || quiesce_counter >= quiesce_timeout) begin
 
-              if (quiesced) begin
-                $display("<%0d> [RVTESTER]: exiting gracefully", clocks);
-              end else if (quiesce_counter == 0) begin
-                $display("<%0d> [RVTESTER]: exiting immediately because +quiesce_counter=0", clocks);
-              end else begin
-                $display("<%0d> Error: Waiting to quiesce for more than %0d cycles", clocks, quiesce_timeout);
-              end
-
-              if (call_finish) begin
-                  $finish();
-              end
-              terminated <= 1;
+            if (quiesced) begin
+              $display("<%0d> [RVTESTER]: exiting gracefully", clocks);
+            end else if (quiesce_counter == 0) begin
+              $display("<%0d> [RVTESTER]: exiting immediately because +quiesce_counter=0", clocks);
+            end else begin
+              $display("<%0d> Error: Waiting to quiesce for more than %0d cycles", clocks, quiesce_timeout);
             end
+
+            rv_tester_shutdown_registry();
+
+            if (call_finish) begin
+                $finish();
+            end
+            terminated <= 1;
           end
         end
-        /* verilator lint_off BLKSEQ */
-        rv_tester_error_terminate.terminate = '0;
-        /* verilator lint_on BLKSEQ */
+        /* verilator lint_off BLKANDNBLK */
+        rv_tester_error_terminate.terminate <= '0;
+        /* verilator lint_on BLKANDNBLK */
     end
     assign reset = clocks < LU'(RESET_CLOCKS) || rv_tester_reset || sysmod_reset;
 
@@ -105,6 +105,8 @@ module rv_tester #(
       rv_tester_error_terminate.terminate = '1;
     endfunction
     export "DPI-C" function rv_tester_terminate;
+
+    `RV_TESTER_TRANSACTIONS_DOMAIN(1, clk);
 
     sysmod#(
         .CLOCK_PERIOD_PS(CLOCK_PERIOD_PS),
@@ -118,7 +120,8 @@ module rv_tester #(
         .bootstrap,
         .dmi_write,
         .interrupt,
-        .terminate(sysmod_terminate)
+        .terminate(sysmod_terminate),
+        `RV_TESTER_TRANSACTIONS_SOURCE_SYSMOD(1, 0)
     );
 
     // coverage
@@ -135,16 +138,19 @@ module rv_tester #(
         .rvfi(rvfi_instr),
         .mcmi_store(mcmi_store),
         .interrupt,
-        .debug_mode
+        .debug_mode,
+        `RV_TESTER_TRANSACTIONS_SOURCE_COSIM(1, 0)
     );
 `endif
 
-    for (genvar p = 0; p < topology.TOP.CLUSTER.CORE.AXI_PORTS; p++) begin
+    for (genvar p = 0; p < topology.TOP.CLUSTER.CORE.AXI.TOTAL; p++) begin
         axi_sw #(
-            .ADDR_WIDTH(topology.TOP.CLUSTER.CORE.AXI_ADDR_WIDTH),
-            .DATA_WIDTH(topology.TOP.CLUSTER.CORE.AXI_DATA_WIDTH),
-            .ID_WIDTH  (topology.TOP.CLUSTER.CORE.AXI_ID_WIDTH  ),
-            .SYSMOD_NUM(0)
+            .ADDR_WIDTH(topology.TOP.CLUSTER.CORE.AXI.ADDR_WIDTH),
+            .DATA_WIDTH(topology.TOP.CLUSTER.CORE.AXI.DATA_WIDTH),
+            .ID_WIDTH  (topology.TOP.CLUSTER.CORE.AXI.ID_WIDTH  ),
+            .STRB_WIDTH(topology.TOP.CLUSTER.CORE.AXI.STRB_WIDTH),
+            .TOPO_ID   (topology.TOP.CLUSTER.CORE.AXI.ID),
+            .NUM       (p)
         ) axi_sw(
             .clk,
             .reset_n(~reset),
@@ -186,7 +192,8 @@ module rv_tester #(
 
             .axi_slv_aw_ready(axi_rsp[p].aw_ready),
             .axi_slv_ar_ready(axi_rsp[p].ar_ready),
-            .axi_slv_w_ready (axi_rsp[p].w_ready)
+            .axi_slv_w_ready (axi_rsp[p].w_ready),
+            `RV_TESTER_TRANSACTIONS_SOURCE_AXI_SW(1, p)
         );
     end
 

@@ -14,6 +14,8 @@
 //#include "SimJTAG.cc"
 #include <string>
 
+#include "rv_tester_transactions.hpp"
+
 class sysmod {
 
   public:
@@ -27,14 +29,6 @@ class sysmod {
 
     void write(uint64_t addr, size_t length, const device::data_t& data, const device::strb_t& strb);
     void read(uint64_t addr, size_t length, device::data_t& data);
-
-    struct scope_t {
-      svScope scope;
-    };
-
-    struct tick_t {
-      uint64_t advance;
-    };
 
     void set_scope(svScope s) { scope_ = s; }
     void tick(uint64_t advance);
@@ -53,6 +47,8 @@ class sysmod {
   private:
 
     void reset();
+
+    void process(const rv_tester_transactions::tick& tick);
 
     svScope scope() { return scope_; }
     unsigned id() { return id_; }

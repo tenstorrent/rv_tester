@@ -27,7 +27,7 @@ void eot::get_tohost_addr() {
 
 }
 
-void eot::process(const cosim_transactions::m_rvfi& m_rvfi) {
+void eot::process(const rv_tester_transactions::m_rvfi& m_rvfi) {
 
   instr_count_++;
 
@@ -37,7 +37,7 @@ void eot::process(const cosim_transactions::m_rvfi& m_rvfi) {
       cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", m_rvfi.cycle);
       cvm::log(cvm::NONE, "<{}> Stop condition detected: +eot=max_instr +max_instr={}\n", m_rvfi.cycle, FLAGS_max_instr);
       cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", m_rvfi.cycle);
-      auto location = cvm::topology::get("TOP.PLATFORM", 0);
+      auto location = cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0);
       cvm::registry::messenger.signal<htif::terminate_t>(location, htif::terminate_t{FLAGS_terminate_call_finish});
       auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
       std::cout << "end time: " << std::ctime(&now) << std::endl;
@@ -51,7 +51,7 @@ void eot::process(const cosim_transactions::m_rvfi& m_rvfi) {
   }
 }
 
-void eot::process(const cosim_transactions::m_mcmi_store& m_mcmi_store) {
+void eot::process(const rv_tester_transactions::m_mcmi_store& m_mcmi_store) {
 
   if (tohost_addr_ != m_mcmi_store.addr)
     return;
@@ -69,7 +69,7 @@ void eot::process(const cosim_transactions::m_mcmi_store& m_mcmi_store) {
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
     cvm::log(cvm::NONE, "<{}> Pass condition detected - tohost[0]=1, tohost[47:1]=0\n", cycle);
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
-    auto location = cvm::topology::get("TOP.PLATFORM", 0);
+    auto location = cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0);
     cvm::registry::messenger.signal<htif::terminate_t>(location, htif::terminate_t{FLAGS_terminate_call_finish});
   } else {
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);

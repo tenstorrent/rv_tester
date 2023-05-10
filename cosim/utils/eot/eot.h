@@ -8,7 +8,7 @@
 #include "cvm/registry.hpp"
 #include "cvm/callbacks.hpp"
 #include "cvm/topology.hpp"
-#include "cosim_transactions.hpp"
+#include "rv_tester_transactions.hpp"
 
 #include "util.h"
 
@@ -36,16 +36,16 @@ class eot {
       get_tohost_addr();
 
       connect<
-        cosim_transactions::m_rvfi,
-        cosim_transactions::m_mcmi_store
+        rv_tester_transactions::m_rvfi,
+        rv_tester_transactions::m_mcmi_store
       >(loc);
     }
 
   private:
 
     void get_tohost_addr();
-    void process(const cosim_transactions::m_rvfi& m_rvfi);
-    void process(const cosim_transactions::m_mcmi_store& m_mcmi_store);
+    void process(const rv_tester_transactions::m_rvfi& m_rvfi);
+    void process(const rv_tester_transactions::m_mcmi_store& m_mcmi_store);
 
   private:
 
