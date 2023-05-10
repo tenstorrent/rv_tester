@@ -55,6 +55,7 @@ RUN cd /usr/lib64 && find -maxdepth 1 -name "libboost_*.so.1.78.0" -type f -exec
 
 RUN yum --enablerepo=powertools -y install \
     gcc-toolset-12                         \
+    gcc-toolset-11-valgrind                \
     llvm-toolset-14.0.6                    \
     clang-tools-extra-14.0.6               \
     git
