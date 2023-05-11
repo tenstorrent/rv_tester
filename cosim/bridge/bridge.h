@@ -16,6 +16,7 @@
 
 #include "whisper_client_socket.h"
 #include "whisper_client_shm.h"
+#include "whisper_client_lib.h"
 
 class bridge : public bridge_base {
 

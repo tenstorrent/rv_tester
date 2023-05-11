@@ -44,7 +44,7 @@ DEFINE_bool(whisper_stdout_null, false, "Redirect whisoer stdout to null");
 DEFINE_bool(whisper_clint, false, "Set clint addr in whisper command");
 DEFINE_bool(whisper_tohost, true, "Set tohost addr in whisper command");
 DEFINE_bool(whisper_fromhost, true, "Set fromhost addr in whisper command");
-DEFINE_string(whisper_client, "socket", "Select whisper client to communicate - socket, or shm (shared mem)");
+DEFINE_string(whisper_client, "socket", "Select whisper client to communicate - socket, shm (shared mem), or library");
 DEFINE_int32(whisper_connect_timeout_ms, 10000, "Set whisper connect timeout in milliseconds");
 
 // Constructor
@@ -86,12 +86,18 @@ bool bridge::whisper_connect(std::string cmd, int timeout) {
       archcov.reset();
     }
 
-    if (client_->whisperConnect("whisper_connect") >= 0) {
-      cvm::log(cvm::NONE, "Whisper connect succeeded in {} ms.", duration);
+    int result;
+    if (FLAGS_whisper_client == "lib")
+      result = client_->whisperConnect(FLAGS_whisper_json_path.c_str());
+    else
+      result = client_->whisperConnect("whisper_connect");
+
+    if (result >= 0) {
+      cvm::log(cvm::NONE, "Whisper connect succeeded in {} ms.\n", duration);
       return true;
     }
     else if (duration > timeout) {
-      cvm::log(cvm::ERROR, "Error: Whisper connect failed. Stopping after {} ms.", duration);
+      cvm::log(cvm::ERROR, "Error: Whisper connect failed. Stopping after {} ms.\n", duration);
       return false;
     }
     std::this_thread::sleep_for (std::chrono::milliseconds(20));
@@ -109,6 +115,12 @@ void bridge::reset() {
     client_ = std::make_unique<whisperClientSocket>();
   } else if (FLAGS_whisper_client == "shm") {
     client_ = std::make_unique<whisperClientShm>();
+  }
+    else if (FLAGS_whisper_client == "lib") {
+    // TODO: close these
+    FILE* traceFile = fopen("iss_cosim.log", "w");
+    FILE* commandLog = fopen("iss_cmd.log", "w");
+    client_ = std::make_unique<whisperClientLib<uint64_t>>(traceFile, commandLog, FLAGS_load);
   } else {
     cvm::log(cvm::ERROR, "Error: Invalid option passed for +whisper_client. Should be one of - socket, shm.");
     return;
@@ -158,6 +170,9 @@ std::string bridge::get_whisper_cmd() {
     size_t raw_pos = cmd.find("--raw");
     cmd.insert(raw_pos, cov_cmd);
   }
+
+  if (FLAGS_whisper_client == "lib")
+    cmd = "echo 'using whisper library'";
 
   return cmd;
 }
@@ -815,7 +830,7 @@ void bridge::translation_check(hart_id_t hart, const rv_instr_t& d, whisper_stat
 void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
   if (i.mip_posedge) {
     log(cvm::MEDIUM, "<{}> Interrupt pin(s) asserted. MipEncodedValue: {:#x}\n", i.cycle, i.mip);
-    is_intr_pend_[hart] = true; 
+    is_intr_pend_[hart] = true;
     pend_intr_[hart] = i.mip;
     pend_intr_count_[hart] = 0;
   } else {
@@ -848,7 +863,7 @@ void bridge::check_interrupt(hart_id_t hart) {
   }
 
   if (pend_intr_count_[hart] > FLAGS_pend_intr_threshold) {
-    cvm::log(cvm::ERROR, "Error: Hart {}: Interrupt kept pending for pend_intr_threshold({}) instructions\n", 
+    cvm::log(cvm::ERROR, "Error: Hart {}: Interrupt kept pending for pend_intr_threshold({}) instructions\n",
       hart, FLAGS_pend_intr_threshold);
     return;
   }
@@ -861,7 +876,7 @@ void bridge::poke_pend_interrupt(hart_id_t hart) {
     is_intr_pend_[hart] = false;
     pend_intr_count_[hart] = 0;
   }
-  
+
   if (is_seip_pend_[hart]) {
     poke_seip(hart, true);
     is_seip_pend_[hart] = false;

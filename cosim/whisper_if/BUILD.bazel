@@ -1,18 +1,20 @@
 cc_library(
     name     = "whisper_if",
     hdrs     = [
-                "whisper_client.h",
-                "whisper_client_socket.h",
-                "whisper_client_shm.h",
-                "WhisperMessage.h"
-               ],
+        "whisper_client.h",
+        "whisper_client_socket.h",
+        "whisper_client_shm.h",
+        "whisper_client_lib.h",
+    ],
     srcs     = [
-                "whisper_client_socket.cpp",
-                "whisper_client_shm.cpp"
-               ],
+        "whisper_client_socket.cpp",
+        "whisper_client_shm.cpp",
+        "whisper_client_lib.cpp",
+    ],
     deps     = [
-                "//common:common",
-               ],
+        "//common:common",
+        "@whisper//:rvcore",
+    ],
     alwayslink = True,
     linkopts = ["-lrt"],
     visibility = ["//visibility:public"],
