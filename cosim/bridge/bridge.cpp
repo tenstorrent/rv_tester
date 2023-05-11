@@ -833,7 +833,8 @@ void bridge::check_interrupt(hart_id_t hart) {
     return;
 
   bool should_be_taken;
-  if (!client_->whisperCheckInterrupt(hart, pend_intr_[hart], should_be_taken)) {
+  uint64_t eff_mip = pend_intr_[hart] | ((uint64_t)is_seip_pend_[hart] << 9);
+  if (!client_->whisperCheckInterrupt(hart, eff_mip, should_be_taken)) {
     cvm::log(cvm::ERROR, "Error: Failed whisper API call - whisperCheckInterrupt\n");
     return;
   }
@@ -860,7 +861,7 @@ void bridge::poke_pend_interrupt(hart_id_t hart) {
   if (is_seip_pend_[hart]) {
     poke_seip(hart, true);
     is_seip_pend_[hart] = false;
-    pend_seip_count_[hart] = 0;
+    pend_intr_count_[hart] = 0;
   }
 }
 

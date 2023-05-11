@@ -144,7 +144,6 @@ private:
   std::array<uint64_t, max_harts> pend_intr_{};
   std::array<uint32_t, max_harts> pend_intr_count_{};
   std::array<bool, max_harts> is_seip_pend_{};
-  std::array<bool, max_harts> pend_seip_count_{};
 
   // Memmap
   memmap::memmap_t memmap_;
