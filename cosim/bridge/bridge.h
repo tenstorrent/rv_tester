@@ -133,6 +133,8 @@ private:
   // Create a copy of whisper instr in similar format as dut
   rv_instr_t w_;
 
+  std::array<uint32_t, max_harts> step_{};
+
   // State variables
   bool ecall_ = false;
   bool debug_mode_ = false;
