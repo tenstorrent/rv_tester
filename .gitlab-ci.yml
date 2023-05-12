@@ -10,9 +10,9 @@ include:
 .notify-template: &notify-template
     stage: notify
     rules:
-        - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-        - if: $UPDATE_REPO_POINTER == "True"
+        - if: '$CI_PIPELINE_SOURCE == "pipeline"'
           when: never
+        - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     variables:
         UPDATE_REPO_POINTER: "True"
         SKIP_BUILD: "True"
