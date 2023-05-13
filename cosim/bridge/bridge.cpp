@@ -13,6 +13,7 @@
 #include <chrono>           // std::chrono::seconds
 #include <cstdlib>          // system
 #include <vector>
+#include <fmt/format.h>
 
 // Plusargs
 DECLARE_string(load);
@@ -218,7 +219,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   // Resynch whisper with dut state if needed
   // to continue without failing
   if (does_instr_match_resynch_list(w) ||
-      does_prev_instr_match_resynch_list(pw_) ||
+      does_prev_instr_match_resynch_list(pw_[hart]) ||
       does_instr_match_resynch_condition(d, w)) {
     resynch(hart, d);
     cac_.resetStatus(hart);
@@ -230,7 +231,8 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   }
 
   // Save whisper state
-  pw_ = w;
+  ppw_[hart] = pw_[hart];
+  pw_[hart] = w;
 
   // Error on mismatch
   if (!cac_.getStatus(hart)) {
@@ -455,22 +457,6 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
       w_.mem_write.data = w.value;
     }
   }
-
-  // Collect metrics
-  if (w.resource == 'r' || w.resource == 'f' || w.resource == 'c' || w.resource == 'm') {
-    metrics_[hart]["dest"] = std::string(1, static_cast<char>(w.resource));
-    std::stringstream ss_a, ss_d;
-    ss_a << std::hex << "0x" << w.address;
-    std::string hex_addr(ss_a.str());
-    metrics_[hart]["dest_addr"] = hex_addr;
-    ss_d << std::hex << "0x" << w.value;
-    std::string hex_data(ss_d.str());
-    metrics_[hart]["dest_data"] = hex_data;
-  } else {
-    metrics_[hart]["dest"] = "none";
-    metrics_[hart]["dest_addr"] = "none";
-    metrics_[hart]["dest_data"] = "none";
-  }
 }
 
 // Print functions
@@ -495,26 +481,6 @@ void bridge::step(hart_id_t hart, whisper_state_t& w) {
   if (FLAGS_cosim_tracer) {
     print_instr(hart, w);
   }
-
-  // Collect instruction related metrics
-  metrics_[hart]["num_instructions"] = std::to_string(step_[hart]);
-  metrics_[hart]["num_cycles"] = std::to_string(w.time);
-
-  double ipc = static_cast<double>(step_[hart]) / static_cast<double>(w.time);
-  std::stringstream ss;
-  ss << std::fixed << std::setprecision(2) << ipc;
-  std::string ipc_str = ss.str();
-  metrics_[hart]["ipc"] = ipc_str;
-
-  metrics_[hart]["instr"] = w.disasm;
-  metrics_[hart]["mode"] = std::to_string(w.priv_mode);
-  metrics_[hart]["trap"] = std::to_string(w.trap);
-  metrics_[hart]["num_dest"] = std::to_string(w.change_count);
-
-  metrics_[hart]["prev_instr"] = pw_.disasm;
-  metrics_[hart]["prev_mode"] = std::to_string(pw_.priv_mode);
-  metrics_[hart]["prev_trap"] = std::to_string(pw_.trap);
-  metrics_[hart]["prev_num_dest"] = std::to_string(pw_.change_count);
 }
 
 // Push DUT register state to cac
@@ -760,7 +726,6 @@ void bridge::process_dut_mb_insert(hart_id_t hart, mem_t& m) {
 
   // Collect metrics
   num_stores_++;
-  metrics_[hart]["num_stores"] = std::to_string(num_stores_);
 }
 
 // Process mem accesses - store drains
@@ -940,20 +905,38 @@ void bridge::report_metrics() {
   cvm::log(cvm::NONE, "[COSIM] Report metrics...\n");
 
   for (int h = 0; h < num_harts_; h++) {
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_instructions\": {}}}\n", h, metrics_[h]["num_instructions"]);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_cycles\": {}}}\n", h, metrics_[h]["num_cycles"]);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_ipc\": {}}}\n", h, metrics_[h]["ipc"]);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_instr\": \"{}\"}}\n", h, metrics_[h]["instr"]);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_mode\": {}}}\n", h, metrics_[h]["mode"]);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_trap\": {}}}\n", h, metrics_[h]["trap"]);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_dest\": {}}}\n", h, metrics_[h]["num_dest"]);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dest\": \"{}\"}}\n", h, metrics_[h]["dest"]);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dest_addr\": \"{}\"}}\n", h, metrics_[h]["dest_addr"]);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dest_data\": \"{}\"}}\n", h, metrics_[h]["dest_data"]);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_instr\": \"{}\"}}\n", h, metrics_[h]["prev_instr"]);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_mode\": {}}}\n", h, metrics_[h]["prev_mode"]);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_trap\": {}}}\n", h, metrics_[h]["prev_trap"]);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_num_dest\": {}}}\n", h, metrics_[h]["prev_num_dest"]);
+    const auto& prev_whisp_state = pw_[h];
+    const auto& prev_prev_whisp_state = ppw_[h];
+    const int num_instructions = cac_.getStep(h);
+    const auto& num_cycles = prev_whisp_state.time;
+    const double ipc = static_cast<double>(num_instructions) / static_cast<double>(num_cycles);
+    const auto& instr = prev_whisp_state.disasm;
+    const auto& mode = prev_whisp_state.priv_mode;
+    const auto& trap = prev_whisp_state.trap;
+    const auto& num_dest = prev_whisp_state.change_count;
+    bool rfcm = (prev_whisp_state.resource == 'r' || prev_whisp_state.resource == 'f' || prev_whisp_state.resource == 'c' || prev_whisp_state.resource == 'm');
+    const std::string dest = (rfcm ? std::string(1, static_cast<char>(prev_whisp_state.resource)) : "none");
+    const std::string dest_addr = (rfcm ? fmt::format("0x{:x}", prev_whisp_state.address) : "none");
+    const std::string dest_data = (rfcm ? fmt::format("0x{:x}", prev_whisp_state.value) : "none");
+    const auto& prev_instr = prev_prev_whisp_state.disasm;
+    const auto& prev_mode = prev_prev_whisp_state.priv_mode;
+    const auto& prev_trap = prev_prev_whisp_state.trap;
+    const auto& prev_num_dest = prev_prev_whisp_state.change_count;
+
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_instructions\": {}}}\n", h, num_instructions);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_cycles\": {}}}\n", h, num_cycles);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_ipc\": {:.2f}}}\n", h, ipc);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_instr\": \"{}\"}}\n", h, instr);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_mode\": {}}}\n", h, mode);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_trap\": {}}}\n", h, trap);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_dest\": {}}}\n", h, num_dest);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dest\": \"{}\"}}\n", h, dest);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dest_addr\": \"{}\"}}\n", h, dest_addr);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dest_data\": \"{}\"}}\n", h, dest_data);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_instr\": \"{}\"}}\n", h, prev_instr);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_mode\": {}}}\n", h, prev_mode);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_trap\": {}}}\n", h, prev_trap);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_num_dest\": {}}}\n", h, prev_num_dest);
 
     for (auto& csr : csrs) {
       uint64_t csr_data;
@@ -961,10 +944,7 @@ void bridge::report_metrics() {
       if (!client_->whisperPeek(h, 'c', csr.address, csr_data, valid)) {
         cvm::log(cvm::ERROR, "Error: Failed to peek CSR values\n");
       }
-      std::stringstream ss;
-      ss << std::hex << "0x" << csr_data;
-      std::string hex_csr_data(ss.str());
-      cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_csr_{}\": \"{}\"}}\n", h, csr.name, hex_csr_data);
+      cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_csr_{}\": \"0x{:x}\"}}\n", h, csr.name, csr_data);
     }
   }
 }

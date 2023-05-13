@@ -11,6 +11,7 @@ cc_library(
                 "@cvm//:plusargs",
                 "@cvm//:logger",
                 "@cvm//:topology",
+                "@fmt//:fmt",
                 "//sysmod/htif:htif",
                ],
     data     = [
