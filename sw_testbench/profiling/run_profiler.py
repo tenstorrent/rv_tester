@@ -17,12 +17,12 @@ class Profiler(ABC):
         self.args = args
         self.rv_tester_path = rv_tester_path
         self.bazel_wrap_cmd = [os.path.join(self.rv_tester_path, "infra", "bazel-wrap")]
-        self.bzsim_run_cmd = [os.path.join(self.rv_tester_path, "infra", "bzsim"), "run", "--rerun-test", "@smoke//:{}_verilator".format(self.args.input_program)]
+        self.bzsim_run_cmd = [os.path.join(self.rv_tester_path, "infra", "bzsim"), "run", "--rerun-test", "@smoke//:{}_verilator_shm".format(self.args.input_program)]
         self.container_run_cmd = [os.path.join(self.rv_tester_path, "infra", "podman-scripts", "container-run-tt")]
-        self.common_sim_opts = ["--bazel-build-opt=--compilation_mode=opt", "--debug"]
+        self.common_sim_opts = ["--bazel-build-opt=--compilation_mode={}".format(args.compilation_mode), "--bazel-build-opt=--copt=-g", "--bazel-build-opt=--copt=-fno-omit-frame-pointer", "--debug"]
         if args.no_lsf:
             self.common_sim_opts.append("--no-lsf")
-        self.common_plusargs = ["+nostandalone", ("+whisper_client=" + ("shm" if args.use_shm else "socket")), "+eot=max_instr", "+max_cycle={}".format(self.args.max_cycle), "+max_instr={}".format(self.args.max_cycle - 20)]
+        self.common_plusargs = ["+nostandalone", "+whisper_client={}".format(args.whisper_client), "+eot=max_instr", "+max_cycle={}".format(self.args.max_cycle), "+max_instr={}".format(self.args.max_cycle - 20)]
         if args.no_cosim:
             self.common_plusargs.append("+nocosim")
         if args.no_rvfi:
@@ -105,6 +105,7 @@ class GprofProfiler(Profiler):
 
 class PerfProfiler(Profiler):
     def setup(self):
+        # TODO(mboisvert): Do the compilation mode in a more clean way. This will be refactored anyways once we integrate this into bzsim.
         self.profiler_cmds.append(Command(arg_list=self.bzsim_run_cmd + self.common_sim_opts + ["--"] + self.common_plusargs + ["+sim_wrap=perf"] + ["+sim_wrap={}".format(cmd) for cmd in self.args.perf_cmd.split(" ")] + ["+sim_wrap=-o", "+sim_wrap=perf.data"]))
 
     def teardown(self):
@@ -201,11 +202,12 @@ def construct_profiler_using_args(rv_tester_path: str):
         profiler_map[profiler.name()] = profiler
     parser.add_argument("--max_cycle", type=int, default=999999, help="max number of cycles to run simulation")
     parser.add_argument("--input_program", type=str, default="infinite", help="name of the input program defined in rv_tester/sw_testbench/testlists/smoke.py")
-    parser.add_argument("--use_shm", action="store_true", default=False, help="If true, shared memory to communicate with whisper. Otherwise, use sockets")
+    parser.add_argument("--whisper_client", type=str, choices=['lib', 'socket', 'shm'], default='lib', help="Mechanism of running/communicating with Whisper")
     parser.add_argument("--no_lsf", action="store_true", default=False, help="If true, run sim locally instead of on LSF")
     parser.add_argument("--no_cosim", action="store_true", default=False, help="If true, run without cosim")
     parser.add_argument("--no_rvfi", action="store_true", default=False, help="If true, run without rvfi")
     parser.add_argument("--linux_time", action="store_true", default=False, help="If true, wrap profiler with call to 'time'. E.g. 'time bazel-bin/...'")
+    parser.add_argument("--compilation_mode", type=str, choices=['dbg', 'opt'], default='opt', help='Optimization level used for compiling testbench under profiler')
 
     args = parser.parse_args()
     if (args.profiler is None):
