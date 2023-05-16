@@ -8,7 +8,11 @@
 #include <iostream>
 #include <chrono>
 
-DEFINE_bool(rvfi, true, "Enable rvfi logging");
+DEFINE_bool(rvfi, true, "Enable rvfi");
+// TODO(mboisvert): See if we can combine the rvfi flags. The reason why the
+// rvfi_log flag was created is that +norvfi causes the max # of cycles to be
+// exceeded.
+DEFINE_bool(rvfi_log, true, "Enable rvfi logging");
 DEFINE_bool(cosim, true, "Enable cosim checking");
 DEFINE_bool(perf, false, "Enable core performance metrics");
 DECLARE_string(load);
@@ -53,7 +57,9 @@ void rvfi::init() {
     cvm::log(cvm::MEDIUM, "[RVFI] Constructing bridge...\n");
     bridge_ = std::make_unique<bridge>(num_harts, xlen, vlen, loc_);
     bridge_->reset();
-    log(cvm::NONE, "Instr Cycle Hart Mode PC Opcode\n");
+    if (FLAGS_rvfi_log) {
+      log(cvm::NONE, "Instr Cycle Hart Mode PC Opcode\n");
+    }
     count_ = 0;
   }
 
@@ -100,7 +106,9 @@ void rvfi::process(const cosim_transactions::m_intr& m_intr) {
   intr.seip = m_intr.seip;
 
   bridge_->process_dut_interrupt(0, intr);
-  log(cvm::NONE, "#{} {} 0 (mip:{:#x} seip:{})\n", count_, intr.cycle, intr.mip, intr.seip);
+  if (FLAGS_rvfi_log) {
+    log(cvm::NONE, "#{} {} 0 (mip:{:#x} seip:{})\n", count_, intr.cycle, intr.mip, intr.seip);
+  }
 }
 
 void rvfi::process(const cosim_transactions::m_debug& m_debug) {
@@ -188,6 +196,9 @@ std::tuple<uint64_t, uint64_t, uint8_t> rvfi::get_mem_attributes(uint64_t addr, 
 }
 
 void rvfi::print_instr(rv_instr_t& instr) {
+  if (!FLAGS_rvfi_log) {
+    return;
+  }
   log(cvm::NONE, "#{} {} {} {} {:016x} {:08x}", instr.id, instr.cycle, instr.hart, instr.priv, instr.pc.pc_rdata,
       instr.opcode);
 
@@ -227,7 +238,9 @@ void rvfi::enter_debug_mode(rv_instr_t& instr) {
     debug.exit  = false;
     debug.hart  = instr.hart;
 
-    log(cvm::NONE, "#{} {} 0 (enter debug mode)\n", count_, debug.cycle);
+    if (FLAGS_rvfi_log) {
+      log(cvm::NONE, "#{} {} 0 (enter debug mode)\n", count_, debug.cycle);
+    }
 
     bridge_->enter_debug_mode(debug);
   }
@@ -247,7 +260,9 @@ void rvfi::exit_debug_mode(rv_instr_t& instr) {
     debug.exit  = true;
     debug.hart  = instr.hart;
 
-    log(cvm::NONE, "#{} {} 0 (exit debug mode)\n", count_, debug.cycle);
+    if (FLAGS_rvfi_log) {
+      log(cvm::NONE, "#{} {} 0 (exit debug mode)\n", count_, debug.cycle);
+    }
 
     bridge_->exit_debug_mode(debug);
   }

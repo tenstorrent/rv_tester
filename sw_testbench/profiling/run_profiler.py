@@ -25,8 +25,8 @@ class Profiler(ABC):
         self.common_plusargs = ["+nostandalone", "+whisper_client={}".format(args.whisper_client), "+eot=max_instr", "+max_cycle={}".format(self.args.max_cycle), "+max_instr={}".format(self.args.max_cycle - 20)]
         if args.no_cosim:
             self.common_plusargs.append("+nocosim")
-        if args.no_rvfi:
-            self.common_plusargs.append("+norvfi")
+        if not args.enable_logging:
+            self.common_plusargs.extend(["+nowhisper_log", "+norvfi_log", "+nocosim_tracer"])
         if args.linux_time:
             self.common_plusargs.append("+sim_wrap=time")
         self.profiler_cmds = []
@@ -205,7 +205,7 @@ def construct_profiler_using_args(rv_tester_path: str):
     parser.add_argument("--whisper_client", type=str, choices=['lib', 'socket', 'shm'], default='lib', help="Mechanism of running/communicating with Whisper")
     parser.add_argument("--no_lsf", action="store_true", default=False, help="If true, run sim locally instead of on LSF")
     parser.add_argument("--no_cosim", action="store_true", default=False, help="If true, run without cosim")
-    parser.add_argument("--no_rvfi", action="store_true", default=False, help="If true, run without rvfi")
+    parser.add_argument("--enable_logging", action="store_true", default=False, help="If true, enable logging to cosim.log, dut_rvfi.log, iss_cosim.log, and iss_cmd.log")
     parser.add_argument("--linux_time", action="store_true", default=False, help="If true, wrap profiler with call to 'time'. E.g. 'time bazel-bin/...'")
     parser.add_argument("--compilation_mode", type=str, choices=['dbg', 'opt'], default='opt', help='Optimization level used for compiling testbench under profiler')
 
