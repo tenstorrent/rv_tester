@@ -39,6 +39,7 @@ DEFINE_bool(cov, false, "Enable Arch coverage");
 DEFINE_string(archsample_lib_path, "", "Path to libarchsample.so");
 DEFINE_bool(metrics, true, "Enable printing metrics in log file");
 DEFINE_uint32(pend_intr_threshold, 32, "Number of instructions allowed to retire before a pending interrupt should be taken");
+DEFINE_bool(whisper_log, true, "Enable whisper logging to iss_cosim.log and iss_cmd.log");
 DEFINE_bool(whisper_stdin_null, false, "Redirect whisoer stdin to null");
 DEFINE_bool(whisper_stdout_null, false, "Redirect whisoer stdout to null");
 DEFINE_bool(whisper_clint, false, "Set clint addr in whisper command");
@@ -116,8 +117,8 @@ void bridge::reset() {
   } else if (FLAGS_whisper_client == "shm") {
     client_ = std::make_unique<whisperClientShm>();
   } else if (FLAGS_whisper_client == "lib") {
-    std::string traceFile = "iss_cosim.log";
-    std::string commandLog = "iss_cmd.log";
+    std::string traceFile = FLAGS_whisper_log ? "iss_cosim.log" : "";
+    std::string commandLog = FLAGS_whisper_log ? "iss_cmd.log" : "";
     client_ = std::make_unique<whisperClientLib<uint64_t>>(traceFile, commandLog, FLAGS_load);
   } else {
     cvm::log(cvm::ERROR, "Error: Invalid option passed for +whisper_client. Should be one of - socket, shm.");
@@ -147,8 +148,8 @@ std::string bridge::get_whisper_cmd() {
   std::string harts = " --harts " + std::to_string(num_harts_);
   std::string config = " --configfile " + FLAGS_whisper_json_path;
   std::string trace = " --traceload --traceptw";
-  std::string out_log = " --logfile iss_cosim.log";
-  std::string cmd_log = " --commandlog iss_cmd.log";
+  std::string out_log = FLAGS_whisper_log ? " --logfile iss_cosim.log" : "";
+  std::string cmd_log = FLAGS_whisper_log ? " --commandlog iss_cmd.log" : "";
   std::string std_out = FLAGS_whisper_stdout_null ? " --stdout /dev/null" : "";
   std::string std_in = FLAGS_whisper_stdin_null ? " --stdin /dev/null" : "";
   std::string client = (FLAGS_whisper_client == "shm") ? " --shm" : "";
