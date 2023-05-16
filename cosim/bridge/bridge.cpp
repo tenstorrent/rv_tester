@@ -115,11 +115,9 @@ void bridge::reset() {
     client_ = std::make_unique<whisperClientSocket>();
   } else if (FLAGS_whisper_client == "shm") {
     client_ = std::make_unique<whisperClientShm>();
-  }
-    else if (FLAGS_whisper_client == "lib") {
-    // TODO: close these
-    FILE* traceFile = fopen("iss_cosim.log", "w");
-    FILE* commandLog = fopen("iss_cmd.log", "w");
+  } else if (FLAGS_whisper_client == "lib") {
+    std::string traceFile = "iss_cosim.log";
+    std::string commandLog = "iss_cmd.log";
     client_ = std::make_unique<whisperClientLib<uint64_t>>(traceFile, commandLog, FLAGS_load);
   } else {
     cvm::log(cvm::ERROR, "Error: Invalid option passed for +whisper_client. Should be one of - socket, shm.");

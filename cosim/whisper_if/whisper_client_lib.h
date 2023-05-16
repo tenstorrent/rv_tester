@@ -12,11 +12,20 @@ template <typename URV>
 class whisperClientLib : public whisperClient {
 
   public:
-
-    whisperClientLib(FILE* traceFile, FILE* commandLog, std::string prog) :
-      traceFile_(traceFile), commandLog_(commandLog), prog_(prog)
+    whisperClientLib(std::string traceFile, std::string commandLog, std::string prog) :
+      traceFile_(traceFile.empty() ? nullptr : fopen(traceFile.c_str(), "w")),
+      commandLog_(commandLog.empty() ? nullptr : fopen(commandLog.c_str(), "w")),
+      prog_(prog)
   {}
-    ~whisperClientLib() {}
+    
+    ~whisperClientLib() {
+      if (traceFile_ != nullptr) {
+        fclose(traceFile_);
+      }
+      if (commandLog_ != nullptr) {
+        fclose(commandLog_);
+      }
+    }
 
     virtual int whisperConnect(const char* filePath) override;
     virtual void whisperDisconnect() override;
