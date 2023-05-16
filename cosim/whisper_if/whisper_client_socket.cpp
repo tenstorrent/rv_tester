@@ -678,7 +678,7 @@ whisperClientSocket::whisperCheckInterrupt(int hart, uint64_t mip, bool& interru
 bool
 whisperClientSocket::whisperSetSeiPin(int hart, uint64_t value)
 {
-  WhisperMessage req(hart, WhisperMessageType::SetSeiPin);
+  WhisperMessage req(hart, WhisperMessageType::SeiPin);
   req.value = value;
 
   WhisperMessage reply;
@@ -725,5 +725,5 @@ main(int argc, char* argv[])
     }
   return 0;
 }
-    
+
 #endif

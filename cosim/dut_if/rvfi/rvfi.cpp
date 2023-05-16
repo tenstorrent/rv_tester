@@ -6,6 +6,7 @@
 #include "sysmod/htif/htif.h"
 
 #include <iostream>
+#include <chrono>
 
 DEFINE_bool(rvfi, true, "Enable rvfi logging");
 DEFINE_bool(cosim, true, "Enable cosim checking");
@@ -107,6 +108,14 @@ void rvfi::process(const cosim_transactions::m_debug& m_debug) {
 }
 
 void rvfi::make_instr(const cosim_transactions::m_rvfi& m_rvfi, rv_instr_t& instr) {
+
+  static bool started = true;
+  if (started) {
+    auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    std::cout << "start time: " << std::ctime(&now) << std::endl;
+    started = false;
+  }
+
 
   // Metadata
   instr.valid = true;

@@ -5,11 +5,15 @@
     "isa"                   : "rv64imafcdvuszfh",
     "reset_vec"             : "0x80000000",
 
+    "cores"                 : 1,
+    "harts"                 : 1,
+    "core_hart_id_offset"   : 1,
+
     "memmap" : {
        "Comment"            : "Set physical memory size to be 56-bits",
        "size"               : "0x100000000000000",
-       "pma"                : [ { 
-           "low"            : "0x0", 
+       "pma"                : [ {
+           "low"            : "0x0",
            "high"           : "0x7fffffff",
            "attribs"        : [ "read", "write", "io"] } ]
     },
@@ -277,7 +281,7 @@
     "enable_performance_counters"   : "true",
     "perf_count_atomic_load_store"  : "true",
     "perf_count_fp_load_store"      : "true",
-    
+
     "Comment"                       : "All performance counters implemented are implemented (mhpmcount3 to 31) and are resynching with RTL on cosim",
     "num_mmode_perf_regs"           : 2,
 

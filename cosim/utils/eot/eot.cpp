@@ -1,5 +1,7 @@
 #include "eot.h"
 #include "sysmod/htif/htif.h"
+#include <chrono>
+#include <iostream>
 
 DEFINE_string(eot, "tohost", "Enable end-of-test mechanism. Supported options: tohost, max_instr");
 DEFINE_uint32(max_instr, 100000, "Max instruction limit to terminate the sim");
@@ -37,6 +39,8 @@ void eot::process(const cosim_transactions::m_rvfi& m_rvfi) {
       cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", m_rvfi.cycle);
       auto location = cvm::topology::get("TOP.PLATFORM", 0);
       cvm::registry::messenger.signal<htif::terminate_t>(location, htif::terminate_t{FLAGS_terminate_call_finish});
+      auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+      std::cout << "end time: " << std::ctime(&now) << std::endl;
       return;
     } else {
       cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", m_rvfi.cycle);

@@ -13,257 +13,81 @@
 #include <unistd.h>
 #include <netdb.h>
 #include <string>
-#include "whisper_client_shm.h"
 
-// Connect to the whisper process defined by the given file.  File
-// should contain a single line consisting of a host name followed by
-// a port number. Example:  good-host 1700
-// Return non-negative socket number on success and -1 on failure.
+#include "whisper_client_lib.h"
+#include "HartConfig.hpp"
+#include "Hart.hpp"
+
+template <typename URV>
 int
-whisperClientShm::whisperConnect(const char* filePath)
+whisperClientLib<URV>::whisperConnect(const char* filePath)
 {
-  path = "/" + std::string(filePath);
-  fd = shm_open(path.c_str(), O_RDWR | O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO);
-  if (fd < 0)
+  WdRiscv::HartConfig config;
+  if (not config.loadConfigFile(filePath))
+    return -1;
+
+  unsigned hartsPerCore = 1;
+  unsigned coreCount = 1;
+  unsigned hartIdOffset = hartsPerCore;
+  size_t pageSize = 4*1024;
+  size_t memorySize = size_t(1) << 31;
+  std::string isa;
+  config.getHartsPerCore(hartsPerCore);
+  config.getCoreCount(coreCount);
+  config.getHartIdOffset(hartIdOffset);
+  config.getPageSize(pageSize);
+  config.getMemorySize(memorySize);
+  config.getIsa(isa);
+
+  system_ = std::make_shared<WdRiscv::System<URV>>(coreCount, hartsPerCore, hartIdOffset, memorySize, pageSize);
+
+  std::vector<std::string> targets = {prog_};
+  if (not system_->loadElfFiles(targets, false, false))
+    return -1;
+
+
+  if (not config.configHarts(*system_, false, false))
+    return -1;
+
+  if (not config.configMemory(*system_, false))
+    return -1;
+
+  for (unsigned i = 0; i < system_->hartCount(); ++i)
     {
-      std::cerr << "Failed to open shared memory file\n";
-      return -1;
-    }
-  if (ftruncate(fd, 4096) < 0)
-    {
-      std::cerr << "Failed ftruncate on shared memory file\n";
-      return -1;
+      auto& hart = *(system_->ithHart(i));
+      hart.enableNewlib(true);
+      hart.enableLinux(true);
+      if (not isa.empty())
+        if (not hart.configIsa(isa, true))
+          return false;
+      hart.reset();
     }
 
-  shm = (char*) mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-  if (shm == MAP_FAILED)
-    {
-      std::cerr << "Failed mmap\n";
-      return -1;
-    }
+  server_ = std::make_unique<WdRiscv::Server<URV>>(*system_);
 
-  // claim region for client
-  std::atomic_char* guard = (std::atomic_char*) shm;
-  std::atomic_store(guard, 'c');
-  return 1;
+  return 0;
 }
 
 
+template <typename URV>
 void
-whisperClientShm::whisperDisconnect()
+whisperClientLib<URV>::whisperDisconnect()
 {
-  if (shm)
-    munmap(shm, 4096);
-
-  if (fd > 0)
-    close(fd);
-
-  fd = -1;
-  shm = nullptr;
-  path = "";
 }
 
 
-/// Unpack socket message (received in server mode) into the given
-/// WhisperMessage object.
-void
-whisperClientShm::deserializeMessage(const char buffer[], size_t bufferLen,
-		   WhisperMessage& msg)
-
-{
-  assert (bufferLen >= sizeof(msg));
-
-  const char* p = buffer;
-  uint32_t x = ntohl(* reinterpret_cast<const uint32_t*> (p));
-  msg.hart = x;
-  p += sizeof(x);
-
-  x = ntohl(* reinterpret_cast<const uint32_t*> (p));
-  msg.type = x;
-  p += sizeof(x);
-
-  x = ntohl(* reinterpret_cast<const uint32_t*> (p));
-  msg.resource = x;
-  p += sizeof(x);
-
-  x = ntohl(* reinterpret_cast<const uint32_t*> (p));
-  msg.size = x;
-  p += sizeof(x);
-
-  x = ntohl(* reinterpret_cast<const uint32_t*> (p));
-  msg.flags = x;
-  p += sizeof(x);
-
-  uint32_t part = ntohl(* reinterpret_cast<const uint32_t*> (p));
-  msg.instrTag = uint64_t(part) << 32;
-  p += sizeof(part);
-
-  part = ntohl(* reinterpret_cast<const uint32_t*> (p));
-  msg.instrTag |= part;
-  p += sizeof(part);
-
-  part = ntohl(* reinterpret_cast<const uint32_t*> (p));
-  msg.time = uint64_t(part) << 32;
-  p += sizeof(part);
-
-  part = ntohl(* reinterpret_cast<const uint32_t*> (p));
-  msg.time |= part;
-  p += sizeof(part);
-
-  part = ntohl(* reinterpret_cast<const uint32_t*> (p));
-  msg.address = uint64_t(part) << 32;
-  p += sizeof(part);
-
-  part = ntohl(* reinterpret_cast<const uint32_t*> (p));
-  msg.address |= part;
-  p += sizeof(part);
-
-  part = ntohl(* reinterpret_cast<const uint32_t*> (p));
-  msg.value = uint64_t(part) << 32;
-  p += sizeof(part);
-
-  part = ntohl(* reinterpret_cast<const uint32_t*> (p));
-  msg.value |= part;
-  p += sizeof(part);
-
-  memcpy(msg.buffer, p, sizeof(msg.buffer));
-  msg.buffer[sizeof(msg.buffer) - 1] = '\0';
-  p += sizeof(msg.buffer);
-
-  memcpy(msg.tag, p, sizeof(msg.tag));
-  p += sizeof(msg.tag);
-
-  assert(size_t(p - buffer) <= bufferLen);
-}
-
-
-size_t
-whisperClientShm::serializeMessage(const WhisperMessage& msg, char buffer[],
-		 size_t bufferLen)
-{
-  assert (bufferLen >= sizeof(msg));
-
-  char* p = buffer;
-  uint32_t x = htonl(msg.hart);
-  memcpy(p, &x, sizeof(x));
-  p += sizeof(x);
-
-  x = htonl(msg.type);
-  memcpy(p, &x, sizeof(x));
-  p += sizeof(x);
-
-  x = htonl(msg.resource);
-  memcpy(p, &x, sizeof(x));
-  p += sizeof(x);
-
-  x = htonl(msg.size);
-  memcpy(p, &x, sizeof(x));
-  p += sizeof(x);
-
-  x = htonl(msg.flags);
-  memcpy(p, &x, sizeof(x));
-  p += sizeof(x);
-
-  uint32_t part = static_cast<uint32_t>(msg.instrTag >> 32);
-  x = htonl(part);
-  memcpy(p, &x, sizeof(x));
-  p += sizeof(x);
-
-  part = (msg.instrTag) & 0xffffffff;
-  x = htonl(part);
-  memcpy(p, &x, sizeof(x));
-  p += sizeof(x);
-
-  part = static_cast<uint32_t>(msg.time >> 32);
-  x = htonl(part);
-  memcpy(p, &x, sizeof(x));
-  p += sizeof(x);
-
-  part = (msg.time) & 0xffffffff;
-  x = htonl(part);
-  memcpy(p, &x, sizeof(x));
-  p += sizeof(x);
-
-  part = static_cast<uint32_t>(msg.address >> 32);
-  x = htonl(part);
-  memcpy(p, &x, sizeof(x));
-  p += sizeof(x);
-
-  part = (msg.address) & 0xffffffff;
-  x = htonl(part);
-  memcpy(p, &x, sizeof(x));
-  p += sizeof(x);
-
-  part = static_cast<uint32_t>(msg.value >> 32);
-  x = htonl(part);
-  memcpy(p, &x, sizeof(x));
-  p += sizeof(x);
-
-  part = msg.value & 0xffffffff;
-  x = htonl(part);
-  memcpy(p, &x, sizeof(x));
-  p += sizeof(x);
-
-  memcpy(p, msg.buffer, sizeof(msg.buffer));
-  p += sizeof(msg.buffer);
-
-  memcpy(p, msg.tag, sizeof(msg.tag));
-  p += sizeof(msg.tag);
-
-  size_t len = p - buffer;
-  assert(len <= bufferLen);
-  assert(len <= sizeof(msg));
-  for (size_t i = len; i < sizeof(msg); ++i)
-    buffer[i] = 0;
-
-  return sizeof(msg);
-}
-
-
+template <typename URV>
 bool
-whisperClientShm::receiveMessage(char* shm, WhisperMessage& msg)
+whisperClientLib<URV>::whisperCommand(const WhisperMessage& req, WhisperMessage& reply)
 {
-  // reserve first byte for locking
-  std::atomic_char* guard = (std::atomic_char*) shm;
-  while (std::atomic_load_explicit(guard, std::memory_order_acquire) != 'c');
-  char* buffer = shm + (sizeof(uint32_t) - (reinterpret_cast<uintptr_t>(shm) % sizeof(uint32_t)));
-  deserializeMessage(buffer, sizeof(msg), msg);
+  server_->interact(req, reply, traceFile_, commandLog_);
   return true;
 }
 
 
+template <typename URV>
 bool
-whisperClientShm::sendMessage(char* shm, const WhisperMessage& msg)
-{
-  // reserve first byte for locking
-  std::atomic_char* guard = (std::atomic_char*) shm;
-  // while (std::atomic_load_explicit(guard, std::memory_order_acquire) != 'c');
-  char* buffer = shm + (sizeof(uint32_t) - (reinterpret_cast<uintptr_t>(shm) % sizeof(uint32_t)));
-  serializeMessage(msg, buffer, sizeof(msg));
-  std::atomic_store_explicit(guard, 's', std::memory_order_release);
-  return true;
-}
-
-
-bool
-whisperClientShm::whisperCommand(const WhisperMessage& req, WhisperMessage& reply)
-{
-  if (not sendMessage(shm, req))
-    {
-      std::cerr << "Failed to send request to whisper\n";
-      return false;
-    }
-  if (not receiveMessage(shm, reply))
-    {
-      std::cerr << "Failed to receive reply from whisper\n";
-      return false;
-    }
-  return true;
-}
-
-
-bool
-whisperClientShm::whisperPeek(int hart, char resource, uint64_t addr, uint64_t& value,
+whisperClientLib<URV>::whisperPeek(int hart, char resource, uint64_t addr, uint64_t& value,
 	    bool& valid)
 {
   req.hart = hart;
@@ -283,8 +107,9 @@ whisperClientShm::whisperPeek(int hart, char resource, uint64_t addr, uint64_t& 
 // Send a whisper poke command. Retrun true on successful comunication
 // and false on failure. Set valid to false if hart/resource/addr
 // are invalid.
+template <typename URV>
 bool
-whisperClientShm::whisperPoke(int hart, char resource, uint64_t addr, uint64_t value,
+whisperClientLib<URV>::whisperPoke(int hart, char resource, uint64_t addr, uint64_t value,
 	    bool& valid)
 {
   req.hart = hart;
@@ -301,8 +126,9 @@ whisperClientShm::whisperPoke(int hart, char resource, uint64_t addr, uint64_t v
 }
 
 
+template <typename URV>
 bool
-whisperClientShm::whisperStep(int hart, uint64_t time, uint64_t instrTag, uint64_t& pc,
+whisperClientLib<URV>::whisperStep(int hart, uint64_t time, uint64_t instrTag, uint64_t& pc,
 	    uint32_t& instruction, unsigned& changeCount,
 	    std::string& disasm, uint32_t& privMode,
 	    uint32_t& fpFlags, bool& hasTrap, bool& hasStop)
@@ -337,8 +163,9 @@ whisperClientShm::whisperStep(int hart, uint64_t time, uint64_t instrTag, uint64
 }
 
 // Copied from chuang's LSTB Whisper Client
+template <typename URV>
 bool
-whisperClientShm::whisperSimpleStep(int hart, uint64_t& pc, uint32_t& instruction, unsigned& changeCount)
+whisperClientLib<URV>::whisperSimpleStep(int hart, uint64_t& pc, uint32_t& instruction, unsigned& changeCount)
 {
   req.hart = hart;
   req.type = WhisperMessageType::Step;
@@ -356,8 +183,9 @@ whisperClientShm::whisperSimpleStep(int hart, uint64_t& pc, uint32_t& instructio
   return true;
 }
 
+template <typename URV>
 bool
-whisperClientShm::whisperChange(int hart, uint32_t& resource, uint64_t& addr, uint64_t& value,
+whisperClientLib<URV>::whisperChange(int hart, uint32_t& resource, uint64_t& addr, uint64_t& value,
 	      bool& valid)
 {
   req.hart = hart;
@@ -373,7 +201,7 @@ whisperClientShm::whisperChange(int hart, uint32_t& resource, uint64_t& addr, ui
 }
 
 //void
-//whisperClientShm::whisperChanges(int hart, std::unordered_map<uint32_t,uint64_t>& addrs, std::unordered_map<uint32_t,uint64_t>& datas,
+//whisperClientLib::whisperChanges(int hart, std::unordered_map<uint32_t,uint64_t>& addrs, std::unordered_map<uint32_t,uint64_t>& datas,
 //               int changeCount)
 //{
 //  for (int i = 0; i < changeCount; i++)
@@ -387,8 +215,9 @@ whisperClientShm::whisperChange(int hart, uint32_t& resource, uint64_t& addr, ui
 //    }
 //}
 
+template <typename URV>
 bool
-whisperClientShm::whisperMcmRead(int hart, uint64_t time, uint64_t instrTag, uint64_t addr,
+whisperClientLib<URV>::whisperMcmRead(int hart, uint64_t time, uint64_t instrTag, uint64_t addr,
 	       unsigned size, uint64_t value, bool internal, bool& valid)
 {
   req.hart = hart;
@@ -407,8 +236,9 @@ whisperClientShm::whisperMcmRead(int hart, uint64_t time, uint64_t instrTag, uin
   return true;
 }
 
+template <typename URV>
 bool
-whisperClientShm::whisperMcmInsert(int hart, uint64_t time, uint64_t instrTag, uint64_t addr,
+whisperClientLib<URV>::whisperMcmInsert(int hart, uint64_t time, uint64_t instrTag, uint64_t addr,
 		 unsigned size, uint64_t value, bool& valid)
 {
   req.hart = hart;
@@ -426,8 +256,9 @@ whisperClientShm::whisperMcmInsert(int hart, uint64_t time, uint64_t instrTag, u
   return true;
 }
 
+template <typename URV>
 bool
-whisperClientShm::whisperMcmWrite(int hart, uint64_t time, uint64_t addr,
+whisperClientLib<URV>::whisperMcmWrite(int hart, uint64_t time, uint64_t addr,
 		unsigned size, svOpenArrayHandle handle, uint64_t mask, bool& valid)
 {
   req.hart = hart;
@@ -457,8 +288,9 @@ whisperClientShm::whisperMcmWrite(int hart, uint64_t time, uint64_t addr,
   return true;
 }
 
+template <typename URV>
 bool
-whisperClientShm::whisperTranslate(int hart, uint64_t vaddr, bool r, bool w, bool x,
+whisperClientLib<URV>::whisperTranslate(int hart, uint64_t vaddr, bool r, bool w, bool x,
          bool supervisor, uint64_t& paddr, bool& valid)
 {
   req.hart = hart;
@@ -482,7 +314,7 @@ whisperClientShm::whisperTranslate(int hart, uint64_t vaddr, bool r, bool w, boo
 }
 
 //bool
-//whisperClientShm::whisperCancelLr(int hart, bool& valid)
+//whisperClientLib::whisperCancelLr(int hart, bool& valid)
 //{
 //  req.hart = hart;
 //  req.type = WhisperMessageType::CancelLr;
@@ -494,8 +326,9 @@ whisperClientShm::whisperTranslate(int hart, uint64_t vaddr, bool r, bool w, boo
 //  return true;
 //}
 
+template <typename URV>
 bool
-whisperClientShm::whisperReset(int hart, bool& valid)
+whisperClientLib<URV>::whisperReset(int hart, bool& valid)
 {
   req.hart = hart;
   req.type = WhisperMessageType::Reset;
@@ -507,15 +340,11 @@ whisperClientShm::whisperReset(int hart, bool& valid)
   return true;
 }
 
+template <typename URV>
 bool
-whisperClientShm::whisperQuit()
+whisperClientLib<URV>::whisperQuit()
 {
   WhisperMessage req(0 /*hart*/, WhisperMessageType::Quit);  // Any hart will do
-  if (not sendMessage(shm, req))
-    {
-      std::cerr << "Failed to send request to whisper\n";
-      return false;
-    }
 
   whisperDisconnect();
 
@@ -524,7 +353,7 @@ whisperClientShm::whisperQuit()
 }
 
 //bool
-//whisperClientShm::whisperQuit()
+//whisperClientLib::whisperQuit()
 //{
 //  req.hart = 0;
 //  req.type = WhisperMessageType::Quit;
@@ -541,16 +370,18 @@ whisperClientShm::whisperQuit()
 //  return true;
 //}
 
+template <typename URV>
 bool
-whisperClientShm::whisperPageTableWalk(int hart, bool isInstr, bool isAddr,
+whisperClientLib<URV>::whisperPageTableWalk(int hart, bool isInstr, bool isAddr,
 		     svOpenArrayHandle items, unsigned& itemCount,
 		     bool& valid)
 {
   return true;
 }
 
+template <typename URV>
 bool
-whisperClientShm::whisperEnterDebug()
+whisperClientLib<URV>::whisperEnterDebug()
 {
   req.hart = 0;
   req.type = WhisperMessageType::EnterDebug;
@@ -561,8 +392,9 @@ whisperClientShm::whisperEnterDebug()
   return true;
 }
 
+template <typename URV>
 bool
-whisperClientShm::whisperExitDebug()
+whisperClientLib<URV>::whisperExitDebug()
 {
   req.hart = 0;
   req.type = WhisperMessageType::ExitDebug;
@@ -576,8 +408,9 @@ whisperClientShm::whisperExitDebug()
 // Send a whisper check_interrupt command. Return true on successful communication
 // and false on failure. Set interrupt to true/false if interrupt is/is-not
 // possible assuming the MIP CSR has the given mip value.
+template <typename URV>
 bool
-whisperClientShm::whisperCheckInterrupt(int hart, uint64_t mip, bool& interrupt)
+whisperClientLib<URV>::whisperCheckInterrupt(int hart, uint64_t mip, bool& interrupt)
 {
   req.hart = hart;
   req.type = WhisperMessageType::CheckInterrupt;
@@ -597,8 +430,9 @@ whisperClientShm::whisperCheckInterrupt(int hart, uint64_t mip, bool& interrupt)
 // value (0 or 1). Whisper will consider either the SEIP bit in MIP or the
 // the external pin value set by this method for taking a supervisor
 // external interrupt (assuming that interrupt is enabled).
+template <typename URV>
 bool
-whisperClientShm::whisperSetSeiPin(int hart, uint64_t value)
+whisperClientLib<URV>::whisperSetSeiPin(int hart, uint64_t value)
 {
   req.hart = hart;
   req.type = WhisperMessageType::SeiPin;
@@ -650,3 +484,6 @@ main(int argc, char* argv[])
 }
 
 #endif
+
+template class whisperClientLib<uint32_t>;
+template class whisperClientLib<uint64_t>;
