@@ -128,8 +128,11 @@ private:
   CacCore cac_;
   ArchSample archcov;
 
-  // Previous instruction's whisper state
-  whisper_state_t pw_ {};
+  // Previous instruction's whisper state per-hart
+  std::array<whisper_state_t, max_harts> pw_ {};
+
+  // Previous previous instruction's whisper state per-hart
+  std::array<whisper_state_t, max_harts> ppw_ {};
 
   // Create a copy of whisper instr in similar format as dut
   rv_instr_t w_;
@@ -150,9 +153,6 @@ private:
 
   // Memmap
   memmap::memmap_t memmap_;
-
-  // Metrics map
-  std::array<std::map<std::string, std::string>, max_harts> metrics_;
 
   int num_stores_ = 0;
 };
