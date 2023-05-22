@@ -178,7 +178,7 @@ sysmod::dev(uint64_t addr)
     if (d->has_addr(addr))
       return d.get();
   }
-  cvm::log(cvm::ERROR, "bus error: address not mapped: 0x%x", addr);
+  cvm::log(cvm::ERROR, "Error: Address not mapped: {:#x}\n", addr);
   return nullptr;
 }
 
@@ -189,7 +189,7 @@ sysmod::dev(const std::string& tag)
     if (d->tag() == tag)
       return d.get();
   }
-  cvm::log(cvm::ERROR, "bus error: address not mapped: %s", tag);
+  cvm::log(cvm::ERROR, "Error: Tag not mapped: {}\n", tag);
   return nullptr;
 }
 
@@ -255,6 +255,10 @@ sysmod::write(uint64_t addr, size_t length, const device::data_t& data, const de
   std::lock_guard<std::mutex> lock(sys_m);
   //std::cout << std::hex << "write req at: " << addr << '\n';
   auto d = dev(addr);
+  
+  if (d == nullptr)
+    return;
+
   d->write(addr, length, data, strb);
 }
 
@@ -264,6 +268,10 @@ sysmod::read(uint64_t addr, size_t length, device::data_t& data)
   std::lock_guard<std::mutex> lock(sys_m);
   //std::cout << std::hex << "read req at: " << addr << '\n';
   auto d = dev(addr);
+
+  if (d == nullptr)
+    return;
+
   d->read(addr, length, data);
 }
 
