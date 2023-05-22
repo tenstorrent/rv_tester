@@ -84,7 +84,6 @@ module sysmod #(
     export "DPI-C" function sysmod_sw_interrupt;
 
     function void sysmod_tbox_interrupt (int unsigned hartid, int unsigned intr_select,int unsigned intr_value);
-      $display("\n[SYSMOD] trickbox interrupt select %0d with value %0d\n",intr_select,intr_value);
       for(int i =0;i<6;i++)begin
         if(intr_select[i])
           interrupt_d[i] = intr_value[i];
@@ -93,7 +92,6 @@ module sysmod #(
     export "DPI-C" function sysmod_tbox_interrupt;
 
     function sysmod_dmi_write (int unsigned hartid, int unsigned upper_value,int unsigned lower_value);
-      $display("\n[SYSMOD] trickbox DMI write upper value: %d lower value: %d\n",upper_value,lower_value);
       dmi_write_begin = '1;
       dm_wdata = {upper_value,lower_value};
     endfunction
@@ -109,13 +107,11 @@ module sysmod #(
             dmi_write.dm_wvalid <= '0;
             dmi_write_begin <= '0;
             dmi_write_end <= '0;
-            $display("\n[SYSMOD] trickbox DMI Deassert write : %d time: %t\ n",dmi_write.dm_wdata,$time);
         end
         else if(dmi_write_begin)begin
             dmi_write.dm_wvalid <= '1;
             dmi_write.dm_wdata <= dm_wdata;
             dmi_write_end <='1;
-            $display("\n[SYSMOD] trickbox DMI Assert write : %d time: %t\ n",dmi_write.dm_wdata,$time);
         end
 
     end

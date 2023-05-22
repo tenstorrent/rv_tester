@@ -100,8 +100,8 @@ private:
   void handle_satp(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
 
   void check_interrupt(hart_id_t hart);
-  void poke_pend_interrupt(hart_id_t hart);
-  void poke_interrupt(hart_id_t hart, uint64_t mip);
+  void poke_pend_interrupt(hart_id_t hart, uint64_t time);
+  void poke_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
   void poke_seip(hart_id_t hart, bool val);
 
   bool is_ecall(const whisper_state_t& w);

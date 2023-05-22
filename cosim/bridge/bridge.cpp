@@ -287,7 +287,7 @@ void bridge::handle_interrupt(hart_id_t hart, const rv_instr_t& d, whisper_state
     return;
 
   // Poke mip before invoking whisper step
-  poke_pend_interrupt(hart);
+  poke_pend_interrupt(hart, w.time);
 
   if (FLAGS_cosim_tracer) {
     log(cvm::MEDIUM, "<{}> Interrupt taken. cause: [{}]\n", w.time, d.icause);
@@ -335,7 +335,7 @@ void bridge::handle_exception(hart_id_t hart, const rv_instr_t& d, whisper_state
           c.csr_addr, c.csr_wdata);
       }
       bool valid;
-      if (!client_->whisperPoke(hart, 'c', c.csr_addr, c.csr_wdata, valid)) {
+      if (!client_->whisperPoke(hart, d.cycle, 'c', c.csr_addr, c.csr_wdata, valid)) {
         cvm::log(cvm::ERROR, "Error: Failed to resynch CSR values\n");
         return;
       }
@@ -384,7 +384,7 @@ void bridge::handle_satp(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w
           log(cvm::MEDIUM, "<{}> Whisper Step #{}: SATP write, don't apply till sfence.vma\n", w.time, step_[hart]);
         }
         bool valid = false;
-        if (!client_->whisperPoke(hart, 'c', 0x180, satp_, valid)) {
+        if (!client_->whisperPoke(hart, d.cycle, 'c', 0x180, satp_, valid)) {
           cvm::log(cvm::ERROR, "Error: Failed to poke SATP\n");
           return;
         }
@@ -402,7 +402,7 @@ void bridge::handle_satp(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w
       log(cvm::MEDIUM, "<{}> Whisper Step #{}: sfence.vma, apply SATP write\n", w.time, step_[hart]);
     }
     bool valid = false;
-    if (!client_->whisperPoke(hart, 'c', 0x180, new_satp_, valid)) {
+    if (!client_->whisperPoke(hart, w.time, 'c', 0x180, new_satp_, valid)) {
       cvm::log(cvm::ERROR, "Error: Failed to poke new SATP\n");
       return;
     }
@@ -662,7 +662,7 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
     if (FLAGS_cosim_tracer) {
       log(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: PC={:#x}\n", d.cycle, step_[hart], d.pc.pc_rdata);
     }
-    if (!client_->whisperPoke(hart, 'p', 0, d.pc.pc_rdata, valid)) {
+    if (!client_->whisperPoke(hart, d.cycle, 'p', 0, d.pc.pc_rdata, valid)) {
       cvm::log(cvm::ERROR, "Error: Failed to resynch PC\n");
       return;
     }
@@ -673,7 +673,7 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
       log(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: X{}={:#x}\n", d.cycle, step_[hart], d.gpr.rd_addr,
         d.gpr.rd_wdata);
     }
-    if (!client_->whisperPoke(hart, 'r', d.gpr.rd_addr, d.gpr.rd_wdata, valid)) {
+    if (!client_->whisperPoke(hart, d.cycle, 'r', d.gpr.rd_addr, d.gpr.rd_wdata, valid)) {
       cvm::log(cvm::ERROR, "Error: Failed to resynch GPR\n");
       return;
     }
@@ -684,7 +684,7 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
       log(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: F{}={:#x}\n", d.cycle, step_[hart], d.fpr.frd_addr,
         d.fpr.frd_wdata);
     }
-    if (!client_->whisperPoke(hart, 'f', d.fpr.frd_addr, d.fpr.frd_wdata, valid)) {
+    if (!client_->whisperPoke(hart, d.cycle, 'f', d.fpr.frd_addr, d.fpr.frd_wdata, valid)) {
       cvm::log(cvm::ERROR, "Error: Failed to resynch FP\n");
       return;
     }
@@ -696,7 +696,7 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
       log(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: M[{:#x}]={:#x}\n", d.cycle, step_[hart], pa,
         d.mem_write.data);
     }
-    if (!client_->whisperPoke(hart, 'm', pa, d.mem_write.data, valid)) {
+    if (!client_->whisperPoke(hart, d.cycle, 'm', pa, d.mem_write.data, valid)) {
       cvm::log(cvm::ERROR, "Error: Failed to resynch memory\n");
       return;
     }
@@ -799,7 +799,7 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
     pend_intr_count_[hart] = 0;
   } else {
     log(cvm::MEDIUM, "<{}> Interrupt pin(s) deasserted. MipEncodedValue: {:#x}\n", i.cycle, i.mip);
-    poke_interrupt(hart, i.mip);
+    poke_interrupt(hart, i.cycle, i.mip);
   }
 
   if (i.seip_posedge) {
@@ -834,9 +834,9 @@ void bridge::check_interrupt(hart_id_t hart) {
 }
 
 // Poke the pending interrupt(s) at DUT taken boundary
-void bridge::poke_pend_interrupt(hart_id_t hart) {
+void bridge::poke_pend_interrupt(hart_id_t hart, uint64_t time) {
   if (is_intr_pend_[hart]) {
-    poke_interrupt(hart, pend_intr_[hart]);
+    poke_interrupt(hart, time, pend_intr_[hart]);
     is_intr_pend_[hart] = false;
     pend_intr_count_[hart] = 0;
   }
@@ -848,9 +848,20 @@ void bridge::poke_pend_interrupt(hart_id_t hart) {
   }
 }
 
-void bridge::poke_interrupt(hart_id_t hart, uint64_t mip) {
+void bridge::poke_interrupt(hart_id_t hart, uint64_t time, uint64_t mip) {
   bool valid;
-  if (!client_->whisperPoke(hart, 'c', 0x344, mip, valid)) {
+
+  // Peek old mip
+  uint64_t old_mip;
+  if (!client_->whisperPeek(hart, 'c', 0x344, old_mip, valid)) {
+    cvm::log(cvm::ERROR, "Error: Failed to peek mip csr");
+    return;
+  }
+
+  // Poke new mip = mask(old mip, stip) | mip
+  uint64_t new_mip = (old_mip & 0x20) | mip;
+  log(cvm::MEDIUM, "<{}> Mip poked. MipEncodedValue: {:#x}\n", time, new_mip);
+  if (!client_->whisperPoke(hart, time, 'c', 0x344, new_mip, valid)) {
     cvm::log(cvm::ERROR, "Error: Failed to poke mip csr");
     return;
   }
@@ -877,7 +888,7 @@ void bridge::enter_debug_mode(rv_debug_t& d) {
   bool valid = false;
   uint64_t mcause = 0x342;
   uint64_t cause = FLAGS_debug_excp_mcause; //24 for cva6
-  if (!client_->whisperPoke(d.hart, 'c', mcause, cause, valid)) {
+  if (!client_->whisperPoke(d.hart, d.cycle, 'c', mcause, cause, valid)) {
     cvm::log(cvm::ERROR, "Error: Failed to poke mcause\n");
     return;
   }else{

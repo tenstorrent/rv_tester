@@ -358,10 +358,11 @@ whisperClientSocket::whisperPeek(int hart, char resource, uint64_t addr, uint64_
 // and false on failure. Set valid to false if hart/resource/addr
 // are invalid.
 bool
-whisperClientSocket::whisperPoke(int hart, char resource, uint64_t addr, uint64_t value,
+whisperClientSocket::whisperPoke(int hart, uint64_t time, char resource, uint64_t addr, uint64_t value,
 	    bool& valid)
 {
   WhisperMessage req(hart, WhisperMessageType::Poke, resource, addr, value);
+  req.time = time;
   WhisperMessage reply;
 
   if (not whisperCommand(req, reply))

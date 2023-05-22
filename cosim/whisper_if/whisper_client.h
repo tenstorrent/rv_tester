@@ -19,7 +19,7 @@ class whisperClient {
     virtual bool whisperMcmRead(int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, bool internal, bool& valid) = 0;
     virtual bool whisperMcmInsert(int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, bool& valid) = 0;
     virtual bool whisperMcmWrite(int hart, uint64_t time, uint64_t addr, unsigned size, svOpenArrayHandle handle, uint64_t mask, bool& valid) = 0;
-    virtual bool whisperPoke(int hart, char resource, uint64_t addr, uint64_t value, bool& valid) = 0;
+    virtual bool whisperPoke(int hart, uint64_t time, char resource, uint64_t addr, uint64_t value, bool& valid) = 0;
     virtual bool whisperPeek(int hart, char resource, uint64_t addr, uint64_t& value, bool& valid) = 0;
     virtual bool whisperReset(int hart, bool& valid) = 0;
     virtual bool whisperQuit() = 0;

@@ -284,7 +284,7 @@ whisperClientShm::whisperPeek(int hart, char resource, uint64_t addr, uint64_t& 
 // and false on failure. Set valid to false if hart/resource/addr
 // are invalid.
 bool
-whisperClientShm::whisperPoke(int hart, char resource, uint64_t addr, uint64_t value,
+whisperClientShm::whisperPoke(int hart, uint64_t time, char resource, uint64_t addr, uint64_t value,
 	    bool& valid)
 {
   req.hart = hart;
@@ -292,6 +292,7 @@ whisperClientShm::whisperPoke(int hart, char resource, uint64_t addr, uint64_t v
   req.resource = resource;
   req.address = addr;
   req.value = value;
+  req.time = time;
 
   if (not whisperCommand(req, reply))
     return false;

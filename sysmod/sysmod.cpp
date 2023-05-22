@@ -65,7 +65,7 @@ sysmod::timer_interrupt(clint::timer_t t) {
       cvm::registry::callbacks.push(
         scope(),
         [t]() {
-          cvm::log(cvm::FULL, "[SYSMOD] mti = {}\n", t.flag);
+          cvm::log(cvm::FULL, "[SYSMOD] clint::mti = {}\n", t.flag);
           sysmod_timer_interrupt(t.hart, t.flag);
         });
 }
@@ -75,7 +75,7 @@ sysmod::sw_interrupt(clint::sw_t s) {
   cvm::registry::callbacks.push(
       scope(),
       [s]() {
-        cvm::log(cvm::FULL, "[SYSMOD] msi = {}\n", s.flag);
+        cvm::log(cvm::FULL, "[SYSMOD] clint::msi = {}\n", s.flag);
         sysmod_sw_interrupt(s.hart, s.flag);
       });
 }
@@ -85,6 +85,7 @@ sysmod::tbox_interrupt(interrupter::interrupt_t i) {
   cvm::registry::callbacks.push(
       scope(),
       [i]() {
+        cvm::log(cvm::FULL, "[SYSMOD] trickbox::intr.(sel,val) = {:#x}, {:#x}\n", i.intr_select, i.intr_value);
         sysmod_tbox_interrupt(i.hart, i.intr_select, i.intr_value);
       });
 }
@@ -94,6 +95,7 @@ sysmod::dmi_write(debugger::dmi_data_t i) {
   cvm::registry::callbacks.push(
       scope(),
       [i]() {
+        cvm::log(cvm::FULL, "[SYSMOD] trickbox::dmi.(upper,lower) = {:#x}, {:#x}\n", i.upper_dmi_data, i.lower_dmi_data);
         sysmod_dmi_write(i.hart,i.upper_dmi_data,i.lower_dmi_data);
       });
 }

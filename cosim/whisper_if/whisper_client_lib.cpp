@@ -109,7 +109,7 @@ whisperClientLib<URV>::whisperPeek(int hart, char resource, uint64_t addr, uint6
 // are invalid.
 template <typename URV>
 bool
-whisperClientLib<URV>::whisperPoke(int hart, char resource, uint64_t addr, uint64_t value,
+whisperClientLib<URV>::whisperPoke(int hart, uint64_t time, char resource, uint64_t addr, uint64_t value,
 	    bool& valid)
 {
   req.hart = hart;
@@ -117,6 +117,7 @@ whisperClientLib<URV>::whisperPoke(int hart, char resource, uint64_t addr, uint6
   req.resource = resource;
   req.address = addr;
   req.value = value;
+  req.time = time;
 
   if (not whisperCommand(req, reply))
     return false;
