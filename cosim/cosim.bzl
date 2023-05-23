@@ -1,6 +1,6 @@
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
 
-def cosim_gen(name, packet, topology, visibility = None, cc_attrs = {}, **kwargs):
+def cosim_gen(name, packet, topology, harness, visibility = None, cc_attrs = {}, **kwargs):
 
     cosim_dpi = name + "_dpi"
     cosim_sv = name + "_sv"
@@ -34,12 +34,12 @@ def cosim_gen(name, packet, topology, visibility = None, cc_attrs = {}, **kwargs
         name = cosim_sv,
         srcs = ["@rv_tester//cosim:cosim.sv"],
         deps = [
-            "@rv_tester//:defines",
             "@cvm//:plusargs_sv",
             "@cvm//:topology_sv",
             packet + "_sv",
             topology + "_sv",
-         ],
+            harness,
+        ],
         visibility = visibility,
     )
 

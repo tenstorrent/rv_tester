@@ -9,6 +9,18 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
     rv_tester_dpi = name + "_dpi"
     rv_tester_sv = name + "_sv"
 
+    verilog_library(
+        name = name + "_harness",
+        srcs = [
+            "@rv_tester//:rv_tester_pkg.sv",
+            "@rv_tester//:rv_tester_defines.sv",
+        ],
+        deps = [
+            topology + "_sv",
+        ],
+        visibility = visibility,
+    )
+
     packet_gen(
         name = name + "_transactions",
         src = "@rv_tester//:rv_tester_transactions.yml",
@@ -21,6 +33,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
         name = name + "_cosim",
         packet = name + "_transactions",
         topology = topology,
+        harness = name + "_harness",
         cc_attrs = cc_attrs,
     )
 
@@ -45,8 +58,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
         ],
         deps = [
             "@rv_tester//cosim/whisper_cov:arch_sample",
-            topology + "_sv",
-            "@rv_tester//:defines",
+            name + "_harness",
             name + "_transactions_sv",
             name + "_sysmod_sv",
             name + "_axi_sw_sv",

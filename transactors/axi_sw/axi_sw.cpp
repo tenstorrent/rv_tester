@@ -45,18 +45,23 @@ void axi_sw::process(const rv_tester_transactions::ar& ar) {
     a(axi::a_t{false, ar.id, ar.addr, ar.len, ar.size, axi::burst_t(ar.burst), ar.lock != 0});
 }
 
+template <typename T>
+static uint32_t slice_wrap(const T& val, size_t msb, size_t lsb) {
+    if constexpr (cvm::bitmanip::is_bitset_v<T>)
+      return cvm::bitmanip::slice(val, msb, lsb).to_ulong();
+    else
+      return cvm::bitmanip::slice(val, msb, lsb);
+}
+
 void axi_sw::process(const rv_tester_transactions::w& w) {
     axi::data_t vdata(data_width()/8, 0);
     axi::strb_t vstrb(strobe_width(), false);
 
     for (std::size_t i = 0; i < vdata.size(); i++)
-      cvm::bitmanip::slice(w.data, vdata[i], (i+1)*(8*sizeof(axi::data_t::value_type)) - 1, i*(8*sizeof(axi::data_t::value_type)));
+      vdata[i] = slice_wrap(w.data, (i+1)*(8*sizeof(axi::data_t::value_type)) - 1, i*(8*sizeof(axi::data_t::value_type)));
 
-    for (std::size_t i = 0; i < vstrb.size(); i++) {
-      bool v;
-      cvm::bitmanip::slice(w.strb, v, i, i);
-      vstrb[i] = v;
-    }
+    for (std::size_t i = 0; i < vstrb.size(); i++)
+      vstrb[i] = slice_wrap(w.strb, i, i);
 
     this->w(axi::w_t(
             vdata,
