@@ -1,5 +1,6 @@
 #include "cvm/plusargs.hpp"
 #include "cvm/topology.hpp"
+#include "cvm/logger.hpp"
 #include "debugger.h"
 
 //DECLARE_string(dbg_input_file_path);
@@ -28,8 +29,8 @@ void debugger::parse_dmi_from_csv()
 {
   if ((FLAGS_dbg_input_file_path == "")) {
     dbg_file_mode = 0;
-    }else{
-    std::cout<< "trying to read: "<< FLAGS_dbg_input_file_path<<"\n";
+  } else {
+    cvm::log(cvm::NONE, "[Trickbox] Parsing dmi cfg file {}\n", FLAGS_dbg_input_file_path);
     std::fstream file (FLAGS_dbg_input_file_path, std::ios::in);
     if(file.is_open())
     {
@@ -122,14 +123,13 @@ void debugger::parse_dmi_from_csv()
         content.push_back(row);
         dmi_cmd_q.push(dmi_req);
         //PRINT CSV DATA
-        std::cout<<"Pushing op:"<<dmi_req.op<<" addr: "<<dmi_req.addr<<" data "<<dmi_req.data<<"\n";
+        cvm::log(cvm::MEDIUM, "Pushing dmi request: op {} addr {:#x} data {:#x}\n", dmi_req.op, dmi_req.addr, dmi_req.data);
       
       }
-   }
-	 else{
-		std::cout<<"Could not open debugger input file\n";
-    vpi_control(vpiFinish);
-  }
+    }
+	  else{
+      cvm::log(cvm::ERROR, "Error: Could not open dmi cfg file {}\n", FLAGS_dbg_input_file_path);
+    }
     dbg_file_mode = 1;
   }
     
@@ -141,11 +141,10 @@ void debugger::drive_csv_dmi_cmds()
 {
 
   if(!dmi_cmd_q.empty()) {
-    //std::cout << myQueue.front() << " ";
     dmi_req_t dmi_req;
     dmi_req = dmi_cmd_q.front();
     dmi_cmd_q.pop();//pop front eleme7t
-    std::cout<<"Popping dmi request OP:"<<dmi_req.op<<" ADDR: "<<dmi_req.addr<<" DATA: "<<dmi_req.data<<" Func Bits: "<<dmi_req.func_bits<<"\n";
+    cvm::log(cvm::MEDIUM, "Popping dmi request: op {} addr {:#x} data {:#x} func bits {:#x}\n", dmi_req.op, dmi_req.addr, dmi_req.data, dmi_req.func_bits);
     unsigned upper_dmi_data = 0;
     unsigned lower_dmi_data = 0;
     unsigned hart = 0;
@@ -173,9 +172,10 @@ void
 debugger::write(uint64_t addr, size_t length, const data_t& data,
 		 const strb_t& strb)
 {
-  std::cout<<"debugger write: 0x"<<std::hex<<addr;
   if (not has_addr(addr))
     return;
+  
+  cvm::log(cvm::HIGH, "[Trickbox] Debugger write addr: {:#x}\n", addr);
   uint64_t t_data=0;
   deserializeInt(data, t_data);
   if(addr==debugger_base)
@@ -190,13 +190,10 @@ debugger::write(uint64_t addr, size_t length, const data_t& data,
  
   }
   
-  if(addr==debugger_trigger)
-  {
-    std::cout <<"\nDEBUGGER FILE TRIGGER\n";
-      parse_dmi_from_csv();
-      dbg_trigger = 1;
+  if (addr==debugger_trigger) {
+    cvm::log(cvm::MEDIUM, "[Trickbox] Debugger file trigger\n");
+    parse_dmi_from_csv();
+    dbg_trigger = 1;
   }
 
- 
-    
 }
