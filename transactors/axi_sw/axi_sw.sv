@@ -8,7 +8,7 @@ module axi_sw #(
     parameter int unsigned TOPO_ID    =    -1,
     parameter int NUM                 =    -1,
     parameter string tag = "notag",
-    parameter int unsigned R_FIFO_DEPTH = 32'd2,
+    parameter int unsigned R_Q_MAX    = 32'd2,
 
     parameter type addr_t   = logic [ADDR_WIDTH-1:0],
     parameter type data_t   = logic [DATA_WIDTH-1:0],
@@ -83,6 +83,8 @@ module axi_sw #(
 
     typedef byte unsigned dpi_data[DATA_WIDTH/$bits(byte)];
     typedef byte unsigned dpi_strb[STRB_WIDTH/$bits(byte)];
+
+    localparam int unsigned R_FIFO_DEPTH = R_Q_MAX;
 
     typedef logic[$clog2(R_FIFO_DEPTH  )-1:0] r_queue_idx_t;
     typedef logic[$clog2(R_FIFO_DEPTH+1)-1:0] r_queue_ptr_t;
@@ -218,28 +220,28 @@ module axi_sw #(
                 aws[0].data.location  <= location;
                 aws[0].data.id        <= axi_mst_aw_id;
                 aws[0].data.addr      <= axi_mst_aw_addr;
-                aws[0].data.len       <= UB'(axi_mst_aw_len);
-                aws[0].data.size      <= UB'(axi_mst_aw_size);
-                aws[0].data.burst     <= UB'(axi_mst_aw_burst);
-                aws[0].data.lock      <= UB'(axi_mst_aw_lock);
-                aws[0].data.atop      <= UB'(axi_mst_aw_atop);
+                aws[0].data.len       <= axi_mst_aw_len;
+                aws[0].data.size      <= axi_mst_aw_size;
+                aws[0].data.burst     <= axi_mst_aw_burst;
+                aws[0].data.lock      <= axi_mst_aw_lock;
+                aws[0].data.atop      <= axi_mst_aw_atop;
             end
             if (axi_mst_ar_valid && axi_slv_ar_ready) begin
                 ars[0].valid          <= '1 & (location != cvm_topology::nil);
                 ars[0].data.location  <= location;
                 ars[0].data.id        <= axi_mst_ar_id;
                 ars[0].data.addr      <= axi_mst_ar_addr;
-                ars[0].data.len       <= UB'(axi_mst_ar_len);
-                ars[0].data.size      <= UB'(axi_mst_ar_size);
-                ars[0].data.burst     <= UB'(axi_mst_ar_burst);
-                ars[0].data.lock      <= UB'(axi_mst_ar_lock);
+                ars[0].data.len       <= axi_mst_ar_len;
+                ars[0].data.size      <= axi_mst_ar_size;
+                ars[0].data.burst     <= axi_mst_ar_burst;
+                ars[0].data.lock      <= axi_mst_ar_lock;
             end
             if (axi_mst_w_valid && axi_slv_w_ready) begin
                 ws[0].valid          <= '1 & (location != cvm_topology::nil);
                 ws[0].data.location  <= location;
                 ws[0].data.data      <= axi_mst_w_data;
                 ws[0].data.strb      <= axi_mst_w_strb;
-                ws[0].data.last      <= UB'(axi_mst_w_last);
+                ws[0].data.last      <= axi_mst_w_last;
             end
         end
     end

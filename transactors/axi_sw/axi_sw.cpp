@@ -13,7 +13,7 @@ extern "C" {
 
 axi_sw::axi_sw(cvm::topology::loc_t loc, unsigned id)
   : scope_(nullptr), loc_(loc), r_q_rptr_(0), r_q_wptr_(0),
-    r_q_max_(cvm::topology::attr(loc, "R_Q_MAX").second), r_q_ptr_max_(1 << cvm::topology::attr(loc, "R_Q_PTR_MAX_LOG2").second) {
+    r_q_max_(cvm::topology::attr(loc, "R_Q_MAX").second), r_q_ptr_max_(cvm::topology::attr(loc, "R_Q_PTR_MAX").second) {
 
     auto data_width = cvm::topology::attr(loc, "DATA_WIDTH").second;
     axi_ = new axi(data_width, loc, "axi" + std::to_string(id));

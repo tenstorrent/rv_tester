@@ -120,13 +120,13 @@ axi_sw:
             len:
                 width: 8
             size:
-                width: 8
+                width: 3
             burst:
-                width: 8
+                width: 2
             lock:
-                width: 8
+                width: 1
             atop:
-                width: 8
+                width: 6
     ar:
         domain: 1
         num: 1
@@ -138,11 +138,11 @@ axi_sw:
             len:
                 width: 8
             size:
-                width: 8
+                width: 3
             burst:
-                width: 8
+                width: 2
             lock:
-                width: 8
+                width: 1
 
     w:
         domain: 1
@@ -153,7 +153,7 @@ axi_sw:
             strb:
                 width: ${TOP.CLUSTER.CORE.AXI.STRB_WIDTH}
             last:
-                width: 8
+                width: 1
 
     r_q_ptr:
         domain: 1

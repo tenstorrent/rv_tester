@@ -147,9 +147,10 @@ module rv_tester #(
         axi_sw #(
             .ADDR_WIDTH(topology.TOP.CLUSTER.CORE.AXI.ADDR_WIDTH),
             .DATA_WIDTH(topology.TOP.CLUSTER.CORE.AXI.DATA_WIDTH),
-            .ID_WIDTH  (topology.TOP.CLUSTER.CORE.AXI.ID_WIDTH  ),
+            .ID_WIDTH(topology.TOP.CLUSTER.CORE.AXI.ID_WIDTH  ),
             .STRB_WIDTH(topology.TOP.CLUSTER.CORE.AXI.STRB_WIDTH),
-            .TOPO_ID   (topology.TOP.CLUSTER.CORE.AXI.ID),
+            .TOPO_ID(topology.TOP.CLUSTER.CORE.AXI.ID),
+            .R_Q_MAX(topology.TOP.CLUSTER.CORE.AXI.R_Q_MAX),
             .NUM       (p)
         ) axi_sw(
             .clk,
