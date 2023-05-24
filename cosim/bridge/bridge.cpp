@@ -66,6 +66,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc)
 
 // Destructor
 bridge::~bridge() {
+  report_metrics();
   client_->whisperQuit();
 }
 
@@ -906,7 +907,7 @@ void bridge::exit_debug_mode(rv_debug_t& d) {
 }
 
 void bridge::final_phase() {
-  report_metrics();
+  //report_metrics();
 }
 
 void bridge::report_metrics() {
