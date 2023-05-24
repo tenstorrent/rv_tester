@@ -183,7 +183,7 @@ module axi_sw #(
         .pop         (axi_slv_b_valid && axi_mst_b_ready                  )
     );
 
-    always_ff @(posedge clk) begin
+    always @(posedge clk) begin
         aws[0].valid      <= '0;
         ars[0].valid      <= '0;
         ws[0].valid       <= '0;
