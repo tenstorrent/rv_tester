@@ -19,8 +19,12 @@ extern "C" {
         memmap::parse();
     }
 
-    void rv_tester_reset_registry() {
-        cvm::registry::reset();
+    void rv_tester_build_registry() {
+        cvm::registry::build();
+    }
+
+    void rv_tester_shutdown_registry() {
+        cvm::registry::shutdown();
     }
 
     uint8_t rv_tester_flush_callbacks() {

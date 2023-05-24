@@ -1,131 +1,133 @@
-`define RV_TESTER_PARAMETERS(topology)                                                          \
-                                                                                                \
-    parameter int unsigned AXI_STRB_WIDTH = topology.TOP.CLUSTER.CORE.AXI_DATA_WIDTH / 8,       \
-                                                                                                \
-    parameter type axi_addr_t   = logic [topology.TOP.CLUSTER.CORE.AXI_ADDR_WIDTH-1:0],         \
-    parameter type axi_data_t   = logic [topology.TOP.CLUSTER.CORE.AXI_DATA_WIDTH-1:0],         \
-    parameter type axi_id_t     = logic [topology.TOP.CLUSTER.CORE.AXI_ID_WIDTH  -1:0],         \
-    parameter type axi_strb_t   = logic [    AXI_STRB_WIDTH-1:0],                               \
-                                                                                                \
-    parameter type axi_atop_t   = logic [5:0],                                                  \
-    parameter type axi_burst_t  = logic [1:0],                                                  \
-    parameter type axi_resp_t   = logic [1:0],                                                  \
-    parameter type axi_len_t    = logic [7:0],                                                  \
-    parameter type axi_size_t   = logic [2:0],                                                  \
-                                                                                                \
-    parameter type bootstrap_t = struct packed {                                                \
-        logic  [topology.TOP.CLUSTER.CORE.VLEN-1:0] boot_addr;                                  \
-    },                                                                                          \
-                                                                                                \
-    parameter type rvfi_t   = struct packed {                                                   \
-        logic                                             valid    ;                            \
-        logic [64-1:0]                                    order    ;                            \
-        logic [topology.TOP.CLUSTER.CORE.ILEN-1:0]        insn     ;                            \
-        logic                                             trap     ;                            \
-        logic [topology.TOP.CLUSTER.CORE.XLEN-1:0]        cause    ;                            \
-        logic                                             halt     ;                            \
-        logic                                             intr     ;                            \
-        logic [2-1:0]                                     mode     ;                            \
-        logic [2-1:0]                                     ixl      ;                            \
-        logic [5-1:0]                                     rs1_addr ;                            \
-        logic [5-1:0]                                     rs2_addr ;                            \
-        logic [topology.TOP.CLUSTER.CORE.XLEN-1:0]        rs1_rdata;                            \
-        logic [topology.TOP.CLUSTER.CORE.XLEN-1:0]        rs2_rdata;                            \
-        logic [5-1:0]                                     rd_addr  ;                            \
-        logic [topology.TOP.CLUSTER.CORE.XLEN-1:0]        rd_wdata ;                            \
-                                                                                                \
-        logic [topology.TOP.CLUSTER.CORE.XLEN-1:0]        pc_rdata ;                            \
-        logic [topology.TOP.CLUSTER.CORE.XLEN-1:0]        pc_wdata ;                            \
-                                                                                                \
-        logic [topology.TOP.CLUSTER.CORE.XLEN-1:0]        mem_addr ;                            \
-        logic [topology.TOP.CLUSTER.CORE.XLEN-1:0]        mem_paddr;                            \
-        logic [(topology.TOP.CLUSTER.CORE.XLEN/8)-1:0]    mem_rmask;                            \
-        logic [(topology.TOP.CLUSTER.CORE.XLEN/8)-1:0]    mem_wmask;                            \
-        logic [topology.TOP.CLUSTER.CORE.XLEN-1:0]        mem_rdata;                            \
-        logic [topology.TOP.CLUSTER.CORE.XLEN-1:0]        mem_wdata;                            \
-    },                                                                                          \
-                                                                                                \
-    parameter type mcmi_t    = struct packed {                                                  \
-        logic                                             valid;                                \
-        logic [64-1:0]                                    order;                                \
-        logic [topology.TOP.CLUSTER.CORE.PA_WIDTH-1:0]    addr ;                                \
-        logic [8-1:0]                                     size ;                                \
-        logic [topology.TOP.CLUSTER.CORE.XLEN-1:0]        data ;                                \
-        logic                                          data_src;                                \
-    },                                                                                          \
-                                                                                                \
-    parameter type axi_req_t = struct packed {                                                 \
-        logic                   ar_valid ;                                                     \
-        axi_id_t                ar_id    ;                                                     \
-        axi_addr_t              ar_addr  ;                                                     \
-        axi_len_t               ar_len   ;                                                     \
-        axi_size_t              ar_size  ;                                                     \
-        axi_burst_t             ar_burst ;                                                     \
-        logic                   ar_lock  ;                                                     \
-                                                                                               \
-        logic                   aw_valid ;                                                     \
-        axi_id_t                aw_id    ;                                                     \
-        axi_addr_t              aw_addr  ;                                                     \
-        axi_len_t               aw_len   ;                                                     \
-        axi_size_t              aw_size  ;                                                     \
-        axi_burst_t             aw_burst ;                                                     \
-        logic                   aw_lock  ;                                                     \
-        axi_atop_t              aw_atop  ;                                                     \
-                                                                                               \
-        logic                   w_valid  ;                                                     \
-        axi_data_t              w_data   ;                                                     \
-        axi_strb_t              w_strb   ;                                                     \
-        logic                   w_last   ;                                                     \
-                                                                                               \
-        logic                   b_ready  ;                                                     \
-        logic                   r_ready  ;                                                     \
-    },                                                                                         \
-                                                                                               \
-    parameter type axi_rsp_t = struct packed {                                                 \
-        logic                   b_valid  ;                                                     \
-        axi_id_t                b_id     ;                                                     \
-        axi_resp_t              b_resp   ;                                                     \
-                                                                                               \
-        logic                   r_valid  ;                                                     \
-        axi_id_t                r_id     ;                                                     \
-        axi_data_t              r_data   ;                                                     \
-        axi_resp_t              r_resp   ;                                                     \
-        logic                   r_last   ;                                                     \
-                                                                                               \
-        logic                   aw_ready ;                                                     \
-        logic                   ar_ready ;                                                     \
-        logic                   w_ready  ;                                                     \
-    }
+package rv_tester_params;
 
-`define _RV_TESTER_PORTS(input,output)                                                     \
-    input                             clk      ,                                           \
-    input                             reset    ,                                           \
-    input  bootstrap_t                bootstrap,                                           \
-    input  rv_tester_pkg::interrupt_t interrupt,                                           \
-    input  rv_tester_pkg::dm_write_t  dmi_write,                                           \
-    output                            debug_mode,                                          \
-    input                             terminate,                                           \
-    output                            quiesced,                                            \
-                                                                                           \
-    output rvfi_t      rvfi_instr   [topology.TOP.CLUSTER.CORE.NRET],                      \
-    output mcmi_t      mcmi_store   [topology.TOP.CLUSTER.CORE.STQ_PORTS],                 \
-    output axi_req_t   axi_req      [topology.TOP.CLUSTER.CORE.AXI_PORTS],                 \
-    input  axi_rsp_t   axi_rsp      [topology.TOP.CLUSTER.CORE.AXI_PORTS]
+    import topology_pkg::mods;
+
+    typedef logic [mods.TOP.CLUSTER.CORE.AXI.ADDR_WIDTH-1:0] axi_addr_t;
+    typedef logic [mods.TOP.CLUSTER.CORE.AXI.DATA_WIDTH-1:0] axi_data_t;
+    typedef logic [mods.TOP.CLUSTER.CORE.AXI.STRB_WIDTH-1:0] axi_strb_t;
+    typedef logic [mods.TOP.CLUSTER.CORE.AXI.ID_WIDTH  -1:0] axi_id_t;
+
+    typedef logic [5:0] axi_atop_t;
+    typedef logic [1:0] axi_burst_t;
+    typedef logic [1:0] axi_resp_t;
+    typedef logic [7:0] axi_len_t;
+    typedef logic [2:0] axi_size_t;
+
+    typedef struct packed {
+        logic  [mods.TOP.CLUSTER.CORE.VLEN-1:0] boot_addr;
+    } bootstrap_t;
+
+    typedef struct packed {
+        logic                                             valid    ;
+        logic [64-1:0]                                    order    ;
+        logic [mods.TOP.CLUSTER.CORE.ILEN-1:0]        insn     ;
+        logic                                             trap     ;
+        logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]        cause    ;
+        logic                                             halt     ;
+        logic                                             intr     ;
+        logic [2-1:0]                                     mode     ;
+        logic [2-1:0]                                     ixl      ;
+        logic [5-1:0]                                     rs1_addr ;
+        logic [5-1:0]                                     rs2_addr ;
+        logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]        rs1_rdata;
+        logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]        rs2_rdata;
+        logic [5-1:0]                                     rd_addr  ;
+        logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]        rd_wdata ;
+
+        logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]        pc_rdata ;
+        logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]        pc_wdata ;
+
+        logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]        mem_addr ;
+        logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]        mem_paddr;
+        logic [(mods.TOP.CLUSTER.CORE.XLEN/8)-1:0]    mem_rmask;
+        logic [(mods.TOP.CLUSTER.CORE.XLEN/8)-1:0]    mem_wmask;
+        logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]        mem_rdata;
+        logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]        mem_wdata;
+    } rvfi_t;
+
+    typedef struct packed {
+        logic                                             valid;
+        logic [64-1:0]                                    order;
+        logic [mods.TOP.CLUSTER.CORE.PA_WIDTH-1:0]    addr ;
+        logic [8-1:0]                                     size ;
+        logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]        data ;
+        logic                                          data_src;
+    } mcmi_t;
+
+    typedef struct packed {
+        logic                   ar_valid ;
+        axi_id_t                ar_id    ;
+        axi_addr_t              ar_addr  ;
+        axi_len_t               ar_len   ;
+        axi_size_t              ar_size  ;
+        axi_burst_t             ar_burst ;
+        logic                   ar_lock  ;
+
+        logic                   aw_valid ;
+        axi_id_t                aw_id    ;
+        axi_addr_t              aw_addr  ;
+        axi_len_t               aw_len   ;
+        axi_size_t              aw_size  ;
+        axi_burst_t             aw_burst ;
+        logic                   aw_lock  ;
+        axi_atop_t              aw_atop  ;
+
+        logic                   w_valid  ;
+        axi_data_t              w_data   ;
+        axi_strb_t              w_strb   ;
+        logic                   w_last   ;
+
+        logic                   b_ready  ;
+        logic                   r_ready  ;
+    } axi_req_t;
+
+    typedef struct packed {
+        logic                   b_valid  ;
+        axi_id_t                b_id     ;
+        axi_resp_t              b_resp   ;
+
+        logic                   r_valid  ;
+        axi_id_t                r_id     ;
+        axi_data_t              r_data   ;
+        axi_resp_t              r_resp   ;
+        logic                   r_last   ;
+
+        logic                   aw_ready ;
+        logic                   ar_ready ;
+        logic                   w_ready  ;
+    } axi_rsp_t;
+
+`define _RV_TESTER_PORTS(input,output)                                                                   \
+    input                                               clk      ,                                       \
+    input                                               reset    ,                                       \
+    input  rv_tester_params::bootstrap_t                bootstrap,                                       \
+    input  rv_tester_pkg::interrupt_t                   interrupt,                                       \
+    input  rv_tester_pkg::dm_write_t                    dmi_write,                                       \
+    output                                              debug_mode,                                      \
+    input                                               terminate,                                       \
+    output                                              quiesced,                                        \
+                                                                                                         \
+    output rv_tester_params::rvfi_t      rvfi_instr   [topology.TOP.CLUSTER.CORE.NRET],                  \
+    output rv_tester_params::mcmi_t      mcmi_store   [topology.TOP.CLUSTER.CORE.STQ_PORTS],             \
+    output rv_tester_params::axi_req_t   axi_req      [topology.TOP.CLUSTER.CORE.AXI.TOTAL],             \
+    input  rv_tester_params::axi_rsp_t   axi_rsp      [topology.TOP.CLUSTER.CORE.AXI.TOTAL]
 
 
-`define RV_TESTER_VARS(topology)                                                           \
-    logic                      clk      ;                                                  \
-    logic                      reset    ;                                                  \
-    bootstrap_t                bootstrap;                                                  \
-    rv_tester_pkg::interrupt_t interrupt;                                                  \
-    rv_tester_pkg::dm_write_t  dmi_write;                                                  \
-    logic                      debug_mode;                                                 \
-    logic                      terminate;                                                  \
-    logic                      quiesced;                                                   \
-                                                                                           \
-    rvfi_t      rvfi_instr   [topology.TOP.CLUSTER.CORE.NRET];                             \
-    mcmi_t      mcmi_store   [topology.TOP.CLUSTER.CORE.STQ_PORTS];                        \
-    axi_req_t   axi_req      [topology.TOP.CLUSTER.CORE.AXI_PORTS];                        \
-    axi_rsp_t   axi_rsp      [topology.TOP.CLUSTER.CORE.AXI_PORTS];
+`define RV_TESTER_VARS(topology)                                                                         \
+    logic                                        clk      ;                                              \
+    logic                                        reset    ;                                              \
+    rv_tester_params::bootstrap_t                bootstrap;                                              \
+    rv_tester_pkg::interrupt_t                   interrupt;                                              \
+    rv_tester_pkg::dm_write_t                    dmi_write;                                              \
+    logic                                        debug_mode;                                             \
+    logic                                        terminate;                                              \
+    logic                                        quiesced;                                               \
+                                                                                                         \
+    rv_tester_params::rvfi_t      rvfi_instr   [topology.TOP.CLUSTER.CORE.NRET];                         \
+    rv_tester_params::mcmi_t      mcmi_store   [topology.TOP.CLUSTER.CORE.STQ_PORTS];                    \
+    rv_tester_params::axi_req_t   axi_req      [topology.TOP.CLUSTER.CORE.AXI.TOTAL];                    \
+    rv_tester_params::axi_rsp_t   axi_rsp      [topology.TOP.CLUSTER.CORE.AXI.TOTAL];
 
 `define RV_TESTER_PORTS `_RV_TESTER_PORTS(input,output)
+
+endpackage

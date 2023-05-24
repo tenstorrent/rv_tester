@@ -1,0 +1,170 @@
+cosim:
+    num: 1
+    msg:
+        fields:
+            count:
+                width: 32
+
+    m_rvfi:
+        domain: 1
+        num: ${TOP.CLUSTER.CORE.NRET}
+        fields:
+            cycle:
+                width: 64
+            order:
+                width: 64
+            insn:
+                width: 32
+            trap:
+                width: 1
+            intr:
+                width: 1
+            cause:
+                width: 64
+            mode:
+                width: 2
+            ixl:
+                width: 2
+            rd_addr:
+                width: 5
+            rd_wdata:
+                width: 64
+            pc_rdata:
+                width: 64
+            pc_wdata:
+                width: 64
+            mem_addr:
+                width: 64
+            mem_paddr:
+                width: 64
+            mem_rmask:
+                width: 8
+            mem_rdata:
+                width: 64
+            mem_wmask:
+                width: 8
+            mem_wdata:
+                width: 64
+
+    m_mcmi_store:
+        domain: 1
+        num: ${TOP.CLUSTER.CORE.STQ_PORTS}
+        fields:
+            cycle:
+                width: 64
+            order:
+                width: 64
+            addr:
+                width: 56
+            size:
+                width: 8
+            data:
+                width: 64
+
+    m_trap:
+        domain: 1
+        num: ${TOP.CLUSTER.CORE.NRET}
+        fields:
+            cycle:
+                width: 64
+            cause:
+                width: 64
+
+    m_intr:
+        domain: 1
+        num: 1
+        fields:
+            cycle:
+                width: 64
+            mip:
+                width: 64
+            seip:
+                width: 1
+            mip_posedge:
+                width: 1
+            seip_posedge:
+                width: 1
+            seip_negedge:
+                width: 1
+
+    m_debug:
+        domain: 1
+        num: 1
+        fields:
+            cycle:
+                width: 64
+            enter:
+                width: 1
+            exit:
+                width: 1
+
+sysmod:
+    num: 1
+    tick:
+        domain: 1
+        num: 1
+        fields:
+            advance:
+                width: 64
+
+axi_sw:
+    num: ${TOP.CLUSTER.CORE.AXI.TOTAL}
+    aw:
+        domain: 1
+        num: 1
+        fields:
+            id:
+                width: ${TOP.CLUSTER.CORE.AXI.ID_WIDTH}
+            addr:
+                width: ${TOP.CLUSTER.CORE.AXI.ADDR_WIDTH}
+            len:
+                width: 8
+            size:
+                width: 3
+            burst:
+                width: 2
+            lock:
+                width: 1
+            atop:
+                width: 6
+    ar:
+        domain: 1
+        num: 1
+        fields:
+            id:
+                width: ${TOP.CLUSTER.CORE.AXI.ID_WIDTH}
+            addr:
+                width: ${TOP.CLUSTER.CORE.AXI.ADDR_WIDTH}
+            len:
+                width: 8
+            size:
+                width: 3
+            burst:
+                width: 2
+            lock:
+                width: 1
+
+    w:
+        domain: 1
+        num: 1
+        fields:
+            data:
+                width: ${TOP.CLUSTER.CORE.AXI.DATA_WIDTH}
+            strb:
+                width: ${TOP.CLUSTER.CORE.AXI.STRB_WIDTH}
+            last:
+                width: 1
+
+    r_q_ptr:
+        domain: 1
+        num: 1
+        fields:
+            r_ptr:
+                width: ${TOP.CLUSTER.CORE.AXI.R_Q_PTR_MAX_LOG2}
+
+    r:
+        domain: 1
+        num: 1
+        fields:
+            block:
+                width: 1

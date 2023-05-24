@@ -1,27 +1,33 @@
 #include "axi_sw.h"
 #include "cvm/topology.hpp"
 #include "cvm/plusargs.hpp"
+#include "cvm/registry.hpp"
+#include "cvm/bitmanip.hpp"
 
-DEFINE_bool(axi_sw_r_poll, true, "poll for read data every cycle, or asynchronously push read data");
+REGISTRY_register(axi_sw, AXI, cvm::registry::all);
 
 extern "C" {
 
   void axi_sw_r(axi::id_t id, axi::resp_t resp, const axi::datum_t* data, axi::last_t last);
 }
 
-axi_sw::axi_sw(const svScope& scope, unsigned num, bool r_poll, const axi::data_width_t& data_width, const std::string& tag, const r_q_ptr_t& r_q_max, const r_q_ptr_t& r_q_ptr_max)
-  : scope_(scope), r_poll_(r_poll), r_q_max_(r_q_max), r_q_ptr_max_(r_q_ptr_max), r_q_rptr_(0), r_q_wptr_(0) {
+axi_sw::axi_sw(cvm::topology::loc_t loc, unsigned id)
+  : scope_(nullptr), loc_(loc), r_q_rptr_(0), r_q_wptr_(0),
+    r_q_max_(cvm::topology::attr(loc, "R_Q_MAX").second), r_q_ptr_max_(cvm::topology::attr(loc, "R_Q_PTR_MAX").second) {
 
-    auto location = cvm::topology::get("TOP.PLATFORM", num);
-    axi_ = new axi(data_width, location, tag);
+    auto data_width = cvm::topology::attr(loc, "DATA_WIDTH").second;
+    axi_ = new axi(data_width, loc, "axi" + std::to_string(id));
 
-    if (!r_poll_) {
-        std::thread([&] () {
-                while(1) {
-                    r(true);
-                }
-                }).detach();
-    }
+    cvm::registry::messenger.connect<svScope>(
+        loc_,
+        [&](svScope s) { return this->set_scope(s); });
+
+    connect<
+      rv_tester_transactions::aw,
+      rv_tester_transactions::ar,
+      rv_tester_transactions::w,
+      rv_tester_transactions::r_q_ptr,
+      rv_tester_transactions::r>();
 }
 
 axi_sw::~axi_sw() {
@@ -31,29 +37,64 @@ axi_sw::~axi_sw() {
     }
 }
 
-void axi_sw::r(bool block) {
-    if (block) {
-      auto [_, r] = axi_->r(true);
-      std::unique_lock<std::mutex> lock(r_q_rptr_m_);
-      while ( (r_q_wptr_ - r_q_rptr_) >= r_q_max_ ) {
-        r_q_rptr_c_.wait(lock);
-      }
-      r_q_wptr_ = (r_q_wptr_ + 1) % r_q_ptr_max_;
-      svSetScope(scope_);
-      axi_sw_r(r.id, r.resp, r.data.data(), r.last);
-    } else {
-      std::unique_lock<std::mutex> lock(r_q_rptr_m_);
-      if ( (r_q_wptr_ - r_q_rptr_) >= r_q_max_ ) {
-        return;
-      }
-      auto [valid, r] = axi_->r(false);
-      if (!valid) {
-        return;
-      }
-      r_q_wptr_ = (r_q_wptr_ + 1) % r_q_ptr_max_;
-      svSetScope(scope_);
-      axi_sw_r(r.id, r.resp, r.data.data(), r.last);
-    }
+void axi_sw::process(const rv_tester_transactions::aw& aw) {
+    a(axi::a_t{true, aw.id, aw.addr, aw.len, aw.size, axi::burst_t(aw.burst), aw.lock != 0, aw.atop});
+}
+
+void axi_sw::process(const rv_tester_transactions::ar& ar) {
+    a(axi::a_t{false, ar.id, ar.addr, ar.len, ar.size, axi::burst_t(ar.burst), ar.lock != 0});
+}
+
+template <typename T>
+static uint32_t slice_wrap(const T& val, size_t msb, size_t lsb) {
+    if constexpr (cvm::bitmanip::is_bitset_v<T>)
+      return cvm::bitmanip::slice(val, msb, lsb).to_ulong();
+    else
+      return cvm::bitmanip::slice(val, msb, lsb);
+}
+
+void axi_sw::process(const rv_tester_transactions::w& w) {
+    axi::data_t vdata(data_width()/8, 0);
+    axi::strb_t vstrb(strobe_width(), false);
+
+    for (std::size_t i = 0; i < vdata.size(); i++)
+      vdata[i] = slice_wrap(w.data, (i+1)*(8*sizeof(axi::data_t::value_type)) - 1, i*(8*sizeof(axi::data_t::value_type)));
+
+    for (std::size_t i = 0; i < vstrb.size(); i++)
+      vstrb[i] = slice_wrap(w.strb, i, i);
+
+    this->w(axi::w_t(
+            vdata,
+            vstrb,
+            w.last
+            )
+    );
+}
+
+void axi_sw::process(const rv_tester_transactions::r_q_ptr& r_q_ptr) {
+    r_q_rptr(r_q_ptr.r_ptr);
+}
+
+void axi_sw::process(const rv_tester_transactions::r& r) {
+    std::unique_lock<std::mutex> lock(r_q_rptr_m_);
+    if ( (r_q_wptr_ - r_q_rptr_) >= r_q_max_ )
+      return;
+
+    auto [valid, result] = axi_->r(false);
+    if (!valid)
+      return;
+    r_q_wptr_ = (r_q_wptr_ + 1) % r_q_ptr_max_;
+
+    // clang doesn't like structured bindings in a capture list
+    auto copy = result;
+    cvm::registry::callbacks.push(
+        scope_,
+        [copy]() { axi_sw_r(copy.id, copy.resp, copy.data.data(), copy.last); }
+    );
+}
+
+void axi_sw::set_scope(svScope scope) {
+    scope_ = scope;
 }
 
 void axi_sw::r_q_rptr(const r_q_ptr_t& r_q_rptr) {
@@ -63,38 +104,11 @@ void axi_sw::r_q_rptr(const r_q_ptr_t& r_q_rptr) {
 }
 
 extern "C" {
-  axi_sw* axi_sw_new(unsigned num, axi::data_width_t data_width, const char* tag,
-    axi_sw::r_q_ptr_t r_q_max, axi_sw::r_q_ptr_t r_q_ptr_max) {
+
+  void axi_sw_set_scope(cvm::topology::loc_t loc) {
     svScope scope = svGetScope();
-    return new axi_sw(scope, num, FLAGS_axi_sw_r_poll, data_width, tag, r_q_max, r_q_ptr_max);
-  }
-
-  void axi_sw_aw(axi_sw* a, axi::id_t id, axi::addr_t addr, axi::len_t len, axi::sz_t size, axi::burst_t burst, std::uint8_t lock, std::uint8_t atop) {
-    a->a(axi::a_t{true , id, addr, len, size, burst, lock != 0, atop});
-  }
-
-  void axi_sw_ar(axi_sw* a, axi::id_t id, axi::addr_t addr, axi::len_t len, axi::sz_t size, axi::burst_t burst, std::uint8_t lock) {
-    a->a(axi::a_t{false, id, addr, len, size, burst, lock != 0});
-  }
-
-  void axi_sw_w(axi_sw* a, const axi::datum_t* data, const axi::strbum_t* strb, axi::last_t last) {
-    axi::strb_t vstrb(a->strobe_width(), false);
-    for (std::size_t i = 0; i < vstrb.size(); i++) {
-        vstrb[i] = (strb[i/8] >> (i%8)) & 1;
-    }
-    a->w(axi::w_t(
-                axi::data_t(data, data + a->data_width()/8),
-                vstrb,
-                last
-                )
-        );
-  }
-
-  void axi_sw_r_ptr(axi_sw* a, axi_sw::r_q_ptr_t r_ptr) {
-    a->r_q_rptr(r_ptr);
-  }
-
-  void axi_sw_r_poll(axi_sw* a) {
-    a->r(false);
+    cvm::registry::messenger.signal<svScope>(
+        loc,
+        scope);
   }
 }

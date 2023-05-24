@@ -7,11 +7,25 @@
 #include <thread>
 #include <cassert>
 #include <iostream>
+#include <type_traits>
 #include "axi.h"
 #include "axi_sw.h"
 #include "svdpi.h"
 
+#include "rv_tester_transactions.hpp"
+
 class axi_sw {
+
+    template<typename T, typename... Args> void connect() {
+      cvm::registry::messenger.connect<T>(
+          loc_,
+          [this] (const T& v) {
+              return this->process(v);
+          }
+      );
+      if constexpr (sizeof...(Args))
+        connect<Args...>();
+    }
 
     public:
 
@@ -19,15 +33,20 @@ class axi_sw {
 
     private:
 
-        svScope scope_;
+        void process(const rv_tester_transactions::aw& aw);
+        void process(const rv_tester_transactions::ar& ar);
+        void process(const rv_tester_transactions::w& w);
+        void process(const rv_tester_transactions::r_q_ptr& r_ptr);
+        void process(const rv_tester_transactions::r& r);
+        void set_scope(svScope scope);
 
-        bool r_poll_;
+        svScope scope_;
+        cvm::topology::loc_t loc_;
+
+        r_q_ptr_t r_q_rptr_, r_q_wptr_;
 
         const r_q_ptr_t     r_q_max_    ;
         const r_q_ptr_t     r_q_ptr_max_;
-
-
-        r_q_ptr_t r_q_rptr_, r_q_wptr_;
 
         // TODO switch to c++20, change r_q_rtpr_ to std::atomic, get rid of this mutex and conditional
         mutable std::mutex r_q_rptr_m_, r_q_wptr_m_;
@@ -37,7 +56,7 @@ class axi_sw {
 
     public:
 
-        axi_sw(const svScope& scope, unsigned num, bool r_poll, const axi::data_width_t& data_width, const std::string& tag, const r_q_ptr_t& r_q_max, const r_q_ptr_t& r_q_ptr_max);
+        axi_sw(cvm::topology::loc_t loc, unsigned id);
 
         ~axi_sw();
 
@@ -47,7 +66,7 @@ class axi_sw {
 
         void w(      axi::w_t&& p) { axi_->w(std::forward<      axi::w_t>(p)); }
 
-        void r(bool block = false);
+        void r();
 
         axi::data_width_t   data_width()   const { return axi_->data_width()  ; }
         axi::strobe_width_t strobe_width() const { return axi_->strobe_width(); }

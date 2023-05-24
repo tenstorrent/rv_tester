@@ -2,21 +2,6 @@ load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
 
 verilog_library(
-    name = "pkg",
-    srcs = ["rv_tester_pkg.sv"],
-    visibility = ["//visibility:public"],
-)
-
-verilog_library(
-    name = "defines",
-    srcs = [
-        "rv_tester_defines.sv",
-    ],
-    deps = ["pkg"],
-    visibility = ["//visibility:public"],
-)
-
-verilog_library(
     name = "dpic_pkg",
     srcs = ["dpic_pkg.sv"],
     visibility = ["//visibility:public"],
@@ -43,9 +28,10 @@ config_setting(
 filegroup(
     name = "rv_tester_topology",
     srcs = [
-      "rv_tester_topology.yml",
+        "rv_tester_topology.yml",
+        "//transactors/axi_sw:axi_sw_attrs.yml",
     ],
     visibility = ["//visibility:public"],
 )
 
-exports_files(["rv_tester.cpp", "rv_tester.sv", "rv_tester_clkgen.sv"])
+exports_files(["rv_tester.cpp", "rv_tester_pkg.sv", "rv_tester_defines.sv", "rv_tester.sv", "rv_tester_clkgen.sv", "rv_tester_transactions.yml"])

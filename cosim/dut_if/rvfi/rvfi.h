@@ -4,7 +4,7 @@
 
 #include "cvm/registry.hpp"
 #include "cvm/logger.hpp"
-#include "cosim_transactions.hpp"
+#include "rv_tester_transactions.hpp"
 
 #include "svdpi.h"
 #include "bridge_if.h"
@@ -32,29 +32,25 @@ class rvfi {
 
     ~rvfi();
 
-    struct scope_t {
-      svScope scope;
-    };
-
   private:
 
     void init();
     void set_scope(svScope s) { scope_ = s; }
-    void process(const cosim_transactions::m_rvfi& m_rvfi);
-    void process(const cosim_transactions::m_trap& m_trap);
-    void process(const cosim_transactions::m_intr& m_intr);
-    void process(const cosim_transactions::m_debug& m_debug);
+    void process(const rv_tester_transactions::m_rvfi& m_rvfi);
+    void process(const rv_tester_transactions::m_trap& m_trap);
+    void process(const rv_tester_transactions::m_intr& m_intr);
+    void process(const rv_tester_transactions::m_debug& m_debug);
 
     std::tuple<uint64_t, uint64_t, uint8_t> get_mem_attributes(uint64_t addr, uint8_t mask, uint64_t data);
 
-    void make_instr(const cosim_transactions::m_rvfi& m_rvfi, rv_instr_t& instr);
+    void make_instr(const rv_tester_transactions::m_rvfi& m_rvfi, rv_instr_t& instr);
     void print_instr(rv_instr_t& instr);
     void send_instr(rv_instr_t& instr);
     void enter_debug_mode(rv_instr_t& instr);
     void exit_debug_mode(rv_instr_t& instr);
 
     void initialize_perf();
-    void collect_perf(const cosim_transactions::m_rvfi& m_rvfi);
+    void collect_perf(const rv_tester_transactions::m_rvfi& m_rvfi);
     void report_perf();
 
   private:

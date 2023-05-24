@@ -1,21 +1,19 @@
 module sysmod #(
     parameter int CLOCK_PERIOD_PS           =     500,
     parameter int SW_CLOCK_UPDATE_PERIOD_PS = 100_000,
-    parameter int  NUM                      =      -1,
-    `TOPOLOGY,
-    `RV_TESTER_PARAMETERS(topology)
+    parameter int NUM                       =      -1,
+    `TOPOLOGY
 )(
     input clk,
     input reset,
     input longint unsigned clocks,
-    output bootstrap_t bootstrap,
+    output rv_tester_params::bootstrap_t bootstrap,
     output rv_tester_pkg::interrupt_t interrupt,
     output rv_tester_pkg::dm_write_t  dmi_write,
-    output rv_tester_pkg::terminate_t terminate
+    output rv_tester_pkg::terminate_t terminate,
+    `RV_TESTER_TRANSACTIONS_OUTPUT_SYSMOD
 );
     import "DPI-C" context function void sysmod_set_scope(int unsigned location);
-    import "DPI-C" function void sysmod_tick(int unsigned location, longint unsigned advance);
-    import "DPI-C" function int sysmod_tick_with_return(int unsigned location, longint unsigned advance);
 
     typedef longint unsigned LU;
     int unsigned location = cvm_topology::nil;
@@ -32,13 +30,15 @@ module sysmod #(
         if (reset) begin
             /* verilator lint_off BLKSEQ */
             sysmod_tick_async = cvm_plusargs::get_bool("sysmod_tick_async") != '0;
-            location = cvm_topology::get_location(topology.TOP.PLATFORM.id, 0);
-            sysmod_set_scope(location);
+            location = cvm_topology::get_location(topology.TOP.PLATFORM.SYSMOD.ID, NUM);
+            if (location != cvm_topology::nil) begin
+              sysmod_set_scope(location);
+            end
             /* verilator lint_on BLKSEQ */
         end
-        /* verilator lint_off BLKSEQ */
-        terminate.terminate = '0;
-        /* verilator lint_on BLKSEQ */
+        /* verilator lint_off BLKANDNBLK */
+        terminate.terminate <= '0;
+        /* verilator lint_on BLKANDNBLK */
     end
 
     assign bootstrap.boot_addr = 1 << 31;
@@ -49,25 +49,9 @@ module sysmod #(
     export "DPI-C" function sysmod_terminate;
 
     localparam longint unsigned TICKS = LU'(SW_CLOCK_UPDATE_PERIOD_PS)/LU'(CLOCK_PERIOD_PS);
-    // Need to be separate always blocks for zebu, otherwise zebu makes them both blocking
-    always @(posedge clk) begin
-        if (0 == (clocks % TICKS)) begin
-            if (location != cvm_topology::nil) begin
-                if (sysmod_tick_async) begin
-                    sysmod_tick(location, TICKS);
-                end
-            end
-        end
-    end
-    always @(posedge clk) begin
-        if (0 == (clocks % TICKS)) begin
-            if (location != cvm_topology::nil) begin
-                if(!sysmod_tick_async) begin
-                    void'(sysmod_tick_with_return(location, TICKS));
-                end
-            end
-        end
-    end
+    assign ticks[0].valid         = (0 == (clocks % TICKS)) & (location != cvm_topology::nil);
+    assign ticks[0].data.location = location;
+    assign ticks[0].data.advance  = TICKS;
 
     rv_tester_pkg::interrupt_t interrupt_d = '0; // FIXME how to reset these?
     rv_tester_pkg::interrupt_t interrupt_q;

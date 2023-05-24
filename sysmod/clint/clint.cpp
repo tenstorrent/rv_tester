@@ -10,8 +10,8 @@ clint::clint(const std::string& tag, uint64_t addr, unsigned hartCount,
   : device(tag, addr, 0xc000 /* size */, loc), hartCount_(hartCount), soft_(hartCount),
     timeCompare_(hartCount, -1), timerIntPrev_(hartCount, 0), timer_(0)
 {
-  auto clint_loc = cvm::topology::get("CLINT", 0);
-  tickDivisor_ = cvm::topology::attr(clint_loc, "clock_divisor").second;
+  auto clint_loc = cvm::topology::get_from_type("CLINT", 0);
+  tickDivisor_ = cvm::topology::attr(clint_loc, "CLOCK_DIVISOR").second;
 
   std::ifstream ifs;
   if (load_snapshot(ifs)) {
@@ -91,7 +91,6 @@ void
 clint::write(uint64_t addr, size_t length, const data_t& data,
 		 const strb_t& strb)
 {
-
   if (not has_addr(addr))
     return;
 

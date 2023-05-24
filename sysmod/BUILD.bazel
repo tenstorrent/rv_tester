@@ -1,19 +1,7 @@
-load("@rules_hdl//verilog:providers.bzl", "verilog_library")
-
-verilog_library(
-    name = "sysmod",
-    srcs = ["sysmod.sv"],
-    deps = [
-        "@cvm//:plusargs_sv",
-        "@cvm//:topology_sv",
-    ],
-    visibility = ["//visibility:public"],
-)
-
 cc_library(
     name = "device",
-    srcs = ["device.cpp"],
-    hdrs = ["device.h"],
+    srcs = ["@rv_tester//sysmod:device.cpp"],
+    hdrs = ["@rv_tester//sysmod:device.h"],
     deps = [
         "@cvm//:topology",
         "@cvm//:plusargs",
@@ -24,25 +12,4 @@ cc_library(
     visibility = ["//visibility:public"],
 )
 
-cc_library(
-    name = "sysmod_dpi",
-    srcs = [
-      "sysmod.cpp",
-    ],
-    hdrs = [ "sysmod.h" ],
-    deps = [
-      "//common:common",
-      "//sysmod/clint:clint",
-      "//sysmod/trickbox:trickbox",
-      "//sysmod/htif:htif",
-      "//sysmod/mem:mem",
-      "//sysmod/io_dev:io_dev",
-      "//sysmod/null_dev:null_dev",
-      ":device",
-      "@cvm//:plusargs",
-      "@cvm//:topology",
-      "@cvm//:registry",
-    ],
-    alwayslink = True,
-    visibility = ["//visibility:public"],
-)
+exports_files(glob(["sysmod.*", "device.*"]))
