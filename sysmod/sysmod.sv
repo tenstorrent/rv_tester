@@ -34,11 +34,9 @@ module sysmod #(
             if (location != cvm_topology::nil) begin
               sysmod_set_scope(location);
             end
+            terminate.terminate = '0;
             /* verilator lint_on BLKSEQ */
         end
-        /* verilator lint_off BLKANDNBLK */
-        terminate.terminate <= '0;
-        /* verilator lint_on BLKANDNBLK */
     end
 
     assign bootstrap.boot_addr = 1 << 31;
