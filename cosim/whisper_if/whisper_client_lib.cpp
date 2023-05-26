@@ -14,16 +14,25 @@
 #include <netdb.h>
 #include <string>
 
+#include "cvm/plusargs.hpp"
+
 #include "whisper_client_lib.h"
 #include "HartConfig.hpp"
 #include "Hart.hpp"
+
+DECLARE_string(load);
+DECLARE_string(hex);
+DECLARE_string(whisper_json_path);
+DECLARE_bool(whisper_stdin_null);
+DECLARE_bool(whisper_stdout_null);
+DECLARE_bool(mcm);
 
 template <typename URV>
 int
 whisperClientLib<URV>::whisperConnect(const char* filePath)
 {
   WdRiscv::HartConfig config;
-  if (not config.loadConfigFile(filePath))
+  if (not config.loadConfigFile(FLAGS_whisper_json_path.c_str()))
     return -1;
 
   unsigned hartsPerCore = 1;
@@ -41,10 +50,23 @@ whisperClientLib<URV>::whisperConnect(const char* filePath)
 
   system_ = std::make_shared<WdRiscv::System<URV>>(coreCount, hartsPerCore, hartIdOffset, memorySize, pageSize);
 
-  std::vector<std::string> targets = {prog_};
-  if (not system_->loadElfFiles(targets, false, false))
-    return -1;
+  if (FLAGS_mcm) {
+    bool checkAll = true;
+    config.getMcmCheckAll(checkAll);
+    system_->enableMcm(64, true /* checkAll */);
+  }
 
+  if (FLAGS_load != "") {
+    std::vector<std::string> targets = {FLAGS_load};
+    if (not system_->loadElfFiles(targets, false, false))
+      return -1;
+  }
+
+  if (FLAGS_hex != "") {
+    std::vector<std::string> targets = {FLAGS_hex};
+    if (not system_->loadHexFiles(targets, false))
+      return -1;
+  }
 
   if (not config.configHarts(*system_, false, false))
     return -1;
@@ -57,6 +79,8 @@ whisperClientLib<URV>::whisperConnect(const char* filePath)
       auto& hart = *(system_->ithHart(i));
       hart.enableNewlib(true);
       hart.enableLinux(true);
+      if (FLAGS_whisper_stdout_null) hart.redirectOutputDescriptor(STDOUT_FILENO, "/dev/null");
+      if (FLAGS_whisper_stdin_null) hart.redirectOutputDescriptor(STDIN_FILENO, "/dev/null");
       if (not isa.empty())
         if (not hart.configIsa(isa, true))
           return false;

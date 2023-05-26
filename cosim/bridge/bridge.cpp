@@ -91,7 +91,7 @@ bool bridge::whisper_connect(std::string cmd, int timeout) {
 
     int result;
     if (FLAGS_whisper_client == "lib")
-      result = client_->whisperConnect(FLAGS_whisper_json_path.c_str());
+      result = client_->whisperConnect("");
     else
       result = client_->whisperConnect("whisper_connect");
 
@@ -121,7 +121,7 @@ void bridge::reset() {
   } else if (FLAGS_whisper_client == "lib") {
     std::string traceFile = FLAGS_whisper_log ? "iss_cosim.log" : "";
     std::string commandLog = FLAGS_whisper_log ? "iss_cmd.log" : "";
-    client_ = std::make_unique<whisperClientLib<uint64_t>>(traceFile, commandLog, FLAGS_load);
+    client_ = std::make_unique<whisperClientLib<uint64_t>>(traceFile, commandLog);
   } else {
     cvm::log(cvm::ERROR, "Error: Invalid option passed for +whisper_client. Should be one of - socket, shm.");
     return;

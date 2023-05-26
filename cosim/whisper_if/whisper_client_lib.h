@@ -12,12 +12,11 @@ template <typename URV>
 class whisperClientLib : public whisperClient {
 
   public:
-    whisperClientLib(std::string traceFile, std::string commandLog, std::string prog) :
+    whisperClientLib(std::string traceFile, std::string commandLog) :
       traceFile_(traceFile.empty() ? nullptr : fopen(traceFile.c_str(), "w")),
-      commandLog_(commandLog.empty() ? nullptr : fopen(commandLog.c_str(), "w")),
-      prog_(prog)
+      commandLog_(commandLog.empty() ? nullptr : fopen(commandLog.c_str(), "w"))
   {}
-    
+
     ~whisperClientLib() {
       if (traceFile_ != nullptr) {
         fclose(traceFile_);
@@ -54,7 +53,6 @@ class whisperClientLib : public whisperClient {
     std::unique_ptr<WdRiscv::Server<URV>> server_;
     FILE* traceFile_ = nullptr;
     FILE* commandLog_ = nullptr;
-    std::string prog_;
     WhisperMessage req {};
     WhisperMessage reply {};
 };
