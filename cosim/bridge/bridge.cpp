@@ -921,7 +921,7 @@ void bridge::report_metrics() {
     const auto& prev_prev_whisp_state = ppw_[h];
     const int num_instructions = cac_.getStep(h);
     const auto& num_cycles = prev_whisp_state.time;
-    const double ipc = static_cast<double>(num_instructions) / static_cast<double>(num_cycles);
+    const double ipc = num_cycles ? static_cast<double>(num_instructions) / static_cast<double>(num_cycles) : 0.0;
     const auto& instr = prev_whisp_state.disasm;
     const auto& mode = prev_whisp_state.priv_mode;
     const auto& trap = prev_whisp_state.trap;
