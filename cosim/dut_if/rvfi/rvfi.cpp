@@ -34,10 +34,6 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     loc_,
     [&](svScope s) { return this->set_scope(s); });
 
-  cvm::registry::messenger.connect<htif::terminate_t>(
-    loc_,
-    [&](htif::terminate_t t) { return this->report_perf(); });
-
   connect<
     rv_tester_transactions::m_rvfi,
     rv_tester_transactions::m_trap,
@@ -47,6 +43,7 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
 }
 
 rvfi::~rvfi() {
+  report_perf();
 }
 
 void rvfi::init() {

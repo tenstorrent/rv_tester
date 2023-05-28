@@ -59,9 +59,6 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc)
     cac_(CacCore(num_harts)),
     archcov(ArchSample(num_harts))
 {
-  cvm::registry::messenger.connect<htif::terminate_t>(loc_, [&](htif::terminate_t t) {
-      return this->final_phase();
-  });
 }
 
 // Destructor
