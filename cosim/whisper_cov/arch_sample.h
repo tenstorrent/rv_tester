@@ -20,4 +20,5 @@ private:
   svScope scope_;
   int num_harts_ = 0;
   bool sample_done = false;
+  bool tracer_connect = false;
 };
