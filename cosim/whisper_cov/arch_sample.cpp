@@ -25,7 +25,11 @@ ArchSample::~ArchSample() {
 }
 
 void ArchSample::reset(){
-    assert(covSampleInterface_.connect("tracer_ext") > 0);
+    //assert(covSampleInterface_.connect("tracer_ext") > 0);
+    if ((covSampleInterface_.connect("tracer_ext")> 0) && !tracer_connect){
+      tracer_connect= true;
+      std::cout << "Archsample connect succeeded ...\n";
+    }
 }
 
 void ArchSample::coverage_sample(int hart, int step, const whisper_state_t& w) {
