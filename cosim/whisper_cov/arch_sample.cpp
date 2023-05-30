@@ -17,7 +17,7 @@ extern "C" void sample_sv(const cp_pkt*);
 
 // Constructor
 ArchSample::ArchSample(int num_harts) : log("cov.log"), scope_(nullptr) {
-   log(cvm::MEDIUM, "Constructing Cosim ArchSample ...\n");
+   log(cvm::MEDIUM, "Constructing ArchSample class...\n");
 }
 
 // Destructor
@@ -48,4 +48,23 @@ void ArchSample::coverage_sample(int hart, int step, const whisper_state_t& w) {
    }
    else
     assert(false);
+}
+
+void ArchSample::iss_sample(){
+  int sample_done_;
+
+   svScope scope = svGetScopeFromName("top.tester.arch_sample");
+   svSetScope(scope);
+   int i=0;
+
+    while(true) 
+      {
+        if (covSampleInterface_.connect("tracer_ext")) {
+            sample_done_ = covSampleInterface_.sample_packets();
+            std::cout << "ISS coverage sampling -- whisper Step #" << std::dec << i << "\n";
+            i++;
+            if(sample_done_)
+              break;
+        }
+      }
 }
