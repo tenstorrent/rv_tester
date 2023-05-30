@@ -47,7 +47,7 @@ void bot::run_iss_standalone() {
     std::cout << "------------------Test Passed---------------------------\n";
     auto location = cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0);
     cvm::registry::messenger.signal<htif::terminate_t>(location, htif::terminate_t{FLAGS_terminate_call_finish});
-    exit(0);
+    //exit(0);
   } else {
     // standalone whisper 
     cvm::log(cvm::NONE, "Standalone whisper command: {}\n", cmd);
