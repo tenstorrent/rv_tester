@@ -7,6 +7,8 @@ cc_library(
             "//cosim/utils/general:util",
             "@cvm//:logger",
             "@cvm//:plusargs",
+            "//cosim/whisper_cov:archsample",
+            "//sysmod/htif:htif"
            ],
     visibility = ["//visibility:public"],
     strip_include_prefix = "."

@@ -13,6 +13,7 @@ public:
   void reset();
   void coverage_sample(int hart, int step, const whisper_state_t& w);
   void set_scope(svScope s) { scope_ = s; }
+  void iss_sample();
   
 private:
   cvm::file_logger log;
