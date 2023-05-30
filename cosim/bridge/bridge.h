@@ -84,6 +84,7 @@ private:
   void update_whisper_state(hart_id_t hart, whisper_state_t& w);
   void step(hart_id_t hart, whisper_state_t& w);
   void print_instr(hart_id_t hart, const whisper_state_t& w);
+  void print_instr_stdout(hart_id_t hart, const whisper_state_t& w);
   void print_resource(hart_id_t hart, const whisper_state_t& w);
   void update_pc(hart_id_t hart, src_t src, uint64_t data);
   void update_regs(hart_id_t hart, const rv_instr_t& d);
@@ -94,20 +95,23 @@ private:
 
   uint64_t translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t memclass);
 
-  void handle_debug(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
-  void handle_interrupt(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
-  void handle_exception(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
-  void handle_satp(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
+  void process_debug_pre_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
+  void process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
+  void process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
+  void process_exception_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
+  void process_satp_write_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
 
+  bool intr_cause_mismatch(hart_id_t hart, const rv_instr_t& d);
+  bool dut_intr_older(hart_id_t hart, const rv_instr_t& d);
   void check_interrupt(hart_id_t hart);
   void poke_pend_interrupt(hart_id_t hart, uint64_t time);
   void poke_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
-  void poke_seip(hart_id_t hart, bool val);
+  void poke_seip(hart_id_t hart, uint64_t time, bool val);
 
   bool is_ecall(const whisper_state_t& w);
   bool does_instr_match_resynch_list(const whisper_state_t& w);
   bool does_prev_instr_match_resynch_list(const whisper_state_t& w);
-  bool does_instr_match_resynch_condition(const rv_instr_t& d, const whisper_state_t& w);
+  bool does_instr_match_resynch_condition(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
   bool clint_read(const rv_instr_t& d);
   bool htif_read(const rv_instr_t& d);
   bool mhpm_counter_read(const whisper_state_t& w);
@@ -146,9 +150,11 @@ private:
   uint64_t satp_ = 0;
   uint64_t new_satp_ = 0;
 
+  bool nxt_intr_resynch_ = false;
+
   std::array<bool, max_harts> is_intr_pend_{};
-  std::array<uint64_t, max_harts> pend_intr_{};
-  std::array<uint32_t, max_harts> pend_intr_count_{};
+  std::array<uint64_t, max_harts> pend_intr_mip_{};
+  std::array<std::array<uint32_t, max_intr>, max_harts> pend_intr_instr_count_{};
   std::array<bool, max_harts> is_seip_pend_{};
 
   // Memmap

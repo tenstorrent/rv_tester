@@ -141,20 +141,20 @@ typedef struct mem_cl_s {
 
 typedef struct rv_instr_s {
   // Metadata
-  bool valid;
-  uint8_t hart;
-  uint64_t id;
-  uint64_t cycle;
-  uint64_t tag;
-  uint32_t opcode;
-  bool trap;
-  uint8_t priv;
-  bool intr;
-  bool excp;
-  uint64_t icause;
-  uint64_t ecause;
-  uint64_t mem_va;
-  uint64_t mem_pa;
+  bool valid = false;
+  uint8_t hart = 0;
+  uint64_t id = 0;
+  uint64_t cycle = 0;
+  uint64_t tag = 0;
+  uint32_t opcode = 0;
+  bool trap = false;
+  uint8_t priv = 0;
+  bool intr = false;
+  bool excp = false;
+  uint64_t icause = 0;
+  uint64_t ecause = 0;
+  uint64_t mem_va = 0;
+  uint64_t mem_pa = 0;
 
   // Registers
   pc_t pc;
@@ -173,6 +173,9 @@ typedef struct rv_instr_s {
 
   void clear() {
     valid = false;
+    trap = false;
+    intr = false;
+    excp = false;
     pc.clear();
     gpr.clear();
     fpr.clear();

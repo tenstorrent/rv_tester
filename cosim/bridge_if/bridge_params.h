@@ -5,6 +5,7 @@ namespace {
 
     constexpr int num_harts = 1;
     constexpr int max_harts = 2;
+    constexpr int max_intr = 16;
     constexpr int xlen = 64;
     constexpr int vlen = 256;
 
