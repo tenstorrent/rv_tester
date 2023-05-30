@@ -37,9 +37,10 @@ void bot::run_iss_standalone() {
   harts + config + trace + out_log + max_inst + init_state;
 
   if (FLAGS_iss_cov){
+    // standalone whisper coverage command
     std::string cov_cmd;  
     cov_cmd = " --tracerlib " + FLAGS_archsample_lib_path + ":tracer_ext &";
-    cmd += cov_cmd;  // Append cov_cmd to cmd
+    cmd += cov_cmd; 
     cvm::log(cvm::NONE, "Standalone (coverage) whisper command: {}\n", cmd);
     system(cmd.c_str());
     archcov.iss_sample();
@@ -47,12 +48,12 @@ void bot::run_iss_standalone() {
     auto location = cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0);
     cvm::registry::messenger.signal<htif::terminate_t>(location, htif::terminate_t{FLAGS_terminate_call_finish});
     exit(0);
-  }
-
-  // standalone whisper 
-  cvm::log(cvm::NONE, "Standalone whisper command: {}\n", cmd);
-  std::string status = cosim_util::exec(cmd.c_str());
-  if (status.find("Error") != std::string::npos) {
-    cvm::log(cvm::NONE, "{}", status);
+  } else {
+    // standalone whisper 
+    cvm::log(cvm::NONE, "Standalone whisper command: {}\n", cmd);
+    std::string status = cosim_util::exec(cmd.c_str());
+    if (status.find("Error") != std::string::npos) {
+      cvm::log(cvm::NONE, "{}", status);
+    }
   }
 }
