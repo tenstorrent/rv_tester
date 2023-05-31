@@ -161,10 +161,3 @@ axi_sw:
         fields:
             r_ptr:
                 width: ${TOP.CLUSTER.CORE.AXI.R_Q_PTR_MAX_LOG2}
-
-    r:
-        domain: 1
-        num: 1
-        fields:
-            block:
-                width: 1

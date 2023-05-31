@@ -26,8 +26,7 @@ axi_sw::axi_sw(cvm::topology::loc_t loc, unsigned id)
       rv_tester_transactions::aw,
       rv_tester_transactions::ar,
       rv_tester_transactions::w,
-      rv_tester_transactions::r_q_ptr,
-      rv_tester_transactions::r>();
+      rv_tester_transactions::r_q_ptr>();
 }
 
 axi_sw::~axi_sw() {
@@ -43,6 +42,7 @@ void axi_sw::process(const rv_tester_transactions::aw& aw) {
 
 void axi_sw::process(const rv_tester_transactions::ar& ar) {
     a(axi::a_t{false, ar.id, ar.addr, ar.len, ar.size, axi::burst_t(ar.burst), ar.lock != 0});
+    r_resp();
 }
 
 template <typename T>
@@ -73,24 +73,24 @@ void axi_sw::process(const rv_tester_transactions::w& w) {
 
 void axi_sw::process(const rv_tester_transactions::r_q_ptr& r_q_ptr) {
     r_q_rptr(r_q_ptr.r_ptr);
+    r_resp();
 }
 
-void axi_sw::process(const rv_tester_transactions::r& r) {
+void axi_sw::r_resp() {
     std::unique_lock<std::mutex> lock(r_q_rptr_m_);
-    if ( (r_q_wptr_ - r_q_rptr_) >= r_q_max_ )
-      return;
+    while ( (r_q_wptr_ - r_q_rptr_) < r_q_max_ ) {
+      auto [valid, result] = axi_->r(false);
+      if (!valid)
+        break;
+      r_q_wptr_ = (r_q_wptr_ + 1) % r_q_ptr_max_;
 
-    auto [valid, result] = axi_->r(false);
-    if (!valid)
-      return;
-    r_q_wptr_ = (r_q_wptr_ + 1) % r_q_ptr_max_;
-
-    // clang doesn't like structured bindings in a capture list
-    auto copy = result;
-    cvm::registry::callbacks.push(
-        scope_,
-        [copy]() { axi_sw_r(copy.id, copy.resp, copy.data.data(), copy.last); }
-    );
+      // clang doesn't like structured bindings in a capture list
+      auto copy = result;
+      cvm::registry::callbacks.push(
+          scope_,
+          [copy]() { axi_sw_r(copy.id, copy.resp, copy.data.data(), copy.last); }
+      );
+    }
 }
 
 void axi_sw::set_scope(svScope scope) {

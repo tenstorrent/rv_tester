@@ -37,7 +37,7 @@ class axi_sw {
         void process(const rv_tester_transactions::ar& ar);
         void process(const rv_tester_transactions::w& w);
         void process(const rv_tester_transactions::r_q_ptr& r_ptr);
-        void process(const rv_tester_transactions::r& r);
+        void r_resp();
         void set_scope(svScope scope);
 
         svScope scope_;
