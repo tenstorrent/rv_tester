@@ -188,7 +188,6 @@ module axi_sw #(
         ars[0].valid      <= '0;
         ws[0].valid       <= '0;
         r_q_ptrs[0].valid <= '0;
-        rs[0].valid       <= '0;
 
         if (reset_n) begin
             if (axi_slv_r_valid && axi_mst_r_ready) begin
@@ -203,9 +202,6 @@ module axi_sw #(
                 r_q_ptrs[0].data.location <= location;
                 r_q_ptrs[0].data.r_ptr    <= r_queue_rptr;
             end
-            rs[0].valid         <= '1 & (location != cvm_topology::nil);
-            rs[0].data.location <= location;
-            rs[0].data.block    <= '0;
         end else begin
             r_queue_rptr <= '0;
             /* verilator lint_off BLKANDNBLK */
