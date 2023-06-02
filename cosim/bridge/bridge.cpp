@@ -640,8 +640,8 @@ bool bridge::does_instr_match_resynch_condition(hart_id_t hart, const rv_instr_t
     return true;
   }
   // Case #3
-  if (mhpm_counter_read(w)) {
-    log(cvm::MEDIUM, "<{}> Resynch: Reason=[mhpm_counter_read]\n", w.time);
+  if (hpm_counter_read(w)) {
+    log(cvm::MEDIUM, "<{}> Resynch: Reason=[hpm_counter_read]\n", w.time);
     return true;
   }
   // Case #4
@@ -676,8 +676,12 @@ bool bridge::htif_read(const rv_instr_t& d) {
   return false;
 }
 
-bool bridge::mhpm_counter_read(const whisper_state_t& w) {
-  if (w.disasm.find("mhpmcounter") != std::string::npos)
+bool bridge::hpm_counter_read(const whisper_state_t& w) {
+  if ((w.disasm.find("hpmcounter") != std::string::npos) ||
+      (w.disasm.find("mhpmcounter") != std::string::npos) ||
+      (w.disasm.find("instret") != std::string::npos) ||
+      (w.disasm.find("time") != std::string::npos) ||
+      (w.disasm.find("cycle") != std::string::npos))
     return true;
   return false;
 }
