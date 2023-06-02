@@ -7,6 +7,7 @@ load("@rv_tester//transactors/axi_sw:axi_sw.bzl", "axi_sw_gen")
 def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
 
     rv_tester_dpi = name + "_dpi"
+    rv_tester_assert_dpi = name + "_assert_dpi"
     rv_tester_sv = name + "_sv"
 
     verilog_library(
@@ -85,6 +86,14 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
           "@rv_tester//:cosim_off": [],
           "//conditions:default":   [name + "_cosim_dpi"],
         }),
+        alwayslink = True,
+        visibility = visibility,
+    )
+
+    native.cc_library(
+        name = rv_tester_assert_dpi,
+        srcs = ["@rv_tester//:rv_tester_assert_handler.cpp"],
+        deps = ["@cvm//:logger"],
         alwayslink = True,
         visibility = visibility,
     )
