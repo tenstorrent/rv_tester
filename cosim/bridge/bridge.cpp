@@ -882,6 +882,14 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
     log(cvm::MEDIUM, "<{}> Seip pin deasserted\n", i.cycle);
     poke_seip(hart, i.cycle, false);
   }
+
+  // Set deferred interrupt
+  uint64_t mip = i.mip | ((uint64_t)i.seip << 9);
+  bool valid;
+  if (!client_->whisperPoke(hart, i.cycle, 's', WhisperSpecialResource::DeferredInterrupts, mip, valid)) {
+    cvm::log(cvm::ERROR, "Error: Failed to poke deferred mip csr");
+    return;
+  }
 }
 
 void bridge::check_interrupt(hart_id_t hart) {
