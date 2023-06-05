@@ -197,7 +197,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   }
 
   // Handle pre-step condition - Interrupts
-  check_interrupt(hart);
+  check_interrupt(hart, d);
   process_interrupt_pre_step(hart, d, w);
 
   // Step whisper
@@ -232,6 +232,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   // Save whisper state
   ppw_[hart] = pw_[hart];
   pw_[hart] = w;
+  prev_pend_intr_instr_count_[hart] = pend_intr_instr_count_[hart];
 
   // Error on mismatch
   if (!cac_.getStatus(hart)) {
@@ -283,8 +284,16 @@ void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whi
   if (!d.intr)
     return;
 
-  // Poke mip before invoking whisper step
-  poke_pend_interrupt(hart, w.time);
+  // Clear deferred status of pending interrupts
+  if (is_intr_pend_[hart]) {
+    poke_deferred_intr_status(hart, w.time, 0);
+    is_intr_pend_[hart] = false;
+  }
+  if (is_seip_pend_[hart]) {
+    poke_seip(hart, w.time, true);
+    is_seip_pend_[hart] = false;
+  }
+  pend_intr_instr_count_[hart][d.icause] = 0;
 
   if (FLAGS_cosim_tracer) {
     log(cvm::MEDIUM, "<{}> Interrupt taken. cause: [{}]\n", w.time, d.icause);
@@ -301,6 +310,15 @@ void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whi
 
 void bridge::process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
 
+  if (resynch_intr_cause_mismatch_) {
+    log(cvm::MEDIUM, "<{}> Resynch: Reason=[intr_cause_mismatch && dut_intr_older]\n", d.cycle);
+    resynch(hart, d);
+    log(cvm::MEDIUM, "<{}> Whisper Step #{}: Extra step due to interrupt resynch\n", w.time, step_[hart]);
+    step(hart, w);
+    update_whisper_state(hart,w);
+    resynch_intr_cause_mismatch_ = false;
+  }
+
   if (!d.intr && !w_.intr)
     return;
 
@@ -316,10 +334,16 @@ void bridge::process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, wh
     return;
   }
 
-  if (intr_cause_mismatch(hart, d) && !dut_intr_older(hart, d) && !FLAGS_cosim_resynch) {
-    print_instr_stdout(hart, w);
-    cvm::log(cvm::ERROR, "Error: DUT vs Whisper interrupt cause mismatch [dut:{},whisper:{}]\n", d.icause, w_.icause);
-    return;
+  if (intr_cause_mismatch(hart, d)) {
+    if (dut_intr_older(hart, d)) {
+      resynch_intr_cause_mismatch_ = true;
+    } else {
+      if (!FLAGS_cosim_resynch) {
+        print_instr_stdout(hart, w);
+        cvm::log(cvm::ERROR, "Error: DUT vs Whisper interrupt cause mismatch [dut:{},whisper:{}]\n", d.icause, w_.icause);
+        return;
+      }
+    }
   }
 }
 
@@ -330,8 +354,8 @@ bool bridge::intr_cause_mismatch(hart_id_t hart, const rv_instr_t& d) {
 bool bridge::dut_intr_older(hart_id_t hart, const rv_instr_t& d) {
   if (d.intr && w_.intr)
     log(cvm::MEDIUM, "<{}> Whisper Step #{}: DUT vs whisper interrupt cause=[{}:{}] intr count=[{}:{}]\n", 
-      d.cycle, step_[hart], d.icause, w_.icause, pend_intr_instr_count_[hart][d.icause], pend_intr_instr_count_[hart][w_.icause]);
-  return pend_intr_instr_count_[hart][d.icause] >= pend_intr_instr_count_[hart][w_.icause];
+      d.cycle, step_[hart], d.icause, w_.icause, prev_pend_intr_instr_count_[hart][d.icause], prev_pend_intr_instr_count_[hart][w_.icause]);
+  return prev_pend_intr_instr_count_[hart][d.icause] >= prev_pend_intr_instr_count_[hart][w_.icause];
 }
 
 void bridge::process_exception_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
@@ -649,16 +673,6 @@ bool bridge::does_instr_match_resynch_condition(hart_id_t hart, const rv_instr_t
     log(cvm::MEDIUM, "<{}> Resynch: Reason=[lrsc_fail]\n", w.time);
     return true;
   }
-  // Case #5
-  if (nxt_intr_resynch_) {
-    log(cvm::MEDIUM, "<{}> Resynch: Reason=[intr_cause_mismatch && dut_intr_older]\n", d.cycle);
-    nxt_intr_resynch_ = false;
-    return true;
-  }
-
-  if (intr_cause_mismatch(hart, d) && dut_intr_older(hart, d)) {
-    nxt_intr_resynch_ = true;
-  }
 
   return false;
 }
@@ -869,14 +883,14 @@ void bridge::translation_check(hart_id_t hart, const rv_instr_t& d, whisper_stat
 // Interrupts
 void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
   if (i.mip_posedge) {
-    log(cvm::MEDIUM, "<{}> Interrupt pin(s) asserted. MipEncodedValue: {:#x}\n", i.cycle, i.mip);
     is_intr_pend_[hart] = true;
     pend_intr_mip_[hart] = i.mip;
     pend_intr_instr_count_[hart][max_intr] = {0};
-  } else {
-    log(cvm::MEDIUM, "<{}> Interrupt pin(s) deasserted. MipEncodedValue: {:#x}\n", i.cycle, i.mip);
-    poke_interrupt(hart, i.cycle, i.mip);
+    poke_deferred_intr_status(hart, i.cycle, i.mip);
   }
+  
+  log(cvm::MEDIUM, "<{}> Interrupt pin(s) toggled. Mip: {:#x}\n", i.cycle, i.mip);
+  poke_mip(hart, i.cycle, i.mip);
 
   if (i.seip_posedge) {
     log(cvm::MEDIUM, "<{}> Seip pin asserted\n", i.cycle);
@@ -885,17 +899,17 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
     log(cvm::MEDIUM, "<{}> Seip pin deasserted\n", i.cycle);
     poke_seip(hart, i.cycle, false);
   }
+}
 
-  // Set deferred interrupt
-  uint64_t mip = i.mip | ((uint64_t)i.seip << 9);
+void bridge::poke_deferred_intr_status(hart_id_t hart, uint64_t cycle, uint64_t mip) {
   bool valid;
-  if (!client_->whisperPoke(hart, i.cycle, 's', WhisperSpecialResource::DeferredInterrupts, mip, valid)) {
+  if (!client_->whisperPoke(hart, cycle, 's', WhisperSpecialResource::DeferredInterrupts, mip, valid)) {
     cvm::log(cvm::ERROR, "Error: Failed to poke deferred mip csr");
     return;
   }
 }
 
-void bridge::check_interrupt(hart_id_t hart) {
+void bridge::check_interrupt(hart_id_t hart, const rv_instr_t& d) {
   if (!is_intr_pend_[hart])
     return;
 
@@ -908,10 +922,13 @@ void bridge::check_interrupt(hart_id_t hart) {
 
   if (should_be_taken) {
     for (int i = 0; i < 16; ++i) {
-      if ((eff_mip & (1ULL << i)) != 0)
+      if ((eff_mip & (1ULL << i)) != 0) {
         pend_intr_instr_count_[hart][i]++;
-      else
+        log(cvm::FULL, "<{}> pend_intr_instr_count_[{}][{}]++={}\n", d.cycle, hart, i, pend_intr_instr_count_[hart][i]); 
+      } else {
         pend_intr_instr_count_[hart][i] = 0;
+        log(cvm::FULL, "<{}> pend_intr_instr_count_[{}][{}]=0\n", d.cycle, hart, i);
+      }
     }
   }
 
@@ -924,20 +941,7 @@ void bridge::check_interrupt(hart_id_t hart) {
   }
 }
 
-// Poke the pending interrupt(s) at DUT taken boundary
-void bridge::poke_pend_interrupt(hart_id_t hart, uint64_t time) {
-  if (is_intr_pend_[hart]) {
-    poke_interrupt(hart, time, pend_intr_mip_[hart]);
-    is_intr_pend_[hart] = false;
-  }
-
-  if (is_seip_pend_[hart]) {
-    poke_seip(hart, time, true);
-    is_seip_pend_[hart] = false;
-  }
-}
-
-void bridge::poke_interrupt(hart_id_t hart, uint64_t time, uint64_t mip) {
+void bridge::poke_mip(hart_id_t hart, uint64_t time, uint64_t mip) {
   bool valid;
 
   // Peek old mip
@@ -947,37 +951,22 @@ void bridge::poke_interrupt(hart_id_t hart, uint64_t time, uint64_t mip) {
     return;
   }
 
-  // Poke new mip = mask(old mip, stip) | mip
-  uint64_t new_mip = (old_mip & 0x22) | mip;
-  log(cvm::MEDIUM, "<{}> Mip poked. MipEncodedValue: {:#x}\n", time, new_mip);
+  // Poke new mip = mask(old mip, sup e/t/s) | mip
+  uint64_t new_mip = (old_mip & 0x222) | mip;
+  log(cvm::MEDIUM, "<{}> Mip poked. Mip: {:#x}\n", time, new_mip);
   if (!client_->whisperPoke(hart, time, 'c', 0x344, new_mip, valid)) {
     cvm::log(cvm::ERROR, "Error: Failed to poke mip csr");
     return;
   }
   pend_intr_mip_[hart] = new_mip;
-
-  // Set intr instr count
-  for (int i = 0; i < 16; ++i) {
-    if (i == 9) continue;
-    if ((new_mip & (1ULL << i)) != 0)
-      pend_intr_instr_count_[hart][i]++;
-    else
-      pend_intr_instr_count_[hart][i] = 0;
-  }
 }
 
 void bridge::poke_seip(hart_id_t hart, uint64_t time, bool val) {
-  log(cvm::MEDIUM, "<{}> Seip poked. Value: {}\n", time, val);
+  log(cvm::MEDIUM, "<{}> Seip poked. Seip: {}\n", time, val);
   if (!client_->whisperSetSeiPin(hart, (uint64_t)val)) {
     cvm::log(cvm::ERROR, "Error: Failed to poke seip");
     return;
   }
-
-  // Set intr instr count
-  if (val)
-    pend_intr_instr_count_[hart][9]++;
-  else
-    pend_intr_instr_count_[hart][9] = 0;
 }
 
 // Debug Mode
