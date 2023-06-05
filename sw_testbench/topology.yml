@@ -17,16 +17,5 @@ top:
         L1DC_LD_PORTS: 2
         L1DC_ST_PORTS: 2
         L1DC_DATA_WIDTH: 512
-      axi:
-        count: 2
-        type:
-          - axi
-          - platform_transactor
-        attrs:
-          ADDR_WIDTH: 63
-          DATA_WIDTH: 512
-          STRB_WIDTH: 64
-          ID_WIDTH: 4
-          <<: *rv_tester_axi_sw
 
   <<: *rv_tester

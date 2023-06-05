@@ -2,10 +2,10 @@ package rv_tester_params;
 
     import topology_pkg::mods;
 
-    typedef logic [mods.TOP.CLUSTER.CORE.AXI.ADDR_WIDTH-1:0] axi_addr_t;
-    typedef logic [mods.TOP.CLUSTER.CORE.AXI.DATA_WIDTH-1:0] axi_data_t;
-    typedef logic [mods.TOP.CLUSTER.CORE.AXI.STRB_WIDTH-1:0] axi_strb_t;
-    typedef logic [mods.TOP.CLUSTER.CORE.AXI.ID_WIDTH  -1:0] axi_id_t;
+    typedef logic [mods.TOP.PLATFORM.AXI.ADDR_WIDTH-1:0] axi_addr_t;
+    typedef logic [mods.TOP.PLATFORM.AXI.DATA_WIDTH-1:0] axi_data_t;
+    typedef logic [mods.TOP.PLATFORM.AXI.STRB_WIDTH-1:0] axi_strb_t;
+    typedef logic [mods.TOP.PLATFORM.AXI.ID_WIDTH  -1:0] axi_id_t;
 
     typedef logic [5:0] axi_atop_t;
     typedef logic [1:0] axi_burst_t;
@@ -109,8 +109,8 @@ package rv_tester_params;
                                                                                                          \
     output rv_tester_params::rvfi_t      rvfi_instr   [topology.TOP.CLUSTER.CORE.NRET],                  \
     output rv_tester_params::mcmi_t      mcmi_store   [topology.TOP.CLUSTER.CORE.STQ_PORTS],             \
-    output rv_tester_params::axi_req_t   axi_req      [topology.TOP.CLUSTER.CORE.AXI.TOTAL],             \
-    input  rv_tester_params::axi_rsp_t   axi_rsp      [topology.TOP.CLUSTER.CORE.AXI.TOTAL]
+    output rv_tester_params::axi_req_t   axi_req      [topology.TOP.PLATFORM.AXI.TOTAL],             \
+    input  rv_tester_params::axi_rsp_t   axi_rsp      [topology.TOP.PLATFORM.AXI.TOTAL]
 
 
 `define RV_TESTER_VARS(topology)                                                                         \
@@ -125,8 +125,8 @@ package rv_tester_params;
                                                                                                          \
     rv_tester_params::rvfi_t      rvfi_instr   [topology.TOP.CLUSTER.CORE.NRET];                         \
     rv_tester_params::mcmi_t      mcmi_store   [topology.TOP.CLUSTER.CORE.STQ_PORTS];                    \
-    rv_tester_params::axi_req_t   axi_req      [topology.TOP.CLUSTER.CORE.AXI.TOTAL];                    \
-    rv_tester_params::axi_rsp_t   axi_rsp      [topology.TOP.CLUSTER.CORE.AXI.TOTAL];
+    rv_tester_params::axi_req_t   axi_req      [topology.TOP.PLATFORM.AXI.TOTAL];                    \
+    rv_tester_params::axi_rsp_t   axi_rsp      [topology.TOP.PLATFORM.AXI.TOTAL];
 
 `define RV_TESTER_PORTS `_RV_TESTER_PORTS(input,output)
 

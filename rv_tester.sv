@@ -143,14 +143,14 @@ module rv_tester #(
     );
 `endif
 
-    for (genvar p = 0; p < topology.TOP.CLUSTER.CORE.AXI.TOTAL; p++) begin
+    for (genvar p = 0; p < topology.TOP.PLATFORM.AXI.TOTAL; p++) begin
         axi_sw #(
-            .ADDR_WIDTH(topology.TOP.CLUSTER.CORE.AXI.ADDR_WIDTH),
-            .DATA_WIDTH(topology.TOP.CLUSTER.CORE.AXI.DATA_WIDTH),
-            .ID_WIDTH(topology.TOP.CLUSTER.CORE.AXI.ID_WIDTH  ),
-            .STRB_WIDTH(topology.TOP.CLUSTER.CORE.AXI.STRB_WIDTH),
-            .R_Q_MAX(topology.TOP.CLUSTER.CORE.AXI.R_Q_MAX),
-            .TOPO_ID(topology.TOP.CLUSTER.CORE.AXI.ID),
+            .ADDR_WIDTH(topology.TOP.PLATFORM.AXI.ADDR_WIDTH),
+            .DATA_WIDTH(topology.TOP.PLATFORM.AXI.DATA_WIDTH),
+            .ID_WIDTH(topology.TOP.PLATFORM.AXI.ID_WIDTH  ),
+            .STRB_WIDTH(topology.TOP.PLATFORM.AXI.STRB_WIDTH),
+            .R_Q_MAX(topology.TOP.PLATFORM.AXI.R_Q_MAX),
+            .TOPO_ID(topology.TOP.PLATFORM.AXI.ID),
             .NUM(p)
         ) axi_sw(
             .clk,
