@@ -28,8 +28,8 @@ config_setting(
 filegroup(
     name = "rv_tester_topology",
     srcs = [
-        "rv_tester_topology.yml",
         "//transactors/axi_sw:axi_sw_attrs.yml",
+        "rv_tester_topology.yml",
     ],
     visibility = ["//visibility:public"],
 )

@@ -108,15 +108,15 @@ sysmod:
                 width: 64
 
 axi_sw:
-    num: ${TOP.CLUSTER.CORE.AXI.TOTAL}
+    num: ${TOP.PLATFORM.AXI.TOTAL}
     aw:
         domain: 1
         num: 1
         fields:
             id:
-                width: ${TOP.CLUSTER.CORE.AXI.ID_WIDTH}
+                width: ${TOP.PLATFORM.AXI.ID_WIDTH}
             addr:
-                width: ${TOP.CLUSTER.CORE.AXI.ADDR_WIDTH}
+                width: ${TOP.PLATFORM.AXI.ADDR_WIDTH}
             len:
                 width: 8
             size:
@@ -132,9 +132,9 @@ axi_sw:
         num: 1
         fields:
             id:
-                width: ${TOP.CLUSTER.CORE.AXI.ID_WIDTH}
+                width: ${TOP.PLATFORM.AXI.ID_WIDTH}
             addr:
-                width: ${TOP.CLUSTER.CORE.AXI.ADDR_WIDTH}
+                width: ${TOP.PLATFORM.AXI.ADDR_WIDTH}
             len:
                 width: 8
             size:
@@ -149,9 +149,9 @@ axi_sw:
         num: 1
         fields:
             data:
-                width: ${TOP.CLUSTER.CORE.AXI.DATA_WIDTH}
+                width: ${TOP.PLATFORM.AXI.DATA_WIDTH}
             strb:
-                width: ${TOP.CLUSTER.CORE.AXI.STRB_WIDTH}
+                width: ${TOP.PLATFORM.AXI.STRB_WIDTH}
             last:
                 width: 1
 
@@ -160,4 +160,4 @@ axi_sw:
         num: 1
         fields:
             r_ptr:
-                width: ${TOP.CLUSTER.CORE.AXI.R_Q_PTR_MAX_LOG2}
+                width: ${TOP.PLATFORM.AXI.R_Q_PTR_MAX_LOG2}
