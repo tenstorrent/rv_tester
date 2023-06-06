@@ -36,16 +36,16 @@ class eot {
       get_tohost_addr();
 
       connect<
-        rv_tester_transactions::m_rvfi,
-        rv_tester_transactions::m_mcmi_store
+        rv_tester_transactions::cosim::m_rvfi,
+        rv_tester_transactions::cosim::m_mcmi_store
       >(loc);
     }
 
   private:
 
     void get_tohost_addr();
-    void process(const rv_tester_transactions::m_rvfi& m_rvfi);
-    void process(const rv_tester_transactions::m_mcmi_store& m_mcmi_store);
+    void process(const rv_tester_transactions::cosim::m_rvfi& m_rvfi);
+    void process(const rv_tester_transactions::cosim::m_mcmi_store& m_mcmi_store);
 
   private:
 

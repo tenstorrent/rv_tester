@@ -103,6 +103,12 @@ class axi : public transactor {
             r_t& operator=(const r_t&) = delete;
         };
 
+        struct b_t {
+            id_t   id;
+            resp_t resp;
+            b_t(const id_t& id, const resp_t& resp) : id(id), resp(resp) {}
+        };
+
     private:
 
         const data_width_t  data_width_ ;

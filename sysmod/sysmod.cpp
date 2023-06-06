@@ -36,9 +36,9 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
       loc_,
       [&](svScope s) { return this->set_scope(s); });
 
-  cvm::registry::messenger.connect<rv_tester_transactions::tick>(
+  cvm::registry::messenger.connect<rv_tester_transactions::sysmod::tick>(
       loc_,
-      [&](const rv_tester_transactions::tick& t) { return this->tick(t.advance); });
+      [&](const rv_tester_transactions::sysmod::tick& t) { return this->tick(t.advance); });
 
   auto sources = cvm::topology::get_from_type("PLATFORM_TRANSACTOR");
 
@@ -261,7 +261,7 @@ sysmod::write(uint64_t addr, size_t length, const device::data_t& data, const de
   std::lock_guard<std::mutex> lock(sys_m);
   //std::cout << std::hex << "write req at: " << addr << '\n';
   auto d = dev(addr);
-  
+
   if (d == nullptr)
     return;
 

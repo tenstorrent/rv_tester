@@ -41,6 +41,15 @@ class transactor {
           read_t{addr, length, data});
     }
 
+    struct read_request_t {
+        uint64_t addr;
+        size_t length;
+    };
+    struct read_response_t {
+        std::vector<uint8_t> data;
+    };
+    void read_request(uint64_t addr, size_t length, std::function<void(read_response_t)> cb);
+
     std::string tag() { return tag_; }
 
   private:
