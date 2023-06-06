@@ -200,7 +200,6 @@ module axi_sw #(
             if (r_queue_rptr_incremented) begin
                 r_q_ptrs[0].valid         <= '1 & (location != cvm_topology::nil);
                 r_q_ptrs[0].data.location <= location;
-                r_q_ptrs[0].data.cycle    <= rv_tester.clocks;
                 r_q_ptrs[0].data.r_ptr    <= r_queue_rptr;
             end
         end else begin
@@ -215,7 +214,6 @@ module axi_sw #(
             if (axi_mst_aw_valid && axi_slv_aw_ready) begin
                 aws[0].valid          <= '1 & (location != cvm_topology::nil);
                 aws[0].data.location  <= location;
-                aws[0].data.cycle     <= rv_tester.clocks;
                 aws[0].data.id        <= axi_mst_aw_id;
                 aws[0].data.addr      <= axi_mst_aw_addr;
                 aws[0].data.len       <= axi_mst_aw_len;
@@ -227,7 +225,6 @@ module axi_sw #(
             if (axi_mst_ar_valid && axi_slv_ar_ready) begin
                 ars[0].valid          <= '1 & (location != cvm_topology::nil);
                 ars[0].data.location  <= location;
-                ars[0].data.cycle     <= rv_tester.clocks;
                 ars[0].data.id        <= axi_mst_ar_id;
                 ars[0].data.addr      <= axi_mst_ar_addr;
                 ars[0].data.len       <= axi_mst_ar_len;
@@ -238,7 +235,6 @@ module axi_sw #(
             if (axi_mst_w_valid && axi_slv_w_ready) begin
                 ws[0].valid          <= '1 & (location != cvm_topology::nil);
                 ws[0].data.location  <= location;
-                ws[0].data.cycle     <= rv_tester.clocks;
                 ws[0].data.data      <= axi_mst_w_data;
                 ws[0].data.strb      <= axi_mst_w_strb;
                 ws[0].data.last      <= axi_mst_w_last;
