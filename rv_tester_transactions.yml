@@ -113,6 +113,8 @@ axi_sw:
         domain: 1
         num: 1
         fields:
+            cycle:
+                width: 64
             id:
                 width: ${TOP.PLATFORM.AXI.ID_WIDTH}
             addr:
@@ -131,6 +133,8 @@ axi_sw:
         domain: 1
         num: 1
         fields:
+            cycle:
+                width: 64
             id:
                 width: ${TOP.PLATFORM.AXI.ID_WIDTH}
             addr:
@@ -148,6 +152,8 @@ axi_sw:
         domain: 1
         num: 1
         fields:
+            cycle:
+                width: 64
             data:
                 width: ${TOP.PLATFORM.AXI.DATA_WIDTH}
             strb:
@@ -159,5 +165,7 @@ axi_sw:
         domain: 1
         num: 1
         fields:
+            cycle:
+                width: 64
             r_ptr:
                 width: ${TOP.PLATFORM.AXI.R_Q_PTR_MAX_LOG2}
