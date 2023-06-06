@@ -1,5 +1,0 @@
-axi_sw: &rv_tester_axi_sw
-  R_Q_MAX: 2
-  # in SV, this is calculated by 1 << $clog2(R_Q_MAX + 1)
-  R_Q_PTR_MAX: 4
-  R_Q_PTR_MAX_LOG2: 2

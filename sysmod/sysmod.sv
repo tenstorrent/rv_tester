@@ -42,6 +42,7 @@ module sysmod #(
     assign bootstrap.boot_addr = 1 << 31;
 
     function void sysmod_terminate ();
+        $display("attempting to terminate");
         terminate.terminate = '1;
     endfunction
     export "DPI-C" function sysmod_terminate;

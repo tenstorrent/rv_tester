@@ -27,7 +27,7 @@ void eot::get_tohost_addr() {
 
 }
 
-void eot::process(const rv_tester_transactions::m_rvfi& m_rvfi) {
+void eot::process(const rv_tester_transactions::cosim::m_rvfi& m_rvfi) {
 
   instr_count_++;
 
@@ -51,7 +51,7 @@ void eot::process(const rv_tester_transactions::m_rvfi& m_rvfi) {
   }
 }
 
-void eot::process(const rv_tester_transactions::m_mcmi_store& m_mcmi_store) {
+void eot::process(const rv_tester_transactions::cosim::m_mcmi_store& m_mcmi_store) {
 
   if (tohost_addr_ != m_mcmi_store.addr)
     return;

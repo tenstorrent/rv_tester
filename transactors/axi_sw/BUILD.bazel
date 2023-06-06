@@ -1,1 +1,13 @@
-exports_files(["axi_sw_attrs.yml", "safe_queue.h"] + glob(["axi_sw.*", "axi.*"]))
+py_binary(
+    name = "axi_sw_attrs",
+    srcs = ["axi_sw_attrs.py"],
+)
+genrule(
+    name  = "axi_sw_attrs_gen",
+    outs  = ["axi_sw_attrs.yml"],
+    tools = [":axi_sw_attrs"],
+    cmd   = "$(location :axi_sw_attrs) > $@",
+    visibility = ["//:__pkg__"],
+)
+
+exports_files(["safe_queue.h"] + glob(["axi_sw.*", "axi.*", "axi_sw_mst.*"]))

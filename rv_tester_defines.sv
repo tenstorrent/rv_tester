@@ -109,8 +109,10 @@ package rv_tester_params;
                                                                                                          \
     output rv_tester_params::rvfi_t      rvfi_instr   [topology.TOP.CLUSTER.CORE.NRET],                  \
     output rv_tester_params::mcmi_t      mcmi_store   [topology.TOP.CLUSTER.CORE.STQ_PORTS],             \
-    output rv_tester_params::axi_req_t   axi_req      [topology.TOP.PLATFORM.AXI.TOTAL],             \
-    input  rv_tester_params::axi_rsp_t   axi_rsp      [topology.TOP.PLATFORM.AXI.TOTAL]
+    output rv_tester_params::axi_req_t   axi_req      [topology.TOP.PLATFORM.AXI.TOTAL],                 \
+    input  rv_tester_params::axi_rsp_t   axi_rsp      [topology.TOP.PLATFORM.AXI.TOTAL],                 \
+    input  rv_tester_params::axi_req_t   axi_req_mst  [topology.TOP.PLATFORM.AXI_MST.TOTAL],             \
+    output rv_tester_params::axi_rsp_t   axi_rsp_mst  [topology.TOP.PLATFORM.AXI_MST.TOTAL]
 
 
 `define RV_TESTER_VARS(topology)                                                                         \
@@ -125,8 +127,10 @@ package rv_tester_params;
                                                                                                          \
     rv_tester_params::rvfi_t      rvfi_instr   [topology.TOP.CLUSTER.CORE.NRET];                         \
     rv_tester_params::mcmi_t      mcmi_store   [topology.TOP.CLUSTER.CORE.STQ_PORTS];                    \
-    rv_tester_params::axi_req_t   axi_req      [topology.TOP.PLATFORM.AXI.TOTAL];                    \
-    rv_tester_params::axi_rsp_t   axi_rsp      [topology.TOP.PLATFORM.AXI.TOTAL];
+    rv_tester_params::axi_req_t   axi_req      [topology.TOP.PLATFORM.AXI.TOTAL];                        \
+    rv_tester_params::axi_rsp_t   axi_rsp      [topology.TOP.PLATFORM.AXI.TOTAL];                        \
+    rv_tester_params::axi_req_t   axi_req_mst  [topology.TOP.PLATFORM.AXI_MST.TOTAL];                    \
+    rv_tester_params::axi_rsp_t   axi_rsp_mst  [topology.TOP.PLATFORM.AXI_MST.TOTAL];
 
 `define RV_TESTER_PORTS `_RV_TESTER_PORTS(input,output)
 

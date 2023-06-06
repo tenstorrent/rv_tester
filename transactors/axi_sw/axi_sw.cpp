@@ -23,10 +23,10 @@ axi_sw::axi_sw(cvm::topology::loc_t loc, unsigned id)
         [&](svScope s) { return this->set_scope(s); });
 
     connect<
-      rv_tester_transactions::aw,
-      rv_tester_transactions::ar,
-      rv_tester_transactions::w,
-      rv_tester_transactions::r_q_ptr>();
+      rv_tester_transactions::axi_sw::aw,
+      rv_tester_transactions::axi_sw::ar,
+      rv_tester_transactions::axi_sw::w,
+      rv_tester_transactions::axi_sw::r_q_ptr>();
 }
 
 axi_sw::~axi_sw() {
@@ -36,11 +36,11 @@ axi_sw::~axi_sw() {
     }
 }
 
-void axi_sw::process(const rv_tester_transactions::aw& aw) {
+void axi_sw::process(const rv_tester_transactions::axi_sw::aw& aw) {
     a(axi::a_t{true, aw.id, aw.addr, aw.len, aw.size, axi::burst_t(aw.burst), aw.lock != 0, aw.atop});
 }
 
-void axi_sw::process(const rv_tester_transactions::ar& ar) {
+void axi_sw::process(const rv_tester_transactions::axi_sw::ar& ar) {
     a(axi::a_t{false, ar.id, ar.addr, ar.len, ar.size, axi::burst_t(ar.burst), ar.lock != 0});
     r_resp();
 }
@@ -53,7 +53,7 @@ static uint32_t slice_wrap(const T& val, size_t msb, size_t lsb) {
       return cvm::bitmanip::slice(val, msb, lsb);
 }
 
-void axi_sw::process(const rv_tester_transactions::w& w) {
+void axi_sw::process(const rv_tester_transactions::axi_sw::w& w) {
     axi::data_t vdata(data_width()/8, 0);
     axi::strb_t vstrb(strobe_width(), false);
 
@@ -71,7 +71,7 @@ void axi_sw::process(const rv_tester_transactions::w& w) {
     );
 }
 
-void axi_sw::process(const rv_tester_transactions::r_q_ptr& r_q_ptr) {
+void axi_sw::process(const rv_tester_transactions::axi_sw::r_q_ptr& r_q_ptr) {
     r_q_rptr(r_q_ptr.r_ptr);
     r_resp();
 }
@@ -111,4 +111,5 @@ extern "C" {
         loc,
         scope);
   }
+
 }
