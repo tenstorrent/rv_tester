@@ -40,6 +40,7 @@ axi_sw::~axi_sw() {
 void axi_sw::process(const rv_tester_transactions::aw& aw) {
     cvm::log(cvm::FULL, "<{}> [axi_sw] aw: [id={}, addr={:#x}, size={}]\n", aw.cycle, aw.id, aw.addr, aw.size);
     a(axi::a_t{true, aw.id, aw.addr, aw.len, aw.size, axi::burst_t(aw.burst), aw.lock != 0, aw.atop});
+    r_resp(aw.cycle);
 }
 
 void axi_sw::process(const rv_tester_transactions::ar& ar) {
