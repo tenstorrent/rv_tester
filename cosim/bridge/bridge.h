@@ -103,9 +103,9 @@ private:
 
   bool intr_cause_mismatch(hart_id_t hart, const rv_instr_t& d);
   bool dut_intr_older(hart_id_t hart, const rv_instr_t& d);
-  void check_interrupt(hart_id_t hart);
-  void poke_pend_interrupt(hart_id_t hart, uint64_t time);
-  void poke_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
+  void check_interrupt(hart_id_t hart, const rv_instr_t& d);
+  void poke_deferred_intr_status(hart_id_t hart, uint64_t time, uint64_t mip);
+  void poke_mip(hart_id_t hart, uint64_t time, uint64_t mip);
   void poke_seip(hart_id_t hart, uint64_t time, bool val);
 
   bool is_ecall(const whisper_state_t& w);
@@ -150,11 +150,12 @@ private:
   uint64_t satp_ = 0;
   uint64_t new_satp_ = 0;
 
-  bool nxt_intr_resynch_ = false;
+  bool resynch_intr_cause_mismatch_ = false;
 
   std::array<bool, max_harts> is_intr_pend_{};
   std::array<uint64_t, max_harts> pend_intr_mip_{};
   std::array<std::array<uint32_t, max_intr>, max_harts> pend_intr_instr_count_{};
+  std::array<std::array<uint32_t, max_intr>, max_harts> prev_pend_intr_instr_count_{};
   std::array<bool, max_harts> is_seip_pend_{};
 
   // Memmap
