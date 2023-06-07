@@ -48,7 +48,7 @@ class sysmod {
 
     void reset();
 
-    void process(const rv_tester_transactions::tick& tick);
+    void process(const rv_tester_transactions::sysmod::tick& tick);
 
     svScope scope() { return scope_; }
     unsigned id() { return id_; }

@@ -160,3 +160,28 @@ axi_sw:
         fields:
             r_ptr:
                 width: ${TOP.PLATFORM.AXI.R_Q_PTR_MAX_LOG2}
+
+axi_sw_mst:
+    num: ${TOP.PLATFORM.AXI_MST.TOTAL}
+
+    b:
+        domain: 1
+        num: 1
+        fields:
+            id:
+                width: ${TOP.PLATFORM.AXI_MST.ID_WIDTH}
+            resp:
+                width: 2
+
+    r:
+        domain: 1
+        num: 1
+        fields:
+            id:
+                width: ${TOP.PLATFORM.AXI_MST.ID_WIDTH}
+            data:
+                width: ${TOP.PLATFORM.AXI_MST.DATA_WIDTH}
+            resp:
+                width: 2
+            last:
+                width: 1

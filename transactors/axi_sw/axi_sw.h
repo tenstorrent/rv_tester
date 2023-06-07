@@ -33,10 +33,10 @@ class axi_sw {
 
     private:
 
-        void process(const rv_tester_transactions::aw& aw);
-        void process(const rv_tester_transactions::ar& ar);
-        void process(const rv_tester_transactions::w& w);
-        void process(const rv_tester_transactions::r_q_ptr& r_ptr);
+        void process(const rv_tester_transactions::axi_sw::aw& aw);
+        void process(const rv_tester_transactions::axi_sw::ar& ar);
+        void process(const rv_tester_transactions::axi_sw::w& w);
+        void process(const rv_tester_transactions::axi_sw::r_q_ptr& r_ptr);
         void r_resp();
         void set_scope(svScope scope);
 

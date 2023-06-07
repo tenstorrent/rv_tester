@@ -30,10 +30,12 @@ def axi_sw_gen(name, packet, visibility = None, cc_attrs = {}, **kwargs):
         name = axi_sw_dpi,
         srcs = [
             "@rv_tester//transactors/axi_sw:axi_sw.cpp",
+            "@rv_tester//transactors/axi_sw:axi_sw_mst.cpp",
             "@rv_tester//transactors/axi_sw:axi.cpp",
         ],
         hdrs = [
             "@rv_tester//transactors/axi_sw:axi_sw.h",
+            "@rv_tester//transactors/axi_sw:axi_sw_mst.h",
             "@rv_tester//transactors/axi_sw:axi.h",
             "@rv_tester//transactors/axi_sw:safe_queue.h",
         ],

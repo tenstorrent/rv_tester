@@ -35,10 +35,10 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     [&](svScope s) { return this->set_scope(s); });
 
   connect<
-    rv_tester_transactions::m_rvfi,
-    rv_tester_transactions::m_trap,
-    rv_tester_transactions::m_intr,
-    rv_tester_transactions::m_debug
+    rv_tester_transactions::cosim::m_rvfi,
+    rv_tester_transactions::cosim::m_trap,
+    rv_tester_transactions::cosim::m_intr,
+    rv_tester_transactions::cosim::m_debug
   >(loc);
 }
 
@@ -64,7 +64,7 @@ void rvfi::init() {
   initialize_perf();
 }
 
-void rvfi::process(const rv_tester_transactions::m_rvfi& m_rvfi) {
+void rvfi::process(const rv_tester_transactions::cosim::m_rvfi& m_rvfi) {
   // Construct rv_instr_t and send to bridge
   rv_instr_t instr;
   make_instr(m_rvfi, instr);
@@ -80,7 +80,7 @@ void rvfi::process(const rv_tester_transactions::m_rvfi& m_rvfi) {
     collect_perf(m_rvfi);
 }
 
-void rvfi::process(const rv_tester_transactions::m_trap& m_trap) {
+void rvfi::process(const rv_tester_transactions::cosim::m_trap& m_trap) {
   if ((m_trap.cause >> 63) & 0x1) {
     intr_ = true;
     icause_ = (m_trap.cause & 0x3f);
@@ -90,7 +90,7 @@ void rvfi::process(const rv_tester_transactions::m_trap& m_trap) {
   }
 }
 
-void rvfi::process(const rv_tester_transactions::m_intr& m_intr) {
+void rvfi::process(const rv_tester_transactions::cosim::m_intr& m_intr) {
   if (!FLAGS_cosim)
     return;
 
@@ -108,11 +108,11 @@ void rvfi::process(const rv_tester_transactions::m_intr& m_intr) {
   }
 }
 
-void rvfi::process(const rv_tester_transactions::m_debug& m_debug) {
+void rvfi::process(const rv_tester_transactions::cosim::m_debug& m_debug) {
 
 }
 
-void rvfi::make_instr(const rv_tester_transactions::m_rvfi& m_rvfi, rv_instr_t& instr) {
+void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi& m_rvfi, rv_instr_t& instr) {
 
   static bool started = true;
   if (started) {
@@ -297,7 +297,7 @@ void rvfi::initialize_perf() {
   }
 }
 
-void rvfi::collect_perf(const rv_tester_transactions::m_rvfi& m_rvfi) {
+void rvfi::collect_perf(const rv_tester_transactions::cosim::m_rvfi& m_rvfi) {
   if (perf_ok) {
     if (perf_start_pc == uint64_t(m_rvfi.pc_rdata))
       perf_start_cycle = m_rvfi.cycle;
