@@ -1013,9 +1013,9 @@ void bridge::report_metrics() {
   for (int h = 0; h < num_harts_; h++) {
     const auto& prev_whisp_state = pw_[h];
     const auto& prev_prev_whisp_state = ppw_[h];
-    const int num_instructions = cac_.getStep(h);
-    const auto& num_cycles = prev_whisp_state.time;
-    const double ipc = num_cycles ? static_cast<double>(num_instructions) / static_cast<double>(num_cycles) : 0.0;
+    const int instructions = cac_.getStep(h);
+    const auto& cpu_cycles = prev_whisp_state.time;
+    const double ipc = cpu_cycles ? static_cast<double>(instructions) / static_cast<double>(cpu_cycles) : 0.0;
     const auto& instr = prev_whisp_state.disasm;
     const auto& mode = prev_whisp_state.priv_mode;
     const auto& trap = prev_whisp_state.trap;
@@ -1029,8 +1029,8 @@ void bridge::report_metrics() {
     const auto& prev_trap = prev_prev_whisp_state.trap;
     const auto& prev_num_dest = prev_prev_whisp_state.change_count;
 
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_instructions\": {}}}\n", h, num_instructions);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_cycles\": {}}}\n", h, num_cycles);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_instructions\": {}}}\n", h, instructions);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_cpu_cycles\": {}}}\n", h, cpu_cycles);
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_ipc\": {:.2f}}}\n", h, ipc);
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_instr\": \"{}\"}}\n", h, instr);
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_mode\": {}}}\n", h, mode);
