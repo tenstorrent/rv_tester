@@ -38,6 +38,7 @@ DEFINE_bool(emulate_debug_mode, false, "Emulate debug mode by forcing whisper to
 DEFINE_bool(delay_satp_update, false, "Delay satp update till next sfence.vma");
 DEFINE_bool(cov, false, "Enable Arch coverage");
 DEFINE_string(archsample_lib_path, "", "Path to libarchsample.so");
+DEFINE_bool(standalone, true, "Enable whisper standalone run at beginning of sim");
 DEFINE_bool(metrics, true, "Enable printing metrics in log file");
 DEFINE_uint32(max_pend_intr_instr_count, 32, "Number of instructions allowed to retire before a pending interrupt should be taken");
 DEFINE_bool(whisper_log, true, "Enable whisper logging to iss_cosim.log and iss_cmd.log");
@@ -56,8 +57,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc)
     xlen_(xlen),
     vlen_(vlen),
     loc_(loc),
-    cac_(CacCore(num_harts)),
-    archcov(ArchSample(num_harts))
+    cac_(CacCore(num_harts))
 {
 }
 
@@ -80,11 +80,6 @@ bool bridge::whisper_connect(std::string cmd, int timeout) {
   while (true) {
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-
-    // need to connect to archsample before whisper connection (whisper loads tracerlib first)
-    if (FLAGS_cov) {
-      archcov.reset();
-    }
 
     int result;
     if (FLAGS_whisper_client == "lib")
@@ -162,12 +157,6 @@ std::string bridge::get_whisper_cmd() {
   std::string cmd = FLAGS_whisper_path + " " + test + " " + FLAGS_bootrom_path +
     harts + config + trace + out_log + cmd_log + std_out + std_in + client +
     clint + tohost + fromhost + " --raw --server whisper_connect &";
-
-  if (FLAGS_cov){
-    std::string cov_cmd = " --tracerlib " + FLAGS_archsample_lib_path + ":tracer_ext ";
-    size_t raw_pos = cmd.find("--raw");
-    cmd.insert(raw_pos, cov_cmd);
-  }
 
   if (FLAGS_whisper_client == "lib")
     cmd = "echo 'using whisper library'";
@@ -257,11 +246,6 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   // TLB checks
   translation_check(hart, d, w);
-
-  // coverage
-  if (FLAGS_cov){
-    archcov.coverage_sample(hart, step_[hart] - 1, w);
-  }
 }
 
 void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {

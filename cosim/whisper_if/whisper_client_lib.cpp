@@ -6,14 +6,8 @@
 #include <atomic>
 #include <vector>
 #include <thread>
-#include <sys/mman.h>
-#include <sys/shm.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <netdb.h>
 #include <string>
-
+#include <dlfcn.h>
 #include "cvm/plusargs.hpp"
 
 #include "whisper_client_lib.h"
@@ -26,14 +20,19 @@ DECLARE_string(whisper_json_path);
 DECLARE_bool(whisper_stdin_null);
 DECLARE_bool(whisper_stdout_null);
 DECLARE_bool(mcm);
+DECLARE_bool(cov);
+DECLARE_string(archsample_lib_path);
+DECLARE_bool(standalone);
+
+extern void (*__tracerExtension)(void*);
 
 template <typename URV>
-int
-whisperClientLib<URV>::whisperConnect(const char* filePath)
-{
+static std::shared_ptr<WdRiscv::System<URV>>
+constructSystem() {
+
   WdRiscv::HartConfig config;
   if (not config.loadConfigFile(FLAGS_whisper_json_path.c_str()))
-    return -1;
+    return nullptr;
 
   unsigned hartsPerCore = 1;
   unsigned coreCount = 1;
@@ -48,44 +47,100 @@ whisperClientLib<URV>::whisperConnect(const char* filePath)
   config.getMemorySize(memorySize);
   config.getIsa(isa);
 
-  system_ = std::make_shared<WdRiscv::System<URV>>(coreCount, hartsPerCore, hartIdOffset, memorySize, pageSize);
+  std::shared_ptr<WdRiscv::System<URV>> system = std::make_shared<WdRiscv::System<URV>>(coreCount, hartsPerCore, hartIdOffset, memorySize, pageSize);
 
   if (FLAGS_mcm) {
     bool checkAll = true;
     config.getMcmCheckAll(checkAll);
-    system_->enableMcm(64, true /* checkAll */);
+    system->enableMcm(64, true /* checkAll */);
   }
 
   if (FLAGS_load != "") {
     std::vector<std::string> targets = {FLAGS_load};
-    if (not system_->loadElfFiles(targets, false, false))
-      return -1;
+    if (not system->loadElfFiles(targets, false, false))
+      return nullptr;
   }
 
   if (FLAGS_hex != "") {
     std::vector<std::string> targets = {FLAGS_hex};
-    if (not system_->loadHexFiles(targets, false))
-      return -1;
+    if (not system->loadHexFiles(targets, false))
+      return nullptr;
   }
 
-  if (not config.configHarts(*system_, false, false))
-    return -1;
+  if (not config.configHarts(*system, false, false))
+    return nullptr;
 
-  if (not config.configMemory(*system_, false))
-    return -1;
+  if (not config.configMemory(*system, false))
+    return nullptr;
 
-  for (unsigned i = 0; i < system_->hartCount(); ++i)
-    {
-      auto& hart = *(system_->ithHart(i));
-      hart.enableNewlib(true);
-      hart.enableLinux(true);
-      if (FLAGS_whisper_stdout_null) hart.redirectOutputDescriptor(STDOUT_FILENO, "/dev/null");
-      if (FLAGS_whisper_stdin_null) hart.redirectOutputDescriptor(STDIN_FILENO, "/dev/null");
-      if (not isa.empty())
-        if (not hart.configIsa(isa, true))
-          return false;
-      hart.reset();
+  for (unsigned i = 0; i < system->hartCount(); ++i) {
+    auto& hart = *(system->ithHart(i));
+    // raw mode
+    hart.enableNewlib(false);
+    hart.enableLinux(false);
+    hart.tracePtw(true);
+    if (FLAGS_whisper_stdout_null) hart.redirectOutputDescriptor(STDOUT_FILENO, "/dev/null");
+    if (FLAGS_whisper_stdin_null) hart.redirectOutputDescriptor(STDIN_FILENO, "/dev/null");
+    if (not isa.empty())
+      if (not hart.configIsa(isa, true))
+        return nullptr;
+    hart.reset();
+  }
+
+  return system;
+}
+
+template <typename URV>
+int
+whisperClientLib<URV>::whisperConnect(const char* filePath)
+{
+  system_ = constructSystem<URV>();
+
+  // run once before starting cosim
+  if (FLAGS_standalone) {
+    std::cout << "starting standalone"  << std::endl;
+    std::vector<std::thread> threadVec;
+
+    std::atomic<bool> result = true;
+    std::atomic<unsigned> finished = 0;  // Count of finished threads.
+
+    FILE* whisper_log = fopen("iss_standalone.log", "w");
+
+    auto threadFunc = [&result, &finished, whisper_log] (WdRiscv::Hart<URV>* hart) {
+                        bool r = hart->run(whisper_log);
+                        result = result and r;
+                        finished++;
+                      };
+
+    for (unsigned i = 0; i < system_->hartCount(); ++i) {
+      WdRiscv::Hart<URV>* hart = system_->ithHart(i).get();
+      threadVec.emplace_back(std::thread(threadFunc, hart));
     }
+
+    for (auto& t : threadVec)
+      t.join();
+
+    fclose(whisper_log);
+
+    system_ = constructSystem<URV>();
+  }
+
+  if (FLAGS_cov) {
+    auto soPtr = dlopen(FLAGS_archsample_lib_path.c_str(), RTLD_NOW);
+    if (not soPtr) {
+      std::cerr << "Error: Failed to load shared libarary " << dlerror() << '\n';
+      return false;
+    }
+
+    std::string entry("tracerExtension");
+    entry += sizeof(URV) == 4 ? "32" : "64";
+
+    __tracerExtension = reinterpret_cast<void (*)(void*)>(dlsym(soPtr, entry.c_str()));
+    if (not __tracerExtension) {
+      std::cerr << "Error: Could not find symbol tracerExtension in " << std::string(FLAGS_archsample_lib_path) << '\n';
+      return false;
+    }
+  }
 
   server_ = std::make_unique<WdRiscv::Server<URV>>(*system_);
 

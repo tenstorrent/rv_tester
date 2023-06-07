@@ -12,7 +12,6 @@
 #include "memmap.h"
 #include "cvm/logger.hpp"
 #include "src/cacCore.h"
-#include "arch_sample.h"        // ArchSample
 
 #include "whisper_client_socket.h"
 #include "whisper_client_shm.h"
@@ -130,7 +129,6 @@ private:
   int vlen_ = 0;
   cvm::topology::loc_t loc_;
   CacCore cac_;
-  ArchSample archcov;
 
   // Previous instruction's whisper state per-hart
   std::array<whisper_state_t, max_harts> pw_ {};
