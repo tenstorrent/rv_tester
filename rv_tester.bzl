@@ -58,7 +58,6 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             "@rv_tester//:rv_tester_clkgen.sv"
         ],
         deps = [
-            "@rv_tester//cosim/whisper_cov:arch_sample",
             name + "_harness",
             name + "_transactions_sv",
             name + "_sysmod_sv",
@@ -75,7 +74,6 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
         srcs = ["@rv_tester//:rv_tester.cpp"],
         deps = [
             "@rv_tester//common:common",
-            "@rv_tester//cosim/whisper_cov:archsample",
             "@cvm//:plusargs",
             "@cvm//:registry",
             name + "_transactions_cc",

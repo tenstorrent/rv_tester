@@ -47,7 +47,6 @@ rvfi::~rvfi() {
 }
 
 void rvfi::init() {
-  bot_ = std::make_unique<bot>();;
   eot_ = std::make_unique<eot>(loc_);;
 
   if (FLAGS_cosim) {

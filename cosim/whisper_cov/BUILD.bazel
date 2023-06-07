@@ -9,25 +9,21 @@ archcov_gen(
 )
 
 verilog_library(
-  name = "arch_sample",
+  name = "archsample_sv",
   srcs = ["@corearchcoverage//src/cov_sample:cov_sample.sv"],
   deps = [":archcov_sv"],
   visibility = ["//visibility:public"],
 )
 
 cc_library(
-    name = "archsample",
-    hdrs = ["arch_sample.h"],
+    name = "archsample_dpi",
     srcs = ["arch_sample.cpp"],
     deps = [
          ":archcov_sample_interface",
+         "//common:common",
          "@corearchcoverage//arch/sample:archsample",
          "@corearchcoverage//arch/common:points",
-         "@bazel_tools//tools/cpp/runfiles",
-         "//cosim/bridge_if:bridge_if",
-         "//common:common",
          "@cvm//:plusargs",
-         "@cvm//:logger",
     ],
     alwayslink = True,
     strip_include_prefix = ".",

@@ -7,7 +7,6 @@ cc_library(
                 "//cosim/bridge_if:bridge_if",
                 "//common:common",
                 "@CoreArchChecker//src:caccore",
-                "//cosim/whisper_cov:archsample",
                 "@cvm//:plusargs",
                 "@cvm//:logger",
                 "@cvm//:topology",
