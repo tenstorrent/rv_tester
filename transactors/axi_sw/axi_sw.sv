@@ -211,6 +211,13 @@ module axi_sw #(
         r_queue_wptr <= r_queue_wptr_nxt;
 
         if (reset_n) begin
+            if (axi_mst_w_valid && axi_slv_w_ready) begin
+                ws[0].valid          <= '1 & (location != cvm_topology::nil);
+                ws[0].data.location  <= location;
+                ws[0].data.data      <= axi_mst_w_data;
+                ws[0].data.strb      <= axi_mst_w_strb;
+                ws[0].data.last      <= axi_mst_w_last;
+            end
             if (axi_mst_aw_valid && axi_slv_aw_ready) begin
                 aws[0].valid          <= '1 & (location != cvm_topology::nil);
                 aws[0].data.location  <= location;
@@ -231,13 +238,6 @@ module axi_sw #(
                 ars[0].data.size      <= axi_mst_ar_size;
                 ars[0].data.burst     <= axi_mst_ar_burst;
                 ars[0].data.lock      <= axi_mst_ar_lock;
-            end
-            if (axi_mst_w_valid && axi_slv_w_ready) begin
-                ws[0].valid          <= '1 & (location != cvm_topology::nil);
-                ws[0].data.location  <= location;
-                ws[0].data.data      <= axi_mst_w_data;
-                ws[0].data.strb      <= axi_mst_w_strb;
-                ws[0].data.last      <= axi_mst_w_last;
             end
         end
     end

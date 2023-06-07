@@ -40,11 +40,10 @@ axi_sw::~axi_sw() {
 void axi_sw::process(const rv_tester_transactions::aw& aw) {
     cvm::log(cvm::FULL, "[axi_sw] aw: [id={}, addr={:#x}, size={}]\n", aw.id, aw.addr, aw.size);
     a(axi::a_t{true, aw.id, aw.addr, aw.len, aw.size, axi::burst_t(aw.burst), aw.lock != 0, aw.atop});
-    r_resp();
 }
 
 void axi_sw::process(const rv_tester_transactions::ar& ar) {
-    cvm::log(cvm::FULL, "[axi_sw] ar: [id={}, addr={:#x}, size={}]\n", ar.id, ar.addr, ar.size);
+    cvm::log(cvm::NONE, "[axi_sw] ar: [id={}, addr={:#x}, size={}]\n", ar.id, ar.addr, ar.size);
     a(axi::a_t{false, ar.id, ar.addr, ar.len, ar.size, axi::burst_t(ar.burst), ar.lock != 0});
     r_resp();
 }
@@ -76,6 +75,12 @@ void axi_sw::process(const rv_tester_transactions::w& w) {
     );
 }
 
+void axi_sw::r_q_rptr(const r_q_ptr_t& r_q_rptr) {
+    std::lock_guard<std::mutex> lock(r_q_rptr_m_);
+    r_q_rptr_ = r_q_rptr;
+    r_q_rptr_c_.notify_one();
+}
+
 void axi_sw::process(const rv_tester_transactions::r_q_ptr& r_q_ptr) {
     cvm::log(cvm::FULL, "[axi_sw] r_q_ptr: [rptr={}]\n", r_q_ptr.r_ptr);
     r_q_rptr(r_q_ptr.r_ptr);
@@ -102,12 +107,6 @@ void axi_sw::r_resp() {
 
 void axi_sw::set_scope(svScope scope) {
     scope_ = scope;
-}
-
-void axi_sw::r_q_rptr(const r_q_ptr_t& r_q_rptr) {
-    std::lock_guard<std::mutex> lock(r_q_rptr_m_);
-    r_q_rptr_ = r_q_rptr;
-    r_q_rptr_c_.notify_one();
 }
 
 extern "C" {
