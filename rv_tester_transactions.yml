@@ -109,6 +109,16 @@ sysmod:
 
 axi_sw:
     num: ${TOP.PLATFORM.AXI.TOTAL}
+    w:
+        domain: 1
+        num: 1
+        fields:
+            data:
+                width: ${TOP.PLATFORM.AXI.DATA_WIDTH}
+            strb:
+                width: ${TOP.PLATFORM.AXI.STRB_WIDTH}
+            last:
+                width: 1
     aw:
         domain: 1
         num: 1
@@ -142,17 +152,6 @@ axi_sw:
             burst:
                 width: 2
             lock:
-                width: 1
-
-    w:
-        domain: 1
-        num: 1
-        fields:
-            data:
-                width: ${TOP.PLATFORM.AXI.DATA_WIDTH}
-            strb:
-                width: ${TOP.PLATFORM.AXI.STRB_WIDTH}
-            last:
                 width: 1
 
     r_q_ptr:
