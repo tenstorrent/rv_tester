@@ -2,6 +2,6 @@
 
 extern "C" {
   void rv_tester_cvm_terminate(char* msg) {
-    cvm::log(cvm::ERROR, std::string(msg));
+    cvm::log(cvm::ERROR, std::string(msg)+'\n');
   }
 }
