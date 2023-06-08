@@ -5,10 +5,14 @@
         typedef logic[$clog2(D+0)-1:0] idx_t;              \
         localparam ptr_t PD = ptr_t'(D);                   \
         `ifndef IMMEDIATE_ASSERTIONS_IN_DPI_UNSUPPORTED    \
-        assert(path.wptr_nxt - path.rptr != PD);           \
+        assert(path.wptr_nxt - path.rptr != PD) else       \
+            $error("fifo is full");                        \
+        assert(reset_n) else $error("called in reset");    \
         `endif                                             \
-        path.q[idx_t'(path.wptr_nxt % PD)] = data;         \
-        path.wptr_nxt++;                                   \
+        if (reset_n) begin                                 \
+            path.q[idx_t'(path.wptr_nxt % PD)] = data;     \
+            path.wptr_nxt++;                               \
+        end                                                \
     end
 
 module axi_sw #(
