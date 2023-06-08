@@ -44,7 +44,7 @@ void axi_sw::process(const rv_tester_transactions::axi_sw::aw& aw) {
 }
 
 void axi_sw::process(const rv_tester_transactions::axi_sw::ar& ar) {
-    cvm::log(cvm::NONE, "[axi_sw] ar: [id={}, addr={:#x}, size={}]\n", ar.id, ar.addr, ar.size);
+    cvm::log(cvm::FULL, "[axi_sw] ar: [id={}, addr={:#x}, size={}]\n", ar.id, ar.addr, ar.size);
     a(axi::a_t{false, ar.id, ar.addr, ar.len, ar.size, axi::burst_t(ar.burst), ar.lock != 0});
     r_resp();
 }

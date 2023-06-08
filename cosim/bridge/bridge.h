@@ -118,6 +118,7 @@ private:
   bool lrsc_fail(const whisper_state_t& w);
   bool xtval_read(const whisper_state_t& w);
   void resynch(hart_id_t hart, const rv_instr_t& d);
+  std::string get_nth_word(const std::string& s, int n);
 
 private:
 
