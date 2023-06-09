@@ -233,7 +233,9 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
       resynch(hart, d);
       cac_.resetStatus(hart);
     } else {
-      std::string instr = w.disasm.substr(0, w.disasm.find(' '));
+      std::string instr = get_nth_word(w.disasm, 1);
+      if (instr.substr(0,3) == "csr")
+        instr = "csr:" + get_nth_word(w.disasm, 3);
       print_instr_stdout(hart, w);
       cvm::log(cvm::NONE, "{}", cac_.getStatusStr(hart));
       cvm::log(cvm::ERROR, "Error: Core Arch Checker Mismatch - {}\n", instr);
@@ -246,6 +248,20 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   // TLB checks
   translation_check(hart, d, w);
+}
+
+std::string bridge::get_nth_word(const std::string& s, int n) {
+    std::istringstream iss(s);
+    std::string word;
+    for (int i = 0; i < n; i++) {
+        if (!(iss >> word))
+            return ""; // Return an empty string if there are fewer than 3 words
+    }
+    // Remove trailing comma if present
+    if (!word.empty() && word.back() == ',') {
+        word.pop_back();
+    }
+    return word;
 }
 
 void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
@@ -1036,5 +1052,18 @@ void bridge::report_metrics() {
       }
       cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_csr_{}\": \"0x{:x}\"}}\n", h, csr.name, csr_data);
     }
+
+    // Step one final time to collect metrics for next instruction
+    whisper_state_t w;
+    step(h, w);
+    const auto& next_instr = w.disasm;
+    const auto& next_mode = w.priv_mode;
+    const auto& next_trap = w.trap;
+    const auto& next_num_dest = w.change_count;
+
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_instr\": \"{}\"}}\n", h, next_instr);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_mode\": {}}}\n", h, next_mode);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_trap\": {}}}\n", h, next_trap);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_num_dest\": {}}}\n", h, next_num_dest);
   }
 }
