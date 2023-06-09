@@ -92,7 +92,7 @@ constructSystem() {
 
 template <typename URV>
 int
-whisperClientLib<URV>::whisperConnect(const char* filePath)
+whisperClientLib<URV>::whisperConnect(const char*)
 {
   system_ = constructSystem<URV>();
 
@@ -452,9 +452,9 @@ whisperClientLib<URV>::whisperQuit()
 
 template <typename URV>
 bool
-whisperClientLib<URV>::whisperPageTableWalk(int hart, bool isInstr, bool isAddr,
-		     svOpenArrayHandle items, unsigned& itemCount,
-		     bool& valid)
+whisperClientLib<URV>::whisperPageTableWalk(int, bool, bool,
+		     svOpenArrayHandle, unsigned&,
+		     bool&)
 {
   return true;
 }

@@ -387,9 +387,9 @@ whisperClientShm::whisperQuit()
 //}
 
 bool
-whisperClientShm::whisperPageTableWalk(int hart, bool isInstr, bool isAddr,
-		     svOpenArrayHandle items, unsigned& itemCount,
-		     bool& valid)
+whisperClientShm::whisperPageTableWalk(int, bool, bool,
+		     svOpenArrayHandle, unsigned&,
+		     bool&)
 {
   return true;
 }

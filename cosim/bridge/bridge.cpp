@@ -275,7 +275,7 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
   }
 }
 
-void bridge::process_debug_pre_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
+void bridge::process_debug_pre_step(hart_id_t, const rv_instr_t&, whisper_state_t&) {
   return;
 }
 
@@ -347,7 +347,7 @@ void bridge::process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, wh
   }
 }
 
-bool bridge::intr_cause_mismatch(hart_id_t hart, const rv_instr_t& d) {
+bool bridge::intr_cause_mismatch(hart_id_t, const rv_instr_t& d) {
   return d.intr && w_.intr && d.icause != w_.icause;
 }
 
@@ -586,7 +586,7 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
 }
 
 // Push DUT mem state to cac
-void bridge::update_mem(hart_id_t hart, rv_instr_t& d) {
+void bridge::update_mem(hart_id_t, rv_instr_t&) {
 }
 
 // Push whisper register state to cac
@@ -652,7 +652,7 @@ bool bridge::is_ecall(const whisper_state_t& w) {
   return false;
 }
 
-bool bridge::does_instr_match_resynch_condition(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w) {
+bool bridge::does_instr_match_resynch_condition(hart_id_t, const rv_instr_t& d, const whisper_state_t& w) {
   // Case #1
   if (clint_read(d)) {
     log(cvm::MEDIUM, "<{}> Resynch: Reason=[clint_read]\n", w.time);

@@ -293,7 +293,6 @@ sysmod::tick(uint64_t advance)
 extern "C" {
 
   void sysmod_set_scope(cvm::topology::loc_t loc) {
-    typedef sysmod sm;
     svScope scope = svGetScope();
     cvm::registry::messenger.signal<svScope>(
         loc,
