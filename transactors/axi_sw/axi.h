@@ -5,6 +5,7 @@
 #include <iostream>
 #include <functional>
 #include "transactor.h"
+#include "cvm/bitmanip.hpp"
 
 class axi : public transactor {
 
@@ -85,7 +86,7 @@ class axi : public transactor {
             w_t() = default;
             w_t(w_t&&) = default;
             w_t& operator=(w_t&&) = default;
-            w_t(const w_t&) = delete;
+            w_t(const w_t&) = default;
             w_t& operator=(const w_t&) = delete;
         };
 
@@ -108,6 +109,7 @@ class axi : public transactor {
             resp_t resp;
             b_t(const id_t& id, const resp_t& resp) : id(id), resp(resp) {}
         };
+
 
     private:
 

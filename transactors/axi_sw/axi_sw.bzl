@@ -45,6 +45,7 @@ def axi_sw_gen(name, packet, visibility = None, cc_attrs = {}, **kwargs):
           "@cvm//:topology",
           "@cvm//:registry",
           "@cvm//:logger",
+          "@cvm//:bitmanip",
           packet + "_cc",
         ],
         alwayslink = True,

@@ -50,6 +50,12 @@ class transactor {
     };
     void read_request(uint64_t addr, size_t length, std::function<void(read_response_t)> cb);
 
+    struct write_request_t {
+        uint64_t addr;
+        size_t length;
+        std::vector<uint8_t> data;
+    };
+
     std::string tag() { return tag_; }
 
   private:
