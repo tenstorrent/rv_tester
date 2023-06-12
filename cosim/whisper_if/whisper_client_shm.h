@@ -34,8 +34,6 @@ class whisperClientShm : public whisperClient {
   private:
 
     int whisperConnectHostPort(const char* host, unsigned port);
-    void deserializeMessage(const char buffer[], size_t bufferLen, WhisperMessage& msg);
-    size_t serializeMessage(const WhisperMessage& msg, char buffer[], size_t bufferLen);
     bool receiveMessage(char* shm, WhisperMessage& msg);
     bool sendMessage(char* shm, const WhisperMessage& msg);
     bool whisperCommand(const WhisperMessage& req, WhisperMessage& reply);

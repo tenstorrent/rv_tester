@@ -236,8 +236,8 @@ whisperClientLib<URV>::whisperStep(int hart, uint64_t time, uint64_t instrTag, u
   fpFlags = flags;
   hasTrap = trap;
   hasStop = stop;
-  reply.buffer[sizeof(reply.buffer) - 1] = '\0';
-  disasm = reply.buffer;
+  reply.buffer[reply.buffer.size() - 1] = '\0';
+  disasm = reply.buffer.data();
 
   return true;
 }
@@ -350,7 +350,7 @@ whisperClientLib<URV>::whisperMcmWrite(int hart, uint64_t time, uint64_t addr,
   for (uint8_t i = 0; i < req.size/8; ++i) {
     req.tag[i] = (uint8_t)((mask >> (i*8)) & 0xff);
   }
-  if (req.size > sizeof(req.buffer))
+  if (req.size > req.buffer.size())
     {
       std::cerr << "whisperMcmWrite: write size too large: " << req.size << '\n';
       valid = false;
