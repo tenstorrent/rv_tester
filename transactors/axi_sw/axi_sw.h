@@ -48,10 +48,6 @@ class axi_sw {
         const r_q_ptr_t     r_q_max_    ;
         const r_q_ptr_t     r_q_ptr_max_;
 
-        // TODO switch to c++20, change r_q_rtpr_ to std::atomic, get rid of this mutex and conditional
-        mutable std::mutex r_q_rptr_m_, r_q_wptr_m_;
-        std::condition_variable r_q_rptr_c_;
-
         axi* axi_;
 
     public:
@@ -59,8 +55,6 @@ class axi_sw {
         axi_sw(cvm::topology::loc_t loc, unsigned id);
 
         ~axi_sw();
-
-        void r_q_rptr(const r_q_ptr_t& r_q_rptr);
 
         void a(const axi::a_t&  p) { axi_->a(std::forward<const axi::a_t>(p)); }
 

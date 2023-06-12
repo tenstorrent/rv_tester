@@ -454,7 +454,7 @@ module axi_sw_mst #(
     endfunction
     export "DPI-C" function axi_sw_mst_aw;
 
-    function void axi_sw_mst_w (int unsigned id, dpi_data data, dpi_strb strb, byte unsigned last);
+    function void axi_sw_mst_w (dpi_data data, dpi_strb strb, byte unsigned last);
         w_t w;
         data_t d;
         strb_t s;
@@ -571,6 +571,18 @@ module axi_sw_mst #(
 
     always @(posedge clk) begin
         if (reset_n) begin
+            ar_q_ptrs[0].valid          <= ar_queue_rptr_incremented;
+            ar_q_ptrs[0].data.location  <= location;
+            ar_q_ptrs[0].data.ar_ptr    <= ar_queue_rptr;
+
+            aw_q_ptrs[0].valid          <= aw_queue_rptr_incremented;
+            aw_q_ptrs[0].data.location  <= location;
+            aw_q_ptrs[0].data.aw_ptr    <= aw_queue_rptr;
+
+            w_q_ptrs[0].valid         <= w_queue_rptr_incremented;
+            w_q_ptrs[0].data.location <= location;
+            w_q_ptrs[0].data.w_ptr    <= w_queue_rptr;
+
             bs[0].valid         <= axi_slv_b_valid && axi_mst_b_ready;
             bs[0].data.location <= location;
             bs[0].data.id       <= axi_slv_b_id;

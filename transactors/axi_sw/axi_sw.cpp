@@ -49,24 +49,11 @@ void axi_sw::process(const rv_tester_transactions::axi_sw::ar& ar) {
     r_resp();
 }
 
-template <typename T>
-static uint32_t slice_wrap(const T& val, size_t msb, size_t lsb) {
-    if constexpr (cvm::bitmanip::is_bitset_v<T>)
-      return cvm::bitmanip::slice(val, msb, lsb).to_ulong();
-    else
-      return cvm::bitmanip::slice(val, msb, lsb);
-}
-
 void axi_sw::process(const rv_tester_transactions::axi_sw::w& w) {
     cvm::log(cvm::FULL, "[axi_sw] w: [strb={:#x}, last={}]\n", w.strb, w.last);
-    axi::data_t vdata(data_width()/8, 0);
-    axi::strb_t vstrb(strobe_width(), false);
 
-    for (std::size_t i = 0; i < vdata.size(); i++)
-      vdata[i] = slice_wrap(w.data, (i+1)*(8*sizeof(axi::data_t::value_type)) - 1, i*(8*sizeof(axi::data_t::value_type)));
-
-    for (std::size_t i = 0; i < vstrb.size(); i++)
-      vstrb[i] = slice_wrap(w.strb, i, i);
+    axi::data_t vdata = cvm::bitmanip::slice<decltype(w.data), axi::data_t>(w.data);
+    axi::strb_t vstrb = cvm::bitmanip::slice<decltype(w.strb), axi::strb_t>(w.strb);
 
     this->w(axi::w_t(
             vdata,
@@ -77,20 +64,13 @@ void axi_sw::process(const rv_tester_transactions::axi_sw::w& w) {
     r_resp();
 }
 
-void axi_sw::r_q_rptr(const r_q_ptr_t& r_q_rptr) {
-    std::lock_guard<std::mutex> lock(r_q_rptr_m_);
-    r_q_rptr_ = r_q_rptr;
-    r_q_rptr_c_.notify_one();
-}
-
 void axi_sw::process(const rv_tester_transactions::axi_sw::r_q_ptr& r_q_ptr) {
     cvm::log(cvm::FULL, "[axi_sw] r_q_ptr: [rptr={}]\n", r_q_ptr.r_ptr);
-    r_q_rptr(r_q_ptr.r_ptr);
+    r_q_rptr_ = r_q_ptr.r_ptr;
     r_resp();
 }
 
 void axi_sw::r_resp() {
-    std::unique_lock<std::mutex> lock(r_q_rptr_m_);
     while ( (r_q_wptr_ - r_q_rptr_) < r_q_max_ ) {
       auto [valid, result] = axi_->r(false);
       cvm::log(cvm::FULL, "[axi_sw] r_resp: [r_q dequeue valid={}]\n", valid);
