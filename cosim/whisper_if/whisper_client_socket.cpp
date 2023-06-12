@@ -104,161 +104,6 @@ whisperClientSocket::whisperDisconnect()
 }
 
 
-/// Unpack socket message (received in server mode) into the given
-/// WhisperMessage object.
-void
-whisperClientSocket::deserializeMessage(const char buffer[], size_t bufferLen,
-		   WhisperMessage& msg)
-
-{
-  assert (bufferLen >= sizeof(msg));
-
-  const char* p = buffer;
-  uint32_t x = ntohl(* reinterpret_cast<const uint32_t*> (p));
-  msg.hart = x;
-  p += sizeof(x);
-
-  x = ntohl(* reinterpret_cast<const uint32_t*> (p));
-  msg.type = x;
-  p += sizeof(x);
-
-  x = ntohl(* reinterpret_cast<const uint32_t*> (p));
-  msg.resource = x;
-  p += sizeof(x);
-
-  x = ntohl(* reinterpret_cast<const uint32_t*> (p));
-  msg.size = x;
-  p += sizeof(x);
-
-  x = ntohl(* reinterpret_cast<const uint32_t*> (p));
-  msg.flags = x;
-  p += sizeof(x);
-
-  uint32_t part = ntohl(* reinterpret_cast<const uint32_t*> (p));
-  msg.instrTag = uint64_t(part) << 32;
-  p += sizeof(part);
-
-  part = ntohl(* reinterpret_cast<const uint32_t*> (p));
-  msg.instrTag |= part;
-  p += sizeof(part);
-
-  part = ntohl(* reinterpret_cast<const uint32_t*> (p));
-  msg.time = uint64_t(part) << 32;
-  p += sizeof(part);
-
-  part = ntohl(* reinterpret_cast<const uint32_t*> (p));
-  msg.time |= part;
-  p += sizeof(part);
-
-  part = ntohl(* reinterpret_cast<const uint32_t*> (p));
-  msg.address = uint64_t(part) << 32;
-  p += sizeof(part);
-
-  part = ntohl(* reinterpret_cast<const uint32_t*> (p));
-  msg.address |= part;
-  p += sizeof(part);
-
-  part = ntohl(* reinterpret_cast<const uint32_t*> (p));
-  msg.value = uint64_t(part) << 32;
-  p += sizeof(part);
-
-  part = ntohl(* reinterpret_cast<const uint32_t*> (p));
-  msg.value |= part;
-  p += sizeof(part);
-
-  memcpy(msg.buffer, p, sizeof(msg.buffer));
-  msg.buffer[sizeof(msg.buffer) - 1] = '\0';
-  p += sizeof(msg.buffer);
-
-  memcpy(msg.tag, p, sizeof(msg.tag));
-  p += sizeof(msg.tag);
-
-  assert(size_t(p - buffer) <= bufferLen);
-}
-
-
-size_t
-whisperClientSocket::serializeMessage(const WhisperMessage& msg, char buffer[],
-		 size_t bufferLen)
-{
-  assert (bufferLen >= sizeof(msg));
-
-  char* p = buffer;
-  uint32_t x = htonl(msg.hart);
-  memcpy(p, &x, sizeof(x));
-  p += sizeof(x);
-
-  x = htonl(msg.type);
-  memcpy(p, &x, sizeof(x));
-  p += sizeof(x);
-
-  x = htonl(msg.resource);
-  memcpy(p, &x, sizeof(x));
-  p += sizeof(x);
-
-  x = htonl(msg.size);
-  memcpy(p, &x, sizeof(x));
-  p += sizeof(x);
-
-  x = htonl(msg.flags);
-  memcpy(p, &x, sizeof(x));
-  p += sizeof(x);
-
-  uint32_t part = static_cast<uint32_t>(msg.instrTag >> 32);
-  x = htonl(part);
-  memcpy(p, &x, sizeof(x));
-  p += sizeof(x);
-
-  part = (msg.instrTag) & 0xffffffff;
-  x = htonl(part);
-  memcpy(p, &x, sizeof(x));
-  p += sizeof(x);
-
-  part = static_cast<uint32_t>(msg.time >> 32);
-  x = htonl(part);
-  memcpy(p, &x, sizeof(x));
-  p += sizeof(x);
-
-  part = (msg.time) & 0xffffffff;
-  x = htonl(part);
-  memcpy(p, &x, sizeof(x));
-  p += sizeof(x);
-
-  part = static_cast<uint32_t>(msg.address >> 32);
-  x = htonl(part);
-  memcpy(p, &x, sizeof(x));
-  p += sizeof(x);
-
-  part = (msg.address) & 0xffffffff;
-  x = htonl(part);
-  memcpy(p, &x, sizeof(x));
-  p += sizeof(x);
-
-  part = static_cast<uint32_t>(msg.value >> 32);
-  x = htonl(part);
-  memcpy(p, &x, sizeof(x));
-  p += sizeof(x);
-
-  part = msg.value & 0xffffffff;
-  x = htonl(part);
-  memcpy(p, &x, sizeof(x));
-  p += sizeof(x);
-
-  memcpy(p, msg.buffer, sizeof(msg.buffer));
-  p += sizeof(msg.buffer);
-
-  memcpy(p, msg.tag, sizeof(msg.tag));
-  p += sizeof(msg.tag);
-
-  size_t len = p - buffer;
-  assert(len <= bufferLen);
-  assert(len <= sizeof(msg));
-  for (size_t i = len; i < sizeof(msg); ++i)
-    buffer[i] = 0;
-
-  return sizeof(msg);
-}
-
 bool
 whisperClientSocket::receiveMessage(int soc, WhisperMessage& msg)
 {
@@ -286,7 +131,7 @@ whisperClientSocket::receiveMessage(int soc, WhisperMessage& msg)
       p += l;
     }
 
-  deserializeMessage(buffer, sizeof(buffer), msg);
+  msg = WhisperMessage::deserializeFrom(buffer);
 
   return true;
 }
@@ -296,7 +141,7 @@ whisperClientSocket::sendMessage(int soc, const WhisperMessage& msg)
 {
   char buffer[sizeof(msg)];
 
-  serializeMessage(msg, buffer, sizeof(buffer));
+  msg.serializeTo(buffer);
 
   // Send command.
   ssize_t remain = sizeof(msg);
@@ -402,8 +247,8 @@ whisperClientSocket::whisperStep(int hart, uint64_t time, uint64_t instrTag, uin
   fpFlags = flags;
   hasTrap = trap;
   hasStop = stop;
-  reply.buffer[sizeof(reply.buffer) - 1] = '\0';
-  disasm = reply.buffer;
+  reply.buffer[reply.buffer.size() - 1] = '\0';
+  disasm = reply.buffer.data();
 
   return true;
 }
@@ -497,7 +342,7 @@ whisperClientSocket::whisperMcmWrite(int hart, uint64_t time, uint64_t addr,
   for (uint8_t i = 0; i < req.size/8; ++i) {
     req.tag[i] = (uint8_t)((mask >> (i*8)) & 0xff);
   }
-  if (req.size > sizeof(req.buffer))
+  if (req.size > req.buffer.size())
     {
       std::cerr << "whisperMcmWrite: write size too large: " << req.size << '\n';
       valid = false;
@@ -589,7 +434,7 @@ whisperClientSocket::whisperPageTableWalk(int hart, bool isInstr, bool isAddr,
 	}
       else
 	{
-	  uint64_t* replyData = reinterpret_cast<uint64_t*>(reply.buffer);
+	  uint64_t* replyData = reinterpret_cast<uint64_t*>(reply.buffer.data());
 	  itemCount = itemsSize < reply.size ? itemsSize : reply.size;
 	  for (unsigned i = 0; i < itemCount; ++i)
 	    *((uint64_t*) svGetArrElemPtr1(items, i)) = replyData[i];
