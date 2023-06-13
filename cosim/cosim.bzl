@@ -36,7 +36,7 @@ def cosim_gen(name, packet, topology, harness, visibility = None, cc_attrs = {},
         deps = [
             "@cvm//:plusargs_sv",
             "@cvm//:topology_sv",
-            "@rv_tester//cosim/whisper_cov:archsample_sv",
+            "@rv_tester//cosim/whisper_cov:archcov_sv",
             packet + "_sv",
             topology + "_sv",
             harness,

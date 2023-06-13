@@ -5,13 +5,7 @@ archcov_gen(
   name = "archcov",
   #whisper_config = "@risc-p-cores//dv/core/testlists:whisper_config.json",
   whisper_config = "@corearchcoverage//tests:whisper_config.json",
-  visibility = ["//visibility:public"],
-)
-
-verilog_library(
-  name = "archsample_sv",
-  srcs = ["@corearchcoverage//src/cov_sample:cov_sample.sv"],
-  deps = [":archcov_sv"],
+  standalone = False,
   visibility = ["//visibility:public"],
 )
 
