@@ -82,7 +82,7 @@ constructSystem() {
     if (FLAGS_whisper_stdout_null) hart.redirectOutputDescriptor(STDOUT_FILENO, "/dev/null");
     if (FLAGS_whisper_stdin_null) hart.redirectOutputDescriptor(STDIN_FILENO, "/dev/null");
     if (not isa.empty())
-      if (not hart.configIsa(isa, true))
+      if (not hart.configIsa(isa, false))
         return nullptr;
     hart.reset();
   }
