@@ -65,12 +65,6 @@ module rv_tester #(
             /* verilator lint_on BLKSEQ */
         end
 
-        if (cb_poll) begin
-            /* verilator lint_off BLKSEQ */
-            cb_success = rv_tester_flush_callbacks();
-            /* verilator lint_on BLKSEQ */
-        end
-
         /* verilator lint_off BLKSEQ */
         ready_to_terminate = rv_tester_error_terminate.terminate || sysmod_terminate.terminate;
         /* verilator lint_on BLKSEQ */
@@ -100,6 +94,18 @@ module rv_tester #(
         /* verilator lint_on BLKANDNBLK */
     end
     assign reset = clocks < LU'(RESET_CLOCKS) || rv_tester_reset || sysmod_reset;
+
+`ifdef NEGEDGE_UNSUPPORTED
+    always@(posedge clk) begin
+`else
+    always@(negedge clk) begin
+`endif
+        if (cb_poll) begin
+            /* verilator lint_off BLKSEQ */
+            cb_success = rv_tester_flush_callbacks();
+            /* verilator lint_on BLKSEQ */
+        end
+    end
 
     function void rv_tester_terminate ();
       rv_tester_error_terminate.terminate = '1;
