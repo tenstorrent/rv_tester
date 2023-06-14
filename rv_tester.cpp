@@ -5,8 +5,18 @@
 #include "memmap.h"
 #include <iostream>
 
+static bool validate_ge0(const char* flagname, const int value) {
+    if (value < 0) {
+        cvm::log(cvm::NONE, "Invalid value for +{}={}, must be >= 0\n", flagname, value);
+        return false;
+    }
+    return true;
+}
+
 DEFINE_int32(quiesce_timeout, 500, "cycles to wait after eot condition before calling $finish");
 DEFINE_bool(terminate_call_finish, true, "Call $finish on sim termination");
+DEFINE_int32(rerun_test, 0, "Rerun the same test this many times, to test test chaining for emulation. The test is run for a total of N+1 times.");
+DEFINE_validator(rerun_test, &validate_ge0);
 
 extern "C" void rv_tester_terminate();
 
