@@ -8,6 +8,7 @@
 #include "sysmod.h"
 #include "mem/sysmod_mem.h"
 #include "clint/clint.h"
+#include "dm/dm.h"
 #include "io_dev/io_dev.h"
 #include "null_dev/null_dev.h"
 #include "htif/htif.h"
@@ -150,7 +151,9 @@ sysmod::compose()
         cvm::registry::messenger.connect<htif::terminate_t>(
             loc_,
             [&](htif::terminate_t t) { return this->terminate(t); });
-      } else if (type == "clint") {
+      }else if (type == "dm") {
+        device = new dm(tag, base, size);
+      }else if (type == "clint") {
         device = new clint(tag, base, 1, loc_);
         cvm::registry::messenger.connect<clint::timer_t>(
             loc_,

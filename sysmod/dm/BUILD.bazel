@@ -1,0 +1,14 @@
+cc_library(
+    name = "dm",
+    srcs = ["dm.cpp"],
+    hdrs = ["dm.h"],
+    deps = [
+        "//sysmod:device",
+        "@mem_manager//:mem_manager",
+        "@rv_tester//common:common",
+        "@cvm//:plusargs",
+        "@cvm//:registry",
+        "@cvm//:topology",
+    ],
+    visibility = ["//visibility:public"],
+)

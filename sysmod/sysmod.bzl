@@ -32,6 +32,7 @@ def sysmod_gen(name, packet, topology, visibility = None, cc_attrs = {}, **kwarg
           "@rv_tester//sysmod/trickbox:trickbox",
           "@rv_tester//sysmod/htif:htif",
           "@rv_tester//sysmod/mem:mem",
+          "@rv_tester//sysmod/dm:dm",
           "@rv_tester//sysmod/io_dev:io_dev",
           "@rv_tester//sysmod/null_dev:null_dev",
           "@cvm//:plusargs",
