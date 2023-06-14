@@ -12,6 +12,7 @@ class dm : public device {
     private:
 
         mem_manager m_;
+        cvm::topology::loc_t axi_mst_loc_l;
 
     public:
         virtual void write(uint64_t addr, size_t length,
@@ -26,7 +27,7 @@ class dm : public device {
         virtual void read_axi_mst(uint64_t addr, size_t length,
                           data_t& data);
         // add max mem size
-        dm(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc);
+        dm(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc);
         
 
            /// Initialize memory with elf file.
