@@ -18,7 +18,7 @@ axi_sw_mst::axi_sw_mst(cvm::topology::loc_t loc, unsigned /*id*/)
       data_width_(cvm::topology::attr(loc_, "DATA_WIDTH").second),
       ar_q_max_(cvm::topology::attr(loc_, "AR_Q_MAX").second), ar_q_ptr_max_(cvm::topology::attr(loc_, "AR_Q_PTR_MAX").second),
       aw_q_max_(cvm::topology::attr(loc_, "AW_Q_MAX").second), aw_q_ptr_max_(cvm::topology::attr(loc_, "AW_Q_PTR_MAX").second),
-      w_q_max_(cvm::topology::attr(loc_, "W_Q_MAX").second), w_q_ptr_max_(cvm::topology::attr(loc_, "w_Q_PTR_MAX").second),
+      w_q_max_(cvm::topology::attr(loc_, "W_Q_MAX").second), w_q_ptr_max_(cvm::topology::attr(loc_, "W_Q_PTR_MAX").second),
       ids_(size_t(1) << id_width_, true) {
 
     // available burst sizes
@@ -52,7 +52,7 @@ axi_sw_mst::axi_sw_mst(cvm::topology::loc_t loc, unsigned /*id*/)
 void axi_sw_mst::process(const rv_tester_transactions::axi_sw_mst::b& b) {
     if (b.resp != axi::RESP_OKAY) {
         // could have EXOKAY if it was locked, but assume not for now
-        cvm::log(cvm::ERROR, "[AXI] bad b.response id:{} resp: {}", b.id, b.resp);
+        cvm::log(cvm::ERROR, "[AXI] bad b.response id:{} resp: {}\n", b.id, b.resp);
         return;
     }
 
@@ -67,7 +67,7 @@ void axi_sw_mst::process(const rv_tester_transactions::axi_sw_mst::b& b) {
 
 void axi_sw_mst::process(const rv_tester_transactions::axi_sw_mst::r& r) {
     if (r.resp != axi::RESP_OKAY) {
-        cvm::log(cvm::ERROR, "[AXI] bad r.response id: {} resp: {} last: {}", r.id, r.resp, r.last);
+        cvm::log(cvm::ERROR, "[AXI] bad r.response id: {} resp: {} last: {}\n", r.id, r.resp, r.last);
         return;
     }
 
@@ -123,12 +123,12 @@ bool axi_sw_mst::a_wrapper(uint64_t req_addr, size_t req_length, axi::a_t& a) {
     a.burst = axi::BURST_INCR; a.atop = false; a.lock = false;
 
     if (!next_id(a.id)) {
-        cvm::log(cvm::ERROR, "No free id's remaining for axi master");
+        cvm::log(cvm::ERROR, "No free id's remaining for axi master\n");
         return false;
     }
 
-    if ((a.addr & 0xFFF) != ((a.addr + req_length) & 0xFFF)) {
-        cvm::log(cvm::ERROR, "Request crosses 4k boundary, addr: {}, length: {}", req_addr, req_length);
+    if ((a.addr & axi::addr_t(~0xFFF)) != ((a.addr + req_length) & axi::addr_t(~0xFFF))) {
+        cvm::log(cvm::ERROR, "Request crosses 4k boundary, addr: {}, length: {}\n", req_addr, req_length);
         return false;
     }
 
@@ -142,8 +142,8 @@ bool axi_sw_mst::a_wrapper(uint64_t req_addr, size_t req_length, axi::a_t& a) {
 }
 
 void axi_sw_mst::push_transactions() {
-  while (true) {
-      auto req = transactions_.front();
+  while (!transactions_.empty()) {
+      auto& req = transactions_.front();
       std::visit([this](auto&& arg) {
           using T = std::decay_t<decltype(arg)>;
 
@@ -176,12 +176,12 @@ void axi_sw_mst::push_transactions() {
                   w_q_wptr_ = (w_q_wptr_ + 1) % w_q_ptr_max_;
 
                   if (arg.strb.size() == 0) {
-                      cvm::log(cvm::ERROR, "strb size is 0");
+                      cvm::log(cvm::ERROR, "strb size is 0\n");
                       return;
                   }
 
                   if (arg.strb.size() != arg.data.size()) {
-                      cvm::log(cvm::ERROR, "strb size != data size");
+                      cvm::log(cvm::ERROR, "strb size != data size\n");
                       return;
                   }
 
@@ -197,10 +197,10 @@ void axi_sw_mst::push_transactions() {
                           axi_sw_mst_w(arg.data.data(), strb.data(), arg.last);
                       });
               }
-              else {
-                  cvm::log(cvm::ERROR, "unhandled axi_mst transaction type");
-                  return;
-              }
+          }
+          else {
+              cvm::log(cvm::ERROR, "unhandled axi_mst transaction type\n");
+              return;
           }
 
       }, req);
@@ -228,8 +228,8 @@ void axi_sw_mst::process(const transactor::write_request_t& req) {
 
 
     size_t pow2size = size_t(1) << a.size;
-    for (size_t i = a.len; i >= 0; i--) {
-        transactions_.emplace_back(axi::w_t{axi::data_t(req.data.begin() + a.len, req.data.begin() + a.len + pow2size), axi::strb_t(pow2size, true), i == 0});
+    for (int32_t i = a.len; i >= 0; i--) {
+        transactions_.emplace_back(axi::w_t{axi::data_t(req.data.begin() + pow2size*a.len, req.data.begin() + pow2size*a.len + pow2size), axi::strb_t(pow2size, true), i == 0});
     }
     push_transactions();
 }
