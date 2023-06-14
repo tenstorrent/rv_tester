@@ -100,6 +100,7 @@ module rv_tester #(
 
         if(terminated) begin
             if(rerun_test != 0) begin
+                $display("<%0d> [RVTESTER]: rerunning test %0d time(s)", clocks, rerun_test);
                 rv_tester_reset <= '1;
                 rerun_test <= rerun_test-1;
                 terminated <= '0;
