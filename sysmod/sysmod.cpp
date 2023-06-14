@@ -56,7 +56,7 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
           return this->read(r.addr, r.length, r.data);
         });
   }
-
+  
   reset();
 }
 
@@ -152,7 +152,7 @@ sysmod::compose()
             loc_,
             [&](htif::terminate_t t) { return this->terminate(t); });
       }else if (type == "dm") {
-        device = new dm(tag, base, size);
+        device = new dm(tag, base, size,loc_);
       }else if (type == "clint") {
         device = new clint(tag, base, 1, loc_);
         cvm::registry::messenger.connect<clint::timer_t>(

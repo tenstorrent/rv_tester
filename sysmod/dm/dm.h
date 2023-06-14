@@ -26,7 +26,8 @@ class dm : public device {
         virtual void read_axi_mst(uint64_t addr, size_t length,
                           data_t& data);
         // add max mem size
-        dm(const std::string& tag, uint64_t addr, size_t size);
+        dm(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc);
+        
 
            /// Initialize memory with elf file.
         bool init_elf(const std::string& path);

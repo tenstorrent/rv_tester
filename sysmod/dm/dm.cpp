@@ -7,8 +7,8 @@
 DECLARE_string(load);
 
 
-dm::dm(const std::string& tag, uint64_t addr, size_t size)
-  : device(tag, addr, size, cvm::topology::null)
+dm::dm(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc)
+  : device(tag, addr, size, loc)
 {
   if (FLAGS_load != "") {
     std::cout << "loading " << FLAGS_load << "\n";
@@ -17,6 +17,7 @@ dm::dm(const std::string& tag, uint64_t addr, size_t size)
 }
 
 void dm::write(uint64_t addr, size_t length, const data_t& data, const strb_t& strb) {
+  std::cout<<"PRT DM WRITE "<<std::hex<<addr<<" \n";
   if (not has_addr(addr))
     return;
   cvm::registry::messenger.signal(loc(), transactor::write_request_t{addr, length, data});
@@ -25,6 +26,7 @@ void dm::write(uint64_t addr, size_t length, const data_t& data, const strb_t& s
 }
 
 void dm::read(uint64_t addr, size_t length, data_t& data) {
+  std::cout<<"PRT DM READ "<<std::hex<<addr<<" \n";
   if (not has_addr(addr))
     return;
   cvm::registry::messenger.signal(loc(), transactor::read_request_t{addr, length});
