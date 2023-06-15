@@ -8,6 +8,7 @@
 #include "sysmod.h"
 #include "mem/sysmod_mem.h"
 #include "clint/clint.h"
+#include "dm/dm.h"
 #include "io_dev/io_dev.h"
 #include "null_dev/null_dev.h"
 #include "htif/htif.h"
@@ -55,7 +56,7 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
           return this->read(r.addr, r.length, r.data);
         });
   }
-
+  
   reset();
 }
 
@@ -150,7 +151,10 @@ sysmod::compose()
         cvm::registry::messenger.connect<htif::terminate_t>(
             loc_,
             [&](htif::terminate_t t) { return this->terminate(t); });
-      } else if (type == "clint") {
+      }else if (type == "dm") {
+        auto axi_mst_loc = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST");
+        device = new dm(tag, base, size,loc_,axi_mst_loc[0]);
+      }else if (type == "clint") {
         device = new clint(tag, base, 1, loc_);
         cvm::registry::messenger.connect<clint::timer_t>(
             loc_,
