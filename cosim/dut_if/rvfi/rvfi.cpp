@@ -144,6 +144,11 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi& m_rvfi, rv_in
   instr.gpr.rd_addr = m_rvfi.rd_addr;
   instr.gpr.rd_wdata = m_rvfi.rd_wdata;
 
+  // FPR
+  instr.fpr.valid = m_rvfi.frd_valid;
+  instr.fpr.frd_addr = m_rvfi.frd_addr;
+  instr.fpr.frd_wdata = m_rvfi.frd_wdata;
+  
   // tlb
   instr.mem_va = m_rvfi.mem_addr;
   instr.mem_pa = m_rvfi.mem_paddr;
@@ -200,6 +205,9 @@ void rvfi::print_instr(rv_instr_t& instr) {
 
   if (instr.gpr.valid)
     log(cvm::NONE, " r {:016x} {:016x}", instr.gpr.rd_addr, instr.gpr.rd_wdata);
+
+  if (instr.fpr.valid)
+    log(cvm::NONE, " f {:016x} {:016x}", instr.fpr.frd_addr, instr.fpr.frd_wdata);
 
   if (instr.mem_write.valid)
     log(cvm::NONE, " m {:016x} {:016x}", instr.mem_write.va, instr.mem_write.data);

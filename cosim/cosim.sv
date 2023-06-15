@@ -44,6 +44,9 @@ module cosim #(
         assign m_rvfis[n].data.ixl = rvfi[n].ixl;
         assign m_rvfis[n].data.rd_addr = rvfi[n].rd_addr;
         assign m_rvfis[n].data.rd_wdata = rvfi[n].rd_wdata;
+        assign m_rvfis[n].data.frd_valid = rvfi[n].frd_valid;
+        assign m_rvfis[n].data.frd_addr = rvfi[n].frd_addr;
+        assign m_rvfis[n].data.frd_wdata = rvfi[n].frd_wdata;
         assign m_rvfis[n].data.pc_rdata = rvfi[n].pc_rdata;
         assign m_rvfis[n].data.pc_wdata = rvfi[n].pc_wdata;
         assign m_rvfis[n].data.mem_addr = rvfi[n].mem_addr;
