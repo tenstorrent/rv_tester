@@ -154,7 +154,6 @@ sysmod::compose()
       }else if (type == "dm") {
         auto axi_mst_loc = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST");
         device = new dm(tag, base, size,loc_,axi_mst_loc[0]);
-
       }else if (type == "clint") {
         device = new clint(tag, base, 1, loc_);
         cvm::registry::messenger.connect<clint::timer_t>(

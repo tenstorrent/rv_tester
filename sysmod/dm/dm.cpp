@@ -17,21 +17,19 @@ dm::dm(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t 
 }
 
 void dm::write(uint64_t addr, size_t length, const data_t& data, const strb_t& strb) {
-  std::cout<<"PRT DM WRITE "<<std::hex<<addr<<" \n";
   if (not has_addr(addr))
     return;
-  //cvm::registry::messenger.signal(loc(), transactor::write_request_t{addr, length, data});
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data});
   
   return;
 }
 
 void dm::read(uint64_t addr, size_t length, data_t& data) {
-  std::cout<<"PRT DM READ "<<std::hex<<addr<<" \n";
+  transactor::read_response_t resp_data;
   if (not has_addr(addr))
     return;
-  //cvm::registry::messenger.signal(loc(), transactor::read_request_t{addr, length});
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::read_request_t{addr, length});
+  //cvm::registry::messenger.connect<transactor::read_response_t>(axi_mst_loc_l, transactor::read_response_t{resp_data});
 
   return;
 }
@@ -39,23 +37,12 @@ void dm::read(uint64_t addr, size_t length, data_t& data) {
 void dm::write_axi_mst(uint64_t addr, size_t length, const data_t& data, const strb_t& strb) {
   if (not has_addr(addr))
     return;
-  //connect axi_mst dpi here
-  // struct write_request_t {
-  //       uint64_t addr;
-  //       size_t length;
-  //       std::vector<uint8_t> data;
-  //   };
-  //cvm::registry::messenger.signal(loc(), transactor::write_request_t{addr, length, data});
   return;
 }
 
 void dm::read_axi_mst(uint64_t addr, size_t length, data_t& data) {
   if (not has_addr(addr))
     return;
-  //connect axi mst dpi hereo
-  //cvm::registry::messenger.signal(loc(), transactor::read_request_t{addr, length});
-  //cvm::registry::messenger.connect(loc(), transactor::read_response_t{data});
-
   return;
 }
 
