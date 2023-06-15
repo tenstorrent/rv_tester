@@ -30,6 +30,10 @@ DEFINE_string(cosim_resynch_prev_instr, "", "List of instruction mnemonics to re
 DEFINE_bool(lrsc_resynch, false, "Resynch whisper with dut state on LRSC fail condition");
 DEFINE_bool(retire_ucode_trap, true, "DUT indicates retire on a trap after executing the ucode trap handler");
 DEFINE_bool(mcm, false, "Enable memory consistency checker");
+DEFINE_bool(gpr_check, true, "Enable cosim checks on gprs");
+DEFINE_bool(fpr_check, true, "Enable cosim checks on fprs");
+DEFINE_bool(vec_check, false, "Enable cosim checks on vector regs");
+DEFINE_bool(csr_check, false, "Enable cosim checks on csrs");
 DEFINE_int32(max_cycle, 1000000, "Max cycle limit to terminate the sim");
 DEFINE_int32(debug_excp_mcause, 24, "MCAUSE value for debug exception");
 DEFINE_int32(max_stall_cycle, 50000, "Max stall cycle limit to terminate the sim");
@@ -210,11 +214,6 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
       does_prev_instr_match_resynch_list(pw_[hart]) ||
       does_instr_match_resynch_condition(hart, d, w)) {
     resynch(hart, d);
-    cac_.resetStatus(hart);
-  }
-
-  // FIXME Temporarily disable FP checking
-  if (w_.fpr.valid) {
     cac_.resetStatus(hart);
   }
 
@@ -506,6 +505,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
       w_.fpr.valid = true;
       w_.fpr.frd_addr = w.address;
       w_.fpr.frd_wdata = w.value;
+      update_regs(hart, w);
     }
     if (w.resource == 'c') {
       csr_t c;
@@ -572,15 +572,15 @@ void bridge::step(hart_id_t hart, whisper_state_t& w) {
 // Push DUT register state to cac
 void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
   // GPR
-  if (d.gpr.valid) {
+  if (FLAGS_gpr_check && d.gpr.valid) {
     update_regs(hart, src_t::dut, resource_t::int_reg, d.gpr.rd_addr, {d.gpr.rd_wdata});
   }
   // FPR
-  if (d.fpr.valid) {
+  if (FLAGS_fpr_check && d.fpr.valid) {
     update_regs(hart, src_t::dut, resource_t::fp_reg, d.fpr.frd_addr, {d.fpr.frd_wdata});
   }
   // VR
-  if (d.vr.valid) {
+  if (FLAGS_vec_check && d.vr.valid) {
     update_regs(hart, src_t::dut, resource_t::vec_reg, d.vr.vrd_addr, {d.vr.vrd_wdata, d.vr.vrd_wdata + (vlen_/64)});
   }
 }
@@ -597,10 +597,12 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w) {
 
   switch(w.resource) {
     case 'r':
-      update_regs(hart, src_t::whisper, resource_t::int_reg, w.address, {w.value});
+      if (FLAGS_gpr_check)
+        update_regs(hart, src_t::whisper, resource_t::int_reg, w.address, {w.value});
       break;
     case 'f':
-      update_regs(hart, src_t::whisper, resource_t::fp_reg, w.address, {w.value});
+      if (FLAGS_fpr_check)
+        update_regs(hart, src_t::whisper, resource_t::fp_reg, w.address, {w.value});
       break;
     case 'v':
       //TODO:dword_vec_array [i % entries] = w.value;

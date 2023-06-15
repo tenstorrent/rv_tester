@@ -20,29 +20,32 @@ package rv_tester_params;
     typedef struct packed {
         logic                                             valid    ;
         logic [64-1:0]                                    order    ;
-        logic [mods.TOP.CLUSTER.CORE.ILEN-1:0]        insn     ;
+        logic [mods.TOP.CLUSTER.CORE.ILEN-1:0]            insn     ;
         logic                                             trap     ;
-        logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]        cause    ;
+        logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]            cause    ;
         logic                                             halt     ;
         logic                                             intr     ;
         logic [2-1:0]                                     mode     ;
         logic [2-1:0]                                     ixl      ;
         logic [5-1:0]                                     rs1_addr ;
         logic [5-1:0]                                     rs2_addr ;
-        logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]        rs1_rdata;
-        logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]        rs2_rdata;
+        logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]            rs1_rdata;
+        logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]            rs2_rdata;
         logic [5-1:0]                                     rd_addr  ;
-        logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]        rd_wdata ;
+        logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]            rd_wdata ;
+        logic                                             frd_valid;
+        logic [5-1:0]                                     frd_addr ;
+        logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]            frd_wdata;
 
-        logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]        pc_rdata ;
-        logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]        pc_wdata ;
+        logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]            pc_rdata ;
+        logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]            pc_wdata ;
 
-        logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]        mem_addr ;
-        logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]        mem_paddr;
-        logic [(mods.TOP.CLUSTER.CORE.XLEN/8)-1:0]    mem_rmask;
-        logic [(mods.TOP.CLUSTER.CORE.XLEN/8)-1:0]    mem_wmask;
-        logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]        mem_rdata;
-        logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]        mem_wdata;
+        logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]            mem_addr ;
+        logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]            mem_paddr;
+        logic [(mods.TOP.CLUSTER.CORE.XLEN/8)-1:0]        mem_rmask;
+        logic [(mods.TOP.CLUSTER.CORE.XLEN/8)-1:0]        mem_wmask;
+        logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]            mem_rdata;
+        logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]            mem_wdata;
     } rvfi_t;
 
     typedef struct packed {

@@ -29,6 +29,12 @@ cosim:
                 width: 5
             rd_wdata:
                 width: 64
+            frd_valid:
+                width: 1
+            frd_addr:
+                width: 5
+            frd_wdata:
+                width: 64
             pc_rdata:
                 width: 64
             pc_wdata:
