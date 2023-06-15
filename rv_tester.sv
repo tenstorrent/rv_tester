@@ -30,6 +30,7 @@ module rv_tester #(
     bit cb_poll = '0;
     bit cb_success = '1;
     logic call_finish;
+    int rerun_test = -1;
 
     logic terminated = '0; // used for emu trigger
     logic ready_to_terminate;
@@ -38,8 +39,6 @@ module rv_tester #(
 
     int quiesce_counter = 0;
     int quiesce_timeout = 500;
-
-    assign terminate = (quiesce_counter > 0);
 
     always @(posedge clk) begin
         rv_tester_reset <= '0;
@@ -65,11 +64,15 @@ module rv_tester #(
             /* verilator lint_on BLKSEQ */
         end
 
+        if (rerun_test < 0) begin
+            rerun_test <= cvm_plusargs::get_int("rerun_test");
+        end
+
         /* verilator lint_off BLKSEQ */
-        ready_to_terminate = rv_tester_error_terminate.terminate || sysmod_terminate.terminate;
+        ready_to_terminate = rv_tester_error_terminate.terminate || (sysmod_terminate.terminate && !sysmod_reset);
         /* verilator lint_on BLKSEQ */
 
-        if (ready_to_terminate || quiesce_counter > 0) begin
+        if ((ready_to_terminate || quiesce_counter > 0) && !rv_tester_reset) begin
           quiesce_counter <= quiesce_counter + 1;
           if (quiesced || quiesce_counter >= quiesce_timeout) begin
 
@@ -83,15 +86,26 @@ module rv_tester #(
 
             rv_tester_shutdown_registry();
 
-            if (call_finish) begin
+            if (call_finish && rerun_test == '0) begin
                 $finish();
             end
+
             terminated <= 1;
+
           end
         end
         /* verilator lint_off BLKANDNBLK */
         rv_tester_error_terminate.terminate <= '0;
         /* verilator lint_on BLKANDNBLK */
+
+        if(terminated) begin
+            if(rerun_test != 0) begin
+                $display("<%0d> [RVTESTER]: rerunning test %0d time(s)", clocks, rerun_test);
+                rv_tester_reset <= '1;
+                rerun_test <= rerun_test-1;
+                terminated <= '0;
+            end
+        end
     end
     assign reset = clocks < LU'(RESET_CLOCKS) || rv_tester_reset || sysmod_reset;
 
