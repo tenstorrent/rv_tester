@@ -51,7 +51,7 @@ DEFINE_bool(whisper_stdout_null, false, "Redirect whisoer stdout to null");
 DEFINE_bool(whisper_clint, false, "Set clint addr in whisper command");
 DEFINE_bool(whisper_tohost, true, "Set tohost addr in whisper command");
 DEFINE_bool(whisper_fromhost, true, "Set fromhost addr in whisper command");
-DEFINE_string(whisper_client, "socket", "Select whisper client to communicate - socket, shm (shared mem), or library");
+DEFINE_string(whisper_client, "lib", "Select whisper client to communicate - socket, shm (shared mem), or library");
 DEFINE_int32(whisper_connect_timeout_ms, 10000, "Set whisper connect timeout in milliseconds");
 
 // Constructor
