@@ -16,7 +16,7 @@ dm::dm(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t 
   }
 }
 
-void dm::write(uint64_t addr, size_t length, const data_t& data, const strb_t& strb) {
+void dm::write(uint64_t addr, size_t length, const data_t& data, const strb_t&) {
   if (not has_addr(addr))
     return;
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data});
@@ -24,7 +24,7 @@ void dm::write(uint64_t addr, size_t length, const data_t& data, const strb_t& s
   return;
 }
 
-void dm::read(uint64_t addr, size_t length, data_t& data) {
+void dm::read(uint64_t addr, size_t length, data_t&) {
   transactor::read_response_t resp_data;
   if (not has_addr(addr))
     return;
@@ -34,13 +34,13 @@ void dm::read(uint64_t addr, size_t length, data_t& data) {
   return;
 }
 
-void dm::write_axi_mst(uint64_t addr, size_t length, const data_t& data, const strb_t& strb) {
+void dm::write_axi_mst(uint64_t addr, size_t, const data_t&, const strb_t&) {
   if (not has_addr(addr))
     return;
   return;
 }
 
-void dm::read_axi_mst(uint64_t addr, size_t length, data_t& data) {
+void dm::read_axi_mst(uint64_t addr, size_t, data_t&) {
   if (not has_addr(addr))
     return;
   return;
