@@ -209,8 +209,13 @@ void rvfi::print_instr(rv_instr_t& instr) {
   if (instr.fpr.valid)
     log(cvm::NONE, " f {:016x} {:016x}", instr.fpr.frd_addr, instr.fpr.frd_wdata);
 
-  if (instr.mem_write.valid)
+  if (instr.mem_write.valid) {
     log(cvm::NONE, " m {:016x} {:016x}", instr.mem_write.va, instr.mem_write.data);
+    log(cvm::NONE, " [{:#x}:{:#x}]", instr.mem_write.va, instr.mem_write.pa);
+  }
+
+  if (instr.mem_read.valid)
+    log(cvm::NONE, " [{:#x}:{:#x}]", instr.mem_read.va, instr.mem_read.pa);
 
   if (instr.intr)
     log(cvm::NONE, " (interrupt:{})", instr.icause);
