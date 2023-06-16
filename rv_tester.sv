@@ -40,6 +40,8 @@ module rv_tester #(
     int quiesce_counter = 0;
     int quiesce_timeout = 500;
 
+    assign terminate = (quiesce_counter > 0);
+
     always @(posedge clk) begin
         rv_tester_reset <= '0;
         sysmod_reset <= 0;
