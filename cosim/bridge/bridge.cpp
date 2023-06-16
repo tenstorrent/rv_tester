@@ -51,7 +51,7 @@ DEFINE_bool(whisper_stdout_null, false, "Redirect whisoer stdout to null");
 DEFINE_bool(whisper_clint, false, "Set clint addr in whisper command");
 DEFINE_bool(whisper_tohost, true, "Set tohost addr in whisper command");
 DEFINE_bool(whisper_fromhost, true, "Set fromhost addr in whisper command");
-DEFINE_string(whisper_client, "socket", "Select whisper client to communicate - socket, shm (shared mem), or library");
+DEFINE_string(whisper_client, "lib", "Select whisper client to communicate - socket, shm (shared mem), or library");
 DEFINE_int32(whisper_connect_timeout_ms, 10000, "Set whisper connect timeout in milliseconds");
 
 // Constructor
@@ -680,14 +680,17 @@ bool bridge::does_instr_match_resynch_condition(hart_id_t, const rv_instr_t& d, 
 }
 
 bool bridge::clint_read(const rv_instr_t& d) {
-  if (d.mem_read.pa >= memmap_.at("clint").base &&
+  if (d.mem_read.valid &&
+      d.mem_read.pa >= memmap_.at("clint").base &&
       d.mem_read.pa < memmap_.at("clint").end)
     return true;
   return false;
 }
 
 bool bridge::htif_read(const rv_instr_t& d) {
-  if (d.mem_read.valid && (d.mem_read.pa == (memmap_.at("htif").base + 8)))
+  if (d.mem_read.valid && 
+      d.mem_read.pa >= (memmap_.at("htif").base) &&
+      d.mem_read.pa < (memmap_.at("htif").end))
     return true;
   return false;
 }
