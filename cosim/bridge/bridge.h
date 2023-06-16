@@ -100,6 +100,7 @@ private:
   void process_exception_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   void process_satp_write_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
 
+  bool get_intr_mode(hart_id_t hart);
   bool intr_cause_mismatch(hart_id_t hart, const rv_instr_t& d);
   bool dut_intr_older(hart_id_t hart, const rv_instr_t& d);
   void check_interrupt(hart_id_t hart, const rv_instr_t& d);
