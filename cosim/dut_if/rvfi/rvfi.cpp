@@ -26,7 +26,7 @@ extern "C" {
   void cosim_terminate();
 }
 
-rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
+rvfi::rvfi(cvm::topology::loc_t loc, unsigned)
   : log("dut_rvfi.log"), loc_(loc) {
   init();
 
@@ -107,7 +107,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_intr& m_intr) {
   }
 }
 
-void rvfi::process(const rv_tester_transactions::cosim::m_debug& m_debug) {
+void rvfi::process(const rv_tester_transactions::cosim::m_debug&) {
 
 }
 

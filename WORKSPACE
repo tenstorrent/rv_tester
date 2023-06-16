@@ -44,13 +44,13 @@ rules_verilator_dependencies()
 rules_verilator_toolchains()
 
 load("@rules_m4//m4:m4.bzl", "m4_register_toolchains")
-m4_register_toolchains()
+m4_register_toolchains(extra_copts=["-Wno-error=sign-compare", "-Wno-error=unused-parameter"])
 
 load("@rules_flex//flex:flex.bzl", "flex_register_toolchains")
-flex_register_toolchains()
+flex_register_toolchains(extra_copts=["-Wno-error=misleading-indentation", "-Wno-error=pointer-sign"])
 
 load("@rules_bison//bison:bison.bzl", "bison_register_toolchains")
-bison_register_toolchains()
+bison_register_toolchains(extra_copts=["-Wno-error=misleading-indentation", "-Wno-error=sign-compare" , "-Wno-error=unused-parameter"])
 
 load("//infra/bazel:testlist.bzl", "load_testlists")
 load_testlists()

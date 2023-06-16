@@ -71,16 +71,7 @@ public:
   }
 
 private:
-
-  unsigned hartCount_ = 1;
-  unsigned numInterrupts_ = 6;
-
   uint64_t interrupter_base = 0x9000000;
-  uint64_t interrupter_size =    0x4000;
-  uint64_t debugger_base    = 0x9050000;
-  uint64_t debugger_size    =    0x4000;
-  uint64_t scratch_base     = 0x9008000;
-  uint64_t scratch_size     =    0x4000;
 
   std::atomic<bool> terminate_ = false;
   std::mutex mutex_;

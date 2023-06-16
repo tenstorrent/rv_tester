@@ -58,7 +58,7 @@ cc_library(
     """
     )
 
-    whisper_hash="79595ac43a97da2438a9e258707de8856a4a65c6"
+    whisper_hash="39543d733aa58acaec6aaf703dd74e4526928e74"
     maybe(
         git_repository,
         name = "whisper",
@@ -67,7 +67,7 @@ cc_library(
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv/swerv-iss.git",
     )
 
-    core_arch_checker_hash="6affa8b6370842fa2422076735a0f5f0db670203"
+    core_arch_checker_hash="68b742ec5a7d988aab9e32369c792f3b6bd13980"
     maybe(
         http_archive,
         name = "CoreArchChecker",

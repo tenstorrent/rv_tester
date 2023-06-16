@@ -81,7 +81,7 @@ public:
     //}
   }
 
-  void reset(){
+  void reset() override {
       std::cout<<"[TRICKBOX]: Reset debugger\n";
   }
   void parse_dmi_from_csv();
@@ -103,7 +103,6 @@ public:
   //virtual void trickboxDmiWrite(unsigned hart, unsigned upper_dmi_data, unsigned lower_dmi_data, cbs_t& cbs)
   virtual void trickboxDmiWrite(unsigned hart, unsigned upper_dmi_data, unsigned lower_dmi_data)
   {
-    unsigned val =0;
     std::cout<<"TrickBox DMI Write to hart "<<hart<<" upper dmi data "<<upper_dmi_data<<" lower dmi data "<<lower_dmi_data<<" \n";
     //cbs.push_back(cb_t{Callback::TRICKBOX_DMI_WR, hart, upper_dmi_data, lower_dmi_data, 0});
     cvm::registry::messenger.signal(loc(), dmi_data_t{hart, upper_dmi_data, lower_dmi_data});
@@ -112,11 +111,6 @@ public:
 
 
 private:
-
-  unsigned hartCount_ = 1;
-  unsigned numInterrupts_ = 6;
-  unsigned debugger_en = 0;
-
   std::vector<uint32_t> soft_;  // Software interrupt: one per hart.
   std::vector<uint64_t> timeCompare_;  // One per interrupt type.
   std::vector<uint32_t> IntrHart_;  // Hart to be interrupted.
@@ -125,10 +119,8 @@ private:
   std::vector<bool> timerIntPrev_; // Value of interrupt pin
   uint64_t timer_ = 0;
   uint64_t timer_advance = 200;
-  uint64_t timer_rand_intr = 500;
   uint64_t debugger_base = 0x9050000;
   uint64_t debugger_trigger = 0x9060000;
-  uint64_t debugger_size = 0x4000;
   
   std::atomic<bool> terminate_ = false;
   std::mutex mutex_;

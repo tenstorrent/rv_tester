@@ -72,7 +72,7 @@ readCharNonBlocking(int fd)
 
 void
 htif::write(uint64_t addr, size_t length, const data_t& data,
-	    const strb_t& strb)
+	    const strb_t&)
 {
   if (not has_addr(addr) or length != 8 or (addr % 8) != 0)
     return;

@@ -1,8 +1,8 @@
 #include "cvm/plusargs.hpp"
 #include "trickbox.h"
 
-trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc)
-  : device(tag, addr, 0xc0000 /* size */, loc), hartCount_(hartCount)
+trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned, cvm::topology::loc_t loc)
+  : device(tag, addr, 0xc0000 /* size */, loc)
 {
   device* subdevice = nullptr;
   interrupter_base = addr;
@@ -20,7 +20,7 @@ trickbox::~trickbox()
 
 
 void
-trickbox::read(uint64_t addr, size_t length, data_t& data)
+trickbox::read(uint64_t addr, size_t, data_t&)
 {
   if (not has_addr(addr))
     return;

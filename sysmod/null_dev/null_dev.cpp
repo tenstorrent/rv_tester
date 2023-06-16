@@ -2,13 +2,13 @@
 #include "null_dev.h"
 
 
- void null_dev::write(uint64_t addr, size_t length, const data_t& data, const strb_t& strb) {
+ void null_dev::write(uint64_t addr, size_t, const data_t&, const strb_t&) {
    if (not has_addr(addr))
      return;
    return;
  }
 
- void null_dev::read(uint64_t addr, size_t length, data_t& data) {
+ void null_dev::read(uint64_t addr, size_t, data_t&) {
    if (not has_addr(addr))
      return;
 

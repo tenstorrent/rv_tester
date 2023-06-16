@@ -7,7 +7,7 @@
 DEFINE_string(dbg_input_file_path, "", "Path to file containing debugger commands");
 
 debugger::debugger(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc)
-  : device(tag, addr, 0x40000 /* size */, loc), hartCount_(hartCount), soft_(hartCount),
+  : device(tag, addr, 0x40000 /* size */, loc), soft_(hartCount),
     timeCompare_(6),IntrHart_(6),delayedRandomIntValid_(6),IntrValue_(6), timerIntPrev_(hartCount), timer_(0)
 {
   debugger_base = addr;
@@ -160,7 +160,7 @@ void debugger::drive_csv_dmi_cmds()
 }
 
 void
-debugger::read(uint64_t addr, size_t length, data_t& data)
+debugger::read(uint64_t addr, size_t, data_t&)
 {
   if (not has_addr(addr))
     return;
@@ -169,8 +169,8 @@ debugger::read(uint64_t addr, size_t length, data_t& data)
 
 
 void
-debugger::write(uint64_t addr, size_t length, const data_t& data,
-		 const strb_t& strb)
+debugger::write(uint64_t addr, size_t, const data_t& data,
+		 const strb_t&)
 {
   if (not has_addr(addr))
     return;

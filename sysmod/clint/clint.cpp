@@ -89,7 +89,7 @@ clint::read(uint64_t addr, size_t length, data_t& data)
 
 void
 clint::write(uint64_t addr, size_t length, const data_t& data,
-		 const strb_t& strb)
+		 const strb_t&)
 {
   if (not has_addr(addr))
     return;

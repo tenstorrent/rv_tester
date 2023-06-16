@@ -31,9 +31,9 @@ class device {
     virtual void read(uint64_t addr, size_t length,
                       data_t& data) = 0;
 
-    virtual void backdoor_read(uint64_t addr, size_t length, data_t& data) { };
+    virtual void backdoor_read(uint64_t, size_t, data_t&) { };
 
-    virtual void tick(uint64_t advance) { };
+    virtual void tick(uint64_t) { };
 
     virtual void reset() { };
 

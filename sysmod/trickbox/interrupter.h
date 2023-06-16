@@ -89,7 +89,7 @@ public:
     processDelayedRandomInterrupts();
   }
 
-  void reset(){
+  void reset() override {
       std::cout<<"[TRICKBOX]: Reset Interrupter\n";
     if(FLAGS_random_intr){
       std::cout<<"[TRICKBOX]: Enable random interrupts "<<FLAGS_random_intr<<"\n";
@@ -137,15 +137,15 @@ protected:
          unsigned disable_mask = 0;
          unsigned iter = 1;
          unsigned values[FLAGS_max_simul_intr];
-         memset(values, FLAGS_max_simul_intr, 0);
-         if( (FLAGS_max_simul_intr >1 ) && (FLAGS_max_simul_intr < (numInterrupts_ +1))){
+         memset(values, 0, FLAGS_max_simul_intr);
+         if( (FLAGS_max_simul_intr >1 ) && (FLAGS_max_simul_intr < (static_cast<int>(numInterrupts_ +1)))){
            iter = (rng() % (FLAGS_max_simul_intr )) + 1 ; //gen iter between 1 to max simul instr
          } 
          
          //std::cout<<"[TRICKBOX]: iteration interrupts "<<iter<<"\n";
-         for (int i = 0; i < iter; ++i) {
+         for (unsigned i = 0; i < iter; ++i) {
            values[i] = rng() % (numInterrupts_) ;
-           for (int j = 0; j < i; ++j) {
+           for (unsigned j = 0; j < i; ++j) {
                if (values[i] == values[j]) {
                 i--;
                  break;
@@ -182,8 +182,6 @@ protected:
   void selfTick(useconds_t n);
 
 private:
-
-  unsigned hartCount_ = 1;
   unsigned numInterrupts_ = 6;
 
   std::vector<uint64_t> timeCompare_;  // One per interrupt type.
@@ -195,7 +193,6 @@ private:
   uint64_t timer_advance = 200;
   uint64_t timer_rand_intr = 500;
   uint64_t interrupter_base = 0x9000000;
-  uint64_t interrupter_size = 0x4000;
   
   std::atomic<bool> terminate_ = false;
   std::mutex mutex_;

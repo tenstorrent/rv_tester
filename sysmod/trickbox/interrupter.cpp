@@ -15,7 +15,7 @@
  DEFINE_bool(disable_seip,false,"Disable Random S EXT interrupt generation ");
  DEFINE_bool(disable_meip,false,"Disable Random M EXT interrupt generation ");
 interrupter::interrupter(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc)
-  : device(tag, addr, 0x4000 /* size */, loc), hartCount_(hartCount), 
+  : device(tag, addr, 0x4000 /* size */, loc),
     timeCompare_(6),IntrHart_(6),delayedRandomIntValid_(6),IntrValue_(6), timerIntPrev_(hartCount), timer_(0)
 {
   rng.seed(FLAGS_seed);
@@ -55,7 +55,7 @@ interrupter::selfTick(useconds_t delta)
 
 
 void
-interrupter::read(uint64_t addr, size_t length, data_t& data)
+interrupter::read(uint64_t addr, size_t, data_t&)
 {
   if (not has_addr(addr))
     return;
@@ -64,8 +64,8 @@ interrupter::read(uint64_t addr, size_t length, data_t& data)
 
 
 void
-interrupter::write(uint64_t addr, size_t length, const data_t& data,
-		 const strb_t& strb)
+interrupter::write(uint64_t addr, size_t, const data_t& data,
+		 const strb_t&)
 {
   //std::cout<<"interrupter write: 0x"<<std::hex<<addr;
   if (not has_addr(addr))

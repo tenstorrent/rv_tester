@@ -10,7 +10,7 @@ double sc_time_stamp() {
     return vtime;
 }
 
-int main(int argc, char** argv, char** env) {
+int main(int argc, char** argv) {
 
     Vtop top;
     Verilated::commandArgs(argc, argv);
