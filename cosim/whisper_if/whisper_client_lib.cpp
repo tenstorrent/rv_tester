@@ -21,6 +21,7 @@ DECLARE_bool(whisper_stdin_null);
 DECLARE_bool(whisper_stdout_null);
 DECLARE_bool(mcm);
 DECLARE_bool(cov);
+DECLARE_uint32(max_instr);
 DECLARE_string(archsample_lib_path);
 DECLARE_bool(standalone);
 
@@ -114,6 +115,7 @@ whisperClientLib<URV>::whisperConnect(const char*)
 
     for (unsigned i = 0; i < system_->hartCount(); ++i) {
       WdRiscv::Hart<URV>* hart = system_->ithHart(i).get();
+      hart->setInstructionCountLimit(FLAGS_max_instr);
       threadVec.emplace_back(std::thread(threadFunc, hart));
     }
 
