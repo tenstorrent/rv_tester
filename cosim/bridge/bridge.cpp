@@ -814,6 +814,19 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
       return;
     }
   }
+
+  for (auto& csr : d.csr) {
+    if (csr.valid) {
+      if (FLAGS_cosim_tracer) {
+        log(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: C[{:#x}]={:#x}\n", d.cycle, step_[hart], csr.csr_addr,
+          csr.csr_wdata);
+      }
+      if (!client_->whisperPoke(hart, d.cycle, 'c', csr.csr_addr, csr.csr_wdata, valid)) {
+        cvm::log(cvm::ERROR, "Error: Failed to resynch CSRs\n");
+        return;
+      }
+    }
+  }
 }
 
 // Process mem accesses - load resolves
