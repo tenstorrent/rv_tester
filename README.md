@@ -5,7 +5,7 @@ Risc-v cpu testing component written in sv and c++
 ## Overview
 This repository contains the verification collateral needed to interface with a RISCV CPU core and perform lockstep architectural checks against the [Whisper](https://github.com/tenstorrent/whisper) RISCV CPU ISS. ALong with this this repo contains soft device models, axi transactor and master. 
 
-![](docs/images/rv_tester.png)
+![](./doc/rv_tester.png)
 
 The main components involved here are
 - RVFI Monitor
