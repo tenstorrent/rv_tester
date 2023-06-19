@@ -119,7 +119,7 @@ void bridge::reset() {
     std::string commandLog = FLAGS_whisper_log ? "iss_cmd.log" : "";
     client_ = std::make_unique<whisperClientLib<uint64_t>>(traceFile, commandLog);
   } else {
-    cvm::log(cvm::ERROR, "Error: Invalid option passed for +whisper_client. Should be one of - socket, shm.");
+    cvm::log(cvm::ERROR, "Error: Invalid option passed for +whisper_client. Should be one of - socket, shm.\n");
     return;
   }
 
@@ -307,14 +307,32 @@ void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whi
   }
 }
 
+bool bridge::get_intr_mode(hart_id_t hart) {
+    uint64_t mtvec;
+    bool valid;
+    if (!client_->whisperPeek(hart, 'c', 0x305, mtvec, valid)) {
+      cvm::log(cvm::ERROR, "Error: Failed to peek mip csr\n");
+      return false;
+    }
+    if (mtvec & 0x1)
+      return true;
+    return false;
+}
+
 void bridge::process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
 
   if (resynch_intr_cause_mismatch_) {
+    bool intr_mode = get_intr_mode(hart);
+
     log(cvm::MEDIUM, "<{}> Resynch: Reason=[intr_cause_mismatch && dut_intr_older]\n", d.cycle);
     resynch(hart, d);
-    log(cvm::MEDIUM, "<{}> Whisper Step #{}: Extra step due to interrupt resynch\n", w.time, step_[hart]);
-    step(hart, w);
-    update_whisper_state(hart,w);
+
+    if (intr_mode) {
+      log(cvm::MEDIUM, "<{}> Whisper Step #{}: Extra step due to interrupt cause resynch (vectored mode)\n", w.time, step_[hart]);
+      step(hart, w);
+      update_whisper_state(hart,w);
+    }
+
     resynch_intr_cause_mismatch_ = false;
   }
 
@@ -796,6 +814,19 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
       return;
     }
   }
+
+  for (auto& csr : d.csr) {
+    if (csr.valid) {
+      if (FLAGS_cosim_tracer) {
+        log(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: C[{:#x}]={:#x}\n", d.cycle, step_[hart], csr.csr_addr,
+          csr.csr_wdata);
+      }
+      if (!client_->whisperPoke(hart, d.cycle, 'c', csr.csr_addr, csr.csr_wdata, valid)) {
+        cvm::log(cvm::ERROR, "Error: Failed to resynch CSRs\n");
+        return;
+      }
+    }
+  }
 }
 
 // Process mem accesses - load resolves
@@ -909,7 +940,7 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
 void bridge::poke_deferred_intr_status(hart_id_t hart, uint64_t cycle, uint64_t mip) {
   bool valid;
   if (!client_->whisperPoke(hart, cycle, 's', WhisperSpecialResource::DeferredInterrupts, mip, valid)) {
-    cvm::log(cvm::ERROR, "Error: Failed to poke deferred mip csr");
+    cvm::log(cvm::ERROR, "Error: Failed to poke deferred mip csr\n");
     return;
   }
 }
@@ -952,7 +983,7 @@ void bridge::poke_mip(hart_id_t hart, uint64_t time, uint64_t mip) {
   // Peek old mip
   uint64_t old_mip;
   if (!client_->whisperPeek(hart, 'c', 0x344, old_mip, valid)) {
-    cvm::log(cvm::ERROR, "Error: Failed to peek mip csr");
+    cvm::log(cvm::ERROR, "Error: Failed to peek mip csr\n");
     return;
   }
 
@@ -960,7 +991,7 @@ void bridge::poke_mip(hart_id_t hart, uint64_t time, uint64_t mip) {
   uint64_t new_mip = (old_mip & 0x222) | mip;
   log(cvm::MEDIUM, "<{}> Mip poked. Mip: {:#x}\n", time, new_mip);
   if (!client_->whisperPoke(hart, time, 'c', 0x344, new_mip, valid)) {
-    cvm::log(cvm::ERROR, "Error: Failed to poke mip csr");
+    cvm::log(cvm::ERROR, "Error: Failed to poke mip csr\n");
     return;
   }
   pend_intr_mip_[hart] = new_mip;
@@ -969,7 +1000,7 @@ void bridge::poke_mip(hart_id_t hart, uint64_t time, uint64_t mip) {
 void bridge::poke_seip(hart_id_t hart, uint64_t time, bool val) {
   log(cvm::MEDIUM, "<{}> Seip poked. Seip: {}\n", time, val);
   if (!client_->whisperSetSeiPin(hart, (uint64_t)val)) {
-    cvm::log(cvm::ERROR, "Error: Failed to poke seip");
+    cvm::log(cvm::ERROR, "Error: Failed to poke seip\n");
     return;
   }
 }
