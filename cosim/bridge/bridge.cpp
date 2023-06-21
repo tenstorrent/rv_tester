@@ -237,7 +237,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
         instr = "csr:" + get_nth_word(w.disasm, 3);
       print_instr_stdout(hart, w);
       cvm::log(cvm::NONE, "{}", cac_.getStatusStr(hart));
-      cvm::log(cvm::ERROR, "Error: Core Arch Checker Mismatch - {}\n", instr);
+      cvm::log(cvm::ERROR, "Error: Core Arch Checker Mismatch{} - {}\n", cac_.getResourceStr(hart),  instr);
       return;
     }
   }
