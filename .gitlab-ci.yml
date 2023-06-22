@@ -53,10 +53,7 @@ smoke:
         - *clone-script
         - *bzsim-setup-script
     script:
-        # Need to create subdirectory so that `bzsim regress` does not attempt to overwrite BUILD.bazel
-        - mkdir -p testing
-        - cd testing
-        - ../${BZSIM} test ${BZSIM_OPTS} smoke
+        - ${BZSIM} test smoke ${BZSIM_OPTS}
     variables:
         << : *clone-variables
         << : *bzsim-variables
@@ -81,10 +78,7 @@ asan+ubsan:
         - *clone-script
         - *bzsim-setup-script
     script:
-        # Need to create subdirectory so that `bzsim regress` does not attempt to overwrite BUILD.bazel
-        - mkdir -p testing
-        - cd testing
-        - ../${BZSIM} regress ${BZSIM_OPTS} ../sw_testbench/testlists/sanitize.py --config asan+ubsan
+        - ${BZSIM} test smoke ${BZSIM_OPTS} --config asan+ubsan
     variables:
         << : *clone-variables
         << : *bzsim-variables
@@ -99,10 +93,7 @@ tsan:
         - *clone-script
         - *bzsim-setup-script
     script:
-        # Need to create subdirectory so that `bzsim regress` does not attempt to overwrite BUILD.bazel
-        - mkdir -p testing
-        - cd testing
-        - ../${BZSIM} regress ${BZSIM_OPTS} ../sw_testbench/testlists/sanitize.py --config tsan
+        - ${BZSIM} test smoke ${BZSIM_OPTS} --config tsan
     variables:
         << : *clone-variables
         << : *bzsim-variables
@@ -117,10 +108,8 @@ valgrind:
         - *clone-script
         - *bzsim-setup-script
     script:
-        # Need to create subdirectory so that `bzsim regress` does not attempt to overwrite BUILD.bazel
-        - mkdir -p testing
-        - cd testing
-        - ../${BZSIM} regress ${BZSIM_OPTS} ../sw_testbench/testlists/valgrind.py
+        # TODO(mboisvert): Clean this by adding native +valgrind support to runtime.
+        - ${BZSIM} test smoke ${BZSIM_OPTS} --bazel-test-opt=--test_arg=--run-args=+sim_wrap=/opt/rh/gcc-toolset-11/root/bin/valgrind --bazel-test-opt=--test_arg=--run-args=+sim_wrap=--trace-children=yes --bazel-test-opt=--test_arg=--run-args=+sim_wrap=--tool=memcheck --bazel-test-opt=--test_arg=--run-args=+sim_wrap=--leak-check=full --bazel-test-opt=--test_arg=--run-args=+sim_wrap=--show-reachable=yes --bazel-test-opt=--test_arg=--run-args=+sim_wrap=--track-origins=yes --bazel-test-opt=--test_arg=--run-args=+sim_wrap=--error-exitcode=1
     variables:
         << : *clone-variables
         << : *bzsim-variables

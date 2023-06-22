@@ -22,7 +22,6 @@ DECLARE_string(eot);
 
 DEFINE_bool(cosim_tracer, true, "Enable bridge trace prints");
 DEFINE_string(bootrom_path, "", "Path to bootrom object file");
-DEFINE_string(whisper_path, "", "Path to whisper executable");
 DEFINE_string(whisper_json_path, "", "Path to whisper json config");
 DEFINE_bool(cosim_resynch, false, "Resynch whisper with dut state on every instruction");
 DEFINE_string(cosim_resynch_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
@@ -48,11 +47,6 @@ DEFINE_uint32(max_pend_intr_instr_count, 32, "Number of instructions allowed to 
 DEFINE_bool(whisper_log, true, "Enable whisper logging to iss_cosim.log and iss_cmd.log");
 DEFINE_bool(whisper_stdin_null, false, "Redirect whisoer stdin to null");
 DEFINE_bool(whisper_stdout_null, false, "Redirect whisoer stdout to null");
-DEFINE_bool(whisper_clint, false, "Set clint addr in whisper command");
-DEFINE_bool(whisper_tohost, true, "Set tohost addr in whisper command");
-DEFINE_bool(whisper_fromhost, true, "Set fromhost addr in whisper command");
-DEFINE_string(whisper_client, "lib", "Select whisper client to communicate - socket, shm (shared mem), or library");
-DEFINE_int32(whisper_connect_timeout_ms, 10000, "Set whisper connect timeout in milliseconds");
 
 // Constructor
 bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc)
@@ -71,36 +65,8 @@ bridge::~bridge() {
   client_->whisperQuit();
 }
 
-bool bridge::whisper_connect(std::string cmd, int timeout) {
-
-  std::cout << "Cosim whisper command: " << cmd << "\n";
-  // Used for gperftools to collect profiling data on whisper and output it to ./whisper.prof
-  setenv("CPUPROFILE", "whisper.prof", 1);
-  int status = system(cmd.c_str());
-  if (status != 0)
-    cvm::log(cvm::NONE, "Error: Whisper command failed with non-zero return code {}", status);
-
-  auto start = std::chrono::high_resolution_clock::now();
-  while (true) {
-    auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-
-    int result;
-    if (FLAGS_whisper_client == "lib")
-      result = client_->whisperConnect("");
-    else
-      result = client_->whisperConnect("whisper_connect");
-
-    if (result >= 0) {
-      cvm::log(cvm::NONE, "Whisper connect succeeded in {} ms.\n", duration);
-      return true;
-    }
-    else if (duration > timeout) {
-      cvm::log(cvm::ERROR, "Error: Whisper connect failed. Stopping after {} ms.\n", duration);
-      return false;
-    }
-    std::this_thread::sleep_for (std::chrono::milliseconds(20));
-  }
+bool bridge::whisper_connect() {
+  return (client_->whisperConnect() == 0);
 }
 
 void bridge::reset() {
@@ -109,63 +75,14 @@ void bridge::reset() {
 
   cac_.reset();
   cac_.configureVlen(vlen_);
+  std::string traceFile = FLAGS_whisper_log ? "iss_cosim.log" : "";
+  std::string commandLog = FLAGS_whisper_log ? "iss_cmd.log" : "";
+  client_ = std::make_unique<whisperClient<uint64_t>>(traceFile, commandLog);
 
-  if (FLAGS_whisper_client == "socket") {
-    client_ = std::make_unique<whisperClientSocket>();
-  } else if (FLAGS_whisper_client == "shm") {
-    client_ = std::make_unique<whisperClientShm>();
-  } else if (FLAGS_whisper_client == "lib") {
-    std::string traceFile = FLAGS_whisper_log ? "iss_cosim.log" : "";
-    std::string commandLog = FLAGS_whisper_log ? "iss_cmd.log" : "";
-    client_ = std::make_unique<whisperClientLib<uint64_t>>(traceFile, commandLog);
-  } else {
-    cvm::log(cvm::ERROR, "Error: Invalid option passed for +whisper_client. Should be one of - socket, shm.\n");
-    return;
-  }
-
-  whisper_connect(get_whisper_cmd(), FLAGS_whisper_connect_timeout_ms);
+  whisper_connect();
 
   bool valid;
   client_->whisperReset(0, valid);
-}
-
-// Whisper command options
-std::string bridge::get_whisper_cmd() {
-  // Validate flags
-  if ((FLAGS_load == "") && (FLAGS_hex == "")) {
-    cvm::log(cvm::ERROR, "Error: Need to provide at least one of +load <elf> or +hex <hex>\n");
-    return {};
-  }
-
-  if ((FLAGS_whisper_path == "") || (FLAGS_whisper_json_path == "")) {
-    cvm::log(cvm::ERROR, "Error: +whisper_path or +whisper_json_path cannot be empty\n");
-    return {};
-  }
-
-  // Command components
-  std::string harts = " --harts " + std::to_string(num_harts_);
-  std::string config = " --configfile " + FLAGS_whisper_json_path;
-  std::string trace = " --traceload --traceptw";
-  std::string out_log = FLAGS_whisper_log ? " --logfile iss_cosim.log" : "";
-  std::string cmd_log = FLAGS_whisper_log ? " --commandlog iss_cmd.log" : "";
-  std::string std_out = FLAGS_whisper_stdout_null ? " --stdout /dev/null" : "";
-  std::string std_in = FLAGS_whisper_stdin_null ? " --stdin /dev/null" : "";
-  std::string client = (FLAGS_whisper_client == "shm") ? " --shm" : "";
-  std::string mcm = FLAGS_mcm ? " --mcm --mcmls 64" : "";
-  std::string clint = FLAGS_whisper_clint ? " --clint " + memmap_.at("clint").base_str : "";
-  std::string htif = memmap_.at("htif").base_str;
-  std::string tohost = FLAGS_whisper_tohost ? " --tohost " + htif : "";
-  std::string fromhost = FLAGS_whisper_fromhost ? " --fromhost " + htif.replace(htif.size() - 1, 1, "8") : "";
-  std::string test = (FLAGS_load != "") ? FLAGS_load : ("--hex " + FLAGS_hex);
-
-  std::string cmd = FLAGS_whisper_path + " " + test + " " + FLAGS_bootrom_path +
-    harts + config + trace + out_log + cmd_log + std_out + std_in + client +
-    clint + tohost + fromhost + " --raw --server whisper_connect &";
-
-  if (FLAGS_whisper_client == "lib")
-    cmd = "echo 'using whisper library'";
-
-  return cmd;
 }
 
 // DUT interface callback: Instruction Retire
