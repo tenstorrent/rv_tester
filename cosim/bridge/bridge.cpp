@@ -934,6 +934,7 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
   } else if (i.seip_negedge) {
     log(cvm::MEDIUM, "<{}> Seip pin deasserted\n", i.cycle);
     poke_seip(hart, i.cycle, false);
+    is_seip_pend_[hart] = false;
   }
 }
 
