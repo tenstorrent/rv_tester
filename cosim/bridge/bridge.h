@@ -13,9 +13,7 @@
 #include "cvm/logger.hpp"
 #include "src/cacCore.h"
 
-#include "whisper_client_socket.h"
-#include "whisper_client_shm.h"
-#include "whisper_client_lib.h"
+#include "whisper_client.h"
 
 class bridge : public bridge_base {
 
@@ -51,7 +49,7 @@ public:
   virtual void exit_debug_mode(rv_debug_t& d) override;
 
   void reset();
-  bool whisper_connect(std::string cmd, int timeout);
+  bool whisper_connect();
 
   void final_phase();
   void report_metrics();
@@ -76,8 +74,6 @@ private:
   } memclass_t;
 
 private:
-
-  std::string get_whisper_cmd();
 
   void update_dut_state(hart_id_t hart, rv_instr_t& d);
   void update_whisper_state(hart_id_t hart, whisper_state_t& w);
@@ -122,7 +118,7 @@ private:
 
 private:
 
-  std::unique_ptr<whisperClient> client_;
+  std::unique_ptr<whisperClient<uint64_t>> client_;
 
   cvm::file_logger log;
 

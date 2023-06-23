@@ -10,7 +10,7 @@
 #include <dlfcn.h>
 #include "cvm/plusargs.hpp"
 
-#include "whisper_client_lib.h"
+#include "whisper_client.h"
 #include "HartConfig.hpp"
 #include "Hart.hpp"
 
@@ -93,7 +93,7 @@ constructSystem() {
 
 template <typename URV>
 int
-whisperClientLib<URV>::whisperConnect(const char*)
+whisperClient<URV>::whisperConnect()
 {
   system_ = constructSystem<URV>();
 
@@ -131,7 +131,7 @@ whisperClientLib<URV>::whisperConnect(const char*)
     auto soPtr = dlopen(FLAGS_archsample_lib_path.c_str(), RTLD_NOW);
     if (not soPtr) {
       std::cerr << "Error: Failed to load shared libarary " << dlerror() << '\n';
-      return false;
+      return -1;
     }
 
     std::string entry("tracerExtension");
@@ -140,7 +140,7 @@ whisperClientLib<URV>::whisperConnect(const char*)
     __tracerExtension = reinterpret_cast<void (*)(void*)>(dlsym(soPtr, entry.c_str()));
     if (not __tracerExtension) {
       std::cerr << "Error: Could not find symbol tracerExtension in " << std::string(FLAGS_archsample_lib_path) << '\n';
-      return false;
+      return -1;
     }
   }
 
@@ -152,14 +152,14 @@ whisperClientLib<URV>::whisperConnect(const char*)
 
 template <typename URV>
 void
-whisperClientLib<URV>::whisperDisconnect()
+whisperClient<URV>::whisperDisconnect()
 {
 }
 
 
 template <typename URV>
 bool
-whisperClientLib<URV>::whisperCommand(const WhisperMessage& req, WhisperMessage& reply)
+whisperClient<URV>::whisperCommand(const WhisperMessage& req, WhisperMessage& reply)
 {
   server_->interact(req, reply, traceFile_, commandLog_);
   return true;
@@ -168,7 +168,7 @@ whisperClientLib<URV>::whisperCommand(const WhisperMessage& req, WhisperMessage&
 
 template <typename URV>
 bool
-whisperClientLib<URV>::whisperPeek(int hart, char resource, uint64_t addr, uint64_t& value,
+whisperClient<URV>::whisperPeek(int hart, char resource, uint64_t addr, uint64_t& value,
 	    bool& valid)
 {
   req.hart = hart;
@@ -190,7 +190,7 @@ whisperClientLib<URV>::whisperPeek(int hart, char resource, uint64_t addr, uint6
 // are invalid.
 template <typename URV>
 bool
-whisperClientLib<URV>::whisperPoke(int hart, uint64_t time, char resource, uint64_t addr, uint64_t value,
+whisperClient<URV>::whisperPoke(int hart, uint64_t time, char resource, uint64_t addr, uint64_t value,
 	    bool& valid)
 {
   req.hart = hart;
@@ -210,7 +210,7 @@ whisperClientLib<URV>::whisperPoke(int hart, uint64_t time, char resource, uint6
 
 template <typename URV>
 bool
-whisperClientLib<URV>::whisperStep(int hart, uint64_t time, uint64_t instrTag, uint64_t& pc,
+whisperClient<URV>::whisperStep(int hart, uint64_t time, uint64_t instrTag, uint64_t& pc,
 	    uint32_t& instruction, unsigned& changeCount,
 	    std::string& disasm, uint32_t& privMode,
 	    uint32_t& fpFlags, bool& hasTrap, bool& hasStop)
@@ -247,7 +247,7 @@ whisperClientLib<URV>::whisperStep(int hart, uint64_t time, uint64_t instrTag, u
 // Copied from chuang's LSTB Whisper Client
 template <typename URV>
 bool
-whisperClientLib<URV>::whisperSimpleStep(int hart, uint64_t& pc, uint32_t& instruction, unsigned& changeCount)
+whisperClient<URV>::whisperSimpleStep(int hart, uint64_t& pc, uint32_t& instruction, unsigned& changeCount)
 {
   req.hart = hart;
   req.type = WhisperMessageType::Step;
@@ -267,7 +267,7 @@ whisperClientLib<URV>::whisperSimpleStep(int hart, uint64_t& pc, uint32_t& instr
 
 template <typename URV>
 bool
-whisperClientLib<URV>::whisperChange(int hart, uint32_t& resource, uint64_t& addr, uint64_t& value,
+whisperClient<URV>::whisperChange(int hart, uint32_t& resource, uint64_t& addr, uint64_t& value,
 	      bool& valid)
 {
   req.hart = hart;
@@ -283,7 +283,7 @@ whisperClientLib<URV>::whisperChange(int hart, uint32_t& resource, uint64_t& add
 }
 
 //void
-//whisperClientLib::whisperChanges(int hart, std::unordered_map<uint32_t,uint64_t>& addrs, std::unordered_map<uint32_t,uint64_t>& datas,
+//whisperClient::whisperChanges(int hart, std::unordered_map<uint32_t,uint64_t>& addrs, std::unordered_map<uint32_t,uint64_t>& datas,
 //               int changeCount)
 //{
 //  for (int i = 0; i < changeCount; i++)
@@ -299,7 +299,7 @@ whisperClientLib<URV>::whisperChange(int hart, uint32_t& resource, uint64_t& add
 
 template <typename URV>
 bool
-whisperClientLib<URV>::whisperMcmRead(int hart, uint64_t time, uint64_t instrTag, uint64_t addr,
+whisperClient<URV>::whisperMcmRead(int hart, uint64_t time, uint64_t instrTag, uint64_t addr,
 	       unsigned size, uint64_t value, bool internal, bool& valid)
 {
   req.hart = hart;
@@ -320,7 +320,7 @@ whisperClientLib<URV>::whisperMcmRead(int hart, uint64_t time, uint64_t instrTag
 
 template <typename URV>
 bool
-whisperClientLib<URV>::whisperMcmInsert(int hart, uint64_t time, uint64_t instrTag, uint64_t addr,
+whisperClient<URV>::whisperMcmInsert(int hart, uint64_t time, uint64_t instrTag, uint64_t addr,
 		 unsigned size, uint64_t value, bool& valid)
 {
   req.hart = hart;
@@ -340,7 +340,7 @@ whisperClientLib<URV>::whisperMcmInsert(int hart, uint64_t time, uint64_t instrT
 
 template <typename URV>
 bool
-whisperClientLib<URV>::whisperMcmWrite(int hart, uint64_t time, uint64_t addr,
+whisperClient<URV>::whisperMcmWrite(int hart, uint64_t time, uint64_t addr,
 		unsigned size, svOpenArrayHandle handle, uint64_t mask, bool& valid)
 {
   req.hart = hart;
@@ -372,7 +372,7 @@ whisperClientLib<URV>::whisperMcmWrite(int hart, uint64_t time, uint64_t addr,
 
 template <typename URV>
 bool
-whisperClientLib<URV>::whisperTranslate(int hart, uint64_t vaddr, bool r, bool w, bool x,
+whisperClient<URV>::whisperTranslate(int hart, uint64_t vaddr, bool r, bool w, bool x,
          bool supervisor, uint64_t& paddr, bool& valid)
 {
   req.hart = hart;
@@ -396,7 +396,7 @@ whisperClientLib<URV>::whisperTranslate(int hart, uint64_t vaddr, bool r, bool w
 }
 
 //bool
-//whisperClientLib::whisperCancelLr(int hart, bool& valid)
+//whisperClient::whisperCancelLr(int hart, bool& valid)
 //{
 //  req.hart = hart;
 //  req.type = WhisperMessageType::CancelLr;
@@ -410,7 +410,7 @@ whisperClientLib<URV>::whisperTranslate(int hart, uint64_t vaddr, bool r, bool w
 
 template <typename URV>
 bool
-whisperClientLib<URV>::whisperReset(int hart, bool& valid)
+whisperClient<URV>::whisperReset(int hart, bool& valid)
 {
   req.hart = hart;
   req.type = WhisperMessageType::Reset;
@@ -424,7 +424,7 @@ whisperClientLib<URV>::whisperReset(int hart, bool& valid)
 
 template <typename URV>
 bool
-whisperClientLib<URV>::whisperQuit()
+whisperClient<URV>::whisperQuit()
 {
   WhisperMessage req(0 /*hart*/, WhisperMessageType::Quit);  // Any hart will do
 
@@ -435,7 +435,7 @@ whisperClientLib<URV>::whisperQuit()
 }
 
 //bool
-//whisperClientLib::whisperQuit()
+//whisperClient::whisperQuit()
 //{
 //  req.hart = 0;
 //  req.type = WhisperMessageType::Quit;
@@ -454,7 +454,7 @@ whisperClientLib<URV>::whisperQuit()
 
 template <typename URV>
 bool
-whisperClientLib<URV>::whisperPageTableWalk(int, bool, bool,
+whisperClient<URV>::whisperPageTableWalk(int, bool, bool,
 		     svOpenArrayHandle, unsigned&,
 		     bool&)
 {
@@ -463,7 +463,7 @@ whisperClientLib<URV>::whisperPageTableWalk(int, bool, bool,
 
 template <typename URV>
 bool
-whisperClientLib<URV>::whisperEnterDebug()
+whisperClient<URV>::whisperEnterDebug()
 {
   req.hart = 0;
   req.type = WhisperMessageType::EnterDebug;
@@ -476,7 +476,7 @@ whisperClientLib<URV>::whisperEnterDebug()
 
 template <typename URV>
 bool
-whisperClientLib<URV>::whisperExitDebug()
+whisperClient<URV>::whisperExitDebug()
 {
   req.hart = 0;
   req.type = WhisperMessageType::ExitDebug;
@@ -492,7 +492,7 @@ whisperClientLib<URV>::whisperExitDebug()
 // possible assuming the MIP CSR has the given mip value.
 template <typename URV>
 bool
-whisperClientLib<URV>::whisperCheckInterrupt(int hart, uint64_t mip, bool& interrupt)
+whisperClient<URV>::whisperCheckInterrupt(int hart, uint64_t mip, bool& interrupt)
 {
   req.hart = hart;
   req.type = WhisperMessageType::CheckInterrupt;
@@ -514,7 +514,7 @@ whisperClientLib<URV>::whisperCheckInterrupt(int hart, uint64_t mip, bool& inter
 // external interrupt (assuming that interrupt is enabled).
 template <typename URV>
 bool
-whisperClientLib<URV>::whisperSetSeiPin(int hart, uint64_t value)
+whisperClient<URV>::whisperSetSeiPin(int hart, uint64_t value)
 {
   req.hart = hart;
   req.type = WhisperMessageType::SeiPin;
@@ -528,44 +528,5 @@ whisperClientLib<URV>::whisperSetSeiPin(int hart, uint64_t value)
   return true;
 }
 
-#if 0
-
-int
-main(int argc, char* argv[])
-{
-  if (argc == 2)
-    {
-      std::string path = argv[1];
-      int soc = whisperConnect(path);
-      if (soc >= 0)
-	{
-	  std::cerr << "Connected to socket: " << soc << '\n';
-	  uint64_t value = 0;
-	  unsigned hart = 0;
-	  bool valid = false;
-	  whisperPeek(soc, hart, 'r', 1, value, valid);
-	  whisperPeek(soc, hart, 'r', 2, value, valid);
-	  whisperPoke(soc, hart, 'p', 0, 0x1234, valid);
-	  whisperPeek(soc, hart, 'p', 0, value, valid);
-
-	  unsigned count = 0;
-	  whisperStep(soc, hart, count);
-	  std::cerr << "Change count: " << std::hex << count << '\n';
-	  for (unsigned i = 0; i < count; ++i)
-	    {
-	      unsigned resource = 0;
-	      uint64_t addr = 0;
-	      if (whisperChange(soc, hart, resource, addr, value, valid) and valid)
-		std::cerr << "  " << char(resource) << "  " << std::hex << addr
-			  << ' ' << std::hex << value << '\n';
-	    }
-	  whisperQuit(soc);
-	}
-    }
-  return 0;
-}
-
-#endif
-
-template class whisperClientLib<uint32_t>;
-template class whisperClientLib<uint64_t>;
+template class whisperClient<uint32_t>;
+template class whisperClient<uint64_t>;
