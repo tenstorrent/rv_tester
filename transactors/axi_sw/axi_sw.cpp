@@ -21,13 +21,16 @@ axi_sw::axi_sw(cvm::topology::loc_t loc, unsigned id)
 
     cvm::registry::messenger.connect<svScope>(
         loc_,
-        [&](svScope s) { return this->set_scope(s); });
+        [this](svScope s) { return this->set_scope(s); });
 
-    connect<
-      rv_tester_transactions::axi_sw::aw,
-      rv_tester_transactions::axi_sw::ar,
-      rv_tester_transactions::axi_sw::w,
-      rv_tester_transactions::axi_sw::r_q_ptr>();
+    auto* aw_task = +[] (axi_sw* axi) -> cvm::messenger::task<void> { co_await axi->process_aw();  co_return; };
+    cvm::registry::messenger.fork(aw_task, this);
+    auto* ar_task = +[] (axi_sw* axi) -> cvm::messenger::task<void> { co_await axi->process_ar();  co_return; };
+    cvm::registry::messenger.fork(ar_task, this);
+    auto* w_task = +[] (axi_sw* axi) -> cvm::messenger::task<void> { co_await axi->process_w();  co_return; };
+    cvm::registry::messenger.fork(w_task, this);
+
+    connect<rv_tester_transactions::axi_sw::r_q_ptr>();
 }
 
 axi_sw::~axi_sw() {
@@ -37,31 +40,52 @@ axi_sw::~axi_sw() {
     }
 }
 
-void axi_sw::process(const rv_tester_transactions::axi_sw::aw& aw) {
-    cvm::log(cvm::FULL, "[axi_sw] aw: [id={}, addr={:#x}, size={}]\n", aw.id, aw.addr, aw.size);
-    a(axi::a_t{true, aw.id, aw.addr, aw.len, aw.size, axi::burst_t(aw.burst), aw.lock != 0, aw.atop});
-    r_resp();
+cvm::messenger::task<void> axi_sw::process_aw() {
+    auto channel = cvm::registry::messenger.channel<rv_tester_transactions::axi_sw::aw>(loc_);
+
+    while (1) {
+        auto aw = co_await cvm::registry::messenger.wait<rv_tester_transactions::axi_sw::aw>(channel);
+        cvm::log(cvm::FULL, "[axi_sw] aw: [id={}, addr={:#x}, size={}]\n", aw.id, aw.addr, aw.size);
+        co_await a(axi::a_t{true, aw.id, aw.addr, aw.len, aw.size, axi::burst_t(aw.burst), aw.lock != 0, aw.atop});
+        r_resp();
+    }
+
+    co_return;
 }
 
-void axi_sw::process(const rv_tester_transactions::axi_sw::ar& ar) {
-    cvm::log(cvm::FULL, "[axi_sw] ar: [id={}, addr={:#x}, size={}]\n", ar.id, ar.addr, ar.size);
-    a(axi::a_t{false, ar.id, ar.addr, ar.len, ar.size, axi::burst_t(ar.burst), ar.lock != 0});
-    r_resp();
+cvm::messenger::task<void> axi_sw::process_ar() {
+    auto channel = cvm::registry::messenger.channel<rv_tester_transactions::axi_sw::ar>(loc_);
+
+    while (1) {
+        auto ar = co_await cvm::registry::messenger.wait<rv_tester_transactions::axi_sw::ar>(channel);
+        cvm::log(cvm::FULL, "[axi_sw] ar: [id={}, addr={:#x}, size={}]\n", ar.id, ar.addr, ar.size);
+        co_await a(axi::a_t{false, ar.id, ar.addr, ar.len, ar.size, axi::burst_t(ar.burst), ar.lock != 0});
+        r_resp();
+    }
+
+    co_return;
 }
 
-void axi_sw::process(const rv_tester_transactions::axi_sw::w& w) {
-    cvm::log(cvm::FULL, "[axi_sw] w: [strb={:#x}, last={}]\n", w.strb, w.last);
+cvm::messenger::task<void> axi_sw::process_w() {
+    auto channel = cvm::registry::messenger.channel<rv_tester_transactions::axi_sw::w>(loc_);
 
-    axi::data_t vdata = cvm::bitmanip::slice<decltype(w.data), axi::data_t>(w.data);
-    axi::strb_t vstrb = cvm::bitmanip::slice<decltype(w.strb), axi::strb_t>(w.strb);
+    while (1) {
+        auto w = co_await cvm::registry::messenger.wait<rv_tester_transactions::axi_sw::w>(channel);
+        cvm::log(cvm::FULL, "[axi_sw] w: [strb={:#x}, last={}]\n", w.strb, w.last);
 
-    this->w(axi::w_t(
-            vdata,
-            vstrb,
-            w.last
-            )
-    );
-    r_resp();
+        axi::data_t vdata = cvm::bitmanip::slice<decltype(w.data), axi::data_t>(w.data);
+        axi::strb_t vstrb = cvm::bitmanip::slice<decltype(w.strb), axi::strb_t>(w.strb);
+
+        co_await this->w(axi::w_t(
+                          vdata,
+                          vstrb,
+                          w.last
+                          )
+        );
+        r_resp();
+    }
+
+    co_return;
 }
 
 void axi_sw::process(const rv_tester_transactions::axi_sw::r_q_ptr& r_q_ptr) {

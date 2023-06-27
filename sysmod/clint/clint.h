@@ -48,7 +48,7 @@ public:
   /// Read length bytes from the given address to the data iterator.
   /// No-op if address is outside the range of this clint or if
   /// address is not properly aligned.
-  virtual void read(uint64_t addr, size_t length, data_t& data) override;
+  virtual cvm::messenger::task<void> read(uint64_t addr, size_t length, data_t& data) override;
 
   // Write to this clint. Call softwareInterrupt with flag set to 0/1
   // if a hart software interrupt entry is written. Update time

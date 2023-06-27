@@ -89,14 +89,16 @@ void axi::atop_modify_write_data(const atop_t& atop, const data_t& read_data, da
     }
 }
 
-void axi::a(const a_t& p) {
+cvm::messenger::task<void> axi::a(const a_t& p) {
     a_q_.enqueue(p);
-    if (synchronous) (*this)(!synchronous);
+    co_await (*this)();
+    co_return;
 }
 
-void axi::w(w_t&& p) {
+cvm::messenger::task<void> axi::w(w_t&& p) {
     w_q_.enqueue(std::move(p));
-    if (synchronous) (*this)(!synchronous);
+    co_await (*this)();
+    co_return;
 }
 
 std::pair<bool, axi::r_t> axi::r(bool block) {
@@ -105,27 +107,21 @@ std::pair<bool, axi::r_t> axi::r(bool block) {
     return r_q_.try_dequeue();
 }
 
-void axi::operator()(bool block) {
+cvm::messenger::task<void> axi::operator()() {
     while (1)  {
         a_t a;
 
-        if (block) {
-            a = a_q_.dequeue();
-        } else {
-            bool valid;
-            std::tie(valid, a) = a_q_.try_peek();
-            if (!valid) {
-                return;
-            }
+        bool valid;
+        std::tie(valid, a) = a_q_.try_peek();
+        if (!valid) {
+            co_return;
         }
 
-        if (a.w && !block && w_q_.empty()) {
-            return;
+        if (a.w && w_q_.empty()) {
+            co_return;
         }
 
-        if(!block) {
-            a_q_.dequeue();
-        }
+        a_q_.dequeue();
 
         addr_t num_bytes            = 1 << a.size;
         addr_t burst_len            = a.len + 1;
@@ -159,13 +155,10 @@ void axi::operator()(bool block) {
                 addr_t start  = (addr / strobe_width()) * strobe_width() + lower_byte_lane;
                 addr_t len    = upper_byte_lane - lower_byte_lane + 1;
 
-                axi::data_t read_data(data_bus_bytes, 0);
+                axi::data_t read_data;
                 if (!a.w || a.atop.transaction != NON_ATOMIC) {
-                    transactor::read(
-                            start,
-                            len,
-                            read_data
-                            );
+                    read_data = co_await transactor::read(start, len);
+                    read_data.resize(data_bus_bytes, 0);
                 }
 
                 if (a.w) {
@@ -222,8 +215,4 @@ void axi::operator()(bool block) {
             }
         }
     }
-}
-
-void axi::run() {
-    std::thread([&] () { (*this)(true); } ).detach();
 }

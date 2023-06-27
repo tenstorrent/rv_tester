@@ -20,7 +20,7 @@ interrupter::interrupter(const std::string& tag, uint64_t addr, unsigned hartCou
 {
   rng.seed(FLAGS_seed);
   interrupter_base = addr;
-  
+
   reset();
 }
 
@@ -54,12 +54,10 @@ interrupter::selfTick(useconds_t delta)
 }
 
 
-void
+cvm::messenger::task<void>
 interrupter::read(uint64_t addr, size_t, data_t&)
 {
-  if (not has_addr(addr))
-    return;
-
+  co_return;
 }
 
 
@@ -77,32 +75,32 @@ interrupter::write(uint64_t addr, size_t, const data_t& data,
     unsigned hart = t_data & 0xfff;
     unsigned event = (t_data >> 12) & 0xfb;//ignore supervisor timer interrupt
     unsigned eventValue = (t_data >> 20) & 0xfb; //ignore supervisor timer interrupt data
-    
+
     driveInterrupt(hart,event,eventValue);
-     
+
     }
     else if((addr > interrupter_base)&& (addr < (interrupter_base + 0x1000)))
     {
      //std::cout<<"\ninterrupter DELAYED write: 0x"<<std::hex<<addr<<" data: "<<std::hex<<t_data<<"\n";
-     int intr_loc  = addr & 0xf8;  
+     int intr_loc  = addr & 0xf8;
      intr_loc = (intr_loc >>3);
      if(intr_loc!=2){ //ignore supervisor timer interrupt
-     unsigned hart = t_data & 0xfff; 
+     unsigned hart = t_data & 0xfff;
      int eventFlag = (t_data >> 12) & 0x1;
-     int eventDelay = (t_data >> 13); 
+     int eventDelay = (t_data >> 13);
      timeCompare_.at(intr_loc) = timer_ + (eventDelay * timer_advance);
      IntrHart_.at(intr_loc) = hart;  // Hart to be interrupted.
-     delayedRandomIntValid_.at(intr_loc) = 1; // Valid 
+     delayedRandomIntValid_.at(intr_loc) = 1; // Valid
      IntrValue_.at(intr_loc) = eventFlag;
      }
      //std::cout<<"\ninterrupter DELAYED write: 0x"<<std::hex<<addr<<" intr_loc: "<<intr_loc<<" time: "<<timer_<<" eventDelay: "<<eventDelay<<" timercompare :"<<timeCompare_.at(intr_loc)<<" hart "<<hart<<" flag: "<<eventFlag<<"\n";
     }
     else if(addr==(interrupter_base + 0x4000))
     {
-     //TODO If needed enable/disable random interrupts from asm 
-     //unsigned hart = t_data & 0xfff; 
-     //int eventFlag = (t_data >> 12) & 0x1; 
-     //TODO 
+     //TODO If needed enable/disable random interrupts from asm
+     //unsigned hart = t_data & 0xfff;
+     //int eventFlag = (t_data >> 12) & 0x1;
+     //TODO
     }
-    
+
 }

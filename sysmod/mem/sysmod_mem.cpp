@@ -14,13 +14,13 @@ void sysmod_mem::write(uint64_t addr, size_t length, const data_t& data, const s
   return;
 }
 
-void sysmod_mem::read(uint64_t addr, size_t length, data_t& data) {
+cvm::messenger::task<void> sysmod_mem::read(uint64_t addr, size_t length, data_t& data) {
   if (not has_addr(addr))
-    return;
+    co_return;
 
   m_.read(addr, length, data.data());
 
-  return;
+  co_return;
 }
 
 void sysmod_mem::backdoor_read(uint64_t addr, size_t length, data_t& data) {

@@ -35,28 +35,36 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
 {
   cvm::registry::messenger.connect<svScope>(
       loc_,
-      [&](svScope s) { return this->set_scope(s); });
+      [this](svScope s) { return this->set_scope(s); });
 
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::tick>(
       loc_,
-      [&](const rv_tester_transactions::sysmod::tick& t) { return this->tick(t.advance); });
+      [this](const rv_tester_transactions::sysmod::tick& t) { return this->tick(t.advance); });
 
   auto sources = cvm::topology::get_from_type("PLATFORM_TRANSACTOR");
 
   for (const auto& source : sources) {
     cvm::registry::messenger.connect<transactor::write_t>(
         source,
-        [&](transactor::write_t w) {
-          return this->write(w.addr, w.length, w.data, w.strb);
+        [this](transactor::write_t w) {
+            return this->write(w.addr, w.length, w.data, w.strb);
         });
 
-    cvm::registry::messenger.connect<transactor::read_t>(
-        source,
-        [&](transactor::read_t r) {
-          return this->read(r.addr, r.length, r.data);
-        });
+    auto* l = +[](cvm::topology::loc_t source, sysmod* sm) -> cvm::messenger::task<void> {
+                  auto channel = cvm::registry::messenger.channel<transactor::read_t>(source);
+
+                  while (1) {
+                      auto r = co_await cvm::registry::messenger.wait<transactor::read_t>(channel);
+                      device::data_t data(r.length, 0);
+                      co_await sm->read(r.addr, r.length, data);
+                      cvm::registry::messenger.signal(source, transactor::read_response_t{std::move(data)});
+                  }
+
+                  co_return;
+              };
+    cvm::registry::messenger.fork(l, source, this);
   }
-  
+
   reset();
 }
 
@@ -272,7 +280,7 @@ sysmod::write(uint64_t addr, size_t length, const device::data_t& data, const de
   d->write(addr, length, data, strb);
 }
 
-void
+cvm::messenger::task<void>
 sysmod::read(uint64_t addr, size_t length, device::data_t& data)
 {
   std::lock_guard<std::mutex> lock(sys_m);
@@ -280,9 +288,10 @@ sysmod::read(uint64_t addr, size_t length, device::data_t& data)
   auto d = dev(addr);
 
   if (d == nullptr)
-    return;
+    co_return;
 
-  d->read(addr, length, data);
+  co_await d->read(addr, length, data);
+  co_return;
 }
 
 void

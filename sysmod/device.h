@@ -5,6 +5,7 @@
 #include <functional>
 #include <fstream>
 #include <sstream>
+#include "cvm/messenger.hpp"
 #include "cvm/topology.hpp"
 
 class device {
@@ -28,8 +29,8 @@ class device {
                        const data_t& data,
                        const strb_t& strb) = 0;
 
-    virtual void read(uint64_t addr, size_t length,
-                      data_t& data) = 0;
+    virtual cvm::messenger::task<void> read(uint64_t addr, size_t length,
+                                            data_t& data) = 0;
 
     virtual void backdoor_read(uint64_t, size_t, data_t&) { };
 

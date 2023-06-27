@@ -7,9 +7,9 @@ trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned, cvm::topolog
   device* subdevice = nullptr;
   interrupter_base = addr;
   subdevice = new interrupter("interrupter", interrupter_base, 1, loc);
-  subdevices_.emplace_back(subdevice); 
+  subdevices_.emplace_back(subdevice);
   subdevice = new debugger("debugger", addr + 0x50000, 1, loc);
-  subdevices_.emplace_back(subdevice); 
+  subdevices_.emplace_back(subdevice);
 }
 
 
@@ -19,12 +19,10 @@ trickbox::~trickbox()
 }
 
 
-void
+cvm::messenger::task<void>
 trickbox::read(uint64_t addr, size_t, data_t&)
 {
-  if (not has_addr(addr))
-    return;
-
+  co_return;
 }
 
 
@@ -35,5 +33,5 @@ trickbox::write(uint64_t addr, size_t length, const data_t& data,
   for (auto& d : subdevices_) {
     d->write(addr,length,data,strb);
   }
-    
+
 }

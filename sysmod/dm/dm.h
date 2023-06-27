@@ -18,9 +18,9 @@ class dm : public device {
         virtual void write(uint64_t addr, size_t length,
                             const data_t& data, const strb_t& strb) override;
 
-        virtual void read(uint64_t addr, size_t length,
+        virtual cvm::messenger::task<void> read(uint64_t addr, size_t length,
                           data_t& data) override;
-        
+
         virtual void write_axi_mst(uint64_t addr, size_t length,
                             const data_t& data, const strb_t& strb);
 
@@ -28,7 +28,7 @@ class dm : public device {
                           data_t& data);
         // add max mem size
         dm(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc);
-        
+
 
            /// Initialize memory with elf file.
         bool init_elf(const std::string& path);

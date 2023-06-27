@@ -33,9 +33,9 @@ class axi_sw {
 
     private:
 
-        void process(const rv_tester_transactions::axi_sw::aw& aw);
-        void process(const rv_tester_transactions::axi_sw::ar& ar);
-        void process(const rv_tester_transactions::axi_sw::w& w);
+        cvm::messenger::task<void> process_aw();
+        cvm::messenger::task<void> process_ar();
+        cvm::messenger::task<void> process_w();
         void process(const rv_tester_transactions::axi_sw::r_q_ptr& r_ptr);
         void r_resp();
         void set_scope(svScope scope);
@@ -56,9 +56,9 @@ class axi_sw {
 
         ~axi_sw();
 
-        void a(const axi::a_t&  p) { axi_->a(std::forward<const axi::a_t>(p)); }
+        cvm::messenger::task<void> a(const axi::a_t&  p) { co_await axi_->a(std::forward<const axi::a_t>(p)); co_return; }
 
-        void w(      axi::w_t&& p) { axi_->w(std::forward<      axi::w_t>(p)); }
+        cvm::messenger::task<void> w(      axi::w_t&& p) { co_await axi_->w(std::forward<      axi::w_t>(p)); co_return; }
 
         void r();
 

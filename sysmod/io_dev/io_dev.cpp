@@ -28,13 +28,12 @@ void io_dev::write(uint64_t addr, size_t length, const data_t& data, const strb_
   return;
 }
 
-void io_dev::read(uint64_t addr, size_t length, data_t& data) {
+cvm::messenger::task<void> io_dev::read(uint64_t addr, size_t length, data_t& data) {
   if (not has_addr(addr))
-    return;
+    co_return;
 
   m_.read(addr, length, data.data());
-
-  return;
+  co_return;
 }
 
 

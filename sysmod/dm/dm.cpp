@@ -20,18 +20,18 @@ void dm::write(uint64_t addr, size_t length, const data_t& data, const strb_t&) 
   if (not has_addr(addr))
     return;
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data});
-  
+
   return;
 }
 
-void dm::read(uint64_t addr, size_t length, data_t&) {
+cvm::messenger::task<void> dm::read(uint64_t addr, size_t length, data_t&) {
   transactor::read_response_t resp_data;
   if (not has_addr(addr))
-    return;
+    co_return;
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::read_request_t{addr, length});
   //cvm::registry::messenger.connect<transactor::read_response_t>(axi_mst_loc_l, transactor::read_response_t{resp_data});
 
-  return;
+  co_return;
 }
 
 void dm::write_axi_mst(uint64_t addr, size_t, const data_t&, const strb_t&) {

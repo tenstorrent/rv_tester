@@ -24,7 +24,7 @@
 #include "cvm/plusargs.hpp"
 #include "cvm/topology.hpp"
 #include "cvm/registry.hpp"
-#include "vpi_user.h"   
+#include "vpi_user.h"
 
 //DEFINE_string(dbg_input_file_path, "", "Path to file containing debugger commands");
 DECLARE_string(dbg_input_file_path);
@@ -64,7 +64,7 @@ public:
   /// Read length bytes from the given address to the data iterator.
   /// No-op if address is outside the range of this debugger or if
   /// address is not properly aligned.
-  virtual void read(uint64_t addr, size_t length, data_t& data) override;
+  virtual cvm::messenger::task<void> read(uint64_t addr, size_t length, data_t& data) override;
 
   // Write to this debugger.
   virtual void write(uint64_t addr, size_t length, const data_t& data,
@@ -92,7 +92,7 @@ public:
     unsigned upper_dmi_data;
     unsigned lower_dmi_data;
   };
-  
+
   struct dmi_req_t {
     unsigned  func_bits;
     unsigned  addr;
@@ -121,7 +121,7 @@ private:
   uint64_t timer_advance = 200;
   uint64_t debugger_base = 0x9050000;
   uint64_t debugger_trigger = 0x9060000;
-  
+
   std::atomic<bool> terminate_ = false;
   std::mutex mutex_;
 

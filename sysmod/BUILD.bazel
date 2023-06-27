@@ -6,6 +6,7 @@ cc_library(
         "@cvm//:topology",
         "@cvm//:plusargs",
         "@cvm//:logger",
+        "@cvm//:messenger",
     ],
     alwayslink = True,
     linkstatic = True,

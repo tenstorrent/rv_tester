@@ -8,12 +8,8 @@
    return;
  }
 
- void null_dev::read(uint64_t addr, size_t, data_t&) {
-   if (not has_addr(addr))
-     return;
-
-
-   return;
+cvm::messenger::task<void> null_dev::read(uint64_t addr, size_t, data_t&) {
+   co_return;
  }
 
 
