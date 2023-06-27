@@ -55,35 +55,36 @@ clint::~clint()
 }
 
 
-void
+cvm::messenger::task<void>
 clint::read(uint64_t addr, size_t length, data_t& data)
 {
   if (not has_addr(addr))
-    return;
+    co_return;
 
   uint64_t offset = addr - device::addr();
   if (offset < 0x4000) {
     // Sofware interrupt: 1 word per hart.
     if ((offset % 4) != 0)
-      return;  // Address must be a multiple of 4.
+      co_return;  // Address must be a multiple of 4.
     unsigned hartIx = offset / 4;
     uint32_t word = (hartIx < hartCount_) ? soft_.at(hartIx) : 0;
     serializeInt(word, length, data);
-    return;
+    co_return;
   }
 
   if (offset == 0xbff8) {
     serializeInt(timer_, length, data);
-    return;
+    co_return;
   }
 
   // Time compare. 1 double word per hart.
   if ((offset % 8) != 0)
-    return;
+    co_return;
   offset -= 0x4000;
   unsigned hartIx = offset / 8;
   uint64_t dword = hartIx < hartCount_ ? timeCompare_.at(hartIx) : 0;
   serializeInt(dword, length, data);
+  co_return;
 }
 
 

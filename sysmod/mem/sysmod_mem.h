@@ -14,8 +14,8 @@ class sysmod_mem : public device {
         virtual void write(uint64_t addr, size_t length,
                             const data_t& data, const strb_t& strb) override;
 
-        virtual void read(uint64_t addr, size_t length,
-                          data_t& data) override;
+        virtual cvm::messenger::task<void> read(uint64_t addr, size_t length,
+                                                data_t& data) override;
 
         virtual void backdoor_read(uint64_t addr, size_t length, data_t& data) override;
 

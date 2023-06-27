@@ -12,16 +12,16 @@ debugger::debugger(const std::string& tag, uint64_t addr, unsigned hartCount, cv
 {
   debugger_base = addr;
   debugger_trigger = addr + 0x10000;
-  reset(); 
+  reset();
   //parse_dmi_from_csv();
-  //dbg_trigger = 1; 
+  //dbg_trigger = 1;
 }
 
 
 debugger::~debugger()
 {
   terminate_ = true;
-  
+
 }
 
 
@@ -38,10 +38,10 @@ void debugger::parse_dmi_from_csv()
       while(getline(file, line))
       {
         row.clear();
-  
+
         std::stringstream str(line);
-        
-        
+
+
         while(getline(str, word, ',')){
           row.push_back(word);
         }
@@ -51,11 +51,11 @@ void debugger::parse_dmi_from_csv()
         dmi_req.addr = 0;
         dmi_req.data = 0;
         dmi_req.func_bits = 0;
-        std::string instr;  
-        std::string instr_2char;  
+        std::string instr;
+        std::string instr_2char;
         instr =   row[0];
         //remove empty spaces from string
-        instr.erase(std::remove_if(instr.begin(), instr.end(), ::isspace), instr.end()); 
+        instr.erase(std::remove_if(instr.begin(), instr.end(), ::isspace), instr.end());
         //convert string to lowercase for uniformity
         std::transform(instr.begin(), instr.end(), instr.begin(), ::tolower);
         instr_2char = instr.substr(0,2);
@@ -71,19 +71,19 @@ void debugger::parse_dmi_from_csv()
         }else if(instr_2char =="st"){
               //step ahead/back q
               if(instr == "step_ahead_queue_on"){
-                step_ahead_queue_on = 1; 
+                step_ahead_queue_on = 1;
               }
               if(instr == "step_ahead_queue_off"){
-                step_ahead_queue_on = 0; 
+                step_ahead_queue_on = 0;
               }
               if(instr == "step_quit_queue_on"){
-                step_quit_queue_on = 1; 
+                step_quit_queue_on = 1;
               }
               if(instr == "step_quit_queue_off"){
-                step_quit_queue_on = 0; 
+                step_quit_queue_on = 0;
               }
               if(instr == "step_instr_cnt"){
-                step_instr_cnt = std::stoul(row[1],nullptr,16); 
+                step_instr_cnt = std::stoul(row[1],nullptr,16);
                 // will continue loop with proper dmi write
                 dmi_req.func_bits = 1;
                 dmi_req.data = step_instr_cnt;
@@ -95,7 +95,7 @@ void debugger::parse_dmi_from_csv()
           //invalid
           std::cerr << "Invalid command in csv file "<< instr << std::endl;
         }
-        
+
         //
          if(step_ahead_queue_on){
             dmi_req.func_bits = 2;
@@ -103,7 +103,7 @@ void debugger::parse_dmi_from_csv()
          if(step_quit_queue_on){
             dmi_req.func_bits = 4;
          }
-            
+
         //remove underscores from addr
         row[1].erase(std::remove(row[1].begin(), row[1].end(), '_'), row[1].end());
         try{
@@ -111,7 +111,7 @@ void debugger::parse_dmi_from_csv()
         } catch (const std::invalid_argument& e) {
           std::cerr << "Invalid argument for stoul csv arg 1: " << e.what() << std::endl;
         }
-        
+
         //remove underscores from data
         row[2].erase(std::remove(row[2].begin(), row[2].end(), '_'), row[2].end());
 
@@ -124,7 +124,7 @@ void debugger::parse_dmi_from_csv()
         dmi_cmd_q.push(dmi_req);
         //PRINT CSV DATA
         cvm::log(cvm::MEDIUM, "Pushing dmi request: op {} addr {:#x} data {:#x}\n", dmi_req.op, dmi_req.addr, dmi_req.data);
-      
+
       }
     }
 	  else{
@@ -132,8 +132,8 @@ void debugger::parse_dmi_from_csv()
     }
     dbg_file_mode = 1;
   }
-    
-  
+
+
 }
 
 
@@ -155,16 +155,14 @@ void debugger::drive_csv_dmi_cmds()
     }else{
       dbg_trigger = 0;
     }
-    
+
 
 }
 
-void
+cvm::messenger::task<void>
 debugger::read(uint64_t addr, size_t, data_t&)
 {
-  if (not has_addr(addr))
-    return;
-
+  co_return;
 }
 
 
@@ -174,7 +172,7 @@ debugger::write(uint64_t addr, size_t, const data_t& data,
 {
   if (not has_addr(addr))
     return;
-  
+
   cvm::log(cvm::HIGH, "[Trickbox] Debugger write addr: {:#x}\n", addr);
   uint64_t t_data=0;
   deserializeInt(data, t_data);
@@ -187,9 +185,9 @@ debugger::write(uint64_t addr, size_t, const data_t& data,
     lower_dmi_data = t_data & 0xffffffff;
     hart = 0; //hart bits position TBD, till TBD it is always zero
     trickboxDmiWrite(hart,upper_dmi_data,lower_dmi_data);// Commented until DMI PORT is not in master
- 
+
   }
-  
+
   if (addr==debugger_trigger) {
     cvm::log(cvm::MEDIUM, "[Trickbox] Debugger file trigger\n");
     parse_dmi_from_csv();

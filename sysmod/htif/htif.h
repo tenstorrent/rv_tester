@@ -15,7 +15,7 @@ public:
 
   // Reads outside of device range are ignored. Reads with length
   // different than 8 are ignored.
-  virtual void read(uint64_t addr, size_t length, data_t& data) override;
+  virtual cvm::messenger::task<void> read(uint64_t addr, size_t length, data_t& data) override;
 
   // Writes outside of device range are ignored. Writes with length
   // different than 8 are ignored.

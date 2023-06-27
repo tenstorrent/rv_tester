@@ -6,6 +6,7 @@
 #include <functional>
 #include "transactor.h"
 #include "cvm/bitmanip.hpp"
+#include "cvm/messenger.hpp"
 
 class axi : public transactor {
 
@@ -101,7 +102,7 @@ class axi : public transactor {
             r_t(r_t&&) = default;
             r_t& operator=(r_t&&) = default;
             r_t(const r_t&) = default;
-            r_t& operator=(const r_t&) = delete;
+            r_t& operator=(const r_t&) = default;
         };
 
         struct b_t {
@@ -120,17 +121,14 @@ class axi : public transactor {
         SafeQueue<w_t> w_q_;
         SafeQueue<r_t> r_q_;
 
-        void operator()(bool block);
-        void run();
+        cvm::messenger::task<void> operator()();
         void atop_modify_write_data(const atop_t& atop, const data_t& read_data, data_t& write_data, const len_t& len);
-
-        bool synchronous = true;
 
     public:
 
         axi(const data_width_t& data_width, const cvm::topology::loc_t loc, const std::string& tag)
           : transactor(loc, tag), data_width_(data_width)
-        { if (!synchronous) run(); }
+        { }
 
         axi(axi&&) = delete;
         axi& operator=(axi&&) = delete;
@@ -140,7 +138,7 @@ class axi : public transactor {
         data_width_t   data_width()   const { return data_width_   ; }
         strobe_width_t strobe_width() const { return data_width()/8; }
 
-        void a(const a_t&);
-        void w (w_t &&);
+        cvm::messenger::task<void> a(const a_t&);
+        cvm::messenger::task<void> w (w_t &&);
         std::pair<bool, r_t> r(bool block = false);
 };

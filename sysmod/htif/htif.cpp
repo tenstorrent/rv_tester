@@ -18,17 +18,17 @@ htif::~htif()
 }
 
 
-void
+cvm::messenger::task<void>
 htif::read(uint64_t addr, size_t length, data_t& data)
 {
   if (not has_addr(addr) or length != 8 or (addr % 8) != 0)
-    return;
+    co_return;
 
   uint64_t offset = addr - this->addr();
   uint64_t di = offset / 8;  // Double word index
   uint64_t dword = di == 0? to_ : from_;
   serializeInt(dword, length, data);
-  return;
+  co_return;
 }
 
 

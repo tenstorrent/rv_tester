@@ -8,18 +8,38 @@ class transactor {
 
   public:
 
-    transactor(cvm::topology::loc_t loc, const std::string& tag)
-      : loc_(loc), tag_(tag)
-    { };
-
-    virtual ~transactor() = default;
-
     struct write_t {
         uint64_t addr;
         size_t length;
-        const std::vector<uint8_t>& data;
-        const std::vector<bool>& strb;
+        std::vector<uint8_t> data;
+        std::vector<bool> strb;
     };
+
+    struct read_t {
+        uint64_t addr;
+        size_t length;
+    };
+
+    struct read_response_t {
+        std::vector<uint8_t> data;
+    };
+
+    struct read_request_t {
+        uint64_t addr;
+        size_t length;
+    };
+
+    struct write_request_t {
+        uint64_t addr;
+        size_t length;
+        std::vector<uint8_t> data;
+    };
+
+    transactor(cvm::topology::loc_t loc, const std::string& tag)
+      : loc_(loc), tag_(tag), resp_channel_(cvm::registry::messenger.channel<read_response_t>(loc_))
+    { };
+
+    virtual ~transactor() = default;
 
     void write(uint64_t addr, size_t length, const std::vector<uint8_t>& data, const std::vector<bool>& strb)
     {
@@ -28,33 +48,15 @@ class transactor {
         write_t{addr, length, data, strb});
     }
 
-    struct read_t {
-        uint64_t addr;
-        size_t length;
-        std::vector<uint8_t>& data;
-    };
-
-    void read(uint64_t addr, size_t length, std::vector<uint8_t>& data)
+    cvm::messenger::task<std::vector<uint8_t>> read(uint64_t addr, size_t length)
     {
       cvm::registry::messenger.signal<read_t>(
           loc_,
-          read_t{addr, length, data});
+          read_t{addr, length});
+
+      auto response = co_await cvm::registry::messenger.wait<read_response_t>(resp_channel_);
+      co_return response.data;
     }
-
-    struct read_request_t {
-        uint64_t addr;
-        size_t length;
-    };
-    struct read_response_t {
-        std::vector<uint8_t> data;
-    };
-    void read_request(uint64_t addr, size_t length, std::function<void(read_response_t)> cb);
-
-    struct write_request_t {
-        uint64_t addr;
-        size_t length;
-        std::vector<uint8_t> data;
-    };
 
     std::string tag() { return tag_; }
 
@@ -62,4 +64,5 @@ class transactor {
 
     const cvm::topology::loc_t loc_;
     const std::string tag_;
+    cvm::messenger::pool<read_response_t>::channel_info resp_channel_;
 };

@@ -23,8 +23,8 @@
 DECLARE_int32(intr_delay_min);//, 4, "Minimum Delay between 2 consecutive interrupts");
 DECLARE_int32(intr_delay_max);//, 7, "Maximum Delay between 2 consecutive interrupts");
 DECLARE_bool(random_intr);//, false, "Drive random interrups");
-DECLARE_int32(max_simul_intr ); 
-DECLARE_int32(tbox_start_delay); 
+DECLARE_int32(max_simul_intr );
+DECLARE_int32(tbox_start_delay);
 DECLARE_bool(disable_ssip);
 DECLARE_bool(disable_msip);
 DECLARE_bool(disable_stip);
@@ -67,7 +67,7 @@ public:
   /// Read length bytes from the given address to the data iterator.
   /// No-op if address is outside the range of this interrupter or if
   /// address is not properly aligned.
-  virtual void read(uint64_t addr, size_t length, data_t& data) override;
+  virtual cvm::messenger::task<void> read(uint64_t addr, size_t length, data_t& data) override;
 
   // Write to this interrupter. Call softwareInterrupt with flag set to 0/1
   // if a hart software interrupt entry is written. Update time
@@ -93,12 +93,12 @@ public:
       std::cout<<"[TRICKBOX]: Reset Interrupter\n";
     if(FLAGS_random_intr){
       std::cout<<"[TRICKBOX]: Enable random interrupts "<<FLAGS_random_intr<<"\n";
-      uint32_t rand_num =  (rng() %  2)+1;  //default delay 
+      uint32_t rand_num =  (rng() %  2)+1;  //default delay
       if(FLAGS_intr_delay_min){
          rand_num = (rng() % ( FLAGS_intr_delay_max - FLAGS_intr_delay_min + 1)) + FLAGS_intr_delay_min;
       }
       timer_ = 0;
-      
+
       timer_rand_intr = timer_ + FLAGS_tbox_start_delay +(rand_num*timer_advance);
 
     }
@@ -140,8 +140,8 @@ protected:
          memset(values, 0, FLAGS_max_simul_intr);
          if( (FLAGS_max_simul_intr >1 ) && (FLAGS_max_simul_intr < (static_cast<int>(numInterrupts_ +1)))){
            iter = (rng() % (FLAGS_max_simul_intr )) + 1 ; //gen iter between 1 to max simul instr
-         } 
-         
+         }
+
          //std::cout<<"[TRICKBOX]: iteration interrupts "<<iter<<"\n";
          for (unsigned i = 0; i < iter; ++i) {
            values[i] = rng() % (numInterrupts_) ;
@@ -151,7 +151,7 @@ protected:
                  break;
                 }
             }
-          
+
           rand_intr =  rand_intr |(1<<values[i]);
           disable_mask = (FLAGS_disable_meip <<5)|(FLAGS_disable_seip <<4)|(FLAGS_disable_mtip <<3)|(FLAGS_disable_stip <<2)| (FLAGS_disable_msip << 1) |FLAGS_disable_ssip;
           disable_mask = ~disable_mask;
@@ -163,7 +163,7 @@ protected:
          }
 
 
-         
+
          //std::cout<<"[TRICKBOX]: Drive random interrupts "<<rand_intr<<"\n";
          cvm::registry::messenger.signal(loc(), interrupt_t{0, rand_intr, rand_intr});
          uint32_t rand_num =  (rng() % ( FLAGS_intr_delay_max - FLAGS_intr_delay_min + 1)) + FLAGS_intr_delay_min;
@@ -193,7 +193,7 @@ private:
   uint64_t timer_advance = 200;
   uint64_t timer_rand_intr = 500;
   uint64_t interrupter_base = 0x9000000;
-  
+
   std::atomic<bool> terminate_ = false;
   std::mutex mutex_;
 

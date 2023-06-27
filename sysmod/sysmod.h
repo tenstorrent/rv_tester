@@ -28,7 +28,7 @@ class sysmod {
     device* dev(const std::string& tag);
 
     void write(uint64_t addr, size_t length, const device::data_t& data, const device::strb_t& strb);
-    void read(uint64_t addr, size_t length, device::data_t& data);
+    cvm::messenger::task<void> read(uint64_t addr, size_t length, device::data_t& data);
 
     void set_scope(svScope s) { scope_ = s; }
     void tick(uint64_t advance);
