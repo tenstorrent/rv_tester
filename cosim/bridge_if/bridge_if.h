@@ -4,13 +4,14 @@
 #include <bitset>
 #include <string>
 #include "bridge_params.h"
+#include "src/cac_lib.h"
 
 // This file defines the structs used by the bridge to communicate
 // with dut interfaces such as rvfi and whisper interface
 //
 // dut <-- rv_instr_t --> bridge <-- whisper_state_t --> whisper
 
-typedef int hart_id_t;
+using hart_id_t = cac::hart_t;
 
 // bridge <-> whisper
 typedef struct whisper_state_s {

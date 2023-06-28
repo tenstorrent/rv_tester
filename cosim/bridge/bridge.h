@@ -11,11 +11,18 @@
 #include "bridge_base.h"
 #include "memmap.h"
 #include "cvm/logger.hpp"
-#include "src/cacCore.h"
+#include "src/cac_core.h"
+#include "src/cac_lib.h"
 
 #include "whisper_client.h"
 
 class bridge : public bridge_base {
+
+using src_t = cac::src_t;
+using resource_t = cac::resource_t;
+using resource_id_t = cac::resource_id_t;
+using size_8_bytes_t = cac::size_8_bytes_t;
+using CacCore = cac::CacCore;
 
 public:
   bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc);
@@ -57,24 +64,13 @@ public:
 private:
 
   typedef enum {
-    int_reg = 0,
-    fp_reg = 1,
-    vec_reg = 4
-  } resource_t;
-
-  typedef enum {
-    dut,
-    whisper
-  } src_t;
-
-  typedef enum {
     read,
     write,
     fetch
   } memclass_t;
 
 private:
-
+  
   void update_dut_state(hart_id_t hart, rv_instr_t& d);
   void update_whisper_state(hart_id_t hart, whisper_state_t& w);
   void step(hart_id_t hart, whisper_state_t& w);
@@ -84,7 +80,7 @@ private:
   void update_pc(hart_id_t hart, src_t src, uint64_t data);
   void update_regs(hart_id_t hart, const rv_instr_t& d);
   void update_regs(hart_id_t hart, const whisper_state_t& w);
-  void update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, const std::vector<size8BytesT>&& dword_vec);
+  void update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, const std::vector<size_8_bytes_t>&& dword_vec);
   void update_mem(hart_id_t hart, rv_instr_t& d);
   void translation_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
 
