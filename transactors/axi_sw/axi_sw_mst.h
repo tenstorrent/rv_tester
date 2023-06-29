@@ -48,19 +48,21 @@ class axi_sw_mst {
         bool a_wrapper(uint64_t req_addr, size_t req_length, axi::a_t& a);
         void push_transactions();
 
+        void reset_ptrs();
+
         void set_scope(svScope scope);
         svScope scope_;
         cvm::topology::loc_t loc_;
         size_t id_width_;
         size_t data_width_;
 
-        uint32_t ar_q_rptr_ = 0, ar_q_wptr_ = 0;
-        uint32_t aw_q_rptr_ = 0, aw_q_wptr_ = 0;
-        uint32_t w_q_rptr_ = 0, w_q_wptr_ = 0;
-
         const size_t ar_q_max_, ar_q_ptr_max_;
         const size_t aw_q_max_, aw_q_ptr_max_;
         const size_t w_q_max_, w_q_ptr_max_;
+
+        uint32_t ar_q_rptr_, ar_q_wptr_;
+        uint32_t aw_q_rptr_, aw_q_wptr_;
+        uint32_t w_q_rptr_, w_q_wptr_;
 
         std::vector<bool> ids_;
         std::vector<size_t> sizes_;

@@ -7,6 +7,10 @@
 REGISTRY_register(axi_sw_mst, AXI_MST, cvm::registry::all);
 
 extern "C" {
+    void axi_sw_mst_ar_reset();
+    void axi_sw_mst_aw_reset();
+    void axi_sw_mst_w_reset();
+
     void axi_sw_mst_ar(uint32_t id, uint64_t addr, uint8_t len, uint8_t size, uint8_t burst, uint8_t lock);
     void axi_sw_mst_aw(uint32_t id, uint64_t addr, uint8_t len, uint8_t size, uint8_t burst, uint8_t atop, uint8_t lock);
     void axi_sw_mst_w(const uint8_t* data, const uint8_t* strb, uint8_t last);
@@ -19,7 +23,11 @@ axi_sw_mst::axi_sw_mst(cvm::topology::loc_t loc, unsigned /*id*/)
       ar_q_max_(cvm::topology::attr(loc_, "AR_Q_MAX").second), ar_q_ptr_max_(cvm::topology::attr(loc_, "AR_Q_PTR_MAX").second),
       aw_q_max_(cvm::topology::attr(loc_, "AW_Q_MAX").second), aw_q_ptr_max_(cvm::topology::attr(loc_, "AW_Q_PTR_MAX").second),
       w_q_max_(cvm::topology::attr(loc_, "W_Q_MAX").second), w_q_ptr_max_(cvm::topology::attr(loc_, "W_Q_PTR_MAX").second),
-      ids_(size_t(1) << id_width_, true) {
+      ar_q_rptr_(0), ar_q_wptr_(ar_q_max_),
+      aw_q_rptr_(0), aw_q_wptr_(aw_q_max_),
+      w_q_rptr_(0), w_q_wptr_(w_q_max_),
+      ids_(size_t(1) << id_width_, true)
+{
 
     // available burst sizes
     uint32_t max_size = data_width_ >> 3;
@@ -28,7 +36,10 @@ axi_sw_mst::axi_sw_mst(cvm::topology::loc_t loc, unsigned /*id*/)
 
     cvm::registry::messenger.connect<svScope>(
         loc_,
-        [&](svScope s) { return this->set_scope(s); });
+        [&](svScope s) {
+            this->set_scope(s);
+            return this->reset_ptrs();
+        });
 
     connect<
         rv_tester_transactions::axi_sw_mst::b,
@@ -236,6 +247,17 @@ void axi_sw_mst::process(const transactor::write_request_t& req) {
 
 void axi_sw_mst::set_scope(svScope scope) {
     scope_ = scope;
+}
+
+void axi_sw_mst::reset_ptrs() {
+
+    ar_q_wptr_ = 0;
+    aw_q_wptr_ = 0;
+    w_q_wptr_ = 0;
+
+    axi_sw_mst_ar_reset();
+    axi_sw_mst_aw_reset();
+    axi_sw_mst_w_reset();
 }
 
 extern "C" {
