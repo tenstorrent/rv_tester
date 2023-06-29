@@ -148,7 +148,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi& m_rvfi, rv_in
   instr.fpr.valid = m_rvfi.frd_valid;
   instr.fpr.frd_addr = m_rvfi.frd_addr;
   instr.fpr.frd_wdata = m_rvfi.frd_wdata;
-  
+
   // tlb
   instr.mem_va = m_rvfi.mem_addr;
   instr.mem_pa = m_rvfi.mem_paddr;
@@ -323,6 +323,10 @@ void rvfi::collect_perf(const rv_tester_transactions::cosim::m_rvfi& m_rvfi) {
 
 void rvfi::report_perf() {
   if (perf_ok) {
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_start_pc\": \"{}\"}}\n", perf_start_pc);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_end_pc\": \"{}\"}}\n", perf_end_pc);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_start_cycle\": \"{}\"}}\n", perf_start_cycle);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_end_cycle\": \"{}\"}}\n", perf_end_cycle);
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_cycles\": \"{}\"}}\n", perf_end_cycle - perf_start_cycle);
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_instrs\": \"{}\"}}\n", perf_instrs);
   }
