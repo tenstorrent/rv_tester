@@ -39,14 +39,15 @@ class axi_sw {
         void process(const rv_tester_transactions::axi_sw::r_q_ptr& r_ptr);
         void r_resp();
         void set_scope(svScope scope);
+        void reset_ptrs();
 
         svScope scope_;
         cvm::topology::loc_t loc_;
 
-        r_q_ptr_t r_q_rptr_, r_q_wptr_;
-
         const r_q_ptr_t     r_q_max_    ;
         const r_q_ptr_t     r_q_ptr_max_;
+
+        r_q_ptr_t r_q_rptr_, r_q_wptr_;
 
         axi* axi_;
 

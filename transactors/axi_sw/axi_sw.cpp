@@ -9,19 +9,26 @@ REGISTRY_register(axi_sw, AXI, cvm::registry::all);
 
 extern "C" {
 
+  void axi_sw_r_reset();
   void axi_sw_r(axi::id_t id, axi::resp_t resp, const axi::datum_t* data, axi::last_t last);
 }
 
+
+
 axi_sw::axi_sw(cvm::topology::loc_t loc, unsigned id)
-  : scope_(nullptr), loc_(loc), r_q_rptr_(0), r_q_wptr_(0),
-    r_q_max_(cvm::topology::attr(loc, "R_Q_MAX").second), r_q_ptr_max_(cvm::topology::attr(loc, "R_Q_PTR_MAX").second) {
+  : scope_(nullptr), loc_(loc),
+    r_q_max_(cvm::topology::attr(loc, "R_Q_MAX").second), r_q_ptr_max_(cvm::topology::attr(loc, "R_Q_PTR_MAX").second),
+    r_q_rptr_(0), r_q_wptr_(r_q_max_) {
 
     auto data_width = cvm::topology::attr(loc, "DATA_WIDTH").second;
     axi_ = new axi(data_width, loc, "axi" + std::to_string(id));
 
     cvm::registry::messenger.connect<svScope>(
         loc_,
-        [this](svScope s) { return this->set_scope(s); });
+        [this](svScope s) {
+        this->set_scope(s);
+        return reset_ptrs();
+    });
 
     auto* aw_task = +[] (axi_sw* axi) -> cvm::messenger::task<void> { co_await axi->process_aw();  co_return; };
     cvm::registry::messenger.fork(aw_task, this);
@@ -109,6 +116,15 @@ void axi_sw::r_resp() {
           [copy]() { axi_sw_r(copy.id, copy.resp, copy.data.data(), copy.last); }
       );
     }
+}
+
+void axi_sw::reset_ptrs() {
+    r_q_rptr_ = 0;
+    r_q_wptr_ = 0;
+    cvm::registry::callbacks.push(
+        scope_,
+        []() { axi_sw_r_reset(); }
+    );
 }
 
 void axi_sw::set_scope(svScope scope) {
