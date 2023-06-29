@@ -255,14 +255,9 @@ void axi_sw_mst::reset_ptrs() {
     aw_q_wptr_ = 0;
     w_q_wptr_ = 0;
 
-    cvm::registry::callbacks.push(
-        scope_,
-        []() {
-            axi_sw_mst_ar_reset();
-            axi_sw_mst_aw_reset();
-            axi_sw_mst_w_reset();
-        }
-    );
+    axi_sw_mst_ar_reset();
+    axi_sw_mst_aw_reset();
+    axi_sw_mst_w_reset();
 }
 
 extern "C" {

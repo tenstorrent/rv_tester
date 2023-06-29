@@ -121,10 +121,7 @@ void axi_sw::r_resp() {
 void axi_sw::reset_ptrs() {
     r_q_rptr_ = 0;
     r_q_wptr_ = 0;
-    cvm::registry::callbacks.push(
-        scope_,
-        []() { axi_sw_r_reset(); }
-    );
+    axi_sw_r_reset();
 }
 
 void axi_sw::set_scope(svScope scope) {
