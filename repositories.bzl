@@ -75,7 +75,7 @@ cc_library(
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/CoreArchChecker/-/archive/{commit}/CoreArchChecker-{commit}.tar.bz2".format(commit=core_arch_checker_hash),
     )
 
-    testgen_hash="e88d98f580613d6aefd2ec567960c1f123c5912c"
+    testgen_hash="43ba88a1a7603dd3336fa34c66bb955af099c2cf"
     maybe(
         git_repository,
         name = "testgen",
