@@ -51,6 +51,16 @@ class rvfi {
     void initialize_perf();
     void collect_perf(const rv_tester_transactions::cosim::m_rvfi& m_rvfi);
     void report_perf();
+    void init_pmcs();
+    void report_pmcs(bool final_report);
+
+    void pmc(std::string name, uint64_t cycle, uint64_t value, bool increment = true) {
+      if (cycle != cycle_ and name != "cpu_cycles")
+        report_pmcs(false);
+
+      pmcs[name] = (increment)? pmcs[name] + value : value;
+      cycle_ = cycle;
+    }
 
   private:
 
@@ -61,19 +71,22 @@ class rvfi {
 
     uint64_t count_ = 0;
 
-    cvm::topology::loc_t loc_;
-    svScope scope_;
-
     bool intr_ = false;
     bool excp_ = false;
     uint64_t icause_ = 0;
     uint64_t ecause_ = 0;
 
     // perf
-    bool perf_ok = false;
-    uint64_t perf_start_pc;
-    uint64_t perf_start_cycle = 0;
-    uint64_t perf_end_pc;
-    uint64_t perf_end_cycle = 0;
-    uint64_t perf_instrs = 0;
+    bool perf_ok_ = false;
+    uint64_t perf_start_pc_;
+    uint64_t perf_start_cycle_ = 0;
+    uint64_t perf_end_pc_;
+    uint64_t perf_end_cycle_ = 0;
+    uint64_t perf_instrs_ = 0;
+    uint64_t cycle_ = 0;
+    cvm::file_logger pmc_log;
+    std::map<std::string, uint64_t> pmcs;
+
+    cvm::topology::loc_t loc_;
+    svScope scope_;
 };
