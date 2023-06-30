@@ -1,0 +1,17 @@
+cc_library(
+    name = "pmcounters",
+    srcs = ["pmcounters.cpp"],
+    hdrs = ["pmcounters.hpp"],
+    deps = [
+        "@cvm//:logger",
+        "@cvm//:plusargs",
+        "@cvm//:topology",
+        "@cvm//:messenger",
+        "@cvm//:registry",
+    ],
+    alwayslink = True,
+    linkstatic = True,
+    visibility = ["//visibility:public"],
+)
+
+

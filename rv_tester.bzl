@@ -79,6 +79,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             name + "_transactions_cc",
             name + "_sysmod_dpi",
             name + "_axi_sw_dpi",
+            "@rv_tester//pmcounters:pmcounters",
             topology + "_cc",
         ] + select({
           "@rv_tester//:cosim_off": [],

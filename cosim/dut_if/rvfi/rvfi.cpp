@@ -4,6 +4,7 @@
 #include "cvm/callbacks.hpp"
 #include "cvm/registry.hpp"
 #include "sysmod/htif/htif.h"
+#include "pmcounters/pmcounters.hpp"
 
 #include <iostream>
 #include <chrono>
@@ -14,8 +15,7 @@ DEFINE_bool(rvfi, true, "Enable rvfi");
 // exceeded.
 DEFINE_bool(rvfi_log, true, "Enable rvfi logging");
 DEFINE_bool(cosim, true, "Enable cosim checking");
-DEFINE_bool(perf, false, "Enable core performance metrics");
-DEFINE_bool(dump_pmc, false, "Enable pmc logs");
+DECLARE_bool(perf);
 DECLARE_string(load);
 
 DEFINE_uint64(debug_entry_pc, 0x800, "Debug Mode entry PC");
@@ -28,7 +28,7 @@ extern "C" {
 }
 
 rvfi::rvfi(cvm::topology::loc_t loc, unsigned)
-  : log("dut_rvfi.log"), pmc_log("pmc.log"), loc_(loc) {
+  : log("dut_rvfi.log"), loc_(loc) {
   init();
 
   cvm::registry::messenger.connect<svScope>(
@@ -41,6 +41,8 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned)
     rv_tester_transactions::cosim::m_intr,
     rv_tester_transactions::cosim::m_debug
   >(loc);
+
+  pmcounters_loc_ = cvm::topology::get_from_type("PMCOUNTERS", 0);
 }
 
 rvfi::~rvfi() {
@@ -281,36 +283,32 @@ void rvfi::exit_debug_mode(rv_instr_t& instr) {
 
 void rvfi::initialize_perf() {
   if (FLAGS_perf and not FLAGS_load.empty()) {
-    if (not FLAGS_load.empty()) {
-      // initialize metrics
-      char buffer_start[128]; char buffer_end[128];
-      std::string perf_start, perf_end;
-      FILE* pipe_start = popen(("nm " + FLAGS_load + " | grep __perf_start").c_str(), "r");
-      FILE* pipe_end = popen(("nm " + FLAGS_load + " | grep __perf_end").c_str(), "r");
-      try {
-        while (fgets(buffer_start, sizeof(buffer_start), pipe_start) != NULL)
-          perf_start += buffer_start;
+    // initialize metrics
+    char buffer_start[128]; char buffer_end[128];
+    std::string perf_start, perf_end;
+    FILE* pipe_start = popen(("nm " + FLAGS_load + " | grep __perf_start").c_str(), "r");
+    FILE* pipe_end = popen(("nm " + FLAGS_load + " | grep __perf_end").c_str(), "r");
+    try {
+      while (fgets(buffer_start, sizeof(buffer_start), pipe_start) != NULL)
+        perf_start += buffer_start;
 
-        while (fgets(buffer_end, sizeof(buffer_end), pipe_end) != NULL)
-          perf_end += buffer_end;
+      while (fgets(buffer_end, sizeof(buffer_end), pipe_end) != NULL)
+        perf_end += buffer_end;
 
-        int pos = perf_start.find(" ");
-        perf_start_pc_ = std::strtoll(perf_start.substr(0, pos).c_str(), nullptr, 16);
-        pos = perf_end.find(" ");
-        perf_end_pc_ = std::strtoll(perf_end.substr(0, pos).c_str(), nullptr, 16);
+      int pos = perf_start.find(" ");
+      perf_start_pc_ = std::strtoll(perf_start.substr(0, pos).c_str(), nullptr, 16);
+      pos = perf_end.find(" ");
+      perf_end_pc_ = std::strtoll(perf_end.substr(0, pos).c_str(), nullptr, 16);
 
-      } catch (...) {
-        pclose(pipe_start);
-        pclose(pipe_end);
-        return;
-      }
-
+    } catch (...) {
       pclose(pipe_start);
       pclose(pipe_end);
-      perf_ok_ = true;
+      return;
     }
 
-    init_pmcs();
+    pclose(pipe_start);
+    pclose(pipe_end);
+    perf_ok_ = true;
   }
 }
 
@@ -326,45 +324,18 @@ void rvfi::collect_perf(const rv_tester_transactions::cosim::m_rvfi& m_rvfi) {
         perf_instrs_++;
     }
 
-    pmc("instructions", 1, m_rvfi.cycle);
+    cvm::registry::messenger.signal<pmcounters::pmcounter>(pmcounters_loc_, {pmcounters::counter_t::INSTRUCTIONS, m_rvfi.cycle, 1});
   }
 }
 
 void rvfi::report_perf() {
-  if (FLAGS_perf) {
-    if (perf_ok_) {
-      cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_start_pc\": \"{:016x}\"}}\n", perf_start_pc_);
-      cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_end_pc\": \"{:016x}\"}}\n", perf_end_pc_);
-      cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_start_cycle\": \"{:016x}\"}}\n", perf_start_cycle_);
-      cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_end_cycle\": \"{:016x}\"}}\n", perf_end_cycle_);
-      cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_cycles\": \"{}\"}}\n", perf_end_cycle_ - perf_start_cycle_);
-      cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_instrs\": \"{}\"}}\n", perf_instrs_);
-    }
-
-    report_pmcs(true);
-  }
-}
-
-void rvfi::init_pmcs() {
-  if (FLAGS_perf) {
-    pmc("instructions", 0, 0);
-
-    if (FLAGS_dump_pmc)
-      pmc_log(cvm::NONE, "cpu_cycles,instructions\n");
-  }
-}
-
-void rvfi::report_pmcs(bool final_report) {
-  if (FLAGS_dump_pmc and final_report) {
-    pmc_log(cvm::NONE, "{:016x}", cycle_);
-    for (const auto& [key, value] : pmcs)
-      pmc_log(cvm::NONE, ",{:016x}", value);
-    pmc_log(cvm::NONE, "\n");
-  }
-  else if (final_report) {
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"pmc_cpu_cycles\": \"{:016x}\"}}\n", cycle_);
-    for (const auto& [key, value] : pmcs)
-      cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"pmc_{}\": \"{:016x}\"}}\n", key, value);
+  if (perf_ok_) {
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_start_pc\": \"{:016x}\"}}\n", perf_start_pc_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_end_pc\": \"{:016x}\"}}\n", perf_end_pc_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_start_cycle\": \"{:016x}\"}}\n", perf_start_cycle_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_end_cycle\": \"{:016x}\"}}\n", perf_end_cycle_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_cycles\": \"{}\"}}\n", perf_end_cycle_ - perf_start_cycle_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_instrs\": \"{}\"}}\n", perf_instrs_);
   }
 }
 
