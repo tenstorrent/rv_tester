@@ -17,7 +17,7 @@ dm::dm(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t 
     std::cout << "loading " << FLAGS_load << "\n";
     init_elf(FLAGS_load);
   }
-  
+  channel = cvm::registry::messenger.channel<axi::r_t>(axi_mst_loc_l);
 }
 
 void dm::write(uint64_t addr, size_t length, const data_t& data, const strb_t&) {
@@ -29,8 +29,6 @@ void dm::write(uint64_t addr, size_t length, const data_t& data, const strb_t&) 
 }
 
 cvm::messenger::task<void> dm::read(uint64_t addr, size_t length, data_t& data) {
-  transactor::read_response_t resp_data;
-  auto channel = cvm::registry::messenger.channel<axi::r_t>(axi_mst_loc_l); //replace with local variable once type is known
   if (not has_addr(addr))
     co_return;
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::read_request_t{addr, length});

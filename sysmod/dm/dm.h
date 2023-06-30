@@ -15,7 +15,7 @@ class dm : public device {
 
         mem_manager m_;
         cvm::topology::loc_t axi_mst_loc_l;
-        std::queue<axi::r_t> channel_l;
+        cvm::messenger::pool<axi::r_t>::channel_info channel;
 
     public:
         virtual void write(uint64_t addr, size_t length,
