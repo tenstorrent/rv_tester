@@ -1,7 +1,10 @@
 #include <iostream>
 #include "cvm/plusargs.hpp"
 #include "cvm/topology.hpp"
+#include "cvm/registry.hpp"
+#include "cvm/logger.hpp"
 #include "dm.h"
+#include "transactors/axi_sw/axi.h"
 
 
 DECLARE_string(load);
@@ -14,6 +17,7 @@ dm::dm(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t 
     std::cout << "loading " << FLAGS_load << "\n";
     init_elf(FLAGS_load);
   }
+  axi_mst_loc_l = axi_mst_loc;
 }
 
 void dm::write(uint64_t addr, size_t length, const data_t& data, const strb_t&) {
@@ -24,13 +28,16 @@ void dm::write(uint64_t addr, size_t length, const data_t& data, const strb_t&) 
   return;
 }
 
-cvm::messenger::task<void> dm::read(uint64_t addr, size_t length, data_t&) {
+cvm::messenger::task<void> dm::read(uint64_t addr, size_t length, data_t& data) {
   transactor::read_response_t resp_data;
+  auto channel = cvm::registry::messenger.channel<axi::r_t>(axi_mst_loc_l);
   if (not has_addr(addr))
     co_return;
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::read_request_t{addr, length});
-  //cvm::registry::messenger.connect<transactor::read_response_t>(axi_mst_loc_l, transactor::read_response_t{resp_data});
 
+  auto b = co_await cvm::registry::messenger.wait<axi::r_t>(channel);
+  data = b.data;
+ 
   co_return;
 }
 
