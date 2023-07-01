@@ -74,7 +74,8 @@ class pmcounters
       {INSTRUCTIONS, "instructions"}
     };
 
-    struct pmcounter {
+    struct pmcounter
+    {
       counter_t name;
       uint64_t cycle;
       uint64_t value;
@@ -85,7 +86,8 @@ class pmcounters
     ~pmcounters();
 
     void report(bool final_report);
-    void pmc_update(const pmcounter& counter) {
+    void pmc_update(const pmcounter& counter)
+    {
       auto cycle = counters[counter_t::CPU_CYCLES];
       if (counter.cycle != cycle and counter.name != counter_t::CPU_CYCLES)
         report(false);

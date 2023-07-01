@@ -35,7 +35,8 @@ pmcounters::~pmcounters()
 }
 
 void
-pmcounters::report(bool final_report) {
+pmcounters::report(bool final_report)
+{
   if (FLAGS_perf) {
     if (FLAGS_dump_pmcounters and not final_report) {
       for (size_t i = 0; i < to_string.size(); i++) {
