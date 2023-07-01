@@ -3,9 +3,11 @@
 #include "sysmod/device.h"
 #include "cvm/topology.hpp"
 #include <string>
+#include <queue>
 #include <mem_manager.h>
 #include "cvm/registry.hpp"
 #include "transactor.h"
+#include "transactors/axi_sw/axi.h"
 
 class dm : public device {
 
@@ -13,6 +15,7 @@ class dm : public device {
 
         mem_manager m_;
         cvm::topology::loc_t axi_mst_loc_l;
+        cvm::messenger::pool<axi::r_t>::channel_info channel;
 
     public:
         virtual void write(uint64_t addr, size_t length,

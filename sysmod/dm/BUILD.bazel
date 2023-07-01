@@ -1,13 +1,17 @@
 cc_library(
     name = "dm",
     srcs = ["dm.cpp"],
-    hdrs = ["dm.h"],
+    hdrs = ["@rv_tester//transactors/axi_sw:safe_queue.h",
+            "@rv_tester//transactors/axi_sw:axi.h",
+            "dm.h",
+            ],
     deps = [
         "//sysmod:device",
         "@mem_manager//:mem_manager",
         "@rv_tester//common:common",
         "@cvm//:plusargs",
         "@cvm//:registry",
+        "@cvm//:bitmanip",
         "@cvm//:topology",
     ],
     visibility = ["//visibility:public"],
