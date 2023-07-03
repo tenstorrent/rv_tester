@@ -18,6 +18,7 @@
 #include "cvm/plusargs.hpp"
 #include "cvm/topology.hpp"
 #include "cvm/registry.hpp"
+#include "cvm/logger.hpp"
 #include "interrupter.h"
 
 DECLARE_int32(intr_delay_min);//, 4, "Minimum Delay between 2 consecutive interrupts");
@@ -82,11 +83,10 @@ public:
 
   virtual void tick(uint64_t advance) override
   {
-    std::cout<<"[interrupter]: tick\n";
     std::lock_guard<std::mutex> lock(mutex_);
     timer_ += advance;
     timer_advance = advance;
-    std::cout<<"[interrupter]: tick timer "<<timer_<<" timer adv :"<<timer_advance<<"\n";
+    cvm::log(cvm::HIGH, "[Trickbox] Timer tick :  {} advance interval {} \n",timer_,timer_advance);
     processDelayedRandomInterrupts();
   }
 
@@ -135,7 +135,6 @@ protected:
     if(FLAGS_random_intr){
       if(timer_ >= timer_rand_intr){
          unsigned rand_intr = 0;//1 << rng(5); //select random pin between 0 to 5
-         unsigned disable_mask = 0;
          unsigned iter = 1;
          unsigned values[FLAGS_max_simul_intr];
          memset(values, 0, FLAGS_max_simul_intr);
@@ -143,9 +142,13 @@ protected:
            iter = (rng() % (FLAGS_max_simul_intr )) + 1 ; //gen iter between 1 to max simul instr
          }
 
-         std::cout<<"[TRICKBOX]: iteration interrupts "<<iter<<"\n";
+	 cvm::log(cvm::HIGH, "[Trickbox] Driving  {} interrupts in a cycle \n", iter);
          for (unsigned i = 0; i < iter; ++i) {
-           values[i] = rng() % (numInterrupts_) ;
+           do{
+             values[i] = rng() % (numInterrupts_) ;
+	     cvm::log(cvm::HIGH, "[Trickbox] attempting to genertae legal interrupts,gen_result  {} \n", values[i]);
+	   }while(disable_mask & (1<<values[i]));
+
            for (unsigned j = 0; j < i; ++j) {
                if (values[i] == values[j]) {
                 i--;
@@ -153,24 +156,20 @@ protected:
                 }
             }
 
-          std::cout<<"[TRICKBOX]: iteration interrupts generated "<<values[i]<<"\n";
+	  cvm::log(cvm::HIGH, "[Trickbox] Driving interrupt  {}  \n", values[i]);
           rand_intr =  rand_intr |(1<<values[i]);
-          disable_mask = (FLAGS_disable_meip <<5)|(FLAGS_disable_seip <<4)|(FLAGS_disable_mtip <<3)|(FLAGS_disable_stip <<2)| (FLAGS_disable_msip << 1) |FLAGS_disable_ssip;
-          disable_mask = ~disable_mask;
-          disable_mask = disable_mask & 0xff;
-          rand_intr = rand_intr & disable_mask;
-          rand_intr = rand_intr & 0xfb; // mask supervisor timer interrupt
 
-         std::cout<<"[TRICKBOX]: UNIQRAND random interrupts "<< values[i]<<" rand intr :"<<std::hex<<rand_intr<<"\n";
+          rand_intr = rand_intr & disable_mask_neg;
+	  cvm::log(cvm::HIGH, "[Trickbox] Send  interrupt vec to sysmod  {:#x}  \n", rand_intr);
+
          }
 
 
-
-         std::cout<<"[TRICKBOX]: Drive random interrupts "<<rand_intr<<"\n";
+	 cvm::log(cvm::HIGH, "[Trickbox] Send  sig to  sysmod  {:#x}  \n", rand_intr);
          cvm::registry::messenger.signal(loc(), interrupt_t{0, rand_intr, rand_intr});
          uint32_t rand_num =  (rng() % ( FLAGS_intr_delay_max - FLAGS_intr_delay_min + 1)) + FLAGS_intr_delay_min;
          timer_rand_intr = timer_ +(rand_num*timer_advance);
-         std::cout<<"[TRICKBOX]: Next timer evt for rand itr" << timer_rand_intr <<"\n";
+	 cvm::log(cvm::HIGH, "[Trickbox] Next random interrupt will be sent at  {}  \n", timer_rand_intr);
       }
     }
 
@@ -196,6 +195,8 @@ private:
   uint64_t timer_advance = 200;
   uint64_t timer_rand_intr = 500;
   uint64_t interrupter_base = 0x9000000;
+  uint64_t disable_mask = 0;
+  uint64_t disable_mask_neg = 0;
 
   std::atomic<bool> terminate_ = false;
   std::mutex mutex_;

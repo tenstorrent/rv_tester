@@ -297,7 +297,6 @@ sysmod::read(uint64_t addr, size_t length, device::data_t& data)
 void
 sysmod::tick(uint64_t advance)
 {
-  std::cout<<"SYSMOD:tick\n";
   std::lock_guard<std::mutex> lock(sys_m);
   for (auto& d : devices_) {
       d->tick(advance);
