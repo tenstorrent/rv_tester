@@ -82,10 +82,11 @@ public:
 
   virtual void tick(uint64_t advance) override
   {
-    //std::cout<<"[interrupter]: tick\n";
+    std::cout<<"[interrupter]: tick\n";
     std::lock_guard<std::mutex> lock(mutex_);
     timer_ += advance;
     timer_advance = advance;
+    std::cout<<"[interrupter]: tick timer "<<timer_<<" timer adv :"<<timer_advance<<"\n";
     processDelayedRandomInterrupts();
   }
 
@@ -142,7 +143,7 @@ protected:
            iter = (rng() % (FLAGS_max_simul_intr )) + 1 ; //gen iter between 1 to max simul instr
          }
 
-         //std::cout<<"[TRICKBOX]: iteration interrupts "<<iter<<"\n";
+         std::cout<<"[TRICKBOX]: iteration interrupts "<<iter<<"\n";
          for (unsigned i = 0; i < iter; ++i) {
            values[i] = rng() % (numInterrupts_) ;
            for (unsigned j = 0; j < i; ++j) {
@@ -152,6 +153,7 @@ protected:
                 }
             }
 
+          std::cout<<"[TRICKBOX]: iteration interrupts generated "<<values[i]<<"\n";
           rand_intr =  rand_intr |(1<<values[i]);
           disable_mask = (FLAGS_disable_meip <<5)|(FLAGS_disable_seip <<4)|(FLAGS_disable_mtip <<3)|(FLAGS_disable_stip <<2)| (FLAGS_disable_msip << 1) |FLAGS_disable_ssip;
           disable_mask = ~disable_mask;
@@ -159,15 +161,16 @@ protected:
           rand_intr = rand_intr & disable_mask;
           rand_intr = rand_intr & 0xfb; // mask supervisor timer interrupt
 
-         //std::cout<<"[TRICKBOX]: UNIQRAND random interrupts "<< values[i]<<" rand intr :"<<std::hex<<rand_intr<<"\n";
+         std::cout<<"[TRICKBOX]: UNIQRAND random interrupts "<< values[i]<<" rand intr :"<<std::hex<<rand_intr<<"\n";
          }
 
 
 
-         //std::cout<<"[TRICKBOX]: Drive random interrupts "<<rand_intr<<"\n";
+         std::cout<<"[TRICKBOX]: Drive random interrupts "<<rand_intr<<"\n";
          cvm::registry::messenger.signal(loc(), interrupt_t{0, rand_intr, rand_intr});
          uint32_t rand_num =  (rng() % ( FLAGS_intr_delay_max - FLAGS_intr_delay_min + 1)) + FLAGS_intr_delay_min;
          timer_rand_intr = timer_ +(rand_num*timer_advance);
+         std::cout<<"[TRICKBOX]: Next timer evt for rand itr" << timer_rand_intr <<"\n";
       }
     }
 

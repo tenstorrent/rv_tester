@@ -67,6 +67,7 @@ module sysmod #(
     export "DPI-C" function sysmod_sw_interrupt;
 
     function void sysmod_tbox_interrupt (int unsigned hartid, int unsigned intr_select,int unsigned intr_value);
+     $display("[SYSMOD] DRIVE TBOX ITP VEC %h with %h  at %t \n",intr_select,intr_value,$time);
       for(int i =0;i<6;i++)begin
         if(intr_select[i])
           interrupt_d[i] = intr_value[i];
