@@ -1,6 +1,6 @@
 #include <vector>
+#include <cassert>
 #include "cvm/logger.hpp"
-#include "cvm/topology.hpp"
 
 class pmcounters
 {
@@ -68,7 +68,7 @@ class pmcounters
       COUNT
     } counter_t;
 
-    std::unordered_map<counter_t, std::string_view> to_string =
+    const std::unordered_map<counter_t, std::string_view> to_string =
     {
       {CPU_CYCLES, "cpu_cycles"},
       {INSTRUCTIONS, "instructions"}
@@ -82,10 +82,20 @@ class pmcounters
       bool increment = true;
     };
 
-    pmcounters(cvm::topology::loc_t, unsigned);
+    pmcounters();
     ~pmcounters();
 
     void report(bool final_report);
+
+    // snapshot current counter values, to be used in perf region
+    void perf_region_start() { perf_region = counters; perf_region_started = true; }
+    void perf_region_end() {
+      assert(perf_region.size() != counters.size());
+
+      for (size_t i = 0; i < perf_region.size(); i++)
+        perf_region[i] = counters[i] - perf_region[i];
+    }
+
     void pmc_update(const pmcounter& counter)
     {
       auto cycle = counters[counter_t::CPU_CYCLES];
@@ -100,4 +110,7 @@ class pmcounters
 
     cvm::file_logger log;
     std::vector<uint64_t> counters;
+
+    bool perf_region_started;
+    std::vector<uint64_t> perf_region;
 };

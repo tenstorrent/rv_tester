@@ -5,9 +5,6 @@ cc_library(
     deps = [
         "@cvm//:logger",
         "@cvm//:plusargs",
-        "@cvm//:topology",
-        "@cvm//:messenger",
-        "@cvm//:registry",
     ],
     alwayslink = True,
     linkstatic = True,

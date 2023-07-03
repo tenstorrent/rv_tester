@@ -4,7 +4,6 @@
 #include "cvm/callbacks.hpp"
 #include "cvm/registry.hpp"
 #include "sysmod/htif/htif.h"
-#include "pmcounters/pmcounters.hpp"
 
 #include <iostream>
 #include <chrono>
@@ -41,8 +40,6 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned)
     rv_tester_transactions::cosim::m_intr,
     rv_tester_transactions::cosim::m_debug
   >(loc);
-
-  pmcounters_loc_ = cvm::topology::get_from_type("PMCOUNTERS", 0);
 }
 
 rvfi::~rvfi() {
@@ -300,6 +297,10 @@ void rvfi::initialize_perf() {
       pos = perf_end.find(" ");
       perf_end_pc_ = std::strtoll(perf_end.substr(0, pos).c_str(), nullptr, 16);
 
+      // hacky way atm
+      if (perf_start != perf_end)
+        perf_ok_ = true;
+
     } catch (...) {
       pclose(pipe_start);
       pclose(pipe_end);
@@ -308,23 +309,27 @@ void rvfi::initialize_perf() {
 
     pclose(pipe_start);
     pclose(pipe_end);
-    perf_ok_ = true;
   }
 }
 
 void rvfi::collect_perf(const rv_tester_transactions::cosim::m_rvfi& m_rvfi) {
   if (FLAGS_perf) {
     if (perf_ok_) {
-      if (perf_start_pc_ == uint64_t(m_rvfi.pc_rdata))
+      if (perf_start_pc_ == uint64_t(m_rvfi.pc_rdata)) {
         perf_start_cycle_ = m_rvfi.cycle;
-      if (perf_end_pc_ == uint64_t(m_rvfi.pc_rdata))
+        pmcs.perf_region_start();
+      }
+
+      if (perf_end_pc_ == uint64_t(m_rvfi.pc_rdata)) {
         perf_end_cycle_ = m_rvfi.cycle;
+        pmcs.perf_region_end();
+      }
 
       if (perf_start_cycle_)
         perf_instrs_++;
     }
 
-    cvm::registry::messenger.signal<pmcounters::pmcounter>(pmcounters_loc_, {pmcounters::counter_t::INSTRUCTIONS, m_rvfi.cycle, 1});
+    pmcs.pmc_update({pmcounters::counter_t::INSTRUCTIONS, m_rvfi.cycle, 1});
   }
 }
 
