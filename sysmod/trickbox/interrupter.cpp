@@ -1,4 +1,5 @@
 #include "cvm/plusargs.hpp"
+#include "cvm/logger.hpp"
 #include "interrupter.h"
 
  DEFINE_bool(random_intr, false, "Drive random interrups");
@@ -10,7 +11,7 @@
  DEFINE_string(intr_disable_mask,"0x00","Set bit in hex string to disable random generation of interrupt i.e. +intr_disable_mask=0x01 will disable interrupt corresponding to bit 0 ");
  DEFINE_bool(disable_ssip,false,"Disable Random SSW interrupt generation ");
  DEFINE_bool(disable_msip,false,"Disable Random MSW interrupt generation ");
- DEFINE_bool(disable_stip,false,"Disable Random ST interrupt generation ");
+ DEFINE_bool(disable_stip,true,"Disable Random ST interrupt generation ");
  DEFINE_bool(disable_mtip,false,"Disable Random MT interrupt generation ");
  DEFINE_bool(disable_seip,false,"Disable Random S EXT interrupt generation ");
  DEFINE_bool(disable_meip,false,"Disable Random M EXT interrupt generation ");
@@ -22,6 +23,11 @@ interrupter::interrupter(const std::string& tag, uint64_t addr, unsigned hartCou
   interrupter_base = addr;
 
   reset();
+  //populate disable mask as per plusargs
+  disable_mask = (FLAGS_disable_meip <<5)|(FLAGS_disable_seip <<4)|(FLAGS_disable_mtip <<3)|(FLAGS_disable_stip <<2)| (FLAGS_disable_msip << 1) |FLAGS_disable_ssip;
+  disable_mask_neg = (~disable_mask) & 0xff; 
+  cvm::log(cvm::LOW, "[Trickbox] Random Interrupt disable_mask :  {} disable_mask_neg {} \n",disable_mask,disable_mask_neg);
+  checkUsage(); 
 }
 
 
@@ -32,6 +38,22 @@ interrupter::~interrupter()
     timerThread_.join();
 }
 
+void 
+interrupter::checkUsage()
+{
+  unsigned active_interrupts = numInterrupts_ - (FLAGS_disable_ssip + FLAGS_disable_msip + FLAGS_disable_stip + FLAGS_disable_mtip + FLAGS_disable_seip + FLAGS_disable_meip); 
+  if(FLAGS_random_intr){
+    if(disable_mask == ((1<<numInterrupts_)-1)){
+    //Error: asked to generate random interrupts when all interrupts are disabled
+    cvm::log(cvm::ERROR, "[Trickbox] Can not drive random interrupts when all interrupts are disabled\n");
+    }
+    //max simul intr can't be more than enabled interrupts
+    if((unsigned)FLAGS_max_simul_intr > active_interrupts){
+    //Cant drive more interrupts than active
+    cvm::log(cvm::ERROR, "[Trickbox] Can not drive {} interrupts when {} interrupts are enabled\n",FLAGS_max_simul_intr,active_interrupts);
+    }
+  }
+}
 
 void
 interrupter::selfTick(useconds_t delta)
