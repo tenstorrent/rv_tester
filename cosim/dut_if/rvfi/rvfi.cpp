@@ -339,6 +339,7 @@ void rvfi::report_perf() {
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_end_pc\": \"{:016x}\"}}\n", perf_end_pc_);
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_start_cycle\": \"{:016x}\"}}\n", perf_start_cycle_);
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_end_cycle\": \"{:016x}\"}}\n", perf_end_cycle_);
+    // TODO: use pmcs instead
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_cycles\": \"{}\"}}\n", perf_end_cycle_ - perf_start_cycle_);
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_instrs\": \"{}\"}}\n", perf_instrs_);
   }

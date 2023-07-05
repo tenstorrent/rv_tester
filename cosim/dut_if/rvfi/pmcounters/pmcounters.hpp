@@ -89,7 +89,8 @@ class pmcounters
 
     // snapshot current counter values, to be used in perf region
     void perf_region_start() { perf_region = counters; perf_region_started = true; }
-    void perf_region_end() {
+    void perf_region_end()
+    {
       assert(perf_region.size() == counters.size());
 
       for (size_t i = 0; i < perf_region.size(); i++)
@@ -111,6 +112,6 @@ class pmcounters
     cvm::file_logger log;
     std::vector<uint64_t> counters;
 
-    bool perf_region_started;
+    bool perf_region_started = false;
     std::vector<uint64_t> perf_region;
 };

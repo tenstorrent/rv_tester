@@ -32,17 +32,17 @@ void
 pmcounters::report(bool final_report)
 {
   if (FLAGS_perf) {
-    const auto& used = (perf_region_started)? perf_region : counters;
     if (FLAGS_dump_pmcounters and not final_report) {
       for (size_t i = 0; i < to_string.size(); i++) {
         if (i != counter_t::CPU_CYCLES)
-          log(cvm::NONE, ",{:x}", used[i]);
+          log(cvm::NONE, ",{:x}", counters[i]);
         else
-          log(cvm::NONE, "{:x}", used[i]);
+          log(cvm::NONE, "{:x}", counters[i]);
       }
       log(cvm::NONE, "\n");
     }
     else if (final_report) {
+      const auto& used = (perf_region_started)? perf_region : counters;
       for (size_t i = 0; i < to_string.size(); i++)
         cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"{}\": \"{:x}\"}}\n", to_string.at(static_cast<counter_t>(i)), used[i]);
     }
