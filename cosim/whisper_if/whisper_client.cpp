@@ -24,6 +24,8 @@ DECLARE_bool(cov);
 DECLARE_uint32(max_instr);
 DECLARE_string(archsample_lib_path);
 DECLARE_bool(standalone);
+DEFINE_string(whisper_instr_lines, "", "Write instr cache line addresses used in test to a file");
+DEFINE_string(whisper_data_lines, "", "Write data cache line addresses used in test to a file");
 
 extern void (*__tracerExtension)(void*);
 
@@ -118,6 +120,11 @@ whisperClient<URV>::whisperConnect()
       hart->setInstructionCountLimit(FLAGS_max_instr);
       threadVec.emplace_back(std::thread(threadFunc, hart));
     }
+
+    if (FLAGS_whisper_data_lines != "")
+      system_->enableDataLineTrace(FLAGS_whisper_data_lines);
+    if (FLAGS_whisper_instr_lines != "")
+      system_->enableInstructionLineTrace(FLAGS_whisper_instr_lines);
 
     for (auto& t : threadVec)
       t.join();
