@@ -90,7 +90,7 @@ class pmcounters
     // snapshot current counter values, to be used in perf region
     void perf_region_start() { perf_region = counters; perf_region_started = true; }
     void perf_region_end() {
-      assert(perf_region.size() != counters.size());
+      assert(perf_region.size() == counters.size());
 
       for (size_t i = 0; i < perf_region.size(); i++)
         perf_region[i] = counters[i] - perf_region[i];
