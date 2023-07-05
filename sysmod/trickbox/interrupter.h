@@ -64,7 +64,7 @@ public:
     for (unsigned i = 0; i < sizeof(x); ++i)
       x |= INT(data[i]) << i*8;
   }
-
+ 
   /// Read length bytes from the given address to the data iterator.
   /// No-op if address is outside the range of this interrupter or if
   /// address is not properly aligned.
@@ -182,6 +182,8 @@ protected:
 
   // Start a thread to increment timer after n microseconds.
   void selfTick(useconds_t n);
+  //Check plusarg usage
+  void checkUsage();
 
 private:
   unsigned numInterrupts_ = 6;
