@@ -43,12 +43,12 @@ interrupter::checkUsage()
 {
   unsigned active_interrupts = numInterrupts_ - (FLAGS_disable_ssip + FLAGS_disable_msip + FLAGS_disable_stip + FLAGS_disable_mtip + FLAGS_disable_seip + FLAGS_disable_meip); 
   if(FLAGS_random_intr){
-    if((disable_mask == ((1<<numInterrupts_)-1))){
+    if(disable_mask == ((1<<numInterrupts_)-1)){
     //Error: asked to generate random interrupts when all interrupts are disabled
     cvm::log(cvm::ERROR, "[Trickbox] Can not drive random interrupts when all interrupts are disabled\n");
     }
     //max simul intr can't be more than enabled interrupts
-    if(FLAGS_max_simul_intr > active_interrupts){
+    if((unsigned)FLAGS_max_simul_intr > active_interrupts){
     //Cant drive more interrupts than active
     cvm::log(cvm::ERROR, "[Trickbox] Can not drive {} interrupts when {} interrupts are enabled\n",FLAGS_max_simul_intr,active_interrupts);
     }
