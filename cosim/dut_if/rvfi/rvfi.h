@@ -10,6 +10,7 @@
 #include "bridge_if.h"
 #include "bridge.h"
 #include "cosim/utils/eot/eot.h"
+#include "pmcounters/pmcounters.hpp"
 
 class rvfi {
 
@@ -61,19 +62,20 @@ class rvfi {
 
     uint64_t count_ = 0;
 
-    cvm::topology::loc_t loc_;
-    svScope scope_;
-
     bool intr_ = false;
     bool excp_ = false;
     uint64_t icause_ = 0;
     uint64_t ecause_ = 0;
 
     // perf
-    bool perf_ok = false;
-    uint64_t perf_start_pc;
-    uint64_t perf_start_cycle = 0;
-    uint64_t perf_end_pc;
-    uint64_t perf_end_cycle = 0;
-    uint64_t perf_instrs = 0;
+    bool perf_ok_ = false;
+    uint64_t perf_start_pc_;
+    uint64_t perf_start_cycle_ = 0;
+    uint64_t perf_end_pc_;
+    uint64_t perf_end_cycle_ = 0;
+    uint64_t perf_instrs_ = 0;
+    pmcounters pmcs;
+
+    cvm::topology::loc_t loc_;
+    svScope scope_;
 };

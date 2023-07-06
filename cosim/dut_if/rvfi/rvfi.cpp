@@ -14,7 +14,7 @@ DEFINE_bool(rvfi, true, "Enable rvfi");
 // exceeded.
 DEFINE_bool(rvfi_log, true, "Enable rvfi logging");
 DEFINE_bool(cosim, true, "Enable cosim checking");
-DEFINE_bool(perf, false, "Enable core performance metrics");
+DECLARE_bool(perf);
 DECLARE_string(load);
 
 DEFINE_uint64(debug_entry_pc, 0x800, "Debug Mode entry PC");
@@ -148,7 +148,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi& m_rvfi, rv_in
   instr.fpr.valid = m_rvfi.frd_valid;
   instr.fpr.frd_addr = m_rvfi.frd_addr;
   instr.fpr.frd_wdata = m_rvfi.frd_wdata;
-  
+
   // tlb
   instr.mem_va = m_rvfi.mem_addr;
   instr.mem_pa = m_rvfi.mem_paddr;
@@ -293,9 +293,13 @@ void rvfi::initialize_perf() {
         perf_end += buffer_end;
 
       int pos = perf_start.find(" ");
-      perf_start_pc = std::strtoll(perf_start.substr(0, pos).c_str(), nullptr, 16);
+      perf_start_pc_ = std::strtoll(perf_start.substr(0, pos).c_str(), nullptr, 16);
       pos = perf_end.find(" ");
-      perf_end_pc = std::strtoll(perf_end.substr(0, pos).c_str(), nullptr, 16);
+      perf_end_pc_ = std::strtoll(perf_end.substr(0, pos).c_str(), nullptr, 16);
+
+      // hacky way atm
+      if (perf_start != perf_end)
+        perf_ok_ = true;
 
     } catch (...) {
       pclose(pipe_start);
@@ -305,26 +309,39 @@ void rvfi::initialize_perf() {
 
     pclose(pipe_start);
     pclose(pipe_end);
-    perf_ok = true;
   }
 }
 
 void rvfi::collect_perf(const rv_tester_transactions::cosim::m_rvfi& m_rvfi) {
-  if (perf_ok) {
-    if (perf_start_pc == uint64_t(m_rvfi.pc_rdata))
-      perf_start_cycle = m_rvfi.cycle;
-    if (perf_end_pc == uint64_t(m_rvfi.pc_rdata))
-      perf_end_cycle = m_rvfi.cycle;
+  if (FLAGS_perf) {
+    if (perf_ok_) {
+      if (perf_start_pc_ == uint64_t(m_rvfi.pc_rdata)) {
+        perf_start_cycle_ = m_rvfi.cycle;
+        pmcs.perf_region_start();
+      }
 
-    if (perf_start_cycle)
-      perf_instrs++;
+      if (perf_end_pc_ == uint64_t(m_rvfi.pc_rdata)) {
+        perf_end_cycle_ = m_rvfi.cycle;
+        pmcs.perf_region_end();
+      }
+
+      if (perf_start_cycle_)
+        perf_instrs_++;
+    }
+
+    pmcs.pmc_update({pmcounters::counter_t::INSTRUCTIONS, m_rvfi.cycle, 1});
   }
 }
 
 void rvfi::report_perf() {
-  if (perf_ok) {
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_cycles\": \"{}\"}}\n", perf_end_cycle - perf_start_cycle);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_instrs\": \"{}\"}}\n", perf_instrs);
+  if (perf_ok_) {
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_start_pc\": \"{:016x}\"}}\n", perf_start_pc_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_end_pc\": \"{:016x}\"}}\n", perf_end_pc_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_start_cycle\": \"{:016x}\"}}\n", perf_start_cycle_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_end_cycle\": \"{:016x}\"}}\n", perf_end_cycle_);
+    // TODO: use pmcs instead
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_cycles\": \"{}\"}}\n", perf_end_cycle_ - perf_start_cycle_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_instrs\": \"{}\"}}\n", perf_instrs_);
   }
 }
 
