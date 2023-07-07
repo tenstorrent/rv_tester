@@ -23,6 +23,7 @@ module rv_tester #(
     import "DPI-C" function void rv_tester_build_registry();
     import "DPI-C" function void rv_tester_shutdown_registry();
     import "DPI-C" context function bit rv_tester_flush_callbacks();
+    import "DPI-C" context function void rv_tester_set_scope(int unsigned location);
 
     logic rv_tester_reset = '1;
     logic sysmod_reset = '0;
@@ -45,8 +46,6 @@ module rv_tester #(
 
     assign terminate = (quiesce_counter > 0);
 
-    import "DPI-C" context function void rv_tester_set_scope(int unsigned location);
-
     always @(posedge clk) begin
         rv_tester_reset <= '0;
         sysmod_reset <= 0;
@@ -61,8 +60,7 @@ module rv_tester #(
             cb_poll <= cvm_plusargs::get_bool("cb_async") == '0;
             quiesce_timeout <= cvm_plusargs::get_int("quiesce_timeout");
             call_finish <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
-            // TODO: logger sv header file?
-            gen_clocks <= cvm_plusargs::get_int("cvm_verbosity") >= 400;
+            gen_clocks <= cvm_plusargs::get_int("cvm_verbosity") >= cvm_logger::FULL;
             location = cvm_topology::get_location(topology_pkg::mods.TOP.PLATFORM.ID, 0);
 
             rv_tester_error_terminate.terminate = '0;
