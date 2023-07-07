@@ -40,19 +40,18 @@ module rv_tester #(
     int quiesce_counter = 0;
     int quiesce_timeout = 500;
 
+    int unsigned location = cvm_topology::nil;
+    bit gen_clocks = '0;
+
     assign terminate = (quiesce_counter > 0);
+
+    import "DPI-C" context function void rv_tester_set_scope(int unsigned location);
 
     always @(posedge clk) begin
         rv_tester_reset <= '0;
         sysmod_reset <= 0;
         clocks <= clocks + 1;
         if (rv_tester_reset) begin
-            $display("[RVTESTER]: new test");
-            rv_tester_parse_flags();
-            rv_tester_cvm_error_handler();
-            rv_tester_parse_memmap();
-            $display("[RVTESTER]: reconstructing registry");
-            rv_tester_build_registry();
             clocks <= 0;
             sysmod_reset <= '1;
             quiesce_counter <= '0;
@@ -62,8 +61,19 @@ module rv_tester #(
             cb_poll <= cvm_plusargs::get_bool("cb_async") == '0;
             quiesce_timeout <= cvm_plusargs::get_int("quiesce_timeout");
             call_finish <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
+            // TODO: logger sv header file?
+            gen_clocks <= cvm_plusargs::get_int("cvm_verbosity") >= 400;
+            location = cvm_topology::get_location(topology_pkg::mods.TOP.PLATFORM.ID, 0);
+
             rv_tester_error_terminate.terminate = '0;
             /* verilator lint_on BLKSEQ */
+            $display("[RVTESTER]: new test");
+            rv_tester_parse_flags();
+            rv_tester_cvm_error_handler();
+            rv_tester_parse_memmap();
+            $display("[RVTESTER]: reconstructing registry");
+            rv_tester_build_registry();
+            rv_tester_set_scope(location);
         end
 
         if (rerun_test < 0) begin
@@ -130,7 +140,7 @@ module rv_tester #(
 
     `RV_TESTER_TRANSACTIONS_DOMAIN(1, clk);
 
-    sysmod#(
+    sysmod #(
         .CLOCK_PERIOD_PS(CLOCK_PERIOD_PS),
         .SW_CLOCK_UPDATE_PERIOD_PS(SW_CLOCK_UPDATE_PERIOD_PS),
         .NUM(0),
@@ -164,6 +174,10 @@ module rv_tester #(
         `RV_TESTER_TRANSACTIONS_SOURCE_COSIM(1, 0)
     );
 `endif
+
+    assign tx_dom_1.logger_cycles[0][0].valid = gen_clocks;
+    assign tx_dom_1.logger_cycles[0][0].data.location = location;
+    assign tx_dom_1.logger_cycles[0][0].data.clock = clocks;
 
     for (genvar p = 0; p < topology.TOP.PLATFORM.AXI.TOTAL; p++) begin : axi_sw_slvs
         axi_sw #(

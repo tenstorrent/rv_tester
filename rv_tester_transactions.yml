@@ -212,3 +212,12 @@ axi_sw_mst:
         fields:
             w_ptr:
                 width: ${TOP.PLATFORM.AXI_MST.W_Q_PTR_MAX_LOG2}
+
+logger:
+    num: 1
+    cycle:
+        domain: 1
+        num: 1
+        fields:
+            clock:
+                width: 64
