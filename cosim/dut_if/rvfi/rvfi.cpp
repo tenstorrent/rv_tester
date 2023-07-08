@@ -7,6 +7,7 @@
 
 #include <iostream>
 #include <chrono>
+#include <cmath>
 
 DEFINE_bool(rvfi, true, "Enable rvfi");
 // TODO(mboisvert): See if we can combine the rvfi flags. The reason why the
@@ -155,11 +156,10 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi& m_rvfi, rv_in
 
   // Mem reads
   instr.mem_read.valid = (m_rvfi.mem_rmask != 0);
-  auto [raddr, rdata, rsize] = get_mem_attributes(m_rvfi.mem_addr, m_rvfi.mem_rmask, m_rvfi.mem_rdata);
-  instr.mem_read.va = raddr;
-  instr.mem_read.pa = raddr;
-  instr.mem_read.data = rdata;
-  instr.mem_read.size = rsize;
+  instr.mem_read.va = m_rvfi.mem_addr;
+  instr.mem_read.pa = m_rvfi.mem_paddr;
+  instr.mem_read.data = m_rvfi.mem_rdata;
+  instr.mem_read.size = log2(m_rvfi.mem_rmask + 1);
 
   // Mem writes
   instr.mem_write.valid = (m_rvfi.mem_wmask != 0);
