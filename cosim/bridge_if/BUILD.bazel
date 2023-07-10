@@ -4,6 +4,9 @@ cc_library(
                 "bridge_if.h",
                 "bridge_params.h",
                ],
+    deps = [
+        "@CoreArchChecker//src:cac_lib",
+    ],
     alwayslink = True,
     visibility = ["//visibility:public"],
     strip_include_prefix = ".",

@@ -12,6 +12,15 @@ verilog_library(
     srcs = ["define_no_cosim.sv"],
 )
 
+verilog_library(
+    name = "defines",
+    srcs = [
+        "rv_tester_defines.sv",
+    ],
+    deps = ["pkg"],
+    visibility = ["//visibility:public"],
+)
+
 bool_flag(
     name = "cosim",
     build_setting_default = True,

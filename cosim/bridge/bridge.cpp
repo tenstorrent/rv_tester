@@ -5,6 +5,7 @@
 #include "cvm/plusargs.hpp"
 #include "cvm/registry.hpp"
 #include "cvm/topology.hpp"
+#include "src/cac_lib.h"
 #include "sysmod/htif/htif.h"
 
 #include <iostream>         // cout
@@ -74,8 +75,8 @@ void bridge::reset() {
 
   memmap::get(memmap_);
 
-  cac_.reset();
-  cac_.configureVlen(vlen_);
+  cac_.Reset();
+  assert(cac_.SetVlen(vlen_));
   std::string traceFile = FLAGS_whisper_log ? "iss_cosim.log" : "";
   std::string commandLog = FLAGS_whisper_log ? "iss_cmd.log" : "";
   client_ = std::make_unique<whisperClient<uint64_t>>(traceFile, commandLog);
@@ -88,7 +89,7 @@ void bridge::reset() {
 
 // DUT interface callback: Instruction Retire
 void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
-  step_[hart] = cac_.getStep(hart) + 1;
+  step_[hart] = cac_.GetStep(hart) + 1;
 
   // Update cac with dut state
   update_dut_state(hart, d);
@@ -124,7 +125,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   process_satp_write_post_step(hart, d, w);
 
   // Check dut vs whisper
-  cac_.step(hart);
+  cac_.Step(hart);
 
   // Resynch whisper with dut state if needed
   // to continue without failing
@@ -132,7 +133,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
       does_prev_instr_match_resynch_list(pw_[hart]) ||
       does_instr_match_resynch_condition(hart, d, w)) {
     resynch(hart, d);
-    cac_.resetStatus(hart);
+    cac_.ResetStatus(hart);
   }
 
   // Save whisper state
@@ -141,26 +142,26 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   prev_pend_intr_instr_count_[hart] = pend_intr_instr_count_[hart];
 
   // Error on mismatch
-  if (!cac_.getStatus(hart)) {
+  if (!cac_.GetStatus(hart)) {
     if (FLAGS_cosim_resynch) {
       if (FLAGS_bridge_log) {
         print_instr(hart, w);
-        log(cvm::MEDIUM, "{}", cac_.getStatusStr(hart));
+        log(cvm::MEDIUM, "{}", cac_.GetStatusStr(hart));
       }
       resynch(hart, d);
-      cac_.resetStatus(hart);
+      cac_.ResetStatus(hart);
     } else {
       std::string instr = cosim_util::get_nth_word(w.disasm, 1);
       if (instr.substr(0,3) == "csr")
         instr = "csr:" + cosim_util::get_nth_word(w.disasm, 3);
       print_instr_stdout(hart, w);
-      cvm::log(cvm::NONE, "{}", cac_.getStatusStr(hart));
-      cvm::log(cvm::ERROR, "Error: Core Arch Checker Mismatch{} - {}\n", cac_.getResourceStr(hart),  instr);
+      cvm::log(cvm::NONE, "{}", cac_.GetStatusStr(hart));
+      cvm::log(cvm::ERROR, "Error: Core Arch Checker Mismatch{} - {}\n", cac_.GetResourceStr(hart),  instr);
       return;
     }
   }
   else {
-      log(cvm::HIGH, "{}", cac_.getStatusStr(hart));
+      log(cvm::HIGH, "{}", cac_.GetStatusStr(hart));
   }
 
   // TLB checks
@@ -403,9 +404,8 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
   
   w_.pc.valid = true;
   w_.pc.pc_rdata = w.pc;
-  update_pc(hart, src_t::whisper, w.pc);
+  update_pc(hart, src_t::iss, w.pc);
 
-  //TODO:update_priv(hart, src_t::whisper, w.priv_mode);
 
   for (auto i = 0u; i < w.change_count; i++) {
     if (!client_->whisperChange(hart, w.resource, w.address, w.value,
@@ -520,16 +520,16 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w) {
   switch(w.resource) {
     case 'r':
       if (FLAGS_gpr_check)
-        update_regs(hart, src_t::whisper, resource_t::int_reg, w.address, {w.value});
+        update_regs(hart, src_t::iss, resource_t::int_reg, w.address, {w.value});
       break;
     case 'f':
       if (FLAGS_fpr_check)
-        update_regs(hart, src_t::whisper, resource_t::fp_reg, w.address, {w.value});
+        update_regs(hart, src_t::iss, resource_t::fp_reg, w.address, {w.value});
       break;
     case 'v':
       //TODO:dword_vec_array [i % entries] = w.value;
       //TODO:if ((i % entries) == (entries - 1))
-      //TODO:  update_regs(hart, src_t::whisper, resource_t::vec_reg, w.address, dword_vec_array);
+      //TODO:  update_regs(hart, src_t::iss, resource_t::vec_reg, w.address, dword_vec_array);
       break;
     default:
       break;
@@ -538,30 +538,22 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w) {
 
 // Utility functions
 void bridge::update_pc(hart_id_t hart, src_t src, uint64_t data) {
-  if (src == src_t::dut) {
-    cac_.updateRegister(hart, CAC_STATE_PC_ID, {data});
-  } else {
-    cac_.updateRefRegister(hart, CAC_STATE_PC_ID, {data});
-  }
+  resource_id_t pc = resource_id_t{
+    .resource = resource_t::pc_reg,
+    .offset = 0
+  };
+  assert(cac_.UpdateResource(hart, src, pc, std::move(cac::CreateBitVec<uint64_t>(data))));
 }
 
-//TODO:void bridge::update_priv(hart_id_t hart, src_t src, uint32_t data) {
-//TODO:  size8BytesT dword_array [1] = {data};
-//TODO:  if (src == src_t::dut) {
-//TODO:    cac_.updateRegister(hart, CAC_STATE_PRIV_MODE, dword_array);
-//TODO:  } else {
-//TODO:    cac_.updateRefRegister(hart, CAC_STATE_PRIV_MODE, dword_array);
-//TODO:  }
-//TODO:}
-
-void bridge::update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, const std::vector<size8BytesT>&& dword_vec) {
-  if (src == src_t::dut) {
-    if ((resource == resource_t::int_reg) && (addr == 0x0))
-      return;
-    cac_.updateRegister(hart, resource, addr, std::move(dword_vec));
-  } else {
-    cac_.updateRefRegister(hart, resource, addr, std::move(dword_vec));
+void bridge::update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, const std::vector<size_8_bytes_t>&& dword_vec) {
+  if ((src == src_t::dut) && (resource == resource_t::int_reg) && (addr == 0)) {
+    return;
   }
+  resource_id_t rid = resource_id_t{
+    .resource = resource,
+    .offset = addr
+  };
+  assert(cac_.UpdateResource(hart, src, rid, std::move(cac::CreateBitVec<size_8_bytes_t>(dword_vec))));
 }
 
 bool bridge::is_ecall(const whisper_state_t& w) {
@@ -954,7 +946,7 @@ void bridge::report_metrics() {
   for (int h = 0; h < num_harts_; h++) {
     const auto& prev_whisp_state = pw_[h];
     const auto& prev_prev_whisp_state = ppw_[h];
-    const int instructions = cac_.getStep(h);
+    const int instructions = cac_.GetStep(h);
     const auto& cpu_cycles = prev_whisp_state.time;
     const double ipc = cpu_cycles ? static_cast<double>(instructions) / static_cast<double>(cpu_cycles) : 0.0;
     const auto& instr = prev_whisp_state.disasm;
