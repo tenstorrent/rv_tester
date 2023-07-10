@@ -56,20 +56,22 @@ module rv_tester #(
             quiesce_counter <= '0;
             terminated <= '0;
 
-            /* verilator lint_off BLKSEQ */
-            cb_poll <= cvm_plusargs::get_bool("cb_async") == '0;
-            quiesce_timeout <= cvm_plusargs::get_int("quiesce_timeout");
-            call_finish <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
-            gen_clocks <= cvm_plusargs::get_int("cvm_verbosity") >= cvm_logger::FULL;
-            location = cvm_topology::get_location(topology_pkg::mods.TOP.PLATFORM.ID, 0);
-
-            rv_tester_error_terminate.terminate = '0;
-            /* verilator lint_on BLKSEQ */
             $display("[RVTESTER]: new test");
             rv_tester_parse_flags();
             rv_tester_cvm_error_handler();
             rv_tester_parse_memmap();
             $display("[RVTESTER]: reconstructing registry");
+
+            /* verilator lint_off BLKSEQ */
+            cb_poll <= cvm_plusargs::get_bool("cb_async") == '0;
+            quiesce_timeout <= cvm_plusargs::get_int("quiesce_timeout");
+            call_finish <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
+            gen_clocks <= cvm_logger::str_to_verbosity[cvm_plusargs::get_string("cvm_verbosity")] >= cvm_logger::str_to_verbosity[cvm_plusargs::get_string("gen_clocks_verbosity")];
+            location = cvm_topology::get_location(topology_pkg::mods.TOP.PLATFORM.ID, 0);
+
+            rv_tester_error_terminate.terminate = '0;
+            /* verilator lint_on BLKSEQ */
+
             rv_tester_build_registry();
             rv_tester_set_scope(location);
         end
