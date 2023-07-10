@@ -142,6 +142,8 @@ typedef struct mem_cl_s {
 typedef struct rv_instr_s {
   // Metadata
   bool valid = false;
+  bool last_uop = false;
+  bool comp = false;
   uint8_t hart = 0;
   uint64_t id = 0;
   uint64_t cycle = 0;

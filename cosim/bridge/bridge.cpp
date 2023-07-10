@@ -1,6 +1,7 @@
 // Licensed under the Apache License, Version 2.0, see LICENSE.TT for details
 
 #include "bridge.h"
+#include "util.h"
 #include "cvm/plusargs.hpp"
 #include "cvm/registry.hpp"
 #include "cvm/topology.hpp"
@@ -149,9 +150,9 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
       resynch(hart, d);
       cac_.resetStatus(hart);
     } else {
-      std::string instr = get_nth_word(w.disasm, 1);
+      std::string instr = cosim_util::get_nth_word(w.disasm, 1);
       if (instr.substr(0,3) == "csr")
-        instr = "csr:" + get_nth_word(w.disasm, 3);
+        instr = "csr:" + cosim_util::get_nth_word(w.disasm, 3);
       print_instr_stdout(hart, w);
       cvm::log(cvm::NONE, "{}", cac_.getStatusStr(hart));
       cvm::log(cvm::ERROR, "Error: Core Arch Checker Mismatch{} - {}\n", cac_.getResourceStr(hart),  instr);
@@ -164,20 +165,6 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   // TLB checks
   translation_check(hart, d, w);
-}
-
-std::string bridge::get_nth_word(const std::string& s, int n) {
-    std::istringstream iss(s);
-    std::string word;
-    for (int i = 0; i < n; i++) {
-        if (!(iss >> word))
-            return ""; // Return an empty string if there are fewer than 3 words
-    }
-    // Remove trailing comma if present
-    if (!word.empty() && word.back() == ',') {
-        word.pop_back();
-    }
-    return word;
 }
 
 void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {

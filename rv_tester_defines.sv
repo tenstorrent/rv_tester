@@ -24,6 +24,8 @@ package rv_tester_params;
 
     typedef struct packed {
         logic                                             valid    ;
+        logic                                             last_uop ;
+        logic                                             comp     ;
         logic [64-1:0]                                    order    ;
         logic [mods.TOP.CLUSTER.CORE.ILEN-1:0]            insn     ;
         logic                                             trap     ;

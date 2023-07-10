@@ -11,6 +11,10 @@ cosim:
         fields:
             cycle:
                 width: 64
+            last_uop:
+                width: 1
+            comp:
+                width: 1
             order:
                 width: 64
             insn:
