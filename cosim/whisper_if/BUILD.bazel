@@ -16,3 +16,20 @@ cc_library(
     strip_include_prefix = ".",
 )
 
+cc_library(
+    name     = "whisper_decoder",
+    hdrs     = [
+        "whisper_decoder.h",
+    ],
+    srcs     = [
+        "whisper_decoder.cpp",
+    ],
+    deps     = [
+        "//common:common",
+        "@whisper//:rvcore",
+    ],
+    alwayslink = True,
+    linkopts = ["-lrt"],
+    visibility = ["//visibility:public"],
+    strip_include_prefix = ".",
+)

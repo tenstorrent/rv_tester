@@ -1,4 +1,6 @@
 #include "rvfi.h"
+#include "util.h"
+#include "whisper_decoder.h"
 #include "cvm/plusargs.hpp"
 #include "cvm/bitmanip.hpp"
 #include "cvm/callbacks.hpp"
@@ -54,10 +56,7 @@ void rvfi::init() {
     cvm::log(cvm::MEDIUM, "[RVFI] Constructing bridge...\n");
     bridge_ = std::make_unique<bridge>(num_harts, xlen, vlen, loc_);
     bridge_->reset();
-    if (FLAGS_rvfi_log) {
-      log(cvm::NONE, "Instr Cycle Hart Mode PC Opcode\n");
-    }
-    count_ = 0;
+    count_ = 1;
   }
 
   // initialize metrics
@@ -69,6 +68,10 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi& m_rvfi) {
   rv_instr_t instr;
   make_instr(m_rvfi, instr);
   print_instr(instr);
+
+  if (!m_rvfi.last_uop)
+    return;
+
   enter_debug_mode(instr);
   send_instr(instr);
   exit_debug_mode(instr);
@@ -126,7 +129,11 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi& m_rvfi, rv_in
   instr.valid = true;
   instr.hart = 0;
   instr.cycle = m_rvfi.cycle;
-  instr.id = ++count_;
+  instr.id = count_;
+  instr.last_uop = m_rvfi.last_uop;
+  if (m_rvfi.last_uop)
+    count_++;
+  instr.comp = m_rvfi.comp;
   instr.tag = m_rvfi.order;
   instr.opcode = m_rvfi.insn;
   instr.priv = m_rvfi.mode;
@@ -200,19 +207,41 @@ void rvfi::print_instr(rv_instr_t& instr) {
   if (!FLAGS_rvfi_log) {
     return;
   }
-  log(cvm::NONE, "#{} {} {} {} {:016x} {:08x}", instr.id, instr.cycle, instr.hart, instr.priv, instr.pc.pc_rdata,
-      instr.opcode);
 
-  if (instr.gpr.valid)
-    log(cvm::NONE, " r {:016x} {:016x}", instr.gpr.rd_addr, instr.gpr.rd_wdata);
+  int resource_count = instr.gpr.valid + instr.fpr.valid + instr.mem_write.valid + instr.csr.size();
 
-  if (instr.fpr.valid)
-    log(cvm::NONE, " f {:016x} {:016x}", instr.fpr.frd_addr, instr.fpr.frd_wdata);
+  // Print r0 = 0 if nothing modified
+  if (!resource_count || !instr.last_uop)
+    print_instr_resource(instr, fmt::format(" r {:016x} {:016x}", 0, 0));
+  else {
+    // Print modified resources in this order - r, f, m, c
+    if (instr.gpr.valid)
+      print_instr_resource(instr, fmt::format(" r {:016x} {:016x}", instr.gpr.rd_addr, instr.gpr.rd_wdata));
 
-  if (instr.mem_write.valid) {
-    log(cvm::NONE, " m {:016x} {:016x}", instr.mem_write.va, instr.mem_write.data);
-    log(cvm::NONE, " [{:#x}:{:#x}]", instr.mem_write.va, instr.mem_write.pa);
+    if (instr.fpr.valid)
+      print_instr_resource(instr, fmt::format(" f {:016x} {:016x}", instr.fpr.frd_addr, instr.fpr.frd_wdata)); 
+
+    if (instr.mem_write.valid)
+      print_instr_resource(instr, fmt::format(" m {:016x} {:016x}", instr.mem_write.va, instr.mem_write.data));
+
+    for (auto& c : instr.csr)
+      print_instr_resource(instr, fmt::format(" c {:016x} {:016x}", c.csr_addr, c.csr_wdata));
   }
+}
+
+void rvfi::print_instr_resource(rv_instr_t& instr, std::string resource_str) {
+  log(cvm::NONE, "#{} {} {} {} {:016x} {:08x}", instr.id, instr.cycle, instr.hart, instr.priv,
+     instr.pc.pc_rdata, instr.opcode);
+
+  log(cvm::NONE, resource_str);
+
+  if (instr.last_uop)
+    log(cvm::NONE, " {}", whisper::disassemble(instr.opcode));
+  else
+    log(cvm::NONE, " {} (microcode)", cosim_util::get_nth_word(whisper::disassemble(instr.opcode), 1));
+
+  if (instr.mem_write.valid)
+    log(cvm::NONE, " [{:#x}:{:#x}]", instr.mem_write.va, instr.mem_write.pa);
 
   if (instr.mem_read.valid)
     log(cvm::NONE, " [{:#x}:{:#x}]", instr.mem_read.va, instr.mem_read.pa);
@@ -222,6 +251,9 @@ void rvfi::print_instr(rv_instr_t& instr) {
 
   if (instr.excp)
     log(cvm::NONE, " (exception:{})", instr.ecause);
+
+  if (instr.comp)
+    log(cvm::NONE, " (compressed)");
 
   log(cvm::NONE, "\n");
 }
