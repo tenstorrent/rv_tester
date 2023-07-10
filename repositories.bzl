@@ -32,11 +32,11 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv/dv/corearchcoverage.git",
     )
 
-    cvm_hash="a992a7e6311da38ba839df0570399a167ffa834f"
+    cvm_hash="20a28baed6e404417d19e3fb01e742fb96307ce1"
     maybe(
         http_archive,
         name = "cvm",
-        sha256 = "893492a4fbe595a2b99c49ce00ed2cd30100ed5f55544fe0dfc6f36828c49813",
+        sha256 = "030f73eb37451507c3bc860ba689e44cd4427d09e2b4486d43c21419de848fed",
         strip_prefix = "cvm-{commit}".format(commit=cvm_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/{commit}/cvm-{commit}.tar.bz2".format(commit=cvm_hash),
     )
