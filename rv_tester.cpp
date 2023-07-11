@@ -58,18 +58,23 @@ extern "C" {
     }
 }
 
+static std::string prefix;
+static uint64_t logger_clock = 0;
+
 class logger_instrument {
 
     public:
         logger_instrument(cvm::topology::loc_t loc, unsigned) : loc_(loc) {};
 
         void configure() {
-            cvm::set_logger_prefix([this]() -> std::string_view {
-                this->prefix = (this->clock_)? "[" + std::to_string(this->clock_) + "] " : "";
+            logger_clock = 0;
+
+            cvm::set_logger_prefix([]() -> std::string_view {
+                prefix = (logger_clock)? "[" + std::to_string(logger_clock) + "] " : "";
                 return prefix;
             });
 
-            cvm::registry::messenger.connect<rv_tester_transactions::logger::cycle>(loc_, [this] (const auto& c) { this->clock_ = c.clock; });
+            cvm::registry::messenger.connect<rv_tester_transactions::logger::cycle>(loc_, [] (const auto& c) { logger_clock = c.clock; });
             cvm::registry::messenger.connect<svScope>(loc_, [this] (svScope s) { this->scope_ = s; });
         }
 
@@ -85,8 +90,6 @@ class logger_instrument {
 
         svScope scope_;
         cvm::topology::loc_t loc_;
-        std::string prefix;
-        uint64_t clock_ = 0;
 };
 
 REGISTRY_register(logger_instrument, TOP.PLATFORM, 0);
