@@ -86,7 +86,7 @@ public:
     std::lock_guard<std::mutex> lock(mutex_);
     timer_ += advance;
     timer_advance = advance;
-    cvm::log(cvm::HIGH, "[Trickbox] Timer tick :  {} advance interval {} \n",timer_,timer_advance);
+    cvm::log(cvm::FULL, "[Trickbox] Timer tick :  {} advance interval {} \n",timer_,timer_advance);
     processDelayedRandomInterrupts();
   }
 
