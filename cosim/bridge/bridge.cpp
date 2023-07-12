@@ -152,11 +152,12 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
       cac_.ResetStatus(hart);
     } else {
       std::string instr = cosim_util::get_nth_word(w.disasm, 1);
+      std::string resource = cac_.GetResourceStr(hart) == "PC" ? " :PC" : "";
       if (instr.substr(0,3) == "csr")
         instr = "csr:" + cosim_util::get_nth_word(w.disasm, 3);
       print_instr_stdout(hart, w);
       cvm::log(cvm::NONE, "{}", cac_.GetStatusStr(hart));
-      cvm::log(cvm::ERROR, "Error: Core Arch Checker Mismatch{} - {}\n", cac_.GetResourceStr(hart),  instr);
+      cvm::log(cvm::ERROR, "Error: Core Arch Checker Mismatch{} - {}\n", resource,  instr);
       return;
     }
   }
