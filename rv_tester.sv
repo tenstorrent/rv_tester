@@ -23,7 +23,6 @@ module rv_tester #(
     import "DPI-C" function void rv_tester_build_registry();
     import "DPI-C" function void rv_tester_shutdown_registry();
     import "DPI-C" context function bit rv_tester_flush_callbacks();
-    import "DPI-C" context function void rv_tester_set_scope(int unsigned location);
 
     logic rv_tester_reset = '1;
     logic sysmod_reset = '0;
@@ -73,7 +72,6 @@ module rv_tester #(
             /* verilator lint_on BLKSEQ */
 
             rv_tester_build_registry();
-            rv_tester_set_scope(location);
         end
 
         if (rerun_test < 0) begin
