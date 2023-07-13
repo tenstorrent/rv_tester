@@ -62,6 +62,8 @@ class rvfi {
     std::unique_ptr<bridge> bridge_;
     std::unique_ptr<eot> eot_;
 
+    rv_instr_t prev_instr_;
+
     uint64_t count_ = 1;
 
     bool intr_ = false;

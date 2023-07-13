@@ -7,6 +7,10 @@
 static WdRiscv::Decoder decoder;
 static WdRiscv::Disassembler disassembler;
 
+void whisper::initialize() {
+  decoder.enableRv64(true);
+}
+
 std::string whisper::disassemble(const uint32_t opcode) {
   std::string disas;
   disassembler.disassembleInst(opcode, decoder, disas); 

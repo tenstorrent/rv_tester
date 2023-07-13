@@ -28,6 +28,7 @@ package rv_tester_params;
         logic                                             comp     ;
         logic [64-1:0]                                    order    ;
         logic [mods.TOP.CLUSTER.CORE.ILEN-1:0]            insn     ;
+        logic [64-1:0]                                    uop      ;
         logic                                             trap     ;
         logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]            cause    ;
         logic                                             halt     ;

@@ -19,6 +19,8 @@ cosim:
                 width: 64
             insn:
                 width: 32
+            uop:
+                width: 64
             trap:
                 width: 1
             intr:

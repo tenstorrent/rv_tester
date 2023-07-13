@@ -89,8 +89,6 @@ void bridge::reset() {
 
 // DUT interface callback: Instruction Retire
 void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
-  step_[hart] = cac_.GetStep(hart) + 1;
-
   // Update cac with dut state
   update_dut_state(hart, d);
 
@@ -126,6 +124,10 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   // Check dut vs whisper
   cac_.Step(hart);
+
+  // Increment step count
+  step_[hart]++;
+
 
   // Resynch whisper with dut state if needed
   // to continue without failing
