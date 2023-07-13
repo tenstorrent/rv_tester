@@ -1,5 +1,0 @@
-build --cxxopt=-Wall --cxxopt=-Wextra
-build --host_cxxopt=-Wall --host_cxxopt=-Wextra
-build --copt=-Wall --copt=-Wextra
-build --host_copt=-Wall --host_copt=-Wextra
-build --features=treat_warnings_as_errors
