@@ -23,12 +23,41 @@ DEFINE_string(gen_clocks_verbosity, "DEBUG", "verbosity at which to generate clo
 
 extern "C" void rv_tester_terminate();
 
-extern "C" {
+class logger_instrument {
 
-    void rv_tester_set_scope(cvm::topology::loc_t loc) {
-        svScope scope = svGetScope();
-        cvm::registry::messenger.signal<svScope>(loc, scope);
-    }
+    public:
+        logger_instrument(cvm::topology::loc_t loc, unsigned) : loc(loc) {};
+
+        void configure() {
+            clock = 0;
+
+            cvm::set_logger_prefix([]() -> std::string_view {
+                prefix = (clock)? "[" + std::to_string(clock) + "] " : "";
+                return prefix;
+            });
+
+            cvm::registry::messenger.connect<rv_tester_transactions::logger::cycle>(loc, [] (const auto& c) { clock = c.clock; });
+        }
+
+        void check() {
+            cvm::registry::callbacks.push(
+                scope,
+                []() {
+                    return rv_tester_terminate();
+                });
+        }
+
+        static void set_scope(svScope s) { scope = s; };
+
+    private:
+
+        static svScope scope;
+        static std::string prefix;
+        static uint64_t clock;
+        cvm::topology::loc_t loc;
+};
+
+extern "C" {
 
     void rv_tester_parse_flags() {
         cvm::plusargs::parse();
@@ -54,42 +83,13 @@ extern "C" {
     }
 
     void rv_tester_cvm_error_handler() {
+        logger_instrument::set_scope(svGetScope());
         cvm::set_logger_handler(cvm::ERROR, cvm::registry::check);
     }
 }
 
-static std::string prefix;
-static uint64_t logger_clock = 0;
-
-class logger_instrument {
-
-    public:
-        logger_instrument(cvm::topology::loc_t loc, unsigned) : loc_(loc) {};
-
-        void configure() {
-            logger_clock = 0;
-
-            cvm::set_logger_prefix([]() -> std::string_view {
-                prefix = (logger_clock)? "[" + std::to_string(logger_clock) + "] " : "";
-                return prefix;
-            });
-
-            cvm::registry::messenger.connect<rv_tester_transactions::logger::cycle>(loc_, [] (const auto& c) { logger_clock = c.clock; });
-            cvm::registry::messenger.connect<svScope>(loc_, [this] (svScope s) { this->scope_ = s; });
-        }
-
-        void check() {
-            cvm::registry::callbacks.push(
-                scope_,
-                []() {
-                    return rv_tester_terminate();
-                });
-        }
-
-    private:
-
-        svScope scope_;
-        cvm::topology::loc_t loc_;
-};
+svScope logger_instrument::scope;
+std::string logger_instrument::prefix;
+uint64_t logger_instrument::clock;
 
 REGISTRY_register(logger_instrument, TOP.PLATFORM, 0);
