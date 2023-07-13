@@ -132,7 +132,6 @@ sysmod::reset() {
 void
 sysmod::compose()
 {
-  std::lock_guard<std::mutex> lock(sys_m);
   devices_.clear();
 
   // Load memmap
@@ -244,7 +243,6 @@ sysmod::load_io(const std::string& io)
 void
 sysmod::load_prog(const std::string& hex, const std::string& load)
 {
-  std::lock_guard<std::mutex> lock(sys_m);
   if (load != "") {
     std::cout << "loading " << load << "\n";
     for (const auto& d : memmap_) {
@@ -270,7 +268,6 @@ sysmod::load_prog(const std::string& hex, const std::string& load)
 void
 sysmod::write(uint64_t addr, size_t length, const device::data_t& data, const device::strb_t& strb)
 {
-  std::lock_guard<std::mutex> lock(sys_m);
   //std::cout << std::hex << "write req at: " << addr << '\n';
   auto d = dev(addr);
 
@@ -283,7 +280,6 @@ sysmod::write(uint64_t addr, size_t length, const device::data_t& data, const de
 cvm::messenger::task<void>
 sysmod::read(uint64_t addr, size_t length, device::data_t& data)
 {
-  std::lock_guard<std::mutex> lock(sys_m);
   //std::cout << std::hex << "read req at: " << addr << '\n';
   auto d = dev(addr);
 
@@ -297,7 +293,6 @@ sysmod::read(uint64_t addr, size_t length, device::data_t& data)
 void
 sysmod::tick(uint64_t advance)
 {
-  std::lock_guard<std::mutex> lock(sys_m);
   for (auto& d : devices_) {
       d->tick(advance);
   }
