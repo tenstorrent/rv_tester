@@ -1,5 +1,7 @@
 workspace(name = "rv_tester")
 
+load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
+
 local_repository(
     name = "bzsim",
     path = "infra/bzsim_clone",
@@ -10,6 +12,17 @@ bzsim_dependencies()
 
 load("//:repositories.bzl", "rv_tester_repositories")
 rv_tester_repositories()
+
+# don't want testgen in repositories.bzl, as it's only for internal use
+# let other repos' testgen supercede this one in downstream repos
+testgen_hash="6cd25f1c2973396bce233e6a5d38e5a401943a25"
+git_repository(
+    name = "testgen",
+    commit = testgen_hash,
+    shallow_since = "1677278961 -0600",
+    recursive_init_submodules = True,
+    remote = "git@aus-gitlab.local.tenstorrent.com:riscv/dv/testgen.git",
+)
 
 load("@testgen//:repositories.bzl", "testgen_dependencies")
 testgen_dependencies()
