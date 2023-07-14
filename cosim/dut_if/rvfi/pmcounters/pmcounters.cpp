@@ -44,7 +44,7 @@ pmcounters::report(bool final_report)
     else if (final_report) {
       const auto& used = (perf_region_started)? perf_region : counters;
       for (size_t i = 0; i < to_string.size(); i++)
-        cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"{}\": \"{:x}\"}}\n", to_string.at(static_cast<counter_t>(i)), used[i]);
+        cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"{}\": \"0x{:x}\"}}\n", to_string.at(static_cast<counter_t>(i)), used[i]);
     }
   }
 }
