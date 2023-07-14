@@ -223,7 +223,7 @@ void rvfi::print_instr(rv_instr_t& instr) {
       print_instr_resource(instr, fmt::format(" r {:016x} {:016x}", instr.gpr.rd_addr, instr.gpr.rd_wdata));
 
     if (instr.fpr.valid)
-      print_instr_resource(instr, fmt::format(" f {:016x} {:016x}", instr.fpr.frd_addr, instr.fpr.frd_wdata)); 
+      print_instr_resource(instr, fmt::format(" f {:016x} {:016x}", instr.fpr.frd_addr, instr.fpr.frd_wdata));
 
     if (instr.mem_write.valid)
       print_instr_resource(instr, fmt::format(" m {:016x} {:016x}", instr.mem_write.va, instr.mem_write.data));
@@ -371,13 +371,10 @@ void rvfi::collect_perf(const rv_tester_transactions::cosim::m_rvfi& m_rvfi) {
 
 void rvfi::report_perf() {
   if (perf_ok_) {
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_start_pc\": \"{:016x}\"}}\n", perf_start_pc_);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_end_pc\": \"{:016x}\"}}\n", perf_end_pc_);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_start_cycle\": \"{:016x}\"}}\n", perf_start_cycle_);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_end_cycle\": \"{:016x}\"}}\n", perf_end_cycle_);
-    // TODO: use pmcs instead
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_cycles\": \"{}\"}}\n", perf_end_cycle_ - perf_start_cycle_);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_instrs\": \"{}\"}}\n", perf_instrs_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_start_pc\": \"0x{:x}\"}}\n", perf_start_pc_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_end_pc\": \"0x{:x}\"}}\n", perf_end_pc_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_start_cycle\": \"0x{:x}\"}}\n", perf_start_cycle_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_end_cycle\": \"0x{:x}\"}}\n", perf_end_cycle_);
   }
 }
 
