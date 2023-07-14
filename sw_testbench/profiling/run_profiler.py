@@ -26,11 +26,11 @@ class Profiler(ABC):
         if args.no_cosim:
             self.common_plusargs.append("+nocosim")
         if not args.enable_logging:
-            self.common_plusargs.extend(["+nowhisper_log", "+norvfi_log", "+nocosim_tracer"])
+            self.common_plusargs.extend(["+nowhisper_log", "+norvfi_log", "+nobridge_log"])
         if args.linux_time:
             self.common_plusargs.append("+sim_wrap=time")
         self.profiler_cmds = []
-        
+
 
     # Colorful print to identify messages from this python script
     def print(self, input: str):
@@ -93,11 +93,11 @@ class GprofProfiler(Profiler):
     @staticmethod
     def name():
         return "gprof"
-    
+
     @staticmethod
     def description():
         return "GNU profiler (gprof). Generates call graph of functions using CPU time"
-    
+
     @staticmethod
     def add_arguments(parser):
         pass
@@ -118,7 +118,7 @@ class PerfProfiler(Profiler):
     @staticmethod
     def description():
         return "Linux perf profiler (https://perf.wiki.kernel.org/index.php/Main_Page)"
-    
+
     @staticmethod
     def add_arguments(parser):
         parser.add_argument("--perf_cmd", type=str, default="record", help="Perf command used to collect info in perf.data (e.g. 'perf mem record -e')")
@@ -139,7 +139,7 @@ class NoProfiler(Profiler):
     @staticmethod
     def description():
         return "Runs rv_tester SW testbench without a profiler."
-    
+
     @staticmethod
     def add_arguments(parser):
         pass
@@ -154,7 +154,7 @@ class GperftoolsProfiler(Profiler):
 
     def teardown(self):
         self.print("See gperftools-cosim-results.txt and gperftools-whisper-results.txt for the profiling results. Use https://dreampuf.github.io/GraphvizOnline/ to visualize these graphs")
-    
+
     @staticmethod
     def name():
         return "gperftools"
@@ -162,7 +162,7 @@ class GperftoolsProfiler(Profiler):
     @staticmethod
     def description():
         return "Google's suite of performance analysis tools, most notably pprof. Generates an output dot file containing a function call graph."
-    
+
     @staticmethod
     def add_arguments(parser):
         parser.add_argument("--use_realtime", action="store_true", default=False, help="If true, use realtime for profiling. Otherwise, use CPU time")
@@ -185,7 +185,7 @@ class WallClockProfiler(Profiler):
     @staticmethod
     def description():
         return "Executes a fork of https://github.com/jasonrohrer/wallClockProfiler."
-    
+
     @staticmethod
     def add_arguments(parser):
         parser.add_argument("--samples_per_second", type=int, default=20, help="Number of times stack is sampled per second")

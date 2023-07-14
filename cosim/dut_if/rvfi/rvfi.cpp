@@ -33,6 +33,8 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned)
   : log("dut_rvfi.log"), loc_(loc) {
   init();
 
+  whisper::initialize();
+
   cvm::registry::messenger.connect<svScope>(
     loc_,
     [&](svScope s) { return this->set_scope(s); });
@@ -57,6 +59,7 @@ void rvfi::init() {
     bridge_ = std::make_unique<bridge>(num_harts, xlen, vlen, loc_);
     bridge_->reset();
     count_ = 1;
+    prev_instr_.clear();
   }
 
   // initialize metrics
@@ -68,6 +71,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi& m_rvfi) {
   rv_instr_t instr;
   make_instr(m_rvfi, instr);
   print_instr(instr);
+  prev_instr_ = instr;
 
   if (!m_rvfi.last_uop)
     return;
@@ -136,6 +140,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi& m_rvfi, rv_in
   instr.comp = m_rvfi.comp;
   instr.tag = m_rvfi.order;
   instr.opcode = m_rvfi.insn;
+  instr.uop = m_rvfi.uop;
   instr.priv = m_rvfi.mode;
   instr.trap = m_rvfi.trap || intr_ || excp_;
   instr.intr = intr_;
@@ -170,11 +175,10 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi& m_rvfi, rv_in
 
   // Mem writes
   instr.mem_write.valid = (m_rvfi.mem_wmask != 0);
-  auto [waddr, wdata, wsize] = get_mem_attributes(m_rvfi.mem_addr, m_rvfi.mem_wmask, m_rvfi.mem_wdata);
-  instr.mem_write.va = waddr;
-  instr.mem_write.pa = waddr;
-  instr.mem_write.data = wdata;
-  instr.mem_write.size = wsize;
+  instr.mem_write.va = m_rvfi.mem_addr;
+  instr.mem_write.pa = m_rvfi.mem_paddr;
+  instr.mem_write.data = m_rvfi.mem_wdata;
+  instr.mem_write.size = log2(m_rvfi.mem_wmask + 1);
 }
 
 std::tuple<uint64_t, uint64_t, uint8_t> rvfi::get_mem_attributes(uint64_t addr, uint8_t mask, uint64_t data) {
@@ -230,12 +234,12 @@ void rvfi::print_instr(rv_instr_t& instr) {
 }
 
 void rvfi::print_instr_resource(rv_instr_t& instr, std::string resource_str) {
-  log(cvm::NONE, "#{} {} {} {} {:016x} {:08x}", instr.id, instr.cycle, instr.hart, instr.priv,
-     instr.pc.pc_rdata, instr.opcode);
+  log(cvm::NONE, "#{} {} {} {} {:016x} {:09x}", instr.id, instr.cycle, instr.hart, instr.priv,
+     instr.pc.pc_rdata, instr.uop);
 
   log(cvm::NONE, resource_str);
 
-  if (instr.last_uop)
+  if (instr.last_uop && prev_instr_.last_uop)
     log(cvm::NONE, " {}", whisper::disassemble(instr.opcode));
   else
     log(cvm::NONE, " {} (microcode)", cosim_util::get_nth_word(whisper::disassemble(instr.opcode), 1));
