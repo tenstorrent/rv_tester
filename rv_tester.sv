@@ -30,7 +30,7 @@ module rv_tester #(
     bit cb_poll = '0;
     bit cb_success = '1;
     logic call_finish;
-    int rerun_test = -1;
+    int num_reruns = -1;
 
     logic terminate_now;
     logic rerun_now;
@@ -47,7 +47,7 @@ module rv_tester #(
 
     assign terminate           = (rv_tester_error_terminate.terminate || (sysmod_terminate.terminate && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
     assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout);
-    assign rerun_now           = terminated && rerun_test != 0;
+    assign rerun_now           = terminated && num_reruns != 0;
 
     /*
     * Don't put an DPI calls here, zebu gets confused when signals are driven
@@ -75,7 +75,7 @@ module rv_tester #(
 
     always @(posedge clk) begin
         if(rerun_now) begin
-            $display("<%0d> [RVTESTER]: rerunning test %0d time(s)", clocks, rerun_test);
+            $display("<%0d> [RVTESTER]: rerunning test %0d time(s)", clocks, num_reruns);
         end
     end
 
@@ -110,9 +110,9 @@ module rv_tester #(
             rv_tester_build_registry();
         end
 
-        rerun_test      <= rerun_test - int'(rerun_now);
-        if (rerun_test < 0) begin
-            rerun_test  <= cvm_plusargs::get_int("rerun_test");
+        num_reruns      <= num_reruns - int'(rerun_now);
+        if (num_reruns < 0) begin
+            num_reruns  <= cvm_plusargs::get_int("num_reruns");
         end
 
     end
@@ -138,7 +138,7 @@ module rv_tester #(
 
             rv_tester_shutdown_registry();
 
-            if (call_finish && rerun_test == '0) begin
+            if (call_finish && num_reruns == '0) begin
                 $finish();
             end
 
