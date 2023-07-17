@@ -57,7 +57,6 @@ class sysmod {
     cvm::topology::loc_t loc_;
     unsigned id_;
 
-    mutable std::mutex sys_m;
     std::vector<std::unique_ptr<device> > devices_;
 
     // Memmap

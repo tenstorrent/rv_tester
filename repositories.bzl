@@ -32,11 +32,11 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv/dv/corearchcoverage.git",
     )
 
-    cvm_hash="a992a7e6311da38ba839df0570399a167ffa834f"
+    cvm_hash="89deaa1b2ec6e79809f415864f2e1e1afd00fb75"
     maybe(
         http_archive,
         name = "cvm",
-        sha256 = "893492a4fbe595a2b99c49ce00ed2cd30100ed5f55544fe0dfc6f36828c49813",
+        sha256 = "056a5f04a1ffdd3ba735f098a06617bf0f2e5d7d80b1f8b2059f4048b0a94b8c",
         strip_prefix = "cvm-{commit}".format(commit=cvm_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/{commit}/cvm-{commit}.tar.bz2".format(commit=cvm_hash),
     )
@@ -67,22 +67,12 @@ cc_library(
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv/swerv-iss.git",
     )
 
-    core_arch_checker_hash="28043f45aaeefb5f3db5e626e59ac18ef3ebd519"
+    core_arch_checker_hash="a2340db8d13318281512b577b69dc9d7935f3f95"
     maybe(
         http_archive,
         name = "CoreArchChecker",
         strip_prefix = "CoreArchChecker-{commit}".format(commit=core_arch_checker_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/CoreArchChecker/-/archive/{commit}/CoreArchChecker-{commit}.tar.bz2".format(commit=core_arch_checker_hash),
-    )
-
-    testgen_hash="6cd25f1c2973396bce233e6a5d38e5a401943a25"
-    maybe(
-        git_repository,
-        name = "testgen",
-        commit = testgen_hash,
-        shallow_since = "1677278961 -0600",
-        recursive_init_submodules = True,
-        remote = "git@aus-gitlab.local.tenstorrent.com:riscv/dv/testgen.git",
     )
 
     rules_python_version = "0.11.0"

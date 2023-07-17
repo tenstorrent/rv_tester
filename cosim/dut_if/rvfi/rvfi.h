@@ -1,6 +1,7 @@
 #pragma once
 
 #include <fstream>
+#include <fmt/format.h>
 
 #include "cvm/registry.hpp"
 #include "cvm/logger.hpp"
@@ -45,6 +46,7 @@ class rvfi {
 
     void make_instr(const rv_tester_transactions::cosim::m_rvfi& m_rvfi, rv_instr_t& instr);
     void print_instr(rv_instr_t& instr);
+    void print_instr_resource(rv_instr_t& instr, std::string resource_str);
     void send_instr(rv_instr_t& instr);
     void enter_debug_mode(rv_instr_t& instr);
     void exit_debug_mode(rv_instr_t& instr);
@@ -60,7 +62,9 @@ class rvfi {
     std::unique_ptr<bridge> bridge_;
     std::unique_ptr<eot> eot_;
 
-    uint64_t count_ = 0;
+    rv_instr_t prev_instr_;
+
+    uint64_t count_ = 1;
 
     bool intr_ = false;
     bool excp_ = false;

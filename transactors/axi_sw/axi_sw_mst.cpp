@@ -31,7 +31,7 @@ axi_sw_mst::axi_sw_mst(cvm::topology::loc_t loc, unsigned /*id*/)
 
     // available burst sizes
     uint32_t max_size = data_width_ >> 3;
-    for (uint32_t i = 1; i < max_size; i*=2)
+    for (uint32_t i = 1; i <= max_size; i*=2)
       sizes_.push_back(i);
 
     cvm::registry::messenger.connect<svScope>(

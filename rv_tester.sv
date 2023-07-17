@@ -40,6 +40,11 @@ module rv_tester #(
     int quiesce_counter = 0;
     int quiesce_timeout = 500;
 
+    int unsigned location = cvm_topology::nil;
+
+    bit gen_clocks = '0;
+    string cvm_verbosity, gen_clocks_verbosity;
+
     assign terminate           = (rv_tester_error_terminate.terminate || (sysmod_terminate.terminate && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
     assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout);
     assign rerun_now           = terminated && rerun_test != 0;
@@ -88,12 +93,21 @@ module rv_tester #(
             rv_tester_parse_flags();
             rv_tester_cvm_error_handler();
             rv_tester_parse_memmap();
+
+            /* verilator lint_off BLKSEQ */
+            // zebu bug doesn't allow nested function calls, so create intermediate variables
+            cvm_verbosity        = cvm_plusargs::get_string("cvm_verbosity");
+            gen_clocks_verbosity = cvm_plusargs::get_string("gen_clocks_verbosity");
+            location             = cvm_topology::get_location(topology_pkg::mods.TOP.PLATFORM.ID, 0);
+            /* verilator lint_on BLKSEQ */
+
+            cb_poll             <= cvm_plusargs::get_bool("cb_async") == '0;
+            quiesce_timeout     <= cvm_plusargs::get_int("quiesce_timeout");
+            call_finish         <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
+            gen_clocks          <= cvm_logger::get_verbosity(cvm_verbosity) >= cvm_logger::get_verbosity(gen_clocks_verbosity);
+
             $display("[RVTESTER]: reconstructing registry");
             rv_tester_build_registry();
-            cb_poll         <= cvm_plusargs::get_bool("cb_async") == '0;
-            quiesce_timeout <= cvm_plusargs::get_int("quiesce_timeout");
-            call_finish     <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
-
         end
 
         rerun_test      <= rerun_test - int'(rerun_now);
@@ -159,7 +173,7 @@ module rv_tester #(
 
     `RV_TESTER_TRANSACTIONS_DOMAIN(1, clk);
 
-    sysmod#(
+    sysmod #(
         .CLOCK_PERIOD_PS(CLOCK_PERIOD_PS),
         .SW_CLOCK_UPDATE_PERIOD_PS(SW_CLOCK_UPDATE_PERIOD_PS),
         .NUM(0),
@@ -193,6 +207,10 @@ module rv_tester #(
         `RV_TESTER_TRANSACTIONS_SOURCE_COSIM(1, 0)
     );
 `endif
+
+    assign tx_dom_1.logger_cycles[0][0].valid = gen_clocks;
+    assign tx_dom_1.logger_cycles[0][0].data.location = location;
+    assign tx_dom_1.logger_cycles[0][0].data.clock = clocks;
 
     for (genvar p = 0; p < topology.TOP.PLATFORM.AXI.TOTAL; p++) begin : axi_sw_slvs
         axi_sw #(

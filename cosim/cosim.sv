@@ -35,8 +35,11 @@ module cosim #(
         assign m_rvfis[n].valid = ~reset & rvfi[n].valid & rvfi_enabled;
         assign m_rvfis[n].data.location = location;
         assign m_rvfis[n].data.cycle = clocks;
+        assign m_rvfis[n].data.last_uop = rvfi[n].last_uop;
+        assign m_rvfis[n].data.comp = rvfi[n].comp;
         assign m_rvfis[n].data.order = rvfi[n].order;
         assign m_rvfis[n].data.insn = rvfi[n].insn;
+        assign m_rvfis[n].data.uop = rvfi[n].uop;
         assign m_rvfis[n].data.trap = rvfi[n].trap;
         assign m_rvfis[n].data.cause = rvfi[n].cause;
         assign m_rvfis[n].data.intr = rvfi[n].intr;

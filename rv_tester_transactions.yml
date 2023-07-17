@@ -11,10 +11,16 @@ cosim:
         fields:
             cycle:
                 width: 64
+            last_uop:
+                width: 1
+            comp:
+                width: 1
             order:
                 width: 64
             insn:
                 width: 32
+            uop:
+                width: 64
             trap:
                 width: 1
             intr:
@@ -212,3 +218,12 @@ axi_sw_mst:
         fields:
             w_ptr:
                 width: ${TOP.PLATFORM.AXI_MST.W_Q_PTR_MAX_LOG2}
+
+logger:
+    num: 1
+    cycle:
+        domain: 1
+        num: 1
+        fields:
+            clock:
+                width: 64

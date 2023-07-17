@@ -58,6 +58,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             "@rv_tester//:rv_tester_clkgen.sv"
         ],
         deps = [
+            "@cvm//:logger_sv",
             name + "_harness",
             name + "_transactions_sv",
             name + "_sysmod_sv",
