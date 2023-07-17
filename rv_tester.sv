@@ -30,10 +30,10 @@ module rv_tester #(
     bit cb_poll = '0;
     bit cb_success = '1;
     logic call_finish;
-    int rerun_test = -1;
+    int num_reruns = -1;
 
-    logic terminated = '0; // used for emu trigger
-    logic ready_to_terminate;
+    logic terminate_now;
+    logic rerun_now;
     rv_tester_pkg::terminate_t rv_tester_error_terminate;
     rv_tester_pkg::terminate_t sysmod_terminate;
 
@@ -41,88 +41,110 @@ module rv_tester #(
     int quiesce_timeout = 500;
 
     int unsigned location = cvm_topology::nil;
-    bit gen_clocks = '0;
 
+    bit gen_clocks = '0;
     string cvm_verbosity, gen_clocks_verbosity;
 
-    assign terminate = (quiesce_counter > 0);
+    assign terminate           = (rv_tester_error_terminate.terminate || (sysmod_terminate.terminate && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
+    assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout);
+    assign rerun_now           = terminated && num_reruns != 0;
+
+    /*
+    * Don't put an DPI calls here, zebu gets confused when signals are driven
+    * in the same block as zDPI and leads to weird bugs. Eg, triggers on
+    * terminated stopped working, and rv_tester_reset stopped being depositable
+    * from the tcl shell.
+    */
+    always @(posedge clk) begin
+
+        rv_tester_reset <= rerun_now;
+        sysmod_reset    <= '0;
+        clocks          <= clocks + 1;
+
+        quiesce_counter <= quiesce_counter + int'(terminate);
+        terminated      <= (terminate_now || terminated) && !rerun_now;
+
+        if (rv_tester_reset) begin
+            clocks          <= '0;
+            sysmod_reset    <= '1;
+            quiesce_counter <= '0;
+            terminated      <= '0;
+        end
+
+    end
 
     always @(posedge clk) begin
-        rv_tester_reset <= '0;
-        sysmod_reset <= 0;
-        clocks <= clocks + 1;
+        if(rerun_now) begin
+            $display("<%0d> [RVTESTER]: rerunning test %0d time(s)", clocks, num_reruns);
+        end
+    end
+
+    /*
+    * Group all zebu zemi3 DPIs here
+    * These are run on a separate thread than the faster zDPI, so make sure
+    * these are only run at rv_tester_reset, when no other zDPIs should be
+    * called.
+    */
+    always @(posedge clk) begin
+
         if (rv_tester_reset) begin
-            clocks <= 0;
-            sysmod_reset <= '1;
-            quiesce_counter <= '0;
-            terminated <= '0;
 
             $display("[RVTESTER]: new test");
             rv_tester_parse_flags();
             rv_tester_cvm_error_handler();
             rv_tester_parse_memmap();
-            $display("[RVTESTER]: reconstructing registry");
 
             /* verilator lint_off BLKSEQ */
-            cb_poll <= cvm_plusargs::get_bool("cb_async") == '0;
-            quiesce_timeout <= cvm_plusargs::get_int("quiesce_timeout");
-            call_finish <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
-
-            // emu needs these calls to be separated
-            cvm_verbosity = cvm_plusargs::get_string("cvm_verbosity");
+            // zebu bug doesn't allow nested function calls, so create intermediate variables
+            cvm_verbosity        = cvm_plusargs::get_string("cvm_verbosity");
             gen_clocks_verbosity = cvm_plusargs::get_string("gen_clocks_verbosity");
-            gen_clocks <= cvm_logger::get_verbosity(cvm_verbosity) >= cvm_logger::get_verbosity(gen_clocks_verbosity);
-            location = cvm_topology::get_location(topology_pkg::mods.TOP.PLATFORM.ID, 0);
-
-            rv_tester_error_terminate.terminate = '0;
+            location             = cvm_topology::get_location(topology_pkg::mods.TOP.PLATFORM.ID, 0);
             /* verilator lint_on BLKSEQ */
 
+            cb_poll             <= cvm_plusargs::get_bool("cb_async") == '0;
+            quiesce_timeout     <= cvm_plusargs::get_int("quiesce_timeout");
+            call_finish         <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
+            gen_clocks          <= cvm_logger::get_verbosity(cvm_verbosity) >= cvm_logger::get_verbosity(gen_clocks_verbosity);
+
+            $display("[RVTESTER]: reconstructing registry");
             rv_tester_build_registry();
         end
 
-        if (rerun_test < 0) begin
-            rerun_test <= cvm_plusargs::get_int("rerun_test");
+        num_reruns      <= num_reruns - int'(rerun_now);
+        if (num_reruns < 0) begin
+            num_reruns  <= cvm_plusargs::get_int("num_reruns");
         end
 
-        /* verilator lint_off BLKSEQ */
-        ready_to_terminate = rv_tester_error_terminate.terminate || (sysmod_terminate.terminate && !sysmod_reset);
-        /* verilator lint_on BLKSEQ */
+    end
 
-        if ((ready_to_terminate || quiesce_counter > 0) && !rv_tester_reset) begin
-          quiesce_counter <= quiesce_counter + 1;
-          if (quiesced || quiesce_counter >= quiesce_timeout) begin
+    /*
+    * rv_tester_shutdown_registry could be called at the same time as
+    * transactions (axi, cosim, etc). So it's put in a separate always block
+    * from the rv_tester_reset group of zemi3 DPI. Otherwise zebu will make
+    * rv_tester_shutdown_registry a zemi3 DPI and we'll have thread safety
+    * issues with coinciding zDPIs from transactions.
+    */
+    always @(posedge clk) begin
+
+        if (terminate_now && !terminated) begin
 
             if (quiesced) begin
-              $display("<%0d> [RVTESTER]: exiting gracefully", clocks);
+                $display("<%0d> [RVTESTER]: exiting gracefully", clocks);
             end else if (quiesce_counter == 0) begin
-              $display("<%0d> [RVTESTER]: exiting immediately because +quiesce_counter=0", clocks);
+                $display("<%0d> [RVTESTER]: exiting immediately because +quiesce_counter=0", clocks);
             end else begin
-              $display("<%0d> Error: Waiting to quiesce for more than %0d cycles", clocks, quiesce_timeout);
+                $display("<%0d> Error: Waiting to quiesce for more than %0d cycles", clocks, quiesce_timeout);
             end
 
             rv_tester_shutdown_registry();
 
-            if (call_finish && rerun_test == '0) begin
+            if (call_finish && num_reruns == '0) begin
                 $finish();
             end
 
-            terminated <= 1;
-
-          end
-        end
-        /* verilator lint_off BLKANDNBLK */
-        rv_tester_error_terminate.terminate <= '0;
-        /* verilator lint_on BLKANDNBLK */
-
-        if(terminated) begin
-            if(rerun_test != 0) begin
-                $display("<%0d> [RVTESTER]: rerunning test %0d time(s)", clocks, rerun_test);
-                rv_tester_reset <= '1;
-                rerun_test <= rerun_test-1;
-                terminated <= '0;
-            end
         end
     end
+
     assign reset = clocks < LU'(RESET_CLOCKS) || rv_tester_reset || sysmod_reset;
 
 `ifdef NEGEDGE_UNSUPPORTED
@@ -136,6 +158,13 @@ module rv_tester #(
             /* verilator lint_on BLKSEQ */
         end
     end
+
+    always @(posedge clk) begin
+        /* verilator lint_off BLKANDNBLK */
+        rv_tester_error_terminate.terminate <= '0;
+        /* verilator lint_on BLKANDNBLK */
+    end
+
 
     function void rv_tester_terminate ();
       rv_tester_error_terminate.terminate = '1;

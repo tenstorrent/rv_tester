@@ -17,8 +17,8 @@ static bool validate_ge0(const char* flagname, const int value) {
 
 DEFINE_int32(quiesce_timeout, 500, "cycles to wait after eot condition before calling $finish");
 DEFINE_bool(terminate_call_finish, true, "Call $finish on sim termination");
-DEFINE_int32(rerun_test, 0, "Rerun the same test this many times, to test test chaining for emulation. The test is run for a total of N+1 times.");
-DEFINE_validator(rerun_test, &validate_ge0);
+DEFINE_int32(num_reruns, 0, "Rerun the same test this many times, to test test chaining for emulation. The test is run for a total of N+1 times.");
+DEFINE_validator(num_reruns, &validate_ge0);
 DEFINE_string(gen_clocks_verbosity, "DEBUG", "verbosity at which to generate clocks with cvm::logger prints");
 
 extern "C" void rv_tester_terminate();
