@@ -156,6 +156,7 @@ package rv_tester_params;
     input  rv_tester_pkg::dm_write_t                    dmi_write,                                           \
     output                                              debug_mode,                                          \
     input                                               terminate,                                           \
+    input  logic                                        terminated,                                          \
     output                                              quiesced,                                            \
                                                                                                              \
     output rv_tester_params::rvfi_t          rvfi_instr   [topology.TOP.CLUSTER.CORE.NRET],                  \
@@ -174,6 +175,7 @@ package rv_tester_params;
     rv_tester_pkg::dm_write_t                    dmi_write;                                                  \
     logic                                        debug_mode;                                                 \
     logic                                        terminate;                                                  \
+    logic                                        terminated;                                                 \
     logic                                        quiesced;                                                   \
                                                                                                              \
     rv_tester_params::rvfi_t          rvfi_instr   [topology.TOP.CLUSTER.CORE.NRET];                         \
