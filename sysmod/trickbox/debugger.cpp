@@ -7,7 +7,7 @@
 DEFINE_string(dbg_input_file_path, "", "Path to file containing debugger commands");
 
 debugger::debugger(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc)
-  : device(tag, addr, 0x40000 /* size */, loc), soft_(hartCount),
+  : subdevice(tag, addr, 0x40000 /* size */, loc), soft_(hartCount),
     timeCompare_(6),IntrHart_(6),delayedRandomIntValid_(6),IntrValue_(6), timerIntPrev_(hartCount), timer_(0)
 {
   debugger_base = addr;

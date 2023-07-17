@@ -6,7 +6,7 @@
 #include <atomic>
 #include <thread>
 #include <unistd.h>
-#include "sysmod/device.h"
+#include "subdevice.h"
 #include <iostream>
 #include <iostream>
 #include <iomanip>
@@ -34,7 +34,7 @@ DECLARE_bool(disable_seip);
 DECLARE_bool(disable_meip);
 // Define a core local interruptor (interrupter) at the given address
 // and for the given hart count. The size will be 48k bytes.
-class interrupter : public device
+class interrupter : public subdevice
 {
 public:
 
@@ -64,11 +64,11 @@ public:
     for (unsigned i = 0; i < sizeof(x); ++i)
       x |= INT(data[i]) << i*8;
   }
- 
+
   /// Read length bytes from the given address to the data iterator.
   /// No-op if address is outside the range of this interrupter or if
   /// address is not properly aligned.
-  virtual cvm::messenger::task<void> read(uint64_t addr, size_t length, data_t& data) override;
+  cvm::messenger::task<void> read(uint64_t addr, size_t length, data_t& data);
 
   // Write to this interrupter. Call softwareInterrupt with flag set to 0/1
   // if a hart software interrupt entry is written. Update time

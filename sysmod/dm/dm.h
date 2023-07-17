@@ -18,11 +18,9 @@ class dm : public device {
         cvm::messenger::pool<axi::r_t>::channel_info channel;
 
     public:
-        virtual void write(uint64_t addr, size_t length,
-                            const data_t& data, const strb_t& strb) override;
+        void write(const transactor::write_t& w);
 
-        virtual cvm::messenger::task<void> read(uint64_t addr, size_t length,
-                          data_t& data) override;
+        cvm::messenger::task<void> read(const transactor::read_t& r, data_t& data);
 
         virtual void write_axi_mst(uint64_t addr, size_t length,
                             const data_t& data, const strb_t& strb);

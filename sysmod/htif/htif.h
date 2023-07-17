@@ -15,12 +15,11 @@ public:
 
   // Reads outside of device range are ignored. Reads with length
   // different than 8 are ignored.
-  virtual cvm::messenger::task<void> read(uint64_t addr, size_t length, data_t& data) override;
+  void read(const transactor::read_t& r, data_t& data);
 
   // Writes outside of device range are ignored. Writes with length
   // different than 8 are ignored.
-  virtual void write(uint64_t addr, size_t length, const data_t& data,
-		     const strb_t& strb) override;
+  void write(const transactor::write_t& w);
 
   // Copy n bytes from the given integer, x, to the data iterator
   // following little endian convention. If n is larger than the size

@@ -57,11 +57,10 @@ public:
   /// Read length bytes from the given address to the data iterator.
   /// No-op if address is outside the range of this trickbox or if
   /// address is not properly aligned.
-  virtual cvm::messenger::task<void> read(uint64_t addr, size_t length, data_t& data) override;
+  cvm::messenger::task<void> read(const transactor::read_t& r, data_t& data);
 
   // Write to this trickbox.
-  virtual void write(uint64_t addr, size_t length, const data_t& data,
-                      const strb_t& strb) override;
+  void write(const transactor::write_t& w);
 
   virtual void tick(uint64_t advance) override
   {
@@ -76,7 +75,7 @@ private:
   std::atomic<bool> terminate_ = false;
   std::mutex mutex_;
 
-  std::vector<std::unique_ptr<device> > subdevices_;
+  std::vector<std::unique_ptr<subdevice> > subdevices_;
   pcg32 rng;
 };
 

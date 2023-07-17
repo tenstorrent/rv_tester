@@ -42,27 +42,13 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
       [this](const rv_tester_transactions::sysmod::tick& t) { return this->tick(t.advance); });
 
   auto sources = cvm::topology::get_from_type("PLATFORM_TRANSACTOR");
-
-  for (const auto& source : sources) {
-    cvm::registry::messenger.connect<transactor::write_t>(
-        source,
-        [this](transactor::write_t w) {
-            return this->write(w.addr, w.length, w.data, w.strb);
-        });
-
-    auto* l = +[](cvm::topology::loc_t source, sysmod* sm) -> cvm::messenger::task<void> {
-                  auto channel = cvm::registry::messenger.channel<transactor::read_t>(source);
-
-                  while (1) {
-                      auto r = co_await cvm::registry::messenger.wait<transactor::read_t>(channel);
-                      device::data_t data(r.length, 0);
-                      co_await sm->read(r.addr, r.length, data);
-                      cvm::registry::messenger.signal(source, transactor::read_response_t{std::move(data)});
-                  }
-
-                  co_return;
-              };
-    cvm::registry::messenger.fork(l, source, this);
+    for (const auto& source : sources) {
+        cvm::registry::messenger.connect<transactor::write_t>(
+            source,
+            [this](const auto& w) { cvm::registry::messenger.signal<device::write_t>(this->loc_, {w}); });
+        cvm::registry::messenger.connect<transactor::read_t>(
+            source,
+            [this, source](const auto& r) { cvm::registry::messenger.signal<device::read_t>(this->loc_, {r, source}); } );
   }
 
   reset();
@@ -137,6 +123,7 @@ sysmod::compose()
   // Load memmap
   memmap::get(memmap_);
 
+  auto masters = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST");
 
   try {
     for(const auto& d : memmap_) {
@@ -148,20 +135,26 @@ sysmod::compose()
       device* device = nullptr;
 
       if (type == "memory") {
-        device = new sysmod_mem(tag, base, size);
-      } else if (type == "io_dev") {
-        device = new io_dev(tag, base, size);
-      } else if (type == "null_dev") {
-        device = new null_dev(tag, base, size);
-      } else if (type == "htif") {
+        device = new sysmod_mem(tag, base, size, loc_);
+      }
+      else if (type == "io_dev") {
+        device = new io_dev(tag, base, size, loc_);
+      }
+      else if (type == "null_dev") {
+        device = new null_dev(tag, base, size, loc_);
+      }
+      else if (type == "htif") {
         device = new htif(tag, base, loc_);
         cvm::registry::messenger.connect<htif::terminate_t>(
             loc_,
             [&](htif::terminate_t t) { return this->terminate(t); });
-      }else if (type == "dm") {
-        auto axi_mst_loc = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST");
-        device = new dm(tag, base, size,loc_,axi_mst_loc[0]);
-      }else if (type == "clint") {
+      }
+      else if (type == "dm") {
+        // TODO: cvm::ERROR
+        assert(masters.size() > 0);
+        device = new dm(tag, base, size, loc_, masters[0]);
+      }
+      else if (type == "clint") {
         device = new clint(tag, base, 1, loc_);
         cvm::registry::messenger.connect<clint::timer_t>(
             loc_,
@@ -169,7 +162,8 @@ sysmod::compose()
         cvm::registry::messenger.connect<clint::sw_t>(
             loc_,
             [&](clint::sw_t s) { return this->sw_interrupt(s); });
-      } else if (type == "trickbox") {
+      }
+      else if (type == "trickbox") {
         device = new trickbox(tag, base, 1, loc_);
         cvm::registry::messenger.connect<interrupter::interrupt_t>(
             loc_,
@@ -177,7 +171,8 @@ sysmod::compose()
         cvm::registry::messenger.connect<debugger::dmi_data_t>(
             loc_,
             [&](debugger::dmi_data_t i) { return this->dmi_write(i); });
-      } else
+      }
+      else
         cvm::log(cvm::ERROR, "Error: unknown type %s", type);
 
       devices_.emplace_back(device);
@@ -217,7 +212,7 @@ sysmod::load_io(const std::string& io)
     return;
 
   std::stringstream ss(io);
-  while(ss.good()) {
+  while (ss.good()) {
     std::string io_str;
     std::getline(ss, io_str, ',' );
     std::size_t pos = io_str.find(':');
@@ -235,7 +230,7 @@ sysmod::load_io(const std::string& io)
         return;
 
       dev("memory")->backdoor_read(dev(tag)->addr()+offset, 8, data);
-      dev(tag)->write(dev(tag)->addr()+offset, 8, data, strb);
+      dev(tag)->backdoor_write(dev(tag)->addr()+offset, 8, data, strb);
     }
   }
 }
@@ -263,31 +258,6 @@ sysmod::load_prog(const std::string& hex, const std::string& load)
       return;
     }
   }
-}
-
-void
-sysmod::write(uint64_t addr, size_t length, const device::data_t& data, const device::strb_t& strb)
-{
-  //std::cout << std::hex << "write req at: " << addr << '\n';
-  auto d = dev(addr);
-
-  if (d == nullptr)
-    return;
-
-  d->write(addr, length, data, strb);
-}
-
-cvm::messenger::task<void>
-sysmod::read(uint64_t addr, size_t length, device::data_t& data)
-{
-  //std::cout << std::hex << "read req at: " << addr << '\n';
-  auto d = dev(addr);
-
-  if (d == nullptr)
-    co_return;
-
-  co_await d->read(addr, length, data);
-  co_return;
 }
 
 void

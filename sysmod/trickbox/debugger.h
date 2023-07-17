@@ -6,7 +6,6 @@
 #include <atomic>
 #include <thread>
 #include <unistd.h>
-#include "sysmod/device.h"
 #include <iostream>
 #include <iostream>
 #include <iomanip>
@@ -24,13 +23,14 @@
 #include "cvm/plusargs.hpp"
 #include "cvm/topology.hpp"
 #include "cvm/registry.hpp"
+#include "subdevice.h"
 #include "vpi_user.h"
 
 //DEFINE_string(dbg_input_file_path, "", "Path to file containing debugger commands");
 DECLARE_string(dbg_input_file_path);
 // Define a core local  (debugger) at the given address
 // and for the given hart count. The size will be 48k bytes.
-class debugger : public device
+class debugger : public subdevice
 {
 public:
 
@@ -64,7 +64,7 @@ public:
   /// Read length bytes from the given address to the data iterator.
   /// No-op if address is outside the range of this debugger or if
   /// address is not properly aligned.
-  virtual cvm::messenger::task<void> read(uint64_t addr, size_t length, data_t& data) override;
+  cvm::messenger::task<void> read(uint64_t addr, size_t length, data_t& data);
 
   // Write to this debugger.
   virtual void write(uint64_t addr, size_t length, const data_t& data,

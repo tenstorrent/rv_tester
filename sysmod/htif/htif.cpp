@@ -8,7 +8,7 @@
 #include "cvm/registry.hpp"
 
 htif::htif(const std::string& tag, uint64_t addr, cvm::topology::loc_t loc)
-  : device(tag, addr, 16 /* size */, loc)
+  : device(tag, addr, 16 /* size */, loc, &htif::write, &htif::read, this), to_(0), from_(0)
 {
 }
 
@@ -18,17 +18,21 @@ htif::~htif()
 }
 
 
-cvm::messenger::task<void>
-htif::read(uint64_t addr, size_t length, data_t& data)
+void
+htif::read(const transactor::read_t& r, data_t& data)
 {
-  if (not has_addr(addr) or length != 8 or (addr % 8) != 0)
-    co_return;
+  auto& addr = r.addr;
+  auto& length = r.length;
+
+  if (length != 8 or (addr % 8) != 0)
+    return;
 
   uint64_t offset = addr - this->addr();
   uint64_t di = offset / 8;  // Double word index
+
   uint64_t dword = di == 0? to_ : from_;
   serializeInt(dword, length, data);
-  co_return;
+  return;
 }
 
 
@@ -71,10 +75,13 @@ readCharNonBlocking(int fd)
 
 
 void
-htif::write(uint64_t addr, size_t length, const data_t& data,
-	    const strb_t&)
+htif::write(const transactor::write_t& w)
 {
-  if (not has_addr(addr) or length != 8 or (addr % 8) != 0)
+  auto& addr = w.addr;
+  auto& length = w.length;
+  auto& data = w.data;
+
+  if (length != 8 or (addr % 8) != 0)
     return;
 
   uint64_t dword = 0;
