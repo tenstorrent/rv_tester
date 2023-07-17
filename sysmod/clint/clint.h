@@ -48,7 +48,7 @@ public:
   /// Read length bytes from the given address to the data iterator.
   /// No-op if address is outside the range of this clint or if
   /// address is not properly aligned.
-  virtual cvm::messenger::task<void> read(uint64_t addr, size_t length, data_t& data) override;
+  void read(const transactor::read_t& r, data_t& data);
 
   // Write to this clint. Call softwareInterrupt with flag set to 0/1
   // if a hart software interrupt entry is written. Update time
@@ -58,8 +58,7 @@ public:
   // This is a no-op if address is not aligned, if length is not 4 for
   // software interrupt entries, if length is not 8 for
   // timer/time-compare entries.
-  virtual void write(uint64_t addr, size_t length, const data_t& data,
-                      const strb_t& strb) override;
+  void write(const transactor::write_t& w);
 
   virtual void tick(uint64_t advance) override;
 

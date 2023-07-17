@@ -61,7 +61,7 @@ axi_sw_mst::axi_sw_mst(cvm::topology::loc_t loc, unsigned /*id*/)
 }
 
 void axi_sw_mst::process(const rv_tester_transactions::axi_sw_mst::b& b) {
-    if (b.resp != axi::RESP_OKAY) {
+    if (b.resp != axi::RESP_OKAY or not used_id(b.id)) {
         // could have EXOKAY if it was locked, but assume not for now
         cvm::log(cvm::ERROR, "[AXI] bad b.response id:{} resp: {}\n", b.id, b.resp);
         return;
@@ -77,7 +77,7 @@ void axi_sw_mst::process(const rv_tester_transactions::axi_sw_mst::b& b) {
 }
 
 void axi_sw_mst::process(const rv_tester_transactions::axi_sw_mst::r& r) {
-    if (r.resp != axi::RESP_OKAY) {
+    if (r.resp != axi::RESP_OKAY or not used_id(r.id)) {
         cvm::log(cvm::ERROR, "[AXI] bad r.response id: {} resp: {} last: {}\n", r.id, r.resp, r.last);
         return;
     }
@@ -94,7 +94,7 @@ void axi_sw_mst::process(const rv_tester_transactions::axi_sw_mst::r& r) {
     if (r.last) {
         cvm::registry::messenger.signal<transactor::read_response_t>(
             loc_,
-            transactor::read_response_t{std::move(read_data_[r.id])});
+            transactor::read_response_t{r.id, std::move(read_data_[r.id])});
 
         free_id(r.id);
         read_data_[r.id] = {};

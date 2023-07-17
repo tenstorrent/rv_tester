@@ -7,6 +7,7 @@ cc_library(
         "@cvm//:plusargs",
         "@cvm//:logger",
         "@cvm//:messenger",
+        "@rv_tester//common:common",
     ],
     alwayslink = True,
     linkstatic = True,

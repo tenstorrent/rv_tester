@@ -123,6 +123,7 @@ cvm::messenger::task<void> axi::operator()() {
 
         a_q_.dequeue();
 
+        id_t id                     = a.id;
         addr_t num_bytes            = 1 << a.size;
         addr_t burst_len            = a.len + 1;
         addr_t aligned_addr         = a.addr / num_bytes * num_bytes;
@@ -157,7 +158,7 @@ cvm::messenger::task<void> axi::operator()() {
 
                 axi::data_t read_data;
                 if (!a.w || a.atop.transaction != NON_ATOMIC) {
-                    read_data = co_await transactor::read(start, len);
+                    read_data = co_await transactor::read(id, start, len);
                     read_data.resize(data_bus_bytes, 0);
                 }
 

@@ -11,17 +11,15 @@ class sysmod_mem : public device {
         mem_manager m_;
 
     public:
-        virtual void write(uint64_t addr, size_t length,
-                            const data_t& data, const strb_t& strb) override;
+        void write(const transactor::write_t& w);
 
-        virtual cvm::messenger::task<void> read(uint64_t addr, size_t length,
-                                                data_t& data) override;
+        void read(const transactor::read_t& r, data_t& data);
 
         virtual void backdoor_read(uint64_t addr, size_t length, data_t& data) override;
 
         // add max mem size
-        sysmod_mem(const std::string& tag, uint64_t addr, size_t size)
-                    : device(tag, addr, size, cvm::topology::null) {}
+        sysmod_mem(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc)
+          : device(tag, addr, size, loc, &sysmod_mem::write, &sysmod_mem::read, this) { }
 
         /// Initialize memory with hex file.
         bool init_hex(const std::string& path);

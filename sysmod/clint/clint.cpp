@@ -7,7 +7,7 @@
 
 clint::clint(const std::string& tag, uint64_t addr, unsigned hartCount,
              cvm::topology::loc_t loc)
-  : device(tag, addr, 0xc000 /* size */, loc), hartCount_(hartCount), soft_(hartCount),
+  : device(tag, addr, 0xc000 /* size */, loc, &clint::write, &clint::read, this), hartCount_(hartCount), soft_(hartCount),
     timeCompare_(hartCount, -1), timerIntPrev_(hartCount, 0), timer_(0)
 {
   auto clint_loc = cvm::topology::get_from_type("CLINT", 0);
@@ -55,45 +55,45 @@ clint::~clint()
 }
 
 
-cvm::messenger::task<void>
-clint::read(uint64_t addr, size_t length, data_t& data)
+void
+clint::read(const transactor::read_t& r, data_t& data)
 {
-  if (not has_addr(addr))
-    co_return;
+  auto& addr = r.addr;
+  auto& length = r.length;
 
   uint64_t offset = addr - device::addr();
   if (offset < 0x4000) {
     // Sofware interrupt: 1 word per hart.
     if ((offset % 4) != 0)
-      co_return;  // Address must be a multiple of 4.
+      return;  // Address must be a multiple of 4.
     unsigned hartIx = offset / 4;
     uint32_t word = (hartIx < hartCount_) ? soft_.at(hartIx) : 0;
     serializeInt(word, length, data);
-    co_return;
+    return;
   }
 
   if (offset == 0xbff8) {
     serializeInt(timer_, length, data);
-    co_return;
+    return;
   }
 
   // Time compare. 1 double word per hart.
   if ((offset % 8) != 0)
-    co_return;
+    return;
   offset -= 0x4000;
   unsigned hartIx = offset / 8;
   uint64_t dword = hartIx < hartCount_ ? timeCompare_.at(hartIx) : 0;
   serializeInt(dword, length, data);
-  co_return;
+  return;
 }
 
 
 void
-clint::write(uint64_t addr, size_t length, const data_t& data,
-		 const strb_t&)
+clint::write(const transactor::write_t& w)
 {
-  if (not has_addr(addr))
-    return;
+  auto& addr = w.addr;
+  auto& length = w.length;
+  auto& data = w.data;
 
   uint64_t offset = addr - device::addr();
   if (offset < 0x4000) {

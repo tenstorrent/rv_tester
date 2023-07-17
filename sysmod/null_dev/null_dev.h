@@ -10,14 +10,12 @@ class null_dev : public device {
 
 
     public:
-        virtual void write(uint64_t addr, size_t length,
-                            const data_t& data, const strb_t& strb) override;
+        void write(const transactor::write_t& w);
 
-        virtual cvm::messenger::task<void> read(uint64_t addr, size_t length,
-                                                data_t& data) override;
+        void read(const transactor::read_t& r, data_t& data);
 
         // add max mem size
-        null_dev(const std::string& tag, uint64_t addr, size_t size) : device(tag, addr, size, cvm::topology::null) {}
+        null_dev(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc) : device(tag, addr, size, loc, &null_dev::write, &null_dev::read, this) { }
 
 
 };

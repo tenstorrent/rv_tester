@@ -20,7 +20,11 @@ class axi_sw_mst {
             connect<Args...>();
         }
 
-        void free_id(uint32_t id) {
+        inline bool used_id(uint32_t id) {
+            return !ids_[id];
+        }
+
+        inline void free_id(uint32_t id) {
             ids_[id] = true;
         }
 

@@ -1,13 +1,16 @@
 cc_library(
     name = "trickbox",
-    srcs = [ "interrupter.cpp",
-             "debugger.cpp",
-             "trickbox.cpp"
-            ],
-    hdrs = [ "interrupter.h",
-             "debugger.h",
-             "trickbox.h"
-            ],
+    srcs = [
+      "interrupter.cpp",
+      "debugger.cpp",
+      "trickbox.cpp"
+    ],
+    hdrs = [
+      "subdevice.h",
+      "interrupter.h",
+      "debugger.h",
+      "trickbox.h"
+    ],
     deps = [
              "//common:common",
              "//sysmod:device",

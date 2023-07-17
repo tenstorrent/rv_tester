@@ -16,7 +16,7 @@
  DEFINE_bool(disable_seip,false,"Disable Random S EXT interrupt generation ");
  DEFINE_bool(disable_meip,false,"Disable Random M EXT interrupt generation ");
 interrupter::interrupter(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc)
-  : device(tag, addr, 0x4000 /* size */, loc),
+  : subdevice(tag, addr, 0x4000 /* size */, loc),
     timeCompare_(6),IntrHart_(6),delayedRandomIntValid_(6),IntrValue_(6), timerIntPrev_(hartCount), timer_(0)
 {
   rng.seed(FLAGS_seed);
@@ -25,9 +25,9 @@ interrupter::interrupter(const std::string& tag, uint64_t addr, unsigned hartCou
   reset();
   //populate disable mask as per plusargs
   disable_mask = (FLAGS_disable_meip <<5)|(FLAGS_disable_seip <<4)|(FLAGS_disable_mtip <<3)|(FLAGS_disable_stip <<2)| (FLAGS_disable_msip << 1) |FLAGS_disable_ssip;
-  disable_mask_neg = (~disable_mask) & 0xff; 
+  disable_mask_neg = (~disable_mask) & 0xff;
   cvm::log(cvm::LOW, "[Trickbox] Random Interrupt disable_mask :  {} disable_mask_neg {} \n",disable_mask,disable_mask_neg);
-  checkUsage(); 
+  checkUsage();
 }
 
 
@@ -38,10 +38,10 @@ interrupter::~interrupter()
     timerThread_.join();
 }
 
-void 
+void
 interrupter::checkUsage()
 {
-  unsigned active_interrupts = numInterrupts_ - (FLAGS_disable_ssip + FLAGS_disable_msip + FLAGS_disable_stip + FLAGS_disable_mtip + FLAGS_disable_seip + FLAGS_disable_meip); 
+  unsigned active_interrupts = numInterrupts_ - (FLAGS_disable_ssip + FLAGS_disable_msip + FLAGS_disable_stip + FLAGS_disable_mtip + FLAGS_disable_seip + FLAGS_disable_meip);
   if(FLAGS_random_intr){
     if(disable_mask == ((1<<numInterrupts_)-1)){
     //Error: asked to generate random interrupts when all interrupts are disabled

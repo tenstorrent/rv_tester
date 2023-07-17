@@ -2,9 +2,11 @@
 #include "sysmod_mem.h"
 
 
-void sysmod_mem::write(uint64_t addr, size_t length, const data_t& data, const strb_t& strb) {
-  if (not has_addr(addr))
-    return;
+void sysmod_mem::write(const transactor::write_t& w) {
+  auto& addr = w.addr;
+  auto& length = w.length;
+  auto& data = w.data;
+  auto& strb = w.strb;
 
   for (size_t i = 0; i < length; i++) {
     if (strb[i]) {
@@ -14,18 +16,16 @@ void sysmod_mem::write(uint64_t addr, size_t length, const data_t& data, const s
   return;
 }
 
-cvm::messenger::task<void> sysmod_mem::read(uint64_t addr, size_t length, data_t& data) {
-  if (not has_addr(addr))
-    co_return;
+void sysmod_mem::read(const transactor::read_t& r, data_t& data) {
+  auto& addr = r.addr;
+  auto& length = r.length;
 
   m_.read(addr, length, data.data());
-
-  co_return;
+  return;
 }
 
 void sysmod_mem::backdoor_read(uint64_t addr, size_t length, data_t& data) {
   m_.read(addr, length, data.data());
-
   return;
 }
 

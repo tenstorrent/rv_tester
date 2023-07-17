@@ -2,14 +2,14 @@
 #include "trickbox.h"
 
 trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned, cvm::topology::loc_t loc)
-  : device(tag, addr, 0xc0000 /* size */, loc)
+  : device(tag, addr, 0xc0000 /* size */, loc, &trickbox::write, &trickbox::read, this)
 {
-  device* subdevice = nullptr;
+  subdevice* sub = nullptr;
   interrupter_base = addr;
-  subdevice = new interrupter("interrupter", interrupter_base, 1, loc);
-  subdevices_.emplace_back(subdevice);
-  subdevice = new debugger("debugger", addr + 0x50000, 1, loc);
-  subdevices_.emplace_back(subdevice);
+  sub = new interrupter("interrupter", interrupter_base, 1, loc);
+  subdevices_.emplace_back(sub);
+  sub = new debugger("debugger", addr + 0x50000, 1, loc);
+  subdevices_.emplace_back(sub);
 }
 
 
@@ -20,18 +20,21 @@ trickbox::~trickbox()
 
 
 cvm::messenger::task<void>
-trickbox::read(uint64_t addr, size_t, data_t&)
+trickbox::read(const transactor::read_t&, data_t&)
 {
   co_return;
 }
 
 
 void
-trickbox::write(uint64_t addr, size_t length, const data_t& data,
-		 const strb_t& strb)
+trickbox::write(const transactor::write_t& w)
 {
+  auto& addr = w.addr;
+  auto& length = w.length;
+  auto& data = w.data;
+  auto& strb = w.strb;
+
   for (auto& d : subdevices_) {
     d->write(addr,length,data,strb);
   }
-
 }

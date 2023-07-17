@@ -12,14 +12,12 @@ class io_dev : public device {
         mem_manager m_;
 
     public:
-        virtual void write(uint64_t addr, size_t length,
-                            const data_t& data, const strb_t& strb) override;
+        void write(const transactor::write_t& w);
 
-        virtual cvm::messenger::task<void> read(uint64_t addr, size_t length,
-                          data_t& data) override;
+        void read(const transactor::read_t& r, data_t& data);
 
         // add max mem size
-        io_dev(const std::string& tag, uint64_t addr, size_t size);
+        io_dev(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc);
 
            /// Initialize memory with elf file.
         bool init_elf(const std::string& path);
