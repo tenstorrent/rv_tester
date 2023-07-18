@@ -24,8 +24,9 @@ void dm::write(const transactor::write_t& w) {
   auto& addr = w.addr;
   auto& length = w.length;
   auto& data = w.data;
+  auto& strb = w.strb;
 
-  cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data});
+  cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb});
 
   return;
 }
