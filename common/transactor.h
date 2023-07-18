@@ -35,6 +35,7 @@ class transactor {
         uint64_t addr;
         size_t length;
         std::vector<uint8_t> data;
+        std::vector<bool> strb;
     };
 
     transactor(cvm::topology::loc_t loc, const std::string& tag)

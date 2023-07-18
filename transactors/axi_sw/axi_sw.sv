@@ -602,6 +602,7 @@ module axi_sw_mst #(
 
             rs[0].valid         <= axi_slv_r_valid && axi_mst_r_ready;
             rs[0].data.location <= location;
+            rs[0].data.id       <= axi_slv_r_id;
             rs[0].data.data     <= axi_slv_r_data;
             rs[0].data.resp     <= axi_slv_r_resp;
             rs[0].data.last     <= axi_slv_r_last;

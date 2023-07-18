@@ -237,10 +237,10 @@ void axi_sw_mst::process(const transactor::write_request_t& req) {
 
     transactions_.emplace_back(a);
 
-
     size_t pow2size = size_t(1) << a.size;
     for (int32_t i = a.len; i >= 0; i--) {
-        transactions_.emplace_back(axi::w_t{axi::data_t(req.data.begin() + pow2size*a.len, req.data.begin() + pow2size*a.len + pow2size), axi::strb_t(pow2size, true), i == 0});
+        transactions_.emplace_back(axi::w_t{axi::data_t(req.data.begin() + pow2size*a.len, req.data.begin() + pow2size*a.len + pow2size),
+                                            axi::strb_t(req.strb.begin() + pow2size*a.len, req.strb.begin() + pow2size*a.len + pow2size), i == 0});
     }
     push_transactions();
 }
