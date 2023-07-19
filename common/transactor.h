@@ -53,15 +53,12 @@ class transactor {
 
     cvm::messenger::task<std::vector<uint8_t>> read(uint32_t id, uint64_t addr, size_t length /*, bool block = false */)
     {
-      // for resolving requests out of order
-      cvm::registry::messenger.channel_filter<read_response_t>(resp_channel_, [&id] (const read_response_t& r) { return r.id == id; });
-
       cvm::registry::messenger.signal<read_t>(
           loc_,
           read_t{id, addr, length});
 
       // TODO: let complete out of order
-      auto response = co_await cvm::registry::messenger.wait<read_response_t>(resp_channel_);
+      auto response = co_await cvm::registry::messenger.wait<read_response_t>(resp_channel_, [&id] (const read_response_t& r) { return r.id == id; });
       co_return response.data;
     }
 
