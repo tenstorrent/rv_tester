@@ -55,10 +55,10 @@ class device {
     requires requires(U read, V* dev, transactor::read_t r, device::data_t d)  {{ std::invoke(read, dev, r, d) } -> std::same_as<cvm::messenger::task<>>; }
     inline void spawn_read_thread(U read, V* dev) {
       auto* l = +[](cvm::topology::loc_t loc_, U read, V* dev) -> cvm::messenger::task<void> {
-          auto channel = cvm::registry::messenger.channel<read_t>(loc_, [dev](const auto& r) { return dev->has_addr(r.r.addr); });
+          auto channel = cvm::registry::messenger.channel<read_t>(loc_);
 
           while (1) {
-              auto r = co_await cvm::registry::messenger.wait<read_t>(channel);
+              auto r = co_await cvm::registry::messenger.wait<read_t>(channel, [dev](const auto& r) { return dev->has_addr(r.r.addr); });
               data_t data(r.r.length, 0);
               co_await std::invoke(read, dev, r.r, data);
               cvm::registry::messenger.signal(r.source, transactor::read_response_t{r.r.id, std::move(data)});
