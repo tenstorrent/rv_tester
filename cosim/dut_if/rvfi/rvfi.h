@@ -66,6 +66,7 @@ class rvfi {
 
     uint64_t count_ = 1;
 
+    bool ucode_ = false;
     bool intr_ = false;
     bool excp_ = false;
     uint64_t icause_ = 0;
