@@ -78,6 +78,7 @@ private:
   void print_instr_stdout(hart_id_t hart, const whisper_state_t& w);
   void print_resource(hart_id_t hart, const whisper_state_t& w);
   void update_pc(hart_id_t hart, src_t src, uint64_t data);
+  void update_insn(hart_id_t hart, src_t src, uint32_t data);
   void update_regs(hart_id_t hart, const rv_instr_t& d);
   void update_regs(hart_id_t hart, const whisper_state_t& w);
   void update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, const std::vector<size_8_bytes_t>&& dword_vec);

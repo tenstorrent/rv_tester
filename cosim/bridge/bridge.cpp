@@ -173,7 +173,9 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
 void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
   update_pc(hart, src_t::dut, d.pc.pc_rdata);
-  //TODO:update_priv(hart, src_t::dut, d.priv);
+  if (!d.comp && !d.ucode) {
+    update_insn(hart, src_t::dut, d.opcode);
+  }
   if (d.gpr.valid || d.fpr.valid || d.vr.valid) {
     update_regs(hart, d);
   }
@@ -404,11 +406,15 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
   w_.priv = w.priv_mode;
   w_.opcode = w.opcode;
   w_.trap = w.trap;
+  w_.comp = ((w.opcode & 0x3) == 0x1) || ((w.opcode & 0x3) == 0x2);
+  w_.ucode = ((w.opcode & 0x3f) == 0x73) | w.trap; // system opcode
   
   w_.pc.valid = true;
   w_.pc.pc_rdata = w.pc;
   update_pc(hart, src_t::iss, w.pc);
 
+  if (!w_.comp && !w_.ucode)
+    update_insn(hart, src_t::iss, w.opcode);
 
   for (auto i = 0u; i < w.change_count; i++) {
     if (!client_->whisperChange(hart, w.resource, w.address, w.value,
@@ -546,6 +552,14 @@ void bridge::update_pc(hart_id_t hart, src_t src, uint64_t data) {
     .offset = 0
   };
   assert(cac_.UpdateResource(hart, src, pc, std::move(cac::CreateBitVec<uint64_t>(data))));
+}
+
+void bridge::update_insn(hart_id_t hart, src_t src, uint32_t data) {
+  resource_id_t insn = resource_id_t{
+    .resource = resource_t::insn_bytes,
+    .offset = 0
+  };
+  assert(cac_.UpdateResource(hart, src, insn, std::move(cac::CreateBitVec<uint64_t>(data))));
 }
 
 void bridge::update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, const std::vector<size_8_bytes_t>&& dword_vec) {

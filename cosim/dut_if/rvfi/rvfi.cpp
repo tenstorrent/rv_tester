@@ -135,8 +135,6 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi& m_rvfi, rv_in
   instr.cycle = m_rvfi.cycle;
   instr.id = count_;
   instr.last_uop = m_rvfi.last_uop;
-  if (m_rvfi.last_uop)
-    count_++;
   instr.comp = m_rvfi.comp;
   instr.tag = m_rvfi.order;
   instr.opcode = m_rvfi.insn;
@@ -147,6 +145,13 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi& m_rvfi, rv_in
   instr.excp = excp_;
   instr.icause = icause_;
   instr.ecause = ecause_;
+  instr.ucode = ucode_;
+  if (!m_rvfi.last_uop) {
+    ucode_ = true;
+  } else {
+    ucode_ = false;
+    count_++;
+  }
 
   // PC
   instr.pc.valid = true;
