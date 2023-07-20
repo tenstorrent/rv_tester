@@ -499,7 +499,7 @@ whisperClient<URV>::whisperExitDebug()
 // possible assuming the MIP CSR has the given mip value.
 template <typename URV>
 bool
-whisperClient<URV>::whisperCheckInterrupt(int hart, uint64_t mip, bool& interrupt)
+whisperClient<URV>::whisperCheckInterrupt(int hart, uint64_t mip, bool& interrupt, uint64_t& cause)
 {
   req.hart = hart;
   req.type = WhisperMessageType::CheckInterrupt;
@@ -511,6 +511,8 @@ whisperClient<URV>::whisperCheckInterrupt(int hart, uint64_t mip, bool& interrup
     return false;
 
   interrupt = reply.flags;
+  cause = reply.value;
+
   return true;
 }
 

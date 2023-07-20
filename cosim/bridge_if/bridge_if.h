@@ -208,4 +208,5 @@ typedef struct rv_intr_s {
   bool seip_posedge;
   bool seip_negedge;
   bool seip;
+  bool stip_negedge;
 } rv_intr_t;  
