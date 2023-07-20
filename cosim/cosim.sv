@@ -95,7 +95,8 @@ module cosim #(
     always @(posedge clk) begin
       interrupt_d1 <= interrupt;
     end
-    assign m_intrs[0].valid = ~reset & (|(interrupt & ~interrupt_d1) | |(~interrupt & interrupt_d1)) & rvfi_enabled;
+    assign m_intrs[0].valid = ~reset & (|(interrupt & ~interrupt_d1) | |(~interrupt & interrupt_d1)
+      | (interrupt.sei & ~interrupt_d1.sei) | (~interrupt.sei & interrupt_d1.sei)) & rvfi_enabled;
     assign m_intrs[0].data.location = location;
     assign m_intrs[0].data.cycle = clocks;
     assign m_intrs[0].data.mip_posedge = |(interrupt & ~interrupt_d1);
@@ -103,6 +104,7 @@ module cosim #(
     assign m_intrs[0].data.seip_posedge = (interrupt.sei & ~interrupt_d1.sei);
     assign m_intrs[0].data.seip_negedge = (~interrupt.sei & interrupt_d1.sei);
     assign m_intrs[0].data.seip = interrupt.sei;
+    assign m_intrs[0].data.stip_negedge = (~interrupt.sti & interrupt_d1.sti);
 
     function automatic bit [63:0] get_mip(rv_tester_pkg::interrupt_t intr);
       bit [63:0] mip = 'h0;

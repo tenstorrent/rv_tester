@@ -108,6 +108,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_intr& m_intr) {
   intr.seip_posedge = m_intr.seip_posedge;
   intr.seip_negedge = m_intr.seip_negedge;
   intr.seip = m_intr.seip;
+  intr.stip_negedge = m_intr.stip_negedge;
 
   bridge_->process_dut_interrupt(0, intr);
   if (FLAGS_rvfi_log) {

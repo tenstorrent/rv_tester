@@ -98,6 +98,8 @@ cosim:
                 width: 1
             seip_negedge:
                 width: 1
+            stip_negedge:
+                width: 1
 
     m_debug:
         domain: 1
