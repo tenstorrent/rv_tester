@@ -14,15 +14,6 @@ def rv_tester_repositories():
         #sha256 = "af87959afe497dc8dfd4c6cb66e1279cb98ccc84284619ebfec27d9c09a903de",
     )
 
-    rules_hdl_hash="03472b2c6bf723c999c4d584359fadbeb76161fe"
-    maybe(
-        http_archive,
-        name = "rules_hdl",
-        sha256 = "3bedc45854d31a2d4b84e6f753217b23f80a8ca409c69be4ca819da820c25d0d",
-        strip_prefix = "bazel_rules_hdl-{commit}".format(commit=rules_hdl_hash),
-        url = "https://aus-gitlab.local.tenstorrent.com/riscv/bazel_rules_hdl/-/archive/{commit}/bazel_rules_hdl-{commit}.tar.bz2".format(commit=rules_hdl_hash),
-    )
-
     corearchcoverage_hash="e057d4df46155a18aaf1051f6114be3f9594a030"
     maybe(
         git_repository,
