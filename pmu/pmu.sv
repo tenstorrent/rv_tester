@@ -25,10 +25,4 @@ module pmu #(
     assign pmcounterss[0].data.location = location;
     assign pmcounterss[0].data.cpu_cycles = clocks;
 
-    always@(pmcounterss[0].valid) begin
-        if (pmcounterss[0].valid) begin
-              $display("here");
-        end
-    end
-
 endmodule
