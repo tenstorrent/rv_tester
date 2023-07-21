@@ -2,18 +2,9 @@
 #include "cvm/registry.hpp"
 #include "pmu.hpp"
 
-static bool validate_period(const char* flagname, uint64_t value) {
-  if (value == 0) {
-    cvm::log(cvm::NONE, "Invalid value for +{}={}\n", flagname, value);
-    return false;
-  }
-  return true;
-}
-
 DEFINE_bool(perf, false, "Enable core performance metrics");
 // TODO: control which are dumped? might not be useful
-DEFINE_uint64(pmcounters_period, 10000, "Update pmcounters every X cycles");
-DEFINE_validator(pmcounters_period, &validate_period);
+DEFINE_uint64(sync_pmcounters_period, 10000, "Sync pmcounters every X cycles");
 DEFINE_bool(pmcounters_log, false, "Dump pmcounters in log");
 DECLARE_string(load);
 
@@ -101,12 +92,12 @@ pmu::process(const rv_tester_transactions::cosim::m_rvfi& m_rvfi)
 void
 pmu::process(const rv_tester_transactions::pmu::pmcounters& pmcounters)
 {
-  if (pmcounters.cpu_cycles >= perf_start_cycle)
+  if (not perf_region_started and (pmcounters.cpu_cycles >= perf_start_cycle) and (perf_start_cycle != 0))
     perf_region_start();
 
   counters = to_vector(pmcounters);
 
-  if (pmcounters.cpu_cycles >= perf_end_cycle)
+  if (perf_region_started and not perf_region_ended and (pmcounters.cpu_cycles >= perf_end_cycle) and (perf_end_cycle != 0))
     perf_region_end();
 
   if (FLAGS_pmcounters_log != 0) {

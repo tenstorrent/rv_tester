@@ -235,8 +235,9 @@ class pmu
     {
       assert(perf_region.size() == counters.size());
 
-      for (size_t i = 0; i < perf_region.size(); i++)
+      for (size_t i = 0; i < perf_region.size(); i++) {
         perf_region[i] = counters[i] - perf_region[i];
+      }
 
       perf_region_ended = true;
     }
