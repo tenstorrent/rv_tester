@@ -19,6 +19,7 @@ DEFINE_string(hex, "", "hex file (program) to load into memory");
 DEFINE_string(load, "", "elf file (program) to load into memory");
 DEFINE_string(load_io, "", "load specified io dev with content from memory");
 DEFINE_bool(sysmod_tick_async, true, "Asynchronous sysmod_tick calls");
+DEFINE_uint64(sysmod_tick_update_threshold, 1, "Slow down tick update frequency by this factor. The tick is still eventually advanced the same cumulative amount, just not as often. Useful for emulation where the clock counts much faster but tests setup interrupts to happen very soon for simulation. They git hit by an interrupt storm and are stuck in the interrupt handler forever.");
 
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 
@@ -293,8 +294,20 @@ sysmod::read(uint64_t addr, size_t length, device::data_t& data)
 void
 sysmod::tick(uint64_t advance)
 {
-  for (auto& d : devices_) {
-      d->tick(advance);
+
+  ticks_ += advance;
+
+  advance = 0;
+  if (ticks_ >= FLAGS_sysmod_tick_update_threshold)  {
+      auto rem = ticks_ % FLAGS_sysmod_tick_update_threshold;
+      advance  = ticks_ - rem;
+      ticks_   = rem;
+  }
+
+  if (advance) {
+      for (auto& d : devices_) {
+          d->tick(advance);
+      }
   }
 }
 
