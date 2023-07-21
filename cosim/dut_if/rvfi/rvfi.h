@@ -11,7 +11,6 @@
 #include "bridge_if.h"
 #include "bridge.h"
 #include "cosim/utils/eot/eot.h"
-#include "pmcounters/pmcounters.hpp"
 
 class rvfi {
 
@@ -51,10 +50,6 @@ class rvfi {
     void enter_debug_mode(rv_instr_t& instr);
     void exit_debug_mode(rv_instr_t& instr);
 
-    void initialize_perf();
-    void collect_perf(const rv_tester_transactions::cosim::m_rvfi& m_rvfi);
-    void report_perf();
-
   private:
 
     cvm::file_logger log;
@@ -71,15 +66,6 @@ class rvfi {
     bool excp_ = false;
     uint64_t icause_ = 0;
     uint64_t ecause_ = 0;
-
-    // perf
-    bool perf_ok_ = false;
-    uint64_t perf_start_pc_;
-    uint64_t perf_start_cycle_ = 0;
-    uint64_t perf_end_pc_;
-    uint64_t perf_end_cycle_ = 0;
-    uint64_t perf_instrs_ = 0;
-    pmcounters pmcs;
 
     cvm::topology::loc_t loc_;
     svScope scope_;
