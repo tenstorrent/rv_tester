@@ -1,4 +1,4 @@
-include: 
+include:
   - local: 'infra/container/gitlab-container.yml'
 
 .clone-variables: &clone-variables
@@ -41,6 +41,7 @@ include:
     - '! $CANNOT_RUN_CONTAINER || BZSIM="${BZSIM} --no-container"'
 
 stages:
+    - submodule_update
     - build
     - notify
 
@@ -59,15 +60,10 @@ smoke:
         << : *bzsim-variables
     timeout: 1h
 
-notify_risc_p_cores:
+notify_rv_common:
     << : *notify-template
     trigger:
-        project: riscv/risc-p-cores
-
-notify_chips:
-    << : *notify-template
-    trigger:
-        project: riscv/chips
+        project: riscv/rv-common
 
 asan+ubsan:
     stage: build
@@ -114,3 +110,26 @@ valgrind:
         << : *clone-variables
         << : *bzsim-variables
     timeout: 1h
+
+submodule_update:
+    stage: submodule_update
+    tags:
+        - jacamar-lsf
+        - curation
+    rules:
+        - if: $UPDATE_REPO_POINTER == "True"
+    before_script:
+        - *clone-script
+        - *bzsim-setup-script
+    script:
+        - echo "Updating ${SHA_UPDATE_REPO} SHA to ${SHA_UPDATE_POINTER} ${SUBMODULE_UPDATER_ACCESS_TOKEN}"
+        - ${BZSIM} extdep update ${SHA_UPDATE_REPO}=${SHA_UPDATE_POINTER}
+        - echo "SHA Update complete. Pushing changes"
+        - git config user.email "${GITLAB_USER_EMAIL}"
+        - git config user.name "${GITLAB_USER_NAME}"
+        - git remote add sha_update_${SHA_UPDATE_POINTER} https://${SUBMODULE_UPDATER_ACCESS_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git
+        - git commit -a -m "Auto updated ${SHA_UPDATE_REPO} pointer"
+        - ./infra/.ci-checkin --remote sha_update_${SHA_UPDATE_POINTER} --target ${CI_DEFAULT_BRANCH} --api-key ${CHECKIN_TOKEN} --skip_commit_check --branch ci-update/${SHA_UPDATE_REPO}/${SHA_UPDATE_POINTER:0:8} --assignee rvinfra
+    variables:
+        << : *clone-variables
+        << : *bzsim-variables
