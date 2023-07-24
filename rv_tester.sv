@@ -204,6 +204,18 @@ module rv_tester #(
     );
 `endif
 
+    pmu #(
+        .NUM(0),
+        `TOPOLOGY_CFG
+    ) pmu (
+        .clk,
+        .reset(sysmod_reset),
+        .clocks,
+        .rvfi(rvfi_instr),
+        .terminate,
+        `RV_TESTER_TRANSACTIONS_SOURCE_PMU(1, 0)
+    );
+
     assign tx_dom_1.logger_cycles[0][0].valid = gen_clocks;
     assign tx_dom_1.logger_cycles[0][0].data.location = location;
     assign tx_dom_1.logger_cycles[0][0].data.clock = clocks;
