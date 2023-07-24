@@ -527,7 +527,7 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w) {
 // Utility functions
 void bridge::update_pc(hart_id_t hart, src_t src, uint64_t data) {
   cac::mask_t mask(64, true);
-  for (int i=va_hi; i<64; i++)
+  for (int i=63; i>va_hi; i--)
     mask[i] = false;
   resource_id_t pc = resource_id_t{
     .resource = resource_t::pc_reg,
