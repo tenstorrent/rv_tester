@@ -12,6 +12,7 @@ module pmu #(
 
     int unsigned location = cvm_topology::nil;
     longint unsigned period = 0;
+    bit sync;
     assign sync = period != '0;
     bit perf_enabled = '0;
 
