@@ -129,7 +129,7 @@ submodule_update:
         - git config user.name "${GITLAB_USER_NAME}"
         - git remote add sha_update_${SHA_UPDATE_POINTER} https://${SUBMODULE_UPDATER_ACCESS_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git
         - git commit -a -m "Auto updated ${SHA_UPDATE_REPO} pointer"
-        - ./infra/.ci-checkin --remote sha_update_${SHA_UPDATE_POINTER} --target ${CI_DEFAULT_BRANCH} --api-key ${CHECKIN_TOKEN} --skip_commit_check --branch ci-update/${SHA_UPDATE_REPO}/${SHA_UPDATE_POINTER:0:8} --assignee rvinfra
+        - ./infra/.ci-checkin --remote sha_update_${SHA_UPDATE_POINTER} --target ${CI_DEFAULT_BRANCH} --api-key ${CHECKIN_TOKEN} --skip_commit_check --branch ci-update/${SHA_UPDATE_REPO}/${SHA_UPDATE_POINTER:0:8} --assignee rvinfra --skip-reviewer-check
     variables:
         << : *clone-variables
         << : *bzsim-variables
