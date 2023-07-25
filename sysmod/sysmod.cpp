@@ -46,10 +46,17 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
     for (const auto& source : sources) {
         cvm::registry::messenger.connect<transactor::write_t>(
             source,
-            [this](const auto& w) { cvm::registry::messenger.signal<device::write_t>(this->loc_, {w}); });
+            [this](const auto& w) {
+                // unnecessary but better for catching bugs
+                if (this->dev(w.addr))
+                    cvm::registry::messenger.signal<device::write_t>(this->loc_, {w});
+            });
         cvm::registry::messenger.connect<transactor::read_t>(
             source,
-            [this, source](const auto& r) { cvm::registry::messenger.signal<device::read_t>(this->loc_, {r, source}); } );
+            [this, source](const auto& r) {
+                if (this->dev(r.addr))
+                    cvm::registry::messenger.signal<device::read_t>(this->loc_, {r, source});
+            });
   }
 
   reset();
