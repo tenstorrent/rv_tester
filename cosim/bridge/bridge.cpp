@@ -191,7 +191,7 @@ void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whi
   // FIXME Get mip value from DUT csr update
   get_whisper_mip(hart, mip_[hart]);
 
-  if (!intr_pins_[hart] && !mip_[hart])
+  if (!intr_pins_[hart] && !mip_[hart] && !prev_intr_pins_[hart])
     return;
 
   uint64_t w_cause;
@@ -213,13 +213,18 @@ void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whi
     return;
   }
 
-  if (d.intr && !w_intr && !FLAGS_cosim_resynch) {
-    cvm::log(cvm::ERROR, "Error: DUT took interrupt, Whisper did not. cause:[{}]\n", d.icause);
-    return;
-  }
-
   if (FLAGS_bridge_log) {
     log(cvm::MEDIUM, "<{}> Interrupt taken by DUT. dcause:[{}] wcause:[{}]\n", w.time, d.icause, w_cause);
+  }
+
+  if (d.intr && !w_intr && !FLAGS_cosim_resynch) {
+    if ((prev_intr_pins_[hart] >> d.icause) & 0x1) {
+      log(cvm::MEDIUM, "<{}> DUT took interrupt, Whisper did not. cause:[{}] - timing issue, pin deasserted after DUT observed\n", w.time, d.icause);
+      poke_mip(hart, w.time, (uint64_t)1 << d.icause);
+    } else {
+      cvm::log(cvm::ERROR, "Error: DUT took interrupt, Whisper did not. cause:[{}]\n", d.icause);
+    }
+    return;
   }
 
   // If DUT took different older interrupt due to timing, get whisper to match
@@ -835,7 +840,7 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
     mip_[hart] &= 0xffdf;
 
   // Poke the interrupt pin values into whisper mip csr and sei pin if applicable
-  poke_mip(hart, i.cycle, i.mip);
+  poke_mip(hart, i.cycle, mip_[hart]);
   if (i.seip_posedge | i.seip_negedge)
     poke_seip(hart, i.cycle, i.seip);
 }
@@ -876,13 +881,13 @@ void bridge::update_intr_age(hart_id_t hart, const rv_instr_t& d) {
   }
 }
 
-void bridge::poke_mip(hart_id_t hart, uint64_t time, uint64_t) {
+void bridge::poke_mip(hart_id_t hart, uint64_t time, uint64_t mip) {
   bool valid;
-  if (!client_->whisperPoke(hart, time, 'c', 0x344, mip_[hart], valid)) {
+  if (!client_->whisperPoke(hart, time, 'c', 0x344, mip, valid)) {
     cvm::log(cvm::ERROR, "Error: Failed to poke mip csr\n");
     return;
   }
-  log(cvm::MEDIUM, "<{}> Mip poked. Mip: {:#x}\n", time, mip_[hart]);
+  log(cvm::MEDIUM, "<{}> Mip poked. Mip: {:#x}\n", time, mip);
 }
 
 void bridge::poke_seip(hart_id_t hart, uint64_t time, bool val) {
