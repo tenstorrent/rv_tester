@@ -44,7 +44,7 @@ module pmu #(
             instructions <= instructions + total;
             // Count supported events
             for (integer n = 0; n < topology.TOP.PLATFORM.PMU.EVENT_COUNT; n++) begin
-              pmcounter[n] <= pmcounter[n] + pmu_event[n];
+              pmcounter[n] <= pmcounter[n] + {60'h0, pmu_event[n]};
             end
         end
     end
