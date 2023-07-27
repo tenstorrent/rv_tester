@@ -215,6 +215,7 @@ module rv_tester #(
         .clk,
         .reset(sysmod_reset),
         .clocks,
+        .pmu_event(pmu_event),
         .rvfi(rvfi_instr),
         .terminate,
         `RV_TESTER_TRANSACTIONS_SOURCE_PMU(1, 0)
