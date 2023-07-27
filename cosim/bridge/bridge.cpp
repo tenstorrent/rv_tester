@@ -883,11 +883,22 @@ void bridge::update_intr_age(hart_id_t hart, const rv_instr_t& d) {
 
 void bridge::poke_mip(hart_id_t hart, uint64_t time, uint64_t mip) {
   bool valid;
-  if (!client_->whisperPoke(hart, time, 'c', 0x344, mip, valid)) {
+  // Peek old mip
+  uint64_t old_mip;
+  if (!client_->whisperPeek(hart, 'c', 0x344, old_mip, valid)) {
+    cvm::log(cvm::ERROR, "Error: Failed to peek mip csr\n");
+    return;
+  }
+
+  // Poke new mip = mask(old mip, sup e/t/s) | mip
+  uint64_t new_mip = (old_mip & 0x222) | mip;
+  mip_[hart] = new_mip;
+
+  if (!client_->whisperPoke(hart, time, 'c', 0x344, new_mip, valid)) {
     cvm::log(cvm::ERROR, "Error: Failed to poke mip csr\n");
     return;
   }
-  log(cvm::MEDIUM, "<{}> Mip poked. Mip: {:#x}\n", time, mip);
+  log(cvm::MEDIUM, "<{}> Mip poked. Mip: {:#x}\n", time, new_mip);
 }
 
 void bridge::poke_seip(hart_id_t hart, uint64_t time, bool val) {
