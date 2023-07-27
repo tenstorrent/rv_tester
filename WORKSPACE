@@ -13,6 +13,18 @@ bzsim_dependencies()
 load("//:repositories.bzl", "rv_tester_repositories")
 rv_tester_repositories()
 
+load("//:repositories2.bzl", "rv_tester_repositories2")
+rv_tester_repositories2()
+
+load("//infra/bazel:dependencies.bzl", "rv_tester_dependencies")
+rv_tester_dependencies()
+
+load("//infra/bazel:dependencies2.bzl", "rv_tester_dependencies2")
+rv_tester_dependencies2()
+
+load("//infra/bazel:dependencies3.bzl", "rv_tester_dependencies3")
+rv_tester_dependencies3()
+
 # don't want testgen in repositories.bzl, as it's only for internal use
 # let other repos' testgen supercede this one in downstream repos
 testgen_hash="6cd25f1c2973396bce233e6a5d38e5a401943a25"

@@ -97,7 +97,7 @@ private:
   void get_whisper_intr_status(hart_id_t hart, bool& taken, uint64_t& cause);
   void update_intr_age(hart_id_t hart, const rv_instr_t& d);
   void poke_intr_defer_status(hart_id_t hart, uint64_t time, uint64_t mip);
-  void poke_mip(hart_id_t hart, uint64_t time, uint64_t);
+  void poke_mip(hart_id_t hart, uint64_t time, uint64_t mip);
   void poke_seip(hart_id_t hart, uint64_t time, bool val);
 
   bool is_ecall(const whisper_state_t& w);

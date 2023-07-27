@@ -93,7 +93,7 @@ void debugger::parse_dmi_from_csv()
               }
         }else{
           //invalid
-          std::cerr << "Invalid command in csv file "<< instr << std::endl;
+          cvm::log(cvm::ERROR, "[Trickbox] Invalid command in csv file {}\n", instr);
         }
 
         //
@@ -109,7 +109,7 @@ void debugger::parse_dmi_from_csv()
         try{
         dmi_req.addr = std::stoul(row[1],nullptr,16);
         } catch (const std::invalid_argument& e) {
-          std::cerr << "Invalid argument for stoul csv arg 1: " << e.what() << std::endl;
+          cvm::log(cvm::ERROR, "[Trickbox] Invalid argument :addr for stoul csv arg 1: {}\n", e.what());
         }
 
         //remove underscores from data
@@ -118,7 +118,7 @@ void debugger::parse_dmi_from_csv()
         try{
         dmi_req.data = std::stoul(row[2],nullptr,16);
         } catch (const std::invalid_argument& e) {
-          std::cerr << "Invalid argument for stoul csv arg 2 " << e.what() << std::endl;
+          cvm::log(cvm::ERROR, "[Trickbox] Invalid argument :data for stoul csv arg 2: {}\n", e.what());
         }
         content.push_back(row);
         dmi_cmd_q.push(dmi_req);

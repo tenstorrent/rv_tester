@@ -57,7 +57,6 @@ class transactor {
           loc_,
           read_t{id, addr, length});
 
-      // TODO: let complete out of order
       auto response = co_await cvm::registry::messenger.wait<read_response_t>(resp_channel_, [&id] (const read_response_t& r) { return r.id == id; });
       co_return response.data;
     }

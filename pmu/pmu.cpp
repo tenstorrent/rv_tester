@@ -4,7 +4,7 @@
 
 DEFINE_bool(perf, false, "Enable core performance metrics");
 // TODO: control which are dumped? might not be useful
-DEFINE_uint64(sync_pmcounters_period, 10000, "Sync pmcounters every X cycles. A value of 0 means no sync, only update on terminate.");
+DEFINE_uint64(sync_pmcounters_period, 0, "Sync pmcounters every X cycles. A value of 0 means no sync, only update on terminate.");
 DEFINE_bool(pmcounters_log, false, "Dump pmcounters in log");
 DECLARE_string(load);
 

@@ -64,5 +64,6 @@ class sysmod {
     std::string hostname = "localhost";
     int port = 50001;
 
+    std::uint64_t ticks_ = 0;
     //remote_bitbang_t remote_bitbang();
 };

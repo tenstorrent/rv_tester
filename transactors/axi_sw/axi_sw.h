@@ -16,7 +16,8 @@
 
 class axi_sw {
 
-    template<typename T, typename... Args> void connect() {
+    template<typename T, typename... Args>
+      void connect() {
       cvm::registry::messenger.connect<T>(
           loc_,
           [this] (const T& v) {
@@ -27,15 +28,28 @@ class axi_sw {
         connect<Args...>();
     }
 
+    template<typename T, typename... Args>
+      void connect_task() {
+      cvm::registry::messenger.connect<T>(
+          loc_,
+          [this] (T v) {
+              auto* task = +[] (axi_sw* axi, T t) -> cvm::messenger::task<void> { co_return co_await axi->process(t); };
+              cvm::registry::messenger.fork(task, this, std::move(v));
+          }
+      );
+      if constexpr (sizeof...(Args))
+        connect_task<Args...>();
+    }
+
     public:
 
         typedef std::uint32_t r_q_ptr_t   ;
 
     private:
 
-        cvm::messenger::task<void> process_aw();
-        cvm::messenger::task<void> process_ar();
-        cvm::messenger::task<void> process_w();
+        cvm::messenger::task<void> process(const rv_tester_transactions::axi_sw::aw& aw);
+        cvm::messenger::task<void> process(const rv_tester_transactions::axi_sw::ar& ar);
+        cvm::messenger::task<void> process(const rv_tester_transactions::axi_sw::w& w);
         void process(const rv_tester_transactions::axi_sw::r_q_ptr& r_ptr);
         void r_resp();
         void set_scope(svScope scope);

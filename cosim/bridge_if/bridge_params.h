@@ -8,6 +8,7 @@ namespace {
     constexpr int max_intr = 16;
     constexpr int xlen = 64;
     constexpr int vlen = 256;
+    constexpr int va_hi = 56;
 
     struct csr_entry {
         std::string name;

@@ -99,12 +99,14 @@ module rv_tester #(
             cvm_verbosity        = cvm_plusargs::get_string("cvm_verbosity");
             gen_clocks_verbosity = cvm_plusargs::get_string("gen_clocks_verbosity");
             location             = cvm_topology::get_location(topology_pkg::mods.TOP.PLATFORM.ID, 0);
+            rv_tester_error_terminate.terminate = '0;
             /* verilator lint_on BLKSEQ */
 
             cb_poll             <= cvm_plusargs::get_bool("cb_async") == '0;
             quiesce_timeout     <= cvm_plusargs::get_int("quiesce_timeout");
             call_finish         <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
             gen_clocks          <= cvm_logger::get_verbosity(cvm_verbosity) >= cvm_logger::get_verbosity(gen_clocks_verbosity);
+
 
             $display("[RVTESTER]: reconstructing registry");
             rv_tester_build_registry();
@@ -159,15 +161,9 @@ module rv_tester #(
         end
     end
 
-    always @(posedge clk) begin
-        /* verilator lint_off BLKANDNBLK */
-        rv_tester_error_terminate.terminate <= '0;
-        /* verilator lint_on BLKANDNBLK */
-    end
-
-
     function void rv_tester_terminate ();
-      rv_tester_error_terminate.terminate = '1;
+        $display("rv_tester_terminate: attempting to terminate");
+        rv_tester_error_terminate.terminate = '1;
     endfunction
     export "DPI-C" function rv_tester_terminate;
 
