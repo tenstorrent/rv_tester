@@ -20,6 +20,7 @@ axi_sw_mst::axi_sw_mst(cvm::topology::loc_t loc, unsigned /*id*/)
     : scope_(nullptr), loc_(loc),
       id_width_(cvm::topology::attr(loc_, "ID_WIDTH").second),
       data_width_(cvm::topology::attr(loc_, "DATA_WIDTH").second),
+      strb_width_(cvm::topology::attr(loc_, "STRB_WIDTH").second),
       ar_q_max_(cvm::topology::attr(loc_, "AR_Q_MAX").second), ar_q_ptr_max_(cvm::topology::attr(loc_, "AR_Q_PTR_MAX").second),
       aw_q_max_(cvm::topology::attr(loc_, "AW_Q_MAX").second), aw_q_ptr_max_(cvm::topology::attr(loc_, "AW_Q_PTR_MAX").second),
       w_q_max_(cvm::topology::attr(loc_, "W_Q_MAX").second), w_q_ptr_max_(cvm::topology::attr(loc_, "W_Q_PTR_MAX").second),
@@ -199,10 +200,10 @@ void axi_sw_mst::push_transactions() {
                   cvm::registry::callbacks.push(
                       scope_,
                       [=]() {
-                          std::vector<uint8_t> strb((arg.strb.size() - 1)/8 + 1, 0);
+                          std::vector<uint8_t> strb(((arg.strb.size() - 1) >> 3) + 1, 0);
                           for (size_t i = 0; i < arg.strb.size(); i++) {
                               size_t idx = i >> 3;
-                              strb[idx] = arg.strb[i] << i%8;
+                              strb[idx] |= arg.strb[i] << i%8;
                           }
 
                           axi_sw_mst_w(arg.data.data(), strb.data(), arg.last);
@@ -239,8 +240,12 @@ void axi_sw_mst::process(const transactor::write_request_t& req) {
 
     size_t pow2size = size_t(1) << a.size;
     for (int32_t i = a.len; i >= 0; i--) {
-        transactions_.emplace_back(axi::w_t{axi::data_t(req.data.begin() + pow2size*a.len, req.data.begin() + pow2size*a.len + pow2size),
-                                            axi::strb_t(req.strb.begin() + pow2size*a.len, req.strb.begin() + pow2size*a.len + pow2size), i == 0});
+        axi::data_t data(data_width_ >> 3);
+        axi::strb_t strb(strb_width_);
+
+        data.assign(req.data.begin() + pow2size*a.len, req.data.begin() + pow2size*a.len + pow2size);
+        strb.assign(req.strb.begin() + pow2size*a.len, req.strb.begin() + pow2size*a.len + pow2size);
+        transactions_.emplace_back(axi::w_t{std::move(data), std::move(strb), i == 0});
     }
     push_transactions();
 }
