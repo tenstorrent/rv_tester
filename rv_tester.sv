@@ -169,6 +169,8 @@ module rv_tester #(
 
     `RV_TESTER_TRANSACTIONS_DOMAIN(1, clk);
 
+    rv_tester_pkg::dm_write_t  trickbox_dmi_write;
+
     sysmod #(
         .CLOCK_PERIOD_PS(CLOCK_PERIOD_PS),
         .SW_CLOCK_UPDATE_PERIOD_PS(SW_CLOCK_UPDATE_PERIOD_PS),
@@ -179,11 +181,27 @@ module rv_tester #(
         .reset(sysmod_reset),
         .clocks,
         .bootstrap,
-        .dmi_write,
+        .dmi_write(trickbox_dmi_write),
         .interrupt,
         .terminate(sysmod_terminate),
         `RV_TESTER_TRANSACTIONS_SOURCE_SYSMOD(1, 0)
     );
+
+`ifndef DMI_TB_WRITES_UNSUPPORTED
+    dmi_driver i_dmi_driver(
+        .clk,
+        .reset,
+        .dmi_req_ready,
+        .dmi_resp_valid,
+        .dmi_resp,
+
+        .dmi_req_valid,
+        .dmi_req,
+        .dmi_resp_ready,
+
+        .trickbox_dmi_write(trickbox_dmi_write)
+    );
+`endif
 
     // coverage
     arch_sample arch_sample ();
