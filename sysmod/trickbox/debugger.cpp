@@ -92,11 +92,11 @@ void debugger::parse_dmi_from_csv()
                 continue;
               }
         }else{
-          //invalid
+          // invalid command seen in the csv file
           cvm::log(cvm::ERROR, "[Trickbox] Invalid command in csv file {}\n", instr);
         }
 
-        //
+        // Check commands to push to specific queues
          if(step_ahead_queue_on){
             dmi_req.func_bits = 2;
          }
@@ -104,22 +104,26 @@ void debugger::parse_dmi_from_csv()
             dmi_req.func_bits = 4;
          }
 
+        if(dmi_req.op != 3){
         //remove underscores from addr
         row[1].erase(std::remove(row[1].begin(), row[1].end(), '_'), row[1].end());
         try{
         dmi_req.addr = std::stoul(row[1],nullptr,16);
         } catch (const std::invalid_argument& e) {
-          cvm::log(cvm::ERROR, "[Trickbox] Invalid argument :addr for stoul csv arg 1: {}\n", e.what());
+          cvm::log(cvm::ERROR, "[Trickbox] Invalid argument: addr for stoul csv arg 1: {}\n", e.what());
         }
-
+        }
+        
+        if(dmi_req.op == 2){
         //remove underscores from data
         row[2].erase(std::remove(row[2].begin(), row[2].end(), '_'), row[2].end());
-
         try{
         dmi_req.data = std::stoul(row[2],nullptr,16);
         } catch (const std::invalid_argument& e) {
-          cvm::log(cvm::ERROR, "[Trickbox] Invalid argument :data for stoul csv arg 2: {}\n", e.what());
+          cvm::log(cvm::ERROR, "[Trickbox] Invalid argument: data for stoul csv arg 2: {}\n", e.what());
         }
+        }
+
         content.push_back(row);
         dmi_cmd_q.push(dmi_req);
         //PRINT CSV DATA

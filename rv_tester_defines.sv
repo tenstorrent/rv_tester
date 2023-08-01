@@ -168,6 +168,13 @@ package rv_tester_params;
     input  logic                                        terminated,                                          \
     output                                              quiesced,                                            \
                                                                                                              \
+    output                                              dmi_req_ready,                                       \
+    output                                              dmi_resp_valid,                                      \
+    output rv_tester_pkg::dmi_resp_t                    dmi_resp,                                            \
+    input                                               dmi_req_valid,                                       \
+    input  rv_tester_pkg::dmi_req_t                     dmi_req,                                             \
+    input                                               dmi_resp_ready,                                      \
+                                                                                                             \
     output rv_tester_params::rvfi_t          rvfi_instr   [topology.TOP.CLUSTER.CORE.NRET],                  \
     output rv_tester_params::mcmi_t          mcmi_store   [topology.TOP.CLUSTER.CORE.STQ_PORTS],             \
     output rv_tester_params::pmu_event_t     pmu_event    [topology.TOP.PLATFORM.PMU.EVENT_COUNT],           \
@@ -187,6 +194,12 @@ package rv_tester_params;
     logic                                        terminate;                                                  \
     logic                                        terminated;                                                 \
     logic                                        quiesced;                                                   \
+    logic                                        dmi_req_ready;                                              \
+    logic                                        dmi_resp_valid;                                             \
+    rv_tester_pkg::dmi_resp_t                    dmi_resp;                                                   \
+    logic                                        dmi_req_valid;                                              \
+    rv_tester_pkg::dmi_req_t                     dmi_req;                                                    \
+    logic                                        dmi_resp_ready;                                             \
                                                                                                              \
     rv_tester_params::rvfi_t          rvfi_instr   [topology.TOP.CLUSTER.CORE.NRET];                         \
     rv_tester_params::mcmi_t          mcmi_store   [topology.TOP.CLUSTER.CORE.STQ_PORTS];                    \
