@@ -57,12 +57,17 @@ package rv_tester_params;
     } rvfi_t;
 
     typedef struct packed {
-        logic                                             valid;
-        logic [64-1:0]                                    order;
-        logic [mods.TOP.CLUSTER.CORE.PA_WIDTH-1:0]    addr ;
-        logic [8-1:0]                                     size ;
-        logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]        data ;
-        logic                                          data_src;
+        logic                                                 valid;
+        logic [64-1:0]                                        order;
+        logic [mods.TOP.CLUSTER.CORE.PA_WIDTH-1:0]            addr ;
+        logic [8-1:0]                                         size ;
+        logic [mods.TOP.CLUSTER.CORE.CACHE_LINE_WIDTH-1:0]    data ;
+    } mcmi_event_t;
+
+    typedef struct packed {
+        mcmi_event_t [mods.TOP.CLUSTER.CORE.MAX_MCM_READS-1:0]      read;
+        mcmi_event_t [mods.TOP.CLUSTER.CORE.MAX_MCM_INSERTS-1:0]    insert;
+        mcmi_event_t [mods.TOP.CLUSTER.CORE.MAX_MCM_WRITES-1:0]     write;
     } mcmi_t;
 
     typedef struct packed {
@@ -169,7 +174,7 @@ package rv_tester_params;
     output                                              quiesced,                                            \
                                                                                                              \
     output rv_tester_params::rvfi_t          rvfi_instr   [topology.TOP.CLUSTER.CORE.NRET],                  \
-    output rv_tester_params::mcmi_t          mcmi_store   [topology.TOP.CLUSTER.CORE.STQ_PORTS],             \
+    output rv_tester_params::mcmi_t          mcmi_event,                                                     \
     output rv_tester_params::pmu_event_t     pmu_event    [topology.TOP.PLATFORM.PMU.EVENT_COUNT],           \
     output rv_tester_params::axi_req_t       axi_req      [topology.TOP.PLATFORM.AXI.TOTAL],                 \
     input  rv_tester_params::axi_rsp_t       axi_rsp      [topology.TOP.PLATFORM.AXI.TOTAL],                 \
@@ -189,7 +194,7 @@ package rv_tester_params;
     logic                                        quiesced;                                                   \
                                                                                                              \
     rv_tester_params::rvfi_t          rvfi_instr   [topology.TOP.CLUSTER.CORE.NRET];                         \
-    rv_tester_params::mcmi_t          mcmi_store   [topology.TOP.CLUSTER.CORE.STQ_PORTS];                    \
+    rv_tester_params::mcmi_t          mcmi_event;                                                            \
     rv_tester_params::pmu_event_t     pmu_event    [topology.TOP.PLATFORM.PMU.EVENT_COUNT];                  \
     rv_tester_params::axi_req_t       axi_req      [topology.TOP.PLATFORM.AXI.TOTAL];                        \
     rv_tester_params::axi_rsp_t       axi_rsp      [topology.TOP.PLATFORM.AXI.TOTAL];                        \
