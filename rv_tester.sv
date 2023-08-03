@@ -215,7 +215,7 @@ module rv_tester #(
         .reset(sysmod_reset),
         .clocks,
         .rvfi(rvfi_instr),
-        .mcmi(mcmi_event),
+        .mcmi_store(mcmi_store),
         .interrupt,
         .debug_mode,
         `RV_TESTER_TRANSACTIONS_SOURCE_COSIM(1, 0)
