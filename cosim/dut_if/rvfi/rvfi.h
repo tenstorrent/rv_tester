@@ -41,11 +41,6 @@ class rvfi {
     void process(const rv_tester_transactions::cosim::m_intr& m_intr);
     void process(const rv_tester_transactions::cosim::m_debug& m_debug);
 
-    // FIXME Move out to a different file?
-    void process(const rv_tester_transactions::cosim::m_mcmi_read& m_mcmi_read);
-    void process(const rv_tester_transactions::cosim::m_mcmi_insert& m_mcmi_insert);
-    void process(const rv_tester_transactions::cosim::m_mcmi_write& m_mcmi_write);
-
     std::tuple<uint64_t, uint64_t, uint8_t> get_mem_attributes(uint64_t addr, uint8_t mask, uint64_t data);
 
     void make_instr(const rv_tester_transactions::cosim::m_rvfi& m_rvfi, rv_instr_t& instr);

@@ -16,7 +16,6 @@ DEFINE_bool(rvfi, true, "Enable rvfi");
 // rvfi_log flag was created is that +norvfi causes the max # of cycles to be
 // exceeded.
 DEFINE_bool(rvfi_log, true, "Enable rvfi logging");
-DEFINE_bool(mcm, false, "Enable mcm");
 DEFINE_bool(cosim, true, "Enable cosim checking");
 DECLARE_string(load);
 
@@ -43,9 +42,6 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned)
     rv_tester_transactions::cosim::m_rvfi,
     rv_tester_transactions::cosim::m_trap,
     rv_tester_transactions::cosim::m_intr,
-    rv_tester_transactions::cosim::m_mcmi_read,
-    rv_tester_transactions::cosim::m_mcmi_insert,
-    rv_tester_transactions::cosim::m_mcmi_write,
     rv_tester_transactions::cosim::m_debug
   >(loc);
 }
@@ -313,50 +309,7 @@ void rvfi::exit_debug_mode(rv_instr_t& instr) {
 
     bridge_->exit_debug_mode(debug);
   }
-}
 
-void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read& m_mcmi_read) {
-  if (!FLAGS_mcm)
-    return;
-
-  mem_t m;
-  m.valid = true;
-  m.cycle = m_mcmi_read.cycle;
-  m.tag = m_mcmi_read.order;
-  m.pa = m_mcmi_read.addr;
-  m.size = m_mcmi_read.size;
-  m.data = m_mcmi_read.data;
- 
-  bridge_->process_dut_mcm_read(0, m);
-}
-
-void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert& m_mcmi_insert) {
-  if (!FLAGS_mcm)
-    return;
-
-  mem_t m;
-  m.valid = true;
-  m.cycle = m_mcmi_insert.cycle;
-  m.tag = m_mcmi_insert.order;
-  m.pa = m_mcmi_insert.addr;
-  m.size = m_mcmi_insert.size;
-  m.data = m_mcmi_insert.data;
-
-  bridge_->process_dut_mcm_insert(0, m);
-}
-
-void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write& m_mcmi_write) {
-  if (!FLAGS_mcm)
-    return;
-
-  mem_t m;
-  m.valid = true;
-  m.cycle = m_mcmi_write.cycle;
-  m.pa = m_mcmi_write.addr;
-  m.size = m_mcmi_write.size;
-  m.data = m_mcmi_write.data;
-
-  bridge_->process_dut_mcm_write(0, m);
 }
 
 extern "C" {
