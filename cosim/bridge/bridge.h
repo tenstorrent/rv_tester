@@ -46,7 +46,7 @@ public:
   //   - Write (St cache write)
   virtual void process_dut_mcm_read(hart_id_t hart, mem_t& m) override;
   virtual void process_dut_mcm_insert(hart_id_t hart, mem_t& m) override;
-  virtual void process_dut_mcm_write(hart_id_t hart, mem_t& m) override;
+  virtual void process_dut_mcm_write(hart_id_t hart, mem_cl_t& m) override;
 
   // Interrupts
   virtual void process_dut_interrupt(hart_id_t hart, rv_intr_t &i) override;

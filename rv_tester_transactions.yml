@@ -68,8 +68,8 @@ cosim:
                 width: 64
             addr:
                 width: 56
-            size:
-                width: 8
+            mask:
+                width: 64
             data:
                 width: 64
 
@@ -83,8 +83,8 @@ cosim:
                 width: 64
             addr:
                 width: 56
-            size:
-                width: 8
+            mask:
+                width: 64
             data:
                 width: 64
 
@@ -96,10 +96,10 @@ cosim:
                 width: 64
             addr:
                 width: 56
-            size:
-                width: 8
-            data:
+            mask:
                 width: 64
+            data:
+                width: 512
 
     m_trap:
         domain: 1

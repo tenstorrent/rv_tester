@@ -57,11 +57,11 @@ package rv_tester_params;
     } rvfi_t;
 
     typedef struct packed {
-        logic                                                 valid;
-        logic [64-1:0]                                        order;
-        logic [mods.TOP.CLUSTER.CORE.PA_WIDTH-1:0]            addr ;
-        logic [8-1:0]                                         size ;
-        logic [mods.TOP.CLUSTER.CORE.CACHE_LINE_WIDTH-1:0]    data ;
+        logic                                                   valid;
+        logic [64-1:0]                                          order;
+        logic [mods.TOP.CLUSTER.CORE.PA_WIDTH-1:0]              addr ;
+        logic [(mods.TOP.CLUSTER.CORE.CACHE_LINE_WIDTH/8)-1:0]  mask ;
+        logic [mods.TOP.CLUSTER.CORE.CACHE_LINE_WIDTH-1:0]      data ;
     } mcmi_event_t;
 
     typedef struct packed {

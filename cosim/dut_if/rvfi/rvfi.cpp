@@ -324,7 +324,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read& m_mcmi_read
   m.cycle = m_mcmi_read.cycle;
   m.tag = m_mcmi_read.order;
   m.pa = m_mcmi_read.addr;
-  m.size = m_mcmi_read.size;
+  m.size = std::popcount(m_mcmi_read.mask);
   m.data = m_mcmi_read.data;
  
   bridge_->process_dut_mcm_read(0, m);
@@ -339,7 +339,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert& m_mcmi_in
   m.cycle = m_mcmi_insert.cycle;
   m.tag = m_mcmi_insert.order;
   m.pa = m_mcmi_insert.addr;
-  m.size = m_mcmi_insert.size;
+  m.size = std::popcount(m_mcmi_insert.mask);
   m.data = m_mcmi_insert.data;
 
   bridge_->process_dut_mcm_insert(0, m);
@@ -349,11 +349,11 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write& m_mcmi_wri
   if (!FLAGS_mcm)
     return;
 
-  mem_t m;
+  mem_cl_t m;
   m.valid = true;
   m.cycle = m_mcmi_write.cycle;
   m.pa = m_mcmi_write.addr;
-  m.size = m_mcmi_write.size;
+  m.mask = m_mcmi_write.mask;
   m.data = m_mcmi_write.data;
 
   bridge_->process_dut_mcm_write(0, m);

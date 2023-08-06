@@ -743,14 +743,13 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
 
 // Process mem accesses - load resolves
 void bridge::process_dut_mcm_read(hart_id_t hart, mem_t& m) {
-  bool internal = false;
   bool valid = false;
-  if (!client_->whisperMcmRead(hart, m.cycle, m.tag, m.pa, m.size, m.data, internal, valid)) {
+  if (!client_->whisperMcmRead(hart, m.cycle, m.tag, m.pa, m.size, m.data, valid)) {
     cvm::log(cvm::ERROR, "Error: Failed mcm load resolve\n");
     return;
   }
-  log(cvm::HIGH, "<{}> mcm_read [tag={}, addr={:#x}, size={}, data={:#x}, valid={}",
-    m.cycle, m.tag, m.pa, m.size, m.data, valid);
+  log(cvm::HIGH, "<{}> mcm_read [valid={}, tag={}, addr={:#x}, size={}, data={:#x}]\n",
+    m.cycle, valid, m.tag, m.pa, m.size, m.data);
 }
 
 // Process mem accesses - store inserts
@@ -761,29 +760,30 @@ void bridge::process_dut_mcm_insert(hart_id_t hart, mem_t& m) {
     cvm::log(cvm::ERROR, "Error: Failed mcm store insert\n");
     return;
   }
-  log(cvm::HIGH, "<{}> mcm_insert [tag={}, addr={:#x}, size={}, data={:#x}, valid={}",
-    m.cycle, m.tag, m.pa, m.size, m.data, valid);
+  log(cvm::HIGH, "<{}> mcm_insert [valid={}, tag={}, addr={:#x}, size={}, data={:#x}]\n",
+    m.cycle, valid, m.tag, m.pa, m.size, m.data);
 
   // Collect metrics
   num_stores_++;
 }
 
 // Process mem accesses - store drains
-void bridge::process_dut_mcm_write(hart_id_t hart, mem_t& m) {
-  char data[64] = {0};
-  uint64_t mask = 0;
-  for (unsigned i=0; i<m.size; i++) {
-    data[i] = (char)((m.data >> (i*8)) & 0xff); //std::bitset<512>(0xff)).to_ulong();
-    mask |= (1 << i);
+void bridge::process_dut_mcm_write(hart_id_t hart, mem_cl_t& m) {
+  uint8_t data[64] = {0};
+  for (unsigned i=0; i<64; i++) {
+    data[i] = (uint8_t)((m.data >> (i*8)) & std::bitset<512>(0xff)).to_ulong();
   }
 
   bool valid = false;
-  if (!client_->whisperMcmWrite(hart, m.cycle, m.pa, m.size, data, mask, valid)) {
+  if (!client_->whisperMcmWrite(hart, m.cycle, m.pa, 64, data, m.mask, valid)) {
     cvm::log(cvm::ERROR, "Error: Failed mcm store drain\n");
     return;
   }
-  log(cvm::HIGH, "<{}> mcm_write [addr={:#x}, size={}, data={:#x}, mask={:#x}, valid={}",
-    m.cycle, m.pa, m.size, m.data, mask, valid);
+  log(cvm::HIGH, "<{}> mcm_write [valid={}, addr={:#x}, mask={:016x}, data=",
+    m.cycle, valid, m.pa, m.mask);
+  for (int i=63; i>=0; i--)
+    log(cvm::HIGH, "{:02x}", data[i]);
+  log(cvm::HIGH, "]\n");
 }
 
 uint64_t bridge::translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t memclass) {

@@ -67,7 +67,7 @@ module cosim #(
         assign m_mcmi_reads[n].data.cycle = mcmi.read[n].valid ? clocks : '0;
         assign m_mcmi_reads[n].data.order = mcmi.read[n].order;
         assign m_mcmi_reads[n].data.addr = mcmi.read[n].addr;
-        assign m_mcmi_reads[n].data.size = mcmi.read[n].size;
+        assign m_mcmi_reads[n].data.mask = mcmi.read[n].mask;
         assign m_mcmi_reads[n].data.data = mcmi.read[n].data[63:0];
     end
 
@@ -78,7 +78,7 @@ module cosim #(
         assign m_mcmi_inserts[n].data.cycle = mcmi.insert[n].valid ? clocks : '0;
         assign m_mcmi_inserts[n].data.order = mcmi.insert[n].order;
         assign m_mcmi_inserts[n].data.addr = mcmi.insert[n].addr;
-        assign m_mcmi_inserts[n].data.size = mcmi.insert[n].size;
+        assign m_mcmi_inserts[n].data.mask = mcmi.insert[n].mask;
         assign m_mcmi_inserts[n].data.data = mcmi.insert[n].data[63:0];
     end
 
@@ -88,8 +88,8 @@ module cosim #(
         assign m_mcmi_writes[n].data.location = location;
         assign m_mcmi_writes[n].data.cycle = mcmi.write[n].valid ? clocks : '0;
         assign m_mcmi_writes[n].data.addr = mcmi.write[n].addr;
-        assign m_mcmi_writes[n].data.size = mcmi.write[n].size;
-        assign m_mcmi_writes[n].data.data = mcmi.write[n].data[63:0];
+        assign m_mcmi_writes[n].data.mask = mcmi.write[n].mask;
+        assign m_mcmi_writes[n].data.data = mcmi.write[n].data;
     end
 
     // m_trap
