@@ -30,7 +30,6 @@ DEFINE_string(cosim_resynch_instr, "", "List of instruction mnemonics to resynch
 DEFINE_string(cosim_resynch_prev_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
 DEFINE_bool(lrsc_resynch, false, "Resynch whisper with dut state on LRSC fail condition");
 DEFINE_bool(retire_ucode_trap, true, "DUT indicates retire on a trap after executing the ucode trap handler");
-DEFINE_bool(mcm, false, "Enable memory consistency checker");
 DEFINE_bool(gpr_check, true, "Enable cosim checks on gprs");
 DEFINE_bool(fpr_check, true, "Enable cosim checks on fprs");
 DEFINE_bool(vec_check, false, "Enable cosim checks on vector regs");
@@ -743,45 +742,48 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
 }
 
 // Process mem accesses - load resolves
-void bridge::process_dut_mem_read(hart_id_t hart, mem_t& m) {
-  unsigned size_in_bytes = 1 << m.size;
+void bridge::process_dut_mcm_read(hart_id_t hart, mem_t& m) {
   bool internal = false;
   bool valid = false;
-  if (!client_->whisperMcmRead(hart, m.cycle, m.tag, m.pa, size_in_bytes, m.data, internal, valid)) {
+  if (!client_->whisperMcmRead(hart, m.cycle, m.tag, m.pa, m.size, m.data, internal, valid)) {
     cvm::log(cvm::ERROR, "Error: Failed mcm load resolve\n");
     return;
   }
+  log(cvm::HIGH, "<{}> mcm_read [tag={}, addr={:#x}, size={}, data={:#x}, valid={}",
+    m.cycle, m.tag, m.pa, m.size, m.data, valid);
 }
 
 // Process mem accesses - store inserts
-void bridge::process_dut_mb_insert(hart_id_t hart, mem_t& m) {
-  unsigned size_in_bytes = 1 << m.size;
+void bridge::process_dut_mcm_insert(hart_id_t hart, mem_t& m) {
   bool valid = false;
 
-  if (!client_->whisperMcmInsert(hart, m.cycle, m.tag, m.pa, size_in_bytes, m.data, valid)) {
+  if (!client_->whisperMcmInsert(hart, m.cycle, m.tag, m.pa, m.size, m.data, valid)) {
     cvm::log(cvm::ERROR, "Error: Failed mcm store insert\n");
     return;
   }
+  log(cvm::HIGH, "<{}> mcm_insert [tag={}, addr={:#x}, size={}, data={:#x}, valid={}",
+    m.cycle, m.tag, m.pa, m.size, m.data, valid);
 
   // Collect metrics
   num_stores_++;
 }
 
 // Process mem accesses - store drains
-void bridge::process_dut_mb_drain(hart_id_t hart, mem_cl_t& m) {
-  unsigned size_in_bytes = 64;
-
-  uint64_t addr = (m.addr >> 6) << 6;
+void bridge::process_dut_mcm_write(hart_id_t hart, mem_t& m) {
   char data[64] = {0};
-  for (unsigned i=0; i<size_in_bytes; i++) {
-    data[i] = (char)((m.data >> (i*8)) & std::bitset<512>(0xff)).to_ulong();
+  uint64_t mask = 0;
+  for (unsigned i=0; i<m.size; i++) {
+    data[i] = (char)((m.data >> (i*8)) & 0xff); //std::bitset<512>(0xff)).to_ulong();
+    mask |= (1 << i);
   }
 
   bool valid = false;
-  if (!client_->whisperMcmWrite(hart, m.cycle, addr, size_in_bytes, data, m.mask, valid)) {
+  if (!client_->whisperMcmWrite(hart, m.cycle, m.pa, m.size, data, mask, valid)) {
     cvm::log(cvm::ERROR, "Error: Failed mcm store drain\n");
     return;
   }
+  log(cvm::HIGH, "<{}> mcm_write [addr={:#x}, size={}, data={:#x}, mask={:#x}, valid={}",
+    m.cycle, m.pa, m.size, m.data, mask, valid);
 }
 
 uint64_t bridge::translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t memclass) {
@@ -994,7 +996,10 @@ void bridge::report_metrics() {
     }
 
     // Step one final time to collect metrics for next instruction
-    whisper_state_t w;
+    whisper_state_t w {
+      .tag = prev_whisp_state.tag+1,
+      .time = prev_whisp_state.time+1
+    };
     step(h, w);
     const auto& next_instr = w.disasm;
     const auto& next_mode = w.priv_mode;
