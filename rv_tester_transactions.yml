@@ -58,9 +58,9 @@ cosim:
             mem_wdata:
                 width: 64
 
-    m_mcmi_store:
+    m_mcmi_read:
         domain: 1
-        num: ${TOP.CLUSTER.CORE.STQ_PORTS}
+        num: ${TOP.CLUSTER.CORE.MAX_MCM_READS}
         fields:
             cycle:
                 width: 64
@@ -68,10 +68,38 @@ cosim:
                 width: 64
             addr:
                 width: 56
-            size:
-                width: 8
+            mask:
+                width: 64
             data:
                 width: 64
+
+    m_mcmi_insert:
+        domain: 1
+        num: ${TOP.CLUSTER.CORE.MAX_MCM_INSERTS}
+        fields:
+            cycle:
+                width: 64
+            order:
+                width: 64
+            addr:
+                width: 56
+            mask:
+                width: 64
+            data:
+                width: 64
+
+    m_mcmi_write:
+        domain: 1
+        num: ${TOP.CLUSTER.CORE.MAX_MCM_WRITES}
+        fields:
+            cycle:
+                width: 64
+            addr:
+                width: 56
+            mask:
+                width: 64
+            data:
+                width: 512
 
     m_trap:
         domain: 1

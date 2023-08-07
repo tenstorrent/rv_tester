@@ -51,19 +51,19 @@ void eot::process(const rv_tester_transactions::cosim::m_rvfi& m_rvfi) {
   }
 }
 
-void eot::process(const rv_tester_transactions::cosim::m_mcmi_store& m_mcmi_store) {
+void eot::process(const rv_tester_transactions::cosim::m_mcmi_insert& m_mcmi_insert) {
 
-  if (tohost_addr_ != m_mcmi_store.addr)
+  if (tohost_addr_ != m_mcmi_insert.addr)
     return;
 
-  if (tohost_status_ != (m_mcmi_store.data & 0x1))
+  if (tohost_status_ != (m_mcmi_insert.data & 0x1))
     return;
 
-  if (tohost_device_syscall_ != ((m_mcmi_store.data >> 56) & 0xff))
+  if (tohost_device_syscall_ != ((m_mcmi_insert.data >> 56) & 0xff))
     return;
 
-  uint64_t cycle = m_mcmi_store.cycle;
-  uint64_t exit_code = (m_mcmi_store.data >> 1) & 0x7fffffffffff;
+  uint64_t cycle = m_mcmi_insert.cycle;
+  uint64_t exit_code = (m_mcmi_insert.data >> 1) & 0x7fffffffffff;
 
   if (exit_code == 0) {
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);

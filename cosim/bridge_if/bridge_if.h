@@ -126,7 +126,8 @@ typedef struct mem_s {
 typedef struct mem_cl_s {
   bool valid;
   uint64_t cycle;
-  uint64_t addr;
+  uint64_t va;
+  uint64_t pa;
   uint8_t size;
   std::bitset<512> data;
   uint64_t mask;
