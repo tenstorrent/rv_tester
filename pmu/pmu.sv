@@ -53,6 +53,10 @@ module pmu #(
     assign pmcounterss[0].data.location = location;
     assign pmcounterss[0].data.cpu_cycles = cpu_cycles;
     assign pmcounterss[0].data.instructions = instructions;
+    assign pmcounterss[0].data.itlb_read_access = pmcounter[rv_tester_params::ITLB_READ_ACCESS];
+    assign pmcounterss[0].data.itlb_read_miss = pmcounter[rv_tester_params::ITLB_READ_MISS];
+    assign pmcounterss[0].data.l1i_read_access = pmcounter[rv_tester_params::L1I_READ_ACCESS];
+    assign pmcounterss[0].data.l1i_read_miss = pmcounter[rv_tester_params::L1I_READ_MISS];
     assign pmcounterss[0].data.l1d_read_access = pmcounter[rv_tester_params::L1D_READ_ACCESS];
     assign pmcounterss[0].data.l1d_write_access = pmcounter[rv_tester_params::L1D_WRITE_ACCESS];
 

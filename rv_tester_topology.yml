@@ -23,7 +23,7 @@ rv_tester: &rv_tester
       type:
         - pmu
       attrs:
-          EVENT_COUNT: 2
+          EVENT_COUNT: 6
 
     axi:
       count: *rv_tester_axi_count

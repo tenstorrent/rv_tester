@@ -158,6 +158,10 @@ package rv_tester_params;
 
     typedef logic [3:0]   pmu_event_t;
     typedef enum {
+        ITLB_READ_ACCESS,
+        ITLB_READ_MISS,
+        L1I_READ_ACCESS,
+        L1I_READ_MISS,
         L1D_READ_ACCESS,
         L1D_WRITE_ACCESS
     } pmu_event_id_t;
