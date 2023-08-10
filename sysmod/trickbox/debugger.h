@@ -82,7 +82,7 @@ public:
 
   virtual void tick(uint64_t advance) override
   {
-    cvm::log(cvm::HIGH, "[Debugger]: Tick\n");
+    cvm::log(cvm::FULL, "[Debugger]: Tick\n");
     std::lock_guard<std::mutex> lock(mutex_);
     timer_ += advance;
     timer_advance = advance;
@@ -139,7 +139,7 @@ public:
 
   void checkDebugEvents()
   {
-    cvm::log(cvm::HIGH, "Timer chk dbg evt \n");
+    cvm::log(cvm::FULL, "Timer chk dbg evt \n");
     if (FLAGS_random_dbg_entry)
     {
       if (timer_ >= timer_rand_debug)
