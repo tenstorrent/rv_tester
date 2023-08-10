@@ -168,6 +168,7 @@ module rv_tester #(
     export "DPI-C" function rv_tester_terminate;
 
     `RV_TESTER_TRANSACTIONS_DOMAIN(1, clk);
+    `RV_TESTER_TRANSACTIONS_DOMAIN(2, clk);
 
     rv_tester_pkg::dm_write_t  trickbox_dmi_write;
 
@@ -290,7 +291,7 @@ module rv_tester #(
             .axi_slv_aw_ready(axi_rsp[p].aw_ready),
             .axi_slv_ar_ready(axi_rsp[p].ar_ready),
             .axi_slv_w_ready (axi_rsp[p].w_ready),
-            `RV_TESTER_TRANSACTIONS_SOURCE_AXI_SW(1, p)
+            `RV_TESTER_TRANSACTIONS_SOURCE_AXI_SW(2, p)
         );
     end
 
@@ -347,7 +348,7 @@ module rv_tester #(
             .axi_slv_aw_ready(axi_rsp_mst[p].aw_ready),
             .axi_slv_ar_ready(axi_rsp_mst[p].ar_ready),
             .axi_slv_w_ready (axi_rsp_mst[p].w_ready),
-            `RV_TESTER_TRANSACTIONS_SOURCE_AXI_SW_MST(1, p)
+            `RV_TESTER_TRANSACTIONS_SOURCE_AXI_SW_MST(2, p)
         );
     end
 
