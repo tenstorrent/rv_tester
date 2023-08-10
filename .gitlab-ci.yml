@@ -1,5 +1,6 @@
 include:
   - local: 'infra/container/gitlab-container.yml'
+  - template: 'Workflows/MergeRequest-Pipelines.gitlab-ci.yml'
 
 .clone-variables: &clone-variables
     GIT_STRATEGY: none
