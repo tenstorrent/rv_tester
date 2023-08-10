@@ -5,7 +5,7 @@ module pmu #(
   input clk,
   input reset,
   input longint unsigned clocks,
-  input rv_tester_params::pmu_event_t pmu_event[topology.TOP.PLATFORM.PMU.EVENT_COUNT],
+  input rv_tester_params::pmu_event_t pmu_event[rv_tester_params::EVENT_COUNT],
   input rv_tester_params::rvfi_t rvfi[topology.TOP.CLUSTER.CORE.NRET],
   input bit terminate,
   `RV_TESTER_TRANSACTIONS_OUTPUT_PMU
@@ -29,7 +29,7 @@ module pmu #(
 
     longint unsigned cpu_cycles = 0;
     longint unsigned instructions = 0;
-    longint unsigned pmcounter [topology.TOP.PLATFORM.PMU.EVENT_COUNT] = '{default:0};
+    longint unsigned pmcounter [rv_tester_params::EVENT_COUNT] = '{default:0};
 
     always @(posedge clk) begin
         if (!reset) begin
@@ -43,7 +43,7 @@ module pmu #(
             cpu_cycles <= clocks;
             instructions <= instructions + total;
             // Count supported events
-            for (integer n = 0; n < topology.TOP.PLATFORM.PMU.EVENT_COUNT; n++) begin
+            for (integer n = 0; n < rv_tester_params::EVENT_COUNT; n++) begin
               pmcounter[n] <= pmcounter[n] + {60'h0, pmu_event[n]};
             end
         end

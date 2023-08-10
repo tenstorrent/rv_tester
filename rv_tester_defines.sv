@@ -156,15 +156,17 @@ package rv_tester_params;
         logic                       w_ready  ;
     } axi_rsp_mst_t;
 
-    typedef logic [3:0]   pmu_event_t;
     typedef enum {
         ITLB_READ_ACCESS,
         ITLB_READ_MISS,
         L1I_READ_ACCESS,
         L1I_READ_MISS,
         L1D_READ_ACCESS,
-        L1D_WRITE_ACCESS
+        L1D_WRITE_ACCESS,
+        EVENT_COUNT
     } pmu_event_id_t;
+    typedef logic [3:0]   pmu_event_t;
+    typedef pmu_event_t   pmu_event_arr_t [EVENT_COUNT-1:0];
 
 `define _RV_TESTER_PORTS(input,output)                                                                       \
     input                                               clk      ,                                           \
@@ -186,7 +188,7 @@ package rv_tester_params;
                                                                                                              \
     output rv_tester_params::rvfi_t          rvfi_instr   [topology.TOP.CLUSTER.CORE.NRET],                  \
     output rv_tester_params::mcmi_t          mcmi_event,                                                     \
-    output rv_tester_params::pmu_event_t     pmu_event    [topology.TOP.PLATFORM.PMU.EVENT_COUNT],           \
+    output rv_tester_params::pmu_event_arr_t pmu_event,                                                      \
     output rv_tester_params::axi_req_t       axi_req      [topology.TOP.PLATFORM.AXI.TOTAL],                 \
     input  rv_tester_params::axi_rsp_t       axi_rsp      [topology.TOP.PLATFORM.AXI.TOTAL],                 \
     input  rv_tester_params::axi_req_mst_t   axi_req_mst  [topology.TOP.PLATFORM.AXI_MST.TOTAL],             \
@@ -212,7 +214,7 @@ package rv_tester_params;
                                                                                                              \
     rv_tester_params::rvfi_t          rvfi_instr   [topology.TOP.CLUSTER.CORE.NRET];                         \
     rv_tester_params::mcmi_t          mcmi_event;                                                            \
-    rv_tester_params::pmu_event_t     pmu_event    [topology.TOP.PLATFORM.PMU.EVENT_COUNT];                  \
+    rv_tester_params::pmu_event_arr_t pmu_event;                                                             \
     rv_tester_params::axi_req_t       axi_req      [topology.TOP.PLATFORM.AXI.TOTAL];                        \
     rv_tester_params::axi_rsp_t       axi_rsp      [topology.TOP.PLATFORM.AXI.TOTAL];                        \
     rv_tester_params::axi_req_mst_t   axi_req_mst  [topology.TOP.PLATFORM.AXI_MST.TOTAL];                    \
