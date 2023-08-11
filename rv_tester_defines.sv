@@ -44,6 +44,9 @@ package rv_tester_params;
         logic                                             frd_valid;
         logic [5-1:0]                                     frd_addr ;
         logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]            frd_wdata;
+        logic                                             vrd_valid;
+        logic [5-1:0]                                     vrd_addr ;
+        logic [mods.TOP.CLUSTER.CORE.VLEN-1:0]            vrd_wdata;
 
         logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]            pc_rdata ;
         logic [mods.TOP.CLUSTER.CORE.XLEN-1:0]            pc_wdata ;

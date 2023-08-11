@@ -50,6 +50,9 @@ module cosim #(
         assign m_rvfis[n].data.frd_valid = rvfi[n].frd_valid;
         assign m_rvfis[n].data.frd_addr = rvfi[n].frd_addr;
         assign m_rvfis[n].data.frd_wdata = rvfi[n].frd_wdata;
+        assign m_rvfis[n].data.vrd_valid = rvfi[n].vrd_valid;
+        assign m_rvfis[n].data.vrd_addr = rvfi[n].vrd_addr;
+        assign m_rvfis[n].data.vrd_wdata = rvfi[n].vrd_wdata;
         assign m_rvfis[n].data.pc_rdata = rvfi[n].pc_rdata;
         assign m_rvfis[n].data.pc_wdata = rvfi[n].pc_wdata;
         assign m_rvfis[n].data.mem_addr = rvfi[n].mem_addr;
