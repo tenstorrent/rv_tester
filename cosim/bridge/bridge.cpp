@@ -142,13 +142,13 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   // Error on mismatch
   if (!cac_.GetStatus(hart)) {
+    cac_.ResetStatus(hart);
     if (FLAGS_cosim_resynch) {
       if (FLAGS_bridge_log) {
         print_instr(hart, w);
         log(cvm::MEDIUM, "{}", cac_.GetStatusStr(hart));
       }
       resynch(hart, d);
-      cac_.ResetStatus(hart);
     } else {
       std::string instr = cosim_util::get_nth_word(w.disasm, 1);
       std::string resource = cac_.GetResourceStr(hart) == "PC" ? " :PC" : "";
@@ -421,6 +421,12 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
       w_.fpr.frd_wdata = w.value;
       update_regs(hart, w);
     }
+    if (w.resource == 'v') {
+      w_.vr.valid = true;
+      w_.vr.vrd_addr = w.address;
+      // w_.vr.vrd_wdata = w.value;
+      update_regs(hart, w, i);
+    }
     if (w.resource == 'c') {
       csr_t c;
       c.valid = true;
@@ -483,6 +489,28 @@ void bridge::step(hart_id_t hart, whisper_state_t& w) {
   }
 }
 
+std::vector<cac::size_8_bytes_t> create_dword_vec(const std::bitset<256>& input) {
+    // Calculate the number of 8-byte chunks needed for the 256-bit input
+    size_t num_chunks = (256 + 63) / 64; // Round up division
+
+    // Create a vector to store the chunks
+    std::vector<cac::size_8_bytes_t> dword_vec(num_chunks);
+
+    // Convert and store each chunk of 64 bits (8 bytes)
+    for (size_t i = 0; i < num_chunks; ++i) {
+        cac::size_8_bytes_t chunk = 0;
+        for (size_t j = 0; j < 64; ++j) {
+            size_t bit_index = i * 64 + j;
+            if (bit_index < 256 && input[bit_index]) {
+                chunk |= (cac::size_8_bytes_t(1) << j);
+            }
+        }
+        dword_vec[i] = chunk;
+    }
+
+    return dword_vec;
+}
+
 // Push DUT register state to cac
 void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
   // GPR
@@ -495,7 +523,7 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
   }
   // VR
   if (FLAGS_vec_check && d.vr.valid) {
-    update_regs(hart, src_t::dut, resource_t::vec_reg, d.vr.vrd_addr, {d.vr.vrd_wdata, d.vr.vrd_wdata + (vlen_/64)});
+    update_regs(hart, src_t::dut, resource_t::vec_reg, d.vr.vrd_addr, create_dword_vec(d.vr.vrd_wdata));
   }
 }
 
@@ -503,11 +531,26 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
 void bridge::update_mem(hart_id_t, rv_instr_t&) {
 }
 
+std::bitset<256> create_bitset(cac::size_8_bytes_t dword_vec_array [vlen/64]) {
+    std::bitset<256> result;
+
+    // Iterate through the array and concatenate each value to the result bitset
+    for (size_t i = 0; i < vlen/64; ++i) {
+        for (size_t j = 0; j < 64; ++j) {
+            size_t bit_index = i * 64 + j;
+            bool bit_value = (dword_vec_array[i] & (cac::size_8_bytes_t(1) << j)) != 0;
+            result[bit_index] = bit_value;
+        }
+    }
+
+    return result;
+}
+
 // Push whisper register state to cac
-void bridge::update_regs(hart_id_t hart, const whisper_state_t& w) {
+void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_slice_index) {
   // Register changes - r, f, v,
-  //TODO:size8BytesT dword_vec_array [vlen_/64] = {0};
-  //TODO:uint32_t entries = vlen_/64;
+  // size_8_bytes_t dword_vec_array [vlen/64] = {0};
+  uint32_t vec_slices = vlen/64;
 
   switch(w.resource) {
     case 'r':
@@ -519,9 +562,13 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w) {
         update_regs(hart, src_t::iss, resource_t::fp_reg, w.address, {w.value});
       break;
     case 'v':
-      //TODO:dword_vec_array [i % entries] = w.value;
-      //TODO:if ((i % entries) == (entries - 1))
-      //TODO:  update_regs(hart, src_t::iss, resource_t::vec_reg, w.address, dword_vec_array);
+      if (FLAGS_vec_check){
+        dword_vec_array [vec_slice_index % vec_slices] = w.value;        
+        if ((vec_slice_index % vec_slices) == (vec_slices - 1)){
+          update_regs(hart, src_t::iss, resource_t::vec_reg, w.address, std::vector<size_8_bytes_t>(dword_vec_array, dword_vec_array + sizeof(dword_vec_array)/sizeof(dword_vec_array[0])));
+          w_.vr.vrd_wdata = create_bitset(dword_vec_array);
+        }
+      }
       break;
     default:
       break;

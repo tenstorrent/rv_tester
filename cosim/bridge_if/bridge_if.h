@@ -79,7 +79,7 @@ typedef struct fpr_s {
 typedef struct vr_s {
   bool valid;
   uint32_t vrd_addr;
-  uint64_t vrd_wdata[vlen/64];
+  std::bitset<256> vrd_wdata;
  
   vr_s() {
     clear();

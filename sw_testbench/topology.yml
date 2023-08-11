@@ -11,7 +11,7 @@ top:
         NRET: 8
         ILEN: 32
         XLEN: 64
-        VLEN: 64
+        VLEN: 256
         MAX_DATA_LEN: 256
         PA_WIDTH: 56
         CACHE_LINE_WIDTH: 512
