@@ -46,7 +46,7 @@ cosim:
             vrd_addr:
                 width: 5
             vrd_wdata:
-                width: 256
+                width: ${TOP.CLUSTER.CORE.VLEN}
             pc_rdata:
                 width: 64
             pc_wdata:
