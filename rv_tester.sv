@@ -43,7 +43,8 @@ module rv_tester #(
     int unsigned location = cvm_topology::nil;
 
     bit gen_clocks = '0;
-    string cvm_verbosity, gen_clocks_verbosity;
+    string cvm_verbosity_string, gen_clocks_verbosity_string;
+    int unsigned cvm_verbosity, gen_clocks_verbosity;
 
     assign terminate           = (rv_tester_error_terminate.terminate || (sysmod_terminate.terminate && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
     assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout);
@@ -96,16 +97,18 @@ module rv_tester #(
 
             /* verilator lint_off BLKSEQ */
             // zebu bug doesn't allow nested function calls, so create intermediate variables
-            cvm_verbosity        = cvm_plusargs::get_string("cvm_verbosity");
-            gen_clocks_verbosity = cvm_plusargs::get_string("gen_clocks_verbosity");
-            location             = cvm_topology::get_location(topology_pkg::mods.TOP.PLATFORM.ID, 0);
+            cvm_verbosity_string        = cvm_plusargs::get_string("cvm_verbosity");
+            gen_clocks_verbosity_string = cvm_plusargs::get_string("gen_clocks_verbosity");
+            cvm_verbosity               = cvm_logger::get_verbosity(cvm_verbosity_string);
+            gen_clocks_verbosity        = cvm_logger::get_verbosity(gen_clocks_verbosity_string);
+            location                    = cvm_topology::get_location(topology_pkg::mods.TOP.PLATFORM.ID, 0);
             rv_tester_error_terminate.terminate = '0;
             /* verilator lint_on BLKSEQ */
 
             cb_poll             <= cvm_plusargs::get_bool("cb_async") == '0;
             quiesce_timeout     <= cvm_plusargs::get_int("quiesce_timeout");
             call_finish         <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
-            gen_clocks          <= cvm_logger::get_verbosity(cvm_verbosity) >= cvm_logger::get_verbosity(gen_clocks_verbosity);
+            gen_clocks          <= cvm_verbosity >= gen_clocks_verbosity;
 
 
             $display("[RVTESTER]: reconstructing registry");
