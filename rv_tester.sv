@@ -188,7 +188,7 @@ module rv_tester #(
         .dmi_write(trickbox_dmi_write),
         .interrupt,
         .terminate(sysmod_terminate),
-        `RV_TESTER_TRANSACTIONS_SOURCE_SYSMOD(1, 0)
+        `RV_TESTER_TRANSACTIONS_SOURCE_SYSMOD(2, 0)
     );
 
 `ifndef DMI_TB_WRITES_UNSUPPORTED
