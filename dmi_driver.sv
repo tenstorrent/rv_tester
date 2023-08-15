@@ -68,30 +68,30 @@ module dmi_driver(
     end
 
     always @(posedge trickbox_dmi_write.dm_wvalid)begin
-      $display("DMI Write Data = %h \t %h\n",trickbox_dmi_write.dm_wdata, trickbox_dmi_write.dm_wdata[63:62]);
+      // $display("DMI Write Data = %h \t %h",trickbox_dmi_write.dm_wdata, trickbox_dmi_write.dm_wdata[63:62]);
       if(trickbox_dmi_write.dm_wdata[63:59] === 'b00000)begin 
-        $display("Push In Command Queue\n"); 
+        $display("[DMI Driver] Push In Command Queue"); 
         command_queue.push_back(rv_tester_pkg::dmi_req_t'(trickbox_dmi_write.dm_wdata));
       end
       else if (trickbox_dmi_write.dm_wdata[63:59] === 'b10000) begin
         //trigger dmi execution
-        $display("Trigger Command Execution\n");
+        $display("[DMI Driver] Trigger Command Execution");
         command_trigger = 1;
       end
       else if (trickbox_dmi_write.dm_wdata[63:59] === 'b01000) begin
-        $display("Delaying the Trigger to Debugger\n");
+        $display("[DMI Driver] Delaying the Trigger to Debugger");
         ext_trig_delay = clk_cnt + trickbox_dmi_write.dm_wdata[31:0];
       end
       else if (trickbox_dmi_write.dm_wdata[63:59] === 'b00010) begin
         single_step_ahead_command_queue.push_back(rv_tester_pkg::dmi_req_t'(trickbox_dmi_write.dm_wdata[43:0])); //Mentioning 44 bits to be on safer side
-        $display("Added this command to the single step (ahead) queue, size=%h\n",single_step_ahead_command_queue.size());
+        $display("[DMI Driver] Added this command to the single step (ahead) queue, size=%h",single_step_ahead_command_queue.size());
       end
       else if (trickbox_dmi_write.dm_wdata[63:59] === 'b00100) begin
         single_step_quit_command_queue.push_back(rv_tester_pkg::dmi_req_t'(trickbox_dmi_write.dm_wdata[43:0])); //Mentioning 44 bits to be on safer side
-        $display("Added this command to the single step (quit) queue, size=%h\n",single_step_quit_command_queue.size());
+        $display("[DMI Driver] Added this command to the single step (quit) queue, size=%h",single_step_quit_command_queue.size());
       end
       else if (trickbox_dmi_write.dm_wdata[63:59] === 'b00001) begin
-        $display("Single steping mode enabled, getting count value\n");
+        $display("[DMI Driver] Single steping mode enabled, getting count value");
         single_step_instr_cnt = trickbox_dmi_write.dm_wdata[31:0];
       end
     end
@@ -100,7 +100,7 @@ module dmi_driver(
       clk_cnt = clk_cnt + 1;
       if(clk_cnt == ext_trig_delay) begin
        command_trigger = 1;
-       $display("The delay was executed and asserting the trigger\n");
+       $display("[DMI Driver] The delay was executed and asserting the trigger");
       end
     end
 
@@ -135,28 +135,28 @@ module dmi_driver(
       begin
       //decode request type
         if(cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[31] === '1)begin
-          $display("Seen Halt Req, Doing Poll\n");
+          $display("[Poll] Seen Halt Req, Doing Poll");
           halt_req = 1;
           poll =1;
         end
         else if(cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[30] === '1)begin
-          $display("Seen Resume Req, Doing Poll\n");
+          $display("[Poll] Seen Resume Req, Doing Poll");
           resume_req = 1;
           poll =1;
         end
         else if(cmd.addr === 'h17 && cmd.op === 'h2)begin
-          $display("Seen Abstract Command Req, Doing Poll\n");
+          $display("[Poll] Seen Abstract Command Req, Doing Poll");
           abstr_cmd_req = 1;
           poll =1;
           if(cmd.data[31:24] === 'h0 && cmd.data[17] === 'h1) begin
             //Seen an abstract reg command with rd/write
-            $display("Seen an abstract command with rd/write");
+            $display("[Poll] Seen an abstract command with rd/write");
             if(cmd.data[16] === 'h1)begin 
-              $display("Seen the abstract command with write");
+              $display("[Poll] Seen the abstract command with write");
               abs_write = 1;
             end
             else if(cmd.data[16] === 'h0)begin 
-              $display("Seen the abstract command with read");
+              $display("[Poll] Seen the abstract command with read");
               abs_read = 1;
               abs_data_temp_packet.reg_addr = cmd.data[15:0];
             end
@@ -167,7 +167,7 @@ module dmi_driver(
 
     task do_polling();
       begin
-        $display("Starting poll for halt:%h resume:%h abstract:%h\n",halt_req,resume_req,abstr_cmd_req);
+        $display("[Poll] Starting poll for halt:%h resume:%h abstract:%h",halt_req,resume_req,abstr_cmd_req);
          while(poll)begin 
               //READ DMSTATUS
               @(posedge clk)
@@ -181,7 +181,7 @@ module dmi_driver(
               dmi_req <= 41'h5900000000;
               end
               else if(abs_read_data)begin
-              $display("Doing abstract read data for data0");
+              $display("[Poll] Doing abstract read data for data0");
               dmi_req <= 41'h1100000000;
               end
               wait (dmi_req_ready == 1);
@@ -197,18 +197,18 @@ module dmi_driver(
               if(resume_req && dmi_resp.data[17:16] === 2'b11)begin
               resume_req = 0;
               poll = 0;
-              $display("Clear Resume Req Poll");
+              $display("[Poll] Clear Resume Req Poll");
               do_file_writes();
               end 
               else if(halt_req && dmi_resp.data[9:8] === 2'b11)begin
               halt_req = 0;
               poll = 0;
-              $display("Clear Halt Req Poll");
+              $display("[Poll] Clear Halt Req Poll");
               end
               else if(abstr_cmd_req && dmi_resp.data[12] === 1'b0)begin
               abstr_cmd_req = 0;
-              $display("Clear Abstract Command Req Poll");
-              $display("Reading the data output of the abstract command");
+              $display("[Poll] Clear Abstract Command Req Poll");
+              $display("[Poll] Reading the data output of the abstract command");
               if(abs_read === 'h1)begin
                 abs_read_data = 1;
               end
@@ -223,35 +223,29 @@ module dmi_driver(
               poll = 0;
               end
 	      end 
-      $display("Cleared poll for halt:%h resume:%h abstract:%h\n",halt_req,resume_req,abstr_cmd_req);
+      $display("[Poll] Cleared poll for halt:%h resume:%h abstract:%h",halt_req,resume_req,abstr_cmd_req);
       end
     endtask: do_polling
 
-    // task abs_read_queue_update();
-    //   begin
-        
-    //   end
-    // endtask: abs_read_queue_update
-
     always @(posedge command_trigger) begin
-      $display("Starting the execution of Debug Commands");
+      $display("[DMI Execution] Starting the execution of Debug Commands");
        if(command_trigger>0) begin
            while(command_queue.size()>0 && single_step_started != 1)begin
             command = command_queue.pop_front();
-            $display("Popped Cmd ==> addr:%h op:%h data:%h",command.addr,command.op,command.data);
+            $display("[DMI Execution] Popped Cmd ==> addr:%h op:%h data:%h",command.addr,command.op,command.data);
             if(command.op =='h3)begin
-              $display("Encountered Debug Checkopoint, Switching Control to Asm\n");
+              $display("[DMI Execution] Encountered Debug Checkopoint, Switching Control to Assembly");
               break;
             end
             else begin
             drive_dmi_cmd(command);
             is_poll_needed(command);
             do_polling();
-            $display("Executed the command, commands left out in the queue=%h",command_queue.size());
+            $display("[DMI Execution] Executed the command, commands left out in the queue=%h",command_queue.size());
            end
            end 
             command_trigger = 0;
-            $display("Clear the Execution Trigger\n");
+            $display("[DMI Execution] Clear the Execution Trigger\n");
             @(posedge clk);
        end
     end
