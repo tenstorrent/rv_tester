@@ -100,6 +100,7 @@ void axi_sw::r_resp() {
 void axi_sw::reset_ptrs() {
     r_q_rptr_ = 0;
     r_q_wptr_ = 0;
+    svSetScope(scope_);
     axi_sw_r_reset();
 }
 
