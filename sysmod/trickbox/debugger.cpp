@@ -9,7 +9,7 @@ DEFINE_int32(random_dbg_start_delay, 300, "delay after which random interrupts s
 DEFINE_int32(dbg_delay_min, 6, "Minimum Delay between 2 consecutive debug mode requests");
 DEFINE_int32(dbg_delay_max, 9, "Maximum Delay between 2 consecutive debug mopde requests");
 DEFINE_int32(dbg_max_snippets, 1, "Maximum number of debug snippets to be driven");
-DEFINE_string(dbg_template_dir, "", "Path to file containing debugger commands");
+DEFINE_string(dbg_template_dir_path, "", "Path to file containing debugger commands");
 
 debugger::debugger(const std::string &tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc)
     : subdevice(tag, addr, 0x40000 /* size */, loc), soft_(hartCount),
@@ -30,7 +30,7 @@ debugger::~debugger()
 
 void debugger::get_all_csv_templates()
 {
-  std::string directoryPath = FLAGS_dbg_template_dir;
+  std::string directoryPath = FLAGS_dbg_template_dir_path;
   DIR *dir = opendir(directoryPath.c_str());
   cvm::log(cvm::NONE, "Debug commands directory:{}\n", directoryPath);
   if (!dir)
@@ -65,7 +65,7 @@ void debugger::parse_dmi_from_csv()
   else
     file_name = FLAGS_dbg_input_file_path;
 
-  cvm::log(cvm::NONE, "Parse DMI Commands from CSV:{}", file_name);
+  cvm::log(cvm::NONE, "Parse DMI Commands from CSV:{}\n", file_name);
   // std::fstream file (FLAGS_dbg_input_file_path, std::ios::in);
   std::fstream file(file_name, std::ios::in);
   if (file.is_open())

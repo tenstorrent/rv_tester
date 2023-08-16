@@ -18,6 +18,11 @@ rv_tester: &rv_tester
       type:
         - cosim
 
+    dm_model:
+      count: 1
+      type:
+        - dm_model
+        
     pmu:
       count : 1
       type:

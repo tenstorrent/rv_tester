@@ -188,6 +188,8 @@ module rv_tester #(
     );
 
 `ifndef DMI_TB_WRITES_UNSUPPORTED
+    logic [7:0] misc_signals;
+
     dmi_driver i_dmi_driver(
         .clk,
         .reset,
@@ -198,8 +200,26 @@ module rv_tester #(
         .dmi_req_valid,
         .dmi_req,
         .dmi_resp_ready,
+        .misc_signals,
 
         .trickbox_dmi_write(trickbox_dmi_write)
+    );
+
+    dm_model #(
+        .NUM(0),
+        `TOPOLOGY_CFG
+    ) i_dm_model(
+        .clk,
+        .reset(sysmod_reset),
+        .dmi_req(dmi_req),
+        .dmi_req_valid(dmi_req_valid),
+        .dmi_resp_valid(dmi_resp_valid),
+        .dmi_resp(dmi_resp),
+        .terminate,
+        .axi_req_mst(axi_req_mst[0]),
+        .axi_resp_mst(axi_rsp_mst[0]),
+        .misc_signals,
+        `RV_TESTER_TRANSACTIONS_SOURCE_DM_MODEL(1,0)
     );
 `endif
 
