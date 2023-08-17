@@ -59,8 +59,9 @@ class logger_instrument {
 
 extern "C" {
 
-    void rv_tester_parse_flags() {
+    int rv_tester_parse_flags() {
         cvm::plusargs::parse();
+        return 0;
     }
 
     void rv_tester_parse_memmap() {
@@ -72,8 +73,9 @@ extern "C" {
         cvm::registry::configure();
     }
 
-    void rv_tester_shutdown_registry() {
+    int rv_tester_shutdown_registry() {
         cvm::registry::shutdown();
+        return 0;
     }
 
     uint8_t rv_tester_flush_callbacks() {
