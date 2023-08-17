@@ -19,6 +19,7 @@
 #include "cvm/topology.hpp"
 #include "interrupter.h"
 #include "debugger.h"
+#include "msi_driver.h"
 
 
 // Define a core local  (trickbox) at the given address
