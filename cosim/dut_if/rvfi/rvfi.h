@@ -12,6 +12,8 @@
 #include "bridge.h"
 #include "cosim/utils/eot/eot.h"
 
+#include "sysmod/htif/htif.h"
+
 class rvfi {
 
   template<typename T, typename... Args> void connect(cvm::topology::loc_t loc) {
@@ -46,6 +48,8 @@ class rvfi {
     void process(const rv_tester_transactions::cosim::m_mcmi_insert& m_mcmi_insert);
     void process(const rv_tester_transactions::cosim::m_mcmi_write& m_mcmi_write);
 
+    void process(const htif::terminate_t&);
+
     std::tuple<uint64_t, uint64_t, uint8_t> get_mem_attributes(uint64_t addr, uint8_t mask, uint64_t data);
 
     void make_instr(const rv_tester_transactions::cosim::m_rvfi& m_rvfi, rv_instr_t& instr);
@@ -74,4 +78,6 @@ class rvfi {
 
     cvm::topology::loc_t loc_;
     svScope scope_;
+
+    bool terminated_ = false;
 };
