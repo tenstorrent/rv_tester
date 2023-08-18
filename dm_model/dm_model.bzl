@@ -25,6 +25,7 @@ def dm_model_gen(name, packet, topology, harness, visibility = None, cc_attrs = 
 		"@cvm//:plusargs",
 		"@cvm//:logger",
 		"@cvm//:registry",
+		"@cvm//:bitmanip",
 		],
 		alwayslink = True,
 		visibility = visibility,

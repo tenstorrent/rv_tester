@@ -6,6 +6,7 @@
 
 #include "cvm/plusargs.hpp"
 #include "cvm/registry.hpp"
+#include "cvm/bitmanip.hpp"
 
 #include "dm_model.hpp"
 
@@ -34,9 +35,6 @@ debug_module_t::debug_module_t(cvm::topology::loc_t loc, unsigned) : program_buf
                                                                      hart_array_mask(max_hartid + 1)
 //  rti_remaining(0)
 {
-  // cvm::log(cvm::NONE,"[Config] debug_data_start={:#x}\n", debug_data_start);
-  // cvm::log(cvm::NONE,"[Config] debug_progbuf_start={:#x}\n", debug_progbuf_start);
-  // cvm::log(cvm::NONE,"[Config] debug_abstract_start={:#x}\n", debug_abstract_start);
 
   cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dmi_req>(loc, [this](const auto &v)
                                                                               { return this->process(v); });
@@ -108,7 +106,7 @@ void debug_module_t::process(const rv_tester_transactions::dm_model::dmi_resp &d
   if (req_resp_check)
   {
     if (actual_data != req_expect)
-      cvm::log(cvm::NONE, "[Comparing] Seen a DMI Response Mismatch for Addr:{:#x} ~~~ Actual:{:#x} vs Expected:{:#x}\n", reg_addr_to_check, actual_data, req_expect);
+      cvm::log(cvm::ERROR, "[Error-Mismatch] Seen a DMI Response Mismatch for Addr:{:#x} ~~~ Actual:{:#x} vs Expected:{:#x}\n", reg_addr_to_check, actual_data, req_expect);
     req_resp_check = false;
     return;
   }
@@ -116,12 +114,34 @@ void debug_module_t::process(const rv_tester_transactions::dm_model::dmi_resp &d
 
 void debug_module_t::process(const rv_tester_transactions::dm_model::dm_load_cmd &dm_load_cmd)
 {
-  cvm::log(cvm::HIGH, "Sent a load req for the address:{:#x} with id:{:#x}\n", dm_load_cmd.addr, dm_load_cmd.id);
+  load_req_length = std::ceil(pow(2, dm_load_cmd.size) / 8);
+
+  cvm::log(cvm::HIGH, "[{}] Sent a load req for the address:{:#x} for length:{:#x} with id:{:#x}\n", sent_count, dm_load_cmd.addr, load_req_length, dm_load_cmd.id);
+  sent_count++;
+
+  debug_module_t::load(dm_load_cmd.addr, load_req_length, load_bytes_data);
+
+  std::memcpy(&expected_load_data, load_bytes_data, load_req_length);
+  cvm::log(cvm::HIGH, "The Load data expected for id:{:#x}, is data:{:#x}\n", dm_load_cmd.id, expected_load_data);
+
+  load_req_id = dm_load_cmd.id;
+  load_req_addr = dm_load_cmd.addr;
+  mem_load_check = true;
 }
 
 void debug_module_t::process(const rv_tester_transactions::dm_model::dm_load_data &dm_load_data)
 {
-  cvm::log(cvm::HIGH, "Got a load resp for the id:{:#x}\n", dm_load_data.id);
+  cvm::log(cvm::HIGH, "[{}] Got a load resp for the id:{:#x} and data:{:#x}\n", resp_count, dm_load_data.id, dm_load_data.data);
+  resp_count++;
+
+  if (load_req_id == dm_load_data.id)
+  {
+    cvm::log(cvm::HIGH, "Seen a matching load response for the same id as the previous load request\n");
+    uint64_t expected_load_data_to_check = cvm::bitmanip::slice<uint64_t>(expected_load_data, (load_req_length * 4 - 1), 0);
+    uint64_t actual_load_data_to_check = cvm::bitmanip::slice<uint64_t>(dm_load_data.data, (load_req_length * 4 - 1), 0);
+    if (expected_load_data_to_check != actual_load_data_to_check)
+      cvm::log(cvm::ERROR, "[Error-Mismatch] The load data's are mismatching for Addr:{:#x} with Length:{:#x} ~~~ Actual:{:#x} vs Expected:{:#x}\n",load_req_addr,load_req_length,actual_load_data_to_check,expected_load_data_to_check);
+  }
 }
 
 void debug_module_t::process(const rv_tester_transactions::dm_model::dm_store &dm_store)
@@ -156,21 +176,45 @@ void debug_module_t::reset()
   { // Add havereset for all the core
     ele.havereset = true;
   }
+
+  cvm::log(cvm::HIGH, "[Config] debug_data_start={:#x}\n", 0x380); //Fixed value as per the implementation
+  cvm::log(cvm::HIGH, "[Config] debug_progbuf_start={:#x}\n", debug_progbuf_start);
+  cvm::log(cvm::HIGH, "[Config] debug_abstract_start={:#x}\n", debug_abstract_start);
+
+  unsigned i = 1;
+  write32(debug_abstract, i++, nop());    // 0 (high)
+  write32(debug_abstract, i++, nop());    // 1 (low)
+  write32(debug_abstract, i++, nop());    // 1 (high)
+  write32(debug_abstract, i++, nop());    // 2 (low)
+  write32(debug_abstract, i++, nop());    // 2 (high)
+  write32(debug_abstract, i++, nop());    // 3 (low)
+  write32(debug_abstract, i++, nop());    // 3 (high)
+  write32(debug_abstract, i++, nop());    // 4 (low)
+  write32(debug_abstract, i++, ebreak()); // 5 (high)
 }
 
 bool debug_module_t::load(reg_t addr, size_t len, uint8_t *bytes)
 {
+  if (len == 0)
+    len = 1;
   addr = DEBUG_START + addr;
+  cvm::log(cvm::HIGH, "Load Request Addr:{:#x}, len:{:#x} first_range:{:#x}\n", addr, len, (DEBUG_ROM_ENTRY + debug_rom_raw_len));
 
-  if (addr >= DEBUG_ROM_ENTRY &&
-      (addr + len) <= (DEBUG_ROM_ENTRY + debug_rom_raw_len))
+  if (addr >= DEBUG_ROM_ENTRY) //&& (addr + len) <= (DEBUG_ROM_ENTRY + debug_rom_raw_len))
   {
-    memcpy(bytes, debug_rom_raw + addr - DEBUG_ROM_ENTRY, len);
+    if ((addr + len - DEBUG_ROM_ENTRY) > debug_rom_raw_len)
+    {
+      addr = ((addr >> 3) & 0x0F) * 8; // addr - debug_rom_raw_len;
+      memcpy(bytes, debug_rom_raw + addr, len);
+    }
+    else
+      memcpy(bytes, debug_rom_raw + addr - DEBUG_ROM_ENTRY, len);
     return true;
   }
 
-  if (addr >= DEBUG_ROM_WHERETO && (addr + len) <= (DEBUG_ROM_WHERETO + 4))
+  if (addr >= DEBUG_ROM_WHERETO && (addr + len) <= (DEBUG_ROM_WHERETO + 8)) // FIXME: Check if this should be 4 or 8
   {
+    cvm::log(cvm::HIGH, "Whereto Case ::: Addr={:#x}, Length={:#x}\n",addr,len);
     memcpy(bytes, debug_rom_whereto + addr - DEBUG_ROM_WHERETO, len);
     return true;
   }
@@ -199,27 +243,28 @@ bool debug_module_t::load(reg_t addr, size_t len, uint8_t *bytes)
     return true;
   }
 
-  cvm::log(cvm::NONE, "ERROR: invalid load from debug module --> len:{:#x} at addr:{:#x}\n",len,addr);
+  cvm::log(cvm::ERROR, "ERROR: invalid load from debug module --> len:{:#x} at addr:{:#x}\n", len, addr);
 
   return false;
 }
 
 bool debug_module_t::store(reg_t addr, size_t len, const uint8_t *bytes)
 {
-  // D(
-  //     switch (len) {
-  //       case 4:
-  //         fprintf(stderr, "store(addr=0x%lx, len=%d, bytes=0x%08x); "
-  //                         "hartsel=0x%x\n",
-  //                 addr, (unsigned)len, *(uint32_t *)bytes,
-  //                 dmcontrol.hartsel);
-  //         break;
-  //       default:
-  //         fprintf(stderr, "store(addr=0x%lx, len=%d, bytes=...); "
-  //                         "hartsel=0x%x\n",
-  //                 addr, (unsigned)len, dmcontrol.hartsel);
-  //         break;
-  //     });
+
+  switch (len)
+  {
+  case 4:
+    cvm::log(cvm::HIGH, "store(addr={:#x}, len={:#x}, bytes={:#x}); "
+                        "hartsel={:#x}\n",
+             addr, (unsigned)len, *(uint32_t *)bytes,
+             dmcontrol.hartsel);
+    break;
+  default:
+    cvm::log(cvm::HIGH, "store(addr={:#x}, len={:#x}, bytes=...); "
+                        "hartsel={:#x}\n",
+             addr, (unsigned)len, dmcontrol.hartsel);
+    break;
+  };
 
   uint8_t id_bytes[4];
   uint32_t id = 0;
@@ -304,7 +349,7 @@ bool debug_module_t::store(reg_t addr, size_t len, const uint8_t *bytes)
     return true;
   }
 
-  cvm::log(cvm::NONE, "ERROR: invalid store to debug module --> len:{:#x} at addr:{:#x}\n",len,addr);
+  cvm::log(cvm::ERROR, "ERROR: invalid store to debug module --> len:{:#x} at addr:{:#x}\n", len, addr);
 
   return false;
 }
@@ -312,6 +357,7 @@ bool debug_module_t::store(reg_t addr, size_t len, const uint8_t *bytes)
 void debug_module_t::write32(uint8_t *memory, unsigned int index, uint32_t value)
 {
   uint8_t *base = memory + index * 4;
+  cvm::log(cvm::HIGH, "Write32 called for index:{:#x} at memory loc:{:#x} with value:{:#x}\n", index, *base, value);
   base[0] = value & 0xff;
   base[1] = (value >> 8) & 0xff;
   base[2] = (value >> 16) & 0xff;
@@ -351,7 +397,7 @@ bool debug_module_t::dmi_read(unsigned address, uint32_t *value)
     if (abstractcs.busy)
     {
       result = -1;
-      cvm::log(cvm::HIGH, "dmi_read({:#x} (data[{}]) -> -1 because abstractcs.busy==true\n",address,i);
+      cvm::log(cvm::HIGH, "dmi_read({:#x} (data[{}]) -> -1 because abstractcs.busy==true\n", address, i);
     }
 
     if (abstractcs.busy && abstractcs.cmderr == CMDERR_NONE)
@@ -371,7 +417,7 @@ bool debug_module_t::dmi_read(unsigned address, uint32_t *value)
     if (abstractcs.busy)
     {
       result = -1;
-      cvm::log(cvm::HIGH, "dmi_read({:#x} (progbuf[{}]) -> -1 because abstractcs.busy==true\n",address,i);
+      cvm::log(cvm::HIGH, "dmi_read({:#x} (progbuf[{}]) -> -1 because abstractcs.busy==true\n", address, i);
     }
     if (!abstractcs.busy && ((abstractauto.autoexecprogbuf >> i) & 1))
     {
@@ -488,17 +534,9 @@ bool debug_module_t::dmi_read(unsigned address, uint32_t *value)
     case DM_AUTHDATA:
       result = 0; // challenge;
       break;
-    // case DM_DMCS2:
-    //   result = set_field(result, DM_DMCS2_GROUP, selected_hart_state().haltgroup);
-    //   break;
-    // case DM_CUSTOM:
-    //   for (unsigned i = 0; i < sizeof(hart_available_state) / sizeof(*hart_available_state); i++) {
-    //     result |= hart_available_state[i] << i;
-    //   }
-    //   break;
     default:
       result = 0;
-      cvm::log(cvm::ERROR, "Unexpected Register. Returning Error.\n");
+      cvm::log(cvm::ERROR, "Unexpected Register [Maybe not part of this implementation]. Returning Error.\n");
       return false;
     }
   }
@@ -518,12 +556,6 @@ bool debug_module_t::dmi_read(unsigned address, uint32_t *value)
 //     abstractcs.busy = false;
 //   }
 // }
-
-static bool is_fpu_reg(unsigned regno)
-{
-  return (regno >= 0x1020 && regno <= 0x103f) || regno == CSR_FFLAGS ||
-         regno == CSR_FRM || regno == CSR_FCSR;
-}
 
 bool debug_module_t::perform_abstract_command()
 {
@@ -549,181 +581,228 @@ bool debug_module_t::perform_abstract_command()
       return true;
     }
 
-    unsigned i = 0;
-    if (get_field(command, AC_ACCESS_REGISTER_TRANSFER))
-    {
+    //** Custom logic to meet the implementation specific details
+    if ((size < 4) && get_field(command, AC_ACCESS_REGISTER_TRANSFER) && write)
+    { // Check for access reg type
+      write32(debug_abstract, 0, nop());
 
-      if (is_fpu_reg(regno))
+      if (cvm::bitmanip::slice<uint64_t>(regno, 15, 14) != 0)
       {
-        // Save S0
-        write32(debug_abstract, i++, csrw(S0, CSR_DSCRATCH0));
-        // Save mstatus
-        write32(debug_abstract, i++, csrr(S0, CSR_MSTATUS));
-        write32(debug_abstract, i++, csrw(S0, CSR_DSCRATCH1));
-        // Set mstatus.fs
-        assert((MSTATUS_FS & 0xfff) == 0);
-        write32(debug_abstract, i++, lui(S0, MSTATUS_FS >> 12));
-        write32(debug_abstract, i++, csrrs(ZERO, S0, CSR_MSTATUS));
+        write32(debug_abstract, 0, ebreak());
+        // Command not supported
       }
-
-      if (regno < 0x1000 && config.support_abstract_csr_access)
+      else if (cvm::bitmanip::slice<uint64_t>(regno, 12, 12))
       {
-        if (!is_fpu_reg(regno))
+        if (cvm::bitmanip::slice<uint64_t>(regno, 5, 5))
         {
-          write32(debug_abstract, i++, csrw(S0, CSR_DSCRATCH0));
-        }
-
-        if (write)
-        {
-          switch (size)
-          {
-          case 2:
-            write32(debug_abstract, i++, lw(S0, ZERO, debug_data_start));
-            break;
-          case 3:
-            write32(debug_abstract, i++, ld(S0, ZERO, debug_data_start));
-            break;
-          default:
-            abstractcs.cmderr = CMDERR_NOTSUP;
-            return true;
-          }
-          write32(debug_abstract, i++, csrw(S0, regno));
+          unsigned fprnum = regno - 0x1020;
+          if (size == 2)
+            write32(debug_abstract, 4, flw(fprnum, ZERO, debug_data_start));
+          else if (size == 4)
+            write32(debug_abstract, 4, fld(fprnum, ZERO, debug_data_start));
         }
         else
         {
-          write32(debug_abstract, i++, csrr(S0, regno));
-          switch (size)
-          {
-          case 2:
-            write32(debug_abstract, i++, sw(S0, ZERO, debug_data_start));
-            break;
-          case 3:
-            write32(debug_abstract, i++, sd(S0, ZERO, debug_data_start));
-            break;
-          default:
-            abstractcs.cmderr = CMDERR_NOTSUP;
-            return true;
-          }
-        }
-        if (!is_fpu_reg(regno))
-        {
-          write32(debug_abstract, i++, csrr(S0, CSR_DSCRATCH0));
+          unsigned regnum = regno - 0x1000;
+          if (size == 2)
+            write32(debug_abstract, 4, lw(regnum, ZERO, debug_data_start));
+          else if (size == 4)
+            write32(debug_abstract, 4, ld(regnum, ZERO, debug_data_start));
         }
       }
-      else if (regno >= 0x1000 && regno < 0x1020)
-      {
-        unsigned regnum = regno - 0x1000;
-
-        switch (size)
-        {
-        case 2:
-          if (write)
-            write32(debug_abstract, i++, lw(regnum, ZERO, debug_data_start));
-          else
-            write32(debug_abstract, i++, sw(regnum, ZERO, debug_data_start));
-          break;
-        case 3:
-          if (write)
-            write32(debug_abstract, i++, ld(regnum, ZERO, debug_data_start));
-          else
-            write32(debug_abstract, i++, sd(regnum, ZERO, debug_data_start));
-          break;
-        default:
-          abstractcs.cmderr = CMDERR_NOTSUP;
-          return true;
-        }
-
-        if (regno == 0x1000 + S0 && write)
-        {
-          /*
-           * The exception handler starts out be restoring dscratch to s0,
-           * which was saved before executing the abstract memory region. Since
-           * we just wrote s0, also make sure to write that same value to
-           * dscratch in case an exception occurs in a program buffer that
-           * might be executed later.
-           */
-          write32(debug_abstract, i++, csrw(S0, CSR_DSCRATCH0));
-        }
-      }
-      else if (regno >= 0x1020 && regno < 0x1040 && config.support_abstract_fpr_access)
-      {
-        unsigned fprnum = regno - 0x1020;
-
-        if (write)
-        {
-          switch (size)
-          {
-          case 2:
-            write32(debug_abstract, i++, flw(fprnum, ZERO, debug_data_start));
-            break;
-          case 3:
-            write32(debug_abstract, i++, fld(fprnum, ZERO, debug_data_start));
-            break;
-          default:
-            abstractcs.cmderr = CMDERR_NOTSUP;
-            return true;
-          }
-        }
-        else
-        {
-          switch (size)
-          {
-          case 2:
-            write32(debug_abstract, i++, fsw(fprnum, ZERO, debug_data_start));
-            break;
-          case 3:
-            write32(debug_abstract, i++, fsd(fprnum, ZERO, debug_data_start));
-            break;
-          default:
-            abstractcs.cmderr = CMDERR_NOTSUP;
-            return true;
-          }
-        }
-      }
-      else if (regno >= 0xc000 && (regno & 1) == 1)
-      {
-        // Support odd-numbered custom registers, to allow for debugger testing.
-        unsigned custom_number = regno - 0xc000;
-        abstractcs.cmderr = CMDERR_NONE;
-        if (write)
-        {
-          // Writing V to custom register N will cause future reads of N to
-          // return V, reads of N-1 will return V-1, etc.
-          custom_base = read32(dmdata, 0) - custom_number;
-        }
-        else
-        {
-          write32(dmdata, 0, custom_number + custom_base);
-          write32(dmdata, 1, 0);
-        }
-        return true;
-      }
-      else
-      {
-        abstractcs.cmderr = CMDERR_NOTSUP;
-        return true;
-      }
-
-      if (is_fpu_reg(regno))
-      {
-        // restore mstatus
-        write32(debug_abstract, i++, csrr(S0, CSR_DSCRATCH1));
-        write32(debug_abstract, i++, csrw(S0, CSR_MSTATUS));
-        // restore s0
-        write32(debug_abstract, i++, csrr(S0, CSR_DSCRATCH0));
-      }
+      // TODO:: Add other logics
     }
 
-    if (get_field(command, AC_ACCESS_REGISTER_POSTEXEC))
+    else if ((size < 4) && get_field(command, AC_ACCESS_REGISTER_TRANSFER) && !write)
     {
-      write32(debug_abstract, i,
-              jal(ZERO, debug_progbuf_start - debug_abstract_start - 4 * i));
-      i++;
+      write32(debug_abstract, 0, nop());
+      write32(debug_abstract, 4, csrw(S0, CSR_DSCRATCH0)); // FIXME??
+      write32(debug_abstract, 5, csrr(S0, regno + custom_base));
+      write32(debug_abstract, 6, sw(S0, ZERO, debug_data_start));
+      write32(debug_abstract, 7, csrr(S0, CSR_DSCRATCH0));
     }
-    else
-    {
-      write32(debug_abstract, i++, ebreak());
-    }
+    //** End of the custom specified logic
+
+    // unsigned i = 0;
+    // if (get_field(command, AC_ACCESS_REGISTER_TRANSFER))
+    // {
+
+    // if (is_fpu_reg(regno))
+    //   {
+    //     // Save S0
+    //     write32(debug_abstract, i++, csrw(S0, CSR_DSCRATCH0));
+    //     // Save mstatus
+    //     write32(debug_abstract, i++, csrr(S0, CSR_MSTATUS));
+    //     write32(debug_abstract, i++, csrw(S0, CSR_DSCRATCH1));
+    //     // Set mstatus.fs
+    //     assert((MSTATUS_FS & 0xfff) == 0);
+    //     write32(debug_abstract, i++, lui(S0, MSTATUS_FS >> 12));
+    //     write32(debug_abstract, i++, csrrs(ZERO, S0, CSR_MSTATUS));
+    //   }
+
+    //   if (regno < 0x1000 && config.support_abstract_csr_access)
+    //   {
+    //     if (!is_fpu_reg(regno))
+    //     {
+    //       write32(debug_abstract, i++, csrw(S0, CSR_DSCRATCH0));
+    //       cvm::log(cvm::NONE, "Doing ----------000000000000\n");
+    //     }
+
+    //     if (write)
+    //     {
+    //       cvm::log(cvm::NONE, "Doing 000000000000\n");
+    //       switch (size)
+    //       {
+    //       case 2:
+    //         write32(debug_abstract, i++, lw(S0, ZERO, debug_data_start));
+    //         break;
+    //       case 3:
+    //         write32(debug_abstract, i++, ld(S0, ZERO, debug_data_start));
+    //         break;
+    //       default:
+    //         abstractcs.cmderr = CMDERR_NOTSUP;
+    //         return true;
+    //       }
+    //       write32(debug_abstract, i++, csrw(S0, regno));
+    //     }
+    //     else
+    //     {
+    //       cvm::log(cvm::NONE, "Doing 11111111111111\n");
+    //       write32(debug_abstract, i++, csrr(S0, regno));
+    //       switch (size)
+    //       {
+    //       case 2:
+    //         write32(debug_abstract, i++, sw(S0, ZERO, debug_data_start));
+    //         break;
+    //       case 3:
+    //         write32(debug_abstract, i++, sd(S0, ZERO, debug_data_start));
+    //         break;
+    //       default:
+    //         abstractcs.cmderr = CMDERR_NOTSUP;
+    //         return true;
+    //       }
+    //     }
+    //     if (!is_fpu_reg(regno))
+    //     {
+    //       write32(debug_abstract, i++, csrr(S0, CSR_DSCRATCH0));
+    //     }
+    //   }
+    //   else if (regno >= 0x1000 && regno < 0x1020)
+    //   {
+    //     unsigned regnum = regno - 0x1000;
+
+    //     switch (size)
+    //     {
+    //     case 2:
+    //       if (write)
+    //         write32(debug_abstract, i++, lw(regnum, ZERO, debug_data_start));
+    //       else
+    //         write32(debug_abstract, i++, sw(regnum, ZERO, debug_data_start));
+    //       break;
+    //     case 3:
+    //       if (write)
+    //         write32(debug_abstract, i++, ld(regnum, ZERO, debug_data_start));
+    //       else
+    //         write32(debug_abstract, i++, sd(regnum, ZERO, debug_data_start));
+    //       break;
+    //     default:
+    //       abstractcs.cmderr = CMDERR_NOTSUP;
+    //       return true;
+    //     }
+
+    //     if (regno == 0x1000 + S0 && write)
+    //     {
+    //       /*
+    //        * The exception handler starts out be restoring dscratch to s0,
+    //        * which was saved before executing the abstract memory region. Since
+    //        * we just wrote s0, also make sure to write that same value to
+    //        * dscratch in case an exception occurs in a program buffer that
+    //        * might be executed later.
+    //        */
+    //       write32(debug_abstract, i++, csrw(S0, CSR_DSCRATCH0));
+    //     }
+    //   }
+    //   else if (regno >= 0x1020 && regno < 0x1040 && config.support_abstract_fpr_access)
+    //   {
+    //     unsigned fprnum = regno - 0x1020;
+
+    //     if (write)
+    //     {
+    //       switch (size)
+    //       {
+    //       case 2:
+    //         write32(debug_abstract, i++, flw(fprnum, ZERO, debug_data_start));
+    //         break;
+    //       case 3:
+    //         write32(debug_abstract, i++, fld(fprnum, ZERO, debug_data_start));
+    //         break;
+    //       default:
+    //         abstractcs.cmderr = CMDERR_NOTSUP;
+    //         return true;
+    //       }
+    //     }
+    //     else
+    //     {
+    //       switch (size)
+    //       {
+    //       case 2:
+    //         write32(debug_abstract, i++, fsw(fprnum, ZERO, debug_data_start));
+    //         break;
+    //       case 3:
+    //         write32(debug_abstract, i++, fsd(fprnum, ZERO, debug_data_start));
+    //         break;
+    //       default:
+    //         abstractcs.cmderr = CMDERR_NOTSUP;
+    //         return true;
+    //       }
+    //     }
+    //   }
+    //   else if (regno >= 0xc000 && (regno & 1) == 1)
+    //   {
+    //     // Support odd-numbered custom registers, to allow for debugger testing.
+    //     unsigned custom_number = regno - 0xc000;
+    //     abstractcs.cmderr = CMDERR_NONE;
+    //     if (write)
+    //     {
+    //       // Writing V to custom register N will cause future reads of N to
+    //       // return V, reads of N-1 will return V-1, etc.
+    //       custom_base = read32(dmdata, 0) - custom_number;
+    //     }
+    //     else
+    //     {
+    //       write32(dmdata, 0, custom_number + custom_base);
+    //       write32(dmdata, 1, 0);
+    //     }
+    //     return true;
+    //   }
+    //   else
+    //   {
+    //     abstractcs.cmderr = CMDERR_NOTSUP;
+    //     return true;
+    //   }
+
+    //   if (is_fpu_reg(regno))
+    //   {
+    //     // restore mstatus
+    //     write32(debug_abstract, i++, csrr(S0, CSR_DSCRATCH1));
+    //     write32(debug_abstract, i++, csrw(S0, CSR_MSTATUS));
+    //     // restore s0
+    //     write32(debug_abstract, i++, csrr(S0, CSR_DSCRATCH0));
+    //   }
+    // }
+
+    // if (get_field(command, AC_ACCESS_REGISTER_POSTEXEC))
+    // {
+    //   cvm::log(cvm::NONE, "Doing 222222222222\n");
+    //   write32(debug_abstract, i,
+    //           jal(ZERO, debug_progbuf_start - debug_abstract_start - 4 * i));
+    //   i++;
+    // }
+    // else
+    // {
+    //   cvm::log(cvm::NONE, "Doing 333333333333\n");
+    //   write32(debug_abstract, i++, ebreak());
+    // }
 
     debug_rom_flags[selected_hart_id()] |= 1 << DEBUG_ROM_FLAG_GO;
     // rti_remaining = config.abstract_rti;
@@ -804,7 +883,7 @@ bool debug_module_t::dmi_write(unsigned address, uint32_t value)
       {
         if (hart_selected(hart_id))
         {
-          cvm::log(cvm::FULL,"Inside the DMCONTROL Write Event - 002\n");
+          cvm::log(cvm::FULL, "Inside the DMCONTROL Write Event - 002\n");
           if (get_field(value, DM_DMCONTROL_ACKHAVERESET))
           {
             hart_state[hart_id].havereset = false;
