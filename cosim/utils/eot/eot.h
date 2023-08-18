@@ -53,4 +53,5 @@ class eot {
     std::uint64_t tohost_addr_ = -1;
     const std::uint8_t tohost_status_ = 1;
     const std::uint8_t tohost_device_syscall_ = 0;
+    bool ended_ = false;
 };

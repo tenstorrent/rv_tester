@@ -5,7 +5,6 @@
 #include "cvm/bitmanip.hpp"
 #include "cvm/callbacks.hpp"
 #include "cvm/registry.hpp"
-#include "sysmod/htif/htif.h"
 
 #include <iostream>
 #include <chrono>
@@ -48,6 +47,10 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned)
     rv_tester_transactions::cosim::m_mcmi_write,
     rv_tester_transactions::cosim::m_debug
   >(loc);
+
+  connect<
+    htif::terminate_t
+  >(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0));
 }
 
 rvfi::~rvfi() {
@@ -66,6 +69,9 @@ void rvfi::init() {
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_rvfi& m_rvfi) {
+  if (terminated_)
+    return;
+
   // Construct rv_instr_t and send to bridge
   rv_instr_t instr;
   make_instr(m_rvfi, instr);
@@ -84,6 +90,9 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi& m_rvfi) {
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_trap& m_trap) {
+  if (terminated_)
+    return;
+
   if ((m_trap.cause >> 63) & 0x1) {
     intr_ = true;
     icause_ = (m_trap.cause & 0x3f);
@@ -95,6 +104,9 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap& m_trap) {
 
 void rvfi::process(const rv_tester_transactions::cosim::m_intr& m_intr) {
   if (!FLAGS_cosim)
+    return;
+
+  if (terminated_)
     return;
 
   rv_intr_t intr;
@@ -334,6 +346,9 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read& m_mcmi_read
   if (!FLAGS_mcm)
     return;
 
+  if (terminated_)
+    return;
+
   mem_t m;
   m.valid = true;
   m.cycle = m_mcmi_read.cycle;
@@ -347,6 +362,9 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read& m_mcmi_read
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert& m_mcmi_insert) {
   if (!FLAGS_mcm)
+    return;
+
+  if (terminated_)
     return;
 
   mem_t m;
@@ -364,6 +382,9 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write& m_mcmi_wri
   if (!FLAGS_mcm)
     return;
 
+  if (terminated_)
+    return;
+
   mem_cl_t m;
   m.valid = true;
   m.cycle = m_mcmi_write.cycle;
@@ -372,6 +393,11 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write& m_mcmi_wri
   m.data = m_mcmi_write.data;
 
   bridge_->process_dut_mcm_write(0, m);
+}
+
+void rvfi::process(const htif::terminate_t&) {
+  cvm::log(cvm::MEDIUM, "[RVFI] termination signaled, stopping further rvfi processing\n");
+  terminated_ = true;
 }
 
 extern "C" {
