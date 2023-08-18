@@ -224,13 +224,13 @@ static uint32_t ori(unsigned int dest, unsigned int src, uint16_t imm)
     (dest << 7) |
     MATCH_ORI;
 }
+*/
 
 static uint32_t nop(void) __attribute__ ((unused));
 static uint32_t nop(void)
 {
   return addi(0, 0, 0);
 }
-*/
 
 static uint32_t xori(unsigned int dest, unsigned int src, uint16_t imm) __attribute__ ((unused));
 static uint32_t xori(unsigned int dest, unsigned int src, uint16_t imm)

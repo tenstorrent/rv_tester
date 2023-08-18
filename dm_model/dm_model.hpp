@@ -143,26 +143,34 @@ public:
 
 private:
   // cvm::file_logger log;
+  uint32_t sent_count = 0, resp_count =0;
 
-  static const unsigned datasize = 2;
+  static const unsigned datasize = 2; //Number of data registers
   debug_module_config_t config = {8, false, 0, true, true, true, false, false};
-  
+
   // Actual size of the program buffer, which is 1 word bigger than we let on
   // to implement the implicit ebreak at the end.
   unsigned program_buffer_bytes;
   static const unsigned debug_data_start = 0x380;
   unsigned debug_progbuf_start;
 
-  static const unsigned debug_abstract_size = 12;
+  static const unsigned debug_abstract_size = 10;
   unsigned debug_abstract_start;
   // R/W this through custom registers, to allow debuggers to test that
   // functionality.
   unsigned custom_base;
 
-  std::unordered_set<uint8_t> dm_regs_to_check = {0x11, 0x16};
+  std::unordered_set<uint8_t> dm_regs_to_check = {0x11, 0x16, 0x04, 0x10, 0x17};
   uint8_t reg_addr_to_check;
   uint32_t req_expect;
   bool req_resp_check = false;
+
+  size_t load_req_length;
+  reg_t load_req_addr;
+  uint8_t load_bytes_data[8] = {};
+  uint64_t expected_load_data;
+  bool mem_load_check = false;
+  uint8_t load_req_id;
 
   std::map<size_t, std::unique_ptr<processor_t>> harts;
 

@@ -436,7 +436,7 @@ dm_model:
         fields:
             addr:
                 width: ${TOP.PLATFORM.AXI.ADDR_WIDTH}
-            len:
+            size:
                 width: 8
             id:
                 width: ${TOP.PLATFORM.AXI_MST.ID_WIDTH}
@@ -447,7 +447,7 @@ dm_model:
             id:
                 width: ${TOP.PLATFORM.AXI_MST.ID_WIDTH}
             data:
-                width: ${TOP.PLATFORM.AXI_MST.DATA_WIDTH}
+                width: 64
     dm_store:
         domain: 1
         num: 1
