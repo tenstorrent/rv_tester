@@ -17,11 +17,11 @@ module rv_tester #(
         rv_tester_clkgen clkgen(.*);
     end
 
-    import "DPI-C" context function void rv_tester_parse_flags(); // context forces zebu to serialize this call. this needs to happen at the start of the test before other DPIs.
+    import "DPI-C" function int rv_tester_parse_flags(); // dummy return value so that this gets called immediately. need this to happen before any other DPIs are called.
     import "DPI-C" context function void rv_tester_cvm_error_handler();
     import "DPI-C" function void rv_tester_parse_memmap();
     import "DPI-C" function void rv_tester_build_registry();
-    import "DPI-C" function void rv_tester_shutdown_registry();
+    import "DPI-C" function int rv_tester_shutdown_registry(); // dummy return value so that this gets called immediately to end the test.
     import "DPI-C" context function bit rv_tester_flush_callbacks();
 
     logic rv_tester_reset = '1;
@@ -88,10 +88,12 @@ module rv_tester #(
     */
     always @(posedge clk) begin
 
+        automatic int _;
+
         if (rv_tester_reset) begin
 
             $display("[RVTESTER]: new test");
-            rv_tester_parse_flags();
+            _ = rv_tester_parse_flags();
             rv_tester_cvm_error_handler();
             rv_tester_parse_memmap();
 
@@ -131,6 +133,8 @@ module rv_tester #(
     */
     always @(posedge clk) begin
 
+        automatic int _;
+
         if (terminate_now && !terminated) begin
 
             if (quiesced) begin
@@ -141,7 +145,7 @@ module rv_tester #(
                 $display("<%0d> Error: Waiting to quiesce for more than %0d cycles", clocks, quiesce_timeout);
             end
 
-            rv_tester_shutdown_registry();
+            _ = rv_tester_shutdown_registry();
 
             if (call_finish && num_reruns == '0) begin
                 $finish();
