@@ -5,7 +5,6 @@
 #include "cvm/bitmanip.hpp"
 #include "cvm/callbacks.hpp"
 #include "cvm/registry.hpp"
-#include "sysmod/htif/htif.h"
 
 #include <iostream>
 #include <chrono>
@@ -16,6 +15,7 @@ DEFINE_bool(rvfi, true, "Enable rvfi");
 // rvfi_log flag was created is that +norvfi causes the max # of cycles to be
 // exceeded.
 DEFINE_bool(rvfi_log, true, "Enable rvfi logging");
+DEFINE_bool(mcm, false, "Enable mcm");
 DEFINE_bool(cosim, true, "Enable cosim checking");
 DECLARE_string(load);
 
@@ -42,8 +42,15 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned)
     rv_tester_transactions::cosim::m_rvfi,
     rv_tester_transactions::cosim::m_trap,
     rv_tester_transactions::cosim::m_intr,
+    rv_tester_transactions::cosim::m_mcmi_read,
+    rv_tester_transactions::cosim::m_mcmi_insert,
+    rv_tester_transactions::cosim::m_mcmi_write,
     rv_tester_transactions::cosim::m_debug
   >(loc);
+
+  connect<
+    htif::terminate_t
+  >(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0));
 }
 
 rvfi::~rvfi() {
@@ -62,6 +69,9 @@ void rvfi::init() {
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_rvfi& m_rvfi) {
+  if (terminated_)
+    return;
+
   // Construct rv_instr_t and send to bridge
   rv_instr_t instr;
   make_instr(m_rvfi, instr);
@@ -80,6 +90,9 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi& m_rvfi) {
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_trap& m_trap) {
+  if (terminated_)
+    return;
+
   if ((m_trap.cause >> 63) & 0x1) {
     intr_ = true;
     icause_ = (m_trap.cause & 0x3f);
@@ -91,6 +104,9 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap& m_trap) {
 
 void rvfi::process(const rv_tester_transactions::cosim::m_intr& m_intr) {
   if (!FLAGS_cosim)
+    return;
+
+  if (terminated_)
     return;
 
   rv_intr_t intr;
@@ -160,6 +176,11 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi& m_rvfi, rv_in
   instr.fpr.frd_addr = m_rvfi.frd_addr;
   instr.fpr.frd_wdata = m_rvfi.frd_wdata;
 
+  // VPR
+  instr.vr.valid = m_rvfi.vrd_valid;
+  instr.vr.vrd_addr = m_rvfi.vrd_addr;
+  instr.vr.vrd_wdata = m_rvfi.vrd_wdata;
+
   // tlb
   instr.mem_va = m_rvfi.mem_addr;
   instr.mem_pa = m_rvfi.mem_paddr;
@@ -210,7 +231,7 @@ void rvfi::print_instr(rv_instr_t& instr) {
     return;
   }
 
-  int resource_count = instr.gpr.valid + instr.fpr.valid + instr.mem_write.valid + instr.csr.size();
+  int resource_count = instr.gpr.valid + instr.fpr.valid + instr.vr.valid + instr.mem_write.valid + instr.csr.size();
 
   // Print r0 = 0 if nothing modified
   if (!resource_count || !instr.last_uop)
@@ -222,6 +243,16 @@ void rvfi::print_instr(rv_instr_t& instr) {
 
     if (instr.fpr.valid)
       print_instr_resource(instr, fmt::format(" f {:016x} {:016x}", instr.fpr.frd_addr, instr.fpr.frd_wdata));
+
+    if (instr.vr.valid){
+      uint64_t chunks[4] = {0};
+      for (int i = 0; i < 4; ++i) {
+          for (int j = 0; j < 64; ++j) {
+              chunks[i] |= static_cast<uint64_t>(instr.vr.vrd_wdata[i * 64 + j]) << j;
+          }
+      }
+      print_instr_resource(instr, fmt::format(" v {:002x} {:016x}{:016x}{:016x}{:016x}", instr.vr.vrd_addr, chunks[3], chunks[2], chunks[1], chunks[0]));
+    }
 
     if (instr.mem_write.valid)
       print_instr_resource(instr, fmt::format(" m {:016x} {:016x}", instr.mem_write.va, instr.mem_write.data));
@@ -309,7 +340,64 @@ void rvfi::exit_debug_mode(rv_instr_t& instr) {
 
     bridge_->exit_debug_mode(debug);
   }
+}
 
+void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read& m_mcmi_read) {
+  if (!FLAGS_mcm)
+    return;
+
+  if (terminated_)
+    return;
+
+  mem_t m;
+  m.valid = true;
+  m.cycle = m_mcmi_read.cycle;
+  m.tag = m_mcmi_read.order;
+  m.pa = m_mcmi_read.addr;
+  m.size = std::popcount(m_mcmi_read.mask);
+  m.data = m_mcmi_read.data;
+ 
+  bridge_->process_dut_mcm_read(0, m);
+}
+
+void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert& m_mcmi_insert) {
+  if (!FLAGS_mcm)
+    return;
+
+  if (terminated_)
+    return;
+
+  mem_t m;
+  m.valid = true;
+  m.cycle = m_mcmi_insert.cycle;
+  m.tag = m_mcmi_insert.order;
+  m.pa = m_mcmi_insert.addr;
+  m.size = std::popcount(m_mcmi_insert.mask);
+  m.data = m_mcmi_insert.data;
+
+  bridge_->process_dut_mcm_insert(0, m);
+}
+
+void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write& m_mcmi_write) {
+  if (!FLAGS_mcm)
+    return;
+
+  if (terminated_)
+    return;
+
+  mem_cl_t m;
+  m.valid = true;
+  m.cycle = m_mcmi_write.cycle;
+  m.pa = m_mcmi_write.addr;
+  m.mask = m_mcmi_write.mask;
+  m.data = m_mcmi_write.data;
+
+  bridge_->process_dut_mcm_write(0, m);
+}
+
+void rvfi::process(const htif::terminate_t&) {
+  cvm::log(cvm::MEDIUM, "[RVFI] termination signaled, stopping further rvfi processing\n");
+  terminated_ = true;
 }
 
 extern "C" {

@@ -14,7 +14,7 @@ def rv_tester_repositories():
         #sha256 = "af87959afe497dc8dfd4c6cb66e1279cb98ccc84284619ebfec27d9c09a903de",
     )
 
-    corearchcoverage_hash="f1f11a8b5afba8b87bb4c004dfec95b7ef76b160"
+    corearchcoverage_hash="56a6d92708f55d2d4c35f6675b9cc3fcff2c36fc"
     maybe(
         git_repository,
         name = "corearchcoverage",
@@ -23,11 +23,11 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv/dv/corearchcoverage.git",
     )
 
-    cvm_hash="8bbdb883c54ecdc34fbd87afe059def38e263afc"
+    cvm_hash="6c175fc63a12a2f1020c2f9b77e63d69eb0cd9b4"
     maybe(
         http_archive,
         name = "cvm",
-        sha256 = "a33447dfd9a04c0f1334e31af35539ac9f1ff6d90aeeb4b82179ccfaef0aadaf",
+        sha256 = "bc986b39ab0fea5583d60475ca8bf9bf144336fc90bb3257b75e296360cb9a6e",
         strip_prefix = "cvm-{commit}".format(commit=cvm_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/{commit}/cvm-{commit}.tar.bz2".format(commit=cvm_hash),
     )
@@ -58,7 +58,7 @@ cc_library(
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv/swerv-iss.git",
     )
 
-    core_arch_checker_hash="93f929809c47bfa07dcee719249ea6152e59eee2"
+    core_arch_checker_hash="95cb0626f38a52b5ca3e1b6e37f881ac728ec410"
     maybe(
         http_archive,
         name = "CoreArchChecker",
@@ -93,7 +93,7 @@ cc_library(
         url = "https://aus-gitlab.local.tenstorrent.com/mboisvert/wall_clock_profiler/-/archive/{commit}/wall_clock_profiler-{commit}.tar.bz2".format(commit=wall_clock_profiler_hash),
     )
 
-    checkin_script_hash="d0e3da97c762c1286b57e6cb1026ae64de83140a"
+    checkin_script_hash="8693fab37534f640ec850e132199f8d8a98e597e"
     maybe(
         git_repository,
         name = "checkin-script",

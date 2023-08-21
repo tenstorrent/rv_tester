@@ -30,7 +30,6 @@ DEFINE_string(cosim_resynch_instr, "", "List of instruction mnemonics to resynch
 DEFINE_string(cosim_resynch_prev_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
 DEFINE_bool(lrsc_resynch, false, "Resynch whisper with dut state on LRSC fail condition");
 DEFINE_bool(retire_ucode_trap, true, "DUT indicates retire on a trap after executing the ucode trap handler");
-DEFINE_bool(mcm, false, "Enable memory consistency checker");
 DEFINE_bool(gpr_check, true, "Enable cosim checks on gprs");
 DEFINE_bool(fpr_check, true, "Enable cosim checks on fprs");
 DEFINE_bool(vec_check, false, "Enable cosim checks on vector regs");
@@ -143,13 +142,13 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   // Error on mismatch
   if (!cac_.GetStatus(hart)) {
+    cac_.ResetStatus(hart);
     if (FLAGS_cosim_resynch) {
       if (FLAGS_bridge_log) {
         print_instr(hart, w);
         log(cvm::MEDIUM, "{}", cac_.GetStatusStr(hart));
       }
       resynch(hart, d);
-      cac_.ResetStatus(hart);
     } else {
       std::string instr = cosim_util::get_nth_word(w.disasm, 1);
       std::string resource = cac_.GetResourceStr(hart) == "PC" ? " :PC" : "";
@@ -422,6 +421,12 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
       w_.fpr.frd_wdata = w.value;
       update_regs(hart, w);
     }
+    if (w.resource == 'v') {
+      w_.vr.valid = true;
+      w_.vr.vrd_addr = w.address;
+      // w_.vr.vrd_wdata = w.value;
+      update_regs(hart, w, i);
+    }
     if (w.resource == 'c') {
       csr_t c;
       c.valid = true;
@@ -484,6 +489,28 @@ void bridge::step(hart_id_t hart, whisper_state_t& w) {
   }
 }
 
+std::vector<cac::size_8_bytes_t> create_dword_vec(const std::bitset<256>& input) {
+    // Calculate the number of 8-byte chunks needed for the 256-bit input
+    size_t num_chunks = (256 + 63) / 64; // Round up division
+
+    // Create a vector to store the chunks
+    std::vector<cac::size_8_bytes_t> dword_vec(num_chunks);
+
+    // Convert and store each chunk of 64 bits (8 bytes)
+    for (size_t i = 0; i < num_chunks; ++i) {
+        cac::size_8_bytes_t chunk = 0;
+        for (size_t j = 0; j < 64; ++j) {
+            size_t bit_index = i * 64 + j;
+            if (bit_index < 256 && input[bit_index]) {
+                chunk |= (cac::size_8_bytes_t(1) << j);
+            }
+        }
+        dword_vec[i] = chunk;
+    }
+
+    return dword_vec;
+}
+
 // Push DUT register state to cac
 void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
   // GPR
@@ -496,7 +523,7 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
   }
   // VR
   if (FLAGS_vec_check && d.vr.valid) {
-    update_regs(hart, src_t::dut, resource_t::vec_reg, d.vr.vrd_addr, {d.vr.vrd_wdata, d.vr.vrd_wdata + (vlen_/64)});
+    update_regs(hart, src_t::dut, resource_t::vec_reg, d.vr.vrd_addr, create_dword_vec(d.vr.vrd_wdata));
   }
 }
 
@@ -504,11 +531,26 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
 void bridge::update_mem(hart_id_t, rv_instr_t&) {
 }
 
+std::bitset<256> create_bitset(cac::size_8_bytes_t dword_vec_array [vlen/64]) {
+    std::bitset<256> result;
+
+    // Iterate through the array and concatenate each value to the result bitset
+    for (size_t i = 0; i < vlen/64; ++i) {
+        for (size_t j = 0; j < 64; ++j) {
+            size_t bit_index = i * 64 + j;
+            bool bit_value = (dword_vec_array[i] & (cac::size_8_bytes_t(1) << j)) != 0;
+            result[bit_index] = bit_value;
+        }
+    }
+
+    return result;
+}
+
 // Push whisper register state to cac
-void bridge::update_regs(hart_id_t hart, const whisper_state_t& w) {
+void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_slice_index) {
   // Register changes - r, f, v,
-  //TODO:size8BytesT dword_vec_array [vlen_/64] = {0};
-  //TODO:uint32_t entries = vlen_/64;
+  // size_8_bytes_t dword_vec_array [vlen/64] = {0};
+  uint32_t vec_slices = vlen/64;
 
   switch(w.resource) {
     case 'r':
@@ -520,9 +562,13 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w) {
         update_regs(hart, src_t::iss, resource_t::fp_reg, w.address, {w.value});
       break;
     case 'v':
-      //TODO:dword_vec_array [i % entries] = w.value;
-      //TODO:if ((i % entries) == (entries - 1))
-      //TODO:  update_regs(hart, src_t::iss, resource_t::vec_reg, w.address, dword_vec_array);
+      if (FLAGS_vec_check){
+        dword_vec_array [vec_slice_index % vec_slices] = w.value;        
+        if ((vec_slice_index % vec_slices) == (vec_slices - 1)){
+          update_regs(hart, src_t::iss, resource_t::vec_reg, w.address, std::vector<size_8_bytes_t>(dword_vec_array, dword_vec_array + sizeof(dword_vec_array)/sizeof(dword_vec_array[0])));
+          w_.vr.vrd_wdata = create_bitset(dword_vec_array);
+        }
+      }
       break;
     default:
       break;
@@ -743,45 +789,48 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
 }
 
 // Process mem accesses - load resolves
-void bridge::process_dut_mem_read(hart_id_t hart, mem_t& m) {
-  unsigned size_in_bytes = 1 << m.size;
-  bool internal = false;
+void bridge::process_dut_mcm_read(hart_id_t hart, mem_t& m) {
   bool valid = false;
-  if (!client_->whisperMcmRead(hart, m.cycle, m.tag, m.pa, size_in_bytes, m.data, internal, valid)) {
+  if (!client_->whisperMcmRead(hart, m.cycle, m.tag, m.pa, m.size, m.data, valid)) {
     cvm::log(cvm::ERROR, "Error: Failed mcm load resolve\n");
     return;
   }
+  log(cvm::HIGH, "<{}> mcm_read [valid={}, tag={}, addr={:#x}, size={}, data={:#x}]\n",
+    m.cycle, valid, m.tag, m.pa, m.size, m.data);
 }
 
 // Process mem accesses - store inserts
-void bridge::process_dut_mb_insert(hart_id_t hart, mem_t& m) {
-  unsigned size_in_bytes = 1 << m.size;
+void bridge::process_dut_mcm_insert(hart_id_t hart, mem_t& m) {
   bool valid = false;
 
-  if (!client_->whisperMcmInsert(hart, m.cycle, m.tag, m.pa, size_in_bytes, m.data, valid)) {
+  if (!client_->whisperMcmInsert(hart, m.cycle, m.tag, m.pa, m.size, m.data, valid)) {
     cvm::log(cvm::ERROR, "Error: Failed mcm store insert\n");
     return;
   }
+  log(cvm::HIGH, "<{}> mcm_insert [valid={}, tag={}, addr={:#x}, size={}, data={:#x}]\n",
+    m.cycle, valid, m.tag, m.pa, m.size, m.data);
 
   // Collect metrics
   num_stores_++;
 }
 
 // Process mem accesses - store drains
-void bridge::process_dut_mb_drain(hart_id_t hart, mem_cl_t& m) {
-  unsigned size_in_bytes = 64;
-
-  uint64_t addr = (m.addr >> 6) << 6;
-  char data[64] = {0};
-  for (unsigned i=0; i<size_in_bytes; i++) {
-    data[i] = (char)((m.data >> (i*8)) & std::bitset<512>(0xff)).to_ulong();
+void bridge::process_dut_mcm_write(hart_id_t hart, mem_cl_t& m) {
+  uint8_t data[64] = {0};
+  for (unsigned i=0; i<64; i++) {
+    data[i] = (uint8_t)((m.data >> (i*8)) & std::bitset<512>(0xff)).to_ulong();
   }
 
   bool valid = false;
-  if (!client_->whisperMcmWrite(hart, m.cycle, addr, size_in_bytes, data, m.mask, valid)) {
+  if (!client_->whisperMcmWrite(hart, m.cycle, m.pa, 64, data, m.mask, valid)) {
     cvm::log(cvm::ERROR, "Error: Failed mcm store drain\n");
     return;
   }
+  log(cvm::HIGH, "<{}> mcm_write [valid={}, addr={:#x}, mask={:016x}, data=",
+    m.cycle, valid, m.pa, m.mask);
+  for (int i=63; i>=0; i--)
+    log(cvm::HIGH, "{:02x}", data[i]);
+  log(cvm::HIGH, "]\n");
 }
 
 uint64_t bridge::translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t memclass) {
@@ -994,7 +1043,10 @@ void bridge::report_metrics() {
     }
 
     // Step one final time to collect metrics for next instruction
-    whisper_state_t w;
+    whisper_state_t w {
+      .tag = prev_whisp_state.tag+1,
+      .time = prev_whisp_state.time+1
+    };
     step(h, w);
     const auto& next_instr = w.disasm;
     const auto& next_mode = w.priv_mode;

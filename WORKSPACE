@@ -75,7 +75,7 @@ load("@rules_flex//flex:flex.bzl", "flex_register_toolchains")
 flex_register_toolchains(extra_copts=["-Wno-error=misleading-indentation", "-Wno-error=pointer-sign"])
 
 load("@rules_bison//bison:bison.bzl", "bison_register_toolchains")
-bison_register_toolchains(extra_copts=["-Wno-error=misleading-indentation", "-Wno-error=sign-compare" , "-Wno-error=unused-parameter"])
+bison_register_toolchains(extra_copts=["-Wno-error=misleading-indentation", "-Wno-error=sign-compare" , "-Wno-error=unused-parameter", "-Wno-error=unused-but-set-variable"])
 
 load("//infra/bazel:testlist.bzl", "load_testlists")
 load_testlists()

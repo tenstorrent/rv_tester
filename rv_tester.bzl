@@ -3,6 +3,7 @@ load("@cvm//:defs.bzl", "packet_gen")
 load("@rv_tester//cosim:cosim.bzl", "cosim_gen")
 load("@rv_tester//sysmod:sysmod.bzl", "sysmod_gen")
 load("@rv_tester//pmu:pmu.bzl", "pmu_gen")
+load("@rv_tester//dm_model:dm_model.bzl", "dm_model_gen")
 load("@rv_tester//transactors/axi_sw:axi_sw.bzl", "axi_sw_gen")
 
 def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
@@ -55,6 +56,14 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
         cc_attrs = cc_attrs,
     )
 
+    dm_model_gen(
+        name = name + "_dm_model",
+        packet = name  + "_transactions",
+        topology = topology,
+        harness = name + "_harness",
+        cc_attrs = cc_attrs,
+    )
+
     axi_sw_gen(
         name = name + "_axi_sw",
         packet = name + "_transactions",
@@ -73,6 +82,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             name + "_transactions_sv",
             name + "_sysmod_sv",
             name + "_pmu_sv",
+            name + "_dm_model_sv",
             name + "_axi_sw_sv",
         ] + select({
           "@rv_tester//:cosim_off": ["@rv_tester//:no_cosim"],
@@ -91,6 +101,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             name + "_transactions_cc",
             name + "_sysmod_dpi",
             name + "_pmu_dpi",
+            name + "_dm_model_dpi",
             name + "_axi_sw_dpi",
             topology + "_cc",
         ] + select({

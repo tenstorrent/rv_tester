@@ -108,12 +108,11 @@ sysmod::dmi_write(debugger::dmi_data_t i) {
 }
 
 void
-sysmod::terminate(htif::terminate_t t) {
+sysmod::terminate(htif::terminate_t) {
   cvm::registry::callbacks.push(
       scope(),
-      [t]() {
-        if (t.terminate) sysmod_terminate();
-      });
+      sysmod_terminate
+  );
 }
 
 void
@@ -126,6 +125,7 @@ sysmod::reset() {
 void
 sysmod::compose()
 {
+
   devices_.clear();
 
   // Load memmap

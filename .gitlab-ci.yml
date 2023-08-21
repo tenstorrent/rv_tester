@@ -1,44 +1,8 @@
 include:
   - local: 'infra/container/gitlab-container.yml'
-
-.clone-variables: &clone-variables
-    GIT_STRATEGY: none
-    MY_CLONE_PATH: "$CI_PROJECT_DIR/$CI_JOB_ID"
-.bzsim-variables: &bzsim-variables
-    REGRESSION: ""
-
-.notify-template: &notify-template
-    stage: notify
-    rules:
-        - if: '$CI_PIPELINE_SOURCE == "pipeline"'
-          when: never
-        - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-    variables:
-        UPDATE_REPO_POINTER: "True"
-        SKIP_BUILD: "True"
-        SHA_UPDATE_REPO: "rv_tester"
-        SHA_UPDATE_POINTER: $CI_COMMIT_SHA
-        GIT_STRATEGY: none
-
-.clone-script: &clone-script
-    - mkdir -p $MY_CLONE_PATH
-    - cd $MY_CLONE_PATH
-    - git init
-    - git remote add origin $CI_REPOSITORY_URL
-    - git fetch origin --depth=1 $CI_COMMIT_SHA
-    - git reset --hard FETCH_HEAD
-
-.bzsim-setup-script: &bzsim-setup-script
-    - git config --file gitconfig url."https://${CI_REGISTRY_USER}:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/".insteadOf "git@${CI_SERVER_HOST}:"
-    - CANNOT_RUN_CONTAINER=$(! command -v "podman" > /dev/null)
-    - '! $CANNOT_RUN_CONTAINER || export PODMAN_OPTS=""'
-    - '! $CANNOT_RUN_CONTAINER || export XDG_CONFIG_HOME=$(pwd)/xdg_config_home'
-    - '! $CANNOT_RUN_CONTAINER || (mkdir -p $XDG_CONFIG_HOME/git && cp gitconfig $XDG_CONFIG_HOME/git/config)'
-    - export USER=${GITLAB_USER_LOGIN}
-    - export LOGNAME=${GITLAB_USER_LOGIN}
-    - BZSIM="./infra/bzsim --container-run-opt=./gitconfig:$HOME/.gitconfig"
-    - BZSIM_OPTS="--config=ci --lsf --official"
-    - '! $CANNOT_RUN_CONTAINER || BZSIM="${BZSIM} --no-container"'
+  - project: 'riscv/dv/gitlab-definitions'
+    ref: main
+    file: 'common-definitions.yml'
 
 stages:
     - submodule_update
@@ -46,90 +10,59 @@ stages:
     - notify
 
 smoke:
+    extends:
+        - .bzsim-template
+        - .smoke-rules-all-branches-template
     stage: build
     tags:
         - jacamar-lsf
-        - curation
-    before_script:
-        - *clone-script
-        - *bzsim-setup-script
     script:
         - ${BZSIM} test smoke ${BZSIM_OPTS}
-    variables:
-        << : *clone-variables
-        << : *bzsim-variables
     timeout: 1h
 
 notify_rv_common:
-    << : *notify-template
+    stage: notify
+    extends:
+        - .notify-template
     trigger:
         project: riscv/rv-common
 
 asan+ubsan:
+    extends:
+        - .bzsim-template
+        - .smoke-rules-all-branches-template
     stage: build
     tags:
         - jacamar-lsf
-        - curation
-    before_script:
-        - *clone-script
-        - *bzsim-setup-script
     script:
         - ${BZSIM} test smoke ${BZSIM_OPTS} --config asan+ubsan
-    variables:
-        << : *clone-variables
-        << : *bzsim-variables
     timeout: 1h
 
 tsan:
+    extends:
+        - .bzsim-template
+        - .smoke-rules-all-branches-template
     stage: build
     tags:
         - jacamar-lsf
-        - curation
-    before_script:
-        - *clone-script
-        - *bzsim-setup-script
     script:
         - ${BZSIM} test smoke ${BZSIM_OPTS} --config tsan
-    variables:
-        << : *clone-variables
-        << : *bzsim-variables
     timeout: 1h
 
 valgrind:
+    extends:
+        - .bzsim-template
+        - .smoke-rules-all-branches-template
     stage: build
     tags:
         - jacamar-lsf
-        - curation
-    before_script:
-        - *clone-script
-        - *bzsim-setup-script
     script:
         # TODO(mboisvert): Clean this by adding native +valgrind support to runtime.
         - ${BZSIM} test smoke ${BZSIM_OPTS} --bazel-test-opt=--test_arg=--run-args=+sim_wrap=/opt/rh/gcc-toolset-11/root/bin/valgrind --bazel-test-opt=--test_arg=--run-args=+sim_wrap=--trace-children=yes --bazel-test-opt=--test_arg=--run-args=+sim_wrap=--tool=memcheck --bazel-test-opt=--test_arg=--run-args=+sim_wrap=--leak-check=full --bazel-test-opt=--test_arg=--run-args=+sim_wrap=--show-reachable=yes --bazel-test-opt=--test_arg=--run-args=+sim_wrap=--track-origins=yes --bazel-test-opt=--test_arg=--run-args=+sim_wrap=--error-exitcode=1
-    variables:
-        << : *clone-variables
-        << : *bzsim-variables
     timeout: 1h
+
 
 submodule_update:
     stage: submodule_update
-    tags:
-        - jacamar-lsf
-        - curation
-    rules:
-        - if: $UPDATE_REPO_POINTER == "True"
-    before_script:
-        - *clone-script
-        - *bzsim-setup-script
-    script:
-        - echo "Updating ${SHA_UPDATE_REPO} SHA to ${SHA_UPDATE_POINTER} ${SUBMODULE_UPDATER_ACCESS_TOKEN}"
-        - ${BZSIM} extdep update ${SHA_UPDATE_REPO}=${SHA_UPDATE_POINTER}
-        - echo "SHA Update complete. Pushing changes"
-        - git config user.email "${GITLAB_USER_EMAIL}"
-        - git config user.name "${GITLAB_USER_NAME}"
-        - git remote add sha_update_${SHA_UPDATE_POINTER} https://${SUBMODULE_UPDATER_ACCESS_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git
-        - git commit -a -m "Auto updated ${SHA_UPDATE_REPO} pointer"
-        - ./infra/.ci-checkin --remote sha_update_${SHA_UPDATE_POINTER} --target ${CI_DEFAULT_BRANCH} --api-key ${CHECKIN_TOKEN} --skip_commit_check --branch ci-update/${SHA_UPDATE_REPO}/${SHA_UPDATE_POINTER:0:8} --assignee rvinfra --skip-reviewer-check
-    variables:
-        << : *clone-variables
-        << : *bzsim-variables
+    extends:
+        - .submodule-update-template

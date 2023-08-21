@@ -44,9 +44,9 @@ public:
   //   - Read (Ld completion)
   //   - Insert (St merge buffer insertion)
   //   - Write (St cache write)
-  virtual void process_dut_mem_read(hart_id_t hart, mem_t& m) override;
-  virtual void process_dut_mb_insert(hart_id_t hart, mem_t& m) override;
-  virtual void process_dut_mb_drain(hart_id_t hart, mem_cl_t& m) override;
+  virtual void process_dut_mcm_read(hart_id_t hart, mem_t& m) override;
+  virtual void process_dut_mcm_insert(hart_id_t hart, mem_t& m) override;
+  virtual void process_dut_mcm_write(hart_id_t hart, mem_cl_t& m) override;
 
   // Interrupts
   virtual void process_dut_interrupt(hart_id_t hart, rv_intr_t &i) override;
@@ -80,7 +80,7 @@ private:
   void update_pc(hart_id_t hart, src_t src, uint64_t data);
   void update_insn(hart_id_t hart, src_t src, uint32_t data);
   void update_regs(hart_id_t hart, const rv_instr_t& d);
-  void update_regs(hart_id_t hart, const whisper_state_t& w);
+  void update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_slice_index = 0);
   void update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, const std::vector<size_8_bytes_t>&& dword_vec);
   void update_mem(hart_id_t hart, rv_instr_t& d);
   void translation_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
@@ -154,4 +154,6 @@ private:
   memmap::memmap_t memmap_;
 
   int num_stores_ = 0;
+
+  size_8_bytes_t dword_vec_array [vlen/64] = {0};
 };
