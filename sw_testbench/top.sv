@@ -20,9 +20,9 @@ module top #(
     );
 
     function void write_rvfi(byte unsigned valid, int unsigned core, int unsigned insn, longint unsigned pc);
-        rvfi_instr[core].insn = insn;
-        rvfi_instr[core].valid = (valid != '0);
-        rvfi_instr[core].pc_rdata = pc;
+        rvfi[core].insn = insn;
+        rvfi[core].valid = (valid != '0);
+        rvfi[core].pc_rdata = pc;
     endfunction
 
     export "DPI-C" function write_rvfi;

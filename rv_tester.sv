@@ -1,4 +1,6 @@
-module rv_tester #(
+module rv_tester
+import rv_tester_params::*;
+#(
     parameter int RESET_CLOCKS              =      10,
     parameter bit EXTERNAL_CLOCK            =       0,
     parameter int CLOCK_PERIOD_PS           =     500,
@@ -242,8 +244,10 @@ module rv_tester #(
         .clk,
         .reset(sysmod_reset),
         .clocks,
-        .rvfi(rvfi_instr),
-        .mcmi(mcmi_event),
+        .rvfi,
+        .mcmi_read,
+        .mcmi_insert,
+        .mcmi_write,
         .interrupt,
         .debug_mode,
         `RV_TESTER_TRANSACTIONS_SOURCE_COSIM(1, 0)
@@ -257,8 +261,8 @@ module rv_tester #(
         .clk,
         .reset(sysmod_reset),
         .clocks,
-        .pmu_event(pmu_event),
-        .rvfi(rvfi_instr),
+        .pmci,
+        .rvfi,
         .terminate,
         `RV_TESTER_TRANSACTIONS_SOURCE_PMU(1, 0)
     );

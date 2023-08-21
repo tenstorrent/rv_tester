@@ -16,6 +16,8 @@ verilog_dpi_library(
 topology_gen(
     name = "topology",
     srcs = [
+        "rv_tester_platform.yml",
+        "rv_tester_hart.yml",
         "rv_tester_axi.yml",
         "@rv_tester//:rv_tester_topology",
         "topology.yml",
