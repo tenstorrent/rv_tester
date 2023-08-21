@@ -87,8 +87,15 @@ public:
     std::lock_guard<std::mutex> lock(mutex_);
     timer_ += advance;
     timer_advance = advance;
-    cvm::log(cvm::FULL, "[Trickbox] Timer tick :  {} advance interval {} \n",timer_,timer_advance);
+    cvm::log(cvm::FULL, "[MSI Driver] Timer tick :  {} advance interval {} \n",timer_,timer_advance);
     processDelayedRandomInterrupts();
+    uint32_t addr = 0x900;
+    uint32_t length = 4;
+    std::vector<uint8_t> data = {0xba,0xad,0xf0,0x12};
+    std::vector<bool> strb = {1,1,1,1,1,1,1,1,1};
+
+  cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb});
+
   }
 
   void reset() override {
