@@ -1,0 +1,18 @@
+rv_tester_rvfi_attrs: &rv_tester_rvfi_attrs
+  ENABLE: 1
+  FP_ENABLE: 1
+  VEC_ENABLE: 1
+  MEM_ENABLE: 1
+  CSR_ENABLE: 0
+  UOP_ENABLE: 1
+  NRET: 1
+  #NRETS: [1]
+
+rv_tester_mcmi_attrs: &rv_tester_mcmi_attrs
+  ENABLE: 0
+  NREAD: 3
+  NINSERT: 3
+  NWRITE: 3
+
+rv_tester_pmci_attrs: &rv_tester_pmci_attrs
+  ENABLE: 0

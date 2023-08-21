@@ -1,0 +1,19 @@
+rv_tester_nharts: &rv_tester_nharts 1
+
+rv_tester_platform_attrs: &rv_tester_platform_attrs
+  NHARTS: 1
+  #ISA
+  ISA_RVIMA: 1
+  ISA_RVF: 1
+  ISA_RVD: 1
+  ISA_RVC: 1
+  ISA_RVV: 1
+  # Register/mem sizes
+  ILEN: 32
+  XLEN: 64
+  FLEN: 64
+  VLEN: 256
+  RDLEN: 64
+  VALEN: 64
+  PALEN: 56
+  CLLEN: 512
