@@ -41,6 +41,12 @@ cosim:
                 width: 5
             frd_wdata:
                 width: 64
+            vrd_valid:
+                width: 1
+            vrd_addr:
+                width: 5
+            vrd_wdata:
+                width: ${TOP.CLUSTER.CORE.VLEN}
             pc_rdata:
                 width: 64
             pc_wdata:
@@ -58,9 +64,9 @@ cosim:
             mem_wdata:
                 width: 64
 
-    m_mcmi_store:
+    m_mcmi_read:
         domain: 1
-        num: ${TOP.CLUSTER.CORE.STQ_PORTS}
+        num: ${TOP.CLUSTER.CORE.MAX_MCM_READS}
         fields:
             cycle:
                 width: 64
@@ -68,10 +74,38 @@ cosim:
                 width: 64
             addr:
                 width: 56
-            size:
-                width: 8
+            mask:
+                width: 64
             data:
                 width: 64
+
+    m_mcmi_insert:
+        domain: 1
+        num: ${TOP.CLUSTER.CORE.MAX_MCM_INSERTS}
+        fields:
+            cycle:
+                width: 64
+            order:
+                width: 64
+            addr:
+                width: 56
+            mask:
+                width: 64
+            data:
+                width: 64
+
+    m_mcmi_write:
+        domain: 1
+        num: ${TOP.CLUSTER.CORE.MAX_MCM_WRITES}
+        fields:
+            cycle:
+                width: 64
+            addr:
+                width: 56
+            mask:
+                width: 64
+            data:
+                width: 512
 
     m_trap:
         domain: 1
@@ -115,7 +149,7 @@ cosim:
 sysmod:
     num: 1
     tick:
-        domain: 1
+        domain: 2
         num: 1
         fields:
             advance:
@@ -124,8 +158,9 @@ sysmod:
 axi_sw:
     num: ${TOP.PLATFORM.AXI.TOTAL}
     w:
-        domain: 1
+        domain: 2
         num: 1
+        dummy_return: true
         fields:
             data:
                 width: ${TOP.PLATFORM.AXI.DATA_WIDTH}
@@ -134,8 +169,9 @@ axi_sw:
             last:
                 width: 1
     aw:
-        domain: 1
+        domain: 2
         num: 1
+        dummy_return: true
         fields:
             id:
                 width: ${TOP.PLATFORM.AXI.ID_WIDTH}
@@ -152,8 +188,9 @@ axi_sw:
             atop:
                 width: 6
     ar:
-        domain: 1
+        domain: 2
         num: 1
+        dummy_return: true
         fields:
             id:
                 width: ${TOP.PLATFORM.AXI.ID_WIDTH}
@@ -169,8 +206,9 @@ axi_sw:
                 width: 1
 
     r_q_ptr:
-        domain: 1
+        domain: 2
         num: 1
+        dummy_return: true
         fields:
             r_ptr:
                 width: ${TOP.PLATFORM.AXI.R_Q_PTR_MAX_LOG2}
@@ -179,8 +217,9 @@ axi_sw_mst:
     num: ${TOP.PLATFORM.AXI_MST.TOTAL}
 
     b:
-        domain: 1
+        domain: 2
         num: 1
+        dummy_return: true
         fields:
             id:
                 width: ${TOP.PLATFORM.AXI_MST.ID_WIDTH}
@@ -188,8 +227,9 @@ axi_sw_mst:
                 width: 2
 
     r:
-        domain: 1
+        domain: 2
         num: 1
+        dummy_return: true
         fields:
             id:
                 width: ${TOP.PLATFORM.AXI_MST.ID_WIDTH}
@@ -201,22 +241,25 @@ axi_sw_mst:
                 width: 1
 
     ar_q_ptr:
-        domain: 1
+        domain: 2
         num: 1
+        dummy_return: true
         fields:
             ar_ptr:
                 width: ${TOP.PLATFORM.AXI_MST.AR_Q_PTR_MAX_LOG2}
 
     aw_q_ptr:
-        domain: 1
+        domain: 2
         num: 1
+        dummy_return: true
         fields:
             aw_ptr:
                 width: ${TOP.PLATFORM.AXI_MST.AW_Q_PTR_MAX_LOG2}
 
     w_q_ptr:
-        domain: 1
+        domain: 2
         num: 1
+        dummy_return: true
         fields:
             w_ptr:
                 width: ${TOP.PLATFORM.AXI_MST.W_Q_PTR_MAX_LOG2}
@@ -364,3 +407,54 @@ pmu:
                 width: 64
             vector_busy_cycles:
                 width: 64
+
+dm_model:
+    num: 1
+    dmi_req:
+        domain: 1
+        num: 1
+        fields:
+            op:
+                width: 2
+            addr:
+                width: 7
+            data:
+                width: 32
+            misc_signals:
+                width: 8
+    dmi_resp:
+        domain: 1
+        num: 1
+        fields:
+            resp:
+                width: 2
+            data:
+                width: 32
+    dm_load_cmd:
+        domain: 1
+        num: 1
+        fields:
+            addr:
+                width: ${TOP.PLATFORM.AXI.ADDR_WIDTH}
+            size:
+                width: 8
+            id:
+                width: ${TOP.PLATFORM.AXI_MST.ID_WIDTH}
+    dm_load_data:
+        domain: 1
+        num: 1
+        fields:
+            id:
+                width: ${TOP.PLATFORM.AXI_MST.ID_WIDTH}
+            data:
+                width: 64
+    dm_store:
+        domain: 1
+        num: 1
+        fields:
+            addr:
+                width: ${TOP.PLATFORM.AXI.ADDR_WIDTH}
+            len:
+                width: 4
+            data:
+                width: 32

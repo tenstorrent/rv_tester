@@ -37,7 +37,7 @@ class eot {
 
       connect<
         rv_tester_transactions::cosim::m_rvfi,
-        rv_tester_transactions::cosim::m_mcmi_store
+        rv_tester_transactions::cosim::m_mcmi_insert
       >(loc);
     }
 
@@ -45,7 +45,7 @@ class eot {
 
     void get_tohost_addr();
     void process(const rv_tester_transactions::cosim::m_rvfi& m_rvfi);
-    void process(const rv_tester_transactions::cosim::m_mcmi_store& m_mcmi_store);
+    void process(const rv_tester_transactions::cosim::m_mcmi_insert& m_mcmi_insert);
 
   private:
 
@@ -53,4 +53,5 @@ class eot {
     std::uint64_t tohost_addr_ = -1;
     const std::uint8_t tohost_status_ = 1;
     const std::uint8_t tohost_device_syscall_ = 0;
+    bool ended_ = false;
 };

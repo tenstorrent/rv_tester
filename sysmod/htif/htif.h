@@ -41,9 +41,7 @@ public:
       x |= INT(data[i]) << i*8;
   }
 
-  struct terminate_t {
-    bool terminate;
-  };
+  struct terminate_t {};
 
 private:
 

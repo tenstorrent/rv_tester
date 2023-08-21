@@ -11,11 +11,12 @@ top:
         NRET: 8
         ILEN: 32
         XLEN: 64
-        VLEN: 64
+        VLEN: 256
+        MAX_DATA_LEN: 256
         PA_WIDTH: 56
-        STQ_PORTS: 2
-        L1DC_LD_PORTS: 2
-        L1DC_ST_PORTS: 2
-        L1DC_DATA_WIDTH: 512
+        CACHE_LINE_WIDTH: 512
+        MAX_MCM_READS: 3
+        MAX_MCM_INSERTS: 3
+        MAX_MCM_WRITES: 3
 
   <<: *rv_tester

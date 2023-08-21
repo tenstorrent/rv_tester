@@ -6,7 +6,7 @@ module cosim #(
     input reset,
     input longint unsigned clocks,
     input rv_tester_params::rvfi_t rvfi[topology.TOP.CLUSTER.CORE.NRET],
-    input rv_tester_params::mcmi_t mcmi_store[topology.TOP.CLUSTER.CORE.STQ_PORTS],
+    input rv_tester_params::mcmi_t mcmi,
     input rv_tester_pkg::interrupt_t interrupt,
     input debug_mode,
     `RV_TESTER_TRANSACTIONS_OUTPUT_COSIM
@@ -50,6 +50,9 @@ module cosim #(
         assign m_rvfis[n].data.frd_valid = rvfi[n].frd_valid;
         assign m_rvfis[n].data.frd_addr = rvfi[n].frd_addr;
         assign m_rvfis[n].data.frd_wdata = rvfi[n].frd_wdata;
+        assign m_rvfis[n].data.vrd_valid = rvfi[n].vrd_valid;
+        assign m_rvfis[n].data.vrd_addr = rvfi[n].vrd_addr;
+        assign m_rvfis[n].data.vrd_wdata = rvfi[n].vrd_wdata;
         assign m_rvfis[n].data.pc_rdata = rvfi[n].pc_rdata;
         assign m_rvfis[n].data.pc_wdata = rvfi[n].pc_wdata;
         assign m_rvfis[n].data.mem_addr = rvfi[n].mem_addr;
@@ -60,15 +63,36 @@ module cosim #(
         assign m_rvfis[n].data.mem_wdata = rvfi[n].mem_wdata;
     end
 
-    // m_mcmi_store
-    for (genvar n = 0; n < topology.TOP.CLUSTER.CORE.STQ_PORTS; n++) begin
-        assign m_mcmi_stores[n].valid = ~reset & mcmi_store[n].valid & rvfi_enabled;
-        assign m_mcmi_stores[n].data.location = location;
-        assign m_mcmi_stores[n].data.cycle = clocks;
-        assign m_mcmi_stores[n].data.order = mcmi_store[n].order;
-        assign m_mcmi_stores[n].data.addr = mcmi_store[n].addr;
-        assign m_mcmi_stores[n].data.size = mcmi_store[n].size;
-        assign m_mcmi_stores[n].data.data = mcmi_store[n].data;
+    // m_mcmi_read
+    for (genvar n = 0; n < topology.TOP.CLUSTER.CORE.MAX_MCM_READS; n++) begin
+        assign m_mcmi_reads[n].valid = ~reset & mcmi.read[n].valid & rvfi_enabled;
+        assign m_mcmi_reads[n].data.location = location;
+        assign m_mcmi_reads[n].data.cycle = mcmi.read[n].valid ? clocks : '0;
+        assign m_mcmi_reads[n].data.order = mcmi.read[n].order;
+        assign m_mcmi_reads[n].data.addr = mcmi.read[n].addr;
+        assign m_mcmi_reads[n].data.mask = mcmi.read[n].mask;
+        assign m_mcmi_reads[n].data.data = mcmi.read[n].data[63:0];
+    end
+
+    // m_mcmi_insert
+    for (genvar n = 0; n < topology.TOP.CLUSTER.CORE.MAX_MCM_INSERTS; n++) begin
+        assign m_mcmi_inserts[n].valid = ~reset & mcmi.insert[n].valid & rvfi_enabled;
+        assign m_mcmi_inserts[n].data.location = location;
+        assign m_mcmi_inserts[n].data.cycle = mcmi.insert[n].valid ? clocks : '0;
+        assign m_mcmi_inserts[n].data.order = mcmi.insert[n].order;
+        assign m_mcmi_inserts[n].data.addr = mcmi.insert[n].addr;
+        assign m_mcmi_inserts[n].data.mask = mcmi.insert[n].mask;
+        assign m_mcmi_inserts[n].data.data = mcmi.insert[n].data[63:0];
+    end
+
+    // m_mcmi_write
+    for (genvar n = 0; n < topology.TOP.CLUSTER.CORE.MAX_MCM_WRITES; n++) begin
+        assign m_mcmi_writes[n].valid = ~reset & mcmi.write[n].valid & rvfi_enabled;
+        assign m_mcmi_writes[n].data.location = location;
+        assign m_mcmi_writes[n].data.cycle = mcmi.write[n].valid ? clocks : '0;
+        assign m_mcmi_writes[n].data.addr = mcmi.write[n].addr;
+        assign m_mcmi_writes[n].data.mask = mcmi.write[n].mask;
+        assign m_mcmi_writes[n].data.data = mcmi.write[n].data;
     end
 
     // m_trap

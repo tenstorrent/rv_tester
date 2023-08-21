@@ -124,7 +124,7 @@ htif::write(const transactor::write_t& w)
       if (payload & 1)
 	{
 	  std::cerr << "Terminating because of write tohost\n";
-          cvm::registry::messenger.signal<terminate_t>(loc(), terminate_t{true});
+          cvm::registry::messenger.signal<terminate_t>(loc(), terminate_t{});
 	}
     }
   else

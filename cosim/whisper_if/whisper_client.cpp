@@ -53,9 +53,9 @@ constructSystem() {
   std::shared_ptr<WdRiscv::System<URV>> system = std::make_shared<WdRiscv::System<URV>>(coreCount, hartsPerCore, hartIdOffset, memorySize, pageSize);
 
   if (FLAGS_mcm) {
-    bool checkAll = true;
+    bool checkAll = false;
     config.getMcmCheckAll(checkAll);
-    system->enableMcm(64, true /* checkAll */);
+    system->enableMcm(64, checkAll);
   }
 
   if (FLAGS_load != "") {
@@ -307,7 +307,7 @@ whisperClient<URV>::whisperChange(int hart, uint32_t& resource, uint64_t& addr, 
 template <typename URV>
 bool
 whisperClient<URV>::whisperMcmRead(int hart, uint64_t time, uint64_t instrTag, uint64_t addr,
-	       unsigned size, uint64_t value, bool internal, bool& valid)
+	       unsigned size, uint64_t value, bool& valid)
 {
   req.hart = hart;
   req.type = WhisperMessageType::McmRead;
@@ -316,7 +316,6 @@ whisperClient<URV>::whisperMcmRead(int hart, uint64_t time, uint64_t instrTag, u
   req.address = addr;
   req.value = value;
   req.size = size;
-  req.flags = internal;
 
   if (not whisperCommand(req, reply))
     return false;

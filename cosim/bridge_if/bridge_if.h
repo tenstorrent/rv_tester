@@ -79,7 +79,7 @@ typedef struct fpr_s {
 typedef struct vr_s {
   bool valid;
   uint32_t vrd_addr;
-  uint64_t vrd_wdata[vlen/64];
+  std::bitset<256> vrd_wdata;
  
   vr_s() {
     clear();
@@ -126,7 +126,8 @@ typedef struct mem_s {
 typedef struct mem_cl_s {
   bool valid;
   uint64_t cycle;
-  uint64_t addr;
+  uint64_t va;
+  uint64_t pa;
   uint8_t size;
   std::bitset<512> data;
   uint64_t mask;

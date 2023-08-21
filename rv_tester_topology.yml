@@ -18,12 +18,15 @@ rv_tester: &rv_tester
       type:
         - cosim
 
+    dm_model:
+      count: 1
+      type:
+        - dm_model
+        
     pmu:
       count : 1
       type:
         - pmu
-      attrs:
-          EVENT_COUNT: 2
 
     axi:
       count: *rv_tester_axi_count
