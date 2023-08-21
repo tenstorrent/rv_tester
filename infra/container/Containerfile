@@ -13,7 +13,7 @@ FROM risc-p-cores/base as risc-p-cores/repo
 COPY ./repo /opt/repo
 
 ARG CONTAINER_HUB
-FROM ${CONTAINER_HUB}/riscv/forks/bazel-remote:2a190a646a007cb8c691749aa5edb7005a31fbb6 as bazel-remote
+FROM ${CONTAINER_HUB}/riscv/forks/bazel-remote:fc73034221067aa6ed4dcd713125cc3f85fbea57 as bazel-remote
 
 FROM risc-p-cores/base as risc-p-cores/dev
 
