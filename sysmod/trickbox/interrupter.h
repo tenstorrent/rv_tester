@@ -187,7 +187,8 @@ protected:
 
 private:
   unsigned numInterrupts_ = 6;
-
+  
+  
   std::vector<uint64_t> timeCompare_;  // One per interrupt type.
   std::vector<uint32_t> IntrHart_;  // Hart to be interrupted.
   std::vector<bool> delayedRandomIntValid_; // Valid bit for interrupt

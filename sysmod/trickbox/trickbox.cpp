@@ -1,8 +1,8 @@
 #include "cvm/plusargs.hpp"
 #include "trickbox.h"
 
-trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned, cvm::topology::loc_t loc)
-  : device(tag, addr, 0xc0000 /* size */, loc, &trickbox::write, &trickbox::read, this)
+trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc)
+  : device(tag, addr, 0xc0000 /* size */, loc, &trickbox::write, &trickbox::read, this), axi_mst_loc_l(axi_mst_loc)
 {
   subdevice* sub = nullptr;
   interrupter_base = addr;
@@ -10,7 +10,7 @@ trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned, cvm::topolog
   subdevices_.emplace_back(sub);
   sub = new debugger("debugger", addr + 0x50000, 1, loc);
   subdevices_.emplace_back(sub);
-  sub = new msi_driver("msi_driver", addr + 0x60000, 1, loc);
+  sub = new msi_driver("msi_driver", addr + 0x60000, 1, loc, axi_mst_loc_l);
   subdevices_.emplace_back(sub);
 }
 

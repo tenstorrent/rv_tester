@@ -6,6 +6,7 @@
 #include <atomic>
 #include <thread>
 #include <unistd.h>
+#include "subdevice.h"
 #include <iostream>
 #include <iostream>
 #include <iomanip>
@@ -13,31 +14,26 @@
 #include <map>
 #include <random>
 #include <cmath>
-#include <fstream>
-#include <iostream>
-#include <sstream>
-#include <string>
-#include <queue>
-#include <vector>
-#include <filesystem>
-#include <dirent.h>
-#include <cstdlib>
-#include <ctime>
 #include "pcg_random.hpp"
 #include "cvm/plusargs.hpp"
 #include "cvm/topology.hpp"
 #include "cvm/registry.hpp"
-#include "subdevice.h"
-#include "vpi_user.h"
+#include "cvm/logger.hpp"
+#include "msi_driver.h"
 
+DECLARE_int32(msi_delay_min);//, 4, "Minimum Delay between 2 consecutive interrupts");
+DECLARE_int32(msi_delay_max);//, 7, "Maximum Delay between 2 consecutive interrupts");
+DECLARE_bool(random_msi);//, false, "Drive random interrups");
+DECLARE_int32(max_simul_msi );
+DECLARE_int32(msi_start_delay);
 DECLARE_int32(seed);
-DECLARE_bool(random_msi_entry);
-DECLARE_int32(random_msi_start_delay);
-DECLARE_int32(msi_delay_min);
-DECLARE_int32(msi_delay_max);
-DECLARE_int32(msi_max_snippets);
-DECLARE_string(msi_template_dir);
-// Define a core local  (msi_driver) at the given address
+DECLARE_bool(disable_ssip);
+DECLARE_bool(disable_msip);
+DECLARE_bool(disable_stip);
+DECLARE_bool(disable_mtip);
+DECLARE_bool(disable_seip);
+DECLARE_bool(disable_meip);
+// Define a core local interruptor (msi_driver) at the given address
 // and for the given hart count. The size will be 48k bytes.
 class msi_driver : public subdevice
 {
@@ -45,7 +41,7 @@ public:
 
   /// Define a msi_driver device at the given address for the given hart count.
   /// Range of addresses reserved is: [addr, addr + 0xbfff]
-  msi_driver(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc);
+  msi_driver(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc);
 
   // Destructor.
   virtual ~msi_driver();
@@ -75,90 +71,124 @@ public:
   /// address is not properly aligned.
   cvm::messenger::task<void> read(uint64_t addr, size_t length, data_t& data);
 
-  // Write to this msi_driver.
+  // Write to this msi_driver. Call softwareInterrupt with flag set to 0/1
+  // if a hart software interrupt entry is written. Update time
+  // compare and call timerInterrupt if a hart time compare entry is
+  // written. Call timerInterrupt on every hart if timer is written.
+  //
+  // This is a no-op if address is not aligned, if length is not 4 for
+  // software interrupt entries, if length is not 8 for
+  // timer/time-compare entries.
   virtual void write(uint64_t addr, size_t length, const data_t& data,
                       const strb_t& strb) override;
 
   virtual void tick(uint64_t advance) override
   {
-     std::cout<<"[msi_driver]: tick\n";
-     std::lock_guard<std::mutex> lock(mutex_);
-     timer_ += advance;
-     timer_advance = advance;
-     checkDebugEvents();
-     
-     drive_csv_dmi_cmds();
+    std::lock_guard<std::mutex> lock(mutex_);
+    timer_ += advance;
+    timer_advance = advance;
+    cvm::log(cvm::FULL, "[Trickbox] Timer tick :  {} advance interval {} \n",timer_,timer_advance);
+    processDelayedRandomInterrupts();
   }
 
   void reset() override {
-      std::cout<<"[msi_driver]: Reset msi_driver\n";
-      uint32_t rand_num =0;
-       if(FLAGS_random_msi_entry){
-         std::cout<<"[msi_driver]: Enable random injection of debug mode "<<FLAGS_random_msi_entry<<"\n";
-	 get_all_csv_templates();
-         if(FLAGS_msi_delay_min){
-           rand_num = (rng() % ( FLAGS_msi_delay_max - FLAGS_msi_delay_min + 1)) + FLAGS_msi_delay_min;
+      std::cout<<"[TRICKBOX]: Reset msi_driver\n";
+    if(FLAGS_random_msi){
+      std::cout<<"[TRICKBOX]: Enable random interrupts "<<FLAGS_random_msi<<"\n";
+      uint32_t rand_num =  (rng() %  2)+1;  //default delay
+      if(FLAGS_msi_delay_min){
+         rand_num = (rng() % ( FLAGS_msi_delay_max - FLAGS_msi_delay_min + 1)) + FLAGS_msi_delay_min;
+      }
+      timer_ = 0;
+
+      timer_rand_intr = timer_ + FLAGS_msi_start_delay +(rand_num*timer_advance);
+
+    }
+
+  }
+
+  struct interrupt_t {
+    unsigned hart;
+    unsigned intr_select;
+    unsigned intr_value;
+  };
+
+protected:
+
+  /// Assert/deassert the timer interrupt for each hart where the
+  /// time-compare value is greater-than-or-equal/less-than the timer
+  /// value.
+  void processDelayedRandomInterrupts()
+  {
+    for (unsigned i = 0; i < numInterrupts_; ++i)
+      {
+        bool flag = timer_ >= timeCompare_.at(i);
+        if ((delayedRandomIntValid_.at(i) == 1)&&(flag)){
+          unsigned intr_select, intr_value;
+          intr_select = 1<<i;
+          intr_value = IntrValue_.at(i)<<i;
+          cvm::registry::messenger.signal(loc(), interrupt_t{IntrHart_.at(i), intr_select, intr_value});
+          delayedRandomIntValid_.at(i) = 0;
+          timeCompare_.at(i) = 0xffffffffffffffff;
+        }
+      }
+    //RANDOM msi
+    if(FLAGS_random_msi){
+      if(timer_ >= timer_rand_intr){
+         unsigned rand_intr = 0;//1 << rng(5); //select random pin between 0 to 5
+         unsigned iter = 1;
+         unsigned values[FLAGS_max_simul_msi];
+         memset(values, 0, FLAGS_max_simul_msi);
+         if( (FLAGS_max_simul_msi >1 ) && (FLAGS_max_simul_msi < (static_cast<int>(numInterrupts_ +1)))){
+           iter = (rng() % (FLAGS_max_simul_msi )) + 1 ; //gen iter between 1 to max simul instr
+         }
+
+	 cvm::log(cvm::HIGH, "[Trickbox] Driving  {} interrupts in a cycle \n", iter);
+         for (unsigned i = 0; i < iter; ++i) {
+           do{
+             values[i] = rng() % (numInterrupts_) ;
+	     cvm::log(cvm::HIGH, "[Trickbox] attempting to genertae legal interrupts,gen_result  {} \n", values[i]);
+	   }while(disable_mask & (1<<values[i]));
+
+           for (unsigned j = 0; j < i; ++j) {
+               if (values[i] == values[j]) {
+                i--;
+                 break;
+                }
+            }
+
+	  cvm::log(cvm::HIGH, "[Trickbox] Driving interrupt  {}  \n", values[i]);
+          rand_intr =  rand_intr |(1<<values[i]);
+
+          rand_intr = rand_intr & disable_mask_neg;
+	  cvm::log(cvm::HIGH, "[Trickbox] Send  interrupt vec to sysmod  {:#x}  \n", rand_intr);
 
          }
-         timer_ = 0;
-         file_idx = rng() % csvFilePaths.size();
-         timer_rand_debug = timer_ + FLAGS_random_msi_start_delay +(rand_num*timer_advance);
-	 std::cout<<"Random Debug Injection csv file ID "<<file_idx <<" Timer delay: " <<timer_rand_debug <<"\n";
+
+
+	 cvm::log(cvm::HIGH, "[Trickbox] Send  sig to  sysmod  {:#x}  \n", rand_intr);
+         cvm::registry::messenger.signal(loc(), interrupt_t{0, rand_intr, rand_intr});
+         uint32_t rand_num =  (rng() % ( FLAGS_msi_delay_max - FLAGS_msi_delay_min + 1)) + FLAGS_msi_delay_min;
+         timer_rand_intr = timer_ +(rand_num*timer_advance);
+	 cvm::log(cvm::HIGH, "[Trickbox] Next random interrupt will be sent at  {}  \n", timer_rand_intr);
       }
-  }
-  void parse_dmi_from_csv();
-  void drive_csv_dmi_cmds();
-  void get_all_csv_templates();
-
-  struct dmi_data_t {
-    unsigned hart;
-    unsigned upper_dmi_data;
-    unsigned lower_dmi_data;
-  };
-
-  struct dmi_req_t {
-    unsigned  func_bits;
-    unsigned  addr;
-    unsigned  op;
-    unsigned  data;
-  };
-  // Used to assert/deassert a trickbox interrupt (PIPI) for given hart.
-  //virtual void trickboxDmiWrite(unsigned hart, unsigned upper_dmi_data, unsigned lower_dmi_data, cbs_t& cbs)
-  virtual void trickboxDmiWrite(unsigned hart, unsigned upper_dmi_data, unsigned lower_dmi_data)
-  {
-    std::cout<<"TrickBox DMI Write to hart "<<hart<<" upper dmi data "<<upper_dmi_data<<" lower dmi data "<<lower_dmi_data<<" \n";
-    //cbs.push_back(cb_t{Callback::TRICKBOX_DMI_WR, hart, upper_dmi_data, lower_dmi_data, 0});
-    cvm::registry::messenger.signal(loc(), dmi_data_t{hart, upper_dmi_data, lower_dmi_data});
-    //cvm::messenger::send(dmi_t, dmi_pkt);
-  }
-  
-   void checkDebugEvents()
-   {
-    std::cout<<"Timer chk msi evt \n";
-    if(FLAGS_random_msi_entry){
-       if(timer_ >= timer_rand_debug){
-       std::cout<<"Timer passed random evt Value\n";
-        rnd_msi_trigger = 1;
-	if(snippets_driven < FLAGS_msi_max_snippets){
-          parse_dmi_from_csv();
-	  genNextDebugEvents();
-	}
-       }
     }
-   }
 
-  void genNextDebugEvents()
-  {
-   std::cout<<"Generating Next timer evt value\n";
-    if(FLAGS_random_msi_entry){
-      int32_t rand_num =  (rng() % ( FLAGS_msi_delay_max - FLAGS_msi_delay_min + 1)) + FLAGS_msi_delay_min;
-      timer_rand_debug = timer_ +(rand_num*timer_advance);
-      file_idx = rng() % csvFilePaths.size();
-    }
   }
+  // Used to assert/deassert a msi_driver interrupt (PIPI) for given hart.
+  virtual void driveInterrupt(unsigned hart, unsigned intr_select, unsigned intr_value)
+  {
+    cvm::registry::messenger.signal(loc(), interrupt_t{hart, intr_select, intr_value});
+  }
+
+  // Start a thread to increment timer after n microseconds.
+  void selfTick(useconds_t n);
+  //Check plusarg usage
+  void checkUsage();
 
 private:
-  std::vector<uint32_t> soft_;  // Software interrupt: one per hart.
+  unsigned numInterrupts_ = 6;
+  cvm::topology::loc_t axi_mst_loc_l;
   std::vector<uint64_t> timeCompare_;  // One per interrupt type.
   std::vector<uint32_t> IntrHart_;  // Hart to be interrupted.
   std::vector<bool> delayedRandomIntValid_; // Valid bit for interrupt
@@ -166,32 +196,16 @@ private:
   std::vector<bool> timerIntPrev_; // Value of interrupt pin
   uint64_t timer_ = 0;
   uint64_t timer_advance = 200;
-  uint64_t msi_driver_base = 0x9050000;
-  uint64_t msi_driver_trigger = 0x9060000;
+  uint64_t timer_rand_intr = 500;
+  uint64_t msi_driver_base = 0x9000000;
+  uint64_t disable_mask = 0;
+  uint64_t disable_mask_neg = 0;
 
   std::atomic<bool> terminate_ = false;
   std::mutex mutex_;
 
-  std::vector<std::vector<std::string>> csv_data;
-  std::queue<dmi_req_t> dmi_cmd_q;
-  std::queue<dmi_req_t> dmi_rsp_q;
-  unsigned msi_file_mode = 0;
-  unsigned msi_trigger = 0;
-  unsigned rnd_msi_trigger = 0;
-  unsigned step_ahead_queue_on =0;
-  unsigned step_quit_queue_on =0;
-  unsigned step_instr_cnt = 0;
-  uint64_t timer_rand_debug = 500;
-  std::vector<std::vector<std::string>> content;
-	std::vector<std::string> row;
-  //file(FLAGS_msi_input_file_path);
+  std::thread timerThread_;
   pcg_extras::seed_seq_from<std::random_device> seed_source;
   pcg32 rng;
-  // Create a vector to store the file paths
-  std::vector<std::string> filePaths;
-  std::vector<std::string> csvFilePaths;
-  unsigned file_idx = 0;
-  unsigned snippets_driven = 0;
 };
-
 
