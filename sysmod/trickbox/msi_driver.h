@@ -186,7 +186,7 @@ protected:
   {
     //cvm::registry::messenger.signal(loc(), interrupt_t{hart, intr_select, intr_value});
     //Drive MSI from here
-    cvm::log(CVM::HIGH,"Driving interrupt {} {} {} \n",hart, intr_select, intr_value);
+    cvm::log(cvm::HIGH, "Driving interrupt {} {} {} \n",hart, intr_select, intr_value);
   }
 
   // Start a thread to increment timer after n microseconds.
