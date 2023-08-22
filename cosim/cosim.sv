@@ -1,16 +1,20 @@
 module cosim
 import rv_tester_params::*;
 #(
-    parameter int NUM                     =    -1,
+    parameter int NUM = -1,
+    parameter int NRET = 1,
+    parameter int NREAD = 1,
+    parameter int NINSERT = 1,
+    parameter int NWRITE = 1,
     `TOPOLOGY
 )(
     input clk,
     input reset,
     input longint unsigned clocks,
-    input rvfi_t rvfi[RVFI_NRET],
-    input mcmi_t mcmi_read[MCMI_NREAD],
-    input mcmi_t mcmi_insert[MCMI_NINSERT],
-    input mcmi_t mcmi_write[MCMI_NWRITE],
+    input rvfi_t rvfi[NRET-1:0],
+    input mcmi_t mcmi_read[NREAD-1:0],
+    input mcmi_t mcmi_insert[NINSERT-1:0],
+    input mcmi_t mcmi_write[NWRITE-1:0],
     input rv_tester_pkg::interrupt_t interrupt,
     input debug_mode,
     `RV_TESTER_TRANSACTIONS_OUTPUT_COSIM
@@ -35,7 +39,7 @@ import rv_tester_params::*;
     end
 
     // m_rvfi
-    for (genvar n = 0; n < RVFI_NRET; n++) begin
+    for (genvar n = 0; n < NRET; n++) begin
         assign m_rvfis[n].valid = RVFI_EN & rvfi_enabled & ~reset & rvfi[n].valid;
         assign m_rvfis[n].data.location = location;
         assign m_rvfis[n].data.cycle = clocks;
@@ -68,7 +72,7 @@ import rv_tester_params::*;
     end
 
     // m_mcmi_read
-    for (genvar n = 0; n < MCMI_NREAD; n++) begin
+    for (genvar n = 0; n < NREAD; n++) begin
         assign m_mcmi_reads[n].valid = MCMI_EN & rvfi_enabled & ~reset & mcmi_read[n].valid;
         assign m_mcmi_reads[n].data.location = location;
         assign m_mcmi_reads[n].data.cycle = mcmi_read[n].valid ? clocks : '0;
@@ -79,7 +83,7 @@ import rv_tester_params::*;
     end
 
     // m_mcmi_insert
-    for (genvar n = 0; n < MCMI_NINSERT; n++) begin
+    for (genvar n = 0; n < NINSERT; n++) begin
         assign m_mcmi_inserts[n].valid = MCMI_EN & rvfi_enabled & ~reset & mcmi_insert[n].valid;
         assign m_mcmi_inserts[n].data.location = location;
         assign m_mcmi_inserts[n].data.cycle = mcmi_insert[n].valid ? clocks : '0;
@@ -90,7 +94,7 @@ import rv_tester_params::*;
     end
 
     // m_mcmi_write
-    for (genvar n = 0; n < MCMI_NWRITE; n++) begin
+    for (genvar n = 0; n < NWRITE; n++) begin
         assign m_mcmi_writes[n].valid = MCMI_EN & rvfi_enabled & ~reset & mcmi_write[n].valid;
         assign m_mcmi_writes[n].data.location = location;
         assign m_mcmi_writes[n].data.cycle = mcmi_write[n].valid ? clocks : '0;
@@ -100,7 +104,7 @@ import rv_tester_params::*;
     end
 
     // m_trap
-    for (genvar n = 0; n < RVFI_NRET; n++) begin
+    for (genvar n = 0; n < NRET; n++) begin
         assign m_traps[n].valid = RVFI_EN & rvfi_enabled & ~reset & (rvfi[n].cause != 0);
         assign m_traps[n].data.location = location;
         assign m_traps[n].data.cycle = clocks;

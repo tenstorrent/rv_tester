@@ -1,5 +1,5 @@
 cosim:
-    num: ${TOP.PLATFORM.NHARTS}
+    num: 1
     msg:
         fields:
             count:
@@ -7,7 +7,7 @@ cosim:
 
     m_rvfi:
         domain: 1
-        num: ${TOP.PLATFORM.COSIM.RVFI.NRET}
+        num: ${max(TOP.PLATFORM.COSIM.RVFI.NRETS)}
         fields:
             cycle:
                 width: 64
@@ -66,7 +66,7 @@ cosim:
 
     m_mcmi_read:
         domain: 1
-        num: ${TOP.PLATFORM.COSIM.MCMI.NREAD}
+        num: ${max(TOP.PLATFORM.COSIM.MCMI.NREADS)}
         fields:
             cycle:
                 width: 64
@@ -81,7 +81,7 @@ cosim:
 
     m_mcmi_insert:
         domain: 1
-        num: ${TOP.PLATFORM.COSIM.MCMI.NINSERT}
+        num: ${max(TOP.PLATFORM.COSIM.MCMI.NINSERTS)}
         fields:
             cycle:
                 width: 64
@@ -96,7 +96,7 @@ cosim:
 
     m_mcmi_write:
         domain: 1
-        num: ${TOP.PLATFORM.COSIM.MCMI.NWRITE}
+        num: ${max(TOP.PLATFORM.COSIM.MCMI.NWRITES)}
         fields:
             cycle:
                 width: 64
@@ -109,7 +109,7 @@ cosim:
 
     m_trap:
         domain: 1
-        num: ${TOP.PLATFORM.COSIM.RVFI.NRET}
+        num: ${max(TOP.PLATFORM.COSIM.RVFI.NRETS)}
         fields:
             cycle:
                 width: 64
@@ -274,7 +274,7 @@ logger:
                 width: 64
 
 pmu:
-    num: ${TOP.PLATFORM.NHARTS}
+    num: 1
     pmcounters:
         domain: 1
         num: 1

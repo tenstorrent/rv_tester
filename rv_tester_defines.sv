@@ -153,7 +153,8 @@ package rv_tester_params;
     parameter bit RVFI_UOP = RVFI_EN & mods.TOP.PLATFORM.COSIM.RVFI.UOP_ENABLE == 1;
     parameter bit RVFI_MEM = RVFI_EN & mods.TOP.PLATFORM.COSIM.RVFI.MEM_ENABLE == 1;
     parameter bit RVFI_CSR = RVFI_EN & mods.TOP.PLATFORM.COSIM.RVFI.CSR_ENABLE == 1;
-    parameter RVFI_NRET = RVFI_EN ? mods.TOP.PLATFORM.COSIM.RVFI.NRET : 1;
+    parameter int TOTAL_NRETS = RVFI_EN ? mods.TOP.PLATFORM.COSIM.RVFI.TOTAL_NRETS : 1;
+    parameter int NRETS[NHARTS] = '{8}; //mods.TOP.PLATFORM.COSIM.RVFI.NRETS;
 
     typedef struct packed {
         logic                       valid    ;
@@ -191,9 +192,12 @@ package rv_tester_params;
     // MCMI - Memory Consistency Model Checks
     // --------------------------------------
     parameter bit MCMI_EN = mods.TOP.PLATFORM.COSIM.MCMI.ENABLE == 1;
-    parameter MCMI_NREAD = MCMI_EN ? mods.TOP.PLATFORM.COSIM.MCMI.NREAD : 1;
-    parameter MCMI_NINSERT = MCMI_EN ? mods.TOP.PLATFORM.COSIM.MCMI.NINSERT : 1;
-    parameter MCMI_NWRITE = MCMI_EN ? mods.TOP.PLATFORM.COSIM.MCMI.NWRITE : 1;
+    parameter TOTAL_NREADS = MCMI_EN ? mods.TOP.PLATFORM.COSIM.MCMI.TOTAL_NREADS : 1;
+    parameter TOTAL_NINSERTS = MCMI_EN ? mods.TOP.PLATFORM.COSIM.MCMI.TOTAL_NINSERTS : 1;
+    parameter TOTAL_NWRITES = MCMI_EN ? mods.TOP.PLATFORM.COSIM.MCMI.TOTAL_NWRITES : 1;
+    parameter int NREADS[NHARTS] = '{3}; //mods.TOP.PLATFORM.COSIM.MCMI.NREADS;
+    parameter int NINSERTS[NHARTS] = '{3}; //mods.TOP.PLATFORM.COSIM.MCMI.NINSERTS;
+    parameter int NWRITES[NHARTS] = '{3}; //mods.TOP.PLATFORM.COSIM.MCMI.NWRITES;
 
     typedef struct packed {
         logic                       valid;
@@ -208,7 +212,6 @@ package rv_tester_params;
     // PMCI - Performance Monitoring Counters
     // --------------------------------------
     parameter bit PMCI_EN = mods.TOP.PLATFORM.PMCI.ENABLE == 1;
-    parameter PMCI_NEVENT = PMCI_EN ? NHARTS : 1;
 
     typedef enum {
         CPU_CYCLES,
@@ -287,60 +290,60 @@ package rv_tester_params;
     // --------------------------------------
     // rv_tester ports
     // --------------------------------------
-`define _RV_TESTER_PORTS(input,output)                                                 \
-    input                                    clk,                                      \
-    input                                    reset,                                    \
-    input  rv_tester_params::bootstrap_t     bootstrap,                                \
-    input  rv_tester_pkg::interrupt_t        interrupt,                                \
-    input  rv_tester_pkg::dm_write_t         dmi_write,                                \
-    output                                   debug_mode,                               \
-    input                                    terminate,                                \
-    input  logic                             terminated,                               \
-    output                                   quiesced,                                 \
-                                                                                       \
-    output                                   dmi_req_ready,                            \
-    output                                   dmi_resp_valid,                           \
-    output rv_tester_pkg::dmi_resp_t         dmi_resp,                                 \
-    input                                    dmi_req_valid,                            \
-    input  rv_tester_pkg::dmi_req_t          dmi_req,                                  \
-    input                                    dmi_resp_ready,                           \
-                                                                                       \
-    output rv_tester_params::rvfi_t          rvfi         [rv_tester_params::RVFI_NRET-1:0],             \
-    output rv_tester_params::mcmi_t          mcmi_read    [rv_tester_params::MCMI_NREAD-1:0],            \
-    output rv_tester_params::mcmi_t          mcmi_insert  [rv_tester_params::MCMI_NINSERT-1:0],          \
-    output rv_tester_params::mcmi_t          mcmi_write   [rv_tester_params::MCMI_NWRITE-1:0],           \
-    output rv_tester_params::pmci_t          pmci         [rv_tester_params::PMCI_NEVENT-1:0],           \
-    output rv_tester_params::axi_req_t       axi_req      [rv_tester_params::AXI_TOTAL-1:0],             \
-    input  rv_tester_params::axi_rsp_t       axi_rsp      [rv_tester_params::AXI_TOTAL-1:0],             \
-    input  rv_tester_params::axi_req_mst_t   axi_req_mst  [rv_tester_params::AXI_MST_TOTAL-1:0],         \
+`define _RV_TESTER_PORTS(input,output)                                                              \
+    input                                    clk,                                                   \
+    input                                    reset,                                                 \
+    input  rv_tester_params::bootstrap_t     bootstrap,                                             \
+    input  rv_tester_pkg::interrupt_t        interrupt    [rv_tester_params::NHARTS-1:0],           \
+    output                                   debug_mode   [rv_tester_params::NHARTS-1:0],           \
+    input                                    terminate,                                             \
+    input  logic                             terminated,                                            \
+    output                                   quiesced,                                              \
+                                                                                                    \
+    input  rv_tester_pkg::dm_write_t         dmi_write,                                             \
+    output                                   dmi_req_ready,                                         \
+    output                                   dmi_resp_valid,                                        \
+    output rv_tester_pkg::dmi_resp_t         dmi_resp,                                              \
+    input                                    dmi_req_valid,                                         \
+    input  rv_tester_pkg::dmi_req_t          dmi_req,                                               \
+    input                                    dmi_resp_ready,                                        \
+                                                                                                    \
+    output rv_tester_params::rvfi_t          rvfi         [rv_tester_params::TOTAL_NRETS-1:0],      \
+    output rv_tester_params::mcmi_t          mcmi_read    [rv_tester_params::TOTAL_NREADS-1:0],     \
+    output rv_tester_params::mcmi_t          mcmi_insert  [rv_tester_params::TOTAL_NINSERTS-1:0],   \
+    output rv_tester_params::mcmi_t          mcmi_write   [rv_tester_params::TOTAL_NWRITES-1:0],    \
+    output rv_tester_params::pmci_t          pmci         [rv_tester_params::NHARTS-1:0],           \
+    output rv_tester_params::axi_req_t       axi_req      [rv_tester_params::AXI_TOTAL-1:0],        \
+    input  rv_tester_params::axi_rsp_t       axi_rsp      [rv_tester_params::AXI_TOTAL-1:0],        \
+    input  rv_tester_params::axi_req_mst_t   axi_req_mst  [rv_tester_params::AXI_MST_TOTAL-1:0],    \
     output rv_tester_params::axi_rsp_mst_t   axi_rsp_mst  [rv_tester_params::AXI_MST_TOTAL-1:0]
 
 
-`define RV_TESTER_VARS(topology)                                                       \
-    logic                                    clk;                                      \
-    logic                                    reset;                                    \
-    rv_tester_params::bootstrap_t            bootstrap;                                \
-    rv_tester_pkg::interrupt_t               interrupt;                                \
-    rv_tester_pkg::dm_write_t                dmi_write;                                \
-    logic                                    debug_mode;                               \
-    logic                                    terminate;                                \
-    logic                                    terminated;                               \
-    logic                                    quiesced;                                 \
-    logic                                    dmi_req_ready;                            \
-    logic                                    dmi_resp_valid;                           \
-    rv_tester_pkg::dmi_resp_t                dmi_resp;                                 \
-    logic                                    dmi_req_valid;                            \
-    rv_tester_pkg::dmi_req_t                 dmi_req;                                  \
-    logic                                    dmi_resp_ready;                           \
-                                                                                       \
-    rv_tester_params::rvfi_t                 rvfi          [rv_tester_params::RVFI_NRET-1:0];            \
-    rv_tester_params::mcmi_t                 mcmi_read     [rv_tester_params::MCMI_NREAD-1:0];           \
-    rv_tester_params::mcmi_t                 mcmi_insert   [rv_tester_params::MCMI_NINSERT-1:0];         \
-    rv_tester_params::mcmi_t                 mcmi_write    [rv_tester_params::MCMI_NWRITE-1:0];          \
-    rv_tester_params::pmci_t                 pmci          [rv_tester_params::PMCI_NEVENT-1:0];          \
-    rv_tester_params::axi_req_t              axi_req       [rv_tester_params::AXI_TOTAL-1:0];            \
-    rv_tester_params::axi_rsp_t              axi_rsp       [rv_tester_params::AXI_TOTAL-1:0];            \
-    rv_tester_params::axi_req_mst_t          axi_req_mst   [rv_tester_params::AXI_MST_TOTAL-1:0];        \
+`define RV_TESTER_VARS(topology)                                                                    \
+    logic                                    clk;                                                   \
+    logic                                    reset;                                                 \
+    rv_tester_params::bootstrap_t            bootstrap;                                             \
+    rv_tester_pkg::interrupt_t               interrupt    [rv_tester_params::NHARTS-1:0];           \
+    logic                                    debug_mode   [rv_tester_params::NHARTS-1:0];           \
+    logic                                    terminate;                                             \
+    logic                                    terminated;                                            \
+    logic                                    quiesced;                                              \
+    rv_tester_pkg::dm_write_t                dmi_write;                                             \
+    logic                                    dmi_req_ready;                                         \
+    logic                                    dmi_resp_valid;                                        \
+    rv_tester_pkg::dmi_resp_t                dmi_resp;                                              \
+    logic                                    dmi_req_valid;                                         \
+    rv_tester_pkg::dmi_req_t                 dmi_req;                                               \
+    logic                                    dmi_resp_ready;                                        \
+                                                                                                    \
+    rv_tester_params::rvfi_t                 rvfi          [rv_tester_params::TOTAL_NRETS-1:0];     \
+    rv_tester_params::mcmi_t                 mcmi_read     [rv_tester_params::TOTAL_NREADS-1:0];    \
+    rv_tester_params::mcmi_t                 mcmi_insert   [rv_tester_params::TOTAL_NINSERTS-1:0];  \
+    rv_tester_params::mcmi_t                 mcmi_write    [rv_tester_params::TOTAL_NWRITES-1:0];   \
+    rv_tester_params::pmci_t                 pmci          [rv_tester_params::NHARTS-1:0];          \
+    rv_tester_params::axi_req_t              axi_req       [rv_tester_params::AXI_TOTAL-1:0];       \
+    rv_tester_params::axi_rsp_t              axi_rsp       [rv_tester_params::AXI_TOTAL-1:0];       \
+    rv_tester_params::axi_req_mst_t          axi_req_mst   [rv_tester_params::AXI_MST_TOTAL-1:0];   \
     rv_tester_params::axi_rsp_mst_t          axi_rsp_mst   [rv_tester_params::AXI_MST_TOTAL-1:0];
 
 `define RV_TESTER_PORTS `_RV_TESTER_PORTS(input,output)

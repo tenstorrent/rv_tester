@@ -2,13 +2,14 @@ module pmu
 import rv_tester_params::*;
 #(
   parameter int NUM = -1,
+  parameter int NRET = 1,
   `TOPOLOGY
 )(
   input clk,
   input reset,
   input longint unsigned clocks,
-  input pmci_t pmci[PMCI_NEVENT],
-  input rvfi_t rvfi[RVFI_NRET],
+  input pmci_t pmci,
+  input rvfi_t rvfi[NRET-1:0],
   input bit terminate,
   `RV_TESTER_TRANSACTIONS_OUTPUT_PMU
 );
@@ -37,7 +38,7 @@ import rv_tester_params::*;
         if (!reset) begin
             automatic longint unsigned total = 0;
             // fold
-            for (integer n = 0; n < RVFI_NRET; n++) begin
+            for (integer n = 0; n < NRET; n++) begin
                 if (rvfi[n].valid) begin
                     total++;
                 end
@@ -46,7 +47,7 @@ import rv_tester_params::*;
             instructions <= instructions + total;
             // Count supported events
             for (integer n = 0; n < EVENT_COUNT; n++) begin
-              pmcounter[n] <= pmcounter[n] + {60'h0, pmci[0][n].counter};
+              pmcounter[n] <= pmcounter[n] + {60'h0, pmci[n].counter};
             end
         end
     end

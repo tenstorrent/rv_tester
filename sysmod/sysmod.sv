@@ -1,4 +1,6 @@
-module sysmod #(
+module sysmod 
+import rv_tester_params::*;
+#(
     parameter int CLOCK_PERIOD_PS           =     500,
     parameter int SW_CLOCK_UPDATE_PERIOD_PS = 100_000,
     parameter int NUM                       =      -1,
@@ -8,7 +10,7 @@ module sysmod #(
     input reset,
     input longint unsigned clocks,
     output rv_tester_params::bootstrap_t bootstrap,
-    output rv_tester_pkg::interrupt_t interrupt,
+    output rv_tester_pkg::interrupt_t interrupt [NHARTS-1:0],
     output rv_tester_pkg::dm_write_t  dmi_write,
     output rv_tester_pkg::terminate_t terminate,
     `RV_TESTER_TRANSACTIONS_OUTPUT_SYSMOD
@@ -54,7 +56,7 @@ module sysmod #(
 
     rv_tester_pkg::interrupt_t interrupt_d = '0; // FIXME how to reset these?
     rv_tester_pkg::interrupt_t interrupt_q;
-    assign interrupt = interrupt_q;
+    assign interrupt[0] = interrupt_q;
 
     function void sysmod_timer_interrupt (unsigned hartid, unsigned val);
       interrupt_d.mti = val;

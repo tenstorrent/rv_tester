@@ -237,35 +237,44 @@ import rv_tester_params::*;
     arch_sample arch_sample ();
 
 `ifndef NO_COSIM
-    cosim #(
-        .NUM(0),
-        `TOPOLOGY_CFG
-    ) cosim (
-        .clk,
-        .reset(sysmod_reset),
-        .clocks,
-        .rvfi,
-        .mcmi_read,
-        .mcmi_insert,
-        .mcmi_write,
-        .interrupt,
-        .debug_mode,
-        `RV_TESTER_TRANSACTIONS_SOURCE_COSIM(1, 0)
-    );
+    for (genvar c = 0; c < NHARTS; c++) begin: cosim_inst
+      cosim #(
+          .NUM(0),
+          .NRET(NRETS[c]),
+          .NREAD(NREADS[c]),
+          .NINSERT(NINSERTS[c]),
+          .NWRITE(NWRITES[c]),
+          `TOPOLOGY_CFG
+      ) cosim (
+          .clk,
+          .reset(sysmod_reset),
+          .clocks,
+          .rvfi(rvfi[c * NRETS[0] +: NRETS[c]]),
+          .mcmi_read(mcmi_read[c * NREADS[0] +: NREADS[c]]),
+          .mcmi_insert(mcmi_insert[c * NINSERTS[0] +: NINSERTS[c]]),
+          .mcmi_write(mcmi_write[c * NWRITES[0] +: NWRITES[c]]),
+          .interrupt(interrupt[c]),
+          .debug_mode(debug_mode[c]),
+          `RV_TESTER_TRANSACTIONS_SOURCE_COSIM(1, 0)
+      );
+    end
 `endif
 
-    pmu #(
-        .NUM(0),
-        `TOPOLOGY_CFG
-    ) pmu (
-        .clk,
-        .reset(sysmod_reset),
-        .clocks,
-        .pmci,
-        .rvfi,
-        .terminate,
-        `RV_TESTER_TRANSACTIONS_SOURCE_PMU(1, 0)
-    );
+    for (genvar p = 0; p < NHARTS; p++) begin: pmu_inst
+      pmu #(
+          .NUM(0),
+          .NRET(NRETS[p]),
+          `TOPOLOGY_CFG
+      ) pmu (
+          .clk,
+          .reset(sysmod_reset),
+          .clocks,
+          .pmci(pmci[p]),
+          .rvfi(rvfi[p * NRETS[0] +: NRETS[p]]),
+          .terminate,
+          `RV_TESTER_TRANSACTIONS_SOURCE_PMU(1, 0)
+      );
+    end
 
     assign tx_dom_1.logger_cycles[0][0].valid = gen_clocks;
     assign tx_dom_1.logger_cycles[0][0].data.location = location;

@@ -31,7 +31,12 @@ module top #(
 
     longint unsigned clocks = '0;
     assign quiesced = '1;
-    assign debug_mode = '0;
+    assign dmi_req_ready = '0;
+    assign dmi_resp_valid = '0;
+
+    for (genvar i = 0; i < topology_pkg::mods.TOP.PLATFORM.NHARTS; i++) begin
+      assign debug_mode[i] = '0;
+    end
 
     for (genvar i = 0; i < topology_pkg::mods.TOP.PLATFORM.AXI.TOTAL; i++) begin
       assign axi_req[i].ar_valid = '0;

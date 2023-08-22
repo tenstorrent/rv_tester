@@ -7,9 +7,10 @@ load("@bzsim//:sim.bzl", "sim_test_suite")
 
 verilog_dpi_library(
     name = "dpi",
-    srcs = ["dpi.cpp"],
+    srcs = ["dpi.cpp", "gflags.cpp"],
     deps = [
       "rv_tester_dpi",
+      "@cvm//:plusargs"
     ],
 )
 
