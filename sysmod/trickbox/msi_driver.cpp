@@ -23,12 +23,12 @@ msi_driver::msi_driver(const std::string& tag, uint64_t addr, unsigned hartCount
   cvm::log(cvm::LOW, "[Trickbox] Random Interrupt disable_mask :  {} disable_mask_neg {} \n",disable_mask,disable_mask_neg);
   checkUsage();
   cvm::log (cvm::HIGH,"axi_mst_loc_l for msi_driver :{}",axi_mst_loc_l);
-  uint32_t addr1 = 0x900;
-    uint32_t length1 = 4;
-    std::vector<uint8_t> data1 = {0xba,0xad,0xf0,0x12};
-    std::vector<bool> strb1 = {1,1,1,1,1,1,1,1,1};
+  //uint32_t addr1 = 0x900;
+  //  uint32_t length1 = 4;
+  //  std::vector<uint8_t> data1 = {0xba,0xad,0xf0,0x12};
+  //  std::vector<bool> strb1 = {1,1,1,1,1,1,1,1,1};
 
-  cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length1, data1, strb1});
+  //cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length1, data1, strb1});
 }
 
 
@@ -99,24 +99,12 @@ msi_driver::write(uint64_t addr, size_t, const data_t& data,
     unsigned event = (t_data >> 12) & 0xfb;//ignore supervisor timer interrupt
     unsigned eventValue = (t_data >> 20) & 0xfb; //ignore supervisor timer interrupt data
 
-    driveInterrupt(hart,event,eventValue);
+    //driveInterrupt(hart,event,eventValue);
 
     }
     else if((addr > msi_driver_base)&& (addr < (msi_driver_base + 0x1000)))
     {
      std::cout<<"\nmsi_driver DELAYED write: 0x"<<std::hex<<addr<<" data: "<<std::hex<<t_data<<"\n";
-    // int msi_loc  = addr & 0xf8;
-   //  msi_loc = (msi_loc >>3);
-     //if(msi_loc!=2){ //ignore supervisor timer interrupt
-     //unsigned hart = t_data & 0xfff;
-     //int eventFlag = (t_data >> 12) & 0x1;
-     //int eventDelay = (t_data >> 13);
-     //timeCompare_.at(msi_loc) = timer_ + (eventDelay * timer_advance);
-    // msiHart_.at(msi_loc) = hart;  // Hart to be interrupted.
-   //  delayedRandomIntValid_.at(msi_loc) = 1; // Valid
-    // msiValue_.at(msi_loc) = eventFlag;
-     //}
-     //std::cout<<"\nmsi_driver DELAYED write: 0x"<<std::hex<<addr<<" intr_loc: "<<intr_loc<<" time: "<<timer_<<" eventDelay: "<<eventDelay<<" timercompare :"<<timeCompare_.at(intr_loc)<<" hart "<<hart<<" flag: "<<eventFlag<<"\n";
     }
     else if(addr==(msi_driver_base + 0x4000))
     {

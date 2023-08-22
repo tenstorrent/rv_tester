@@ -89,12 +89,11 @@ public:
     timer_advance = advance;
     cvm::log(cvm::FULL, "[MSI Driver] Timer tick :  {} advance interval {} \n",timer_,timer_advance);
     processDelayedRandomInterrupts();
-    uint32_t addr = 0x900;
-    uint32_t length = 4;
-    std::vector<uint8_t> data = {0xba,0xad,0xf0,0x12};
-    std::vector<bool> strb = {1,1,1,1,1,1,1,1,1};
-
-  cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb});
+    //uint32_t addr = 0x900;
+    //uint32_t length = 4;
+    //std::vector<uint8_t> data = {0xba,0xad,0xf0,0x12};
+    //std::vector<bool> strb = {1,1,1,1,1,1,1,1,1};
+    //cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb});
 
   }
 
@@ -173,8 +172,8 @@ protected:
          }
 
 
-	 cvm::log(cvm::HIGH, "[Trickbox] Send  sig to  sysmod  {:#x}  \n", rand_intr);
-         cvm::registry::messenger.signal(loc(), interrupt_t{0, rand_intr, rand_intr});
+	       //cvm::log(cvm::HIGH, "[Trickbox] Send  sig to  sysmod  {:#x}  \n", rand_intr);
+         //cvm::registry::messenger.signal(loc(), interrupt_t{0, rand_intr, rand_intr});
          uint32_t rand_num =  (rng() % ( FLAGS_msi_delay_max - FLAGS_msi_delay_min + 1)) + FLAGS_msi_delay_min;
          timer_rand_intr = timer_ +(rand_num*timer_advance);
 	 cvm::log(cvm::HIGH, "[Trickbox] Next random interrupt will be sent at  {}  \n", timer_rand_intr);
@@ -185,7 +184,8 @@ protected:
   // Used to assert/deassert a msi_driver interrupt (PIPI) for given hart.
   virtual void driveInterrupt(unsigned hart, unsigned intr_select, unsigned intr_value)
   {
-    cvm::registry::messenger.signal(loc(), interrupt_t{hart, intr_select, intr_value});
+    //cvm::registry::messenger.signal(loc(), interrupt_t{hart, intr_select, intr_value});
+    //Drive MSI from here
   }
 
   // Start a thread to increment timer after n microseconds.
