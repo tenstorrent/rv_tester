@@ -99,7 +99,7 @@ msi_driver::write(uint64_t addr, size_t, const data_t& data,
     unsigned event = (t_data >> 12) & 0xfb;//ignore supervisor timer interrupt
     unsigned eventValue = (t_data >> 20) & 0xfb; //ignore supervisor timer interrupt data
 
-    //driveInterrupt(hart,event,eventValue);
+    driveInterrupt(hart,event,eventValue); //temp placeholder for msi call
 
     }
     else if((addr > msi_driver_base)&& (addr < (msi_driver_base + 0x1000)))
