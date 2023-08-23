@@ -18,9 +18,6 @@ msi_driver::msi_driver(const std::string& tag, uint64_t addr, unsigned hartCount
 
   reset();
   //populate disable mask as per plusargs
-  disable_mask = (FLAGS_disable_meip <<5)|(FLAGS_disable_seip <<4)|(FLAGS_disable_mtip <<3)|(FLAGS_disable_stip <<2)| (FLAGS_disable_msip << 1) |FLAGS_disable_ssip;
-  disable_mask_neg = (~disable_mask) & 0xff;
-  cvm::log(cvm::LOW, "[Trickbox] Random Interrupt disable_mask :  {} disable_mask_neg {} \n",disable_mask,disable_mask_neg);
   checkUsage();
   cvm::log (cvm::HIGH,"axi_mst_loc_l for msi_driver :{}",axi_mst_loc_l);
   //uint32_t addr1 = 0x900;
@@ -42,18 +39,8 @@ msi_driver::~msi_driver()
 void
 msi_driver::checkUsage()
 {
-  unsigned active_interrupts = numInterrupts_ - (FLAGS_disable_ssip + FLAGS_disable_msip + FLAGS_disable_stip + FLAGS_disable_mtip + FLAGS_disable_seip + FLAGS_disable_meip);
-  if(FLAGS_random_msi){
-    if(disable_mask == ((1<<numInterrupts_)-1)){
-    //Error: asked to generate random interrupts when all interrupts are disabled
-    cvm::log(cvm::ERROR, "[Trickbox] Can not drive random interrupts when all interrupts are disabled\n");
-    }
-    //max simul msi can't be more than enabled interrupts
-    if((unsigned)FLAGS_max_simul_msi > active_interrupts){
-    //Cant drive more interrupts than active
-    cvm::log(cvm::ERROR, "[Trickbox] Can not drive {} interrupts when {} interrupts are enabled\n",FLAGS_max_simul_msi,active_interrupts);
-    }
-  }
+  
+    cvm::log(cvm::HIGH, "[MSI Driver] check usage\n");
 }
 
 void

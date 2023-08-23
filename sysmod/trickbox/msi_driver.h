@@ -126,14 +126,11 @@ protected:
   /// value.
   void processDelayedRandomInterrupts()
   {
-    for (unsigned i = 0; i < numInterrupts_; ++i)
+    for (unsigned i = 0; i < numMSIs_; ++i)
       {
         bool flag = timer_ >= timeCompare_.at(i);
         if ((delayedRandomIntValid_.at(i) == 1)&&(flag)){
-          unsigned intr_select, intr_value;
-          intr_select = 1<<i;
-          intr_value = IntrValue_.at(i)<<i;
-          cvm::registry::messenger.signal(loc(), interrupt_t{IntrHart_.at(i), intr_select, intr_value});
+          //signal MSI here
           delayedRandomIntValid_.at(i) = 0;
           timeCompare_.at(i) = 0xffffffffffffffff;
         }
@@ -141,20 +138,17 @@ protected:
     //RANDOM msi
     if(FLAGS_random_msi){
       if(timer_ >= timer_rand_intr){
-         unsigned rand_intr = 0;//1 << rng(5); //select random pin between 0 to 5
          unsigned iter = 1;
          unsigned values[FLAGS_max_simul_msi];
          memset(values, 0, FLAGS_max_simul_msi);
-         if( (FLAGS_max_simul_msi >1 ) && (FLAGS_max_simul_msi < (static_cast<int>(numInterrupts_ +1)))){
+         if( (FLAGS_max_simul_msi >1 ) && (FLAGS_max_simul_msi < (static_cast<int>(numMSIs_ +1)))){
            iter = (rng() % (FLAGS_max_simul_msi )) + 1 ; //gen iter between 1 to max simul instr
          }
 
 	 cvm::log(cvm::HIGH, "[Trickbox] Driving  {} interrupts in a cycle \n", iter);
          for (unsigned i = 0; i < iter; ++i) {
-           do{
-             values[i] = rng() % (numInterrupts_) ;
-	     cvm::log(cvm::HIGH, "[Trickbox] attempting to genertae legal interrupts,gen_result  {} \n", values[i]);
-	   }while(disable_mask & (1<<values[i]));
+             values[i] = rng() % (numMSIs_) ;
+	           cvm::log(cvm::HIGH, "[Trickbox] attempting to genertae legal interrupts,gen_result  {} \n", values[i]);
 
            for (unsigned j = 0; j < i; ++j) {
                if (values[i] == values[j]) {
@@ -163,12 +157,8 @@ protected:
                 }
             }
 
-	  cvm::log(cvm::HIGH, "[Trickbox] Driving interrupt  {}  \n", values[i]);
-          rand_intr =  rand_intr |(1<<values[i]);
-
-          rand_intr = rand_intr & disable_mask_neg;
-	  cvm::log(cvm::HIGH, "[Trickbox] Send  interrupt vec to sysmod  {:#x}  \n", rand_intr);
-
+      	  cvm::log(cvm::HIGH, "[Trickbox] Driving interrupt  {}  \n", values[i]);
+         //Drive Random MSI here
          }
 
 
@@ -195,7 +185,7 @@ protected:
   void checkUsage();
 
 private:
-  unsigned numInterrupts_ = 6;
+  unsigned numMSIs_ = 6;
   cvm::topology::loc_t axi_mst_loc_l;
   std::vector<uint64_t> timeCompare_;  // One per interrupt type.
   std::vector<uint32_t> IntrHart_;  // Hart to be interrupted.
@@ -206,8 +196,6 @@ private:
   uint64_t timer_advance = 200;
   uint64_t timer_rand_intr = 500;
   uint64_t msi_driver_base = 0x9000000;
-  uint64_t disable_mask = 0;
-  uint64_t disable_mask_neg = 0;
 
   std::atomic<bool> terminate_ = false;
   std::mutex mutex_;
