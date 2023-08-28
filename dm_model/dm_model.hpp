@@ -158,7 +158,7 @@ private:
   unsigned debug_abstract_start;
   // R/W this through custom registers, to allow debuggers to test that
   // functionality.
-  unsigned custom_base;
+  // unsigned custom_base;
 
   std::unordered_set<uint8_t> dm_regs_to_check = {0x11, 0x16, 0x04, 0x10, 0x17};
   uint8_t reg_addr_to_check;
