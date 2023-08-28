@@ -5,54 +5,68 @@ load("@cvm//:defs.bzl", "topology_gen", "packet_gen")
 load("@rv_tester//:defs.bzl", "rv_tester_gen")
 load("@bzsim//:sim.bzl", "sim_test_suite")
 
-verilog_dpi_library(
-    name = "dpi",
-    srcs = ["dpi.cpp", "gflags.cpp"],
-    deps = [
-      "rv_tester_dpi",
-      "@cvm//:plusargs"
-    ],
-)
+harnesses = [ "sw_1c", "sw_2c"]
 
-topology_gen(
-    name = "topology",
-    srcs = [
-        "rv_tester_platform.yml",
-        "rv_tester_hart.yml",
-        "rv_tester_axi.yml",
-        "@rv_tester//:rv_tester_topology",
-        "topology.yml",
-    ]
-)
+[
+  [
+    genrule(
+        name = name + "_harness_define",
+        outs = [name + "_harness_defines.sv"],
+        cmd = "echo '`define HARNESS {}' > $@".format(name.upper()),
+    ),
 
-rv_tester_gen(
-    name = "rv_tester",
-    topology = "topology",
-    cc_attrs = {
-        'alwayslink': True,
-        'linkstatic': True,
-    }
-)
-
-verilog_library(
-    name = "top",
-    srcs = [
-        "top.sv",
-    ],
-    deps = [
-        "rv_tester_sv",
-    ]
-)
-
-verilog_unit(
-    name = "sw_testbench",
-    top  = "top",
-    lib  = "top",
-    dpi  = "dpi",
-    runtime_library = ["//infra/bzsim-config:runtime"],
-    verilator_top = "sw_tb.cpp",
-    bzsimconfig = "//infra/bzsim-config:bzsimconfig",
-)
+    verilog_dpi_library(
+        name = name + "_dpi",
+        srcs = ["dpi.cpp", "gflags.cpp"],
+        deps = [
+          name + "_rv_tester_dpi",
+          "@cvm//:plusargs"
+        ],
+    ),
+    
+    topology_gen(
+        name = name + "_topology",
+        srcs = [
+            name + "_rv_tester_platform.yml",
+            name + "_rv_tester_hart.yml",
+            "rv_tester_axi.yml",
+            "@rv_tester//:rv_tester_topology",
+            name + "_topology.yml",
+        ]
+    ),
+    
+    rv_tester_gen(
+        name = name + "_rv_tester",
+        topology = name + "_topology",
+        cc_attrs = {
+            'alwayslink': True,
+            'linkstatic': True,
+        }
+    ),
+    
+    verilog_library(
+        name = name + "_top",
+        srcs = [
+            name + "_harness_define",
+            "top.sv",
+            "harness_undefines.sv"
+        ],
+        deps = [
+            name + "_rv_tester_sv",
+        ]
+    ),
+    
+    verilog_unit(
+        name = name + "_tb",
+        top  = "top",
+        lib  = name + "_top",
+        dpi  = name + "_dpi",
+        runtime_library = ["//infra/bzsim-config:runtime"],
+        verilator_top = "sw_tb.cpp",
+        bzsimconfig = "//infra/bzsim-config:bzsimconfig",
+    )
+  ] for name in harnesses
+]
 
 sim_test_suite(
     name  = "all_smoke",

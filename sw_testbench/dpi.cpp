@@ -1,12 +1,17 @@
 #include <iostream>
 #include <cinttypes>
 
-extern "C" void write_rvfi(uint8_t valid, uint32_t core, uint32_t insn, uint64_t pc);
+extern "C" void write_rvfi(uint8_t valid, uint32_t hartid, uint32_t nretid, uint32_t insn, uint64_t pc);
 
-extern "C" void get_stimulus(uint8_t reset, std::uint64_t) {
+extern "C" void get_1c_stimulus(uint8_t reset) {
     static uint64_t pc = 0x80000000;
-    write_rvfi(!reset, 0, 0, pc);
-    if (!reset) {
-        // pc += 4;
-    }
+    static uint32_t insn = 0x6f;
+    write_rvfi(!reset, 0, 0, insn, pc);
+}
+
+extern "C" void get_2c_stimulus(uint8_t reset) {
+    static uint64_t pc = 0x80000000;
+    static uint32_t insn = 0x6f;
+    write_rvfi(!reset, 0, 0, insn, pc);
+    write_rvfi(!reset, 1, 0, insn, pc);
 }
