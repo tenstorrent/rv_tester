@@ -26,7 +26,7 @@ class whisperClient {
       }
     }
 
-    int whisperConnect();
+    int whisperConnect(uint16_t ncores);
     void whisperDisconnect();
     bool whisperStep(int hart, uint64_t time, uint64_t instrTag, uint64_t& pc, uint32_t& instruction, unsigned& changeCount, std::string& disasm, uint32_t& privMode, uint32_t& fpFlags, bool& hasTrap, bool& hasStop);
     bool whisperSimpleStep(int hart, uint64_t& pc, uint32_t& instruction, unsigned& changeCount);

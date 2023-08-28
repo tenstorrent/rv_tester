@@ -23,7 +23,7 @@ import rv_tester_params::*;
     always @(posedge clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */
-            location = cvm_topology::get_location(topology.TOP.PLATFORM.PMCI.ID, 0);
+            location = cvm_topology::get_location(topology.TOP.PLATFORM.PMCI.ID, NUM);
             perf_enabled = (cvm_plusargs::get_bool("perf") != '0) & (location != cvm_topology::nil);
             period = cvm_plusargs::get_ulongint("sync_pmcounters_period");
             /* verilator lint_on BLKSEQ */

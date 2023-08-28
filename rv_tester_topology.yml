@@ -43,21 +43,21 @@ rv_tester: &rv_tester
       type:
         - cosim
       rvfi:
-        count: *rv_tester_nharts
+        count: 1
         type:
           - rvfi
         attrs:
           <<: *rv_tester_rvfi_attrs
       mcmi:
-        count: *rv_tester_nharts
+        count: 1
         type:
-          - rvfi
+          - mcmi
         attrs:
           <<: *rv_tester_mcmi_attrs
       bridge:
-        count: *rv_tester_nharts
+        count: 1
         type:
-          - clint
+          - bridge
 
     pmci:
       count : *rv_tester_nharts

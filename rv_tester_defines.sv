@@ -6,7 +6,7 @@ package rv_tester_params;
     // Platform RISCV Arch
     // --------------------------------------
     parameter NHARTS = mods.TOP.PLATFORM.NHARTS;
-    parameter HARTLEN = NHARTS == 1 ? 1 : $clog2(NHARTS);
+    parameter HARTLEN = 16; //NHARTS == 1 ? 1 : $clog2(NHARTS);
     parameter bit RVF = mods.TOP.PLATFORM.ISA_RVF == 1;
     parameter bit RVD = mods.TOP.PLATFORM.ISA_RVD == 1;
     parameter bit RVFD = RVF | RVD;
@@ -155,11 +155,7 @@ package rv_tester_params;
     parameter bit RVFI_CSR = RVFI_EN & mods.TOP.PLATFORM.COSIM.RVFI.CSR_ENABLE == 1;
     parameter int TOTAL_NRETS = RVFI_EN ? mods.TOP.PLATFORM.COSIM.RVFI.TOTAL_NRETS : 1;
     parameter bit [NHARTS-1:0][31:0] NRETS = mods.TOP.PLATFORM.COSIM.RVFI.NRETS;
-
     parameter bit [NHARTS-1:0][31:0] NRETS_CUMSUM    = mods.TOP.PLATFORM.COSIM.RVFI.NRETS_CUMSUM;
-    parameter bit [NHARTS-1:0][31:0] NREADS_CUMSUM   = mods.TOP.PLATFORM.COSIM.MCMI.NREADS_CUMSUM;
-    parameter bit [NHARTS-1:0][31:0] NINSERTS_CUMSUM = mods.TOP.PLATFORM.COSIM.MCMI.NINSERTS_CUMSUM;
-    parameter bit [NHARTS-1:0][31:0] NWRITES_CUMSUM  = mods.TOP.PLATFORM.COSIM.MCMI.NWRITES_CUMSUM;
 
     typedef struct packed {
         logic                       valid    ;
@@ -200,9 +196,12 @@ package rv_tester_params;
     parameter TOTAL_NREADS = MCMI_EN ? mods.TOP.PLATFORM.COSIM.MCMI.TOTAL_NREADS : 1;
     parameter TOTAL_NINSERTS = MCMI_EN ? mods.TOP.PLATFORM.COSIM.MCMI.TOTAL_NINSERTS : 1;
     parameter TOTAL_NWRITES = MCMI_EN ? mods.TOP.PLATFORM.COSIM.MCMI.TOTAL_NWRITES : 1;
-    parameter int NREADS[NHARTS] = '{3}; //mods.TOP.PLATFORM.COSIM.MCMI.NREADS;
-    parameter int NINSERTS[NHARTS] = '{3}; //mods.TOP.PLATFORM.COSIM.MCMI.NINSERTS;
-    parameter int NWRITES[NHARTS] = '{3}; //mods.TOP.PLATFORM.COSIM.MCMI.NWRITES;
+    parameter bit [NHARTS-1:0][31:0] NREADS = mods.TOP.PLATFORM.COSIM.MCMI.NREADS;
+    parameter bit [NHARTS-1:0][31:0] NINSERTS = mods.TOP.PLATFORM.COSIM.MCMI.NINSERTS;
+    parameter bit [NHARTS-1:0][31:0] NWRITES = mods.TOP.PLATFORM.COSIM.MCMI.NWRITES;
+    parameter bit [NHARTS-1:0][31:0] NREADS_CUMSUM   = mods.TOP.PLATFORM.COSIM.MCMI.NREADS_CUMSUM;
+    parameter bit [NHARTS-1:0][31:0] NINSERTS_CUMSUM = mods.TOP.PLATFORM.COSIM.MCMI.NINSERTS_CUMSUM;
+    parameter bit [NHARTS-1:0][31:0] NWRITES_CUMSUM  = mods.TOP.PLATFORM.COSIM.MCMI.NWRITES_CUMSUM;
 
     typedef struct packed {
         logic                       valid;

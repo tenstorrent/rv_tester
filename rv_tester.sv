@@ -239,7 +239,7 @@ import rv_tester_params::*;
 `ifndef NO_COSIM
     for (genvar c = 0; c < NHARTS; c++) begin: cosim_inst
       cosim #(
-          .NUM(0),
+          .NUM(c),
           .NRET(NRETS[c]),
           .NREAD(NREADS[c]),
           .NINSERT(NINSERTS[c]),
@@ -255,14 +255,14 @@ import rv_tester_params::*;
           .mcmi_write(mcmi_write[NWRITES_CUMSUM[c] +: NWRITES[c]]),
           .interrupt(interrupt[c]),
           .debug_mode(debug_mode[c]),
-          `RV_TESTER_TRANSACTIONS_SOURCE_COSIM(1, 0)
+          `RV_TESTER_TRANSACTIONS_SOURCE_COSIM(1, c)
       );
     end
 `endif
 
     for (genvar p = 0; p < NHARTS; p++) begin: pmu_inst
       pmu #(
-          .NUM(0),
+          .NUM(p),
           .NRET(NRETS[p]),
           `TOPOLOGY_CFG
       ) pmu (
@@ -270,9 +270,9 @@ import rv_tester_params::*;
           .reset(sysmod_reset),
           .clocks,
           .pmci(pmci[p]),
-          .rvfi(rvfi[p * NRETS[0] +: NRETS[p]]),
+          .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
           .terminate,
-          `RV_TESTER_TRANSACTIONS_SOURCE_PMU(1, 0)
+          `RV_TESTER_TRANSACTIONS_SOURCE_PMU(1, p)
       );
     end
 

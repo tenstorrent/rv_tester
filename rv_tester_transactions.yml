@@ -1,5 +1,5 @@
 cosim:
-    num: 1
+    num: ${TOP.PLATFORM.NHARTS}
     msg:
         fields:
             count:
@@ -11,6 +11,8 @@ cosim:
         fields:
             cycle:
                 width: 64
+            hart:
+                width: 16
             last_uop:
                 width: 1
             comp:
@@ -70,6 +72,8 @@ cosim:
         fields:
             cycle:
                 width: 64
+            hart:
+                width: 16
             order:
                 width: 64
             addr:
@@ -85,6 +89,8 @@ cosim:
         fields:
             cycle:
                 width: 64
+            hart:
+                width: 16
             order:
                 width: 64
             addr:
@@ -100,6 +106,8 @@ cosim:
         fields:
             cycle:
                 width: 64
+            hart:
+                width: 16
             addr:
                 width: ${TOP.PLATFORM.PALEN}
             mask:
@@ -274,7 +282,7 @@ logger:
                 width: 64
 
 pmu:
-    num: 1
+    num: ${TOP.PLATFORM.NHARTS}
     pmcounters:
         domain: 1
         num: 1

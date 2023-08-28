@@ -49,13 +49,18 @@ DEFINE_bool(whisper_log, true, "Enable whisper logging to iss_cosim.log and iss_
 DEFINE_bool(whisper_stdin_null, false, "Redirect whisoer stdin to null");
 DEFINE_bool(whisper_stdout_null, false, "Redirect whisoer stdout to null");
 
+std::string traceFile = FLAGS_whisper_log ? "iss_cosim.log" : "";
+std::string commandLog = FLAGS_whisper_log ? "iss_cmd.log" : "";
+std::shared_ptr<whisperClient<uint64_t>> client_ = std::make_shared<whisperClient<uint64_t>>(traceFile, commandLog);
+
 // Constructor
-bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc)
-  : log("bridge.log"),
+bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsigned id)
+  : log("h" + std::to_string(id) + "_bridge.log"),
+    loc_(loc),
+    id_(id),
     num_harts_(num_harts),
     xlen_(xlen),
     vlen_(vlen),
-    loc_(loc),
     cac_(CacCore(num_harts))
 {
 }
@@ -67,7 +72,7 @@ bridge::~bridge() {
 }
 
 bool bridge::whisper_connect() {
-  return (client_->whisperConnect() == 0);
+  return (client_->whisperConnect(num_harts_) == 0);
 }
 
 void bridge::reset() {
@@ -76,9 +81,6 @@ void bridge::reset() {
 
   cac_.Reset();
   assert(cac_.SetVlen(vlen_));
-  std::string traceFile = FLAGS_whisper_log ? "iss_cosim.log" : "";
-  std::string commandLog = FLAGS_whisper_log ? "iss_cmd.log" : "";
-  client_ = std::make_unique<whisperClient<uint64_t>>(traceFile, commandLog);
 
   whisper_connect();
 
@@ -999,63 +1001,62 @@ void bridge::report_metrics() {
 
   cvm::log(cvm::NONE, "[COSIM] Report metrics...\n");
 
-  for (int h = 0; h < num_harts_; h++) {
-    const auto& prev_whisp_state = pw_[h];
-    const auto& prev_prev_whisp_state = ppw_[h];
-    const int instructions = cac_.GetStep(h);
-    const auto& cpu_cycles = prev_whisp_state.time;
-    const double ipc = cpu_cycles ? static_cast<double>(instructions) / static_cast<double>(cpu_cycles) : 0.0;
-    const auto& instr = prev_whisp_state.disasm;
-    const auto& mode = prev_whisp_state.priv_mode;
-    const auto& trap = prev_whisp_state.trap;
-    const auto& num_dest = prev_whisp_state.change_count;
-    bool rfcm = (prev_whisp_state.resource == 'r' || prev_whisp_state.resource == 'f' || prev_whisp_state.resource == 'c' || prev_whisp_state.resource == 'm');
-    const std::string dest = (rfcm ? std::string(1, static_cast<char>(prev_whisp_state.resource)) : "none");
-    const std::string dest_addr = (rfcm ? fmt::format("0x{:x}", prev_whisp_state.address) : "none");
-    const std::string dest_data = (rfcm ? fmt::format("0x{:x}", prev_whisp_state.value) : "none");
-    const auto& prev_instr = prev_prev_whisp_state.disasm;
-    const auto& prev_mode = prev_prev_whisp_state.priv_mode;
-    const auto& prev_trap = prev_prev_whisp_state.trap;
-    const auto& prev_num_dest = prev_prev_whisp_state.change_count;
+  const auto& prev_whisp_state = pw_[id_];
+  const auto& prev_prev_whisp_state = ppw_[id_];
+  const int instructions = cac_.GetStep(id_);
+  const auto& cpu_cycles = prev_whisp_state.time;
+  const double ipc = cpu_cycles ? static_cast<double>(instructions) / static_cast<double>(cpu_cycles) : 0.0;
+  const auto& instr = prev_whisp_state.disasm;
+  const auto& mode = prev_whisp_state.priv_mode;
+  const auto& trap = prev_whisp_state.trap;
+  const auto& num_dest = prev_whisp_state.change_count;
+  bool rfcm = (prev_whisp_state.resource == 'r' || prev_whisp_state.resource == 'f' || prev_whisp_state.resource == 'c' || prev_whisp_state.resource == 'm');
+  const std::string dest = (rfcm ? std::string(1, static_cast<char>(prev_whisp_state.resource)) : "none");
+  const std::string dest_addr = (rfcm ? fmt::format("0x{:x}", prev_whisp_state.address) : "none");
+  const std::string dest_data = (rfcm ? fmt::format("0x{:x}", prev_whisp_state.value) : "none");
+  const auto& prev_instr = prev_prev_whisp_state.disasm;
+  const auto& prev_mode = prev_prev_whisp_state.priv_mode;
+  const auto& prev_trap = prev_prev_whisp_state.trap;
+  const auto& prev_num_dest = prev_prev_whisp_state.change_count;
 
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_instructions\": {}}}\n", h, instructions);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_cpu_cycles\": {}}}\n", h, cpu_cycles);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_ipc\": {:.2f}}}\n", h, ipc);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_instr\": \"{}\"}}\n", h, instr);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_mode\": {}}}\n", h, mode);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_trap\": {}}}\n", h, trap);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_dest\": {}}}\n", h, num_dest);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dest\": \"{}\"}}\n", h, dest);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dest_addr\": \"{}\"}}\n", h, dest_addr);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dest_data\": \"{}\"}}\n", h, dest_data);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_instr\": \"{}\"}}\n", h, prev_instr);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_mode\": {}}}\n", h, prev_mode);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_trap\": {}}}\n", h, prev_trap);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_num_dest\": {}}}\n", h, prev_num_dest);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_instructions\": {}}}\n", id_, instructions);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_cpu_cycles\": {}}}\n", id_, cpu_cycles);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_ipc\": {:.2f}}}\n", id_, ipc);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_instr\": \"{}\"}}\n", id_, instr);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_mode\": {}}}\n", id_, mode);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_trap\": {}}}\n", id_, trap);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_num_dest\": {}}}\n", id_, num_dest);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_dest\": \"{}\"}}\n", id_, dest);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_dest_addr\": \"{}\"}}\n", id_, dest_addr);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_dest_data\": \"{}\"}}\n", id_, dest_data);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_prev_instr\": \"{}\"}}\n", id_, prev_instr);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_prev_mode\": {}}}\n", id_, prev_mode);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_prev_trap\": {}}}\n", id_, prev_trap);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_prev_num_dest\": {}}}\n", id_, prev_num_dest);
 
-    for (auto& csr : csrs) {
-      uint64_t csr_data;
-      bool valid;
-      if (!client_->whisperPeek(h, 'c', csr.address, csr_data, valid)) {
-        cvm::log(cvm::ERROR, "Error: Failed to peek CSR values\n");
-      }
-      cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_csr_{}\": \"0x{:x}\"}}\n", h, csr.name, csr_data);
+  for (auto& csr : csrs) {
+    uint64_t csr_data;
+    bool valid;
+    if (!client_->whisperPeek(id_, 'c', csr.address, csr_data, valid)) {
+      cvm::log(cvm::ERROR, "Error: Failed to peek CSR values\n");
     }
-
-    // Step one final time to collect metrics for next instruction
-    whisper_state_t w {
-      .tag = prev_whisp_state.tag+1,
-      .time = prev_whisp_state.time+1
-    };
-    step(h, w);
-    const auto& next_instr = w.disasm;
-    const auto& next_mode = w.priv_mode;
-    const auto& next_trap = w.trap;
-    const auto& next_num_dest = w.change_count;
-
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_instr\": \"{}\"}}\n", h, next_instr);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_mode\": {}}}\n", h, next_mode);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_trap\": {}}}\n", h, next_trap);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_num_dest\": {}}}\n", h, next_num_dest);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_csr_{}\": \"0x{:x}\"}}\n", id_, csr.name, csr_data);
   }
+
+  // Step one final time to collect metrics for next instruction
+  whisper_state_t w {
+    .tag = prev_whisp_state.tag+1,
+    .time = prev_whisp_state.time+1
+  };
+  step(id_, w);
+  const auto& next_instr = w.disasm;
+  const auto& next_mode = w.priv_mode;
+  const auto& next_trap = w.trap;
+  const auto& next_num_dest = w.change_count;
+
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_next_instr\": \"{}\"}}\n", id_, next_instr);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_next_mode\": {}}}\n", id_, next_mode);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_next_trap\": {}}}\n", id_, next_trap);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_next_num_dest\": {}}}\n", id_, next_num_dest);
+  
 }

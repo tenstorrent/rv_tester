@@ -25,7 +25,7 @@ using size_8_bytes_t = cac::size_8_bytes_t;
 using CacCore = cac::CacCore;
 
 public:
-  bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc);
+  bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsigned id);
   ~bridge();
 
   // DUT Interface API
@@ -115,14 +115,13 @@ private:
 
 private:
 
-  std::unique_ptr<whisperClient<uint64_t>> client_;
-
   cvm::file_logger log;
+  cvm::topology::loc_t loc_;
+  unsigned id_;
 
   int num_harts_ = 0;
   int xlen_ = 0;
   int vlen_ = 0;
-  cvm::topology::loc_t loc_;
   CacCore cac_;
 
   // Previous instruction's whisper state per-hart

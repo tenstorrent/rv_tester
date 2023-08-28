@@ -29,7 +29,7 @@ import rv_tester_params::*;
     always @(posedge clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */
-            location = cvm_topology::get_location(topology.TOP.PLATFORM.COSIM.ID, 0);
+            location = cvm_topology::get_location(topology.TOP.PLATFORM.COSIM.ID, NUM);
             rvfi_enabled = (cvm_plusargs::get_bool("rvfi") != '0) & (location != cvm_topology::nil);
             if (rvfi_enabled) begin
               cosim_set_scope(location);
@@ -43,6 +43,7 @@ import rv_tester_params::*;
         assign m_rvfis[n].valid = RVFI_EN & rvfi_enabled & ~reset & rvfi[n].valid;
         assign m_rvfis[n].data.location = location;
         assign m_rvfis[n].data.cycle = clocks;
+        assign m_rvfis[n].data.hart = rvfi[n].hart;
         assign m_rvfis[n].data.last_uop = rvfi[n].last_uop;
         assign m_rvfis[n].data.comp = rvfi[n].comp;
         assign m_rvfis[n].data.order = rvfi[n].order;
@@ -76,6 +77,7 @@ import rv_tester_params::*;
         assign m_mcmi_reads[n].valid = MCMI_EN & rvfi_enabled & ~reset & mcmi_read[n].valid;
         assign m_mcmi_reads[n].data.location = location;
         assign m_mcmi_reads[n].data.cycle = mcmi_read[n].valid ? clocks : '0;
+        assign m_mcmi_reads[n].data.hart = mcmi_read[n].hart;
         assign m_mcmi_reads[n].data.order = mcmi_read[n].order;
         assign m_mcmi_reads[n].data.addr = mcmi_read[n].addr;
         assign m_mcmi_reads[n].data.mask = mcmi_read[n].mask;
@@ -87,6 +89,7 @@ import rv_tester_params::*;
         assign m_mcmi_inserts[n].valid = MCMI_EN & rvfi_enabled & ~reset & mcmi_insert[n].valid;
         assign m_mcmi_inserts[n].data.location = location;
         assign m_mcmi_inserts[n].data.cycle = mcmi_insert[n].valid ? clocks : '0;
+        assign m_mcmi_inserts[n].data.hart = mcmi_insert[n].hart;
         assign m_mcmi_inserts[n].data.order = mcmi_insert[n].order;
         assign m_mcmi_inserts[n].data.addr = mcmi_insert[n].addr;
         assign m_mcmi_inserts[n].data.mask = mcmi_insert[n].mask;
@@ -98,6 +101,7 @@ import rv_tester_params::*;
         assign m_mcmi_writes[n].valid = MCMI_EN & rvfi_enabled & ~reset & mcmi_write[n].valid;
         assign m_mcmi_writes[n].data.location = location;
         assign m_mcmi_writes[n].data.cycle = mcmi_write[n].valid ? clocks : '0;
+        assign m_mcmi_writes[n].data.hart = mcmi_write[n].hart;
         assign m_mcmi_writes[n].data.addr = mcmi_write[n].addr;
         assign m_mcmi_writes[n].data.mask = mcmi_write[n].mask;
         assign m_mcmi_writes[n].data.data = mcmi_write[n].data;
