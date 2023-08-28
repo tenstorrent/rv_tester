@@ -30,7 +30,7 @@ REGISTRY_register(debug_module_t, TOP.PLATFORM.DM_MODEL, 0);
 debug_module_t::debug_module_t(cvm::topology::loc_t loc, unsigned) : program_buffer_bytes((config.support_impebreak ? 4 : 0) + 4 * config.progbufsize),
                                                                      debug_progbuf_start(debug_data_start - program_buffer_bytes),
                                                                      debug_abstract_start(debug_progbuf_start - debug_abstract_size * 4),
-                                                                     custom_base(0),
+                                                                    //  custom_base(0),
                                                                      hart_state(1 << field_width(max_hartid + 1)),
                                                                      hart_array_mask(max_hartid + 1)
 //  rti_remaining(0)
@@ -574,6 +574,8 @@ bool debug_module_t::perform_abstract_command()
     unsigned size = get_field(command, AC_ACCESS_REGISTER_AARSIZE);
     bool write = get_field(command, AC_ACCESS_REGISTER_WRITE);
     unsigned regno = get_field(command, AC_ACCESS_REGISTER_REGNO);
+    bool transfer = get_field(command, AC_ACCESS_REGISTER_TRANSFER);
+    bool unsupported_command = false;
 
     if (!selected_hart_state().halted)
     {
@@ -582,18 +584,18 @@ bool debug_module_t::perform_abstract_command()
     }
 
     //** Custom logic to meet the implementation specific details
-    if ((size < 4) && get_field(command, AC_ACCESS_REGISTER_TRANSFER) && write)
+    if ((size < 4) && transfer && write)
     { // Check for access reg type
-      write32(debug_abstract, 0, nop());
+      write32(debug_abstract, 0, nop()); // store a0 in dscratch1 if it exists, but our implementation doesn't allow it
 
-      if (cvm::bitmanip::slice<uint64_t>(regno, 15, 14) != 0)
-      {
-        write32(debug_abstract, 0, ebreak());
-        // Command not supported
+      if (cvm::bitmanip::slice<uint64_t>(regno, 15, 14) != 0){
+        write32(debug_abstract, 0, ebreak()); // Command not supported
+        unsupported_command = true;
       }
-      else if (cvm::bitmanip::slice<uint64_t>(regno, 12, 12))
+    
+      else if (cvm::bitmanip::slice<uint64_t>(regno, 12, 12)) // GPR/FPR access
       {
-        if (cvm::bitmanip::slice<uint64_t>(regno, 5, 5))
+        if (cvm::bitmanip::slice<uint64_t>(regno, 5, 5)) // determine whether we want to access the floating point register or not
         {
           unsigned fprnum = regno - 0x1020;
           if (size == 2)
@@ -610,17 +612,64 @@ bool debug_module_t::perform_abstract_command()
             write32(debug_abstract, 4, ld(regnum, ZERO, debug_data_start));
         }
       }
-      // TODO:: Add other logics
+
+      else { //CSR access 
+        write32(debug_abstract, 4, csrw(S0, CSR_DSCRATCH0)); // store s0 in dscratch
+        if (size == 2)
+            write32(debug_abstract, 5, lw(S0, ZERO, debug_data_start)); // load from data register
+        else if (size == 4)
+            write32(debug_abstract, 5, ld(S0, ZERO, debug_data_start)); // load from data register
+        write32(debug_abstract, 6, csrw(S0, regno)); // and store it in the corresponding CSR
+        write32(debug_abstract, 7, csrr(S0, CSR_DSCRATCH0)); // restore s0 again from dscratch
+      }
     }
 
-    else if ((size < 4) && get_field(command, AC_ACCESS_REGISTER_TRANSFER) && !write)
+    else if ((size < 4) && transfer && !write)
     {
-      write32(debug_abstract, 0, nop());
-      write32(debug_abstract, 4, csrw(S0, CSR_DSCRATCH0)); // FIXME??
-      write32(debug_abstract, 5, csrr(S0, regno + custom_base));
-      write32(debug_abstract, 6, sw(S0, ZERO, debug_data_start));
-      write32(debug_abstract, 7, csrr(S0, CSR_DSCRATCH0));
+      write32(debug_abstract, 0, nop()); // store a0 in dscratch1 if there's second scratch, but our impl doesnt have it so nop()
+
+      if (cvm::bitmanip::slice<uint64_t>(regno, 15, 14) != 0){
+        write32(debug_abstract, 0, ebreak()); // Command not supported
+        unsupported_command = true;
+      }
+      
+      else if (cvm::bitmanip::slice<uint64_t>(regno, 12, 12)){ // GPR/FPR access
+        if (cvm::bitmanip::slice<uint64_t>(regno, 5, 5)) // determine whether we want to access the floating point register or not
+        {
+          unsigned fprnum = regno - 0x1020;
+          if (size == 2)
+            write32(debug_abstract, 4, fsw(fprnum, ZERO, debug_data_start));
+          else if (size == 4)
+            write32(debug_abstract, 4, fsd(fprnum, ZERO, debug_data_start));
+        }
+        else
+        {
+          unsigned regnum = regno - 0x1000;
+          if (size == 2)
+            write32(debug_abstract, 4, sw(regnum, ZERO, debug_data_start));
+          else if (size == 4)
+            write32(debug_abstract, 4, sd(regnum, ZERO, debug_data_start));
+        }
+      }
+
+      else { //CSR access
+        write32(debug_abstract, 4, csrw(S0, CSR_DSCRATCH0)); // store s0 in dscratch
+        write32(debug_abstract, 5, csrr(S0, regno)); // read value from CSR into s0
+        if (size == 2)
+            write32(debug_abstract, 6, lw(S0, ZERO, debug_data_start)); // and store s0 into data section
+        else if (size == 4)
+            write32(debug_abstract, 6, ld(S0, ZERO, debug_data_start)); // and store s0 into data section
+        write32(debug_abstract, 7, csrr(S0, CSR_DSCRATCH0)); // restore s0 again from dscratch
+      }
     }
+    else if ( size >= 4 || get_field(command, AC_ACCESS_REGISTER_AARPOSTINCREMENT)){
+      write32(debug_abstract, 0, ebreak());
+      unsupported_command = true;
+    }
+
+    if (get_field(command, AC_ACCESS_REGISTER_POSTEXEC) && !unsupported_command) 
+      write32(debug_abstract, 9, nop());
+
     //** End of the custom specified logic
 
     // unsigned i = 0;
