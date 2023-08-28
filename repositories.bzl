@@ -14,7 +14,7 @@ def rv_tester_repositories():
         #sha256 = "af87959afe497dc8dfd4c6cb66e1279cb98ccc84284619ebfec27d9c09a903de",
     )
 
-    corearchcoverage_hash="56a6d92708f55d2d4c35f6675b9cc3fcff2c36fc"
+    corearchcoverage_hash="30e6bf60f59d6f0e458fe67b6a322247746d04d3"
     maybe(
         git_repository,
         name = "corearchcoverage",
@@ -23,11 +23,11 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv/dv/corearchcoverage.git",
     )
 
-    cvm_hash="5d21a08063dc92e510460d11c786147e6b990d01"
+    cvm_hash="227ac478bf72acdc22733cb85945bb9d9598c978"
     maybe(
         http_archive,
         name = "cvm",
-        #sha256 = "bc986b39ab0fea5583d60475ca8bf9bf144336fc90bb3257b75e296360cb9a6e",
+        sha256 = "587fb0f0ff6a6bb3e4177120f8f9ec84284c7bb188bd69b433980ae602a3028f",
         strip_prefix = "cvm-{commit}".format(commit=cvm_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/{commit}/cvm-{commit}.tar.bz2".format(commit=cvm_hash),
     )
@@ -93,7 +93,7 @@ cc_library(
         url = "https://aus-gitlab.local.tenstorrent.com/mboisvert/wall_clock_profiler/-/archive/{commit}/wall_clock_profiler-{commit}.tar.bz2".format(commit=wall_clock_profiler_hash),
     )
 
-    checkin_script_hash="8693fab37534f640ec850e132199f8d8a98e597e"
+    checkin_script_hash="319941617845f1d727f23651be97092b2961baab"
     maybe(
         git_repository,
         name = "checkin-script",

@@ -172,7 +172,7 @@ sysmod::compose()
             [&](clint::sw_t s) { return this->sw_interrupt(s); });
       }
       else if (type == "trickbox") {
-        device = new trickbox(tag, base, 1, loc_);
+        device = new trickbox(tag, base, 1, loc_,masters[1]);
         cvm::registry::messenger.connect<interrupter::interrupt_t>(
             loc_,
             [&](interrupter::interrupt_t i) { return this->tbox_interrupt(i); });
