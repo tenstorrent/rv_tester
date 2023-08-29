@@ -28,7 +28,7 @@ pmu::pmu(cvm::topology::loc_t loc, unsigned id)
       log(cvm::NONE, "\n");
     }
 
-    auto cosim = cvm::topology::get_from_type("COSIM", 0);
+    auto cosim = cvm::topology::get_from_type("COSIM", id_);
 
     cvm::registry::messenger.connect<rv_tester_transactions::cosim::m_rvfi>(cosim, [this] (const auto& v) { return this->process(v); });
     cvm::registry::messenger.connect<rv_tester_transactions::pmu::pmcounters>(loc, [this] (const auto& v) { return this->process(v); });
