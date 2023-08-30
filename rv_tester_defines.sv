@@ -284,11 +284,7 @@ package rv_tester_params;
         EVENT_COUNT
     } pmc_event_t;
     
-    typedef struct packed {
-        logic [HARTLEN-1:0]     hart;
-        logic [3:0]             counter;
-    } pmc_counter_t;
-
+    typedef logic [3:0] pmc_counter_t;
     typedef pmc_counter_t [EVENT_COUNT-1:0] pmci_t;
 
     // --------------------------------------
@@ -312,10 +308,10 @@ package rv_tester_params;
     input  rv_tester_pkg::dmi_req_t          dmi_req,                                               \
     input                                    dmi_resp_ready,                                        \
                                                                                                     \
-    output rv_tester_params::rvfi_t          rvfi         [rv_tester_params::TOTAL_NRETS-1:0],      \
-    output rv_tester_params::mcmi_t          mcmi_read    [rv_tester_params::TOTAL_NREADS-1:0],     \
-    output rv_tester_params::mcmi_t          mcmi_insert  [rv_tester_params::TOTAL_NINSERTS-1:0],   \
-    output rv_tester_params::mcmi_t          mcmi_write   [rv_tester_params::TOTAL_NWRITES-1:0],    \
+    output rv_tester_params::rvfi_t          [rv_tester_params::TOTAL_NRETS-1:0]    rvfi,           \
+    output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NREADS-1:0]   mcmi_read,      \
+    output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NINSERTS-1:0] mcmi_insert,    \
+    output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NWRITES-1:0]  mcmi_write,     \
     output rv_tester_params::pmci_t          pmci         [rv_tester_params::NHARTS-1:0],           \
     output rv_tester_params::axi_req_t       axi_req      [rv_tester_params::AXI_TOTAL-1:0],        \
     input  rv_tester_params::axi_rsp_t       axi_rsp      [rv_tester_params::AXI_TOTAL-1:0],        \
@@ -340,10 +336,10 @@ package rv_tester_params;
     rv_tester_pkg::dmi_req_t                 dmi_req;                                               \
     logic                                    dmi_resp_ready;                                        \
                                                                                                     \
-    rv_tester_params::rvfi_t                 rvfi          [rv_tester_params::TOTAL_NRETS-1:0];     \
-    rv_tester_params::mcmi_t                 mcmi_read     [rv_tester_params::TOTAL_NREADS-1:0];    \
-    rv_tester_params::mcmi_t                 mcmi_insert   [rv_tester_params::TOTAL_NINSERTS-1:0];  \
-    rv_tester_params::mcmi_t                 mcmi_write    [rv_tester_params::TOTAL_NWRITES-1:0];   \
+    rv_tester_params::rvfi_t                 [rv_tester_params::TOTAL_NRETS-1:0]     rvfi;          \
+    rv_tester_params::mcmi_t                 [rv_tester_params::TOTAL_NREADS-1:0]    mcmi_read;     \
+    rv_tester_params::mcmi_t                 [rv_tester_params::TOTAL_NINSERTS-1:0]  mcmi_insert;   \
+    rv_tester_params::mcmi_t                 [rv_tester_params::TOTAL_NWRITES-1:0]   mcmi_write;    \
     rv_tester_params::pmci_t                 pmci          [rv_tester_params::NHARTS-1:0];          \
     rv_tester_params::axi_req_t              axi_req       [rv_tester_params::AXI_TOTAL-1:0];       \
     rv_tester_params::axi_rsp_t              axi_rsp       [rv_tester_params::AXI_TOTAL-1:0];       \

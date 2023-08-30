@@ -9,7 +9,7 @@ import rv_tester_params::*;
   input reset,
   input longint unsigned clocks,
   input pmci_t pmci,
-  input rvfi_t rvfi[NRET-1:0],
+  input rvfi_t [NRET-1:0] rvfi,
   input bit terminate,
   `RV_TESTER_TRANSACTIONS_OUTPUT_PMU
 );
@@ -47,7 +47,7 @@ import rv_tester_params::*;
             instructions <= instructions + total;
             // Count supported events
             for (integer n = 0; n < EVENT_COUNT; n++) begin
-              pmcounter[n] <= pmcounter[n] + {60'h0, pmci[n].counter};
+              pmcounter[n] <= pmcounter[n] + {60'h0, pmci[n]};
             end
         end
     end
