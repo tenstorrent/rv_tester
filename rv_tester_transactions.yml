@@ -12,7 +12,7 @@ cosim:
             cycle:
                 width: 64
             hart:
-                width: 16
+                width: 32
             last_uop:
                 width: 1
             comp:
@@ -73,7 +73,7 @@ cosim:
             cycle:
                 width: 64
             hart:
-                width: 16
+                width: 32
             order:
                 width: 64
             addr:
@@ -90,7 +90,7 @@ cosim:
             cycle:
                 width: 64
             hart:
-                width: 16
+                width: 32
             order:
                 width: 64
             addr:
@@ -107,7 +107,7 @@ cosim:
             cycle:
                 width: 64
             hart:
-                width: 16
+                width: 32
             addr:
                 width: ${TOP.PLATFORM.PALEN}
             mask:
