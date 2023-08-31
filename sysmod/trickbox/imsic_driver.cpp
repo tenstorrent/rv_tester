@@ -15,17 +15,9 @@ imsic_driver::imsic_driver(const std::string& tag, uint64_t addr, unsigned hartC
 {
   rng.seed(FLAGS_seed);
   imsic_driver_base = addr;
-
   reset();
-  //populate disable mask as per plusargs
   checkUsage();
   cvm::log (cvm::HIGH,"axi_mst_loc_l for imsic_driver :{}",axi_mst_loc_l);
-  //uint32_t addr1 = 0x900;
-  //  uint32_t length1 = 4;
-  //  std::vector<uint8_t> data1 = {0xba,0xad,0xf0,0x12};
-  //  std::vector<bool> strb1 = {1,1,1,1,1,1,1,1,1};
-
-  //cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length1, data1, strb1});
 }
 
 
@@ -84,29 +76,6 @@ imsic_driver::write(uint64_t addr, size_t, const data_t& data,
   {
     //63:0 -> supervisor/hypervisor id hart[], mode_h_s_m[3-> 1:0 ],interrupt_num[1024->9:0] 
     //mask:    0xfff                   0xfff        0xf                  0xfff
-    //uint8_t interrupt_num = t_data & 0xff;
-    //unsigned interrupt_file = (t_data>>12) & 0xf;
-    //unsigned interrupt_hart = (t_data>>16) & 0xfff;
-    //unsigned vs_id = (t_data>>28) & 0xfff;
-
-    //std::cout<<"Requested MSI interrupt num "<<interrupt_num <<" interrupt file: "<<interrupt_file <<" Interrupt hart:"<< interrupt_hart <<" hypervisor/supervisor id : "<<vs_id<<"\n";
-    
-    //uint32_t addr1 = 0x900;
-    //if(interrupt_file == 0x0){
-       //addr1 = msi_m_file_addr;
-    //}else if(interrupt_file == 0x01){
-       //addr1 = msi_v_file_addr;
-    //}else if(interrupt_file == 0x02){
-       //addr1 = msi_vs_file_addr;
-    //}else{
-       //cvm::log(cvm::ERROR, "[MSI driver] Wrong interrupt file specified\n");
-    //}
-    //uint32_t length1 = 1;
-    //std::vector<uint8_t> data1 = {interrupt_num};
-    ////std::vector<uint8_t> data1 = {0xba,0xad,0xf0,0x12};
-    //std::vector<bool> strb1 = {1,1,1,1,1,1,1};
-
-    //cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length1, data1, strb1});
     std::cout<<"imsic_driver sending data to MSI parsing 0x"<<std::hex<< t_data <<"\n";
     driveMSIInterrupt(t_data);
     }
@@ -116,9 +85,6 @@ imsic_driver::write(uint64_t addr, size_t, const data_t& data,
     }
     else if(addr==(imsic_driver_base + 0x4000))
     {
-     //TODO If needed enable/disable random interrupts from asm
-     //unsigned hart = t_data & 0xfff;
-     //int eventFlag = (t_data >> 12) & 0x1;
      //TODO
      std::cout<<"imsic_intr DRIVER no condition met \n";
     }

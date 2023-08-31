@@ -89,11 +89,6 @@ public:
     timer_advance = advance;
     cvm::log(cvm::FULL, "[imsic_intr Driver] Timer tick :  {} advance interval {} \n",timer_,timer_advance);
     processDelayedRandomInterrupts();
-    //uint32_t addr = 0x900;
-    //uint32_t length = 4;
-    //std::vector<uint8_t> data = {0xba,0xad,0xf0,0x12};
-    //std::vector<bool> strb = {1,1,1,1,1,1,1,1,1};
-    //cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb});
 
   }
   // Used to assert/deassert a interrupter interrupt (PIPI) for given hart.
