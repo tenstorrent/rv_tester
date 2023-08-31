@@ -3,14 +3,14 @@ cc_library(
     srcs = [
       "interrupter.cpp",
       "debugger.cpp",
-      "msi_driver.cpp",
+      "imsic_driver.cpp",
       "trickbox.cpp"
     ],
     hdrs = [
       "subdevice.h",
       "interrupter.h",
       "debugger.h",
-      "msi_driver.h",
+      "imsic_driver.h",
       "trickbox.h"
     ],
     deps = [
