@@ -4,6 +4,7 @@ cc_library(
       "interrupter.cpp",
       "debugger.cpp",
       "msi_driver.cpp",
+      "uc_helper.cpp",
       "trickbox.cpp"
     ],
     hdrs = [
@@ -11,6 +12,7 @@ cc_library(
       "interrupter.h",
       "debugger.h",
       "msi_driver.h",
+      "uc_helper.h",
       "trickbox.h"
     ],
     deps = [

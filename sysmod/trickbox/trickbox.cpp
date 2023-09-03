@@ -12,6 +12,8 @@ trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned, cvm::topolog
   subdevices_.emplace_back(sub);
   sub = new msi_driver("msi_driver", addr + 0x60000, 1, loc, axi_mst_loc_l);
   subdevices_.emplace_back(sub);
+  sub = new uc_helper("uc_helper", addr + 0x80000, 1, loc);
+  subdevices_.emplace_back(sub);
 }
 
 

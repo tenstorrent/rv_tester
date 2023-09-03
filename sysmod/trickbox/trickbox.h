@@ -20,7 +20,7 @@
 #include "interrupter.h"
 #include "debugger.h"
 #include "msi_driver.h"
-
+#include "uc_helper.h"
 
 // Define a core local  (trickbox) at the given address
 // and for the given hart count. The size will be 48k bytes.
