@@ -21,6 +21,7 @@
 #include "debugger.h"
 #include "msi_driver.h"
 #include "uc_helper.h"
+#include <mem_manager.h>
 
 // Define a core local  (trickbox) at the given address
 // and for the given hart count. The size will be 48k bytes.
@@ -70,6 +71,12 @@ public:
     }
   }
 
+  /// Initialize memory with elf file.
+  bool init_elf(const std::string& path);
+
+  mem_manager m_;
+
+  
 private:
   uint64_t interrupter_base = 0x9000000;
   cvm::topology::loc_t axi_mst_loc_l;

@@ -29,7 +29,7 @@ public:
 
   /// Define a uc_helper device at the given address for the given hart count.
   /// Range of addresses reserved is: [addr, addr + 0xbfff]
-  uc_helper(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc);
+  uc_helper(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc, mem_manager &m_);
   // Destructor.
   virtual ~uc_helper();
 
@@ -78,8 +78,7 @@ protected:
 
   //Check plusarg usage
   void checkUsage();
-   /// Initialize memory with elf file.
-        bool init_elf(const std::string& path);
+
 private:
   uint64_t uc_helper_base = 0x9000000;
   uint64_t tx_status = 0;
