@@ -583,8 +583,14 @@ bool debug_module_t::perform_abstract_command()
       return true;
     }
 
+    if (size > 4)
+    {
+      abstractcs.cmderr = CMDERR_NOTSUP;
+      return true;
+    }
+
     //** Custom logic to meet the implementation specific details
-    if ((size < 4) && transfer && write)
+    if ((size <= 4) && transfer && write)
     { // Check for access reg type
       write32(debug_abstract, 0, nop()); // store a0 in dscratch1 if it exists, but our implementation doesn't allow it
 
@@ -624,7 +630,7 @@ bool debug_module_t::perform_abstract_command()
       }
     }
 
-    else if ((size < 4) && transfer && !write)
+    else if ((size <= 4) && transfer && !write)
     {
       write32(debug_abstract, 0, nop()); // store a0 in dscratch1 if there's second scratch, but our impl doesnt have it so nop()
 
@@ -662,7 +668,7 @@ bool debug_module_t::perform_abstract_command()
         write32(debug_abstract, 7, csrr(S0, CSR_DSCRATCH0)); // restore s0 again from dscratch
       }
     }
-    else if ( size >= 4 || get_field(command, AC_ACCESS_REGISTER_AARPOSTINCREMENT)){
+    else if ( size > 4 || get_field(command, AC_ACCESS_REGISTER_AARPOSTINCREMENT)){
       write32(debug_abstract, 0, ebreak());
       unsupported_command = true;
     }
