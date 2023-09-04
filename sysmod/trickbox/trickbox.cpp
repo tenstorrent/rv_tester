@@ -23,10 +23,19 @@ trickbox::~trickbox()
 }
 
 
-cvm::messenger::task<void>
-trickbox::read(const transactor::read_t&, data_t&)
+void
+trickbox::read(const transactor::read_t& r, data_t& data)
 {
-  co_return;
+  auto& addr = r.addr;
+  auto& length = r.length;
+  uint64_t offset = addr - device::addr();
+  if (offset == 0x80000) {
+    //std::cout << data <<"\n";
+    uint32_t word = 1;
+    serializeInt(word, length, data);
+    return;
+  }
+  return;
 }
 
 

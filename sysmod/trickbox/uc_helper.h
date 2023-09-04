@@ -82,10 +82,14 @@ protected:
         bool init_elf(const std::string& path);
 private:
   uint64_t uc_helper_base = 0x9000000;
+  uint64_t tx_status = 0;
+  uint64_t tx_addr = 0x9000000;
+  uint64_t tx_size = 30;
+  uint64_t tx_trigger = 0;
 
   mem_manager m_;
   std::atomic<bool> terminate_ = false;
-
+  
   pcg_extras::seed_seq_from<std::random_device> seed_source;
   pcg32 rng;
   //unsigned hartCount;

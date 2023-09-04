@@ -58,7 +58,7 @@ public:
   /// Read length bytes from the given address to the data iterator.
   /// No-op if address is outside the range of this trickbox or if
   /// address is not properly aligned.
-  cvm::messenger::task<void> read(const transactor::read_t& r, data_t& data);
+  void read(const transactor::read_t& r, data_t& data);
 
   // Write to this trickbox.
   void write(const transactor::write_t& w);

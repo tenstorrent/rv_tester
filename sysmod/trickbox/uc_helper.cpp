@@ -29,15 +29,6 @@ uc_helper::read(uint64_t addr, size_t, data_t&)
   co_return;
 }
 
-// void uc_helper::read(const transactor::read_t& r, data_t& data) {
-//   auto& addr = r.addr;
-//   auto& length = r.length;
-
-//   m_.read(addr, length, data.data());
-//   return;
-// }
-
-
 
 
 uc_helper::~uc_helper()
@@ -70,37 +61,38 @@ void
 uc_helper::write(uint64_t addr, size_t, const data_t& data,
 		 const strb_t&)
 {
-  //std::cout<<"uc_helper write: 0x"<<std::hex<<addr;
-  //auto& addr = w.addr;
-  //auto& length = w.length;
-  //auto& data = w.data;
-  //auto& strb = w.strb;
-
-  //for (size_t i = 0; i < length; i++) {
-  //  if (strb[i]) {
-  //    m_.write(addr + i, 1, &data[i]);
-  //  }
-  //}
+  
   if (not has_addr(addr))
     return;
   uint64_t t_data=0;
   deserializeInt(data, t_data);
   if(addr==uc_helper_base)
   {
-    
+    if(t_data>0){
+      cvm::log(cvm::ERROR, "[UC_Helper] Illegal to set status bit manually \n");
+    }
+    tx_status = t_data & 0x1;
 
     }
-    else if((addr > uc_helper_base)&& (addr < (uc_helper_base + 0x1000)))
+    else if(addr == (uc_helper_base + 0x100))
     {
-    
+     tx_addr = t_data;
      //std::cout<<"\nuc_helper DELAYED write: 0x"<<std::hex<<addr<<" intr_loc: "<<intr_loc<<" time: "<<timer_<<" eventDelay: "<<eventDelay<<" timercompare :"<<timeCompare_.at(intr_loc)<<" hart "<<hart<<" flag: "<<eventFlag<<"\n";
     }
-    else if(addr==(uc_helper_base + 0x4000))
+    else if(addr ==(uc_helper_base + 0x200))
     {
-     //TODO If needed enable/disable random interrupts from asm
-     //unsigned hart = t_data & 0xfff;
-     //int eventFlag = (t_data >> 12) & 0x1;
-     //TODO
+     tx_size = t_data;
+    }
+    else if(addr ==(uc_helper_base + 0x300))
+    {
+     tx_trigger = 0;
+      for (size_t i = 0; i < tx_size; i++) {
+        uint8_t m_data = rng();
+        mem::datum_t *m_data_p = NULL;
+        *m_data_p = (mem::datum_t)m_data;
+         m_.write(tx_addr + i, 1, m_data_p);
+      }
+      tx_trigger = 1;
     }
 
 }
