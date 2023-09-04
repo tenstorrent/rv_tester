@@ -249,6 +249,9 @@ class pmu
   private:
 
     cvm::file_logger log;
+    cvm::topology::loc_t loc_;
+    unsigned id_;
+
     std::vector<uint64_t> counters;
 
     uint64_t perf_start_pc;

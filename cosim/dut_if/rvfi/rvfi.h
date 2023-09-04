@@ -62,6 +62,8 @@ class rvfi {
   private:
 
     cvm::file_logger log;
+    cvm::topology::loc_t loc_;
+    unsigned id_;
 
     std::unique_ptr<bridge> bridge_;
     std::unique_ptr<eot> eot_;
@@ -76,7 +78,6 @@ class rvfi {
     uint64_t icause_ = 0;
     uint64_t ecause_ = 0;
 
-    cvm::topology::loc_t loc_;
     svScope scope_;
 
     bool terminated_ = false;

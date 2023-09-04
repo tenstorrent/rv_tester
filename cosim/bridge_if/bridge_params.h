@@ -3,7 +3,7 @@
 
 namespace {
 
-    constexpr int num_harts = 1;
+    //constexpr int num_harts = 2;
     constexpr int max_harts = 2;
     constexpr int max_intr = 16;
     constexpr int xlen = 64;
