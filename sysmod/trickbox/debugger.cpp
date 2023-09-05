@@ -229,7 +229,9 @@ debugger::read(uint64_t addr, size_t, data_t &)
 {
   co_return;
 }
-
+void debugger::read_dev(uint64_t , size_t ,  data_t& ){
+  return;
+}
 void debugger::write(uint64_t addr, size_t, const data_t &data,
                      const strb_t &)
 {

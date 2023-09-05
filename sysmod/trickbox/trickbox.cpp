@@ -1,7 +1,7 @@
 #include "cvm/plusargs.hpp"
 #include "trickbox.h"
 DECLARE_string(load);
-trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc)
+trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc )
   : device(tag, addr, 0xc0000 /* size */, loc, &trickbox::write, &trickbox::read, this), axi_mst_loc_l(axi_mst_loc)
 {
 
@@ -9,7 +9,7 @@ trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned, cvm::topolog
     std::cout << "loading " << FLAGS_load << "\n";
     init_elf(FLAGS_load);
   }
-
+  
   subdevice* sub = nullptr;
   interrupter_base = addr;
   sub = new interrupter("interrupter", interrupter_base, 1, loc);
@@ -57,10 +57,23 @@ bool trickbox::init_elf(const std::string& path) {
 //   return;
 // }
 void trickbox::read(const transactor::read_t& r, data_t& data) {
+
   auto& addr = r.addr;
   auto& length = r.length;
+
+  for (auto& d : subdevices_) {
+    d->read_dev(addr,length,data);
+  }
   std::cout << "TRICKBOX READ::::: ADDR: "<<std::hex<<addr<<"\n";
-  m_.read(addr, length, data.data());
+  //m_.read(addr, length, data.data());
+  //std::cout << "TRICKBOX READ::::: DATA: "<<std::hex<<data.data()<<"\n";
+  //uint64_t addr1 = 0x9080000;
+  //std::cout << "TRICKBOX READ::::: ADDR: "<<std::hex<<addr1<<"\n";
+  //m_.read(addr1, 1, data.data());
+  //std::cout << "TRICKBOX READ::::: DATA: "<<std::hex<<data.data()<<"\n";
+  //for (auto element : data) {
+  //      std::cout << (unsigned)element << " --\n";
+  //  }
   return;
 }
 

@@ -57,7 +57,7 @@ public:
   /// No-op if address is outside the range of this uc_helper or if
   /// address is not properly aligned.
   cvm::messenger::task<void> read(uint64_t addr, size_t length, data_t& data);
-
+   void read_dev(uint64_t addr, size_t length,  data_t& data) override;
 
   // Write to this uc_helper. Call softwareInterrupt with flag set to 0/1
   // if a hart software interrupt entry is written. Update time
