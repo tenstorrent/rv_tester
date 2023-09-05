@@ -74,6 +74,13 @@ public:
       std::cout<<"[TRICKBOX]: Reset uc_helper\n";
   }
 
+  struct uc_helper_write_t {
+        uint64_t addr;
+        size_t length;
+        std::vector<uint8_t> data;
+        std::vector<bool> strb;
+  };
+
 protected:
 
   //Check plusarg usage
@@ -82,8 +89,8 @@ protected:
 private:
   uint64_t uc_helper_base = 0x9000000;
   uint64_t tx_status = 0;
-  uint64_t tx_addr = 0x9000000;
-  uint64_t tx_size = 30;
+  uint64_t tx_addr = 0x90a0000;
+  uint64_t tx_size = 2;
   uint64_t tx_trigger = 0;
 
   mem_manager m_;

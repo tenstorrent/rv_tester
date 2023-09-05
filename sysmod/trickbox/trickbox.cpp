@@ -65,6 +65,9 @@ void trickbox::read(const transactor::read_t& r, data_t& data) {
     d->read_dev(addr,length,data);
   }
   std::cout << "TRICKBOX READ::::: ADDR: "<<std::hex<<addr<<"\n";
+  std::cout << "TRICKBOX READ::::: DATA: "<<std::hex<<(uint32_t)data[0]<<"\n";
+  std::cout << "TRICKBOX READ::::: DATA: "<<std::hex<<(uint32_t)data[1]<<"\n";
+  std::cout << "TRICKBOX READ::::: DATA: "<<std::hex<<(uint32_t)data[2]<<"\n";
   //m_.read(addr, length, data.data());
   //std::cout << "TRICKBOX READ::::: DATA: "<<std::hex<<data.data()<<"\n";
   //uint64_t addr1 = 0x9080000;

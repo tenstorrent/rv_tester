@@ -98,6 +98,26 @@ sysmod::tbox_interrupt(interrupter::interrupt_t i) {
 }
 
 void
+sysmod::uc_helper_backdoor_write(uc_helper::uc_helper_write_t w) {
+    std::cout<<"SYSMOD] uc_helper_backdoor_write addr "<<std::hex<<w.addr<<"\n";
+    std::cout<<"SYSMOD] uc_helper_backdoor_write len "<<std::hex<<(unsigned)w.length<<"\n";
+    std::cout<<"SYSMOD] uc_helper_backdoor_write data-vec : \n";
+     for (auto i: w.data){
+         std::cout << (unsigned )i << ' ';
+      }
+        
+    std::cout<<"\n[SYSMOD] uc_helper_backdoor_write strb "<<std::hex<<w.strb[0]<<"\n";
+    cvm::log(cvm::FULL, "[SYSMOD] uc_helper_backdoor:int {}  \n", w.addr);
+    transactor::write_t wt;
+    wt.addr = w.addr;
+    wt.length = w.length;
+    wt.data = w.data;
+    wt.strb = w.strb;
+    dynamic_cast<sysmod_mem&>(*dev("memory")).write(wt);
+    //dev("memory")->write(wt);
+}
+
+void
 sysmod::dmi_write(debugger::dmi_data_t i) {
   cvm::registry::callbacks.push(
       scope(),
@@ -179,6 +199,9 @@ sysmod::compose()
         cvm::registry::messenger.connect<debugger::dmi_data_t>(
             loc_,
             [&](debugger::dmi_data_t i) { return this->dmi_write(i); });
+        cvm::registry::messenger.connect<uc_helper::uc_helper_write_t>(
+            loc_,
+            [&](uc_helper::uc_helper_write_t i) { return this->uc_helper_backdoor_write(i); });
       }
       else
         cvm::log(cvm::ERROR, "Error: unknown type %s", type);

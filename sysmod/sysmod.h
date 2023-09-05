@@ -9,6 +9,7 @@
 #include "clint/clint.h"
 #include "htif/htif.h"
 #include "trickbox/interrupter.h"
+#include "trickbox/uc_helper.h"
 #include "trickbox/debugger.h"
 #include "cvm/topology.hpp"
 //#include "SimJTAG.cc"
@@ -42,6 +43,8 @@ class sysmod {
     void sw_interrupt(clint::sw_t s);
     void dmi_write(debugger::dmi_data_t s);
     void tbox_interrupt(interrupter::interrupt_t i);
+    void uc_helper_backdoor_write(uc_helper::uc_helper_write_t w);
+    void uc_helper_backdoor_write(interrupter::interrupt_t i);
     void terminate(htif::terminate_t t);
 
   private:
