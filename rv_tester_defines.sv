@@ -216,6 +216,7 @@ package rv_tester_params;
     // PMCI - Performance Monitoring Counters
     // --------------------------------------
     parameter bit PMCI_EN = mods.TOP.PLATFORM.PMCI.ENABLE == 1;
+    parameter bit [NHARTS-1:0][31:0] LS_PIPES = mods.TOP.PLATFORM.PMCI.LS_PIPES;
 
     typedef enum {
         CPU_CYCLES,
@@ -264,6 +265,7 @@ package rv_tester_params;
         STALLS_MEM_L1D_MISS_L2_MISS,
         STALLS_MEM_ANY,
         STALLS_MEM_L1I_MISS,
+        STALLS_MEM_L1DTLB_MISS,
         NFP_MISPREDICT,
         BR_IMMED_SPEC,
         BR_INDIRECT_SPEC,
