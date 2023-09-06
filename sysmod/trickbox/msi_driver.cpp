@@ -19,7 +19,7 @@ msi_driver::msi_driver(const std::string& tag, uint64_t addr, unsigned hartCount
   reset();
   //populate disable mask as per plusargs
   checkUsage();
-  cvm::log (cvm::HIGH,"axi_mst_loc_l for msi_driver :{}",axi_mst_loc_l);
+  cvm::log (cvm::HIGH,"axi_mst_loc_l for msi_driver :{}\n",axi_mst_loc_l);
   //uint32_t addr1 = 0x900;
   //  uint32_t length1 = 4;
   //  std::vector<uint8_t> data1 = {0xba,0xad,0xf0,0x12};

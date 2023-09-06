@@ -20,6 +20,9 @@
 #include "cvm/registry.hpp"
 #include "cvm/logger.hpp"
 #include <mem_manager.h>
+
+#include "whisper_client_decl.h"
+
 DECLARE_int32(seed);
 // Define a core local interruptor (uc_helper) at the given address
 // and for the given hart count. The size will be 48k bytes.

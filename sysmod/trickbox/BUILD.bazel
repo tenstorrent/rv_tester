@@ -18,6 +18,7 @@ cc_library(
     deps = [
              "//common:common",
              "//sysmod:device",
+             "//cosim/whisper_if:whisper_if",
              "@mem_manager//:mem_manager",
              "@cvm//:plusargs",
              "@cvm//:registry",

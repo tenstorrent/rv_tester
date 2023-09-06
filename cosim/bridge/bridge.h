@@ -16,6 +16,7 @@
 
 #include "whisper_client.h"
 
+
 class bridge : public bridge_base {
 
 using src_t = cac::src_t;
@@ -115,7 +116,7 @@ private:
 
 private:
 
-  std::unique_ptr<whisperClient<uint64_t>> client_;
+  //std::unique_ptr<whisperClient<uint64_t>> client_;
 
   cvm::file_logger log;
 
