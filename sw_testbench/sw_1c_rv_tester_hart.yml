@@ -23,3 +23,4 @@ rv_tester_mcmi_attrs: &rv_tester_mcmi_attrs
 
 rv_tester_pmci_attrs: &rv_tester_pmci_attrs
   ENABLE: 0
+  LS_PIPES: [3]
