@@ -79,29 +79,18 @@ void
      else if(addr == (uc_helper_base + 0x100))
      {
       tx_addr = t_data;
-      //ip_data = (datum_t)t_data;
-      //m_.write(addr, 1, &ip_data);
       cvm::log(cvm::HIGH, "[UC_HELPER] Transfer Start Addr {:#x} \n",t_data);
-      //std::cout<<"\nuc_helper DELAYED write: 0x"<<std::hex<<addr<<" intr_loc: "<<intr_loc<<" time: "<<timer_<<" eventDelay: "<<eventDelay<<" timercompare :"<<timeCompare_.at(intr_loc)<<" hart "<<hart<<" flag: "<<eventFlag<<"\n";
      }
      else if(addr ==(uc_helper_base + 0x200))
      {
       tx_size = t_data;
-      //ip_data = (datum_t)t_data;
-      //m_.write(addr, 1, &ip_data);
       cvm::log(cvm::HIGH, "[UC_HELPER] Transfer Size {:#x} bytes \n",t_data);
-      //std::cout<<"UC HELPER tx size: "<<std::hex<<t_data<<"\n";
      }
      else if(addr ==(uc_helper_base + 0x300))
      {
-      //std::cout<<"UC HELPER tx trigger: "<<std::hex<<t_data<<"\n";
       int hart = 0;
       cvm::log(cvm::HIGH, "[UC_HELPER] Transfer triggered {:#x}  \n",t_data);
-      //ip_data = (datum_t)t_data;
-      //m_.write(addr, 1, &ip_data);
       tx_trigger = 0;
-    
-       //unsigned byte_c = 0;
     
        for (size_t i = 0; i < tx_size; i++) {
          uint32_t pcg_op = rng();
@@ -109,7 +98,6 @@ void
          pcg_op = pcg_op & 0xff;
          uint8_t m_data = (uint8_t)pcg_op;
          uint64_t poke_data = m_data;
-         //std::cout<<"\nwriting random data to uc area addr: "<<std::hex<< tx_addr+i<<" Data: "<<std::hex<<pcg_op<<"\n";
          cvm::log(cvm::HIGH, "[UC_HELPER] writing random data to uc area : addr {:#x} data {:#x} \n",tx_addr+i,pcg_op);
       
          mem::datum_t m_data_p = (mem::datum_t)m_data;
@@ -145,7 +133,6 @@ void
        mem::datum_t m_data_p1 = 0xff;
        m_.write(uc_helper_base,1,&m_data_p1);
    
-       //std::cout << "TRICKBOX UCH READ::::: ADDR: "<<std::hex<<uc_helper_base<<"\n";
        cvm::log(cvm::HIGH, "[UC_HELPER] Init of Address Range Completed  \n");
    
        return;

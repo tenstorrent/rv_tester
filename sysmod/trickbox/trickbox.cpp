@@ -41,21 +41,6 @@ bool trickbox::init_elf(const std::string& path) {
 }
 
 
-
-// void
-// trickbox::read(const transactor::read_t& r, data_t& data)
-// {
-//   auto& addr = r.addr;
-//   auto& length = r.length;
-//   uint64_t offset = addr - device::addr();
-//   if (offset == 0x80000) {
-//     //std::cout << data <<"\n";
-//     uint32_t word = 1;
-//     serializeInt(word, length, data);
-//     return;
-//   }
-//   return;
-// }
 void trickbox::read(const transactor::read_t& r, data_t& data) {
 
   auto& addr = r.addr;
@@ -64,12 +49,12 @@ void trickbox::read(const transactor::read_t& r, data_t& data) {
   for (auto& d : subdevices_) {
     d->read_dev(addr,length,data);
   }
-  std::cout << "TRICKBOX READ::::: ADDR: "<<std::hex<<addr<<"\n";
-  std::cout << "TRICKBOX READ::::: DATA: "<<std::hex<<(uint32_t)data[0]<<"\n";
-  std::cout << "TRICKBOX READ::::: DATA: "<<std::hex<<(uint32_t)data[1]<<"\n";
-  std::cout << "TRICKBOX READ::::: DATA: "<<std::hex<<(uint32_t)data[2]<<"\n";
-  //m_.read(addr, length, data.data());
-  //  }
+
+  cvm::log (cvm::HIGH,"TRICKBOX READ::::: ADDR:{:#x} \n",addr);
+  cvm::log (cvm::HIGH,"TRICKBOX READ::::: DATA byte 0:{:#x} \n",(uint32_t)data[0]);
+  cvm::log (cvm::HIGH,"TRICKBOX READ::::: DATA byte 1:{:#x} \n",(uint32_t)data[1]);
+  cvm::log (cvm::HIGH,"TRICKBOX READ::::: DATA byte 2:{:#x} \n",(uint32_t)data[2]);
+
   return;
 }
 

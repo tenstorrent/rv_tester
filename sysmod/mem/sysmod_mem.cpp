@@ -7,8 +7,9 @@ void sysmod_mem::write(const transactor::write_t& w) {
   auto& length = w.length;
   auto& data = w.data;
   auto& strb = w.strb;
-
+ 
   for (size_t i = 0; i < length; i++) {
+    //std::cout<<"\n\n ##### SYSMEM WRITE iteration:"<< i <<" ADDR: "<<std::hex<<addr<<" LEN: "<<length<<" strb "<<strb[i]<<" data :"<<std::hex<<(unsigned)data[i]<<"\n";
     if (strb[i]) {
       m_.write(addr + i, 1, &data[i]);
     }

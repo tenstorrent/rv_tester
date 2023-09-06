@@ -99,22 +99,23 @@ sysmod::tbox_interrupt(interrupter::interrupt_t i) {
 
 void
 sysmod::uc_helper_backdoor_write(uc_helper::uc_helper_write_t w) {
-    std::cout<<"SYSMOD] uc_helper_backdoor_write addr "<<std::hex<<w.addr<<"\n";
-    std::cout<<"SYSMOD] uc_helper_backdoor_write len "<<std::hex<<(unsigned)w.length<<"\n";
-    std::cout<<"SYSMOD] uc_helper_backdoor_write data-vec : \n";
+    cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_write addr {:#x} \n",w.addr);
+    cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_write len {} \n",(unsigned)w.length);
+    cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_write data-vec : \n";
      for (auto i: w.data){
-         std::cout << (unsigned )i << ' ';
+         //std::cout << (unsigned )i << ' ';
+         cvm::log(cvm::HIGH," {:#x} ",(unsigned)i);
       }
         
-    std::cout<<"\n[SYSMOD] uc_helper_backdoor_write strb "<<std::hex<<w.strb[0]<<"\n";
+    cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_write strb {:#x} \n",(unsigned)w.strb);
     cvm::log(cvm::FULL, "[SYSMOD] uc_helper_backdoor:int {}  \n", w.addr);
     transactor::write_t wt;
     wt.addr = w.addr;
-    wt.length = w.length;
+    //wt.length = w.length;
+    wt.length = 1;
     wt.data = w.data;
     wt.strb = w.strb;
     dynamic_cast<sysmod_mem&>(*dev("memory")).write(wt);
-    //dev("memory")->write(wt);
 }
 
 void
