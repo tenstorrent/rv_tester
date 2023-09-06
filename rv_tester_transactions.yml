@@ -381,6 +381,8 @@ pmu:
                 width: 64
             stalls_mem_l1i_miss:
                 width: 64
+            stalls_mem_l1dtlb_miss:
+                width: 64
             nfp_mispredict:
                 width: 64
             br_immed_spec:

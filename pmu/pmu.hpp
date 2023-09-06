@@ -56,6 +56,7 @@ class pmu
       STALLS_MEM_L1D_MISS_L2_MISS,
       STALLS_MEM_ANY,
       STALLS_MEM_L1I_MISS,
+      STALLS_MEM_L1DTLB_MISS,
       NFP_MISPREDICT,
       BR_IMMED_SPEC,
       BR_INDIRECT_SPEC,
@@ -131,6 +132,7 @@ class pmu
       tmp[counter::STALLS_MEM_L1D_MISS_L2_MISS] = pmcounters.stalls_mem_l1d_miss_l2_miss;
       tmp[counter::STALLS_MEM_ANY] = pmcounters.stalls_mem_any;
       tmp[counter::STALLS_MEM_L1I_MISS] = pmcounters.stalls_mem_l1i_miss;
+      tmp[counter::STALLS_MEM_L1DTLB_MISS] = pmcounters.stalls_mem_l1dtlb_miss;
       tmp[counter::NFP_MISPREDICT] = pmcounters.nfp_mispredict;
       tmp[counter::BR_IMMED_SPEC] = pmcounters.br_immed_spec;
       tmp[counter::BR_INDIRECT_SPEC] = pmcounters.br_indirect_spec;
@@ -201,6 +203,7 @@ class pmu
       {STALLS_MEM_L1D_MISS_L2_MISS,"stalls_mem_l1d_miss_l2_miss"},
       {STALLS_MEM_ANY,"stalls_mem_any"},
       {STALLS_MEM_L1I_MISS,"stalls_mem_l1i_miss"},
+      {STALLS_MEM_L1DTLB_MISS,"stalls_mem_l1dtlb_miss"},
       {NFP_MISPREDICT,"nfp_mispredict"},
       {BR_IMMED_SPEC,"br_immed_spec"},
       {BR_INDIRECT_SPEC,"br_indirect_spec"},
