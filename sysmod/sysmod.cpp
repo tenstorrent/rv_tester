@@ -101,14 +101,14 @@ void
 sysmod::uc_helper_backdoor_write(uc_helper::uc_helper_write_t w) {
     cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_write addr {:#x} \n",w.addr);
     cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_write len {} \n",(unsigned)w.length);
-    cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_write data-vec : \n";
+    cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_write data-vec : \n");
      for (auto i: w.data){
          //std::cout << (unsigned )i << ' ';
          cvm::log(cvm::HIGH," {:#x} ",(unsigned)i);
       }
         
-    cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_write strb {:#x} \n",(unsigned)w.strb);
-    cvm::log(cvm::FULL, "[SYSMOD] uc_helper_backdoor:int {}  \n", w.addr);
+    //cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_write strb {} \n",w.strb);
+    cvm::log(cvm::FULL, "[SYSMOD] uc_helper_backdoor:write sysmem for addr {:#x}  \n", w.addr);
     transactor::write_t wt;
     wt.addr = w.addr;
     //wt.length = w.length;
