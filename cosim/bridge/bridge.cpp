@@ -18,11 +18,11 @@
 #include <fmt/format.h>
 
 // Plusargs
+DECLARE_string(bootrom_path);
 DECLARE_string(load);
 DECLARE_string(hex);
 
 DEFINE_bool(bridge_log, true, "Enable bridge logging");
-DEFINE_string(bootrom_path, "", "Path to bootrom object file");
 DEFINE_string(whisper_json_path, "", "Path to whisper json config");
 DEFINE_bool(cosim_resynch, false, "Resynch whisper with dut state on every instruction");
 DEFINE_string(cosim_resynch_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
