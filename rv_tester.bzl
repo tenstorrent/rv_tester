@@ -84,6 +84,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             name + "_pmu_sv",
             name + "_dm_model_sv",
             name + "_axi_sw_sv",
+            "@axi_llc//:axi_llc",
         ] + select({
           "@rv_tester//:cosim_off": ["@rv_tester//:no_cosim"],
           "//conditions:default":   [name + "_cosim_sv"],

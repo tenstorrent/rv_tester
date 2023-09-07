@@ -280,6 +280,9 @@ import rv_tester_params::*;
     assign tx_dom_1.logger_cycles[0][0].data.location = location;
     assign tx_dom_1.logger_cycles[0][0].data.clock = clocks;
 
+    axi_xbar xbar();
+    axi_llc_top llc();
+
     for (genvar p = 0; p < topology.TOP.PLATFORM.AXI.TOTAL; p++) begin : axi_sw_slvs
         axi_sw #(
             .ADDR_WIDTH(topology.TOP.PLATFORM.AXI.ADDR_WIDTH),
