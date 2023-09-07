@@ -12,7 +12,7 @@ DEFINE_int32(dbg_max_snippets, 1, "Maximum number of debug snippets to be driven
 DEFINE_string(dbg_template_dir_path, "", "Path to file containing debugger commands");
 
 debugger::debugger(const std::string &tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc)
-    : subdevice(tag, addr, 0x40000 /* size */, loc), soft_(hartCount),
+    : subdevice(tag, addr, 0x20000 /* size */, loc), soft_(hartCount),
       timeCompare_(6), IntrHart_(6), delayedRandomIntValid_(6), IntrValue_(6), timerIntPrev_(hartCount), timer_(0)
 {
   rng.seed(FLAGS_seed);
@@ -229,7 +229,9 @@ debugger::read(uint64_t addr, size_t, data_t &)
 {
   co_return;
 }
-
+void debugger::read_dev(uint64_t , size_t ,  data_t& ){
+  return;
+}
 void debugger::write(uint64_t addr, size_t, const data_t &data,
                      const strb_t &)
 {

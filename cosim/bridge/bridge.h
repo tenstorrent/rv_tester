@@ -16,6 +16,7 @@
 
 #include "whisper_client.h"
 
+
 class bridge : public bridge_base {
 
 using src_t = cac::src_t;

@@ -75,7 +75,7 @@ public:
   /// No-op if address is outside the range of this debugger or if
   /// address is not properly aligned.
   cvm::messenger::task<void> read(uint64_t addr, size_t length, data_t &data);
-
+  void read_dev(uint64_t addr, size_t length,  data_t& data) override;
   // Write to this debugger.
   virtual void write(uint64_t addr, size_t length, const data_t &data,
                      const strb_t &strb) override;

@@ -99,6 +99,27 @@ sysmod::tbox_interrupt(interrupter::interrupt_t i) {
 }
 
 void
+sysmod::uc_helper_backdoor_write(uc_helper::uc_helper_write_t w) {
+    cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_write addr {:#x} \n",w.addr);
+    cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_write len {} \n",(unsigned)w.length);
+    cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_write data-vec : \n");
+     for (auto i: w.data){
+         //std::cout << (unsigned )i << ' ';
+         cvm::log(cvm::HIGH," {:#x} ",(unsigned)i);
+      }
+        
+    //cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_write strb {} \n",w.strb);
+    cvm::log(cvm::FULL, "[SYSMOD] uc_helper_backdoor:write sysmem for addr {:#x}  \n", w.addr);
+    transactor::write_t wt;
+    wt.addr = w.addr;
+    //wt.length = w.length;
+    wt.length = 1;
+    wt.data = w.data;
+    wt.strb = w.strb;
+    dynamic_cast<sysmod_mem&>(*dev("memory")).write(wt);
+}
+
+void
 sysmod::dmi_write(debugger::dmi_data_t i) {
   cvm::registry::callbacks.push(
       scope(),
@@ -184,6 +205,9 @@ sysmod::compose()
         cvm::registry::messenger.connect<debugger::dmi_data_t>(
             loc_,
             [&](debugger::dmi_data_t i) { return this->dmi_write(i); });
+        cvm::registry::messenger.connect<uc_helper::uc_helper_write_t>(
+            loc_,
+            [&](uc_helper::uc_helper_write_t i) { return this->uc_helper_backdoor_write(i); });
       }
       else
         cvm::log(cvm::ERROR, "Error: unknown type %s", type);

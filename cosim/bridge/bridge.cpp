@@ -7,6 +7,8 @@
 #include "cvm/topology.hpp"
 #include "src/cac_lib.h"
 #include "sysmod/htif/htif.h"
+#include "whisper_client_decl.h"
+
 
 #include <iostream>         // cout
 #include <cstring>          // strlen
@@ -51,7 +53,7 @@ DEFINE_bool(whisper_stdout_null, false, "Redirect whisoer stdout to null");
 std::string traceFile = FLAGS_whisper_log ? "iss_cosim.log" : "";
 std::string commandLog = FLAGS_whisper_log ? "iss_cmd.log" : "";
 std::shared_ptr<whisperClient<uint64_t>> client_ = std::make_shared<whisperClient<uint64_t>>(traceFile, commandLog);
-
+//std::unique_ptr<whisperClient<uint64_t>> client_;
 // Constructor
 bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsigned id)
   : log("h" + std::to_string(id) + "_bridge.log"),

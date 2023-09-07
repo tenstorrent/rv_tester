@@ -69,8 +69,8 @@ public:
   /// Read length bytes from the given address to the data iterator.
   /// No-op if address is outside the range of this msi_driver or if
   /// address is not properly aligned.
-  cvm::messenger::task<void> read(uint64_t addr, size_t length, data_t& data);
-
+   cvm::messenger::task<void> read(uint64_t addr, size_t length, data_t& data);
+   void read_dev(uint64_t addr, size_t length,  data_t& data) override;
   // Write to this msi_driver. Call softwareInterrupt with flag set to 0/1
   // if a hart software interrupt entry is written. Update time
   // compare and call timerInterrupt if a hart time compare entry is
@@ -80,7 +80,7 @@ public:
   // software interrupt entries, if length is not 8 for
   // timer/time-compare entries.
   virtual void write(uint64_t addr, size_t length, const data_t& data,
-                      const strb_t& strb) override;
+                      const strb_t& strb) override ;
 
   virtual void tick(uint64_t advance) override
   {
