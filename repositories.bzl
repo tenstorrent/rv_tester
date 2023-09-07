@@ -93,7 +93,7 @@ cc_library(
         url = "https://aus-gitlab.local.tenstorrent.com/mboisvert/wall_clock_profiler/-/archive/{commit}/wall_clock_profiler-{commit}.tar.bz2".format(commit=wall_clock_profiler_hash),
     )
 
-    checkin_script_hash="319941617845f1d727f23651be97092b2961baab"
+    checkin_script_hash="e3acee65518dfdb9586e0bf455890dbc871bdb3a"
     maybe(
         git_repository,
         name = "checkin-script",

@@ -9,6 +9,15 @@ module top #(
     input clk_ext
 );
 
+    import rv_tester_params::*;
+
+    typedef enum int {
+      SW_1C,
+      SW_2C
+    } harness_id;
+
+    localparam harness_id HARNESS = `HARNESS;
+
     `RV_TESTER_VARS(topology_pkg::mods)
 
     rv_tester #(
@@ -19,19 +28,29 @@ module top #(
         .*
     );
 
-    function void write_rvfi(byte unsigned valid, int unsigned core, int unsigned insn, longint unsigned pc);
-        rvfi_instr[core].insn = insn;
-        rvfi_instr[core].valid = (valid != '0);
-        rvfi_instr[core].pc_rdata = pc;
+    function void write_rvfi(byte unsigned valid, int unsigned hartid, int unsigned nretid, int unsigned insn, longint unsigned pc);
+        int unsigned idx = hartid * topology_pkg::mods.TOP.PLATFORM.COSIM.RVFI.NRETS_CUMSUM[hartid] + nretid;
+        rvfi[idx].valid = (valid != '0);
+        rvfi[idx].hart = hartid[HARTLEN-1:0];
+        rvfi[idx].pc_rdata = pc;
+        rvfi[idx].insn = insn;
+        rvfi[idx].uop = {32'h0, insn};
+        rvfi[idx].last_uop = '1;
     endfunction
 
     export "DPI-C" function write_rvfi;
 
-    import "DPI-C" context function void get_stimulus(logic reset, longint unsigned clocks);
+    import "DPI-C" context function void get_1c_stimulus(logic reset);
+    import "DPI-C" context function void get_2c_stimulus(logic reset);
 
     longint unsigned clocks = '0;
     assign quiesced = '1;
-    assign debug_mode = '0;
+    assign dmi_req_ready = '0;
+    assign dmi_resp_valid = '0;
+
+    for (genvar i = 0; i < topology_pkg::mods.TOP.PLATFORM.NHARTS; i++) begin
+      assign debug_mode[i] = '0;
+    end
 
     for (genvar i = 0; i < topology_pkg::mods.TOP.PLATFORM.AXI.TOTAL; i++) begin
       assign axi_req[i].ar_valid = '0;
@@ -43,7 +62,14 @@ module top #(
         if (!reset) begin
             clocks <= clocks + 1;
         end
-        get_stimulus(reset, clocks);
+        case(HARNESS)
+        SW_1C:
+          get_1c_stimulus(reset);
+        SW_2C:
+          get_2c_stimulus(reset);
+        default:
+            $error("No harness specified");
+        endcase
     end
 
 endmodule

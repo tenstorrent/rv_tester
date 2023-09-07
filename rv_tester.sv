@@ -1,4 +1,6 @@
-module rv_tester #(
+module rv_tester
+import rv_tester_params::*;
+#(
     parameter int RESET_CLOCKS              =      10,
     parameter bit EXTERNAL_CLOCK            =       0,
     parameter int CLOCK_PERIOD_PS           =     500,
@@ -235,33 +237,44 @@ module rv_tester #(
     arch_sample arch_sample ();
 
 `ifndef NO_COSIM
-    cosim #(
-        .NUM(0),
-        `TOPOLOGY_CFG
-    ) cosim (
-        .clk,
-        .reset(sysmod_reset),
-        .clocks,
-        .rvfi(rvfi_instr),
-        .mcmi(mcmi_event),
-        .interrupt,
-        .debug_mode,
-        `RV_TESTER_TRANSACTIONS_SOURCE_COSIM(1, 0)
-    );
+    for (genvar c = 0; c < NHARTS; c++) begin: cosim_inst
+      cosim #(
+          .NUM(c),
+          .NRET(NRETS[c]),
+          .NREAD(NREADS[c]),
+          .NINSERT(NINSERTS[c]),
+          .NWRITE(NWRITES[c]),
+          `TOPOLOGY_CFG
+      ) cosim (
+          .clk,
+          .reset(sysmod_reset),
+          .clocks,
+          .rvfi(rvfi[NRETS_CUMSUM[c] +: NRETS[c]]),
+          .mcmi_read(mcmi_read[NREADS_CUMSUM[c] +: NREADS[c]]),
+          .mcmi_insert(mcmi_insert[NINSERTS_CUMSUM[c] +: NINSERTS[c]]),
+          .mcmi_write(mcmi_write[NWRITES_CUMSUM[c] +: NWRITES[c]]),
+          .interrupt(interrupt[c]),
+          .debug_mode(debug_mode[c]),
+          `RV_TESTER_TRANSACTIONS_SOURCE_COSIM(1, c)
+      );
+    end
 `endif
 
-    pmu #(
-        .NUM(0),
-        `TOPOLOGY_CFG
-    ) pmu (
-        .clk,
-        .reset(sysmod_reset),
-        .clocks,
-        .pmu_event(pmu_event),
-        .rvfi(rvfi_instr),
-        .terminate,
-        `RV_TESTER_TRANSACTIONS_SOURCE_PMU(1, 0)
-    );
+    for (genvar p = 0; p < NHARTS; p++) begin: pmu_inst
+      pmu #(
+          .NUM(p),
+          .NRET(NRETS[p]),
+          `TOPOLOGY_CFG
+      ) pmu (
+          .clk,
+          .reset(sysmod_reset),
+          .clocks,
+          .pmci(pmci[p]),
+          .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
+          .terminate,
+          `RV_TESTER_TRANSACTIONS_SOURCE_PMU(1, p)
+      );
+    end
 
     assign tx_dom_1.logger_cycles[0][0].valid = gen_clocks;
     assign tx_dom_1.logger_cycles[0][0].data.location = location;

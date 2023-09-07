@@ -22,14 +22,14 @@ DECLARE_string(load);
 DEFINE_uint64(debug_entry_pc, 0x800, "Debug Mode entry PC");
 DEFINE_uint64(debug_exit_pc, 0x860, "Debug Mode exit PC");
 
-REGISTRY_register(rvfi, TOP.PLATFORM.COSIM, 0);
+REGISTRY_register(rvfi, COSIM, cvm::registry::all);
 
 extern "C" {
   void cosim_terminate();
 }
 
-rvfi::rvfi(cvm::topology::loc_t loc, unsigned)
-  : log("dut_rvfi.log"), loc_(loc) {
+rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
+  : log("h" + std::to_string(id) + "_dut_rvfi.log"), loc_(loc), id_(id) {
   init();
 
   whisper::initialize();
@@ -60,8 +60,9 @@ void rvfi::init() {
   eot_ = std::make_unique<eot>(loc_);;
 
   if (FLAGS_cosim) {
-    cvm::log(cvm::MEDIUM, "[RVFI] Constructing bridge...\n");
-    bridge_ = std::make_unique<bridge>(num_harts, xlen, vlen, loc_);
+    cvm::log(cvm::MEDIUM, "[RVFI loc {} id{}] Constructing bridge...\n", loc_, id_);
+    auto platform_loc = cvm::topology::get_from_type("PLATFORM", 0);
+    bridge_ = std::make_unique<bridge>(cvm::topology::attr(platform_loc, "NHARTS").second, xlen, vlen, loc_, id_);
     bridge_->reset();
     count_ = 1;
     prev_instr_.clear();
@@ -70,6 +71,9 @@ void rvfi::init() {
 
 void rvfi::process(const rv_tester_transactions::cosim::m_rvfi& m_rvfi) {
   if (terminated_)
+    return;
+
+  if (loc_ != m_rvfi.location)
     return;
 
   // Construct rv_instr_t and send to bridge
@@ -93,6 +97,9 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap& m_trap) {
   if (terminated_)
     return;
 
+  if (loc_ != m_trap.location)
+    return;
+
   if ((m_trap.cause >> 63) & 0x1) {
     intr_ = true;
     icause_ = (m_trap.cause & 0x3f);
@@ -103,10 +110,10 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap& m_trap) {
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_intr& m_intr) {
-  if (!FLAGS_cosim)
+  if (terminated_)
     return;
 
-  if (terminated_)
+  if (loc_ != m_intr.location)
     return;
 
   rv_intr_t intr;
@@ -140,7 +147,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi& m_rvfi, rv_in
 
   // Metadata
   instr.valid = true;
-  instr.hart = 0;
+  instr.hart = m_rvfi.hart;
   instr.cycle = m_rvfi.cycle;
   instr.id = count_;
   instr.last_uop = m_rvfi.last_uop;
