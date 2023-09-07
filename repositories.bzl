@@ -101,3 +101,21 @@ cc_library(
         shallow_since = "1669784673 -0600",
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/checkin-script.git",
     )
+
+    axi_wrapper_hash="9faf82b5943f28db4d5e5185bb48f4f8e49c28d5"
+    maybe(
+        git_repository,
+        name = "axi-wrapper",
+        commit = axi_wrapper_hash,
+        shallow_since = "1669784673 -0600",
+        remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/axi-wrapper.git",
+    )
+
+    axi_llc_wrapper_hash="c32513b99e71d0365119bdae584ff9c6ad3f276c"
+    maybe(
+        git_repository,
+        name = "axi_llc-wrapper",
+        commit = axi_llc_wrapper_hash,
+        shallow_since = "1669784673 -0600",
+        remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/axi_llc-wrapper.git",
+    )
