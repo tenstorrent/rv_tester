@@ -1,1 +1,1 @@
---bazel-wrap=infra/bazel-wrap
+--lsf-config-repo=infra/lsf_config
