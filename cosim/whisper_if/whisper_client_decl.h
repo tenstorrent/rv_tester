@@ -1,2 +1,2 @@
 #include "whisper_client.h"
-extern std::unique_ptr<whisperClient<uint64_t>> client_;
+extern std::shared_ptr<whisperClient<uint64_t>> client_;

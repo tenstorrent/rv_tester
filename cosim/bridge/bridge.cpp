@@ -49,7 +49,11 @@ DEFINE_uint32(max_pend_intr_age, 64, "Number of instructions allowed to retire b
 DEFINE_bool(whisper_log, true, "Enable whisper logging to iss_cosim.log and iss_cmd.log");
 DEFINE_bool(whisper_stdin_null, false, "Redirect whisoer stdin to null");
 DEFINE_bool(whisper_stdout_null, false, "Redirect whisoer stdout to null");
-std::unique_ptr<whisperClient<uint64_t>> client_;
+
+std::string traceFile = FLAGS_whisper_log ? "iss_cosim.log" : "";
+std::string commandLog = FLAGS_whisper_log ? "iss_cmd.log" : "";
+std::shared_ptr<whisperClient<uint64_t>> client_ = std::make_shared<whisperClient<uint64_t>>(traceFile, commandLog);
+//std::unique_ptr<whisperClient<uint64_t>> client_;
 // Constructor
 bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsigned id)
   : log("h" + std::to_string(id) + "_bridge.log"),

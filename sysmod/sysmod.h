@@ -12,6 +12,7 @@
 #include "trickbox/uc_helper.h"
 #include "trickbox/debugger.h"
 #include "cvm/topology.hpp"
+//#include "SimJTAG.cc"
 #include <string>
 
 #include "rv_tester_transactions.hpp"
