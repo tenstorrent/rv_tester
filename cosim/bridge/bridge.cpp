@@ -184,7 +184,13 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
   }
 }
 
-void bridge::process_debug_pre_step(hart_id_t, const rv_instr_t&, whisper_state_t&) {
+void bridge::process_debug_pre_step(hart_id_t, const rv_instr_t& instr, whisper_state_t&) {
+    //PRT
+    bool valid;
+    if (!client_->whisperPoke(hart, 0, 'm', instr.pc.pc_rdata, instr.opcode, valid)) {
+      cvm::log(cvm::ERROR, "Error: Hart{}: Failed to resynch memory\n", hart);
+      return;
+    }
   return;
 }
 
