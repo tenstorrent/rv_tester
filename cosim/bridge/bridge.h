@@ -141,7 +141,7 @@ private:
   bool ecall_ = false;
   bool debug_mode_ = false;
   bool excp_in_debug_mode = false;
-  bool debeug_rom_access = false;
+  //bool debeug_rom_access = false;
   uint64_t satp_ = 0;
   uint64_t new_satp_ = 0;
 
