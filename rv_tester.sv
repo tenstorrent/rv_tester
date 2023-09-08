@@ -1,3 +1,5 @@
+`include "/proj_risc/user_dev/apatil/latest_rv_tester/rv_tester/rv_tester_mem.sv"
+
 module rv_tester
 import rv_tester_params::*;
 #(
@@ -280,9 +282,6 @@ import rv_tester_params::*;
     assign tx_dom_1.logger_cycles[0][0].data.location = location;
     assign tx_dom_1.logger_cycles[0][0].data.clock = clocks;
 
-    axi_xbar xbar();
-    axi_llc_top llc();
-
     for (genvar p = 0; p < topology.TOP.PLATFORM.AXI.TOTAL; p++) begin : axi_sw_slvs
         axi_sw #(
             .ADDR_WIDTH(topology.TOP.PLATFORM.AXI.ADDR_WIDTH),
@@ -296,44 +295,44 @@ import rv_tester_params::*;
             .clk,
             .reset_n(~reset),
             .sys_reset(sysmod_reset),
-            .axi_mst_ar_valid(axi_req[p].ar_valid),
-            .axi_mst_ar_id   (axi_req[p].ar_id),
-            .axi_mst_ar_addr (axi_req[p].ar_addr),
-            .axi_mst_ar_len  (axi_req[p].ar_len),
-            .axi_mst_ar_size (axi_req[p].ar_size),
-            .axi_mst_ar_lock (axi_req[p].ar_lock),
-            .axi_mst_ar_burst(axi_req[p].ar_burst),
+            .axi_mst_ar_valid(axi_req_llc[p].ar_valid),
+            .axi_mst_ar_id   (axi_req_llc[p].ar_id),
+            .axi_mst_ar_addr (axi_req_llc[p].ar_addr),
+            .axi_mst_ar_len  (axi_req_llc[p].ar_len),
+            .axi_mst_ar_size (axi_req_llc[p].ar_size),
+            .axi_mst_ar_lock (axi_req_llc[p].ar_lock),
+            .axi_mst_ar_burst(axi_req_llc[p].ar_burst),
 
-            .axi_mst_aw_valid(axi_req[p].aw_valid),
-            .axi_mst_aw_id   (axi_req[p].aw_id),
-            .axi_mst_aw_addr (axi_req[p].aw_addr),
-            .axi_mst_aw_len  (axi_req[p].aw_len),
-            .axi_mst_aw_size (axi_req[p].aw_size),
-            .axi_mst_aw_burst(axi_req[p].aw_burst),
-            .axi_mst_aw_lock (axi_req[p].aw_lock),
-            .axi_mst_aw_atop (axi_req[p].aw_atop),
+            .axi_mst_aw_valid(axi_req_llc[p].aw_valid),
+            .axi_mst_aw_id   (axi_req_llc[p].aw_id),
+            .axi_mst_aw_addr (axi_req_llc[p].aw_addr),
+            .axi_mst_aw_len  (axi_req_llc[p].aw_len),
+            .axi_mst_aw_size (axi_req_llc[p].aw_size),
+            .axi_mst_aw_burst(axi_req_llc[p].aw_burst),
+            .axi_mst_aw_lock (axi_req_llc[p].aw_lock),
+            .axi_mst_aw_atop (axi_req_llc[p].aw_atop),
 
-            .axi_mst_w_valid(axi_req[p].w_valid),
-            .axi_mst_w_data (axi_req[p].w_data),
-            .axi_mst_w_strb (axi_req[p].w_strb),
-            .axi_mst_w_last (axi_req[p].w_last),
+            .axi_mst_w_valid(axi_req_llc[p].w_valid),
+            .axi_mst_w_data (axi_req_llc[p].w_data),
+            .axi_mst_w_strb (axi_req_llc[p].w_strb),
+            .axi_mst_w_last (axi_req_llc[p].w_last),
 
-            .axi_mst_b_ready(axi_req[p].b_ready),
-            .axi_mst_r_ready(axi_req[p].r_ready),
+            .axi_mst_b_ready(axi_req_llc[p].b_ready),
+            .axi_mst_r_ready(axi_req_llc[p].r_ready),
 
-            .axi_slv_b_valid(axi_rsp[p].b_valid),
-            .axi_slv_b_id   (axi_rsp[p].b_id),
-            .axi_slv_b_resp (axi_rsp[p].b_resp),
+            .axi_slv_b_valid(axi_rsp_llc[p].b_valid),
+            .axi_slv_b_id   (axi_rsp_llc[p].b_id),
+            .axi_slv_b_resp (axi_rsp_llc[p].b_resp),
 
-            .axi_slv_r_valid(axi_rsp[p].r_valid),
-            .axi_slv_r_id   (axi_rsp[p].r_id),
-            .axi_slv_r_data (axi_rsp[p].r_data),
-            .axi_slv_r_resp (axi_rsp[p].r_resp),
-            .axi_slv_r_last (axi_rsp[p].r_last),
+            .axi_slv_r_valid(axi_rsp_llc[p].r_valid),
+            .axi_slv_r_id   (axi_rsp_llc[p].r_id),
+            .axi_slv_r_data (axi_rsp_llc[p].r_data),
+            .axi_slv_r_resp (axi_rsp_llc[p].r_resp),
+            .axi_slv_r_last (axi_rsp_llc[p].r_last),
 
-            .axi_slv_aw_ready(axi_rsp[p].aw_ready),
-            .axi_slv_ar_ready(axi_rsp[p].ar_ready),
-            .axi_slv_w_ready (axi_rsp[p].w_ready),
+            .axi_slv_aw_ready(axi_rsp_llc[p].aw_ready),
+            .axi_slv_ar_ready(axi_rsp_llc[p].ar_ready),
+            .axi_slv_w_ready (axi_rsp_llc[p].w_ready),
             `RV_TESTER_TRANSACTIONS_SOURCE_AXI_SW(2, p)
         );
     end
@@ -394,5 +393,26 @@ import rv_tester_params::*;
             `RV_TESTER_TRANSACTIONS_SOURCE_AXI_SW_MST(2, p)
         );
     end
+
+//new memory - LLC
+
+rv_tester_params::axi_req_t  axi_req_llc  [rv_tester_params::AXI_MST_TOTAL-1:0];
+rv_tester_params::axi_rsp_t   axi_rsp_llc  [rv_tester_params::AXI_MST_TOTAL-1:0];
+
+rv_tester_mem #(
+.NumMasters             ( topology.TOP.PLATFORM.AXI.TOTAL ),
+.AxiIdWidth             ( topology.TOP.PLATFORM.AXI.ID_WIDTH ),
+.AxiDataWidth           ( topology.TOP.PLATFORM.AXI.DATA_WIDTH ),
+.AxiAddrWidth           ( topology.TOP.PLATFORM.AXI.ADDR_WIDTH ),
+.AxiStrbWidth           ( topology.TOP.PLATFORM.AXI.STRB_WIDTH )
+) inst(
+.clk            ( clk ),
+.rst_n          ( reset ),
+.axi_req        ( axi_req ),
+.axi_rsp        ( axi_rsp ),
+.axi_req_mst    ( axi_req_llc ),
+.axi_rsp_mst    ( axi_rsp_llc )
+);
+
 
 endmodule
