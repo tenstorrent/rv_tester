@@ -106,6 +106,7 @@ private:
   bool does_prev_instr_match_resynch_list(const whisper_state_t& w);
   bool does_instr_match_resynch_condition(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
   bool clint_read(const rv_instr_t& d);
+  bool debug_mem_access(const rv_instr_t& d);
   bool htif_read(const rv_instr_t& d);
   bool hpm_counter_read(const whisper_state_t& w);
   bool lrsc_fail(const whisper_state_t& w);
@@ -139,7 +140,8 @@ private:
   // State variables
   bool ecall_ = false;
   bool debug_mode_ = false;
-
+  bool excp_in_debug_mode = false;
+  bool debeug_rom_access = false;
   uint64_t satp_ = 0;
   uint64_t new_satp_ = 0;
 
