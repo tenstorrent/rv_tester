@@ -80,9 +80,6 @@ pmu::configure()
 void
 pmu::process(const rv_tester_transactions::cosim::m_rvfi& m_rvfi)
 {
-  if (loc_ != m_rvfi.location)
-    return;
-
   if (perf_region_ok) {
     if (perf_start_pc == uint64_t(m_rvfi.pc_rdata))
       perf_start_cycle = m_rvfi.cycle;
