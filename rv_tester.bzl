@@ -89,6 +89,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             name + "_axi_sw_sv",
             "@axi_llc//:axi_llc",
             "@axi//:axi",
+            "@tech_cells_generic//:all(any(all(not(asic), not(fpga)), tech_cells_generic_include_tc_sram), not(tech_cells_generic_exclude_tc_sram))"
         ] + select({
           "@rv_tester//:cosim_off": ["@rv_tester//:no_cosim"],
           "//conditions:default":   [name + "_cosim_sv"],
