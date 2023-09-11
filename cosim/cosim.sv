@@ -170,11 +170,11 @@ import rv_tester_params::*;
             end
             if (max_stall_cycle > 0 && cycles_since_retire > max_stall_cycle) begin
               $display("Error: No instruction retired for max_stall_cycle (%0d) cycles", max_stall_cycle);
-              $finish;
+              rv_tester_terminate();
             end
             if (max_cycle > 0 && clocks > LU'(max_cycle)) begin
               $display("Error: Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", max_cycle);
-              $finish;
+              rv_tester_terminate();
             end
         end
     end
