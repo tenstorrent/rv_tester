@@ -27,6 +27,7 @@ DECLARE_string(archsample_lib_path);
 DECLARE_bool(standalone);
 DEFINE_string(whisper_instr_lines, "", "Write instr cache line addresses used in test to a file");
 DEFINE_string(whisper_data_lines, "", "Write data cache line addresses used in test to a file");
+DEFINE_uint64(resetpc, 0x80000000, "Reset PC");
 
 extern void (*__tracerExtension)(void*);
 
@@ -56,6 +57,7 @@ constructSystem(uint16_t ncores) {
     system->enableMcm(64, checkAll);
   }
 
+
   if (FLAGS_bootrom_path != "" || FLAGS_load != "") {
     std::vector<std::string> targets {};
     if (FLAGS_load != "")
@@ -84,6 +86,7 @@ constructSystem(uint16_t ncores) {
     hart.enableNewlib(false);
     hart.enableLinux(false);
     hart.tracePtw(true);
+    hart.defineResetPc(FLAGS_resetpc);
     if (FLAGS_whisper_stdout_null) hart.redirectOutputDescriptor(STDOUT_FILENO, "/dev/null");
     if (FLAGS_whisper_stdin_null) hart.redirectOutputDescriptor(STDIN_FILENO, "/dev/null");
     if (not isa.empty())
