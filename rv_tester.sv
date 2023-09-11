@@ -1,5 +1,3 @@
-`include "/proj_risc/user_dev/apatil/latest_rv_tester/rv_tester/rv_tester_mem.sv"
-
 module rv_tester
 import rv_tester_params::*;
 #(
