@@ -1,7 +1,5 @@
 ///////////////includes///////////////////////////////
 
-`include "axi/typedef.svh"
-`include "axi/assign.svh"
 `include "axi_llc/typedef.svh"
 
 /////////////////////////////////////////////////////
@@ -108,19 +106,19 @@ axi_llc_pkg::events_t llc_events;
 
 /////////////axi_interconnect/////////////
 
-`AXI_TYPEDEF_AW_CHAN_T(slv_aw_chan_t, axi_id_t, axi_addr_t, axi_len_t, axi_size_t, axi_burst_t, axi_atop_t)
-`AXI_TYPEDEF_AW_CHAN_T(mst_aw_chan_t, axi_mst_id_t, axi_mst_addr_t, axi_len_t, axi_size_t, axi_burst_t, axi_atop_t)
-`AXI_TYPEDEF_W_CHAN_T(w_chan_t, axi_mst_data_t, axi_mst_strb_t)
-`AXI_TYPEDEF_B_CHAN_T(mst_b_chan_t, axi_id_t, axi_resp_t)
-`AXI_TYPEDEF_B_CHAN_T(slv_b_chan_t, axi_id_t, axi_resp_t)
-`AXI_TYPEDEF_AR_CHAN_T(mst_ar_chan_t, axi_mst_addr_t, axi_mst_id_t, axi_len_t, axi_size_t, axi_burst_t)
-`AXI_TYPEDEF_AR_CHAN_T(slv_ar_chan_t, axi_addr_t, axi_id_t, axi_len_t, axi_size_t, axi_burst_t)
-`AXI_TYPEDEF_R_CHAN_T(mst_r_chan_t, axi_mst_data_t, axi_mst_id_t, axi_resp_t)
-`AXI_TYPEDEF_R_CHAN_T(slv_r_chan_t, axi_data_t, axi_id_t, axi_resp_t)
-`AXI_TYPEDEF_REQ_T(mst_req_t, mst_aw_chan_t, w_chan_t, mst_ar_chan_t)
-`AXI_TYPEDEF_REQ_T(slv_req_t, slv_aw_chan_t, w_chan_t, slv_ar_chan_t)
-`AXI_TYPEDEF_RESP_T(mst_resp_t, mst_b_chan_t, mst_r_chan_t)
-`AXI_TYPEDEF_RESP_T(slv_resp_t, slv_b_chan_t, slv_r_chan_t)
+`AXI_TYPEDEF_AW_CHAN_T_rv(slv_aw_chan_t, axi_id_t, axi_addr_t, axi_len_t, axi_size_t, axi_burst_t, axi_atop_t)
+`AXI_TYPEDEF_AW_CHAN_T_rv(mst_aw_chan_t, axi_mst_id_t, axi_mst_addr_t, axi_len_t, axi_size_t, axi_burst_t, axi_atop_t)
+`AXI_TYPEDEF_W_CHAN_T_rv(w_chan_t, axi_mst_data_t, axi_mst_strb_t)
+`AXI_TYPEDEF_B_CHAN_T_rv(mst_b_chan_t, axi_id_t, axi_resp_t)
+`AXI_TYPEDEF_B_CHAN_T_rv(slv_b_chan_t, axi_id_t, axi_resp_t)
+`AXI_TYPEDEF_AR_CHAN_T_rv(mst_ar_chan_t, axi_mst_addr_t, axi_mst_id_t, axi_len_t, axi_size_t, axi_burst_t)
+`AXI_TYPEDEF_AR_CHAN_T_rv(slv_ar_chan_t, axi_addr_t, axi_id_t, axi_len_t, axi_size_t, axi_burst_t)
+`AXI_TYPEDEF_R_CHAN_T_rv(mst_r_chan_t, axi_mst_data_t, axi_mst_id_t, axi_resp_t)
+`AXI_TYPEDEF_R_CHAN_T_rv(slv_r_chan_t, axi_data_t, axi_id_t, axi_resp_t)
+`AXI_TYPEDEF_REQ_T_rv(mst_req_t, mst_aw_chan_t, w_chan_t, mst_ar_chan_t)
+`AXI_TYPEDEF_REQ_T_rv(slv_req_t, slv_aw_chan_t, w_chan_t, slv_ar_chan_t)
+`AXI_TYPEDEF_RESP_T_rv(mst_resp_t, mst_b_chan_t, mst_r_chan_t)
+`AXI_TYPEDEF_RESP_T_rv(slv_resp_t, slv_b_chan_t, slv_r_chan_t)
 
 mst_req_t   mst_reqs;
 mst_resp_t  mst_resps;
