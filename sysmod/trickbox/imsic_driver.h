@@ -71,6 +71,7 @@ public:
   /// address is not properly aligned.
   cvm::messenger::task<void> read(uint64_t addr, size_t length, data_t& data);
 
+   void read_dev(uint64_t addr, size_t length,  data_t& data) override;
   // Write to this imsic_driver. Call softwareInterrupt with flag set to 0/1
   // if a hart software interrupt entry is written. Update time
   // compare and call timerInterrupt if a hart time compare entry is
