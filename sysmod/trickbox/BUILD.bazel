@@ -3,7 +3,7 @@ cc_library(
     srcs = [
       "interrupter.cpp",
       "debugger.cpp",
-      "msi_driver.cpp",
+      "imsic_driver.cpp",
       "uc_helper.cpp",
       "trickbox.cpp"
     ],
@@ -11,7 +11,7 @@ cc_library(
       "subdevice.h",
       "interrupter.h",
       "debugger.h",
-      "msi_driver.h",
+      "imsic_driver.h",
       "uc_helper.h",
       "trickbox.h"
     ],

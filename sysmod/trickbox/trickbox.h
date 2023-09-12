@@ -19,7 +19,7 @@
 #include "cvm/topology.hpp"
 #include "interrupter.h"
 #include "debugger.h"
-#include "msi_driver.h"
+#include "imsic_driver.h"
 #include "uc_helper.h"
 #include <mem_manager.h>
 
