@@ -27,12 +27,6 @@ DECLARE_bool(random_imsic_intr);//, false, "Drive random interrups");
 DECLARE_int32(imsic_intr_threshold);
 DECLARE_int32(imsic_intr_start_delay);
 DECLARE_int32(seed);
-DECLARE_bool(disable_ssip);
-DECLARE_bool(disable_msip);
-DECLARE_bool(disable_stip);
-DECLARE_bool(disable_mtip);
-DECLARE_bool(disable_seip);
-DECLARE_bool(disable_meip);
 // Define a core local interruptor (imsic_driver) at the given address
 // and for the given hart count. The size will be 48k bytes.
 class imsic_driver : public subdevice

@@ -31,11 +31,7 @@ imsic_driver::~imsic_driver()
 void
 imsic_driver::read_dev(uint64_t addr, size_t , data_t& )
 {
- // mem::datum_t m_data;
-  //m_.read(addr, 1, &m_data);
-  //uint32_t word = (uint32_t)m_data;
-  cvm::log(cvm::HIGH, "[UC_HELPER] read_dev read addr {:#x} \n",addr);
-  //serializeInt(word, length, data);
+  cvm::log(cvm::HIGH, "[IMSIC Driver] read_dev read addr {:#x} \n",addr);
   return;
 }
 
