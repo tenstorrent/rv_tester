@@ -1,3 +1,9 @@
+<%
+import math
+def clog2(n):
+        return math.ceil(math.log2(n))
+%>\
+
 cosim:
     num: ${TOP.PLATFORM.NHARTS}
     msg:
@@ -182,7 +188,7 @@ axi_sw:
         dummy_return: true
         fields:
             id:
-                width: ${TOP.PLATFORM.AXI.ID_WIDTH}
+                width: ${TOP.PLATFORM.AXI.ID_WIDTH + clog2(TOP.PLATFORM.AXI.TOTAL) + 1} 
             addr:
                 width: ${TOP.PLATFORM.AXI.ADDR_WIDTH}
             len:
@@ -201,7 +207,7 @@ axi_sw:
         dummy_return: true
         fields:
             id:
-                width: ${TOP.PLATFORM.AXI.ID_WIDTH}
+                width: ${TOP.PLATFORM.AXI.ID_WIDTH + clog2(TOP.PLATFORM.AXI.TOTAL) + 1} 
             addr:
                 width: ${TOP.PLATFORM.AXI.ADDR_WIDTH}
             len:

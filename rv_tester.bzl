@@ -21,6 +21,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
         ],
         deps = [
             topology + "_sv",
+	    "@axi//:axi",
         ],
         visibility = visibility,
     )
