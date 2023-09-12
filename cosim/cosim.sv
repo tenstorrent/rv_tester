@@ -17,6 +17,7 @@ import rv_tester_params::*;
     input mcmi_t [NWRITE-1:0] mcmi_write,
     input rv_tester_pkg::interrupt_t interrupt,
     input debug_mode,
+    output rv_tester_pkg::terminate_t terminate,
     `RV_TESTER_TRANSACTIONS_OUTPUT_COSIM
 );
 
@@ -34,9 +35,17 @@ import rv_tester_params::*;
             if (rvfi_enabled) begin
               cosim_set_scope(location);
             end
+            terminate.terminate = '0;
             /* verilator lint_on BLKSEQ */
         end
     end
+
+    function void cosim_terminate ();
+        $display("attempting to terminate");
+        /* verilator lint_off BLKSEQ */
+        terminate.terminate = '1;
+        /* verilator lint_on BLKSEQ */
+    endfunction
 
     // m_rvfi
     for (genvar n = 0; n < NRET; n++) begin
@@ -169,12 +178,12 @@ import rv_tester_params::*;
               cycles_since_retire <= 0;
             end
             if (max_stall_cycle > 0 && cycles_since_retire > max_stall_cycle) begin
-              $display("Error: No instruction retired for max_stall_cycle (%0d) cycles", max_stall_cycle);
-              $finish;
+              $display("Error: Hart%0d: No instruction retired for max_stall_cycle (%0d) cycles", NUM, max_stall_cycle);
+              cosim_terminate();
             end
             if (max_cycle > 0 && clocks > LU'(max_cycle)) begin
-              $display("Error: Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", max_cycle);
-              $finish;
+              $display("Error:Hart%0d:  Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", NUM, max_cycle);
+              cosim_terminate();
             end
         end
     end
