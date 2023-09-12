@@ -14,7 +14,7 @@ def rv_tester_repositories():
         #sha256 = "af87959afe497dc8dfd4c6cb66e1279cb98ccc84284619ebfec27d9c09a903de",
     )
 
-    corearchcoverage_hash="30e6bf60f59d6f0e458fe67b6a322247746d04d3"
+    corearchcoverage_hash="6f5bb08a146c5915a9d4313c5904877a183c938e"
     maybe(
         git_repository,
         name = "corearchcoverage",
@@ -23,11 +23,11 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv/dv/corearchcoverage.git",
     )
 
-    cvm_hash="227ac478bf72acdc22733cb85945bb9d9598c978"
+    cvm_hash="9d1a4c3290191413e7232e74bc52080754e6422b"
     maybe(
         http_archive,
         name = "cvm",
-        sha256 = "587fb0f0ff6a6bb3e4177120f8f9ec84284c7bb188bd69b433980ae602a3028f",
+        sha256 = "78f2c5fe8adf62a2fee4e8e0efc42b75faf6a23ab6c002816533e2ed3a71ea80",
         strip_prefix = "cvm-{commit}".format(commit=cvm_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/{commit}/cvm-{commit}.tar.bz2".format(commit=cvm_hash),
     )
@@ -93,11 +93,29 @@ cc_library(
         url = "https://aus-gitlab.local.tenstorrent.com/mboisvert/wall_clock_profiler/-/archive/{commit}/wall_clock_profiler-{commit}.tar.bz2".format(commit=wall_clock_profiler_hash),
     )
 
-    checkin_script_hash="319941617845f1d727f23651be97092b2961baab"
+    checkin_script_hash="63d95cb132cf95c7806da3bef2df63b59c4e0741"
     maybe(
         git_repository,
         name = "checkin-script",
         commit = checkin_script_hash,
         shallow_since = "1669784673 -0600",
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/checkin-script.git",
+    )
+
+    axi_wrapper_hash="d80e5087e309b74bbdbdf529ad10a4c9a8e16127"
+    maybe(
+        git_repository,
+        name = "axi-wrapper",
+        commit = axi_wrapper_hash,
+        shallow_since = "1669784673 -0600",
+        remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/axi-wrapper.git",
+    )
+
+    axi_llc_wrapper_hash="c32513b99e71d0365119bdae584ff9c6ad3f276c"
+    maybe(
+        git_repository,
+        name = "axi_llc-wrapper",
+        commit = axi_llc_wrapper_hash,
+        shallow_since = "1669784673 -0600",
+        remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/axi_llc-wrapper.git",
     )

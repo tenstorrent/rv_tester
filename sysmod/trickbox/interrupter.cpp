@@ -82,7 +82,9 @@ interrupter::read(uint64_t addr, size_t, data_t&)
   co_return;
 }
 
-
+void interrupter::read_dev(uint64_t , size_t ,  data_t& ){
+  return;
+}
 void
 interrupter::write(uint64_t addr, size_t, const data_t& data,
 		 const strb_t&)

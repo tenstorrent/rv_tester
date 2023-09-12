@@ -20,7 +20,8 @@
 #include "interrupter.h"
 #include "debugger.h"
 #include "imsic_driver.h"
-
+#include "uc_helper.h"
+#include <mem_manager.h>
 
 // Define a core local  (trickbox) at the given address
 // and for the given hart count. The size will be 48k bytes.
@@ -30,7 +31,7 @@ public:
 
   /// Define a trickbox device at the given address for the given hart count.
   /// Range of addresses reserved is: [addr, addr + 0xbfff]
-  trickbox(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc);
+  trickbox(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc );
 
   // Destructor.
   virtual ~trickbox();
@@ -58,7 +59,7 @@ public:
   /// Read length bytes from the given address to the data iterator.
   /// No-op if address is outside the range of this trickbox or if
   /// address is not properly aligned.
-  cvm::messenger::task<void> read(const transactor::read_t& r, data_t& data);
+  void read(const transactor::read_t& r, data_t& data);
 
   // Write to this trickbox.
   void write(const transactor::write_t& w);
@@ -70,6 +71,12 @@ public:
     }
   }
 
+  /// Initialize memory with elf file.
+  bool init_elf(const std::string& path);
+
+  mem_manager m_;
+  
+  
 private:
   uint64_t interrupter_base = 0x9000000;
   cvm::topology::loc_t axi_mst_loc_l;

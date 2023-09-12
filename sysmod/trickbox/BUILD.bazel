@@ -4,6 +4,7 @@ cc_library(
       "interrupter.cpp",
       "debugger.cpp",
       "imsic_driver.cpp",
+      "uc_helper.cpp",
       "trickbox.cpp"
     ],
     hdrs = [
@@ -11,11 +12,13 @@ cc_library(
       "interrupter.h",
       "debugger.h",
       "imsic_driver.h",
+      "uc_helper.h",
       "trickbox.h"
     ],
     deps = [
              "//common:common",
              "//sysmod:device",
+             "//cosim/whisper_if:whisper_if",
              "@mem_manager//:mem_manager",
              "@cvm//:plusargs",
              "@cvm//:registry",

@@ -3,6 +3,8 @@ rv_tester: &rv_tester
     count: 1
     type:
       - platform
+    attrs:
+      <<: *rv_tester_platform_attrs
     sysmod:
       count: 1
       type:
@@ -13,21 +15,6 @@ rv_tester: &rv_tester
             - clint
           attrs:
               clock_divisor: 100
-    cosim:
-      count: 1
-      type:
-        - cosim
-
-    dm_model:
-      count: 1
-      type:
-        - dm_model
-        
-    pmu:
-      count : 1
-      type:
-        - pmu
-
     axi:
       count: *rv_tester_axi_count
       type:
@@ -45,3 +32,36 @@ rv_tester: &rv_tester
       attrs:
         <<: *rv_tester_axi_mst_attrs
         <<: *rv_tester_axi_sw_mst
+
+    dm_model:
+      count: 1
+      type:
+        - dm_model
+
+    cosim:
+      count: *rv_tester_nharts
+      type:
+        - cosim
+      rvfi:
+        count: 1
+        type:
+          - rvfi
+        attrs:
+          <<: *rv_tester_rvfi_attrs
+      mcmi:
+        count: 1
+        type:
+          - mcmi
+        attrs:
+          <<: *rv_tester_mcmi_attrs
+      bridge:
+        count: 1
+        type:
+          - bridge
+
+    pmci:
+      count : *rv_tester_nharts
+      type:
+        - pmci
+      attrs:
+        <<: *rv_tester_pmci_attrs

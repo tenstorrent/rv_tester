@@ -6,3 +6,6 @@ __pycache__
 infra/bzsim_clone
 infra/podman-scripts
 infra/singularity-scripts
+
+/regressions
+/build

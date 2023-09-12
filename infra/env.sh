@@ -31,8 +31,9 @@ export BZSIM_RABBIT_EXCHANGE=riscv
 export BZSIM_SITE=aus
 export BZSIM_RABBIT_ROUTING_KEY=ascalon.bzsim.bep.
 export RISC_P_CORES_ENV_SOURCED=1
-export RESPOSITORY_NAME=risc-p-cores
-export COSMOS_LIB_PATH=/tools_risc/tt/cosmos/v1.1.9/backend/lib
+export REPOSITORY_NAME=rv_tester
+export COSMOS_LIB_PATH=/tools_risc/tt/cosmos/v1.3.0/backend/lib
+export SS_ID_SERVER=http://aus-ss:3000
 
 # Enable --lsf and --bazel-remote-dir only if austin servers
 if [[ $(uname -n) == *"aus"* ]]; then

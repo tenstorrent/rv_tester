@@ -1,0 +1,11 @@
+top:
+  cluster:
+    count: 1
+    type:
+      - cluster
+    core:
+      count: 1
+      type:
+        - core
+
+  <<: *rv_tester

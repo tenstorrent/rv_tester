@@ -1,0 +1,26 @@
+rv_tester_rvfi_attrs: &rv_tester_rvfi_attrs
+  ENABLE: 1
+  FP_ENABLE: 1
+  VEC_ENABLE: 1
+  MEM_ENABLE: 1
+  CSR_ENABLE: 0
+  UOP_ENABLE: 1
+  NRETS: [4, 8]
+  NRETS_CUMSUM: [8, 0]
+  TOTAL_NRETS: 12
+
+rv_tester_mcmi_attrs: &rv_tester_mcmi_attrs
+  ENABLE: 1
+  NREADS: [3, 3]
+  NREADS_CUMSUM: [0, 0]
+  NINSERTS: [3, 3]
+  NINSERTS_CUMSUM: [0, 0]
+  NWRITES: [3, 3]
+  NWRITES_CUMSUM: [0, 0]
+  TOTAL_NREADS: 6
+  TOTAL_NINSERTS: 6
+  TOTAL_NWRITES: 6
+
+rv_tester_pmci_attrs: &rv_tester_pmci_attrs
+  ENABLE: 1
+  LS_PIPES: [3, 3]

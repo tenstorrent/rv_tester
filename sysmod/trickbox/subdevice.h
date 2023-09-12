@@ -10,4 +10,5 @@ class subdevice : public device {
 
     virtual void write(uint64_t addr, size_t length, const data_t& data,
                         const strb_t& strb) = 0;
+    virtual void read_dev(uint64_t addr, size_t length, data_t& data)=0;
 };

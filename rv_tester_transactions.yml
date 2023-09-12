@@ -1,5 +1,5 @@
 cosim:
-    num: 1
+    num: ${TOP.PLATFORM.NHARTS}
     msg:
         fields:
             count:
@@ -7,10 +7,12 @@ cosim:
 
     m_rvfi:
         domain: 1
-        num: ${TOP.CLUSTER.CORE.NRET}
+        num: ${max(TOP.PLATFORM.COSIM.RVFI.NRETS)}
         fields:
             cycle:
                 width: 64
+            hart:
+                width: 32
             last_uop:
                 width: 1
             comp:
@@ -18,7 +20,7 @@ cosim:
             order:
                 width: 64
             insn:
-                width: 32
+                width: ${TOP.PLATFORM.ILEN}
             uop:
                 width: 64
             trap:
@@ -34,82 +36,88 @@ cosim:
             rd_addr:
                 width: 5
             rd_wdata:
-                width: 64
+                width: ${TOP.PLATFORM.XLEN}
             frd_valid:
                 width: 1
             frd_addr:
                 width: 5
             frd_wdata:
-                width: 64
+                width: ${TOP.PLATFORM.FLEN}
             vrd_valid:
                 width: 1
             vrd_addr:
                 width: 5
             vrd_wdata:
-                width: ${TOP.CLUSTER.CORE.VLEN}
+                width: ${TOP.PLATFORM.VLEN}
             pc_rdata:
-                width: 64
+                width: ${TOP.PLATFORM.VALEN}
             pc_wdata:
-                width: 64
+                width: ${TOP.PLATFORM.VALEN}
             mem_addr:
-                width: 64
+                width: ${TOP.PLATFORM.VALEN}
             mem_paddr:
-                width: 64
+                width: ${TOP.PLATFORM.PALEN}
             mem_rmask:
-                width: 8
+                width: ${TOP.PLATFORM.RDLEN // 8}
             mem_rdata:
-                width: 64
+                width: ${TOP.PLATFORM.RDLEN}
             mem_wmask:
-                width: 8
+                width: ${TOP.PLATFORM.RDLEN // 8}
             mem_wdata:
-                width: 64
+                width: ${TOP.PLATFORM.RDLEN}
 
     m_mcmi_read:
         domain: 1
-        num: ${TOP.CLUSTER.CORE.MAX_MCM_READS}
+        num: ${max(TOP.PLATFORM.COSIM.MCMI.NREADS)}
         fields:
             cycle:
                 width: 64
+            hart:
+                width: 32
             order:
                 width: 64
             addr:
-                width: 56
+                width: ${TOP.PLATFORM.PALEN}
             mask:
                 width: 64
             data:
-                width: 64
+                width: ${TOP.PLATFORM.XLEN}
 
     m_mcmi_insert:
         domain: 1
-        num: ${TOP.CLUSTER.CORE.MAX_MCM_INSERTS}
+        num: ${max(TOP.PLATFORM.COSIM.MCMI.NINSERTS)}
         fields:
             cycle:
                 width: 64
+            hart:
+                width: 32
             order:
                 width: 64
             addr:
-                width: 56
+                width: ${TOP.PLATFORM.PALEN}
             mask:
                 width: 64
             data:
-                width: 64
+                width: ${TOP.PLATFORM.XLEN}
 
     m_mcmi_write:
         domain: 1
-        num: ${TOP.CLUSTER.CORE.MAX_MCM_WRITES}
+        num: ${max(TOP.PLATFORM.COSIM.MCMI.NWRITES)}
         fields:
             cycle:
                 width: 64
+            hart:
+                width: 32
             addr:
-                width: 56
+                width: ${TOP.PLATFORM.PALEN}
             mask:
                 width: 64
             data:
-                width: 512
+                width: ${TOP.PLATFORM.CLLEN}
 
     m_trap:
         domain: 1
-        num: ${TOP.CLUSTER.CORE.NRET}
+        num: ${max(TOP.PLATFORM.COSIM.RVFI.NRETS)}
         fields:
             cycle:
                 width: 64
@@ -274,7 +282,7 @@ logger:
                 width: 64
 
 pmu:
-    num: 1
+    num: ${TOP.PLATFORM.NHARTS}
     pmcounters:
         domain: 1
         num: 1
@@ -372,6 +380,8 @@ pmu:
             stalls_mem_any:
                 width: 64
             stalls_mem_l1i_miss:
+                width: 64
+            stalls_mem_l1dtlb_miss:
                 width: 64
             nfp_mispredict:
                 width: 64

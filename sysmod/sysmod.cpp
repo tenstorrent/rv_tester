@@ -17,6 +17,7 @@
 // internal flags
 DEFINE_string(hex, "", "hex file (program) to load into memory");
 DEFINE_string(load, "", "elf file (program) to load into memory");
+DEFINE_string(bootrom_path, "", "Path to bootrom object file");
 DEFINE_string(load_io, "", "load specified io dev with content from memory");
 DEFINE_bool(sysmod_tick_async, true, "Asynchronous sysmod_tick calls");
 DEFINE_uint64(sysmod_tick_update_threshold, 1, "Slow down tick update frequency by this factor. The tick is still eventually advanced the same cumulative amount, just not as often. Useful for emulation where the clock counts much faster but tests setup interrupts to happen very soon for simulation. They git hit by an interrupt storm and are stuck in the interrupt handler forever.");
@@ -98,6 +99,27 @@ sysmod::tbox_interrupt(interrupter::interrupt_t i) {
 }
 
 void
+sysmod::uc_helper_backdoor_write(uc_helper::uc_helper_write_t w) {
+    cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_write addr {:#x} \n",w.addr);
+    cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_write len {} \n",(unsigned)w.length);
+    cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_write data-vec : \n");
+     for (auto i: w.data){
+         //std::cout << (unsigned )i << ' ';
+         cvm::log(cvm::HIGH," {:#x} ",(unsigned)i);
+      }
+        
+    //cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_write strb {} \n",w.strb);
+    cvm::log(cvm::FULL, "[SYSMOD] uc_helper_backdoor:write sysmem for addr {:#x}  \n", w.addr);
+    transactor::write_t wt;
+    wt.addr = w.addr;
+    //wt.length = w.length;
+    wt.length = 1;
+    wt.data = w.data;
+    wt.strb = w.strb;
+    dynamic_cast<sysmod_mem&>(*dev("memory")).write(wt);
+}
+
+void
 sysmod::dmi_write(debugger::dmi_data_t i) {
   cvm::registry::callbacks.push(
       scope(),
@@ -118,6 +140,7 @@ sysmod::terminate(htif::terminate_t) {
 void
 sysmod::reset() {
   compose();
+  load_boot(FLAGS_bootrom_path);
   load_prog(FLAGS_hex, FLAGS_load);
   load_io(FLAGS_load_io);
 }
@@ -143,6 +166,9 @@ sysmod::compose()
       device* device = nullptr;
 
       if (type == "memory") {
+        device = new sysmod_mem(tag, base, size, loc_);
+      }
+      else if (type == "boot") {
         device = new sysmod_mem(tag, base, size, loc_);
       }
       else if (type == "io_dev") {
@@ -179,6 +205,9 @@ sysmod::compose()
         cvm::registry::messenger.connect<debugger::dmi_data_t>(
             loc_,
             [&](debugger::dmi_data_t i) { return this->dmi_write(i); });
+        cvm::registry::messenger.connect<uc_helper::uc_helper_write_t>(
+            loc_,
+            [&](uc_helper::uc_helper_write_t i) { return this->uc_helper_backdoor_write(i); });
       }
       else
         cvm::log(cvm::ERROR, "Error: unknown type %s", type);
@@ -263,6 +292,18 @@ sysmod::load_prog(const std::string& hex, const std::string& load)
     std::cout << "loading " << hex << "\n";
     if (not dev("memory") or not dynamic_cast<sysmod_mem&>(*dev("memory")).init_hex(hex)) {
       cvm::log(cvm::ERROR, "No memory defined");
+      return;
+    }
+  }
+}
+
+void
+sysmod::load_boot(const std::string& boot)
+{
+  if (boot != "") {
+    std::cout << "loading " << boot << "\n";
+    if (not dev("boot") or not dynamic_cast<sysmod_mem&>(*dev("boot")).init_elf(boot)) {
+      cvm::log(cvm::ERROR, "No boot defined");
       return;
     }
   }

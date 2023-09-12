@@ -8,10 +8,10 @@ DEFINE_uint64(sync_pmcounters_period, 0, "Sync pmcounters every X cycles. A valu
 DEFINE_bool(pmcounters_log, false, "Dump pmcounters in log");
 DECLARE_string(load);
 
-REGISTRY_register(pmu, TOP.PLATFORM.PMU, 0);
+REGISTRY_register(pmu, PMCI, cvm::registry::all);
 
-pmu::pmu(cvm::topology::loc_t loc, unsigned)
-  : log("pmcounters.log")
+pmu::pmu(cvm::topology::loc_t loc, unsigned id)
+  : log("h" + std::to_string(id) + "_pmcounters.log"), loc_(loc), id_(id)
 {
   if (FLAGS_perf) {
     perf_region.resize(counter::COUNT, 0);
@@ -28,7 +28,7 @@ pmu::pmu(cvm::topology::loc_t loc, unsigned)
       log(cvm::NONE, "\n");
     }
 
-    auto cosim = cvm::topology::get_from_type("COSIM", 0);
+    auto cosim = cvm::topology::get_from_type("COSIM", id_);
 
     cvm::registry::messenger.connect<rv_tester_transactions::cosim::m_rvfi>(cosim, [this] (const auto& v) { return this->process(v); });
     cvm::registry::messenger.connect<rv_tester_transactions::pmu::pmcounters>(loc, [this] (const auto& v) { return this->process(v); });
@@ -92,6 +92,9 @@ pmu::process(const rv_tester_transactions::cosim::m_rvfi& m_rvfi)
 void
 pmu::process(const rv_tester_transactions::pmu::pmcounters& pmcounters)
 {
+  if (loc_ != pmcounters.location)
+    return;
+
   if (not perf_region_started and (pmcounters.cpu_cycles >= perf_start_cycle) and (perf_start_cycle != 0))
     perf_region_start();
 
@@ -117,12 +120,12 @@ pmu::report()
 {
   const auto& used = (perf_region_started and perf_region_ended)? perf_region : counters;
   for (size_t i = 0; i < counter::COUNT; i++)
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"{}\": \"0x{:x}\"}}\n", to_string.at(static_cast<counter>(i)), used[i]);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_{}\": \"0x{:x}\"}}\n", id_, to_string.at(static_cast<counter>(i)), used[i]);
 
   if (perf_region_ok) {
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_start_pc\": \"0x{:x}\"}}\n", perf_start_pc);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_end_pc\": \"0x{:x}\"}}\n", perf_end_pc);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_start_cycle\": \"0x{:x}\"}}\n", perf_start_cycle);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"perf_end_cycle\": \"0x{:x}\"}}\n", perf_end_cycle);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_perf_start_pc\": \"0x{:x}\"}}\n", id_, perf_start_pc);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_perf_end_pc\": \"0x{:x}\"}}\n", id_, perf_end_pc);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_perf_start_cycle\": \"0x{:x}\"}}\n", id_, perf_start_cycle);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_perf_end_cycle\": \"0x{:x}\"}}\n", id_, perf_end_cycle);
   }
 }

@@ -16,6 +16,7 @@
 
 DECLARE_string(load);
 DECLARE_string(hex);
+DECLARE_string(bootrom_path);
 DECLARE_string(whisper_json_path);
 DECLARE_bool(whisper_stdin_null);
 DECLARE_bool(whisper_stdout_null);
@@ -26,26 +27,24 @@ DECLARE_string(archsample_lib_path);
 DECLARE_bool(standalone);
 DEFINE_string(whisper_instr_lines, "", "Write instr cache line addresses used in test to a file");
 DEFINE_string(whisper_data_lines, "", "Write data cache line addresses used in test to a file");
+DEFINE_uint64(resetpc, 0x80000000, "Reset PC");
 
 extern void (*__tracerExtension)(void*);
 
 template <typename URV>
 static std::shared_ptr<WdRiscv::System<URV>>
-constructSystem() {
+constructSystem(uint16_t ncores) {
 
   WdRiscv::HartConfig config;
   if (not config.loadConfigFile(FLAGS_whisper_json_path.c_str()))
     return nullptr;
 
   unsigned hartsPerCore = 1;
-  unsigned coreCount = 1;
+  unsigned coreCount = ncores;
   unsigned hartIdOffset = hartsPerCore;
   size_t pageSize = 4*1024;
   size_t memorySize = size_t(1) << 31;
   std::string isa;
-  config.getHartsPerCore(hartsPerCore);
-  config.getCoreCount(coreCount);
-  config.getHartIdOffset(hartIdOffset);
   config.getPageSize(pageSize);
   config.getMemorySize(memorySize);
   config.getIsa(isa);
@@ -58,8 +57,13 @@ constructSystem() {
     system->enableMcm(64, checkAll);
   }
 
-  if (FLAGS_load != "") {
-    std::vector<std::string> targets = {FLAGS_load};
+
+  if (FLAGS_bootrom_path != "" || FLAGS_load != "") {
+    std::vector<std::string> targets {};
+    if (FLAGS_load != "")
+      targets.push_back(FLAGS_load);
+    if (FLAGS_bootrom_path != "")
+      targets.push_back(FLAGS_bootrom_path);
     if (not system->loadElfFiles(targets, false, false))
       return nullptr;
   }
@@ -82,6 +86,7 @@ constructSystem() {
     hart.enableNewlib(false);
     hart.enableLinux(false);
     hart.tracePtw(true);
+    hart.defineResetPc(FLAGS_resetpc);
     if (FLAGS_whisper_stdout_null) hart.redirectOutputDescriptor(STDOUT_FILENO, "/dev/null");
     if (FLAGS_whisper_stdin_null) hart.redirectOutputDescriptor(STDIN_FILENO, "/dev/null");
     if (not isa.empty())
@@ -95,9 +100,9 @@ constructSystem() {
 
 template <typename URV>
 int
-whisperClient<URV>::whisperConnect()
+whisperClient<URV>::whisperConnect(uint16_t ncores)
 {
-  system_ = constructSystem<URV>();
+  system_ = constructSystem<URV>(ncores);
 
   // run once before starting cosim
   if (FLAGS_standalone) {
@@ -131,7 +136,7 @@ whisperClient<URV>::whisperConnect()
 
     fclose(whisper_log);
 
-    system_ = constructSystem<URV>();
+    system_ = constructSystem<URV>(ncores);
   }
 
   if (FLAGS_cov) {
@@ -152,6 +157,8 @@ whisperClient<URV>::whisperConnect()
   }
 
   server_ = std::make_unique<WdRiscv::Server<URV>>(*system_);
+
+  std::cout << "[WHISPER CLIENT] Connect successful..\n";
 
   return 0;
 }

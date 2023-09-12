@@ -1,12 +1,15 @@
-module pmu #(
+module pmu
+import rv_tester_params::*;
+#(
   parameter int NUM = -1,
+  parameter int NRET = 1,
   `TOPOLOGY
 )(
   input clk,
   input reset,
   input longint unsigned clocks,
-  input rv_tester_params::pmu_event_t pmu_event[rv_tester_params::EVENT_COUNT],
-  input rv_tester_params::rvfi_t rvfi[topology.TOP.CLUSTER.CORE.NRET],
+  input pmci_t pmci,
+  input rvfi_t [NRET-1:0] rvfi,
   input bit terminate,
   `RV_TESTER_TRANSACTIONS_OUTPUT_PMU
 );
@@ -20,7 +23,7 @@ module pmu #(
     always @(posedge clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */
-            location = cvm_topology::get_location(topology.TOP.PLATFORM.PMU.ID, 0);
+            location = cvm_topology::get_location(topology.TOP.PLATFORM.PMCI.ID, NUM);
             perf_enabled = (cvm_plusargs::get_bool("perf") != '0) & (location != cvm_topology::nil);
             period = cvm_plusargs::get_ulongint("sync_pmcounters_period");
             /* verilator lint_on BLKSEQ */
@@ -29,13 +32,13 @@ module pmu #(
 
     longint unsigned cpu_cycles = 0;
     longint unsigned instructions = 0;
-    longint unsigned pmcounter [rv_tester_params::EVENT_COUNT] = '{default:0};
+    longint unsigned pmcounter [EVENT_COUNT] = '{default:0};
 
     always @(posedge clk) begin
         if (!reset) begin
             automatic longint unsigned total = 0;
             // fold
-            for (integer n = 0; n < topology.TOP.CLUSTER.CORE.NRET; n++) begin
+            for (integer n = 0; n < NRET; n++) begin
                 if (rvfi[n].valid) begin
                     total++;
                 end
@@ -43,8 +46,8 @@ module pmu #(
             cpu_cycles <= clocks;
             instructions <= instructions + total;
             // Count supported events
-            for (integer n = 0; n < rv_tester_params::EVENT_COUNT; n++) begin
-              pmcounter[n] <= pmcounter[n] + {60'h0, pmu_event[n]};
+            for (integer n = 0; n < EVENT_COUNT; n++) begin
+              pmcounter[n] <= pmcounter[n] + {60'h0, pmci[n]};
             end
         end
     end
@@ -53,11 +56,67 @@ module pmu #(
     assign pmcounterss[0].data.location = location;
     assign pmcounterss[0].data.cpu_cycles = cpu_cycles;
     assign pmcounterss[0].data.instructions = instructions;
-    assign pmcounterss[0].data.itlb_read_access = pmcounter[rv_tester_params::ITLB_READ_ACCESS];
-    assign pmcounterss[0].data.itlb_read_miss = pmcounter[rv_tester_params::ITLB_READ_MISS];
-    assign pmcounterss[0].data.l1i_read_access = pmcounter[rv_tester_params::L1I_READ_ACCESS];
-    assign pmcounterss[0].data.l1i_read_miss = pmcounter[rv_tester_params::L1I_READ_MISS];
-    assign pmcounterss[0].data.l1d_read_access = pmcounter[rv_tester_params::L1D_READ_ACCESS];
-    assign pmcounterss[0].data.l1d_write_access = pmcounter[rv_tester_params::L1D_WRITE_ACCESS];
+    assign pmcounterss[0].data.cache_references = pmcounter[CACHE_REFERENCES];
+    assign pmcounterss[0].data.cache_misses = pmcounter[CACHE_MISSES];
+    assign pmcounterss[0].data.branch_instructions = pmcounter[BRANCH_INSTRUCTIONS];
+    assign pmcounterss[0].data.branch_misses = pmcounter[BRANCH_MISSES];
+    assign pmcounterss[0].data.bus_cycles = pmcounter[BUS_CYCLES];
+    assign pmcounterss[0].data.stalled_cycles_frontend = pmcounter[STALLED_CYCLES_FRONTEND];
+    assign pmcounterss[0].data.stalled_cycles_backend = pmcounter[STALLED_CYCLES_BACKEND];
+    assign pmcounterss[0].data.ref_cpu_cycles = pmcounter[REF_CPU_CYCLES];
+    assign pmcounterss[0].data.l1d_read_access = pmcounter[L1D_READ_ACCESS];
+    assign pmcounterss[0].data.l1d_read_miss = pmcounter[L1D_READ_MISS];
+    assign pmcounterss[0].data.l1d_write_access = pmcounter[L1D_WRITE_ACCESS];
+    assign pmcounterss[0].data.l1d_write_miss = pmcounter[L1D_WRITE_MISS];
+    assign pmcounterss[0].data.l1d_prefetch_access = pmcounter[L1D_PREFETCH_ACCESS];
+    assign pmcounterss[0].data.l1d_prefetch_miss = pmcounter[L1D_PREFETCH_MISS];
+    assign pmcounterss[0].data.l1i_read_access = pmcounter[L1I_READ_ACCESS];
+    assign pmcounterss[0].data.l1i_read_miss = pmcounter[L1I_READ_MISS];
+    assign pmcounterss[0].data.l1i_write_access = pmcounter[L1I_WRITE_ACCESS];
+    assign pmcounterss[0].data.l1i_write_miss = pmcounter[L1I_WRITE_MISS];
+    assign pmcounterss[0].data.l1i_prefetch_access = pmcounter[L1I_PREFETCH_ACCESS];
+    assign pmcounterss[0].data.l1i_prefetch_miss = pmcounter[L1I_PREFETCH_MISS];
+    assign pmcounterss[0].data.ll_read_access = pmcounter[LL_READ_ACCESS];
+    assign pmcounterss[0].data.ll_read_miss = pmcounter[LL_READ_MISS];
+    assign pmcounterss[0].data.ll_write_access = pmcounter[LL_WRITE_ACCESS];
+    assign pmcounterss[0].data.ll_write_miss = pmcounter[LL_WRITE_MISS];
+    assign pmcounterss[0].data.ll_prefetch_access = pmcounter[LL_PREFETCH_ACCESS];
+    assign pmcounterss[0].data.ll_prefetch_miss = pmcounter[LL_PREFETCH_MISS];
+    assign pmcounterss[0].data.dtlb_read_access = pmcounter[DTLB_READ_ACCESS];
+    assign pmcounterss[0].data.dtlb_read_miss = pmcounter[DTLB_READ_MISS];
+    assign pmcounterss[0].data.dtlb_write_access = pmcounter[DTLB_WRITE_ACCESS];
+    assign pmcounterss[0].data.dtlb_write_miss = pmcounter[DTLB_WRITE_MISS];
+    assign pmcounterss[0].data.dtlb_prefetch_access = pmcounter[DTLB_PREFETCH_ACCESS];
+    assign pmcounterss[0].data.dtlb_prefetch_miss = pmcounter[DTLB_PREFETCH_MISS];
+    assign pmcounterss[0].data.itlb_read_access = pmcounter[ITLB_READ_ACCESS];
+    assign pmcounterss[0].data.itlb_read_miss = pmcounter[ITLB_READ_MISS];
+    assign pmcounterss[0].data.itlb_write_access = pmcounter[ITLB_WRITE_ACCESS];
+    assign pmcounterss[0].data.itlb_write_miss = pmcounter[ITLB_WRITE_MISS];
+    assign pmcounterss[0].data.itlb_prefetch_access = pmcounter[ITLB_PREFETCH_ACCESS];
+    assign pmcounterss[0].data.itlb_prefetch_miss = pmcounter[ITLB_PREFETCH_MISS];
+    assign pmcounterss[0].data.bpu_write_access = pmcounter[BPU_WRITE_ACCESS];
+    assign pmcounterss[0].data.l1d_cache_invalidate = pmcounter[L1D_CACHE_INVALIDATE];
+    assign pmcounterss[0].data.stalls_mem_l1d_miss = pmcounter[STALLS_MEM_L1D_MISS];
+    assign pmcounterss[0].data.stalls_mem_l1d_miss_l2_miss = pmcounter[STALLS_MEM_L1D_MISS_L2_MISS];
+    assign pmcounterss[0].data.stalls_mem_any = pmcounter[STALLS_MEM_ANY];
+    assign pmcounterss[0].data.stalls_mem_l1i_miss = pmcounter[STALLS_MEM_L1I_MISS];
+    assign pmcounterss[0].data.stalls_mem_l1dtlb_miss = pmcounter[STALLS_MEM_L1DTLB_MISS];
+    assign pmcounterss[0].data.nfp_mispredict = pmcounter[NFP_MISPREDICT];
+    assign pmcounterss[0].data.br_immed_spec = pmcounter[BR_IMMED_SPEC];
+    assign pmcounterss[0].data.br_indirect_spec = pmcounter[BR_INDIRECT_SPEC];
+    assign pmcounterss[0].data.br_ret_spec = pmcounter[BR_RET_SPEC];
+    assign pmcounterss[0].data.ld_spec = pmcounter[LD_SPEC];
+    assign pmcounterss[0].data.st_spec = pmcounter[ST_SPEC];
+    assign pmcounterss[0].data.int_spec = pmcounter[INT_SPEC];
+    assign pmcounterss[0].data.fp_spec = pmcounter[FP_SPEC];
+    assign pmcounterss[0].data.uop_issued = pmcounter[UOP_ISSUED];
+    assign pmcounterss[0].data.total_uops_flushed = pmcounter[TOTAL_UOPS_FLUSHED];
+    assign pmcounterss[0].data.total_ind_br_retired = pmcounter[TOTAL_IND_BR_RETIRED];
+    assign pmcounterss[0].data.total_ind_br_retired_mispred = pmcounter[TOTAL_IND_BR_RETIRED_MISPRED];
+    assign pmcounterss[0].data.lsu_resyncs = pmcounter[LSU_RESYNCS];
+    assign pmcounterss[0].data.load_misal_accesses = pmcounter[LOAD_MISAL_ACCESSES];
+    assign pmcounterss[0].data.store_misal_accesses = pmcounter[STORE_MISAL_ACCESSES];
+    assign pmcounterss[0].data.stlf_hits = pmcounter[STLF_HITS];
+    assign pmcounterss[0].data.vector_busy_cycles = pmcounter[VECTOR_BUSY_CYCLES];
 
 endmodule

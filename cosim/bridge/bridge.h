@@ -16,6 +16,7 @@
 
 #include "whisper_client.h"
 
+
 class bridge : public bridge_base {
 
 using src_t = cac::src_t;
@@ -25,7 +26,7 @@ using size_8_bytes_t = cac::size_8_bytes_t;
 using CacCore = cac::CacCore;
 
 public:
-  bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc);
+  bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsigned id);
   ~bridge();
 
   // DUT Interface API
@@ -105,6 +106,7 @@ private:
   bool does_prev_instr_match_resynch_list(const whisper_state_t& w);
   bool does_instr_match_resynch_condition(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
   bool clint_read(const rv_instr_t& d);
+  bool debug_mem_access(const rv_instr_t& d);
   bool htif_read(const rv_instr_t& d);
   bool hpm_counter_read(const whisper_state_t& w);
   bool lrsc_fail(const whisper_state_t& w);
@@ -115,14 +117,13 @@ private:
 
 private:
 
-  std::unique_ptr<whisperClient<uint64_t>> client_;
-
   cvm::file_logger log;
+  cvm::topology::loc_t loc_;
+  unsigned id_;
 
   int num_harts_ = 0;
   int xlen_ = 0;
   int vlen_ = 0;
-  cvm::topology::loc_t loc_;
   CacCore cac_;
 
   // Previous instruction's whisper state per-hart
@@ -139,7 +140,7 @@ private:
   // State variables
   bool ecall_ = false;
   bool debug_mode_ = false;
-
+  bool excp_in_debug_mode = false;
   uint64_t satp_ = 0;
   uint64_t new_satp_ = 0;
 
