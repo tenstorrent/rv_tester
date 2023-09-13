@@ -111,7 +111,7 @@ cc_library(
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/axi-wrapper.git",
     )
 
-    axi_llc_wrapper_hash="c32513b99e71d0365119bdae584ff9c6ad3f276c"
+    axi_llc_wrapper_hash="147b00ca863faeef96633615564bdaaa9cbb5106"
     maybe(
         git_repository,
         name = "axi_llc-wrapper",
