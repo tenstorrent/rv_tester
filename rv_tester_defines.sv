@@ -343,10 +343,10 @@ package rv_tester_params;
     output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NINSERTS-1:0] mcmi_insert,    \
     output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NWRITES-1:0]  mcmi_write,     \
     output rv_tester_params::pmci_t          pmci         [rv_tester_params::NHARTS-1:0],           \
-    output slv_req_top 			     [rv_tester_params::AXI_TOTAL-1:0] 	    axi_req ,        \
-    input  slv_resp_top		             [rv_tester_params::AXI_TOTAL-1:0]      axi_rsp  ,        \
-    input  mst_req_top			     [rv_tester_params::AXI_MST_TOTAL-1:0] axi_req_mst  ,    \
-    output mst_resp_top			     [rv_tester_params::AXI_MST_TOTAL-1:0] axi_rsp_mst 
+    output rv_tester_params::slv_req_top     [rv_tester_params::AXI_TOTAL-1:0] 	    axi_req ,        \
+    input  rv_tester_params::slv_resp_top    [rv_tester_params::AXI_TOTAL-1:0]      axi_rsp  ,        \
+    input  rv_tester_params::mst_req_top     [rv_tester_params::AXI_MST_TOTAL-1:0] axi_req_mst  ,    \
+    output rv_tester_params::mst_resp_top    [rv_tester_params::AXI_MST_TOTAL-1:0] axi_rsp_mst 
 
 
 `define RV_TESTER_VARS(topology)                                                                    \
@@ -371,10 +371,10 @@ package rv_tester_params;
     rv_tester_params::mcmi_t                 [rv_tester_params::TOTAL_NINSERTS-1:0]  mcmi_insert;   \
     rv_tester_params::mcmi_t                 [rv_tester_params::TOTAL_NWRITES-1:0]   mcmi_write;    \
     rv_tester_params::pmci_t                 pmci          [rv_tester_params::NHARTS-1:0];          \
-    slv_req_top	                             [rv_tester_params::AXI_TOTAL-1:0]      axi_req;        \
-    slv_resp_top                             [rv_tester_params::AXI_TOTAL-1:0]      axi_rsp;        \
-    mst_req_top                              [rv_tester_params::AXI_MST_TOTAL-1:0] axi_req_mst;    \
-    mst_resp_top                             [rv_tester_params::AXI_MST_TOTAL-1:0] axi_rsp_mst;
+    rv_tester_params::slv_req_top            [rv_tester_params::AXI_TOTAL-1:0]      axi_req;        \
+    rv_tester_params::slv_resp_top           [rv_tester_params::AXI_TOTAL-1:0]      axi_rsp;        \
+    rv_tester_params::mst_req_top            [rv_tester_params::AXI_MST_TOTAL-1:0] axi_req_mst;    \
+    rv_tester_params::mst_resp_top           [rv_tester_params::AXI_MST_TOTAL-1:0] axi_rsp_mst;
 
 `define RV_TESTER_PORTS `_RV_TESTER_PORTS(input,output)
 
