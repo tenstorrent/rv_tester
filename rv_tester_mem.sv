@@ -223,10 +223,10 @@ endgenerate
 axi_llc_cfg_regs_d_t     reg_cfg_hw_to_reg;
 axi_llc_cfg_regs_q_t     reg_cfg_reg_to_hw;
 
-assign reg_cfg_reg_to_hw.cfg_spm     = 0;
-assign reg_cfg_reg_to_hw.cfg_flush   = 0;
-assign reg_cfg_reg_to_hw.commit_cfg  = 0;
-assign reg_cfg_reg_to_hw.flushed     = 0;
+assign reg_cfg_reg_to_hw.cfg_spm     = {SetAssociativity_LLC{1'b0}};
+assign reg_cfg_reg_to_hw.cfg_flush   = {SetAssociativity_LLC{1'b0}};
+assign reg_cfg_reg_to_hw.commit_cfg  = 1'b0;
+assign reg_cfg_reg_to_hw.flushed     = {SetAssociativity_LLC{1'b0}};
 
 generate
   if(AxiAddrWidth == 32) begin
@@ -234,7 +234,7 @@ generate
     .SetAssociativity         ( SetAssociativity_LLC ),
     .NumLines                 ( NumLines_LLC ),
     .NumBlocks                ( NumBlocks_LLC ),
-    .AxiIdWidth               ( AxiIdWidth ),
+    .AxiIdWidth               ( AxiIdWidthMst ),
     .AxiAddrWidth             ( AxiAddrWidth ),
     .AxiDataWidth             ( AxiDataWidth ),
     .AxiUserWidth             ( AxiUserWidth ),
@@ -270,7 +270,7 @@ end else begin
     .SetAssociativity         ( SetAssociativity_LLC ),
     .NumLines                 ( NumLines_LLC ),
     .NumBlocks                ( NumBlocks_LLC ),
-    .AxiIdWidth               ( AxiIdWidth ),
+    .AxiIdWidth               ( AxiIdWidthMst ),
     .AxiAddrWidth             ( AxiAddrWidth ),
     .AxiDataWidth             ( AxiDataWidth ),
     .AxiUserWidth             ( AxiUserWidth ),
