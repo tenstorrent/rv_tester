@@ -436,7 +436,7 @@ rv_tester_mem #(
 .mst_resp_t             ( mst_resp_rv )
 ) inst(
 .clk                    ( clk ),
-.rst_n                  ( reset ),
+.rst_n                  ( ~reset ),
 .axi_req                ( axi_req ),
 .axi_resp               ( axi_rsp ),
 .axi_req_mst            ( axi_req_llc ),
