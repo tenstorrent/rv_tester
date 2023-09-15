@@ -79,46 +79,35 @@ localparam axi_pkg::xbar_cfg_t xbar_cfg = '{
 
 
 
-typedef axi_pkg::xbar_rule_64_t         rule_t_64; // Has to be the same width as axi addr
 
-localparam rule_t_64 [xbar_cfg.NoAddrRules-1:0] AddrMap_64 = addr_map_gen_64();
+typedef struct packed {
+    int unsigned idx;
+    logic [AxiAddrWidth-1:0] start_addr;
+    logic [AxiAddrWidth-1:0] end_addr;
+  } xbar_rule_t;
 
-//assumed only one slave here
-function rule_t_64 [xbar_cfg.NoAddrRules-1:0] addr_map_gen_64 ();
+//addr_map#(AxiAddrWidth) amap;
+
+localparam xbar_rule_t [xbar_cfg.NoAddrRules-1:0] AddrMap = addr_map_gen();
+localparam int unsigned PADDING1 = AxiAddrWidth-1;
+localparam int unsigned PADDING2 = AxiAddrWidth-32;
+function xbar_rule_t [xbar_cfg.NoAddrRules-1:0] addr_map_gen ();
     for (int unsigned i = 0; i < xbar_cfg.NoAddrRules; i++) begin
-      addr_map_gen_64[i] = rule_t_64'{
+      addr_map_gen[i] = xbar_rule_t'{
         idx:        unsigned'(i),
-        start_addr:  i    * 64'h0000_0000_0000_0000,
-        end_addr:   ({32'b0,i}+64'd1) * 64'hffff_ffff_ffff_ffff,
+        start_addr:  i    * {AxiAddrWidth{1'b1}},
+        end_addr:   ({{PADDING2{1'b0}},i}+{{PADDING1{1'h0}},1'b1}) * {AxiAddrWidth{1'b1}},
         default:    '0
       };
     end
 endfunction
-
-typedef axi_pkg::xbar_rule_32_t         rule_t_32; // Has to be the same width as axi addr
-
-localparam rule_t_32 [xbar_cfg.NoAddrRules-1:0] AddrMap_32 = addr_map_gen_32();
-
-//assumed only one slave here
-function rule_t_32 [xbar_cfg.NoAddrRules-1:0] addr_map_gen_32 ();
-    for (int unsigned i = 0; i < xbar_cfg.NoAddrRules; i++) begin
-      addr_map_gen_32[i] = rule_t_32'{
-        idx:        unsigned'(i),
-        start_addr:  i    * 32'h0000_0000,
-        end_addr:   (i+32'd1) * 32'hffff_ffff,
-        default:    '0
-      };
-    end
-endfunction
-
 
 //for LLC 
 //Address ranges
 typedef logic [AxiAddrWidth-1:0] axi_addr_t;
 localparam axi_addr_t SpmRegionStart     = axi_addr_t'(0);
-localparam axi_addr_t SpmRegionLength    = axi_addr_t'(SetAssociativity_LLC * NumLines_LLC * NumBlocks_LLC * AxiDataWidth / 64'd8);
-localparam axi_addr_t CachedRegionStart  = axi_addr_t'(32'h8000_0000);
-localparam axi_addr_t CachedRegionLength = axi_addr_t'(2*SpmRegionLength);
+localparam axi_addr_t CachedRegionStart  = axi_addr_t'({AxiAddrWidth{1'b0}});
+localparam axi_addr_t CachedRegionEnd  = axi_addr_t'({AxiAddrWidth{1'b1}});
 axi_llc_pkg::events_t llc_events;
 
 //////////////////////////////////////////
@@ -148,8 +137,6 @@ typedef logic [AxiUserWidth-1:0] user_xbar;
 mst_req_xbar llc_req_t;
 mst_resp_xbar llc_resp_t;
 
-generate
-if(AxiAddrWidth == 32) begin
   axi_xbar #(
     .Cfg  (xbar_cfg),
     .slv_aw_chan_t  ( slv_aw_chan_xbar ),
@@ -165,7 +152,7 @@ if(AxiAddrWidth == 32) begin
     .slv_resp_t     ( slv_resp_t    ),
     .mst_req_t      ( mst_req_xbar     ),
     .mst_resp_t     ( mst_resp_xbar    ),
-    .rule_t         ( rule_t_32        )
+    .rule_t         ( xbar_rule_t        )
   ) i_xbar (
     .clk_i                  ( clk ),
     .rst_ni                 ( rst_n ),
@@ -174,41 +161,10 @@ if(AxiAddrWidth == 32) begin
     .slv_ports_resp_o       ( axi_resp ),
     .mst_ports_req_o        ( llc_req_t ),
     .mst_ports_resp_i       ( llc_resp_t ),
-    .addr_map_i             ( AddrMap_32 ),
+    .addr_map_i             ( AddrMap ),
     .en_default_mst_port_i  ( '0 ),
     .default_mst_port_i     ( '0 )
   );
-end else begin
-  axi_xbar #(
-    .Cfg  (xbar_cfg),
-    .slv_aw_chan_t  ( slv_aw_chan_xbar ),
-    .mst_aw_chan_t  ( mst_aw_chan_xbar ),
-    .w_chan_t       ( w_chan_xbar      ),
-    .slv_b_chan_t   ( slv_b_chan_xbar  ),
-    .mst_b_chan_t   ( mst_b_chan_xbar  ),
-    .slv_ar_chan_t  ( slv_ar_chan_xbar ),
-    .mst_ar_chan_t  ( mst_ar_chan_xbar ),
-    .slv_r_chan_t   ( slv_r_chan_xbar  ),
-    .mst_r_chan_t   ( mst_r_chan_xbar  ),
-    .slv_req_t      ( slv_req_t     ),
-    .slv_resp_t     ( slv_resp_t    ),
-    .mst_req_t      ( mst_req_xbar     ),
-    .mst_resp_t     ( mst_resp_xbar    ),
-    .rule_t         ( rule_t_64        )
-  ) i_xbar (
-    .clk_i                  ( clk ),
-    .rst_ni                 ( rst_n ),
-    .test_i                 ( 1'b0 ),
-    .slv_ports_req_i        ( axi_req ),
-    .slv_ports_resp_o       ( axi_resp ),
-    .mst_ports_req_o        ( llc_req_t ),
-    .mst_ports_resp_i       ( llc_resp_t ),
-    .addr_map_i             ( AddrMap_64 ),
-    .en_default_mst_port_i  ( '0 ),
-    .default_mst_port_i     ( '0 )
-  );
-  end
-endgenerate
 ///////////////////////////////////////////
 
 
@@ -222,14 +178,30 @@ endgenerate
 
 axi_llc_cfg_regs_d_t     reg_cfg_hw_to_reg;
 axi_llc_cfg_regs_q_t     reg_cfg_reg_to_hw;
+reg commit, cnt;
 
 assign reg_cfg_reg_to_hw.cfg_spm     = {SetAssociativity_LLC{1'b0}};
 assign reg_cfg_reg_to_hw.cfg_flush   = {SetAssociativity_LLC{1'b0}};
-assign reg_cfg_reg_to_hw.commit_cfg  = 1'b0;
+assign reg_cfg_reg_to_hw.commit_cfg  = commit;
 assign reg_cfg_reg_to_hw.flushed     = {SetAssociativity_LLC{1'b0}};
 
-generate
-  if(AxiAddrWidth == 32) begin
+
+always@(posedge clk) begin
+if(!rst_n) begin
+	commit <= 0;
+	cnt <= 0;
+end else begin
+	if(cnt == 0) begin
+		commit <= 1;
+		cnt <= 1;
+	end else begin
+		commit <= 0;
+		cnt <= cnt;	
+	end 
+end
+end		
+
+
     axi_llc_top #(
     .SetAssociativity         ( SetAssociativity_LLC ),
     .NumLines                 ( NumLines_LLC ),
@@ -245,7 +217,7 @@ generate
     .slv_resp_t               ( mst_resp_xbar ),
     .mst_req_t                ( mst_req_t ),
     .mst_resp_t               ( mst_resp_t ),
-    .rule_full_t              ( axi_pkg::xbar_rule_32_t ),
+    .rule_full_t              ( xbar_rule_t ),
     .PrintSramCfg             ( 0 ),
     .PrintLlcCfg              ( 0 ),
     .axi_addr_t               ( logic[AxiAddrWidth-1:0] ),
@@ -261,48 +233,10 @@ generate
     .conf_regs_i          ( reg_cfg_reg_to_hw ),
     .conf_regs_o          ( reg_cfg_hw_to_reg ), 
     .cached_start_addr_i  ( CachedRegionStart ),
-    .cached_end_addr_i    ( CachedRegionStart + CachedRegionLength ),
+    .cached_end_addr_i    ( CachedRegionEnd ),
     .spm_start_addr_i     ( SpmRegionStart ), 
     .axi_llc_events_o     ( llc_events )
   );
-end else begin
-  axi_llc_top #(
-    .SetAssociativity         ( SetAssociativity_LLC ),
-    .NumLines                 ( NumLines_LLC ),
-    .NumBlocks                ( NumBlocks_LLC ),
-    .AxiIdWidth               ( AxiIdWidthMst ),
-    .AxiAddrWidth             ( AxiAddrWidth ),
-    .AxiDataWidth             ( AxiDataWidth ),
-    .AxiUserWidth             ( AxiUserWidth ),
-    .RegWidth                 ( RegWidth_LLC ),
-    .conf_regs_d_t            ( axi_llc_cfg_regs_d_t ),
-    .conf_regs_q_t            ( axi_llc_cfg_regs_q_t ),
-    .slv_req_t                ( mst_req_xbar ),
-    .slv_resp_t               ( mst_resp_xbar ),
-    .mst_req_t                ( mst_req_t ),
-    .mst_resp_t               ( mst_resp_t ),
-    .rule_full_t              ( axi_pkg::xbar_rule_64_t ),
-    .PrintSramCfg             ( 0 ),
-    .PrintLlcCfg              ( 0 ),
-    .axi_addr_t               ( logic[AxiAddrWidth-1:0] ),
-    .way_ind_t                ( logic[SetAssociativity_LLC-1:0] )
-  ) llc(
-    .clk_i                ( clk ),
-    .rst_ni               ( rst_n ),
-    .test_i               ( 1'b0 ),
-    .slv_req_i            ( llc_req_t ), 
-    .slv_resp_o           ( llc_resp_t ),
-    .mst_req_o            ( axi_req_mst ),
-    .mst_resp_i           ( axi_resp_mst ),
-    .conf_regs_i          ( reg_cfg_reg_to_hw ),
-    .conf_regs_o          ( reg_cfg_hw_to_reg ), 
-    .cached_start_addr_i  ( CachedRegionStart ),
-    .cached_end_addr_i    ( CachedRegionStart + CachedRegionLength ),
-    .spm_start_addr_i     ( SpmRegionStart ), 
-    .axi_llc_events_o     ( llc_events )
-  );
-end
-endgenerate
 
 
 
