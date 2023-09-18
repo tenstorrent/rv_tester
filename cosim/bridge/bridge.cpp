@@ -52,9 +52,7 @@ DEFINE_bool(whisper_log, true, "Enable whisper logging to iss_cosim.log and iss_
 DEFINE_bool(whisper_stdin_null, false, "Redirect whisoer stdin to null");
 DEFINE_bool(whisper_stdout_null, false, "Redirect whisoer stdout to null");
 
-std::string traceFile = FLAGS_whisper_log ? "iss_cosim.log" : "";
-std::string commandLog = FLAGS_whisper_log ? "iss_cmd.log" : "";
-std::shared_ptr<whisperClient<uint64_t>> client_ = std::make_shared<whisperClient<uint64_t>>(traceFile, commandLog);
+std::shared_ptr<whisperClient<uint64_t>> client_;
 //std::unique_ptr<whisperClient<uint64_t>> client_;
 // Constructor
 bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsigned id)
@@ -66,6 +64,9 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
     vlen_(vlen),
     cac_(CacCore(num_harts))
 {
+    std::string traceFile = FLAGS_whisper_log ? "iss_cosim.log" : "";
+    std::string commandLog = FLAGS_whisper_log ? "iss_cmd.log" : "";
+    client_ = std::make_shared<whisperClient<uint64_t>>(traceFile, commandLog);
 }
 
 // Destructor
