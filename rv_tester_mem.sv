@@ -22,7 +22,7 @@ parameter int unsigned NumLines_LLC         = 32'd8,
 //number of blocks in per line in cache, needs to power of 2
 parameter int unsigned NumBlocks_LLC        = 32'd256,
 //internal register width
-parameter int unsigned RegWidth_LLC         = 64,
+parameter int unsigned RegWidth_LLC         = 32'd64,
 //set associativity LLC
 parameter int unsigned SetAssociativity_LLC = 32'd1,
 // AXI4+ATOP request struct type for the slave ports.
@@ -86,7 +86,6 @@ typedef struct packed {
     logic [AxiAddrWidth-1:0] end_addr;
   } xbar_rule_t;
 
-//addr_map#(AxiAddrWidth) amap;
 
 localparam xbar_rule_t [xbar_cfg.NoAddrRules-1:0] AddrMap = addr_map_gen();
 localparam int unsigned PADDING1 = AxiAddrWidth-1;
@@ -105,9 +104,9 @@ endfunction
 //for LLC 
 //Address ranges
 typedef logic [AxiAddrWidth-1:0] axi_addr_t;
-localparam axi_addr_t SpmRegionStart     = axi_addr_t'(0);
-localparam axi_addr_t CachedRegionStart  = axi_addr_t'({AxiAddrWidth{1'b0}});
-localparam axi_addr_t CachedRegionEnd  = axi_addr_t'({AxiAddrWidth{1'b1}});
+localparam axi_addr_t SpmRegionStart     = {AxiAddrWidth{1'b0}};
+localparam axi_addr_t CachedRegionStart  = {AxiAddrWidth{1'b0}};
+localparam axi_addr_t CachedRegionEnd  = {AxiAddrWidth{1'b1}};
 axi_llc_pkg::events_t llc_events;
 
 //////////////////////////////////////////
