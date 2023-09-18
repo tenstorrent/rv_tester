@@ -185,7 +185,7 @@ assign reg_cfg_reg_to_hw.commit_cfg  = commit;
 assign reg_cfg_reg_to_hw.flushed     = {SetAssociativity_LLC{1'b0}};
 
 
-always@(posedge clk) begin
+always@(posedge clk or negedge rst_n) begin
 if(!rst_n) begin
 	commit <= 0;
 	cnt <= 0;
