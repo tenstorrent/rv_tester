@@ -37,7 +37,7 @@ DEFINE_bool(gpr_check, true, "Enable cosim checks on gprs");
 DEFINE_bool(fpr_check, true, "Enable cosim checks on fprs");
 DEFINE_bool(vec_check, false, "Enable cosim checks on vector regs");
 DEFINE_bool(csr_check, false, "Enable cosim checks on csrs");
-DEFINE_int32(max_cycle, 1000000, "Max cycle limit to terminate the sim");
+DEFINE_uint64(max_cycle, 1000000, "Max cycle limit to terminate the sim");
 DEFINE_int32(debug_excp_mcause, 24, "MCAUSE value for debug exception");
 DEFINE_int32(max_stall_cycle, 50000, "Max stall cycle limit to terminate the sim");
 DEFINE_bool(translation_check, false, "Do VA-PA translation check");

@@ -162,14 +162,14 @@ import rv_tester_params::*;
 
     // Timeout checks
     int max_stall_cycle = 50000;
-    int max_cycle;
+    longint unsigned max_cycle;
     int cycles_since_retire;
 
     always @(posedge clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */
             max_cycle = cvm_plusargs::get_int("max_cycle");
-            max_stall_cycle = cvm_plusargs::get_int("max_stall_cycle");
+            max_stall_cycle = cvm_plusargs::get_ulongint("max_stall_cycle");
             /* verilator lint_on BLKSEQ */
             cycles_since_retire <= 0;
         end else begin
@@ -181,7 +181,7 @@ import rv_tester_params::*;
               $display("Error: Hart%0d: No instruction retired for max_stall_cycle (%0d) cycles", NUM, max_stall_cycle);
               cosim_terminate();
             end
-            if (max_cycle > 0 && clocks > LU'(max_cycle)) begin
+            if (max_cycle > 0 && clocks > max_cycle) begin
               $display("Error:Hart%0d:  Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", NUM, max_cycle);
               cosim_terminate();
             end
