@@ -168,8 +168,8 @@ import rv_tester_params::*;
     always @(posedge clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */
-            max_cycle = cvm_plusargs::get_int("max_cycle");
-            max_stall_cycle = cvm_plusargs::get_ulongint("max_stall_cycle");
+            max_cycle = cvm_plusargs::get_ulongint("max_cycle");
+            max_stall_cycle = cvm_plusargs::get_int("max_stall_cycle");
             /* verilator lint_on BLKSEQ */
             cycles_since_retire <= 0;
         end else begin
