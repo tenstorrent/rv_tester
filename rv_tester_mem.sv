@@ -177,12 +177,13 @@ mst_resp_xbar llc_resp_t;
 
 axi_llc_cfg_regs_d_t     reg_cfg_hw_to_reg;
 axi_llc_cfg_regs_q_t     reg_cfg_reg_to_hw;
-reg commit, cnt;
+reg commit;
+reg [3:0]cnt;
 
 assign reg_cfg_reg_to_hw.cfg_spm     = {SetAssociativity_LLC{1'b0}};
 assign reg_cfg_reg_to_hw.cfg_flush   = {SetAssociativity_LLC{1'b0}};
 assign reg_cfg_reg_to_hw.commit_cfg  = commit;
-assign reg_cfg_reg_to_hw.flushed     = {SetAssociativity_LLC{1'b0}};
+//assign reg_cfg_reg_to_hw.flushed     = {SetAssociativity_LLC{1'b0}};
 
 
 always@(posedge clk or negedge rst_n) begin
@@ -190,9 +191,9 @@ if(!rst_n) begin
 	commit <= 0;
 	cnt <= 0;
 end else begin
-	if(cnt == 0) begin
+	if(cnt <= 10) begin
 		commit <= 1;
-		cnt <= 1;
+		cnt <= cnt + 1;
 	end else begin
 		commit <= 0;
 		cnt <= cnt;	
@@ -218,9 +219,7 @@ end
     .mst_resp_t               ( mst_resp_t ),
     .rule_full_t              ( xbar_rule_t ),
     .PrintSramCfg             ( 0 ),
-    .PrintLlcCfg              ( 0 ),
-    .axi_addr_t               ( logic[AxiAddrWidth-1:0] ),
-    .way_ind_t                ( logic[SetAssociativity_LLC-1:0] )
+    .PrintLlcCfg              ( 0 )
   ) llc(
     .clk_i                ( clk ),
     .rst_ni               ( rst_n ),
@@ -234,7 +233,7 @@ end
     .cached_start_addr_i  ( CachedRegionStart ),
     .cached_end_addr_i    ( CachedRegionEnd ),
     .spm_start_addr_i     ( SpmRegionStart ), 
-    .axi_llc_events_o     ( llc_events )
+    .axi_llc_events_o     ( )
   );
 
 
