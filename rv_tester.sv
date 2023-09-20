@@ -52,7 +52,7 @@ import rv_tester_params::*;
 
     assign terminate           = (rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any) && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
     assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout);
-    assign rerun_now           = terminated && num_reruns != 0;
+    assign rerun_now           = terminated && num_reruns > 0;
 
     /*
     * Don't put an DPI calls here, zebu gets confused when signals are driven
@@ -69,6 +69,12 @@ import rv_tester_params::*;
         quiesce_counter <= quiesce_counter + int'(terminate);
         terminated      <= (terminate_now || terminated) && !rerun_now;
 
+        for (int i=0; i<NHARTS; i++) begin
+            if (cosim_terminate[i].terminate) begin
+              cosim_terminate_any <= '1;
+            end
+        end
+
         if (rv_tester_reset) begin
             clocks          <= '0;
             sysmod_reset    <= '1;
@@ -77,11 +83,6 @@ import rv_tester_params::*;
             cosim_terminate_any <= '0;
         end
 
-        for (int i=0; i<NHARTS; i++) begin
-            if (cosim_terminate[i].terminate) begin
-              cosim_terminate_any <= '1;
-            end
-        end
     end
 
     always @(posedge clk) begin
