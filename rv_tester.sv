@@ -38,7 +38,8 @@ import rv_tester_params::*;
     logic rerun_now;
     rv_tester_pkg::terminate_t rv_tester_error_terminate;
     rv_tester_pkg::terminate_t sysmod_terminate;
-    rv_tester_pkg::terminate_t cosim_terminate;
+    rv_tester_pkg::terminate_t cosim_terminate [NHARTS-1:0];
+    logic cosim_terminate_any = '0;
 
     int quiesce_counter = 0;
     int quiesce_timeout = 500;
@@ -49,7 +50,7 @@ import rv_tester_params::*;
     string cvm_verbosity_string, gen_clocks_verbosity_string;
     int unsigned cvm_verbosity, gen_clocks_verbosity;
 
-    assign terminate           = (rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate.terminate) && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
+    assign terminate           = (rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any) && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
     assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout);
     assign rerun_now           = terminated && num_reruns != 0;
 
@@ -73,8 +74,14 @@ import rv_tester_params::*;
             sysmod_reset    <= '1;
             quiesce_counter <= '0;
             terminated      <= '0;
+            cosim_terminate_any <= '0;
         end
 
+        for (int i=0; i<NHARTS; i++) begin
+            if (cosim_terminate[i].terminate) begin
+              cosim_terminate_any <= '1;
+            end
+        end
     end
 
     always @(posedge clk) begin
@@ -256,7 +263,7 @@ import rv_tester_params::*;
           .mcmi_write(mcmi_write[NWRITES_CUMSUM[c] +: NWRITES[c]]),
           .interrupt(interrupt[c]),
           .debug_mode(debug_mode[c]),
-          .terminate(cosim_terminate),
+          .terminate(cosim_terminate[c]),
           `RV_TESTER_TRANSACTIONS_SOURCE_COSIM(1, c)
       );
     end
