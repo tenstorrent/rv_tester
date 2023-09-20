@@ -245,6 +245,7 @@ import rv_tester_params::*;
           .NREAD(NREADS[c]),
           .NINSERT(NINSERTS[c]),
           .NWRITE(NWRITES[c]),
+          .NBYPWRITE(NBYPWRITES[c]),
           `TOPOLOGY_CFG
       ) cosim (
           .clk,
@@ -254,6 +255,7 @@ import rv_tester_params::*;
           .mcmi_read(mcmi_read[NREADS_CUMSUM[c] +: NREADS[c]]),
           .mcmi_insert(mcmi_insert[NINSERTS_CUMSUM[c] +: NINSERTS[c]]),
           .mcmi_write(mcmi_write[NWRITES_CUMSUM[c] +: NWRITES[c]]),
+          .mcmi_bypass_write(mcmi_bypass_write[NBYPWRITES_CUMSUM[c] +: NBYPWRITES[c]]),
           .interrupt(interrupt[c]),
           .debug_mode(debug_mode[c]),
           .terminate(cosim_terminate),

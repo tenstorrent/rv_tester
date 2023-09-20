@@ -54,22 +54,22 @@ void eot::process(const rv_tester_transactions::cosim::m_rvfi& m_rvfi) {
   }
 }
 
-void eot::process(const rv_tester_transactions::cosim::m_mcmi_insert& m_mcmi_insert) {
+void eot::process_tohost(std::tuple<uint64_t,uint64_t,uint64_t> w) {
 
   if (ended_)
       return;
 
-  if (tohost_addr_ != m_mcmi_insert.addr)
+  if (tohost_addr_ != std::get<1>(w))
     return;
 
-  if (tohost_status_ != (m_mcmi_insert.data & 0x1))
+  if (tohost_status_ != (std::get<2>(w) & 0x1))
     return;
 
-  if (tohost_device_syscall_ != ((m_mcmi_insert.data >> 56) & 0xff))
+  if (tohost_device_syscall_ != ((std::get<2>(w) >> 56) & 0xff))
     return;
 
-  uint64_t cycle = m_mcmi_insert.cycle;
-  uint64_t exit_code = (m_mcmi_insert.data >> 1) & 0x7fffffffffff;
+  uint64_t cycle = std::get<0>(w);
+  uint64_t exit_code = (std::get<2>(w) >> 1) & 0x7fffffffffff;
 
 
   ended_ = true;
@@ -87,3 +87,12 @@ void eot::process(const rv_tester_transactions::cosim::m_mcmi_insert& m_mcmi_ins
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
   }
 }
+
+void eot::process(const rv_tester_transactions::cosim::m_mcmi_insert& m_mcmi_insert) {
+  process_tohost(std::make_tuple(m_mcmi_insert.cycle, m_mcmi_insert.addr, m_mcmi_insert.data));
+}
+
+void eot::process(const rv_tester_transactions::cosim::m_mcmi_bypass_write& m_mcmi_bypass_write) {
+  process_tohost(std::make_tuple(m_mcmi_bypass_write.cycle, m_mcmi_bypass_write.addr, m_mcmi_bypass_write.data));
+}
+
