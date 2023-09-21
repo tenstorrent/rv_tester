@@ -13,13 +13,16 @@ rv_tester_mcmi_attrs: &rv_tester_mcmi_attrs
   ENABLE: 1
   NREADS: [3]
   NREADS_CUMSUM: [0]
-  NINSERTS: [3]
+  NINSERTS: [4]
   NINSERTS_CUMSUM: [0]
   NWRITES: [3]
   NWRITES_CUMSUM: [0]
+  NBYPWRITES: [3]
+  NBYPWRITES_CUMSUM: [0]
   TOTAL_NREADS: 3
-  TOTAL_NINSERTS: 3
+  TOTAL_NINSERTS: 4
   TOTAL_NWRITES: 3
+  TOTAL_NBYPWRITES: 3
 
 rv_tester_pmci_attrs: &rv_tester_pmci_attrs
   ENABLE: 0

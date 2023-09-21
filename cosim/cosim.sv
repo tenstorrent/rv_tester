@@ -6,6 +6,7 @@ import rv_tester_params::*;
     parameter int NREAD = 1,
     parameter int NINSERT = 1,
     parameter int NWRITE = 1,
+    parameter int NBYPWRITE = 1,
     `TOPOLOGY
 )(
     input clk,
@@ -15,6 +16,7 @@ import rv_tester_params::*;
     input mcmi_t [NREAD-1:0] mcmi_read,
     input mcmi_t [NINSERT-1:0] mcmi_insert,
     input mcmi_t [NWRITE-1:0] mcmi_write,
+    input mcmi_t [NBYPWRITE-1:0] mcmi_bypass_write,
     input rv_tester_pkg::interrupt_t interrupt,
     input debug_mode,
     output rv_tester_pkg::terminate_t terminate,
@@ -114,6 +116,17 @@ import rv_tester_params::*;
         assign m_mcmi_writes[n].data.addr = mcmi_write[n].addr;
         assign m_mcmi_writes[n].data.mask = mcmi_write[n].mask;
         assign m_mcmi_writes[n].data.data = mcmi_write[n].data;
+    end
+
+    // m_mcmi_bypass_write
+    for (genvar n = 0; n < NBYPWRITE; n++) begin
+        assign m_mcmi_bypass_writes[n].valid = MCMI_EN & rvfi_enabled & ~reset & mcmi_bypass_write[n].valid;
+        assign m_mcmi_bypass_writes[n].data.location = location;
+        assign m_mcmi_bypass_writes[n].data.cycle = mcmi_bypass_write[n].valid ? clocks : '0;
+        assign m_mcmi_bypass_writes[n].data.hart = NUM;
+        assign m_mcmi_bypass_writes[n].data.addr = mcmi_bypass_write[n].addr;
+        assign m_mcmi_bypass_writes[n].data.mask = mcmi_bypass_write[n].mask;
+        assign m_mcmi_bypass_writes[n].data.data = mcmi_bypass_write[n].data[63:0];
     end
 
     // m_trap
