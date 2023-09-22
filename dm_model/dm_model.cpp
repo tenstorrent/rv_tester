@@ -36,16 +36,16 @@ debug_module_t::debug_module_t(cvm::topology::loc_t loc, unsigned) : program_buf
 //  rti_remaining(0)
 {
 
-  cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dmi_req>(loc, [this](const auto &v)
+  cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dmi_req<>>(loc, [this](const auto &v)
                                                                               { return this->process(v); });
-  cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dmi_resp>(loc, [this](const auto &v)
+  cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dmi_resp<>>(loc, [this](const auto &v)
                                                                                { return this->process(v); });
 
-  cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dm_load_cmd>(loc, [this](const auto &v)
+  cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dm_load_cmd<>>(loc, [this](const auto &v)
                                                                                   { return this->process(v); });
-  cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dm_load_data>(loc, [this](const auto &v)
+  cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dm_load_data<>>(loc, [this](const auto &v)
                                                                                    { return this->process(v); });
-  cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dm_store>(loc, [this](const auto &v)
+  cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dm_store<>>(loc, [this](const auto &v)
                                                                                { return this->process(v); });
 
   // Define a processor array (for the number of harts)
@@ -71,7 +71,7 @@ debug_module_t::debug_module_t(cvm::topology::loc_t loc, unsigned) : program_buf
   reset();
 }
 
-void debug_module_t::process(const rv_tester_transactions::dm_model::dmi_req &dmi_req)
+void debug_module_t::process(const rv_tester_transactions::dm_model::dmi_req<> &dmi_req)
 {
   uint32_t read_value;
   cvm::log(cvm::HIGH, "Model recieved dmi request: op {:#x} addr {:#x}\n", dmi_req.op, dmi_req.addr);
@@ -98,7 +98,7 @@ void debug_module_t::process(const rv_tester_transactions::dm_model::dmi_req &dm
   }
 }
 
-void debug_module_t::process(const rv_tester_transactions::dm_model::dmi_resp &dmi_resp)
+void debug_module_t::process(const rv_tester_transactions::dm_model::dmi_resp<> &dmi_resp)
 {
   cvm::log(cvm::HIGH, "Seen a response with data: {:#x} and prev req expected:{:#x}\n", dmi_resp.data, req_expect);
   uint32_t actual_data = dmi_resp.data;
@@ -112,7 +112,7 @@ void debug_module_t::process(const rv_tester_transactions::dm_model::dmi_resp &d
   }
 }
 
-void debug_module_t::process(const rv_tester_transactions::dm_model::dm_load_cmd &dm_load_cmd)
+void debug_module_t::process(const rv_tester_transactions::dm_model::dm_load_cmd<> &dm_load_cmd)
 {
   load_req_length = std::ceil(pow(2, dm_load_cmd.size) / 8);
 
@@ -129,7 +129,7 @@ void debug_module_t::process(const rv_tester_transactions::dm_model::dm_load_cmd
   mem_load_check = true;
 }
 
-void debug_module_t::process(const rv_tester_transactions::dm_model::dm_load_data &dm_load_data)
+void debug_module_t::process(const rv_tester_transactions::dm_model::dm_load_data<> &dm_load_data)
 {
   cvm::log(cvm::HIGH, "[{}] Got a load resp for the id:{:#x} and data:{:#x}\n", resp_count, dm_load_data.id, dm_load_data.data);
   resp_count++;
@@ -144,7 +144,7 @@ void debug_module_t::process(const rv_tester_transactions::dm_model::dm_load_dat
   }
 }
 
-void debug_module_t::process(const rv_tester_transactions::dm_model::dm_store &dm_store)
+void debug_module_t::process(const rv_tester_transactions::dm_model::dm_store<> &dm_store)
 {
   cvm::log(cvm::HIGH, "Seen a store req for the address:{:#x} and len:{:#x} and data:{:#x}\n", dm_store.addr, dm_store.len, dm_store.data);
 

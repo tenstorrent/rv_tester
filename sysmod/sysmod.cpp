@@ -40,9 +40,9 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
       loc_,
       [this](svScope s) { return this->set_scope(s); });
 
-  cvm::registry::messenger.connect<rv_tester_transactions::sysmod::tick>(
+  cvm::registry::messenger.connect<rv_tester_transactions::sysmod::tick<>>(
       loc_,
-      [this](const rv_tester_transactions::sysmod::tick& t) { return this->tick(t.advance); });
+      [this](const rv_tester_transactions::sysmod::tick<>& t) { return this->tick(t.advance); });
 
   auto sources = cvm::topology::get_from_type("PLATFORM_TRANSACTOR");
     for (const auto& source : sources) {
@@ -50,12 +50,14 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
             source,
             [this](const auto& w) {
                 // unnecessary but better for catching bugs
+                cvm::log(cvm::DEBUG, "new write request at {:#x}", w.addr);
                 if (this->dev(w.addr))
                     cvm::registry::messenger.signal<device::write_t>(this->loc_, {w});
             });
         cvm::registry::messenger.connect<transactor::read_t>(
             source,
             [this, source](const auto& r) {
+                cvm::log(cvm::DEBUG, "new read request at {:#x}", r.addr);
                 if (this->dev(r.addr))
                     cvm::registry::messenger.signal<device::read_t>(this->loc_, {r, source});
             });
@@ -108,7 +110,7 @@ sysmod::uc_helper_backdoor_write(uc_helper::uc_helper_write_t w) {
          //std::cout << (unsigned )i << ' ';
          cvm::log(cvm::HIGH," {:#x} ",(unsigned)i);
       }
-        
+
     //cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_write strb {} \n",w.strb);
     cvm::log(cvm::FULL, "[SYSMOD] uc_helper_backdoor:write sysmem for addr {:#x}  \n", w.addr);
     transactor::write_t wt;

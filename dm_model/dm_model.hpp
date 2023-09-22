@@ -134,12 +134,12 @@ public:
   // Called when one of the attached harts was reset.
   void proc_reset(unsigned id);
 
-  void process(const rv_tester_transactions::dm_model::dmi_req &dmi_req);
-  void process(const rv_tester_transactions::dm_model::dmi_resp &dmi_resp);
+  void process(const rv_tester_transactions::dm_model::dmi_req<> &dmi_req);
+  void process(const rv_tester_transactions::dm_model::dmi_resp<> &dmi_resp);
 
-  void process(const rv_tester_transactions::dm_model::dm_load_cmd &dm_load_cmd);
-  void process(const rv_tester_transactions::dm_model::dm_load_data &dm_load_data);
-  void process(const rv_tester_transactions::dm_model::dm_store &dm_store);
+  void process(const rv_tester_transactions::dm_model::dm_load_cmd<> &dm_load_cmd);
+  void process(const rv_tester_transactions::dm_model::dm_load_data<> &dm_load_data);
+  void process(const rv_tester_transactions::dm_model::dm_store<> &dm_store);
 
 private:
   // cvm::file_logger log;

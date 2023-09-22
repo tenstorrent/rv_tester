@@ -26,7 +26,7 @@ void eot::get_tohost_addr() {
 
 }
 
-void eot::process(const rv_tester_transactions::cosim::m_rvfi& m_rvfi) {
+void eot::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
 
   if (ended_)
       return;
@@ -88,11 +88,11 @@ void eot::process_tohost(std::tuple<uint64_t,uint64_t,uint64_t> w) {
   }
 }
 
-void eot::process(const rv_tester_transactions::cosim::m_mcmi_insert& m_mcmi_insert) {
+void eot::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_insert) {
   process_tohost(std::make_tuple(m_mcmi_insert.cycle, m_mcmi_insert.addr, m_mcmi_insert.data));
 }
 
-void eot::process(const rv_tester_transactions::cosim::m_mcmi_bypass_write& m_mcmi_bypass_write) {
+void eot::process(const rv_tester_transactions::cosim::m_mcmi_bypass_write<>& m_mcmi_bypass_write) {
   process_tohost(std::make_tuple(m_mcmi_bypass_write.cycle, m_mcmi_bypass_write.addr, m_mcmi_bypass_write.data));
 }
 

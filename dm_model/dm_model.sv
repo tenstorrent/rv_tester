@@ -1,6 +1,7 @@
 module dm_model #(
   parameter int NUM = -1,
-  `TOPOLOGY
+  `TOPOLOGY,
+  `RV_TESTER_TRANSACTIONS_DM_MODEL_OUTPUT_PARAMS
 )(
   input clk,
   input reset,
@@ -12,11 +13,11 @@ module dm_model #(
   input rv_tester_params::axi_req_mst_t axi_req_mst,
   input rv_tester_params::axi_rsp_mst_t axi_resp_mst,
   input logic [7:0] misc_signals,
-  `RV_TESTER_TRANSACTIONS_OUTPUT_DM_MODEL
+  `RV_TESTER_TRANSACTIONS_DM_MODEL_OUTPUT_PORTS
 );
 
     int unsigned location = cvm_topology::nil;
-    
+
     always @(posedge clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */

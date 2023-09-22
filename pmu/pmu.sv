@@ -3,7 +3,8 @@ import rv_tester_params::*;
 #(
   parameter int NUM = -1,
   parameter int NRET = 1,
-  `TOPOLOGY
+  `TOPOLOGY,
+  `RV_TESTER_TRANSACTIONS_PMU_OUTPUT_PARAMS
 )(
   input clk,
   input reset,
@@ -11,7 +12,7 @@ import rv_tester_params::*;
   input pmci_t pmci,
   input rvfi_t [NRET-1:0] rvfi,
   input bit terminate,
-  `RV_TESTER_TRANSACTIONS_OUTPUT_PMU
+  `RV_TESTER_TRANSACTIONS_PMU_OUTPUT_PORTS
 );
 
     int unsigned location = cvm_topology::nil;

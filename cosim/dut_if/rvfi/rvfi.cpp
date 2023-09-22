@@ -39,13 +39,13 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     [&](svScope s) { return this->set_scope(s); });
 
   connect<
-    rv_tester_transactions::cosim::m_rvfi,
-    rv_tester_transactions::cosim::m_trap,
-    rv_tester_transactions::cosim::m_intr,
-    rv_tester_transactions::cosim::m_mcmi_read,
-    rv_tester_transactions::cosim::m_mcmi_insert,
-    rv_tester_transactions::cosim::m_mcmi_write,
-    rv_tester_transactions::cosim::m_debug
+    rv_tester_transactions::cosim::m_rvfi<>,
+    rv_tester_transactions::cosim::m_trap<>,
+    rv_tester_transactions::cosim::m_intr<>,
+    rv_tester_transactions::cosim::m_mcmi_read<>,
+    rv_tester_transactions::cosim::m_mcmi_insert<>,
+    rv_tester_transactions::cosim::m_mcmi_write<>,
+    rv_tester_transactions::cosim::m_debug<>
   >(loc);
 
   connect<
@@ -69,7 +69,7 @@ void rvfi::init() {
   }
 }
 
-void rvfi::process(const rv_tester_transactions::cosim::m_rvfi& m_rvfi) {
+void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   if (terminated_)
     return;
 
@@ -93,7 +93,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi& m_rvfi) {
   excp_ = false;
 }
 
-void rvfi::process(const rv_tester_transactions::cosim::m_trap& m_trap) {
+void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
   if (terminated_)
     return;
 
@@ -109,7 +109,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap& m_trap) {
   }
 }
 
-void rvfi::process(const rv_tester_transactions::cosim::m_intr& m_intr) {
+void rvfi::process(const rv_tester_transactions::cosim::m_intr<>& m_intr) {
   if (terminated_)
     return;
 
@@ -131,11 +131,11 @@ void rvfi::process(const rv_tester_transactions::cosim::m_intr& m_intr) {
   }
 }
 
-void rvfi::process(const rv_tester_transactions::cosim::m_debug&) {
+void rvfi::process(const rv_tester_transactions::cosim::m_debug<>&) {
 
 }
 
-void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi& m_rvfi, rv_instr_t& instr) {
+void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_instr_t& instr) {
 
   static bool started = true;
   if (started) {
@@ -349,7 +349,7 @@ void rvfi::exit_debug_mode(rv_instr_t& instr) {
   }
 }
 
-void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read& m_mcmi_read) {
+void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_read) {
   if (!FLAGS_mcm)
     return;
 
@@ -363,11 +363,11 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read& m_mcmi_read
   m.pa = m_mcmi_read.addr;
   m.size = std::popcount(m_mcmi_read.mask);
   m.data = m_mcmi_read.data;
- 
+
   bridge_->process_dut_mcm_read(0, m);
 }
 
-void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert& m_mcmi_insert) {
+void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_insert) {
   if (!FLAGS_mcm)
     return;
 
@@ -385,7 +385,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert& m_mcmi_in
   bridge_->process_dut_mcm_insert(0, m);
 }
 
-void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write& m_mcmi_write) {
+void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write<>& m_mcmi_write) {
   if (!FLAGS_mcm)
     return;
 

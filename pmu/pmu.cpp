@@ -30,8 +30,8 @@ pmu::pmu(cvm::topology::loc_t loc, unsigned id)
 
     auto cosim = cvm::topology::get_from_type("COSIM", id_);
 
-    cvm::registry::messenger.connect<rv_tester_transactions::cosim::m_rvfi>(cosim, [this] (const auto& v) { return this->process(v); });
-    cvm::registry::messenger.connect<rv_tester_transactions::pmu::pmcounters>(loc, [this] (const auto& v) { return this->process(v); });
+    cvm::registry::messenger.connect<rv_tester_transactions::cosim::m_rvfi<>>(cosim, [this] (const auto& v) { return this->process(v); });
+    cvm::registry::messenger.connect<rv_tester_transactions::pmu::pmcounters<>>(loc, [this] (const auto& v) { return this->process(v); });
   }
 }
 
@@ -78,7 +78,7 @@ pmu::configure()
 }
 
 void
-pmu::process(const rv_tester_transactions::cosim::m_rvfi& m_rvfi)
+pmu::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi)
 {
   if (perf_region_ok) {
     if (perf_start_pc == uint64_t(m_rvfi.pc_rdata))
@@ -90,7 +90,7 @@ pmu::process(const rv_tester_transactions::cosim::m_rvfi& m_rvfi)
 }
 
 void
-pmu::process(const rv_tester_transactions::pmu::pmcounters& pmcounters)
+pmu::process(const rv_tester_transactions::pmu::pmcounters<>& pmcounters)
 {
   if (loc_ != pmcounters.location)
     return;
