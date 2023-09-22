@@ -441,7 +441,7 @@ rv_tester_mem #(
 .axi_resp               ( axi_rsp ),
 .axi_req_mst            ( axi_req_llc ),
 .axi_resp_mst           ( axi_rsp_llc ),
-.bypass_cache		( 1'b0 )
+.bypass_cache		( 1'b1 )
 );
 
 
