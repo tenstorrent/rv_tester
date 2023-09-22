@@ -43,11 +43,14 @@ input   slv_req_t   [NumMasters-1:0]     axi_req,
 output  slv_resp_t  [NumMasters-1:0]     axi_resp,     
 //to main memory
 output  mst_req_t                        axi_req_mst,    
-input   mst_resp_t                       axi_resp_mst  
-
+input   mst_resp_t                       axi_resp_mst,  
+input   logic 				 bypass_cache
 );
 
 ////////////////local parameters/////////////////////
+
+mst_req_t axi_req_mst_imm;
+mst_resp_t axi_resp_mst_imm;
 
 localparam int unsigned Pipeline              = 32'b1;
 localparam int unsigned AxiIdUsed             = 32'd3;
@@ -105,9 +108,9 @@ endfunction
 //Address ranges
 typedef logic [AxiAddrWidth-1:0] axi_addr_t;
 localparam axi_addr_t SpmRegionStart     = {AxiAddrWidth{1'b0}};
-localparam axi_addr_t CachedRegionStart  = {AxiAddrWidth{1'b0}};
+localparam axi_addr_t SpmRegionLength    = axi_addr_t'(SetAssociativity_LLC * NumLines_LLC * NumBlocks_LLC * AxiDataWidth / 64'd8);
+localparam axi_addr_t CachedRegionStart  = SpmRegionLength + 1;
 localparam axi_addr_t CachedRegionEnd  = {AxiAddrWidth{1'b1}};
-axi_llc_pkg::events_t llc_events;
 
 //////////////////////////////////////////
 
@@ -133,8 +136,8 @@ typedef logic [AxiUserWidth-1:0] user_xbar;
 `AXI_TYPEDEF_RESP_T(mst_resp_xbar, mst_b_chan_xbar, mst_r_chan_xbar)
 
 
-mst_req_xbar llc_req_t;
-mst_resp_xbar llc_resp_t;
+mst_req_xbar req_t_imm, llc_req_t;
+mst_resp_xbar resp_t_imm, llc_resp_t;
 
   axi_xbar #(
     .Cfg  (xbar_cfg),
@@ -158,8 +161,8 @@ mst_resp_xbar llc_resp_t;
     .test_i                 ( 1'b0 ),
     .slv_ports_req_i        ( axi_req ),
     .slv_ports_resp_o       ( axi_resp ),
-    .mst_ports_req_o        ( llc_req_t ),
-    .mst_ports_resp_i       ( llc_resp_t ),
+    .mst_ports_req_o        ( req_t_imm ),
+    .mst_ports_resp_i       ( resp_t_imm ),
     .addr_map_i             ( AddrMap ),
     .en_default_mst_port_i  ( '0 ),
     .default_mst_port_i     ( '0 )
@@ -169,21 +172,17 @@ mst_resp_xbar llc_resp_t;
 
 ///////////////////LLC/////////////////////
 
-
-
-
-
 `AXI_LLC_TYPEDEF_ALL(axi_llc, logic [63:0], logic[SetAssociativity_LLC-1:0])
 
 axi_llc_cfg_regs_d_t     reg_cfg_hw_to_reg;
 axi_llc_cfg_regs_q_t     reg_cfg_reg_to_hw;
 reg commit;
-reg [3:0]cnt;
+reg cnt;
 
 assign reg_cfg_reg_to_hw.cfg_spm     = {SetAssociativity_LLC{1'b0}};
 assign reg_cfg_reg_to_hw.cfg_flush   = {SetAssociativity_LLC{1'b0}};
 assign reg_cfg_reg_to_hw.commit_cfg  = commit;
-//assign reg_cfg_reg_to_hw.flushed     = {SetAssociativity_LLC{1'b0}};
+assign reg_cfg_reg_to_hw.flushed     = {SetAssociativity_LLC{1'b0}};
 
 
 always@(posedge clk or negedge rst_n) begin
@@ -191,12 +190,12 @@ if(!rst_n) begin
 	commit <= 0;
 	cnt <= 0;
 end else begin
-	if(cnt <= 10) begin
+	if(cnt == 0) begin
 		commit <= 1;
-		cnt <= cnt + 1;
+		cnt <= 1;
 	end else begin
 		commit <= 0;
-		cnt <= cnt;	
+		cnt <= 1;	
 	end 
 end
 end		
@@ -226,8 +225,8 @@ end
     .test_i               ( 1'b0 ),
     .slv_req_i            ( llc_req_t ), 
     .slv_resp_o           ( llc_resp_t ),
-    .mst_req_o            ( axi_req_mst ),
-    .mst_resp_i           ( axi_resp_mst ),
+    .mst_req_o            ( axi_req_mst_imm ),
+    .mst_resp_i           ( axi_resp_mst_imm ),
     .conf_regs_i          ( reg_cfg_reg_to_hw ),
     .conf_regs_o          ( reg_cfg_hw_to_reg ), 
     .cached_start_addr_i  ( CachedRegionStart ),
@@ -237,8 +236,104 @@ end
   );
 
 
+////////////////////////////////////////////////////
 
-//////////////////////////////////////
+
+///////////////bypassing cache//////////////////////
+
+localparam ID_WIDTH_DIFF = $clog2(NumMasters) + 1;
+localparam ID_WIDTH_AXI_SW = AxiIdWidthMst + 1;
+
+
+always_comb begin
+	if(bypass_cache) begin
+		llc_req_t.ar_valid = 1'b0;
+		llc_req_t.ar.id = {AxiIdWidthMst{1'b0}};
+		llc_req_t.ar.addr = {AxiAddrWidth{1'b0}};
+		llc_req_t.ar.len = axi_pkg::len_t'(0);
+		llc_req_t.ar.size = axi_pkg::size_t'(0);
+		llc_req_t.ar.burst = axi_pkg::burst_t'(0);
+		llc_req_t.ar.lock = 1'b0;
+
+		llc_req_t.aw_valid = 1'b0;
+		llc_req_t.aw.id = {AxiIdWidthMst{1'b0}};
+		llc_req_t.aw.addr = {AxiAddrWidth{1'b0}};
+		llc_req_t.aw.len = axi_pkg::len_t'(0);
+		llc_req_t.aw.size = axi_pkg::size_t'(0);
+		llc_req_t.aw.burst = axi_pkg::burst_t'(0);
+		llc_req_t.aw.lock = 1'b0;
+		llc_req_t.aw.atop = axi_pkg::atop_t'(0);
+		llc_req_t.w_valid = 1'b0;
+		llc_req_t.w.data = {AxiDataWidth{1'b0}};
+		llc_req_t.w.strb = {AxiStrbWidth{1'b0}};
+		llc_req_t.w.last = 1'b0;
+
+		llc_req_t.b_ready = 1'b0;
+		llc_req_t.r_ready = 1'b0;
+
+		axi_req_mst.ar_valid = req_t_imm.ar_valid;
+		axi_req_mst.ar.id = {1'b0, req_t_imm.ar.id};
+		axi_req_mst.ar.addr = req_t_imm.ar.addr;
+		axi_req_mst.ar.len = req_t_imm.ar.len;
+		axi_req_mst.ar.size = req_t_imm.ar.size;
+		axi_req_mst.ar.burst = req_t_imm.ar.burst;;
+		axi_req_mst.ar.lock = req_t_imm.ar.lock;
+
+		axi_req_mst.aw_valid = req_t_imm.aw_valid;
+		axi_req_mst.aw.id = {1'b0, req_t_imm.aw.id};
+		axi_req_mst.aw.addr = req_t_imm.aw.addr;
+		axi_req_mst.aw.len = req_t_imm.aw.len;
+		axi_req_mst.aw.size = req_t_imm.aw.size;
+		axi_req_mst.aw.burst = req_t_imm.aw.burst;
+		axi_req_mst.aw.lock = req_t_imm.aw.lock;
+		axi_req_mst.aw.atop = req_t_imm.aw.atop;
+		axi_req_mst.w_valid = req_t_imm.w_valid;
+		axi_req_mst.w.data = req_t_imm.w.data;
+		axi_req_mst.w.strb = req_t_imm.w.strb;
+		axi_req_mst.w.last = req_t_imm.w.last;
+
+		axi_req_mst.b_ready = req_t_imm.b_ready;
+		axi_req_mst.r_ready = req_t_imm.r_ready;
+
+		axi_resp_mst_imm.b_valid  = 1'b0 ;
+		axi_resp_mst_imm.b.id     = {ID_WIDTH_AXI_SW{1'b0}} ;
+		axi_resp_mst_imm.b.resp   = axi_pkg::resp_t'(0) ;
+
+		axi_resp_mst_imm.r_valid  = 1'b0 ;
+		axi_resp_mst_imm.r.id     = {ID_WIDTH_AXI_SW{1'b0}} ;
+		axi_resp_mst_imm.r.data   = {AxiDataWidth{1'b0}} ;
+		axi_resp_mst_imm.r.resp   = axi_pkg::resp_t'(0) ;
+		axi_resp_mst_imm.r.last   = 1'b0 ;
+		
+		axi_resp_mst_imm.aw_ready = 1'b0 ;
+		axi_resp_mst_imm.ar_ready = 1'b0 ;
+		axi_resp_mst_imm.w_ready  = 1'b0 ;
+
+		resp_t_imm.b_valid  = axi_resp_mst.b_valid ;
+		resp_t_imm.b.id     = axi_resp_mst.b.id[AxiIdWidthMst-1:0]    ;
+		resp_t_imm.b.resp   = axi_resp_mst.b.resp  ;
+
+		resp_t_imm.r_valid  = axi_resp_mst.r_valid ;
+		resp_t_imm.r.id     = axi_resp_mst.r.id[AxiIdWidthMst-1:0]    ;
+		resp_t_imm.r.data   = axi_resp_mst.r.data  ;
+		resp_t_imm.r.resp   = axi_resp_mst.r.resp  ;
+		resp_t_imm.r.last   = axi_resp_mst.r.last  ;
+
+		resp_t_imm.aw_ready = axi_resp_mst.aw_ready;
+		resp_t_imm.ar_ready = axi_resp_mst.ar_ready;
+		resp_t_imm.w_ready  = axi_resp_mst.w_ready ;
+
+	end else begin
+		llc_req_t = req_t_imm;
+		resp_t_imm = llc_resp_t;
+		axi_req_mst = axi_req_mst_imm;
+		axi_resp_mst_imm = axi_resp_mst;
+	end
+end
+
+
+////////////////////////////////////////////////////
+
 
 
 endmodule
