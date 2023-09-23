@@ -42,12 +42,16 @@ input   logic                            rst_n,
 input   slv_req_t   [NumMasters-1:0]     axi_req,        
 output  slv_resp_t  [NumMasters-1:0]     axi_resp,     
 //to main memory
-output  mst_req_t                        axi_req_mst,    
-input   mst_resp_t                       axi_resp_mst,  
+output  mst_req_t   [NumMasters-1:0]     axi_req_mst,    
+input   mst_resp_t  [NumMasters-1:0]     axi_resp_mst,  
 input   logic 				 bypass_cache
 );
 
 ////////////////local parameters/////////////////////
+
+
+slv_req_t [NumMasters-1:0] axi_req_xbar;
+slv_resp_t [NumMasters-1:0] axi_resp_xbar;
 
 mst_req_t axi_req_mst_imm;
 mst_resp_t axi_resp_mst_imm;
@@ -136,8 +140,8 @@ typedef logic [AxiUserWidth-1:0] user_xbar;
 `AXI_TYPEDEF_RESP_T(mst_resp_xbar, mst_b_chan_xbar, mst_r_chan_xbar)
 
 
-mst_req_xbar req_t_imm, llc_req_t;
-mst_resp_xbar resp_t_imm, llc_resp_t;
+mst_req_xbar llc_req_t;
+mst_resp_xbar llc_resp_t;
 
   axi_xbar #(
     .Cfg  (xbar_cfg),
@@ -159,10 +163,10 @@ mst_resp_xbar resp_t_imm, llc_resp_t;
     .clk_i                  ( clk ),
     .rst_ni                 ( rst_n ),
     .test_i                 ( 1'b0 ),
-    .slv_ports_req_i        ( axi_req ),
-    .slv_ports_resp_o       ( axi_resp ),
-    .mst_ports_req_o        ( req_t_imm ),
-    .mst_ports_resp_i       ( resp_t_imm ),
+    .slv_ports_req_i        ( axi_req_xbar ),
+    .slv_ports_resp_o       ( axi_resp_xbar ),
+    .mst_ports_req_o        ( llc_req_t ),
+    .mst_ports_resp_i       ( llc_resp_t ),
     .addr_map_i             ( AddrMap ),
     .en_default_mst_port_i  ( '0 ),
     .default_mst_port_i     ( '0 )
@@ -225,7 +229,7 @@ end
     .test_i               ( 1'b0 ),
     .slv_req_i            ( llc_req_t ), 
     .slv_resp_o           ( llc_resp_t ),
-    .mst_req_o            ( axi_req_mst_imm ),
+    .mst_req_o            ( axi_req_mst_imm  ),
     .mst_resp_i           ( axi_resp_mst_imm ),
     .conf_regs_i          ( reg_cfg_reg_to_hw ),
     .conf_regs_o          ( reg_cfg_hw_to_reg ), 
@@ -247,87 +251,113 @@ localparam ID_WIDTH_AXI_SW = AxiIdWidthMst + 1;
 
 always_comb begin
 	if(bypass_cache) begin
-		llc_req_t.ar_valid = 1'b0;
-		llc_req_t.ar.id = {AxiIdWidthMst{1'b0}};
-		llc_req_t.ar.addr = {AxiAddrWidth{1'b0}};
-		llc_req_t.ar.len = axi_pkg::len_t'(0);
-		llc_req_t.ar.size = axi_pkg::size_t'(0);
-		llc_req_t.ar.burst = axi_pkg::burst_t'(0);
-		llc_req_t.ar.lock = 1'b0;
+		for(int i=0;i<NumMasters;i++) begin
+			axi_req_mst[i].ar_valid = axi_req[i].ar_valid;
+			axi_req_mst[i].ar.id = {{ID_WIDTH_DIFF{1'b0}}, axi_req[i].ar.id};
+			axi_req_mst[i].ar.addr = axi_req[i].ar.addr;
+			axi_req_mst[i].ar.len = axi_req[i].ar.len;
+			axi_req_mst[i].ar.size = axi_req[i].ar.size;
+			axi_req_mst[i].ar.burst = axi_req[i].ar.burst;;
+			axi_req_mst[i].ar.lock = axi_req[i].ar.lock;
 
-		llc_req_t.aw_valid = 1'b0;
-		llc_req_t.aw.id = {AxiIdWidthMst{1'b0}};
-		llc_req_t.aw.addr = {AxiAddrWidth{1'b0}};
-		llc_req_t.aw.len = axi_pkg::len_t'(0);
-		llc_req_t.aw.size = axi_pkg::size_t'(0);
-		llc_req_t.aw.burst = axi_pkg::burst_t'(0);
-		llc_req_t.aw.lock = 1'b0;
-		llc_req_t.aw.atop = axi_pkg::atop_t'(0);
-		llc_req_t.w_valid = 1'b0;
-		llc_req_t.w.data = {AxiDataWidth{1'b0}};
-		llc_req_t.w.strb = {AxiStrbWidth{1'b0}};
-		llc_req_t.w.last = 1'b0;
+			axi_req_mst[i].aw_valid = axi_req[i].aw_valid;
+			axi_req_mst[i].aw.id = {{ID_WIDTH_DIFF{1'b0}}, axi_req[i].aw.id};
+			axi_req_mst[i].aw.addr = axi_req[i].aw.addr;
+			axi_req_mst[i].aw.len = axi_req[i].aw.len;
+			axi_req_mst[i].aw.size = axi_req[i].aw.size;
+			axi_req_mst[i].aw.burst = axi_req[i].aw.burst;
+			axi_req_mst[i].aw.lock = axi_req[i].aw.lock;
+			axi_req_mst[i].aw.atop = axi_req[i].aw.atop;
+			axi_req_mst[i].w_valid = axi_req[i].w_valid;
+			axi_req_mst[i].w.data = axi_req[i].w.data;
+			axi_req_mst[i].w.strb = axi_req[i].w.strb;
+			axi_req_mst[i].w.last = axi_req[i].w.last;
 
-		llc_req_t.b_ready = 1'b0;
-		llc_req_t.r_ready = 1'b0;
+			axi_req_mst[i].b_ready = axi_req[i].b_ready;
+			axi_req_mst[i].r_ready = axi_req[i].r_ready;
 
-		axi_req_mst.ar_valid = req_t_imm.ar_valid;
-		axi_req_mst.ar.id = {1'b0, req_t_imm.ar.id};
-		axi_req_mst.ar.addr = req_t_imm.ar.addr;
-		axi_req_mst.ar.len = req_t_imm.ar.len;
-		axi_req_mst.ar.size = req_t_imm.ar.size;
-		axi_req_mst.ar.burst = req_t_imm.ar.burst;;
-		axi_req_mst.ar.lock = req_t_imm.ar.lock;
+			axi_resp[i].b_valid  = axi_resp_mst[i].b_valid ;
+			axi_resp[i].b.id     = axi_resp_mst[i].b.id[AxiIdWidth-1:0]    ;
+			axi_resp[i].b.resp   = axi_resp_mst[i].b.resp  ;
 
-		axi_req_mst.aw_valid = req_t_imm.aw_valid;
-		axi_req_mst.aw.id = {1'b0, req_t_imm.aw.id};
-		axi_req_mst.aw.addr = req_t_imm.aw.addr;
-		axi_req_mst.aw.len = req_t_imm.aw.len;
-		axi_req_mst.aw.size = req_t_imm.aw.size;
-		axi_req_mst.aw.burst = req_t_imm.aw.burst;
-		axi_req_mst.aw.lock = req_t_imm.aw.lock;
-		axi_req_mst.aw.atop = req_t_imm.aw.atop;
-		axi_req_mst.w_valid = req_t_imm.w_valid;
-		axi_req_mst.w.data = req_t_imm.w.data;
-		axi_req_mst.w.strb = req_t_imm.w.strb;
-		axi_req_mst.w.last = req_t_imm.w.last;
+			axi_resp[i].r_valid  = axi_resp_mst[i].r_valid ;
+			axi_resp[i].r.id     = axi_resp_mst[i].r.id[AxiIdWidth-1:0]    ;
+			axi_resp[i].r.data   = axi_resp_mst[i].r.data  ;
+			axi_resp[i].r.resp   = axi_resp_mst[i].r.resp  ;
+			axi_resp[i].r.last   = axi_resp_mst[i].r.last  ;
 
-		axi_req_mst.b_ready = req_t_imm.b_ready;
-		axi_req_mst.r_ready = req_t_imm.r_ready;
+			axi_resp[i].aw_ready = axi_resp_mst[i].aw_ready;
+			axi_resp[i].ar_ready = axi_resp_mst[i].ar_ready;
+			axi_resp[i].w_ready  = axi_resp_mst[i].w_ready ;
 
-		axi_resp_mst_imm.b_valid  = 1'b0 ;
-		axi_resp_mst_imm.b.id     = {ID_WIDTH_AXI_SW{1'b0}} ;
-		axi_resp_mst_imm.b.resp   = axi_pkg::resp_t'(0) ;
+			axi_req_xbar[i].ar_valid = 1'b0;
+			axi_req_xbar[i].ar.id = {AxiIdWidth{1'b0}};
+			axi_req_xbar[i].ar.addr = {AxiAddrWidth{1'b0}};
+			axi_req_xbar[i].ar.len = axi_pkg::len_t'(0);
+			axi_req_xbar[i].ar.size = axi_pkg::size_t'(0);
+			axi_req_xbar[i].ar.burst = axi_pkg::burst_t'(0);
+			axi_req_xbar[i].ar.lock = 1'b0;
 
-		axi_resp_mst_imm.r_valid  = 1'b0 ;
-		axi_resp_mst_imm.r.id     = {ID_WIDTH_AXI_SW{1'b0}} ;
-		axi_resp_mst_imm.r.data   = {AxiDataWidth{1'b0}} ;
-		axi_resp_mst_imm.r.resp   = axi_pkg::resp_t'(0) ;
-		axi_resp_mst_imm.r.last   = 1'b0 ;
+			axi_req_xbar[i].aw_valid = 1'b0;
+			axi_req_xbar[i].aw.id = {AxiIdWidth{1'b0}};
+			axi_req_xbar[i].aw.addr = {AxiAddrWidth{1'b0}};
+			axi_req_xbar[i].aw.len = axi_pkg::len_t'(0);
+			axi_req_xbar[i].aw.size = axi_pkg::size_t'(0);
+			axi_req_xbar[i].aw.burst = axi_pkg::burst_t'(0);
+			axi_req_xbar[i].aw.lock = 1'b0;
+			axi_req_xbar[i].aw.atop = axi_pkg::atop_t'(0);
+			axi_req_xbar[i].w_valid = 1'b0;
+			axi_req_xbar[i].w.data = {AxiDataWidth{1'b0}};
+			axi_req_xbar[i].w.strb = {AxiStrbWidth{1'b0}};
+			axi_req_xbar[i].w.last = 1'b0;
+
+			axi_req_xbar[i].b_ready = 1'b0;
+			axi_req_xbar[i].r_ready = 1'b0;
+		end
+			axi_resp_mst_imm.b_valid  = 1'b0 ;
+			axi_resp_mst_imm.b.id     = {ID_WIDTH_AXI_SW{1'b0}} ;
+			axi_resp_mst_imm.b.resp   = axi_pkg::resp_t'(0) ;
+
+			axi_resp_mst_imm.r_valid  = 1'b0 ;
+			axi_resp_mst_imm.r.id     = {ID_WIDTH_AXI_SW{1'b0}} ;
+			axi_resp_mst_imm.r.data   = {AxiDataWidth{1'b0}} ;
+			axi_resp_mst_imm.r.resp   = axi_pkg::resp_t'(0) ;
+			axi_resp_mst_imm.r.last   = 1'b0 ;
 		
-		axi_resp_mst_imm.aw_ready = 1'b0 ;
-		axi_resp_mst_imm.ar_ready = 1'b0 ;
-		axi_resp_mst_imm.w_ready  = 1'b0 ;
-
-		resp_t_imm.b_valid  = axi_resp_mst.b_valid ;
-		resp_t_imm.b.id     = axi_resp_mst.b.id[AxiIdWidthMst-1:0]    ;
-		resp_t_imm.b.resp   = axi_resp_mst.b.resp  ;
-
-		resp_t_imm.r_valid  = axi_resp_mst.r_valid ;
-		resp_t_imm.r.id     = axi_resp_mst.r.id[AxiIdWidthMst-1:0]    ;
-		resp_t_imm.r.data   = axi_resp_mst.r.data  ;
-		resp_t_imm.r.resp   = axi_resp_mst.r.resp  ;
-		resp_t_imm.r.last   = axi_resp_mst.r.last  ;
-
-		resp_t_imm.aw_ready = axi_resp_mst.aw_ready;
-		resp_t_imm.ar_ready = axi_resp_mst.ar_ready;
-		resp_t_imm.w_ready  = axi_resp_mst.w_ready ;
-
+			axi_resp_mst_imm.aw_ready = 1'b0 ;
+			axi_resp_mst_imm.ar_ready = 1'b0 ;
+			axi_resp_mst_imm.w_ready  = 1'b0 ;
 	end else begin
-		llc_req_t = req_t_imm;
-		resp_t_imm = llc_resp_t;
-		axi_req_mst = axi_req_mst_imm;
-		axi_resp_mst_imm = axi_resp_mst;
+		axi_req_xbar = axi_req;
+		axi_resp = axi_resp_xbar;
+		axi_req_mst[0] = axi_req_mst_imm;	
+		axi_resp_mst_imm = axi_resp_mst[0];
+		for(int i=1;i<NumMasters;i++) begin
+			axi_req_mst[i].ar_valid = 1'b0;
+			axi_req_mst[i].ar.id = {ID_WIDTH_AXI_SW{1'b0}};
+			axi_req_mst[i].ar.addr = {AxiAddrWidth{1'b0}};
+			axi_req_mst[i].ar.len = axi_pkg::len_t'(0);
+			axi_req_mst[i].ar.size = axi_pkg::size_t'(0);
+			axi_req_mst[i].ar.burst = axi_pkg::burst_t'(0);
+			axi_req_mst[i].ar.lock = 1'b0;
+
+			axi_req_mst[i].aw_valid = 1'b0;
+			axi_req_mst[i].aw.id = {ID_WIDTH_AXI_SW{1'b0}};
+			axi_req_mst[i].aw.addr = {AxiAddrWidth{1'b0}};
+			axi_req_mst[i].aw.len = axi_pkg::len_t'(0);
+			axi_req_mst[i].aw.size = axi_pkg::size_t'(0);
+			axi_req_mst[i].aw.burst = axi_pkg::burst_t'(0);
+			axi_req_mst[i].aw.lock = 1'b0;
+			axi_req_mst[i].aw.atop = axi_pkg::atop_t'(0);
+			axi_req_mst[i].w_valid = 1'b0;
+			axi_req_mst[i].w.data = {AxiDataWidth{1'b0}};
+			axi_req_mst[i].w.strb = {AxiStrbWidth{1'b0}};
+			axi_req_mst[i].w.last = 1'b0;
+
+			axi_req_mst[i].b_ready = 1'b0;
+			axi_req_mst[i].r_ready = 1'b0;
+
+		end	
 	end
 end
 
