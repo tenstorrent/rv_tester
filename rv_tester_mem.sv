@@ -208,7 +208,7 @@ module rv_tester_mem #(
     assign reg_cfg_reg_to_hw.flushed     = {SetAssociativity_LLC{1'b0}};
 
 
-    always@(posedge clk or negedge rst_n) begin
+    always@(posedge clk) begin
         if(!rst_n) begin
             commit <= 0;
             cnt <= 0;
