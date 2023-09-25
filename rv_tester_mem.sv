@@ -273,18 +273,20 @@ module rv_tester_mem #(
     always_comb begin
 	if(bypass_cache) begin
 	    for(int i=0;i<NumMasters;i++) begin
-/* verilator lint_off WIDTH */
 		temp_1 = axi_req[i];
+/* verilator lint_off WIDTH */
 		`AXI_SET_REQ_STRUCT(temp_2, temp_1)
+/* verilator lint_on WIDTH */
 		temp_2.aw.id = {{ID_WIDTH_DIFF{1'b0}}, axi_req[i].aw.id};
 		temp_2.ar.id = {{ID_WIDTH_DIFF{1'b0}}, axi_req[i].ar.id};
 		axi_req_mst[i] = temp_2;
 		temp_4 = axi_resp_mst[i];
+/* verilator lint_off WIDTH */
 		`AXI_SET_RESP_STRUCT(temp_3, temp_4)
+/* verilator lint_on WIDTH */
 		temp_3.b.id = axi_resp_mst[i].b.id[AxiIdWidth-1:0];
 		temp_3.r.id = axi_resp_mst[i].r.id[AxiIdWidth-1:0];
 		axi_resp[i] = temp_3;
-/* lint_on */
 	    end 
 		axi_req_xbar = '0;			
 		axi_resp_mst_imm = '0;
