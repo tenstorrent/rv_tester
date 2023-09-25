@@ -178,7 +178,7 @@ import rv_tester_params::*;
     longint unsigned max_cycle;
     int cycles_since_retire;
     longint unsigned hart_enable_mask;
-    bit boot_wfi = '0;
+    bit boot_wfi;
 
     always @(posedge clk) begin
         if (reset) begin
@@ -188,13 +188,14 @@ import rv_tester_params::*;
             hart_enable_mask = cvm_plusargs::get_ulongint("hart_enable_mask");
             /* verilator lint_on BLKSEQ */
             cycles_since_retire <= 0;
+            boot_wfi <= '0;
         end else begin
             cycles_since_retire <= cycles_since_retire + 1;
             if (rvfi[0].valid !== 0) begin
               cycles_since_retire <= 0;
             end
             if (NUM != 0 && hart_enable_mask[NUM] == 1 && rvfi[0].valid !== 0 && rvfi[0].insn[6:0] == 7'h73 && rvfi[0].pc_rdata < 'h20000) begin // WFI
-              boot_wfi = '1;
+              boot_wfi <= '1;
             end
             if (max_stall_cycle > 0 && cycles_since_retire > max_stall_cycle && !boot_wfi) begin
               $display("Error: Hart%0d: No instruction retired for max_stall_cycle (%0d) cycles", NUM, max_stall_cycle);
