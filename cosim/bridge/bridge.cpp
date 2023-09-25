@@ -671,6 +671,11 @@ bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const whisp
     log(cvm::MEDIUM, "<{}> Resynch: Reason=[debug mem access]\n", w.time);
     return true;
   }
+  // Case #7
+  if (boot_read(d)) {
+    log(cvm::MEDIUM, "<{}> Resynch: Reason=[boot_read]\n", w.time);
+    return true;
+  }
   return false;
 }
 
@@ -678,6 +683,14 @@ bool bridge::clint_read(const rv_instr_t& d) {
   if (d.mem_read.valid &&
       d.mem_read.pa >= memmap_.at("clint").base &&
       d.mem_read.pa < memmap_.at("clint").end)
+    return true;
+  return false;
+}
+
+bool bridge::boot_read(const rv_instr_t& d) {
+  if (d.mem_read.valid &&
+      d.mem_read.pa >= memmap_.at("boot").base &&
+      d.mem_read.pa < memmap_.at("boot").end)
     return true;
   return false;
 }

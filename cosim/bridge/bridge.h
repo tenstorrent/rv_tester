@@ -106,6 +106,7 @@ private:
   bool does_prev_instr_match_resynch_list(const whisper_state_t& w);
   bool does_instr_match_resynch_condition(const rv_instr_t& d, const whisper_state_t& w);
   bool clint_read(const rv_instr_t& d);
+  bool boot_read(const rv_instr_t& d);
   bool debug_mem_access(const rv_instr_t& d);
   bool htif_read(const rv_instr_t& d);
   bool hpm_counter_read(const whisper_state_t& w);

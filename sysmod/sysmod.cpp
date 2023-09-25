@@ -21,6 +21,7 @@ DEFINE_string(bootrom_path, "", "Path to bootrom object file");
 DEFINE_string(load_io, "", "load specified io dev with content from memory");
 DEFINE_bool(sysmod_tick_async, true, "Asynchronous sysmod_tick calls");
 DEFINE_uint64(sysmod_tick_update_threshold, 1, "Slow down tick update frequency by this factor. The tick is still eventually advanced the same cumulative amount, just not as often. Useful for emulation where the clock counts much faster but tests setup interrupts to happen very soon for simulation. They git hit by an interrupt storm and are stuck in the interrupt handler forever.");
+DEFINE_uint64(hart_enable_mask, 0x1, "Hart enable mask. Ex: To enable 2 harts in a 8-hart system, use 0x3.");
 
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 
@@ -155,6 +156,8 @@ sysmod::compose()
   memmap::get(memmap_);
 
   auto masters = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST");
+  auto platform_loc = cvm::topology::get_from_type("PLATFORM", 0);
+  auto nharts = cvm::topology::attr(platform_loc, "NHARTS").second;
 
   try {
     for(const auto& d : memmap_) {
@@ -189,7 +192,7 @@ sysmod::compose()
         device = new dm(tag, base, size, loc_, masters[0]);
       }
       else if (type == "clint") {
-        device = new clint(tag, base, 1, loc_);
+        device = new clint(tag, base, nharts, loc_);
         cvm::registry::messenger.connect<clint::timer_t>(
             loc_,
             [&](clint::timer_t t) { return this->timer_interrupt(t); });
@@ -198,7 +201,7 @@ sysmod::compose()
             [&](clint::sw_t s) { return this->sw_interrupt(s); });
       }
       else if (type == "trickbox") {
-        device = new trickbox(tag, base, 1, loc_,masters[1]);
+        device = new trickbox(tag, base, nharts, loc_,masters[1]);
         cvm::registry::messenger.connect<interrupter::interrupt_t>(
             loc_,
             [&](interrupter::interrupt_t i) { return this->tbox_interrupt(i); });
@@ -306,6 +309,12 @@ sysmod::load_boot(const std::string& boot)
       cvm::log(cvm::ERROR, "No boot defined");
       return;
     }
+    // Write hart_enable_mask for bootrom to access
+    device::data_t data(8);
+    for (size_t i = 0; i < 8; i++) data[i] = FLAGS_hart_enable_mask >> 8*i;
+    device::strb_t strb(8);
+    for (size_t i = 0; i < 8; i++) strb[i] = true;
+    dev("boot")->backdoor_write(dev("boot")->addr() + 0x9000, 8, data, strb);
   }
 }
 
