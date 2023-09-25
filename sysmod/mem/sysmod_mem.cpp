@@ -24,6 +24,15 @@ void sysmod_mem::read(const transactor::read_t& r, data_t& data) {
   return;
 }
 
+void sysmod_mem::backdoor_write(uint64_t addr, size_t length, data_t& data, strb_t& strb) {
+  for (size_t i = 0; i < length; i++) {
+    if (strb[i]) {
+      m_.write(addr + i, 1, &data[i]);
+    }
+  }
+  return;
+}
+
 void sysmod_mem::backdoor_read(uint64_t addr, size_t length, data_t& data) {
   m_.read(addr, length, data.data());
   return;

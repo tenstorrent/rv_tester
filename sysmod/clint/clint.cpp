@@ -12,6 +12,8 @@ clint::clint(const std::string& tag, uint64_t addr, unsigned hartCount,
 {
   auto clint_loc = cvm::topology::get_from_type("CLINT", 0);
   tickDivisor_ = cvm::topology::attr(clint_loc, "CLOCK_DIVISOR").second;
+  
+  cvm::log(cvm::NONE, "[SYSMOD] Constructing clint [addr:{:#x}, harts: {}]", addr, hartCount_);
 
   std::ifstream ifs;
   if (load_snapshot(ifs)) {
@@ -105,6 +107,7 @@ clint::write(const transactor::write_t& w)
     deserializeInt(data, word);
     soft_.at(hartIx) = word & 1;
     softwareInterrupt(hartIx, word & 1);
+    return;
   }
 
   if (length == 8) {
