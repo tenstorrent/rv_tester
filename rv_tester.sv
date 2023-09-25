@@ -26,7 +26,7 @@ import rv_tester_params::*;
     import "DPI-C" function int rv_tester_shutdown_registry(); // dummy return value so that this gets called immediately to end the test.
     import "DPI-C" context function bit rv_tester_flush_callbacks();
 
-    localparam int unsigned AxiIdWidthMst_rv    = topology.TOP.PLATFORM.AXI.ID_WIDTH + $clog2(topology.TOP.PLATFORM.AXI.TOTAL) + 1;
+    localparam int unsigned AxiIdWidthMstRv    = topology.TOP.PLATFORM.AXI.ID_WIDTH + $clog2(topology.TOP.PLATFORM.AXI.TOTAL) + 1;
 
 
     logic rv_tester_reset = '1;
@@ -287,7 +287,7 @@ import rv_tester_params::*;
         axi_sw #(
             .ADDR_WIDTH(topology.TOP.PLATFORM.AXI.ADDR_WIDTH),
             .DATA_WIDTH(topology.TOP.PLATFORM.AXI.DATA_WIDTH),
-            .ID_WIDTH(AxiIdWidthMst_rv),
+            .ID_WIDTH(AxiIdWidthMstRv),
             .STRB_WIDTH(topology.TOP.PLATFORM.AXI.STRB_WIDTH),
             .R_Q_MAX(topology.TOP.PLATFORM.AXI.R_Q_MAX),
             .TOPO_ID(topology.TOP.PLATFORM.AXI.ID),
@@ -395,55 +395,55 @@ import rv_tester_params::*;
         );
     end
 
-//new memory - LLC
+    //new memory - LLC
 
-typedef logic [AxiIdWidthMst_rv-1:0] id_mst_rv;
-typedef logic [topology.TOP.PLATFORM.AXI.ID_WIDTH-1:0] id_slv_rv;
-typedef logic [topology.TOP.PLATFORM.AXI.ADDR_WIDTH-1:0] addr_rv;
-typedef logic [topology.TOP.PLATFORM.AXI.DATA_WIDTH-1:0] data_rv;
-typedef logic [topology.TOP.PLATFORM.AXI.STRB_WIDTH-1:0] strb_rv;
-typedef logic [AXI_USER_ID_WIDTH-1:0] user_rv;
+    typedef logic [AxiIdWidthMstRv-1:0] id_mst_rv;
+    typedef logic [topology.TOP.PLATFORM.AXI.ID_WIDTH-1:0] id_slv_rv;
+    typedef logic [topology.TOP.PLATFORM.AXI.ADDR_WIDTH-1:0] addr_rv;
+    typedef logic [topology.TOP.PLATFORM.AXI.DATA_WIDTH-1:0] data_rv;
+    typedef logic [topology.TOP.PLATFORM.AXI.STRB_WIDTH-1:0] strb_rv;
+    typedef logic [AXI_USER_ID_WIDTH-1:0] user_rv;
 
-`AXI_TYPEDEF_AW_CHAN_T(mst_aw_chan_rv, addr_rv, id_mst_rv, user_rv)
-`AXI_TYPEDEF_AW_CHAN_T(slv_aw_chan_rv, addr_rv, id_slv_rv, user_rv)
-`AXI_TYPEDEF_W_CHAN_T(w_chan_rv, data_rv, strb_rv, user_rv)
-`AXI_TYPEDEF_B_CHAN_T(mst_b_chan_rv, id_mst_rv, user_rv)
-`AXI_TYPEDEF_B_CHAN_T(slv_b_chan_rv, id_slv_rv, user_rv)
-`AXI_TYPEDEF_AR_CHAN_T(mst_ar_chan_rv, addr_rv, id_mst_rv, user_rv)
-`AXI_TYPEDEF_AR_CHAN_T(slv_ar_chan_rv, addr_rv, id_slv_rv, user_rv)
-`AXI_TYPEDEF_R_CHAN_T(mst_r_chan_rv, data_rv, id_mst_rv, user_rv)
-`AXI_TYPEDEF_R_CHAN_T(slv_r_chan_rv, data_rv, id_slv_rv, user_rv)
-`AXI_TYPEDEF_REQ_T(mst_req_rv, mst_aw_chan_rv, w_chan_rv, mst_ar_chan_rv)
-`AXI_TYPEDEF_REQ_T(slv_req_rv, slv_aw_chan_rv, w_chan_rv, slv_ar_chan_rv)
-`AXI_TYPEDEF_RESP_T(mst_resp_rv, mst_b_chan_rv, mst_r_chan_rv)
-`AXI_TYPEDEF_RESP_T(slv_resp_rv, slv_b_chan_rv, slv_r_chan_rv)
+    `AXI_TYPEDEF_AW_CHAN_T(mst_aw_chan_rv, addr_rv, id_mst_rv, user_rv)
+    `AXI_TYPEDEF_AW_CHAN_T(slv_aw_chan_rv, addr_rv, id_slv_rv, user_rv)
+    `AXI_TYPEDEF_W_CHAN_T(w_chan_rv, data_rv, strb_rv, user_rv)
+    `AXI_TYPEDEF_B_CHAN_T(mst_b_chan_rv, id_mst_rv, user_rv)
+    `AXI_TYPEDEF_B_CHAN_T(slv_b_chan_rv, id_slv_rv, user_rv)
+    `AXI_TYPEDEF_AR_CHAN_T(mst_ar_chan_rv, addr_rv, id_mst_rv, user_rv)
+    `AXI_TYPEDEF_AR_CHAN_T(slv_ar_chan_rv, addr_rv, id_slv_rv, user_rv)
+    `AXI_TYPEDEF_R_CHAN_T(mst_r_chan_rv, data_rv, id_mst_rv, user_rv)
+    `AXI_TYPEDEF_R_CHAN_T(slv_r_chan_rv, data_rv, id_slv_rv, user_rv)
+    `AXI_TYPEDEF_REQ_T(mst_req_rv, mst_aw_chan_rv, w_chan_rv, mst_ar_chan_rv)
+    `AXI_TYPEDEF_REQ_T(slv_req_rv, slv_aw_chan_rv, w_chan_rv, slv_ar_chan_rv)
+    `AXI_TYPEDEF_RESP_T(mst_resp_rv, mst_b_chan_rv, mst_r_chan_rv)
+    `AXI_TYPEDEF_RESP_T(slv_resp_rv, slv_b_chan_rv, slv_r_chan_rv)
 
-mst_req_rv [topology.TOP.PLATFORM.AXI.TOTAL-1:0] axi_req_llc;
-mst_resp_rv [topology.TOP.PLATFORM.AXI.TOTAL-1:0] axi_rsp_llc;
+    mst_req_rv axi_req_llc [topology.TOP.PLATFORM.AXI.TOTAL-1:0];
+    mst_resp_rv axi_rsp_llc [topology.TOP.PLATFORM.AXI.TOTAL-1:0];
 
-rv_tester_mem #(
-.NumMasters             ( topology.TOP.PLATFORM.AXI.TOTAL ),
-.AxiIdWidth             ( topology.TOP.PLATFORM.AXI.ID_WIDTH ),
-.AxiDataWidth           ( topology.TOP.PLATFORM.AXI.DATA_WIDTH ),
-.AxiAddrWidth           ( topology.TOP.PLATFORM.AXI.ADDR_WIDTH ),
-.AxiStrbWidth           ( topology.TOP.PLATFORM.AXI.STRB_WIDTH ),
-.AxiUserWidth		( AXI_USER_ID_WIDTH ),
-.NumLines_LLC           ( 128 ),
-.NumBlocks_LLC          ( 4 ),
-.SetAssociativity_LLC   ( 4 ),
-.slv_req_t              ( slv_req_rv  ),
-.slv_resp_t             ( slv_resp_rv ),
-.mst_req_t              ( mst_req_rv  ),
-.mst_resp_t             ( mst_resp_rv )
-) inst(
-.clk                    ( clk ),
-.rst_n                  ( ~reset ),
-.axi_req                ( axi_req ),
-.axi_resp               ( axi_rsp ),
-.axi_req_mst            ( axi_req_llc ),
-.axi_resp_mst           ( axi_rsp_llc ),
-.bypass_cache		( 1'b1 )
-);
+    rv_tester_mem #(
+        .NumMasters             ( topology.TOP.PLATFORM.AXI.TOTAL ),
+        .AxiIdWidth             ( topology.TOP.PLATFORM.AXI.ID_WIDTH ),
+        .AxiDataWidth           ( topology.TOP.PLATFORM.AXI.DATA_WIDTH ),
+        .AxiAddrWidth           ( topology.TOP.PLATFORM.AXI.ADDR_WIDTH ),
+        .AxiStrbWidth           ( topology.TOP.PLATFORM.AXI.STRB_WIDTH ),
+        .AxiUserWidth		( AXI_USER_ID_WIDTH ),
+        .NumLines_LLC           ( 128 ),
+        .NumBlocks_LLC          ( 4 ),
+        .SetAssociativity_LLC   ( 4 ),
+        .slv_req_t              ( slv_req_rv  ),
+        .slv_resp_t             ( slv_resp_rv ),
+        .mst_req_t              ( mst_req_rv  ),
+        .mst_resp_t             ( mst_resp_rv )
+    ) inst(
+        .clk                    ( clk ),
+        .rst_n                  ( ~reset ),
+        .axi_req_up             ( axi_req ),
+        .axi_resp_up            ( axi_rsp ),
+        .axi_req_mst_up         ( axi_req_llc ),
+        .axi_resp_mst_up        ( axi_rsp_llc ),
+        .bypass_cache		( 1'b1 )
+    );
 
 
 endmodule
