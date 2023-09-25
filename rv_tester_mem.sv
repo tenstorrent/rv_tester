@@ -212,15 +212,15 @@ module rv_tester_mem #(
         if(!rst_n) begin
             commit <= 0;
             cnt <= 0;
-    end else begin
-	if(cnt == 0) begin
-            commit <= 1;
-            cnt <= 1;
-	end else begin
-            commit <= 0;
-            cnt <= 1;	
-	end 
-    end
+    	end else begin
+	    if(cnt == 0) begin
+                commit <= 1;
+                cnt <= 1;
+	    end else begin
+                commit <= 0;
+                cnt <= 1;	
+	    end 
+        end
     end		
 
 
