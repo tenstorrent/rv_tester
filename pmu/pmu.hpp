@@ -192,7 +192,7 @@ public:
   } counter;
 
   std::vector<uint64_t>
-  to_vector(const rv_tester_transactions::pmu::pmcounters &pmcounters) {
+  to_vector(const rv_tester_transactions::pmu::pmcounters<> &pmcounters) {
     std::vector<uint64_t> tmp(counter::COUNT);
 
     tmp[counter::CPU_CYCLES] = pmcounters.cpu_cycles;
@@ -362,8 +362,8 @@ public:
   }
 
   void configure();
-  void process(const rv_tester_transactions::cosim::m_rvfi &m_rvfi);
-  void process(const rv_tester_transactions::pmu::pmcounters &pmcounters);
+  void process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi);
+  void process(const rv_tester_transactions::pmu::pmcounters<>& pmcounters);
 
 private:
   cvm::file_logger log;

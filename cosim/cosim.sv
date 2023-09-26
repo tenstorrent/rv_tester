@@ -7,7 +7,8 @@ import rv_tester_params::*;
     parameter int NINSERT = 1,
     parameter int NWRITE = 1,
     parameter int NBYPWRITE = 1,
-    `TOPOLOGY
+    `TOPOLOGY,
+    `RV_TESTER_TRANSACTIONS_COSIM_OUTPUT_PARAMS
 )(
     input clk,
     input reset,
@@ -20,7 +21,7 @@ import rv_tester_params::*;
     input rv_tester_pkg::interrupt_t interrupt,
     input debug_mode,
     output rv_tester_pkg::terminate_t terminate,
-    `RV_TESTER_TRANSACTIONS_OUTPUT_COSIM
+    `RV_TESTER_TRANSACTIONS_COSIM_OUTPUT_PORTS
 );
 
     import "DPI-C" context function void cosim_set_scope(int unsigned location);

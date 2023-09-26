@@ -42,7 +42,8 @@ module axi_sw #(
     parameter type atop_t   = logic [5:0],
     parameter type resp_t   = logic [1:0],
     parameter type len_t    = logic [7:0],
-    parameter type size_t   = logic [2:0]
+    parameter type size_t   = logic [2:0],
+    `RV_TESTER_TRANSACTIONS_AXI_SW_OUTPUT_PARAMS
 
 )(
 
@@ -90,7 +91,7 @@ module axi_sw #(
     /* verilator lint_off UNOPTFLAT */
     output logic             axi_slv_w_ready,
     /* verilator lint_on UNOPTFLAT */
-    `RV_TESTER_TRANSACTIONS_OUTPUT_AXI_SW
+    `RV_TESTER_TRANSACTIONS_AXI_SW_OUTPUT_PORTS
 
 );
 
@@ -366,7 +367,8 @@ module axi_sw_mst #(
     parameter type atop_t   = logic [5:0],
     parameter type resp_t   = logic [1:0],
     parameter type len_t    = logic [7:0],
-    parameter type size_t   = logic [2:0]
+    parameter type size_t   = logic [2:0],
+    `RV_TESTER_TRANSACTIONS_AXI_SW_MST_OUTPUT_PARAMS
 
 )(
 
@@ -412,7 +414,7 @@ module axi_sw_mst #(
     input  logic             axi_slv_aw_ready,
     input  logic             axi_slv_ar_ready,
     input  logic             axi_slv_w_ready,
-    `RV_TESTER_TRANSACTIONS_OUTPUT_AXI_SW_MST
+    `RV_TESTER_TRANSACTIONS_AXI_SW_MST_OUTPUT_PORTS
 
 );
     typedef byte unsigned dpi_data[DATA_WIDTH/$bits(byte)];

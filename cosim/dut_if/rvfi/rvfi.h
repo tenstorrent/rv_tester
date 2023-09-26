@@ -38,21 +38,21 @@ class rvfi {
 
     void init();
     void set_scope(svScope s) { scope_ = s; }
-    void process(const rv_tester_transactions::cosim::m_rvfi& m_rvfi);
-    void process(const rv_tester_transactions::cosim::m_trap& m_trap);
-    void process(const rv_tester_transactions::cosim::m_intr& m_intr);
-    void process(const rv_tester_transactions::cosim::m_debug& m_debug);
+    void process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi);
+    void process(const rv_tester_transactions::cosim::m_trap<>& m_trap);
+    void process(const rv_tester_transactions::cosim::m_intr<>& m_intr);
+    void process(const rv_tester_transactions::cosim::m_debug<>& m_debug);
 
     // FIXME Move out to a different file?
-    void process(const rv_tester_transactions::cosim::m_mcmi_read& m_mcmi_read);
-    void process(const rv_tester_transactions::cosim::m_mcmi_insert& m_mcmi_insert);
-    void process(const rv_tester_transactions::cosim::m_mcmi_write& m_mcmi_write);
+    void process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_read);
+    void process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_insert);
+    void process(const rv_tester_transactions::cosim::m_mcmi_write<>& m_mcmi_write);
 
     void process(const htif::terminate_t&);
 
     std::tuple<uint64_t, uint64_t, uint8_t> get_mem_attributes(uint64_t addr, uint8_t mask, uint64_t data);
 
-    void make_instr(const rv_tester_transactions::cosim::m_rvfi& m_rvfi, rv_instr_t& instr);
+    void make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_instr_t& instr);
     void print_instr(rv_instr_t& instr);
     void print_instr_resource(rv_instr_t& instr, std::string resource_str);
     void send_instr(rv_instr_t& instr);
