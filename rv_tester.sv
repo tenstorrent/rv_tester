@@ -28,7 +28,7 @@ import rv_tester_params::*;
 
     localparam int unsigned AxiIdWidthMstRv    = topology.TOP.PLATFORM.AXI.ID_WIDTH + $clog2(topology.TOP.PLATFORM.AXI.TOTAL) + 1;
 
-
+    logic flush_complete;
     logic rv_tester_reset = '1;
     logic sysmod_reset = '0;
     LU clocks = 0;
@@ -41,6 +41,8 @@ import rv_tester_params::*;
     logic rerun_now;
     rv_tester_pkg::terminate_t rv_tester_error_terminate;
     rv_tester_pkg::terminate_t sysmod_terminate;
+    rv_tester_pkg::terminate_t cosim_terminate [NHARTS-1:0];
+    logic cosim_terminate_any = '0;
 
     int quiesce_counter = 0;
     int quiesce_timeout = 500;
@@ -51,9 +53,9 @@ import rv_tester_params::*;
     string cvm_verbosity_string, gen_clocks_verbosity_string;
     int unsigned cvm_verbosity, gen_clocks_verbosity;
 
-    assign terminate           = (rv_tester_error_terminate.terminate || (sysmod_terminate.terminate && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
+    assign terminate           = (rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any) && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
     assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout);
-    assign rerun_now           = terminated && num_reruns != 0;
+    assign rerun_now           = terminated && num_reruns > 0;
 
     /*
     * Don't put an DPI calls here, zebu gets confused when signals are driven
@@ -70,11 +72,18 @@ import rv_tester_params::*;
         quiesce_counter <= quiesce_counter + int'(terminate);
         terminated      <= (terminate_now || terminated) && !rerun_now;
 
+        for (int i=0; i<NHARTS; i++) begin
+            if (cosim_terminate[i].terminate) begin
+              cosim_terminate_any <= '1;
+            end
+        end
+
         if (rv_tester_reset) begin
             clocks          <= '0;
             sysmod_reset    <= '1;
             quiesce_counter <= '0;
             terminated      <= '0;
+            cosim_terminate_any <= '0;
         end
 
     end
@@ -142,7 +151,7 @@ import rv_tester_params::*;
 
         if (terminate_now && !terminated) begin
 
-            if (quiesced) begin
+            if (quiesced && flush_complete) begin
                 $display("<%0d> [RVTESTER]: exiting gracefully", clocks);
             end else if (quiesce_counter == 0) begin
                 $display("<%0d> [RVTESTER]: exiting immediately because +quiesce_counter=0", clocks);
@@ -247,6 +256,7 @@ import rv_tester_params::*;
           .NREAD(NREADS[c]),
           .NINSERT(NINSERTS[c]),
           .NWRITE(NWRITES[c]),
+          .NBYPWRITE(NBYPWRITES[c]),
           `TOPOLOGY_CFG
       ) cosim (
           .clk,
@@ -256,8 +266,10 @@ import rv_tester_params::*;
           .mcmi_read(mcmi_read[NREADS_CUMSUM[c] +: NREADS[c]]),
           .mcmi_insert(mcmi_insert[NINSERTS_CUMSUM[c] +: NINSERTS[c]]),
           .mcmi_write(mcmi_write[NWRITES_CUMSUM[c] +: NWRITES[c]]),
+          .mcmi_bypass_write(mcmi_bypass_write[NBYPWRITES_CUMSUM[c] +: NBYPWRITES[c]]),
           .interrupt(interrupt[c]),
           .debug_mode(debug_mode[c]),
+          .terminate(cosim_terminate[c]),
           `RV_TESTER_TRANSACTIONS_SOURCE_COSIM(1, c)
       );
     end
@@ -442,7 +454,10 @@ import rv_tester_params::*;
         .axi_resp_up            ( axi_rsp ),
         .axi_req_mst_up         ( axi_req_llc ),
         .axi_resp_mst_up        ( axi_rsp_llc ),
-        .bypass_cache		( 1'b1 )
+        .bypass_cache		( 1'b1 ),
+	.flush_cache		( terminate ),
+	.flush_complete		( flush_complete ),
+	.bist_status_done	()
     );
 
 

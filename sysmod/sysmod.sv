@@ -54,24 +54,24 @@ import rv_tester_params::*;
     assign ticks[0].data.location = location;
     assign ticks[0].data.advance  = TICKS;
 
-    rv_tester_pkg::interrupt_t interrupt_d = '0; // FIXME how to reset these?
-    rv_tester_pkg::interrupt_t interrupt_q;
-    assign interrupt[0] = interrupt_q;
+    rv_tester_pkg::interrupt_t interrupt_d [NHARTS-1:0] = '{default: '0}; // FIXME how to reset these?
+    rv_tester_pkg::interrupt_t interrupt_q [NHARTS-1:0];
+    assign interrupt = interrupt_q;
 
     function void sysmod_timer_interrupt (unsigned hartid, unsigned val);
-      interrupt_d.mti = val;
+      interrupt_d[hartid].mti = val;
     endfunction
     export "DPI-C" function sysmod_timer_interrupt;
 
     function void sysmod_sw_interrupt (unsigned hartid, unsigned val);
-      interrupt_d.msi = val;
+      interrupt_d[hartid].msi = val;
     endfunction
     export "DPI-C" function sysmod_sw_interrupt;
 
     function void sysmod_tbox_interrupt (int unsigned hartid, int unsigned intr_select,int unsigned intr_value);
       for(int i =0;i<6;i++)begin
         if(intr_select[i])
-          interrupt_d[i] = intr_value[i];
+          interrupt_d[hartid][i] = intr_value[i];
       end
     endfunction
     export "DPI-C" function sysmod_tbox_interrupt;

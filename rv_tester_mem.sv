@@ -43,7 +43,10 @@ module rv_tester_mem #(
     //to main memory
     output  mst_req_t   axi_req_mst_up [NumMasters-1:0]     ,    
     input   mst_resp_t  axi_resp_mst_up [NumMasters-1:0]     ,  
-    input   logic 	bypass_cache
+    input   logic 	bypass_cache	,
+    input   logic       flush_cache	,
+    output  logic	flush_complete  ,
+    output  logic       bist_status_done
 );
 
 ///////////////unpacked to packed////////////////////
@@ -52,7 +55,6 @@ module rv_tester_mem #(
     slv_resp_t  [NumMasters-1:0] axi_resp;    
     mst_req_t   [NumMasters-1:0] axi_req_mst;
     mst_resp_t  [NumMasters-1:0] axi_resp_mst;
-
 
     always_comb begin
        for(int i=0;i<NumMasters;i++) begin	
@@ -68,6 +70,8 @@ module rv_tester_mem #(
 
 ////////////////local parameters/////////////////////
 
+    logic flush_cache_delayed_1, flush_cache_delayed_2;
+    logic [SetAssociativity_LLC-1:0] flushed;
 
     slv_req_t [NumMasters-1:0] axi_req_xbar;
     slv_resp_t [NumMasters-1:0] axi_resp_xbar;
@@ -75,11 +79,13 @@ module rv_tester_mem #(
     mst_req_t axi_req_mst_imm;
     mst_resp_t axi_resp_mst_imm;
 
+    logic [SetAssociativity_LLC-1:0] flush_reg;
+    logic commit_reg;
+
     localparam int unsigned Pipeline              = 32'b1;
     localparam int unsigned AxiIdUsed             = 32'd3;
     localparam bit UniqueIds                      = 1'b0;
     localparam int unsigned NumSlaves             = 32'd1;
-    localparam bit ATOPS                          = 1'b1;
     localparam int unsigned AxiIdWidthMst         = AxiIdWidth + $clog2(NumMasters);
 
     localparam axi_pkg::xbar_cfg_t xbar_cfg = '{
@@ -103,9 +109,6 @@ module rv_tester_mem #(
         NoIdRules:          0
       };
 
-
-
-
     typedef struct packed {
         int unsigned idx;
         logic [AxiAddrWidth-1:0] start_addr;
@@ -113,16 +116,16 @@ module rv_tester_mem #(
       } xbar_rule_t;
     
 
-    localparam xbar_rule_t [xbar_cfg.NoAddrRules-1:0] AddrMap = addr_map_gen();
-    localparam int unsigned PADDING1 = AxiAddrWidth-1;
-    localparam int unsigned PADDING2 = AxiAddrWidth-32;
-    function xbar_rule_t [xbar_cfg.NoAddrRules-1:0] addr_map_gen ();
-        for (int unsigned i = 0; i < xbar_cfg.NoAddrRules; i++) begin
+    localparam xbar_rule_t [NumSlaves-1:0] AddrMap = addr_map_gen();
+    function xbar_rule_t [NumSlaves-1:0] addr_map_gen ();
+        for (int unsigned i = 0; i < NumSlaves; i++) begin
           addr_map_gen[i] = xbar_rule_t'{
             idx:        unsigned'(i),
             start_addr:  i    * {AxiAddrWidth{1'b1}},
-            end_addr:   ({{PADDING2{1'b0}},i}+{{PADDING1{1'h0}},1'b1}) * {AxiAddrWidth{1'b1}},
-            default:    '0
+	    /* verilator lint_off WIDTH */
+            end_addr:   ( {{32{1'b0}},i} + 1) * {AxiAddrWidth{1'b1}},
+            /* verilator lint_on WIDTH */
+	    default:    '0
           };
         end
     endfunction
@@ -199,29 +202,19 @@ module rv_tester_mem #(
 
     axi_llc_cfg_regs_d_t     reg_cfg_hw_to_reg;
     axi_llc_cfg_regs_q_t     reg_cfg_reg_to_hw;
-    reg commit;
-    reg cnt;
 
     assign reg_cfg_reg_to_hw.cfg_spm     = {SetAssociativity_LLC{1'b0}};
-    assign reg_cfg_reg_to_hw.cfg_flush   = {SetAssociativity_LLC{1'b0}};
-    assign reg_cfg_reg_to_hw.commit_cfg  = commit;
-    assign reg_cfg_reg_to_hw.flushed     = {SetAssociativity_LLC{1'b0}};
-
+    assign reg_cfg_reg_to_hw.cfg_flush   = flush_reg;
+    assign reg_cfg_reg_to_hw.commit_cfg  = commit_reg;
+    assign reg_cfg_reg_to_hw.flushed     = flushed;
 
     always@(posedge clk) begin
         if(!rst_n) begin
-            commit <= 0;
-            cnt <= 0;
-    	end else begin
-	    if(cnt == 0) begin
-                commit <= 1;
-                cnt <= 1;
-	    end else begin
-                commit <= 0;
-                cnt <= 1;	
-	    end 
+                bist_status_done                     <= 0;
+        end else begin
+                bist_status_done                     <= reg_cfg_hw_to_reg.bist_status_done;
         end
-    end		
+    end
 
 
     axi_llc_top #(
@@ -304,6 +297,56 @@ end
 
 ////////////////////////////////////////////////////
 
+//////////////////Flushing//////////////////////////
+
+    assign flush_complete = &flushed;
+
+    always@(posedge clk) begin
+        if(!rst_n) begin
+                flush_cache_delayed_1                     <= 0;
+		flush_cache_delayed_2			  <= 0;
+        end else begin
+                flush_cache_delayed_1                     <= flush_cache;
+		flush_cache_delayed_2			  <= flush_cache_delayed_1;
+        end
+    end
+
+    always@(posedge clk) begin
+        if(!rst_n) begin
+                flush_reg <= '0;
+        end else if((flush_reg == 0) && (flush_cache^flush_cache_delayed_1)) begin
+                flush_reg <= '1;
+        end else if(reg_cfg_hw_to_reg.cfg_flush_en) begin
+                flush_reg <= reg_cfg_hw_to_reg.cfg_flush;
+        end else begin
+                flush_reg <= flush_reg;
+        end
+    end
+
+    always@(posedge clk) begin
+        if(!rst_n) begin
+                commit_reg <= 0;
+        end else if((commit_reg == 0) && (flush_cache_delayed_1^flush_cache_delayed_2)) begin
+                commit_reg <= 1;
+        end else if(reg_cfg_hw_to_reg.commit_cfg_en) begin
+                commit_reg <= reg_cfg_hw_to_reg.commit_cfg;
+        end else begin
+                commit_reg <= commit_reg;
+        end
+    end
+
+    always@(posedge clk) begin
+        if(!rst_n) begin
+                flushed <= '0;
+        end else if(reg_cfg_hw_to_reg.flushed_en) begin
+                flushed <= flushed + 1;
+        end else begin
+                flushed <= flushed;
+        end
+    end
+
+
+////////////////////////////////////////////////////
 
 
 endmodule

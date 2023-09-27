@@ -27,7 +27,7 @@ rv_tester_dependencies3()
 
 # don't want testgen in repositories.bzl, as it's only for internal use
 # let other repos' testgen supercede this one in downstream repos
-testgen_hash="6cd25f1c2973396bce233e6a5d38e5a401943a25"
+testgen_hash="50e12d558b97250deb7a671a524278a61a06a60c"
 git_repository(
     name = "testgen",
     commit = testgen_hash,

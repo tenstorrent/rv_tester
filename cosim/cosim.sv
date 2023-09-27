@@ -6,6 +6,7 @@ import rv_tester_params::*;
     parameter int NREAD = 1,
     parameter int NINSERT = 1,
     parameter int NWRITE = 1,
+    parameter int NBYPWRITE = 1,
     `TOPOLOGY
 )(
     input clk,
@@ -15,8 +16,10 @@ import rv_tester_params::*;
     input mcmi_t [NREAD-1:0] mcmi_read,
     input mcmi_t [NINSERT-1:0] mcmi_insert,
     input mcmi_t [NWRITE-1:0] mcmi_write,
+    input mcmi_t [NBYPWRITE-1:0] mcmi_bypass_write,
     input rv_tester_pkg::interrupt_t interrupt,
     input debug_mode,
+    output rv_tester_pkg::terminate_t terminate,
     `RV_TESTER_TRANSACTIONS_OUTPUT_COSIM
 );
 
@@ -34,9 +37,17 @@ import rv_tester_params::*;
             if (rvfi_enabled) begin
               cosim_set_scope(location);
             end
+            terminate.terminate = '0;
             /* verilator lint_on BLKSEQ */
         end
     end
+
+    function void cosim_terminate ();
+        $display("attempting to terminate");
+        /* verilator lint_off BLKSEQ */
+        terminate.terminate = '1;
+        /* verilator lint_on BLKSEQ */
+    endfunction
 
     // m_rvfi
     for (genvar n = 0; n < NRET; n++) begin
@@ -107,6 +118,17 @@ import rv_tester_params::*;
         assign m_mcmi_writes[n].data.data = mcmi_write[n].data;
     end
 
+    // m_mcmi_bypass_write
+    for (genvar n = 0; n < NBYPWRITE; n++) begin
+        assign m_mcmi_bypass_writes[n].valid = MCMI_EN & rvfi_enabled & ~reset & mcmi_bypass_write[n].valid;
+        assign m_mcmi_bypass_writes[n].data.location = location;
+        assign m_mcmi_bypass_writes[n].data.cycle = mcmi_bypass_write[n].valid ? clocks : '0;
+        assign m_mcmi_bypass_writes[n].data.hart = NUM;
+        assign m_mcmi_bypass_writes[n].data.addr = mcmi_bypass_write[n].addr;
+        assign m_mcmi_bypass_writes[n].data.mask = mcmi_bypass_write[n].mask;
+        assign m_mcmi_bypass_writes[n].data.data = mcmi_bypass_write[n].data[63:0];
+    end
+
     // m_trap
     for (genvar n = 0; n < NRET; n++) begin
         assign m_traps[n].valid = RVFI_EN & rvfi_enabled & ~reset & (rvfi[n].cause != 0);
@@ -153,28 +175,35 @@ import rv_tester_params::*;
 
     // Timeout checks
     int max_stall_cycle = 50000;
-    int max_cycle;
+    longint unsigned max_cycle;
     int cycles_since_retire;
+    longint unsigned hart_enable_mask;
+    bit boot_wfi;
 
     always @(posedge clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */
-            max_cycle = cvm_plusargs::get_int("max_cycle");
+            max_cycle = cvm_plusargs::get_ulongint("max_cycle");
             max_stall_cycle = cvm_plusargs::get_int("max_stall_cycle");
+            hart_enable_mask = cvm_plusargs::get_ulongint("hart_enable_mask");
             /* verilator lint_on BLKSEQ */
             cycles_since_retire <= 0;
+            boot_wfi <= '0;
         end else begin
             cycles_since_retire <= cycles_since_retire + 1;
             if (rvfi[0].valid !== 0) begin
               cycles_since_retire <= 0;
             end
-            if (max_stall_cycle > 0 && cycles_since_retire > max_stall_cycle) begin
-              $display("Error: No instruction retired for max_stall_cycle (%0d) cycles", max_stall_cycle);
-              $finish;
+            if (NUM != 0 && hart_enable_mask[NUM] == 1 && rvfi[0].valid !== 0 && rvfi[0].insn[6:0] == 7'h73 && rvfi[0].pc_rdata < 'h20000) begin // WFI
+              boot_wfi <= '1;
             end
-            if (max_cycle > 0 && clocks > LU'(max_cycle)) begin
-              $display("Error: Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", max_cycle);
-              $finish;
+            if (max_stall_cycle > 0 && cycles_since_retire > max_stall_cycle && !boot_wfi) begin
+              $display("Error: Hart%0d: No instruction retired for max_stall_cycle (%0d) cycles", NUM, max_stall_cycle);
+              cosim_terminate();
+            end
+            if (max_cycle > 0 && clocks > max_cycle) begin
+              $display("Error:Hart%0d:  Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", NUM, max_cycle);
+              cosim_terminate();
             end
         end
     end

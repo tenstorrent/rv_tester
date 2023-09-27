@@ -23,14 +23,15 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv/dv/corearchcoverage.git",
     )
 
-    cvm_hash="5c8d82a7ea7d8e81465e2074f3924dfcf0fad6ea"
+    cvm_hash="24c8d9b2ba0b747c379488b8d300e7077832b4a1"
     maybe(
         http_archive,
         name = "cvm",
-        sha256 = "77dfc9dd7c922e7e2440d9ca87c9b5fbef2e3b644a8528b88b63adf2e2dde542",
+        sha256 = "9b012bb8bcba37f99f107a73dd697bbe540a50dedae4a16021bbdce5d64123ab",
         strip_prefix = "cvm-{commit}".format(commit=cvm_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/{commit}/cvm-{commit}.tar.bz2".format(commit=cvm_hash),
     )
+
 
     maybe(
         http_archive,
@@ -93,7 +94,7 @@ cc_library(
         url = "https://aus-gitlab.local.tenstorrent.com/mboisvert/wall_clock_profiler/-/archive/{commit}/wall_clock_profiler-{commit}.tar.bz2".format(commit=wall_clock_profiler_hash),
     )
 
-    checkin_script_hash="63d95cb132cf95c7806da3bef2df63b59c4e0741"
+    checkin_script_hash="ddae2a510ebc0caad205e1b611d4701a4424e5ad"
     maybe(
         git_repository,
         name = "checkin-script",
@@ -102,21 +103,21 @@ cc_library(
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/checkin-script.git",
     )
 
-    axi_wrapper_hash="d069cddcf0592afb11aa71ba5ef8d4483549286d"
+    axi_wrapper_hash="9633fd766e471b952cb796ff564bde5cdab6771b"
     maybe(
         git_repository,
         name = "axi-wrapper",
         commit = axi_wrapper_hash,
-        shallow_since = "1695748755 +0000",
+        shallow_since = "1695754616 +0000",
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/axi-wrapper.git",
     )
 
-    axi_llc_wrapper_hash="07198307cba0a475050f75efb5e1163a4fc387eb"
+    axi_llc_wrapper_hash="dbf538206d69e0fb4aacf39dc11da07d0b1e851e"
     maybe(
         git_repository,
         name = "axi_llc-wrapper",
         commit = axi_llc_wrapper_hash,
-        shallow_since = "1695136800 -0500",
+        shallow_since = "1695756617 +0000",
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/axi_llc-wrapper.git",
     )
 

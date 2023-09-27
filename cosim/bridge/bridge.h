@@ -104,12 +104,14 @@ private:
   bool is_ecall(const whisper_state_t& w);
   bool does_instr_match_resynch_list(const whisper_state_t& w);
   bool does_prev_instr_match_resynch_list(const whisper_state_t& w);
-  bool does_instr_match_resynch_condition(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
+  bool does_instr_match_resynch_condition(const rv_instr_t& d, const whisper_state_t& w);
   bool clint_read(const rv_instr_t& d);
+  bool boot_read(const rv_instr_t& d);
+  bool debug_mem_access(const rv_instr_t& d);
   bool htif_read(const rv_instr_t& d);
   bool hpm_counter_read(const whisper_state_t& w);
   bool lrsc_fail(const whisper_state_t& w);
-  bool mip_timing_mismatch(hart_id_t hart, const whisper_state_t& w);
+  bool mip_timing_mismatch(const whisper_state_t& w);
   bool xtval_read(const whisper_state_t& w);
   void resynch(hart_id_t hart, const rv_instr_t& d);
   std::string get_nth_word(const std::string& s, int n);
@@ -125,30 +127,28 @@ private:
   int vlen_ = 0;
   CacCore cac_;
 
-  // Previous instruction's whisper state per-hart
-  std::array<whisper_state_t, max_harts> pw_ {};
-
-  // Previous previous instruction's whisper state per-hart
-  std::array<whisper_state_t, max_harts> ppw_ {};
+  // Previous instruction's whisper state
+  whisper_state_t pw_{};
+  whisper_state_t ppw_{};
 
   // Create a copy of whisper instr in similar format as dut
   rv_instr_t w_;
 
-  std::array<uint32_t, max_harts> step_{1};
+  uint32_t step_ = 1;
 
   // State variables
   bool ecall_ = false;
   bool debug_mode_ = false;
-
+  bool excp_in_debug_mode = false;
   uint64_t satp_ = 0;
   uint64_t new_satp_ = 0;
 
   bool resynch_intr_cause_mismatch_ = false;
 
-  std::array<uint64_t, max_harts> mip_{0};
-  std::array<uint64_t, max_harts> intr_pins_{0};
-  std::array<uint64_t, max_harts> prev_intr_pins_{0};
-  std::array<std::array<uint32_t, max_intr>, max_harts> intr_age_{};
+  uint64_t mip_ = 0;
+  uint64_t intr_pins_ = 0;
+  uint64_t prev_intr_pins_ = 0;
+  std::array<uint32_t, max_intr> intr_age_{};
 
   // Memmap
   memmap::memmap_t memmap_;
