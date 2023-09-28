@@ -368,6 +368,7 @@ module axi_sw_mst #(
     parameter type resp_t   = logic [1:0],
     parameter type len_t    = logic [7:0],
     parameter type size_t   = logic [2:0],
+
     `RV_TESTER_TRANSACTIONS_AXI_SW_MST_OUTPUT_PARAMS
 
 )(
@@ -463,20 +464,31 @@ module axi_sw_mst #(
 
     `AXI_SW_DPI_FIFO_RESET(axi_sw_mst_aw, aw_dpi_fifo)
 
-    function void axi_sw_mst_w (dpi_data data, dpi_strb strb, byte unsigned last);
-        w_t w;
-        data_t d;
-        strb_t s;
-        for (int i = 0; i < $size(dpi_data); i++) begin
-            d[8*i +: 8] = data[i];
-        end
-        for (int i = 0; i < $size(dpi_strb); i++) begin
-            s[8*i +: 8] = strb[i];
-        end
-        w = '{data: d, strb: s, last: (1)'(last)};
+`define AXI_SW_MST_W(data, strb, last)                    \
+        w_t w;                                            \
+        data_t d;                                         \
+        strb_t s;                                         \
+        if ($size(data) != DATA_WIDTH/$size(byte)) begin  \
+            $error();                                     \
+        end                                               \
+        for (int i = 0; i < $size(dpi_data); i++) begin   \
+            d[8*i +: 8] = data[i];                        \
+        end                                               \
+        for (int i = 0; i < $size(dpi_strb); i++) begin   \
+            s[8*i +: 8] = strb[i];                        \
+        end                                               \
+        w = '{data: d, strb: s, last: (1)'(last)};        \
         `AXI_SW_DPI_FIFO_PUSH(w_dpi_fifo,W_Q_MAX,w);
+
+    function void axi_sw_mst_w_64 (byte unsigned data[64], byte unsigned strb[8], byte unsigned last);
+        `AXI_SW_MST_W(data, strb, last)
     endfunction
-    export "DPI-C" function axi_sw_mst_w;
+    export "DPI-C" function axi_sw_mst_w_64;
+
+    function void axi_sw_mst_w_8 (byte unsigned data[8], byte unsigned strb[1], byte unsigned last);
+        `AXI_SW_MST_W(data, strb, last)
+    endfunction
+    export "DPI-C" function axi_sw_mst_w_8;
 
     `AXI_SW_DPI_FIFO_RESET(axi_sw_mst_w, w_dpi_fifo)
 

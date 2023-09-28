@@ -13,3 +13,11 @@ rv_tester_axi_mst_attrs: &rv_tester_axi_mst_attrs
   DATA_WIDTH: 512
   STRB_WIDTH: 64
   ID_WIDTH: 4
+
+rv_tester_axi_mst_count: &rv_tester_axi_mst2_count 2
+
+rv_tester_axi_mst_attrs: &rv_tester_axi_mst2_attrs
+  ADDR_WIDTH: 64
+  DATA_WIDTH: 64
+  STRB_WIDTH: 8
+  ID_WIDTH: 4
