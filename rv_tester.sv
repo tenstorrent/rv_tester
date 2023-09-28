@@ -45,7 +45,7 @@ import rv_tester_params::*;
     logic cosim_terminate_any = '0;
 
     int quiesce_counter = 0;
-    int quiesce_timeout = 500;
+    int quiesce_timeout = 2500;
 
     int unsigned location = cvm_topology::nil;
 
@@ -54,7 +54,7 @@ import rv_tester_params::*;
     int unsigned cvm_verbosity, gen_clocks_verbosity;
 
     assign terminate           = (rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any) && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
-    assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout);
+    assign terminate_now       = terminate && ((quiesced && flush_complete) || quiesce_counter >= quiesce_timeout);
     assign rerun_now           = terminated && num_reruns > 0;
 
     /*
@@ -455,7 +455,7 @@ import rv_tester_params::*;
         .axi_req_mst_up         ( axi_req_llc ),
         .axi_resp_mst_up        ( axi_rsp_llc ),
         .bypass_cache		( 1'b1 ),
-	.flush_cache		( terminate ),
+	.flush_cache		( quiesced ),
 	.flush_complete		( flush_complete ),
 	.bist_status_done	()
     );

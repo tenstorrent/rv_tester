@@ -339,7 +339,7 @@ end
         if(!rst_n) begin
                 flushed <= '0;
         end else if(reg_cfg_hw_to_reg.flushed_en) begin
-                flushed <= flushed + 1;
+                flushed <= reg_cfg_hw_to_reg.flushed;
         end else begin
                 flushed <= flushed;
         end
