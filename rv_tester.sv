@@ -14,6 +14,7 @@ import rv_tester_params::*;
     typedef longint unsigned LU;
 
     localparam int unsigned NoAddrRules = 10;
+
     typedef struct packed {
         int unsigned idx;
         logic [topology.TOP.PLATFORM.AXI.ADDR_WIDTH-1:0] start_addr;
@@ -440,8 +441,8 @@ import rv_tester_params::*;
     `AXI_TYPEDEF_RESP_T(mst_resp_rv, mst_b_chan_rv, mst_r_chan_rv)
     `AXI_TYPEDEF_RESP_T(slv_resp_rv, slv_b_chan_rv, slv_r_chan_rv)
 
-    mst_req_rv axi_req_llc [topology.TOP.PLATFORM.AXI.TOTAL-1:0];
-    mst_resp_rv axi_rsp_llc [topology.TOP.PLATFORM.AXI.TOTAL-1:0];
+    mst_req_rv axi_req_llc [no_of_masters-1:0];
+    mst_resp_rv axi_rsp_llc [no_of_masters-1:0];
 
     xbar_rule_t [NoAddrRules-1:0] AddrMap;
 
@@ -471,7 +472,8 @@ import rv_tester_params::*;
         .mst_req_t              ( mst_req_rv  ),
         .mst_resp_t             ( mst_resp_rv ),
 	.rule_t			( xbar_rule_t ),
-	.NoAddrRules		(NoAddrRules)
+	.NoAddrRules		( NoAddrRules ),
+	.NumMastersMem		( no_of_masters )
     ) inst(
         .clk                    ( clk ),
         .rst_n                  ( ~reset ),

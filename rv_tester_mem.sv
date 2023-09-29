@@ -36,7 +36,9 @@ module rv_tester_mem #(
     //Address Map data type
     parameter type rule_t                       = axi_pkg::xbar_rule_64_t,
     //Number of address rules
-    parameter int unsigned NoAddrRules	        = 2
+    parameter int unsigned NoAddrRules	        = 2,
+    //number of master ports of rv_tester_mem
+    parameter int unsigned NumMastersMem	= 2
 ) (
 
     input   logic                            clk,
@@ -45,8 +47,8 @@ module rv_tester_mem #(
     input   slv_req_t   axi_req_up [NumMasters-1:0]     ,        
     output  slv_resp_t  axi_resp_up [NumMasters-1:0]    ,     
     //to main memory
-    output  mst_req_t   axi_req_mst_up [NumMasters-1:0]     ,    
-    input   mst_resp_t  axi_resp_mst_up [NumMasters-1:0]     ,
+    output  mst_req_t   axi_req_mst_up [NumMastersMem-1:0]     ,    
+    input   mst_resp_t  axi_resp_mst_up [NumMastersMem-1:0]     ,
     input   rule_t	[NoAddrRules-1:0] addr_map,	   
     input   logic 	bypass_cache	,
     input   logic       flush_cache	,
@@ -58,16 +60,20 @@ module rv_tester_mem #(
 
     slv_req_t   [NumMasters-1:0] axi_req;
     slv_resp_t  [NumMasters-1:0] axi_resp;    
-    mst_req_t   [NumMasters-1:0] axi_req_mst;
-    mst_resp_t  [NumMasters-1:0] axi_resp_mst;
+    mst_req_t   [NumMastersMem-1:0] axi_req_mst;
+    mst_resp_t  [NumMastersMem-1:0] axi_resp_mst;
 
     always_comb begin
        for(int i=0;i<NumMasters;i++) begin	
            axi_req[i] = axi_req_up[i];
 	   axi_resp_up[i] = axi_resp[i];
-	   axi_req_mst_up[i] = axi_req_mst[i];
+       end
+
+       for(int i=0;i<NumMastersMem;i++) begin
+           axi_req_mst_up[i] = axi_req_mst[i];
            axi_resp_mst[i] = axi_resp_mst_up[i];
        end
+
     end
 
 ////////////////////////////////////////////////////
@@ -267,7 +273,12 @@ module rv_tester_mem #(
 		temp_3.b.id = axi_resp_mst[i].b.id[AxiIdWidth-1:0];
 		temp_3.r.id = axi_resp_mst[i].r.id[AxiIdWidth-1:0];
 		axi_resp[i] = temp_3;
+	    end
+
+	    for(int i=NumMasters;i<NumMastersMem;i++) begin
+		axi_req_mst[i] = '0;
 	    end 
+	
 		axi_req_xbar = '0;			
 		axi_resp_mst_imm = '0;
 	end else begin
