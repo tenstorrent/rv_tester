@@ -13,8 +13,6 @@ clint::clint(const std::string& tag, uint64_t addr, unsigned hartCount,
   auto clint_loc = cvm::topology::get_from_type("CLINT", 0);
   tickDivisor_ = cvm::topology::attr(clint_loc, "CLOCK_DIVISOR").second;
   
-  cvm::log(cvm::NONE, "[SYSMOD] Constructing clint [addr:{:#x}, harts: {}]", addr, hartCount_);
-
   std::ifstream ifs;
   if (load_snapshot(ifs)) {
     std::string line;
@@ -138,7 +136,6 @@ void clint::tick(uint64_t advance)
   if ((advance % tickDivisor_) != 0) {
     cvm::log(cvm::NONE, "ERROR: Clock advancing by {}, not a multiple of configured divisor {}", advance, tickDivisor_);
   }
-  std::cout << "tick" << std::endl;
   timer_ += advance / tickDivisor_;
   processTimerInterrupts();
 }
