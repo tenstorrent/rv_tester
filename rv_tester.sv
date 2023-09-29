@@ -13,6 +13,7 @@ import rv_tester_params::*;
 
     typedef longint unsigned LU;
 
+    localparam int unsigned NoAddrRules = 10;
     typedef struct packed {
         int unsigned idx;
         logic [topology.TOP.PLATFORM.AXI.ADDR_WIDTH-1:0] start_addr;
@@ -28,7 +29,7 @@ import rv_tester_params::*;
 
     import "DPI-C" function int rv_tester_parse_flags(); // dummy return value so that this gets called immediately. need this to happen before any other DPIs are called.
     import "DPI-C" context function void rv_tester_cvm_error_handler();
-    import "DPI-C" function void rv_tester_parse_memmap();
+    import "DPI-C" context function void rv_tester_parse_memmap(int unsigned no_addr_rules);
     import "DPI-C" function void rv_tester_build_registry();
     import "DPI-C" function int rv_tester_shutdown_registry(); // dummy return value so that this gets called immediately to end the test.
     import "DPI-C" context function bit rv_tester_flush_callbacks();
@@ -116,7 +117,7 @@ import rv_tester_params::*;
             $display("[RVTESTER]: new test");
             _ = rv_tester_parse_flags();
             rv_tester_cvm_error_handler();
-            rv_tester_parse_memmap();
+            rv_tester_parse_memmap(NoAddrRules);
 
             /* verilator lint_off BLKSEQ */
             // zebu bug doesn't allow nested function calls, so create intermediate variables
@@ -136,6 +137,7 @@ import rv_tester_params::*;
 
             $display("[RVTESTER]: reconstructing registry");
             rv_tester_build_registry();
+
         end
 
         num_reruns      <= num_reruns - int'(rerun_now);
@@ -441,33 +443,18 @@ import rv_tester_params::*;
     mst_req_rv axi_req_llc [topology.TOP.PLATFORM.AXI.TOTAL-1:0];
     mst_resp_rv axi_rsp_llc [topology.TOP.PLATFORM.AXI.TOTAL-1:0];
 
-    localparam NoAddrRules = 2;
-    localparam xbar_rule_t [NoAddrRules-1:0] AddrMap = addr_map_gen();
-    function xbar_rule_t [NoAddrRules-1:0] addr_map_gen ();
-        for (int unsigned i = 0; i < NoAddrRules; i++) begin
-	  if(i==1) begin
-          addr_map_gen[i] = xbar_rule_t'{
-            idx:        unsigned'(i),
-            /* verilator lint_off WIDTH */
-	    start_addr:  0,
-            end_addr:   32'h80000000,
-            /* verilator lint_on WIDTH */
-            default:    '0
-          };
-	end else begin
-	    addr_map_gen[i] = xbar_rule_t'{
-            idx:        unsigned'(i),
-	    /* verilator lint_off WIDTH */
-            start_addr:  32'h80000001,
-            end_addr:   ( {{32{1'b0}},i} + 1) * {topology.TOP.PLATFORM.AXI.ADDR_WIDTH{1'b1}},
-            /* verilator lint_on WIDTH */
-            default:    '0
-          };
+    xbar_rule_t [NoAddrRules-1:0] AddrMap;
 
-	end
-	
-        end
-    endfunction 
+    function automatic void rv_tester_set_address_map(int unsigned i, longint unsigned start_addr, longint unsigned end_addr, int unsigned device);
+        localparam int unsigned AW = topology.TOP.PLATFORM.AXI.ADDR_WIDTH;
+        AddrMap[i] = '{
+            idx       : device         ,
+            start_addr: AW'(start_addr),
+            end_addr  : AW'(end_addr  )
+        };
+    endfunction
+
+    export "DPI-C" function rv_tester_set_address_map;
 
     rv_tester_mem #(
         .NumMasters             ( topology.TOP.PLATFORM.AXI.TOTAL ),

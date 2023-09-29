@@ -1,6 +1,6 @@
 #pragma once
 
-#include <unordered_map>
+#include <map>
 #include <string>
 
 namespace memmap {
@@ -14,7 +14,8 @@ namespace memmap {
       uint64_t end ;
   };
 
-  using memmap_t = std::unordered_map<std::string, memmap_entry_t>;
+  // ordered so when we iterate to fill SV and create devices it will be deterministic
+  using memmap_t = std::map<std::string, memmap_entry_t>;
 
   extern memmap_t m;
 
