@@ -36,7 +36,7 @@ DEFINE_bool(retire_ucode_trap, true, "DUT indicates retire on a trap after execu
 DEFINE_bool(gpr_check, true, "Enable cosim checks on gprs");
 DEFINE_bool(fpr_check, true, "Enable cosim checks on fprs");
 DEFINE_bool(vec_check, false, "Enable cosim checks on vector regs");
-DEFINE_bool(csr_check, false, "Enable cosim checks on csrs");
+DEFINE_bool(csr_check, true, "Enable cosim checks on csrs");
 DEFINE_uint64(max_cycle, 1000000, "Max cycle limit to terminate the sim");
 DEFINE_int32(debug_excp_mcause, 24, "MCAUSE value for debug exception");
 DEFINE_int32(max_stall_cycle, 50000, "Max stall cycle limit to terminate the sim");
@@ -186,7 +186,7 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
   if (!d.comp && !d.ucode) {
     update_insn(hart, src_t::dut, d.opcode);
   }
-  if (d.gpr.valid || d.fpr.valid || d.vr.valid) {
+  if (d.gpr.valid || d.fpr.valid || d.vr.valid || !d.csr.empty()) {
     update_regs(hart, d);
   }
   if (d.mem_write.valid) {
@@ -458,6 +458,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
       c.csr_addr = w.address;
       c.csr_wdata = w.value;
       w_.csr.push_back(c);
+      update_regs(hart, w);
     }
     if (w.resource == 'm') {
       w_.mem_write.valid = true;
@@ -550,6 +551,14 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
   if (FLAGS_vec_check && d.vr.valid) {
     update_regs(hart, src_t::dut, resource_t::vec_reg, d.vr.vrd_addr, create_dword_vec(d.vr.vrd_wdata));
   }
+  // CSR
+  if (FLAGS_csr_check) {
+    for (auto & c : d.csr) {
+      // FIXME Check all CSRs
+      if (c.csr_addr == 0x3)
+        update_regs(hart, src_t::dut, resource_t::csr_reg, c.csr_addr, {c.csr_wdata});
+    }
+  }
 }
 
 // Push DUT mem state to cac
@@ -593,6 +602,13 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_
           update_regs(hart, src_t::iss, resource_t::vec_reg, w.address, std::vector<size_8_bytes_t>(dword_vec_array, dword_vec_array + sizeof(dword_vec_array)/sizeof(dword_vec_array[0])));
           w_.vr.vrd_wdata = create_bitset(dword_vec_array);
         }
+      }
+      break;
+    case 'c':
+      if (FLAGS_csr_check) {
+        // FIXME Check all CSRs
+        if (w.address == 0x3)
+          update_regs(hart, src_t::iss, resource_t::csr_reg, w.address, {w.value});
       }
       break;
     default:

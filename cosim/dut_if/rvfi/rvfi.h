@@ -43,6 +43,8 @@ class rvfi {
     void process(const rv_tester_transactions::cosim::m_intr<>& m_intr);
     void process(const rv_tester_transactions::cosim::m_debug<>& m_debug);
 
+    void process(const rv_tester_transactions::cosim::m_csri<>& m_csri);
+
     // FIXME Move out to a different file?
     void process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_read);
     void process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_insert);
@@ -77,6 +79,8 @@ class rvfi {
     bool excp_ = false;
     uint64_t icause_ = 0;
     uint64_t ecause_ = 0;
+
+    std::vector<csr_t> csrs_;
 
     svScope scope_;
 

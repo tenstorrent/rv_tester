@@ -2,6 +2,7 @@ rv_tester_nharts: &rv_tester_nharts 2
 
 rv_tester_platform_attrs: &rv_tester_platform_attrs
   NHARTS: 2
+  NCSR: 10
   #ISA
   ISA_RVIMA: 1
   ISA_RVF: 1

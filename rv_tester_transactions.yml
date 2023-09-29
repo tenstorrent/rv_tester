@@ -5,6 +5,21 @@ cosim:
             count:
                 width: 32
 
+    m_csri:
+        domain: 1
+        num: ${TOP.PLATFORM.NCSR}
+        fields:
+            cycle:
+                width: 64
+            hart:
+                width: 32
+            addr:
+                width: ${TOP.PLATFORM.CSRLEN}
+            mask:
+                width: ${TOP.PLATFORM.XLEN}
+            data:
+                width: ${TOP.PLATFORM.XLEN}
+
     m_rvfi:
         domain: 1
         num: ${max(TOP.PLATFORM.COSIM.RVFI.NRETS)}

@@ -18,6 +18,7 @@ DEFINE_bool(rvfi_log, true, "Enable rvfi logging");
 DEFINE_bool(mcm, false, "Enable mcm");
 DEFINE_bool(cosim, true, "Enable cosim checking");
 DECLARE_string(load);
+DECLARE_bool(csr_check);
 
 DEFINE_uint64(debug_entry_pc, 0x800, "Debug Mode entry PC");
 DEFINE_uint64(debug_exit_pc, 0x860, "Debug Mode exit PC");
@@ -40,6 +41,7 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
 
   connect<
     rv_tester_transactions::cosim::m_rvfi<>,
+    rv_tester_transactions::cosim::m_csri<>,
     rv_tester_transactions::cosim::m_trap<>,
     rv_tester_transactions::cosim::m_intr<>,
     rv_tester_transactions::cosim::m_mcmi_read<>,
@@ -183,10 +185,16 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.fpr.frd_addr = m_rvfi.frd_addr;
   instr.fpr.frd_wdata = m_rvfi.frd_wdata;
 
-  // VPR
+  // VR
   instr.vr.valid = m_rvfi.vrd_valid;
   instr.vr.vrd_addr = m_rvfi.vrd_addr;
   instr.vr.vrd_wdata = m_rvfi.vrd_wdata;
+
+  // CSR
+  for (auto & csr : csrs_) {
+    instr.csr.push_back(csr);
+  }
+  csrs_.clear();
 
   // tlb
   instr.mem_va = m_rvfi.mem_addr;
@@ -347,6 +355,14 @@ void rvfi::exit_debug_mode(rv_instr_t& instr) {
 
     bridge_->exit_debug_mode(debug);
   }
+}
+
+void rvfi::process(const rv_tester_transactions::cosim::m_csri<>& m_csri) {
+  if (!FLAGS_csr_check)
+    return;
+
+  csr_t c {true, m_csri.cycle, m_csri.addr, m_csri.data, m_csri.mask};
+  csrs_.push_back(c);
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_read) {

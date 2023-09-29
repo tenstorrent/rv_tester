@@ -269,6 +269,26 @@ package rv_tester_params;
     } mcmi_t;
 
     // --------------------------------------
+    // CSRI - Control Status Registers
+    // --------------------------------------
+    parameter CSRLEN = mods.TOP.PLATFORM.CSRLEN;
+
+    typedef enum {
+        MIP,
+        FCSR,
+        CSR_COUNT
+    } csr_list_t;
+
+    typedef struct packed {
+        logic                       valid;
+        logic [CSRLEN-1:0]          addr;
+        logic [XLEN-1:0]            data;
+        logic [XLEN-1:0]            mask;
+    } csr_entry_t;
+
+    typedef csr_entry_t [CSR_COUNT-1:0] csri_t;
+
+    // --------------------------------------
     // PMCI - Performance Monitoring Counters
     // --------------------------------------
     parameter bit PMCI_EN = mods.TOP.PLATFORM.PMCI.ENABLE == 1;
@@ -345,9 +365,6 @@ package rv_tester_params;
         EVENT_COUNT
     } pmc_event_t;
 
-
-
-
     typedef logic [3:0] pmc_counter_t;
     typedef pmc_counter_t [EVENT_COUNT-1:0] pmci_t;
 
@@ -377,6 +394,7 @@ package rv_tester_params;
     output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NINSERTS-1:0] mcmi_insert,    \
     output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NWRITES-1:0]  mcmi_write,     \
     output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NBYPWRITES-1:0]  mcmi_bypass_write,     \
+    output rv_tester_params::csri_t          csri         [rv_tester_params::NHARTS-1:0],           \
     output rv_tester_params::pmci_t          pmci         [rv_tester_params::NHARTS-1:0],           \
     output rv_tester_params::axi_req_t       axi_req      [rv_tester_params::AXI_TOTAL-1:0],        \
     input  rv_tester_params::axi_rsp_t       axi_rsp      [rv_tester_params::AXI_TOTAL-1:0],        \
@@ -408,6 +426,7 @@ package rv_tester_params;
     rv_tester_params::mcmi_t                 [rv_tester_params::TOTAL_NINSERTS-1:0]  mcmi_insert;   \
     rv_tester_params::mcmi_t                 [rv_tester_params::TOTAL_NWRITES-1:0]   mcmi_write;    \
     rv_tester_params::mcmi_t                 [rv_tester_params::TOTAL_NBYPWRITES-1:0]   mcmi_bypass_write;    \
+    rv_tester_params::csri_t                 csri          [rv_tester_params::NHARTS-1:0];          \
     rv_tester_params::pmci_t                 pmci          [rv_tester_params::NHARTS-1:0];          \
     rv_tester_params::axi_req_t              axi_req       [rv_tester_params::AXI_TOTAL-1:0];       \
     rv_tester_params::axi_rsp_t              axi_rsp       [rv_tester_params::AXI_TOTAL-1:0];       \
