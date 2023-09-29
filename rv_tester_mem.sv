@@ -33,8 +33,10 @@ module rv_tester_mem #(
     parameter type mst_req_t                    = logic,
     // AXI4+ATOP response struct type for the master ports
     parameter type mst_resp_t                   = logic,
-    Address Map data type
-    parameter type rule_t                       = axi_pkg::xbar_rule_64_t
+    //Address Map data type
+    parameter type rule_t                       = axi_pkg::xbar_rule_64_t,
+    //Number of address rules
+    parameter int unsigned NoAddrRules	        = 2
 ) (
 
     input   logic                            clk,
@@ -44,7 +46,8 @@ module rv_tester_mem #(
     output  slv_resp_t  axi_resp_up [NumMasters-1:0]    ,     
     //to main memory
     output  mst_req_t   axi_req_mst_up [NumMasters-1:0]     ,    
-    input   mst_resp_t  axi_resp_mst_up [NumMasters-1:0]     ,  
+    input   mst_resp_t  axi_resp_mst_up [NumMasters-1:0]     ,
+    input   rule_t	[NoAddrRules-1:0] addr_map,	   
     input   logic 	bypass_cache	,
     input   logic       flush_cache	,
     output  logic	flush_complete  ,
@@ -104,7 +107,7 @@ module rv_tester_mem #(
         UniqueIds:          UniqueIds,
         AxiAddrWidth:       AxiAddrWidth,
         AxiDataWidth:       AxiDataWidth,
-        NoAddrRules:        NumSlaves,
+        NoAddrRules:        NoAddrRules,
         AxiIdWidth:         0,
         AxiSrcIdWidth:      0,
         AxiTxIdWidth:       0,
@@ -112,22 +115,6 @@ module rv_tester_mem #(
         NoIdRules:          0
       };
 
-/*
-    localparam rule_t [NumSlaves-1:0] AddrMap = addr_map_gen();
-
-    function rule_t [NumSlaves-1:0] addr_map_gen ();
-        for (int unsigned i = 0; i < NumSlaves; i++) begin
-          addr_map_gen[i] = xbar_rule_t'{
-            idx:        unsigned'(i),
-            start_addr:  i    * {AxiAddrWidth{1'b1}},
-	    /* verilator lint_off WIDTH */
-            end_addr:   ( {{32{1'b0}},i} + 1) * {AxiAddrWidth{1'b1}},
-            /* verilator lint_on WIDTH */
-	    default:    '0
-          };
-        end
-    endfunction
-*/
     //for LLC 
     //Address ranges
     typedef logic [AxiAddrWidth-1:0] axi_addr_t;
@@ -160,8 +147,8 @@ module rv_tester_mem #(
     `AXI_TYPEDEF_RESP_T(mst_resp_xbar, mst_b_chan_xbar, mst_r_chan_xbar)
     
 
-    mst_req_xbar [1:0] llc_req_t;
-    mst_resp_xbar [1:0] llc_resp_t;
+    mst_req_xbar [1:0] mem_req_t;
+    mst_resp_xbar [1:0] mem_resp_t;
 
     axi_xbar #(
         .Cfg  (xbar_cfg),
@@ -185,9 +172,9 @@ module rv_tester_mem #(
         .test_i                 ( 1'b0 ),
         .slv_ports_req_i        ( axi_req_xbar ),
         .slv_ports_resp_o       ( axi_resp_xbar ),
-        .mst_ports_req_o        ( llc_req_t ),
-        .mst_ports_resp_i       ( llc_resp_t ),
-        .addr_map_i             ( AddrMap ),
+        .mst_ports_req_o        ( mem_req_t ),
+        .mst_ports_resp_i       ( mem_resp_t ),
+        .addr_map_i             ( addr_map ),
         .en_default_mst_port_i  ( '0 ),
         .default_mst_port_i     ( '0 )
     );
@@ -230,15 +217,15 @@ module rv_tester_mem #(
         .slv_resp_t               ( mst_resp_xbar ),
         .mst_req_t                ( mst_req_t ),
         .mst_resp_t               ( mst_resp_t ),
-        .rule_full_t              ( xbar_rule_t ),
+        .rule_full_t              ( rule_t ),
         .PrintSramCfg             ( 0 ),
         .PrintLlcCfg              ( 0 )
     ) llc(
         .clk_i                ( clk ),
         .rst_ni               ( rst_n ),
         .test_i               ( 1'b0 ),
-        .slv_req_i            ( llc_req_t[0] ), 
-        .slv_resp_o           ( llc_resp_t[0] ),
+        .slv_req_i            ( mem_req_t[0] ), 
+        .slv_resp_o           ( mem_resp_t[0] ),
         .mst_req_o            ( axi_req_mst_imm  ),
         .mst_resp_i           ( axi_resp_mst_imm ),
         .conf_regs_i          ( reg_cfg_reg_to_hw ),
@@ -256,11 +243,13 @@ module rv_tester_mem #(
 ///////////////bypassing cache//////////////////////
 
     localparam ID_WIDTH_DIFF = $clog2(NumMasters) + 1;
-    localparam ID_WIDTH_AXI_SW = AxiIdWidthMst + 1;
+
     slv_req_t temp_1;
     mst_req_t temp_2;
     slv_resp_t temp_3;
-    mst_resp_t temp_4;    
+    mst_resp_t temp_4;
+    mst_req_xbar temp_5;
+    mst_resp_xbar temp_6;  
     always_comb begin
 	if(bypass_cache) begin
 	    for(int i=0;i<NumMasters;i++) begin
@@ -286,8 +275,20 @@ module rv_tester_mem #(
 	    axi_resp = axi_resp_xbar;
             axi_req_mst[0] = axi_req_mst_imm;	
 	    axi_resp_mst_imm = axi_resp_mst[0];
-	    axi_req_mst[1] = llc_req_t[1];
-            llc_resp_t[1] = axi_resp_mst[1]
+            temp_5 = mem_req_t[1];
+	    /* verilator lint_off WIDTH */
+            `AXI_SET_REQ_STRUCT(temp_2, temp_5)
+            /* verilator lint_on WIDTH */
+            temp_2.aw.id = {{1'b0}, mem_req_t[1].aw.id};
+            temp_2.ar.id = {{1'b0}, mem_req_t[1].ar.id};
+	    axi_req_mst[1] = temp_2;
+            temp_4 = axi_resp_mst[1];
+            /* verilator lint_off WIDTH */
+            `AXI_SET_RESP_STRUCT(temp_6, temp_4)
+            /* verilator lint_on WIDTH */
+            temp_6.b.id = axi_resp_mst[1].b.id[AxiIdWidthMst-1:0];
+            temp_6.r.id = axi_resp_mst[1].r.id[AxiIdWidthMst-1:0];
+            mem_resp_t[1] = temp_6;
 	    for(int i=2;i<NumMasters;i++) begin
 			axi_req_mst[i] = '0;
             end	
@@ -305,7 +306,7 @@ end
         if(!rst_n) begin
                 flush_cache_delayed_1                     <= 0;
 		flush_cache_delayed_2			  <= 0;
-		flush_reg				  <= 0;
+		flush_reg_delayed			  <= 0;
         end else begin
                 flush_cache_delayed_1                     <= flush_cache;
 		flush_cache_delayed_2			  <= flush_cache_delayed_1;
@@ -349,7 +350,7 @@ end
 
     always@(posedge clk) begin
         if(!rst_n) begin
-                flush_complete <= '0;
+                flush_complete <= 0;
         end else if((flush_reg_delayed == 1) && (flush_reg_or == 0)) begin
                 flush_complete <= 1;
         end else begin

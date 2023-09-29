@@ -15,8 +15,8 @@ import rv_tester_params::*;
 
     typedef struct packed {
         int unsigned idx;
-        logic [AxiAddrWidth-1:0] start_addr;
-        logic [AxiAddrWidth-1:0] end_addr;
+        logic [topology.TOP.PLATFORM.AXI.ADDR_WIDTH-1:0] start_addr;
+        logic [topology.TOP.PLATFORM.AXI.ADDR_WIDTH-1:0] end_addr;
       } xbar_rule_t;
 
 
@@ -301,8 +301,9 @@ import rv_tester_params::*;
     assign tx_dom_1.logger_cycles[0][0].valid = gen_clocks;
     assign tx_dom_1.logger_cycles[0][0].data.location = location;
     assign tx_dom_1.logger_cycles[0][0].data.clock = clocks;
-
-    for (genvar p = 0; p < topology.TOP.PLATFORM.AXI.TOTAL; p++) begin : axi_sw_slvs
+ 
+    localparam no_of_masters = ( topology.TOP.PLATFORM.AXI.TOTAL < 2 ) ? 2 : topology.TOP.PLATFORM.AXI.TOTAL ;
+    for (genvar p = 0; p < no_of_masters; p++) begin : axi_sw_slvs
         axi_sw #(
             .ADDR_WIDTH(topology.TOP.PLATFORM.AXI.ADDR_WIDTH),
             .DATA_WIDTH(topology.TOP.PLATFORM.AXI.DATA_WIDTH),
@@ -440,7 +441,33 @@ import rv_tester_params::*;
     mst_req_rv axi_req_llc [topology.TOP.PLATFORM.AXI.TOTAL-1:0];
     mst_resp_rv axi_rsp_llc [topology.TOP.PLATFORM.AXI.TOTAL-1:0];
 
-    
+    localparam NoAddrRules = 2;
+    localparam xbar_rule_t [NoAddrRules-1:0] AddrMap = addr_map_gen();
+    function xbar_rule_t [NoAddrRules-1:0] addr_map_gen ();
+        for (int unsigned i = 0; i < NoAddrRules; i++) begin
+	  if(i==1) begin
+          addr_map_gen[i] = xbar_rule_t'{
+            idx:        unsigned'(i),
+            /* verilator lint_off WIDTH */
+	    start_addr:  0,
+            end_addr:   32'h80000000,
+            /* verilator lint_on WIDTH */
+            default:    '0
+          };
+	end else begin
+	    addr_map_gen[i] = xbar_rule_t'{
+            idx:        unsigned'(i),
+	    /* verilator lint_off WIDTH */
+            start_addr:  32'h80000001,
+            end_addr:   ( {{32{1'b0}},i} + 1) * {topology.TOP.PLATFORM.AXI.ADDR_WIDTH{1'b1}},
+            /* verilator lint_on WIDTH */
+            default:    '0
+          };
+
+	end
+	
+        end
+    endfunction 
 
     rv_tester_mem #(
         .NumMasters             ( topology.TOP.PLATFORM.AXI.TOTAL ),
@@ -456,7 +483,8 @@ import rv_tester_params::*;
         .slv_resp_t             ( slv_resp_rv ),
         .mst_req_t              ( mst_req_rv  ),
         .mst_resp_t             ( mst_resp_rv ),
-	.rule_full_t		( xbar_rule_t )
+	.rule_t			( xbar_rule_t ),
+	.NoAddrRules		(NoAddrRules)
     ) inst(
         .clk                    ( clk ),
         .rst_n                  ( ~reset ),
@@ -464,7 +492,7 @@ import rv_tester_params::*;
         .axi_resp_up            ( axi_rsp ),
         .axi_req_mst_up         ( axi_req_llc ),
         .axi_resp_mst_up        ( axi_rsp_llc ),
-	.addr_map		( addr_map ),
+	.addr_map		( AddrMap ),
         .bypass_cache		( 1'b1 ),
 	.flush_cache		( quiesced ),
 	.flush_complete		( flush_complete ),
