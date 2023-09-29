@@ -22,6 +22,7 @@ DEFINE_validator(num_reruns, &validate_ge0);
 DEFINE_string(gen_clocks_verbosity, "DEBUG", "verbosity at which to generate clocks with cvm::logger prints");
 
 extern "C" void rv_tester_terminate();
+extern "C" void rv_tester_set_address_map(std::uint32_t i, std::uint64_t start_addr, std::uint64_t end_addr, std::uint32_t device);
 
 class logger_instrument {
 
@@ -64,8 +65,27 @@ extern "C" {
         return 0;
     }
 
-    void rv_tester_parse_memmap() {
+    void rv_tester_parse_memmap(std::uint32_t no_addr_rules) {
+
         memmap::parse();
+
+        memmap::memmap_t m;
+        memmap::get(m);
+
+        if (m.size() > no_addr_rules) {
+            cvm::log(cvm::ERROR, "Test specifying more address rules ({}) than in sv ({})", m.size(), no_addr_rules);
+            return;
+        }
+
+        std::uint32_t i = 0;
+        for (const auto& it : m) {
+            const auto& e = it.second;
+            rv_tester_set_address_map(i, e.base, e.end, e.type != "memory");
+            i++;
+        }
+        for(; i < no_addr_rules; i++) {
+            rv_tester_set_address_map(i, 0, 0, 0);
+        }
     }
 
     void rv_tester_build_registry() {
