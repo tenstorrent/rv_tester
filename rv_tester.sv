@@ -13,6 +13,13 @@ import rv_tester_params::*;
 
     typedef longint unsigned LU;
 
+    typedef struct packed {
+        int unsigned idx;
+        logic [AxiAddrWidth-1:0] start_addr;
+        logic [AxiAddrWidth-1:0] end_addr;
+      } xbar_rule_t;
+
+
     if (EXTERNAL_CLOCK) begin
         assign clk = clk_ext;
     end else begin
@@ -45,7 +52,7 @@ import rv_tester_params::*;
     logic cosim_terminate_any = '0;
 
     int quiesce_counter = 0;
-    int quiesce_timeout = 2500;
+    int quiesce_timeout = 25000;
 
     int unsigned location = cvm_topology::nil;
 
@@ -122,7 +129,7 @@ import rv_tester_params::*;
             /* verilator lint_on BLKSEQ */
 
             cb_poll             <= cvm_plusargs::get_bool("cb_async") == '0;
-            quiesce_timeout     <= cvm_plusargs::get_int("quiesce_timeout");
+            quiesce_timeout     <= 25000;//cvm_plusargs::get_int("quiesce_timeout");
             call_finish         <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
             gen_clocks          <= cvm_verbosity >= gen_clocks_verbosity;
 
@@ -433,6 +440,8 @@ import rv_tester_params::*;
     mst_req_rv axi_req_llc [topology.TOP.PLATFORM.AXI.TOTAL-1:0];
     mst_resp_rv axi_rsp_llc [topology.TOP.PLATFORM.AXI.TOTAL-1:0];
 
+    
+
     rv_tester_mem #(
         .NumMasters             ( topology.TOP.PLATFORM.AXI.TOTAL ),
         .AxiIdWidth             ( topology.TOP.PLATFORM.AXI.ID_WIDTH ),
@@ -446,7 +455,8 @@ import rv_tester_params::*;
         .slv_req_t              ( slv_req_rv  ),
         .slv_resp_t             ( slv_resp_rv ),
         .mst_req_t              ( mst_req_rv  ),
-        .mst_resp_t             ( mst_resp_rv )
+        .mst_resp_t             ( mst_resp_rv ),
+	.rule_full_t		( xbar_rule_t )
     ) inst(
         .clk                    ( clk ),
         .rst_n                  ( ~reset ),
@@ -454,6 +464,7 @@ import rv_tester_params::*;
         .axi_resp_up            ( axi_rsp ),
         .axi_req_mst_up         ( axi_req_llc ),
         .axi_resp_mst_up        ( axi_rsp_llc ),
+	.addr_map		( addr_map ),
         .bypass_cache		( 1'b1 ),
 	.flush_cache		( quiesced ),
 	.flush_complete		( flush_complete ),

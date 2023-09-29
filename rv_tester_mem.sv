@@ -32,7 +32,9 @@ module rv_tester_mem #(
     // AXI4+ATOP request struct type for the master ports.
     parameter type mst_req_t                    = logic,
     // AXI4+ATOP response struct type for the master ports
-    parameter type mst_resp_t                   = logic
+    parameter type mst_resp_t                   = logic,
+    Address Map data type
+    parameter type rule_t                       = axi_pkg::xbar_rule_64_t
 ) (
 
     input   logic                            clk,
@@ -80,12 +82,13 @@ module rv_tester_mem #(
     mst_resp_t axi_resp_mst_imm;
 
     logic [SetAssociativity_LLC-1:0] flush_reg;
+    logic flush_reg_delayed, flush_reg_or;
     logic commit_reg;
 
     localparam int unsigned Pipeline              = 32'b1;
     localparam int unsigned AxiIdUsed             = 32'd3;
     localparam bit UniqueIds                      = 1'b0;
-    localparam int unsigned NumSlaves             = 32'd1;
+    localparam int unsigned NumSlaves             = 32'd2;
     localparam int unsigned AxiIdWidthMst         = AxiIdWidth + $clog2(NumMasters);
 
     localparam axi_pkg::xbar_cfg_t xbar_cfg = '{
@@ -109,15 +112,10 @@ module rv_tester_mem #(
         NoIdRules:          0
       };
 
-    typedef struct packed {
-        int unsigned idx;
-        logic [AxiAddrWidth-1:0] start_addr;
-        logic [AxiAddrWidth-1:0] end_addr;
-      } xbar_rule_t;
-    
+/*
+    localparam rule_t [NumSlaves-1:0] AddrMap = addr_map_gen();
 
-    localparam xbar_rule_t [NumSlaves-1:0] AddrMap = addr_map_gen();
-    function xbar_rule_t [NumSlaves-1:0] addr_map_gen ();
+    function rule_t [NumSlaves-1:0] addr_map_gen ();
         for (int unsigned i = 0; i < NumSlaves; i++) begin
           addr_map_gen[i] = xbar_rule_t'{
             idx:        unsigned'(i),
@@ -129,7 +127,7 @@ module rv_tester_mem #(
           };
         end
     endfunction
-
+*/
     //for LLC 
     //Address ranges
     typedef logic [AxiAddrWidth-1:0] axi_addr_t;
@@ -162,8 +160,8 @@ module rv_tester_mem #(
     `AXI_TYPEDEF_RESP_T(mst_resp_xbar, mst_b_chan_xbar, mst_r_chan_xbar)
     
 
-    mst_req_xbar llc_req_t;
-    mst_resp_xbar llc_resp_t;
+    mst_req_xbar [1:0] llc_req_t;
+    mst_resp_xbar [1:0] llc_resp_t;
 
     axi_xbar #(
         .Cfg  (xbar_cfg),
@@ -180,7 +178,7 @@ module rv_tester_mem #(
         .slv_resp_t     ( slv_resp_t    ),
         .mst_req_t      ( mst_req_xbar     ),
         .mst_resp_t     ( mst_resp_xbar    ),
-        .rule_t         ( xbar_rule_t        )
+        .rule_t         ( rule_t        )
     ) i_xbar (
         .clk_i                  ( clk ),
         .rst_ni                 ( rst_n ),
@@ -239,8 +237,8 @@ module rv_tester_mem #(
         .clk_i                ( clk ),
         .rst_ni               ( rst_n ),
         .test_i               ( 1'b0 ),
-        .slv_req_i            ( llc_req_t ), 
-        .slv_resp_o           ( llc_resp_t ),
+        .slv_req_i            ( llc_req_t[0] ), 
+        .slv_resp_o           ( llc_resp_t[0] ),
         .mst_req_o            ( axi_req_mst_imm  ),
         .mst_resp_i           ( axi_resp_mst_imm ),
         .conf_regs_i          ( reg_cfg_reg_to_hw ),
@@ -288,7 +286,9 @@ module rv_tester_mem #(
 	    axi_resp = axi_resp_xbar;
             axi_req_mst[0] = axi_req_mst_imm;	
 	    axi_resp_mst_imm = axi_resp_mst[0];
-	    for(int i=1;i<NumMasters;i++) begin
+	    axi_req_mst[1] = llc_req_t[1];
+            llc_resp_t[1] = axi_resp_mst[1]
+	    for(int i=2;i<NumMasters;i++) begin
 			axi_req_mst[i] = '0;
             end	
 	end
@@ -299,15 +299,17 @@ end
 
 //////////////////Flushing//////////////////////////
 
-    assign flush_complete = &flushed;
+    assign flush_reg_or = |flush_reg;
 
     always@(posedge clk) begin
         if(!rst_n) begin
                 flush_cache_delayed_1                     <= 0;
 		flush_cache_delayed_2			  <= 0;
+		flush_reg				  <= 0;
         end else begin
                 flush_cache_delayed_1                     <= flush_cache;
 		flush_cache_delayed_2			  <= flush_cache_delayed_1;
+		flush_reg_delayed			  <= flush_reg_or;
         end
     end
 
@@ -344,6 +346,17 @@ end
                 flushed <= flushed;
         end
     end
+
+    always@(posedge clk) begin
+        if(!rst_n) begin
+                flush_complete <= '0;
+        end else if((flush_reg_delayed == 1) && (flush_reg_or == 0)) begin
+                flush_complete <= 1;
+        end else begin
+                flush_complete <= flush_complete;
+        end
+    end
+
 
 
 ////////////////////////////////////////////////////
