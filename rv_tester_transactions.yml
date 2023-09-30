@@ -237,7 +237,7 @@ axi_sw:
                 width: ${TOP.PLATFORM.AXI.R_Q_PTR_MAX_LOG2}
 
 axi_sw_mst:
-    num: ${TOP.PLATFORM.AXI_MST.TOTAL}
+    num: [${TOP.PLATFORM.AXI_MST.TOTAL}, ${TOP.PLATFORM.AXI_MST2.TOTAL}]
 
     b:
         domain: 2
