@@ -102,7 +102,7 @@ cc_library(
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/checkin-script.git",
     )
 
-    axi_wrapper_hash="dd0a4ef052dee5f0215060ef0ad34bf834251be6"
+    axi_wrapper_hash="c5d8afad53929a1892e84f6c73b3b0c14e9a3cc6"
     maybe(
         git_repository,
         name = "axi-wrapper",
