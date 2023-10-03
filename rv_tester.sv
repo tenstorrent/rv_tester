@@ -23,7 +23,7 @@ import rv_tester_params::*;
     import "DPI-C" context function void rv_tester_cvm_error_handler();
     import "DPI-C" function void rv_tester_parse_memmap();
     import "DPI-C" function void rv_tester_build_registry();
-    import "DPI-C" function int rv_tester_shutdown_registry(); // dummy return value so that this gets called immediately to end the test.
+    import "DPI-C" function byte unsigned rv_tester_shutdown_registry();
     import "DPI-C" context function bit rv_tester_flush_callbacks();
 
     logic rv_tester_reset = '1;
@@ -67,7 +67,6 @@ import rv_tester_params::*;
         clocks          <= clocks + 1;
 
         quiesce_counter <= quiesce_counter + int'(terminate);
-        terminated      <= (terminate_now || terminated) && !rerun_now;
 
         for (int i=0; i<NHARTS; i++) begin
             if (cosim_terminate[i].terminate) begin
@@ -79,7 +78,6 @@ import rv_tester_params::*;
             clocks          <= '0;
             sysmod_reset    <= '1;
             quiesce_counter <= '0;
-            terminated      <= '0;
             cosim_terminate_any <= '0;
         end
 
@@ -144,7 +142,7 @@ import rv_tester_params::*;
     */
     always @(posedge clk) begin
 
-        automatic int _;
+        automatic logic shutdowned = '0;
 
         if (terminate_now && !terminated) begin
 
@@ -156,13 +154,20 @@ import rv_tester_params::*;
                 $display("<%0d> Error: Waiting to quiesce for more than %0d cycles", clocks, quiesce_timeout);
             end
 
-            _ = rv_tester_shutdown_registry();
+            shutdowned = rv_tester_shutdown_registry() != '0;
 
-            if (call_finish && num_reruns == '0) begin
+            if (!shutdowned) begin
+                $display("<%0d> Could not shutdown, trying again next cycle", clocks);
+            end
+
+            if (shutdowned && call_finish && num_reruns == '0) begin
                 $finish();
             end
 
         end
+
+        terminated <= !rv_tester_reset && (terminated || (terminate_now && shutdowned)) && !rerun_now;
+
     end
 
     assign reset = clocks < LU'(RESET_CLOCKS) || rv_tester_reset || sysmod_reset;
