@@ -13,7 +13,7 @@ import rv_tester_params::*;
 
     typedef longint unsigned LU;
 
-    localparam int unsigned NoAddrRules = 10;
+    localparam int unsigned NoAddrRules = 11;
 
     typedef struct packed {
         int unsigned idx;
@@ -482,11 +482,10 @@ import rv_tester_params::*;
         .axi_req_mst_up         ( axi_req_llc ),
         .axi_resp_mst_up        ( axi_rsp_llc ),
 	.addr_map		( AddrMap ),
-        .bypass_cache		( 1'b1 ),
+        .bypass_cache		( 1'b0 ),
 	.flush_cache		( quiesced ),
 	.flush_complete		( flush_complete ),
 	.bist_status_done	()
     );
-
 
 endmodule

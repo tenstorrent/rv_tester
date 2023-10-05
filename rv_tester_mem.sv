@@ -66,6 +66,19 @@ module rv_tester_mem #(
     always_comb begin
        for(int i=0;i<NumMasters;i++) begin	
            axi_req[i] = axi_req_up[i];
+	   axi_req[i].ar.cache = '0;
+	   axi_req[i].ar.prot = '0;
+	   axi_req[i].ar.qos = '0;
+	   axi_req[i].ar.region = '0;
+	   axi_req[i].ar.user = '0;
+	   axi_req[i].w.user = '0;
+           axi_req[i].aw.cache = '0;
+           axi_req[i].aw.prot = '0;
+           axi_req[i].aw.qos = '0;
+           axi_req[i].aw.region = '0;
+           axi_req[i].aw.atop = '0;
+           axi_req[i].aw.user = '0;
+
 	   axi_resp_up[i] = axi_resp[i];
        end
 
@@ -81,8 +94,8 @@ module rv_tester_mem #(
 
 ////////////////local parameters/////////////////////
 
-    logic flush_cache_delayed_1, flush_cache_delayed_2;
-    logic [SetAssociativity_LLC-1:0] flushed;
+    logic flush_cache_delayed_1, flush_cache_delayed_2, cfg_flush_en, commit_cfg_en, commit_cfg, flushed_en;
+    logic [SetAssociativity_LLC-1:0] flushed_reg, cfg_flush, flushed;
 
     slv_req_t [NumMasters-1:0] axi_req_xbar;
     slv_resp_t [NumMasters-1:0] axi_resp_xbar;
@@ -91,7 +104,7 @@ module rv_tester_mem #(
     mst_resp_t axi_resp_mst_imm;
 
     logic [SetAssociativity_LLC-1:0] flush_reg;
-    logic flush_reg_delayed, flush_reg_or;
+    logic flush_reg_delayed_1, flush_reg_delayed_2, flush_reg_or;
     logic commit_reg;
 
     localparam int unsigned Pipeline              = 32'b1;
@@ -126,7 +139,7 @@ module rv_tester_mem #(
     typedef logic [AxiAddrWidth-1:0] axi_addr_t;
     localparam axi_addr_t SpmRegionStart     = {AxiAddrWidth{1'b0}};
     localparam axi_addr_t SpmRegionLength    = axi_addr_t'(SetAssociativity_LLC * NumLines_LLC * NumBlocks_LLC * AxiDataWidth / 64'd8);
-    localparam axi_addr_t CachedRegionStart  = SpmRegionLength + 1;
+     localparam axi_addr_t CachedRegionStart  = {AxiAddrWidth{1'b0}};//SpmRegionLength + 1;
     localparam axi_addr_t CachedRegionEnd  = {AxiAddrWidth{1'b1}};
 
     //////////////////////////////////////////
@@ -197,7 +210,7 @@ module rv_tester_mem #(
     assign reg_cfg_reg_to_hw.cfg_spm     = {SetAssociativity_LLC{1'b0}};
     assign reg_cfg_reg_to_hw.cfg_flush   = flush_reg;
     assign reg_cfg_reg_to_hw.commit_cfg  = commit_reg;
-    assign reg_cfg_reg_to_hw.flushed     = flushed;
+    assign reg_cfg_reg_to_hw.flushed     = flushed_reg;
 
     always@(posedge clk) begin
         if(!rst_n) begin
@@ -278,7 +291,7 @@ module rv_tester_mem #(
 	    for(int i=NumMasters;i<NumMastersMem;i++) begin
 		axi_req_mst[i] = '0;
 	    end 
-	
+		mem_resp_t[1] = '0;			
 		axi_req_xbar = '0;			
 		axi_resp_mst_imm = '0;
 	end else begin
@@ -315,23 +328,37 @@ end
 
     always@(posedge clk) begin
         if(!rst_n) begin
-                flush_cache_delayed_1                     <= 0;
-		flush_cache_delayed_2			  <= 0;
-		flush_reg_delayed			  <= 0;
+                flush_cache_delayed_1                     <= '0;
+		flush_cache_delayed_2			  <= '0;
+		flush_reg_delayed_1			  <= '0;
+		flush_reg_delayed_2			  <= '0;
+		cfg_flush_en				  <= '0;
+		cfg_flush				  <= '0;
+		commit_cfg_en				  <= '0;
+		commit_cfg			  	  <= '0;
+		flushed_en				  <= '0;
+		flushed					  <= '0;
         end else begin
                 flush_cache_delayed_1                     <= flush_cache;
 		flush_cache_delayed_2			  <= flush_cache_delayed_1;
-		flush_reg_delayed			  <= flush_reg_or;
+		flush_reg_delayed_1			  <= flush_reg_or;
+		flush_reg_delayed_2			  <= flush_reg_delayed_1;
+                cfg_flush_en                              <= reg_cfg_hw_to_reg.cfg_flush_en;
+                cfg_flush                                 <= reg_cfg_hw_to_reg.cfg_flush;
+                commit_cfg_en                             <= reg_cfg_hw_to_reg.commit_cfg_en;
+                commit_cfg                                <= reg_cfg_hw_to_reg.commit_cfg;
+                flushed_en                                <= reg_cfg_hw_to_reg.flushed_en;
+                flushed                                   <= reg_cfg_hw_to_reg.flushed;
         end
     end
 
     always@(posedge clk) begin
         if(!rst_n) begin
                 flush_reg <= '0;
-        end else if((flush_reg == 0) && (flush_cache^flush_cache_delayed_1)) begin
-                flush_reg <= '1;
-        end else if(reg_cfg_hw_to_reg.cfg_flush_en) begin
-                flush_reg <= reg_cfg_hw_to_reg.cfg_flush;
+        end else if(flush_cache^flush_cache_delayed_1) begin
+                flush_reg <= {SetAssociativity_LLC{flush_cache}};
+        end else if(cfg_flush_en) begin
+                flush_reg <= cfg_flush;
         end else begin
                 flush_reg <= flush_reg;
         end
@@ -340,10 +367,10 @@ end
     always@(posedge clk) begin
         if(!rst_n) begin
                 commit_reg <= 0;
-        end else if((commit_reg == 0) && (flush_cache_delayed_1^flush_cache_delayed_2)) begin
-                commit_reg <= 1;
-        end else if(reg_cfg_hw_to_reg.commit_cfg_en) begin
-                commit_reg <= reg_cfg_hw_to_reg.commit_cfg;
+        end else if(flush_cache_delayed_1^flush_cache_delayed_2) begin
+                commit_reg <= flush_cache_delayed_1;
+        end else if(commit_cfg_en) begin
+                commit_reg <= commit_cfg;
         end else begin
                 commit_reg <= commit_reg;
         end
@@ -351,24 +378,23 @@ end
 
     always@(posedge clk) begin
         if(!rst_n) begin
-                flushed <= '0;
-        end else if(reg_cfg_hw_to_reg.flushed_en) begin
-                flushed <= reg_cfg_hw_to_reg.flushed;
+                flushed_reg <= '0;
+        end else if(flushed_en) begin
+                flushed_reg <= flushed;
         end else begin
-                flushed <= flushed;
+                flushed_reg <= flushed_reg;
         end
     end
 
     always@(posedge clk) begin
         if(!rst_n) begin
                 flush_complete <= 0;
-        end else if((flush_reg_delayed == 1) && (flush_reg_or == 0)) begin
+        end else if((flush_reg_delayed_2 == 1) && (flush_reg_delayed_1 == 0)) begin
                 flush_complete <= 1;
         end else begin
                 flush_complete <= flush_complete;
         end
     end
-
 
 
 ////////////////////////////////////////////////////
