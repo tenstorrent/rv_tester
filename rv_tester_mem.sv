@@ -324,7 +324,7 @@ end
 		flush_complete_delayed_1		  <= '0;
                 flush_complete_delayed_2                  <= '0;
         end else begin
-                flush_cache_delayed_1                     <= flush_cache;
+                flush_cache_delayed_1                     <= flush_cache & !bypass_cache;
 		flush_cache_delayed_2			  <= flush_cache_delayed_1;
 		flush_cache_delayed_3			  <= flush_cache_delayed_2;
 		flush_complete_delayed_1	          <= |reg_cfg_hw_to_reg.cfg_flush;
