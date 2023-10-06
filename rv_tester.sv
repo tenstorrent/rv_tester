@@ -63,7 +63,7 @@ import rv_tester_params::*;
     int unsigned cvm_verbosity, gen_clocks_verbosity;
 
     assign terminate           = (rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any) && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
-    assign terminate_now       = terminate && ((quiesced && flush_complete) || quiesce_counter >= quiesce_timeout);
+    assign terminate_now       = terminate && ((quiesced) || quiesce_counter >= quiesce_timeout);
     assign rerun_now           = terminated && num_reruns > 0;
 
     /*
@@ -158,10 +158,10 @@ import rv_tester_params::*;
     always @(posedge clk) begin
 
         automatic int _;
-
+	if(flush_complete) begin 
         if (terminate_now && !terminated) begin
 
-            if (quiesced && flush_complete) begin
+            if (quiesced) begin
                 $display("<%0d> [RVTESTER]: exiting gracefully", clocks);
             end else if (quiesce_counter == 0) begin
                 $display("<%0d> [RVTESTER]: exiting immediately because +quiesce_counter=0", clocks);
@@ -176,6 +176,7 @@ import rv_tester_params::*;
             end
 
         end
+	end
     end
 
     assign reset = clocks < LU'(RESET_CLOCKS) || rv_tester_reset || sysmod_reset;

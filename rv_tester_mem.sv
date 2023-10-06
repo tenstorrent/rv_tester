@@ -94,18 +94,13 @@ module rv_tester_mem #(
 
 ////////////////local parameters/////////////////////
 
-    logic flush_cache_delayed_1, flush_cache_delayed_2, cfg_flush_en, commit_cfg_en, commit_cfg, flushed_en;
-    logic [SetAssociativity_LLC-1:0] flushed_reg, cfg_flush, flushed;
+    logic flush_complete_delayed_2, flush_complete_delayed_1, flush_cache_delayed_3, flush_cache_delayed_1, flush_cache_delayed_2;
 
     slv_req_t [NumMasters-1:0] axi_req_xbar;
     slv_resp_t [NumMasters-1:0] axi_resp_xbar;
 
     mst_req_t axi_req_mst_imm;
     mst_resp_t axi_resp_mst_imm;
-
-    logic [SetAssociativity_LLC-1:0] flush_reg;
-    logic flush_reg_delayed_1, flush_reg_delayed_2, flush_reg_or;
-    logic commit_reg;
 
     localparam int unsigned Pipeline              = 32'b1;
     localparam int unsigned AxiIdUsed             = 32'd3;
@@ -139,7 +134,7 @@ module rv_tester_mem #(
     typedef logic [AxiAddrWidth-1:0] axi_addr_t;
     localparam axi_addr_t SpmRegionStart     = {AxiAddrWidth{1'b0}};
     localparam axi_addr_t SpmRegionLength    = axi_addr_t'(SetAssociativity_LLC * NumLines_LLC * NumBlocks_LLC * AxiDataWidth / 64'd8);
-     localparam axi_addr_t CachedRegionStart  = {AxiAddrWidth{1'b0}};//SpmRegionLength + 1;
+    localparam axi_addr_t CachedRegionStart  = {AxiAddrWidth{1'b0}};//SpmRegionLength + 1;
     localparam axi_addr_t CachedRegionEnd  = {AxiAddrWidth{1'b1}};
 
     //////////////////////////////////////////
@@ -206,11 +201,6 @@ module rv_tester_mem #(
 
     axi_llc_cfg_regs_d_t     reg_cfg_hw_to_reg;
     axi_llc_cfg_regs_q_t     reg_cfg_reg_to_hw;
-
-    assign reg_cfg_reg_to_hw.cfg_spm     = {SetAssociativity_LLC{1'b0}};
-    assign reg_cfg_reg_to_hw.cfg_flush   = flush_reg;
-    assign reg_cfg_reg_to_hw.commit_cfg  = commit_reg;
-    assign reg_cfg_reg_to_hw.flushed     = flushed_reg;
 
     always@(posedge clk) begin
         if(!rst_n) begin
@@ -324,77 +314,134 @@ end
 
 //////////////////Flushing//////////////////////////
 
-    assign flush_reg_or = |flush_reg;
+    //assign flush_reg_or = |flush_reg;
 
     always@(posedge clk) begin
         if(!rst_n) begin
                 flush_cache_delayed_1                     <= '0;
 		flush_cache_delayed_2			  <= '0;
-		flush_reg_delayed_1			  <= '0;
-		flush_reg_delayed_2			  <= '0;
-		cfg_flush_en				  <= '0;
-		cfg_flush				  <= '0;
-		commit_cfg_en				  <= '0;
-		commit_cfg			  	  <= '0;
-		flushed_en				  <= '0;
-		flushed					  <= '0;
+		flush_cache_delayed_3  			  <= '0;
+		flush_complete_delayed_1		  <= '0;
+                flush_complete_delayed_2                  <= '0;
         end else begin
                 flush_cache_delayed_1                     <= flush_cache;
 		flush_cache_delayed_2			  <= flush_cache_delayed_1;
-		flush_reg_delayed_1			  <= flush_reg_or;
-		flush_reg_delayed_2			  <= flush_reg_delayed_1;
-                cfg_flush_en                              <= reg_cfg_hw_to_reg.cfg_flush_en;
-                cfg_flush                                 <= reg_cfg_hw_to_reg.cfg_flush;
-                commit_cfg_en                             <= reg_cfg_hw_to_reg.commit_cfg_en;
-                commit_cfg                                <= reg_cfg_hw_to_reg.commit_cfg;
-                flushed_en                                <= reg_cfg_hw_to_reg.flushed_en;
-                flushed                                   <= reg_cfg_hw_to_reg.flushed;
+		flush_cache_delayed_3			  <= flush_cache_delayed_2;
+		flush_complete_delayed_1	          <= |reg_cfg_hw_to_reg.cfg_flush;
+		flush_complete_delayed_2		  <= flush_complete_delayed_1;	
         end
     end
 
-    always@(posedge clk) begin
-        if(!rst_n) begin
-                flush_reg <= '0;
-        end else if(flush_cache^flush_cache_delayed_1) begin
-                flush_reg <= {SetAssociativity_LLC{flush_cache}};
-        end else if(cfg_flush_en) begin
-                flush_reg <= cfg_flush;
-        end else begin
-                flush_reg <= flush_reg;
-        end
-    end
+    prim_subreg #(
+    .DW      (SetAssociativity_LLC),
+    .SWACCESS("RW"),
+    .RESVAL  ('0)
+    ) u_cfg_spm (
+    .clk_i   (clk    ),
+    .rst_ni  (rst_n  ),
 
-    always@(posedge clk) begin
-        if(!rst_n) begin
-                commit_reg <= 0;
-        end else if(flush_cache_delayed_1^flush_cache_delayed_2) begin
-                commit_reg <= flush_cache_delayed_1;
-        end else if(commit_cfg_en) begin
-                commit_reg <= commit_cfg;
-        end else begin
-                commit_reg <= commit_reg;
-        end
-    end
+    // from register interface
+    .we     (1'b0),
+    .wd     ({SetAssociativity_LLC{1'b0}}),
 
-    always@(posedge clk) begin
-        if(!rst_n) begin
-                flushed_reg <= '0;
-        end else if(flushed_en) begin
-                flushed_reg <= flushed;
-        end else begin
-                flushed_reg <= flushed_reg;
-        end
-    end
+    // from internal hardware
+    .de     (reg_cfg_hw_to_reg.cfg_spm_en),
+    .d      (reg_cfg_hw_to_reg.cfg_spm),
+
+    // to internal hardware
+    .qe     (),
+    .q      (reg_cfg_reg_to_hw.cfg_spm),
+
+    // to register interface (read)
+    .qs     ()
+    );
+
+
+    prim_subreg #(
+    .DW      (SetAssociativity_LLC),
+    .SWACCESS("RW"),
+    .RESVAL  ('0)
+    ) u_cfg_flush (
+    .clk_i   (clk    ),
+    .rst_ni  (rst_n  ),
+
+    // from register interface
+    .we     (flush_cache_delayed_2^flush_cache_delayed_1),
+    .wd     ({SetAssociativity_LLC{flush_cache_delayed_1}}),
+
+    // from internal hardware
+    .de     (reg_cfg_hw_to_reg.cfg_flush_en),
+    .d      (reg_cfg_hw_to_reg.cfg_flush),
+
+    // to internal hardware
+    .qe     (),
+    .q      (reg_cfg_reg_to_hw.cfg_flush),
+
+    // to register interface (read)
+    .qs     ()
+    );
+
+    prim_subreg #(
+    .DW      (1),
+    .SWACCESS("RW"),
+    .RESVAL  ('0)
+    ) u_cfg_commit (
+    .clk_i   (clk    ),
+    .rst_ni  (rst_n  ),
+
+    // from register interface
+    .we     (flush_cache_delayed_2^flush_cache_delayed_3),
+    .wd     (flush_cache_delayed_2),
+
+    // from internal hardware
+    .de     (reg_cfg_hw_to_reg.commit_cfg_en),
+    .d      (reg_cfg_hw_to_reg.commit_cfg),
+
+    // to internal hardware
+    .qe     (),
+    .q      (reg_cfg_reg_to_hw.commit_cfg),
+
+    // to register interface (read)
+    .qs     ()
+    );
+
+    prim_subreg #(
+    .DW      (SetAssociativity_LLC),
+    .SWACCESS("RO"),
+    .RESVAL  ('0)
+    ) u_cfg_flushed (
+    .clk_i   (clk    ),
+    .rst_ni  (rst_n  ),
+
+    // from register interface
+    .we     (1'b0),
+    .wd     ('0),
+
+    // from internal hardware
+    .de     (reg_cfg_hw_to_reg.flushed_en),
+    .d      (reg_cfg_hw_to_reg.flushed),
+
+    // to internal hardware
+    .qe     (),
+    .q      (reg_cfg_reg_to_hw.flushed),
+
+    // to register interface (read)
+    .qs     ()
+    );
 
     always@(posedge clk) begin
         if(!rst_n) begin
                 flush_complete <= 0;
-        end else if((flush_reg_delayed_2 == 1) && (flush_reg_delayed_1 == 0)) begin
+	end else if(bypass_cache) begin
+		flush_complete <= 1;
+        end else if((flush_complete_delayed_2 == 1) && (flush_complete_delayed_1 == 0)) begin
                 flush_complete <= 1;
         end else begin
                 flush_complete <= flush_complete;
         end
     end
+
+
 
 
 ////////////////////////////////////////////////////
