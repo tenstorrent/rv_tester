@@ -406,11 +406,11 @@ package rv_tester_params;
     output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NWRITES-1:0]  mcmi_write,     \
     output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NBYPWRITES-1:0]  mcmi_bypass_write,     \
     output rv_tester_params::pmci_t          pmci         [rv_tester_params::NHARTS-1:0],           \
-
-    output rv_tester_params::slv_req_top     axi_req [rv_tester_params::AXI_TOTAL-1:0] 	    ,        \
-    input  rv_tester_params::slv_resp_top    axi_rsp [rv_tester_params::AXI_TOTAL-1:0]      ,        \
-    input  rv_tester_params::mst_req_top     axi_req_mst [rv_tester_params::AXI_MST_TOTAL-1:0]  ,    \
-    output rv_tester_params::mst_resp_top    axi_rsp_mst [rv_tester_params::AXI_MST_TOTAL-1:0] 
+												    \
+    output rv_tester_params::slv_req_top     axi_req [rv_tester_params::AXI_TOTAL-1:0],             \
+    input  rv_tester_params::slv_resp_top    axi_rsp [rv_tester_params::AXI_TOTAL-1:0],             \
+    input  rv_tester_params::mst_req_top     axi_req_mst [rv_tester_params::AXI_MST_TOTAL-1:0],     \
+    output rv_tester_params::mst_resp_top    axi_rsp_mst [rv_tester_params::AXI_MST_TOTAL-1:0],     \
     input  rv_tester_params::axi_req_mst2_t  axi_req_mst2 [rv_tester_params::AXI_MST2_TOTAL-1:0],   \
     output rv_tester_params::axi_rsp_mst2_t  axi_rsp_mst2 [rv_tester_params::AXI_MST2_TOTAL-1:0]
 
@@ -438,10 +438,10 @@ package rv_tester_params;
     rv_tester_params::mcmi_t                 [rv_tester_params::TOTAL_NWRITES-1:0]   mcmi_write;    \
     rv_tester_params::mcmi_t                 [rv_tester_params::TOTAL_NBYPWRITES-1:0]   mcmi_bypass_write;    \
     rv_tester_params::pmci_t                 pmci          [rv_tester_params::NHARTS-1:0];          \
-    rv_tester_params::slv_req_top            axi_req [rv_tester_params::AXI_TOTAL-1:0];        \
-    rv_tester_params::slv_resp_top           axi_rsp [rv_tester_params::AXI_TOTAL-1:0];        \
-    rv_tester_params::mst_req_top            axi_req_mst [rv_tester_params::AXI_MST_TOTAL-1:0];    \
-    rv_tester_params::mst_resp_top           axi_rsp_mst [rv_tester_params::AXI_MST_TOTAL-1:0];
+    rv_tester_params::slv_req_top            axi_req [rv_tester_params::AXI_TOTAL-1:0];             \
+    rv_tester_params::slv_resp_top           axi_rsp [rv_tester_params::AXI_TOTAL-1:0];             \
+    rv_tester_params::mst_req_top            axi_req_mst [rv_tester_params::AXI_MST_TOTAL-1:0];     \
+    rv_tester_params::mst_resp_top           axi_rsp_mst [rv_tester_params::AXI_MST_TOTAL-1:0];     \
     rv_tester_params::axi_req_mst2_t         axi_req_mst2  [rv_tester_params::AXI_MST2_TOTAL-1:0];  \
     rv_tester_params::axi_rsp_mst2_t         axi_rsp_mst2  [rv_tester_params::AXI_MST2_TOTAL-1:0];
 
