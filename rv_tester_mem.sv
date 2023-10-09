@@ -307,14 +307,13 @@ module rv_tester_mem #(
 			axi_req_mst[i] = '0;
             end	
 	end
-end
+    end
 
 
 ////////////////////////////////////////////////////
 
 //////////////////Flushing//////////////////////////
 
-    //assign flush_reg_or = |flush_reg;
 
     always@(posedge clk) begin
         if(!rst_n) begin

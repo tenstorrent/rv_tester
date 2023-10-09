@@ -475,7 +475,7 @@ import rv_tester_params::*;
 	.rule_t			( xbar_rule_t ),
 	.NoAddrRules		( NoAddrRules ),
 	.NumMastersMem		( no_of_masters )
-    ) inst(
+    ) rv_tester_mem(
         .clk                    ( clk ),
         .rst_n                  ( ~reset ),
         .axi_req_up             ( axi_req ),
