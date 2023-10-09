@@ -155,34 +155,32 @@ import rv_tester_params::*;
     */
     always @(posedge clk) begin
 
-	if(flush_complete) begin
-            automatic logic shutdowned = '0;
+        automatic logic shutdowned = '0;
 
-            if (terminate_now && !terminated) begin
+        if (terminate_now && !terminated) begin
  
-                if (quiesced) begin
-                    $display("<%0d> [RVTESTER]: exiting gracefully", clocks);
-                end else if (quiesce_counter == 0) begin
-                    $display("<%0d> [RVTESTER]: exiting immediately because +quiesce_counter=0", clocks);
-                end else begin
-                    $display("<%0d> Error: Waiting to quiesce for more than %0d cycles", clocks, quiesce_timeout);
-                end
-
-                shutdowned = rv_tester_shutdown_registry() != '0;
-
-                if (!shutdowned) begin
-                    $display("<%0d> Could not shutdown, trying again next cycle", clocks);
-                end
-
-                if (shutdowned && call_finish && num_reruns == '0) begin
-                    $finish();
-                end
-
+            if (quiesced && flush_complete) begin
+                $display("<%0d> [RVTESTER]: exiting gracefully", clocks);
+            end else if (quiesce_counter == 0) begin
+                $display("<%0d> [RVTESTER]: exiting immediately because +quiesce_counter=0", clocks);
+            end else begin
+                $display("<%0d> Error: Waiting to quiesce for more than %0d cycles", clocks, quiesce_timeout);
             end
 
-            terminated <= !rv_tester_reset && (terminated || (terminate_now && shutdowned)) && !rerun_now;
+            shutdowned = rv_tester_shutdown_registry() != '0;
+
+            if (!shutdowned) begin
+                $display("<%0d> Could not shutdown, trying again next cycle", clocks);
+            end
+
+            if (shutdowned && call_finish && num_reruns == '0) begin
+                $finish();
+            end
 
         end
+
+        terminated <= !rv_tester_reset && (terminated || (terminate_now && shutdowned)) && !rerun_now;
+
     end
 
     assign reset = clocks < LU'(RESET_CLOCKS) || rv_tester_reset || sysmod_reset;
