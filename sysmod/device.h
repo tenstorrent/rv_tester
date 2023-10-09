@@ -9,6 +9,7 @@
 #include "cvm/registry.hpp"
 #include "cvm/messenger.hpp"
 #include "cvm/topology.hpp"
+#include "cvm/logger.hpp"
 
 template <typename T, typename U>
 concept not_same_as = !std::same_as<T, U>;

@@ -5,6 +5,7 @@
 
 #include "rv_tester_transactions.hpp"
 
+template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 class axi_sw_mst {
 
     private:
@@ -39,11 +40,11 @@ class axi_sw_mst {
             return true;
         }
 
-        void process(const rv_tester_transactions::axi_sw_mst::b& b);
-        void process(const rv_tester_transactions::axi_sw_mst::r& r);
-        void process(const rv_tester_transactions::axi_sw_mst::ar_q_ptr& ar_q_ptr);
-        void process(const rv_tester_transactions::axi_sw_mst::aw_q_ptr& aw_q_ptr);
-        void process(const rv_tester_transactions::axi_sw_mst::w_q_ptr& w_q_ptr);
+        void process(const B& b);
+        void process(const R& r);
+        void process(const ARQ& ar_q_ptr);
+        void process(const AWQ& aw_q_ptr);
+        void process(const WQ& w_q_ptr);
         void process(const axi::a_t& a);
         void process(const axi::w_t& w);
         void process(const transactor::read_request_t& req);

@@ -1,10 +1,11 @@
-module sysmod 
+module sysmod
 import rv_tester_params::*;
 #(
     parameter int CLOCK_PERIOD_PS           =     500,
     parameter int SW_CLOCK_UPDATE_PERIOD_PS = 100_000,
     parameter int NUM                       =      -1,
-    `TOPOLOGY
+    `TOPOLOGY,
+    `RV_TESTER_TRANSACTIONS_SYSMOD_OUTPUT_PARAMS
 )(
     input clk,
     input reset,
@@ -13,7 +14,7 @@ import rv_tester_params::*;
     output rv_tester_pkg::interrupt_t interrupt [NHARTS-1:0],
     output rv_tester_pkg::dm_write_t  dmi_write,
     output rv_tester_pkg::terminate_t terminate,
-    `RV_TESTER_TRANSACTIONS_OUTPUT_SYSMOD
+    `RV_TESTER_TRANSACTIONS_SYSMOD_OUTPUT_PORTS
 );
     import "DPI-C" context function void sysmod_set_scope(int unsigned location);
 

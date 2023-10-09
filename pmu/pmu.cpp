@@ -6,6 +6,9 @@ DEFINE_bool(perf, false, "Enable core performance metrics");
 // TODO: control which are dumped? might not be useful
 DEFINE_uint64(sync_pmcounters_period, 0, "Sync pmcounters every X cycles. A value of 0 means no sync, only update on terminate.");
 DEFINE_bool(pmcounters_log, false, "Dump pmcounters in log");
+DEFINE_bool(ipc_check, false, "Check IPC within a tolerance %");
+DEFINE_double(ipc_expected, 0.0, "Expected IPC");
+DEFINE_int32(ipc_tolerance_perc, 5, "IPC tolerance %");
 DECLARE_string(load);
 
 REGISTRY_register(pmu, PMCI, cvm::registry::all);
@@ -30,13 +33,15 @@ pmu::pmu(cvm::topology::loc_t loc, unsigned id)
 
     auto cosim = cvm::topology::get_from_type("COSIM", id_);
 
-    cvm::registry::messenger.connect<rv_tester_transactions::cosim::m_rvfi>(cosim, [this] (const auto& v) { return this->process(v); });
-    cvm::registry::messenger.connect<rv_tester_transactions::pmu::pmcounters>(loc, [this] (const auto& v) { return this->process(v); });
+    cvm::registry::messenger.connect<rv_tester_transactions::cosim::m_rvfi<>>(cosim, [this] (const auto& v) { return this->process(v); });
+    cvm::registry::messenger.connect<rv_tester_transactions::pmu::pmcounters<>>(loc, [this] (const auto& v) { return this->process(v); });
   }
 }
 
 pmu::~pmu()
 {
+  if (FLAGS_perf && FLAGS_ipc_check)
+      ipc_check();
   if (FLAGS_perf)
       report();
 }
@@ -78,7 +83,7 @@ pmu::configure()
 }
 
 void
-pmu::process(const rv_tester_transactions::cosim::m_rvfi& m_rvfi)
+pmu::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi)
 {
   if (perf_region_ok) {
     if (perf_start_pc == uint64_t(m_rvfi.pc_rdata))
@@ -90,7 +95,7 @@ pmu::process(const rv_tester_transactions::cosim::m_rvfi& m_rvfi)
 }
 
 void
-pmu::process(const rv_tester_transactions::pmu::pmcounters& pmcounters)
+pmu::process(const rv_tester_transactions::pmu::pmcounters<>& pmcounters)
 {
   if (loc_ != pmcounters.location)
     return;
@@ -127,5 +132,26 @@ pmu::report()
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_perf_end_pc\": \"0x{:x}\"}}\n", id_, perf_end_pc);
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_perf_start_cycle\": \"0x{:x}\"}}\n", id_, perf_start_cycle);
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_perf_end_cycle\": \"0x{:x}\"}}\n", id_, perf_end_cycle);
+  }
+}
+
+bool
+pmu::is_within_range(double actual, double expected, int tolerance_perc)
+{
+  double tolerance = expected * (tolerance_perc / 100.0);
+  return std::abs(actual - expected) <= tolerance;
+}
+
+void
+pmu::ipc_check()
+{
+  const auto& used = (perf_region_started and perf_region_ended)? perf_region : counters;
+  double ipc_actual = used[CPU_CYCLES] ? static_cast<double>(used[INSTRUCTIONS]) / static_cast<double>(used[CPU_CYCLES]) : 0.0;
+
+  if (!is_within_range(ipc_actual, FLAGS_ipc_expected, FLAGS_ipc_tolerance_perc)) {
+    cvm::log(cvm::ERROR, "Error: IPC check failed. Act: {:.2f} Exp: {:.2f} Tolerance: {} %\n", ipc_actual, FLAGS_ipc_expected, FLAGS_ipc_tolerance_perc);
+  }
+  else {
+    cvm::log(cvm::NONE, "IPC check passed. Act: {:.2f} Exp: {:.2f} Tolerance: {} %\n", ipc_actual, FLAGS_ipc_expected, FLAGS_ipc_tolerance_perc);
   }
 }

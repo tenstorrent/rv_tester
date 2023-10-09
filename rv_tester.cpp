@@ -37,7 +37,7 @@ class logger_instrument {
                 return prefix;
             });
 
-            cvm::registry::messenger.connect<rv_tester_transactions::logger::cycle>(loc, [] (const auto& c) { clock = c.clock; });
+            cvm::registry::messenger.connect<rv_tester_transactions::logger::cycle<>>(loc, [] (const auto& c) { clock = c.clock; });
         }
 
         void check() {
@@ -93,9 +93,8 @@ extern "C" {
         cvm::registry::configure();
     }
 
-    int rv_tester_shutdown_registry() {
-        cvm::registry::shutdown();
-        return 0;
+    uint8_t rv_tester_shutdown_registry() {
+        return cvm::registry::shutdown();
     }
 
     uint8_t rv_tester_flush_callbacks() {

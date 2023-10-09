@@ -192,7 +192,7 @@ public:
   } counter;
 
   std::vector<uint64_t>
-  to_vector(const rv_tester_transactions::pmu::pmcounters &pmcounters) {
+  to_vector(const rv_tester_transactions::pmu::pmcounters<> &pmcounters) {
     std::vector<uint64_t> tmp(counter::COUNT);
 
     tmp[counter::CPU_CYCLES] = pmcounters.cpu_cycles;
@@ -340,6 +340,7 @@ public:
   ~pmu();
 
   void report();
+  void ipc_check();
 
   // snapshot current counter values, to be used in perf region
   void perf_region_start() {
@@ -361,9 +362,10 @@ public:
     perf_region_ended = true;
   }
 
+  bool is_within_range(double, double, int);
   void configure();
-  void process(const rv_tester_transactions::cosim::m_rvfi &m_rvfi);
-  void process(const rv_tester_transactions::pmu::pmcounters &pmcounters);
+  void process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi);
+  void process(const rv_tester_transactions::pmu::pmcounters<>& pmcounters);
 
 private:
   cvm::file_logger log;

@@ -32,7 +32,7 @@ import rv_tester_params::*;
     import "DPI-C" context function void rv_tester_cvm_error_handler();
     import "DPI-C" context function void rv_tester_parse_memmap(int unsigned no_addr_rules);
     import "DPI-C" function void rv_tester_build_registry();
-    import "DPI-C" function int rv_tester_shutdown_registry(); // dummy return value so that this gets called immediately to end the test.
+    import "DPI-C" function byte unsigned rv_tester_shutdown_registry();
     import "DPI-C" context function bit rv_tester_flush_callbacks();
 
     localparam int unsigned AxiIdWidthMstRv    = topology.TOP.PLATFORM.AXI.ID_WIDTH + $clog2(topology.TOP.PLATFORM.AXI.TOTAL) + 1;
@@ -79,7 +79,6 @@ import rv_tester_params::*;
         clocks          <= clocks + 1;
 
         quiesce_counter <= quiesce_counter + int'(terminate);
-        terminated      <= (terminate_now || terminated) && !rerun_now;
 
         for (int i=0; i<NHARTS; i++) begin
             if (cosim_terminate[i].terminate) begin
@@ -91,7 +90,6 @@ import rv_tester_params::*;
             clocks          <= '0;
             sysmod_reset    <= '1;
             quiesce_counter <= '0;
-            terminated      <= '0;
             cosim_terminate_any <= '0;
         end
 
@@ -157,26 +155,34 @@ import rv_tester_params::*;
     */
     always @(posedge clk) begin
 
-        automatic int _;
-	if(flush_complete) begin 
-        if (terminate_now && !terminated) begin
+	if(flush_complete) begin
+            automatic logic shutdowned = '0;
 
-            if (quiesced) begin
-                $display("<%0d> [RVTESTER]: exiting gracefully", clocks);
-            end else if (quiesce_counter == 0) begin
-                $display("<%0d> [RVTESTER]: exiting immediately because +quiesce_counter=0", clocks);
-            end else begin
-                $display("<%0d> Error: Waiting to quiesce for more than %0d cycles", clocks, quiesce_timeout);
+            if (terminate_now && !terminated) begin
+ 
+                if (quiesced) begin
+                    $display("<%0d> [RVTESTER]: exiting gracefully", clocks);
+                end else if (quiesce_counter == 0) begin
+                    $display("<%0d> [RVTESTER]: exiting immediately because +quiesce_counter=0", clocks);
+                end else begin
+                    $display("<%0d> Error: Waiting to quiesce for more than %0d cycles", clocks, quiesce_timeout);
+                end
+
+                shutdowned = rv_tester_shutdown_registry() != '0;
+
+                if (!shutdowned) begin
+                    $display("<%0d> Could not shutdown, trying again next cycle", clocks);
+                end
+
+                if (shutdowned && call_finish && num_reruns == '0) begin
+                    $finish();
+                end
+
             end
 
-            _ = rv_tester_shutdown_registry();
-
-            if (call_finish && num_reruns == '0) begin
-                $finish();
-            end
+            terminated <= !rv_tester_reset && (terminated || (terminate_now && shutdowned)) && !rerun_now;
 
         end
-	end
     end
 
     assign reset = clocks < LU'(RESET_CLOCKS) || rv_tester_reset || sysmod_reset;
@@ -208,7 +214,8 @@ import rv_tester_params::*;
         .CLOCK_PERIOD_PS(CLOCK_PERIOD_PS),
         .SW_CLOCK_UPDATE_PERIOD_PS(SW_CLOCK_UPDATE_PERIOD_PS),
         .NUM(0),
-        `TOPOLOGY_CFG
+        `TOPOLOGY_CFG,
+        `RV_TESTER_TRANSACTIONS_SYSMOD_SOURCE_PARAMS(0)
     ) sysmod (
         .clk,
         .reset(sysmod_reset),
@@ -217,7 +224,7 @@ import rv_tester_params::*;
         .dmi_write(trickbox_dmi_write),
         .interrupt,
         .terminate(sysmod_terminate),
-        `RV_TESTER_TRANSACTIONS_SOURCE_SYSMOD(2, 0)
+        `RV_TESTER_TRANSACTIONS_SYSMOD_SOURCE_PORTS(2, 0, 0)
     );
 
 `ifndef DMI_TB_WRITES_UNSUPPORTED
@@ -240,7 +247,8 @@ import rv_tester_params::*;
 
     dm_model #(
         .NUM(0),
-        `TOPOLOGY_CFG
+        `TOPOLOGY_CFG,
+        `RV_TESTER_TRANSACTIONS_DM_MODEL_SOURCE_PARAMS(0)
     ) i_dm_model(
         .clk,
         .reset(sysmod_reset),
@@ -252,7 +260,7 @@ import rv_tester_params::*;
         .axi_req_mst(axi_req_mst[0]),
         .axi_resp_mst(axi_rsp_mst[0]),
         .misc_signals,
-        `RV_TESTER_TRANSACTIONS_SOURCE_DM_MODEL(1,0)
+        `RV_TESTER_TRANSACTIONS_DM_MODEL_SOURCE_PORTS(1,0,0)
     );
 `endif
 
@@ -268,7 +276,8 @@ import rv_tester_params::*;
           .NINSERT(NINSERTS[c]),
           .NWRITE(NWRITES[c]),
           .NBYPWRITE(NBYPWRITES[c]),
-          `TOPOLOGY_CFG
+          `TOPOLOGY_CFG,
+          `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PARAMS(0)
       ) cosim (
           .clk,
           .reset(sysmod_reset),
@@ -281,7 +290,7 @@ import rv_tester_params::*;
           .interrupt(interrupt[c]),
           .debug_mode(debug_mode[c]),
           .terminate(cosim_terminate[c]),
-          `RV_TESTER_TRANSACTIONS_SOURCE_COSIM(1, c)
+          `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PORTS(1, c, 0)
       );
     end
 `endif
@@ -290,7 +299,8 @@ import rv_tester_params::*;
       pmu #(
           .NUM(p),
           .NRET(NRETS[p]),
-          `TOPOLOGY_CFG
+          `TOPOLOGY_CFG,
+          `RV_TESTER_TRANSACTIONS_PMU_SOURCE_PARAMS(0)
       ) pmu (
           .clk,
           .reset(sysmod_reset),
@@ -298,13 +308,13 @@ import rv_tester_params::*;
           .pmci(pmci[p]),
           .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
           .terminate,
-          `RV_TESTER_TRANSACTIONS_SOURCE_PMU(1, p)
+          `RV_TESTER_TRANSACTIONS_PMU_SOURCE_PORTS(1, p, 0)
       );
     end
 
-    assign tx_dom_1.logger_cycles[0][0].valid = gen_clocks;
-    assign tx_dom_1.logger_cycles[0][0].data.location = location;
-    assign tx_dom_1.logger_cycles[0][0].data.clock = clocks;
+    assign tx_dom_1.logger_cycle_0s[0][0].valid = gen_clocks;
+    assign tx_dom_1.logger_cycle_0s[0][0].data.location = location;
+    assign tx_dom_1.logger_cycle_0s[0][0].data.clock = clocks;
  
     localparam no_of_masters = ( topology.TOP.PLATFORM.AXI.TOTAL < 2 ) ? 2 : topology.TOP.PLATFORM.AXI.TOTAL ;
     for (genvar p = 0; p < no_of_masters; p++) begin : axi_sw_slvs
@@ -315,7 +325,8 @@ import rv_tester_params::*;
             .STRB_WIDTH(topology.TOP.PLATFORM.AXI.STRB_WIDTH),
             .R_Q_MAX(topology.TOP.PLATFORM.AXI.R_Q_MAX),
             .TOPO_ID(topology.TOP.PLATFORM.AXI.ID),
-            .NUM(p)
+            .NUM(p),
+            `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(0)
         ) axi_sw(
             .clk,
             .reset_n(~reset),
@@ -358,7 +369,7 @@ import rv_tester_params::*;
             .axi_slv_aw_ready(axi_rsp_llc[p].aw_ready),
             .axi_slv_ar_ready(axi_rsp_llc[p].ar_ready),
             .axi_slv_w_ready (axi_rsp_llc[p].w_ready),
-            `RV_TESTER_TRANSACTIONS_SOURCE_AXI_SW(2, p)
+            `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PORTS(2, p, 0)
         );
     end	
 
@@ -372,7 +383,8 @@ import rv_tester_params::*;
             .AW_Q_MAX(topology.TOP.PLATFORM.AXI_MST.AW_Q_MAX),
             .W_Q_MAX(topology.TOP.PLATFORM.AXI_MST.W_Q_MAX),
             .TOPO_ID(topology.TOP.PLATFORM.AXI_MST.ID),
-            .NUM(p)
+            .NUM(p),
+            `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(0)
         ) axi_sw_mst (
             .clk,
             .reset_n(~reset),
@@ -415,7 +427,66 @@ import rv_tester_params::*;
             .axi_slv_aw_ready(axi_rsp_mst[p].aw_ready),
             .axi_slv_ar_ready(axi_rsp_mst[p].ar_ready),
             .axi_slv_w_ready (axi_rsp_mst[p].w_ready),
-            `RV_TESTER_TRANSACTIONS_SOURCE_AXI_SW_MST(2, p)
+            `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PORTS(2, p, 0)
+        );
+    end
+
+
+    for (genvar p = 0; p < topology.TOP.PLATFORM.AXI_MST2.TOTAL; p++) begin : axi_sw_mst2s
+        axi_sw_mst #(
+            .ADDR_WIDTH(topology.TOP.PLATFORM.AXI_MST2.ADDR_WIDTH),
+            .DATA_WIDTH(topology.TOP.PLATFORM.AXI_MST2.DATA_WIDTH),
+            .ID_WIDTH(topology.TOP.PLATFORM.AXI_MST2.ID_WIDTH  ),
+            .STRB_WIDTH(topology.TOP.PLATFORM.AXI_MST2.STRB_WIDTH),
+            .AR_Q_MAX(topology.TOP.PLATFORM.AXI_MST2.AR_Q_MAX),
+            .AW_Q_MAX(topology.TOP.PLATFORM.AXI_MST2.AW_Q_MAX),
+            .W_Q_MAX(topology.TOP.PLATFORM.AXI_MST2.W_Q_MAX),
+            .TOPO_ID(topology.TOP.PLATFORM.AXI_MST2.ID),
+            .NUM(p),
+            `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(1)
+        ) axi_sw_mst2 (
+            .clk,
+            .reset_n(~reset),
+            .sys_reset(sysmod_reset),
+            .axi_mst_ar_valid(axi_req_mst2[p].ar_valid),
+            .axi_mst_ar_id   (axi_req_mst2[p].ar_id),
+            .axi_mst_ar_addr (axi_req_mst2[p].ar_addr),
+            .axi_mst_ar_len  (axi_req_mst2[p].ar_len),
+            .axi_mst_ar_size (axi_req_mst2[p].ar_size),
+            .axi_mst_ar_lock (axi_req_mst2[p].ar_lock),
+            .axi_mst_ar_burst(axi_req_mst2[p].ar_burst),
+
+            .axi_mst_aw_valid(axi_req_mst2[p].aw_valid),
+            .axi_mst_aw_id   (axi_req_mst2[p].aw_id),
+            .axi_mst_aw_addr (axi_req_mst2[p].aw_addr),
+            .axi_mst_aw_len  (axi_req_mst2[p].aw_len),
+            .axi_mst_aw_size (axi_req_mst2[p].aw_size),
+            .axi_mst_aw_burst(axi_req_mst2[p].aw_burst),
+            .axi_mst_aw_lock (axi_req_mst2[p].aw_lock),
+            .axi_mst_aw_atop (axi_req_mst2[p].aw_atop),
+
+            .axi_mst_w_valid(axi_req_mst2[p].w_valid),
+            .axi_mst_w_data (axi_req_mst2[p].w_data),
+            .axi_mst_w_strb (axi_req_mst2[p].w_strb),
+            .axi_mst_w_last (axi_req_mst2[p].w_last),
+
+            .axi_mst_b_ready(axi_req_mst2[p].b_ready),
+            .axi_mst_r_ready(axi_req_mst2[p].r_ready),
+
+            .axi_slv_b_valid(axi_rsp_mst2[p].b_valid),
+            .axi_slv_b_id   (axi_rsp_mst2[p].b_id),
+            .axi_slv_b_resp (axi_rsp_mst2[p].b_resp),
+
+            .axi_slv_r_valid(axi_rsp_mst2[p].r_valid),
+            .axi_slv_r_id   (axi_rsp_mst2[p].r_id),
+            .axi_slv_r_data (axi_rsp_mst2[p].r_data),
+            .axi_slv_r_resp (axi_rsp_mst2[p].r_resp),
+            .axi_slv_r_last (axi_rsp_mst2[p].r_last),
+
+            .axi_slv_aw_ready(axi_rsp_mst2[p].aw_ready),
+            .axi_slv_ar_ready(axi_rsp_mst2[p].ar_ready),
+            .axi_slv_w_ready (axi_rsp_mst2[p].w_ready),
+            `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PORTS(2, p, 1)
         );
     end
 
