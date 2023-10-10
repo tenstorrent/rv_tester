@@ -80,6 +80,8 @@ module rv_tester_mem #(
            axi_req[i].aw.user = '0;
 
 	   axi_resp_up[i] = axi_resp[i];
+	   axi_resp_up[i].b.user = '0;
+	   axi_resp_up[i].r.user = '0;
        end
 
        for(int i=0;i<NumMastersMem;i++) begin

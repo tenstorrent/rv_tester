@@ -379,6 +379,15 @@ package rv_tester_params;
     `AXI_TYPEDEF_RESP_T(mst_resp_top, mst_b_chan_top, mst_r_chan_top)
     `AXI_TYPEDEF_RESP_T(slv_resp_top, slv_b_chan_top, slv_r_chan_top)
 
+    `AXI_TYPEDEF_AW_CHAN_T(mst2_aw_chan_top, axi_mst2_addr_t, axi_mst2_id_t, user_t)
+    `AXI_TYPEDEF_W_CHAN_T(mst2_w_chan_top, axi_mst2_data_t, axi_mst2_strb_t, user_t)
+    `AXI_TYPEDEF_B_CHAN_T(mst2_b_chan_top, axi_mst2_id_t, user_t)
+    `AXI_TYPEDEF_AR_CHAN_T(mst2_ar_chan_top, axi_mst2_addr_t, axi_mst2_id_t, user_t)
+    `AXI_TYPEDEF_R_CHAN_T(mst2_r_chan_top, axi_mst2_data_t, axi_mst2_id_t, user_t)
+    `AXI_TYPEDEF_REQ_T(mst2_req_top, mst2_aw_chan_top, mst2_w_chan_top, mst2_ar_chan_top)
+    `AXI_TYPEDEF_RESP_T(mst2_resp_top, mst2_b_chan_top, mst2_r_chan_top)
+
+
     // --------------------------------------
     // rv_tester ports
     // --------------------------------------
@@ -411,8 +420,8 @@ package rv_tester_params;
     input  rv_tester_params::slv_resp_top    axi_rsp [rv_tester_params::AXI_TOTAL-1:0],             \
     input  rv_tester_params::mst_req_top     axi_req_mst [rv_tester_params::AXI_MST_TOTAL-1:0],     \
     output rv_tester_params::mst_resp_top    axi_rsp_mst [rv_tester_params::AXI_MST_TOTAL-1:0],     \
-    input  rv_tester_params::axi_req_mst2_t  axi_req_mst2 [rv_tester_params::AXI_MST2_TOTAL-1:0],   \
-    output rv_tester_params::axi_rsp_mst2_t  axi_rsp_mst2 [rv_tester_params::AXI_MST2_TOTAL-1:0]
+    input  rv_tester_params::mst2_req_top    axi_req_mst2 [rv_tester_params::AXI_MST2_TOTAL-1:0],   \
+    output rv_tester_params::mst2_resp_top   axi_rsp_mst2 [rv_tester_params::AXI_MST2_TOTAL-1:0]
 
 
 `define RV_TESTER_VARS(topology)                                                                    \
@@ -442,8 +451,8 @@ package rv_tester_params;
     rv_tester_params::slv_resp_top           axi_rsp [rv_tester_params::AXI_TOTAL-1:0];             \
     rv_tester_params::mst_req_top            axi_req_mst [rv_tester_params::AXI_MST_TOTAL-1:0];     \
     rv_tester_params::mst_resp_top           axi_rsp_mst [rv_tester_params::AXI_MST_TOTAL-1:0];     \
-    rv_tester_params::axi_req_mst2_t         axi_req_mst2  [rv_tester_params::AXI_MST2_TOTAL-1:0];  \
-    rv_tester_params::axi_rsp_mst2_t         axi_rsp_mst2  [rv_tester_params::AXI_MST2_TOTAL-1:0];
+    rv_tester_params::mst2_req_top           axi_req_mst2  [rv_tester_params::AXI_MST2_TOTAL-1:0];  \
+    rv_tester_params::mst2_resp_top          axi_rsp_mst2  [rv_tester_params::AXI_MST2_TOTAL-1:0];
 
 `define RV_TESTER_PORTS `_RV_TESTER_PORTS(input,output)
 
