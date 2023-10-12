@@ -2,6 +2,7 @@
 #include <cassert>
 #include <algorithm>
 #include "axi.h"
+#include "cvm/logger.hpp"
 
 template <typename T> void atop_arithmetic(const axi::data_t& read_data, axi::data_t& write_data, const axi::atop_operation operation, const axi::len_t& len) {
 
@@ -164,7 +165,9 @@ cvm::messenger::task<void> axi::operator()() {
 
                 if (a.w) {
                     auto w = w_q_.dequeue();
-                    assert(!!w.last == last);
+                    if (!!w.last != last) {
+                        cvm::log(cvm::ERROR, "ERROR: [axi] w.last not set in for write to addr {:#x}\n", start);
+                    }
 
                     // use std::shift_left in C++20
                     std::rotate(
