@@ -12,6 +12,7 @@ import rv_tester_params::*;
 )(
     input clk,
     input reset,
+    input dut_reset,
     input longint unsigned clocks,
     input rvfi_t [NRET-1:0] rvfi,
     input mcmi_t [NREAD-1:0] mcmi_read,
@@ -52,7 +53,7 @@ import rv_tester_params::*;
 
     // m_rvfi
     for (genvar n = 0; n < NRET; n++) begin
-        assign m_rvfis[n].valid = RVFI_EN & rvfi_enabled & ~reset & rvfi[n].valid;
+        assign m_rvfis[n].valid = RVFI_EN & rvfi_enabled & ~dut_reset & rvfi[n].valid;
         assign m_rvfis[n].data.location = location;
         assign m_rvfis[n].data.cycle = clocks;
         assign m_rvfis[n].data.hart = NUM;
@@ -86,7 +87,7 @@ import rv_tester_params::*;
 
     // m_mcmi_read
     for (genvar n = 0; n < NREAD; n++) begin
-        assign m_mcmi_reads[n].valid = MCMI_EN & rvfi_enabled & ~reset & mcmi_read[n].valid;
+        assign m_mcmi_reads[n].valid = MCMI_EN & rvfi_enabled & ~dut_reset & mcmi_read[n].valid;
         assign m_mcmi_reads[n].data.location = location;
         assign m_mcmi_reads[n].data.cycle = mcmi_read[n].valid ? clocks : '0;
         assign m_mcmi_reads[n].data.hart = NUM;
@@ -98,7 +99,7 @@ import rv_tester_params::*;
 
     // m_mcmi_insert
     for (genvar n = 0; n < NINSERT; n++) begin
-        assign m_mcmi_inserts[n].valid = MCMI_EN & rvfi_enabled & ~reset & mcmi_insert[n].valid;
+        assign m_mcmi_inserts[n].valid = MCMI_EN & rvfi_enabled & ~dut_reset & mcmi_insert[n].valid;
         assign m_mcmi_inserts[n].data.location = location;
         assign m_mcmi_inserts[n].data.cycle = mcmi_insert[n].valid ? clocks : '0;
         assign m_mcmi_inserts[n].data.hart = NUM;
@@ -110,7 +111,7 @@ import rv_tester_params::*;
 
     // m_mcmi_write
     for (genvar n = 0; n < NWRITE; n++) begin
-        assign m_mcmi_writes[n].valid = MCMI_EN & rvfi_enabled & ~reset & mcmi_write[n].valid;
+        assign m_mcmi_writes[n].valid = MCMI_EN & rvfi_enabled & ~dut_reset & mcmi_write[n].valid;
         assign m_mcmi_writes[n].data.location = location;
         assign m_mcmi_writes[n].data.cycle = mcmi_write[n].valid ? clocks : '0;
         assign m_mcmi_writes[n].data.hart = NUM;
@@ -121,7 +122,7 @@ import rv_tester_params::*;
 
     // m_mcmi_bypass_write
     for (genvar n = 0; n < NBYPWRITE; n++) begin
-        assign m_mcmi_bypass_writes[n].valid = MCMI_EN & rvfi_enabled & ~reset & mcmi_bypass_write[n].valid;
+        assign m_mcmi_bypass_writes[n].valid = MCMI_EN & rvfi_enabled & ~dut_reset & mcmi_bypass_write[n].valid;
         assign m_mcmi_bypass_writes[n].data.location = location;
         assign m_mcmi_bypass_writes[n].data.cycle = mcmi_bypass_write[n].valid ? clocks : '0;
         assign m_mcmi_bypass_writes[n].data.hart = NUM;
@@ -132,7 +133,7 @@ import rv_tester_params::*;
 
     // m_trap
     for (genvar n = 0; n < NRET; n++) begin
-        assign m_traps[n].valid = RVFI_EN & rvfi_enabled & ~reset & (rvfi[n].cause != 0);
+        assign m_traps[n].valid = RVFI_EN & rvfi_enabled & ~dut_reset & (rvfi[n].cause != 0);
         assign m_traps[n].data.location = location;
         assign m_traps[n].data.cycle = clocks;
         assign m_traps[n].data.cause = rvfi[n].cause;
@@ -143,7 +144,7 @@ import rv_tester_params::*;
     always @(posedge clk) begin
       debug_mode_d1 <= debug_mode;
     end
-    assign m_debugs[0].valid = ~reset & ((debug_mode & ~debug_mode_d1) | (~debug_mode & debug_mode_d1)) & rvfi_enabled;
+    assign m_debugs[0].valid = ~dut_reset & ((debug_mode & ~debug_mode_d1) | (~debug_mode & debug_mode_d1)) & rvfi_enabled;
     assign m_debugs[0].data.location = location;
     assign m_debugs[0].data.cycle = clocks;
     assign m_debugs[0].data.enter = debug_mode;
@@ -154,7 +155,7 @@ import rv_tester_params::*;
     always @(posedge clk) begin
       interrupt_d1 <= interrupt;
     end
-    assign m_intrs[0].valid = ~reset & (|(interrupt & ~interrupt_d1) | |(~interrupt & interrupt_d1)
+    assign m_intrs[0].valid = ~dut_reset & (|(interrupt & ~interrupt_d1) | |(~interrupt & interrupt_d1)
       | (interrupt.sei & ~interrupt_d1.sei) | (~interrupt.sei & interrupt_d1.sei)) & rvfi_enabled;
     assign m_intrs[0].data.location = location;
     assign m_intrs[0].data.cycle = clocks;
@@ -190,7 +191,7 @@ import rv_tester_params::*;
             /* verilator lint_on BLKSEQ */
             cycles_since_retire <= 0;
             boot_wfi <= '0;
-        end else begin
+        end else if(!dut_reset) begin
             cycles_since_retire <= cycles_since_retire + 1;
             if (rvfi[0].valid !== 0) begin
               cycles_since_retire <= 0;
