@@ -1081,20 +1081,20 @@ void bridge::report_metrics() {
   const auto& prev_trap = prev_prev_whisp_state.trap;
   const auto& prev_num_dest = prev_prev_whisp_state.change_count;
 
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_instructions\": {}}}\n", id_, instructions);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_cpu_cycles\": {}}}\n", id_, cpu_cycles);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_ipc\": {:.2f}}}\n", id_, ipc);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_instr\": \"{}\"}}\n", id_, instr);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_mode\": {}}}\n", id_, mode);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_trap\": {}}}\n", id_, trap);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_num_dest\": {}}}\n", id_, num_dest);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_dest\": \"{}\"}}\n", id_, dest);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_dest_addr\": \"{}\"}}\n", id_, dest_addr);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_dest_data\": \"{}\"}}\n", id_, dest_data);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_prev_instr\": \"{}\"}}\n", id_, prev_instr);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_prev_mode\": {}}}\n", id_, prev_mode);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_prev_trap\": {}}}\n", id_, prev_trap);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_prev_num_dest\": {}}}\n", id_, prev_num_dest);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_instructions\": {}}}\n", id_, instructions);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_cpu_cycles\": {}}}\n", id_, cpu_cycles);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_ipc\": {:.2f}}}\n", id_, ipc);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_instr\": \"{}\"}}\n", id_, instr);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_mode\": {}}}\n", id_, mode);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_trap\": {}}}\n", id_, trap);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_dest\": {}}}\n", id_, num_dest);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dest\": \"{}\"}}\n", id_, dest);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dest_addr\": \"{}\"}}\n", id_, dest_addr);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dest_data\": \"{}\"}}\n", id_, dest_data);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_instr\": \"{}\"}}\n", id_, prev_instr);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_mode\": {}}}\n", id_, prev_mode);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_trap\": {}}}\n", id_, prev_trap);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_num_dest\": {}}}\n", id_, prev_num_dest);
 
   for (auto& csr : csrs) {
     uint64_t csr_data;
@@ -1102,7 +1102,7 @@ void bridge::report_metrics() {
     if (!client_->whisperPeek(id_, 'c', csr.address, csr_data, valid)) {
       cvm::log(cvm::ERROR, "Error: Hart{}: Failed to peek CSR values\n", id_);
     }
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_csr_{}\": \"0x{:x}\"}}\n", id_, csr.name, csr_data);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_csr_{}\": \"0x{:x}\"}}\n", id_, csr.name, csr_data);
   }
 
   // Step one final time to collect metrics for next instruction
@@ -1116,9 +1116,9 @@ void bridge::report_metrics() {
   const auto& next_trap = w.trap;
   const auto& next_num_dest = w.change_count;
 
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_next_instr\": \"{}\"}}\n", id_, next_instr);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_next_mode\": {}}}\n", id_, next_mode);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_next_trap\": {}}}\n", id_, next_trap);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_next_num_dest\": {}}}\n", id_, next_num_dest);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_instr\": \"{}\"}}\n", id_, next_instr);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_mode\": {}}}\n", id_, next_mode);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_trap\": {}}}\n", id_, next_trap);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_num_dest\": {}}}\n", id_, next_num_dest);
   
 }
