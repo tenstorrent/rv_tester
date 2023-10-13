@@ -447,7 +447,7 @@ module rv_tester_mem #(
         end
     end
 
-assign flush_complete = flush_complete_reg || bypass_cache;
+    assign flush_complete = flush_complete_reg || bypass_cache;
 
 
 
