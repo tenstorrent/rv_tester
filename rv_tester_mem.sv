@@ -96,7 +96,8 @@ module rv_tester_mem #(
 
 ////////////////local parameters/////////////////////
 
-    logic flush_complete_delayed_2, flush_complete_delayed_1, flush_cache_delayed_3, flush_cache_delayed_1, flush_cache_delayed_2, flush_complete_reg;
+    logic clk_gated, flush_complete_delayed_2, flush_complete_delayed_1, flush_cache_delayed_3, flush_cache_delayed_1, flush_cache_delayed_2, flush_complete_reg;
+    logic enable_flop /*verilator clock_enable*/;
 
     slv_req_t [NumMasters-1:0] axi_req_xbar;
     slv_resp_t [NumMasters-1:0] axi_resp_xbar;
@@ -138,6 +139,12 @@ module rv_tester_mem #(
     localparam axi_addr_t SpmRegionLength    = axi_addr_t'(SetAssociativity_LLC * NumLines_LLC * NumBlocks_LLC * AxiDataWidth / 64'd8);
     localparam axi_addr_t CachedRegionStart  = {AxiAddrWidth{1'b0}};//SpmRegionLength + 1;
     localparam axi_addr_t CachedRegionEnd  = {AxiAddrWidth{1'b1}};
+
+    always@(negedge clk) begin
+        enable_flop <= ~bypass_cache;
+    end
+
+    assign clk_gated = clk & enable_flop;
 
     //////////////////////////////////////////
 
@@ -183,7 +190,7 @@ module rv_tester_mem #(
         .mst_resp_t     ( mst_resp_xbar    ),
         .rule_t         ( rule_t        )
     ) i_xbar (
-        .clk_i                  ( clk ),
+        .clk_i                  ( clk_gated ),
         .rst_ni                 ( rst_n ),
         .test_i                 ( 1'b0 ),
         .slv_ports_req_i        ( axi_req_xbar ),
@@ -204,7 +211,7 @@ module rv_tester_mem #(
     axi_llc_cfg_regs_d_t     reg_cfg_hw_to_reg;
     axi_llc_cfg_regs_q_t     reg_cfg_reg_to_hw;
 
-    always@(posedge clk) begin
+    always@(posedge clk_gated) begin
         if(!rst_n) begin
                 bist_status_done                     <= 0;
         end else begin
@@ -232,7 +239,7 @@ module rv_tester_mem #(
         .PrintSramCfg             ( 0 ),
         .PrintLlcCfg              ( 0 )
     ) llc(
-        .clk_i                ( clk ),
+        .clk_i                ( clk_gated ),
         .rst_ni               ( rst_n ),
         .test_i               ( 1'b0 ),
         .slv_req_i            ( mem_req_t[0] ), 
@@ -317,7 +324,7 @@ module rv_tester_mem #(
 //////////////////Flushing//////////////////////////
 
 
-    always@(posedge clk) begin
+    always@(posedge clk_gated) begin
         if(!rst_n) begin
                 flush_cache_delayed_1                     <= '0;
 		flush_cache_delayed_2			  <= '0;
@@ -338,7 +345,7 @@ module rv_tester_mem #(
     .SWACCESS("RW"),
     .RESVAL  ('0)
     ) u_cfg_spm (
-    .clk_i   (clk    ),
+    .clk_i   (clk_gated    ),
     .rst_ni  (rst_n  ),
 
     // from register interface
@@ -363,7 +370,7 @@ module rv_tester_mem #(
     .SWACCESS("RW"),
     .RESVAL  ('0)
     ) u_cfg_flush (
-    .clk_i   (clk    ),
+    .clk_i   (clk_gated    ),
     .rst_ni  (rst_n  ),
 
     // from register interface
@@ -387,7 +394,7 @@ module rv_tester_mem #(
     .SWACCESS("RW"),
     .RESVAL  ('0)
     ) u_cfg_commit (
-    .clk_i   (clk    ),
+    .clk_i   (clk_gated    ),
     .rst_ni  (rst_n  ),
 
     // from register interface
@@ -411,7 +418,7 @@ module rv_tester_mem #(
     .SWACCESS("RO"),
     .RESVAL  ('0)
     ) u_cfg_flushed (
-    .clk_i   (clk    ),
+    .clk_i   (clk_gated    ),
     .rst_ni  (rst_n  ),
 
     // from register interface
@@ -430,7 +437,7 @@ module rv_tester_mem #(
     .qs     ()
     );
 
-    always@(posedge clk) begin
+    always@(posedge clk_gated) begin
         if(!rst_n) begin
                 flush_complete_reg <= 0;
         end else if((flush_complete_delayed_2 == 1) && (flush_complete_delayed_1 == 0)) begin

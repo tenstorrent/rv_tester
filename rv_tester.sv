@@ -21,7 +21,7 @@ import rv_tester_params::*;
         logic [topology.TOP.PLATFORM.AXI.ADDR_WIDTH-1:0] end_addr;
       } xbar_rule_t;
     
-    logic bypass_cache, enable_flop, clk_gated;
+    logic bypass_cache;
 
     if (EXTERNAL_CLOCK) begin
         assign clk = clk_ext;
@@ -528,12 +528,6 @@ import rv_tester_params::*;
 
     assign bypass_cache = 1'b1;
 
-    always@(negedge clk) begin
-        enable_flop <= ~bypass_cache;
-    end
-
-    assign clk_gated = clk & enable_flop;
-
     export "DPI-C" function rv_tester_set_address_map;
 
     rv_tester_mem #(
@@ -554,7 +548,7 @@ import rv_tester_params::*;
 	.NoAddrRules		( NoAddrRules ),
 	.NumMastersMem		( no_of_masters )
     ) rv_tester_mem(
-        .clk                    ( clk_gated ),
+        .clk                    ( clk ),
         .rst_n                  ( ~reset ),
         .axi_req_up             ( axi_req ),
         .axi_resp_up            ( axi_rsp ),
