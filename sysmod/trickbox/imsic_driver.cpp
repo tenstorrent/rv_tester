@@ -10,7 +10,7 @@
  DEFINE_int32(imsic_intr_delay_min, 3, "Minimum Delay between 2 consecutive interrupts");
  DEFINE_int32(imsic_intr_delay_max, 5, "Maximum Delay between 2 consecutive interrupts");
  DEFINE_int32(imsic_intr_threshold, 63, "imsic_intr interrupts threshold value");
- DEFINE_int32(imsic_intr_start_delay, 0, "delay after which random interrupts should start");
+ DEFINE_int32(imsic_intr_start_delay, 25, "delay after which random interrupts should start");
  DEFINE_string(imsic_intr_disable_mask,"0x00","Set bit in hex string to disable random generation of interrupt i.e. +imsic_intr_disable_mask=0x01 will disable interrupt corresponding to bit 0 ");
 
 imsic_driver::imsic_driver(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc,cvm::topology::loc_t axi_mst_loc)
