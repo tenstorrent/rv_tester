@@ -158,9 +158,9 @@ import rv_tester_params::*;
 
         automatic logic shutdowned = '0;
 
-        if (terminate_now && !terminated) begin
+        if (terminate_now && !terminated && flush_complete) begin
  
-            if (quiesced && flush_complete) begin
+            if (quiesced) begin
                 $display("<%0d> [RVTESTER]: exiting gracefully", clocks);
             end else if (quiesce_counter == 0) begin
                 $display("<%0d> [RVTESTER]: exiting immediately because +quiesce_counter=0", clocks);
