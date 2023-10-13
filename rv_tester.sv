@@ -529,7 +529,7 @@ import rv_tester_params::*;
     assign bypass_cache = 1'b1;
 
     always@(negedge clk) begin
-        enable_flop <= bypass_cache;
+        enable_flop <= ~bypass_cache;
     end
 
     assign clk_gated = clk & enable_flop;
