@@ -96,7 +96,7 @@ module rv_tester_mem #(
 
 ////////////////local parameters/////////////////////
 
-    logic flush_complete_delayed_2, flush_complete_delayed_1, flush_cache_delayed_3, flush_cache_delayed_1, flush_cache_delayed_2;
+    logic flush_complete_delayed_2, flush_complete_delayed_1, flush_cache_delayed_3, flush_cache_delayed_1, flush_cache_delayed_2, flush_complete_reg;
 
     slv_req_t [NumMasters-1:0] axi_req_xbar;
     slv_resp_t [NumMasters-1:0] axi_resp_xbar;
@@ -432,16 +432,15 @@ module rv_tester_mem #(
 
     always@(posedge clk) begin
         if(!rst_n) begin
-                flush_complete <= 0;
-	end else if(bypass_cache) begin
-		flush_complete <= 1;
+                flush_complete_reg <= 0;
         end else if((flush_complete_delayed_2 == 1) && (flush_complete_delayed_1 == 0)) begin
-                flush_complete <= 1;
+                flush_complete_reg <= 1;
         end else begin
-                flush_complete <= flush_complete;
+                flush_complete_reg <= flush_complete_reg;
         end
     end
 
+assign flush_complete = flush_complete_reg & bypass_cache;
 
 
 
