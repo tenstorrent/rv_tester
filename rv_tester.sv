@@ -20,7 +20,8 @@ import rv_tester_params::*;
         logic [topology.TOP.PLATFORM.AXI.ADDR_WIDTH-1:0] start_addr;
         logic [topology.TOP.PLATFORM.AXI.ADDR_WIDTH-1:0] end_addr;
       } xbar_rule_t;
-
+    
+    logic bypass_cache, enable_flop, clk_gated;
 
     if (EXTERNAL_CLOCK) begin
         assign clk = clk_ext;
@@ -54,7 +55,7 @@ import rv_tester_params::*;
     logic cosim_terminate_any = '0;
 
     int quiesce_counter = 0;
-    int quiesce_timeout = 25000;
+    int quiesce_timeout = 500;
 
     int unsigned location = cvm_topology::nil;
 
@@ -129,7 +130,7 @@ import rv_tester_params::*;
             /* verilator lint_on BLKSEQ */
 
             cb_poll             <= cvm_plusargs::get_bool("cb_async") == '0;
-            quiesce_timeout     <= 25000;//cvm_plusargs::get_int("quiesce_timeout");
+            quiesce_timeout     <= cvm_plusargs::get_int("quiesce_timeout");
             call_finish         <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
             gen_clocks          <= cvm_verbosity >= gen_clocks_verbosity;
 
@@ -525,6 +526,14 @@ import rv_tester_params::*;
         };
     endfunction
 
+    assign bypass_cache = 1'b1;
+
+    always@(negedge clk) begin
+        enable_flop <= bypass_cache;
+    end
+
+    assign clk_gated = clk & enable_flop;
+
     export "DPI-C" function rv_tester_set_address_map;
 
     rv_tester_mem #(
@@ -545,14 +554,14 @@ import rv_tester_params::*;
 	.NoAddrRules		( NoAddrRules ),
 	.NumMastersMem		( no_of_masters )
     ) rv_tester_mem(
-        .clk                    ( clk ),
+        .clk                    ( clk_gated ),
         .rst_n                  ( ~reset ),
         .axi_req_up             ( axi_req ),
         .axi_resp_up            ( axi_rsp ),
         .axi_req_mst_up         ( axi_req_llc ),
         .axi_resp_mst_up        ( axi_rsp_llc ),
 	.addr_map		( AddrMap ),
-        .bypass_cache		( 1'b0 ),
+        .bypass_cache		( bypass_cache ),
 	.flush_cache		( quiesced ),
 	.flush_complete		( flush_complete ),
 	.bist_status_done	()
