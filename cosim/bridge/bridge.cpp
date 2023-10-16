@@ -25,6 +25,7 @@ DECLARE_string(load);
 DECLARE_string(hex);
 DECLARE_uint64(debug_entry_pc);
 DECLARE_uint64(debug_exit_pc);
+DECLARE_uint64(hart_enable_mask);
 
 DEFINE_bool(bridge_log, true, "Enable bridge logging");
 DEFINE_string(whisper_json_path, "", "Path to whisper json config");
@@ -90,6 +91,12 @@ void bridge::reset() {
 
   bool valid;
   client_->whisperReset(0, valid);
+
+  // Write hart enable mask to boot mem
+  if (!client_->whisperPoke(id_, 0, 'm', memmap_.at("boot").base + 0x9000, FLAGS_hart_enable_mask, valid)) {
+    cvm::log(cvm::ERROR, "Error: Hart{}: Failed to poke boot memory\n", id_);
+    return;
+  }
 }
 
 // DUT interface callback: Instruction Retire
@@ -856,6 +863,21 @@ void bridge::process_dut_mcm_insert(hart_id_t hart, mem_t& m) {
     return;
   }
   log(cvm::HIGH, "<{}> mcm_insert [valid={}, tag={}, addr={:#x}, size={}, data={:#x}]\n",
+    m.cycle, valid, m.tag, m.pa, m.size, m.data);
+
+  // Collect metrics
+  num_stores_++;
+}
+
+// Process mem accesses - store bypass_writes
+void bridge::process_dut_mcm_bypass(hart_id_t hart, mem_t& m) {
+  bool valid = false;
+
+  if (!client_->whisperMcmBypass(hart, m.cycle, m.tag, m.pa, m.size, m.data, valid)) {
+    cvm::log(cvm::ERROR, "Error: Hart{}: Failed mcm store bypass\n", hart);
+    return;
+  }
+  log(cvm::HIGH, "<{}> mcm_bypass [valid={}, tag={}, addr={:#x}, size={}, data={:#x}]\n",
     m.cycle, valid, m.tag, m.pa, m.size, m.data);
 
   // Collect metrics

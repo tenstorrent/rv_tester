@@ -353,6 +353,26 @@ whisperClient<URV>::whisperMcmInsert(int hart, uint64_t time, uint64_t instrTag,
 
 template <typename URV>
 bool
+whisperClient<URV>::whisperMcmBypass(int hart, uint64_t time, uint64_t instrTag, uint64_t addr,
+		 unsigned size, uint64_t value, bool& valid)
+{
+  req.hart = hart;
+  req.type = WhisperMessageType::McmBypass;
+  req.time = time;
+  req.instrTag = instrTag;
+  req.address = addr;
+  req.value = value;
+  req.size = size;
+
+  if (not whisperCommand(req, reply))
+    return false;
+
+  valid = reply.type != WhisperMessageType::Invalid;
+  return true;
+}
+
+template <typename URV>
+bool
 whisperClient<URV>::whisperMcmWrite(int hart, uint64_t time, uint64_t addr,
 		unsigned size, svOpenArrayHandle handle, uint64_t mask, bool& valid)
 {

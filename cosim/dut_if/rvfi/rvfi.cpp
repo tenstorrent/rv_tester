@@ -45,6 +45,7 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     rv_tester_transactions::cosim::m_mcmi_read<>,
     rv_tester_transactions::cosim::m_mcmi_insert<>,
     rv_tester_transactions::cosim::m_mcmi_write<>,
+    rv_tester_transactions::cosim::m_mcmi_bypass_write<>,
     rv_tester_transactions::cosim::m_debug<>
   >(loc);
 
@@ -364,7 +365,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
   m.size = std::popcount(m_mcmi_read.mask);
   m.data = m_mcmi_read.data;
 
-  bridge_->process_dut_mcm_read(0, m);
+  bridge_->process_dut_mcm_read(m_mcmi_read.hart, m);
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_insert) {
@@ -382,7 +383,25 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
   m.size = std::popcount(m_mcmi_insert.mask);
   m.data = m_mcmi_insert.data;
 
-  bridge_->process_dut_mcm_insert(0, m);
+  bridge_->process_dut_mcm_insert(m_mcmi_insert.hart, m);
+}
+
+void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass_write<>& m_mcmi_bypass_write) {
+  if (!FLAGS_mcm)
+    return;
+
+  if (terminated_)
+    return;
+
+  mem_t m;
+  m.valid = true;
+  m.cycle = m_mcmi_bypass_write.cycle;
+  m.tag = m_mcmi_bypass_write.order;
+  m.pa = m_mcmi_bypass_write.addr;
+  m.size = std::popcount(m_mcmi_bypass_write.mask);
+  m.data = m_mcmi_bypass_write.data;
+
+  bridge_->process_dut_mcm_bypass(m_mcmi_bypass_write.hart, m);
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write<>& m_mcmi_write) {
@@ -399,7 +418,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write<>& m_mcmi_w
   m.mask = m_mcmi_write.mask;
   m.data = m_mcmi_write.data;
 
-  bridge_->process_dut_mcm_write(0, m);
+  bridge_->process_dut_mcm_write(m_mcmi_write.hart, m);
 }
 
 void rvfi::process(const htif::terminate_t&) {

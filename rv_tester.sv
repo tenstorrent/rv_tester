@@ -261,6 +261,7 @@ import rv_tester_params::*;
           .NINSERT(NINSERTS[c]),
           .NWRITE(NWRITES[c]),
           .NBYPWRITE(NBYPWRITES[c]),
+          .RESET_CLOCKS(RESET_CLOCKS),
           `TOPOLOGY_CFG,
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PARAMS(0)
       ) cosim (
