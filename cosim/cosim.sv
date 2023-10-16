@@ -89,7 +89,9 @@ import rv_tester_params::*;
     for (genvar n = 0; n < NREAD; n++) begin
         assign m_mcmi_reads[n].valid = MCMI_EN & rvfi_enabled & ~reset & mcmi_read[n].valid;
         assign m_mcmi_reads[n].data.location = location;
+        /* verilator lint_off WIDTH */
         assign m_mcmi_reads[n].data.cycle = mcmi_read[n].valid ? (mcmi_read[n].cycle + RESET_CLOCKS + 1) : '0;
+        /* verilator lint_on WIDTH */
         assign m_mcmi_reads[n].data.hart = NUM;
         assign m_mcmi_reads[n].data.order = mcmi_read[n].order;
         assign m_mcmi_reads[n].data.addr = mcmi_read[n].addr;
