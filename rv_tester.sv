@@ -39,7 +39,7 @@ import rv_tester_params::*;
     rv_tester_pkg::terminate_t rv_tester_error_terminate;
     rv_tester_pkg::terminate_t sysmod_terminate;
     rv_tester_pkg::terminate_t cosim_terminate [NHARTS-1:0];
-    logic cosim_terminate_any = '0;
+    logic cosim_terminate_any;
 
     int quiesce_counter = 0;
     int quiesce_timeout = 500;
@@ -68,17 +68,10 @@ import rv_tester_params::*;
 
         quiesce_counter <= quiesce_counter + int'(terminate);
 
-        for (int i=0; i<NHARTS; i++) begin
-            if (cosim_terminate[i].terminate) begin
-              cosim_terminate_any <= '1;
-            end
-        end
-
         if (rv_tester_reset) begin
             clocks          <= '0;
             sysmod_reset    <= '1;
             quiesce_counter <= '0;
-            cosim_terminate_any <= '0;
         end
 
     end
@@ -170,7 +163,8 @@ import rv_tester_params::*;
 
     end
 
-    assign reset = clocks < LU'(RESET_CLOCKS) || rv_tester_reset || sysmod_reset;
+    // We also assert reset at the end of the test to quiesce the DPIs.
+    assign reset = clocks < LU'(RESET_CLOCKS) || rv_tester_reset || sysmod_reset || terminate_now || terminated;
 
 `ifdef NEGEDGE_UNSUPPORTED
     always@(posedge clk) begin
@@ -267,6 +261,7 @@ import rv_tester_params::*;
       ) cosim (
           .clk,
           .reset(sysmod_reset),
+          .dut_reset(reset),
           .clocks,
           .rvfi(rvfi[NRETS_CUMSUM[c] +: NRETS[c]]),
           .mcmi_read(mcmi_read[NREADS_CUMSUM[c] +: NREADS[c]]),
@@ -280,6 +275,13 @@ import rv_tester_params::*;
       );
     end
 `endif
+
+    always_comb begin
+        cosim_terminate_any = '0;
+        for (int i=0; i<NHARTS; i++) begin
+            cosim_terminate_any |= cosim_terminate[i].terminate;
+        end
+    end
 
     for (genvar p = 0; p < NHARTS; p++) begin: pmu_inst
       pmu #(
