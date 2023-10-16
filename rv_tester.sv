@@ -13,6 +13,16 @@ import rv_tester_params::*;
 
     typedef longint unsigned LU;
 
+    localparam int unsigned NoAddrRules = 11;
+
+    typedef struct packed {
+        int unsigned idx;
+        logic [topology.TOP.PLATFORM.AXI.ADDR_WIDTH-1:0] start_addr;
+        logic [topology.TOP.PLATFORM.AXI.ADDR_WIDTH-1:0] end_addr;
+      } xbar_rule_t;
+    
+    logic bypass_cache;
+
     if (EXTERNAL_CLOCK) begin
         assign clk = clk_ext;
     end else begin
@@ -21,11 +31,14 @@ import rv_tester_params::*;
 
     import "DPI-C" function int rv_tester_parse_flags(); // dummy return value so that this gets called immediately. need this to happen before any other DPIs are called.
     import "DPI-C" context function void rv_tester_cvm_error_handler();
-    import "DPI-C" function void rv_tester_parse_memmap();
+    import "DPI-C" context function void rv_tester_parse_memmap(int unsigned no_addr_rules);
     import "DPI-C" function void rv_tester_build_registry();
     import "DPI-C" function byte unsigned rv_tester_shutdown_registry();
     import "DPI-C" context function bit rv_tester_flush_callbacks();
 
+    localparam int unsigned AxiIdWidthMstRv    = topology.TOP.PLATFORM.AXI.ID_WIDTH + $clog2(topology.TOP.PLATFORM.AXI.TOTAL) + 1;
+
+    logic flush_complete;
     logic rv_tester_reset = '1;
     logic sysmod_reset = '0;
     LU clocks = 0;
@@ -51,7 +64,7 @@ import rv_tester_params::*;
     int unsigned cvm_verbosity, gen_clocks_verbosity;
 
     assign terminate           = (rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any) && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
-    assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout);
+    assign terminate_now       = terminate && ((quiesced && flush_complete) || quiesce_counter >= quiesce_timeout);
     assign rerun_now           = terminated && num_reruns > 0;
 
     /*
@@ -97,7 +110,7 @@ import rv_tester_params::*;
             $display("[RVTESTER]: new test");
             _ = rv_tester_parse_flags();
             rv_tester_cvm_error_handler();
-            rv_tester_parse_memmap();
+            rv_tester_parse_memmap(NoAddrRules);
 
             /* verilator lint_off BLKSEQ */
             // zebu bug doesn't allow nested function calls, so create intermediate variables
@@ -117,6 +130,7 @@ import rv_tester_params::*;
 
             $display("[RVTESTER]: reconstructing registry");
             rv_tester_build_registry();
+
         end
 
         num_reruns      <= num_reruns - int'(rerun_now);
@@ -137,8 +151,8 @@ import rv_tester_params::*;
 
         automatic logic shutdowned = '0;
 
-        if (terminate_now && !terminated) begin
-
+        if (terminate_now && !terminated && flush_complete) begin
+ 
             if (quiesced) begin
                 $display("<%0d> [RVTESTER]: exiting gracefully", clocks);
             end else if (quiesce_counter == 0) begin
@@ -303,12 +317,13 @@ import rv_tester_params::*;
     assign tx_dom_1.logger_cycle_0s[0][0].valid = gen_clocks;
     assign tx_dom_1.logger_cycle_0s[0][0].data.location = location;
     assign tx_dom_1.logger_cycle_0s[0][0].data.clock = clocks;
-
-    for (genvar p = 0; p < topology.TOP.PLATFORM.AXI.TOTAL; p++) begin : axi_sw_slvs
+ 
+    localparam no_of_masters = ( topology.TOP.PLATFORM.AXI.TOTAL < 2 ) ? 2 : topology.TOP.PLATFORM.AXI.TOTAL ;
+    for (genvar p = 0; p < no_of_masters; p++) begin : axi_sw_slvs
         axi_sw #(
             .ADDR_WIDTH(topology.TOP.PLATFORM.AXI.ADDR_WIDTH),
             .DATA_WIDTH(topology.TOP.PLATFORM.AXI.DATA_WIDTH),
-            .ID_WIDTH(topology.TOP.PLATFORM.AXI.ID_WIDTH  ),
+            .ID_WIDTH(AxiIdWidthMstRv),
             .STRB_WIDTH(topology.TOP.PLATFORM.AXI.STRB_WIDTH),
             .R_Q_MAX(topology.TOP.PLATFORM.AXI.R_Q_MAX),
             .TOPO_ID(topology.TOP.PLATFORM.AXI.ID),
@@ -318,47 +333,47 @@ import rv_tester_params::*;
             .clk,
             .reset_n(~reset),
             .sys_reset(sysmod_reset),
-            .axi_mst_ar_valid(axi_req[p].ar_valid),
-            .axi_mst_ar_id   (axi_req[p].ar_id),
-            .axi_mst_ar_addr (axi_req[p].ar_addr),
-            .axi_mst_ar_len  (axi_req[p].ar_len),
-            .axi_mst_ar_size (axi_req[p].ar_size),
-            .axi_mst_ar_lock (axi_req[p].ar_lock),
-            .axi_mst_ar_burst(axi_req[p].ar_burst),
+            .axi_mst_ar_valid(axi_req_llc[p].ar_valid),
+            .axi_mst_ar_id   (axi_req_llc[p].ar.id),
+            .axi_mst_ar_addr (axi_req_llc[p].ar.addr),
+            .axi_mst_ar_len  (axi_req_llc[p].ar.len),
+            .axi_mst_ar_size (axi_req_llc[p].ar.size),
+            .axi_mst_ar_lock (axi_req_llc[p].ar.lock),
+            .axi_mst_ar_burst(axi_req_llc[p].ar.burst),
 
-            .axi_mst_aw_valid(axi_req[p].aw_valid),
-            .axi_mst_aw_id   (axi_req[p].aw_id),
-            .axi_mst_aw_addr (axi_req[p].aw_addr),
-            .axi_mst_aw_len  (axi_req[p].aw_len),
-            .axi_mst_aw_size (axi_req[p].aw_size),
-            .axi_mst_aw_burst(axi_req[p].aw_burst),
-            .axi_mst_aw_lock (axi_req[p].aw_lock),
-            .axi_mst_aw_atop (axi_req[p].aw_atop),
+            .axi_mst_aw_valid(axi_req_llc[p].aw_valid),
+            .axi_mst_aw_id   (axi_req_llc[p].aw.id),
+            .axi_mst_aw_addr (axi_req_llc[p].aw.addr),
+            .axi_mst_aw_len  (axi_req_llc[p].aw.len),
+            .axi_mst_aw_size (axi_req_llc[p].aw.size),
+            .axi_mst_aw_burst(axi_req_llc[p].aw.burst),
+            .axi_mst_aw_lock (axi_req_llc[p].aw.lock),
+            .axi_mst_aw_atop (axi_req_llc[p].aw.atop),
 
-            .axi_mst_w_valid(axi_req[p].w_valid),
-            .axi_mst_w_data (axi_req[p].w_data),
-            .axi_mst_w_strb (axi_req[p].w_strb),
-            .axi_mst_w_last (axi_req[p].w_last),
+            .axi_mst_w_valid(axi_req_llc[p].w_valid),
+            .axi_mst_w_data (axi_req_llc[p].w.data),
+            .axi_mst_w_strb (axi_req_llc[p].w.strb),
+            .axi_mst_w_last (axi_req_llc[p].w.last),
 
-            .axi_mst_b_ready(axi_req[p].b_ready),
-            .axi_mst_r_ready(axi_req[p].r_ready),
+            .axi_mst_b_ready(axi_req_llc[p].b_ready),
+            .axi_mst_r_ready(axi_req_llc[p].r_ready),
 
-            .axi_slv_b_valid(axi_rsp[p].b_valid),
-            .axi_slv_b_id   (axi_rsp[p].b_id),
-            .axi_slv_b_resp (axi_rsp[p].b_resp),
+            .axi_slv_b_valid(axi_rsp_llc[p].b_valid),
+            .axi_slv_b_id   (axi_rsp_llc[p].b.id),
+            .axi_slv_b_resp (axi_rsp_llc[p].b.resp),
 
-            .axi_slv_r_valid(axi_rsp[p].r_valid),
-            .axi_slv_r_id   (axi_rsp[p].r_id),
-            .axi_slv_r_data (axi_rsp[p].r_data),
-            .axi_slv_r_resp (axi_rsp[p].r_resp),
-            .axi_slv_r_last (axi_rsp[p].r_last),
+            .axi_slv_r_valid(axi_rsp_llc[p].r_valid),
+            .axi_slv_r_id   (axi_rsp_llc[p].r.id),
+            .axi_slv_r_data (axi_rsp_llc[p].r.data),
+            .axi_slv_r_resp (axi_rsp_llc[p].r.resp),
+            .axi_slv_r_last (axi_rsp_llc[p].r.last),
 
-            .axi_slv_aw_ready(axi_rsp[p].aw_ready),
-            .axi_slv_ar_ready(axi_rsp[p].ar_ready),
-            .axi_slv_w_ready (axi_rsp[p].w_ready),
+            .axi_slv_aw_ready(axi_rsp_llc[p].aw_ready),
+            .axi_slv_ar_ready(axi_rsp_llc[p].ar_ready),
+            .axi_slv_w_ready (axi_rsp_llc[p].w_ready),
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PORTS(2, p, 0)
         );
-    end
+    end	
 
     for (genvar p = 0; p < topology.TOP.PLATFORM.AXI_MST.TOTAL; p++) begin : axi_sw_msts
         axi_sw_mst #(
@@ -377,39 +392,39 @@ import rv_tester_params::*;
             .reset_n(~reset),
             .sys_reset(sysmod_reset),
             .axi_mst_ar_valid(axi_req_mst[p].ar_valid),
-            .axi_mst_ar_id   (axi_req_mst[p].ar_id),
-            .axi_mst_ar_addr (axi_req_mst[p].ar_addr),
-            .axi_mst_ar_len  (axi_req_mst[p].ar_len),
-            .axi_mst_ar_size (axi_req_mst[p].ar_size),
-            .axi_mst_ar_lock (axi_req_mst[p].ar_lock),
-            .axi_mst_ar_burst(axi_req_mst[p].ar_burst),
+            .axi_mst_ar_id   (axi_req_mst[p].ar.id),
+            .axi_mst_ar_addr (axi_req_mst[p].ar.addr),
+            .axi_mst_ar_len  (axi_req_mst[p].ar.len),
+            .axi_mst_ar_size (axi_req_mst[p].ar.size),
+            .axi_mst_ar_lock (axi_req_mst[p].ar.lock),
+            .axi_mst_ar_burst(axi_req_mst[p].ar.burst),
 
             .axi_mst_aw_valid(axi_req_mst[p].aw_valid),
-            .axi_mst_aw_id   (axi_req_mst[p].aw_id),
-            .axi_mst_aw_addr (axi_req_mst[p].aw_addr),
-            .axi_mst_aw_len  (axi_req_mst[p].aw_len),
-            .axi_mst_aw_size (axi_req_mst[p].aw_size),
-            .axi_mst_aw_burst(axi_req_mst[p].aw_burst),
-            .axi_mst_aw_lock (axi_req_mst[p].aw_lock),
-            .axi_mst_aw_atop (axi_req_mst[p].aw_atop),
+            .axi_mst_aw_id   (axi_req_mst[p].aw.id),
+            .axi_mst_aw_addr (axi_req_mst[p].aw.addr),
+            .axi_mst_aw_len  (axi_req_mst[p].aw.len),
+            .axi_mst_aw_size (axi_req_mst[p].aw.size),
+            .axi_mst_aw_burst(axi_req_mst[p].aw.burst),
+            .axi_mst_aw_lock (axi_req_mst[p].aw.lock),
+            .axi_mst_aw_atop (axi_req_mst[p].aw.atop),
 
             .axi_mst_w_valid(axi_req_mst[p].w_valid),
-            .axi_mst_w_data (axi_req_mst[p].w_data),
-            .axi_mst_w_strb (axi_req_mst[p].w_strb),
-            .axi_mst_w_last (axi_req_mst[p].w_last),
+            .axi_mst_w_data (axi_req_mst[p].w.data),
+            .axi_mst_w_strb (axi_req_mst[p].w.strb),
+            .axi_mst_w_last (axi_req_mst[p].w.last),
 
             .axi_mst_b_ready(axi_req_mst[p].b_ready),
             .axi_mst_r_ready(axi_req_mst[p].r_ready),
 
             .axi_slv_b_valid(axi_rsp_mst[p].b_valid),
-            .axi_slv_b_id   (axi_rsp_mst[p].b_id),
-            .axi_slv_b_resp (axi_rsp_mst[p].b_resp),
+            .axi_slv_b_id   (axi_rsp_mst[p].b.id),
+            .axi_slv_b_resp (axi_rsp_mst[p].b.resp),
 
             .axi_slv_r_valid(axi_rsp_mst[p].r_valid),
-            .axi_slv_r_id   (axi_rsp_mst[p].r_id),
-            .axi_slv_r_data (axi_rsp_mst[p].r_data),
-            .axi_slv_r_resp (axi_rsp_mst[p].r_resp),
-            .axi_slv_r_last (axi_rsp_mst[p].r_last),
+            .axi_slv_r_id   (axi_rsp_mst[p].r.id),
+            .axi_slv_r_data (axi_rsp_mst[p].r.data),
+            .axi_slv_r_resp (axi_rsp_mst[p].r.resp),
+            .axi_slv_r_last (axi_rsp_mst[p].r.last),
 
             .axi_slv_aw_ready(axi_rsp_mst[p].aw_ready),
             .axi_slv_ar_ready(axi_rsp_mst[p].ar_ready),
@@ -436,39 +451,39 @@ import rv_tester_params::*;
             .reset_n(~reset),
             .sys_reset(sysmod_reset),
             .axi_mst_ar_valid(axi_req_mst2[p].ar_valid),
-            .axi_mst_ar_id   (axi_req_mst2[p].ar_id),
-            .axi_mst_ar_addr (axi_req_mst2[p].ar_addr),
-            .axi_mst_ar_len  (axi_req_mst2[p].ar_len),
-            .axi_mst_ar_size (axi_req_mst2[p].ar_size),
-            .axi_mst_ar_lock (axi_req_mst2[p].ar_lock),
-            .axi_mst_ar_burst(axi_req_mst2[p].ar_burst),
+            .axi_mst_ar_id   (axi_req_mst2[p].ar.id),
+            .axi_mst_ar_addr (axi_req_mst2[p].ar.addr),
+            .axi_mst_ar_len  (axi_req_mst2[p].ar.len),
+            .axi_mst_ar_size (axi_req_mst2[p].ar.size),
+            .axi_mst_ar_lock (axi_req_mst2[p].ar.lock),
+            .axi_mst_ar_burst(axi_req_mst2[p].ar.burst),
 
             .axi_mst_aw_valid(axi_req_mst2[p].aw_valid),
-            .axi_mst_aw_id   (axi_req_mst2[p].aw_id),
-            .axi_mst_aw_addr (axi_req_mst2[p].aw_addr),
-            .axi_mst_aw_len  (axi_req_mst2[p].aw_len),
-            .axi_mst_aw_size (axi_req_mst2[p].aw_size),
-            .axi_mst_aw_burst(axi_req_mst2[p].aw_burst),
-            .axi_mst_aw_lock (axi_req_mst2[p].aw_lock),
-            .axi_mst_aw_atop (axi_req_mst2[p].aw_atop),
+            .axi_mst_aw_id   (axi_req_mst2[p].aw.id),
+            .axi_mst_aw_addr (axi_req_mst2[p].aw.addr),
+            .axi_mst_aw_len  (axi_req_mst2[p].aw.len),
+            .axi_mst_aw_size (axi_req_mst2[p].aw.size),
+            .axi_mst_aw_burst(axi_req_mst2[p].aw.burst),
+            .axi_mst_aw_lock (axi_req_mst2[p].aw.lock),
+            .axi_mst_aw_atop (axi_req_mst2[p].aw.atop),
 
             .axi_mst_w_valid(axi_req_mst2[p].w_valid),
-            .axi_mst_w_data (axi_req_mst2[p].w_data),
-            .axi_mst_w_strb (axi_req_mst2[p].w_strb),
-            .axi_mst_w_last (axi_req_mst2[p].w_last),
+            .axi_mst_w_data (axi_req_mst2[p].w.data),
+            .axi_mst_w_strb (axi_req_mst2[p].w.strb),
+            .axi_mst_w_last (axi_req_mst2[p].w.last),
 
             .axi_mst_b_ready(axi_req_mst2[p].b_ready),
             .axi_mst_r_ready(axi_req_mst2[p].r_ready),
 
             .axi_slv_b_valid(axi_rsp_mst2[p].b_valid),
-            .axi_slv_b_id   (axi_rsp_mst2[p].b_id),
-            .axi_slv_b_resp (axi_rsp_mst2[p].b_resp),
+            .axi_slv_b_id   (axi_rsp_mst2[p].b.id),
+            .axi_slv_b_resp (axi_rsp_mst2[p].b.resp),
 
             .axi_slv_r_valid(axi_rsp_mst2[p].r_valid),
-            .axi_slv_r_id   (axi_rsp_mst2[p].r_id),
-            .axi_slv_r_data (axi_rsp_mst2[p].r_data),
-            .axi_slv_r_resp (axi_rsp_mst2[p].r_resp),
-            .axi_slv_r_last (axi_rsp_mst2[p].r_last),
+            .axi_slv_r_id   (axi_rsp_mst2[p].r.id),
+            .axi_slv_r_data (axi_rsp_mst2[p].r.data),
+            .axi_slv_r_resp (axi_rsp_mst2[p].r.resp),
+            .axi_slv_r_last (axi_rsp_mst2[p].r.last),
 
             .axi_slv_aw_ready(axi_rsp_mst2[p].aw_ready),
             .axi_slv_ar_ready(axi_rsp_mst2[p].ar_ready),
@@ -476,5 +491,77 @@ import rv_tester_params::*;
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PORTS(2, p, 1)
         );
     end
+
+    //new memory - LLC
+
+    typedef logic [AxiIdWidthMstRv-1:0] id_mst_rv;
+    typedef logic [topology.TOP.PLATFORM.AXI.ID_WIDTH-1:0] id_slv_rv;
+    typedef logic [topology.TOP.PLATFORM.AXI.ADDR_WIDTH-1:0] addr_rv;
+    typedef logic [topology.TOP.PLATFORM.AXI.DATA_WIDTH-1:0] data_rv;
+    typedef logic [topology.TOP.PLATFORM.AXI.STRB_WIDTH-1:0] strb_rv;
+    typedef logic [AXI_USER_ID_WIDTH-1:0] user_rv;
+
+    `AXI_TYPEDEF_AW_CHAN_T(mst_aw_chan_rv, addr_rv, id_mst_rv, user_rv)
+    `AXI_TYPEDEF_AW_CHAN_T(slv_aw_chan_rv, addr_rv, id_slv_rv, user_rv)
+    `AXI_TYPEDEF_W_CHAN_T(w_chan_rv, data_rv, strb_rv, user_rv)
+    `AXI_TYPEDEF_B_CHAN_T(mst_b_chan_rv, id_mst_rv, user_rv)
+    `AXI_TYPEDEF_B_CHAN_T(slv_b_chan_rv, id_slv_rv, user_rv)
+    `AXI_TYPEDEF_AR_CHAN_T(mst_ar_chan_rv, addr_rv, id_mst_rv, user_rv)
+    `AXI_TYPEDEF_AR_CHAN_T(slv_ar_chan_rv, addr_rv, id_slv_rv, user_rv)
+    `AXI_TYPEDEF_R_CHAN_T(mst_r_chan_rv, data_rv, id_mst_rv, user_rv)
+    `AXI_TYPEDEF_R_CHAN_T(slv_r_chan_rv, data_rv, id_slv_rv, user_rv)
+    `AXI_TYPEDEF_REQ_T(mst_req_rv, mst_aw_chan_rv, w_chan_rv, mst_ar_chan_rv)
+    `AXI_TYPEDEF_REQ_T(slv_req_rv, slv_aw_chan_rv, w_chan_rv, slv_ar_chan_rv)
+    `AXI_TYPEDEF_RESP_T(mst_resp_rv, mst_b_chan_rv, mst_r_chan_rv)
+    `AXI_TYPEDEF_RESP_T(slv_resp_rv, slv_b_chan_rv, slv_r_chan_rv)
+
+    mst_req_rv axi_req_llc [no_of_masters-1:0];
+    mst_resp_rv axi_rsp_llc [no_of_masters-1:0];
+
+    xbar_rule_t [NoAddrRules-1:0] AddrMap;
+
+    function automatic void rv_tester_set_address_map(int unsigned i, longint unsigned start_addr, longint unsigned end_addr, int unsigned device);
+        localparam int unsigned AW = topology.TOP.PLATFORM.AXI.ADDR_WIDTH;
+        AddrMap[i] = '{
+            idx       : device         ,
+            start_addr: AW'(start_addr),
+            end_addr  : AW'(end_addr  )
+        };
+    endfunction
+
+    assign bypass_cache = 1'b1;
+
+    export "DPI-C" function rv_tester_set_address_map;
+
+    rv_tester_mem #(
+        .NumMasters             ( topology.TOP.PLATFORM.AXI.TOTAL ),
+        .AxiIdWidth             ( topology.TOP.PLATFORM.AXI.ID_WIDTH ),
+        .AxiDataWidth           ( topology.TOP.PLATFORM.AXI.DATA_WIDTH ),
+        .AxiAddrWidth           ( topology.TOP.PLATFORM.AXI.ADDR_WIDTH ),
+        .AxiStrbWidth           ( topology.TOP.PLATFORM.AXI.STRB_WIDTH ),
+        .AxiUserWidth		( AXI_USER_ID_WIDTH ),
+        .NumLines_LLC           ( 128 ),
+        .NumBlocks_LLC          ( 4 ),
+        .SetAssociativity_LLC   ( 4 ),
+        .slv_req_t              ( slv_req_rv  ),
+        .slv_resp_t             ( slv_resp_rv ),
+        .mst_req_t              ( mst_req_rv  ),
+        .mst_resp_t             ( mst_resp_rv ),
+	.rule_t			( xbar_rule_t ),
+	.NoAddrRules		( NoAddrRules ),
+	.NumMastersMem		( no_of_masters )
+    ) rv_tester_mem(
+        .clk                    ( clk ),
+        .rst_n                  ( ~reset ),
+        .axi_req_up             ( axi_req ),
+        .axi_resp_up            ( axi_rsp ),
+        .axi_req_mst_up         ( axi_req_llc ),
+        .axi_resp_mst_up        ( axi_rsp_llc ),
+	.addr_map		( AddrMap ),
+        .bypass_cache		( bypass_cache ),
+	.flush_cache		( quiesced ),
+	.flush_complete		( flush_complete ),
+	.bist_status_done	()
+    );
 
 endmodule

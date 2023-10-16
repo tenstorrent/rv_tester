@@ -10,8 +10,8 @@ module dm_model #(
   input dmi_resp_valid,
   input rv_tester_pkg::dmi_resp_t dmi_resp,
   input bit terminate,
-  input rv_tester_params::axi_req_mst_t axi_req_mst,
-  input rv_tester_params::axi_rsp_mst_t axi_resp_mst,
+  input rv_tester_params::mst_req_top axi_req_mst,
+  input rv_tester_params::mst_resp_top axi_resp_mst,
   input logic [7:0] misc_signals,
   `RV_TESTER_TRANSACTIONS_DM_MODEL_OUTPUT_PORTS
 );
@@ -41,19 +41,19 @@ module dm_model #(
 
     assign dm_load_cmds[0].valid = !reset && axi_req_mst.ar_valid;
     assign dm_load_cmds[0].data.location = location;
-    assign dm_load_cmds[0].data.addr = axi_req_mst.ar_addr;
-    assign dm_load_cmds[0].data.size = axi_req_mst.ar_size; //(2**axi_req_mst.ar_size)/8;
-    assign dm_load_cmds[0].data.id = axi_req_mst.ar_id;
+    assign dm_load_cmds[0].data.addr = axi_req_mst.ar.addr;
+    assign dm_load_cmds[0].data.size = axi_req_mst.ar.size; //(2**axi_req_mst.ar.size)/8;
+    assign dm_load_cmds[0].data.id = axi_req_mst.ar.id;
 
     assign dm_load_datas[0].valid = !reset && axi_resp_mst.r_valid;
     assign dm_load_datas[0].data.location = location;
-    assign dm_load_datas[0].data.data = axi_resp_mst.r_data[63:0];
-    assign dm_load_datas[0].data.id = axi_resp_mst.r_id;
+    assign dm_load_datas[0].data.data = axi_resp_mst.r.data[63:0];
+    assign dm_load_datas[0].data.id = axi_resp_mst.r.id;
 
     assign dm_stores[0].valid = !reset && axi_req_mst.w_valid && axi_req_mst.aw_valid;
     assign dm_stores[0].data.location = location;
-    assign dm_stores[0].data.data = axi_req_mst.w_data[31:0];
-    assign dm_stores[0].data.addr = axi_req_mst.aw_addr;
-    assign dm_stores[0].data.len = axi_req_mst.aw_len[3:0];
+    assign dm_stores[0].data.data = axi_req_mst.w.data[31:0];
+    assign dm_stores[0].data.addr = axi_req_mst.aw.addr;
+    assign dm_stores[0].data.len = axi_req_mst.aw.len[3:0];
 
 endmodule
