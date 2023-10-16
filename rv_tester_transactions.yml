@@ -100,6 +100,23 @@ cosim:
             data:
                 width: ${TOP.PLATFORM.XLEN}
 
+    m_mcmi_bypass_write:
+        domain: 1
+        num: ${max(TOP.PLATFORM.COSIM.MCMI.NBYPWRITES)}
+        fields:
+            cycle:
+                width: 64
+            hart:
+                width: 32
+            order:
+                width: 64
+            addr:
+                width: ${TOP.PLATFORM.PALEN}
+            mask:
+                width: 64
+            data:
+                width: ${TOP.PLATFORM.XLEN}
+
     m_mcmi_write:
         domain: 1
         num: ${max(TOP.PLATFORM.COSIM.MCMI.NWRITES)}
@@ -114,21 +131,6 @@ cosim:
                 width: 64
             data:
                 width: ${TOP.PLATFORM.CLLEN}
-
-    m_mcmi_bypass_write:
-        domain: 1
-        num: ${max(TOP.PLATFORM.COSIM.MCMI.NBYPWRITES)}
-        fields:
-            cycle:
-                width: 64
-            hart:
-                width: 32
-            addr:
-                width: ${TOP.PLATFORM.PALEN}
-            mask:
-                width: 64
-            data:
-                width: ${TOP.PLATFORM.XLEN}
 
     m_trap:
         domain: 1

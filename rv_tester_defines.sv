@@ -262,6 +262,7 @@ package rv_tester_params;
     typedef struct packed {
         logic                       valid;
         logic [15:0]                hart ;
+        logic [64-1:0]              cycle;
         logic [64-1:0]              order;
         logic [PALEN-1:0]           addr ;
         logic [(CLLEN/8)-1:0]       mask ;
