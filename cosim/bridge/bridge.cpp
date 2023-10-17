@@ -721,7 +721,6 @@ bool bridge::htif_read(const rv_instr_t& d) {
 
 bool bridge::hpm_counter_read(const whisper_state_t& w) {
   if ((w.disasm.find("hpmcounter") != std::string::npos) ||
-      (w.disasm.find("instret") != std::string::npos) ||
       (w.disasm.find("time") != std::string::npos) ||
       (w.disasm.find("cycle") != std::string::npos))
     return true;
