@@ -13,7 +13,7 @@ import rv_tester_params::*;
 
     typedef longint unsigned LU;
 
-    localparam int unsigned NoAddrRules = 11;
+    localparam int unsigned NoAddrRules = 20;
 
     typedef struct packed {
         int unsigned idx;
@@ -21,7 +21,7 @@ import rv_tester_params::*;
         logic [topology.TOP.PLATFORM.AXI.ADDR_WIDTH-1:0] end_addr;
       } xbar_rule_t;
     
-    logic bypass_cache;
+    logic bypass_cache = 1;
 
     if (EXTERNAL_CLOCK) begin
         assign clk = clk_ext;
@@ -56,6 +56,8 @@ import rv_tester_params::*;
 
     int quiesce_counter = 0;
     int quiesce_timeout = 500;
+    int flush_counter = 0;
+    int flush_timeout = 25000;
 
     int unsigned location = cvm_topology::nil;
 
@@ -64,7 +66,7 @@ import rv_tester_params::*;
     int unsigned cvm_verbosity, gen_clocks_verbosity;
 
     assign terminate           = (rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any) && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
-    assign terminate_now       = terminate && ((quiesced && flush_complete) || quiesce_counter >= quiesce_timeout);
+    assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout);
     assign rerun_now           = terminated && num_reruns > 0;
 
     /*
@@ -80,11 +82,13 @@ import rv_tester_params::*;
         clocks          <= clocks + 1;
 
         quiesce_counter <= quiesce_counter + int'(terminate);
+	flush_counter   <= flush_counter + int'(quiesced);
 
         if (rv_tester_reset) begin
             clocks          <= '0;
             sysmod_reset    <= '1;
             quiesce_counter <= '0;
+            flush_counter   <= '0;
         end
 
     end
@@ -124,9 +128,10 @@ import rv_tester_params::*;
 
             cb_poll             <= cvm_plusargs::get_bool("cb_async") == '0;
             quiesce_timeout     <= cvm_plusargs::get_int("quiesce_timeout");
+            flush_timeout       <= cvm_plusargs::get_int("flush_timeout");
             call_finish         <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
             gen_clocks          <= cvm_verbosity >= gen_clocks_verbosity;
-
+            bypass_cache        <= cvm_plusargs::get_bool("bypass_cache") != '0;
 
             $display("[RVTESTER]: reconstructing registry");
             rv_tester_build_registry();
@@ -151,7 +156,7 @@ import rv_tester_params::*;
 
         automatic logic shutdowned = '0;
 
-        if (terminate_now && !terminated && flush_complete) begin
+        if (terminate_now && !terminated) begin
  
             if (quiesced) begin
                 $display("<%0d> [RVTESTER]: exiting gracefully", clocks);
@@ -523,13 +528,12 @@ import rv_tester_params::*;
     function automatic void rv_tester_set_address_map(int unsigned i, longint unsigned start_addr, longint unsigned end_addr, int unsigned device);
         localparam int unsigned AW = topology.TOP.PLATFORM.AXI.ADDR_WIDTH;
         AddrMap[i] = '{
-            idx       : device         ,
+            idx       : 1/*device*/         ,
             start_addr: AW'(start_addr),
             end_addr  : AW'(end_addr  )
         };
     endfunction
 
-    assign bypass_cache = 1'b1;
 
     export "DPI-C" function rv_tester_set_address_map;
 
