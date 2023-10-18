@@ -131,7 +131,7 @@ import rv_tester_params::*;
             flush_timeout       <= cvm_plusargs::get_int("flush_timeout");
             call_finish         <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
             gen_clocks          <= cvm_verbosity >= gen_clocks_verbosity;
-            bypass_cache        <= cvm_plusargs::get_bool("bypass_cache") != '0;
+            bypass_cache        <= cvm_plusargs::get_bool("bypass_cache") != false;
 
             $display("[RVTESTER]: reconstructing registry");
             rv_tester_build_registry();
