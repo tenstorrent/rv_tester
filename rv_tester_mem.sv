@@ -135,10 +135,16 @@ module rv_tester_mem #(
     //for LLC 
     //Address ranges
     typedef logic [AxiAddrWidth-1:0] axi_addr_t;
-    axi_addr_t SpmRegionStart     = {AxiAddrWidth{1'b0}};
-    axi_addr_t SpmRegionLength    = axi_addr_t'(SetAssociativity_LLC * NumLines_LLC * NumBlocks_LLC * AxiDataWidth / 64'd8);
-    axi_addr_t CachedRegionStart  = (bypass_cache == 0)?{AxiAddrWidth{1'b0}}:SpmRegionLength + 1;
-    axi_addr_t CachedRegionEnd    = {AxiAddrWidth{1'b1}};
+    axi_addr_t SpmRegionStart;
+    axi_addr_t SpmRegionLength;
+    axi_addr_t CachedRegionStart;
+    axi_addr_t CachedRegionEnd;
+
+
+    assign SpmRegionStart     = {AxiAddrWidth{1'b0}};
+    assign SpmRegionLength    = axi_addr_t'(SetAssociativity_LLC * NumLines_LLC * NumBlocks_LLC * AxiDataWidth / 64'd8);
+    assign CachedRegionStart  = (bypass_cache == 0)?{AxiAddrWidth{1'b0}}:SpmRegionLength + 1;
+    assign CachedRegionEnd    = {AxiAddrWidth{1'b1}};
 
     always@(negedge clk) begin
         enable_flop <= ~bypass_cache;
