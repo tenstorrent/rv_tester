@@ -100,6 +100,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
         name = rv_tester_dpi,
         srcs = ["@rv_tester//:rv_tester.cpp"],
         deps = [
+            "@rv_tester//:plusargs",
             "@rv_tester//common:common",
             "@cvm//:plusargs",
             "@cvm//:registry",
