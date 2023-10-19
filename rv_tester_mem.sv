@@ -117,7 +117,7 @@ module rv_tester_mem #(
         MaxMstTrans:        10,
         MaxSlvTrans:        6,
         FallThrough:        1'b0,
-        LatencyMode:        axi_pkg::CUT_ALL_AX,
+        LatencyMode:        axi_pkg::CUT_SLV_PORTS,
         PipelineStages:     Pipeline,
         AxiIdWidthSlvPorts: AxiIdWidth,
         AxiIdUsedSlvPorts:  AxiIdUsed,
@@ -135,10 +135,16 @@ module rv_tester_mem #(
     //for LLC 
     //Address ranges
     typedef logic [AxiAddrWidth-1:0] axi_addr_t;
-    localparam axi_addr_t SpmRegionStart     = {AxiAddrWidth{1'b0}};
-    localparam axi_addr_t SpmRegionLength    = axi_addr_t'(SetAssociativity_LLC * NumLines_LLC * NumBlocks_LLC * AxiDataWidth / 64'd8);
-    localparam axi_addr_t CachedRegionStart  = {AxiAddrWidth{1'b0}};//SpmRegionLength + 1;
-    localparam axi_addr_t CachedRegionEnd  = {AxiAddrWidth{1'b1}};
+    axi_addr_t SpmRegionStart;
+    axi_addr_t SpmRegionLength;
+    axi_addr_t CachedRegionStart;
+    axi_addr_t CachedRegionEnd;
+
+
+    assign SpmRegionStart     = {AxiAddrWidth{1'b0}};
+    assign SpmRegionLength    = axi_addr_t'(SetAssociativity_LLC * NumLines_LLC * NumBlocks_LLC * AxiDataWidth / 64'd8);
+    assign CachedRegionStart  = (bypass_cache == 0)?{AxiAddrWidth{1'b0}}:SpmRegionLength + 1;
+    assign CachedRegionEnd    = {AxiAddrWidth{1'b1}};
 
     always@(negedge clk) begin
         enable_flop <= ~bypass_cache;
@@ -293,6 +299,8 @@ module rv_tester_mem #(
 		mem_resp_t[1] = '0;			
 		axi_req_xbar = '0;			
 		axi_resp_mst_imm = '0;
+            temp_5 = '0;
+            temp_6 = '0;
 	end else begin
 	    axi_req_xbar = axi_req;
 	    axi_resp = axi_resp_xbar;
@@ -315,6 +323,8 @@ module rv_tester_mem #(
 	    for(int i=2;i<NumMasters;i++) begin
 			axi_req_mst[i] = '0;
             end	
+	    temp_1 = '0;
+            temp_3 = '0;
 	end
     end
 
