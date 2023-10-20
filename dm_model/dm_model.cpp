@@ -568,6 +568,12 @@ bool debug_module_t::perform_abstract_command()
     return true;
   }
 
+  if (!selected_hart_state().halted)
+    {
+      abstractcs.cmderr = CMDERR_HALTRESUME;
+      return true;
+    }
+
   if ((command >> 24) == 0)
   {
     // register access
@@ -576,12 +582,6 @@ bool debug_module_t::perform_abstract_command()
     unsigned regno = get_field(command, AC_ACCESS_REGISTER_REGNO);
     bool transfer = get_field(command, AC_ACCESS_REGISTER_TRANSFER);
     bool unsupported_command = false;
-
-    if (!selected_hart_state().halted)
-    {
-      abstractcs.cmderr = CMDERR_HALTRESUME;
-      return true;
-    }
 
     if (size > 4)
     {
@@ -864,6 +864,91 @@ bool debug_module_t::perform_abstract_command()
     // abstract_command_completed = false;
 
     abstractcs.busy = true;
+  }
+  else if ((command >> 24) == 2)
+  {
+    //memory access
+    bool aamvirtual = get_field(command, AC_ACCESS_MEMORY_AAMVIRTUAL);
+    unsigned size = get_field(command, AC_ACCESS_MEMORY_AAMSIZE);
+    bool aampostincrement = get_field(command, AC_ACCESS_MEMORY_AAMPOSTINCREMENT);
+    bool write = get_field(command, AC_ACCESS_MEMORY_WRITE);
+    // bool unsupported_command = false;
+    
+    if (size > 3) //Access size > 128 bits
+    {
+      abstractcs.cmderr = CMDERR_NOTSUP;
+      return true;
+    }
+
+    if (!aamvirtual)//Since we rely on core MMU, no physical access
+    {
+      abstractcs.cmderr = CMDERR_NOTSUP;
+      return true;
+    }
+    
+    if (aampostincrement)//Feature unsupported
+    {
+      abstractcs.cmderr = CMDERR_NOTSUP;
+      return true;
+    }
+
+    
+    write32(debug_abstract, 0, nop()); // store a0 in dscratch1 if it exists, but our implementation doesn't allow it
+    write32(debug_abstract, 4, csrw(S0, CSR_DSCRATCH0)); // store s0 in dscratch
+    //Load Data1 to s0
+    switch (size) {
+      case 0: 
+        write32(debug_abstract, 5, lb(S0, ZERO, debug_data_start));break;
+      case 1: 
+        write32(debug_abstract, 5, lh(S0, ZERO, debug_data_start));break;
+      case 2: 
+        write32(debug_abstract, 5, lw(S0, ZERO, debug_data_start));break;
+      case 3: 
+        write32(debug_abstract, 5, ld(S0, ZERO, debug_data_start));break;
+    }
+
+    if(write)//Write access
+    {
+      write32(debug_abstract,6,nop());
+      write32(debug_abstract,7,nop());
+      (size<3)? write32(debug_abstract,8,sd(S1,4,debug_data_start))    : write32(debug_abstract,8,sd(S1,8,debug_data_start));//Store S1 into Arg1
+      (size<3)? write32(debug_abstract,9,lw(S1,ZERO,debug_data_start)) : write32(debug_abstract,9,ld(S1,ZERO,debug_data_start));//Load Arg0 into S1
+      switch (size){//Store S1 data into S0 addr
+        case 0 :
+          write32(debug_abstract, 10, sb(S1,ZERO,S0));break;
+        case 1 :
+          write32(debug_abstract, 10, sh(S1,ZERO,S0));break;
+        case 2 :
+          write32(debug_abstract, 10, sw(S1,ZERO,S0));break;
+        case 3 :
+          write32(debug_abstract, 10, sd(S1,ZERO,S0));break;
+      }
+      write32(debug_abstract, 11, csrr(S0, CSR_DSCRATCH0)); // restore S0 again from dscratch
+      (size<3)? write32(debug_abstract,12,ld(S1,4,debug_data_start))    : write32(debug_abstract,12,ld(S1,8,debug_data_start));//Restore Arg1 into S1
+      write32(debug_abstract,13,nop());
+      write32(debug_abstract,14,ebreak());
+    }
+    else
+    {
+      switch(size){
+        case 0:
+          write32(debug_abstract,6,lb(S0,ZERO,S0));
+          write32(debug_abstract,7,sb(S0,ZERO,debug_data_start));break;
+        case 1:
+          write32(debug_abstract,6,lh(S0,ZERO,S0));
+          write32(debug_abstract,7,sh(S0,ZERO,debug_data_start));break;
+        case 2:
+          write32(debug_abstract,6,lw(S0,ZERO,S0));
+          write32(debug_abstract,7,sw(S0,ZERO,debug_data_start));break;
+        case 3:
+          write32(debug_abstract,6,ld(S0,ZERO,S0));
+          write32(debug_abstract,7,sd(S0,ZERO,debug_data_start));break;
+      }
+      write32(debug_abstract,8, csrr(S0, CSR_DSCRATCH0)); // restore S0 again from dscratch
+      write32(debug_abstract,9,nop());
+      write32(debug_abstract,10,ebreak());
+    }
+
   }
   else
   {
