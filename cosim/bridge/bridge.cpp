@@ -8,6 +8,7 @@
 #include "src/cac_lib.h"
 #include "sysmod/htif/htif.h"
 #include "whisper_client_decl.h"
+#include "rv_tester/rv_tester_plusargs.h"
 
 
 #include <iostream>         // cout
@@ -40,7 +41,6 @@ DEFINE_bool(vec_check, true, "Enable cosim checks on vector regs");
 DEFINE_bool(csr_check, false, "Enable cosim checks on csrs");
 DEFINE_uint64(max_cycle, 1000000, "Max cycle limit to terminate the sim");
 DEFINE_int32(debug_excp_mcause, 24, "MCAUSE value for debug exception");
-DEFINE_int32(max_stall_cycle, 50000, "Max stall cycle limit to terminate the sim");
 DEFINE_bool(translation_check, false, "Do VA-PA translation check");
 DEFINE_bool(emulate_debug_mode, true, "Emulate debug mode by forcing whisper to be in sync with DUT");
 DEFINE_bool(delay_satp_update, false, "Delay satp update till next sfence.vma");
