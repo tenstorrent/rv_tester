@@ -14,6 +14,7 @@ cc_library(
                 "@cvm//:topology",
                 "@fmt//:fmt",
                 "//sysmod/htif:htif",
+                "//:plusargs",
                ],
     data     = [
                 "@whisper//:whisper",

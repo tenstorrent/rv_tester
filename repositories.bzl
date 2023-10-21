@@ -14,7 +14,7 @@ def rv_tester_repositories():
         #sha256 = "af87959afe497dc8dfd4c6cb66e1279cb98ccc84284619ebfec27d9c09a903de",
     )
 
-    corearchcoverage_hash="6f5bb08a146c5915a9d4313c5904877a183c938e"
+    corearchcoverage_hash="9dd6e25498b0a566faec145aafd92c8866c5af3f"
     maybe(
         git_repository,
         name = "corearchcoverage",
@@ -23,14 +23,15 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv/dv/corearchcoverage.git",
     )
 
-    cvm_hash="172d7878c3bad62537500b63adc7c9021233b478"
+    cvm_hash="cd43dab0e3cad676013532280f104cb6c439c8e3"
     maybe(
         http_archive,
         name = "cvm",
-        sha256 = "64692a892b5c8d2885a2bf336e76e44131b7bad2d8c0f57f0f06db8c1b63c89b",
+        sha256 = "12fbd0835a12370676c5ddab54c22b92d4fe0fdaf06ca0c2508a81f723b484e3",
         strip_prefix = "cvm-{commit}".format(commit=cvm_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/{commit}/cvm-{commit}.tar.bz2".format(commit=cvm_hash),
     )
+
 
     maybe(
         http_archive,
@@ -49,7 +50,7 @@ cc_library(
     """
     )
 
-    whisper_hash="4ef417f30ebfa2605947ed34a31c13324ff47958"
+    whisper_hash="0990297d6c408b28869f75f7a5d40518b41d3876"
     maybe(
         git_repository,
         name = "whisper",
@@ -102,20 +103,30 @@ cc_library(
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/checkin-script.git",
     )
 
-    axi_wrapper_hash="7500abc94276572bbad635d24c12948fdf33a955"
+    axi_wrapper_hash="a52e72be2790e51f2e38a78b3e134983430c7129"
     maybe(
         git_repository,
         name = "axi-wrapper",
         commit = axi_wrapper_hash,
-        shallow_since = "1669784673 -0600",
+        shallow_since = "1695754616 +0000",
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/axi-wrapper.git",
     )
 
-    axi_llc_wrapper_hash="dbf538206d69e0fb4aacf39dc11da07d0b1e851e"
+    axi_llc_wrapper_hash="6a649aa48b80dcbf24f2fd526bf2720404c23f46"
     maybe(
         git_repository,
         name = "axi_llc-wrapper",
         commit = axi_llc_wrapper_hash,
-        shallow_since = "1669784673 -0600",
+        shallow_since = "1695756617 +0000",
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/axi_llc-wrapper.git",
     )
+
+    common_cells_wrapper_hash="be8b4b591b8c0b6c357cfdf07339c579e8128220"
+    maybe(
+        git_repository,
+        name = "common_cells-wrapper",
+        commit = common_cells_wrapper_hash,
+        shallow_since = "1695140622 -0500",
+        remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/common_cells-wrapper.git",
+    )
+

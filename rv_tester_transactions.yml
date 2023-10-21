@@ -1,3 +1,9 @@
+<%
+import math
+def clog2(n):
+        return math.ceil(math.log2(n))
+%>\
+
 cosim:
     num: ${TOP.PLATFORM.NHARTS}
     msg:
@@ -115,6 +121,23 @@ cosim:
             data:
                 width: ${TOP.PLATFORM.XLEN}
 
+    m_mcmi_bypass_write:
+        domain: 1
+        num: ${max(TOP.PLATFORM.COSIM.MCMI.NBYPWRITES)}
+        fields:
+            cycle:
+                width: 64
+            hart:
+                width: 32
+            order:
+                width: 64
+            addr:
+                width: ${TOP.PLATFORM.PALEN}
+            mask:
+                width: 64
+            data:
+                width: ${TOP.PLATFORM.XLEN}
+
     m_mcmi_write:
         domain: 1
         num: ${max(TOP.PLATFORM.COSIM.MCMI.NWRITES)}
@@ -129,21 +152,6 @@ cosim:
                 width: 64
             data:
                 width: ${TOP.PLATFORM.CLLEN}
-
-    m_mcmi_bypass_write:
-        domain: 1
-        num: ${max(TOP.PLATFORM.COSIM.MCMI.NBYPWRITES)}
-        fields:
-            cycle:
-                width: 64
-            hart:
-                width: 32
-            addr:
-                width: ${TOP.PLATFORM.PALEN}
-            mask:
-                width: 64
-            data:
-                width: ${TOP.PLATFORM.XLEN}
 
     m_trap:
         domain: 1
@@ -212,7 +220,7 @@ axi_sw:
         dummy_return: true
         fields:
             id:
-                width: ${TOP.PLATFORM.AXI.ID_WIDTH}
+                width: ${TOP.PLATFORM.AXI.ID_WIDTH + clog2(TOP.PLATFORM.AXI.TOTAL) + 1} 
             addr:
                 width: ${TOP.PLATFORM.AXI.ADDR_WIDTH}
             len:
@@ -231,7 +239,7 @@ axi_sw:
         dummy_return: true
         fields:
             id:
-                width: ${TOP.PLATFORM.AXI.ID_WIDTH}
+                width: ${TOP.PLATFORM.AXI.ID_WIDTH + clog2(TOP.PLATFORM.AXI.TOTAL) + 1} 
             addr:
                 width: ${TOP.PLATFORM.AXI.ADDR_WIDTH}
             len:
@@ -252,7 +260,7 @@ axi_sw:
                 width: ${TOP.PLATFORM.AXI.R_Q_PTR_MAX_LOG2}
 
 axi_sw_mst:
-    num: ${TOP.PLATFORM.AXI_MST.TOTAL}
+    num: [${TOP.PLATFORM.AXI_MST.TOTAL}, ${TOP.PLATFORM.AXI_MST2.TOTAL}]
 
     b:
         domain: 2

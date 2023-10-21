@@ -8,6 +8,7 @@
 #include "src/cac_lib.h"
 #include "sysmod/htif/htif.h"
 #include "whisper_client_decl.h"
+#include "rv_tester/rv_tester_plusargs.h"
 
 
 #include <iostream>         // cout
@@ -25,6 +26,7 @@ DECLARE_string(load);
 DECLARE_string(hex);
 DECLARE_uint64(debug_entry_pc);
 DECLARE_uint64(debug_exit_pc);
+DECLARE_uint64(hart_enable_mask);
 
 DEFINE_bool(bridge_log, true, "Enable bridge logging");
 DEFINE_string(whisper_json_path, "", "Path to whisper json config");
@@ -35,11 +37,10 @@ DEFINE_bool(lrsc_resynch, false, "Resynch whisper with dut state on LRSC fail co
 DEFINE_bool(retire_ucode_trap, true, "DUT indicates retire on a trap after executing the ucode trap handler");
 DEFINE_bool(gpr_check, true, "Enable cosim checks on gprs");
 DEFINE_bool(fpr_check, true, "Enable cosim checks on fprs");
-DEFINE_bool(vec_check, false, "Enable cosim checks on vector regs");
+DEFINE_bool(vec_check, true, "Enable cosim checks on vector regs");
 DEFINE_bool(csr_check, true, "Enable cosim checks on csrs");
 DEFINE_uint64(max_cycle, 1000000, "Max cycle limit to terminate the sim");
 DEFINE_int32(debug_excp_mcause, 24, "MCAUSE value for debug exception");
-DEFINE_int32(max_stall_cycle, 50000, "Max stall cycle limit to terminate the sim");
 DEFINE_bool(translation_check, false, "Do VA-PA translation check");
 DEFINE_bool(emulate_debug_mode, true, "Emulate debug mode by forcing whisper to be in sync with DUT");
 DEFINE_bool(delay_satp_update, false, "Delay satp update till next sfence.vma");
@@ -90,6 +91,12 @@ void bridge::reset() {
 
   bool valid;
   client_->whisperReset(0, valid);
+
+  // Write hart enable mask to boot mem
+  if (!client_->whisperPoke(id_, 0, 'm', memmap_.at("boot").base + 0x9000, FLAGS_hart_enable_mask, valid)) {
+    cvm::log(cvm::ERROR, "Error: Hart{}: Failed to poke boot memory\n", id_);
+    return;
+  }
 }
 
 // DUT interface callback: Instruction Retire
@@ -878,6 +885,21 @@ void bridge::process_dut_mcm_insert(hart_id_t hart, mem_t& m) {
   num_stores_++;
 }
 
+// Process mem accesses - store bypass_writes
+void bridge::process_dut_mcm_bypass(hart_id_t hart, mem_t& m) {
+  bool valid = false;
+
+  if (!client_->whisperMcmBypass(hart, m.cycle, m.tag, m.pa, m.size, m.data, valid)) {
+    cvm::log(cvm::ERROR, "Error: Hart{}: Failed mcm store bypass\n", hart);
+    return;
+  }
+  log(cvm::HIGH, "<{}> mcm_bypass [valid={}, tag={}, addr={:#x}, size={}, data={:#x}]\n",
+    m.cycle, valid, m.tag, m.pa, m.size, m.data);
+
+  // Collect metrics
+  num_stores_++;
+}
+
 // Process mem accesses - store drains
 void bridge::process_dut_mcm_write(hart_id_t hart, mem_cl_t& m) {
   uint8_t data[64] = {0};
@@ -1097,20 +1119,20 @@ void bridge::report_metrics() {
   const auto& prev_trap = prev_prev_whisp_state.trap;
   const auto& prev_num_dest = prev_prev_whisp_state.change_count;
 
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_instructions\": {}}}\n", id_, instructions);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_cpu_cycles\": {}}}\n", id_, cpu_cycles);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_ipc\": {:.2f}}}\n", id_, ipc);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_instr\": \"{}\"}}\n", id_, instr);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_mode\": {}}}\n", id_, mode);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_trap\": {}}}\n", id_, trap);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_num_dest\": {}}}\n", id_, num_dest);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_dest\": \"{}\"}}\n", id_, dest);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_dest_addr\": \"{}\"}}\n", id_, dest_addr);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_dest_data\": \"{}\"}}\n", id_, dest_data);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_prev_instr\": \"{}\"}}\n", id_, prev_instr);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_prev_mode\": {}}}\n", id_, prev_mode);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_prev_trap\": {}}}\n", id_, prev_trap);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_prev_num_dest\": {}}}\n", id_, prev_num_dest);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_instructions\": {}}}\n", id_, instructions);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_cpu_cycles\": {}}}\n", id_, cpu_cycles);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_ipc\": {:.2f}}}\n", id_, ipc);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_instr\": \"{}\"}}\n", id_, instr);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_mode\": {}}}\n", id_, mode);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_trap\": {}}}\n", id_, trap);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_dest\": {}}}\n", id_, num_dest);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dest\": \"{}\"}}\n", id_, dest);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dest_addr\": \"{}\"}}\n", id_, dest_addr);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dest_data\": \"{}\"}}\n", id_, dest_data);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_instr\": \"{}\"}}\n", id_, prev_instr);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_mode\": {}}}\n", id_, prev_mode);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_trap\": {}}}\n", id_, prev_trap);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_num_dest\": {}}}\n", id_, prev_num_dest);
 
   for (auto& csr : csrs) {
     uint64_t csr_data;
@@ -1118,7 +1140,7 @@ void bridge::report_metrics() {
     if (!client_->whisperPeek(id_, 'c', csr.address, csr_data, valid)) {
       cvm::log(cvm::ERROR, "Error: Hart{}: Failed to peek CSR values\n", id_);
     }
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_csr_{}\": \"0x{:x}\"}}\n", id_, csr.name, csr_data);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_csr_{}\": \"0x{:x}\"}}\n", id_, csr.name, csr_data);
   }
 
   // Step one final time to collect metrics for next instruction
@@ -1132,9 +1154,9 @@ void bridge::report_metrics() {
   const auto& next_trap = w.trap;
   const auto& next_num_dest = w.change_count;
 
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_next_instr\": \"{}\"}}\n", id_, next_instr);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_next_mode\": {}}}\n", id_, next_mode);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_next_trap\": {}}}\n", id_, next_trap);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"h{}_next_num_dest\": {}}}\n", id_, next_num_dest);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_instr\": \"{}\"}}\n", id_, next_instr);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_mode\": {}}}\n", id_, next_mode);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_trap\": {}}}\n", id_, next_trap);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_num_dest\": {}}}\n", id_, next_num_dest);
   
 }
