@@ -25,6 +25,12 @@ rv_tester_dependencies2()
 load("//infra/bazel:dependencies3.bzl", "rv_tester_dependencies3")
 rv_tester_dependencies3()
 
+load("//infra/bazel:dependencies4.bzl", "rv_tester_dependencies4")
+rv_tester_dependencies4()
+
+load("//infra/bazel:dependencies5.bzl", "rv_tester_dependencies5")
+rv_tester_dependencies5()
+
 # don't want testgen in repositories.bzl, as it's only for internal use
 # let other repos' testgen supercede this one in downstream repos
 testgen_hash="50e12d558b97250deb7a671a524278a61a06a60c"

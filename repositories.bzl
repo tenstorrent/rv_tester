@@ -103,30 +103,11 @@ cc_library(
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/checkin-script.git",
     )
 
-    axi_wrapper_hash="a52e72be2790e51f2e38a78b3e134983430c7129"
+    opensrc_axi_llc_hash="20d8e15ff40a4a7ae9dd2a2d78bd003b62513f1d"
     maybe(
         git_repository,
-        name = "axi-wrapper",
-        commit = axi_wrapper_hash,
-        shallow_since = "1695754616 +0000",
-        remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/axi-wrapper.git",
-    )
-
-    axi_llc_wrapper_hash="6a649aa48b80dcbf24f2fd526bf2720404c23f46"
-    maybe(
-        git_repository,
-        name = "axi_llc-wrapper",
-        commit = axi_llc_wrapper_hash,
+        name = "opensrc-axi_llc",
+        commit = opensrc_axi_llc_hash,
         shallow_since = "1695756617 +0000",
-        remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/axi_llc-wrapper.git",
+        remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-axi_llc.git",
     )
-
-    common_cells_wrapper_hash="be8b4b591b8c0b6c357cfdf07339c579e8128220"
-    maybe(
-        git_repository,
-        name = "common_cells-wrapper",
-        commit = common_cells_wrapper_hash,
-        shallow_since = "1695140622 -0500",
-        remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/common_cells-wrapper.git",
-    )
-
