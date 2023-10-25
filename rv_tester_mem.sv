@@ -66,22 +66,7 @@ module rv_tester_mem #(
     always_comb begin
        for(int i=0;i<NumMasters;i++) begin	
            axi_req[i] = axi_req_up[i];
-	   axi_req[i].ar.cache = '0;
-	   axi_req[i].ar.prot = '0;
-	   axi_req[i].ar.qos = '0;
-	   axi_req[i].ar.region = '0;
-	   axi_req[i].ar.user = '0;
-	   axi_req[i].w.user = '0;
-           axi_req[i].aw.cache = '0;
-           axi_req[i].aw.prot = '0;
-           axi_req[i].aw.qos = '0;
-           axi_req[i].aw.region = '0;
-           axi_req[i].aw.atop = '0;
-           axi_req[i].aw.user = '0;
-
 	   axi_resp_up[i] = axi_resp[i];
-	   axi_resp_up[i].b.user = '0;
-	   axi_resp_up[i].r.user = '0;
        end
 
        for(int i=0;i<NumMastersMem;i++) begin
