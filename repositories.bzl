@@ -103,7 +103,7 @@ cc_library(
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/checkin-script.git",
     )
 
-    opensrc_axi_llc_hash="20d8e15ff40a4a7ae9dd2a2d78bd003b62513f1d"
+    opensrc_axi_llc_hash="06ec29238ac414db3065b203d6c98a6a996a37ab"
     maybe(
         git_repository,
         name = "opensrc-axi_llc",
