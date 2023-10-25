@@ -136,6 +136,11 @@ void
        cvm::log(cvm::HIGH, "[UC_HELPER] Init of Address Range Completed  \n");
    
        return;
+     }else if(addr ==(uc_helper_base + 0x400))
+     {
+       mem::datum_t m_data_rd;
+       m_.read(tx_addr, 1, &m_data_rd);
+       m_.write(uc_helper_base,1,&m_data_rd);
      }
 
  }
