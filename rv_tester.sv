@@ -157,19 +157,22 @@ import rv_tester_params::*;
         automatic logic shutdowned = '0;
 
         if (terminate_now && !terminated) begin
- 
+
             if (quiesced) begin
                 $display("<%0d> [RVTESTER]: exiting gracefully", clocks);
             end else if (quiesce_counter == 0) begin
                 $display("<%0d> [RVTESTER]: exiting immediately because +quiesce_counter=0", clocks);
             end else begin
-                $display("<%0d> Error: Waiting to quiesce for more than %0d cycles", clocks, quiesce_timeout);
+                $display("<%0d> [RVTESTER]: Error: Waiting to quiesce for more than %0d cycles", clocks, quiesce_timeout);
             end
 
             shutdowned = rv_tester_shutdown_registry() != '0;
 
             if (!shutdowned) begin
-                $display("<%0d> Could not shutdown, trying again next cycle", clocks);
+                $display("<%0d> [RVTESTER]: Could not shutdown, trying again next cycle", clocks);
+            end else begin
+                $display("INFO_PASS:{\"clocks\": %0d}", clocks);
+
             end
 
             if (shutdowned && call_finish && num_reruns == '0) begin
