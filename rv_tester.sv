@@ -526,7 +526,6 @@ import rv_tester_params::*;
     mst_resp_rv axi_rsp_llc [no_of_masters-1:0];
 
     xbar_rule_t [NoAddrRules-1:0] AddrMap, AddrMapIdx1, AddrMap_final;
-    xbar_rule_t [NoAddrRules-1:0] AddrMap_bypass =  addr_map_gen();
 
     function automatic void rv_tester_set_address_map(int unsigned i, longint unsigned start_addr, longint unsigned end_addr, int unsigned device);
         localparam int unsigned AW = topology.TOP.PLATFORM.AXI.ADDR_WIDTH;
@@ -544,20 +543,7 @@ import rv_tester_params::*;
 
     endfunction
 
-    function xbar_rule_t [NoAddrRules-1:0] addr_map_gen ();
-        for( int unsigned i=0;i<no_of_masters;i++) begin
-            AddrMap_bypass[i] = xbar_rule_t'{
-                idx:        unsigned'(i),
-		/* verilator lint_off WIDTH */
-                start_addr:  i    * 32'h0000_0001,
-                end_addr:   (i+1) * 32'h0000_0001,
-		/* verilator lint_on WIDTH */
-                default:    '0
-        };
-        end
-    endfunction
-
-    assign AddrMap_final = (bypass_mem == 0)?((bypass_cache == 0)?AddrMap:AddrMapIdx1):AddrMap_bypass;
+    assign AddrMap_final = (bypass_cache == 0)?AddrMap:AddrMapIdx1;
 
     export "DPI-C" function rv_tester_set_address_map;
 
@@ -586,7 +572,7 @@ import rv_tester_params::*;
         .axi_req_mst_up         ( axi_req_llc ),
         .axi_resp_mst_up        ( axi_rsp_llc ),
 	.addr_map		( AddrMap_final ),
-        .bypass_cache		( bypass_mem ),
+        .bypass_mem		( bypass_mem ),
 	.flush_cache		( quiesced ),
 	.flush_complete		( flush_complete ),
 	.bist_status_done	()
