@@ -170,12 +170,13 @@ import rv_tester_params::*;
 
             if (!shutdowned) begin
                 $display("<%0d> [RVTESTER]: Could not shutdown, trying again next cycle", clocks);
-            end else if (num_reruns == '0) begin
-                $display("INFO_PASS:{\"clocks\": %0d}", clocks);
             end
 
-            if (shutdowned && call_finish && num_reruns == '0) begin
-                $finish();
+            if (shutdowned && num_reruns == '0) begin
+                $display("INFO_PASS:{\"clocks\": %0d}", clocks);
+                if (call_finish) begin
+                    $finish();
+                end
             end
 
         end
