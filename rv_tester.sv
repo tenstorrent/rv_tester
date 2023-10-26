@@ -21,6 +21,7 @@ import rv_tester_params::*;
         logic [topology.TOP.PLATFORM.AXI.ADDR_WIDTH-1:0] end_addr;
       } xbar_rule_t;
     
+    logic bypass_mem = 1;
     logic bypass_cache = 1;
 
     if (EXTERNAL_CLOCK) begin
@@ -131,6 +132,7 @@ import rv_tester_params::*;
             flush_timeout       <= cvm_plusargs::get_int("flush_timeout");
             call_finish         <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
             gen_clocks          <= cvm_verbosity >= gen_clocks_verbosity;
+            bypass_mem          <= cvm_plusargs::get_bool("bypass_mem") != '0;
             bypass_cache        <= cvm_plusargs::get_bool("bypass_cache") != '0;
 
             $display("[RVTESTER]: reconstructing registry");
@@ -523,15 +525,23 @@ import rv_tester_params::*;
     mst_req_rv axi_req_llc [no_of_masters-1:0];
     mst_resp_rv axi_rsp_llc [no_of_masters-1:0];
 
-    xbar_rule_t [NoAddrRules-1:0] AddrMap, AddrMap_final;
+    xbar_rule_t [NoAddrRules-1:0] AddrMap, AddrMapIdx1, AddrMap_final;
     xbar_rule_t [NoAddrRules-1:0] AddrMap_bypass =  addr_map_gen();
+
     function automatic void rv_tester_set_address_map(int unsigned i, longint unsigned start_addr, longint unsigned end_addr, int unsigned device);
         localparam int unsigned AW = topology.TOP.PLATFORM.AXI.ADDR_WIDTH;
         AddrMap[i] = '{
-            idx       : 1/*device*/         ,
+            idx       : device         ,
             start_addr: AW'(start_addr),
             end_addr  : AW'(end_addr  )
         };
+
+        AddrMapIdx1[i] = '{
+            idx       : 1              ,
+            start_addr: AW'(start_addr),
+            end_addr  : AW'(end_addr  )
+        };
+
     endfunction
 
     function xbar_rule_t [NoAddrRules-1:0] addr_map_gen ();
@@ -547,7 +557,7 @@ import rv_tester_params::*;
         end
     endfunction
 
-    assign AddrMap_final = (bypass_cache == 0)?AddrMap:AddrMap_bypass;
+    assign AddrMap_final = (bypass_mem == 0)?((bypass_cache == 0)?AddrMap:AddrMapIdx1):AddrMap_bypass;
 
     export "DPI-C" function rv_tester_set_address_map;
 
@@ -576,7 +586,7 @@ import rv_tester_params::*;
         .axi_req_mst_up         ( axi_req_llc ),
         .axi_resp_mst_up        ( axi_rsp_llc ),
 	.addr_map		( AddrMap_final ),
-        .bypass_cache		( bypass_cache ),
+        .bypass_cache		( bypass_mem ),
 	.flush_cache		( quiesced ),
 	.flush_complete		( flush_complete ),
 	.bist_status_done	()

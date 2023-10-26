@@ -128,7 +128,7 @@ module rv_tester_mem #(
 
     assign SpmRegionStart     = {AxiAddrWidth{1'b0}};
     assign SpmRegionLength    = axi_addr_t'(SetAssociativity_LLC * NumLines_LLC * NumBlocks_LLC * AxiDataWidth / 64'd8);
-    assign CachedRegionStart  = (bypass_cache == 0)?{AxiAddrWidth{1'b0}}:SpmRegionLength + 1;
+    assign CachedRegionStart  = (bypass_cache == 0)?{AxiAddrWidth{1'b0}}:(SpmRegionLength + 1);
     assign CachedRegionEnd    = {AxiAddrWidth{1'b1}};
 
     always@(negedge clk) begin
