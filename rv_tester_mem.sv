@@ -228,7 +228,8 @@ module rv_tester_mem #(
         .mst_resp_t               ( mst_resp_t ),
         .rule_full_t              ( rule_t ),
         .PrintSramCfg             ( 0 ),
-        .PrintLlcCfg              ( 0 )
+        .PrintLlcCfg              ( 0 ),
+        .rule_preference          ( 1'b1 )
     ) llc(
         .clk_i                ( clk_gated ),
         .rst_ni               ( rst_n ),
