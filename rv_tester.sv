@@ -325,8 +325,8 @@ import rv_tester_params::*;
     assign tx_dom_1.logger_cycle_0s[0][0].data.location = location;
     assign tx_dom_1.logger_cycle_0s[0][0].data.clock = clocks;
  
-    localparam no_of_masters = ( topology.TOP.PLATFORM.AXI.TOTAL < 2 ) ? 2 : topology.TOP.PLATFORM.AXI.TOTAL ;
-    for (genvar p = 0; p < no_of_masters; p++) begin : axi_sw_slvs
+    localparam NoOfMasters = ( topology.TOP.PLATFORM.AXI.TOTAL < 2 ) ? 2 : topology.TOP.PLATFORM.AXI.TOTAL ;
+    for (genvar p = 0; p < NoOfMasters; p++) begin : axi_sw_slvs
         axi_sw #(
             .ADDR_WIDTH(topology.TOP.PLATFORM.AXI.ADDR_WIDTH),
             .DATA_WIDTH(topology.TOP.PLATFORM.AXI.DATA_WIDTH),
@@ -522,20 +522,20 @@ import rv_tester_params::*;
     `AXI_TYPEDEF_RESP_T(mst_resp_rv, mst_b_chan_rv, mst_r_chan_rv)
     `AXI_TYPEDEF_RESP_T(slv_resp_rv, slv_b_chan_rv, slv_r_chan_rv)
 
-    mst_req_rv axi_req_llc [no_of_masters-1:0];
-    mst_resp_rv axi_rsp_llc [no_of_masters-1:0];
+    mst_req_rv axi_req_llc [NoOfMasters-1:0];
+    mst_resp_rv axi_rsp_llc [NoOfMasters-1:0];
 
-    xbar_rule_t [NoAddrRules-1:0] AddrMap, AddrMapIdx1, AddrMap_final;
+    xbar_rule_t [NoAddrRules-1:0] addr_map, addr_map_final, addr_map_idx1;
 
     function automatic void rv_tester_set_address_map(int unsigned i, longint unsigned start_addr, longint unsigned end_addr, int unsigned device);
         localparam int unsigned AW = topology.TOP.PLATFORM.AXI.ADDR_WIDTH;
-        AddrMap[i] = '{
+        addr_map[i] = '{
             idx       : device         ,
             start_addr: AW'(start_addr),
             end_addr  : AW'(end_addr  )
         };
 
-        AddrMapIdx1[i] = '{
+        addr_map_idx1[i] = '{
             idx       : 1              ,
             start_addr: AW'(start_addr),
             end_addr  : AW'(end_addr  )
@@ -543,7 +543,7 @@ import rv_tester_params::*;
 
     endfunction
 
-    assign AddrMap_final = (bypass_cache == 0)?AddrMap:AddrMapIdx1;
+    assign addr_map_final = (bypass_cache == 0)?addr_map:addr_map_idx1;
 
     export "DPI-C" function rv_tester_set_address_map;
 
@@ -563,7 +563,7 @@ import rv_tester_params::*;
         .mst_resp_t             ( mst_resp_rv ),
 	.rule_t			( xbar_rule_t ),
 	.NoAddrRules		( NoAddrRules ),
-	.NumMastersMem		( no_of_masters )
+	.NumMastersMem		( NoOfMasters )
     ) rv_tester_mem(
         .clk                    ( clk ),
         .rst_n                  ( ~reset ),
@@ -571,7 +571,7 @@ import rv_tester_params::*;
         .axi_resp_up            ( axi_rsp ),
         .axi_req_mst_up         ( axi_req_llc ),
         .axi_resp_mst_up        ( axi_rsp_llc ),
-	.addr_map		( AddrMap_final ),
+	.addr_map		( addr_map_final ),
         .bypass_mem		( bypass_mem ),
 	.flush_cache		( quiesced ),
 	.flush_complete		( flush_complete ),

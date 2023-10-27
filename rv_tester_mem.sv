@@ -95,7 +95,7 @@ module rv_tester_mem #(
     localparam bit UniqueIds                      = 1'b0;
     localparam int unsigned NumSlaves             = 32'd2;
     localparam int unsigned AxiIdWidthMst         = AxiIdWidth + $clog2(NumMasters);
-    localparam AxiAddrWidth_cache		  = AxiAddrWidth + 1;
+    localparam AxiAddrWidthCache		  = AxiAddrWidth + 1;
     localparam axi_pkg::xbar_cfg_t xbar_cfg = '{
         NoSlvPorts:         NumMasters,
         NoMstPorts:         NumSlaves,
@@ -119,15 +119,15 @@ module rv_tester_mem #(
 
     //for LLC 
     //Address ranges
-    typedef logic [AxiAddrWidth_cache-1:0] axi_addr_t;
+    typedef logic [AxiAddrWidthCache-1:0] axi_addr_t;
     axi_addr_t SpmRegionStart;
     axi_addr_t CachedRegionStart;
     axi_addr_t CachedRegionEnd;
 
 
-    assign CachedRegionStart  = {AxiAddrWidth_cache{1'b0}}; 
-    assign CachedRegionEnd    = {AxiAddrWidth{1'b1}} + 1;
-    assign SpmRegionStart     = CachedRegionEnd;
+    localparam CachedRegionStart  = {AxiAddrWidthCache{1'b0}}; 
+    localparam CachedRegionEnd    = {AxiAddrWidth{1'b1}} + 1;
+    localparam SpmRegionStart     = CachedRegionEnd;
 
     always@(negedge clk) begin
         enable_flop <= ~bypass_mem;
@@ -211,15 +211,15 @@ module rv_tester_mem #(
 
     typedef logic [AxiIdWidthMst:0] id_mst_llc;
     typedef logic [AxiIdWidthMst-1:0] id_slv_llc;
-    typedef logic [AxiAddrWidth_cache-1:0] addr_llc;
+    typedef logic [AxiAddrWidthCache-1:0] addr_llc;
     typedef logic [AxiDataWidth-1:0] data_llc;
     typedef logic [AxiStrbWidth-1:0] strb_llc;
     typedef logic [AxiUserWidth-1:0] user_llc;
 
     typedef struct packed {
         int unsigned idx;
-        logic [AxiAddrWidth_cache-1:0] start_addr;
-        logic [AxiAddrWidth_cache-1:0] end_addr;
+        logic [AxiAddrWidthCache-1:0] start_addr;
+        logic [AxiAddrWidthCache-1:0] end_addr;
     } rule_llc;
 
 
@@ -254,7 +254,7 @@ module rv_tester_mem #(
         .NumLines                 ( NumLines_LLC ),
         .NumBlocks                ( NumBlocks_LLC ),
         .AxiIdWidth               ( AxiIdWidthMst ),
-        .AxiAddrWidth             ( AxiAddrWidth_cache ),
+        .AxiAddrWidth             ( AxiAddrWidthCache ),
         .AxiDataWidth             ( AxiDataWidth ),
         .AxiUserWidth             ( AxiUserWidth ),
         .RegWidth                 ( RegWidth_LLC ),
