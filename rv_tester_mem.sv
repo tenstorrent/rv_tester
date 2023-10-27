@@ -119,14 +119,9 @@ module rv_tester_mem #(
 
     //for LLC 
     //Address ranges
-    typedef logic [AxiAddrWidthCache-1:0] axi_addr_t;
-    axi_addr_t SpmRegionStart;
-    axi_addr_t CachedRegionStart;
-    axi_addr_t CachedRegionEnd;
-
 
     localparam CachedRegionStart  = {AxiAddrWidthCache{1'b0}}; 
-    localparam CachedRegionEnd    = {AxiAddrWidth{1'b1}} + 1;
+    localparam CachedRegionEnd    = {1'b0,{AxiAddrWidth{1'b1}}} + {{AxiAddrWidth{1'b0}}, 1'b1};
     localparam SpmRegionStart     = CachedRegionEnd;
 
     always@(negedge clk) begin
