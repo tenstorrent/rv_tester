@@ -50,7 +50,7 @@ module rv_tester_mem #(
     output  mst_req_t   axi_req_mst_up [NumMastersMem-1:0]     ,    
     input   mst_resp_t  axi_resp_mst_up [NumMastersMem-1:0]     ,
     input   rule_t	[NoAddrRules-1:0] addr_map,	   
-    input   logic 	bypass_cache	,
+    input   logic 	bypass_mem	,
     input   logic       flush_cache	,
     output  logic	flush_complete  ,
     output  logic       bist_status_done
@@ -95,7 +95,7 @@ module rv_tester_mem #(
     localparam bit UniqueIds                      = 1'b0;
     localparam int unsigned NumSlaves             = 32'd2;
     localparam int unsigned AxiIdWidthMst         = AxiIdWidth + $clog2(NumMasters);
-
+    localparam AxiAddrWidthCache		  = AxiAddrWidth + 1;
     localparam axi_pkg::xbar_cfg_t xbar_cfg = '{
         NoSlvPorts:         NumMasters,
         NoMstPorts:         NumSlaves,
@@ -119,27 +119,20 @@ module rv_tester_mem #(
 
     //for LLC 
     //Address ranges
-    typedef logic [AxiAddrWidth-1:0] axi_addr_t;
-    axi_addr_t SpmRegionStart;
-    axi_addr_t SpmRegionLength;
-    axi_addr_t CachedRegionStart;
-    axi_addr_t CachedRegionEnd;
 
-
-    assign SpmRegionStart     = {AxiAddrWidth{1'b0}};
-    assign SpmRegionLength    = axi_addr_t'(SetAssociativity_LLC * NumLines_LLC * NumBlocks_LLC * AxiDataWidth / 64'd8);
-    assign CachedRegionStart  = (bypass_cache == 0)?{AxiAddrWidth{1'b0}}:SpmRegionLength + 1;
-    assign CachedRegionEnd    = {AxiAddrWidth{1'b1}};
+    localparam CachedRegionStart  = {AxiAddrWidthCache{1'b0}}; 
+    localparam CachedRegionEnd    = {1'b0,{AxiAddrWidth{1'b1}}} + {{AxiAddrWidth{1'b0}}, 1'b1};
+    localparam SpmRegionStart     = CachedRegionEnd;
 
     always@(negedge clk) begin
-        enable_flop <= ~bypass_cache;
+        enable_flop <= ~bypass_mem;
     end
 
     assign clk_gated = clk & enable_flop;
 
-    //////////////////////////////////////////
+//////////////////////////////////////////
 
-    /////////////axi_interconnect/////////////
+/////////////axi_interconnect/////////////
 
     typedef logic [AxiIdWidthMst-1:0] id_mst_xbar;
     typedef logic [AxiIdWidth-1:0] id_slv_xbar;
@@ -192,6 +185,7 @@ module rv_tester_mem #(
         .en_default_mst_port_i  ( '0 ),
         .default_mst_port_i     ( '0 )
     );
+
 ///////////////////////////////////////////
 
 
@@ -210,32 +204,71 @@ module rv_tester_mem #(
         end
     end
 
+    typedef logic [AxiIdWidthMst:0] id_mst_llc;
+    typedef logic [AxiIdWidthMst-1:0] id_slv_llc;
+    typedef logic [AxiAddrWidthCache-1:0] addr_llc;
+    typedef logic [AxiDataWidth-1:0] data_llc;
+    typedef logic [AxiStrbWidth-1:0] strb_llc;
+    typedef logic [AxiUserWidth-1:0] user_llc;
+
+    typedef struct packed {
+        int unsigned idx;
+        logic [AxiAddrWidthCache-1:0] start_addr;
+        logic [AxiAddrWidthCache-1:0] end_addr;
+    } rule_llc;
+
+
+    `AXI_TYPEDEF_AW_CHAN_T(mst_aw_chan_llc, addr_llc , id_mst_llc, user_llc)
+    `AXI_TYPEDEF_AW_CHAN_T(slv_aw_chan_llc, addr_llc, id_slv_llc, user_llc)
+    `AXI_TYPEDEF_W_CHAN_T(mst_w_chan_llc, data_llc, strb_llc, user_llc)
+    `AXI_TYPEDEF_W_CHAN_T(slv_w_chan_llc, data_llc, strb_llc, user_llc)
+    `AXI_TYPEDEF_B_CHAN_T(mst_b_chan_llc, id_mst_llc, user_llc)
+    `AXI_TYPEDEF_B_CHAN_T(slv_b_chan_llc, id_slv_llc, user_llc)
+    `AXI_TYPEDEF_AR_CHAN_T(mst_ar_chan_llc, addr_llc, id_mst_llc, user_llc)
+    `AXI_TYPEDEF_AR_CHAN_T(slv_ar_chan_llc, addr_llc, id_slv_llc, user_llc)
+    `AXI_TYPEDEF_R_CHAN_T(mst_r_chan_llc, data_llc, id_mst_llc, user_llc)
+    `AXI_TYPEDEF_R_CHAN_T(slv_r_chan_llc, data_llc, id_slv_llc, user_llc)
+    `AXI_TYPEDEF_REQ_T(mst_req_llc, mst_aw_chan_llc, mst_w_chan_llc, mst_ar_chan_llc)
+    `AXI_TYPEDEF_REQ_T(slv_req_llc, slv_aw_chan_llc, slv_w_chan_llc, slv_ar_chan_llc)
+    `AXI_TYPEDEF_RESP_T(mst_resp_llc, mst_b_chan_llc, mst_r_chan_llc)
+    `AXI_TYPEDEF_RESP_T(slv_resp_llc, slv_b_chan_llc, slv_r_chan_llc)
+
+    slv_req_llc mem_req_t_1;
+    mst_req_llc axi_req_mst_imm_1;
+
+    always_comb begin
+	/* verilator lint_off WIDTH */
+        `AXI_SET_REQ_STRUCT(mem_req_t_1, mem_req_t[0]);
+	/* verilator lint_on WIDTH */
+        mem_req_t_1.aw.addr = {1'b0, mem_req_t[0].aw.addr};
+        mem_req_t_1.ar.addr = {1'b0, mem_req_t[0].ar.addr};
+    end
 
     axi_llc_top #(
         .SetAssociativity         ( SetAssociativity_LLC ),
         .NumLines                 ( NumLines_LLC ),
         .NumBlocks                ( NumBlocks_LLC ),
         .AxiIdWidth               ( AxiIdWidthMst ),
-        .AxiAddrWidth             ( AxiAddrWidth ),
+        .AxiAddrWidth             ( AxiAddrWidthCache ),
         .AxiDataWidth             ( AxiDataWidth ),
         .AxiUserWidth             ( AxiUserWidth ),
         .RegWidth                 ( RegWidth_LLC ),
         .conf_regs_d_t            ( axi_llc_cfg_regs_d_t ),
         .conf_regs_q_t            ( axi_llc_cfg_regs_q_t ),
-        .slv_req_t                ( mst_req_xbar ),
+        .slv_req_t                ( slv_req_llc ),
         .slv_resp_t               ( mst_resp_xbar ),
-        .mst_req_t                ( mst_req_t ),
+        .mst_req_t                ( mst_req_llc ),
         .mst_resp_t               ( mst_resp_t ),
-        .rule_full_t              ( rule_t ),
+        .rule_full_t              ( rule_llc ),
         .PrintSramCfg             ( 0 ),
         .PrintLlcCfg              ( 0 )
     ) llc(
         .clk_i                ( clk_gated ),
         .rst_ni               ( rst_n ),
         .test_i               ( 1'b0 ),
-        .slv_req_i            ( mem_req_t[0] ), 
+        .slv_req_i            ( mem_req_t_1 ), 
         .slv_resp_o           ( mem_resp_t[0] ),
-        .mst_req_o            ( axi_req_mst_imm  ),
+        .mst_req_o            ( axi_req_mst_imm_1  ),
         .mst_resp_i           ( axi_resp_mst_imm ),
         .conf_regs_i          ( reg_cfg_reg_to_hw ),
         .conf_regs_o          ( reg_cfg_hw_to_reg ), 
@@ -244,6 +277,14 @@ module rv_tester_mem #(
         .spm_start_addr_i     ( SpmRegionStart ), 
         .axi_llc_events_o     ( )
     );
+
+    always_comb begin
+	/* verilator lint_off WIDTH */
+        `AXI_SET_REQ_STRUCT(axi_req_mst_imm, axi_req_mst_imm_1);
+	/* verilator lint_on WIDTH */
+        axi_req_mst_imm.aw.addr = axi_req_mst_imm_1.aw.addr[AxiAddrWidth-1:0];
+        axi_req_mst_imm.ar.addr = axi_req_mst_imm_1.ar.addr[AxiAddrWidth-1:0];
+    end
 
 
 ////////////////////////////////////////////////////
@@ -260,7 +301,7 @@ module rv_tester_mem #(
     mst_req_xbar temp_5;
     mst_resp_xbar temp_6;  
     always_comb begin
-	if(bypass_cache) begin
+	if(bypass_mem) begin
 	    for(int i=0;i<NumMasters;i++) begin
 		temp_1 = axi_req[i];
 		/* verilator lint_off WIDTH */
@@ -327,7 +368,7 @@ module rv_tester_mem #(
 		flush_complete_delayed_1		  <= '0;
                 flush_complete_delayed_2                  <= '0;
         end else begin
-                flush_cache_delayed_1                     <= flush_cache & !bypass_cache;
+                flush_cache_delayed_1                     <= flush_cache & !bypass_mem;
 		flush_cache_delayed_2			  <= flush_cache_delayed_1;
 		flush_cache_delayed_3			  <= flush_cache_delayed_2;
 		flush_complete_delayed_1	          <= |reg_cfg_hw_to_reg.cfg_flush;
@@ -442,7 +483,7 @@ module rv_tester_mem #(
         end
     end
 
-    assign flush_complete = flush_complete_reg || bypass_cache;
+    assign flush_complete = flush_complete_reg || bypass_mem;
 
 
 
