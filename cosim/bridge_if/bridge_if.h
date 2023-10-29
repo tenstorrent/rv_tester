@@ -204,6 +204,21 @@ typedef struct rv_instr_s {
   }
 } rv_instr_t;
 
+typedef struct rv_instr_group_s {
+  uint64_t cycle = 0;
+  std::vector<rv_instr_t> instrs;
+  std::vector<csr_t> csrs;
+
+  rv_instr_group_s() {
+    clear();
+  }
+
+  void clear() {
+    instrs.clear();
+    csrs.clear();
+  }
+} rv_instr_group_t;
+
 typedef struct rv_debug_s {
   bool enter;
   bool exit;

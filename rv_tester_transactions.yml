@@ -36,6 +36,8 @@ cosim:
                 width: 32
             last_uop:
                 width: 1
+            last_insn:
+                width: 1
             comp:
                 width: 1
             order:

@@ -60,6 +60,7 @@ import rv_tester_params::*;
         assign m_rvfis[n].data.cycle = clocks;
         assign m_rvfis[n].data.hart = NUM;
         assign m_rvfis[n].data.last_uop = rvfi[n].last_uop;
+        assign m_rvfis[n].data.last_insn = rvfi[n].last_insn;
         assign m_rvfis[n].data.comp = rvfi[n].comp;
         assign m_rvfis[n].data.order = rvfi[n].order;
         assign m_rvfis[n].data.insn = rvfi[n].insn;

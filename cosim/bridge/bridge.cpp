@@ -8,6 +8,7 @@
 #include "src/cac_lib.h"
 #include "sysmod/htif/htif.h"
 #include "whisper_client_decl.h"
+#include "whisper_decoder.h"
 #include "rv_tester/rv_tester_plusargs.h"
 
 
@@ -63,7 +64,8 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
     num_harts_(num_harts),
     xlen_(xlen),
     vlen_(vlen),
-    cac_(CacCore(num_harts))
+    cac_(CacCore(num_harts)),
+    csr_cac_(CacCore(num_harts))
 {
     std::string traceFile = FLAGS_whisper_log ? "iss_cosim.log" : "";
     std::string commandLog = FLAGS_whisper_log ? "iss_cmd.log" : "";
@@ -186,6 +188,39 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   // TLB checks
   translation_check(hart, d, w);
+}
+
+void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d) {
+  if (!FLAGS_csr_check)
+    return;
+
+  for (auto & c : d.csrs) {
+    // FIXME Check all CSRs
+    if (c.csr_addr == 0x3)
+      update_regs(hart, src_t::dut, resource_t::csr_reg, c.csr_addr, {c.csr_wdata});
+  }
+
+  // Step csr cac
+  csr_cac_.Step(hart);
+
+  // Error on mismatch
+  if (!csr_cac_.GetStatus(hart)) {
+    csr_cac_.ResetStatus(hart);
+    if (FLAGS_cosim_resynch) {
+      resynch(hart, d);
+    } else {
+      for (auto & i : d.instrs)
+        print_instr_stdout(hart, i);
+      std::string resource = csr_cac_.GetResourceStr(hart);
+      cvm::log(cvm::NONE, "{}", csr_cac_.GetStatusStr(hart));
+      cvm::log(cvm::ERROR, "Error: Hart{}: CSR Mismatch - {}\n", hart, resource);
+      return;
+    }
+  }
+  else {
+      log(cvm::HIGH, "{}", csr_cac_.GetStatusStr(hart));
+  }
+
 }
 
 void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
@@ -493,6 +528,11 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
 }
 
 // Print functions
+void bridge::print_instr_stdout(hart_id_t hart, const rv_instr_t& d) {
+  cvm::log(cvm::MEDIUM, "<{}> Instr Group Step #{}: [Hart={}, Mode={}, Tag={}, Trap={}, PC={:#x}, Opcode={:#x}, Disasm={}]\n",
+    d.cycle, step_, hart, d.priv, d.tag, d.trap, d.pc.pc_rdata, d.opcode, whisper::disassemble(d.opcode));
+}
+
 void bridge::print_instr(hart_id_t hart, const whisper_state_t& w) {
   log(cvm::MEDIUM, "<{}> Whisper Step #{}: [Hart={}, Mode={}, Tag={}, Trap={}, ChangeCount={}, PC={:#x}, Opcode={:#x}, Disasm={}]\n",
     w.time, step_, hart, w.priv_mode, w.tag, w.trap, w.change_count, w.pc, w.opcode, w.disasm);
@@ -502,7 +542,6 @@ void bridge::print_instr_stdout(hart_id_t hart, const whisper_state_t& w) {
   cvm::log(cvm::MEDIUM, "<{}> Whisper Step #{}: [Hart={}, Mode={}, Tag={}, Trap={}, ChangeCount={}, PC={:#x}, Opcode={:#x}, Disasm={}]\n",
     w.time, step_, hart, w.priv_mode, w.tag, w.trap, w.change_count, w.pc, w.opcode, w.disasm);
 }
-
 
 void bridge::print_resource(hart_id_t hart, const whisper_state_t& w) {
   log(cvm::MEDIUM, "<{}> Whisper Step #{}: [Hart={}, Mode={}, Tag={}, Resource={}, Addr={:#x}, Data={:#x}]\n",
@@ -648,7 +687,11 @@ void bridge::update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_
     .resource = resource,
     .offset = addr
   };
-  assert(cac_.UpdateResource(hart, src, rid, std::move(cac::CreateBitVec<size_8_bytes_t>(dword_vec))));
+
+  if (resource == resource_t::csr_reg)
+    assert(csr_cac_.UpdateResource(hart, src, rid, std::move(cac::CreateBitVec<size_8_bytes_t>(dword_vec))));
+  else
+    assert(cac_.UpdateResource(hart, src, rid, std::move(cac::CreateBitVec<size_8_bytes_t>(dword_vec))));
 }
 
 bool bridge::is_ecall(const whisper_state_t& w) {
@@ -846,6 +889,22 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
   }
 
   for (auto& csr : d.csr) {
+    if (csr.valid) {
+      if (FLAGS_bridge_log) {
+        log(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: C[{:#x}]={:#x}\n", d.cycle, step_, csr.csr_addr,
+          csr.csr_wdata);
+      }
+      if (!client_->whisperPoke(hart, d.cycle, 'c', csr.csr_addr, csr.csr_wdata, valid)) {
+        cvm::log(cvm::ERROR, "Error: Hart{}: Failed to resynch CSRs\n", hart);
+        return;
+      }
+    }
+  }
+}
+
+void bridge::resynch(hart_id_t hart, const rv_instr_group_t& d) {
+  bool valid = false;
+  for (auto& csr : d.csrs) {
     if (csr.valid) {
       if (FLAGS_bridge_log) {
         log(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: C[{:#x}]={:#x}\n", d.cycle, step_, csr.csr_addr,

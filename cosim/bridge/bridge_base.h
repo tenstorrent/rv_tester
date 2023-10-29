@@ -9,6 +9,7 @@ public:
   virtual ~bridge_base() {}
   
   virtual void process_dut_instr_retire(hart_id_t hart, rv_instr_t &d) = 0;
+  virtual void process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t &d) = 0;
   virtual void process_dut_mcm_read(hart_id_t hart, mem_t &m) = 0;
   virtual void process_dut_mcm_insert(hart_id_t hart, mem_t &m) = 0;
   virtual void process_dut_mcm_bypass(hart_id_t hart, mem_t &m) = 0;

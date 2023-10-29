@@ -40,6 +40,7 @@ public:
   //   - Table Walks
   //   - Exceptions/interrupt
   virtual void process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) override;
+  virtual void process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d) override;
 
   // Process memory access
   //   - Read (Ld completion)
@@ -77,6 +78,7 @@ private:
   void update_whisper_state(hart_id_t hart, whisper_state_t& w);
   void step(hart_id_t hart, whisper_state_t& w);
   void print_instr(hart_id_t hart, const whisper_state_t& w);
+  void print_instr_stdout(hart_id_t hart, const rv_instr_t& d);
   void print_instr_stdout(hart_id_t hart, const whisper_state_t& w);
   void print_resource(hart_id_t hart, const whisper_state_t& w);
   void update_pc(hart_id_t hart, src_t src, uint64_t data);
@@ -114,6 +116,7 @@ private:
   bool lrsc_fail(const whisper_state_t& w);
   bool mip_timing_mismatch(const whisper_state_t& w);
   bool xtval_read(const whisper_state_t& w);
+  void resynch(hart_id_t hart, const rv_instr_group_t& d);
   void resynch(hart_id_t hart, const rv_instr_t& d);
   std::string get_nth_word(const std::string& s, int n);
 
@@ -127,6 +130,7 @@ private:
   int xlen_ = 0;
   int vlen_ = 0;
   CacCore cac_;
+  CacCore csr_cac_;
 
   // Previous instruction's whisper state
   whisper_state_t pw_{};
