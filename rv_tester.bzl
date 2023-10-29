@@ -21,7 +21,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
         ],
         deps = [
             topology + "_sv",
-	    "@axi//:axi",
+	    "@opensrc-axi//:axi",
         ],
         visibility = visibility,
     )
@@ -86,9 +86,9 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             name + "_pmu_sv",
             name + "_dm_model_sv",
             name + "_axi_sw_sv",
-            "@axi_llc//:axi_llc",
-            "@axi//:axi",
-            "@tech_cells_generic//:tech_cells_generic"
+            "@opensrc-axi_llc//:axi_llc",
+            "@opensrc-axi//:axi",
+            "@opensrc-tech_cells_generic//:tech_cells_generic"
         ] + select({
           "@rv_tester//:cosim_off": ["@rv_tester//:no_cosim"],
           "//conditions:default":   [name + "_cosim_sv"],

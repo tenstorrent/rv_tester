@@ -1,6 +1,6 @@
 load("@checkin-script//:deps3.bzl", "checkin_script_deps3")
-load("@apb-wrapper//:defs.bzl", "apb_wrapper_repositories")
+load("@opensrc-axi_llc//:defs3.bzl", "opensrc_axi_llc_repositories3")
 
 def rv_tester_dependencies3():
     checkin_script_deps3()
-    apb_wrapper_repositories()
+    opensrc_axi_llc_repositories3()
