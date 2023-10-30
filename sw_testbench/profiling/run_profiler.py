@@ -170,7 +170,7 @@ class GperftoolsProfiler(Profiler):
 # TODO(mboisvert): Figure out why the wall clock profiler isn't working when run from Python
 class WallClockProfiler(Profiler):
     def setup(self):
-        self.profiler_cmds.append(Command(arg_list=self.bazel_wrap_cmd + ["build", "@wall_clock_profiler//:wall_clock_profiler"]))
+        self.profiler_cmds.append(Command(arg_list=self.bazel_wrap_cmd + ["build", "@opensrc-wall_clock_profiler//:wall_clock_profiler"]))
         new_profiler_path = os.path.join(self.rv_tester_path, "wall_clock_profiler")
         self.profiler_cmds.append(Command(arg_list=["mv", "bazel-bin/external/wall_clock_profiler/wall_clock_profiler", new_profiler_path]))
         self.profiler_cmds.append(Command(arg_list=self.bzsim_run_cmd + self.common_sim_opts + ["--"] + self.common_plusargs + ["+sim_wrap={}".format(new_profiler_path), "+sim_wrap={}".format(self.args.samples_per_second)]))
