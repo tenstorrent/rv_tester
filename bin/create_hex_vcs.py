@@ -2,19 +2,37 @@ import os
 import json
 import math
 import pandas as pd
+import argparse
+
+# Initialize parser
+parser = argparse.ArgumentParser()
+ 
+# Adding optional argument
+
+parser.add_argument("-output_folder", "--opf", help = "output folder")
+parser.add_argument("-input_folder", "--ipf", help = "input folder")
+parser.add_argument("-addr_width", "--aw", help = "address width")
+parser.add_argument("-no_cache_lines", "--cl", help = "number of cache lines")
+parser.add_argument("-no_of_ways", "--nw", help = "set associativity")
+parser.add_argument("-data_width", "--dw", help = "data width")
+parser.add_argument("-number_of_blocks", "--nb", help = "number of blocks per cache line")
+
+ 
+# Read arguments from command line
+args = parser.parse_args()
 
 #Directory containing hex files
 
-input_folder_path = "/proj_risc/user_dev/apatil/latest_rv_tester9/risc-p-cores/test2/"
-output_folder_path = "/proj_risc/user_dev/apatil/latest_rv_tester9/risc-p-cores/output2/"
+input_folder_path = args.ipf
+output_folder_path = args.opf
 
 #cache paramters
 
-addr_width = 64
-no_of_cache_lines = 128
-no_of_ways = 4 
-data_width = 64
-number_of_blocks = 4
+addr_width = int(args.aw)
+no_of_cache_lines = int(args.cl)
+no_of_ways = int(args.nw)
+data_width = int(args.dw)
+number_of_blocks = int(args.nb)
 
 
 #cache line size
