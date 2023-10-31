@@ -14,7 +14,7 @@ def rv_tester_repositories():
         #sha256 = "af87959afe497dc8dfd4c6cb66e1279cb98ccc84284619ebfec27d9c09a903de",
     )
 
-    corearchcoverage_hash="9dd6e25498b0a566faec145aafd92c8866c5af3f"
+    corearchcoverage_hash="16ea3e46350a03d34c0067afacfd3d6513d9879a"
     maybe(
         git_repository,
         name = "corearchcoverage",
@@ -32,22 +32,12 @@ def rv_tester_repositories():
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/{commit}/cvm-{commit}.tar.bz2".format(commit=cvm_hash),
     )
 
-
+    opensrc_nlohmann_json_hash="ece38f1883dd1e59c498c63b8f53c3b4bcbc593c"
     maybe(
-        http_archive,
-        name = "nlohmann_json",
-        url = "https://aus-gitlab.local.tenstorrent.com/riscv/forks/nlohmann-json/-/archive/v3.11.2/nlohmann-json-v3.11.2.tar.gz",
-        strip_prefix = "nlohmann-json-v3.11.2",
-        sha256 = "be269122c74edb6b92371a816d7c358c00aec948219f049e8152d4c23548b1ec",
-        build_file_content = """
-cc_library(
-    name = "json",
-    hdrs = glob(["single_include/nlohmann/json.hpp"]),
-    strip_include_prefix = "single_include/",
-    linkopts = ["-lpthread"],
-    visibility = ["//visibility:public"],
-)
-    """
+        git_repository,
+        name = "opensrc-nlohmann-json",
+        commit = opensrc_nlohmann_json_hash,
+        remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-nlohmann-json.git",
     )
 
     whisper_hash="0990297d6c408b28869f75f7a5d40518b41d3876"
@@ -85,13 +75,12 @@ cc_library(
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/mem-manager/-/archive/{commit}/mem-manager-{commit}.tar.bz2".format(commit=mem_manager_hash),
     )
 
-    wall_clock_profiler_hash="2b1f62c002734bbd8673204fe38213cdda43219e"
+    opensrc_wall_clock_profiler_hash="5b175bb980de9b42591b2edd0e59958ced207aef"
     maybe(
-        http_archive,
-        name = "wall_clock_profiler",
-        sha256 = "d897f412069f005d10cd2e339bcc2e5dfd085da99887f61e629ed9303a6185a8",
-        strip_prefix = "wall_clock_profiler-{commit}".format(commit=wall_clock_profiler_hash),
-        url = "https://aus-gitlab.local.tenstorrent.com/mboisvert/wall_clock_profiler/-/archive/{commit}/wall_clock_profiler-{commit}.tar.bz2".format(commit=wall_clock_profiler_hash),
+        git_repository,
+        name = "opensrc-wall_clock_profiler",
+        commit = opensrc_wall_clock_profiler_hash,
+        remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-wall_clock_profiler.git",
     )
 
     checkin_script_hash="ddae2a510ebc0caad205e1b611d4701a4424e5ad"
@@ -103,30 +92,11 @@ cc_library(
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/checkin-script.git",
     )
 
-    axi_wrapper_hash="a52e72be2790e51f2e38a78b3e134983430c7129"
+    opensrc_axi_llc_hash="06ec29238ac414db3065b203d6c98a6a996a37ab"
     maybe(
         git_repository,
-        name = "axi-wrapper",
-        commit = axi_wrapper_hash,
-        shallow_since = "1695754616 +0000",
-        remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/axi-wrapper.git",
-    )
-
-    axi_llc_wrapper_hash="6a649aa48b80dcbf24f2fd526bf2720404c23f46"
-    maybe(
-        git_repository,
-        name = "axi_llc-wrapper",
-        commit = axi_llc_wrapper_hash,
+        name = "opensrc-axi_llc",
+        commit = opensrc_axi_llc_hash,
         shallow_since = "1695756617 +0000",
-        remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/axi_llc-wrapper.git",
+        remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-axi_llc.git",
     )
-
-    common_cells_wrapper_hash="be8b4b591b8c0b6c357cfdf07339c579e8128220"
-    maybe(
-        git_repository,
-        name = "common_cells-wrapper",
-        commit = common_cells_wrapper_hash,
-        shallow_since = "1695140622 -0500",
-        remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/common_cells-wrapper.git",
-    )
-

@@ -118,7 +118,9 @@ cvm::messenger::task<void> axi::operator()() {
             co_return;
         }
 
-        if (a.w && w_q_.empty()) {
+        addr_t burst_len            = a.len + 1;
+
+        if (a.w && w_q_.size() < burst_len) {
             co_return;
         }
 
@@ -126,7 +128,6 @@ cvm::messenger::task<void> axi::operator()() {
 
         id_t id                     = a.id;
         addr_t num_bytes            = 1 << a.size;
-        addr_t burst_len            = a.len + 1;
         addr_t aligned_addr         = a.addr / num_bytes * num_bytes;
         data_width_t data_bus_bytes = data_width()/8;
 

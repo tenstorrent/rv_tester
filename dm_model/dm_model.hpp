@@ -145,16 +145,19 @@ private:
   // cvm::file_logger log;
   uint32_t sent_count = 0, resp_count =0;
 
-  static const unsigned datasize = 2; //Number of data registers
+  //static const unsigned datasize = 2; //Number of data registers
+  static const unsigned datasize = 12; //Number of data registers
   debug_module_config_t config = {16, false, 0, true, true, true, false, false};
 
   // Actual size of the program buffer, which is 1 word bigger than we let on
   // to implement the implicit ebreak at the end.
   unsigned program_buffer_bytes;
+  //static const unsigned debug_data_start = 0x380;
   static const unsigned debug_data_start = 0x380;
   unsigned debug_progbuf_start;
 
-  static const unsigned debug_abstract_size = 10;
+  //static const unsigned debug_abstract_size = 10;
+  static const unsigned debug_abstract_size = 15;
   unsigned debug_abstract_start;
   // R/W this through custom registers, to allow debuggers to test that
   // functionality.

@@ -77,6 +77,11 @@ public:
     return q.empty();
   }
 
+  size_t size(void) {
+    std::unique_lock<std::mutex> lock(m);
+    return q.size();
+  }
+
   T& front(void) {
     std::unique_lock<std::mutex> lock(m);
     return q.front();

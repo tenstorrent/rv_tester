@@ -21,6 +21,7 @@ import rv_tester_params::*;
         logic [topology.TOP.PLATFORM.AXI.ADDR_WIDTH-1:0] end_addr;
       } xbar_rule_t;
     
+    logic bypass_mem = 1;
     logic bypass_cache = 1;
 
     if (EXTERNAL_CLOCK) begin
@@ -131,6 +132,7 @@ import rv_tester_params::*;
             flush_timeout       <= cvm_plusargs::get_int("flush_timeout");
             call_finish         <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
             gen_clocks          <= cvm_verbosity >= gen_clocks_verbosity;
+            bypass_mem          <= cvm_plusargs::get_bool("bypass_mem") != '0;
             bypass_cache        <= cvm_plusargs::get_bool("bypass_cache") != '0;
 
             $display("[RVTESTER]: reconstructing registry");
@@ -157,23 +159,26 @@ import rv_tester_params::*;
         automatic logic shutdowned = '0;
 
         if (terminate_now && !terminated) begin
- 
+
             if (quiesced) begin
                 $display("<%0d> [RVTESTER]: exiting gracefully", clocks);
             end else if (quiesce_counter == 0) begin
                 $display("<%0d> [RVTESTER]: exiting immediately because +quiesce_counter=0", clocks);
             end else begin
-                $display("<%0d> Error: Waiting to quiesce for more than %0d cycles", clocks, quiesce_timeout);
+                $display("<%0d> [RVTESTER]: Error: Waiting to quiesce for more than %0d cycles", clocks, quiesce_timeout);
             end
 
             shutdowned = rv_tester_shutdown_registry() != '0;
 
             if (!shutdowned) begin
-                $display("<%0d> Could not shutdown, trying again next cycle", clocks);
+                $display("<%0d> [RVTESTER]: Could not shutdown, trying again next cycle", clocks);
             end
 
-            if (shutdowned && call_finish && num_reruns == '0) begin
-                $finish();
+            if (shutdowned && num_reruns == '0) begin
+                $display("INFO_PASS:{\"clocks\": %0d}", clocks);
+                if (call_finish) begin
+                    $finish();
+                end
             end
 
         end
@@ -323,8 +328,8 @@ import rv_tester_params::*;
     assign tx_dom_1.logger_cycle_0s[0][0].data.location = location;
     assign tx_dom_1.logger_cycle_0s[0][0].data.clock = clocks;
  
-    localparam no_of_masters = ( topology.TOP.PLATFORM.AXI.TOTAL < 2 ) ? 2 : topology.TOP.PLATFORM.AXI.TOTAL ;
-    for (genvar p = 0; p < no_of_masters; p++) begin : axi_sw_slvs
+    localparam NoOfMasters = ( topology.TOP.PLATFORM.AXI.TOTAL < 2 ) ? 2 : topology.TOP.PLATFORM.AXI.TOTAL ;
+    for (genvar p = 0; p < NoOfMasters; p++) begin : axi_sw_slvs
         axi_sw #(
             .ADDR_WIDTH(topology.TOP.PLATFORM.AXI.ADDR_WIDTH),
             .DATA_WIDTH(topology.TOP.PLATFORM.AXI.DATA_WIDTH),
@@ -520,34 +525,28 @@ import rv_tester_params::*;
     `AXI_TYPEDEF_RESP_T(mst_resp_rv, mst_b_chan_rv, mst_r_chan_rv)
     `AXI_TYPEDEF_RESP_T(slv_resp_rv, slv_b_chan_rv, slv_r_chan_rv)
 
-    mst_req_rv axi_req_llc [no_of_masters-1:0];
-    mst_resp_rv axi_rsp_llc [no_of_masters-1:0];
+    mst_req_rv axi_req_llc [NoOfMasters-1:0];
+    mst_resp_rv axi_rsp_llc [NoOfMasters-1:0];
 
-    xbar_rule_t [NoAddrRules-1:0] AddrMap, AddrMap_final;
-    xbar_rule_t [NoAddrRules-1:0] AddrMap_bypass =  addr_map_gen();
+    xbar_rule_t [NoAddrRules-1:0] addr_map, addr_map_final, addr_map_idx1;
+
     function automatic void rv_tester_set_address_map(int unsigned i, longint unsigned start_addr, longint unsigned end_addr, int unsigned device);
         localparam int unsigned AW = topology.TOP.PLATFORM.AXI.ADDR_WIDTH;
-        AddrMap[i] = '{
-            idx       : 1/*device*/         ,
+        addr_map[i] = '{
+            idx       : device         ,
             start_addr: AW'(start_addr),
             end_addr  : AW'(end_addr  )
         };
-    endfunction
 
-    function xbar_rule_t [NoAddrRules-1:0] addr_map_gen ();
-        for( int unsigned i=0;i<no_of_masters;i++) begin
-            AddrMap_bypass[i] = xbar_rule_t'{
-                idx:        unsigned'(i),
-		/* verilator lint_off WIDTH */
-                start_addr:  i    * 32'h0000_0001,
-                end_addr:   (i+1) * 32'h0000_0001,
-		/* verilator lint_on WIDTH */
-                default:    '0
+        addr_map_idx1[i] = '{
+            idx       : 1              ,
+            start_addr: AW'(start_addr),
+            end_addr  : AW'(end_addr  )
         };
-        end
+
     endfunction
 
-    assign AddrMap_final = (bypass_cache == 0)?AddrMap:AddrMap_bypass;
+    assign addr_map_final = (bypass_cache == 0)?addr_map:addr_map_idx1;
 
     export "DPI-C" function rv_tester_set_address_map;
 
@@ -567,7 +566,7 @@ import rv_tester_params::*;
         .mst_resp_t             ( mst_resp_rv ),
 	.rule_t			( xbar_rule_t ),
 	.NoAddrRules		( NoAddrRules ),
-	.NumMastersMem		( no_of_masters )
+	.NumMastersMem		( NoOfMasters )
     ) rv_tester_mem(
         .clk                    ( clk ),
         .rst_n                  ( ~reset ),
@@ -575,8 +574,8 @@ import rv_tester_params::*;
         .axi_resp_up            ( axi_rsp ),
         .axi_req_mst_up         ( axi_req_llc ),
         .axi_resp_mst_up        ( axi_rsp_llc ),
-	.addr_map		( AddrMap_final ),
-        .bypass_cache		( bypass_cache ),
+	.addr_map		( addr_map_final ),
+        .bypass_mem		( bypass_mem ),
 	.flush_cache		( quiesced ),
 	.flush_complete		( flush_complete ),
 	.bist_status_done	()
