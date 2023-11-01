@@ -92,6 +92,7 @@ typedef struct vr_s {
 
 typedef struct csr_s {
   bool valid;
+  uint32_t hart;
   uint64_t cycle;
   uint32_t csr_addr;
   uint64_t csr_wmask;
@@ -101,8 +102,9 @@ typedef struct csr_s {
     clear();
   }
 
-  constexpr csr_s(bool valid, uint64_t cycle, uint32_t addr, uint64_t mask, uint64_t data) :
+  constexpr csr_s(bool valid, uint32_t hart, uint64_t cycle, uint32_t addr, uint64_t mask, uint64_t data) :
     valid(valid),
+    hart(hart),
     cycle(cycle),
     csr_addr(addr),
     csr_wmask(mask),

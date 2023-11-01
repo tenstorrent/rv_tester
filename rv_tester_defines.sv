@@ -26,6 +26,7 @@ package rv_tester_params;
     parameter VALEN = mods.TOP.PLATFORM.VALEN;
     parameter PALEN = mods.TOP.PLATFORM.PALEN;
     parameter CLLEN = mods.TOP.PLATFORM.CLLEN;
+    parameter CSRLEN = mods.TOP.PLATFORM.CSRLEN;
 
     // --------------------------------------
     // AXI interface
@@ -236,6 +237,10 @@ package rv_tester_params;
         logic                       vrd_valid;
         logic [5-1:0]               vrd_addr ;
         logic [VLEN-1:0]            vrd_wdata;
+        logic                       csr_valid;
+        logic [CSRLEN-1:0]          csr_addr ;
+        logic [XLEN-1:0]            csr_wdata;
+        logic [XLEN-1:0]            csr_wmask;
         logic [VALEN-1:0]           pc_rdata ;
         logic [VALEN-1:0]           pc_wdata ;
         logic [VALEN-1:0]           mem_addr ;
@@ -280,10 +285,7 @@ package rv_tester_params;
     // --------------------------------------
     // CSRI - Control Status Registers
     // --------------------------------------
-    parameter CSRLEN = mods.TOP.PLATFORM.CSRLEN;
-
     typedef enum {
-        MIP,
         FCSR,
         CSR_COUNT
     } csr_list_t;

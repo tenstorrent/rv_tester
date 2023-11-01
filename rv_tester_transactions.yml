@@ -72,6 +72,14 @@ cosim:
                 width: 5
             vrd_wdata:
                 width: ${TOP.PLATFORM.VLEN}
+            csr_valid:
+                width: 1
+            csr_addr:
+                width: ${TOP.PLATFORM.CSRLEN}
+            csr_wdata:
+                width: ${TOP.PLATFORM.XLEN}
+            csr_wmask:
+                width: ${TOP.PLATFORM.XLEN}
             pc_rdata:
                 width: ${TOP.PLATFORM.VALEN}
             pc_wdata:

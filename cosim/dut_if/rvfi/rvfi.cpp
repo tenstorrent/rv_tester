@@ -93,14 +93,19 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   exit_debug_mode(instr);
 
   // Send instruction group with information that cannot be
-  // correlated with precise instruction boundaries (like csr writes)
+  // correlated with precise instruction boundaries (like hw non-zicsr csr updates)
   instrs_.push_back(instr);
   if (m_rvfi.last_insn) {
     rv_instr_group_t group;
     group.cycle = instr.cycle;
     group.instrs = instrs_;
     group.csrs = csrs_;
+
+    for (auto & c : csrs_)
+      print_csr(c);
+
     send_instr_group(instr.hart, group);
+
     instrs_.clear();
     csrs_.clear();
   }
@@ -205,6 +210,12 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.vr.vrd_addr = m_rvfi.vrd_addr;
   instr.vr.vrd_wdata = m_rvfi.vrd_wdata;
 
+  // CSR
+  if (m_rvfi.csr_valid) {
+    csr_t c {true, m_rvfi.hart, m_rvfi.cycle, m_rvfi.csr_addr, m_rvfi.csr_wmask, m_rvfi.csr_wdata};
+    instr.csr.push_back(c);
+  }
+
   // tlb
   instr.mem_va = m_rvfi.mem_addr;
   instr.mem_pa = m_rvfi.mem_paddr;
@@ -250,6 +261,10 @@ std::tuple<uint64_t, uint64_t, uint8_t> rvfi::get_mem_attributes(uint64_t addr, 
   return std::make_tuple(aligned_addr, aligned_data, size);
 }
 
+void rvfi::print_csr(csr_t& csr) {
+  log(cvm::NONE, "#{} {} {} 3 {:016x} {:09x} c {:016x} {:016x} {:016x}\n", count_, csr.cycle, csr.hart, 0, 0, csr.csr_addr, csr.csr_wdata, csr.csr_wmask);
+}
+
 void rvfi::print_instr(rv_instr_t& instr) {
   if (!FLAGS_rvfi_log) {
     return;
@@ -284,7 +299,7 @@ void rvfi::print_instr(rv_instr_t& instr) {
     print_instr_resource(instr, fmt::format(" m {:016x} {:016x}", instr.mem_write.va, instr.mem_write.data));
 
   for (auto& c : instr.csr)
-    print_instr_resource(instr, fmt::format(" c {:016x} {:016x}", c.csr_addr, c.csr_wdata));
+    print_instr_resource(instr, fmt::format(" c {:016x} {:016x} {:016x}", c.csr_addr, c.csr_wdata, c.csr_wmask));
 }
 
 void rvfi::print_instr_resource(rv_instr_t& instr, std::string resource_str) {
@@ -378,7 +393,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_csri<>& m_csri) {
   if (!FLAGS_csr_check)
     return;
 
-  csr_t c {true, m_csri.cycle, m_csri.addr, m_csri.data, m_csri.mask};
+  csr_t c {true, m_csri.hart, m_csri.cycle, m_csri.addr, m_csri.mask, m_csri.data};
   csrs_.push_back(c);
 }
 

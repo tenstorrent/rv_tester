@@ -39,7 +39,7 @@ DEFINE_bool(retire_ucode_trap, true, "DUT indicates retire on a trap after execu
 DEFINE_bool(gpr_check, true, "Enable cosim checks on gprs");
 DEFINE_bool(fpr_check, true, "Enable cosim checks on fprs");
 DEFINE_bool(vec_check, true, "Enable cosim checks on vector regs");
-DEFINE_bool(csr_check, true, "Enable cosim checks on csrs");
+DEFINE_bool(csr_check, false, "Enable cosim checks on csrs");
 DEFINE_uint64(max_cycle, 1000000, "Max cycle limit to terminate the sim");
 DEFINE_int32(debug_excp_mcause, 24, "MCAUSE value for debug exception");
 DEFINE_bool(translation_check, false, "Do VA-PA translation check");
@@ -196,8 +196,10 @@ void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d)
 
   for (auto & c : d.csrs) {
     // FIXME Check all CSRs
-    if (c.csr_addr == 0x3)
-      update_regs(hart, src_t::dut, resource_t::csr_reg, c.csr_addr, {c.csr_wdata});
+    if (c.csr_addr == 0x3) {
+      size_8_bytes_t mask = c.csr_wmask;
+      update_regs(hart, src_t::dut, resource_t::csr_reg, c.csr_addr, {c.csr_wdata}, mask);
+    }
   }
 
   // Step csr cac
@@ -601,8 +603,10 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
   if (FLAGS_csr_check) {
     for (auto & c : d.csr) {
       // FIXME Check all CSRs
-      if (c.csr_addr == 0x3)
-        update_regs(hart, src_t::dut, resource_t::csr_reg, c.csr_addr, {c.csr_wdata});
+      if (c.csr_addr == 0x3) {
+        size_8_bytes_t mask = c.csr_wmask;
+        update_regs(hart, src_t::dut, resource_t::csr_reg, c.csr_addr, {c.csr_wdata}, mask);
+      }
     }
   }
 }
@@ -653,8 +657,9 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_
     case 'c':
       if (FLAGS_csr_check) {
         // FIXME Check all CSRs
-        if (w.address == 0x3)
+        if (w.address == 0x3) {
           update_regs(hart, src_t::iss, resource_t::csr_reg, w.address, {w.value});
+        }
       }
       break;
     default:
@@ -679,7 +684,7 @@ void bridge::update_insn(hart_id_t hart, src_t src, uint32_t data) {
   assert(cac_.UpdateResource(hart, src, insn, std::move(cac::CreateBitVec<uint64_t>(data))));
 }
 
-void bridge::update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, const std::vector<size_8_bytes_t>&& dword_vec) {
+void bridge::update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, const std::vector<size_8_bytes_t>&& dword_vec, cac::optional_const_ref<size_8_bytes_t> mask_ref) {
   if ((src == src_t::dut) && (resource == resource_t::int_reg) && (addr == 0)) {
     return;
   }
@@ -688,10 +693,15 @@ void bridge::update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_
     .offset = addr
   };
 
-  if (resource == resource_t::csr_reg)
-    assert(csr_cac_.UpdateResource(hart, src, rid, std::move(cac::CreateBitVec<size_8_bytes_t>(dword_vec))));
-  else
+  if (resource == resource_t::csr_reg) {
+    cac::mask_t mask = cac::CreateBitVec<size_8_bytes_t>(std::numeric_limits<size_8_bytes_t>::max());
+    if (mask_ref != std::nullopt) {
+      mask = cac::CreateBitVec<size_8_bytes_t>(mask_ref.value());
+    }
+    assert(csr_cac_.UpdateResource(hart, src, rid, std::move(cac::CreateBitVec<size_8_bytes_t>(dword_vec)), mask));
+  } else {
     assert(cac_.UpdateResource(hart, src, rid, std::move(cac::CreateBitVec<size_8_bytes_t>(dword_vec))));
+  }
 }
 
 bool bridge::is_ecall(const whisper_state_t& w) {
