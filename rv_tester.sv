@@ -288,6 +288,7 @@ import rv_tester_params::*;
           .dut_reset(reset),
           .clocks,
           .rvfi(rvfi[NRETS_CUMSUM[c] +: NRETS[c]]),
+          .csri(csri[c]),
           .mcmi_read(mcmi_read[NREADS_CUMSUM[c] +: NREADS[c]]),
           .mcmi_insert(mcmi_insert[NINSERTS_CUMSUM[c] +: NINSERTS[c]]),
           .mcmi_write(mcmi_write[NWRITES_CUMSUM[c] +: NWRITES[c]]),

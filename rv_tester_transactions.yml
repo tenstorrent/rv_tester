@@ -11,6 +11,21 @@ cosim:
             count:
                 width: 32
 
+    m_csri:
+        domain: 1
+        num: ${TOP.PLATFORM.NCSR}
+        fields:
+            cycle:
+                width: 64
+            hart:
+                width: 32
+            addr:
+                width: ${TOP.PLATFORM.CSRLEN}
+            mask:
+                width: ${TOP.PLATFORM.XLEN}
+            data:
+                width: ${TOP.PLATFORM.XLEN}
+
     m_rvfi:
         domain: 1
         num: ${max(TOP.PLATFORM.COSIM.RVFI.NRETS)}
@@ -20,6 +35,8 @@ cosim:
             hart:
                 width: 32
             last_uop:
+                width: 1
+            last_insn:
                 width: 1
             comp:
                 width: 1
@@ -55,6 +72,14 @@ cosim:
                 width: 5
             vrd_wdata:
                 width: ${TOP.PLATFORM.VLEN}
+            csr_valid:
+                width: 1
+            csr_addr:
+                width: ${TOP.PLATFORM.CSRLEN}
+            csr_wdata:
+                width: ${TOP.PLATFORM.XLEN}
+            csr_wmask:
+                width: ${TOP.PLATFORM.XLEN}
             pc_rdata:
                 width: ${TOP.PLATFORM.VALEN}
             pc_wdata:

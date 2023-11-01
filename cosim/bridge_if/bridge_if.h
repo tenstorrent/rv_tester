@@ -92,6 +92,8 @@ typedef struct vr_s {
 
 typedef struct csr_s {
   bool valid;
+  uint32_t hart;
+  uint64_t cycle;
   uint32_t csr_addr;
   uint64_t csr_wmask;
   uint64_t csr_wdata;
@@ -99,6 +101,15 @@ typedef struct csr_s {
   csr_s() {
     clear();
   }
+
+  constexpr csr_s(bool valid, uint32_t hart, uint64_t cycle, uint32_t addr, uint64_t mask, uint64_t data) :
+    valid(valid),
+    hart(hart),
+    cycle(cycle),
+    csr_addr(addr),
+    csr_wmask(mask),
+    csr_wdata(data)
+  {}
 
   void clear() {
     valid = false;
@@ -194,6 +205,21 @@ typedef struct rv_instr_s {
     csr.clear();
   }
 } rv_instr_t;
+
+typedef struct rv_instr_group_s {
+  uint64_t cycle = 0;
+  std::vector<rv_instr_t> instrs;
+  std::vector<csr_t> csrs;
+
+  rv_instr_group_s() {
+    clear();
+  }
+
+  void clear() {
+    instrs.clear();
+    csrs.clear();
+  }
+} rv_instr_group_t;
 
 typedef struct rv_debug_s {
   bool enter;

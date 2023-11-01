@@ -43,6 +43,8 @@ class rvfi {
     void process(const rv_tester_transactions::cosim::m_intr<>& m_intr);
     void process(const rv_tester_transactions::cosim::m_debug<>& m_debug);
 
+    void process(const rv_tester_transactions::cosim::m_csri<>& m_csri);
+
     // FIXME Move out to a different file?
     void process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_read);
     void process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_insert);
@@ -54,9 +56,11 @@ class rvfi {
     std::tuple<uint64_t, uint64_t, uint8_t> get_mem_attributes(uint64_t addr, uint8_t mask, uint64_t data);
 
     void make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_instr_t& instr);
+    void print_csr(csr_t& csr);
     void print_instr(rv_instr_t& instr);
     void print_instr_resource(rv_instr_t& instr, std::string resource_str);
     void send_instr(rv_instr_t& instr);
+    void send_instr_group(hart_id_t hart, rv_instr_group_t& group);
     void enter_debug_mode(rv_instr_t& instr);
     void exit_debug_mode(rv_instr_t& instr);
 
@@ -78,6 +82,9 @@ class rvfi {
     bool excp_ = false;
     uint64_t icause_ = 0;
     uint64_t ecause_ = 0;
+
+    std::vector<rv_instr_t> instrs_;
+    std::vector<csr_t> csrs_;
 
     svScope scope_;
 
