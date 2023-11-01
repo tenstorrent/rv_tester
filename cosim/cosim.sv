@@ -146,6 +146,7 @@ import rv_tester_params::*;
         assign m_mcmi_bypass_writes[n].data.location = location;
         assign m_mcmi_bypass_writes[n].data.cycle = mcmi_bypass_write[n].valid ? clocks : '0;
         assign m_mcmi_bypass_writes[n].data.hart = NUM;
+        assign m_mcmi_bypass_writes[n].data.order = mcmi_bypass_write[n].order;
         assign m_mcmi_bypass_writes[n].data.addr = mcmi_bypass_write[n].addr;
         assign m_mcmi_bypass_writes[n].data.mask = mcmi_bypass_write[n].mask;
         assign m_mcmi_bypass_writes[n].data.data = mcmi_bypass_write[n].data[63:0];
