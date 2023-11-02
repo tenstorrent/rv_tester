@@ -48,12 +48,11 @@ void trickbox::read(const transactor::read_t& r, data_t& data) {
 
   for (auto& d : subdevices_) {
     d->read_dev(addr,length,data);
+    cvm::log (cvm::HIGH,"TRICKBOX READ::::: ADDR:{:#x} \n",addr);
+    cvm::log (cvm::HIGH,"TRICKBOX READ::::: DATA byte 0:{:#x} \n",(uint32_t)data[0]);
+    cvm::log (cvm::HIGH,"TRICKBOX READ::::: DATA byte 1:{:#x} \n",(uint32_t)data[1]);
+    cvm::log (cvm::HIGH,"TRICKBOX READ::::: DATA byte 2:{:#x} \n",(uint32_t)data[2]);
   }
-
-  cvm::log (cvm::HIGH,"TRICKBOX READ::::: ADDR:{:#x} \n",addr);
-  cvm::log (cvm::HIGH,"TRICKBOX READ::::: DATA byte 0:{:#x} \n",(uint32_t)data[0]);
-  cvm::log (cvm::HIGH,"TRICKBOX READ::::: DATA byte 1:{:#x} \n",(uint32_t)data[1]);
-  cvm::log (cvm::HIGH,"TRICKBOX READ::::: DATA byte 2:{:#x} \n",(uint32_t)data[2]);
 
   return;
 }

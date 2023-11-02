@@ -18,8 +18,14 @@ uc_helper::uc_helper(const std::string& tag, uint64_t addr, unsigned, cvm::topol
 
 
 cvm::messenger::task<void>
-uc_helper::read(uint64_t addr, size_t, data_t&)
+uc_helper::read(uint64_t addr, size_t length, data_t& data)
 {
+mem::datum_t m_data;
+  m_.read(addr, 1, &m_data);
+  uint32_t word = (uint32_t)m_data;
+  cvm::log(cvm::HIGH, "[UC_HELPER] COROUTINE read read addr {:#x} data {:#x} \n",addr,word);
+  serializeInt(word, length, data);
+
   co_return;
 }
 
@@ -27,11 +33,19 @@ uc_helper::read(uint64_t addr, size_t, data_t&)
 void
 uc_helper::read_dev(uint64_t addr, size_t length, data_t& data)
 {
+  
+ if (not has_addr(addr)){
+    cvm::log(cvm::HIGH, "[UC_HELPER] Descarding read request at uc_helper since tag {} is not matching \n",tag());
+   return;
+  }
   mem::datum_t m_data;
-  m_.read(addr, 1, &m_data);
+  m_.read(addr, length, &m_data);
   uint32_t word = (uint32_t)m_data;
+  data = (data_t)m_data;
   cvm::log(cvm::HIGH, "[UC_HELPER] read_dev read addr {:#x} data {:#x} \n",addr,word);
   serializeInt(word, length, data);
+  for (unsigned i = 0; i < length; i++)
+      cvm::log(cvm::HIGH, "[UC_HELPER] read_dev for loop Read data  {:#x} \n",(uint32_t)data[i]);
   return;
 }
 
@@ -68,8 +82,6 @@ void
 
    if(addr==uc_helper_base)
    {
-     // ip_data = (datum_t)t_data;
-     //m_.write(addr, 1, &ip_data);
 
      if(t_data>0){
        cvm::log(cvm::ERROR, "[UC_Helper] Only Clearing of UC_helper Status allowed, Illegal to set status bit manually \n");
@@ -120,8 +132,8 @@ void
          if(FLAGS_debug_uc_helper){
            mem::datum_t m_data_p1;
            m_.read(tx_addr + i, 1, &m_data_p1);
-           std::cout<<"\n[UC_HELPER] reading data from mem_manager : "<<std::hex<<tx_addr<<" Data: "<< (uint32_t)m_data_p1<<"\n";
-           std::cout<<"\n[UC_HELPER] Printing data sent to sysmod sysmem address :"<<std::hex<<push_addr<<" Data : ";
+           std::cout<<"\n[UC_HELPER]DBG reading data from mem_manager : "<<std::hex<<tx_addr<<" Data: "<< (uint32_t)m_data_p1<<"\n";
+           std::cout<<"\n[UC_HELPER]DBG Printing data sent to sysmod sysmem address :"<<std::hex<<push_addr<<" Data : ";
            for (auto i: data_vec){
              std::cout << (unsigned )i << ' ';
            }
@@ -132,10 +144,38 @@ void
        tx_trigger = 1;
        mem::datum_t m_data_p1 = 0xff;
        m_.write(uc_helper_base,1,&m_data_p1);
-   
+       uint64_t poke_data = m_data_p1;
+       bool valid;
        cvm::log(cvm::HIGH, "[UC_HELPER] Init of Address Range Completed  \n");
-   
+       if (!client_->whisperPoke(hart, 0, 'm', uc_helper_base, poke_data, valid)) {
+          cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
+          return;
+        } 
        return;
+     }else if(addr ==(uc_helper_base + 0x400))
+     {
+     int hart = 0;
+     bool valid;
+      std::cout<<"UC_HELPER Backdoor read Addr =0x"<<std::hex<<tx_addr<<"\n";
+       mem::datum_t m_data_rd;
+       //data_t rd_data;
+       m_.read(tx_addr, 1, &m_data_rd);
+       //m_.read(tx_addr, 8, rd_data);
+       uint32_t word = (uint32_t)m_data_rd;
+       cvm::log(cvm::HIGH, "[UC_HELPER] BACKDOOR read_dev read addr {:#x} data {:#x} \n",tx_addr,word);
+       uint64_t poke_data = (uint64_t)m_data_rd;
+
+       m_.write(uc_helper_base,1,&m_data_rd);
+         //Poke same data to whisper memory        
+         if (!client_->whisperPoke(hart, 0, 'm', uc_helper_base, poke_data, valid)) {
+          cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
+          return;
+         }
+
+       m_.read(uc_helper_base, 1, &m_data_rd);
+        word = (uint32_t)m_data_rd;
+        cvm::log(cvm::HIGH, "[UC_HELPER] BACKDOOR read BASE addr {:#x} data {:#x} \n",uc_helper_base,word);
+
      }
 
  }
