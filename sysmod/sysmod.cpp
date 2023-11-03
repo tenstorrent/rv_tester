@@ -58,7 +58,6 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
             source,
             [this, source](const auto& r) {
                 cvm::log(cvm::HIGH, "new read request at {:#x}", r.addr);
-                std::cout<<"new read request at "<<std::hex<< r.addr<<"\n";
                 if (this->dev(r.addr)){
                     cvm::registry::messenger.signal<device::read_t>(this->loc_, {r, source});
               
