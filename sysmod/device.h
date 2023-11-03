@@ -5,7 +5,6 @@
 #include <functional>
 #include <fstream>
 #include <sstream>
-#include <iostream>
 #include "transactor.h"
 #include "cvm/registry.hpp"
 #include "cvm/messenger.hpp"
