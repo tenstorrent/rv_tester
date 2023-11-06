@@ -32,20 +32,11 @@ import rv_tester_params::*;
     end
 
     longint unsigned cpu_cycles = 0;
-    longint unsigned instructions = 0;
     longint unsigned pmcounter [EVENT_COUNT] = '{default:0};
 
     always @(posedge clk) begin
         if (!reset) begin
-            automatic longint unsigned total = 0;
-            // fold
-            for (integer n = 0; n < NRET; n++) begin
-                if (rvfi[n].valid) begin
-                    total++;
-                end
-            end
             cpu_cycles <= clocks;
-            instructions <= instructions + total;
             // Count supported events
             for (integer n = 0; n < EVENT_COUNT/2; n++) begin
               pmcounter[n] <= pmcounter[n] + {60'h0, pmci[n]};
@@ -64,7 +55,7 @@ import rv_tester_params::*;
     assign pmcounterss[0].valid = !reset && perf_enabled && (terminate || (sync & (cpu_cycles % period) == 0));
     assign pmcounterss[0].data.location = location;
     assign pmcounterss[0].data.cpu_cycles = cpu_cycles;
-    assign pmcounterss[0].data.instructions = instructions;
+    assign pmcounterss[0].data.instructions = pmcounter[INSTRUCTIONS];
     assign pmcounterss[0].data.cache_references = pmcounter[CACHE_REFERENCES];
     assign pmcounterss[0].data.cache_misses = pmcounter[CACHE_MISSES];
     assign pmcounterss[0].data.branch_instructions = pmcounter[BRANCH_INSTRUCTIONS];
