@@ -7,7 +7,6 @@
 #include "cvm/plusargs.hpp"
 #include "cvm/registry.hpp"
 #include "cvm/bitmanip.hpp"
-
 #include "dm_model.hpp"
 
 // Return the number of bits wide that a field has to be to encode up to n
@@ -139,16 +138,18 @@ void debug_module_t::process(const rv_tester_transactions::dm_model::dm_load_dat
     cvm::log(cvm::HIGH, "Seen a matching load response for the same id as the previous load request\n");
     uint64_t expected_load_data_to_check = cvm::bitmanip::slice<uint64_t>(expected_load_data, (load_req_length * 4 - 1), 0);
     uint64_t actual_load_data_to_check = cvm::bitmanip::slice<uint64_t>(dm_load_data.data, (load_req_length * 4 - 1), 0);
+    
     if (expected_load_data_to_check != actual_load_data_to_check){
-      if(load_req_addr==0x400 & reflow_flags==0){
+      if(load_req_addr==0x400 & reflow_flags==0 ){
         reflow_flags=1; 
-       cvm::log(cvm::HIGH, "Reflowing 0x400 read to allow DM to update state flag\n");
+        cvm::log(cvm::HIGH, "Reflowing 0x400 read to allow DM to update state flag\n");
         //#FIXME : If a cleaner way is possible
       }
       else {
-        reflow_flags=0; 
+        reflow_flags=0;
         cvm::log(cvm::ERROR, "[Error-Mismatch] The load data's are mismatching for Addr:{:#x} with Length:{:#x} ~~~ Actual:{:#x} vs Expected:{:#x}\n",load_req_addr,load_req_length,actual_load_data_to_check,expected_load_data_to_check);
       }
+      
     }
   }
 }
@@ -937,6 +938,7 @@ bool debug_module_t::perform_abstract_command()
       (size<3)? write32(debug_abstract,11,ld(S1,4,debug_data_start))    : write32(debug_abstract,11,ld(S1,8,debug_data_start));//Restore Arg1 into S1
       write32(debug_abstract,12,nop());
       write32(debug_abstract,13,ebreak());
+      cvm::log(cvm::HIGH, "Access Memory Write uCode update\n");
     }
     else
     {
@@ -957,7 +959,10 @@ bool debug_module_t::perform_abstract_command()
       write32(debug_abstract,8, csrr(S0, CSR_DSCRATCH0)); // restore S0 again from dscratch
       write32(debug_abstract,9,nop());
       write32(debug_abstract,10,ebreak());
+      cvm::log(cvm::HIGH, "Access Memory Read uCode update\n");
     }
+    debug_rom_flags[selected_hart_id()] |= 1 << DEBUG_ROM_FLAG_GO;
+    abstractcs.busy = true;
 
   }
   else
