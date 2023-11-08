@@ -592,7 +592,7 @@ bool debug_module_t::perform_abstract_command()
     bool transfer = get_field(command, AC_ACCESS_REGISTER_TRANSFER);
     bool unsupported_command = false;
 
-    if (size > 4)
+    if (size > 3)
     {
       abstractcs.cmderr = CMDERR_NOTSUP;
       return true;
