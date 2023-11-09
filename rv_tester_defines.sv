@@ -286,7 +286,20 @@ package rv_tester_params;
     // CSRI - Control Status Registers
     // --------------------------------------
     typedef enum {
-        FCSR,
+	SEPC,
+        SCAUSE,
+        VSEPC,
+        VSCAUSE,
+        MEPC,
+        MIP,
+        MCAUSE,
+        MSTATUS,
+        CXTVALSPEC,
+        CPRIV,
+        DCSR,
+        DPC,
+        CDTVEC,
+	FCSR,
         CSR_COUNT
     } csr_list_t;
 
