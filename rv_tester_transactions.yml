@@ -513,7 +513,7 @@ dm_model:
             id:
                 width: ${TOP.PLATFORM.AXI_MST.ID_WIDTH}
             data:
-                width: 64
+                width: 512
     dm_store:
         domain: 1
         num: 1

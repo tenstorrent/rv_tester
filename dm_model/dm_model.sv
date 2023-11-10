@@ -47,7 +47,7 @@ module dm_model #(
 
     assign dm_load_datas[0].valid = !reset && axi_resp_mst.r_valid;
     assign dm_load_datas[0].data.location = location;
-    assign dm_load_datas[0].data.data = axi_resp_mst.r.data[63:0];
+    assign dm_load_datas[0].data.data = axi_resp_mst.r.data;
     assign dm_load_datas[0].data.id = axi_resp_mst.r.id;
 
     assign dm_stores[0].valid = !reset && axi_req_mst.w_valid && axi_req_mst.aw_valid;

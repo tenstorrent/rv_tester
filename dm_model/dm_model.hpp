@@ -174,6 +174,8 @@ private:
   uint64_t expected_load_data;
   bool mem_load_check = false;
   uint8_t load_req_id;
+  std::bitset<64> sizer_slice_data;
+  // std::vector<bool> sizer_slice_data;
 
   std::map<size_t, std::unique_ptr<processor_t>> harts;
 

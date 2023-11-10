@@ -130,14 +130,21 @@ void debug_module_t::process(const rv_tester_transactions::dm_model::dm_load_cmd
 
 void debug_module_t::process(const rv_tester_transactions::dm_model::dm_load_data<> &dm_load_data)
 {
-  cvm::log(cvm::HIGH, "[{}] Got a load resp for the id:{:#x} and data:{:#x}\n", resp_count, dm_load_data.id, dm_load_data.data);
+  uint64_t sizer_slice_pos = cvm::bitmanip::slice<uint64_t>(load_req_addr, 5, 3);
+  for (int i=0;i<64;i++){
+      sizer_slice_data[i] = dm_load_data.data[sizer_slice_pos*64+i];
+    }
+  cvm::log(cvm::HIGH, "[{}] Got a load resp for the id:{:#x} and data:{:#x}\n", resp_count, dm_load_data.id, sizer_slice_data.to_ullong());
   resp_count++;
 
   if (load_req_id == dm_load_data.id)
   {
     cvm::log(cvm::HIGH, "Seen a matching load response for the same id as the previous load request\n");
     uint64_t expected_load_data_to_check = cvm::bitmanip::slice<uint64_t>(expected_load_data, (load_req_length * 4 - 1), 0);
-    uint64_t actual_load_data_to_check = cvm::bitmanip::slice<uint64_t>(dm_load_data.data, (load_req_length * 4 - 1), 0);
+    
+    
+
+    uint64_t actual_load_data_to_check = cvm::bitmanip::slice<uint64_t>(sizer_slice_data.to_ullong(), (load_req_length * 4 - 1), 0);
     
     if (expected_load_data_to_check != actual_load_data_to_check){
       if(load_req_addr==0x400 & reflow_flags==0 ){
@@ -902,7 +909,8 @@ bool debug_module_t::perform_abstract_command()
       abstractcs.cmderr = CMDERR_NOTSUP;
       return true;
     }
-
+    debug_rom_flags[selected_hart_id()] |= 1 << DEBUG_ROM_FLAG_GO;
+    abstractcs.busy = true;
     
     write32(debug_abstract, 0, nop()); // store a0 in dscratch1 if it exists, but our implementation doesn't allow it
     write32(debug_abstract, 4, csrw(S0, CSR_DSCRATCH0)); // store s0 in dscratch
@@ -961,8 +969,6 @@ bool debug_module_t::perform_abstract_command()
       write32(debug_abstract,10,ebreak());
       cvm::log(cvm::HIGH, "Access Memory Read uCode update\n");
     }
-    debug_rom_flags[selected_hart_id()] |= 1 << DEBUG_ROM_FLAG_GO;
-    abstractcs.busy = true;
 
   }
   else
