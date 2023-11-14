@@ -157,7 +157,7 @@ private:
   unsigned debug_progbuf_start;
 
   //static const unsigned debug_abstract_size = 10;
-  static const unsigned debug_abstract_size = 15;
+  static const unsigned debug_abstract_size = 14;
   unsigned debug_abstract_start;
   // R/W this through custom registers, to allow debuggers to test that
   // functionality.
@@ -174,6 +174,8 @@ private:
   uint64_t expected_load_data;
   bool mem_load_check = false;
   uint8_t load_req_id;
+  std::bitset<64> sizer_slice_data;
+  // std::vector<bool> sizer_slice_data;
 
   std::map<size_t, std::unique_ptr<processor_t>> harts;
 
@@ -192,6 +194,7 @@ private:
   dmstatus_t dmstatus;
   abstractcs_t abstractcs;
   abstractauto_t abstractauto;
+  bool reflow_flags;
   uint32_t command;
   std::vector<bool> hart_array_mask;
 

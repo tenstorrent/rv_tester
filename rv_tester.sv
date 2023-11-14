@@ -20,14 +20,14 @@ import rv_tester_params::*;
         logic [topology.TOP.PLATFORM.AXI.ADDR_WIDTH-1:0] start_addr;
         logic [topology.TOP.PLATFORM.AXI.ADDR_WIDTH-1:0] end_addr;
       } xbar_rule_t;
-    
+
     logic bypass_mem = 1;
     logic bypass_cache = 1;
 
     if (EXTERNAL_CLOCK) begin
         assign clk = clk_ext;
     end else begin
-        rv_tester_clkgen clkgen(.*);
+        rv_tester_clkgen #(.CLOCK_PERIOD_PS(CLOCK_PERIOD_PS)) clkgen(.*);
     end
 
     import "DPI-C" function int rv_tester_parse_flags(); // dummy return value so that this gets called immediately. need this to happen before any other DPIs are called.
@@ -288,6 +288,7 @@ import rv_tester_params::*;
           .dut_reset(reset),
           .clocks,
           .rvfi(rvfi[NRETS_CUMSUM[c] +: NRETS[c]]),
+          .csri(csri[c]),
           .mcmi_read(mcmi_read[NREADS_CUMSUM[c] +: NREADS[c]]),
           .mcmi_insert(mcmi_insert[NINSERTS_CUMSUM[c] +: NINSERTS[c]]),
           .mcmi_write(mcmi_write[NWRITES_CUMSUM[c] +: NWRITES[c]]),
@@ -327,7 +328,7 @@ import rv_tester_params::*;
     assign tx_dom_1.logger_cycle_0s[0][0].valid = gen_clocks;
     assign tx_dom_1.logger_cycle_0s[0][0].data.location = location;
     assign tx_dom_1.logger_cycle_0s[0][0].data.clock = clocks;
- 
+
     localparam NoOfMasters = ( topology.TOP.PLATFORM.AXI.TOTAL < 2 ) ? 2 : topology.TOP.PLATFORM.AXI.TOTAL ;
     for (genvar p = 0; p < NoOfMasters; p++) begin : axi_sw_slvs
         axi_sw #(
@@ -383,7 +384,7 @@ import rv_tester_params::*;
             .axi_slv_w_ready (axi_rsp_llc[p].w_ready),
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PORTS(2, p, 0)
         );
-    end	
+    end
 
     for (genvar p = 0; p < topology.TOP.PLATFORM.AXI_MST.TOTAL; p++) begin : axi_sw_msts
         axi_sw_mst #(

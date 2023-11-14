@@ -5,7 +5,6 @@
 #include <functional>
 #include <fstream>
 #include <sstream>
-#include <iostream>
 #include "transactor.h"
 #include "cvm/registry.hpp"
 #include "cvm/messenger.hpp"
@@ -48,9 +47,9 @@ class device {
           [read, dev] (const auto& r) {
               data_t data(r.r.length, 0);
               std::invoke(read, dev, r.r, data);
-              cvm::log(cvm::HIGH,"[DEVICE.H] Initiate Non Coroutine Read From {} \n",dev->tag());
+              cvm::log(cvm::DEBUG,"[DEVICE.H] Initiate Non Coroutine Read From {} \n",dev->tag());
 	            for (auto element : data) {
-                cvm::log(cvm::HIGH,"[DEVICE.H] Non Coroutine Read Data {:#x} \n",(uint32_t)element);
+                cvm::log(cvm::DEBUG,"[DEVICE.H] Non Coroutine Read Data {:#x} \n",(uint32_t)element);
               }
               cvm::registry::messenger.signal(r.source, transactor::read_response_t{r.r.id, std::move(data)});
               

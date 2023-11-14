@@ -300,16 +300,17 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::reset_ptrs() {
     aw_q_wptr_ = 0;
     w_q_wptr_ = 0;
 
-    svSetScope(scope_);
-    axi_sw_mst_ar_reset();
-    axi_sw_mst_aw_reset();
-    axi_sw_mst_w_reset();
 }
 
 extern "C" {
 
   void axi_sw_mst_set_scope(cvm::topology::loc_t loc) {
     svScope scope = svGetScope();
+
+    axi_sw_mst_ar_reset();
+    axi_sw_mst_aw_reset();
+    axi_sw_mst_w_reset();
+
     cvm::registry::messenger.signal<svScope>(
         loc,
         scope);

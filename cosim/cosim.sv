@@ -16,6 +16,7 @@ import rv_tester_params::*;
     input dut_reset,
     input longint unsigned clocks,
     input rvfi_t [NRET-1:0] rvfi,
+    input csri_t csri,
     input mcmi_t [NREAD-1:0] mcmi_read,
     input mcmi_t [NINSERT-1:0] mcmi_insert,
     input mcmi_t [NWRITE-1:0] mcmi_write,
@@ -59,6 +60,7 @@ import rv_tester_params::*;
         assign m_rvfis[n].data.cycle = clocks;
         assign m_rvfis[n].data.hart = NUM;
         assign m_rvfis[n].data.last_uop = rvfi[n].last_uop;
+        assign m_rvfis[n].data.last_insn = rvfi[n].last_insn;
         assign m_rvfis[n].data.comp = rvfi[n].comp;
         assign m_rvfis[n].data.order = rvfi[n].order;
         assign m_rvfis[n].data.insn = rvfi[n].insn;
@@ -76,6 +78,10 @@ import rv_tester_params::*;
         assign m_rvfis[n].data.vrd_valid = rvfi[n].vrd_valid;
         assign m_rvfis[n].data.vrd_addr = rvfi[n].vrd_addr;
         assign m_rvfis[n].data.vrd_wdata = rvfi[n].vrd_wdata;
+        assign m_rvfis[n].data.csr_valid = rvfi[n].csr_valid;
+        assign m_rvfis[n].data.csr_addr = rvfi[n].csr_addr;
+        assign m_rvfis[n].data.csr_wdata = rvfi[n].csr_wdata;
+        assign m_rvfis[n].data.csr_wmask = rvfi[n].csr_wmask;
         assign m_rvfis[n].data.pc_rdata = rvfi[n].pc_rdata;
         assign m_rvfis[n].data.pc_wdata = rvfi[n].pc_wdata;
         assign m_rvfis[n].data.mem_addr = rvfi[n].mem_addr;
@@ -84,6 +90,17 @@ import rv_tester_params::*;
         assign m_rvfis[n].data.mem_rdata = rvfi[n].mem_rdata;
         assign m_rvfis[n].data.mem_wmask = rvfi[n].mem_wmask;
         assign m_rvfis[n].data.mem_wdata = rvfi[n].mem_wdata;
+    end
+
+    // m_csri
+    for (genvar n = 0; n < CSR_COUNT; n++) begin
+        assign m_csris[n].valid = rvfi_enabled & ~reset & csri[n].valid;
+        assign m_csris[n].data.location = location;
+        assign m_csris[n].data.cycle = csri[n].valid ? clocks : '0;
+        assign m_csris[n].data.hart = NUM;
+        assign m_csris[n].data.addr = csri[n].addr;
+        assign m_csris[n].data.mask = csri[n].mask;
+        assign m_csris[n].data.data = csri[n].data;
     end
 
     // m_mcmi_read

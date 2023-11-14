@@ -2,6 +2,7 @@ rv_tester_nharts: &rv_tester_nharts 1
 
 rv_tester_platform_attrs: &rv_tester_platform_attrs
   NHARTS: 1
+  NCSR: 20
   #ISA
   ISA_RVIMA: 1
   ISA_RVF: 1
@@ -17,3 +18,4 @@ rv_tester_platform_attrs: &rv_tester_platform_attrs
   VALEN: 64
   PALEN: 56
   CLLEN: 512
+  CSRLEN: 12

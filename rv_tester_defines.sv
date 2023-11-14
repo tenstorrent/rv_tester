@@ -26,6 +26,7 @@ package rv_tester_params;
     parameter VALEN = mods.TOP.PLATFORM.VALEN;
     parameter PALEN = mods.TOP.PLATFORM.PALEN;
     parameter CLLEN = mods.TOP.PLATFORM.CLLEN;
+    parameter CSRLEN = mods.TOP.PLATFORM.CSRLEN;
 
     // --------------------------------------
     // AXI interface
@@ -236,6 +237,10 @@ package rv_tester_params;
         logic                       vrd_valid;
         logic [5-1:0]               vrd_addr ;
         logic [VLEN-1:0]            vrd_wdata;
+        logic                       csr_valid;
+        logic [CSRLEN-1:0]          csr_addr ;
+        logic [XLEN-1:0]            csr_wdata;
+        logic [XLEN-1:0]            csr_wmask;
         logic [VALEN-1:0]           pc_rdata ;
         logic [VALEN-1:0]           pc_wdata ;
         logic [VALEN-1:0]           mem_addr ;
@@ -247,6 +252,7 @@ package rv_tester_params;
         logic                       comp     ;
         logic [64-1:0]              uop      ;
         logic                       last_uop ;
+        logic                       last_insn;
     } rvfi_t;
 
     // --------------------------------------
@@ -275,6 +281,36 @@ package rv_tester_params;
         logic [(CLLEN/8)-1:0]       mask ;
         logic [CLLEN-1:0]           data ;
     } mcmi_t;
+
+    // --------------------------------------
+    // CSRI - Control Status Registers
+    // --------------------------------------
+    typedef enum {
+	SEPC,
+        SCAUSE,
+        VSEPC,
+        VSCAUSE,
+        MEPC,
+        MIP,
+        MCAUSE,
+        MSTATUS,
+        CXTVALSPEC,
+        CPRIV,
+        DCSR,
+        DPC,
+        CDTVEC,
+	FCSR,
+        CSR_COUNT
+    } csr_list_t;
+
+    typedef struct packed {
+        logic                       valid;
+        logic [CSRLEN-1:0]          addr;
+        logic [XLEN-1:0]            data;
+        logic [XLEN-1:0]            mask;
+    } csr_entry_t;
+
+    typedef csr_entry_t [CSR_COUNT-1:0] csri_t;
 
     // --------------------------------------
     // PMCI - Performance Monitoring Counters
@@ -353,9 +389,6 @@ package rv_tester_params;
         EVENT_COUNT
     } pmc_event_t;
 
-
-
-
     typedef logic [3:0] pmc_counter_t;
     typedef pmc_counter_t [EVENT_COUNT-1:0] pmci_t;
 
@@ -415,6 +448,7 @@ package rv_tester_params;
     output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NINSERTS-1:0] mcmi_insert,    \
     output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NWRITES-1:0]  mcmi_write,     \
     output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NBYPWRITES-1:0]  mcmi_bypass_write,     \
+    output rv_tester_params::csri_t          csri         [rv_tester_params::NHARTS-1:0],           \
     output rv_tester_params::pmci_t          pmci         [rv_tester_params::NHARTS-1:0],           \
 												    \
     output rv_tester_params::slv_req_top     axi_req [rv_tester_params::AXI_TOTAL-1:0],             \
@@ -447,6 +481,7 @@ package rv_tester_params;
     rv_tester_params::mcmi_t                 [rv_tester_params::TOTAL_NINSERTS-1:0]  mcmi_insert;   \
     rv_tester_params::mcmi_t                 [rv_tester_params::TOTAL_NWRITES-1:0]   mcmi_write;    \
     rv_tester_params::mcmi_t                 [rv_tester_params::TOTAL_NBYPWRITES-1:0]   mcmi_bypass_write;    \
+    rv_tester_params::csri_t                 csri          [rv_tester_params::NHARTS-1:0];          \
     rv_tester_params::pmci_t                 pmci          [rv_tester_params::NHARTS-1:0];          \
     rv_tester_params::slv_req_top            axi_req [rv_tester_params::AXI_TOTAL-1:0];             \
     rv_tester_params::slv_resp_top           axi_rsp [rv_tester_params::AXI_TOTAL-1:0];             \

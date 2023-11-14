@@ -100,8 +100,6 @@ void axi_sw::r_resp() {
 void axi_sw::reset_ptrs() {
     r_q_rptr_ = 0;
     r_q_wptr_ = 0;
-    svSetScope(scope_);
-    axi_sw_r_reset();
 }
 
 void axi_sw::set_scope(svScope scope) {
@@ -112,6 +110,9 @@ extern "C" {
 
   void axi_sw_set_scope(cvm::topology::loc_t loc) {
     svScope scope = svGetScope();
+
+    axi_sw_r_reset();
+
     cvm::registry::messenger.signal<svScope>(
         loc,
         scope);

@@ -7,7 +7,6 @@
 #include "cvm/plusargs.hpp"
 #include "cvm/registry.hpp"
 #include "cvm/bitmanip.hpp"
-
 #include "dm_model.hpp"
 
 // Return the number of bits wide that a field has to be to encode up to n
@@ -131,16 +130,34 @@ void debug_module_t::process(const rv_tester_transactions::dm_model::dm_load_cmd
 
 void debug_module_t::process(const rv_tester_transactions::dm_model::dm_load_data<> &dm_load_data)
 {
-  cvm::log(cvm::HIGH, "[{}] Got a load resp for the id:{:#x} and data:{:#x}\n", resp_count, dm_load_data.id, dm_load_data.data);
+  uint64_t sizer_slice_pos = cvm::bitmanip::slice<uint64_t>(load_req_addr, 5, 3);
+  for (int i=0;i<64;i++){
+      sizer_slice_data[i] = dm_load_data.data[sizer_slice_pos*64+i];
+    }
+  cvm::log(cvm::HIGH, "[{}] Got a load resp for the id:{:#x} and data:{:#x}\n", resp_count, dm_load_data.id, sizer_slice_data.to_ullong());
   resp_count++;
 
   if (load_req_id == dm_load_data.id)
   {
     cvm::log(cvm::HIGH, "Seen a matching load response for the same id as the previous load request\n");
     uint64_t expected_load_data_to_check = cvm::bitmanip::slice<uint64_t>(expected_load_data, (load_req_length * 4 - 1), 0);
-    uint64_t actual_load_data_to_check = cvm::bitmanip::slice<uint64_t>(dm_load_data.data, (load_req_length * 4 - 1), 0);
-    if (expected_load_data_to_check != actual_load_data_to_check)
-      cvm::log(cvm::ERROR, "[Error-Mismatch] The load data's are mismatching for Addr:{:#x} with Length:{:#x} ~~~ Actual:{:#x} vs Expected:{:#x}\n",load_req_addr,load_req_length,actual_load_data_to_check,expected_load_data_to_check);
+    
+    
+
+    uint64_t actual_load_data_to_check = cvm::bitmanip::slice<uint64_t>(sizer_slice_data.to_ullong(), (load_req_length * 4 - 1), 0);
+    
+    if (expected_load_data_to_check != actual_load_data_to_check){
+      if(load_req_addr==0x400 & reflow_flags==0 ){
+        reflow_flags=1; 
+        cvm::log(cvm::HIGH, "Reflowing 0x400 read to allow DM to update state flag\n");
+        //#FIXME : If a cleaner way is possible
+      }
+      else {
+        reflow_flags=0;
+        cvm::log(cvm::ERROR, "[Error-Mismatch] The load data's are mismatching for Addr:{:#x} with Length:{:#x} ~~~ Actual:{:#x} vs Expected:{:#x}\n",load_req_addr,load_req_length,actual_load_data_to_check,expected_load_data_to_check);
+      }
+      
+    }
   }
 }
 
@@ -583,7 +600,7 @@ bool debug_module_t::perform_abstract_command()
     bool transfer = get_field(command, AC_ACCESS_REGISTER_TRANSFER);
     bool unsupported_command = false;
 
-    if (size > 4)
+    if (size > 3)
     {
       abstractcs.cmderr = CMDERR_NOTSUP;
       return true;
@@ -674,7 +691,8 @@ bool debug_module_t::perform_abstract_command()
     }
 
     if (get_field(command, AC_ACCESS_REGISTER_POSTEXEC) && !unsupported_command) 
-      write32(debug_abstract, 9, nop());
+      // write32(debug_abstract, 9, nop());
+      write32(debug_abstract, 9, jal(ZERO, debug_progbuf_start - debug_abstract_start));
 
     //** End of the custom specified logic
 
@@ -891,7 +909,8 @@ bool debug_module_t::perform_abstract_command()
       abstractcs.cmderr = CMDERR_NOTSUP;
       return true;
     }
-
+    debug_rom_flags[selected_hart_id()] |= 1 << DEBUG_ROM_FLAG_GO;
+    abstractcs.busy = true;
     
     write32(debug_abstract, 0, nop()); // store a0 in dscratch1 if it exists, but our implementation doesn't allow it
     write32(debug_abstract, 4, csrw(S0, CSR_DSCRATCH0)); // store s0 in dscratch
@@ -909,24 +928,25 @@ bool debug_module_t::perform_abstract_command()
 
     if(write)//Write access
     {
-      write32(debug_abstract,6,nop());
-      write32(debug_abstract,7,nop());
-      (size<3)? write32(debug_abstract,8,sd(S1,4,debug_data_start))    : write32(debug_abstract,8,sd(S1,8,debug_data_start));//Store S1 into Arg1
-      (size<3)? write32(debug_abstract,9,lw(S1,ZERO,debug_data_start)) : write32(debug_abstract,9,ld(S1,ZERO,debug_data_start));//Load Arg0 into S1
+      //write32(debug_abstract,6,nop());
+      //write32(debug_abstract,7,nop());
+      (size<3)? write32(debug_abstract,6,sd(S1,4,debug_data_start))    : write32(debug_abstract,6,sd(S1,8,debug_data_start));//Store S1 into Arg1
+      (size<3)? write32(debug_abstract,7,lw(S1,ZERO,debug_data_start)) : write32(debug_abstract,7,ld(S1,ZERO,debug_data_start));//Load Arg0 into S1
       switch (size){//Store S1 data into S0 addr
         case 0 :
-          write32(debug_abstract, 10, sb(S1,ZERO,S0));break;
+          write32(debug_abstract, 9, sb(S1,ZERO,S0));break;
         case 1 :
-          write32(debug_abstract, 10, sh(S1,ZERO,S0));break;
+          write32(debug_abstract, 9, sh(S1,ZERO,S0));break;
         case 2 :
-          write32(debug_abstract, 10, sw(S1,ZERO,S0));break;
+          write32(debug_abstract, 9, sw(S1,ZERO,S0));break;
         case 3 :
-          write32(debug_abstract, 10, sd(S1,ZERO,S0));break;
+          write32(debug_abstract, 9, sd(S1,ZERO,S0));break;
       }
-      write32(debug_abstract, 11, csrr(S0, CSR_DSCRATCH0)); // restore S0 again from dscratch
-      (size<3)? write32(debug_abstract,12,ld(S1,4,debug_data_start))    : write32(debug_abstract,12,ld(S1,8,debug_data_start));//Restore Arg1 into S1
-      write32(debug_abstract,13,nop());
-      write32(debug_abstract,14,ebreak());
+      write32(debug_abstract, 10, csrr(S0, CSR_DSCRATCH0)); // restore S0 again from dscratch
+      (size<3)? write32(debug_abstract,11,ld(S1,4,debug_data_start))    : write32(debug_abstract,11,ld(S1,8,debug_data_start));//Restore Arg1 into S1
+      write32(debug_abstract,12,nop());
+      write32(debug_abstract,13,ebreak());
+      cvm::log(cvm::HIGH, "Access Memory Write uCode update\n");
     }
     else
     {
@@ -947,6 +967,7 @@ bool debug_module_t::perform_abstract_command()
       write32(debug_abstract,8, csrr(S0, CSR_DSCRATCH0)); // restore S0 again from dscratch
       write32(debug_abstract,9,nop());
       write32(debug_abstract,10,ebreak());
+      cvm::log(cvm::HIGH, "Access Memory Read uCode update\n");
     }
 
   }

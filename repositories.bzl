@@ -14,7 +14,7 @@ def rv_tester_repositories():
         #sha256 = "af87959afe497dc8dfd4c6cb66e1279cb98ccc84284619ebfec27d9c09a903de",
     )
 
-    corearchcoverage_hash="16ea3e46350a03d34c0067afacfd3d6513d9879a"
+    corearchcoverage_hash="f74df6f8b0134047d61e863db1c7719480a54ecf"
     maybe(
         git_repository,
         name = "corearchcoverage",
@@ -40,7 +40,7 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-nlohmann-json.git",
     )
 
-    whisper_hash="0990297d6c408b28869f75f7a5d40518b41d3876"
+    whisper_hash="eb9d92e890c7b1790c65de7e3950e75c580c10ae"
     maybe(
         git_repository,
         name = "whisper",
@@ -49,7 +49,7 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv/swerv-iss.git",
     )
 
-    core_arch_checker_hash="95cb0626f38a52b5ca3e1b6e37f881ac728ec410"
+    core_arch_checker_hash="02fb2a6bb79446db9cba7426171947f44c8df0d8"
     maybe(
         http_archive,
         name = "CoreArchChecker",
@@ -92,7 +92,7 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/checkin-script.git",
     )
 
-    opensrc_axi_llc_hash="06ec29238ac414db3065b203d6c98a6a996a37ab"
+    opensrc_axi_llc_hash="fca55505787e3d938fa2a95745094c14431abdcd"
     maybe(
         git_repository,
         name = "opensrc-axi_llc",
