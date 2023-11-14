@@ -195,15 +195,17 @@ void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d)
     return;
 
   for (auto & c : d.csrs) {
-    // FIXME Check all CSRs
-    if (c.csr_addr == 0x3) {
-      size_8_bytes_t mask = c.csr_wmask;
-      update_regs(hart, src_t::dut, resource_t::csr_reg, c.csr_addr, {c.csr_wdata}, mask);
-    }
+    size_8_bytes_t mask = c.csr_wmask;
+    update_regs(hart, src_t::dut, resource_t::csr_reg, c.csr_addr, {c.csr_wdata}, mask);
   }
 
   // Step csr cac
   csr_cac_.Step(hart);
+
+  if (resynch_csr_) {
+    csr_cac_.ResetStatus(hart);
+    resynch_csr_ = false;
+  }
 
   // Error on mismatch
   if (!csr_cac_.GetStatus(hart)) {
@@ -602,11 +604,8 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
   // CSR
   if (FLAGS_csr_check) {
     for (auto & c : d.csr) {
-      // FIXME Check all CSRs
-      if (c.csr_addr == 0x3) {
-        size_8_bytes_t mask = c.csr_wmask;
-        update_regs(hart, src_t::dut, resource_t::csr_reg, c.csr_addr, {c.csr_wdata}, mask);
-      }
+      size_8_bytes_t mask = c.csr_wmask;
+      update_regs(hart, src_t::dut, resource_t::csr_reg, c.csr_addr, {c.csr_wdata}, mask);
     }
   }
 }
@@ -656,10 +655,7 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_
       break;
     case 'c':
       if (FLAGS_csr_check) {
-        // FIXME Check all CSRs
-        if (w.address == 0x3) {
-          update_regs(hart, src_t::iss, resource_t::csr_reg, w.address, {w.value});
-        }
+        update_regs(hart, src_t::iss, resource_t::csr_reg, w.address, {w.value});
       }
       break;
     default:
@@ -904,6 +900,7 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
         log(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: C[{:#x}]={:#x}\n", d.cycle, step_, csr.csr_addr,
           csr.csr_wdata);
       }
+      resynch_csr_ = true;
       if (!client_->whisperPoke(hart, d.cycle, 'c', csr.csr_addr, csr.csr_wdata, valid)) {
         cvm::log(cvm::ERROR, "Error: Hart{}: Failed to resynch CSRs\n", hart);
         return;
