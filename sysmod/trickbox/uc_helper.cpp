@@ -36,7 +36,7 @@ void
 uc_helper::update_mem_model(uc_helper::trickbox_mem_req_t& i) {
  std::cout<<"\nUC_HELPER updating mem model : "<<std::hex<<i.addr<<" Data :"<<std::hex<<(uint32_t)i.data[0]<<"\n";
  //mem::datum_t m_data_p = (mem::datum_t)i.data[0];
- for(int j=0;j<i.length;j++){
+ for(int j=0;j<(int)i.length;j++){
  mem::datum_t m_data_p = (mem::datum_t)i.data[j];
  m_.write(i.addr + j, 1 , &m_data_p);
  }
