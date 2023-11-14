@@ -13,7 +13,10 @@ uc_helper::uc_helper(const std::string& tag, uint64_t addr, unsigned, cvm::topol
   uc_helper_base = addr;
   reset();
   checkUsage();
-
+  auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0); 
+  cvm::registry::messenger.connect<uc_helper::trickbox_mem_req_t>(
+            tbox_loc,
+            [&](uc_helper::trickbox_mem_req_t i) { return this->update_mem_model(i); });
 }
 
 
@@ -29,7 +32,14 @@ mem::datum_t m_data;
   co_return;
 }
 
+void
+uc_helper::update_mem_model(uc_helper::trickbox_mem_req_t& i) {
+ std::cout<<"\nUC_HELPER updating mem model : "<<std::hex<<i.addr<<" Data :"<<std::hex<<(uint32_t)i.data[0]<<"\n";
+ mem::datum_t m_data_p = (mem::datum_t)i.data[0];
 
+ m_.write(i.addr, i.length, &m_data_p);
+ read_flag = 1;
+}
 void
 uc_helper::read_dev(uint64_t addr, size_t length, data_t& data)
 {
@@ -156,25 +166,31 @@ void
      {
      int hart = 0;
      bool valid;
-      std::cout<<"UC_HELPER Backdoor read Addr =0x"<<std::hex<<tx_addr<<"\n";
+       cvm::log(cvm::HIGH, "[UC_HELPER] Backdoor read address {:#x}  \n",tx_addr);
        mem::datum_t m_data_rd;
+       std::vector<uint8_t> data_vec={};
+       std::vector<bool> strb_vec={};
        //data_t rd_data;
+       read_flag = 0;
+       cvm::registry::messenger.signal(loc(), uc_helper_read_req_t{tx_addr, 1, data_vec, strb_vec});
+       while(read_flag==0){
+        cvm::log(cvm::HIGH, "[UC_HELPER] Poll for sysmod to send read response  \n");
+       }
        m_.read(tx_addr, 1, &m_data_rd);
-       //m_.read(tx_addr, 8, rd_data);
        uint32_t word = (uint32_t)m_data_rd;
        cvm::log(cvm::HIGH, "[UC_HELPER] BACKDOOR read_dev read addr {:#x} data {:#x} \n",tx_addr,word);
        uint64_t poke_data = (uint64_t)m_data_rd;
 
        m_.write(uc_helper_base,1,&m_data_rd);
          //Poke same data to whisper memory        
-         if (!client_->whisperPoke(hart, 0, 'm', uc_helper_base, poke_data, valid)) {
+       if (!client_->whisperPoke(hart, 0, 'm', uc_helper_base, poke_data, valid)) {
           cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
           return;
-         }
+       }
 
        m_.read(uc_helper_base, 1, &m_data_rd);
-        word = (uint32_t)m_data_rd;
-        cvm::log(cvm::HIGH, "[UC_HELPER] BACKDOOR read BASE addr {:#x} data {:#x} \n",uc_helper_base,word);
+       word = (uint32_t)m_data_rd;
+       cvm::log(cvm::HIGH, "[UC_HELPER] BACKDOOR read BASE addr {:#x} data {:#x} \n",uc_helper_base,word);
 
      }
 

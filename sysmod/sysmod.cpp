@@ -123,7 +123,34 @@ sysmod::uc_helper_backdoor_write(uc_helper::uc_helper_write_t w) {
     wt.length = 1;
     wt.data = w.data;
     wt.strb = w.strb;
-    dynamic_cast<sysmod_mem&>(*dev("memory")).write(wt);
+   // dynamic_cast<sysmod_mem&>(*dev("memory")).write(wt);
+
+
+    cvm::log(cvm::HIGH, "new backdoor prt write request at {:#x}", wt.addr);
+                if (this->dev(wt.addr))
+                    cvm::registry::messenger.signal<device::write_t>(this->loc_, {wt});
+}
+
+void
+sysmod::uc_helper_backdoor_read(uc_helper::uc_helper_read_req_t r) {
+    cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_read addr {:#x} \n",r.addr);
+    cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_read len {} \n",(unsigned)r.length);
+    cvm::log(cvm::HIGH, "new PRT BACKDOOR read request at {:#x}", r.addr);
+    device::data_t data(8);
+    std::vector<uint8_t> data_trickbox(8);
+    std::vector<bool> strb(8);
+    for (size_t i = 0; i < 8; i++) strb[i] = true;
+      // Read from memory and write to requested dev tag
+      if (not dev("memory"))
+        return;
+      dev("memory")->backdoor_read(r.addr, r.length, data);
+      for (size_t i = 0; i < 8; i++) {
+        data_trickbox[i] = (uint8_t)data[i];
+      };
+      
+      auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0);
+      cvm::registry::messenger.signal(tbox_loc, uc_helper::trickbox_mem_req_t{r.addr, r.length, data_trickbox, strb});
+                
 }
 
 void
@@ -217,6 +244,9 @@ sysmod::compose()
         cvm::registry::messenger.connect<uc_helper::uc_helper_write_t>(
             loc_,
             [&](uc_helper::uc_helper_write_t i) { return this->uc_helper_backdoor_write(i); });
+        cvm::registry::messenger.connect<uc_helper::uc_helper_read_req_t>(
+            loc_,
+            [&](uc_helper::uc_helper_read_req_t i) { return this->uc_helper_backdoor_read(i); });
       }
       else
         cvm::log(cvm::ERROR, "Error: unknown type %s", type);

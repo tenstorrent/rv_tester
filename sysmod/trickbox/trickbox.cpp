@@ -20,7 +20,7 @@ trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned, cvm::topolog
   subdevices_.emplace_back(sub);
   sub = new uc_helper("uc_helper", addr + 0x80000, 1, loc, m_);
   subdevices_.emplace_back(sub);
-
+  
 }
 
 

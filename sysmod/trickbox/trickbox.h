@@ -63,7 +63,7 @@ public:
 
   // Write to this trickbox.
   void write(const transactor::write_t& w);
-
+  
   virtual void tick(uint64_t advance) override
   {
     for (auto& d : subdevices_) {
@@ -76,7 +76,7 @@ public:
 
   mem_manager m_;
   
-  
+ 
 private:
   uint64_t interrupter_base = 0x9000000;
   cvm::topology::loc_t axi_mst_loc_l;
