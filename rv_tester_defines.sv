@@ -286,20 +286,20 @@ package rv_tester_params;
     // CSRI - Control Status Registers
     // --------------------------------------
     typedef enum {
-	SEPC,
+        FCSR,
+        SEPC,
         SCAUSE,
         VSEPC,
         VSCAUSE,
-        MEPC,
-        MIP,
-        MCAUSE,
         MSTATUS,
+        MEPC,
+        MCAUSE,
+        MIP,
         CXTVALSPEC,
-        CPRIV,
         DCSR,
         DPC,
         CDTVEC,
-	FCSR,
+        CPRIV,
         CSR_COUNT
     } csr_list_t;
 
@@ -450,7 +450,7 @@ package rv_tester_params;
     output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NBYPWRITES-1:0]  mcmi_bypass_write,     \
     output rv_tester_params::csri_t          csri         [rv_tester_params::NHARTS-1:0],           \
     output rv_tester_params::pmci_t          pmci         [rv_tester_params::NHARTS-1:0],           \
-												    \
+                            \
     output rv_tester_params::slv_req_top     axi_req [rv_tester_params::AXI_TOTAL-1:0],             \
     input  rv_tester_params::slv_resp_top    axi_rsp [rv_tester_params::AXI_TOTAL-1:0],             \
     input  rv_tester_params::mst_req_top     axi_req_mst [rv_tester_params::AXI_MST_TOTAL-1:0],     \

@@ -94,7 +94,7 @@ import rv_tester_params::*;
 
     // m_csri
     for (genvar n = 0; n < CSR_COUNT; n++) begin
-        assign m_csris[n].valid = rvfi_enabled & ~reset & csri[n].valid;
+        assign m_csris[n].valid = rvfi_enabled & ~reset & csri[n].valid & (csri[n].addr != 'h300 && csri[n].addr != 'h344); //FIXME Remove qualifiers for mstatus/mip after MC bug fix
         assign m_csris[n].data.location = location;
         assign m_csris[n].data.cycle = csri[n].valid ? clocks : '0;
         assign m_csris[n].data.hart = NUM;
