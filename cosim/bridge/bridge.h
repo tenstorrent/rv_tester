@@ -149,6 +149,7 @@ private:
   uint64_t new_satp_ = 0;
 
   bool resynch_intr_cause_mismatch_ = false;
+  bool resynch_csr_ = false;
 
   uint64_t mip_ = 0;
   uint64_t intr_pins_ = 0;
