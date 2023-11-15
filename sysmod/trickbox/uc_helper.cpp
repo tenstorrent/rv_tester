@@ -34,10 +34,9 @@ mem::datum_t m_data;
 
 void
 uc_helper::update_mem_model(uc_helper::trickbox_mem_req_t& i) {
- std::cout<<"\nUC_HELPER updating mem model : "<<std::hex<<i.addr<<" Data :"<<std::hex<<(uint32_t)i.data[0]<<"\n";
- //mem::datum_t m_data_p = (mem::datum_t)i.data[0];
  for(int j=0;j<(int)i.length;j++){
  mem::datum_t m_data_p = (mem::datum_t)i.data[j];
+ cvm::log(cvm::HIGH,"\nUC_HELPER updating mem model : addr {:#x} Data {:#x} \n",i.addr+j,(uint32_t)i.data[j]);
  m_.write(i.addr + j, 1 , &m_data_p);
  }
  read_flag = 1;
@@ -50,12 +49,9 @@ uc_helper::read_dev(uint64_t addr, size_t length, data_t& data)
     cvm::log(cvm::HIGH, "[UC_HELPER] Descarding read request at uc_helper since tag {} is not matching \n",tag());
    return;
   }
-  mem::datum_t m_data;
-  m_.read(addr, length, &m_data);
-  uint32_t word = (uint32_t)m_data;
-  data = (data_t)m_data;
-  cvm::log(cvm::HIGH, "[UC_HELPER] read_dev read addr {:#x} data {:#x} \n",addr,word);
-  serializeInt(word, length, data);
+
+  m_.read(addr, length, data.data());
+
   for (unsigned i = 0; i < length; i++)
       cvm::log(cvm::HIGH, "[UC_HELPER] read_dev for loop Read data  {:#x} \n",(uint32_t)data[i]);
   return;
@@ -89,8 +85,6 @@ void
    deserializeInt(data, t_data);
    cvm::log(cvm::HIGH, "[UC_HELPER] write data {:#x} \n",t_data);
 
-   //std::vector<uint8_t> data_l={1,2,3,4};
-   //std::vector<bool> strb_l={1,1,1,1,1};
 
    if(addr==uc_helper_base)
    {
@@ -166,33 +160,42 @@ void
        return;
      }else if(addr ==(uc_helper_base + 0x400))
      {
-     int hart = 0;
-     bool valid;
+       int hart = 0;
+       bool valid;
        cvm::log(cvm::HIGH, "[UC_HELPER] Backdoor read address {:#x}  \n",tx_addr);
-       mem::datum_t m_data_rd;
+       //mem::datum_t m_data_rd;
+       data_t data_rd = {};
        std::vector<uint8_t> data_vec={};
        std::vector<bool> strb_vec={};
-       //data_t rd_data;
+       
        read_flag = 0;
-       cvm::registry::messenger.signal(loc(), uc_helper_read_req_t{tx_addr, 1, data_vec, strb_vec});
+       cvm::registry::messenger.signal(loc(), uc_helper_read_req_t{tx_addr, 8, data_vec, strb_vec});
+       
+       cvm::log(cvm::HIGH, "[UC_HELPER] START Poll for sysmod to send read response  \n");
        while(read_flag==0){
         cvm::log(cvm::HIGH, "[UC_HELPER] Poll for sysmod to send read response  \n");
        }
-       m_.read(tx_addr, 1, &m_data_rd);
-       uint32_t word = (uint32_t)m_data_rd;
+       cvm::log(cvm::HIGH, "[UC_HELPER] END Poll for sysmod to send read response  \n");
+       
+       uint64_t word = 0;// = (uint_t)m_data_rd;
+       for(int i =0;i <8;i++){
+          mem::datum_t m_data_p1;
+          m_.read(tx_addr + i, 1, &m_data_p1);
+          word = word |( m_data_p1<<(i*8));
+          m_.write(uc_helper_base + i,1,&m_data_p1);
+       }
        cvm::log(cvm::HIGH, "[UC_HELPER] BACKDOOR read_dev read addr {:#x} data {:#x} \n",tx_addr,word);
-       uint64_t poke_data = (uint64_t)m_data_rd;
+       uint64_t poke_data = word;
 
-       m_.write(uc_helper_base,1,&m_data_rd);
          //Poke same data to whisper memory        
        if (!client_->whisperPoke(hart, 0, 'm', uc_helper_base, poke_data, valid)) {
           cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
           return;
        }
 
-       m_.read(uc_helper_base, 1, &m_data_rd);
-       word = (uint32_t)m_data_rd;
-       cvm::log(cvm::HIGH, "[UC_HELPER] BACKDOOR read BASE addr {:#x} data {:#x} \n",uc_helper_base,word);
+       //m_.read(uc_helper_base, 1, &m_data_rd);
+       //word = (uint32_t)m_data_rd;
+       //cvm::log(cvm::HIGH, "[UC_HELPER] BACKDOOR read BASE addr {:#x} data {:#x} \n",uc_helper_base,word);
 
      }
 
