@@ -83,7 +83,20 @@ public:
         std::vector<uint8_t> data;
         std::vector<bool> strb;
   };
-
+  struct uc_helper_read_req_t {
+        uint64_t addr;
+        size_t length;
+        std::vector<uint8_t> data;
+        std::vector<bool> strb;
+  };
+   struct trickbox_mem_req_t {
+        uint64_t addr;
+        size_t length;
+        std::vector<uint8_t> data;
+        std::vector<bool> strb;
+  }; 
+  
+ void update_mem_model(trickbox_mem_req_t& i);
 protected:
 
   //Check plusarg usage
@@ -95,7 +108,7 @@ private:
   uint64_t tx_addr = 0x90a0000;
   uint64_t tx_size = 2;
   uint64_t tx_trigger = 0;
-
+  uint8_t  read_flag = 0;
   mem_manager m_;
   std::atomic<bool> terminate_ = false;
   
