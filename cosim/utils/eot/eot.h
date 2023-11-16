@@ -39,7 +39,7 @@ class eot {
       connect<
         rv_tester_transactions::cosim::m_rvfi<>,
         rv_tester_transactions::cosim::m_mcmi_insert<>,
-        rv_tester_transactions::cosim::m_mcmi_bypass_write<>
+        rv_tester_transactions::cosim::m_mcmi_bypass<>
       >(loc);
     }
 
@@ -48,7 +48,7 @@ class eot {
     void get_tohost_addr();
     void process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi);
     void process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_insert);
-    void process(const rv_tester_transactions::cosim::m_mcmi_bypass_write<>& m_mcmi_bypass_write);
+    void process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_bypass);
     void process_tohost(std::tuple<uint64_t,uint64_t,uint64_t> w);
 
   private:

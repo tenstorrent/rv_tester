@@ -48,7 +48,7 @@ class rvfi {
     // FIXME Move out to a different file?
     void process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_read);
     void process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_insert);
-    void process(const rv_tester_transactions::cosim::m_mcmi_bypass_write<>& m_mcmi_bypass_write);
+    void process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_bypass);
     void process(const rv_tester_transactions::cosim::m_mcmi_write<>& m_mcmi_write);
 
     void process(const htif::terminate_t&);
