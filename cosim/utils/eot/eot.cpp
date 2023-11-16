@@ -92,7 +92,7 @@ void eot::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_i
   process_tohost(std::make_tuple(m_mcmi_insert.cycle, m_mcmi_insert.addr, m_mcmi_insert.data));
 }
 
-void eot::process(const rv_tester_transactions::cosim::m_mcmi_bypass_write<>& m_mcmi_bypass_write) {
-  process_tohost(std::make_tuple(m_mcmi_bypass_write.cycle, m_mcmi_bypass_write.addr, m_mcmi_bypass_write.data));
+void eot::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_bypass) {
+  process_tohost(std::make_tuple(m_mcmi_bypass.cycle, m_mcmi_bypass.addr, m_mcmi_bypass.data));
 }
 

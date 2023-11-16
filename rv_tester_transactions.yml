@@ -131,9 +131,9 @@ cosim:
             data:
                 width: ${TOP.PLATFORM.XLEN}
 
-    m_mcmi_bypass_write:
+    m_mcmi_bypass:
         domain: 1
-        num: ${max(TOP.PLATFORM.COSIM.MCMI.NBYPWRITES)}
+        num: ${max(TOP.PLATFORM.COSIM.MCMI.NBYPASSES)}
         fields:
             cycle:
                 width: 64
