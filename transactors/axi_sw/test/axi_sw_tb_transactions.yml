@@ -1,0 +1,114 @@
+<%
+import math
+def clog2(n):
+        return math.ceil(math.log2(n))
+%>\
+
+axi_sw:
+    num: ${TOP.PLATFORM.AXI.TOTAL}
+    w:
+        domain: 2
+        num: 1
+        dummy_return: true
+        fields:
+            data:
+                width: ${TOP.PLATFORM.AXI.DATA_WIDTH}
+            strb:
+                width: ${TOP.PLATFORM.AXI.STRB_WIDTH}
+            last:
+                width: 1
+    aw:
+        domain: 2
+        num: 1
+        dummy_return: true
+        fields:
+            id:
+                width: ${TOP.PLATFORM.AXI.ID_WIDTH} 
+            addr:
+                width: ${TOP.PLATFORM.AXI.ADDR_WIDTH}
+            len:
+                width: 8
+            size:
+                width: 3
+            burst:
+                width: 2
+            lock:
+                width: 1
+            atop:
+                width: 6
+    ar:
+        domain: 2
+        num: 1
+        dummy_return: true
+        fields:
+            id:
+                width: ${TOP.PLATFORM.AXI.ID_WIDTH} 
+            addr:
+                width: ${TOP.PLATFORM.AXI.ADDR_WIDTH}
+            len:
+                width: 8
+            size:
+                width: 3
+            burst:
+                width: 2
+            lock:
+                width: 1
+
+    r_q_ptr:
+        domain: 2
+        num: 1
+        dummy_return: true
+        fields:
+            r_ptr:
+                width: ${TOP.PLATFORM.AXI.R_Q_PTR_MAX_LOG2}
+
+axi_sw_mst:
+    num: [${TOP.PLATFORM.AXI_MST.TOTAL}, ${TOP.PLATFORM.AXI_MST2.TOTAL}]
+
+    b:
+        domain: 2
+        num: 1
+        dummy_return: true
+        fields:
+            id:
+                widths: [${TOP.PLATFORM.AXI_MST.ID_WIDTH}, ${TOP.PLATFORM.AXI_MST2.ID_WIDTH}]
+            resp:
+                widths: [2, 2]
+
+    r:
+        domain: 2
+        num: 1
+        dummy_return: true
+        fields:
+            id:
+                widths: [${TOP.PLATFORM.AXI_MST.ID_WIDTH}, ${TOP.PLATFORM.AXI_MST2.ID_WIDTH}]
+            data:
+                widths: [${TOP.PLATFORM.AXI_MST.DATA_WIDTH}, ${TOP.PLATFORM.AXI_MST2.DATA_WIDTH}]
+            resp:
+                widths: [2, 2]
+            last:
+                widths: [1, 1]
+
+    ar_q_ptr:
+        domain: 2
+        num: 1
+        dummy_return: true
+        fields:
+            ar_ptr:
+                widths: [${TOP.PLATFORM.AXI_MST.AR_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.AXI_MST.AR_Q_PTR_MAX_LOG2}]
+
+    aw_q_ptr:
+        domain: 2
+        num: 1
+        dummy_return: true
+        fields:
+            aw_ptr:
+                widths: [${TOP.PLATFORM.AXI_MST.AW_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.AXI_MST.AW_Q_PTR_MAX_LOG2}]
+
+    w_q_ptr:
+        domain: 2
+        num: 1
+        dummy_return: true
+        fields:
+            w_ptr:
+                widths: [${TOP.PLATFORM.AXI_MST.W_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.AXI_MST.W_Q_PTR_MAX_LOG2}]

@@ -7,7 +7,7 @@ genrule(
     outs  = ["axi_sw_attrs.yml"],
     tools = [":axi_sw_attrs"],
     cmd   = "$(location :axi_sw_attrs) > $@",
-    visibility = ["//:__pkg__"],
+    visibility = ["//:__subpackages__"],
 )
 
 exports_files(["safe_queue.h"] + glob(["axi_sw.*", "axi.*", "axi_sw_mst.*"]))

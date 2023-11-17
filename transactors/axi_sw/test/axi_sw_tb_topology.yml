@@ -1,0 +1,38 @@
+top:
+  platform:
+    count: 1
+    type:
+      - platform
+    axi:
+      count: 1
+      type:
+        - axi
+        - platform_transactor
+      attrs:
+        <<: *rv_tester_axi_sw
+        ADDR_WIDTH: 64
+        DATA_WIDTH: 512
+        STRB_WIDTH: 64
+        ID_WIDTH: 4
+    axi_mst:
+      count: 1
+      type:
+        - axi
+        - platform_transactor_mst
+      attrs:
+        <<: *rv_tester_axi_sw_mst
+        ADDR_WIDTH: 64
+        DATA_WIDTH: 512
+        STRB_WIDTH: 64
+        ID_WIDTH: 4
+    axi_mst2:
+      count: 1
+      type:
+        - axi
+        - platform_transactor_mst
+      attrs:
+        <<: *rv_tester_axi_sw_mst
+        ADDR_WIDTH: 64
+        DATA_WIDTH: 512
+        STRB_WIDTH: 64
+        ID_WIDTH: 4
