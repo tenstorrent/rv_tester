@@ -191,13 +191,13 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 }
 
 void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d) {
-  if (!FLAGS_csr_check)
-    return;
-
   for (auto & c : d.csrs) {
     size_8_bytes_t mask = c.csr_wmask;
     update_regs(hart, src_t::dut, resource_t::csr_reg, c.csr_addr, {c.csr_wdata}, mask);
   }
+
+  if (!FLAGS_csr_check)
+    return;
 
   // Step csr cac
   csr_cac_.Step(hart);
@@ -602,11 +602,9 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
     update_regs(hart, src_t::dut, resource_t::vec_reg, d.vr.vrd_addr, create_dword_vec(d.vr.vrd_wdata));
   }
   // CSR
-  if (FLAGS_csr_check) {
-    for (auto & c : d.csr) {
-      size_8_bytes_t mask = c.csr_wmask;
-      update_regs(hart, src_t::dut, resource_t::csr_reg, c.csr_addr, {c.csr_wdata}, mask);
-    }
+  for (auto & c : d.csr) {
+    size_8_bytes_t mask = c.csr_wmask;
+    update_regs(hart, src_t::dut, resource_t::csr_reg, c.csr_addr, {c.csr_wdata}, mask);
   }
 }
 
@@ -654,9 +652,7 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_
       }
       break;
     case 'c':
-      if (FLAGS_csr_check) {
-        update_regs(hart, src_t::iss, resource_t::csr_reg, w.address, {w.value});
-      }
+      update_regs(hart, src_t::iss, resource_t::csr_reg, w.address, {w.value});
       break;
     default:
       break;
@@ -1200,13 +1196,27 @@ void bridge::report_metrics() {
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_trap\": {}}}\n", id_, prev_trap);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_num_dest\": {}}}\n", id_, prev_num_dest);
 
+  // Whisper csr values
   for (auto& csr : csrs) {
     uint64_t csr_data;
     bool valid;
     if (!client_->whisperPeek(id_, 'c', csr.address, csr_data, valid)) {
       cvm::log(cvm::ERROR, "Error: Hart{}: Failed to peek CSR values\n", id_);
     }
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_csr_{}\": \"0x{:x}\"}}\n", id_, csr.name, csr_data);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_iss_csr_{}\": \"0x{:x}\"}}\n", id_, csr.name, csr_data);
+  }
+
+  // DUT csr values
+  for (auto& csr : csrs) {
+    std::vector<uint64_t> dword_vec;
+    std::vector<bool> bool_vec;
+    resource_id_t csr_resource = resource_id_t{
+      .resource = resource_t::csr_reg,
+      .offset = csr.address
+    };
+    csr_cac_.GetResource(id_, src_t::dut, csr_resource, bool_vec);
+    dword_vec = cac::CreateSizedVec<uint64_t>(bool_vec);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dut_csr_{}\": \"0x{:x}\"}}\n", id_, csr.name, dword_vec[0]);
   }
 
   // Step one final time to collect metrics for next instruction
