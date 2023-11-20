@@ -199,15 +199,16 @@ void debug_module_t::reset()
   cvm::log(cvm::HIGH, "[Config] debug_abstract_start={:#x}\n", debug_abstract_start);
 
   unsigned i = 1;
-  write32(debug_abstract, i++, nop());    // 0 (high)
-  write32(debug_abstract, i++, nop());    // 1 (low)
-  write32(debug_abstract, i++, nop());    // 1 (high)
+  (has_second_scratch)? write32(debug_abstract,i++,auipc(A0,ZERO)) : write32(debug_abstract, i++, nop());    // 0 (high)
+  (has_second_scratch)? write32(debug_abstract,i++,srli(A0,A0,12)) : write32(debug_abstract, i++, nop());    // 1 (low)
+  (has_second_scratch)? write32(debug_abstract,i++,slli(A0,A0,12)) : write32(debug_abstract, i++, nop());    // 1 (high)
   write32(debug_abstract, i++, nop());    // 2 (low)
   write32(debug_abstract, i++, nop());    // 2 (high)
   write32(debug_abstract, i++, nop());    // 3 (low)
   write32(debug_abstract, i++, nop());    // 3 (high)
-  write32(debug_abstract, i++, nop());    // 4 (low)
-  write32(debug_abstract, i++, ebreak()); // 5 (high)
+  (has_second_scratch)? write32(debug_abstract,i++,csrr(A0,CSR_DSCRATCH1)) : write32(debug_abstract, i++, nop());    // 4 (low)
+  write32(debug_abstract, i++, ebreak()); // 4 (high)
+  
 }
 
 bool debug_module_t::load(reg_t addr, size_t len, uint8_t *bytes)
@@ -576,6 +577,7 @@ bool debug_module_t::dmi_read(unsigned address, uint32_t *value)
 
 bool debug_module_t::perform_abstract_command()
 {
+  
   cvm::log(cvm::HIGH, "[Abstract Cmd] Performing an abstract command\n");
   if (abstractcs.cmderr != CMDERR_NONE)
     return true;
@@ -919,62 +921,77 @@ bool debug_module_t::perform_abstract_command()
     debug_rom_flags[selected_hart_id()] |= 1 << DEBUG_ROM_FLAG_GO;
     abstractcs.busy = true;
     
-    write32(debug_abstract, 0, nop()); // store a0 in dscratch1 if it exists, but our implementation doesn't allow it
+    //write32(debug_abstract, 0, nop()); // store a0 in dscratch1 if it exists, but our implementation doesn't allow it
+    
+    (has_second_scratch)? write32(debug_abstract, 0, csrw(A0, CSR_DSCRATCH1)) : write32(debug_abstract, 0, nop()); // store s0 in dscratch
     write32(debug_abstract, 4, csrw(S0, CSR_DSCRATCH0)); // store s0 in dscratch
-    //Load Data1 to s0
-    switch (size) {
+    switch (size) {//Load Arg1 into S0
       case 0: 
-        write32(debug_abstract, 5, lb(S0, ZERO, debug_data_start));break;
+        write32(debug_abstract, 5, lb(S0, load_base_address, debug_data_start + 4 ));break;
       case 1: 
-        write32(debug_abstract, 5, lh(S0, ZERO, debug_data_start));break;
+        write32(debug_abstract, 5, lh(S0, load_base_address, debug_data_start + 4 ));break;
       case 2: 
-        write32(debug_abstract, 5, lw(S0, ZERO, debug_data_start));break;
+        write32(debug_abstract, 5, lw(S0, load_base_address, debug_data_start + 4 ));break;
       case 3: 
-        write32(debug_abstract, 5, ld(S0, ZERO, debug_data_start));break;
+        write32(debug_abstract, 5, ld(S0, load_base_address, debug_data_start + 8));break;
     }
 
     if(write)//Write access
     {
       //write32(debug_abstract,6,nop());
       //write32(debug_abstract,7,nop());
-      (size<3)? write32(debug_abstract,6,sd(S1,4,debug_data_start))    : write32(debug_abstract,6,sd(S1,8,debug_data_start));//Store S1 into Arg1
-      (size<3)? write32(debug_abstract,7,lw(S1,ZERO,debug_data_start)) : write32(debug_abstract,7,ld(S1,ZERO,debug_data_start));//Load Arg0 into S1
-      switch (size){//Store S1 data into S0 addr
-        case 0 :
-          write32(debug_abstract, 9, sb(S1,ZERO,S0));break;
-        case 1 :
-          write32(debug_abstract, 9, sh(S1,ZERO,S0));break;
-        case 2 :
-          write32(debug_abstract, 9, sw(S1,ZERO,S0));break;
-        case 3 :
-          write32(debug_abstract, 9, sd(S1,ZERO,S0));break;
+      switch (size) {//Load Arg0 into A0
+        case 0: 
+          write32(debug_abstract, 6, lb(A0, load_base_address, debug_data_start));break;
+        case 1: 
+          write32(debug_abstract, 6, lh(A0, load_base_address, debug_data_start));break;
+        case 2: 
+          write32(debug_abstract, 6, lw(A0, load_base_address, debug_data_start));break;
+        case 3: 
+          write32(debug_abstract, 6, ld(A0, load_base_address, debug_data_start));break;
       }
-      write32(debug_abstract, 10, csrr(S0, CSR_DSCRATCH0)); // restore S0 again from dscratch
-      (size<3)? write32(debug_abstract,11,ld(S1,4,debug_data_start))    : write32(debug_abstract,11,ld(S1,8,debug_data_start));//Restore Arg1 into S1
-      write32(debug_abstract,12,nop());
-      write32(debug_abstract,13,ebreak());
-      cvm::log(cvm::HIGH, "Access Memory Write uCode update\n");
+
+
+      // (size<3)? write32(debug_abstract,6,sw(S1,4,debug_data_start))    : write32(debug_abstract,6,sd(S1,8,debug_data_start));//Store S1 into Arg1
+      // (size<3)? write32(debug_abstract,7,lw(S1,ZERO,debug_data_start)) : write32(debug_abstract,7,ld(S1,ZERO,debug_data_start));//Load Arg0 into S1
+      switch (size){//Store A0 data into S0 addr
+        case 0 :
+          write32(debug_abstract, 7, sb(A0,S0,ZERO));break;
+        case 1 :
+          write32(debug_abstract, 7, sh(A0,S0,ZERO));break;
+        case 2 :
+          write32(debug_abstract, 7, sw(A0,S0,ZERO));break;
+        case 3 :
+          write32(debug_abstract, 7, sd(A0,S0,ZERO));break;
+      }
+      write32(debug_abstract, 8, csrr(S0, CSR_DSCRATCH0)); // restore S0 again from dscratch0
+      (has_second_scratch)? write32(debug_abstract, 9, csrr(A0, CSR_DSCRATCH1)) : write32(debug_abstract, 9, nop()); // restore A0 again from dscratch1
+      // (size<3)? write32(debug_abstract,11,ld(S1,4,debug_data_start))    : write32(debug_abstract,11,ld(S1,8,debug_data_start));//Restore Arg1 into S1
+      // write32(debug_abstract,12,nop());
+      write32(debug_abstract,10,ebreak());
+      cvm::log(cvm::HIGH, "Access Memory Write uCode update v2 \n");
     }
     else
     {
       switch(size){
         case 0:
-          write32(debug_abstract,6,lb(S0,ZERO,S0));
-          write32(debug_abstract,7,sb(S0,ZERO,debug_data_start));break;
+          write32(debug_abstract,6,lb(S0,S0,ZERO));
+          write32(debug_abstract,7,sb(S0,load_base_address,debug_data_start));break;
         case 1:
-          write32(debug_abstract,6,lh(S0,ZERO,S0));
-          write32(debug_abstract,7,sh(S0,ZERO,debug_data_start));break;
+          write32(debug_abstract,6,lh(S0,S0,ZERO));
+          write32(debug_abstract,7,sh(S0,load_base_address,debug_data_start));break;
         case 2:
-          write32(debug_abstract,6,lw(S0,ZERO,S0));
-          write32(debug_abstract,7,sw(S0,ZERO,debug_data_start));break;
+          write32(debug_abstract,6,lw(S0,S0,ZERO));
+          write32(debug_abstract,7,sw(S0,load_base_address,debug_data_start));break;
         case 3:
-          write32(debug_abstract,6,ld(S0,ZERO,S0));
-          write32(debug_abstract,7,sd(S0,ZERO,debug_data_start));break;
+          write32(debug_abstract,6,ld(S0,S0,ZERO));
+          write32(debug_abstract,7,sd(S0,load_base_address,debug_data_start));break;
       }
       write32(debug_abstract,8, csrr(S0, CSR_DSCRATCH0)); // restore S0 again from dscratch
-      write32(debug_abstract,9,nop());
+      (has_second_scratch)? write32(debug_abstract, 9, csrr(A0, CSR_DSCRATCH1)) : write32(debug_abstract, 9, nop()); // restore A0 again from dscratch1
+      // write32(debug_abstract,9,nop());
       write32(debug_abstract,10,ebreak());
-      cvm::log(cvm::HIGH, "Access Memory Read uCode update\n");
+      cvm::log(cvm::HIGH, "Access Memory Read uCode update v2\n");
     }
 
   }

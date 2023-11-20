@@ -156,6 +156,7 @@ private:
   static const unsigned debug_data_start = 0x380;
   unsigned debug_progbuf_start;
 
+
   //static const unsigned debug_abstract_size = 10;
   static const unsigned debug_abstract_size = 14;
   unsigned debug_abstract_start;
@@ -204,6 +205,8 @@ private:
   bool hart_selected(unsigned hartid) const;
   void reset();
   bool perform_abstract_command();
+  bool has_second_scratch = true;
+  uint8_t load_base_address = 10; //GPR to store DM base addr
 
   // bool abstract_command_completed;
   // unsigned rti_remaining;
