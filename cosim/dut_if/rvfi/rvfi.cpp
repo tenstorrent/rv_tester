@@ -138,6 +138,9 @@ void rvfi::process(const rv_tester_transactions::cosim::m_intr<>& m_intr) {
   if (loc_ != m_intr.location)
     return;
 
+  if (!FLAGS_cosim)
+    return;
+
   rv_intr_t intr;
   intr.cycle = m_intr.cycle;
   intr.mip_posedge = m_intr.mip_posedge;

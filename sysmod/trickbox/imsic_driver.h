@@ -98,7 +98,7 @@ public:
     unsigned interrupt_hart = (t_data>>16) & 0xfff;
     unsigned vs_id = (t_data>>28) & 0xfff;
 
-    std::cout<<"Requested imsic_intr interrupt num "<<(uint32_t)interrupt_num <<" interrupt file: "<<interrupt_file <<" Interrupt hart:"<< interrupt_hart <<" hypervisor/supervisor id : "<<vs_id<<"\n";
+    cvm::log(cvm::HIGH,"Requested imsic_intr interrupt num {} interrupt file: {} Interrupt hart:{} hypervisor/supervisor id : {}\n", static_cast<uint32_t>(interrupt_num), interrupt_file, interrupt_hart, vs_id);
     
     uint32_t addr1 = 0x900;
     if(interrupt_file == 0x0){
