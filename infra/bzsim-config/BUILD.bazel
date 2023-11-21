@@ -1,6 +1,6 @@
 # config package, contains core / repo specific files and targets to run bzsim
 
-load("@runtime//:runtime.bzl", "runtime_library")
+load("@bzsim//runtime:runtime.bzl", "runtime_library")
 load("@bzsim//:sim.bzl", "sim_target")
 
 runtime_library(

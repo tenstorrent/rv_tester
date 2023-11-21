@@ -1,6 +1,6 @@
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
 load("@bzsim//:verilog_unit.bzl", "verilog_unit", "verilog_dpi_library")
-load("@runtime//:runtime.bzl", "runtime_library")
+load("@bzsim//runtime:runtime.bzl", "runtime_library")
 load("@cvm//:defs.bzl", "topology_gen", "packet_gen")
 load("@rv_tester//:defs.bzl", "rv_tester_gen")
 load("@bzsim//:sim.bzl", "sim_test_suite")
