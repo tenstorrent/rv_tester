@@ -103,8 +103,6 @@ void bridge::reset() {
 
 // DUT interface callback: Instruction Retire
 void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
-  // Update cac with dut state
-  update_dut_state(hart, d);
 
   whisper_state_t w {
     .tag = d.tag,
@@ -129,6 +127,9 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   // Update cac with whisper state
   update_whisper_state(hart, w);
+
+  // Update cac with dut state
+  update_dut_state(hart, d);
 
   // Handle post-step conditions
   process_interrupt_post_step(hart, d, w);
@@ -160,7 +161,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   // Save whisper state
   ppw_ = pw_;
   pw_ = w;
-  prev_intr_pins_ = intr_pins_;
+  prev_mip_ = mip_;
 
   // Error on mismatch
   if (!cac_.GetStatus(hart)) {
@@ -194,6 +195,8 @@ void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d)
   for (auto & c : d.csrs) {
     size_8_bytes_t mask = c.csr_wmask;
     update_regs(hart, src_t::dut, resource_t::csr_reg, c.csr_addr, {c.csr_wdata}, mask);
+    if (c.csr_addr == 0x344)
+      log(cvm::MEDIUM, "<{}> CSR hw write based interrupt: mip {:#x} mask {:#x}\n", c.cycle, c.csr_wdata, c.csr_wmask);
   }
 
   if (!FLAGS_csr_check)
@@ -251,22 +254,22 @@ void bridge::process_debug_pre_step(hart_id_t hart, const rv_instr_t& instr, whi
 
 void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
 
-  // FIXME Get mip value from DUT csr update
-  get_whisper_mip(hart, mip_);
+  mip_ = get_csr(hart, src_t::dut, 0x344);
 
-  if (!intr_pins_ && !mip_ && !prev_intr_pins_)
+  if (!mip_)
     return;
 
-  uint64_t w_cause;
   bool w_intr;
-  get_whisper_intr_status(hart, w_intr, w_cause);
+  uint64_t w_cause;
+  whisper_check_interrupt(hart, mip_, w_intr, w_cause);
 
   if (!d.intr && !w_intr)
     return;
 
   if (!d.intr && w_intr) {
-    poke_intr_defer_status(hart, w.time, intr_pins_);
-    update_intr_age(hart, d);
+    whisper_defer_interrupt(hart, w.time, mip_);
+    intr_age_[w_cause]++;
+    log(cvm::HIGH, "<{}> intr_age_[{}][{}]++={}\n", w.time, hart, w_cause, intr_age_[w_cause]);
 
     // Check that interrupt age is not beyond threshold
     if ((intr_age_[w_cause] > FLAGS_max_pend_intr_age) && !FLAGS_cosim_resynch) {
@@ -281,8 +284,9 @@ void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whi
   }
 
   if (d.intr && !w_intr && !FLAGS_cosim_resynch) {
-    if ((prev_intr_pins_ >> d.icause) & 0x1) {
-      log(cvm::MEDIUM, "<{}> DUT took interrupt, Whisper did not. cause:[{}] - timing issue, pin deasserted after DUT observed\n", w.time, d.icause);
+    whisper_check_interrupt(hart, prev_mip_, w_intr, w_cause);
+    if (w_intr && (w_cause == d.icause)) {
+      log(cvm::MEDIUM, "<{}> DUT took interrupt, Whisper did not. cause:[{}] (Missing modeling: Resynch and keep going)\n", w.time, d.icause);
       poke_mip(hart, w.time, (uint64_t)1 << d.icause);
     } else {
       cvm::log(cvm::ERROR, "Error: Hart{}: DUT took interrupt, Whisper did not. cause:[{}]\n", hart, d.icause);
@@ -293,14 +297,14 @@ void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whi
   // If DUT took different older interrupt due to timing, get whisper to match
   // Undefer matching interrupt
   if (d.icause != w_cause && intr_age_[d.icause] >= intr_age_[w_cause]) {
-    log(cvm::MEDIUM, "<{}> Whisper Step #{}: DUT vs Whisper interrupt cause mismatch [{},{}] age [{},{}]\n",
-      w.time, step_, d.icause, w_cause, intr_age_[d.icause], intr_age_[w_cause]);
-    poke_intr_defer_status(hart, w.time, intr_pins_ & ~((uint64_t)1 << d.icause));
+    log(cvm::MEDIUM, "<{}> DUT vs Whisper interrupt cause mismatch [{},{}] age [{},{}] (Missing modeling: Resynch and keep going)\n",
+      w.time, d.icause, w_cause, intr_age_[d.icause], intr_age_[w_cause]);
+    whisper_defer_interrupt(hart, w.time, mip_ & ~((uint64_t)1 << d.icause));
     return;
   }
 
   // Undefer all interrupts
-  poke_intr_defer_status(hart, w.time, 0);
+  whisper_defer_interrupt(hart, w.time, 0);
 
   if (FLAGS_retire_ucode_trap)
     return;
@@ -315,6 +319,8 @@ void bridge::process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, wh
 
   if (!d.intr && !w_.intr)
     return;
+
+  intr_age_[w_.icause] = 0;
 
   // If interrupt asserted via csr write, we don't need to defer
   // DUT is expected to take at retire boundary if whisper takes the undeferred interrupt
@@ -605,6 +611,8 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
   for (auto & c : d.csr) {
     size_8_bytes_t mask = c.csr_wmask;
     update_regs(hart, src_t::dut, resource_t::csr_reg, c.csr_addr, {c.csr_wdata}, mask);
+    if (c.csr_addr == 0x344)
+      log(cvm::MEDIUM, "<{}> Zicsr write based interrupt: mip {:#x} mask {:#x}\n", c.cycle, c.csr_wdata, c.csr_wmask);
   }
 }
 
@@ -730,16 +738,11 @@ bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const whisp
     return true;
   }
   // Case #5
-  if (mip_timing_mismatch(w)) {
-    log(cvm::MEDIUM, "<{}> Resynch: Reason=[mip_timing_mismatch]\n", w.time);
-    return true;
-  }
-  // Case #6
   if (debug_mem_access(d)) {
     log(cvm::MEDIUM, "<{}> Resynch: Reason=[debug mem access]\n", w.time);
     return true;
   }
-  // Case #7
+  // Case #6
   if (boot_read(d)) {
     log(cvm::MEDIUM, "<{}> Resynch: Reason=[boot_read]\n", w.time);
     return true;
@@ -794,14 +797,6 @@ bool bridge::lrsc_fail(const whisper_state_t& w) {
       (w.disasm.find("sc.d") != std::string::npos)) {
     uint64_t fail_code = 1;
     if (w_.gpr.rd_wdata == fail_code)
-      return true;
-  }
-  return false;
-}
-
-bool bridge::mip_timing_mismatch(const whisper_state_t& w) {
-  if (w.disasm.find("mip") != std::string::npos) {
-    if (prev_intr_pins_ != intr_pins_)
       return true;
   }
   return false;
@@ -1028,22 +1023,19 @@ void bridge::translation_check(hart_id_t hart, const rv_instr_t& d, whisper_stat
 
 // Interrupts
 void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
-  intr_pins_ = i.mip | (i.seip << 9);
-  log(cvm::MEDIUM, "<{}> Interrupt pin(s) toggled. Mip {:#x} Seip {:#x}\n", i.cycle, i.mip, i.seip);
+  log(cvm::MEDIUM, "<{}> Wired interrupt: mip {:#x} mask {:#x}\n", i.cycle, i.mip, i.mip_mask);
   
-  // Preserve sup bits in mip if written via csr except if pin is lowered (stip:y,seip:n,ssip:?)
-  mip_ = (mip_ & 0x222) | i.mip;
-  if (i.stip_negedge)
-    mip_ &= 0xffdf;
+  // Update dut mip
+  size_8_bytes_t mask = i.mip_mask;
+  update_regs(hart, src_t::dut, resource_t::csr_reg, 0x344, {i.mip}, mask);
 
-  // Poke the interrupt pin values into whisper mip csr and sei pin if applicable
-  poke_mip(hart, i.cycle, mip_);
-  if (i.seip_posedge | i.seip_negedge)
-    poke_seip(hart, i.cycle, i.seip);
+  // Poke whisper mip
+  uint64_t mip = get_csr(hart, src_t::dut, 0x344);
+  poke_mip(hart, i.cycle, mip);
 }
 
-void bridge::poke_intr_defer_status(hart_id_t hart, uint64_t cycle, uint64_t mip) {
-  log(cvm::MEDIUM, "<{}> Interrupt defer mip status {:#x}\n", cycle, mip);
+void bridge::whisper_defer_interrupt(hart_id_t hart, uint64_t cycle, uint64_t mip) {
+  log(cvm::HIGH, "<{}> Interrupt defer mip status {:#x}\n", cycle, mip);
   bool valid;
   if (!client_->whisperPoke(hart, cycle, 's', WhisperSpecialResource::DeferredInterrupts, mip, valid)) {
     cvm::log(cvm::ERROR, "Error: Hart{}: Failed to poke DeferredInterrupts\n", hart);
@@ -1051,55 +1043,24 @@ void bridge::poke_intr_defer_status(hart_id_t hart, uint64_t cycle, uint64_t mip
   }
 }
 
-void bridge::get_whisper_intr_status(hart_id_t hart, bool& taken, uint64_t& cause) {
-  if (!client_->whisperCheckInterrupt(hart, (intr_pins_ | mip_), taken, cause)) {
+void bridge::whisper_check_interrupt(hart_id_t hart, uint64_t mip, bool& taken, uint64_t& cause) {
+  if (!client_->whisperCheckInterrupt(hart, mip, taken, cause)) {
     cvm::log(cvm::ERROR, "Error: Hart{}: Failed whisper API call - whisperCheckInterrupt\n", hart);
     return;
   }
 }
 
-void bridge::get_whisper_mip(hart_id_t hart, uint64_t& mip) {
-  bool valid;
-  if (!client_->whisperPeek(hart, 'c', 0x344, mip, valid)) {
-    cvm::log(cvm::ERROR, "Error: Hart{}: Failed to peek mip csr\n", hart);
-    return;
-  }
-}
-
-void bridge::update_intr_age(hart_id_t hart, const rv_instr_t& d) {
-  for (int i = 0; i < 16; ++i) {
-    if (((intr_pins_ | mip_) & (1ULL << i)) != 0) {
-      intr_age_[i]++;
-      log(cvm::HIGH, "<{}> intr_age_[{}][{}]++={}\n", d.cycle, hart, i, intr_age_[i]);
-    } else {
-      intr_age_[i] = 0;
-      log(cvm::FULL, "<{}> intr_age_[{}][{}]=0\n", d.cycle, hart, i);
-    }
-  }
-}
-
 void bridge::poke_mip(hart_id_t hart, uint64_t time, uint64_t mip) {
   bool valid;
-  // Peek old mip
-  uint64_t old_mip;
-  if (!client_->whisperPeek(hart, 'c', 0x344, old_mip, valid)) {
-    cvm::log(cvm::ERROR, "Error: Hart{}: Failed to peek mip csr\n", hart);
-    return;
-  }
-
-  // Poke new mip = mask(old mip, sup e/t/s) | mip
-  uint64_t new_mip = (old_mip & 0x222) | mip;
-  mip_ = new_mip;
-
-  if (!client_->whisperPoke(hart, time, 'c', 0x344, new_mip, valid)) {
+  if (!client_->whisperPoke(hart, time, 'c', 0x344, mip, valid)) {
     cvm::log(cvm::ERROR, "Error: Hart{}: Failed to poke mip csr\n", hart);
     return;
   }
-  log(cvm::MEDIUM, "<{}> Mip poked. Mip: {:#x}\n", time, new_mip);
+  log(cvm::MEDIUM, "<{}> Whisper poke: mip: {:#x}\n", time, mip);
 }
 
 void bridge::poke_seip(hart_id_t hart, uint64_t time, bool val) {
-  log(cvm::MEDIUM, "<{}> Seip poked. Seip: {}\n", time, val);
+  log(cvm::MEDIUM, "<{}> Whisper poke: seip: {}\n", time, val);
   if (!client_->whisperSetSeiPin(hart, (uint64_t)val)) {
     cvm::log(cvm::ERROR, "Error: Hart{}: Failed to poke seip\n", hart);
     return;
@@ -1151,6 +1112,18 @@ void bridge::exit_debug_mode(rv_debug_t& d) {
     cvm::log(cvm::ERROR, "Error: Hart{}: Failed to exit debug mode\n", id_);
     return;
   }
+}
+
+uint64_t bridge::get_csr(hart_id_t hart, src_t src, uint64_t addr) {
+  std::vector<bool> bool_vec;
+  std::vector<uint64_t> dword_vec;
+  resource_id_t csr_resource = resource_id_t{
+    .resource = resource_t::csr_reg,
+    .offset = addr
+  };
+  csr_cac_.GetResource(hart, src, csr_resource, bool_vec);
+  dword_vec = cac::CreateSizedVec<uint64_t>(bool_vec);
+  return dword_vec[0];
 }
 
 void bridge::final_phase() {
@@ -1208,15 +1181,8 @@ void bridge::report_metrics() {
 
   // DUT csr values
   for (auto& csr : csrs) {
-    std::vector<uint64_t> dword_vec;
-    std::vector<bool> bool_vec;
-    resource_id_t csr_resource = resource_id_t{
-      .resource = resource_t::csr_reg,
-      .offset = csr.address
-    };
-    csr_cac_.GetResource(id_, src_t::dut, csr_resource, bool_vec);
-    dword_vec = cac::CreateSizedVec<uint64_t>(bool_vec);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dut_csr_{}\": \"0x{:x}\"}}\n", id_, csr.name, dword_vec[0]);
+    uint64_t csr_data = get_csr(id_, src_t::dut, csr.address);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dut_csr_{}\": \"0x{:x}\"}}\n", id_, csr.name, csr_data);
   }
 
   // Step one final time to collect metrics for next instruction

@@ -176,24 +176,28 @@ import rv_tester_params::*;
     always @(posedge clk) begin
       interrupt_d1 <= interrupt;
     end
-    assign m_intrs[0].valid = ~dut_reset & (|(interrupt & ~interrupt_d1) | |(~interrupt & interrupt_d1)
-      | (interrupt.sei & ~interrupt_d1.sei) | (~interrupt.sei & interrupt_d1.sei)) & rvfi_enabled;
+    assign m_intrs[0].valid = ~dut_reset & (|(interrupt & ~interrupt_d1) | |(~interrupt & interrupt_d1)) & rvfi_enabled;
     assign m_intrs[0].data.location = location;
     assign m_intrs[0].data.cycle = clocks;
-    assign m_intrs[0].data.mip_posedge = |(interrupt & ~interrupt_d1);
     assign m_intrs[0].data.mip = get_mip(interrupt);
-    assign m_intrs[0].data.seip_posedge = (interrupt.sei & ~interrupt_d1.sei);
-    assign m_intrs[0].data.seip_negedge = (~interrupt.sei & interrupt_d1.sei);
-    assign m_intrs[0].data.seip = interrupt.sei;
-    assign m_intrs[0].data.stip_negedge = (~interrupt.sti & interrupt_d1.sti);
+    assign m_intrs[0].data.mip_mask = get_mip_mask(interrupt, interrupt_d1);
 
     function automatic bit [63:0] get_mip(rv_tester_pkg::interrupt_t intr);
       bit [63:0] mip = 'h0;
-      mip[11] = intr.mei;
       mip[7]  = intr.mti;
+      mip[5]  = intr.sti;
       mip[3]  = intr.msi;
       mip[1]  = intr.ssi;
       return mip;
+    endfunction
+
+    function automatic bit [63:0] get_mip_mask(rv_tester_pkg::interrupt_t intr, rv_tester_pkg::interrupt_t intr_d1);
+      bit [63:0] mask = 'h0;
+      mask[7] = (intr.mti & ~intr_d1.mti) | (~intr.mti & intr_d1.mti);
+      mask[5] = (intr.sti & ~intr_d1.sti) | (~intr.sti & intr_d1.sti);
+      mask[3] = (intr.msi & ~intr_d1.msi) | (~intr.msi & intr_d1.msi);
+      mask[1] = (intr.ssi & ~intr_d1.ssi) | (~intr.ssi & intr_d1.ssi);
+      return mask;
     endfunction
 
     // Timeout checks

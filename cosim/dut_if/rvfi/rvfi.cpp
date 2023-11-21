@@ -140,16 +140,12 @@ void rvfi::process(const rv_tester_transactions::cosim::m_intr<>& m_intr) {
 
   rv_intr_t intr;
   intr.cycle = m_intr.cycle;
-  intr.mip_posedge = m_intr.mip_posedge;
   intr.mip = m_intr.mip;
-  intr.seip_posedge = m_intr.seip_posedge;
-  intr.seip_negedge = m_intr.seip_negedge;
-  intr.seip = m_intr.seip;
-  intr.stip_negedge = m_intr.stip_negedge;
+  intr.mip_mask = m_intr.mip_mask;
 
   bridge_->process_dut_interrupt(id_, intr);
   if (FLAGS_rvfi_log) {
-    log(cvm::NONE, "#{} {} 0 (mip:{:#x} seip:{})\n", count_, intr.cycle, intr.mip, intr.seip);
+    log(cvm::NONE, "#{} {} 0 (mip:{:#x} mask:{:#x})\n", count_, intr.cycle, intr.mip, intr.mip_mask);
   }
 }
 

@@ -180,16 +180,8 @@ cosim:
                 width: 64
             mip:
                 width: 64
-            seip:
-                width: 1
-            mip_posedge:
-                width: 1
-            seip_posedge:
-                width: 1
-            seip_negedge:
-                width: 1
-            stip_negedge:
-                width: 1
+            mip_mask:
+                width: 64
 
     m_debug:
         domain: 1

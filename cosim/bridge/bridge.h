@@ -87,8 +87,9 @@ private:
   void update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_slice_index = 0);
   void update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, const std::vector<size_8_bytes_t>&& dword_vec, cac::optional_const_ref<size_8_bytes_t> mask_ref = std::nullopt);
   void update_mem(hart_id_t hart, rv_instr_t& d);
-  void translation_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
+  uint64_t get_csr(hart_id_t hart, src_t src, uint64_t addr);
 
+  void translation_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   uint64_t translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t memclass);
 
   void process_debug_pre_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
@@ -97,10 +98,8 @@ private:
   void process_exception_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   void process_satp_write_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
 
-  void get_whisper_mip(hart_id_t hart, uint64_t& mip);
-  void get_whisper_intr_status(hart_id_t hart, bool& taken, uint64_t& cause);
-  void update_intr_age(hart_id_t hart, const rv_instr_t& d);
-  void poke_intr_defer_status(hart_id_t hart, uint64_t time, uint64_t mip);
+  void whisper_check_interrupt(hart_id_t hart, uint64_t mip, bool& taken, uint64_t& cause);
+  void whisper_defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
   void poke_mip(hart_id_t hart, uint64_t time, uint64_t mip);
   void poke_seip(hart_id_t hart, uint64_t time, bool val);
 
@@ -114,7 +113,6 @@ private:
   bool htif_read(const rv_instr_t& d);
   bool hpm_counter_read(const whisper_state_t& w);
   bool lrsc_fail(const whisper_state_t& w);
-  bool mip_timing_mismatch(const whisper_state_t& w);
   bool xtval_read(const whisper_state_t& w);
   void resynch(hart_id_t hart, const rv_instr_group_t& d);
   void resynch(hart_id_t hart, const rv_instr_t& d);
@@ -152,8 +150,7 @@ private:
   bool resynch_csr_ = false;
 
   uint64_t mip_ = 0;
-  uint64_t intr_pins_ = 0;
-  uint64_t prev_intr_pins_ = 0;
+  uint64_t prev_mip_ = 0;
   std::array<uint32_t, max_intr> intr_age_{};
 
   // Memmap

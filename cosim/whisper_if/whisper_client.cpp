@@ -198,6 +198,24 @@ whisperClient<URV>::whisperPeek(int hart, char resource, uint64_t addr, uint64_t
   return true;
 }
 
+template <typename URV>
+bool
+whisperClient<URV>::whisperPeekCsr(int hart, uint64_t addr, uint64_t& value, uint64_t& mask,
+         bool& valid)
+{
+  req.hart = hart;
+  req.type = WhisperMessageType::Peek;
+  req.resource = 'c';
+  req.address = addr;
+
+  if (not whisperCommand(req, reply))
+    return false;
+
+  valid = reply.type != WhisperMessageType::Invalid;
+  value = reply.value;
+  mask = reply.address;
+  return true;
+}
 
 // Send a whisper poke command. Retrun true on successful comunication
 // and false on failure. Set valid to false if hart/resource/addr
