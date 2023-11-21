@@ -54,6 +54,7 @@ import rv_tester_params::*;
     rv_tester_pkg::terminate_t sysmod_terminate;
     rv_tester_pkg::terminate_t cosim_terminate [NHARTS-1:0];
     logic cosim_terminate_any;
+    int instructions = 0;
 
     int quiesce_counter = 0;
     int quiesce_timeout = 500;
@@ -83,13 +84,18 @@ import rv_tester_params::*;
         clocks          <= clocks + 1;
 
         quiesce_counter <= quiesce_counter + int'(terminate);
-	flush_counter   <= flush_counter + int'(quiesced);
+	      flush_counter   <= flush_counter + int'(quiesced);
+
+        for (int i=0; i<NHARTS; i++) begin
+          instructions  <= instructions + int'(pmci[i][INSTRUCTIONS]);
+        end
 
         if (rv_tester_reset) begin
             clocks          <= '0;
             sysmod_reset    <= '1;
             quiesce_counter <= '0;
             flush_counter   <= '0;
+            instructions    <= '0;
         end
 
     end
@@ -175,7 +181,10 @@ import rv_tester_params::*;
             end
 
             if (shutdowned && num_reruns == '0) begin
+                $display("INFO_PASS_METRIC:{\"instruction_count\": %0d}", instructions);
+                $display("INFO_PASS_REGR_METRIC:{\"name\": \"instructions\", \"value\":%0d, \"type\": \"i\", \"action\": \"sum\"}", instructions);
                 $display("INFO_PASS:{\"clocks\": %0d}", clocks);
+
                 if (call_finish) begin
                     $finish();
                 end
