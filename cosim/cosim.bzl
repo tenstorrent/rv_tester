@@ -16,6 +16,7 @@ def cosim_gen(name, packet, topology, harness, visibility = None, cc_attrs = {},
             "@rv_tester//cosim/utils/eot:eot.h",
         ],
         deps = [
+            "@rv_tester//:structs",
             "@rv_tester//cosim/utils/general:util",
             packet + "_cc",
             "@rv_tester//sysmod/htif:htif",

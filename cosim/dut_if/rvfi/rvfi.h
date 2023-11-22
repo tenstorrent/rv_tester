@@ -12,7 +12,7 @@
 #include "bridge.h"
 #include "cosim/utils/eot/eot.h"
 
-#include "sysmod/htif/htif.h"
+#include "rv_tester/rv_tester_structs.h"
 
 class rvfi {
 
@@ -51,7 +51,7 @@ class rvfi {
     void process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_bypass);
     void process(const rv_tester_transactions::cosim::m_mcmi_write<>& m_mcmi_write);
 
-    void process(const htif::terminate_t&);
+    void process(const rv_tester::terminate_called&);
 
     std::tuple<uint64_t, uint64_t, uint8_t> get_mem_attributes(uint64_t addr, uint8_t mask, uint64_t data);
 

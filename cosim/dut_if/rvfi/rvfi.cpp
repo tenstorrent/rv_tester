@@ -25,10 +25,6 @@ DEFINE_uint64(debug_exit_pc, 0x860, "Debug Mode exit PC");
 
 REGISTRY_register(rvfi, COSIM, cvm::registry::all);
 
-extern "C" {
-  void cosim_terminate();
-}
-
 rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
   : log("h" + std::to_string(id) + "_dut_rvfi.log"), loc_(loc), id_(id) {
   init();
@@ -52,8 +48,8 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
   >(loc);
 
   connect<
-    htif::terminate_t
-  >(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0));
+    rv_tester::terminate_called
+  >(cvm::topology::get_from_type("PLATFORM", 0));
 }
 
 rvfi::~rvfi() {
@@ -335,6 +331,9 @@ void rvfi::send_instr(rv_instr_t& instr) {
   if (!FLAGS_cosim)
     return;
 
+  if (terminated_)
+    return;
+
   bridge_->process_dut_instr_retire(instr.hart, instr);
 }
 
@@ -342,11 +341,17 @@ void rvfi::send_instr_group(hart_id_t hart, rv_instr_group_t& group) {
   if (!FLAGS_cosim)
     return;
 
+  if (terminated_)
+    return;
+
   bridge_->process_dut_instr_group_retire(hart, group);
 }
 
 void rvfi::enter_debug_mode(rv_instr_t& instr) {
   if (!FLAGS_cosim)
+    return;
+
+  if (terminated_)
     return;
 
   if ((uint64_t)instr.pc.pc_rdata == FLAGS_debug_entry_pc) {
@@ -371,6 +376,9 @@ void rvfi::exit_debug_mode(rv_instr_t& instr) {
   if (!FLAGS_cosim)
     return;
 
+  if (terminated_)
+    return;
+
   if ((uint64_t)instr.pc.pc_rdata == FLAGS_debug_exit_pc) {
 
     rv_debug_t debug;
@@ -391,6 +399,9 @@ void rvfi::exit_debug_mode(rv_instr_t& instr) {
 
 void rvfi::process(const rv_tester_transactions::cosim::m_csri<>& m_csri) {
   if (!FLAGS_csr_check)
+    return;
+
+  if (terminated_)
     return;
 
   csr_t c {true, m_csri.hart, m_csri.cycle, m_csri.addr, m_csri.mask, m_csri.data};
@@ -468,8 +479,8 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write<>& m_mcmi_w
   bridge_->process_dut_mcm_write(m_mcmi_write.hart, m);
 }
 
-void rvfi::process(const htif::terminate_t&) {
-  cvm::log(cvm::MEDIUM, "[RVFI] termination signaled, stopping further rvfi processing\n");
+void rvfi::process(const rv_tester::terminate_called&) {
+  cvm::log(cvm::HIGH, "[RVFI] termination signaled, stopping further rvfi processing\n");
   terminated_ = true;
 }
 

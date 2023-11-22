@@ -13,6 +13,7 @@
 #include "null_dev/null_dev.h"
 #include "htif/htif.h"
 #include "trickbox/trickbox.h"
+#include "rv_tester/rv_tester_structs.h"
 
 // internal flags
 DEFINE_string(hex, "", "hex file (program) to load into memory");
@@ -164,6 +165,7 @@ sysmod::dmi_write(debugger::dmi_data_t i) {
 
 void
 sysmod::terminate(htif::terminate_t) {
+  cvm::registry::messenger.signal<rv_tester::terminate_called>(cvm::topology::get_from_type("PLATFORM", 0), rv_tester::terminate_called{});
   cvm::registry::callbacks.push(
       scope(),
       sysmod_terminate
