@@ -6,6 +6,7 @@
 #define T0      5
 #define S0      8
 #define S1      9
+#define A0      10
 
 static uint32_t bits(uint32_t value, unsigned int hi, unsigned int lo) {
   return (value >> lo) & ((1 << (hi+1-lo)) - 1);
@@ -248,4 +249,22 @@ static uint32_t srli(unsigned int dest, unsigned int src, uint8_t shamt)
 		(src << 15) |
 		(dest << 7) |
 		MATCH_SRLI;
+}
+
+static uint32_t slli(unsigned int dest, unsigned int src, uint8_t shamt) __attribute__ ((unused));
+static uint32_t slli(unsigned int dest, unsigned int src, uint8_t shamt)
+{
+	return (bits(shamt, 4, 0) << 20) |
+		(src << 15) |
+		(dest << 7) |
+		MATCH_SLLI;
+}
+
+static uint32_t auipc(unsigned int dest, uint32_t imm) __attribute__ ((unused));
+static uint32_t auipc(unsigned int dest, uint32_t imm)
+{
+  return 
+    (bits(imm, 20, 0) << 12) |
+    (dest << 7) |
+    MATCH_AUIPC;
 }
