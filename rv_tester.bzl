@@ -101,6 +101,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
         srcs = ["@rv_tester//:rv_tester.cpp"],
         deps = [
             "@rv_tester//:plusargs",
+            "@rv_tester//:structs",
             "@rv_tester//common:common",
             "@cvm//:plusargs",
             "@cvm//:registry",

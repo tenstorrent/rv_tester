@@ -26,6 +26,7 @@ def sysmod_gen(name, packet, topology, visibility = None, cc_attrs = {}, **kwarg
           "@rv_tester//sysmod:sysmod.h"
         ],
         deps = [
+          "@rv_tester//:structs",
           "@rv_tester//common:common",
           "@rv_tester//sysmod:device",
           "@rv_tester//sysmod/clint:clint",
