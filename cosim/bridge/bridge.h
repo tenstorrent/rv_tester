@@ -52,7 +52,8 @@ public:
   virtual void process_dut_mcm_write(hart_id_t hart, mem_cl_t& m) override;
 
   // Interrupts
-  virtual void process_dut_interrupt(hart_id_t hart, rv_intr_t &i) override;
+  virtual void process_dut_interrupt(hart_id_t hart, rv_intr_t& i) override;
+  virtual void process_dut_imsic_interrupt(hart_id_t hart, mem_t& m) override;
 
   // Debug mode
   virtual void enter_debug_mode(rv_debug_t& d) override;
@@ -151,6 +152,7 @@ private:
 
   uint64_t mip_ = 0;
   uint64_t prev_mip_ = 0;
+  uint64_t iss_mip_ = 0;
   std::array<uint32_t, max_intr> intr_age_{};
 
   // Memmap

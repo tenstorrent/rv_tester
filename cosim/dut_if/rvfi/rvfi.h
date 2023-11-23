@@ -41,6 +41,7 @@ class rvfi {
     void process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi);
     void process(const rv_tester_transactions::cosim::m_trap<>& m_trap);
     void process(const rv_tester_transactions::cosim::m_intr<>& m_intr);
+    void process(const rv_tester_transactions::cosim::m_imsic_intr<>& m_imsic_intr);
     void process(const rv_tester_transactions::cosim::m_debug<>& m_debug);
 
     void process(const rv_tester_transactions::cosim::m_csri<>& m_csri);

@@ -254,8 +254,6 @@ void bridge::process_debug_pre_step(hart_id_t hart, const rv_instr_t& instr, whi
 
 void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
 
-  mip_ = get_csr(hart, src_t::dut, 0x344);
-
   if (!mip_)
     return;
 
@@ -1029,9 +1027,28 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
   size_8_bytes_t mask = i.mip_mask;
   update_regs(hart, src_t::dut, resource_t::csr_reg, 0x344, {i.mip}, mask);
 
-  // Poke whisper mip
-  uint64_t mip = get_csr(hart, src_t::dut, 0x344);
-  poke_mip(hart, i.cycle, mip);
+  // Poke whisper mip for sw/timer interrupts, not for external
+  mip_ = get_csr(hart, src_t::dut, 0x344);
+  if (mask & ~0xa00)
+    poke_mip(hart, i.cycle, mip_ & ~0xa00);
+}
+
+void bridge::process_dut_imsic_interrupt(hart_id_t hart, mem_t& m) {
+  log(cvm::MEDIUM, "<{}> IMSIC interrupt: [addr={:#x} data={:#x}]\n", m.cycle, m.pa, m.data);
+
+  // Poke imsic write into whisper memory
+  bool valid;
+  if (!client_->whisperPoke(hart, m.cycle, 'm', m.pa, m.data, valid)) {
+    cvm::log(cvm::ERROR, "Error: Hart{}: Failed to poke memory\n", hart);
+    return;
+  }
+
+  // Peek mip to check if expected to be taken
+  if (!client_->whisperPeek(hart, 'c', 0x344, iss_mip_, valid)) {
+    cvm::log(cvm::ERROR, "Error: Hart{}: Failed to peek mip\n", hart);
+    return;
+  }
+  log(cvm::MEDIUM, "<{}> Whisper mip: {:#x}\n", m.cycle, iss_mip_);
 }
 
 void bridge::whisper_defer_interrupt(hart_id_t hart, uint64_t cycle, uint64_t mip) {

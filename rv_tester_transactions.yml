@@ -183,6 +183,17 @@ cosim:
             mip_mask:
                 width: 64
 
+    m_imsic_intr:
+        domain: 1
+        num: 1
+        fields:
+            cycle:
+                width: 64
+            addr:
+                width: 64
+            data:
+                width: 64
+
     m_debug:
         domain: 1
         num: 1

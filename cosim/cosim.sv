@@ -21,7 +21,8 @@ import rv_tester_params::*;
     input mcmi_t [NINSERT-1:0] mcmi_insert,
     input mcmi_t [NWRITE-1:0] mcmi_write,
     input mcmi_t [NBYPASS-1:0] mcmi_bypass,
-    input rv_tester_pkg::interrupt_t interrupt,
+    input rv_tester_pkg::interrupt_t wired_interrupt,
+    input rv_tester_params::mst_req_top imsic_interrupt,
     input debug_mode,
     output rv_tester_pkg::terminate_t terminate,
     `RV_TESTER_TRANSACTIONS_COSIM_OUTPUT_PORTS
@@ -172,18 +173,20 @@ import rv_tester_params::*;
     assign m_debugs[0].data.exit = ~debug_mode;
 
     // m_intr
-    rv_tester_pkg::interrupt_t interrupt_d1;
+    rv_tester_pkg::interrupt_t wired_interrupt_d1;
     always @(posedge clk) begin
-      interrupt_d1 <= interrupt;
+      wired_interrupt_d1 <= wired_interrupt;
     end
-    assign m_intrs[0].valid = ~dut_reset & (|(interrupt & ~interrupt_d1) | |(~interrupt & interrupt_d1)) & rvfi_enabled;
+    assign m_intrs[0].valid = ~dut_reset & (|(wired_interrupt & ~wired_interrupt_d1) | |(~wired_interrupt & wired_interrupt_d1)) & rvfi_enabled;
     assign m_intrs[0].data.location = location;
     assign m_intrs[0].data.cycle = clocks;
-    assign m_intrs[0].data.mip = get_mip(interrupt);
-    assign m_intrs[0].data.mip_mask = get_mip_mask(interrupt, interrupt_d1);
+    assign m_intrs[0].data.mip = get_mip(wired_interrupt);
+    assign m_intrs[0].data.mip_mask = get_mip_mask(wired_interrupt, wired_interrupt_d1);
 
     function automatic bit [63:0] get_mip(rv_tester_pkg::interrupt_t intr);
       bit [63:0] mip = 'h0;
+      mip[11] = intr.mei;
+      mip[9]  = intr.sei;
       mip[7]  = intr.mti;
       mip[5]  = intr.sti;
       mip[3]  = intr.msi;
@@ -191,12 +194,23 @@ import rv_tester_params::*;
       return mip;
     endfunction
 
+    // m_imsic_interrupt
+    assign m_imsic_intrs[0].valid = ~dut_reset & (imsic_interrupt.aw_valid & imsic_interrupt.w_valid & imsic_interrupt.b_ready) & rvfi_enabled;
+    assign m_imsic_intrs[0].data.location = location;
+    assign m_imsic_intrs[0].data.cycle = clocks;
+    assign m_imsic_intrs[0].data.addr = imsic_interrupt.aw.addr;
+    /* verilator lint_off WIDTH */
+    assign m_imsic_intrs[0].data.data = imsic_interrupt.w.data & 'hff;
+    /* verilator lint_on WIDTH */
+
     function automatic bit [63:0] get_mip_mask(rv_tester_pkg::interrupt_t intr, rv_tester_pkg::interrupt_t intr_d1);
       bit [63:0] mask = 'h0;
-      mask[7] = (intr.mti & ~intr_d1.mti) | (~intr.mti & intr_d1.mti);
-      mask[5] = (intr.sti & ~intr_d1.sti) | (~intr.sti & intr_d1.sti);
-      mask[3] = (intr.msi & ~intr_d1.msi) | (~intr.msi & intr_d1.msi);
-      mask[1] = (intr.ssi & ~intr_d1.ssi) | (~intr.ssi & intr_d1.ssi);
+      mask[11] = (intr.mei & ~intr_d1.mei) | (~intr.mei & intr_d1.mei);
+      mask[9]  = (intr.sei & ~intr_d1.sei) | (~intr.sei & intr_d1.sei);
+      mask[7]  = (intr.mti & ~intr_d1.mti) | (~intr.mti & intr_d1.mti);
+      mask[5]  = (intr.sti & ~intr_d1.sti) | (~intr.sti & intr_d1.sti);
+      mask[3]  = (intr.msi & ~intr_d1.msi) | (~intr.msi & intr_d1.msi);
+      mask[1]  = (intr.ssi & ~intr_d1.ssi) | (~intr.ssi & intr_d1.ssi);
       return mask;
     endfunction
 

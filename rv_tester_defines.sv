@@ -429,8 +429,9 @@ package rv_tester_params;
     input                                    clk,                                                   \
     input                                    reset,                                                 \
     input  rv_tester_params::bootstrap_t     bootstrap,                                             \
-    input  rv_tester_pkg::interrupt_t        interrupt    [rv_tester_params::NHARTS-1:0],           \
-    output                                   debug_mode   [rv_tester_params::NHARTS-1:0],           \
+    input  rv_tester_pkg::interrupt_t        interrupt          [rv_tester_params::NHARTS-1:0],     \
+    output rv_tester_pkg::interrupt_t        interrupt_pend     [rv_tester_params::NHARTS-1:0],     \
+    output                                   debug_mode         [rv_tester_params::NHARTS-1:0],     \
     input                                    terminate,                                             \
     input  logic                             terminated,                                            \
     output                                   quiesced,                                              \
@@ -463,8 +464,9 @@ package rv_tester_params;
     logic                                    clk;                                                   \
     logic                                    reset;                                                 \
     rv_tester_params::bootstrap_t            bootstrap;                                             \
-    rv_tester_pkg::interrupt_t               interrupt    [rv_tester_params::NHARTS-1:0];           \
-    logic                                    debug_mode   [rv_tester_params::NHARTS-1:0];           \
+    rv_tester_pkg::interrupt_t               interrupt       [rv_tester_params::NHARTS-1:0];        \
+    rv_tester_pkg::interrupt_t               interrupt_pend  [rv_tester_params::NHARTS-1:0];        \
+    logic                                    debug_mode      [rv_tester_params::NHARTS-1:0];        \
     logic                                    terminate;                                             \
     logic                                    terminated;                                            \
     logic                                    quiesced;                                              \
