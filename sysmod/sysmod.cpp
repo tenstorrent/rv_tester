@@ -165,7 +165,7 @@ sysmod::dmi_write(debugger::dmi_data_t i) {
 
 void
 sysmod::terminate(htif::terminate_t) {
-  cvm::registry::messenger.signal<rv_tester::terminate_called>(cvm::topology::get_from_type("PLATFORM", 0), rv_tester::terminate_called{});
+  cvm::registry::messenger.signal<rv_tester::terminate_called>(cvm::topology::get_from_type("PLATFORM", 0), rv_tester::terminate_called{}, true);
   cvm::registry::callbacks.push(
       scope(),
       sysmod_terminate
