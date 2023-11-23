@@ -40,7 +40,27 @@ cvm::messenger::task<void> dm::read(const transactor::read_t& r, data_t& data) {
 
   auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(channel);
   data = resp.data;
+  
 
+  //if not 64B aligned
+  //left shift byte offset
+  auto lower_bytes = addr&0x3F;
+  if(lower_bytes!=0){
+    std::rotate(
+                  std::begin(data),
+                  std::next(std::begin(data),lower_bytes),
+                  std::end(data)
+                  );
+  }
+  // cvm::log(cvm::HIGH, " [Rv_Tester] rv_tester reads addr:{:#x} from transactor, length :{:#x}\n",r.addr,r.length);
+  // printf("element : ");
+  // for (auto element = data.rbegin(); element!= data.rend(); ++element) {
+  //     printf("%02x",*element);
+  //   }
+  // std::cout << std::endl;
+  
+
+  
   co_return;
 }
 
