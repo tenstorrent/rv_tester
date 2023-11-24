@@ -30,6 +30,15 @@ rv_tester: &rv_tester
         <<: *rv_tester_axi_attrs
         <<: *rv_tester_axi_sw
 
+    ncio_axi:
+      count: *rv_tester_ncio_axi_count
+      type:
+        - axi
+        - platform_transactor
+      attrs:
+        <<: *rv_tester_ncio_axi_attrs
+        <<: *rv_tester_axi_sw
+
     axi_mst:
       count: *rv_tester_axi_mst_count
       type:
