@@ -41,7 +41,7 @@ module dm_model #(
 
     assign dm_load_cmds[0].valid = !reset && axi_req_mst.ar_valid;
     assign dm_load_cmds[0].data.location = location;
-    assign dm_load_cmds[0].data.addr = axi_req_mst.ar.addr;
+    assign dm_load_cmds[0].data.addr = axi_req_mst.ar.addr[11:0];
     assign dm_load_cmds[0].data.size = axi_req_mst.ar.size; //(2**axi_req_mst.ar.size)/8;
     assign dm_load_cmds[0].data.id = axi_req_mst.ar.id;
 
@@ -53,7 +53,7 @@ module dm_model #(
     assign dm_stores[0].valid = !reset && axi_req_mst.w_valid && axi_req_mst.aw_valid;
     assign dm_stores[0].data.location = location;
     assign dm_stores[0].data.data = axi_req_mst.w.data[31:0];
-    assign dm_stores[0].data.addr = axi_req_mst.aw.addr;
+    assign dm_stores[0].data.addr = axi_req_mst.aw.addr[11:0];
     assign dm_stores[0].data.len = axi_req_mst.aw.len[3:0];
 
 endmodule
