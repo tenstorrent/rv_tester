@@ -198,7 +198,8 @@ void debug_module_t::reset()
   cvm::log(cvm::HIGH, "[Config] debug_progbuf_start={:#x}\n", debug_progbuf_start);
   cvm::log(cvm::HIGH, "[Config] debug_abstract_start={:#x}\n", debug_abstract_start);
 
-  unsigned i = 1;
+  unsigned i = 0;
+  write32(debug_abstract,i++,ZERO);//0 (low)
   (has_second_scratch)? write32(debug_abstract,i++,auipc(A0,ZERO)) : write32(debug_abstract, i++, nop());    // 0 (high)
   (has_second_scratch)? write32(debug_abstract,i++,srli(A0,A0,12)) : write32(debug_abstract, i++, nop());    // 1 (low)
   (has_second_scratch)? write32(debug_abstract,i++,slli(A0,A0,12)) : write32(debug_abstract, i++, nop());    // 1 (high)
@@ -602,106 +603,214 @@ bool debug_module_t::perform_abstract_command()
     bool transfer = get_field(command, AC_ACCESS_REGISTER_TRANSFER);
     bool postexec = get_field(command,AC_ACCESS_REGISTER_POSTEXEC);
     bool unsupported_command = false;
-
-    if (size > 3)
-    {
+    bool csr_access = false;
+    bool fpr_access = false;
+    if (size > 3){
       abstractcs.cmderr = CMDERR_NOTSUP;
+      unsupported_command = true;
       return true;
     }
 
     if (postexec==0 && transfer==0) // Implementation does not support this config and marks it as unsupported
     {
       abstractcs.cmderr = CMDERR_NOTSUP;
+      unsupported_command = true;
+      return true;
+    }
+    if (get_field(command, AC_ACCESS_REGISTER_AARPOSTINCREMENT)){
+      //write32(debug_abstract, 0, ebreak());
+      abstractcs.cmderr = CMDERR_NOTSUP;
+      unsupported_command = true;
+      return true;
+    }
+
+    if (cvm::bitmanip::slice<uint64_t>(regno, 15, 14) != 0){
+      //write32(debug_abstract, 0, ebreak()); // Command not supported
+      unsupported_command = true;
       return true;
     }
 
     //** Custom logic to meet the implementation specific details
-    if ((size <= 4) && transfer && write)
-    { // Check for access reg type
-      write32(debug_abstract, 0, nop()); // store a0 in dscratch1 if it exists, but our implementation doesn't allow it
-
-      if (cvm::bitmanip::slice<uint64_t>(regno, 15, 14) != 0){
-        write32(debug_abstract, 0, ebreak()); // Command not supported
-        unsupported_command = true;
-      }
-    
-      else if (cvm::bitmanip::slice<uint64_t>(regno, 12, 12)) // GPR/FPR access
+    if(transfer){
+      csr_access = (cvm::bitmanip::slice<uint64_t>(regno, 12, 12) != 1);
+      fpr_access = cvm::bitmanip::slice<uint64_t>(regno, 5, 5);
+      (has_second_scratch)? write32(debug_abstract, 0, csrw(A0, CSR_DSCRATCH1)) : write32(debug_abstract, 0, nop()); // store s0 in dscratch
+    }
+    if (write)//Write to Register
+    { 
+      if (csr_access=false) // If GPR/FPR access
       {
-        if (cvm::bitmanip::slice<uint64_t>(regno, 5, 5)) // determine whether we want to access the floating point register or not
+        if (fpr_access) // determine whether we want to access the floating point register or not
         {
           unsigned fprnum = regno - 0x1020;
-          if (size == 2)
-            write32(debug_abstract, 4, flw(fprnum, ZERO, debug_data_start));
-          else if (size == 4)
-            write32(debug_abstract, 4, fld(fprnum, ZERO, debug_data_start));
+          switch(size){
+           case 0:
+            write32(debug_abstract, 4, flh(fprnum, load_base_address, debug_data_start));break;
+           case 1:
+            write32(debug_abstract, 4, flh(fprnum, load_base_address, debug_data_start));break;
+           case 2:
+            write32(debug_abstract, 4, flw(fprnum, load_base_address, debug_data_start));break;
+           case 3:
+            write32(debug_abstract, 4, fld(fprnum, load_base_address, debug_data_start));break;
+          }
         }
         else
         {
           unsigned regnum = regno - 0x1000;
-          if (size == 2)
-            write32(debug_abstract, 4, lw(regnum, ZERO, debug_data_start));
-          else if (size == 4)
-            write32(debug_abstract, 4, ld(regnum, ZERO, debug_data_start));
+
+          if (regnum == 0xa){//Overwrite the Dscratch1 csr instead
+            write32(debug_abstract, 4, csrw(S0, CSR_DSCRATCH0)); // store s0 in dscratch
+            switch (size) {//Load Arg0 into S0
+              case 0: 
+                write32(debug_abstract, 5, lb(S0, load_base_address, debug_data_start ));break;
+              case 1: 
+                write32(debug_abstract, 5, lh(S0, load_base_address, debug_data_start ));break;
+              case 2: 
+                write32(debug_abstract, 5, lw(S0, load_base_address, debug_data_start ));break;
+              case 3: 
+                write32(debug_abstract, 5, ld(S0, load_base_address, debug_data_start ));break;
+              }        
+            write32(debug_abstract, 6, csrw(S0, CSR_DSCRATCH1)); // and store it in the dscratch1 [overwrite restore]
+            write32(debug_abstract, 7, csrr(S0, CSR_DSCRATCH0)); // restore s0 again from dscratch 
+          }
+          else{
+            switch (size) {//Load Arg0 into S0
+              case 0: 
+                write32(debug_abstract, 4, lb(regnum, load_base_address, debug_data_start ));break;
+              case 1: 
+                write32(debug_abstract, 4, lh(regnum, load_base_address, debug_data_start ));break;
+              case 2: 
+                write32(debug_abstract, 4, lw(regnum, load_base_address, debug_data_start ));break;
+              case 3: 
+                write32(debug_abstract, 4, ld(regnum, load_base_address, debug_data_start ));break;
+              }        
+          }
         }
       }
-
-      else { //CSR access 
+      else { //CSR access
         write32(debug_abstract, 4, csrw(S0, CSR_DSCRATCH0)); // store s0 in dscratch
-        if (size == 2)
-            write32(debug_abstract, 5, lw(S0, ZERO, debug_data_start)); // load from data register
-        else if (size == 4)
-            write32(debug_abstract, 5, ld(S0, ZERO, debug_data_start)); // load from data register
+        switch (size) {//Load Arg0 into S0
+          case 0: 
+            write32(debug_abstract, 5, lb(S0, load_base_address, debug_data_start ));break;
+          case 1: 
+            write32(debug_abstract, 5, lh(S0, load_base_address, debug_data_start ));break;
+          case 2: 
+            write32(debug_abstract, 5, lw(S0, load_base_address, debug_data_start ));break;
+          case 3: 
+            write32(debug_abstract, 5, ld(S0, load_base_address, debug_data_start ));break;
+        }        
         write32(debug_abstract, 6, csrw(S0, regno)); // and store it in the corresponding CSR
         write32(debug_abstract, 7, csrr(S0, CSR_DSCRATCH0)); // restore s0 again from dscratch
       }
     }
 
-    else if ((size <= 4) && transfer && !write)
+    else if (!write)
     {
-      write32(debug_abstract, 0, nop()); // store a0 in dscratch1 if there's second scratch, but our impl doesnt have it so nop()
-
-      if (cvm::bitmanip::slice<uint64_t>(regno, 15, 14) != 0){
-        write32(debug_abstract, 0, ebreak()); // Command not supported
-        unsupported_command = true;
-      }
-      
-      else if (cvm::bitmanip::slice<uint64_t>(regno, 12, 12)){ // GPR/FPR access
-        if (cvm::bitmanip::slice<uint64_t>(regno, 5, 5)) // determine whether we want to access the floating point register or not
+      if (!csr_access) // If GPR/FPR access
+      {
+        if (fpr_access) // determine whether we want to access the floating point register or not
         {
           unsigned fprnum = regno - 0x1020;
-          if (size == 2)
-            write32(debug_abstract, 4, fsw(fprnum, ZERO, debug_data_start));
-          else if (size == 4)
-            write32(debug_abstract, 4, fsd(fprnum, ZERO, debug_data_start));
+          switch(size){
+           case 0:
+            write32(debug_abstract, 4, fsh(fprnum, load_base_address, debug_data_start));break;
+           case 1:
+            write32(debug_abstract, 4, fsh(fprnum, load_base_address, debug_data_start));break;
+           case 2:
+            write32(debug_abstract, 4, fsw(fprnum, load_base_address, debug_data_start));break;
+           case 3:
+            write32(debug_abstract, 4, fsd(fprnum, load_base_address, debug_data_start));break;
+          }
         }
         else
         {
           unsigned regnum = regno - 0x1000;
-          if (size == 2)
-            write32(debug_abstract, 4, sw(regnum, ZERO, debug_data_start));
-          else if (size == 4)
-            write32(debug_abstract, 4, sd(regnum, ZERO, debug_data_start));
+
+          if (regnum == 0xa){//Overwrite the Dscratch1 csr instead
+            write32(debug_abstract, 4, csrw(S0, CSR_DSCRATCH0)); // store s0 in dscratch
+            write32(debug_abstract, 5, csrr(S0, CSR_DSCRATCH1)); // and store it in the dscratch1 [overwrite restore]
+            switch (size) {//Load Arg0 into S0
+              case 0: 
+                write32(debug_abstract, 6, sb(S0, load_base_address, debug_data_start ));break;
+              case 1: 
+                write32(debug_abstract, 6, sh(S0, load_base_address, debug_data_start ));break;
+              case 2: 
+                write32(debug_abstract, 6, sw(S0, load_base_address, debug_data_start ));break;
+              case 3: 
+                write32(debug_abstract, 6, sd(S0, load_base_address, debug_data_start ));break;
+              }        
+            write32(debug_abstract, 7, csrr(S0, CSR_DSCRATCH0)); // restore s0 again from dscratch 
+          }
+          else{
+            switch (size) {//Load Arg0 into S0
+              case 0: 
+                write32(debug_abstract, 4, sb(regnum, load_base_address, debug_data_start ));break;
+              case 1: 
+                write32(debug_abstract, 4, sh(regnum, load_base_address, debug_data_start ));break;
+              case 2: 
+                write32(debug_abstract, 4, sw(regnum, load_base_address, debug_data_start ));break;
+              case 3: 
+                write32(debug_abstract, 4, sd(regnum, load_base_address, debug_data_start ));break;
+              }        
+          }
         }
       }
-
       else { //CSR access
         write32(debug_abstract, 4, csrw(S0, CSR_DSCRATCH0)); // store s0 in dscratch
-        write32(debug_abstract, 5, csrr(S0, regno)); // read value from CSR into s0
-        if (size == 2)
-            write32(debug_abstract, 6, lw(S0, ZERO, debug_data_start)); // and store s0 into data section
-        else if (size == 4)
-            write32(debug_abstract, 6, ld(S0, ZERO, debug_data_start)); // and store s0 into data section
+        write32(debug_abstract, 5, csrr(S0, regno)); // and store it in the corresponding CSR
+        switch (size) {//Load Arg0 into S0
+          case 0: 
+            write32(debug_abstract, 6, sb(S0, load_base_address, debug_data_start ));break;
+          case 1: 
+            write32(debug_abstract, 6, sh(S0, load_base_address, debug_data_start ));break;
+          case 2: 
+            write32(debug_abstract, 6, sw(S0, load_base_address, debug_data_start ));break;
+          case 3: 
+            write32(debug_abstract, 6, sd(S0, load_base_address, debug_data_start ));break;
+        }        
         write32(debug_abstract, 7, csrr(S0, CSR_DSCRATCH0)); // restore s0 again from dscratch
       }
-    }
-    else if ( size > 4 || get_field(command, AC_ACCESS_REGISTER_AARPOSTINCREMENT)){
-      write32(debug_abstract, 0, ebreak());
-      unsupported_command = true;
+      //write32(debug_abstract, 0, nop()); // store a0 in dscratch1 if there's second scratch, but our impl doesnt have it so nop()
+
+      
+      // if (cvm::bitmanip::slice<uint64_t>(regno, 12, 12)){ // GPR/FPR access
+      //   if (cvm::bitmanip::slice<uint64_t>(regno, 5, 5)) // determine whether we want to access the floating point register or not
+      //   {
+      //     unsigned fprnum = regno - 0x1020;
+      //     if (size == 2)
+      //       write32(debug_abstract, 4, fsw(fprnum, ZERO, debug_data_start));
+      //     else if (size == 4)
+      //       write32(debug_abstract, 4, fsd(fprnum, ZERO, debug_data_start));
+      //   }
+      //   else
+      //   {
+      //     unsigned regnum = regno - 0x1000;
+      //     if (size == 2)
+      //       write32(debug_abstract, 4, sw(regnum, ZERO, debug_data_start));
+      //     else if (size == 4)
+      //       write32(debug_abstract, 4, sd(regnum, ZERO, debug_data_start));
+      //   }
+      // }
+
+      // else { //CSR access
+      //   write32(debug_abstract, 4, csrw(S0, CSR_DSCRATCH0)); // store s0 in dscratch
+      //   write32(debug_abstract, 5, csrr(S0, regno)); // read value from CSR into s0
+      //   if (size == 2)
+      //       write32(debug_abstract, 6, lw(S0, ZERO, debug_data_start)); // and store s0 into data section
+      //   else if (size == 4)
+      //       write32(debug_abstract, 6, ld(S0, ZERO, debug_data_start)); // and store s0 into data section
+      //   write32(debug_abstract, 7, csrr(S0, CSR_DSCRATCH0)); // restore s0 again from dscratch
+      // }
     }
 
     if (get_field(command, AC_ACCESS_REGISTER_POSTEXEC) && !unsupported_command) 
       // write32(debug_abstract, 9, nop());
       write32(debug_abstract, 9, jal(ZERO, debug_progbuf_start - debug_abstract_start));
+
+    debug_rom_flags[selected_hart_id()] |= 1 << DEBUG_ROM_FLAG_GO;
+    // rti_remaining = config.abstract_rti;
+    // abstract_command_completed = false;
+    abstractcs.busy = true;
 
     //** End of the custom specified logic
 
@@ -885,12 +994,6 @@ bool debug_module_t::perform_abstract_command()
     //   cvm::log(cvm::NONE, "Doing 333333333333\n");
     //   write32(debug_abstract, i++, ebreak());
     // }
-
-    debug_rom_flags[selected_hart_id()] |= 1 << DEBUG_ROM_FLAG_GO;
-    // rti_remaining = config.abstract_rti;
-    // abstract_command_completed = false;
-
-    abstractcs.busy = true;
   }
   else if ((command >> 24) == 2)
   {
@@ -899,7 +1002,6 @@ bool debug_module_t::perform_abstract_command()
     unsigned size = get_field(command, AC_ACCESS_MEMORY_AAMSIZE);
     bool aampostincrement = get_field(command, AC_ACCESS_MEMORY_AAMPOSTINCREMENT);
     bool write = get_field(command, AC_ACCESS_MEMORY_WRITE);
-    // bool unsupported_command = false;
     
     if (size > 3) //Access size > 128 bits
     {
