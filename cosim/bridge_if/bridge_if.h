@@ -230,10 +230,6 @@ typedef struct rv_debug_s {
 
 typedef struct rv_intr_s {
   uint64_t cycle;
-  bool mip_posedge;
   uint64_t mip;
-  bool seip_posedge;
-  bool seip_negedge;
-  bool seip;
-  bool stip_negedge;
+  uint64_t mip_mask;
 } rv_intr_t;  

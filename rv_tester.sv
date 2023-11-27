@@ -302,7 +302,8 @@ import rv_tester_params::*;
           .mcmi_insert(mcmi_insert[NINSERTS_CUMSUM[c] +: NINSERTS[c]]),
           .mcmi_write(mcmi_write[NWRITES_CUMSUM[c] +: NWRITES[c]]),
           .mcmi_bypass(mcmi_bypass[NBYPASSES_CUMSUM[c] +: NBYPASSES[c]]),
-          .interrupt(interrupt[c]),
+          .wired_interrupt(interrupt_pend[c]),
+          .imsic_interrupt(axi_req_mst[1]),
           .debug_mode(debug_mode[c]),
           .terminate(cosim_terminate[c]),
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PORTS(1, c, 0)

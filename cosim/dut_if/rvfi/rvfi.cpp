@@ -40,6 +40,7 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     rv_tester_transactions::cosim::m_csri<>,
     rv_tester_transactions::cosim::m_trap<>,
     rv_tester_transactions::cosim::m_intr<>,
+    rv_tester_transactions::cosim::m_imsic_intr<>,
     rv_tester_transactions::cosim::m_mcmi_read<>,
     rv_tester_transactions::cosim::m_mcmi_insert<>,
     rv_tester_transactions::cosim::m_mcmi_write<>,
@@ -139,16 +140,30 @@ void rvfi::process(const rv_tester_transactions::cosim::m_intr<>& m_intr) {
 
   rv_intr_t intr;
   intr.cycle = m_intr.cycle;
-  intr.mip_posedge = m_intr.mip_posedge;
   intr.mip = m_intr.mip;
-  intr.seip_posedge = m_intr.seip_posedge;
-  intr.seip_negedge = m_intr.seip_negedge;
-  intr.seip = m_intr.seip;
-  intr.stip_negedge = m_intr.stip_negedge;
+  intr.mip_mask = m_intr.mip_mask;
 
   bridge_->process_dut_interrupt(id_, intr);
   if (FLAGS_rvfi_log) {
-    log(cvm::NONE, "#{} {} 0 (mip:{:#x} seip:{})\n", count_, intr.cycle, intr.mip, intr.seip);
+    log(cvm::NONE, "#{} {} 0 (mip:{:#x} mask:{:#x})\n", count_, intr.cycle, intr.mip, intr.mip_mask);
+  }
+}
+
+void rvfi::process(const rv_tester_transactions::cosim::m_imsic_intr<>& m_imsic_intr) {
+  if (terminated_)
+    return;
+
+  if (loc_ != m_imsic_intr.location)
+    return;
+
+  mem_t mem;
+  mem.cycle = m_imsic_intr.cycle;
+  mem.pa = m_imsic_intr.addr;
+  mem.data = m_imsic_intr.data;
+
+  bridge_->process_dut_imsic_interrupt(id_, mem);
+  if (FLAGS_rvfi_log) {
+    log(cvm::NONE, "#{} {} {} (imsic: [addr={:#x} data={:#x}])\n", count_, mem.cycle, id_, mem.pa, mem.data);
   }
 }
 
