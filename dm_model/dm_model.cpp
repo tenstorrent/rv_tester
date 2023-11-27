@@ -638,7 +638,7 @@ bool debug_module_t::perform_abstract_command()
     }
     if (write)//Write to Register
     { 
-      if (csr_access=false) // If GPR/FPR access
+      if (csr_access==false) // If GPR/FPR access
       {
         if (fpr_access) // determine whether we want to access the floating point register or not
         {
