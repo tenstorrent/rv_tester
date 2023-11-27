@@ -198,8 +198,8 @@ import rv_tester_params::*;
     assign m_imsic_intrs[0].valid = ~dut_reset & (imsic_interrupt.aw_valid & imsic_interrupt.w_valid & imsic_interrupt.b_ready) & rvfi_enabled;
     assign m_imsic_intrs[0].data.location = location;
     assign m_imsic_intrs[0].data.cycle = clocks;
-    assign m_imsic_intrs[0].data.addr = imsic_interrupt.aw.addr;
     /* verilator lint_off WIDTH */
+    assign m_imsic_intrs[0].data.addr = imsic_interrupt.aw.addr;
     assign m_imsic_intrs[0].data.data = imsic_interrupt.w.data & 'hff;
     /* verilator lint_on WIDTH */
 

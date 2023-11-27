@@ -609,8 +609,10 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
   for (auto & c : d.csr) {
     size_8_bytes_t mask = c.csr_wmask;
     update_regs(hart, src_t::dut, resource_t::csr_reg, c.csr_addr, {c.csr_wdata}, mask);
-    if (c.csr_addr == 0x344)
+    if (c.csr_addr == 0x344) {
+      mip_ = get_csr(hart, src_t::dut, 0x344);
       log(cvm::MEDIUM, "<{}> Zicsr write based interrupt: mip {:#x} mask {:#x}\n", c.cycle, c.csr_wdata, c.csr_wmask);
+    }
   }
 }
 
