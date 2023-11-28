@@ -395,17 +395,17 @@ import rv_tester_params::*;
         );
     end
    
-   /*localparam NoOfNcioMasters =  topology.TOP.PLATFORM.NCIO_AXI.TOTAL  ;
+   localparam NoOfNcioMasters =  topology.TOP.PLATFORM.NCIO_AXI.TOTAL  ;
     for (genvar p = 0; p < NoOfNcioMasters; p++) begin : ncio_axi_sw_slvs
         axi_sw #(
-            .ADDR_WIDTH(topology.TOP.PLATFORM.NCIO_AXI.ADDR_WIDTH),
+            .ADDR_WIDTH(27),
             .DATA_WIDTH(topology.TOP.PLATFORM.NCIO_AXI.DATA_WIDTH),
-            .ID_WIDTH(AxiIdWidthMstRv),
+            .ID_WIDTH(topology.TOP.PLATFORM.NCIO_AXI.ID_WIDTH),
             .STRB_WIDTH(topology.TOP.PLATFORM.NCIO_AXI.STRB_WIDTH),
             .R_Q_MAX(topology.TOP.PLATFORM.AXI.R_Q_MAX),
             .TOPO_ID(topology.TOP.PLATFORM.NCIO_AXI.ID),
             .NUM(p),
-            `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(0)
+            `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(1)
         ) ncio_axi_sw(
             .clk,
             .reset_n(~reset),
@@ -448,10 +448,10 @@ import rv_tester_params::*;
             .axi_slv_aw_ready(ncio_axi_rsp[p].aw_ready),
             .axi_slv_ar_ready(ncio_axi_rsp[p].ar_ready),
             .axi_slv_w_ready (ncio_axi_rsp[p].w_ready),
-            `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PORTS(2, p, 0)
+            `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PORTS(2, p, 1)
         );
     end
-*/
+
 
     for (genvar p = 0; p < topology.TOP.PLATFORM.AXI_MST.TOTAL; p++) begin : axi_sw_msts
         axi_sw_mst #(
