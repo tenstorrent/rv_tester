@@ -398,7 +398,7 @@ import rv_tester_params::*;
    localparam NoOfNcioMasters =  topology.TOP.PLATFORM.NCIO_AXI.TOTAL  ;
     for (genvar p = 0; p < NoOfNcioMasters; p++) begin : ncio_axi_sw_slvs
         axi_sw #(
-            .ADDR_WIDTH(27),
+            .ADDR_WIDTH(topology.TOP.PLATFORM.NCIO_AXI.ADDR_WIDTH),
             .DATA_WIDTH(topology.TOP.PLATFORM.NCIO_AXI.DATA_WIDTH),
             .ID_WIDTH(topology.TOP.PLATFORM.NCIO_AXI.ID_WIDTH),
             .STRB_WIDTH(topology.TOP.PLATFORM.NCIO_AXI.STRB_WIDTH),
