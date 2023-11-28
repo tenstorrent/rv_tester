@@ -394,6 +394,64 @@ import rv_tester_params::*;
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PORTS(2, p, 0)
         );
     end
+   
+   /*localparam NoOfNcioMasters =  topology.TOP.PLATFORM.NCIO_AXI.TOTAL  ;
+    for (genvar p = 0; p < NoOfNcioMasters; p++) begin : ncio_axi_sw_slvs
+        axi_sw #(
+            .ADDR_WIDTH(topology.TOP.PLATFORM.NCIO_AXI.ADDR_WIDTH),
+            .DATA_WIDTH(topology.TOP.PLATFORM.NCIO_AXI.DATA_WIDTH),
+            .ID_WIDTH(AxiIdWidthMstRv),
+            .STRB_WIDTH(topology.TOP.PLATFORM.NCIO_AXI.STRB_WIDTH),
+            .R_Q_MAX(topology.TOP.PLATFORM.AXI.R_Q_MAX),
+            .TOPO_ID(topology.TOP.PLATFORM.NCIO_AXI.ID),
+            .NUM(p),
+            `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(0)
+        ) ncio_axi_sw(
+            .clk,
+            .reset_n(~reset),
+            .sys_reset(sysmod_reset),
+            .axi_mst_ar_valid(ncio_axi_req[p].ar_valid),
+            .axi_mst_ar_id   (ncio_axi_req[p].ar.id),
+            .axi_mst_ar_addr (ncio_axi_req[p].ar.addr),
+            .axi_mst_ar_len  (ncio_axi_req[p].ar.len),
+            .axi_mst_ar_size (ncio_axi_req[p].ar.size),
+            .axi_mst_ar_lock (ncio_axi_req[p].ar.lock),
+            .axi_mst_ar_burst(ncio_axi_req[p].ar.burst),
+
+            .axi_mst_aw_valid(ncio_axi_req[p].aw_valid),
+            .axi_mst_aw_id   (ncio_axi_req[p].aw.id),
+            .axi_mst_aw_addr (ncio_axi_req[p].aw.addr),
+            .axi_mst_aw_len  (ncio_axi_req[p].aw.len),
+            .axi_mst_aw_size (ncio_axi_req[p].aw.size),
+            .axi_mst_aw_burst(ncio_axi_req[p].aw.burst),
+            .axi_mst_aw_lock (ncio_axi_req[p].aw.lock),
+            .axi_mst_aw_atop (ncio_axi_req[p].aw.atop),
+
+            .axi_mst_w_valid(ncio_axi_req[p].w_valid),
+            .axi_mst_w_data (ncio_axi_req[p].w.data),
+            .axi_mst_w_strb (ncio_axi_req[p].w.strb),
+            .axi_mst_w_last (ncio_axi_req[p].w.last),
+
+            .axi_mst_b_ready(ncio_axi_req[p].b_ready),
+            .axi_mst_r_ready(ncio_axi_req[p].r_ready),
+
+            .axi_slv_b_valid(ncio_axi_rsp[p].b_valid),
+            .axi_slv_b_id   (ncio_axi_rsp[p].b.id),
+            .axi_slv_b_resp (ncio_axi_rsp[p].b.resp),
+
+            .axi_slv_r_valid(ncio_axi_rsp[p].r_valid),
+            .axi_slv_r_id   (ncio_axi_rsp[p].r.id),
+            .axi_slv_r_data (ncio_axi_rsp[p].r.data),
+            .axi_slv_r_resp (ncio_axi_rsp[p].r.resp),
+            .axi_slv_r_last (ncio_axi_rsp[p].r.last),
+
+            .axi_slv_aw_ready(ncio_axi_rsp[p].aw_ready),
+            .axi_slv_ar_ready(ncio_axi_rsp[p].ar_ready),
+            .axi_slv_w_ready (ncio_axi_rsp[p].w_ready),
+            `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PORTS(2, p, 0)
+        );
+    end
+*/
 
     for (genvar p = 0; p < topology.TOP.PLATFORM.AXI_MST.TOTAL; p++) begin : axi_sw_msts
         axi_sw_mst #(
