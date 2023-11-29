@@ -22,7 +22,7 @@ import rv_tester_params::*;
     input mcmi_t [NWRITE-1:0] mcmi_write,
     input mcmi_t [NBYPASS-1:0] mcmi_bypass,
     input rv_tester_pkg::interrupt_t wired_interrupt,
-    input rv_tester_params::mst_req_top imsic_interrupt,
+    input rv_tester_params::mst2_req_top imsic_interrupt,
     input debug_mode,
     output rv_tester_pkg::terminate_t terminate,
     `RV_TESTER_TRANSACTIONS_COSIM_OUTPUT_PORTS
