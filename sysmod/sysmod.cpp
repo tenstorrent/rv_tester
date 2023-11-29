@@ -46,11 +46,17 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
       [this](const rv_tester_transactions::sysmod::tick<>& t) { return this->tick(t.advance); });
 
   auto sources = cvm::topology::get_from_type("PLATFORM_TRANSACTOR");
+  std::cout<<"\n ##################################\n";
+  for (auto element : sources) {
+  std::cout<<"NUM PLATFORM SOURCES :"<<element<<"\n";
+  }
+  std::cout<<" ##################################\n";
     for (const auto& source : sources) {
         cvm::registry::messenger.connect<transactor::write_t>(
             source,
             [this](const auto& w) {
                 // unnecessary but better for catching bugs
+                cvm::log(cvm::LOW, "new write request at {:#x}", w.addr);
                 cvm::log(cvm::DEBUG, "new write request at {:#x}", w.addr);
                 if (this->dev(w.addr))
                     cvm::registry::messenger.signal<device::write_t>(this->loc_, {w});
@@ -58,6 +64,7 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
         cvm::registry::messenger.connect<transactor::read_t>(
             source,
             [this, source](const auto& r) {
+                cvm::log(cvm::LOW, "new read request at {:#x}", r.addr);
                 cvm::log(cvm::DEBUG, "new read request at {:#x}", r.addr);
                 if (this->dev(r.addr)){
                     cvm::registry::messenger.signal<device::read_t>(this->loc_, {r, source});

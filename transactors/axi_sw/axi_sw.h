@@ -14,6 +14,7 @@
 
 #include "rv_tester_transactions.hpp"
 
+template < typename W,typename AW,typename AR, typename RQ>
 class axi_sw {
 
     template<typename T, typename... Args>
@@ -47,10 +48,10 @@ class axi_sw {
 
     private:
 
-        cvm::messenger::task<void> process(const rv_tester_transactions::axi_sw::aw<>& aw);
-        cvm::messenger::task<void> process(const rv_tester_transactions::axi_sw::ar<>& ar);
-        cvm::messenger::task<void> process(const rv_tester_transactions::axi_sw::w<>& w);
-        void process(const rv_tester_transactions::axi_sw::r_q_ptr<>& r_ptr);
+        cvm::messenger::task<void> process(const AW& aw);
+        cvm::messenger::task<void> process(const AR& ar);
+        cvm::messenger::task<void> process(const  W& w);
+        void process(const RQ& r_ptr);
         void r_resp();
         void set_scope(svScope scope);
         void reset_ptrs();
