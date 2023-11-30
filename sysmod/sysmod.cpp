@@ -51,14 +51,14 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
             source,
             [this](const auto& w) {
                 // unnecessary but better for catching bugs
-                cvm::log(cvm::DEBUG, "new write request at {:#x}", w.addr);
+                cvm::log(cvm::DEBUG, "new write request at {:#x}\n", w.addr);
                 if (this->dev(w.addr))
                     cvm::registry::messenger.signal<device::write_t>(this->loc_, {w});
             });
         cvm::registry::messenger.connect<transactor::read_t>(
             source,
             [this, source](const auto& r) {
-                cvm::log(cvm::DEBUG, "new read request at {:#x}", r.addr);
+                cvm::log(cvm::DEBUG, "new read request at {:#x}\n", r.addr);
                 if (this->dev(r.addr)){
                     cvm::registry::messenger.signal<device::read_t>(this->loc_, {r, source});
               

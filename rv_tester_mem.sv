@@ -7,6 +7,8 @@
 module rv_tester_mem #(
     //number of AXI masters
     parameter int unsigned NumMasters           = 32'd1,
+    //number of NCIO AXI masters
+    parameter int unsigned NcioNumMasters           = 32'd1,
     //AXI id width
     parameter int unsigned AxiIdWidth           = 32'd8,
     //AXI data width

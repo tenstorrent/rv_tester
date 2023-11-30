@@ -36,6 +36,13 @@ package rv_tester_params;
     parameter AXI_DATA_WIDTH = mods.TOP.PLATFORM.AXI.DATA_WIDTH;
     parameter AXI_STRB_WIDTH = mods.TOP.PLATFORM.AXI.STRB_WIDTH;
     parameter AXI_ID_WIDTH = mods.TOP.PLATFORM.AXI.ID_WIDTH;
+    //NCIO
+    parameter NCIO_AXI_TOTAL = mods.TOP.PLATFORM.NCIO_AXI.TOTAL;
+    parameter NCIO_AXI_ADDR_WIDTH = mods.TOP.PLATFORM.NCIO_AXI.ADDR_WIDTH;
+    parameter NCIO_AXI_DATA_WIDTH = mods.TOP.PLATFORM.NCIO_AXI.DATA_WIDTH;
+    parameter NCIO_AXI_STRB_WIDTH = mods.TOP.PLATFORM.NCIO_AXI.STRB_WIDTH;
+    parameter NCIO_AXI_ID_WIDTH = mods.TOP.PLATFORM.NCIO_AXI.ID_WIDTH;
+    //
     parameter AXI_MST_TOTAL = mods.TOP.PLATFORM.AXI_MST.TOTAL;
     parameter AXI_MST_ADDR_WIDTH = mods.TOP.PLATFORM.AXI_MST.ADDR_WIDTH;
     parameter AXI_MST_DATA_WIDTH = mods.TOP.PLATFORM.AXI_MST.DATA_WIDTH;
@@ -52,7 +59,12 @@ package rv_tester_params;
     typedef logic [AXI_DATA_WIDTH-1:0] axi_data_t;
     typedef logic [AXI_STRB_WIDTH-1:0] axi_strb_t;
     typedef logic [AXI_ID_WIDTH  -1:0] axi_id_t;
-
+    
+    typedef logic [NCIO_AXI_ADDR_WIDTH-1:0] ncio_axi_addr_t;
+    typedef logic [NCIO_AXI_DATA_WIDTH-1:0] ncio_axi_data_t;
+    typedef logic [NCIO_AXI_STRB_WIDTH-1:0] ncio_axi_strb_t;
+    typedef logic [NCIO_AXI_ID_WIDTH  -1:0] ncio_axi_id_t;
+    
     typedef logic [AXI_MST_ADDR_WIDTH-1:0] axi_mst_addr_t;
     typedef logic [AXI_MST_DATA_WIDTH-1:0] axi_mst_data_t;
     typedef logic [AXI_MST_STRB_WIDTH-1:0] axi_mst_strb_t;
@@ -412,7 +424,15 @@ package rv_tester_params;
     `AXI_TYPEDEF_REQ_T(slv_req_top, slv_aw_chan_top, slv_w_chan_top, slv_ar_chan_top)
     `AXI_TYPEDEF_RESP_T(mst_resp_top, mst_b_chan_top, mst_r_chan_top)
     `AXI_TYPEDEF_RESP_T(slv_resp_top, slv_b_chan_top, slv_r_chan_top)
-
+     //NCIO
+    `AXI_TYPEDEF_AW_CHAN_T(ncio_slv_aw_chan_top, ncio_axi_addr_t, ncio_axi_id_t, user_t)
+    `AXI_TYPEDEF_W_CHAN_T(ncio_slv_w_chan_top, ncio_axi_data_t, ncio_axi_strb_t, user_t)
+    `AXI_TYPEDEF_B_CHAN_T(ncio_slv_b_chan_top, ncio_axi_id_t, user_t)
+    `AXI_TYPEDEF_AR_CHAN_T(ncio_slv_ar_chan_top, ncio_axi_addr_t, ncio_axi_id_t, user_t)
+    `AXI_TYPEDEF_R_CHAN_T(ncio_slv_r_chan_top, ncio_axi_data_t, ncio_axi_id_t, user_t)
+    `AXI_TYPEDEF_REQ_T(ncio_slv_req_top, ncio_slv_aw_chan_top, ncio_slv_w_chan_top, ncio_slv_ar_chan_top)
+    `AXI_TYPEDEF_RESP_T(ncio_slv_resp_top, ncio_slv_b_chan_top, ncio_slv_r_chan_top)
+     //
     `AXI_TYPEDEF_AW_CHAN_T(mst2_aw_chan_top, axi_mst2_addr_t, axi_mst2_id_t, user_t)
     `AXI_TYPEDEF_W_CHAN_T(mst2_w_chan_top, axi_mst2_data_t, axi_mst2_strb_t, user_t)
     `AXI_TYPEDEF_B_CHAN_T(mst2_b_chan_top, axi_mst2_id_t, user_t)
@@ -454,6 +474,8 @@ package rv_tester_params;
                                                                                                     \
     output rv_tester_params::slv_req_top     axi_req [rv_tester_params::AXI_TOTAL-1:0],             \
     input  rv_tester_params::slv_resp_top    axi_rsp [rv_tester_params::AXI_TOTAL-1:0],             \
+    output rv_tester_params::ncio_slv_req_top     ncio_axi_req [rv_tester_params::NCIO_AXI_TOTAL-1:0],             \
+    input  rv_tester_params::ncio_slv_resp_top    ncio_axi_rsp [rv_tester_params::NCIO_AXI_TOTAL-1:0],             \
     input  rv_tester_params::mst_req_top     axi_req_mst [rv_tester_params::AXI_MST_TOTAL-1:0],     \
     output rv_tester_params::mst_resp_top    axi_rsp_mst [rv_tester_params::AXI_MST_TOTAL-1:0],     \
     input  rv_tester_params::mst2_req_top    axi_req_mst2 [rv_tester_params::AXI_MST2_TOTAL-1:0],   \
@@ -487,6 +509,8 @@ package rv_tester_params;
     rv_tester_params::pmci_t                 pmci          [rv_tester_params::NHARTS-1:0];          \
     rv_tester_params::slv_req_top            axi_req [rv_tester_params::AXI_TOTAL-1:0];             \
     rv_tester_params::slv_resp_top           axi_rsp [rv_tester_params::AXI_TOTAL-1:0];             \
+    rv_tester_params::ncio_slv_req_top       ncio_axi_req [rv_tester_params::NCIO_AXI_TOTAL-1:0];             \
+    rv_tester_params::ncio_slv_resp_top      ncio_axi_rsp [rv_tester_params::NCIO_AXI_TOTAL-1:0];             \
     rv_tester_params::mst_req_top            axi_req_mst [rv_tester_params::AXI_MST_TOTAL-1:0];     \
     rv_tester_params::mst_resp_top           axi_rsp_mst [rv_tester_params::AXI_MST_TOTAL-1:0];     \
     rv_tester_params::mst2_req_top           axi_req_mst2  [rv_tester_params::AXI_MST2_TOTAL-1:0];  \
