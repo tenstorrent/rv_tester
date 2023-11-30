@@ -22,6 +22,7 @@
 
 #define max_hartid 1 // Define the maximum number of harts in the system
 #define halt_on_reset false
+#define core_fuse_map (int[]) {0}  
 
 typedef uint64_t reg_t;
 
@@ -145,7 +146,6 @@ private:
   // cvm::file_logger log;
   uint32_t sent_count = 0, resp_count =0;
 
-  //static const unsigned datasize = 2; //Number of data registers
   static const unsigned datasize = 12; //Number of data registers
   debug_module_config_t config = {16, false, 0, true, true, true, false, false};
 
@@ -175,8 +175,6 @@ private:
   uint64_t expected_load_data;
   bool mem_load_check = false;
   uint8_t load_req_id;
-  std::bitset<64> sizer_slice_data;
-  // std::vector<bool> sizer_slice_data;
 
   std::map<size_t, std::unique_ptr<processor_t>> harts;
 
@@ -195,8 +193,8 @@ private:
   dmstatus_t dmstatus;
   abstractcs_t abstractcs;
   abstractauto_t abstractauto;
-  bool reflow_flags;
   uint32_t command;
+  uint16_t hawindowsel;
   std::vector<bool> hart_array_mask;
 
   // uint32_t challenge;
@@ -204,6 +202,7 @@ private:
 
   bool hart_selected(unsigned hartid) const;
   void reset();
+  void init_debug_abstract_buffer();
   bool perform_abstract_command();
   bool has_second_scratch = true;
   uint8_t load_base_address = 10; //GPR to store DM base addr

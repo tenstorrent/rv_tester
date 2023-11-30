@@ -10,13 +10,19 @@ module dm_model #(
   input dmi_resp_valid,
   input rv_tester_pkg::dmi_resp_t dmi_resp,
   input bit terminate,
-  input rv_tester_params::mst_req_top axi_req_mst,
-  input rv_tester_params::mst_resp_top axi_resp_mst,
+  input logic                                            dm_mem_tx_vld,       
+  input logic                                            dm_mem_tx_we,        
+  input logic [rv_tester_params::DM_AXI_ADDR_WIDTH-1:0]  dm_mem_tx_addr,      
+  input logic [rv_tester_params::DM_AXI_DATA_WIDTH-1:0]  dm_mem_tx_rd_data,   
+  input logic [rv_tester_params::DM_AXI_DATA_WIDTH-1:0]  dm_mem_tx_wr_data,   
+  input logic [rv_tester_params::DM_AXI_STRB_WIDTH-1:0]  dm_mem_tx_wr_data_be,
   input logic [7:0] misc_signals,
   `RV_TESTER_TRANSACTIONS_DM_MODEL_OUTPUT_PORTS
 );
 
     int unsigned location = cvm_topology::nil;
+
+    logic dm_mem_tx_rd_data_resp_vld;
 
     always @(posedge clk) begin
         if (reset) begin
@@ -39,21 +45,23 @@ module dm_model #(
     assign dmi_resps[0].data.resp = dmi_resp.resp;
     assign dmi_resps[0].data.data = dmi_resp.data;
 
-    assign dm_load_cmds[0].valid = !reset && axi_req_mst.ar_valid;
+    assign dm_load_cmds[0].valid = !reset && dm_mem_tx_vld && ~dm_mem_tx_we;
     assign dm_load_cmds[0].data.location = location;
-    assign dm_load_cmds[0].data.addr = axi_req_mst.ar.addr[11:0];
-    assign dm_load_cmds[0].data.size = axi_req_mst.ar.size; //(2**axi_req_mst.ar.size)/8;
-    assign dm_load_cmds[0].data.id = axi_req_mst.ar.id;
+    assign dm_load_cmds[0].data.addr = dm_mem_tx_addr[11:0];
+    assign dm_load_cmds[0].data.size = $bits( dm_load_cmds[0].data.size)'('h8); // Always 8-byte loads
+    assign dm_load_cmds[0].data.id = $bits(dm_load_cmds[0].data.id)'('h0);
 
-    assign dm_load_datas[0].valid = !reset && axi_resp_mst.r_valid;
+    assign dm_load_datas[0].valid = !reset && dm_mem_tx_rd_data_resp_vld;
     assign dm_load_datas[0].data.location = location;
-    assign dm_load_datas[0].data.data = axi_resp_mst.r.data;
-    assign dm_load_datas[0].data.id = axi_resp_mst.r.id;
+    assign dm_load_datas[0].data.data = dm_mem_tx_rd_data;
+    assign dm_load_datas[0].data.id = $bits(dm_load_datas[0].data.id)'('h0);
 
-    assign dm_stores[0].valid = !reset && axi_req_mst.w_valid && axi_req_mst.aw_valid;
+    assign dm_stores[0].valid = !reset && dm_mem_tx_vld && dm_mem_tx_we;
     assign dm_stores[0].data.location = location;
-    assign dm_stores[0].data.data = axi_req_mst.w.data[31:0];
-    assign dm_stores[0].data.addr = axi_req_mst.aw.addr[11:0];
-    assign dm_stores[0].data.len = axi_req_mst.aw.len[3:0];
+    assign dm_stores[0].data.data = $bits(dm_stores[0].data.data)'(dm_mem_tx_wr_data);
+    assign dm_stores[0].data.addr = dm_mem_tx_addr[11:0];
+    assign dm_stores[0].data.len = $bits(dm_stores[0].data.len)'($clog2(dm_mem_tx_wr_data_be + 1'b1));
 
+    rv_dff #(.WIDTH(1)) dm_mem_tx_rd_data_resp_vld_ff (.o_q(dm_mem_tx_rd_data_resp_vld), .i_d(dm_mem_tx_vld && ~dm_mem_tx_we), .i_en(1'b1), .i_clk(clk), .i_reset_n(~reset));
+ 
 endmodule

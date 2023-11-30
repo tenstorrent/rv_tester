@@ -269,8 +269,12 @@ import rv_tester_params::*;
         .dmi_resp_valid(dmi_resp_valid),
         .dmi_resp(dmi_resp),
         .terminate,
-        .axi_req_mst(axi_req_mst[0]),
-        .axi_resp_mst(axi_rsp_mst[0]),
+        .dm_mem_tx_vld,
+        .dm_mem_tx_we,
+        .dm_mem_tx_addr,
+        .dm_mem_tx_rd_data,
+        .dm_mem_tx_wr_data,
+        .dm_mem_tx_wr_data_be,
         .misc_signals,
         `RV_TESTER_TRANSACTIONS_DM_MODEL_SOURCE_PORTS(1,0,0)
     );

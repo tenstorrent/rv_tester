@@ -29,3 +29,11 @@ rv_tester_axi_mst2_attrs: &rv_tester_axi_mst2_attrs
   DATA_WIDTH: 64
   STRB_WIDTH: 8
   ID_WIDTH: 4
+
+rv_tester_dm_axi_count: &rv_tester_dm_axi_count 1
+
+rv_tester_dm_axi_attrs: &rv_tester_dm_axi_attrs
+  ADDR_WIDTH: 27
+  DATA_WIDTH: 64
+  STRB_WIDTH: 8
+  ID_WIDTH: 17

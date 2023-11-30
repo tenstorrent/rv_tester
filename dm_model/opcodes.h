@@ -133,8 +133,6 @@ static uint32_t csrrs(unsigned int rd, unsigned int rs1, unsigned int csr) {
   return (csr << 20) | (rs1 << 15) | (rd << 7) | MATCH_CSRRS;
 }
 
-
-
 static uint32_t fsh(unsigned int src, unsigned int base, uint16_t offset) __attribute__ ((unused));
 static uint32_t fsh(unsigned int src, unsigned int base, uint16_t offset)
 {
