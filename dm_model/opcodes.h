@@ -26,6 +26,13 @@ static uint32_t jal(unsigned int rd, uint32_t imm) {
     MATCH_JAL;
 }
 
+static uint32_t csrci(unsigned int csr, uint16_t imm) __attribute__ ((unused));
+static uint32_t csrci(unsigned int csr, uint16_t imm) {
+  return (csr << 20) |
+    (bits(imm, 4, 0) << 15) |
+    MATCH_CSRRCI;
+}
+
 static uint32_t csrsi(unsigned int csr, uint16_t imm) __attribute__ ((unused));
 static uint32_t csrsi(unsigned int csr, uint16_t imm) {
   return (csr << 20) |
@@ -213,12 +220,7 @@ static uint32_t lui(unsigned int dest, uint32_t imm)
 }
 
 /*
-static uint32_t csrci(unsigned int csr, uint16_t imm) __attribute__ ((unused));
-static uint32_t csrci(unsigned int csr, uint16_t imm) {
-  return (csr << 20) |
-    (bits(imm, 4, 0) << 15) |
-    MATCH_CSRRCI;
-}
+
 
 static uint32_t li(unsigned int dest, uint16_t imm) __attribute__ ((unused));
 static uint32_t li(unsigned int dest, uint16_t imm)

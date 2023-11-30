@@ -876,44 +876,45 @@ bool debug_module_t::perform_abstract_command()
 
       // (size<3)? write32(debug_abstract,6,sw(S1,4,debug_data_start))    : write32(debug_abstract,6,sd(S1,8,debug_data_start));//Store S1 into Arg1
       // (size<3)? write32(debug_abstract,7,lw(S1,ZERO,debug_data_start)) : write32(debug_abstract,7,ld(S1,ZERO,debug_data_start));//Load Arg0 into S1
+      write32(debug_abstract, 7, csrsi(CSR_C_PRIV, 1)); // Enable MMU Translation
       switch (size){//Store A0 data into S0 addr
         case 0 :
-          write32(debug_abstract, 7, sb(A0,S0,ZERO));break;
+          write32(debug_abstract, 8, sb(A0,S0,ZERO));break;
         case 1 :
-          write32(debug_abstract, 7, sh(A0,S0,ZERO));break;
+          write32(debug_abstract, 8, sh(A0,S0,ZERO));break;
         case 2 :
-          write32(debug_abstract, 7, sw(A0,S0,ZERO));break;
+          write32(debug_abstract, 8, sw(A0,S0,ZERO));break;
         case 3 :
-          write32(debug_abstract, 7, sd(A0,S0,ZERO));break;
+          write32(debug_abstract, 8, sd(A0,S0,ZERO));break;
       }
-      write32(debug_abstract, 8, csrr(S0, CSR_DSCRATCH0)); // restore S0 again from dscratch0
-      (has_second_scratch)? write32(debug_abstract, 9, csrr(A0, CSR_DSCRATCH1)) : write32(debug_abstract, 9, nop()); // restore A0 again from dscratch1
-      // (size<3)? write32(debug_abstract,11,ld(S1,4,debug_data_start))    : write32(debug_abstract,11,ld(S1,8,debug_data_start));//Restore Arg1 into S1
-      // write32(debug_abstract,12,nop());
-      write32(debug_abstract,10,ebreak());
-      cvm::log(cvm::HIGH, "Access Memory Write uCode update v2 \n");
+      write32(debug_abstract, 9, csrci(CSR_C_PRIV, 1)); // Disable MMU Translation
+      write32(debug_abstract, 10, csrr(S0, CSR_DSCRATCH0)); // restore S0 again from dscratch0
+      (has_second_scratch)? write32(debug_abstract, 11, csrr(A0, CSR_DSCRATCH1)) : write32(debug_abstract, 12, nop()); // restore A0 again from dscratch1
+      write32(debug_abstract,12,ebreak());
+      cvm::log(cvm::HIGH, "Access Memory Write uCode update v3 \n");
     }
     else
     {
+      write32(debug_abstract, 6, csrsi(CSR_C_PRIV, 1)); // Enable MMU Translation
       switch(size){
         case 0:
-          write32(debug_abstract,6,lb(S0,S0,ZERO));
-          write32(debug_abstract,7,sb(S0,load_base_address,debug_data_start));break;
+          write32(debug_abstract,7,lb(S0,S0,ZERO));
+          write32(debug_abstract,8,sb(S0,load_base_address,debug_data_start));break;
         case 1:
-          write32(debug_abstract,6,lh(S0,S0,ZERO));
-          write32(debug_abstract,7,sh(S0,load_base_address,debug_data_start));break;
+          write32(debug_abstract,7,lh(S0,S0,ZERO));
+          write32(debug_abstract,8,sh(S0,load_base_address,debug_data_start));break;
         case 2:
-          write32(debug_abstract,6,lw(S0,S0,ZERO));
-          write32(debug_abstract,7,sw(S0,load_base_address,debug_data_start));break;
+          write32(debug_abstract,7,lw(S0,S0,ZERO));
+          write32(debug_abstract,8,sw(S0,load_base_address,debug_data_start));break;
         case 3:
-          write32(debug_abstract,6,ld(S0,S0,ZERO));
-          write32(debug_abstract,7,sd(S0,load_base_address,debug_data_start));break;
+          write32(debug_abstract,7,ld(S0,S0,ZERO));
+          write32(debug_abstract,8,sd(S0,load_base_address,debug_data_start));break;
       }
-      write32(debug_abstract,8, csrr(S0, CSR_DSCRATCH0)); // restore S0 again from dscratch
-      (has_second_scratch)? write32(debug_abstract, 9, csrr(A0, CSR_DSCRATCH1)) : write32(debug_abstract, 9, nop()); // restore A0 again from dscratch1
-      // write32(debug_abstract,9,nop());
-      write32(debug_abstract,10,ebreak());
-      cvm::log(cvm::HIGH, "Access Memory Read uCode update v2\n");
+      write32(debug_abstract, 9, csrci(CSR_C_PRIV, 1)); // Disable MMU Translation
+      write32(debug_abstract,10, csrr(S0, CSR_DSCRATCH0)); // restore S0 again from dscratch
+      (has_second_scratch)? write32(debug_abstract, 11, csrr(A0, CSR_DSCRATCH1)) : write32(debug_abstract, 12, nop()); // restore A0 again from dscratch1
+      write32(debug_abstract,12,ebreak());
+      cvm::log(cvm::HIGH, "Access Memory Read uCode update v3\n");
     }
 
   }
