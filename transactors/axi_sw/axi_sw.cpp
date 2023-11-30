@@ -38,8 +38,8 @@ axi_sw<W,AW,AR,RQ>::axi_sw(cvm::topology::loc_t loc, unsigned id)
         this->set_scope(s);
         return reset_ptrs();
     });
- 
-   connect<W,AW,AR,RQ>();
+
+   connect_task<W,AW,AR>();
     //connect_task<
     //  rv_tester_transactions::axi_sw::aw<>,
     //  rv_tester_transactions::axi_sw::ar<>,
