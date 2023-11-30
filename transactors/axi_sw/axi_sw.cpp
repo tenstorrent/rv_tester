@@ -29,9 +29,9 @@ axi_sw<W,AW,AR,RQ>::axi_sw(cvm::topology::loc_t loc, unsigned id)
     r_q_max_(cvm::topology::attr(loc, "R_Q_MAX").second), r_q_ptr_max_(cvm::topology::attr(loc, "R_Q_PTR_MAX").second),
     r_q_rptr_(0), r_q_wptr_(r_q_max_) {
 
+    cvm::log(cvm::FULL, "[axi_sw] Constructing axi_sw for loc=%d id=%d\n", loc,id);
     auto data_width = cvm::topology::attr(loc, "DATA_WIDTH").second;
     axi_ = new axi(data_width, loc, "axi" + std::to_string(id));
-    std::cout<<"\nConstructing AXI SW: loc :"<<loc<<" id: "<<id<<"\n";
     cvm::registry::messenger.connect<svScope>(
         loc_,
         [this](svScope s) {
@@ -40,10 +40,6 @@ axi_sw<W,AW,AR,RQ>::axi_sw(cvm::topology::loc_t loc, unsigned id)
     });
 
    connect_task<W,AW,AR>();
-    //connect_task<
-    //  rv_tester_transactions::axi_sw::aw<>,
-    //  rv_tester_transactions::axi_sw::ar<>,
-    //  rv_tester_transactions::axi_sw::w<>>();
 
     connect<RQ>();
 }
@@ -57,7 +53,6 @@ axi_sw<W,AW,AR,RQ>::~axi_sw() {
 }
 
 template < typename W,typename AW,typename AR, typename RQ>
-//cvm::messenger::task<void> axi_sw<B, R, ARQ, AWQ, WQ>::process(const rv_tester_transactions::axi_sw::aw<>& aw) {
 cvm::messenger::task<void> axi_sw<W,AW,AR,RQ>::process(const AW& aw) {
     cvm::log(cvm::FULL, "[axi_sw] aw: [id={}, addr={:#x}, size={}]\n", aw.id, aw.addr, aw.size);
     co_await a(axi::a_t{true, aw.id, aw.addr, aw.len, aw.size, axi::burst_t(aw.burst), aw.lock != 0, aw.atop});
@@ -66,7 +61,6 @@ cvm::messenger::task<void> axi_sw<W,AW,AR,RQ>::process(const AW& aw) {
 }
 
 template < typename W,typename AW,typename AR, typename RQ>
-//cvm::messenger::task<void> axi_sw::process(const rv_tester_transactions::axi_sw::ar<>& ar) {
 cvm::messenger::task<void> axi_sw<W,AW,AR,RQ>::process(const AR& ar) {
     cvm::log(cvm::FULL, "[axi_sw] ar: [id={}, addr={:#x}, size={}]\n", ar.id, ar.addr, ar.size);
     co_await a(axi::a_t{false, ar.id, ar.addr, ar.len, ar.size, axi::burst_t(ar.burst), ar.lock != 0});
@@ -75,7 +69,6 @@ cvm::messenger::task<void> axi_sw<W,AW,AR,RQ>::process(const AR& ar) {
 }
 
 template < typename W,typename AW,typename AR, typename RQ>
-//cvm::messenger::task<void> axi_sw::process(const rv_tester_transactions::axi_sw::w<>& w) {
 cvm::messenger::task<void> axi_sw<W,AW,AR,RQ>::process(const W& w) {
     cvm::log(cvm::FULL, "[axi_sw] w: [strb={:#x}, last={}]\n", w.strb, w.last);
     axi::data_t vdata = cvm::bitmanip::slice<decltype(w.data), axi::data_t>(w.data);
