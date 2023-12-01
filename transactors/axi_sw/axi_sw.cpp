@@ -18,7 +18,8 @@ REGISTRY_register((axi_sw<rv_tester_transactions::axi_sw::w<1>,
 extern "C" {
 
   void axi_sw_r_reset();
-  void axi_sw_r(axi::id_t id, axi::resp_t resp, const axi::datum_t* data, axi::last_t last);
+  void axi_sw_r_8(axi::id_t id, axi::resp_t resp, const axi::datum_t* data, axi::last_t last);
+  void axi_sw_r_64(axi::id_t id, axi::resp_t resp, const axi::datum_t* data, axi::last_t last);
 }
 
 
@@ -26,9 +27,13 @@ extern "C" {
 template < typename W,typename AW,typename AR, typename RQ>
 axi_sw<W,AW,AR,RQ>::axi_sw(cvm::topology::loc_t loc, unsigned id)
   : scope_(nullptr), loc_(loc),
+    id_width_(cvm::topology::attr(loc_, "ID_WIDTH").second),
+    data_width_(cvm::topology::attr(loc_, "DATA_WIDTH").second),
+    strb_width_(cvm::topology::attr(loc_, "STRB_WIDTH").second),
     r_q_max_(cvm::topology::attr(loc, "R_Q_MAX").second), r_q_ptr_max_(cvm::topology::attr(loc, "R_Q_PTR_MAX").second),
-    r_q_rptr_(0), r_q_wptr_(r_q_max_) {
+    r_q_rptr_(0), r_q_wptr_(r_q_max_) 
 
+    {
     cvm::log(cvm::FULL, "[axi_sw] Constructing axi_sw for loc=%d id=%d\n", loc,id);
     auto data_width = cvm::topology::attr(loc, "DATA_WIDTH").second;
     axi_ = new axi(data_width, loc, "axi" + std::to_string(id));
@@ -104,7 +109,15 @@ void axi_sw<W,AW,AR,RQ>::r_resp() {
       auto copy = result;
       cvm::registry::callbacks.push(
           scope_,
-          [copy]() { axi_sw_r(copy.id, copy.resp, copy.data.data(), copy.last); }
+            [=]() {
+            if(data_width_ == 64)
+            axi_sw_r_8(copy.id, copy.resp, copy.data.data(), copy.last); 
+            else if(data_width_ ==512)
+            axi_sw_r_64(copy.id, copy.resp, copy.data.data(), copy.last); 
+            else
+            cvm::log(cvm::ERROR, "unsupported data width for axi_sw");
+
+            }
       );
     }
 }

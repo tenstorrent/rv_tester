@@ -132,7 +132,8 @@ module axi_sw #(
         end
     end
 
-    function void axi_sw_r (int unsigned id, byte unsigned resp, dpi_data data, byte unsigned last);
+    //function void axi_sw_r (int unsigned id, byte unsigned resp, dpi_data data, byte unsigned last);
+    function void axi_sw_r_8 (int unsigned id, byte unsigned resp, byte unsigned data[8], byte unsigned last);
         data_t d;
         r_t rd;
         // stream pack unsupported by verilator
@@ -142,8 +143,18 @@ module axi_sw #(
         rd = '{id: id_t'(id), data: data_t'(d), resp: 2'(resp), last: 1'(last)};
         `AXI_SW_DPI_FIFO_PUSH(r_dpi_fifo,R_Q_MAX,rd)
     endfunction
-    export "DPI-C" function axi_sw_r;
-
+    export "DPI-C" function axi_sw_r_8;
+     function void axi_sw_r_64 (int unsigned id, byte unsigned resp, byte unsigned data[64], byte unsigned last);
+        data_t d;
+        r_t rd;
+        // stream pack unsupported by verilator
+        for (int i = 0; i < $size(dpi_data); i++) begin
+            d[8*i +: 8] = data[i];
+        end
+        rd = '{id: id_t'(id), data: data_t'(d), resp: 2'(resp), last: 1'(last)};
+        `AXI_SW_DPI_FIFO_PUSH(r_dpi_fifo,R_Q_MAX,rd)
+    endfunction
+    export "DPI-C" function axi_sw_r_64;
     `AXI_SW_DPI_FIFO_RESET(axi_sw_r, r_dpi_fifo)
 
     logic r_queue_rptr_incremented;

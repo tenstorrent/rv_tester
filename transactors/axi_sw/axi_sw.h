@@ -58,7 +58,10 @@ class axi_sw {
 
         svScope scope_;
         cvm::topology::loc_t loc_;
-
+        size_t id_width_;
+        size_t data_width_;
+        size_t strb_width_;
+        
         const r_q_ptr_t     r_q_max_    ;
         const r_q_ptr_t     r_q_ptr_max_;
 
