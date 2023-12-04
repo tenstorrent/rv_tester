@@ -176,7 +176,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   static bool started = true;
   if (started) {
     auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-    std::cout << "start time: " << std::ctime(&now) << std::endl;
+    cvm::log(cvm::HIGH, "start time: {}\n", std::ctime(&now));
     started = false;
   }
 
@@ -375,7 +375,6 @@ void rvfi::enter_debug_mode(rv_instr_t& instr) {
   if ((uint64_t)instr.pc.pc_rdata == FLAGS_debug_entry_pc) {
 
     rv_debug_t debug;
-    std::cout <<" Enter Debug Mode debug_entry_pc :"<<std::hex<<FLAGS_debug_entry_pc<<"\n";
 
     debug.cycle = instr.cycle;
     debug.enter = true;
@@ -400,7 +399,6 @@ void rvfi::exit_debug_mode(rv_instr_t& instr) {
   if ((uint64_t)instr.pc.pc_rdata == FLAGS_debug_exit_pc) {
 
     rv_debug_t debug;
-    std::cout <<" Exit Debug Mode debug_exit_pc :"<<std::hex<<FLAGS_debug_exit_pc<<"\n";
 
     debug.cycle = instr.cycle;
     debug.enter = false;
