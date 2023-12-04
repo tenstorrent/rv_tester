@@ -106,7 +106,6 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
 
   // run once before starting cosim
   if (FLAGS_standalone) {
-    std::cout << "starting standalone"  << std::endl;
     std::vector<std::thread> threadVec;
 
     std::atomic<bool> result = true;
@@ -157,8 +156,6 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
   }
 
   server_ = std::make_unique<WdRiscv::Server<URV>>(*system_);
-
-  std::cout << "[WHISPER CLIENT] Connect successful..\n";
 
   return 0;
 }

@@ -11,8 +11,6 @@
 #include "whisper_decoder.h"
 #include "rv_tester/rv_tester_plusargs.h"
 
-
-#include <iostream>         // cout
 #include <cstring>          // strlen
 #include <sstream>          // stringstream
 #include <thread>           // std::this_thread::sleep_for

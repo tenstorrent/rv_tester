@@ -86,14 +86,13 @@ public:
     std::lock_guard<std::mutex> lock(mutex_);
     timer_ += advance;
     timer_advance = advance;
-    cvm::log(cvm::FULL, "[Trickbox] Timer tick :  {} advance interval {} \n",timer_,timer_advance);
+    cvm::log(cvm::FULL, "[Trickbox] Timer tick {} advance interval {} \n", timer_, timer_advance);
     processDelayedRandomInterrupts();
   }
 
   void reset() override {
-      std::cout<<"[TRICKBOX]: Reset Interrupter\n";
     if(FLAGS_random_intr){
-      std::cout<<"[TRICKBOX]: Enable random interrupts "<<FLAGS_random_intr<<"\n";
+      cvm::log(cvm::MEDIUM, "[Trickbox] Enable random interrupts. Mask: {:#x}\n", FLAGS_random_intr);
       uint32_t rand_num =  (rng() %  2)+1;  //default delay
       if(FLAGS_intr_delay_min){
          rand_num = (rng() % ( FLAGS_intr_delay_max - FLAGS_intr_delay_min + 1)) + FLAGS_intr_delay_min;

@@ -89,7 +89,6 @@ void
 interrupter::write(uint64_t addr, size_t, const data_t& data,
 		 const strb_t&)
 {
-  //std::cout<<"interrupter write: 0x"<<std::hex<<addr;
   if (not has_addr(addr))
     return;
   uint64_t t_data=0;
@@ -105,7 +104,6 @@ interrupter::write(uint64_t addr, size_t, const data_t& data,
     }
     else if((addr > interrupter_base)&& (addr < (interrupter_base + 0x1000)))
     {
-     //std::cout<<"\ninterrupter DELAYED write: 0x"<<std::hex<<addr<<" data: "<<std::hex<<t_data<<"\n";
      int intr_loc  = addr & 0xf8;
      intr_loc = (intr_loc >>3);
      if(intr_loc!=2){ //ignore supervisor timer interrupt
@@ -117,7 +115,6 @@ interrupter::write(uint64_t addr, size_t, const data_t& data,
      delayedRandomIntValid_.at(intr_loc) = 1; // Valid
      IntrValue_.at(intr_loc) = eventFlag;
      }
-     //std::cout<<"\ninterrupter DELAYED write: 0x"<<std::hex<<addr<<" intr_loc: "<<intr_loc<<" time: "<<timer_<<" eventDelay: "<<eventDelay<<" timercompare :"<<timeCompare_.at(intr_loc)<<" hart "<<hart<<" flag: "<<eventFlag<<"\n";
     }
     else if(addr==(interrupter_base + 0x4000))
     {

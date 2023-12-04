@@ -6,7 +6,6 @@ trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned, cvm::topolog
 {
 
   if (FLAGS_load != "") {
-    std::cout << "loading " << FLAGS_load << "\n";
     init_elf(FLAGS_load);
   }
   
@@ -30,7 +29,6 @@ trickbox::~trickbox()
 }
 
 bool trickbox::init_elf(const std::string& path) {
-  std::cout<<"[IO_DEV]: Device init elf\n";
     try {
         m_.load_ELF(path);
     } catch(const std::exception& e) {

@@ -14,7 +14,6 @@ dm::dm(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t 
   : device(tag, addr, size, loc, &dm::write, &dm::read, this), axi_mst_loc_l(axi_mst_loc)
 {
   if (FLAGS_load != "") {
-    std::cout << "loading " << FLAGS_load << "\n";
     init_elf(FLAGS_load);
   }
   channel = cvm::registry::messenger.channel<axi::r_t>(axi_mst_loc_l);
@@ -52,14 +51,6 @@ cvm::messenger::task<void> dm::read(const transactor::read_t& r, data_t& data) {
                   std::end(data)
                   );
   }
-  // cvm::log(cvm::HIGH, " [Rv_Tester] rv_tester reads addr:{:#x} from transactor, length :{:#x}\n",r.addr,r.length);
-  // printf("element : ");
-  // for (auto element = data.rbegin(); element!= data.rend(); ++element) {
-  //     printf("%02x",*element);
-  //   }
-  // std::cout << std::endl;
-  
-
   
   co_return;
 }
@@ -77,7 +68,6 @@ void dm::read_axi_mst(uint64_t addr, size_t, data_t&) {
 }
 
 bool dm::init_elf(const std::string& path) {
-  std::cout<<"[dm]: Device init elf\n";
     try {
         m_.load_ELF(path);
     } catch(const std::exception& e) {

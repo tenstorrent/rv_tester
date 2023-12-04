@@ -124,7 +124,6 @@ module axi_sw #(
             /* verilator lint_off BLKSEQ */
                 // FIXME add a reset for the axi xtor
             location = cvm_topology::get_location(TOPO_ID, NUM);
-	    $display("\n AXI_SW.sv location: %d",location);
             if (location != cvm_topology::nil) begin
                 axi_sw_set_scope(location);
             end

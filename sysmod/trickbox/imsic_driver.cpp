@@ -21,7 +21,6 @@ imsic_driver::imsic_driver(const std::string& tag, uint64_t addr, unsigned hartC
   imsic_driver_base = addr;
   reset();
   checkUsage();
-  cvm::log (cvm::HIGH,"axi_mst_loc_l for imsic_driver :{}",axi_mst_loc_l);
 }
 
 
@@ -35,7 +34,7 @@ imsic_driver::~imsic_driver()
 void
 imsic_driver::read_dev(uint64_t addr, size_t , data_t& )
 {
-  cvm::log(cvm::HIGH, "[IMSIC Driver] read_dev read addr {:#x} \n",addr);
+  cvm::log(cvm::HIGH, "[Trickbox] IMSIC read addr={:#x} \n", addr);
   return;
 }
 
@@ -44,7 +43,6 @@ void
 imsic_driver::checkUsage()
 {
   
-    cvm::log(cvm::HIGH, "[imsic_intr Driver] check usage\n");
 }
 
 void
@@ -79,26 +77,21 @@ void
 imsic_driver::write(uint64_t addr, size_t, const data_t& data,
 		 const strb_t&)
 {
-  std::cout<<"imsic_driver write: 0x"<<std::hex<<addr<<" has_addr : "<<has_addr(addr)<<"\n";
   if (not has_addr(addr))
     return;
   uint64_t t_data=0;
   deserializeInt(data, t_data);
-  if(addr==imsic_driver_base)
-  {
+  if (addr == imsic_driver_base) {
     //63:0 -> supervisor/hypervisor id hart[], mode_h_s_m[3-> 1:0 ],interrupt_num[1024->9:0] 
     //mask:    0xfff                   0xfff        0xf                  0xfff
-    std::cout<<"imsic_driver sending data to MSI parsing 0x"<<std::hex<< t_data <<"\n";
+    cvm::log(cvm::HIGH, "[Trickbox] IMSIC write - addr={:#x} data={:#x}\n", addr, t_data);
     driveMSIInterrupt(t_data);
-    }
-    else if((addr > imsic_driver_base)&& (addr < (imsic_driver_base + 0x1000)))
-    {
-     std::cout<<"\nimsic_driver DELAYED write: 0x"<<std::hex<<addr<<" data: "<<std::hex<<t_data<<"\n";
-    }
-    else if(addr==(imsic_driver_base + 0x4000))
-    {
-     //TODO
-     std::cout<<"imsic_intr DRIVER no condition met \n";
+  }
+  else if ((addr > imsic_driver_base) && (addr < (imsic_driver_base + 0x1000))) {
+     cvm::log(cvm::HIGH, "[Trickbox] IMSIC write delayed - addr={:#x} data={:#x}\n", addr, t_data);
+  }
+  else if (addr == (imsic_driver_base + 0x4000)) { // FIXME missing functionality
+     cvm::log(cvm::HIGH, "[Trickbox] IMSIC write - no match - addr={:#x} data={:#x}\n", addr, t_data);
     }
 
 }
