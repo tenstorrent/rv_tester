@@ -252,7 +252,9 @@ import rv_tester_params::*;
         .dmi_req_valid,
         .dmi_req,
         .dmi_resp_ready,
-        .misc_signals,
+        .dmi_status,
+        .dmi_commands_in_queue,
+        // .misc_signals,
 
         .trickbox_dmi_write(trickbox_dmi_write)
     );
@@ -275,7 +277,9 @@ import rv_tester_params::*;
         .dm_mem_tx_rd_data,
         .dm_mem_tx_wr_data,
         .dm_mem_tx_wr_data_be,
-        .misc_signals,
+        .dmi_status,
+        .dmi_commands_in_queue,
+        // .misc_signals,
         `RV_TESTER_TRANSACTIONS_DM_MODEL_SOURCE_PORTS(1,0,0)
     );
 `endif
