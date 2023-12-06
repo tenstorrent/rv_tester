@@ -11,7 +11,8 @@
 #include "cvm/logger.hpp"
 #include "cvm/topology.hpp"
 #include "rv_tester_transactions.hpp"
-
+#include "debugger.h"
+//#include "trickbox/debugger.h"
 #include "processor.h"
 #include "debug_defines.h"
 #include "opcodes.h"
@@ -37,6 +38,7 @@ typedef struct
   bool support_haltgroups;
   bool support_impebreak;
 } debug_module_config_t;
+
 
 typedef struct
 {
@@ -136,6 +138,7 @@ public:
   void proc_reset(unsigned id);
 
   void process(const rv_tester_transactions::dm_model::dmi_req<> &dmi_req);
+  void process(const rv_tester_transactions::dm_model::dmi_status<> &dmi_status);
   void process(const rv_tester_transactions::dm_model::dmi_resp<> &dmi_resp);
 
   void process(const rv_tester_transactions::dm_model::dm_load_cmd<> &dm_load_cmd);

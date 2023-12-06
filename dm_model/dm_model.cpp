@@ -10,6 +10,7 @@
 #include "cvm/bitmanip.hpp"
 #include "dm_model.hpp"
 
+
 // Return the number of bits wide that a field has to be to encode up to n
 // different values.
 // 1->0, 2->1, 3->2, 4->2
@@ -47,6 +48,8 @@ debug_module_t::debug_module_t(cvm::topology::loc_t loc, unsigned) : program_buf
                                                                                    { return this->process(v); });
   cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dm_store<>>(loc, [this](const auto &v)
                                                                                { return this->process(v); });
+  cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dmi_status<>>(loc, [this](const auto &v)
+                                                                              { return this->process(v); });
 
   // Define a processor array (for the number of harts)
   for (size_t i = 0; i < max_hartid; i++)
@@ -79,6 +82,13 @@ debug_module_t::debug_module_t(cvm::topology::loc_t loc, unsigned) : program_buf
   }
 
   reset();
+}
+
+void debug_module_t::process(const rv_tester_transactions::dm_model::dmi_status<> &dmi_status)
+{
+  cvm::log(cvm::HIGH, "Model recieved dmi status: status {:#x} cmds in queue {:#x}\n", dmi_status.status, dmi_status.commands_in_queue);
+  auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0);
+  cvm::registry::messenger.signal(tbox_loc, debugger::dmi_status_t{dmi_status.status, dmi_status.commands_in_queue});
 }
 
 void debug_module_t::process(const rv_tester_transactions::dm_model::dmi_req<> &dmi_req)

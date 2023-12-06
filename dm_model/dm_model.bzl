@@ -1,4 +1,5 @@
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
+load("@rv_tester//sysmod:sysmod.bzl", "sysmod_gen")
 
 def dm_model_gen(name, packet, topology, harness, visibility = None, cc_attrs = {}, **kwargs):
         
@@ -20,15 +21,17 @@ def dm_model_gen(name, packet, topology, harness, visibility = None, cc_attrs = 
 		"@rv_tester//dm_model:debug_rom.h",
 		"@rv_tester//dm_model:debug_rom_defines.h",
 		],
+		includes = ["."],
 		deps = [
 		packet + "_cc",
 		"@cvm//:plusargs",
 		"@cvm//:logger",
 		"@cvm//:registry",
 		"@cvm//:bitmanip",
+		"@rv_tester//sysmod/trickbox:trickbox",
 		],
 		alwayslink = True,
-		visibility = visibility,
+		visibility = ["//visibility:public"],
 	)
 
     verilog_library(

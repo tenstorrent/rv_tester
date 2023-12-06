@@ -9,7 +9,7 @@ module dmi_driver (
     output logic                          dmi_req_valid,
     output rv_tester_pkg::dmi_req_t       dmi_req,
     output logic                          dmi_resp_ready,
-    // output logic                    [7:0] misc_signals,
+    output logic                    [7:0] misc_signals,
 
     output logic                    dmi_status,
     output logic [31:0]             dmi_commands_in_queue,
@@ -72,7 +72,7 @@ module dmi_driver (
     abs_read_data <= 0;
   end
 
-  // assign misc_signals[0] = poll;
+  assign misc_signals[0] = poll;
   assign dmi_status = poll;
   assign dmi_commands_in_queue = command_queue.size();
 

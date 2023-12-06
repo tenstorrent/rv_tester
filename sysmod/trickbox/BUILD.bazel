@@ -7,14 +7,16 @@ cc_library(
       "uc_helper.cpp",
       "trickbox.cpp"
     ],
-    hdrs = [
-      "subdevice.h",
-      "interrupter.h",
-      "debugger.h",
-      "imsic_driver.h",
-      "uc_helper.h",
-      "trickbox.h"
-    ],
+    hdrs = glob(["*.h"]),
+    includes = ["."],
+#    hdrs = [
+#      "subdevice.h",
+#      "interrupter.h",
+#      "debugger.h",
+#      "imsic_driver.h",
+#      "uc_helper.h",
+#      "trickbox.h"
+#    ],
     deps = [
              "//common:common",
              "//sysmod:device",

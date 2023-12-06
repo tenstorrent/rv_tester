@@ -18,16 +18,27 @@ debugger::debugger(const std::string &tag, uint64_t addr, unsigned hartCount, cv
   rng.seed(FLAGS_seed);
   debugger_base = addr;
   debugger_trigger = addr + 0x10000;
+  dmi_driver_status_addr = addr + 0x500;
+  dmi_driver_num_cmds_addr = addr + 0x600;
   reset();
   // parse_dmi_from_csv();
   // dbg_trigger = 1;
+  auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0); 
+  cvm::registry::messenger.connect<debugger::dmi_status_t>(
+            tbox_loc,
+            [&](debugger::dmi_status_t i) { return this->update_dm_status(i); });
 }
 
 debugger::~debugger()
 {
   terminate_ = true;
 }
-
+void
+debugger::update_dm_status(debugger::dmi_status_t& i) {
+  cvm::log(cvm::HIGH, "Debug module status :{:#x} cmds in queue :{:#x}\n", i.status,i.commands_in_queue);
+  status = i.status;
+  commands_in_queue = i.commands_in_queue;
+}
 void debugger::get_all_csv_templates()
 {
   std::string directoryPath = FLAGS_dbg_template_dir_path;
@@ -225,11 +236,39 @@ void debugger::drive_csv_dmi_cmds()
 }
 
 cvm::messenger::task<void>
-debugger::read(uint64_t addr, size_t, data_t &)
+debugger::read(uint64_t addr, size_t , data_t& data)
 {
+   if (not has_addr(addr)){
+    cvm::log(cvm::HIGH, "[DEBUGGER] Descarding read request at uc_helper since tag {} is not matching \n",tag());
+   co_return;
+  }
+  if (addr == dmi_driver_status_addr)
+  {
+    cvm::log(cvm::MEDIUM, "[DEBUGGER] Debugger status : {:#x}\n",status);
+    data[0] = status;
+  }
+  if (addr == dmi_driver_num_cmds_addr)
+  {
+    cvm::log(cvm::MEDIUM, "[DEBUGGER] Debugger num cmds in queue : {:#x}\n",commands_in_queue);
+    data[0] = commands_in_queue;
+  } 
   co_return;
 }
-void debugger::read_dev(uint64_t , size_t ,  data_t& ){
+void debugger::read_dev(uint64_t addr, size_t ,  data_t& data ){
+   if (not has_addr(addr)){
+    cvm::log(cvm::HIGH, "[DEBUGGER] Descarding read request at uc_helper since tag {} is not matching \n",tag());
+   return;
+  }
+  if (addr == dmi_driver_status_addr)
+  {
+    cvm::log(cvm::MEDIUM, "[DEBUGGER] Debugger status : {:#x}\n",status);
+    data[0] = status;
+  }
+  if (addr == dmi_driver_num_cmds_addr)
+  {
+    cvm::log(cvm::MEDIUM, "[DEBUGGER] Debugger num cmds in queue : {:#x}\n",commands_in_queue);
+    data[0] = commands_in_queue;
+  } 
   return;
 }
 void debugger::write(uint64_t addr, size_t, const data_t &data,
