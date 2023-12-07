@@ -35,9 +35,9 @@ module dm_model #(
         end
     end
 
-    assign dmi_statuss[0].valid = !reset;
-    assign dmi_statuss[0].status = dmi_status;
-    assign dmi_statuss[0].commands_in_queue = dmi_commands_in_queue;
+    // assign dmi_statuss[0].valid = !reset;
+    // assign dmi_statuss[0].status = dmi_status;
+    // assign dmi_statuss[0].commands_in_queue = dmi_commands_in_queue;
 
     assign dmi_reqs[0].valid = !reset && dmi_req_valid;
     assign dmi_reqs[0].data.location = location;

@@ -11,8 +11,8 @@ module dmi_driver (
     output logic                          dmi_resp_ready,
     output logic                    [7:0] misc_signals,
 
-    output logic                    dmi_status,
-    output logic [31:0]             dmi_commands_in_queue,
+    // output logic                    dmi_status,
+    // output logic [31:0]             dmi_commands_in_queue,
 
     input rv_tester_pkg::dm_write_t trickbox_dmi_write
 );

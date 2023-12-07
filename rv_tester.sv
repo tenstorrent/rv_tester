@@ -241,6 +241,8 @@ import rv_tester_params::*;
 
 `ifndef DMI_TB_WRITES_UNSUPPORTED
     logic [7:0] misc_signals;
+    logic dmi_status;
+    logic [31:0] dmi_commands_in_queue;
 
     dmi_driver i_dmi_driver(
         .clk,

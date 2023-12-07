@@ -474,14 +474,6 @@ pmu:
 
 dm_model:
     num: 1
-    dmi_status:
-        domain: 1
-        num: 1
-        fields:
-            status:
-                width: 1
-            commands_in_queue:
-                width: 32
     dmi_req:
         domain: 1
         num: 1
