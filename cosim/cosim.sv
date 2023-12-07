@@ -239,11 +239,11 @@ import rv_tester_params::*;
               boot_wfi <= '1;
             end
             if (max_stall_cycle > 0 && cycles_since_retire > max_stall_cycle && !boot_wfi) begin
-              $display("Error: Hart%0d: No instruction retired for max_stall_cycle (%0d) cycles", NUM, max_stall_cycle);
+              $display("Error: Hart %0d: No instruction retired for max_stall_cycle (%0d) cycles", NUM, max_stall_cycle);
               cosim_terminate();
             end
             if (max_cycle > 0 && clocks > max_cycle) begin
-              $display("Error:Hart%0d:  Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", NUM, max_cycle);
+              $display("Error: Hart %0d:  Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", NUM, max_cycle);
               cosim_terminate();
             end
         end

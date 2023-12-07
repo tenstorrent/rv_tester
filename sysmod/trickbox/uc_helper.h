@@ -74,7 +74,6 @@ public:
   virtual void write(uint64_t addr, size_t length, const data_t& data,
                       const strb_t& strb) override;
   void reset() override {
-      std::cout<<"[TRICKBOX]: Reset uc_helper\n";
   }
 
   struct uc_helper_write_t {

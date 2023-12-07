@@ -58,7 +58,6 @@ clint::~clint()
 void
 clint::read(const transactor::read_t& r, data_t& data)
 {
-  std::cout << "clint read " << std::endl;
   auto& addr = r.addr;
   auto& length = r.length;
 
@@ -92,7 +91,6 @@ clint::read(const transactor::read_t& r, data_t& data)
 void
 clint::write(const transactor::write_t& w)
 {
-  std::cout << "clint write " << std::endl;
   auto& addr = w.addr;
   auto& length = w.length;
   auto& data = w.data;
@@ -123,7 +121,6 @@ clint::write(const transactor::write_t& w)
       // Time compare. 1 double word per hart.
       uint64_t dword = 0;
       deserializeInt(data, dword);
-      std::cout << "wrote time compare" << std::endl;
       timeCompare_.at(hartIx) = dword;
     }
 

@@ -43,7 +43,7 @@ void eot::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
       auto location = cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0);
       cvm::registry::messenger.signal<htif::terminate_t>(location, htif::terminate_t{});
       auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-      std::cout << "end time: " << std::ctime(&now) << std::endl;
+      cvm::log(cvm::HIGH, "end time: {}\n", std::ctime(&now));
       return;
     } else {
       cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", m_rvfi.cycle);

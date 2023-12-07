@@ -111,7 +111,6 @@ sysmod::uc_helper_backdoor_write(uc_helper::uc_helper_write_t w) {
     cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_write len {} \n",(unsigned)w.length);
     cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_write data-vec : \n");
      for (auto i: w.data){
-         //std::cout << (unsigned )i << ' ';
          cvm::log(cvm::HIGH," {:#x} ",(unsigned)i);
       }
 
@@ -316,7 +315,7 @@ void
 sysmod::load_prog(const std::string& hex, const std::string& load)
 {
   if (load != "") {
-    std::cout << "loading " << load << "\n";
+    cvm::log(cvm::MEDIUM, "Loading {}\n", load);
     for (const auto& d : memmap_) {
       const auto type = d.second.type;
       const auto tag  = d.second.tag;
@@ -329,7 +328,7 @@ sysmod::load_prog(const std::string& hex, const std::string& load)
     }
   }
   if (hex != "") {
-    std::cout << "loading " << hex << "\n";
+    cvm::log(cvm::MEDIUM, "Loading {}\n", hex);
     if (not dev("memory") or not dynamic_cast<sysmod_mem&>(*dev("memory")).init_hex(hex)) {
       cvm::log(cvm::ERROR, "No memory defined");
       return;
@@ -341,7 +340,7 @@ void
 sysmod::load_boot(const std::string& boot)
 {
   if (boot != "") {
-    std::cout << "loading " << boot << "\n";
+    cvm::log(cvm::MEDIUM, "Loading {}\n", boot);
     if (not dev("boot") or not dynamic_cast<sysmod_mem&>(*dev("boot")).init_elf(boot)) {
       cvm::log(cvm::ERROR, "No boot defined");
       return;

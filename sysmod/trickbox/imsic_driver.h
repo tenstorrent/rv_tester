@@ -86,7 +86,7 @@ public:
     std::lock_guard<std::mutex> lock(mutex_);
     timer_ += advance;
     timer_advance = advance;
-    cvm::log(cvm::FULL, "[imsic_intr Driver] Timer tick :  {} advance interval {} \n",timer_,timer_advance);
+    cvm::log(cvm::FULL, "[Trickbox] IMSIC timer tick {} advance interval {}\n", timer_, timer_advance);
     processDelayedRandomInterrupts();
 
   }
@@ -98,7 +98,7 @@ public:
     unsigned interrupt_hart = (t_data>>16) & 0xfff;
     unsigned vs_id = (t_data>>28) & 0xfff;
 
-    cvm::log(cvm::HIGH,"Requested imsic_intr interrupt num {} interrupt file: {} Interrupt hart:{} hypervisor/supervisor id : {}\n", static_cast<uint32_t>(interrupt_num), interrupt_file, interrupt_hart, vs_id);
+    cvm::log(cvm::HIGH,"[Trickbox] IMSIC interrupt num: {} interrupt file: {} Interrupt hart:{} hypervisor/supervisor id : {}\n", static_cast<uint32_t>(interrupt_num), interrupt_file, interrupt_hart, vs_id);
     
     uint32_t addr1 = 0x900;
     if(interrupt_file == 0x0){
@@ -108,7 +108,7 @@ public:
     }else if(interrupt_file == 0x02){
        addr1 = msi_vs_file_addr;
     }else{
-       cvm::log(cvm::ERROR, "[imsic_intr driver] Wrong interrupt file specified\n");
+       cvm::log(cvm::ERROR, "[Trickbox] Wrong IMSIC interrupt file specified\n");
     }
     uint32_t length1 = 1;
     std::vector<uint8_t> data1 = {interrupt_num};
@@ -120,9 +120,8 @@ public:
   }
 
   void reset() override {
-      std::cout<<"[TRICKBOX]: Reset imsic_driver\n";
     if(FLAGS_random_imsic_intr){
-      std::cout<<"[TRICKBOX]: Enable random IMSIC interrupts "<<FLAGS_random_imsic_intr<<"\n";
+      cvm::log(cvm::MEDIUM, "[Trickbox] Enable random IMSIC MSIs {:#x}\n", FLAGS_random_imsic_intr);
       uint32_t rand_num =  (rng() %  2)+1;  //default delay
       if(FLAGS_imsic_intr_delay_min){
          rand_num = (rng() % ( FLAGS_imsic_intr_delay_max - FLAGS_imsic_intr_delay_min + 1)) + FLAGS_imsic_intr_delay_min;
