@@ -111,6 +111,7 @@ import rv_tester_params::*;
     assign pmcounterss[0].data.int_spec = pmcounter[INT_SPEC];
     assign pmcounterss[0].data.fp_spec = pmcounter[FP_SPEC];
     assign pmcounterss[0].data.uop_issued = pmcounter[UOP_ISSUED];
+    assign pmcounterss[0].data.uop_retired = pmcounter[UOP_RETIRED];
     assign pmcounterss[0].data.total_uops_flushed = pmcounter[TOTAL_UOPS_FLUSHED];
     assign pmcounterss[0].data.total_ind_br_retired = pmcounter[TOTAL_IND_BR_RETIRED];
     assign pmcounterss[0].data.total_ind_br_retired_mispred = pmcounter[TOTAL_IND_BR_RETIRED_MISPRED];
@@ -120,7 +121,30 @@ import rv_tester_params::*;
     assign pmcounterss[0].data.store_misal_accesses = pmcounter[STORE_MISAL_ACCESSES];
     assign pmcounterss[0].data.stlf_hits = pmcounter[STLF_HITS];
     assign pmcounterss[0].data.vector_busy_cycles = pmcounter[VECTOR_BUSY_CYCLES];
-
+    assign pmcounterss[0].data.m_mode_cycles = pmcounter[M_MODE_CYCLES];
+    assign pmcounterss[0].data.m_mode_instret = pmcounter[M_MODE_INSTRET];
+    assign pmcounterss[0].data.s_mode_cycles = pmcounter[S_MODE_CYCLES];
+    assign pmcounterss[0].data.s_mode_instret = pmcounter[S_MODE_INSTRET];
+    assign pmcounterss[0].data.u_mode_cycles = pmcounter[U_MODE_CYCLES];
+    assign pmcounterss[0].data.u_mode_instret = pmcounter[U_MODE_INSTRET];
+    assign pmcounterss[0].data.compressed_instret = pmcounter[COMPRESSED_INSTRET];
+    assign pmcounterss[0].data.tlb_invalidates = pmcounter[TLB_INVALIDATES];
+    assign pmcounterss[0].data.br_ret_retired = pmcounter[BR_RET_RETIRED];
+    assign pmcounterss[0].data.br_ret_misses = pmcounter[BR_RET_MISSES];
+    assign pmcounterss[0].data.ind_br_retired = pmcounter[IND_BR_RETIRED];
+    assign pmcounterss[0].data.ind_br_misses = pmcounter[IND_BR_MISSES];
+    assign pmcounterss[0].data.rel_br_retired = pmcounter[REL_BR_RETIRED];
+    assign pmcounterss[0].data.rel_br_misses = pmcounter[REL_BR_MISSES];
+    assign pmcounterss[0].data.cycles_no_int_prn = pmcounter[CYCLES_NO_INT_PRN];
+    assign pmcounterss[0].data.cycles_no_fp_prn = pmcounter[CYCLES_NO_FP_PRN];
+    assign pmcounterss[0].data.cycles_no_vec_prn = pmcounter[CYCLES_NO_VEC_PRN];
+    assign pmcounterss[0].data.ic_way_mispred = pmcounter[IC_WAY_MISPRED];
+    assign pmcounterss[0].data.ls_replay = pmcounter[LS_REPLAY];
+    assign pmcounterss[0].data.ls_replay_way_predictor = pmcounter[LS_REPLAY_WAY_PREDICTOR];
+    assign pmcounterss[0].data.cycles_ldq_full = pmcounter[CYCLES_LDQ_FULL];
+    assign pmcounterss[0].data.cycles_stq_full = pmcounter[CYCLES_STQ_FULL];
+    assign pmcounterss[0].data.cycles_rar_full = pmcounter[CYCLES_RAR_FULL];
+    assign pmcounterss[0].data.cycles_raw_full = pmcounter[CYCLES_RAW_FULL];
 
 
 endmodule
