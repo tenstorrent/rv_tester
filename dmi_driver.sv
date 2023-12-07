@@ -11,8 +11,8 @@ module dmi_driver (
     output logic                          dmi_resp_ready,
     output logic                    [7:0] misc_signals,
 
-    // output logic                    dmi_status,
-    // output logic [31:0]             dmi_commands_in_queue,
+    output logic                    dmi_status,
+    output logic [31:0]             dmi_commands_in_queue,
 
     input rv_tester_pkg::dm_write_t trickbox_dmi_write
 );
@@ -74,7 +74,10 @@ module dmi_driver (
 
   assign misc_signals[0] = poll;
   assign dmi_status = poll;
-  assign dmi_commands_in_queue = command_queue.size();
+
+  always @(posedge clk) begin
+    dmi_commands_in_queue = command_queue.size();
+  end
 
   always @(posedge trickbox_dmi_write.dm_wvalid) begin
     // $display("DMI Write Data = %h \t %h",trickbox_dmi_write.dm_wdata, trickbox_dmi_write.dm_wdata[63:62]);
