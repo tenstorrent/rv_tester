@@ -171,22 +171,12 @@ module axi_sw #(
        endfunction                                                                                                  \
        export "DPI-C" function axi_sw_r_``S;
 
-    `define AXI_SW_R_DUMMY(S)                                                                                       \
-       function void axi_sw_r_``S (int unsigned id, byte unsigned resp, byte unsigned data[S], byte unsigned last); \
-       `ifndef IMMEDIATE_ASSERTIONS_IN_DPI_UNSUPPORTED                                                              \
-           assert(1'b0) else $error("Called axi_sw_r_``S, but data width is %0d bytes", $size(dpi_data));           \
-       `endif                                                                                                       \
-       endfunction                                                                                                  \
-       export "DPI-C" function axi_sw_r_``S;
-
     case ($size(dpi_data))
         8: begin
             `AXI_SW_R_SIZED(8)
-            `AXI_SW_R_DUMMY(64)
         end
         64: begin
             `AXI_SW_R_SIZED(64)
-            `AXI_SW_R_DUMMY(8)
         end
         default:
             $error("Unsupported size %0d", $size(dpi_data));
