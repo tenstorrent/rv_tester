@@ -8,7 +8,7 @@ module tb(
 
     localparam int unsigned ADDR_WIDTH = topology.TOP.PLATFORM.AXI.ADDR_WIDTH;
     localparam int unsigned DATA_WIDTH = topology.TOP.PLATFORM.AXI.DATA_WIDTH;
-    localparam int unsigned ID_WIDTH   = topology.TOP.PLATFORM.AXI.ID_WIDTH;
+    localparam int unsigned ID_WIDTH   = topology.TOP.PLATFORM.AXI.ID_WIDTH + $clog2(topology.TOP.PLATFORM.AXI.TOTAL) + 1;
     localparam int unsigned STRB_WIDTH = topology.TOP.PLATFORM.AXI.STRB_WIDTH;
 
     typedef logic [ADDR_WIDTH-1:0] addr_t;

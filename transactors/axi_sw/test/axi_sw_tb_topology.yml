@@ -14,6 +14,17 @@ top:
         DATA_WIDTH: 512
         STRB_WIDTH: 64
         ID_WIDTH: 4
+    ncio_axi:
+      count: 1
+      type:
+        - ncio_axi
+        - platform_transactor
+      attrs:
+        <<: *rv_tester_axi_sw
+        ADDR_WIDTH: 64
+        DATA_WIDTH: 512
+        STRB_WIDTH: 64
+        ID_WIDTH: 4
     axi_mst:
       count: 1
       type:
