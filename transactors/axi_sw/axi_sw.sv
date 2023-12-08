@@ -158,39 +158,23 @@ module axi_sw #(
     r_t r;
     `AXI_SW_DPI_FIFO(axi_sw_r, r_t, R_Q_MAX, clk, sys_reset, reset_n, axi_slv_r_valid && axi_mst_r_ready, r_queue_rptr_incremented, r_queue_empty, r, r_queue_rptr)
 
-   `define AXI_SW_R_SIZED(S)                                                                                        \
-       function void axi_sw_r_``S (int unsigned id, byte unsigned resp, byte unsigned data[S], byte unsigned last); \
-           data_t d;                                                                                                \
-           r_t rd;                                                                                                  \
-           // stream pack unsupported by verilator                                                                  \
-           for (int i = 0; i < S; i++) begin                                                                        \
-               d[8*i +: 8] = data[i];                                                                               \
-           end                                                                                                      \
-           rd = '{id: id_t'(id), data: data_t'(d), resp: 2'(resp), last: 1'(last)};                                 \
-           `AXI_SW_DPI_FIFO_PUSH(axi_sw_r,R_Q_MAX,rd,r_queue_rptr)                                                  \
-       endfunction                                                                                                  \
-       export "DPI-C" function axi_sw_r_``S;
+    `define AXI_SW_R_SIZED(S)                                                                                        \
+        function void axi_sw_r_``S (int unsigned id, byte unsigned resp, byte unsigned data[S], byte unsigned last); \
+            data_t d;                                                                                                \
+            r_t rd;                                                                                                  \
+            if ($size(dpi_data) == S) begin                                                                          \
+                // stream pack unsupported by verilator                                                              \
+                for (int i = 0; i < S; i++) begin                                                                    \
+                    d[8*i +: 8] = data[i];                                                                           \
+                end                                                                                                  \
+                rd = '{id: id_t'(id), data: data_t'(d), resp: 2'(resp), last: 1'(last)};                             \
+                `AXI_SW_DPI_FIFO_PUSH(axi_sw_r,R_Q_MAX,rd,r_queue_rptr)                                              \
+            end                                                                                                      \
+        endfunction                                                                                                  \
+        export "DPI-C" function axi_sw_r_``S;
 
-    `define AXI_SW_R_DUMMY(S)                                                                                       \
-       function void axi_sw_r_``S (int unsigned id, byte unsigned resp, byte unsigned data[S], byte unsigned last); \
-       `ifndef IMMEDIATE_ASSERTIONS_IN_DPI_UNSUPPORTED                                                              \
-           assert(1'b0) else $error("Called dummy axi_sw_r_``S");                                                   \
-       `endif                                                                                                       \
-       endfunction                                                                                                  \
-       export "DPI-C" function axi_sw_r_``S;
-
-    axi_sw_r_dummy_dpis dummy_dpis();
-
-    case ($size(dpi_data))
-        8: begin
-            `AXI_SW_R_SIZED(8)
-        end
-        64: begin
-            `AXI_SW_R_SIZED(64)
-        end
-        default:
-            $error("Unsupported size %0d", $size(dpi_data));
-    endcase
+    `AXI_SW_R_SIZED(8)
+    `AXI_SW_R_SIZED(64)
 
     `undef AXI_SW_R_SIZED
 
@@ -569,15 +553,6 @@ module axi_sw_mst #(
             rs[0].data.last     <= axi_slv_r_last;
         end
     end
-
-endmodule
-
-module axi_sw_r_dummy_dpis();
-
-    `AXI_SW_R_DUMMY(8)
-    `AXI_SW_R_DUMMY(64)
-
-    `undef AXI_SW_R_DUMMY
 
 endmodule
 
