@@ -1,73 +1,63 @@
-load("@rules_verilator//verilator:defs.bzl", "verilator_cc_library")
-load("@rules_vcs//vcs:defs.bzl", "vcs_simv")
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
-load("@rules_hdl//verilog:build_defs.bzl", "verilog_flist")
+load("@bzsim//:verilog_unit.bzl", "verilog_unit", "verilog_dpi_library")
+load("@cvm//:defs.bzl", "topology_gen", "packet_gen")
+load("@rv_tester//:defs.bzl", "rv_tester_gen")
+load("@cvm//:defs.bzl", "packet_gen")
+load("@rv_tester//transactors/axi_sw:axi_sw.bzl", "axi_sw_gen")
+
+name = "axi_sw_tb"
+topology = name + "_topology"
+
+cc_attrs = {
+    'alwayslink': True,
+    'linkstatic': True,
+}
+
+topology_gen(
+    name = name + "_topology",
+    srcs = [
+        "//transactors/axi_sw:axi_sw_attrs.yml",
+        name + "_topology.yml",
+    ]
+)
+
+packet_gen(
+    name = name + "_transactions",
+    src = name + "_transactions.yml",
+    package = "rv_tester_transactions",
+    topology = topology,
+    cc_attrs = cc_attrs,
+)
+
+axi_sw_gen(
+    name = name + "_axi_sw",
+    packet = name + "_transactions",
+    cc_attrs = cc_attrs,
+)
 
 verilog_library(
-    name = "tb",
+    name = name + "_top",
     srcs = ["tb.sv"],
-    deps = ["//:axi_sw"],
-)
-
-verilog_flist(
-    name = "tb.f",
-    srcs = [":tb"],
-)
-
-cc_library(
-    name = "tb_dpi",
-    srcs = ["tb.cpp"],
-    alwayslink = True,
-)
-
-cc_library(
-    name = "dpi",
-    deps = ["//:axi_sw_dpi", ":tb_dpi"],
-    alwayslink = True,
-    linkstatic = True,
-)
-
-cc_binary(
-    name = "libdpi.so",
-    deps = [":dpi"],
-    linkshared = True,
-    linkopts = ["-lpthread"],
-)
-
-vcs_simv(
-    name  = "tb_vcs",
-    flist = "tb.f",
-    opts  = ["-assert svaext"],
-    dpi   = [":libdpi.so"],
-)
-
-verilator_cc_library(
-    name = "tb_veri_lib",
-    mtop = "tb",
-    vopts = [
-        "--assert",
-        "-Wall",
-        "-Wpedantic",
-        "-Wno-WIDTH",
-        "-Wno-DECLFILENAME",
-        "-Wno-PINCONNECTEMPTY",
+    deps = [
+        topology + "_sv",
+        name + "_axi_sw_sv",
     ],
-    flist = "tb.f",
 )
 
-cc_binary(
-    name = "tb_veri",
-    srcs = ["top.cpp"],
-    deps = [":dpi", ":tb_veri_lib"],
-    linkopts = ["-lpthread"],
+verilog_dpi_library(
+    name = name + "_dpi",
+    srcs = ["tb.cpp"],
+    deps = [
+        name + "_axi_sw_dpi",
+        topology + "_cc",
+    ],
 )
 
-[
-    sh_test(
-       name = "tb_{sim}_test".format(sim = sim),
-       srcs = ["nop.sh"],
-       data = [":tb_{sim}".format(sim = sim)],
-       args = ["$(location :tb_{sim})".format(sim = sim)],
-    )
-    for sim in ["vcs", "veri"]
-]
+verilog_unit(
+    name = name,
+    top  = "tb",
+    lib  = name + "_top",
+    dpi  = name + "_dpi",
+    verilator_top = "top.cpp",
+    bzsimconfig = "//infra/bzsim-config:bzsimconfig",
+)

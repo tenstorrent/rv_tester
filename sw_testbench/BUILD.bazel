@@ -73,7 +73,10 @@ harnesses = [ "sw_1c", "sw_2c"]
 
 sim_test_suite(
     name  = "all_smoke",
-    testlists  = ["@smoke"],
+    testlists  = [
+        "@smoke",
+        "@axi_sw_tb_smoke"
+    ],
     sim = None,
     visibility = ["//visibility:public"],
 )
