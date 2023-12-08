@@ -96,15 +96,12 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
     rv_instr_group_t group;
     group.cycle = instr.cycle;
     group.instrs = instrs_;
-    group.csrs = csrs_;
-
-    for (auto & c : csrs_)
-      print_csr(c);
+    group.csrs = hw_csrs_;
 
     send_instr_group(instr.hart, group);
 
     instrs_.clear();
-    csrs_.clear();
+    hw_csrs_.clear();
   }
 
   // Clear state
@@ -228,6 +225,18 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   if (m_rvfi.csr_valid) {
     csr_t c {true, m_rvfi.hart, m_rvfi.cycle, m_rvfi.csr_addr, m_rvfi.csr_wmask, m_rvfi.csr_wdata};
     instr.csr.push_back(c);
+    // Collect ucode csr writes
+    if (!m_rvfi.last_uop) {
+      ucode_csrs_.push_back(c);
+    }
+  }
+
+  if (m_rvfi.last_uop && !ucode_csrs_.empty()) {
+    // Send ucode csr writes with last uop of ucode instruction/routine
+    for (auto& c : ucode_csrs_) {
+      instr.csr.push_back(c);
+    }
+    ucode_csrs_.clear();
   }
 
   // tlb
@@ -276,7 +285,7 @@ std::tuple<uint64_t, uint64_t, uint8_t> rvfi::get_mem_attributes(uint64_t addr, 
 }
 
 void rvfi::print_csr(csr_t& csr) {
-  log(cvm::NONE, "#{} {} {} 3 {:016x} {:09x} c {:016x} {:016x} {:016x}\n", count_, csr.cycle, csr.hart, 0, 0, csr.csr_addr, csr.csr_wdata, csr.csr_wmask);
+  log(cvm::NONE, "#{} {} {} 3 {:016x} {:09x} c {:016x} {:016x} {:016x} (hw update)\n", count_, csr.cycle, csr.hart, 0, 0, csr.csr_addr, csr.csr_wdata, csr.csr_wmask);
 }
 
 void rvfi::print_instr(rv_instr_t& instr) {
@@ -365,6 +374,17 @@ void rvfi::send_instr_group(hart_id_t hart, rv_instr_group_t& group) {
   bridge_->process_dut_instr_group_retire(hart, group);
 }
 
+void rvfi::send_csr(csr_t& csr) {
+  if (!FLAGS_cosim)
+    return;
+
+  if (terminated_)
+    return;
+
+  bridge_->process_dut_csr_hw_update(csr.hart, csr);
+}
+
+
 void rvfi::enter_debug_mode(rv_instr_t& instr) {
   if (!FLAGS_cosim)
     return;
@@ -421,7 +441,9 @@ void rvfi::process(const rv_tester_transactions::cosim::m_csri<>& m_csri) {
     return;
 
   csr_t c {true, m_csri.hart, m_csri.cycle, m_csri.addr, m_csri.mask, m_csri.data};
-  csrs_.push_back(c);
+  hw_csrs_.push_back(c);
+  print_csr(c);
+  send_csr(c);
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_read) {

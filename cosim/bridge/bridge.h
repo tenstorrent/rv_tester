@@ -41,6 +41,7 @@ public:
   //   - Exceptions/interrupt
   virtual void process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) override;
   virtual void process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d) override;
+  virtual void process_dut_csr_hw_update(hart_id_t hart, csr_t& c) override;
 
   // Process memory access
   //   - Read (Ld completion)
@@ -60,6 +61,7 @@ public:
   virtual void exit_debug_mode(rv_debug_t& d) override;
 
   void reset();
+  void csr_init();
   bool whisper_connect();
 
   void final_phase();
@@ -86,9 +88,16 @@ private:
   void update_insn(hart_id_t hart, src_t src, uint32_t data);
   void update_regs(hart_id_t hart, const rv_instr_t& d);
   void update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_slice_index = 0);
-  void update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, const std::vector<size_8_bytes_t>&& dword_vec, cac::optional_const_ref<size_8_bytes_t> mask_ref = std::nullopt);
+  void update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, const std::vector<size_8_bytes_t>&& dword_vec);
   void update_mem(hart_id_t hart, rv_instr_t& d);
+  void update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data, cac::optional_const_ref<size_8_bytes_t> mask_ref = std::nullopt);
+  uint64_t modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data);
   uint64_t get_csr(hart_id_t hart, src_t src, uint64_t addr);
+  uint64_t get_csr_mask(hart_id_t hart, uint64_t addr);
+  uint64_t get_csr_poke_mask(hart_id_t hart, uint64_t addr);
+  std::string get_csr_name(const std::string& addr);
+  bool is_custom_csr(uint64_t addr);
+  bool is_supported_csr(uint64_t addr);
 
   void translation_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   uint64_t translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t memclass);
