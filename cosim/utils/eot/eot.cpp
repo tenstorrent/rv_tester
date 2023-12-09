@@ -38,7 +38,7 @@ void eot::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
     ended_ = true;
     if (FLAGS_eot == "max_instr") {
       cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", m_rvfi.cycle);
-      cvm::log(cvm::NONE, "<{}> Stop condition detected: +eot=max_instr +max_instr={}\n", m_rvfi.cycle, FLAGS_max_instr);
+      cvm::log(cvm::NONE, "<{}> Pass condition detected: +eot=max_instr +max_instr={}\n", m_rvfi.cycle, FLAGS_max_instr);
       cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", m_rvfi.cycle);
       auto location = cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0);
       cvm::registry::messenger.signal<htif::terminate_t>(location, htif::terminate_t{});
