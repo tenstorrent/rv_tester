@@ -7,6 +7,7 @@ cc_library(
       "@cvm//:plusargs",
       "@cvm//:topology",
       "@cvm//:registry",
+      "@cvm//:logger",
     ],
   visibility = ["//visibility:public"],
 )
