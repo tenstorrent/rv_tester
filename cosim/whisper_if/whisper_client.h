@@ -46,6 +46,7 @@ class whisperClient {
     bool whisperExitDebug();
     bool whisperCheckInterrupt(int hart, uint64_t mip, bool& interrupt, uint64_t& cause);
     bool whisperSetSeiPin(int hart, uint64_t value);
+    bool whisperCancelLr(int hart, bool& valid);
 
   private:
 

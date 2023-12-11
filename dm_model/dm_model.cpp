@@ -194,9 +194,9 @@ void debug_module_t::reset()
     ele.havereset = true;
   }
 
-  cvm::log(cvm::HIGH, "[Config] debug_data_start={:#x}\n", 0x380); //Fixed value as per the implementation
-  cvm::log(cvm::HIGH, "[Config] debug_progbuf_start={:#x}\n", debug_progbuf_start);
-  cvm::log(cvm::HIGH, "[Config] debug_abstract_start={:#x}\n", debug_abstract_start);
+  cvm::log(cvm::HIGH, "[DM Config] debug_data_start={:#x}\n", 0x380); //Fixed value as per the implementation
+  cvm::log(cvm::HIGH, "[DM Config] debug_progbuf_start={:#x}\n", debug_progbuf_start);
+  cvm::log(cvm::HIGH, "[DM Config] debug_abstract_start={:#x}\n", debug_abstract_start);
 
   unsigned i = 0;
   write32(debug_abstract,i++,ZERO);//0 (low)
@@ -376,7 +376,6 @@ bool debug_module_t::store(reg_t addr, size_t len, const uint8_t *bytes)
 void debug_module_t::write32(uint8_t *memory, unsigned int index, uint32_t value)
 {
   uint8_t *base = memory + index * 4;
-  cvm::log(cvm::HIGH, "Write32 called for index:{:#x} at memory loc:{:#x} with value:{:#x}\n", index, *base, value);
   base[0] = value & 0xff;
   base[1] = (value >> 8) & 0xff;
   base[2] = (value >> 16) & 0xff;

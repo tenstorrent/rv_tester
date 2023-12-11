@@ -444,18 +444,19 @@ whisperClient<URV>::whisperTranslate(int hart, uint64_t vaddr, bool r, bool w, b
   return true;
 }
 
-//bool
-//whisperClient::whisperCancelLr(int hart, bool& valid)
-//{
-//  req.hart = hart;
-//  req.type = WhisperMessageType::CancelLr;
-//
-//  if (not whisperCommand(req, reply))
-//    return false;
-//
-//  valid = reply.type != WhisperMessageType::Invalid;
-//  return true;
-//}
+template <typename URV>
+bool
+whisperClient<URV>::whisperCancelLr(int hart, bool& valid)
+{
+  req.hart = hart;
+  req.type = WhisperMessageType::CancelLr;
+
+  if (not whisperCommand(req, reply))
+    return false;
+
+  valid = reply.type != WhisperMessageType::Invalid;
+  return true;
+}
 
 template <typename URV>
 bool

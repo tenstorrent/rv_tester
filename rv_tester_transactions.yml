@@ -182,6 +182,8 @@ cosim:
                 width: 64
             mip_mask:
                 width: 64
+            mip_assert:
+                width: 64
 
     m_imsic_intr:
         domain: 1

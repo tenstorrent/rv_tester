@@ -139,10 +139,11 @@ void rvfi::process(const rv_tester_transactions::cosim::m_intr<>& m_intr) {
   intr.cycle = m_intr.cycle;
   intr.mip = m_intr.mip;
   intr.mip_mask = m_intr.mip_mask;
+  intr.mip_assert = m_intr.mip_assert;
 
   bridge_->process_dut_interrupt(id_, intr);
   if (FLAGS_rvfi_log) {
-    log(cvm::NONE, "#{} {} 0 (mip:{:#x} mask:{:#x})\n", count_, intr.cycle, intr.mip, intr.mip_mask);
+    log(cvm::NONE, "#{} {} 0 (mip:{:#x} mask:{:#x} assert:{:#x})\n", count_, intr.cycle, intr.mip, intr.mip_mask, intr.mip_assert);
   }
 }
 
@@ -187,6 +188,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.comp = m_rvfi.comp;
   instr.tag = m_rvfi.order;
   instr.opcode = m_rvfi.insn;
+  instr.disasm = whisper::disassemble(m_rvfi.insn);
   instr.uop = m_rvfi.uop;
   instr.priv = m_rvfi.mode;
   instr.trap = m_rvfi.trap || intr_ || excp_;
@@ -293,7 +295,9 @@ void rvfi::print_instr(rv_instr_t& instr) {
     return;
   }
 
-  int resource_count = instr.gpr.valid + instr.fpr.valid + instr.vr.valid + instr.mem_write.valid + instr.csr.size();
+  int resource_count = instr.gpr.valid + instr.fpr.valid + instr.vr.valid + instr.mem_write.valid;
+  if (!instr.ucode || !instr.last_uop)
+    resource_count += instr.csr.size();
 
   // Print r0 = 0 if nothing modified
   if (!resource_count) {
@@ -321,8 +325,9 @@ void rvfi::print_instr(rv_instr_t& instr) {
   if (instr.mem_write.valid)
     print_instr_resource(instr, fmt::format(" m {:016x} {:016x}", instr.mem_write.va, instr.mem_write.data));
 
-  for (auto& c : instr.csr)
-    print_instr_resource(instr, fmt::format(" c {:016x} {:016x} {:016x}", c.csr_addr, c.csr_wdata, c.csr_wmask));
+  if (!instr.ucode || !instr.last_uop)
+    for (auto& c : instr.csr)
+      print_instr_resource(instr, fmt::format(" c {:016x} {:016x} {:016x}", c.csr_addr, c.csr_wdata, c.csr_wmask));
 }
 
 void rvfi::print_instr_resource(rv_instr_t& instr, std::string resource_str) {
@@ -332,9 +337,9 @@ void rvfi::print_instr_resource(rv_instr_t& instr, std::string resource_str) {
   log(cvm::NONE, resource_str);
 
   if (instr.last_uop && prev_instr_.last_uop)
-    log(cvm::NONE, " {}", whisper::disassemble(instr.opcode));
+    log(cvm::NONE, " {}", instr.disasm);
   else
-    log(cvm::NONE, " {} (microcode)", cosim_util::get_nth_word(whisper::disassemble(instr.opcode), 1));
+    log(cvm::NONE, " {} (microcode)", cosim_util::get_nth_word(instr.disasm, 1));
 
   if (instr.mem_write.valid)
     log(cvm::NONE, " [{:#x}:{:#x}]", instr.mem_write.va, instr.mem_write.pa);

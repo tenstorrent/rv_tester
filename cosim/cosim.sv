@@ -190,6 +190,7 @@ import rv_tester_params::*;
     assign m_intrs[0].data.cycle = clocks;
     assign m_intrs[0].data.mip = get_mip(wired_interrupt);
     assign m_intrs[0].data.mip_mask = get_mip_mask(wired_interrupt, wired_interrupt_d1);
+    assign m_intrs[0].data.mip_assert = get_mip_assert(wired_interrupt, wired_interrupt_d1);
 
     function automatic bit [63:0] get_mip(rv_tester_pkg::interrupt_t intr);
       bit [63:0] mip = 'h0;
@@ -219,6 +220,17 @@ import rv_tester_params::*;
       mask[5]  = (intr.sti & ~intr_d1.sti) | (~intr.sti & intr_d1.sti);
       mask[3]  = (intr.msi & ~intr_d1.msi) | (~intr.msi & intr_d1.msi);
       mask[1]  = (intr.ssi & ~intr_d1.ssi) | (~intr.ssi & intr_d1.ssi);
+      return mask;
+    endfunction
+
+    function automatic bit [63:0] get_mip_assert(rv_tester_pkg::interrupt_t intr, rv_tester_pkg::interrupt_t intr_d1);
+      bit [63:0] mask = 'h0;
+      mask[11] = (intr.mei & ~intr_d1.mei);
+      mask[9]  = (intr.sei & ~intr_d1.sei);
+      mask[7]  = (intr.mti & ~intr_d1.mti);
+      mask[5]  = (intr.sti & ~intr_d1.sti);
+      mask[3]  = (intr.msi & ~intr_d1.msi);
+      mask[1]  = (intr.ssi & ~intr_d1.ssi);
       return mask;
     endfunction
 

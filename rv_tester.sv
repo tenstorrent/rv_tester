@@ -212,7 +212,7 @@ import rv_tester_params::*;
     end
 
     function void rv_tester_terminate ();
-        $display("rv_tester_terminate: attempting to terminate");
+        $display("<%0d> rv_tester_terminate: attempting to terminate", clocks);
         rv_tester_error_terminate.terminate = '1;
     endfunction
     export "DPI-C" function rv_tester_terminate;

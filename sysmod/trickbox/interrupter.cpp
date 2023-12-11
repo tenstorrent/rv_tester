@@ -26,7 +26,7 @@ interrupter::interrupter(const std::string& tag, uint64_t addr, unsigned hartCou
   //populate disable mask as per plusargs
   disable_mask = (FLAGS_disable_meip <<5)|(FLAGS_disable_seip <<4)|(FLAGS_disable_mtip <<3)|(FLAGS_disable_stip <<2)| (FLAGS_disable_msip << 1) |FLAGS_disable_ssip;
   disable_mask_neg = (~disable_mask) & 0xff;
-  cvm::log(cvm::LOW, "[Trickbox] Random Interrupt disable_mask :  {} disable_mask_neg {} \n",disable_mask,disable_mask_neg);
+  cvm::log(cvm::LOW, "[Trickbox] Random Interrupt disable_mask {:#x} disable_mask_neg {:#x}\n", disable_mask, disable_mask_neg);
   checkUsage();
 }
 
@@ -45,12 +45,12 @@ interrupter::checkUsage()
   if(FLAGS_random_intr){
     if(disable_mask == ((1<<numInterrupts_)-1)){
     //Error: asked to generate random interrupts when all interrupts are disabled
-    cvm::log(cvm::ERROR, "[Trickbox] Can not drive random interrupts when all interrupts are disabled\n");
+    cvm::log(cvm::ERROR, "Error: Trickbox cannot drive random interrupts when all interrupts are disabled\n");
     }
     //max simul intr can't be more than enabled interrupts
     if((unsigned)FLAGS_max_simul_intr > active_interrupts){
     //Cant drive more interrupts than active
-    cvm::log(cvm::ERROR, "[Trickbox] Can not drive {} interrupts when {} interrupts are enabled\n",FLAGS_max_simul_intr,active_interrupts);
+    cvm::log(cvm::ERROR, "Error: Trickbox cannot drive max_simul_intr={} interrupts when {} interrupts are enabled\n",FLAGS_max_simul_intr,active_interrupts);
     }
   }
 }
