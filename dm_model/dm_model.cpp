@@ -138,7 +138,7 @@ void debug_module_t::process(const rv_tester_transactions::dm_model::dm_load_cmd
 
   cvm::log(cvm::HIGH, "[{}] Sent a load req for the address:{:#x} for length:{:#x} with id:{:#x}\n", sent_count, dm_load_cmd.addr, load_req_length, dm_load_cmd.id);
   sent_count++;
-
+  
   debug_module_t::load(dm_load_cmd.addr, load_req_length, load_bytes_data);
 
   std::memcpy(&expected_load_data, load_bytes_data, load_req_length);
@@ -146,7 +146,7 @@ void debug_module_t::process(const rv_tester_transactions::dm_model::dm_load_cmd
 
   load_req_id = dm_load_cmd.id;
   load_req_addr = dm_load_cmd.addr;
-  mem_load_check = true;
+  mem_load_check = !((dm_load_cmd.addr >= 0x2c0) && (dm_load_cmd.addr <= 0x2f0)); // Don't do a load check on the reserved regions
 }
 
 void debug_module_t::process(const rv_tester_transactions::dm_model::dm_load_data<> &dm_load_data)
@@ -154,7 +154,7 @@ void debug_module_t::process(const rv_tester_transactions::dm_model::dm_load_dat
   cvm::log(cvm::HIGH, "[{}] Got a load resp for the id:{:#x} and data:{:#x}\n", resp_count, dm_load_data.id, dm_load_data.data);
   resp_count++;
 
-  if (load_req_id == dm_load_data.id)
+  if (load_req_id == dm_load_data.id && mem_load_check)
   {
     cvm::log(cvm::HIGH, "Seen a matching load response for the same id as the previous load request\n");
     uint64_t expected_load_data_to_check = cvm::bitmanip::slice<uint64_t>(expected_load_data, (load_req_length * 4 - 1), 0);
@@ -212,7 +212,7 @@ void debug_module_t::reset()
     ele.havereset = true;
   }
 
-  cvm::log(cvm::HIGH, "[Config] debug_data_start={:#x}\n", 0x380); //Fixed value as per the implementation
+  cvm::log(cvm::HIGH, "[Config] debug_data_start={:#x}\n", 0x388); //Fixed value as per the implementation
   cvm::log(cvm::HIGH, "[Config] debug_progbuf_start={:#x}\n", debug_progbuf_start);
   cvm::log(cvm::HIGH, "[Config] debug_abstract_start={:#x}\n", debug_abstract_start);
 
@@ -275,6 +275,12 @@ bool debug_module_t::load(reg_t addr, size_t len, uint8_t *bytes)
       memcpy(bytes, program_buffer.data() + addr - debug_progbuf_start + 4, len);
     else
       memcpy(bytes, program_buffer.data() + addr - debug_progbuf_start, len);
+    return true;
+  }
+
+  if (addr >= 0x2c0 && addr <= 0x2f0)
+  {
+    cvm::log(cvm::FULL, "Reserved space ::: Addr={:#x}, Length={:#x}\n",addr,len);
     return true;
   }
 
@@ -622,12 +628,6 @@ bool debug_module_t::perform_abstract_command()
     return true;
   }
 
-  if (!selected_hart_state().halted || !hart_available(dmcontrol.hartsel))
-    {
-      abstractcs.cmderr = CMDERR_HALTRESUME;
-      return true;
-    }
-
   if ((command >> 24) == 0)
   {
     // register access
@@ -889,13 +889,13 @@ bool debug_module_t::perform_abstract_command()
       write32(debug_abstract, 7, csrsi(CSR_C_PRIV, 1)); // Enable MMU Translation
       switch (size){//Store A0 data into S0 addr
         case 0 :
-          write32(debug_abstract, 8, sb(A0,S0,ZERO));break;
+          write32(debug_abstract, 8, sb(S1,S0,ZERO));break;
         case 1 :
-          write32(debug_abstract, 8, sh(A0,S0,ZERO));break;
+          write32(debug_abstract, 8, sh(S1,S0,ZERO));break;
         case 2 :
-          write32(debug_abstract, 8, sw(A0,S0,ZERO));break;
+          write32(debug_abstract, 8, sw(S1,S0,ZERO));break;
         case 3 :
-          write32(debug_abstract, 8, sd(A0,S0,ZERO));break;
+          write32(debug_abstract, 8, sd(S1,S0,ZERO));break;
       }
       write32(debug_abstract, 9, csrci(CSR_C_PRIV, 1)); // Disable MMU Translation
       write32(debug_abstract, 10, csrr(S0, CSR_DSCRATCH0)); // restore S0 again from dscratch0
@@ -909,18 +909,18 @@ bool debug_module_t::perform_abstract_command()
       switch(size){
         case 0:
           write32(debug_abstract,7,lb(S0,S0,ZERO));
-          write32(debug_abstract,8,sb(S0,load_base_address,debug_data_start));break;
+          write32(debug_abstract,9,sb(S0,load_base_address,debug_data_start));break;
         case 1:
           write32(debug_abstract,7,lh(S0,S0,ZERO));
-          write32(debug_abstract,8,sh(S0,load_base_address,debug_data_start));break;
+          write32(debug_abstract,9,sh(S0,load_base_address,debug_data_start));break;
         case 2:
           write32(debug_abstract,7,lw(S0,S0,ZERO));
-          write32(debug_abstract,8,sw(S0,load_base_address,debug_data_start));break;
+          write32(debug_abstract,9,sw(S0,load_base_address,debug_data_start));break;
         case 3:
           write32(debug_abstract,7,ld(S0,S0,ZERO));
-          write32(debug_abstract,8,sd(S0,load_base_address,debug_data_start));break;
+          write32(debug_abstract,9,sd(S0,load_base_address,debug_data_start));break;
       }
-      write32(debug_abstract, 9, csrci(CSR_C_PRIV, 1)); // Disable MMU Translation
+      write32(debug_abstract, 8, csrci(CSR_C_PRIV, 1)); // Disable MMU Translation
       write32(debug_abstract,10, csrr(S0, CSR_DSCRATCH0)); // restore S0 again from dscratch
       (has_second_scratch)? write32(debug_abstract, 11, csrr(A0, CSR_DSCRATCH1)) : write32(debug_abstract, 12, nop()); // restore A0 again from dscratch1
       write32(debug_abstract,12,ebreak());
@@ -932,6 +932,13 @@ bool debug_module_t::perform_abstract_command()
   {
     abstractcs.cmderr = CMDERR_NOTSUP;
   }
+
+  if (!selected_hart_state().halted || !hart_available(dmcontrol.hartsel))
+  {
+    abstractcs.cmderr = CMDERR_HALTRESUME;
+    return true;
+  }
+
   return true;
 }
 
