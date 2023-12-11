@@ -60,7 +60,10 @@ debug_module_t::debug_module_t(cvm::topology::loc_t loc, unsigned) : program_buf
   program_buffer = std::vector<uint8_t>(program_buffer_bytes, 0);
 
   if (config.support_impebreak) {
-    program_buffer[0] = csrsi(CSR_C_PRIV, 1); // (dm::csrrsi(dm::CSR_C_PRIV,1'b1,'0))
+    program_buffer[0] = csrsi(CSR_C_PRIV, 1);
+    program_buffer[1] = csrsi(CSR_C_PRIV, 1) >> 8;
+    program_buffer[2] = csrsi(CSR_C_PRIV, 1) >> 16;
+    program_buffer[3] = csrsi(CSR_C_PRIV, 1) >> 24;
     program_buffer[4*config.progbufsize] = ebreak();
     program_buffer[4*config.progbufsize+1] = ebreak() >> 8;
     program_buffer[4*config.progbufsize+2] = ebreak() >> 16;
@@ -271,10 +274,7 @@ bool debug_module_t::load(reg_t addr, size_t len, uint8_t *bytes)
   if (addr >= debug_progbuf_start && ((addr + len) <= (debug_progbuf_start + program_buffer_bytes)))
   {
     cvm::log(cvm::FULL, "Program Buffer Region ::: Addr={:#x}, Length={:#x}\n",addr,len);
-    if (config.support_impebreak)
-      memcpy(bytes, program_buffer.data() + addr - debug_progbuf_start + 4, len);
-    else
-      memcpy(bytes, program_buffer.data() + addr - debug_progbuf_start, len);
+    memcpy(bytes, program_buffer.data() + addr - debug_progbuf_start, len);
     return true;
   }
 
@@ -454,7 +454,7 @@ bool debug_module_t::dmi_read(unsigned address, uint32_t *value)
   else if (address >= DM_PROGBUF0 && address < DM_PROGBUF0 + config.progbufsize)
   {
     unsigned i = address - DM_PROGBUF0;
-    result = read32(program_buffer.data(), i);
+    result = read32(program_buffer.data(), config.support_impebreak?(i+1):i);
     if (abstractcs.busy)
     {
       result = -1;
@@ -972,7 +972,7 @@ bool debug_module_t::dmi_write(unsigned address, uint32_t value)
     unsigned i = address - DM_PROGBUF0;
 
     if (!abstractcs.busy)
-      write32(program_buffer.data(), i, value);
+      write32(program_buffer.data(), config.support_impebreak?(i+1):i , value);
 
     if (!abstractcs.busy && ((abstractauto.autoexecprogbuf >> i) & 1))
     {
