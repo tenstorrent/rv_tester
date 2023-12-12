@@ -92,10 +92,27 @@ void bridge::reset() {
   bool valid;
   client_->whisperReset(0, valid);
 
+  // Init csr reset values in cac
+  csr_init();
+
   // Write hart enable mask to boot mem
   if (!client_->whisperPoke(id_, 0, 'm', memmap_.at("boot").base + 0x9000, FLAGS_hart_enable_mask, valid)) {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed to poke boot memory\n", id_);
     return;
+  }
+}
+
+void bridge::csr_init() {
+  bool valid;
+  uint64_t data, mask, poke_mask;
+  for (const auto& csr: csrs) {
+    if (!client_->whisperPeekCsr(id_, csr.address, data, mask, poke_mask, valid)) {
+      cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek csr\n", id_);
+    }
+    size_8_bytes_t cac_mask = 0xffffffffffffffff;
+    update_csr(id_, src_t::dut, csr.address, data, cac_mask);
+    update_csr(id_, src_t::iss, csr.address, data, cac_mask);
+    csr_cac_.Step(id_);
   }
 }
 
@@ -189,14 +206,16 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   translation_check(hart, d, w);
 }
 
-void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d) {
-  for (auto & c : d.csrs) {
-    size_8_bytes_t mask = c.csr_wmask;
-    update_regs(hart, src_t::dut, resource_t::csr_reg, c.csr_addr, {c.csr_wdata}, mask);
-    if (c.csr_addr == 0x344)
-      log(cvm::MEDIUM, "<{}> CSR hw write based interrupt: mip {:#x} mask {:#x}\n", c.cycle, c.csr_wdata, c.csr_wmask);
-  }
+void bridge::process_dut_csr_hw_update(hart_id_t hart, csr_t& c) {
+  // MIP updates handled in process_dut_interrupt
+  if (c.csr_addr == 0x344)
+    return;
 
+  size_8_bytes_t mask = c.csr_wmask & static_cast<size_8_bytes_t>(get_csr_poke_mask(hart, c.csr_addr));
+  update_csr(hart, src_t::dut, c.csr_addr, c.csr_wdata, mask);
+}
+
+void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d) {
   if (!FLAGS_csr_check)
     return;
 
@@ -210,15 +229,17 @@ void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d)
 
   // Error on mismatch
   if (!csr_cac_.GetStatus(hart)) {
+    std::string csr = get_csr_name(csr_cac_.GetResourceStr(hart).substr(2));
     csr_cac_.ResetStatus(hart);
-    if (FLAGS_cosim_resynch) {
+    if (csr == "mip") {
+      // do nothing
+    } else if (FLAGS_cosim_resynch) {
       resynch(hart, d);
     } else {
       for (auto & i : d.instrs)
         print_instr_stdout(hart, i);
-      std::string resource = csr_cac_.GetResourceStr(hart);
       cvm::log(cvm::NONE, "{}", csr_cac_.GetStatusStr(hart));
-      cvm::log(cvm::ERROR, "Error: Hart {}: CSR Mismatch - {}\n", hart, resource);
+      cvm::log(cvm::ERROR, "Error: Hart {}: CSR Mismatch - {}\n", hart, csr);
       return;
     }
   }
@@ -605,11 +626,12 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
   }
   // CSR
   for (auto & c : d.csr) {
-    size_8_bytes_t mask = c.csr_wmask;
-    update_regs(hart, src_t::dut, resource_t::csr_reg, c.csr_addr, {c.csr_wdata}, mask);
+    size_8_bytes_t mask = c.csr_wmask & get_csr_mask(hart, c.csr_addr);
+    uint64_t data = modify_csr_data(hart, c.csr_addr, c.csr_wdata);
+    update_csr(hart, src_t::dut, c.csr_addr, data, mask);
     if (c.csr_addr == 0x344) {
       mip_ = get_csr(hart, src_t::dut, 0x344);
-      log(cvm::MEDIUM, "<{}> Zicsr write based interrupt: mip {:#x} mask {:#x}\n", c.cycle, c.csr_wdata, c.csr_wmask);
+      log(cvm::MEDIUM, "<{}> Zicsr write based interrupt: mip {:#x} mask {:#x}\n", c.cycle, data, mask);
     }
   }
 }
@@ -658,7 +680,7 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_
       }
       break;
     case 'c':
-      update_regs(hart, src_t::iss, resource_t::csr_reg, w.address, {w.value});
+      update_csr(hart, src_t::iss, w.address, w.value);
       break;
     default:
       break;
@@ -682,7 +704,7 @@ void bridge::update_insn(hart_id_t hart, src_t src, uint32_t data) {
   assert(cac_.UpdateResource(hart, src, insn, std::move(cac::CreateBitVec<uint64_t>(data))));
 }
 
-void bridge::update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, const std::vector<size_8_bytes_t>&& dword_vec, cac::optional_const_ref<size_8_bytes_t> mask_ref) {
+void bridge::update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, const std::vector<size_8_bytes_t>&& dword_vec) {
   if ((src == src_t::dut) && (resource == resource_t::int_reg) && (addr == 0)) {
     return;
   }
@@ -690,16 +712,7 @@ void bridge::update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_
     .resource = resource,
     .offset = addr
   };
-
-  if (resource == resource_t::csr_reg) {
-    cac::mask_t mask = cac::CreateBitVec<size_8_bytes_t>(std::numeric_limits<size_8_bytes_t>::max());
-    if (mask_ref != std::nullopt) {
-      mask = cac::CreateBitVec<size_8_bytes_t>(mask_ref.value());
-    }
-    assert(csr_cac_.UpdateResource(hart, src, rid, std::move(cac::CreateBitVec<size_8_bytes_t>(dword_vec)), mask));
-  } else {
-    assert(cac_.UpdateResource(hart, src, rid, std::move(cac::CreateBitVec<size_8_bytes_t>(dword_vec))));
-  }
+  assert(cac_.UpdateResource(hart, src, rid, std::move(cac::CreateBitVec<size_8_bytes_t>(dword_vec))));
 }
 
 bool bridge::is_ecall(const whisper_state_t& w) {
@@ -1025,12 +1038,15 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
   
   // Update dut mip
   size_8_bytes_t mask = i.mip_mask;
-  update_regs(hart, src_t::dut, resource_t::csr_reg, 0x344, {i.mip}, mask);
+  update_csr(hart, src_t::dut, 0x344, i.mip, mask);
 
   // Poke whisper mip for sw/timer interrupts, not for external
   mip_ = get_csr(hart, src_t::dut, 0x344);
-  if (mask & ~0xa00)
+  if (mask & ~0xa00) {
+    // Ideally, would have liked to poke mip with a mask
+    // Since we can't, doing a rmw instead
     poke_mip(hart, i.cycle, mip_ & ~0xa00);
+  }
 }
 
 void bridge::process_dut_imsic_interrupt(hart_id_t hart, mem_t& m) {
@@ -1131,6 +1147,52 @@ void bridge::exit_debug_mode(rv_debug_t& d) {
   }
 }
 
+uint64_t bridge::modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data) {
+  uint64_t result = data;
+  // pmpaddr
+  // Spec section...
+  if (addr >= 0x3B0 && addr < 0x3C0) {
+    bool valid;
+    uint64_t pmpcfg, mask, reset;
+    client_->whisperPeekCsr(hart, addr - 16, pmpcfg, mask, reset, valid);
+    if((pmpcfg >> 4) & 0x1) {
+      result = data | 0x1ff;
+    } else {
+      result = data & 0xfffffffffffffc00;
+    }
+  }
+  return result;
+}
+
+bool bridge::is_custom_csr(uint64_t addr) {
+  return ((addr >= 0x5C0 && addr <= 0x5FF) ||
+          (addr >= 0x6C0 && addr <= 0x6FF) ||
+          (addr >= 0x7C0 && addr <= 0x7FF) ||
+          (addr >= 0x800 && addr <= 0x8FF) ||
+          (addr >= 0x9C0 && addr <= 0x9FF) ||
+          (addr >= 0xAC0 && addr <= 0xAFF) ||
+          (addr >= 0xBC0 && addr <= 0xBFF));
+}
+
+bool bridge::is_supported_csr(uint64_t addr) {
+  return (addr >= 0x7E0 && addr <= 0x7EF); // pmacfg0-15
+}
+
+void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data, cac::optional_const_ref<size_8_bytes_t> mask_ref) {
+  if (is_custom_csr(addr) && !is_supported_csr(addr))
+    return;
+
+  resource_id_t csr_resource = resource_id_t{
+    .resource = resource_t::csr_reg,
+    .offset = addr
+  };
+  cac::mask_t mask = cac::CreateBitVec<size_8_bytes_t>(std::numeric_limits<size_8_bytes_t>::max());
+  if (mask_ref != std::nullopt) {
+    mask = cac::CreateBitVec<size_8_bytes_t>(mask_ref.value());
+  }
+  assert(csr_cac_.UpdateResource(hart, src, csr_resource, std::move(cac::CreateBitVec<size_8_bytes_t>({data})), mask));
+}
+
 uint64_t bridge::get_csr(hart_id_t hart, src_t src, uint64_t addr) {
   std::vector<bool> bool_vec;
   std::vector<uint64_t> dword_vec;
@@ -1138,9 +1200,44 @@ uint64_t bridge::get_csr(hart_id_t hart, src_t src, uint64_t addr) {
     .resource = resource_t::csr_reg,
     .offset = addr
   };
-  csr_cac_.GetResource(hart, src, csr_resource, bool_vec);
+  assert(csr_cac_.GetResource(hart, src, csr_resource, bool_vec));
   dword_vec = cac::CreateSizedVec<uint64_t>(bool_vec);
   return dword_vec[0];
+}
+
+uint64_t bridge::get_csr_mask(hart_id_t hart, uint64_t addr) {
+  bool valid;
+  uint64_t data, mask, poke_mask;
+  if (!client_->whisperPeekCsr(hart, addr, data, mask, poke_mask, valid)) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek csr\n", hart);
+  }
+  return mask;
+}
+
+uint64_t bridge::get_csr_poke_mask(hart_id_t hart, uint64_t addr) {
+  bool valid;
+  uint64_t data, mask, poke_mask;
+  if (!client_->whisperPeekCsr(hart, addr, data, mask, poke_mask, valid)) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek csr\n", hart);
+  }
+  return poke_mask;
+}
+
+std::string bridge::get_csr_name(const std::string& csr_addr) {
+  unsigned int addr;
+  try {
+    addr = std::stoul(csr_addr, nullptr, 16);
+  }
+  catch (...) {
+    return csr_addr;
+  }
+
+  for (const auto& csr : csrs) {
+    if (csr.address == addr) {
+        return csr.name;
+    }
+  }
+  return csr_addr;
 }
 
 void bridge::final_phase() {

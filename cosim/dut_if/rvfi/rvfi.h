@@ -61,6 +61,7 @@ class rvfi {
     void print_instr(rv_instr_t& instr);
     void print_instr_resource(rv_instr_t& instr, std::string resource_str);
     void send_instr(rv_instr_t& instr);
+    void send_csr(csr_t& csr);
     void send_instr_group(hart_id_t hart, rv_instr_group_t& group);
     void enter_debug_mode(rv_instr_t& instr);
     void exit_debug_mode(rv_instr_t& instr);
@@ -85,7 +86,7 @@ class rvfi {
     uint64_t ecause_ = 0;
 
     std::vector<rv_instr_t> instrs_;
-    std::vector<csr_t> csrs_;
+    std::vector<csr_t> hw_csrs_, ucode_csrs_;
 
     svScope scope_;
 

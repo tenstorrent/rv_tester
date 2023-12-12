@@ -1,25 +1,47 @@
 // can't call a function from a function in DPI export on palladium
-`define AXI_SW_DPI_FIFO_PUSH(path, D, data)                \
-    if (1) begin                                           \
-        typedef logic[$clog2(D+1)-1:0] ptr_t;              \
-        typedef logic[$clog2(D+0)-1:0] idx_t;              \
-        localparam ptr_t PD = ptr_t'(D);                   \
-        `ifndef IMMEDIATE_ASSERTIONS_IN_DPI_UNSUPPORTED    \
-        assert(path.wptr_nxt - path.rptr != PD) else       \
-            $error("fifo is full");                        \
-        assert(reset_n) else $error("called in reset");    \
-        `endif                                             \
-        if (reset_n) begin                                 \
-            path.q[idx_t'(path.wptr_nxt % PD)] = data;     \
-            path.wptr_nxt++;                               \
-        end                                                \
-    end
+`define AXI_SW_DPI_FIFO_PUSH(name, D, data, rptr)              \
+    if (1) begin                                               \
+        typedef logic[$clog2(D+1)-1:0] ptr_t;                  \
+        typedef logic[$clog2(D+0)-1:0] idx_t;                  \
+        localparam ptr_t PD = ptr_t'(D);                       \
+        `ifndef IMMEDIATE_ASSERTIONS_IN_DPI_UNSUPPORTED        \
+        assert(name``_wptr_nxt - rptr != PD) else              \
+            $error("fifo is full");                            \
+        assert(reset_n) else $error("called in reset");        \
+        `endif                                                 \
+        if (reset_n) begin                                     \
+            name``_q[idx_t'(name``_wptr_nxt % PD)] = data;     \
+            name``_wptr_nxt++;                                 \
+        end                                                    \
+    end                                                        \
 
-`define AXI_SW_DPI_FIFO_RESET(name, path)                  \
+`define AXI_SW_DPI_FIFO_RESET(name)                        \
     function void name``_reset();                          \
-        path.wptr_nxt = '0;                                \
+        name``_wptr_nxt = '0;                              \
     endfunction                                            \
     export "DPI-C" function name``_reset;
+
+`define AXI_SW_DPI_FIFO(name, T, DEPTH, clk, sys_reset, reset_n, pop, popped, empty, out, rptr) \
+    localparam type         name``_idx_t = logic[$clog2(DEPTH  )-1:0];         \
+    localparam type         name``_ptr_t = logic[$clog2(DEPTH+1)-1:0];         \
+    localparam name``_ptr_t name``_D     = name``_ptr_t'(DEPTH);               \
+                                                                               \
+    T name``_q[DEPTH];                                                         \
+    name``_ptr_t name``_size, name``_wptr, name``_wptr_nxt;                    \
+                                                                               \
+    assign name``_size  = name``_wptr - rptr;                                  \
+//  assign full  = name``_size == name``_D;                                    \
+    assign empty = name``_size == '0;                                          \
+                                                                               \
+    always @(posedge clk) begin                                                \
+        automatic logic popped_nxt = (reset_n) ? (pop): '0;                    \
+        popped <=  popped_nxt;                                                 \
+        rptr          <= !(sys_reset) ? rptr + name``_ptr_t'(popped_nxt) : '0; \
+        name``_wptr   <= name``_wptr_nxt;                                      \
+    end                                                                        \
+                                                                               \
+    assign out = name``_q[name``_idx_t'(rptr % name``_D)];                     \
+    `AXI_SW_DPI_FIFO_RESET(name)
 
 module axi_sw #(
 
@@ -131,49 +153,30 @@ module axi_sw #(
         end
     end
 
-    //function void axi_sw_r (int unsigned id, byte unsigned resp, dpi_data data, byte unsigned last);
-    function void axi_sw_r_8 (int unsigned id, byte unsigned resp, byte unsigned data[8], byte unsigned last);
-        data_t d;
-        r_t rd;
-        // stream pack unsupported by verilator
-        for (int i = 0; i < $size(dpi_data); i++) begin
-            d[8*i +: 8] = data[i];
-        end
-        rd = '{id: id_t'(id), data: data_t'(d), resp: 2'(resp), last: 1'(last)};
-        `AXI_SW_DPI_FIFO_PUSH(r_dpi_fifo,R_Q_MAX,rd)
-    endfunction
-    export "DPI-C" function axi_sw_r_8;
-     function void axi_sw_r_64 (int unsigned id, byte unsigned resp, byte unsigned data[64], byte unsigned last);
-        data_t d;
-        r_t rd;
-        // stream pack unsupported by verilator
-        for (int i = 0; i < $size(dpi_data); i++) begin
-            d[8*i +: 8] = data[i];
-        end
-        rd = '{id: id_t'(id), data: data_t'(d), resp: 2'(resp), last: 1'(last)};
-        `AXI_SW_DPI_FIFO_PUSH(r_dpi_fifo,R_Q_MAX,rd)
-    endfunction
-    export "DPI-C" function axi_sw_r_64;
-    `AXI_SW_DPI_FIFO_RESET(axi_sw_r, r_dpi_fifo)
-
     logic r_queue_rptr_incremented;
     logic [$clog2(R_Q_MAX+1)-1:0] r_queue_rptr;
     r_t r;
+    `AXI_SW_DPI_FIFO(axi_sw_r, r_t, R_Q_MAX, clk, sys_reset, reset_n, axi_slv_r_valid && axi_mst_r_ready, r_queue_rptr_incremented, r_queue_empty, r, r_queue_rptr)
 
-    axi_sw_dpi_fifo #(
-        .T(r_t),
-        .DEPTH(R_Q_MAX)
-    ) r_dpi_fifo (
-        .clk,
-        .sys_reset,
-        .reset_n,
-        .pop(axi_slv_r_valid && axi_mst_r_ready),
-        .popped(r_queue_rptr_incremented),
-        .full(),
-        .empty(r_queue_empty),
-        .out(r),
-        .rptr(r_queue_rptr)
-    );
+    `define AXI_SW_R_SIZED(S)                                                                                        \
+        function void axi_sw_r_``S (int unsigned id, byte unsigned resp, byte unsigned data[S], byte unsigned last); \
+            data_t d;                                                                                                \
+            r_t rd;                                                                                                  \
+            if ($size(dpi_data) == S) begin                                                                          \
+                // stream pack unsupported by verilator                                                              \
+                for (int i = 0; i < S; i++) begin                                                                    \
+                    d[8*i +: 8] = data[i];                                                                           \
+                end                                                                                                  \
+                rd = '{id: id_t'(id), data: data_t'(d), resp: 2'(resp), last: 1'(last)};                             \
+                `AXI_SW_DPI_FIFO_PUSH(axi_sw_r,R_Q_MAX,rd,r_queue_rptr)                                              \
+            end                                                                                                      \
+        endfunction                                                                                                  \
+        export "DPI-C" function axi_sw_r_``S;
+
+    `AXI_SW_R_SIZED(8)
+    `AXI_SW_R_SIZED(64)
+
+    `undef AXI_SW_R_SIZED
 
     always_comb begin
         axi_slv_r_id    = r.id  ;
@@ -316,45 +319,6 @@ module axi_sw_fifo #(
 
 endmodule
 
-module axi_sw_dpi_fifo #(
-    parameter type T = logic,
-    parameter int  DEPTH = 0,
-    parameter type idx_t = logic[$clog2(DEPTH  )-1:0],
-    parameter type ptr_t = logic[$clog2(DEPTH+1)-1:0]
-) (
-    input clk,
-    input sys_reset,
-    input reset_n,
-
-    input  logic pop,
-    output logic full,
-    output logic empty,
-    output logic popped,
-
-    output ptr_t rptr,
-    output T     out
-);
-
-    localparam ptr_t D = ptr_t'(DEPTH);
-
-    T q[DEPTH];
-    ptr_t size, wptr, wptr_nxt;
-
-    assign size  = wptr - rptr;
-    assign full  = size == D;
-    assign empty = size == '0;
-
-    always @(posedge clk) begin
-        automatic logic popped_nxt = reset_n ? pop: '0;
-        popped <=  popped_nxt;
-        rptr   <= !sys_reset ? rptr + ptr_t'(popped_nxt) : '0;
-        wptr   <= wptr_nxt;
-    end
-
-    assign out = q[idx_t'(rptr % D)];
-
-endmodule
-
 module axi_sw_mst #(
 
     parameter int unsigned ADDR_WIDTH = 32'd0,
@@ -457,51 +421,6 @@ module axi_sw_mst #(
         logic             last;
     } w_t;
 
-    function void axi_sw_mst_ar (int unsigned id, longint unsigned addr, byte unsigned len, byte unsigned size, byte unsigned burst, byte unsigned lock);
-        ar_t ar;
-        ar = '{id: id_t'(id), addr: addr_t'(addr), len: len_t'(len), size: size_t'(size), burst: burst_t'(burst), lock: (1)'(lock)};
-        `AXI_SW_DPI_FIFO_PUSH(ar_dpi_fifo,AR_Q_MAX,ar)
-    endfunction
-    export "DPI-C" function axi_sw_mst_ar;
-
-    `AXI_SW_DPI_FIFO_RESET(axi_sw_mst_ar, ar_dpi_fifo)
-
-    function void axi_sw_mst_aw (int unsigned id, longint unsigned addr, byte unsigned len, byte unsigned size, byte unsigned burst, byte unsigned atop, byte unsigned lock);
-        aw_t aw;
-        aw = '{id: id_t'(id), addr: addr_t'(addr), len: len_t'(len), size: size_t'(size), burst: burst_t'(burst), atop: atop_t'(atop), lock: 1'(lock)};
-        `AXI_SW_DPI_FIFO_PUSH(aw_dpi_fifo,AW_Q_MAX,aw)
-    endfunction
-    export "DPI-C" function axi_sw_mst_aw;
-
-    `AXI_SW_DPI_FIFO_RESET(axi_sw_mst_aw, aw_dpi_fifo)
-
-`define AXI_SW_MST_W(data, strb, last)                    \
-        w_t w;                                            \
-        data_t d;                                         \
-        strb_t s;                                         \
-        if ($size(data) != DATA_WIDTH/$size(byte)) begin  \
-            $error();                                     \
-        end                                               \
-        for (int i = 0; i < $size(dpi_data); i++) begin   \
-            d[8*i +: 8] = data[i];                        \
-        end                                               \
-        for (int i = 0; i < $size(dpi_strb); i++) begin   \
-            s[8*i +: 8] = strb[i];                        \
-        end                                               \
-        w = '{data: d, strb: s, last: (1)'(last)};        \
-        `AXI_SW_DPI_FIFO_PUSH(w_dpi_fifo,W_Q_MAX,w);
-
-    function void axi_sw_mst_w_64 (byte unsigned data[64], byte unsigned strb[8], byte unsigned last);
-        `AXI_SW_MST_W(data, strb, last)
-    endfunction
-    export "DPI-C" function axi_sw_mst_w_64;
-
-    function void axi_sw_mst_w_8 (byte unsigned data[8], byte unsigned strb[1], byte unsigned last);
-        `AXI_SW_MST_W(data, strb, last)
-    endfunction
-    export "DPI-C" function axi_sw_mst_w_8;
-
-    `AXI_SW_DPI_FIFO_RESET(axi_sw_mst_w, w_dpi_fifo)
 
     import "DPI-C" context function void axi_sw_mst_set_scope(int unsigned location);
 
@@ -522,20 +441,14 @@ module axi_sw_mst #(
     logic [$clog2(AR_Q_MAX+1)-1:0] ar_queue_rptr;
     ar_t ar;
 
-    axi_sw_dpi_fifo #(
-        .T(ar_t),
-        .DEPTH(AR_Q_MAX)
-    ) ar_dpi_fifo (
-        .clk,
-        .sys_reset,
-        .reset_n,
-        .pop(axi_slv_ar_ready && axi_mst_ar_valid),
-        .popped(ar_queue_rptr_incremented),
-        .full(),
-        .empty(ar_queue_empty),
-        .out(ar),
-        .rptr(ar_queue_rptr)
-    );
+    `AXI_SW_DPI_FIFO(axi_sw_mst_ar, ar_t, AR_Q_MAX, clk, sys_reset, reset_n, axi_slv_ar_ready && axi_mst_ar_valid, ar_queue_rptr_incremented, ar_queue_empty, ar, ar_queue_rptr)
+
+    function void axi_sw_mst_ar (int unsigned id, longint unsigned addr, byte unsigned len, byte unsigned size, byte unsigned burst, byte unsigned lock);
+        ar_t p;
+        p = '{id: id_t'(id), addr: addr_t'(addr), len: len_t'(len), size: size_t'(size), burst: burst_t'(burst), lock: (1)'(lock)};
+        `AXI_SW_DPI_FIFO_PUSH(axi_sw_mst_ar,AR_Q_MAX,p,ar_queue_rptr)
+    endfunction
+    export "DPI-C" function axi_sw_mst_ar;
 
     always_comb begin
         axi_mst_ar_valid = !ar_queue_empty;
@@ -551,20 +464,14 @@ module axi_sw_mst #(
     logic [$clog2(AW_Q_MAX+1)-1:0] aw_queue_rptr;
     aw_t aw;
 
-    axi_sw_dpi_fifo #(
-        .T(aw_t),
-        .DEPTH(AW_Q_MAX)
-    ) aw_dpi_fifo (
-        .clk,
-        .sys_reset,
-        .reset_n,
-        .pop(axi_slv_aw_ready && axi_mst_aw_valid),
-        .popped(aw_queue_rptr_incremented),
-        .full(),
-        .empty(aw_queue_empty),
-        .out(aw),
-        .rptr(aw_queue_rptr)
-    );
+    `AXI_SW_DPI_FIFO(axi_sw_mst_aw, aw_t, AW_Q_MAX, clk, sys_reset, reset_n, axi_slv_aw_ready && axi_mst_aw_valid, aw_queue_rptr_incremented, aw_queue_empty, aw, aw_queue_rptr)
+
+    function void axi_sw_mst_aw (int unsigned id, longint unsigned addr, byte unsigned len, byte unsigned size, byte unsigned burst, byte unsigned atop, byte unsigned lock);
+        aw_t p;
+        p = '{id: id_t'(id), addr: addr_t'(addr), len: len_t'(len), size: size_t'(size), burst: burst_t'(burst), atop: atop_t'(atop), lock: 1'(lock)};
+        `AXI_SW_DPI_FIFO_PUSH(axi_sw_mst_aw,AW_Q_MAX,p,aw_queue_rptr)
+    endfunction
+    export "DPI-C" function axi_sw_mst_aw;
 
     always_comb begin
         axi_mst_aw_valid = !aw_queue_empty;
@@ -581,20 +488,33 @@ module axi_sw_mst #(
     logic [$clog2(W_Q_MAX+1)-1:0] w_queue_rptr;
     w_t w;
 
-    axi_sw_dpi_fifo #(
-        .T(w_t),
-        .DEPTH(W_Q_MAX)
-    ) w_dpi_fifo (
-        .clk,
-        .sys_reset,
-        .reset_n,
-        .pop(axi_slv_w_ready && axi_mst_w_valid),
-        .popped(w_queue_rptr_incremented),
-        .full(),
-        .empty(w_queue_empty),
-        .out(w),
-        .rptr(w_queue_rptr)
-    );
+    `AXI_SW_DPI_FIFO(axi_sw_mst_w, w_t, W_Q_MAX, clk, sys_reset, reset_n, axi_slv_w_ready && axi_mst_w_valid, w_queue_rptr_incremented, w_queue_empty, w, w_queue_rptr)
+
+`define AXI_SW_MST_W(data, strb, last)                    \
+        w_t p;                                            \
+        data_t d;                                         \
+        strb_t s;                                         \
+        if ($size(data) != DATA_WIDTH/$size(byte)) begin  \
+            $error();                                     \
+        end                                               \
+        for (int i = 0; i < $size(dpi_data); i++) begin   \
+            d[8*i +: 8] = data[i];                        \
+        end                                               \
+        for (int i = 0; i < $size(dpi_strb); i++) begin   \
+            s[8*i +: 8] = strb[i];                        \
+        end                                               \
+        p = '{data: d, strb: s, last: (1)'(last)};        \
+        `AXI_SW_DPI_FIFO_PUSH(axi_sw_mst_w,W_Q_MAX,p, w_queue_rptr)
+
+    function void axi_sw_mst_w_64 (byte unsigned data[64], byte unsigned strb[8], byte unsigned last);
+        `AXI_SW_MST_W(data, strb, last)
+    endfunction
+    export "DPI-C" function axi_sw_mst_w_64;
+
+    function void axi_sw_mst_w_8 (byte unsigned data[8], byte unsigned strb[1], byte unsigned last);
+        `AXI_SW_MST_W(data, strb, last)
+    endfunction
+    export "DPI-C" function axi_sw_mst_w_8;
 
     always_comb begin
         axi_mst_w_valid = !w_queue_empty;
@@ -637,3 +557,5 @@ module axi_sw_mst #(
 endmodule
 
 `undef AXI_SW_DPI_FIFO_PUSH
+`undef AXI_SW_DPI_FIFO_RESET
+`undef AXI_SW_DPI_FIFO

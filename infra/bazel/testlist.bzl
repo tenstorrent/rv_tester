@@ -4,6 +4,9 @@ TESTLISTS = {
     "smoke": {
         "testlist" : "//sw_testbench/testlists:smoke.py",
     },
+    "axi_sw_tb_smoke": {
+        "testlist" : "//transactors/axi_sw/test/testlists:smoke.py",
+    },
 }
 
 def _testlist(name, testlist, **kwargs):
