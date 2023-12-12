@@ -822,8 +822,14 @@ bool debug_module_t::perform_abstract_command()
     debug_rom_flags[selected_hart_id()] |= 1 << DEBUG_ROM_FLAG_GO;
     // rti_remaining = config.abstract_rti;
     // abstract_command_completed = false;
-    abstractcs.busy = true;
-
+    if (!selected_hart_state().halted || !hart_available(dmcontrol.hartsel))
+    {
+      abstractcs.cmderr = CMDERR_HALTRESUME;
+      abstractcs.busy = false;
+      return true;
+    }
+    else 
+      abstractcs.busy = true; 
   }
   else if ((command >> 24) == 2)
   {
@@ -850,8 +856,16 @@ bool debug_module_t::perform_abstract_command()
       abstractcs.cmderr = CMDERR_NOTSUP;
       return true;
     }
+
     debug_rom_flags[selected_hart_id()] |= 1 << DEBUG_ROM_FLAG_GO;
-    abstractcs.busy = true;
+    if (!selected_hart_state().halted || !hart_available(dmcontrol.hartsel))
+    {
+      abstractcs.cmderr = CMDERR_HALTRESUME;
+      abstractcs.busy = false;
+      return true;
+    }
+    else 
+      abstractcs.busy = true; 
     
     //write32(debug_abstract, 0, nop()); // store a0 in dscratch1 if it exists, but our implementation doesn't allow it
     
