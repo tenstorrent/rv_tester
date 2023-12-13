@@ -180,17 +180,17 @@ import rv_tester_params::*;
     assign m_debugs[0].data.enter = debug_mode;
     assign m_debugs[0].data.exit = ~debug_mode;
 
-    // m_intr
+    // m_core_intr
     rv_tester_pkg::interrupt_t wired_interrupt_d1;
     always @(posedge clk) begin
       wired_interrupt_d1 <= wired_interrupt;
     end
-    assign m_intrs[0].valid = ~dut_reset & (|(wired_interrupt & ~wired_interrupt_d1) | |(~wired_interrupt & wired_interrupt_d1)) & rvfi_enabled;
-    assign m_intrs[0].data.location = location;
-    assign m_intrs[0].data.cycle = clocks;
-    assign m_intrs[0].data.mip = get_mip(wired_interrupt);
-    assign m_intrs[0].data.mip_mask = get_mip_mask(wired_interrupt, wired_interrupt_d1);
-    assign m_intrs[0].data.mip_assert = get_mip_assert(wired_interrupt, wired_interrupt_d1);
+    assign m_core_intrs[0].valid = ~dut_reset & (|(wired_interrupt & ~wired_interrupt_d1) | |(~wired_interrupt & wired_interrupt_d1)) & rvfi_enabled;
+    assign m_core_intrs[0].data.location = location;
+    assign m_core_intrs[0].data.cycle = clocks;
+    assign m_core_intrs[0].data.mip = get_mip(wired_interrupt);
+    assign m_core_intrs[0].data.mip_mask = get_mip_mask(wired_interrupt, wired_interrupt_d1);
+    assign m_core_intrs[0].data.mip_assert = get_mip_assert(wired_interrupt, wired_interrupt_d1);
 
     function automatic bit [63:0] get_mip(rv_tester_pkg::interrupt_t intr);
       bit [63:0] mip = 'h0;
@@ -203,13 +203,13 @@ import rv_tester_params::*;
       return mip;
     endfunction
 
-    // m_imsic_interrupt
-    assign m_imsic_intrs[0].valid = ~dut_reset & (imsic_interrupt.aw_valid & imsic_interrupt.w_valid & imsic_interrupt.b_ready) & rvfi_enabled;
-    assign m_imsic_intrs[0].data.location = location;
-    assign m_imsic_intrs[0].data.cycle = clocks;
+    // m_imsic_msi
+    assign m_imsic_msis[0].valid = ~dut_reset & (imsic_interrupt.aw_valid & imsic_interrupt.w_valid & imsic_interrupt.b_ready) & rvfi_enabled;
+    assign m_imsic_msis[0].data.location = location;
+    assign m_imsic_msis[0].data.cycle = clocks;
     /* verilator lint_off WIDTH */
-    assign m_imsic_intrs[0].data.addr = imsic_interrupt.aw.addr;
-    assign m_imsic_intrs[0].data.data = imsic_interrupt.w.data & 'hff;
+    assign m_imsic_msis[0].data.addr = imsic_interrupt.aw.addr;
+    assign m_imsic_msis[0].data.data = imsic_interrupt.w.data & 'hff;
     /* verilator lint_on WIDTH */
 
     function automatic bit [63:0] get_mip_mask(rv_tester_pkg::interrupt_t intr, rv_tester_pkg::interrupt_t intr_d1);

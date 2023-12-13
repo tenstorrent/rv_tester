@@ -237,6 +237,26 @@ whisperClient<URV>::whisperPoke(int hart, uint64_t time, char resource, uint64_t
   return true;
 }
 
+// Specialized poke for memory that accepts size argument.
+template <typename URV>
+bool
+whisperClient<URV>::whisperPokeMem(int hart, uint64_t time, char resource, uint64_t addr, unsigned size,
+    uint64_t value, bool& valid)
+{
+  req.hart = hart;
+  req.type = WhisperMessageType::Poke;
+  req.resource = resource;
+  req.address = addr;
+  req.value = value;
+  req.time = time;
+  req.size = size;
+
+  if (not whisperCommand(req, reply))
+    return false;
+
+  valid = reply.type != WhisperMessageType::Invalid;
+  return true;
+}
 
 template <typename URV>
 bool

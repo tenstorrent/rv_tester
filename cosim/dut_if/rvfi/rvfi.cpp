@@ -39,8 +39,8 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     rv_tester_transactions::cosim::m_rvfi<>,
     rv_tester_transactions::cosim::m_csri<>,
     rv_tester_transactions::cosim::m_trap<>,
-    rv_tester_transactions::cosim::m_intr<>,
-    rv_tester_transactions::cosim::m_imsic_intr<>,
+    rv_tester_transactions::cosim::m_core_intr<>,
+    rv_tester_transactions::cosim::m_imsic_msi<>,
     rv_tester_transactions::cosim::m_mcmi_read<>,
     rv_tester_transactions::cosim::m_mcmi_insert<>,
     rv_tester_transactions::cosim::m_mcmi_write<>,
@@ -125,21 +125,21 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
   }
 }
 
-void rvfi::process(const rv_tester_transactions::cosim::m_intr<>& m_intr) {
+void rvfi::process(const rv_tester_transactions::cosim::m_core_intr<>& m_core_intr) {
   if (terminated_)
     return;
 
-  if (loc_ != m_intr.location)
+  if (loc_ != m_core_intr.location)
     return;
 
   if (!FLAGS_cosim)
     return;
 
   rv_intr_t intr;
-  intr.cycle = m_intr.cycle;
-  intr.mip = m_intr.mip;
-  intr.mip_mask = m_intr.mip_mask;
-  intr.mip_assert = m_intr.mip_assert;
+  intr.cycle = m_core_intr.cycle;
+  intr.mip = m_core_intr.mip;
+  intr.mip_mask = m_core_intr.mip_mask;
+  intr.mip_assert = m_core_intr.mip_assert;
 
   bridge_->process_dut_interrupt(id_, intr);
   if (FLAGS_rvfi_log) {
@@ -147,19 +147,22 @@ void rvfi::process(const rv_tester_transactions::cosim::m_intr<>& m_intr) {
   }
 }
 
-void rvfi::process(const rv_tester_transactions::cosim::m_imsic_intr<>& m_imsic_intr) {
+void rvfi::process(const rv_tester_transactions::cosim::m_imsic_msi<>& m_imsic_msi) {
   if (terminated_)
     return;
 
-  if (loc_ != m_imsic_intr.location)
+  if (loc_ != m_imsic_msi.location)
+    return;
+
+  if (!FLAGS_cosim)
     return;
 
   mem_t mem;
-  mem.cycle = m_imsic_intr.cycle;
-  mem.pa = m_imsic_intr.addr;
-  mem.data = m_imsic_intr.data;
+  mem.cycle = m_imsic_msi.cycle;
+  mem.pa = m_imsic_msi.addr;
+  mem.data = m_imsic_msi.data;
 
-  bridge_->process_dut_imsic_interrupt(id_, mem);
+  bridge_->process_dut_imsic_msi(id_, mem);
   if (FLAGS_rvfi_log) {
     log(cvm::NONE, "#{} {} {} (imsic: [addr={:#x} data={:#x}])\n", count_, mem.cycle, id_, mem.pa, mem.data);
   }
