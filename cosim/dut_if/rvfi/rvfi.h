@@ -84,6 +84,7 @@ class rvfi {
     bool excp_ = false;
     uint64_t icause_ = 0;
     uint64_t ecause_ = 0;
+    uint8_t priv_ = 3;
 
     std::vector<rv_instr_t> instrs_;
     std::vector<csr_t> hw_csrs_, ucode_csrs_;

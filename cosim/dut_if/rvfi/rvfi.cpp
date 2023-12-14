@@ -79,8 +79,9 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   // Construct rv_instr_t and send to bridge
   rv_instr_t instr;
   make_instr(m_rvfi, instr);
-  print_instr(instr);
   prev_instr_ = instr;
+
+  print_instr(instr);
 
   if (!m_rvfi.last_uop)
     return;
@@ -188,7 +189,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.tag = m_rvfi.order;
   instr.opcode = m_rvfi.insn;
   instr.uop = m_rvfi.uop;
-  instr.priv = m_rvfi.mode;
+  instr.priv = priv_;
   instr.trap = m_rvfi.trap || intr_ || excp_;
   instr.intr = intr_;
   instr.excp = excp_;
@@ -235,6 +236,9 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
     // Send ucode csr writes with last uop of ucode instruction/routine
     for (auto& c : ucode_csrs_) {
       instr.csr.push_back(c);
+      if (c.csr_addr == 0x7c3) {
+        priv_ = c.csr_wdata;
+      }
     }
     ucode_csrs_.clear();
   }
@@ -285,7 +289,7 @@ std::tuple<uint64_t, uint64_t, uint8_t> rvfi::get_mem_attributes(uint64_t addr, 
 }
 
 void rvfi::print_csr(csr_t& csr) {
-  log(cvm::NONE, "#{} {} {} 3 {:016x} {:09x} c {:016x} {:016x} {:016x} (hw update)\n", count_, csr.cycle, csr.hart, 0, 0, csr.csr_addr, csr.csr_wdata, csr.csr_wmask);
+  log(cvm::NONE, "#{} {} {} {} {:016x} {:09x} c {:016x} {:016x} {:016x} (hw update)\n", count_, csr.cycle, csr.hart, to_string.at(static_cast<priv>(priv_)), 0, 0, csr.csr_addr, csr.csr_wdata, csr.csr_wmask);
 }
 
 void rvfi::print_instr(rv_instr_t& instr) {
@@ -326,7 +330,7 @@ void rvfi::print_instr(rv_instr_t& instr) {
 }
 
 void rvfi::print_instr_resource(rv_instr_t& instr, std::string resource_str) {
-  log(cvm::NONE, "#{} {} {} {} {:016x} {:09x}", instr.id, instr.cycle, instr.hart, instr.priv,
+  log(cvm::NONE, "#{} {} {} {} {:016x} {:09x}", instr.id, instr.cycle, instr.hart, to_string.at(static_cast<priv>(instr.priv)),
      instr.pc.pc_rdata, instr.uop);
 
   log(cvm::NONE, resource_str);
