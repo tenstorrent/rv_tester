@@ -209,6 +209,7 @@ private:
   bool perform_abstract_command();
   bool has_second_scratch = true;
   uint8_t load_base_address = 10; //GPR to store DM base addr
+  bool reflow_flags = false;
 
   // bool abstract_command_completed;
   // unsigned rti_remaining;

@@ -163,8 +163,16 @@ void debug_module_t::process(const rv_tester_transactions::dm_model::dm_load_dat
     uint64_t expected_load_data_to_check = cvm::bitmanip::slice<uint64_t>(expected_load_data, (load_req_length * 4 - 1), 0);
     uint64_t actual_load_data_to_check = cvm::bitmanip::slice<uint64_t>(dm_load_data.data, (load_req_length * 4 - 1), 0);
     
-    if (expected_load_data_to_check != actual_load_data_to_check)
-      cvm::log(cvm::ERROR, "[Error-Mismatch] The load data's are mismatching for Addr:{:#x} with Length:{:#x} ~~~ Actual:{:#x} vs Expected:{:#x}\n",load_req_addr,load_req_length,actual_load_data_to_check,expected_load_data_to_check);
+    if (expected_load_data_to_check != actual_load_data_to_check) {
+      if(load_req_addr == DEBUG_ROM_FLAGS && !reflow_flags) {
+        reflow_flags = true;
+        cvm::log(cvm::HIGH, "Reflowing 0x400 read to allow DM to update state flag\n");
+      }
+      else {
+        reflow_flags = false;
+        cvm::log(cvm::ERROR, "[Error-Mismatch] The load data's are mismatching for Addr:{:#x} with Length:{:#x} ~~~ Actual:{:#x} vs Expected:{:#x}\n",load_req_addr,load_req_length,actual_load_data_to_check,expected_load_data_to_check);
+      }
+    }
   }
 }
 
