@@ -131,7 +131,7 @@ sysmod::uc_helper_backdoor_write(uc_helper::uc_helper_write_t w) {
                     cvm::registry::messenger.signal<device::write_t>(this->loc_, {wt});
 
     if(!FLAGS_bypass_cache && !FLAGS_bypass_mem){
-	cvm::log(cvm::ERROR, "Error: caching is enabled in rv_tester");
+	cvm::log(cvm::ERROR, "Error: caching is enabled in rv_tester, it might not be supported in this test and test result can be incorrect");
      }
 }
 
