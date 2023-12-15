@@ -14,6 +14,7 @@
 #include "htif/htif.h"
 #include "trickbox/trickbox.h"
 #include "rv_tester/rv_tester_structs.h"
+#include "rv_tester/rv_tester_plusargs.h"
 
 // internal flags
 DEFINE_string(hex, "", "hex file (program) to load into memory");
@@ -128,6 +129,10 @@ sysmod::uc_helper_backdoor_write(uc_helper::uc_helper_write_t w) {
     cvm::log(cvm::HIGH, "new backdoor prt write request at {:#x}", wt.addr);
                 if (this->dev(wt.addr))
                     cvm::registry::messenger.signal<device::write_t>(this->loc_, {wt});
+
+    if(!FLAGS_bypass_cache && !FLAGS_bypass_mem){
+	cvm::log(cvm::ERROR, "Error: caching is enabled in rv_tester  %s", type)
+     }
 }
 
 void
@@ -149,7 +154,10 @@ sysmod::uc_helper_backdoor_read(uc_helper::uc_helper_read_req_t r) {
       
       auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0);
       cvm::registry::messenger.signal(tbox_loc, uc_helper::trickbox_mem_req_t{r.addr, r.length, data_trickbox, strb});
-                
+
+    if(!FLAGS_bypass_cache && !FLAGS_bypass_mem){
+        cvm::log(cvm::ERROR, "Error: caching is enabled in rv_tester  %s", type)
+     }
 }
 
 void
