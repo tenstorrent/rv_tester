@@ -35,6 +35,7 @@ module top #(
         rvfi[idx].pc_rdata = pc;
         rvfi[idx].insn = insn;
         rvfi[idx].uop = {32'h0, insn};
+        rvfi[idx].mode = 4'h3;
         rvfi[idx].last_uop = '1;
     endfunction
 
