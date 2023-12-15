@@ -14,7 +14,7 @@ def rv_tester_repositories():
         #sha256 = "af87959afe497dc8dfd4c6cb66e1279cb98ccc84284619ebfec27d9c09a903de",
     )
 
-    corearchcoverage_hash="48d7693321be820992a6070976df64f24f8b5cf9"
+    corearchcoverage_hash="020fb91f4e5768d9d9619d095fa04c6151bd57c2"
     maybe(
         git_repository,
         name = "corearchcoverage",
@@ -40,7 +40,7 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-nlohmann-json.git",
     )
 
-    whisper_hash="270b5513a951b4e42d388295c5fbe7251ebe4788"
+    whisper_hash="fa7623ebd2f3da5c86bdde9e1916b4d5427763b9"
     maybe(
         git_repository,
         name = "whisper",
