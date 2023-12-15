@@ -131,7 +131,7 @@ sysmod::uc_helper_backdoor_write(uc_helper::uc_helper_write_t w) {
                     cvm::registry::messenger.signal<device::write_t>(this->loc_, {wt});
 
     if(!FLAGS_bypass_cache && !FLAGS_bypass_mem){
-	cvm::log(cvm::ERROR, "Error: caching is enabled in rv_tester  %s", type)
+	cvm::log(cvm::ERROR, "Error: caching is enabled in rv_tester");
      }
 }
 
@@ -156,7 +156,7 @@ sysmod::uc_helper_backdoor_read(uc_helper::uc_helper_read_req_t r) {
       cvm::registry::messenger.signal(tbox_loc, uc_helper::trickbox_mem_req_t{r.addr, r.length, data_trickbox, strb});
 
     if(!FLAGS_bypass_cache && !FLAGS_bypass_mem){
-        cvm::log(cvm::ERROR, "Error: caching is enabled in rv_tester  %s", type)
+        cvm::log(cvm::ERROR, "Error: caching is enabled in rv_tester");
      }
 }
 
