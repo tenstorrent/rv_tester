@@ -18,7 +18,6 @@ DEFINE_bool(rvfi_log, true, "Enable rvfi logging");
 DEFINE_bool(mcm, false, "Enable mcm");
 DEFINE_bool(cosim, true, "Enable cosim checking");
 DECLARE_string(load);
-DECLARE_bool(csr_check);
 
 DEFINE_uint64(debug_entry_pc, 0x800, "Debug Mode entry PC");
 DEFINE_uint64(debug_exit_pc, 0x860, "Debug Mode exit PC");
@@ -461,9 +460,6 @@ void rvfi::exit_debug_mode(rv_instr_t& instr) {
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_csri<>& m_csri) {
-  if (!FLAGS_csr_check)
-    return;
-
   if (terminated_)
     return;
 
