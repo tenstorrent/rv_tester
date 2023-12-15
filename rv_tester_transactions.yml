@@ -53,7 +53,7 @@ cosim:
             cause:
                 width: 64
             mode:
-                width: 2
+                width: 4
             ixl:
                 width: 2
             rd_addr:

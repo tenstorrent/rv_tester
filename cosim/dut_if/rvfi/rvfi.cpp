@@ -184,23 +184,47 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.hart = m_rvfi.hart;
   instr.cycle = m_rvfi.cycle;
   instr.id = count_;
-  instr.last_uop = m_rvfi.last_uop;
   instr.comp = m_rvfi.comp;
   instr.tag = m_rvfi.order;
   instr.opcode = m_rvfi.insn;
   instr.uop = m_rvfi.uop;
-  instr.priv = priv_;
   instr.trap = m_rvfi.trap || intr_ || excp_;
   instr.intr = intr_;
   instr.excp = excp_;
   instr.icause = icause_;
   instr.ecause = ecause_;
-  instr.ucode = ucode_;
+
+  // First/last uops for ucode sequences
+  instr.first_uop = false;
+  instr.last_uop = m_rvfi.last_uop;
+  instr.ucode = ucode_ || !m_rvfi.last_uop;
   if (!m_rvfi.last_uop) {
+    if (!ucode_)
+      instr.first_uop = true;
     ucode_ = true;
   } else {
     ucode_ = false;
     count_++;
+  }
+
+  // Priv mode
+  instr.priv = m_rvfi.mode;
+  if (instr.ucode && (m_rvfi.mode != priv_)) {
+    if (instr.first_uop) {
+      priv_ = m_rvfi.mode;
+    } else {
+      instr.priv = priv_;
+      ucode_priv_change_ = true;
+    }
+  }
+  if (m_rvfi.last_uop) {
+    if (ucode_priv_change_) {
+      instr.priv = priv_;
+      ucode_priv_change_ = false;
+    }
+    priv_ = m_rvfi.mode;
+    if (!to_string.count(static_cast<priv>(instr.priv)))
+      cvm::log(cvm::ERROR, "Error: Invalid rvfi privilege mode: {:#x}\n", instr.priv);
   }
 
   // PC
@@ -233,12 +257,9 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   }
 
   if (m_rvfi.last_uop && !ucode_csrs_.empty()) {
-    // Send ucode csr writes with last uop of ucode instruction/routine
+    // Send ucode csr writes and priv mode with last uop of ucode instruction/routine
     for (auto& c : ucode_csrs_) {
       instr.csr.push_back(c);
-      if (c.csr_addr == 0x7c3) {
-        priv_ = c.csr_wdata;
-      }
     }
     ucode_csrs_.clear();
   }
@@ -297,7 +318,9 @@ void rvfi::print_instr(rv_instr_t& instr) {
     return;
   }
 
-  int resource_count = instr.gpr.valid + instr.fpr.valid + instr.vr.valid + instr.mem_write.valid + instr.csr.size();
+  int resource_count = instr.gpr.valid + instr.fpr.valid + instr.vr.valid + instr.mem_write.valid;
+  if (!instr.last_uop || !instr.ucode)
+    resource_count += instr.csr.size();
 
   // Print r0 = 0 if nothing modified
   if (!resource_count) {
@@ -335,7 +358,7 @@ void rvfi::print_instr_resource(rv_instr_t& instr, std::string resource_str) {
 
   log(cvm::NONE, resource_str);
 
-  if (instr.last_uop && prev_instr_.last_uop)
+  if (!instr.ucode)
     log(cvm::NONE, " {}", whisper::disassemble(instr.opcode));
   else
     log(cvm::NONE, " {} (microcode)", cosim_util::get_nth_word(whisper::disassemble(instr.opcode), 1));

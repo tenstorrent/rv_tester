@@ -34,10 +34,14 @@ DEFINE_string(cosim_resynch_instr, "", "List of instruction mnemonics to resynch
 DEFINE_string(cosim_resynch_prev_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
 DEFINE_bool(lrsc_resynch, false, "Resynch whisper with dut state on LRSC fail condition");
 DEFINE_bool(retire_ucode_trap, true, "DUT indicates retire on a trap after executing the ucode trap handler");
+DEFINE_bool(pc_check, true, "Enable cosim checks on pc");
+DEFINE_bool(priv_check, true, "Enable cosim checks on priv mode");
+DEFINE_bool(insn_check, true, "Enable cosim checks on insn bytes");
 DEFINE_bool(gpr_check, true, "Enable cosim checks on gprs");
 DEFINE_bool(fpr_check, true, "Enable cosim checks on fprs");
 DEFINE_bool(vec_check, true, "Enable cosim checks on vector regs");
-DEFINE_bool(csr_check, false, "Enable cosim checks on csrs");
+DEFINE_bool(csr_rd_check, true, "Enable cosim checks on csr reads");
+DEFINE_bool(csr_wr_check, false, "Enable cosim checks on csr reads");
 DEFINE_uint64(max_cycle, 1000000, "Max cycle limit to terminate the sim");
 DEFINE_int32(debug_excp_mcause, 24, "MCAUSE value for debug exception");
 DEFINE_bool(translation_check, false, "Do VA-PA translation check");
@@ -216,7 +220,7 @@ void bridge::process_dut_csr_hw_update(hart_id_t hart, csr_t& c) {
 }
 
 void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d) {
-  if (!FLAGS_csr_check)
+  if (!FLAGS_csr_wr_check)
     return;
 
   // Step csr cac
@@ -250,8 +254,13 @@ void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d)
 }
 
 void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
-  update_pc(hart, src_t::dut, d.pc.pc_rdata);
-  if (!d.comp && !d.ucode) {
+  if (FLAGS_pc_check)
+    update_pc(hart, src_t::dut, d.pc.pc_rdata);
+
+  if (FLAGS_priv_check)
+    update_priv(hart, src_t::dut, d.priv);
+
+  if (FLAGS_insn_check && !d.comp && !d.ucode) {
     update_insn(hart, src_t::dut, d.opcode);
   }
   if (d.gpr.valid || d.fpr.valid || d.vr.valid || !d.csr.empty()) {
@@ -488,9 +497,14 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
   
   w_.pc.valid = true;
   w_.pc.pc_rdata = w.pc;
-  update_pc(hart, src_t::iss, w.pc);
 
-  if (!w_.comp && !w_.ucode)
+  if (FLAGS_pc_check)
+    update_pc(hart, src_t::iss, w.pc);
+
+  if (FLAGS_priv_check)
+    update_priv(hart, src_t::iss, w.priv_mode);
+
+  if (FLAGS_insn_check && !w_.comp && !w_.ucode)
     update_insn(hart, src_t::iss, w.opcode);
 
   for (auto i = 0u; i < w.change_count; i++) {
@@ -628,7 +642,10 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
   for (auto & c : d.csr) {
     size_8_bytes_t mask = c.csr_wmask & get_csr_mask(hart, c.csr_addr);
     uint64_t data = modify_csr_data(hart, c.csr_addr, c.csr_wdata);
-    update_csr(hart, src_t::dut, c.csr_addr, data, mask);
+
+    if (FLAGS_csr_rd_check)
+      update_csr(hart, src_t::dut, c.csr_addr, data, mask);
+
     if (c.csr_addr == 0x344) {
       mip_ = get_csr(hart, src_t::dut, 0x344);
       log(cvm::MEDIUM, "<{}> Zicsr write based interrupt: mip {:#x} mask {:#x}\n", c.cycle, data, mask);
@@ -680,7 +697,8 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_
       }
       break;
     case 'c':
-      update_csr(hart, src_t::iss, w.address, w.value);
+      if (FLAGS_csr_rd_check)
+        update_csr(hart, src_t::iss, w.address, w.value);
       break;
     default:
       break;
@@ -702,6 +720,14 @@ void bridge::update_insn(hart_id_t hart, src_t src, uint32_t data) {
     .offset = 0
   };
   assert(cac_.UpdateResource(hart, src, insn, std::move(cac::CreateBitVec<uint64_t>(data))));
+}
+
+void bridge::update_priv(hart_id_t hart, src_t src, uint32_t data) {
+  resource_id_t priv = resource_id_t{
+    .resource = resource_t::priv_mode,
+    .offset = 0
+  };
+  assert(cac_.UpdateResource(hart, src, priv, std::move(cac::CreateBitVec<uint64_t>(data))));
 }
 
 void bridge::update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, const std::vector<size_8_bytes_t>&& dword_vec) {

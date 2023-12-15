@@ -263,8 +263,9 @@ whisperClient<URV>::whisperStep(int hart, uint64_t time, uint64_t instrTag, uint
   unsigned flags = (reply.flags >> 2) & 0xf;
   unsigned trap = (reply.flags >> 6) & 1;
   unsigned stop = (reply.flags >> 7) & 1;
+  unsigned virt = (reply.flags >> 9) & 1;
 
-  privMode = mode;
+  privMode = mode | (virt << 3);
   fpFlags = flags;
   hasTrap = trap;
   hasStop = stop;
