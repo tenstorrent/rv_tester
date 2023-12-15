@@ -7,7 +7,6 @@
 #include "memmap.h"
 #include "rv_tester_transactions.hpp"
 #include "rv_tester/rv_tester_structs.h"
-
 static bool validate_ge0(const char* flagname, const int value) {
     if (value < 0) {
         cvm::log(cvm::NONE, "Invalid value for +{}={}, must be >= 0\n", flagname, value);

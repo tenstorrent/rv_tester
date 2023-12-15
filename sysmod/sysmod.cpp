@@ -30,6 +30,8 @@ extern "C" {
   void sysmod_timer_interrupt(unsigned hartid, unsigned val);
   void sysmod_sw_interrupt(unsigned hartid, unsigned val);
   void sysmod_tbox_interrupt(unsigned hartid, unsigned val, unsigned int_val);
+  void sysmod_aplic_dir_interrupt(unsigned hartid, unsigned val, unsigned int_val);
+  void sysmod_aplic_rnd_interrupt(unsigned hartid, unsigned val, unsigned int_val);
   void sysmod_dmi_write(unsigned hartid, unsigned upper_val, unsigned lower_val);
   void sysmod_terminate();
 }
@@ -102,6 +104,16 @@ sysmod::tbox_interrupt(interrupter::interrupt_t i) {
       [i]() {
         cvm::log(cvm::FULL, "[SYSMOD] trickbox::intr.(sel,val) = {:#x}, {:#x}\n", i.intr_select, i.intr_value);
         sysmod_tbox_interrupt(i.hart, i.intr_select, i.intr_value);
+      });
+}
+
+void
+sysmod::aplic_interrupt(aplic_driver::aplic_data_t i) {
+  cvm::registry::callbacks.push(
+      scope(),
+      [i]() {
+        //cvm::log(cvm::FULL, "[SYSMOD] trickbox::intr.(sel,val) = {:#x}, {:#x}\n", i.intr_select, i.intr_value);
+        sysmod_aplic_dir_interrupt(i.hart, i.intr_select, i.intr_value);
       });
 }
 
