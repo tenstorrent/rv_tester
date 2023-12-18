@@ -15,6 +15,7 @@ DEFINE_bool(rvfi, true, "Enable rvfi");
 // rvfi_log flag was created is that +norvfi causes the max # of cycles to be
 // exceeded.
 DEFINE_bool(rvfi_log, true, "Enable rvfi logging");
+DEFINE_bool(rvfi_log_36b_uop, true, "rvfi log - print 36b uop instead of default 32b riscv opcode");
 DEFINE_bool(mcm, false, "Enable mcm");
 DEFINE_bool(cosim, true, "Enable cosim checking");
 DECLARE_string(load);
@@ -352,8 +353,13 @@ void rvfi::print_instr(rv_instr_t& instr) {
 }
 
 void rvfi::print_instr_resource(rv_instr_t& instr, std::string resource_str) {
-  log(cvm::NONE, "#{} {} {} {} {:016x} {:09x}", instr.id, instr.cycle, instr.hart, to_string.at(static_cast<priv>(instr.priv)),
-     instr.pc.pc_rdata, instr.uop);
+  log(cvm::NONE, "#{} {} {} {} {:016x}", instr.id, instr.cycle, instr.hart, to_string.at(static_cast<priv>(instr.priv)),
+     instr.pc.pc_rdata);
+
+  if (FLAGS_rvfi_log_36b_uop)
+    log(cvm::NONE, " {:09x}", instr.uop);
+  else
+    log(cvm::NONE, " {:08x}", instr.opcode);
 
   log(cvm::NONE, resource_str);
 
