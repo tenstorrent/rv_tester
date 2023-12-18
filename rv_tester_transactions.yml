@@ -172,7 +172,7 @@ cosim:
             cause:
                 width: 64
 
-    m_intr:
+    m_core_intr:
         domain: 1
         num: 1
         fields:
@@ -182,8 +182,10 @@ cosim:
                 width: 64
             mip_mask:
                 width: 64
+            mip_assert:
+                width: 64
 
-    m_imsic_intr:
+    m_imsic_msi:
         domain: 1
         num: 1
         fields:

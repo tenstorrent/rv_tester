@@ -40,8 +40,8 @@ class rvfi {
     void set_scope(svScope s) { scope_ = s; }
     void process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi);
     void process(const rv_tester_transactions::cosim::m_trap<>& m_trap);
-    void process(const rv_tester_transactions::cosim::m_intr<>& m_intr);
-    void process(const rv_tester_transactions::cosim::m_imsic_intr<>& m_imsic_intr);
+    void process(const rv_tester_transactions::cosim::m_core_intr<>& m_core_intr);
+    void process(const rv_tester_transactions::cosim::m_imsic_msi<>& m_imsic_msi);
     void process(const rv_tester_transactions::cosim::m_debug<>& m_debug);
 
     void process(const rv_tester_transactions::cosim::m_csri<>& m_csri);

@@ -39,8 +39,8 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     rv_tester_transactions::cosim::m_rvfi<>,
     rv_tester_transactions::cosim::m_csri<>,
     rv_tester_transactions::cosim::m_trap<>,
-    rv_tester_transactions::cosim::m_intr<>,
-    rv_tester_transactions::cosim::m_imsic_intr<>,
+    rv_tester_transactions::cosim::m_core_intr<>,
+    rv_tester_transactions::cosim::m_imsic_msi<>,
     rv_tester_transactions::cosim::m_mcmi_read<>,
     rv_tester_transactions::cosim::m_mcmi_insert<>,
     rv_tester_transactions::cosim::m_mcmi_write<>,
@@ -126,40 +126,44 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
   }
 }
 
-void rvfi::process(const rv_tester_transactions::cosim::m_intr<>& m_intr) {
+void rvfi::process(const rv_tester_transactions::cosim::m_core_intr<>& m_core_intr) {
   if (terminated_)
     return;
 
-  if (loc_ != m_intr.location)
+  if (loc_ != m_core_intr.location)
     return;
 
   if (!FLAGS_cosim)
     return;
 
   rv_intr_t intr;
-  intr.cycle = m_intr.cycle;
-  intr.mip = m_intr.mip;
-  intr.mip_mask = m_intr.mip_mask;
+  intr.cycle = m_core_intr.cycle;
+  intr.mip = m_core_intr.mip;
+  intr.mip_mask = m_core_intr.mip_mask;
+  intr.mip_assert = m_core_intr.mip_assert;
 
   bridge_->process_dut_interrupt(id_, intr);
   if (FLAGS_rvfi_log) {
-    log(cvm::NONE, "#{} {} 0 (mip:{:#x} mask:{:#x})\n", count_, intr.cycle, intr.mip, intr.mip_mask);
+    log(cvm::NONE, "#{} {} 0 (mip:{:#x} mask:{:#x} assert:{:#x})\n", count_, intr.cycle, intr.mip, intr.mip_mask, intr.mip_assert);
   }
 }
 
-void rvfi::process(const rv_tester_transactions::cosim::m_imsic_intr<>& m_imsic_intr) {
+void rvfi::process(const rv_tester_transactions::cosim::m_imsic_msi<>& m_imsic_msi) {
   if (terminated_)
     return;
 
-  if (loc_ != m_imsic_intr.location)
+  if (loc_ != m_imsic_msi.location)
+    return;
+
+  if (!FLAGS_cosim)
     return;
 
   mem_t mem;
-  mem.cycle = m_imsic_intr.cycle;
-  mem.pa = m_imsic_intr.addr;
-  mem.data = m_imsic_intr.data;
+  mem.cycle = m_imsic_msi.cycle;
+  mem.pa = m_imsic_msi.addr;
+  mem.data = m_imsic_msi.data;
 
-  bridge_->process_dut_imsic_interrupt(id_, mem);
+  bridge_->process_dut_imsic_msi(id_, mem);
   if (FLAGS_rvfi_log) {
     log(cvm::NONE, "#{} {} {} (imsic: [addr={:#x} data={:#x}])\n", count_, mem.cycle, id_, mem.pa, mem.data);
   }
@@ -187,6 +191,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.comp = m_rvfi.comp;
   instr.tag = m_rvfi.order;
   instr.opcode = m_rvfi.insn;
+  instr.disasm = whisper::disassemble(m_rvfi.insn);
   instr.uop = m_rvfi.uop;
   instr.trap = m_rvfi.trap || intr_ || excp_;
   instr.intr = intr_;
@@ -322,7 +327,7 @@ void rvfi::print_instr(rv_instr_t& instr) {
   }
 
   int resource_count = instr.gpr.valid + instr.fpr.valid + instr.vr.valid + instr.mem_write.valid;
-  if (!instr.last_uop || !instr.ucode)
+  if (!instr.ucode || !instr.last_uop)
     resource_count += instr.csr.size();
 
   // Print r0 = 0 if nothing modified
@@ -351,8 +356,9 @@ void rvfi::print_instr(rv_instr_t& instr) {
   if (instr.mem_write.valid)
     print_instr_resource(instr, fmt::format(" m {:016x} {:016x}", instr.mem_write.va, instr.mem_write.data));
 
-  for (auto& c : instr.csr)
-    print_instr_resource(instr, fmt::format(" c {:016x} {:016x} {:016x}", c.csr_addr, c.csr_wdata, c.csr_wmask));
+  if (!instr.ucode || !instr.last_uop)
+    for (auto& c : instr.csr)
+      print_instr_resource(instr, fmt::format(" c {:016x} {:016x} {:016x}", c.csr_addr, c.csr_wdata, c.csr_wmask));
 }
 
 void rvfi::print_instr_resource(rv_instr_t& instr, std::string resource_str) {
@@ -369,7 +375,7 @@ void rvfi::print_instr_resource(rv_instr_t& instr, std::string resource_str) {
   if (!instr.ucode)
     log(cvm::NONE, " {}", whisper::disassemble(instr.opcode));
   else
-    log(cvm::NONE, " {} (microcode)", cosim_util::get_nth_word(whisper::disassemble(instr.opcode), 1));
+    log(cvm::NONE, " {} (microcode)", cosim_util::get_nth_word(instr.disasm, 1));
 
   if (instr.mem_write.valid)
     log(cvm::NONE, " [{:#x}:{:#x}]", instr.mem_write.va, instr.mem_write.pa);

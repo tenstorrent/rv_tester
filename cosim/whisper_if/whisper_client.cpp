@@ -237,6 +237,26 @@ whisperClient<URV>::whisperPoke(int hart, uint64_t time, char resource, uint64_t
   return true;
 }
 
+// Specialized poke for memory that accepts size argument.
+template <typename URV>
+bool
+whisperClient<URV>::whisperPokeMem(int hart, uint64_t time, char resource, uint64_t addr, unsigned size,
+    uint64_t value, bool& valid)
+{
+  req.hart = hart;
+  req.type = WhisperMessageType::Poke;
+  req.resource = resource;
+  req.address = addr;
+  req.value = value;
+  req.time = time;
+  req.size = size;
+
+  if (not whisperCommand(req, reply))
+    return false;
+
+  valid = reply.type != WhisperMessageType::Invalid;
+  return true;
+}
 
 template <typename URV>
 bool
@@ -445,18 +465,19 @@ whisperClient<URV>::whisperTranslate(int hart, uint64_t vaddr, bool r, bool w, b
   return true;
 }
 
-//bool
-//whisperClient::whisperCancelLr(int hart, bool& valid)
-//{
-//  req.hart = hart;
-//  req.type = WhisperMessageType::CancelLr;
-//
-//  if (not whisperCommand(req, reply))
-//    return false;
-//
-//  valid = reply.type != WhisperMessageType::Invalid;
-//  return true;
-//}
+template <typename URV>
+bool
+whisperClient<URV>::whisperCancelLr(int hart, bool& valid)
+{
+  req.hart = hart;
+  req.type = WhisperMessageType::CancelLr;
+
+  if (not whisperCommand(req, reply))
+    return false;
+
+  valid = reply.type != WhisperMessageType::Invalid;
+  return true;
+}
 
 template <typename URV>
 bool
@@ -566,16 +587,19 @@ whisperClient<URV>::whisperCheckInterrupt(int hart, uint64_t mip, bool& interrup
 // external interrupt (assuming that interrupt is enabled).
 template <typename URV>
 bool
-whisperClient<URV>::whisperSetSeiPin(int hart, uint64_t value)
+whisperClient<URV>::whisperGetSeiPin(int hart, uint64_t& value)
 {
   req.hart = hart;
-  req.type = WhisperMessageType::SeiPin;
-  req.value = value;
+  req.type = WhisperMessageType::Peek;
+  req.resource = 's';
+  req.address = WhisperSpecialResource::Seipin;
 
   WhisperMessage reply;
 
   if (not whisperCommand(req, reply))
     return false;
+
+  value = reply.value;
 
   return true;
 }

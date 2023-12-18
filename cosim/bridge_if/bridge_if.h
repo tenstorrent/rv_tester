@@ -164,6 +164,7 @@ typedef struct rv_instr_s {
   uint64_t cycle = 0;
   uint64_t tag = 0;
   uint32_t opcode = 0;
+  std::string disasm = std::string(128, ' ');
   uint32_t uop = 0;
   bool trap = false;
   uint8_t priv = 3;
@@ -234,4 +235,5 @@ typedef struct rv_intr_s {
   uint64_t cycle;
   uint64_t mip;
   uint64_t mip_mask;
+  uint64_t mip_assert;
 } rv_intr_t;  

@@ -54,7 +54,7 @@ public:
 
   // Interrupts
   virtual void process_dut_interrupt(hart_id_t hart, rv_intr_t& i) override;
-  virtual void process_dut_imsic_interrupt(hart_id_t hart, mem_t& m) override;
+  virtual void process_dut_imsic_msi(hart_id_t hart, mem_t& m) override;
 
   // Debug mode
   virtual void enter_debug_mode(rv_debug_t& d) override;
@@ -104,27 +104,31 @@ private:
   uint64_t translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t memclass);
 
   void process_debug_pre_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
+  void process_timer_sw_interrupt(hart_id_t hart, rv_intr_t& i);
+  void process_external_interrupt(hart_id_t hart, rv_intr_t& i);
   void process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   void process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   void process_exception_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   void process_satp_write_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
 
-  void whisper_check_interrupt(hart_id_t hart, uint64_t mip, bool& taken, uint64_t& cause);
-  void whisper_defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
+  void check_and_defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
+  void check_interrupt(hart_id_t hart, uint64_t mip, bool& taken, uint64_t& cause);
+  void defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
   void poke_mip(hart_id_t hart, uint64_t time, uint64_t mip);
-  void poke_seip(hart_id_t hart, uint64_t time, bool val);
+  void peek_mip(hart_id_t hart, uint64_t time, uint64_t& mip);
+  void peek_seip(hart_id_t hart, uint64_t time, uint64_t& val);
 
   bool is_ecall(const whisper_state_t& w);
-  bool does_instr_match_resynch_list(const whisper_state_t& w);
-  bool does_prev_instr_match_resynch_list(const whisper_state_t& w);
-  bool does_instr_match_resynch_condition(const rv_instr_t& d, const whisper_state_t& w);
+  bool does_instr_match_resynch_list(const rv_instr_t& d, const std::string& instr);
+  bool does_instr_match_resynch_condition(const rv_instr_t& d, const std::string& instr);
   bool clint_read(const rv_instr_t& d);
   bool boot_read(const rv_instr_t& d);
   bool debug_mem_access(const rv_instr_t& d);
   bool htif_read(const rv_instr_t& d);
-  bool hpm_counter_read(const whisper_state_t& w);
-  bool lrsc_fail(const whisper_state_t& w);
-  bool xtval_read(const whisper_state_t& w);
+  bool hpm_counter_read(const std::string& instr);
+  bool lrsc_fail(const rv_instr_t& d, const std::string& instr);
+  bool mip_mismatch(const std::string& instr);
+  bool imsic_mismatch(const std::string& instr);
   void resynch(hart_id_t hart, const rv_instr_group_t& d);
   void resynch(hart_id_t hart, const rv_instr_t& d);
   std::string get_nth_word(const std::string& s, int n);
@@ -160,10 +164,14 @@ private:
   bool resynch_intr_cause_mismatch_ = false;
   bool resynch_csr_ = false;
 
+  bool deferred_intr_ = false;
   uint64_t mip_ = 0;
   uint64_t prev_mip_ = 0;
-  uint64_t iss_mip_ = 0;
+  uint64_t e_mip_ = 0;
+  uint64_t prev_e_mip_ = 0;
+  uint64_t deferred_mip_ = 0;
   std::array<uint32_t, max_intr> intr_age_{};
+  uint32_t max_pend_intr_age_ = 0;
 
   // Memmap
   memmap::memmap_t memmap_;
