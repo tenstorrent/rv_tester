@@ -663,11 +663,6 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
 
     if (FLAGS_csr_rd_check)
       update_csr(hart, src_t::dut, c.csr_addr, data, mask);
-
-    if (c.csr_addr == 0x344 || c.csr_addr == 0x144) {
-      //mip_ = get_csr(hart, src_t::dut, 0x344);
-      log(cvm::MEDIUM, "<{}> Zicsr write based interrupt: mip {:#x} mask {:#x}\n", c.cycle, mip_, mask);
-    }
   }
 }
 
