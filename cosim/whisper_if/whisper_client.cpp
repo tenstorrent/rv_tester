@@ -590,13 +590,15 @@ bool
 whisperClient<URV>::whisperGetSeiPin(int hart, uint64_t& value)
 {
   req.hart = hart;
-  req.type = WhisperMessageType::SeiPin;
-
+  req.type = WhisperMessageType::Peek;
+  req.resource = 's';
+  req.address = WhisperSpecialResource::Seipin;
 
   WhisperMessage reply;
 
   if (not whisperCommand(req, reply))
     return false;
+
   value = reply.value;
 
   return true;
