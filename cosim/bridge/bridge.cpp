@@ -334,7 +334,6 @@ void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whi
     }
     return;
   }
-  intr_age_[d.icause] = 0;
 
   // Undefer all interrupts
   if (deferred_intr_) {
@@ -667,11 +666,6 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
 
     if (c.csr_addr == 0x344 || c.csr_addr == 0x144) {
       //mip_ = get_csr(hart, src_t::dut, 0x344);
-        peek_mip(hart, c.cycle, mip_);
-        uint64_t w_seip;
-        peek_seip(hart, c.cycle, w_seip);
-        mip_ |= w_seip << 9;
-        e_mip_ = mip_ & 0xa00;
       log(cvm::MEDIUM, "<{}> Zicsr write based interrupt: mip {:#x} mask {:#x}\n", c.cycle, mip_, mask);
     }
   }
@@ -727,6 +721,12 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_
       if (w.address == 0x344) {
         mip_ = w.value;
         e_mip_ = w.value & 0xa00;
+        log(cvm::MEDIUM, "<{}> Zicsr write based interrupt: mip {:#x}\n", w.time, w.value);
+      }
+      if (w.address == 0x144) {
+        uint64_t sip_mask=0x222;
+        mip_ = (w.value & sip_mask) | (mip_ & ~sip_mask);
+        e_mip_ = mip_ & 0xa00;
         log(cvm::MEDIUM, "<{}> Zicsr write based interrupt: mip {:#x}\n", w.time, w.value);
       }
       break;
@@ -1165,19 +1165,19 @@ void bridge::process_dut_imsic_msi(hart_id_t hart, mem_t& m) {
 void bridge::check_and_defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip) {
   bool w_intr;
   uint64_t w_cause;
-  uint64_t defer_mip = mip | deferred_mip;
+  uint64_t defer_mip = mip | deferred_mip_;
   check_interrupt(hart, mip, w_intr, w_cause);
   if (w_intr) {
     deferred_intr_ = true;
     defer_interrupt(hart, time, defer_mip);
-    deferred_mip = defer_mip;
+    deferred_mip_ = defer_mip;
   }
 }
 
 void bridge::defer_interrupt(hart_id_t hart, uint64_t cycle, uint64_t mip) {
   log(cvm::MEDIUM, "<{}> Interrupt defer mip status {:#x}\n", cycle, mip);
   bool valid;
-  deferred_mip = 0;
+  deferred_mip_ = 0;
   if (!client_->whisperPoke(hart, cycle, 's', WhisperSpecialResource::DeferredInterrupts, mip, valid)) {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed to poke DeferredInterrupts\n", hart);
     return;

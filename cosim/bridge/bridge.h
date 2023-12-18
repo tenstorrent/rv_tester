@@ -169,7 +169,7 @@ private:
   uint64_t prev_mip_ = 0;
   uint64_t e_mip_ = 0;
   uint64_t prev_e_mip_ = 0;
-  uint64_t deferred_mip = 0;
+  uint64_t deferred_mip_ = 0;
   std::array<uint32_t, max_intr> intr_age_{};
   uint32_t max_pend_intr_age_ = 0;
 
