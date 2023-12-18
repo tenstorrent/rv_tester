@@ -587,16 +587,17 @@ whisperClient<URV>::whisperCheckInterrupt(int hart, uint64_t mip, bool& interrup
 // external interrupt (assuming that interrupt is enabled).
 template <typename URV>
 bool
-whisperClient<URV>::whisperSetSeiPin(int hart, uint64_t value)
+whisperClient<URV>::whisperGetSeiPin(int hart, uint64_t& value)
 {
   req.hart = hart;
   req.type = WhisperMessageType::SeiPin;
-  req.value = value;
+
 
   WhisperMessage reply;
 
   if (not whisperCommand(req, reply))
     return false;
+  value = reply.value;
 
   return true;
 }

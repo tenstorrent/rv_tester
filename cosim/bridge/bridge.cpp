@@ -334,6 +334,7 @@ void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whi
     }
     return;
   }
+  intr_age_[d.icause] = 0;
 
   // Undefer all interrupts
   if (deferred_intr_) {
@@ -664,9 +665,14 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
     if (FLAGS_csr_rd_check)
       update_csr(hart, src_t::dut, c.csr_addr, data, mask);
 
-    if (c.csr_addr == 0x344) {
-      mip_ = get_csr(hart, src_t::dut, 0x344);
-      log(cvm::MEDIUM, "<{}> Zicsr write based interrupt: mip {:#x} mask {:#x}\n", c.cycle, data, mask);
+    if (c.csr_addr == 0x344 || c.csr_addr == 0x144) {
+      //mip_ = get_csr(hart, src_t::dut, 0x344);
+        peek_mip(hart, c.cycle, mip_);
+        uint64_t w_seip;
+        peek_seip(hart, c.cycle, w_seip);
+        mip_ |= w_seip << 9;
+        e_mip_ = mip_ & 0xa00;
+      log(cvm::MEDIUM, "<{}> Zicsr write based interrupt: mip {:#x} mask {:#x}\n", c.cycle, mip_, mask);
     }
   }
 }
@@ -1098,12 +1104,16 @@ void bridge::translation_check(hart_id_t hart, const rv_instr_t& d, whisper_stat
 void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
   if (i.mip_mask & 0xa00) {
     process_external_interrupt(hart, i);
-  } else {
+  } 
+  if (i.mip_mask & 0xaa) {
     process_timer_sw_interrupt(hart, i);
   }
 }
 
 void bridge::process_external_interrupt(hart_id_t hart, rv_intr_t& i) {
+    mip_ = (i.mip & i.mip_mask) | (mip_ & ~i.mip_mask);
+    e_mip_ = mip_ & 0xa00;
+    check_and_defer_interrupt(hart, i.cycle, i.mip_assert);
   log(cvm::MEDIUM, "<{}> External interrupt: Hart {} mip {:#x} mask {:#x} assert {:#x}\n", hart, i.cycle, i.mip, i.mip_mask, i.mip_assert);
 }
 
@@ -1116,6 +1126,9 @@ void bridge::process_timer_sw_interrupt(hart_id_t hart, rv_intr_t& i) {
   peek_mip(hart, i.cycle, mip);
   mip_ = (mip & 0xa22) | (i.mip & ~0xa00); 
   poke_mip(hart, i.cycle, mip_);
+  uint64_t w_seip;
+  peek_seip(hart, i.cycle, w_seip);
+  mip_ |= w_seip << 9;
 
   // Defer interrupt only on 0->1 transition
   check_and_defer_interrupt(hart, i.cycle, i.mip_assert);
@@ -1133,6 +1146,9 @@ void bridge::process_dut_imsic_msi(hart_id_t hart, mem_t& m) {
 
   // Peek mip to check if expected to be taken
   peek_mip(hart, m.cycle, mip_);
+  uint64_t w_seip;
+  peek_seip(hart, m.cycle, w_seip);
+  mip_ |= w_seip << 9;
   e_mip_ = mip_ & 0xa00;
   
   // Defer interrupt only on 0->1 transition
@@ -1149,16 +1165,19 @@ void bridge::process_dut_imsic_msi(hart_id_t hart, mem_t& m) {
 void bridge::check_and_defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip) {
   bool w_intr;
   uint64_t w_cause;
+  uint64_t defer_mip = mip | deferred_mip;
   check_interrupt(hart, mip, w_intr, w_cause);
   if (w_intr) {
     deferred_intr_ = true;
-    defer_interrupt(hart, time, mip);
+    defer_interrupt(hart, time, defer_mip);
+    deferred_mip = defer_mip;
   }
 }
 
 void bridge::defer_interrupt(hart_id_t hart, uint64_t cycle, uint64_t mip) {
   log(cvm::MEDIUM, "<{}> Interrupt defer mip status {:#x}\n", cycle, mip);
   bool valid;
+  deferred_mip = 0;
   if (!client_->whisperPoke(hart, cycle, 's', WhisperSpecialResource::DeferredInterrupts, mip, valid)) {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed to poke DeferredInterrupts\n", hart);
     return;
@@ -1190,12 +1209,12 @@ void bridge::peek_mip(hart_id_t hart, uint64_t time, uint64_t& mip) {
   log(cvm::MEDIUM, "<{}> Whisper peek: mip: {:#x}\n", time, mip);
 }
 
-void bridge::poke_seip(hart_id_t hart, uint64_t time, bool val) {
-  log(cvm::MEDIUM, "<{}> Whisper poke: seip: {}\n", time, val);
-  if (!client_->whisperSetSeiPin(hart, (uint64_t)val)) {
-    cvm::log(cvm::ERROR, "Error: Hart {}: Failed to poke seip\n", hart);
+void bridge::peek_seip(hart_id_t hart, uint64_t time, uint64_t& val) {
+  if (!client_->whisperGetSeiPin(hart, val)) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek seip\n", hart);
     return;
   }
+  log(cvm::MEDIUM, "<{}> Whisper peek: seip: {}\n", time, val);
 }
 
 // Debug Mode

@@ -141,12 +141,17 @@ protected:
            iter = (rng() % (FLAGS_max_simul_intr )) + 1 ; //gen iter between 1 to max simul instr
          }
 
+	 cvm::log(cvm::HIGH, "[Trickbox] Disable dontpick mask  {}  \n", disable_dontpick);
 	 cvm::log(cvm::HIGH, "[Trickbox] Driving  {} interrupts in a cycle \n", iter);
+   unsigned attempt_intrs = 0;
          for (unsigned i = 0; i < iter; ++i) {
            do{
              values[i] = rng() % (numInterrupts_) ;
+             attempt_intrs++;
 	     cvm::log(cvm::HIGH, "[Trickbox] attempting to genertae legal interrupts,gen_result  {} \n", values[i]);
-	   }while(disable_mask & (1<<values[i]));
+	   }while( ((disable_mask | disable_dontpick) & (1<<values[i])) && (attempt_intrs<100) );
+           if(attempt_intrs == 100)
+           continue;
 
            for (unsigned j = 0; j < i; ++j) {
                if (values[i] == values[j]) {
@@ -168,6 +173,7 @@ protected:
          cvm::registry::messenger.signal(loc(), interrupt_t{0, rand_intr, rand_intr});
          uint32_t rand_num =  (rng() % ( FLAGS_intr_delay_max - FLAGS_intr_delay_min + 1)) + FLAGS_intr_delay_min;
          timer_rand_intr = timer_ +(rand_num*timer_advance);
+         disable_dontpick = 0;
 	 cvm::log(cvm::HIGH, "[Trickbox] Next random interrupt will be sent at  {}  \n", timer_rand_intr);
       }
     }
@@ -199,6 +205,7 @@ private:
   uint64_t interrupter_base = 0x9000000;
   uint64_t disable_mask = 0;
   uint64_t disable_mask_neg = 0;
+  uint64_t disable_dontpick = 0;
 
   std::atomic<bool> terminate_ = false;
   std::mutex mutex_;

@@ -116,7 +116,7 @@ private:
   void defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
   void poke_mip(hart_id_t hart, uint64_t time, uint64_t mip);
   void peek_mip(hart_id_t hart, uint64_t time, uint64_t& mip);
-  void poke_seip(hart_id_t hart, uint64_t time, bool val);
+  void peek_seip(hart_id_t hart, uint64_t time, uint64_t& val);
 
   bool is_ecall(const whisper_state_t& w);
   bool does_instr_match_resynch_list(const rv_instr_t& d, const std::string& instr);
@@ -169,6 +169,7 @@ private:
   uint64_t prev_mip_ = 0;
   uint64_t e_mip_ = 0;
   uint64_t prev_e_mip_ = 0;
+  uint64_t deferred_mip = 0;
   std::array<uint32_t, max_intr> intr_age_{};
   uint32_t max_pend_intr_age_ = 0;
 

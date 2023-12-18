@@ -203,13 +203,27 @@ import rv_tester_params::*;
       return mip;
     endfunction
 
+
+    localparam imsic_whisper_delays = 5;
+    rv_tester_params::mst2_req_top imsic_interrupt_delays[imsic_whisper_delays:0];
+    rv_tester_params::mst2_req_top imsic_interrupt_delayed;
+    assign imsic_interrupt_delays[0]=imsic_interrupt;
+    genvar i;
+   generate
+    for (i=1; i <= imsic_whisper_delays; i=i+1) begin
+      always @(posedge clk)
+      imsic_interrupt_delays[i] <= imsic_interrupt_delays[i-1];
+    end
+   endgenerate
+   assign imsic_interrupt_delayed = imsic_interrupt_delays[imsic_whisper_delays];
+   
     // m_imsic_msi
-    assign m_imsic_msis[0].valid = ~dut_reset & (imsic_interrupt.aw_valid & imsic_interrupt.w_valid & imsic_interrupt.b_ready) & rvfi_enabled;
+    assign m_imsic_msis[0].valid = ~dut_reset & (imsic_interrupt_delayed.aw_valid & imsic_interrupt_delayed.w_valid & imsic_interrupt_delayed.b_ready) & rvfi_enabled;
     assign m_imsic_msis[0].data.location = location;
     assign m_imsic_msis[0].data.cycle = clocks;
     /* verilator lint_off WIDTH */
-    assign m_imsic_msis[0].data.addr = imsic_interrupt.aw.addr;
-    assign m_imsic_msis[0].data.data = imsic_interrupt.w.data & 'hff;
+    assign m_imsic_msis[0].data.addr = imsic_interrupt_delayed.aw.addr;
+    assign m_imsic_msis[0].data.data = imsic_interrupt_delayed.w.data & 'hff;
     /* verilator lint_on WIDTH */
 
     function automatic bit [63:0] get_mip_mask(rv_tester_pkg::interrupt_t intr, rv_tester_pkg::interrupt_t intr_d1);

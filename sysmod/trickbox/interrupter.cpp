@@ -100,6 +100,12 @@ interrupter::write(uint64_t addr, size_t, const data_t& data,
     unsigned eventValue = (t_data >> 20) & 0xfb; //ignore supervisor timer interrupt data
 
     driveInterrupt(hart,event,eventValue);
+    cvm::log(cvm::LOW, "[Trickbox] Driving even {:#x} eventVal {:#x}\n", event, eventValue);
+
+
+    if ( eventValue==0 && event!=0 ) 
+    disable_dontpick = event;
+    cvm::log(cvm::LOW, "[Trickbox] Disabledontpick {:#x} \n", disable_dontpick);
 
     }
     else if((addr > interrupter_base)&& (addr < (interrupter_base + 0x1000)))
