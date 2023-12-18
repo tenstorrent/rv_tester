@@ -1,29 +1,57 @@
 #include "eot.h"
-#include "sysmod/htif/htif.h"
 #include <chrono>
 #include <iostream>
+#include "common/memmap.h"
+#include "sysmod/htif/htif.h"
 
 DEFINE_string(eot, "tohost", "Enable end-of-test mechanism. Supported options: tohost, max_instr");
+DEFINE_uint64(tohost, 0x0, "Use this tohost address if provided");
 DEFINE_uint32(max_instr, 100000, "Max instruction limit to terminate the sim");
 DECLARE_string(load);
+DECLARE_string(hex);
+
 
 void eot::get_tohost_addr() {
 
-  std::string cmd = "nm " + FLAGS_load + " | grep -w tohost";
-  std::string result = cosim_util::exec(cmd.c_str());
-  std::string addr_str = result.substr(0, 16);
-
-  try {
-    tohost_addr_ = std::stoul(addr_str, nullptr, 16);
+  // Get tohost address from
+  // 1. plusarg if provided
+  if (FLAGS_tohost != 0x0) {
+    tohost_addr_ = FLAGS_tohost;
+    cvm::log(cvm::NONE, "[eot] tohost from plusarg:: addr=[{:#x}]\n", tohost_addr_);
+    return;
   }
-  catch (...) {
-    if (FLAGS_eot == "tohost") {
-      cvm::log(cvm::ERROR, "Error: No tohost symbol in elf\n");
+
+  // 2. elf if available
+  bool tohost_in_elf = false;
+  if (FLAGS_load != "" && FLAGS_hex == "") {
+    std::string cmd = "nm " + FLAGS_load + " | grep -w tohost";
+    std::string result = cosim_util::exec(cmd.c_str());
+    std::string addr_str = result.substr(0, 16);
+    tohost_in_elf = true;
+
+    try {
+      tohost_addr_ = std::stoul(addr_str, nullptr, 16);
     }
+    catch (...) {
+      tohost_in_elf = false;
+      if (FLAGS_eot == "tohost") {
+        cvm::log(cvm::NONE, "Warn: No tohost symbol in elf\n");
+      }
+    }
+    cvm::log(cvm::NONE, "[eot] tohost from elf:: cmd=[{}] addr_str=[{}] addr=[{:#x}]\n", cmd, addr_str, tohost_addr_);
   }
+  if (tohost_in_elf)
+    return;
 
-  cvm::log(cvm::NONE, "eot::get_tohost_addr:: cmd=[{}] addr_str=[{}] addr=[{:#x}]\n", cmd, addr_str, tohost_addr_);
-
+  // 3. htif address from memmap
+  memmap::memmap_t m;
+  memmap::get(m);
+  if (m.count("htif") > 0) {
+    tohost_addr_ = m.at("htif").base;
+    cvm::log(cvm::NONE, "[eot] tohost from memmap:: addr=[{:#x}]\n", tohost_addr_);
+  } else {
+    cvm::log(cvm::ERROR, "[eot] tohost from memmap:: htif not found in memmap\n", tohost_addr_);
+  }
 }
 
 void eot::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
