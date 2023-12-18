@@ -14,7 +14,7 @@ def rv_tester_repositories():
         #sha256 = "af87959afe497dc8dfd4c6cb66e1279cb98ccc84284619ebfec27d9c09a903de",
     )
 
-    corearchcoverage_hash="d886ea0cf13d591e25a33b6ea25f16ec17a367b4"
+    corearchcoverage_hash="020fb91f4e5768d9d9619d095fa04c6151bd57c2"
     maybe(
         git_repository,
         name = "corearchcoverage",
@@ -23,11 +23,11 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv/dv/corearchcoverage.git",
     )
 
-    cvm_hash="aa8bebd6415c49a95e943076ef0987987e981012"
+    cvm_hash="52aefe11c7c5d9c065bb62c2235018df70abbd73"
     maybe(
         http_archive,
         name = "cvm",
-        sha256 = "58545feeea2661840b868067fa81c215429855a6a75ccdfd2cf8736ae33a51d1",
+        sha256 = "59c1fceac50b8d809d41c2a3f773a9d279ad5690c7bd48c71caa962725a7176f",
         strip_prefix = "cvm-{commit}".format(commit=cvm_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/{commit}/cvm-{commit}.tar.bz2".format(commit=cvm_hash),
     )
@@ -40,7 +40,7 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-nlohmann-json.git",
     )
 
-    whisper_hash="78bc79ba615a76a78f3e4d8aca63e0d52e49f620"
+    whisper_hash="fa7623ebd2f3da5c86bdde9e1916b4d5427763b9"
     maybe(
         git_repository,
         name = "whisper",
@@ -49,7 +49,7 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv/swerv-iss.git",
     )
 
-    core_arch_checker_hash="afeee0fdf423d754ce3f09c5a7c0e0b5be5e2c94"
+    core_arch_checker_hash="072cb58080752a9a26ea37e559abcefe03f19f88"
     maybe(
         http_archive,
         name = "CoreArchChecker",

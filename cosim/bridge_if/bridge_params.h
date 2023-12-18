@@ -1,5 +1,6 @@
 #pragma once
 #include <array>
+#include <unordered_map>
 
 namespace {
 
@@ -35,4 +36,23 @@ namespace {
         {"mtval", 0x343},
         {"mip", 0x344}
     }};
+
+    typedef enum : size_t {
+        U = 0,
+        HS = 1,
+        M = 3,
+        D = 4,
+        VU = 8,
+        VS = 9
+    } priv;
+
+    const std::unordered_map<priv, std::string_view> to_string = {
+        {U, "U"},
+        {HS, "HS"},
+        {M, "M"},
+        {D, "D"},
+        {VU, "VU"},
+        {VS, "VS"},
+    };
+
 }

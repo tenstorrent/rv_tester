@@ -15,10 +15,10 @@ DEFINE_bool(rvfi, true, "Enable rvfi");
 // rvfi_log flag was created is that +norvfi causes the max # of cycles to be
 // exceeded.
 DEFINE_bool(rvfi_log, true, "Enable rvfi logging");
+DEFINE_bool(rvfi_log_36b_uop, true, "rvfi log - print 36b uop instead of default 32b riscv opcode");
 DEFINE_bool(mcm, false, "Enable mcm");
 DEFINE_bool(cosim, true, "Enable cosim checking");
 DECLARE_string(load);
-DECLARE_bool(csr_check);
 
 DEFINE_uint64(debug_entry_pc, 0x800, "Debug Mode entry PC");
 DEFINE_uint64(debug_exit_pc, 0x860, "Debug Mode exit PC");
@@ -79,8 +79,9 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   // Construct rv_instr_t and send to bridge
   rv_instr_t instr;
   make_instr(m_rvfi, instr);
-  print_instr(instr);
   prev_instr_ = instr;
+
+  print_instr(instr);
 
   if (!m_rvfi.last_uop)
     return;
@@ -187,24 +188,48 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.hart = m_rvfi.hart;
   instr.cycle = m_rvfi.cycle;
   instr.id = count_;
-  instr.last_uop = m_rvfi.last_uop;
   instr.comp = m_rvfi.comp;
   instr.tag = m_rvfi.order;
   instr.opcode = m_rvfi.insn;
   instr.disasm = whisper::disassemble(m_rvfi.insn);
   instr.uop = m_rvfi.uop;
-  instr.priv = m_rvfi.mode;
   instr.trap = m_rvfi.trap || intr_ || excp_;
   instr.intr = intr_;
   instr.excp = excp_;
   instr.icause = icause_;
   instr.ecause = ecause_;
-  instr.ucode = ucode_;
+
+  // First/last uops for ucode sequences
+  instr.first_uop = false;
+  instr.last_uop = m_rvfi.last_uop;
+  instr.ucode = ucode_ || !m_rvfi.last_uop;
   if (!m_rvfi.last_uop) {
+    if (!ucode_)
+      instr.first_uop = true;
     ucode_ = true;
   } else {
     ucode_ = false;
     count_++;
+  }
+
+  // Priv mode
+  instr.priv = m_rvfi.mode;
+  if (instr.ucode && (m_rvfi.mode != priv_)) {
+    if (instr.first_uop) {
+      priv_ = m_rvfi.mode;
+    } else {
+      instr.priv = priv_;
+      ucode_priv_change_ = true;
+    }
+  }
+  if (m_rvfi.last_uop) {
+    if (ucode_priv_change_) {
+      instr.priv = priv_;
+      ucode_priv_change_ = false;
+    }
+    priv_ = m_rvfi.mode;
+    if (!to_string.count(static_cast<priv>(instr.priv)))
+      cvm::log(cvm::ERROR, "Error: Invalid rvfi privilege mode: {:#x}\n", instr.priv);
   }
 
   // PC
@@ -237,7 +262,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   }
 
   if (m_rvfi.last_uop && !ucode_csrs_.empty()) {
-    // Send ucode csr writes with last uop of ucode instruction/routine
+    // Send ucode csr writes and priv mode with last uop of ucode instruction/routine
     for (auto& c : ucode_csrs_) {
       instr.csr.push_back(c);
     }
@@ -290,7 +315,7 @@ std::tuple<uint64_t, uint64_t, uint8_t> rvfi::get_mem_attributes(uint64_t addr, 
 }
 
 void rvfi::print_csr(csr_t& csr) {
-  log(cvm::NONE, "#{} {} {} 3 {:016x} {:09x} c {:016x} {:016x} {:016x} (hw update)\n", count_, csr.cycle, csr.hart, 0, 0, csr.csr_addr, csr.csr_wdata, csr.csr_wmask);
+  log(cvm::NONE, "#{} {} {} {} {:016x} {:09x} c {:016x} {:016x} {:016x} (hw update)\n", count_, csr.cycle, csr.hart, to_string.at(static_cast<priv>(priv_)), 0, 0, csr.csr_addr, csr.csr_wdata, csr.csr_wmask);
 }
 
 void rvfi::print_instr(rv_instr_t& instr) {
@@ -334,13 +359,18 @@ void rvfi::print_instr(rv_instr_t& instr) {
 }
 
 void rvfi::print_instr_resource(rv_instr_t& instr, std::string resource_str) {
-  log(cvm::NONE, "#{} {} {} {} {:016x} {:09x}", instr.id, instr.cycle, instr.hart, instr.priv,
-     instr.pc.pc_rdata, instr.uop);
+  log(cvm::NONE, "#{} {} {} {} {:016x}", instr.id, instr.cycle, instr.hart, to_string.at(static_cast<priv>(instr.priv)),
+     instr.pc.pc_rdata);
+
+  if (FLAGS_rvfi_log_36b_uop)
+    log(cvm::NONE, " {:09x}", instr.uop);
+  else
+    log(cvm::NONE, " {:08x}", instr.opcode);
 
   log(cvm::NONE, resource_str);
 
-  if (instr.last_uop && prev_instr_.last_uop)
-    log(cvm::NONE, " {}", instr.disasm);
+  if (!instr.ucode)
+    log(cvm::NONE, " {}", whisper::disassemble(instr.opcode));
   else
     log(cvm::NONE, " {} (microcode)", cosim_util::get_nth_word(instr.disasm, 1));
 
@@ -442,9 +472,6 @@ void rvfi::exit_debug_mode(rv_instr_t& instr) {
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_csri<>& m_csri) {
-  if (!FLAGS_csr_check)
-    return;
-
   if (terminated_)
     return;
 

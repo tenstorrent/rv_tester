@@ -155,6 +155,7 @@ typedef struct mem_cl_s {
 typedef struct rv_instr_s {
   // Metadata
   bool valid = false;
+  bool first_uop = false;
   bool last_uop = false;
   bool comp = false;
   bool ucode = false;
@@ -166,7 +167,7 @@ typedef struct rv_instr_s {
   std::string disasm = std::string(128, ' ');
   uint32_t uop = 0;
   bool trap = false;
-  uint8_t priv = 0;
+  uint8_t priv = 3;
   bool intr = false;
   bool excp = false;
   uint64_t icause = 0;
@@ -191,6 +192,7 @@ typedef struct rv_instr_s {
 
   void clear() {
     valid = false;
+    first_uop = true;
     last_uop = true;
     comp = false;
     ucode = false;
