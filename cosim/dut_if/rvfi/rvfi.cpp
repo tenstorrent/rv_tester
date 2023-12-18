@@ -231,6 +231,9 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
     if (!to_string.count(static_cast<priv>(instr.priv)))
       cvm::log(cvm::ERROR, "Error: Invalid rvfi privilege mode: {:#x}\n", instr.priv);
   }
+  if ((instr.priv & 0x3) == 0x3) { // Ignore V bit if M mode
+    instr.priv = 0x3;
+  }
 
   // PC
   instr.pc.valid = true;

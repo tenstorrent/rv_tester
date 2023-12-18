@@ -43,7 +43,8 @@ namespace {
         M = 3,
         D = 4,
         VU = 8,
-        VS = 9
+        VS = 9,
+        VM = 11
     } priv;
 
     const std::unordered_map<priv, std::string_view> to_string = {
@@ -53,6 +54,7 @@ namespace {
         {D, "D"},
         {VU, "VU"},
         {VS, "VS"},
+        {VM, "M"},
     };
 
 }
