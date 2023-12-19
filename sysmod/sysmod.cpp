@@ -11,6 +11,7 @@
 #include "dm/dm.h"
 #include "io_dev/io_dev.h"
 #include "null_dev/null_dev.h"
+#include "heartbeat/heartbeat.h"
 #include "htif/htif.h"
 #include "trickbox/trickbox.h"
 #include "rv_tester/rv_tester_structs.h"
@@ -264,6 +265,8 @@ sysmod::compose()
 
       devices_.emplace_back(std::move(device));
     }
+
+    devices_.emplace_back(std::make_unique<heartbeat>("heartbeat", 0, 0, loc_));
   }
   catch (std::exception& e) {
     std::cerr << "Error: Memmap access exception.\n" << "  Message: " << e.what() << "\n";
