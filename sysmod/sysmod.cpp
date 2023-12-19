@@ -14,6 +14,7 @@
 #include "htif/htif.h"
 #include "trickbox/trickbox.h"
 #include "rv_tester/rv_tester_structs.h"
+#include "rv_tester/rv_tester_plusargs.h"
 
 // internal flags
 DEFINE_string(hex, "", "hex file (program) to load into memory");
@@ -128,6 +129,11 @@ sysmod::aplic_interrupt(aplic_driver::aplic_driver_write_t i) {
 
 void
 sysmod::uc_helper_backdoor_write(uc_helper::uc_helper_write_t w) {
+
+    if(!FLAGS_bypass_cache && !FLAGS_bypass_mem){
+        cvm::log(cvm::ERROR, "Error: [SYSMOD] uc_helper_backdoor_write: caching is enabled in rv_tester and it does not receive DMAs, so the test could fail if the CPU does a read to this address as it will receive the stale cached data");
+    }
+
     cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_write addr {:#x} \n",w.addr);
     cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_write len {} \n",(unsigned)w.length);
     cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_write data-vec : \n");
@@ -149,10 +155,15 @@ sysmod::uc_helper_backdoor_write(uc_helper::uc_helper_write_t w) {
     cvm::log(cvm::HIGH, "new backdoor prt write request at {:#x}", wt.addr);
                 if (this->dev(wt.addr))
                     cvm::registry::messenger.signal<device::write_t>(this->loc_, {wt});
+
 }
 
 void
 sysmod::uc_helper_backdoor_read(uc_helper::uc_helper_read_req_t r) {
+    if(!FLAGS_bypass_cache && !FLAGS_bypass_mem){
+        cvm::log(cvm::ERROR, "Error: [SYSMOD] uc_helper_backdoor_read: caching is enabled in rv_tester and it does not receive DMAs, so this backdoor read might receive stale data");
+    }
+
     cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_read addr {:#x} \n",r.addr);
     cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_read len {} \n",(unsigned)r.length);
     cvm::log(cvm::HIGH, "new PRT BACKDOOR read request at {:#x}", r.addr);
@@ -170,7 +181,7 @@ sysmod::uc_helper_backdoor_read(uc_helper::uc_helper_read_req_t r) {
       
       auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0);
       cvm::registry::messenger.signal(tbox_loc, uc_helper::trickbox_mem_req_t{r.addr, r.length, data_trickbox, strb});
-                
+
 }
 
 void
