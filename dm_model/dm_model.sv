@@ -68,6 +68,11 @@ module dm_model #(
     assign dm_stores[0].data.addr = dm_mem_tx_addr[11:0];
     assign dm_stores[0].data.len = $bits(dm_stores[0].data.len)'($clog2(dm_mem_tx_wr_data_be + 1'b1));
 
-    rv_dff #(.WIDTH(1)) dm_mem_tx_rd_data_resp_vld_ff (.o_q(dm_mem_tx_rd_data_resp_vld), .i_d(dm_mem_tx_vld && ~dm_mem_tx_we), .i_en(1'b1), .i_clk(clk), .i_reset_n(~reset));
+    always @(posedge clk) begin
+      if (reset)
+        dm_mem_tx_rd_data_resp_vld <= 0;
+      else
+        dm_mem_tx_rd_data_resp_vld <= (dm_mem_tx_vld && ~dm_mem_tx_we);
+    end
  
 endmodule
