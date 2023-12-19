@@ -210,22 +210,22 @@ sysmod::compose()
       const auto type = d.second.type;
       const auto tag  = d.second.tag;
 
-      device* device = nullptr;
+      std::unique_ptr<device> device;
 
       if (type == "memory") {
-        device = new sysmod_mem(tag, base, size, loc_);
+        device = std::make_unique<sysmod_mem>(tag, base, size, loc_);
       }
       else if (type == "boot") {
-        device = new sysmod_mem(tag, base, size, loc_);
+        device = std::make_unique<sysmod_mem>(tag, base, size, loc_);
       }
       else if (type == "io_dev") {
-        device = new io_dev(tag, base, size, loc_);
+        device = std::make_unique<io_dev>(tag, base, size, loc_);
       }
       else if (type == "null_dev") {
-        device = new null_dev(tag, base, size, loc_);
+        device = std::make_unique<null_dev>(tag, base, size, loc_);
       }
       else if (type == "htif") {
-        device = new htif(tag, base, loc_);
+        device = std::make_unique<htif>(tag, base, loc_);
         cvm::registry::messenger.connect<htif::terminate_t>(
             loc_,
             [&](htif::terminate_t t) { return this->terminate(t); });
@@ -233,10 +233,10 @@ sysmod::compose()
       else if (type == "dm") {
         // TODO: cvm::ERROR
         assert(masters.size() > 0);
-        device = new dm(tag, base, size, loc_, masters[0]);
+        device = std::make_unique<dm>(tag, base, size, loc_, masters[0]);
       }
       else if (type == "clint") {
-        device = new clint(tag, base, nharts, loc_);
+        device = std::make_unique<clint>(tag, base, nharts, loc_);
         cvm::registry::messenger.connect<clint::timer_t>(
             loc_,
             [&](clint::timer_t t) { return this->timer_interrupt(t); });
@@ -245,7 +245,7 @@ sysmod::compose()
             [&](clint::sw_t s) { return this->sw_interrupt(s); });
       }
       else if (type == "trickbox") {
-        device = new trickbox(tag, base, nharts, loc_,masters[1]);
+        device = std::make_unique<trickbox>(tag, base, nharts, loc_,masters[1]);
         cvm::registry::messenger.connect<interrupter::interrupt_t>(
             loc_,
             [&](interrupter::interrupt_t i) { return this->tbox_interrupt(i); });
@@ -262,7 +262,7 @@ sysmod::compose()
       else
         cvm::log(cvm::ERROR, "Error: unknown type %s", type);
 
-      devices_.emplace_back(device);
+      devices_.emplace_back(std::move(device));
     }
   }
   catch (std::exception& e) {
