@@ -14,6 +14,7 @@
 #include <map>
 #include <random>
 #include <cmath>
+#include <vector>
 #include "pcg_random.hpp"
 #include "cvm/plusargs.hpp"
 #include "cvm/topology.hpp"
@@ -24,8 +25,10 @@
 DECLARE_int32(intr_delay_min);//, 4, "Minimum Delay between 2 consecutive interrupts");
 DECLARE_int32(intr_delay_max);//, 7, "Maximum Delay between 2 consecutive interrupts");
 DECLARE_bool(random_intr);//, false, "Drive random interrups");
-DECLARE_int32(num_wires);
+DECLARE_int32(max_simul_intr );
+DECLARE_int32(num_interrupts);
 DECLARE_int32(toggle_prob);
+DECLARE_int32(tbox_start_delay);
 
 // Define a core local interruptor (aplic_driver) at the given address
 // and for the given hart count. The size will be 48k bytes.
@@ -81,13 +84,13 @@ public:
     std::lock_guard<std::mutex> lock(mutex_);
     timer_ += advance;
     timer_advance = advance;
-    cvm::log(cvm::FULL, "[Trickbox] Timer tick {} advance interval {} \n", timer_, timer_advance);
+    cvm::log(cvm::FULL, "[APLIC_DRIVER] Timer tick {} advance interval {} \n", timer_, timer_advance);
     processDelayedRandomInterrupts();
   }
 
   void reset() override {
     if(FLAGS_random_intr){
-      cvm::log(cvm::MEDIUM, "[Trickbox] Enable random interrupts. Mask: {:#x}\n", FLAGS_random_intr);
+      cvm::log(cvm::MEDIUM, "[APLIC_DRIVER] Enable random interrupts. Mask: {:#x}\n", FLAGS_random_intr);
       uint32_t rand_num =  (rng() %  2)+1;  //default delay
       if(FLAGS_intr_delay_min){
          rand_num = (rng() % ( FLAGS_intr_delay_max - FLAGS_intr_delay_min + 1)) + FLAGS_intr_delay_min;
@@ -97,6 +100,14 @@ public:
       timer_rand_intr = timer_ + FLAGS_tbox_start_delay +(rand_num*timer_advance);
 
     }
+    //reset all aplic vars to zero
+    toggle_cycles = 0;
+    num_toggles = 0;
+    memset(enables,0,16);
+    memset(toggle0,0,16);
+    memset(toggle1,0,16);
+    memset(aplic_pin_values,0,16);
+    //aplic_pin_values_vec;
 
   }
   typedef enum { APLIC_CFG,APLIC_EN,APLIC_T0,APLIC_T1 } aplic_tx_type_e;
@@ -111,7 +122,10 @@ public:
     uint64_t toggle1_offset;
     uint64_t toggle1_value;
   };
-
+  struct aplic_driver_write_t {
+        std::vector<uint64_t> aplic_pin_values_vec;
+        //uint64_t pin_values[16];
+  };
 protected:
 
   /// Assert/deassert the timer interrupt for each hart where the
@@ -122,15 +136,58 @@ protected:
     //RANDOM INTR
     if(FLAGS_random_intr){
       if(timer_ >= timer_rand_intr){
-         
+         //unsigned rand_intr = 0;//1 << rng(5); //select random pin between 0 to 5
+         unsigned iter = 1;
+         unsigned values[FLAGS_max_simul_intr];
+         memset(values, 0, FLAGS_max_simul_intr);
+         if( (FLAGS_max_simul_intr >1 ) && (FLAGS_max_simul_intr < (static_cast<int>(FLAGS_num_interrupts +1)))){
+           iter = (rng() % (FLAGS_max_simul_intr )) + 1 ; //gen iter between 1 to max simul instr
+         }
+
+	       cvm::log(cvm::HIGH, "[APLIC_DRIVER] Driving  {} interrupts in a cycle \n", iter);
+         for (unsigned i = 0; i < iter; ++i) {
+           do{
+             values[i] = rng() % (FLAGS_num_interrupts) ;
+	           cvm::log(cvm::HIGH, "[APLIC_DRIVER] attempting to genertae legal interrupts,gen_result  {} \n", values[i]);
+	          }while(disable_mask & (1<<values[i]));
+
+           for (unsigned j = 0; j < i; ++j) {
+               if (values[i] == values[j]) {
+                i--;
+                 break;
+                }
+            }
+
+	         cvm::log(cvm::HIGH, "[APLIC_DRIVER] Driving interrupt  {}  \n", values[i]);
+           //rand_intr =  rand_intr |(1<<values[i]);
+
+           //rand_intr = rand_intr & disable_mask_neg;
+	         //cvm::log(cvm::HIGH, "[APLIC_DRIVER] Send  interrupt vec to sysmod  {:#x}  \n", rand_intr);
+           update_aplic_pins(values[i]);
+         }
+
+
+	       //cvm::log(cvm::HIGH, "[APLIC_DRIVER] Send  sig to  sysmod  {:#x}  \n", rand_intr);
+         //cvm::registry::messenger.signal(loc(), interrupt_t{0, rand_intr, rand_intr});
+         uint32_t rand_num =  (rng() % ( FLAGS_intr_delay_max - FLAGS_intr_delay_min + 1)) + FLAGS_intr_delay_min;
+         timer_rand_intr = timer_ +(rand_num*timer_advance);
+	       cvm::log(cvm::HIGH, "[APLIC_DRIVER] Next random interrupt will be sent at  {}  \n", timer_rand_intr);
+         cvm::registry::messenger.signal(loc(), aplic_driver_write_t{aplic_pin_values_vec});
       }
     }
 
   }
   // Used to assert/deassert a aplic_driver interrupt (PIPI) for given hart.
-  virtual void driveInterrupt(unsigned hart, unsigned intr_select, unsigned intr_value)
+  virtual void driveInterrupt(unsigned , unsigned , unsigned )
   {
-    cvm::registry::messenger.signal(loc(), aplic_data_t{hart, intr_select, intr_value});
+    //cvm::registry::messenger.signal(loc(), aplic_data_t{hart, intr_select, intr_value});
+  }
+
+  virtual void update_aplic_pins(uint64_t interrupt_num){
+    uint64_t index   =  interrupt_num / 64;
+    uint64_t bit_pos =  interrupt_num % 64;
+    aplic_pin_values[index] = aplic_pin_values[index] | (1<<bit_pos);
+    aplic_pin_values_vec[index] = aplic_pin_values_vec[index] | (1<<bit_pos);
   }
 
   // Start a thread to increment timer after n microseconds.
@@ -139,7 +196,6 @@ protected:
   void checkUsage();
 
 private:
-  unsigned numInterrupts_ = 6;
   
   
   std::vector<uint64_t> timeCompare_;  // One per interrupt type.
@@ -152,8 +208,17 @@ private:
   uint64_t timer_rand_intr = 500;
   uint64_t aplic_driver_base = 0x9000000;
   uint64_t disable_mask = 0;
-  uint64_t disable_mask_neg = 0;
-
+  //uint64_t disable_mask_neg = 0;
+  
+  //APLIC MODEL
+  uint32_t toggle_cycles = 0;
+  uint32_t num_toggles = 0;
+  uint64_t enables[16] = {0};
+  uint64_t toggle0[16] = {0};
+  uint64_t toggle1[16] = {0};
+  uint64_t aplic_pin_values[16] = {0};
+  std::vector<uint64_t> aplic_pin_values_vec;
+  //
   std::atomic<bool> terminate_ = false;
   std::mutex mutex_;
 

@@ -67,6 +67,14 @@ import rv_tester_params::*;
     function void sysmod_sw_interrupt (unsigned hartid, unsigned val);
       interrupt_d[hartid].msi = val;
     endfunction
+   
+       export "DPI-C" function sysmod_aplic_dir_interrupt;
+
+    function void sysmod_aplic_dir_interrupt (longint val[16]);
+      //interrupt_d[hartid].msi = val;
+      $display("Hello aplic");
+    endfunction
+
     export "DPI-C" function sysmod_sw_interrupt;
 
     function void sysmod_tbox_interrupt (int unsigned hartid, int unsigned intr_select,int unsigned intr_value);

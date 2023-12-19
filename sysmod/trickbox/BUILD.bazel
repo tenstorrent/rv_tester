@@ -4,6 +4,7 @@ cc_library(
       "interrupter.cpp",
       "debugger.cpp",
       "imsic_driver.cpp",
+      "aplic_driver.cpp",
       "uc_helper.cpp",
       "trickbox.cpp"
     ],
@@ -12,6 +13,7 @@ cc_library(
       "interrupter.h",
       "debugger.h",
       "imsic_driver.h",
+      "aplic_driver.h",
       "uc_helper.h",
       "trickbox.h"
     ],

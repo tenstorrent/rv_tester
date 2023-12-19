@@ -6,7 +6,8 @@
  DEFINE_int32(intr_delay_min, 3, "Minimum Delay between 2 consecutive interrupts");
  DEFINE_int32(intr_delay_max, 5, "Maximum Delay between 2 consecutive interrupts");
  DEFINE_int32(seed, 1, "Simulation seed passed down for randomization");
- DEFINE_int32(num_wires, 1, "Maximum simultanious interrupts driven in single example");
+ DEFINE_int32(num_interrupts, 10, "Maximum interrupt index driven in single example");
+ DEFINE_int32(max_simul_intr, 1, "Maximum simultanious interrupts driven in single example");
  DEFINE_int32(toggle_prob, 1, "Maximum interrupts toggle probability ");
  DEFINE_int32(tbox_start_delay, 25, "delay after which random interrupts should start");
  DEFINE_string(intr_disable_mask,"0x00","Set bit in hex string to disable random generation of interrupt i.e. +intr_disable_mask=0x01 will disable interrupt corresponding to bit 0 ");
