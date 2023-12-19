@@ -2,15 +2,15 @@
 #include "cvm/logger.hpp"
 #include "aplic_driver.h"
 
- DEFINE_bool(random_intr, false, "Drive random interrups");
- DEFINE_int32(intr_delay_min, 3, "Minimum Delay between 2 consecutive interrupts");
- DEFINE_int32(intr_delay_max, 5, "Maximum Delay between 2 consecutive interrupts");
- DEFINE_int32(seed, 1, "Simulation seed passed down for randomization");
+ //DEFINE_bool(random_intr, false, "Drive random interrups");
+ //DEFINE_int32(intr_delay_min, 3, "Minimum Delay between 2 consecutive interrupts");
+ //DEFINE_int32(intr_delay_max, 5, "Maximum Delay between 2 consecutive interrupts");
+ //DEFINE_int32(seed, 1, "Simulation seed passed down for randomization");
  DEFINE_int32(num_interrupts, 10, "Maximum interrupt index driven in single example");
- DEFINE_int32(max_simul_intr, 1, "Maximum simultanious interrupts driven in single example");
+ //DEFINE_int32(max_simul_intr, 1, "Maximum simultanious interrupts driven in single example");
  DEFINE_int32(toggle_prob, 1, "Maximum interrupts toggle probability ");
- DEFINE_int32(tbox_start_delay, 25, "delay after which random interrupts should start");
- DEFINE_string(intr_disable_mask,"0x00","Set bit in hex string to disable random generation of interrupt i.e. +intr_disable_mask=0x01 will disable interrupt corresponding to bit 0 ");
+ //DEFINE_int32(tbox_start_delay, 25, "delay after which random interrupts should start");
+ //DEFINE_string(intr_disable_mask,"0x00","Set bit in hex string to disable random generation of interrupt i.e. +intr_disable_mask=0x01 will disable interrupt corresponding to bit 0 ");
 
 aplic_driver::aplic_driver(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc)
   : subdevice(tag, addr, 0x4000 /* size */, loc),
@@ -18,8 +18,15 @@ aplic_driver::aplic_driver(const std::string& tag, uint64_t addr, unsigned hartC
 {
   rng.seed(FLAGS_seed);
   aplic_driver_base = addr;
-
+  std::cout<<"\nyyCREATING APLIC DRIVER loc: "<<loc<<" \n";
   reset();
+  std::cout<<"RESETTTING APLIC DRIVER\n";
+
+  //  aplic_pin_values[0] = 1;
+  //  aplic_pin_values[1] = 2;
+  //  aplic_pin_values[2] = 7;
+  //   //aplic_pin_values_vec;
+  // cvm::registry::messenger.signal(loc, aplic_driver_write_t{aplic_pin_values_vec});
   checkUsage();
 }
 

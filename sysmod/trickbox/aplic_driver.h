@@ -29,6 +29,7 @@ DECLARE_int32(max_simul_intr );
 DECLARE_int32(num_interrupts);
 DECLARE_int32(toggle_prob);
 DECLARE_int32(tbox_start_delay);
+DECLARE_int32(seed);
 
 // Define a core local interruptor (aplic_driver) at the given address
 // and for the given hart count. The size will be 48k bytes.
@@ -85,10 +86,18 @@ public:
     timer_ += advance;
     timer_advance = advance;
     cvm::log(cvm::FULL, "[APLIC_DRIVER] Timer tick {} advance interval {} \n", timer_, timer_advance);
+    std::cout<<"\nAPLIC TICK\n";
+    aplic_pin_values_vec.push_back(1);
+    aplic_pin_values_vec.push_back(2);
+    aplic_pin_values_vec.push_back(7);
+    cvm::registry::messenger.signal(loc(), aplic_driver_write_t{aplic_pin_values_vec});
+    std::cout<<"APLIC RSET FUNC DONE\n";
+    cvm::registry::messenger.signal(loc(), aplic_driver_write_t{aplic_pin_values_vec});
     processDelayedRandomInterrupts();
   }
 
   void reset() override {
+    std::cout<<"APLIC RSET FUNC\n";
     if(FLAGS_random_intr){
       cvm::log(cvm::MEDIUM, "[APLIC_DRIVER] Enable random interrupts. Mask: {:#x}\n", FLAGS_random_intr);
       uint32_t rand_num =  (rng() %  2)+1;  //default delay
@@ -106,8 +115,16 @@ public:
     memset(enables,0,16);
     memset(toggle0,0,16);
     memset(toggle1,0,16);
-    memset(aplic_pin_values,0,16);
-    //aplic_pin_values_vec;
+    //memset(aplic_pin_values,0,16); FIXME
+    //for(int i=0;i<16;i++){
+    //  aplic_pin_values_vec[i] = (1<<i);
+    //}
+    //aplic_pin_values[] = {1,2,4,7,8,9,11,12,1,2,2,3,4,5};
+    aplic_pin_values_vec.push_back(1);
+    aplic_pin_values_vec.push_back(2);
+    aplic_pin_values_vec.push_back(7);
+    cvm::registry::messenger.signal(loc(), aplic_driver_write_t{aplic_pin_values_vec});
+    std::cout<<"APLIC RSET FUNC DONE\n";
 
   }
   typedef enum { APLIC_CFG,APLIC_EN,APLIC_T0,APLIC_T1 } aplic_tx_type_e;

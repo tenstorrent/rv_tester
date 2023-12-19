@@ -109,15 +109,19 @@ sysmod::tbox_interrupt(interrupter::interrupt_t i) {
 
 void
 sysmod::aplic_interrupt(aplic_driver::aplic_driver_write_t i) {
+        std::cout<<"PUSHIONG APLIC DRIVER SYSMOD CALLBACK\n";
   cvm::registry::callbacks.push(
       scope(),
       [i]() {
         //cvm::log(cvm::FULL, "[SYSMOD] trickbox::intr.(sel,val) = {:#x}, {:#x}\n", i.intr_select, i.intr_value);
-        unsigned long arr[10];
-        for (int j = 0; j < 10; j++) {
+        unsigned long arr[16];
+        for (int j = 0; j < 16; j++) {
+        std::cout<<"\n ASSIGNING APLIC DRIVER VALUES TO SYSMOD  :"<<std::hex<<i.aplic_pin_values_vec[j]<<"\n";
         arr[j] = i.aplic_pin_values_vec[j];
+        std::cout<<"\n ASSIGNING APLIC DRIVER VALUES TO SYSMOD ARR :"<<std::hex<<arr[j]<<"\n";
         }
         //copy(i.aplic_pin_values_vec.begin(),i.aplic_pin_values_vec.end(),&arr);
+        std::cout<<"CALLING APLIC DRIVER SYSMOD SIGNAL\n";
         sysmod_aplic_dir_interrupt(arr);
       });
 }

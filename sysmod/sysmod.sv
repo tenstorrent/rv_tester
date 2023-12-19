@@ -72,7 +72,10 @@ import rv_tester_params::*;
 
     function void sysmod_aplic_dir_interrupt (longint val[16]);
       //interrupt_d[hartid].msi = val;
-      $display("Hello aplic");
+      $display("\nHello aplic\n");
+      for(int i =0;i<16;i++)begin
+        $display("\n APLIC DATA %h \n",val[i]);
+      end
     endfunction
 
     export "DPI-C" function sysmod_sw_interrupt;
