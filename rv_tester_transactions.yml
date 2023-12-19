@@ -53,7 +53,7 @@ cosim:
             cause:
                 width: 64
             mode:
-                width: 2
+                width: 4
             ixl:
                 width: 2
             rd_addr:
@@ -172,7 +172,7 @@ cosim:
             cause:
                 width: 64
 
-    m_intr:
+    m_core_intr:
         domain: 1
         num: 1
         fields:
@@ -182,8 +182,10 @@ cosim:
                 width: 64
             mip_mask:
                 width: 64
+            mip_assert:
+                width: 64
 
-    m_imsic_intr:
+    m_imsic_msi:
         domain: 1
         num: 1
         fields:
@@ -219,7 +221,6 @@ axi_sw:
     w:
         domain: 2
         num: 1
-        dummy_return: true
         fields:
             data:
                 widths: [${TOP.PLATFORM.AXI.DATA_WIDTH},${TOP.PLATFORM.NCIO_AXI.DATA_WIDTH}]
@@ -230,7 +231,6 @@ axi_sw:
     aw:
         domain: 2
         num: 1
-        dummy_return: true
         fields:
             id:
                 widths: [${TOP.PLATFORM.AXI.ID_WIDTH + clog2(TOP.PLATFORM.AXI.TOTAL) + 1} ,${TOP.PLATFORM.NCIO_AXI.ID_WIDTH}]
@@ -249,7 +249,6 @@ axi_sw:
     ar:
         domain: 2
         num: 1
-        dummy_return: true
         fields:
             id:
                 widths: [${TOP.PLATFORM.AXI.ID_WIDTH + clog2(TOP.PLATFORM.AXI.TOTAL) + 1} ,${TOP.PLATFORM.NCIO_AXI.ID_WIDTH}]
@@ -267,7 +266,6 @@ axi_sw:
     r_q_ptr:
         domain: 2
         num: 1
-        dummy_return: true
         fields:
             r_ptr:
                 widths: [${TOP.PLATFORM.AXI.R_Q_PTR_MAX_LOG2},${TOP.PLATFORM.NCIO_AXI.R_Q_PTR_MAX_LOG2}]
@@ -278,7 +276,6 @@ axi_sw_mst:
     b:
         domain: 2
         num: 1
-        dummy_return: true
         fields:
             id:
                 widths: [${TOP.PLATFORM.AXI_MST.ID_WIDTH}, ${TOP.PLATFORM.AXI_MST2.ID_WIDTH}]
@@ -288,7 +285,6 @@ axi_sw_mst:
     r:
         domain: 2
         num: 1
-        dummy_return: true
         fields:
             id:
                 widths: [${TOP.PLATFORM.AXI_MST.ID_WIDTH}, ${TOP.PLATFORM.AXI_MST2.ID_WIDTH}]
@@ -302,7 +298,6 @@ axi_sw_mst:
     ar_q_ptr:
         domain: 2
         num: 1
-        dummy_return: true
         fields:
             ar_ptr:
                 widths: [${TOP.PLATFORM.AXI_MST.AR_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.AXI_MST.AR_Q_PTR_MAX_LOG2}]
@@ -310,7 +305,6 @@ axi_sw_mst:
     aw_q_ptr:
         domain: 2
         num: 1
-        dummy_return: true
         fields:
             aw_ptr:
                 widths: [${TOP.PLATFORM.AXI_MST.AW_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.AXI_MST.AW_Q_PTR_MAX_LOG2}]
@@ -318,7 +312,6 @@ axi_sw_mst:
     w_q_ptr:
         domain: 2
         num: 1
-        dummy_return: true
         fields:
             w_ptr:
                 widths: [${TOP.PLATFORM.AXI_MST.W_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.AXI_MST.W_Q_PTR_MAX_LOG2}]
@@ -530,3 +523,7 @@ dm_model:
                 width: 4
             data:
                 width: 32
+
+__domains:
+    2:
+        always_block_header: "(* ZEBU_NATIVE_DPI_PROC *)" # this makes DPI imports that have no outputs be scheduled immediately
