@@ -81,6 +81,7 @@ namespace {
         HS = 1,
         M = 3,
         D = 4,
+        DE = 5,
         VU = 8,
         VS = 9,
         VM = 11
@@ -91,6 +92,7 @@ namespace {
         {HS, "HS"},
         {M, "M"},
         {D, "D"},
+        {DE, "DE"},
         {VU, "VU"},
         {VS, "VS"},
         {VM, "M"},
