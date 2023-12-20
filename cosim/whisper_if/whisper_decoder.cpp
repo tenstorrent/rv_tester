@@ -13,6 +13,6 @@ void whisper::initialize() {
 
 std::string whisper::disassemble(const uint32_t opcode) {
   std::string disas;
-  disassembler.disassembleInst(opcode, decoder, disas); 
+  disassembler.disassembleInst(opcode, decoder, disas);
   return disas;
 }

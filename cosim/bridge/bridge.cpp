@@ -32,6 +32,7 @@ DEFINE_string(whisper_json_path, "", "Path to whisper json config");
 DEFINE_bool(cosim_resynch, false, "Resynch whisper with dut state on every instruction");
 DEFINE_string(cosim_resynch_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
 DEFINE_string(cosim_resynch_prev_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
+DEFINE_string(cosim_resynch_csr, "", "List of csr mnemonics to resynch whisper with dut state");
 DEFINE_bool(lrsc_resynch, true, "Resynch whisper with dut state on LRSC fail condition");
 DEFINE_bool(mip_resynch, true, "Resynch whisper with dut state on mip mismatch condition");
 DEFINE_bool(imsic_resynch, true, "Resynch whisper with dut state on imsic mismatch condition");
@@ -238,15 +239,20 @@ void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d)
   if (!csr_cac_.GetStatus(hart)) {
     std::string csr = get_csr_name(csr_cac_.GetResourceStr(hart).substr(2));
     csr_cac_.ResetStatus(hart);
-    if (csr == "mip") {
-      // do nothing
-    } else if (FLAGS_cosim_resynch) {
+    if (FLAGS_cosim_resynch) {
       resynch(hart, d);
     } else {
+      std::stringstream ss(FLAGS_cosim_resynch_csr);
+      std::string token;
+      while (std::getline(ss, token, ',')) {
+          if (token == csr) {
+              return;
+          }
+      }
       for (auto & i : d.instrs)
         print_instr_stdout(hart, i);
       cvm::log(cvm::NONE, "{}", csr_cac_.GetStatusStr(hart));
-      cvm::log(cvm::ERROR, "Error: Hart {}: CSR Mismatch - {}\n", hart, csr);
+      cvm::log(cvm::ERROR, "Error: Hart{}: CSR Write Mismatch - {}\n", hart, csr);
       return;
     }
   }
@@ -658,8 +664,8 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
   }
   // CSR
   for (auto & c : d.csr) {
-    size_8_bytes_t mask = c.csr_wmask & get_csr_mask(hart, c.csr_addr);
     uint64_t data = modify_csr_data(hart, c.csr_addr, c.csr_wdata);
+    size_8_bytes_t mask = modify_csr_mask(hart, c.csr_addr, c.csr_wmask);
 
     if (FLAGS_csr_rd_check)
       update_csr(hart, src_t::dut, c.csr_addr, data, mask);
@@ -966,7 +972,8 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
           csr.csr_wdata);
       }
       resynch_csr_ = true;
-      if (!client_->whisperPoke(hart, d.cycle, 'c', csr.csr_addr, csr.csr_wdata, valid)) {
+      cvm::log(cvm::MEDIUM, "addr {:#x} data {:#x} \n", csr.csr_addr, get_csr(hart, src_t::dut, csr.csr_addr));
+      if (!client_->whisperPoke(hart, d.cycle, 'c', csr.csr_addr, get_csr(hart, src_t::dut, csr.csr_addr), valid)) {
         cvm::log(cvm::ERROR, "Error: Hart {}: Failed to resynch CSRs\n", hart);
         return;
       }
@@ -1267,12 +1274,34 @@ uint64_t bridge::modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data) {
     bool valid;
     uint64_t pmpcfg, mask, reset;
     client_->whisperPeekCsr(hart, addr - 16, pmpcfg, mask, reset, valid);
+    cvm::log(cvm::MEDIUM, "pmpcfg {} condition check {}\n", pmpcfg, ((pmpcfg >> 4) & 0x1));
     if((pmpcfg >> 4) & 0x1) {
       result = data | 0x1ff;
     } else {
       result = data & 0xfffffffffffffc00;
     }
   }
+  return result;
+}
+
+cac::size_8_bytes_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, cac::size_8_bytes_t mask) {
+  cac::size_8_bytes_t result = mask;
+  // pmpaddr
+  // Spec section...
+  if (addr >= 0x3B0 && addr < 0x3C0) {
+    bool valid;
+    uint64_t pmpcfg, mask_iss, reset;
+    client_->whisperPeekCsr(hart, addr - 16, pmpcfg, mask_iss, reset, valid);
+    // cvm::log(cvm::MEDIUM, "pmpcfg {} condition check {}\n", pmpcfg, ((pmpcfg >> 4) & 0x1));
+    if((pmpcfg >> 4) & 0x1) {
+      result = mask | 0x1ff;
+    } else {
+      result = mask | 0x3ff;
+    }
+  } else {
+    result = mask & get_csr_mask(hart, addr);
+  }
+  // cvm::log(cvm::MEDIUM, "mask {:#x} updated-mask {:#x}\n", mask, result);
   return result;
 }
 
