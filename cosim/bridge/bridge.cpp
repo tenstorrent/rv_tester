@@ -33,7 +33,6 @@ DEFINE_bool(cosim_resynch, false, "Resynch whisper with dut state on every instr
 DEFINE_string(cosim_resynch_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
 DEFINE_string(cosim_resynch_prev_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
 DEFINE_string(cosim_resynch_csr, "", "List of csr mnemonics to resynch whisper with dut state");
-DEFINE_bool(lrsc_resynch, true, "Resynch whisper with dut state on LRSC fail condition");
 DEFINE_bool(mip_resynch, true, "Resynch whisper with dut state on mip mismatch condition");
 DEFINE_bool(imsic_resynch, true, "Resynch whisper with dut state on imsic mismatch condition");
 DEFINE_bool(intr_timeout_resynch, true, "Ignore whisper timeout error condition");
@@ -143,6 +142,9 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   // Handle pre-step condition - Interrupts
   process_interrupt_pre_step(hart, d, w);
+
+  // Handle pre-step condition - LR/SC fail
+  process_lrsc_pre_step(hart, d);
 
   // Step whisper
   w_.clear();
@@ -287,6 +289,19 @@ void bridge::process_debug_pre_step(hart_id_t hart, const rv_instr_t& instr, whi
       return;
     }
   return;
+}
+
+void bridge::process_lrsc_pre_step(hart_id_t hart, const rv_instr_t& d) {
+  if ((d.disasm.find("sc.w") != std::string::npos) ||
+      (d.disasm.find("sc.d") != std::string::npos)) {
+    uint64_t fail_code = 1;
+    if (d.gpr.rd_wdata == fail_code) {
+      bool valid;
+      if (!client_->whisperCancelLr(hart, valid)) {
+        cvm::log(cvm::ERROR, "Error: Hart {}: Failed to CancelLr\n", hart);
+      }
+    }
+  }
 }
 
 void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
@@ -823,21 +838,16 @@ bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const std::
     return true;
   }
   // Case #4
-  if (FLAGS_lrsc_resynch && lrsc_fail(d, instr)) {
-    log(cvm::MEDIUM, "<{}> Resynch: Reason=[lrsc_fail]\n", d.cycle);
-    return true;
-  }
-  // Case #5
   if (debug_mem_access(d)) {
     log(cvm::MEDIUM, "<{}> Resynch: Reason=[debug mem access]\n", d.cycle);
     return true;
   }
-  // Case #6
+  // Case #5
   if (boot_read(d)) {
     log(cvm::MEDIUM, "<{}> Resynch: Reason=[boot_read]\n", d.cycle);
     return true;
   }
-  // Case #7
+  // Case #6
   if (FLAGS_mip_resynch && mip_mismatch(instr)) {
     log(cvm::MEDIUM, "<{}> Resynch: Reason=[mip_mismatch]\n", d.cycle);
     return true;
@@ -903,21 +913,6 @@ bool bridge::hpm_counter_read(const std::string& instr) {
       (instr.find("time") != std::string::npos) ||
       (instr.find("cycle") != std::string::npos))
     return true;
-  return false;
-}
-
-bool bridge::lrsc_fail(const rv_instr_t& d, const std::string& instr) {
-  if ((instr.find("sc.w") != std::string::npos) ||
-      (instr.find("sc.d") != std::string::npos)) {
-    uint64_t fail_code = 1;
-    if (d.gpr.rd_wdata == fail_code) {
-      bool valid;
-      if (!client_->whisperCancelLr(id_, valid)) {
-        cvm::log(cvm::ERROR, "Error: Hart {}: Failed to CancelLr\n", id_);
-      }
-      return true;
-    }
-  }
   return false;
 }
 
