@@ -165,7 +165,7 @@ typedef struct rv_instr_s {
   uint64_t tag = 0;
   uint32_t opcode = 0;
   std::string disasm = std::string(128, ' ');
-  uint32_t uop = 0;
+  uint64_t uop = 0;
   bool trap = false;
   uint8_t priv = 3;
   bool intr = false;
