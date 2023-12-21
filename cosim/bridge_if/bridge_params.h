@@ -115,7 +115,7 @@ namespace {
         VM = 11
     } priv;
 
-    const std::unordered_map<priv, std::string_view> to_string = {
+    const std::unordered_map<priv, std::string_view> priv_to_string = {
         {U, "U"},
         {HS, "HS"},
         {M, "M"},
@@ -124,6 +124,66 @@ namespace {
         {VU, "VU"},
         {VS, "VS"},
         {VM, "M"},
+    };
+
+    typedef enum : size_t {
+        INSTR_ADDR_MISALIGNED = 0,
+        INSTR_ACC_FAULT = 1,
+        ILLEGAL_INSTR = 2,
+        BREAKPOINNT = 3,
+        LOAD_ADDR_MISALIGNED = 4,
+        LOAD_ACC_FAULT = 5,
+        STORE_AMO_ADDR_MISALIGNED = 6,
+        STORE_AMO_ACC_FAULT = 7,
+        ECALL_U = 8,
+        ECALL_S = 9,
+        ECALL_M = 11,
+        INSTR_PAGE_FAULT = 12,
+        LOAD_PAGE_FAULT = 13,
+        STORE_AMO_PAGE_FAULT = 15
+    } excp;
+
+    const std::unordered_map<excp, std::string_view> excp_to_string = {
+        {INSTR_ADDR_MISALIGNED, "Instruction Addr Misaligned"},
+        {INSTR_ACC_FAULT, "Instruction Access Fault"},
+        {ILLEGAL_INSTR, "Illegal Instruction"},
+        {BREAKPOINNT, "Breakpoint"},
+        {LOAD_ADDR_MISALIGNED, "Load Addr Misaligned"},
+        {LOAD_ACC_FAULT, "Load Access Fault"},
+        {STORE_AMO_ADDR_MISALIGNED, "Store/AMO Addr Misaligned"},
+        {STORE_AMO_ACC_FAULT, "Store/AMO Access Fault"},
+        {ECALL_U, "Ecall from U Mode"},
+        {ECALL_S, "Ecall from S Mode"},
+        {ECALL_M, "Ecall from M Mode"},
+        {INSTR_PAGE_FAULT, "Instruction Page Fault"},
+        {LOAD_PAGE_FAULT, "Load Page Fault"},
+        {STORE_AMO_PAGE_FAULT, "Store/AMO Page Fault"}
+    };
+
+    typedef enum : size_t {
+        SSI = 1,
+        VSSI = 2,
+        MSI = 3,
+        STI = 5,
+        VSTI = 6,
+        MTI = 7,
+        SEI = 9,
+        VSEI = 10,
+        MEI = 11,
+        SGEI = 12
+    } intr;
+
+    const std::unordered_map<intr, std::string_view> intr_to_string = {
+        {SSI, "SSI"},
+        {VSSI, "VSSI"},
+        {MSI, "MSI"},
+        {STI, "STI"},
+        {VSTI, "VSTI"},
+        {MTI, "MTI"},
+        {SEI, "SEI"},
+        {VSEI, "VSEI"},
+        {MEI, "MEI"},
+        {SGEI, "SGEI"}
     };
 
 }

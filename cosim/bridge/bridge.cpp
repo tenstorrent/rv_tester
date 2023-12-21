@@ -423,13 +423,13 @@ void bridge::process_exception_post_step(hart_id_t hart, const rv_instr_t& d, wh
   
   if (d.excp && !w_.excp && !ecall_ && !FLAGS_cosim_resynch) {
     print_instr_stdout(hart, w);
-    cvm::log(cvm::ERROR, "Error: Hart {}: DUT took exception, Whisper did not. cause:[{}]\n", hart, d.ecause);
+    cvm::log(cvm::ERROR, "Error: Hart {}: DUT took exception, Whisper did not. cause:[{}]\n", hart, excp_to_string.at(static_cast<excp>(d.ecause));
     return;
   }
   
   if (w_.excp && !d.excp && !FLAGS_cosim_resynch) {
     print_instr_stdout(hart, w);
-    cvm::log(cvm::ERROR, "Error: Hart {}: Whisper took exception, DUT did not. cause:[{}]\n", hart, w_.ecause);
+    cvm::log(cvm::ERROR, "Error: Hart {}: Whisper took exception, DUT did not. cause:[{}]\n", hart, excp_to_string.at(static_cast<excp>(w_.ecause));
     return;
   }
 
