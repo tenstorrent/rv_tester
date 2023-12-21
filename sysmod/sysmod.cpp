@@ -270,6 +270,9 @@ sysmod::compose()
         cvm::registry::messenger.connect<interrupter::interrupt_t>(
             loc_,
             [&](interrupter::interrupt_t i) { return this->tbox_interrupt(i); });
+	cvm::registry::messenger.connect<aplic_driver::aplic_driver_write_t>(
+            loc_,
+            [&](aplic_driver::aplic_driver_write_t i) { return this->aplic_interrupt(i); });
         cvm::registry::messenger.connect<debugger::dmi_data_t>(
             loc_,
             [&](debugger::dmi_data_t i) { return this->dmi_write(i); });

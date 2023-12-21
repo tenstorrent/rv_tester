@@ -310,6 +310,23 @@ import rv_tester_params::*;
       );
     end
 `endif
+    
+
+    aplic_monitor #(
+        .NUM(0),
+        `TOPOLOGY_CFG,
+        `RV_TESTER_TRANSACTIONS_APLIC_MONITOR_SOURCE_PARAMS(0)
+    ) i_aplic_monitor(
+        .clk,
+        .reset(sysmod_reset),
+        .terminate,
+        .aplic_pin_input,
+        .msi_axi_req,
+        .axi_req_mst(axi_req_mst[0]),
+        .axi_resp_mst(axi_rsp_mst[0]),
+        .misc_signals,
+        `RV_TESTER_TRANSACTIONS_APLIC_MONITOR_SOURCE_PORTS(1,0,0)
+    );
 
     always_comb begin
         cosim_terminate_any = '0;

@@ -521,6 +521,47 @@ dm_model:
             data:
                 width: 32
 
+aplic_monitor:
+    num: 1
+    msi_req:
+        domain: 1
+        num: 1
+        fields:
+            addr:
+                width: ${TOP.PLATFORM.AXI.ADDR_WIDTH}
+            size:
+                width: 8
+            id:
+                width: ${TOP.PLATFORM.AXI_MST.ID_WIDTH}
+    aplic_mmr_load_cmd:
+        domain: 1
+        num: 1
+        fields:
+            addr:
+                width: ${TOP.PLATFORM.AXI.ADDR_WIDTH}
+            size:
+                width: 8
+            id:
+                width: ${TOP.PLATFORM.AXI_MST.ID_WIDTH}
+    aplic_mmr_load_data:
+        domain: 1
+        num: 1
+        fields:
+            id:
+                width: ${TOP.PLATFORM.AXI_MST.ID_WIDTH}
+            data:
+                width: 512
+    aplic_mmr_store:
+        domain: 1
+        num: 1
+        fields:
+            addr:
+                width: ${TOP.PLATFORM.AXI.ADDR_WIDTH}
+            len:
+                width: 4
+            data:
+                width: 32
+
 __domains:
     2:
         always_block_header: "(* ZEBU_NATIVE_DPI_PROC *)" # this makes DPI imports that have no outputs be scheduled immediately

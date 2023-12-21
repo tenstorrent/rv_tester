@@ -62,6 +62,11 @@ rv_tester: &rv_tester
       type:
         - dm_model
 
+    aplic_mon:
+      count: 1
+      type:
+        - aplic_mon
+
     cosim:
       count: *rv_tester_nharts
       type:

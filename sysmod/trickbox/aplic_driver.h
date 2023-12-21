@@ -24,7 +24,7 @@
 
 DECLARE_int32(intr_delay_min);//, 4, "Minimum Delay between 2 consecutive interrupts");
 DECLARE_int32(intr_delay_max);//, 7, "Maximum Delay between 2 consecutive interrupts");
-DECLARE_bool(random_intr);//, false, "Drive random interrups");
+DECLARE_bool(random_aplic_intr);//, false, "Drive random interrups");
 DECLARE_int32(max_simul_intr );
 DECLARE_int32(num_interrupts);
 DECLARE_int32(toggle_prob);
@@ -86,7 +86,7 @@ public:
     timer_ += advance;
     timer_advance = advance;
     cvm::log(cvm::FULL, "[APLIC_DRIVER] Timer tick {} advance interval {} \n", timer_, timer_advance);
-    std::cout<<"\nAPLIC TICK\n";
+    std::cout<<"\nAPLIC TICK at time "<<timer_<<"\n";
     aplic_pin_values_vec.push_back(1);
     aplic_pin_values_vec.push_back(2);
     aplic_pin_values_vec.push_back(7);
@@ -98,8 +98,8 @@ public:
 
   void reset() override {
     std::cout<<"APLIC RSET FUNC\n";
-    if(FLAGS_random_intr){
-      cvm::log(cvm::MEDIUM, "[APLIC_DRIVER] Enable random interrupts. Mask: {:#x}\n", FLAGS_random_intr);
+    if(FLAGS_random_aplic_intr){
+      cvm::log(cvm::MEDIUM, "[APLIC_DRIVER] Enable random interrupts. Mask: {:#x}\n", FLAGS_random_aplic_intr);
       uint32_t rand_num =  (rng() %  2)+1;  //default delay
       if(FLAGS_intr_delay_min){
          rand_num = (rng() % ( FLAGS_intr_delay_max - FLAGS_intr_delay_min + 1)) + FLAGS_intr_delay_min;
@@ -151,7 +151,7 @@ protected:
   void processDelayedRandomInterrupts()
   {
     //RANDOM INTR
-    if(FLAGS_random_intr){
+    if(FLAGS_random_aplic_intr){
       if(timer_ >= timer_rand_intr){
          //unsigned rand_intr = 0;//1 << rng(5); //select random pin between 0 to 5
          unsigned iter = 1;

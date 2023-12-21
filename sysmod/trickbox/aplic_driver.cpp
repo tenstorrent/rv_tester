@@ -2,7 +2,7 @@
 #include "cvm/logger.hpp"
 #include "aplic_driver.h"
 
- //DEFINE_bool(random_intr, false, "Drive random interrups");
+ DEFINE_bool(random_aplic_intr, true, "Drive random aplic interrups");
  //DEFINE_int32(intr_delay_min, 3, "Minimum Delay between 2 consecutive interrupts");
  //DEFINE_int32(intr_delay_max, 5, "Maximum Delay between 2 consecutive interrupts");
  //DEFINE_int32(seed, 1, "Simulation seed passed down for randomization");
