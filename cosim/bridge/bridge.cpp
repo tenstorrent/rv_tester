@@ -113,7 +113,7 @@ void bridge::reset() {
 void bridge::csr_init() {
   bool valid;
   uint64_t data, mask, poke_mask;
-  for (const auto& csr: csrs) {
+  for (const auto& csr: nonzero_reset_csrs) {
     if (!client_->whisperPeekCsr(id_, csr.address, data, mask, poke_mask, valid)) {
       cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek csr\n", id_);
     }
@@ -1426,7 +1426,7 @@ void bridge::report_metrics() {
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_max_pend_intr_age\": {}}}\n", id_, max_pend_intr_age_);
 
   // Whisper csr values
-  for (auto& csr : csrs) {
+  for (auto& csr : metrics_csrs) {
     uint64_t csr_data;
     bool valid;
     if (!client_->whisperPeek(id_, 'c', csr.address, csr_data, valid)) {
@@ -1436,7 +1436,7 @@ void bridge::report_metrics() {
   }
 
   // DUT csr values
-  for (auto& csr : csrs) {
+  for (auto& csr : metrics_csrs) {
     uint64_t csr_data = get_csr(id_, src_t::dut, csr.address);
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dut_csr_{}\": \"0x{:x}\"}}\n", id_, csr.name, csr_data);
   }
