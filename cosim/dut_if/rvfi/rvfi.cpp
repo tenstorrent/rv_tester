@@ -258,7 +258,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   if (m_rvfi.csr_valid) {
     csr_t c {true, m_rvfi.hart, m_rvfi.cycle, m_rvfi.csr_addr, m_rvfi.csr_wmask, m_rvfi.csr_wdata};
     instr.csr.push_back(c);
-    // Collect ucode csr writes
+    // Accumulate ucode csr writes
     if (!m_rvfi.last_uop) {
       ucode_csrs_.push_back(c);
     }
