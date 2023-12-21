@@ -76,6 +76,34 @@ namespace {
         {"mip", 0x344}
     }};
 
+    std::array<csr_entry, 4> nonzero_reset_csrs {{
+        {"mstatus", 0x300},
+        {"misa", 0x301},
+        {"medeleg", 0x302},
+        {"mideleg", 0x303}
+    }};
+
+    std::array<csr_entry, 18> metrics_csrs {{
+        {"fcsr", 0x003},
+        {"sstatus", 0x100},
+        {"sie", 0x104},
+        {"stvec", 0x105},
+        {"sepc", 0x141},
+        {"scause", 0x142},
+        {"stval", 0x143},
+        {"sip", 0x144},
+        {"mstatus", 0x300},
+        {"misa", 0x301},
+        {"medeleg", 0x302},
+        {"mideleg", 0x303},
+        {"mie", 0x304},
+        {"mtvec", 0x305},
+        {"mepc", 0x341},
+        {"mcause", 0x342},
+        {"mtval", 0x343},
+        {"mip", 0x344}
+    }};
+
     typedef enum : size_t {
         U = 0,
         HS = 1,
