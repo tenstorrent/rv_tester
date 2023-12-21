@@ -523,16 +523,24 @@ dm_model:
 
 aplic_monitor:
     num: 1
+    aplic_intr_req:
+        domain: 1
+        num: 1
+        fields:
+            pin_value:
+                width: 1024
     msi_req:
         domain: 1
         num: 1
         fields:
             addr:
-                width: ${TOP.PLATFORM.AXI.ADDR_WIDTH}
+                width: 32
             size:
                 width: 8
             id:
                 width: ${TOP.PLATFORM.AXI_MST.ID_WIDTH}
+            data:
+                width: 64
     aplic_mmr_load_cmd:
         domain: 1
         num: 1

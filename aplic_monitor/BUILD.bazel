@@ -1,1 +1,1 @@
-exports_files(["aplic_monitor.cpp", "aplic_monitor.h", "aplic_monitor.sv"])
+exports_files(["aplic_monitor.cpp", "aplic_monitor.hpp", "aplic_monitor.sv"])

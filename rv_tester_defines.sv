@@ -44,11 +44,11 @@ package rv_tester_params;
     parameter NCIO_AXI_ID_WIDTH = mods.TOP.PLATFORM.NCIO_AXI.ID_WIDTH;
     //
     //MSI SLAVE
-    parameter MSI_AXI_TOTAL = mods.TOP.PLATFORM.MSI_AXI.TOTAL;
-    parameter MSI_AXI_ADDR_WIDTH = mods.TOP.PLATFORM.MSI_AXI.ADDR_WIDTH;
-    parameter MSI_AXI_DATA_WIDTH = mods.TOP.PLATFORM.MSI_AXI.DATA_WIDTH;
-    parameter MSI_AXI_STRB_WIDTH = mods.TOP.PLATFORM.MSI_AXI.STRB_WIDTH;
-    parameter MSI_AXI_ID_WIDTH = mods.TOP.PLATFORM.MSI_AXI.ID_WIDTH;
+    parameter MSI_AXI_TOTAL = 1;//mods.TOP.PLATFORM.MSI_AXI.TOTAL;
+    parameter MSI_AXI_ADDR_WIDTH = 32;//mods.TOP.PLATFORM.MSI_AXI.ADDR_WIDTH;
+    parameter MSI_AXI_DATA_WIDTH = 64;//mods.TOP.PLATFORM.MSI_AXI.DATA_WIDTH;
+    parameter MSI_AXI_STRB_WIDTH =8;// mods.TOP.PLATFORM.MSI_AXI.STRB_WIDTH;
+    parameter MSI_AXI_ID_WIDTH = 5;//mods.TOP.PLATFORM.MSI_AXI.ID_WIDTH;
     //
     parameter AXI_MST_TOTAL = mods.TOP.PLATFORM.AXI_MST.TOTAL;
     parameter AXI_MST_ADDR_WIDTH = mods.TOP.PLATFORM.AXI_MST.ADDR_WIDTH;
@@ -497,8 +497,8 @@ package rv_tester_params;
     input  rv_tester_params::slv_resp_top    axi_rsp [rv_tester_params::AXI_TOTAL-1:0],             \
     output rv_tester_params::ncio_slv_req_top     ncio_axi_req [rv_tester_params::NCIO_AXI_TOTAL-1:0],             \
     input  rv_tester_params::ncio_slv_resp_top    ncio_axi_rsp [rv_tester_params::NCIO_AXI_TOTAL-1:0],             \
-    output rv_tester_params::msi_slv_req_top     msi_slv_axi_req [rv_tester_params::MSI_AXI_TOTAL-1:0],             \
-    input  rv_tester_params::msi_slv_resp_top    msi_slv_axi_rsp [rv_tester_params::MSI_AXI_TOTAL-1:0],             \
+    output rv_tester_params::msi_slv_req_top     msi_slv_axi_req [1-1:0],             \
+    input  rv_tester_params::msi_slv_resp_top    msi_slv_axi_rsp [1-1:0],             \
     input  rv_tester_params::mst_req_top     axi_req_mst [rv_tester_params::AXI_MST_TOTAL-1:0],     \
     output rv_tester_params::mst_resp_top    axi_rsp_mst [rv_tester_params::AXI_MST_TOTAL-1:0],     \
     input  rv_tester_params::mst2_req_top    axi_req_mst2 [rv_tester_params::AXI_MST2_TOTAL-1:0],   \
@@ -534,8 +534,8 @@ package rv_tester_params;
     rv_tester_params::slv_resp_top           axi_rsp [rv_tester_params::AXI_TOTAL-1:0];             \
     rv_tester_params::ncio_slv_req_top       ncio_axi_req [rv_tester_params::NCIO_AXI_TOTAL-1:0];             \
     rv_tester_params::ncio_slv_resp_top      ncio_axi_rsp [rv_tester_params::NCIO_AXI_TOTAL-1:0];             \
-    rv_tester_params::msi_slv_req_top        msi_slv_axi_req [rv_tester_params::MSI_AXI_TOTAL-1:0];             \
-    rv_tester_params::msi_slv_resp_top       msi_slv_axi_rsp [rv_tester_params::MSI_AXI_TOTAL-1:0];             \
+    rv_tester_params::msi_slv_req_top        msi_slv_axi_req [1-1:0];             \
+    rv_tester_params::msi_slv_resp_top       msi_slv_axi_rsp [1-1:0];             \
     rv_tester_params::mst_req_top            axi_req_mst [rv_tester_params::AXI_MST_TOTAL-1:0];     \
     rv_tester_params::mst_resp_top           axi_rsp_mst [rv_tester_params::AXI_MST_TOTAL-1:0];     \
     rv_tester_params::mst2_req_top           axi_req_mst2  [rv_tester_params::AXI_MST2_TOTAL-1:0];  \

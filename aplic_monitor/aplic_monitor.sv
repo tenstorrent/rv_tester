@@ -15,18 +15,32 @@ module aplic_monitor #(
 );
 
     int unsigned location = cvm_topology::nil;
+    logic[1023:0] aplic_pin_input_prev;
+    logic pin_changed_at_clock_edge;
+    logic reset_done;
 
     always @(posedge clk) begin
+            /* verilator lint_off BLKSEQ */
+        aplic_pin_input_prev = aplic_pin_input;
+            /* verilator lint_on BLKSEQ */
         if (reset) begin
             /* verilator lint_off BLKSEQ */
-            location = cvm_topology::get_location(topology.TOP.PLATFORM.APLIC_MON.ID, 0);
-            // perf_enabled = (cvm_plusargs::get_bool("perf") != '0) & (location != cvm_topology::nil);
+            location = cvm_topology::get_location(topology.TOP.PLATFORM.APLIC_MONITOR.ID, 0);
+            $display("SV: APLIC_MONITOR location %d\n",location);
+            /* verilator lint_on BLKSEQ */
+            /* verilator lint_off BLKSEQ */
+            aplic_pin_input_prev = 1024'h0;
+            /* verilator lint_on BLKSEQ */
+            /* verilator lint_off BLKSEQ */
+            reset_done = 1'b1;
             /* verilator lint_on BLKSEQ */
         end
+
     end
     
+    assign pin_changed_at_clock_edge = ( aplic_pin_input_prev!== aplic_pin_input) ? 1'b1 : 1'b0;
     //APLIC INPUT PINS MONITOR
-    assign aplic_intr_reqs[0].valid = !reset;
+    assign aplic_intr_reqs[0].valid = !reset && pin_changed_at_clock_edge &&(reset_done=== 1'b1);
     assign aplic_intr_reqs[0].data.location = location;
     assign aplic_intr_reqs[0].data.pin_value = aplic_pin_input;
     
@@ -34,14 +48,14 @@ module aplic_monitor #(
     assign aplic_mmr_stores[0].valid = !reset && axi_req_mst.w_valid && axi_req_mst.aw_valid;
     assign aplic_mmr_stores[0].data.location = location;
     assign aplic_mmr_stores[0].data.data = axi_req_mst.w.data[31:0];
-    assign aplic_mmr_stores[0].data.addr = axi_req_mst.aw.addr[11:0];
+    assign aplic_mmr_stores[0].data.addr = axi_req_mst.aw.addr;
     assign aplic_mmr_stores[0].data.len = axi_req_mst.aw.len[3:0];
 
     //APLIC MMR READ CMD MONITOR
     assign aplic_mmr_load_cmds[0].valid = !reset && axi_req_mst.ar_valid;
     assign aplic_mmr_load_cmds[0].data.location = location;
-    assign aplic_mmr_load_cmds[0].data.addr = axi_req_mst.ar.addr[11:0];
-    assign aplic_mmr_load_cmds[0].data.size = axi_req_mst.ar.size; //(2**axi_req_mst.ar.size)/8;
+    assign aplic_mmr_load_cmds[0].data.addr = axi_req_mst.ar.addr;
+    assign aplic_mmr_load_cmds[0].data.size = {5'h0,axi_req_mst.ar.size}; //(2**axi_req_mst.ar.size)/8;
     assign aplic_mmr_load_cmds[0].data.id = axi_req_mst.ar.id;
 
     //APLIC MMR READ DATA MONITOR
@@ -53,8 +67,8 @@ module aplic_monitor #(
     //APLIC MSI MESSAGE MONITOR
     assign msi_reqs[0].valid = !reset && msi_axi_req.w_valid && msi_axi_req.aw_valid;
     assign msi_reqs[0].data.location = location;
-    assign msi_reqs[0].data.data = msi_axi_req.w.data[31:0];
-    assign msi_reqs[0].data.addr = msi_axi_req.aw.addr[11:0];
+    assign msi_reqs[0].data.data = msi_axi_req.w.data;
+    assign msi_reqs[0].data.addr = msi_axi_req.aw.addr;
     //assign msi_reqs[0].data.len = axi_req_mst.aw.len[3:0];
 
 endmodule

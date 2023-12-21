@@ -320,11 +320,11 @@ import rv_tester_params::*;
         .clk,
         .reset(sysmod_reset),
         .terminate,
-        .aplic_pin_input,
-        .msi_axi_req,
+        .aplic_pin_input('0),
+        .msi_axi_req('0),
         .axi_req_mst(axi_req_mst[0]),
         .axi_resp_mst(axi_rsp_mst[0]),
-        .misc_signals,
+        .misc_signals('0),
         `RV_TESTER_TRANSACTIONS_APLIC_MONITOR_SOURCE_PORTS(1,0,0)
     );
 
