@@ -119,6 +119,9 @@ private:
   void peek_mip(hart_id_t hart, uint64_t time, uint64_t& mip);
   void peek_seip(hart_id_t hart, uint64_t time, uint64_t& val);
 
+  bool is_vector(const std::string& instr);
+  bool is_compressed(const std::string& instr);
+  bool is_ucode(const std::string& instr);
   bool is_ecall(const whisper_state_t& w);
   bool does_instr_match_resynch_list(const rv_instr_t& d, const std::string& instr);
   bool does_instr_match_resynch_condition(const rv_instr_t& d, const std::string& instr);

@@ -269,7 +269,7 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
   if (FLAGS_priv_check)
     update_priv(hart, src_t::dut, d.priv);
 
-  if (FLAGS_insn_check && !d.comp && !d.ucode) {
+  if (FLAGS_insn_check && !d.comp && !d.ucode && !is_vector(d.disasm)) {
     update_insn(hart, src_t::dut, d.opcode);
   }
   if (d.gpr.valid || d.fpr.valid || d.vr.valid || !d.csr.empty()) {
@@ -516,8 +516,8 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
   w_.priv = w.priv_mode;
   w_.opcode = w.opcode;
   w_.trap = w.trap;
-  w_.comp = ((w.opcode & 0x3) == 0x1) || ((w.opcode & 0x3) == 0x2);
-  w_.ucode = ((w.opcode & 0x3f) == 0x73) | w.trap; // system opcode
+  w_.comp = is_compressed(w.disasm);
+  w_.ucode = is_ucode(w.disasm) || w.trap; // system opcode
   
   w_.pc.valid = true;
   w_.pc.pc_rdata = w.pc;
@@ -528,7 +528,9 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
   if (FLAGS_priv_check)
     update_priv(hart, src_t::iss, w.priv_mode);
 
-  if (FLAGS_insn_check && !w_.comp && !w_.ucode)
+  // FIXME Instruction byte checking disabled for vectors till we find a way to
+  // differentiate cracked instructions
+  if (FLAGS_insn_check && !w_.comp && !w_.ucode && !is_vector(w.disasm))
     update_insn(hart, src_t::iss, w.opcode);
 
   for (auto i = 0u; i < w.change_count; i++) {
@@ -770,6 +772,26 @@ void bridge::update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_
     .offset = addr
   };
   assert(cac_.UpdateResource(hart, src, rid, std::move(cac::CreateBitVec<size_8_bytes_t>(dword_vec))));
+}
+
+bool bridge::is_vector(const std::string& instr) {
+  if (instr.substr(0,1) == "v")
+    return true;
+  return false;
+}
+
+bool bridge::is_compressed(const std::string& instr) {
+  if (instr.substr(0,2) == "c.")
+    return true;
+  return false;
+}
+
+bool bridge::is_ucode(const std::string& instr) {
+  if ((instr.find("ret") != std::string::npos) ||
+      (instr.find("ecall") != std::string::npos) ||
+      (instr.find("ebreak") != std::string::npos))
+    return true;
+  return false;
 }
 
 bool bridge::is_ecall(const whisper_state_t& w) {
