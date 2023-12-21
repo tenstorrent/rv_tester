@@ -183,7 +183,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
       resynch(hart, d);
     } else {
       std::string instr = cosim_util::get_nth_word(w.disasm, 1);
-      std::string resource = cac_.GetResourceStr(hart) == "PC" ? " :PC" : "";
+      std::string resource = cac_.GetResourceStr(hart);
       if (instr.substr(0,3) == "csr")
         instr = "csr:" + cosim_util::get_nth_word(w.disasm, 3);
       // Resynch whisper with dut state if needed
@@ -195,7 +195,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
       } else {
         print_instr_stdout(hart, w);
         cvm::log(cvm::NONE, "{}", cac_.GetStatusStr(hart));
-        cvm::log(cvm::ERROR, "Error: Hart {}: Core Arch Checker Mismatch{} - {}\n", hart, resource,  instr);
+        cvm::log(cvm::ERROR, "Error: Hart {}: Core Arch Checker Mismatch - {} - {}\n", hart, resource,  instr);
         return;
       }
     }
