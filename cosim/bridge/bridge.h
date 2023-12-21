@@ -104,14 +104,15 @@ private:
   void translation_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   uint64_t translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t memclass);
 
+  void process_lrsc_pre_step(hart_id_t hart, const rv_instr_t& d);
   void process_debug_pre_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
-  void process_timer_sw_interrupt(hart_id_t hart, rv_intr_t& i);
-  void process_external_interrupt(hart_id_t hart, rv_intr_t& i);
   void process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   void process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   void process_exception_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   void process_satp_write_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
 
+  void process_timer_sw_interrupt(hart_id_t hart, rv_intr_t& i);
+  void process_external_interrupt(hart_id_t hart, rv_intr_t& i);
   void check_and_defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
   void check_interrupt(hart_id_t hart, uint64_t mip, bool& taken, uint64_t& cause);
   void defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
@@ -130,7 +131,6 @@ private:
   bool debug_mem_access(const rv_instr_t& d);
   bool htif_read(const rv_instr_t& d);
   bool hpm_counter_read(const std::string& instr);
-  bool lrsc_fail(const rv_instr_t& d, const std::string& instr);
   bool mip_mismatch(const std::string& instr);
   bool imsic_mismatch(const std::string& instr);
   void resynch(hart_id_t hart, const rv_instr_group_t& d);
