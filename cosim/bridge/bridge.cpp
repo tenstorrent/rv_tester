@@ -274,7 +274,7 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
   if (FLAGS_insn_check && !d.comp && !d.ucode && !is_vector(d.disasm)) {
     update_insn(hart, src_t::dut, d.opcode);
   }
-  if (d.gpr.valid || d.fpr.valid || d.vr.valid || !d.csr.empty()) {
+  if (d.gpr.valid || d.fpr.valid || !d.vr.empty() || !d.csr.empty()) {
     update_regs(hart, d);
   }
   if (d.mem_write.valid) {
@@ -577,8 +577,8 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
       update_regs(hart, w);
     }
     if (w.resource == 'v') {
-      w_.vr.valid = true;
-      w_.vr.vrd_addr = w.address;
+      // w_.vr.valid = true;
+      // w_.vr.vrd_addr = w.address;
       // w_.vr.vrd_wdata = w.value;
       update_regs(hart, w, i);
     }
@@ -682,8 +682,12 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
     update_regs(hart, src_t::dut, resource_t::fp_reg, d.fpr.frd_addr, {d.fpr.frd_wdata});
   }
   // VR
-  if (FLAGS_vec_check && d.vr.valid) {
-    update_regs(hart, src_t::dut, resource_t::vec_reg, d.vr.vrd_addr, create_dword_vec(d.vr.vrd_wdata));
+  if (FLAGS_vec_check) {
+    for (auto & vr : d.vr) {
+      if (vr.valid){
+        update_regs(hart, src_t::dut, resource_t::vec_reg, vr.vrd_addr, create_dword_vec(vr.vrd_wdata));
+      }
+    }
   }
   // CSR
   for (auto & c : d.csr) {
@@ -734,7 +738,11 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_
         dword_vec_array [vec_slice_index % vec_slices] = w.value;        
         if ((vec_slice_index % vec_slices) == (vec_slices - 1)){
           update_regs(hart, src_t::iss, resource_t::vec_reg, w.address, std::vector<size_8_bytes_t>(dword_vec_array, dword_vec_array + sizeof(dword_vec_array)/sizeof(dword_vec_array[0])));
-          w_.vr.vrd_wdata = create_bitset(dword_vec_array);
+          vr_t vr;
+          vr.valid = true;
+          vr.vrd_addr = w.address;
+          vr.vrd_wdata = create_bitset(dword_vec_array);
+          w_.vr.push_back(vr);
         }
       }
       break;
