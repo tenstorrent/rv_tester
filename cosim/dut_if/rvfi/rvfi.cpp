@@ -258,6 +258,12 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
       ucode_vrs_.push_back(vr);
     }
   }
+  // Temporarily store microcoded gpr for vsetvl instruction 
+  if (instr.gpr.valid && !m_rvfi.last_uop){
+    temp_gpr.valid = (m_rvfi.rd_addr != 0);
+    temp_gpr.rd_addr = m_rvfi.rd_addr;
+    temp_gpr.rd_wdata = m_rvfi.rd_wdata;
+  }
 
   if (m_rvfi.last_uop && !ucode_vrs_.empty()) {
     // Send ucode vr writes and priv mode with last uop of ucode instruction/routine
@@ -267,6 +273,14 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
     ucode_vrs_.clear();
   }
 
+  if (m_rvfi.last_uop && instr.ucode){
+    // GPR
+    instr.gpr.valid = temp_gpr.valid;
+    instr.gpr.rd_addr = temp_gpr.rd_addr;
+    instr.gpr.rd_wdata = temp_gpr.rd_wdata;
+    temp_gpr.valid = false;
+  }
+  
   // CSR
   if (m_rvfi.csr_valid) {
     csr_t c {true, m_rvfi.hart, m_rvfi.cycle, m_rvfi.csr_addr, m_rvfi.csr_wmask, m_rvfi.csr_wdata};

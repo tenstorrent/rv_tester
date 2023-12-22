@@ -56,6 +56,12 @@ typedef struct gpr_s {
     clear();
   }
 
+  constexpr gpr_s(bool valid, uint32_t rd_addr, uint64_t rd_wdata) :
+    valid(valid),
+    rd_addr(rd_addr),
+    rd_wdata(rd_wdata)
+  {}
+
   void clear() {
     valid = false;
   }

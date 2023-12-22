@@ -90,6 +90,7 @@ class rvfi {
     std::vector<rv_instr_t> instrs_;
     std::vector<vr_t> ucode_vrs_;
     std::vector<csr_t> hw_csrs_, ucode_csrs_;
+    gpr_s temp_gpr;
 
     svScope scope_;
 
