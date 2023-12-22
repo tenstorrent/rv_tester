@@ -127,37 +127,37 @@ namespace {
     };
 
     typedef enum : size_t {
-        INSTR_ADDR_MISALIGNED = 0,
-        INSTR_ACC_FAULT = 1,
-        ILLEGAL_INSTR = 2,
-        BREAKPOINNT = 3,
-        LOAD_ADDR_MISALIGNED = 4,
-        LOAD_ACC_FAULT = 5,
-        STORE_AMO_ADDR_MISALIGNED = 6,
-        STORE_AMO_ACC_FAULT = 7,
+        INSN_ADDR_MISALGN = 0,
+        INSN_ACCESS_FAULT = 1,
+        ILLEGAL_INSN = 2,
+        BREAKPOINT = 3,
+        LD_ADDR_MISALGN = 4,
+        LD_ACCESS_FAULT = 5,
+        ST_AMO_ADDR_MISALGN = 6,
+        ST_AMO_ACCESS_FAULT = 7,
         ECALL_U = 8,
         ECALL_S = 9,
         ECALL_M = 11,
-        INSTR_PAGE_FAULT = 12,
-        LOAD_PAGE_FAULT = 13,
-        STORE_AMO_PAGE_FAULT = 15
+        INSN_PAGE_FAULT = 12,
+        LD_PAGE_FAULT = 13,
+        ST_AMO_PAGE_FAULT = 15
     } excp;
 
     const std::unordered_map<excp, std::string_view> excp_to_string = {
-        {INSTR_ADDR_MISALIGNED, "Instruction Addr Misaligned"},
-        {INSTR_ACC_FAULT, "Instruction Access Fault"},
-        {ILLEGAL_INSTR, "Illegal Instruction"},
-        {BREAKPOINNT, "Breakpoint"},
-        {LOAD_ADDR_MISALIGNED, "Load Addr Misaligned"},
-        {LOAD_ACC_FAULT, "Load Access Fault"},
-        {STORE_AMO_ADDR_MISALIGNED, "Store/AMO Addr Misaligned"},
-        {STORE_AMO_ACC_FAULT, "Store/AMO Access Fault"},
-        {ECALL_U, "Ecall from U Mode"},
-        {ECALL_S, "Ecall from S Mode"},
-        {ECALL_M, "Ecall from M Mode"},
-        {INSTR_PAGE_FAULT, "Instruction Page Fault"},
-        {LOAD_PAGE_FAULT, "Load Page Fault"},
-        {STORE_AMO_PAGE_FAULT, "Store/AMO Page Fault"}
+        {INSN_ADDR_MISALGN, "INSN_ADDR_MISALGN"},
+        {INSN_ACCESS_FAULT, "INSN_ACCESS_FAULT"},
+        {ILLEGAL_INSN, "ILLEGAL_INSN"},
+        {BREAKPOINT, "BREAKPOINT"},
+        {LD_ADDR_MISALGN, "LD_ADDR_MISALGN"},
+        {LD_ACCESS_FAULT, "LD_ACCESS_FAULT"},
+        {ST_AMO_ADDR_MISALGN, "ST_AMO_ADDR_MISALGN"},
+        {ST_AMO_ACCESS_FAULT, "ST_AMO_ACCESS_FAULT"},
+        {ECALL_U, "ECALL_U"},
+        {ECALL_S, "ECALL_S"},
+        {ECALL_M, "ECALL_M"},
+        {INSN_PAGE_FAULT, "INSN_PAGE_FAULT"},
+        {LD_PAGE_FAULT, "LD_PAGE_FAULT"},
+        {ST_AMO_PAGE_FAULT, "ST_AMO_PAGE_FAULT"}
     };
 
     typedef enum : size_t {
