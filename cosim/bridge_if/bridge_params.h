@@ -115,7 +115,7 @@ namespace {
         VM = 11
     } priv;
 
-    const std::unordered_map<priv, std::string_view> to_string = {
+    const std::unordered_map<priv, std::string_view> priv_to_string = {
         {U, "U"},
         {HS, "HS"},
         {M, "M"},
@@ -124,6 +124,66 @@ namespace {
         {VU, "VU"},
         {VS, "VS"},
         {VM, "M"},
+    };
+
+    typedef enum : size_t {
+        INSN_ADDR_MISALGN = 0,
+        INSN_ACCESS_FAULT = 1,
+        ILLEGAL_INSN = 2,
+        BREAKPOINT = 3,
+        LD_ADDR_MISALGN = 4,
+        LD_ACCESS_FAULT = 5,
+        ST_AMO_ADDR_MISALGN = 6,
+        ST_AMO_ACCESS_FAULT = 7,
+        ECALL_U = 8,
+        ECALL_S = 9,
+        ECALL_M = 11,
+        INSN_PAGE_FAULT = 12,
+        LD_PAGE_FAULT = 13,
+        ST_AMO_PAGE_FAULT = 15
+    } excp;
+
+    const std::unordered_map<excp, std::string_view> excp_to_string = {
+        {INSN_ADDR_MISALGN, "INSN_ADDR_MISALGN"},
+        {INSN_ACCESS_FAULT, "INSN_ACCESS_FAULT"},
+        {ILLEGAL_INSN, "ILLEGAL_INSN"},
+        {BREAKPOINT, "BREAKPOINT"},
+        {LD_ADDR_MISALGN, "LD_ADDR_MISALGN"},
+        {LD_ACCESS_FAULT, "LD_ACCESS_FAULT"},
+        {ST_AMO_ADDR_MISALGN, "ST_AMO_ADDR_MISALGN"},
+        {ST_AMO_ACCESS_FAULT, "ST_AMO_ACCESS_FAULT"},
+        {ECALL_U, "ECALL_U"},
+        {ECALL_S, "ECALL_S"},
+        {ECALL_M, "ECALL_M"},
+        {INSN_PAGE_FAULT, "INSN_PAGE_FAULT"},
+        {LD_PAGE_FAULT, "LD_PAGE_FAULT"},
+        {ST_AMO_PAGE_FAULT, "ST_AMO_PAGE_FAULT"}
+    };
+
+    typedef enum : size_t {
+        SSI = 1,
+        VSSI = 2,
+        MSI = 3,
+        STI = 5,
+        VSTI = 6,
+        MTI = 7,
+        SEI = 9,
+        VSEI = 10,
+        MEI = 11,
+        SGEI = 12
+    } intr;
+
+    const std::unordered_map<intr, std::string_view> intr_to_string = {
+        {SSI, "SSI"},
+        {VSSI, "VSSI"},
+        {MSI, "MSI"},
+        {STI, "STI"},
+        {VSTI, "VSTI"},
+        {MTI, "MTI"},
+        {SEI, "SEI"},
+        {VSEI, "VSEI"},
+        {MEI, "MEI"},
+        {SGEI, "SGEI"}
     };
 
 }
