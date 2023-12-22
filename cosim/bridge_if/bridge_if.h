@@ -81,7 +81,7 @@ typedef struct fpr_s {
     valid = false;
   }
 } fpr_t;
-
+ 
 typedef struct vr_s {
   bool valid;
   uint32_t vrd_addr;
@@ -178,6 +178,7 @@ typedef struct rv_instr_s {
   uint32_t opcode = 0;
   std::string disasm = std::string(128, ' ');
   uint64_t uop = 0;
+  bool vec_cracked = false;
   bool trap = false;
   uint8_t priv = 3;
   bool intr = false;

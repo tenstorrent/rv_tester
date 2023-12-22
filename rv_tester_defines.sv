@@ -246,6 +246,7 @@ package rv_tester_params;
         logic                       halt     ;
         logic                       intr     ;
         logic [4-1:0]               mode     ;
+        logic                       vec_cracked;
         logic [2-1:0]               ixl      ;
         logic [5-1:0]               rd_addr  ;
         logic [XLEN-1:0]            rd_wdata ;
