@@ -85,6 +85,12 @@ typedef struct vr_s {
     clear();
   }
 
+  constexpr vr_s(bool valid, uint32_t vrd_addr, std::bitset<256> vrd_wdata) :
+    valid(valid),
+    vrd_addr(vrd_addr),
+    vrd_wdata(vrd_wdata)
+  {}
+
   void clear() {
     valid = false;
   }
@@ -179,7 +185,7 @@ typedef struct rv_instr_s {
   pc_t pc;
   gpr_t gpr;
   fpr_t fpr;
-  vr_t vr;
+  std::vector<vr_t> vr;
   std::vector<csr_t> csr;
 
   // Memory

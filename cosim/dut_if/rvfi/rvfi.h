@@ -88,6 +88,7 @@ class rvfi {
     bool ucode_priv_change_ = false;
 
     std::vector<rv_instr_t> instrs_;
+    std::vector<vr_t> ucode_vrs_;
     std::vector<csr_t> hw_csrs_, ucode_csrs_;
 
     svScope scope_;

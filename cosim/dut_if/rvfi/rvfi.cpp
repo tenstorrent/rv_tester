@@ -250,9 +250,22 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.fpr.frd_wdata = m_rvfi.frd_wdata;
 
   // VR
-  instr.vr.valid = m_rvfi.vrd_valid;
-  instr.vr.vrd_addr = m_rvfi.vrd_addr;
-  instr.vr.vrd_wdata = m_rvfi.vrd_wdata;
+  if (m_rvfi.vrd_valid) {
+    vr_t vr {true, m_rvfi.vrd_addr, m_rvfi.vrd_wdata};
+    instr.vr.push_back(vr);
+    // Collect ucode vr writes
+    if (!m_rvfi.last_uop) {
+      ucode_vrs_.push_back(vr);
+    }
+  }
+
+  if (m_rvfi.last_uop && !ucode_vrs_.empty()) {
+    // Send ucode vr writes and priv mode with last uop of ucode instruction/routine
+    for (auto& c : ucode_vrs_) {
+      instr.vr.push_back(c);
+    }
+    ucode_vrs_.clear();
+  }
 
   // CSR
   if (m_rvfi.csr_valid) {
@@ -326,9 +339,9 @@ void rvfi::print_instr(rv_instr_t& instr) {
     return;
   }
 
-  int resource_count = instr.gpr.valid + instr.fpr.valid + instr.vr.valid + instr.mem_write.valid;
+  int resource_count = instr.gpr.valid + instr.fpr.valid + instr.mem_write.valid;
   if (!instr.ucode || !instr.last_uop)
-    resource_count += instr.csr.size();
+    resource_count += instr.csr.size() + instr.vr.size();
 
   // Print r0 = 0 if nothing modified
   if (!resource_count) {
@@ -343,14 +356,16 @@ void rvfi::print_instr(rv_instr_t& instr) {
   if (instr.fpr.valid)
     print_instr_resource(instr, fmt::format(" f {:016x} {:016x}", instr.fpr.frd_addr, instr.fpr.frd_wdata));
 
-  if (instr.vr.valid){
+  for (auto& vr : instr.vr){
+    if (vr.valid) {
     uint64_t chunks[4] = {0};
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 64; ++j) {
-            chunks[i] |= static_cast<uint64_t>(instr.vr.vrd_wdata[i * 64 + j]) << j;
+            chunks[i] |= static_cast<uint64_t>(vr.vrd_wdata[i * 64 + j]) << j;
         }
     }
-    print_instr_resource(instr, fmt::format(" v {:002x} {:016x}{:016x}{:016x}{:016x}", instr.vr.vrd_addr, chunks[3], chunks[2], chunks[1], chunks[0]));
+    print_instr_resource(instr, fmt::format(" v {:002x} {:016x}{:016x}{:016x}{:016x}", vr.vrd_addr, chunks[3], chunks[2], chunks[1], chunks[0]));
+    }
   }
 
   if (instr.mem_write.valid)
