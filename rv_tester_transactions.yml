@@ -54,6 +54,8 @@ cosim:
                 width: 64
             mode:
                 width: 4
+            vec_cracked:
+                width: 1
             ixl:
                 width: 2
             rd_addr:

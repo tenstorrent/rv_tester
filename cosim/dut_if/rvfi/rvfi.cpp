@@ -193,6 +193,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.opcode = m_rvfi.insn;
   instr.disasm = whisper::disassemble(m_rvfi.insn);
   instr.uop = m_rvfi.uop;
+  instr.vec_cracked = m_rvfi.vec_cracked;
   instr.trap = m_rvfi.trap || intr_ || excp_;
   instr.intr = intr_;
   instr.excp = excp_;
@@ -259,7 +260,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
     }
   }
   // Temporarily store microcoded gpr for vsetvl instruction 
-  if (instr.gpr.valid && !m_rvfi.last_uop){
+  if (instr.gpr.valid && instr.vec_cracked){
     temp_gpr.valid = (m_rvfi.rd_addr != 0);
     temp_gpr.rd_addr = m_rvfi.rd_addr;
     temp_gpr.rd_wdata = m_rvfi.rd_wdata;
