@@ -421,7 +421,9 @@ void bridge::process_exception_post_step(hart_id_t hart, const rv_instr_t& d, wh
     excp_in_debug_mode = false;
   }
   
-  if (d.excp && !w_.excp && !ecall_ && !FLAGS_cosim_resynch) {
+  log(cvm::MEDIUM, "<{}> Exception detected. dut:[{}, {}] whisper:[{}, {}]\n", w.time, d.excp, d.ecause, w_.excp, w_.ecause);
+
+  if (d.excp && !w_.excp && !FLAGS_cosim_resynch) {
     print_instr_stdout(hart, w);
     cvm::log(cvm::ERROR, "Error: Hart {}: DUT took exception, Whisper did not. Cause: {}\n", hart, excp_to_string.at(static_cast<excp>(d.ecause)));
     return;
@@ -437,39 +439,6 @@ void bridge::process_exception_post_step(hart_id_t hart, const rv_instr_t& d, wh
     print_instr_stdout(hart, w);
     cvm::log(cvm::ERROR, "Error: Hart {}: DUT vs Whisper exception cause mismatch. Dut: {}, Whisper: {}\n", hart, excp_to_string.at(static_cast<excp>(d.ecause)), excp_to_string.at(static_cast<excp>(w_.ecause)));
     return;
-  }
-
-  // Special case - ecall - No extra step
-  if (is_ecall(w)) {
-    ecall_ = true;
-    return;
-  } else {
-    ecall_ = false;
-  }
-
-  // If resynch, poke CSR values to whisper/
-  if (FLAGS_cosim_resynch) {
-    for (auto& c : w_.csr) {
-      if (FLAGS_bridge_log) {
-        log(cvm::HIGH, "<{}> Whisper Step #{}: Resynch: C{:#x}={:#x}\n", d.cycle, step_,
-          c.csr_addr, c.csr_wdata);
-      }
-      bool valid;
-      if (!client_->whisperPoke(hart, d.cycle, 'c', c.csr_addr, c.csr_wdata, valid)) {
-        cvm::log(cvm::ERROR, "Error: Hart {}: Failed to resynch CSR values\n", hart);
-        return;
-      }
-    }
-  }
-
-  // Print exception info
-  if (FLAGS_bridge_log) {
-    print_instr(hart, w);
-    log(cvm::MEDIUM, "<{}> Exception detected. csrs:[", w.time);
-    for (auto& c : w_.csr) {
-      log(cvm::MEDIUM, "{:#x}={:#x},", c.csr_addr, c.csr_wdata);
-    }
-    log(cvm::MEDIUM, "]\n");
   }
 
   // If DUT indicates retire on ucode trap handler, extra step not needed
@@ -820,18 +789,6 @@ bool bridge::is_ucode(const std::string& instr) {
       (instr.find("ecall") != std::string::npos) ||
       (instr.find("ebreak") != std::string::npos))
     return true;
-  return false;
-}
-
-bool bridge::is_ecall(const whisper_state_t& w) {
-  if (w.disasm.find("ecall") != std::string::npos)
-    return true;
-
-  // FIXME Temp workaround to detect ecall
-  for (auto& c : w_.csr) {
-    if (c.csr_addr == 0x342 && c.csr_wdata == 0x9)
-      return true;
-  }
   return false;
 }
 
