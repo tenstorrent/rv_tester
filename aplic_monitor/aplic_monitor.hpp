@@ -11,6 +11,7 @@
 #include "cvm/logger.hpp"
 #include "cvm/topology.hpp"
 #include "rv_tester_transactions.hpp"
+#include "Aplic.hpp"
 
 
 #define max_hartid 1 // Define the maximum number of harts in the system
@@ -42,6 +43,13 @@ public:
 private:
   // cvm::file_logger log;
   void reset();
+  unsigned hartCount = 2;
+  unsigned interruptCount = 33;
+  unsigned domainCount = 4;
+
+  uint64_t addr = 0x1000000;
+  uint64_t stride = 32*1024;
+  
 };
 
 #endif

@@ -9,6 +9,7 @@
 #include "mem/sysmod_mem.h"
 #include "clint/clint.h"
 #include "dm/dm.h"
+#include "aplic_mmr/aplic_mmr.h"
 #include "io_dev/io_dev.h"
 #include "null_dev/null_dev.h"
 #include "htif/htif.h"
@@ -255,6 +256,11 @@ sysmod::compose()
         // TODO: cvm::ERROR
         assert(masters.size() > 0);
         device = new dm(tag, base, size, loc_, masters[0]);
+      }
+      else if (type == "aplic_mmr") {
+        // TODO: cvm::ERROR
+        assert(masters.size() > 0);
+        device = new aplic_mmr(tag, base, size, loc_, masters[0]);
       }
       else if (type == "clint") {
         device = new clint(tag, base, nharts, loc_);

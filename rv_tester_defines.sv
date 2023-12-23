@@ -476,7 +476,7 @@ package rv_tester_params;
     input                                    terminate,                                             \
     input  logic                             terminated,                                            \
     output                                   quiesced,                                              \
-                                                                                                    \
+    input  rv_tester_pkg::aplic_interrupt_t  aplic_interrupt,                                       \                                                         
     input  rv_tester_pkg::dm_write_t         dmi_write,                                             \
     output                                   dmi_req_ready,                                         \
     output                                   dmi_resp_valid,                                        \
@@ -513,6 +513,7 @@ package rv_tester_params;
     rv_tester_pkg::interrupt_t               interrupt_pend  [rv_tester_params::NHARTS-1:0];        \
     logic                                    debug_mode      [rv_tester_params::NHARTS-1:0];        \
     logic                                    terminate;                                             \
+    rv_tester_pkg::aplic_interrupt_t         aplic_interrupt;                                       \                                                         
     logic                                    terminated;                                            \
     logic                                    quiesced;                                              \
     rv_tester_pkg::dm_write_t                dmi_write;                                             \

@@ -114,6 +114,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             "@rv_tester//common:common",
             "@cvm//:plusargs",
             "@cvm//:registry",
+            "@Aplic//:Aplic",
             name + "_transactions_cc",
             name + "_sysmod_dpi",
             name + "_pmu_dpi",

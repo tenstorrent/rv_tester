@@ -6,6 +6,10 @@ local_repository(
     name = "bzsim",
     path = "infra/bzsim_clone",
 )
+local_repository(
+    name = "Aplic",
+    path = "Aplic",
+)
 
 load("@bzsim//:repositories.bzl", "bzsim_dependencies")
 bzsim_dependencies()

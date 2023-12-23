@@ -19,6 +19,7 @@ def aplic_monitor_gen(name, packet, topology, harness, visibility = None, cc_att
 		"@cvm//:logger",
 		"@cvm//:registry",
 		"@cvm//:bitmanip",
+		"@Aplic//:Aplic",
 		],
 		alwayslink = True,
 		visibility = visibility,

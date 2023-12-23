@@ -28,7 +28,7 @@ aplic_monitor::aplic_monitor(cvm::topology::loc_t loc, unsigned)
                                                                                { return this->process(v); });
 
  
-
+  TT_APLIC::Aplic aplic(addr, stride, hartCount, domainCount, interruptCount);
   reset();
 }
 
