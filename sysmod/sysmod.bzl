@@ -38,6 +38,7 @@ def sysmod_gen(name, packet, topology, visibility = None, cc_attrs = {}, **kwarg
           "@rv_tester//sysmod/aplic_mmr:aplic_mmr",
           "@rv_tester//sysmod/io_dev:io_dev",
           "@rv_tester//sysmod/null_dev:null_dev",
+          "@rv_tester//sysmod/heartbeat:heartbeat",
           "@cvm//:plusargs",
           "@cvm//:topology",
           "@cvm//:registry",

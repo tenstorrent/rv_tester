@@ -193,6 +193,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.opcode = m_rvfi.insn;
   instr.disasm = whisper::disassemble(m_rvfi.insn);
   instr.uop = m_rvfi.uop;
+  instr.vec_cracked = m_rvfi.vec_cracked;
   instr.trap = m_rvfi.trap || intr_ || excp_;
   instr.intr = intr_;
   instr.excp = excp_;
@@ -228,7 +229,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
       ucode_priv_change_ = false;
     }
     priv_ = m_rvfi.mode;
-    if (!to_string.count(static_cast<priv>(instr.priv)))
+    if (!priv_to_string.count(static_cast<priv>(instr.priv)))
       cvm::log(cvm::ERROR, "Error: Invalid rvfi privilege mode: {:#x}\n", instr.priv);
   }
   if ((instr.priv & 0x3) == 0x3) { // Ignore V bit if M mode
@@ -250,15 +251,42 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.fpr.frd_wdata = m_rvfi.frd_wdata;
 
   // VR
-  instr.vr.valid = m_rvfi.vrd_valid;
-  instr.vr.vrd_addr = m_rvfi.vrd_addr;
-  instr.vr.vrd_wdata = m_rvfi.vrd_wdata;
+  if (m_rvfi.vrd_valid) {
+    vr_t vr {true, m_rvfi.vrd_addr, m_rvfi.vrd_wdata};
+    instr.vr.push_back(vr);
+    // Collect ucode vr writes
+    if (!m_rvfi.last_uop) {
+      ucode_vrs_.push_back(vr);
+    }
+  }
+  // Temporarily store microcoded gpr for vsetvl instruction 
+  if (instr.gpr.valid && instr.vec_cracked){
+    temp_gpr.valid = (m_rvfi.rd_addr != 0);
+    temp_gpr.rd_addr = m_rvfi.rd_addr;
+    temp_gpr.rd_wdata = m_rvfi.rd_wdata;
+  }
 
+  if (m_rvfi.last_uop && !ucode_vrs_.empty()) {
+    // Send ucode vr writes and priv mode with last uop of ucode instruction/routine
+    for (auto& c : ucode_vrs_) {
+      instr.vr.push_back(c);
+    }
+    ucode_vrs_.clear();
+  }
+
+  if (m_rvfi.last_uop && instr.ucode){
+    // GPR
+    instr.gpr.valid = temp_gpr.valid;
+    instr.gpr.rd_addr = temp_gpr.rd_addr;
+    instr.gpr.rd_wdata = temp_gpr.rd_wdata;
+    temp_gpr.valid = false;
+  }
+  
   // CSR
   if (m_rvfi.csr_valid) {
     csr_t c {true, m_rvfi.hart, m_rvfi.cycle, m_rvfi.csr_addr, m_rvfi.csr_wmask, m_rvfi.csr_wdata};
     instr.csr.push_back(c);
-    // Collect ucode csr writes
+    // Accumulate ucode csr writes
     if (!m_rvfi.last_uop) {
       ucode_csrs_.push_back(c);
     }
@@ -318,7 +346,7 @@ std::tuple<uint64_t, uint64_t, uint8_t> rvfi::get_mem_attributes(uint64_t addr, 
 }
 
 void rvfi::print_csr(csr_t& csr) {
-  log(cvm::NONE, "#{} {} {} {} {:016x} {:09x} c {:016x} {:016x} {:016x} (hw update)\n", count_, csr.cycle, csr.hart, to_string.at(static_cast<priv>(priv_)), 0, 0, csr.csr_addr, csr.csr_wdata, csr.csr_wmask);
+  log(cvm::NONE, "#NA {} {} {} {:016x} {:09x} c {:016x} {:016x} {:016x} (non-zicsr update)\n", csr.cycle, csr.hart, priv_to_string.at(static_cast<priv>(priv_)), 0, 0, csr.csr_addr, csr.csr_wdata, csr.csr_wmask);
 }
 
 void rvfi::print_instr(rv_instr_t& instr) {
@@ -326,9 +354,9 @@ void rvfi::print_instr(rv_instr_t& instr) {
     return;
   }
 
-  int resource_count = instr.gpr.valid + instr.fpr.valid + instr.vr.valid + instr.mem_write.valid;
+  int resource_count = instr.gpr.valid + instr.fpr.valid + instr.mem_write.valid;
   if (!instr.ucode || !instr.last_uop)
-    resource_count += instr.csr.size();
+    resource_count += instr.csr.size() + instr.vr.size();
 
   // Print r0 = 0 if nothing modified
   if (!resource_count) {
@@ -343,14 +371,16 @@ void rvfi::print_instr(rv_instr_t& instr) {
   if (instr.fpr.valid)
     print_instr_resource(instr, fmt::format(" f {:016x} {:016x}", instr.fpr.frd_addr, instr.fpr.frd_wdata));
 
-  if (instr.vr.valid){
+  for (auto& vr : instr.vr){
+    if (vr.valid) {
     uint64_t chunks[4] = {0};
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 64; ++j) {
-            chunks[i] |= static_cast<uint64_t>(instr.vr.vrd_wdata[i * 64 + j]) << j;
+            chunks[i] |= static_cast<uint64_t>(vr.vrd_wdata[i * 64 + j]) << j;
         }
     }
-    print_instr_resource(instr, fmt::format(" v {:002x} {:016x}{:016x}{:016x}{:016x}", instr.vr.vrd_addr, chunks[3], chunks[2], chunks[1], chunks[0]));
+    print_instr_resource(instr, fmt::format(" v {:002x} {:016x}{:016x}{:016x}{:016x}", vr.vrd_addr, chunks[3], chunks[2], chunks[1], chunks[0]));
+    }
   }
 
   if (instr.mem_write.valid)
@@ -362,7 +392,7 @@ void rvfi::print_instr(rv_instr_t& instr) {
 }
 
 void rvfi::print_instr_resource(rv_instr_t& instr, std::string resource_str) {
-  log(cvm::NONE, "#{} {} {} {} {:016x}", instr.id, instr.cycle, instr.hart, to_string.at(static_cast<priv>(instr.priv)),
+  log(cvm::NONE, "#{} {} {} {} {:016x}", instr.id, instr.cycle, instr.hart, priv_to_string.at(static_cast<priv>(instr.priv)),
      instr.pc.pc_rdata);
 
   if (FLAGS_rvfi_log_36b_uop)

@@ -32,7 +32,7 @@ DEFINE_string(whisper_json_path, "", "Path to whisper json config");
 DEFINE_bool(cosim_resynch, false, "Resynch whisper with dut state on every instruction");
 DEFINE_string(cosim_resynch_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
 DEFINE_string(cosim_resynch_prev_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
-DEFINE_bool(lrsc_resynch, true, "Resynch whisper with dut state on LRSC fail condition");
+DEFINE_string(cosim_resynch_csr, "", "List of csr mnemonics to resynch whisper with dut state");
 DEFINE_bool(mip_resynch, true, "Resynch whisper with dut state on mip mismatch condition");
 DEFINE_bool(imsic_resynch, true, "Resynch whisper with dut state on imsic mismatch condition");
 DEFINE_bool(intr_timeout_resynch, true, "Ignore whisper timeout error condition");
@@ -112,7 +112,7 @@ void bridge::reset() {
 void bridge::csr_init() {
   bool valid;
   uint64_t data, mask, poke_mask;
-  for (const auto& csr: csrs) {
+  for (const auto& csr: nonzero_reset_csrs) {
     if (!client_->whisperPeekCsr(id_, csr.address, data, mask, poke_mask, valid)) {
       cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek csr\n", id_);
     }
@@ -142,6 +142,9 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   // Handle pre-step condition - Interrupts
   process_interrupt_pre_step(hart, d, w);
+
+  // Handle pre-step condition - LR/SC fail
+  process_lrsc_pre_step(hart, d);
 
   // Step whisper
   w_.clear();
@@ -182,7 +185,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
       resynch(hart, d);
     } else {
       std::string instr = cosim_util::get_nth_word(w.disasm, 1);
-      std::string resource = cac_.GetResourceStr(hart) == "PC" ? " :PC" : "";
+      std::string resource = cac_.GetResourceStr(hart);
       if (instr.substr(0,3) == "csr")
         instr = "csr:" + cosim_util::get_nth_word(w.disasm, 3);
       // Resynch whisper with dut state if needed
@@ -194,7 +197,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
       } else {
         print_instr_stdout(hart, w);
         cvm::log(cvm::NONE, "{}", cac_.GetStatusStr(hart));
-        cvm::log(cvm::ERROR, "Error: Hart {}: Core Arch Checker Mismatch{} - {}\n", hart, resource,  instr);
+        cvm::log(cvm::ERROR, "Error: Hart {}: Core Arch Checker Mismatch - {} - {}\n", hart, resource,  instr);
         return;
       }
     }
@@ -238,15 +241,20 @@ void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d)
   if (!csr_cac_.GetStatus(hart)) {
     std::string csr = get_csr_name(csr_cac_.GetResourceStr(hart).substr(2));
     csr_cac_.ResetStatus(hart);
-    if (csr == "mip") {
-      // do nothing
-    } else if (FLAGS_cosim_resynch) {
+    if (FLAGS_cosim_resynch) {
       resynch(hart, d);
     } else {
+      std::stringstream ss(FLAGS_cosim_resynch_csr);
+      std::string token;
+      while (std::getline(ss, token, ',')) {
+          if (token == csr) {
+              return;
+          }
+      }
       for (auto & i : d.instrs)
         print_instr_stdout(hart, i);
       cvm::log(cvm::NONE, "{}", csr_cac_.GetStatusStr(hart));
-      cvm::log(cvm::ERROR, "Error: Hart {}: CSR Mismatch - {}\n", hart, csr);
+      cvm::log(cvm::ERROR, "Error: Hart {}: CSR Write Mismatch - {}\n", hart, csr);
       return;
     }
   }
@@ -263,10 +271,10 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
   if (FLAGS_priv_check)
     update_priv(hart, src_t::dut, d.priv);
 
-  if (FLAGS_insn_check && !d.comp && !d.ucode) {
+  if (FLAGS_insn_check && !d.comp && !d.ucode && !is_vector(d.disasm)) {
     update_insn(hart, src_t::dut, d.opcode);
   }
-  if (d.gpr.valid || d.fpr.valid || d.vr.valid || !d.csr.empty()) {
+  if (d.gpr.valid || d.fpr.valid || !d.vr.empty() || !d.csr.empty()) {
     update_regs(hart, d);
   }
   if (d.mem_write.valid) {
@@ -281,6 +289,19 @@ void bridge::process_debug_pre_step(hart_id_t hart, const rv_instr_t& instr, whi
       return;
     }
   return;
+}
+
+void bridge::process_lrsc_pre_step(hart_id_t hart, const rv_instr_t& d) {
+  if ((d.disasm.find("sc.w") != std::string::npos) ||
+      (d.disasm.find("sc.d") != std::string::npos)) {
+    uint64_t fail_code = 1;
+    if (d.gpr.rd_wdata == fail_code) {
+      bool valid;
+      if (!client_->whisperCancelLr(hart, valid)) {
+        cvm::log(cvm::ERROR, "Error: Hart {}: Failed to CancelLr\n", hart);
+      }
+    }
+  }
 }
 
 void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
@@ -400,49 +421,24 @@ void bridge::process_exception_post_step(hart_id_t hart, const rv_instr_t& d, wh
     excp_in_debug_mode = false;
   }
   
-  if (d.excp && !w_.excp && !ecall_ && !FLAGS_cosim_resynch) {
+  log(cvm::MEDIUM, "<{}> Exception detected. dut:[{}, {}] whisper:[{}, {}]\n", w.time, d.excp, d.ecause, w_.excp, w_.ecause);
+
+  if (d.excp && !w_.excp && !FLAGS_cosim_resynch) {
     print_instr_stdout(hart, w);
-    cvm::log(cvm::ERROR, "Error: Hart {}: DUT took exception, Whisper did not. cause:[{}]\n", hart, d.ecause);
+    cvm::log(cvm::ERROR, "Error: Hart {}: DUT took exception, Whisper did not. Cause: {}\n", hart, excp_to_string.at(static_cast<excp>(d.ecause)));
     return;
   }
   
   if (w_.excp && !d.excp && !FLAGS_cosim_resynch) {
     print_instr_stdout(hart, w);
-    cvm::log(cvm::ERROR, "Error: Hart {}: Whisper took exception, DUT did not. cause:[{}]\n", hart, w_.ecause);
+    cvm::log(cvm::ERROR, "Error: Hart {}: Whisper took exception, DUT did not. Cause: {}\n", hart, excp_to_string.at(static_cast<excp>(w_.ecause)));
     return;
   }
 
-  // Special case - ecall - No extra step
-  if (is_ecall(w)) {
-    ecall_ = true;
+  if (d.excp && w_.excp && (d.ecause != w_.ecause) && !FLAGS_cosim_resynch) {
+    print_instr_stdout(hart, w);
+    cvm::log(cvm::ERROR, "Error: Hart {}: DUT vs Whisper exception cause mismatch. Dut: {}, Whisper: {}\n", hart, excp_to_string.at(static_cast<excp>(d.ecause)), excp_to_string.at(static_cast<excp>(w_.ecause)));
     return;
-  } else {
-    ecall_ = false;
-  }
-
-  // If resynch, poke CSR values to whisper/
-  if (FLAGS_cosim_resynch) {
-    for (auto& c : w_.csr) {
-      if (FLAGS_bridge_log) {
-        log(cvm::HIGH, "<{}> Whisper Step #{}: Resynch: C{:#x}={:#x}\n", d.cycle, step_,
-          c.csr_addr, c.csr_wdata);
-      }
-      bool valid;
-      if (!client_->whisperPoke(hart, d.cycle, 'c', c.csr_addr, c.csr_wdata, valid)) {
-        cvm::log(cvm::ERROR, "Error: Hart {}: Failed to resynch CSR values\n", hart);
-        return;
-      }
-    }
-  }
-
-  // Print exception info
-  if (FLAGS_bridge_log) {
-    print_instr(hart, w);
-    log(cvm::MEDIUM, "<{}> Exception detected. csrs:[", w.time);
-    for (auto& c : w_.csr) {
-      log(cvm::MEDIUM, "{:#x}={:#x},", c.csr_addr, c.csr_wdata);
-    }
-    log(cvm::MEDIUM, "]\n");
   }
 
   // If DUT indicates retire on ucode trap handler, extra step not needed
@@ -510,8 +506,8 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
   w_.priv = w.priv_mode;
   w_.opcode = w.opcode;
   w_.trap = w.trap;
-  w_.comp = ((w.opcode & 0x3) == 0x1) || ((w.opcode & 0x3) == 0x2);
-  w_.ucode = ((w.opcode & 0x3f) == 0x73) | w.trap; // system opcode
+  w_.comp = is_compressed(w.disasm);
+  w_.ucode = is_ucode(w.disasm) || w.trap; // system opcode
   
   w_.pc.valid = true;
   w_.pc.pc_rdata = w.pc;
@@ -522,7 +518,9 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
   if (FLAGS_priv_check)
     update_priv(hart, src_t::iss, w.priv_mode);
 
-  if (FLAGS_insn_check && !w_.comp && !w_.ucode)
+  // FIXME Instruction byte checking disabled for vectors till we find a way to
+  // differentiate cracked instructions
+  if (FLAGS_insn_check && !w_.comp && !w_.ucode && !is_vector(w.disasm))
     update_insn(hart, src_t::iss, w.opcode);
 
   for (auto i = 0u; i < w.change_count; i++) {
@@ -548,8 +546,8 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
       update_regs(hart, w);
     }
     if (w.resource == 'v') {
-      w_.vr.valid = true;
-      w_.vr.vrd_addr = w.address;
+      // w_.vr.valid = true;
+      // w_.vr.vrd_addr = w.address;
       // w_.vr.vrd_wdata = w.value;
       update_regs(hart, w, i);
     }
@@ -653,13 +651,17 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
     update_regs(hart, src_t::dut, resource_t::fp_reg, d.fpr.frd_addr, {d.fpr.frd_wdata});
   }
   // VR
-  if (FLAGS_vec_check && d.vr.valid) {
-    update_regs(hart, src_t::dut, resource_t::vec_reg, d.vr.vrd_addr, create_dword_vec(d.vr.vrd_wdata));
+  if (FLAGS_vec_check) {
+    for (auto & vr : d.vr) {
+      if (vr.valid){
+        update_regs(hart, src_t::dut, resource_t::vec_reg, vr.vrd_addr, create_dword_vec(vr.vrd_wdata));
+      }
+    }
   }
   // CSR
   for (auto & c : d.csr) {
-    size_8_bytes_t mask = c.csr_wmask & get_csr_mask(hart, c.csr_addr);
     uint64_t data = modify_csr_data(hart, c.csr_addr, c.csr_wdata);
+    size_8_bytes_t mask = modify_csr_mask(hart, c.csr_addr, c.csr_wmask);
 
     if (FLAGS_csr_rd_check)
       update_csr(hart, src_t::dut, c.csr_addr, data, mask);
@@ -705,7 +707,11 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_
         dword_vec_array [vec_slice_index % vec_slices] = w.value;        
         if ((vec_slice_index % vec_slices) == (vec_slices - 1)){
           update_regs(hart, src_t::iss, resource_t::vec_reg, w.address, std::vector<size_8_bytes_t>(dword_vec_array, dword_vec_array + sizeof(dword_vec_array)/sizeof(dword_vec_array[0])));
-          w_.vr.vrd_wdata = create_bitset(dword_vec_array);
+          vr_t vr;
+          vr.valid = true;
+          vr.vrd_addr = w.address;
+          vr.vrd_wdata = create_bitset(dword_vec_array);
+          w_.vr.push_back(vr);
         }
       }
       break;
@@ -766,15 +772,23 @@ void bridge::update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_
   assert(cac_.UpdateResource(hart, src, rid, std::move(cac::CreateBitVec<size_8_bytes_t>(dword_vec))));
 }
 
-bool bridge::is_ecall(const whisper_state_t& w) {
-  if (w.disasm.find("ecall") != std::string::npos)
+bool bridge::is_vector(const std::string& instr) {
+  if (instr.substr(0,1) == "v")
     return true;
+  return false;
+}
 
-  // FIXME Temp workaround to detect ecall
-  for (auto& c : w_.csr) {
-    if (c.csr_addr == 0x342 && c.csr_wdata == 0x9)
-      return true;
-  }
+bool bridge::is_compressed(const std::string& instr) {
+  if (instr.substr(0,2) == "c.")
+    return true;
+  return false;
+}
+
+bool bridge::is_ucode(const std::string& instr) {
+  if ((instr.find("ret") != std::string::npos) ||
+      (instr.find("ecall") != std::string::npos) ||
+      (instr.find("ebreak") != std::string::npos))
+    return true;
   return false;
 }
 
@@ -795,21 +809,16 @@ bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const std::
     return true;
   }
   // Case #4
-  if (FLAGS_lrsc_resynch && lrsc_fail(d, instr)) {
-    log(cvm::MEDIUM, "<{}> Resynch: Reason=[lrsc_fail]\n", d.cycle);
-    return true;
-  }
-  // Case #5
   if (debug_mem_access(d)) {
     log(cvm::MEDIUM, "<{}> Resynch: Reason=[debug mem access]\n", d.cycle);
     return true;
   }
-  // Case #6
+  // Case #5
   if (boot_read(d)) {
     log(cvm::MEDIUM, "<{}> Resynch: Reason=[boot_read]\n", d.cycle);
     return true;
   }
-  // Case #7
+  // Case #6
   if (FLAGS_mip_resynch && mip_mismatch(instr)) {
     log(cvm::MEDIUM, "<{}> Resynch: Reason=[mip_mismatch]\n", d.cycle);
     return true;
@@ -875,21 +884,6 @@ bool bridge::hpm_counter_read(const std::string& instr) {
       (instr.find("time") != std::string::npos) ||
       (instr.find("cycle") != std::string::npos))
     return true;
-  return false;
-}
-
-bool bridge::lrsc_fail(const rv_instr_t& d, const std::string& instr) {
-  if ((instr.find("sc.w") != std::string::npos) ||
-      (instr.find("sc.d") != std::string::npos)) {
-    uint64_t fail_code = 1;
-    if (d.gpr.rd_wdata == fail_code) {
-      bool valid;
-      if (!client_->whisperCancelLr(id_, valid)) {
-        cvm::log(cvm::ERROR, "Error: Hart {}: Failed to CancelLr\n", id_);
-      }
-      return true;
-    }
-  }
   return false;
 }
 
@@ -966,7 +960,8 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
           csr.csr_wdata);
       }
       resynch_csr_ = true;
-      if (!client_->whisperPoke(hart, d.cycle, 'c', csr.csr_addr, csr.csr_wdata, valid)) {
+      cvm::log(cvm::MEDIUM, "addr {:#x} data {:#x} \n", csr.csr_addr, get_csr(hart, src_t::dut, csr.csr_addr));
+      if (!client_->whisperPoke(hart, d.cycle, 'c', csr.csr_addr, get_csr(hart, src_t::dut, csr.csr_addr), valid)) {
         cvm::log(cvm::ERROR, "Error: Hart {}: Failed to resynch CSRs\n", hart);
         return;
       }
@@ -1267,12 +1262,34 @@ uint64_t bridge::modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data) {
     bool valid;
     uint64_t pmpcfg, mask, reset;
     client_->whisperPeekCsr(hart, addr - 16, pmpcfg, mask, reset, valid);
+    cvm::log(cvm::MEDIUM, "pmpcfg {} condition check {}\n", pmpcfg, ((pmpcfg >> 4) & 0x1));
     if((pmpcfg >> 4) & 0x1) {
       result = data | 0x1ff;
     } else {
       result = data & 0xfffffffffffffc00;
     }
   }
+  return result;
+}
+
+cac::size_8_bytes_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, cac::size_8_bytes_t mask) {
+  cac::size_8_bytes_t result = mask;
+  // pmpaddr
+  // Spec section...
+  if (addr >= 0x3B0 && addr < 0x3C0) {
+    bool valid;
+    uint64_t pmpcfg, mask_iss, reset;
+    client_->whisperPeekCsr(hart, addr - 16, pmpcfg, mask_iss, reset, valid);
+    // cvm::log(cvm::MEDIUM, "pmpcfg {} condition check {}\n", pmpcfg, ((pmpcfg >> 4) & 0x1));
+    if((pmpcfg >> 4) & 0x1) {
+      result = mask | 0x1ff;
+    } else {
+      result = mask | 0x3ff;
+    }
+  } else {
+    result = mask & get_csr_mask(hart, addr);
+  }
+  // cvm::log(cvm::MEDIUM, "mask {:#x} updated-mask {:#x}\n", mask, result);
   return result;
 }
 
@@ -1397,7 +1414,7 @@ void bridge::report_metrics() {
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_max_pend_intr_age\": {}}}\n", id_, max_pend_intr_age_);
 
   // Whisper csr values
-  for (auto& csr : csrs) {
+  for (auto& csr : metrics_csrs) {
     uint64_t csr_data;
     bool valid;
     if (!client_->whisperPeek(id_, 'c', csr.address, csr_data, valid)) {
@@ -1407,7 +1424,7 @@ void bridge::report_metrics() {
   }
 
   // DUT csr values
-  for (auto& csr : csrs) {
+  for (auto& csr : metrics_csrs) {
     uint64_t csr_data = get_csr(id_, src_t::dut, csr.address);
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dut_csr_{}\": \"0x{:x}\"}}\n", id_, csr.name, csr_data);
   }

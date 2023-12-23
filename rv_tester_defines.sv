@@ -62,6 +62,12 @@ package rv_tester_params;
     parameter AXI_MST2_STRB_WIDTH = mods.TOP.PLATFORM.AXI_MST2.STRB_WIDTH;
     parameter AXI_MST2_ID_WIDTH = mods.TOP.PLATFORM.AXI_MST2.ID_WIDTH;
 
+    parameter DM_AXI_TOTAL = mods.TOP.PLATFORM.DM_AXI.TOTAL;
+    parameter DM_AXI_ADDR_WIDTH = mods.TOP.PLATFORM.DM_AXI.ADDR_WIDTH;
+    parameter DM_AXI_DATA_WIDTH = mods.TOP.PLATFORM.DM_AXI.DATA_WIDTH;
+    parameter DM_AXI_STRB_WIDTH = mods.TOP.PLATFORM.DM_AXI.STRB_WIDTH;
+    parameter DM_AXI_ID_WIDTH = mods.TOP.PLATFORM.DM_AXI.ID_WIDTH;
+
     typedef logic [AXI_ADDR_WIDTH-1:0] axi_addr_t;
     typedef logic [AXI_DATA_WIDTH-1:0] axi_data_t;
     typedef logic [AXI_STRB_WIDTH-1:0] axi_strb_t;
@@ -252,6 +258,7 @@ package rv_tester_params;
         logic                       halt     ;
         logic                       intr     ;
         logic [4-1:0]               mode     ;
+        logic                       vec_cracked;
         logic [2-1:0]               ixl      ;
         logic [5-1:0]               rd_addr  ;
         logic [XLEN-1:0]            rd_wdata ;
@@ -310,23 +317,104 @@ package rv_tester_params;
     // CSRI - Control Status Registers
     // --------------------------------------
     typedef enum {
+        FFLAGS,
+        FRM,
         FCSR,
+        VSTART,
+        VXSAT,
+        VXRM,
+        VCSR,
+        SSTATUS,
+        STVEC,
+        SCOUNTEREN,
+        SSCRATCH,
         SEPC,
         SCAUSE,
+        STVAL,
+        SIP,
+        SATP,
+        VSSTATUS,
         VSEPC,
         VSCAUSE,
+        VSTVAL,
+        VSATP,
         MSTATUS,
+        MEDELEG,
+        MIDELEG,
+        MTVEC,
+        MCOUNTEREN,
+        MVIEN,
+        MVIP,
+        MHPMEVENT3,
+        MHPMEVENT4,
+        MHPMEVENT5,
+        MHPMEVENT6,
+        MHPMEVENT7,
+        MHPMEVENT8,
+        MHPMEVENT9,
+        MHPMEVENT10,
+        MHPMEVENT11,
+        MHPMEVENT12,
+        MHPMEVENT13,
+        MHPMEVENT14,
+        MHPMEVENT15,
+        MHPMEVENT16,
+        MHPMEVENT17,
+        MHPMEVENT18,
+        MHPMEVENT19,
+        MHPMEVENT20,
+        MHPMEVENT21,
+        MHPMEVENT22,
+        MHPMEVENT23,
+        MHPMEVENT24,
+        MHPMEVENT25,
+        MHPMEVENT26,
+        MHPMEVENT27,
+        MHPMEVENT28,
+        MHPMEVENT29,
+        MHPMEVENT30,
+        MHPMEVENT31,
+        MSCRATCH,
         MEPC,
         MCAUSE,
+        MTVAL,
         MIP,
+        MTINST,
+        MTVAL2,
+        SCONTEXT,
+        CSATPSPEC,
         CXTVALSPEC,
+        HSTATUS,
+        HIDELEG,
+        HTVAL,
+        HTINST,
+        MSECCFG,
+        TSELECT,
+        TDATA1,
+        TDATA2,
+        TDATA3,
+        TINFO,
+        TCONTROL,
+        MCONTEXT,
         DCSR,
         DPC,
+        DSCRATCH0,
+        DSCRATCH1,
         CDTVEC,
         CPRIV,
+        VL_CSR,
+        VTYPE_CSR,
+        VLENB,
+        STOPI,
+        VSTOPI,
+        MVENDORID,
+        MARCHID,
+        MIMPID,
+        MHARTID,
+        MCONFIGPTR,
+        MTOPI,
         CSR_COUNT
     } csr_list_t;
-
     typedef struct packed {
         logic                       valid;
         logic [CSRLEN-1:0]          addr;
@@ -462,7 +550,6 @@ package rv_tester_params;
     `AXI_TYPEDEF_REQ_T(mst2_req_top, mst2_aw_chan_top, mst2_w_chan_top, mst2_ar_chan_top)
     `AXI_TYPEDEF_RESP_T(mst2_resp_top, mst2_b_chan_top, mst2_r_chan_top)
 
-
     // --------------------------------------
     // rv_tester ports
     // --------------------------------------
@@ -492,6 +579,13 @@ package rv_tester_params;
     output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NBYPASSES-1:0]  mcmi_bypass,  \
     output rv_tester_params::csri_t          csri         [rv_tester_params::NHARTS-1:0],           \
     output rv_tester_params::pmci_t          pmci         [rv_tester_params::NHARTS-1:0],           \
+                                                                                                    \
+    output logic                                            dm_mem_tx_vld,                          \
+    output logic                                            dm_mem_tx_we,                           \
+    output logic [rv_tester_params::DM_AXI_ADDR_WIDTH-1:0]  dm_mem_tx_addr,                         \
+    output logic [rv_tester_params::DM_AXI_DATA_WIDTH-1:0]  dm_mem_tx_rd_data,                      \
+    output logic [rv_tester_params::DM_AXI_DATA_WIDTH-1:0]  dm_mem_tx_wr_data,                      \
+    output logic [rv_tester_params::DM_AXI_STRB_WIDTH-1:0]  dm_mem_tx_wr_data_be,                   \
                                                                                                     \
     output rv_tester_params::slv_req_top     axi_req [rv_tester_params::AXI_TOTAL-1:0],             \
     input  rv_tester_params::slv_resp_top    axi_rsp [rv_tester_params::AXI_TOTAL-1:0],             \
@@ -523,6 +617,13 @@ package rv_tester_params;
     logic                                    dmi_req_valid;                                         \
     rv_tester_pkg::dmi_req_t                 dmi_req;                                               \
     logic                                    dmi_resp_ready;                                        \
+                                                                                                    \
+    logic                                            dm_mem_tx_vld;                                 \
+    logic                                            dm_mem_tx_we;                                  \
+    logic [rv_tester_params::DM_AXI_ADDR_WIDTH-1:0]  dm_mem_tx_addr;                                \
+    logic [rv_tester_params::DM_AXI_DATA_WIDTH-1:0]  dm_mem_tx_rd_data;                             \
+    logic [rv_tester_params::DM_AXI_DATA_WIDTH-1:0]  dm_mem_tx_wr_data;                             \
+    logic [rv_tester_params::DM_AXI_STRB_WIDTH-1:0]  dm_mem_tx_wr_data_be;                          \
                                                                                                     \
     rv_tester_params::rvfi_t                 [rv_tester_params::TOTAL_NRETS-1:0]       rvfi;        \
     rv_tester_params::mcmi_t                 [rv_tester_params::TOTAL_NREADS-1:0]      mcmi_read;   \

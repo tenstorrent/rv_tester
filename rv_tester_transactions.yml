@@ -54,6 +54,8 @@ cosim:
                 width: 64
             mode:
                 width: 4
+            vec_cracked:
+                width: 1
             ixl:
                 width: 2
             rd_addr:
@@ -465,13 +467,16 @@ pmu:
             vector_busy_cycles:
                 width: 64
 
-
-
-
-
-
 dm_model:
     num: 1
+    dmi_status:
+        domain: 1
+        num: 1
+        fields:
+            status:
+                width: 1
+            commands_in_queue:
+                width: 32
     dmi_req:
         domain: 1
         num: 1
@@ -497,25 +502,25 @@ dm_model:
         num: 1
         fields:
             addr:
-                width: ${TOP.PLATFORM.AXI.ADDR_WIDTH}
+                width: 27
             size:
                 width: 8
             id:
-                width: ${TOP.PLATFORM.AXI_MST.ID_WIDTH}
+                width: 17
     dm_load_data:
         domain: 1
         num: 1
         fields:
             id:
-                width: ${TOP.PLATFORM.AXI_MST.ID_WIDTH}
+                width: 17
             data:
-                width: 512
+                width: 64
     dm_store:
         domain: 1
         num: 1
         fields:
             addr:
-                width: ${TOP.PLATFORM.AXI.ADDR_WIDTH}
+                width: 27
             len:
                 width: 4
             data:
