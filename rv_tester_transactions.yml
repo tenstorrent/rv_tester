@@ -59,19 +59,19 @@ cosim:
             ixl:
                 width: 2
             rd_addr:
-                width: 5
+                width: 6
             rd_wdata:
                 width: ${TOP.PLATFORM.XLEN}
             frd_valid:
                 width: 1
             frd_addr:
-                width: 5
+                width: 6
             frd_wdata:
                 width: ${TOP.PLATFORM.FLEN}
             vrd_valid:
                 width: 1
             vrd_addr:
-                width: 5
+                width: 6
             vrd_wdata:
                 width: ${TOP.PLATFORM.VLEN}
             csr_valid:

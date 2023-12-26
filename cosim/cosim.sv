@@ -97,15 +97,16 @@ import rv_tester_params::*;
     // m_csri
     logic [CSR_COUNT-1:0] valid_d1;
     logic [CSR_COUNT-1:0][63:0] data_d1;
+    logic [CSR_COUNT-1:0][63:0] mask_d1;
     always @(posedge clk) begin
       for (int n = 0; n < CSR_COUNT; n++) begin
         valid_d1[n] <= csri[n].valid;
         data_d1[n] <= csri[n].data;
+        mask_d1[n] <= csri[n].mask;
       end
     end
-    //for (genvar n = 0; n < CSR_COUNT; n++) begin
-    for (genvar n = 0; n < 10; n++) begin
-        assign m_csris[n].valid = rvfi_enabled & ~reset & ((csri[n].valid & ~valid_d1[n]) | (csri[n].valid & (csri[n].data !== data_d1[n])));
+    for (genvar n = 0; n < CSR_COUNT; n++) begin
+        assign m_csris[n].valid = rvfi_enabled & ~reset & ((csri[n].valid & ~valid_d1[n]) | (csri[n].valid & ((csri[n].data !== data_d1[n]) | (csri[n].mask !== mask_d1[n]))));
         assign m_csris[n].data.location = location;
         assign m_csris[n].data.cycle = csri[n].valid ? clocks : '0;
         assign m_csris[n].data.hart = NUM;

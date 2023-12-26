@@ -260,13 +260,13 @@ package rv_tester_params;
         logic [4-1:0]               mode     ;
         logic                       vec_cracked;
         logic [2-1:0]               ixl      ;
-        logic [5-1:0]               rd_addr  ;
+        logic [6-1:0]               rd_addr  ;
         logic [XLEN-1:0]            rd_wdata ;
         logic                       frd_valid;
-        logic [5-1:0]               frd_addr ;
+        logic [6-1:0]               frd_addr ;
         logic [FLEN-1:0]            frd_wdata;
         logic                       vrd_valid;
-        logic [5-1:0]               vrd_addr ;
+        logic [6-1:0]               vrd_addr ;
         logic [VLEN-1:0]            vrd_wdata;
         logic                       csr_valid;
         logic [CSRLEN-1:0]          csr_addr ;
@@ -336,15 +336,12 @@ package rv_tester_params;
         VSSTATUS,
         VSEPC,
         VSCAUSE,
-        VSTVAL,
         VSATP,
         MSTATUS,
         MEDELEG,
         MIDELEG,
         MTVEC,
         MCOUNTEREN,
-        MVIEN,
-        MVIP,
         MHPMEVENT3,
         MHPMEVENT4,
         MHPMEVENT5,
@@ -379,15 +376,14 @@ package rv_tester_params;
         MCAUSE,
         MTVAL,
         MIP,
-        MTINST,
-        MTVAL2,
         SCONTEXT,
         CSATPSPEC,
         CXTVALSPEC,
+        CXTVAL2SPEC,
         HSTATUS,
         HIDELEG,
-        HTVAL,
         HTINST,
+        HCONTEXT,
         MSECCFG,
         TSELECT,
         TDATA1,
