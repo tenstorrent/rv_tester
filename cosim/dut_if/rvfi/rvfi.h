@@ -58,6 +58,7 @@ class rvfi {
 
     void make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_instr_t& instr);
     void print_csr(csr_t& csr);
+    void append_uop_changes_to_instr(rv_instr_t& instr);
     void print_instr(rv_instr_t& instr);
     void print_instr_resource(rv_instr_t& instr, std::string resource_str);
     void send_instr(rv_instr_t& instr);
@@ -88,9 +89,9 @@ class rvfi {
     bool ucode_priv_change_ = false;
 
     std::vector<rv_instr_t> instrs_;
-    std::vector<vr_t> ucode_vrs_;
+    std::vector<vr_t> cracked_vrs_;
     std::vector<csr_t> hw_csrs_, ucode_csrs_;
-    gpr_s temp_gpr;
+    gpr_s cracked_gpr_;
 
     svScope scope_;
 
