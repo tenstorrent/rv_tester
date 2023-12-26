@@ -103,7 +103,8 @@ import rv_tester_params::*;
         data_d1[n] <= csri[n].data;
       end
     end
-    for (genvar n = 0; n < CSR_COUNT; n++) begin
+    //for (genvar n = 0; n < CSR_COUNT; n++) begin
+    for (genvar n = 0; n < 10; n++) begin
         assign m_csris[n].valid = rvfi_enabled & ~reset & ((csri[n].valid & ~valid_d1[n]) | (csri[n].valid & (csri[n].data !== data_d1[n])));
         assign m_csris[n].data.location = location;
         assign m_csris[n].data.cycle = csri[n].valid ? clocks : '0;

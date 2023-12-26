@@ -335,6 +335,7 @@ import rv_tester_params::*;
         .msi_axi_req('0),
         .axi_req_mst(axi_req_mst[0]),
         .axi_resp_mst(axi_rsp_mst[0]),
+        //.axi_resp_mst('0),
         .misc_signals('0),
         `RV_TESTER_TRANSACTIONS_APLIC_MONITOR_SOURCE_PORTS(1,0,0)
     );

@@ -78,10 +78,13 @@ void
 aplic_driver::write(uint64_t addr, size_t, const data_t& data,
 		 const strb_t&)
 {
+  std::cout<<"\n*****INSIDE APLIC WRITE***\n";
   if (not has_addr(addr))
     return;
   uint64_t t_data=0;
   deserializeInt(data, t_data);
+
+  std::cout<<"\n*****INSIDE APLIC WRITE data:"<<std::hex<<t_data<<"\n";
   if(addr==aplic_driver_base)
   {
   //    typedef enum { APLIC_CFG,APLIC_EN,APLIC_T0,APLIC_T1 } aplic_tx_type_e;

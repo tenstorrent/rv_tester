@@ -59,7 +59,9 @@ void aplic_monitor::process(const rv_tester_transactions::aplic_monitor::aplic_m
 void aplic_monitor::process(const rv_tester_transactions::aplic_monitor::aplic_mmr_store<> &aplic_mmr_store)
 {
  
-  std::cout<<"\nProcess4: location"<<aplic_mmr_store.location;
+  std::cout<<"\nProcess4: Aplic mmr store location  "<<aplic_mmr_store.location;
+  std::cout<<"\nProcess4: Aplic mmr store Data  "<<aplic_mmr_store.data;
+  //std::cout<<"\nProcess4: Aplic mmr store Id  "<<aplic_mmr_store.id;
 }
 
 void aplic_monitor::reset()

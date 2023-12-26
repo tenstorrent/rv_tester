@@ -26,7 +26,7 @@ module aplic_monitor #(
         if (reset) begin
             /* verilator lint_off BLKSEQ */
             location = cvm_topology::get_location(topology.TOP.PLATFORM.APLIC_MONITOR.ID, 0);
-            $display("SV: APLIC_MONITOR location %d\n",location);
+            $display("SV: APLIC_MONITOR location %d time %t\n",location,$time);
             /* verilator lint_on BLKSEQ */
             /* verilator lint_off BLKSEQ */
             aplic_pin_input_prev = 1024'h0;
@@ -35,6 +35,9 @@ module aplic_monitor #(
             reset_done = 1'b1;
             /* verilator lint_on BLKSEQ */
         end
+        // if(aplic_mmr_stores[0].valid)begin
+        //    $display("\nSV:MMR STORE VALID at time %t loc %d data %h addr %h \n",$time,location,axi_req_mst.w.data[31:0],axi_req_mst.aw.addr);
+        // end
 
     end
     
@@ -45,27 +48,27 @@ module aplic_monitor #(
     assign aplic_intr_reqs[0].data.pin_value = aplic_pin_input;
     
     //APLIC MMR WRITE MONITOR
-    assign aplic_mmr_stores[0].valid = !reset && axi_req_mst.w_valid && axi_req_mst.aw_valid;
+    assign aplic_mmr_stores[0].valid = !reset && axi_req_mst.w_valid && axi_req_mst.aw_valid && (reset_done=== 1'b1);
     assign aplic_mmr_stores[0].data.location = location;
     assign aplic_mmr_stores[0].data.data = axi_req_mst.w.data[31:0];
     assign aplic_mmr_stores[0].data.addr = axi_req_mst.aw.addr;
     assign aplic_mmr_stores[0].data.len = axi_req_mst.aw.len[3:0];
 
     //APLIC MMR READ CMD MONITOR
-    assign aplic_mmr_load_cmds[0].valid = !reset && axi_req_mst.ar_valid;
+    assign aplic_mmr_load_cmds[0].valid = !reset && axi_req_mst.ar_valid &&(reset_done=== 1'b1);
     assign aplic_mmr_load_cmds[0].data.location = location;
     assign aplic_mmr_load_cmds[0].data.addr = axi_req_mst.ar.addr;
     assign aplic_mmr_load_cmds[0].data.size = {5'h0,axi_req_mst.ar.size}; //(2**axi_req_mst.ar.size)/8;
     assign aplic_mmr_load_cmds[0].data.id = axi_req_mst.ar.id;
 
     //APLIC MMR READ DATA MONITOR
-    assign aplic_mmr_load_datas[0].valid = !reset && axi_resp_mst.r_valid;
+    assign aplic_mmr_load_datas[0].valid = !reset && axi_resp_mst.r_valid &&(reset_done=== 1'b1);
     assign aplic_mmr_load_datas[0].data.location = location;
     assign aplic_mmr_load_datas[0].data.data = axi_resp_mst.r.data;
     assign aplic_mmr_load_datas[0].data.id = axi_resp_mst.r.id;
 
     //APLIC MSI MESSAGE MONITOR
-    assign msi_reqs[0].valid = !reset && msi_axi_req.w_valid && msi_axi_req.aw_valid;
+    assign msi_reqs[0].valid = !reset && msi_axi_req.w_valid && msi_axi_req.aw_valid &&(reset_done=== 1'b1);
     assign msi_reqs[0].data.location = location;
     assign msi_reqs[0].data.data = msi_axi_req.w.data;
     assign msi_reqs[0].data.addr = msi_axi_req.aw.addr;

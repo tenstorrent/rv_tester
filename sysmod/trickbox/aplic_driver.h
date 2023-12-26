@@ -87,13 +87,13 @@ public:
     timer_advance = advance;
     cvm::log(cvm::FULL, "[APLIC_DRIVER] Timer tick {} advance interval {} \n", timer_, timer_advance);
     std::cout<<"\nAPLIC TICK at time "<<timer_<<"\n";
-    aplic_pin_values_vec.push_back(1);
-    aplic_pin_values_vec.push_back(2);
-    aplic_pin_values_vec.push_back(7);
-    cvm::registry::messenger.signal(loc(), aplic_driver_write_t{aplic_pin_values_vec});
+    //aplic_pin_values_vec.push_back(1);
+    //aplic_pin_values_vec.push_back(2);
+    //aplic_pin_values_vec.push_back(7);
+    //cvm::registry::messenger.signal(loc(), aplic_driver_write_t{aplic_pin_values_vec});
     std::cout<<"APLIC RSET FUNC DONE\n";
-    cvm::registry::messenger.signal(loc(), aplic_driver_write_t{aplic_pin_values_vec});
-    processDelayedRandomInterrupts();
+    //cvm::registry::messenger.signal(loc(), aplic_driver_write_t{aplic_pin_values_vec});
+    //processDelayedRandomInterrupts();
   }
 
   void reset() override {
@@ -120,10 +120,10 @@ public:
     //  aplic_pin_values_vec[i] = (1<<i);
     //}
     //aplic_pin_values[] = {1,2,4,7,8,9,11,12,1,2,2,3,4,5};
-    aplic_pin_values_vec.push_back(1);
-    aplic_pin_values_vec.push_back(2);
-    aplic_pin_values_vec.push_back(7);
-    cvm::registry::messenger.signal(loc(), aplic_driver_write_t{aplic_pin_values_vec});
+    // aplic_pin_values_vec.push_back(1);
+    // aplic_pin_values_vec.push_back(2);
+    // aplic_pin_values_vec.push_back(7);
+    // cvm::registry::messenger.signal(loc(), aplic_driver_write_t{aplic_pin_values_vec});
     std::cout<<"APLIC RSET FUNC DONE\n";
 
   }

@@ -16,6 +16,7 @@ aplic_mmr::aplic_mmr(const std::string& tag, uint64_t addr, size_t size, cvm::to
   if (FLAGS_load != "") {
     init_elf(FLAGS_load);
   }
+  //std::cout<<"\nCREATING MMR APLIC\n";
   channel = cvm::registry::messenger.channel<axi::r_t>(axi_mst_loc_l);
 }
 
@@ -24,7 +25,7 @@ void aplic_mmr::write(const transactor::write_t& w) {
   auto& length = w.length;
   auto& data = w.data;
   auto& strb = w.strb;
-
+  //std::cout<<"$$$$$$$ APLIC MMR WRITE "<<std::hex<<addr<<"$$$$\n";
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb});
 
   return;
