@@ -6,10 +6,6 @@ local_repository(
     name = "bzsim",
     path = "infra/bzsim_clone",
 )
-local_repository(
-    name = "Aplic",
-    path = "Aplic",
-)
 
 load("@bzsim//:repositories.bzl", "bzsim_dependencies")
 bzsim_dependencies()
@@ -44,6 +40,14 @@ git_repository(
     shallow_since = "1677278961 -0600",
     recursive_init_submodules = True,
     remote = "git@aus-gitlab.local.tenstorrent.com:riscv/dv/testgen.git",
+)
+
+Aplic_model_hash="b5cd6bc4f2ec2a9fff32e68a670b23d9b777f2c1"
+git_repository(
+    name = "Aplic",
+    commit = Aplic_model_hash,
+    recursive_init_submodules = True,
+    remote = "git@aus-gitlab.local.tenstorrent.com:riscv/aplic.git",
 )
 
 load("@testgen//:repositories.bzl", "testgen_dependencies")
