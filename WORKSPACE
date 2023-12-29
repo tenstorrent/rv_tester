@@ -42,6 +42,14 @@ git_repository(
     remote = "git@aus-gitlab.local.tenstorrent.com:riscv/dv/testgen.git",
 )
 
+Aplic_model_hash="b5cd6bc4f2ec2a9fff32e68a670b23d9b777f2c1"
+git_repository(
+    name = "Aplic",
+    commit = Aplic_model_hash,
+    recursive_init_submodules = True,
+    remote = "git@aus-gitlab.local.tenstorrent.com:riscv/aplic.git",
+)
+
 load("@testgen//:repositories.bzl", "testgen_dependencies")
 testgen_dependencies()
 

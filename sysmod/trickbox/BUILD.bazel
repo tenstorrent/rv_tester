@@ -4,19 +4,19 @@ cc_library(
       "interrupter.cpp",
       "debugger.cpp",
       "imsic_driver.cpp",
+      "aplic_driver.cpp",
       "uc_helper.cpp",
       "trickbox.cpp"
     ],
-    hdrs = glob(["*.h"]),
-    includes = ["."],
-#    hdrs = [
-#      "subdevice.h",
-#      "interrupter.h",
-#      "debugger.h",
-#      "imsic_driver.h",
-#      "uc_helper.h",
-#      "trickbox.h"
-#    ],
+    hdrs = [
+      "subdevice.h",
+      "interrupter.h",
+      "debugger.h",
+      "imsic_driver.h",
+      "aplic_driver.h",
+      "uc_helper.h",
+      "trickbox.h"
+    ],
     deps = [
              "//common:common",
              "//sysmod:device",
@@ -27,5 +27,6 @@ cc_library(
              "@cvm//:topology",
              "@cvm//:logger",
            ],
+    strip_include_prefix = ".",
     visibility = ["//visibility:public"],
 )

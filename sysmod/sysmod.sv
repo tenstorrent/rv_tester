@@ -12,6 +12,7 @@ import rv_tester_params::*;
     input longint unsigned clocks,
     output rv_tester_params::bootstrap_t bootstrap,
     output rv_tester_pkg::interrupt_t interrupt [NHARTS-1:0],
+    output rv_tester_pkg::aplic_interrupt_t aplic_interrupt,
     output rv_tester_pkg::dm_write_t  dmi_write,
     output rv_tester_pkg::terminate_t terminate,
     `RV_TESTER_TRANSACTIONS_SYSMOD_OUTPUT_PORTS
@@ -67,6 +68,19 @@ import rv_tester_params::*;
     function void sysmod_sw_interrupt (unsigned hartid, unsigned val);
       interrupt_d[hartid].msi = val;
     endfunction
+   
+       export "DPI-C" function sysmod_aplic_dir_interrupt;
+
+    function void sysmod_aplic_dir_interrupt (longint val[16]);
+      //interrupt_d[hartid].msi = val;
+      //$display("\nSYSMOD.SV Hello aplic\n");
+      for(int i =0;i<16;i++)begin
+        //$display("\nSYSMOD.SV APLIC DATA  at index %h %h \n",i,val[i]);
+        aplic_interrupt.pins[64*i +: 64] = val[i];
+      end
+       // $display("\n APLIC DATA  FINAL at  %h \n",aplic_interrupt.pins);
+    endfunction
+
     export "DPI-C" function sysmod_sw_interrupt;
 
     function void sysmod_tbox_interrupt (int unsigned hartid, int unsigned intr_select,int unsigned intr_value);

@@ -9,6 +9,7 @@
 #include "mem/sysmod_mem.h"
 #include "clint/clint.h"
 #include "dm/dm.h"
+#include "aplic_mmr/aplic_mmr.h"
 #include "io_dev/io_dev.h"
 #include "null_dev/null_dev.h"
 #include "heartbeat/heartbeat.h"
@@ -32,6 +33,8 @@ extern "C" {
   void sysmod_timer_interrupt(unsigned hartid, unsigned val);
   void sysmod_sw_interrupt(unsigned hartid, unsigned val);
   void sysmod_tbox_interrupt(unsigned hartid, unsigned val, unsigned int_val);
+  void sysmod_aplic_dir_interrupt(unsigned long* i) ;
+  void sysmod_aplic_rnd_interrupt(unsigned hartid, unsigned val, unsigned int_val);
   void sysmod_dmi_write(unsigned hartid, unsigned upper_val, unsigned lower_val);
   void sysmod_terminate();
 }
@@ -104,6 +107,25 @@ sysmod::tbox_interrupt(interrupter::interrupt_t i) {
       [i]() {
         cvm::log(cvm::FULL, "[SYSMOD] trickbox::intr.(sel,val) = {:#x}, {:#x}\n", i.intr_select, i.intr_value);
         sysmod_tbox_interrupt(i.hart, i.intr_select, i.intr_value);
+      });
+}
+
+void
+sysmod::aplic_interrupt(aplic_driver::aplic_driver_write_t i) {
+        //std::cout<<"PUSHIONG APLIC DRIVER SYSMOD CALLBACK\n";
+  cvm::registry::callbacks.push(
+      scope(),
+      [i]() {
+        //cvm::log(cvm::FULL, "[SYSMOD] trickbox::intr.(sel,val) = {:#x}, {:#x}\n", i.intr_select, i.intr_value);
+        unsigned long arr[16];
+        for (int j = 0; j < 16; j++) {
+        //std::cout<<"\n SYSMOD ASSIGNING APLIC DRIVER VALUES TO SYSMOD  :"<<std::hex<<i.aplic_pin_values_vec[j]<<"\n";
+        arr[j] = i.aplic_pin_values_vec[j];
+        //std::cout<<"\n SYSMOD ASSIGNING APLIC DRIVER VALUES TO SYSMOD ARR :"<<std::hex<<arr[j]<<"\n";
+        }
+        //copy(i.aplic_pin_values_vec.begin(),i.aplic_pin_values_vec.end(),&arr);
+        //std::cout<<"CALLING APLIC DRIVER SYSMOD SIGNAL\n";
+        sysmod_aplic_dir_interrupt(arr);
       });
 }
 
@@ -213,6 +235,7 @@ sysmod::compose()
 
       std::unique_ptr<device> device;
 
+      cvm::log(cvm::LOW, "\n PRT ### CREATING TYPE {}", type);
       if (type == "memory") {
         device = std::make_unique<sysmod_mem>(tag, base, size, loc_);
       }
@@ -233,8 +256,13 @@ sysmod::compose()
       }
       else if (type == "dm") {
         // TODO: cvm::ERROR
+       // assert(masters.size() > 0);
+       // device = std::make_unique<dm>(tag, base, size, loc_, masters[0]);
+      }
+      else if (type == "aplic_mmr") {
+        // TODO: cvm::ERROR
         assert(masters.size() > 0);
-        device = std::make_unique<dm>(tag, base, size, loc_, masters[0]);
+        device = std::make_unique<aplic_mmr>(tag, base, size, loc_, masters[0]);
       }
       else if (type == "clint") {
         device = std::make_unique<clint>(tag, base, nharts, loc_);
@@ -250,6 +278,9 @@ sysmod::compose()
         cvm::registry::messenger.connect<interrupter::interrupt_t>(
             loc_,
             [&](interrupter::interrupt_t i) { return this->tbox_interrupt(i); });
+	cvm::registry::messenger.connect<aplic_driver::aplic_driver_write_t>(
+            loc_,
+            [&](aplic_driver::aplic_driver_write_t i) { return this->aplic_interrupt(i); });
         cvm::registry::messenger.connect<debugger::dmi_data_t>(
             loc_,
             [&](debugger::dmi_data_t i) { return this->dmi_write(i); });

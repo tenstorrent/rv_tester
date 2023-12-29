@@ -4,6 +4,7 @@ load("@rv_tester//cosim:cosim.bzl", "cosim_gen")
 load("@rv_tester//sysmod:sysmod.bzl", "sysmod_gen")
 load("@rv_tester//pmu:pmu.bzl", "pmu_gen")
 load("@rv_tester//dm_model:dm_model.bzl", "dm_model_gen")
+load("@rv_tester//aplic_monitor:aplic_monitor.bzl", "aplic_monitor_gen")
 load("@rv_tester//transactors/axi_sw:axi_sw.bzl", "axi_sw_gen")
 
 def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
@@ -64,7 +65,14 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
         harness = name + "_harness",
         cc_attrs = cc_attrs,
     )
-
+    
+    aplic_monitor_gen(
+        name = name + "_aplic_monitor",
+        packet = name  + "_transactions",
+        topology = topology,
+        harness = name + "_harness",
+        cc_attrs = cc_attrs,
+    )
     axi_sw_gen(
         name = name + "_axi_sw",
         packet = name + "_transactions",
@@ -85,6 +93,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             name + "_sysmod_sv",
             name + "_pmu_sv",
             name + "_dm_model_sv",
+            name + "_aplic_monitor_sv",
             name + "_axi_sw_sv",
             "@opensrc-axi_llc//:axi_llc",
             "@opensrc-axi//:axi",
@@ -105,10 +114,12 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             "@rv_tester//common:common",
             "@cvm//:plusargs",
             "@cvm//:registry",
+            "@Aplic//:Aplic",
             name + "_transactions_cc",
             name + "_sysmod_dpi",
             name + "_pmu_dpi",
             name + "_dm_model_dpi",
+            name + "_aplic_monitor_dpi",
             name + "_axi_sw_dpi",
             topology + "_cc",
         ] + select({
