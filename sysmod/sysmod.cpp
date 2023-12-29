@@ -119,9 +119,9 @@ sysmod::aplic_interrupt(aplic_driver::aplic_driver_write_t i) {
         //cvm::log(cvm::FULL, "[SYSMOD] trickbox::intr.(sel,val) = {:#x}, {:#x}\n", i.intr_select, i.intr_value);
         unsigned long arr[16];
         for (int j = 0; j < 16; j++) {
-        //std::cout<<"\n ASSIGNING APLIC DRIVER VALUES TO SYSMOD  :"<<std::hex<<i.aplic_pin_values_vec[j]<<"\n";
+        //std::cout<<"\n SYSMOD ASSIGNING APLIC DRIVER VALUES TO SYSMOD  :"<<std::hex<<i.aplic_pin_values_vec[j]<<"\n";
         arr[j] = i.aplic_pin_values_vec[j];
-        //std::cout<<"\n ASSIGNING APLIC DRIVER VALUES TO SYSMOD ARR :"<<std::hex<<arr[j]<<"\n";
+        //std::cout<<"\n SYSMOD ASSIGNING APLIC DRIVER VALUES TO SYSMOD ARR :"<<std::hex<<arr[j]<<"\n";
         }
         //copy(i.aplic_pin_values_vec.begin(),i.aplic_pin_values_vec.end(),&arr);
         //std::cout<<"CALLING APLIC DRIVER SYSMOD SIGNAL\n";
@@ -256,8 +256,8 @@ sysmod::compose()
       }
       else if (type == "dm") {
         // TODO: cvm::ERROR
-        assert(masters.size() > 0);
-        device = std::make_unique<dm>(tag, base, size, loc_, masters[0]);
+       // assert(masters.size() > 0);
+       // device = std::make_unique<dm>(tag, base, size, loc_, masters[0]);
       }
       else if (type == "aplic_mmr") {
         // TODO: cvm::ERROR

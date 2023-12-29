@@ -39,7 +39,8 @@ public:
   void process(const rv_tester_transactions::aplic_monitor::aplic_mmr_load_cmd<> &aplic_mmr_load_cmd);
   void process(const rv_tester_transactions::aplic_monitor::aplic_mmr_load_data<> &aplic_mmr_load_data);
   void process(const rv_tester_transactions::aplic_monitor::aplic_mmr_store<> &aplic_mmr_store);
-
+  
+  std::shared_ptr<TT_APLIC::Domain> root;
 private:
   // cvm::file_logger log;
   void reset();

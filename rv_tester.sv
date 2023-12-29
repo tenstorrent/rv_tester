@@ -331,7 +331,7 @@ import rv_tester_params::*;
         .clk,
         .reset(sysmod_reset),
         .terminate,
-        .aplic_pin_input('0),
+        .aplic_pin_input(aplic_interrupt),
         .msi_axi_req('0),
         .axi_req_mst(axi_req_mst[0]),
         .axi_resp_mst(axi_rsp_mst[0]),

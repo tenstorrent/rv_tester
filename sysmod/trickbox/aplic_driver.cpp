@@ -78,27 +78,16 @@ void
 aplic_driver::write(uint64_t addr, size_t, const data_t& data,
 		 const strb_t&)
 {
-  std::cout<<"\n*****INSIDE APLIC WRITE***\n";
+  //std::cout<<"\n*****INSIDE APLIC WRITE***\n";
   if (not has_addr(addr))
     return;
   uint64_t t_data=0;
   deserializeInt(data, t_data);
 
-  std::cout<<"\n*****INSIDE APLIC WRITE data:"<<std::hex<<t_data<<"\n";
+  //std::cout<<"\n*****INSIDE APLIC WRITE data:"<<std::hex<<t_data<<"\n";
   if(addr==aplic_driver_base)
   {
-  //    typedef enum { APLIC_CFG,APLIC_EN,APLIC_T0,APLIC_T1 } aplic_tx_type_e;
-  //   struct aplic_data_t {
-  //   aplic_tx_type_e tx_type;
-  //   unsigned toggle_cycles;
-  //   unsigned num_toggles;
-  //   unsigned enables_offset;
-  //   unsigned enables_value;
-  //   unsigned toggle0_offset;
-  //   unsigned toggle0_value;
-  //   unsigned toggle1_offset;
-  //   unsigned toggle1_value;
-  //  };
+
      aplic_tx_type_e tx_type = APLIC_CFG;
      unsigned toggle_cycles  = (t_data & 0xfff0)>>4; 
      unsigned num_toggles    = t_data & 0xf;

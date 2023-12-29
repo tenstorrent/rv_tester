@@ -73,12 +73,12 @@ import rv_tester_params::*;
 
     function void sysmod_aplic_dir_interrupt (longint val[16]);
       //interrupt_d[hartid].msi = val;
-      $display("\nHello aplic\n");
+      //$display("\nSYSMOD.SV Hello aplic\n");
       for(int i =0;i<16;i++)begin
-        $display("\n APLIC DATA  at index %h %h \n",i,val[i]);
+        //$display("\nSYSMOD.SV APLIC DATA  at index %h %h \n",i,val[i]);
         aplic_interrupt.pins[64*i +: 64] = val[i];
       end
-        $display("\n APLIC DATA  FINAL at  %h \n",aplic_interrupt.pins);
+       // $display("\n APLIC DATA  FINAL at  %h \n",aplic_interrupt.pins);
     endfunction
 
     export "DPI-C" function sysmod_sw_interrupt;
