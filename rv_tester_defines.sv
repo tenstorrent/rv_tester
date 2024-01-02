@@ -43,6 +43,13 @@ package rv_tester_params;
     parameter NCIO_AXI_STRB_WIDTH = mods.TOP.PLATFORM.NCIO_AXI.STRB_WIDTH;
     parameter NCIO_AXI_ID_WIDTH = mods.TOP.PLATFORM.NCIO_AXI.ID_WIDTH;
     //
+    //MSI SLAVE
+    parameter MSI_AXI_TOTAL = 1;//mods.TOP.PLATFORM.MSI_AXI.TOTAL;
+    parameter MSI_AXI_ADDR_WIDTH = 32;//mods.TOP.PLATFORM.MSI_AXI.ADDR_WIDTH;
+    parameter MSI_AXI_DATA_WIDTH = 64;//mods.TOP.PLATFORM.MSI_AXI.DATA_WIDTH;
+    parameter MSI_AXI_STRB_WIDTH =8;// mods.TOP.PLATFORM.MSI_AXI.STRB_WIDTH;
+    parameter MSI_AXI_ID_WIDTH = 5;//mods.TOP.PLATFORM.MSI_AXI.ID_WIDTH;
+    //
     parameter AXI_MST_TOTAL = mods.TOP.PLATFORM.AXI_MST.TOTAL;
     parameter AXI_MST_ADDR_WIDTH = mods.TOP.PLATFORM.AXI_MST.ADDR_WIDTH;
     parameter AXI_MST_DATA_WIDTH = mods.TOP.PLATFORM.AXI_MST.DATA_WIDTH;
@@ -71,6 +78,11 @@ package rv_tester_params;
     typedef logic [NCIO_AXI_STRB_WIDTH-1:0] ncio_axi_strb_t;
     typedef logic [NCIO_AXI_ID_WIDTH  -1:0] ncio_axi_id_t;
     
+    typedef logic [MSI_AXI_ADDR_WIDTH-1:0] msi_axi_addr_t;
+    typedef logic [MSI_AXI_DATA_WIDTH-1:0] msi_axi_data_t;
+    typedef logic [MSI_AXI_STRB_WIDTH-1:0] msi_axi_strb_t;
+    typedef logic [MSI_AXI_ID_WIDTH  -1:0] msi_axi_id_t;
+
     typedef logic [AXI_MST_ADDR_WIDTH-1:0] axi_mst_addr_t;
     typedef logic [AXI_MST_DATA_WIDTH-1:0] axi_mst_data_t;
     typedef logic [AXI_MST_STRB_WIDTH-1:0] axi_mst_strb_t;
@@ -517,6 +529,15 @@ package rv_tester_params;
     `AXI_TYPEDEF_REQ_T(ncio_slv_req_top, ncio_slv_aw_chan_top, ncio_slv_w_chan_top, ncio_slv_ar_chan_top)
     `AXI_TYPEDEF_RESP_T(ncio_slv_resp_top, ncio_slv_b_chan_top, ncio_slv_r_chan_top)
      //
+     //MSI
+    `AXI_TYPEDEF_AW_CHAN_T(msi_slv_aw_chan_top, msi_axi_addr_t, msi_axi_id_t, user_t)
+    `AXI_TYPEDEF_W_CHAN_T(msi_slv_w_chan_top, msi_axi_data_t, msi_axi_strb_t, user_t)
+    `AXI_TYPEDEF_B_CHAN_T(msi_slv_b_chan_top, msi_axi_id_t, user_t)
+    `AXI_TYPEDEF_AR_CHAN_T(msi_slv_ar_chan_top, msi_axi_addr_t, msi_axi_id_t, user_t)
+    `AXI_TYPEDEF_R_CHAN_T(msi_slv_r_chan_top, msi_axi_data_t, msi_axi_id_t, user_t)
+    `AXI_TYPEDEF_REQ_T(msi_slv_req_top, msi_slv_aw_chan_top, msi_slv_w_chan_top, msi_slv_ar_chan_top)
+    `AXI_TYPEDEF_RESP_T(msi_slv_resp_top, msi_slv_b_chan_top, msi_slv_r_chan_top)
+    //
     `AXI_TYPEDEF_AW_CHAN_T(mst2_aw_chan_top, axi_mst2_addr_t, axi_mst2_id_t, user_t)
     `AXI_TYPEDEF_W_CHAN_T(mst2_w_chan_top, axi_mst2_data_t, axi_mst2_strb_t, user_t)
     `AXI_TYPEDEF_B_CHAN_T(mst2_b_chan_top, axi_mst2_id_t, user_t)
@@ -538,7 +559,7 @@ package rv_tester_params;
     input                                    terminate,                                             \
     input  logic                             terminated,                                            \
     output                                   quiesced,                                              \
-                                                                                                    \
+    input  rv_tester_pkg::aplic_interrupt_t  aplic_interrupt,                                       \
     input  rv_tester_pkg::dm_write_t         dmi_write,                                             \
     output                                   dmi_req_ready,                                         \
     output                                   dmi_resp_valid,                                        \
@@ -566,6 +587,8 @@ package rv_tester_params;
     input  rv_tester_params::slv_resp_top    axi_rsp [rv_tester_params::AXI_TOTAL-1:0],             \
     output rv_tester_params::ncio_slv_req_top     ncio_axi_req [rv_tester_params::NCIO_AXI_TOTAL-1:0],             \
     input  rv_tester_params::ncio_slv_resp_top    ncio_axi_rsp [rv_tester_params::NCIO_AXI_TOTAL-1:0],             \
+    output rv_tester_params::msi_slv_req_top     msi_slv_axi_req [1-1:0],             \
+    input  rv_tester_params::msi_slv_resp_top    msi_slv_axi_rsp [1-1:0],             \
     input  rv_tester_params::mst_req_top     axi_req_mst [rv_tester_params::AXI_MST_TOTAL-1:0],     \
     output rv_tester_params::mst_resp_top    axi_rsp_mst [rv_tester_params::AXI_MST_TOTAL-1:0],     \
     input  rv_tester_params::mst2_req_top    axi_req_mst2 [rv_tester_params::AXI_MST2_TOTAL-1:0],   \
@@ -580,6 +603,7 @@ package rv_tester_params;
     rv_tester_pkg::interrupt_t               interrupt_pend  [rv_tester_params::NHARTS-1:0];        \
     logic                                    debug_mode      [rv_tester_params::NHARTS-1:0];        \
     logic                                    terminate;                                             \
+    rv_tester_pkg::aplic_interrupt_t         aplic_interrupt;                                       \
     logic                                    terminated;                                            \
     logic                                    quiesced;                                              \
     rv_tester_pkg::dm_write_t                dmi_write;                                             \
@@ -608,6 +632,8 @@ package rv_tester_params;
     rv_tester_params::slv_resp_top           axi_rsp [rv_tester_params::AXI_TOTAL-1:0];             \
     rv_tester_params::ncio_slv_req_top       ncio_axi_req [rv_tester_params::NCIO_AXI_TOTAL-1:0];             \
     rv_tester_params::ncio_slv_resp_top      ncio_axi_rsp [rv_tester_params::NCIO_AXI_TOTAL-1:0];             \
+    rv_tester_params::msi_slv_req_top        msi_slv_axi_req [1-1:0];             \
+    rv_tester_params::msi_slv_resp_top       msi_slv_axi_rsp [1-1:0];             \
     rv_tester_params::mst_req_top            axi_req_mst [rv_tester_params::AXI_MST_TOTAL-1:0];     \
     rv_tester_params::mst_resp_top           axi_rsp_mst [rv_tester_params::AXI_MST_TOTAL-1:0];     \
     rv_tester_params::mst2_req_top           axi_req_mst2  [rv_tester_params::AXI_MST2_TOTAL-1:0];  \
