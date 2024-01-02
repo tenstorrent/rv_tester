@@ -305,14 +305,6 @@ void bridge::process_lrsc_pre_step(hart_id_t hart, const rv_instr_t& d) {
 }
 
 void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
-
-  if (!mip_)
-    return;
-
-  bool w_intr;
-  uint64_t w_cause;
-  check_interrupt(hart, mip_, w_intr, w_cause);
-
 // FIXME We are deferring all interrupts, if new interrupt was made possible due to execution of a csr op previously
   if (d.disasm.find("csr") != std::string::npos) {
       if (prev_sync_intr_) {
@@ -328,6 +320,14 @@ void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whi
   } else { 
     prev_sync_intr_ = 0;
   }
+
+  if (!mip_)
+    return;
+
+  bool w_intr;
+  uint64_t w_cause;
+  check_interrupt(hart, mip_, w_intr, w_cause);
+
   if (!d.intr && !w_intr)
     return;
 
@@ -387,6 +387,27 @@ void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whi
 }
 
 void bridge::process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
+  
+  if (d.disasm.find("csr") != std::string::npos) {
+      if (prev_sync_intr_) {
+          prev_sync_intr_ = 0;
+          defer_interrupt(hart, d.cycle, pre_csr_defermip_);
+          deferred_mip_ = pre_csr_defermip_;
+      } else {
+          uint64_t undeferred_mip = mip_ & ~ deferred_mip_;
+          uint64_t undeferred_w_cause;
+          check_interrupt(hart, undeferred_mip, post_undeferred_intr_, undeferred_w_cause);
+          prev_sync_intr_ = post_undeferred_intr_ && !pre_undeferred_intr_;
+      }
+  
+  }
+
+  if (w.disasm.find("ret") != std::string::npos) {
+      if(prev_mip_ != mip_) {
+        check_and_defer_interrupt(hart, d.cycle, ~prev_mip_ & mip_);
+      }
+        prev_sync_intr_ = true; // This will waive cases when after execution of mret there exists a csr operation which needs to be interrupted.
+  }
 
   if (!d.intr && !w_.intr)
     return;
@@ -416,26 +437,6 @@ void bridge::process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, wh
     cvm::log(cvm::ERROR, "Error: Hart {}: DUT vs Whisper interrupt cause mismatch [dut:{},whisper:{}]\n", hart, d.icause, w_.icause);
     return;
   }
-    if (d.disasm.find("csr") != std::string::npos) {
-      if (prev_sync_intr_) {
-          prev_sync_intr_ = 0;
-          defer_interrupt(hart, d.cycle, pre_csr_defermip_);
-          deferred_mip_ = pre_csr_defermip_;
-      } else {
-          uint64_t undeferred_mip = mip_ & ~ deferred_mip_;
-          uint64_t undeferred_w_cause;
-          check_interrupt(hart, undeferred_mip, post_undeferred_intr_, undeferred_w_cause);
-          prev_sync_intr_ = post_undeferred_intr_ && !pre_undeferred_intr_;
-      }
-  
-    }
-
-    if (w.disasm.find("ret") != std::string::npos) {
-      if(prev_mip_ != mip_) {
-        check_and_defer_interrupt(hart, d.cycle, ~prev_mip_ & mip_);
-      }
-        prev_sync_intr_ = true; // This will waive cases when after execution of mret there exists a csr operation which needs to be interrupted.
-    }
 }
 
 void bridge::process_exception_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
