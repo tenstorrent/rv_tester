@@ -98,7 +98,6 @@ class device {
     device(std::string tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, W write, R read, V* dev)
       : tag_(tag), addr_(addr), size_(size), loc_(loc)
     {
-      cvm::log(cvm::LOW, "\n DEV WR/READ for {:#x} ",addr);
       spawn_write_thread(write, dev);
       spawn_read_thread(read, dev);
     };
