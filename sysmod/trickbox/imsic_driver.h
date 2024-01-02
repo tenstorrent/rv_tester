@@ -106,7 +106,7 @@ public:
     }else if(interrupt_file == 0x01){
        addr1 = msi_v_file_addr;
     }else if(interrupt_file == 0x02){
-       addr1 = msi_vs_file_addr;
+       addr1 = msi_vs_file_addr+ (vs_id << 12);
     }else{
        cvm::log(cvm::ERROR, "[Trickbox] Wrong IMSIC interrupt file specified\n");
     }
