@@ -89,8 +89,8 @@ aplic_driver::write(uint64_t addr, size_t, const data_t& data,
   {
 
      aplic_tx_type_e tx_type = APLIC_CFG;
-     unsigned toggle_cycles  = (t_data & 0xfff0)>>4; 
-     unsigned num_toggles    = t_data & 0xf;
+     toggle_cycles  = (t_data & 0xfff0)>>4; 
+     num_toggles    = t_data & 0xf;
      cvm::registry::messenger.signal(loc(), aplic_data_t{tx_type, toggle_cycles, num_toggles, 0,0,0,0,0,0});
 
     }
@@ -100,6 +100,9 @@ aplic_driver::write(uint64_t addr, size_t, const data_t& data,
       uint64_t enables_offset = addr - (aplic_driver_base+100);
       uint64_t enables_value  =   t_data;
       cvm::registry::messenger.signal(loc(), aplic_data_t{tx_type, 0, 0, enables_offset,enables_value,0,0,0,0});
+      for(int i=0;i<64;i++){
+        toggle_enable[enables_offset + i] = NthBitValue(t_data,i);
+      }
 
     }
     else if((addr >= aplic_driver_base+200)&& (addr < (aplic_driver_base + 0x300)))
@@ -108,7 +111,15 @@ aplic_driver::write(uint64_t addr, size_t, const data_t& data,
       uint64_t toggle0_offset = addr - (aplic_driver_base+200);
       uint64_t toggle0_value  =   t_data;
       cvm::registry::messenger.signal(loc(), aplic_data_t{tx_type, 0,0, 0,0,toggle0_offset,toggle0_value,0,0});
-
+      for(int i=0;i<64;i++){
+        if(NthBitValue(t_data,i)){
+          toggle_type[toggle0_offset + i] = 0;
+          toggle_in_progress[toggle0_offset + i] = 1;
+          toggle_count[toggle0_offset + i] = num_toggles;
+          cycle_count[toggle0_offset + i] = toggle_cycles;
+        }
+      }
+      
     }
     else if((addr >= aplic_driver_base+300)&& (addr < (aplic_driver_base + 0x400)))
     {
@@ -116,7 +127,14 @@ aplic_driver::write(uint64_t addr, size_t, const data_t& data,
       uint64_t toggle1_offset = addr - (aplic_driver_base+300);
       uint64_t toggle1_value  =   t_data;
       cvm::registry::messenger.signal(loc(), aplic_data_t{tx_type, 0,0 , 0,0,0,0,toggle1_offset,toggle1_value});
-
+      for(int i=0;i<64;i++){
+        if(NthBitValue(t_data,i)){
+          toggle_type[toggle1_offset + i] = 1;
+          toggle_in_progress[toggle1_offset + i] = 1;
+          toggle_count[toggle1_offset + i] = num_toggles;
+          cycle_count[toggle1_offset + i] = toggle_cycles;
+        }
+      }
     }
     else if(addr==(aplic_driver_base + 0x500))
     {

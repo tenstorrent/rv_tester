@@ -15,6 +15,7 @@
 #include <random>
 #include <cmath>
 #include <vector>
+#include <bitset>
 #include "pcg_random.hpp"
 #include "cvm/plusargs.hpp"
 #include "cvm/topology.hpp"
@@ -86,13 +87,11 @@ public:
     timer_ += advance;
     timer_advance = advance;
     cvm::log(cvm::FULL, "[APLIC_DRIVER] Timer tick {} advance interval {} \n", timer_, timer_advance);
-    //std::cout<<"\nAPLIC TICK at time "<<timer_<<"\n";
-    //std::cout<<"APLIC RSET FUNC DONE\n";
+    processDirectedInterrupts();
     processDelayedRandomInterrupts();
   }
 
   void reset() override {
-    //std::cout<<"APLIC RSET FUNC\n";
     if(FLAGS_random_aplic_intr){
       cvm::log(cvm::MEDIUM, "[APLIC_DRIVER] Enable random interrupts. Mask: {:#x}\n", FLAGS_random_aplic_intr);
       uint32_t rand_num =  (rng() %  2)+1;  //default delay
@@ -140,6 +139,49 @@ public:
   };
 protected:
 
+  void processDirectedInterrupts()
+  {
+    for(int i=0;i<1024;i++){
+       if(toggle_in_progress[i]){
+          
+          //aplic_interrupt_bitset[i] = ~aplic_interrupt_bitset[i];
+          cycle_count[i]--;
+          
+          if(cycle_count[i] == 0){
+            cycle_count[i] = toggle_cycles;
+            toggle_count[i]--;
+            //toggle pin
+            toggle_aplic_pin(i);
+            if(toggle_count[i] == 0){
+              toggle_in_progress[i] = 0;
+              if(toggle_type[i])
+                set_aplic_pin(i);
+              else
+                clr_aplic_pin(i);
+              //based on toggle 0 or toggle 1 set last value
+
+            }
+          }
+
+         aplic_driver_write_t aplic_driver_info;
+         
+         for(int i=0;i<16;i++){
+          aplic_driver_info.aplic_pin_values_vec[i] = aplic_pin_values_vec[i];
+         }
+         //cvm::registry::messenger.signal(loc(), aplic_driver_write_t{aplic_pin_values_vec});
+         cvm::registry::messenger.signal(loc(), aplic_driver_info);
+       }
+       else{
+        // TODO:
+       }
+
+    }
+  }
+
+  void toggleInterruptPin()
+  {
+
+  }
   /// Assert/deassert the timer interrupt for each hart where the
   /// time-compare value is greater-than-or-equal/less-than the timer
   /// value.
@@ -210,7 +252,36 @@ protected:
     //aplic_pin_values[index] = aplic_pin_values[index] | (1<<bit_pos);
     aplic_pin_values_vec[index] = aplic_pin_values_vec[index] | (1<<bit_pos);
   }
+ 
+  virtual void toggle_aplic_pin(uint64_t interrupt_num){
+    uint64_t index   =  interrupt_num / 64;
+    uint64_t bit_pos =  interrupt_num % 64;
+    //std::cout<<"\n Update aplic vec Index "<<index<<" bit position :"<<bit_pos<<"\n";
+    //aplic_pin_values[index] = aplic_pin_values[index] | (1<<bit_pos);
+    aplic_pin_values_vec[index] = aplic_pin_values_vec[index] ^ (1<<bit_pos);
+  } 
+  virtual void set_aplic_pin(uint64_t interrupt_num){
+    uint64_t index   =  interrupt_num / 64;
+    uint64_t bit_pos =  interrupt_num % 64;
+    //std::cout<<"\n Update aplic vec Index "<<index<<" bit position :"<<bit_pos<<"\n";
+    //aplic_pin_values[index] = aplic_pin_values[index] | (1<<bit_pos);
+    aplic_pin_values_vec[index] = aplic_pin_values_vec[index] | (1<<bit_pos);
+  } 
+  virtual void clr_aplic_pin(uint64_t interrupt_num){
+    uint64_t index   =  interrupt_num / 64;
+    uint64_t bit_pos =  interrupt_num % 64;
+    //std::cout<<"\n Update aplic vec Index "<<index<<" bit position :"<<bit_pos<<"\n";
+    //aplic_pin_values[index] = aplic_pin_values[index] | (1<<bit_pos);
+    aplic_pin_values_vec[index] = aplic_pin_values_vec[index] & ~(1<<bit_pos);
+  } 
 
+  bool NthBitValue(uint64_t input_data, int n)
+  {
+    if (input_data & (1 << n))
+       return true ;
+    else
+        return false;
+  }
   // Start a thread to increment timer after n microseconds.
   void selfTick(useconds_t n);
   //Check plusarg usage
@@ -238,6 +309,13 @@ private:
   uint64_t toggle0[16] = {0};
   uint64_t toggle1[16] = {0};
   uint64_t aplic_pin_values_vec[16] = {0};
+  std::bitset<1024> toggle_in_progress;
+  std::bitset<1024> toggle_enable;
+  std::bitset<1024> toggle_type;
+  std::bitset<1024> aplic_interrupt_bitset;
+  uint8_t toggle_count[1024];
+  uint32_t cycle_count[1024];
+
   //std::vector<uint64_t> aplic_pin_values_vec;
   //
   std::atomic<bool> terminate_ = false;
