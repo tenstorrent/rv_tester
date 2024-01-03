@@ -39,21 +39,23 @@ void aplic_monitor::process(const rv_tester_transactions::aplic_monitor::msi_req
 {
   //APLIC MSI request
   //on observing MSI , we can query the aplic model for MSI or can check in a queue if current MSI should be observed or not 
-  std::cout<<"\nProcess0: location "<<msi_req.location<<"\n";
+   cvm::log(cvm::HIGH,"\n[APLIC MONITOR] Process0: location {} \n ",msi_req.location);
 }
 
 void aplic_monitor::process(const rv_tester_transactions::aplic_monitor::aplic_intr_req<> &aplic_intr_req)
 {
-  std::cout<<"\nProcess1: location "<<aplic_intr_req.location<<"\n";
+  //std::cout<<"\nProcess1: location "<<aplic_intr_req.location<<"\n";
+  cvm::log(cvm::HIGH,"\n[APLIC MONITOR] Process1: location {} \n ",aplic_intr_req.location);
   std::vector<int> setIndices;
   for (int i = 0; i < 1024; ++i) {
         if (aplic_intr_req.pin_value[i]) {
             setIndices.push_back(i);
         }
     }
-   std::cout << "\n APLIC_MONOTR PROCESS 1 Indices where bits are set:" << std::endl;
-    for (int index : setIndices) {
-        std::cout << index << " ";
+   
+  cvm::log(cvm::HIGH,"\n[APLIC MONITOR] Following interrupts will be driven \n ");
+   for (int index : setIndices) {
+        cvm::log(cvm::HIGH," {}\n", index );
     }
     std::cout << std::endl;
 }
@@ -62,13 +64,15 @@ void aplic_monitor::process(const rv_tester_transactions::aplic_monitor::aplic_i
 void aplic_monitor::process(const rv_tester_transactions::aplic_monitor::aplic_mmr_load_cmd<> &aplic_mmr_load_cmd)
 {
 
-  std::cout<<"\nProcess2: location"<<aplic_mmr_load_cmd.location;
+ // std::cout<<"\nProcess2: location"<<aplic_mmr_load_cmd.location;
+  cvm::log(cvm::HIGH,"\n[APLIC MONITOR] Process2: location {} \n ",aplic_mmr_load_cmd.location);
 }
 
 void aplic_monitor::process(const rv_tester_transactions::aplic_monitor::aplic_mmr_load_data<> &aplic_mmr_load_data)
 {
   
-  std::cout<<"\nProcess3: location"<<aplic_mmr_load_data.location;
+  //std::cout<<"\nProcess3: location"<<aplic_mmr_load_data.location;
+  cvm::log(cvm::HIGH,"\n[APLIC MONITOR] Process2: location {} \n ",aplic_mmr_load_data.location);
 
 }
 
@@ -76,16 +80,16 @@ void aplic_monitor::process(const rv_tester_transactions::aplic_monitor::aplic_m
 {
   //APLIC configuration will happen here
   // APlic MMR stores are visible here and we can call aplic model api to program the model in this process function
-  std::cout<<"\nProcess4: Aplic mmr store location  "<<aplic_mmr_store.location;
-  std::cout<<"\nProcess4: Aplic mmr store Data  "<<aplic_mmr_store.data;
-  std::cout<<"\nProcess4: Aplic mmr store addr  "<<aplic_mmr_store.addr;
+  cvm::log(cvm::HIGH,"\nProcess4: Aplic mmr store location {} ",aplic_mmr_store.location);
+  cvm::log(cvm::HIGH,"\nProcess4: Aplic mmr store Data {} ",aplic_mmr_store.data);
+  cvm::log(cvm::HIGH,"\nProcess4: Aplic mmr store addr {} ",aplic_mmr_store.addr);
   
 }
 
 void aplic_monitor::reset()
 {
   
-std::cout<<"Reset APlic Mon\n";
+  cvm::log(cvm::HIGH,"\n[APLIC MONITOR] Rese \n ");
   
 }
 
