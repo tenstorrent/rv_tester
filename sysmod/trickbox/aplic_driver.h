@@ -26,6 +26,7 @@
 DECLARE_int32(intr_delay_min);//, 4, "Minimum Delay between 2 consecutive interrupts");
 DECLARE_int32(intr_delay_max);//, 7, "Maximum Delay between 2 consecutive interrupts");
 DECLARE_bool(random_aplic_intr);//, false, "Drive random interrups");
+DECLARE_bool(debug_aplic_driver);
 DECLARE_int32(max_simul_intr );
 DECLARE_int32(num_interrupts);
 DECLARE_int32(toggle_prob);
@@ -83,10 +84,12 @@ public:
 
   virtual void tick(uint64_t advance) override
   {
+    num_ticks++;
     std::lock_guard<std::mutex> lock(mutex_);
     timer_ += advance;
     timer_advance = advance;
     cvm::log(cvm::FULL, "[APLIC_DRIVER] Timer tick {} advance interval {} \n", timer_, timer_advance);
+    InterruptLogicStatus();
     processDirectedInterrupts();
     processDelayedRandomInterrupts();
   }
@@ -109,16 +112,6 @@ public:
     memset(enables,0,16);
     memset(toggle0,0,16);
     memset(toggle1,0,16);
-    //memset(aplic_pin_values,0,16); FIXME
-    //for(int i=0;i<16;i++){
-    //  aplic_pin_values_vec[i] = (1<<i);
-    //}
-    //aplic_pin_values[] = {1,2,4,7,8,9,11,12,1,2,2,3,4,5};
-    // aplic_pin_values_vec.push_back(1);
-    // aplic_pin_values_vec.push_back(2);
-    // aplic_pin_values_vec.push_back(7);
-    // cvm::registry::messenger.signal(loc(), aplic_driver_write_t{aplic_pin_values_vec});
-    //std::cout<<"APLIC RSET FUNC DONE\n";
 
   }
   typedef enum { APLIC_CFG,APLIC_EN,APLIC_T0,APLIC_T1 } aplic_tx_type_e;
@@ -144,7 +137,6 @@ protected:
     for(int i=0;i<1024;i++){
        if(toggle_in_progress[i]){
           
-          //aplic_interrupt_bitset[i] = ~aplic_interrupt_bitset[i];
           cycle_count[i]--;
           
           if(cycle_count[i] == 0){
@@ -154,11 +146,11 @@ protected:
             toggle_aplic_pin(i);
             if(toggle_count[i] == 0){
               toggle_in_progress[i] = 0;
+              //based on toggle 0 or toggle 1 set last value
               if(toggle_type[i])
                 set_aplic_pin(i);
               else
                 clr_aplic_pin(i);
-              //based on toggle 0 or toggle 1 set last value
 
             }
           }
@@ -168,7 +160,6 @@ protected:
          for(int i=0;i<16;i++){
           aplic_driver_info.aplic_pin_values_vec[i] = aplic_pin_values_vec[i];
          }
-         //cvm::registry::messenger.signal(loc(), aplic_driver_write_t{aplic_pin_values_vec});
          cvm::registry::messenger.signal(loc(), aplic_driver_info);
        }
        else{
@@ -178,9 +169,45 @@ protected:
     }
   }
 
-  void toggleInterruptPin()
+  void InterruptLogicStatus()
   {
+    if(FLAGS_debug_aplic_driver){
+    cvm::log(cvm::DEBUG, " all set bits in toggle_enable\n");
+    for (int i = toggle_enable._Find_first();
+         i < int(toggle_enable.size());
+         i = toggle_enable._Find_next(i))
+        cvm::log(cvm::DEBUG,"{} ",i);
+    cvm::log(cvm::DEBUG, "\n");
 
+   cvm::log(cvm::DEBUG, " all set bits in toggle_in_progress\n");
+   for (int i = toggle_in_progress._Find_first();
+         i < int(toggle_in_progress.size());
+         i = toggle_in_progress._Find_next(i))
+        cvm::log(cvm::DEBUG,"{} ",i);
+   cvm::log(cvm::DEBUG, "\n");
+   
+   cvm::log(cvm::DEBUG, " all set bits in toggle_type\n");
+   for (int i = toggle_type._Find_first();
+         i < int(toggle_type.size());
+         i = toggle_type._Find_next(i))
+        cvm::log(cvm::DEBUG,"{} ",i);
+   cvm::log(cvm::DEBUG, "\n");
+   
+   cvm::log(cvm::DEBUG, " all set bits in aplic_interrupt_bitset\n");
+   for (int i = aplic_interrupt_bitset._Find_first();
+         i < int(aplic_interrupt_bitset.size());
+         i = aplic_interrupt_bitset._Find_next(i))
+        cvm::log(cvm::DEBUG,"{} ",i);
+   cvm::log(cvm::DEBUG, "\n");
+   
+   cvm::log(cvm::DEBUG, " all set bits in toggle_in_progress cycle count\n");
+   for (int i = toggle_in_progress._Find_first();
+         i < int(toggle_in_progress.size());
+         i = toggle_in_progress._Find_next(i)){
+        cvm::log(cvm::DEBUG, " index: {} toggle_count: {} cycle_count: {} \n",i, toggle_count[i],cycle_count[i]);
+         }    
+    cvm::log(cvm::DEBUG, "\n");
+    }
   }
   /// Assert/deassert the timer interrupt for each hart where the
   /// time-compare value is greater-than-or-equal/less-than the timer
@@ -204,7 +231,7 @@ protected:
          for (unsigned i = 0; i < iter; ++i) {
            do{
              values[i] = rng() % (FLAGS_num_interrupts) ;
-	           cvm::log(cvm::HIGH, "[APLIC_DRIVER] attempting to genertae legal interrupts,gen_result  {} \n", values[i]);
+	           cvm::log(cvm::HIGH, "[APLIC_DRIVER] attempting to generate legal interrupts,gen_result  {} \n", values[i]);
 	          }while(disable_mask & (1<<values[i]));
 
            for (unsigned j = 0; j < i; ++j) {
@@ -215,16 +242,10 @@ protected:
             }
 
 	         cvm::log(cvm::HIGH, "[APLIC_DRIVER] Driving interrupt  {}  \n", values[i]);
-           //rand_intr =  rand_intr |(1<<values[i]);
-
-           //rand_intr = rand_intr & disable_mask_neg;
-	         //cvm::log(cvm::HIGH, "[APLIC_DRIVER] Send  interrupt vec to sysmod  {:#x}  \n", rand_intr);
            update_aplic_pins(values[i]);
          }
 
 
-	       //cvm::log(cvm::HIGH, "[APLIC_DRIVER] Send  sig to  sysmod  {:#x}  \n", rand_intr);
-         //cvm::registry::messenger.signal(loc(), interrupt_t{0, rand_intr, rand_intr});
          uint32_t rand_num =  (rng() % ( FLAGS_intr_delay_max - FLAGS_intr_delay_min + 1)) + FLAGS_intr_delay_min;
          timer_rand_intr = timer_ +(rand_num*timer_advance);
 	       cvm::log(cvm::HIGH, "[APLIC_DRIVER] Next random interrupt will be sent at  {}  \n", timer_rand_intr);
@@ -232,7 +253,6 @@ protected:
          for(int i=0;i<16;i++){
           aplic_driver_info.aplic_pin_values_vec[i] = aplic_pin_values_vec[i];
          }
-         //cvm::registry::messenger.signal(loc(), aplic_driver_write_t{aplic_pin_values_vec});
          cvm::registry::messenger.signal(loc(), aplic_driver_info);
       }
     }
@@ -241,43 +261,35 @@ protected:
   // Used to assert/deassert a aplic_driver interrupt (PIPI) for given hart.
   virtual void driveInterrupt(unsigned , unsigned , unsigned )
   {
-    //cvm::registry::messenger.signal(loc(), aplic_data_t{hart, intr_select, intr_value});
   }
 
   virtual void update_aplic_pins(uint64_t interrupt_num){
-  //virtual void update_aplic_pins(uint64_t ){
     uint64_t index   =  interrupt_num / 64;
     uint64_t bit_pos =  interrupt_num % 64;
-    //std::cout<<"\n Update aplic vec Index "<<index<<" bit position :"<<bit_pos<<"\n";
-    //aplic_pin_values[index] = aplic_pin_values[index] | (1<<bit_pos);
     aplic_pin_values_vec[index] = aplic_pin_values_vec[index] | (1<<bit_pos);
   }
  
   virtual void toggle_aplic_pin(uint64_t interrupt_num){
     uint64_t index   =  interrupt_num / 64;
     uint64_t bit_pos =  interrupt_num % 64;
-    //std::cout<<"\n Update aplic vec Index "<<index<<" bit position :"<<bit_pos<<"\n";
-    //aplic_pin_values[index] = aplic_pin_values[index] | (1<<bit_pos);
     aplic_pin_values_vec[index] = aplic_pin_values_vec[index] ^ (1<<bit_pos);
   } 
+
   virtual void set_aplic_pin(uint64_t interrupt_num){
     uint64_t index   =  interrupt_num / 64;
     uint64_t bit_pos =  interrupt_num % 64;
-    //std::cout<<"\n Update aplic vec Index "<<index<<" bit position :"<<bit_pos<<"\n";
-    //aplic_pin_values[index] = aplic_pin_values[index] | (1<<bit_pos);
     aplic_pin_values_vec[index] = aplic_pin_values_vec[index] | (1<<bit_pos);
   } 
+
   virtual void clr_aplic_pin(uint64_t interrupt_num){
     uint64_t index   =  interrupt_num / 64;
     uint64_t bit_pos =  interrupt_num % 64;
-    //std::cout<<"\n Update aplic vec Index "<<index<<" bit position :"<<bit_pos<<"\n";
-    //aplic_pin_values[index] = aplic_pin_values[index] | (1<<bit_pos);
     aplic_pin_values_vec[index] = aplic_pin_values_vec[index] & ~(1<<bit_pos);
   } 
 
-  bool NthBitValue(uint64_t input_data, int n)
+  bool NthBitValue(uint64_t input_data, uint64_t n)
   {
-    if (input_data & (1 << n))
+    if (input_data & (1ULL << n))
        return true ;
     else
         return false;
@@ -300,11 +312,11 @@ private:
   uint64_t timer_rand_intr = 500;
   uint64_t aplic_driver_base = 0x9000000;
   uint64_t disable_mask = 0;
-  //uint64_t disable_mask_neg = 0;
   
   //APLIC MODEL
   uint32_t toggle_cycles = 0;
   uint32_t num_toggles = 0;
+  uint64_t num_ticks = 0;
   uint64_t enables[16] = {0};
   uint64_t toggle0[16] = {0};
   uint64_t toggle1[16] = {0};
@@ -313,11 +325,9 @@ private:
   std::bitset<1024> toggle_enable;
   std::bitset<1024> toggle_type;
   std::bitset<1024> aplic_interrupt_bitset;
-  uint8_t toggle_count[1024];
+  uint32_t toggle_count[1024];
   uint32_t cycle_count[1024];
 
-  //std::vector<uint64_t> aplic_pin_values_vec;
-  //
   std::atomic<bool> terminate_ = false;
   std::mutex mutex_;
 
