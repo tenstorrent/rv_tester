@@ -26,7 +26,7 @@ module aplic_monitor #(
         if (reset) begin
             /* verilator lint_off BLKSEQ */
             location = cvm_topology::get_location(topology.TOP.PLATFORM.APLIC_MONITOR.ID, 0);
-            $display("SV: APLIC_MONITOR location %d time %t\n",location,$time);
+            //$display("SV: APLIC_MONITOR location %d time %t\n",location,$time);
             /* verilator lint_on BLKSEQ */
             /* verilator lint_off BLKSEQ */
             aplic_pin_input_prev = 1024'h0;

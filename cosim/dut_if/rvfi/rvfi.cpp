@@ -260,7 +260,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
     vr_t vr {true, m_rvfi.vrd_addr, m_rvfi.vrd_wdata};
     instr.vr.push_back(vr);
     // Accumulate cracked vr writes
-    if (!m_rvfi.last_uop) {
+    if (!m_rvfi.last_uop && (m_rvfi.vrd_addr < 32)) {
       cracked_vrs_.push_back(vr);
     }
   }

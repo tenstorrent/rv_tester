@@ -305,6 +305,21 @@ void bridge::process_lrsc_pre_step(hart_id_t hart, const rv_instr_t& d) {
 }
 
 void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
+// FIXME We are deferring all interrupts, if new interrupt was made possible due to execution of a csr op previously
+  if (d.disasm.find("csr") != std::string::npos) {
+      if (prev_sync_intr_) {
+          log(cvm::MEDIUM, "<{}> CSR Defer\n", d.cycle);
+          pre_csr_defermip_ = deferred_mip_;
+          deferred_intr_ = true;
+          defer_interrupt(hart, d.cycle, mip_);
+      } else {
+          uint64_t undeferred_mip = mip_ & ~ deferred_mip_;
+          uint64_t undeferred_w_cause;
+          check_interrupt(hart, undeferred_mip, pre_undeferred_intr_, undeferred_w_cause);
+      }
+  } else { 
+    prev_sync_intr_ = 0;
+  }
 
   if (!mip_)
     return;
@@ -346,7 +361,7 @@ void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whi
   }
 
   // 2. DUT took older interrupt but a newer one asserted before retire
-  if (d.icause != w_cause && !FLAGS_cosim_resynch) {
+  if (d.icause != w_cause) {
     check_interrupt(hart, prev_mip_, w_intr, w_cause);
     if (w_intr && (w_cause == d.icause)) {
       log(cvm::MEDIUM, "<{}> DUT vs Whisper interrupt cause mismatch [{},{}] age [{},{}] (Timing sensitive mismatch: Resynch and keep going)\n",
@@ -372,6 +387,27 @@ void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whi
 }
 
 void bridge::process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
+  
+  if (d.disasm.find("csr") != std::string::npos) {
+      if (prev_sync_intr_) {
+          prev_sync_intr_ = 0;
+          defer_interrupt(hart, d.cycle, pre_csr_defermip_);
+          deferred_mip_ = pre_csr_defermip_;
+      } else {
+          uint64_t undeferred_mip = mip_ & ~ deferred_mip_;
+          uint64_t undeferred_w_cause;
+          check_interrupt(hart, undeferred_mip, post_undeferred_intr_, undeferred_w_cause);
+          prev_sync_intr_ = post_undeferred_intr_ && !pre_undeferred_intr_;
+      }
+  
+  }
+
+  if (w.disasm.find("ret") != std::string::npos) {
+      if(prev_mip_ != mip_) {
+        check_and_defer_interrupt(hart, d.cycle, ~prev_mip_ & mip_);
+      }
+        prev_sync_intr_ = true; // This will waive cases when after execution of mret there exists a csr operation which needs to be interrupted.
+  }
 
   if (!d.intr && !w_.intr)
     return;
@@ -692,6 +728,7 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_
   // Register changes - r, f, v,
   // size_8_bytes_t dword_vec_array [vlen/64] = {0};
   uint32_t vec_slices = vlen/64;
+  std::vector<uint64_t> csrsupdatingmip = {0x351, 0x251, 0x151, 0x35c, 0x25c, 0x15c};
 
   switch(w.resource) {
     case 'r':
@@ -724,11 +761,18 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_
         e_mip_ = w.value & 0xa00;
         log(cvm::MEDIUM, "<{}> Zicsr write based interrupt: mip {:#x}\n", w.time, w.value);
       }
+      // Whisper is not doing recordwrite of mip if change happens to it through sip, *ireg, *topei
       if (w.address == 0x144) {
         uint64_t sip_mask=0x222;
         mip_ = (w.value & sip_mask) | (mip_ & ~sip_mask);
         e_mip_ = mip_ & 0xa00;
         log(cvm::MEDIUM, "<{}> Zicsr write based interrupt: mip {:#x}\n", w.time, w.value);
+      }
+      for (size_t i = 0; i < csrsupdatingmip.size(); ++i) {
+        if (csrsupdatingmip[i] == w.address) {
+            peek_mip(hart, w.time , mip_);
+            break;
+        }
       }
       break;
     default:

@@ -235,7 +235,7 @@ sysmod::compose()
 
       std::unique_ptr<device> device;
 
-      cvm::log(cvm::LOW, "\n PRT ### CREATING TYPE {}", type);
+      
       if (type == "memory") {
         device = std::make_unique<sysmod_mem>(tag, base, size, loc_);
       }
