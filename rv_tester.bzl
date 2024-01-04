@@ -133,7 +133,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
     native.cc_library(
         name = rv_tester_assert_dpi,
         srcs = ["@rv_tester//:rv_tester_assert_handler.cpp"],
-        deps = ["@cvm//:logger"],
+        deps = ["@cvm//:logger", "@cvm//:plusargs"],
         alwayslink = True,
         visibility = visibility,
     )
