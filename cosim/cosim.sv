@@ -7,6 +7,8 @@ import rv_tester_params::*;
     parameter int NINSERT = 1,
     parameter int NWRITE = 1,
     parameter int NBYPASS = 1,
+    parameter int NIFETCH = 1,
+    parameter int NIEVICT = 1,
     parameter int RESET_CLOCKS = 10,
     `TOPOLOGY,
     `RV_TESTER_TRANSACTIONS_COSIM_OUTPUT_PARAMS
@@ -21,6 +23,9 @@ import rv_tester_params::*;
     input mcmi_t [NINSERT-1:0] mcmi_insert,
     input mcmi_t [NWRITE-1:0] mcmi_write,
     input mcmi_t [NBYPASS-1:0] mcmi_bypass,
+    input mcmi_t [NIFETCH-1:0] mcmi_ifetch_req,
+    input mcmi_t [NIFETCH-1:0] mcmi_ifetch_resp,
+    input mcmi_t [NIEVICT-1:0] mcmi_ievict,
     input rv_tester_pkg::interrupt_t wired_interrupt,
     input rv_tester_params::mst2_req_top imsic_interrupt,
     input debug_mode,
@@ -162,6 +167,33 @@ import rv_tester_params::*;
         assign m_mcmi_bypasss[n].data.addr = mcmi_bypass[n].addr;
         assign m_mcmi_bypasss[n].data.mask = mcmi_bypass[n].mask;
         assign m_mcmi_bypasss[n].data.data = mcmi_bypass[n].data[63:0];
+    end
+
+    // m_mcmi_ifetch
+    for (genvar n = 0; n < NIFETCH; n++) begin
+        assign m_mcmi_ifetch_reqs[n].valid = MCMI_EN & rvfi_enabled & ~dut_reset & mcmi_ifetch_req[n].valid;
+        assign m_mcmi_ifetch_reqs[n].data.location = location;
+        assign m_mcmi_ifetch_reqs[n].data.cycle = mcmi_ifetch_req[n].valid ? clocks : '0;
+        assign m_mcmi_ifetch_reqs[n].data.hart = NUM;
+        assign m_mcmi_ifetch_reqs[n].data.order = mcmi_ifetch_req[n].order;
+        assign m_mcmi_ifetch_reqs[n].data.addr = mcmi_ifetch_req[n].addr;
+    end
+
+    for (genvar n = 0; n < NIFETCH; n++) begin
+        assign m_mcmi_ifetch_resps[n].valid = MCMI_EN & rvfi_enabled & ~dut_reset & mcmi_ifetch_resp[n].valid;
+        assign m_mcmi_ifetch_resps[n].data.location = location;
+        assign m_mcmi_ifetch_resps[n].data.cycle = mcmi_ifetch_resp[n].valid ? clocks : '0;
+        assign m_mcmi_ifetch_resps[n].data.hart = NUM;
+        assign m_mcmi_ifetch_resps[n].data.order = mcmi_ifetch_resp[n].order;
+    end
+
+    // m_mcmi_ievict
+    for (genvar n = 0; n < NIEVICT; n++) begin
+        assign m_mcmi_ievicts[n].valid = MCMI_EN & rvfi_enabled & ~dut_reset & mcmi_ievict[n].valid;
+        assign m_mcmi_ievicts[n].data.location = location;
+        assign m_mcmi_ievicts[n].data.cycle = mcmi_ievict[n].valid ? clocks : '0;
+        assign m_mcmi_ievicts[n].data.hart = NUM;
+        assign m_mcmi_ievicts[n].data.addr = mcmi_ievict[n].addr;
     end
 
     // m_trap

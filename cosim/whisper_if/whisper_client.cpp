@@ -442,6 +442,38 @@ whisperClient<URV>::whisperMcmWrite(int hart, uint64_t time, uint64_t addr,
 
 template <typename URV>
 bool
+whisperClient<URV>::whisperMcmIFetch(int hart, uint64_t time, uint64_t addr, bool& valid)
+{
+  req.hart = hart;
+  req.type = WhisperMessageType::McmIFetch;
+  req.time = time;
+  req.address = addr;
+
+  if (not whisperCommand(req, reply))
+    return false;
+
+  valid = reply.type != WhisperMessageType::Invalid;
+  return true;
+}
+
+template <typename URV>
+bool
+whisperClient<URV>::whisperMcmIEvict(int hart, uint64_t time, uint64_t addr, bool& valid)
+{
+  req.hart = hart;
+  req.type = WhisperMessageType::McmIEvict;
+  req.time = time;
+  req.address = addr;
+
+  if (not whisperCommand(req, reply))
+    return false;
+
+  valid = reply.type != WhisperMessageType::Invalid;
+  return true;
+}
+
+template <typename URV>
+bool
 whisperClient<URV>::whisperTranslate(int hart, uint64_t vaddr, bool r, bool w, bool x,
          bool supervisor, uint64_t& paddr, bool& valid)
 {

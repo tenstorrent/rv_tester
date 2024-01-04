@@ -2,6 +2,7 @@
 
 #include <fstream>
 #include <fmt/format.h>
+#include <unordered_map>
 
 #include "cvm/registry.hpp"
 #include "cvm/logger.hpp"
@@ -51,6 +52,9 @@ class rvfi {
     void process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_insert);
     void process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_bypass);
     void process(const rv_tester_transactions::cosim::m_mcmi_write<>& m_mcmi_write);
+    void process(const rv_tester_transactions::cosim::m_mcmi_ifetch_req<>& m_mcmi_ifetch_req);
+    void process(const rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>& m_mcmi_ifetch_resp);
+    void process(const rv_tester_transactions::cosim::m_mcmi_ievict<>& m_mcmi_ievict);
 
     void process(const rv_tester::terminate_called&);
 
@@ -91,6 +95,7 @@ class rvfi {
     std::vector<rv_instr_t> instrs_;
     std::vector<vr_t> cracked_vrs_;
     std::vector<csr_t> hw_csrs_, ucode_csrs_;
+    std::unordered_map<uint64_t, mem_t> ifetch_reqs_;
     gpr_s cracked_gpr_;
 
     svScope scope_;

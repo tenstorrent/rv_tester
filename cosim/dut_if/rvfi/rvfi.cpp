@@ -584,6 +584,55 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write<>& m_mcmi_w
   bridge_->process_dut_mcm_write(m_mcmi_write.hart, m);
 }
 
+void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_req<>& m_mcmi_ifetch_req) {
+  if (!FLAGS_mcm)
+    return;
+
+  if (terminated_)
+    return;
+
+  mem_t m;
+  m.valid = true;
+  m.tag = m_mcmi_ifetch_req.order;
+  m.pa = m_mcmi_ifetch_req.addr;
+
+  ifetch_reqs_.at(m_mcmi_ifetch_req.order) = m;
+}
+
+void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>& m_mcmi_ifetch_resp) {
+  if (!FLAGS_mcm)
+    return;
+
+  if (terminated_)
+    return;
+
+  mem_t m;
+  if (ifetch_reqs_.find(m_mcmi_ifetch_resp.order) != ifetch_reqs_.end()) {
+    m = ifetch_reqs_[m_mcmi_ifetch_resp.order];
+    m.cycle = m_mcmi_ifetch_resp.cycle;
+    ifetch_reqs_.erase(m_mcmi_ifetch_resp.order);
+  } else {
+    cvm::log(cvm::ERROR, "Error: Ifetch resp with no matching req - [id={}]", m_mcmi_ifetch_resp.order);
+  }
+
+  bridge_->process_dut_mcm_ifetch(m_mcmi_ifetch_resp.hart, m);
+}
+
+void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ievict<>& m_mcmi_ievict) {
+  if (!FLAGS_mcm)
+    return;
+
+  if (terminated_)
+    return;
+
+  mem_t m;
+  m.valid = true;
+  m.cycle = m_mcmi_ievict.cycle;
+  m.pa = m_mcmi_ievict.addr;
+
+  bridge_->process_dut_mcm_ievict(m_mcmi_ievict.hart, m);
+}
+
 void rvfi::process(const rv_tester::terminate_called&) {
   cvm::log(cvm::HIGH, "[RVFI] termination signaled, stopping further rvfi processing\n");
   terminated_ = true;
