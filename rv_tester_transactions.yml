@@ -61,40 +61,56 @@ cosim:
             rd_wdata:
                 width: ${TOP.PLATFORM.XLEN}
             frd_valid:
+                qualify: frd_valid
                 width: 1
             frd_addr:
+                qualify: frd_valid
                 width: 5
             frd_wdata:
+                qualify: frd_valid
                 width: ${TOP.PLATFORM.FLEN}
             vrd_valid:
+                qualify: vrd_valid
                 width: 1
             vrd_addr:
+                qualify: vrd_valid
                 width: 5
             vrd_wdata:
+                qualify: vrd_valid
                 width: ${TOP.PLATFORM.VLEN}
             csr_valid:
+                qualify: csr_valid
                 width: 1
             csr_addr:
+                qualify: csr_valid
                 width: ${TOP.PLATFORM.CSRLEN}
             csr_wdata:
+                qualify: csr_valid
                 width: ${TOP.PLATFORM.XLEN}
             csr_wmask:
+                qualify: csr_valid
                 width: ${TOP.PLATFORM.XLEN}
             pc_rdata:
                 width: ${TOP.PLATFORM.VALEN}
             pc_wdata:
                 width: ${TOP.PLATFORM.VALEN}
             mem_addr:
+                qualify: "{data}.mem_rmask != '0 || {data}.mem_wmask != '0"
                 width: ${TOP.PLATFORM.VALEN}
             mem_paddr:
+                qualify: "{data}.mem_rmask != '0 || {data}.mem_wmask != '0"
                 width: ${TOP.PLATFORM.PALEN}
             mem_rmask:
+                qualify: "{data}.mem_rmask != '0 || {data}.mem_wmask != '0"
                 width: ${TOP.PLATFORM.RDLEN // 8}
             mem_rdata:
+                qualify: "{data}.mem_rmask != '0 || {data}.mem_wmask != '0"
                 width: ${TOP.PLATFORM.RDLEN}
             mem_wmask:
+                qualify: "{data}.mem_rmask != '0 || {data}.mem_wmask != '0"
                 width: ${TOP.PLATFORM.RDLEN // 8}
             mem_wdata:
+                qualify: "{data}.mem_rmask != '0 || {data}.mem_wmask != '0"
                 width: ${TOP.PLATFORM.RDLEN}
 
     m_mcmi_read:
