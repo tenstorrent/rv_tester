@@ -19,10 +19,16 @@ rv_tester_mcmi_attrs: &rv_tester_mcmi_attrs
   NWRITES_CUMSUM: [0, 0]
   NBYPASSES: [3, 3]
   NBYPASSES_CUMSUM: [0, 0]
+  NIFETCHES: [1, 1]
+  NIFETCHES_CUMSUM: [0, 0]
+  NIEVICTS: [1, 1]
+  NIEVICTS_CUMSUM: [0, 0]
   TOTAL_NREADS: 6
   TOTAL_NINSERTS: 6
   TOTAL_NWRITES: 6
   TOTAL_NBYPASSES: 6
+  TOTAL_NIFETCHES: 2
+  TOTAL_NIEVICTS: 2
 
 rv_tester_pmci_attrs: &rv_tester_pmci_attrs
   ENABLE: 1
