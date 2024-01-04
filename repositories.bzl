@@ -14,7 +14,7 @@ def rv_tester_repositories():
         #sha256 = "af87959afe497dc8dfd4c6cb66e1279cb98ccc84284619ebfec27d9c09a903de",
     )
 
-    corearchcoverage_hash="48d7693321be820992a6070976df64f24f8b5cf9"
+    corearchcoverage_hash="fd8581023aee5a68fcc3ffe49aeb06a05f475ddc"
     maybe(
         git_repository,
         name = "corearchcoverage",
@@ -40,7 +40,7 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-nlohmann-json.git",
     )
 
-    whisper_hash="270b5513a951b4e42d388295c5fbe7251ebe4788"
+    whisper_hash="b2666e891377637c1e9e56154b49a4302f286431"
     maybe(
         git_repository,
         name = "whisper",
@@ -49,7 +49,7 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv/swerv-iss.git",
     )
 
-    core_arch_checker_hash="afeee0fdf423d754ce3f09c5a7c0e0b5be5e2c94"
+    core_arch_checker_hash="5406e35f2f049a23da2305e6b7fb2544a2fea965"
     maybe(
         http_archive,
         name = "CoreArchChecker",
@@ -83,7 +83,7 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-wall_clock_profiler.git",
     )
 
-    checkin_script_hash="ddae2a510ebc0caad205e1b611d4701a4424e5ad"
+    checkin_script_hash="e2549d86c5bcf9455cbfb24f4f72031fa6f77102"
     maybe(
         git_repository,
         name = "checkin-script",
@@ -99,4 +99,12 @@ def rv_tester_repositories():
         commit = opensrc_axi_llc_hash,
         shallow_since = "1695756617 +0000",
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-axi_llc.git",
+    )
+
+    aplic_model_hash="b5cd6bc4f2ec2a9fff32e68a670b23d9b777f2c1"
+    git_repository(
+        name = "aplic",
+        commit = aplic_model_hash,
+        recursive_init_submodules = True,
+        remote = "git@aus-gitlab.local.tenstorrent.com:riscv/aplic.git",
     )

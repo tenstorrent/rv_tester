@@ -57,10 +57,23 @@ rv_tester: &rv_tester
         <<: *rv_tester_axi_mst2_attrs
         <<: *rv_tester_axi_sw_mst
 
+    dm_axi:
+      count: *rv_tester_dm_axi_count
+      type:
+        - dm_axi
+        - dm_axi_transactor
+      attrs:
+        <<: *rv_tester_dm_axi_attrs
+
     dm_model:
       count: 1
       type:
         - dm_model
+
+    aplic_monitor:
+      count: 1
+      type:
+        - aplic_monitor
 
     cosim:
       count: *rv_tester_nharts

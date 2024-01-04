@@ -11,7 +11,8 @@
 #include "cvm/logger.hpp"
 #include "cvm/topology.hpp"
 #include "rv_tester_transactions.hpp"
-
+#include "debugger.h"
+//#include "trickbox/debugger.h"
 #include "processor.h"
 #include "debug_defines.h"
 #include "opcodes.h"
@@ -22,6 +23,7 @@
 
 #define max_hartid 1 // Define the maximum number of harts in the system
 #define halt_on_reset false
+#define core_fuse_map (int[]) {0}  
 
 typedef uint64_t reg_t;
 
@@ -36,6 +38,7 @@ typedef struct
   bool support_haltgroups;
   bool support_impebreak;
 } debug_module_config_t;
+
 
 typedef struct
 {
@@ -135,6 +138,7 @@ public:
   void proc_reset(unsigned id);
 
   void process(const rv_tester_transactions::dm_model::dmi_req<> &dmi_req);
+  void process(const rv_tester_transactions::dm_model::dmi_status<> &dmi_status);
   void process(const rv_tester_transactions::dm_model::dmi_resp<> &dmi_resp);
 
   void process(const rv_tester_transactions::dm_model::dm_load_cmd<> &dm_load_cmd);
@@ -145,20 +149,19 @@ private:
   // cvm::file_logger log;
   uint32_t sent_count = 0, resp_count =0;
 
-  //static const unsigned datasize = 2; //Number of data registers
   static const unsigned datasize = 12; //Number of data registers
-  debug_module_config_t config = {16, false, 0, true, true, true, false, false};
+  debug_module_config_t config = {16, false, 0, true, true, true, false, true};
 
   // Actual size of the program buffer, which is 1 word bigger than we let on
   // to implement the implicit ebreak at the end.
   unsigned program_buffer_bytes;
   //static const unsigned debug_data_start = 0x380;
-  static const unsigned debug_data_start = 0x380;
+  static const unsigned debug_data_start = 0x388;
   unsigned debug_progbuf_start;
 
 
   //static const unsigned debug_abstract_size = 10;
-  static const unsigned debug_abstract_size = 14;
+  static const unsigned debug_abstract_size = 16;
   unsigned debug_abstract_start;
   // R/W this through custom registers, to allow debuggers to test that
   // functionality.
@@ -175,8 +178,6 @@ private:
   uint64_t expected_load_data;
   bool mem_load_check = false;
   uint8_t load_req_id;
-  std::bitset<64> sizer_slice_data;
-  // std::vector<bool> sizer_slice_data;
 
   std::map<size_t, std::unique_ptr<processor_t>> harts;
 
@@ -195,8 +196,8 @@ private:
   dmstatus_t dmstatus;
   abstractcs_t abstractcs;
   abstractauto_t abstractauto;
-  bool reflow_flags;
   uint32_t command;
+  uint16_t hawindowsel;
   std::vector<bool> hart_array_mask;
 
   // uint32_t challenge;
@@ -204,9 +205,11 @@ private:
 
   bool hart_selected(unsigned hartid) const;
   void reset();
+  void init_debug_abstract_buffer();
   bool perform_abstract_command();
   bool has_second_scratch = true;
   uint8_t load_base_address = 10; //GPR to store DM base addr
+  bool reflow_flags = false;
 
   // bool abstract_command_completed;
   // unsigned rti_remaining;

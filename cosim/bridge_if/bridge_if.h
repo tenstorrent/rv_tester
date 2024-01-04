@@ -56,6 +56,12 @@ typedef struct gpr_s {
     clear();
   }
 
+  constexpr gpr_s(bool valid, uint32_t rd_addr, uint64_t rd_wdata) :
+    valid(valid),
+    rd_addr(rd_addr),
+    rd_wdata(rd_wdata)
+  {}
+
   void clear() {
     valid = false;
   }
@@ -75,7 +81,7 @@ typedef struct fpr_s {
     valid = false;
   }
 } fpr_t;
-
+ 
 typedef struct vr_s {
   bool valid;
   uint32_t vrd_addr;
@@ -84,6 +90,12 @@ typedef struct vr_s {
   vr_s() {
     clear();
   }
+
+  constexpr vr_s(bool valid, uint32_t vrd_addr, std::bitset<256> vrd_wdata) :
+    valid(valid),
+    vrd_addr(vrd_addr),
+    vrd_wdata(vrd_wdata)
+  {}
 
   void clear() {
     valid = false;
@@ -155,6 +167,7 @@ typedef struct mem_cl_s {
 typedef struct rv_instr_s {
   // Metadata
   bool valid = false;
+  bool first_uop = false;
   bool last_uop = false;
   bool comp = false;
   bool ucode = false;
@@ -163,9 +176,11 @@ typedef struct rv_instr_s {
   uint64_t cycle = 0;
   uint64_t tag = 0;
   uint32_t opcode = 0;
-  uint32_t uop = 0;
+  std::string disasm = std::string(128, ' ');
+  uint64_t uop = 0;
+  bool vec_cracked = false;
   bool trap = false;
-  uint8_t priv = 0;
+  uint8_t priv = 3;
   bool intr = false;
   bool excp = false;
   uint64_t icause = 0;
@@ -177,7 +192,7 @@ typedef struct rv_instr_s {
   pc_t pc;
   gpr_t gpr;
   fpr_t fpr;
-  vr_t vr;
+  std::vector<vr_t> vr;
   std::vector<csr_t> csr;
 
   // Memory
@@ -190,6 +205,7 @@ typedef struct rv_instr_s {
 
   void clear() {
     valid = false;
+    first_uop = true;
     last_uop = true;
     comp = false;
     ucode = false;
@@ -232,4 +248,5 @@ typedef struct rv_intr_s {
   uint64_t cycle;
   uint64_t mip;
   uint64_t mip_mask;
+  uint64_t mip_assert;
 } rv_intr_t;  

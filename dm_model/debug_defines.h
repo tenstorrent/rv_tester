@@ -414,6 +414,7 @@
 #define CSR_DPC_DPC_OFFSET                  0
 #define CSR_DPC_DPC_LENGTH(DXLEN)           DXLEN
 #define CSR_DPC_DPC(DXLEN)                  ((1ULL<<DXLEN) + -1)
+#define CSR_C_PRIV                          0x7c3
 #define CSR_DSCRATCH0                       0x7b2
 #define CSR_DSCRATCH1                       0x7b3
 #define CSR_TSELECT                         0x7a0

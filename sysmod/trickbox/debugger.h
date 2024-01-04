@@ -29,6 +29,7 @@
 #include "cvm/registry.hpp"
 #include "subdevice.h"
 #include "vpi_user.h"
+//#include "dm_model/dm_model.hpp"
 
 // DEFINE_string(dbg_input_file_path, "", "Path to file containing debugger commands");
 DECLARE_string(dbg_input_file_path);
@@ -127,6 +128,10 @@ public:
     unsigned op;
     unsigned data;
   };
+  typedef struct{ 
+        unsigned status;
+        unsigned commands_in_queue;
+  }dmi_status_t; 
   // Used to assert/deassert a trickbox interrupt (PIPI) for given hart.
   // virtual void trickboxDmiWrite(unsigned hart, unsigned upper_dmi_data, unsigned lower_dmi_data, cbs_t& cbs)
   virtual void trickboxDmiWrite(unsigned hart, unsigned upper_dmi_data, unsigned lower_dmi_data)
@@ -136,6 +141,8 @@ public:
     cvm::registry::messenger.signal(loc(), dmi_data_t{hart, upper_dmi_data, lower_dmi_data});
     // cvm::messenger::send(dmi_t, dmi_pkt);
   }
+
+  void update_dm_status(dmi_status_t& i);
 
   void checkDebugEvents()
   {
@@ -178,7 +185,10 @@ private:
   uint64_t timer_advance = 200;
   uint64_t debugger_base = 0x9050000;
   uint64_t debugger_trigger = 0x9060000;
-
+  uint64_t dmi_driver_status_addr = 0x9061000;
+  uint64_t dmi_driver_num_cmds_addr = 0x9061000;
+  uint32_t status;
+  uint32_t commands_in_queue;
   std::atomic<bool> terminate_ = false;
   std::mutex mutex_;
 

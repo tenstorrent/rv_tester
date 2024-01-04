@@ -212,7 +212,7 @@ import rv_tester_params::*;
     end
 
     function void rv_tester_terminate ();
-        $display("rv_tester_terminate: attempting to terminate");
+        $display("<%0d> rv_tester_terminate: attempting to terminate", clocks);
         rv_tester_error_terminate.terminate = '1;
     endfunction
     export "DPI-C" function rv_tester_terminate;
@@ -235,12 +235,15 @@ import rv_tester_params::*;
         .bootstrap,
         .dmi_write(trickbox_dmi_write),
         .interrupt,
+        .aplic_interrupt,
         .terminate(sysmod_terminate),
         `RV_TESTER_TRANSACTIONS_SYSMOD_SOURCE_PORTS(2, 0, 0)
     );
 
 `ifndef DMI_TB_WRITES_UNSUPPORTED
     logic [7:0] misc_signals;
+    logic dmi_status;
+    logic [31:0] dmi_commands_in_queue;
 
     dmi_driver i_dmi_driver(
         .clk,
@@ -252,6 +255,8 @@ import rv_tester_params::*;
         .dmi_req_valid,
         .dmi_req,
         .dmi_resp_ready,
+        .dmi_status,
+        .dmi_commands_in_queue,
         .misc_signals,
 
         .trickbox_dmi_write(trickbox_dmi_write)
@@ -269,8 +274,14 @@ import rv_tester_params::*;
         .dmi_resp_valid(dmi_resp_valid),
         .dmi_resp(dmi_resp),
         .terminate,
-        .axi_req_mst(axi_req_mst[0]),
-        .axi_resp_mst(axi_rsp_mst[0]),
+        .dm_mem_tx_vld,
+        .dm_mem_tx_we,
+        .dm_mem_tx_addr,
+        .dm_mem_tx_rd_data,
+        .dm_mem_tx_wr_data,
+        .dm_mem_tx_wr_data_be,
+        .dmi_status,
+        .dmi_commands_in_queue,
         .misc_signals,
         `RV_TESTER_TRANSACTIONS_DM_MODEL_SOURCE_PORTS(1,0,0)
     );
@@ -310,6 +321,24 @@ import rv_tester_params::*;
       );
     end
 `endif
+    
+
+    aplic_monitor #(
+        .NUM(0),
+        `TOPOLOGY_CFG,
+        `RV_TESTER_TRANSACTIONS_APLIC_MONITOR_SOURCE_PARAMS(0)
+    ) i_aplic_monitor(
+        .clk,
+        .reset(sysmod_reset),
+        .terminate,
+        .aplic_pin_input(aplic_interrupt),
+        .msi_axi_req('0),
+        .axi_req_mst(axi_req_mst[0]),
+        .axi_resp_mst(axi_rsp_mst[0]),
+        //.axi_resp_mst('0),
+        .misc_signals('0),
+        `RV_TESTER_TRANSACTIONS_APLIC_MONITOR_SOURCE_PORTS(1,0,0)
+    );
 
     always_comb begin
         cosim_terminate_any = '0;
