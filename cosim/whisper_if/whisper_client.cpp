@@ -33,7 +33,7 @@ extern void (*__tracerExtension)(void*);
 
 template <typename URV>
 static std::shared_ptr<WdRiscv::System<URV>>
-constructSystem(uint16_t ncores) {
+constructSystem(uint16_t ncores, bool standalone) {
 
   WdRiscv::HartConfig config;
   if (not config.loadConfigFile(FLAGS_whisper_json_path.c_str()))
@@ -51,7 +51,7 @@ constructSystem(uint16_t ncores) {
 
   std::shared_ptr<WdRiscv::System<URV>> system = std::make_shared<WdRiscv::System<URV>>(coreCount, hartsPerCore, hartIdOffset, memorySize, pageSize);
 
-  if (FLAGS_mcm) {
+  if (FLAGS_mcm && !standalone) {
     bool checkAll = false;
     config.getMcmCheckAll(checkAll);
     system->enableMcm(64, checkAll);
@@ -102,10 +102,10 @@ template <typename URV>
 int
 whisperClient<URV>::whisperConnect(uint16_t ncores)
 {
-  system_ = constructSystem<URV>(ncores);
-
   // run once before starting cosim
   if (FLAGS_standalone) {
+    system_ = constructSystem<URV>(ncores, true);
+
     std::vector<std::thread> threadVec;
 
     std::atomic<bool> result = true;
@@ -134,8 +134,6 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
       t.join();
 
     fclose(whisper_log);
-
-    system_ = constructSystem<URV>(ncores);
   }
 
   if (FLAGS_cov) {
@@ -155,6 +153,7 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
     }
   }
 
+  system_ = constructSystem<URV>(ncores, false);
   server_ = std::make_unique<WdRiscv::Server<URV>>(*system_);
 
   return 0;
