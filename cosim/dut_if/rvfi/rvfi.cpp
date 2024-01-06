@@ -45,6 +45,9 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     rv_tester_transactions::cosim::m_mcmi_insert<>,
     rv_tester_transactions::cosim::m_mcmi_write<>,
     rv_tester_transactions::cosim::m_mcmi_bypass<>,
+    rv_tester_transactions::cosim::m_mcmi_ifetch_req<>,
+    rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>,
+    rv_tester_transactions::cosim::m_mcmi_ievict<>,
     rv_tester_transactions::cosim::m_debug<>
   >(loc);
 
@@ -596,7 +599,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_req<>& m_m
   m.tag = m_mcmi_ifetch_req.order;
   m.pa = m_mcmi_ifetch_req.addr;
 
-  ifetch_reqs_.at(m_mcmi_ifetch_req.order) = m;
+  ifetch_reqs_.emplace(m_mcmi_ifetch_req.order, m);
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>& m_mcmi_ifetch_resp) {
@@ -606,16 +609,17 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>& m_
   if (terminated_)
     return;
 
-  mem_t m;
-  if (ifetch_reqs_.find(m_mcmi_ifetch_resp.order) != ifetch_reqs_.end()) {
-    m = ifetch_reqs_[m_mcmi_ifetch_resp.order];
-    m.cycle = m_mcmi_ifetch_resp.cycle;
-    ifetch_reqs_.erase(m_mcmi_ifetch_resp.order);
-  } else {
+  if (ifetch_reqs_.find(m_mcmi_ifetch_resp.order) == ifetch_reqs_.end()) {
     cvm::log(cvm::ERROR, "Error: Ifetch resp with no matching req - [id={}]", m_mcmi_ifetch_resp.order);
   }
 
+  mem_t m;
+  m = ifetch_reqs_.at(m_mcmi_ifetch_resp.order);
+  m.cycle = m_mcmi_ifetch_resp.cycle;
+
   bridge_->process_dut_mcm_ifetch(m_mcmi_ifetch_resp.hart, m);
+
+  ifetch_reqs_.erase(m_mcmi_ifetch_resp.order);
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ievict<>& m_mcmi_ievict) {
