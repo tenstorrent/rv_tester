@@ -27,7 +27,7 @@ interrupter::interrupter(const std::string& tag, uint64_t addr, unsigned hartCou
   disable_mask = (FLAGS_disable_meip <<5)|(FLAGS_disable_seip <<4)|(FLAGS_disable_mtip <<3)|(FLAGS_disable_stip <<2)| (FLAGS_disable_msip << 1) |FLAGS_disable_ssip;
   disable_mask_neg = (~disable_mask) & 0xff;
   cvm::log(cvm::LOW, "[Trickbox] Random Interrupt disable_mask :  {} disable_mask_neg {} \n",disable_mask,disable_mask_neg);
-  std::cout<<"\nyyCREATING INTERRUPT DRIVER loc: "<<loc<<" \n";
+  cvm::log(cvm::HIGH, "CREATING IMSIC INTERRUPT DRIVER with AXI MST LOCATION :{} \n",loc);
   cvm::log(cvm::LOW, "[Trickbox] Random Interrupt disable_mask {:#x} disable_mask_neg {:#x}\n", disable_mask, disable_mask_neg);
   checkUsage();
 }
