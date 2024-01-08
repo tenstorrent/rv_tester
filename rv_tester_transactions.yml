@@ -115,6 +115,10 @@ cosim:
                 width: 64
             data:
                 width: ${TOP.PLATFORM.XLEN}
+            amo:
+                width: 1
+            amo_op:
+                width: 5
 
     m_mcmi_insert:
         domain: 1
@@ -149,6 +153,10 @@ cosim:
                 width: 64
             data:
                 width: ${TOP.PLATFORM.XLEN}
+            amo:
+                width: 1
+            amo_op:
+                width: 5
 
     m_mcmi_write:
         domain: 1

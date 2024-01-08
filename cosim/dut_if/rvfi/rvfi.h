@@ -60,6 +60,11 @@ class rvfi {
 
     std::tuple<uint64_t, uint64_t, uint8_t> get_mem_attributes(uint64_t addr, uint8_t mask, uint64_t data);
 
+    void process_amo(mem_t& read);
+    void amo_modify_write_data(amo_op op, uint64_t& read_data, uint64_t& write_data, uint8_t size);
+    template <typename T>
+    void amo_arithmetic(amo_op op, uint64_t& read_data, uint64_t& write_data, uint8_t size);
+
     void make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_instr_t& instr);
     void print_csr(csr_t& csr);
     void append_uop_changes_to_instr(rv_instr_t& instr);
@@ -95,8 +100,10 @@ class rvfi {
     std::vector<rv_instr_t> instrs_;
     std::vector<vr_t> cracked_vrs_;
     std::vector<csr_t> hw_csrs_, ucode_csrs_;
-    std::unordered_map<uint64_t, mem_t> ifetch_reqs_;
     gpr_s cracked_gpr_;
+
+    std::unordered_map<uint64_t, mem_t> ifetch_reqs_;
+    std::unordered_map<uint64_t, mem_t> amo_writes_;
 
     svScope scope_;
 
