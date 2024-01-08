@@ -235,58 +235,58 @@ sysmod:
                 width: 64
 
 axi_sw:
-    num: [${TOP.PLATFORM.AXI.TOTAL},${TOP.PLATFORM.NCIO_AXI.TOTAL}]
+    num: [${TOP.PLATFORM.AXI.TOTAL},${TOP.PLATFORM.NCIO_AXI.TOTAL},${TOP.PLATFORM.APLIC_MON_MSI_AXI.TOTAL}]
     w:
         domain: 2
         num: 1
         fields:
             data:
-                widths: [${TOP.PLATFORM.AXI.DATA_WIDTH},${TOP.PLATFORM.NCIO_AXI.DATA_WIDTH}]
+                widths: [${TOP.PLATFORM.AXI.DATA_WIDTH},${TOP.PLATFORM.NCIO_AXI.DATA_WIDTH},${TOP.PLATFORM.APLIC_MON_MSI_AXI.DATA_WIDTH}]
             strb:
-                widths: [${TOP.PLATFORM.AXI.STRB_WIDTH},${TOP.PLATFORM.NCIO_AXI.STRB_WIDTH}]
+                widths: [${TOP.PLATFORM.AXI.STRB_WIDTH},${TOP.PLATFORM.NCIO_AXI.STRB_WIDTH},${TOP.PLATFORM.APLIC_MON_MSI_AXI.STRB_WIDTH}]
             last:
-                widths: [1,1]
+                widths: [1,1,1]
     aw:
         domain: 2
         num: 1
         fields:
             id:
-                widths: [${TOP.PLATFORM.AXI.ID_WIDTH + clog2(TOP.PLATFORM.AXI.TOTAL) + 1} ,${TOP.PLATFORM.NCIO_AXI.ID_WIDTH}]
+                widths: [${TOP.PLATFORM.AXI.ID_WIDTH + clog2(TOP.PLATFORM.AXI.TOTAL) + 1} ,${TOP.PLATFORM.NCIO_AXI.ID_WIDTH},${TOP.PLATFORM.APLIC_MON_MSI_AXI.ID_WIDTH}]
             addr:
-                widths: [${TOP.PLATFORM.AXI.ADDR_WIDTH},${TOP.PLATFORM.NCIO_AXI.ADDR_WIDTH}]
+                widths: [${TOP.PLATFORM.AXI.ADDR_WIDTH},${TOP.PLATFORM.NCIO_AXI.ADDR_WIDTH},${TOP.PLATFORM.APLIC_MON_MSI_AXI.ADDR_WIDTH}]
             len:
-                widths: [8,8]
+                widths: [8,8,8]
             size:
-                widths: [3,3]
+                widths: [3,3,3]
             burst:
-                widths: [2,2]
+                widths: [2,2,2]
             lock:
-                widths: [1,1]
+                widths: [1,1,1]
             atop:
-                widths: [6,6]
+                widths: [6,6,6]
     ar:
         domain: 2
         num: 1
         fields:
             id:
-                widths: [${TOP.PLATFORM.AXI.ID_WIDTH + clog2(TOP.PLATFORM.AXI.TOTAL) + 1} ,${TOP.PLATFORM.NCIO_AXI.ID_WIDTH}]
+                widths: [${TOP.PLATFORM.AXI.ID_WIDTH + clog2(TOP.PLATFORM.AXI.TOTAL) + 1} ,${TOP.PLATFORM.NCIO_AXI.ID_WIDTH} ,${TOP.PLATFORM.APLIC_MON_MSI_AXI.ID_WIDTH}]
             addr:
-                widths: [${TOP.PLATFORM.AXI.ADDR_WIDTH},${TOP.PLATFORM.NCIO_AXI.ADDR_WIDTH}]
+                widths: [${TOP.PLATFORM.AXI.ADDR_WIDTH},${TOP.PLATFORM.NCIO_AXI.ADDR_WIDTH},${TOP.PLATFORM.APLIC_MON_MSI_AXI.ADDR_WIDTH}]
             len:
-                widths: [8,8]
+                widths: [8,8,8]
             size:
-                widths: [3,3]
+                widths: [3,3,3]
             burst:
-                widths: [2,2]
+                widths: [2,2,2]
             lock:
-                widths: [1,1]
+                widths: [1,1,1]
 
     r_q_ptr:
         domain: 2
         num: 1
         fields:
             r_ptr:
-                widths: [${TOP.PLATFORM.AXI.R_Q_PTR_MAX_LOG2},${TOP.PLATFORM.NCIO_AXI.R_Q_PTR_MAX_LOG2}]
+                widths: [${TOP.PLATFORM.AXI.R_Q_PTR_MAX_LOG2},${TOP.PLATFORM.NCIO_AXI.R_Q_PTR_MAX_LOG2},${TOP.PLATFORM.APLIC_MON_MSI_AXI.R_Q_PTR_MAX_LOG2}]
 
 axi_sw_mst:
     num: [${TOP.PLATFORM.AXI_MST.TOTAL}, ${TOP.PLATFORM.AXI_MST2.TOTAL}]
