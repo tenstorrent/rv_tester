@@ -395,7 +395,7 @@ void rvfi::print_instr(rv_instr_t& instr) {
 }
 
 void rvfi::print_instr_resource(rv_instr_t& instr, std::string resource_str) {
-  log(cvm::NONE, "#{} #{} {} {} {} {:016x}", instr.id, instr.tag, instr.cycle, instr.hart, priv_to_string.at(static_cast<priv>(instr.priv)),
+  log(cvm::NONE, "#{} {} {} {} {:016x}", instr.tag, instr.cycle, instr.hart, priv_to_string.at(static_cast<priv>(instr.priv)),
      instr.pc.pc_rdata);
 
   if (FLAGS_rvfi_log_36b_uop)
