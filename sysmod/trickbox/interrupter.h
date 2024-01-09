@@ -132,7 +132,7 @@ protected:
         }
       }
     //RANDOM INTR
-    if(FLAGS_random_intr && (intr_driven <= FLAGS_max_intr_count)){
+    if(FLAGS_random_intr && (intr_driven <= (int)FLAGS_max_intr_count)){
       if(timer_ >= timer_rand_intr){
          unsigned rand_intr = 0;//1 << rng(5); //select random pin between 0 to 5
          unsigned iter = 1;
@@ -208,7 +208,7 @@ private:
   uint64_t disable_mask = 0;
   uint64_t disable_mask_neg = 0;
   uint64_t disable_dontpick = 0;
-  uint32_t intr_driven = 0;
+  int.     intr_driven = 0;
 
   std::atomic<bool> terminate_ = false;
   std::mutex mutex_;
