@@ -24,6 +24,7 @@
 DECLARE_int32(imsic_intr_delay_min);//, 4, "Minimum Delay between 2 consecutive interrupts");
 DECLARE_int32(imsic_intr_delay_max);//, 7, "Maximum Delay between 2 consecutive interrupts");
 DECLARE_bool(random_imsic_intr);//, false, "Drive random interrups");
+DECLARE_int32(max_intr_count);
 DECLARE_bool(disable_m_imsic_intr);
 DECLARE_bool(disable_s_imsic_intr);
 DECLARE_bool(disable_vs_imsic_intr);
@@ -149,7 +150,7 @@ protected:
   {
     
     //RANDOM imsic_intr
-    if(FLAGS_random_imsic_intr){
+    if(FLAGS_random_imsic_intr && (intr_count <= (int)FLAGS_max_intr_count)){
       if(timer_ >= timer_rand_intr){
         unsigned intr_num = 1;
         unsigned intr_file = 0;
@@ -176,6 +177,7 @@ protected:
         intr_num = intr_num |(intr_file<<12)|(intr_hart<<16)|(intr_vs_id<<28);
         cvm::log(cvm::HIGH, "[Trickbox] Driving imsic_intr {} interrupts in a cycle \n", intr_num);
         driveMSIInterrupt(intr_num); 
+        intr_count++;
         uint32_t rand_num =  (rng() % ( FLAGS_imsic_intr_delay_max - FLAGS_imsic_intr_delay_min + 1)) + FLAGS_imsic_intr_delay_min;
         timer_rand_intr = timer_ +(rand_num*timer_advance);
 	      cvm::log(cvm::HIGH, "[Trickbox] Next random imsic_intr will be sent at  {}  \n", timer_rand_intr);
@@ -207,6 +209,7 @@ private:
   uint32_t msi_vs_file_addr = 0x400000;
   //IMSIC_ADDR_TARGET_M   = 32'h0100_0000,//32'h0800_0000;
   // IMSIC_ADDR_TARGET_S   = 32'h0180_0000,//32'h0A00_0000;
+  int      intr_count = 0;
 
   std::atomic<bool> terminate_ = false;
   std::mutex mutex_;
