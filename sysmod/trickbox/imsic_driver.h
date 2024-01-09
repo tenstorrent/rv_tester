@@ -102,11 +102,11 @@ public:
     
     uint32_t addr1 = 0x900;
     if(interrupt_file == 0x0){
-       addr1 = msi_m_file_addr;
+       addr1 = msi_m_file_addr + (interrupt_hart << 18);
     }else if(interrupt_file == 0x01){
        addr1 = msi_v_file_addr;
     }else if(interrupt_file == 0x02){
-       addr1 = msi_vs_file_addr+ (vs_id << 12);
+       addr1 = msi_vs_file_addr+ (vs_id << 12) + (interrupt_hart << 18);
     }else{
        cvm::log(cvm::ERROR, "[Trickbox] Wrong IMSIC interrupt file specified\n");
     }
