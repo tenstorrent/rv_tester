@@ -205,8 +205,8 @@ private:
   uint64_t timer_rand_intr  = 500;
   uint64_t imsic_driver_base  = 0x9070000;
   uint32_t msi_m_file_addr  = 0x8000000;
-  uint32_t msi_v_file_addr  = 0x6000000;
-  uint32_t msi_vs_file_addr = 0x6000000;
+  uint32_t msi_v_file_addr  = 0xc000000;
+  uint32_t msi_vs_file_addr = 0xc000000;
   //IMSIC_ADDR_TARGET_M   = 32'h0100_0000,//32'h0800_0000;
   // IMSIC_ADDR_TARGET_S   = 32'h0180_0000,//32'h0A00_0000;
   int      intr_count = 0;
