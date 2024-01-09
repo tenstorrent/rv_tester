@@ -102,11 +102,11 @@ public:
     
     uint32_t addr1 = 0x900;
     if(interrupt_file == 0x0){
-       addr1 = msi_m_file_addr;
+       addr1 = msi_m_file_addr + (interrupt_hart << 18);
     }else if(interrupt_file == 0x01){
        addr1 = msi_v_file_addr;
     }else if(interrupt_file == 0x02){
-       addr1 = msi_vs_file_addr+ (vs_id << 12);
+       addr1 = msi_vs_file_addr+ (vs_id << 12) + (interrupt_hart << 18);
     }else{
        cvm::log(cvm::ERROR, "[Trickbox] Wrong IMSIC interrupt file specified\n");
     }
@@ -202,9 +202,9 @@ private:
   uint64_t timer_advance    = 200;
   uint64_t timer_rand_intr  = 500;
   uint64_t imsic_driver_base  = 0x9070000;
-  uint32_t msi_m_file_addr  = 0x200000;
-  uint32_t msi_v_file_addr  = 0x600000;
-  uint32_t msi_vs_file_addr = 0x600000;
+  uint32_t msi_m_file_addr  = 0x000000;
+  uint32_t msi_v_file_addr  = 0x400000;
+  uint32_t msi_vs_file_addr = 0x400000;
   //IMSIC_ADDR_TARGET_M   = 32'h0100_0000,//32'h0800_0000;
   // IMSIC_ADDR_TARGET_S   = 32'h0180_0000,//32'h0A00_0000;
 
