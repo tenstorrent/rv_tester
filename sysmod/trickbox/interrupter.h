@@ -208,7 +208,7 @@ private:
   uint64_t disable_mask = 0;
   uint64_t disable_mask_neg = 0;
   uint64_t disable_dontpick = 0;
-  int.     intr_driven = 0;
+  int      intr_driven = 0;
 
   std::atomic<bool> terminate_ = false;
   std::mutex mutex_;
