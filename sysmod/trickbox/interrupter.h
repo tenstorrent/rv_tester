@@ -25,6 +25,7 @@ DECLARE_int32(intr_delay_min);//, 4, "Minimum Delay between 2 consecutive interr
 DECLARE_int32(intr_delay_max);//, 7, "Maximum Delay between 2 consecutive interrupts");
 DECLARE_bool(random_intr);//, false, "Drive random interrups");
 DECLARE_int32(max_simul_intr );
+DECLARE_int32(max_intr_count);
 DECLARE_int32(tbox_start_delay);
 DECLARE_bool(disable_ssip);
 DECLARE_bool(disable_msip);
@@ -131,7 +132,7 @@ protected:
         }
       }
     //RANDOM INTR
-    if(FLAGS_random_intr){
+    if(FLAGS_random_intr && (intr_driven <= (int)FLAGS_max_intr_count)){
       if(timer_ >= timer_rand_intr){
          unsigned rand_intr = 0;//1 << rng(5); //select random pin between 0 to 5
          unsigned iter = 1;
@@ -171,6 +172,7 @@ protected:
 
 	 cvm::log(cvm::HIGH, "[Trickbox] Send  sig to  sysmod  {:#x}  \n", rand_intr);
          cvm::registry::messenger.signal(loc(), interrupt_t{0, rand_intr, rand_intr});
+         intr_driven++;
          uint32_t rand_num =  (rng() % ( FLAGS_intr_delay_max - FLAGS_intr_delay_min + 1)) + FLAGS_intr_delay_min;
          timer_rand_intr = timer_ +(rand_num*timer_advance);
          disable_dontpick = 0;
@@ -206,6 +208,7 @@ private:
   uint64_t disable_mask = 0;
   uint64_t disable_mask_neg = 0;
   uint64_t disable_dontpick = 0;
+  int      intr_driven = 0;
 
   std::atomic<bool> terminate_ = false;
   std::mutex mutex_;

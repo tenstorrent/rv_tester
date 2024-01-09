@@ -4,6 +4,7 @@
 
  DEFINE_bool(random_intr, false, "Drive random interrups");
  DEFINE_int32(intr_delay_min, 3, "Minimum Delay between 2 consecutive interrupts");
+ DEFINE_int32(max_intr_count, 10, "Maximum interrupts that can be driven per test");
  DEFINE_int32(intr_delay_max, 5, "Maximum Delay between 2 consecutive interrupts");
  DEFINE_int32(seed, 1, "Simulation seed passed down for randomization");
  DEFINE_int32(max_simul_intr, 1, "Maximum simultanious interrupts driven in single example");
