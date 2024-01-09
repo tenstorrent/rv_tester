@@ -483,59 +483,59 @@ import rv_tester_params::*;
     end
 
     
-   localparam NoOfAplicMomMsiMasters =  topology.TOP.PLATFORM.APLIC_MON_MSI_AXI.TOTAL  ;
-    for (genvar p = 0; p < NoOfAplicMomMsiMasters; p++) begin : aplic_mon_msi_axi_sw_slvs
+   localparam NoOfAplicMomMsiMasters =  topology.TOP.PLATFORM.APLIC_MSI_AXI.TOTAL  ;
+    for (genvar p = 0; p < NoOfAplicMomMsiMasters; p++) begin : aplic_msi_axi_sw_slvs
         axi_sw #(
-            .ADDR_WIDTH(topology.TOP.PLATFORM.APLIC_MON_MSI_AXI.ADDR_WIDTH),
-            .DATA_WIDTH(topology.TOP.PLATFORM.APLIC_MON_MSI_AXI.DATA_WIDTH),
-            .ID_WIDTH(topology.TOP.PLATFORM.APLIC_MON_MSI_AXI.ID_WIDTH),
-            .STRB_WIDTH(topology.TOP.PLATFORM.APLIC_MON_MSI_AXI.STRB_WIDTH),
+            .ADDR_WIDTH(topology.TOP.PLATFORM.APLIC_MSI_AXI.ADDR_WIDTH),
+            .DATA_WIDTH(topology.TOP.PLATFORM.APLIC_MSI_AXI.DATA_WIDTH),
+            .ID_WIDTH(topology.TOP.PLATFORM.APLIC_MSI_AXI.ID_WIDTH),
+            .STRB_WIDTH(topology.TOP.PLATFORM.APLIC_MSI_AXI.STRB_WIDTH),
             .R_Q_MAX(topology.TOP.PLATFORM.AXI.R_Q_MAX),
-            .TOPO_ID(topology.TOP.PLATFORM.APLIC_MON_MSI_AXI.ID),
+            .TOPO_ID(topology.TOP.PLATFORM.APLIC_MSI_AXI.ID),
             .NUM(p),
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(2)
-        ) aplic_mon_msi_axi_sw(
+        ) aplic_msi_axi_sw(
             .clk,
             .reset_n(~reset),
             .sys_reset(sysmod_reset),
-            .axi_mst_ar_valid(aplic_mon_msi_axi_req[p].ar_valid),
-            .axi_mst_ar_id   (aplic_mon_msi_axi_req[p].ar.id),
-            .axi_mst_ar_addr (aplic_mon_msi_axi_req[p].ar.addr),
-            .axi_mst_ar_len  (aplic_mon_msi_axi_req[p].ar.len),
-            .axi_mst_ar_size (aplic_mon_msi_axi_req[p].ar.size),
-            .axi_mst_ar_lock (aplic_mon_msi_axi_req[p].ar.lock),
-            .axi_mst_ar_burst(aplic_mon_msi_axi_req[p].ar.burst),
+            .axi_mst_ar_valid(aplic_msi_axi_req[p].ar_valid),
+            .axi_mst_ar_id   (aplic_msi_axi_req[p].ar.id),
+            .axi_mst_ar_addr (aplic_msi_axi_req[p].ar.addr),
+            .axi_mst_ar_len  (aplic_msi_axi_req[p].ar.len),
+            .axi_mst_ar_size (aplic_msi_axi_req[p].ar.size),
+            .axi_mst_ar_lock (aplic_msi_axi_req[p].ar.lock),
+            .axi_mst_ar_burst(aplic_msi_axi_req[p].ar.burst),
 
-            .axi_mst_aw_valid(aplic_mon_msi_axi_req[p].aw_valid),
-            .axi_mst_aw_id   (aplic_mon_msi_axi_req[p].aw.id),
-            .axi_mst_aw_addr (aplic_mon_msi_axi_req[p].aw.addr),
-            .axi_mst_aw_len  (aplic_mon_msi_axi_req[p].aw.len),
-            .axi_mst_aw_size (aplic_mon_msi_axi_req[p].aw.size),
-            .axi_mst_aw_burst(aplic_mon_msi_axi_req[p].aw.burst),
-            .axi_mst_aw_lock (aplic_mon_msi_axi_req[p].aw.lock),
-            .axi_mst_aw_atop (aplic_mon_msi_axi_req[p].aw.atop),
+            .axi_mst_aw_valid(aplic_msi_axi_req[p].aw_valid),
+            .axi_mst_aw_id   (aplic_msi_axi_req[p].aw.id),
+            .axi_mst_aw_addr (aplic_msi_axi_req[p].aw.addr),
+            .axi_mst_aw_len  (aplic_msi_axi_req[p].aw.len),
+            .axi_mst_aw_size (aplic_msi_axi_req[p].aw.size),
+            .axi_mst_aw_burst(aplic_msi_axi_req[p].aw.burst),
+            .axi_mst_aw_lock (aplic_msi_axi_req[p].aw.lock),
+            .axi_mst_aw_atop (aplic_msi_axi_req[p].aw.atop),
 
-            .axi_mst_w_valid(aplic_mon_msi_axi_req[p].w_valid),
-            .axi_mst_w_data (aplic_mon_msi_axi_req[p].w.data),
-            .axi_mst_w_strb (aplic_mon_msi_axi_req[p].w.strb),
-            .axi_mst_w_last (aplic_mon_msi_axi_req[p].w.last),
+            .axi_mst_w_valid(aplic_msi_axi_req[p].w_valid),
+            .axi_mst_w_data (aplic_msi_axi_req[p].w.data),
+            .axi_mst_w_strb (aplic_msi_axi_req[p].w.strb),
+            .axi_mst_w_last (aplic_msi_axi_req[p].w.last),
 
-            .axi_mst_b_ready(aplic_mon_msi_axi_req[p].b_ready),
-            .axi_mst_r_ready(aplic_mon_msi_axi_req[p].r_ready),
+            .axi_mst_b_ready(aplic_msi_axi_req[p].b_ready),
+            .axi_mst_r_ready(aplic_msi_axi_req[p].r_ready),
 
-            .axi_slv_b_valid(aplic_mon_msi_axi_rsp[p].b_valid),
-            .axi_slv_b_id   (aplic_mon_msi_axi_rsp[p].b.id),
-            .axi_slv_b_resp (aplic_mon_msi_axi_rsp[p].b.resp),
+            .axi_slv_b_valid(aplic_msi_axi_rsp[p].b_valid),
+            .axi_slv_b_id   (aplic_msi_axi_rsp[p].b.id),
+            .axi_slv_b_resp (aplic_msi_axi_rsp[p].b.resp),
 
-            .axi_slv_r_valid(aplic_mon_msi_axi_rsp[p].r_valid),
-            .axi_slv_r_id   (aplic_mon_msi_axi_rsp[p].r.id),
-            .axi_slv_r_data (aplic_mon_msi_axi_rsp[p].r.data),
-            .axi_slv_r_resp (aplic_mon_msi_axi_rsp[p].r.resp),
-            .axi_slv_r_last (aplic_mon_msi_axi_rsp[p].r.last),
+            .axi_slv_r_valid(aplic_msi_axi_rsp[p].r_valid),
+            .axi_slv_r_id   (aplic_msi_axi_rsp[p].r.id),
+            .axi_slv_r_data (aplic_msi_axi_rsp[p].r.data),
+            .axi_slv_r_resp (aplic_msi_axi_rsp[p].r.resp),
+            .axi_slv_r_last (aplic_msi_axi_rsp[p].r.last),
 
-            .axi_slv_aw_ready(aplic_mon_msi_axi_rsp[p].aw_ready),
-            .axi_slv_ar_ready(aplic_mon_msi_axi_rsp[p].ar_ready),
-            .axi_slv_w_ready (aplic_mon_msi_axi_rsp[p].w_ready),
+            .axi_slv_aw_ready(aplic_msi_axi_rsp[p].aw_ready),
+            .axi_slv_ar_ready(aplic_msi_axi_rsp[p].ar_ready),
+            .axi_slv_w_ready (aplic_msi_axi_rsp[p].w_ready),
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PORTS(2, p, 2)
         );
     end

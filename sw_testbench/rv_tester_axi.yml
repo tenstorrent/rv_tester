@@ -38,9 +38,9 @@ rv_tester_dm_axi_attrs: &rv_tester_dm_axi_attrs
   STRB_WIDTH: 8
   ID_WIDTH: 17
 
-rv_tester_aplic_mon_msi_axi_count: &rv_tester_aplic_mon_msi_axi_count 1
+rv_tester_aplic_msi_axi_count: &rv_tester_aplic_msi_axi_count 1
 
-rv_tester_aplic_mon_msi_axi_attrs: &rv_tester_aplic_mon_msi_axi_attrs
+rv_tester_aplic_msi_axi_attrs: &rv_tester_aplic_msi_axi_attrs
   ADDR_WIDTH: 25
   DATA_WIDTH: 64
   STRB_WIDTH: 8

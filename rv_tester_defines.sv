@@ -42,12 +42,12 @@ package rv_tester_params;
     parameter NCIO_AXI_DATA_WIDTH = mods.TOP.PLATFORM.NCIO_AXI.DATA_WIDTH;
     parameter NCIO_AXI_STRB_WIDTH = mods.TOP.PLATFORM.NCIO_AXI.STRB_WIDTH;
     parameter NCIO_AXI_ID_WIDTH = mods.TOP.PLATFORM.NCIO_AXI.ID_WIDTH;
-     //APLIC_MON_MSI
-    parameter APLIC_MON_MSI_AXI_TOTAL = mods.TOP.PLATFORM.APLIC_MON_MSI_AXI.TOTAL;
-    parameter APLIC_MON_MSI_AXI_ADDR_WIDTH = mods.TOP.PLATFORM.APLIC_MON_MSI_AXI.ADDR_WIDTH;
-    parameter APLIC_MON_MSI_AXI_DATA_WIDTH = mods.TOP.PLATFORM.APLIC_MON_MSI_AXI.DATA_WIDTH;
-    parameter APLIC_MON_MSI_AXI_STRB_WIDTH = mods.TOP.PLATFORM.APLIC_MON_MSI_AXI.STRB_WIDTH;
-    parameter APLIC_MON_MSI_AXI_ID_WIDTH = mods.TOP.PLATFORM.APLIC_MON_MSI_AXI.ID_WIDTH;
+     //APLIC_MSI
+    parameter APLIC_MSI_AXI_TOTAL = mods.TOP.PLATFORM.APLIC_MSI_AXI.TOTAL;
+    parameter APLIC_MSI_AXI_ADDR_WIDTH = mods.TOP.PLATFORM.APLIC_MSI_AXI.ADDR_WIDTH;
+    parameter APLIC_MSI_AXI_DATA_WIDTH = mods.TOP.PLATFORM.APLIC_MSI_AXI.DATA_WIDTH;
+    parameter APLIC_MSI_AXI_STRB_WIDTH = mods.TOP.PLATFORM.APLIC_MSI_AXI.STRB_WIDTH;
+    parameter APLIC_MSI_AXI_ID_WIDTH = mods.TOP.PLATFORM.APLIC_MSI_AXI.ID_WIDTH;
     //
     //MSI SLAVE
     parameter MSI_AXI_TOTAL = 1;//mods.TOP.PLATFORM.MSI_AXI.TOTAL;
@@ -84,10 +84,10 @@ package rv_tester_params;
     typedef logic [NCIO_AXI_STRB_WIDTH-1:0] ncio_axi_strb_t;
     typedef logic [NCIO_AXI_ID_WIDTH  -1:0] ncio_axi_id_t;
 
-    typedef logic [APLIC_MON_MSI_AXI_ADDR_WIDTH-1:0] aplic_mon_msi_axi_addr_t;
-    typedef logic [APLIC_MON_MSI_AXI_DATA_WIDTH-1:0] aplic_mon_msi_axi_data_t;
-    typedef logic [APLIC_MON_MSI_AXI_STRB_WIDTH-1:0] aplic_mon_msi_axi_strb_t;
-    typedef logic [APLIC_MON_MSI_AXI_ID_WIDTH  -1:0] aplic_mon_msi_axi_id_t;
+    typedef logic [APLIC_MSI_AXI_ADDR_WIDTH-1:0] aplic_msi_axi_addr_t;
+    typedef logic [APLIC_MSI_AXI_DATA_WIDTH-1:0] aplic_msi_axi_data_t;
+    typedef logic [APLIC_MSI_AXI_STRB_WIDTH-1:0] aplic_msi_axi_strb_t;
+    typedef logic [APLIC_MSI_AXI_ID_WIDTH  -1:0] aplic_msi_axi_id_t;
     
     typedef logic [MSI_AXI_ADDR_WIDTH-1:0] msi_axi_addr_t;
     typedef logic [MSI_AXI_DATA_WIDTH-1:0] msi_axi_data_t;
@@ -541,13 +541,13 @@ package rv_tester_params;
     `AXI_TYPEDEF_RESP_T(ncio_slv_resp_top, ncio_slv_b_chan_top, ncio_slv_r_chan_top)
      //
       //NCIO
-    `AXI_TYPEDEF_AW_CHAN_T(aplic_mon_msi_slv_aw_chan_top, aplic_mon_msi_axi_addr_t, aplic_mon_msi_axi_id_t, user_t)
-    `AXI_TYPEDEF_W_CHAN_T(aplic_mon_msi_slv_w_chan_top, aplic_mon_msi_axi_data_t, aplic_mon_msi_axi_strb_t, user_t)
-    `AXI_TYPEDEF_B_CHAN_T(aplic_mon_msi_slv_b_chan_top, aplic_mon_msi_axi_id_t, user_t)
-    `AXI_TYPEDEF_AR_CHAN_T(aplic_mon_msi_slv_ar_chan_top, aplic_mon_msi_axi_addr_t, aplic_mon_msi_axi_id_t, user_t)
-    `AXI_TYPEDEF_R_CHAN_T(aplic_mon_msi_slv_r_chan_top, aplic_mon_msi_axi_data_t, aplic_mon_msi_axi_id_t, user_t)
-    `AXI_TYPEDEF_REQ_T(aplic_mon_msi_slv_req_top, aplic_mon_msi_slv_aw_chan_top, aplic_mon_msi_slv_w_chan_top, aplic_mon_msi_slv_ar_chan_top)
-    `AXI_TYPEDEF_RESP_T(aplic_mon_msi_slv_resp_top, aplic_mon_msi_slv_b_chan_top, aplic_mon_msi_slv_r_chan_top)
+    `AXI_TYPEDEF_AW_CHAN_T(aplic_msi_slv_aw_chan_top, aplic_msi_axi_addr_t, aplic_msi_axi_id_t, user_t)
+    `AXI_TYPEDEF_W_CHAN_T(aplic_msi_slv_w_chan_top, aplic_msi_axi_data_t, aplic_msi_axi_strb_t, user_t)
+    `AXI_TYPEDEF_B_CHAN_T(aplic_msi_slv_b_chan_top, aplic_msi_axi_id_t, user_t)
+    `AXI_TYPEDEF_AR_CHAN_T(aplic_msi_slv_ar_chan_top, aplic_msi_axi_addr_t, aplic_msi_axi_id_t, user_t)
+    `AXI_TYPEDEF_R_CHAN_T(aplic_msi_slv_r_chan_top, aplic_msi_axi_data_t, aplic_msi_axi_id_t, user_t)
+    `AXI_TYPEDEF_REQ_T(aplic_msi_slv_req_top, aplic_msi_slv_aw_chan_top, aplic_msi_slv_w_chan_top, aplic_msi_slv_ar_chan_top)
+    `AXI_TYPEDEF_RESP_T(aplic_msi_slv_resp_top, aplic_msi_slv_b_chan_top, aplic_msi_slv_r_chan_top)
      //MSI
     `AXI_TYPEDEF_AW_CHAN_T(msi_slv_aw_chan_top, msi_axi_addr_t, msi_axi_id_t, user_t)
     `AXI_TYPEDEF_W_CHAN_T(msi_slv_w_chan_top, msi_axi_data_t, msi_axi_strb_t, user_t)
@@ -606,8 +606,8 @@ package rv_tester_params;
     input  rv_tester_params::slv_resp_top    axi_rsp [rv_tester_params::AXI_TOTAL-1:0],             \
     output rv_tester_params::ncio_slv_req_top     ncio_axi_req [rv_tester_params::NCIO_AXI_TOTAL-1:0],             \
     input  rv_tester_params::ncio_slv_resp_top    ncio_axi_rsp [rv_tester_params::NCIO_AXI_TOTAL-1:0],             \
-    output rv_tester_params::aplic_mon_msi_slv_req_top     aplic_mon_msi_axi_req [rv_tester_params::APLIC_MON_MSI_AXI_TOTAL-1:0],             \
-    input  rv_tester_params::aplic_mon_msi_slv_resp_top    aplic_mon_msi_axi_rsp [rv_tester_params::APLIC_MON_MSI_AXI_TOTAL-1:0],             \
+    output rv_tester_params::aplic_msi_slv_req_top     aplic_msi_axi_req [rv_tester_params::APLIC_MSI_AXI_TOTAL-1:0],             \
+    input  rv_tester_params::aplic_msi_slv_resp_top    aplic_msi_axi_rsp [rv_tester_params::APLIC_MSI_AXI_TOTAL-1:0],             \
     output rv_tester_params::msi_slv_req_top     msi_slv_axi_req [1-1:0],             \
     input  rv_tester_params::msi_slv_resp_top    msi_slv_axi_rsp [1-1:0],             \
     input  rv_tester_params::mst_req_top     axi_req_mst [rv_tester_params::AXI_MST_TOTAL-1:0],     \
@@ -653,8 +653,8 @@ package rv_tester_params;
     rv_tester_params::slv_resp_top           axi_rsp [rv_tester_params::AXI_TOTAL-1:0];             \
     rv_tester_params::ncio_slv_req_top       ncio_axi_req [rv_tester_params::NCIO_AXI_TOTAL-1:0];             \
     rv_tester_params::ncio_slv_resp_top      ncio_axi_rsp [rv_tester_params::NCIO_AXI_TOTAL-1:0];             \
-    rv_tester_params::aplic_mon_msi_slv_req_top       aplic_mon_msi_axi_req [rv_tester_params::APLIC_MON_MSI_AXI_TOTAL-1:0];             \
-    rv_tester_params::aplic_mon_msi_slv_resp_top      aplic_mon_msi_axi_rsp [rv_tester_params::APLIC_MON_MSI_AXI_TOTAL-1:0];             \
+    rv_tester_params::aplic_msi_slv_req_top       aplic_msi_axi_req [rv_tester_params::APLIC_MSI_AXI_TOTAL-1:0];             \
+    rv_tester_params::aplic_msi_slv_resp_top      aplic_msi_axi_rsp [rv_tester_params::APLIC_MSI_AXI_TOTAL-1:0];             \
     rv_tester_params::msi_slv_req_top        msi_slv_axi_req [1-1:0];             \
     rv_tester_params::msi_slv_resp_top       msi_slv_axi_rsp [1-1:0];             \
     rv_tester_params::mst_req_top            axi_req_mst [rv_tester_params::AXI_MST_TOTAL-1:0];     \

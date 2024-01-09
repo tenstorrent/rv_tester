@@ -39,13 +39,13 @@ rv_tester: &rv_tester
         <<: *rv_tester_ncio_axi_attrs
         <<: *rv_tester_axi_sw
     
-    aplic_mon_msi_axi:
-      count: *rv_tester_aplic_mon_msi_axi_count
+    aplic_msi_axi:
+      count: *rv_tester_aplic_msi_axi_count
       type:
-        - aplic_mon_msi_axi
+        - aplic_msi_axi
         - platform_transactor
       attrs:
-        <<: *rv_tester_aplic_mon_msi_axi_attrs
+        <<: *rv_tester_aplic_msi_axi_attrs
         <<: *rv_tester_axi_sw
 
     axi_mst:
