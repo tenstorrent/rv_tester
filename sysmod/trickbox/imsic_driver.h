@@ -177,7 +177,9 @@ protected:
         intr_num = intr_num |(intr_file<<12)|(intr_hart<<16)|(intr_vs_id<<28);
         cvm::log(cvm::HIGH, "[Trickbox] Driving imsic_intr {} interrupts in a cycle \n", intr_num);
         driveMSIInterrupt(intr_num); 
-        intr_count++;
+        if(limit_interrupts){
+          intr_count++;
+        }
         uint32_t rand_num =  (rng() % ( FLAGS_imsic_intr_delay_max - FLAGS_imsic_intr_delay_min + 1)) + FLAGS_imsic_intr_delay_min;
         timer_rand_intr = timer_ +(rand_num*timer_advance);
 	      cvm::log(cvm::HIGH, "[Trickbox] Next random imsic_intr will be sent at  {}  \n", timer_rand_intr);
@@ -210,6 +212,7 @@ private:
   //IMSIC_ADDR_TARGET_M   = 32'h0100_0000,//32'h0800_0000;
   // IMSIC_ADDR_TARGET_S   = 32'h0180_0000,//32'h0A00_0000;
   int      intr_count = 0;
+  int      limit_interrupts = 0;
 
   std::atomic<bool> terminate_ = false;
   std::mutex mutex_;

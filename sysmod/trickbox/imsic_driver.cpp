@@ -21,6 +21,9 @@ imsic_driver::imsic_driver(const std::string& tag, uint64_t addr, unsigned hartC
   imsic_driver_base = addr;
   reset();
   checkUsage();
+   if(FLAGS_max_intr_count>0){
+     limit_interrupts = 1;
+   }
 }
 
 

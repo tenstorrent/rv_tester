@@ -4,7 +4,7 @@
 
  DEFINE_bool(random_intr, false, "Drive random interrups");
  DEFINE_int32(intr_delay_min, 3, "Minimum Delay between 2 consecutive interrupts");
- DEFINE_int32(max_intr_count, 10, "Maximum interrupts that can be driven per test");
+ DEFINE_int32(max_intr_count, 0, "Maximum interrupts that can be driven per test");
  DEFINE_int32(intr_delay_max, 5, "Maximum Delay between 2 consecutive interrupts");
  DEFINE_int32(seed, 1, "Simulation seed passed down for randomization");
  DEFINE_int32(max_simul_intr, 1, "Maximum simultanious interrupts driven in single example");
@@ -27,6 +27,9 @@ interrupter::interrupter(const std::string& tag, uint64_t addr, unsigned hartCou
   //populate disable mask as per plusargs
   disable_mask = (FLAGS_disable_meip <<5)|(FLAGS_disable_seip <<4)|(FLAGS_disable_mtip <<3)|(FLAGS_disable_stip <<2)| (FLAGS_disable_msip << 1) |FLAGS_disable_ssip;
   disable_mask_neg = (~disable_mask) & 0xff;
+  if(FLAGS_max_intr_count>0){
+  limit_interrupts = 1;
+  }
   cvm::log(cvm::LOW, "[Trickbox] Random Interrupt disable_mask :  {} disable_mask_neg {} \n",disable_mask,disable_mask_neg);
   cvm::log(cvm::HIGH, "CREATING IMSIC INTERRUPT DRIVER with AXI MST LOCATION :{} \n",loc);
   cvm::log(cvm::LOW, "[Trickbox] Random Interrupt disable_mask {:#x} disable_mask_neg {:#x}\n", disable_mask, disable_mask_neg);
