@@ -24,6 +24,7 @@
 DECLARE_int32(imsic_intr_delay_min);//, 4, "Minimum Delay between 2 consecutive interrupts");
 DECLARE_int32(imsic_intr_delay_max);//, 7, "Maximum Delay between 2 consecutive interrupts");
 DECLARE_bool(random_imsic_intr);//, false, "Drive random interrups");
+DECLARE_int32(max_intr_count);
 DECLARE_bool(disable_m_imsic_intr);
 DECLARE_bool(disable_s_imsic_intr);
 DECLARE_bool(disable_vs_imsic_intr);
@@ -102,11 +103,11 @@ public:
     
     uint32_t addr1 = 0x900;
     if(interrupt_file == 0x0){
-       addr1 = msi_m_file_addr;
+       addr1 = msi_m_file_addr + (interrupt_hart << 18);
     }else if(interrupt_file == 0x01){
        addr1 = msi_v_file_addr;
     }else if(interrupt_file == 0x02){
-       addr1 = msi_vs_file_addr+ (vs_id << 12);
+       addr1 = msi_vs_file_addr+ (vs_id << 12) + (interrupt_hart << 18);
     }else{
        cvm::log(cvm::ERROR, "[Trickbox] Wrong IMSIC interrupt file specified\n");
     }
@@ -149,7 +150,7 @@ protected:
   {
     
     //RANDOM imsic_intr
-    if(FLAGS_random_imsic_intr){
+    if(FLAGS_random_imsic_intr && (intr_count <= (int)FLAGS_max_intr_count)){
       if(timer_ >= timer_rand_intr){
         unsigned intr_num = 1;
         unsigned intr_file = 0;
@@ -176,6 +177,9 @@ protected:
         intr_num = intr_num |(intr_file<<12)|(intr_hart<<16)|(intr_vs_id<<28);
         cvm::log(cvm::HIGH, "[Trickbox] Driving imsic_intr {} interrupts in a cycle \n", intr_num);
         driveMSIInterrupt(intr_num); 
+        if(limit_interrupts){
+          intr_count++;
+        }
         uint32_t rand_num =  (rng() % ( FLAGS_imsic_intr_delay_max - FLAGS_imsic_intr_delay_min + 1)) + FLAGS_imsic_intr_delay_min;
         timer_rand_intr = timer_ +(rand_num*timer_advance);
 	      cvm::log(cvm::HIGH, "[Trickbox] Next random imsic_intr will be sent at  {}  \n", timer_rand_intr);
@@ -202,11 +206,13 @@ private:
   uint64_t timer_advance    = 200;
   uint64_t timer_rand_intr  = 500;
   uint64_t imsic_driver_base  = 0x9070000;
-  uint32_t msi_m_file_addr  = 0x200000;
-  uint32_t msi_v_file_addr  = 0x600000;
-  uint32_t msi_vs_file_addr = 0x600000;
+  uint32_t msi_m_file_addr  = 0x8000000;
+  uint32_t msi_v_file_addr  = 0xc000000;
+  uint32_t msi_vs_file_addr = 0xc000000;
   //IMSIC_ADDR_TARGET_M   = 32'h0100_0000,//32'h0800_0000;
   // IMSIC_ADDR_TARGET_S   = 32'h0180_0000,//32'h0A00_0000;
+  int      intr_count = 0;
+  int      limit_interrupts = 0;
 
   std::atomic<bool> terminate_ = false;
   std::mutex mutex_;
