@@ -7,6 +7,9 @@
 #include "cvm/plusargs.hpp"
 #include "cvm/registry.hpp"
 #include "cvm/logger.hpp"
+#include "cvm/plusargs.hpp"
+
+DEFINE_bool(htif_flip, false, "Reverse the htif tohost/fromhost address order");
 
 htif::htif(const std::string& tag, uint64_t addr, cvm::topology::loc_t loc)
   : device(tag, addr, 16 /* size */, loc, &htif::write, &htif::read, this), to_(0), from_(0)
@@ -31,7 +34,7 @@ htif::read(const transactor::read_t& r, data_t& data)
   uint64_t offset = addr - this->addr();
   uint64_t di = offset / 8;  // Double word index
 
-  uint64_t dword = di == 0? to_ : from_;
+  uint64_t dword = ((di == 0) ^ FLAGS_htif_flip) ? to_ : from_;
   serializeInt(dword, length, data);
   return;
 }
@@ -91,7 +94,7 @@ htif::write(const transactor::write_t& w)
   uint64_t offset = addr - this->addr();
   uint64_t di = offset / 8;  // Double word index
 
-  if (di == 1)
+  if ((di == 1) ^ FLAGS_htif_flip)
     {
       from_ = dword;
       return;
