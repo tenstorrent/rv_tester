@@ -1328,7 +1328,6 @@ uint64_t bridge::modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data) {
     bool valid;
     uint64_t pmpcfg, mask, reset;
     client_->whisperPeekCsr(hart, addr - 16, pmpcfg, mask, reset, valid);
-    cvm::log(cvm::MEDIUM, "pmpcfg {} condition check {}\n", pmpcfg, ((pmpcfg >> 4) & 0x1));
     if((pmpcfg >> 4) & 0x1) {
       result = data | 0x1ff;
     } else {
@@ -1346,7 +1345,6 @@ cac::size_8_bytes_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, cac::
     bool valid;
     uint64_t pmpcfg, mask_iss, reset;
     client_->whisperPeekCsr(hart, addr - 16, pmpcfg, mask_iss, reset, valid);
-    // cvm::log(cvm::MEDIUM, "pmpcfg {} condition check {}\n", pmpcfg, ((pmpcfg >> 4) & 0x1));
     if((pmpcfg >> 4) & 0x1) {
       result = mask | 0x1ff;
     } else {
