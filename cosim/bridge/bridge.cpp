@@ -139,7 +139,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
       return;
     }
   }
-  
+
   // Handle pre-step condition - Interrupts
   process_interrupt_pre_step(hart, d, w);
 
@@ -155,10 +155,10 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   // Update cac with dut state
   update_dut_state(hart, d);
-  
+
   // Handle post-step conditions
   process_interrupt_post_step(hart, d, w);
-    //if(!debug_mode_){
+  //if(!debug_mode_){
   process_exception_post_step(hart, d, w);
   //}
   process_satp_write_post_step(hart, d, w);
