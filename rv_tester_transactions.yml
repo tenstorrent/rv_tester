@@ -131,6 +131,10 @@ cosim:
                 width: 64
             data:
                 width: ${TOP.PLATFORM.XLEN}
+            amo:
+                width: 1
+            amo_op:
+                width: 5
 
     m_mcmi_insert:
         domain: 1
@@ -165,6 +169,10 @@ cosim:
                 width: 64
             data:
                 width: ${TOP.PLATFORM.XLEN}
+            amo:
+                width: 1
+            amo_op:
+                width: 5
 
     m_mcmi_write:
         domain: 1
@@ -180,6 +188,41 @@ cosim:
                 width: 64
             data:
                 width: ${TOP.PLATFORM.CLLEN}
+
+    m_mcmi_ifetch_req:
+        domain: 1
+        num: ${max(TOP.PLATFORM.COSIM.MCMI.NIFETCHES)}
+        fields:
+            cycle:
+                width: 64
+            hart:
+                width: 32
+            order:
+                width: 64
+            addr:
+                width: ${TOP.PLATFORM.PALEN}
+
+    m_mcmi_ifetch_resp:
+        domain: 1
+        num: ${max(TOP.PLATFORM.COSIM.MCMI.NIFETCHES)}
+        fields:
+            cycle:
+                width: 64
+            hart:
+                width: 32
+            order:
+                width: 64
+
+    m_mcmi_ievict:
+        domain: 1
+        num: ${max(TOP.PLATFORM.COSIM.MCMI.NIEVICTS)}
+        fields:
+            cycle:
+                width: 64
+            hart:
+                width: 32
+            addr:
+                width: ${TOP.PLATFORM.PALEN}
 
     m_trap:
         domain: 1

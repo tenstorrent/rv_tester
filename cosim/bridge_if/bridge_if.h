@@ -130,12 +130,15 @@ typedef struct csr_s {
 
 typedef struct mem_s {
   bool valid;
+  uint32_t hart;
   uint64_t cycle;
   uint64_t tag;
   uint64_t va;
   uint64_t pa;
   uint8_t size;
   uint64_t data;
+  bool amo;
+  uint8_t amo_op;
 
   mem_s() {
     clear();

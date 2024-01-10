@@ -299,6 +299,8 @@ import rv_tester_params::*;
           .NINSERT(NINSERTS[c]),
           .NWRITE(NWRITES[c]),
           .NBYPASS(NBYPASSES[c]),
+          .NIFETCH(NIFETCHES[c]),
+          .NIEVICT(NIEVICTS[c]),
           .RESET_CLOCKS(RESET_CLOCKS),
           `TOPOLOGY_CFG,
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PARAMS(0)
@@ -313,6 +315,9 @@ import rv_tester_params::*;
           .mcmi_insert(mcmi_insert[NINSERTS_CUMSUM[c] +: NINSERTS[c]]),
           .mcmi_write(mcmi_write[NWRITES_CUMSUM[c] +: NWRITES[c]]),
           .mcmi_bypass(mcmi_bypass[NBYPASSES_CUMSUM[c] +: NBYPASSES[c]]),
+          .mcmi_ifetch_req(mcmi_ifetch_req[NIFETCHES_CUMSUM[c] +: NIFETCHES[c]]),
+          .mcmi_ifetch_resp(mcmi_ifetch_resp[NIFETCHES_CUMSUM[c] +: NIFETCHES[c]]),
+          .mcmi_ievict(mcmi_ievict[NIEVICTS_CUMSUM[c] +: NIEVICTS[c]]),
           .wired_interrupt(interrupt_pend[c]),
           .imsic_interrupt(axi_req_mst2[0]),
           .debug_mode(debug_mode[c]),

@@ -18,6 +18,7 @@ DEFINE_bool(rvfi_log, true, "Enable rvfi logging");
 DEFINE_bool(rvfi_log_36b_uop, true, "rvfi log - print 36b uop instead of default 32b riscv opcode");
 DEFINE_bool(mcm, false, "Enable mcm");
 DEFINE_bool(cosim, true, "Enable cosim checking");
+DEFINE_bool(emulate_amo_arithmetic, true, "Emulate amo arithmetic if dut harness does not provide amo outputs");
 DECLARE_string(load);
 
 DEFINE_uint64(debug_entry_pc, 0xa110800, "Debug Mode entry PC");
@@ -45,6 +46,9 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     rv_tester_transactions::cosim::m_mcmi_insert<>,
     rv_tester_transactions::cosim::m_mcmi_write<>,
     rv_tester_transactions::cosim::m_mcmi_bypass<>,
+    rv_tester_transactions::cosim::m_mcmi_ifetch_req<>,
+    rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>,
+    rv_tester_transactions::cosim::m_mcmi_ievict<>,
     rv_tester_transactions::cosim::m_debug<>
   >(loc);
 
@@ -391,7 +395,7 @@ void rvfi::print_instr(rv_instr_t& instr) {
 }
 
 void rvfi::print_instr_resource(rv_instr_t& instr, std::string resource_str) {
-  log(cvm::NONE, "#{} {} {} {} {:016x}", instr.id, instr.cycle, instr.hart, priv_to_string.at(static_cast<priv>(instr.priv)),
+  log(cvm::NONE, "#{} {} {} {} {:016x}", instr.tag, instr.cycle, instr.hart, priv_to_string.at(static_cast<priv>(instr.priv)),
      instr.pc.pc_rdata);
 
   if (FLAGS_rvfi_log_36b_uop)
@@ -522,13 +526,20 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
 
   mem_t m;
   m.valid = true;
+  m.hart = m_mcmi_read.hart;
   m.cycle = m_mcmi_read.cycle;
   m.tag = m_mcmi_read.order;
   m.pa = m_mcmi_read.addr;
   m.size = std::popcount(m_mcmi_read.mask);
   m.data = m_mcmi_read.data;
+  m.amo = m_mcmi_read.amo;
+  m.amo_op = m_mcmi_read.amo_op;
 
   bridge_->process_dut_mcm_read(m_mcmi_read.hart, m);
+
+  if (m.amo && m.amo_op != LR && m.amo_op!= SC && FLAGS_emulate_amo_arithmetic) {
+    process_amo(m);
+  }
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_insert) {
@@ -558,13 +569,104 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
 
   mem_t m;
   m.valid = true;
+  m.hart = m_mcmi_bypass.hart;
   m.cycle = m_mcmi_bypass.cycle;
   m.tag = m_mcmi_bypass.order;
   m.pa = m_mcmi_bypass.addr;
   m.size = std::popcount(m_mcmi_bypass.mask);
   m.data = m_mcmi_bypass.data;
+  m.amo = m_mcmi_bypass.amo;
+  m.amo_op = m_mcmi_bypass.amo_op;
+
+  if (m.amo && m.amo_op != LR && m.amo_op!= SC && FLAGS_emulate_amo_arithmetic) {
+    amo_writes_.emplace(m.tag, m);
+    return;
+  }
 
   bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m);
+}
+
+void rvfi::process_amo(mem_t& read) {
+
+  if (amo_writes_.find(read.tag) == amo_writes_.end()) {
+    cvm::log(cvm::ERROR, "Error: Amo read with no matching bypass write - inst tag={}\n", read.tag);
+    return;
+  }
+
+  mem_t m = amo_writes_.at(read.tag);
+  m.cycle = read.cycle;
+  amo_modify_write_data(static_cast<amo_op>(m.amo_op), read.data, m.data, m.size);
+
+  bridge_->process_dut_mcm_bypass(m.hart, m);
+
+  amo_writes_.erase(read.tag);
+}
+
+void rvfi::amo_modify_write_data(amo_op op, uint64_t& read_data, uint64_t& write_data, uint8_t size) {
+
+  bool sign = (op == AMOADD) || (op == AMOSWAP) || (op == AMOMAX) || (op == AMOMIN);
+  switch (size) {
+    case 1:
+      if (sign) amo_arithmetic<int8_t>(op, read_data, write_data, size);
+      else      amo_arithmetic<uint8_t>(op, read_data, write_data, size);
+      break;
+    case 2:
+      if (sign) amo_arithmetic<int16_t>(op, read_data, write_data, size);
+      else      amo_arithmetic<uint16_t>(op, read_data, write_data, size);
+      break;
+    case 4:
+      if (sign) amo_arithmetic<int32_t>(op, read_data, write_data, size);
+      else      amo_arithmetic<uint32_t>(op, read_data, write_data, size);
+      break;
+    case 8:
+      if (sign) amo_arithmetic<int64_t>(op, read_data, write_data, size);
+      else      amo_arithmetic<uint64_t>(op, read_data, write_data, size);
+      break;
+    default:
+      cvm::log(cvm::ERROR, "Error: Invalid amo op size - [op={}, size={}]\n", amo_op_to_string.at(op), size);
+      break;
+  }
+}
+
+template <typename T>
+void rvfi::amo_arithmetic(amo_op op, uint64_t& read_data, uint64_t& write_data, uint8_t size) {
+  T read = 0, write = 0;
+
+  read = T(read_data) & cvm::bitmanip::mask<T>(size*8);
+  write = T(write_data) & cvm::bitmanip::mask<T>(size*8);
+
+  T result = 0;
+
+  switch (op) {
+    case AMOADD:
+      result = read + write;
+      break;
+    case AMOAND:
+      result = read & write;
+      break;
+    case AMOOR:
+      result = read | write;
+      break;
+    case AMOXOR:
+      result = read ^ write;
+      break;
+    case AMOSWAP:
+      result = write;
+      break;
+    case AMOMIN:
+    case AMOMINU:
+      result = std::min(read, write);
+      break;
+    case AMOMAX:
+    case AMOMAXU:
+      result = std::max(read, write);
+      break;
+    default:
+      assert(false && "Error: Unknown amo operation");
+      break;
+  }
+
+  write_data = uint64_t(uint64_t(result) & cvm::bitmanip::mask<uint64_t>(size*8));
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write<>& m_mcmi_write) {
@@ -582,6 +684,56 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write<>& m_mcmi_w
   m.data = m_mcmi_write.data;
 
   bridge_->process_dut_mcm_write(m_mcmi_write.hart, m);
+}
+
+void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_req<>& m_mcmi_ifetch_req) {
+  if (!FLAGS_mcm)
+    return;
+
+  if (terminated_)
+    return;
+
+  mem_t m;
+  m.valid = true;
+  m.tag = m_mcmi_ifetch_req.order;
+  m.pa = m_mcmi_ifetch_req.addr;
+
+  ifetch_reqs_.emplace(m.tag, m);
+}
+
+void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>& m_mcmi_ifetch_resp) {
+  if (!FLAGS_mcm)
+    return;
+
+  if (terminated_)
+    return;
+
+  if (ifetch_reqs_.find(m_mcmi_ifetch_resp.order) == ifetch_reqs_.end()) {
+    cvm::log(cvm::ERROR, "Error: Ifetch resp with no matching req - [id={}]", m_mcmi_ifetch_resp.order);
+  }
+
+  mem_t m;
+  m = ifetch_reqs_.at(m_mcmi_ifetch_resp.order);
+  m.cycle = m_mcmi_ifetch_resp.cycle;
+
+  bridge_->process_dut_mcm_ifetch(m_mcmi_ifetch_resp.hart, m);
+
+  ifetch_reqs_.erase(m_mcmi_ifetch_resp.order);
+}
+
+void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ievict<>& m_mcmi_ievict) {
+  if (!FLAGS_mcm)
+    return;
+
+  if (terminated_)
+    return;
+
+  mem_t m;
+  m.valid = true;
+  m.cycle = m_mcmi_ievict.cycle;
+  m.pa = m_mcmi_ievict.addr;
+
+  bridge_->process_dut_mcm_ievict(m_mcmi_ievict.hart, m);
 }
 
 void rvfi::process(const rv_tester::terminate_called&) {

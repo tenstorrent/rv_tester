@@ -1089,6 +1089,28 @@ void bridge::process_dut_mcm_write(hart_id_t hart, mem_cl_t& m) {
   log(cvm::HIGH, "]\n");
 }
 
+// Process inst fetches
+void bridge::process_dut_mcm_ifetch(hart_id_t hart, mem_t& m) {
+  bool valid = false;
+
+  if (!client_->whisperMcmIFetch(hart, m.cycle, m.pa, valid)) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: Failed mcm ifetch\n", hart);
+    return;
+  }
+  log(cvm::HIGH, "<{}> mcm_ifetch [valid={}, addr={:#x}]\n", m.cycle, valid, m.pa);
+}
+
+// Process inst evicts
+void bridge::process_dut_mcm_ievict(hart_id_t hart, mem_t& m) {
+  bool valid = false;
+
+  if (!client_->whisperMcmIEvict(hart, m.cycle, m.pa, valid)) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: Failed mcm ievict\n", hart);
+    return;
+  }
+  log(cvm::HIGH, "<{}> mcm_ievict [valid={}, addr={:#x}]\n", m.cycle, valid, m.pa);
+}
+
 uint64_t bridge::translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t memclass) {
   uint64_t pa = va;
 

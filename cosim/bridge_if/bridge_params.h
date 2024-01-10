@@ -186,4 +186,32 @@ namespace {
         {SGEI, "SGEI"}
     };
 
+    typedef enum : size_t {
+        LR = 2,
+        SC = 3,
+        AMOSWAP = 1,
+        AMOADD = 0,
+        AMOXOR = 4,
+        AMOAND = 12,
+        AMOOR = 8,
+        AMOMIN = 16,
+        AMOMAX = 20,
+        AMOMINU = 24,
+        AMOMAXU = 28
+    } amo_op;
+
+    const std::unordered_map<amo_op, std::string_view> amo_op_to_string = {
+        {LR, "LR"},
+        {SC, "SC"},
+        {AMOSWAP, "AMOSWAP"},
+        {AMOADD, "AMOADD"},
+        {AMOXOR, "AMOXOR"},
+        {AMOAND, "AMOAND"},
+        {AMOOR, "AMOOR"},
+        {AMOMIN, "AMOMIN"},
+        {AMOMAX, "AMOMAX"},
+        {AMOMINU, "AMOMINU"},
+        {AMOMAXU, "AMOMAXU"}
+    };
+
 }
