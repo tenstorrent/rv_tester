@@ -320,6 +320,12 @@ void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whi
   } else { 
     prev_sync_intr_ = 0;
   }
+  if (d.excp) {
+          log(cvm::MEDIUM, "<{}> Exception Defer\n", d.cycle);
+          pre_csr_defermip_ = deferred_mip_;
+          deferred_intr_ = true;
+          defer_interrupt(hart, d.cycle, mip_);
+  }
 
   if (!mip_)
     return;
@@ -401,6 +407,11 @@ void bridge::process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, wh
       }
   
   }
+
+      if (d.excp) {
+          defer_interrupt(hart, d.cycle, pre_csr_defermip_);
+          deferred_mip_ = pre_csr_defermip_;
+      } 
 
   if (w.disasm.find("ret") != std::string::npos) {
       if(prev_mip_ != mip_) {
