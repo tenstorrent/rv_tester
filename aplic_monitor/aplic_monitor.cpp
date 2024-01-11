@@ -75,7 +75,7 @@ void aplic_monitor::process(const rv_tester_transactions::aplic_monitor::aplic_m
   //APLIC configuration will happen here
   // APlic MMR stores are visible here and we can call aplic model api to program the model in this process function
   cvm::log(cvm::DEBUG,"Process4: Aplic mmr store location {} ",aplic_mmr_store.location);
-  cvm::log(cvm::DEBUG,"Process4: Aplic mmr store Data {} ",aplic_mmr_store.data);
+  //cvm::log(cvm::DEBUG,"Process4: Aplic mmr store Data {} ",aplic_mmr_store.data);
   cvm::log(cvm::DEBUG,"Process4: Aplic mmr store addr {} ",aplic_mmr_store.addr);
   
 }

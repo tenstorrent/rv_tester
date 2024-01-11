@@ -598,19 +598,19 @@ aplic_monitor:
         num: 1
         fields:
             addr:
-                width: 32
+                width: ${TOP.PLATFORM.APLIC_MSI_AXI.ADDR_WIDTH}
             size:
                 width: 8
             id:
-                width: ${TOP.PLATFORM.AXI_MST.ID_WIDTH}
+                width: ${TOP.PLATFORM.APLIC_MSI_AXI.ID_WIDTH}
             data:
-                width: 64
+                width: ${TOP.PLATFORM.APLIC_MSI_AXI.DATA_WIDTH}
     aplic_mmr_load_cmd:
         domain: 1
         num: 1
         fields:
             addr:
-                width: ${TOP.PLATFORM.AXI.ADDR_WIDTH}
+                width: ${TOP.PLATFORM.AXI_MST.ADDR_WIDTH}
             size:
                 width: 8
             id:
@@ -622,17 +622,17 @@ aplic_monitor:
             id:
                 width: ${TOP.PLATFORM.AXI_MST.ID_WIDTH}
             data:
-                width: 512
+                width: ${TOP.PLATFORM.AXI_MST.DATA_WIDTH}
     aplic_mmr_store:
         domain: 1
         num: 1
         fields:
             addr:
-                width: ${TOP.PLATFORM.AXI.ADDR_WIDTH}
+                width: ${TOP.PLATFORM.AXI_MST.ADDR_WIDTH}
             len:
                 width: 4
             data:
-                width: 32
+                width: ${TOP.PLATFORM.AXI_MST.DATA_WIDTH}
 
 __domains:
     2:

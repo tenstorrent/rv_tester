@@ -8,7 +8,7 @@ module aplic_monitor #(
   input bit terminate,
   input rv_tester_params::mst_req_top axi_req_mst, //MMR REQ
   input rv_tester_params::mst_resp_top axi_resp_mst, //MMR REQ
-  input rv_tester_params::msi_slv_req_top msi_axi_req, //MMR READ 
+  input rv_tester_params::aplic_msi_slv_req_top msi_axi_req, //MMR READ 
   input logic[1023:0] aplic_pin_input,
   input logic [7:0] misc_signals,
   `RV_TESTER_TRANSACTIONS_APLIC_MONITOR_OUTPUT_PORTS
@@ -50,7 +50,7 @@ module aplic_monitor #(
     //APLIC MMR WRITE MONITOR
     assign aplic_mmr_stores[0].valid = !reset && axi_req_mst.w_valid && axi_req_mst.aw_valid && axi_resp_mst.aw_ready && (reset_done=== 1'b1);
     assign aplic_mmr_stores[0].data.location = location;
-    assign aplic_mmr_stores[0].data.data = axi_req_mst.w.data[31:0];
+    assign aplic_mmr_stores[0].data.data = axi_req_mst.w.data;
     assign aplic_mmr_stores[0].data.addr = axi_req_mst.aw.addr;
     assign aplic_mmr_stores[0].data.len = axi_req_mst.aw.len[3:0];
 
