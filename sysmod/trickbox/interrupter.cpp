@@ -33,6 +33,7 @@ interrupter::interrupter(const std::string& tag, uint64_t addr, unsigned hartCou
     cvm::log(cvm::LOW, "[Trickbox] Random Interrupts enabled - [mei:{}, sei:{}, mti:{}, sti:{}, msi:{}, ssi:{}]\n",
       FLAGS_disable_meip, FLAGS_disable_seip, FLAGS_disable_mtip, FLAGS_disable_stip, FLAGS_disable_msip, FLAGS_disable_ssip);
 
+ cvm::log(cvm::LOW, "[Trickbox][Random Interrupts] Limit for random interrupts {} \n",FLAGS_max_intr_count);
   if(FLAGS_max_intr_count>0)
     limit_interrupts = 1;
 
@@ -109,7 +110,7 @@ interrupter::write(uint64_t addr, size_t, const data_t& data,
     unsigned eventValue = (t_data >> 20) & 0xfb; //ignore supervisor timer interrupt data
 
     driveInterrupt(hart,event,eventValue);
-    cvm::log(cvm::LOW, "[Trickbox] Driving even {:#x} eventVal {:#x}\n", event, eventValue);
+    cvm::log(cvm::LOW, "[Trickbox] Driving event {:#x} eventVal {:#x}\n", event, eventValue);
 
 
     if ( eventValue==0 && event!=0 ) 

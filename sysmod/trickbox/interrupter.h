@@ -142,14 +142,14 @@ protected:
            iter = (rng() % (FLAGS_max_simul_intr )) + 1 ; //gen iter between 1 to max simul instr
          }
 
-	 cvm::log(cvm::HIGH, "[Trickbox] Disable dontpick mask  {}  \n", disable_dontpick);
-	 cvm::log(cvm::HIGH, "[Trickbox] Driving  {} interrupts in a cycle \n", iter);
+	 cvm::log(cvm::HIGH, "[Trickbox][Random interrupt] Disable dontpick mask  {}  \n", disable_dontpick);
+	 cvm::log(cvm::HIGH, "[Trickbox][Random interrupt] Driving  {} random interrupts in a cycle \n", iter);
    unsigned attempt_intrs = 0;
          for (unsigned i = 0; i < iter; ++i) {
            do{
              values[i] = rng() % (numInterrupts_) ;
              attempt_intrs++;
-	     cvm::log(cvm::HIGH, "[Trickbox] attempting to genertae legal interrupts,gen_result  {} \n", values[i]);
+	     cvm::log(cvm::DEBUG, "[Trickbox][Random interrupt] attempting to generate legal interrupts,gen_result  {} \n", values[i]);
 	   }while( ((disable_mask | disable_dontpick) & (1<<values[i])) && (attempt_intrs<100) );
            if(attempt_intrs == 100)
            continue;
@@ -161,24 +161,25 @@ protected:
                 }
             }
 
-	  cvm::log(cvm::HIGH, "[Trickbox] Driving interrupt  {}  \n", values[i]);
+	  cvm::log(cvm::HIGH, "[Trickbox][Random interrupt] Driving Random interrupt  {}  \n", values[i]);
           rand_intr =  rand_intr |(1<<values[i]);
 
           rand_intr = rand_intr & disable_mask_neg;
-	  cvm::log(cvm::HIGH, "[Trickbox] Send  interrupt vec to sysmod  {:#x}  \n", rand_intr);
+	  cvm::log(cvm::HIGH, "[Trickbox][Random interrupt] Send  interrupt vec to sysmod  {:#x}  \n", rand_intr);
 
          }
 
 
-	 cvm::log(cvm::HIGH, "[Trickbox] Send  sig to  sysmod  {:#x}  \n", rand_intr);
+	 cvm::log(cvm::HIGH, "[Trickbox][Random interrupt] Send  sig to  sysmod  {:#x}  \n", rand_intr);
          cvm::registry::messenger.signal(loc(), interrupt_t{0, rand_intr, rand_intr});
          if(limit_interrupts){
            intr_driven++;
+	   cvm::log(cvm::HIGH, "[Trickbox][Random interrupt]: increment interrupt driven count  {}  \n", intr_driven);
          }
          uint32_t rand_num =  (rng() % ( FLAGS_intr_delay_max - FLAGS_intr_delay_min + 1)) + FLAGS_intr_delay_min;
          timer_rand_intr = timer_ +(rand_num*timer_advance);
          disable_dontpick = 0;
-	 cvm::log(cvm::HIGH, "[Trickbox] Next random interrupt will be sent at  {}  \n", timer_rand_intr);
+	 cvm::log(cvm::HIGH, "[Trickbox][Random interrupt] Next random interrupt will be sent at  {}  \n", timer_rand_intr);
       }
     }
 
