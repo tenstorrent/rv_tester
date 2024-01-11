@@ -50,7 +50,7 @@ module aplic_monitor #(
     //APLIC MMR WRITE MONITOR
     assign aplic_mmr_stores[0].valid = !reset && axi_req_mst.w_valid && axi_req_mst.aw_valid && axi_resp_mst.aw_ready && (reset_done=== 1'b1);
     assign aplic_mmr_stores[0].data.location = location;
-    assign aplic_mmr_stores[0].data.data = axi_req_mst.w.data[31:0];
+    assign aplic_mmr_stores[0].data.data = axi_req_mst.w.data;
     assign aplic_mmr_stores[0].data.addr = axi_req_mst.aw.addr;
     assign aplic_mmr_stores[0].data.len = axi_req_mst.aw.len[3:0];
 

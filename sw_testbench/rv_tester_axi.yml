@@ -17,10 +17,10 @@ rv_tester_ncio_axi_attrs: &rv_tester_ncio_axi_attrs
 rv_tester_axi_mst_count: &rv_tester_axi_mst_count 2
 
 rv_tester_axi_mst_attrs: &rv_tester_axi_mst_attrs
-  ADDR_WIDTH: 64
+  ADDR_WIDTH: 52
   DATA_WIDTH: 512
   STRB_WIDTH: 64
-  ID_WIDTH: 4
+  ID_WIDTH: 15
 
 rv_tester_axi_mst2_count: &rv_tester_axi_mst2_count 2
 
@@ -41,7 +41,7 @@ rv_tester_dm_axi_attrs: &rv_tester_dm_axi_attrs
 rv_tester_aplic_msi_axi_count: &rv_tester_aplic_msi_axi_count 1
 
 rv_tester_aplic_msi_axi_attrs: &rv_tester_aplic_msi_axi_attrs
-  ADDR_WIDTH: 25
-  DATA_WIDTH: 64
-  STRB_WIDTH: 8
-  ID_WIDTH: 10
+  ADDR_WIDTH: 52
+  DATA_WIDTH: 512
+  STRB_WIDTH: 64
+  ID_WIDTH: 13
