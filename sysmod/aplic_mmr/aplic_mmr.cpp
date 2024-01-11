@@ -25,7 +25,7 @@ void aplic_mmr::write(const transactor::write_t& w) {
   auto& length = w.length;
   auto& data = w.data;
   auto& strb = w.strb;
-  std::cout<<"$$$$$$$ APLIC MMR WRITE "<<std::hex<<addr<<"$$$$\n";
+  cvm::log(cvm::HIGH, "[APLIC_MMR] Write Request for Addr: {:#x} \n", addr);
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb});
 
   return;
@@ -34,7 +34,7 @@ void aplic_mmr::write(const transactor::write_t& w) {
 cvm::messenger::task<void> aplic_mmr::read(const transactor::read_t& r, data_t& data) {
   auto& addr = r.addr;
   auto& length = r.length;
-  std::cout<<"$$$$$$$ APLIC MMR READ "<<std::hex<<addr<<"$$$$\n";
+  cvm::log(cvm::HIGH, "[APLIC_MMR] Read Request for Addr: {:#x} \n", addr);
 
   // @Pravin, this needs to be fixed, with a real id store
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::read_request_t{addr, length});
