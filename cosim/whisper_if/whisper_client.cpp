@@ -166,6 +166,13 @@ whisperClient<URV>::whisperDisconnect()
 {
 }
 
+template <typename URV>
+void
+whisperClient<URV>::whisperDisableMcm()
+{
+  system_->enableMcm(64, false);
+}
+
 
 template <typename URV>
 bool

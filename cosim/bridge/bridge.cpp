@@ -1505,6 +1505,7 @@ void bridge::report_metrics() {
   }
 
   // Step one final time to collect metrics for next instruction
+  client_->whisperDisableMcm();
   whisper_state_t w {
     .tag = prev_whisp_state.tag+1,
     .time = prev_whisp_state.time+1
