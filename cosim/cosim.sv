@@ -27,7 +27,7 @@ import rv_tester_params::*;
     input mcmi_t [NIFETCH-1:0] mcmi_ifetch_resp,
     input mcmi_t [NIEVICT-1:0] mcmi_ievict,
     input rv_tester_pkg::interrupt_t wired_interrupt,
-    input rv_tester_params::mst2_req_top imsic_interrupt,
+    input rv_tester_params::mst_req_top imsic_interrupt,
     input debug_mode,
     output rv_tester_pkg::terminate_t terminate,
     `RV_TESTER_TRANSACTIONS_COSIM_OUTPUT_PORTS
@@ -244,8 +244,8 @@ import rv_tester_params::*;
 
 
     localparam imsic_whisper_delays = 5;
-    rv_tester_params::mst2_req_top imsic_interrupt_delays[imsic_whisper_delays:0];
-    rv_tester_params::mst2_req_top imsic_interrupt_delayed;
+    rv_tester_params::mst_req_top imsic_interrupt_delays[imsic_whisper_delays:0];
+    rv_tester_params::mst_req_top imsic_interrupt_delayed;
     assign imsic_interrupt_delays[0]=imsic_interrupt;
     genvar i;
    generate

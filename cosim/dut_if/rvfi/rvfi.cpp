@@ -164,7 +164,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_imsic_msi<>& m_imsic_m
   mem_t mem;
   mem.cycle = m_imsic_msi.cycle;
   mem.pa = m_imsic_msi.addr;
-  mem.data = m_imsic_msi.data;
+  mem.data = m_imsic_msi.data.to_ullong();
 
   bridge_->process_dut_imsic_msi(id_, mem);
   if (FLAGS_rvfi_log) {

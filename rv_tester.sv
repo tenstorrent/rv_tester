@@ -319,7 +319,7 @@ import rv_tester_params::*;
           .mcmi_ifetch_resp(mcmi_ifetch_resp[NIFETCHES_CUMSUM[c] +: NIFETCHES[c]]),
           .mcmi_ievict(mcmi_ievict[NIEVICTS_CUMSUM[c] +: NIEVICTS[c]]),
           .wired_interrupt(interrupt_pend[c]),
-          .imsic_interrupt(axi_req_mst2[0]),
+          .imsic_interrupt(axi_req_mst[0]), //FIXME
           .debug_mode(debug_mode[c]),
           .terminate(cosim_terminate[c]),
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PORTS(1, c, 0)
@@ -606,60 +606,60 @@ import rv_tester_params::*;
     end
 
 
-    for (genvar p = 0; p < topology.TOP.PLATFORM.AXI_MST2.TOTAL; p++) begin : axi_sw_mst2s
+    for (genvar p = 0; p < topology.TOP.PLATFORM.APLIC_MMR_AXI_MST.TOTAL; p++) begin : aplic_mmr_axi_sw_msts
         axi_sw_mst #(
-            .ADDR_WIDTH(topology.TOP.PLATFORM.AXI_MST2.ADDR_WIDTH),
-            .DATA_WIDTH(topology.TOP.PLATFORM.AXI_MST2.DATA_WIDTH),
-            .ID_WIDTH(topology.TOP.PLATFORM.AXI_MST2.ID_WIDTH  ),
-            .STRB_WIDTH(topology.TOP.PLATFORM.AXI_MST2.STRB_WIDTH),
-            .AR_Q_MAX(topology.TOP.PLATFORM.AXI_MST2.AR_Q_MAX),
-            .AW_Q_MAX(topology.TOP.PLATFORM.AXI_MST2.AW_Q_MAX),
-            .W_Q_MAX(topology.TOP.PLATFORM.AXI_MST2.W_Q_MAX),
-            .TOPO_ID(topology.TOP.PLATFORM.AXI_MST2.ID),
+            .ADDR_WIDTH(topology.TOP.PLATFORM.APLIC_MMR_AXI_MST.ADDR_WIDTH),
+            .DATA_WIDTH(topology.TOP.PLATFORM.APLIC_MMR_AXI_MST.DATA_WIDTH),
+            .ID_WIDTH(topology.TOP.PLATFORM.APLIC_MMR_AXI_MST.ID_WIDTH  ),
+            .STRB_WIDTH(topology.TOP.PLATFORM.APLIC_MMR_AXI_MST.STRB_WIDTH),
+            .AR_Q_MAX(topology.TOP.PLATFORM.APLIC_MMR_AXI_MST.AR_Q_MAX),
+            .AW_Q_MAX(topology.TOP.PLATFORM.APLIC_MMR_AXI_MST.AW_Q_MAX),
+            .W_Q_MAX(topology.TOP.PLATFORM.APLIC_MMR_AXI_MST.W_Q_MAX),
+            .TOPO_ID(topology.TOP.PLATFORM.APLIC_MMR_AXI_MST.ID),
             .NUM(p),
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(1)
-        ) axi_sw_mst2 (
+        ) aplic_mmr_sw_mst (
             .clk,
             .reset_n(~reset),
             .sys_reset(sysmod_reset),
-            .axi_mst_ar_valid(axi_req_mst2[p].ar_valid),
-            .axi_mst_ar_id   (axi_req_mst2[p].ar.id),
-            .axi_mst_ar_addr (axi_req_mst2[p].ar.addr),
-            .axi_mst_ar_len  (axi_req_mst2[p].ar.len),
-            .axi_mst_ar_size (axi_req_mst2[p].ar.size),
-            .axi_mst_ar_lock (axi_req_mst2[p].ar.lock),
-            .axi_mst_ar_burst(axi_req_mst2[p].ar.burst),
+            .axi_mst_ar_valid(aplic_mmr_axi_req_mst[p].ar_valid),
+            .axi_mst_ar_id   (aplic_mmr_axi_req_mst[p].ar.id),
+            .axi_mst_ar_addr (aplic_mmr_axi_req_mst[p].ar.addr),
+            .axi_mst_ar_len  (aplic_mmr_axi_req_mst[p].ar.len),
+            .axi_mst_ar_size (aplic_mmr_axi_req_mst[p].ar.size),
+            .axi_mst_ar_lock (aplic_mmr_axi_req_mst[p].ar.lock),
+            .axi_mst_ar_burst(aplic_mmr_axi_req_mst[p].ar.burst),
 
-            .axi_mst_aw_valid(axi_req_mst2[p].aw_valid),
-            .axi_mst_aw_id   (axi_req_mst2[p].aw.id),
-            .axi_mst_aw_addr (axi_req_mst2[p].aw.addr),
-            .axi_mst_aw_len  (axi_req_mst2[p].aw.len),
-            .axi_mst_aw_size (axi_req_mst2[p].aw.size),
-            .axi_mst_aw_burst(axi_req_mst2[p].aw.burst),
-            .axi_mst_aw_lock (axi_req_mst2[p].aw.lock),
-            .axi_mst_aw_atop (axi_req_mst2[p].aw.atop),
+            .axi_mst_aw_valid(aplic_mmr_axi_req_mst[p].aw_valid),
+            .axi_mst_aw_id   (aplic_mmr_axi_req_mst[p].aw.id),
+            .axi_mst_aw_addr (aplic_mmr_axi_req_mst[p].aw.addr),
+            .axi_mst_aw_len  (aplic_mmr_axi_req_mst[p].aw.len),
+            .axi_mst_aw_size (aplic_mmr_axi_req_mst[p].aw.size),
+            .axi_mst_aw_burst(aplic_mmr_axi_req_mst[p].aw.burst),
+            .axi_mst_aw_lock (aplic_mmr_axi_req_mst[p].aw.lock),
+            .axi_mst_aw_atop (aplic_mmr_axi_req_mst[p].aw.atop),
 
-            .axi_mst_w_valid(axi_req_mst2[p].w_valid),
-            .axi_mst_w_data (axi_req_mst2[p].w.data),
-            .axi_mst_w_strb (axi_req_mst2[p].w.strb),
-            .axi_mst_w_last (axi_req_mst2[p].w.last),
+            .axi_mst_w_valid(aplic_mmr_axi_req_mst[p].w_valid),
+            .axi_mst_w_data (aplic_mmr_axi_req_mst[p].w.data),
+            .axi_mst_w_strb (aplic_mmr_axi_req_mst[p].w.strb),
+            .axi_mst_w_last (aplic_mmr_axi_req_mst[p].w.last),
 
-            .axi_mst_b_ready(axi_req_mst2[p].b_ready),
-            .axi_mst_r_ready(axi_req_mst2[p].r_ready),
+            .axi_mst_b_ready(aplic_mmr_axi_req_mst[p].b_ready),
+            .axi_mst_r_ready(aplic_mmr_axi_req_mst[p].r_ready),
 
-            .axi_slv_b_valid(axi_rsp_mst2[p].b_valid),
-            .axi_slv_b_id   (axi_rsp_mst2[p].b.id),
-            .axi_slv_b_resp (axi_rsp_mst2[p].b.resp),
+            .axi_slv_b_valid(aplic_mmr_axi_rsp_mst[p].b_valid),
+            .axi_slv_b_id   (aplic_mmr_axi_rsp_mst[p].b.id),
+            .axi_slv_b_resp (aplic_mmr_axi_rsp_mst[p].b.resp),
 
-            .axi_slv_r_valid(axi_rsp_mst2[p].r_valid),
-            .axi_slv_r_id   (axi_rsp_mst2[p].r.id),
-            .axi_slv_r_data (axi_rsp_mst2[p].r.data),
-            .axi_slv_r_resp (axi_rsp_mst2[p].r.resp),
-            .axi_slv_r_last (axi_rsp_mst2[p].r.last),
+            .axi_slv_r_valid(aplic_mmr_axi_rsp_mst[p].r_valid),
+            .axi_slv_r_id   (aplic_mmr_axi_rsp_mst[p].r.id),
+            .axi_slv_r_data (aplic_mmr_axi_rsp_mst[p].r.data),
+            .axi_slv_r_resp (aplic_mmr_axi_rsp_mst[p].r.resp),
+            .axi_slv_r_last (aplic_mmr_axi_rsp_mst[p].r.last),
 
-            .axi_slv_aw_ready(axi_rsp_mst2[p].aw_ready),
-            .axi_slv_ar_ready(axi_rsp_mst2[p].ar_ready),
-            .axi_slv_w_ready (axi_rsp_mst2[p].w_ready),
+            .axi_slv_aw_ready(aplic_mmr_axi_rsp_mst[p].aw_ready),
+            .axi_slv_ar_ready(aplic_mmr_axi_rsp_mst[p].ar_ready),
+            .axi_slv_w_ready (aplic_mmr_axi_rsp_mst[p].w_ready),
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PORTS(2, p, 1)
         );
     end
