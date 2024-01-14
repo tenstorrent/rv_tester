@@ -140,7 +140,11 @@ namespace {
         ECALL_M = 11,
         INSN_PAGE_FAULT = 12,
         LD_PAGE_FAULT = 13,
-        ST_AMO_PAGE_FAULT = 15
+        ST_AMO_PAGE_FAULT = 15,
+        INST_GUEST_PAGE_FAULT = 20,
+        LD_GUEST_PAGE_FAULT = 21,
+        VIRT_INST_FAULT = 22,
+        ST_AMO_GUEST_PAGE_FAULT = 23
     } excp;
 
     const std::unordered_map<excp, std::string_view> excp_to_string = {
@@ -157,7 +161,11 @@ namespace {
         {ECALL_M, "ECALL_M"},
         {INSN_PAGE_FAULT, "INSN_PAGE_FAULT"},
         {LD_PAGE_FAULT, "LD_PAGE_FAULT"},
-        {ST_AMO_PAGE_FAULT, "ST_AMO_PAGE_FAULT"}
+        {ST_AMO_PAGE_FAULT, "ST_AMO_PAGE_FAULT"},
+        {INST_GUEST_PAGE_FAULT, "INST_GUEST_PAGE_FAULT"},
+        {LD_GUEST_PAGE_FAULT, "LD_GUEST_PAGE_FAULT"},
+        {VIRT_INST_FAULT, "VIRT_INST_FAULT"},
+        {ST_AMO_GUEST_PAGE_FAULT, "ST_AMO_GUEST_PAGE_FAULT"}
     };
 
     typedef enum : size_t {
