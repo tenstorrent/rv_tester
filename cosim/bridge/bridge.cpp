@@ -472,19 +472,23 @@ void bridge::process_exception_post_step(hart_id_t hart, const rv_instr_t& d, wh
 
   if (d.excp && !w_.excp && !FLAGS_cosim_resynch) {
     print_instr_stdout(hart, w);
-    cvm::log(cvm::ERROR, "Error: Hart {}: DUT took exception, Whisper did not. Cause: {}\n", hart, excp_to_string.at(static_cast<excp>(d.ecause)));
+    cvm::log(cvm::ERROR, "Error: Hart {}: DUT took exception, Whisper did not. Cause: {}\n", hart,
+      excp_to_string.count(static_cast<excp>(d.ecause)) ? excp_to_string.at(static_cast<excp>(d.ecause)) : std::to_string(d.ecause));
     return;
   }
   
   if (w_.excp && !d.excp && !FLAGS_cosim_resynch) {
     print_instr_stdout(hart, w);
-    cvm::log(cvm::ERROR, "Error: Hart {}: Whisper took exception, DUT did not. Cause: {}\n", hart, excp_to_string.at(static_cast<excp>(w_.ecause)));
+    cvm::log(cvm::ERROR, "Error: Hart {}: Whisper took exception, DUT did not. Cause: {}\n", hart,
+      excp_to_string.count(static_cast<excp>(w_.ecause)) ? excp_to_string.at(static_cast<excp>(w_.ecause)) : std::to_string(w_.ecause));
     return;
   }
 
   if (d.excp && w_.excp && (d.ecause != w_.ecause) && !FLAGS_cosim_resynch) {
     print_instr_stdout(hart, w);
-    cvm::log(cvm::ERROR, "Error: Hart {}: DUT vs Whisper exception cause mismatch. Dut: {}, Whisper: {}\n", hart, excp_to_string.at(static_cast<excp>(d.ecause)), excp_to_string.at(static_cast<excp>(w_.ecause)));
+    cvm::log(cvm::ERROR, "Error: Hart {}: DUT vs Whisper exception cause mismatch. Dut: {}, Whisper: {}\n", hart,
+      excp_to_string.count(static_cast<excp>(d.ecause)) ? excp_to_string.at(static_cast<excp>(d.ecause)) : std::to_string(d.ecause),
+      excp_to_string.count(static_cast<excp>(w_.ecause)) ? excp_to_string.at(static_cast<excp>(w_.ecause)) : std::to_string(w_.ecause));
     return;
   }
 
