@@ -174,6 +174,10 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   // Increment step count
   step_++;
 
+  // Save whisper state
+  ppw_ = pw_;
+  pw_ = w;
+
   // Error on mismatch
   if (!cac_.GetStatus(hart)) {
     cac_.ResetStatus(hart);
@@ -207,8 +211,6 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   }
 
   // Save whisper state
-  ppw_ = pw_;
-  pw_ = w;
   prev_mip_ = mip_;
   prev_e_mip_ = e_mip_;
 
