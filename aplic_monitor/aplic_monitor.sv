@@ -6,8 +6,8 @@ module aplic_monitor #(
   input clk,
   input reset,
   input bit terminate,
-  input rv_tester_params::mst_req_top axi_req_mst, //MMR REQ
-  input rv_tester_params::mst_resp_top axi_resp_mst, //MMR REQ
+  input rv_tester_params::aplic_mmr_req_top axi_req_mst, //MMR REQ
+  input rv_tester_params::aplic_mmr_resp_top axi_resp_mst, //MMR REQ
   input rv_tester_params::aplic_msi_slv_req_top msi_axi_req, //MMR READ 
   input logic[1023:0] aplic_pin_input,
   input logic [7:0] misc_signals,
