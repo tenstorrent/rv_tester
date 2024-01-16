@@ -62,11 +62,11 @@ package rv_tester_params;
     parameter AXI_MST_STRB_WIDTH = mods.TOP.PLATFORM.AXI_MST.STRB_WIDTH;
     parameter AXI_MST_ID_WIDTH = mods.TOP.PLATFORM.AXI_MST.ID_WIDTH;
     parameter AXI_USER_ID_WIDTH = 1;
-    parameter AXI_MST2_TOTAL = mods.TOP.PLATFORM.AXI_MST2.TOTAL;
-    parameter AXI_MST2_ADDR_WIDTH = mods.TOP.PLATFORM.AXI_MST2.ADDR_WIDTH;
-    parameter AXI_MST2_DATA_WIDTH = mods.TOP.PLATFORM.AXI_MST2.DATA_WIDTH;
-    parameter AXI_MST2_STRB_WIDTH = mods.TOP.PLATFORM.AXI_MST2.STRB_WIDTH;
-    parameter AXI_MST2_ID_WIDTH = mods.TOP.PLATFORM.AXI_MST2.ID_WIDTH;
+    parameter APLIC_MMR_AXI_MST_TOTAL = mods.TOP.PLATFORM.APLIC_MMR_AXI_MST.TOTAL;
+    parameter APLIC_MMR_AXI_MST_ADDR_WIDTH = mods.TOP.PLATFORM.APLIC_MMR_AXI_MST.ADDR_WIDTH;
+    parameter APLIC_MMR_AXI_MST_DATA_WIDTH = mods.TOP.PLATFORM.APLIC_MMR_AXI_MST.DATA_WIDTH;
+    parameter APLIC_MMR_AXI_MST_STRB_WIDTH = mods.TOP.PLATFORM.APLIC_MMR_AXI_MST.STRB_WIDTH;
+    parameter APLIC_MMR_AXI_MST_ID_WIDTH = mods.TOP.PLATFORM.APLIC_MMR_AXI_MST.ID_WIDTH;
 
     parameter DM_AXI_TOTAL = mods.TOP.PLATFORM.DM_AXI.TOTAL;
     parameter DM_AXI_ADDR_WIDTH = mods.TOP.PLATFORM.DM_AXI.ADDR_WIDTH;
@@ -99,10 +99,10 @@ package rv_tester_params;
     typedef logic [AXI_MST_STRB_WIDTH-1:0] axi_mst_strb_t;
     typedef logic [AXI_MST_ID_WIDTH  -1:0] axi_mst_id_t;
 
-    typedef logic [AXI_MST2_ADDR_WIDTH-1:0] axi_mst2_addr_t;
-    typedef logic [AXI_MST2_DATA_WIDTH-1:0] axi_mst2_data_t;
-    typedef logic [AXI_MST2_STRB_WIDTH-1:0] axi_mst2_strb_t;
-    typedef logic [AXI_MST2_ID_WIDTH  -1:0] axi_mst2_id_t;
+    typedef logic [APLIC_MMR_AXI_MST_ADDR_WIDTH-1:0] aplic_mmr_addr_t;
+    typedef logic [APLIC_MMR_AXI_MST_DATA_WIDTH-1:0] aplic_mmr_data_t;
+    typedef logic [APLIC_MMR_AXI_MST_STRB_WIDTH-1:0] aplic_mmr_strb_t;
+    typedef logic [APLIC_MMR_AXI_MST_ID_WIDTH  -1:0] aplic_mmr_id_t;
 
     typedef logic [5:0] axi_atop_t;
     typedef logic [1:0] axi_burst_t;
@@ -198,16 +198,16 @@ package rv_tester_params;
 
     typedef struct packed {
         logic                       ar_valid ;
-        axi_mst2_id_t                ar_id    ;
-        axi_mst2_addr_t              ar_addr  ;
+        aplic_mmr_id_t                ar_id    ;
+        aplic_mmr_addr_t              ar_addr  ;
         axi_len_t                   ar_len   ;
         axi_size_t                  ar_size  ;
         axi_burst_t                 ar_burst ;
         logic                       ar_lock  ;
 
         logic                       aw_valid ;
-        axi_mst2_id_t                aw_id    ;
-        axi_mst2_addr_t              aw_addr  ;
+        aplic_mmr_id_t                aw_id    ;
+        aplic_mmr_addr_t              aw_addr  ;
         axi_len_t                   aw_len   ;
         axi_size_t                  aw_size  ;
         axi_burst_t                 aw_burst ;
@@ -215,29 +215,29 @@ package rv_tester_params;
         axi_atop_t                  aw_atop  ;
 
         logic                       w_valid  ;
-        axi_mst2_data_t              w_data   ;
-        axi_mst2_strb_t              w_strb   ;
+        aplic_mmr_data_t              w_data   ;
+        aplic_mmr_strb_t              w_strb   ;
         logic                       w_last   ;
 
         logic                       b_ready  ;
         logic                       r_ready  ;
-    } axi_req_mst2_t;
+    } aplic_mmr_axi_req_t;
 
     typedef struct packed {
         logic                       b_valid  ;
-        axi_mst2_id_t                b_id     ;
+        aplic_mmr_id_t                b_id     ;
         axi_resp_t                  b_resp   ;
 
         logic                       r_valid  ;
-        axi_mst2_id_t                r_id     ;
-        axi_mst2_data_t              r_data   ;
+        aplic_mmr_id_t                r_id     ;
+        aplic_mmr_data_t              r_data   ;
         axi_resp_t                  r_resp   ;
         logic                       r_last   ;
 
         logic                       aw_ready ;
         logic                       ar_ready ;
         logic                       w_ready  ;
-    } axi_rsp_mst2_t;
+    } aplic_mmr_axi_rsp_t;
 
     // --------------------------------------
     // Bootstrap
@@ -565,13 +565,13 @@ package rv_tester_params;
     // `AXI_TYPEDEF_REQ_T(msi_slv_req_top, msi_slv_aw_chan_top, msi_slv_w_chan_top, msi_slv_ar_chan_top)
     // `AXI_TYPEDEF_RESP_T(msi_slv_resp_top, msi_slv_b_chan_top, msi_slv_r_chan_top)
     //
-    `AXI_TYPEDEF_AW_CHAN_T(mst2_aw_chan_top, axi_mst2_addr_t, axi_mst2_id_t, user_t)
-    `AXI_TYPEDEF_W_CHAN_T(mst2_w_chan_top, axi_mst2_data_t, axi_mst2_strb_t, user_t)
-    `AXI_TYPEDEF_B_CHAN_T(mst2_b_chan_top, axi_mst2_id_t, user_t)
-    `AXI_TYPEDEF_AR_CHAN_T(mst2_ar_chan_top, axi_mst2_addr_t, axi_mst2_id_t, user_t)
-    `AXI_TYPEDEF_R_CHAN_T(mst2_r_chan_top, axi_mst2_data_t, axi_mst2_id_t, user_t)
-    `AXI_TYPEDEF_REQ_T(mst2_req_top, mst2_aw_chan_top, mst2_w_chan_top, mst2_ar_chan_top)
-    `AXI_TYPEDEF_RESP_T(mst2_resp_top, mst2_b_chan_top, mst2_r_chan_top)
+    `AXI_TYPEDEF_AW_CHAN_T(aplic_mmr_aw_chan_top, aplic_mmr_addr_t, aplic_mmr_id_t, user_t)
+    `AXI_TYPEDEF_W_CHAN_T(aplic_mmr_w_chan_top, aplic_mmr_data_t, aplic_mmr_strb_t, user_t)
+    `AXI_TYPEDEF_B_CHAN_T(aplic_mmr_b_chan_top, aplic_mmr_id_t, user_t)
+    `AXI_TYPEDEF_AR_CHAN_T(aplic_mmr_ar_chan_top, aplic_mmr_addr_t, aplic_mmr_id_t, user_t)
+    `AXI_TYPEDEF_R_CHAN_T(aplic_mmr_r_chan_top, aplic_mmr_data_t, aplic_mmr_id_t, user_t)
+    `AXI_TYPEDEF_REQ_T(aplic_mmr_req_top, aplic_mmr_aw_chan_top, aplic_mmr_w_chan_top, aplic_mmr_ar_chan_top)
+    `AXI_TYPEDEF_RESP_T(aplic_mmr_resp_top, aplic_mmr_b_chan_top, aplic_mmr_r_chan_top)
 
     // --------------------------------------
     // rv_tester ports
@@ -623,8 +623,8 @@ package rv_tester_params;
     //input  rv_tester_params::msi_slv_resp_top    msi_slv_axi_rsp [1-1:0],             \
     input  rv_tester_params::mst_req_top     axi_req_mst [rv_tester_params::AXI_MST_TOTAL-1:0],     \
     output rv_tester_params::mst_resp_top    axi_rsp_mst [rv_tester_params::AXI_MST_TOTAL-1:0],     \
-    input  rv_tester_params::mst2_req_top    axi_req_mst2 [rv_tester_params::AXI_MST2_TOTAL-1:0],   \
-    output rv_tester_params::mst2_resp_top   axi_rsp_mst2 [rv_tester_params::AXI_MST2_TOTAL-1:0]
+    input  rv_tester_params::aplic_mmr_req_top    aplic_mmr_axi_req_mst [rv_tester_params::APLIC_MMR_AXI_MST_TOTAL-1:0],   \
+    output rv_tester_params::aplic_mmr_resp_top   aplic_mmr_axi_rsp_mst [rv_tester_params::APLIC_MMR_AXI_MST_TOTAL-1:0]
 
 
 `define RV_TESTER_VARS(topology)                                                                    \
@@ -673,8 +673,8 @@ package rv_tester_params;
     //rv_tester_params::msi_slv_resp_top       msi_slv_axi_rsp [1-1:0];             \
     rv_tester_params::mst_req_top            axi_req_mst [rv_tester_params::AXI_MST_TOTAL-1:0];     \
     rv_tester_params::mst_resp_top           axi_rsp_mst [rv_tester_params::AXI_MST_TOTAL-1:0];     \
-    rv_tester_params::mst2_req_top           axi_req_mst2  [rv_tester_params::AXI_MST2_TOTAL-1:0];  \
-    rv_tester_params::mst2_resp_top          axi_rsp_mst2  [rv_tester_params::AXI_MST2_TOTAL-1:0];
+    rv_tester_params::aplic_mmr_req_top      aplic_mmr_axi_req_mst  [rv_tester_params::APLIC_MMR_AXI_MST_TOTAL-1:0];  \
+    rv_tester_params::aplic_mmr_resp_top     aplic_mmr_axi_rsp_mst  [rv_tester_params::APLIC_MMR_AXI_MST_TOTAL-1:0];
 
 `define RV_TESTER_PORTS `_RV_TESTER_PORTS(input,output)
 
