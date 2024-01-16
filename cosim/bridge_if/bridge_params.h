@@ -73,14 +73,19 @@ namespace {
         {"mepc", 0x341},
         {"mcause", 0x342},
         {"mtval", 0x343},
-        {"mip", 0x344}
+        {"mip", 0x344},
+        {"mtinst", 0x34a},
+        {"mtval2", 0x34b}
     }};
 
-    std::array<csr_entry, 4> nonzero_reset_csrs {{
+    std::array<csr_entry, 7> nonzero_reset_csrs {{
         {"mstatus", 0x300},
         {"misa", 0x301},
         {"medeleg", 0x302},
-        {"mideleg", 0x303}
+        {"mideleg", 0x303},
+        {"sstatus", 0x100},
+        {"vsstatus", 0x200},
+        {"hstatus", 0x600}
     }};
 
     std::array<csr_entry, 18> metrics_csrs {{
@@ -103,6 +108,10 @@ namespace {
         {"mtval", 0x343},
         {"mip", 0x344}
     }};
+
+    const std::unordered_map<uint64_t, uint64_t> shadow_csrs = {
+        {0x300, 0x100}
+    };
 
     typedef enum : size_t {
         U = 0,

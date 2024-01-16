@@ -1401,6 +1401,16 @@ void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data,
     mask = cac::CreateBitVec<size_8_bytes_t>(mask_ref.value());
   }
   assert(csr_cac_.UpdateResource(hart, src, csr_resource, std::move(cac::CreateBitVec<size_8_bytes_t>({data})), mask));
+
+  // Also update shadow csr if applicable ex: mstatus/sstatus
+  if (shadow_csrs.count(addr)) {
+    size_8_bytes_t alias_mask;
+    if (mask_ref)
+      alias_mask = mask_ref.value() & get_csr_poke_mask(hart, shadow_csrs.at(addr));
+    else
+      alias_mask = get_csr_poke_mask(hart, shadow_csrs.at(addr));
+    update_csr(hart, src, shadow_csrs.at(addr), data, alias_mask);
+  }
 }
 
 uint64_t bridge::get_csr(hart_id_t hart, src_t src, uint64_t addr) {
