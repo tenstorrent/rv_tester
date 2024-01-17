@@ -215,6 +215,7 @@ sysmod::compose()
   // Load memmap
   memmap::get(memmap_);
 
+  auto mmr_master = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MMR_MST");
   auto masters = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST");
   auto platform_loc = cvm::topology::get_from_type("PLATFORM", 0);
   auto nharts = cvm::topology::attr(platform_loc, "NHARTS").second;
@@ -254,8 +255,8 @@ sysmod::compose()
       }
       else if (type == "aplic_mmr") {
         // TODO: cvm::ERROR
-        assert(masters.size() > 0);
-        device = std::make_unique<aplic_mmr>(tag, base, size, loc_, masters[0]);
+        assert(mmr_master.size() > 0);
+        device = std::make_unique<aplic_mmr>(tag, base, size, loc_, mmr_master[0]);
       }
       else if (type == "clint") {
         device = std::make_unique<clint>(tag, base, nharts, loc_);
@@ -267,7 +268,7 @@ sysmod::compose()
             [&](clint::sw_t s) { return this->sw_interrupt(s); });
       }
       else if (type == "trickbox") {
-        device = std::make_unique<trickbox>(tag, base, nharts, loc_,masters[1]);
+        device = std::make_unique<trickbox>(tag, base, nharts, loc_,masters[0]);
         cvm::registry::messenger.connect<interrupter::interrupt_t>(
             loc_,
             [&](interrupter::interrupt_t i) { return this->tbox_interrupt(i); });
