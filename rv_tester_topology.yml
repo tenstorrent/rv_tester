@@ -61,7 +61,7 @@ rv_tester: &rv_tester
       count: *rv_tester_aplic_mmr_axi_mst_count
       type:
         - aplic_mmr_axi_mst
-        - platform_transactor_mst
+        - platform_transactor_mmr_mst
       attrs:
         <<: *rv_tester_aplic_mmr_axi_mst_attrs
         <<: *rv_tester_axi_sw_mst
