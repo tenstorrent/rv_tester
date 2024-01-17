@@ -185,7 +185,8 @@ private:
   // Memmap
   memmap::memmap_t memmap_;
 
-  int num_stores_ = 0;
+  int num_taken_interrupts_ = 0;
+  int num_exceptions_ = 0;
 
   size_8_bytes_t dword_vec_array [vlen/64] = {0};
 };

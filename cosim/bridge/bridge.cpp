@@ -450,6 +450,8 @@ void bridge::process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, wh
     cvm::log(cvm::ERROR, "Error: Hart {}: DUT vs Whisper interrupt cause mismatch [dut:{},whisper:{}]\n", hart, d.icause, w_.icause);
     return;
   }
+
+  num_taken_interrupts_++;
 }
 
 void bridge::process_exception_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
@@ -493,6 +495,8 @@ void bridge::process_exception_post_step(hart_id_t hart, const rv_instr_t& d, wh
       excp_to_string.count(static_cast<excp>(w_.ecause)) ? excp_to_string.at(static_cast<excp>(w_.ecause)) : std::to_string(w_.ecause));
     return;
   }
+
+  num_exceptions_++;
 
   // If DUT indicates retire on ucode trap handler, extra step not needed
   if (FLAGS_retire_ucode_trap)
@@ -1067,9 +1071,6 @@ void bridge::process_dut_mcm_insert(hart_id_t hart, mem_t& m) {
   }
   log(cvm::HIGH, "<{}> mcm_insert [valid={}, tag={}, addr={:#x}, size={}, data={:#x}]\n",
     m.cycle, valid, m.tag, m.pa, m.size, m.data);
-
-  // Collect metrics
-  num_stores_++;
 }
 
 // Process mem accesses - store bypass_writes
@@ -1082,9 +1083,6 @@ void bridge::process_dut_mcm_bypass(hart_id_t hart, mem_t& m) {
   }
   log(cvm::HIGH, "<{}> mcm_bypass [valid={}, tag={}, addr={:#x}, size={}, data={:#x}]\n",
     m.cycle, valid, m.tag, m.pa, m.size, m.data);
-
-  // Collect metrics
-  num_stores_++;
 }
 
 // Process mem accesses - store drains
@@ -1490,6 +1488,8 @@ void bridge::report_metrics() {
 
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_instructions\": {}}}\n", id_, instructions);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_cpu_cycles\": {}}}\n", id_, cpu_cycles);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_taken_interrupts\": {}}}\n", id_, num_taken_interrupts_);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_exceptions\": {}}}\n", id_, num_exceptions_);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_ipc\": {:.2f}}}\n", id_, ipc);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_instr\": \"{}\"}}\n", id_, instr);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_mode\": {}}}\n", id_, mode);
