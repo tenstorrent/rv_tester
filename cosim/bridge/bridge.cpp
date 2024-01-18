@@ -23,6 +23,7 @@
 DECLARE_string(bootrom_path);
 DECLARE_string(load);
 DECLARE_string(hex);
+DECLARE_bool(mcm);
 DECLARE_uint64(debug_entry_pc);
 DECLARE_uint64(debug_exit_pc);
 DECLARE_uint64(hart_enable_mask);
@@ -1521,11 +1522,14 @@ void bridge::report_metrics() {
   }
 
   // Step one final time to collect metrics for next instruction
-  client_->whisperDisableMcm();
-  whisper_state_t w {
-    .tag = prev_whisp_state.tag+1,
-    .time = prev_whisp_state.time+1
-  };
+  whisper_state_t w;
+  if (FLAGS_mcm) {
+    client_->whisperDisableMcm();
+    w = { .tag = prev_whisp_state.tag+1, .time = prev_whisp_state.time+1 };
+  }
+  else {
+    w = { .tag = step_+1, .time = prev_whisp_state.time+1 };
+  }
   step(id_, w);
   const auto& next_instr = w.disasm;
   const auto& next_mode = w.priv_mode;
