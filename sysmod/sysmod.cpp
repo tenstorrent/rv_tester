@@ -9,6 +9,7 @@
 #include "mem/sysmod_mem.h"
 #include "clint/clint.h"
 #include "dm/dm.h"
+#include "trace_cfg/trace_cfg.h"
 #include "aplic_mmr/aplic_mmr.h"
 #include "io_dev/io_dev.h"
 #include "null_dev/null_dev.h"
@@ -252,6 +253,11 @@ sysmod::compose()
         // TODO: cvm::ERROR
        // assert(masters.size() > 0);
        // device = std::make_unique<dm>(tag, base, size, loc_, masters[0]);
+      }
+      else if (type == "trace_cfg") {
+        // TODO: cvm::ERROR
+        assert(masters.size() > 0);
+        device = std::make_unique<trace_cfg>(tag, base, size, loc_, masters[0]);
       }
       else if (type == "aplic_mmr") {
         // TODO: cvm::ERROR
