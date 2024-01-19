@@ -13,6 +13,9 @@ bzsim_dependencies()
 load("//:repositories.bzl", "rv_tester_repositories")
 rv_tester_repositories()
 
+load("@whisper//:deps.bzl", "whisper_dependencies")
+whisper_dependencies()
+
 load("//:repositories2.bzl", "rv_tester_repositories2")
 rv_tester_repositories2()
 
