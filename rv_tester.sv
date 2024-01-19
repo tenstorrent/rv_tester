@@ -224,9 +224,10 @@ import rv_tester_params::*;
 
     rv_tester_pkg::dm_write_t  trickbox_dmi_write;
 
+    localparam int AXI_CLOCK_PERIOD = 1000000 / CLOCK_FREQ_MHZ[AXI_CLK_IDX];
     sysmod #(
-        .CLOCK_PERIOD_PS(1000000 / CLOCK_FREQ_MHZ[CORE_CLK_IDX]),
-        .SW_CLOCK_UPDATE_PERIOD_PS(1000000 / SW_CLOCK_FREQ_MHZ),
+        .CLOCK_PERIOD_PS(AXI_CLOCK_PERIOD),
+        .SW_CLOCK_UPDATE_PERIOD_PS(SW_CLOCK_PERIOD_PS),
         .NUM(0),
         `TOPOLOGY_CFG,
         `RV_TESTER_TRANSACTIONS_SYSMOD_SOURCE_PARAMS(0)

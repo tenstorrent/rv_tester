@@ -131,7 +131,7 @@ clint::write(const transactor::write_t& w)
 void clint::tick(uint64_t advance)
 {
   if ((advance % tickDivisor_) != 0) {
-    cvm::log(cvm::NONE, "ERROR: Clock advancing by {}, not a multiple of configured divisor {}", advance, tickDivisor_);
+    cvm::log(cvm::ERROR, "Error: Clock advancing by {}, not a multiple of configured divisor {}\n", advance, tickDivisor_);
   }
   timer_ += advance / tickDivisor_;
   processTimerInterrupts();

@@ -35,7 +35,7 @@ package rv_tester_params;
     parameter REF_CLK_IDX = mods.TOP.PLATFORM.CLKI.REF_CLK_IDX;
     parameter CORE_CLK_IDX = mods.TOP.PLATFORM.CLKI.CORE_CLK_IDX;
     parameter AXI_CLK_IDX = mods.TOP.PLATFORM.CLKI.AXI_CLK_IDX;
-    parameter SW_CLOCK_FREQ_MHZ = mods.TOP.PLATFORM.CLKI.SW_CLOCK_FREQ_MHZ;
+    parameter SW_CLOCK_PERIOD_PS = mods.TOP.PLATFORM.CLKI.SW_CLOCK_PERIOD_PS;
     parameter bit [NCLKS-1:0][31:0] CLOCK_FREQ_MHZ = mods.TOP.PLATFORM.CLKI.CLOCK_FREQ_MHZ;
 
     // --------------------------------------

@@ -28,4 +28,4 @@ rv_tester_clki_attrs: &rv_tester_clki_attrs
   AXI_CLK_IDX: 2
   SOC_CLK_IDX: 3
   CLOCK_FREQ_MHZ: [100, 2700, 1600, 400]
-  SW_CLOCK_FREQ_MHZ: 10
+  SW_CLOCK_PERIOD_PS: 74000
