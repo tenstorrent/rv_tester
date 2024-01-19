@@ -59,7 +59,7 @@ module top #(
       assign axi_req[i].w_valid = '0;
     end
 
-    always @(posedge clk) begin
+    always @(posedge clk[CORE_CLK_IDX]) begin
         if (!reset) begin
             clocks <= clocks + 1;
         end
