@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <numeric>
 
 #include "Vtop.h"
 #include "verilated.h"
@@ -21,10 +22,12 @@ int main(int argc, char** argv) {
     auto freq_mhz = cvm::topology::list_attr(loc, "CLOCK_FREQ_MHZ").second;
     std::vector<uint32_t> half_period_ps;
     std::vector<uint32_t> toggles;
+    uint32_t time_increment = 0;
     for (unsigned i=0; i<nclks; i++) {
         top.clk_ext[i] = 0;
         half_period_ps.push_back(1000000/(2*freq_mhz[i]));
         toggles.push_back(0);
+        time_increment = std::gcd(time_increment, half_period_ps[i]);
     }
 
     // VCD dump
@@ -43,13 +46,17 @@ int main(int argc, char** argv) {
         top.eval();
 
         // Clock generation
-        context.timeInc(1);
-        for (unsigned i=0; i<nclks; i++) {
-            if ((context.time() % half_period_ps[i]) == 0) {
-                top.clk_ext[i] = !top.clk_ext[i];
-                toggles[i]++;
+        bool toggled = false;
+        do {
+            context.timeInc(time_increment);
+            for (unsigned i=0; i<nclks; i++) {
+                if ((context.time() % half_period_ps[i]) == 0) {
+                    top.clk_ext[i] = !top.clk_ext[i];
+                    toggles[i]++;
+                    toggled = true;
+                }
             }
-        }
+        } while (!toggled);
         core_cycle = toggles[core_clk_idx]/2;
 
         // VCD dump

@@ -92,3 +92,5 @@ filegroup(
     srcs = ["memmap.json"],
     visibility = ["//visibility:public"],
 )
+
+exports_files(["sw_tb.cpp"])
