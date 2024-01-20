@@ -120,7 +120,7 @@ void bridge::csr_init() {
     size_8_bytes_t cac_mask = 0xffffffffffffffff;
     update_csr(id_, src_t::dut, csr.address, data, cac_mask);
     update_csr(id_, src_t::iss, csr.address, data, cac_mask);
-    csr_cac_.Step(id_);
+    csr_cac_.Step(id_, false);
   }
 }
 
@@ -165,8 +165,9 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   process_satp_write_post_step(hart, d, w);
 
   // Check dut vs whisper
+  const auto cac_status_verbosity = cvm::HIGH;
   if(!excp_in_debug_mode){
-    cac_.Step(hart);
+    cac_.Step(hart, cvm::logger::check_verbosity(cac_status_verbosity));
   }else{
     cac_.ResetStatus(hart);
     return;
@@ -208,7 +209,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
     }
   }
   else {
-      log(cvm::HIGH, "{}", cac_.GetStatusStr(hart));
+      log(cac_status_verbosity, "{}", cac_.GetStatusStr(hart));
   }
 
   // Save whisper state
@@ -232,8 +233,9 @@ void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d)
   if (!FLAGS_csr_wr_check)
     return;
 
+  const auto cac_status_verbosity = cvm::HIGH;
   // Step csr cac
-  csr_cac_.Step(hart);
+  csr_cac_.Step(hart, cvm::logger::check_verbosity(cac_status_verbosity));
 
   if (resynch_csr_) {
     csr_cac_.ResetStatus(hart);
@@ -262,7 +264,7 @@ void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d)
     }
   }
   else {
-      log(cvm::HIGH, "{}", csr_cac_.GetStatusStr(hart));
+      log(cac_status_verbosity, "{}", csr_cac_.GetStatusStr(hart));
   }
 
 }
