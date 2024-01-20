@@ -29,6 +29,16 @@ package rv_tester_params;
     parameter CSRLEN = mods.TOP.PLATFORM.CSRLEN;
 
     // --------------------------------------
+    // Clk interface
+    // --------------------------------------
+    parameter NCLKS = mods.TOP.PLATFORM.CLKI.NCLKS;
+    parameter REF_CLK_IDX = mods.TOP.PLATFORM.CLKI.REF_CLK_IDX;
+    parameter CORE_CLK_IDX = mods.TOP.PLATFORM.CLKI.CORE_CLK_IDX;
+    parameter AXI_CLK_IDX = mods.TOP.PLATFORM.CLKI.AXI_CLK_IDX;
+    parameter SW_CLOCK_PERIOD_PS = mods.TOP.PLATFORM.CLKI.SW_CLOCK_PERIOD_PS;
+    parameter bit [NCLKS-1:0][31:0] CLOCK_FREQ_MHZ = mods.TOP.PLATFORM.CLKI.CLOCK_FREQ_MHZ;
+
+    // --------------------------------------
     // AXI interface
     // --------------------------------------
     parameter AXI_TOTAL = mods.TOP.PLATFORM.AXI.TOTAL;
@@ -577,7 +587,7 @@ package rv_tester_params;
     // rv_tester ports
     // --------------------------------------
 `define _RV_TESTER_PORTS(input,output)                                                              \
-    input                                    clk,                                                   \
+    input                                    clk                [rv_tester_params::NCLKS-1:0],      \
     input                                    reset,                                                 \
     input  rv_tester_params::bootstrap_t     bootstrap,                                             \
     input  rv_tester_pkg::interrupt_t        interrupt          [rv_tester_params::NHARTS-1:0],     \
@@ -628,7 +638,7 @@ package rv_tester_params;
 
 
 `define RV_TESTER_VARS(topology)                                                                    \
-    logic                                    clk;                                                   \
+    logic                                    clk             [rv_tester_params::NCLKS-1:0];         \
     logic                                    reset;                                                 \
     rv_tester_params::bootstrap_t            bootstrap;                                             \
     rv_tester_pkg::interrupt_t               interrupt       [rv_tester_params::NHARTS-1:0];        \

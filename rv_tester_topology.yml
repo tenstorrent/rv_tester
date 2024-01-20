@@ -5,6 +5,14 @@ rv_tester: &rv_tester
       - platform
     attrs:
       <<: *rv_tester_platform_attrs
+
+    clki:
+      count: *rv_tester_clk_count
+      type:
+        - clki
+      attrs:
+        <<: *rv_tester_clki_attrs
+
     sysmod:
       count: 1
       type:

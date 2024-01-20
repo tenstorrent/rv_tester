@@ -1,13 +1,11 @@
 module rv_tester
-import rv_tester_params::*;
+    import rv_tester_params::*;
 #(
     parameter int RESET_CLOCKS              =      10,
     parameter bit EXTERNAL_CLOCK            =       0,
-    parameter int CLOCK_PERIOD_PS           =     500,
-    parameter int SW_CLOCK_UPDATE_PERIOD_PS = 100_000,
     `TOPOLOGY
 ) (
-    input clk_ext,
+    input clk_ext [NCLKS-1:0],
     `_RV_TESTER_PORTS(output,input)
 );
 
@@ -25,9 +23,13 @@ import rv_tester_params::*;
     logic bypass_cache = 1;
 
     if (EXTERNAL_CLOCK) begin
-        assign clk = clk_ext;
+        for (genvar c = 0; c < NCLKS; c++) begin
+            assign clk[c] = clk_ext[c];
+        end
     end else begin
-        rv_tester_clkgen #(.CLOCK_PERIOD_PS(CLOCK_PERIOD_PS)) clkgen(.*);
+        for (genvar c = 0; c < NCLKS; c++) begin
+            rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(clk[c]));
+        end
     end
 
     import "DPI-C" function int rv_tester_parse_flags(); // dummy return value so that this gets called immediately. need this to happen before any other DPIs are called.
@@ -77,7 +79,7 @@ import rv_tester_params::*;
     * terminated stopped working, and rv_tester_reset stopped being depositable
     * from the tcl shell.
     */
-    always @(posedge clk) begin
+    always @(posedge clk[CORE_CLK_IDX]) begin
 
         rv_tester_reset <= rerun_now;
         sysmod_reset    <= '0;
@@ -100,7 +102,7 @@ import rv_tester_params::*;
 
     end
 
-    always @(posedge clk) begin
+    always @(posedge clk[CORE_CLK_IDX]) begin
         if(rerun_now) begin
             $display("<%0d> [RVTESTER]: rerunning test %0d time(s)", clocks, num_reruns);
         end
@@ -112,7 +114,7 @@ import rv_tester_params::*;
     * these are only run at rv_tester_reset, when no other zDPIs should be
     * called.
     */
-    always @(posedge clk) begin
+    always @(posedge clk[CORE_CLK_IDX]) begin
 
         automatic int _;
 
@@ -160,7 +162,7 @@ import rv_tester_params::*;
     * rv_tester_shutdown_registry a zemi3 DPI and we'll have thread safety
     * issues with coinciding zDPIs from transactions.
     */
-    always @(posedge clk) begin
+    always @(posedge clk[CORE_CLK_IDX]) begin
 
         automatic logic shutdowned = '0;
 
@@ -200,9 +202,9 @@ import rv_tester_params::*;
     assign reset = clocks < LU'(RESET_CLOCKS) || rv_tester_reset || sysmod_reset || terminate_now || terminated;
 
 `ifdef NEGEDGE_UNSUPPORTED
-    always@(posedge clk) begin
+    always@(posedge clk[CORE_CLK_IDX]) begin
 `else
-    always@(negedge clk) begin
+    always@(negedge clk[CORE_CLK_IDX]) begin
 `endif
         if (cb_poll) begin
             /* verilator lint_off BLKSEQ */
@@ -217,19 +219,20 @@ import rv_tester_params::*;
     endfunction
     export "DPI-C" function rv_tester_terminate;
 
-    `RV_TESTER_TRANSACTIONS_DOMAIN(1, clk);
-    `RV_TESTER_TRANSACTIONS_DOMAIN(2, clk);
+    `RV_TESTER_TRANSACTIONS_DOMAIN(1, clk[CORE_CLK_IDX]);
+    `RV_TESTER_TRANSACTIONS_DOMAIN(2, clk[CORE_CLK_IDX]);
 
     rv_tester_pkg::dm_write_t  trickbox_dmi_write;
 
+    localparam int AXI_CLOCK_PERIOD = 1000000 / CLOCK_FREQ_MHZ[AXI_CLK_IDX];
     sysmod #(
-        .CLOCK_PERIOD_PS(CLOCK_PERIOD_PS),
-        .SW_CLOCK_UPDATE_PERIOD_PS(SW_CLOCK_UPDATE_PERIOD_PS),
+        .CLOCK_PERIOD_PS(AXI_CLOCK_PERIOD),
+        .SW_CLOCK_UPDATE_PERIOD_PS(SW_CLOCK_PERIOD_PS),
         .NUM(0),
         `TOPOLOGY_CFG,
         `RV_TESTER_TRANSACTIONS_SYSMOD_SOURCE_PARAMS(0)
     ) sysmod (
-        .clk,
+        .clk(clk[CORE_CLK_IDX]),
         .reset(sysmod_reset),
         .clocks,
         .bootstrap,
@@ -246,7 +249,7 @@ import rv_tester_params::*;
     logic [31:0] dmi_commands_in_queue;
 
     dmi_driver i_dmi_driver(
-        .clk,
+        .clk(clk[AXI_CLK_IDX]),
         .reset,
         .dmi_req_ready,
         .dmi_resp_valid,
@@ -267,7 +270,7 @@ import rv_tester_params::*;
         `TOPOLOGY_CFG,
         `RV_TESTER_TRANSACTIONS_DM_MODEL_SOURCE_PARAMS(0)
     ) i_dm_model(
-        .clk,
+        .clk(clk[AXI_CLK_IDX]),
         .reset(sysmod_reset),
         .dmi_req(dmi_req),
         .dmi_req_valid(dmi_req_valid),
@@ -305,7 +308,7 @@ import rv_tester_params::*;
           `TOPOLOGY_CFG,
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PARAMS(0)
       ) cosim (
-          .clk,
+          .clk(clk[CORE_CLK_IDX]),
           .reset(sysmod_reset),
           .dut_reset(reset),
           .clocks,
@@ -333,7 +336,7 @@ import rv_tester_params::*;
         `TOPOLOGY_CFG,
         `RV_TESTER_TRANSACTIONS_APLIC_MONITOR_SOURCE_PARAMS(0)
     ) i_aplic_monitor(
-        .clk,
+        .clk(clk[AXI_CLK_IDX]),
         .reset(sysmod_reset),
         .terminate,
         .aplic_pin_input(aplic_interrupt),
@@ -359,7 +362,7 @@ import rv_tester_params::*;
           `TOPOLOGY_CFG,
           `RV_TESTER_TRANSACTIONS_PMU_SOURCE_PARAMS(0)
       ) pmu (
-          .clk,
+          .clk(clk[CORE_CLK_IDX]),
           .reset(sysmod_reset),
           .clocks,
           .pmci(pmci[p]),
@@ -385,7 +388,7 @@ import rv_tester_params::*;
             .NUM(p),
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(0)
         ) axi_sw(
-            .clk,
+            .clk(clk[AXI_CLK_IDX]),
             .reset_n(~reset),
             .sys_reset(sysmod_reset),
             .axi_mst_ar_valid(axi_req_llc[p].ar_valid),
@@ -442,7 +445,7 @@ import rv_tester_params::*;
             .NUM(p),
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(1)
         ) ncio_axi_sw(
-            .clk,
+            .clk(clk[AXI_CLK_IDX]),
             .reset_n(~reset),
             .sys_reset(sysmod_reset),
             .axi_mst_ar_valid(ncio_axi_req[p].ar_valid),
@@ -500,7 +503,7 @@ import rv_tester_params::*;
             .NUM(p),
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(2)
         ) aplic_msi_axi_sw(
-            .clk,
+            .clk(clk[AXI_CLK_IDX]),
             .reset_n(~reset),
             .sys_reset(sysmod_reset),
             .axi_mst_ar_valid(aplic_msi_axi_req[p].ar_valid),
@@ -560,7 +563,7 @@ import rv_tester_params::*;
             .NUM(p),
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(0)
         ) axi_sw_mst (
-            .clk,
+            .clk(clk[AXI_CLK_IDX]),
             .reset_n(~reset),
             .sys_reset(sysmod_reset),
             .axi_mst_ar_valid(axi_req_mst[p].ar_valid),
@@ -619,7 +622,7 @@ import rv_tester_params::*;
             .NUM(p),
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(1)
         ) aplic_mmr_sw_mst (
-            .clk,
+            .clk(clk[AXI_CLK_IDX]),
             .reset_n(~reset),
             .sys_reset(sysmod_reset),
             .axi_mst_ar_valid(aplic_mmr_axi_req_mst[p].ar_valid),
@@ -730,7 +733,7 @@ import rv_tester_params::*;
 	.NoAddrRules		( NoAddrRules ),
 	.NumMastersMem		( NoOfMasters )
     ) rv_tester_mem(
-        .clk                    ( clk ),
+        .clk                    ( clk[AXI_CLK_IDX] ),
         .rst_n                  ( ~reset ),
         .axi_req_up             ( axi_req ),
         .axi_resp_up            ( axi_rsp ),
