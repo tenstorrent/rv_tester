@@ -1,4 +1,6 @@
-module top #(
+module top
+    import rv_tester_params::*;
+#(
   parameter int EXTERNAL_CLOCK =
   `ifdef TB_EXTERNAL_CLOCK
       1
@@ -6,10 +8,8 @@ module top #(
       0
   `endif
 ) (
-    input clk_ext
+    input clk_ext [NCLKS-1:0]
 );
-
-    import rv_tester_params::*;
 
     typedef enum int {
       SW_1C,

@@ -1,11 +1,11 @@
 module rv_tester
-import rv_tester_params::*;
+    import rv_tester_params::*;
 #(
     parameter int RESET_CLOCKS              =      10,
     parameter bit EXTERNAL_CLOCK            =       0,
     `TOPOLOGY
 ) (
-    input clk_ext,
+    input clk_ext [NCLKS-1:0],
     `_RV_TESTER_PORTS(output,input)
 );
 
@@ -24,7 +24,7 @@ import rv_tester_params::*;
 
     if (EXTERNAL_CLOCK) begin
         for (genvar c = 0; c < NCLKS; c++) begin
-            assign clk[c] = clk_ext;
+            assign clk[c] = clk_ext[c];
         end
     end else begin
         for (genvar c = 0; c < NCLKS; c++) begin
