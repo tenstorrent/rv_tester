@@ -61,12 +61,12 @@ import rv_tester_params::*;
     assign interrupt = interrupt_q;
 
     function void sysmod_timer_interrupt (int unsigned hartid, int unsigned val);
-      interrupt_d[hartid].mti = val;
+      interrupt_d[hartid].mti = val[0];
     endfunction
     export "DPI-C" function sysmod_timer_interrupt;
 
     function void sysmod_sw_interrupt (int unsigned hartid, int unsigned val);
-      interrupt_d[hartid].msi = val;
+      interrupt_d[hartid].msi = val[0];
     endfunction
    
        export "DPI-C" function sysmod_aplic_dir_interrupt;
