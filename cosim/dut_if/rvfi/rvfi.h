@@ -61,6 +61,7 @@ class rvfi {
     std::tuple<uint64_t, uint64_t, uint8_t> get_mem_attributes(uint64_t addr, uint8_t mask, uint64_t data);
 
     void process_amo(mem_t& read);
+    bool sc_failed(mem_t& write);
     void amo_modify_write_data(amo_op op, uint64_t& read_data, uint64_t& write_data, uint8_t size);
     template <typename T>
     void amo_arithmetic(amo_op op, uint64_t& read_data, uint64_t& write_data, uint8_t size);
@@ -104,6 +105,7 @@ class rvfi {
 
     std::unordered_map<uint64_t, mem_t> ifetch_reqs_;
     std::unordered_map<uint64_t, mem_t> amo_writes_;
+    std::unordered_map<uint64_t, mem_t> sc_result_;
 
     svScope scope_;
 

@@ -535,9 +535,14 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
   m.amo = m_mcmi_read.amo;
   m.amo_op = m_mcmi_read.amo_op;
 
+  if (m.amo && m.amo_op == SC) {
+    sc_result_.emplace(m.tag, m);
+    return;
+  }
+
   bridge_->process_dut_mcm_read(m_mcmi_read.hart, m);
 
-  if (m.amo && m.amo_op != LR && m.amo_op!= SC && FLAGS_emulate_amo_arithmetic) {
+  if (m.amo && m.amo_op != LR && FLAGS_emulate_amo_arithmetic) {
     process_amo(m);
   }
 }
@@ -578,12 +583,31 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
   m.amo = m_mcmi_bypass.amo;
   m.amo_op = m_mcmi_bypass.amo_op;
 
-  if (m.amo && m.amo_op != LR && m.amo_op!= SC && FLAGS_emulate_amo_arithmetic) {
+  if (m.amo && m.amo_op != SC && FLAGS_emulate_amo_arithmetic) {
     amo_writes_.emplace(m.tag, m);
     return;
   }
 
+  if (m.amo && m.amo_op == SC && sc_failed(m)) {
+    return;
+  }
+
   bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m);
+}
+
+bool rvfi::sc_failed(mem_t& write) {
+
+  if (sc_result_.find(write.tag) == sc_result_.end()) {
+    return false;
+  }
+
+  mem_t m = sc_result_.at(write.tag);
+
+  if (m.data == 0x0) {
+    return false;
+  }
+
+  return true;
 }
 
 void rvfi::process_amo(mem_t& read) {
