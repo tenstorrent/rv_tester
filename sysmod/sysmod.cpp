@@ -86,7 +86,7 @@ sysmod::timer_interrupt(clint::timer_t t) {
       cvm::registry::callbacks.push(
         scope(),
         [t]() {
-          cvm::log(cvm::FULL, "[SYSMOD] clint::mti = {}\n", t.flag);
+          cvm::log(cvm::FULL, "[SYSMOD] timer_interrupt [hart={}, mti={}]\n", t.hart, t.flag);
           sysmod_timer_interrupt(t.hart, t.flag);
         });
 }
@@ -96,7 +96,7 @@ sysmod::sw_interrupt(clint::sw_t s) {
   cvm::registry::callbacks.push(
       scope(),
       [s]() {
-        cvm::log(cvm::FULL, "[SYSMOD] clint::msi = {}\n", s.flag);
+        cvm::log(cvm::FULL, "[SYSMOD] sw_interrupt [hart={}, msi={}]\n", s.hart, s.flag);
         sysmod_sw_interrupt(s.hart, s.flag);
       });
 }
@@ -106,7 +106,7 @@ sysmod::tbox_interrupt(interrupter::interrupt_t i) {
   cvm::registry::callbacks.push(
       scope(),
       [i]() {
-        cvm::log(cvm::FULL, "[SYSMOD] trickbox::intr.(sel,val) = {:#x}, {:#x}\n", i.intr_select, i.intr_value);
+        cvm::log(cvm::FULL, "[SYSMOD] tbox_interrupt [hart={}, intr.sel={:#x}, intr.val={:#x}]\n", i.hart, i.intr_select, i.intr_value);
         sysmod_tbox_interrupt(i.hart, i.intr_select, i.intr_value);
       });
 }

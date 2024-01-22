@@ -308,7 +308,7 @@ import rv_tester_params::*;
             if (rvfi[0].valid !== 0) begin
               cycles_since_retire <= 0;
             end
-            if (NUM != 0 && hart_enable_mask[NUM] == 1 && rvfi[0].valid !== 0 && rvfi[0].insn[6:0] == 7'h73 && rvfi[0].pc_rdata < 'h20000) begin // WFI
+            if (NUM != 0 && hart_enable_mask[NUM] == 0 && rvfi[0].valid !== 0 && rvfi[0].insn[6:0] == 7'h73 && rvfi[0].pc_rdata < 'h20000) begin // WFI
               boot_wfi <= '1;
             end
             if (max_stall_cycle > 0 && cycles_since_retire > max_stall_cycle && !boot_wfi) begin
