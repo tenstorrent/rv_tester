@@ -30,6 +30,8 @@ DECLARE_bool(disable_s_imsic_intr);
 DECLARE_bool(disable_vs_imsic_intr);
 DECLARE_bool(disable_random_hart_imsic_intr);
 DECLARE_int32(imsic_intr_threshold);
+DECLARE_int32(imsic_vs_intr_threshold);
+DECLARE_int32(imsic_hart_threshold);
 DECLARE_int32(imsic_intr_start_delay);
 DECLARE_int32(seed);
 // Define a core local interruptor (imsic_driver) at the given address
@@ -105,7 +107,7 @@ public:
     if(interrupt_file == 0x0){
        addr1 = msi_m_file_addr + (interrupt_hart << 18);
     }else if(interrupt_file == 0x01){
-       addr1 = msi_v_file_addr;
+       addr1 = msi_v_file_addr + (interrupt_hart << 18);;
     }else if(interrupt_file == 0x02){
        addr1 = msi_vs_file_addr+ (vs_id << 12) + (interrupt_hart << 18);
     }else{
@@ -170,9 +172,9 @@ protected:
 
 
 	if(!FLAGS_disable_random_hart_imsic_intr)
-          intr_hart = (rng() % (FLAGS_imsic_intr_threshold )) ; //gen iter between 1 to max simul instr
+          intr_hart = (rng() % (FLAGS_imsic_hart_threshold )) ; //gen iter between 1 to max simul instr
 	if(!FLAGS_disable_vs_imsic_intr)
-          intr_vs_id = (rng() % (FLAGS_imsic_intr_threshold )) ; //gen iter between 1 to max simul instr
+          intr_vs_id = (rng() % (FLAGS_imsic_vs_intr_threshold )) ; //gen iter between 1 to max simul instr
        
         intr_num = intr_num |(intr_file<<12)|(intr_hart<<16)|(intr_vs_id<<28);
         cvm::log(cvm::HIGH, "[Trickbox] Driving imsic_intr {} interrupts in a cycle \n", intr_num);

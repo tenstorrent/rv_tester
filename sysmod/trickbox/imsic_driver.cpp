@@ -6,10 +6,12 @@
  DEFINE_bool(disable_m_imsic_intr, false, "Drive random imsic  interrups to M file");
  DEFINE_bool(disable_s_imsic_intr, true, "Drive random imsic  interrups to S file");
  DEFINE_bool(disable_vs_imsic_intr, true, "Drive random imsic  interrups to VS file");
- DEFINE_bool(disable_random_hart_imsic_intr, true, "Drive random imsic  interrups to random harts");
+ DEFINE_bool(disable_random_hart_imsic_intr, false, "Drive random imsic  interrups to random harts");
  DEFINE_int32(imsic_intr_delay_min, 3, "Minimum Delay between 2 consecutive interrupts");
  DEFINE_int32(imsic_intr_delay_max, 5, "Maximum Delay between 2 consecutive interrupts");
- DEFINE_int32(imsic_intr_threshold, 63, "imsic_intr interrupts threshold value");
+ DEFINE_int32(imsic_intr_threshold, 255, "imsic_intr interrupts threshold value");
+ DEFINE_int32(imsic_vs_intr_threshold, 63, "imsic_vs_intr interrupts threshold value");
+ DEFINE_int32(imsic_hart_threshold, 1, "harts threshold value");
  DEFINE_int32(imsic_intr_start_delay, 25, "delay after which random interrupts should start");
  DEFINE_string(imsic_intr_disable_mask,"0x00","Set bit in hex string to disable random generation of interrupt i.e. +imsic_intr_disable_mask=0x01 will disable interrupt corresponding to bit 0 ");
 
