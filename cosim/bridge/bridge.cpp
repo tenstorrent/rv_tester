@@ -36,6 +36,7 @@ DEFINE_string(cosim_resynch_prev_instr, "", "List of instruction mnemonics to re
 DEFINE_string(cosim_resynch_csr, "", "List of csr mnemonics to resynch whisper with dut state");
 DEFINE_bool(mip_resynch, true, "Resynch whisper with dut state on mip mismatch condition");
 DEFINE_bool(imsic_resynch, true, "Resynch whisper with dut state on imsic mismatch condition");
+DEFINE_bool(intr_defer_spcl, true, "Defer all interrupts in special cases");
 DEFINE_bool(intr_timeout_resynch, true, "Ignore whisper timeout error condition");
 DEFINE_bool(retire_ucode_trap, true, "DUT indicates retire on a trap after executing the ucode trap handler");
 DEFINE_bool(pc_check, true, "Enable cosim checks on pc");
@@ -308,30 +309,52 @@ void bridge::process_lrsc_pre_step(hart_id_t hart, const rv_instr_t& d) {
     }
   }
 }
+bool bridge::checkallinterruptdefer(hart_id_t hart, const rv_instr_t& d) {
+    // Split the input string into words
+    std::istringstream iss(d.disasm);
+    std::vector<std::string> words(std::istream_iterator<std::string>{iss},
+                                   std::istream_iterator<std::string>{});
 
+    // Check conditions for custom nonspec resync exception
+    std::vector<uint64_t> csr_custom_nonspec = {0x180, 0x280, 0x680, 0x100, 0x600, 0x200, 0x300, 0x301, 0x002};
+
+    if (words[0].find("csr") != std::string::npos && words[2] != "x0") {
+      for (auto& c : d.csr) {
+      for (size_t i = 0; i < csr_custom_nonspec.size(); ++i) {
+        if (csr_custom_nonspec[i] == c.csr_addr) {
+            check_and_defer_interrupt(hart, d.cycle, mip_); // defer all interrupts
+            return false; 
+        }
+      }
+      }       
+    } 
+    // Check conditions for exceptions
+    if (d.excp) {return true;}
+    // Check conditions for csr or mret which raised interrupts in previous cycle and current op is csr
+    if ( (words[0].find("csr") != std::string::npos) && prev_sync_intr_) {return true;}
+
+    // Check conditions for csr or mret which raised interrupts in previous cycle and current op is csr
+
+    return false;
+
+}
 void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
 // FIXME We are deferring all interrupts, if new interrupt was made possible due to execution of a csr op previously
-  if (d.disasm.find("csr") != std::string::npos) {
-      if (prev_sync_intr_) {
-          log(cvm::MEDIUM, "<{}> CSR Defer\n", d.cycle);
+  if (FLAGS_intr_defer_spcl) {
+  if (checkallinterruptdefer(hart, d)) {
+          log(cvm::MEDIUM, "<{}> All interrupts Defer\n", d.cycle);
+          all_interrupts_defer_ = true;
           pre_csr_defermip_ = deferred_mip_;
           deferred_intr_ = true;
           defer_interrupt(hart, d.cycle, mip_);
-      } else {
+  }
+  prev_sync_intr_ = 0;
+  if (d.disasm.find("csr") != std::string::npos) {
           uint64_t undeferred_mip = mip_ & ~ deferred_mip_;
           uint64_t undeferred_w_cause;
           check_interrupt(hart, undeferred_mip, pre_undeferred_intr_, undeferred_w_cause);
-      }
-  } else { 
-    prev_sync_intr_ = 0;
   }
-  if (d.excp) {
-          log(cvm::MEDIUM, "<{}> Exception Defer\n", d.cycle);
-          pre_csr_defermip_ = deferred_mip_;
-          deferred_intr_ = true;
-          defer_interrupt(hart, d.cycle, mip_);
   }
-
   if (!mip_)
     return;
 
@@ -399,30 +422,27 @@ void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whi
 
 void bridge::process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
   
+  if (FLAGS_intr_defer_spcl) {
   if (d.disasm.find("csr") != std::string::npos) {
-      if (prev_sync_intr_) {
-          prev_sync_intr_ = 0;
-          defer_interrupt(hart, d.cycle, pre_csr_defermip_);
-          deferred_mip_ = pre_csr_defermip_;
-      } else {
           uint64_t undeferred_mip = mip_ & ~ deferred_mip_;
           uint64_t undeferred_w_cause;
           check_interrupt(hart, undeferred_mip, post_undeferred_intr_, undeferred_w_cause);
           prev_sync_intr_ = post_undeferred_intr_ && !pre_undeferred_intr_;
-      }
   
   }
 
-      if (d.excp) {
+  if (all_interrupts_defer_) {
           defer_interrupt(hart, d.cycle, pre_csr_defermip_);
           deferred_mip_ = pre_csr_defermip_;
-      } 
+          all_interrupts_defer_ = false;
+  } 
 
   if (w.disasm.find("ret") != std::string::npos) {
       if(prev_mip_ != mip_) {
         check_and_defer_interrupt(hart, d.cycle, ~prev_mip_ & mip_);
       }
         prev_sync_intr_ = true; // This will waive cases when after execution of mret there exists a csr operation which needs to be interrupted.
+  }
   }
 
   if (!d.intr && !w_.intr)
