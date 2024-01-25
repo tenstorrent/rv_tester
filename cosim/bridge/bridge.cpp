@@ -33,7 +33,7 @@ DEFINE_string(whisper_json_path, "", "Path to whisper json config");
 DEFINE_bool(cosim_resynch, false, "Resynch whisper with dut state on every instruction");
 DEFINE_string(cosim_resynch_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
 DEFINE_string(cosim_resynch_prev_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
-DEFINE_string(cosim_resynch_csr, "", "List of csr mnemonics to resynch whisper with dut state");
+DEFINE_string(cosim_resynch_csr, "hie,vsip,vsie,htval", "List of csr mnemonics to resynch whisper with dut state");
 DEFINE_bool(mip_resynch, true, "Resynch whisper with dut state on mip mismatch condition");
 DEFINE_bool(imsic_resynch, true, "Resynch whisper with dut state on imsic mismatch condition");
 DEFINE_bool(intr_defer_spcl, true, "Defer all interrupts in special cases");
@@ -651,7 +651,6 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
     uint64_t cause = 0;
     for (auto& c : w_.csr) {
       if ((c.csr_addr == 0x342) || (c.csr_addr == 0x142) || (((w.priv_mode == 0x8) || (w.priv_mode == 0x9)) && (c.csr_addr == 0x242)))
-      if ((c.csr_addr == 0x342) || (c.csr_addr == 0x142))
         cause = c.csr_wdata;
     }
     if ((cause >> 63) & 0x1) {
@@ -1410,7 +1409,7 @@ bool bridge::is_supported_csr(uint64_t addr) {
   return (addr >= 0x7E0 && addr <= 0x7EF); // pmacfg0-15
 }
 
-void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data, cac::optional_const_ref<size_8_bytes_t> mask_ref) {
+void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data, cac::optional_const_ref<size_8_bytes_t> mask_ref, bool shadow_csr) {
   if (is_custom_csr(addr) && !is_supported_csr(addr))
     return;
 
@@ -1425,13 +1424,13 @@ void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data,
   assert(csr_cac_.UpdateResource(hart, src, csr_resource, std::move(cac::CreateBitVec<size_8_bytes_t>({data})), mask));
 
   // Also update shadow csr if applicable ex: mstatus/sstatus
-  if (shadow_csrs.count(addr)) {
+  if (!shadow_csr && shadow_csrs.count(addr)) {
     size_8_bytes_t alias_mask;
     if (mask_ref)
       alias_mask = mask_ref.value() & get_csr_poke_mask(hart, shadow_csrs.at(addr));
     else
       alias_mask = get_csr_poke_mask(hart, shadow_csrs.at(addr));
-    update_csr(hart, src, shadow_csrs.at(addr), data, alias_mask);
+    update_csr(hart, src, shadow_csrs.at(addr), data, alias_mask, 1);
   }
 }
 
