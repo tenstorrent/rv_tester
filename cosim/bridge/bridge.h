@@ -118,6 +118,7 @@ private:
   void check_and_defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
   void check_interrupt(hart_id_t hart, uint64_t mip, bool& taken, uint64_t& cause);
   void defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
+  bool checkallinterruptdefer(hart_id_t hart, const rv_instr_t& d);
   void poke_mip(hart_id_t hart, uint64_t time, uint64_t mip);
   void peek_mip(hart_id_t hart, uint64_t time, uint64_t& mip);
   void peek_seip(hart_id_t hart, uint64_t time, uint64_t& val);
@@ -176,6 +177,8 @@ private:
   uint64_t prev_e_mip_ = 0;
   uint64_t deferred_mip_ = 0;
   bool prev_sync_intr_ = 0;
+  bool all_interrupts_defer_= 0;
+  bool prev_resync_excp_defer_intr_ = 0;
   uint64_t pre_csr_defermip_ = 0;
   bool pre_undeferred_intr_;
   bool post_undeferred_intr_;
