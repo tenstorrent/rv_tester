@@ -1430,7 +1430,7 @@ void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data,
       alias_mask = mask_ref.value() & get_csr_poke_mask(hart, shadow_csrs.at(addr));
     else
       alias_mask = get_csr_poke_mask(hart, shadow_csrs.at(addr));
-    update_csr(hart, src, shadow_csrs.at(addr), data, alias_mask, 1);
+    update_csr(hart, src, shadow_csrs.at(addr), data, alias_mask, true);
   }
 }
 
