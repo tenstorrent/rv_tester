@@ -650,6 +650,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
   if (w_.trap) {
     uint64_t cause = 0;
     for (auto& c : w_.csr) {
+      if ((c.csr_addr == 0x342) || (c.csr_addr == 0x142) || (((w.priv_mode == 0x8) || (w.priv_mode == 0x9)) && (c.csr_addr == 0x242)))
       if ((c.csr_addr == 0x342) || (c.csr_addr == 0x142))
         cause = c.csr_wdata;
     }
