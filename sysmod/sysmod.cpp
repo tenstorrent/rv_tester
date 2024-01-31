@@ -125,6 +125,26 @@ sysmod::aplic_interrupt(aplic_driver::aplic_driver_write_t i) {
 }
 
 void
+sysmod::trace_cfg_read_req_router(trace_cfg::trace_cfg_read_t r) {
+
+    transactor::read_t rd; 
+    rd.addr = r.addr;
+    rd.length = r.length;
+    rd.id =  r.id;
+
+    cvm::log(cvm::HIGH,"[SYSMOD] trace_cfg read router: read_req addr {:#x} \n",rd.addr);
+
+    auto sources = cvm::topology::get_from_type("PLATFORM_TRANSACTOR");
+    for (const auto& source : sources) {
+                if (this->dev(r.addr)){
+                    cvm::registry::messenger.signal<device::read_t>(this->loc_, {rd, source});
+                }
+    }
+
+}
+
+
+void
 sysmod::uc_helper_backdoor_write(uc_helper::uc_helper_write_t w) {
 
     if(!FLAGS_bypass_cache && !FLAGS_bypass_mem){
@@ -148,7 +168,7 @@ sysmod::uc_helper_backdoor_write(uc_helper::uc_helper_write_t w) {
    // dynamic_cast<sysmod_mem&>(*dev("memory")).write(wt);
 
 
-    cvm::log(cvm::HIGH, "new backdoor prt write request at {:#x}", wt.addr);
+    cvm::log(cvm::HIGH, "[UC_HELPER] new backdoor write request at {:#x}", wt.addr);
                 if (this->dev(wt.addr))
                     cvm::registry::messenger.signal<device::write_t>(this->loc_, {wt});
 
@@ -290,6 +310,9 @@ sysmod::compose()
         cvm::registry::messenger.connect<uc_helper::uc_helper_read_req_t>(
             loc_,
             [&](uc_helper::uc_helper_read_req_t i) { return this->uc_helper_backdoor_read(i); });
+        cvm::registry::messenger.connect<trace_cfg::trace_cfg_read_t>(
+            loc_,
+            [&](trace_cfg::trace_cfg_read_t i) { return this->trace_cfg_read_req_router(i); });
       }
       else
         cvm::log(cvm::ERROR, "Error: unknown type %s", type);

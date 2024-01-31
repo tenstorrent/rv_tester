@@ -16,6 +16,7 @@ trace_cfg::trace_cfg(const std::string& tag, uint64_t addr, size_t size, cvm::to
   if (FLAGS_load != "") {
     init_elf(FLAGS_load);
   }
+ 
   channel = cvm::registry::messenger.channel<axi::r_t>(axi_mst_loc_l);
 }
 
@@ -26,21 +27,14 @@ void trace_cfg::axi_write() {
   std::vector<bool> strb = {1,1,1,1};
 
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb});
-
-  //return;
 }
 
-cvm::messenger::task<void>  trace_cfg::axi_read() {
-  uint64_t addr = 0xa002000;
-  size_t length = 0x2;
-
-  // @Pravin, this needs to be fixed, with a real id store
-  cvm::registry::messenger.signal(axi_mst_loc_l, transactor::read_request_t{addr, length});
-
-  auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(channel);
-  
-  co_return;
+void trace_cfg::axi_read(uint64_t addr, size_t length,
+                          uint32_t id) {
+   cvm::registry::messenger.signal(loc(), trace_cfg_read_t{addr, length, id});
 }
+
+
 void trace_cfg::write(const transactor::write_t& ) {
   // auto& addr = w.addr;
   // auto& length = w.length;
@@ -52,28 +46,27 @@ void trace_cfg::write(const transactor::write_t& ) {
   // return;
 }
 
-cvm::messenger::task<void> trace_cfg::read(const transactor::read_t& , data_t& ) {
-  // auto& addr = r.addr;
-  // auto& length = r.length;
-
+cvm::messenger::task<void> trace_cfg::read(const transactor::read_t& r, data_t& ) {
+   auto& addr = r.addr;
+   auto& length = r.length;
+   cvm::log(cvm::HIGH,"[TRACE_CFG] trace_cfg_read addr {:#x} \n",addr);
   // @Pravin, this needs to be fixed, with a real id store
-  //cvm::registry::messenger.signal(axi_mst_loc_l, transactor::read_request_t{addr, length});
+  cvm::registry::messenger.signal(axi_mst_loc_l, transactor::read_request_t{addr, length});
 
-  //auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(channel);
-  //data = resp.data;
+  auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(channel);
   
+  cvm::log(cvm::HIGH,"[TRACE_CFG] trace_cfg_read Data : \n 0x");
+  for (auto element : resp.data) {
+        cvm::log(cvm::HIGH,"{:x}",(int)element);
+  }
+  cvm::log(cvm::HIGH,"\n");
 
-  //if not 64B aligned
-  //left shift byte offset
-  // auto lower_bytes = addr&0x3F;
-  // if(lower_bytes!=0){
-  //   std::rotate(
-  //                 std::begin(data),
-  //                 std::next(std::begin(data),lower_bytes),
-  //                 std::end(data)
-  //                 );
-  // }
-  
+  trace_cfg_read_req_t trace_cfg_rd;
+  trace_cfg_rd.addr = addr;
+  trace_cfg_rd.length = length;
+  trace_cfg_rd.id = r.id;
+  trace_cfg_rd.data = resp.data;  
+  trace_read_resp_q.push(trace_cfg_rd); 
   co_return;
 }
 

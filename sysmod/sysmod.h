@@ -12,6 +12,7 @@
 #include "trickbox/uc_helper.h"
 #include "trickbox/aplic_driver.h"
 #include "trickbox/debugger.h"
+#include "trace_cfg/trace_cfg.h"
 #include "cvm/topology.hpp"
 //#include "SimJTAG.cc"
 #include <string>
@@ -48,6 +49,7 @@ class sysmod {
     void aplic_interrupt(aplic_driver::aplic_driver_write_t i);
     void uc_helper_backdoor_write(uc_helper::uc_helper_write_t w);
     void uc_helper_backdoor_read(uc_helper::uc_helper_read_req_t w);
+    void trace_cfg_read_req_router(trace_cfg::trace_cfg_read_t r);
     void terminate(htif::terminate_t t);
 
   private:

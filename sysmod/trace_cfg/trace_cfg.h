@@ -18,8 +18,22 @@ class trace_cfg : public device {
         cvm::messenger::pool<axi::r_t>::channel_info channel;
 
     public:
+        struct trace_cfg_read_t {
+        uint64_t addr;
+        size_t length;
+        uint32_t id;
+        };
+
+        struct trace_cfg_read_req_t {
+        uint64_t addr;
+        size_t length;
+        uint32_t id;
+        std::vector<uint8_t> data;
+        std::vector<bool> strb;
+        };
+        std::queue<trace_cfg_read_req_t> trace_read_resp_q;
         virtual void axi_write();
-        cvm::messenger::task<void> axi_read();
+        virtual void axi_read(uint64_t addr, size_t length, uint32_t id);
         void write(const transactor::write_t& );
 
         cvm::messenger::task<void> read(const transactor::read_t& , data_t& );
@@ -32,11 +46,13 @@ class trace_cfg : public device {
         virtual void tick(uint64_t) override
         {
             cvm::log(cvm::HIGH, "[Trickbox] trace_cfg timer tick advance interval \n");
-            //processDelayedRandomInterrupts();
-        	axi_write();
-        	axi_read();
+            uint64_t addr = 0xa002000;
+            size_t length = 2;
+            uint32_t id = 5;
+            axi_read(addr,length,id);//@Harin to change this as per trace teams req
         
         }
+
         // add max mem size
         trace_cfg(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc);
 
