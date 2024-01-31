@@ -125,6 +125,44 @@ sysmod::aplic_interrupt(aplic_driver::aplic_driver_write_t i) {
 }
 
 void
+sysmod::trace_cfg_read_req_router(trace_cfg::trace_cfg_read_t r) {
+
+    transactor::read_t rd; 
+    //cvm::topology::loc_t source = ;
+     //auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0);
+    // struct read_t {
+    //     uint32_t id;
+    //     uint64_t addr;
+    //     size_t length;
+    // };
+
+    rd.addr = r.addr;
+    //wt.length = w.length;
+    rd.length = r.length;
+    rd.id =  r.id;
+
+    std::cout<<"\n INSIDE sysmod route TXN ADDR: 0X"<<std::hex<<rd.addr<<" \n";
+   // dynamic_cast<sysmod_mem&>(*dev("memory")).write(wt);
+
+
+    //cvm::log(cvm::HIGH, "new backdoor prt write request at {:#x}", .addr);
+                //if (this->dev(wt.addr))
+                //    cvm::registry::messenger.signal<device::write_t>(this->loc_, {wt});
+    auto sources = cvm::topology::get_from_type("PLATFORM_TRANSACTOR");
+    int i = 0;
+    for (const auto& source : sources) {
+          i++;
+                if (this->dev(r.addr)){
+            std::cout<<"\n FOR LOOP sysmod route TXN ADDR: 0X"<<std::hex<<rd.addr<<" i:"<<i<<" source:"<<source<<"\n";
+                    //cvm::registry::messenger.signal<device::read_t>(tbox_loc, {rd, source});
+                    cvm::registry::messenger.signal<device::read_t>(this->loc_, {rd, source});
+                }
+    }
+
+}
+
+
+void
 sysmod::uc_helper_backdoor_write(uc_helper::uc_helper_write_t w) {
 
     if(!FLAGS_bypass_cache && !FLAGS_bypass_mem){
@@ -290,6 +328,9 @@ sysmod::compose()
         cvm::registry::messenger.connect<uc_helper::uc_helper_read_req_t>(
             loc_,
             [&](uc_helper::uc_helper_read_req_t i) { return this->uc_helper_backdoor_read(i); });
+        cvm::registry::messenger.connect<trace_cfg::trace_cfg_read_t>(
+            loc_,
+            [&](trace_cfg::trace_cfg_read_t i) { return this->trace_cfg_read_req_router(i); });
       }
       else
         cvm::log(cvm::ERROR, "Error: unknown type %s", type);
