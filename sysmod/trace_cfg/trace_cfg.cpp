@@ -27,8 +27,6 @@ void trace_cfg::axi_write() {
   std::vector<bool> strb = {1,1,1,1};
 
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb});
-
-  //return;
 }
 
 void trace_cfg::axi_read(uint64_t addr, size_t length,
@@ -51,18 +49,17 @@ void trace_cfg::write(const transactor::write_t& ) {
 cvm::messenger::task<void> trace_cfg::read(const transactor::read_t& r, data_t& ) {
    auto& addr = r.addr;
    auto& length = r.length;
-   std::cout<<"\n TRACE CFG READ TRIGGERED ADDR 0X"<<std::hex<<addr<<"\n";
+   cvm::log(cvm::HIGH,"[TRACE_CFG] trace_cfg_read addr {:#x} \n",addr);
   // @Pravin, this needs to be fixed, with a real id store
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::read_request_t{addr, length});
 
   auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(channel);
-  //data = resp.data;
   
-  std::cout<<"\n TRACE CFG READ TRIGGERED DATA \n";
-   for (auto element : resp.data) {
-        std::cout << (int)element << " ";
-    }
-    std::cout<<"\n";
+  cvm::log(cvm::HIGH,"[TRACE_CFG] trace_cfg_read Data : \n 0x");
+  for (auto element : resp.data) {
+        cvm::log(cvm::HIGH,"{:x}",(int)element);
+  }
+  cvm::log(cvm::HIGH,"\n");
 
   trace_cfg_read_req_t trace_cfg_rd;
   trace_cfg_rd.addr = addr;

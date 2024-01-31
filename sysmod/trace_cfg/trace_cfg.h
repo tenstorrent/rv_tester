@@ -49,7 +49,7 @@ class trace_cfg : public device {
             uint64_t addr = 0xa002000;
             size_t length = 2;
             uint32_t id = 5;
-            axi_read(addr,length,id);
+            axi_read(addr,length,id);//@Harin to change this as per trace teams req
         
         }
 
