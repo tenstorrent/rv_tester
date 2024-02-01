@@ -33,7 +33,7 @@ DEFINE_string(whisper_json_path, "", "Path to whisper json config");
 DEFINE_bool(cosim_resynch, false, "Resynch whisper with dut state on every instruction");
 DEFINE_string(cosim_resynch_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
 DEFINE_string(cosim_resynch_prev_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
-DEFINE_string(cosim_resynch_csr, "hie,vsip,vsie,htval", "List of csr mnemonics to resynch whisper with dut state");
+DEFINE_string(cosim_resynch_csr, "hie,vsip,vsie,htval,mtval2", "List of csr mnemonics to resynch whisper with dut state");
 DEFINE_bool(mip_resynch, true, "Resynch whisper with dut state on mip mismatch condition");
 DEFINE_bool(imsic_resynch, true, "Resynch whisper with dut state on imsic mismatch condition");
 DEFINE_bool(intr_defer_spcl, true, "Defer all interrupts in special cases");
@@ -734,7 +734,27 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
   if (FLAGS_vec_check) {
     for (auto & vr : d.vr) {
       if (vr.valid){
-        update_regs(hart, src_t::dut, resource_t::vec_reg, vr.vrd_addr, create_dword_vec(vr.vrd_wdata));
+        // For vlse*.v, we need to set all tail agnostic bits to ones if enabled 
+        std::string str = whisper::disassemble(d.opcode);
+        std::string searchString = "vlse";
+        size_t pos = str.find(searchString);
+        uint64_t vl = get_csr(id_, cac::src_t::iss, 0xC20); // TODO: Get vl and vta values from dut (RVDE-11217)
+        bool vta = (get_csr(id_, cac::src_t::iss, 0xC21) >> 5) & 1;
+        if ((pos != std::string::npos) && vta) {
+          int number = std::stoi(str.substr(pos + searchString.length()));
+          uint64_t unmask_bits = number * vl;
+          std::bitset<256> result_bits = vr.vrd_wdata;
+          for (uint64_t i = 0; i < 256; ++i) {
+              uint64_t mask_set = (i < unmask_bits) ? 0 : ~unmask_bits; 
+              if (mask_set & 1) { 
+                  result_bits[i].flip(); 
+              }
+              unmask_bits -= (i == 63) ? 64 : 0; 
+          }
+          update_regs(hart, src_t::dut, resource_t::vec_reg, vr.vrd_addr, create_dword_vec(result_bits));
+        } else{
+          update_regs(hart, src_t::dut, resource_t::vec_reg, vr.vrd_addr, create_dword_vec(vr.vrd_wdata));
+        }
       }
     }
   }
