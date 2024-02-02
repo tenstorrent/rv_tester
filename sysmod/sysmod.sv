@@ -34,7 +34,9 @@ import rv_tester_params::*;
     bit jtag_req_begin = '0;
     bit jtag_req_begin_d = '0;
     bit jtag_req_end = '0;
-    bit [63:0] jtag_req = '0;
+    bit [63:0] jtag_tx = '0;
+    bit tck = '0;
+    bit[3:0] opcode= '0;
     /* verilator lint_on BLKANDNBLK */
     always @(posedge clk) begin
         if (reset) begin
@@ -112,6 +114,7 @@ import rv_tester_params::*;
 
     always @(posedge clk) begin
         interrupt_q <= interrupt_d;
+        tck <= ~tck;
         if (reset) begin
             dmi_write   <= '0;
         end
@@ -126,7 +129,88 @@ import rv_tester_params::*;
             dmi_write.dm_wdata <= dm_wdata;
             dmi_write_end <='1;
         end
+        //**** JTAG ***//
+         
+   //******** JTAG ********//
+   if(ConfigureIR)begin
+   //task Configure_IR(bit[3:0] opcode);
+   //bit [3:0] current_state;
+   //`uvm_info(get_name(),"Writing to Instruction Register",UVM_LOW)
+      @(posedge tck);
+   //enter select-dr
+   jtag_req.tms <= '0;
+   @(posedge tck);
+   //enter select-dr
+   jtag_req.tms <= '1;
+   @(posedge tck);
+   //enter select-ir
+   jtag_req.tms <= '1;
+   //enter capture-ir state
+   @(posedge tck);
+   jtag_req.tms <= '0;
+   //enter shift-ir state
+   @(posedge tck);
+   jtag_req.tms <= '0;
+   for(int i =0;i < 4;i++) begin
+   @(posedge tck);
+      jtag_req.tms <= '0;
+      jtag_req.tdi =opcode[i];
+   end
+   //enter exit ir state
+   @(posedge tck);
+   jtag_req.tms <= '1;
+   jtag_req.tdi <= '0;
+   @(posedge tck);
+   //enter update ir state
+   jtag_req.tms <= '1;
+  //enter run-test/idle 
+   @(posedge tck);
+   jtag_req.tms <= '0;
 
+endtask
+
+ task Configure_DR(bit [31:0] data,bit read);
+   bit [3:0] current_state;
+  // `uvm_info(get_name(),"Writing to Data Register",UVM_LOW)
+
+   // capture_tdo();
+
+   //enter select-dr
+   @(posedge tck);
+   jtag_req.tms <= 1;
+   //enter capture-dr state
+   @(posedge tck);
+   jtag_req.tms <= 0;
+   //enter shift-dr state
+   for(int i =0;i < 32;i++) begin
+      @(posedge tck);
+      jtag_req.tms <= 0;
+      if(read)begin
+         jtag_req.tdi <= data[i];
+      end
+      else if(i>1)begin
+         data[31-i+2] <= jtag_req.tdo;
+      end
+   end
+   // $display(" tdo = %h",jtag_req.tdo);
+   //enter exit dr state
+   @(posedge tck);
+   jtag_req.tms <= 1;
+   jtag_req.tdi <= 0;
+   data[1] <= jtag_req.tdo;
+   // $display(" tdo = %h",jtag_req.tdo);
+   //enter update dr state
+   @(posedge tck);
+   jtag_req.tms <= 1;
+   data[0] <= jtag_req.tdo;
+   // $display(" tdo = %h",jtag_req.tdo);
+   //enter run-test/idle 
+   @(posedge tck);
+   jtag_req.tms <= 0;
+   $display(" idcode register value = %h",data);
+endtask
     end
+   
+
 
 endmodule
