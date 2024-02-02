@@ -14,6 +14,7 @@ import rv_tester_params::*;
     output rv_tester_pkg::interrupt_t interrupt [NHARTS-1:0],
     output rv_tester_pkg::aplic_interrupt_t aplic_interrupt,
     output rv_tester_pkg::dm_write_t  dmi_write,
+    output rv_tester_pkg::jtag_if_t  jtag_req,
     output rv_tester_pkg::terminate_t terminate,
     `RV_TESTER_TRANSACTIONS_SYSMOD_OUTPUT_PORTS
 );
@@ -29,7 +30,12 @@ import rv_tester_params::*;
     bit dmi_write_end = '0;
     bit [63:0] dm_wdata = '0;
     /* verilator lint_on BLKANDNBLK */
-
+    /* verilator lint_off BLKANDNBLK */
+    bit jtag_req_begin = '0;
+    bit jtag_req_begin_d = '0;
+    bit jtag_req_end = '0;
+    bit [63:0] jtag_req = '0;
+    /* verilator lint_on BLKANDNBLK */
     always @(posedge clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */
@@ -96,6 +102,13 @@ import rv_tester_params::*;
       dm_wdata = {upper_value,lower_value};
     endfunction
     export "DPI-C"  function sysmod_dmi_write;
+
+    function sysmod_jtag_req (int unsigned hartid, int unsigned upper_value,int unsigned lower_value);
+      dmi_write_begin = '1;
+      dm_wdata = {upper_value,lower_value};
+    endfunction
+    export "DPI-C"  function sysmod_jtag_req;
+
 
     always @(posedge clk) begin
         interrupt_q <= interrupt_d;
