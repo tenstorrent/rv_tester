@@ -309,39 +309,10 @@ void bridge::process_lrsc_pre_step(hart_id_t hart, const rv_instr_t& d) {
     }
   }
 }
-bool bridge::checkallinterruptdefer(hart_id_t hart, const rv_instr_t& d) {
-    // Split the input string into words
-    std::istringstream iss(d.disasm);
-    std::vector<std::string> words(std::istream_iterator<std::string>{iss},
-                                   std::istream_iterator<std::string>{});
-
-    // Check conditions for custom nonspec resync exception
-    std::vector<uint64_t> csr_custom_nonspec = {0x180, 0x280, 0x680, 0x100, 0x600, 0x200, 0x300, 0x301, 0x002};
-
-    if (words[0].find("csr") != std::string::npos && words[2] != "x0") {
-      for (auto& c : d.csr) {
-      for (size_t i = 0; i < csr_custom_nonspec.size(); ++i) {
-        if (csr_custom_nonspec[i] == c.csr_addr) {
-            check_and_defer_interrupt(hart, d.cycle, mip_); // defer all interrupts
-            return false; 
-        }
-      }
-      }       
-    } 
-    // Check conditions for exceptions
-    if (d.excp) {return true;}
-    // Check conditions for csr or mret which raised interrupts in previous cycle and current op is csr
-    if ( (words[0].find("csr") != std::string::npos) && prev_sync_intr_) {return true;}
-
-    // Check conditions for csr or mret which raised interrupts in previous cycle and current op is csr
-
-    return false;
-
-}
 void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
 // FIXME We are deferring all interrupts, if new interrupt was made possible due to execution of a csr op previously
   if (FLAGS_intr_defer_spcl) {
-  if (checkallinterruptdefer(hart, d)) {
+  if ((d.disasm.find("csr") != std::string::npos) && prev_sync_intr_) {
           log(cvm::MEDIUM, "<{}> All interrupts Defer\n", d.cycle);
           all_interrupts_defer_ = true;
           pre_csr_defermip_ = deferred_mip_;
@@ -384,6 +355,7 @@ void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whi
   // Timing sensitive resynch cases
   // 1. DUT took older interrupt that deasserted before retire
   if (d.intr && !w_intr && !FLAGS_cosim_resynch) {
+        // log(cvm::MEDIUM, "Dut took whisper dint\n");
     check_interrupt(hart, prev_mip_, w_intr, w_cause);
     if (w_intr && (w_cause == d.icause)) {
       log(cvm::MEDIUM, "<{}> DUT took interrupt, Whisper did not. cause:[{}] (Timing sensitive mismatch: Resynch and keep going)\n", w.time, d.icause);
@@ -396,6 +368,7 @@ void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whi
 
   // 2. DUT took older interrupt but a newer one asserted before retire
   if (d.icause != w_cause) {
+        // log(cvm::MEDIUM, "Cause mismatch !! {} {} \n", d.icause, w_cause);
     check_interrupt(hart, prev_mip_, w_intr, w_cause);
     if (w_intr && (w_cause == d.icause)) {
       log(cvm::MEDIUM, "<{}> DUT vs Whisper interrupt cause mismatch [{},{}] age [{},{}] (Timing sensitive mismatch: Resynch and keep going)\n",
@@ -408,6 +381,7 @@ void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whi
   // Undefer all interrupts
   if (deferred_intr_) {
     defer_interrupt(hart, w.time, 0);
+    // log(cvm::MEDIUM, " Undeferred all interrupts!!!\n");
     deferred_intr_ = false;
   }
 
@@ -474,7 +448,7 @@ void bridge::process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, wh
     return;
   }
 
-  num_taken_interrupts_++;
+  num_taken_interrupts_[w_.icause]++;
 }
 
 void bridge::process_exception_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
@@ -1511,7 +1485,6 @@ void bridge::report_metrics() {
 
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_instructions\": {}}}\n", id_, instructions);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_cpu_cycles\": {}}}\n", id_, cpu_cycles);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_taken_interrupts\": {}}}\n", id_, num_taken_interrupts_);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_exceptions\": {}}}\n", id_, num_exceptions_);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_ipc\": {:.2f}}}\n", id_, ipc);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_instr\": \"{}\"}}\n", id_, instr);
@@ -1526,6 +1499,14 @@ void bridge::report_metrics() {
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_trap\": {}}}\n", id_, prev_trap);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_num_dest\": {}}}\n", id_, prev_num_dest);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_max_pend_intr_age\": {}}}\n", id_, max_pend_intr_age_);
+  
+  // Interrupts taken count
+  for (size_t i = 0; i < num_taken_interrupts_.size(); i++) {
+      if (num_taken_interrupts_[i] != 0) {
+          cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_taken_interrupts[{}]\": {}}}\n", id_, i, num_taken_interrupts_[i]);
+      }
+  }
+    
 
   // Whisper csr values
   for (auto& csr : metrics_csrs) {
