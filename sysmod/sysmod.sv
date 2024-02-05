@@ -37,6 +37,7 @@ import rv_tester_params::*;
     bit [63:0] jtag_tx = '0;
     bit tck = '0;
     bit[3:0] opcode= '0;
+    bit ConfigureIR='0;
     /* verilator lint_on BLKANDNBLK */
     always @(posedge clk) begin
         if (reset) begin
@@ -132,85 +133,90 @@ import rv_tester_params::*;
         //**** JTAG ***//
          
    //******** JTAG ********//
-   if(ConfigureIR)begin
-   //task Configure_IR(bit[3:0] opcode);
-   //bit [3:0] current_state;
-   //`uvm_info(get_name(),"Writing to Instruction Register",UVM_LOW)
-      @(posedge tck);
-   //enter select-dr
-   jtag_req.tms <= '0;
-   @(posedge tck);
-   //enter select-dr
-   jtag_req.tms <= '1;
-   @(posedge tck);
-   //enter select-ir
-   jtag_req.tms <= '1;
-   //enter capture-ir state
-   @(posedge tck);
-   jtag_req.tms <= '0;
-   //enter shift-ir state
-   @(posedge tck);
-   jtag_req.tms <= '0;
-   for(int i =0;i < 4;i++) begin
-   @(posedge tck);
-      jtag_req.tms <= '0;
-      jtag_req.tdi =opcode[i];
-   end
-   //enter exit ir state
-   @(posedge tck);
-   jtag_req.tms <= '1;
-   jtag_req.tdi <= '0;
-   @(posedge tck);
-   //enter update ir state
-   jtag_req.tms <= '1;
-  //enter run-test/idle 
-   @(posedge tck);
-   jtag_req.tms <= '0;
-
-endtask
-
- task Configure_DR(bit [31:0] data,bit read);
-   bit [3:0] current_state;
-  // `uvm_info(get_name(),"Writing to Data Register",UVM_LOW)
-
-   // capture_tdo();
-
-   //enter select-dr
-   @(posedge tck);
-   jtag_req.tms <= 1;
-   //enter capture-dr state
-   @(posedge tck);
-   jtag_req.tms <= 0;
-   //enter shift-dr state
-   for(int i =0;i < 32;i++) begin
-      @(posedge tck);
-      jtag_req.tms <= 0;
-      if(read)begin
-         jtag_req.tdi <= data[i];
-      end
-      else if(i>1)begin
-         data[31-i+2] <= jtag_req.tdo;
-      end
-   end
-   // $display(" tdo = %h",jtag_req.tdo);
-   //enter exit dr state
-   @(posedge tck);
-   jtag_req.tms <= 1;
-   jtag_req.tdi <= 0;
-   data[1] <= jtag_req.tdo;
-   // $display(" tdo = %h",jtag_req.tdo);
-   //enter update dr state
-   @(posedge tck);
-   jtag_req.tms <= 1;
-   data[0] <= jtag_req.tdo;
-   // $display(" tdo = %h",jtag_req.tdo);
-   //enter run-test/idle 
-   @(posedge tck);
-   jtag_req.tms <= 0;
-   $display(" idcode register value = %h",data);
-endtask
     end
    
+
+ //module JTAG_Driver (
+  //logic clk;
+  logic rst;
+  logic enable;
+  logic [1:0] command;
+  logic [31:0] data_in;
+  logic  tck;
+  logic  tms;
+  logic  tdi;
+  logic  read_data_valid;
+  logic  [31:0] read_data;
+  logic tdo;
+ //);
+
+  // JTAG state machine states
+  parameter IDLE = 3'b000;
+  parameter SHIFT_DR = 3'b001;
+  parameter SHIFT_IR = 3'b010;
+  parameter UPDATE = 3'b011;
+
+  // Internal state variables
+  reg [2:0] state;
+  reg [31:0] shiftData;
+  reg [4:0] shiftCount;
+  reg tdo_reg;
+  reg read_data_valid_reg;
+
+  // JTAG controller
+  always_ff @(posedge clk or posedge rst) begin
+    if (rst) begin
+      state <= IDLE;
+      shiftData <= 32'b0;
+      shiftCount <= 5'b0;
+      read_data_valid_reg <= 1'b0;
+    end else begin
+      case (state)
+        IDLE: begin
+          tck <= 1'b0;
+          tms <= 1'b0;
+          tdi <= 1'b0;
+          if (enable) begin
+            // Interpret command and data, set state accordingly
+            case (command)
+              2'b00: state <= SHIFT_DR;
+              2'b01: state <= SHIFT_IR;
+              2'b10: state <= UPDATE;
+              // Add more commands as needed
+              default: state <= IDLE;
+            endcase
+            shiftData <= data_in;
+          end
+        end
+        SHIFT_DR: begin
+          tck <= 1'b1;
+          tms <= 1'b0;
+          tdi <= shiftData[0];
+          shiftData <= {shiftData[30:0], tdo};
+          shiftCount <= shiftCount + 1;
+          tdo_reg <= tdo; // Capture TDO data
+          if (shiftCount == 5'b1111) begin
+            state <= IDLE;
+          end
+        end
+        SHIFT_IR: begin
+          // Similar to SHIFT_DR, implement based on JTAG IR requirements
+        end
+        UPDATE: begin
+          tck <= 1'b0;
+          tms <= 1'b1;
+          tdi <= 1'b0;
+          read_data_valid_reg <= 1'b1; // Indicate that read data is valid
+          if (shiftCount == 5'b1111) begin
+            state <= IDLE;
+          end
+        end
+      endcase
+    end
+  end
+
+  assign read_data_valid = read_data_valid_reg;
+  assign read_data = tdo_reg;
 
 
 endmodule
