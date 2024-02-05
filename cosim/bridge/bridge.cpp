@@ -355,7 +355,6 @@ void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whi
   // Timing sensitive resynch cases
   // 1. DUT took older interrupt that deasserted before retire
   if (d.intr && !w_intr && !FLAGS_cosim_resynch) {
-        // log(cvm::MEDIUM, "Dut took whisper dint\n");
     check_interrupt(hart, prev_mip_, w_intr, w_cause);
     if (w_intr && (w_cause == d.icause)) {
       log(cvm::MEDIUM, "<{}> DUT took interrupt, Whisper did not. cause:[{}] (Timing sensitive mismatch: Resynch and keep going)\n", w.time, d.icause);
@@ -368,7 +367,6 @@ void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whi
 
   // 2. DUT took older interrupt but a newer one asserted before retire
   if (d.icause != w_cause) {
-        // log(cvm::MEDIUM, "Cause mismatch !! {} {} \n", d.icause, w_cause);
     check_interrupt(hart, prev_mip_, w_intr, w_cause);
     if (w_intr && (w_cause == d.icause)) {
       log(cvm::MEDIUM, "<{}> DUT vs Whisper interrupt cause mismatch [{},{}] age [{},{}] (Timing sensitive mismatch: Resynch and keep going)\n",
@@ -381,7 +379,6 @@ void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whi
   // Undefer all interrupts
   if (deferred_intr_) {
     defer_interrupt(hart, w.time, 0);
-    // log(cvm::MEDIUM, " Undeferred all interrupts!!!\n");
     deferred_intr_ = false;
   }
 
