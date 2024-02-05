@@ -191,4 +191,6 @@ private:
   int num_exceptions_ = 0;
 
   size_8_bytes_t dword_vec_array [vlen/64] = {0};
+  uint32_t unmask_bits_instr, unmask_bits_uop = 0;
+
 };

@@ -701,6 +701,7 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
   if (FLAGS_fpr_check && d.fpr.valid) {
     update_regs(hart, src_t::dut, resource_t::fp_reg, d.fpr.frd_addr, {d.fpr.frd_wdata});
   }
+
   // VR
   if (FLAGS_vec_check) {
     for (auto & vr : d.vr) {
@@ -713,14 +714,24 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
         bool vta = (get_csr(id_, cac::src_t::iss, 0xC21) >> 5) & 1;
         if ((pos != std::string::npos) && vta) {
           int number = std::stoi(str.substr(pos + searchString.length()));
-          uint64_t unmask_bits = number * vl;
+          if (d.first_uop)
+            unmask_bits_instr = vl * number;
+          else if (d.last_uop)
+            unmask_bits_instr = 0;
+          if ((unmask_bits_instr - 256) > 0){
+            unmask_bits_uop = 256;
+            unmask_bits_instr = unmask_bits_instr - 256;
+          } else {
+            unmask_bits_uop = unmask_bits_instr;
+            unmask_bits_instr = 0;
+          }
           std::bitset<256> result_bits = vr.vrd_wdata;
           for (uint64_t i = 0; i < 256; ++i) {
-              uint64_t mask_set = (i < unmask_bits) ? 0 : ~unmask_bits; 
+              uint64_t mask_set = (i < unmask_bits_uop) ? 0 : ~unmask_bits_uop; 
               if (mask_set & 1) { 
                   result_bits[i].flip(); 
               }
-              unmask_bits -= (i == 63) ? 64 : 0; 
+              unmask_bits_uop -= (i == 63) ? 64 : 0; 
           }
           update_regs(hart, src_t::dut, resource_t::vec_reg, vr.vrd_addr, create_dword_vec(result_bits));
         } else{
@@ -729,6 +740,7 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
       }
     }
   }
+
   // CSR
   for (auto & c : d.csr) {
     uint64_t data = modify_csr_data(hart, c.csr_addr, c.csr_wdata);
