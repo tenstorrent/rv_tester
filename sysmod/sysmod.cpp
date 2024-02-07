@@ -128,35 +128,16 @@ void
 sysmod::trace_cfg_read_req_router(trace_cfg::trace_cfg_read_t r) {
 
     transactor::read_t rd; 
-    //cvm::topology::loc_t source = ;
-     //auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0);
-    // struct read_t {
-    //     uint32_t id;
-    //     uint64_t addr;
-    //     size_t length;
-    // };
 
     rd.addr = r.addr;
     //wt.length = w.length;
     rd.length = r.length;
     rd.id =  r.id;
 
-    std::cout<<"\n INSIDE sysmod route TXN ADDR: 0X"<<std::hex<<rd.addr<<" \n";
-   // dynamic_cast<sysmod_mem&>(*dev("memory")).write(wt);
-
-
-    //cvm::log(cvm::HIGH, "new backdoor prt write request at {:#x}", .addr);
-                //if (this->dev(wt.addr))
-                //    cvm::registry::messenger.signal<device::write_t>(this->loc_, {wt});
     auto sources = cvm::topology::get_from_type("PLATFORM_TRANSACTOR");
-    int i = 0;
-    for (const auto& source : sources) {
-          i++;
-                if (this->dev(r.addr)){
-            std::cout<<"\n FOR LOOP sysmod route TXN ADDR: 0X"<<std::hex<<rd.addr<<" i:"<<i<<" source:"<<source<<"\n";
-                    //cvm::registry::messenger.signal<device::read_t>(tbox_loc, {rd, source});
-                    cvm::registry::messenger.signal<device::read_t>(this->loc_, {rd, source});
-                }
+
+    if (this->dev(r.addr)){
+        cvm::registry::messenger.signal<device::read_t>(this->loc_, {rd, sources[0]});
     }
 
 }
