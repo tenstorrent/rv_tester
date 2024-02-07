@@ -33,7 +33,7 @@ DEFINE_string(whisper_json_path, "", "Path to whisper json config");
 DEFINE_bool(cosim_resynch, false, "Resynch whisper with dut state on every instruction");
 DEFINE_string(cosim_resynch_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
 DEFINE_string(cosim_resynch_prev_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
-DEFINE_string(cosim_resynch_csr, "hie,vsip,vsie,htval", "List of csr mnemonics to resynch whisper with dut state");
+DEFINE_string(cosim_resynch_csr, "hie,vsip,vsie,htval,mtval2", "List of csr mnemonics to resynch whisper with dut state");
 DEFINE_bool(mip_resynch, true, "Resynch whisper with dut state on mip mismatch condition");
 DEFINE_bool(imsic_resynch, true, "Resynch whisper with dut state on imsic mismatch condition");
 DEFINE_bool(intr_defer_spcl, true, "Defer all interrupts in special cases");
@@ -309,39 +309,10 @@ void bridge::process_lrsc_pre_step(hart_id_t hart, const rv_instr_t& d) {
     }
   }
 }
-bool bridge::checkallinterruptdefer(hart_id_t hart, const rv_instr_t& d) {
-    // Split the input string into words
-    std::istringstream iss(d.disasm);
-    std::vector<std::string> words(std::istream_iterator<std::string>{iss},
-                                   std::istream_iterator<std::string>{});
-
-    // Check conditions for custom nonspec resync exception
-    std::vector<uint64_t> csr_custom_nonspec = {0x180, 0x280, 0x680, 0x100, 0x600, 0x200, 0x300, 0x301, 0x002};
-
-    if (words[0].find("csr") != std::string::npos && words[2] != "x0") {
-      for (auto& c : d.csr) {
-      for (size_t i = 0; i < csr_custom_nonspec.size(); ++i) {
-        if (csr_custom_nonspec[i] == c.csr_addr) {
-            check_and_defer_interrupt(hart, d.cycle, mip_); // defer all interrupts
-            return false; 
-        }
-      }
-      }       
-    } 
-    // Check conditions for exceptions
-    if (d.excp) {return true;}
-    // Check conditions for csr or mret which raised interrupts in previous cycle and current op is csr
-    if ( (words[0].find("csr") != std::string::npos) && prev_sync_intr_) {return true;}
-
-    // Check conditions for csr or mret which raised interrupts in previous cycle and current op is csr
-
-    return false;
-
-}
 void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
 // FIXME We are deferring all interrupts, if new interrupt was made possible due to execution of a csr op previously
   if (FLAGS_intr_defer_spcl) {
-  if (checkallinterruptdefer(hart, d)) {
+  if ((d.disasm.find("csr") != std::string::npos) && prev_sync_intr_) {
           log(cvm::MEDIUM, "<{}> All interrupts Defer\n", d.cycle);
           all_interrupts_defer_ = true;
           pre_csr_defermip_ = deferred_mip_;
@@ -474,7 +445,7 @@ void bridge::process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, wh
     return;
   }
 
-  num_taken_interrupts_++;
+  num_taken_interrupts_[w_.icause]++;
 }
 
 void bridge::process_exception_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
@@ -730,14 +701,46 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
   if (FLAGS_fpr_check && d.fpr.valid) {
     update_regs(hart, src_t::dut, resource_t::fp_reg, d.fpr.frd_addr, {d.fpr.frd_wdata});
   }
+
   // VR
   if (FLAGS_vec_check) {
     for (auto & vr : d.vr) {
       if (vr.valid){
-        update_regs(hart, src_t::dut, resource_t::vec_reg, vr.vrd_addr, create_dword_vec(vr.vrd_wdata));
+        // For vlse*.v, we need to set all tail agnostic bits to ones if enabled 
+        std::string str = whisper::disassemble(d.opcode);
+        std::string searchString = "vlse";
+        size_t pos = str.find(searchString);
+        uint64_t vl = get_csr(id_, cac::src_t::iss, 0xC20); // TODO: Get vl and vta values from dut (RVDE-11217)
+        bool vta = (get_csr(id_, cac::src_t::iss, 0xC21) >> 5) & 1;
+        if ((pos != std::string::npos) && vta) {
+          int number = std::stoi(str.substr(pos + searchString.length()));
+          if (d.first_uop)
+            unmask_bits_instr = vl * number;
+          else if (d.last_uop)
+            unmask_bits_instr = 0;
+          if ((unmask_bits_instr - 256) > 0){
+            unmask_bits_uop = 256;
+            unmask_bits_instr = unmask_bits_instr - 256;
+          } else {
+            unmask_bits_uop = unmask_bits_instr;
+            unmask_bits_instr = 0;
+          }
+          std::bitset<256> result_bits = vr.vrd_wdata;
+          for (uint64_t i = 0; i < 256; ++i) {
+              uint64_t mask_set = (i < unmask_bits_uop) ? 0 : ~unmask_bits_uop; 
+              if (mask_set & 1) { 
+                  result_bits[i].flip(); 
+              }
+              unmask_bits_uop -= (i == 63) ? 64 : 0; 
+          }
+          update_regs(hart, src_t::dut, resource_t::vec_reg, vr.vrd_addr, create_dword_vec(result_bits));
+        } else{
+          update_regs(hart, src_t::dut, resource_t::vec_reg, vr.vrd_addr, create_dword_vec(vr.vrd_wdata));
+        }
       }
     }
   }
+
   // CSR
   for (auto & c : d.csr) {
     uint64_t data = modify_csr_data(hart, c.csr_addr, c.csr_wdata);
@@ -1511,7 +1514,6 @@ void bridge::report_metrics() {
 
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_instructions\": {}}}\n", id_, instructions);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_cpu_cycles\": {}}}\n", id_, cpu_cycles);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_taken_interrupts\": {}}}\n", id_, num_taken_interrupts_);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_exceptions\": {}}}\n", id_, num_exceptions_);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_ipc\": {:.2f}}}\n", id_, ipc);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_instr\": \"{}\"}}\n", id_, instr);
@@ -1526,6 +1528,14 @@ void bridge::report_metrics() {
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_trap\": {}}}\n", id_, prev_trap);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_num_dest\": {}}}\n", id_, prev_num_dest);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_max_pend_intr_age\": {}}}\n", id_, max_pend_intr_age_);
+  
+  // Interrupts taken count
+  for (size_t i = 0; i < num_taken_interrupts_.size(); i++) {
+      if (num_taken_interrupts_[i] != 0) {
+          cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_taken_interrupts[{}]\": {}}}\n", id_, i, num_taken_interrupts_[i]);
+      }
+  }
+    
 
   // Whisper csr values
   for (auto& csr : metrics_csrs) {

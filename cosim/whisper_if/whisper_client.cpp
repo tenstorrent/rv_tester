@@ -25,6 +25,8 @@ DECLARE_bool(cov);
 DECLARE_uint32(max_instr);
 DECLARE_string(archsample_lib_path);
 DECLARE_bool(standalone);
+DECLARE_uint64(hart_enable_mask);
+
 DEFINE_string(whisper_instr_lines, "", "Write instr cache line addresses used in test to a file");
 DEFINE_string(whisper_data_lines, "", "Write data cache line addresses used in test to a file");
 DEFINE_uint64(resetpc, 0x80000000, "Reset PC");
@@ -103,7 +105,7 @@ int
 whisperClient<URV>::whisperConnect(uint16_t ncores)
 {
   // run once before starting cosim
-  if (FLAGS_standalone) {
+  if (FLAGS_standalone && FLAGS_hart_enable_mask == 0x1) {
     system_ = constructSystem<URV>(ncores, true);
 
     std::vector<std::thread> threadVec;

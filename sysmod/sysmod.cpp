@@ -128,16 +128,28 @@ void
 sysmod::trace_cfg_read_req_router(trace_cfg::trace_cfg_read_t r) {
 
     transactor::read_t rd; 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 4b9416d158945bb74c29adc56d8affbcfd80ffa7
     rd.addr = r.addr;
-    //wt.length = w.length;
     rd.length = r.length;
     rd.id =  r.id;
 
+<<<<<<< HEAD
     auto sources = cvm::topology::get_from_type("PLATFORM_TRANSACTOR");
 
     if (this->dev(r.addr)){
         cvm::registry::messenger.signal<device::read_t>(this->loc_, {rd, sources[0]});
+=======
+    cvm::log(cvm::HIGH,"[SYSMOD] trace_cfg read router: read_req addr {:#x} \n",rd.addr);
+
+    auto sources = cvm::topology::get_from_type("PLATFORM_TRANSACTOR");
+    for (const auto& source : sources) {
+                if (this->dev(r.addr)){
+                    cvm::registry::messenger.signal<device::read_t>(this->loc_, {rd, source});
+                }
+>>>>>>> 4b9416d158945bb74c29adc56d8affbcfd80ffa7
     }
 
 }
@@ -167,7 +179,7 @@ sysmod::uc_helper_backdoor_write(uc_helper::uc_helper_write_t w) {
    // dynamic_cast<sysmod_mem&>(*dev("memory")).write(wt);
 
 
-    cvm::log(cvm::HIGH, "new backdoor prt write request at {:#x}", wt.addr);
+    cvm::log(cvm::HIGH, "[UC_HELPER] new backdoor write request at {:#x}", wt.addr);
                 if (this->dev(wt.addr))
                     cvm::registry::messenger.signal<device::write_t>(this->loc_, {wt});
 

@@ -118,7 +118,6 @@ private:
   void check_and_defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
   void check_interrupt(hart_id_t hart, uint64_t mip, bool& taken, uint64_t& cause);
   void defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
-  bool checkallinterruptdefer(hart_id_t hart, const rv_instr_t& d);
   void poke_mip(hart_id_t hart, uint64_t time, uint64_t mip);
   void peek_mip(hart_id_t hart, uint64_t time, uint64_t& mip);
   void peek_seip(hart_id_t hart, uint64_t time, uint64_t& val);
@@ -188,8 +187,10 @@ private:
   // Memmap
   memmap::memmap_t memmap_;
 
-  int num_taken_interrupts_ = 0;
+  std::array<int, 16> num_taken_interrupts_{};
   int num_exceptions_ = 0;
 
   size_8_bytes_t dword_vec_array [vlen/64] = {0};
+  uint32_t unmask_bits_instr, unmask_bits_uop = 0;
+
 };
