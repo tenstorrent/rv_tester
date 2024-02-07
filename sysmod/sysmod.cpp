@@ -128,28 +128,14 @@ void
 sysmod::trace_cfg_read_req_router(trace_cfg::trace_cfg_read_t r) {
 
     transactor::read_t rd; 
-<<<<<<< HEAD
-
-=======
->>>>>>> 4b9416d158945bb74c29adc56d8affbcfd80ffa7
     rd.addr = r.addr;
     rd.length = r.length;
     rd.id =  r.id;
 
-<<<<<<< HEAD
     auto sources = cvm::topology::get_from_type("PLATFORM_TRANSACTOR");
 
     if (this->dev(r.addr)){
         cvm::registry::messenger.signal<device::read_t>(this->loc_, {rd, sources[0]});
-=======
-    cvm::log(cvm::HIGH,"[SYSMOD] trace_cfg read router: read_req addr {:#x} \n",rd.addr);
-
-    auto sources = cvm::topology::get_from_type("PLATFORM_TRANSACTOR");
-    for (const auto& source : sources) {
-                if (this->dev(r.addr)){
-                    cvm::registry::messenger.signal<device::read_t>(this->loc_, {rd, source});
-                }
->>>>>>> 4b9416d158945bb74c29adc56d8affbcfd80ffa7
     }
 
 }
