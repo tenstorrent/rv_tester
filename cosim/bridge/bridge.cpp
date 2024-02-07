@@ -1529,14 +1529,6 @@ void bridge::report_metrics() {
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_num_dest\": {}}}\n", id_, prev_num_dest);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_max_pend_intr_age\": {}}}\n", id_, max_pend_intr_age_);
   
-  // Interrupts taken count
-  for (size_t i = 0; i < num_taken_interrupts_.size(); i++) {
-      if (num_taken_interrupts_[i] != 0) {
-          cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_taken_interrupts[{}]\": {}}}\n", id_, i, num_taken_interrupts_[i]);
-      }
-  }
-    
-
   // Whisper csr values
   for (auto& csr : metrics_csrs) {
     uint64_t csr_data;
@@ -1551,6 +1543,13 @@ void bridge::report_metrics() {
   for (auto& csr : metrics_csrs) {
     uint64_t csr_data = get_csr(id_, src_t::dut, csr.address);
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dut_csr_{}\": \"0x{:x}\"}}\n", id_, csr.name, csr_data);
+  }
+
+  // Interrupts taken count
+  for (size_t i = 0; i < num_taken_interrupts_.size(); i++) {
+    if (num_taken_interrupts_[i] != 0) {
+      cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_taken_interrupt_count_{}\": {}}}\n", id_, intr_to_string.at(static_cast<intr>(i)), num_taken_interrupts_[i]);
+    }
   }
 
   // Step one final time to collect metrics for next instruction
