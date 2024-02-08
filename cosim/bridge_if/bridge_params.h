@@ -75,7 +75,9 @@ namespace {
         {"mtval", 0x343},
         {"mip", 0x344},
         {"mtinst", 0x34a},
-        {"mtval2", 0x34b}
+        {"mtval2", 0x34b},
+        {"vl", 0xc20},
+        {"vtype", 0xc21}
     }};
 
     std::array<csr_entry, 7> nonzero_reset_csrs {{

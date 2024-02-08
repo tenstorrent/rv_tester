@@ -33,7 +33,7 @@ DEFINE_string(whisper_json_path, "", "Path to whisper json config");
 DEFINE_bool(cosim_resynch, false, "Resynch whisper with dut state on every instruction");
 DEFINE_string(cosim_resynch_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
 DEFINE_string(cosim_resynch_prev_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
-DEFINE_string(cosim_resynch_csr, "hie,vsip,vsie,htval,mtval2", "List of csr mnemonics to resynch whisper with dut state");
+DEFINE_string(cosim_resynch_csr, "hie,vsip,vsie,htval,mtval2,vl,vtype,mip", "List of csr mnemonics to resynch whisper with dut state");
 DEFINE_bool(mip_resynch, true, "Resynch whisper with dut state on mip mismatch condition");
 DEFINE_bool(imsic_resynch, true, "Resynch whisper with dut state on imsic mismatch condition");
 DEFINE_bool(intr_defer_spcl, true, "Defer all interrupts in special cases");
@@ -704,20 +704,20 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
 
   // VR
   if (FLAGS_vec_check) {
+    std::string str = whisper::disassemble(d.opcode);
+    std::string searchString = "vlse";
+    size_t pos = str.find(searchString);
+    int vl = get_csr(id_, cac::src_t::iss, 0xC20); // TODO: Get vl and vta values from dut (RVDE-11217)
+    bool vta = (get_csr(id_, cac::src_t::iss, 0xC21) >> 6) & 1;
+    int type = 0;
+    if ((pos != std::string::npos) && vta){
+      type = std::stoi(str.substr(pos + searchString.length()));
+      unmask_bits_instr = vl * type;
+    }
     for (auto & vr : d.vr) {
       if (vr.valid){
         // For vlse*.v, we need to set all tail agnostic bits to ones if enabled 
-        std::string str = whisper::disassemble(d.opcode);
-        std::string searchString = "vlse";
-        size_t pos = str.find(searchString);
-        uint64_t vl = get_csr(id_, cac::src_t::iss, 0xC20); // TODO: Get vl and vta values from dut (RVDE-11217)
-        bool vta = (get_csr(id_, cac::src_t::iss, 0xC21) >> 5) & 1;
         if ((pos != std::string::npos) && vta) {
-          int number = std::stoi(str.substr(pos + searchString.length()));
-          if (d.first_uop)
-            unmask_bits_instr = vl * number;
-          else if (d.last_uop)
-            unmask_bits_instr = 0;
           if ((unmask_bits_instr - 256) > 0){
             unmask_bits_uop = 256;
             unmask_bits_instr = unmask_bits_instr - 256;
@@ -726,12 +726,11 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
             unmask_bits_instr = 0;
           }
           std::bitset<256> result_bits = vr.vrd_wdata;
-          for (uint64_t i = 0; i < 256; ++i) {
-              uint64_t mask_set = (i < unmask_bits_uop) ? 0 : ~unmask_bits_uop; 
-              if (mask_set & 1) { 
-                  result_bits[i].flip(); 
+          for (int i = 0; i < 256; ++i) {
+              bool mask_set = (i < unmask_bits_uop) ? 0 : 1; 
+              if (mask_set) { 
+                  result_bits[i] = 1; 
               }
-              unmask_bits_uop -= (i == 63) ? 64 : 0; 
           }
           update_regs(hart, src_t::dut, resource_t::vec_reg, vr.vrd_addr, create_dword_vec(result_bits));
         } else{
