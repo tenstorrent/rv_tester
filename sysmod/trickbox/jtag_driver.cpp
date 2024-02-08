@@ -10,6 +10,7 @@ DEFINE_int32(jtag_delay_min, 6, "Minimum Delay between 2 consecutive debug mode 
 DEFINE_int32(jtag_delay_max, 9, "Maximum Delay between 2 consecutive debug mopde requests");
 DEFINE_int32(jtag_max_snippets, 1, "Maximum number of debug snippets to be driven");
 DEFINE_string(jtag_template_dir_path, "", "Path to file containing jtag_driver commands");
+DEFINE_string(jtag_txn_file,"","File containing jtag transaction requests");
 
 jtag_driver::jtag_driver(const std::string &tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc)
     : subdevice(tag, addr, 0x20000 /* size */, loc), soft_(hartCount),
@@ -18,15 +19,15 @@ jtag_driver::jtag_driver(const std::string &tag, uint64_t addr, unsigned hartCou
   rng.seed(FLAGS_seed);
   jtag_driver_base = addr;
   jtag_driver_trigger = addr + 0x10000;
-  dmi_driver_status_addr = addr + 0x500;
-  dmi_driver_num_cmds_addr = addr + 0x600;
+  jtag_driver_status_addr = addr + 0x500;
+  jtag_driver_num_cmds_addr = addr + 0x600;
   reset();
-  // parse_dmi_from_csv();
+  parse_jtag_from_csv();
   // jtag_trigger = 1;
   auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0); 
-  cvm::registry::messenger.connect<jtag_driver::dmi_status_t>(
+  cvm::registry::messenger.connect<jtag_driver::jtag_status_t>(
             tbox_loc,
-            [&](jtag_driver::dmi_status_t i) { return this->update_dm_status(i); });
+            [&](jtag_driver::jtag_status_t i) { return this->update_jtag_status(i); });
 }
 
 jtag_driver::~jtag_driver()
@@ -34,8 +35,8 @@ jtag_driver::~jtag_driver()
   terminate_ = true;
 }
 void
-jtag_driver::update_dm_status(jtag_driver::dmi_status_t& i) {
-  cvm::log(cvm::HIGH, "Debug module status :{:#x} cmds in queue :{:#x}\n", i.status,i.commands_in_queue);
+jtag_driver::update_jtag_status(jtag_driver::jtag_status_t& i) {
+  cvm::log(cvm::HIGH, "JTAG driver module status :{:#x} cmds in queue :{:#x}\n", i.status,i.commands_in_queue);
   status = i.status;
   commands_in_queue = i.commands_in_queue;
 }
@@ -62,12 +63,12 @@ void jtag_driver::get_all_csv_templates()
   closedir(dir);
 }
 
-void jtag_driver::parse_dmi_from_csv()
+void jtag_driver::parse_jtag_from_csv()
 {
   // if ((FLAGS_jtag_input_file_path == "")) {
   //   jtag_file_mode = 0;
   // } else {
-  // cvm::log(cvm::NONE, "[Trickbox] Parsing dmi cfg file {}\n", FLAGS_jtag_input_file_path);
+  // cvm::log(cvm::NONE, "[Trickbox] Parsing jtag cfg file {}\n", FLAGS_jtag_input_file_path);
   // std::fstream file (FLAGS_jtag_input_file_path, std::ios::in);
 
   std::string file_name;
@@ -76,7 +77,7 @@ void jtag_driver::parse_dmi_from_csv()
   else
     file_name = FLAGS_jtag_input_file_path;
 
-  cvm::log(cvm::NONE, "Parse DMI Commands from CSV:{}\n", file_name);
+  cvm::log(cvm::NONE, "Parse JTAG Commands from CSV:{}\n", file_name);
   // std::fstream file (FLAGS_jtag_input_file_path, std::ios::in);
   std::fstream file(file_name, std::ios::in);
   if (file.is_open())
@@ -84,149 +85,87 @@ void jtag_driver::parse_dmi_from_csv()
     std::string line, word;
     while (getline(file, line))
     {
+      std::cout<<"********* Process new line: "<<line <<" ***************\n";
       row.clear();
 
+      //std::cout<<"\n JTAG INP row clr : row0:"<<row[0]<<" row1 "<<row[1]<<"\n";
+      line.erase(std::remove_if(line.begin(), line.end(), ::isspace), line.end());
       std::stringstream str(line);
 
       while (getline(str, word, ','))
       {
         row.push_back(word);
+        std::cout<<"pushing "<< word<< "in a row\n";
       }
-
-      dmi_req_t dmi_req;
-      dmi_req.op = 0;
-      dmi_req.addr = 0;
-      dmi_req.data = 0;
-      dmi_req.func_bits = 0;
+      std::cout<<"row size: "<<row.size()<<"\n";
+      
+ 
       std::string instr;
-      std::string instr_2char;
+      std::string data_s;
+      std::string jtag_cmd;
+      
+      jtag_req_t jtag_req;
+      
+      std::cout<<"JTAG INP after clr: row0:"<<row[0]<<" row1 "<<row[1]<<"\n";
       instr = row[0];
+      data_s = row[1];
       // remove empty spaces from string
       instr.erase(std::remove_if(instr.begin(), instr.end(), ::isspace), instr.end());
       // convert string to lowercase for uniformity
       std::transform(instr.begin(), instr.end(), instr.begin(), ::tolower);
-      instr_2char = instr.substr(0, 2);
-      if (instr_2char == "rd")
-      {
-        dmi_req.op = 1;
+      jtag_cmd = instr.substr(0, 2);
+      if(jtag_cmd == "ir"){
+         jtag_req.jtag_cmd = 0;
+      }else if(jtag_cmd == "dr"){
+         jtag_req.jtag_cmd = 1;
+      }else if(jtag_cmd == "up"){
+         jtag_req.jtag_cmd = 2;
+      }else{
+        cvm::log(cvm::ERROR, "Error: unknown command {} in jtag cfg file {}\n",jtag_cmd, FLAGS_jtag_input_file_path);
       }
-      else if (instr_2char == "wr")
-      {
-        dmi_req.op = 2;
+      
+      data_s.erase(std::remove_if(data_s.begin(), data_s.end(), ::isspace), data_s.end());
+      // convert string to lowercase for uniformity
+      std::transform(data_s.begin(), data_s.end(), data_s.begin(), ::tolower);
+      std::cout<<" JTAG INP : row0:"<<row[0]<<" row1 "<<row[1]<<"\n";
+      std::cout<<" JTAG INP : instr:"<<instr<<" instr2char "<<jtag_cmd<<" data: "<<data_s<<"\n";
+      try{
+        jtag_req.jtag_ip_data = std::stoul(data_s,nullptr,16);
+        
+      } catch (const std::invalid_argument& e) {
+          std::cerr << "[JTAG DRIVER] Invalid argument for stoul csv arg 1: " << e.what() << std::endl;
       }
-      else if (instr_2char == "//")
-      {
-        continue; // skip line may be comment
-      }
-      else if (instr_2char == "cp")
-      {
-        // checkpoint
-        dmi_req.op = 3;
-      }
-      else if (instr_2char == "st")
-      {
-        // step ahead/back q
-        if (instr == "step_ahead_queue_on")
-        {
-          step_ahead_queue_on = 1;
-        }
-        if (instr == "step_ahead_queue_off")
-        {
-          step_ahead_queue_on = 0;
-        }
-        if (instr == "step_quit_queue_on")
-        {
-          step_quit_queue_on = 1;
-        }
-        if (instr == "step_quit_queue_off")
-        {
-          step_quit_queue_on = 0;
-        }
-        if (instr == "step_instr_cnt")
-        {
-          step_instr_cnt = std::stoul(row[1], nullptr, 16);
-          // will continue loop with proper dmi write
-          dmi_req.func_bits = 1;
-          dmi_req.data = step_instr_cnt;
-          content.push_back(row);
-          dmi_cmd_q.push(dmi_req);
-          continue;
-        }
-      }
-      else
-      {
-        // invalid command seen in the csv file
-        cvm::log(cvm::ERROR, "[Trickbox] Invalid command in csv file {}\n", instr);
-      }
-
-      // Check commands to push to specific queues
-      if (step_ahead_queue_on)
-      {
-        dmi_req.func_bits = 2;
-      }
-      if (step_quit_queue_on)
-      {
-        dmi_req.func_bits = 4;
-      }
-
-      if (dmi_req.op != 3)
-      {
-        // remove underscores from addr
-        row[1].erase(std::remove(row[1].begin(), row[1].end(), '_'), row[1].end());
-        try
-        {
-          dmi_req.addr = std::stoul(row[1], nullptr, 16);
-        }
-        catch (const std::invalid_argument &e)
-        {
-          cvm::log(cvm::ERROR, "[Trickbox] Invalid argument: addr for stoul csv arg 1: {}\n", e.what());
-        }
-      }
-
-      if (dmi_req.op == 2)
-      {
-        // remove underscores from data
-        row[2].erase(std::remove(row[2].begin(), row[2].end(), '_'), row[2].end());
-        try
-        {
-          dmi_req.data = std::stoul(row[2], nullptr, 16);
-        }
-        catch (const std::invalid_argument &e)
-        {
-          cvm::log(cvm::ERROR, "[Trickbox] Invalid argument: data for stoul csv arg 2: {}\n", e.what());
-        }
-      }
-
+ 
       content.push_back(row);
-      dmi_cmd_q.push(dmi_req);
+      jtag_cmd_q.push(jtag_req);
       // PRINT CSV DATA
-      cvm::log(cvm::MEDIUM, "Pushing dmi request: op {} addr {:#x} data {:#x}\n", dmi_req.op, dmi_req.addr, dmi_req.data);
+      //cvm::log(cvm::MEDIUM, "Pushing jtag request: op {} addr {:#x} data {:#x}\n", jtag_req.op, jtag_req.addr, jtag_req.data);
     }
   }
   else
   {
-    cvm::log(cvm::ERROR, "Error: Could not open dmi cfg file {}\n", FLAGS_jtag_input_file_path);
+    cvm::log(cvm::ERROR, "Error: Could not open jtag cfg file {}\n", FLAGS_jtag_input_file_path);
   }
 
   jtag_file_mode = 1; // Clean up later
 }
 
-void jtag_driver::drive_csv_dmi_cmds()
+void jtag_driver::drive_csv_jtag_cmds()
 {
 
-  if (!dmi_cmd_q.empty())
+  if (!jtag_cmd_q.empty())
   {
-    dmi_req_t dmi_req;
-    dmi_req = dmi_cmd_q.front();
-    dmi_cmd_q.pop(); // pop front eleme7t
-    cvm::log(cvm::MEDIUM, "Popping dmi request: op {} addr {:#x} data {:#x} func bits {:#x}\n", dmi_req.op, dmi_req.addr, dmi_req.data, dmi_req.func_bits);
-    unsigned upper_dmi_data = 0;
-    unsigned lower_dmi_data = 0;
+    jtag_req_t jtag_req;
+    jtag_req = jtag_cmd_q.front();
+    jtag_cmd_q.pop(); // pop front eleme7t
+   // cvm::log(cvm::MEDIUM, "Popping jtag request: op {} addr {:#x} data {:#x} func bits {:#x}\n", jtag_req.op, jtag_req.addr, jtag_req.data, jtag_req.func_bits);
+    unsigned upper_jtag_data = 0;
+    unsigned lower_jtag_data = 0;
     unsigned hart = 0;
-    upper_dmi_data = (dmi_req.func_bits << 27) | (dmi_req.addr << 2) | dmi_req.op;
-    lower_dmi_data = dmi_req.data;
+    upper_jtag_data = jtag_req.jtag_cmd;
+    lower_jtag_data = jtag_req.jtag_ip_data;
     hart = 0; // hart bits position TBD, till TBD it is always zero
-    trickboxDmiWrite(hart, upper_dmi_data, lower_dmi_data);
+    trickboxJtagWrite(hart, upper_jtag_data, lower_jtag_data);
   }
   else
   {
@@ -242,12 +181,12 @@ jtag_driver::read(uint64_t addr, size_t , data_t& data)
     cvm::log(cvm::HIGH, "[jtag_driver] Descarding read request at uc_helper since tag {} is not matching \n",tag());
    co_return;
   }
-  if (addr == dmi_driver_status_addr)
+  if (addr == jtag_driver_status_addr)
   {
     cvm::log(cvm::MEDIUM, "[jtag_driver] jtag_driver status : {:#x}\n",status);
     data[0] = status;
   }
-  if (addr == dmi_driver_num_cmds_addr)
+  if (addr == jtag_driver_num_cmds_addr)
   {
     cvm::log(cvm::MEDIUM, "[jtag_driver] jtag_driver num cmds in queue : {:#x}\n",commands_in_queue);
     data[0] = commands_in_queue;
@@ -259,12 +198,12 @@ void jtag_driver::read_dev(uint64_t addr, size_t ,  data_t& data ){
     cvm::log(cvm::HIGH, "[jtag_driver] Descarding read request at uc_helper since tag {} is not matching \n",tag());
    return;
   }
-  if (addr == dmi_driver_status_addr)
+  if (addr == jtag_driver_status_addr)
   {
     cvm::log(cvm::MEDIUM, "[jtag_driver] jtag_driver status : {:#x}\n",status);
     data[0] = status;
   }
-  if (addr == dmi_driver_num_cmds_addr)
+  if (addr == jtag_driver_num_cmds_addr)
   {
     cvm::log(cvm::MEDIUM, "[jtag_driver] jtag_driver num cmds in queue : {:#x}\n",commands_in_queue);
     data[0] = commands_in_queue;
@@ -282,19 +221,19 @@ void jtag_driver::write(uint64_t addr, size_t, const data_t &data,
   deserializeInt(data, t_data);
   if (addr == jtag_driver_base)
   {
-    unsigned upper_dmi_data = 0;
-    unsigned lower_dmi_data = 0;
+    unsigned upper_jtag_data = 0;
+    unsigned lower_jtag_data = 0;
     unsigned hart = 0;
-    upper_dmi_data = t_data >> 32;
-    lower_dmi_data = t_data & 0xffffffff;
+    upper_jtag_data = t_data >> 32;
+    lower_jtag_data = t_data & 0xffffffff;
     hart = 0;                                               // hart bits position TBD, till TBD it is always zero
-    trickboxDmiWrite(hart, upper_dmi_data, lower_dmi_data); // Commented until DMI PORT is not in master
+    trickboxJtagWrite(hart, upper_jtag_data, lower_jtag_data); // Commented until jtag PORT is not in master
   }
 
   if (addr == jtag_driver_trigger && !FLAGS_random_jtag_entry)
   {
     cvm::log(cvm::MEDIUM, "[Trickbox] jtag_driver file trigger\n");
-    parse_dmi_from_csv();
+    parse_jtag_from_csv();
     jtag_trigger = 1;
   }
 }

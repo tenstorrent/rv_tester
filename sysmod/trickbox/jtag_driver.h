@@ -87,9 +87,9 @@ public:
     std::lock_guard<std::mutex> lock(mutex_);
     timer_ += advance;
     timer_advance = advance;
-    checkDebugEvents();
+    checkJtagEvents();
 
-    drive_csv_dmi_cmds();
+    drive_csv_jtag_cmds();
   }
 
   void reset() override
@@ -110,41 +110,48 @@ public:
       cvm::log(cvm::HIGH, "Random Debug Injection of CSV file ID:{} Timer delay:{}\n", file_idx, timer_rand_debug);
     }
   }
-  void parse_dmi_from_csv();
-  void drive_csv_dmi_cmds();
+  void parse_jtag_from_csv();
+  void drive_csv_jtag_cmds();
   void get_all_csv_templates();
 
-  struct dmi_data_t
+  struct jtag_data_t
   {
     unsigned hart;
-    unsigned upper_dmi_data;
-    unsigned lower_dmi_data;
+    unsigned upper_jtag_data;
+    unsigned lower_jtag_data;
   };
 
-  struct dmi_req_t
+  // struct jtag_req_t
+  // {
+  //   unsigned func_bits;
+  //   unsigned addr;
+  //   unsigned op;
+  //   unsigned data;
+  // };
+
+  struct jtag_req_t
   {
-    unsigned func_bits;
-    unsigned addr;
-    unsigned op;
-    unsigned data;
+    unsigned jtag_cmd; 
+    unsigned jtag_ip_data;
+    unsigned jtag_op_data;
   };
   typedef struct{ 
         unsigned status;
         unsigned commands_in_queue;
-  }dmi_status_t; 
+  }jtag_status_t; 
   // Used to assert/deassert a trickbox interrupt (PIPI) for given hart.
-  // virtual void trickboxDmiWrite(unsigned hart, unsigned upper_dmi_data, unsigned lower_dmi_data, cbs_t& cbs)
-  virtual void trickboxDmiWrite(unsigned hart, unsigned upper_dmi_data, unsigned lower_dmi_data)
+  // virtual void trickboxjtagWrite(unsigned hart, unsigned upper_jtag_data, unsigned lower_jtag_data, cbs_t& cbs)
+  virtual void trickboxJtagWrite(unsigned hart, unsigned upper_jtag_data, unsigned lower_jtag_data)
   {
-    cvm::log(cvm::HIGH, "TrickBox DMI Write to hart:{}, upper dmi data:{}, lower dmi data:{}", hart, upper_dmi_data, lower_dmi_data);
-    // cbs.push_back(cb_t{Callback::TRICKBOX_DMI_WR, hart, upper_dmi_data, lower_dmi_data, 0});
-    cvm::registry::messenger.signal(loc(), dmi_data_t{hart, upper_dmi_data, lower_dmi_data});
-    // cvm::messenger::send(dmi_t, dmi_pkt);
+    cvm::log(cvm::HIGH, "TrickBox jtag Write to hart:{}, upper jtag data:{:#x}, lower jtag data:{:#x}", hart, upper_jtag_data, lower_jtag_data);
+    // cbs.push_back(cb_t{Callback::TRICKBOX_jtag_WR, hart, upper_jtag_data, lower_jtag_data, 0});
+    cvm::registry::messenger.signal(loc(), jtag_data_t{hart, upper_jtag_data, lower_jtag_data});
+    // cvm::messenger::send(jtag_t, jtag_pkt);
   }
 
-  void update_dm_status(dmi_status_t& i);
+  void update_jtag_status(jtag_status_t& i);
 
-  void checkDebugEvents()
+  void checkJtagEvents()
   {
     cvm::log(cvm::FULL, "Timer chk jtag evt \n");
     if (FLAGS_random_jtag_entry)
@@ -155,15 +162,15 @@ public:
         rnd_jtag_trigger = 1;
         if (snippets_driven < (unsigned)FLAGS_jtag_max_snippets)
         {
-          parse_dmi_from_csv();
-          genNextDebugEvents();
+          parse_jtag_from_csv();
+          genNextJtagEvents();
           snippets_driven++;
         }
       }
     }
   }
 
-  void genNextDebugEvents()
+  void genNextJtagEvents()
   {
     cvm::log(cvm::HIGH, "Generating Next timer evt value\n");
     if (FLAGS_random_jtag_entry)
@@ -185,22 +192,22 @@ private:
   uint64_t timer_advance = 200;
   uint64_t jtag_driver_base = 0x9050000;
   uint64_t jtag_driver_trigger = 0x9060000;
-  uint64_t dmi_driver_status_addr = 0x9061000;
-  uint64_t dmi_driver_num_cmds_addr = 0x9061000;
+  uint64_t jtag_driver_status_addr = 0x9061000;
+  uint64_t jtag_driver_num_cmds_addr = 0x9061000;
   uint32_t status;
   uint32_t commands_in_queue;
   std::atomic<bool> terminate_ = false;
   std::mutex mutex_;
 
   std::vector<std::vector<std::string>> csv_data;
-  std::queue<dmi_req_t> dmi_cmd_q;
-  std::queue<dmi_req_t> dmi_rsp_q;
+  std::queue<jtag_req_t> jtag_cmd_q;
+  std::queue<jtag_req_t> jtag_rsp_q;
   unsigned jtag_file_mode = 0;
   unsigned jtag_trigger = 0;
   unsigned rnd_jtag_trigger = 0;
-  unsigned step_ahead_queue_on = 0;
-  unsigned step_quit_queue_on = 0;
-  unsigned step_instr_cnt = 0;
+  //unsigned step_ahead_queue_on = 0;
+  //unsigned step_quit_queue_on = 0;
+  //unsigned step_instr_cnt = 0;
   uint64_t timer_rand_debug = 500;
   std::vector<std::vector<std::string>> content;
   std::vector<std::string> row;

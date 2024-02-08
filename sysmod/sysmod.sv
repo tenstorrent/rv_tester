@@ -35,7 +35,8 @@ import rv_tester_params::*;
     bit jtag_req_begin_d = '0;
     bit jtag_req_end = '0;
     bit [63:0] jtag_tx = '0;
-    bit tck = '0;
+    bit [63:0] clk_trig = '0;
+    
     bit[3:0] opcode= '0;
     bit ConfigureIR='0;
     /* verilator lint_on BLKANDNBLK */
@@ -106,16 +107,18 @@ import rv_tester_params::*;
     endfunction
     export "DPI-C"  function sysmod_dmi_write;
 
-    function sysmod_jtag_req (int unsigned hartid, int unsigned upper_value,int unsigned lower_value);
-      dmi_write_begin = '1;
-      dm_wdata = {upper_value,lower_value};
+    function sysmod_jtag_req (int unsigned upper_value,int unsigned lower_value);
+      //dmi_write_begin = '1;
+      //dm_wdata = {upper_value,lower_value};
+      $display("[SYSMOD.SV] JTAG driver %h %h",upper_value, lower_value);
     endfunction
     export "DPI-C"  function sysmod_jtag_req;
 
 
     always @(posedge clk) begin
         interrupt_q <= interrupt_d;
-        tck <= ~tck;
+        clk_trig <= clk_trig  + 1'b1;
+        //tck <= ~tck;
         if (reset) begin
             dmi_write   <= '0;
         end
@@ -139,10 +142,10 @@ import rv_tester_params::*;
  //module JTAG_Driver (
   //logic clk;
   logic rst;
-  logic enable;
-  logic [1:0] command;
-  logic [31:0] data_in;
-  logic  tck;
+  logic enable ;
+  logic [1:0] command = 2'b00;
+  logic [31:0] data_in = 32'h1234abcd;
+  //logic  tck;
   logic  tms;
   logic  tdi;
   logic  read_data_valid;
@@ -162,15 +165,20 @@ import rv_tester_params::*;
   reg [4:0] shiftCount;
   reg tdo_reg;
   reg read_data_valid_reg;
+  reg tck;
 
   // JTAG controller
-  always_ff @(posedge clk or posedge rst) begin
-    if (rst) begin
+  always_ff @(posedge clk ) begin
+    if (reset) begin
       state <= IDLE;
       shiftData <= 32'b0;
       shiftCount <= 5'b0;
       read_data_valid_reg <= 1'b0;
+      tdo <= 1'b0;
     end else begin
+      /* verilator lint_off CASEINCOMPLETE */
+      if(clk_trig == 50)
+        enable <= 1;
       case (state)
         IDLE: begin
           tck <= 1'b0;
@@ -212,11 +220,12 @@ import rv_tester_params::*;
           end
         end
       endcase
+      /* verilator lint_on CASEINCOMPLETE */
     end
   end
 
   assign read_data_valid = read_data_valid_reg;
-  assign read_data = tdo_reg;
+  assign read_data[0] = tdo_reg;
 
 
 endmodule
