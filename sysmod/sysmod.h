@@ -36,6 +36,7 @@ class sysmod {
 
     void set_scope(svScope s) { scope_ = s; }
     void tick(uint64_t advance);
+    void jtag_resp(uint64_t rdata);
     void compose();
     void load_boot(const std::string& boot);
     void load_prog(const std::string& hex, const std::string& load);

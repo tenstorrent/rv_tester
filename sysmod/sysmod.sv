@@ -226,6 +226,9 @@ import rv_tester_params::*;
 
   assign read_data_valid = read_data_valid_reg;
   assign read_data[0] = tdo_reg;
-
+  
+  assign jtag_rdatas[0].valid         = read_data_valid_reg;
+  assign jtag_rdatas[0].data.location = location;
+  assign jtag_rdatas[0].data.rdata     = {32'h0,read_data[31:0]};//upper32 bits for future use
 
 endmodule

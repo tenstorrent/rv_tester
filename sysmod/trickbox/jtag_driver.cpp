@@ -22,7 +22,8 @@ jtag_driver::jtag_driver(const std::string &tag, uint64_t addr, unsigned hartCou
   jtag_driver_status_addr = addr + 0x500;
   jtag_driver_num_cmds_addr = addr + 0x600;
   reset();
-  parse_jtag_from_csv();
+  if(FLAGS_jtag_input_file_path != "")
+     parse_jtag_from_csv();
   // jtag_trigger = 1;
   auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0); 
   cvm::registry::messenger.connect<jtag_driver::jtag_status_t>(

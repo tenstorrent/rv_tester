@@ -276,6 +276,12 @@ sysmod:
         fields:
             advance:
                 width: 64
+    jtag_rdata:
+        domain: 2
+        num: 1
+        fields:
+            rdata:
+                width: 64
 
 axi_sw:
     num: [${TOP.PLATFORM.AXI.TOTAL},${TOP.PLATFORM.NCIO_AXI.TOTAL},${TOP.PLATFORM.APLIC_MSI_AXI.TOTAL}]

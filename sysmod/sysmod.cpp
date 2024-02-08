@@ -51,6 +51,9 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::tick<>>(
       loc_,
       [this](const rv_tester_transactions::sysmod::tick<>& t) { return this->tick(t.advance); });
+  cvm::registry::messenger.connect<rv_tester_transactions::sysmod::jtag_rdata<>>(
+      loc_,
+      [this](const rv_tester_transactions::sysmod::jtag_rdata<>& t) { return this->jtag_resp(t.rdata); });
 
   auto sources = cvm::topology::get_from_type("PLATFORM_TRANSACTOR");
     for (const auto& source : sources) {
@@ -436,6 +439,9 @@ sysmod::load_boot(const std::string& boot)
   }
 }
 
+void sysmod::jtag_resp(uint64_t rdata){
+std::cout<<"Got JTAG RESP : "<<std::hex<<rdata<<"\n";
+}
 void
 sysmod::tick(uint64_t advance)
 {
