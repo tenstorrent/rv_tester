@@ -149,7 +149,7 @@ public:
     // cvm::messenger::send(jtag_t, jtag_pkt);
   }
 
-  void update_jtag_status(jtag_status_t& i);
+  void update_jtag_status(jtag_req_t& i);
 
   void checkJtagEvents()
   {

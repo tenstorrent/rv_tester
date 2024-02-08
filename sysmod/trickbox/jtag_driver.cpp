@@ -26,9 +26,9 @@ jtag_driver::jtag_driver(const std::string &tag, uint64_t addr, unsigned hartCou
      parse_jtag_from_csv();
   // jtag_trigger = 1;
   auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0); 
-  cvm::registry::messenger.connect<jtag_driver::jtag_status_t>(
+  cvm::registry::messenger.connect<jtag_driver::jtag_req_t>(
             tbox_loc,
-            [&](jtag_driver::jtag_status_t i) { return this->update_jtag_status(i); });
+            [&](jtag_driver::jtag_req_t i) { return this->update_jtag_status(i); });
 }
 
 jtag_driver::~jtag_driver()
@@ -36,10 +36,11 @@ jtag_driver::~jtag_driver()
   terminate_ = true;
 }
 void
-jtag_driver::update_jtag_status(jtag_driver::jtag_status_t& i) {
-  cvm::log(cvm::HIGH, "JTAG driver module status :{:#x} cmds in queue :{:#x}\n", i.status,i.commands_in_queue);
-  status = i.status;
-  commands_in_queue = i.commands_in_queue;
+jtag_driver::update_jtag_status(jtag_driver::jtag_req_t& i) {
+  //cvm::log(cvm::HIGH, "JTAG driver module status :{:#x} cmds in queue :{:#x}\n", i.status,i.commands_in_queue);
+  //status = i.status;
+  //commands_in_queue = i.commands_in_queue;
+  std::cout<<"\n *** GOT RESP FROM JTAG TDO : "<<i.jtag_op_data<<"\n";
 }
 void jtag_driver::get_all_csv_templates()
 {

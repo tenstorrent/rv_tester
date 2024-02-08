@@ -175,6 +175,7 @@ import rv_tester_params::*;
         IDLE: begin
           jtag_req.tms <= 1'b0;
           jtag_req.tdi <= 1'b0;
+          read_data_valid_reg <= 1'b0;
           shiftCount <= 0;
           if (jtag_enable) begin // 
             // Interpret command and data, set state accordingly
@@ -234,6 +235,7 @@ import rv_tester_params::*;
             state <= IDLE;
             shiftCount <= 0;
           end
+          read_data_valid_reg <= 1'b1;
         end
         default: state <= IDLE;
       endcase
@@ -248,7 +250,7 @@ import rv_tester_params::*;
       read <= 1;
     end else begin
       if(read)begin
-        $display("final jtag read from tdo=%h",jtag_rx);
+        //$display("final jtag read from tdo=%h",jtag_rx);
       end
     end 
   end
