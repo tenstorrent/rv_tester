@@ -31,12 +31,23 @@ import rv_tester_params::*;
     bit [63:0] dm_wdata = '0;
     /* verilator lint_on BLKANDNBLK */
     /* verilator lint_off BLKANDNBLK */
+
     bit jtag_req_begin = '0;
     bit jtag_req_begin_d = '0;
     bit jtag_req_end = '0;
     bit [63:0] jtag_tx = '0;
+    bit [63:0] jtag_rx = '0;
     bit [63:0] clk_trig = '0;
+    bit [1:0]  state= '0;
+    bit [31:0] shiftCount= '0;
+    bit [1:0]  command= '0;
+    bit        jtag_enable = '0;
+    bit        read_data_valid_reg='0;
+    bit [31:0] read_data = '0;
+    bit read = '0;
     
+    logic [1:0] jtag_cmd = 2'b00;
+    logic [31:0] jtag_data_in = 32'h1234abcd;
     bit[3:0] opcode= '0;
     bit ConfigureIR='0;
     /* verilator lint_on BLKANDNBLK */
@@ -110,6 +121,9 @@ import rv_tester_params::*;
     function sysmod_jtag_req (int unsigned upper_value,int unsigned lower_value);
       //dmi_write_begin = '1;
       //dm_wdata = {upper_value,lower_value};
+       jtag_enable = 1'b1;
+       command = upper_value[1:0];
+       jtag_tx = {32'h0,lower_value};
       $display("[SYSMOD.SV] JTAG driver %h %h",upper_value, lower_value);
     endfunction
     export "DPI-C"  function sysmod_jtag_req;
@@ -137,95 +151,107 @@ import rv_tester_params::*;
          
    //******** JTAG ********//
     end
-   
-
- //module JTAG_Driver (
-  //logic clk;
-  logic rst;
-  logic enable ;
-  logic [1:0] command = 2'b00;
-  logic [31:0] data_in = 32'h1234abcd;
-  //logic  tck;
-  logic  tms;
-  logic  tdi;
-  logic  read_data_valid;
-  logic  [31:0] read_data;
-  logic tdo;
- //);
+         
+  //******** JTAG ********//
 
   // JTAG state machine states
-  parameter IDLE = 3'b000;
-  parameter SHIFT_DR = 3'b001;
-  parameter SHIFT_IR = 3'b010;
-  parameter UPDATE = 3'b011;
-
-  // Internal state variables
-  reg [2:0] state;
-  reg [31:0] shiftData;
-  reg [4:0] shiftCount;
-  reg tdo_reg;
-  reg read_data_valid_reg;
-  reg tck;
+  parameter IDLE = 2'b00;
+  parameter SHIFT_DR = 2'b01;
+  parameter SHIFT_IR = 2'b10;
+  parameter UPDATE = 2'b11;
+  parameter DR_WIDTH = 32'd32;
+  parameter IR_WIDTH = 32'd4;
 
   // JTAG controller
-  always_ff @(posedge clk ) begin
+  always @(posedge clk) begin
     if (reset) begin
       state <= IDLE;
-      shiftData <= 32'b0;
-      shiftCount <= 5'b0;
+      shiftCount <= 32'b0;
       read_data_valid_reg <= 1'b0;
-      tdo <= 1'b0;
+      jtag_req.tdo <= 1'b0;
     end else begin
       /* verilator lint_off CASEINCOMPLETE */
-      if(clk_trig == 50)
-        enable <= 1;
       case (state)
         IDLE: begin
-          tck <= 1'b0;
-          tms <= 1'b0;
-          tdi <= 1'b0;
-          if (enable) begin
+          jtag_req.tms <= 1'b0;
+          jtag_req.tdi <= 1'b0;
+          shiftCount <= 0;
+          if (jtag_enable) begin // 
             // Interpret command and data, set state accordingly
+            jtag_enable <= 1'b0;
             case (command)
-              2'b00: state <= SHIFT_DR;
-              2'b01: state <= SHIFT_IR;
-              2'b10: state <= UPDATE;
-              // Add more commands as needed
+              2'b00: state <= IDLE;
+              2'b01: state <= SHIFT_DR; // to configure dr
+              2'b10: state <= SHIFT_IR;// to configure ir
+              2'b11: state <= UPDATE;
               default: state <= IDLE;
             endcase
-            shiftData <= data_in;
           end
         end
         SHIFT_DR: begin
-          tck <= 1'b1;
-          tms <= 1'b0;
-          tdi <= shiftData[0];
-          shiftData <= {shiftData[30:0], tdo};
-          shiftCount <= shiftCount + 1;
-          tdo_reg <= tdo; // Capture TDO data
-          if (shiftCount == 5'b1111) begin
-            state <= IDLE;
+          if(shiftCount == 32'd0)begin
+            jtag_req.tms <= 1'b1;
+          end 
+          else begin
+            jtag_req.tms <= 1'b0;
           end
+          
+          if(shiftCount >= 32'd2) begin
+            jtag_req.tdi <= jtag_tx[shiftCount-2];
+          end
+          shiftCount <= shiftCount + 1;
+          if (shiftCount == 2 + DR_WIDTH) begin
+            state <= UPDATE;
+            command <= UPDATE;
+            shiftCount <=0;
+          end
+          
         end
         SHIFT_IR: begin
-          // Similar to SHIFT_DR, implement based on JTAG IR requirements
+          if(shiftCount <= 32'd1)begin
+            jtag_req.tms <= 1'b1;
+          end 
+          else begin
+            jtag_req.tms <= 0;
+          end
+          if(shiftCount >= 32'd3) begin
+            jtag_req.tdi <= jtag_tx[shiftCount-3];
+          end
+          
+          shiftCount <= shiftCount + 1;
+          if (shiftCount == 32'd3 + IR_WIDTH) begin
+            state <= UPDATE;
+            command <= UPDATE;
+            shiftCount <=0;
+          end
+          
         end
         UPDATE: begin
-          tck <= 1'b0;
-          tms <= 1'b1;
-          tdi <= 1'b0;
-          read_data_valid_reg <= 1'b1; // Indicate that read data is valid
-          if (shiftCount == 5'b1111) begin
+          jtag_req.tms <= 1'b1;
+          jtag_req.tdi <= 1'b0;
+          shiftCount <= shiftCount + 1;
+          if (shiftCount == 32'd2) begin
             state <= IDLE;
+            shiftCount <= 0;
           end
         end
+        default: state <= IDLE;
       endcase
       /* verilator lint_on CASEINCOMPLETE */
     end
   end
-
-  assign read_data_valid = read_data_valid_reg;
-  assign read_data[0] = tdo_reg;
+  
+  //for future use
+  always @(posedge clk) begin
+    if (read_data_valid_reg) begin
+      jtag_rx <= {jtag_rx[62:0],jtag_req.tdo};
+      read <= 1;
+    end else begin
+      if(read)begin
+        $display("final jtag read from tdo=%h",jtag_rx);
+      end
+    end 
+  end
   
   assign jtag_rdatas[0].valid         = read_data_valid_reg;
   assign jtag_rdatas[0].data.location = location;
