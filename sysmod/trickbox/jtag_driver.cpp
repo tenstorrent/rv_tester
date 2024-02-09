@@ -37,10 +37,8 @@ jtag_driver::~jtag_driver()
 }
 void
 jtag_driver::update_jtag_status(jtag_driver::jtag_req_t& i) {
-  //cvm::log(cvm::HIGH, "JTAG driver module status :{:#x} cmds in queue :{:#x}\n", i.status,i.commands_in_queue);
-  //status = i.status;
-  //commands_in_queue = i.commands_in_queue;
-  std::cout<<"\n *** GOT RESP FROM JTAG TDO : "<<i.jtag_op_data<<"\n";
+
+  cvm::log(cvm::HIGH, "\n *** GOT RESP FROM JTAG TDO : {:#x}"\n, i.jtag_op_data);
 }
 void jtag_driver::get_all_csv_templates()
 {
@@ -67,11 +65,7 @@ void jtag_driver::get_all_csv_templates()
 
 void jtag_driver::parse_jtag_from_csv()
 {
-  // if ((FLAGS_jtag_input_file_path == "")) {
-  //   jtag_file_mode = 0;
-  // } else {
-  // cvm::log(cvm::NONE, "[Trickbox] Parsing jtag cfg file {}\n", FLAGS_jtag_input_file_path);
-  // std::fstream file (FLAGS_jtag_input_file_path, std::ios::in);
+
 
   std::string file_name;
   if (FLAGS_random_jtag_entry)
@@ -87,7 +81,7 @@ void jtag_driver::parse_jtag_from_csv()
     std::string line, word;
     while (getline(file, line))
     {
-      std::cout<<"********* Process new line: "<<line <<" ***************\n";
+      //std::cout<<"********* Process new line: "<<line <<" ***************\n";
       row.clear();
 
       //std::cout<<"\n JTAG INP row clr : row0:"<<row[0]<<" row1 "<<row[1]<<"\n";
@@ -97,9 +91,9 @@ void jtag_driver::parse_jtag_from_csv()
       while (getline(str, word, ','))
       {
         row.push_back(word);
-        std::cout<<"pushing "<< word<< "in a row\n";
+        //std::cout<<"pushing "<< word<< "in a row\n";
       }
-      std::cout<<"row size: "<<row.size()<<"\n";
+      //std::cout<<"row size: "<<row.size()<<"\n";
       
  
       std::string instr;
@@ -108,7 +102,7 @@ void jtag_driver::parse_jtag_from_csv()
       
       jtag_req_t jtag_req;
       
-      std::cout<<"JTAG INP after clr: row0:"<<row[0]<<" row1 "<<row[1]<<"\n";
+      //std::cout<<"JTAG INP after clr: row0:"<<row[0]<<" row1 "<<row[1]<<"\n";
       instr = row[0];
       data_s = row[1];
       // remove empty spaces from string
@@ -129,8 +123,8 @@ void jtag_driver::parse_jtag_from_csv()
       data_s.erase(std::remove_if(data_s.begin(), data_s.end(), ::isspace), data_s.end());
       // convert string to lowercase for uniformity
       std::transform(data_s.begin(), data_s.end(), data_s.begin(), ::tolower);
-      std::cout<<" JTAG INP : row0:"<<row[0]<<" row1 "<<row[1]<<"\n";
-      std::cout<<" JTAG INP : instr:"<<instr<<" instr2char "<<jtag_cmd<<" data: "<<data_s<<"\n";
+      //std::cout<<" JTAG INP : row0:"<<row[0]<<" row1 "<<row[1]<<"\n";
+      //std::cout<<" JTAG INP : instr:"<<instr<<" instr2char "<<jtag_cmd<<" data: "<<data_s<<"\n";
       try{
         jtag_req.jtag_ip_data = std::stoul(data_s,nullptr,16);
         

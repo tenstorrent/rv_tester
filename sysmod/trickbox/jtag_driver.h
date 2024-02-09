@@ -121,13 +121,6 @@ public:
     unsigned lower_jtag_data;
   };
 
-  // struct jtag_req_t
-  // {
-  //   unsigned func_bits;
-  //   unsigned addr;
-  //   unsigned op;
-  //   unsigned data;
-  // };
 
   struct jtag_req_t
   {

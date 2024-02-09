@@ -440,7 +440,7 @@ sysmod::load_boot(const std::string& boot)
 }
 
 void sysmod::jtag_resp(uint64_t rdata){
-  std::cout<<"Got JTAG RESP : "<<std::hex<<rdata<<"\n";
+  //std::cout<<"Got JTAG RESP : "<<std::hex<<rdata<<"\n";
   auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0);
   //send response back to jtag driver
   uint32_t half_rdata = rdata & 0xffffffff;
