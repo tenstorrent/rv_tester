@@ -21,6 +21,8 @@ module jtag_xtor(
   parameter IR_WIDTH = 32'd4;
 
 
+    logic read_data_valid;
+
     bit [31:0] read_data = '0;
     bit read = '0;
     logic [1:0] jtag_cmd = 2'b00;
@@ -35,12 +37,15 @@ module jtag_xtor(
     bit [63:0] clk_trig = '0;
     bit [1:0]  state= '0;
     bit [31:0] shiftCount= '0;
+
+    assign read_data_valid_reg = read_data_valid;
+
   // JTAG controller
   always @(posedge clk) begin
     if (reset) begin
       state <= IDLE;
       shiftCount <= 32'b0;
-      read_data_valid_reg <= 1'b0;
+      read_data_valid <= 1'b0;
       jtag_req.tdo <= 1'b0;
     end else begin
       /* verilator lint_off CASEINCOMPLETE */
@@ -55,7 +60,7 @@ module jtag_xtor(
         IDLE: begin
           jtag_req.tms <= 1'b0;
           jtag_req.tdi <= 1'b0;
-          read_data_valid_reg <= 1'b0;
+          read_data_valid <= 1'b0;
           shiftCount <= 0;
           if (jtag_req_begin) begin // 
             // Interpret command and data, set state accordingly
@@ -115,7 +120,7 @@ module jtag_xtor(
             state <= IDLE;
             shiftCount <= 0;
           end
-          read_data_valid_reg <= 1'b1;
+          read_data_valid <= 1'b1;
         end
         default: state <= IDLE;
       endcase
@@ -125,7 +130,7 @@ module jtag_xtor(
   
   //for future use
   always @(posedge clk) begin
-    if (read_data_valid_reg) begin
+    if (read_data_valid) begin
       jtag_rx <= {jtag_rx[62:0],jtag_req.tdo};
       read <= 1;
     end else begin

@@ -37,7 +37,7 @@ import rv_tester_params::*;
     bit        jtag_enable_begin = '0;
     bit        jtag_enable_d = '0;
     bit        jtag_enable_end = '0;
-    bit        read_data_valid_reg='0;
+    bit        read_data_valid_reg;
     bit [63:0] jtag_tx;
     bit [63:0] jtag_rx;
     
