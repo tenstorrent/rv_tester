@@ -704,38 +704,9 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
 
   // VR
   if (FLAGS_vec_check) {
-    std::string str = whisper::disassemble(d.opcode);
-    std::string searchString = "vlse";
-    size_t pos = str.find(searchString);
-    int vl = get_csr(id_, cac::src_t::iss, 0xC20); // TODO: Get vl and vta values from dut (RVDE-11217)
-    bool vta = (get_csr(id_, cac::src_t::iss, 0xC21) >> 6) & 1;
-    int type = 0;
-    if ((pos != std::string::npos) && vta){
-      type = std::stoi(str.substr(pos + searchString.length()));
-      unmask_bits_instr = vl * type;
-    }
     for (auto & vr : d.vr) {
       if (vr.valid){
-        // For vlse*.v, we need to set all tail agnostic bits to ones if enabled 
-        if ((pos != std::string::npos) && vta) {
-          if ((unmask_bits_instr - 256) > 0){
-            unmask_bits_uop = 256;
-            unmask_bits_instr = unmask_bits_instr - 256;
-          } else {
-            unmask_bits_uop = unmask_bits_instr;
-            unmask_bits_instr = 0;
-          }
-          std::bitset<256> result_bits = vr.vrd_wdata;
-          for (int i = 0; i < 256; ++i) {
-              bool mask_set = (i < unmask_bits_uop) ? 0 : 1; 
-              if (mask_set) { 
-                  result_bits[i] = 1; 
-              }
-          }
-          update_regs(hart, src_t::dut, resource_t::vec_reg, vr.vrd_addr, create_dword_vec(result_bits));
-        } else{
-          update_regs(hart, src_t::dut, resource_t::vec_reg, vr.vrd_addr, create_dword_vec(vr.vrd_wdata));
-        }
+        update_regs(hart, src_t::dut, resource_t::vec_reg, vr.vrd_addr, create_dword_vec(vr.vrd_wdata));
       }
     }
   }
