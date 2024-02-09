@@ -37,8 +37,7 @@ jtag_driver::~jtag_driver()
 }
 void
 jtag_driver::update_jtag_status(jtag_driver::jtag_req_t& i) {
-  std::cout<<"\n *** GOT RESP FROM JTAG TDO : "<<i.jtag_op_data<<"\n";
-  cvm::log(cvm::HIGH, "\n *** GOT RESP FROM JTAG TDO  {:#x}"\n, i.jtag_op_data);
+  cvm::log(cvm::HIGH, "\n *** GOT RESP FROM JTAG TDO  {:#x}", i.jtag_op_data);
 }
 void jtag_driver::get_all_csv_templates()
 {
