@@ -1,0 +1,1 @@
+exports_files(["jtag_xtor.sv"])
