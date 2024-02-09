@@ -42,7 +42,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
         harness = name + "_harness",
         cc_attrs = cc_attrs,
     )
-
+    
     sysmod_gen(
         name = name + "_sysmod",
         packet = name + "_transactions",
@@ -73,6 +73,8 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
         harness = name + "_harness",
         cc_attrs = cc_attrs,
     )
+
+
     axi_sw_gen(
         name = name + "_axi_sw",
         packet = name + "_transactions",

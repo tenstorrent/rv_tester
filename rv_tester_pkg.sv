@@ -25,11 +25,19 @@ package rv_tester_pkg;
         logic [1023:0] pins;
     } aplic_interrupt_t;
 
-     typedef struct packed {
+    typedef struct packed {
         logic [6:0]  addr;
         dtm_op_e     op;
         logic [31:0] data;
     } dmi_req_t;
+
+    typedef struct packed {
+        logic tck;
+        logic tms;
+        logic tdi;
+        logic tdo;
+        logic tdo_en;
+    } jtag_if_t;
 
     typedef struct packed  {
         logic [31:0] data;
