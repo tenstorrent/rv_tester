@@ -106,6 +106,7 @@ class rvfi {
     std::unordered_map<uint64_t, mem_t> ifetch_reqs_;
     std::unordered_map<uint64_t, mem_t> amo_writes_;
     std::unordered_map<uint64_t, mem_t> sc_result_;
+    std::unordered_map<uint64_t, mem_t> sc_bypass_;
 
     svScope scope_;
 
