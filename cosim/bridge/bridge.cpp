@@ -33,7 +33,7 @@ DEFINE_string(whisper_json_path, "", "Path to whisper json config");
 DEFINE_bool(cosim_resynch, false, "Resynch whisper with dut state on every instruction");
 DEFINE_string(cosim_resynch_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
 DEFINE_string(cosim_resynch_prev_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
-DEFINE_string(cosim_resynch_csr, "htval,mtval2,mip,vsip,mtinst,htinst,vstart,vxsat,vxrm,vcsr,vl,vtype,vlenb,sstatus,mstatus,fcsr,mie,hie,vsie", "List of csr mnemonics to resynch whisper with dut state"); // RVDE: 10005 (mtinst/htinst), RVDE: 11217 (vectors), RVDE: 10043 (mtval2/htval)
+DEFINE_string(cosim_resynch_csr, "htval,mtval2,mip,vsip,hvip,mtinst,htinst,vstart,vxsat,vxrm,vcsr,vl,vtype,vlenb,sstatus,mstatus,fcsr,mie,hie,vsie", "List of csr mnemonics to resynch whisper with dut state"); // RVDE: 10005 (mtinst/htinst), RVDE: 11217 (vectors), RVDE: 10043 (mtval2/htval)
 DEFINE_bool(mip_resynch, true, "Resynch whisper with dut state on mip mismatch condition");
 DEFINE_bool(imsic_resynch, true, "Resynch whisper with dut state on imsic mismatch condition");
 DEFINE_bool(intr_defer_spcl, true, "Defer all interrupts in special cases");
@@ -715,7 +715,6 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
   for (auto & c : d.csr) {
     uint64_t data = modify_csr_data(hart, c.csr_addr, c.csr_wdata);
     size_8_bytes_t mask = modify_csr_mask(hart, c.csr_addr, c.csr_wmask);
-
     if (FLAGS_csr_rd_check)
       update_csr(hart, src_t::dut, c.csr_addr, data, mask);
   }
@@ -1352,10 +1351,10 @@ cac::size_8_bytes_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, cac::
   cac::size_8_bytes_t result = mask;
   // pmpaddr
   // Spec section...
+  result = mask & get_csr_mask(hart, addr);
   if (addr >= 0x3B0 && addr < 0x3C0) {
     bool valid;
     uint64_t pmpcfg, mask_iss, reset;
-    result = mask & get_csr_mask(hart, addr);
     client_->whisperPeekCsr(hart, addr - 16, pmpcfg, mask_iss, reset, valid);
     if((pmpcfg >> 4) & 0x1) {
       result = result | 0x1ff;
