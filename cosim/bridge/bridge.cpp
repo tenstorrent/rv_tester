@@ -1398,14 +1398,12 @@ void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data,
   if (!shadow_csr && shadow_csrs.count(addr)) {
     auto range = shadow_csrs.equal_range(addr);
     for (auto shadow_csr = range.first; shadow_csr != range.second; ++shadow_csr) {
-      cvm::log(cvm::MEDIUM, "{:#x} {:#x}\n", shadow_csr->first, shadow_csr->second);
       size_8_bytes_t alias_mask;
       if (src == src_t::dut){
         if (mask_ref)
           alias_mask = mask_ref.value() & get_csr_poke_mask(hart, shadow_csr->second);
         else
           alias_mask = get_csr_poke_mask(hart, shadow_csr->second);
-        cvm::log(cvm::MEDIUM, "SHADOW: dut: addr - {:#x}, data - {:#x}, mask - {:#x}\n", shadow_csr->second, data, alias_mask);
       }
       else {
         uint64_t mask, poke_mask;
@@ -1414,7 +1412,6 @@ void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data,
           cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek csr\n", hart);
         }
         alias_mask = get_csr_poke_mask(hart, shadow_csr->second);
-        cvm::log(cvm::MEDIUM, "SHADOW: iss: addr - {:#x}, data - {:#x}, mask - {:#x}\n", shadow_csr->second, data, alias_mask);
       }
       update_csr(hart, src, shadow_csr->second, data, alias_mask, true);
     }
