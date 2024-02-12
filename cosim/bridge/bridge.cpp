@@ -1337,8 +1337,13 @@ uint64_t bridge::modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data) {
   if (addr >= 0x3B0 && addr < 0x3C0) {
     bool valid;
     uint64_t pmpcfg, mask, reset;
-    client_->whisperPeekCsr(hart, addr - 16, pmpcfg, mask, reset, valid);
-    if((pmpcfg >> 4) & 0x1) {
+    uint64_t i, pmp_cfg_reg, pmp_cfg_index;
+    // For PMP addresses, which bits of the pmpcfgs to look for 
+    i = addr - 0x3B0;
+    pmp_cfg_reg = ((i*8) / 64) * 2;
+    pmp_cfg_index = (i*8) % 64;
+    client_->whisperPeekCsr(hart, 0x3A0 + pmp_cfg_reg, pmpcfg, mask, reset, valid);
+    if((pmpcfg >> (pmp_cfg_index + 4)) & 0x1) {
       result = data | 0x1ff;
     } else {
       result = data & 0xfffffffffffffc00;
@@ -1355,14 +1360,18 @@ cac::size_8_bytes_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, cac::
   if (addr >= 0x3B0 && addr < 0x3C0) {
     bool valid;
     uint64_t pmpcfg, mask_iss, reset;
-    client_->whisperPeekCsr(hart, addr - 16, pmpcfg, mask_iss, reset, valid);
-    if((pmpcfg >> 4) & 0x1) {
+    uint64_t i, pmp_cfg_reg, pmp_cfg_index;
+    // For PMP addresses, which bits of the pmpcfgs to look for 
+    i = addr - 0x3B0;
+    pmp_cfg_reg = ((i*8) / 64) * 2;
+    pmp_cfg_index = (i*8) % 64;
+    client_->whisperPeekCsr(hart, 0x3A0 + pmp_cfg_reg, pmpcfg, mask_iss, reset, valid);
+    if((pmpcfg >> (pmp_cfg_index + 4)) & 0x1) {
       result = result | 0x1ff;
     } else {
       result = result | 0x3ff;
     }
   }
-  // cvm::log(cvm::MEDIUM, "mask {:#x} updated-mask {:#x}\n", mask, result);
   return result;
 }
 
