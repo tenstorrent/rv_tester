@@ -33,7 +33,7 @@ DEFINE_string(whisper_json_path, "", "Path to whisper json config");
 DEFINE_bool(cosim_resynch, false, "Resynch whisper with dut state on every instruction");
 DEFINE_string(cosim_resynch_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
 DEFINE_string(cosim_resynch_prev_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
-DEFINE_string(cosim_resynch_csr, "hie,vsip,vsie,htval,mtval2,vl,vtype,mip", "List of csr mnemonics to resynch whisper with dut state");
+DEFINE_string(cosim_resynch_csr, "htval,mtval2,mip,vsip,mtinst,htinst,vstart,vxsat,vxrm,vcsr,vl,vtype,vlenb,sstatus,mstatus,fcsr,mie,hie,vsie", "List of csr mnemonics to resynch whisper with dut state"); // RVDE: 10005 (mtinst/htinst), RVDE: 11217 (vectors), RVDE: 10043 (mtval2/htval)
 DEFINE_bool(mip_resynch, true, "Resynch whisper with dut state on mip mismatch condition");
 DEFINE_bool(imsic_resynch, true, "Resynch whisper with dut state on imsic mismatch condition");
 DEFINE_bool(intr_defer_spcl, true, "Defer all interrupts in special cases");
@@ -1355,14 +1355,13 @@ cac::size_8_bytes_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, cac::
   if (addr >= 0x3B0 && addr < 0x3C0) {
     bool valid;
     uint64_t pmpcfg, mask_iss, reset;
+    result = mask & get_csr_mask(hart, addr);
     client_->whisperPeekCsr(hart, addr - 16, pmpcfg, mask_iss, reset, valid);
     if((pmpcfg >> 4) & 0x1) {
-      result = mask | 0x1ff;
+      result = result | 0x1ff;
     } else {
-      result = mask | 0x3ff;
+      result = result | 0x3ff;
     }
-  } else {
-    result = mask & get_csr_mask(hart, addr);
   }
   // cvm::log(cvm::MEDIUM, "mask {:#x} updated-mask {:#x}\n", mask, result);
   return result;
@@ -1398,12 +1397,28 @@ void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data,
 
   // Also update shadow csr if applicable ex: mstatus/sstatus
   if (!shadow_csr && shadow_csrs.count(addr)) {
-    size_8_bytes_t alias_mask;
-    if (mask_ref)
-      alias_mask = mask_ref.value() & get_csr_poke_mask(hart, shadow_csrs.at(addr));
-    else
-      alias_mask = get_csr_poke_mask(hart, shadow_csrs.at(addr));
-    update_csr(hart, src, shadow_csrs.at(addr), data, alias_mask, true);
+    auto range = shadow_csrs.equal_range(addr);
+    for (auto shadow_csr = range.first; shadow_csr != range.second; ++shadow_csr) {
+      cvm::log(cvm::MEDIUM, "{:#x} {:#x}\n", shadow_csr->first, shadow_csr->second);
+      size_8_bytes_t alias_mask;
+      if (src == src_t::dut){
+        if (mask_ref)
+          alias_mask = mask_ref.value() & get_csr_poke_mask(hart, shadow_csr->second);
+        else
+          alias_mask = get_csr_poke_mask(hart, shadow_csr->second);
+        cvm::log(cvm::MEDIUM, "SHADOW: dut: addr - {:#x}, data - {:#x}, mask - {:#x}\n", shadow_csr->second, data, alias_mask);
+      }
+      else {
+        uint64_t mask, poke_mask;
+        bool valid;
+        if (!client_->whisperPeekCsr(hart, shadow_csr->second, data, mask, poke_mask, valid)) {
+          cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek csr\n", hart);
+        }
+        alias_mask = get_csr_poke_mask(hart, shadow_csr->second);
+        cvm::log(cvm::MEDIUM, "SHADOW: iss: addr - {:#x}, data - {:#x}, mask - {:#x}\n", shadow_csr->second, data, alias_mask);
+      }
+      update_csr(hart, src, shadow_csr->second, data, alias_mask, true);
+    }
   }
 }
 
