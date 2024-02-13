@@ -8,6 +8,7 @@
 #include "cvm/registry.hpp"
 #include "transactor.h"
 #include "transactors/axi_sw/axi.h"
+#include "trace_defines.h"
 
 
 DECLARE_bool(random_trace);
@@ -21,6 +22,7 @@ class trace_cfg : public device {
         cvm::messenger::pool<axi::r_t>::channel_info channel;
 
     public:
+        uint32_t start_trace_cnt;
         uint32_t cnt_tick=0;
         struct trace_wr_t {
           uint32_t addr;
@@ -84,13 +86,16 @@ class trace_cfg : public device {
         
         virtual void tick(uint64_t) override
         {
+            if(start_trace_cnt == 0) {
+              start_trace_cnt = (rand()% 10) + 5;
+            }
             if(FLAGS_random_trace) {
-              cvm::log(cvm::HIGH, "[Trickbox] trace_cfg timer tick advance interval {} trace_read_resp_q size {}\n",cnt_tick,trace_read_resp_q.size());
-              if(cnt_tick==0) push_trace_enable_seq();
-              if(cnt_tick==70) push_trace_disable_seq();
+              cvm::log(cvm::HIGH, "[Trickbox] trace_cfg timer tick advance interval {} trace_read_resp_q size {} start_trace_cnt {} \n",cnt_tick,trace_read_resp_q.size(), start_trace_cnt);
+              if(cnt_tick==10) push_trace_enable_seq();
+              if(cnt_tick==(10+50)) push_trace_disable_seq();
               if(trace_wr_txn_q.size() > 0) axi_write();
-              if(cnt_tick==80)read_pointers();
-              if(trace_read_resp_q.size() == 2) read_sram();
+              if(cnt_tick==(10+60)) read_pointers();
+              if(trace_read_resp_q.size() == (10+62)) read_sram();
             }
             cnt_tick ++;
         }
@@ -98,37 +103,40 @@ class trace_cfg : public device {
         void push_trace_enable_seq() {
           cvm::log(cvm::HIGH, "[Trickbox] trace_cfg inside enable trace seq\n");
           // Funnel-RAM config
-          trace_wr_txn_q.push({0xa082010,0x40});
-          trace_wr_txn_q.push({0xa082018,0x8000});
-          trace_wr_txn_q.push({0xa082020,0x40});
-          trace_wr_txn_q.push({0xa082028,0x40});
-          trace_wr_txn_q.push({0xa082000,0x3});
-          trace_wr_txn_q.push({0xa081000,0x3});
+          trace_wr_txn_q.push({TR_DST_RAM_START_LOW,0x40});
+          trace_wr_txn_q.push({TR_DST_RAM_LIMIT_LOW,0x8000});
+          trace_wr_txn_q.push({TR_DST_RAM_WP_LOW,0x40});
+          trace_wr_txn_q.push({TR_DST_RAM_RP_LOW,0x40});
+          trace_wr_txn_q.push({TR_DST_RAM_CONTROL,0x3});
+          trace_wr_txn_q.push({TR_FUNNEL_CONTROL,0x3});
         
           // CLA/Paketizer config
-          trace_wr_txn_q.push({0xa002000,0x3});
-          trace_wr_txn_q.push({0xa002198,0x0});
-          trace_wr_txn_q.push({0xa002100,0x20000000});
-          trace_wr_txn_q.push({0xa002120,0x11211});
-          trace_wr_txn_q.push({0xa002130,0x101316});
-          trace_wr_txn_q.push({0xa0021A0,0x102810});
-          trace_wr_txn_q.push({0xa002190,0x20});
+          trace_wr_txn_q.push({CDBG_CLA_CTRL_STS_CFG,0x40});
+          trace_wr_txn_q.push({TR_DST_CONTROL,0x3});
+          trace_wr_txn_q.push({CDBG_MUX_SEL_CFG,0x0});
+          trace_wr_txn_q.push({CDBG_CLA_COUNTER0_CFG,0x20000000});
+          trace_wr_txn_q.push({CDBG_NODE0_EAP0_CFG,0x11211});
+          trace_wr_txn_q.push({CDBG_NODE1_EAP0_CFG,0x101316});
+          trace_wr_txn_q.push({CDBG_TRACE_CFG,0x102810});
+          trace_wr_txn_q.push({TR_DST_IMPL,0x1000000});
+          trace_wr_txn_q.push({CDBG_CLA_CTRL_STS_CFG,0x60});
           cvm::log(cvm::HIGH, "[Trickbox] trace_cfg completed enable trace seq\n");
         }
 
         void push_trace_disable_seq() {
           cvm::log(cvm::HIGH, "[Trickbox] trace_cfg inside disable trace seq\n");
-          trace_wr_txn_q.push({0xa002190,0x0});
-          trace_wr_txn_q.push({0xa002000,0x0});
-          trace_wr_txn_q.push({0xa081000,0x0});
-          trace_wr_txn_q.push({0xa082000,0x0});
+          trace_wr_txn_q.push({CDBG_CLA_CTRL_STS_CFG,0x40});
+          trace_wr_txn_q.push({TR_DST_CONTROL,0x0});
+          trace_wr_txn_q.push({CDBG_CLA_CTRL_STS_CFG,0x0});
+          trace_wr_txn_q.push({TR_FUNNEL_CONTROL,0x0});
+          trace_wr_txn_q.push({TR_DST_RAM_CONTROL,0x0});
           cvm::log(cvm::HIGH, "[Trickbox] trace_cfg completed disable trace seq\n");
         }
 
         void read_pointers(){
           cvm::log(cvm::HIGH, "[Trickbox] trace_cfg reading WRITE/READ pointers\n");
-           axi_read(0xa082020,2,5);
-           axi_read(0xa082028,2,5);
+           axi_read(TR_DST_RAM_WP_LOW,2,5);
+           axi_read(TR_DST_RAM_RP_LOW,2,5);
         }
 
         void read_sram() {
@@ -147,7 +155,7 @@ class trace_cfg : public device {
            cvm::log(cvm::HIGH, "[Trickbox] trace_cfg reading read pointer {:#X}\n",rp);
 
            cvm::log(cvm::HIGH, "[Trickbox] trace_cfg reading SRAM started\n");
-           for (unsigned i = wp; i < rp; i=i+4)
+           for (unsigned i = rp; i < wp; i=i+4)
              axi_read(0xa082040,2,5);
           
            cvm::log(cvm::HIGH, "[Trickbox] trace_cfg reading SRAM done \n");
