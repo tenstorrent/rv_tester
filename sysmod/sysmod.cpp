@@ -37,6 +37,7 @@ extern "C" {
   void sysmod_aplic_dir_interrupt(unsigned long* i) ;
   void sysmod_aplic_rnd_interrupt(unsigned hartid, unsigned val, unsigned int_val);
   void sysmod_dmi_write(unsigned hartid, unsigned upper_val, unsigned lower_val);
+  void sysmod_jtag_req(unsigned upper_val, unsigned lower_val);
   void sysmod_terminate();
 }
 
@@ -50,6 +51,9 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::tick<>>(
       loc_,
       [this](const rv_tester_transactions::sysmod::tick<>& t) { return this->tick(t.advance); });
+  cvm::registry::messenger.connect<rv_tester_transactions::sysmod::jtag_rdata<>>(
+      loc_,
+      [this](const rv_tester_transactions::sysmod::jtag_rdata<>& t) { return this->jtag_resp(t.rdata); });
 
   auto sources = cvm::topology::get_from_type("PLATFORM_TRANSACTOR");
     for (const auto& source : sources) {
@@ -208,6 +212,16 @@ sysmod::dmi_write(debugger::dmi_data_t i) {
 }
 
 void
+sysmod::jtag_req(jtag_driver::jtag_data_t i) {
+  cvm::registry::callbacks.push(
+      scope(),
+      [i]() {
+        cvm::log(cvm::FULL, "[SYSMOD] trickbox jtag_driver::dmi.(upper,lower) = {:#x}, {:#x}\n",i.upper_jtag_data, i.lower_jtag_data );
+        sysmod_jtag_req(i.upper_jtag_data, i.lower_jtag_data);
+      });
+}
+
+void
 sysmod::terminate(htif::terminate_t) {
   cvm::registry::messenger.signal<rv_tester::terminate_called>(cvm::topology::get_from_type("PLATFORM", 0), rv_tester::terminate_called{}, true);
   cvm::registry::callbacks.push(
@@ -301,6 +315,9 @@ sysmod::compose()
         cvm::registry::messenger.connect<debugger::dmi_data_t>(
             loc_,
             [&](debugger::dmi_data_t i) { return this->dmi_write(i); });
+        cvm::registry::messenger.connect<jtag_driver::jtag_data_t>(
+            loc_,
+            [&](jtag_driver::jtag_data_t i) { return this->jtag_req(i); });    
         cvm::registry::messenger.connect<uc_helper::uc_helper_write_t>(
             loc_,
             [&](uc_helper::uc_helper_write_t i) { return this->uc_helper_backdoor_write(i); });
@@ -419,6 +436,14 @@ sysmod::load_boot(const std::string& boot)
   }
 }
 
+void sysmod::jtag_resp(uint64_t rdata){
+  //std::cout<<"Got JTAG RESP : "<<std::hex<<rdata<<"\n";
+  auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0);
+  //send response back to jtag driver
+  uint32_t half_rdata = rdata & 0xffffffff;
+  cvm::registry::messenger.signal(tbox_loc, jtag_driver::jtag_req_t{0, 0, half_rdata});
+
+}
 void
 sysmod::tick(uint64_t advance)
 {

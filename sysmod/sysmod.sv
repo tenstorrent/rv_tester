@@ -14,6 +14,7 @@ import rv_tester_params::*;
     output rv_tester_pkg::interrupt_t interrupt [NHARTS-1:0],
     output rv_tester_pkg::aplic_interrupt_t aplic_interrupt,
     output rv_tester_pkg::dm_write_t  dmi_write,
+    output rv_tester_pkg::jtag_if_t  jtag_req,
     output rv_tester_pkg::terminate_t terminate,
     `RV_TESTER_TRANSACTIONS_SYSMOD_OUTPUT_PORTS
 );
@@ -29,7 +30,30 @@ import rv_tester_params::*;
     bit dmi_write_end = '0;
     bit [63:0] dm_wdata = '0;
     /* verilator lint_on BLKANDNBLK */
+    /* verilator lint_off BLKANDNBLK */
 
+ 
+    bit [1:0]  command= '0;
+    bit        jtag_enable_begin = '0;
+    bit        jtag_enable_d = '0;
+    bit        jtag_enable_end = '0;
+    bit        read_data_valid_reg;
+    bit [63:0] jtag_tx;
+    bit [63:0] jtag_rx;
+    
+
+    jtag_xtor  i_jtag_xtor(
+        .clk(clk),
+        .reset(reset),
+        .command(command),
+        .jtag_req(jtag_req),
+        .jtag_enable(jtag_enable_begin),
+        .read_data_valid_reg(read_data_valid_reg),
+        .jtag_tx(jtag_tx),
+        .jtag_rx(jtag_rx),
+        .misc_signals('0)
+    );
+    /* verilator lint_on BLKANDNBLK */
     always @(posedge clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */
@@ -72,13 +96,9 @@ import rv_tester_params::*;
        export "DPI-C" function sysmod_aplic_dir_interrupt;
 
     function void sysmod_aplic_dir_interrupt (longint val[16]);
-      //interrupt_d[hartid].msi = val;
-      //$display("\nSYSMOD.SV Hello aplic\n");
       for(int i =0;i<16;i++)begin
-        //$display("\nSYSMOD.SV APLIC DATA  at index %h %h \n",i,val[i]);
         aplic_interrupt.pins[64*i +: 64] = val[i];
       end
-       // $display("\n APLIC DATA  FINAL at  %h \n",aplic_interrupt.pins);
     endfunction
 
     export "DPI-C" function sysmod_sw_interrupt;
@@ -97,6 +117,15 @@ import rv_tester_params::*;
     endfunction
     export "DPI-C"  function sysmod_dmi_write;
 
+    function sysmod_jtag_req (int unsigned upper_value,int unsigned lower_value);
+       jtag_enable_begin = 1'b1;
+       command = upper_value[1:0];
+       jtag_tx = {32'h0,lower_value};
+      $display("[SYSMOD.SV] JTAG driver %h %h",upper_value, lower_value);
+    endfunction
+    export "DPI-C"  function sysmod_jtag_req;
+
+
     always @(posedge clk) begin
         interrupt_q <= interrupt_d;
         if (reset) begin
@@ -113,7 +142,19 @@ import rv_tester_params::*;
             dmi_write.dm_wdata <= dm_wdata;
             dmi_write_end <='1;
         end
-
+        //JTAG
+        if(jtag_enable_end)begin
+            jtag_enable_begin <= '0;
+            jtag_enable_end <= '0;
+        end
+        else if(jtag_enable_begin)begin
+            jtag_enable_end <='1;
+        end
+        
     end
+         
+  assign jtag_rdatas[0].valid         = read_data_valid_reg;
+  assign jtag_rdatas[0].data.location = location;
+  assign jtag_rdatas[0].data.rdata     = {32'h0,jtag_rx[31:0]};//upper32 bits for future use
 
 endmodule

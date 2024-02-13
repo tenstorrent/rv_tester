@@ -264,7 +264,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
     vr_t vr {true, m_rvfi.vrd_addr, m_rvfi.vrd_wdata};
     instr.vr.push_back(vr);
     // Accumulate cracked vr writes
-    if (!m_rvfi.last_uop && (m_rvfi.vrd_addr < 32)) {
+    if (m_rvfi.vrd_addr < 32) {
       cracked_vrs_.push_back(vr);
     }
   }
@@ -309,6 +309,7 @@ void rvfi::append_uop_changes_to_instr(rv_instr_t& instr) {
 
   // VR
   if (!cracked_vrs_.empty()) {
+    instr.vr.clear();
     for (auto& c : cracked_vrs_) {
       instr.vr.push_back(c);
     }
@@ -535,8 +536,18 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
   m.amo = m_mcmi_read.amo;
   m.amo_op = m_mcmi_read.amo_op;
 
+  // Handle SC
+  // If read before bypass, store pass/fail result
+  // If bypass before read, check pass/fail result and send/don't send bypass
   if (m.amo && m.amo_op == SC) {
-    sc_result_.emplace(m.tag, m);
+    if (sc_bypass_.find(m.tag) == sc_bypass_.end()) {
+      sc_result_.emplace(m.tag, m);
+    } else {
+      if (!sc_failed(sc_bypass_.at(m.tag))) {
+        bridge_->process_dut_mcm_bypass(m.hart, sc_bypass_.at(m.tag));
+        sc_bypass_.erase(m.tag);
+      }
+    }
     return;
   }
 
@@ -589,6 +600,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
   }
 
   if (m.amo && m.amo_op == SC && sc_failed(m)) {
+    sc_bypass_.emplace(m.tag, m);
     return;
   }
 
@@ -598,7 +610,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
 bool rvfi::sc_failed(mem_t& write) {
 
   if (sc_result_.find(write.tag) == sc_result_.end()) {
-    return false;
+    return true;
   }
 
   mem_t m = sc_result_.at(write.tag);
