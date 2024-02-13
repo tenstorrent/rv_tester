@@ -5,7 +5,7 @@ module jtag_xtor(
     output rv_tester_pkg::jtag_if_t  jtag_req,
     input  bit[1:0]  command,
     input        jtag_enable,
-    output        read_data_valid_reg,
+    output reg       read_data_valid_reg,
     input  bit [63:0] jtag_tx,
     input  bit [63:0] misc_signals,
     output bit [63:0] jtag_rx
@@ -25,6 +25,7 @@ module jtag_xtor(
 
 
     logic read_data_valid;
+    bit [1:0] delay_counter;
 
     bit read = '0;
     bit jtag_req_begin = '0;
@@ -33,25 +34,25 @@ module jtag_xtor(
     bit[1:0]  command_l = '0;
 
     bit [1:0]  state= '0;
-    bit [63:0] shiftCount= '0;
-
-    assign read_data_valid_reg = read_data_valid;
+    bit [31:0] shiftCount= '0;
+    bit ir ='0;
+    bit dr ='0;
 
   // JTAG controller
 
-  always @(negedge clk) begin
-    if(jtag_req.tck)begin
-      jtag_req.tck <=~jtag_req.tck;
-    end
-  end
+  // always @(negedge clk) begin
+  //   if(jtag_req.tck)begin
+  //     jtag_req.tck <=1'b0;
+  //   end
+  // end
 
+/* verilator lint_off MULTIDRIVEN */
   always @(posedge clk) begin
     if (reset) begin
       state <= IDLE;
       shiftCount <= 32'b0;
       read_data_valid <= 1'b0;
-      jtag_req.tdo <= 1'b0;
-      jtag_req.tck <= 1'b0;
+      // jtag_req.tck <= 1'b0;
     end else begin
       /* verilator lint_off CASEINCOMPLETE */
       if(jtag_req_begin_d)begin
@@ -88,8 +89,11 @@ module jtag_xtor(
           else begin
             jtag_req.tms <= 1'b0;
           end
+
+          dr <=  1'b1;
           
           if(shiftCount >= 32'd2) begin
+            read_data_valid<= 1'b1;
             jtag_req.tdi <= jtag_tx[shiftCount-2];
           end
           shiftCount <= shiftCount + 1;
@@ -108,8 +112,11 @@ module jtag_xtor(
             jtag_req.tms <= 0;
           end
           if(shiftCount >= 32'd3) begin
+            read_data_valid<= 1'b1;
             jtag_req.tdi <= jtag_tx[shiftCount-3];
           end
+
+          ir <=  1'b1;
           
           shiftCount <= shiftCount + 1;
           if (shiftCount == 32'd2 + IR_WIDTH) begin
@@ -121,13 +128,21 @@ module jtag_xtor(
         end
         UPDATE: begin
           jtag_req.tms <= 1'b1;
+
+          
           jtag_req.tdi <= 1'b0;
           shiftCount <= shiftCount + 1;
           if (shiftCount == 32'd2) begin
             state <= IDLE;
             shiftCount <= 0;
+            if(ir == 1'b1) begin
+              ir <=  1'b0;
+            end 
+            if(dr == 1'b1) begin
+              dr <=  1'b0;
+            end 
           end
-          read_data_valid <= 1'b1;
+          read_data_valid <= 1'b0;
           jtag_req.tck <= 1'b1;
         end
         default: state <= IDLE;
@@ -135,15 +150,38 @@ module jtag_xtor(
       /* verilator lint_on CASEINCOMPLETE */
     end
   end
+
+  //driving tdo by driver
+  always @(posedge clk) begin
+    if (reset) begin
+      jtag_req.tdo <= 1'b0; // Reset to a known state
+    end else begin
+      if (delay_counter == 2'd3) begin
+        jtag_req.tdo <= jtag_req.tdi;
+        read_data_valid_reg <= read_data_valid;
+      end else if(jtag_enable)begin
+        delay_counter <= 2'b0;
+        delay_counter <= delay_counter + 2'b1;
+      end else begin
+        delay_counter <= delay_counter + 2'b1;
+      end
+    end
+  end
+
+  /* verilator lint_on MULTIDRIVEN */
   
   //for future use
   always @(posedge clk) begin
-    if (read_data_valid) begin
-      jtag_rx <= {jtag_rx[62:0],jtag_req.tdo};
+    if (read_data_valid_reg && ir) begin
+      jtag_rx <= {jtag_rx[63:4],jtag_req.tdo,jtag_rx[3:1]};
+      read <= 1;
+    end else if (read_data_valid_reg && dr) begin
+      jtag_rx <= {jtag_rx[63:32],jtag_req.tdo,jtag_rx[31:1]};
       read <= 1;
     end else begin
       if(read)begin
         //$display("final jtag read from tdo=%h",jtag_rx);
+        jtag_rx <= 0;
       end
     end 
   end
