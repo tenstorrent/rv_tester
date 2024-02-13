@@ -1,7 +1,6 @@
 module rv_tester
     import rv_tester_params::*;
 #(
-    parameter int RESET_CLOCKS              =      10,
     parameter bit EXTERNAL_CLOCK            =       0,
     `TOPOLOGY
 ) (
@@ -28,7 +27,10 @@ module rv_tester
         end
     end else begin
         for (genvar c = 0; c < NCLKS; c++) begin
-            rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(clk[c]));
+            if (PLL_CLOCK[c])
+                assign clk[c] = clk_pll[c];
+            else
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(clk[c]));
         end
     end
 
@@ -45,6 +47,7 @@ module rv_tester
     logic rv_tester_reset = '1;
     logic sysmod_reset = '0;
     LU clocks = 0;
+    LU ref_clocks = 0;
     bit cb_poll = '0;
     bit cb_success = '1;
     logic call_finish;
@@ -73,13 +76,21 @@ module rv_tester
     assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout);
     assign rerun_now           = terminated && num_reruns > 0;
 
+    // Ref clock counter
+    always @(posedge clk[REF_CLK_IDX]) begin
+        ref_clocks <= ref_clocks + 1;
+        if (rerun_now) begin
+            ref_clocks <= 0;
+        end
+    end
+
     /*
     * Don't put an DPI calls here, zebu gets confused when signals are driven
     * in the same block as zDPI and leads to weird bugs. Eg, triggers on
     * terminated stopped working, and rv_tester_reset stopped being depositable
     * from the tcl shell.
     */
-    always @(posedge clk[CORE_CLK_IDX]) begin
+    always @(posedge clk[TB_CLK_IDX]) begin
 
         rv_tester_reset <= rerun_now;
         sysmod_reset    <= '0;
@@ -102,7 +113,7 @@ module rv_tester
 
     end
 
-    always @(posedge clk[CORE_CLK_IDX]) begin
+    always @(posedge clk[TB_CLK_IDX]) begin
         if(rerun_now) begin
             $display("<%0d> [RVTESTER]: rerunning test %0d time(s)", clocks, num_reruns);
         end
@@ -114,7 +125,7 @@ module rv_tester
     * these are only run at rv_tester_reset, when no other zDPIs should be
     * called.
     */
-    always @(posedge clk[CORE_CLK_IDX]) begin
+    always @(posedge clk[TB_CLK_IDX]) begin
 
         automatic int _;
 
@@ -162,7 +173,7 @@ module rv_tester
     * rv_tester_shutdown_registry a zemi3 DPI and we'll have thread safety
     * issues with coinciding zDPIs from transactions.
     */
-    always @(posedge clk[CORE_CLK_IDX]) begin
+    always @(posedge clk[TB_CLK_IDX]) begin
 
         automatic logic shutdowned = '0;
 
@@ -199,12 +210,13 @@ module rv_tester
     end
 
     // We also assert reset at the end of the test to quiesce the DPIs.
-    assign reset = clocks < LU'(RESET_CLOCKS) || rv_tester_reset || sysmod_reset || terminate_now || terminated;
+    assign reset[COLD_RESET_IDX] = ref_clocks < LU'(RESET_REF_CLOCKS[COLD_RESET_IDX]) || rv_tester_reset || sysmod_reset || terminate_now || terminated;
+    assign reset[RESET_IDX] = ref_clocks < LU'(RESET_REF_CLOCKS[RESET_IDX]);
 
 `ifdef NEGEDGE_UNSUPPORTED
-    always@(posedge clk[CORE_CLK_IDX]) begin
+    always@(posedge clk[TB_CLK_IDX]) begin
 `else
-    always@(negedge clk[CORE_CLK_IDX]) begin
+    always@(negedge clk[TB_CLK_IDX]) begin
 `endif
         if (cb_poll) begin
             /* verilator lint_off BLKSEQ */
@@ -219,8 +231,8 @@ module rv_tester
     endfunction
     export "DPI-C" function rv_tester_terminate;
 
-    `RV_TESTER_TRANSACTIONS_DOMAIN(1, clk[CORE_CLK_IDX]);
-    `RV_TESTER_TRANSACTIONS_DOMAIN(2, clk[CORE_CLK_IDX]);
+    `RV_TESTER_TRANSACTIONS_DOMAIN(1, clk[TB_CLK_IDX]);
+    `RV_TESTER_TRANSACTIONS_DOMAIN(2, clk[TB_CLK_IDX]);
 
     rv_tester_pkg::dm_write_t  trickbox_dmi_write;
 
@@ -232,7 +244,7 @@ module rv_tester
         `TOPOLOGY_CFG,
         `RV_TESTER_TRANSACTIONS_SYSMOD_SOURCE_PARAMS(0)
     ) sysmod (
-        .clk(clk[CORE_CLK_IDX]),
+        .clk(clk[TB_CLK_IDX]),
         .reset(sysmod_reset),
         .clocks,
         .bootstrap,
@@ -250,7 +262,7 @@ module rv_tester
 
     dmi_driver i_dmi_driver(
         .clk(clk[AXI_CLK_IDX]),
-        .reset,
+        .reset(reset[RESET_IDX]),
         .dmi_req_ready,
         .dmi_resp_valid,
         .dmi_resp,
@@ -304,13 +316,13 @@ module rv_tester
           .NBYPASS(NBYPASSES[c]),
           .NIFETCH(NIFETCHES[c]),
           .NIEVICT(NIEVICTS[c]),
-          .RESET_CLOCKS(RESET_CLOCKS),
+          .RESET_CLOCKS(RESET_REF_CLOCKS[RESET_IDX]),
           `TOPOLOGY_CFG,
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PARAMS(0)
       ) cosim (
           .clk(clk[CORE_CLK_IDX]),
           .reset(sysmod_reset),
-          .dut_reset(reset),
+          .dut_reset(reset[RESET_IDX]),
           .clocks,
           .rvfi(rvfi[NRETS_CUMSUM[c] +: NRETS[c]]),
           .csri(csri[c]),
@@ -389,7 +401,7 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(0)
         ) axi_sw(
             .clk(clk[AXI_CLK_IDX]),
-            .reset_n(~reset),
+            .reset_n(~reset[RESET_IDX]),
             .sys_reset(sysmod_reset),
             .axi_mst_ar_valid(axi_req_llc[p].ar_valid),
             .axi_mst_ar_id   (axi_req_llc[p].ar.id),
@@ -446,7 +458,7 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(1)
         ) ncio_axi_sw(
             .clk(clk[AXI_CLK_IDX]),
-            .reset_n(~reset),
+            .reset_n(~reset[RESET_IDX]),
             .sys_reset(sysmod_reset),
             .axi_mst_ar_valid(ncio_axi_req[p].ar_valid),
             .axi_mst_ar_id   (ncio_axi_req[p].ar.id),
@@ -504,7 +516,7 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(2)
         ) aplic_msi_axi_sw(
             .clk(clk[AXI_CLK_IDX]),
-            .reset_n(~reset),
+            .reset_n(~reset[RESET_IDX]),
             .sys_reset(sysmod_reset),
             .axi_mst_ar_valid(aplic_msi_axi_req[p].ar_valid),
             .axi_mst_ar_id   (aplic_msi_axi_req[p].ar.id),
@@ -564,7 +576,7 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(0)
         ) axi_sw_mst (
             .clk(clk[AXI_CLK_IDX]),
-            .reset_n(~reset),
+            .reset_n(~reset[RESET_IDX]),
             .sys_reset(sysmod_reset),
             .axi_mst_ar_valid(axi_req_mst[p].ar_valid),
             .axi_mst_ar_id   (axi_req_mst[p].ar.id),
@@ -623,7 +635,7 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(1)
         ) aplic_mmr_sw_mst (
             .clk(clk[AXI_CLK_IDX]),
-            .reset_n(~reset),
+            .reset_n(~reset[RESET_IDX]),
             .sys_reset(sysmod_reset),
             .axi_mst_ar_valid(aplic_mmr_axi_req_mst[p].ar_valid),
             .axi_mst_ar_id   (aplic_mmr_axi_req_mst[p].ar.id),
@@ -734,7 +746,7 @@ module rv_tester
 	.NumMastersMem		( NoOfMasters )
     ) rv_tester_mem(
         .clk                    ( clk[AXI_CLK_IDX] ),
-        .rst_n                  ( ~reset ),
+        .rst_n                  ( ~reset[RESET_IDX] ),
         .axi_req_up             ( axi_req ),
         .axi_resp_up            ( axi_rsp ),
         .axi_req_mst_up         ( axi_req_llc ),

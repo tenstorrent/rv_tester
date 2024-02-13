@@ -25,6 +25,7 @@ module top
         .TOPOLOGY(topology_pkg::topology_t),
         .topology(topology_pkg::mods)
     ) tester (
+        .clk_pll(),
         .*
     );
 
@@ -60,14 +61,14 @@ module top
     end
 
     always @(posedge clk[CORE_CLK_IDX]) begin
-        if (!reset) begin
+        if (!reset[RESET_IDX]) begin
             clocks <= clocks + 1;
         end
         case(HARNESS)
         SW_1C:
-          get_1c_stimulus(reset);
+          get_1c_stimulus(reset[RESET_IDX]);
         SW_2C:
-          get_2c_stimulus(reset);
+          get_2c_stimulus(reset[RESET_IDX]);
         default:
             $error("No harness specified");
         endcase
