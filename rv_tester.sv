@@ -48,6 +48,7 @@ module rv_tester
     logic sysmod_reset = '0;
     LU clocks = 0;
     LU ref_clocks = 0;
+    LU axi_clocks = 0;
     bit cb_poll = '0;
     bit cb_success = '1;
     logic call_finish;
@@ -76,11 +77,18 @@ module rv_tester
     assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout);
     assign rerun_now           = terminated && num_reruns > 0;
 
-    // Ref clock counter
+    // Clock counters
     always @(posedge clk[REF_CLK_IDX]) begin
         ref_clocks <= ref_clocks + 1;
         if (rerun_now) begin
             ref_clocks <= 0;
+        end
+    end
+
+    always @(posedge clk[AXI_CLK_IDX]) begin
+        axi_clocks <= axi_clocks + 1;
+        if (rerun_now) begin
+            axi_clocks <= 0;
         end
     end
 
@@ -231,8 +239,8 @@ module rv_tester
     endfunction
     export "DPI-C" function rv_tester_terminate;
 
-    `RV_TESTER_TRANSACTIONS_DOMAIN(1, clk[TB_CLK_IDX]);
-    `RV_TESTER_TRANSACTIONS_DOMAIN(2, clk[TB_CLK_IDX]);
+    `RV_TESTER_TRANSACTIONS_DOMAIN(1, clk[CORE_CLK_IDX]);
+    `RV_TESTER_TRANSACTIONS_DOMAIN(2, clk[AXI_CLK_IDX]);
 
     rv_tester_pkg::dm_write_t  trickbox_dmi_write;
 
@@ -244,9 +252,9 @@ module rv_tester
         `TOPOLOGY_CFG,
         `RV_TESTER_TRANSACTIONS_SYSMOD_SOURCE_PARAMS(0)
     ) sysmod (
-        .clk(clk[TB_CLK_IDX]),
+        .clk(clk[AXI_CLK_IDX]),
         .reset(sysmod_reset),
-        .clocks,
+        .clocks(axi_clocks),
         .bootstrap,
         .dmi_write(trickbox_dmi_write),
         .interrupt,
@@ -298,7 +306,7 @@ module rv_tester
         .dmi_status,
         .dmi_commands_in_queue,
         .misc_signals,
-        `RV_TESTER_TRANSACTIONS_DM_MODEL_SOURCE_PORTS(1,0,0)
+        `RV_TESTER_TRANSACTIONS_DM_MODEL_SOURCE_PORTS(2,0,0)
     );
 `endif
 
@@ -320,6 +328,7 @@ module rv_tester
           `TOPOLOGY_CFG,
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PARAMS(0)
       ) cosim (
+          .tb_clk(clk[TB_CLK_IDX]),
           .clk(clk[CORE_CLK_IDX]),
           .reset(sysmod_reset),
           .dut_reset(reset[RESET_IDX]),
@@ -374,6 +383,7 @@ module rv_tester
           `TOPOLOGY_CFG,
           `RV_TESTER_TRANSACTIONS_PMU_SOURCE_PARAMS(0)
       ) pmu (
+          .tb_clk(clk[TB_CLK_IDX]),
           .clk(clk[CORE_CLK_IDX]),
           .reset(sysmod_reset),
           .clocks,

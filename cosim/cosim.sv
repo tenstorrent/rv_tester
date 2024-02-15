@@ -13,6 +13,7 @@ import rv_tester_params::*;
     `TOPOLOGY,
     `RV_TESTER_TRANSACTIONS_COSIM_OUTPUT_PARAMS
 )(
+    input tb_clk,
     input clk,
     input reset,
     input dut_reset,
@@ -39,7 +40,7 @@ import rv_tester_params::*;
     int unsigned location = cvm_topology::nil;
     bit rvfi_enabled;
 
-    always @(posedge clk) begin
+    always @(posedge tb_clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */
             location = cvm_topology::get_location(topology.TOP.PLATFORM.COSIM.ID, NUM);
@@ -294,7 +295,7 @@ import rv_tester_params::*;
     longint unsigned hart_enable_mask;
     bit boot_wfi;
 
-    always @(posedge clk) begin
+    always @(posedge tb_clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */
             max_cycle = cvm_plusargs::get_ulongint("max_cycle");

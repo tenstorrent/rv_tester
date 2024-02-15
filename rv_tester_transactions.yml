@@ -583,14 +583,10 @@ pmu:
                 width: 64   
 
 
-
-
-
-
 dm_model:
     num: 1
     dmi_status:
-        domain: 1
+        domain: 2
         num: 1
         fields:
             status:
@@ -598,7 +594,7 @@ dm_model:
             commands_in_queue:
                 width: 32
     dmi_req:
-        domain: 1
+        domain: 2
         num: 1
         fields:
             op:
@@ -610,7 +606,7 @@ dm_model:
             misc_signals:
                 width: 8
     dmi_resp:
-        domain: 1
+        domain: 2
         num: 1
         fields:
             resp:
@@ -618,7 +614,7 @@ dm_model:
             data:
                 width: 32
     dm_load_cmd:
-        domain: 1
+        domain: 2
         num: 1
         fields:
             addr:
@@ -628,7 +624,7 @@ dm_model:
             id:
                 width: 17
     dm_load_data:
-        domain: 1
+        domain: 2
         num: 1
         fields:
             id:
@@ -636,7 +632,7 @@ dm_model:
             data:
                 width: 64
     dm_store:
-        domain: 1
+        domain: 2
         num: 1
         fields:
             addr:
