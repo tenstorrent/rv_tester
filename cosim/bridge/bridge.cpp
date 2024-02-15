@@ -33,7 +33,7 @@ DEFINE_string(whisper_json_path, "", "Path to whisper json config");
 DEFINE_bool(cosim_resynch, false, "Resynch whisper with dut state on every instruction");
 DEFINE_string(cosim_resynch_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
 DEFINE_string(cosim_resynch_prev_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
-DEFINE_string(cosim_resynch_csr, "htval,mtval2,mip,vsip,hvip,mtinst,htinst,vstart,vxsat,vxrm,vcsr,vl,vtype,vlenb,sstatus,mstatus,fcsr,mie,hie,vsie", "List of csr mnemonics to resynch whisper with dut state"); // RVDE: 10005 (mtinst/htinst), RVDE: 11217 (vectors), RVDE: 10043 (mtval2/htval)
+DEFINE_string(cosim_resynch_csr, "htval,mtval2,mip,hip,vsip,hvip,mtinst,htinst,vstart,vxsat,vxrm,vcsr,vl,vtype,vlenb,sstatus,mstatus,fcsr,mie,hie,vsie,mireg", "List of csr mnemonics to resynch whisper with dut state"); // RVDE: 10005 (mtinst/htinst), RVDE: 11217 (vectors), RVDE: 10043 (mtval2/htval)
 DEFINE_bool(mip_resynch, true, "Resynch whisper with dut state on mip mismatch condition");
 DEFINE_bool(imsic_resynch, true, "Resynch whisper with dut state on imsic mismatch condition");
 DEFINE_bool(intr_defer_spcl, true, "Defer all interrupts in special cases");
@@ -141,7 +141,6 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
       return;
     }
   }
-
   // Handle pre-step condition - Interrupts
   process_interrupt_pre_step(hart, d, w);
 
@@ -769,8 +768,23 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_
       }
       break;
     case 'c':
-      if (FLAGS_csr_rd_check)
+      if (FLAGS_csr_rd_check){
+        // Check if PMP entry is locked
+        if (w.address >= 0x3B0 && w.address < 0x3C0) {
+          bool valid;
+          uint64_t pmpcfg, mask, reset;
+          uint64_t i, pmp_cfg_reg, pmp_cfg_index;
+          // For PMP addresses, which bits of the pmpcfgs to look for 
+          i = w.address - 0x3B0;
+          pmp_cfg_reg = ((i*8) / 64) * 2;
+          pmp_cfg_index = (i*8) % 64;
+          client_->whisperPeekCsr(hart, 0x3A0 + pmp_cfg_reg, pmpcfg, mask, reset, valid);
+          if((pmpcfg >> (pmp_cfg_index + 7)) & 0x1) {
+            break;
+          }
+        }
         update_csr(hart, src_t::iss, w.address, w.value);
+      }
 
       if (w.address == 0x344) {
         mip_ = w.value;
