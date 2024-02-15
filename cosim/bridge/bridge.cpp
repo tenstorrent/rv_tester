@@ -33,7 +33,7 @@ DEFINE_string(whisper_json_path, "", "Path to whisper json config");
 DEFINE_bool(cosim_resynch, false, "Resynch whisper with dut state on every instruction");
 DEFINE_string(cosim_resynch_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
 DEFINE_string(cosim_resynch_prev_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
-DEFINE_string(cosim_resynch_csr, "htval,mtval2,mip,hip,vsip,hvip,mtinst,htinst,vstart,vxsat,vxrm,vcsr,vl,vtype,vlenb,sstatus,mstatus,fcsr,mie,hie,vsie,mireg", "List of csr mnemonics to resynch whisper with dut state"); // RVDE: 10005 (mtinst/htinst), RVDE: 11217 (vectors), RVDE: 10043 (mtval2/htval)
+DEFINE_string(cosim_resynch_csr, "", "List of csr mnemonics to resynch whisper with dut state"); 
 DEFINE_bool(mip_resynch, true, "Resynch whisper with dut state on mip mismatch condition");
 DEFINE_bool(imsic_resynch, true, "Resynch whisper with dut state on imsic mismatch condition");
 DEFINE_bool(intr_defer_spcl, true, "Defer all interrupts in special cases");
@@ -76,6 +76,12 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
 {
     std::string traceFile = FLAGS_whisper_log ? "iss_cosim.log" : "";
     std::string commandLog = FLAGS_whisper_log ? "iss_cmd.log" : "";
+    cosim_resynch_csr_defaults = {"htval","mtval2","mip","hip","vsip","hvip","mtinst","htinst","vstart","vxsat","vxrm","vcsr","vl","vtype","vlenb","sstatus","mstatus","fcsr","mie","hie","vsie","mireg"}; // RVDE: 10005 (mtinst/htinst), RVDE: 11217 (vectors), RVDE: 10043 (mtval2/htval)
+    std::istringstream iss(FLAGS_cosim_resynch_csr);
+    std::string token;
+    while (std::getline(iss, token, ',')) {
+        cosim_resynch_csr_defaults.push_back(token);
+    }
     client_ = std::make_shared<whisperClient<uint64_t>>(traceFile, commandLog);
 }
 
@@ -249,12 +255,10 @@ void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d)
     if (FLAGS_cosim_resynch) {
       resynch(hart, d);
     } else {
-      std::stringstream ss(FLAGS_cosim_resynch_csr);
-      std::string token;
-      while (std::getline(ss, token, ',')) {
-          if (token == csr) {
-              return;
-          }
+      for (const auto& token_csr : cosim_resynch_csr_defaults) {
+        if (token_csr == csr){
+          return;
+        }
       }
       for (auto & i : d.instrs)
         print_instr_stdout(hart, i);

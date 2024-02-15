@@ -192,5 +192,6 @@ private:
 
   size_8_bytes_t dword_vec_array [vlen/64] = {0};
   int unmask_bits_instr, unmask_bits_uop = 0;
+  std::vector<std::string> cosim_resynch_csr_defaults;
 
 };
