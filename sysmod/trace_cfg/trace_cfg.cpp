@@ -9,11 +9,13 @@
 
 DECLARE_string(load);
 DEFINE_bool(random_trace, false, "Enable Trace Random");
+DECLARE_int32(seed);
 
 
 trace_cfg::trace_cfg(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc)
   : device(tag, addr, size, loc, &trace_cfg::write, &trace_cfg::read, this), axi_mst_loc_l(axi_mst_loc)
 {
+  rng.seed(FLAGS_seed);
   if (FLAGS_load != "") {
     init_elf(FLAGS_load);
   }

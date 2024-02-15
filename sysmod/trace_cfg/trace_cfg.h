@@ -4,7 +4,9 @@
 #include "cvm/topology.hpp"
 #include <string>
 #include <queue>
+#include <random>
 #include <mem_manager.h>
+#include "pcg_random.hpp"
 #include "cvm/registry.hpp"
 #include "transactor.h"
 #include "transactors/axi_sw/axi.h"
@@ -20,6 +22,8 @@ class trace_cfg : public device {
         mem_manager m_;
         cvm::topology::loc_t axi_mst_loc_l;
         cvm::messenger::pool<axi::r_t>::channel_info channel;
+        pcg_extras::seed_seq_from<std::random_device> seed_source;
+        pcg32 rng;
 
     public:
         uint32_t start_trace_cnt;
@@ -87,15 +91,15 @@ class trace_cfg : public device {
         virtual void tick(uint64_t) override
         {
             if(start_trace_cnt == 0) {
-              start_trace_cnt = (rand()% 10) + 5;
+              start_trace_cnt = (rng()% 10) + 5;
             }
             if(FLAGS_random_trace) {
               cvm::log(cvm::HIGH, "[Trickbox] trace_cfg timer tick advance interval {} trace_read_resp_q size {} start_trace_cnt {} \n",cnt_tick,trace_read_resp_q.size(), start_trace_cnt);
-              if(cnt_tick==10) push_trace_enable_seq();
-              if(cnt_tick==(10+50)) push_trace_disable_seq();
+              if(cnt_tick==start_trace_cnt) push_trace_enable_seq();
+              if(cnt_tick==(start_trace_cnt+90)) push_trace_disable_seq();
               if(trace_wr_txn_q.size() > 0) axi_write();
-              if(cnt_tick==(10+60)) read_pointers();
-              if(trace_read_resp_q.size() == (10+62)) read_sram();
+              if(cnt_tick==(start_trace_cnt+90)) read_pointers();
+              if(trace_read_resp_q.size() == (start_trace_cnt+92)) read_sram();
             }
             cnt_tick ++;
         }
