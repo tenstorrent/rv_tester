@@ -75,7 +75,7 @@ void eot::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
       return;
     } else {
       cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", m_rvfi.cycle);
-      cvm::log(cvm::ERROR, "Error: max_instr limit reached: {}\n", m_rvfi.cycle, FLAGS_max_instr);
+      cvm::log(cvm::ERROR, "<{}> Error: max_instr limit reached: {}\n", m_rvfi.cycle, FLAGS_max_instr);
       cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", m_rvfi.cycle);
       return;
     }
