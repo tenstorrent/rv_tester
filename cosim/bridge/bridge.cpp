@@ -33,7 +33,7 @@ DEFINE_string(whisper_json_path, "", "Path to whisper json config");
 DEFINE_bool(cosim_resynch, false, "Resynch whisper with dut state on every instruction");
 DEFINE_string(cosim_resynch_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
 DEFINE_string(cosim_resynch_prev_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
-DEFINE_string(cosim_resynch_csr, "hie,vsip,vsie,htval,mtval2,vl,vtype,mip", "List of csr mnemonics to resynch whisper with dut state");
+DEFINE_string(cosim_resynch_csr, "", "List of csr mnemonics to resynch whisper with dut state"); 
 DEFINE_bool(mip_resynch, true, "Resynch whisper with dut state on mip mismatch condition");
 DEFINE_bool(imsic_resynch, true, "Resynch whisper with dut state on imsic mismatch condition");
 DEFINE_bool(intr_defer_spcl, true, "Defer all interrupts in special cases");
@@ -76,6 +76,12 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
 {
     std::string traceFile = FLAGS_whisper_log ? "iss_cosim.log" : "";
     std::string commandLog = FLAGS_whisper_log ? "iss_cmd.log" : "";
+    cosim_resynch_csr_defaults = {"htval","mtval2","mip","hip","vsip","hvip","mtinst","htinst","vstart","vxsat","vxrm","vcsr","vl","vtype","vlenb","sstatus","mstatus","fcsr","mie","hie","vsie","mireg"}; // RVDE: 10005 (mtinst/htinst), RVDE: 11217 (vectors), RVDE: 10043 (mtval2/htval)
+    std::istringstream iss(FLAGS_cosim_resynch_csr);
+    std::string token;
+    while (std::getline(iss, token, ',')) {
+        cosim_resynch_csr_defaults.push_back(token);
+    }
     client_ = std::make_shared<whisperClient<uint64_t>>(traceFile, commandLog);
 }
 
@@ -141,7 +147,6 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
       return;
     }
   }
-
   // Handle pre-step condition - Interrupts
   process_interrupt_pre_step(hart, d, w);
 
@@ -250,12 +255,10 @@ void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d)
     if (FLAGS_cosim_resynch) {
       resynch(hart, d);
     } else {
-      std::stringstream ss(FLAGS_cosim_resynch_csr);
-      std::string token;
-      while (std::getline(ss, token, ',')) {
-          if (token == csr) {
-              return;
-          }
+      for (const auto& token_csr : cosim_resynch_csr_defaults) {
+        if (token_csr == csr){
+          return;
+        }
       }
       for (auto & i : d.instrs)
         print_instr_stdout(hart, i);
@@ -715,7 +718,6 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
   for (auto & c : d.csr) {
     uint64_t data = modify_csr_data(hart, c.csr_addr, c.csr_wdata);
     size_8_bytes_t mask = modify_csr_mask(hart, c.csr_addr, c.csr_wmask);
-
     if (FLAGS_csr_rd_check)
       update_csr(hart, src_t::dut, c.csr_addr, data, mask);
   }
@@ -770,8 +772,23 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_
       }
       break;
     case 'c':
-      if (FLAGS_csr_rd_check)
+      if (FLAGS_csr_rd_check){
+        // Check if PMP entry is locked
+        if (w.address >= 0x3B0 && w.address < 0x3C0) {
+          bool valid;
+          uint64_t pmpcfg, mask, reset;
+          uint64_t i, pmp_cfg_reg, pmp_cfg_index;
+          // For PMP addresses, which bits of the pmpcfgs to look for 
+          i = w.address - 0x3B0;
+          pmp_cfg_reg = ((i*8) / 64) * 2;
+          pmp_cfg_index = (i*8) % 64;
+          client_->whisperPeekCsr(hart, 0x3A0 + pmp_cfg_reg, pmpcfg, mask, reset, valid);
+          if((pmpcfg >> (pmp_cfg_index + 7)) & 0x1) {
+            break;
+          }
+        }
         update_csr(hart, src_t::iss, w.address, w.value);
+      }
 
       if (w.address == 0x344) {
         mip_ = w.value;
@@ -1338,8 +1355,13 @@ uint64_t bridge::modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data) {
   if (addr >= 0x3B0 && addr < 0x3C0) {
     bool valid;
     uint64_t pmpcfg, mask, reset;
-    client_->whisperPeekCsr(hart, addr - 16, pmpcfg, mask, reset, valid);
-    if((pmpcfg >> 4) & 0x1) {
+    uint64_t i, pmp_cfg_reg, pmp_cfg_index;
+    // For PMP addresses, which bits of the pmpcfgs to look for 
+    i = addr - 0x3B0;
+    pmp_cfg_reg = ((i*8) / 64) * 2;
+    pmp_cfg_index = (i*8) % 64;
+    client_->whisperPeekCsr(hart, 0x3A0 + pmp_cfg_reg, pmpcfg, mask, reset, valid);
+    if((pmpcfg >> (pmp_cfg_index + 4)) & 0x1) {
       result = data | 0x1ff;
     } else {
       result = data & 0xfffffffffffffc00;
@@ -1352,19 +1374,22 @@ cac::size_8_bytes_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, cac::
   cac::size_8_bytes_t result = mask;
   // pmpaddr
   // Spec section...
+  result = mask & get_csr_mask(hart, addr);
   if (addr >= 0x3B0 && addr < 0x3C0) {
     bool valid;
     uint64_t pmpcfg, mask_iss, reset;
-    client_->whisperPeekCsr(hart, addr - 16, pmpcfg, mask_iss, reset, valid);
-    if((pmpcfg >> 4) & 0x1) {
-      result = mask | 0x1ff;
+    uint64_t i, pmp_cfg_reg, pmp_cfg_index;
+    // For PMP addresses, which bits of the pmpcfgs to look for 
+    i = addr - 0x3B0;
+    pmp_cfg_reg = ((i*8) / 64) * 2;
+    pmp_cfg_index = (i*8) % 64;
+    client_->whisperPeekCsr(hart, 0x3A0 + pmp_cfg_reg, pmpcfg, mask_iss, reset, valid);
+    if((pmpcfg >> (pmp_cfg_index + 4)) & 0x1) {
+      result = result | 0x1ff;
     } else {
-      result = mask | 0x3ff;
+      result = result | 0x3ff;
     }
-  } else {
-    result = mask & get_csr_mask(hart, addr);
   }
-  // cvm::log(cvm::MEDIUM, "mask {:#x} updated-mask {:#x}\n", mask, result);
   return result;
 }
 
@@ -1398,12 +1423,25 @@ void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data,
 
   // Also update shadow csr if applicable ex: mstatus/sstatus
   if (!shadow_csr && shadow_csrs.count(addr)) {
-    size_8_bytes_t alias_mask;
-    if (mask_ref)
-      alias_mask = mask_ref.value() & get_csr_poke_mask(hart, shadow_csrs.at(addr));
-    else
-      alias_mask = get_csr_poke_mask(hart, shadow_csrs.at(addr));
-    update_csr(hart, src, shadow_csrs.at(addr), data, alias_mask, true);
+    auto range = shadow_csrs.equal_range(addr);
+    for (auto shadow_csr = range.first; shadow_csr != range.second; ++shadow_csr) {
+      size_8_bytes_t alias_mask;
+      if (src == src_t::dut){
+        if (mask_ref)
+          alias_mask = mask_ref.value() & get_csr_poke_mask(hart, shadow_csr->second);
+        else
+          alias_mask = get_csr_poke_mask(hart, shadow_csr->second);
+      }
+      else {
+        uint64_t mask, poke_mask;
+        bool valid;
+        if (!client_->whisperPeekCsr(hart, shadow_csr->second, data, mask, poke_mask, valid)) {
+          cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek csr\n", hart);
+        }
+        alias_mask = get_csr_poke_mask(hart, shadow_csr->second);
+      }
+      update_csr(hart, src, shadow_csr->second, data, alias_mask, true);
+    }
   }
 }
 
