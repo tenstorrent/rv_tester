@@ -13,7 +13,7 @@
 #include "trace_defines.h"
 
 
-DECLARE_bool(random_trace);
+DECLARE_bool(trace_en);
 
 class trace_cfg : public device {
 
@@ -26,7 +26,7 @@ class trace_cfg : public device {
         pcg32 rng;
 
     public:
-        uint32_t start_trace_cnt;
+        uint32_t start_trace_cnt,read_ram;
         uint32_t cnt_tick=0;
         struct trace_wr_t {
           uint32_t addr;
@@ -93,13 +93,18 @@ class trace_cfg : public device {
             if(start_trace_cnt == 0) {
               start_trace_cnt = (rng()% 10) + 5;
             }
-            if(FLAGS_random_trace) {
+            if(FLAGS_trace_en) {
               cvm::log(cvm::HIGH, "[Trickbox] trace_cfg timer tick advance interval {} trace_read_resp_q size {} start_trace_cnt {} \n",cnt_tick,trace_read_resp_q.size(), start_trace_cnt);
               if(cnt_tick==start_trace_cnt) push_trace_enable_seq();
-              if(cnt_tick==(start_trace_cnt+90)) push_trace_disable_seq();
+              if(cnt_tick==(start_trace_cnt+120)) push_trace_disable_seq();
               if(trace_wr_txn_q.size() > 0) axi_write();
-              if(cnt_tick==(start_trace_cnt+90)) read_pointers();
-              if(trace_read_resp_q.size() == (start_trace_cnt+92)) read_sram();
+              if(cnt_tick==(start_trace_cnt+120)) read_pointers();
+              if((trace_read_resp_q.size() == 2) && (cnt_tick == start_trace_cnt+122)) read_sram();
+              if(read_ram > 0) {
+                cvm::log(cvm::HIGH, "[Trickbox] read RAM {} \n",read_ram);
+                axi_read(0xa082040,2,5);
+                read_ram = read_ram - 1;
+              }
             }
             cnt_tick ++;
         }
@@ -122,7 +127,8 @@ class trace_cfg : public device {
           trace_wr_txn_q.push({CDBG_NODE0_EAP0_CFG,0x11211});
           trace_wr_txn_q.push({CDBG_NODE1_EAP0_CFG,0x101316});
           trace_wr_txn_q.push({CDBG_TRACE_CFG,0x102810});
-          trace_wr_txn_q.push({TR_DST_IMPL,0x1000000});
+          // RTL FIX Needed for this MMR access
+          //trace_wr_txn_q.push({TR_DST_IMPL,0x1000000});
           trace_wr_txn_q.push({CDBG_CLA_CTRL_STS_CFG,0x60});
           cvm::log(cvm::HIGH, "[Trickbox] trace_cfg completed enable trace seq\n");
         }
@@ -159,8 +165,9 @@ class trace_cfg : public device {
            cvm::log(cvm::HIGH, "[Trickbox] trace_cfg reading read pointer {:#X}\n",rp);
 
            cvm::log(cvm::HIGH, "[Trickbox] trace_cfg reading SRAM started\n");
-           for (unsigned i = rp; i < wp; i=i+4)
-             axi_read(0xa082040,2,5);
+           read_ram = (wp - rp)/4;
+           //for (unsigned i = rp; i < wp; i=i+4)
+           //  axi_read(0xa082040,2,5);
           
            cvm::log(cvm::HIGH, "[Trickbox] trace_cfg reading SRAM done \n");
         }        

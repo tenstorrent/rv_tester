@@ -8,7 +8,6 @@
 
 
 DECLARE_string(load);
-DEFINE_bool(random_trace, false, "Enable Trace Random");
 DECLARE_int32(seed);
 
 
