@@ -27,6 +27,8 @@ DECLARE_string(archsample_lib_path);
 DECLARE_bool(standalone);
 DECLARE_uint64(hart_enable_mask);
 
+DEFINE_bool(nostop_standalone,false, "Do not stop if standalone whisper fails");
+
 DEFINE_string(whisper_instr_lines, "", "Write instr cache line addresses used in test to a file");
 DEFINE_string(whisper_data_lines, "", "Write data cache line addresses used in test to a file");
 DEFINE_uint64(resetpc, 0x80000000, "Reset PC");
@@ -136,6 +138,12 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
       t.join();
 
     fclose(whisper_log);
+
+    if (!result && !FLAGS_nostop_standalone) {
+      std::cerr << "Error: Test failed on Standalone Whisper, stopping simulation\n";
+      return -1;
+    }
+
   }
 
   if (FLAGS_cov) {
@@ -163,9 +171,10 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
 
 
 template <typename URV>
-void
-whisperClient<URV>::whisperDisconnect()
+bool
+whisperClient<URV>::whisperConnected()
 {
+  return server_ != nullptr;
 }
 
 template <typename URV>
@@ -538,8 +547,6 @@ bool
 whisperClient<URV>::whisperQuit()
 {
   WhisperMessage req(0 /*hart*/, WhisperMessageType::Quit);  // Any hart will do
-
-  whisperDisconnect();
 
   // There is no reply for quit command.
   return true;
