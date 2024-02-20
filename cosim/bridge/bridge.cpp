@@ -91,10 +91,6 @@ bridge::~bridge() {
   client_->whisperQuit();
 }
 
-bool bridge::whisper_connect() {
-  return (client_->whisperConnect(num_harts_) == 0);
-}
-
 void bridge::reset() {
 
   memmap::get(memmap_);
@@ -102,7 +98,10 @@ void bridge::reset() {
   cac_.Reset();
   assert(cac_.SetVlen(vlen_));
 
-  whisper_connect();
+  if (client_->whisperConnect(num_harts_) != 0) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: Failed whisper_connect\n", id_);
+    return;
+  }
 
   bool valid;
   client_->whisperReset(0, valid);
@@ -1497,7 +1496,7 @@ void bridge::final_phase() {
 }
 
 void bridge::report_metrics() {
-  if (!FLAGS_metrics)
+  if (!FLAGS_metrics || !client_->whisperConnected())
     return;
 
   cvm::log(cvm::NONE, "[COSIM] Report metrics...\n");

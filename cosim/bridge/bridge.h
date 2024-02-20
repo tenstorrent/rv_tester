@@ -64,7 +64,6 @@ public:
 
   void reset();
   void csr_init();
-  bool whisper_connect();
 
   void final_phase();
   void report_metrics();
