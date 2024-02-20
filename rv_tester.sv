@@ -50,6 +50,7 @@ module rv_tester
     logic call_finish;
     int num_reruns = -1;
     bit trace_en = 0;
+    logic trace_quiesced;
 
     logic terminate_now;
     logic rerun_now;
@@ -73,7 +74,7 @@ module rv_tester
     int unsigned cvm_verbosity, gen_clocks_verbosity;
 
     assign terminate           = (rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any) && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
-    assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ( trace_counter >= trace_timeout);
+    assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ( trace_quiesced || trace_counter >= trace_timeout);
     assign rerun_now           = terminated && num_reruns > 0;
 
     /*
@@ -247,6 +248,7 @@ module rv_tester
         .clk(clk[CORE_CLK_IDX]),
         .reset(sysmod_reset),
         .clocks,
+        .trace_quiesced(trace_quiesced),
         .bootstrap,
         .dmi_write(trickbox_dmi_write),
         .interrupt,

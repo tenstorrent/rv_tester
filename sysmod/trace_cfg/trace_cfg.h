@@ -16,6 +16,10 @@ class trace_cfg : public device {
         mem_manager m_;
         cvm::topology::loc_t axi_mst_loc_l;
         cvm::messenger::pool<axi::r_t>::channel_info channel;
+        void complete_trace_test()
+        {
+           cvm::registry::messenger.signal(loc(), trace_info_t{1,0});
+        }
 
     public:
         struct trace_cfg_read_t {
@@ -23,7 +27,10 @@ class trace_cfg : public device {
         size_t length;
         uint32_t id;
         };
-
+        struct trace_info_t{
+            uint32_t trace_quiesced;
+            uint64_t trace_status;
+        };
         struct trace_cfg_read_req_t {
         uint64_t addr;
         size_t length;

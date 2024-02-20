@@ -10,6 +10,7 @@ import rv_tester_params::*;
     input clk,
     input reset,
     input longint unsigned clocks,
+    output trace_quiesced,
     output rv_tester_params::bootstrap_t bootstrap,
     output rv_tester_pkg::interrupt_t interrupt [NHARTS-1:0],
     output rv_tester_pkg::aplic_interrupt_t aplic_interrupt,
@@ -111,6 +112,11 @@ import rv_tester_params::*;
     endfunction
     export "DPI-C" function sysmod_tbox_interrupt;
 
+    function void sysmod_trace_info (int unsigned trace_info_s);
+      trace_quiesced = trace_info_s[0];
+    endfunction
+    export "DPI-C" function sysmod_trace_info;
+
     function sysmod_dmi_write (int unsigned hartid, int unsigned upper_value,int unsigned lower_value);
       dmi_write_begin = '1;
       dm_wdata = {upper_value,lower_value};
@@ -130,6 +136,9 @@ import rv_tester_params::*;
         interrupt_q <= interrupt_d;
         if (reset) begin
             dmi_write   <= '0;
+    /* verilator lint_off BLKANDNBLK */
+            trace_quiesced <= '0;
+    /* verilator lint_on BLKANDNBLK */
         end
         else if(dmi_write_end)begin
             dmi_write.dm_wdata <= '0;
