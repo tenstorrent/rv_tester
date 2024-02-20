@@ -87,14 +87,14 @@ module rv_tester
     // Clock counters
     always @(posedge clk[REF_CLK_IDX]) begin
         ref_clocks <= ref_clocks + 1;
-        if (rerun_now) begin
+        if (rv_tester_reset) begin
             ref_clocks <= 0;
         end
     end
 
     always @(posedge clk[AXI_CLK_IDX]) begin
         axi_clocks <= axi_clocks + 1;
-        if (rerun_now) begin
+        if (rv_tester_reset) begin
             axi_clocks <= 0;
         end
     end
