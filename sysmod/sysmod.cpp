@@ -34,6 +34,7 @@ extern "C" {
   void sysmod_timer_interrupt(unsigned hartid, unsigned val);
   void sysmod_sw_interrupt(unsigned hartid, unsigned val);
   void sysmod_tbox_interrupt(unsigned hartid, unsigned val, unsigned int_val);
+  void sysmod_trace_info(unsigned trace_info_s);
   void sysmod_aplic_dir_interrupt(unsigned long* i) ;
   void sysmod_aplic_rnd_interrupt(unsigned hartid, unsigned val, unsigned int_val);
   void sysmod_dmi_write(unsigned hartid, unsigned upper_val, unsigned lower_val);
@@ -112,6 +113,16 @@ sysmod::tbox_interrupt(interrupter::interrupt_t i) {
       [i]() {
         cvm::log(cvm::FULL, "[SYSMOD] tbox_interrupt [hart={}, intr.sel={:#x}, intr.val={:#x}]\n", i.hart, i.intr_select, i.intr_value);
         sysmod_tbox_interrupt(i.hart, i.intr_select, i.intr_value);
+      });
+}
+
+void
+sysmod::trace_info_handler(trace_cfg::trace_info_t i) {
+  cvm::registry::callbacks.push(
+      scope(),
+      [i]() {
+        cvm::log(cvm::HIGH, "[SYSMOD] trace_info \n");
+        sysmod_trace_info(i.trace_quiesced);
       });
 }
 
@@ -232,10 +243,12 @@ sysmod::terminate(htif::terminate_t) {
 
 void
 sysmod::reset() {
+  //trace_cfg::trace_info_t i={0,0};
   compose();
   load_boot(FLAGS_bootrom_path);
   load_prog(FLAGS_hex, FLAGS_load);
   load_io(FLAGS_load_io);
+  //trace_info_handler(i);
 }
 
 void
@@ -287,6 +300,9 @@ sysmod::compose()
       }
       else if (type == "trace_cfg") {
         // TODO: cvm::ERROR
+        cvm::registry::messenger.connect<trace_cfg::trace_info_t>(
+            loc_,
+            [&](trace_cfg::trace_info_t i) { return this->trace_info_handler(i); });
         assert(masters.size() > 0);
         device = std::make_unique<trace_cfg>(tag, base, size, loc_, masters[0]);
       }

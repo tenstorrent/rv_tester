@@ -24,6 +24,10 @@ class trace_cfg : public device {
         cvm::messenger::pool<axi::r_t>::channel_info channel;
         pcg_extras::seed_seq_from<std::random_device> seed_source;
         pcg32 rng;
+        void complete_trace_test()
+        {
+           cvm::registry::messenger.signal(loc(), trace_info_t{1,0});
+        }
 
     public:
         uint32_t start_trace_cnt,read_ram;
@@ -37,7 +41,10 @@ class trace_cfg : public device {
           size_t length;
           uint32_t id;
         };
-
+        struct trace_info_t{
+            uint32_t trace_quiesced;
+            uint64_t trace_status;
+        };
         struct trace_cfg_read_req_t {
           uint64_t addr;
           size_t length;
@@ -56,6 +63,7 @@ class trace_cfg : public device {
         void gen_data_strb(uint64_t addr, uint32_t value, data_t& wdata, std::vector<bool>& strb) {
             uint8_t b_index =  static_cast<uint8_t>(addr & 0x3F);
 
+              cvm::log(cvm::HIGH, "[Trickbox] trace_cfg gen_data_strb\n");
             for (uint8_t i = 0; i < 64; ++i) {
                   wdata.push_back(0x0);
                   strb.push_back(0x0);
@@ -95,7 +103,7 @@ class trace_cfg : public device {
             }
             if(FLAGS_trace_en) {
               cvm::log(cvm::HIGH, "[Trickbox] trace_cfg timer tick advance interval {} trace_read_resp_q size {} start_trace_cnt {} \n",cnt_tick,trace_read_resp_q.size(), start_trace_cnt);
-              if(cnt_tick==start_trace_cnt) push_trace_enable_seq();
+              if(cnt_tick==0) push_trace_enable_seq();
               if(cnt_tick==(start_trace_cnt+120)) push_trace_disable_seq();
               if(trace_wr_txn_q.size() > 0) axi_write();
               if(cnt_tick==(start_trace_cnt+120)) read_pointers();
@@ -104,6 +112,7 @@ class trace_cfg : public device {
                 cvm::log(cvm::HIGH, "[Trickbox] read RAM {} \n",read_ram);
                 axi_read(0xa082040,2,5);
                 read_ram = read_ram - 1;
+                if(read_ram == 0) complete_trace_test();
               }
             }
             cnt_tick ++;
