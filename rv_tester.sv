@@ -26,8 +26,13 @@ module rv_tester
             assign clk[c] = clk_ext[c];
         end
     end else begin
+        localparam bit pll_clock_exists = 1'b1
+        `ifdef PLL_MODEL_UNSUPPORTED
+                && 1'b0
+        `endif
+        ;
         for (genvar c = 0; c < NCLKS; c++) begin
-            if (PLL_CLOCK[c])
+            if (PLL_CLOCK[c] && pll_clock_exists)
                 assign clk[c] = clk_pll[c];
             else
                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(clk[c]));
@@ -86,14 +91,14 @@ module rv_tester
     // Clock counters
     always @(posedge clk[REF_CLK_IDX]) begin
         ref_clocks <= ref_clocks + 1;
-        if (rerun_now) begin
+        if (rv_tester_reset) begin
             ref_clocks <= 0;
         end
     end
 
     always @(posedge clk[AXI_CLK_IDX]) begin
         axi_clocks <= axi_clocks + 1;
-        if (rerun_now) begin
+        if (rv_tester_reset) begin
             axi_clocks <= 0;
         end
     end
@@ -233,8 +238,10 @@ module rv_tester
     end
 
     // We also assert reset at the end of the test to quiesce the DPIs.
-    assign reset[COLD_RESET_IDX] = ref_clocks < LU'(RESET_REF_CLOCKS[COLD_RESET_IDX]) || rv_tester_reset || sysmod_reset || terminate_now || terminated;
-    assign reset[RESET_IDX] = ref_clocks < LU'(RESET_REF_CLOCKS[RESET_IDX]);
+    logic reset_pullup;
+    assign reset_pullup = rv_tester_reset || sysmod_reset || terminate_now || terminated;
+    assign reset[COLD_RESET_IDX] = ref_clocks < LU'(RESET_REF_CLOCKS[COLD_RESET_IDX]) || reset_pullup;
+    assign reset[RESET_IDX] = ref_clocks < LU'(RESET_REF_CLOCKS[RESET_IDX]) || reset_pullup;
 
 `ifdef NEGEDGE_UNSUPPORTED
     always@(posedge clk[TB_CLK_IDX]) begin
