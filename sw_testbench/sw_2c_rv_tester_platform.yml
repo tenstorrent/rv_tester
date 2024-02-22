@@ -37,4 +37,4 @@ rv_tester_reseti_attrs: &rv_tester_reseti_attrs
   NRESETS: 2
   COLD_RESET_IDX: 0
   RESET_IDX: 1
-  RESET_REF_CLOCKS: [5, 10]
+  RESET_TB_CLOCKS: [5, 10]

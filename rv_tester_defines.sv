@@ -46,7 +46,7 @@ package rv_tester_params;
     parameter NRESETS = mods.TOP.PLATFORM.RESETI.NRESETS;
     parameter COLD_RESET_IDX = mods.TOP.PLATFORM.RESETI.COLD_RESET_IDX;
     parameter RESET_IDX = mods.TOP.PLATFORM.RESETI.RESET_IDX;
-    parameter bit [NRESETS-1:0][31:0] RESET_REF_CLOCKS = mods.TOP.PLATFORM.RESETI.RESET_REF_CLOCKS;
+    parameter bit [NRESETS-1:0][31:0] RESET_TB_CLOCKS = mods.TOP.PLATFORM.RESETI.RESET_TB_CLOCKS;
 
     // --------------------------------------
     // AXI interface
