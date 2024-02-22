@@ -113,7 +113,7 @@ class trace_cfg : public device {
                 cvm::log(cvm::HIGH, "[Trace_cfg] read RAM {} \n",read_ram);
                 axi_read(0xa082040,2,5);
                 read_ram = read_ram - 1;
-                if(read_ram == 0) end_test == 1;
+                if(read_ram == 0) end_test = 1;
               }
             }
             cnt_tick ++;
