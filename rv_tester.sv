@@ -58,6 +58,8 @@ module rv_tester
     bit cb_success = '1;
     logic call_finish;
     int num_reruns = -1;
+    bit trace_en = 0;
+    logic trace_quiesced;
 
     logic terminate_now;
     logic rerun_now;
@@ -70,9 +72,11 @@ module rv_tester
     int instructions = 0;
 
     int quiesce_counter = 0;
+    int trace_counter = 5000;
     int quiesce_timeout = 500;
     int flush_counter = 0;
     int flush_timeout = 25000;
+    int trace_timeout = 50000;
 
     int unsigned location = cvm_topology::nil;
 
@@ -81,7 +85,7 @@ module rv_tester
     int unsigned cvm_verbosity, gen_clocks_verbosity;
 
     assign terminate           = (rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any) && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
-    assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout);
+    assign terminate_now       = (terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ( trace_quiesced || trace_counter >= trace_timeout)) | !trace_en;
     assign rerun_now           = terminated && num_reruns > 0;
 
     // Clock counters
@@ -125,6 +129,13 @@ module rv_tester
             flush_counter   <= '0;
             instructions    <= '0;
         end
+        if(trace_en && (quiesce_counter >= quiesce_timeout)) begin
+           trace_counter <= trace_counter + 1;
+        end else if(trace_en) begin
+          trace_counter <='0; 
+        end else if(!trace_en)begin
+          trace_counter <= trace_timeout + 10;
+        end 
 
     end
 
@@ -163,10 +174,12 @@ module rv_tester
 
             cb_poll             <= cvm_plusargs::get_bool("cb_async") == '0;
             quiesce_timeout     <= cvm_plusargs::get_int("quiesce_timeout");
+            trace_timeout       <= cvm_plusargs::get_int("trace_timeout");
             flush_timeout       <= cvm_plusargs::get_int("flush_timeout");
             call_finish         <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
             gen_clocks          <= cvm_verbosity >= gen_clocks_verbosity;
             bypass_mem          <= cvm_plusargs::get_bool("bypass_mem") != '0;
+            trace_en            <= cvm_plusargs::get_bool("trace_en") != '0;
             bypass_cache        <= cvm_plusargs::get_bool("bypass_cache") != '0;
 
             $display("[RVTESTER]: reconstructing registry");
@@ -263,7 +276,8 @@ module rv_tester
     ) sysmod (
         .clk(clk[AXI_CLK_IDX]),
         .reset(sysmod_reset),
-        .clocks(axi_clocks),
+        .clocks,
+        .trace_quiesced(trace_quiesced),
         .bootstrap,
         .dmi_write(trickbox_dmi_write),
         .interrupt,

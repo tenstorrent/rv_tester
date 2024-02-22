@@ -10,6 +10,7 @@ import rv_tester_params::*;
     input clk,
     input reset,
     input longint unsigned clocks,
+    output trace_quiesced,
     output rv_tester_params::bootstrap_t bootstrap,
     output rv_tester_pkg::interrupt_t interrupt [NHARTS-1:0],
     output rv_tester_pkg::aplic_interrupt_t aplic_interrupt,
@@ -33,6 +34,7 @@ import rv_tester_params::*;
     /* verilator lint_off BLKANDNBLK */
 
  
+    bit trace_quiesced_q = 0;
     bit [1:0]  command= '0;
     bit        jtag_enable_begin = '0;
     bit        jtag_enable_d = '0;
@@ -67,6 +69,7 @@ import rv_tester_params::*;
         end
     end
 
+    assign trace_quiesced = trace_quiesced_q;
     assign bootstrap.boot_addr = 1 << 31;
 
     function void sysmod_terminate ();
@@ -110,6 +113,11 @@ import rv_tester_params::*;
       end
     endfunction
     export "DPI-C" function sysmod_tbox_interrupt;
+
+    function void sysmod_trace_info (int unsigned trace_info_s);
+      trace_quiesced_q = trace_info_s[0];
+    endfunction
+    export "DPI-C" function sysmod_trace_info;
 
     function sysmod_dmi_write (int unsigned hartid, int unsigned upper_value,int unsigned lower_value);
       dmi_write_begin = '1;
