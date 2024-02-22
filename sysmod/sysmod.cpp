@@ -34,6 +34,7 @@ extern "C" {
   void sysmod_timer_interrupt(unsigned hartid, unsigned val);
   void sysmod_sw_interrupt(unsigned hartid, unsigned val);
   void sysmod_tbox_interrupt(unsigned hartid, unsigned val, unsigned int_val);
+  void sysmod_trace_info(unsigned trace_info_s);
   void sysmod_aplic_dir_interrupt(unsigned long* i) ;
   void sysmod_aplic_rnd_interrupt(unsigned hartid, unsigned val, unsigned int_val);
   void sysmod_dmi_write(unsigned hartid, unsigned upper_val, unsigned lower_val);
@@ -116,6 +117,16 @@ sysmod::tbox_interrupt(interrupter::interrupt_t i) {
 }
 
 void
+sysmod::trace_info_handler(trace_cfg::trace_info_t i) {
+  cvm::registry::callbacks.push(
+      scope(),
+      [i]() {
+        cvm::log(cvm::HIGH, "[SYSMOD] trace_info \n");
+        sysmod_trace_info(i.trace_quiesced);
+      });
+}
+
+void
 sysmod::aplic_interrupt(aplic_driver::aplic_driver_write_t i) {
   cvm::registry::callbacks.push(
       scope(),
@@ -136,13 +147,10 @@ sysmod::trace_cfg_read_req_router(trace_cfg::trace_cfg_read_t r) {
     rd.length = r.length;
     rd.id =  r.id;
 
-    cvm::log(cvm::HIGH,"[SYSMOD] trace_cfg read router: read_req addr {:#x} \n",rd.addr);
-
     auto sources = cvm::topology::get_from_type("PLATFORM_TRANSACTOR");
-    for (const auto& source : sources) {
-                if (this->dev(r.addr)){
-                    cvm::registry::messenger.signal<device::read_t>(this->loc_, {rd, source});
-                }
+
+    if (this->dev(r.addr)){
+        cvm::registry::messenger.signal<device::read_t>(this->loc_, {rd, sources[0]});
     }
 
 }
@@ -290,6 +298,9 @@ sysmod::compose()
       }
       else if (type == "trace_cfg") {
         // TODO: cvm::ERROR
+        cvm::registry::messenger.connect<trace_cfg::trace_info_t>(
+            loc_,
+            [&](trace_cfg::trace_info_t i) { return this->trace_info_handler(i); });
         assert(masters.size() > 0);
         device = std::make_unique<trace_cfg>(tag, base, size, loc_, masters[0]);
       }

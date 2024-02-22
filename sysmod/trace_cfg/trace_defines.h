@@ -1,0 +1,38 @@
+#define TR_FUNNEL_CONTROL      0xa081000
+
+#define TR_RAM_CONTROL         0xa080000
+#define TR_RAM_START_LOW       0xa080010
+#define TR_RAM_START_HIGH      0xa080014
+#define TR_RAM_LIMIT_LOW       0xa080018
+#define TR_RAM_LIMIT_HIGH      0xa08001C
+#define TR_RAM_WP_LOW          0xa080020
+#define TR_RAM_WP_HIGH         0xa080024
+#define TR_RAM_RP_LOW          0xa080028
+#define TR_RAM_RP_HIGH         0xa08002C
+#define TR_RAM_DATA            0xa080040
+
+#define TR_DST_RAM_CONTROL     0xa082000
+#define TR_DST_RAM_START_LOW   0xa082010
+#define TR_DST_RAM_START_HIGH  0xa082014
+#define TR_DST_RAM_LIMIT_LOW   0xa082018
+#define TR_DST_RAM_LIMIT_HIGH  0xa08201C
+#define TR_DST_RAM_WP_LOW      0xa082020
+#define TR_DST_RAM_WP_HIGH     0xa082024
+#define TR_DST_RAM_RP_LOW      0xa082028
+#define TR_DST_RAM_RP_HIGH     0xa08202C
+#define TR_DST_RAM_DATA        0xa082040
+
+#define TR_DST_CONTROL         0xa002000
+#define TR_DST_IMPL            0xa002004
+#define CDBG_CLA_CTRL_STS_CFG  0xa002190
+#define CDBG_MUX_SEL_CFG       0xa002198
+#define CDBG_CLA_COUNTER0_CFG  0xa002100
+#define CDBG_CLA_COUNTER1_CFG  0xa002108
+#define CDBG_CLA_COUNTER2_CFG  0xa002110
+#define CDBG_CLA_COUNTER3_CFG  0xa002118
+#define CDBG_NODE0_EAP0_CFG    0xa002120
+#define CDBG_NODE0_EAP1_CFG    0xa002128
+#define CDBG_NODE1_EAP0_CFG    0xa002130
+#define CDBG_NODE1_EAP1_CFG    0xa002138
+#define CDBG_TRACE_CFG         0xa0021A0
+#define CDBG_NTRACE_CFG        0xa0021A8
