@@ -246,7 +246,6 @@ module rv_tester
     ) sysmod (
         .clk(clk[AXI_CLK_IDX]),
         .reset(sysmod_reset),
-        .clocks(clocks),
         .bootstrap,
         .dmi_write(trickbox_dmi_write),
         .interrupt,
