@@ -29,7 +29,6 @@ void trace_cfg::axi_write() {
   std::vector<bool> strb;
   trace_wr_t wr;
 
-  cvm::log(cvm::HIGH, "[Trickbox] trace_cfg axi_write\n");
   wr = trace_wr_txn_q.front();
   trace_wr_txn_q.pop();
   addr = (uint64_t)wr.addr;

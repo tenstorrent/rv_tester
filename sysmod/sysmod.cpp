@@ -243,12 +243,10 @@ sysmod::terminate(htif::terminate_t) {
 
 void
 sysmod::reset() {
-  //trace_cfg::trace_info_t i={0,0};
   compose();
   load_boot(FLAGS_bootrom_path);
   load_prog(FLAGS_hex, FLAGS_load);
   load_io(FLAGS_load_io);
-  //trace_info_handler(i);
 }
 
 void

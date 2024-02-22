@@ -63,7 +63,6 @@ class trace_cfg : public device {
         void gen_data_strb(uint64_t addr, uint32_t value, data_t& wdata, std::vector<bool>& strb) {
             uint8_t b_index =  static_cast<uint8_t>(addr & 0x3F);
 
-              cvm::log(cvm::HIGH, "[Trickbox] trace_cfg gen_data_strb\n");
             for (uint8_t i = 0; i < 64; ++i) {
                   wdata.push_back(0x0);
                   strb.push_back(0x0);
@@ -99,17 +98,17 @@ class trace_cfg : public device {
         virtual void tick(uint64_t) override
         {
             if(start_trace_cnt == 0) {
-              start_trace_cnt = (rng()% 10) + 5;
+              start_trace_cnt = (rng()% 5) + 30;
             }
             if(FLAGS_trace_en) {
-              cvm::log(cvm::HIGH, "[Trickbox] trace_cfg timer tick advance interval {} trace_read_resp_q size {} start_trace_cnt {} \n",cnt_tick,trace_read_resp_q.size(), start_trace_cnt);
-              if(cnt_tick==0) push_trace_enable_seq();
+              cvm::log(cvm::HIGH, "[Trace_cfg] trace_cfg timer tick advance interval {} start_trace_cnt {} \n",cnt_tick,start_trace_cnt);
+              if(cnt_tick==start_trace_cnt) push_trace_enable_seq();
               if(cnt_tick==(start_trace_cnt+120)) push_trace_disable_seq();
               if(trace_wr_txn_q.size() > 0) axi_write();
-              if(cnt_tick==(start_trace_cnt+120)) read_pointers();
-              if((trace_read_resp_q.size() == 2) && (cnt_tick == start_trace_cnt+122)) read_sram();
+              if(cnt_tick==(start_trace_cnt+130)) read_pointers();
+              if((trace_read_resp_q.size() == 2) && (cnt_tick == start_trace_cnt+132)) read_sram();
               if(read_ram > 0) {
-                cvm::log(cvm::HIGH, "[Trickbox] read RAM {} \n",read_ram);
+                cvm::log(cvm::HIGH, "[Trace_cfg] read RAM {} \n",read_ram);
                 axi_read(0xa082040,2,5);
                 read_ram = read_ram - 1;
                 if(read_ram == 0) complete_trace_test();
@@ -119,7 +118,7 @@ class trace_cfg : public device {
         }
         
         void push_trace_enable_seq() {
-          cvm::log(cvm::HIGH, "[Trickbox] trace_cfg inside enable trace seq\n");
+          cvm::log(cvm::HIGH, "[Trace_cfg] trace_cfg inside enable trace seq\n");
           // Funnel-RAM config
           trace_wr_txn_q.push({TR_DST_RAM_START_LOW,0x40});
           trace_wr_txn_q.push({TR_DST_RAM_LIMIT_LOW,0x8000});
@@ -139,21 +138,21 @@ class trace_cfg : public device {
           // RTL FIX Needed for this MMR access
           //trace_wr_txn_q.push({TR_DST_IMPL,0x1000000});
           trace_wr_txn_q.push({CDBG_CLA_CTRL_STS_CFG,0x60});
-          cvm::log(cvm::HIGH, "[Trickbox] trace_cfg completed enable trace seq\n");
+          cvm::log(cvm::HIGH, "[Trace_cfg] trace_cfg completed enable trace seq\n");
         }
 
         void push_trace_disable_seq() {
-          cvm::log(cvm::HIGH, "[Trickbox] trace_cfg inside disable trace seq\n");
+          cvm::log(cvm::HIGH, "[Trace_cfg] trace_cfg inside disable trace seq\n");
           trace_wr_txn_q.push({CDBG_CLA_CTRL_STS_CFG,0x40});
           trace_wr_txn_q.push({TR_DST_CONTROL,0x0});
           trace_wr_txn_q.push({CDBG_CLA_CTRL_STS_CFG,0x0});
           trace_wr_txn_q.push({TR_FUNNEL_CONTROL,0x0});
           trace_wr_txn_q.push({TR_DST_RAM_CONTROL,0x0});
-          cvm::log(cvm::HIGH, "[Trickbox] trace_cfg completed disable trace seq\n");
+          cvm::log(cvm::HIGH, "[Trace_cfg] trace_cfg completed disable trace seq\n");
         }
 
         void read_pointers(){
-          cvm::log(cvm::HIGH, "[Trickbox] trace_cfg reading WRITE/READ pointers\n");
+          cvm::log(cvm::HIGH, "[Trace_cfg] trace_cfg reading WRITE/READ pointers\n");
            axi_read(TR_DST_RAM_WP_LOW,2,5);
            axi_read(TR_DST_RAM_RP_LOW,2,5);
         }
@@ -166,19 +165,17 @@ class trace_cfg : public device {
            trace_read_resp_q.pop();
            if(rdata.addr == 0xa082020) deserializeInt_wp(rdata.data,wp);
            wp = wp & 0xFFFFFFFC;
-           cvm::log(cvm::HIGH, "[Trickbox] trace_cfg reading write pointer {:#X}\n",wp);
+           cvm::log(cvm::HIGH, "[Trace_cfg] trace_cfg reading write pointer {:#X}\n",wp);
 
            rdata = trace_read_resp_q.front();
            trace_read_resp_q.pop();
            if(rdata.addr == 0xa082028) deserializeInt_rp(rdata.data,rp);
-           cvm::log(cvm::HIGH, "[Trickbox] trace_cfg reading read pointer {:#X}\n",rp);
+           cvm::log(cvm::HIGH, "[Trace_cfg] trace_cfg reading read pointer {:#X}\n",rp);
 
-           cvm::log(cvm::HIGH, "[Trickbox] trace_cfg reading SRAM started\n");
+           cvm::log(cvm::HIGH, "[Trace_cfg] trace_cfg reading SRAM started\n");
            read_ram = (wp - rp)/4;
-           //for (unsigned i = rp; i < wp; i=i+4)
-           //  axi_read(0xa082040,2,5);
           
-           cvm::log(cvm::HIGH, "[Trickbox] trace_cfg reading SRAM done \n");
+           cvm::log(cvm::HIGH, "[Trace_cfg] trace_cfg reading SRAM done \n");
         }        
 
         // add max mem size
