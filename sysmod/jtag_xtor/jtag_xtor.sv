@@ -4,7 +4,8 @@ module jtag_xtor(
   input reset,
   /* verilator lint_off MULTIDRIVEN */ 
   /* verilator lint_off UNOPTFLAT */
-  output rv_tester_pkg::jtag_if_t  jtag_req,
+  input rv_tester_pkg::jtag_if_out  jtag_resp,
+  output rv_tester_pkg::jtag_if_t   jtag_req,
   /* verilator lint_on UNOPTFLAT */
   /* verilator lint_off MULTIDRIVEN */ 
   input  bit[1:0]  command,
@@ -38,18 +39,16 @@ parameter IR_WIDTH = 32'd4;
   bit read = '0;
   bit jtag_req_begin = '0;
   bit jtag_req_begin_d = '0;
-  bit jtag_req_end = '0;
   bit[1:0]  command_l = '0;
 
   bit [1:0]  state= '0;
   bit [31:0] shiftCount= '0;
   bit ir ='0;
   bit dr ='0;
-  bit delay_tdi ='0;
-  bit delay_tdi1 ='0;
-  bit valid_i ='0;
-  bit valid_i1 ='0;
-  // assign jtag_req.tdo_en = misc_signals[0];
+  // bit delay_tdi ='0;
+  // bit delay_tdi1 ='0;
+  // bit valid_i ='0;
+  // bit valid_i1 ='0;
 
 // JTAG controller
 
@@ -88,13 +87,13 @@ always @(posedge clk) begin
         if(dr == 1'b1) begin
           dr <=  1'b0;
         end 
-        if (jtag_req_begin) begin // 
+        if (jtag_req_begin) begin 
           // Interpret command and data, set state accordingly
           jtag_req_begin_d <= 1'b1;
           case (command_l)
             2'b10: state <= IDLE;
             2'b01: state <= SHIFT_DR; // to configure dr
-            2'b00: state <= SHIFT_IR;// to configure ir
+            2'b00: state <= SHIFT_IR; // to configure ir
             2'b11: state <= UPDATE;
             default: state <= IDLE;
           endcase
@@ -146,11 +145,16 @@ always @(posedge clk) begin
         jtag_req.tck <= 1'b1;
       end
       UPDATE: begin
-        jtag_req.tms <= 1'b1;
+        
         jtag_req.tdi <= 1'b0;
 
         shiftCount <= shiftCount + 1;
-        if (shiftCount == 32'd2) begin
+        if (shiftCount <= 32'd4) begin
+          jtag_req.tms <= 1'b1;
+        end
+
+        if (shiftCount == 32'd5) begin
+          jtag_req.tms <= 1'b0;
           state <= IDLE;
           shiftCount <= 0;
         end
@@ -165,35 +169,35 @@ always @(posedge clk) begin
 end
 
 //driving tdo by driver
-always @(posedge jtag_req.tdo_en) begin
+always @(posedge jtag_resp.tdo_en) begin
   counter <= 32'b0;
 end
-always @(posedge clk) begin
-  if (reset) begin
-    jtag_req.tdo <= 1'b0; // Reset to a known state
-  end else begin
-    delay_tdi <= jtag_req.tdi;
-    valid_i <= read_data_valid;
-    delay_tdi1 <= delay_tdi;
-    valid_i1 <= valid_i;
-    jtag_req.tdo <= delay_tdi1;
-    jtag_req.tdo_en <= valid_i1; 
-  end
-end
+// always @(posedge clk) begin
+//   if (reset) begin
+//     jtag_resp.tdo <= 1'b0; // Reset to a known state
+//   end else begin
+//     delay_tdi <= jtag_req.tdi;
+//     valid_i <= read_data_valid;
+//     delay_tdi1 <= delay_tdi;
+//     valid_i1 <= valid_i;
+//     // jtag_resp.tdo <= delay_tdi1;
+//     // jtag_resp.tdo_en <= valid_i1; 
+//   end
+// end
 
 
 
 //for future use
 always @(posedge clk) begin
-  if (ir && jtag_req.tdo_en) begin
-    jtag_rx <= {jtag_rx[63:4],jtag_req.tdo,jtag_rx[3:1]};
+  if (ir && jtag_resp.tdo_en) begin
+    jtag_rx <= {jtag_rx[63:4],jtag_resp.tdo,jtag_rx[3:1]};
     read <= 1;
-  end else if (dr && jtag_req.tdo_en) begin
-    jtag_rx <= {jtag_rx[63:32],jtag_req.tdo,jtag_rx[31:1]};
+  end else if (dr && jtag_resp.tdo_en) begin
+    jtag_rx <= {jtag_rx[63:32],jtag_resp.tdo,jtag_rx[31:1]};
     read <= 1;
   end else begin
     if(read)begin
-      //$display("final jtag read from tdo=%h",jtag_rx);
+      $display("final jtag read from tdo=%h",jtag_rx);
       jtag_rx <= 0;
     end
   end 
@@ -204,10 +208,10 @@ always @(posedge clk) begin
 end
 
 always @(posedge clk) begin
-  if(jtag_req.tdo_en && ir && counter == 32'd3)begin
+  if(jtag_resp.tdo_en && ir && counter == 32'd3)begin
     read_data_valid_reg <= 1'b1; 
   end   
-  else if(jtag_req.tdo_en && dr && counter == 32'd31)begin
+  else if(jtag_resp.tdo_en && dr && counter == 32'd31)begin
     read_data_valid_reg <= 1'b1; 
   end else begin
     read_data_valid_reg <= 1'b0; 
@@ -215,7 +219,7 @@ always @(posedge clk) begin
 end
 
 always @(posedge clk)begin
-  if (jtag_req.tdo_en ) begin
+  if (jtag_resp.tdo_en ) begin
     counter <= counter + 32'b1;
   end 
 end
