@@ -19,6 +19,7 @@ class trace_cfg : public device {
 
     private:
 
+        bool end_test=0;
         mem_manager m_;
         cvm::topology::loc_t axi_mst_loc_l;
         cvm::messenger::pool<axi::r_t>::channel_info channel;
@@ -102,6 +103,7 @@ class trace_cfg : public device {
             }
             if(FLAGS_trace_en) {
               cvm::log(cvm::HIGH, "[Trace_cfg] trace_cfg timer tick advance interval {} start_trace_cnt {} \n",cnt_tick,start_trace_cnt);
+              if(end_test==1) complete_trace_test();
               if(cnt_tick==start_trace_cnt) push_trace_enable_seq();
               if(cnt_tick==(start_trace_cnt+120)) push_trace_disable_seq();
               if(trace_wr_txn_q.size() > 0) axi_write();
@@ -111,7 +113,7 @@ class trace_cfg : public device {
                 cvm::log(cvm::HIGH, "[Trace_cfg] read RAM {} \n",read_ram);
                 axi_read(0xa082040,2,5);
                 read_ram = read_ram - 1;
-                if(read_ram == 0) complete_trace_test();
+                if(read_ram == 0) end_test == 1;
               }
             }
             cnt_tick ++;
