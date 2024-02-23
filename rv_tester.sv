@@ -281,6 +281,8 @@ module rv_tester
         .bootstrap,
         .dmi_write(trickbox_dmi_write),
         .interrupt,
+        .jtag_req,
+        .jtag_resp,
         .aplic_interrupt,
         .terminate(sysmod_terminate),
         `RV_TESTER_TRANSACTIONS_SYSMOD_SOURCE_PORTS(2, 0, 0)

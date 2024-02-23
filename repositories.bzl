@@ -49,11 +49,11 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv/swerv-iss.git",
     )
 
-    core_arch_checker_hash="18aa107d1021bbcc668efaae86721e2d15c84e5b"
+    core_arch_checker_hash="3aa15f86e68ac0b4f7f6fb88acb293015f0bf791"
     maybe(
         http_archive,
         name = "CoreArchChecker",
-        sha256 = "7c4942ca94553faad728ec7a408abab7d850a9476fc63ac03a20528330120604",
+        sha256 = "ddae9506fb82d79607105b2b66880444e4f5024ea09832f076220049066e56da",
         strip_prefix = "CoreArchChecker-{commit}".format(commit=core_arch_checker_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/CoreArchChecker/-/archive/{commit}/CoreArchChecker-{commit}.tar.bz2".format(commit=core_arch_checker_hash),
     )
