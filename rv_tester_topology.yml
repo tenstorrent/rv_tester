@@ -13,6 +13,13 @@ rv_tester: &rv_tester
       attrs:
         <<: *rv_tester_clki_attrs
 
+    reseti:
+      count: *rv_tester_reset_count
+      type:
+        - reseti
+      attrs:
+        <<: *rv_tester_reseti_attrs
+
     sysmod:
       count: 1
       type:

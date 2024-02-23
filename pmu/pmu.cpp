@@ -32,9 +32,11 @@ pmu::pmu(cvm::topology::loc_t loc, unsigned id)
     }
 
     auto cosim = cvm::topology::get_from_type("COSIM", id_);
+    auto platform = cvm::topology::get_from_type("PLATFORM", 0);
 
     cvm::registry::messenger.connect<rv_tester_transactions::cosim::m_rvfi<>>(cosim, [this] (const auto& v) { return this->process(v); });
     cvm::registry::messenger.connect<rv_tester_transactions::pmu::pmcounters<>>(loc, [this] (const auto& v) { return this->process(v); });
+    cvm::registry::messenger.connect<rv_tester::terminate_called>(platform, [this] (const auto& v) { return this->process(v); });
   }
 }
 
@@ -100,6 +102,9 @@ pmu::process(const rv_tester_transactions::pmu::pmcounters<>& pmcounters)
   if (loc_ != pmcounters.location)
     return;
 
+  if (terminated_)
+    return;
+
   if (not perf_region_started and (pmcounters.cpu_cycles >= perf_start_cycle) and (perf_start_cycle != 0))
     perf_region_start();
 
@@ -118,6 +123,13 @@ pmu::process(const rv_tester_transactions::pmu::pmcounters<>& pmcounters)
 
     log(cvm::NONE, "\n");
   }
+}
+
+void
+pmu::process(const rv_tester::terminate_called&)
+{
+  cvm::log(cvm::HIGH, "[PMU] termination signaled, stopping further counting\n");
+  terminated_ = true;
 }
 
 void

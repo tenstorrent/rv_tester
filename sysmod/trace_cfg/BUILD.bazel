@@ -4,6 +4,7 @@ cc_library(
     hdrs = ["@rv_tester//transactors/axi_sw:safe_queue.h",
             "@rv_tester//transactors/axi_sw:axi.h",
             "trace_cfg.h",
+            "trace_defines.h",
             ],
     deps = [
         "//sysmod:device",

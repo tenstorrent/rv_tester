@@ -32,11 +32,21 @@ package rv_tester_params;
     // Clk interface
     // --------------------------------------
     parameter NCLKS = mods.TOP.PLATFORM.CLKI.NCLKS;
+    parameter TB_CLK_IDX = mods.TOP.PLATFORM.CLKI.TB_CLK_IDX;
     parameter REF_CLK_IDX = mods.TOP.PLATFORM.CLKI.REF_CLK_IDX;
     parameter CORE_CLK_IDX = mods.TOP.PLATFORM.CLKI.CORE_CLK_IDX;
     parameter AXI_CLK_IDX = mods.TOP.PLATFORM.CLKI.AXI_CLK_IDX;
     parameter SW_CLOCK_PERIOD_PS = mods.TOP.PLATFORM.CLKI.SW_CLOCK_PERIOD_PS;
     parameter bit [NCLKS-1:0][31:0] CLOCK_FREQ_MHZ = mods.TOP.PLATFORM.CLKI.CLOCK_FREQ_MHZ;
+    parameter bit [NCLKS-1:0][31:0] PLL_CLOCK = mods.TOP.PLATFORM.CLKI.PLL_CLOCK;
+
+    // --------------------------------------
+    // Reset interface
+    // --------------------------------------
+    parameter NRESETS = mods.TOP.PLATFORM.RESETI.NRESETS;
+    parameter COLD_RESET_IDX = mods.TOP.PLATFORM.RESETI.COLD_RESET_IDX;
+    parameter RESET_IDX = mods.TOP.PLATFORM.RESETI.RESET_IDX;
+    parameter bit [NRESETS-1:0][31:0] RESET_REF_CLOCKS = mods.TOP.PLATFORM.RESETI.RESET_REF_CLOCKS;
 
     // --------------------------------------
     // AXI interface
@@ -613,7 +623,8 @@ package rv_tester_params;
     // --------------------------------------
 `define _RV_TESTER_PORTS(input,output)                                                              \
     input                                    clk                [rv_tester_params::NCLKS-1:0],      \
-    input                                    reset,                                                 \
+    output                                   clk_pll            [rv_tester_params::NCLKS-1:0],      \
+    input  [rv_tester_params::NRESETS-1:0]   reset, /*Packed so zebu can easily force*/             \
     input  rv_tester_params::bootstrap_t     bootstrap,                                             \
     input  rv_tester_pkg::interrupt_t        interrupt          [rv_tester_params::NHARTS-1:0],     \
     output rv_tester_pkg::interrupt_t        interrupt_pend     [rv_tester_params::NHARTS-1:0],     \
@@ -666,7 +677,8 @@ package rv_tester_params;
 
 `define RV_TESTER_VARS(topology)                                                                    \
     logic                                    clk             [rv_tester_params::NCLKS-1:0];         \
-    logic                                    reset;                                                 \
+    logic                                    clk_pll         [rv_tester_params::NCLKS-1:0];         \
+    logic [rv_tester_params::NRESETS-1:0]    reset           /* Packed so zebu can force easily */; \
     rv_tester_params::bootstrap_t            bootstrap;                                             \
     rv_tester_pkg::interrupt_t               interrupt       [rv_tester_params::NHARTS-1:0];        \
     rv_tester_pkg::interrupt_t               interrupt_pend  [rv_tester_params::NHARTS-1:0];        \
