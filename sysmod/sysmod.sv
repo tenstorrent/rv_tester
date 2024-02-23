@@ -35,6 +35,7 @@ import rv_tester_params::*;
     /* verilator lint_off BLKANDNBLK */
 
  
+    bit trace_quiesced_q;
     bit [1:0]  command= '0;
     bit        jtag_enable_begin = '0;
     bit        jtag_enable_d = '0;
@@ -70,6 +71,7 @@ import rv_tester_params::*;
         end
     end
 
+    assign trace_quiesced = trace_quiesced_q;
     assign bootstrap.boot_addr = 1 << 31;
 
     function void sysmod_terminate ();
@@ -115,7 +117,7 @@ import rv_tester_params::*;
     export "DPI-C" function sysmod_tbox_interrupt;
 
     function void sysmod_trace_info (int unsigned trace_info_s);
-      trace_quiesced = trace_info_s[0];
+      trace_quiesced_q = trace_info_s[0];
     endfunction
     export "DPI-C" function sysmod_trace_info;
 
