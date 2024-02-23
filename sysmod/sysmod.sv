@@ -11,7 +11,7 @@ import rv_tester_params::*;
     input reset,
     input longint unsigned clocks,
     input rv_tester_pkg::jtag_if_out  jtag_resp,
-    output trace_quiesced,
+    output logic trace_quiesced,
     output rv_tester_params::bootstrap_t bootstrap,
     output rv_tester_pkg::interrupt_t interrupt [NHARTS-1:0],
     output rv_tester_pkg::aplic_interrupt_t aplic_interrupt,
@@ -26,16 +26,16 @@ import rv_tester_params::*;
     int unsigned location = cvm_topology::nil;
     bit sysmod_tick_async = '1;
 
+    /* verilator lint_off UNOPTFLAT */
+    logic trace_quiesced_q = 0;
+    /* verilator lint_on UNOPTFLAT */
+
     /* verilator lint_off BLKANDNBLK */
     bit dmi_write_begin = '0;
     bit dmi_write_begin_d = '0;
     bit dmi_write_end = '0;
     bit [63:0] dm_wdata = '0;
-    /* verilator lint_on BLKANDNBLK */
-    /* verilator lint_off BLKANDNBLK */
-
  
-    bit trace_quiesced_q;
     bit [1:0]  command= '0;
     bit        jtag_enable_begin = '0;
     bit        jtag_enable_d = '0;
@@ -43,6 +43,7 @@ import rv_tester_params::*;
     bit        read_data_valid_reg;
     bit [63:0] jtag_tx;
     bit [63:0] jtag_rx;
+    /* verilator lint_on BLKANDNBLK */
     
 
     jtag_xtor  i_jtag_xtor(
