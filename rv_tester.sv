@@ -68,7 +68,10 @@ module rv_tester
     int quiesce_timeout = 500;
     int flush_counter = 0;
     int flush_timeout = 25000;
-
+    int dmi_poll_counter = 0; 
+    int dmi_poll_timeout = 5000; 
+    logic [31:0] dmi_commands_in_queue;
+    
     int unsigned location = cvm_topology::nil;
 
     bit gen_clocks = '0;
@@ -76,7 +79,7 @@ module rv_tester
     int unsigned cvm_verbosity, gen_clocks_verbosity;
 
     assign terminate           = (rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any) && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
-    assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout);
+    assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ( (dmi_commands_in_queue == '0) || (dmi_poll_counter >= dmi_poll_timeout));
     assign rerun_now           = terminated && num_reruns > 0;
 
     // Clock counters
@@ -268,8 +271,7 @@ module rv_tester
 `ifndef DMI_TB_WRITES_UNSUPPORTED
     logic [7:0] misc_signals;
     logic dmi_status;
-    logic [31:0] dmi_commands_in_queue;
-
+    
     dmi_driver i_dmi_driver(
         .clk(clk[AXI_CLK_IDX]),
         .reset(reset[RESET_IDX]),
@@ -310,6 +312,14 @@ module rv_tester
         .misc_signals,
         `RV_TESTER_TRANSACTIONS_DM_MODEL_SOURCE_PORTS(2,0,0)
     );
+
+    always @(posedge clk[AXI_CLK_IDX]) begin
+        if (sys_reset | !dmi_status)
+            poll_counter <= 0; 
+        else if (dmi_status)
+            poll_counter <= poll_counter + 1;
+    end
+
 `endif
 
     // coverage
