@@ -7,9 +7,12 @@ cc_library(
       "imsic_driver.cpp",
       "aplic_driver.cpp",
       "uc_helper.cpp",
+      "scratchpad_xtor.cpp",
       "trickbox.cpp"
     ],
     hdrs = [
+      "//transactors/axi_sw:safe_queue.h",
+      "//transactors/axi_sw:axi.h",
       "subdevice.h",
       "interrupter.h",
       "debugger.h",
@@ -17,6 +20,7 @@ cc_library(
       "imsic_driver.h",
       "aplic_driver.h",
       "uc_helper.h",
+      "scratchpad_xtor.h",
       "trickbox.h"
     ],
     deps = [
@@ -26,9 +30,10 @@ cc_library(
              "@mem_manager//:mem_manager",
              "@cvm//:plusargs",
              "@cvm//:registry",
+             "@cvm//:bitmanip",
              "@cvm//:topology",
              "@cvm//:logger",
            ],
-    strip_include_prefix = ".",
+    #strip_include_prefix = ".",
     visibility = ["//visibility:public"],
 )
