@@ -263,12 +263,15 @@ import rv_tester_params::*;
     always @(posedge clk) begin
        if (reset) begin
         msi_slave_state = idle;
-       end else begin
+       end 
+    end
+    always @(posedge clk)  begin
+        if (!reset) begin
         msi_slave_state <= msi_slave_state_d;
        end
     end
     assign msi_slave_state_d = imsic_interrupt_delayed.w_valid ? idle : imsic_interrupt_delayed.aw_valid ? aw : msi_slave_state;
-    assign msi_addr_in_imsic_range = imsic_interrupt_delayed.aw.addr inside {32'h8000000, 32'h9ffffff} || imsic_interrupt_delayed.aw.addr inside {32'hc000000, 32'hdffffff};
+    assign msi_addr_in_imsic_range = imsic_interrupt_delayed.aw.addr inside {52'h8000000, 52'h9ffffff} || imsic_interrupt_delayed.aw.addr inside {52'hc000000, 52'hdffffff};
     assign m_imsic_msis[0].valid = ~dut_reset & ( (msi_slave_state==aw | imsic_interrupt_delayed.aw_valid) & imsic_interrupt_delayed.w_valid & imsic_interrupt_delayed.b_ready & imsic_interrupt_delayed.w.strb=='hf & msi_addr_in_imsic_range) & rvfi_enabled;
     assign m_imsic_msis[0].data.location = location;
     assign m_imsic_msis[0].data.cycle = clocks;
