@@ -76,7 +76,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
 {
     std::string traceFile = FLAGS_whisper_log ? "iss_cosim.log" : "";
     std::string commandLog = FLAGS_whisper_log ? "iss_cmd.log" : "";
-    cosim_resynch_csr_defaults = {"htval","mtval2","mip","hip","vsip","hvip","mtinst","htinst","vstart","vxsat","vxrm","vcsr","vl","vtype","vlenb","sstatus","mstatus","fcsr","mie","hie","vsie","mireg"}; // RVDE: 10005 (mtinst/htinst), RVDE: 11217 (vectors), RVDE: 10043 (mtval2/htval)
+    cosim_resynch_csr_defaults = {"htval","mtval2","mip","hip","vsip","hvip","mtinst","htinst","vstart","vxsat","vxrm","vcsr","vl","vtype","vlenb","sstatus","mstatus","fcsr","mie","hie","vsie","mireg","mideleg"}; // RVDE: 10005 (mtinst/htinst), RVDE: 11217 (vectors), RVDE: 10043 (mtval2/htval)
     std::istringstream iss(FLAGS_cosim_resynch_csr);
     std::string token;
     while (std::getline(iss, token, ',')) {
@@ -1579,4 +1579,9 @@ void bridge::report_metrics() {
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_trap\": {}}}\n", id_, next_trap);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_num_dest\": {}}}\n", id_, next_num_dest);
   
+  // Regression level metrics from hart 0
+  if (id_ == 0) {
+    // Average ipc
+    cvm::log(cvm::NONE, "INFO_PASS_REGR_METRIC:{{\"name\": \"ipc\", \"value\": {:.2f}, \"type\": \"d\", \"action\": \"average\"}}\n", ipc);
+  }
 }

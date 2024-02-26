@@ -14,6 +14,7 @@ def pmu_gen(name, packet, topology, harness, visibility = None, cc_attrs = {}, *
             "@rv_tester//pmu:pmu.hpp",
         ],
         deps = [
+            "@rv_tester//:structs",
             packet + "_cc",
             "@cvm//:plusargs",
             "@cvm//:logger",
