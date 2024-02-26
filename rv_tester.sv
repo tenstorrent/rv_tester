@@ -78,8 +78,8 @@ module rv_tester
     string cvm_verbosity_string, gen_clocks_verbosity_string;
     int unsigned cvm_verbosity, gen_clocks_verbosity;
 
-    assign terminate           = (rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any) && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
-    assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ( (dmi_commands_in_queue == '0) || (dmi_poll_counter >= dmi_poll_timeout));
+    assign terminate           = (rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any) && !sysmod_reset) || quiesce_counter > 0 || (dmi_poll_counter >= dmi_poll_timeout)) && !rv_tester_reset;
+    assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && (dmi_commands_in_queue == '0);
     assign rerun_now           = terminated && num_reruns > 0;
 
     // Clock counters
@@ -314,10 +314,10 @@ module rv_tester
     );
 
     always @(posedge clk[AXI_CLK_IDX]) begin
-        if (sys_reset | !dmi_status)
-            poll_counter <= 0; 
+        if (sysmod_reset | !dmi_status)
+            dmi_poll_counter <= 0; 
         else if (dmi_status)
-            poll_counter <= poll_counter + 1;
+            dmi_poll_counter <= dmi_poll_counter + 1;
     end
 
 `endif
