@@ -262,11 +262,8 @@ import rv_tester_params::*;
     logic msi_addr_in_imsic_range;
     always @(posedge clk) begin
        if (reset) begin
-        msi_slave_state = idle;
-       end 
-    end
-    always @(posedge clk)  begin
-        if (!reset) begin
+        msi_slave_state <= idle;
+       end else begin
         msi_slave_state <= msi_slave_state_d;
        end
     end
