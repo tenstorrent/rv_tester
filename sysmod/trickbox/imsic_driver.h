@@ -116,8 +116,7 @@ public:
     uint32_t length1 = 1;
     std::vector<uint8_t> data1 = {interrupt_num};
     //std::vector<uint8_t> data1 = {0xba,0xad,0xf0,0x12};
-    std::vector<bool> strb1 = {1,1,1,1,1,1,1};
-
+    std::vector<bool> strb1 = {0,0,0,0,1,1,1,1};
     cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length1, data1, strb1});
  
   }
