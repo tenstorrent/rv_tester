@@ -52,11 +52,11 @@ parameter IR_WIDTH = 32'd4;
 
 // JTAG controller
 
-always @(negedge clk) begin
-  if(jtag_req.tck)begin
-    jtag_req.tck <=1'b0;
-  end
-end
+// always @(negedge clk) begin
+//   if(jtag_req.tck)begin
+//     jtag_req.tck <=1'b0;
+//   end
+// end
 
 
 always @(posedge clk) begin
@@ -64,7 +64,7 @@ always @(posedge clk) begin
     state <= IDLE;
     shiftCount <= 32'b0;
     read_data_valid <= 1'b0;
-    jtag_req.tck <= 1'b0;
+    // jtag_req.tck <= 1'b0;
   end else begin
     /* verilator lint_off CASEINCOMPLETE */
     if(jtag_req_begin_d)begin
@@ -97,7 +97,7 @@ always @(posedge clk) begin
             2'b11: state <= UPDATE;
             default: state <= IDLE;
           endcase
-          jtag_req.tck <= 1'b1;
+          // jtag_req.tck <= 1'b1;
         end
       end
       SHIFT_DR: begin
@@ -120,7 +120,7 @@ always @(posedge clk) begin
           command_l <= UPDATE;
           shiftCount <=0;
         end
-        jtag_req.tck <= 1'b1;
+        // jtag_req.tck <= 1'b1;
       end
       SHIFT_IR: begin
         if(shiftCount <= 32'd1)begin
@@ -142,7 +142,7 @@ always @(posedge clk) begin
           command_l <= UPDATE;
           shiftCount <=0;
         end
-        jtag_req.tck <= 1'b1;
+        // jtag_req.tck <= 1'b1;
       end
       UPDATE: begin
         
@@ -160,7 +160,7 @@ always @(posedge clk) begin
         end
         
         read_data_valid <= 1'b0;
-        jtag_req.tck <= 1'b1;
+        // jtag_req.tck <= 1'b1;
       end
       default: state <= IDLE;
     endcase
