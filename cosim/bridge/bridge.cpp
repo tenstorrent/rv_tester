@@ -83,6 +83,8 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
         cosim_resynch_csr_defaults.push_back(token);
     }
     client_ = std::make_shared<whisperClient<uint64_t>>(traceFile, commandLog);
+    auto platform = cvm::topology::get_from_type("PLATFORM", 0);
+    cvm::registry::messenger.connect<rv_tester::terminate_called>(platform, [this] (const auto& v) { return this->process(v); });
 }
 
 // Destructor
@@ -1495,6 +1497,10 @@ void bridge::final_phase() {
   //report_metrics();
 }
 
+void bridge::process(const rv_tester::terminate_called&) {
+  terminated_ = true;
+}
+
 void bridge::report_metrics() {
   if (!FLAGS_metrics || !client_->whisperConnected())
     return;
@@ -1559,26 +1565,27 @@ void bridge::report_metrics() {
     }
   }
 
-  // Step one final time to collect metrics for next instruction
-  whisper_state_t w;
-  if (FLAGS_mcm) {
-    client_->whisperDisableMcm();
-    w = { .tag = prev_whisp_state.tag+1, .time = prev_whisp_state.time+1 };
-  }
-  else {
-    w = { .tag = step_+1, .time = prev_whisp_state.time+1 };
-  }
-  step(id_, w);
-  const auto& next_instr = w.disasm;
-  const auto& next_mode = w.priv_mode;
-  const auto& next_trap = w.trap;
-  const auto& next_num_dest = w.change_count;
+  if (!terminated_) {
+    // Step one final time to collect metrics for next instruction
+    whisper_state_t w;
+    if (FLAGS_mcm) {
+      client_->whisperDisableMcm();
+      w = { .tag = prev_whisp_state.tag+1, .time = prev_whisp_state.time+1 };
+    }
+    else {
+      w = { .tag = step_+1, .time = prev_whisp_state.time+1 };
+    }
+    step(id_, w);
+    const auto& next_instr = w.disasm;
+    const auto& next_mode = w.priv_mode;
+    const auto& next_trap = w.trap;
+    const auto& next_num_dest = w.change_count;
 
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_instr\": \"{}\"}}\n", id_, next_instr);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_mode\": {}}}\n", id_, next_mode);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_trap\": {}}}\n", id_, next_trap);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_num_dest\": {}}}\n", id_, next_num_dest);
-  
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_instr\": \"{}\"}}\n", id_, next_instr);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_mode\": {}}}\n", id_, next_mode);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_trap\": {}}}\n", id_, next_trap);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_num_dest\": {}}}\n", id_, next_num_dest);
+  }
   // Regression level metrics from hart 0
   if (id_ == 0) {
     // Average ipc
