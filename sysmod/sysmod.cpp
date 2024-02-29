@@ -10,6 +10,7 @@
 #include "clint/clint.h"
 #include "dm/dm.h"
 #include "trace_cfg/trace_cfg.h"
+#include "smc_xtor/smc_xtor.h"
 #include "aplic_mmr/aplic_mmr.h"
 #include "io_dev/io_dev.h"
 #include "null_dev/null_dev.h"
@@ -126,6 +127,16 @@ sysmod::trace_info_handler(trace_cfg::trace_info_t i) {
       });
 }
 
+void
+sysmod::smc_info_handler(smc_xtor::smc_info_t i) {
+        cvm::log(cvm::HIGH, "[SYSMOD] trace_info {} \n",i.smc_quiesced);
+ // cvm::registry::callbacks.push(
+ //     scope(),
+ //     [i]() {
+ //       cvm::log(cvm::HIGH, "[SYSMOD] smc_info \n");
+ //       sysmod_trace_info(i.trace_quiesced);
+ //     });
+}
 void
 sysmod::aplic_interrupt(aplic_driver::aplic_driver_write_t i) {
   cvm::registry::callbacks.push(
@@ -259,6 +270,7 @@ sysmod::compose()
   memmap::get(memmap_);
 
   auto mmr_master = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MMR_MST");
+  auto smc_master = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_SMC_MST");
   auto masters = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST");
   auto platform_loc = cvm::topology::get_from_type("PLATFORM", 0);
   auto nharts = cvm::topology::attr(platform_loc, "NHARTS").second;
@@ -303,6 +315,14 @@ sysmod::compose()
             [&](trace_cfg::trace_info_t i) { return this->trace_info_handler(i); });
         assert(masters.size() > 0);
         device = std::make_unique<trace_cfg>(tag, base, size, loc_, masters[0]);
+      }
+      else if (type == "smc_xtor") {
+        // TODO: cvm::ERROR
+        cvm::registry::messenger.connect<smc_xtor::smc_info_t>(
+            loc_,
+            [&](smc_xtor::smc_info_t i) { return this->smc_info_handler(i); });
+        assert(masters.size() > 0);
+        device = std::make_unique<smc_xtor>(tag, base, size, loc_, smc_master[0]);
       }
       else if (type == "aplic_mmr") {
         // TODO: cvm::ERROR
