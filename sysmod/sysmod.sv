@@ -9,20 +9,20 @@ import rv_tester_params::*;
 )(
     input clk,
     input reset,
-    input longint unsigned clocks,
-    input rv_tester_pkg::jtag_if_out  jtag_resp,
     output logic trace_quiesced,
     output rv_tester_params::bootstrap_t bootstrap,
     output rv_tester_pkg::interrupt_t interrupt [NHARTS-1:0],
     output rv_tester_pkg::aplic_interrupt_t aplic_interrupt,
     output rv_tester_pkg::dm_write_t  dmi_write,
     output rv_tester_pkg::jtag_if_t  jtag_req,
+    input rv_tester_pkg::jtag_if_out  jtag_resp,
     output rv_tester_pkg::terminate_t terminate,
     `RV_TESTER_TRANSACTIONS_SYSMOD_OUTPUT_PORTS
 );
     import "DPI-C" context function void sysmod_set_scope(int unsigned location);
 
     typedef longint unsigned LU;
+    LU clocks = 0;
     int unsigned location = cvm_topology::nil;
     bit sysmod_tick_async = '1;
 
@@ -58,9 +58,12 @@ import rv_tester_params::*;
         .jtag_rx(jtag_rx),
         .misc_signals('0)
     );
+
     /* verilator lint_on BLKANDNBLK */
     always @(posedge clk) begin
+        clocks <= clocks + 1;
         if (reset) begin
+            clocks <= 0;
             /* verilator lint_off BLKSEQ */
             sysmod_tick_async = cvm_plusargs::get_bool("sysmod_tick_async") != '0;
             location = cvm_topology::get_location(topology.TOP.PLATFORM.SYSMOD.ID, NUM);
