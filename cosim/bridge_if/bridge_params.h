@@ -83,7 +83,8 @@ namespace {
         {"vl", 0xc20},
         {"vtype", 0xc21},
         {"vlenb", 0x0C22},
-        {"mireg", 0x351}
+        {"mireg", 0x351},
+        {"sireg", 0x151}
     }};
 
     std::array<csr_entry, 8> nonzero_reset_csrs {{
