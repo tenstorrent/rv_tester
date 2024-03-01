@@ -33,6 +33,7 @@ void trace_cfg::axi_write() {
   trace_wr_txn_q.pop();
   addr = (uint64_t)wr.addr;
   gen_data_strb(wr.addr,wr.data,data,strb);
+  addr = addr & 0xFFFFFFC0;
   
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb});
 }
