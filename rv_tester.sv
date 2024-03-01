@@ -74,12 +74,6 @@ module rv_tester
     int quiesce_timeout = 500;
     int flush_counter = 0;
     int flush_timeout = 25000;
-
-    int dmi_poll_counter = 0; 
-    int dmi_poll_timeout = 8000;
-    logic dmi_poll_timeout_terminate;
-    logic [31:0] dmi_commands_in_queue; 
-
     int trace_timeout = 50000;
 
     int unsigned location = cvm_topology::nil;
@@ -88,9 +82,8 @@ module rv_tester
     string cvm_verbosity_string, gen_clocks_verbosity_string;
     int unsigned cvm_verbosity, gen_clocks_verbosity;
 
-    assign terminate           = (rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
-    assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && (dmi_commands_in_queue == '0) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout); 
-    
+    assign terminate           = (rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any) && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
+    assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout);
     assign rerun_now           = terminated && num_reruns > 0;
 
     /*
@@ -280,7 +273,8 @@ module rv_tester
 `ifndef DMI_TB_WRITES_UNSUPPORTED
     logic [7:0] misc_signals;
     logic dmi_status;
-    
+    logic [31:0] dmi_commands_in_queue;
+
     dmi_driver i_dmi_driver(
         .clk(clk[AXI_CLK_IDX]),
         .reset(reset[RESET_IDX]),
@@ -321,20 +315,6 @@ module rv_tester
         .misc_signals,
         `RV_TESTER_TRANSACTIONS_DM_MODEL_SOURCE_PORTS(2,0,0)
     );
-
-    always @(posedge clk[AXI_CLK_IDX]) begin
-        if (sysmod_reset | !dmi_status)
-            dmi_poll_counter <= 0; 
-        else if (dmi_status) begin
-            dmi_poll_counter <= dmi_poll_counter + 1;
-
-            if (dmi_poll_counter > dmi_poll_timeout) begin
-                $display("<%0d> [RVTESTER]: Error: Debug poll timeout limit reached.", clocks);
-                dmi_poll_timeout_terminate <= 1;
-            end
-        end
-    end
-
 `endif
 
     // coverage
