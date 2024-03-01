@@ -513,9 +513,20 @@ void rvfi::process(const rv_tester_transactions::cosim::m_csri<>& m_csri) {
     return;
 
   csr_t c {true, m_csri.hart, m_csri.cycle, m_csri.addr, m_csri.mask, m_csri.data};
-  hw_csrs_.push_back(c);
-  print_csr(c);
-  send_csr(c);
+
+  // check fscr CSR in CAC in the next step
+  if (m_csri.addr == 0x003) temp_fcsr = c;
+  else {
+    if (temp_fcsr.valid && (c.cycle > temp_fcsr.cycle)) {
+      hw_csrs_.push_back(temp_fcsr);
+      print_csr(temp_fcsr);
+      send_csr(temp_fcsr);
+      temp_fcsr.valid = false;
+    }
+    hw_csrs_.push_back(c);
+    print_csr(c);
+    send_csr(c);
+  }
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_read) {
