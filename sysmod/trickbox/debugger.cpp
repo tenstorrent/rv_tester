@@ -225,7 +225,8 @@ void debugger::drive_csv_dmi_cmds()
     dmi_req = dmi_cmd_q.front();
     dmi_cmd_q.pop(); // pop front element
     if (dmi_req.op == 3) {
-      checkpoint_triggers_pending += 1; 
+      checkpoint_triggers_pending += 1;
+      cvm::log(cvm::HIGH, "[Debugger]: Encountered checkpoint in csv parsing, Number of checkpoints pending is {}\n", checkpoint_triggers_pending);  
     } 
     cvm::log(cvm::MEDIUM, "Popping dmi request: op {} addr {:#x} data {:#x} func bits {:#x}\n", dmi_req.op, dmi_req.addr, dmi_req.data, dmi_req.func_bits);
     unsigned upper_dmi_data = 0;

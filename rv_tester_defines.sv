@@ -46,7 +46,7 @@ package rv_tester_params;
     parameter NRESETS = mods.TOP.PLATFORM.RESETI.NRESETS;
     parameter COLD_RESET_IDX = mods.TOP.PLATFORM.RESETI.COLD_RESET_IDX;
     parameter RESET_IDX = mods.TOP.PLATFORM.RESETI.RESET_IDX;
-    parameter bit [NRESETS-1:0][31:0] RESET_REF_CLOCKS = mods.TOP.PLATFORM.RESETI.RESET_REF_CLOCKS;
+    parameter bit [NRESETS-1:0][31:0] RESET_TB_CLOCKS = mods.TOP.PLATFORM.RESETI.RESET_TB_CLOCKS;
 
     // --------------------------------------
     // AXI interface
@@ -624,7 +624,7 @@ package rv_tester_params;
 `define _RV_TESTER_PORTS(input,output)                                                              \
     input                                    clk                [rv_tester_params::NCLKS-1:0],      \
     output                                   clk_pll            [rv_tester_params::NCLKS-1:0],      \
-    input                                    reset              [rv_tester_params::NRESETS-1:0],    \
+    input  [rv_tester_params::NRESETS-1:0]   reset, /*Packed so zebu can easily force*/             \
     input  rv_tester_params::bootstrap_t     bootstrap,                                             \
     input  rv_tester_pkg::interrupt_t        interrupt          [rv_tester_params::NHARTS-1:0],     \
     output rv_tester_pkg::interrupt_t        interrupt_pend     [rv_tester_params::NHARTS-1:0],     \
@@ -635,6 +635,7 @@ package rv_tester_params;
     input  rv_tester_pkg::aplic_interrupt_t  aplic_interrupt,                                       \
     input  rv_tester_pkg::dm_write_t         dmi_write,                                             \
     input  rv_tester_pkg::jtag_if_t          jtag_req,                                              \
+    output  rv_tester_pkg::jtag_if_out       jtag_resp,                                             \
     output                                   dmi_req_ready,                                         \
     output                                   dmi_resp_valid,                                        \
     output rv_tester_pkg::dmi_resp_t         dmi_resp,                                              \
@@ -677,7 +678,7 @@ package rv_tester_params;
 `define RV_TESTER_VARS(topology)                                                                    \
     logic                                    clk             [rv_tester_params::NCLKS-1:0];         \
     logic                                    clk_pll         [rv_tester_params::NCLKS-1:0];         \
-    logic                                    reset           [rv_tester_params::NRESETS-1:0];       \
+    logic [rv_tester_params::NRESETS-1:0]    reset           /* Packed so zebu can force easily */; \
     rv_tester_params::bootstrap_t            bootstrap;                                             \
     rv_tester_pkg::interrupt_t               interrupt       [rv_tester_params::NHARTS-1:0];        \
     rv_tester_pkg::interrupt_t               interrupt_pend  [rv_tester_params::NHARTS-1:0];        \
@@ -688,6 +689,7 @@ package rv_tester_params;
     logic                                    quiesced;                                              \
     rv_tester_pkg::dm_write_t                dmi_write;                                             \
     rv_tester_pkg::jtag_if_t                 jtag_req;                                              \
+    rv_tester_pkg::jtag_if_out               jtag_resp;                                             \
     logic                                    dmi_req_ready;                                         \
     logic                                    dmi_resp_valid;                                        \
     rv_tester_pkg::dmi_resp_t                dmi_resp;                                              \

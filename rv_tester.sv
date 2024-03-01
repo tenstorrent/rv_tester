@@ -26,8 +26,13 @@ module rv_tester
             assign clk[c] = clk_ext[c];
         end
     end else begin
+        localparam bit pll_clock_exists = 1'b1
+        `ifdef PLL_MODEL_UNSUPPORTED
+                && 1'b0
+        `endif
+        ;
         for (genvar c = 0; c < NCLKS; c++) begin
-            if (PLL_CLOCK[c])
+            if (PLL_CLOCK[c] && pll_clock_exists)
                 assign clk[c] = clk_pll[c];
             else
                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(clk[c]));
@@ -47,12 +52,12 @@ module rv_tester
     logic rv_tester_reset = '1;
     logic sysmod_reset = '0;
     LU clocks = 0;
-    LU ref_clocks = 0;
-    LU axi_clocks = 0;
     bit cb_poll = '0;
     bit cb_success = '1;
     logic call_finish;
     int num_reruns = -1;
+    bit trace_en = 0;
+    logic trace_quiesced;
 
     logic terminate_now;
     logic rerun_now;
@@ -65,37 +70,28 @@ module rv_tester
     int instructions = 0;
 
     int quiesce_counter = 0;
+    int trace_counter = 5000;
     int quiesce_timeout = 500;
     int flush_counter = 0;
     int flush_timeout = 25000;
+
     int dmi_poll_counter = 0; 
-    int dmi_poll_timeout = 5000; 
-    logic [31:0] dmi_commands_in_queue;
-    
+    int dmi_poll_timeout = 8000;
+    logic dmi_poll_timeout_terminate;
+    logic [31:0] dmi_commands_in_queue; 
+
+    int trace_timeout = 50000;
+
     int unsigned location = cvm_topology::nil;
 
     bit gen_clocks = '0;
     string cvm_verbosity_string, gen_clocks_verbosity_string;
     int unsigned cvm_verbosity, gen_clocks_verbosity;
 
-    assign terminate           = (rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any) && !sysmod_reset) || quiesce_counter > 0 || (dmi_poll_counter >= dmi_poll_timeout)) && !rv_tester_reset;
-    assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && (dmi_commands_in_queue == '0);
+    assign terminate           = (rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
+    assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && (dmi_commands_in_queue == '0) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout); 
+    
     assign rerun_now           = terminated && num_reruns > 0;
-
-    // Clock counters
-    always @(posedge clk[REF_CLK_IDX]) begin
-        ref_clocks <= ref_clocks + 1;
-        if (rerun_now) begin
-            ref_clocks <= 0;
-        end
-    end
-
-    always @(posedge clk[AXI_CLK_IDX]) begin
-        axi_clocks <= axi_clocks + 1;
-        if (rerun_now) begin
-            axi_clocks <= 0;
-        end
-    end
 
     /*
     * Don't put an DPI calls here, zebu gets confused when signals are driven
@@ -123,6 +119,13 @@ module rv_tester
             flush_counter   <= '0;
             instructions    <= '0;
         end
+        if(trace_en && (quiesce_counter >= quiesce_timeout)) begin
+           trace_counter <= trace_counter + 1;
+        end else if(trace_en) begin
+          trace_counter <='0; 
+        end else if(!trace_en)begin
+          trace_counter <= trace_timeout + 10;
+        end 
 
     end
 
@@ -161,10 +164,12 @@ module rv_tester
 
             cb_poll             <= cvm_plusargs::get_bool("cb_async") == '0;
             quiesce_timeout     <= cvm_plusargs::get_int("quiesce_timeout");
+            trace_timeout       <= cvm_plusargs::get_int("trace_timeout");
             flush_timeout       <= cvm_plusargs::get_int("flush_timeout");
             call_finish         <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
             gen_clocks          <= cvm_verbosity >= gen_clocks_verbosity;
             bypass_mem          <= cvm_plusargs::get_bool("bypass_mem") != '0;
+            trace_en            <= cvm_plusargs::get_bool("trace_en") != '0;
             bypass_cache        <= cvm_plusargs::get_bool("bypass_cache") != '0;
 
             $display("[RVTESTER]: reconstructing registry");
@@ -223,8 +228,10 @@ module rv_tester
     end
 
     // We also assert reset at the end of the test to quiesce the DPIs.
-    assign reset[COLD_RESET_IDX] = ref_clocks < LU'(RESET_REF_CLOCKS[COLD_RESET_IDX]) || rv_tester_reset || sysmod_reset || terminate_now || terminated;
-    assign reset[RESET_IDX] = ref_clocks < LU'(RESET_REF_CLOCKS[RESET_IDX]);
+    logic reset_pullup;
+    assign reset_pullup = rv_tester_reset || sysmod_reset || terminate_now || terminated;
+    assign reset[COLD_RESET_IDX] = clocks < LU'(RESET_TB_CLOCKS[COLD_RESET_IDX]) || reset_pullup;
+    assign reset[RESET_IDX] = clocks < LU'(RESET_TB_CLOCKS[RESET_IDX]) || reset_pullup;
 
 `ifdef NEGEDGE_UNSUPPORTED
     always@(posedge clk[TB_CLK_IDX]) begin
@@ -259,10 +266,12 @@ module rv_tester
     ) sysmod (
         .clk(clk[AXI_CLK_IDX]),
         .reset(sysmod_reset),
-        .clocks(axi_clocks),
+        .trace_quiesced(trace_quiesced),
         .bootstrap,
         .dmi_write(trickbox_dmi_write),
         .interrupt,
+        .jtag_req,
+        .jtag_resp,
         .aplic_interrupt,
         .terminate(sysmod_terminate),
         `RV_TESTER_TRANSACTIONS_SYSMOD_SOURCE_PORTS(2, 0, 0)
@@ -316,8 +325,14 @@ module rv_tester
     always @(posedge clk[AXI_CLK_IDX]) begin
         if (sysmod_reset | !dmi_status)
             dmi_poll_counter <= 0; 
-        else if (dmi_status)
+        else if (dmi_status) begin
             dmi_poll_counter <= dmi_poll_counter + 1;
+
+            if (dmi_poll_counter > dmi_poll_timeout) begin
+                $display("<%0d> [RVTESTER]: Error: Debug poll timeout limit reached.", clocks);
+                dmi_poll_timeout_terminate <= 1;
+            end
+        end
     end
 
 `endif
@@ -336,7 +351,7 @@ module rv_tester
           .NBYPASS(NBYPASSES[c]),
           .NIFETCH(NIFETCHES[c]),
           .NIEVICT(NIEVICTS[c]),
-          .RESET_CLOCKS(RESET_REF_CLOCKS[RESET_IDX]),
+          .RESET_CLOCKS(RESET_TB_CLOCKS[RESET_IDX]),
           `TOPOLOGY_CFG,
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PARAMS(0)
       ) cosim (

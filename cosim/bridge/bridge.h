@@ -15,7 +15,7 @@
 #include "src/cac_lib.h"
 
 #include "whisper_client.h"
-
+#include "rv_tester/rv_tester_structs.h"
 
 class bridge : public bridge_base {
 
@@ -67,6 +67,7 @@ public:
 
   void final_phase();
   void report_metrics();
+  void process(const rv_tester::terminate_called &);
 
 private:
 
@@ -192,5 +193,7 @@ private:
   size_8_bytes_t dword_vec_array [vlen/64] = {0};
   int unmask_bits_instr, unmask_bits_uop = 0;
   std::vector<std::string> cosim_resynch_csr_defaults;
+
+  bool terminated_ = false;
 
 };

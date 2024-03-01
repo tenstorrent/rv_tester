@@ -35,9 +35,12 @@ package rv_tester_pkg;
         logic tck;
         logic tms;
         logic tdi;
+    } jtag_if_t;
+
+    typedef struct packed {
         logic tdo;
         logic tdo_en;
-    } jtag_if_t;
+    } jtag_if_out;
 
     typedef struct packed  {
         logic [31:0] data;
