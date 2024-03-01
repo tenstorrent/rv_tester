@@ -40,6 +40,7 @@ parameter IR_WIDTH = 32'd4;
   bit jtag_req_begin = '0;
   bit jtag_req_begin_d = '0;
   bit[1:0]  command_l = '0;
+  bit i_en = '0;
 
   bit [1:0]  state= '0;
   bit [31:0] shiftCount= '0;
@@ -52,11 +53,7 @@ parameter IR_WIDTH = 32'd4;
 
 // JTAG controller
 
-// always @(negedge clk) begin
-//   if(jtag_req.tck)begin
-//     jtag_req.tck <=1'b0;
-//   end
-// end
+tt_clkgater tt_clkgater0(clk,i_en, 1'b0,jtag_req.tck);
 
 
 always @(posedge clk) begin
@@ -65,6 +62,7 @@ always @(posedge clk) begin
     shiftCount <= 32'b0;
     read_data_valid <= 1'b0;
     // jtag_req.tck <= 1'b0;
+    i_en <= 1'b0;
   end else begin
     /* verilator lint_off CASEINCOMPLETE */
     if(jtag_req_begin_d)begin
@@ -75,6 +73,7 @@ always @(posedge clk) begin
       jtag_req_begin <= 1'b1;
       command_l <= command;
     end
+
     case (state)
       IDLE: begin
         jtag_req.tms <= 1'b0;
@@ -91,13 +90,27 @@ always @(posedge clk) begin
           // Interpret command and data, set state accordingly
           jtag_req_begin_d <= 1'b1;
           case (command_l)
-            2'b10: state <= IDLE;
-            2'b01: state <= SHIFT_DR; // to configure dr
-            2'b00: state <= SHIFT_IR; // to configure ir
-            2'b11: state <= UPDATE;
+            2'b10: begin
+                    state <= IDLE;
+                    i_en <= 1'b0;
+                  end
+            2'b01: begin
+                    state <= SHIFT_DR; // to configure dr
+                    i_en <= 1'b1;
+                  end
+            2'b00:begin
+                   state <= SHIFT_IR; // to configure ir
+                   i_en <= 1'b1;
+                  end
+            2'b11:begin 
+                    state <= UPDATE;
+                    i_en <= 1'b1;
+                  end
             default: state <= IDLE;
           endcase
-          // jtag_req.tck <= 1'b1;
+        end
+        else begin
+          i_en <= 1'b0;
         end
       end
       SHIFT_DR: begin
@@ -120,6 +133,7 @@ always @(posedge clk) begin
           command_l <= UPDATE;
           shiftCount <=0;
         end
+        i_en <= 1'b1;
         // jtag_req.tck <= 1'b1;
       end
       SHIFT_IR: begin
@@ -142,7 +156,7 @@ always @(posedge clk) begin
           command_l <= UPDATE;
           shiftCount <=0;
         end
-        // jtag_req.tck <= 1'b1;
+        i_en <= 1'b1;
       end
       UPDATE: begin
         
@@ -160,9 +174,13 @@ always @(posedge clk) begin
         end
         
         read_data_valid <= 1'b0;
-        // jtag_req.tck <= 1'b1;
+        i_en <= 1'b1;
       end
-      default: state <= IDLE;
+      default: begin 
+        state <= IDLE;
+        i_en <= 1'b0;
+      end
+
     endcase
     /* verilator lint_on CASEINCOMPLETE */
   end
@@ -197,7 +215,7 @@ always @(posedge clk) begin
     read <= 1;
   end else begin
     if(read)begin
-      $display("final jtag read from tdo=%h",jtag_rx);
+      // $display("final jtag read from tdo=%h",jtag_rx);
       jtag_rx <= 0;
     end
   end 
