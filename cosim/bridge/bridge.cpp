@@ -76,7 +76,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
 {
     std::string traceFile = FLAGS_whisper_log ? "iss_cosim.log" : "";
     std::string commandLog = FLAGS_whisper_log ? "iss_cmd.log" : "";
-    cosim_resynch_csr_defaults = {"htval","mtval2","mip","hip","vsip","hvip","mtinst","htinst","vstart","vxsat","vxrm","vcsr","vtype","vlenb","sstatus","mstatus","fcsr","mie","hie","vsie","mireg","sireg"}; // RVDE: 10005 (mtinst/htinst), RVDE: 11217 (vectors), RVDE: 10043 (mtval2/htval)
+    cosim_resynch_csr_defaults = {"htval","mtval2","mip","hip","vsip","hvip","mtinst","htinst","vstart","vxsat","vxrm","vcsr","vtype","vlenb","sstatus","mstatus","fcsr","mie","hie","vsie","mireg","sireg","fflags","mcycle"}; // RVDE: 10005 (mtinst/htinst), RVDE: 11217 (vectors), RVDE: 10043 (mtval2/htval), RVDE-12092 (mcycle)
     std::istringstream iss(FLAGS_cosim_resynch_csr);
     std::string token;
     while (std::getline(iss, token, ',')) {
@@ -721,13 +721,22 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
     size_8_bytes_t mask = modify_csr_mask(hart, c.csr_addr, c.csr_wmask);
     if (FLAGS_csr_rd_check) {
       update_csr(hart, src_t::dut, c.csr_addr, data, mask);
-      if (c.csr_addr == 0x001) update_csr(hart, src_t::dut, 0x003, data, mask);
-      else if (c.csr_addr == 0x002) {
+      if (c.csr_addr == 0x001) update_csr(hart, src_t::dut, 0x003, data, mask); // On fflags update, update fcsr
+      else if (c.csr_addr == 0x002) { // On frm update, update fcsr
         data = data << 5;
         mask = mask << 5;
         update_csr(hart, src_t::dut, 0x003, data, mask, false, false);
       }
-      else if (c.csr_addr == 0x301){
+      else if (c.csr_addr == 0x003){ // On fcsr update, update fflags,frm
+        cvm::log(cvm::MEDIUM, "fcsr: {:#x}\n", data);
+        size_8_bytes_t mask_fcsr = mask;
+        mask = mask_fcsr & 0x1f;
+        update_csr(hart, src_t::dut, 0x001, data, mask, false, false);
+        data = data >> 5;
+        mask = (mask_fcsr >> 5) & 0x3;
+        update_csr(hart, src_t::dut, 0x002, data, mask, false, false);
+      }
+      else if (c.csr_addr == 0x301){ // On misa.H update, update mideleg
         if ((c.csr_wmask >> 7) & 0x1) {
           mask = 0x1444;
           if ((c.csr_wdata >> 7) & 0x1) update_csr(hart, src_t::dut, 0x303, 0x1444, mask, false, false);

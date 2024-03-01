@@ -513,12 +513,11 @@ void rvfi::process(const rv_tester_transactions::cosim::m_csri<>& m_csri) {
     return;
 
   csr_t c {true, m_csri.hart, m_csri.cycle, m_csri.addr, m_csri.mask, m_csri.data};
-  if (m_csri.addr == 0x003){
-    cvm::log(cvm::MEDIUM, "fcsr cmg\n");
-    temp_fcsr = c;
-  } else {
+
+  // check fscr CSR in CAC in the next step
+  if (m_csri.addr == 0x003) temp_fcsr = c;
+  else {
     if (temp_fcsr.valid && (c.cycle > temp_fcsr.cycle)) {
-      cvm::log(cvm::MEDIUM, "fcsr using next tym\n");
       hw_csrs_.push_back(temp_fcsr);
       print_csr(temp_fcsr);
       send_csr(temp_fcsr);
