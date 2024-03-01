@@ -5,7 +5,7 @@
 #include <queue>
 #include <random>
 #include <mem_manager.h>
-#include "subdevice.h"
+#include "sysmod/device.h"
 #include "pcg_random.hpp"
 #include "cvm/registry.hpp"
 #include "transactor.h"
@@ -14,18 +14,21 @@
 
 DECLARE_bool(trace_en);
 
-class scratchpad_xtor : public subdevice {
+class scratchpad_xtor : public device {
 
     private:
 
         //bool end_test=0;
         mem_manager m_;
+        bool trigger_flag =0;
+        uint64_t trigger_addr =0;
+        uint64_t trigger_mode =0;
+        uint64_t sp_mmr_base =0;
         cvm::topology::loc_t axi_mst_loc_l;
         cvm::messenger::pool<axi::r_t>::channel_info channel;
         pcg_extras::seed_seq_from<std::random_device> seed_source;
         pcg32 rng;
         uint64_t scratchpad_xtor_base  = 0x9070000;
-        unsigned hartCount_l=1;
         void complete_trace_test()
         {
           // cvm::registry::messenger.signal(loc(), trace_info_t{1,0});
@@ -59,10 +62,8 @@ class scratchpad_xtor : public subdevice {
         virtual void axi_write();
         virtual void axi_read(uint64_t addr, size_t length, uint32_t id);
         //void write(const transactor::write_t& );
-        virtual void write(uint64_t addr, size_t length, const data_t& data,
-                      const strb_t& strb) override;
+        void write(const transactor::write_t& );
 
-        void read_dev(uint64_t addr, size_t length,  data_t& data) override;
         cvm::messenger::task<void> read(const transactor::read_t& , data_t& );
 
         void gen_data_strb(uint64_t addr, uint32_t value, data_t& wdata, std::vector<bool>& strb) {
@@ -113,6 +114,11 @@ class scratchpad_xtor : public subdevice {
         virtual void tick(uint64_t) override
         {
             cnt_tick ++;
+            if(trigger_flag){
+            cvm::log(cvm::LOW, "[Trickbox] SCRATCHPAD_XTOR trigger flag set \n");
+            axi_read(0x90a0080,2,5);
+            trigger_flag = 0;
+            }
         }
         
         void push_trace_enable_seq() {
@@ -128,7 +134,7 @@ class scratchpad_xtor : public subdevice {
         }        
 
         // add max mem size
-        scratchpad_xtor(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc);
+        scratchpad_xtor(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc);
 
 
            /// Initialize memory with elf file.

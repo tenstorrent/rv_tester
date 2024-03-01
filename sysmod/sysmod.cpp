@@ -155,7 +155,23 @@ sysmod::trace_cfg_read_req_router(trace_cfg::trace_cfg_read_t r) {
 
 }
 
+void
+sysmod::scratchpad_xtor_read_req_router(scratchpad_xtor::scratchpad_xtor_read_t r) {
 
+    transactor::read_t rd; 
+    rd.addr = r.addr;
+    rd.length = r.length;
+    rd.id =  r.id;
+    cvm::log(cvm::LOW, "[SYSMOD] SCRATCHPAD_XTOR ROUTER - addr={:#x} \n", rd.addr);
+
+    auto sources = cvm::topology::get_from_type("PLATFORM_TRANSACTOR");
+
+    if (this->dev(r.addr)){
+    cvm::log(cvm::LOW, "[SYSMOD] SCRATCHPAD_XTOR ROUTER  send to device - addr={:#x} \n", rd.addr);
+        cvm::registry::messenger.signal<device::read_t>(this->loc_, {rd, sources[0]});
+    }
+
+}
 void
 sysmod::uc_helper_backdoor_write(uc_helper::uc_helper_write_t w) {
 
@@ -303,6 +319,14 @@ sysmod::compose()
             [&](trace_cfg::trace_info_t i) { return this->trace_info_handler(i); });
         assert(masters.size() > 0);
         device = std::make_unique<trace_cfg>(tag, base, size, loc_, masters[0]);
+      }
+      else if (type == "scratchpad_xtor") {
+        // TODO: cvm::ERROR
+        assert(masters.size() > 0);
+        device = std::make_unique<scratchpad_xtor>(tag, base, size, loc_, masters[0]);
+        cvm::registry::messenger.connect<scratchpad_xtor::scratchpad_xtor_read_t>(
+            loc_,
+            [&](scratchpad_xtor::scratchpad_xtor_read_t i) { return this->scratchpad_xtor_read_req_router(i); });
       }
       else if (type == "aplic_mmr") {
         // TODO: cvm::ERROR

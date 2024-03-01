@@ -23,7 +23,6 @@
 #include "imsic_driver.h"
 #include "aplic_driver.h"
 #include "uc_helper.h"
-#include "scratchpad_xtor.h"
 #include <mem_manager.h>
 
 // Define a core local  (trickbox) at the given address

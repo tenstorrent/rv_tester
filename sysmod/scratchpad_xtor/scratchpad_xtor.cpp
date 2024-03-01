@@ -9,12 +9,10 @@
 DECLARE_string(load);
 DECLARE_int32(seed);
 
-
-scratchpad_xtor::scratchpad_xtor(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc,cvm::topology::loc_t axi_mst_loc)
-  : subdevice(tag, addr, 0x4000 /* size */, loc), axi_mst_loc_l(axi_mst_loc) 
+scratchpad_xtor::scratchpad_xtor(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc)
+  : device(tag, addr, size, loc, &scratchpad_xtor::write, &scratchpad_xtor::read, this), axi_mst_loc_l(axi_mst_loc)
 {
   scratchpad_xtor_base = addr;
-  hartCount_l = hartCount;
   rng.seed(FLAGS_seed);
   if (FLAGS_load != "") {
     init_elf(FLAGS_load);
@@ -40,26 +38,33 @@ void scratchpad_xtor::axi_write() {
 
 void scratchpad_xtor::axi_read(uint64_t addr, size_t length,
                           uint32_t id) {
+    cvm::log(cvm::LOW, "[Trickbox] SCRATCHPAD_XTOR AXI READ - addr={:#x} SEND SYSMOD SIGNAL\n", addr);
    cvm::registry::messenger.signal(loc(), scratchpad_xtor_read_t{addr, length, id});
 }
 
 
-void
-scratchpad_xtor::write(uint64_t addr, size_t, const data_t& data,
-		 const strb_t&)
-{
+void scratchpad_xtor::write(const transactor::write_t& w ) {
+  auto& addr = w.addr;
+  auto& length = w.length;
+  auto& data = w.data;
+  //auto& strb = w.strb;
   if (not has_addr(addr))
     return;
   uint64_t t_data=0;
   deserializeInt(data, t_data);
-  cvm::log(cvm::LOW, "[Trickbox] SCRATCHPAD_XTOR write - addr={:#x} data={:#x}\n", addr, t_data);
+  cvm::log(cvm::LOW, "[Trickbox] SCRATCHPAD_XTOR write - addr={:#x} len= {} data={:#x}  \n", addr, length,t_data);
   if (addr == scratchpad_xtor_base) {
-    cvm::log(cvm::LOW, "[Trickbox] SCRATCHPAD_XTOR write - addr={:#x} data={:#x}\n", addr, t_data);
-  }else if(addr == scratchpad_xtor_base + 0x100){
-
-    cvm::log(cvm::LOW, "[Trickbox] SCRATCHPAD_XTOR write - addr={:#x} data={:#x}\n", addr, t_data);
-  }else if(addr == scratchpad_xtor_base + 0x200){
-    cvm::log(cvm::LOW, "[Trickbox] SCRATCHPAD_XTOR write - addr={:#x} data={:#x}\n", addr, t_data);
+    cvm::log(cvm::LOW, "[Trickbox] SCRATCHPAD_XTOR  base write - addr={:#x} data={:#x}\n", addr, t_data);
+    trigger_addr = t_data;
+  }else if(addr == scratchpad_xtor_base + 0x40){
+    trigger_mode = t_data;
+    cvm::log(cvm::LOW, "[Trickbox] SCRATCHPAD_XTOR base + 0x40 write - addr={:#x} data={:#x}\n", addr, t_data);
+  }else if(addr == scratchpad_xtor_base + 0x80){
+    trigger_flag = t_data != 0;
+    cvm::log(cvm::LOW, "[Trickbox] SCRATCHPAD_XTOR base + 0x80 write - addr={:#x} data={:#x}\n", addr, t_data);
+  }else if(addr == scratchpad_xtor_base + 0x120){
+    sp_mmr_base = t_data;
+    cvm::log(cvm::LOW, "[Trickbox] SCRATCHPAD_XTOR base + 0x120 write - addr={:#x} data={:#x}\n", addr, t_data);
 
   }
   // auto& addr = w.addr;
@@ -75,8 +80,10 @@ scratchpad_xtor::write(uint64_t addr, size_t, const data_t& data,
 cvm::messenger::task<void> scratchpad_xtor::read(const transactor::read_t& r, data_t& ) {
    auto& addr = r.addr;
    auto& length = r.length;
+    cvm::log(cvm::LOW, "[Trickbox] SCRATCHPAD_XTOR READ - addr={:#x} \n", addr);
 
-  cvm::registry::messenger.signal(axi_mst_loc_l, transactor::read_request_t{addr, length});
+  //cvm::registry::messenger.signal(axi_mst_loc_l, transactor::read_request_t{addr, length});
+  cvm::registry::messenger.signal(axi_mst_loc_l, transactor::read_request_t{0x123456, 2});
 
   auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(channel);
 
@@ -101,12 +108,6 @@ void scratchpad_xtor::read_axi_mst(uint64_t addr, size_t, data_t&) {
   return;
 }
 
-void
-scratchpad_xtor::read_dev(uint64_t addr, size_t , data_t& )
-{
-  cvm::log(cvm::HIGH, "[Trickbox] IMSIC read addr={:#x} \n", addr);
-  return;
-}
 
 bool scratchpad_xtor::init_elf(const std::string& path) {
     try {

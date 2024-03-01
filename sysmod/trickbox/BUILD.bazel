@@ -7,7 +7,6 @@ cc_library(
       "imsic_driver.cpp",
       "aplic_driver.cpp",
       "uc_helper.cpp",
-      "scratchpad_xtor.cpp",
       "trickbox.cpp"
     ],
     hdrs = [
@@ -20,7 +19,6 @@ cc_library(
       "imsic_driver.h",
       "aplic_driver.h",
       "uc_helper.h",
-      "scratchpad_xtor.h",
       "trickbox.h"
     ],
     deps = [
