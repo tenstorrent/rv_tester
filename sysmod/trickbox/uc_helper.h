@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include <mutex>
-#include <atomic>
-#include <thread>
 #include <unistd.h>
 #include "subdevice.h"
 #include <iostream>
@@ -109,7 +106,6 @@ private:
   uint64_t tx_trigger = 0;
   uint8_t  read_flag = 0;
   mem_manager m_;
-  std::atomic<bool> terminate_ = false;
   
   pcg_extras::seed_seq_from<std::random_device> seed_source;
   pcg32 rng;

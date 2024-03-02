@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include <mutex>
-#include <atomic>
-#include <thread>
 #include <unistd.h>
 #include "subdevice.h"
 #include <iostream>
@@ -84,7 +81,6 @@ public:
 
   virtual void tick(uint64_t advance) override
   {
-    std::lock_guard<std::mutex> lock(mutex_);
     timer_ += advance;
     timer_advance = advance;
     cvm::log(cvm::FULL, "[Trickbox] Timer tick {} advance interval {} \n", timer_, timer_advance);
@@ -190,8 +186,6 @@ protected:
     cvm::registry::messenger.signal(loc(), interrupt_t{hart, intr_select, intr_value});
   }
 
-  // Start a thread to increment timer after n microseconds.
-  void selfTick(useconds_t n);
   //Check plusarg usage
   void checkUsage();
 
@@ -214,10 +208,6 @@ private:
   int      intr_driven = 0;
   int      limit_interrupts = 0;
 
-  std::atomic<bool> terminate_ = false;
-  std::mutex mutex_;
-
-  std::thread timerThread_;
   pcg_extras::seed_seq_from<std::random_device> seed_source;
   pcg32 rng;
 };
