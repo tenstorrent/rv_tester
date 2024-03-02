@@ -44,10 +44,9 @@ class logger_instrument {
         }
 
         void check() {
-            // set front to true so that this skips ahead of all other messages
-            // mainly to skip over a bunch of cosim transactions that could be queued up on zebu
-            // processing those transactions could take a long time, especially in cases which cause whisper to also print, eg tohost writes
-            cvm::registry::messenger.signal<rv_tester::terminate_called>(loc, rv_tester::terminate_called{}, cvm::messenger::highest_priority);
+            // we want this to be low prio and async so it goes behind existing rvfi transactions in the queue
+            // because of QoS this could have been seen before all rvfi transactions up to this instruction were processed
+            cvm::registry::messenger.signal<rv_tester::terminate_called>(loc, rv_tester::terminate_called{}, cvm::messenger::lowest_priority, cvm::messenger::async);
             cvm::registry::callbacks.push(
                 scope,
                 []() {
