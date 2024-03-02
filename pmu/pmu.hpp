@@ -1,6 +1,7 @@
 #include "cvm/logger.hpp"
 #include "cvm/topology.hpp"
 #include "rv_tester_transactions.hpp"
+#include "rv_tester/rv_tester_structs.h"
 #include <cassert>
 #include <vector>
 
@@ -466,6 +467,7 @@ public:
   void configure();
   void process(const rv_tester_transactions::cosim::m_rvfi<> &m_rvfi);
   void process(const rv_tester_transactions::pmu::pmcounters<> &pmcounters);
+  void process(const rv_tester::terminate_called &);
 
 private:
   cvm::file_logger log;
@@ -482,4 +484,6 @@ private:
   bool perf_region_started = false;
   bool perf_region_ended = false;
   std::vector<uint64_t> perf_region;
+
+  bool terminated_ = false;
 };

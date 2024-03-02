@@ -9,29 +9,32 @@ import rv_tester_params::*;
 )(
     input clk,
     input reset,
-    input longint unsigned clocks,
+    output logic trace_quiesced,
     output rv_tester_params::bootstrap_t bootstrap,
     output rv_tester_pkg::interrupt_t interrupt [NHARTS-1:0],
     output rv_tester_pkg::aplic_interrupt_t aplic_interrupt,
     output rv_tester_pkg::dm_write_t  dmi_write,
     output rv_tester_pkg::jtag_if_t  jtag_req,
+    input rv_tester_pkg::jtag_if_out  jtag_resp,
     output rv_tester_pkg::terminate_t terminate,
     `RV_TESTER_TRANSACTIONS_SYSMOD_OUTPUT_PORTS
 );
     import "DPI-C" context function void sysmod_set_scope(int unsigned location);
 
     typedef longint unsigned LU;
+    LU clocks = 0;
     int unsigned location = cvm_topology::nil;
     bit sysmod_tick_async = '1;
+
+    /* verilator lint_off UNOPTFLAT */
+    logic trace_quiesced_q = 0;
+    /* verilator lint_on UNOPTFLAT */
 
     /* verilator lint_off BLKANDNBLK */
     bit dmi_write_begin = '0;
     bit dmi_write_begin_d = '0;
     bit dmi_write_end = '0;
     bit [63:0] dm_wdata = '0;
-    /* verilator lint_on BLKANDNBLK */
-    /* verilator lint_off BLKANDNBLK */
-
  
     bit [1:0]  command= '0;
     bit        jtag_enable_begin = '0;
@@ -40,6 +43,7 @@ import rv_tester_params::*;
     bit        read_data_valid_reg;
     bit [63:0] jtag_tx;
     bit [63:0] jtag_rx;
+    /* verilator lint_on BLKANDNBLK */
     
 
     jtag_xtor  i_jtag_xtor(
@@ -47,15 +51,19 @@ import rv_tester_params::*;
         .reset(reset),
         .command(command),
         .jtag_req(jtag_req),
+        .jtag_resp(jtag_resp),
         .jtag_enable(jtag_enable_begin),
         .read_data_valid_reg(read_data_valid_reg),
         .jtag_tx(jtag_tx),
         .jtag_rx(jtag_rx),
         .misc_signals('0)
     );
+
     /* verilator lint_on BLKANDNBLK */
     always @(posedge clk) begin
+        clocks <= clocks + 1;
         if (reset) begin
+            clocks <= 0;
             /* verilator lint_off BLKSEQ */
             sysmod_tick_async = cvm_plusargs::get_bool("sysmod_tick_async") != '0;
             location = cvm_topology::get_location(topology.TOP.PLATFORM.SYSMOD.ID, NUM);
@@ -67,6 +75,7 @@ import rv_tester_params::*;
         end
     end
 
+    assign trace_quiesced = trace_quiesced_q;
     assign bootstrap.boot_addr = 1 << 31;
 
     function void sysmod_terminate ();
@@ -110,6 +119,11 @@ import rv_tester_params::*;
       end
     endfunction
     export "DPI-C" function sysmod_tbox_interrupt;
+
+    function void sysmod_trace_info (int unsigned trace_info_s);
+      trace_quiesced_q = trace_info_s[0];
+    endfunction
+    export "DPI-C" function sysmod_trace_info;
 
     function sysmod_dmi_write (int unsigned hartid, int unsigned upper_value,int unsigned lower_value);
       dmi_write_begin = '1;

@@ -43,7 +43,7 @@ class sysmod {
     void load_io(const std::string& io);
 
   protected:
-
+    void trace_info_handler(trace_cfg::trace_info_t i);
     void timer_interrupt(clint::timer_t t);
     void sw_interrupt(clint::sw_t s);
     void dmi_write(debugger::dmi_data_t s);

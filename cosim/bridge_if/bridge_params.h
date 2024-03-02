@@ -76,18 +76,27 @@ namespace {
         {"mip", 0x344},
         {"mtinst", 0x34a},
         {"mtval2", 0x34b},
+        {"vstart", 0x008},
+        {"vxsat", 0x009},
+        {"vxrm", 0x00A},
+        {"vcsr", 0x00F},
         {"vl", 0xc20},
-        {"vtype", 0xc21}
+        {"vtype", 0xc21},
+        {"vlenb", 0x0C22},
+        {"mireg", 0x351},
+        {"sireg", 0x151},
+        {"mcycle", 0xb00}
     }};
 
-    std::array<csr_entry, 7> nonzero_reset_csrs {{
+    std::array<csr_entry, 8> nonzero_reset_csrs {{
         {"mstatus", 0x300},
         {"misa", 0x301},
         {"medeleg", 0x302},
         {"mideleg", 0x303},
         {"sstatus", 0x100},
         {"vsstatus", 0x200},
-        {"hstatus", 0x600}
+        {"hstatus", 0x600},
+        {"mie", 0x304}
     }};
 
     std::array<csr_entry, 18> metrics_csrs {{
@@ -112,21 +121,21 @@ namespace {
     }};
 
     const std::unordered_map<uint64_t, uint64_t> shadow_csrs = {
-        {0x100, 0x200},
-        {0x200, 0x100},
+        // {0x100, 0x200},
+        // {0x200, 0x100},
         {0x100, 0x300},
         {0x300, 0x100},
-        {0x100, 0x600},
-        {0x600, 0x100},
-        {0x200, 0x300},
-        {0x300, 0x200},
-        {0x200, 0x600},
-        {0x600, 0x200},
-        {0x300, 0x600},
-        {0x600, 0x300},
-        {0x304, 0x604},
-        {0x604, 0x304}
-    };
+        // {0x100, 0x600},
+        // {0x600, 0x100},
+        // {0x200, 0x300},
+        // {0x300, 0x200},
+        // {0x200, 0x600},
+        // {0x600, 0x200},
+        // {0x300, 0x600},
+        // {0x600, 0x300},
+        // {0x304, 0x604},
+        // {0x604, 0x304}
+    };  // FIXME: Discrepancy on what CSRs to shadow for mstatus and mie
 
     typedef enum : size_t {
         U = 0,

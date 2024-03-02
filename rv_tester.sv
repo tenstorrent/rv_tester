@@ -1,7 +1,6 @@
 module rv_tester
     import rv_tester_params::*;
 #(
-    parameter int RESET_CLOCKS              =      10,
     parameter bit EXTERNAL_CLOCK            =       0,
     `TOPOLOGY
 ) (
@@ -27,8 +26,16 @@ module rv_tester
             assign clk[c] = clk_ext[c];
         end
     end else begin
+        localparam bit pll_clock_exists = 1'b1
+        `ifdef PLL_MODEL_UNSUPPORTED
+                && 1'b0
+        `endif
+        ;
         for (genvar c = 0; c < NCLKS; c++) begin
-            rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(clk[c]));
+            if (PLL_CLOCK[c] && pll_clock_exists)
+                assign clk[c] = clk_pll[c];
+            else
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(clk[c]));
         end
     end
 
@@ -49,19 +56,25 @@ module rv_tester
     bit cb_success = '1;
     logic call_finish;
     int num_reruns = -1;
+    bit trace_en = 0;
+    logic trace_quiesced;
 
     logic terminate_now;
     logic rerun_now;
+    /* verilator lint_off UNOPTFLAT */
     rv_tester_pkg::terminate_t rv_tester_error_terminate;
     rv_tester_pkg::terminate_t sysmod_terminate;
+    /* verilator lint_off UNOPTFLAT */
     rv_tester_pkg::terminate_t cosim_terminate [NHARTS-1:0];
     logic cosim_terminate_any;
     int instructions = 0;
 
     int quiesce_counter = 0;
+    int trace_counter = 5000;
     int quiesce_timeout = 500;
     int flush_counter = 0;
     int flush_timeout = 25000;
+    int trace_timeout = 50000;
 
     int unsigned location = cvm_topology::nil;
 
@@ -70,7 +83,7 @@ module rv_tester
     int unsigned cvm_verbosity, gen_clocks_verbosity;
 
     assign terminate           = (rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any) && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
-    assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout);
+    assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout);
     assign rerun_now           = terminated && num_reruns > 0;
 
     /*
@@ -79,7 +92,7 @@ module rv_tester
     * terminated stopped working, and rv_tester_reset stopped being depositable
     * from the tcl shell.
     */
-    always @(posedge clk[CORE_CLK_IDX]) begin
+    always @(posedge clk[TB_CLK_IDX]) begin
 
         rv_tester_reset <= rerun_now;
         sysmod_reset    <= '0;
@@ -99,10 +112,17 @@ module rv_tester
             flush_counter   <= '0;
             instructions    <= '0;
         end
+        if(trace_en && (quiesce_counter >= quiesce_timeout)) begin
+           trace_counter <= trace_counter + 1;
+        end else if(trace_en) begin
+          trace_counter <='0; 
+        end else if(!trace_en)begin
+          trace_counter <= trace_timeout + 10;
+        end 
 
     end
 
-    always @(posedge clk[CORE_CLK_IDX]) begin
+    always @(posedge clk[TB_CLK_IDX]) begin
         if(rerun_now) begin
             $display("<%0d> [RVTESTER]: rerunning test %0d time(s)", clocks, num_reruns);
         end
@@ -114,7 +134,7 @@ module rv_tester
     * these are only run at rv_tester_reset, when no other zDPIs should be
     * called.
     */
-    always @(posedge clk[CORE_CLK_IDX]) begin
+    always @(posedge clk[TB_CLK_IDX]) begin
 
         automatic int _;
 
@@ -137,10 +157,12 @@ module rv_tester
 
             cb_poll             <= cvm_plusargs::get_bool("cb_async") == '0;
             quiesce_timeout     <= cvm_plusargs::get_int("quiesce_timeout");
+            trace_timeout       <= cvm_plusargs::get_int("trace_timeout");
             flush_timeout       <= cvm_plusargs::get_int("flush_timeout");
             call_finish         <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
             gen_clocks          <= cvm_verbosity >= gen_clocks_verbosity;
             bypass_mem          <= cvm_plusargs::get_bool("bypass_mem") != '0;
+            trace_en            <= cvm_plusargs::get_bool("trace_en") != '0;
             bypass_cache        <= cvm_plusargs::get_bool("bypass_cache") != '0;
 
             $display("[RVTESTER]: reconstructing registry");
@@ -162,7 +184,7 @@ module rv_tester
     * rv_tester_shutdown_registry a zemi3 DPI and we'll have thread safety
     * issues with coinciding zDPIs from transactions.
     */
-    always @(posedge clk[CORE_CLK_IDX]) begin
+    always @(posedge clk[TB_CLK_IDX]) begin
 
         automatic logic shutdowned = '0;
 
@@ -199,12 +221,15 @@ module rv_tester
     end
 
     // We also assert reset at the end of the test to quiesce the DPIs.
-    assign reset = clocks < LU'(RESET_CLOCKS) || rv_tester_reset || sysmod_reset || terminate_now || terminated;
+    logic reset_pullup;
+    assign reset_pullup = rv_tester_reset || sysmod_reset || terminate_now || terminated;
+    assign reset[COLD_RESET_IDX] = clocks < LU'(RESET_TB_CLOCKS[COLD_RESET_IDX]) || reset_pullup;
+    assign reset[RESET_IDX] = clocks < LU'(RESET_TB_CLOCKS[RESET_IDX]) || reset_pullup;
 
 `ifdef NEGEDGE_UNSUPPORTED
-    always@(posedge clk[CORE_CLK_IDX]) begin
+    always@(posedge clk[TB_CLK_IDX]) begin
 `else
-    always@(negedge clk[CORE_CLK_IDX]) begin
+    always@(negedge clk[TB_CLK_IDX]) begin
 `endif
         if (cb_poll) begin
             /* verilator lint_off BLKSEQ */
@@ -220,7 +245,7 @@ module rv_tester
     export "DPI-C" function rv_tester_terminate;
 
     `RV_TESTER_TRANSACTIONS_DOMAIN(1, clk[CORE_CLK_IDX]);
-    `RV_TESTER_TRANSACTIONS_DOMAIN(2, clk[CORE_CLK_IDX]);
+    `RV_TESTER_TRANSACTIONS_DOMAIN(2, clk[AXI_CLK_IDX]);
 
     rv_tester_pkg::dm_write_t  trickbox_dmi_write;
 
@@ -232,12 +257,14 @@ module rv_tester
         `TOPOLOGY_CFG,
         `RV_TESTER_TRANSACTIONS_SYSMOD_SOURCE_PARAMS(0)
     ) sysmod (
-        .clk(clk[CORE_CLK_IDX]),
+        .clk(clk[AXI_CLK_IDX]),
         .reset(sysmod_reset),
-        .clocks,
+        .trace_quiesced(trace_quiesced),
         .bootstrap,
         .dmi_write(trickbox_dmi_write),
         .interrupt,
+        .jtag_req,
+        .jtag_resp,
         .aplic_interrupt,
         .terminate(sysmod_terminate),
         `RV_TESTER_TRANSACTIONS_SYSMOD_SOURCE_PORTS(2, 0, 0)
@@ -250,7 +277,7 @@ module rv_tester
 
     dmi_driver i_dmi_driver(
         .clk(clk[AXI_CLK_IDX]),
-        .reset,
+        .reset(reset[RESET_IDX]),
         .dmi_req_ready,
         .dmi_resp_valid,
         .dmi_resp,
@@ -286,7 +313,7 @@ module rv_tester
         .dmi_status,
         .dmi_commands_in_queue,
         .misc_signals,
-        `RV_TESTER_TRANSACTIONS_DM_MODEL_SOURCE_PORTS(1,0,0)
+        `RV_TESTER_TRANSACTIONS_DM_MODEL_SOURCE_PORTS(2,0,0)
     );
 `endif
 
@@ -304,13 +331,14 @@ module rv_tester
           .NBYPASS(NBYPASSES[c]),
           .NIFETCH(NIFETCHES[c]),
           .NIEVICT(NIEVICTS[c]),
-          .RESET_CLOCKS(RESET_CLOCKS),
+          .RESET_CLOCKS(RESET_TB_CLOCKS[RESET_IDX]),
           `TOPOLOGY_CFG,
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PARAMS(0)
       ) cosim (
+          .tb_clk(clk[TB_CLK_IDX]),
           .clk(clk[CORE_CLK_IDX]),
           .reset(sysmod_reset),
-          .dut_reset(reset),
+          .dut_reset(reset[RESET_IDX]),
           .clocks,
           .rvfi(rvfi[NRETS_CUMSUM[c] +: NRETS[c]]),
           .csri(csri[c]),
@@ -362,6 +390,7 @@ module rv_tester
           `TOPOLOGY_CFG,
           `RV_TESTER_TRANSACTIONS_PMU_SOURCE_PARAMS(0)
       ) pmu (
+          .tb_clk(clk[TB_CLK_IDX]),
           .clk(clk[CORE_CLK_IDX]),
           .reset(sysmod_reset),
           .clocks,
@@ -389,7 +418,7 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(0)
         ) axi_sw(
             .clk(clk[AXI_CLK_IDX]),
-            .reset_n(~reset),
+            .reset_n(~reset[RESET_IDX]),
             .sys_reset(sysmod_reset),
             .axi_mst_ar_valid(axi_req_llc[p].ar_valid),
             .axi_mst_ar_id   (axi_req_llc[p].ar.id),
@@ -446,7 +475,7 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(1)
         ) ncio_axi_sw(
             .clk(clk[AXI_CLK_IDX]),
-            .reset_n(~reset),
+            .reset_n(~reset[RESET_IDX]),
             .sys_reset(sysmod_reset),
             .axi_mst_ar_valid(ncio_axi_req[p].ar_valid),
             .axi_mst_ar_id   (ncio_axi_req[p].ar.id),
@@ -504,7 +533,7 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(2)
         ) aplic_msi_axi_sw(
             .clk(clk[AXI_CLK_IDX]),
-            .reset_n(~reset),
+            .reset_n(~reset[RESET_IDX]),
             .sys_reset(sysmod_reset),
             .axi_mst_ar_valid(aplic_msi_axi_req[p].ar_valid),
             .axi_mst_ar_id   (aplic_msi_axi_req[p].ar.id),
@@ -564,7 +593,7 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(0)
         ) axi_sw_mst (
             .clk(clk[AXI_CLK_IDX]),
-            .reset_n(~reset),
+            .reset_n(~reset[RESET_IDX]),
             .sys_reset(sysmod_reset),
             .axi_mst_ar_valid(axi_req_mst[p].ar_valid),
             .axi_mst_ar_id   (axi_req_mst[p].ar.id),
@@ -623,7 +652,7 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(1)
         ) aplic_mmr_sw_mst (
             .clk(clk[AXI_CLK_IDX]),
-            .reset_n(~reset),
+            .reset_n(~reset[RESET_IDX]),
             .sys_reset(sysmod_reset),
             .axi_mst_ar_valid(aplic_mmr_axi_req_mst[p].ar_valid),
             .axi_mst_ar_id   (aplic_mmr_axi_req_mst[p].ar.id),
@@ -734,7 +763,7 @@ module rv_tester
 	.NumMastersMem		( NoOfMasters )
     ) rv_tester_mem(
         .clk                    ( clk[AXI_CLK_IDX] ),
-        .rst_n                  ( ~reset ),
+        .rst_n                  ( ~reset[RESET_IDX] ),
         .axi_req_up             ( axi_req ),
         .axi_resp_up            ( axi_rsp ),
         .axi_req_mst_up         ( axi_req_llc ),

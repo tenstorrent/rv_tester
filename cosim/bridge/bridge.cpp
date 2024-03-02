@@ -33,7 +33,7 @@ DEFINE_string(whisper_json_path, "", "Path to whisper json config");
 DEFINE_bool(cosim_resynch, false, "Resynch whisper with dut state on every instruction");
 DEFINE_string(cosim_resynch_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
 DEFINE_string(cosim_resynch_prev_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
-DEFINE_string(cosim_resynch_csr, "hie,vsip,vsie,htval,mtval2,vl,vtype,mip", "List of csr mnemonics to resynch whisper with dut state");
+DEFINE_string(cosim_resynch_csr, "", "List of csr mnemonics to resynch whisper with dut state"); 
 DEFINE_bool(mip_resynch, true, "Resynch whisper with dut state on mip mismatch condition");
 DEFINE_bool(imsic_resynch, true, "Resynch whisper with dut state on imsic mismatch condition");
 DEFINE_bool(intr_defer_spcl, true, "Defer all interrupts in special cases");
@@ -76,17 +76,21 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
 {
     std::string traceFile = FLAGS_whisper_log ? "iss_cosim.log" : "";
     std::string commandLog = FLAGS_whisper_log ? "iss_cmd.log" : "";
+    cosim_resynch_csr_defaults = {"htval","mtval2","mip","hip","vsip","hvip","mtinst","htinst","vstart","vxsat","vxrm","vcsr","sstatus","mstatus","fcsr","mie","hie","vsie","mireg","sireg","fflags","mcycle"}; // RVDE: 10005 (mtinst/htinst), RVDE: 11217 (vectors), RVDE: 10043 (mtval2/htval), RVDE: 12092 (mcycle), RVDE: 8849 (mstatus/mie aliases)
+    std::istringstream iss(FLAGS_cosim_resynch_csr);
+    std::string token;
+    while (std::getline(iss, token, ',')) {
+        cosim_resynch_csr_defaults.push_back(token);
+    }
     client_ = std::make_shared<whisperClient<uint64_t>>(traceFile, commandLog);
+    auto platform = cvm::topology::get_from_type("PLATFORM", 0);
+    cvm::registry::messenger.connect<rv_tester::terminate_called>(platform, [this] (const auto& v) { return this->process(v); });
 }
 
 // Destructor
 bridge::~bridge() {
   report_metrics();
   client_->whisperQuit();
-}
-
-bool bridge::whisper_connect() {
-  return (client_->whisperConnect(num_harts_) == 0);
 }
 
 void bridge::reset() {
@@ -96,7 +100,10 @@ void bridge::reset() {
   cac_.Reset();
   assert(cac_.SetVlen(vlen_));
 
-  whisper_connect();
+  if (client_->whisperConnect(num_harts_) != 0) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: Failed whisper_connect\n", id_);
+    return;
+  }
 
   bool valid;
   client_->whisperReset(0, valid);
@@ -141,7 +148,6 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
       return;
     }
   }
-
   // Handle pre-step condition - Interrupts
   process_interrupt_pre_step(hart, d, w);
 
@@ -250,12 +256,10 @@ void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d)
     if (FLAGS_cosim_resynch) {
       resynch(hart, d);
     } else {
-      std::stringstream ss(FLAGS_cosim_resynch_csr);
-      std::string token;
-      while (std::getline(ss, token, ',')) {
-          if (token == csr) {
-              return;
-          }
+      for (const auto& token_csr : cosim_resynch_csr_defaults) {
+        if (token_csr == csr){
+          return;
+        }
       }
       for (auto & i : d.instrs)
         print_instr_stdout(hart, i);
@@ -277,7 +281,7 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
   if (FLAGS_priv_check)
     update_priv(hart, src_t::dut, d.priv);
 
-  if (FLAGS_insn_check && !d.comp && !d.ucode && !is_vector(d.disasm)) {
+  if (FLAGS_insn_check && !d.comp && !d.ucode && !is_vector(d.disasm) && !(d.disasm.substr(0,7)=="illegal")) {
     update_insn(hart, src_t::dut, d.opcode);
   }
   if (d.gpr.valid || d.fpr.valid || !d.vr.empty() || !d.csr.empty()) {
@@ -571,7 +575,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
 
   // FIXME Instruction byte checking disabled for vectors till we find a way to
   // differentiate cracked instructions
-  if (FLAGS_insn_check && !w_.comp && !w_.ucode && !is_vector(w.disasm))
+  if (FLAGS_insn_check && !w_.comp && !w_.ucode && !is_vector(w.disasm) && !(w.disasm.substr(0,7)=="illegal"))
     update_insn(hart, src_t::iss, w.opcode);
 
   for (auto i = 0u; i < w.change_count; i++) {
@@ -715,9 +719,31 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
   for (auto & c : d.csr) {
     uint64_t data = modify_csr_data(hart, c.csr_addr, c.csr_wdata);
     size_8_bytes_t mask = modify_csr_mask(hart, c.csr_addr, c.csr_wmask);
-
-    if (FLAGS_csr_rd_check)
+    if (FLAGS_csr_rd_check) {
       update_csr(hart, src_t::dut, c.csr_addr, data, mask);
+      if (c.csr_addr == 0x001) update_csr(hart, src_t::dut, 0x003, data, mask); // On fflags update, update fcsr
+      else if (c.csr_addr == 0x002) { // On frm update, update fcsr
+        data = data << 5;
+        mask = mask << 5;
+        update_csr(hart, src_t::dut, 0x003, data, mask, false, false);
+      }
+      else if (c.csr_addr == 0x003){ // On fcsr update, update fflags,frm
+        cvm::log(cvm::MEDIUM, "fcsr: {:#x}\n", data);
+        size_8_bytes_t mask_fcsr = mask;
+        mask = mask_fcsr & 0x1f;
+        update_csr(hart, src_t::dut, 0x001, data, mask, false, false);
+        data = data >> 5;
+        mask = (mask_fcsr >> 5) & 0x3;
+        update_csr(hart, src_t::dut, 0x002, data, mask, false, false);
+      }
+      else if (c.csr_addr == 0x301){ // On misa.H update, update mideleg
+        if ((c.csr_wmask >> 7) & 0x1) {
+          mask = 0x1444;
+          if ((c.csr_wdata >> 7) & 0x1) update_csr(hart, src_t::dut, 0x303, 0x1444, mask, false, false);
+          else update_csr(hart, src_t::dut, 0x303, 0, mask, false, false);
+        }
+      }
+    }
   }
 }
 
@@ -770,8 +796,23 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_
       }
       break;
     case 'c':
-      if (FLAGS_csr_rd_check)
+      if (FLAGS_csr_rd_check){
+        // Check if PMP entry is locked
+        if (w.address >= 0x3B0 && w.address < 0x3C0) {
+          bool valid;
+          uint64_t pmpcfg, mask, reset;
+          uint64_t i, pmp_cfg_reg, pmp_cfg_index;
+          // For PMP addresses, which bits of the pmpcfgs to look for 
+          i = w.address - 0x3B0;
+          pmp_cfg_reg = ((i*8) / 64) * 2;
+          pmp_cfg_index = (i*8) % 64;
+          client_->whisperPeekCsr(hart, 0x3A0 + pmp_cfg_reg, pmpcfg, mask, reset, valid);
+          if((pmpcfg >> (pmp_cfg_index + 7)) & 0x1) {
+            break;
+          }
+        }
         update_csr(hart, src_t::iss, w.address, w.value);
+      }
 
       if (w.address == 0x344) {
         mip_ = w.value;
@@ -1338,8 +1379,13 @@ uint64_t bridge::modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data) {
   if (addr >= 0x3B0 && addr < 0x3C0) {
     bool valid;
     uint64_t pmpcfg, mask, reset;
-    client_->whisperPeekCsr(hart, addr - 16, pmpcfg, mask, reset, valid);
-    if((pmpcfg >> 4) & 0x1) {
+    uint64_t i, pmp_cfg_reg, pmp_cfg_index;
+    // For PMP addresses, which bits of the pmpcfgs to look for 
+    i = addr - 0x3B0;
+    pmp_cfg_reg = ((i*8) / 64) * 2;
+    pmp_cfg_index = (i*8) % 64;
+    client_->whisperPeekCsr(hart, 0x3A0 + pmp_cfg_reg, pmpcfg, mask, reset, valid);
+    if((pmpcfg >> (pmp_cfg_index + 4)) & 0x1) {
       result = data | 0x1ff;
     } else {
       result = data & 0xfffffffffffffc00;
@@ -1352,19 +1398,22 @@ cac::size_8_bytes_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, cac::
   cac::size_8_bytes_t result = mask;
   // pmpaddr
   // Spec section...
+  result = mask & get_csr_mask(hart, addr);
   if (addr >= 0x3B0 && addr < 0x3C0) {
     bool valid;
     uint64_t pmpcfg, mask_iss, reset;
-    client_->whisperPeekCsr(hart, addr - 16, pmpcfg, mask_iss, reset, valid);
-    if((pmpcfg >> 4) & 0x1) {
-      result = mask | 0x1ff;
+    uint64_t i, pmp_cfg_reg, pmp_cfg_index;
+    // For PMP addresses, which bits of the pmpcfgs to look for 
+    i = addr - 0x3B0;
+    pmp_cfg_reg = ((i*8) / 64) * 2;
+    pmp_cfg_index = (i*8) % 64;
+    client_->whisperPeekCsr(hart, 0x3A0 + pmp_cfg_reg, pmpcfg, mask_iss, reset, valid);
+    if((pmpcfg >> (pmp_cfg_index + 4)) & 0x1) {
+      result = result | 0x1ff;
     } else {
-      result = mask | 0x3ff;
+      result = result | 0x3ff;
     }
-  } else {
-    result = mask & get_csr_mask(hart, addr);
   }
-  // cvm::log(cvm::MEDIUM, "mask {:#x} updated-mask {:#x}\n", mask, result);
   return result;
 }
 
@@ -1382,7 +1431,7 @@ bool bridge::is_supported_csr(uint64_t addr) {
   return (addr >= 0x7E0 && addr <= 0x7EF); // pmacfg0-15
 }
 
-void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data, cac::optional_const_ref<size_8_bytes_t> mask_ref, bool shadow_csr) {
+void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data, cac::optional_const_ref<size_8_bytes_t> mask_ref, bool shadow_csr, bool check_en) {
   if (is_custom_csr(addr) && !is_supported_csr(addr))
     return;
 
@@ -1394,16 +1443,29 @@ void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data,
   if (mask_ref != std::nullopt) {
     mask = cac::CreateBitVec<size_8_bytes_t>(mask_ref.value());
   }
-  assert(csr_cac_.UpdateResource(hart, src, csr_resource, std::move(cac::CreateBitVec<size_8_bytes_t>({data})), mask));
+  assert(csr_cac_.UpdateResource(hart, src, csr_resource, std::move(cac::CreateBitVec<size_8_bytes_t>({data})), mask, check_en));
 
   // Also update shadow csr if applicable ex: mstatus/sstatus
   if (!shadow_csr && shadow_csrs.count(addr)) {
-    size_8_bytes_t alias_mask;
-    if (mask_ref)
-      alias_mask = mask_ref.value() & get_csr_poke_mask(hart, shadow_csrs.at(addr));
-    else
-      alias_mask = get_csr_poke_mask(hart, shadow_csrs.at(addr));
-    update_csr(hart, src, shadow_csrs.at(addr), data, alias_mask, true);
+    auto range = shadow_csrs.equal_range(addr);
+    for (auto shadow_csr = range.first; shadow_csr != range.second; ++shadow_csr) {
+      size_8_bytes_t alias_mask;
+      if (src == src_t::dut){
+        if (mask_ref)
+          alias_mask = mask_ref.value() & get_csr_poke_mask(hart, shadow_csr->second);
+        else
+          alias_mask = get_csr_poke_mask(hart, shadow_csr->second);
+      }
+      else {
+        uint64_t mask, poke_mask;
+        bool valid;
+        if (!client_->whisperPeekCsr(hart, shadow_csr->second, data, mask, poke_mask, valid)) {
+          cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek csr\n", hart);
+        }
+        alias_mask = get_csr_poke_mask(hart, shadow_csr->second);
+      }
+      update_csr(hart, src, shadow_csr->second, data, alias_mask, true);
+    }
   }
 }
 
@@ -1458,8 +1520,12 @@ void bridge::final_phase() {
   //report_metrics();
 }
 
+void bridge::process(const rv_tester::terminate_called&) {
+  terminated_ = true;
+}
+
 void bridge::report_metrics() {
-  if (!FLAGS_metrics)
+  if (!FLAGS_metrics || !client_->whisperConnected())
     return;
 
   cvm::log(cvm::NONE, "[COSIM] Report metrics...\n");
@@ -1522,24 +1588,30 @@ void bridge::report_metrics() {
     }
   }
 
-  // Step one final time to collect metrics for next instruction
-  whisper_state_t w;
-  if (FLAGS_mcm) {
-    client_->whisperDisableMcm();
-    w = { .tag = prev_whisp_state.tag+1, .time = prev_whisp_state.time+1 };
-  }
-  else {
-    w = { .tag = step_+1, .time = prev_whisp_state.time+1 };
-  }
-  step(id_, w);
-  const auto& next_instr = w.disasm;
-  const auto& next_mode = w.priv_mode;
-  const auto& next_trap = w.trap;
-  const auto& next_num_dest = w.change_count;
+  if (!terminated_) {
+    // Step one final time to collect metrics for next instruction
+    whisper_state_t w;
+    if (FLAGS_mcm) {
+      client_->whisperDisableMcm();
+      w = { .tag = prev_whisp_state.tag+1, .time = prev_whisp_state.time+1 };
+    }
+    else {
+      w = { .tag = step_+1, .time = prev_whisp_state.time+1 };
+    }
+    step(id_, w);
+    const auto& next_instr = w.disasm;
+    const auto& next_mode = w.priv_mode;
+    const auto& next_trap = w.trap;
+    const auto& next_num_dest = w.change_count;
 
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_instr\": \"{}\"}}\n", id_, next_instr);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_mode\": {}}}\n", id_, next_mode);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_trap\": {}}}\n", id_, next_trap);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_num_dest\": {}}}\n", id_, next_num_dest);
-  
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_instr\": \"{}\"}}\n", id_, next_instr);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_mode\": {}}}\n", id_, next_mode);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_trap\": {}}}\n", id_, next_trap);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_num_dest\": {}}}\n", id_, next_num_dest);
+  }
+  // Regression level metrics from hart 0
+  if (id_ == 0) {
+    // Average ipc
+    cvm::log(cvm::NONE, "INFO_PASS_REGR_METRIC:{{\"name\": \"ipc\", \"value\": {:.2f}, \"type\": \"d\", \"action\": \"average\"}}\n", ipc);
+  }
 }

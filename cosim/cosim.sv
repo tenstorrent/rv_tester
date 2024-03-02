@@ -13,6 +13,7 @@ import rv_tester_params::*;
     `TOPOLOGY,
     `RV_TESTER_TRANSACTIONS_COSIM_OUTPUT_PARAMS
 )(
+    input tb_clk,
     input clk,
     input reset,
     input dut_reset,
@@ -39,7 +40,7 @@ import rv_tester_params::*;
     int unsigned location = cvm_topology::nil;
     bit rvfi_enabled;
 
-    always @(posedge clk) begin
+    always @(posedge tb_clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */
             location = cvm_topology::get_location(topology.TOP.PLATFORM.COSIM.ID, NUM);
@@ -257,12 +258,23 @@ import rv_tester_params::*;
    assign imsic_interrupt_delayed = imsic_interrupt_delays[imsic_whisper_delays];
    
     // m_imsic_msi
-    assign m_imsic_msis[0].valid = ~dut_reset & (imsic_interrupt_delayed.aw_valid & imsic_interrupt_delayed.w_valid & imsic_interrupt_delayed.b_ready) & rvfi_enabled;
+    enum logic {idle, aw} msi_slave_state,msi_slave_state_d;
+    logic msi_addr_in_imsic_range;
+    always @(posedge clk) begin
+       if (reset) begin
+        msi_slave_state <= idle;
+       end else begin
+        msi_slave_state <= msi_slave_state_d;
+       end
+    end
+    assign msi_slave_state_d = imsic_interrupt_delayed.w_valid ? idle : imsic_interrupt_delayed.aw_valid ? aw : msi_slave_state;
+    assign msi_addr_in_imsic_range = imsic_interrupt_delayed.aw.addr[31:0] inside {32'h8000000, 32'h9ffffff} || imsic_interrupt_delayed.aw.addr[31:0] inside {32'hc000000, 32'hdffffff};
+    assign m_imsic_msis[0].valid = ~dut_reset & ( (msi_slave_state==aw | imsic_interrupt_delayed.aw_valid) & imsic_interrupt_delayed.w_valid & imsic_interrupt_delayed.b_ready & imsic_interrupt_delayed.w.strb=='hf & msi_addr_in_imsic_range) & rvfi_enabled;
     assign m_imsic_msis[0].data.location = location;
     assign m_imsic_msis[0].data.cycle = clocks;
     /* verilator lint_off WIDTH */
     assign m_imsic_msis[0].data.addr = imsic_interrupt_delayed.aw.addr;
-    assign m_imsic_msis[0].data.data = imsic_interrupt_delayed.w.data & 'hff;
+    assign m_imsic_msis[0].data.data = imsic_interrupt_delayed.w.data;
     /* verilator lint_on WIDTH */
 
     function automatic bit [63:0] get_mip_mask(rv_tester_pkg::interrupt_t intr, rv_tester_pkg::interrupt_t intr_d1);
@@ -294,7 +306,7 @@ import rv_tester_params::*;
     longint unsigned hart_enable_mask;
     bit boot_wfi;
 
-    always @(posedge clk) begin
+    always @(posedge tb_clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */
             max_cycle = cvm_plusargs::get_ulongint("max_cycle");

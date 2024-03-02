@@ -8,11 +8,13 @@
 
 
 DECLARE_string(load);
+DECLARE_int32(seed);
 
 
 trace_cfg::trace_cfg(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc)
   : device(tag, addr, size, loc, &trace_cfg::write, &trace_cfg::read, this), axi_mst_loc_l(axi_mst_loc)
 {
+  rng.seed(FLAGS_seed);
   if (FLAGS_load != "") {
     init_elf(FLAGS_load);
   }
@@ -21,11 +23,18 @@ trace_cfg::trace_cfg(const std::string& tag, uint64_t addr, size_t size, cvm::to
 }
 
 void trace_cfg::axi_write() {
-  uint64_t addr = 0xa002000;
-  size_t length = 0x2;
-  std::vector<uint8_t> data = {0x3};
-  std::vector<bool> strb = {1,1,1,1};
+  uint64_t addr;
+  size_t length = 0x40;
+  std::vector<uint8_t> data;
+  std::vector<bool> strb;
+  trace_wr_t wr;
 
+  wr = trace_wr_txn_q.front();
+  trace_wr_txn_q.pop();
+  addr = (uint64_t)wr.addr;
+  gen_data_strb(wr.addr,wr.data,data,strb);
+  addr = addr & 0xFFFFFFC0;
+  
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb});
 }
 
@@ -41,7 +50,7 @@ void trace_cfg::write(const transactor::write_t& ) {
   // auto& data = w.data;
   // auto& strb = w.strb;
 
- /// / cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb});
+  // cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb});
 
   // return;
 }
@@ -49,17 +58,10 @@ void trace_cfg::write(const transactor::write_t& ) {
 cvm::messenger::task<void> trace_cfg::read(const transactor::read_t& r, data_t& ) {
    auto& addr = r.addr;
    auto& length = r.length;
-   cvm::log(cvm::HIGH,"[TRACE_CFG] trace_cfg_read addr {:#x} \n",addr);
-  // @Pravin, this needs to be fixed, with a real id store
+
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::read_request_t{addr, length});
 
   auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(channel);
-  
-  cvm::log(cvm::HIGH,"[TRACE_CFG] trace_cfg_read Data : \n 0x");
-  for (auto element : resp.data) {
-        cvm::log(cvm::HIGH,"{:x}",(int)element);
-  }
-  cvm::log(cvm::HIGH,"\n");
 
   trace_cfg_read_req_t trace_cfg_rd;
   trace_cfg_rd.addr = addr;

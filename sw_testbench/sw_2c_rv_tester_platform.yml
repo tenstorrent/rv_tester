@@ -1,5 +1,6 @@
 rv_tester_nharts: &rv_tester_nharts 2
-rv_tester_clk_count: &rv_tester_clk_count 4
+rv_tester_clk_count: &rv_tester_clk_count 5
+rv_tester_reset_count: &rv_tester_reset_count 2
 
 rv_tester_platform_attrs: &rv_tester_platform_attrs
   NHARTS: 2
@@ -22,10 +23,18 @@ rv_tester_platform_attrs: &rv_tester_platform_attrs
   CSRLEN: 12
 
 rv_tester_clki_attrs: &rv_tester_clki_attrs
-  NCLKS: 4
-  REF_CLK_IDX: 0
-  CORE_CLK_IDX: 1
-  AXI_CLK_IDX: 2
-  SOC_CLK_IDX: 3
-  CLOCK_FREQ_MHZ: [100, 2700, 1600, 400]
-  SW_CLOCK_PERIOD_PS: 74000
+  NCLKS: 5
+  TB_CLK_IDX: 0
+  REF_CLK_IDX: 1
+  CORE_CLK_IDX: 2
+  AXI_CLK_IDX: 3
+  SOC_CLK_IDX: 4
+  CLOCK_FREQ_MHZ: [1000, 1000, 1000, 1000, 1000]
+  PLL_CLOCK: [0, 0, 0, 0, 0]
+  SW_CLOCK_PERIOD_PS: 100000
+
+rv_tester_reseti_attrs: &rv_tester_reseti_attrs
+  NRESETS: 2
+  COLD_RESET_IDX: 0
+  RESET_IDX: 1
+  RESET_TB_CLOCKS: [5, 10]

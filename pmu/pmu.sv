@@ -6,6 +6,7 @@ import rv_tester_params::*;
   `TOPOLOGY,
   `RV_TESTER_TRANSACTIONS_PMU_OUTPUT_PARAMS
 )(
+  input tb_clk,
   input clk,
   input reset,
   input longint unsigned clocks,
@@ -21,7 +22,7 @@ import rv_tester_params::*;
     assign sync = period != '0;
     bit perf_enabled = '0;
 
-    always @(posedge clk) begin
+    always @(posedge tb_clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */
             location = cvm_topology::get_location(topology.TOP.PLATFORM.PMCI.ID, NUM);
