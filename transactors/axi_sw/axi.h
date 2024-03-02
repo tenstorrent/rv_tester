@@ -10,6 +10,8 @@
 
 class axi : public transactor {
 
+    using time_point = std::chrono::time_point<std::chrono::high_resolution_clock>;
+
     public:
 
         typedef std::uint32_t id_t        ;
@@ -78,6 +80,14 @@ class axi : public transactor {
             atop_t  atop = atop_t(0);
         };
 
+        struct a_t_with_time {
+            a_t a;
+            time_point enqueued;
+            time_point get_data;
+            time_point got_data;
+            time_point finished;
+        };
+
         struct w_t {
             data_t data;
             strb_t strb;
@@ -96,8 +106,9 @@ class axi : public transactor {
             resp_t resp;
             data_t data;
             last_t last;
+            time_point enqueued;
 
-            r_t(const id_t& id, const resp_t& resp, const data_t& data, const last_t& last) : id(id), resp(resp), data(data), last(last) {}
+            r_t(const id_t& id, const resp_t& resp, const data_t& data, const last_t& last, const time_point& tp) : id(id), resp(resp), data(data), last(last), enqueued(tp) {}
             r_t() = default;
             r_t(r_t&&) = default;
             r_t& operator=(r_t&&) = default;
@@ -117,12 +128,15 @@ class axi : public transactor {
         const data_width_t  data_width_ ;
 
         // to/from RTL
-        SafeQueue<a_t> a_q_;
+        SafeQueue<a_t_with_time> a_q_;
         SafeQueue<w_t> w_q_;
         SafeQueue<r_t> r_q_;
 
         cvm::messenger::task<void> operator()();
         void atop_modify_write_data(const atop_t& atop, const data_t& read_data, data_t& write_data, const len_t& len);
+
+        std::vector<std::tuple<bool, time_point, time_point>> a_queue_times, r_queue_times;
+        std::vector<std::tuple<bool, time_point, time_point, time_point, time_point>> a_times;
 
     public:
 
@@ -134,6 +148,7 @@ class axi : public transactor {
         axi& operator=(axi&&) = delete;
         axi(const axi&) = delete;
         axi& operator=(const axi&) = delete;
+        ~axi();
 
         data_width_t   data_width()   const { return data_width_   ; }
         strobe_width_t strobe_width() const { return data_width()/8; }

@@ -4,6 +4,49 @@
 #include "axi.h"
 #include "cvm/logger.hpp"
 
+axi::~axi() {
+    for (const auto& [name, queue_times] : {
+            std::make_tuple("A", std::cref(a_queue_times)),
+            std::make_tuple("R", std::cref(r_queue_times)),
+    }) {
+        std::uint64_t sum = 0, max = 0;
+        bool max_is_write = false;
+        for (const auto& [write, reached_head, dequeued] : queue_times) {
+            std::uint64_t time_at_head = std::chrono::duration_cast<std::chrono::nanoseconds>(dequeued - reached_head).count();
+            sum += time_at_head;
+            max = std::max(max, time_at_head);
+            if (max == time_at_head)
+                max_is_write = write;
+        }
+        cvm::log(cvm::NONE, "AXI {} QUEUE queue_times average {: >20}ns max {: >20}ns count {} is_write? {}\n", name, double(sum)/queue_times.size(), max, queue_times.size(), max_is_write);
+    }
+
+    {
+        std::array<std::uint64_t, 3> sum{{0,}};
+        std::array<std::uint64_t, 3> max{{0,}};
+        for (const auto& [is_write, enqueued, get_data, got_data, finished] : a_times) {
+            if (get_data < enqueued) cvm::log(cvm::NONE, "Error: get_data before enqueued\n");
+            if (got_data < get_data) cvm::log(cvm::NONE, "Error: got_data before get_data\n");
+            if (finished < got_data) cvm::log(cvm::NONE, "Error: finished   before got_data\n");
+            std::uint64_t a = std::chrono::duration_cast<std::chrono::nanoseconds>(get_data - enqueued).count();
+            std::uint64_t b = std::chrono::duration_cast<std::chrono::nanoseconds>(got_data - get_data).count();
+            std::uint64_t c = std::chrono::duration_cast<std::chrono::nanoseconds>(finished - got_data).count();
+            sum[0] += a;
+            sum[1] += b;
+            sum[2] += c;
+            max[0] = std::max(max[0], a);
+            max[1] = std::max(max[1], b);
+            max[2] = std::max(max[2], b);
+        }
+        auto average_get_data  = double(sum[0])/a_times.size();
+        auto average_got_data  = double(sum[1])/a_times.size();
+        auto average_finished  = double(sum[2])/a_times.size();
+        cvm::log(cvm::NONE, "AXI TOTAL    DURATIONS average {: >20}ns max {: >20}ns count {}\n", average_finished, max[2], a_times.size());
+        cvm::log(cvm::NONE, "AXI GOT DATA DURATIONS average {: >20}ns max {: >20}ns count {}\n", average_got_data, max[1], a_times.size());
+        cvm::log(cvm::NONE, "AXI GET DATA DURATIONS average {: >20}ns max {: >20}ns count {}\n", average_get_data, max[0], a_times.size());
+    }
+}
+
 template <typename T> void atop_arithmetic(const axi::data_t& read_data, axi::data_t& write_data, const axi::atop_operation operation, const axi::len_t& len) {
 
     T read = 0, write = 0;
@@ -91,7 +134,8 @@ void axi::atop_modify_write_data(const atop_t& atop, const data_t& read_data, da
 }
 
 cvm::messenger::task<void> axi::a(const a_t& p) {
-    a_q_.enqueue(p);
+    a_t_with_time a = {.a = p, .enqueued = std::chrono::high_resolution_clock::now()};
+    a_q_.enqueue(a);
     co_await (*this)();
     co_return;
 }
@@ -103,20 +147,31 @@ cvm::messenger::task<void> axi::w(w_t&& p) {
 }
 
 std::pair<bool, axi::r_t> axi::r(bool block) {
+    std::pair<bool, axi::r_t> r;
+    time_point time_reached_head;
     if (block)
-        return std::make_pair(true, r_q_.dequeue());
-    return r_q_.try_dequeue();
+        r = std::make_pair(true, r_q_.dequeue(&time_reached_head));
+    else
+        r = r_q_.try_dequeue(&time_reached_head);
+
+    if(std::get<0>(r)) {
+        auto time_dequeued = std::chrono::high_resolution_clock::now();
+        r_queue_times.emplace_back(false, time_reached_head, time_dequeued);
+    }
+
+    return r;
 }
 
 cvm::messenger::task<void> axi::operator()() {
     while (1)  {
-        a_t a;
+        a_t_with_time at;
 
         bool valid;
-        std::tie(valid, a) = a_q_.try_peek();
+        std::tie(valid, at) = a_q_.try_peek();
         if (!valid) {
             co_return;
         }
+        a_t a = at.a;
 
         addr_t burst_len            = a.len + 1;
 
@@ -124,7 +179,10 @@ cvm::messenger::task<void> axi::operator()() {
             co_return;
         }
 
-        a_q_.dequeue();
+        time_point time_reached_head;
+        a_q_.dequeue(&time_reached_head);
+        auto time_dequeued = std::chrono::high_resolution_clock::now();
+        a_queue_times.emplace_back(a.w != 0, time_reached_head, time_dequeued);
 
         id_t id                     = a.id;
         addr_t num_bytes            = 1 << a.size;
@@ -158,14 +216,21 @@ cvm::messenger::task<void> axi::operator()() {
                 addr_t start  = (addr / strobe_width()) * strobe_width() + lower_byte_lane;
                 addr_t len    = upper_byte_lane - lower_byte_lane + 1;
 
+                at.get_data = std::chrono::high_resolution_clock::now();
+
                 axi::data_t read_data;
                 if (!a.w || a.atop.transaction != NON_ATOMIC) {
                     read_data = co_await transactor::read(id, start, len);
                     read_data.resize(data_bus_bytes, 0);
+                    at.got_data = std::chrono::high_resolution_clock::now();
                 }
 
                 if (a.w) {
+                    if (w_q_.empty()) {
+                        cvm::log(cvm::ERROR, "ERROR: write data queue empty when it should not be\n");
+                    }
                     auto w = w_q_.dequeue();
+                    at.got_data = std::chrono::high_resolution_clock::now();
                     if (!!w.last != last) {
                         cvm::log(cvm::ERROR, "ERROR: [axi] w.last not set in for write to addr {:#x}\n", start);
                     }
@@ -201,7 +266,7 @@ cvm::messenger::task<void> axi::operator()() {
                             std::next(std::begin(read_data), data_bus_bytes - lower_byte_lane),
                             std::end(read_data)
                             );
-                    r_q_.enqueue(r_t(a.id, a.lock ? RESP_EXOKAY : RESP_OKAY, read_data, last));
+                    r_q_.enqueue(r_t(a.id, a.lock ? RESP_EXOKAY : RESP_OKAY, read_data, last, std::chrono::high_resolution_clock::now()));
                 }
             }
 
@@ -219,5 +284,8 @@ cvm::messenger::task<void> axi::operator()() {
                 }
             }
         }
+
+        at.finished = std::chrono::high_resolution_clock::now();
+        a_times.emplace_back(std::make_tuple(a.w, at.enqueued, at.get_data, at.got_data, at.finished));
     }
 }
