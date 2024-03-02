@@ -11,8 +11,6 @@
 #include "axi.h"
 #include "axi_sw.h"
 #include "svdpi.h"
-#include <chrono>
-#include <mutex>
 
 #include "rv_tester_transactions.hpp"
 
@@ -70,11 +68,6 @@ class axi_sw {
         r_q_ptr_t r_q_rptr_, r_q_wptr_;
 
         axi* axi_;
-
-        std::mutex start_times_mutex;
-        using time_point = std::chrono::time_point<std::chrono::high_resolution_clock>;
-        std::unordered_map<axi::id_t, std::tuple<time_point, time_point, time_point, time_point, time_point, time_point, time_point, time_point, time_point>> start_times;
-        std::vector<std::tuple<time_point, time_point, time_point, time_point, time_point, time_point, time_point, time_point, time_point, time_point, time_point>> durations;
 
     public:
 

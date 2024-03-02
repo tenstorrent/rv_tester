@@ -5,14 +5,11 @@
 #include <queue>
 #include <mutex>
 #include <condition_variable>
-#include <chrono>
 
 // A threadsafe-queue.
 template <class T>
 class SafeQueue
 {
-    using time_point = std::chrono::time_point<std::chrono::high_resolution_clock>;
-    time_point time_reached_head;
 public:
   SafeQueue(void)
     : q()
@@ -26,21 +23,19 @@ public:
   // Add an element to the queue.
   void enqueue(const T& t) {
     std::lock_guard<std::mutex> lock(m);
-    if (q.empty()) time_reached_head = std::chrono::high_resolution_clock::now();
     q.push(t);
     c.notify_one();
   }
 
   void enqueue(T&& t) {
     std::lock_guard<std::mutex> lock(m);
-    if (q.empty()) time_reached_head = std::chrono::high_resolution_clock::now();
     q.push(std::move(t));
     c.notify_one();
   }
 
   // Get the "front"-element.
   // If the queue is empty, wait till a element is available.
-  T dequeue(time_point* t = nullptr)
+  T dequeue(void)
   {
     std::unique_lock<std::mutex> lock(m);
     while(q.empty())
@@ -50,13 +45,11 @@ public:
     }
     T val = std::move(q.front());
     q.pop();
-    if (t) *t = time_reached_head;
-    time_reached_head = std::chrono::high_resolution_clock::now();
     return val;
   }
 
   // Pop the "front"-element if not empty
-  std::pair<bool, T> try_dequeue(time_point* t = nullptr)
+  std::pair<bool, T> try_dequeue(void)
   {
     std::unique_lock<std::mutex> lock(m);
     if(q.empty())
@@ -65,8 +58,6 @@ public:
     }
     T val = std::move(q.front());
     q.pop();
-    if (t) *t = time_reached_head;
-    time_reached_head = std::chrono::high_resolution_clock::now();
     return std::make_pair(std::move(true), std::move(val));
   }
 

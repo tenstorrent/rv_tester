@@ -100,7 +100,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const R& r) {
 
     cvm::registry::messenger.signal<axi::r_t>(
         loc_,
-        axi::r_t(r.id, axi::resp_t(r.resp), vdata, r.last, std::chrono::high_resolution_clock::now())
+        axi::r_t(r.id, axi::resp_t(r.resp), vdata, r.last)
     );
 
     read_data_[r.id].insert(read_data_[r.id].end(), vdata.begin(), vdata.end());
