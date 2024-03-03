@@ -29,7 +29,6 @@ trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned, cvm::topolog
 
 trickbox::~trickbox()
 {
-  terminate_ = true;
 }
 
 bool trickbox::init_elf(const std::string& path) {

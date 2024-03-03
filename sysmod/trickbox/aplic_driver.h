@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include <mutex>
-#include <atomic>
-#include <thread>
 #include <unistd.h>
 #include "subdevice.h"
 #include <iostream>
@@ -85,7 +82,6 @@ public:
   virtual void tick(uint64_t advance) override
   {
     num_ticks++;
-    std::lock_guard<std::mutex> lock(mutex_);
     timer_ += advance;
     timer_advance = advance;
     cvm::log(cvm::FULL, "[APLIC_DRIVER] Timer tick {} advance interval {} \n", timer_, timer_advance);
@@ -134,39 +130,33 @@ protected:
 
   void processDirectedInterrupts()
   {
-    for(int i=0;i<1024;i++){
-       if(toggle_in_progress[i]){
-          
-          cycle_count[i]--;
-          
-          if(cycle_count[i] == 0){
-            cycle_count[i] = toggle_cycles;
-            toggle_count[i]--;
-            //toggle pin
-            toggle_aplic_pin(i);
-            if(toggle_count[i] == 0){
-              toggle_in_progress[i] = 0;
-              //based on toggle 0 or toggle 1 set last value
-              if(toggle_type[i])
-                set_aplic_pin(i);
-              else
-                clr_aplic_pin(i);
+    for(size_t i = toggle_in_progress._Find_first(); i < toggle_in_progress.size(); i = toggle_in_progress._Find_next(i) ) {
+        
+        cycle_count[i]--;
+        
+        if(cycle_count[i] == 0){
+          cycle_count[i] = toggle_cycles;
+          toggle_count[i]--;
+          //toggle pin
+          toggle_aplic_pin(i);
+          if(toggle_count[i] == 0){
+            toggle_in_progress[i] = 0;
+            //based on toggle 0 or toggle 1 set last value
+            if(toggle_type[i])
+              set_aplic_pin(i);
+            else
+              clr_aplic_pin(i);
 
-            }
           }
+        }
 
-         aplic_driver_write_t aplic_driver_info;
-         
-         for(int i=0;i<16;i++){
-          aplic_driver_info.aplic_pin_values_vec[i] = aplic_pin_values_vec[i];
-         }
-         cvm::registry::messenger.signal(loc(), aplic_driver_info);
+       aplic_driver_write_t aplic_driver_info;
+       
+       for(int i=0;i<16;i++){
+        aplic_driver_info.aplic_pin_values_vec[i] = aplic_pin_values_vec[i];
        }
-       else{
-        // TODO:
-       }
-
-    }
+       cvm::registry::messenger.signal(loc(), aplic_driver_info);
+     }
   }
 
   void InterruptLogicStatus()
@@ -294,8 +284,6 @@ protected:
     else
         return false;
   }
-  // Start a thread to increment timer after n microseconds.
-  void selfTick(useconds_t n);
   //Check plusarg usage
   void checkUsage();
 
@@ -328,10 +316,6 @@ private:
   uint32_t toggle_count[1024];
   uint32_t cycle_count[1024];
 
-  std::atomic<bool> terminate_ = false;
-  std::mutex mutex_;
-
-  std::thread timerThread_;
   pcg_extras::seed_seq_from<std::random_device> seed_source;
   pcg32 rng;
 };

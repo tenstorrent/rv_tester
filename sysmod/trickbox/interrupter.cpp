@@ -43,9 +43,6 @@ interrupter::interrupter(const std::string& tag, uint64_t addr, unsigned hartCou
 
 interrupter::~interrupter()
 {
-  terminate_ = true;
-  if (timerThread_.joinable())
-    timerThread_.join();
 }
 
 void
@@ -64,27 +61,6 @@ interrupter::checkUsage()
     }
   }
 }
-
-void
-interrupter::selfTick(useconds_t delta)
-{
-  auto func = [this, delta]() {
-    while (true)
-      {
-	usleep(delta);
-	if (terminate_)
-	  return;
-	else
-	  {
-	    std::lock_guard<std::mutex> lock(mutex_);
-	   //  tick();
-	  }
-      }
-  };
-
-  timerThread_ = std::thread(func);
-}
-
 
 cvm::messenger::task<void>
 interrupter::read(uint64_t addr, size_t, data_t&)
