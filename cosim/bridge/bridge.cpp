@@ -76,7 +76,10 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
 {
     std::string traceFile = FLAGS_whisper_log ? "iss_cosim.log" : "";
     std::string commandLog = FLAGS_whisper_log ? "iss_cmd.log" : "";
-    cosim_resynch_csr_defaults = {"htval","mtval2","mip","hip","vsip","hvip","mtinst","htinst","vstart","vxsat","vxrm","vcsr","sstatus","mstatus","fcsr","mie","hie","vsie","mireg","sireg","fflags","mcycle"}; // RVDE: 10005 (mtinst/htinst), RVDE: 11217 (vectors), RVDE: 10043 (mtval2/htval), RVDE: 12092 (mcycle), RVDE: 8849 (mstatus/mie aliases)
+    cosim_resynch_csr_defaults = {
+      "htval","mtval2","mtinst","htinst","vstart","vxsat","vxrm","vcsr","sstatus","mstatus","mie","hie","vsie","fflags","fcsr" // open bugs: RVDE: 10005 (mtinst/htinst), RVDE: 11217 (vectors), RVDE: 10043 (mtval2/htval), RVDE: 8849 (mstatus/mie aliases)
+      "mip","hip","vsip","hvip","mcycle","mireg","sireg","vtype" // permanantly excluded
+    };
     std::istringstream iss(FLAGS_cosim_resynch_csr);
     std::string token;
     while (std::getline(iss, token, ',')) {
@@ -1398,7 +1401,8 @@ cac::size_8_bytes_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, cac::
   cac::size_8_bytes_t result = mask;
   // pmpaddr
   // Spec section...
-  result = mask & get_csr_mask(hart, addr);
+  if (addr == 0xC20) result = mask;
+  else result = mask & get_csr_mask(hart, addr);
   if (addr >= 0x3B0 && addr < 0x3C0) {
     bool valid;
     uint64_t pmpcfg, mask_iss, reset;
