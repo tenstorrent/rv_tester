@@ -33,7 +33,6 @@ jtag_driver::jtag_driver(const std::string &tag, uint64_t addr, unsigned hartCou
 
 jtag_driver::~jtag_driver()
 {
-  terminate_ = true;
 }
 void
 jtag_driver::update_jtag_status(jtag_driver::jtag_req_t& i) {

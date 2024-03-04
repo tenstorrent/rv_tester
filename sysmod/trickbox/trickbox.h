@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include <mutex>
-#include <atomic>
-#include <thread>
 #include <unistd.h>
 #include "sysmod/device.h"
 #include <iostream>
@@ -82,8 +79,6 @@ public:
 private:
   uint64_t interrupter_base = 0x9000000;
   cvm::topology::loc_t axi_mst_loc_l;
-  std::atomic<bool> terminate_ = false;
-  std::mutex mutex_;
 
   std::vector<std::unique_ptr<subdevice> > subdevices_;
   pcg32 rng;

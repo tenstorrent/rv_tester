@@ -16,12 +16,13 @@ debugger::debugger(const std::string &tag, uint64_t addr, unsigned hartCount, cv
       timeCompare_(6), IntrHart_(6), delayedRandomIntValid_(6), IntrValue_(6), timerIntPrev_(hartCount), timer_(0)
 {
   rng.seed(FLAGS_seed);
-  debugger_command_exec_trigger = addr;
-  debugger_file_load_trigger = addr + 0x10000;
+  debugger_base = addr;
+  debugger_trigger = addr + 0x10000;
   dmi_driver_status_addr = addr + 0x500;
   dmi_driver_num_cmds_addr = addr + 0x600;
   reset();
-
+  // parse_dmi_from_csv();
+  // dbg_trigger = 1;
   auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0); 
   cvm::registry::messenger.connect<debugger::dmi_status_t>(
             tbox_loc,
@@ -30,7 +31,6 @@ debugger::debugger(const std::string &tag, uint64_t addr, unsigned hartCount, cv
 
 debugger::~debugger()
 {
-  terminate_ = true;
 }
 void
 debugger::update_dm_status(debugger::dmi_status_t& i) {
@@ -63,6 +63,11 @@ void debugger::get_all_csv_templates()
 
 void debugger::parse_dmi_from_csv()
 {
+  // if ((FLAGS_dbg_input_file_path == "")) {
+  //   dbg_file_mode = 0;
+  // } else {
+  // cvm::log(cvm::NONE, "[Trickbox] Parsing dmi cfg file {}\n", FLAGS_dbg_input_file_path);
+  // std::fstream file (FLAGS_dbg_input_file_path, std::ios::in);
 
   std::string file_name;
   if (FLAGS_random_dbg_entry)
@@ -71,10 +76,10 @@ void debugger::parse_dmi_from_csv()
     file_name = FLAGS_dbg_input_file_path;
 
   cvm::log(cvm::NONE, "Parse DMI Commands from CSV:{}\n", file_name);
+  // std::fstream file (FLAGS_dbg_input_file_path, std::ios::in);
   std::fstream file(file_name, std::ios::in);
   if (file.is_open())
   {
-    file_parsing_done = 0;
     std::string line, word;
     while (getline(file, line))
     {
@@ -196,38 +201,23 @@ void debugger::parse_dmi_from_csv()
       // PRINT CSV DATA
       cvm::log(cvm::MEDIUM, "Pushing dmi request: op {} addr {:#x} data {:#x}\n", dmi_req.op, dmi_req.addr, dmi_req.data);
     }
-    file_parsing_done = 1;
   }
   else
   {
     cvm::log(cvm::ERROR, "Error: Could not open dmi cfg file {}\n", FLAGS_dbg_input_file_path);
   }
+
+  dbg_file_mode = 1; // Clean up later
 }
 
 void debugger::drive_csv_dmi_cmds()
 {
-  if (rand_dbg_entry_cmd_trigger) {
-    cvm::log(cvm::HIGH, "[Debugger]: Driving Cmd Trigger, Number of checkpoints pending is {}\n", checkpoint_triggers_pending); 
-    unsigned long t_data = 0x800000000fffffff;
-    unsigned upper_dmi_data = 0;
-    unsigned lower_dmi_data = 0;
-    unsigned hart = 0;
-    upper_dmi_data = t_data >> 32;
-    lower_dmi_data = t_data & 0xffffffff;
-    hart = 0;                                               // hart bits position TBD, till TBD it is always zero
-    trickboxDmiWrite(hart, upper_dmi_data, lower_dmi_data); // Commented until DMI PORT is not in master
-    rand_dbg_entry_cmd_trigger = 0; 
-  }
-  
-  else if (!dmi_cmd_q.empty())
+
+  if (!dmi_cmd_q.empty())
   {
     dmi_req_t dmi_req;
     dmi_req = dmi_cmd_q.front();
-    dmi_cmd_q.pop(); // pop front element
-    if (dmi_req.op == 3) {
-      checkpoint_triggers_pending += 1;
-      cvm::log(cvm::HIGH, "[Debugger]: Encountered checkpoint in csv parsing, Number of checkpoints pending is {}\n", checkpoint_triggers_pending);  
-    } 
+    dmi_cmd_q.pop(); // pop front eleme7t
     cvm::log(cvm::MEDIUM, "Popping dmi request: op {} addr {:#x} data {:#x} func bits {:#x}\n", dmi_req.op, dmi_req.addr, dmi_req.data, dmi_req.func_bits);
     unsigned upper_dmi_data = 0;
     unsigned lower_dmi_data = 0;
@@ -236,6 +226,11 @@ void debugger::drive_csv_dmi_cmds()
     lower_dmi_data = dmi_req.data;
     hart = 0; // hart bits position TBD, till TBD it is always zero
     trickboxDmiWrite(hart, upper_dmi_data, lower_dmi_data);
+  }
+  else
+  {
+    dbg_trigger = 0;
+    rnd_dbg_trigger = 0;
   }
 }
 
@@ -284,9 +279,8 @@ void debugger::write(uint64_t addr, size_t, const data_t &data,
   cvm::log(cvm::HIGH, "[Trickbox] Debugger write addr: {:#x}\n", addr);
   uint64_t t_data = 0;
   deserializeInt(data, t_data);
-  if (addr == debugger_command_exec_trigger && !FLAGS_random_dbg_entry)
+  if (addr == debugger_base)
   {
-    cvm::log(cvm::NONE, "[Trickbox] Debugger command Execution trigger\n");
     unsigned upper_dmi_data = 0;
     unsigned lower_dmi_data = 0;
     unsigned hart = 0;
@@ -296,9 +290,10 @@ void debugger::write(uint64_t addr, size_t, const data_t &data,
     trickboxDmiWrite(hart, upper_dmi_data, lower_dmi_data); // Commented until DMI PORT is not in master
   }
 
-  if (addr == debugger_file_load_trigger && !FLAGS_random_dbg_entry)
+  if (addr == debugger_trigger && !FLAGS_random_dbg_entry)
   {
-    cvm::log(cvm::NONE, "[Trickbox] Debugger file loading trigger\n");
+    cvm::log(cvm::MEDIUM, "[Trickbox] Debugger file trigger\n");
     parse_dmi_from_csv();
+    dbg_trigger = 1;
   }
 }

@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include <mutex>
-#include <atomic>
-#include <thread>
 #include <unistd.h>
 #include <iostream>
 #include <iostream>
@@ -84,7 +81,6 @@ public:
   virtual void tick(uint64_t advance) override
   {
     cvm::log(cvm::FULL, "[jtag_driver]: Tick\n");
-    std::lock_guard<std::mutex> lock(mutex_);
     timer_ += advance;
     timer_advance = advance;
     checkJtagEvents();
@@ -189,8 +185,6 @@ private:
   uint64_t jtag_driver_num_cmds_addr = 0x9061000;
   uint32_t status;
   uint32_t commands_in_queue;
-  std::atomic<bool> terminate_ = false;
-  std::mutex mutex_;
 
   std::vector<std::vector<std::string>> csv_data;
   std::queue<jtag_req_t> jtag_cmd_q;
