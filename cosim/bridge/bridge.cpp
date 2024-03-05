@@ -46,7 +46,7 @@ DEFINE_bool(gpr_check, true, "Enable cosim checks on gprs");
 DEFINE_bool(fpr_check, true, "Enable cosim checks on fprs");
 DEFINE_bool(vec_check, true, "Enable cosim checks on vector regs");
 DEFINE_bool(csr_rd_check, true, "Enable cosim checks on csr reads");
-DEFINE_bool(csr_wr_check, false, "Enable cosim checks on csr reads");
+DEFINE_bool(csr_wr_check, true, "Enable cosim checks on csr writes");
 DEFINE_uint64(max_cycle, 1000000, "Max cycle limit to terminate the sim");
 DEFINE_int32(debug_excp_mcause, 24, "MCAUSE value for debug exception");
 DEFINE_bool(translation_check, false, "Do VA-PA translation check");
@@ -77,7 +77,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
     std::string traceFile = FLAGS_whisper_log ? "iss_cosim.log" : "";
     std::string commandLog = FLAGS_whisper_log ? "iss_cmd.log" : "";
     cosim_resynch_csr_defaults = {
-      "htval","mtval2","mtinst","htinst","vstart","vxsat","vxrm","vcsr","sstatus","mstatus","mie","hie","vsie","fflags","fcsr" // open bugs: RVDE: 10005 (mtinst/htinst), RVDE: 11217 (vectors), RVDE: 10043 (mtval2/htval), RVDE: 8849 (mstatus/mie aliases)
+      "htval","mtval2","mtinst","htinst","vstart","vxsat","vxrm","vcsr","sstatus","mstatus","mie","hie","vsie","fflags","fcsr", // open bugs: RVDE: 10005 (mtinst/htinst), RVDE: 11217 (vectors), RVDE: 10043 (mtval2/htval), RVDE: 8849 (mstatus/mie aliases)
       "mip","hip","vsip","hvip","mcycle","mireg","sireg","vtype" // permanantly excluded
     };
     std::istringstream iss(FLAGS_cosim_resynch_csr);
