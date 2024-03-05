@@ -486,4 +486,5 @@ private:
   std::vector<uint64_t> perf_region;
 
   bool terminated_ = false;
+  bool sync_terminate_ = false;
 };
