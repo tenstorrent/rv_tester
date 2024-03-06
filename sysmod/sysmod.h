@@ -14,6 +14,7 @@
 #include "trickbox/debugger.h"
 #include "trickbox/jtag_driver.h"
 #include "trace_cfg/trace_cfg.h"
+#include "smc_xtor/smc_xtor.h"
 #include "cvm/topology.hpp"
 //#include "SimJTAG.cc"
 #include <string>
@@ -44,6 +45,7 @@ class sysmod {
 
   protected:
     void trace_info_handler(trace_cfg::trace_info_t i);
+    void smc_info_handler(smc_xtor::smc_info_t i);
     void timer_interrupt(clint::timer_t t);
     void sw_interrupt(clint::sw_t s);
     void dmi_write(debugger::dmi_data_t s);
