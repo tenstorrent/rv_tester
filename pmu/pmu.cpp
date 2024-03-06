@@ -105,12 +105,12 @@ pmu::process(const rv_tester_transactions::pmu::pmcounters<>& pmcounters)
   if (loc_ != pmcounters.location)
     return;
 
-  if (terminated_ and sync_terminate_)
+  if (terminated_ and not sync_terminate_)
     return;
-  else
-    sync_terminate_ = true;
+  else if (terminated_)
+    sync_terminate_ = false;
 
-  cvm::log(cvm::DEBUG, "[PMU] syncing counters\n");
+  cvm::log(cvm::HIGH, "[PMU] syncing counters\n");
 
   if (not perf_region_started and (pmcounters.cpu_cycles >= perf_start_cycle) and (perf_start_cycle != 0))
     perf_region_start();
@@ -140,7 +140,7 @@ pmu::process(const rv_tester::terminate_called&)
 
   cvm::log(cvm::HIGH, "[PMU] termination signaled, stopping further counting\n");
   terminated_ = true;
-  sync_terminate_ = false;
+  sync_terminate_ = true;
 }
 
 void
