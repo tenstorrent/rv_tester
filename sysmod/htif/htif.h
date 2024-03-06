@@ -41,7 +41,9 @@ public:
       x |= INT(data[i]) << i*8;
   }
 
-  struct terminate_t {};
+  struct terminate_t {
+      bool low_priority_based = false;
+  };
 
 private:
 
