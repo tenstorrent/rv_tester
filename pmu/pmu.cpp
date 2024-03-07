@@ -112,7 +112,13 @@ pmu::process(const rv_tester_transactions::pmu::pmcounters<>& pmcounters)
 
   cvm::log(cvm::HIGH, "[PMU] syncing counters\n");
 
+  if (not perf_region_started and (pmcounters.cpu_cycles >= perf_start_cycle) and (perf_start_cycle != 0))
+    perf_region_start();
+
   counters = to_vector(pmcounters);
+
+  if (perf_region_started and not perf_region_ended and (pmcounters.cpu_cycles >= perf_end_cycle) and (perf_end_cycle != 0))
+    perf_region_end();
 
   if (FLAGS_pmcounters_log != 0) {
     for (size_t i = 0; i < counters.size(); i++) {
@@ -140,8 +146,9 @@ pmu::process(const rv_tester::terminate_called_fast&)
 void
 pmu::report()
 {
+  const auto& used = (perf_region_started and perf_region_ended)? perf_region : counters;
   for (size_t i = 0; i < counter::COUNT; i++)
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_{}\": \"0x{:x}\"}}\n", id_, to_string.at(static_cast<counter>(i)), counters[i]);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_{}\": \"0x{:x}\"}}\n", id_, to_string.at(static_cast<counter>(i)), used[i]);
 
   if (perf_region_ok) {
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_perf_start_pc\": \"0x{:x}\"}}\n", id_, perf_start_pc);
@@ -161,7 +168,8 @@ pmu::is_within_range(double actual, double expected, int tolerance_perc)
 void
 pmu::ipc_check()
 {
-  double ipc_actual = counters[CPU_CYCLES] ? static_cast<double>(counters[INSTRUCTIONS]) / static_cast<double>(counters[CPU_CYCLES]) : 0.0;
+  const auto& used = (perf_region_started and perf_region_ended)? perf_region : counters;
+  double ipc_actual = used[CPU_CYCLES] ? static_cast<double>(used[INSTRUCTIONS]) / static_cast<double>(used[CPU_CYCLES]) : 0.0;
 
   if (!is_within_range(ipc_actual, FLAGS_ipc_expected, FLAGS_ipc_tolerance_perc)) {
     cvm::log(cvm::ERROR, "Error: IPC check failed. Act: {:.2f} Exp: {:.2f} Tolerance: {} %\n", ipc_actual, FLAGS_ipc_expected, FLAGS_ipc_tolerance_perc);
