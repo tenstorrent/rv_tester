@@ -81,8 +81,6 @@ namespace {
         {"vl", 0xc20},
         {"vtype", 0xc21},
         {"vlenb", 0x0C22},
-        {"mireg", 0x351},
-        {"sireg", 0x151},
         {"mtinst", 0x34A},
         {"mtval2", 0x34B},
         {"menvcfg", 0x30A},
@@ -269,7 +267,17 @@ namespace {
         {"dcsr", 0x7B0},
         {"dpc", 0x7B1},
         {"dscratch0", 0x7B2},
-        {"dscratch1", 0x7B3}
+        {"dscratch1", 0x7B3},
+        {"siselect", 0x150},
+        {"sireg", 0x151},
+        {"stopei", 0x15c},
+        {"stopi", 0xDB0},
+        {"miselect", 0x350},
+        {"mireg", 0x351},
+        {"mtopei", 0x35C},
+        {"mtopi", 0xFB0},
+        {"mvien", 0x308},
+        {"mvip", 0x309}
     }};
 
     std::array<csr_entry, 8> nonzero_reset_csrs {{
