@@ -244,7 +244,8 @@ sysmod::jtag_req(jtag_driver::jtag_data_t i) {
 }
 
 void
-sysmod::terminate(htif::terminate_t) {
+sysmod::terminate(htif::terminate_t t) {
+  // fast path for handlers which want to be notified immediately
   cvm::registry::messenger.signal<rv_tester::terminate_called_fast>(cvm::topology::get_from_type("PLATFORM", 0), rv_tester::terminate_called_fast{});
   // we want this to be low prio and async so it goes behind existing rvfi transactions in the queue
   // because of QoS this could have been seen before all rvfi transactions up to this instruction were processed
