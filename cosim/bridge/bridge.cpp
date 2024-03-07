@@ -77,8 +77,8 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
     std::string traceFile = FLAGS_whisper_log ? "iss_cosim.log" : "";
     std::string commandLog = FLAGS_whisper_log ? "iss_cmd.log" : "";
     cosim_resynch_csr_defaults = {
-      "htval","mtval2","mtinst","htinst","vstart","vxsat","vxrm","vcsr","sstatus","mstatus","mie","hie","vsie","fflags","fcsr", // open bugs: RVDE: 10005 (mtinst/htinst), RVDE: 11217 (vectors), RVDE: 10043 (mtval2/htval), RVDE: 8849 (mstatus/mie aliases)
-      "mip","hip","vsip","hvip","mcycle","mireg","sireg","vtype" // permanantly excluded
+      "htval","mtval2","mtinst","htinst","vstart","vxsat","vxrm","vcsr","sstatus","mstatus","mie","hie","vsie","sie","fflags","fcsr", // open bugs: RVDE: 10005 (mtinst/htinst), RVDE: 11217 (vectors), RVDE: 10043 (mtval2/htval), RVDE: 8849 (mstatus/mie aliases)
+      "mip","hip","vsip","hvip","sip","mcycle","mireg","sireg","vtype" // permanantly excluded
     };
     std::istringstream iss(FLAGS_cosim_resynch_csr);
     std::string token;
