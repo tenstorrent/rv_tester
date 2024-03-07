@@ -115,10 +115,10 @@ module rv_tester
         if(trace_en && (quiesce_counter >= quiesce_timeout)) begin
            trace_counter <= trace_counter + 1;
         end else if(trace_en) begin
-          trace_counter <='0; 
+          trace_counter <='0;
         end else if(!trace_en)begin
           trace_counter <= trace_timeout + 10;
-        end 
+        end
 
     end
 
@@ -357,7 +357,7 @@ module rv_tester
       );
     end
 `endif
-    
+
 
     aplic_monitor #(
         .NUM(0),
@@ -397,7 +397,7 @@ module rv_tester
           .pmci(pmci[p]),
           .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
           .terminate,
-          `RV_TESTER_TRANSACTIONS_PMU_SOURCE_PORTS(1, p, 0)
+          `RV_TESTER_TRANSACTIONS_PMU_SOURCE_PORTS(2, p, 0)
       );
     end
 
@@ -461,7 +461,7 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PORTS(2, p, 0)
         );
     end
-   
+
    localparam NoOfNcioMasters =  topology.TOP.PLATFORM.NCIO_AXI.TOTAL  ;
     for (genvar p = 0; p < NoOfNcioMasters; p++) begin : ncio_axi_sw_slvs
         axi_sw #(
@@ -519,7 +519,7 @@ module rv_tester
         );
     end
 
-    
+
    localparam NoOfAplicMomMsiMasters =  topology.TOP.PLATFORM.APLIC_MSI_AXI.TOTAL  ;
     for (genvar p = 0; p < NoOfAplicMomMsiMasters; p++) begin : aplic_msi_axi_sw_slvs
         axi_sw #(
