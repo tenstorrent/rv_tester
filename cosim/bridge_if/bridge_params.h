@@ -14,7 +14,7 @@ namespace {
         uint64_t address;
     };
 
-    std::array<csr_entry, 255> csrs {{
+    std::array<csr_entry, 263> csrs {{
         {"fflags", 0x001},
         {"frm", 0x002},
         {"fcsr", 0x003},
