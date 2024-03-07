@@ -443,26 +443,6 @@ public:
   void report();
   void ipc_check();
 
-  // snapshot current counter values, to be used in perf region
-  void perf_region_start() {
-    assert(perf_region.size() == counters.size());
-
-    for (size_t i = 0; i < perf_region.size(); i++)
-      perf_region[i] = counters[i];
-
-    perf_region_started = true;
-  }
-
-  void perf_region_end() {
-    assert(perf_region.size() == counters.size());
-
-    for (size_t i = 0; i < perf_region.size(); i++) {
-      perf_region[i] = counters[i] - perf_region[i];
-    }
-
-    perf_region_ended = true;
-  }
-
   bool is_within_range(double, double, int);
   void configure();
   void process(const rv_tester_transactions::cosim::m_rvfi<> &m_rvfi);
@@ -481,8 +461,6 @@ private:
   uint64_t perf_end_pc;
   uint64_t perf_end_cycle = 0;
   bool perf_region_ok = false;
-  bool perf_region_started = false;
-  bool perf_region_ended = false;
   std::vector<uint64_t> perf_region;
 
   bool terminated_ = false;
