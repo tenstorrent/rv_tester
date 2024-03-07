@@ -244,10 +244,16 @@ sysmod::jtag_req(jtag_driver::jtag_data_t i) {
 }
 
 void
-sysmod::terminate(htif::terminate_t) {
+sysmod::terminate(htif::terminate_t t) {
   // we want this to be low prio and async so it goes behind existing rvfi transactions in the queue
   // because of QoS this could have been seen before all rvfi transactions up to this instruction were processed
-  cvm::registry::messenger.signal_async<rv_tester::terminate_called>(cvm::topology::get_from_type("PLATFORM", 0), rv_tester::terminate_called{}, cvm::messenger::lowest_priority);
+  // unless the terminator tells us that it came from a low priority transaction
+  const auto prio = t.low_priority_based ? cvm::messenger::highest_priority : cvm::messenger::lowest_priority;
+  if (t.low_priority_based) {
+      cvm::registry::messenger.signal<rv_tester::terminate_called>(cvm::topology::get_from_type("PLATFORM", 0), rv_tester::terminate_called{});
+  } else {
+      cvm::registry::messenger.signal_async<rv_tester::terminate_called>(cvm::topology::get_from_type("PLATFORM", 0), rv_tester::terminate_called{}, prio);
+  }
   cvm::registry::callbacks.push(
       scope(),
       sysmod_terminate
