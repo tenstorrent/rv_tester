@@ -54,7 +54,7 @@ import rv_tester_params::*;
     end
 
     function void cosim_terminate ();
-        $display("attempting to terminate");
+        $display("[cosim]: attempting to terminate");
         /* verilator lint_off BLKSEQ */
         terminate.terminate = '1;
         /* verilator lint_on BLKSEQ */
@@ -256,7 +256,7 @@ import rv_tester_params::*;
     end
    endgenerate
    assign imsic_interrupt_delayed = imsic_interrupt_delays[imsic_whisper_delays];
-   
+
     // m_imsic_msi
     enum logic {idle, aw} msi_slave_state,msi_slave_state_d;
     logic msi_addr_in_imsic_range;

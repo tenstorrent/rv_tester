@@ -6,4 +6,6 @@ namespace rv_tester{
     // namely cosim can go way ahead on zebu after the test is trying to terminate
     struct terminate_called {};
 
+    // for handlers which want to terminate immediately
+    struct terminate_called_fast {};
 }

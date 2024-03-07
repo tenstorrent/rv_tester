@@ -73,7 +73,7 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
                 cvm::log(cvm::DEBUG, "new read request at {:#x}\n", r.addr);
                 if (this->dev(r.addr)){
                     cvm::registry::messenger.signal<device::read_t>(this->loc_, {r, source});
-              
+
 		    }
 
             });
@@ -153,7 +153,7 @@ sysmod::aplic_interrupt(aplic_driver::aplic_driver_write_t i) {
 void
 sysmod::trace_cfg_read_req_router(trace_cfg::trace_cfg_read_t r) {
 
-    transactor::read_t rd; 
+    transactor::read_t rd;
     rd.addr = r.addr;
     rd.length = r.length;
     rd.id =  r.id;
@@ -217,7 +217,7 @@ sysmod::uc_helper_backdoor_read(uc_helper::uc_helper_read_req_t r) {
       for (size_t i = 0; i < 8; i++) {
         data_trickbox[i] = (uint8_t)data[i];
       };
-      
+
       auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0);
       cvm::registry::messenger.signal(tbox_loc, uc_helper::trickbox_mem_req_t{r.addr, r.length, data_trickbox, strb});
 
@@ -245,6 +245,8 @@ sysmod::jtag_req(jtag_driver::jtag_data_t i) {
 
 void
 sysmod::terminate(htif::terminate_t t) {
+  // fast path for handlers which want to be notified immediately
+  cvm::registry::messenger.signal<rv_tester::terminate_called_fast>(cvm::topology::get_from_type("PLATFORM", 0), rv_tester::terminate_called_fast{});
   // we want this to be low prio and async so it goes behind existing rvfi transactions in the queue
   // because of QoS this could have been seen before all rvfi transactions up to this instruction were processed
   // unless the terminator tells us that it came from a low priority transaction
@@ -292,7 +294,7 @@ sysmod::compose()
 
       std::unique_ptr<device> device;
 
-      
+
       if (type == "memory") {
         device = std::make_unique<sysmod_mem>(tag, base, size, loc_);
       }
@@ -359,7 +361,7 @@ sysmod::compose()
             [&](debugger::dmi_data_t i) { return this->dmi_write(i); });
         cvm::registry::messenger.connect<jtag_driver::jtag_data_t>(
             loc_,
-            [&](jtag_driver::jtag_data_t i) { return this->jtag_req(i); });    
+            [&](jtag_driver::jtag_data_t i) { return this->jtag_req(i); });
         cvm::registry::messenger.connect<uc_helper::uc_helper_write_t>(
             loc_,
             [&](uc_helper::uc_helper_write_t i) { return this->uc_helper_backdoor_write(i); });

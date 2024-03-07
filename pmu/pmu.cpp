@@ -36,7 +36,7 @@ pmu::pmu(cvm::topology::loc_t loc, unsigned id)
 
     cvm::registry::messenger.connect<rv_tester_transactions::cosim::m_rvfi<>>(cosim, [this] (const auto& v) { return this->process(v); });
     cvm::registry::messenger.connect<rv_tester_transactions::pmu::pmcounters<>>(loc, [this] (const auto& v) { return this->process(v); });
-    cvm::registry::messenger.connect<rv_tester::terminate_called>(platform, [this] (const auto& v) { return this->process(v); });
+    cvm::registry::messenger.connect<rv_tester::terminate_called_fast>(platform, [this] (const auto& v) { return this->process(v); });
   }
 }
 
@@ -133,7 +133,7 @@ pmu::process(const rv_tester_transactions::pmu::pmcounters<>& pmcounters)
 }
 
 void
-pmu::process(const rv_tester::terminate_called&)
+pmu::process(const rv_tester::terminate_called_fast&)
 {
   if (terminated_)
     return;
