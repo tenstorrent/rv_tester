@@ -467,7 +467,7 @@ public:
   void configure();
   void process(const rv_tester_transactions::cosim::m_rvfi<> &m_rvfi);
   void process(const rv_tester_transactions::pmu::pmcounters<> &pmcounters);
-  void process(const rv_tester::terminate_called &);
+  void process(const rv_tester::terminate_called_fast &);
 
 private:
   cvm::file_logger log;
@@ -486,4 +486,5 @@ private:
   std::vector<uint64_t> perf_region;
 
   bool terminated_ = false;
+  bool sync_terminate_ = false;
 };

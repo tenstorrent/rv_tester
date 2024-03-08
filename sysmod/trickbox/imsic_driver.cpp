@@ -31,9 +31,6 @@ imsic_driver::imsic_driver(const std::string& tag, uint64_t addr, unsigned hartC
 
 imsic_driver::~imsic_driver()
 {
-  terminate_ = true;
-  if (timerThread_.joinable())
-    timerThread_.join();
 }
 
 void
@@ -48,26 +45,6 @@ void
 imsic_driver::checkUsage()
 {
   
-}
-
-void
-imsic_driver::selfTick(useconds_t delta)
-{
-  auto func = [this, delta]() {
-    while (true)
-      {
-	usleep(delta);
-	if (terminate_)
-	  return;
-	else
-	  {
-	    std::lock_guard<std::mutex> lock(mutex_);
-	   //  tick();
-	  }
-      }
-  };
-
-  timerThread_ = std::thread(func);
 }
 
 

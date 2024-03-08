@@ -46,7 +46,7 @@ package rv_tester_params;
     parameter NRESETS = mods.TOP.PLATFORM.RESETI.NRESETS;
     parameter COLD_RESET_IDX = mods.TOP.PLATFORM.RESETI.COLD_RESET_IDX;
     parameter RESET_IDX = mods.TOP.PLATFORM.RESETI.RESET_IDX;
-    parameter bit [NRESETS-1:0][31:0] RESET_REF_CLOCKS = mods.TOP.PLATFORM.RESETI.RESET_REF_CLOCKS;
+    parameter bit [NRESETS-1:0][31:0] RESET_TB_CLOCKS = mods.TOP.PLATFORM.RESETI.RESET_TB_CLOCKS;
 
     // --------------------------------------
     // AXI interface
@@ -88,6 +88,12 @@ package rv_tester_params;
     parameter APLIC_MMR_AXI_MST_STRB_WIDTH = mods.TOP.PLATFORM.APLIC_MMR_AXI_MST.STRB_WIDTH;
     parameter APLIC_MMR_AXI_MST_ID_WIDTH = mods.TOP.PLATFORM.APLIC_MMR_AXI_MST.ID_WIDTH;
 
+    parameter SMC_AXI_MST_TOTAL = mods.TOP.PLATFORM.SMC_AXI_MST.TOTAL;
+    parameter SMC_AXI_MST_ADDR_WIDTH = mods.TOP.PLATFORM.SMC_AXI_MST.ADDR_WIDTH;
+    parameter SMC_AXI_MST_DATA_WIDTH = mods.TOP.PLATFORM.SMC_AXI_MST.DATA_WIDTH;
+    parameter SMC_AXI_MST_STRB_WIDTH = mods.TOP.PLATFORM.SMC_AXI_MST.STRB_WIDTH;
+    parameter SMC_AXI_MST_ID_WIDTH = mods.TOP.PLATFORM.SMC_AXI_MST.ID_WIDTH;
+
     parameter DM_AXI_TOTAL = mods.TOP.PLATFORM.DM_AXI.TOTAL;
     parameter DM_AXI_ADDR_WIDTH = mods.TOP.PLATFORM.DM_AXI.ADDR_WIDTH;
     parameter DM_AXI_DATA_WIDTH = mods.TOP.PLATFORM.DM_AXI.DATA_WIDTH;
@@ -123,6 +129,12 @@ package rv_tester_params;
     typedef logic [APLIC_MMR_AXI_MST_DATA_WIDTH-1:0] aplic_mmr_data_t;
     typedef logic [APLIC_MMR_AXI_MST_STRB_WIDTH-1:0] aplic_mmr_strb_t;
     typedef logic [APLIC_MMR_AXI_MST_ID_WIDTH  -1:0] aplic_mmr_id_t;
+
+    
+    typedef logic [SMC_AXI_MST_ADDR_WIDTH-1:0] smc_addr_t;
+    typedef logic [SMC_AXI_MST_DATA_WIDTH-1:0] smc_data_t;
+    typedef logic [SMC_AXI_MST_STRB_WIDTH-1:0] smc_strb_t;
+    typedef logic [SMC_AXI_MST_ID_WIDTH  -1:0] smc_id_t;
 
     typedef logic [5:0] axi_atop_t;
     typedef logic [1:0] axi_burst_t;
@@ -259,6 +271,48 @@ package rv_tester_params;
         logic                       w_ready  ;
     } aplic_mmr_axi_rsp_t;
 
+    typedef struct packed {
+        logic                       ar_valid ;
+        smc_id_t                ar_id    ;
+        smc_addr_t              ar_addr  ;
+        axi_len_t                   ar_len   ;
+        axi_size_t                  ar_size  ;
+        axi_burst_t                 ar_burst ;
+        logic                       ar_lock  ;
+
+        logic                       aw_valid ;
+        smc_id_t                aw_id    ;
+        smc_addr_t              aw_addr  ;
+        axi_len_t                   aw_len   ;
+        axi_size_t                  aw_size  ;
+        axi_burst_t                 aw_burst ;
+        logic                       aw_lock  ;
+        axi_atop_t                  aw_atop  ;
+
+        logic                       w_valid  ;
+        smc_data_t              w_data   ;
+        smc_strb_t              w_strb   ;
+        logic                       w_last   ;
+
+        logic                       b_ready  ;
+        logic                       r_ready  ;
+    } smc_axi_req_t;
+
+    typedef struct packed {
+        logic                       b_valid  ;
+        smc_id_t                b_id     ;
+        axi_resp_t                  b_resp   ;
+
+        logic                       r_valid  ;
+        smc_id_t                r_id     ;
+        smc_data_t              r_data   ;
+        axi_resp_t                  r_resp   ;
+        logic                       r_last   ;
+
+        logic                       aw_ready ;
+        logic                       ar_ready ;
+        logic                       w_ready  ;
+    } smc_axi_rsp_t;
     // --------------------------------------
     // Bootstrap
     // --------------------------------------
@@ -618,6 +672,13 @@ package rv_tester_params;
     `AXI_TYPEDEF_REQ_T(aplic_mmr_req_top, aplic_mmr_aw_chan_top, aplic_mmr_w_chan_top, aplic_mmr_ar_chan_top)
     `AXI_TYPEDEF_RESP_T(aplic_mmr_resp_top, aplic_mmr_b_chan_top, aplic_mmr_r_chan_top)
 
+    `AXI_TYPEDEF_AW_CHAN_T(smc_aw_chan_top, smc_addr_t, smc_id_t, user_t)
+    `AXI_TYPEDEF_W_CHAN_T(smc_w_chan_top, smc_data_t, smc_strb_t, user_t)
+    `AXI_TYPEDEF_B_CHAN_T(smc_b_chan_top, smc_id_t, user_t)
+    `AXI_TYPEDEF_AR_CHAN_T(smc_ar_chan_top, smc_addr_t, smc_id_t, user_t)
+    `AXI_TYPEDEF_R_CHAN_T(smc_r_chan_top, smc_data_t, smc_id_t, user_t)
+    `AXI_TYPEDEF_REQ_T(smc_req_top, smc_aw_chan_top, smc_w_chan_top, smc_ar_chan_top)
+    `AXI_TYPEDEF_RESP_T(smc_resp_top, smc_b_chan_top, smc_r_chan_top)
     // --------------------------------------
     // rv_tester ports
     // --------------------------------------
@@ -653,6 +714,7 @@ package rv_tester_params;
     output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NIEVICTS-1:0]   mcmi_ievict,  \
     output rv_tester_params::csri_t          csri         [rv_tester_params::NHARTS-1:0],           \
     output rv_tester_params::pmci_t          pmci         [rv_tester_params::NHARTS-1:0],           \
+    output rv_tester_params::mst_req_top     axi_msi,                                               \
                                                                                                     \
     output logic                                            dm_mem_tx_vld,                          \
     output logic                                            dm_mem_tx_we,                           \
@@ -672,7 +734,9 @@ package rv_tester_params;
     input  rv_tester_params::mst_req_top     axi_req_mst [rv_tester_params::AXI_MST_TOTAL-1:0],     \
     output rv_tester_params::mst_resp_top    axi_rsp_mst [rv_tester_params::AXI_MST_TOTAL-1:0],     \
     input  rv_tester_params::aplic_mmr_req_top    aplic_mmr_axi_req_mst [rv_tester_params::APLIC_MMR_AXI_MST_TOTAL-1:0],   \
-    output rv_tester_params::aplic_mmr_resp_top   aplic_mmr_axi_rsp_mst [rv_tester_params::APLIC_MMR_AXI_MST_TOTAL-1:0]
+    output rv_tester_params::aplic_mmr_resp_top   aplic_mmr_axi_rsp_mst [rv_tester_params::APLIC_MMR_AXI_MST_TOTAL-1:0],   \
+    input  rv_tester_params::smc_req_top    smc_axi_req_mst [rv_tester_params::SMC_AXI_MST_TOTAL-1:0],   \
+    output rv_tester_params::smc_resp_top   smc_axi_rsp_mst [rv_tester_params::SMC_AXI_MST_TOTAL-1:0]
 
 
 `define RV_TESTER_VARS(topology)                                                                    \
@@ -724,8 +788,11 @@ package rv_tester_params;
     //rv_tester_params::msi_slv_resp_top       msi_slv_axi_rsp [1-1:0];             \
     rv_tester_params::mst_req_top            axi_req_mst [rv_tester_params::AXI_MST_TOTAL-1:0];     \
     rv_tester_params::mst_resp_top           axi_rsp_mst [rv_tester_params::AXI_MST_TOTAL-1:0];     \
+    rv_tester_params::mst_req_top            axi_msi;                                               \
     rv_tester_params::aplic_mmr_req_top      aplic_mmr_axi_req_mst  [rv_tester_params::APLIC_MMR_AXI_MST_TOTAL-1:0];  \
-    rv_tester_params::aplic_mmr_resp_top     aplic_mmr_axi_rsp_mst  [rv_tester_params::APLIC_MMR_AXI_MST_TOTAL-1:0];
+    rv_tester_params::aplic_mmr_resp_top     aplic_mmr_axi_rsp_mst  [rv_tester_params::APLIC_MMR_AXI_MST_TOTAL-1:0];  \
+    rv_tester_params::smc_req_top      smc_axi_req_mst  [rv_tester_params::SMC_AXI_MST_TOTAL-1:0];  \
+    rv_tester_params::smc_resp_top     smc_axi_rsp_mst  [rv_tester_params::SMC_AXI_MST_TOTAL-1:0];
 
 `define RV_TESTER_PORTS `_RV_TESTER_PORTS(input,output)
 

@@ -69,7 +69,7 @@ void eot::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
       cvm::log(cvm::NONE, "<{}> Pass condition detected: +eot=max_instr +max_instr={}\n", m_rvfi.cycle, FLAGS_max_instr);
       cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", m_rvfi.cycle);
       auto location = cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0);
-      cvm::registry::messenger.signal<htif::terminate_t>(location, htif::terminate_t{});
+      cvm::registry::messenger.signal<htif::terminate_t>(location, htif::terminate_t{.low_priority_based = true});
       auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
       cvm::log(cvm::HIGH, "end time: {}\n", std::ctime(&now));
       return;
@@ -107,7 +107,7 @@ void eot::process_tohost(std::tuple<uint64_t,uint64_t,uint64_t> w) {
     cvm::log(cvm::NONE, "<{}> Pass condition detected - tohost[0]=1, tohost[47:1]=0\n", cycle);
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
     auto location = cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0);
-    cvm::registry::messenger.signal<htif::terminate_t>(location, htif::terminate_t{});
+    cvm::registry::messenger.signal<htif::terminate_t>(location, htif::terminate_t{.low_priority_based = true});
   } else {
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
     cvm::log(cvm::ERROR, "<{}> Error: Fail condition detected - tohost[0]=1, tohost[47:1]={:#x}\n", cycle,

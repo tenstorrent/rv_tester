@@ -82,10 +82,10 @@ void
 htif::write(const transactor::write_t& w)
 {
   auto& addr = w.addr;
-  auto& length = w.length;
+  // auto& length = w.length;
   auto& data = w.data;
 
-  if (length != 8 or (addr % 8) != 0)
+  if ((addr % 8) != 0)
     return;
 
   uint64_t dword = 0;
