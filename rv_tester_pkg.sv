@@ -35,6 +35,7 @@ package rv_tester_pkg;
         logic tck;
         logic tms;
         logic tdi;
+        logic trst;
     } jtag_if_t;
 
     typedef struct packed {
