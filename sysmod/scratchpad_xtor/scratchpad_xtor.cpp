@@ -26,10 +26,8 @@ void scratchpad_xtor::axi_write() {
   size_t length = 0x40;
   std::vector<uint8_t> data;
   std::vector<bool> strb;
-  trace_wr_t wr;
+  scratchpad_wr_t wr;
 
- // wr = trace_wr_txn_q.front();
- // trace_wr_txn_q.pop();
   addr = (uint64_t)wr.addr;
   gen_data_strb(wr.addr,wr.data,data,strb);
   
@@ -92,7 +90,7 @@ cvm::messenger::task<void> scratchpad_xtor::read(const transactor::read_t& r, da
   scratchpad_xtor_rd.length = length;
   scratchpad_xtor_rd.id = r.id;
   scratchpad_xtor_rd.data = resp.data;  
-  //trace_read_resp_q.push(scratchpad_xtor_rd); 
+  
   co_return;
 }
 

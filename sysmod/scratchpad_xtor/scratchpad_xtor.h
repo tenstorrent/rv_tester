@@ -29,15 +29,11 @@ class scratchpad_xtor : public device {
         pcg_extras::seed_seq_from<std::random_device> seed_source;
         pcg32 rng;
         uint64_t scratchpad_xtor_base  = 0x9070000;
-        void complete_trace_test()
-        {
-          // cvm::registry::messenger.signal(loc(), trace_info_t{1,0});
-        }
 
     public:
-        uint32_t start_trace_cnt,read_ram;
+        uint32_t start_scratchpad_cnt,read_ram;
         uint32_t cnt_tick=0;
-        struct trace_wr_t {
+        struct scratchpad_wr_t {
           uint32_t addr;
           uint32_t data;
         };
@@ -46,10 +42,6 @@ class scratchpad_xtor : public device {
           size_t length;
           uint32_t id;
         };
-        struct trace_info_t{
-            uint32_t trace_quiesced;
-            uint64_t trace_status;
-        };
         struct scratchpad_xtor_read_req_t {
           uint64_t addr;
           size_t length;
@@ -57,8 +49,8 @@ class scratchpad_xtor : public device {
           std::vector<uint8_t> data;
           std::vector<bool> strb;
         };
-        std::queue<scratchpad_xtor_read_req_t> trace_read_resp_q;
-        std::queue<trace_wr_t>           trace_wr_txn_q;
+        std::queue<scratchpad_xtor_read_req_t> scratchpad_read_resp_q;
+        std::queue<scratchpad_wr_t>           scratchpad_wr_txn_q;
         virtual void axi_write();
         virtual void axi_read(uint64_t addr, size_t length, uint32_t id);
         //void write(const transactor::write_t& );
@@ -121,18 +113,6 @@ class scratchpad_xtor : public device {
             }
         }
         
-        void push_trace_enable_seq() {
-        }
-
-        void push_trace_disable_seq() {
-        }
-
-        void read_pointers(){
-        }
-
-        void read_sram() {
-        }        
-
         // add max mem size
         scratchpad_xtor(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc);
 

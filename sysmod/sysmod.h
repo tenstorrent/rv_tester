@@ -17,7 +17,7 @@
 #include "trace_cfg/trace_cfg.h"
 #include "smc_xtor/smc_xtor.h"
 #include "cvm/topology.hpp"
-//#include "SimJTAG.cc"
+
 #include <string>
 
 #include "rv_tester_transactions.hpp"

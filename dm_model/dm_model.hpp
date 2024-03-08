@@ -11,7 +11,6 @@
 #include "cvm/logger.hpp"
 #include "cvm/topology.hpp"
 #include "rv_tester_transactions.hpp"
-//#include "debugger.h"
 #include "sysmod/trickbox/debugger.h"
 #include "processor.h"
 #include "debug_defines.h"
