@@ -52,8 +52,6 @@ module rv_tester
     logic rv_tester_reset = '1;
     logic sysmod_reset = '0;
     LU clocks = 0;
-    LU ref_clocks = 0;
-    LU axi_clocks = 0;
     bit cb_poll = '0;
     bit cb_success = '1;
     logic call_finish;
@@ -85,23 +83,8 @@ module rv_tester
     int unsigned cvm_verbosity, gen_clocks_verbosity;
 
     assign terminate           = (rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any) && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
-    assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && (trace_quiesced || trace_counter >= trace_timeout);
+    assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout);
     assign rerun_now           = terminated && num_reruns > 0;
-
-    // Clock counters
-    always @(posedge clk[REF_CLK_IDX]) begin
-        ref_clocks <= ref_clocks + 1;
-        if (rv_tester_reset) begin
-            ref_clocks <= 0;
-        end
-    end
-
-    always @(posedge clk[AXI_CLK_IDX]) begin
-        axi_clocks <= axi_clocks + 1;
-        if (rv_tester_reset) begin
-            axi_clocks <= 0;
-        end
-    end
 
     /*
     * Don't put an DPI calls here, zebu gets confused when signals are driven
@@ -132,10 +115,10 @@ module rv_tester
         if(trace_en && (quiesce_counter >= quiesce_timeout)) begin
            trace_counter <= trace_counter + 1;
         end else if(trace_en) begin
-          trace_counter <='0; 
+          trace_counter <='0;
         end else if(!trace_en)begin
           trace_counter <= trace_timeout + 10;
-        end 
+        end
 
     end
 
@@ -240,8 +223,8 @@ module rv_tester
     // We also assert reset at the end of the test to quiesce the DPIs.
     logic reset_pullup;
     assign reset_pullup = rv_tester_reset || sysmod_reset || terminate_now || terminated;
-    assign reset[COLD_RESET_IDX] = ref_clocks < LU'(RESET_REF_CLOCKS[COLD_RESET_IDX]) || reset_pullup;
-    assign reset[RESET_IDX] = ref_clocks < LU'(RESET_REF_CLOCKS[RESET_IDX]) || reset_pullup;
+    assign reset[COLD_RESET_IDX] = clocks < LU'(RESET_TB_CLOCKS[COLD_RESET_IDX]) || reset_pullup;
+    assign reset[RESET_IDX] = clocks < LU'(RESET_TB_CLOCKS[RESET_IDX]) || reset_pullup;
 
 `ifdef NEGEDGE_UNSUPPORTED
     always@(posedge clk[TB_CLK_IDX]) begin
@@ -276,7 +259,6 @@ module rv_tester
     ) sysmod (
         .clk(clk[AXI_CLK_IDX]),
         .reset(sysmod_reset),
-        .clocks,
         .trace_quiesced(trace_quiesced),
         .bootstrap,
         .dmi_write(trickbox_dmi_write),
@@ -349,7 +331,7 @@ module rv_tester
           .NBYPASS(NBYPASSES[c]),
           .NIFETCH(NIFETCHES[c]),
           .NIEVICT(NIEVICTS[c]),
-          .RESET_CLOCKS(RESET_REF_CLOCKS[RESET_IDX]),
+          .RESET_CLOCKS(RESET_TB_CLOCKS[RESET_IDX]),
           `TOPOLOGY_CFG,
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PARAMS(0)
       ) cosim (
@@ -375,7 +357,7 @@ module rv_tester
       );
     end
 `endif
-    
+
 
     aplic_monitor #(
         .NUM(0),
@@ -415,7 +397,7 @@ module rv_tester
           .pmci(pmci[p]),
           .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
           .terminate,
-          `RV_TESTER_TRANSACTIONS_PMU_SOURCE_PORTS(1, p, 0)
+          `RV_TESTER_TRANSACTIONS_PMU_SOURCE_PORTS(2, p, 0)
       );
     end
 
@@ -479,7 +461,7 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PORTS(2, p, 0)
         );
     end
-   
+
    localparam NoOfNcioMasters =  topology.TOP.PLATFORM.NCIO_AXI.TOTAL  ;
     for (genvar p = 0; p < NoOfNcioMasters; p++) begin : ncio_axi_sw_slvs
         axi_sw #(
@@ -537,7 +519,7 @@ module rv_tester
         );
     end
 
-    
+
    localparam NoOfAplicMomMsiMasters =  topology.TOP.PLATFORM.APLIC_MSI_AXI.TOTAL  ;
     for (genvar p = 0; p < NoOfAplicMomMsiMasters; p++) begin : aplic_msi_axi_sw_slvs
         axi_sw #(

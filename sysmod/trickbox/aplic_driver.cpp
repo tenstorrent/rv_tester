@@ -20,35 +20,12 @@ aplic_driver::aplic_driver(const std::string& tag, uint64_t addr, unsigned hartC
 
 aplic_driver::~aplic_driver()
 {
-  terminate_ = true;
-  if (timerThread_.joinable())
-    timerThread_.join();
 }
 
 void
 aplic_driver::checkUsage()
 {
   
-}
-
-void
-aplic_driver::selfTick(useconds_t delta)
-{
-  auto func = [this, delta]() {
-    while (true)
-      {
-	usleep(delta);
-	if (terminate_)
-	  return;
-	else
-	  {
-	    std::lock_guard<std::mutex> lock(mutex_);
-	   //  tick();
-	  }
-      }
-  };
-
-  timerThread_ = std::thread(func);
 }
 
 

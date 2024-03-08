@@ -10,6 +10,7 @@
 #include "clint/clint.h"
 #include "dm/dm.h"
 #include "trace_cfg/trace_cfg.h"
+#include "smc_xtor/smc_xtor.h"
 #include "aplic_mmr/aplic_mmr.h"
 #include "io_dev/io_dev.h"
 #include "null_dev/null_dev.h"
@@ -72,7 +73,7 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
                 cvm::log(cvm::DEBUG, "new read request at {:#x}\n", r.addr);
                 if (this->dev(r.addr)){
                     cvm::registry::messenger.signal<device::read_t>(this->loc_, {r, source});
-              
+
 		    }
 
             });
@@ -127,6 +128,16 @@ sysmod::trace_info_handler(trace_cfg::trace_info_t i) {
 }
 
 void
+sysmod::smc_info_handler(smc_xtor::smc_info_t i) {
+        cvm::log(cvm::HIGH, "[SYSMOD] trace_info {} \n",i.smc_quiesced);
+ // cvm::registry::callbacks.push(
+ //     scope(),
+ //     [i]() {
+ //       cvm::log(cvm::HIGH, "[SYSMOD] smc_info \n");
+ //       sysmod_trace_info(i.trace_quiesced);
+ //     });
+}
+void
 sysmod::aplic_interrupt(aplic_driver::aplic_driver_write_t i) {
   cvm::registry::callbacks.push(
       scope(),
@@ -142,7 +153,7 @@ sysmod::aplic_interrupt(aplic_driver::aplic_driver_write_t i) {
 void
 sysmod::trace_cfg_read_req_router(trace_cfg::trace_cfg_read_t r) {
 
-    transactor::read_t rd; 
+    transactor::read_t rd;
     rd.addr = r.addr;
     rd.length = r.length;
     rd.id =  r.id;
@@ -222,7 +233,7 @@ sysmod::uc_helper_backdoor_read(uc_helper::uc_helper_read_req_t r) {
       for (size_t i = 0; i < 8; i++) {
         data_trickbox[i] = (uint8_t)data[i];
       };
-      
+
       auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0);
       cvm::registry::messenger.signal(tbox_loc, uc_helper::trickbox_mem_req_t{r.addr, r.length, data_trickbox, strb});
 
@@ -249,8 +260,18 @@ sysmod::jtag_req(jtag_driver::jtag_data_t i) {
 }
 
 void
-sysmod::terminate(htif::terminate_t) {
-  cvm::registry::messenger.signal<rv_tester::terminate_called>(cvm::topology::get_from_type("PLATFORM", 0), rv_tester::terminate_called{}, true);
+sysmod::terminate(htif::terminate_t t) {
+  // fast path for handlers which want to be notified immediately
+  cvm::registry::messenger.signal<rv_tester::terminate_called_fast>(cvm::topology::get_from_type("PLATFORM", 0), rv_tester::terminate_called_fast{});
+  // we want this to be low prio and async so it goes behind existing rvfi transactions in the queue
+  // because of QoS this could have been seen before all rvfi transactions up to this instruction were processed
+  // unless the terminator tells us that it came from a low priority transaction
+  const auto prio = t.low_priority_based ? cvm::messenger::highest_priority : cvm::messenger::lowest_priority;
+  if (t.low_priority_based) {
+      cvm::registry::messenger.signal<rv_tester::terminate_called>(cvm::topology::get_from_type("PLATFORM", 0), rv_tester::terminate_called{});
+  } else {
+      cvm::registry::messenger.signal_async<rv_tester::terminate_called>(cvm::topology::get_from_type("PLATFORM", 0), rv_tester::terminate_called{}, prio);
+  }
   cvm::registry::callbacks.push(
       scope(),
       sysmod_terminate
@@ -275,6 +296,7 @@ sysmod::compose()
   memmap::get(memmap_);
 
   auto mmr_master = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MMR_MST");
+  auto smc_master = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_SMC_MST");
   auto masters = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST");
   auto platform_loc = cvm::topology::get_from_type("PLATFORM", 0);
   auto nharts = cvm::topology::attr(platform_loc, "NHARTS").second;
@@ -288,7 +310,7 @@ sysmod::compose()
 
       std::unique_ptr<device> device;
 
-      
+
       if (type == "memory") {
         device = std::make_unique<sysmod_mem>(tag, base, size, loc_);
       }
@@ -328,6 +350,14 @@ sysmod::compose()
             loc_,
             [&](scratchpad_xtor::scratchpad_xtor_read_t i) { return this->scratchpad_xtor_read_req_router(i); });
       }
+      else if (type == "smc_xtor") {
+        // TODO: cvm::ERROR
+        cvm::registry::messenger.connect<smc_xtor::smc_info_t>(
+            loc_,
+            [&](smc_xtor::smc_info_t i) { return this->smc_info_handler(i); });
+        assert(masters.size() > 0);
+        device = std::make_unique<smc_xtor>(tag, base, size, loc_, smc_master[0]);
+      }
       else if (type == "aplic_mmr") {
         // TODO: cvm::ERROR
         assert(mmr_master.size() > 0);
@@ -355,7 +385,7 @@ sysmod::compose()
             [&](debugger::dmi_data_t i) { return this->dmi_write(i); });
         cvm::registry::messenger.connect<jtag_driver::jtag_data_t>(
             loc_,
-            [&](jtag_driver::jtag_data_t i) { return this->jtag_req(i); });    
+            [&](jtag_driver::jtag_data_t i) { return this->jtag_req(i); });
         cvm::registry::messenger.connect<uc_helper::uc_helper_write_t>(
             loc_,
             [&](uc_helper::uc_helper_write_t i) { return this->uc_helper_backdoor_write(i); });

@@ -81,7 +81,6 @@ uc_helper::read_dev(uint64_t addr, size_t length, data_t& data)
 
 uc_helper::~uc_helper()
 {
-  terminate_ = true;
 }
 
 void

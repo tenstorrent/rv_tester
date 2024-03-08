@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include <mutex>
-#include <atomic>
-#include <thread>
 #include <unistd.h>
 #include "subdevice.h"
 #include <iostream>
@@ -86,7 +83,6 @@ public:
 
   virtual void tick(uint64_t advance) override
   {
-    std::lock_guard<std::mutex> lock(mutex_);
     timer_ += advance;
     timer_advance = advance;
     cvm::log(cvm::FULL, "[Trickbox] IMSIC timer tick {} advance interval {}\n", timer_, timer_advance);
@@ -113,11 +109,21 @@ public:
     }else{
        cvm::log(cvm::ERROR, "[Trickbox] Wrong IMSIC interrupt file specified\n");
     }
-    uint32_t length1 = 1;
-    std::vector<uint8_t> data1 = {interrupt_num};
+    uint32_t length1 = 0x40;
+    // std::vector<uint8_t> data1 = {interrupt_num};
     //std::vector<uint8_t> data1 = {0xba,0xad,0xf0,0x12};
-    std::vector<bool> strb1 = {1,1,1,1,1,1,1};
-
+    // std::vector<bool> strb1 = {0,0,0,0,1,1,1,1};
+    std::vector<uint8_t> data1;
+    std::vector<bool> strb1;
+    for (uint8_t i = 0; i < 64; ++i) {
+      data1.push_back(0x0);
+      strb1.push_back(0x0);
+    }  
+    for (uint8_t i = 0; i < 4; ++i) {
+      uint8_t currentByte = static_cast<uint8_t>((interrupt_num >> (8 * i)) & 0xFF);
+      data1[i] = currentByte;
+      strb1[i] = 0x1;
+    }
     cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length1, data1, strb1});
  
   }
@@ -191,8 +197,6 @@ protected:
   }
  
 
-  // Start a thread to increment timer after n microseconds.
-  void selfTick(useconds_t n);
   //Check plusarg usage
   void checkUsage();
 
@@ -216,10 +220,6 @@ private:
   int      intr_count = 0;
   int      limit_interrupts = 0;
 
-  std::atomic<bool> terminate_ = false;
-  std::mutex mutex_;
-
-  std::thread timerThread_;
   pcg_extras::seed_seq_from<std::random_device> seed_source;
   pcg32 rng;
 };

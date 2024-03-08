@@ -15,7 +15,7 @@
 #include "src/cac_lib.h"
 
 #include "whisper_client.h"
-
+#include "rv_tester/rv_tester_structs.h"
 
 class bridge : public bridge_base {
 
@@ -67,6 +67,7 @@ public:
 
   void final_phase();
   void report_metrics();
+  void process(const rv_tester::terminate_called &);
 
 private:
 
@@ -92,7 +93,7 @@ private:
   void update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_slice_index = 0);
   void update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, const std::vector<size_8_bytes_t>&& dword_vec);
   void update_mem(hart_id_t hart, rv_instr_t& d);
-  void update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data, cac::optional_const_ref<size_8_bytes_t> mask_ref = std::nullopt, bool shadow_csr = false);
+  void update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data, cac::optional_const_ref<size_8_bytes_t> mask_ref = std::nullopt, bool shadow_csr = false, bool check_en = true);
   uint64_t modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data);
   size_8_bytes_t modify_csr_mask(hart_id_t hart, uint64_t addr, size_8_bytes_t mask);
   uint64_t get_csr(hart_id_t hart, src_t src, uint64_t addr);
@@ -192,5 +193,7 @@ private:
   size_8_bytes_t dword_vec_array [vlen/64] = {0};
   int unmask_bits_instr, unmask_bits_uop = 0;
   std::vector<std::string> cosim_resynch_csr_defaults;
+
+  bool terminated_ = false;
 
 };
