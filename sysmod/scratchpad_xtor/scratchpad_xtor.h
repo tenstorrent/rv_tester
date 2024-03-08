@@ -12,8 +12,6 @@
 #include "transactors/axi_sw/axi.h"
 
 
-DECLARE_bool(trace_en);
-
 class scratchpad_xtor : public device {
 
     private:
