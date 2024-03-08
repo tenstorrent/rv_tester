@@ -223,7 +223,11 @@ import rv_tester_params::*;
     // m_core_intr
     rv_tester_pkg::interrupt_t wired_interrupt_d1;
     always @(posedge clk) begin
-      wired_interrupt_d1 <= wired_interrupt;
+      if (reset) begin
+        wired_interrupt_d1 <= 0;
+      end else begin
+        wired_interrupt_d1 <= wired_interrupt;
+      end
     end
     assign m_core_intrs[0].valid = ~dut_reset & (|(wired_interrupt & ~wired_interrupt_d1) | |(~wired_interrupt & wired_interrupt_d1)) & rvfi_enabled;
     assign m_core_intrs[0].data.location = location;
@@ -269,7 +273,7 @@ import rv_tester_params::*;
     end
     assign msi_slave_state_d = imsic_interrupt_delayed.w_valid ? idle : imsic_interrupt_delayed.aw_valid ? aw : msi_slave_state;
     assign msi_addr_in_imsic_range = imsic_interrupt_delayed.aw.addr[31:0] inside {32'h8000000, 32'h9ffffff} || imsic_interrupt_delayed.aw.addr[31:0] inside {32'hc000000, 32'hdffffff};
-    assign m_imsic_msis[0].valid = ~dut_reset & ( (msi_slave_state==aw | imsic_interrupt_delayed.aw_valid) & imsic_interrupt_delayed.w_valid & imsic_interrupt_delayed.b_ready & imsic_interrupt_delayed.w.strb=='hf & msi_addr_in_imsic_range) & rvfi_enabled;
+    assign m_imsic_msis[0].valid = ~dut_reset & ( (msi_slave_state==aw | imsic_interrupt_delayed.aw_valid) & imsic_interrupt_delayed.w_valid & imsic_interrupt_delayed.w.strb=='hf & msi_addr_in_imsic_range) & rvfi_enabled;
     assign m_imsic_msis[0].data.location = location;
     assign m_imsic_msis[0].data.cycle = clocks;
     /* verilator lint_off WIDTH */

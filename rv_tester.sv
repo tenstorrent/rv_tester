@@ -350,7 +350,7 @@ module rv_tester
           .mcmi_ifetch_resp(mcmi_ifetch_resp[NIFETCHES_CUMSUM[c] +: NIFETCHES[c]]),
           .mcmi_ievict(mcmi_ievict[NIEVICTS_CUMSUM[c] +: NIEVICTS[c]]),
           .wired_interrupt(interrupt_pend[c]),
-          .imsic_interrupt(axi_req_mst[0]), //FIXME
+          .imsic_interrupt(axi_msi), //FIXME
           .debug_mode(debug_mode[c]),
           .terminate(cosim_terminate[c]),
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PORTS(1, c, 0)
