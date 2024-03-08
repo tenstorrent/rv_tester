@@ -731,7 +731,7 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
         update_csr(hart, src_t::dut, 0x003, data, mask, false, false);
       }
       else if (c.csr_addr == 0x003){ // On fcsr update, update fflags,frm
-        cvm::log(cvm::MEDIUM, "fcsr: {:#x}\n", data);
+        log(cvm::MEDIUM, "fcsr: {:#x}\n", data);
         size_8_bytes_t mask_fcsr = mask;
         mask = mask_fcsr & 0x1f;
         update_csr(hart, src_t::dut, 0x001, data, mask, false, false);
