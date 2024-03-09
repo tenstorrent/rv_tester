@@ -70,11 +70,19 @@ readCharNonBlocking(int fd)
     return 0;
 
   char c = 0;
-  if (::read(fd, &c, sizeof(c)) == 1)
-    return c;
+  int ret = ::read(fd, &c, sizeof(c));
+  if (ret == 1)
+    {
+      return c;
+    }
+  else if (ret == -1)
+    {
+      cvm::log(cvm::ERROR, "Error: readCharNonBlocking: unexpected fail on read, errno={}\n", strerror(errno));
+      return -1;
+    }
 
-  cvm::log(cvm::ERROR, "Error: readCharNonBlocking: unexpected fail on read\n");
-  return -1;
+  // We raced with something else that consumed the input between poll and read
+  return 0;
 }
 
 
