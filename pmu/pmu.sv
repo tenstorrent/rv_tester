@@ -36,7 +36,14 @@ import rv_tester_params::*;
     longint unsigned pmcounter [EVENT_COUNT] = '{default:0};
 
     always @(posedge clk) begin
-        if (!reset) begin
+        if (reset) begin
+            for (integer n = 0; n < EVENT_COUNT/2; n++) begin
+                pmcounter[n] <= 0;
+            end
+            for (integer n = EVENT_COUNT/2; n < EVENT_COUNT; n++) begin
+                pmcounter[n] <= 0;
+            end
+        end else begin
             cpu_cycles <= clocks;
             // Count supported events
             for (integer n = 0; n < EVENT_COUNT/2; n++) begin
@@ -47,7 +54,6 @@ import rv_tester_params::*;
             for (integer n = EVENT_COUNT/2; n < EVENT_COUNT; n++) begin
               pmcounter[n] <= pmcounter[n] + {60'h0, pmci[n]};
             end
-
         end
     end
 
