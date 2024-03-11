@@ -45,10 +45,6 @@ parameter IR_WIDTH = 32'd4;
   assign jtag_req.tck = clk;
   assign jtag_req.trst = reset;
 
-initial begin
-  jtag_req.tms = 1'b0;
-  jtag_req.tdi = 1'b0;
-end
 
 always @(posedge clk) begin
   if (reset) begin
@@ -56,6 +52,8 @@ always @(posedge clk) begin
     shiftCount <= 32'b0;
     read_data_valid <= 1'b0;
     delay_counter <= 32'b0;
+    jtag_req.tms <= 1'b0;
+    jtag_req.tdi <= 1'b0;
   end else begin
     /* verilator lint_off CASEINCOMPLETE */
     if(jtag_req_begin_d)begin
