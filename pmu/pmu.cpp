@@ -188,6 +188,17 @@ pmu::process(const rv_tester::terminate_called_fast&)
   sync_terminate_b_ = true;
   sync_terminate_c_ = true;
   sync_terminate_d_ = true;
+
+  if (FLAGS_pmcounters_log != 0) {
+    for (size_t i = 0; i < counters.size(); i++) {
+      if (i != counter::CPU_CYCLES)
+        log(cvm::NONE, ",{:x}", counters[i]);
+      else
+        log(cvm::NONE, "{:x}", counters[i]);
+    }
+
+    log(cvm::NONE, "\n");
+  }
 }
 
 void
