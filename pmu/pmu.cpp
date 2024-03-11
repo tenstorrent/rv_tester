@@ -204,9 +204,8 @@ pmu::process(const rv_tester::terminate_called_fast&)
 void
 pmu::report()
 {
-  const auto& used = (perf_region_started and perf_region_ended)? perf_region : counters;
   for (size_t i = 0; i < counter::COUNT; i++)
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_{}\": \"0x{:x}\"}}\n", id_, to_string.at(static_cast<counter>(i)), used[i]);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_{}\": \"0x{:x}\"}}\n", id_, to_string.at(static_cast<counter>(i)), counters[i]);
 
   if (perf_region_ok) {
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_perf_start_pc\": \"0x{:x}\"}}\n", id_, perf_start_pc);
