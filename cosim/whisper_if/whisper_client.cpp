@@ -20,6 +20,7 @@ DECLARE_string(bootrom_path);
 DECLARE_string(whisper_json_path);
 DECLARE_bool(whisper_stdin_null);
 DECLARE_bool(whisper_stdout_null);
+DECLARE_bool(preload);
 DECLARE_bool(mcm);
 DECLARE_bool(cov);
 DECLARE_uint32(max_instr);
@@ -91,6 +92,7 @@ constructSystem(uint16_t ncores, bool standalone) {
     hart.enableLinux(false);
     hart.tracePtw(true);
     hart.defineResetPc(FLAGS_resetpc);
+    if (FLAGS_preload) hart.setInitialStateFile("preload.csv");
     if (FLAGS_whisper_stdout_null) hart.redirectOutputDescriptor(STDOUT_FILENO, "/dev/null");
     if (FLAGS_whisper_stdin_null) hart.redirectOutputDescriptor(STDIN_FILENO, "/dev/null");
     if (not isa.empty())
