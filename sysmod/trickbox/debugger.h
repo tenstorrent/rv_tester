@@ -81,8 +81,10 @@ public:
   virtual void tick(uint64_t advance) override
   {
     cvm::log(cvm::FULL, "[Debugger]: Tick\n");
+    std::lock_guard<std::mutex> lock(mutex_);
     timer_ += advance;
     timer_advance = advance;
+    cvm::log(cvm::HIGH, "[Debugger]: Tick, timer:{}\n",timer_);
     checkDebugEvents();
 
     drive_csv_dmi_cmds();
@@ -103,7 +105,9 @@ public:
       timer_ = 0;
       file_idx = rng() % csvFilePaths.size();
       timer_rand_debug = timer_ + FLAGS_random_dbg_start_delay + (rand_num * timer_advance);
+      cmd_trigger_rand_debug = timer_ + 50*FLAGS_random_dbg_start_delay + (rand_num * timer_advance); 
       cvm::log(cvm::HIGH, "Random Debug Injection of CSV file ID:{} Timer delay:{}\n", file_idx, timer_rand_debug);
+      cvm::log(cvm::HIGH, "Command Execution Trigger Timer delay:{}\n", cmd_trigger_rand_debug);
     }
   }
   void parse_dmi_from_csv();
@@ -148,7 +152,6 @@ public:
       if (timer_ >= timer_rand_debug)
       {
         cvm::log(cvm::HIGH, "Timer passed random evt Value\n");
-        rnd_dbg_trigger = 1;
         if (snippets_driven < (unsigned)FLAGS_dbg_max_snippets)
         {
           parse_dmi_from_csv();
@@ -156,17 +159,35 @@ public:
           snippets_driven++;
         }
       }
+
+      if ((timer_ >= cmd_trigger_rand_debug) & (checkpoint_triggers_pending>0) & file_parsing_done) 
+      {
+        rand_dbg_entry_cmd_trigger = 1;
+        cvm::log(cvm::HIGH, "Timer passed random evt Value to provide cmd trigger\n");
+        checkpoint_triggers_pending -= 1;
+        if (checkpoint_triggers_pending>0)
+        {
+          genNextCmdTriggerEvents();
+        }
+      }
     }
   }
 
-  void genNextDebugEvents()
+  void genNextCmdTriggerEvents()
   {
-    cvm::log(cvm::HIGH, "Generating Next timer evt value\n");
+    int32_t rand_num = (rng() % (FLAGS_dbg_delay_max - FLAGS_dbg_delay_min + 1)) + 10*FLAGS_dbg_delay_min;
+    cmd_trigger_rand_debug = timer_ + (rand_num * timer_advance);
+    cvm::log(cvm::HIGH, "Next Command Execution Trigger Timer delay:{}\n", cmd_trigger_rand_debug);
+  }
+
+  void genNextDebugEvents()
+  {    
     if (FLAGS_random_dbg_entry)
     {
       int32_t rand_num = (rng() % (FLAGS_dbg_delay_max - FLAGS_dbg_delay_min + 1)) + FLAGS_dbg_delay_min;
       timer_rand_debug = timer_ + (rand_num * timer_advance);
       file_idx = rng() % csvFilePaths.size();
+      cvm::log(cvm::HIGH, "Next Random Debug Injection of CSV file ID:{} Timer delay:{}\n", file_idx, timer_rand_debug);
     }
   }
 
@@ -179,26 +200,28 @@ private:
   std::vector<bool> timerIntPrev_;          // Value of interrupt pin
   uint64_t timer_ = 0;
   uint64_t timer_advance = 200;
-  uint64_t debugger_base = 0x9050000;
-  uint64_t debugger_trigger = 0x9060000;
+  uint64_t debugger_command_exec_trigger = 0x9050000;
+  uint64_t debugger_file_load_trigger = 0x9060000;
   uint64_t dmi_driver_status_addr = 0x9061000;
   uint64_t dmi_driver_num_cmds_addr = 0x9061000;
   uint32_t status;
   uint32_t commands_in_queue;
+  uint64_t checkpoint_triggers_pending = 0;
+  uint64_t cmd_trigger_rand_debug = 3000;
+  uint32_t rand_dbg_entry_cmd_trigger = 0;
+  uint32_t file_parsing_done = 0; 
+  std::atomic<bool> terminate_ = false;
+  std::mutex mutex_;
 
   std::vector<std::vector<std::string>> csv_data;
   std::queue<dmi_req_t> dmi_cmd_q;
   std::queue<dmi_req_t> dmi_rsp_q;
-  unsigned dbg_file_mode = 0;
-  unsigned dbg_trigger = 0;
-  unsigned rnd_dbg_trigger = 0;
   unsigned step_ahead_queue_on = 0;
   unsigned step_quit_queue_on = 0;
   unsigned step_instr_cnt = 0;
   uint64_t timer_rand_debug = 500;
   std::vector<std::vector<std::string>> content;
   std::vector<std::string> row;
-  // file(FLAGS_dbg_input_file_path);
   pcg_extras::seed_seq_from<std::random_device> seed_source;
   pcg32 rng;
   // Create a vector to store the file paths
