@@ -11,6 +11,15 @@
 #include "transactor.h"
 #include "transactors/axi_sw/axi.h"
 #include "pm_nw_xtor_defines.h"
+//PLAN: 
+// How to access PLL data from PM NW and vice versa
+// have messanges dump data into transaction queue of PLL/PM_NW on every read and write
+//Have a function call in each c++ file which can read another modules queue
+// You may need to give some commands to other module based on data read from queue
+//For that purpose we can have a dedicated command queue 
+//along with this dedicated queue we will have a trigger,which willl act as a ovveride for execution
+// as soon as trigger is given,pop command from queue and start executing
+
 
 
 DECLARE_bool(pm_nw_en);
@@ -55,6 +64,7 @@ class pm_nw_xtor : public device {
         };
         std::queue<pm_nw_xtor_read_req_t> pm_nw_read_resp_q;
         std::queue<pm_nw_wr_t>           pm_nw_wr_txn_q;
+        std::queue<pm_nw_wr_t>           pll_nw_txn_q;
         virtual void axi_write();
         virtual void axi_read(uint64_t addr, size_t length, uint32_t id);
         void write(const transactor::write_t& );

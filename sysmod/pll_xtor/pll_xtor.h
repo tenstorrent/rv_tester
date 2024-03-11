@@ -55,6 +55,7 @@ class pll_xtor : public device {
         };
         std::queue<pll_xtor_read_req_t> pll_read_resp_q;
         std::queue<pll_wr_t>           pll_wr_txn_q;
+        std::queue<pll_wr_t>           pm_nw_txn_q;
         virtual void axi_write();
         virtual void axi_read(uint64_t addr, size_t length, uint32_t id);
         void write(const transactor::write_t& );
