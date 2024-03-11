@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include <mutex>
-#include <atomic>
-#include <thread>
 #include <unistd.h>
 #include <iostream>
 #include <iostream>
@@ -82,7 +79,8 @@ public:
                      const strb_t &strb) override;
 
   virtual void tick(uint64_t advance) override
-  {  
+  {
+    cvm::log(cvm::FULL, "[Debugger]: Tick\n");
     std::lock_guard<std::mutex> lock(mutex_);
     timer_ += advance;
     timer_advance = advance;

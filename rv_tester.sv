@@ -123,10 +123,10 @@ module rv_tester
         if(trace_en && (quiesce_counter >= quiesce_timeout)) begin
            trace_counter <= trace_counter + 1;
         end else if(trace_en) begin
-          trace_counter <='0; 
+          trace_counter <='0;
         end else if(!trace_en)begin
           trace_counter <= trace_timeout + 10;
-        end 
+        end
 
     end
 
@@ -371,14 +371,14 @@ module rv_tester
           .mcmi_ifetch_resp(mcmi_ifetch_resp[NIFETCHES_CUMSUM[c] +: NIFETCHES[c]]),
           .mcmi_ievict(mcmi_ievict[NIEVICTS_CUMSUM[c] +: NIEVICTS[c]]),
           .wired_interrupt(interrupt_pend[c]),
-          .imsic_interrupt(axi_req_mst[0]), //FIXME
+          .imsic_interrupt(axi_msi), //FIXME
           .debug_mode(debug_mode[c]),
           .terminate(cosim_terminate[c]),
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PORTS(1, c, 0)
       );
     end
 `endif
-    
+
 
     aplic_monitor #(
         .NUM(0),
@@ -418,7 +418,7 @@ module rv_tester
           .pmci(pmci[p]),
           .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
           .terminate,
-          `RV_TESTER_TRANSACTIONS_PMU_SOURCE_PORTS(1, p, 0)
+          `RV_TESTER_TRANSACTIONS_PMU_SOURCE_PORTS(2, p, 0)
       );
     end
 
@@ -482,7 +482,7 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PORTS(2, p, 0)
         );
     end
-   
+
    localparam NoOfNcioMasters =  topology.TOP.PLATFORM.NCIO_AXI.TOTAL  ;
     for (genvar p = 0; p < NoOfNcioMasters; p++) begin : ncio_axi_sw_slvs
         axi_sw #(
@@ -540,7 +540,7 @@ module rv_tester
         );
     end
 
-    
+
    localparam NoOfAplicMomMsiMasters =  topology.TOP.PLATFORM.APLIC_MSI_AXI.TOTAL  ;
     for (genvar p = 0; p < NoOfAplicMomMsiMasters; p++) begin : aplic_msi_axi_sw_slvs
         axi_sw #(

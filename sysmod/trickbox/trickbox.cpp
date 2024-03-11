@@ -23,13 +23,14 @@ trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned, cvm::topolog
   subdevices_.emplace_back(sub);
   sub = new aplic_driver("aplic_driver", addr + 0x90000, 1, loc);
   subdevices_.emplace_back(sub);
+  // sub = new scratchpad_xtor("scratchpad_xtor", addr + 0xa0000, 1, loc, axi_mst_loc_l);
+  // subdevices_.emplace_back(sub);
   
 }
 
 
 trickbox::~trickbox()
 {
-  terminate_ = true;
 }
 
 bool trickbox::init_elf(const std::string& path) {

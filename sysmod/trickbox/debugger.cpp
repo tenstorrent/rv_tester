@@ -30,7 +30,6 @@ debugger::debugger(const std::string &tag, uint64_t addr, unsigned hartCount, cv
 
 debugger::~debugger()
 {
-  terminate_ = true;
 }
 void
 debugger::update_dm_status(debugger::dmi_status_t& i) {

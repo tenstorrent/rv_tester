@@ -35,7 +35,7 @@ import rv_tester_params::*;
     bit dmi_write_begin_d = '0;
     bit dmi_write_end = '0;
     bit [63:0] dm_wdata = '0;
- 
+
     bit [1:0]  command= '0;
     bit        jtag_enable_begin = '0;
     bit        jtag_enable_d = '0;
@@ -44,7 +44,7 @@ import rv_tester_params::*;
     bit [63:0] jtag_tx;
     bit [63:0] jtag_rx;
     /* verilator lint_on BLKANDNBLK */
-    
+
 
     jtag_xtor  i_jtag_xtor(
         .clk(clk),
@@ -79,7 +79,7 @@ import rv_tester_params::*;
     assign bootstrap.boot_addr = 1 << 31;
 
     function void sysmod_terminate ();
-        $display("attempting to terminate");
+        $display("[sysmod]: attempting to terminate");
         terminate.terminate = '1;
     endfunction
     export "DPI-C" function sysmod_terminate;
@@ -101,7 +101,7 @@ import rv_tester_params::*;
     function void sysmod_sw_interrupt (int unsigned hartid, int unsigned val);
       interrupt_d[hartid].msi = val[0];
     endfunction
-   
+
        export "DPI-C" function sysmod_aplic_dir_interrupt;
 
     function void sysmod_aplic_dir_interrupt (longint val[16]);
@@ -164,9 +164,9 @@ import rv_tester_params::*;
         else if(jtag_enable_begin)begin
             jtag_enable_end <='1;
         end
-        
+
     end
-         
+
   assign jtag_rdatas[0].valid         = read_data_valid_reg;
   assign jtag_rdatas[0].data.location = location;
   assign jtag_rdatas[0].data.rdata     = {32'h0,jtag_rx[31:0]};//upper32 bits for future use
