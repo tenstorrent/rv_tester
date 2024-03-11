@@ -111,7 +111,6 @@ module rv_tester
             quiesce_counter <= '0;
             flush_counter   <= '0;
             instructions    <= '0;
-	    dmi_poll_timeout_terminate <= '0;
         end
         if(trace_en && (quiesce_counter >= quiesce_timeout)) begin
            trace_counter <= trace_counter + 1;
