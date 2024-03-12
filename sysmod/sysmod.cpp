@@ -23,6 +23,7 @@
 // internal flags
 DEFINE_string(hex, "", "hex file (program) to load into memory");
 DEFINE_string(load, "", "elf file (program) to load into memory");
+DEFINE_string(load_lz4, "", "lz4 compressed file (program) to load into memory");
 DEFINE_string(bootrom_path, "", "Path to bootrom object file");
 DEFINE_string(load_io, "", "load specified io dev with content from memory");
 DEFINE_bool(sysmod_tick_async, true, "Asynchronous sysmod_tick calls");
@@ -282,7 +283,7 @@ void
 sysmod::reset() {
   compose();
   load_boot(FLAGS_bootrom_path);
-  load_prog(FLAGS_hex, FLAGS_load);
+  load_prog(FLAGS_hex, FLAGS_load, FLAGS_load_lz4);
   load_io(FLAGS_load_io);
 }
 
@@ -462,7 +463,7 @@ sysmod::load_io(const std::string& io)
 }
 
 void
-sysmod::load_prog(const std::string& hex, const std::string& load)
+sysmod::load_prog(const std::string& hex, const std::string& load, const std::string& lz4)
 {
   if (load != "") {
     cvm::log(cvm::MEDIUM, "Loading {}\n", load);
@@ -480,6 +481,14 @@ sysmod::load_prog(const std::string& hex, const std::string& load)
   if (hex != "") {
     cvm::log(cvm::MEDIUM, "Loading {}\n", hex);
     if (not dev("memory") or not dynamic_cast<sysmod_mem&>(*dev("memory")).init_hex(hex)) {
+      cvm::log(cvm::ERROR, "No memory defined");
+      return;
+    }
+  }
+
+  if (lz4 != "") {
+    cvm::log(cvm::MEDIUM, "Loading {}\n", hex);
+    if (not dev("memory") or not dynamic_cast<sysmod_mem&>(*dev("memory")).init_lz4(lz4)) {
       cvm::log(cvm::ERROR, "No memory defined");
       return;
     }
