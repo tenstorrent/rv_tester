@@ -477,6 +477,7 @@ sysmod::load_prog(const std::string& hex, const std::string& load, const std::st
         }
       }
     }
+    cvm::log(cvm::MEDIUM, "Loading {} complete\n", load);
   }
   if (hex != "") {
     cvm::log(cvm::MEDIUM, "Loading {}\n", hex);
@@ -484,6 +485,7 @@ sysmod::load_prog(const std::string& hex, const std::string& load, const std::st
       cvm::log(cvm::ERROR, "No memory defined");
       return;
     }
+    cvm::log(cvm::MEDIUM, "Loading {} complete\n", hex);
   }
 
   if (lz4 != "") {
@@ -492,6 +494,7 @@ sysmod::load_prog(const std::string& hex, const std::string& load, const std::st
       cvm::log(cvm::ERROR, "No memory defined");
       return;
     }
+    cvm::log(cvm::MEDIUM, "Loading {} complete\n", lz4);
   }
 }
 
