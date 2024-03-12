@@ -22,13 +22,12 @@
 
 
 
-DECLARE_bool(pm_nw_en);
-
 class pm_nw_xtor : public device {
 
     private:
 
         bool end_test=0;
+        bool pm_nw_en=0;
         mem_manager m_;
         cvm::topology::loc_t axi_mst_loc_l;
         cvm::messenger::pool<axi::r_t>::channel_info channel;
@@ -111,7 +110,7 @@ class pm_nw_xtor : public device {
             if(start_pm_nw_cnt == 0) {
               start_pm_nw_cnt = (rng()% 5) + 30;
             }
-            if(FLAGS_pm_nw_en) {
+            if(pm_nw_en) {
               cvm::log(cvm::HIGH, "[pm_nw_xtor] pm_nw_xtor timer tick advance interval {} start_pm_nw_cnt {} \n",cnt_tick,start_pm_nw_cnt);
               if(end_test==1) complete_pm_nw_test();
               if(cnt_tick==start_pm_nw_cnt) push_pm_nw_enable_seq();

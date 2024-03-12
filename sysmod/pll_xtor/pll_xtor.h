@@ -13,7 +13,6 @@
 #include "pll_xtor_defines.h"
 
 
-DECLARE_bool(pll_en);
 
 class pll_xtor : public device {
 
@@ -56,6 +55,7 @@ class pll_xtor : public device {
         std::queue<pll_xtor_read_req_t> pll_read_resp_q;
         std::queue<pll_wr_t>           pll_wr_txn_q;
         std::queue<pll_wr_t>           pm_nw_txn_q;
+        bool pll_en = true;
         virtual void axi_write();
         virtual void axi_read(uint64_t addr, size_t length, uint32_t id);
         void write(const transactor::write_t& );
@@ -102,7 +102,7 @@ class pll_xtor : public device {
             if(start_pll_cnt == 0) {
               start_pll_cnt = (rng()% 5) + 30;
             }
-            if(FLAGS_pll_en) {
+            if(pll_en) {
               cvm::log(cvm::HIGH, "[pll_xtor] pll_xtor timer tick advance interval {} start_pll_cnt {} \n",cnt_tick,start_pll_cnt);
               if(end_test==1) complete_pll_test();
               if(cnt_tick==start_pll_cnt) push_pll_enable_seq();
