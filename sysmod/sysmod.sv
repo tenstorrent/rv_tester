@@ -43,6 +43,8 @@ import rv_tester_params::*;
     bit        read_data_valid_reg;
     bit [63:0] jtag_tx;
     bit [63:0] jtag_rx;
+    bit        jtag_busy;
+    bit jtag_rdatas_jtag_busy;
     /* verilator lint_on BLKANDNBLK */
 
 
@@ -52,6 +54,7 @@ import rv_tester_params::*;
         .command(command),
         .jtag_req(jtag_req),
         .jtag_resp(jtag_resp),
+        .jtag_busy(jtag_busy),
         .jtag_enable(jtag_enable_begin),
         .read_data_valid_reg(read_data_valid_reg),
         .jtag_tx(jtag_tx),
@@ -170,5 +173,6 @@ import rv_tester_params::*;
   assign jtag_rdatas[0].valid         = read_data_valid_reg;
   assign jtag_rdatas[0].data.location = location;
   assign jtag_rdatas[0].data.rdata     = {32'h0,jtag_rx[31:0]};//upper32 bits for future use
+  assign jtag_rdatas_jtag_busy = jtag_busy ;
 
 endmodule
