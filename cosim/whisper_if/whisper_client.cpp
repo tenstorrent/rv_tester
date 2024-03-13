@@ -113,13 +113,15 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
     std::vector<std::thread> threadVec;
 
     std::atomic<bool> result = true;
+    std::atomic<bool> max_instr = false;
     std::atomic<unsigned> finished = 0;  // Count of finished threads.
 
     FILE* whisper_log = fopen("iss_standalone.log", "w");
 
-    auto threadFunc = [&result, &finished, whisper_log] (WdRiscv::Hart<URV>* hart) {
+    auto threadFunc = [&result, &finished, &max_instr, whisper_log] (WdRiscv::Hart<URV>* hart) {
                         bool r = hart->run(whisper_log);
                         result = result and r;
+                        max_instr = max_instr or (hart->getInstructionCount() >= FLAGS_max_instr);
                         finished++;
                       };
 
@@ -139,11 +141,15 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
 
     fclose(whisper_log);
 
-    if (!result && !FLAGS_nostop_standalone) {
-      std::cerr << "Error: Test failed on Standalone Whisper, stopping simulation\n";
-      return -1;
+    if (!FLAGS_nostop_standalone) {
+        if (!result) {
+          std::cerr << "Error: Test failed on Standalone Whisper, stopping simulation\n";
+          return -1;
+        } else if (max_instr) {
+          std::cerr << "Error: Test reached max instr on standalone Whisper, stopping simulation\n";
+          return -1;
+        }
     }
-
   }
 
   if (FLAGS_cov) {
