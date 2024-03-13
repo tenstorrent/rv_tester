@@ -418,7 +418,7 @@ module rv_tester
           .pmci(pmci[p]),
           .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
           .terminate,
-          `RV_TESTER_TRANSACTIONS_PMU_SOURCE_PORTS(2, p, 0)
+          `RV_TESTER_TRANSACTIONS_PMU_SOURCE_PORTS(1, p, 0)
       );
     end
 
