@@ -489,7 +489,7 @@ sysmod::load_prog(const std::string& hex, const std::string& load, const std::st
   }
 
   if (lz4 != "") {
-    cvm::log(cvm::MEDIUM, "Loading {}\n", hex);
+    cvm::log(cvm::MEDIUM, "Loading {}\n", lz4);
     if (not dev("memory") or not dynamic_cast<sysmod_mem&>(*dev("memory")).init_lz4(lz4)) {
       cvm::log(cvm::ERROR, "No memory defined");
       return;
