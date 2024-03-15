@@ -10,6 +10,7 @@ module jtag_xtor(
   output reg       read_data_valid_reg,
   /* verilator lint_off MULTIDRIVEN */ 
   output bit jtag_busy,
+  input bit [7:0] length,
   input  bit [63:0] jtag_tx,
   input  bit [63:0] misc_signals, 
   output bit [63:0] jtag_rx
@@ -23,9 +24,6 @@ typedef enum logic [1:0] {
   SHIFT_IR = 2'b00,
   UPDATE = 2'b11
 } fsm_state_t;
-
-parameter DR_WIDTH = 32'd32;
-parameter IR_WIDTH = 32'd4;
 
 
   logic read_data_valid = '0;
@@ -122,7 +120,7 @@ always @(posedge clk) begin
           jtag_req.tdi <= jtag_tx[shiftCount-2];
         end
         shiftCount <= shiftCount + 1;
-        if (shiftCount == 32'd1 + DR_WIDTH) begin
+        if (shiftCount == 32'd1 + length) begin
           state <= UPDATE;
           command_l <= UPDATE;
           shiftCount <=0;
@@ -143,7 +141,7 @@ always @(posedge clk) begin
         ir <=  1'b1;
         
         shiftCount <= shiftCount + 1;
-        if (shiftCount == 32'd2 + IR_WIDTH) begin
+        if (shiftCount == 32'd2 + length) begin
           state <= UPDATE;
           command_l <= UPDATE;
           shiftCount <=0;
