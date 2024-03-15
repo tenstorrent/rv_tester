@@ -16,6 +16,7 @@
 
 DECLARE_string(load);
 DECLARE_string(hex);
+DECLARE_string(load_lz4);
 DECLARE_string(bootrom_path);
 DECLARE_string(whisper_json_path);
 DECLARE_bool(whisper_stdin_null);
@@ -61,6 +62,12 @@ constructSystem(uint16_t ncores, bool standalone) {
     system->enableMcm(64, checkAll);
   }
 
+
+  if (FLAGS_load_lz4 != "") {
+    std::vector<std::string> targets = {FLAGS_load_lz4};
+    if (not system->loadLz4Files(targets, 0, false))
+      return nullptr;
+  }
 
   if (FLAGS_bootrom_path != "" || FLAGS_load != "") {
     std::vector<std::string> targets {};
