@@ -10,7 +10,7 @@ module jtag_xtor(
   output reg       read_data_valid_reg,
   /* verilator lint_off MULTIDRIVEN */ 
   output bit jtag_busy,
-  input bit [7:0] length,
+  input bit [31:0] length,
   input  bit [63:0] jtag_tx,
   input  bit [63:0] misc_signals, 
   output bit [63:0] jtag_rx
@@ -40,7 +40,7 @@ typedef enum logic [1:0] {
   bit ir ='0;
   bit dr ='0;
 
-  assign jtag_req.tck = clk;
+  assign jtag_req.tck = ~clk;
   assign jtag_req.trst = reset;
 
 

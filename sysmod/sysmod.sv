@@ -37,7 +37,7 @@ import rv_tester_params::*;
     bit [63:0] dm_wdata = '0;
 
     bit [1:0]  command= '0;
-    bit [7:0]  length= '0;
+    bit [31:0]  length= '0;
     bit        jtag_enable_begin = '0;
     bit        jtag_enable_d = '0;
     bit        jtag_enable_end = '0;
@@ -140,7 +140,7 @@ import rv_tester_params::*;
        jtag_enable_begin = 1'b1;
        command = upper_value[1:0];
        jtag_tx = {32'h0,lower_value};
-       length = reg_length[7:0];
+       length = reg_length[31:0];
       $display("[SYSMOD.SV] JTAG driver %h %h %h",upper_value, lower_value,reg_length);
     endfunction
     export "DPI-C"  function sysmod_jtag_req;
