@@ -1,6 +1,7 @@
 #pragma once
 
 #include "sysmod/device.h"
+#include "sysmod/pm_common.h"
 #include "cvm/topology.hpp"
 #include <string>
 #include <queue>
@@ -18,7 +19,6 @@ class pll_xtor : public device {
 
     private:
 
-        bool end_test=0;
         mem_manager m_;
         cvm::topology::loc_t axi_mst_loc_l;
         cvm::messenger::pool<axi::r_t>::channel_info channel;
@@ -55,6 +55,8 @@ class pll_xtor : public device {
         std::queue<pll_xtor_read_req_t> pll_read_resp_q;
         std::queue<pll_wr_t>           pll_wr_txn_q;
         std::queue<pll_wr_t>           pm_nw_txn_q;
+        std::queue<pm_common::pm_common_tx_t> txn_q ;
+        //std::queue<pm_common::pm_common_tx_t> pll_in_q;
         bool pll_en = true;
         virtual void axi_write();
         virtual void axi_read(uint64_t addr, size_t length, uint32_t id);
@@ -104,40 +106,24 @@ class pll_xtor : public device {
             }
             if(pll_en) {
               cvm::log(cvm::HIGH, "[pll_xtor] pll_xtor timer tick advance interval {} start_pll_cnt {} \n",cnt_tick,start_pll_cnt);
-              if(end_test==1) complete_pll_test();
-              if(cnt_tick==start_pll_cnt) push_pll_enable_seq();
-              if(cnt_tick==(start_pll_cnt+120)) push_pll_disable_seq();
-              if(pll_wr_txn_q.size() > 0) axi_write();
-              if(cnt_tick==(start_pll_cnt+130)) read_pointers();
-              if((pll_read_resp_q.size() == 2) && (cnt_tick == start_pll_cnt+132)) read_sram();
-              if(read_ram > 0) {
-                cvm::log(cvm::HIGH, "[pll_xtor] read RAM {} \n",read_ram);
-                axi_read(0xa082040,2,5);
-                read_ram = read_ram - 1;
-                if(read_ram == 0) end_test = 1;
-              }
+               //add your dv logic here
             }
+            pm_common::pm_common_tx_t i;
+            i.addr = 12;
+            i.data = 123;
+            write_pm_nw_xtor_q(i);
             cnt_tick ++;
         }
+      void write_pll_xtor_q(pm_common::pm_common_tx_t i){
+        cvm::log(cvm::HIGH, "[pll_xtor] pll_xtor pushing txn in pll_txn q {} \n",i.addr);
+      }
+      
+      void write_pm_nw_xtor_q(pm_common::pm_common_tx_t i){
+        cvm::log(cvm::HIGH, "[pll_xtor] pll_xtor sending txn in pm_nw_txn q {} \n",i.addr);
+        auto pm_nw_loc = cvm::topology::get_from_type("PM_NW_XTOR", 0);
+        cvm::registry::messenger.signal(pm_nw_loc, pm_common::pm_common_tx_t{i.addr,i.data});
         
-        void push_pll_enable_seq() {
-          cvm::log(cvm::HIGH, "[pll_xtor] pll_xtor inside enable pll seq\n");
-          cvm::log(cvm::HIGH, "[pll_xtor] pll_xtor completed enable pll seq\n");
-        }
-
-        void push_pll_disable_seq() {
-          cvm::log(cvm::HIGH, "[pll_xtor] pll_xtor inside disable pll seq\n");
-          cvm::log(cvm::HIGH, "[pll_xtor] pll_xtor completed disable pll seq\n");
-        }
-
-        void read_pointers(){
-          cvm::log(cvm::HIGH, "[pll_xtor] pll_xtor reading WRITE/READ pointers\n");
-        }
-
-        void read_sram() {
-          
-           cvm::log(cvm::HIGH, "[pll_xtor] pll_xtor reading SRAM done \n");
-        }        
+      }
 
         // add max mem size
         pll_xtor(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc);

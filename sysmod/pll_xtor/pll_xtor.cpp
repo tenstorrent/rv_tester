@@ -20,6 +20,11 @@ pll_xtor::pll_xtor(const std::string& tag, uint64_t addr, size_t size, cvm::topo
   }
  
   channel = cvm::registry::messenger.channel<axi::r_t>(axi_mst_loc_l);
+
+  auto pll_loc = cvm::topology::get_from_type("PLL_XTOR", 0); 
+  cvm::registry::messenger.connect<pm_common::pm_common_tx_t>(
+            pll_loc,
+            [&](pm_common::pm_common_tx_t i) { return this->write_pll_xtor_q(i); });
 }
 
 void pll_xtor::axi_write() {

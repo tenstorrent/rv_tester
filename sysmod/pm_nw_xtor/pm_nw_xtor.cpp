@@ -21,6 +21,10 @@ pm_nw_xtor::pm_nw_xtor(const std::string& tag, uint64_t addr, size_t size, cvm::
   }
  
   channel = cvm::registry::messenger.channel<axi::r_t>(axi_mst_loc_l);
+  auto pm_nw_loc = cvm::topology::get_from_type("PM_NW_XTOR", 0); 
+  cvm::registry::messenger.connect<pm_common::pm_common_tx_t>(
+            pm_nw_loc,
+            [&](pm_common::pm_common_tx_t i) { return this->write_pm_nw_xtor_q(i); });
 }
 
 void pm_nw_xtor::axi_write() {

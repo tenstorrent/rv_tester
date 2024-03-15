@@ -1,6 +1,7 @@
 #pragma once
 
 #include "sysmod/device.h"
+#include "sysmod/pm_common.h"
 #include "cvm/topology.hpp"
 #include <string>
 #include <queue>
@@ -26,7 +27,6 @@ class pm_nw_xtor : public device {
 
     private:
 
-        bool end_test=0;
         bool pm_nw_en=0;
         mem_manager m_;
         cvm::topology::loc_t axi_mst_loc_l;
@@ -64,6 +64,8 @@ class pm_nw_xtor : public device {
         std::queue<pm_nw_xtor_read_req_t> pm_nw_read_resp_q;
         std::queue<pm_nw_wr_t>           pm_nw_wr_txn_q;
         std::queue<pm_nw_wr_t>           pll_nw_txn_q;
+        std::queue<pm_common::pm_common_tx_t> txn_q ;
+        //std::queue<pm_common::pm_common_tx_t> pm_nw_in_q;
         virtual void axi_write();
         virtual void axi_read(uint64_t addr, size_t length, uint32_t id);
         void write(const transactor::write_t& );
@@ -112,20 +114,12 @@ class pm_nw_xtor : public device {
             }
             if(pm_nw_en) {
               cvm::log(cvm::HIGH, "[pm_nw_xtor] pm_nw_xtor timer tick advance interval {} start_pm_nw_cnt {} \n",cnt_tick,start_pm_nw_cnt);
-              if(end_test==1) complete_pm_nw_test();
-              if(cnt_tick==start_pm_nw_cnt) push_pm_nw_enable_seq();
-              if(cnt_tick==(start_pm_nw_cnt+120)) push_pm_nw_disable_seq();
-              if(pm_nw_wr_txn_q.size() > 0) axi_write();
-              if(cnt_tick==(start_pm_nw_cnt+130)) read_pointers();
-              if((pm_nw_read_resp_q.size() == 2) && (cnt_tick == start_pm_nw_cnt+132)) read_sram();
-              if(read_ram > 0) {
-                cvm::log(cvm::HIGH, "[pm_nw_xtor] read RAM {} \n",read_ram);
-                axi_read(0xa082040,2,5);
-                read_ram = read_ram - 1;
-                if(read_ram == 0) end_test = 1;
-              }
             }
             cnt_tick ++;
+            pm_common::pm_common_tx_t i;
+            i.addr = 45;
+            i.data = 456;
+            write_pll_xtor_q(i);
         }
         
         void push_pm_nw_enable_seq() {
@@ -137,14 +131,16 @@ class pm_nw_xtor : public device {
           cvm::log(cvm::HIGH, "[pm_nw_xtor] pm_nw_xtor inside disable pm_nw seq\n");
           cvm::log(cvm::HIGH, "[pm_nw_xtor] pm_nw_xtor completed disable pm_nw seq\n");
         }
-
-        void read_pointers(){
-          cvm::log(cvm::HIGH, "[pm_nw_xtor] pm_nw_xtor reading WRITE/READ pointers\n");
-        }
-
-        void read_sram() {
-           cvm::log(cvm::HIGH, "[pm_nw_xtor] pm_nw_xtor reading SRAM done \n");
-        }        
+       
+      void write_pll_xtor_q(pm_common::pm_common_tx_t i){
+        cvm::log(cvm::HIGH, "[pm_nw_xtor] pm_nw_xtor pushing txn in pll_q {} \n",i.addr);
+        auto pll_loc = cvm::topology::get_from_type("PLL_XTOR", 0);
+        cvm::registry::messenger.signal(pll_loc, pm_common::pm_common_tx_t{i.addr,i.data});
+      }
+      
+      void write_pm_nw_xtor_q(pm_common::pm_common_tx_t i){
+        cvm::log(cvm::HIGH, "[pm_nw_xtor] pm_nw_xtor pushing txn in pm_nw q {} \n",i.addr);
+      }
 
         // add max mem size
         pm_nw_xtor(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc);
