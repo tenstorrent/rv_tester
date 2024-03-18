@@ -533,9 +533,17 @@ sysmod::load_boot(const std::string& boot)
 {
   if (boot != "") {
     cvm::log(cvm::MEDIUM, "Loading {}\n", boot);
-    if (not dev("boot") or not dynamic_cast<sysmod_mem&>(*dev("boot")).init_elf(boot)) {
-      cvm::log(cvm::ERROR, "No boot defined");
-      return;
+    if (boot.substr(boot.length() - 3) == "elf") {
+      if (not dev("boot") or not dynamic_cast<sysmod_mem&>(*dev("boot")).init_elf(boot)) {
+        cvm::log(cvm::ERROR, "No boot defined");
+        return;
+      }
+    }
+    if (boot.substr(boot.length() - 3) == "hex") {
+      if (not dev("boot") or not dynamic_cast<sysmod_mem&>(*dev("boot")).init_hex(boot)) {
+        cvm::log(cvm::ERROR, "No boot defined");
+        return;
+      }
     }
     // Write hart_enable_mask for bootrom to access
     device::data_t data(8);
