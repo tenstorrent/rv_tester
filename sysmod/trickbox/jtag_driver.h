@@ -115,6 +115,7 @@ public:
     unsigned hart;
     unsigned upper_jtag_data;
     unsigned lower_jtag_data;
+    unsigned jtag_length_data;
   };
 
 
@@ -123,6 +124,7 @@ public:
     unsigned jtag_cmd; 
     unsigned jtag_ip_data;
     unsigned jtag_op_data;
+    unsigned jtag_length_data;
   };
   typedef struct{ 
         unsigned status;
@@ -130,11 +132,11 @@ public:
   }jtag_status_t; 
   // Used to assert/deassert a trickbox interrupt (PIPI) for given hart.
   // virtual void trickboxjtagWrite(unsigned hart, unsigned upper_jtag_data, unsigned lower_jtag_data, cbs_t& cbs)
-  virtual void trickboxJtagWrite(unsigned hart, unsigned upper_jtag_data, unsigned lower_jtag_data)
+  virtual void trickboxJtagWrite(unsigned hart, unsigned upper_jtag_data, unsigned lower_jtag_data,unsigned reg_length_data)
   {
-    cvm::log(cvm::HIGH, "TrickBox jtag Write to hart:{}, upper jtag data:{:#x}, lower jtag data:{:#x}", hart, upper_jtag_data, lower_jtag_data);
+    cvm::log(cvm::HIGH, "TrickBox jtag Write to hart:{}, upper jtag data:{:#x}, lower jtag data:{:#x}, reg length data:{:#x}", hart, upper_jtag_data, lower_jtag_data,reg_length_data);
     // cbs.push_back(cb_t{Callback::TRICKBOX_jtag_WR, hart, upper_jtag_data, lower_jtag_data, 0});
-    cvm::registry::messenger.signal(loc(), jtag_data_t{hart, upper_jtag_data, lower_jtag_data});
+    cvm::registry::messenger.signal(loc(), jtag_data_t{hart, upper_jtag_data, lower_jtag_data,reg_length_data});
     // cvm::messenger::send(jtag_t, jtag_pkt);
   }
 
