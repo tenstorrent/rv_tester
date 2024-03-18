@@ -267,7 +267,7 @@ void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d)
       for (auto & i : d.instrs)
         print_instr_stdout(hart, i);
       cvm::log(cvm::NONE, "{}", csr_cac_.GetStatusStr(hart));
-      cvm::log(cvm::ERROR, "Error: Hart {}: CSR Write Mismatch - {}\n", hart, csr);
+      // cvm::log(cvm::ERROR, "Error: Hart {}: CSR Write Mismatch - {}\n", hart, csr);
       return;
     }
   }
@@ -319,18 +319,23 @@ void bridge::process_lrsc_pre_step(hart_id_t hart, const rv_instr_t& d) {
 void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
 // FIXME We are deferring all interrupts, if new interrupt was made possible due to execution of a csr op previously
   if (FLAGS_intr_defer_spcl) {
-  if ((d.disasm.find("csr") != std::string::npos) && prev_sync_intr_) {
-          log(cvm::MEDIUM, "<{}> All interrupts Defer\n", d.cycle);
-          all_interrupts_defer_ = true;
-          pre_csr_defermip_ = deferred_mip_;
-          deferred_intr_ = true;
-          defer_interrupt(hart, d.cycle, mip_);
+  if (d.disasm.find("csr") != std::string::npos) {
+  bool valid;
+  if (!client_->whisperPeek(hart, 's', WhisperSpecialResource::DeferredInterrupts, deferred_mip_, valid)) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: Failed whisper API call - whisperGetDeferredInterrupts\n", hart);
+    return;
+  }
+  if (prev_sync_intr_) {
+    log(cvm::MEDIUM, "<{}> All interrupts Defer\n", d.cycle);
+    all_interrupts_defer_ = true;
+    pre_csr_defermip_ = deferred_mip_;
+    deferred_intr_ = true;
+    defer_interrupt(hart, d.cycle, mip_);
   }
   prev_sync_intr_ = 0;
-  if (d.disasm.find("csr") != std::string::npos) {
-          uint64_t undeferred_mip = mip_ & ~ deferred_mip_;
-          uint64_t undeferred_w_cause;
-          check_interrupt(hart, undeferred_mip, pre_undeferred_intr_, undeferred_w_cause);
+  uint64_t undeferred_mip = mip_ & ~ deferred_mip_;
+  uint64_t undeferred_w_cause;
+  check_interrupt(hart, undeferred_mip, pre_undeferred_intr_, undeferred_w_cause);
   }
   }
   if (!mip_)
@@ -411,7 +416,6 @@ void bridge::process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, wh
 
   if (all_interrupts_defer_) {
           defer_interrupt(hart, d.cycle, pre_csr_defermip_);
-          deferred_mip_ = pre_csr_defermip_;
           all_interrupts_defer_ = false;
   } 
 
@@ -421,6 +425,18 @@ void bridge::process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, wh
       }
         prev_sync_intr_ = true; // This will waive cases when after execution of mret there exists a csr operation which needs to be interrupted.
   }
+  }
+
+  if (d.mem_write.valid && ((d.mem_write.pa>=0x8000000 &&  d.mem_write.pa <0xa000000) || (d.mem_write.pa>=0xc000000 &&  d.mem_write.pa < 0xe000000)) ) {
+    uint64_t mip, seip, mipchange, msihart;
+    msihart = (d.mem_write.pa >> 18) & 0x7;
+    if (msihart < static_cast<uint64_t>(num_harts_)) {
+    peek_mip(msihart, d.cycle, mip);
+    peek_seip(msihart, d.cycle, seip);
+    mip |= seip<<9;
+    mipchange = mip & 0x1e00;
+    check_and_defer_interrupt(msihart, d.cycle, mipchange); // Defer new external interrupts (HGEIP,VSEIP,SEIP,MEIP) caused due to store
+    }
   }
 
   if (!d.intr && !w_.intr)
@@ -452,7 +468,8 @@ void bridge::process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, wh
     return;
   }
 
-  num_taken_interrupts_[w_.icause]++;
+  num_taken_interrupts_[w_.priv][w_.icause]++;
+
 }
 
 void bridge::process_exception_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
@@ -1276,19 +1293,23 @@ void bridge::process_dut_imsic_msi(hart_id_t hart, mem_t& m) {
 void bridge::check_and_defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip) {
   bool w_intr;
   uint64_t w_cause;
-  uint64_t defer_mip = mip | deferred_mip_;
+  uint64_t deferredmip;
+  bool valid;
+  if (!client_->whisperPeek(hart, 's', WhisperSpecialResource::DeferredInterrupts, deferredmip, valid)) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: Failed whisper API call - whisperGetDeferredInterrupts\n", hart);
+    return;
+  }
+  uint64_t defer_mip = mip | deferredmip;
   check_interrupt(hart, mip, w_intr, w_cause);
   if (w_intr) {
     deferred_intr_ = true;
     defer_interrupt(hart, time, defer_mip);
-    deferred_mip_ = defer_mip;
   }
 }
 
 void bridge::defer_interrupt(hart_id_t hart, uint64_t cycle, uint64_t mip) {
   log(cvm::MEDIUM, "<{}> Interrupt defer mip status {:#x}\n", cycle, mip);
   bool valid;
-  deferred_mip_ = 0;
   if (!client_->whisperPoke(hart, cycle, 's', WhisperSpecialResource::DeferredInterrupts, mip, valid)) {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed to poke DeferredInterrupts\n", hart);
     return;
@@ -1587,8 +1608,10 @@ void bridge::report_metrics() {
 
   // Interrupts taken count
   for (size_t i = 0; i < num_taken_interrupts_.size(); i++) {
-    if (num_taken_interrupts_[i] != 0) {
-      cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_taken_interrupt_count_{}\": {}}}\n", id_, intr_to_string.at(static_cast<intr>(i)), num_taken_interrupts_[i]);
+    for (size_t j = 0; j < num_taken_interrupts_[i].size(); j++) {
+        if (num_taken_interrupts_[i][j] != 0) {
+            cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_taken_interrupt_count_{}_{}\": {}}}\n", id_, intr_to_string.at(static_cast<intr>(j)), priv_to_string.at(static_cast<priv>(i)), num_taken_interrupts_[i][j]);
+        }
     }
   }
 

@@ -3,10 +3,12 @@
 #include "imsic_driver.h"
 
  DEFINE_bool(random_imsic_intr, false, "Drive random interrups");
+ DEFINE_bool(random_aclint_forcesync, true, "Drive random aclint force sync messages");
  DEFINE_bool(disable_m_imsic_intr, false, "Drive random imsic  interrups to M file");
  DEFINE_bool(disable_s_imsic_intr, true, "Drive random imsic  interrups to S file");
  DEFINE_bool(disable_vs_imsic_intr, true, "Drive random imsic  interrups to VS file");
  DEFINE_bool(disable_random_hart_imsic_intr, false, "Drive random imsic  interrups to random harts");
+ DEFINE_int32(max_acsync_count, 2, "Count of force sync messages");
  DEFINE_int32(imsic_intr_delay_min, 3, "Minimum Delay between 2 consecutive interrupts");
  DEFINE_int32(imsic_intr_delay_max, 5, "Maximum Delay between 2 consecutive interrupts");
  DEFINE_int32(imsic_intr_threshold, 255, "imsic_intr interrupts threshold value");
@@ -25,6 +27,9 @@ imsic_driver::imsic_driver(const std::string& tag, uint64_t addr, unsigned hartC
   checkUsage();
    if(FLAGS_max_intr_count>0){
      limit_interrupts = 1;
+   }
+   if(FLAGS_max_acsync_count>0){
+     limit_acsync = 1;
    }
 }
 
