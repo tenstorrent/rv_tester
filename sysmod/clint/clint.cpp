@@ -82,7 +82,7 @@ clint::read(const transactor::read_t& r, data_t& data)
     return;
   offset -= 0x8000;
   unsigned hartIx = offset / 8;
-  uint64_t dword = hartIx < hartCount_ ? timeCompare_.at(hartIx) : 0;
+  uint64_t dword = (hartIx >= 0 && hartIx < hartCount_) ? timeCompare_.at(hartIx) : 0;
   serializeInt(dword, length, data);
   return;
 }
@@ -119,7 +119,7 @@ clint::write(const transactor::write_t& w)
 
     if (offset == 0)
       deserializeInt(data, timer_);
-    else if (offset == 0x8000){
+    else if (offset >= 0x8000){
       offset -= 0x8000;
       unsigned hartIx = offset / 8;
       if (hartIx >= hartCount_)
