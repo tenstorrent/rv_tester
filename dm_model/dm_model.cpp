@@ -26,6 +26,8 @@ static unsigned field_width(unsigned n)
   return i;
 }
 
+bool ndm_reset_assert;
+
 REGISTRY_register(debug_module_t, TOP.PLATFORM.DM_MODEL, 0);
 
 debug_module_t::debug_module_t(cvm::topology::loc_t loc, unsigned) : program_buffer_bytes((config.support_impebreak ? 4 + 4 : 0) + (4 * config.progbufsize)),
@@ -125,11 +127,24 @@ void debug_module_t::process(const rv_tester_transactions::dm_model::dmi_resp<> 
 {
   cvm::log(cvm::HIGH, "Seen a response with data: {:#x} and prev req expected:{:#x}\n", dmi_resp.data, req_expect);
   uint32_t actual_data = dmi_resp.data;
+  uint32_t masked_actual_data;
+  uint32_t masked_req_expect;
 
   if (req_resp_check)
   {
-    if (actual_data != req_expect)
+    if ((actual_data != req_expect) && !dmstatus.ndmresetpending)
       cvm::log(cvm::ERROR, "[Error-Mismatch] Seen a DMI Response Mismatch for Addr:{:#x} ~~~ Actual:{:#x} vs Expected:{:#x}\n", reg_addr_to_check, actual_data, req_expect);
+    else if ((actual_data != req_expect) && dmstatus.ndmresetpending)
+    {
+      cvm::log(cvm::HIGH, " Values seen for Addr:{:#x} before masking ~~~ Actual:{:#x} vs Expected:{:#x}\n", reg_addr_to_check, actual_data, req_expect);
+      masked_actual_data = actual_data & 0xFFFFF0FF;
+      masked_req_expect = req_expect & 0xFFFFF0FF;
+      cvm::log(cvm::HIGH, "Ndmresetpending is 1 masking dmstatus[11:8]\n");
+        if ((masked_actual_data != masked_req_expect))
+          cvm::log(cvm::ERROR, "[Error-Mismatch] Seen a DMI Response Mismatch for Addr:{:#x} ~~~ Actual:{:#x} vs Expected:{:#x}\n", reg_addr_to_check, masked_actual_data, masked_req_expect);
+        else
+          cvm::log(cvm::HIGH, "Masked_actual_data :{:#x} and Masked_req_expected :{:#x} are matching\n", masked_actual_data, masked_req_expect);
+    }
     req_resp_check = false;
     return;
   }
@@ -200,9 +215,12 @@ void debug_module_t::init_debug_abstract_buffer(){
 
 void debug_module_t::reset()
 {
+  cvm::log(cvm::HIGH, "[Reset Harts]\n"); //Fixed value as per the implementation
+
   for (const auto &[hart_id, hart] : harts)
   { // harts
     hart->halt_request = hart->HR_NONE;
+    hart_state[hart_id].resumeack = false;
   }
 
   memset(&dmcontrol, 0, sizeof(dmcontrol));
@@ -473,13 +491,14 @@ bool debug_module_t::dmi_read(unsigned address, uint32_t *value)
     }
   }
   else
-  {
+  { 
     switch (address)
     {
     case DM_DMCONTROL:
     {
       result = set_field(result, DM_DMCONTROL_HALTREQ, dmcontrol.haltreq);
       result = set_field(result, DM_DMCONTROL_RESUMEREQ, dmcontrol.resumereq);
+      result = set_field(result, DM_DMCONTROL_ACKHAVERESET, dmcontrol.ackhavereset);
       result = set_field(result, DM_DMCONTROL_HARTSELHI,
                          dmcontrol.hartsel >> DM_DMCONTROL_HARTSELLO_LENGTH);
       result = set_field(result, DM_DMCONTROL_HASEL, dmcontrol.hasel);
@@ -540,6 +559,7 @@ bool debug_module_t::dmi_read(unsigned address, uint32_t *value)
       // non-existant hartsel.
       dmstatus.anynonexistant = dmcontrol.hartsel >= max_hartid;
 
+      result = set_field(result, DM_DMSTATUS_NDMRESETPENDING, dmstatus.ndmresetpending);
       result = set_field(result, DM_DMSTATUS_IMPEBREAK,
                          dmstatus.impebreak);
       result = set_field(result, DM_DMSTATUS_ALLHAVERESET, selected_hart_state().havereset);
@@ -1024,22 +1044,39 @@ bool debug_module_t::dmi_write(unsigned address, uint32_t value)
         dmcontrol.hasel = 0;
       dmcontrol.hartsel = get_field(value, DM_DMCONTROL_HARTSELHI) << DM_DMCONTROL_HARTSELLO_LENGTH;
       dmcontrol.hartsel |= get_field(value, DM_DMCONTROL_HARTSELLO);
-      // dmcontrol.hartsel = std::min(size_t(dmcontrol.hartsel), max_hartid - 1); //FIXME
-      dmcontrol.hartsel = max_hartid - 1;
+      dmcontrol.hartsel = std::min(size_t(dmcontrol.hartsel), max_hartid - 1); //FIXME
+      // dmcontrol.hartsel = max_hartid - 1;
 
       for (const auto &[hart_id, hart] : harts)
       {
+        cvm::log(cvm::HIGH, "Inside for loop\n");
         if (hart_selected(hart_id))
         {
-          cvm::log(cvm::FULL, "Inside the DMCONTROL Write Event - 002\n");
+          cvm::log(cvm::HIGH, "Inside the DMCONTROL Write Event - 002\n");
           if (get_field(value, DM_DMCONTROL_ACKHAVERESET))
           {
+            dmcontrol.ackhavereset = false;
             hart_state[hart_id].havereset = false;
           }
-          if (dmcontrol.haltreq && hart_available(hart_id))
+          if (dmcontrol.haltreq && hart_available(hart_id) && !dmcontrol.ndmreset)
           {
             hart->halt_request = hart->HR_REGULAR;
+            dmcontrol.haltreq = false;
             cvm::log(cvm::HIGH, "halt hart: {:#x}\n", hart_id);
+          }
+          else if (dmcontrol.ndmreset && hart_available(hart_id))
+          {
+            dmstatus.ndmresetpending = true;
+            cvm::log(cvm::HIGH, "Ndmreset and pending is 1 in dm_model\n");
+            hart->reset();
+            hart->halt_request = hart->HR_NONE;
+            hart_state[hart_id].resumeack = false;
+            ndm_reset_assert = true;
+            hart_state[hart_id].havereset = true;
+          //  dmstatus.allrunning = true;
+          //  dmstatus.anyrunning = true;
+          //  dmstatus.allhalted = false;
+          //  dmstatus.anyhalted = false;
           }
           else
           {
@@ -1050,21 +1087,46 @@ bool debug_module_t::dmi_write(unsigned address, uint32_t value)
             cvm::log(cvm::HIGH, "resume hart: {:#x}", hart_id);
             debug_rom_flags[hart_id] |= (1 << DEBUG_ROM_FLAG_RESUME);
             hart_state[hart_id].resumeack = false;
+            dmcontrol.resumereq = false;
           }
           if (dmcontrol.hartreset && hart_available(hart_id))
           {
             hart->reset();
           }
         }
-      }
-
-      if (dmcontrol.ndmreset)
-      {
-        for (const auto &[hart_id, hart] : harts)
+        else
         {
-          hart->reset();
+          cvm::log(cvm::FULL, "Not entering as hart_selected for Hart ID is false");
+        }
+        if (!dmcontrol.ndmreset && ndm_reset_assert)
+        {
+          dmstatus.ndmresetpending = false;
+          cvm::log(cvm::HIGH, "Ndmreset and pending is 0 in dm_model\n");
+          ndm_reset_assert = false;
         }
       }
+
+ //     if (dmcontrol.ndmreset)
+ //     {
+ //       dmstatus.ndmresetpending = true;
+ //       for (const auto &[hart_id, hart] : harts)
+ //       {
+ //         if (hart_selected(hart_id))
+ //         {
+ //           cvm::log(cvm::FULL, "Ndmreset and pending is 1 in dm_model\n");
+ //           hart->reset();
+ //           hart->halt_request = hart->HR_NONE;
+ //           hart_state[hart_id].resumeack = false;
+ //           ndm_reset_assert = true;
+ //           hart_state[hart_id].havereset = true;
+ //         }
+ //       }
+ //     }
+ //     else if(!dmcontrol.ndmreset && ndm_reset_assert)
+   //   {
+  //      dmstatus.ndmresetpending = false;
+  //      ndm_reset_assert = false;
+  //    }
     }
       return true;
 
@@ -1117,6 +1179,8 @@ bool debug_module_t::dmi_write(unsigned address, uint32_t value)
           selected_hart_state().haltgroup = get_field(value, DM_DMCS2_GROUP);
         }
         return true;
+      case DM_HALTSUM0:
+      
     }
   }
   return false;

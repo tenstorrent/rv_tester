@@ -38,7 +38,7 @@ module dmi_driver (
 
   logic command_trigger, response_trigger;
   logic [31:0] clk_cnt;
-  logic halt_req, resume_req, abstr_cmd_req, poll;
+  logic halt_req, resume_req, abstr_cmd_req, poll, poll_p2, ndm_reset_init, ndm_reset_ack, ndm_reset_assert_done, ndm_reset_priority, poll_reset_completion, ndmreset_halt_req;
   logic [31:0] ext_trig_delay;
   logic [31:0] single_step_instr_cnt, single_step_executed_cnt;
   logic [31:0] ahead_queue_cnt, quit_queue_cnt, cnt;
@@ -63,6 +63,10 @@ module dmi_driver (
     resume_req <= 0;
     abstr_cmd_req <= 0;
     poll <= 0;
+    poll_p2 <= 0;
+    poll_reset_completion <= 0;
+    ndm_reset_init <= 0;
+    ndm_reset_ack <= 0;
     ext_trig_delay <= 0;
     single_step_executed_cnt <= 0;
     single_step_started <= 0;
@@ -70,6 +74,8 @@ module dmi_driver (
     abs_read <= 0;
     abs_write <= 0;
     abs_read_data <= 0;
+    ndm_reset_priority <= 0;
+    ndmreset_halt_req <= 0;
   end
 
   assign misc_signals[0] = poll;
@@ -142,7 +148,11 @@ module dmi_driver (
   task is_poll_needed(input rv_tester_pkg::dmi_req_t cmd);
     begin
       //decode request type
-      if (cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[31] === '1) begin
+      if (cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[31] === '1 && cmd.data[1] === '1) begin
+        $display("[Poll] Seen Halt Req and poll_p2, Doing Poll for halt req after ndmreset");
+        ndmreset_halt_req = 1;
+        poll = 1;
+      end else if (cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[31] === '1 && cmd.data[1] === '0) begin
         $display("[Poll] Seen Halt Req, Doing Poll");
         halt_req = 1;
         poll = 1;
@@ -166,6 +176,32 @@ module dmi_driver (
             abs_data_temp_packet.reg_addr = cmd.data[15:0];
           end
         end
+      end else if (cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[1] === 'h1 ) begin
+        $display("[Poll] Making NdmReset = 1, Doing Poll");
+        ndm_reset_init = 1;
+        ndm_reset_assert_done = 1;
+        poll = 1;
+      end else if (ndm_reset_assert_done === 'h1 && cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[1] === 'h0 ) begin
+        $display("[Poll] Making NdmReset = 0, Doing Poll");
+        ndm_reset_assert_done = 0;
+        ndm_reset_ack = 1;
+        poll = 1;
+      end else if (cmd.addr === 'h32 && cmd.op === 'h2 && cmd.data[2:1] === 'h1 ) begin
+        $display("Core entering halt group");
+        core_in_halt_group = 1;
+        poll = 1;
+      end else if(core_in_halt_group && cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[31] === 'h1 && cmd.data[1] === 'h0) begin
+        $display("Core in halt group gets a haltreq");
+        core_haltg_hreq = 1;
+        poll = 1;
+      end else if(cmd.addr === '32 && cmd.op === 'h2 && cmd.data[11] && cmd.data[6:2] === 'h1 && cmd.data[1]) begin
+        $display("Core entering resume group");
+        core_in_resume_grp = 1;
+        poll = 1;
+      end else if(core_in_resume_grp && cmd.op === 'h2 && cmd.data[30] === 'h1 && cmd.data[1] === 'h0) begin
+        $display("Core in resume group gets a resumereq");
+        core_resumeg_rreq = 1;
+        poll = 1;
       end
     end
   endtask : is_poll_needed
@@ -186,6 +222,24 @@ module dmi_driver (
         end else if (abs_read_data) begin
           $display("[Poll] Doing abstract read data for data0");
           dmi_req <= 41'h1100000000;
+        end else if (ndm_reset_init) begin
+          $display("[Poll] Read dmstatus to check for ndmresetpending to be 1");
+          dmi_req <= 41'h4500000000;
+        end else if (ndm_reset_ack) begin
+          $display("[Poll] Read dmstatus to check for ndmresetpending to be 0");
+          dmi_req <= 41'h4500000000;
+        end else if (ndmreset_halt_req) begin
+          $display("[Poll] Read dmstatus to check for ndmresetpending to be 1 and halted state");
+          dmi_req <= 41'h4500000000;
+        end else if (core_in_halt_group) begin
+          $display("[Poll] Read dmcontrol to see which cores are added to halt group")
+          dmi_req <= 41'h4100000000; //TODO(Bavani): Revisit
+        end else if (core_haltg_hreq) begin
+          $display("[Poll] Read Haltsum reg")
+          dmi_req <= 41'h10100000000;
+        end else if (core_in_resume_grp) begin
+          $display("[Poll] Read dmcontrol to see which cores are added to resume group")
+          dmi_req <= 41'h10100000000;
         end
         wait (dmi_req_ready == 1);
         @(posedge clk) dmi_req_valid <= '0;
@@ -217,6 +271,69 @@ module dmi_driver (
           abs_reg_out_queue.push_back(abs_data_temp_packet);
           abs_read_data = 0;
           poll = 0;
+        end else if (ndm_reset_init && dmi_resp.data[24] === 1'b1) begin
+          ndm_reset_init = 0;
+          //Holding ndmreset = 1 for 100 cycles
+          for(int ii=0;ii<100;ii++)
+          begin
+            $display("[Poll] Executing for loop in driver");
+            @(posedge clk) begin
+              if (ii === 99)
+              begin
+                poll = 0;
+                poll_p2 = 1;
+                $display("[Poll] Cleared poll as ndmresetpending is 1 and started");
+              end
+            end
+          end
+        end  else if (ndm_reset_ack && dmi_resp.data[24] === 1'b0) begin
+          ndm_reset_ack = 0;
+          poll = 0;
+          $display("[Poll] Cleared poll as ndmresetpending is 0 and ended");
+        end else if (ndmreset_halt_req && dmi_resp.data[24] === 1'b1) begin
+          ndmreset_halt_req = 0;
+          poll = 0;
+          $display("[Poll] Cleared poll as ndmresetpending is 1 ndmreset initiated and core is in halted state");
+        end else if(core_in_halt_group) begin
+          for(int ii; ii<8; ii++)begin
+            if(dmi_resp.data[18:16] === ii) begin
+              core_in_halt_group[ii] = 1;
+              poll = 0;
+            end
+          end
+        end else if(core_haltg_hreq) begin
+          for(int ii; ii<8; ii++)begin
+            if(core_in_halt_group[ii] && dmi_resp.data[ii])begin
+              core_halted[ii] = 1;
+            end else if(!core_in_halt_group[ii])
+              core_ignore_hreq[ii] = 1;
+          end
+          if((core_halted[0] || core_ignore_hreq[0]) && (core_halted[1] || core_ignore_hreq[1]) &&
+          (core_halted[2] || core_ignore_hreq[2]) && (core_halted[3] || core_ignore_hreq[3]) && (core_halted[4] || core_ignore_hreq[4]) &&
+          (core_halted[5] || core_ignore_hreq[5]) && (core_halted[6] || core_ignore_hreq[6]) && (core_halted[7] || core_ignore_hreq[7])) begin
+            poll = 0;
+            core_haltg_hreq = 0;
+          end
+        end else if(core_in_resume_group) begin
+          for(int ii; ii<8; ii++)begin
+            if(dmi_resp.data[18:16] === ii) begin
+              core_in_resume_group[ii] = 1;
+              poll = 0;
+            end
+          end
+        end else if(core_resumeg_rreq) begin
+          for(int ii; ii<8; ii++) begin
+            if(core_in_resume_group[ii] === 1 && dmi_resp.data[ii] === 0)begin
+              core_resumed[ii] = 1;
+            end else if(!core_in_resume_group[ii])
+              core_ignore_rreq[ii] = 1;
+          end
+          if((core_resumed[0] || core_ignore_rreq[0]) && (core_resumed[1] || core_ignore_rreq[1]) &&
+          (core_resumed[2] || core_ignore_rreq[2]) && (core_resumed[3] || core_ignore_rreq[3]) && (core_resumed[4] || core_ignore_rreq[4]) &&
+          (core_resumed[5] || core_ignore_rreq[5]) && (core_resumed[6] || core_ignore_rreq[6]) && (core_resumed[7] || core_ignore_rreq[7])) begin
+            poll = 0;
+            core_haltg_hreq = 0;
+          end
         end
       end
       $display("[Poll] Cleared poll for halt:%h resume:%h abstract:%h", halt_req, resume_req,

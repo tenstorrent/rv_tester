@@ -21,7 +21,7 @@
 #include "debug_rom.h"
 #include "debug_rom_defines.h"
 
-#define max_hartid 1 // Define the maximum number of harts in the system
+#define max_hartid 2 // Define the maximum number of harts in the system
 #define halt_on_reset false
 #define core_fuse_map (int[]) {0}  
 
@@ -44,6 +44,7 @@ typedef struct
 {
   bool haltreq;
   bool resumereq;
+  bool ackhavereset;
   bool hasel;
   unsigned hartsel;
   bool hartreset;
@@ -53,6 +54,7 @@ typedef struct
 
 typedef struct
 {
+  bool ndmresetpending;
   bool impebreak;
   bool allhavereset;
   bool anyhavereset;
@@ -71,6 +73,18 @@ typedef struct
   bool cfgstrvalid;
   unsigned version;
 } dmstatus_t;
+
+typedef struct
+{
+  bool core7_halted;
+  bool core6_halted;
+  bool core5_halted;
+  bool core4_halted;
+  bool core3_halted;
+  bool core2_halted;
+  bool core1_halted;
+  bool core0_halted;
+} haltsum_t
 
 typedef enum cmderr
 {
