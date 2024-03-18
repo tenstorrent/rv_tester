@@ -11,6 +11,8 @@
 #include "dm/dm.h"
 #include "trace_cfg/trace_cfg.h"
 #include "smc_xtor/smc_xtor.h"
+#include "pll_xtor/pll_xtor.h"
+#include "pm_nw_xtor/pm_nw_xtor.h"
 #include "aplic_mmr/aplic_mmr.h"
 #include "io_dev/io_dev.h"
 #include "null_dev/null_dev.h"
@@ -130,6 +132,28 @@ sysmod::trace_info_handler(trace_cfg::trace_info_t i) {
 void
 sysmod::smc_info_handler(smc_xtor::smc_info_t i) {
         cvm::log(cvm::HIGH, "[SYSMOD] trace_info {} \n",i.smc_quiesced);
+ // cvm::registry::callbacks.push(
+ //     scope(),
+ //     [i]() {
+ //       cvm::log(cvm::HIGH, "[SYSMOD] smc_info \n");
+ //       sysmod_trace_info(i.trace_quiesced);
+ //     });
+}
+
+void
+sysmod::pll_info_handler(pll_xtor::pll_info_t i) {
+        cvm::log(cvm::HIGH, "[SYSMOD] trace_info {} \n",i.pll_quiesced);
+ // cvm::registry::callbacks.push(
+ //     scope(),
+ //     [i]() {
+ //       cvm::log(cvm::HIGH, "[SYSMOD] smc_info \n");
+ //       sysmod_trace_info(i.trace_quiesced);
+ //     });
+}
+
+void
+sysmod::pm_nw_info_handler(pm_nw_xtor::pm_nw_info_t i) {
+        cvm::log(cvm::HIGH, "[SYSMOD] trace_info {} \n",i.pm_nw_quiesced);
  // cvm::registry::callbacks.push(
  //     scope(),
  //     [i]() {
@@ -297,6 +321,8 @@ sysmod::compose()
 
   auto mmr_master = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MMR_MST");
   auto smc_master = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_SMC_MST");
+  auto pll_master = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_PLL_MST");
+  auto pm_nw_master = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_PM_NW_MST");
   auto masters = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST");
   auto platform_loc = cvm::topology::get_from_type("PLATFORM", 0);
   auto nharts = cvm::topology::attr(platform_loc, "NHARTS").second;
@@ -341,6 +367,22 @@ sysmod::compose()
             [&](trace_cfg::trace_info_t i) { return this->trace_info_handler(i); });
         assert(masters.size() > 0);
         device = std::make_unique<trace_cfg>(tag, base, size, loc_, masters[0]);
+      }
+      else if (type == "pll_xtor") {
+        // TODO: cvm::ERROR
+        cvm::registry::messenger.connect<pll_xtor::pll_info_t>(
+            loc_,
+            [&](pll_xtor::pll_info_t i) { return this->pll_info_handler(i); });
+        assert(masters.size() > 0);
+        device = std::make_unique<pll_xtor>(tag, base, size, loc_, pll_master[0]);
+      }
+      else if (type == "pm_nw_xtor") {
+        // TODO: cvm::ERROR
+        cvm::registry::messenger.connect<pm_nw_xtor::pm_nw_info_t>(
+            loc_,
+            [&](pm_nw_xtor::pm_nw_info_t i) { return this->pm_nw_info_handler(i); });
+        assert(masters.size() > 0);
+        device = std::make_unique<pm_nw_xtor>(tag, base, size, loc_, pm_nw_master[0]);
       }
       else if (type == "scratchpad_xtor") {
         // TODO: cvm::ERROR
