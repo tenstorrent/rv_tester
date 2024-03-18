@@ -9,20 +9,20 @@ import rv_tester_params::*;
 )(
     input clk,
     input reset,
-    input longint unsigned clocks,
-    input rv_tester_pkg::jtag_if_out  jtag_resp,
     output logic trace_quiesced,
     output rv_tester_params::bootstrap_t bootstrap,
     output rv_tester_pkg::interrupt_t interrupt [NHARTS-1:0],
     output rv_tester_pkg::aplic_interrupt_t aplic_interrupt,
     output rv_tester_pkg::dm_write_t  dmi_write,
     output rv_tester_pkg::jtag_if_t  jtag_req,
+    input rv_tester_pkg::jtag_if_out  jtag_resp,
     output rv_tester_pkg::terminate_t terminate,
     `RV_TESTER_TRANSACTIONS_SYSMOD_OUTPUT_PORTS
 );
     import "DPI-C" context function void sysmod_set_scope(int unsigned location);
 
     typedef longint unsigned LU;
+    LU clocks = 0;
     int unsigned location = cvm_topology::nil;
     bit sysmod_tick_async = '1;
 
@@ -35,7 +35,7 @@ import rv_tester_params::*;
     bit dmi_write_begin_d = '0;
     bit dmi_write_end = '0;
     bit [63:0] dm_wdata = '0;
- 
+
     bit [1:0]  command= '0;
     bit        jtag_enable_begin = '0;
     bit        jtag_enable_d = '0;
@@ -44,7 +44,7 @@ import rv_tester_params::*;
     bit [63:0] jtag_tx;
     bit [63:0] jtag_rx;
     /* verilator lint_on BLKANDNBLK */
-    
+
 
     jtag_xtor  i_jtag_xtor(
         .clk(clk),
@@ -58,9 +58,12 @@ import rv_tester_params::*;
         .jtag_rx(jtag_rx),
         .misc_signals('0)
     );
+
     /* verilator lint_on BLKANDNBLK */
     always @(posedge clk) begin
+        clocks <= clocks + 1;
         if (reset) begin
+            clocks <= 0;
             /* verilator lint_off BLKSEQ */
             sysmod_tick_async = cvm_plusargs::get_bool("sysmod_tick_async") != '0;
             location = cvm_topology::get_location(topology.TOP.PLATFORM.SYSMOD.ID, NUM);
@@ -76,7 +79,7 @@ import rv_tester_params::*;
     assign bootstrap.boot_addr = 1 << 31;
 
     function void sysmod_terminate ();
-        $display("attempting to terminate");
+        $display("[sysmod]: attempting to terminate");
         terminate.terminate = '1;
     endfunction
     export "DPI-C" function sysmod_terminate;
@@ -98,7 +101,7 @@ import rv_tester_params::*;
     function void sysmod_sw_interrupt (int unsigned hartid, int unsigned val);
       interrupt_d[hartid].msi = val[0];
     endfunction
-   
+
        export "DPI-C" function sysmod_aplic_dir_interrupt;
 
     function void sysmod_aplic_dir_interrupt (longint val[16]);
@@ -161,9 +164,9 @@ import rv_tester_params::*;
         else if(jtag_enable_begin)begin
             jtag_enable_end <='1;
         end
-        
+
     end
-         
+
   assign jtag_rdatas[0].valid         = read_data_valid_reg;
   assign jtag_rdatas[0].data.location = location;
   assign jtag_rdatas[0].data.rdata     = {32'h0,jtag_rx[31:0]};//upper32 bits for future use

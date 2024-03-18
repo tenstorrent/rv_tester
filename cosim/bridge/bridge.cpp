@@ -46,7 +46,7 @@ DEFINE_bool(gpr_check, true, "Enable cosim checks on gprs");
 DEFINE_bool(fpr_check, true, "Enable cosim checks on fprs");
 DEFINE_bool(vec_check, true, "Enable cosim checks on vector regs");
 DEFINE_bool(csr_rd_check, true, "Enable cosim checks on csr reads");
-DEFINE_bool(csr_wr_check, false, "Enable cosim checks on csr reads");
+DEFINE_bool(csr_wr_check, true, "Enable cosim checks on csr writes");
 DEFINE_uint64(max_cycle, 1000000, "Max cycle limit to terminate the sim");
 DEFINE_int32(debug_excp_mcause, 24, "MCAUSE value for debug exception");
 DEFINE_bool(translation_check, false, "Do VA-PA translation check");
@@ -76,7 +76,10 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
 {
     std::string traceFile = FLAGS_whisper_log ? "iss_cosim.log" : "";
     std::string commandLog = FLAGS_whisper_log ? "iss_cmd.log" : "";
-    cosim_resynch_csr_defaults = {"htval","mtval2","mip","hip","vsip","hvip","mtinst","htinst","vstart","vxsat","vxrm","vcsr","vl","vtype","vlenb","sstatus","mstatus","fcsr","mie","hie","vsie","mireg","mideleg"}; // RVDE: 10005 (mtinst/htinst), RVDE: 11217 (vectors), RVDE: 10043 (mtval2/htval)
+    cosim_resynch_csr_defaults = {
+      "htval","mtval2","mtinst","htinst","vstart","vxsat","vxrm","vcsr","sstatus","mstatus","mie","hie","vsie","sie","fflags","fcsr","tselect","tdata1","tdata2","tdata3","mcontext","pma","pmp", // open bugs: RVDE: 10005 (mtinst/htinst), RVDE: 11217 (vectors), RVDE: 10043 (mtval2/htval), RVDE: 8849 (mstatus/mie aliases), RVDE: 7518 (Debug CSRs)
+      "mip","hip","vsip","hvip","sip","mcycle","mireg","sireg","vtype" // permanantly excluded
+    };
     std::istringstream iss(FLAGS_cosim_resynch_csr);
     std::string token;
     while (std::getline(iss, token, ',')) {
@@ -257,7 +260,7 @@ void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d)
       resynch(hart, d);
     } else {
       for (const auto& token_csr : cosim_resynch_csr_defaults) {
-        if (token_csr == csr){
+        if (csr.find(token_csr) != std::string::npos){
           return;
         }
       }
@@ -719,8 +722,31 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
   for (auto & c : d.csr) {
     uint64_t data = modify_csr_data(hart, c.csr_addr, c.csr_wdata);
     size_8_bytes_t mask = modify_csr_mask(hart, c.csr_addr, c.csr_wmask);
-    if (FLAGS_csr_rd_check)
+    if (FLAGS_csr_rd_check) {
       update_csr(hart, src_t::dut, c.csr_addr, data, mask);
+      if (c.csr_addr == 0x001) update_csr(hart, src_t::dut, 0x003, data, mask); // On fflags update, update fcsr
+      else if (c.csr_addr == 0x002) { // On frm update, update fcsr
+        data = data << 5;
+        mask = mask << 5;
+        update_csr(hart, src_t::dut, 0x003, data, mask, false, false);
+      }
+      else if (c.csr_addr == 0x003){ // On fcsr update, update fflags,frm
+        log(cvm::MEDIUM, "fcsr: {:#x}\n", data);
+        size_8_bytes_t mask_fcsr = mask;
+        mask = mask_fcsr & 0x1f;
+        update_csr(hart, src_t::dut, 0x001, data, mask, false, false);
+        data = data >> 5;
+        mask = (mask_fcsr >> 5) & 0x3;
+        update_csr(hart, src_t::dut, 0x002, data, mask, false, false);
+      }
+      else if (c.csr_addr == 0x301){ // On misa.H update, update mideleg
+        if ((c.csr_wmask >> 7) & 0x1) {
+          mask = 0x1444;
+          if ((c.csr_wdata >> 7) & 0x1) update_csr(hart, src_t::dut, 0x303, 0x1444, mask, false, false);
+          else update_csr(hart, src_t::dut, 0x303, 0, mask, false, false);
+        }
+      }
+    }
   }
 }
 
@@ -1375,7 +1401,8 @@ cac::size_8_bytes_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, cac::
   cac::size_8_bytes_t result = mask;
   // pmpaddr
   // Spec section...
-  result = mask & get_csr_mask(hart, addr);
+  if (addr == 0xC20) result = mask;
+  else result = mask & get_csr_mask(hart, addr);
   if (addr >= 0x3B0 && addr < 0x3C0) {
     bool valid;
     uint64_t pmpcfg, mask_iss, reset;
@@ -1408,7 +1435,7 @@ bool bridge::is_supported_csr(uint64_t addr) {
   return (addr >= 0x7E0 && addr <= 0x7EF); // pmacfg0-15
 }
 
-void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data, cac::optional_const_ref<size_8_bytes_t> mask_ref, bool shadow_csr) {
+void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data, cac::optional_const_ref<size_8_bytes_t> mask_ref, bool shadow_csr, bool check_en) {
   if (is_custom_csr(addr) && !is_supported_csr(addr))
     return;
 
@@ -1420,7 +1447,7 @@ void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data,
   if (mask_ref != std::nullopt) {
     mask = cac::CreateBitVec<size_8_bytes_t>(mask_ref.value());
   }
-  assert(csr_cac_.UpdateResource(hart, src, csr_resource, std::move(cac::CreateBitVec<size_8_bytes_t>({data})), mask));
+  assert(csr_cac_.UpdateResource(hart, src, csr_resource, std::move(cac::CreateBitVec<size_8_bytes_t>({data})), mask, check_en));
 
   // Also update shadow csr if applicable ex: mstatus/sstatus
   if (!shadow_csr && shadow_csrs.count(addr)) {
