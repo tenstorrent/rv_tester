@@ -40,7 +40,7 @@ typedef enum logic [1:0] {
   bit ir ='0;
   bit dr ='0;
 
-  assign jtag_req.tck = ~clk;
+  assign jtag_req.tck = clk;
   assign jtag_req.trst = reset;
 
 
@@ -115,12 +115,12 @@ always @(posedge clk) begin
 
         dr <=  1'b1;
         
-        if(shiftCount >= 32'd2) begin
+        if(shiftCount >= 32'd3) begin
           read_data_valid<= 1'b1;
-          jtag_req.tdi <= jtag_tx[shiftCount-2];
+          jtag_req.tdi <= jtag_tx[shiftCount-3];
         end
         shiftCount <= shiftCount + 1;
-        if (shiftCount == 32'd1 + length) begin
+        if (shiftCount == 32'd2 + length -1'd1) begin
           state <= UPDATE;
           command_l <= UPDATE;
           shiftCount <=0;
@@ -133,15 +133,15 @@ always @(posedge clk) begin
         else begin
           jtag_req.tms <= 0;
         end
-        if(shiftCount >= 32'd3) begin
+        if(shiftCount >= 32'd4) begin
           read_data_valid<= 1'b1;
-          jtag_req.tdi <= jtag_tx[shiftCount-3];
+          jtag_req.tdi <= jtag_tx[shiftCount-4];
         end
 
         ir <=  1'b1;
         
         shiftCount <= shiftCount + 1;
-        if (shiftCount == 32'd2 + length) begin
+        if (shiftCount == 32'd3 + length -1'd1) begin
           state <= UPDATE;
           command_l <= UPDATE;
           shiftCount <=0;
@@ -152,11 +152,11 @@ always @(posedge clk) begin
         jtag_req.tdi <= 1'b0;
 
         shiftCount <= shiftCount + 1;
-        if (shiftCount <= 32'd4) begin
+        if (shiftCount <= 32'd1) begin
           jtag_req.tms <= 1'b1;
         end
 
-        if (shiftCount == 32'd5) begin
+        if (shiftCount == 32'd2) begin
           jtag_req.tms <= 1'b0;
           state <= IDLE;
           shiftCount <= 0;
