@@ -25,6 +25,7 @@
 // internal flags
 DEFINE_string(hex, "", "hex file (program) to load into memory");
 DEFINE_string(load, "", "elf file (program) to load into memory");
+DEFINE_bool(bootrom, true, "Load bootrom before test");
 DEFINE_string(bootrom_path, "", "Path to bootrom object file");
 DEFINE_string(load_io, "", "load specified io dev with content from memory");
 DEFINE_bool(sysmod_tick_async, true, "Asynchronous sysmod_tick calls");
@@ -305,7 +306,8 @@ sysmod::terminate(htif::terminate_t t) {
 void
 sysmod::reset() {
   compose();
-  load_boot(FLAGS_bootrom_path);
+  if (FLAGS_bootrom)
+    load_boot(FLAGS_bootrom_path);
   load_prog(FLAGS_hex, FLAGS_load);
   load_io(FLAGS_load_io);
 }
