@@ -415,7 +415,7 @@ void bridge::process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, wh
           all_interrupts_defer_ = false;
   } 
 
-  if (w.disasm.find("ret") != std::string::npos) {
+  if ((w.disasm.find("mret") != std::string::npos) || (w.disasm.find("sret") != std::string::npos)) {
       if(prev_mip_ != mip_) {
         check_and_defer_interrupt(hart, d.cycle, ~prev_mip_ & mip_);
       }
@@ -890,7 +890,8 @@ bool bridge::is_compressed(const std::string& instr) {
 }
 
 bool bridge::is_ucode(const std::string& instr) {
-  if ((instr.find("ret") != std::string::npos) ||
+  if ((instr.find("mret") != std::string::npos) ||
+      (instr.find("sret") != std::string::npos) ||
       (instr.find("ecall") != std::string::npos) ||
       (instr.find("ebreak") != std::string::npos))
     return true;
