@@ -933,6 +933,11 @@ bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const std::
     log(cvm::MEDIUM, "<{}> Resynch: Reason=[imsic_mismatch]\n", d.cycle);
     return true;
   }
+  // Case #8
+  if (unsupported_mmr_access(d)) {
+    log(cvm::MEDIUM, "<{}> Resynch: Reason=[mmr_access]\n", d.cycle);
+    return true;
+  }
   return false;
 }
 
@@ -971,6 +976,14 @@ bool bridge::debug_mem_access(const rv_instr_t& d){
       ((d.mem_read.pa < FLAGS_debug_entry_pc) ||
       ((d.mem_read.pa > FLAGS_debug_exit_pc) && (d.mem_read.pa <=0x1000)))
       )
+    return true;
+  return false;
+}
+
+bool bridge::unsupported_mmr_access(const rv_instr_t& d){
+  if (d.mem_read.valid &&
+      d.mem_read.pa >= mmr_lo_addr &&
+      d.mem_read.pa < mmr_hi_addr)
     return true;
   return false;
 }
