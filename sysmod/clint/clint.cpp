@@ -62,17 +62,17 @@ clint::read(const transactor::read_t& r, data_t& data)
   auto& length = r.length;
 
   uint64_t offset = addr - device::addr();
-//  if (offset < 0x4000) {
-//    // Sofware interrupt: 1 word per hart.
-//    if ((offset % 4) != 0)
-//      return;  // Address must be a multiple of 4.
-//    unsigned hartIx = offset / 4;
-//    uint32_t word = (hartIx < hartCount_) ? soft_.at(hartIx) : 0;
-//    serializeInt(word, length, data);
-//    return;
-//  }
+  if (offset < 0x4000) {
+    // Sofware interrupt: 1 word per hart.
+    if ((offset % 4) != 0)
+      return;  // Address must be a multiple of 4.
+    unsigned hartIx = offset / 4;
+    uint32_t word = (hartIx < hartCount_) ? soft_.at(hartIx) : 0;
+    serializeInt(word, length, data);
+    return;
+  }
 
-  if (offset == 0) {
+  if (offset == 0xbff8) {
     serializeInt(timer_, length, data);
     return;
   }
@@ -80,9 +80,9 @@ clint::read(const transactor::read_t& r, data_t& data)
   // Time compare. 1 double word per hart.
   if ((offset % 8) != 0)
     return;
-  offset -= 0x8000;
+  offset -= 0x4000;
   unsigned hartIx = offset / 8;
-  uint64_t dword = (hartIx >= 0 && hartIx < hartCount_) ? timeCompare_.at(hartIx) : 0;
+  uint64_t dword = hartIx < hartCount_ ? timeCompare_.at(hartIx) : 0;
   serializeInt(dword, length, data);
   return;
 }
@@ -95,32 +95,25 @@ clint::write(const transactor::write_t& w)
   auto& length = w.length;
   auto& data = w.data;
 
-// MMR_BASE_ADDR, 2'b01, ClusterID, 5'b10011,16'hFFFF
-// 1010 0001 0011 0000 0000 0000 0000
-// 1010 0001 0011 1111 1111 1111 1111
-//.equ mtime, 0xa130000 
-//.equ mtimecmp, 0xa138000
-
   uint64_t offset = addr - device::addr();
-//  if (offset < 0x4000) {
-//    // Sofware interrupt: 1 word per hart.
-//    unsigned hartIx = offset / 4;
-//    if ((offset % 4) != 0 or length < 4 or hartIx >= hartCount_)
-//      return;
-//    unsigned word = 0;
-//    deserializeInt(data, word);
-//    soft_.at(hartIx) = word & 1;
-//    softwareInterrupt(hartIx, word & 1);
-//    return;
-//  }
+  if (offset < 0x4000) {
+    // Sofware interrupt: 1 word per hart.
+    unsigned hartIx = offset / 4;
+    if ((offset % 4) != 0 or length < 4 or hartIx >= hartCount_)
+      return;
+    unsigned word = 0;
+    deserializeInt(data, word);
+    soft_.at(hartIx) = word & 1;
+    softwareInterrupt(hartIx, word & 1);
+    return;
+  }
 
   if (length == 8) {
-    // offset -= 0x4000;
+    offset -= 0x4000;
 
-    if (offset == 0)
+    if (offset == 0x7ff8)
       deserializeInt(data, timer_);
-    else if (offset >= 0x8000){
-      offset -= 0x8000;
+    else {
       unsigned hartIx = offset / 8;
       if (hartIx >= hartCount_)
         return;
@@ -140,6 +133,6 @@ void clint::tick(uint64_t advance)
   if ((advance % tickDivisor_) != 0) {
     cvm::log(cvm::ERROR, "Error: Clock advancing by {}, not a multiple of configured divisor {}\n", advance, tickDivisor_);
   }
-  timer_ += (advance / tickDivisor_)*10;
+  timer_ += advance / tickDivisor_;
   processTimerInterrupts();
 }
