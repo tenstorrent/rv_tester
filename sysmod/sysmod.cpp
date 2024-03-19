@@ -99,16 +99,6 @@ sysmod::timer_interrupt(clint::timer_t t) {
           sysmod_timer_interrupt(t.hart, t.flag);
         });
 }
-// forwarding functions for devices
-void
-sysmod::timer_interrupt(aclint::timer_t t) {
-      cvm::registry::callbacks.push(
-        scope(),
-        [t]() {
-          cvm::log(cvm::FULL, "[SYSMOD] timer_interrupt [hart={}, mti={}]\n", t.hart, t.flag);
-          sysmod_timer_interrupt(t.hart, t.flag);
-        });
-}
 
 void
 sysmod::sw_interrupt(clint::sw_t s) {
@@ -427,9 +417,9 @@ sysmod::compose()
       }
       else if (type == "aclint") {
         device = std::make_unique<aclint>(tag, base, nharts, loc_);
-        cvm::registry::messenger.connect<aclint::timer_t>(
+        cvm::registry::messenger.connect<clint::timer_t>(
             loc_,
-            [&](aclint::timer_t t) { return this->timer_interrupt(t); });
+            [&](clint::timer_t t) { return this->timer_interrupt(t); });
       }
       else if (type == "trickbox") {
         device = std::make_unique<trickbox>(tag, base, nharts, loc_,masters[0]);

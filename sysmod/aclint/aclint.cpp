@@ -10,8 +10,8 @@ aclint::aclint(const std::string& tag, uint64_t addr, unsigned hartCount,
   : device(tag, addr, 0xc000 /* size */, loc, &aclint::write, &aclint::read, this), hartCount_(hartCount), soft_(hartCount),
     timeCompare_(hartCount, -1), timerIntPrev_(hartCount, 0), timer_(0)
 {
-  auto aclint_loc = cvm::topology::get_from_type("ACLINT", 0);
-  tickDivisor_ = cvm::topology::attr(aclint_loc, "CLOCK_DIVISOR").second;
+  auto clint_loc = cvm::topology::get_from_type("CLINT", 0);
+  tickDivisor_ = cvm::topology::attr(clint_loc, "CLOCK_DIVISOR").second;
   
   std::ifstream ifs;
   if (load_snapshot(ifs)) {

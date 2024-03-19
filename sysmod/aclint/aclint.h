@@ -9,6 +9,7 @@
 #include <iostream>
 #include <functional>
 #include "sysmod/device.h"
+#include "sysmod/clint/clint.h"
 #include "cvm/registry.hpp"
 
 // Define a core local interruptor (aClint) at the given address
@@ -62,10 +63,6 @@ public:
 
   virtual void tick(uint64_t advance) override;
 
-  struct timer_t {
-    unsigned hart;
-    unsigned flag;
-  };
 
 
 protected:
@@ -86,7 +83,7 @@ protected:
   // Used to assert/deassert a timer interrupt for given hart.
   virtual void timerInterrupt(unsigned hart, bool flag)
   {
-    cvm::registry::messenger.signal<timer_t>(loc(), timer_t{hart, flag});
+    cvm::registry::messenger.signal<clint::timer_t>(loc(), clint::timer_t{hart, flag});
   }
 
 
