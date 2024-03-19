@@ -267,7 +267,7 @@ void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d)
       for (auto & i : d.instrs)
         print_instr_stdout(hart, i);
       cvm::log(cvm::NONE, "{}", csr_cac_.GetStatusStr(hart));
-      // cvm::log(cvm::ERROR, "Error: Hart {}: CSR Write Mismatch - {}\n", hart, csr);
+      cvm::log(cvm::ERROR, "Error: Hart {}: CSR Write Mismatch - {}\n", hart, csr);
       return;
     }
   }
