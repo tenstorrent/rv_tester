@@ -7,6 +7,7 @@
 #include "memmap.h"
 #include "transactor.h"
 #include "clint/clint.h"
+#include "aclint/aclint.h"
 #include "htif/htif.h"
 #include "trickbox/interrupter.h"
 #include "trickbox/uc_helper.h"
@@ -52,6 +53,7 @@ class sysmod {
     void pll_info_handler(pll_xtor::pll_info_t i);
     void pm_nw_info_handler(pm_nw_xtor::pm_nw_info_t i);
     void timer_interrupt(clint::timer_t t);
+    void timer_interrupt(aclint::timer_t t);
     void sw_interrupt(clint::sw_t s);
     void dmi_write(debugger::dmi_data_t s);
     void jtag_req(jtag_driver::jtag_data_t i);

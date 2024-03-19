@@ -8,6 +8,7 @@
 #include "sysmod.h"
 #include "mem/sysmod_mem.h"
 #include "clint/clint.h"
+#include "aclint/aclint.h"
 #include "dm/dm.h"
 #include "trace_cfg/trace_cfg.h"
 #include "smc_xtor/smc_xtor.h"
@@ -91,6 +92,16 @@ sysmod::~sysmod()
 // forwarding functions for devices
 void
 sysmod::timer_interrupt(clint::timer_t t) {
+      cvm::registry::callbacks.push(
+        scope(),
+        [t]() {
+          cvm::log(cvm::FULL, "[SYSMOD] timer_interrupt [hart={}, mti={}]\n", t.hart, t.flag);
+          sysmod_timer_interrupt(t.hart, t.flag);
+        });
+}
+// forwarding functions for devices
+void
+sysmod::timer_interrupt(aclint::timer_t t) {
       cvm::registry::callbacks.push(
         scope(),
         [t]() {
@@ -413,6 +424,12 @@ sysmod::compose()
         cvm::registry::messenger.connect<clint::sw_t>(
             loc_,
             [&](clint::sw_t s) { return this->sw_interrupt(s); });
+      }
+      else if (type == "aclint") {
+        device = std::make_unique<aclint>(tag, base, nharts, loc_);
+        cvm::registry::messenger.connect<aclint::timer_t>(
+            loc_,
+            [&](aclint::timer_t t) { return this->timer_interrupt(t); });
       }
       else if (type == "trickbox") {
         device = std::make_unique<trickbox>(tag, base, nharts, loc_,masters[0]);
