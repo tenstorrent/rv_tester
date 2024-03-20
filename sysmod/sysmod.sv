@@ -140,7 +140,7 @@ import rv_tester_params::*;
     function sysmod_jtag_req (int unsigned upper_value,int unsigned lower_value,int unsigned reg_length);
        jtag_enable_begin = 1'b1;
        command = upper_value[1:0];
-       jtag_tx = {32'h0,lower_value};
+       jtag_tx = {38'h0,lower_value};
        length = reg_length[31:0];
       $display("[SYSMOD.SV] JTAG driver %h %h %h",upper_value, lower_value,reg_length);
     endfunction
@@ -176,7 +176,7 @@ import rv_tester_params::*;
 
   assign jtag_rdatas[0].valid         = read_data_valid_reg;
   assign jtag_rdatas[0].data.location = location;
-  assign jtag_rdatas[0].data.rdata     = {32'h0,jtag_rx[31:0]};//upper32 bits for future use
+  assign jtag_rdatas[0].data.rdata     = jtag_rx;//upper32 bits for future use
   assign jtag_rdatas_jtag_busy = jtag_busy ;
 
 endmodule

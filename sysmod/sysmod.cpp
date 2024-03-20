@@ -546,11 +546,12 @@ sysmod::load_boot(const std::string& boot)
   }
 }
 
-void sysmod::jtag_resp(uint64_t rdata){
+void sysmod::jtag_resp(std::bitset<70> rdata){
   //std::cout<<"Got JTAG RESP : "<<std::hex<<rdata<<"\n";
   auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0);
   //send response back to jtag driver
-  uint32_t half_rdata = rdata & 0xffffffff;
+  uint32_t half_rdata = 0xffffffff;//TODO change
+  std::vector<uint64_t> convertedArray = bitsetToUint64Array(rdata);
   cvm::registry::messenger.signal(tbox_loc, jtag_driver::jtag_req_t{0, 0,half_rdata,0});
 
 }
