@@ -1,5 +1,10 @@
+
+`define JTAG_DR_WIDTH 70
   //******** JTAG ********//
-module jtag_xtor(
+module jtag_xtor
+#(
+    parameter int JTAG_DR_WIDTH             =      70,
+)(
   input clk,
   input reset,
   input rv_tester_pkg::jtag_if_out  jtag_resp,
@@ -11,9 +16,9 @@ module jtag_xtor(
   /* verilator lint_off MULTIDRIVEN */ 
   output bit jtag_busy,
   input bit [31:0] length,
-  input  bit [63:0] jtag_tx,
+  input  bit [`JTAG_DR_WIDTH-1:0] jtag_tx,
   input  bit [63:0] misc_signals, 
-  output bit [63:0] jtag_rx
+  output bit [`JTAG_DR_WIDTH-1:0] jtag_rx
 );
 
 
@@ -149,7 +154,10 @@ always @(posedge clk) begin
       end
       UPDATE: begin
         
-        jtag_req.tdi <= 1'b0;
+        if (shiftCount == 32'd0) 
+           jtag_req.tdi <= jtag_tx[length - 1'd1];
+        else
+           jtag_req.tdi <= 1'b0;
 
         shiftCount <= shiftCount + 1;
         if (shiftCount <= 32'd1) begin
@@ -161,6 +169,7 @@ always @(posedge clk) begin
           state <= IDLE;
           shiftCount <= 0;
           jtag_busy <= 1'b0;
+        
         end
         
         read_data_valid <= 1'b0;

@@ -281,7 +281,7 @@ sysmod:
         num: 1
         fields:
             rdata:
-                width: 64
+                width: 70
 
 axi_sw:
     num: [${TOP.PLATFORM.AXI.TOTAL},${TOP.PLATFORM.NCIO_AXI.TOTAL},${TOP.PLATFORM.APLIC_MSI_AXI.TOTAL}]

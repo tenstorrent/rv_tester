@@ -4,6 +4,7 @@ import rv_tester_params::*;
     parameter int CLOCK_PERIOD_PS           =     500,
     parameter int SW_CLOCK_UPDATE_PERIOD_PS = 100_000,
     parameter int NUM                       =      -1,
+    parameter int JTAG_DR_WIDTH             =      70,
     `TOPOLOGY,
     `RV_TESTER_TRANSACTIONS_SYSMOD_OUTPUT_PARAMS
 )(
@@ -42,14 +43,14 @@ import rv_tester_params::*;
     bit        jtag_enable_d = '0;
     bit        jtag_enable_end = '0;
     bit        read_data_valid_reg;
-    bit [63:0] jtag_tx;
-    bit [63:0] jtag_rx;
+    bit [JTAG_DR_WIDTH-1 :0] jtag_tx;
+    bit [JTAG_DR_WIDTH-1 :0] jtag_rx;
     bit        jtag_busy;
     bit jtag_rdatas_jtag_busy;
     /* verilator lint_on BLKANDNBLK */
 
 
-    jtag_xtor  i_jtag_xtor(
+    jtag_xtor #(.JTAG_DR_WIDTH(JTAG_DR_WIDTH))  i_jtag_xtor(
         .clk(clk),
         .reset(reset),
         .command(command),
