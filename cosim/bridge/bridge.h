@@ -188,7 +188,8 @@ private:
   // Memmap
   memmap::memmap_t memmap_;
 
-  std::array<int, 16> num_taken_interrupts_{};
+  std::array<std::array<int, 16>, 12> num_taken_interrupts_{};
+
   int num_exceptions_ = 0;
 
   size_8_bytes_t dword_vec_array [vlen/64] = {0};

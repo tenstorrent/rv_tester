@@ -7,6 +7,7 @@
 #include "memmap.h"
 #include "transactor.h"
 #include "clint/clint.h"
+#include "aclint/aclint.h"
 #include "htif/htif.h"
 #include "trickbox/interrupter.h"
 #include "trickbox/uc_helper.h"
