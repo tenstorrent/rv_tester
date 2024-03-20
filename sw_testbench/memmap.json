@@ -3,7 +3,7 @@
   { "tag" : "clint" , "type" : "clint" , "base" : "0x00200000", "size" : "0x0000c000" },
   { "tag" : "trickbox"  , "type" : "trickbox" , "base" : "0x0000000009000000", "size" : "0x00000000000c0000" },
   { "tag" : "htif" , "type" : "htif" , "base" : "0x70000000", "size" : "0x00000010" },
-  { "tag" : "boot" , "type" : "boot" , "base" : "0x0000000000000000", "size" : "0x0000000000200000" },
+  { "tag" : "boot" , "type" : "memory" , "base" : "0x0000000000000000", "size" : "0x0000000000200000" },
   { "tag" : "io2" , "type" : "memory" , "base" : "0x000000000020c000", "size" : "0x000000006fdf4000" },
   { "tag" : "io3" , "type" : "memory" , "base" : "0x0000000070000000", "size" : "0x0000000010000000" }
 ]

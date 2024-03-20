@@ -16,6 +16,7 @@
 
 DECLARE_string(load);
 DECLARE_string(hex);
+DECLARE_bool(bootrom);
 DECLARE_string(bootrom_path);
 DECLARE_string(whisper_json_path);
 DECLARE_bool(whisper_stdin_null);
@@ -64,10 +65,10 @@ constructSystem(uint16_t ncores, bool standalone) {
 
   if (FLAGS_bootrom_path != "" || FLAGS_load != "") {
     std::vector<std::string> targets {};
+    if (FLAGS_bootrom && FLAGS_bootrom_path != "")
+      targets.push_back(FLAGS_bootrom_path);
     if (FLAGS_load != "")
       targets.push_back(FLAGS_load);
-    if (FLAGS_bootrom_path != "")
-      targets.push_back(FLAGS_bootrom_path);
     if (not system->loadElfFiles(targets, false, false))
       return nullptr;
   }
