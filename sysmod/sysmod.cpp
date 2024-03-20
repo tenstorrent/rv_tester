@@ -306,8 +306,7 @@ sysmod::terminate(htif::terminate_t t) {
 void
 sysmod::reset() {
   compose();
-  if (FLAGS_bootrom)
-    load_boot(FLAGS_bootrom_path);
+  load_boot(FLAGS_bootrom_path);
   load_prog(FLAGS_hex, FLAGS_load);
   load_io(FLAGS_load_io);
 }
@@ -340,9 +339,6 @@ sysmod::compose()
 
 
       if (type == "memory") {
-        device = std::make_unique<sysmod_mem>(tag, base, size, loc_);
-      }
-      else if (type == "boot") {
         device = std::make_unique<sysmod_mem>(tag, base, size, loc_);
       }
       else if (type == "io_dev") {
@@ -508,24 +504,21 @@ sysmod::load_io(const std::string& io)
 void
 sysmod::load_prog(const std::string& hex, const std::string& load)
 {
-  if (load != "") {
-    cvm::log(cvm::MEDIUM, "Loading {}\n", load);
-    for (const auto& d : memmap_) {
-      const auto type = d.second.type;
-      const auto tag  = d.second.tag;
-      if (type == "memory") {
-        if (not dev(tag) or not dynamic_cast<sysmod_mem&>(*dev(tag)).init_elf(load)) {
-          cvm::log(cvm::ERROR, "Failed to load program");
-          return;
-        }
+  cvm::log(cvm::MEDIUM, "Loading {}\n", load != "" ? load : hex);
+  for (const auto& d : memmap_) {
+    const auto type = d.second.type;
+    const auto tag  = d.second.tag;
+    if (load != "" && type == "memory") {
+      if (not dev(tag) or not dynamic_cast<sysmod_mem&>(*dev(tag)).init_elf(load)) {
+        cvm::log(cvm::ERROR, "Failed to load program");
+        return;
       }
     }
-  }
-  if (hex != "") {
-    cvm::log(cvm::MEDIUM, "Loading {}\n", hex);
-    if (not dev("memory") or not dynamic_cast<sysmod_mem&>(*dev("memory")).init_hex(hex)) {
-      cvm::log(cvm::ERROR, "No memory defined");
-      return;
+    if (hex != "" && type == "memory") {
+      if (not dev(tag) or not dynamic_cast<sysmod_mem&>(*dev(tag)).init_hex(hex)) {
+        cvm::log(cvm::ERROR, "No memory defined");
+        return;
+      }
     }
   }
 }
@@ -533,7 +526,7 @@ sysmod::load_prog(const std::string& hex, const std::string& load)
 void
 sysmod::load_boot(const std::string& boot)
 {
-  if (boot != "") {
+  if (FLAGS_bootrom && boot != "") {
     cvm::log(cvm::MEDIUM, "Loading {}\n", boot);
     if (boot.substr(boot.length() - 3) == "elf") {
       if (not dev("boot") or not dynamic_cast<sysmod_mem&>(*dev("boot")).init_elf(boot)) {
