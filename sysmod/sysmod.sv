@@ -15,6 +15,7 @@ import rv_tester_params::*;
     output rv_tester_pkg::aplic_interrupt_t aplic_interrupt,
     output rv_tester_pkg::dm_write_t  dmi_write,
     output rv_tester_pkg::jtag_if_t  jtag_req,
+    output rv_tester_pkg::jtag_if_tck  jtag_tck_trst,
     input rv_tester_pkg::jtag_if_out  jtag_resp,
     output rv_tester_pkg::terminate_t terminate,
     `RV_TESTER_TRANSACTIONS_SYSMOD_OUTPUT_PORTS
@@ -37,12 +38,15 @@ import rv_tester_params::*;
     bit [63:0] dm_wdata = '0;
 
     bit [1:0]  command= '0;
+    bit [31:0]  length= '0;
     bit        jtag_enable_begin = '0;
     bit        jtag_enable_d = '0;
     bit        jtag_enable_end = '0;
     bit        read_data_valid_reg;
     bit [63:0] jtag_tx;
     bit [63:0] jtag_rx;
+    bit        jtag_busy;
+    bit jtag_rdatas_jtag_busy;
     /* verilator lint_on BLKANDNBLK */
 
 
@@ -52,8 +56,11 @@ import rv_tester_params::*;
         .command(command),
         .jtag_req(jtag_req),
         .jtag_resp(jtag_resp),
+        .jtag_tck_trst(jtag_tck_trst),
+        .jtag_busy(jtag_busy),
         .jtag_enable(jtag_enable_begin),
         .read_data_valid_reg(read_data_valid_reg),
+        .length(length),
         .jtag_tx(jtag_tx),
         .jtag_rx(jtag_rx),
         .misc_signals('0)
@@ -131,11 +138,12 @@ import rv_tester_params::*;
     endfunction
     export "DPI-C"  function sysmod_dmi_write;
 
-    function sysmod_jtag_req (int unsigned upper_value,int unsigned lower_value);
+    function sysmod_jtag_req (int unsigned upper_value,int unsigned lower_value,int unsigned reg_length);
        jtag_enable_begin = 1'b1;
        command = upper_value[1:0];
        jtag_tx = {32'h0,lower_value};
-      $display("[SYSMOD.SV] JTAG driver %h %h",upper_value, lower_value);
+       length = reg_length[31:0];
+      $display("[SYSMOD.SV] JTAG driver %h %h %h",upper_value, lower_value,reg_length);
     endfunction
     export "DPI-C"  function sysmod_jtag_req;
 
@@ -170,5 +178,6 @@ import rv_tester_params::*;
   assign jtag_rdatas[0].valid         = read_data_valid_reg;
   assign jtag_rdatas[0].data.location = location;
   assign jtag_rdatas[0].data.rdata     = {32'h0,jtag_rx[31:0]};//upper32 bits for future use
+  assign jtag_rdatas_jtag_busy = jtag_busy ;
 
 endmodule

@@ -4,11 +4,14 @@ module jtag_xtor(
   input reset,
   input rv_tester_pkg::jtag_if_out  jtag_resp,
   output rv_tester_pkg::jtag_if_t   jtag_req,
+  output rv_tester_pkg::jtag_if_tck   jtag_tck_trst,
   input  bit[1:0]  command,
   input        jtag_enable,
   /* verilator lint_off MULTIDRIVEN */ 
   output reg       read_data_valid_reg,
   /* verilator lint_off MULTIDRIVEN */ 
+  output bit jtag_busy,
+  input bit [31:0] length,
   input  bit [63:0] jtag_tx,
   input  bit [63:0] misc_signals, 
   output bit [63:0] jtag_rx
@@ -23,9 +26,6 @@ typedef enum logic [1:0] {
   UPDATE = 2'b11
 } fsm_state_t;
 
-parameter DR_WIDTH = 32'd32;
-parameter IR_WIDTH = 32'd4;
-
 
   logic read_data_valid = '0;
   bit [31:0] counter = '0;
@@ -35,15 +35,14 @@ parameter IR_WIDTH = 32'd4;
   bit jtag_req_begin = '0;
   bit jtag_req_begin_d = '0;
   bit[1:0]  command_l = '0;
-  bit i_en = '0;
 
   bit [1:0]  state= 2'b10;
   bit [31:0] shiftCount= '0;
   bit ir ='0;
   bit dr ='0;
 
-  assign jtag_req.tck = clk;
-  assign jtag_req.trst = reset;
+  assign jtag_tck_trst.tck = clk;
+  assign jtag_tck_trst.trst = reset;
 
 
 always @(posedge clk) begin
@@ -78,7 +77,7 @@ always @(posedge clk) begin
         end 
         if(delay_counter < 32'd10) begin
           delay_counter <= delay_counter + 32'b1;
-          i_en <= 1'b1;
+          jtag_busy <= 1'b1;
         end
         if (jtag_req_begin && delay_counter >= 32'd10) begin 
           // Interpret command and data, set state accordingly
@@ -86,25 +85,25 @@ always @(posedge clk) begin
           case (command_l)
             2'b10: begin
                     state <= IDLE;
-                    i_en <= 1'b0;
+                    jtag_busy <= 1'b0;
                   end
             2'b01: begin
                     state <= SHIFT_DR; // to configure dr
-                    i_en <= 1'b1;
+                    jtag_busy <= 1'b1;
                   end
             2'b00:begin
                    state <= SHIFT_IR; // to configure ir
-                   i_en <= 1'b1;
+                   jtag_busy <= 1'b1;
                   end
             2'b11:begin 
                     state <= UPDATE;
-                    i_en <= 1'b1;
+                    jtag_busy <= 1'b1;
                   end
             default: state <= IDLE;
           endcase
         end
         else begin
-          i_en <= 1'b0;
+          jtag_busy <= 1'b0;
         end
       end
       SHIFT_DR: begin
@@ -117,12 +116,12 @@ always @(posedge clk) begin
 
         dr <=  1'b1;
         
-        if(shiftCount >= 32'd2) begin
+        if(shiftCount >= 32'd3) begin
           read_data_valid<= 1'b1;
-          jtag_req.tdi <= jtag_tx[shiftCount-2];
+          jtag_req.tdi <= jtag_tx[shiftCount-3];
         end
         shiftCount <= shiftCount + 1;
-        if (shiftCount == 32'd1 + DR_WIDTH) begin
+        if (shiftCount == 32'd2 + length -1'd1) begin
           state <= UPDATE;
           command_l <= UPDATE;
           shiftCount <=0;
@@ -135,15 +134,15 @@ always @(posedge clk) begin
         else begin
           jtag_req.tms <= 0;
         end
-        if(shiftCount >= 32'd3) begin
+        if(shiftCount >= 32'd4) begin
           read_data_valid<= 1'b1;
-          jtag_req.tdi <= jtag_tx[shiftCount-3];
+          jtag_req.tdi <= jtag_tx[shiftCount-4];
         end
 
         ir <=  1'b1;
         
         shiftCount <= shiftCount + 1;
-        if (shiftCount == 32'd2 + IR_WIDTH) begin
+        if (shiftCount == 32'd3 + length -1'd1) begin
           state <= UPDATE;
           command_l <= UPDATE;
           shiftCount <=0;
@@ -154,14 +153,15 @@ always @(posedge clk) begin
         jtag_req.tdi <= 1'b0;
 
         shiftCount <= shiftCount + 1;
-        if (shiftCount <= 32'd4) begin
+        if (shiftCount <= 32'd1) begin
           jtag_req.tms <= 1'b1;
         end
 
-        if (shiftCount == 32'd5) begin
+        if (shiftCount == 32'd2) begin
           jtag_req.tms <= 1'b0;
           state <= IDLE;
           shiftCount <= 0;
+          jtag_busy <= 1'b0;
         end
         
         read_data_valid <= 1'b0;

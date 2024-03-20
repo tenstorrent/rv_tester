@@ -272,6 +272,7 @@ module rv_tester
         .dmi_write(trickbox_dmi_write),
         .interrupt,
         .jtag_req,
+        .jtag_tck_trst,
         .jtag_resp,
         .aplic_interrupt,
         .terminate(sysmod_terminate),
@@ -418,7 +419,7 @@ module rv_tester
           .pmci(pmci[p]),
           .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
           .terminate,
-          `RV_TESTER_TRANSACTIONS_PMU_SOURCE_PORTS(2, p, 0)
+          `RV_TESTER_TRANSACTIONS_PMU_SOURCE_PORTS(1, p, 0)
       );
     end
 

@@ -77,8 +77,8 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
     std::string traceFile = FLAGS_whisper_log ? "iss_cosim.log" : "";
     std::string commandLog = FLAGS_whisper_log ? "iss_cmd.log" : "";
     cosim_resynch_csr_defaults = {
-      "htval","mtval2","mtinst","htinst","vstart","vxsat","vxrm","vcsr","sstatus","mstatus","mie","hie","vsie","sie","fflags","fcsr","tselect","tdata1","tdata2","tdata3","mcontext", // open bugs: RVDE: 10005 (mtinst/htinst), RVDE: 11217 (vectors), RVDE: 10043 (mtval2/htval), RVDE: 8849 (mstatus/mie aliases), RVDE: 7518 (Debug CSRs)
-      "mip","hip","vsip","hvip","sip","mcycle","mireg","sireg","vtype" // permanantly excluded
+      "htval","mtval2","mtinst","htinst","vstart","vxsat","vxrm","vcsr","sstatus","mstatus","mie","hie","vsie","sie","fflags","fcsr","tselect","tdata1","tdata2","tdata3","mcontext","pma","pmp", // open bugs: RVDE: 10005 (mtinst/htinst), RVDE: 11217 (vectors), RVDE: 10043 (mtval2/htval), RVDE: 8849 (mstatus/mie aliases), RVDE: 7518 (Debug CSRs)
+      "mip","hip","vsip","hvip","sip","mcycle","mireg","sireg","vsireg","vtype" // permanantly excluded
     };
     std::istringstream iss(FLAGS_cosim_resynch_csr);
     std::string token;
@@ -260,7 +260,7 @@ void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d)
       resynch(hart, d);
     } else {
       for (const auto& token_csr : cosim_resynch_csr_defaults) {
-        if (token_csr == csr){
+        if (csr.find(token_csr) != std::string::npos){
           return;
         }
       }
@@ -415,7 +415,7 @@ void bridge::process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, wh
           all_interrupts_defer_ = false;
   } 
 
-  if (w.disasm.find("ret") != std::string::npos) {
+  if ((w.disasm.find("mret") != std::string::npos) || (w.disasm.find("sret") != std::string::npos)) {
       if(prev_mip_ != mip_) {
         check_and_defer_interrupt(hart, d.cycle, ~prev_mip_ & mip_);
       }
@@ -890,7 +890,8 @@ bool bridge::is_compressed(const std::string& instr) {
 }
 
 bool bridge::is_ucode(const std::string& instr) {
-  if ((instr.find("ret") != std::string::npos) ||
+  if ((instr.find("mret") != std::string::npos) ||
+      (instr.find("sret") != std::string::npos) ||
       (instr.find("ecall") != std::string::npos) ||
       (instr.find("ebreak") != std::string::npos))
     return true;
@@ -933,6 +934,11 @@ bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const std::
     log(cvm::MEDIUM, "<{}> Resynch: Reason=[imsic_mismatch]\n", d.cycle);
     return true;
   }
+  // Case #8
+  if (unsupported_mmr_access(d)) {
+    log(cvm::MEDIUM, "<{}> Resynch: Reason=[mmr_access]\n", d.cycle);
+    return true;
+  }
   return false;
 }
 
@@ -971,6 +977,14 @@ bool bridge::debug_mem_access(const rv_instr_t& d){
       ((d.mem_read.pa < FLAGS_debug_entry_pc) ||
       ((d.mem_read.pa > FLAGS_debug_exit_pc) && (d.mem_read.pa <=0x1000)))
       )
+    return true;
+  return false;
+}
+
+bool bridge::unsupported_mmr_access(const rv_instr_t& d){
+  if (d.mem_read.valid &&
+      d.mem_read.pa >= mmr_lo_addr &&
+      d.mem_read.pa < mmr_hi_addr)
     return true;
   return false;
 }

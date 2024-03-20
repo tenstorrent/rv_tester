@@ -16,6 +16,8 @@
 #include "scratchpad_xtor/scratchpad_xtor.h"
 #include "trace_cfg/trace_cfg.h"
 #include "smc_xtor/smc_xtor.h"
+#include "pll_xtor/pll_xtor.h"
+#include "pm_nw_xtor/pm_nw_xtor.h"
 #include "cvm/topology.hpp"
 
 #include <string>
@@ -47,6 +49,8 @@ class sysmod {
   protected:
     void trace_info_handler(trace_cfg::trace_info_t i);
     void smc_info_handler(smc_xtor::smc_info_t i);
+    void pll_info_handler(pll_xtor::pll_info_t i);
+    void pm_nw_info_handler(pm_nw_xtor::pm_nw_info_t i);
     void timer_interrupt(clint::timer_t t);
     void sw_interrupt(clint::sw_t s);
     void dmi_write(debugger::dmi_data_t s);
