@@ -137,10 +137,10 @@ import rv_tester_params::*;
     endfunction
     export "DPI-C"  function sysmod_dmi_write;
 
-    function sysmod_jtag_req (int unsigned upper_value,int unsigned lower_value,int unsigned reg_length);
+    function sysmod_jtag_req (int unsigned jtag_cmd_ip,longint upper_value,longint lower_value,int unsigned reg_length);
        jtag_enable_begin = 1'b1;
-       command = upper_value[1:0];
-       jtag_tx = {38'h0,lower_value};
+       command = jtag_cmd_ip[1:0];
+       jtag_tx = {upper_value[5:0],lower_value};
        length = reg_length[31:0];
       $display("[SYSMOD.SV] JTAG driver %h %h %h",upper_value, lower_value,reg_length);
     endfunction

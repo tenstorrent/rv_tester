@@ -126,13 +126,24 @@ void jtag_driver::parse_jtag_from_csv()
       std::cout<<" JTAG INP : row0:"<<row[0]<<" row1 "<<row[1]<<" row2 "<<row[2]<<"\n";
       // cvm::log(cvm::HIGH, "[jtag_driver] length {:#x}\n",length);
       std::cout<<" JTAG INP : instr:"<<instr<<" instr2char "<<jtag_cmd<<" data: "<<data_s<<" length: "<<length<<"\n";
+      //check data length
+      unsigned data_len = data_s.length();
+      if(data_len>16){
+       std::string data_s_upper = data_s.substr(0, data_len-16);
+       std::string data_s_lower = data_s.substr(data_len-16, data_len);
       try{
-        jtag_req.jtag_ip_data = std::stoul(data_s,nullptr,16);
+        jtag_req.jtag_ip_data_lower = std::stoul(data_s_lower,nullptr,16);
         
       } catch (const std::invalid_argument& e) {
           std::cerr << "[JTAG DRIVER] Invalid argument for stoul csv arg 1: " << e.what() << std::endl;
       }
-
+      try{
+        jtag_req.jtag_ip_data_upper = std::stoul(data_s_upper,nullptr,16);
+        
+      } catch (const std::invalid_argument& e) {
+          std::cerr << "[JTAG DRIVER] Invalid argument for stoul csv arg 1: " << e.what() << std::endl;
+      }
+      }
       try{
         jtag_req.jtag_length_data = std::stoul(length,nullptr,10);
         
@@ -163,16 +174,18 @@ void jtag_driver::drive_csv_jtag_cmds()
     jtag_req = jtag_cmd_q.front();
     jtag_cmd_q.pop(); // pop front eleme7t
    // cvm::log(cvm::MEDIUM, "Popping jtag request: op {} addr {:#x} data {:#x} func bits {:#x}\n", jtag_req.op, jtag_req.addr, jtag_req.data, jtag_req.func_bits);
-    unsigned upper_jtag_data = 0;
-    unsigned lower_jtag_data = 0;
+    unsigned jtag_cmd = 0;
+    unsigned long  upper_jtag_data = 0;
+    unsigned long lower_jtag_data = 0;
     unsigned reg_length_data = 0;
     unsigned hart = 0;
-    upper_jtag_data = jtag_req.jtag_cmd;
-    lower_jtag_data = jtag_req.jtag_ip_data;
+    jtag_cmd = jtag_req.jtag_cmd;
+    upper_jtag_data = jtag_req.jtag_ip_data_upper;
+    lower_jtag_data = jtag_req.jtag_ip_data_lower;
     reg_length_data = jtag_req.jtag_length_data;
     std::cout<<" JTAG INP : jtag_req.jtag_length_data:"<<jtag_req.jtag_length_data<<" reg_length_data "<<reg_length_data<<"\n";
     hart = 0; // hart bits position TBD, till TBD it is always zero
-    trickboxJtagWrite(hart, upper_jtag_data, lower_jtag_data,reg_length_data);
+    trickboxJtagWrite(hart, jtag_cmd, upper_jtag_data, lower_jtag_data,reg_length_data);
   }
   else
   {
@@ -228,14 +241,15 @@ void jtag_driver::write(uint64_t addr, size_t, const data_t &data,
   deserializeInt(data, t_data);
   if (addr == jtag_driver_base)
   {
-    unsigned upper_jtag_data = 0;
-    unsigned lower_jtag_data = 0;
-    unsigned reg_length_data = 0;
-    unsigned hart = 0;
-    upper_jtag_data = t_data >> 32;
-    lower_jtag_data = t_data & 0xffffffff;
-    hart = 0;                                               // hart bits position TBD, till TBD it is always zero
-    trickboxJtagWrite(hart, upper_jtag_data, lower_jtag_data,reg_length_data); // Commented until jtag PORT is not in master
+    cvm::log(cvm::MEDIUM, "[Trickbox] jtag_driver BASE ADDR WRITTEN\n");
+    // unsigned upper_jtag_data = 0;
+    // unsigned lower_jtag_data = 0;
+    // unsigned reg_length_data = 0;
+    // unsigned hart = 0;
+    // upper_jtag_data = t_data >> 32;
+    // lower_jtag_data = t_data & 0xffffffff;
+    // hart = 0;                                               // hart bits position TBD, till TBD it is always zero
+    //trickboxJtagWrite(hart, upper_jtag_data, lower_jtag_data,reg_length_data); // Commented until jtag PORT is not in master
   }
 
   if (addr == jtag_driver_trigger && !FLAGS_random_jtag_entry)
