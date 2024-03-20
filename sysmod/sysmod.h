@@ -44,7 +44,7 @@ class sysmod {
     void jtag_resp(uint64_t rdata);
     void compose();
     void load_boot(const std::string& boot);
-    void load_prog(const std::string& hex, const std::string& load);
+    void load_prog(const std::string& hex, const std::string& load, const std::string& lz4);
     void load_io(const std::string& io);
 
   protected:
