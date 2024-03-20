@@ -15,6 +15,7 @@ import rv_tester_params::*;
     output rv_tester_pkg::aplic_interrupt_t aplic_interrupt,
     output rv_tester_pkg::dm_write_t  dmi_write,
     output rv_tester_pkg::jtag_if_t  jtag_req,
+    output rv_tester_pkg::jtag_if_tck  jtag_tck_trst,
     input rv_tester_pkg::jtag_if_out  jtag_resp,
     output rv_tester_pkg::terminate_t terminate,
     `RV_TESTER_TRANSACTIONS_SYSMOD_OUTPUT_PORTS
@@ -55,6 +56,7 @@ import rv_tester_params::*;
         .command(command),
         .jtag_req(jtag_req),
         .jtag_resp(jtag_resp),
+        .jtag_tck_trst(jtag_tck_trst),
         .jtag_busy(jtag_busy),
         .jtag_enable(jtag_enable_begin),
         .read_data_valid_reg(read_data_valid_reg),
