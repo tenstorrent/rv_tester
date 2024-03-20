@@ -272,6 +272,7 @@ module rv_tester
         .dmi_write(trickbox_dmi_write),
         .interrupt,
         .jtag_req,
+        .jtag_tck_trst,
         .jtag_resp,
         .aplic_interrupt,
         .terminate(sysmod_terminate),

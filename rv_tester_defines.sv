@@ -840,6 +840,7 @@ package rv_tester_params;
     input  rv_tester_pkg::aplic_interrupt_t  aplic_interrupt,                                       \
     input  rv_tester_pkg::dm_write_t         dmi_write,                                             \
     input  rv_tester_pkg::jtag_if_t          jtag_req,                                              \
+    input  rv_tester_pkg::jtag_if_tck        jtag_tck_trst,                                         \
     output  rv_tester_pkg::jtag_if_out       jtag_resp,                                             \
     output                                   dmi_req_ready,                                         \
     output                                   dmi_resp_valid,                                        \
@@ -906,6 +907,7 @@ package rv_tester_params;
     logic                                    quiesced;                                              \
     rv_tester_pkg::dm_write_t                dmi_write;                                             \
     rv_tester_pkg::jtag_if_t                 jtag_req;                                              \
+    rv_tester_pkg::jtag_if_tck               jtag_tck_trst;                                         \
     rv_tester_pkg::jtag_if_out               jtag_resp;                                             \
     logic                                    dmi_req_ready;                                         \
     logic                                    dmi_resp_valid;                                        \
