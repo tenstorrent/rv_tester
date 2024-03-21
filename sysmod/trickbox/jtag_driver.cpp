@@ -144,6 +144,15 @@ void jtag_driver::parse_jtag_from_csv()
           std::cerr << "[JTAG DRIVER] Invalid argument for stoul csv arg 1: " << e.what() << std::endl;
       }
       }
+      else {
+         try{
+           jtag_req.jtag_ip_data_lower = std::stoul(data_s,nullptr,16);
+           jtag_req.jtag_ip_data_upper = 0;
+           
+         } catch (const std::invalid_argument& e) {
+             std::cerr << "[JTAG DRIVER] Invalid argument for stoul csv arg 1: " << e.what() << std::endl;
+         }
+      }
       try{
         jtag_req.jtag_length_data = std::stoul(length,nullptr,10);
         
