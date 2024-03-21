@@ -628,6 +628,8 @@ package rv_tester_params;
         MHARTID,
         MCONFIGPTR,
         MTOPI,
+        MTINST,
+        CMCTHRCFG0,
         CSR_COUNT
     } csr_list_t;
     typedef struct packed {
