@@ -44,7 +44,7 @@ extern "C" {
   void sysmod_aplic_dir_interrupt(unsigned long* i) ;
   void sysmod_aplic_rnd_interrupt(unsigned hartid, unsigned val, unsigned int_val);
   void sysmod_dmi_write(unsigned hartid, unsigned upper_val, unsigned lower_val);
-  void sysmod_jtag_req(unsigned upper_val, unsigned lower_val, unsigned length);
+  void sysmod_jtag_req(unsigned cmd,unsigned long upper_val, unsigned long lower_val, unsigned length);
   void sysmod_terminate();
 }
 
@@ -282,7 +282,7 @@ sysmod::jtag_req(jtag_driver::jtag_data_t i) {
       scope(),
       [i]() {
         cvm::log(cvm::FULL, "[SYSMOD] trickbox jtag_driver::dmi.(upper,lower) = {:#x}, {:#x}\n",i.upper_jtag_data, i.lower_jtag_data, i.jtag_length_data);
-        sysmod_jtag_req(i.upper_jtag_data, i.lower_jtag_data,i.jtag_length_data);
+        sysmod_jtag_req(i.jtag_cmd, i.upper_jtag_data, i.lower_jtag_data,i.jtag_length_data);
       });
 }
 
@@ -570,12 +570,13 @@ sysmod::load_boot(const std::string& boot)
   }
 }
 
-void sysmod::jtag_resp(uint64_t rdata){
+void sysmod::jtag_resp(std::bitset<70> rdata){
   //std::cout<<"Got JTAG RESP : "<<std::hex<<rdata<<"\n";
   auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0);
   //send response back to jtag driver
-  uint32_t half_rdata = rdata & 0xffffffff;
-  cvm::registry::messenger.signal(tbox_loc, jtag_driver::jtag_req_t{0, 0,half_rdata,0});
+  uint32_t half_rdata = 0xffffffff;//TODO change
+  std::vector<uint64_t> convertedArray = bitsetToUint64Array(rdata);
+  cvm::registry::messenger.signal(tbox_loc, jtag_driver::jtag_req_t{0, 0,0,half_rdata,0});
 
 }
 void
