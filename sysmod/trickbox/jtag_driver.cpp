@@ -123,7 +123,7 @@ void jtag_driver::parse_jtag_from_csv()
       data_s.erase(std::remove_if(data_s.begin(), data_s.end(), ::isspace), data_s.end());
       // convert string to lowercase for uniformity
       std::transform(data_s.begin(), data_s.end(), data_s.begin(), ::tolower);
-      std::cout<<" JTAG INP : row0:"<<row[0]<<" row1 "<<row[1]<<" row2 "<<row[2]<<"\n";
+      //std::cout<<" JTAG INP : row0:"<<row[0]<<" row1 "<<row[1]<<" row2 "<<row[2]<<"\n";
       // cvm::log(cvm::HIGH, "[jtag_driver] length {:#x}\n",length);
       std::cout<<" JTAG INP : instr:"<<instr<<" instr2char "<<jtag_cmd<<" data: "<<data_s<<" length: "<<length<<"\n";
       //check data length

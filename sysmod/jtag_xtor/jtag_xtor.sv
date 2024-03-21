@@ -8,6 +8,7 @@ module jtag_xtor
   input reset,
   input rv_tester_pkg::jtag_if_out  jtag_resp,
   output rv_tester_pkg::jtag_if_t   jtag_req,
+  output rv_tester_pkg::jtag_if_tck   jtag_tck_trst,
   input  bit[1:0]  command,
   input        jtag_enable,
   /* verilator lint_off MULTIDRIVEN */ 
@@ -44,8 +45,8 @@ typedef enum logic [1:0] {
   bit ir ='0;
   bit dr ='0;
 
-  assign jtag_req.tck = clk;
-  assign jtag_req.trst = reset;
+  assign jtag_tck_trst.tck = clk;
+  assign jtag_tck_trst.trst = reset;
 
 
 always @(posedge clk) begin

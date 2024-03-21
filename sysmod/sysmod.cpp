@@ -8,6 +8,7 @@
 #include "sysmod.h"
 #include "mem/sysmod_mem.h"
 #include "clint/clint.h"
+#include "aclint/aclint.h"
 #include "dm/dm.h"
 #include "trace_cfg/trace_cfg.h"
 #include "smc_xtor/smc_xtor.h"
@@ -25,6 +26,8 @@
 // internal flags
 DEFINE_string(hex, "", "hex file (program) to load into memory");
 DEFINE_string(load, "", "elf file (program) to load into memory");
+DEFINE_string(load_lz4, "", "lz4 compressed file (program) to load into memory");
+DEFINE_bool(bootrom, true, "Load bootrom before test");
 DEFINE_string(bootrom_path, "", "Path to bootrom object file");
 DEFINE_string(load_io, "", "load specified io dev with content from memory");
 DEFINE_bool(sysmod_tick_async, true, "Asynchronous sysmod_tick calls");
@@ -306,7 +309,7 @@ void
 sysmod::reset() {
   compose();
   load_boot(FLAGS_bootrom_path);
-  load_prog(FLAGS_hex, FLAGS_load);
+  load_prog(FLAGS_hex, FLAGS_load, FLAGS_load_lz4);
   load_io(FLAGS_load_io);
 }
 
@@ -338,9 +341,6 @@ sysmod::compose()
 
 
       if (type == "memory") {
-        device = std::make_unique<sysmod_mem>(tag, base, size, loc_);
-      }
-      else if (type == "boot") {
         device = std::make_unique<sysmod_mem>(tag, base, size, loc_);
       }
       else if (type == "io_dev") {
@@ -413,6 +413,12 @@ sysmod::compose()
         cvm::registry::messenger.connect<clint::sw_t>(
             loc_,
             [&](clint::sw_t s) { return this->sw_interrupt(s); });
+      }
+      else if (type == "aclint") {
+        device = std::make_unique<aclint>(tag, base, nharts, loc_);
+        cvm::registry::messenger.connect<clint::timer_t>(
+            loc_,
+            [&](clint::timer_t t) { return this->timer_interrupt(t); });
       }
       else if (type == "trickbox") {
         device = std::make_unique<trickbox>(tag, base, nharts, loc_,masters[0]);
@@ -504,26 +510,36 @@ sysmod::load_io(const std::string& io)
 }
 
 void
-sysmod::load_prog(const std::string& hex, const std::string& load)
+sysmod::load_prog(const std::string& hex, const std::string& load, const std::string& lz4)
 {
-  if (load != "") {
-    cvm::log(cvm::MEDIUM, "Loading {}\n", load);
-    for (const auto& d : memmap_) {
-      const auto type = d.second.type;
-      const auto tag  = d.second.tag;
-      if (type == "memory") {
-        if (not dev(tag) or not dynamic_cast<sysmod_mem&>(*dev(tag)).init_elf(load)) {
-          cvm::log(cvm::ERROR, "Failed to load program");
-          return;
-        }
+  for (const auto& d : memmap_) {
+    const auto type = d.second.type;
+    const auto tag  = d.second.tag;
+    if (load != "" && type == "memory") {
+      cvm::log(cvm::MEDIUM, "Loading {}\n", load);
+      if (not dev(tag) or not dynamic_cast<sysmod_mem&>(*dev(tag)).init_elf(load)) {
+        cvm::log(cvm::ERROR, "Failed to load program");
+        return;
       }
+      cvm::log(cvm::MEDIUM, "Loading {} complete\n", load);
     }
-  }
-  if (hex != "") {
-    cvm::log(cvm::MEDIUM, "Loading {}\n", hex);
-    if (not dev("memory") or not dynamic_cast<sysmod_mem&>(*dev("memory")).init_hex(hex)) {
-      cvm::log(cvm::ERROR, "No memory defined");
-      return;
+
+    if (hex != "" && type == "memory") {
+      cvm::log(cvm::MEDIUM, "Loading {}\n", hex);
+      if (not dev(tag) or not dynamic_cast<sysmod_mem&>(*dev(tag)).init_hex(hex)) {
+        cvm::log(cvm::ERROR, "No memory defined");
+        return;
+      }
+      cvm::log(cvm::MEDIUM, "Loading {} complete\n", hex);
+    }
+
+    if (lz4 != "") {
+      cvm::log(cvm::MEDIUM, "Loading {}\n", lz4);
+      if (not dev("memory") or not dynamic_cast<sysmod_mem&>(*dev("memory")).init_lz4(lz4)) {
+        cvm::log(cvm::ERROR, "No memory defined");
+        return;
+      }
+      cvm::log(cvm::MEDIUM, "Loading {} complete\n", lz4);
     }
   }
 }
@@ -531,11 +547,19 @@ sysmod::load_prog(const std::string& hex, const std::string& load)
 void
 sysmod::load_boot(const std::string& boot)
 {
-  if (boot != "") {
+  if (FLAGS_bootrom && boot != "") {
     cvm::log(cvm::MEDIUM, "Loading {}\n", boot);
-    if (not dev("boot") or not dynamic_cast<sysmod_mem&>(*dev("boot")).init_elf(boot)) {
-      cvm::log(cvm::ERROR, "No boot defined");
-      return;
+    if (boot.substr(boot.length() - 3) == "elf") {
+      if (not dev("boot") or not dynamic_cast<sysmod_mem&>(*dev("boot")).init_elf(boot)) {
+        cvm::log(cvm::ERROR, "No boot defined");
+        return;
+      }
+    }
+    if (boot.substr(boot.length() - 3) == "hex") {
+      if (not dev("boot") or not dynamic_cast<sysmod_mem&>(*dev("boot")).init_hex(boot)) {
+        cvm::log(cvm::ERROR, "No boot defined");
+        return;
+      }
     }
     // Write hart_enable_mask for bootrom to access
     device::data_t data(8);

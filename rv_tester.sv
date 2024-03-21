@@ -272,6 +272,7 @@ module rv_tester
         .dmi_write(trickbox_dmi_write),
         .interrupt,
         .jtag_req,
+        .jtag_tck_trst,
         .jtag_resp,
         .aplic_interrupt,
         .terminate(sysmod_terminate),
@@ -395,6 +396,27 @@ module rv_tester
         //.axi_resp_mst('0),
         .misc_signals('0),
         `RV_TESTER_TRANSACTIONS_APLIC_MONITOR_SOURCE_PORTS(1,0,0)
+    );
+
+    aclint_checker #(
+        .NUM(0),
+        `TOPOLOGY_CFG,
+        `RV_TESTER_TRANSACTIONS_ACLINT_CHECKER_SOURCE_PARAMS(0)
+    ) i_aclint_checker(
+        .tb_clk(clk[TB_CLK_IDX]),
+        .cl_clk(clk[CORE_CLK_IDX]),
+        .rf_clk(clk[REF_CLK_IDX]),
+        .reset(sysmod_reset),
+        .dut_reset(reset[RESET_IDX]),
+        .terminate,
+        .AcCrSynci(AcCrSynci),
+        .AcReqPkti(AcReqPkti),
+        .AcReqPktRfClki(AcReqPktRfClki),
+        .rvfi(rvfi),
+        .mcmi_bypass(mcmi_bypass),
+        .AcMtimei(AcMtimei),
+        .AcMtipi(AcMtipi),
+        `RV_TESTER_TRANSACTIONS_ACLINT_CHECKER_SOURCE_PORTS(1,0,0)
     );
 
     always_comb begin

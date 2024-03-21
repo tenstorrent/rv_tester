@@ -7,6 +7,7 @@
 #include "memmap.h"
 #include "transactor.h"
 #include "clint/clint.h"
+#include "aclint/aclint.h"
 #include "htif/htif.h"
 #include "trickbox/interrupter.h"
 #include "trickbox/uc_helper.h"
@@ -43,7 +44,7 @@ class sysmod {
     void jtag_resp(std::bitset<70> rdata);
     void compose();
     void load_boot(const std::string& boot);
-    void load_prog(const std::string& hex, const std::string& load);
+    void load_prog(const std::string& hex, const std::string& load, const std::string& lz4);
     void load_io(const std::string& io);
     // Function to convert a bitset to an array of uint64_t
   //   std::vector<uint64_t> bitsetToUint64Array(const std::bitset<70>& bs) {
