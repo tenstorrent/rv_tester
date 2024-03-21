@@ -15,10 +15,7 @@ REGISTRY_register((axi_sw<rv_tester_transactions::axi_sw::w<1>,
                          rv_tester_transactions::axi_sw::ar<1>,
                          rv_tester_transactions::axi_sw::r_q_ptr<1>>), NCIO_AXI, cvm::registry::all);
 
-REGISTRY_register((axi_sw<rv_tester_transactions::axi_sw::w<2>,
-                         rv_tester_transactions::axi_sw::aw<2>,
-                         rv_tester_transactions::axi_sw::ar<2>,
-                         rv_tester_transactions::axi_sw::r_q_ptr<2>>), APLIC_MSI_AXI, cvm::registry::all);
+
 
 extern "C" {
 

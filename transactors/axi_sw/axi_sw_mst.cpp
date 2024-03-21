@@ -30,9 +30,9 @@ REGISTRY_register((axi_sw_mst<rv_tester_transactions::axi_sw_mst::b<3>,
 
 REGISTRY_register((axi_sw_mst<rv_tester_transactions::axi_sw_mst::b<4>,
                               rv_tester_transactions::axi_sw_mst::r<4>,
-                              rv_tester_transactions::axi_sw_mst::ar_q_ptr<5>,
-                              rv_tester_transactions::axi_sw_mst::aw_q_ptr<5>,
-                              rv_tester_transactions::axi_sw_mst::w_q_ptr<5>>), PM_NW_AXI_MST, cvm::registry::all);
+                              rv_tester_transactions::axi_sw_mst::ar_q_ptr<4>,
+                              rv_tester_transactions::axi_sw_mst::aw_q_ptr<4>,
+                              rv_tester_transactions::axi_sw_mst::w_q_ptr<4>>), PM_NW_AXI_MST, cvm::registry::all);
 
 
 extern "C" {
