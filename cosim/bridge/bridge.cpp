@@ -119,6 +119,8 @@ void bridge::reset() {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed to poke boot memory\n", id_);
     return;
   }
+  resetsstc(id_,0,0x14d);
+  resetsstc(id_,0,0x24d);
 }
 
 void bridge::csr_init() {
@@ -132,6 +134,21 @@ void bridge::csr_init() {
     update_csr(id_, src_t::dut, csr.address, data, cac_mask);
     update_csr(id_, src_t::iss, csr.address, data, cac_mask);
     csr_cac_.Step(id_, false);
+  }
+}
+
+void bridge::setsstc(hart_id_t hart, uint64_t cycle, uint64_t csr) {
+  bool valid;
+  if (!client_->whisperPoke(hart, cycle, 'c', csr, 0, valid)) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: Failed to poke timecmp csr\n", id_);
+    return;
+  }
+}
+void bridge::resetsstc(hart_id_t hart, uint64_t cycle, uint64_t csr) {
+  bool valid;
+  if (!client_->whisperPoke(hart, cycle, 'c', csr, 0xffffffff, valid)) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: Failed to poke timecmp csr\n", id_);
+    return;
   }
 }
 
@@ -338,6 +355,7 @@ void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whi
   check_interrupt(hart, undeferred_mip, pre_undeferred_intr_, undeferred_w_cause);
   }
   }
+  log(cvm::MEDIUM, "pre step mip is {}\n", mip_);
   if (!mip_)
     return;
 
@@ -424,6 +442,13 @@ void bridge::process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, wh
         check_and_defer_interrupt(hart, d.cycle, ~prev_mip_ & mip_);
       }
         prev_sync_intr_ = true; // This will waive cases when after execution of mret there exists a csr operation which needs to be interrupted.
+  }
+    cvm::log(cvm::MEDIUM, "pokedvals v {} s {}\n", vstimecmppoked_, stimecmppoked_);
+  if (w.disasm.find("vsstimecmp") != std::string::npos)  { 
+    if (!vstimecmppoked_) resetsstc(hart,d.cycle, 0x24d); else setsstc(hart,d.cycle, 0x24d);
+  } else if (w.disasm.find("stimecmp") != std::string::npos) {
+    if (w.priv_mode == 9) {if (!vstimecmppoked_) resetsstc(hart,d.cycle, 0x24d); else setsstc(hart,d.cycle, 0x24d);}
+    else if (!stimecmppoked_)  resetsstc(hart,d.cycle, 0x14d); else setsstc(hart,d.cycle, 0x14d);
   }
   }
 
@@ -836,14 +861,14 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_
 
       if (w.address == 0x344) {
         mip_ = w.value;
-        e_mip_ = w.value & 0xa00;
+        e_mip_ = w.value & 0x1e00;
         log(cvm::MEDIUM, "<{}> Zicsr write based interrupt: mip {:#x}\n", w.time, w.value);
       }
       // Whisper is not doing recordwrite of mip if change happens to it through sip, *ireg, *topei
       if (w.address == 0x144) {
         uint64_t sip_mask=0x222;
         mip_ = (w.value & sip_mask) | (mip_ & ~sip_mask);
-        e_mip_ = mip_ & 0xa00;
+        e_mip_ = mip_ & 0x1e00;
         log(cvm::MEDIUM, "<{}> Zicsr write based interrupt: mip {:#x}\n", w.time, w.value);
       }
       for (size_t i = 0; i < csrsupdatingmip.size(); ++i) {
@@ -1020,6 +1045,7 @@ bool bridge::hpm_counter_read(const std::string& instr) {
   if ((instr.find("hpmcounter") != std::string::npos) ||
       (instr.find("instret") != std::string::npos) ||
       (instr.find("time") != std::string::npos) ||
+      (instr.find("stimecmp") != std::string::npos) ||
       (instr.find("cycle") != std::string::npos))
     return true;
   return false;
@@ -1246,17 +1272,17 @@ void bridge::translation_check(hart_id_t hart, const rv_instr_t& d, whisper_stat
 
 // Interrupts
 void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
-  if (i.mip_mask & 0xa00) {
+  if (i.mip_mask & 0x1e00) {
     process_external_interrupt(hart, i);
   } 
-  if (i.mip_mask & 0xaa) {
+  if (i.mip_mask & 0xee) {
     process_timer_sw_interrupt(hart, i);
   }
 }
 
 void bridge::process_external_interrupt(hart_id_t hart, rv_intr_t& i) {
     mip_ = (i.mip & i.mip_mask) | (mip_ & ~i.mip_mask);
-    e_mip_ = mip_ & 0xa00;
+    e_mip_ = mip_ & 0x1e00;
     check_and_defer_interrupt(hart, i.cycle, i.mip_assert);
   log(cvm::MEDIUM, "<{}> External interrupt: Hart {} mip {:#x} mask {:#x} assert {:#x}\n", hart, i.cycle, i.mip, i.mip_mask, i.mip_assert);
 }
@@ -1266,10 +1292,46 @@ void bridge::process_timer_sw_interrupt(hart_id_t hart, rv_intr_t& i) {
 
   // Ideally, would have liked to poke mip with a mask
   // Since we can't, doing a rmw instead
-  uint64_t mip;
+  uint64_t mip, mip_mask;
+  // ~0x1e60: Currently wires from harness for mip.STIP and mip.VSTIP are
+  // outputs of MS which only convey SSTC based writes we should avoid poking of mip from MS during menvcfg.stce=0
+  mip_mask = i.mip_mask & (~0x1e60); 
+
+  if(i.mip & i.mip_assert & 0x20) { setsstc(hart, i.cycle, 0x14d); stimecmppoked_ = true; }
+  if(i.mip & i.mip_assert & 0x40) { setsstc(hart, i.cycle, 0x24d); vstimecmppoked_ = true;}
+
+  if(i.mip_mask & 0x40) {
+  uint64_t menvcfg;
+  bool valid;
+  if (!client_->whisperPeek(hart, 'c', 0x30a, menvcfg, valid)) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek mip\n", hart);
+    return;
+  }
+  if (static_cast<int64_t>(menvcfg) < 0) mip_mask |= 0x20;
+  }
+
+  if(i.mip_mask & 0x60) {
+  uint64_t menvcfg, henvcfg;
+  bool valid;
+  if (!client_->whisperPeek(hart, 'c', 0x30a, menvcfg, valid)) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek mip\n", hart);
+    return;
+  }
+  if (!client_->whisperPeek(hart, 'c', 0x60a, henvcfg, valid)) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek mip\n", hart);
+    return;
+  }
+  if (static_cast<int64_t>(menvcfg) < 0 && static_cast<int64_t>(henvcfg) < 0) mip_mask |= 0x40;
+  }
+
+
+  if( ~i.mip_assert & i.mip_mask & 0x20) { resetsstc(hart, i.cycle, 0x14d); stimecmppoked_ = false; }
+  if( ~i.mip_assert & i.mip_mask & 0x40) { resetsstc(hart, i.cycle, 0x24d); vstimecmppoked_ = false; }
   peek_mip(hart, i.cycle, mip);
-  mip_ = (mip & 0xa22) | (i.mip & ~0xa00); 
+  mip_ = (mip & ~mip_mask) | (i.mip & mip_mask); 
   poke_mip(hart, i.cycle, mip_);
+
+
   uint64_t w_seip;
   peek_seip(hart, i.cycle, w_seip);
   mip_ |= w_seip << 9;
@@ -1293,7 +1355,7 @@ void bridge::process_dut_imsic_msi(hart_id_t hart, mem_t& m) {
   uint64_t w_seip;
   peek_seip(hart, m.cycle, w_seip);
   mip_ |= w_seip << 9;
-  e_mip_ = mip_ & 0xa00;
+  e_mip_ = mip_ & 0x1e00;
   
   // Defer interrupt only on 0->1 transition
   bool meip = (e_mip_ >> 11) & 0x1;
