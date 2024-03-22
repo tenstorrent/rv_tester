@@ -118,6 +118,8 @@ private:
   void check_and_defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
   void check_interrupt(hart_id_t hart, uint64_t mip, bool& taken, uint64_t& cause);
   void defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
+  void resetsstc(hart_id_t hart, uint64_t cycle, uint64_t csr);
+  void setsstc(hart_id_t hart, uint64_t cycle, uint64_t csr);
   void poke_mip(hart_id_t hart, uint64_t time, uint64_t mip);
   void peek_mip(hart_id_t hart, uint64_t time, uint64_t& mip);
   void peek_seip(hart_id_t hart, uint64_t time, uint64_t& val);
@@ -171,6 +173,8 @@ private:
   bool resynch_csr_ = false;
 
   bool deferred_intr_ = false;
+  bool vstimecmppoked_ = false;
+  bool stimecmppoked_ = false;
   uint64_t mip_ = 0;
   uint64_t prev_mip_ = 0;
   uint64_t e_mip_ = 0;

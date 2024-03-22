@@ -238,9 +238,12 @@ import rv_tester_params::*;
 
     function automatic bit [63:0] get_mip(rv_tester_pkg::interrupt_t intr);
       bit [63:0] mip = 'h0;
+      mip[12] = intr.sgei;
       mip[11] = intr.mei;
+      mip[10]  = intr.vsei;
       mip[9]  = intr.sei;
       mip[7]  = intr.mti;
+      mip[6]  = intr.vsti;
       mip[5]  = intr.sti;
       mip[3]  = intr.msi;
       mip[1]  = intr.ssi;
@@ -283,9 +286,12 @@ import rv_tester_params::*;
 
     function automatic bit [63:0] get_mip_mask(rv_tester_pkg::interrupt_t intr, rv_tester_pkg::interrupt_t intr_d1);
       bit [63:0] mask = 'h0;
+      mask[12]  = (intr.sgei & ~intr_d1.sgei) | (~intr.sgei & intr_d1.sgei);
       mask[11] = (intr.mei & ~intr_d1.mei) | (~intr.mei & intr_d1.mei);
+      mask[10]  = (intr.vsei & ~intr_d1.vsei) | (~intr.vsei & intr_d1.vsei);
       mask[9]  = (intr.sei & ~intr_d1.sei) | (~intr.sei & intr_d1.sei);
       mask[7]  = (intr.mti & ~intr_d1.mti) | (~intr.mti & intr_d1.mti);
+      mask[6]  = (intr.vsti & ~intr_d1.vsti) | (~intr.vsti & intr_d1.vsti);
       mask[5]  = (intr.sti & ~intr_d1.sti) | (~intr.sti & intr_d1.sti);
       mask[3]  = (intr.msi & ~intr_d1.msi) | (~intr.msi & intr_d1.msi);
       mask[1]  = (intr.ssi & ~intr_d1.ssi) | (~intr.ssi & intr_d1.ssi);
@@ -294,9 +300,12 @@ import rv_tester_params::*;
 
     function automatic bit [63:0] get_mip_assert(rv_tester_pkg::interrupt_t intr, rv_tester_pkg::interrupt_t intr_d1);
       bit [63:0] mask = 'h0;
+      mask[12]  = (intr.sgei & ~intr_d1.sgei);
       mask[11] = (intr.mei & ~intr_d1.mei);
+      mask[10]  = (intr.sgei & ~intr_d1.sgei);
       mask[9]  = (intr.sei & ~intr_d1.sei);
       mask[7]  = (intr.mti & ~intr_d1.mti);
+      mask[6]  = (intr.vsti & ~intr_d1.vsti);
       mask[5]  = (intr.sti & ~intr_d1.sti);
       mask[3]  = (intr.msi & ~intr_d1.msi);
       mask[1]  = (intr.ssi & ~intr_d1.ssi);
