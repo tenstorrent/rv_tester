@@ -1300,7 +1300,7 @@ void bridge::process_timer_sw_interrupt(hart_id_t hart, rv_intr_t& i) {
   if(i.mip & i.mip_assert & 0x20) { setsstc(hart, i.cycle, 0x14d); stimecmppoked_ = true; }
   if(i.mip & i.mip_assert & 0x40) { setsstc(hart, i.cycle, 0x24d); vstimecmppoked_ = true;}
 
-  if(i.mip_mask & 0x40) {
+  if(i.mip_mask & 0x20) {
   uint64_t menvcfg;
   bool valid;
   if (!client_->whisperPeek(hart, 'c', 0x30a, menvcfg, valid)) {
@@ -1310,7 +1310,7 @@ void bridge::process_timer_sw_interrupt(hart_id_t hart, rv_intr_t& i) {
   if (static_cast<int64_t>(menvcfg) < 0) mip_mask |= 0x20;
   }
 
-  if(i.mip_mask & 0x60) {
+  if(i.mip_mask & 0x40) {
   uint64_t menvcfg, henvcfg;
   bool valid;
   if (!client_->whisperPeek(hart, 'c', 0x30a, menvcfg, valid)) {
