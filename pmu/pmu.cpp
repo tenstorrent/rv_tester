@@ -54,7 +54,7 @@ pmu::~pmu()
 void
 pmu::configure()
 {
-  if (FLAGS_perf and not FLAGS_load.empty()) {
+  if (FLAGS_perf and not FLAGS_load.empty() and false) {
     // initialize metrics
     char buffer_start[128]; char buffer_end[128];
     std::string perf_start, perf_end;
