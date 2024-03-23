@@ -23,10 +23,10 @@ import rv_tester_params:: * ;
 
     int unsigned location = cvm_topology::nil;
     logic reset_done;
-    localparam  WAKECORE = 'h330010;
-    localparam  WAKETIME = 'h330008;
-    localparam  MTIMECMP0 = 'h338000;
-    localparam  TIMESYNC = 'h330018;
+    localparam  WAKECORE = 'h380010;
+    localparam  WAKETIME = 'h380008;
+    localparam  MTIMECMP0 = 'h388000;
+    localparam  TIMESYNC = 'h380018;
     logic enable_checks;
     assign enable_checks = cvm_plusargs::get_bool("aclint") != '0;
 
