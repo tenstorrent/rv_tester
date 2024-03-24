@@ -28,12 +28,12 @@ import rv_tester_params:: * ;
     localparam  MTIMECMP0 = 'h388000;
     localparam  TIMESYNC = 'h380018;
     logic enable_checks;
-    assign enable_checks = cvm_plusargs::get_bool("aclint") != '0;
 
     always @(posedge tb_clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */
             location = cvm_topology::get_location(topology.TOP.PLATFORM.ACLINT_CHECKER.ID, 0);
+            enable_checks = cvm_plusargs::get_bool("aclint") != '0;
             if (enable_checks)
             $display("SV: ACLINT_CHECKER location %d time %t\n",location,$time);
             /* verilator lint_on BLKSEQ */
