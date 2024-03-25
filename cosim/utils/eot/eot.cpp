@@ -23,7 +23,7 @@ void eot::get_tohost_addr() {
 
   // 2. elf if available
   bool tohost_in_elf = false;
-  if (FLAGS_load != "" && FLAGS_hex == "" && false) {
+  if (FLAGS_load != "" && FLAGS_hex == "") {
     std::string cmd = "nm " + FLAGS_load + " | grep -w tohost";
     std::string result = cosim_util::exec(cmd.c_str());
     std::string addr_str = result.substr(0, 16);
