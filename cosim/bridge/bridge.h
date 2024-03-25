@@ -175,6 +175,7 @@ private:
   bool deferred_intr_ = false;
   bool vstimecmppoked_ = false;
   bool stimecmppoked_ = false;
+  uint64_t intrtopriv_ = 3;
   uint64_t mip_ = 0;
   uint64_t prev_mip_ = 0;
   uint64_t e_mip_ = 0;

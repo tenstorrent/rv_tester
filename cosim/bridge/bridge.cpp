@@ -382,6 +382,31 @@ void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whi
     log(cvm::MEDIUM, "<{}> Interrupt taken by DUT. dcause:[{}] wcause:[{}]\n", w.time, d.icause, w_cause);
   }
 
+  // Currently for interrupts taken to VS mode, w_cause and d.icause differ by 1
+  // We will calculate next privilige mode to address cause mismatch issue and also for printing interrupt stats
+
+  bool valid;
+  uint64_t hideleg, mideleg;
+  if (!client_->whisperPeek(hart, 'c', 0x303, mideleg, valid)) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek mip\n", hart);
+    return;
+  }
+  if (!client_->whisperPeek(hart, 'c', 0x603, hideleg, valid)) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek mip\n", hart);
+    return;
+  }
+  bool hdel = hideleg & (1ull << w_cause);
+  bool mdel = mideleg & (1ull << w_cause);
+  if(d.priv == 3) {intrtopriv_ = 3;}                                                 // M mode
+  else if (d.priv == 1 || d.priv == 0) { intrtopriv_ = mdel ? 1 : 3;}                // HS or U mode
+  else if (d.priv == 9 || d.priv == 8) { intrtopriv_ = mdel ? (hdel ? 9 : 1) : 3;}   // VS or VU mode
+
+  if (intrtopriv_ == 9 || intrtopriv_ == 8) {w_cause--;}
+
+  log(cvm::MEDIUM, "<{}> Interrupt to privilege {} \n", w.time, intrtopriv_);
+
+
+
   // Timing sensitive resynch cases
   // 1. DUT took older interrupt that deasserted before retire
   if (d.intr && !w_intr && !FLAGS_cosim_resynch) {
@@ -443,7 +468,6 @@ void bridge::process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, wh
       }
         prev_sync_intr_ = true; // This will waive cases when after execution of mret there exists a csr operation which needs to be interrupted.
   }
-    cvm::log(cvm::MEDIUM, "pokedvals v {} s {}\n", vstimecmppoked_, stimecmppoked_);
   if (w.disasm.find("vsstimecmp") != std::string::npos)  { 
     if (!vstimecmppoked_) resetsstc(hart,d.cycle, 0x24d); else setsstc(hart,d.cycle, 0x24d);
   } else if (w.disasm.find("stimecmp") != std::string::npos) {
@@ -493,7 +517,7 @@ void bridge::process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, wh
     return;
   }
 
-  num_taken_interrupts_[w_.priv][w_.icause]++;
+  num_taken_interrupts_[intrtopriv_][w_.icause]++;
 
 }
 
