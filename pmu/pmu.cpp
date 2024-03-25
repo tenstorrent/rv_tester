@@ -10,6 +10,7 @@ DEFINE_bool(ipc_check, false, "Check IPC within a tolerance %");
 DEFINE_double(ipc_expected, 0.0, "Expected IPC");
 DEFINE_int32(ipc_tolerance_perc, 5, "IPC tolerance %");
 DECLARE_string(load);
+DECLARE_uint64(hart_enable_mask);
 
 REGISTRY_register(pmu, PMCI, cvm::registry::all);
 
@@ -42,7 +43,7 @@ pmu::pmu(cvm::topology::loc_t loc, unsigned id)
 
 pmu::~pmu()
 {
-  if (FLAGS_perf && FLAGS_ipc_check)
+  if (FLAGS_perf && FLAGS_ipc_check && (hart_enable_mask & (1ull << id_)) != 0))
       ipc_check();
   if (FLAGS_perf)
       report();
