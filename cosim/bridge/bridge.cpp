@@ -78,7 +78,8 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
     std::string commandLog = FLAGS_whisper_log ? "iss_cmd.log" : "";
     cosim_resynch_csr_defaults = {
       "htval","mtval2","mtinst","htinst","vstart","vxsat","vxrm","vcsr","sstatus","mstatus","mie","hie","vsie","sie","fflags","fcsr","tselect","tdata1","tdata2","tdata3","mcontext","pma","pmp", // open bugs: RVDE: 10005 (mtinst/htinst), RVDE: 11217 (vectors), RVDE: 10043 (mtval2/htval), RVDE: 8849 (mstatus/mie aliases), RVDE: 7518 (Debug CSRs)
-      "mip","hip","vsip","hvip","sip","mcycle","mireg","sireg","vtype" // permanantly excluded
+      "mip","hip","vsip","hvip","sip","mcycle","mireg","sireg","vtype", // permanantly excluded
+      "dcsr" // Debug Mode CSRs, whisper will be poked
     };
     std::istringstream iss(FLAGS_cosim_resynch_csr);
     std::string token;
@@ -137,11 +138,16 @@ void bridge::csr_init() {
 
 // DUT interface callback: Instruction Retire
 void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
-
+  // cvm::log(cvm::NONE, "Inside the process_dut_instr_retire function\n"); 
   whisper_state_t w {
     .tag = d.tag,
     .time = d.cycle
   };
+
+  // Handle debug interrupt
+  if (d.intr && (d.icause == 0)){
+    return;
+  }
 
   // Handle pre-step condition - Debug
   if (debug_mode_) {
@@ -211,10 +217,12 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
         resynch(hart, d);
         cac_.ResetStatus(hart);
       } else {
-        print_instr_stdout(hart, w);
-        cvm::log(cvm::NONE, "{}", cac_.GetStatusStr(hart));
-        cvm::log(cvm::ERROR, "Error: Hart {}: Core Arch Checker Mismatch - {} - {}\n", hart, resource,  instr);
-        return;
+        if (!(debug_mode_ & (resource == "PRIV"))) {
+          print_instr_stdout(hart, w);
+          cvm::log(cvm::NONE, "{}", cac_.GetStatusStr(hart));
+          cvm::log(cvm::ERROR, "Error: Hart {}: Core Arch Checker Mismatch - {} - {}\n", hart, resource,  instr);
+          return;
+        }
       }
     }
   }
@@ -296,6 +304,7 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
 }
 
 void bridge::process_debug_pre_step(hart_id_t hart, const rv_instr_t& instr, whisper_state_t& ) {
+    cvm::log(cvm::NONE, "Debug pre step poking instruction in Debug mode\n", hart); 
     bool valid;
     if (!client_->whisperPoke(hart, 0, 'm', instr.pc.pc_rdata, instr.opcode, valid)) {
       cvm::log(cvm::ERROR, "Error: Hart {}: Failed to poke memory\n", hart);
@@ -440,6 +449,10 @@ void bridge::process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, wh
   }
 
   if (d.intr && !w_.intr && !FLAGS_cosim_resynch) {
+    // If Debug mode intterupt is seen, don't flag an error, Whisper gets poked based on PC fetches
+    if (d.icause == 0) 
+      return;
+
     print_instr_stdout(hart, w);
     cvm::log(cvm::ERROR, "Error: Hart {}: DUT took interrupt, Whisper did not. cause:[{}]\n", hart, d.icause);
     return;
@@ -933,6 +946,11 @@ bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const std::
     log(cvm::MEDIUM, "<{}> Resynch: Reason=[imsic_mismatch]\n", d.cycle);
     return true;
   }
+  // Case #8
+  if (d.intr && (d.icause == 0)){
+    log(cvm::MEDIUM, "<{}> Resynch: Reason=[Debug Mode Interrupt]\n", d.cycle);
+    return true;
+  }
   return false;
 }
 
@@ -1213,6 +1231,7 @@ void bridge::translation_check(hart_id_t hart, const rv_instr_t& d, whisper_stat
 
 // Interrupts
 void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
+  log(cvm::NONE, "Inside the Process DUT interrupt function \n"); 
   if (i.mip_mask & 0xa00) {
     process_external_interrupt(hart, i);
   } 
@@ -1346,17 +1365,20 @@ void bridge::enter_debug_mode(rv_debug_t& d) {
     0x000000130580006f,
     0x000000130180006f
    };
-  log(cvm::NONE, "<{}> Enter debug mode\n", d.cycle);
-  debug_mode_ = true;
-  if (!client_->whisperEnterDebug()) {
-    cvm::log(cvm::ERROR, "Error: Hart {}: Failed to enter debug mode\n", id_);
-    return;
+  cvm::log(cvm::NONE, "<{}> Enter debug mode\n", d.cycle);
+  if (!debug_mode_) {
+    if (!client_->whisperEnterDebug()) {
+      cvm::log(cvm::ERROR, "Error: Hart {}: Failed to enter debug mode\n", id_);
+      return;
+    }
   }
- 
+
+  debug_mode_ = true;
+
   bool valid;
- for(int i=0;i<14;i++){
+ for(int i=13;i>=0;i--){
     
-    uint64_t debugROM_loc = FLAGS_debug_entry_pc + i*8;
+    uint64_t debugROM_loc = FLAGS_debug_entry_pc + (13-i)*8;
     
     if (!client_->whisperPoke(0, 0, 'm', debugROM_loc,debugROM[i] , valid)) {
       cvm::log(cvm::ERROR, "Error: Hart {}: Failed to poke debug memory\n", 0);

@@ -468,7 +468,7 @@ void rvfi::enter_debug_mode(rv_instr_t& instr) {
     return;
 
   if ((uint64_t)instr.pc.pc_rdata == FLAGS_debug_entry_pc) {
-
+    // (instr.intr && (instr.icause == 0)) { 
     rv_debug_t debug;
 
     debug.cycle = instr.cycle;

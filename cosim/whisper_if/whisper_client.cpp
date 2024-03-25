@@ -215,8 +215,7 @@ whisperClient<URV>::whisperPeek(int hart, char resource, uint64_t addr, uint64_t
 
   valid = reply.type != WhisperMessageType::Invalid;
   value = reply.value;
-  return true;
-}
+  return true;}
 
 template <typename URV>
 bool
@@ -589,6 +588,7 @@ template <typename URV>
 bool
 whisperClient<URV>::whisperEnterDebug()
 {
+  std::cout<<"Whisper client Enter Debug\n";
   req.hart = 0;
   req.type = WhisperMessageType::EnterDebug;
 
@@ -602,6 +602,7 @@ template <typename URV>
 bool
 whisperClient<URV>::whisperExitDebug()
 {
+  std::cout<<"Whisper client Exit Debug\n";
   req.hart = 0;
   req.type = WhisperMessageType::ExitDebug;
 
