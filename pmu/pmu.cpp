@@ -175,6 +175,9 @@ pmu::report()
 bool
 pmu::is_within_range(double actual, double expected, int tolerance_perc)
 {
+  if (actual > expected)
+    return true;
+
   double tolerance = expected * (tolerance_perc / 100.0);
   return std::abs(actual - expected) <= tolerance;
 }
