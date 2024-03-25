@@ -307,9 +307,9 @@ sysmod::terminate(htif::terminate_t t) {
 void
 sysmod::reset() {
   compose();
-  load_boot(FLAGS_bootrom_path);
   load_prog(FLAGS_hex, FLAGS_load, FLAGS_load_lz4);
   load_io(FLAGS_load_io);
+  load_boot(FLAGS_bootrom_path);
 }
 
 void
