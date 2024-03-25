@@ -7,6 +7,7 @@
 #include "memmap.h"
 #include "transactor.h"
 #include "clint/clint.h"
+#include "aclint/aclint.h"
 #include "htif/htif.h"
 #include "trickbox/interrupter.h"
 #include "trickbox/uc_helper.h"
@@ -16,6 +17,8 @@
 #include "scratchpad_xtor/scratchpad_xtor.h"
 #include "trace_cfg/trace_cfg.h"
 #include "smc_xtor/smc_xtor.h"
+#include "pll_xtor/pll_xtor.h"
+#include "pm_nw_xtor/pm_nw_xtor.h"
 #include "cvm/topology.hpp"
 
 #include <string>
@@ -38,15 +41,46 @@ class sysmod {
 
     void set_scope(svScope s) { scope_ = s; }
     void tick(uint64_t advance);
-    void jtag_resp(uint64_t rdata);
+    void jtag_resp(std::bitset<70> rdata);
     void compose();
     void load_boot(const std::string& boot);
-    void load_prog(const std::string& hex, const std::string& load);
+    void load_prog(const std::string& hex, const std::string& load, const std::string& lz4);
     void load_io(const std::string& io);
+    // Function to convert a bitset to an array of uint64_t
+  //   std::vector<uint64_t> bitsetToUint64Array(const std::bitset<70>& bs) {
+  //      std::vector<uint64_t> result;
+  //      std::bitset<64> temp;
+  //      for (int i = 0; i < static_cast<int>(bs.size()); i += 64) {
+  //         temp[i] = bs[i*64 +; // Extract 64 bits from the bitset
+  //         result.push_back(temp.to_ulong());
+  //      }
+  //     return result;
+  //  }
+   std::vector<uint64_t> bitsetToUint64Array(const std::bitset<70>& bitset) {
+    const size_t bitsetSize = 70;
+    const size_t ulongSize = sizeof(uint64_t) * 8;
+    const size_t arraySize = (bitsetSize + ulongSize - 1) / ulongSize;
 
+    std::vector<uint64_t> ulongArray(arraySize);
+
+    for (size_t i = 0; i < bitsetSize; i += ulongSize) {
+        size_t ulongIndex = i / ulongSize;
+        uint64_t value = 0;
+
+        for (size_t j = 0; j < ulongSize && (i + j) < bitsetSize; ++j) {
+            value |= (bitset[i + j] ? 1UL : 0UL) << j;
+        }
+
+        ulongArray[ulongIndex] = value;
+    }
+
+    return ulongArray;
+}
   protected:
     void trace_info_handler(trace_cfg::trace_info_t i);
     void smc_info_handler(smc_xtor::smc_info_t i);
+    void pll_info_handler(pll_xtor::pll_info_t i);
+    void pm_nw_info_handler(pm_nw_xtor::pm_nw_info_t i);
     void timer_interrupt(clint::timer_t t);
     void sw_interrupt(clint::sw_t s);
     void dmi_write(debugger::dmi_data_t s);

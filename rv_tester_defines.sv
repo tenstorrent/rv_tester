@@ -36,6 +36,7 @@ package rv_tester_params;
     parameter REF_CLK_IDX = mods.TOP.PLATFORM.CLKI.REF_CLK_IDX;
     parameter CORE_CLK_IDX = mods.TOP.PLATFORM.CLKI.CORE_CLK_IDX;
     parameter AXI_CLK_IDX = mods.TOP.PLATFORM.CLKI.AXI_CLK_IDX;
+    parameter SOC_CLK_IDX = mods.TOP.PLATFORM.CLKI.SOC_CLK_IDX;
     parameter SW_CLOCK_PERIOD_PS = mods.TOP.PLATFORM.CLKI.SW_CLOCK_PERIOD_PS;
     parameter bit [NCLKS-1:0][31:0] CLOCK_FREQ_MHZ = mods.TOP.PLATFORM.CLKI.CLOCK_FREQ_MHZ;
     parameter bit [NCLKS-1:0][31:0] PLL_CLOCK = mods.TOP.PLATFORM.CLKI.PLL_CLOCK;
@@ -94,6 +95,18 @@ package rv_tester_params;
     parameter SMC_AXI_MST_STRB_WIDTH = mods.TOP.PLATFORM.SMC_AXI_MST.STRB_WIDTH;
     parameter SMC_AXI_MST_ID_WIDTH = mods.TOP.PLATFORM.SMC_AXI_MST.ID_WIDTH;
 
+    parameter PLL_AXI_MST_TOTAL = mods.TOP.PLATFORM.PLL_AXI_MST.TOTAL;
+    parameter PLL_AXI_MST_ADDR_WIDTH = mods.TOP.PLATFORM.PLL_AXI_MST.ADDR_WIDTH;
+    parameter PLL_AXI_MST_DATA_WIDTH = mods.TOP.PLATFORM.PLL_AXI_MST.DATA_WIDTH;
+    parameter PLL_AXI_MST_STRB_WIDTH = mods.TOP.PLATFORM.PLL_AXI_MST.STRB_WIDTH;
+    parameter PLL_AXI_MST_ID_WIDTH = mods.TOP.PLATFORM.PLL_AXI_MST.ID_WIDTH;
+
+    parameter PM_NW_AXI_MST_TOTAL = mods.TOP.PLATFORM.PM_NW_AXI_MST.TOTAL;
+    parameter PM_NW_AXI_MST_ADDR_WIDTH = mods.TOP.PLATFORM.PM_NW_AXI_MST.ADDR_WIDTH;
+    parameter PM_NW_AXI_MST_DATA_WIDTH = mods.TOP.PLATFORM.PM_NW_AXI_MST.DATA_WIDTH;
+    parameter PM_NW_AXI_MST_STRB_WIDTH = mods.TOP.PLATFORM.PM_NW_AXI_MST.STRB_WIDTH;
+    parameter PM_NW_AXI_MST_ID_WIDTH = mods.TOP.PLATFORM.PM_NW_AXI_MST.ID_WIDTH;
+
     parameter DM_AXI_TOTAL = mods.TOP.PLATFORM.DM_AXI.TOTAL;
     parameter DM_AXI_ADDR_WIDTH = mods.TOP.PLATFORM.DM_AXI.ADDR_WIDTH;
     parameter DM_AXI_DATA_WIDTH = mods.TOP.PLATFORM.DM_AXI.DATA_WIDTH;
@@ -135,6 +148,16 @@ package rv_tester_params;
     typedef logic [SMC_AXI_MST_DATA_WIDTH-1:0] smc_data_t;
     typedef logic [SMC_AXI_MST_STRB_WIDTH-1:0] smc_strb_t;
     typedef logic [SMC_AXI_MST_ID_WIDTH  -1:0] smc_id_t;
+    
+    typedef logic [PLL_AXI_MST_ADDR_WIDTH-1:0] pll_addr_t;
+    typedef logic [PLL_AXI_MST_DATA_WIDTH-1:0] pll_data_t;
+    typedef logic [PLL_AXI_MST_STRB_WIDTH-1:0] pll_strb_t;
+    typedef logic [PLL_AXI_MST_ID_WIDTH  -1:0] pll_id_t;
+    
+    typedef logic [PM_NW_AXI_MST_ADDR_WIDTH-1:0] pm_nw_addr_t;
+    typedef logic [PM_NW_AXI_MST_DATA_WIDTH-1:0] pm_nw_data_t;
+    typedef logic [PM_NW_AXI_MST_STRB_WIDTH-1:0] pm_nw_strb_t;
+    typedef logic [PM_NW_AXI_MST_ID_WIDTH  -1:0] pm_nw_id_t;
 
     typedef logic [5:0] axi_atop_t;
     typedef logic [1:0] axi_burst_t;
@@ -313,6 +336,95 @@ package rv_tester_params;
         logic                       ar_ready ;
         logic                       w_ready  ;
     } smc_axi_rsp_t;
+
+
+       typedef struct packed {
+        logic                       ar_valid ;
+        pll_id_t                ar_id    ;
+        pll_addr_t              ar_addr  ;
+        axi_len_t                   ar_len   ;
+        axi_size_t                  ar_size  ;
+        axi_burst_t                 ar_burst ;
+        logic                       ar_lock  ;
+
+        logic                       aw_valid ;
+        pll_id_t                aw_id    ;
+        pll_addr_t              aw_addr  ;
+        axi_len_t                   aw_len   ;
+        axi_size_t                  aw_size  ;
+        axi_burst_t                 aw_burst ;
+        logic                       aw_lock  ;
+        axi_atop_t                  aw_atop  ;
+
+        logic                       w_valid  ;
+        pll_data_t              w_data   ;
+        pll_strb_t              w_strb   ;
+        logic                       w_last   ;
+
+        logic                       b_ready  ;
+        logic                       r_ready  ;
+    } pll_axi_req_t;
+
+    typedef struct packed {
+        logic                       b_valid  ;
+        pll_id_t                b_id     ;
+        axi_resp_t                  b_resp   ;
+
+        logic                       r_valid  ;
+        pll_id_t                r_id     ;
+        pll_data_t              r_data   ;
+        axi_resp_t                  r_resp   ;
+        logic                       r_last   ;
+
+        logic                       aw_ready ;
+        logic                       ar_ready ;
+        logic                       w_ready  ;
+    } pll_axi_rsp_t;
+
+
+        typedef struct packed {
+        logic                       ar_valid ;
+        pm_nw_id_t                ar_id    ;
+        pm_nw_addr_t              ar_addr  ;
+        axi_len_t                   ar_len   ;
+        axi_size_t                  ar_size  ;
+        axi_burst_t                 ar_burst ;
+        logic                       ar_lock  ;
+
+        logic                       aw_valid ;
+        pm_nw_id_t                aw_id    ;
+        pm_nw_addr_t              aw_addr  ;
+        axi_len_t                   aw_len   ;
+        axi_size_t                  aw_size  ;
+        axi_burst_t                 aw_burst ;
+        logic                       aw_lock  ;
+        axi_atop_t                  aw_atop  ;
+
+        logic                       w_valid  ;
+        pm_nw_data_t              w_data   ;
+        pm_nw_strb_t              w_strb   ;
+        logic                       w_last   ;
+
+        logic                       b_ready  ;
+        logic                       r_ready  ;
+    } pm_nw_axi_req_t;
+
+    typedef struct packed {
+        logic                       b_valid  ;
+        pm_nw_id_t                b_id     ;
+        axi_resp_t                  b_resp   ;
+
+        logic                       r_valid  ;
+        pm_nw_id_t                r_id     ;
+        pm_nw_data_t              r_data   ;
+        axi_resp_t                  r_resp   ;
+        logic                       r_last   ;
+
+        logic                       aw_ready ;
+        logic                       ar_ready ;
+        logic                       w_ready  ;
+    } pm_nw_axi_rsp_t;
+
     // --------------------------------------
     // Bootstrap
     // --------------------------------------
@@ -406,6 +518,20 @@ package rv_tester_params;
         logic [4:0]                 amo_op;
     } mcmi_t;
 
+    // --------------------------------------
+    // ACLINT - Advanced Core Interrupt
+    // --------------------------------------
+    typedef struct packed {
+        logic [63:0] data;
+        logic valid;
+    } ac_cr_sync;
+    typedef struct packed {
+        logic [23:0] addr;
+        logic [64:0] data;
+        logic [7:0] mask;
+        logic [3:0] srcid;
+        logic valid;
+    } cr_ac_axi_pkt;
     // --------------------------------------
     // CSRI - Control Status Registers
     // --------------------------------------
@@ -502,6 +628,8 @@ package rv_tester_params;
         MHARTID,
         MCONFIGPTR,
         MTOPI,
+        MTINST,
+        CMCTHRCFG0,
         CSR_COUNT
     } csr_list_t;
     typedef struct packed {
@@ -679,6 +807,25 @@ package rv_tester_params;
     `AXI_TYPEDEF_R_CHAN_T(smc_r_chan_top, smc_data_t, smc_id_t, user_t)
     `AXI_TYPEDEF_REQ_T(smc_req_top, smc_aw_chan_top, smc_w_chan_top, smc_ar_chan_top)
     `AXI_TYPEDEF_RESP_T(smc_resp_top, smc_b_chan_top, smc_r_chan_top)
+
+
+    `AXI_TYPEDEF_AW_CHAN_T(pll_aw_chan_top, pll_addr_t, pll_id_t, user_t)
+    `AXI_TYPEDEF_W_CHAN_T(pll_w_chan_top, pll_data_t, pll_strb_t, user_t)
+    `AXI_TYPEDEF_B_CHAN_T(pll_b_chan_top, pll_id_t, user_t)
+    `AXI_TYPEDEF_AR_CHAN_T(pll_ar_chan_top, pll_addr_t, pll_id_t, user_t)
+    `AXI_TYPEDEF_R_CHAN_T(pll_r_chan_top, pll_data_t, pll_id_t, user_t)
+    `AXI_TYPEDEF_REQ_T(pll_req_top, pll_aw_chan_top, pll_w_chan_top, pll_ar_chan_top)
+    `AXI_TYPEDEF_RESP_T(pll_resp_top, pll_b_chan_top, pll_r_chan_top)
+
+
+    `AXI_TYPEDEF_AW_CHAN_T(pm_nw_aw_chan_top, pm_nw_addr_t, pm_nw_id_t, user_t)
+    `AXI_TYPEDEF_W_CHAN_T(pm_nw_w_chan_top, pm_nw_data_t, pm_nw_strb_t, user_t)
+    `AXI_TYPEDEF_B_CHAN_T(pm_nw_b_chan_top, pm_nw_id_t, user_t)
+    `AXI_TYPEDEF_AR_CHAN_T(pm_nw_ar_chan_top, pm_nw_addr_t, pm_nw_id_t, user_t)
+    `AXI_TYPEDEF_R_CHAN_T(pm_nw_r_chan_top, pm_nw_data_t, pm_nw_id_t, user_t)
+    `AXI_TYPEDEF_REQ_T(pm_nw_req_top, pm_nw_aw_chan_top, pm_nw_w_chan_top, pm_nw_ar_chan_top)
+    `AXI_TYPEDEF_RESP_T(pm_nw_resp_top, pm_nw_b_chan_top, pm_nw_r_chan_top)
+
     // --------------------------------------
     // rv_tester ports
     // --------------------------------------
@@ -696,6 +843,7 @@ package rv_tester_params;
     input  rv_tester_pkg::aplic_interrupt_t  aplic_interrupt,                                       \
     input  rv_tester_pkg::dm_write_t         dmi_write,                                             \
     input  rv_tester_pkg::jtag_if_t          jtag_req,                                              \
+    input  rv_tester_pkg::jtag_if_tck        jtag_tck_trst,                                         \
     output  rv_tester_pkg::jtag_if_out       jtag_resp,                                             \
     output                                   dmi_req_ready,                                         \
     output                                   dmi_resp_valid,                                        \
@@ -736,7 +884,16 @@ package rv_tester_params;
     input  rv_tester_params::aplic_mmr_req_top    aplic_mmr_axi_req_mst [rv_tester_params::APLIC_MMR_AXI_MST_TOTAL-1:0],   \
     output rv_tester_params::aplic_mmr_resp_top   aplic_mmr_axi_rsp_mst [rv_tester_params::APLIC_MMR_AXI_MST_TOTAL-1:0],   \
     input  rv_tester_params::smc_req_top    smc_axi_req_mst [rv_tester_params::SMC_AXI_MST_TOTAL-1:0],   \
-    output rv_tester_params::smc_resp_top   smc_axi_rsp_mst [rv_tester_params::SMC_AXI_MST_TOTAL-1:0]
+    output rv_tester_params::smc_resp_top   smc_axi_rsp_mst [rv_tester_params::SMC_AXI_MST_TOTAL-1:0],   \
+    output rv_tester_params::ac_cr_sync AcCrSynci  [rv_tester_params::NHARTS-1:0], \
+    output rv_tester_params::cr_ac_axi_pkt AcReqPkti, \
+    output rv_tester_params::cr_ac_axi_pkt AcReqPktRfClki, \
+    output logic [63:0] AcMtimei, \
+    output logic [8:0]  AcMtipi, \
+    input  rv_tester_params::pll_req_top    pll_axi_req_mst [rv_tester_params::PLL_AXI_MST_TOTAL-1:0],   \
+    output rv_tester_params::pll_resp_top   pll_axi_rsp_mst [rv_tester_params::PLL_AXI_MST_TOTAL-1:0],   \
+    input  rv_tester_params::pm_nw_req_top    pm_nw_axi_req_mst [rv_tester_params::PM_NW_AXI_MST_TOTAL-1:0],   \
+    output rv_tester_params::pm_nw_resp_top   pm_nw_axi_rsp_mst [rv_tester_params::PM_NW_AXI_MST_TOTAL-1:0]
 
 
 `define RV_TESTER_VARS(topology)                                                                    \
@@ -753,6 +910,7 @@ package rv_tester_params;
     logic                                    quiesced;                                              \
     rv_tester_pkg::dm_write_t                dmi_write;                                             \
     rv_tester_pkg::jtag_if_t                 jtag_req;                                              \
+    rv_tester_pkg::jtag_if_tck               jtag_tck_trst;                                         \
     rv_tester_pkg::jtag_if_out               jtag_resp;                                             \
     logic                                    dmi_req_ready;                                         \
     logic                                    dmi_resp_valid;                                        \
@@ -792,7 +950,16 @@ package rv_tester_params;
     rv_tester_params::aplic_mmr_req_top      aplic_mmr_axi_req_mst  [rv_tester_params::APLIC_MMR_AXI_MST_TOTAL-1:0];  \
     rv_tester_params::aplic_mmr_resp_top     aplic_mmr_axi_rsp_mst  [rv_tester_params::APLIC_MMR_AXI_MST_TOTAL-1:0];  \
     rv_tester_params::smc_req_top      smc_axi_req_mst  [rv_tester_params::SMC_AXI_MST_TOTAL-1:0];  \
-    rv_tester_params::smc_resp_top     smc_axi_rsp_mst  [rv_tester_params::SMC_AXI_MST_TOTAL-1:0];
+    rv_tester_params::smc_resp_top     smc_axi_rsp_mst  [rv_tester_params::SMC_AXI_MST_TOTAL-1:0];  \
+    rv_tester_params::ac_cr_sync AcCrSynci [rv_tester_params::NHARTS-1:0]; \
+    rv_tester_params::cr_ac_axi_pkt AcReqPkti; \
+    rv_tester_params::cr_ac_axi_pkt AcReqPktRfClki; \
+    logic [63:0] AcMtimei; \
+    logic [8:0]  AcMtipi;  \
+    rv_tester_params::pll_req_top    pll_axi_req_mst [rv_tester_params::PLL_AXI_MST_TOTAL-1:0];   \
+    rv_tester_params::pll_resp_top   pll_axi_rsp_mst [rv_tester_params::PLL_AXI_MST_TOTAL-1:0];   \
+    rv_tester_params::pm_nw_req_top    pm_nw_axi_req_mst [rv_tester_params::PM_NW_AXI_MST_TOTAL-1:0];   \
+    rv_tester_params::pm_nw_resp_top   pm_nw_axi_rsp_mst [rv_tester_params::PM_NW_AXI_MST_TOTAL-1:0];
 
 `define RV_TESTER_PORTS `_RV_TESTER_PORTS(input,output)
 
