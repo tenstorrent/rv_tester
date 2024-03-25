@@ -797,12 +797,11 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
         update_csr(hart, src_t::dut, 0x003, data, mask, false, false);
       }
       else if (c.csr_addr == 0x003){ // On fcsr update, update fflags,frm
-        log(cvm::MEDIUM, "fcsr: {:#x}\n", data);
         size_8_bytes_t mask_fcsr = mask;
         mask = mask_fcsr & 0x1f;
         update_csr(hart, src_t::dut, 0x001, data, mask, false, false);
         data = data >> 5;
-        mask = (mask_fcsr >> 5) & 0x3;
+        mask = (mask_fcsr >> 5) & 0x7;
         update_csr(hart, src_t::dut, 0x002, data, mask, false, false);
       }
       else if (c.csr_addr == 0x301){ // On misa.H update, update mideleg
