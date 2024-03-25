@@ -66,3 +66,8 @@ submodule_update:
     stage: submodule_update
     extends:
         - .submodule-update-template
+
+container_update:
+    stage: submodule_update
+    extends:
+        - .container-update-template

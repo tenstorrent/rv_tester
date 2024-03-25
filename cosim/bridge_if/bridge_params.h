@@ -8,13 +8,15 @@ namespace {
     constexpr int xlen = 64;
     constexpr int vlen = 256;
     constexpr int va_hi = 56;
+    constexpr uint64_t mmr_lo_addr = 0xa00'0000;
+    constexpr uint64_t mmr_hi_addr = 0xaff'ffff;
 
     struct csr_entry {
         std::string name;
         uint64_t address;
     };
 
-    std::array<csr_entry, 327> csrs {{
+    std::array<csr_entry, 328> csrs {{
         {"fflags", 0x001},
         {"frm", 0x002},
         {"fcsr", 0x003},
@@ -334,10 +336,11 @@ namespace {
         {"dscratch1", 0x7B3},
         {"siselect", 0x150},
         {"sireg", 0x151},
+        {"vsireg", 0x251},
+        {"mireg", 0x351},
         {"stopei", 0x15c},
         {"stopi", 0xDB0},
         {"miselect", 0x350},
-        {"mireg", 0x351},
         {"mtopei", 0x35C},
         {"mtopi", 0xFB0},
         {"mvien", 0x308},
