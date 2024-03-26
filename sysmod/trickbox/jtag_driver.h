@@ -81,7 +81,7 @@ public:
   virtual void tick(uint64_t advance) override
   {
     num_ticks++;
-    cvm::log(cvm::FULL, "[jtag_driver]: Tick\n");
+    cvm::log(cvm::HIGH, "[jtag_driver]: Tick {}\n",num_ticks);
     timer_ += advance;
     timer_advance = advance;
     if( num_ticks > 30) 
@@ -90,9 +90,11 @@ public:
 
     if(executing_nop){
       nop_count--;
+      cvm::log(cvm::HIGH, "[jtag_driver]: Executing Nop ,Nop count {}\n",nop_count);
       if(nop_count==0)
         executing_nop = false;
     }else if(executing_loop){
+      cvm::log(cvm::HIGH, "[jtag_driver]: Executing loop \n");
       Run_cmd_loop();
     }else{
     drive_csv_jtag_cmds();

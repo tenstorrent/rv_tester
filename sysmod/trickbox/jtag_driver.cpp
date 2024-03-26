@@ -220,6 +220,7 @@ void jtag_driver::drive_csv_jtag_cmds()
       executing_nop = true;
       nop_count = lower_jtag_data;
       std::cout<<"JTAG CMD: Pushing nops for  "<<nop_count<<" cycles\n";
+      jtag_cmd_q.pop(); // pop front eleme7t
     }
     if(jtag_cmd == 4){  //ck expecting check on rdata
       //check last saved rdata == lower_jtag_data ??
@@ -229,6 +230,7 @@ void jtag_driver::drive_csv_jtag_cmds()
        //FAIL
        std::cout<<"JTAG CHK FAILED: rdata not matching expected data\n";
       }
+      jtag_cmd_q.pop(); // pop front eleme7t
     }
     if(jtag_cmd == 5){ //ls loop start
       unsigned jtag_cmd_temp = 0;
