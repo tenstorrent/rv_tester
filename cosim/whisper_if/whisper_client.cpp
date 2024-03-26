@@ -316,7 +316,7 @@ whisperClient<URV>::whisperStep(int hart, uint64_t time, uint64_t instrTag, uint
   unsigned virt = (reply.flags >> 9) & 1;
   unsigned debug = (reply.flags >> 10) & 1;
 
-  privMode = mode | (virt << 3) | (debug << 2);
+  privMode = debug ? 5 : mode | (virt << 3);
   fpFlags = flags;
   hasTrap = trap;
   hasStop = stop;
