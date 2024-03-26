@@ -233,12 +233,10 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
         resynch(hart, d);
         cac_.ResetStatus(hart);
       } else {
-        if (!(debug_mode_ & (resource == "PRIV"))) {
-          print_instr_stdout(hart, w);
-          cvm::log(cvm::NONE, "{}", cac_.GetStatusStr(hart));
-          cvm::log(cvm::ERROR, "Error: Hart {}: Core Arch Checker Mismatch - {} - {}\n", hart, resource,  instr);
-          return;
-        }
+        print_instr_stdout(hart, w);
+        cvm::log(cvm::NONE, "{}", cac_.GetStatusStr(hart));
+        cvm::log(cvm::ERROR, "Error: Hart {}: Core Arch Checker Mismatch - {} - {}\n", hart, resource,  instr);
+        return;
       }
     }
   }
