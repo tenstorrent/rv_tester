@@ -574,9 +574,16 @@ void sysmod::jtag_resp(std::bitset<70> rdata){
   //std::cout<<"Got JTAG RESP : "<<std::hex<<rdata<<"\n";
   auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0);
   //send response back to jtag driver
-  uint32_t half_rdata = 0xffffffff;//TODO change
+  //uint32_t half_rdata = uint32_t(0xabcdef1234);//TODO change
   std::vector<uint64_t> convertedArray = bitsetToUint64Array(rdata);
-  cvm::registry::messenger.signal(tbox_loc, jtag_driver::jtag_req_t{0, 0,0,half_rdata,0});
+  std::cout<<"In JTAG RESP SYSMOD.CPP converted array size="<<convertedArray.size()<<"\n";
+  for (uint64_t num : convertedArray) {
+        std::cout<<"\n Got JTAG RESP: " << num << std::endl;
+    }
+  std::cout<<"\n***************************************\n";
+  std::cout<<"\n****** SEND SIG TO JTAG DRIVER ********\n";
+  std::cout<<"\n***************************************\n";
+  cvm::registry::messenger.signal(tbox_loc, jtag_driver::jtag_req_t{0, 0,0,convertedArray[0],0});
 
 }
 void

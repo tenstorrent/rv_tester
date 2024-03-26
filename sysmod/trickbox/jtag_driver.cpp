@@ -37,6 +37,7 @@ jtag_driver::~jtag_driver()
 void
 jtag_driver::update_jtag_status(jtag_driver::jtag_req_t& i) {
   cvm::log(cvm::HIGH, "\n *** GOT RESP FROM JTAG TDO  {:#x}", i.jtag_op_data);
+  loop_rdata = i.jtag_op_data;
 }
 void jtag_driver::get_all_csv_templates()
 {
@@ -104,7 +105,7 @@ void jtag_driver::parse_jtag_from_csv()
       //std::cout<<"JTAG INP after clr: row0:"<<row[0]<<" row1 "<<row[1]<<"\n";
       instr = row[0];
       data_s = row[1];
-      length = row[2];
+      length = row[2]; //TODO
       // remove empty spaces from string
       instr.erase(std::remove_if(instr.begin(), instr.end(), ::isspace), instr.end());
       // convert string to lowercase for uniformity
@@ -116,10 +117,20 @@ void jtag_driver::parse_jtag_from_csv()
          jtag_req.jtag_cmd = 1;
       }else if(jtag_cmd == "up"){
          jtag_req.jtag_cmd = 2;
+      }else if(jtag_cmd == "np"){ //nop,10
+         jtag_req.jtag_cmd = 3;
+      }else if(jtag_cmd == "ck"){ //chk,456
+         jtag_req.jtag_cmd = 4;
+      }else if(jtag_cmd == "ls"){ //loop start,0
+         jtag_req.jtag_cmd = 5;
+      }else if(jtag_cmd == "le"){ //loop end, checkbit
+         jtag_req.jtag_cmd = 6;
       }else{
         cvm::log(cvm::ERROR, "Error: unknown command {} in jtag cfg file {}\n",jtag_cmd, FLAGS_jtag_input_file_path);
       }
-      
+      if(jtag_req.jtag_cmd<3){ 
+         length = row[2];  //length NA for nop and check
+      }
       data_s.erase(std::remove_if(data_s.begin(), data_s.end(), ::isspace), data_s.end());
       // convert string to lowercase for uniformity
       std::transform(data_s.begin(), data_s.end(), data_s.begin(), ::tolower);
@@ -153,13 +164,17 @@ void jtag_driver::parse_jtag_from_csv()
              std::cerr << "[JTAG DRIVER] Invalid argument for stoul csv arg 1: " << e.what() << std::endl;
          }
       }
+      if(jtag_req.jtag_cmd<3){
       try{
         jtag_req.jtag_length_data = std::stoul(length,nullptr,10);
         
       } catch (const std::invalid_argument& e) {
           std::cerr << "[JTAG DRIVER] Invalid argument for stoul csv arg 2: " << e.what() << std::endl;
       }
- 
+      }else{
+
+        jtag_req.jtag_length_data = 0;
+      }
       content.push_back(row);
       jtag_cmd_q.push(jtag_req);
       // PRINT CSV DATA
@@ -176,12 +191,14 @@ void jtag_driver::parse_jtag_from_csv()
 
 void jtag_driver::drive_csv_jtag_cmds()
 {
-
+  if(!executing_nop || !executing_loop){
   if (!jtag_cmd_q.empty())
   {
+    
     jtag_req_t jtag_req;
     jtag_req = jtag_cmd_q.front();
-    jtag_cmd_q.pop(); // pop front eleme7t
+
+
    // cvm::log(cvm::MEDIUM, "Popping jtag request: op {} addr {:#x} data {:#x} func bits {:#x}\n", jtag_req.op, jtag_req.addr, jtag_req.data, jtag_req.func_bits);
     unsigned jtag_cmd = 0;
     unsigned long  upper_jtag_data = 0;
@@ -192,14 +209,62 @@ void jtag_driver::drive_csv_jtag_cmds()
     upper_jtag_data = jtag_req.jtag_ip_data_upper;
     lower_jtag_data = jtag_req.jtag_ip_data_lower;
     reg_length_data = jtag_req.jtag_length_data;
+    std::cout<<"JTAG CMD:"<<jtag_cmd<<"\n";
+    if(jtag_cmd<3){
     std::cout<<" JTAG INP : jtag_req.jtag_length_data:"<<jtag_req.jtag_length_data<<" reg_length_data "<<reg_length_data<<"\n";
     hart = 0; // hart bits position TBD, till TBD it is always zero
+    jtag_cmd_q.pop(); // pop front eleme7t
     trickboxJtagWrite(hart, jtag_cmd, upper_jtag_data, lower_jtag_data,reg_length_data);
+    }
+    if(jtag_cmd == 3){ //nop
+      executing_nop = true;
+      nop_count = lower_jtag_data;
+      std::cout<<"JTAG CMD: Pushing nops for  "<<nop_count<<" cycles\n";
+    }
+    if(jtag_cmd == 4){  //ck expecting check on rdata
+      //check last saved rdata == lower_jtag_data ??
+      if(loop_rdata == lower_jtag_data){
+       //PASS
+      }else{
+       //FAIL
+       std::cout<<"JTAG CHK FAILED: rdata not matching expected data\n";
+      }
+    }
+    if(jtag_cmd == 5){ //ls loop start
+      unsigned jtag_cmd_temp = 0;
+      // unsigned long  upper_jtag_data_temp = 0;
+      // unsigned long lower_jtag_data_temp = 0;
+      // unsigned reg_length_data_temp = 0;
+      // unsigned hart_temp = 0;
+      jtag_loop_q.clear();
+      jtag_cmd_q.pop(); // pop front eleme7t which is loop start
+      do{
+        jtag_req_t jtag_req_temp;
+        jtag_req = jtag_cmd_q.front();
+        jtag_cmd_temp        = jtag_req.jtag_cmd;
+        //upper_jtag_data_temp = jtag_req.jtag_ip_data_upper;
+        //lower_jtag_data_temp = jtag_req.jtag_ip_data_lower;
+        //reg_length_data_temp = jtag_req.jtag_length_data;
+        jtag_req_temp = jtag_req;
+        jtag_loop_q.push_back(jtag_req_temp);
+        jtag_cmd_q.pop(); // pop elemnt
+
+      }while(jtag_cmd_temp != 6);
+      executing_loop = true;
+      loop_size = jtag_loop_q.size();
+      loop_idx = 0;
+    }
+    if(jtag_cmd == 6){ //le loop end, checkbitNum, CheckbitValue
+     std::cout<<"LOOP END DETECTED: checkbit num "<< loop_check_bit_num <<" type: "<<loop_check_bit_type<<"Expected val:"<< expecting_check<<" expected chk val "<<expected_check_value<<"\n";
+    }
+
+
   }
   else
   {
     jtag_trigger = 0;
     rnd_jtag_trigger = 0;
+  }
   }
 }
 
