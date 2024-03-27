@@ -22,6 +22,7 @@ DECLARE_string(bootrom_path);
 DECLARE_string(whisper_json_path);
 DECLARE_bool(whisper_stdin_null);
 DECLARE_bool(whisper_stdout_null);
+DECLARE_bool(preload);
 DECLARE_bool(mcm);
 DECLARE_bool(cov);
 DECLARE_uint32(max_instr);
@@ -135,6 +136,7 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
 
     for (unsigned i = 0; i < system_->hartCount(); ++i) {
       WdRiscv::Hart<URV>* hart = system_->ithHart(i).get();
+      if (FLAGS_preload) hart->setInitialStateFile("preload_" + std::to_string(i) + ".csv");
       hart->setInstructionCountLimit(FLAGS_max_instr);
       threadVec.emplace_back(std::thread(threadFunc, hart));
     }
