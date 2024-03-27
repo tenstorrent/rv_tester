@@ -1,0 +1,13 @@
+cc_library(
+    name = "aclint",
+    srcs = ["aclint.cpp"],
+    hdrs = ["aclint.h"],
+    deps = [
+      "//sysmod:device",
+      "//sysmod/clint:clint",
+      "@cvm//:registry",
+      "@cvm//:plusargs",
+      "@cvm//:logger",
+    ],
+    visibility = ["//visibility:public"],
+)

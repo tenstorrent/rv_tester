@@ -111,12 +111,7 @@ module rv_tester_mem #(
         UniqueIds:          UniqueIds,
         AxiAddrWidth:       AxiAddrWidth,
         AxiDataWidth:       AxiDataWidth,
-        NoAddrRules:        NoAddrRules,
-        AxiIdWidth:         0,
-        AxiSrcIdWidth:      0,
-        AxiTxIdWidth:       0,
-        AxiUserWidth:       0,
-        NoIdRules:          0
+        NoAddrRules:        NoAddrRules
       };
 
     //for LLC 

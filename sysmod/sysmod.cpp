@@ -8,9 +8,12 @@
 #include "sysmod.h"
 #include "mem/sysmod_mem.h"
 #include "clint/clint.h"
+#include "aclint/aclint.h"
 #include "dm/dm.h"
 #include "trace_cfg/trace_cfg.h"
 #include "smc_xtor/smc_xtor.h"
+#include "pll_xtor/pll_xtor.h"
+#include "pm_nw_xtor/pm_nw_xtor.h"
 #include "aplic_mmr/aplic_mmr.h"
 #include "io_dev/io_dev.h"
 #include "null_dev/null_dev.h"
@@ -23,6 +26,8 @@
 // internal flags
 DEFINE_string(hex, "", "hex file (program) to load into memory");
 DEFINE_string(load, "", "elf file (program) to load into memory");
+DEFINE_string(load_lz4, "", "lz4 compressed file (program) to load into memory");
+DEFINE_bool(bootrom, true, "Load bootrom before test");
 DEFINE_string(bootrom_path, "", "Path to bootrom object file");
 DEFINE_string(load_io, "", "load specified io dev with content from memory");
 DEFINE_bool(sysmod_tick_async, true, "Asynchronous sysmod_tick calls");
@@ -39,7 +44,7 @@ extern "C" {
   void sysmod_aplic_dir_interrupt(unsigned long* i) ;
   void sysmod_aplic_rnd_interrupt(unsigned hartid, unsigned val, unsigned int_val);
   void sysmod_dmi_write(unsigned hartid, unsigned upper_val, unsigned lower_val);
-  void sysmod_jtag_req(unsigned upper_val, unsigned lower_val);
+  void sysmod_jtag_req(unsigned cmd,unsigned long upper_val, unsigned long lower_val, unsigned length);
   void sysmod_terminate();
 }
 
@@ -130,6 +135,28 @@ sysmod::trace_info_handler(trace_cfg::trace_info_t i) {
 void
 sysmod::smc_info_handler(smc_xtor::smc_info_t i) {
         cvm::log(cvm::HIGH, "[SYSMOD] trace_info {} \n",i.smc_quiesced);
+ // cvm::registry::callbacks.push(
+ //     scope(),
+ //     [i]() {
+ //       cvm::log(cvm::HIGH, "[SYSMOD] smc_info \n");
+ //       sysmod_trace_info(i.trace_quiesced);
+ //     });
+}
+
+void
+sysmod::pll_info_handler(pll_xtor::pll_info_t i) {
+        cvm::log(cvm::HIGH, "[SYSMOD] trace_info {} \n",i.pll_quiesced);
+ // cvm::registry::callbacks.push(
+ //     scope(),
+ //     [i]() {
+ //       cvm::log(cvm::HIGH, "[SYSMOD] smc_info \n");
+ //       sysmod_trace_info(i.trace_quiesced);
+ //     });
+}
+
+void
+sysmod::pm_nw_info_handler(pm_nw_xtor::pm_nw_info_t i) {
+        cvm::log(cvm::HIGH, "[SYSMOD] trace_info {} \n",i.pm_nw_quiesced);
  // cvm::registry::callbacks.push(
  //     scope(),
  //     [i]() {
@@ -254,8 +281,8 @@ sysmod::jtag_req(jtag_driver::jtag_data_t i) {
   cvm::registry::callbacks.push(
       scope(),
       [i]() {
-        cvm::log(cvm::FULL, "[SYSMOD] trickbox jtag_driver::dmi.(upper,lower) = {:#x}, {:#x}\n",i.upper_jtag_data, i.lower_jtag_data );
-        sysmod_jtag_req(i.upper_jtag_data, i.lower_jtag_data);
+        cvm::log(cvm::FULL, "[SYSMOD] trickbox jtag_driver::dmi.(upper,lower) = {:#x}, {:#x}\n",i.upper_jtag_data, i.lower_jtag_data, i.jtag_length_data);
+        sysmod_jtag_req(i.jtag_cmd, i.upper_jtag_data, i.lower_jtag_data,i.jtag_length_data);
       });
 }
 
@@ -281,9 +308,9 @@ sysmod::terminate(htif::terminate_t t) {
 void
 sysmod::reset() {
   compose();
-  load_boot(FLAGS_bootrom_path);
-  load_prog(FLAGS_hex, FLAGS_load);
+  load_prog(FLAGS_hex, FLAGS_load, FLAGS_load_lz4);
   load_io(FLAGS_load_io);
+  load_boot(FLAGS_bootrom_path);
 }
 
 void
@@ -297,6 +324,8 @@ sysmod::compose()
 
   auto mmr_master = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MMR_MST");
   auto smc_master = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_SMC_MST");
+  auto pll_master = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_PLL_MST");
+  auto pm_nw_master = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_PM_NW_MST");
   auto masters = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST");
   auto platform_loc = cvm::topology::get_from_type("PLATFORM", 0);
   auto nharts = cvm::topology::attr(platform_loc, "NHARTS").second;
@@ -312,9 +341,6 @@ sysmod::compose()
 
 
       if (type == "memory") {
-        device = std::make_unique<sysmod_mem>(tag, base, size, loc_);
-      }
-      else if (type == "boot") {
         device = std::make_unique<sysmod_mem>(tag, base, size, loc_);
       }
       else if (type == "io_dev") {
@@ -341,6 +367,22 @@ sysmod::compose()
             [&](trace_cfg::trace_info_t i) { return this->trace_info_handler(i); });
         assert(masters.size() > 0);
         device = std::make_unique<trace_cfg>(tag, base, size, loc_, masters[0]);
+      }
+      else if (type == "pll_xtor") {
+        // TODO: cvm::ERROR
+        cvm::registry::messenger.connect<pll_xtor::pll_info_t>(
+            loc_,
+            [&](pll_xtor::pll_info_t i) { return this->pll_info_handler(i); });
+        assert(masters.size() > 0);
+        device = std::make_unique<pll_xtor>(tag, base, size, loc_, pll_master[0]);
+      }
+      else if (type == "pm_nw_xtor") {
+        // TODO: cvm::ERROR
+        cvm::registry::messenger.connect<pm_nw_xtor::pm_nw_info_t>(
+            loc_,
+            [&](pm_nw_xtor::pm_nw_info_t i) { return this->pm_nw_info_handler(i); });
+        assert(masters.size() > 0);
+        device = std::make_unique<pm_nw_xtor>(tag, base, size, loc_, pm_nw_master[0]);
       }
       else if (type == "scratchpad_xtor") {
         // TODO: cvm::ERROR
@@ -371,6 +413,12 @@ sysmod::compose()
         cvm::registry::messenger.connect<clint::sw_t>(
             loc_,
             [&](clint::sw_t s) { return this->sw_interrupt(s); });
+      }
+      else if (type == "aclint") {
+        device = std::make_unique<aclint>(tag, base, nharts, loc_);
+        cvm::registry::messenger.connect<clint::timer_t>(
+            loc_,
+            [&](clint::timer_t t) { return this->timer_interrupt(t); });
       }
       else if (type == "trickbox") {
         device = std::make_unique<trickbox>(tag, base, nharts, loc_,masters[0]);
@@ -462,26 +510,36 @@ sysmod::load_io(const std::string& io)
 }
 
 void
-sysmod::load_prog(const std::string& hex, const std::string& load)
+sysmod::load_prog(const std::string& hex, const std::string& load, const std::string& lz4)
 {
-  if (load != "") {
-    cvm::log(cvm::MEDIUM, "Loading {}\n", load);
-    for (const auto& d : memmap_) {
-      const auto type = d.second.type;
-      const auto tag  = d.second.tag;
-      if (type == "memory") {
-        if (not dev(tag) or not dynamic_cast<sysmod_mem&>(*dev(tag)).init_elf(load)) {
-          cvm::log(cvm::ERROR, "Failed to load program");
-          return;
-        }
+  for (const auto& d : memmap_) {
+    const auto type = d.second.type;
+    const auto tag  = d.second.tag;
+    if (load != "" && type == "memory") {
+      cvm::log(cvm::MEDIUM, "Loading {}\n", load);
+      if (not dev(tag) or not dynamic_cast<sysmod_mem&>(*dev(tag)).init_elf(load)) {
+        cvm::log(cvm::ERROR, "Failed to load program");
+        return;
       }
+      cvm::log(cvm::MEDIUM, "Loading {} complete\n", load);
     }
-  }
-  if (hex != "") {
-    cvm::log(cvm::MEDIUM, "Loading {}\n", hex);
-    if (not dev("memory") or not dynamic_cast<sysmod_mem&>(*dev("memory")).init_hex(hex)) {
-      cvm::log(cvm::ERROR, "No memory defined");
-      return;
+
+    if (hex != "" && type == "memory") {
+      cvm::log(cvm::MEDIUM, "Loading {}\n", hex);
+      if (not dev(tag) or not dynamic_cast<sysmod_mem&>(*dev(tag)).init_hex(hex)) {
+        cvm::log(cvm::ERROR, "No memory defined");
+        return;
+      }
+      cvm::log(cvm::MEDIUM, "Loading {} complete\n", hex);
+    }
+
+    if (lz4 != "") {
+      cvm::log(cvm::MEDIUM, "Loading {}\n", lz4);
+      if (not dev("memory") or not dynamic_cast<sysmod_mem&>(*dev("memory")).init_lz4(lz4)) {
+        cvm::log(cvm::ERROR, "No memory defined");
+        return;
+      }
+      cvm::log(cvm::MEDIUM, "Loading {} complete\n", lz4);
     }
   }
 }
@@ -489,11 +547,19 @@ sysmod::load_prog(const std::string& hex, const std::string& load)
 void
 sysmod::load_boot(const std::string& boot)
 {
-  if (boot != "") {
+  if (FLAGS_bootrom && boot != "") {
     cvm::log(cvm::MEDIUM, "Loading {}\n", boot);
-    if (not dev("boot") or not dynamic_cast<sysmod_mem&>(*dev("boot")).init_elf(boot)) {
-      cvm::log(cvm::ERROR, "No boot defined");
-      return;
+    if (boot.substr(boot.length() - 3) == "elf") {
+      if (not dev("boot") or not dynamic_cast<sysmod_mem&>(*dev("boot")).init_elf(boot)) {
+        cvm::log(cvm::ERROR, "No boot defined");
+        return;
+      }
+    }
+    if (boot.substr(boot.length() - 3) == "hex") {
+      if (not dev("boot") or not dynamic_cast<sysmod_mem&>(*dev("boot")).init_hex(boot)) {
+        cvm::log(cvm::ERROR, "No boot defined");
+        return;
+      }
     }
     // Write hart_enable_mask for bootrom to access
     device::data_t data(8);
@@ -504,12 +570,13 @@ sysmod::load_boot(const std::string& boot)
   }
 }
 
-void sysmod::jtag_resp(uint64_t rdata){
+void sysmod::jtag_resp(std::bitset<70> rdata){
   //std::cout<<"Got JTAG RESP : "<<std::hex<<rdata<<"\n";
   auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0);
   //send response back to jtag driver
-  uint32_t half_rdata = rdata & 0xffffffff;
-  cvm::registry::messenger.signal(tbox_loc, jtag_driver::jtag_req_t{0, 0, half_rdata});
+  uint32_t half_rdata = 0xffffffff;//TODO change
+  std::vector<uint64_t> convertedArray = bitsetToUint64Array(rdata);
+  cvm::registry::messenger.signal(tbox_loc, jtag_driver::jtag_req_t{0, 0,0,half_rdata,0});
 
 }
 void

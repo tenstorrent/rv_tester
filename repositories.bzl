@@ -14,7 +14,7 @@ def rv_tester_repositories():
         #sha256 = "af87959afe497dc8dfd4c6cb66e1279cb98ccc84284619ebfec27d9c09a903de",
     )
 
-    corearchcoverage_hash="e00b0a90f6a8176611a2c91995114a576868f3f2"
+    corearchcoverage_hash="8ac4623c330c740a45a79f4d69a36c9f02de35e4"
     maybe(
         git_repository,
         name = "corearchcoverage",
@@ -23,11 +23,11 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv/dv/corearchcoverage.git",
     )
 
-    cvm_hash="e2764c4e72bc17bef9291811f39cf57e09e8a418"
+    cvm_hash="73e0bbdc6b4ccec485095c8138a227c5d398d1d0"
     maybe(
         http_archive,
         name = "cvm",
-        sha256 = "a266e38d9e04c65fd4eb7830fa0b3904e4cc6acd7de584209c0f20aa77124293",
+        sha256 = "b5c3d88f49019ce939b0b79a6978a5892635a0feb1c2a1a86330f0ab961a04d2",
         strip_prefix = "cvm-{commit}".format(commit=cvm_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/{commit}/cvm-{commit}.tar.bz2".format(commit=cvm_hash),
     )
@@ -40,7 +40,7 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-nlohmann-json.git",
     )
 
-    whisper_hash="f2dad38529f2abb513544176d69976cd78cc3e01"
+    whisper_hash="6a9880a5d928823d067e791e4094417679cb5fbe"
     maybe(
         git_repository,
         name = "whisper",
@@ -67,11 +67,11 @@ def rv_tester_repositories():
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/forks/rules_python/-/archive/{VERSION}/rules_python-{VERSION}.tar.bz2".format(VERSION=rules_python_version)
     )
 
-    mem_manager_hash="74b08eb05d153e792d48841f0509965ea566e9ea"
+    mem_manager_hash="676b131ee3b6b02ec7778bc47bc58d593343b8da"
     maybe(
         http_archive,
         name = "mem_manager",
-        sha256 = "ef31c29408f30b2163e96e7d7978cd9fd9226e4d569d344367a85047a7c5769e",
+        sha256 = "d8c7b4af95af9c4aac57c4231ea8b619a64e31a2f36b9eb539b8d62f1834df68",
         strip_prefix = "mem-manager-{commit}".format(commit=mem_manager_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/mem-manager/-/archive/{commit}/mem-manager-{commit}.tar.bz2".format(commit=mem_manager_hash),
     )
@@ -84,7 +84,7 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-wall_clock_profiler.git",
     )
 
-    checkin_script_hash="c8b7b1ac3c7f3597969789e5a76bdafdd9386f6f"
+    checkin_script_hash="5c840e23253789bbeae882b804f5b4bdaa4ea0ee"
     maybe(
         git_repository,
         name = "checkin-script",
@@ -93,7 +93,7 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/checkin-script.git",
     )
 
-    opensrc_axi_llc_hash="7e1c3ce1c6bb003737411364e3ed26ac8a6578ed"
+    opensrc_axi_llc_hash="9f390940f50b63590c4afadbb4f690fafcdf0105"
     maybe(
         git_repository,
         name = "opensrc-axi_llc",

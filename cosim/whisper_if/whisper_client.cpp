@@ -16,6 +16,8 @@
 
 DECLARE_string(load);
 DECLARE_string(hex);
+DECLARE_string(load_lz4);
+DECLARE_bool(bootrom);
 DECLARE_string(bootrom_path);
 DECLARE_string(whisper_json_path);
 DECLARE_bool(whisper_stdin_null);
@@ -63,19 +65,25 @@ constructSystem(uint16_t ncores, bool standalone) {
   }
 
 
-  if (FLAGS_bootrom_path != "" || FLAGS_load != "") {
-    std::vector<std::string> targets {};
-    if (FLAGS_load != "")
-      targets.push_back(FLAGS_load);
-    if (FLAGS_bootrom_path != "")
-      targets.push_back(FLAGS_bootrom_path);
-    if (not system->loadElfFiles(targets, false, false))
+  if (FLAGS_load_lz4 != "") {
+    std::vector<std::string> targets = {FLAGS_load_lz4};
+    if (not system->loadLz4Files(targets, 0, false))
       return nullptr;
   }
 
   if (FLAGS_hex != "") {
     std::vector<std::string> targets = {FLAGS_hex};
     if (not system->loadHexFiles(targets, false))
+      return nullptr;
+  }
+
+  if (FLAGS_bootrom_path != "" || FLAGS_load != "") {
+    std::vector<std::string> targets {};
+    if (FLAGS_load != "")
+      targets.push_back(FLAGS_load);
+    if (FLAGS_bootrom && FLAGS_bootrom_path != "")
+      targets.push_back(FLAGS_bootrom_path);
+    if (not system->loadElfFiles(targets, false, false))
       return nullptr;
   }
 
@@ -114,13 +122,15 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
     std::vector<std::thread> threadVec;
 
     std::atomic<bool> result = true;
+    std::atomic<bool> max_instr = false;
     std::atomic<unsigned> finished = 0;  // Count of finished threads.
 
     FILE* whisper_log = fopen("iss_standalone.log", "w");
 
-    auto threadFunc = [&result, &finished, whisper_log] (WdRiscv::Hart<URV>* hart) {
+    auto threadFunc = [&result, &finished, &max_instr, whisper_log] (WdRiscv::Hart<URV>* hart) {
                         bool r = hart->run(whisper_log);
                         result = result and r;
+                        max_instr = max_instr or (hart->getInstructionCount() >= FLAGS_max_instr);
                         finished++;
                       };
 
@@ -141,11 +151,15 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
 
     fclose(whisper_log);
 
-    if (!result && !FLAGS_nostop_standalone) {
-      std::cerr << "Error: Test failed on Standalone Whisper, stopping simulation\n";
-      return -1;
+    if (!FLAGS_nostop_standalone) {
+        if (!result) {
+          std::cerr << "Error: Test failed on Standalone Whisper, stopping simulation\n";
+          return -1;
+        } else if (max_instr) {
+          std::cerr << "Error: Test reached max instr on standalone Whisper, stopping simulation\n";
+          return -1;
+        }
     }
-
   }
 
   if (FLAGS_cov) {
