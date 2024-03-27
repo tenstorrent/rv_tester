@@ -118,25 +118,29 @@ public:
   }
 
   void drive_cmd_loop_txn(){
+    
     jtag_req_t jtag_req;
     unsigned jtag_cmd = 0;
     unsigned long  upper_jtag_data = 0;
     unsigned long lower_jtag_data = 0;
     unsigned reg_length_data = 0;
     unsigned hart = 0;
+    
     jtag_req = jtag_loop_q[loop_idx];
     jtag_cmd = jtag_req.jtag_cmd;
     upper_jtag_data = jtag_req.jtag_ip_data_upper;
     lower_jtag_data = jtag_req.jtag_ip_data_lower;
     reg_length_data = jtag_req.jtag_length_data;
-    std::cout<<"JTAG LOOP CMD:"<<jtag_cmd<<"\n";
+    
+    cvm::log(cvm::HIGH, "[jtag_driver]: JTAG loop command {}\n",jtag_cmd);
+    
     if(jtag_cmd<3){
-    std::cout<<" JTAG LOOP CMD : jtag_req.jtag_length_data:"<<jtag_req.jtag_length_data<<" reg_length_data "<<reg_length_data<<"\n";
-    hart = 0; // hart bits position TBD, till TBD it is always zero
-    trickboxJtagWrite(hart, jtag_cmd, upper_jtag_data, lower_jtag_data,reg_length_data);
+      hart = 0; // hart bits position TBD, till TBD it is always zero
+      trickboxJtagWrite(hart, jtag_cmd, upper_jtag_data, lower_jtag_data,reg_length_data);
     }else{
-      std::cout<<"JTAG LOOP NOP/UNSUPPORTED KEYWORD IN LOOP\n";
+      cvm::log(cvm::ERROR, "[jtag_driver]: Unsupported keyword in jtag csv loop {}\n",jtag_cmd);
     }
+
     if(loop_idx<loop_size){
       loop_idx++;
     }else if(loop_idx == loop_size){
