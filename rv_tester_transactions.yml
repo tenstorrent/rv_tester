@@ -581,6 +581,10 @@ pmu:
                 width: 64
             cycles_raw_full:
                 width: 64
+            perf_start:
+                width: 1
+            perf_end:
+                width: 1
 
 
 dm_model:

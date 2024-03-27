@@ -450,7 +450,7 @@ public:
     for (size_t i = 0; i < perf_region.size(); i++)
       perf_region[i] = counters[i];
 
-    perf_region_started = true;
+    perf_start_cycle = counters[CPU_CYCLES];
   }
 
   void perf_region_end() {
@@ -460,12 +460,10 @@ public:
       perf_region[i] = counters[i] - perf_region[i];
     }
 
-    perf_region_ended = true;
+    perf_end_cycle = counters[CPU_CYCLES];
   }
 
   bool is_within_range(double, double, int);
-  void configure();
-  void process(const rv_tester_transactions::cosim::m_rvfi<> &m_rvfi);
   void process(const rv_tester_transactions::pmu::pmcounters<> &pmcounters);
   void process(const rv_tester::terminate_called_fast &);
 
@@ -476,13 +474,8 @@ private:
 
   std::vector<uint64_t> counters;
 
-  uint64_t perf_start_pc;
   uint64_t perf_start_cycle = 0;
-  uint64_t perf_end_pc;
   uint64_t perf_end_cycle = 0;
-  bool perf_region_ok = false;
-  bool perf_region_started = false;
-  bool perf_region_ended = false;
   std::vector<uint64_t> perf_region;
 
   bool terminated_ = false;
