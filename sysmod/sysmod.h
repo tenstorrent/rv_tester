@@ -57,10 +57,11 @@ class sysmod {
   //     return result;
   //  }
    std::vector<uint64_t> bitsetToUint64Array(const std::bitset<70>& bitset) {
-    const size_t bitsetSize = 70;
+    const size_t bitsetSize = 64;//70;
     const size_t ulongSize = sizeof(uint64_t) * 8;
     const size_t arraySize = (bitsetSize + ulongSize - 1) / ulongSize;
-
+    
+     std::bitset<70> bitset_shifted = bitset>>4;
     std::vector<uint64_t> ulongArray(arraySize);
 
     for (size_t i = 0; i < bitsetSize; i += ulongSize) {
@@ -68,7 +69,7 @@ class sysmod {
         uint64_t value = 0;
 
         for (size_t j = 0; j < ulongSize && (i + j) < bitsetSize; ++j) {
-            value |= (bitset[i + j] ? 1UL : 0UL) << j;
+            value |= (bitset_shifted[i + j] ? 1UL : 0UL) << j;
         }
 
         ulongArray[ulongIndex] = value;

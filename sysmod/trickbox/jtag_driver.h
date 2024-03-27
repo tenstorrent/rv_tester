@@ -81,16 +81,72 @@ public:
   virtual void tick(uint64_t advance) override
   {
     num_ticks++;
-    cvm::log(cvm::FULL, "[jtag_driver]: Tick\n");
+    cvm::log(cvm::HIGH, "[jtag_driver]: Tick {}\n",num_ticks);
     timer_ += advance;
     timer_advance = advance;
     if( num_ticks > 30) 
     {
     checkJtagEvents();
+
+    if(executing_nop){
+      nop_count--;
+      cvm::log(cvm::HIGH, "[jtag_driver]: Executing Nop ,Nop count {}\n",nop_count);
+      if(nop_count==0)
+        executing_nop = false;
+    }else if(executing_loop){
+      cvm::log(cvm::HIGH, "[jtag_driver]: Executing loop \n");
+      Run_cmd_loop();
+    }else{
     drive_csv_jtag_cmds();
+    }
+   }
+  }
+ bool isNthBitSet(uint64_t number,int N) {
+    // Shift the number right by 62 bits and check if the least significant bit is set
+    return (number >> N) & 1;
+ }
+ void Run_cmd_loop()
+  {
+    if(loop_idx == 0 && loop_execution_cnt>0 && (isNthBitSet(loop_rdata,63))){
+      //Check for status bit in rdata
+        executing_loop = false;
+        jtag_loop_q.clear();
+        return;
+    }else{
+        drive_cmd_loop_txn();
     }
   }
 
+  void drive_cmd_loop_txn(){
+    
+    jtag_req_t jtag_req;
+    unsigned jtag_cmd = 0;
+    unsigned long  upper_jtag_data = 0;
+    unsigned long lower_jtag_data = 0;
+    unsigned reg_length_data = 0;
+    unsigned hart = 0;
+    
+    jtag_req = jtag_loop_q[loop_idx];
+    jtag_cmd = jtag_req.jtag_cmd;
+    upper_jtag_data = jtag_req.jtag_ip_data_upper;
+    lower_jtag_data = jtag_req.jtag_ip_data_lower;
+    reg_length_data = jtag_req.jtag_length_data;
+    
+    cvm::log(cvm::HIGH, "[jtag_driver]: JTAG loop command {}\n",jtag_cmd);
+    
+    if(jtag_cmd<3){
+      hart = 0; // hart bits position TBD, till TBD it is always zero
+      trickboxJtagWrite(hart, jtag_cmd, upper_jtag_data, lower_jtag_data,reg_length_data);
+    }else{
+      cvm::log(cvm::ERROR, "[jtag_driver]: Unsupported keyword in jtag csv loop {}\n",jtag_cmd);
+    }
+
+    if(loop_idx<loop_size){
+      loop_idx++;
+    }else if(loop_idx == loop_size){
+      loop_idx = 0;
+    }
+  } 
   void reset() override
   {
     cvm::log(cvm::HIGH, "[jtag_driver]: Reset jtag_driver\n");
@@ -128,7 +184,7 @@ public:
     unsigned jtag_cmd; 
     uint64_t jtag_ip_data_lower;
     uint64_t jtag_ip_data_upper;
-    unsigned jtag_op_data;
+    uint64_t jtag_op_data;
     unsigned jtag_length_data;
   };
   typedef struct{ 
@@ -192,9 +248,24 @@ private:
   uint64_t jtag_driver_num_cmds_addr = 0x9061000;
   uint32_t status;
   uint32_t commands_in_queue;
+  
+  bool      executing_nop = false;
+  uint32_t  nop_count = 0; 
+  
+ // bool      expecting_check = false;
 
+  bool      executing_loop = false;
+  uint32_t  loop_size = 0; 
+  uint32_t  loop_idx = 0; 
+  uint32_t  loop_execution_cnt = 0; 
+  //uint32_t  loop_check_bit_num = 0;
+  //uint64_t  expected_check_value = 0x0;
+  //bool      loop_check_bit_type = 0; //0->chk if bit is zero 1-> chk if bit is 1
+  
+  uint64_t loop_rdata;
   std::vector<std::vector<std::string>> csv_data;
   std::queue<jtag_req_t> jtag_cmd_q;
+  std::vector<jtag_req_t> jtag_loop_q;
   std::queue<jtag_req_t> jtag_rsp_q;
   unsigned jtag_file_mode = 0;
   unsigned jtag_trigger = 0;
