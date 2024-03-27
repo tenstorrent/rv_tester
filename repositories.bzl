@@ -93,7 +93,7 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/checkin-script.git",
     )
 
-    opensrc_axi_llc_hash="9f390940f50b63590c4afadbb4f690fafcdf0105"
+    opensrc_axi_llc_hash="7b62a5498d1b1023a6dfcec5bc216360015b65c6"
     maybe(
         git_repository,
         name = "opensrc-axi_llc",
