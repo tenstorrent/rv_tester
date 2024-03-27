@@ -92,7 +92,6 @@ constructSystem(uint16_t ncores, bool standalone) {
     hart.enableLinux(false);
     hart.tracePtw(true);
     hart.defineResetPc(FLAGS_resetpc);
-    if (FLAGS_preload) hart.setInitialStateFile("preload.csv");
     if (FLAGS_whisper_stdout_null) hart.redirectOutputDescriptor(STDOUT_FILENO, "/dev/null");
     if (FLAGS_whisper_stdin_null) hart.redirectOutputDescriptor(STDIN_FILENO, "/dev/null");
     if (not isa.empty())
@@ -127,6 +126,7 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
 
     for (unsigned i = 0; i < system_->hartCount(); ++i) {
       WdRiscv::Hart<URV>* hart = system_->ithHart(i).get();
+      if (FLAGS_preload) hart->setInitialStateFile("preload_" + std::to_string(i) + ".csv");
       hart->setInstructionCountLimit(FLAGS_max_instr);
       threadVec.emplace_back(std::thread(threadFunc, hart));
     }
