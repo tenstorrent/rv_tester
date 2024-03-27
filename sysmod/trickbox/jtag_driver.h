@@ -252,15 +252,15 @@ private:
   bool      executing_nop = false;
   uint32_t  nop_count = 0; 
   
-  bool      expecting_check = false;
+ // bool      expecting_check = false;
 
   bool      executing_loop = false;
   uint32_t  loop_size = 0; 
   uint32_t  loop_idx = 0; 
   uint32_t  loop_execution_cnt = 0; 
-  uint32_t  loop_check_bit_num = 0;
-  uint64_t  expected_check_value = 0x0;
-  bool      loop_check_bit_type = 0; //0->chk if bit is zero 1-> chk if bit is 1
+  //uint32_t  loop_check_bit_num = 0;
+  //uint64_t  expected_check_value = 0x0;
+  //bool      loop_check_bit_type = 0; //0->chk if bit is zero 1-> chk if bit is 1
   
   uint64_t loop_rdata;
   std::vector<std::vector<std::string>> csv_data;
