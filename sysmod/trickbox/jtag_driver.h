@@ -80,12 +80,15 @@ public:
 
   virtual void tick(uint64_t advance) override
   {
+    num_ticks++;
     cvm::log(cvm::FULL, "[jtag_driver]: Tick\n");
     timer_ += advance;
     timer_advance = advance;
+    if( num_ticks > 30) 
+    {
     checkJtagEvents();
-
     drive_csv_jtag_cmds();
+    }
   }
 
   void reset() override
@@ -210,4 +213,5 @@ private:
   std::vector<std::string> csvFilePaths;
   unsigned file_idx = 0;
   unsigned snippets_driven = 0;
+  unsigned num_ticks= 0;
 };

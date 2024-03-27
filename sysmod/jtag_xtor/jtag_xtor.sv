@@ -45,6 +45,10 @@ typedef enum logic [1:0] {
   bit ir ='0;
   bit dr ='0;
 
+  bit pos_tdo_en = '0;
+
+  assign pos_tdo_en = ~jtag_resp.tdo_en;
+
   assign jtag_tck_trst.tck = clk;
   assign jtag_tck_trst.trst = reset;
 
@@ -181,22 +185,23 @@ always @(posedge clk) begin
 end
 
 //driving tdo 
-always @(posedge jtag_resp.tdo_en) begin
+always @(posedge pos_tdo_en) begin
   counter <= 32'b0;
 end
 
 //for future use
 always @(posedge clk) begin
-  if (ir && jtag_resp.tdo_en) begin
+  if (ir && ~jtag_resp.tdo_en) begin
     jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1:4],jtag_resp.tdo,jtag_rx[3:1]};
     read <= 1;
-  end else if (dr && jtag_resp.tdo_en) begin
-    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1:32],jtag_resp.tdo,jtag_rx[31:1]};
+  end else if (dr && ~jtag_resp.tdo_en) begin
+    read_data_valid_reg <= 1'b0; 
+    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1 : 68],jtag_resp.tdo,jtag_rx[67 :1]};
     read <= 1;
   end else begin
     if(read)begin
-      $display("final jtag read from tdo=%h",jtag_rx);
-      jtag_rx <= 0;
+      $display("final jtag read from tdo=%h",jtag_rx[63:0]);
+      read_data_valid_reg <= 1'b1; 
       read <= 0;
     end
   end 
@@ -206,21 +211,21 @@ always @(posedge clk) begin
   end
 end
 
-always @(posedge clk) begin
-  if(jtag_resp.tdo_en && ir && counter == 32'd3)begin
-    read_data_valid_reg <= 1'b1; 
-  end   
-  else if(jtag_resp.tdo_en && dr && counter == 32'd31)begin
-    read_data_valid_reg <= 1'b1; 
-  end else begin
-    read_data_valid_reg <= 1'b0; 
-  end  
-end
-
-always @(posedge clk)begin
-  if (jtag_resp.tdo_en ) begin
-    counter <= counter + 32'b1;
-  end 
-end
+//always @(posedge clk) begin
+//  if(jtag_resp.tdo_en && ir && counter == 32'd3)begin
+//    read_data_valid_reg <= 1'b1; 
+//  end   
+//  else if(jtag_resp.tdo_en && dr && counter == 32'd31)begin
+//    read_data_valid_reg <= 1'b1; 
+//  end else begin
+//    read_data_valid_reg <= 1'b0; 
+//  end  
+//end
+//
+//always @(posedge clk)begin
+//  if (jtag_resp.tdo_en ) begin
+//    counter <= counter + 32'b1;
+//  end 
+//end
 
 endmodule
