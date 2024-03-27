@@ -259,7 +259,7 @@ void jtag_driver::drive_csv_jtag_cmds()
         }
         if(jtag_cmd_temp == 6){
           loop_check_bit_num   = jtag_req.jtag_ip_data_lower;
-          expected_check_value = jtag_req.jtag_length_data;
+          loop_check_bit_type  = jtag_req.jtag_length_data;
         }
         jtag_cmd_q.pop(); // pop elemnt
 
