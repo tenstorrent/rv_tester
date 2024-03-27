@@ -105,9 +105,26 @@ public:
     // Shift the number right by 62 bits and check if the least significant bit is set
     return (number >> N) & 1;
  }
+ 
+ bool isNthBitClear(uint64_t number,int N) {
+    // Shift the number right by 62 bits and check if the least significant bit is not set
+    return !((number >> N) & 1);
+ }
+
+bool exitLoop() {
+    if(loop_check_bit_type>0){
+      return isNthBitSet(loop_rdata,loop_check_bit_num);
+    }else if(loop_check_bit_type == 0){
+      return isNthBitClear(loop_rdata,loop_check_bit_num);
+    }else{
+     cvm::log(cvm::HIGH, "[jtag_driver]: Wrong Exit loop condition detected \n");
+     return false;
+    }
+    
+ }
  void Run_cmd_loop()
   {
-    if(loop_idx == 0 && loop_execution_cnt>0 && (isNthBitSet(loop_rdata,63))){
+    if(loop_idx == 0 && loop_execution_cnt>0 && exitLoop()){
       //Check for status bit in rdata
         executing_loop = false;
         jtag_loop_q.clear();
@@ -256,7 +273,7 @@ private:
   bool      executing_nop = false;
   uint32_t  nop_count = 0; 
   
-  bool      expecting_check = false;
+  //bool      expecting_check = false;
 
   bool      executing_loop = false;
   uint32_t  loop_size = 0; 
