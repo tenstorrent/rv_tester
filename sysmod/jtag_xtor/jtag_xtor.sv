@@ -45,6 +45,10 @@ typedef enum logic [1:0] {
   bit ir ='0;
   bit dr ='0;
 
+  bit pos_tdo_en = '0;
+
+  assign pos_tdo_en = ~jtag_resp.tdo_en;
+
   assign jtag_tck_trst.tck = clk;
   assign jtag_tck_trst.trst = reset;
 
@@ -181,7 +185,7 @@ always @(posedge clk) begin
 end
 
 //driving tdo 
-always @(posedge ~jtag_resp.tdo_en) begin
+always @(posedge pos_tdo_en) begin
   counter <= 32'b0;
 end
 

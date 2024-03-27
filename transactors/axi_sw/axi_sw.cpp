@@ -15,6 +15,8 @@ REGISTRY_register((axi_sw<rv_tester_transactions::axi_sw::w<1>,
                          rv_tester_transactions::axi_sw::ar<1>,
                          rv_tester_transactions::axi_sw::r_q_ptr<1>>), NCIO_AXI, cvm::registry::all);
 
+
+
 extern "C" {
 
   void axi_sw_r_reset();

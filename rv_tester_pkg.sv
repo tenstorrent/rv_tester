@@ -2,9 +2,12 @@ package rv_tester_pkg;
 
     typedef struct packed {
         // FIXME: need per hart interrupt
+        logic sgei;
         logic mei;
+        logic vsei;
         logic sei;
         logic mti;
+        logic vsti;
         logic sti;
         logic msi;
         logic ssi;

@@ -22,6 +22,7 @@ DECLARE_string(bootrom_path);
 DECLARE_string(whisper_json_path);
 DECLARE_bool(whisper_stdin_null);
 DECLARE_bool(whisper_stdout_null);
+DECLARE_bool(preload);
 DECLARE_bool(mcm);
 DECLARE_bool(cov);
 DECLARE_uint32(max_instr);
@@ -70,19 +71,19 @@ constructSystem(uint16_t ncores, bool standalone) {
       return nullptr;
   }
 
-  if (FLAGS_bootrom_path != "" || FLAGS_load != "") {
-    std::vector<std::string> targets {};
-    if (FLAGS_bootrom && FLAGS_bootrom_path != "")
-      targets.push_back(FLAGS_bootrom_path);
-    if (FLAGS_load != "")
-      targets.push_back(FLAGS_load);
-    if (not system->loadElfFiles(targets, false, false))
-      return nullptr;
-  }
-
   if (FLAGS_hex != "") {
     std::vector<std::string> targets = {FLAGS_hex};
     if (not system->loadHexFiles(targets, false))
+      return nullptr;
+  }
+
+  if (FLAGS_bootrom_path != "" || FLAGS_load != "") {
+    std::vector<std::string> targets {};
+    if (FLAGS_load != "")
+      targets.push_back(FLAGS_load);
+    if (FLAGS_bootrom && FLAGS_bootrom_path != "")
+      targets.push_back(FLAGS_bootrom_path);
+    if (not system->loadElfFiles(targets, false, false))
       return nullptr;
   }
 
@@ -135,6 +136,7 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
 
     for (unsigned i = 0; i < system_->hartCount(); ++i) {
       WdRiscv::Hart<URV>* hart = system_->ithHart(i).get();
+      if (FLAGS_preload) hart->setInitialStateFile("preload_" + std::to_string(i) + ".csv");
       hart->setInstructionCountLimit(FLAGS_max_instr);
       threadVec.emplace_back(std::thread(threadFunc, hart));
     }

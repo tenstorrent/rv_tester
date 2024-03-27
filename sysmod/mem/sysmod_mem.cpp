@@ -58,12 +58,12 @@ bool sysmod_mem::init_elf(const std::string& path) {
     return true;
 }
 
-bool sysmod_mem::init_lz4(const std::string& ) {
-   try {
-       //m_.load_lz4(path);
-   } catch(const std::exception& e) {
-       std::cerr << e.what() << "\n";
-       return false;
-   }
+bool sysmod_mem::init_lz4(const std::string& path) {
+    try {
+        m_.load_lz4(path);
+    } catch(const std::exception& e) {
+        std::cerr << e.what() << "\n";
+        return false;
+    }
     return true;
 }
