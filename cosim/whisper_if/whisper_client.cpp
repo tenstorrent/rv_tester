@@ -136,7 +136,10 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
 
     for (unsigned i = 0; i < system_->hartCount(); ++i) {
       WdRiscv::Hart<URV>* hart = system_->ithHart(i).get();
-      if (FLAGS_preload) hart->setInitialStateFile("preload_" + std::to_string(i) + ".csv");
+      if (FLAGS_preload) {
+        FILE* preload_log = fopen(("preload_" + std::to_string(i) + ".csv").c_str(), "w");
+        hart->setInitialStateFile(preload_log);
+      }
       hart->setInstructionCountLimit(FLAGS_max_instr);
       threadVec.emplace_back(std::thread(threadFunc, hart));
     }
