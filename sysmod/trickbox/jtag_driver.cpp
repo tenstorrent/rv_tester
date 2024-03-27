@@ -7,6 +7,7 @@ DEFINE_string(jtag_input_file_path, "", "Path to file containing jtag_driver com
 DEFINE_bool(random_jtag_entry, false, "Enter debug mode randomly after random intervals");
 DEFINE_int32(random_jtag_start_delay, 300, "delay after which random interrupts should start");
 DEFINE_int32(jtag_delay_min, 6, "Minimum Delay between 2 consecutive debug mode requests");
+DEFINE_int32(jtag_max_loop_count, 50, "Number of times loop should run before flagging error");
 DEFINE_int32(jtag_delay_max, 9, "Maximum Delay between 2 consecutive debug mopde requests");
 DEFINE_int32(jtag_max_snippets, 1, "Maximum number of debug snippets to be driven");
 DEFINE_string(jtag_template_dir_path, "", "Path to file containing jtag_driver commands");
@@ -116,7 +117,7 @@ void jtag_driver::parse_jtag_from_csv()
          jtag_req.jtag_cmd = 3;
       }else if(jtag_cmd == "ck"){ //chk,456
          jtag_req.jtag_cmd = 4;
-      }else if(jtag_cmd == "ls"){ //loop start,0
+      }else if(jtag_cmd == "ls"){ //loop start,loop_limit
          jtag_req.jtag_cmd = 5;
       }else if(jtag_cmd == "le"){ //loop end, checkbit
          jtag_req.jtag_cmd = 6;
@@ -127,6 +128,7 @@ void jtag_driver::parse_jtag_from_csv()
       if(jtag_req.jtag_cmd<3){ 
          length = row[2];  //length NA for nop and check
       }
+      
       data_s.erase(std::remove_if(data_s.begin(), data_s.end(), ::isspace), data_s.end());
       // convert string to lowercase for uniformity
       std::transform(data_s.begin(), data_s.end(), data_s.begin(), ::tolower);
@@ -159,6 +161,7 @@ void jtag_driver::parse_jtag_from_csv()
          } catch (const std::invalid_argument& e) {
              std::cerr << "[JTAG DRIVER] Invalid argument for stoul csv arg 1: " << e.what() << std::endl;
          }
+
       }
       if(jtag_req.jtag_cmd<3){
         try{
@@ -238,7 +241,13 @@ void jtag_driver::drive_csv_jtag_cmds()
       
       jtag_loop_q.clear();
       jtag_cmd_q.pop(); // pop front eleme7t which is loop start
-    
+      
+      if((upper_jtag_data == 0){//loop start
+            max_num_loops = FLAGS_jtag_max_loop_count;
+         }else{
+            max_num_loops = upper_jtag_data; 
+      }
+
       do{
         jtag_req_t jtag_req_temp;
         
