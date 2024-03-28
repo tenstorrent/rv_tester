@@ -238,6 +238,7 @@ import rv_tester_params::*;
 
     function automatic bit [63:0] get_mip(rv_tester_pkg::interrupt_t intr);
       bit [63:0] mip = 'h0;
+      mip[13] = intr.lcofi;
       mip[12] = intr.sgei;
       mip[11] = intr.mei;
       mip[10]  = intr.vsei;
