@@ -356,7 +356,6 @@ void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whi
   check_interrupt(hart, undeferred_mip, pre_undeferred_intr_, undeferred_w_cause);
   }
   }
-  log(cvm::MEDIUM, "pre step mip is {}\n", mip_);
   if (!mip_)
     return;
 
@@ -885,14 +884,14 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_
 
       if (w.address == 0x344) {
         mip_ = w.value;
-        e_mip_ = w.value & 0x1e00;
+        e_mip_ = w.value & 0x3e00;
         log(cvm::MEDIUM, "<{}> Zicsr write based interrupt: mip {:#x}\n", w.time, w.value);
       }
       // Whisper is not doing recordwrite of mip if change happens to it through sip, *ireg, *topei
       if (w.address == 0x144) {
-        uint64_t sip_mask=0x222;
+        uint64_t sip_mask=0x2222;
         mip_ = (w.value & sip_mask) | (mip_ & ~sip_mask);
-        e_mip_ = mip_ & 0x1e00;
+        e_mip_ = mip_ & 0x3e00;
         log(cvm::MEDIUM, "<{}> Zicsr write based interrupt: mip {:#x}\n", w.time, w.value);
       }
       for (size_t i = 0; i < csrsupdatingmip.size(); ++i) {
@@ -1316,7 +1315,7 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
   if (i.mip_mask & 0x1e00) {
     process_external_interrupt(hart, i);
   } 
-  if (i.mip_mask & 0xee) {
+  if (i.mip_mask & 0x20ee) {
     process_timer_sw_interrupt(hart, i);
   }
 }
