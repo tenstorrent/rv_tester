@@ -1005,6 +1005,11 @@ bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const std::
     log(cvm::MEDIUM, "<{}> Resynch: Reason=[mmr_access]\n", d.cycle);
     return true;
   }
+  // Case #9
+  if (unsupported_csr_access(instr)) {
+    log(cvm::MEDIUM, "<{}> Resynch: Reason=[unsupported_csr_access]\n", d.cycle);
+    return true;
+  }
   return false;
 }
 
@@ -1077,6 +1082,12 @@ bool bridge::hpm_counter_read(const std::string& instr) {
       (instr.find("hpmevent") != std::string::npos) || //FIXME: poke events to whisper
       (instr.find("scountovf") != std::string::npos) ||//FIXME: poke events to whisper
       (instr.find("cycle") != std::string::npos))
+    return true;
+  return false;
+}
+
+bool bridge::unsupported_csr_access(const std::string& instr) {
+  if ((instr.find("as_dbg_mux_sel") != std::string::npos))
     return true;
   return false;
 }
