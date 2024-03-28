@@ -40,7 +40,7 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-nlohmann-json.git",
     )
 
-    whisper_hash="6a9880a5d928823d067e791e4094417679cb5fbe"
+    whisper_hash="ef2b6823e749ab83ccb55a4b5c12afc23c94e8aa"
     maybe(
         git_repository,
         name = "whisper",
@@ -93,7 +93,7 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/checkin-script.git",
     )
 
-    opensrc_axi_llc_hash="88f19b9cec1a4f5c8037960191cb05cc86574586"
+    opensrc_axi_llc_hash="1f28723b214e17237066dd558b75b2c4b8a585de"
     maybe(
         git_repository,
         name = "opensrc-axi_llc",

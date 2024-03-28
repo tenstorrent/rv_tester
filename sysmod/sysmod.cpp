@@ -308,9 +308,9 @@ sysmod::terminate(htif::terminate_t t) {
 void
 sysmod::reset() {
   compose();
-  load_boot(FLAGS_bootrom_path);
   load_prog(FLAGS_hex, FLAGS_load, FLAGS_load_lz4);
   load_io(FLAGS_load_io);
+  load_boot(FLAGS_bootrom_path);
 }
 
 void
@@ -571,12 +571,15 @@ sysmod::load_boot(const std::string& boot)
 }
 
 void sysmod::jtag_resp(std::bitset<70> rdata){
-  //std::cout<<"Got JTAG RESP : "<<std::hex<<rdata<<"\n";
   auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0);
-  //send response back to jtag driver
-  uint32_t half_rdata = 0xffffffff;//TODO change
   std::vector<uint64_t> convertedArray = bitsetToUint64Array(rdata);
-  cvm::registry::messenger.signal(tbox_loc, jtag_driver::jtag_req_t{0, 0,0,half_rdata,0});
+  cvm::log(cvm::HIGH, "[SYSMOD.CPP] In JTAG RESP converted array size = {}\n", convertedArray.size());
+  
+  for (uint64_t num : convertedArray) {
+        cvm::log(cvm::HIGH, "[SYSMOD.CPP] In JTAG RESP converted array element = {}\n", num);
+  }
+  
+  cvm::registry::messenger.signal(tbox_loc, jtag_driver::jtag_req_t{0, 0,0,convertedArray[0],0});
 
 }
 void
