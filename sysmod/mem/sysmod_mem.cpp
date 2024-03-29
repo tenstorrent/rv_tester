@@ -10,7 +10,7 @@ void sysmod_mem::write(const transactor::write_t& w) {
 
   for (size_t i = 0; i < length; i++) {
     if (strb[i]) {
-      m_->write(addr + i, 1, &data[i]);
+      m_.write(addr + i, 1, &data[i]);
     }
   }
   return;
@@ -20,27 +20,27 @@ void sysmod_mem::read(const transactor::read_t& r, data_t& data) {
   auto& addr = r.addr;
   auto& length = r.length;
 
-  m_->read(addr, length, data.data());
+  m_.read(addr, length, data.data());
   return;
 }
 
 void sysmod_mem::backdoor_write(uint64_t addr, size_t length, data_t& data, strb_t& strb) {
   for (size_t i = 0; i < length; i++) {
     if (strb[i]) {
-      m_->write(addr + i, 1, &data[i]);
+      m_.write(addr + i, 1, &data[i]);
     }
   }
   return;
 }
 
 void sysmod_mem::backdoor_read(uint64_t addr, size_t length, data_t& data) {
-  m_->read(addr, length, data.data());
+  m_.read(addr, length, data.data());
   return;
 }
 
 bool sysmod_mem::init_hex(const std::string& path) {
     try {
-        m_->load_verilog_hex(path);
+        m_.load_verilog_hex(path);
     } catch(const std::exception& e) {
         std::cerr << e.what() << "\n";
         return false;
@@ -50,7 +50,7 @@ bool sysmod_mem::init_hex(const std::string& path) {
 
 bool sysmod_mem::init_elf(const std::string& path) {
     try {
-        m_->load_ELF(path);
+        m_.load_ELF(path);
     } catch(const std::exception& e) {
         std::cerr << e.what() << "\n";
         return false;
@@ -60,7 +60,7 @@ bool sysmod_mem::init_elf(const std::string& path) {
 
 bool sysmod_mem::init_lz4(const std::string& path) {
     try {
-        m_->load_lz4(path);
+        m_.load_lz4(path);
     } catch(const std::exception& e) {
         std::cerr << e.what() << "\n";
         return false;
