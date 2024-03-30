@@ -27,6 +27,8 @@ import rv_tester_params:: * ;
     localparam  WAKETIME = 'h380008;
     localparam  MTIMECMP0 = 'h388000;
     localparam  TIMESYNC = 'h380018;
+    localparam  ACLINT_START = 'h42180000;
+    localparam  ACLINT_END = 'h4218ffff;
     logic enable_checks;
 
     always @(posedge tb_clk) begin
@@ -137,7 +139,7 @@ import rv_tester_params:: * ;
 
     //ACLINT core MMR - ac_mmrwrite
     for (genvar n = 0; n < TOTAL_NRETS; n++) begin
-        assign cr_ac_mmrwrites[n].valid =  ~reset & enable_checks & rvfi[n].valid && (rvfi[n].mem_wmask != 0) && (rvfi[n].mem_paddr>= 'ha180000 && rvfi[n].mem_paddr<= 'ha18ffff);
+        assign cr_ac_mmrwrites[n].valid =  ~reset & enable_checks & rvfi[n].valid && (rvfi[n].mem_wmask != 0) && (rvfi[n].mem_paddr>= ACLINT_START && rvfi[n].mem_paddr<= ACLINT_END);
         assign cr_ac_mmrwrites[n].data.location = location;
         assign cr_ac_mmrwrites[n].data.hart = get_hart_ret(n);
         assign cr_ac_mmrwrites[n].data.order = rvfi[n].order;
@@ -147,7 +149,7 @@ import rv_tester_params:: * ;
     end
 
     for (genvar n = 0; n < TOTAL_NBYPASSES; n++) begin
-        assign cr_ac_mmrwr_bypasss[n].valid =   enable_checks & mcmi_bypass[n].valid && (mcmi_bypass[n].mask != 0) && (mcmi_bypass[n].addr>= 'ha180000 && mcmi_bypass[n].addr<= 'ha18ffff);
+        assign cr_ac_mmrwr_bypasss[n].valid =   enable_checks & mcmi_bypass[n].valid && (mcmi_bypass[n].mask != 0) && (mcmi_bypass[n].addr>= ACLINT_START && mcmi_bypass[n].addr<= ACLINT_END);
         assign cr_ac_mmrwr_bypasss[n].data.location = location;
         assign cr_ac_mmrwr_bypasss[n].data.hart = get_hart_bypass(n);
         assign cr_ac_mmrwr_bypasss[n].data.order = mcmi_bypass[n].order;
