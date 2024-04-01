@@ -1329,7 +1329,7 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
   if (i.mip_mask & 0x1e00) {
     process_external_interrupt(hart, i);
   } 
-  if (i.mip_mask & 0xee) {
+  if (i.mip_mask & 0x20ee) {
     process_timer_sw_interrupt(hart, i);
   }
 }

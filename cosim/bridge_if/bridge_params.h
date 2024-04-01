@@ -471,7 +471,8 @@ namespace {
         SEI = 9,
         VSEI = 10,
         MEI = 11,
-        SGEI = 12
+        SGEI = 12,
+        LCOFI = 13
     } intr;
 
     const std::unordered_map<intr, std::string_view> intr_to_string = {
@@ -484,7 +485,8 @@ namespace {
         {SEI, "SEI"},
         {VSEI, "VSEI"},
         {MEI, "MEI"},
-        {SGEI, "SGEI"}
+        {SGEI, "SGEI"},
+        {LCOFI, "LCOFI"}
     };
 
     typedef enum : size_t {
