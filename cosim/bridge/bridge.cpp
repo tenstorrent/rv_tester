@@ -482,7 +482,14 @@ void bridge::process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, wh
   }
   }
 
-  if (d.mem_write.valid && ((d.mem_write.pa>=0x8000000 &&  d.mem_write.pa <0xa000000) || (d.mem_write.pa>=0xc000000 &&  d.mem_write.pa < 0xe000000)) ) {
+  if (d.mem_write.valid && d.mem_write.size==4 && ((d.mem_write.pa>=0x40000000 &&  d.mem_write.pa <0x42000000) || (d.mem_write.pa>=0x44000000 &&  d.mem_write.pa < 0x46000000)) ) {
+  bool valid;
+  if (!client_->whisperPokeMem(hart, d.cycle, 'm', d.mem_write.pa, 4, d.mem_write.data, valid)) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: Failed to poke memory\n", hart);
+    return;
+  } else {
+    log(cvm::MEDIUM, "<{}> Poking msi to whisper because of a store\n", d.cycle);
+  }
     uint64_t mip, seip, mipchange, msihart;
     msihart = (d.mem_write.pa >> 18) & 0x7;
     if (msihart < static_cast<uint64_t>(num_harts_)) {
