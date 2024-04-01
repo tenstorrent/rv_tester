@@ -83,7 +83,7 @@ typedef struct
   bool core2_halted;
   bool core1_halted;
   bool core0_halted;
-} haltsum_t
+} haltsum_t;
 
 typedef enum cmderr
 {
@@ -131,6 +131,7 @@ typedef struct
   bool resumeack;
   bool havereset;
   uint8_t haltgroup;
+  uint8_t resumegroup;
 } hart_debug_state_t;
 
 class debug_module_t
@@ -163,7 +164,7 @@ private:
   uint32_t sent_count = 0, resp_count =0;
 
   static const unsigned datasize = 12; //Number of data registers
-  debug_module_config_t config = {16, false, 0, true, true, true, false, true};
+  debug_module_config_t config = {16, false, 0, true, true, true, true, true};
 
   // Actual size of the program buffer, which is 1 word bigger than we let on
   // to implement the implicit ebreak at the end.

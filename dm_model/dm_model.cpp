@@ -177,11 +177,25 @@ void debug_module_t::process(const rv_tester_transactions::dm_model::dm_load_dat
     cvm::log(cvm::HIGH, "Seen a matching load response for the same id as the previous load request\n");
     uint64_t expected_load_data_to_check = cvm::bitmanip::slice<uint64_t>(expected_load_data, (load_req_length * 4 - 1), 0);
     uint64_t actual_load_data_to_check = cvm::bitmanip::slice<uint64_t>(dm_load_data.data, (load_req_length * 4 - 1), 0);
-    
+
     if (expected_load_data_to_check != actual_load_data_to_check) {
+      uint32_t shifted_actual_data, hart_select, masked_actual_data, masked_expected_data, shifted_expected_data;
+      hart_select = 0x0000000F & load_req_addr;
+      cvm::log(cvm::HIGH, "[Test] Resumegroup:{:#x} hart_select:{:#x} \n",hart_state[hart_select].resumegroup, hart_select);
       if(load_req_addr == DEBUG_ROM_FLAGS && !reflow_flags) {
         reflow_flags = true;
         cvm::log(cvm::HIGH, "Reflowing 0x400 read to allow DM to update state flag\n");
+      }
+      else if (hart_state[hart_select].resumegroup)
+      {
+        shifted_actual_data = (actual_load_data_to_check >> (8 * hart_select));
+        shifted_expected_data = (expected_load_data_to_check >> (8 * hart_select));
+        masked_actual_data = shifted_actual_data & 0x0000000F;
+        masked_expected_data = shifted_expected_data & 0x0000000F;
+        if ((masked_actual_data != masked_expected_data))
+        {
+        cvm::log(cvm::ERROR, "[Error-Mismatch] The load data's are mismatching for Addr:{:#x} with Length:{:#x} ~~~ Shifted_Actual:{:#x} vs Shifted_Expected:{:#x}\n", load_req_addr, load_req_length, masked_actual_data, masked_expected_data);
+        }
       }
       else {
         reflow_flags = false;
@@ -362,21 +376,16 @@ bool debug_module_t::store(reg_t addr, size_t len, const uint8_t *bytes)
     assert(len == 4);
     if (!hart_state[id].halted)
     {
+      cvm::log(cvm::HIGH, " hart_state[id = :{:#x}] is not halted\n", id);
       hart_state[id].halted = true;
       if (hart_state[id].haltgroup)
       {
-        for (const auto &[hart_id, hart] : harts)
-        {
-          if (!hart_state[hart_id].halted &&
-              hart_state[hart_id].haltgroup == hart_state[id].haltgroup &&
-              hart_available(hart_id))
-          {
-            hart->halt_request = hart->HR_GROUP;
-            // TODO: What if the debugger comes and writes dmcontrol before the
-            // halt occurs?
-          }
-        }
+        cvm::log(cvm::HIGH, "hart_state[id = :{:#x}] is part of haltgroup\n", id);
+        debug_rom_flags[id] &= ~(1 << DEBUG_ROM_FLAG_HALTGRP);
+        cvm::log(cvm::HIGH, "debug_rom_flags haltgrp clear :{:#x}, :{:#x}\n", id, debug_rom_flags[id]);
       }
+      else 
+        cvm::log(cvm::HIGH, "hart_state[id = :{:#x}] is not part of haltgroup, :{:#x}\n", id, hart_state[id].haltgroup);
     }
     if (selected_hart_id() == id)
     {
@@ -404,6 +413,7 @@ bool debug_module_t::store(reg_t addr, size_t len, const uint8_t *bytes)
     hart_state[id].halted = false;
     hart_state[id].resumeack = true;
     debug_rom_flags[id] &= ~(1 << DEBUG_ROM_FLAG_RESUME);
+    cvm::log(cvm::HIGH, "debug_rom_flags resume  clear :{:#x}, :{:#x}\n", id, debug_rom_flags[id]);
     return true;
   }
 
@@ -1063,6 +1073,17 @@ bool debug_module_t::dmi_write(unsigned address, uint32_t value)
             hart->halt_request = hart->HR_REGULAR;
             dmcontrol.haltreq = false;
             cvm::log(cvm::HIGH, "halt hart: {:#x}\n", hart_id);
+            for (const auto &[hart_id1, hart] : harts)
+              {
+                if (!hart_state[hart_id1].halted &&
+                    hart_state[hart_id1].haltgroup == hart_state[hart_id].haltgroup &&
+                    hart_available(hart_id1) && (hart_id1 != hart_id))
+                {
+                  debug_rom_flags[hart_id1] |= (1 << DEBUG_ROM_FLAG_HALTGRP);
+                  cvm::log(cvm::HIGH, "debug_rom_flags haltgrp set :{:#x}, :{:#x}\n", hart_id1, debug_rom_flags[hart_id1]);
+                  hart->halt_request = hart->HR_GROUP;
+                }
+              }
           }
           else if (dmcontrol.ndmreset && hart_available(hart_id))
           {
@@ -1085,7 +1106,18 @@ bool debug_module_t::dmi_write(unsigned address, uint32_t value)
           if (dmcontrol.resumereq && hart_available(hart_id))
           {
             cvm::log(cvm::HIGH, "resume hart: {:#x}", hart_id);
-            debug_rom_flags[hart_id] |= (1 << DEBUG_ROM_FLAG_RESUME);
+            // debug_rom_flags[hart_id] |= (1 << DEBUG_ROM_FLAG_RESUME);
+            for (const auto &[hart_id1, hart] : harts)
+              {
+                if (hart_state[hart_id1].halted &&
+                    hart_state[hart_id1].resumegroup == hart_state[hart_id].resumegroup &&
+                    hart_available(hart_id1))
+                {
+                  debug_rom_flags[hart_id1] |= (1 << DEBUG_ROM_FLAG_RESUME);
+                  cvm::log(cvm::HIGH, "debug_rom_flags resumegrp set :{:#x}, :{:#x}\n", hart_id1, debug_rom_flags[hart_id1]);
+                }
+              }
+            // cvm::log(cvm::HIGH, "debug_rom_flags resume set :{:#x}, :{:#x}\n", hart_id, debug_rom_flags[hart_id]);
             hart_state[hart_id].resumeack = false;
             dmcontrol.resumereq = false;
           }
@@ -1105,28 +1137,27 @@ bool debug_module_t::dmi_write(unsigned address, uint32_t value)
           ndm_reset_assert = false;
         }
       }
-
- //     if (dmcontrol.ndmreset)
- //     {
- //       dmstatus.ndmresetpending = true;
- //       for (const auto &[hart_id, hart] : harts)
- //       {
- //         if (hart_selected(hart_id))
- //         {
- //           cvm::log(cvm::FULL, "Ndmreset and pending is 1 in dm_model\n");
- //           hart->reset();
- //           hart->halt_request = hart->HR_NONE;
- //           hart_state[hart_id].resumeack = false;
- //           ndm_reset_assert = true;
- //           hart_state[hart_id].havereset = true;
- //         }
- //       }
- //     }
- //     else if(!dmcontrol.ndmreset && ndm_reset_assert)
-   //   {
-  //      dmstatus.ndmresetpending = false;
-  //      ndm_reset_assert = false;
-  //    }
+// if (dmcontrol.ndmreset)
+// {
+// dmstatus.ndmresetpending = true;
+// for (const auto &[hart_id, hart] : harts)
+// {
+// if (hart_selected(hart_id))
+// {
+// cvm::log(cvm::FULL, "Ndmreset and pending is 1 in dm_model\n");
+// hart->reset();
+// hart->halt_request = hart->HR_NONE;
+// hart_state[hart_id].resumeack = false;
+// ndm_reset_assert = true;
+// hart_state[hart_id].havereset = true;
+// }
+// }
+// }
+// else if(!dmcontrol.ndmreset && ndm_reset_assert)
+// {
+// dmstatus.ndmresetpending = false;
+// ndm_reset_assert = false;
+// }
     }
       return true;
 
@@ -1172,18 +1203,22 @@ bool debug_module_t::dmi_write(unsigned address, uint32_t value)
       //     }
       //   }
       //   return true;
+
       case DM_DMCS2:
-        if (config.support_haltgroups &&
-            get_field(value, DM_DMCS2_HGWRITE) &&
-            get_field(value, DM_DMCS2_GROUPTYPE) == 0) {
-          selected_hart_state().haltgroup = get_field(value, DM_DMCS2_GROUP);
-        }
-        return true;
-      case DM_HALTSUM0:
-      
-    }
+        if (config.support_haltgroups && get_field(value, DM_DMCS2_HGWRITE)) {
+          if (get_field(value, DM_DMCS2_GROUPTYPE) == 0) {
+            selected_hart_state().haltgroup = get_field(value, DM_DMCS2_GROUP);
+            cvm::log(cvm::HIGH, "dmcs2 programming haltgrp set hart id :{:#x}, :{:#x}\n", selected_hart_id(), selected_hart_state().haltgroup);
+          }
+          else if (get_field(value, DM_DMCS2_GROUPTYPE) == 1){
+            selected_hart_state().resumegroup = get_field(value, DM_DMCS2_GROUP);
+            cvm::log(cvm::HIGH, "dmcs2 programming resumegrp set hart id :{:#x}, :{:#x}\n", selected_hart_id(), selected_hart_state().resumegroup);
+          }
+      }
+      return true;      
   }
   return false;
+}
 }
 
 void debug_module_t::proc_reset(unsigned id)
@@ -1191,6 +1226,7 @@ void debug_module_t::proc_reset(unsigned id)
   hart_state[id].havereset = true;
   hart_state[id].halted = false;
   hart_state[id].haltgroup = 0;
+  hart_state[id].resumegroup = 0;
 }
 
 hart_debug_state_t &debug_module_t::selected_hart_state()
