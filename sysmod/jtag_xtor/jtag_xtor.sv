@@ -44,10 +44,9 @@ typedef enum logic [1:0] {
   bit [31:0] shiftCount= '0;
   bit ir ='0;
   bit dr ='0;
-
-  bit pos_tdo_en = '0;
-
-  assign pos_tdo_en = ~jtag_resp.tdo_en;
+  
+  bit pos_tdo_en;
+  assign pos_tdo_en= ~jtag_resp.tdo_en;
 
   assign jtag_tck_trst.tck = clk;
   assign jtag_tck_trst.trst = reset;
