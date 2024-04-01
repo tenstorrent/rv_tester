@@ -36,3 +36,4 @@
 #define CDBG_NODE1_EAP1_CFG    0xa002138
 #define CDBG_TRACE_CFG         0xa0021A0
 #define CDBG_NTRACE_CFG        0xa0021A8
+#define CDBG_MUX_SEL_EXT_CFG   0xa012220

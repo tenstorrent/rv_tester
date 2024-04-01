@@ -3,12 +3,13 @@
 #include "sysmod/device.h"
 #include <string>
 #include <mem_manager.h>
+#include <memory>
 
 class sysmod_mem : public device {
 
     private:
 
-        mem_manager m_;
+        std::shared_ptr<mem_manager> m_;
 
     public:
         void write(const transactor::write_t& w);
@@ -20,8 +21,8 @@ class sysmod_mem : public device {
         virtual void backdoor_read(uint64_t addr, size_t length, data_t& data) override;
 
         // add max mem size
-        sysmod_mem(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc)
-          : device(tag, addr, size, loc, &sysmod_mem::write, &sysmod_mem::read, this) { }
+        sysmod_mem(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, std::shared_ptr<mem_manager> m)
+          : device(tag, addr, size, loc, &sysmod_mem::write, &sysmod_mem::read, this), m_(m) {}
 
         /// Initialize memory with hex file.
         bool init_hex(const std::string& path);

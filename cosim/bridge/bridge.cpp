@@ -356,7 +356,7 @@ void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whi
   check_interrupt(hart, undeferred_mip, pre_undeferred_intr_, undeferred_w_cause);
   }
   }
-  if (!mip_)
+  if (!mip_ && !prev_mip_)
     return;
 
   bool w_intr;
@@ -414,6 +414,12 @@ void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whi
     if (w_intr && (w_cause == d.icause)) {
       log(cvm::MEDIUM, "<{}> DUT took interrupt, Whisper did not. cause:[{}] (Timing sensitive mismatch: Resynch and keep going)\n", w.time, d.icause);
       poke_mip(hart, w.time, (uint64_t)1 << d.icause);
+  // Undefer all interrupts
+  if (deferred_intr_) {
+    defer_interrupt(hart, w.time, 0);
+    deferred_intr_ = false;
+  }
+
     } else {
       cvm::log(cvm::ERROR, "Error: Hart {}: DUT took interrupt, Whisper did not. cause:[{}]\n", hart, d.icause);
     }
@@ -476,7 +482,14 @@ void bridge::process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, wh
   }
   }
 
-  if (d.mem_write.valid && ((d.mem_write.pa>=0x8000000 &&  d.mem_write.pa <0xa000000) || (d.mem_write.pa>=0xc000000 &&  d.mem_write.pa < 0xe000000)) ) {
+  if (d.mem_write.valid && d.mem_write.size==4 && ((d.mem_write.pa>=0x40000000 &&  d.mem_write.pa <0x42000000) || (d.mem_write.pa>=0x44000000 &&  d.mem_write.pa < 0x46000000)) ) {
+  bool valid;
+  if (!client_->whisperPokeMem(hart, d.cycle, 'm', d.mem_write.pa, 4, d.mem_write.data, valid)) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: Failed to poke memory\n", hart);
+    return;
+  } else {
+    log(cvm::MEDIUM, "<{}> Poking msi to whisper because of a store\n", d.cycle);
+  }
     uint64_t mip, seip, mipchange, msihart;
     msihart = (d.mem_write.pa >> 18) & 0x7;
     if (msihart < static_cast<uint64_t>(num_harts_)) {
@@ -839,7 +852,7 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_
   // Register changes - r, f, v,
   // size_8_bytes_t dword_vec_array [vlen/64] = {0};
   uint32_t vec_slices = vlen/64;
-  std::vector<uint64_t> csrsupdatingmip = {0x351, 0x251, 0x151, 0x35c, 0x25c, 0x15c};
+  std::vector<uint64_t> csrsupdatingmip = {0x144, 0x351, 0x251, 0x151, 0x35c, 0x25c, 0x15c};
 
   switch(w.resource) {
     case 'r':
@@ -883,20 +896,21 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_
       }
 
       if (w.address == 0x344) {
-        mip_ = w.value;
-        e_mip_ = w.value & 0x3e00;
+        uint64_t w_seip;
+        peek_seip(hart, w.time, w_seip);
+        mip_ = w.value | w_seip << 9;
+        e_mip_ = mip_ & 0x1e00;
         log(cvm::MEDIUM, "<{}> Zicsr write based interrupt: mip {:#x}\n", w.time, w.value);
       }
       // Whisper is not doing recordwrite of mip if change happens to it through sip, *ireg, *topei
-      if (w.address == 0x144) {
-        uint64_t sip_mask=0x2222;
-        mip_ = (w.value & sip_mask) | (mip_ & ~sip_mask);
-        e_mip_ = mip_ & 0x3e00;
-        log(cvm::MEDIUM, "<{}> Zicsr write based interrupt: mip {:#x}\n", w.time, w.value);
-      }
       for (size_t i = 0; i < csrsupdatingmip.size(); ++i) {
         if (csrsupdatingmip[i] == w.address) {
+            uint64_t w_seip;
+            peek_seip(hart, w.time, w_seip);
             peek_mip(hart, w.time , mip_);
+            mip_ |= w_seip << 9;
+            e_mip_ = mip_ & 0x1e00;
+            log(cvm::MEDIUM, "<{}> Zicsr write based interrupt: shadow update to mip {:#x}\n", w.time, mip_);
             break;
         }
       }

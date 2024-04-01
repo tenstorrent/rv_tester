@@ -330,6 +330,8 @@ sysmod::compose()
   auto platform_loc = cvm::topology::get_from_type("PLATFORM", 0);
   auto nharts = cvm::topology::attr(platform_loc, "NHARTS").second;
 
+  std::shared_ptr<mem_manager> mm = std::make_shared<mem_manager>();
+
   try {
     for(const auto& d : memmap_) {
       const auto base = d.second.base;
@@ -339,9 +341,8 @@ sysmod::compose()
 
       std::unique_ptr<device> device;
 
-
       if (type == "memory") {
-        device = std::make_unique<sysmod_mem>(tag, base, size, loc_);
+        device = std::make_unique<sysmod_mem>(tag, base, size, loc_, mm);
       }
       else if (type == "io_dev") {
         device = std::make_unique<io_dev>(tag, base, size, loc_);
@@ -515,7 +516,10 @@ sysmod::load_prog(const std::string& hex, const std::string& load, const std::st
   for (const auto& d : memmap_) {
     const auto type = d.second.type;
     const auto tag  = d.second.tag;
-    if (load != "" && type == "memory") {
+
+    if (type != "memory") continue;
+
+    if (load != "") {
       cvm::log(cvm::MEDIUM, "Loading {}\n", load);
       if (not dev(tag) or not dynamic_cast<sysmod_mem&>(*dev(tag)).init_elf(load)) {
         cvm::log(cvm::ERROR, "Failed to load program");
@@ -524,7 +528,7 @@ sysmod::load_prog(const std::string& hex, const std::string& load, const std::st
       cvm::log(cvm::MEDIUM, "Loading {} complete\n", load);
     }
 
-    if (hex != "" && type == "memory") {
+    if (hex != "") {
       cvm::log(cvm::MEDIUM, "Loading {}\n", hex);
       if (not dev(tag) or not dynamic_cast<sysmod_mem&>(*dev(tag)).init_hex(hex)) {
         cvm::log(cvm::ERROR, "No memory defined");
@@ -541,7 +545,12 @@ sysmod::load_prog(const std::string& hex, const std::string& load, const std::st
       }
       cvm::log(cvm::MEDIUM, "Loading {} complete\n", lz4);
     }
+
+    // all memories share the same backing mem manaager
+    return;
   }
+
+  cvm::log(cvm::ERROR, "No memory found");
 }
 
 void
