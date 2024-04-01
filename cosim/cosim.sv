@@ -287,7 +287,7 @@ import rv_tester_params::*;
 
     function automatic bit [63:0] get_mip_mask(rv_tester_pkg::interrupt_t intr, rv_tester_pkg::interrupt_t intr_d1);
       bit [63:0] mask = 'h0;
-      mask[13]  = (intr.lcofi & ~intr_d1.lcofi) | (~intr.lcofi & intr_d1.lcofi);
+      mask[13]  = (intr.lcofi & ~intr_d1.lcofi);
       mask[12]  = (intr.sgei & ~intr_d1.sgei) | (~intr.sgei & intr_d1.sgei);
       mask[11] = (intr.mei & ~intr_d1.mei) | (~intr.mei & intr_d1.mei);
       mask[10]  = (intr.vsei & ~intr_d1.vsei) | (~intr.vsei & intr_d1.vsei);
