@@ -14,6 +14,7 @@
 
 
 DECLARE_bool(trace_en);
+DECLARE_bool(mmr_en);
 
 class trace_cfg : public device {
 
