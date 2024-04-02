@@ -618,11 +618,11 @@ sysmod::jtag_tick(uint64_t advance)
   //     ticks_   = rem;
   // }
 
-  // if (advance) {
-  //     for (auto& d : devices_) {
-  //         d->tick(advance);
-  //     }
-  // }
+   if (advance) {
+       for (auto& d : devices_) {
+           d->jtag_tick(advance);
+       }
+   }
 }
 extern "C" {
 
