@@ -115,8 +115,57 @@ class trace_cfg : public device {
                 read_ram = read_ram - 1;
                 if(read_ram == 0) end_test = 1;
               }
+            }else if(FLAGS_mmr_en){
+              cvm::log(cvm::HIGH, "[overlay axi] overlay timer tick advance interval {} start_trace_cnt {} \n",cnt_tick,start_trace_cnt);
+              if(end_test==1) complete_trace_test();
+              if(cnt_tick==start_trace_cnt) push_axi_mmr_seq();
+              if(trace_wr_txn_q.size() > 0) axi_write();
+              if(cnt_tick==(start_trace_cnt+20)) axi_read(TR_DST_CONTROL,4,4);
+              if(cnt_tick==(start_trace_cnt+21)) axi_read(CDBG_NTRACE_CFG,8,4);
+
+              while((trace_read_resp_q.size() >0) ){
+                print_trace_request(trace_read_resp_q.front());
+                trace_read_resp_q.pop();
+                cvm::log(cvm::HIGH, "[overlay axi] queue size {} \n",trace_read_resp_q.size());
+                if(trace_read_resp_q.size() == 0){
+                  end_test = 1;
+                  cvm::log(cvm::HIGH, "[overlay axi] trace_cfg test ended\n");
+                }
+              }
             }
             cnt_tick ++;
+        }
+
+
+       void print_trace_request(const trace_cfg_read_req_t &request) {
+            std::cout << "Address: " << request.addr << std::endl;
+            std::cout << "Length: " << request.length << std::endl;
+            std::cout << "ID: " << request.id << std::endl;
+            
+            std::cout << "Data: ";
+            for (const auto &byte : request.data) {
+                std::cout << static_cast<int>(byte) << " ";
+            }
+            std::cout << std::endl;
+
+            std::cout << "STRB: ";
+            for (const auto &bit : request.strb) {
+                std::cout << bit << " ";
+            }
+            std::cout << std::endl << std::endl;
+        }
+
+        void push_axi_mmr_seq() {
+          cvm::log(cvm::HIGH, "[overlay axi] overlay axi seq\n");
+          trace_wr_txn_q.push({CDBG_CLA_COUNTER3_CFG,0xFF});
+          trace_wr_txn_q.push({CDBG_NODE3_EAP1_CFG,0xFF});
+          cvm::log(cvm::HIGH, "[overlay axi] overlay axi seq completed\n");
+        }
+
+        void read_axi_pointers(){
+          cvm::log(cvm::HIGH, "[overlay axi]reading WRITE/READ pointers\n");
+          axi_read(TR_DST_CONTROL,4,4);
+          axi_read(CDBG_NTRACE_CFG,8,4);
         }
         
         void push_trace_enable_seq() {
