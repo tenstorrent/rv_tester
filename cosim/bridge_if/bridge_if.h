@@ -31,6 +31,7 @@ typedef struct whisper_state_s {
   uint32_t fp_flags = 0;
   bool trap = false;
   bool stop = false;
+  bool is_load = false;
 } whisper_state_t;
 
 // dut <-> bridge
@@ -139,6 +140,7 @@ typedef struct mem_s {
   uint64_t data;
   bool amo;
   uint8_t amo_op;
+  uint32_t attr;
 
   mem_s() {
     clear();
