@@ -98,6 +98,7 @@ import rv_tester_params::*;
         assign m_rvfis[n].data.mem_rdata = rvfi[n].mem_rdata;
         assign m_rvfis[n].data.mem_wmask = rvfi[n].mem_wmask;
         assign m_rvfis[n].data.mem_wdata = rvfi[n].mem_wdata;
+        assign m_rvfis[n].data.mem_attr = rvfi[n].mem_attr;
     end
 
     // m_csri

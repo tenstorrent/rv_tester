@@ -477,6 +477,7 @@ package rv_tester_params;
         logic [(RDLEN/8)-1:0]       mem_wmask;
         logic [RDLEN-1:0]           mem_rdata;
         logic [RDLEN-1:0]           mem_wdata;
+        logic [32-1:0]              mem_attr ;
         logic                       comp     ;
         logic [64-1:0]              uop      ;
         logic                       last_uop ;

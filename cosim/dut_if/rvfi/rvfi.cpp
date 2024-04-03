@@ -289,6 +289,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.mem_read.pa = m_rvfi.mem_paddr;
   instr.mem_read.data = m_rvfi.mem_rdata;
   instr.mem_read.size = log2(m_rvfi.mem_rmask + 1);
+  instr.mem_read.attr = m_rvfi.mem_attr;
 
   // Mem writes
   instr.mem_write.valid = (m_rvfi.mem_wmask != 0);
@@ -296,6 +297,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.mem_write.pa = m_rvfi.mem_paddr;
   instr.mem_write.data = m_rvfi.mem_wdata;
   instr.mem_write.size = log2(m_rvfi.mem_wmask + 1);
+  instr.mem_write.attr = m_rvfi.mem_attr;
 }
 
 void rvfi::append_uop_changes_to_instr(rv_instr_t& instr) {
@@ -412,10 +414,10 @@ void rvfi::print_instr_resource(rv_instr_t& instr, std::string resource_str) {
     log(cvm::NONE, " {} (microcode)", cosim_util::get_nth_word(instr.disasm, 1));
 
   if (instr.mem_write.valid)
-    log(cvm::NONE, " [{:#x}:{:#x}]", instr.mem_write.va, instr.mem_write.pa);
+    log(cvm::NONE, " [{:#x}:{:#x}:{}]", instr.mem_write.va, instr.mem_write.pa, mem_attr_to_string(instr.mem_write.attr));
 
   if (instr.mem_read.valid)
-    log(cvm::NONE, " [{:#x}:{:#x}]", instr.mem_read.va, instr.mem_read.pa);
+    log(cvm::NONE, " [{:#x}:{:#x}:{}]", instr.mem_read.va, instr.mem_read.pa, mem_attr_to_string(instr.mem_read.attr));
 
   if (instr.intr)
     log(cvm::NONE, " (interrupt:{})", instr.icause);
@@ -787,6 +789,15 @@ void rvfi::process(const rv_tester::terminate_called&) {
   cvm::log(cvm::HIGH, "[RVFI] termination signaled, stopping further rvfi processing\n");
   terminated_ = true;
 }
+
+
+std::string rvfi::mem_attr_to_string(uint8_t mem_attr) {
+    std::string result;
+    result += (mem_attr & 0x800) ? "io," : "mem,";
+    result += (mem_attr & 0x1000) ? "c"   : "nc";
+
+    return result;
+};
 
 extern "C" {
     void cosim_set_scope(cvm::topology::loc_t loc) {
