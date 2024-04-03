@@ -80,12 +80,12 @@ public:
 
   virtual void tick(uint64_t advance) override
   {
-    std::cout<<"\n jtag tick "<<advance<<"\n";
+     cvm::log(cvm::HIGH, "[jtag_driver]: Tick {}\n",advance);
   }
   virtual void jtag_tick(uint64_t advance) override
   {
     num_ticks++;
-    cvm::log(cvm::HIGH, "[jtag_driver]: Tick {}\n",num_ticks);
+    cvm::log(cvm::HIGH, "[jtag_driver]: JTAG Tick {}\n",num_ticks);
     timer_ += advance;
     timer_advance = advance;
     if( num_ticks > 30) 
