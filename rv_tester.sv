@@ -57,8 +57,10 @@ module rv_tester
     logic call_finish;
     int num_reruns = -1;
     bit trace_en = 0;
+    bit jtag_en = 0;
     bit mmr_en = 0;
     logic trace_quiesced;
+    logic jtag_quiesced;
 
     logic terminate_now;
     logic rerun_now;
@@ -92,7 +94,8 @@ module rv_tester
     int unsigned cvm_verbosity, gen_clocks_verbosity;
 
     assign terminate           = (rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
-    assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && (dmi_commands_in_queue == '0) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!mmr_en || trace_quiesced || mmr_counter >= mmr_timeout); 
+    assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && (dmi_commands_in_queue == '0) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced ); 
+    ; 
     
     assign rerun_now           = terminated && num_reruns > 0;
 
@@ -182,6 +185,7 @@ module rv_tester
             bypass_mem          <= cvm_plusargs::get_bool("bypass_mem") != '0;
             trace_en            <= cvm_plusargs::get_bool("trace_en") != '0;
             mmr_en            <= cvm_plusargs::get_bool("mmr_en") != '0;
+            jtag_en            <= cvm_plusargs::get_bool("jtag_en") != '0;
             bypass_cache        <= cvm_plusargs::get_bool("bypass_cache") != '0;
 
             $display("[RVTESTER]: reconstructing registry");
@@ -269,8 +273,10 @@ module rv_tester
     rv_tester_pkg::dm_write_t  trickbox_dmi_write;
 
     localparam int AXI_CLOCK_PERIOD = 1000000 / CLOCK_FREQ_MHZ[AXI_CLK_IDX];
+    localparam int JTAG_CLOCK_PERIOD = 100;
     sysmod #(
         .CLOCK_PERIOD_PS(AXI_CLOCK_PERIOD),
+        .JTAG_CLOCK_PERIOD_PS(JTAG_CLOCK_PERIOD),
         .SW_CLOCK_UPDATE_PERIOD_PS(SW_CLOCK_PERIOD_PS),
         .NUM(0),
         `TOPOLOGY_CFG,
@@ -279,6 +285,7 @@ module rv_tester
         .clk(clk[AXI_CLK_IDX]),
         .reset(sysmod_reset),
         .trace_quiesced(trace_quiesced),
+        .jtag_quiesced(jtag_quiesced),
         .bootstrap,
         .dmi_write(trickbox_dmi_write),
         .interrupt,

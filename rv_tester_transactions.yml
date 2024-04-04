@@ -114,6 +114,9 @@ cosim:
             mem_wdata:
                 qualify: "{data}.mem_rmask != '0 || {data}.mem_wmask != '0"
                 width: ${TOP.PLATFORM.RDLEN}
+            mem_attr:
+                qualify: "{data}.mem_rmask != '0 || {data}.mem_wmask != '0"
+                width: 32
 
     m_mcmi_read:
         domain: 1
@@ -271,6 +274,12 @@ cosim:
 sysmod:
     num: 1
     tick:
+        domain: 2
+        num: 1
+        fields:
+            advance:
+                width: 64
+    jtag_tick:
         domain: 2
         num: 1
         fields:

@@ -121,7 +121,10 @@ void jtag_driver::parse_jtag_from_csv()
          jtag_req.jtag_cmd = 5;
       }else if(jtag_cmd == "le"){ //loop end, checkbitNum, CheckbitValue
          jtag_req.jtag_cmd = 6;
-      }else{
+      }else if(jtag_cmd == "qt"){ //loop end, checkbitNum, CheckbitValue
+         jtag_req.jtag_cmd = 7;
+      }
+      else{
         cvm::log(cvm::ERROR, "Error: unknown command {} in jtag cfg file {}\n",jtag_cmd, FLAGS_jtag_input_file_path);
       }
       
@@ -213,7 +216,7 @@ void jtag_driver::drive_csv_jtag_cmds()
     if(jtag_cmd<3){
       hart = 0; // hart bits position TBD, till TBD it is always zero
       jtag_cmd_q.pop(); // pop front eleme7t
-      trickboxJtagWrite(hart, jtag_cmd, upper_jtag_data, lower_jtag_data,reg_length_data);
+      trickboxJtagWrite(hart, jtag_cmd, upper_jtag_data, lower_jtag_data,reg_length_data,0);
     }
 
     if(jtag_cmd == 3){ //nop
@@ -221,6 +224,14 @@ void jtag_driver::drive_csv_jtag_cmds()
       nop_count = lower_jtag_data;
       cvm::log(cvm::HIGH, "[JTAGDRIVER] Pushing jtag nops for {} ticks\n", nop_count);
       jtag_cmd_q.pop(); // pop front eleme7t
+    }
+    if(jtag_cmd == 7){  //JTAG quit, signal to end simulation once csv ends
+ 
+      cvm::log(cvm::ERROR, "[JTAGDRIVER] ******************* \n");
+      cvm::log(cvm::ERROR, "[JTAGDRIVER] Sending Quit signal \n");
+      cvm::log(cvm::ERROR, "[JTAGDRIVER] ******************* \n");
+      trickboxJtagWrite(hart, jtag_cmd, 0, 0,0,1);
+    
     }
 
     if(jtag_cmd == 4){  //ck expecting check on rdata
@@ -242,10 +253,10 @@ void jtag_driver::drive_csv_jtag_cmds()
       jtag_loop_q.clear();
       jtag_cmd_q.pop(); // pop front eleme7t which is loop start
       
-      if(upper_jtag_data == 0){//loop start
+      if(lower_jtag_data == 0){//loop start
             max_num_loops = FLAGS_jtag_max_loop_count;
          }else{
-            max_num_loops = upper_jtag_data; 
+            max_num_loops = lower_jtag_data; 
       }
 
       do{

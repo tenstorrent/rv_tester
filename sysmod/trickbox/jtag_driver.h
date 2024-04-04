@@ -80,8 +80,12 @@ public:
 
   virtual void tick(uint64_t advance) override
   {
+     cvm::log(cvm::HIGH, "[jtag_driver]: Tick {}\n",advance);
+  }
+  virtual void jtag_tick(uint64_t advance) override
+  {
     num_ticks++;
-    cvm::log(cvm::HIGH, "[jtag_driver]: Tick {}\n",num_ticks);
+    cvm::log(cvm::HIGH, "[jtag_driver]: JTAG Tick {}\n",num_ticks);
     timer_ += advance;
     timer_advance = advance;
     if( num_ticks > 30) 
@@ -153,20 +157,21 @@ bool exitLoop() {
     
     if(jtag_cmd<3){
       hart = 0; // hart bits position TBD, till TBD it is always zero
-      trickboxJtagWrite(hart, jtag_cmd, upper_jtag_data, lower_jtag_data,reg_length_data);
+      trickboxJtagWrite(hart, jtag_cmd, upper_jtag_data, lower_jtag_data,reg_length_data,0);
+      if(loop_idx<loop_size){
+        loop_idx++;
+      }else if(loop_idx == loop_size){
+        loop_idx = 0;
+        loop_execution_cnt++;
+        if(loop_execution_cnt > max_num_loops){
+          cvm::log(cvm::ERROR, "[jtag_driver]: Maximum number of polling attempts reached {}\n",loop_execution_cnt);
+        }
+      }
     }else{
       cvm::log(cvm::ERROR, "[jtag_driver]: Unsupported keyword in jtag csv loop {}\n",jtag_cmd);
     }
 
-    if(loop_idx<loop_size){
-      loop_idx++;
-    }else if(loop_idx == loop_size){
-      loop_idx = 0;
-      loop_execution_cnt++;
-      if(loop_execution_cnt > max_num_loops){
-        cvm::log(cvm::ERROR, "[jtag_driver]: Maximum number of polling attempts reached {}\n",loop_execution_cnt);
-      }
-    }
+    
   } 
   void reset() override
   {
@@ -197,6 +202,7 @@ bool exitLoop() {
     unsigned long upper_jtag_data;
     unsigned long lower_jtag_data;
     unsigned jtag_length_data;
+    unsigned jtag_quit;
   };
 
 
@@ -214,11 +220,11 @@ bool exitLoop() {
   }jtag_status_t; 
   // Used to assert/deassert a trickbox interrupt (PIPI) for given hart.
   // virtual void trickboxjtagWrite(unsigned hart, unsigned upper_jtag_data, unsigned lower_jtag_data, cbs_t& cbs)
-  virtual void trickboxJtagWrite(unsigned hart,unsigned jtag_cmd, unsigned long upper_jtag_data, unsigned long lower_jtag_data,unsigned reg_length_data)
+  virtual void trickboxJtagWrite(unsigned hart,unsigned jtag_cmd, unsigned long upper_jtag_data, unsigned long lower_jtag_data,unsigned reg_length_data,unsigned jtag_quit)
   {
     cvm::log(cvm::HIGH, "TrickBox jtag Write to hart:{}, upper jtag data:{:#x}, lower jtag data:{:#x}, reg length data:{:#x}", hart, upper_jtag_data, lower_jtag_data,reg_length_data);
     // cbs.push_back(cb_t{Callback::TRICKBOX_jtag_WR, hart, upper_jtag_data, lower_jtag_data, 0});
-    cvm::registry::messenger.signal(loc(), jtag_data_t{hart,jtag_cmd, upper_jtag_data, lower_jtag_data,reg_length_data});
+    cvm::registry::messenger.signal(loc(), jtag_data_t{hart,jtag_cmd, upper_jtag_data, lower_jtag_data,reg_length_data,jtag_quit});
     // cvm::messenger::send(jtag_t, jtag_pkt);
   }
 
