@@ -8,8 +8,8 @@ namespace {
     constexpr int xlen = 64;
     constexpr int vlen = 256;
     constexpr int va_hi = 56;
-    constexpr uint64_t mmr_lo_addr = 0xa00'0000;
-    constexpr uint64_t mmr_hi_addr = 0xaff'ffff;
+    constexpr uint64_t mmr_lo_addr = 0x4200'0000;
+    constexpr uint64_t mmr_hi_addr = 0x4208'ffff;
 
     struct csr_entry {
         std::string name;
