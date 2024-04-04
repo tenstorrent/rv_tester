@@ -47,6 +47,7 @@ DEFINE_bool(fpr_check, true, "Enable cosim checks on fprs");
 DEFINE_bool(vec_check, true, "Enable cosim checks on vector regs");
 DEFINE_bool(csr_rd_check, true, "Enable cosim checks on csr reads");
 DEFINE_bool(csr_wr_check, true, "Enable cosim checks on csr writes");
+DEFINE_bool(memattr_check, false, "Enable cosim checks on mem attributes");
 DEFINE_uint64(max_cycle, 1000000, "Max cycle limit to terminate the sim");
 DEFINE_int32(debug_excp_mcause, 24, "MCAUSE value for debug exception");
 DEFINE_bool(translation_check, false, "Do VA-PA translation check");
@@ -296,20 +297,23 @@ void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d)
 }
 
 void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
-  if (FLAGS_pc_check)
+  if (FLAGS_pc_check) {
     update_pc(hart, src_t::dut, d.pc.pc_rdata);
-
-  if (FLAGS_priv_check)
+  }
+  if (FLAGS_priv_check) {
     update_priv(hart, src_t::dut, d.priv);
-
+  }
   if (FLAGS_insn_check && !d.comp && !d.ucode && !is_vector(d.disasm) && !(d.disasm.substr(0,7)=="illegal")) {
     update_insn(hart, src_t::dut, d.opcode);
   }
   if (d.gpr.valid || d.fpr.valid || !d.vr.empty() || !d.csr.empty()) {
     update_regs(hart, d);
   }
-  if (d.mem_write.valid) {
-    update_mem(hart, d);
+  if (FLAGS_memattr_check && d.mem_read.valid) {
+    update_mem_attr(hart, src_t::dut, d.mem_read.attr);
+  }
+  if (FLAGS_memattr_check && d.mem_write.valid) {
+    update_mem_attr(hart, src_t::dut, d.mem_write.attr);
   }
 }
 
@@ -645,7 +649,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
   w_.trap = w.trap;
   w_.comp = is_compressed(w.disasm);
   w_.ucode = is_ucode(w.disasm) || w.trap; // system opcode
-  
+  w_.mem_read.valid = w.is_load;
   w_.pc.valid = true;
   w_.pc.pc_rdata = w.pc;
 
@@ -703,6 +707,17 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
     }
   }
 
+  // Mem attributes
+  if (FLAGS_memattr_check && (w_.mem_read.valid || w_.mem_write.valid)) {
+    bool valid;
+    uint64_t eff_mem_attr;
+    if (!client_->whisperPeek(hart, 's', WhisperSpecialResource::EffMemAttr, eff_mem_attr, valid)) {
+      cvm::log(cvm::ERROR, "Error: Hart {}: Failed whisper API call - whisperEffMemAttr\n", hart);
+      return;
+    }
+    update_mem_attr(hart, src_t::iss, eff_mem_attr);
+  }
+
   // Interrupts/Exceptions
   if (w_.trap) {
     uint64_t cause = 0;
@@ -744,7 +759,7 @@ void bridge::print_resource(hart_id_t hart, const whisper_state_t& w) {
 
 void bridge::step(hart_id_t hart, whisper_state_t& w) {
   if (!client_->whisperStep(hart, w.time, w.tag,  w.pc, w.opcode, w.change_count, w.disasm,
-      w.priv_mode, w.fp_flags, w.trap, w.stop)) {
+      w.priv_mode, w.fp_flags, w.trap, w.stop, w.is_load)) {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed to step whisper\n", hart);
     return;
   }
@@ -828,8 +843,15 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
   }
 }
 
-// Push DUT mem state to cac
-void bridge::update_mem(hart_id_t, rv_instr_t&) {
+// Push DUT mem attr to cac
+void bridge::update_mem_attr(hart_id_t hart, src_t src, uint32_t data) {
+  resource_id_t mem_attr = resource_id_t{
+    .resource = resource_t::mem_attr,
+    .offset = 0
+  };
+  // Supported sttributes - [type:11, cacheability:12]
+  uint32_t masked_data = data & 0x1800;
+  assert(cac_.UpdateResource(hart, src, mem_attr, std::move(cac::CreateBitVec<uint64_t>(masked_data))));
 }
 
 std::bitset<256> create_bitset(cac::size_8_bytes_t dword_vec_array [vlen/64]) {
@@ -1329,7 +1351,7 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
   if (i.mip_mask & 0x1e00) {
     process_external_interrupt(hart, i);
   } 
-  if (i.mip_mask & 0xee) {
+  if (i.mip_mask & 0x20ee) {
     process_timer_sw_interrupt(hart, i);
   }
 }

@@ -44,7 +44,7 @@ extern "C" {
   void sysmod_aplic_dir_interrupt(unsigned long* i) ;
   void sysmod_aplic_rnd_interrupt(unsigned hartid, unsigned val, unsigned int_val);
   void sysmod_dmi_write(unsigned hartid, unsigned upper_val, unsigned lower_val);
-  void sysmod_jtag_req(unsigned cmd,unsigned long upper_val, unsigned long lower_val, unsigned length);
+  void sysmod_jtag_req(unsigned cmd,unsigned long upper_val, unsigned long lower_val, unsigned length, unsigned quit);
   void sysmod_terminate();
 }
 
@@ -58,6 +58,9 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::tick<>>(
       loc_,
       [this](const rv_tester_transactions::sysmod::tick<>& t) { return this->tick(t.advance); });
+  cvm::registry::messenger.connect<rv_tester_transactions::sysmod::jtag_tick<>>(
+      loc_,
+      [this](const rv_tester_transactions::sysmod::jtag_tick<>& t) { return this->jtag_tick(t.advance); });
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::jtag_rdata<>>(
       loc_,
       [this](const rv_tester_transactions::sysmod::jtag_rdata<>& t) { return this->jtag_resp(t.rdata); });
@@ -282,7 +285,7 @@ sysmod::jtag_req(jtag_driver::jtag_data_t i) {
       scope(),
       [i]() {
         cvm::log(cvm::FULL, "[SYSMOD] trickbox jtag_driver::dmi.(upper,lower) = {:#x}, {:#x}\n",i.upper_jtag_data, i.lower_jtag_data, i.jtag_length_data);
-        sysmod_jtag_req(i.jtag_cmd, i.upper_jtag_data, i.lower_jtag_data,i.jtag_length_data);
+        sysmod_jtag_req(i.jtag_cmd, i.upper_jtag_data, i.lower_jtag_data,i.jtag_length_data,i.jtag_quit);
       });
 }
 
@@ -611,6 +614,25 @@ sysmod::tick(uint64_t advance)
   }
 }
 
+void
+sysmod::jtag_tick(uint64_t advance)
+{
+
+  jtag_ticks_ += advance;
+
+  // advance = 0;
+  // if (ticks_ >= FLAGS_sysmod_tick_update_threshold)  {
+  //     auto rem = ticks_ % FLAGS_sysmod_tick_update_threshold;
+  //     advance  = ticks_ - rem;
+  //     ticks_   = rem;
+  // }
+
+   if (advance) {
+       for (auto& d : devices_) {
+           d->jtag_tick(advance);
+       }
+   }
+}
 extern "C" {
 
   void sysmod_set_scope(cvm::topology::loc_t loc) {
