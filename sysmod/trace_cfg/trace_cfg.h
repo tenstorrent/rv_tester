@@ -14,7 +14,7 @@
 
 
 DECLARE_bool(trace_en);
-DECLARE_bool(mmr_en);
+DECLARE_bool(overlay_mmr_en);
 
 class trace_cfg : public device {
 
@@ -32,7 +32,7 @@ class trace_cfg : public device {
         }
 
     public:
-        uint32_t start_trace_cnt,read_ram;
+        uint32_t start_trace_cnt = 0,read_ram;
         uint32_t cnt_tick=0;
         struct trace_wr_t {
           uint32_t addr;
@@ -102,7 +102,7 @@ class trace_cfg : public device {
             if(start_trace_cnt == 0) {
               start_trace_cnt = (rng()% 5) + 30;
             }
-            if(FLAGS_trace_en) {
+            if(FLAGS_trace_en && !FLAGS_overlay_mmr_en) {
               cvm::log(cvm::HIGH, "[Trace_cfg] trace_cfg timer tick advance interval {} start_trace_cnt {} \n",cnt_tick,start_trace_cnt);
               if(end_test==1) complete_trace_test();
               if(cnt_tick==start_trace_cnt) push_trace_enable_seq();
@@ -116,7 +116,7 @@ class trace_cfg : public device {
                 read_ram = read_ram - 1;
                 if(read_ram == 0) end_test = 1;
               }
-            }else if(FLAGS_mmr_en){
+            }else if(FLAGS_trace_en && FLAGS_overlay_mmr_en){
               cvm::log(cvm::HIGH, "[overlay axi] overlay timer tick advance interval {} start_trace_cnt {} \n",cnt_tick,start_trace_cnt);
               if(end_test==1) complete_trace_test();
               if(cnt_tick==start_trace_cnt) push_axi_mmr_seq();
