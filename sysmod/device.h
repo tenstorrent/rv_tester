@@ -87,6 +87,7 @@ class device {
     virtual void backdoor_read(uint64_t, size_t, data_t&) { };
 
     virtual void tick(uint64_t) { };
+    virtual void jtag_tick(uint64_t) { };
 
     virtual void reset() { };
 

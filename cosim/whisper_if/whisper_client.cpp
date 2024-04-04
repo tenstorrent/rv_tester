@@ -299,7 +299,7 @@ bool
 whisperClient<URV>::whisperStep(int hart, uint64_t time, uint64_t instrTag, uint64_t& pc,
 	    uint32_t& instruction, unsigned& changeCount,
 	    std::string& disasm, uint32_t& privMode,
-	    uint32_t& fpFlags, bool& hasTrap, bool& hasStop)
+	    uint32_t& fpFlags, bool& hasTrap, bool& hasStop, bool& isLoad)
 {
   req.hart = hart;
   req.type = WhisperMessageType::Step;
@@ -320,11 +320,13 @@ whisperClient<URV>::whisperStep(int hart, uint64_t time, uint64_t instrTag, uint
   unsigned trap = (reply.flags >> 6) & 1;
   unsigned stop = (reply.flags >> 7) & 1;
   unsigned virt = (reply.flags >> 9) & 1;
+  unsigned load = (reply.flags >> 11) & 1;
 
   privMode = mode | (virt << 3);
   fpFlags = flags;
   hasTrap = trap;
   hasStop = stop;
+  isLoad = load;
   reply.buffer[reply.buffer.size() - 1] = '\0';
   disasm = reply.buffer.data();
 
