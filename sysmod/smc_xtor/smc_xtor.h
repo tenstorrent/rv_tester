@@ -98,9 +98,41 @@ class smc_xtor : public device {
         
         virtual void tick(uint64_t) override
         {
+            cvm::log(cvm::HIGH, "[SMC] tick {:#X} \n",cnt_tick);
+            if(cnt_tick == 40) smc_wr_txn_q.push({CPL_SRAM_BASE + 0x1000,0xFFFF});
+            if(cnt_tick == 41) smc_wr_txn_q.push({CPL_SRAM_BASE + 0x1008,0xFFFF});
+            if(smc_wr_txn_q.size() > 0) axi_write();
+            
+
+            if(cnt_tick==53) axi_read(CPL_SRAM_BASE + 0x1000,8,4);
+            if(cnt_tick==54) axi_read(CPL_SRAM_BASE + 0x1008,8,5);
+
+            while((smc_read_resp_q.size() >0) ){
+                print_trace_request(smc_read_resp_q.front());
+                smc_read_resp_q.pop();
+                cvm::log(cvm::HIGH, "[smc] queue size {} \n",smc_read_resp_q.size());
+              }
             cnt_tick ++;
         }
         
+        void print_trace_request(const smc_xtor_read_req_t &request) {
+            std::cout << "Address: " << request.addr << std::endl;
+            std::cout << "Length: " << request.length << std::endl;
+            std::cout << "ID: " << request.id << std::endl;
+            
+            std::cout << "Data: ";
+            for (const auto &byte : request.data) {
+                std::cout << static_cast<int>(byte) << " ";
+            }
+            std::cout << std::endl;
+
+            std::cout << "STRB: ";
+            for (const auto &bit : request.strb) {
+                std::cout << bit << " ";
+            }
+            std::cout << std::endl << std::endl;
+        }
+
         void push_smc_enable_seq() {
           cvm::log(cvm::HIGH, "[smc_xtor] smc_xtor inside enable smc seq\n");
           cvm::log(cvm::HIGH, "[smc_xtor] smc_xtor completed enable smc seq\n");
