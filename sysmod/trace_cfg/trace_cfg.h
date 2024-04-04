@@ -31,7 +31,7 @@ class trace_cfg : public device {
         }
 
     public:
-        uint32_t start_trace_cnt,read_ram;
+        uint32_t start_trace_cnt=0,read_ram=0;
         uint32_t cnt_tick=0;
         struct trace_wr_t {
           uint32_t addr;

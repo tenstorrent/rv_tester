@@ -56,8 +56,8 @@ void trace_cfg::write(const transactor::write_t& ) {
 }
 
 cvm::messenger::task<void> trace_cfg::read(const transactor::read_t& r, data_t& ) {
-   auto& addr = r.addr;
-   auto& length = r.length;
+  auto& addr = r.addr;
+  auto& length = r.length;
 
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::read_request_t{addr, length});
 
