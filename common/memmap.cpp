@@ -64,8 +64,7 @@ void parse() {
   std::vector<std::pair<std::string, memmap_entry_t>> vec_m(m.begin(), m.end());
   std::sort(vec_m.begin(), vec_m.end(), compareByMMBase);
   // Print sorted memmap
-  std::cout << "Sorted Memmap by base:" << std::endl;
-  cvm::log(cvm::HIGH,"Sorted memmap : \n");
+  cvm::log(cvm::HIGH,"Sorted Memmap by base : \n");
   for (const auto& entry : vec_m) {
       cvm::log(cvm::HIGH,"Key: {}, Base Addr: {:#x}, Size {:#x}, Type: {}  \n",entry.first,entry.second.base,entry.second.size,entry.second.type);
   }
