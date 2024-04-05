@@ -85,7 +85,6 @@ module rv_tester
     logic [31:0] dmi_commands_in_queue; 
 
     int trace_timeout = 50000;
-    int mmr_timeout = 50000;
 
     int unsigned location = cvm_topology::nil;
 
@@ -133,6 +132,7 @@ module rv_tester
         end else if(!trace_en)begin
           trace_counter <= trace_timeout + 10;
         end
+        
     end
 
     always @(posedge clk[TB_CLK_IDX]) begin

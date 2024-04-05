@@ -32,8 +32,10 @@ class trace_cfg : public device {
         }
 
     public:
-        uint32_t start_trace_cnt = 0,read_ram;
+        uint32_t start_trace_cnt = 0,n,read_ram;
         uint32_t cnt_tick=0;
+        std::unordered_map<std::string, uint32_t> macros;
+        std::vector<std::pair<std::string, uint32_t>> randomElements;
         struct trace_wr_t {
           uint32_t addr;
           uint32_t data;
@@ -59,6 +61,8 @@ class trace_cfg : public device {
         virtual void axi_write();
         virtual void axi_read(uint64_t addr, size_t length, uint32_t id);
         void write(const transactor::write_t& );
+        std::unordered_map<std::string, uint32_t> extractMacros(const std::string& filename);
+        std::vector<std::pair<std::string, uint32_t>> pickRandomElements(const std::unordered_map<std::string, uint32_t>& originalMap, uint32_t n) ;
 
         cvm::messenger::task<void> read(const transactor::read_t& , data_t& );
 
@@ -101,6 +105,9 @@ class trace_cfg : public device {
         {
             if(start_trace_cnt == 0) {
               start_trace_cnt = (rng()% 5) + 30;
+              n = (rng()% 5) + 30;
+              std::ofstream outFile("output.txt");
+              outFile.close();
             }
             if(FLAGS_trace_en && !FLAGS_overlay_mmr_en) {
               cvm::log(cvm::HIGH, "[Trace_cfg] trace_cfg timer tick advance interval {} start_trace_cnt {} \n",cnt_tick,start_trace_cnt);
@@ -133,7 +140,26 @@ class trace_cfg : public device {
                   cvm::log(cvm::HIGH, "[overlay axi] trace_cfg test ended\n");
                 }
               }
-            }
+            }else if(FLAGS_overlay_mmr_en){
+              cvm::log(cvm::HIGH, "[overlay axi regress] overlay timer tick advance interval {} start_trace_cnt{} n {} \n",cnt_tick,start_trace_cnt,n);
+                if(cnt_tick==start_trace_cnt){
+                  cvm::log(cvm::HIGH, "[overlay axi regress] success \n");
+                  macros = extractMacros("/proj_risc/user_dev/mvarman/AXI/testing/rv_tester/sysmod/trace_cfg/trace_defines.h");
+                  // randomElements= pickRandomElements(macros, n);
+                }
+
+                 if(cnt_tick==(start_trace_cnt+10)) push_random_axi_read(macros);
+
+                while((trace_read_resp_q.size() >0) ){
+                  print_trace_request(trace_read_resp_q.front());
+                  trace_read_resp_q.pop();
+                  cvm::log(cvm::HIGH, "[overlay axi] queue size {} \n",trace_read_resp_q.size());
+                  if(trace_read_resp_q.size() == 0){
+                    end_test = 1;
+                    cvm::log(cvm::HIGH, "[overlay axi] trace_cfg test ended\n");
+                  }
+                }
+              }
             cnt_tick ++;
         }
 
@@ -154,6 +180,23 @@ class trace_cfg : public device {
                 std::cout << bit << " ";
             }
             std::cout << std::endl << std::endl;
+
+          std::ofstream outFile("output.txt", std::ios::app);
+          
+          // Check if file opened successfully
+          if (!outFile.is_open()) {
+              std::cerr << "Error: Could not open the file!" << std::endl;
+          }else{
+
+          // Loop through elements and write to file
+          for (const auto& pair : elements) {
+              outFile << "[overlay axi vals]" << request.addr<< " = " << pair.second << std::endl;
+          }
+
+          }
+
+          // Close the file
+          outFile.close();
         }
 
         void push_axi_mmr_seq() {
@@ -169,6 +212,26 @@ class trace_cfg : public device {
           axi_read(CDBG_NTRACE_CFG,8,4);
         }
         
+        void push_random_axi_read(std::unordered_map<std::string, uint32_t>  elements){
+          cvm::log(cvm::HIGH, "[overlay axi regress] success reading\n");
+          // Open the file for writing
+          std::ofstream outFile("output.txt");
+          
+          // Check if file opened successfully
+          if (!outFile.is_open()) {
+              std::cerr << "Error: Could not open the file!" << std::endl;
+          }else{
+
+          // Loop through elements and write to file
+          for (const auto& pair : elements) {
+              outFile << "[overlay axi vals]" << pair.first << " = " << pair.second << std::endl;
+          }
+
+          }
+
+          // Close the file
+          outFile.close();
+        }
         void push_trace_enable_seq() {
           cvm::log(cvm::HIGH, "[Trace_cfg] trace_cfg inside enable trace seq\n");
           // Funnel-RAM config

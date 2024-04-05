@@ -5,6 +5,12 @@
 #include "cvm/logger.hpp"
 #include "trace_cfg.h"
 #include "transactors/axi_sw/axi.h"
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <vector>
+#include <unordered_map>
+#include <random>
 
 
 DECLARE_string(load);
@@ -54,6 +60,51 @@ void trace_cfg::write(const transactor::write_t& ) {
   // cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb});
 
   // return;
+}
+
+// Function to parse a file and extract #define macros
+std::unordered_map<std::string, uint32_t> trace_cfg::extractMacros(const std::string& filename) {
+    std::unordered_map<std::string, uint32_t> macros;
+
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        std::cerr << "Error: Unable to open file " << filename << std::endl;
+        return macros;
+    }
+
+    std::string line;
+    while (std::getline(file, line)) {
+        std::istringstream iss(line);
+        std::string token;
+        iss >> token;
+        if (token == "#define") {
+            std::string macroName;
+            std::string macroValue;
+            iss >> macroName >> macroValue;
+            // std::cout<<"[value]"<<macroValue;
+            macros[macroName] = std::stoi(macroValue,0,16);
+        }
+    }
+
+    file.close();
+    return macros;
+}
+
+std::vector<std::pair<std::string, uint32_t>> trace_cfg::pickRandomElements(const std::unordered_map<std::string, uint32_t>& originalMap, uint32_t n) {
+    std::vector<std::pair<std::string, uint32_t>> result;
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::cout << "originalMap.size() " << originalMap.size() << std::endl;
+    std::uniform_int_distribution<> dis(0, originalMap.size() - 1);
+
+    for (uint32_t i = 0; i < n; ++i) {
+        int randomIndex = dis(gen);
+        auto it = originalMap.begin();
+        std::advance(it, randomIndex);
+        result.push_back(*it);
+    }
+
+    return result;
 }
 
 cvm::messenger::task<void> trace_cfg::read(const transactor::read_t& r, data_t& ) {
