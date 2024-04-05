@@ -67,7 +67,7 @@ typedef struct gpr_s {
     valid = false;
   }
 } gpr_t;
- 
+
 typedef struct fpr_s {
   bool valid;
   uint64_t frd_addr;
@@ -82,12 +82,12 @@ typedef struct fpr_s {
     valid = false;
   }
 } fpr_t;
- 
+
 typedef struct vr_s {
   bool valid;
   uint32_t vrd_addr;
   std::bitset<256> vrd_wdata;
- 
+
   vr_s() {
     clear();
   }
