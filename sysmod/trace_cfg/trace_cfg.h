@@ -80,6 +80,19 @@ class trace_cfg : public device {
             }  
         }
 
+        void axi_to_hex(const data_t& wdata, const std::vector<bool>& strb, uint64_t addr) {
+            uint8_t b_index = static_cast<uint8_t>(addr & 0x3F);
+            uint32_t value = 0;
+
+            for (uint8_t i = 0; i < 4; ++i) {
+                if (strb[i + b_index]) {
+                    value |= static_cast<uint32_t>(wdata[i + b_index]) << (8 * i);
+                }
+            }
+
+            std::cout << "Hexadecimal value: 0x" << std::hex << value << std::endl;
+        }
+
         virtual void write_axi_mst(uint64_t addr, size_t length,
                             const data_t& data, const strb_t& strb);
 
@@ -165,38 +178,38 @@ class trace_cfg : public device {
 
 
        void print_trace_request(const trace_cfg_read_req_t &request) {
-            std::cout << "Address: " << request.addr << std::endl;
-            std::cout << "Length: " << request.length << std::endl;
-            std::cout << "ID: " << request.id << std::endl;
+            // std::cout << "Address: " << request.addr << std::endl;
+            // std::cout << "Length: " << request.length << std::endl;
+            // std::cout << "ID: " << request.id << std::endl;
             
-            std::cout << "Data: ";
-            for (const auto &byte : request.data) {
-                std::cout << static_cast<int>(byte) << " ";
-            }
-            std::cout << std::endl;
+            // std::cout << "Data: ";
+            // for (const auto &byte : request.data) {
+            //     std::cout << static_cast<int>(byte) << " ";
+            // }
+            // std::cout << std::endl;
 
-            std::cout << "STRB: ";
-            for (const auto &bit : request.strb) {
-                std::cout << bit << " ";
-            }
-            std::cout << std::endl << std::endl;
+            // std::cout << "STRB: ";
+            // for (const auto &bit : request.strb) {
+            //     std::cout << bit << " ";
+            // }
+            // std::cout << std::endl << std::endl;
 
-          std::ofstream outFile("output.txt", std::ios::app);
+          axi_to_hex(request.data, request.strb, request.addr);
+
+          // std::ofstream outFile("output.txt", std::ios::app);
           
-          // Check if file opened successfully
-          if (!outFile.is_open()) {
-              std::cerr << "Error: Could not open the file!" << std::endl;
-          }else{
+          // // Check if file opened successfully
+          // if (!outFile.is_open()) {
+          //     std::cerr << "Error: Could not open the file!" << std::endl;
+          // }else{
 
-          // Loop through elements and write to file
-          for (const auto& pair : elements) {
-              outFile << "[overlay axi vals]" << request.addr<< " = " << pair.second << std::endl;
-          }
+          // // Loop through elements and write to file
+          // outFile << "[overlay axi vals]" << request.addr<< " = " << request.data << std::endl;
 
-          }
+          // }
 
-          // Close the file
-          outFile.close();
+          // // Close the file
+          // outFile.close();
         }
 
         void push_axi_mmr_seq() {
