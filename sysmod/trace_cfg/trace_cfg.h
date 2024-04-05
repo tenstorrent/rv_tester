@@ -34,8 +34,7 @@ class trace_cfg : public device {
     public:
         uint32_t start_trace_cnt = 0,n,read_ram;
         uint32_t cnt_tick=0;
-        std::unordered_map<std::string, uint32_t> macros;
-        std::vector<std::pair<std::string, uint32_t>> randomElements;
+        std::unordered_map<std::string, uint32_t> macros,randomElements;
         struct trace_wr_t {
           uint32_t addr;
           uint32_t data;
@@ -62,7 +61,7 @@ class trace_cfg : public device {
         virtual void axi_read(uint64_t addr, size_t length, uint32_t id);
         void write(const transactor::write_t& );
         std::unordered_map<std::string, uint32_t> extractMacros(const std::string& filename);
-        std::vector<std::pair<std::string, uint32_t>> pickRandomElements(const std::unordered_map<std::string, uint32_t>& originalMap, uint32_t n) ;
+        std::unordered_map<std::string, uint32_t> pickRandomElements(const std::unordered_map<std::string, uint32_t>& originalMap, uint32_t n) ;
 
         cvm::messenger::task<void> read(const transactor::read_t& , data_t& );
 
@@ -80,7 +79,7 @@ class trace_cfg : public device {
             }  
         }
 
-        void axi_to_hex(const data_t& wdata, const std::vector<bool>& strb, uint64_t addr) {
+        void axi_to_hex_check(const data_t& wdata, const std::vector<bool>& strb, uint64_t addr,uint64_t check_data) {
             uint8_t b_index = static_cast<uint8_t>(addr & 0x3F);
             uint32_t value = 0;
 
@@ -91,6 +90,12 @@ class trace_cfg : public device {
             }
 
             std::cout << "Hexadecimal value: 0x" << std::hex << value << std::endl;
+
+            if(value == check_data){
+              std::cout <<"0x"<< std::hex << addr <<" passed"<<std::endl;
+            }
+
+
         }
 
         virtual void write_axi_mst(uint64_t addr, size_t length,
@@ -118,7 +123,7 @@ class trace_cfg : public device {
         {
             if(start_trace_cnt == 0) {
               start_trace_cnt = (rng()% 5) + 30;
-              n = (rng()% 5) + 30;
+              n = (rng()% 5) + 3;
               std::ofstream outFile("output.txt");
               outFile.close();
             }
@@ -142,7 +147,7 @@ class trace_cfg : public device {
               if(cnt_tick==start_trace_cnt) push_axi_mmr_seq();
               if(trace_wr_txn_q.size() > 0) axi_write();
               if(cnt_tick==(start_trace_cnt+20)) axi_read(TR_DST_CONTROL,4,4);
-              if(cnt_tick==(start_trace_cnt+21)) axi_read(CDBG_NTRACE_CFG,8,4);
+              if(cnt_tick==(start_trace_cnt+23)) axi_read(CDBG_NTRACE_CFG,8,4);
 
               while((trace_read_resp_q.size() >0) ){
                 print_trace_request(trace_read_resp_q.front());
@@ -158,10 +163,10 @@ class trace_cfg : public device {
                 if(cnt_tick==start_trace_cnt){
                   cvm::log(cvm::HIGH, "[overlay axi regress] success \n");
                   macros = extractMacros("/proj_risc/user_dev/mvarman/AXI/testing/rv_tester/sysmod/trace_cfg/trace_defines.h");
-                  // randomElements= pickRandomElements(macros, n);
+                  randomElements= pickRandomElements(macros, n);
                 }
 
-                 if(cnt_tick==(start_trace_cnt+10)) push_random_axi_read(macros);
+                 if(cnt_tick==(start_trace_cnt+10)) push_random_axi_read(randomElements);
 
                 while((trace_read_resp_q.size() >0) ){
                   print_trace_request(trace_read_resp_q.front());
@@ -169,7 +174,20 @@ class trace_cfg : public device {
                   cvm::log(cvm::HIGH, "[overlay axi] queue size {} \n",trace_read_resp_q.size());
                   if(trace_read_resp_q.size() == 0){
                     end_test = 1;
-                    cvm::log(cvm::HIGH, "[overlay axi] trace_cfg test ended\n");
+                    cvm::log(cvm::HIGH, "[overlay axi] Reset value check ended\n");
+                  }
+                }
+
+                if(cnt_tick==(start_trace_cnt+50)) push_random_axi_write(randomElements);
+                if(cnt_tick==(start_trace_cnt+70)) push_random_axi_read(randomElements);
+
+                while((trace_read_resp_q.size() >0) ){
+                  print_trace_request(trace_read_resp_q.front(),1);
+                  trace_read_resp_q.pop();
+                  cvm::log(cvm::HIGH, "[overlay axi] queue size {} \n",trace_read_resp_q.size());
+                  if(trace_read_resp_q.size() == 0){
+                    end_test = 1;
+                    cvm::log(cvm::HIGH, "[overlay axi] write and read check ended\n");
                   }
                 }
               }
@@ -177,39 +195,30 @@ class trace_cfg : public device {
         }
 
 
-       void print_trace_request(const trace_cfg_read_req_t &request) {
-            // std::cout << "Address: " << request.addr << std::endl;
-            // std::cout << "Length: " << request.length << std::endl;
-            // std::cout << "ID: " << request.id << std::endl;
+       void print_trace_request(const trace_cfg_read_req_t &request,int read =0) {
+
+            std::cout << "Address: " << request.addr << std::endl;
+            std::cout << "Length: " << request.length << std::endl;
+            std::cout << "ID: " << request.id << std::endl;
             
-            // std::cout << "Data: ";
-            // for (const auto &byte : request.data) {
-            //     std::cout << static_cast<int>(byte) << " ";
-            // }
-            // std::cout << std::endl;
+            std::cout << "Data: ";
+            for (const auto &byte : request.data) {
+                std::cout << static_cast<int>(byte) << " ";
+            }
+            std::cout << std::endl;
 
-            // std::cout << "STRB: ";
-            // for (const auto &bit : request.strb) {
-            //     std::cout << bit << " ";
-            // }
-            // std::cout << std::endl << std::endl;
+            std::cout << "STRB: ";
+            for (const auto &bit : request.strb) {
+                std::cout << bit << " ";
+            }
+            std::cout << std::endl << std::endl;
 
-          axi_to_hex(request.data, request.strb, request.addr);
+          if(read == 1){
+            axi_to_hex_check(request.data, request.strb, request.addr,0x00000000);
+          }else{
+            axi_to_hex_check(request.data, request.strb, request.addr,0xFFFF);
+          }
 
-          // std::ofstream outFile("output.txt", std::ios::app);
-          
-          // // Check if file opened successfully
-          // if (!outFile.is_open()) {
-          //     std::cerr << "Error: Could not open the file!" << std::endl;
-          // }else{
-
-          // // Loop through elements and write to file
-          // outFile << "[overlay axi vals]" << request.addr<< " = " << request.data << std::endl;
-
-          // }
-
-          // // Close the file
-          // outFile.close();
         }
 
         void push_axi_mmr_seq() {
@@ -244,6 +253,14 @@ class trace_cfg : public device {
 
           // Close the file
           outFile.close();
+        }
+
+        void push_random_axi_write(std::unordered_map<std::string, uint32_t>  elements){
+          cvm::log(cvm::HIGH, "[overlay axi] overlay write axi seq\n");
+          for (const auto& pair : elements) {
+              trace_wr_txn_q.push({pair.second,0xFFFF});
+          }
+          cvm::log(cvm::HIGH, "[overlay axi] overlay write axi seq completed\n");
         }
         void push_trace_enable_seq() {
           cvm::log(cvm::HIGH, "[Trace_cfg] trace_cfg inside enable trace seq\n");

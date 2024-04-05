@@ -90,18 +90,22 @@ std::unordered_map<std::string, uint32_t> trace_cfg::extractMacros(const std::st
     return macros;
 }
 
-std::vector<std::pair<std::string, uint32_t>> trace_cfg::pickRandomElements(const std::unordered_map<std::string, uint32_t>& originalMap, uint32_t n) {
-    std::vector<std::pair<std::string, uint32_t>> result;
+std::unordered_map<std::string, uint32_t> trace_cfg::pickRandomElements(const std::unordered_map<std::string, uint32_t>& originalMap, uint32_t n) {
+    std::unordered_map<std::string, uint32_t> result;
     std::random_device rd;
     std::mt19937 gen(rd());
     std::cout << "originalMap.size() " << originalMap.size() << std::endl;
     std::uniform_int_distribution<> dis(0, originalMap.size() - 1);
 
+    std::vector<std::pair<std::string, uint32_t>> elements;
+
+    for (const auto& pair : originalMap) {
+        elements.push_back(pair);
+    }
+
     for (uint32_t i = 0; i < n; ++i) {
         int randomIndex = dis(gen);
-        auto it = originalMap.begin();
-        std::advance(it, randomIndex);
-        result.push_back(*it);
+        result.insert(elements[randomIndex]);
     }
 
     return result;
