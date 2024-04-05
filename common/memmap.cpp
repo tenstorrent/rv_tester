@@ -4,6 +4,7 @@
 #include <fstream>
 #include "nlohmann/json.hpp"
 #include "cvm/plusargs.hpp"
+#include "cvm/logger.hpp"
 
 DEFINE_string(memmap_json_path, "", "Path to memory map json");
 
@@ -14,7 +15,9 @@ memmap_t m;
 void get(memmap_t& memmap) {
   memmap = m;
 }
-
+bool compareByMMBase(const std::pair<std::string, memmap_entry_t>& a, const std::pair<std::string, memmap_entry_t>& b) {
+    return a.second.base < b.second.base;
+}
 void parse() {
     
   std::ifstream f(FLAGS_memmap_json_path);
@@ -57,7 +60,44 @@ void parse() {
       " Size: 0x" << std::hex << map.size << "\n";
   }
   std::cout << "------------------\n";
+  // Check memmap for legality
+  std::vector<std::pair<std::string, memmap_entry_t>> vec_m(m.begin(), m.end());
+  std::sort(vec_m.begin(), vec_m.end(), compareByMMBase);
+  // Print sorted memmap
+  std::cout << "Sorted Memmap by base:" << std::endl;
+  cvm::log(cvm::HIGH,"Sorted memmap : \n");
+  for (const auto& entry : vec_m) {
+      cvm::log(cvm::HIGH,"Key: {}, Base Addr: {:#x}, Size {:#x}, Type: {}  \n",entry.first,entry.second.base,entry.second.size,entry.second.type);
+  }
 
+  // Check for overlaps
+  bool overlapDetected = false;
+    for (size_t i = 0; i < vec_m.size(); ++i) {
+        for (size_t j = i + 1; j < vec_m.size(); ++j) {
+            uint64_t end_i = vec_m[i].second.base + vec_m[i].second.size;
+            uint64_t end_j = vec_m[j].second.base + vec_m[j].second.size;
+
+            if ((vec_m[i].second.base < end_j && vec_m[j].second.base < end_i)) {
+                cvm::log(cvm::LOW,"\n\n");
+                cvm::log(cvm::LOW,"****************************************** \n");
+                cvm::log(cvm::LOW," ERROR: Memmap.json check failed: Overlap detected between   {}   and    {} \n",vec_m[i].first,vec_m[j].first);
+                cvm::log(cvm::LOW,"****************************************** \n");
+                overlapDetected = true;
+            }
+        }
+    }
+
+    if (!overlapDetected) {
+        cvm::log(cvm::HIGH,"\nMemmap check Passed: No overlaps detected. \n");
+    }else{
+        cvm::log(cvm::LOW,"\n\n");
+        cvm::log(cvm::LOW,"******************************************************* \n");
+        cvm::log(cvm::LOW,"******************************************************* \n");
+        cvm::log(cvm::ERROR,"\nERROR: Memmap.json check failed, Stopping simulation memmap.json has overlaps \n");
+        cvm::log(cvm::LOW,"******************************************************* \n");
+        cvm::log(cvm::LOW,"******************************************************* \n");
+        assert(false);
+    }
 }
 
 }
