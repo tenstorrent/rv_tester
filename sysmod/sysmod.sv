@@ -73,6 +73,7 @@ import rv_tester_params::*;
     always @(posedge clk) begin
         clocks <= clocks + 1;
         if (reset) begin
+            jtag_quiesced <= 0;
             clocks <= 0;
             /* verilator lint_off BLKSEQ */
             sysmod_tick_async = cvm_plusargs::get_bool("sysmod_tick_async") != '0;

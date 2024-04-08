@@ -191,7 +191,7 @@ end
 //for future use
 always @(posedge clk) begin
   if (ir && ~jtag_resp.tdo_en) begin
-    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1:4],jtag_resp.tdo,jtag_rx[3:1]};
+    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1:5],jtag_resp.tdo,jtag_rx[4:1]};
     read <= 1;
   end else if (dr && ~jtag_resp.tdo_en) begin
     read_data_valid_reg <= 1'b0; 
