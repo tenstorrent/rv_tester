@@ -111,7 +111,7 @@ class trace_cfg : public device {
               if((trace_read_resp_q.size() == 2) && (cnt_tick == start_trace_cnt+132)) read_sram();
               if(read_ram > 0) {
                 cvm::log(cvm::HIGH, "[Trace_cfg] read RAM {} \n",read_ram);
-                axi_read(TR_DST_RAM_DATA,2,5);
+                axi_read(TR_DST_RAM_DATA,4,5);
                 read_ram = read_ram - 1;
                 if(read_ram == 0) end_test = 1;
               }
@@ -156,8 +156,8 @@ class trace_cfg : public device {
 
         void read_pointers(){
           cvm::log(cvm::HIGH, "[Trace_cfg] trace_cfg reading WRITE/READ pointers\n");
-           axi_read(TR_DST_RAM_WP_LOW,2,5);
-           axi_read(TR_DST_RAM_RP_LOW,2,5);
+           axi_read(TR_DST_RAM_WP_LOW,4,5);
+           axi_read(TR_DST_RAM_RP_LOW,4,5);
         }
 
         void read_sram() {
@@ -166,13 +166,13 @@ class trace_cfg : public device {
 
            rdata = trace_read_resp_q.front();
            trace_read_resp_q.pop();
-           if(rdata.addr == 0xa082020) deserializeInt_wp(rdata.data,wp);
+           if(rdata.addr == TR_DST_RAM_WP_LOW) deserializeInt_wp(rdata.data,wp);
            wp = wp & 0xFFFFFFFC;
            cvm::log(cvm::HIGH, "[Trace_cfg] trace_cfg reading write pointer {:#X}\n",wp);
 
            rdata = trace_read_resp_q.front();
            trace_read_resp_q.pop();
-           if(rdata.addr == 0xa082028) deserializeInt_rp(rdata.data,rp);
+           if(rdata.addr == TR_DST_RAM_RP_LOW) deserializeInt_rp(rdata.data,rp);
            cvm::log(cvm::HIGH, "[Trace_cfg] trace_cfg reading read pointer {:#X}\n",rp);
 
            cvm::log(cvm::HIGH, "[Trace_cfg] trace_cfg reading SRAM started\n");
