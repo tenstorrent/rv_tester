@@ -135,8 +135,17 @@ def create_yaml_frag(events: List[Dict[Any, Any]], path="events.yaml"):
         f.write(f"{tab * 3}{name}:\n")
         f.write(f"{tab * 4}width: 64\n")
 
+def create_verdi_frag(events: List[Dict[Any, Any]], path="pmu.alias"):
+    tab = "      "
+    f = open(path, "w")
+    count = 0
+    for event in events:
+        name = event["name"]
+        f.write(f"{name.upper()}{tab}{count}\n")
+        count += 1
 
 create_cpp_frag(data_dict)
 create_sv_frag(data_dict)
 create_defines_frag(data_dict)
 create_yaml_frag(data_dict)
+create_verdi_frag(data_dict)
