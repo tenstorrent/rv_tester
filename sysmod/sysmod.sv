@@ -75,6 +75,7 @@ import rv_tester_params::*;
         if (reset) begin
             clocks <= 0;
             /* verilator lint_off BLKSEQ */
+            jtag_quiesced = 0;
             sysmod_tick_async = cvm_plusargs::get_bool("sysmod_tick_async") != '0;
             location = cvm_topology::get_location(topology.TOP.PLATFORM.SYSMOD.ID, NUM);
             if (location != cvm_topology::nil) begin
