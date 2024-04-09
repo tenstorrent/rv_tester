@@ -155,8 +155,10 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
 
     fclose(whisper_log);
 
-    for (unsigned i = 0; i < system_->hartCount(); ++i) {
-      fclose(preload_log[i]);
+    if (FLAGS_preload) {
+      for (unsigned i = 0; i < system_->hartCount(); ++i) {
+        fclose(preload_log[i]);
+      }
     }
 
     if (!FLAGS_nostop_standalone) {
