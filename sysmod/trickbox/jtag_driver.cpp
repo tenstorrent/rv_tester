@@ -241,7 +241,7 @@ void jtag_driver::drive_csv_jtag_cmds()
        cvm::log(cvm::HIGH, "[JTAGDRIVER] jtag check opcode Passed! expected {:#x} got {:#x} \n", lower_jtag_data,loop_rdata);
       }else{
        //FAIL
-       cvm::log(cvm::ERROR, "[JTAGDRIVER] jtag check opcode failed! expected {:#x} got {:#x} \n", lower_jtag_data,loop_rdata);
+       cvm::log(cvm::ERROR, "ERROR: [JTAGDRIVER] jtag check opcode failed! expected {:#x} got {:#x} \n", lower_jtag_data,loop_rdata);
       }
       jtag_cmd_q.pop(); // pop front eleme7t
     }
