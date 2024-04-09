@@ -126,6 +126,7 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
     std::atomic<unsigned> finished = 0;  // Count of finished threads.
 
     FILE* whisper_log = fopen("iss_standalone.log", "w");
+    FILE* preload_log[system_->hartCount()];
 
     auto threadFunc = [&result, &finished, &max_instr, whisper_log] (WdRiscv::Hart<URV>* hart) {
                         bool r = hart->run(whisper_log);
@@ -137,8 +138,8 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
     for (unsigned i = 0; i < system_->hartCount(); ++i) {
       WdRiscv::Hart<URV>* hart = system_->ithHart(i).get();
       if (FLAGS_preload) {
-        FILE* preload_log = fopen(("preload_" + std::to_string(i) + ".csv").c_str(), "w");
-        hart->setInitialStateFile(preload_log);
+        preload_log[i] = fopen(("preload_" + std::to_string(i) + ".csv").c_str(), "w");
+        hart->setInitialStateFile(preload_log[i]);
       }
       hart->setInstructionCountLimit(FLAGS_max_instr);
       threadVec.emplace_back(std::thread(threadFunc, hart));
@@ -153,6 +154,10 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
       t.join();
 
     fclose(whisper_log);
+
+    for (unsigned i = 0; i < system_->hartCount(); ++i) {
+      fclose(preload_log[i]);
+    }
 
     if (!FLAGS_nostop_standalone) {
         if (!result) {
