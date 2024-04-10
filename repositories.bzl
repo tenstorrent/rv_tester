@@ -14,7 +14,7 @@ def rv_tester_repositories():
         #sha256 = "af87959afe497dc8dfd4c6cb66e1279cb98ccc84284619ebfec27d9c09a903de",
     )
 
-    corearchcoverage_hash="cfd1ce17068b1c4a6b68f31e3872f39b9e8aa023"
+    corearchcoverage_hash="5f8fc22932ae79cc8b312d6f7886603e6064cef5"
     maybe(
         git_repository,
         name = "corearchcoverage",
@@ -93,7 +93,7 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/checkin-script.git",
     )
 
-    opensrc_axi_llc_hash="76c34b1494f11f55b2f5d6e100f821cf2a7a565d"
+    opensrc_axi_llc_hash="fc54511f8cbbd24a177e1a81383c53d13882a3f8"
     maybe(
         git_repository,
         name = "opensrc-axi_llc",
