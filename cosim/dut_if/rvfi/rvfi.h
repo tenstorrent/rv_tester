@@ -76,7 +76,7 @@ class rvfi {
     void send_instr_group(hart_id_t hart, rv_instr_group_t& group);
     void enter_debug_mode(rv_instr_t& instr);
     void exit_debug_mode(rv_instr_t& instr);
-    std::string mem_attr_to_string(uint8_t mem_attr);
+    std::string mem_attr_to_string(uint32_t mem_attr); 
 
   private:
 
