@@ -34,6 +34,7 @@ class trace_cfg : public device {
     public:
         uint32_t start_trace_cnt = 0,n,read_ram;
         uint32_t cnt_tick=0;
+        uint64_t axi_read_resp=0;
         std::unordered_map<std::string, uint32_t> macros,randomElements;
         struct trace_wr_t {
           uint32_t addr;
@@ -79,25 +80,6 @@ class trace_cfg : public device {
             }  
         }
 
-        void axi_to_hex_check(const data_t& wdata, const std::vector<bool>& strb, uint64_t addr,uint64_t check_data) {
-            uint8_t b_index = static_cast<uint8_t>(addr & 0x3F);
-            uint32_t value = 0;
-
-            for (uint8_t i = 0; i < 4; ++i) {
-                if (strb[i + b_index]) {
-                    value |= static_cast<uint32_t>(wdata[i + b_index]) << (8 * i);
-                }
-            }
-
-            std::cout << "Hexadecimal value: 0x" << std::hex << value << std::endl;
-
-            if(value == check_data){
-              std::cout <<"0x"<< std::hex << addr <<" passed"<<std::endl;
-            }
-
-
-        }
-
         virtual void write_axi_mst(uint64_t addr, size_t length,
                             const data_t& data, const strb_t& strb);
 
@@ -117,7 +99,15 @@ class trace_cfg : public device {
           x = 0;
           for (unsigned i = 0; i < sizeof(x); ++i)
             x |= INT(data[i+40]) << (i * 8);
-        }                   
+        }               
+
+        template <typename INT>
+        void deserializeInt(const data_t &data, INT &x,const uint64_t &addr)
+        {
+          x = 0;
+          for (unsigned i = 0; i < sizeof(x); ++i)
+            x |= INT(data[i+(addr%64)]) << (i * 8);
+        }     
         
         virtual void tick(uint64_t) override
         {
@@ -146,8 +136,8 @@ class trace_cfg : public device {
               if(end_test==1) complete_trace_test();
               if(cnt_tick==start_trace_cnt) push_axi_mmr_seq();
               if(trace_wr_txn_q.size() > 0) axi_write();
-              if(cnt_tick==(start_trace_cnt+20)) axi_read(TR_DST_CONTROL,4,4);
-              if(cnt_tick==(start_trace_cnt+23)) axi_read(CDBG_NTRACE_CFG,8,4);
+              if(cnt_tick==(start_trace_cnt+20)) axi_read(CDBG_CLA_COUNTER3_CFG,8,4);
+              if(cnt_tick==(start_trace_cnt+23)) axi_read(CDBG_NODE3_EAP1_CFG,8,4);
 
               while((trace_read_resp_q.size() >0) ){
                 print_trace_request(trace_read_resp_q.front());
@@ -164,18 +154,6 @@ class trace_cfg : public device {
                   cvm::log(cvm::HIGH, "[overlay axi regress] success \n");
                   macros = extractMacros("/proj_risc/user_dev/mvarman/AXI/testing/rv_tester/sysmod/trace_cfg/trace_defines.h");
                   randomElements= pickRandomElements(macros, n);
-                }
-
-                 if(cnt_tick==(start_trace_cnt+10)) push_random_axi_read(randomElements);
-
-                while((trace_read_resp_q.size() >0) ){
-                  print_trace_request(trace_read_resp_q.front());
-                  trace_read_resp_q.pop();
-                  cvm::log(cvm::HIGH, "[overlay axi] queue size {} \n",trace_read_resp_q.size());
-                  if(trace_read_resp_q.size() == 0){
-                    end_test = 1;
-                    cvm::log(cvm::HIGH, "[overlay axi] Reset value check ended\n");
-                  }
                 }
 
                 if(cnt_tick==(start_trace_cnt+50)) push_random_axi_write(randomElements);
@@ -214,9 +192,12 @@ class trace_cfg : public device {
             std::cout << std::endl << std::endl;
 
           if(read == 1){
-            axi_to_hex_check(request.data, request.strb, request.addr,0x00000000);
+            deserializeInt(request.data,axi_read_resp, uint64_t(request.addr));
+            cvm::log(cvm::HIGH, "[overlay axi] axi_read_resp {} \n",axi_read_resp);
+
           }else{
-            axi_to_hex_check(request.data, request.strb, request.addr,0xFFFF);
+            deserializeInt(request.data,axi_read_resp, uint64_t(request.addr));
+            cvm::log(cvm::HIGH, "[overlay axi] axi_read_resp {} \n",axi_read_resp);
           }
 
         }
