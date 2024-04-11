@@ -108,29 +108,36 @@ class smc_xtor : public device {
             if(cnt_tick==54) axi_read(CPL_SRAM_BASE + 0x1008,4,5);
 
             while((smc_read_resp_q.size() >0) ){
-                print_trace_request(smc_read_resp_q.front());
+                print_read_request(smc_read_resp_q.front());
                 smc_read_resp_q.pop();
                 cvm::log(cvm::HIGH, "[smc] queue size {} \n",smc_read_resp_q.size());
               }
             cnt_tick ++;
         }
         
-        void print_trace_request(const smc_xtor_read_req_t &request) {
-            std::cout << "Address: " << request.addr << std::endl;
-            std::cout << "Length: " << request.length << std::endl;
-            std::cout << "ID: " << request.id << std::endl;
+        void print_read_request(const smc_xtor_read_req_t &request) {
+            cvm::log(cvm::HIGH, "Address: {} \n",request.addr);
+            cvm::log(cvm::HIGH, "Length: {} \n",request.length);
+            cvm::log(cvm::HIGH, "ID: {} \n ",request.id );
             
-            std::cout << "Data: ";
-            for (const auto &byte : request.data) {
-                std::cout << static_cast<int>(byte) << " ";
-            }
-            std::cout << std::endl;
+            
+            std::stringstream ss;
 
-            std::cout << "STRB: ";
-            for (const auto &bit : request.strb) {
-                std::cout << bit << " ";
+            for (const auto &byte : request.data) {
+                ss << static_cast<int>(byte) << " ";
             }
-            std::cout << std::endl << std::endl;
+
+   
+            std::string output = ss.str();
+            ss.clear();
+            ss.str("");
+
+            for (const auto &bit : request.strb) {
+                ss <<  bit << " ";
+            }
+            std::string output2 = ss.str();
+            cvm::log(cvm::HIGH,"Data: {} \n",output);
+            cvm::log(cvm::HIGH,"STRB: {} \n",output2);
         }
 
         void push_smc_enable_seq() {
