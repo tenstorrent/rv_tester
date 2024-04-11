@@ -62,9 +62,9 @@ class smc_xtor : public device {
         cvm::messenger::task<void> read(const transactor::read_t& , data_t& );
 
         void gen_data_strb(uint64_t addr, uint32_t value, data_t& wdata, std::vector<bool>& strb) {
-            uint8_t b_index =  static_cast<uint8_t>(addr & 0x3F);
+            uint8_t b_index =  static_cast<uint8_t>(addr & 0x7);
 
-            for (uint8_t i = 0; i < 64; ++i) {
+            for (uint8_t i = 0; i < 8; ++i) {
                   wdata.push_back(0x0);
                   strb.push_back(0x0);
             }  
@@ -104,8 +104,8 @@ class smc_xtor : public device {
             if(smc_wr_txn_q.size() > 0) axi_write();
             
 
-            if(cnt_tick==53) axi_read(CPL_SRAM_BASE + 0x1000,8,4);
-            if(cnt_tick==54) axi_read(CPL_SRAM_BASE + 0x1008,8,5);
+            if(cnt_tick==53) axi_read(CPL_SRAM_BASE + 0x1000,4,4);
+            if(cnt_tick==54) axi_read(CPL_SRAM_BASE + 0x1008,4,5);
 
             while((smc_read_resp_q.size() >0) ){
                 print_trace_request(smc_read_resp_q.front());
