@@ -791,7 +791,7 @@ void rvfi::process(const rv_tester::terminate_called&) {
 }
 
 
-std::string rvfi::mem_attr_to_string(uint8_t mem_attr) {
+std::string rvfi::mem_attr_to_string(uint32_t mem_attr) {
     std::string result;
     result += (mem_attr & 0x800) ? "io," : "mem,";
     result += (mem_attr & 0x1000) ? "c"   : "nc";

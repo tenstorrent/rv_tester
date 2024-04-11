@@ -47,7 +47,7 @@ DEFINE_bool(fpr_check, true, "Enable cosim checks on fprs");
 DEFINE_bool(vec_check, true, "Enable cosim checks on vector regs");
 DEFINE_bool(csr_rd_check, true, "Enable cosim checks on csr reads");
 DEFINE_bool(csr_wr_check, true, "Enable cosim checks on csr writes");
-DEFINE_bool(memattr_check, false, "Enable cosim checks on mem attributes");
+DEFINE_bool(memattr_check, true, "Enable cosim checks on mem attributes");
 DEFINE_uint64(max_cycle, 1000000, "Max cycle limit to terminate the sim");
 DEFINE_int32(debug_excp_mcause, 24, "MCAUSE value for debug exception");
 DEFINE_bool(translation_check, false, "Do VA-PA translation check");
@@ -710,13 +710,15 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
   }
 
   // Mem attributes
-  if (FLAGS_memattr_check && (w_.mem_read.valid || w_.mem_write.valid)) {
-    bool valid;
+  // Disabling mem_attr checks for vectors currently
+  if (FLAGS_memattr_check && !w_.trap && !is_vector(w.disasm) && (w_.mem_read.valid || w_.mem_write.valid)) {
+    bool valid; 
     uint64_t eff_mem_attr;
     if (!client_->whisperPeek(hart, 's', WhisperSpecialResource::EffMemAttr, eff_mem_attr, valid)) {
       cvm::log(cvm::ERROR, "Error: Hart {}: Failed whisper API call - whisperEffMemAttr\n", hart);
       return;
     }
+  
     update_mem_attr(hart, src_t::iss, eff_mem_attr);
   }
 
@@ -979,6 +981,7 @@ void bridge::update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_
   };
   assert(cac_.UpdateResource(hart, src, rid, std::move(cac::CreateBitVec<size_8_bytes_t>(dword_vec))));
 }
+
 
 bool bridge::is_vector(const std::string& instr) {
   if (instr.substr(0,1) == "v")
