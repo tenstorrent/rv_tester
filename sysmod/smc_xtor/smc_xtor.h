@@ -62,9 +62,9 @@ class smc_xtor : public device {
         cvm::messenger::task<void> read(const transactor::read_t& , data_t& );
 
         void gen_data_strb(uint64_t addr, uint32_t value, data_t& wdata, std::vector<bool>& strb) {
-            uint8_t b_index =  static_cast<uint8_t>(addr & 0x3F);
+            uint8_t b_index =  static_cast<uint8_t>(addr & 0x7);
 
-            for (uint8_t i = 0; i < 64; ++i) {
+            for (uint8_t i = 0; i < 8; ++i) {
                   wdata.push_back(0x0);
                   strb.push_back(0x0);
             }  
@@ -98,9 +98,48 @@ class smc_xtor : public device {
         
         virtual void tick(uint64_t) override
         {
+            cvm::log(cvm::HIGH, "[SMC] tick {:#X} \n",cnt_tick);
+            if(cnt_tick == 40) smc_wr_txn_q.push({CPL_SRAM_BASE + 0x1000,0xFFFF});
+            if(cnt_tick == 41) smc_wr_txn_q.push({CPL_SRAM_BASE + 0x1008,0xFFFF});
+            if(smc_wr_txn_q.size() > 0) axi_write();
+            
+
+            if(cnt_tick==53) axi_read(CPL_SRAM_BASE + 0x1000,4,4);
+            if(cnt_tick==54) axi_read(CPL_SRAM_BASE + 0x1008,4,5);
+
+            while((smc_read_resp_q.size() >0) ){
+                print_read_request(smc_read_resp_q.front());
+                smc_read_resp_q.pop();
+                cvm::log(cvm::HIGH, "[smc] queue size {} \n",smc_read_resp_q.size());
+              }
             cnt_tick ++;
         }
         
+        void print_read_request(const smc_xtor_read_req_t &request) {
+            cvm::log(cvm::HIGH, "Address: {} \n",request.addr);
+            cvm::log(cvm::HIGH, "Length: {} \n",request.length);
+            cvm::log(cvm::HIGH, "ID: {} \n ",request.id );
+            
+            
+            std::stringstream ss;
+
+            for (const auto &byte : request.data) {
+                ss << static_cast<int>(byte) << " ";
+            }
+
+   
+            std::string output = ss.str();
+            ss.clear();
+            ss.str("");
+
+            for (const auto &bit : request.strb) {
+                ss <<  bit << " ";
+            }
+            std::string output2 = ss.str();
+            cvm::log(cvm::HIGH,"Data: {} \n",output);
+            cvm::log(cvm::HIGH,"STRB: {} \n",output2);
+        }
+
         void push_smc_enable_seq() {
           cvm::log(cvm::HIGH, "[smc_xtor] smc_xtor inside enable smc seq\n");
           cvm::log(cvm::HIGH, "[smc_xtor] smc_xtor completed enable smc seq\n");
