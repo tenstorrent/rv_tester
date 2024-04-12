@@ -130,6 +130,7 @@ bool exitLoop() {
   {
     if(loop_idx == 0 && loop_execution_cnt>0 && exitLoop()){
       //Check for status bit in rdata
+        loop_execution_cnt = 0;
         executing_loop = false;
         jtag_loop_q.clear();
         return;
