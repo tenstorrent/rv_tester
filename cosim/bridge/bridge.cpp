@@ -490,7 +490,7 @@ void bridge::process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, wh
 
   if (d.mem_write.valid && d.mem_write.size==4 && ((d.mem_write.pa>=0x40000000 &&  d.mem_write.pa <0x42000000) || (d.mem_write.pa>=0x44000000 &&  d.mem_write.pa < 0x46000000)) ) {
   bool valid;
-  if (!client_->whisperPokeMem(hart, d.cycle, 'm', d.mem_write.pa, 4, d.mem_write.data, valid)) {
+  if (!client_->whisperPokeMem(hart, d.cycle, 'm', d.mem_write.pa, 4, w.value, valid)) {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed to poke memory\n", hart);
     return;
   } else {
