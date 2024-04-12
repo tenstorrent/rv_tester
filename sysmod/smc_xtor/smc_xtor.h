@@ -99,19 +99,6 @@ class smc_xtor : public device {
         virtual void tick(uint64_t) override
         {
             cvm::log(cvm::HIGH, "[SMC] tick {:#X} \n",cnt_tick);
-            if(cnt_tick == 40) smc_wr_txn_q.push({CPL_SRAM_BASE + 0x1000,0xFFFF});
-            if(cnt_tick == 41) smc_wr_txn_q.push({CPL_SRAM_BASE + 0x1008,0xFFFF});
-            if(smc_wr_txn_q.size() > 0) axi_write();
-            
-
-            if(cnt_tick==53) axi_read(CPL_SRAM_BASE + 0x1000,4,4);
-            if(cnt_tick==54) axi_read(CPL_SRAM_BASE + 0x1008,4,5);
-
-            while((smc_read_resp_q.size() >0) ){
-                print_read_request(smc_read_resp_q.front());
-                smc_read_resp_q.pop();
-                cvm::log(cvm::HIGH, "[smc] queue size {} \n",smc_read_resp_q.size());
-              }
             cnt_tick ++;
         }
         
