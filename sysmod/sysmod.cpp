@@ -197,6 +197,23 @@ sysmod::trace_cfg_read_req_router(trace_cfg::trace_cfg_read_t r) {
 }
 
 void
+sysmod::smc_read_req_router(smc_xtor::smc_xtor_read_t r) {
+
+    transactor::read_t rd;
+    rd.addr = r.addr;
+    rd.length = r.length;
+    rd.id =  r.id;
+
+    auto sources = cvm::topology::get_from_type("PLATFORM_TRANSACTOR");
+
+    cvm::log(cvm::LOW, "[SYSMOD] SMC_XTOR ROUTER - addr={:#x} \n", rd.addr);
+    if (this->dev(r.addr)){
+        cvm::registry::messenger.signal<device::read_t>(this->loc_, {rd, sources[0]});
+    }
+
+}
+
+void
 sysmod::scratchpad_xtor_read_req_router(scratchpad_xtor::scratchpad_xtor_read_t r) {
 
     transactor::read_t rd; 
@@ -403,6 +420,9 @@ sysmod::compose()
             [&](smc_xtor::smc_info_t i) { return this->smc_info_handler(i); });
         assert(masters.size() > 0);
         device = std::make_unique<smc_xtor>(tag, base, size, loc_, smc_master[0]);
+        cvm::registry::messenger.connect<smc_xtor::smc_xtor_read_t>(
+            loc_,
+            [&](smc_xtor::smc_xtor_read_t i) { return this->smc_read_req_router(i); });
       }
       else if (type == "aplic_mmr") {
         // TODO: cvm::ERROR
@@ -609,6 +629,8 @@ sysmod::tick(uint64_t advance)
 
   if (advance) {
       for (auto& d : devices_) {
+        
+        cvm::log(cvm::HIGH, "[SYSMOD.CPP] Send Tick to  = {}\n", d->tag());
           d->tick(advance);
       }
   }
