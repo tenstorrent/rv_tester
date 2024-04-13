@@ -37,7 +37,7 @@ class smc_xtor : public device {
         uint32_t cnt_tick=0;
         struct smc_wr_t {
           uint32_t addr;
-          uint32_t data;
+          uint64_t data;
         };
         struct smc_xtor_read_t {
           uint64_t addr;
@@ -107,12 +107,16 @@ class smc_xtor : public device {
             cvm::log(cvm::HIGH, "[SMC] IN BOOT SEQ {} reset complition {} \n",in_boot_seq,reset_completion);
               if(!reset_completion){
                   cvm::log(cvm::HIGH, "[SMC] CHK AXI READ RESP FOR 0xC000300C \n");
+                  cvm::log(cvm::HIGH, "[SMC] CHK AXI READ RESP FOR 0xC000300C Q size {} \n",smc_read_resp_q.size());
                   if(smc_read_resp_q.size() >0){
                      smc_xtor_read_req_t smc_xtor_rd;
                      smc_xtor_rd = smc_read_resp_q.front();
                      smc_read_resp_q.pop();
+                     for (int i = 0; i < 8; i++) {
+                     cvm::log(cvm::HIGH, "[SMC] READ RESP data[{}]= {:#X} \n",i,smc_xtor_rd.data[i]);
+                     }
                      cvm::log(cvm::HIGH, "[SMC] READ RESP {:#X} \n",smc_xtor_rd.data[0]);
-                     if(smc_xtor_rd.data[0] == 0x10){
+                     if(smc_xtor_rd.data[4] == 0x10){
                       reset_completion = true;
                      }
                   }else{
@@ -194,7 +198,7 @@ class smc_xtor : public device {
           //Write 0x1 in 0xc000_2008  // Release cluster warm reset
           smc_boot_wr_txn_q.push({ 0xC0002008,0x1});
           //Write 0x00 in 0xc000_200C // Release core no fetch control
-          smc_boot_wr_txn_q.push({ 0xC000200C,0x00});
+          smc_boot_wr_txn_q.push({ 0xC000200C,0x000000000});
         }
         void push_smc_disable_seq() {
           cvm::log(cvm::HIGH, "[smc_xtor] smc_xtor inside disable smc seq\n");

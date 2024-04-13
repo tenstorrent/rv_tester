@@ -8,8 +8,10 @@ void sysmod_mem::write(const transactor::write_t& w) {
   auto& data = w.data;
   auto& strb = w.strb;
 
+  cvm::log(cvm::HIGH, "[SYSMEM] write {:#X} len :{:#X} \n",addr,length);
   for (size_t i = 0; i < length; i++) {
     if (strb[i]) {
+  cvm::log(cvm::HIGH, "data[{:#X}] = :{:#X} \n",i,data[i]);
       m_->write(addr + i, 1, &data[i]);
     }
   }
@@ -25,8 +27,10 @@ void sysmod_mem::read(const transactor::read_t& r, data_t& data) {
 }
 
 void sysmod_mem::backdoor_write(uint64_t addr, size_t length, data_t& data, strb_t& strb) {
+  cvm::log(cvm::HIGH, "[SYSMEM] BACKDOOR write {:#X} len :{:#X} \n",addr,length);
   for (size_t i = 0; i < length; i++) {
     if (strb[i]) {
+      cvm::log(cvm::HIGH, "data[{:#X}] = :{:#X} \n",i,data[i]);
       m_->write(addr + i, 1, &data[i]);
     }
   }
