@@ -32,7 +32,7 @@ class trace_cfg : public device {
         }
 
     public:
-        uint32_t start_trace_cnt = 0,n,read_ram;
+        uint32_t start_trace_cnt=0,n,read_ram=0;
         uint32_t cnt_tick=0;
         uint64_t axi_read_resp=0;
         std::unordered_map<std::string, uint32_t> macros,randomElements;
