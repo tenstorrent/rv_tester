@@ -242,7 +242,7 @@ import rv_tester_params::*;
       mip[13] = intr.lcofi;
       mip[12] = intr.sgei;
       mip[11] = intr.mei;
-      mip[10]  = intr.vsei;
+      mip[10] = intr.vsei;
       mip[9]  = intr.sei;
       mip[7]  = intr.mti;
       mip[6]  = intr.vsti;
@@ -252,19 +252,18 @@ import rv_tester_params::*;
       return mip;
     endfunction
 
-
     localparam imsic_whisper_delays = 5;
     rv_tester_params::mst_req_top imsic_interrupt_delays[imsic_whisper_delays:0];
     rv_tester_params::mst_req_top imsic_interrupt_delayed;
     assign imsic_interrupt_delays[0]=imsic_interrupt;
     genvar i;
-   generate
-    for (i=1; i <= imsic_whisper_delays; i=i+1) begin
-      always @(posedge clk)
-      imsic_interrupt_delays[i] <= imsic_interrupt_delays[i-1];
-    end
-   endgenerate
-   assign imsic_interrupt_delayed = imsic_interrupt_delays[imsic_whisper_delays];
+    generate
+      for (i=1; i <= imsic_whisper_delays; i=i+1) begin
+        always @(posedge clk)
+        imsic_interrupt_delays[i] <= imsic_interrupt_delays[i-1];
+      end
+    endgenerate
+    assign imsic_interrupt_delayed = imsic_interrupt_delays[imsic_whisper_delays];
 
     // m_imsic_msi
     enum logic {idle, aw} msi_slave_state,msi_slave_state_d;
@@ -288,10 +287,10 @@ import rv_tester_params::*;
 
     function automatic bit [63:0] get_mip_mask(rv_tester_pkg::interrupt_t intr, rv_tester_pkg::interrupt_t intr_d1);
       bit [63:0] mask = 'h0;
-      mask[13]  = (intr.lcofi & ~intr_d1.lcofi);
-      mask[12]  = (intr.sgei & ~intr_d1.sgei) | (~intr.sgei & intr_d1.sgei);
+      mask[13] = (intr.lcofi & ~intr_d1.lcofi);
+      mask[12] = (intr.sgei & ~intr_d1.sgei) | (~intr.sgei & intr_d1.sgei);
       mask[11] = (intr.mei & ~intr_d1.mei) | (~intr.mei & intr_d1.mei);
-      mask[10]  = (intr.vsei & ~intr_d1.vsei) | (~intr.vsei & intr_d1.vsei);
+      mask[10] = (intr.vsei & ~intr_d1.vsei) | (~intr.vsei & intr_d1.vsei);
       mask[9]  = (intr.sei & ~intr_d1.sei) | (~intr.sei & intr_d1.sei);
       mask[7]  = (intr.mti & ~intr_d1.mti) | (~intr.mti & intr_d1.mti);
       mask[6]  = (intr.vsti & ~intr_d1.vsti) | (~intr.vsti & intr_d1.vsti);
@@ -303,10 +302,10 @@ import rv_tester_params::*;
 
     function automatic bit [63:0] get_mip_assert(rv_tester_pkg::interrupt_t intr, rv_tester_pkg::interrupt_t intr_d1);
       bit [63:0] mask = 'h0;
-      mask[13]  = (intr.lcofi & ~intr_d1.lcofi);
-      mask[12]  = (intr.sgei & ~intr_d1.sgei);
+      mask[13] = (intr.lcofi & ~intr_d1.lcofi);
+      mask[12] = (intr.sgei & ~intr_d1.sgei);
       mask[11] = (intr.mei & ~intr_d1.mei);
-      mask[10]  = (intr.vsei & ~intr_d1.vsei);
+      mask[10] = (intr.vsei & ~intr_d1.vsei);
       mask[9]  = (intr.sei & ~intr_d1.sei);
       mask[7]  = (intr.mti & ~intr_d1.mti);
       mask[6]  = (intr.vsti & ~intr_d1.vsti);
@@ -324,31 +323,31 @@ import rv_tester_params::*;
     bit boot_wfi;
 
     always @(posedge tb_clk) begin
-        if (reset) begin
-            /* verilator lint_off BLKSEQ */
-            max_cycle = cvm_plusargs::get_ulongint("max_cycle");
-            max_stall_cycle = cvm_plusargs::get_int("max_stall_cycle");
-            hart_enable_mask = cvm_plusargs::get_ulongint("hart_enable_mask");
-            /* verilator lint_on BLKSEQ */
-            cycles_since_retire <= 0;
-            boot_wfi <= '0;
-        end else if(!dut_reset) begin
-            cycles_since_retire <= cycles_since_retire + 1;
-            if (rvfi[0].valid !== 0) begin
-              cycles_since_retire <= 0;
-            end
-            if (NUM != 0 && hart_enable_mask[NUM] == 0 && rvfi[0].valid !== 0 && rvfi[0].insn[6:0] == 7'h73 && rvfi[0].pc_rdata < 'h20000) begin // WFI
-              boot_wfi <= '1;
-            end
-            if (max_stall_cycle > 0 && cycles_since_retire > max_stall_cycle && !boot_wfi) begin
-              $display("Error: Hart %0d: No instruction retired for max_stall_cycle (%0d) cycles", NUM, max_stall_cycle);
-              cosim_terminate();
-            end
-            if (max_cycle > 0 && clocks > max_cycle) begin
-              $display("Error: Hart %0d:  Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", NUM, max_cycle);
-              cosim_terminate();
-            end
+      if (reset) begin
+        /* verilator lint_off BLKSEQ */
+        max_cycle = cvm_plusargs::get_ulongint("max_cycle");
+        max_stall_cycle = cvm_plusargs::get_int("max_stall_cycle");
+        hart_enable_mask = cvm_plusargs::get_ulongint("hart_enable_mask");
+        /* verilator lint_on BLKSEQ */
+        cycles_since_retire <= 0;
+        boot_wfi <= '0;
+      end else if(!dut_reset) begin
+        cycles_since_retire <= cycles_since_retire + 1;
+        if (rvfi[0].valid !== 0) begin
+          cycles_since_retire <= 0;
         end
+        if (NUM != 0 && hart_enable_mask[NUM] == 0 && rvfi[0].valid !== 0 && rvfi[0].insn[6:0] == 7'h73 && rvfi[0].pc_rdata < 'h20000) begin // WFI
+          boot_wfi <= '1;
+        end
+        if (max_stall_cycle > 0 && cycles_since_retire > max_stall_cycle && !boot_wfi) begin
+          $display("Error: Hart %0d: No instruction retired for max_stall_cycle (%0d) cycles", NUM, max_stall_cycle);
+          cosim_terminate();
+        end
+        if (max_cycle > 0 && clocks > max_cycle) begin
+          $display("Error: Hart %0d:  Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", NUM, max_cycle);
+          cosim_terminate();
+        end
+      end
     end
 
 endmodule

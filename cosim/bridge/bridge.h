@@ -19,11 +19,15 @@
 
 class bridge : public bridge_base {
 
-using src_t = cac::src_t;
-using resource_t = cac::resource_t;
-using resource_id_t = cac::resource_id_t;
-using size_8_bytes_t = cac::size_8_bytes_t;
-using CacCore = cac::CacCore;
+private:
+  using src_t = cac::src_t;
+  using resource_t = cac::resource_t;
+  using resource_id_t = cac::resource_id_t;
+  using CacCore = cac::CacCore;
+
+public:
+  // Usec by some functions in bridge.cpp
+  using size_8_bytes_t = uint64_t;
 
 public:
   bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsigned id);
@@ -118,8 +122,8 @@ private:
   void check_and_defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
   void check_interrupt(hart_id_t hart, uint64_t mip, bool& taken, uint64_t& cause);
   void defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
-  void resetsstc(hart_id_t hart, uint64_t cycle, uint64_t csr);
-  void setsstc(hart_id_t hart, uint64_t cycle, uint64_t csr);
+  void resetsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr);
+  void setsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr);
   void poke_mip(hart_id_t hart, uint64_t time, uint64_t mip);
   void peek_mip(hart_id_t hart, uint64_t time, uint64_t& mip);
   void peek_seip(hart_id_t hart, uint64_t time, uint64_t& val);
