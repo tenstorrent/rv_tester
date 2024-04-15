@@ -34,6 +34,19 @@ import rv_tester_params::*;
     `RV_TESTER_TRANSACTIONS_COSIM_OUTPUT_PORTS
 );
 
+function automatic bit [10:0][6:0] retsel(input bit [CSR_COUNT-1:0] valid);
+    int s = 0;
+    int i = 0;
+    retsel = '1;
+    for(i=0;i<CSR_COUNT;i=i+1) begin
+        retsel[s] = 127;
+        if (valid[i] == 1) begin
+            retsel[s] = i;
+            s = s + 1;
+        end
+    end
+endfunction
+
     import "DPI-C" context function void cosim_set_scope(int unsigned location);
 
     typedef longint unsigned LU;
@@ -101,9 +114,14 @@ import rv_tester_params::*;
     end
 
     // m_csri
+    logic [CSR_COUNT-1:0] m_csris_valid;
+    logic [CSR_COUNT-1:0] valid_d0;
     logic [CSR_COUNT-1:0] valid_d1;
     logic [CSR_COUNT-1:0][63:0] data_d1;
     logic [CSR_COUNT-1:0][63:0] mask_d1;
+    for (genvar n = 0; n < CSR_COUNT; n++) begin
+        assign valid_d0[n] = csri[n].valid;  
+    end
     always @(posedge clk) begin
       for (int n = 0; n < CSR_COUNT; n++) begin
         valid_d1[n] <= csri[n].valid;
@@ -111,14 +129,22 @@ import rv_tester_params::*;
         mask_d1[n] <= csri[n].mask;
       end
     end
+
+    bit [10:0][6:0] csr_sel;
+
+    assign csr_sel = retsel(m_csris_valid);
+
     for (genvar n = 0; n < CSR_COUNT; n++) begin
-        assign m_csris[n].valid = rvfi_enabled & ~dut_reset & ((csri[n].valid & ~valid_d1[n]) | (csri[n].valid & ((csri[n].data !== data_d1[n]) | (csri[n].mask !== mask_d1[n]))));
+        assign m_csris_valid[n] = rvfi_enabled & ~dut_reset & ((csri[n].valid & ~valid_d1[n]) | (csri[n].valid & ((csri[n].data !== data_d1[n]) | (csri[n].mask !== mask_d1[n]))));
+    end
+    for (genvar n = 0; n < 11; n++) begin
+        assign m_csris[n].valid         = (csr_sel[n] != 127) ? m_csris_valid[csr_sel[n]] : '0; 
         assign m_csris[n].data.location = location;
-        assign m_csris[n].data.cycle = csri[n].valid ? clocks : '0;
-        assign m_csris[n].data.hart = NUM;
-        assign m_csris[n].data.addr = csri[n].addr;
-        assign m_csris[n].data.mask = csri[n].mask;
-        assign m_csris[n].data.data = csri[n].data;
+        assign m_csris[n].data.cycle    = clocks;
+        assign m_csris[n].data.hart     = NUM;
+        assign m_csris[n].data.addr     = (csr_sel[n] != 127) ? csri[csr_sel[n]].addr : '0;
+        assign m_csris[n].data.mask     = (csr_sel[n] != 127) ? csri[csr_sel[n]].mask : '0;
+        assign m_csris[n].data.data     = (csr_sel[n] != 127) ? csri[csr_sel[n]].data : '0;
     end
 
     // m_mcmi_read

@@ -13,7 +13,8 @@ cosim:
 
     m_csri:
         domain: 1
-        num: ${TOP.PLATFORM.NCSR}
+        #num: ${TOP.PLATFORM.NCSR}
+        num: 11 
         fields:
             cycle:
                 width: 64
