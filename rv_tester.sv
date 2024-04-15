@@ -74,7 +74,6 @@ module rv_tester
 
     int quiesce_counter = 0;
     int trace_counter = 5000;
-    int mmr_counter = 5000;
     int quiesce_timeout = 500;
     int flush_counter = 0;
     int flush_timeout = 25000;
