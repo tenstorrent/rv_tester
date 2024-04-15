@@ -36,7 +36,7 @@ axi_sw<W,AW,AR,RQ>::axi_sw(cvm::topology::loc_t loc, unsigned id)
     r_q_rptr_(0), r_q_wptr_(r_q_max_) 
 
     {
-    cvm::log(cvm::FULL, "[axi_sw] Constructing axi_sw for loc=%d id=%d\n", loc,id);
+    cvm::log(cvm::FULL, "[axi_sw] Constructing axi_sw for loc={} id={}\n", loc,id);
     auto data_width = cvm::topology::attr(loc, "DATA_WIDTH").second;
     axi_ = new axi(data_width, loc, "axi" + std::to_string(id));
     cvm::registry::messenger.connect<svScope>(

@@ -21,6 +21,7 @@ smc_xtor::smc_xtor(const std::string& tag, uint64_t addr, size_t size, cvm::topo
  
   channel = cvm::registry::messenger.channel<axi::r_t>(axi_mst_loc_l);
   push_smc_boot_seq();
+  //spawn_read_thread1(&smc_xtor::read,this);
 }
 
 void smc_xtor::axi_write() {
@@ -40,8 +41,19 @@ void smc_xtor::axi_write() {
 
 void smc_xtor::axi_read(uint64_t addr, size_t length,
                           uint32_t id) {
-  cvm::log(cvm::HIGH, "[SMC] READ ADDR {:#X}  \n",addr);
-   cvm::registry::messenger.signal(loc(), smc_xtor_read_t{addr, length, id});
+  cvm::log(cvm::HIGH, "[SMC] READ ADDR {:#X} {} {}  \n",addr,id,length);
+  //prt cvm::registry::messenger.signal(loc(), smc_xtor_read_t{addr, length, id});
+  transactor::read_t r ;
+  r.addr = addr;
+  r.length = length;
+  auto* l = +[](transactor::read_t r, smc_xtor* dev) -> cvm::messenger::task<void>{
+    data_t d;
+    co_await dev->read(r,d);
+  };
+  cvm::registry::messenger.fork(l, r, this);
+
+  //cvm::registry::messenger.fork(&smc_xtor::read,this,r);
+  //spawn_read_thread1(&smc_xtor::read,this);
 }
 
 
@@ -60,24 +72,22 @@ cvm::messenger::task<void> smc_xtor::read(const transactor::read_t& r, data_t& )
    auto& addr = r.addr;
    auto& length = r.length;
 
-  uint64_t smc_acc_addr;
-  size_t smc_acc_length;
   smc_xtor_read_req_t rd;
   cvm::log(cvm::HIGH, "[SMC] Default read addr {:#X} len {} loc :{:#X} \n",addr,length,axi_mst_loc_l);
  
 
-  rd = smc_rd_txn_q.front();
-  smc_rd_txn_q.pop();
-  smc_acc_addr = (uint64_t)rd.addr;
-  smc_acc_length = rd.length;
-  cvm::log(cvm::HIGH, "[SMC] Popped read addr {:#X} loc :{:#X} \n",smc_acc_addr,axi_mst_loc_l);
-  cvm::registry::messenger.signal(axi_mst_loc_l, transactor::read_request_t{smc_acc_addr, smc_acc_length});
+  //rd = smc_rd_txn_q.front();
+  //smc_rd_txn_q.pop();
+  //smc_acc_addr = (uint64_t)rd.addr;
+  //smc_acc_length = rd.length;
+  //cvm::log(cvm::HIGH, "[SMC] Popped read addr {:#X} loc :{:#X} \n",smc_acc_addr,axi_mst_loc_l);
+  cvm::registry::messenger.signal(axi_mst_loc_l, transactor::read_request_t{addr, length});
 
   auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(channel);
 
   smc_xtor_read_req_t smc_xtor_rd;
-  smc_xtor_rd.addr = smc_acc_addr;
-  smc_xtor_rd.length = smc_acc_length;
+  smc_xtor_rd.addr = addr;
+  smc_xtor_rd.length = length;
   smc_xtor_rd.id = r.id;
   smc_xtor_rd.data = resp.data;  
   smc_read_resp_q.push(smc_xtor_rd); 
