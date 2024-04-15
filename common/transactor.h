@@ -3,6 +3,8 @@
 #include <vector>
 #include "cvm/topology.hpp"
 #include "cvm/registry.hpp"
+#include "cvm/logger.hpp"
+#include "fmt/format.h"
 
 class transactor {
 
@@ -58,6 +60,10 @@ class transactor {
           read_t{id, addr, length});
 
       auto response = co_await cvm::registry::messenger.wait<read_response_t>(resp_channel_, [&id] (const read_response_t& r) { return r.id == id; });
+      std::string d;
+      for (size_t i=0; i<response.data.size(); i++)
+          d += fmt::format("{:02x}", response.data[i]);
+      cvm::log(cvm::FULL, "[transactor] loc={}: r: id={}, addr={:#x}, len={}, size={}, data={}\n", loc_, response.id, addr, length, response.data.size(), d);
       co_return response.data;
     }
 

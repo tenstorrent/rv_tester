@@ -59,6 +59,7 @@ class smc_xtor : public device {
         std::queue<smc_wr_t>            smc_wr_txn_q;
         std::queue<smc_xtor_read_req_t> smc_rd_txn_q;
         std::queue<smc_wr_t>            smc_boot_wr_txn_q;
+        uint32_t smc_id = 0;
         virtual void axi_write();
         virtual void axi_read(uint64_t addr, size_t length, uint32_t id);
         void write(const transactor::write_t& );
@@ -103,7 +104,7 @@ class smc_xtor : public device {
         virtual void tick(uint64_t) override
         {
             cvm::log(cvm::HIGH, "[SMC] tick {:#X} \n",cnt_tick);
-            if(in_boot_seq && ( cnt_tick > 10)){
+            if(in_boot_seq && ( cnt_tick > 14)){
             cvm::log(cvm::HIGH, "[SMC] IN BOOT SEQ {} reset complition {} \n",in_boot_seq,reset_completion);
               if(!reset_completion){
                   cvm::log(cvm::HIGH, "[SMC] CHK AXI READ RESP FOR 0xC000300C \n");
@@ -125,7 +126,8 @@ class smc_xtor : public device {
                     smc_xtor_read_req_t smc_rd_req;
                     smc_rd_req.addr = 0xC000300C;
                     smc_rd_req.length = 4;
-                    smc_rd_req.id = 4;
+                    smc_rd_req.id = smc_id;
+                    smc_id++;
                     smc_rd_txn_q.push(smc_rd_req);
                     axi_read(0x40010,4,4);
                   }

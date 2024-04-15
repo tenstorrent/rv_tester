@@ -80,6 +80,7 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
             [this, source](const auto& r) {
                 cvm::log(cvm::DEBUG, "new read request at {:#x}\n", r.addr);
                 if (this->dev(r.addr)){
+                    cvm::log(cvm::FULL, "[sysmod] read: src={} id={}, addr={:#x}, len={}\n", source, r.id, r.addr, r.length);
                     cvm::registry::messenger.signal<device::read_t>(this->loc_, {r, source});
 
 		    }
@@ -617,7 +618,13 @@ void sysmod::jtag_resp(std::bitset<70> rdata){
 void
 sysmod::tick(uint64_t advance)
 {
+  
+  device::data_t data(8);
+  dev("memory")->backdoor_read(0x8000168c, 8, data);
 
+  for (size_t i = 0; i < 8; i++) {
+     std::cout<<"Backdoor read 0x8000168c data idx: "<<i<<" data :" <<uint32_t(data[i])<<"\n";
+  }
   ticks_ += advance;
 
   advance = 0;

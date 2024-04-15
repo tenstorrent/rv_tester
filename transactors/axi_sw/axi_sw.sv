@@ -166,6 +166,7 @@ module axi_sw #(
                 // stream pack unsupported by verilator                                                              \
                 for (int i = 0; i < S; i++) begin                                                                    \
                     d[8*i +: 8] = data[i];                                                                           \
+                    $display("[AXI_SW.SV] AXI resp data[%h]=%h \n",i,data[i]);                                       \
                 end                                                                                                  \
                 rd = '{id: id_t'(id), data: data_t'(d), resp: 2'(resp), last: 1'(last)};                             \
                 `AXI_SW_DPI_FIFO_PUSH(axi_sw_r,R_Q_MAX,rd,r_queue_rptr)                                              \

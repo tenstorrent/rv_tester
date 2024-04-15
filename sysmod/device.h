@@ -49,10 +49,15 @@ class device {
           [read, dev] (const auto& r) {
               data_t data(r.r.length, 0);
               std::invoke(read, dev, r.r, data);
+              std::string ds;
               cvm::log(cvm::DEBUG,"[DEVICE.H] Initiate Non Coroutine Read From {} \n",dev->tag());
 	            for (auto element : data) {
                 cvm::log(cvm::DEBUG,"[DEVICE.H] Non Coroutine Read Data {:#x} \n",(uint32_t)element);
               }
+              cvm::log(cvm::DEBUG,"[DEVICE.H] Signal transactor  to send response for id 0x{:#x} source: {} tag {}\n",r.r.id,r.source,dev->tag());
+              for (size_t i=0; i<64; i++)
+                  ds += fmt::format("{:02x}", data[i]);
+              cvm::log(cvm::FULL, "[device] tag={}: src={}: r: id={}, addr={:#x}, len={}, size={}, data={}\n", dev->tag(), r.source, r.r.id, r.r.addr, r.r.length, data.size(), ds);
               cvm::registry::messenger.signal(r.source, transactor::read_response_t{r.r.id, std::move(data)});
               
           },

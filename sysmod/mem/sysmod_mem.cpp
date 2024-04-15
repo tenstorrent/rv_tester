@@ -23,6 +23,10 @@ void sysmod_mem::read(const transactor::read_t& r, data_t& data) {
   auto& length = r.length;
 
   m_->read(addr, length, data.data());
+  cvm::log(cvm::HIGH, "[SYSMEM] READ {:#X} len :{:#X} \n",addr,length);
+  for(size_t i=0;i<length;i++){
+    cvm::log(cvm::HIGH, "[SYSMEM] DATA {} =  {:#X}  \n",i,data[i]);
+  }
   return;
 }
 

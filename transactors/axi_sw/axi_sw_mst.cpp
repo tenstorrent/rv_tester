@@ -63,7 +63,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::axi_sw_mst(cvm::topology::loc_t loc, unsigned /*
       w_q_rptr_(0), w_q_wptr_(w_q_max_),
       ids_(size_t(1) << id_width_, true)
 {
-
+    cvm::log(cvm::FULL, "[axi_sw_mst] Constructing axi_sw_mst for loc={} \n", loc);
     // available burst sizes
     uint32_t max_size = data_width_ >> 3;
     for (uint32_t i = 1; i <= max_size; i*=2)
@@ -94,7 +94,7 @@ void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const B& b) {
     if (b.resp != axi::RESP_OKAY or not used_id(b.id)) {
         // could have EXOKAY if it was locked, but assume not for now
-        cvm::log(cvm::ERROR, "[AXI] bad b.response id:{} resp: {}\n", b.id, b.resp);
+        cvm::log(cvm::ERROR, "[axi_sw_mst] bad b.response id:{} resp: {}\n", b.id, b.resp);
         return;
     }
 
@@ -111,17 +111,30 @@ template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const R& r) {
     if (r.resp != axi::RESP_OKAY or not used_id(r.id)) {
-        cvm::log(cvm::ERROR, "[AXI] bad r.response id: {} resp: {} last: {}\n", r.id, r.resp, r.last);
+        cvm::log(cvm::ERROR, "[axi_sw_mst] bad r.response id: {} resp: {} last: {}\n", r.id, r.resp, r.last);
         return;
     }
 
-    axi::data_t vdata = cvm::bitmanip::slice<decltype(r.data), axi::data_t>(r.data);
+    cvm::log(cvm::FULL, "[axi_sw_mst]  r.response id: {} resp: {} last: {}\n", r.id, r.resp, r.last);
 
+    axi::data_t vdata = cvm::bitmanip::slice<decltype(r.data), axi::data_t>(r.data);
+    std::string d;
+    if(data_width_ ==512){
+    for (int i=0; i<64; i++)
+        d += fmt::format("{:02x}", vdata[i]);
+    cvm::log(cvm::FULL, "[axi_sw_mst] axi_sw_r_{}: id={}, last={}, data={}\n", data_width_/8, r.id, r.last, d);
+    }
+    if(data_width_ ==64){
+    for (int i=0; i<8; i++)
+        d += fmt::format("{:02x}", vdata[i]);
+    cvm::log(cvm::FULL, "[axi_sw_mst] axi_sw_r_{}: id={}, last={}, data={}\n", data_width_/8, r.id, r.last, d);
+    }
     cvm::registry::messenger.signal<axi::r_t>(
         loc_,
         axi::r_t(r.id, axi::resp_t(r.resp), vdata, r.last)
     );
 
+    cvm::log(cvm::FULL, "[axi_sw_mst]  Copy Data to read_data_t id: {} resp: {} last: {}\n", r.id, r.resp, r.last);
     read_data_[r.id].insert(read_data_[r.id].end(), vdata.begin(), vdata.end());
 
     if (r.last) {
@@ -132,6 +145,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const R& r) {
         free_id(r.id);
         read_data_[r.id] = {};
     }
+    cvm::log(cvm::FULL, "[axi_sw_mst]  Free id {} and call PUSH_transactions \n", r.id);
     push_transactions();
 }
 
@@ -200,6 +214,8 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::a_wrapper(uint64_t req_addr, size_t req_length, 
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
+    
+ cvm::log(cvm::FULL, "Calling Push transactions\n");
   while (!transactions_.empty()) {
       auto& req = transactions_.front();
       std::visit([this](auto&& arg) {
@@ -209,6 +225,8 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
               bool write = arg.w;
 
               if (!write) {
+                  cvm::log(cvm::FULL, "[axi_sw_mst] ar_req: [id={}, addr={:#x},len={} size={} burst:{} lock:{}\n", arg.id, arg.addr,arg.len, arg.size, arg.burst, arg.lock);
+                  cvm::log(cvm::FULL, "[axi_sw_mst] ar_req ar_q_wptr:{} ar_q_rptr:{} ar_q_max_:{} \n", ar_q_wptr_ ,ar_q_rptr_ ,ar_q_max_);
                   if ((ar_q_wptr_ - ar_q_rptr_ ) < ar_q_max_) {
                       ar_q_wptr_ = (ar_q_wptr_ + 1) % ar_q_ptr_max_;
                       cvm::registry::callbacks.push(
@@ -219,6 +237,8 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
                       return;
               }
               else {
+                  cvm::log(cvm::FULL, "[axi_sw_mst] aw_req: arg.id :{:#x} , arg.addr: {:#x} , arg.len: {:#x} , arg.size: {:#x} , arg.burst: {:#x} , arg.atop.transaction: {:#x} , arg.lock: {:#x} \n", arg.id, arg.addr, arg.len, arg.size, arg.burst, arg.atop.transaction, arg.lock);
+                  cvm::log(cvm::FULL, "[axi_sw_mst] aw_req aw_q_wptr:{} aw_q_rptr:{} aw_q_max_:{} \n", aw_q_wptr_ ,aw_q_rptr_ ,aw_q_max_);
                   if ((aw_q_wptr_ - aw_q_rptr_ ) < aw_q_max_) {
                       aw_q_wptr_ = (aw_q_wptr_ + 1) % aw_q_ptr_max_;
                       cvm::registry::callbacks.push(
@@ -230,6 +250,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
               }
           }
           else if constexpr (std::is_same_v<T, axi::w_t>) {
+            cvm::log(cvm::FULL, "[axi_sw_mst] wdata w_q_wptr:{} w_q_rptr:{} w_q_max_:{} \n", w_q_wptr_ ,w_q_rptr_ ,w_q_max_);
               if ((w_q_wptr_ - w_q_rptr_ ) < w_q_max_) {
                   w_q_wptr_ = (w_q_wptr_ + 1) % w_q_ptr_max_;
 
@@ -252,10 +273,20 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
                               strb[idx] |= arg.strb[i] << i%8;
                           }
 
-                          if (data_width_ == 64)
+                          if (data_width_ == 64){
+                               std::string d;
+                               for (int i=0; i<8; i++)
+                                 d += fmt::format("{:02x}", arg.data[i]);
+                              cvm::log(cvm::FULL, "[axi_sw_mst] axi_sw_w_{}: data={}\n", data_width_/8, d);
                               axi_sw_mst_w_8(arg.data.data(), strb.data(), arg.last);
-                          else if (data_width_ == 512)
+                          }
+                          else if (data_width_ == 512){
+                              std::string d;
+                               for (int i=0; i<64; i++)
+                                 d += fmt::format("{:02x}", arg.data[i]);
+                              cvm::log(cvm::FULL, "[axi_sw_mst] axi_sw_w_{}: data={}\n", data_width_/8, d);
                               axi_sw_mst_w_64(arg.data.data(), strb.data(), arg.last);
+                          }    
                           else
                               cvm::log(cvm::ERROR, "unsupported data width for axi_sw_mst");
                       });
