@@ -107,13 +107,13 @@ std::unordered_map<std::string, uint32_t> trace_cfg::pickRandomElements(const st
         int randomIndex = dis(gen);
         result.insert(elements[randomIndex]);
     }
-
+    std::cout << "random result.size() " << result.size() << std::endl;
     return result;
 }
 
 cvm::messenger::task<void> trace_cfg::read(const transactor::read_t& r, data_t& ) {
-   auto& addr = r.addr;
-   auto& length = r.length;
+  auto& addr = r.addr;
+  auto& length = r.length;
 
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::read_request_t{addr, length});
 

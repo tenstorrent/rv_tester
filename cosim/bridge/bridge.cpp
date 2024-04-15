@@ -47,7 +47,7 @@ DEFINE_bool(fpr_check, true, "Enable cosim checks on fprs");
 DEFINE_bool(vec_check, true, "Enable cosim checks on vector regs");
 DEFINE_bool(csr_rd_check, true, "Enable cosim checks on csr reads");
 DEFINE_bool(csr_wr_check, true, "Enable cosim checks on csr writes");
-DEFINE_bool(memattr_check, false, "Enable cosim checks on mem attributes");
+DEFINE_bool(memattr_check, true, "Enable cosim checks on mem attributes");
 DEFINE_uint64(max_cycle, 1000000, "Max cycle limit to terminate the sim");
 DEFINE_int32(debug_excp_mcause, 24, "MCAUSE value for debug exception");
 DEFINE_bool(translation_check, false, "Do VA-PA translation check");
@@ -79,7 +79,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
     std::string traceFile = FLAGS_whisper_log ? "iss_cosim.log" : "";
     std::string commandLog = FLAGS_whisper_log ? "iss_cmd.log" : "";
     cosim_resynch_csr_defaults = {
-      "htval","mtval2","mtinst","htinst","vstart","vxsat","vxrm","vcsr","sstatus","mstatus","mie","hie","vsie","sie","fflags","fcsr","tselect","tdata1","tdata2","tdata3","mcontext","pma","pmp", // open bugs: RVDE: 10005 (mtinst/htinst), RVDE: 11217 (vectors), RVDE: 10043 (mtval2/htval), RVDE: 8849 (mstatus/mie aliases), RVDE: 7518 (Debug CSRs)
+      "htval","mtval2","mtinst","htinst","vstart","vxsat","vxrm","vcsr","sstatus","mstatus","hstatus","mie","hie","vsie","sie","fflags","fcsr","tselect","tdata1","tdata2","tdata3","mcontext","pma","pmp","menvcfg","senvcfg", // open bugs: RVDE: 10005 (mtinst/htinst), RVDE: 11217 (vectors), RVDE: 10043 (mtval2/htval), RVDE: 8849 (mstatus/mie aliases), RVDE: 7518 (Debug CSRs)
       "mip","hip","vsip","hvip","sip","mcycle","mireg","sireg","vsireg","vtype","mtopei","stopei","vstopei","hpmcounter","hpmevent","scountovf","minstret","minstreth" // permanantly excluded
     };
     std::istringstream iss(FLAGS_cosim_resynch_csr);
@@ -459,31 +459,33 @@ void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whi
 void bridge::process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
   
   if (FLAGS_intr_defer_spcl) {
-  if (d.disasm.find("csr") != std::string::npos) {
-          uint64_t undeferred_mip = mip_ & ~ deferred_mip_;
-          uint64_t undeferred_w_cause;
-          check_interrupt(hart, undeferred_mip, post_undeferred_intr_, undeferred_w_cause);
-          prev_sync_intr_ = post_undeferred_intr_ && !pre_undeferred_intr_;
-  
-  }
+    if (d.disasm.find("csr") != std::string::npos) {
+       uint64_t undeferred_mip = mip_ & ~ deferred_mip_;
+       uint64_t undeferred_w_cause;
+       check_interrupt(hart, undeferred_mip, post_undeferred_intr_, undeferred_w_cause);
+       prev_sync_intr_ = post_undeferred_intr_ && !pre_undeferred_intr_;
+    }
 
-  if (all_interrupts_defer_) {
-          defer_interrupt(hart, d.cycle, pre_csr_defermip_);
-          all_interrupts_defer_ = false;
-  } 
+    if (all_interrupts_defer_) {
+      defer_interrupt(hart, d.cycle, pre_csr_defermip_);
+      all_interrupts_defer_ = false;
+    }
 
-  if ((w.disasm.find("mret") != std::string::npos) || (w.disasm.find("sret") != std::string::npos)) {
+    if ((w.disasm.find("mret") != std::string::npos) || (w.disasm.find("sret") != std::string::npos)) {
       if(prev_mip_ != mip_) {
         check_and_defer_interrupt(hart, d.cycle, ~prev_mip_ & mip_);
       }
-        prev_sync_intr_ = true; // This will waive cases when after execution of mret there exists a csr operation which needs to be interrupted.
-  }
-  if (w.disasm.find("vsstimecmp") != std::string::npos)  { 
-    if (!vstimecmppoked_) resetsstc(hart,d.cycle, 0x24d); else setsstc(hart,d.cycle, 0x24d);
-  } else if (w.disasm.find("stimecmp") != std::string::npos) {
-    if (w.priv_mode == 9) {if (!vstimecmppoked_) resetsstc(hart,d.cycle, 0x24d); else setsstc(hart,d.cycle, 0x24d);}
-    else if (!stimecmppoked_)  resetsstc(hart,d.cycle, 0x14d); else setsstc(hart,d.cycle, 0x14d);
-  }
+      prev_sync_intr_ = true; // This will waive cases when after execution of mret there exists a csr operation which needs to be interrupted.
+    }
+
+    // POKE vsstimecmp
+    if (w.disasm.find("vsstimecmp") != std::string::npos)  {
+      if (!vstimecmppoked_) resetsstc(hart,d.cycle, 0x24d); else setsstc(hart,d.cycle, 0x24d);
+    // POKE stimecmp
+    } else if (w.disasm.find("stimecmp") != std::string::npos) {
+      if (w.priv_mode == 9) {if (!vstimecmppoked_) resetsstc(hart,d.cycle, 0x24d); else setsstc(hart,d.cycle, 0x24d);}
+      else if (!stimecmppoked_)  resetsstc(hart,d.cycle, 0x14d); else setsstc(hart,d.cycle, 0x14d);
+    }
   }
 
   if (d.mem_write.valid && d.mem_write.size==4 && ((d.mem_write.pa>=0x40000000 &&  d.mem_write.pa <0x42000000) || (d.mem_write.pa>=0x44000000 &&  d.mem_write.pa < 0x46000000)) ) {
@@ -708,13 +710,15 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
   }
 
   // Mem attributes
-  if (FLAGS_memattr_check && (w_.mem_read.valid || w_.mem_write.valid)) {
-    bool valid;
+  // Disabling mem_attr checks for vectors currently
+  if (FLAGS_memattr_check && !w_.trap && !is_vector(w.disasm) && (w_.mem_read.valid || w_.mem_write.valid)) {
+    bool valid; 
     uint64_t eff_mem_attr;
     if (!client_->whisperPeek(hart, 's', WhisperSpecialResource::EffMemAttr, eff_mem_attr, valid)) {
       cvm::log(cvm::ERROR, "Error: Hart {}: Failed whisper API call - whisperEffMemAttr\n", hart);
       return;
     }
+  
     update_mem_attr(hart, src_t::iss, eff_mem_attr);
   }
 
@@ -977,6 +981,7 @@ void bridge::update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_
   };
   assert(cac_.UpdateResource(hart, src, rid, std::move(cac::CreateBitVec<size_8_bytes_t>(dword_vec))));
 }
+
 
 bool bridge::is_vector(const std::string& instr) {
   if (instr.substr(0,1) == "v")

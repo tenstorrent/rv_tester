@@ -160,7 +160,8 @@ bool exitLoop() {
       trickboxJtagWrite(hart, jtag_cmd, upper_jtag_data, lower_jtag_data,reg_length_data,0);
       if(loop_idx<loop_size){
         loop_idx++;
-      }else if(loop_idx == loop_size){
+      } 
+      if(loop_idx == loop_size){
         loop_idx = 0;
         loop_execution_cnt++;
         if(loop_execution_cnt > max_num_loops){
