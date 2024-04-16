@@ -207,7 +207,6 @@ sysmod::smc_read_req_router(smc_xtor::smc_xtor_read_t r) {
 
     auto sources = cvm::topology::get_from_type("PLATFORM_TRANSACTOR");
 
-    cvm::log(cvm::LOW, "[SYSMOD] SMC_XTOR ROUTER - addr={:#x} \n", rd.addr);
     if (this->dev(r.addr)){
         cvm::registry::messenger.signal<device::read_t>(this->loc_, {rd, sources[0]});
     }
@@ -221,12 +220,12 @@ sysmod::scratchpad_xtor_read_req_router(scratchpad_xtor::scratchpad_xtor_read_t 
     rd.addr = r.addr;
     rd.length = r.length;
     rd.id =  r.id;
-    cvm::log(cvm::LOW, "[SYSMOD] SCRATCHPAD_XTOR ROUTER - addr={:#x} \n", rd.addr);
+    cvm::log(cvm::FULL, "[SYSMOD] SCRATCHPAD_XTOR ROUTER - addr={:#x} \n", rd.addr);
 
     auto sources = cvm::topology::get_from_type("PLATFORM_TRANSACTOR");
 
     if (this->dev(r.addr)){
-    cvm::log(cvm::LOW, "[SYSMOD] SCRATCHPAD_XTOR ROUTER  send to device - addr={:#x} \n", rd.addr);
+    cvm::log(cvm::FULL, "[SYSMOD] SCRATCHPAD_XTOR ROUTER  send to device - addr={:#x} \n", rd.addr);
         cvm::registry::messenger.signal<device::read_t>(this->loc_, {rd, sources[0]});
     }
 
@@ -238,9 +237,9 @@ sysmod::uc_helper_backdoor_write(uc_helper::uc_helper_write_t w) {
         cvm::log(cvm::ERROR, "Error: [SYSMOD] uc_helper_backdoor_write: caching is enabled in rv_tester and it does not receive DMAs, so the test could fail if the CPU does a read to this address as it will receive the stale cached data");
     }
 
-    cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_write addr {:#x} \n",w.addr);
-    cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_write len {} \n",(unsigned)w.length);
-    cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_write data-vec : \n");
+    cvm::log(cvm::FULL,"[SYSMOD] uc_helper_backdoor_write addr {:#x} \n",w.addr);
+    cvm::log(cvm::FULL,"[SYSMOD] uc_helper_backdoor_write len {} \n",(unsigned)w.length);
+    cvm::log(cvm::FULL,"[SYSMOD] uc_helper_backdoor_write data-vec : \n");
      for (auto i: w.data){
          cvm::log(cvm::HIGH," {:#x} ",(unsigned)i);
       }
@@ -255,7 +254,7 @@ sysmod::uc_helper_backdoor_write(uc_helper::uc_helper_write_t w) {
    // dynamic_cast<sysmod_mem&>(*dev("memory")).write(wt);
 
 
-    cvm::log(cvm::HIGH, "[UC_HELPER] new backdoor write request at {:#x}", wt.addr);
+    cvm::log(cvm::FULL, "[UC_HELPER] new backdoor write request at {:#x}", wt.addr);
                 if (this->dev(wt.addr))
                     cvm::registry::messenger.signal<device::write_t>(this->loc_, {wt});
 
@@ -606,10 +605,10 @@ sysmod::load_boot(const std::string& boot)
 void sysmod::jtag_resp(std::bitset<70> rdata){
   auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0);
   std::vector<uint64_t> convertedArray = bitsetToUint64Array(rdata);
-  cvm::log(cvm::HIGH, "[SYSMOD.CPP] In JTAG RESP converted array size = {}\n", convertedArray.size());
+  cvm::log(cvm::FULL, "[SYSMOD.CPP] In JTAG RESP converted array size = {}\n", convertedArray.size());
   
   for (uint64_t num : convertedArray) {
-        cvm::log(cvm::HIGH, "[SYSMOD.CPP] In JTAG RESP converted array element = {}\n", num);
+        cvm::log(cvm::FULL, "[SYSMOD.CPP] In JTAG RESP converted array element = {}\n", num);
   }
   
   cvm::registry::messenger.signal(tbox_loc, jtag_driver::jtag_req_t{0, 0,0,convertedArray[0],0});
@@ -618,13 +617,7 @@ void sysmod::jtag_resp(std::bitset<70> rdata){
 void
 sysmod::tick(uint64_t advance)
 {
-  
-  device::data_t data(8);
-  dev("memory")->backdoor_read(0x8000168c, 8, data);
 
-  for (size_t i = 0; i < 8; i++) {
-     std::cout<<"Backdoor read 0x8000168c data idx: "<<i<<" data :" <<uint32_t(data[i])<<"\n";
-  }
   ticks_ += advance;
 
   advance = 0;
@@ -648,13 +641,6 @@ sysmod::jtag_tick(uint64_t advance)
 {
 
   jtag_ticks_ += advance;
-
-  // advance = 0;
-  // if (ticks_ >= FLAGS_sysmod_tick_update_threshold)  {
-  //     auto rem = ticks_ % FLAGS_sysmod_tick_update_threshold;
-  //     advance  = ticks_ - rem;
-  //     ticks_   = rem;
-  // }
 
    if (advance) {
        for (auto& d : devices_) {
