@@ -359,7 +359,7 @@ void rvfi::print_csr(csr_t& csr) {
   log(cvm::NONE, "#NA {} {} {} {:016x} {:09x} c {:016x} {:016x} {:016x} (hw update)\n", csr.cycle, csr.hart, priv_to_string.at(static_cast<priv>(priv_)), 0, 0, csr.csr_addr, csr.csr_wdata, csr.csr_wmask);
 }
 
-void rvfi::print_instr(rv_instr_t& instr) {
+void rvfi::print_instr(const rv_instr_t& instr) {
   if (!FLAGS_rvfi_log) {
     return;
   }
@@ -399,7 +399,7 @@ void rvfi::print_instr(rv_instr_t& instr) {
       print_instr_resource(instr, fmt::format(" c {:016x} {:016x} {:016x}", c.csr_addr, c.csr_wdata, c.csr_wmask));
 }
 
-void rvfi::print_instr_resource(rv_instr_t& instr, std::string resource_str) {
+void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_str) {
   log(cvm::NONE, "#{} {} {} {} {:016x}", FLAGS_mcm ? instr.tag : instr.id, instr.cycle, instr.hart, priv_to_string.at(static_cast<priv>(instr.priv)),
      instr.pc.pc_rdata);
 
