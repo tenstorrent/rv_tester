@@ -105,7 +105,7 @@ class smc_xtor : public device {
         {
 
             cvm::log(cvm::FULL, "[SMC] tick {:#X} \n",cnt_tick);
-            if(in_boot_seq && ( cnt_tick > FLAGS_smc_reset_seq_start_ticks)){
+            if(in_boot_seq && ( cnt_tick > uint32_t(FLAGS_smc_reset_seq_start_ticks))){
             cvm::log(cvm::FULL, "[SMC] IN BOOT SEQ {} reset complition {} \n",in_boot_seq,reset_completion);
               if(!reset_completion){
                   cvm::log(cvm::FULL, "[SMC] Check axi read response for 0xC000300C \n");
