@@ -63,33 +63,9 @@ class smc_xtor : public device {
         virtual void axi_write();
         virtual void axi_read(uint64_t addr, size_t length, uint32_t id);
         void write(const transactor::write_t& );
-        
-      //   template <typename U, typename V>
-      //   requires requires(U read, V* dev, transactor::read_t r, device::data_t d)  {{ std::invoke(read, dev, r, d) } -> std::same_as<cvm::messenger::task<>>; }
-      //   inline void spawn_read_thread1(U read, V* dev) {
-      //   auto* l = +[](cvm::topology::loc_t axi_mst_loc_l, U read, V* dev) -> cvm::messenger::task<void> {
-      //        auto channel = cvm::registry::messenger.channel<read_t>(axi_mst_loc_l);
-
-      //        while (1) {
-      //           std::cout<<"\nspwn thrd1:coawiat1 \n";
-      //            auto r = co_await cvm::registry::messenger.wait<read_t>(channel, [this](const auto& r) { return this->has_addr(r.r.addr); });
-      //            data_t data(r.r.length, 0);
-      //           std::cout<<"\nspwn thrd1:coawiat 2\n";
-      //            co_await std::invoke(read, dev, r.r, data);
-      //            cvm::registry::messenger.signal(r.source, transactor::read_response_t{r.r.id, std::move(data)});
-      //           std::cout<<"\nspwn thrd1:coawiat 3\n";
-      //        }
-      //        co_return;
-      //    };
-      //    cvm::registry::messenger.fork(l, axi_mst_loc_l, std::forward<U>(read), std::forward<V*>(dev));
-      //  }
        
         cvm::messenger::task<void> read(const transactor::read_t& , data_t& );
-        //cvm::messenger::task<void> read1(const transactor::read_t& , data_t& );
-        bool has_addr(uint64_t val)   const { 
-          std::cout<<"val"<<val<<"\n";
-          return true;
-        }
+
         void gen_data_strb(uint64_t addr, uint32_t value, data_t& wdata, std::vector<bool>& strb) {
             uint8_t b_index =  static_cast<uint8_t>(addr & 0x7);
 
@@ -147,12 +123,7 @@ class smc_xtor : public device {
                   }else{
 
                     cvm::log(cvm::HIGH, "[SMC] AXI READ 0xC000300C \n");
-                    // smc_xtor_read_req_t smc_rd_req;
-                    // smc_rd_req.addr = 0xC000300C;
-                    // smc_rd_req.length = 4;
-                    // smc_rd_req.id = smc_id;
-                    // smc_id++;
-                    // smc_rd_txn_q.push(smc_rd_req);
+
                     axi_read(0xC000300C,4,4);
                   }
               }else{
@@ -170,19 +141,9 @@ class smc_xtor : public device {
               }
             }
             
-            //if(cnt_tick == 40) smc_wr_txn_q.push({CPL_SRAM_BASE + 0x1000,0xFFFF});
-            //if(cnt_tick == 41) smc_wr_txn_q.push({CPL_SRAM_BASE + 0x1008,0xFFFF});
             if(smc_wr_txn_q.size() > 0) axi_write();
-            
 
-            //if(cnt_tick==22) axi_read(CPL_SRAM_BASE + 0x1000,4,4);
-            //if(cnt_tick==29) axi_read(CPL_SRAM_BASE + 0x1008,4,5);
 
-            //while((smc_read_resp_q.size() >0) ){
-            //    print_read_request(smc_read_resp_q.front());
-            //    smc_read_resp_q.pop();
-            //    cvm::log(cvm::HIGH, "[smc] queue size {} \n",smc_read_resp_q.size());
-            //  }
             cnt_tick ++;
         }
         
