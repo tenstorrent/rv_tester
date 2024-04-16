@@ -22,6 +22,7 @@ DEFINE_bool(bypass_mem, true, "Bypass xbar+cache switch");
 DEFINE_bool(bypass_cache, false, "Bypass cache switch");
 DEFINE_int32(num_reruns, 0, "Rerun the same test this many times, to test test chaining for emulation. The test is run for a total of N+1 times.");
 DEFINE_bool(trace_en, false, "Set this while running trace test");
+DEFINE_bool(overlay_mmr_en, false, "Set this while running overlay test");
 DEFINE_bool(jtag_en, false, "Set this while running jtag test");
 DEFINE_int32(trace_timeout, 50000, "trace test end timeout after to host end call");
 DEFINE_validator(num_reruns, &validate_ge0);

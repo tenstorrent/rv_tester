@@ -123,6 +123,8 @@ void jtag_driver::parse_jtag_from_csv()
          jtag_req.jtag_cmd = 6;
       }else if(jtag_cmd == "qt"){ //loop end, checkbitNum, CheckbitValue
          jtag_req.jtag_cmd = 7;
+      }else if (jtag_cmd == "//"){
+        continue; // skip line may be comment
       }
       else{
         cvm::log(cvm::ERROR, "Error: unknown command {} in jtag cfg file {}\n",jtag_cmd, FLAGS_jtag_input_file_path);

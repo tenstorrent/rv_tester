@@ -58,6 +58,7 @@ module rv_tester
     int num_reruns = -1;
     bit trace_en = 0;
     bit jtag_en = 0;
+    bit overlay_mmr_en = 0;
     logic trace_quiesced;
     logic jtag_quiesced;
 
@@ -129,7 +130,7 @@ module rv_tester
         end else if(!trace_en)begin
           trace_counter <= trace_timeout + 10;
         end
-
+        
     end
 
     always @(posedge clk[TB_CLK_IDX]) begin
@@ -173,6 +174,7 @@ module rv_tester
             gen_clocks          <= cvm_verbosity >= gen_clocks_verbosity;
             bypass_mem          <= cvm_plusargs::get_bool("bypass_mem") != '0;
             trace_en            <= cvm_plusargs::get_bool("trace_en") != '0;
+            overlay_mmr_en            <= cvm_plusargs::get_bool("overlay_mmr_en") != '0;
             jtag_en            <= cvm_plusargs::get_bool("jtag_en") != '0;
             bypass_cache        <= cvm_plusargs::get_bool("bypass_cache") != '0;
 

@@ -103,6 +103,7 @@ class smc_xtor : public device {
         
         virtual void tick(uint64_t) override
         {
+
             cvm::log(cvm::FULL, "[SMC] tick {:#X} \n",cnt_tick);
             if(in_boot_seq && ( cnt_tick > 14)){
             cvm::log(cvm::FULL, "[SMC] IN BOOT SEQ {} reset complition {} \n",in_boot_seq,reset_completion);
@@ -143,6 +144,7 @@ class smc_xtor : public device {
             
             if(smc_wr_txn_q.size() > 0) axi_write();
 
+            cvm::log(cvm::HIGH, "[SMC] tick {:#X} \n",cnt_tick);
 
             cnt_tick ++;
         }
