@@ -100,9 +100,9 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   instrs_.push_back(instr);
   if (m_rvfi.last_insn) {
     rv_instr_group_t group;
-    group.cycle = instr.cycle;
+    group.cycle  = instr.cycle;
     group.instrs = instrs_;
-    group.csrs = hw_csrs_;
+    group.csrs   = hw_csrs_;
 
     send_instr_group(instr.hart, group);
 
@@ -186,7 +186,6 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
     cvm::log(cvm::HIGH, "start time: {}\n", std::ctime(&now));
     started = false;
   }
-
 
   // Metadata
   instr.valid = true;
@@ -541,14 +540,14 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
     return;
 
   mem_t m;
-  m.valid = true;
-  m.hart = m_mcmi_read.hart;
-  m.cycle = m_mcmi_read.cycle;
-  m.tag = m_mcmi_read.order;
-  m.pa = m_mcmi_read.addr;
-  m.size = std::popcount(m_mcmi_read.mask);
-  m.data = m_mcmi_read.data;
-  m.amo = m_mcmi_read.amo;
+  m.valid  = true;
+  m.hart   = m_mcmi_read.hart;
+  m.cycle  = m_mcmi_read.cycle;
+  m.tag    = m_mcmi_read.order;
+  m.pa     = m_mcmi_read.addr;
+  m.size   = std::popcount(m_mcmi_read.mask);
+  m.data   = m_mcmi_read.data;
+  m.amo    = m_mcmi_read.amo;
   m.amo_op = m_mcmi_read.amo_op;
 
   // Handle SC
@@ -583,10 +582,10 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
   mem_t m;
   m.valid = true;
   m.cycle = m_mcmi_insert.cycle;
-  m.tag = m_mcmi_insert.order;
-  m.pa = m_mcmi_insert.addr;
-  m.size = std::popcount(m_mcmi_insert.mask);
-  m.data = m_mcmi_insert.data;
+  m.tag   = m_mcmi_insert.order;
+  m.pa    = m_mcmi_insert.addr;
+  m.size  = std::popcount(m_mcmi_insert.mask);
+  m.data  = m_mcmi_insert.data;
 
   bridge_->process_dut_mcm_insert(m_mcmi_insert.hart, m);
 }
@@ -599,14 +598,14 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
     return;
 
   mem_t m;
-  m.valid = true;
-  m.hart = m_mcmi_bypass.hart;
-  m.cycle = m_mcmi_bypass.cycle;
-  m.tag = m_mcmi_bypass.order;
-  m.pa = m_mcmi_bypass.addr;
-  m.size = std::popcount(m_mcmi_bypass.mask);
-  m.data = m_mcmi_bypass.data;
-  m.amo = m_mcmi_bypass.amo;
+  m.valid  = true;
+  m.hart   = m_mcmi_bypass.hart;
+  m.cycle  = m_mcmi_bypass.cycle;
+  m.tag    = m_mcmi_bypass.order;
+  m.pa     = m_mcmi_bypass.addr;
+  m.size   = std::popcount(m_mcmi_bypass.mask);
+  m.data   = m_mcmi_bypass.data;
+  m.amo    = m_mcmi_bypass.amo;
   m.amo_op = m_mcmi_bypass.amo_op;
 
   if (m.amo && m.amo_op != SC && FLAGS_emulate_amo_arithmetic) {
