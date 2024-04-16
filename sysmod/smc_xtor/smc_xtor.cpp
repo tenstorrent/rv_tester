@@ -34,13 +34,13 @@ void smc_xtor::axi_write() {
   smc_wr_txn_q.pop();
   addr = (uint64_t)wr.addr;
   gen_data_strb(wr.addr,wr.data,data,strb);
-  cvm::log(cvm::HIGH, "[SMC] write {:#X} loc :{:#X} data:{:#X} \n",addr,axi_mst_loc_l,wr.data);
+  cvm::log(cvm::FULL, "[SMC] write {:#X} loc :{:#X} data:{:#X} \n",addr,axi_mst_loc_l,wr.data);
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb});
 }
 
 void smc_xtor::axi_read(uint64_t addr, size_t length,
                           uint32_t id) {
-  cvm::log(cvm::HIGH, "[SMC] READ ADDR {:#X} {} {}  \n",addr,id,length);
+  cvm::log(cvm::FULL, "[SMC] READ ADDR {:#X} {} {}  \n",addr,id,length);
   transactor::read_t r ;
   r.addr = addr;
   r.length = length;
@@ -69,7 +69,7 @@ cvm::messenger::task<void> smc_xtor::read(const transactor::read_t& r, data_t& )
    auto& length = r.length;
 
   smc_xtor_read_req_t rd;
-  cvm::log(cvm::HIGH, "[SMC] Default read addr {:#X} len {} loc :{:#X} \n",addr,length,axi_mst_loc_l);
+  cvm::log(cvm::FULL, "[SMC] Default read addr {:#X} len {} loc :{:#X} \n",addr,length,axi_mst_loc_l);
 
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::read_request_t{addr, length});
 
@@ -81,7 +81,7 @@ cvm::messenger::task<void> smc_xtor::read(const transactor::read_t& r, data_t& )
   smc_xtor_rd.id = r.id;
   smc_xtor_rd.data = resp.data;  
   smc_read_resp_q.push(smc_xtor_rd); 
-  cvm::log(cvm::HIGH, "[SMC] read addr {:#X} completed\n",addr);
+  cvm::log(cvm::FULL, "[SMC] read addr {:#X} completed\n",addr);
   co_return;
 }
 
