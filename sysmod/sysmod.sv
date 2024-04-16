@@ -2,14 +2,17 @@ module sysmod
 import rv_tester_params::*;
 #(
     parameter int CLOCK_PERIOD_PS           =     500,
+    parameter int JTAG_CLOCK_PERIOD_PS      =     100,
     parameter int SW_CLOCK_UPDATE_PERIOD_PS = 100_000,
     parameter int NUM                       =      -1,
+    parameter int JTAG_DR_WIDTH             =      70,
     `TOPOLOGY,
     `RV_TESTER_TRANSACTIONS_SYSMOD_OUTPUT_PARAMS
 )(
     input clk,
     input reset,
     output logic trace_quiesced,
+    output logic jtag_quiesced,
     output rv_tester_params::bootstrap_t bootstrap,
     output rv_tester_pkg::interrupt_t interrupt [NHARTS-1:0],
     output rv_tester_pkg::aplic_interrupt_t aplic_interrupt,
@@ -43,14 +46,14 @@ import rv_tester_params::*;
     bit        jtag_enable_d = '0;
     bit        jtag_enable_end = '0;
     bit        read_data_valid_reg;
-    bit [63:0] jtag_tx;
-    bit [63:0] jtag_rx;
+    bit [JTAG_DR_WIDTH-1 :0] jtag_tx;
+    bit [JTAG_DR_WIDTH-1 :0] jtag_rx;
     bit        jtag_busy;
     bit jtag_rdatas_jtag_busy;
     /* verilator lint_on BLKANDNBLK */
 
 
-    jtag_xtor  i_jtag_xtor(
+    jtag_xtor #(.JTAG_DR_WIDTH(JTAG_DR_WIDTH))  i_jtag_xtor(
         .clk(clk),
         .reset(reset),
         .command(command),
@@ -72,6 +75,7 @@ import rv_tester_params::*;
         if (reset) begin
             clocks <= 0;
             /* verilator lint_off BLKSEQ */
+            jtag_quiesced = 0;
             sysmod_tick_async = cvm_plusargs::get_bool("sysmod_tick_async") != '0;
             location = cvm_topology::get_location(topology.TOP.PLATFORM.SYSMOD.ID, NUM);
             if (location != cvm_topology::nil) begin
@@ -95,6 +99,11 @@ import rv_tester_params::*;
     assign ticks[0].valid         = (0 == (clocks % TICKS)) & (location != cvm_topology::nil);
     assign ticks[0].data.location = location;
     assign ticks[0].data.advance  = TICKS;
+    
+    localparam longint unsigned JTAG_TICKS = LU'(SW_CLOCK_UPDATE_PERIOD_PS)/LU'(JTAG_CLOCK_PERIOD_PS);
+    assign jtag_ticks[0].valid         = (0 == (clocks % JTAG_TICKS)) & (location != cvm_topology::nil);
+    assign jtag_ticks[0].data.location = location;
+    assign jtag_ticks[0].data.advance  = JTAG_TICKS;
 
     rv_tester_pkg::interrupt_t interrupt_d [NHARTS-1:0] = '{default: '0}; // FIXME how to reset these?
     rv_tester_pkg::interrupt_t interrupt_q [NHARTS-1:0];
@@ -138,12 +147,18 @@ import rv_tester_params::*;
     endfunction
     export "DPI-C"  function sysmod_dmi_write;
 
-    function sysmod_jtag_req (int unsigned upper_value,int unsigned lower_value,int unsigned reg_length);
-       jtag_enable_begin = 1'b1;
-       command = upper_value[1:0];
-       jtag_tx = {32'h0,lower_value};
-       length = reg_length[31:0];
-      $display("[SYSMOD.SV] JTAG driver %h %h %h",upper_value, lower_value,reg_length);
+    function sysmod_jtag_req (int unsigned jtag_cmd_ip,longint upper_value,longint lower_value,int unsigned reg_length, int unsigned jtag_quit);
+      if(jtag_quit[0] === 1'b0 )begin 
+        jtag_enable_begin = 1'b1;
+        command = jtag_cmd_ip[1:0];
+        jtag_tx = {upper_value[5:0],lower_value};
+        length = reg_length[31:0];
+        jtag_quiesced = 1'b0;
+        $display("[SYSMOD.SV] JTAG driver %h %h %h",upper_value, lower_value,reg_length);
+      end 
+      else if(jtag_quit[0] === 1'b1 )begin 
+        jtag_quiesced = 1'b1;
+      end
     endfunction
     export "DPI-C"  function sysmod_jtag_req;
 
@@ -177,7 +192,7 @@ import rv_tester_params::*;
 
   assign jtag_rdatas[0].valid         = read_data_valid_reg;
   assign jtag_rdatas[0].data.location = location;
-  assign jtag_rdatas[0].data.rdata     = {32'h0,jtag_rx[31:0]};//upper32 bits for future use
+  assign jtag_rdatas[0].data.rdata     = jtag_rx;//upper32 bits for future use
   assign jtag_rdatas_jtag_busy = jtag_busy ;
 
 endmodule

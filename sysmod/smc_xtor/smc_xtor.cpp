@@ -24,7 +24,7 @@ smc_xtor::smc_xtor(const std::string& tag, uint64_t addr, size_t size, cvm::topo
 
 void smc_xtor::axi_write() {
   uint64_t addr;
-  size_t length = 0x40;
+  size_t length = 0x8;
   std::vector<uint8_t> data;
   std::vector<bool> strb;
   smc_wr_t wr;
@@ -33,7 +33,7 @@ void smc_xtor::axi_write() {
   smc_wr_txn_q.pop();
   addr = (uint64_t)wr.addr;
   gen_data_strb(wr.addr,wr.data,data,strb);
-  
+  cvm::log(cvm::HIGH, "[SMC] write {:#X} loc :{:#X} data:{:#X} \n",addr,axi_mst_loc_l,wr.data);
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb});
 }
 

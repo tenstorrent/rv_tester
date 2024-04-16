@@ -1,10 +1,13 @@
 [
   { "tag" : "memory" , "type" : "memory", "base" : "0x80000000", "size" : "0x000fffff7fffffff" },
-  { "tag" : "clint" , "type" : "clint" , "base" : "0x00200000", "size" : "0x0000c000" },
-  { "tag" : "trickbox"  , "type" : "trickbox" , "base" : "0x0000000009000000", "size" : "0x00000000000c0000" },
+  { "tag" : "clint" , "type" : "clint" , "base" : "0x00200000", "size" : "0x0000010" },
+  { "tag" : "trickbox"  , "type" : "trickbox" , "base" : "0x0000000009000000", "size" : "0x000000000000010" },
+  { "tag" : "smc_xtor"  , "type" : "smc_xtor" , "base" : "0x0000000009000100", "size" : "0x000000000000010" },
+  { "tag" : "pll_xtor"  , "type" : "pll_xtor" , "base" : "0x0000000009000200", "size" : "0x000000000000010" },
+  { "tag" : "pm_nw_xtor"  , "type" : "pm_nw_xtor" , "base" : "0x0000000009000300", "size" : "0x0000000000000010" },
   { "tag" : "htif" , "type" : "htif" , "base" : "0x70000000", "size" : "0x00000010" },
-  { "tag" : "boot" , "type" : "memory" , "base" : "0x0000000000000000", "size" : "0x0000000000200000" },
-  { "tag" : "io2" , "type" : "memory" , "base" : "0x000000000020c000", "size" : "0x000000006fdf4000" },
-  { "tag" : "io3" , "type" : "memory" , "base" : "0x0000000070000000", "size" : "0x0000000010000000" }
+  { "tag" : "boot" , "type" : "memory" , "base" : "0x0000000000000000", "size" : "0x0000000000000010" },
+  { "tag" : "io2" , "type" : "memory" , "base" : "0x000000000020c000", "size" : "0x00000000000010" },
+  { "tag" : "io3" , "type" : "memory" , "base" : "0x0000000070001000", "size" : "0x0000000000000010" }
 ]
 

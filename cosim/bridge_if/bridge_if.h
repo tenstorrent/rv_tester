@@ -31,6 +31,7 @@ typedef struct whisper_state_s {
   uint32_t fp_flags = 0;
   bool trap = false;
   bool stop = false;
+  bool is_load = false;
 } whisper_state_t;
 
 // dut <-> bridge
@@ -66,7 +67,7 @@ typedef struct gpr_s {
     valid = false;
   }
 } gpr_t;
- 
+
 typedef struct fpr_s {
   bool valid;
   uint64_t frd_addr;
@@ -81,12 +82,12 @@ typedef struct fpr_s {
     valid = false;
   }
 } fpr_t;
- 
+
 typedef struct vr_s {
   bool valid;
   uint32_t vrd_addr;
   std::bitset<256> vrd_wdata;
- 
+
   vr_s() {
     clear();
   }
@@ -139,6 +140,7 @@ typedef struct mem_s {
   uint64_t data;
   bool amo;
   uint8_t amo_op;
+  uint32_t attr;
 
   mem_s() {
     clear();

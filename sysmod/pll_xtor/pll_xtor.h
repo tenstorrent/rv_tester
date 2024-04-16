@@ -30,8 +30,9 @@ class pll_xtor : public device {
         }
 
     public:
-        uint32_t start_pll_cnt,read_ram;
-        uint32_t cnt_tick=0;
+        uint32_t start_pll_cnt = 0;
+        uint32_t read_ram = 0;
+        uint32_t cnt_tick = 0;
         struct pll_wr_t {
           uint32_t addr;
           uint32_t data;

@@ -10,6 +10,7 @@ DEFINE_bool(ipc_check, false, "Check IPC within a tolerance %");
 DEFINE_double(ipc_expected, 0.0, "Expected IPC");
 DEFINE_int32(ipc_tolerance_perc, 5, "IPC tolerance %");
 DECLARE_string(load);
+DECLARE_uint64(hart_enable_mask);
 
 REGISTRY_register(pmu, PMCI, cvm::registry::all);
 
@@ -31,150 +32,53 @@ pmu::pmu(cvm::topology::loc_t loc, unsigned id)
       log(cvm::NONE, "\n");
     }
 
-    auto cosim = cvm::topology::get_from_type("COSIM", id_);
     auto platform = cvm::topology::get_from_type("PLATFORM", 0);
 
-    cvm::registry::messenger.connect<rv_tester_transactions::cosim::m_rvfi<>>(cosim, [this] (const auto& v) { return this->process(v); });
-    cvm::registry::messenger.connect<rv_tester_transactions::pmu::pmcounters_a<>>(loc, [this] (const auto& v) { return this->process(v); });
-    cvm::registry::messenger.connect<rv_tester_transactions::pmu::pmcounters_b<>>(loc, [this] (const auto& v) { return this->process(v); });
-    cvm::registry::messenger.connect<rv_tester_transactions::pmu::pmcounters_c<>>(loc, [this] (const auto& v) { return this->process(v); });
-    cvm::registry::messenger.connect<rv_tester_transactions::pmu::pmcounters_d<>>(loc, [this] (const auto& v) { return this->process(v); });
+    cvm::registry::messenger.connect<rv_tester_transactions::pmu::pmcounters<>>(loc, [this] (const auto& v) { return this->process(v); });
     cvm::registry::messenger.connect<rv_tester::terminate_called_fast>(platform, [this] (const auto& v) { return this->process(v); });
   }
 }
 
 pmu::~pmu()
 {
-  if (FLAGS_perf && FLAGS_ipc_check)
+  if (FLAGS_perf && FLAGS_ipc_check && (FLAGS_hart_enable_mask & (1ull << id_)) != 0)
       ipc_check();
   if (FLAGS_perf)
       report();
 }
 
 void
-pmu::configure()
-{
-  if (FLAGS_perf and not FLAGS_load.empty()) {
-    // initialize metrics
-    char buffer_start[128]; char buffer_end[128];
-    std::string perf_start, perf_end;
-    FILE* pipe_start = popen(("nm " + FLAGS_load + " | grep __perf_start").c_str(), "r");
-    FILE* pipe_end = popen(("nm " + FLAGS_load + " | grep __perf_end").c_str(), "r");
-    try {
-      while (fgets(buffer_start, sizeof(buffer_start), pipe_start) != NULL)
-        perf_start += buffer_start;
-
-      while (fgets(buffer_end, sizeof(buffer_end), pipe_end) != NULL)
-        perf_end += buffer_end;
-
-      int pos = perf_start.find(" ");
-      perf_start_pc = std::strtoll(perf_start.substr(0, pos).c_str(), nullptr, 16);
-      pos = perf_end.find(" ");
-      perf_end_pc = std::strtoll(perf_end.substr(0, pos).c_str(), nullptr, 16);
-
-      // hacky way atm
-      if (perf_start != perf_end)
-        perf_region_ok = true;
-
-    } catch (...) {
-      pclose(pipe_start);
-      pclose(pipe_end);
-      return;
-    }
-
-    pclose(pipe_start);
-    pclose(pipe_end);
-  }
-}
-
-void
-pmu::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi)
-{
-  if (terminated_)
-    return;
-
-  if (perf_region_ok) {
-    if (perf_start_pc == uint64_t(m_rvfi.pc_rdata))
-      perf_start_cycle = m_rvfi.cycle;
-
-    if (perf_end_pc == uint64_t(m_rvfi.pc_rdata))
-      perf_end_cycle = m_rvfi.cycle;
-  }
-}
-
-void
-pmu::process(const rv_tester_transactions::pmu::pmcounters_a<>& pmcounters)
+pmu::process(const rv_tester_transactions::pmu::pmcounters<>& pmcounters)
 {
   if (loc_ != pmcounters.location)
     return;
 
-  if (terminated_ and not sync_terminate_a_)
+  if (terminated_ and not sync_terminate_)
     return;
   else if (terminated_)
-    sync_terminate_a_ = false;
+    sync_terminate_ = false;
 
-  cvm::log(cvm::HIGH, "[PMU] syncing a counters\n");
+  cvm::log(cvm::HIGH, "[PMU] syncing counters\n");
 
-  if (not perf_region_started and (pmcounters.cpu_cycles >= perf_start_cycle) and (perf_start_cycle != 0))
+  counters = to_vector(pmcounters);
+
+  if (pmcounters.perf_start)
     perf_region_start();
 
-  to_vector(pmcounters);
-
-  if (perf_region_started and not perf_region_ended and (pmcounters.cpu_cycles >= perf_end_cycle) and (perf_end_cycle != 0))
+  if (pmcounters.perf_end)
     perf_region_end();
+
+  if (FLAGS_pmcounters_log != 0) {
+    for (size_t i = 0; i < counters.size(); i++) {
+      if (i != counter::CPU_CYCLES)
+        log(cvm::NONE, ",{:x}", counters[i]);
+      else
+        log(cvm::NONE, "{:x}", counters[i]);
+    }
+
+    log(cvm::NONE, "\n");
+  }
 }
-
-
-void
-pmu::process(const rv_tester_transactions::pmu::pmcounters_b<>& pmcounters)
-{
-  if (loc_ != pmcounters.location)
-    return;
-
-  if (terminated_ and not sync_terminate_b_)
-    return;
-  else if (terminated_)
-    sync_terminate_b_ = false;
-
-  cvm::log(cvm::HIGH, "[PMU] syncing b counters\n");
-
-  to_vector(pmcounters);
-}
-
-
-void
-pmu::process(const rv_tester_transactions::pmu::pmcounters_c<>& pmcounters)
-{
-  if (loc_ != pmcounters.location)
-    return;
-
-  if (terminated_ and not sync_terminate_c_)
-    return;
-  else if (terminated_)
-    sync_terminate_c_ = false;
-
-  cvm::log(cvm::HIGH, "[PMU] syncing b counters\n");
-
-  to_vector(pmcounters);
-}
-
-
-void
-pmu::process(const rv_tester_transactions::pmu::pmcounters_d<>& pmcounters)
-{
-  if (loc_ != pmcounters.location)
-    return;
-
-  if (terminated_ and not sync_terminate_d_)
-    return;
-  else if (terminated_)
-    sync_terminate_d_ = false;
-
-  cvm::log(cvm::HIGH, "[PMU] syncing b counters\n");
-
-  to_vector(pmcounters);
-}
-
 
 void
 pmu::process(const rv_tester::terminate_called_fast&)
@@ -184,10 +88,7 @@ pmu::process(const rv_tester::terminate_called_fast&)
 
   cvm::log(cvm::HIGH, "[PMU] termination signaled, stopping further counting\n");
   terminated_ = true;
-  sync_terminate_a_ = true;
-  sync_terminate_b_ = true;
-  sync_terminate_c_ = true;
-  sync_terminate_d_ = true;
+  sync_terminate_ = true;
 
   if (FLAGS_pmcounters_log != 0) {
     for (size_t i = 0; i < counters.size(); i++) {
@@ -204,12 +105,13 @@ pmu::process(const rv_tester::terminate_called_fast&)
 void
 pmu::report()
 {
-  for (size_t i = 0; i < counter::COUNT; i++)
+  for (size_t i = 0; i < counter::COUNT; i++) {
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_{}\": \"0x{:x}\"}}\n", id_, to_string.at(static_cast<counter>(i)), counters[i]);
+    if (perf_start_cycle and perf_end_cycle)
+      cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_perf_{}\": \"0x{:x}\"}}\n", id_, to_string.at(static_cast<counter>(i)), perf_region[i]);
+  }
 
-  if (perf_region_ok) {
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_perf_start_pc\": \"0x{:x}\"}}\n", id_, perf_start_pc);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_perf_end_pc\": \"0x{:x}\"}}\n", id_, perf_end_pc);
+  if (perf_start_cycle and perf_end_cycle) {
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_perf_start_cycle\": \"0x{:x}\"}}\n", id_, perf_start_cycle);
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_perf_end_cycle\": \"0x{:x}\"}}\n", id_, perf_end_cycle);
   }
@@ -218,6 +120,9 @@ pmu::report()
 bool
 pmu::is_within_range(double actual, double expected, int tolerance_perc)
 {
+  if (actual > expected)
+    return true;
+
   double tolerance = expected * (tolerance_perc / 100.0);
   return std::abs(actual - expected) <= tolerance;
 }
@@ -225,7 +130,7 @@ pmu::is_within_range(double actual, double expected, int tolerance_perc)
 void
 pmu::ipc_check()
 {
-  const auto& used = (perf_region_started and perf_region_ended)? perf_region : counters;
+  const auto& used = (perf_start_cycle and perf_end_cycle)? perf_region : counters;
   double ipc_actual = used[CPU_CYCLES] ? static_cast<double>(used[INSTRUCTIONS]) / static_cast<double>(used[CPU_CYCLES]) : 0.0;
 
   if (!is_within_range(ipc_actual, FLAGS_ipc_expected, FLAGS_ipc_tolerance_perc)) {

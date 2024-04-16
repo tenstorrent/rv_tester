@@ -8,6 +8,7 @@
 #include "sysmod.h"
 #include "mem/sysmod_mem.h"
 #include "clint/clint.h"
+#include "aclint/aclint.h"
 #include "dm/dm.h"
 #include "trace_cfg/trace_cfg.h"
 #include "smc_xtor/smc_xtor.h"
@@ -25,6 +26,7 @@
 // internal flags
 DEFINE_string(hex, "", "hex file (program) to load into memory");
 DEFINE_string(load, "", "elf file (program) to load into memory");
+DEFINE_string(load_lz4, "", "lz4 compressed file (program) to load into memory");
 DEFINE_bool(bootrom, true, "Load bootrom before test");
 DEFINE_string(bootrom_path, "", "Path to bootrom object file");
 DEFINE_string(load_io, "", "load specified io dev with content from memory");
@@ -42,7 +44,7 @@ extern "C" {
   void sysmod_aplic_dir_interrupt(unsigned long* i) ;
   void sysmod_aplic_rnd_interrupt(unsigned hartid, unsigned val, unsigned int_val);
   void sysmod_dmi_write(unsigned hartid, unsigned upper_val, unsigned lower_val);
-  void sysmod_jtag_req(unsigned upper_val, unsigned lower_val, unsigned length);
+  void sysmod_jtag_req(unsigned cmd,unsigned long upper_val, unsigned long lower_val, unsigned length, unsigned quit);
   void sysmod_terminate();
 }
 
@@ -56,6 +58,9 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::tick<>>(
       loc_,
       [this](const rv_tester_transactions::sysmod::tick<>& t) { return this->tick(t.advance); });
+  cvm::registry::messenger.connect<rv_tester_transactions::sysmod::jtag_tick<>>(
+      loc_,
+      [this](const rv_tester_transactions::sysmod::jtag_tick<>& t) { return this->jtag_tick(t.advance); });
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::jtag_rdata<>>(
       loc_,
       [this](const rv_tester_transactions::sysmod::jtag_rdata<>& t) { return this->jtag_resp(t.rdata); });
@@ -280,7 +285,7 @@ sysmod::jtag_req(jtag_driver::jtag_data_t i) {
       scope(),
       [i]() {
         cvm::log(cvm::FULL, "[SYSMOD] trickbox jtag_driver::dmi.(upper,lower) = {:#x}, {:#x}\n",i.upper_jtag_data, i.lower_jtag_data, i.jtag_length_data);
-        sysmod_jtag_req(i.upper_jtag_data, i.lower_jtag_data,i.jtag_length_data);
+        sysmod_jtag_req(i.jtag_cmd, i.upper_jtag_data, i.lower_jtag_data,i.jtag_length_data,i.jtag_quit);
       });
 }
 
@@ -306,9 +311,9 @@ sysmod::terminate(htif::terminate_t t) {
 void
 sysmod::reset() {
   compose();
-  load_boot(FLAGS_bootrom_path);
-  load_prog(FLAGS_hex, FLAGS_load);
+  load_prog(FLAGS_hex, FLAGS_load, FLAGS_load_lz4);
   load_io(FLAGS_load_io);
+  load_boot(FLAGS_bootrom_path);
 }
 
 void
@@ -328,6 +333,8 @@ sysmod::compose()
   auto platform_loc = cvm::topology::get_from_type("PLATFORM", 0);
   auto nharts = cvm::topology::attr(platform_loc, "NHARTS").second;
 
+  std::shared_ptr<mem_manager> mm = std::make_shared<mem_manager>();
+
   try {
     for(const auto& d : memmap_) {
       const auto base = d.second.base;
@@ -337,9 +344,8 @@ sysmod::compose()
 
       std::unique_ptr<device> device;
 
-
       if (type == "memory") {
-        device = std::make_unique<sysmod_mem>(tag, base, size, loc_);
+        device = std::make_unique<sysmod_mem>(tag, base, size, loc_, mm);
       }
       else if (type == "io_dev") {
         device = std::make_unique<io_dev>(tag, base, size, loc_);
@@ -411,6 +417,12 @@ sysmod::compose()
         cvm::registry::messenger.connect<clint::sw_t>(
             loc_,
             [&](clint::sw_t s) { return this->sw_interrupt(s); });
+      }
+      else if (type == "aclint") {
+        device = std::make_unique<aclint>(tag, base, nharts, loc_);
+        cvm::registry::messenger.connect<clint::timer_t>(
+            loc_,
+            [&](clint::timer_t t) { return this->timer_interrupt(t); });
       }
       else if (type == "trickbox") {
         device = std::make_unique<trickbox>(tag, base, nharts, loc_,masters[0]);
@@ -502,25 +514,46 @@ sysmod::load_io(const std::string& io)
 }
 
 void
-sysmod::load_prog(const std::string& hex, const std::string& load)
+sysmod::load_prog(const std::string& hex, const std::string& load, const std::string& lz4)
 {
-  cvm::log(cvm::MEDIUM, "Loading {}\n", load != "" ? load : hex);
   for (const auto& d : memmap_) {
     const auto type = d.second.type;
     const auto tag  = d.second.tag;
-    if (load != "" && type == "memory") {
+
+    if (type != "memory") continue;
+
+    if (load != "") {
+      cvm::log(cvm::MEDIUM, "Loading {}\n", load);
       if (not dev(tag) or not dynamic_cast<sysmod_mem&>(*dev(tag)).init_elf(load)) {
         cvm::log(cvm::ERROR, "Failed to load program");
         return;
       }
+      cvm::log(cvm::MEDIUM, "Loading {} complete\n", load);
     }
-    if (hex != "" && type == "memory") {
+
+    if (hex != "") {
+      cvm::log(cvm::MEDIUM, "Loading {}\n", hex);
       if (not dev(tag) or not dynamic_cast<sysmod_mem&>(*dev(tag)).init_hex(hex)) {
         cvm::log(cvm::ERROR, "No memory defined");
         return;
       }
+      cvm::log(cvm::MEDIUM, "Loading {} complete\n", hex);
     }
+
+    if (lz4 != "") {
+      cvm::log(cvm::MEDIUM, "Loading {}\n", lz4);
+      if (not dev("memory") or not dynamic_cast<sysmod_mem&>(*dev("memory")).init_lz4(lz4)) {
+        cvm::log(cvm::ERROR, "No memory defined");
+        return;
+      }
+      cvm::log(cvm::MEDIUM, "Loading {} complete\n", lz4);
+    }
+
+    // all memories share the same backing mem manaager
+    return;
   }
+
+  cvm::log(cvm::ERROR, "No memory found");
 }
 
 void
@@ -549,12 +582,16 @@ sysmod::load_boot(const std::string& boot)
   }
 }
 
-void sysmod::jtag_resp(uint64_t rdata){
-  //std::cout<<"Got JTAG RESP : "<<std::hex<<rdata<<"\n";
+void sysmod::jtag_resp(std::bitset<70> rdata){
   auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0);
-  //send response back to jtag driver
-  uint32_t half_rdata = rdata & 0xffffffff;
-  cvm::registry::messenger.signal(tbox_loc, jtag_driver::jtag_req_t{0, 0,half_rdata,0});
+  std::vector<uint64_t> convertedArray = bitsetToUint64Array(rdata);
+  cvm::log(cvm::HIGH, "[SYSMOD.CPP] In JTAG RESP converted array size = {}\n", convertedArray.size());
+  
+  for (uint64_t num : convertedArray) {
+        cvm::log(cvm::HIGH, "[SYSMOD.CPP] In JTAG RESP converted array element = {}\n", num);
+  }
+  
+  cvm::registry::messenger.signal(tbox_loc, jtag_driver::jtag_req_t{0, 0,0,convertedArray[0],0});
 
 }
 void
@@ -577,6 +614,25 @@ sysmod::tick(uint64_t advance)
   }
 }
 
+void
+sysmod::jtag_tick(uint64_t advance)
+{
+
+  jtag_ticks_ += advance;
+
+  // advance = 0;
+  // if (ticks_ >= FLAGS_sysmod_tick_update_threshold)  {
+  //     auto rem = ticks_ % FLAGS_sysmod_tick_update_threshold;
+  //     advance  = ticks_ - rem;
+  //     ticks_   = rem;
+  // }
+
+   if (advance) {
+       for (auto& d : devices_) {
+           d->jtag_tick(advance);
+       }
+   }
+}
 extern "C" {
 
   void sysmod_set_scope(cvm::topology::loc_t loc) {

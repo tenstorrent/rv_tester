@@ -92,7 +92,7 @@ private:
   void update_regs(hart_id_t hart, const rv_instr_t& d);
   void update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_slice_index = 0);
   void update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, const std::vector<size_8_bytes_t>&& dword_vec);
-  void update_mem(hart_id_t hart, rv_instr_t& d);
+  void update_mem_attr(hart_id_t hart, src_t src, uint32_t data);
   void update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data, cac::optional_const_ref<size_8_bytes_t> mask_ref = std::nullopt, bool shadow_csr = false, bool check_en = true);
   uint64_t modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data);
   size_8_bytes_t modify_csr_mask(hart_id_t hart, uint64_t addr, size_8_bytes_t mask);
@@ -118,6 +118,8 @@ private:
   void check_and_defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
   void check_interrupt(hart_id_t hart, uint64_t mip, bool& taken, uint64_t& cause);
   void defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
+  void resetsstc(hart_id_t hart, uint64_t cycle, uint64_t csr);
+  void setsstc(hart_id_t hart, uint64_t cycle, uint64_t csr);
   void poke_mip(hart_id_t hart, uint64_t time, uint64_t mip);
   void peek_mip(hart_id_t hart, uint64_t time, uint64_t& mip);
   void peek_seip(hart_id_t hart, uint64_t time, uint64_t& val);
@@ -131,6 +133,7 @@ private:
   bool boot_read(const rv_instr_t& d);
   bool debug_mem_access(const rv_instr_t& d);
   bool unsupported_mmr_access(const rv_instr_t& d);
+  bool unsupported_csr_access(const std::string& instr);
   bool htif_read(const rv_instr_t& d);
   bool hpm_counter_read(const std::string& instr);
   bool mip_mismatch(const std::string& instr);
@@ -171,6 +174,9 @@ private:
   bool resynch_csr_ = false;
 
   bool deferred_intr_ = false;
+  bool vstimecmppoked_ = false;
+  bool stimecmppoked_ = false;
+  uint64_t intrtopriv_ = 3;
   uint64_t mip_ = 0;
   uint64_t prev_mip_ = 0;
   uint64_t e_mip_ = 0;
@@ -188,7 +194,8 @@ private:
   // Memmap
   memmap::memmap_t memmap_;
 
-  std::array<int, 16> num_taken_interrupts_{};
+  std::array<std::array<int, 16>, 12> num_taken_interrupts_{};
+
   int num_exceptions_ = 0;
 
   size_8_bytes_t dword_vec_array [vlen/64] = {0};

@@ -16,11 +16,13 @@
 
 DECLARE_string(load);
 DECLARE_string(hex);
+DECLARE_string(load_lz4);
 DECLARE_bool(bootrom);
 DECLARE_string(bootrom_path);
 DECLARE_string(whisper_json_path);
 DECLARE_bool(whisper_stdin_null);
 DECLARE_bool(whisper_stdout_null);
+DECLARE_bool(preload);
 DECLARE_bool(mcm);
 DECLARE_bool(cov);
 DECLARE_uint32(max_instr);
@@ -63,19 +65,25 @@ constructSystem(uint16_t ncores, bool standalone) {
   }
 
 
-  if (FLAGS_bootrom_path != "" || FLAGS_load != "") {
-    std::vector<std::string> targets {};
-    if (FLAGS_bootrom && FLAGS_bootrom_path != "")
-      targets.push_back(FLAGS_bootrom_path);
-    if (FLAGS_load != "")
-      targets.push_back(FLAGS_load);
-    if (not system->loadElfFiles(targets, false, false))
+  if (FLAGS_load_lz4 != "") {
+    std::vector<std::string> targets = {FLAGS_load_lz4};
+    if (not system->loadLz4Files(targets, 0, false))
       return nullptr;
   }
 
   if (FLAGS_hex != "") {
     std::vector<std::string> targets = {FLAGS_hex};
     if (not system->loadHexFiles(targets, false))
+      return nullptr;
+  }
+
+  if (FLAGS_bootrom_path != "" || FLAGS_load != "") {
+    std::vector<std::string> targets {};
+    if (FLAGS_load != "")
+      targets.push_back(FLAGS_load);
+    if (FLAGS_bootrom && FLAGS_bootrom_path != "")
+      targets.push_back(FLAGS_bootrom_path);
+    if (not system->loadElfFiles(targets, false, false))
       return nullptr;
   }
 
@@ -118,6 +126,7 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
     std::atomic<unsigned> finished = 0;  // Count of finished threads.
 
     FILE* whisper_log = fopen("iss_standalone.log", "w");
+    FILE* preload_log[system_->hartCount()];
 
     auto threadFunc = [&result, &finished, &max_instr, whisper_log] (WdRiscv::Hart<URV>* hart) {
                         bool r = hart->run(whisper_log);
@@ -128,6 +137,10 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
 
     for (unsigned i = 0; i < system_->hartCount(); ++i) {
       WdRiscv::Hart<URV>* hart = system_->ithHart(i).get();
+      if (FLAGS_preload) {
+        preload_log[i] = fopen(("preload_" + std::to_string(i) + ".csv").c_str(), "w");
+        hart->setInitialStateFile(preload_log[i]);
+      }
       hart->setInstructionCountLimit(FLAGS_max_instr);
       threadVec.emplace_back(std::thread(threadFunc, hart));
     }
@@ -141,6 +154,12 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
       t.join();
 
     fclose(whisper_log);
+
+    if (FLAGS_preload) {
+      for (unsigned i = 0; i < system_->hartCount(); ++i) {
+        fclose(preload_log[i]);
+      }
+    }
 
     if (!FLAGS_nostop_standalone) {
         if (!result) {
@@ -287,7 +306,7 @@ bool
 whisperClient<URV>::whisperStep(int hart, uint64_t time, uint64_t instrTag, uint64_t& pc,
 	    uint32_t& instruction, unsigned& changeCount,
 	    std::string& disasm, uint32_t& privMode,
-	    uint32_t& fpFlags, bool& hasTrap, bool& hasStop)
+	    uint32_t& fpFlags, bool& hasTrap, bool& hasStop, bool& isLoad)
 {
   req.hart = hart;
   req.type = WhisperMessageType::Step;
@@ -308,11 +327,13 @@ whisperClient<URV>::whisperStep(int hart, uint64_t time, uint64_t instrTag, uint
   unsigned trap = (reply.flags >> 6) & 1;
   unsigned stop = (reply.flags >> 7) & 1;
   unsigned virt = (reply.flags >> 9) & 1;
+  unsigned load = (reply.flags >> 11) & 1;
 
   privMode = mode | (virt << 3);
   fpFlags = flags;
   hasTrap = trap;
   hasStop = stop;
+  isLoad = load;
   reply.buffer[reply.buffer.size() - 1] = '\0';
   disasm = reply.buffer.data();
 
