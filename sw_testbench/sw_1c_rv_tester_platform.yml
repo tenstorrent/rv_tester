@@ -38,4 +38,3 @@ rv_tester_reseti_attrs: &rv_tester_reseti_attrs
   COLD_RESET_IDX: 0
   RESET_IDX: 1
   RESET_TB_CLOCKS: [5, 10]
-  SMC_RESET_SEQ_START_CLOCKS: 3
