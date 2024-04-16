@@ -40,7 +40,7 @@ void smc_xtor::axi_write() {
 
 void smc_xtor::axi_read(uint64_t addr, size_t length,
                           uint32_t id) {
-  cvm::log(cvm::FULL, "[SMC] READ ADDR {:#X} {} {}  \n",addr,id,length);
+  cvm::log(cvm::FULL, "[SMC] axi read addr= {:#X} id = {} length = {}  \n",addr,id,length);
   transactor::read_t r ;
   r.addr = addr;
   r.length = length;
@@ -69,7 +69,7 @@ cvm::messenger::task<void> smc_xtor::read(const transactor::read_t& r, data_t& )
    auto& length = r.length;
 
   smc_xtor_read_req_t rd;
-  cvm::log(cvm::FULL, "[SMC] Default read addr {:#X} len {} loc :{:#X} \n",addr,length,axi_mst_loc_l);
+  cvm::log(cvm::FULL, "[SMC] read addr {:#X} len {} axi transactor loc :{:#X} \n",addr,length,axi_mst_loc_l);
 
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::read_request_t{addr, length});
 

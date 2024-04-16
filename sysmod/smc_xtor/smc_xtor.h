@@ -108,27 +108,28 @@ class smc_xtor : public device {
             if(in_boot_seq && ( cnt_tick > 14)){
             cvm::log(cvm::FULL, "[SMC] IN BOOT SEQ {} reset complition {} \n",in_boot_seq,reset_completion);
               if(!reset_completion){
-                  cvm::log(cvm::FULL, "[SMC] CHK AXI READ RESP FOR 0xC000300C \n");
-                  cvm::log(cvm::FULL, "[SMC] CHK AXI READ RESP FOR 0xC000300C Q size {} \n",smc_read_resp_q.size());
+                  cvm::log(cvm::FULL, "[SMC] Check axi read response for 0xC000300C \n");
+                  cvm::log(cvm::FULL, "[SMC] axi read response  Queue size for  0xC000300C = {} \n",smc_read_resp_q.size());
                   if(smc_read_resp_q.size() >0){
                      smc_xtor_read_req_t smc_xtor_rd;
                      smc_xtor_rd = smc_read_resp_q.front();
                      smc_read_resp_q.pop();
-                     for (int i = 0; i < 8; i++) {
-                     cvm::log(cvm::FULL, "[SMC] READ RESP data[{}]= {:#X} \n",i,smc_xtor_rd.data[i]);
-                     }
-                     cvm::log(cvm::FULL, "[SMC] READ RESP {:#X} \n",smc_xtor_rd.data[0]);
+                     std::string d;
+                     for (int i=0; i<8; i++)
+                       d += fmt::format("{:02x}", smc_xtor_rd.data[i]);
+                     cvm::log(cvm::FULL, "[SMC] read resp data= {:#X} \n", d);
+       
                      if(smc_xtor_rd.data[4] == 0x10){
                       reset_completion = true;
                      }
                   }else{
 
-                    cvm::log(cvm::FULL, "[SMC] AXI READ 0xC000300C \n");
+                    cvm::log(cvm::FULL, "[SMC] axi read 0xC000300C \n");
 
                     axi_read(0xC000300C,4,4);
                   }
               }else{
-                  cvm::log(cvm::FULL, "[SMC] DRIVE AXI BOOT SEQ WR  \n");
+                  cvm::log(cvm::FULL, "[SMC] Drive axi write requests for boot sequence  \n");
                  if(smc_boot_wr_txn_q.size()>0){
                    smc_wr_t smc_boot_txn;
                    smc_boot_txn = smc_boot_wr_txn_q.front();
@@ -136,7 +137,7 @@ class smc_xtor : public device {
                    smc_wr_txn_q.push(smc_boot_txn);
                  }else{
                   //boot done
-                  cvm::log(cvm::FULL, "[SMC]  BOOT SEQ DONE \n");
+                  cvm::log(cvm::FULL, "[SMC]  boot sequence completed \n");
                   in_boot_seq = false;
                  }
               }
@@ -150,10 +151,7 @@ class smc_xtor : public device {
         }
         
         void print_read_request(const smc_xtor_read_req_t &request) {
-            cvm::log(cvm::FULL, "Address: {} \n",request.addr);
-            cvm::log(cvm::FULL, "Length: {} \n",request.length);
-            cvm::log(cvm::FULL, "ID: {} \n ",request.id );
-            
+           
             
             std::stringstream ss;
 

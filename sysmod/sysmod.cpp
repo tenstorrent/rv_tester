@@ -629,8 +629,6 @@ sysmod::tick(uint64_t advance)
 
   if (advance) {
       for (auto& d : devices_) {
-        
-        cvm::log(cvm::HIGH, "[SYSMOD.CPP] Send Tick to  = {}\n", d->tag());
           d->tick(advance);
       }
   }

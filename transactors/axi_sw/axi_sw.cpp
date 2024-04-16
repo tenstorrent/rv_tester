@@ -112,26 +112,15 @@ void axi_sw<W,AW,AR,RQ>::r_resp() {
       cvm::registry::callbacks.push(
           scope_,
             [=]() {
-            if(data_width_ == 8){
             std::string d;
-            for (int i=0; i<64; i++)
+            for (int i=0; i<(data_width_/8); i++)
                 d += fmt::format("{:02x}", copy.data[i]);
             cvm::log(cvm::FULL, "[axi_sw] axi_sw_r_{}: id={}, last={}, data={}\n", data_width_/8, copy.id, copy.last, d);
 
-            axi_sw_r_8(copy.id, copy.resp, copy.data.data(), copy.last); 
-              for(int i =0;i<8;i++)
-              cvm::log(cvm::FULL, "[axi_sw.cpp] r_resp: data[{:#x}]= {:#x}\n", i,copy.data[i]);
-            }
-            else if(data_width_ ==512){
-            std::string d;
-            for (int i=0; i<64; i++)
-                d += fmt::format("{:02x}", copy.data[i]);
-            cvm::log(cvm::FULL, "[axi_sw] axi_sw_r_{}: id={}, last={}, data={}\n", data_width_/8, copy.id, copy.last, d);
-
-            axi_sw_r_64(copy.id, copy.resp, copy.data.data(), copy.last); 
-              for(int i =0;i<64;i++)
-              cvm::log(cvm::FULL, "[axi_sw.cpp] r_resp: data[{:#x}]= {:#x}\n", i,copy.data[i]);
-            }
+            if(data_width_ == 64)
+            axi_sw_r_8(copy.id, copy.resp, copy.data.data(), copy.last);
+            else if(data_width_ ==512)
+            axi_sw_r_64(copy.id, copy.resp, copy.data.data(), copy.last);
             else
             cvm::log(cvm::ERROR, "unsupported data width for axi_sw");
 

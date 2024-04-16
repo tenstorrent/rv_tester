@@ -119,16 +119,10 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const R& r) {
 
     axi::data_t vdata = cvm::bitmanip::slice<decltype(r.data), axi::data_t>(r.data);
     std::string d;
-    if(data_width_ ==512){
-    for (int i=0; i<64; i++)
+    for (int i=0; i<(data_width_/8); i++)
         d += fmt::format("{:02x}", vdata[i]);
     cvm::log(cvm::FULL, "[axi_sw_mst] axi_sw_r_{}: id={}, last={}, data={}\n", data_width_/8, r.id, r.last, d);
-    }
-    if(data_width_ ==64){
-    for (int i=0; i<8; i++)
-        d += fmt::format("{:02x}", vdata[i]);
-    cvm::log(cvm::FULL, "[axi_sw_mst] axi_sw_r_{}: id={}, last={}, data={}\n", data_width_/8, r.id, r.last, d);
-    }
+
     cvm::registry::messenger.signal<axi::r_t>(
         loc_,
         axi::r_t(r.id, axi::resp_t(r.resp), vdata, r.last)
@@ -272,21 +266,14 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
                               size_t idx = i >> 3;
                               strb[idx] |= arg.strb[i] << i%8;
                           }
-
-                          if (data_width_ == 64){
-                               std::string d;
-                               for (int i=0; i<8; i++)
-                                 d += fmt::format("{:02x}", arg.data[i]);
-                              cvm::log(cvm::FULL, "[axi_sw_mst] axi_sw_w_{}: data={}\n", data_width_/8, d);
+                          std::string d;
+                          for (int i=0; i<(data_width_/8); i++)
+                            d += fmt::format("{:02x}", arg.data[i]);
+                          cvm::log(cvm::FULL, "[axi_sw_mst] axi_sw_w_{}: data={}\n", data_width_/8, d);
+                          if (data_width_ == 64)
                               axi_sw_mst_w_8(arg.data.data(), strb.data(), arg.last);
-                          }
-                          else if (data_width_ == 512){
-                              std::string d;
-                               for (int i=0; i<64; i++)
-                                 d += fmt::format("{:02x}", arg.data[i]);
-                              cvm::log(cvm::FULL, "[axi_sw_mst] axi_sw_w_{}: data={}\n", data_width_/8, d);
+                          else if (data_width_ == 512)
                               axi_sw_mst_w_64(arg.data.data(), strb.data(), arg.last);
-                          }    
                           else
                               cvm::log(cvm::ERROR, "unsupported data width for axi_sw_mst");
                       });
