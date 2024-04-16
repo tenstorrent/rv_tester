@@ -51,9 +51,6 @@ class device {
               std::invoke(read, dev, r.r, data);
               std::string ds;
               cvm::log(cvm::DEBUG,"[device] Initiate Non Coroutine Read From {} \n",dev->tag());
-	            for (auto element : data) {
-                cvm::log(cvm::DEBUG,"[device] Non Coroutine Read Data {:#x} \n",(uint32_t)element);
-              }
               cvm::log(cvm::DEBUG,"[device] Signal transactor  to send response for id 0x{:#x} source: {} tag {}\n",r.r.id,r.source,dev->tag());
               for (size_t i=0; i<64; i++)
                   ds += fmt::format("{:02x}", data[i]);
