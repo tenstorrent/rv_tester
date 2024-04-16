@@ -69,6 +69,8 @@ void rvfi::init() {
     bridge_ = std::make_unique<bridge>(cvm::topology::attr(platform_loc, "NHARTS").second, xlen, vlen, loc_, id_);
     bridge_->reset();
     count_ = 1;
+  } else {
+    cvm::log(cvm::MEDIUM, "Running with cosim is disabled\n");
   }
 }
 
