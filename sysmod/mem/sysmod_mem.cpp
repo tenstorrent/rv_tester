@@ -8,10 +8,10 @@ void sysmod_mem::write(const transactor::write_t& w) {
   auto& data = w.data;
   auto& strb = w.strb;
 
-  cvm::log(cvm::HIGH, "[SYSMEM] write {:#X} len :{:#X} \n",addr,length);
+  cvm::log(cvm::FULL, "[SYSMEM] write {:#X} len :{:#X} \n",addr,length);
   for (size_t i = 0; i < length; i++) {
     if (strb[i]) {
-  cvm::log(cvm::HIGH, "data[{:#X}] = :{:#X} \n",i,data[i]);
+  cvm::log(cvm::FULL, "data[{:#X}] = :{:#X} \n",i,data[i]);
       m_->write(addr + i, 1, &data[i]);
     }
   }
@@ -23,18 +23,18 @@ void sysmod_mem::read(const transactor::read_t& r, data_t& data) {
   auto& length = r.length;
 
   m_->read(addr, length, data.data());
-  cvm::log(cvm::HIGH, "[SYSMEM] READ {:#X} len :{:#X} \n",addr,length);
+  cvm::log(cvm::FULL, "[SYSMEM] read {:#X} len :{:#X} \n",addr,length);
   for(size_t i=0;i<length;i++){
-    cvm::log(cvm::HIGH, "[SYSMEM] DATA {} =  {:#X}  \n",i,data[i]);
+    cvm::log(cvm::FULL, "[SYSMEM] data {} =  {:#X}  \n",i,data[i]);
   }
   return;
 }
 
 void sysmod_mem::backdoor_write(uint64_t addr, size_t length, data_t& data, strb_t& strb) {
-  cvm::log(cvm::HIGH, "[SYSMEM] BACKDOOR write {:#X} len :{:#X} \n",addr,length);
+  cvm::log(cvm::FULL, "[SYSMEM] backdoor write {:#X} len :{:#X} \n",addr,length);
   for (size_t i = 0; i < length; i++) {
     if (strb[i]) {
-      cvm::log(cvm::HIGH, "data[{:#X}] = :{:#X} \n",i,data[i]);
+      cvm::log(cvm::FULL, "data[{:#X}] = :{:#X} \n",i,data[i]);
       m_->write(addr + i, 1, &data[i]);
     }
   }
