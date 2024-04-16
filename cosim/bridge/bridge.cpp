@@ -79,8 +79,17 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
     std::string traceFile = FLAGS_whisper_log ? "iss_cosim.log" : "";
     std::string commandLog = FLAGS_whisper_log ? "iss_cmd.log" : "";
     cosim_resynch_csr_defaults = {
-      "htval","mtval2","mtinst","htinst","vstart","vxsat","vxrm","vcsr","sstatus","mstatus","hstatus","mie","hie","vsie","sie","fflags","fcsr","tselect","tdata1","tdata2","tdata3","mcontext","pma","pmp","menvcfg","senvcfg", // open bugs: RVDE: 10005 (mtinst/htinst), RVDE: 11217 (vectors), RVDE: 10043 (mtval2/htval), RVDE: 8849 (mstatus/mie aliases), RVDE: 7518 (Debug CSRs)
-      "mip","hip","vsip","hvip","sip","mcycle","mireg","sireg","vsireg","vtype","mtopei","stopei","vstopei","hpmcounter","hpmevent","scountovf","minstret","minstreth" // permanantly excluded
+      //"htval","mtval2", // RVDE-10043
+      "mtinst","htinst", // RVDE-10005
+      "vstart","vxsat","vxrm","vcsr", // Unimplemented
+      "sstatus","mstatus","mie","hie","vsie","sie", // RVDE-11840
+      "tselect","tdata1","tdata2","tdata3","mcontext", // Unimplemented: RVDE-7518
+      "fflags","fcsr", // Unimplemented
+      "menvcfg","senvcfg", // FIXME: pointer masking change
+      "pma","pmp", // FIXME: Performant NC change
+      "vtype", // Permanent: Vector vtype will not be implemented
+      "mip","hip","vsip","hvip","sip","mireg","sireg","vsireg","mtopei","stopei","vstopei", // Permanent: Interrupts
+      "hpmcounter","hpmevent","scountovf","mcycle","minstret","minstreth" // Permanent: PMC events
     };
     std::istringstream iss(FLAGS_cosim_resynch_csr);
     std::string token;
