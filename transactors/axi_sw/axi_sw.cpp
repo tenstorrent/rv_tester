@@ -113,7 +113,7 @@ void axi_sw<W,AW,AR,RQ>::r_resp() {
           scope_,
             [=]() {
             std::string d;
-            for (int i=0; i<(data_width_/8); i++)
+            for (int i=0; i<int(data_width_/8); i++)
                 d += fmt::format("{:02x}", copy.data[i]);
             cvm::log(cvm::FULL, "[axi_sw] axi_sw_r_{}: id={}, last={}, data={}\n", data_width_/8, copy.id, copy.last, d);
 

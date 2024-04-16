@@ -119,7 +119,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const R& r) {
 
     axi::data_t vdata = cvm::bitmanip::slice<decltype(r.data), axi::data_t>(r.data);
     std::string d;
-    for (int i=0; i<(data_width_/8); i++)
+    for (int i=0; i<int(data_width_/8); i++)
         d += fmt::format("{:02x}", vdata[i]);
     cvm::log(cvm::FULL, "[axi_sw_mst] axi_sw_r_{}: id={}, last={}, data={}\n", data_width_/8, r.id, r.last, d);
 
@@ -267,7 +267,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
                               strb[idx] |= arg.strb[i] << i%8;
                           }
                           std::string d;
-                          for (int i=0; i<(data_width_/8); i++)
+                          for (int i=0; i<int(data_width_/8); i++)
                             d += fmt::format("{:02x}", arg.data[i]);
                           cvm::log(cvm::FULL, "[axi_sw_mst] axi_sw_w_{}: data={}\n", data_width_/8, d);
                           if (data_width_ == 64)
