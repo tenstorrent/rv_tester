@@ -68,6 +68,11 @@ class logger_instrument {
 
 extern "C" {
 
+    void rv_tester_streaming_dpi_init() {
+        // Dummy placeholder for now
+        printf("Hello from rv_tester_streaming_dpi_init\n");
+    }
+
     int rv_tester_parse_flags() {
         cvm::plusargs::parse();
         return 0;

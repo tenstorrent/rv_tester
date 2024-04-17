@@ -39,6 +39,7 @@ module rv_tester
         end
     end
 
+    import "DPI-C" function void rv_tester_streaming_dpi_init();
     import "DPI-C" function int rv_tester_parse_flags(); // dummy return value so that this gets called immediately. need this to happen before any other DPIs are called.
     import "DPI-C" context function void rv_tester_cvm_error_handler();
     import "DPI-C" context function void rv_tester_parse_memmap(int unsigned no_addr_rules);
@@ -152,6 +153,7 @@ module rv_tester
         if (rv_tester_reset) begin
 
             $display("[RVTESTER]: new test");
+            _ = rv_tester_streaming_dpi_init();
             _ = rv_tester_parse_flags();
             rv_tester_cvm_error_handler();
             rv_tester_parse_memmap(NoAddrRules);
