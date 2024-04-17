@@ -141,6 +141,16 @@ module rv_tester
     end
 
     /*
+    * Group all zebu zDPI DPIs here
+    * These are run on a separate thread than the slower zebi3
+    */
+    always @(posedge clk[TB_CLK_IDX]) begin
+        if (rv_tester_reset) begin
+            rv_tester_streaming_dpi_init();
+        end
+    end
+
+    /*
     * Group all zebu zemi3 DPIs here
     * These are run on a separate thread than the faster zDPI, so make sure
     * these are only run at rv_tester_reset, when no other zDPIs should be
@@ -153,7 +163,6 @@ module rv_tester
         if (rv_tester_reset) begin
 
             $display("[RVTESTER]: new test");
-            rv_tester_streaming_dpi_init();
             _ = rv_tester_parse_flags();
             rv_tester_cvm_error_handler();
             rv_tester_parse_memmap(NoAddrRules);
