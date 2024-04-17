@@ -10,6 +10,7 @@ import rv_tester_params::*;
     parameter int NIFETCH = 1,
     parameter int NIEVICT = 1,
     parameter int RESET_CLOCKS = 10,
+    parameter int MAX_CSR_AFTER_NRET = 3,
     `TOPOLOGY,
     `RV_TESTER_TRANSACTIONS_COSIM_OUTPUT_PARAMS
 )(
@@ -35,10 +36,10 @@ import rv_tester_params::*;
 );
 
 
-localparam MAX_CRET  = NRET + 3;
 localparam CSR_SBITS = $clog2(CSR_COUNT);
+localparam MAXCSR = NRET + MAX_CSR_AFTER_NRET;
 
-function automatic bit [MAX_CRET-1:0][CSR_SBITS-1:0] retsel(input bit [CSR_COUNT-1:0] valid);
+function automatic bit [MAXCSR-1:0][CSR_SBITS-1:0] retsel(input bit [CSR_COUNT-1:0] valid);
     int s = 0;
     int i = 0;
     retsel = '1;
@@ -46,7 +47,7 @@ function automatic bit [MAX_CRET-1:0][CSR_SBITS-1:0] retsel(input bit [CSR_COUNT
     for(i=0;i<CSR_COUNT;i=i+1) begin
         if (valid[i] == 1) begin
             retsel[s] = i; 
-            assert (s < MAX_CRET) else $error("More than %d CSR valids == 1",MAX_CRET-1);
+            assert (s < MAXCSR) else $error("More than %d CSR valids == 1",MAXCSR-1);
             s = s + 1;
         end
     end
@@ -123,34 +124,35 @@ endfunction
     logic [CSR_COUNT-1:0] m_csris_valid;
     logic [CSR_COUNT-1:0] valid_d0;
     logic [CSR_COUNT-1:0] valid_d1;
+    logic [CSR_COUNT-1:0][CSRLEN-1:0] addr_d1;
     logic [CSR_COUNT-1:0][63:0] data_d1;
     logic [CSR_COUNT-1:0][63:0] mask_d1;
-    for (genvar n = 0; n < CSR_COUNT; n++) begin
-        assign valid_d0[n] = csri[n].valid;  
-    end
+
     always @(posedge clk) begin
       for (int n = 0; n < CSR_COUNT; n++) begin
         valid_d1[n] <= csri[n].valid;
+        addr_d1[n] <= csri[n].addr;
         data_d1[n] <= csri[n].data;
         mask_d1[n] <= csri[n].mask;
+        m_csris_valid[n] <= rvfi_enabled & ~dut_reset & ((csri[n].valid & ~valid_d1[n]) | (csri[n].valid & ((csri[n].data !== data_d1[n]) | (csri[n].mask !== mask_d1[n]))));
       end
     end
 
-    bit [MAX_CRET-1:0][CSR_SBITS-1:0] csr_sel;
+    bit [MAXCSR-1:0][CSR_SBITS-1:0] csr_sel;
 
     assign csr_sel = retsel(m_csris_valid);
 
     for (genvar n = 0; n < CSR_COUNT; n++) begin
-        assign m_csris_valid[n] = rvfi_enabled & ~dut_reset & ((csri[n].valid & ~valid_d1[n]) | (csri[n].valid & ((csri[n].data !== data_d1[n]) | (csri[n].mask !== mask_d1[n]))));
+        //assign m_csris_valid[n] = rvfi_enabled & ~dut_reset & ((csri[n].valid & ~valid_d1[n]) | (csri[n].valid & ((csri[n].data !== data_d1[n]) | (csri[n].mask !== mask_d1[n]))));
     end
-    for (genvar n = 0; n < MAX_CRET; n++) begin
+    for (genvar n = 0; n < MAXCSR; n++) begin
         assign m_csris[n].valid         = (csr_sel[n] != '1) ? m_csris_valid[csr_sel[n]] : '0; 
         assign m_csris[n].data.location = location;
         assign m_csris[n].data.cycle    = clocks;
         assign m_csris[n].data.hart     = NUM;
-        assign m_csris[n].data.addr     = (csr_sel[n] != '1) ? csri[csr_sel[n]].addr : '0;
-        assign m_csris[n].data.mask     = (csr_sel[n] != '1) ? csri[csr_sel[n]].mask : '0;
-        assign m_csris[n].data.data     = (csr_sel[n] != '1) ? csri[csr_sel[n]].data : '0;
+        assign m_csris[n].data.addr     = (csr_sel[n] != '1) ? addr_d1[csr_sel[n]] : '0;
+        assign m_csris[n].data.mask     = (csr_sel[n] != '1) ? mask_d1[csr_sel[n]] : '0;
+        assign m_csris[n].data.data     = (csr_sel[n] != '1) ? data_d1[csr_sel[n]] : '0;
     end
 
     // m_mcmi_read
