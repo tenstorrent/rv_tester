@@ -142,6 +142,7 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
         hart->setInitialStateFile(preload_log[i]);
       }
       hart->setInstructionCountLimit(FLAGS_max_instr);
+      hart->setWfiTimeout(0);
       threadVec.emplace_back(std::thread(threadFunc, hart));
     }
 
