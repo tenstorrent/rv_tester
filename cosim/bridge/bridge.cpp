@@ -427,6 +427,7 @@ void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whi
     if (w_intr && (w_cause == d.icause)) {
       log(cvm::MEDIUM, "<{}> DUT took interrupt, Whisper did not. cause:[{}] (Timing sensitive mismatch: Resynch and keep going)\n", w.time, d.icause);
       poke_mip(hart, w.time, (uint64_t)1 << d.icause);
+      resynch_icause_ = d.icause;
   // Undefer all interrupts
   if (deferred_intr_) {
     defer_interrupt(hart, w.time, 0);
@@ -543,6 +544,15 @@ void bridge::process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, wh
     print_instr_stdout(hart, w);
     cvm::log(cvm::ERROR, "Error: Hart {}: DUT vs Whisper interrupt cause mismatch [dut:{},whisper:{}]\n", hart, d.icause, w_.icause);
     return;
+  }
+  if (resynch_icause_) {
+    uint64_t resynch_mip_mask, resynch_mip;
+    resynch_mip_mask = (1 << resynch_icause_);
+    resynch_icause_ = 0;
+    peek_mip(hart, d.cycle, resynch_mip);
+    resynch_mip &= ~resynch_mip_mask;
+    log(cvm::MEDIUM, "<{}> Poking mip de assertion due to resynch in previous step {} \n", d.cycle, resynch_mip);
+    poke_mip(hart, d.cycle, resynch_mip);
   }
 
   num_taken_interrupts_[intrtopriv_][w_.icause]++;
