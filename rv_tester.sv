@@ -153,7 +153,7 @@ module rv_tester
         if (rv_tester_reset) begin
 
             $display("[RVTESTER]: new test");
-            _ = rv_tester_streaming_dpi_init();
+            rv_tester_streaming_dpi_init();
             _ = rv_tester_parse_flags();
             rv_tester_cvm_error_handler();
             rv_tester_parse_memmap(NoAddrRules);
