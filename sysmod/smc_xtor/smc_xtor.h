@@ -19,12 +19,12 @@ class smc_xtor : public device {
 
     private:
 
-        //bool end_test=0;
+        bool end_test=0;
         mem_manager m_;
         cvm::topology::loc_t axi_mst_loc_l;
         cvm::messenger::pool<axi::r_t>::channel_info channel;
         pcg_extras::seed_seq_from<std::random_device> seed_source;
-        bool in_boot_seq = true;
+        // bool in_boot_seq = true;
         bool reset_completion = false;
         pcg32 rng;
         void complete_smc_test()
@@ -33,7 +33,7 @@ class smc_xtor : public device {
         }
 
     public:
-        uint32_t start_smc_cnt,read_ram;
+        uint32_t start_smc_cnt=0,read_ram;
         uint32_t cnt_tick=0;
         struct smc_wr_t {
           uint32_t addr;
@@ -73,7 +73,7 @@ class smc_xtor : public device {
                   wdata.push_back(0x0);
                   strb.push_back(0x0);
             }  
-            for (uint8_t i = 0; i < 4; ++i) {
+            for (uint8_t i = 0; i < 8; ++i) {
                   uint8_t currentByte = static_cast<uint8_t>((value >> (8 * i)) & 0xFF);
                   wdata[i+b_index] = currentByte;
                   strb[i+b_index] = 0x1;
@@ -105,49 +105,36 @@ class smc_xtor : public device {
         {
             if(!FLAGS_smc_en)
               return;
-            
-            cvm::log(cvm::FULL, "[SMC] tick {:#X} \n",cnt_tick);
-            if(in_boot_seq && ( cnt_tick > uint32_t(FLAGS_smc_reset_seq_start_ticks))){
-            cvm::log(cvm::FULL, "[SMC] IN BOOT SEQ {} reset complition {} \n",in_boot_seq,reset_completion);
-              if(!reset_completion){
-                  cvm::log(cvm::FULL, "[SMC] Check axi read response for 0xC000300C \n");
-                  cvm::log(cvm::FULL, "[SMC] axi read response  Queue size for  0xC000300C = {} \n",smc_read_resp_q.size());
-                  if(smc_read_resp_q.size() >0){
-                     smc_xtor_read_req_t smc_xtor_rd;
-                     smc_xtor_rd = smc_read_resp_q.front();
-                     smc_read_resp_q.pop();
-                     std::string d;
-                     for (int i=0; i<8; i++)
-                       d += fmt::format("{:02x}", smc_xtor_rd.data[i]);
-                     cvm::log(cvm::FULL, "[SMC] read resp data= {:#X} \n", d);
-       
-                     if(smc_xtor_rd.data[4] == 0x10){
-                      reset_completion = true;
-                     }
-                  }else{
 
-                    cvm::log(cvm::FULL, "[SMC] axi read 0xC000300C \n");
-
-                    axi_read(0xC000300C,4,4);
-                  }
-              }else{
-                  cvm::log(cvm::FULL, "[SMC] Drive axi write requests for boot sequence  \n");
-                 if(smc_boot_wr_txn_q.size()>0){
-                   smc_wr_t smc_boot_txn;
-                   smc_boot_txn = smc_boot_wr_txn_q.front();
-                   smc_boot_wr_txn_q.pop();
-                   smc_wr_txn_q.push(smc_boot_txn);
-                 }else{
-                  //boot done
-                  cvm::log(cvm::FULL, "[SMC]  boot sequence completed \n");
-                  in_boot_seq = false;
-                 }
-              }
+            if(start_smc_cnt == 0){
+              start_smc_cnt = (rng()% 5) + 45;
+              reset_completion = true;
             }
             
+            cvm::log(cvm::FULL, "[SMC] tick {:#X} start_smc_cnt {} \n",cnt_tick,start_smc_cnt);
+           
             if(smc_wr_txn_q.size() > 0) axi_write();
 
-            cvm::log(cvm::HIGH, "[SMC] tick {:#X} \n",cnt_tick);
+            // cvm::log(cvm::HIGH, "[SMC] tick {:#X} \n",cnt_tick);
+
+            if(reset_completion){
+                if(end_test==1) complete_smc_test();
+
+                if(cnt_tick==start_smc_cnt) push_smc_sram_write_seq();
+                // if(smc_wr_txn_q.size() > 0) axi_write();
+                if(cnt_tick==(start_smc_cnt+21) ) axi_read(CPL_SRAM_BASE,8,4);;
+                if(cnt_tick==(start_smc_cnt+22) ) axi_read(CPL_SRAM_BASE+0x8,8,4);;
+
+                while((smc_read_resp_q.size() >0) ){
+                  print_read_request(smc_read_resp_q.front());
+                  smc_read_resp_q.pop();
+                  cvm::log(cvm::HIGH, "[security test] queue size {} \n",smc_read_resp_q.size());
+                  if(smc_read_resp_q.size() == 0){
+                    end_test = 1;
+                    cvm::log(cvm::HIGH, "[security test] write and read check to small core sram ended\n");
+                }
+              }
+            }
 
             cnt_tick ++;
         }
@@ -177,6 +164,14 @@ class smc_xtor : public device {
         void push_smc_enable_seq() {
           cvm::log(cvm::FULL, "[smc_xtor] smc_xtor inside enable smc seq\n");
           cvm::log(cvm::FULL, "[smc_xtor] smc_xtor completed enable smc seq\n");
+        }
+
+        void push_smc_sram_write_seq() {
+          cvm::log(cvm::HIGH, "[smc_xtor] smc_xtor sram write seq\n");
+          for(int i = 0; i < 8;i++){
+            smc_wr_txn_q.push({CPL_SRAM_BASE+i*4 ,0xFFFFFFFF});
+          }
+          cvm::log(cvm::HIGH, "[smc_xtor] smc_xtor sram write seq\n");
         }
         
         void push_smc_boot_seq() {
