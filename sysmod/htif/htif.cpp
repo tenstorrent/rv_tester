@@ -57,6 +57,13 @@ int htif::pty::read() {
   if (master == -1)
     return -1;
 
+  struct pollfd pollfd;
+  pollfd.fd = master;
+  pollfd.events = POLLIN;
+  int code = poll(&pollfd, 1, 0);
+  if (!(code == 1 && (pollfd.revents & POLLIN) != 0))
+    return 0;
+
   char c;
   int r = ::read(master, &c, sizeof(c));
   if (r == 1)
@@ -80,25 +87,6 @@ htif::htif(const std::string& tag, uint64_t addr, cvm::topology::loc_t loc)
 htif::~htif()
 {
 }
-
-
-void
-htif::read(const transactor::read_t& r, data_t& data)
-{
-  auto& addr = r.addr;
-  auto& length = r.length;
-
-  if (length != 8 or (addr % 8) != 0)
-    return;
-
-  uint64_t offset = addr - this->addr();
-  uint64_t di = offset / 8;  // Double word index
-
-  uint64_t dword = ((di == 0) ^ FLAGS_htif_flip) ? to_ : from_;
-  serializeInt(dword, length, data);
-  return;
-}
-
 
 static bool
 hasPendingInput(int fd)
@@ -145,6 +133,41 @@ readCharNonBlocking(int fd)
   return 0;
 }
 
+void
+htif::read(const transactor::read_t& r, data_t& data)
+{
+  auto& addr = r.addr;
+  auto& length = r.length;
+
+  if (length != 8 or (addr % 8) != 0)
+    return;
+
+  uint64_t offset = addr - this->addr();
+  uint64_t di = offset / 8;  // Double word index
+                             //
+  bool to = (di == 0) ^ FLAGS_htif_flip;
+
+  uint64_t dword;
+
+  if (to) {
+    dword = to_;
+  } else {
+    if (FLAGS_pty) {
+      int ch;
+      ch = pty_.read();
+      if (ch < 0)
+        ch = readCharNonBlocking(fileno(stdin));
+      if (ch > 0)
+        from_ = uint64_t(1) << 56 | uint64_t(ch);
+      else
+        from_ = 0;
+    }
+    dword = from_;
+  }
+  serializeInt(dword, length, data);
+  return;
+}
+
 
 void
 htif::write(const transactor::write_t& w)
@@ -187,12 +210,14 @@ htif::write(const transactor::write_t& w)
 	}
       else if (cmd == 0)
 	{
-	  int ch;
-	  ch = pty_.read();
-	  if (ch < 0)
-	    ch = readCharNonBlocking(fileno(stdin));
-	  if (ch > 0)
-	    from_ = ((payload >> 48) << 48) | uint64_t(ch);
+	  if (!FLAGS_pty) {
+	    int ch;
+	    ch = pty_.read();
+	    if (ch < 0)
+	      ch = readCharNonBlocking(fileno(stdin));
+	    if (ch > 0)
+	      from_ = ((payload >> 48) << 48) | uint64_t(ch);
+	   }
 	}
     }
   else if (dev == 0 and cmd == 0)
