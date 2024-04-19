@@ -152,6 +152,7 @@ rv_tester: &rv_tester
         type:
           - rvfi
         attrs:
+          max_csr_after_nret: 3
           <<: *rv_tester_rvfi_attrs
       mcmi:
         count: 1
