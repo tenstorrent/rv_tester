@@ -45,6 +45,35 @@ import rv_tester_params:: * ;
         end
     end
 
+    //ACLINT force SYNC message checker
+    logic forcesynccame;
+    assign forcesynccame = (AcReqPktRfClki.addr == TIMESYNC) && AcReqPktRfClki.valid && (AcReqPktRfClki.data == 'hff);
+
+    for (genvar n = 0; n < NHARTS; n++) begin : acsync_force
+
+    logic lookout_for_sync;
+
+    always @(posedge rf_clk) begin
+        if(dut_reset || AcCrSynci[n].valid) begin
+            lookout_for_sync <= 0;
+        end else if (forcesynccame) begin
+            lookout_for_sync <= 1;
+        end
+    end
+
+    logic [63:0] count;
+    logic violation_forcesync;
+    always @(posedge rf_clk) begin
+        if (dut_reset || AcCrSynci[n].valid || forcesynccame) begin
+            count <= 0;
+        end else if (lookout_for_sync) begin
+            count <= count + 1;
+        end
+    end
+    assign violation_forcesync =  (count >  'd4) && enable_checks ;
+    always_comb
+    assert (~violation_forcesync) else $error("Error: Not recieved aclint force sync");
+    end
 
     //ACLINT MTIP generation checker
     typedef enum bit {idle,check} checker_state;
