@@ -120,6 +120,7 @@ import rv_tester_params::*;
     assign pmcounterss[0].valid = !reset && perf_enabled && (terminate || (sync & (cpu_cycles % period) == 0) || perf_start || perf_end || ptc_strobe);
     assign pmcounterss[0].data.location = location;
     assign pmcounterss[0].data.cpu_cycles = cpu_cycles;
+    assign pmcounterss[0].data.instructions = pmcounter[INSTRUCTIONS];
     assign pmcounterss[0].data.perf_start = perf_start;
     assign pmcounterss[0].data.perf_end = perf_end;
     assign pmcounterss[0].data.ptc_strobe = ptc_strobe;
