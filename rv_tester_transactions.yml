@@ -412,189 +412,582 @@ pmu:
                 width: 64
             instructions:
                 width: 64
-            cache_references:
-                width: 64
-            cache_misses:
-                width: 64
-            branch_instructions:
-                width: 64
-            branch_misses:
-                width: 64
-            bus_cycles:
-                width: 64
-            stalled_cycles_frontend:
-                width: 64
-            stalled_cycles_backend:
-                width: 64
-            ref_cpu_cycles:
-                width: 64
-            l1d_read_access:
-                width: 64
-            l1d_read_miss:
-                width: 64
-            l1d_write_access:
-                width: 64
-            l1d_write_miss:
-                width: 64
-            l1d_prefetch_access:
-                width: 64
-            l1d_prefetch_miss:
-                width: 64
-            l1i_read_access:
-                width: 64
-            l1i_read_miss:
-                width: 64
-            l1i_write_access:
-                width: 64
-            l1i_write_miss:
-                width: 64
-            l1i_prefetch_access:
-                width: 64
-            l1i_prefetch_miss:
-                width: 64
-            ll_read_access:
-                width: 64
-            ll_read_miss:
-                width: 64
-            ll_write_access:
-                width: 64
-            ll_write_miss:
-                width: 64
-            ll_prefetch_access:
-                width: 64
-            ll_prefetch_miss:
-                width: 64
-            dtlb_read_access:
-                width: 64
-            dtlb_read_miss:
-                width: 64
-            dtlb_write_access:
-                width: 64
-            dtlb_write_miss:
-                width: 64
-            dtlb_prefetch_access:
-                width: 64
-            dtlb_prefetch_miss:
-                width: 64
-            itlb_read_access:
-                width: 64
-            itlb_read_miss:
-                width: 64
-            itlb_write_access:
-                width: 64
-            itlb_write_miss:
-                width: 64
-            itlb_prefetch_access:
-                width: 64
-            itlb_prefetch_miss:
-                width: 64
-            bpu_write_access:
-                width: 64
-            l1d_cache_invalidate:
-                width: 64
-            stalls_mem_l1d_miss:
-                width: 64
-            stalls_mem_stores:
-                width: 64
-            stalls_mem_l1dtlb_miss:
-                width: 64
-            stalls_mem_l1d_miss_l2_miss:
-                width: 64
-            stalls_mem_any:
-                width: 64
-            stalls_mem_l1i_miss:
-                width: 64
-            nfp_mispredict:
-                width: 64
-            br_immed_spec:
-                width: 64
-            br_indirect_spec:
-                width: 64
-            br_ret_spec:
-                width: 64
-            ld_spec:
-                width: 64
-            st_spec:
-                width: 64
-            int_spec:
-                width: 64
-            fp_spec:
-                width: 64
-            uop_issued:
-                width: 64
-            uop_retired:
-                width: 64
-            total_uops_flushed:
-                width: 64
-            total_ind_br_retired:
-                width: 64
-            total_ind_br_retired_mispred:
-                width: 64
-            lsu_resyncs:
-                width: 64
-            total_flushes:
-                width: 64
-            load_misal_accesses:
-                width: 64
-            store_misal_accesses:
-                width: 64
-            stlf_hits:
-                width: 64
-            vector_busy_cycles:
-                width: 64
+            ptc_instructions:
+                width: 14
             m_mode_cycles:
                 width: 64
+            ptc_m_mode_cycles:
+                width: 14
             m_mode_instret:
                 width: 64
+            ptc_m_mode_instret:
+                width: 14
             s_mode_cycles:
                 width: 64
+            ptc_s_mode_cycles:
+                width: 14
             s_mode_instret:
                 width: 64
+            ptc_s_mode_instret:
+                width: 14
             u_mode_cycles:
                 width: 64
+            ptc_u_mode_cycles:
+                width: 14
             u_mode_instret:
                 width: 64
-            compressed_instret:
+            ptc_u_mode_instret:
+                width: 14
+            ref_cpu_cycles:
                 width: 64
-            tlb_invalidates:
+            ptc_ref_cpu_cycles:
+                width: 14
+            stalls_bst_full:
                 width: 64
-            br_ret_retired:
+            ptc_stalls_bst_full:
+                width: 14
+            stalls_pfx_full:
                 width: 64
+            ptc_stalls_pfx_full:
+                width: 14
+            stalls_indirect_miss:
+                width: 64
+            ptc_stalls_indirect_miss:
+                width: 14
+            stalls_icache_miss:
+                width: 64
+            ptc_stalls_icache_miss:
+                width: 14
+            stalls_itlb_miss:
+                width: 64
+            ptc_stalls_itlb_miss:
+                width: 14
+            stalls_irb_full:
+                width: 64
+            ptc_stalls_irb_full:
+                width: 14
+            stalls_ifbuf_full:
+                width: 64
+            ptc_stalls_ifbuf_full:
+                width: 14
+            stalls_exception:
+                width: 64
+            ptc_stalls_exception:
+                width: 14
+            page_crossing_fetchblocks:
+                width: 64
+            ptc_page_crossing_fetchblocks:
+                width: 14
+            nfp_early_redirect:
+                width: 64
+            ptc_nfp_early_redirect:
+                width: 14
+            nfp_late_redirect:
+                width: 64
+            ptc_nfp_late_redirect:
+                width: 14
+            nonspec_resync:
+                width: 64
+            ptc_nonspec_resync:
+                width: 14
+            fault_resync:
+                width: 64
+            ptc_fault_resync:
+                width: 14
+            fault_refetch:
+                width: 64
+            ptc_fault_refetch:
+                width: 14
+            cmode_entry:
+                width: 64
+            ptc_cmode_entry:
+                width: 14
+            branch_misses:
+                width: 64
+            ptc_branch_misses:
+                width: 14
             br_ret_misses:
                 width: 64
-            ind_br_retired:
-                width: 64
+            ptc_br_ret_misses:
+                width: 14
             ind_br_misses:
                 width: 64
-            rel_br_retired:
-                width: 64
+            ptc_ind_br_misses:
+                width: 14
             rel_br_misses:
                 width: 64
-            cycles_no_int_prn:
+            ptc_rel_br_misses:
+                width: 14
+            spec_branch_redirect:
                 width: 64
-            cycles_no_fp_prn:
+            ptc_spec_branch_redirect:
+                width: 14
+            spec_lsu_resyncs:
                 width: 64
-            cycles_no_vec_prn:
+            ptc_spec_lsu_resyncs:
+                width: 14
+            total_flushes:
                 width: 64
+            ptc_total_flushes:
+                width: 14
+            uops_decoded:
+                width: 64
+            ptc_uops_decoded:
+                width: 14
+            l1i_read_access:
+                width: 64
+            ptc_l1i_read_access:
+                width: 14
+            l1i_read_miss:
+                width: 64
+            ptc_l1i_read_miss:
+                width: 14
+            l1i_prefetch_access:
+                width: 64
+            ptc_l1i_prefetch_access:
+                width: 14
+            l1i_prefetch_miss:
+                width: 64
+            ptc_l1i_prefetch_miss:
+                width: 14
+            itlb_read_access:
+                width: 64
+            ptc_itlb_read_access:
+                width: 14
+            itlb_read_miss:
+                width: 64
+            ptc_itlb_read_miss:
+                width: 14
+            itlb_prefetch_access:
+                width: 64
+            ptc_itlb_prefetch_access:
+                width: 14
+            itlb_prefetch_miss:
+                width: 64
+            ptc_itlb_prefetch_miss:
+                width: 14
             ic_way_mispred:
                 width: 64
+            ptc_ic_way_mispred:
+                width: 14
+            ras_underflow:
+                width: 64
+            ptc_ras_underflow:
+                width: 14
+            ras_overflow:
+                width: 64
+            ptc_ras_overflow:
+                width: 14
+            num_fetchgroups:
+                width: 64
+            ptc_num_fetchgroups:
+                width: 14
+            bdp_bank_conflicts:
+                width: 64
+            ptc_bdp_bank_conflicts:
+                width: 14
+            btp_bank_conflicts:
+                width: 64
+            ptc_btp_bank_conflicts:
+                width: 14
+            bpu_writes:
+                width: 64
+            ptc_bpu_writes:
+                width: 14
+            stalled_cycles_frontend:
+                width: 64
+            ptc_stalled_cycles_frontend:
+                width: 14
+            stalled_cycles_backend:
+                width: 64
+            ptc_stalled_cycles_backend:
+                width: 14
+            cycles_no_int_prn:
+                width: 64
+            ptc_cycles_no_int_prn:
+                width: 14
+            cycles_no_fp_prn:
+                width: 64
+            ptc_cycles_no_fp_prn:
+                width: 14
+            cycles_no_vec_prn:
+                width: 64
+            ptc_cycles_no_vec_prn:
+                width: 14
+            cycles_no_rob:
+                width: 64
+            ptc_cycles_no_rob:
+                width: 14
+            branch_instructions:
+                width: 64
+            ptc_branch_instructions:
+                width: 14
+            uop_retired:
+                width: 64
+            ptc_uop_retired:
+                width: 14
+            ld_retired:
+                width: 64
+            ptc_ld_retired:
+                width: 14
+            st_retired:
+                width: 64
+            ptc_st_retired:
+                width: 14
+            int_retired:
+                width: 64
+            ptc_int_retired:
+                width: 14
+            csr_retired:
+                width: 64
+            ptc_csr_retired:
+                width: 14
+            br_ret_retired:
+                width: 64
+            ptc_br_ret_retired:
+                width: 14
+            ind_br_retired:
+                width: 64
+            ptc_ind_br_retired:
+                width: 14
+            rel_br_retired:
+                width: 64
+            ptc_rel_br_retired:
+                width: 14
+            fp_retired:
+                width: 64
+            ptc_fp_retired:
+                width: 14
+            vec_retired:
+                width: 64
+            ptc_vec_retired:
+                width: 14
+            xfer_retired:
+                width: 64
+            ptc_xfer_retired:
+                width: 14
+            uop_confirmed:
+                width: 64
+            ptc_uop_confirmed:
+                width: 14
+            uop_issued_int:
+                width: 64
+            ptc_uop_issued_int:
+                width: 14
+            uop_issued_ldst:
+                width: 64
+            ptc_uop_issued_ldst:
+                width: 14
+            uop_issued_fp:
+                width: 64
+            ptc_uop_issued_fp:
+                width: 14
+            uop_issued_vec:
+                width: 64
+            ptc_uop_issued_vec:
+                width: 14
+            br_direct_spec:
+                width: 64
+            ptc_br_direct_spec:
+                width: 14
+            br_indirect_spec:
+                width: 64
+            ptc_br_indirect_spec:
+                width: 14
+            br_ret_spec:
+                width: 64
+            ptc_br_ret_spec:
+                width: 14
+            int_executed:
+                width: 64
+            ptc_int_executed:
+                width: 14
+            fp_executed:
+                width: 64
+            ptc_fp_executed:
+                width: 14
+            vec_executed:
+                width: 64
+            ptc_vec_executed:
+                width: 14
+            compressed_instret:
+                width: 64
+            ptc_compressed_instret:
+                width: 14
+            cache_references:
+                width: 64
+            ptc_cache_references:
+                width: 14
+            cache_misses:
+                width: 64
+            ptc_cache_misses:
+                width: 14
+            tlb_invalidates:
+                width: 64
+            ptc_tlb_invalidates:
+                width: 14
+            l1d_access_filter:
+                width: 64
+            ptc_l1d_access_filter:
+                width: 14
+            l1d_miss_filter:
+                width: 64
+            ptc_l1d_miss_filter:
+                width: 14
+            l1d_cache_invalidate_filter:
+                width: 64
+            ptc_l1d_cache_invalidate_filter:
+                width: 14
+            utlb_miss:
+                width: 64
+            ptc_utlb_miss:
+                width: 14
+            dtlb_access_filter:
+                width: 64
+            ptc_dtlb_access_filter:
+                width: 14
+            dtlb_miss_filter:
+                width: 64
+            ptc_dtlb_miss_filter:
+                width: 14
+            leaf_tlb_access_filter:
+                width: 64
+            ptc_leaf_tlb_access_filter:
+                width: 14
+            leaf_tlb_miss_filter:
+                width: 64
+            ptc_leaf_tlb_miss_filter:
+                width: 14
+            nonleaf_tlb_access_fiter:
+                width: 64
+            ptc_nonleaf_tlb_access_fiter:
+                width: 14
+            nonleaf_tlb_miss_filter:
+                width: 64
+            ptc_nonleaf_tlb_miss_filter:
+                width: 14
+            page_walks:
+                width: 64
+            ptc_page_walks:
+                width: 14
+            stalls_mem_l1d_miss:
+                width: 64
+            ptc_stalls_mem_l1d_miss:
+                width: 14
+            stalls_mem_stores:
+                width: 64
+            ptc_stalls_mem_stores:
+                width: 14
+            stalls_mem_l1dtlb_miss:
+                width: 64
+            ptc_stalls_mem_l1dtlb_miss:
+                width: 14
+            lsu_resyncs_filter:
+                width: 64
+            ptc_lsu_resyncs_filter:
+                width: 14
+            stlf_hits:
+                width: 64
+            ptc_stlf_hits:
+                width: 14
             ls_replay:
                 width: 64
+            ptc_ls_replay:
+                width: 14
             ls_replay_way_predictor:
                 width: 64
-            cycles_ldq_full:
+            ptc_ls_replay_way_predictor:
+                width: 14
+            sipt_replay:
                 width: 64
-            cycles_stq_full:
+            ptc_sipt_replay:
+                width: 14
+            stlf_replay:
                 width: 64
-            cycles_rar_full:
+            ptc_stlf_replay:
+                width: 14
+            tag_bank_conflict_replay:
                 width: 64
-            cycles_raw_full:
+            ptc_tag_bank_conflict_replay:
+                width: 14
+            data_bank_conflict_replay:
                 width: 64
+            ptc_data_bank_conflict_replay:
+                width: 14
+            fillbuf_hit_replay:
+                width: 64
+            ptc_fillbuf_hit_replay:
+                width: 14
+            transbuf_hit_replay:
+                width: 64
+            ptc_transbuf_hit_replay:
+                width: 14
+            reqbuf_hit_replay:
+                width: 64
+            ptc_reqbuf_hit_replay:
+                width: 14
+            dtlb_replay:
+                width: 64
+            ptc_dtlb_replay:
+                width: 14
+            rar_cannot_alloc:
+                width: 64
+            ptc_rar_cannot_alloc:
+                width: 14
+            raw_cannot_alloc:
+                width: 64
+            ptc_raw_cannot_alloc:
+                width: 14
+            ldq_cannot_alloc:
+                width: 64
+            ptc_ldq_cannot_alloc:
+                width: 14
+            smb_cannot_alloc:
+                width: 64
+            ptc_smb_cannot_alloc:
+                width: 14
+            reqbuf_cannot_alloc_filter:
+                width: 64
+            ptc_reqbuf_cannot_alloc_filter:
+                width: 14
+            fillbuf_cannot_alloc:
+                width: 64
+            ptc_fillbuf_cannot_alloc:
+                width: 14
+            transbuf_cannot_alloc_filter:
+                width: 64
+            ptc_transbuf_cannot_alloc_filter:
+                width: 14
+            pcb_cannot_alloc_filter:
+                width: 64
+            ptc_pcb_cannot_alloc_filter:
+                width: 14
+            udb_cannot_alloc:
+                width: 64
+            ptc_udb_cannot_alloc:
+                width: 14
+            udb_data_return:
+                width: 64
+            ptc_udb_data_return:
+                width: 14
+            udb_lost:
+                width: 64
+            ptc_udb_lost:
+                width: 14
+            uwp_access:
+                width: 64
+            ptc_uwp_access:
+                width: 14
+            uwp_miss:
+                width: 64
+            ptc_uwp_miss:
+                width: 14
+            uwp_true_hit:
+                width: 64
+            ptc_uwp_true_hit:
+                width: 14
+            wp_access:
+                width: 64
+            ptc_wp_access:
+                width: 14
+            wp_miss:
+                width: 64
+            ptc_wp_miss:
+                width: 14
+            wp_true_hit:
+                width: 64
+            ptc_wp_true_hit:
+                width: 14
+            mdp_correct_prediction:
+                width: 64
+            ptc_mdp_correct_prediction:
+                width: 14
+            mdp_false_hit:
+                width: 64
+            ptc_mdp_false_hit:
+                width: 14
+            mdp_false_miss:
+                width: 64
+            ptc_mdp_false_miss:
+                width: 14
+            mdp_total_prediction:
+                width: 64
+            ptc_mdp_total_prediction:
+                width: 14
+            ll_retired:
+                width: 64
+            ptc_ll_retired:
+                width: 14
+            atomics_retired:
+                width: 64
+            ptc_atomics_retired:
+                width: 14
+            ldst_masked_nano:
+                width: 64
+            ptc_ldst_masked_nano:
+                width: 14
+            ld_executed_nano:
+                width: 64
+            ptc_ld_executed_nano:
+                width: 14
+            st_executed_nano:
+                width: 64
+            ptc_st_executed_nano:
+                width: 14
+            pfc_agt_cannot_alloc:
+                width: 64
+            ptc_pfc_agt_cannot_alloc:
+                width: 14
+            pfc_agt_evict:
+                width: 64
+            ptc_pfc_agt_evict:
+                width: 14
+            pfc_pht_cannot_alloc:
+                width: 64
+            ptc_pfc_pht_cannot_alloc:
+                width: 14
+            pfc_pht_lookup:
+                width: 64
+            ptc_pfc_pht_lookup:
+                width: 14
+            pfc_pht_hit:
+                width: 64
+            ptc_pfc_pht_hit:
+                width: 14
+            pfc_prt_cannot_alloc:
+                width: 64
+            ptc_pfc_prt_cannot_alloc:
+                width: 14
+            pfc_no_tlb_credit_stalls:
+                width: 64
+            ptc_pfc_no_tlb_credit_stalls:
+                width: 14
+            pfc_no_tag_credit_stalls:
+                width: 64
+            ptc_pfc_no_tag_credit_stalls:
+                width: 14
+            pfc_prefetches_sent:
+                width: 64
+            ptc_pfc_prefetches_sent:
+                width: 14
+            pfc_prefetches_hit:
+                width: 64
+            ptc_pfc_prefetches_hit:
+                width: 14
+            pfc_prefetches_late:
+                width: 64
+            ptc_pfc_prefetches_late:
+                width: 14
+            pfc_victim_prefetches:
+                width: 64
+            ptc_pfc_victim_prefetches:
+                width: 14
             perf_start:
                 width: 1
             perf_end:
                 width: 1
-
+            ptc_strobe:
+                width: 1
 
 dm_model:
     num: 1
