@@ -309,7 +309,7 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
   if (d.gpr.valid || d.fpr.valid || !d.vr.empty() || !d.csr.empty()) {
     update_regs(hart, d);
   }
-  if (FLAGS_memattr_check && d.mem_read.valid) {
+  if (FLAGS_memattr_check && d.mem_read.valid && (!is_vector(d.disasm))) {
     update_mem_attr(hart, src_t::dut, d.mem_read.attr);
   }
   if (FLAGS_memattr_check && d.mem_write.valid && (!is_vector(d.disasm))) {
