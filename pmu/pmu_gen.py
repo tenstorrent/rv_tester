@@ -7,7 +7,7 @@ import os
 import base64
 
 
-def download_yaml(url):
+def download_csv(url):
     headers = {
         'PRIVATE-TOKEN': os.environ['PERSONAL_PAT']
 
@@ -22,32 +22,46 @@ def download_yaml(url):
 
     sample_string_bytes = base64.b64decode(base64_bytes)
     rv_str = sample_string_bytes.decode("ascii")
-    rv_events = rv_str.split('\n')
-    skip_header = True
-    rv = []
-    for event in rv_events:
-        if skip_header:
-            skip_header = False
-            continue
-        if event:
-            desc = event.split(',')
-            if desc[1] == "cycle":
-                desc[1] = "cpu_cycles"
-            if desc[1] == "instret":
-                desc[1] = "instructions"
-            rv.append({"name": desc[1], "description": desc[2]})
-    # print(rv)
-    # rv = yaml.safe_load(rv_str)
-    return rv
+    return rv_str
 
 
 # Example usage
 spec_id = 246
 url = f"https://aus-gitlab.local.tenstorrent.com/api/v4//projects/{spec_id}/repository/files/src%2Fcluster%2Fascalon%5Fuarch%2Fsrc%2Fcore%5Fpmc%2Ecsv?ref=main"
+data_str = download_csv(url)
 
-data_dict = download_yaml(url)
+data_dict = []
+rv_events = data_str.split('\n')
+# could use pandas here
+skip_header = True
+for event in rv_events:
+    if skip_header:
+        skip_header = False
+        continue
+    if event:
+        desc = event.split(',')
+        if desc[1] == "cycle":
+            desc[1] = "cpu_cycles"
+        if desc[1] == "instret":
+            desc[1] = "instructions"
+        data_dict.append({"name": desc[1], "description": desc[2]})
+
+url = f"https://aus-gitlab.local.tenstorrent.com/api/v4//projects/{spec_id}/repository/files/src%2Fcluster%2Fascalon%5Fuarch%2Fsrc%2Fpmc%5Ffiltered%2Ecsv?ref=main"
+filtered_str = download_csv(url)
+filtered_events = filtered_str.split('\n')
+filter_pmcs = set()
+skip_header = True
+for event in filtered_events:
+    if skip_header:
+        skip_header = False
+        continue
+    if event:
+        desc = event.split(',')
+        data_dict.append({"name": desc[1], "description": "filtered event"})
+        filter_pmcs.add(desc[0])
+
+data_dict = [dat for dat in data_dict if dat["name"] not in filter_pmcs]
 # print(data_dict)
-
 
 def create_cpp_frag(events: List[Dict[Any, Any]], path="gen_events.cpp"):
     tab = "      "
@@ -116,7 +130,7 @@ def create_sv_frag(events: List[Dict[Any, Any]], path="gen_events.sv"):
     assign pmcounterss[0].valid = !reset && perf_enabled && (terminate || (sync & (cpu_cycles % period) == 0) || perf_start || perf_end || ptc_strobe);
     assign pmcounterss[0].data.location = location;
     assign pmcounterss[0].data.cpu_cycles = cpu_cycles;
-    assign pmcounterss[0].data.instructions = instructions;
+    assign pmcounterss[0].data.instructions = pmcounter[INSTRUCTIONS];
     assign pmcounterss[0].data.perf_start = perf_start;
     assign pmcounterss[0].data.perf_end = perf_end;
     assign pmcounterss[0].data.ptc_strobe = ptc_strobe;

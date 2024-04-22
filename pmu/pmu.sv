@@ -39,32 +39,26 @@ import rv_tester_params::*;
     longint unsigned pmcounter [EVENT_COUNT] = '{default:0};
 
     always @(posedge clk) begin
-        if (reset) begin
-            for (integer n = 0; n < 64; n++) begin
-                pmcounter[n] <= 0;
-            end
-            for (integer n = 64; n < 128; n++) begin
-                pmcounter[n] <= 0;
-            end
-            for (integer n = 128; n < EVENT_COUNT; n++) begin
-                pmcounter[n] <= 0;
-            end
-        end else begin
-            cpu_cycles <= clocks;
-            // Count supported events
-            for (integer n = 0; n < 64; n++) begin
-              pmcounter[n] <= pmcounter[n] + {60'h0, pmci[n]};
-            end
-            //NOTE: Hack to support verilator builds -- if EVENT_COUNT is greater than 64, verilator fails to build with Error-BLKLOOPINIT
-            //Longer term fix would be adding a higher --unroll-count to verialator's CLI. no time for that on 9/12/2023, though
-            for (integer n = 64; n < 128; n++) begin
-              pmcounter[n] <= pmcounter[n] + {60'h0, pmci[n]};
-            end
-            for (integer n = 128; n < EVENT_COUNT; n++) begin
-              pmcounter[n] <= pmcounter[n] + {60'h0, pmci[n]};
+      if (reset) begin
+        pmcounter[0] <= 0;
+      end else begin
+        cpu_cycles <= clocks;
+      end
+    end
+
+    generate
+      for (genvar i=1; i < EVENT_COUNT; i++) begin : pmci_regs
+        always @(posedge clk) begin
+            if (reset) begin
+                pmcounter[i] <= 0;
+            end else begin
+                //NOTE: Hack to support verilator builds -- if EVENT_COUNT is greater than 64, verilator fails to build with Error-BLKLOOPINIT
+                //Longer term fix would be adding a higher --unroll-count to verialator's CLI. no time for that on 9/12/2023, though
+                pmcounter[i] <= pmcounter[i] + {60'h0, pmci[i]};
             end
         end
-    end
+      end
+    endgenerate
 
     bit [NRET-1:0] perf_match_array_start;
     bit [NRET-1:0] perf_match_array_end;
@@ -224,6 +218,10 @@ import rv_tester_params::*;
     assign pmcounterss[0].data.ptc_cycles_no_fp_prn = ptc_evt_count[CYCLES_NO_FP_PRN];
     assign pmcounterss[0].data.cycles_no_vec_prn = pmcounter[CYCLES_NO_VEC_PRN];
     assign pmcounterss[0].data.ptc_cycles_no_vec_prn = ptc_evt_count[CYCLES_NO_VEC_PRN];
+    assign pmcounterss[0].data.cycles_no_vl_prn = pmcounter[CYCLES_NO_VL_PRN];
+    assign pmcounterss[0].data.ptc_cycles_no_vl_prn = ptc_evt_count[CYCLES_NO_VL_PRN];
+    assign pmcounterss[0].data.cycles_no_vm_prn = pmcounter[CYCLES_NO_VM_PRN];
+    assign pmcounterss[0].data.ptc_cycles_no_vm_prn = ptc_evt_count[CYCLES_NO_VM_PRN];
     assign pmcounterss[0].data.cycles_no_rob = pmcounter[CYCLES_NO_ROB];
     assign pmcounterss[0].data.ptc_cycles_no_rob = ptc_evt_count[CYCLES_NO_ROB];
     assign pmcounterss[0].data.branch_instructions = pmcounter[BRANCH_INSTRUCTIONS];
@@ -280,26 +278,10 @@ import rv_tester_params::*;
     assign pmcounterss[0].data.ptc_cache_misses = ptc_evt_count[CACHE_MISSES];
     assign pmcounterss[0].data.tlb_invalidates = pmcounter[TLB_INVALIDATES];
     assign pmcounterss[0].data.ptc_tlb_invalidates = ptc_evt_count[TLB_INVALIDATES];
-    assign pmcounterss[0].data.l1d_access_filter = pmcounter[L1D_ACCESS_FILTER];
-    assign pmcounterss[0].data.ptc_l1d_access_filter = ptc_evt_count[L1D_ACCESS_FILTER];
-    assign pmcounterss[0].data.l1d_miss_filter = pmcounter[L1D_MISS_FILTER];
-    assign pmcounterss[0].data.ptc_l1d_miss_filter = ptc_evt_count[L1D_MISS_FILTER];
-    assign pmcounterss[0].data.l1d_cache_invalidate_filter = pmcounter[L1D_CACHE_INVALIDATE_FILTER];
-    assign pmcounterss[0].data.ptc_l1d_cache_invalidate_filter = ptc_evt_count[L1D_CACHE_INVALIDATE_FILTER];
     assign pmcounterss[0].data.utlb_miss = pmcounter[UTLB_MISS];
     assign pmcounterss[0].data.ptc_utlb_miss = ptc_evt_count[UTLB_MISS];
-    assign pmcounterss[0].data.dtlb_access_filter = pmcounter[DTLB_ACCESS_FILTER];
-    assign pmcounterss[0].data.ptc_dtlb_access_filter = ptc_evt_count[DTLB_ACCESS_FILTER];
-    assign pmcounterss[0].data.dtlb_miss_filter = pmcounter[DTLB_MISS_FILTER];
-    assign pmcounterss[0].data.ptc_dtlb_miss_filter = ptc_evt_count[DTLB_MISS_FILTER];
-    assign pmcounterss[0].data.leaf_tlb_access_filter = pmcounter[LEAF_TLB_ACCESS_FILTER];
-    assign pmcounterss[0].data.ptc_leaf_tlb_access_filter = ptc_evt_count[LEAF_TLB_ACCESS_FILTER];
-    assign pmcounterss[0].data.leaf_tlb_miss_filter = pmcounter[LEAF_TLB_MISS_FILTER];
-    assign pmcounterss[0].data.ptc_leaf_tlb_miss_filter = ptc_evt_count[LEAF_TLB_MISS_FILTER];
     assign pmcounterss[0].data.nonleaf_tlb_access_fiter = pmcounter[NONLEAF_TLB_ACCESS_FITER];
     assign pmcounterss[0].data.ptc_nonleaf_tlb_access_fiter = ptc_evt_count[NONLEAF_TLB_ACCESS_FITER];
-    assign pmcounterss[0].data.nonleaf_tlb_miss_filter = pmcounter[NONLEAF_TLB_MISS_FILTER];
-    assign pmcounterss[0].data.ptc_nonleaf_tlb_miss_filter = ptc_evt_count[NONLEAF_TLB_MISS_FILTER];
     assign pmcounterss[0].data.page_walks = pmcounter[PAGE_WALKS];
     assign pmcounterss[0].data.ptc_page_walks = ptc_evt_count[PAGE_WALKS];
     assign pmcounterss[0].data.stalls_mem_l1d_miss = pmcounter[STALLS_MEM_L1D_MISS];
@@ -308,30 +290,8 @@ import rv_tester_params::*;
     assign pmcounterss[0].data.ptc_stalls_mem_stores = ptc_evt_count[STALLS_MEM_STORES];
     assign pmcounterss[0].data.stalls_mem_l1dtlb_miss = pmcounter[STALLS_MEM_L1DTLB_MISS];
     assign pmcounterss[0].data.ptc_stalls_mem_l1dtlb_miss = ptc_evt_count[STALLS_MEM_L1DTLB_MISS];
-    assign pmcounterss[0].data.lsu_resyncs_filter = pmcounter[LSU_RESYNCS_FILTER];
-    assign pmcounterss[0].data.ptc_lsu_resyncs_filter = ptc_evt_count[LSU_RESYNCS_FILTER];
     assign pmcounterss[0].data.stlf_hits = pmcounter[STLF_HITS];
     assign pmcounterss[0].data.ptc_stlf_hits = ptc_evt_count[STLF_HITS];
-    assign pmcounterss[0].data.ls_replay = pmcounter[LS_REPLAY];
-    assign pmcounterss[0].data.ptc_ls_replay = ptc_evt_count[LS_REPLAY];
-    assign pmcounterss[0].data.ls_replay_way_predictor = pmcounter[LS_REPLAY_WAY_PREDICTOR];
-    assign pmcounterss[0].data.ptc_ls_replay_way_predictor = ptc_evt_count[LS_REPLAY_WAY_PREDICTOR];
-    assign pmcounterss[0].data.sipt_replay = pmcounter[SIPT_REPLAY];
-    assign pmcounterss[0].data.ptc_sipt_replay = ptc_evt_count[SIPT_REPLAY];
-    assign pmcounterss[0].data.stlf_replay = pmcounter[STLF_REPLAY];
-    assign pmcounterss[0].data.ptc_stlf_replay = ptc_evt_count[STLF_REPLAY];
-    assign pmcounterss[0].data.tag_bank_conflict_replay = pmcounter[TAG_BANK_CONFLICT_REPLAY];
-    assign pmcounterss[0].data.ptc_tag_bank_conflict_replay = ptc_evt_count[TAG_BANK_CONFLICT_REPLAY];
-    assign pmcounterss[0].data.data_bank_conflict_replay = pmcounter[DATA_BANK_CONFLICT_REPLAY];
-    assign pmcounterss[0].data.ptc_data_bank_conflict_replay = ptc_evt_count[DATA_BANK_CONFLICT_REPLAY];
-    assign pmcounterss[0].data.fillbuf_hit_replay = pmcounter[FILLBUF_HIT_REPLAY];
-    assign pmcounterss[0].data.ptc_fillbuf_hit_replay = ptc_evt_count[FILLBUF_HIT_REPLAY];
-    assign pmcounterss[0].data.transbuf_hit_replay = pmcounter[TRANSBUF_HIT_REPLAY];
-    assign pmcounterss[0].data.ptc_transbuf_hit_replay = ptc_evt_count[TRANSBUF_HIT_REPLAY];
-    assign pmcounterss[0].data.reqbuf_hit_replay = pmcounter[REQBUF_HIT_REPLAY];
-    assign pmcounterss[0].data.ptc_reqbuf_hit_replay = ptc_evt_count[REQBUF_HIT_REPLAY];
-    assign pmcounterss[0].data.dtlb_replay = pmcounter[DTLB_REPLAY];
-    assign pmcounterss[0].data.ptc_dtlb_replay = ptc_evt_count[DTLB_REPLAY];
     assign pmcounterss[0].data.rar_cannot_alloc = pmcounter[RAR_CANNOT_ALLOC];
     assign pmcounterss[0].data.ptc_rar_cannot_alloc = ptc_evt_count[RAR_CANNOT_ALLOC];
     assign pmcounterss[0].data.raw_cannot_alloc = pmcounter[RAW_CANNOT_ALLOC];
@@ -340,14 +300,8 @@ import rv_tester_params::*;
     assign pmcounterss[0].data.ptc_ldq_cannot_alloc = ptc_evt_count[LDQ_CANNOT_ALLOC];
     assign pmcounterss[0].data.smb_cannot_alloc = pmcounter[SMB_CANNOT_ALLOC];
     assign pmcounterss[0].data.ptc_smb_cannot_alloc = ptc_evt_count[SMB_CANNOT_ALLOC];
-    assign pmcounterss[0].data.reqbuf_cannot_alloc_filter = pmcounter[REQBUF_CANNOT_ALLOC_FILTER];
-    assign pmcounterss[0].data.ptc_reqbuf_cannot_alloc_filter = ptc_evt_count[REQBUF_CANNOT_ALLOC_FILTER];
     assign pmcounterss[0].data.fillbuf_cannot_alloc = pmcounter[FILLBUF_CANNOT_ALLOC];
     assign pmcounterss[0].data.ptc_fillbuf_cannot_alloc = ptc_evt_count[FILLBUF_CANNOT_ALLOC];
-    assign pmcounterss[0].data.transbuf_cannot_alloc_filter = pmcounter[TRANSBUF_CANNOT_ALLOC_FILTER];
-    assign pmcounterss[0].data.ptc_transbuf_cannot_alloc_filter = ptc_evt_count[TRANSBUF_CANNOT_ALLOC_FILTER];
-    assign pmcounterss[0].data.pcb_cannot_alloc_filter = pmcounter[PCB_CANNOT_ALLOC_FILTER];
-    assign pmcounterss[0].data.ptc_pcb_cannot_alloc_filter = ptc_evt_count[PCB_CANNOT_ALLOC_FILTER];
     assign pmcounterss[0].data.udb_cannot_alloc = pmcounter[UDB_CANNOT_ALLOC];
     assign pmcounterss[0].data.ptc_udb_cannot_alloc = ptc_evt_count[UDB_CANNOT_ALLOC];
     assign pmcounterss[0].data.udb_data_return = pmcounter[UDB_DATA_RETURN];
@@ -408,6 +362,242 @@ import rv_tester_params::*;
     assign pmcounterss[0].data.ptc_pfc_prefetches_late = ptc_evt_count[PFC_PREFETCHES_LATE];
     assign pmcounterss[0].data.pfc_victim_prefetches = pmcounter[PFC_VICTIM_PREFETCHES];
     assign pmcounterss[0].data.ptc_pfc_victim_prefetches = ptc_evt_count[PFC_VICTIM_PREFETCHES];
+    assign pmcounterss[0].data.l1d_read_access_aligned = pmcounter[L1D_READ_ACCESS_ALIGNED];
+    assign pmcounterss[0].data.ptc_l1d_read_access_aligned = ptc_evt_count[L1D_READ_ACCESS_ALIGNED];
+    assign pmcounterss[0].data.l1d_read_access_clc = pmcounter[L1D_READ_ACCESS_CLC];
+    assign pmcounterss[0].data.ptc_l1d_read_access_clc = ptc_evt_count[L1D_READ_ACCESS_CLC];
+    assign pmcounterss[0].data.l1d_read_access_4kx = pmcounter[L1D_READ_ACCESS_4KX];
+    assign pmcounterss[0].data.ptc_l1d_read_access_4kx = ptc_evt_count[L1D_READ_ACCESS_4KX];
+    assign pmcounterss[0].data.l1d_read_access_all = pmcounter[L1D_READ_ACCESS_ALL];
+    assign pmcounterss[0].data.ptc_l1d_read_access_all = ptc_evt_count[L1D_READ_ACCESS_ALL];
+    assign pmcounterss[0].data.l1d_write_access_aligned = pmcounter[L1D_WRITE_ACCESS_ALIGNED];
+    assign pmcounterss[0].data.ptc_l1d_write_access_aligned = ptc_evt_count[L1D_WRITE_ACCESS_ALIGNED];
+    assign pmcounterss[0].data.l1d_write_access_clc = pmcounter[L1D_WRITE_ACCESS_CLC];
+    assign pmcounterss[0].data.ptc_l1d_write_access_clc = ptc_evt_count[L1D_WRITE_ACCESS_CLC];
+    assign pmcounterss[0].data.l1d_write_access_4kx = pmcounter[L1D_WRITE_ACCESS_4KX];
+    assign pmcounterss[0].data.ptc_l1d_write_access_4kx = ptc_evt_count[L1D_WRITE_ACCESS_4KX];
+    assign pmcounterss[0].data.l1d_write_access_all = pmcounter[L1D_WRITE_ACCESS_ALL];
+    assign pmcounterss[0].data.ptc_l1d_write_access_all = ptc_evt_count[L1D_WRITE_ACCESS_ALL];
+    assign pmcounterss[0].data.l1d_prefetch_access_aligned = pmcounter[L1D_PREFETCH_ACCESS_ALIGNED];
+    assign pmcounterss[0].data.ptc_l1d_prefetch_access_aligned = ptc_evt_count[L1D_PREFETCH_ACCESS_ALIGNED];
+    assign pmcounterss[0].data.l1d_prefetch_access_clc = pmcounter[L1D_PREFETCH_ACCESS_CLC];
+    assign pmcounterss[0].data.ptc_l1d_prefetch_access_clc = ptc_evt_count[L1D_PREFETCH_ACCESS_CLC];
+    assign pmcounterss[0].data.l1d_prefetch_access_4kx = pmcounter[L1D_PREFETCH_ACCESS_4KX];
+    assign pmcounterss[0].data.ptc_l1d_prefetch_access_4kx = ptc_evt_count[L1D_PREFETCH_ACCESS_4KX];
+    assign pmcounterss[0].data.l1d_prefetch_access_all = pmcounter[L1D_PREFETCH_ACCESS_ALL];
+    assign pmcounterss[0].data.ptc_l1d_prefetch_access_all = ptc_evt_count[L1D_PREFETCH_ACCESS_ALL];
+    assign pmcounterss[0].data.l1d_mmu_access = pmcounter[L1D_MMU_ACCESS];
+    assign pmcounterss[0].data.ptc_l1d_mmu_access = ptc_evt_count[L1D_MMU_ACCESS];
+    assign pmcounterss[0].data.l1d_snoop_access = pmcounter[L1D_SNOOP_ACCESS];
+    assign pmcounterss[0].data.ptc_l1d_snoop_access = ptc_evt_count[L1D_SNOOP_ACCESS];
+    assign pmcounterss[0].data.l1d_access_all = pmcounter[L1D_ACCESS_ALL];
+    assign pmcounterss[0].data.ptc_l1d_access_all = ptc_evt_count[L1D_ACCESS_ALL];
+    assign pmcounterss[0].data.l1d_read_miss = pmcounter[L1D_READ_MISS];
+    assign pmcounterss[0].data.ptc_l1d_read_miss = ptc_evt_count[L1D_READ_MISS];
+    assign pmcounterss[0].data.l1d_write_miss = pmcounter[L1D_WRITE_MISS];
+    assign pmcounterss[0].data.ptc_l1d_write_miss = ptc_evt_count[L1D_WRITE_MISS];
+    assign pmcounterss[0].data.l1d_prefetch_miss = pmcounter[L1D_PREFETCH_MISS];
+    assign pmcounterss[0].data.ptc_l1d_prefetch_miss = ptc_evt_count[L1D_PREFETCH_MISS];
+    assign pmcounterss[0].data.l1d_mmu_miss = pmcounter[L1D_MMU_MISS];
+    assign pmcounterss[0].data.ptc_l1d_mmu_miss = ptc_evt_count[L1D_MMU_MISS];
+    assign pmcounterss[0].data.l1d_snoop_miss = pmcounter[L1D_SNOOP_MISS];
+    assign pmcounterss[0].data.ptc_l1d_snoop_miss = ptc_evt_count[L1D_SNOOP_MISS];
+    assign pmcounterss[0].data.l1d_miss_all = pmcounter[L1D_MISS_ALL];
+    assign pmcounterss[0].data.ptc_l1d_miss_all = ptc_evt_count[L1D_MISS_ALL];
+    assign pmcounterss[0].data.l1d_cache_invalidate_snoop = pmcounter[L1D_CACHE_INVALIDATE_SNOOP];
+    assign pmcounterss[0].data.ptc_l1d_cache_invalidate_snoop = ptc_evt_count[L1D_CACHE_INVALIDATE_SNOOP];
+    assign pmcounterss[0].data.l1d_cache_invalidate_cmo = pmcounter[L1D_CACHE_INVALIDATE_CMO];
+    assign pmcounterss[0].data.ptc_l1d_cache_invalidate_cmo = ptc_evt_count[L1D_CACHE_INVALIDATE_CMO];
+    assign pmcounterss[0].data.l1d_cache_invalidate_load_eviction = pmcounter[L1D_CACHE_INVALIDATE_LOAD_EVICTION];
+    assign pmcounterss[0].data.ptc_l1d_cache_invalidate_load_eviction = ptc_evt_count[L1D_CACHE_INVALIDATE_LOAD_EVICTION];
+    assign pmcounterss[0].data.l1d_cache_invalidate_store_eviction = pmcounter[L1D_CACHE_INVALIDATE_STORE_EVICTION];
+    assign pmcounterss[0].data.ptc_l1d_cache_invalidate_store_eviction = ptc_evt_count[L1D_CACHE_INVALIDATE_STORE_EVICTION];
+    assign pmcounterss[0].data.l1d_cache_invalidate_prefetch_eviction = pmcounter[L1D_CACHE_INVALIDATE_PREFETCH_EVICTION];
+    assign pmcounterss[0].data.ptc_l1d_cache_invalidate_prefetch_eviction = ptc_evt_count[L1D_CACHE_INVALIDATE_PREFETCH_EVICTION];
+    assign pmcounterss[0].data.dtlb_read_access = pmcounter[DTLB_READ_ACCESS];
+    assign pmcounterss[0].data.ptc_dtlb_read_access = ptc_evt_count[DTLB_READ_ACCESS];
+    assign pmcounterss[0].data.dtlb_write_access = pmcounter[DTLB_WRITE_ACCESS];
+    assign pmcounterss[0].data.ptc_dtlb_write_access = ptc_evt_count[DTLB_WRITE_ACCESS];
+    assign pmcounterss[0].data.dtlb_prefetch_access = pmcounter[DTLB_PREFETCH_ACCESS];
+    assign pmcounterss[0].data.ptc_dtlb_prefetch_access = ptc_evt_count[DTLB_PREFETCH_ACCESS];
+    assign pmcounterss[0].data.dtlb_access_4k = pmcounter[DTLB_ACCESS_4K];
+    assign pmcounterss[0].data.ptc_dtlb_access_4k = ptc_evt_count[DTLB_ACCESS_4K];
+    assign pmcounterss[0].data.dtlb_access_hugepage = pmcounter[DTLB_ACCESS_HUGEPAGE];
+    assign pmcounterss[0].data.ptc_dtlb_access_hugepage = ptc_evt_count[DTLB_ACCESS_HUGEPAGE];
+    assign pmcounterss[0].data.dtlb_access_cacheable = pmcounter[DTLB_ACCESS_CACHEABLE];
+    assign pmcounterss[0].data.ptc_dtlb_access_cacheable = ptc_evt_count[DTLB_ACCESS_CACHEABLE];
+    assign pmcounterss[0].data.dtlb_access_noncacheable = pmcounter[DTLB_ACCESS_NONCACHEABLE];
+    assign pmcounterss[0].data.ptc_dtlb_access_noncacheable = ptc_evt_count[DTLB_ACCESS_NONCACHEABLE];
+    assign pmcounterss[0].data.dtlb_access_all = pmcounter[DTLB_ACCESS_ALL];
+    assign pmcounterss[0].data.ptc_dtlb_access_all = ptc_evt_count[DTLB_ACCESS_ALL];
+    assign pmcounterss[0].data.dtlb_read_miss = pmcounter[DTLB_READ_MISS];
+    assign pmcounterss[0].data.ptc_dtlb_read_miss = ptc_evt_count[DTLB_READ_MISS];
+    assign pmcounterss[0].data.dtlb_write_miss = pmcounter[DTLB_WRITE_MISS];
+    assign pmcounterss[0].data.ptc_dtlb_write_miss = ptc_evt_count[DTLB_WRITE_MISS];
+    assign pmcounterss[0].data.dtlb_prefetch_miss = pmcounter[DTLB_PREFETCH_MISS];
+    assign pmcounterss[0].data.ptc_dtlb_prefetch_miss = ptc_evt_count[DTLB_PREFETCH_MISS];
+    assign pmcounterss[0].data.dtlb_miss_4k = pmcounter[DTLB_MISS_4K];
+    assign pmcounterss[0].data.ptc_dtlb_miss_4k = ptc_evt_count[DTLB_MISS_4K];
+    assign pmcounterss[0].data.dtlb_miss_hugepage = pmcounter[DTLB_MISS_HUGEPAGE];
+    assign pmcounterss[0].data.ptc_dtlb_miss_hugepage = ptc_evt_count[DTLB_MISS_HUGEPAGE];
+    assign pmcounterss[0].data.dtlb_miss_all = pmcounter[DTLB_MISS_ALL];
+    assign pmcounterss[0].data.ptc_dtlb_miss_all = ptc_evt_count[DTLB_MISS_ALL];
+    assign pmcounterss[0].data.leaf_tlb_access_ls = pmcounter[LEAF_TLB_ACCESS_LS];
+    assign pmcounterss[0].data.ptc_leaf_tlb_access_ls = ptc_evt_count[LEAF_TLB_ACCESS_LS];
+    assign pmcounterss[0].data.leaf_tlb_access_fe = pmcounter[LEAF_TLB_ACCESS_FE];
+    assign pmcounterss[0].data.ptc_leaf_tlb_access_fe = ptc_evt_count[LEAF_TLB_ACCESS_FE];
+    assign pmcounterss[0].data.leaf_tlb_access_prefetch = pmcounter[LEAF_TLB_ACCESS_PREFETCH];
+    assign pmcounterss[0].data.ptc_leaf_tlb_access_prefetch = ptc_evt_count[LEAF_TLB_ACCESS_PREFETCH];
+    assign pmcounterss[0].data.leaf_tlb_miss_ls = pmcounter[LEAF_TLB_MISS_LS];
+    assign pmcounterss[0].data.ptc_leaf_tlb_miss_ls = ptc_evt_count[LEAF_TLB_MISS_LS];
+    assign pmcounterss[0].data.leaf_tlb_miss_fe = pmcounter[LEAF_TLB_MISS_FE];
+    assign pmcounterss[0].data.ptc_leaf_tlb_miss_fe = ptc_evt_count[LEAF_TLB_MISS_FE];
+    assign pmcounterss[0].data.leaf_tlb_miss_prefetch = pmcounter[LEAF_TLB_MISS_PREFETCH];
+    assign pmcounterss[0].data.ptc_leaf_tlb_miss_prefetch = ptc_evt_count[LEAF_TLB_MISS_PREFETCH];
+    assign pmcounterss[0].data.nonleaf_tlb_access_ls = pmcounter[NONLEAF_TLB_ACCESS_LS];
+    assign pmcounterss[0].data.ptc_nonleaf_tlb_access_ls = ptc_evt_count[NONLEAF_TLB_ACCESS_LS];
+    assign pmcounterss[0].data.nonleaf_tlb_access_fe = pmcounter[NONLEAF_TLB_ACCESS_FE];
+    assign pmcounterss[0].data.ptc_nonleaf_tlb_access_fe = ptc_evt_count[NONLEAF_TLB_ACCESS_FE];
+    assign pmcounterss[0].data.nonleaf_tlb_access_prefetch = pmcounter[NONLEAF_TLB_ACCESS_PREFETCH];
+    assign pmcounterss[0].data.ptc_nonleaf_tlb_access_prefetch = ptc_evt_count[NONLEAF_TLB_ACCESS_PREFETCH];
+    assign pmcounterss[0].data.nonleaf_tlb_miss_ls = pmcounter[NONLEAF_TLB_MISS_LS];
+    assign pmcounterss[0].data.ptc_nonleaf_tlb_miss_ls = ptc_evt_count[NONLEAF_TLB_MISS_LS];
+    assign pmcounterss[0].data.nonleaf_tlb_miss_fe = pmcounter[NONLEAF_TLB_MISS_FE];
+    assign pmcounterss[0].data.ptc_nonleaf_tlb_miss_fe = ptc_evt_count[NONLEAF_TLB_MISS_FE];
+    assign pmcounterss[0].data.nonleaf_tlb_miss_prefetch = pmcounter[NONLEAF_TLB_MISS_PREFETCH];
+    assign pmcounterss[0].data.ptc_nonleaf_tlb_miss_prefetch = ptc_evt_count[NONLEAF_TLB_MISS_PREFETCH];
+    assign pmcounterss[0].data.lsu_resyncs_raw = pmcounter[LSU_RESYNCS_RAW];
+    assign pmcounterss[0].data.ptc_lsu_resyncs_raw = ptc_evt_count[LSU_RESYNCS_RAW];
+    assign pmcounterss[0].data.lsu_resyncs_rar = pmcounter[LSU_RESYNCS_RAR];
+    assign pmcounterss[0].data.ptc_lsu_resyncs_rar = ptc_evt_count[LSU_RESYNCS_RAR];
+    assign pmcounterss[0].data.lsu_resyncs_all = pmcounter[LSU_RESYNCS_ALL];
+    assign pmcounterss[0].data.ptc_lsu_resyncs_all = ptc_evt_count[LSU_RESYNCS_ALL];
+    assign pmcounterss[0].data.ls_replay_load = pmcounter[LS_REPLAY_LOAD];
+    assign pmcounterss[0].data.ptc_ls_replay_load = ptc_evt_count[LS_REPLAY_LOAD];
+    assign pmcounterss[0].data.ls_replay_store = pmcounter[LS_REPLAY_STORE];
+    assign pmcounterss[0].data.ptc_ls_replay_store = ptc_evt_count[LS_REPLAY_STORE];
+    assign pmcounterss[0].data.ls_replay_prefetch = pmcounter[LS_REPLAY_PREFETCH];
+    assign pmcounterss[0].data.ptc_ls_replay_prefetch = ptc_evt_count[LS_REPLAY_PREFETCH];
+    assign pmcounterss[0].data.ls_replay_mmu = pmcounter[LS_REPLAY_MMU];
+    assign pmcounterss[0].data.ptc_ls_replay_mmu = ptc_evt_count[LS_REPLAY_MMU];
+    assign pmcounterss[0].data.ls_replay_all = pmcounter[LS_REPLAY_ALL];
+    assign pmcounterss[0].data.ptc_ls_replay_all = ptc_evt_count[LS_REPLAY_ALL];
+    assign pmcounterss[0].data.ls_way_predictor_replay_load = pmcounter[LS_WAY_PREDICTOR_REPLAY_LOAD];
+    assign pmcounterss[0].data.ptc_ls_way_predictor_replay_load = ptc_evt_count[LS_WAY_PREDICTOR_REPLAY_LOAD];
+    assign pmcounterss[0].data.ls_way_predictor_replay_store = pmcounter[LS_WAY_PREDICTOR_REPLAY_STORE];
+    assign pmcounterss[0].data.ptc_ls_way_predictor_replay_store = ptc_evt_count[LS_WAY_PREDICTOR_REPLAY_STORE];
+    assign pmcounterss[0].data.ls_way_predictor_replay_prefetch = pmcounter[LS_WAY_PREDICTOR_REPLAY_PREFETCH];
+    assign pmcounterss[0].data.ptc_ls_way_predictor_replay_prefetch = ptc_evt_count[LS_WAY_PREDICTOR_REPLAY_PREFETCH];
+    assign pmcounterss[0].data.ls_way_predictor_replay_mmu = pmcounter[LS_WAY_PREDICTOR_REPLAY_MMU];
+    assign pmcounterss[0].data.ptc_ls_way_predictor_replay_mmu = ptc_evt_count[LS_WAY_PREDICTOR_REPLAY_MMU];
+    assign pmcounterss[0].data.ls_way_predictor_replay_all = pmcounter[LS_WAY_PREDICTOR_REPLAY_ALL];
+    assign pmcounterss[0].data.ptc_ls_way_predictor_replay_all = ptc_evt_count[LS_WAY_PREDICTOR_REPLAY_ALL];
+    assign pmcounterss[0].data.sipt_replay_load = pmcounter[SIPT_REPLAY_LOAD];
+    assign pmcounterss[0].data.ptc_sipt_replay_load = ptc_evt_count[SIPT_REPLAY_LOAD];
+    assign pmcounterss[0].data.sipt_replay_store = pmcounter[SIPT_REPLAY_STORE];
+    assign pmcounterss[0].data.ptc_sipt_replay_store = ptc_evt_count[SIPT_REPLAY_STORE];
+    assign pmcounterss[0].data.sipt_replay_prefetch = pmcounter[SIPT_REPLAY_PREFETCH];
+    assign pmcounterss[0].data.ptc_sipt_replay_prefetch = ptc_evt_count[SIPT_REPLAY_PREFETCH];
+    assign pmcounterss[0].data.sipt_replay_mmu = pmcounter[SIPT_REPLAY_MMU];
+    assign pmcounterss[0].data.ptc_sipt_replay_mmu = ptc_evt_count[SIPT_REPLAY_MMU];
+    assign pmcounterss[0].data.sipt_replay_all = pmcounter[SIPT_REPLAY_ALL];
+    assign pmcounterss[0].data.ptc_sipt_replay_all = ptc_evt_count[SIPT_REPLAY_ALL];
+    assign pmcounterss[0].data.stlf_replay_load = pmcounter[STLF_REPLAY_LOAD];
+    assign pmcounterss[0].data.ptc_stlf_replay_load = ptc_evt_count[STLF_REPLAY_LOAD];
+    assign pmcounterss[0].data.stlf_replay_store = pmcounter[STLF_REPLAY_STORE];
+    assign pmcounterss[0].data.ptc_stlf_replay_store = ptc_evt_count[STLF_REPLAY_STORE];
+    assign pmcounterss[0].data.stlf_replay_prefetch = pmcounter[STLF_REPLAY_PREFETCH];
+    assign pmcounterss[0].data.ptc_stlf_replay_prefetch = ptc_evt_count[STLF_REPLAY_PREFETCH];
+    assign pmcounterss[0].data.stlf_replay_mmu = pmcounter[STLF_REPLAY_MMU];
+    assign pmcounterss[0].data.ptc_stlf_replay_mmu = ptc_evt_count[STLF_REPLAY_MMU];
+    assign pmcounterss[0].data.stlf_replay_all = pmcounter[STLF_REPLAY_ALL];
+    assign pmcounterss[0].data.ptc_stlf_replay_all = ptc_evt_count[STLF_REPLAY_ALL];
+    assign pmcounterss[0].data.tag_bank_conflict_replay_load = pmcounter[TAG_BANK_CONFLICT_REPLAY_LOAD];
+    assign pmcounterss[0].data.ptc_tag_bank_conflict_replay_load = ptc_evt_count[TAG_BANK_CONFLICT_REPLAY_LOAD];
+    assign pmcounterss[0].data.tag_bank_conflict_replay_store = pmcounter[TAG_BANK_CONFLICT_REPLAY_STORE];
+    assign pmcounterss[0].data.ptc_tag_bank_conflict_replay_store = ptc_evt_count[TAG_BANK_CONFLICT_REPLAY_STORE];
+    assign pmcounterss[0].data.tag_bank_conflict_replay_prefetch = pmcounter[TAG_BANK_CONFLICT_REPLAY_PREFETCH];
+    assign pmcounterss[0].data.ptc_tag_bank_conflict_replay_prefetch = ptc_evt_count[TAG_BANK_CONFLICT_REPLAY_PREFETCH];
+    assign pmcounterss[0].data.tag_bank_conflict_replay_mmu = pmcounter[TAG_BANK_CONFLICT_REPLAY_MMU];
+    assign pmcounterss[0].data.ptc_tag_bank_conflict_replay_mmu = ptc_evt_count[TAG_BANK_CONFLICT_REPLAY_MMU];
+    assign pmcounterss[0].data.tag_bank_conflict_replay_all = pmcounter[TAG_BANK_CONFLICT_REPLAY_ALL];
+    assign pmcounterss[0].data.ptc_tag_bank_conflict_replay_all = ptc_evt_count[TAG_BANK_CONFLICT_REPLAY_ALL];
+    assign pmcounterss[0].data.data_bank_conflict_replay_load = pmcounter[DATA_BANK_CONFLICT_REPLAY_LOAD];
+    assign pmcounterss[0].data.ptc_data_bank_conflict_replay_load = ptc_evt_count[DATA_BANK_CONFLICT_REPLAY_LOAD];
+    assign pmcounterss[0].data.data_bank_conflict_replay_store = pmcounter[DATA_BANK_CONFLICT_REPLAY_STORE];
+    assign pmcounterss[0].data.ptc_data_bank_conflict_replay_store = ptc_evt_count[DATA_BANK_CONFLICT_REPLAY_STORE];
+    assign pmcounterss[0].data.data_bank_conflict_replay_prefetch = pmcounter[DATA_BANK_CONFLICT_REPLAY_PREFETCH];
+    assign pmcounterss[0].data.ptc_data_bank_conflict_replay_prefetch = ptc_evt_count[DATA_BANK_CONFLICT_REPLAY_PREFETCH];
+    assign pmcounterss[0].data.data_bank_conflict_replay_mmu = pmcounter[DATA_BANK_CONFLICT_REPLAY_MMU];
+    assign pmcounterss[0].data.ptc_data_bank_conflict_replay_mmu = ptc_evt_count[DATA_BANK_CONFLICT_REPLAY_MMU];
+    assign pmcounterss[0].data.data_bank_conflict_replay_all = pmcounter[DATA_BANK_CONFLICT_REPLAY_ALL];
+    assign pmcounterss[0].data.ptc_data_bank_conflict_replay_all = ptc_evt_count[DATA_BANK_CONFLICT_REPLAY_ALL];
+    assign pmcounterss[0].data.fillbuf_hit_replay_load = pmcounter[FILLBUF_HIT_REPLAY_LOAD];
+    assign pmcounterss[0].data.ptc_fillbuf_hit_replay_load = ptc_evt_count[FILLBUF_HIT_REPLAY_LOAD];
+    assign pmcounterss[0].data.fillbuf_hit_replay_store = pmcounter[FILLBUF_HIT_REPLAY_STORE];
+    assign pmcounterss[0].data.ptc_fillbuf_hit_replay_store = ptc_evt_count[FILLBUF_HIT_REPLAY_STORE];
+    assign pmcounterss[0].data.fillbuf_hit_replay_prefetch = pmcounter[FILLBUF_HIT_REPLAY_PREFETCH];
+    assign pmcounterss[0].data.ptc_fillbuf_hit_replay_prefetch = ptc_evt_count[FILLBUF_HIT_REPLAY_PREFETCH];
+    assign pmcounterss[0].data.fillbuf_hit_replay_mmu = pmcounter[FILLBUF_HIT_REPLAY_MMU];
+    assign pmcounterss[0].data.ptc_fillbuf_hit_replay_mmu = ptc_evt_count[FILLBUF_HIT_REPLAY_MMU];
+    assign pmcounterss[0].data.fillbuf_hit_replay_all = pmcounter[FILLBUF_HIT_REPLAY_ALL];
+    assign pmcounterss[0].data.ptc_fillbuf_hit_replay_all = ptc_evt_count[FILLBUF_HIT_REPLAY_ALL];
+    assign pmcounterss[0].data.transbuf_hit_replay_load = pmcounter[TRANSBUF_HIT_REPLAY_LOAD];
+    assign pmcounterss[0].data.ptc_transbuf_hit_replay_load = ptc_evt_count[TRANSBUF_HIT_REPLAY_LOAD];
+    assign pmcounterss[0].data.transbuf_hit_replay_store = pmcounter[TRANSBUF_HIT_REPLAY_STORE];
+    assign pmcounterss[0].data.ptc_transbuf_hit_replay_store = ptc_evt_count[TRANSBUF_HIT_REPLAY_STORE];
+    assign pmcounterss[0].data.transbuf_hit_replay_prefetch = pmcounter[TRANSBUF_HIT_REPLAY_PREFETCH];
+    assign pmcounterss[0].data.ptc_transbuf_hit_replay_prefetch = ptc_evt_count[TRANSBUF_HIT_REPLAY_PREFETCH];
+    assign pmcounterss[0].data.transbuf_hit_replay_mmu = pmcounter[TRANSBUF_HIT_REPLAY_MMU];
+    assign pmcounterss[0].data.ptc_transbuf_hit_replay_mmu = ptc_evt_count[TRANSBUF_HIT_REPLAY_MMU];
+    assign pmcounterss[0].data.transbuf_hit_replay_all = pmcounter[TRANSBUF_HIT_REPLAY_ALL];
+    assign pmcounterss[0].data.ptc_transbuf_hit_replay_all = ptc_evt_count[TRANSBUF_HIT_REPLAY_ALL];
+    assign pmcounterss[0].data.reqbuf_hit_replay_load = pmcounter[REQBUF_HIT_REPLAY_LOAD];
+    assign pmcounterss[0].data.ptc_reqbuf_hit_replay_load = ptc_evt_count[REQBUF_HIT_REPLAY_LOAD];
+    assign pmcounterss[0].data.reqbuf_hit_replay_store = pmcounter[REQBUF_HIT_REPLAY_STORE];
+    assign pmcounterss[0].data.ptc_reqbuf_hit_replay_store = ptc_evt_count[REQBUF_HIT_REPLAY_STORE];
+    assign pmcounterss[0].data.reqbuf_hit_replay_prefetch = pmcounter[REQBUF_HIT_REPLAY_PREFETCH];
+    assign pmcounterss[0].data.ptc_reqbuf_hit_replay_prefetch = ptc_evt_count[REQBUF_HIT_REPLAY_PREFETCH];
+    assign pmcounterss[0].data.reqbuf_hit_replay_mmu = pmcounter[REQBUF_HIT_REPLAY_MMU];
+    assign pmcounterss[0].data.ptc_reqbuf_hit_replay_mmu = ptc_evt_count[REQBUF_HIT_REPLAY_MMU];
+    assign pmcounterss[0].data.reqbuf_hit_replay_all = pmcounter[REQBUF_HIT_REPLAY_ALL];
+    assign pmcounterss[0].data.ptc_reqbuf_hit_replay_all = ptc_evt_count[REQBUF_HIT_REPLAY_ALL];
+    assign pmcounterss[0].data.dtlb_replay_load = pmcounter[DTLB_REPLAY_LOAD];
+    assign pmcounterss[0].data.ptc_dtlb_replay_load = ptc_evt_count[DTLB_REPLAY_LOAD];
+    assign pmcounterss[0].data.dtlb_replay_store = pmcounter[DTLB_REPLAY_STORE];
+    assign pmcounterss[0].data.ptc_dtlb_replay_store = ptc_evt_count[DTLB_REPLAY_STORE];
+    assign pmcounterss[0].data.dtlb_replay_prefetch = pmcounter[DTLB_REPLAY_PREFETCH];
+    assign pmcounterss[0].data.ptc_dtlb_replay_prefetch = ptc_evt_count[DTLB_REPLAY_PREFETCH];
+    assign pmcounterss[0].data.dtlb_replay_mmu = pmcounter[DTLB_REPLAY_MMU];
+    assign pmcounterss[0].data.ptc_dtlb_replay_mmu = ptc_evt_count[DTLB_REPLAY_MMU];
+    assign pmcounterss[0].data.dtlb_replay_all = pmcounter[DTLB_REPLAY_ALL];
+    assign pmcounterss[0].data.ptc_dtlb_replay_all = ptc_evt_count[DTLB_REPLAY_ALL];
+    assign pmcounterss[0].data.reqbuf_cannot_alloc_load = pmcounter[REQBUF_CANNOT_ALLOC_LOAD];
+    assign pmcounterss[0].data.ptc_reqbuf_cannot_alloc_load = ptc_evt_count[REQBUF_CANNOT_ALLOC_LOAD];
+    assign pmcounterss[0].data.reqbuf_cannot_alloc_store = pmcounter[REQBUF_CANNOT_ALLOC_STORE];
+    assign pmcounterss[0].data.ptc_reqbuf_cannot_alloc_store = ptc_evt_count[REQBUF_CANNOT_ALLOC_STORE];
+    assign pmcounterss[0].data.reqbuf_cannot_alloc_prefetch = pmcounter[REQBUF_CANNOT_ALLOC_PREFETCH];
+    assign pmcounterss[0].data.ptc_reqbuf_cannot_alloc_prefetch = ptc_evt_count[REQBUF_CANNOT_ALLOC_PREFETCH];
+    assign pmcounterss[0].data.reqbuf_cannot_alloc_mmu = pmcounter[REQBUF_CANNOT_ALLOC_MMU];
+    assign pmcounterss[0].data.ptc_reqbuf_cannot_alloc_mmu = ptc_evt_count[REQBUF_CANNOT_ALLOC_MMU];
+    assign pmcounterss[0].data.reqbuf_cannot_alloc_all = pmcounter[REQBUF_CANNOT_ALLOC_ALL];
+    assign pmcounterss[0].data.ptc_reqbuf_cannot_alloc_all = ptc_evt_count[REQBUF_CANNOT_ALLOC_ALL];
+    assign pmcounterss[0].data.transbuf_cannot_alloc_load = pmcounter[TRANSBUF_CANNOT_ALLOC_LOAD];
+    assign pmcounterss[0].data.ptc_transbuf_cannot_alloc_load = ptc_evt_count[TRANSBUF_CANNOT_ALLOC_LOAD];
+    assign pmcounterss[0].data.transbuf_cannot_alloc_store = pmcounter[TRANSBUF_CANNOT_ALLOC_STORE];
+    assign pmcounterss[0].data.ptc_transbuf_cannot_alloc_store = ptc_evt_count[TRANSBUF_CANNOT_ALLOC_STORE];
+    assign pmcounterss[0].data.transbuf_cannot_alloc_prefetch = pmcounter[TRANSBUF_CANNOT_ALLOC_PREFETCH];
+    assign pmcounterss[0].data.ptc_transbuf_cannot_alloc_prefetch = ptc_evt_count[TRANSBUF_CANNOT_ALLOC_PREFETCH];
+    assign pmcounterss[0].data.transbuf_cannot_alloc_mmu = pmcounter[TRANSBUF_CANNOT_ALLOC_MMU];
+    assign pmcounterss[0].data.ptc_transbuf_cannot_alloc_mmu = ptc_evt_count[TRANSBUF_CANNOT_ALLOC_MMU];
+    assign pmcounterss[0].data.transbuf_cannot_alloc_all = pmcounter[TRANSBUF_CANNOT_ALLOC_ALL];
+    assign pmcounterss[0].data.ptc_transbuf_cannot_alloc_all = ptc_evt_count[TRANSBUF_CANNOT_ALLOC_ALL];
+    assign pmcounterss[0].data.pcb_cannot_alloc_load = pmcounter[PCB_CANNOT_ALLOC_LOAD];
+    assign pmcounterss[0].data.ptc_pcb_cannot_alloc_load = ptc_evt_count[PCB_CANNOT_ALLOC_LOAD];
+    assign pmcounterss[0].data.pcb_cannot_alloc_store = pmcounter[PCB_CANNOT_ALLOC_STORE];
+    assign pmcounterss[0].data.ptc_pcb_cannot_alloc_store = ptc_evt_count[PCB_CANNOT_ALLOC_STORE];
+    assign pmcounterss[0].data.pcb_cannot_alloc_all = pmcounter[PCB_CANNOT_ALLOC_ALL];
+    assign pmcounterss[0].data.ptc_pcb_cannot_alloc_all = ptc_evt_count[PCB_CANNOT_ALLOC_ALL];
 
 endmodule
 

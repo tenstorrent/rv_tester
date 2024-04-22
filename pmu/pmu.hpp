@@ -166,6 +166,12 @@ public:
       //Event (speculative) for each cycle Mapper is stalled due to no Vector physical registers
       CYCLES_NO_VEC_PRN,
       PTC_CYCLES_NO_VEC_PRN,
+      //Event (speculative) for each cycle Mapper is stalled due to no Vector length physical registers
+      CYCLES_NO_VL_PRN,
+      PTC_CYCLES_NO_VL_PRN,
+      //Event (speculative) for each cycle Mapper is stalled due to no Vector mask physical registers
+      CYCLES_NO_VM_PRN,
+      PTC_CYCLES_NO_VM_PRN,
       //Event (speculative) for each cycle Mapper is stalled due to no reorder buffer entries
       CYCLES_NO_ROB,
       PTC_CYCLES_NO_ROB,
@@ -250,36 +256,12 @@ public:
       //Event for each tlb invalidation -- this will track retired instructions that invalidate the TLB
       TLB_INVALIDATES,
       PTC_TLB_INVALIDATES,
-      //Event for a l1d_cache access caused by a demand Memory-read operation (filtered by load/store/prefetch/MMU/Snoop/All and by Aligned/CLC/4kX/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
-      L1D_ACCESS_FILTER,
-      PTC_L1D_ACCESS_FILTER,
-      //Event for a l1d_cache refill that is due to a demand Memory-read operation (filtered by load/store/prefetch/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
-      L1D_MISS_FILTER,
-      PTC_L1D_MISS_FILTER,
-      //all l1 data cache invalidates (filtered by snoops/CMOs/load-evictions/store-evictions/prefetch-evictions)
-      L1D_CACHE_INVALIDATE_FILTER,
-      PTC_L1D_CACHE_INVALIDATE_FILTER,
       //Event (speculative) for micro-TLB miss caused by a demand memory operation
       UTLB_MISS,
       PTC_UTLB_MISS,
-      //Event for an l1 dTLB access caused by a demand Memory-read operation (filtered by load/store/prefetch/All and by 4k/huge-page/all and by Aligned/CLC/All and by Cacheable/Non-cacheable. Includes accesses made by Speculatively executed instructions.
-      DTLB_ACCESS_FILTER,
-      PTC_DTLB_ACCESS_FILTER,
-      //Event for an l1 dTLB miss caused by a demand Memory-read operation (filtered by load/store/prefetch/All and by 4k/huge-page/All. Includes accesses made by Speculatively executed instructions.
-      DTLB_MISS_FILTER,
-      PTC_DTLB_MISS_FILTER,
-      //Event for leaf TLB access (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
-      LEAF_TLB_ACCESS_FILTER,
-      PTC_LEAF_TLB_ACCESS_FILTER,
-      //Event for leaf TLB miss (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
-      LEAF_TLB_MISS_FILTER,
-      PTC_LEAF_TLB_MISS_FILTER,
       //Event for non-leaf TLB access (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
       NONLEAF_TLB_ACCESS_FITER,
       PTC_NONLEAF_TLB_ACCESS_FITER,
-      //Event for non-leaf TLB miss (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
-      NONLEAF_TLB_MISS_FILTER,
-      PTC_NONLEAF_TLB_MISS_FILTER,
       //Number of page walks initiated
       PAGE_WALKS,
       PTC_PAGE_WALKS,
@@ -292,42 +274,9 @@ public:
       //Event (speculative) for every cycle the instruction picker has ops --  but does not pick -- and there is a pending L1 DTLB demand miss
       STALLS_MEM_L1DTLB_MISS,
       PTC_STALLS_MEM_L1DTLB_MISS,
-      //Number of resyncs raised by LSU filtered by (RAW/RAR/All)
-      LSU_RESYNCS_FILTER,
-      PTC_LSU_RESYNCS_FILTER,
       //Event (speculative) for every instance of a Store instruction forwarding data to a Load instruction
       STLF_HITS,
       PTC_STLF_HITS,
-      //Event (speculative) for any condition triggering replay from LS (Filtered by Load/Store/Prefetch/MMU/All)
-      LS_REPLAY,
-      PTC_LS_REPLAY,
-      //Event (speculative) for any LS replay caused by the DC way predictor (Filtered by Load/Store/Prefetch/MMU/All)
-      LS_REPLAY_WAY_PREDICTOR,
-      PTC_LS_REPLAY_WAY_PREDICTOR,
-      //Event (speculative) for any LS replay caused by incorrect PA prediction (Filtered by Load/Store/Prefetch/MMU/All)
-      SIPT_REPLAY,
-      PTC_SIPT_REPLAY,
-      //Event (speculative) for any LS replay caused by STLF (Filtered by Load/Store/Prefetch/MMU/All)
-      STLF_REPLAY,
-      PTC_STLF_REPLAY,
-      //Event (speculative) for any LS replay caused by tag bank conflict (Filtered by Load/Store/Prefetch/MMU/All)
-      TAG_BANK_CONFLICT_REPLAY,
-      PTC_TAG_BANK_CONFLICT_REPLAY,
-      //Event (speculative) for any LS replay caused by data bank conflict (Filtered by Load/Store/Prefetch/MMU/All)
-      DATA_BANK_CONFLICT_REPLAY,
-      PTC_DATA_BANK_CONFLICT_REPLAY,
-      //Event for any replay caused by hitting on a fillbuffer entry (Filtered by Load/Store/Prefetch/MMU/All)
-      FILLBUF_HIT_REPLAY,
-      PTC_FILLBUF_HIT_REPLAY,
-      //Event for any replay caused by hitting on a transbuf entry (Filtered by Load/Store/Prefetch/MMU/All)
-      TRANSBUF_HIT_REPLAY,
-      PTC_TRANSBUF_HIT_REPLAY,
-      //Event for any replay caused by hitting on a reqbuf entry (Filtered by Load/Store/Prefetch/MMU/All)
-      REQBUF_HIT_REPLAY,
-      PTC_REQBUF_HIT_REPLAY,
-      //Event for any LS replay caused by DTLB miss (Filtered by Load/Store/Prefetch/MMU/All)
-      DTLB_REPLAY,
-      PTC_DTLB_REPLAY,
       //Event (speculative) for every instance of failed Read-After-Read queue allocation to a demand memory-read operation
       RAR_CANNOT_ALLOC,
       PTC_RAR_CANNOT_ALLOC,
@@ -340,18 +289,9 @@ public:
       //Event (speculative) for every instance of a failed Store-Merge-Buffer allocation to a demand memory-write operation
       SMB_CANNOT_ALLOC,
       PTC_SMB_CANNOT_ALLOC,
-      //Event (speculative) for every instance of a failed Memory-Request-Buffer allocation to a demand memory operation (filtered by load/store/prefetch/MMU/All & filtered by Reads/Writes)
-      REQBUF_CANNOT_ALLOC_FILTER,
-      PTC_REQBUF_CANNOT_ALLOC_FILTER,
       //Event for every instance of a failed FillBuffer allocation
       FILLBUF_CANNOT_ALLOC,
       PTC_FILLBUF_CANNOT_ALLOC,
-      //Event for every instance of a failed TransBuffer allocation (filtered by load/store/prefetch/MMU/All & filtered by Reads/Writes)
-      TRANSBUF_CANNOT_ALLOC_FILTER,
-      PTC_TRANSBUF_CANNOT_ALLOC_FILTER,
-      //Event for every instance of a failed Page Cross Buffer allocation (filtered by load/store/All)
-      PCB_CANNOT_ALLOC_FILTER,
-      PTC_PCB_CANNOT_ALLOC_FILTER,
       //Event for every instance of a failed Unaligned Data Buffer allocation
       UDB_CANNOT_ALLOC,
       PTC_UDB_CANNOT_ALLOC,
@@ -442,6 +382,360 @@ public:
       //Event (speculative) for every L1D eviction which is an unused prefetch
       PFC_VICTIM_PREFETCHES,
       PTC_PFC_VICTIM_PREFETCHES,
+      //filtered event
+      L1D_READ_ACCESS_ALIGNED,
+      PTC_L1D_READ_ACCESS_ALIGNED,
+      //filtered event
+      L1D_READ_ACCESS_CLC,
+      PTC_L1D_READ_ACCESS_CLC,
+      //filtered event
+      L1D_READ_ACCESS_4KX,
+      PTC_L1D_READ_ACCESS_4KX,
+      //filtered event
+      L1D_READ_ACCESS_ALL,
+      PTC_L1D_READ_ACCESS_ALL,
+      //filtered event
+      L1D_WRITE_ACCESS_ALIGNED,
+      PTC_L1D_WRITE_ACCESS_ALIGNED,
+      //filtered event
+      L1D_WRITE_ACCESS_CLC,
+      PTC_L1D_WRITE_ACCESS_CLC,
+      //filtered event
+      L1D_WRITE_ACCESS_4KX,
+      PTC_L1D_WRITE_ACCESS_4KX,
+      //filtered event
+      L1D_WRITE_ACCESS_ALL,
+      PTC_L1D_WRITE_ACCESS_ALL,
+      //filtered event
+      L1D_PREFETCH_ACCESS_ALIGNED,
+      PTC_L1D_PREFETCH_ACCESS_ALIGNED,
+      //filtered event
+      L1D_PREFETCH_ACCESS_CLC,
+      PTC_L1D_PREFETCH_ACCESS_CLC,
+      //filtered event
+      L1D_PREFETCH_ACCESS_4KX,
+      PTC_L1D_PREFETCH_ACCESS_4KX,
+      //filtered event
+      L1D_PREFETCH_ACCESS_ALL,
+      PTC_L1D_PREFETCH_ACCESS_ALL,
+      //filtered event
+      L1D_MMU_ACCESS,
+      PTC_L1D_MMU_ACCESS,
+      //filtered event
+      L1D_SNOOP_ACCESS,
+      PTC_L1D_SNOOP_ACCESS,
+      //filtered event
+      L1D_ACCESS_ALL,
+      PTC_L1D_ACCESS_ALL,
+      //filtered event
+      L1D_READ_MISS,
+      PTC_L1D_READ_MISS,
+      //filtered event
+      L1D_WRITE_MISS,
+      PTC_L1D_WRITE_MISS,
+      //filtered event
+      L1D_PREFETCH_MISS,
+      PTC_L1D_PREFETCH_MISS,
+      //filtered event
+      L1D_MMU_MISS,
+      PTC_L1D_MMU_MISS,
+      //filtered event
+      L1D_SNOOP_MISS,
+      PTC_L1D_SNOOP_MISS,
+      //filtered event
+      L1D_MISS_ALL,
+      PTC_L1D_MISS_ALL,
+      //filtered event
+      L1D_CACHE_INVALIDATE_SNOOP,
+      PTC_L1D_CACHE_INVALIDATE_SNOOP,
+      //filtered event
+      L1D_CACHE_INVALIDATE_CMO,
+      PTC_L1D_CACHE_INVALIDATE_CMO,
+      //filtered event
+      L1D_CACHE_INVALIDATE_LOAD_EVICTION,
+      PTC_L1D_CACHE_INVALIDATE_LOAD_EVICTION,
+      //filtered event
+      L1D_CACHE_INVALIDATE_STORE_EVICTION,
+      PTC_L1D_CACHE_INVALIDATE_STORE_EVICTION,
+      //filtered event
+      L1D_CACHE_INVALIDATE_PREFETCH_EVICTION,
+      PTC_L1D_CACHE_INVALIDATE_PREFETCH_EVICTION,
+      //filtered event
+      DTLB_READ_ACCESS,
+      PTC_DTLB_READ_ACCESS,
+      //filtered event
+      DTLB_WRITE_ACCESS,
+      PTC_DTLB_WRITE_ACCESS,
+      //filtered event
+      DTLB_PREFETCH_ACCESS,
+      PTC_DTLB_PREFETCH_ACCESS,
+      //filtered event
+      DTLB_ACCESS_4K,
+      PTC_DTLB_ACCESS_4K,
+      //filtered event
+      DTLB_ACCESS_HUGEPAGE,
+      PTC_DTLB_ACCESS_HUGEPAGE,
+      //filtered event
+      DTLB_ACCESS_CACHEABLE,
+      PTC_DTLB_ACCESS_CACHEABLE,
+      //filtered event
+      DTLB_ACCESS_NONCACHEABLE,
+      PTC_DTLB_ACCESS_NONCACHEABLE,
+      //filtered event
+      DTLB_ACCESS_ALL,
+      PTC_DTLB_ACCESS_ALL,
+      //filtered event
+      DTLB_READ_MISS,
+      PTC_DTLB_READ_MISS,
+      //filtered event
+      DTLB_WRITE_MISS,
+      PTC_DTLB_WRITE_MISS,
+      //filtered event
+      DTLB_PREFETCH_MISS,
+      PTC_DTLB_PREFETCH_MISS,
+      //filtered event
+      DTLB_MISS_4K,
+      PTC_DTLB_MISS_4K,
+      //filtered event
+      DTLB_MISS_HUGEPAGE,
+      PTC_DTLB_MISS_HUGEPAGE,
+      //filtered event
+      DTLB_MISS_ALL,
+      PTC_DTLB_MISS_ALL,
+      //filtered event
+      LEAF_TLB_ACCESS_LS,
+      PTC_LEAF_TLB_ACCESS_LS,
+      //filtered event
+      LEAF_TLB_ACCESS_FE,
+      PTC_LEAF_TLB_ACCESS_FE,
+      //filtered event
+      LEAF_TLB_ACCESS_PREFETCH,
+      PTC_LEAF_TLB_ACCESS_PREFETCH,
+      //filtered event
+      LEAF_TLB_MISS_LS,
+      PTC_LEAF_TLB_MISS_LS,
+      //filtered event
+      LEAF_TLB_MISS_FE,
+      PTC_LEAF_TLB_MISS_FE,
+      //filtered event
+      LEAF_TLB_MISS_PREFETCH,
+      PTC_LEAF_TLB_MISS_PREFETCH,
+      //filtered event
+      NONLEAF_TLB_ACCESS_LS,
+      PTC_NONLEAF_TLB_ACCESS_LS,
+      //filtered event
+      NONLEAF_TLB_ACCESS_FE,
+      PTC_NONLEAF_TLB_ACCESS_FE,
+      //filtered event
+      NONLEAF_TLB_ACCESS_PREFETCH,
+      PTC_NONLEAF_TLB_ACCESS_PREFETCH,
+      //filtered event
+      NONLEAF_TLB_MISS_LS,
+      PTC_NONLEAF_TLB_MISS_LS,
+      //filtered event
+      NONLEAF_TLB_MISS_FE,
+      PTC_NONLEAF_TLB_MISS_FE,
+      //filtered event
+      NONLEAF_TLB_MISS_PREFETCH,
+      PTC_NONLEAF_TLB_MISS_PREFETCH,
+      //filtered event
+      LSU_RESYNCS_RAW,
+      PTC_LSU_RESYNCS_RAW,
+      //filtered event
+      LSU_RESYNCS_RAR,
+      PTC_LSU_RESYNCS_RAR,
+      //filtered event
+      LSU_RESYNCS_ALL,
+      PTC_LSU_RESYNCS_ALL,
+      //filtered event
+      LS_REPLAY_LOAD,
+      PTC_LS_REPLAY_LOAD,
+      //filtered event
+      LS_REPLAY_STORE,
+      PTC_LS_REPLAY_STORE,
+      //filtered event
+      LS_REPLAY_PREFETCH,
+      PTC_LS_REPLAY_PREFETCH,
+      //filtered event
+      LS_REPLAY_MMU,
+      PTC_LS_REPLAY_MMU,
+      //filtered event
+      LS_REPLAY_ALL,
+      PTC_LS_REPLAY_ALL,
+      //filtered event
+      LS_WAY_PREDICTOR_REPLAY_LOAD,
+      PTC_LS_WAY_PREDICTOR_REPLAY_LOAD,
+      //filtered event
+      LS_WAY_PREDICTOR_REPLAY_STORE,
+      PTC_LS_WAY_PREDICTOR_REPLAY_STORE,
+      //filtered event
+      LS_WAY_PREDICTOR_REPLAY_PREFETCH,
+      PTC_LS_WAY_PREDICTOR_REPLAY_PREFETCH,
+      //filtered event
+      LS_WAY_PREDICTOR_REPLAY_MMU,
+      PTC_LS_WAY_PREDICTOR_REPLAY_MMU,
+      //filtered event
+      LS_WAY_PREDICTOR_REPLAY_ALL,
+      PTC_LS_WAY_PREDICTOR_REPLAY_ALL,
+      //filtered event
+      SIPT_REPLAY_LOAD,
+      PTC_SIPT_REPLAY_LOAD,
+      //filtered event
+      SIPT_REPLAY_STORE,
+      PTC_SIPT_REPLAY_STORE,
+      //filtered event
+      SIPT_REPLAY_PREFETCH,
+      PTC_SIPT_REPLAY_PREFETCH,
+      //filtered event
+      SIPT_REPLAY_MMU,
+      PTC_SIPT_REPLAY_MMU,
+      //filtered event
+      SIPT_REPLAY_ALL,
+      PTC_SIPT_REPLAY_ALL,
+      //filtered event
+      STLF_REPLAY_LOAD,
+      PTC_STLF_REPLAY_LOAD,
+      //filtered event
+      STLF_REPLAY_STORE,
+      PTC_STLF_REPLAY_STORE,
+      //filtered event
+      STLF_REPLAY_PREFETCH,
+      PTC_STLF_REPLAY_PREFETCH,
+      //filtered event
+      STLF_REPLAY_MMU,
+      PTC_STLF_REPLAY_MMU,
+      //filtered event
+      STLF_REPLAY_ALL,
+      PTC_STLF_REPLAY_ALL,
+      //filtered event
+      TAG_BANK_CONFLICT_REPLAY_LOAD,
+      PTC_TAG_BANK_CONFLICT_REPLAY_LOAD,
+      //filtered event
+      TAG_BANK_CONFLICT_REPLAY_STORE,
+      PTC_TAG_BANK_CONFLICT_REPLAY_STORE,
+      //filtered event
+      TAG_BANK_CONFLICT_REPLAY_PREFETCH,
+      PTC_TAG_BANK_CONFLICT_REPLAY_PREFETCH,
+      //filtered event
+      TAG_BANK_CONFLICT_REPLAY_MMU,
+      PTC_TAG_BANK_CONFLICT_REPLAY_MMU,
+      //filtered event
+      TAG_BANK_CONFLICT_REPLAY_ALL,
+      PTC_TAG_BANK_CONFLICT_REPLAY_ALL,
+      //filtered event
+      DATA_BANK_CONFLICT_REPLAY_LOAD,
+      PTC_DATA_BANK_CONFLICT_REPLAY_LOAD,
+      //filtered event
+      DATA_BANK_CONFLICT_REPLAY_STORE,
+      PTC_DATA_BANK_CONFLICT_REPLAY_STORE,
+      //filtered event
+      DATA_BANK_CONFLICT_REPLAY_PREFETCH,
+      PTC_DATA_BANK_CONFLICT_REPLAY_PREFETCH,
+      //filtered event
+      DATA_BANK_CONFLICT_REPLAY_MMU,
+      PTC_DATA_BANK_CONFLICT_REPLAY_MMU,
+      //filtered event
+      DATA_BANK_CONFLICT_REPLAY_ALL,
+      PTC_DATA_BANK_CONFLICT_REPLAY_ALL,
+      //filtered event
+      FILLBUF_HIT_REPLAY_LOAD,
+      PTC_FILLBUF_HIT_REPLAY_LOAD,
+      //filtered event
+      FILLBUF_HIT_REPLAY_STORE,
+      PTC_FILLBUF_HIT_REPLAY_STORE,
+      //filtered event
+      FILLBUF_HIT_REPLAY_PREFETCH,
+      PTC_FILLBUF_HIT_REPLAY_PREFETCH,
+      //filtered event
+      FILLBUF_HIT_REPLAY_MMU,
+      PTC_FILLBUF_HIT_REPLAY_MMU,
+      //filtered event
+      FILLBUF_HIT_REPLAY_ALL,
+      PTC_FILLBUF_HIT_REPLAY_ALL,
+      //filtered event
+      TRANSBUF_HIT_REPLAY_LOAD,
+      PTC_TRANSBUF_HIT_REPLAY_LOAD,
+      //filtered event
+      TRANSBUF_HIT_REPLAY_STORE,
+      PTC_TRANSBUF_HIT_REPLAY_STORE,
+      //filtered event
+      TRANSBUF_HIT_REPLAY_PREFETCH,
+      PTC_TRANSBUF_HIT_REPLAY_PREFETCH,
+      //filtered event
+      TRANSBUF_HIT_REPLAY_MMU,
+      PTC_TRANSBUF_HIT_REPLAY_MMU,
+      //filtered event
+      TRANSBUF_HIT_REPLAY_ALL,
+      PTC_TRANSBUF_HIT_REPLAY_ALL,
+      //filtered event
+      REQBUF_HIT_REPLAY_LOAD,
+      PTC_REQBUF_HIT_REPLAY_LOAD,
+      //filtered event
+      REQBUF_HIT_REPLAY_STORE,
+      PTC_REQBUF_HIT_REPLAY_STORE,
+      //filtered event
+      REQBUF_HIT_REPLAY_PREFETCH,
+      PTC_REQBUF_HIT_REPLAY_PREFETCH,
+      //filtered event
+      REQBUF_HIT_REPLAY_MMU,
+      PTC_REQBUF_HIT_REPLAY_MMU,
+      //filtered event
+      REQBUF_HIT_REPLAY_ALL,
+      PTC_REQBUF_HIT_REPLAY_ALL,
+      //filtered event
+      DTLB_REPLAY_LOAD,
+      PTC_DTLB_REPLAY_LOAD,
+      //filtered event
+      DTLB_REPLAY_STORE,
+      PTC_DTLB_REPLAY_STORE,
+      //filtered event
+      DTLB_REPLAY_PREFETCH,
+      PTC_DTLB_REPLAY_PREFETCH,
+      //filtered event
+      DTLB_REPLAY_MMU,
+      PTC_DTLB_REPLAY_MMU,
+      //filtered event
+      DTLB_REPLAY_ALL,
+      PTC_DTLB_REPLAY_ALL,
+      //filtered event
+      REQBUF_CANNOT_ALLOC_LOAD,
+      PTC_REQBUF_CANNOT_ALLOC_LOAD,
+      //filtered event
+      REQBUF_CANNOT_ALLOC_STORE,
+      PTC_REQBUF_CANNOT_ALLOC_STORE,
+      //filtered event
+      REQBUF_CANNOT_ALLOC_PREFETCH,
+      PTC_REQBUF_CANNOT_ALLOC_PREFETCH,
+      //filtered event
+      REQBUF_CANNOT_ALLOC_MMU,
+      PTC_REQBUF_CANNOT_ALLOC_MMU,
+      //filtered event
+      REQBUF_CANNOT_ALLOC_ALL,
+      PTC_REQBUF_CANNOT_ALLOC_ALL,
+      //filtered event
+      TRANSBUF_CANNOT_ALLOC_LOAD,
+      PTC_TRANSBUF_CANNOT_ALLOC_LOAD,
+      //filtered event
+      TRANSBUF_CANNOT_ALLOC_STORE,
+      PTC_TRANSBUF_CANNOT_ALLOC_STORE,
+      //filtered event
+      TRANSBUF_CANNOT_ALLOC_PREFETCH,
+      PTC_TRANSBUF_CANNOT_ALLOC_PREFETCH,
+      //filtered event
+      TRANSBUF_CANNOT_ALLOC_MMU,
+      PTC_TRANSBUF_CANNOT_ALLOC_MMU,
+      //filtered event
+      TRANSBUF_CANNOT_ALLOC_ALL,
+      PTC_TRANSBUF_CANNOT_ALLOC_ALL,
+      //filtered event
+      PCB_CANNOT_ALLOC_LOAD,
+      PTC_PCB_CANNOT_ALLOC_LOAD,
+      //filtered event
+      PCB_CANNOT_ALLOC_STORE,
+      PTC_PCB_CANNOT_ALLOC_STORE,
+      //filtered event
+      PCB_CANNOT_ALLOC_ALL,
+      PTC_PCB_CANNOT_ALLOC_ALL,
     COUNT
     } counter;
 
@@ -504,6 +798,8 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::CYCLES_NO_INT_PRN] = pmcounters.cycles_no_int_prn;
       tmp[counter::CYCLES_NO_FP_PRN] = pmcounters.cycles_no_fp_prn;
       tmp[counter::CYCLES_NO_VEC_PRN] = pmcounters.cycles_no_vec_prn;
+      tmp[counter::CYCLES_NO_VL_PRN] = pmcounters.cycles_no_vl_prn;
+      tmp[counter::CYCLES_NO_VM_PRN] = pmcounters.cycles_no_vm_prn;
       tmp[counter::CYCLES_NO_ROB] = pmcounters.cycles_no_rob;
       tmp[counter::BRANCH_INSTRUCTIONS] = pmcounters.branch_instructions;
       tmp[counter::UOP_RETIRED] = pmcounters.uop_retired;
@@ -532,40 +828,18 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::CACHE_REFERENCES] = pmcounters.cache_references;
       tmp[counter::CACHE_MISSES] = pmcounters.cache_misses;
       tmp[counter::TLB_INVALIDATES] = pmcounters.tlb_invalidates;
-      tmp[counter::L1D_ACCESS_FILTER] = pmcounters.l1d_access_filter;
-      tmp[counter::L1D_MISS_FILTER] = pmcounters.l1d_miss_filter;
-      tmp[counter::L1D_CACHE_INVALIDATE_FILTER] = pmcounters.l1d_cache_invalidate_filter;
       tmp[counter::UTLB_MISS] = pmcounters.utlb_miss;
-      tmp[counter::DTLB_ACCESS_FILTER] = pmcounters.dtlb_access_filter;
-      tmp[counter::DTLB_MISS_FILTER] = pmcounters.dtlb_miss_filter;
-      tmp[counter::LEAF_TLB_ACCESS_FILTER] = pmcounters.leaf_tlb_access_filter;
-      tmp[counter::LEAF_TLB_MISS_FILTER] = pmcounters.leaf_tlb_miss_filter;
       tmp[counter::NONLEAF_TLB_ACCESS_FITER] = pmcounters.nonleaf_tlb_access_fiter;
-      tmp[counter::NONLEAF_TLB_MISS_FILTER] = pmcounters.nonleaf_tlb_miss_filter;
       tmp[counter::PAGE_WALKS] = pmcounters.page_walks;
       tmp[counter::STALLS_MEM_L1D_MISS] = pmcounters.stalls_mem_l1d_miss;
       tmp[counter::STALLS_MEM_STORES] = pmcounters.stalls_mem_stores;
       tmp[counter::STALLS_MEM_L1DTLB_MISS] = pmcounters.stalls_mem_l1dtlb_miss;
-      tmp[counter::LSU_RESYNCS_FILTER] = pmcounters.lsu_resyncs_filter;
       tmp[counter::STLF_HITS] = pmcounters.stlf_hits;
-      tmp[counter::LS_REPLAY] = pmcounters.ls_replay;
-      tmp[counter::LS_REPLAY_WAY_PREDICTOR] = pmcounters.ls_replay_way_predictor;
-      tmp[counter::SIPT_REPLAY] = pmcounters.sipt_replay;
-      tmp[counter::STLF_REPLAY] = pmcounters.stlf_replay;
-      tmp[counter::TAG_BANK_CONFLICT_REPLAY] = pmcounters.tag_bank_conflict_replay;
-      tmp[counter::DATA_BANK_CONFLICT_REPLAY] = pmcounters.data_bank_conflict_replay;
-      tmp[counter::FILLBUF_HIT_REPLAY] = pmcounters.fillbuf_hit_replay;
-      tmp[counter::TRANSBUF_HIT_REPLAY] = pmcounters.transbuf_hit_replay;
-      tmp[counter::REQBUF_HIT_REPLAY] = pmcounters.reqbuf_hit_replay;
-      tmp[counter::DTLB_REPLAY] = pmcounters.dtlb_replay;
       tmp[counter::RAR_CANNOT_ALLOC] = pmcounters.rar_cannot_alloc;
       tmp[counter::RAW_CANNOT_ALLOC] = pmcounters.raw_cannot_alloc;
       tmp[counter::LDQ_CANNOT_ALLOC] = pmcounters.ldq_cannot_alloc;
       tmp[counter::SMB_CANNOT_ALLOC] = pmcounters.smb_cannot_alloc;
-      tmp[counter::REQBUF_CANNOT_ALLOC_FILTER] = pmcounters.reqbuf_cannot_alloc_filter;
       tmp[counter::FILLBUF_CANNOT_ALLOC] = pmcounters.fillbuf_cannot_alloc;
-      tmp[counter::TRANSBUF_CANNOT_ALLOC_FILTER] = pmcounters.transbuf_cannot_alloc_filter;
-      tmp[counter::PCB_CANNOT_ALLOC_FILTER] = pmcounters.pcb_cannot_alloc_filter;
       tmp[counter::UDB_CANNOT_ALLOC] = pmcounters.udb_cannot_alloc;
       tmp[counter::UDB_DATA_RETURN] = pmcounters.udb_data_return;
       tmp[counter::UDB_LOST] = pmcounters.udb_lost;
@@ -596,6 +870,124 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::PFC_PREFETCHES_HIT] = pmcounters.pfc_prefetches_hit;
       tmp[counter::PFC_PREFETCHES_LATE] = pmcounters.pfc_prefetches_late;
       tmp[counter::PFC_VICTIM_PREFETCHES] = pmcounters.pfc_victim_prefetches;
+      tmp[counter::L1D_READ_ACCESS_ALIGNED] = pmcounters.l1d_read_access_aligned;
+      tmp[counter::L1D_READ_ACCESS_CLC] = pmcounters.l1d_read_access_clc;
+      tmp[counter::L1D_READ_ACCESS_4KX] = pmcounters.l1d_read_access_4kx;
+      tmp[counter::L1D_READ_ACCESS_ALL] = pmcounters.l1d_read_access_all;
+      tmp[counter::L1D_WRITE_ACCESS_ALIGNED] = pmcounters.l1d_write_access_aligned;
+      tmp[counter::L1D_WRITE_ACCESS_CLC] = pmcounters.l1d_write_access_clc;
+      tmp[counter::L1D_WRITE_ACCESS_4KX] = pmcounters.l1d_write_access_4kx;
+      tmp[counter::L1D_WRITE_ACCESS_ALL] = pmcounters.l1d_write_access_all;
+      tmp[counter::L1D_PREFETCH_ACCESS_ALIGNED] = pmcounters.l1d_prefetch_access_aligned;
+      tmp[counter::L1D_PREFETCH_ACCESS_CLC] = pmcounters.l1d_prefetch_access_clc;
+      tmp[counter::L1D_PREFETCH_ACCESS_4KX] = pmcounters.l1d_prefetch_access_4kx;
+      tmp[counter::L1D_PREFETCH_ACCESS_ALL] = pmcounters.l1d_prefetch_access_all;
+      tmp[counter::L1D_MMU_ACCESS] = pmcounters.l1d_mmu_access;
+      tmp[counter::L1D_SNOOP_ACCESS] = pmcounters.l1d_snoop_access;
+      tmp[counter::L1D_ACCESS_ALL] = pmcounters.l1d_access_all;
+      tmp[counter::L1D_READ_MISS] = pmcounters.l1d_read_miss;
+      tmp[counter::L1D_WRITE_MISS] = pmcounters.l1d_write_miss;
+      tmp[counter::L1D_PREFETCH_MISS] = pmcounters.l1d_prefetch_miss;
+      tmp[counter::L1D_MMU_MISS] = pmcounters.l1d_mmu_miss;
+      tmp[counter::L1D_SNOOP_MISS] = pmcounters.l1d_snoop_miss;
+      tmp[counter::L1D_MISS_ALL] = pmcounters.l1d_miss_all;
+      tmp[counter::L1D_CACHE_INVALIDATE_SNOOP] = pmcounters.l1d_cache_invalidate_snoop;
+      tmp[counter::L1D_CACHE_INVALIDATE_CMO] = pmcounters.l1d_cache_invalidate_cmo;
+      tmp[counter::L1D_CACHE_INVALIDATE_LOAD_EVICTION] = pmcounters.l1d_cache_invalidate_load_eviction;
+      tmp[counter::L1D_CACHE_INVALIDATE_STORE_EVICTION] = pmcounters.l1d_cache_invalidate_store_eviction;
+      tmp[counter::L1D_CACHE_INVALIDATE_PREFETCH_EVICTION] = pmcounters.l1d_cache_invalidate_prefetch_eviction;
+      tmp[counter::DTLB_READ_ACCESS] = pmcounters.dtlb_read_access;
+      tmp[counter::DTLB_WRITE_ACCESS] = pmcounters.dtlb_write_access;
+      tmp[counter::DTLB_PREFETCH_ACCESS] = pmcounters.dtlb_prefetch_access;
+      tmp[counter::DTLB_ACCESS_4K] = pmcounters.dtlb_access_4k;
+      tmp[counter::DTLB_ACCESS_HUGEPAGE] = pmcounters.dtlb_access_hugepage;
+      tmp[counter::DTLB_ACCESS_CACHEABLE] = pmcounters.dtlb_access_cacheable;
+      tmp[counter::DTLB_ACCESS_NONCACHEABLE] = pmcounters.dtlb_access_noncacheable;
+      tmp[counter::DTLB_ACCESS_ALL] = pmcounters.dtlb_access_all;
+      tmp[counter::DTLB_READ_MISS] = pmcounters.dtlb_read_miss;
+      tmp[counter::DTLB_WRITE_MISS] = pmcounters.dtlb_write_miss;
+      tmp[counter::DTLB_PREFETCH_MISS] = pmcounters.dtlb_prefetch_miss;
+      tmp[counter::DTLB_MISS_4K] = pmcounters.dtlb_miss_4k;
+      tmp[counter::DTLB_MISS_HUGEPAGE] = pmcounters.dtlb_miss_hugepage;
+      tmp[counter::DTLB_MISS_ALL] = pmcounters.dtlb_miss_all;
+      tmp[counter::LEAF_TLB_ACCESS_LS] = pmcounters.leaf_tlb_access_ls;
+      tmp[counter::LEAF_TLB_ACCESS_FE] = pmcounters.leaf_tlb_access_fe;
+      tmp[counter::LEAF_TLB_ACCESS_PREFETCH] = pmcounters.leaf_tlb_access_prefetch;
+      tmp[counter::LEAF_TLB_MISS_LS] = pmcounters.leaf_tlb_miss_ls;
+      tmp[counter::LEAF_TLB_MISS_FE] = pmcounters.leaf_tlb_miss_fe;
+      tmp[counter::LEAF_TLB_MISS_PREFETCH] = pmcounters.leaf_tlb_miss_prefetch;
+      tmp[counter::NONLEAF_TLB_ACCESS_LS] = pmcounters.nonleaf_tlb_access_ls;
+      tmp[counter::NONLEAF_TLB_ACCESS_FE] = pmcounters.nonleaf_tlb_access_fe;
+      tmp[counter::NONLEAF_TLB_ACCESS_PREFETCH] = pmcounters.nonleaf_tlb_access_prefetch;
+      tmp[counter::NONLEAF_TLB_MISS_LS] = pmcounters.nonleaf_tlb_miss_ls;
+      tmp[counter::NONLEAF_TLB_MISS_FE] = pmcounters.nonleaf_tlb_miss_fe;
+      tmp[counter::NONLEAF_TLB_MISS_PREFETCH] = pmcounters.nonleaf_tlb_miss_prefetch;
+      tmp[counter::LSU_RESYNCS_RAW] = pmcounters.lsu_resyncs_raw;
+      tmp[counter::LSU_RESYNCS_RAR] = pmcounters.lsu_resyncs_rar;
+      tmp[counter::LSU_RESYNCS_ALL] = pmcounters.lsu_resyncs_all;
+      tmp[counter::LS_REPLAY_LOAD] = pmcounters.ls_replay_load;
+      tmp[counter::LS_REPLAY_STORE] = pmcounters.ls_replay_store;
+      tmp[counter::LS_REPLAY_PREFETCH] = pmcounters.ls_replay_prefetch;
+      tmp[counter::LS_REPLAY_MMU] = pmcounters.ls_replay_mmu;
+      tmp[counter::LS_REPLAY_ALL] = pmcounters.ls_replay_all;
+      tmp[counter::LS_WAY_PREDICTOR_REPLAY_LOAD] = pmcounters.ls_way_predictor_replay_load;
+      tmp[counter::LS_WAY_PREDICTOR_REPLAY_STORE] = pmcounters.ls_way_predictor_replay_store;
+      tmp[counter::LS_WAY_PREDICTOR_REPLAY_PREFETCH] = pmcounters.ls_way_predictor_replay_prefetch;
+      tmp[counter::LS_WAY_PREDICTOR_REPLAY_MMU] = pmcounters.ls_way_predictor_replay_mmu;
+      tmp[counter::LS_WAY_PREDICTOR_REPLAY_ALL] = pmcounters.ls_way_predictor_replay_all;
+      tmp[counter::SIPT_REPLAY_LOAD] = pmcounters.sipt_replay_load;
+      tmp[counter::SIPT_REPLAY_STORE] = pmcounters.sipt_replay_store;
+      tmp[counter::SIPT_REPLAY_PREFETCH] = pmcounters.sipt_replay_prefetch;
+      tmp[counter::SIPT_REPLAY_MMU] = pmcounters.sipt_replay_mmu;
+      tmp[counter::SIPT_REPLAY_ALL] = pmcounters.sipt_replay_all;
+      tmp[counter::STLF_REPLAY_LOAD] = pmcounters.stlf_replay_load;
+      tmp[counter::STLF_REPLAY_STORE] = pmcounters.stlf_replay_store;
+      tmp[counter::STLF_REPLAY_PREFETCH] = pmcounters.stlf_replay_prefetch;
+      tmp[counter::STLF_REPLAY_MMU] = pmcounters.stlf_replay_mmu;
+      tmp[counter::STLF_REPLAY_ALL] = pmcounters.stlf_replay_all;
+      tmp[counter::TAG_BANK_CONFLICT_REPLAY_LOAD] = pmcounters.tag_bank_conflict_replay_load;
+      tmp[counter::TAG_BANK_CONFLICT_REPLAY_STORE] = pmcounters.tag_bank_conflict_replay_store;
+      tmp[counter::TAG_BANK_CONFLICT_REPLAY_PREFETCH] = pmcounters.tag_bank_conflict_replay_prefetch;
+      tmp[counter::TAG_BANK_CONFLICT_REPLAY_MMU] = pmcounters.tag_bank_conflict_replay_mmu;
+      tmp[counter::TAG_BANK_CONFLICT_REPLAY_ALL] = pmcounters.tag_bank_conflict_replay_all;
+      tmp[counter::DATA_BANK_CONFLICT_REPLAY_LOAD] = pmcounters.data_bank_conflict_replay_load;
+      tmp[counter::DATA_BANK_CONFLICT_REPLAY_STORE] = pmcounters.data_bank_conflict_replay_store;
+      tmp[counter::DATA_BANK_CONFLICT_REPLAY_PREFETCH] = pmcounters.data_bank_conflict_replay_prefetch;
+      tmp[counter::DATA_BANK_CONFLICT_REPLAY_MMU] = pmcounters.data_bank_conflict_replay_mmu;
+      tmp[counter::DATA_BANK_CONFLICT_REPLAY_ALL] = pmcounters.data_bank_conflict_replay_all;
+      tmp[counter::FILLBUF_HIT_REPLAY_LOAD] = pmcounters.fillbuf_hit_replay_load;
+      tmp[counter::FILLBUF_HIT_REPLAY_STORE] = pmcounters.fillbuf_hit_replay_store;
+      tmp[counter::FILLBUF_HIT_REPLAY_PREFETCH] = pmcounters.fillbuf_hit_replay_prefetch;
+      tmp[counter::FILLBUF_HIT_REPLAY_MMU] = pmcounters.fillbuf_hit_replay_mmu;
+      tmp[counter::FILLBUF_HIT_REPLAY_ALL] = pmcounters.fillbuf_hit_replay_all;
+      tmp[counter::TRANSBUF_HIT_REPLAY_LOAD] = pmcounters.transbuf_hit_replay_load;
+      tmp[counter::TRANSBUF_HIT_REPLAY_STORE] = pmcounters.transbuf_hit_replay_store;
+      tmp[counter::TRANSBUF_HIT_REPLAY_PREFETCH] = pmcounters.transbuf_hit_replay_prefetch;
+      tmp[counter::TRANSBUF_HIT_REPLAY_MMU] = pmcounters.transbuf_hit_replay_mmu;
+      tmp[counter::TRANSBUF_HIT_REPLAY_ALL] = pmcounters.transbuf_hit_replay_all;
+      tmp[counter::REQBUF_HIT_REPLAY_LOAD] = pmcounters.reqbuf_hit_replay_load;
+      tmp[counter::REQBUF_HIT_REPLAY_STORE] = pmcounters.reqbuf_hit_replay_store;
+      tmp[counter::REQBUF_HIT_REPLAY_PREFETCH] = pmcounters.reqbuf_hit_replay_prefetch;
+      tmp[counter::REQBUF_HIT_REPLAY_MMU] = pmcounters.reqbuf_hit_replay_mmu;
+      tmp[counter::REQBUF_HIT_REPLAY_ALL] = pmcounters.reqbuf_hit_replay_all;
+      tmp[counter::DTLB_REPLAY_LOAD] = pmcounters.dtlb_replay_load;
+      tmp[counter::DTLB_REPLAY_STORE] = pmcounters.dtlb_replay_store;
+      tmp[counter::DTLB_REPLAY_PREFETCH] = pmcounters.dtlb_replay_prefetch;
+      tmp[counter::DTLB_REPLAY_MMU] = pmcounters.dtlb_replay_mmu;
+      tmp[counter::DTLB_REPLAY_ALL] = pmcounters.dtlb_replay_all;
+      tmp[counter::REQBUF_CANNOT_ALLOC_LOAD] = pmcounters.reqbuf_cannot_alloc_load;
+      tmp[counter::REQBUF_CANNOT_ALLOC_STORE] = pmcounters.reqbuf_cannot_alloc_store;
+      tmp[counter::REQBUF_CANNOT_ALLOC_PREFETCH] = pmcounters.reqbuf_cannot_alloc_prefetch;
+      tmp[counter::REQBUF_CANNOT_ALLOC_MMU] = pmcounters.reqbuf_cannot_alloc_mmu;
+      tmp[counter::REQBUF_CANNOT_ALLOC_ALL] = pmcounters.reqbuf_cannot_alloc_all;
+      tmp[counter::TRANSBUF_CANNOT_ALLOC_LOAD] = pmcounters.transbuf_cannot_alloc_load;
+      tmp[counter::TRANSBUF_CANNOT_ALLOC_STORE] = pmcounters.transbuf_cannot_alloc_store;
+      tmp[counter::TRANSBUF_CANNOT_ALLOC_PREFETCH] = pmcounters.transbuf_cannot_alloc_prefetch;
+      tmp[counter::TRANSBUF_CANNOT_ALLOC_MMU] = pmcounters.transbuf_cannot_alloc_mmu;
+      tmp[counter::TRANSBUF_CANNOT_ALLOC_ALL] = pmcounters.transbuf_cannot_alloc_all;
+      tmp[counter::PCB_CANNOT_ALLOC_LOAD] = pmcounters.pcb_cannot_alloc_load;
+      tmp[counter::PCB_CANNOT_ALLOC_STORE] = pmcounters.pcb_cannot_alloc_store;
+      tmp[counter::PCB_CANNOT_ALLOC_ALL] = pmcounters.pcb_cannot_alloc_all;
 
       return tmp;
     }
@@ -706,6 +1098,10 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {PTC_CYCLES_NO_FP_PRN,"ptc_cycles_no_fp_prn"},
       {CYCLES_NO_VEC_PRN,"cycles_no_vec_prn"},
       {PTC_CYCLES_NO_VEC_PRN,"ptc_cycles_no_vec_prn"},
+      {CYCLES_NO_VL_PRN,"cycles_no_vl_prn"},
+      {PTC_CYCLES_NO_VL_PRN,"ptc_cycles_no_vl_prn"},
+      {CYCLES_NO_VM_PRN,"cycles_no_vm_prn"},
+      {PTC_CYCLES_NO_VM_PRN,"ptc_cycles_no_vm_prn"},
       {CYCLES_NO_ROB,"cycles_no_rob"},
       {PTC_CYCLES_NO_ROB,"ptc_cycles_no_rob"},
       {BRANCH_INSTRUCTIONS,"branch_instructions"},
@@ -762,26 +1158,10 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {PTC_CACHE_MISSES,"ptc_cache_misses"},
       {TLB_INVALIDATES,"tlb_invalidates"},
       {PTC_TLB_INVALIDATES,"ptc_tlb_invalidates"},
-      {L1D_ACCESS_FILTER,"l1d_access_filter"},
-      {PTC_L1D_ACCESS_FILTER,"ptc_l1d_access_filter"},
-      {L1D_MISS_FILTER,"l1d_miss_filter"},
-      {PTC_L1D_MISS_FILTER,"ptc_l1d_miss_filter"},
-      {L1D_CACHE_INVALIDATE_FILTER,"l1d_cache_invalidate_filter"},
-      {PTC_L1D_CACHE_INVALIDATE_FILTER,"ptc_l1d_cache_invalidate_filter"},
       {UTLB_MISS,"utlb_miss"},
       {PTC_UTLB_MISS,"ptc_utlb_miss"},
-      {DTLB_ACCESS_FILTER,"dtlb_access_filter"},
-      {PTC_DTLB_ACCESS_FILTER,"ptc_dtlb_access_filter"},
-      {DTLB_MISS_FILTER,"dtlb_miss_filter"},
-      {PTC_DTLB_MISS_FILTER,"ptc_dtlb_miss_filter"},
-      {LEAF_TLB_ACCESS_FILTER,"leaf_tlb_access_filter"},
-      {PTC_LEAF_TLB_ACCESS_FILTER,"ptc_leaf_tlb_access_filter"},
-      {LEAF_TLB_MISS_FILTER,"leaf_tlb_miss_filter"},
-      {PTC_LEAF_TLB_MISS_FILTER,"ptc_leaf_tlb_miss_filter"},
       {NONLEAF_TLB_ACCESS_FITER,"nonleaf_tlb_access_fiter"},
       {PTC_NONLEAF_TLB_ACCESS_FITER,"ptc_nonleaf_tlb_access_fiter"},
-      {NONLEAF_TLB_MISS_FILTER,"nonleaf_tlb_miss_filter"},
-      {PTC_NONLEAF_TLB_MISS_FILTER,"ptc_nonleaf_tlb_miss_filter"},
       {PAGE_WALKS,"page_walks"},
       {PTC_PAGE_WALKS,"ptc_page_walks"},
       {STALLS_MEM_L1D_MISS,"stalls_mem_l1d_miss"},
@@ -790,30 +1170,8 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {PTC_STALLS_MEM_STORES,"ptc_stalls_mem_stores"},
       {STALLS_MEM_L1DTLB_MISS,"stalls_mem_l1dtlb_miss"},
       {PTC_STALLS_MEM_L1DTLB_MISS,"ptc_stalls_mem_l1dtlb_miss"},
-      {LSU_RESYNCS_FILTER,"lsu_resyncs_filter"},
-      {PTC_LSU_RESYNCS_FILTER,"ptc_lsu_resyncs_filter"},
       {STLF_HITS,"stlf_hits"},
       {PTC_STLF_HITS,"ptc_stlf_hits"},
-      {LS_REPLAY,"ls_replay"},
-      {PTC_LS_REPLAY,"ptc_ls_replay"},
-      {LS_REPLAY_WAY_PREDICTOR,"ls_replay_way_predictor"},
-      {PTC_LS_REPLAY_WAY_PREDICTOR,"ptc_ls_replay_way_predictor"},
-      {SIPT_REPLAY,"sipt_replay"},
-      {PTC_SIPT_REPLAY,"ptc_sipt_replay"},
-      {STLF_REPLAY,"stlf_replay"},
-      {PTC_STLF_REPLAY,"ptc_stlf_replay"},
-      {TAG_BANK_CONFLICT_REPLAY,"tag_bank_conflict_replay"},
-      {PTC_TAG_BANK_CONFLICT_REPLAY,"ptc_tag_bank_conflict_replay"},
-      {DATA_BANK_CONFLICT_REPLAY,"data_bank_conflict_replay"},
-      {PTC_DATA_BANK_CONFLICT_REPLAY,"ptc_data_bank_conflict_replay"},
-      {FILLBUF_HIT_REPLAY,"fillbuf_hit_replay"},
-      {PTC_FILLBUF_HIT_REPLAY,"ptc_fillbuf_hit_replay"},
-      {TRANSBUF_HIT_REPLAY,"transbuf_hit_replay"},
-      {PTC_TRANSBUF_HIT_REPLAY,"ptc_transbuf_hit_replay"},
-      {REQBUF_HIT_REPLAY,"reqbuf_hit_replay"},
-      {PTC_REQBUF_HIT_REPLAY,"ptc_reqbuf_hit_replay"},
-      {DTLB_REPLAY,"dtlb_replay"},
-      {PTC_DTLB_REPLAY,"ptc_dtlb_replay"},
       {RAR_CANNOT_ALLOC,"rar_cannot_alloc"},
       {PTC_RAR_CANNOT_ALLOC,"ptc_rar_cannot_alloc"},
       {RAW_CANNOT_ALLOC,"raw_cannot_alloc"},
@@ -822,14 +1180,8 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {PTC_LDQ_CANNOT_ALLOC,"ptc_ldq_cannot_alloc"},
       {SMB_CANNOT_ALLOC,"smb_cannot_alloc"},
       {PTC_SMB_CANNOT_ALLOC,"ptc_smb_cannot_alloc"},
-      {REQBUF_CANNOT_ALLOC_FILTER,"reqbuf_cannot_alloc_filter"},
-      {PTC_REQBUF_CANNOT_ALLOC_FILTER,"ptc_reqbuf_cannot_alloc_filter"},
       {FILLBUF_CANNOT_ALLOC,"fillbuf_cannot_alloc"},
       {PTC_FILLBUF_CANNOT_ALLOC,"ptc_fillbuf_cannot_alloc"},
-      {TRANSBUF_CANNOT_ALLOC_FILTER,"transbuf_cannot_alloc_filter"},
-      {PTC_TRANSBUF_CANNOT_ALLOC_FILTER,"ptc_transbuf_cannot_alloc_filter"},
-      {PCB_CANNOT_ALLOC_FILTER,"pcb_cannot_alloc_filter"},
-      {PTC_PCB_CANNOT_ALLOC_FILTER,"ptc_pcb_cannot_alloc_filter"},
       {UDB_CANNOT_ALLOC,"udb_cannot_alloc"},
       {PTC_UDB_CANNOT_ALLOC,"ptc_udb_cannot_alloc"},
       {UDB_DATA_RETURN,"udb_data_return"},
@@ -890,8 +1242,243 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {PTC_PFC_PREFETCHES_LATE,"ptc_pfc_prefetches_late"},
       {PFC_VICTIM_PREFETCHES,"pfc_victim_prefetches"},
       {PTC_PFC_VICTIM_PREFETCHES,"ptc_pfc_victim_prefetches"},
+      {L1D_READ_ACCESS_ALIGNED,"l1d_read_access_aligned"},
+      {PTC_L1D_READ_ACCESS_ALIGNED,"ptc_l1d_read_access_aligned"},
+      {L1D_READ_ACCESS_CLC,"l1d_read_access_clc"},
+      {PTC_L1D_READ_ACCESS_CLC,"ptc_l1d_read_access_clc"},
+      {L1D_READ_ACCESS_4KX,"l1d_read_access_4kx"},
+      {PTC_L1D_READ_ACCESS_4KX,"ptc_l1d_read_access_4kx"},
+      {L1D_READ_ACCESS_ALL,"l1d_read_access_all"},
+      {PTC_L1D_READ_ACCESS_ALL,"ptc_l1d_read_access_all"},
+      {L1D_WRITE_ACCESS_ALIGNED,"l1d_write_access_aligned"},
+      {PTC_L1D_WRITE_ACCESS_ALIGNED,"ptc_l1d_write_access_aligned"},
+      {L1D_WRITE_ACCESS_CLC,"l1d_write_access_clc"},
+      {PTC_L1D_WRITE_ACCESS_CLC,"ptc_l1d_write_access_clc"},
+      {L1D_WRITE_ACCESS_4KX,"l1d_write_access_4kx"},
+      {PTC_L1D_WRITE_ACCESS_4KX,"ptc_l1d_write_access_4kx"},
+      {L1D_WRITE_ACCESS_ALL,"l1d_write_access_all"},
+      {PTC_L1D_WRITE_ACCESS_ALL,"ptc_l1d_write_access_all"},
+      {L1D_PREFETCH_ACCESS_ALIGNED,"l1d_prefetch_access_aligned"},
+      {PTC_L1D_PREFETCH_ACCESS_ALIGNED,"ptc_l1d_prefetch_access_aligned"},
+      {L1D_PREFETCH_ACCESS_CLC,"l1d_prefetch_access_clc"},
+      {PTC_L1D_PREFETCH_ACCESS_CLC,"ptc_l1d_prefetch_access_clc"},
+      {L1D_PREFETCH_ACCESS_4KX,"l1d_prefetch_access_4kx"},
+      {PTC_L1D_PREFETCH_ACCESS_4KX,"ptc_l1d_prefetch_access_4kx"},
+      {L1D_PREFETCH_ACCESS_ALL,"l1d_prefetch_access_all"},
+      {PTC_L1D_PREFETCH_ACCESS_ALL,"ptc_l1d_prefetch_access_all"},
+      {L1D_MMU_ACCESS,"l1d_mmu_access"},
+      {PTC_L1D_MMU_ACCESS,"ptc_l1d_mmu_access"},
+      {L1D_SNOOP_ACCESS,"l1d_snoop_access"},
+      {PTC_L1D_SNOOP_ACCESS,"ptc_l1d_snoop_access"},
+      {L1D_ACCESS_ALL,"l1d_access_all"},
+      {PTC_L1D_ACCESS_ALL,"ptc_l1d_access_all"},
+      {L1D_READ_MISS,"l1d_read_miss"},
+      {PTC_L1D_READ_MISS,"ptc_l1d_read_miss"},
+      {L1D_WRITE_MISS,"l1d_write_miss"},
+      {PTC_L1D_WRITE_MISS,"ptc_l1d_write_miss"},
+      {L1D_PREFETCH_MISS,"l1d_prefetch_miss"},
+      {PTC_L1D_PREFETCH_MISS,"ptc_l1d_prefetch_miss"},
+      {L1D_MMU_MISS,"l1d_mmu_miss"},
+      {PTC_L1D_MMU_MISS,"ptc_l1d_mmu_miss"},
+      {L1D_SNOOP_MISS,"l1d_snoop_miss"},
+      {PTC_L1D_SNOOP_MISS,"ptc_l1d_snoop_miss"},
+      {L1D_MISS_ALL,"l1d_miss_all"},
+      {PTC_L1D_MISS_ALL,"ptc_l1d_miss_all"},
+      {L1D_CACHE_INVALIDATE_SNOOP,"l1d_cache_invalidate_snoop"},
+      {PTC_L1D_CACHE_INVALIDATE_SNOOP,"ptc_l1d_cache_invalidate_snoop"},
+      {L1D_CACHE_INVALIDATE_CMO,"l1d_cache_invalidate_cmo"},
+      {PTC_L1D_CACHE_INVALIDATE_CMO,"ptc_l1d_cache_invalidate_cmo"},
+      {L1D_CACHE_INVALIDATE_LOAD_EVICTION,"l1d_cache_invalidate_load_eviction"},
+      {PTC_L1D_CACHE_INVALIDATE_LOAD_EVICTION,"ptc_l1d_cache_invalidate_load_eviction"},
+      {L1D_CACHE_INVALIDATE_STORE_EVICTION,"l1d_cache_invalidate_store_eviction"},
+      {PTC_L1D_CACHE_INVALIDATE_STORE_EVICTION,"ptc_l1d_cache_invalidate_store_eviction"},
+      {L1D_CACHE_INVALIDATE_PREFETCH_EVICTION,"l1d_cache_invalidate_prefetch_eviction"},
+      {PTC_L1D_CACHE_INVALIDATE_PREFETCH_EVICTION,"ptc_l1d_cache_invalidate_prefetch_eviction"},
+      {DTLB_READ_ACCESS,"dtlb_read_access"},
+      {PTC_DTLB_READ_ACCESS,"ptc_dtlb_read_access"},
+      {DTLB_WRITE_ACCESS,"dtlb_write_access"},
+      {PTC_DTLB_WRITE_ACCESS,"ptc_dtlb_write_access"},
+      {DTLB_PREFETCH_ACCESS,"dtlb_prefetch_access"},
+      {PTC_DTLB_PREFETCH_ACCESS,"ptc_dtlb_prefetch_access"},
+      {DTLB_ACCESS_4K,"dtlb_access_4k"},
+      {PTC_DTLB_ACCESS_4K,"ptc_dtlb_access_4k"},
+      {DTLB_ACCESS_HUGEPAGE,"dtlb_access_hugepage"},
+      {PTC_DTLB_ACCESS_HUGEPAGE,"ptc_dtlb_access_hugepage"},
+      {DTLB_ACCESS_CACHEABLE,"dtlb_access_cacheable"},
+      {PTC_DTLB_ACCESS_CACHEABLE,"ptc_dtlb_access_cacheable"},
+      {DTLB_ACCESS_NONCACHEABLE,"dtlb_access_noncacheable"},
+      {PTC_DTLB_ACCESS_NONCACHEABLE,"ptc_dtlb_access_noncacheable"},
+      {DTLB_ACCESS_ALL,"dtlb_access_all"},
+      {PTC_DTLB_ACCESS_ALL,"ptc_dtlb_access_all"},
+      {DTLB_READ_MISS,"dtlb_read_miss"},
+      {PTC_DTLB_READ_MISS,"ptc_dtlb_read_miss"},
+      {DTLB_WRITE_MISS,"dtlb_write_miss"},
+      {PTC_DTLB_WRITE_MISS,"ptc_dtlb_write_miss"},
+      {DTLB_PREFETCH_MISS,"dtlb_prefetch_miss"},
+      {PTC_DTLB_PREFETCH_MISS,"ptc_dtlb_prefetch_miss"},
+      {DTLB_MISS_4K,"dtlb_miss_4k"},
+      {PTC_DTLB_MISS_4K,"ptc_dtlb_miss_4k"},
+      {DTLB_MISS_HUGEPAGE,"dtlb_miss_hugepage"},
+      {PTC_DTLB_MISS_HUGEPAGE,"ptc_dtlb_miss_hugepage"},
+      {DTLB_MISS_ALL,"dtlb_miss_all"},
+      {PTC_DTLB_MISS_ALL,"ptc_dtlb_miss_all"},
+      {LEAF_TLB_ACCESS_LS,"leaf_tlb_access_ls"},
+      {PTC_LEAF_TLB_ACCESS_LS,"ptc_leaf_tlb_access_ls"},
+      {LEAF_TLB_ACCESS_FE,"leaf_tlb_access_fe"},
+      {PTC_LEAF_TLB_ACCESS_FE,"ptc_leaf_tlb_access_fe"},
+      {LEAF_TLB_ACCESS_PREFETCH,"leaf_tlb_access_prefetch"},
+      {PTC_LEAF_TLB_ACCESS_PREFETCH,"ptc_leaf_tlb_access_prefetch"},
+      {LEAF_TLB_MISS_LS,"leaf_tlb_miss_ls"},
+      {PTC_LEAF_TLB_MISS_LS,"ptc_leaf_tlb_miss_ls"},
+      {LEAF_TLB_MISS_FE,"leaf_tlb_miss_fe"},
+      {PTC_LEAF_TLB_MISS_FE,"ptc_leaf_tlb_miss_fe"},
+      {LEAF_TLB_MISS_PREFETCH,"leaf_tlb_miss_prefetch"},
+      {PTC_LEAF_TLB_MISS_PREFETCH,"ptc_leaf_tlb_miss_prefetch"},
+      {NONLEAF_TLB_ACCESS_LS,"nonleaf_tlb_access_ls"},
+      {PTC_NONLEAF_TLB_ACCESS_LS,"ptc_nonleaf_tlb_access_ls"},
+      {NONLEAF_TLB_ACCESS_FE,"nonleaf_tlb_access_fe"},
+      {PTC_NONLEAF_TLB_ACCESS_FE,"ptc_nonleaf_tlb_access_fe"},
+      {NONLEAF_TLB_ACCESS_PREFETCH,"nonleaf_tlb_access_prefetch"},
+      {PTC_NONLEAF_TLB_ACCESS_PREFETCH,"ptc_nonleaf_tlb_access_prefetch"},
+      {NONLEAF_TLB_MISS_LS,"nonleaf_tlb_miss_ls"},
+      {PTC_NONLEAF_TLB_MISS_LS,"ptc_nonleaf_tlb_miss_ls"},
+      {NONLEAF_TLB_MISS_FE,"nonleaf_tlb_miss_fe"},
+      {PTC_NONLEAF_TLB_MISS_FE,"ptc_nonleaf_tlb_miss_fe"},
+      {NONLEAF_TLB_MISS_PREFETCH,"nonleaf_tlb_miss_prefetch"},
+      {PTC_NONLEAF_TLB_MISS_PREFETCH,"ptc_nonleaf_tlb_miss_prefetch"},
+      {LSU_RESYNCS_RAW,"lsu_resyncs_raw"},
+      {PTC_LSU_RESYNCS_RAW,"ptc_lsu_resyncs_raw"},
+      {LSU_RESYNCS_RAR,"lsu_resyncs_rar"},
+      {PTC_LSU_RESYNCS_RAR,"ptc_lsu_resyncs_rar"},
+      {LSU_RESYNCS_ALL,"lsu_resyncs_all"},
+      {PTC_LSU_RESYNCS_ALL,"ptc_lsu_resyncs_all"},
+      {LS_REPLAY_LOAD,"ls_replay_load"},
+      {PTC_LS_REPLAY_LOAD,"ptc_ls_replay_load"},
+      {LS_REPLAY_STORE,"ls_replay_store"},
+      {PTC_LS_REPLAY_STORE,"ptc_ls_replay_store"},
+      {LS_REPLAY_PREFETCH,"ls_replay_prefetch"},
+      {PTC_LS_REPLAY_PREFETCH,"ptc_ls_replay_prefetch"},
+      {LS_REPLAY_MMU,"ls_replay_mmu"},
+      {PTC_LS_REPLAY_MMU,"ptc_ls_replay_mmu"},
+      {LS_REPLAY_ALL,"ls_replay_all"},
+      {PTC_LS_REPLAY_ALL,"ptc_ls_replay_all"},
+      {LS_WAY_PREDICTOR_REPLAY_LOAD,"ls_way_predictor_replay_load"},
+      {PTC_LS_WAY_PREDICTOR_REPLAY_LOAD,"ptc_ls_way_predictor_replay_load"},
+      {LS_WAY_PREDICTOR_REPLAY_STORE,"ls_way_predictor_replay_store"},
+      {PTC_LS_WAY_PREDICTOR_REPLAY_STORE,"ptc_ls_way_predictor_replay_store"},
+      {LS_WAY_PREDICTOR_REPLAY_PREFETCH,"ls_way_predictor_replay_prefetch"},
+      {PTC_LS_WAY_PREDICTOR_REPLAY_PREFETCH,"ptc_ls_way_predictor_replay_prefetch"},
+      {LS_WAY_PREDICTOR_REPLAY_MMU,"ls_way_predictor_replay_mmu"},
+      {PTC_LS_WAY_PREDICTOR_REPLAY_MMU,"ptc_ls_way_predictor_replay_mmu"},
+      {LS_WAY_PREDICTOR_REPLAY_ALL,"ls_way_predictor_replay_all"},
+      {PTC_LS_WAY_PREDICTOR_REPLAY_ALL,"ptc_ls_way_predictor_replay_all"},
+      {SIPT_REPLAY_LOAD,"sipt_replay_load"},
+      {PTC_SIPT_REPLAY_LOAD,"ptc_sipt_replay_load"},
+      {SIPT_REPLAY_STORE,"sipt_replay_store"},
+      {PTC_SIPT_REPLAY_STORE,"ptc_sipt_replay_store"},
+      {SIPT_REPLAY_PREFETCH,"sipt_replay_prefetch"},
+      {PTC_SIPT_REPLAY_PREFETCH,"ptc_sipt_replay_prefetch"},
+      {SIPT_REPLAY_MMU,"sipt_replay_mmu"},
+      {PTC_SIPT_REPLAY_MMU,"ptc_sipt_replay_mmu"},
+      {SIPT_REPLAY_ALL,"sipt_replay_all"},
+      {PTC_SIPT_REPLAY_ALL,"ptc_sipt_replay_all"},
+      {STLF_REPLAY_LOAD,"stlf_replay_load"},
+      {PTC_STLF_REPLAY_LOAD,"ptc_stlf_replay_load"},
+      {STLF_REPLAY_STORE,"stlf_replay_store"},
+      {PTC_STLF_REPLAY_STORE,"ptc_stlf_replay_store"},
+      {STLF_REPLAY_PREFETCH,"stlf_replay_prefetch"},
+      {PTC_STLF_REPLAY_PREFETCH,"ptc_stlf_replay_prefetch"},
+      {STLF_REPLAY_MMU,"stlf_replay_mmu"},
+      {PTC_STLF_REPLAY_MMU,"ptc_stlf_replay_mmu"},
+      {STLF_REPLAY_ALL,"stlf_replay_all"},
+      {PTC_STLF_REPLAY_ALL,"ptc_stlf_replay_all"},
+      {TAG_BANK_CONFLICT_REPLAY_LOAD,"tag_bank_conflict_replay_load"},
+      {PTC_TAG_BANK_CONFLICT_REPLAY_LOAD,"ptc_tag_bank_conflict_replay_load"},
+      {TAG_BANK_CONFLICT_REPLAY_STORE,"tag_bank_conflict_replay_store"},
+      {PTC_TAG_BANK_CONFLICT_REPLAY_STORE,"ptc_tag_bank_conflict_replay_store"},
+      {TAG_BANK_CONFLICT_REPLAY_PREFETCH,"tag_bank_conflict_replay_prefetch"},
+      {PTC_TAG_BANK_CONFLICT_REPLAY_PREFETCH,"ptc_tag_bank_conflict_replay_prefetch"},
+      {TAG_BANK_CONFLICT_REPLAY_MMU,"tag_bank_conflict_replay_mmu"},
+      {PTC_TAG_BANK_CONFLICT_REPLAY_MMU,"ptc_tag_bank_conflict_replay_mmu"},
+      {TAG_BANK_CONFLICT_REPLAY_ALL,"tag_bank_conflict_replay_all"},
+      {PTC_TAG_BANK_CONFLICT_REPLAY_ALL,"ptc_tag_bank_conflict_replay_all"},
+      {DATA_BANK_CONFLICT_REPLAY_LOAD,"data_bank_conflict_replay_load"},
+      {PTC_DATA_BANK_CONFLICT_REPLAY_LOAD,"ptc_data_bank_conflict_replay_load"},
+      {DATA_BANK_CONFLICT_REPLAY_STORE,"data_bank_conflict_replay_store"},
+      {PTC_DATA_BANK_CONFLICT_REPLAY_STORE,"ptc_data_bank_conflict_replay_store"},
+      {DATA_BANK_CONFLICT_REPLAY_PREFETCH,"data_bank_conflict_replay_prefetch"},
+      {PTC_DATA_BANK_CONFLICT_REPLAY_PREFETCH,"ptc_data_bank_conflict_replay_prefetch"},
+      {DATA_BANK_CONFLICT_REPLAY_MMU,"data_bank_conflict_replay_mmu"},
+      {PTC_DATA_BANK_CONFLICT_REPLAY_MMU,"ptc_data_bank_conflict_replay_mmu"},
+      {DATA_BANK_CONFLICT_REPLAY_ALL,"data_bank_conflict_replay_all"},
+      {PTC_DATA_BANK_CONFLICT_REPLAY_ALL,"ptc_data_bank_conflict_replay_all"},
+      {FILLBUF_HIT_REPLAY_LOAD,"fillbuf_hit_replay_load"},
+      {PTC_FILLBUF_HIT_REPLAY_LOAD,"ptc_fillbuf_hit_replay_load"},
+      {FILLBUF_HIT_REPLAY_STORE,"fillbuf_hit_replay_store"},
+      {PTC_FILLBUF_HIT_REPLAY_STORE,"ptc_fillbuf_hit_replay_store"},
+      {FILLBUF_HIT_REPLAY_PREFETCH,"fillbuf_hit_replay_prefetch"},
+      {PTC_FILLBUF_HIT_REPLAY_PREFETCH,"ptc_fillbuf_hit_replay_prefetch"},
+      {FILLBUF_HIT_REPLAY_MMU,"fillbuf_hit_replay_mmu"},
+      {PTC_FILLBUF_HIT_REPLAY_MMU,"ptc_fillbuf_hit_replay_mmu"},
+      {FILLBUF_HIT_REPLAY_ALL,"fillbuf_hit_replay_all"},
+      {PTC_FILLBUF_HIT_REPLAY_ALL,"ptc_fillbuf_hit_replay_all"},
+      {TRANSBUF_HIT_REPLAY_LOAD,"transbuf_hit_replay_load"},
+      {PTC_TRANSBUF_HIT_REPLAY_LOAD,"ptc_transbuf_hit_replay_load"},
+      {TRANSBUF_HIT_REPLAY_STORE,"transbuf_hit_replay_store"},
+      {PTC_TRANSBUF_HIT_REPLAY_STORE,"ptc_transbuf_hit_replay_store"},
+      {TRANSBUF_HIT_REPLAY_PREFETCH,"transbuf_hit_replay_prefetch"},
+      {PTC_TRANSBUF_HIT_REPLAY_PREFETCH,"ptc_transbuf_hit_replay_prefetch"},
+      {TRANSBUF_HIT_REPLAY_MMU,"transbuf_hit_replay_mmu"},
+      {PTC_TRANSBUF_HIT_REPLAY_MMU,"ptc_transbuf_hit_replay_mmu"},
+      {TRANSBUF_HIT_REPLAY_ALL,"transbuf_hit_replay_all"},
+      {PTC_TRANSBUF_HIT_REPLAY_ALL,"ptc_transbuf_hit_replay_all"},
+      {REQBUF_HIT_REPLAY_LOAD,"reqbuf_hit_replay_load"},
+      {PTC_REQBUF_HIT_REPLAY_LOAD,"ptc_reqbuf_hit_replay_load"},
+      {REQBUF_HIT_REPLAY_STORE,"reqbuf_hit_replay_store"},
+      {PTC_REQBUF_HIT_REPLAY_STORE,"ptc_reqbuf_hit_replay_store"},
+      {REQBUF_HIT_REPLAY_PREFETCH,"reqbuf_hit_replay_prefetch"},
+      {PTC_REQBUF_HIT_REPLAY_PREFETCH,"ptc_reqbuf_hit_replay_prefetch"},
+      {REQBUF_HIT_REPLAY_MMU,"reqbuf_hit_replay_mmu"},
+      {PTC_REQBUF_HIT_REPLAY_MMU,"ptc_reqbuf_hit_replay_mmu"},
+      {REQBUF_HIT_REPLAY_ALL,"reqbuf_hit_replay_all"},
+      {PTC_REQBUF_HIT_REPLAY_ALL,"ptc_reqbuf_hit_replay_all"},
+      {DTLB_REPLAY_LOAD,"dtlb_replay_load"},
+      {PTC_DTLB_REPLAY_LOAD,"ptc_dtlb_replay_load"},
+      {DTLB_REPLAY_STORE,"dtlb_replay_store"},
+      {PTC_DTLB_REPLAY_STORE,"ptc_dtlb_replay_store"},
+      {DTLB_REPLAY_PREFETCH,"dtlb_replay_prefetch"},
+      {PTC_DTLB_REPLAY_PREFETCH,"ptc_dtlb_replay_prefetch"},
+      {DTLB_REPLAY_MMU,"dtlb_replay_mmu"},
+      {PTC_DTLB_REPLAY_MMU,"ptc_dtlb_replay_mmu"},
+      {DTLB_REPLAY_ALL,"dtlb_replay_all"},
+      {PTC_DTLB_REPLAY_ALL,"ptc_dtlb_replay_all"},
+      {REQBUF_CANNOT_ALLOC_LOAD,"reqbuf_cannot_alloc_load"},
+      {PTC_REQBUF_CANNOT_ALLOC_LOAD,"ptc_reqbuf_cannot_alloc_load"},
+      {REQBUF_CANNOT_ALLOC_STORE,"reqbuf_cannot_alloc_store"},
+      {PTC_REQBUF_CANNOT_ALLOC_STORE,"ptc_reqbuf_cannot_alloc_store"},
+      {REQBUF_CANNOT_ALLOC_PREFETCH,"reqbuf_cannot_alloc_prefetch"},
+      {PTC_REQBUF_CANNOT_ALLOC_PREFETCH,"ptc_reqbuf_cannot_alloc_prefetch"},
+      {REQBUF_CANNOT_ALLOC_MMU,"reqbuf_cannot_alloc_mmu"},
+      {PTC_REQBUF_CANNOT_ALLOC_MMU,"ptc_reqbuf_cannot_alloc_mmu"},
+      {REQBUF_CANNOT_ALLOC_ALL,"reqbuf_cannot_alloc_all"},
+      {PTC_REQBUF_CANNOT_ALLOC_ALL,"ptc_reqbuf_cannot_alloc_all"},
+      {TRANSBUF_CANNOT_ALLOC_LOAD,"transbuf_cannot_alloc_load"},
+      {PTC_TRANSBUF_CANNOT_ALLOC_LOAD,"ptc_transbuf_cannot_alloc_load"},
+      {TRANSBUF_CANNOT_ALLOC_STORE,"transbuf_cannot_alloc_store"},
+      {PTC_TRANSBUF_CANNOT_ALLOC_STORE,"ptc_transbuf_cannot_alloc_store"},
+      {TRANSBUF_CANNOT_ALLOC_PREFETCH,"transbuf_cannot_alloc_prefetch"},
+      {PTC_TRANSBUF_CANNOT_ALLOC_PREFETCH,"ptc_transbuf_cannot_alloc_prefetch"},
+      {TRANSBUF_CANNOT_ALLOC_MMU,"transbuf_cannot_alloc_mmu"},
+      {PTC_TRANSBUF_CANNOT_ALLOC_MMU,"ptc_transbuf_cannot_alloc_mmu"},
+      {TRANSBUF_CANNOT_ALLOC_ALL,"transbuf_cannot_alloc_all"},
+      {PTC_TRANSBUF_CANNOT_ALLOC_ALL,"ptc_transbuf_cannot_alloc_all"},
+      {PCB_CANNOT_ALLOC_LOAD,"pcb_cannot_alloc_load"},
+      {PTC_PCB_CANNOT_ALLOC_LOAD,"ptc_pcb_cannot_alloc_load"},
+      {PCB_CANNOT_ALLOC_STORE,"pcb_cannot_alloc_store"},
+      {PTC_PCB_CANNOT_ALLOC_STORE,"ptc_pcb_cannot_alloc_store"},
+      {PCB_CANNOT_ALLOC_ALL,"pcb_cannot_alloc_all"},
+      {PTC_PCB_CANNOT_ALLOC_ALL,"ptc_pcb_cannot_alloc_all"},
     };
-
 
   pmu(cvm::topology::loc_t, unsigned);
   ~pmu();

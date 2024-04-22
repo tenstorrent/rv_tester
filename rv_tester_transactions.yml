@@ -614,6 +614,14 @@ pmu:
                 width: 64
             ptc_cycles_no_vec_prn:
                 width: 14
+            cycles_no_vl_prn:
+                width: 64
+            ptc_cycles_no_vl_prn:
+                width: 14
+            cycles_no_vm_prn:
+                width: 64
+            ptc_cycles_no_vm_prn:
+                width: 14
             cycles_no_rob:
                 width: 64
             ptc_cycles_no_rob:
@@ -726,45 +734,13 @@ pmu:
                 width: 64
             ptc_tlb_invalidates:
                 width: 14
-            l1d_access_filter:
-                width: 64
-            ptc_l1d_access_filter:
-                width: 14
-            l1d_miss_filter:
-                width: 64
-            ptc_l1d_miss_filter:
-                width: 14
-            l1d_cache_invalidate_filter:
-                width: 64
-            ptc_l1d_cache_invalidate_filter:
-                width: 14
             utlb_miss:
                 width: 64
             ptc_utlb_miss:
                 width: 14
-            dtlb_access_filter:
-                width: 64
-            ptc_dtlb_access_filter:
-                width: 14
-            dtlb_miss_filter:
-                width: 64
-            ptc_dtlb_miss_filter:
-                width: 14
-            leaf_tlb_access_filter:
-                width: 64
-            ptc_leaf_tlb_access_filter:
-                width: 14
-            leaf_tlb_miss_filter:
-                width: 64
-            ptc_leaf_tlb_miss_filter:
-                width: 14
             nonleaf_tlb_access_fiter:
                 width: 64
             ptc_nonleaf_tlb_access_fiter:
-                width: 14
-            nonleaf_tlb_miss_filter:
-                width: 64
-            ptc_nonleaf_tlb_miss_filter:
                 width: 14
             page_walks:
                 width: 64
@@ -782,53 +758,9 @@ pmu:
                 width: 64
             ptc_stalls_mem_l1dtlb_miss:
                 width: 14
-            lsu_resyncs_filter:
-                width: 64
-            ptc_lsu_resyncs_filter:
-                width: 14
             stlf_hits:
                 width: 64
             ptc_stlf_hits:
-                width: 14
-            ls_replay:
-                width: 64
-            ptc_ls_replay:
-                width: 14
-            ls_replay_way_predictor:
-                width: 64
-            ptc_ls_replay_way_predictor:
-                width: 14
-            sipt_replay:
-                width: 64
-            ptc_sipt_replay:
-                width: 14
-            stlf_replay:
-                width: 64
-            ptc_stlf_replay:
-                width: 14
-            tag_bank_conflict_replay:
-                width: 64
-            ptc_tag_bank_conflict_replay:
-                width: 14
-            data_bank_conflict_replay:
-                width: 64
-            ptc_data_bank_conflict_replay:
-                width: 14
-            fillbuf_hit_replay:
-                width: 64
-            ptc_fillbuf_hit_replay:
-                width: 14
-            transbuf_hit_replay:
-                width: 64
-            ptc_transbuf_hit_replay:
-                width: 14
-            reqbuf_hit_replay:
-                width: 64
-            ptc_reqbuf_hit_replay:
-                width: 14
-            dtlb_replay:
-                width: 64
-            ptc_dtlb_replay:
                 width: 14
             rar_cannot_alloc:
                 width: 64
@@ -846,21 +778,9 @@ pmu:
                 width: 64
             ptc_smb_cannot_alloc:
                 width: 14
-            reqbuf_cannot_alloc_filter:
-                width: 64
-            ptc_reqbuf_cannot_alloc_filter:
-                width: 14
             fillbuf_cannot_alloc:
                 width: 64
             ptc_fillbuf_cannot_alloc:
-                width: 14
-            transbuf_cannot_alloc_filter:
-                width: 64
-            ptc_transbuf_cannot_alloc_filter:
-                width: 14
-            pcb_cannot_alloc_filter:
-                width: 64
-            ptc_pcb_cannot_alloc_filter:
                 width: 14
             udb_cannot_alloc:
                 width: 64
@@ -981,6 +901,478 @@ pmu:
             pfc_victim_prefetches:
                 width: 64
             ptc_pfc_victim_prefetches:
+                width: 14
+            l1d_read_access_aligned:
+                width: 64
+            ptc_l1d_read_access_aligned:
+                width: 14
+            l1d_read_access_clc:
+                width: 64
+            ptc_l1d_read_access_clc:
+                width: 14
+            l1d_read_access_4kx:
+                width: 64
+            ptc_l1d_read_access_4kx:
+                width: 14
+            l1d_read_access_all:
+                width: 64
+            ptc_l1d_read_access_all:
+                width: 14
+            l1d_write_access_aligned:
+                width: 64
+            ptc_l1d_write_access_aligned:
+                width: 14
+            l1d_write_access_clc:
+                width: 64
+            ptc_l1d_write_access_clc:
+                width: 14
+            l1d_write_access_4kx:
+                width: 64
+            ptc_l1d_write_access_4kx:
+                width: 14
+            l1d_write_access_all:
+                width: 64
+            ptc_l1d_write_access_all:
+                width: 14
+            l1d_prefetch_access_aligned:
+                width: 64
+            ptc_l1d_prefetch_access_aligned:
+                width: 14
+            l1d_prefetch_access_clc:
+                width: 64
+            ptc_l1d_prefetch_access_clc:
+                width: 14
+            l1d_prefetch_access_4kx:
+                width: 64
+            ptc_l1d_prefetch_access_4kx:
+                width: 14
+            l1d_prefetch_access_all:
+                width: 64
+            ptc_l1d_prefetch_access_all:
+                width: 14
+            l1d_mmu_access:
+                width: 64
+            ptc_l1d_mmu_access:
+                width: 14
+            l1d_snoop_access:
+                width: 64
+            ptc_l1d_snoop_access:
+                width: 14
+            l1d_access_all:
+                width: 64
+            ptc_l1d_access_all:
+                width: 14
+            l1d_read_miss:
+                width: 64
+            ptc_l1d_read_miss:
+                width: 14
+            l1d_write_miss:
+                width: 64
+            ptc_l1d_write_miss:
+                width: 14
+            l1d_prefetch_miss:
+                width: 64
+            ptc_l1d_prefetch_miss:
+                width: 14
+            l1d_mmu_miss:
+                width: 64
+            ptc_l1d_mmu_miss:
+                width: 14
+            l1d_snoop_miss:
+                width: 64
+            ptc_l1d_snoop_miss:
+                width: 14
+            l1d_miss_all:
+                width: 64
+            ptc_l1d_miss_all:
+                width: 14
+            l1d_cache_invalidate_snoop:
+                width: 64
+            ptc_l1d_cache_invalidate_snoop:
+                width: 14
+            l1d_cache_invalidate_cmo:
+                width: 64
+            ptc_l1d_cache_invalidate_cmo:
+                width: 14
+            l1d_cache_invalidate_load_eviction:
+                width: 64
+            ptc_l1d_cache_invalidate_load_eviction:
+                width: 14
+            l1d_cache_invalidate_store_eviction:
+                width: 64
+            ptc_l1d_cache_invalidate_store_eviction:
+                width: 14
+            l1d_cache_invalidate_prefetch_eviction:
+                width: 64
+            ptc_l1d_cache_invalidate_prefetch_eviction:
+                width: 14
+            dtlb_read_access:
+                width: 64
+            ptc_dtlb_read_access:
+                width: 14
+            dtlb_write_access:
+                width: 64
+            ptc_dtlb_write_access:
+                width: 14
+            dtlb_prefetch_access:
+                width: 64
+            ptc_dtlb_prefetch_access:
+                width: 14
+            dtlb_access_4k:
+                width: 64
+            ptc_dtlb_access_4k:
+                width: 14
+            dtlb_access_hugepage:
+                width: 64
+            ptc_dtlb_access_hugepage:
+                width: 14
+            dtlb_access_cacheable:
+                width: 64
+            ptc_dtlb_access_cacheable:
+                width: 14
+            dtlb_access_noncacheable:
+                width: 64
+            ptc_dtlb_access_noncacheable:
+                width: 14
+            dtlb_access_all:
+                width: 64
+            ptc_dtlb_access_all:
+                width: 14
+            dtlb_read_miss:
+                width: 64
+            ptc_dtlb_read_miss:
+                width: 14
+            dtlb_write_miss:
+                width: 64
+            ptc_dtlb_write_miss:
+                width: 14
+            dtlb_prefetch_miss:
+                width: 64
+            ptc_dtlb_prefetch_miss:
+                width: 14
+            dtlb_miss_4k:
+                width: 64
+            ptc_dtlb_miss_4k:
+                width: 14
+            dtlb_miss_hugepage:
+                width: 64
+            ptc_dtlb_miss_hugepage:
+                width: 14
+            dtlb_miss_all:
+                width: 64
+            ptc_dtlb_miss_all:
+                width: 14
+            leaf_tlb_access_ls:
+                width: 64
+            ptc_leaf_tlb_access_ls:
+                width: 14
+            leaf_tlb_access_fe:
+                width: 64
+            ptc_leaf_tlb_access_fe:
+                width: 14
+            leaf_tlb_access_prefetch:
+                width: 64
+            ptc_leaf_tlb_access_prefetch:
+                width: 14
+            leaf_tlb_miss_ls:
+                width: 64
+            ptc_leaf_tlb_miss_ls:
+                width: 14
+            leaf_tlb_miss_fe:
+                width: 64
+            ptc_leaf_tlb_miss_fe:
+                width: 14
+            leaf_tlb_miss_prefetch:
+                width: 64
+            ptc_leaf_tlb_miss_prefetch:
+                width: 14
+            nonleaf_tlb_access_ls:
+                width: 64
+            ptc_nonleaf_tlb_access_ls:
+                width: 14
+            nonleaf_tlb_access_fe:
+                width: 64
+            ptc_nonleaf_tlb_access_fe:
+                width: 14
+            nonleaf_tlb_access_prefetch:
+                width: 64
+            ptc_nonleaf_tlb_access_prefetch:
+                width: 14
+            nonleaf_tlb_miss_ls:
+                width: 64
+            ptc_nonleaf_tlb_miss_ls:
+                width: 14
+            nonleaf_tlb_miss_fe:
+                width: 64
+            ptc_nonleaf_tlb_miss_fe:
+                width: 14
+            nonleaf_tlb_miss_prefetch:
+                width: 64
+            ptc_nonleaf_tlb_miss_prefetch:
+                width: 14
+            lsu_resyncs_raw:
+                width: 64
+            ptc_lsu_resyncs_raw:
+                width: 14
+            lsu_resyncs_rar:
+                width: 64
+            ptc_lsu_resyncs_rar:
+                width: 14
+            lsu_resyncs_all:
+                width: 64
+            ptc_lsu_resyncs_all:
+                width: 14
+            ls_replay_load:
+                width: 64
+            ptc_ls_replay_load:
+                width: 14
+            ls_replay_store:
+                width: 64
+            ptc_ls_replay_store:
+                width: 14
+            ls_replay_prefetch:
+                width: 64
+            ptc_ls_replay_prefetch:
+                width: 14
+            ls_replay_mmu:
+                width: 64
+            ptc_ls_replay_mmu:
+                width: 14
+            ls_replay_all:
+                width: 64
+            ptc_ls_replay_all:
+                width: 14
+            ls_way_predictor_replay_load:
+                width: 64
+            ptc_ls_way_predictor_replay_load:
+                width: 14
+            ls_way_predictor_replay_store:
+                width: 64
+            ptc_ls_way_predictor_replay_store:
+                width: 14
+            ls_way_predictor_replay_prefetch:
+                width: 64
+            ptc_ls_way_predictor_replay_prefetch:
+                width: 14
+            ls_way_predictor_replay_mmu:
+                width: 64
+            ptc_ls_way_predictor_replay_mmu:
+                width: 14
+            ls_way_predictor_replay_all:
+                width: 64
+            ptc_ls_way_predictor_replay_all:
+                width: 14
+            sipt_replay_load:
+                width: 64
+            ptc_sipt_replay_load:
+                width: 14
+            sipt_replay_store:
+                width: 64
+            ptc_sipt_replay_store:
+                width: 14
+            sipt_replay_prefetch:
+                width: 64
+            ptc_sipt_replay_prefetch:
+                width: 14
+            sipt_replay_mmu:
+                width: 64
+            ptc_sipt_replay_mmu:
+                width: 14
+            sipt_replay_all:
+                width: 64
+            ptc_sipt_replay_all:
+                width: 14
+            stlf_replay_load:
+                width: 64
+            ptc_stlf_replay_load:
+                width: 14
+            stlf_replay_store:
+                width: 64
+            ptc_stlf_replay_store:
+                width: 14
+            stlf_replay_prefetch:
+                width: 64
+            ptc_stlf_replay_prefetch:
+                width: 14
+            stlf_replay_mmu:
+                width: 64
+            ptc_stlf_replay_mmu:
+                width: 14
+            stlf_replay_all:
+                width: 64
+            ptc_stlf_replay_all:
+                width: 14
+            tag_bank_conflict_replay_load:
+                width: 64
+            ptc_tag_bank_conflict_replay_load:
+                width: 14
+            tag_bank_conflict_replay_store:
+                width: 64
+            ptc_tag_bank_conflict_replay_store:
+                width: 14
+            tag_bank_conflict_replay_prefetch:
+                width: 64
+            ptc_tag_bank_conflict_replay_prefetch:
+                width: 14
+            tag_bank_conflict_replay_mmu:
+                width: 64
+            ptc_tag_bank_conflict_replay_mmu:
+                width: 14
+            tag_bank_conflict_replay_all:
+                width: 64
+            ptc_tag_bank_conflict_replay_all:
+                width: 14
+            data_bank_conflict_replay_load:
+                width: 64
+            ptc_data_bank_conflict_replay_load:
+                width: 14
+            data_bank_conflict_replay_store:
+                width: 64
+            ptc_data_bank_conflict_replay_store:
+                width: 14
+            data_bank_conflict_replay_prefetch:
+                width: 64
+            ptc_data_bank_conflict_replay_prefetch:
+                width: 14
+            data_bank_conflict_replay_mmu:
+                width: 64
+            ptc_data_bank_conflict_replay_mmu:
+                width: 14
+            data_bank_conflict_replay_all:
+                width: 64
+            ptc_data_bank_conflict_replay_all:
+                width: 14
+            fillbuf_hit_replay_load:
+                width: 64
+            ptc_fillbuf_hit_replay_load:
+                width: 14
+            fillbuf_hit_replay_store:
+                width: 64
+            ptc_fillbuf_hit_replay_store:
+                width: 14
+            fillbuf_hit_replay_prefetch:
+                width: 64
+            ptc_fillbuf_hit_replay_prefetch:
+                width: 14
+            fillbuf_hit_replay_mmu:
+                width: 64
+            ptc_fillbuf_hit_replay_mmu:
+                width: 14
+            fillbuf_hit_replay_all:
+                width: 64
+            ptc_fillbuf_hit_replay_all:
+                width: 14
+            transbuf_hit_replay_load:
+                width: 64
+            ptc_transbuf_hit_replay_load:
+                width: 14
+            transbuf_hit_replay_store:
+                width: 64
+            ptc_transbuf_hit_replay_store:
+                width: 14
+            transbuf_hit_replay_prefetch:
+                width: 64
+            ptc_transbuf_hit_replay_prefetch:
+                width: 14
+            transbuf_hit_replay_mmu:
+                width: 64
+            ptc_transbuf_hit_replay_mmu:
+                width: 14
+            transbuf_hit_replay_all:
+                width: 64
+            ptc_transbuf_hit_replay_all:
+                width: 14
+            reqbuf_hit_replay_load:
+                width: 64
+            ptc_reqbuf_hit_replay_load:
+                width: 14
+            reqbuf_hit_replay_store:
+                width: 64
+            ptc_reqbuf_hit_replay_store:
+                width: 14
+            reqbuf_hit_replay_prefetch:
+                width: 64
+            ptc_reqbuf_hit_replay_prefetch:
+                width: 14
+            reqbuf_hit_replay_mmu:
+                width: 64
+            ptc_reqbuf_hit_replay_mmu:
+                width: 14
+            reqbuf_hit_replay_all:
+                width: 64
+            ptc_reqbuf_hit_replay_all:
+                width: 14
+            dtlb_replay_load:
+                width: 64
+            ptc_dtlb_replay_load:
+                width: 14
+            dtlb_replay_store:
+                width: 64
+            ptc_dtlb_replay_store:
+                width: 14
+            dtlb_replay_prefetch:
+                width: 64
+            ptc_dtlb_replay_prefetch:
+                width: 14
+            dtlb_replay_mmu:
+                width: 64
+            ptc_dtlb_replay_mmu:
+                width: 14
+            dtlb_replay_all:
+                width: 64
+            ptc_dtlb_replay_all:
+                width: 14
+            reqbuf_cannot_alloc_load:
+                width: 64
+            ptc_reqbuf_cannot_alloc_load:
+                width: 14
+            reqbuf_cannot_alloc_store:
+                width: 64
+            ptc_reqbuf_cannot_alloc_store:
+                width: 14
+            reqbuf_cannot_alloc_prefetch:
+                width: 64
+            ptc_reqbuf_cannot_alloc_prefetch:
+                width: 14
+            reqbuf_cannot_alloc_mmu:
+                width: 64
+            ptc_reqbuf_cannot_alloc_mmu:
+                width: 14
+            reqbuf_cannot_alloc_all:
+                width: 64
+            ptc_reqbuf_cannot_alloc_all:
+                width: 14
+            transbuf_cannot_alloc_load:
+                width: 64
+            ptc_transbuf_cannot_alloc_load:
+                width: 14
+            transbuf_cannot_alloc_store:
+                width: 64
+            ptc_transbuf_cannot_alloc_store:
+                width: 14
+            transbuf_cannot_alloc_prefetch:
+                width: 64
+            ptc_transbuf_cannot_alloc_prefetch:
+                width: 14
+            transbuf_cannot_alloc_mmu:
+                width: 64
+            ptc_transbuf_cannot_alloc_mmu:
+                width: 14
+            transbuf_cannot_alloc_all:
+                width: 64
+            ptc_transbuf_cannot_alloc_all:
+                width: 14
+            pcb_cannot_alloc_load:
+                width: 64
+            ptc_pcb_cannot_alloc_load:
+                width: 14
+            pcb_cannot_alloc_store:
+                width: 64
+            ptc_pcb_cannot_alloc_store:
+                width: 14
+            pcb_cannot_alloc_all:
+                width: 64
+            ptc_pcb_cannot_alloc_all:
                 width: 14
             perf_start:
                 width: 1
