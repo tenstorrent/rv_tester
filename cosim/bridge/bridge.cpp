@@ -47,7 +47,7 @@ DEFINE_bool(fpr_check, true, "Enable cosim checks on fprs");
 DEFINE_bool(vec_check, true, "Enable cosim checks on vector regs");
 DEFINE_bool(csr_rd_check, true, "Enable cosim checks on csr reads");
 DEFINE_bool(csr_wr_check, true, "Enable cosim checks on csr writes");
-DEFINE_bool(memattr_check, false, "Enable cosim checks on mem attributes");
+DEFINE_bool(memattr_check, true, "Enable cosim checks on mem attributes");
 DEFINE_uint64(max_cycle, 1000000, "Max cycle limit to terminate the sim");
 DEFINE_int32(debug_excp_mcause, 24, "MCAUSE value for debug exception");
 DEFINE_bool(translation_check, false, "Do VA-PA translation check");
@@ -79,8 +79,17 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
     std::string traceFile = FLAGS_whisper_log ? "iss_cosim.log" : "";
     std::string commandLog = FLAGS_whisper_log ? "iss_cmd.log" : "";
     cosim_resynch_csr_defaults = {
-      "htval","mtval2","mtinst","htinst","vstart","vxsat","vxrm","vcsr","sstatus","mstatus","hstatus","mie","hie","vsie","sie","fflags","fcsr","tselect","tdata1","tdata2","tdata3","mcontext","pma","pmp","menvcfg","senvcfg", // open bugs: RVDE: 10005 (mtinst/htinst), RVDE: 11217 (vectors), RVDE: 10043 (mtval2/htval), RVDE: 8849 (mstatus/mie aliases), RVDE: 7518 (Debug CSRs)
-      "mip","hip","vsip","hvip","sip","mcycle","mireg","sireg","vsireg","vtype","mtopei","stopei","vstopei","hpmcounter","hpmevent","scountovf","minstret","minstreth" // permanantly excluded
+      //"htval","mtval2", // RVDE-10043
+      "mtinst","htinst", // RVDE-10005
+      "vstart","vxsat","vxrm","vcsr", // Unimplemented
+      "sstatus","mstatus","hstatus","mie","hie","vsie","sie", // RVDE-11840
+      "tselect","tdata1","tdata2","tdata3","mcontext", // Unimplemented: RVDE-7518
+      "fflags","fcsr", // Unimplemented
+      "menvcfg","senvcfg", // FIXME: pointer masking change
+      "pma","pmp", // FIXME: Performant NC change
+      "vtype", // Permanent: Vector vtype will not be implemented
+      "mip","hip","vsip","hvip","sip","mireg","sireg","vsireg","mtopei","stopei","vstopei", // Permanent: Interrupts
+      "hpmcounter","hpmevent","scountovf","mcycle","minstret","minstreth" // Permanent: PMC events
     };
     std::istringstream iss(FLAGS_cosim_resynch_csr);
     std::string token;
@@ -311,10 +320,10 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
   if (d.gpr.valid || d.fpr.valid || !d.vr.empty() || !d.csr.empty()) {
     update_regs(hart, d);
   }
-  if (FLAGS_memattr_check && d.mem_read.valid) {
+  if (FLAGS_memattr_check && d.mem_read.valid && (!is_vector(d.disasm))) {
     update_mem_attr(hart, src_t::dut, d.mem_read.attr);
   }
-  if (FLAGS_memattr_check && d.mem_write.valid) {
+  if (FLAGS_memattr_check && d.mem_write.valid && (!is_vector(d.disasm))) {
     update_mem_attr(hart, src_t::dut, d.mem_write.attr);
   }
 }
@@ -420,6 +429,7 @@ void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whi
     if (w_intr && (w_cause == d.icause)) {
       log(cvm::MEDIUM, "<{}> DUT took interrupt, Whisper did not. cause:[{}] (Timing sensitive mismatch: Resynch and keep going)\n", w.time, d.icause);
       poke_mip(hart, w.time, (uint64_t)1 << d.icause);
+      resynch_icause_ = d.icause;
       // Undefer all interrupts
       if (deferred_intr_) {
         defer_interrupt(hart, w.time, 0);
@@ -536,6 +546,15 @@ void bridge::process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, wh
     print_instr_stdout(hart, w);
     cvm::log(cvm::ERROR, "Error: Hart {}: DUT vs Whisper interrupt cause mismatch [dut:{},whisper:{}]\n", hart, d.icause, w_.icause);
     return;
+  }
+  if (resynch_icause_) {
+    uint64_t resynch_mip_mask, resynch_mip;
+    resynch_mip_mask = (1 << resynch_icause_);
+    resynch_icause_ = 0;
+    peek_mip(hart, d.cycle, resynch_mip);
+    resynch_mip &= ~resynch_mip_mask;
+    log(cvm::MEDIUM, "<{}> Poking mip de assertion due to resynch in previous step {} \n", d.cycle, resynch_mip);
+    poke_mip(hart, d.cycle, resynch_mip);
   }
 
   num_taken_interrupts_[intrtopriv_][w_.icause]++;
@@ -849,7 +868,8 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
   }
 }
 
-// Push DUT mem attr to cac
+// Push DUT mem attr to cac 
+// Currently disabling mem_attr checks for vectors
 void bridge::update_mem_attr(hart_id_t hart, src_t src, uint32_t data) {
   resource_id_t mem_attr = resource_id_t{
     .resource = resource_t::mem_attr,

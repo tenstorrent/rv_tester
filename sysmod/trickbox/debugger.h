@@ -228,5 +228,6 @@ private:
   std::vector<std::string> filePaths;
   std::vector<std::string> csvFilePaths;
   unsigned file_idx = 0;
+  bool file_loading_done = false;
   unsigned snippets_driven = 0;
 };

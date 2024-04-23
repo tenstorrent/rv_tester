@@ -295,8 +295,9 @@ void debugger::write(uint64_t addr, size_t, const data_t &data,
     trickboxDmiWrite(hart, upper_dmi_data, lower_dmi_data); // Commented until DMI PORT is not in master
   }
 
-  if (addr == debugger_file_load_trigger && !FLAGS_random_dbg_entry)
+  if (addr == debugger_file_load_trigger && !FLAGS_random_dbg_entry && !file_loading_done)
   {
+    file_loading_done = true;
     cvm::log(cvm::NONE, "[Trickbox] Debugger file loading trigger\n");
     parse_dmi_from_csv();
   }

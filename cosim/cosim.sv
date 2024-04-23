@@ -10,6 +10,7 @@ import rv_tester_params::*;
     parameter int NIFETCH = 1,
     parameter int NIEVICT = 1,
     parameter int RESET_CLOCKS = 10,
+    parameter int MAX_CSR_AFTER_NRET = 3,
     `TOPOLOGY,
     `RV_TESTER_TRANSACTIONS_COSIM_OUTPUT_PARAMS
 )(
@@ -33,6 +34,34 @@ import rv_tester_params::*;
     output rv_tester_pkg::terminate_t terminate,
     `RV_TESTER_TRANSACTIONS_COSIM_OUTPUT_PORTS
 );
+
+
+localparam CSR_SBITS = $clog2(CSR_COUNT);
+localparam MAXCSR = NRET + MAX_CSR_AFTER_NRET;
+
+
+//----------------------------------------------------------------------------
+// function retsel compresses CSR_COUNT down into MAXCSR+1 DPI calls
+//   we make the retsel function have MAXCSR+1 values to catch if we have too
+//   many CSR updates.  If s=MAXCSR then we went past the number DPIs we can
+//   accomodate  (0 .. MAXCSR-1)
+//----------------------------------------------------------------------------
+
+function automatic bit [MAXCSR:0][CSR_SBITS-1:0] retsel(input bit [CSR_COUNT-1:0] valid);
+    int s = 0;
+    int i = 0;
+    retsel = '1;
+    /* verilator lint_off WIDTH */
+    for(i=0;i<CSR_COUNT;i=i+1) begin
+        if (valid[i] == 1) begin
+            retsel[s] = i; 
+            if (s < MAXCSR) begin
+                s = s + 1;
+            end
+        end
+    end
+    /* verilator lint_on WIDTH */
+endfunction
 
     import "DPI-C" context function void cosim_set_scope(int unsigned location);
 
@@ -102,24 +131,45 @@ import rv_tester_params::*;
     end
 
     // m_csri
+    logic [CSR_COUNT-1:0] m_csris_valid;
+    logic [CSR_COUNT-1:0] valid_d0;
     logic [CSR_COUNT-1:0] valid_d1;
+    logic [CSR_COUNT-1:0][CSRLEN-1:0] addr_d1;
     logic [CSR_COUNT-1:0][63:0] data_d1;
     logic [CSR_COUNT-1:0][63:0] mask_d1;
+
     always @(posedge clk) begin
       for (int n = 0; n < CSR_COUNT; n++) begin
         valid_d1[n] <= csri[n].valid;
+        addr_d1[n] <= csri[n].addr;
         data_d1[n] <= csri[n].data;
         mask_d1[n] <= csri[n].mask;
       end
     end
+
+    bit [MAXCSR:0][CSR_SBITS-1:0] csr_sel;
+
+    assign csr_sel = retsel(m_csris_valid);
+
+    //-------------------------------------------------------------------------------------------
+    // if csr_sel[MAXCSR] == 1 then we went 1 past the MAX number of DPI calls we can make
+    //    only csr_sel[MAXCSR-1:0] are valid.  
+    //-------------------------------------------------------------------------------------------
+    always @(posedge clk) begin
+        assert (csr_sel[MAXCSR] == '1) else $error("More than %d CSR valids == 1",MAXCSR-1);
+    end
+
     for (genvar n = 0; n < CSR_COUNT; n++) begin
-        assign m_csris[n].valid = rvfi_enabled & ~dut_reset & ((csri[n].valid & ~valid_d1[n]) | (csri[n].valid & ((csri[n].data !== data_d1[n]) | (csri[n].mask !== mask_d1[n]))));
+        assign m_csris_valid[n] = rvfi_enabled & ~dut_reset & ((csri[n].valid & ~valid_d1[n]) | (csri[n].valid & ((csri[n].data !== data_d1[n]) | (csri[n].mask !== mask_d1[n]))));
+    end
+    for (genvar n = 0; n < MAXCSR; n++) begin
+        assign m_csris[n].valid         = (csr_sel[n] != '1) ? 1'b1 : 1'b0; 
         assign m_csris[n].data.location = location;
-        assign m_csris[n].data.cycle = csri[n].valid ? clocks : '0;
-        assign m_csris[n].data.hart = NUM;
-        assign m_csris[n].data.addr = csri[n].addr;
-        assign m_csris[n].data.mask = csri[n].mask;
-        assign m_csris[n].data.data = csri[n].data;
+        assign m_csris[n].data.cycle    = clocks;
+        assign m_csris[n].data.hart     = NUM;
+        assign m_csris[n].data.addr     = (csr_sel[n] != '1) ? csri[csr_sel[n]].addr : '0;
+        assign m_csris[n].data.mask     = (csr_sel[n] != '1) ? csri[csr_sel[n]].mask : '0;
+        assign m_csris[n].data.data     = (csr_sel[n] != '1) ? csri[csr_sel[n]].data : '0;
     end
 
     // m_mcmi_read
