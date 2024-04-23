@@ -1532,7 +1532,7 @@ void bridge::peek_seip(hart_id_t hart, uint64_t time, uint64_t& val) {
 
 // Debug Mode
 void bridge::enter_debug_mode(rv_debug_t& d) {
-   uint64_t debugROM[14] = {
+  uint64_t debugROM[14] = {
     0x7b2000737b202473,
     0x10802823f1402473,
     0xaa5ff06f7b202473,
@@ -1547,25 +1547,22 @@ void bridge::enter_debug_mode(rv_debug_t& d) {
     0x000000130380006f,
     0x000000130580006f,
     0x000000130180006f
-   };
+  };
   log(cvm::NONE, "<{}> Enter debug mode\n", d.cycle);
   debug_mode_ = true;
   if (!client_->whisperEnterDebug()) {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed to enter debug mode\n", id_);
     return;
   }
- 
+
   bool valid;
- for(int i=0;i<14;i++){
-    
+  for(int i=0;i<14;i++){
     uint64_t debugROM_loc = FLAGS_debug_entry_pc + i*8;
-    
     if (!client_->whisperPoke(0, 0, 'm', debugROM_loc,debugROM[i] , valid)) {
       cvm::log(cvm::ERROR, "Error: Hart {}: Failed to poke debug memory\n", 0);
       return;
     }
- }
-
+  }
 }
 
 void bridge::exit_debug_mode(rv_debug_t& d) {
