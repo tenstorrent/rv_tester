@@ -53,7 +53,7 @@ def rv_tester_repositories():
     maybe(
         http_archive,
         name = "CoreArchChecker",
-        sha256 = "323215f8c0824cb118bc68c4d86efeefd273f72a841313c7a9cb949a54af5cff",
+        sha256 = "292bdee4e7ae963e38cce7d96588ce747f3e5324ac392c9e0056fd3a0410d392",
         strip_prefix = "CoreArchChecker-{commit}".format(commit=core_arch_checker_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/CoreArchChecker/-/archive/{commit}/CoreArchChecker-{commit}.tar.bz2".format(commit=core_arch_checker_hash),
     )
