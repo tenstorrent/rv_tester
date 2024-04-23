@@ -47,7 +47,7 @@ DEFINE_bool(fpr_check, true, "Enable cosim checks on fprs");
 DEFINE_bool(vec_check, true, "Enable cosim checks on vector regs");
 DEFINE_bool(csr_rd_check, true, "Enable cosim checks on csr reads");
 DEFINE_bool(csr_wr_check, true, "Enable cosim checks on csr writes");
-DEFINE_bool(memattr_check, false, "Enable cosim checks on mem attributes");
+DEFINE_bool(memattr_check, true, "Enable cosim checks on mem attributes");
 DEFINE_uint64(max_cycle, 1000000, "Max cycle limit to terminate the sim");
 DEFINE_int32(debug_excp_mcause, 24, "MCAUSE value for debug exception");
 DEFINE_bool(translation_check, false, "Do VA-PA translation check");
@@ -318,10 +318,10 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
   if (d.gpr.valid || d.fpr.valid || !d.vr.empty() || !d.csr.empty()) {
     update_regs(hart, d);
   }
-  if (FLAGS_memattr_check && d.mem_read.valid) {
+  if (FLAGS_memattr_check && d.mem_read.valid && (!is_vector(d.disasm))) {
     update_mem_attr(hart, src_t::dut, d.mem_read.attr);
   }
-  if (FLAGS_memattr_check && d.mem_write.valid) {
+  if (FLAGS_memattr_check && d.mem_write.valid && (!is_vector(d.disasm))) {
     update_mem_attr(hart, src_t::dut, d.mem_write.attr);
   }
 }
@@ -866,7 +866,8 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
   }
 }
 
-// Push DUT mem attr to cac
+// Push DUT mem attr to cac 
+// Currently disabling mem_attr checks for vectors
 void bridge::update_mem_attr(hart_id_t hart, src_t src, uint32_t data) {
   resource_id_t mem_attr = resource_id_t{
     .resource = resource_t::mem_attr,
