@@ -83,6 +83,7 @@ cvm::messenger::task<void> smc_xtor::read(const transactor::read_t& r, data_t& )
   smc_xtor_rd.data = resp.data;  
   smc_read_resp_q.push(smc_xtor_rd); 
   cvm::log(cvm::FULL, "[SMC] read addr {:#X} completed\n",addr);
+  read_in_flight = false;
   co_return;
 }
 
