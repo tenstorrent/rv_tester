@@ -130,7 +130,6 @@ void bridge::reset() {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed to poke boot memory\n", id_);
     return;
   }
-  // POKE 0x14d 0x24d
   resetsstc_poke(id_,0,0x14d);
   resetsstc_poke(id_,0,0x24d);
 }
@@ -175,17 +174,16 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   // Handle pre-step condition - Debug
   if (debug_mode_) {
     if (FLAGS_emulate_debug_mode) {
-      // POKE pre-step debug
-      process_debug_pre_step(hart, d, w);
+      pre_step_debug_poke(hart, d);
     } else {
       return;
     }
   }
   // Handle pre-step condition - Interrupts
-  process_interrupt_pre_step(hart, d, w);
+  pre_step_interrupt_poke(hart, d, w);
 
   // Handle pre-step condition - LR/SC fail
-  process_lrsc_pre_step(hart, d);
+  pre_step_lrsc_poke(hart, d);
 
   // Step whisper
   w_.clear();
@@ -198,11 +196,11 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   update_dut_state(hart, d);
 
   // Handle post-step conditions
-  process_interrupt_post_step(hart, d, w);
+  post_step_interrupt_poke(hart, d, w);
   //if(!debug_mode_){
-  process_exception_post_step(hart, d, w);
+  post_step_exception_poke(hart, d, w);
   //}
-  process_satp_write_post_step(hart, d, w);
+  post_step_satp_write_poke(hart, d, w);
 
   // Check dut vs whisper
   const auto cac_status_verbosity = cvm::HIGH;
@@ -328,7 +326,7 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
   }
 }
 
-void bridge::process_debug_pre_step(hart_id_t hart, const rv_instr_t& instr, whisper_state_t& ) {
+void bridge::pre_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
   bool valid;
   if (!client_->whisperPoke(hart, 0, 'm', instr.pc.pc_rdata, instr.opcode, valid)) {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed to poke memory\n", hart);
@@ -337,12 +335,15 @@ void bridge::process_debug_pre_step(hart_id_t hart, const rv_instr_t& instr, whi
   return;
 }
 
-void bridge::process_lrsc_pre_step(hart_id_t hart, const rv_instr_t& d) {
+void bridge::pre_step_lrsc_poke(hart_id_t hart, const rv_instr_t& d) {
+  // https://en.wikipedia.org/wiki/Load-link/store-conditional
   if ((d.disasm.find("sc.w") != std::string::npos) ||
       (d.disasm.find("sc.d") != std::string::npos)) {
+    // Check if Store-Conditional (SC) failed
     uint64_t fail_code = 1;
     if (d.gpr.rd_wdata == fail_code) {
       bool valid;
+      // Cancel Load-Reserved (LR)
       if (!client_->whisperCancelLr(hart, valid)) {
         cvm::log(cvm::ERROR, "Error: Hart {}: Failed to CancelLr\n", hart);
       }
@@ -350,7 +351,7 @@ void bridge::process_lrsc_pre_step(hart_id_t hart, const rv_instr_t& d) {
   }
 }
 
-void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
+void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
 // FIXME We are deferring all interrupts, if new interrupt was made possible due to execution of a csr op previously
   if (FLAGS_intr_defer_spcl) {
     if (d.disasm.find("csr") != std::string::npos) {
@@ -468,7 +469,7 @@ void bridge::process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whi
   }
 }
 
-void bridge::process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
+void bridge::post_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w) {
   
   if (FLAGS_intr_defer_spcl) {
     if (d.disasm.find("csr") != std::string::npos) {
@@ -490,10 +491,8 @@ void bridge::process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, wh
       prev_sync_intr_ = true; // This will waive cases when after execution of mret there exists a csr operation which needs to be interrupted.
     }
 
-    // POKE vsstimecmp
     if (w.disasm.find("vsstimecmp") != std::string::npos)  {
       if (!vstimecmppoked_) resetsstc_poke(hart,d.cycle, 0x24d); else setsstc_poke(hart,d.cycle, 0x24d);
-    // POKE stimecmp
     } else if (w.disasm.find("stimecmp") != std::string::npos) {
       if (w.priv_mode == 9) {if (!vstimecmppoked_) resetsstc_poke(hart,d.cycle, 0x24d); else setsstc_poke(hart,d.cycle, 0x24d);}
       else if (!stimecmppoked_)  resetsstc_poke(hart,d.cycle, 0x14d); else setsstc_poke(hart,d.cycle, 0x14d);
@@ -561,7 +560,7 @@ void bridge::process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, wh
 
 }
 
-void bridge::process_exception_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
+void bridge::post_step_exception_poke(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
 
   if (!d.excp && !w_.excp)
     return;
@@ -616,7 +615,7 @@ void bridge::process_exception_post_step(hart_id_t hart, const rv_instr_t& d, wh
   update_whisper_state(hart,w);
 }
 
-void bridge::process_satp_write_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
+void bridge::post_step_satp_write_poke(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w) {
   if (!FLAGS_delay_satp_update)
     return;
 

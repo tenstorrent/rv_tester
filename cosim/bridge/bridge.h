@@ -110,12 +110,13 @@ private:
   void translation_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   uint64_t translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t memclass);
 
-  void process_lrsc_pre_step(hart_id_t hart, const rv_instr_t& d);
-  void process_debug_pre_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
-  void process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
-  void process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
-  void process_exception_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
-  void process_satp_write_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
+  // Process pre/post-step
+  void pre_step_lrsc_poke(       hart_id_t hart, const rv_instr_t& d);
+  void pre_step_debug_poke(      hart_id_t hart, const rv_instr_t& d);
+  void pre_step_interrupt_poke(  hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
+  void post_step_interrupt_poke( hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
+  void post_step_exception_poke( hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
+  void post_step_satp_write_poke(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
 
   void process_timer_sw_interrupt(hart_id_t hart, rv_intr_t& i);
   void process_external_interrupt(hart_id_t hart, rv_intr_t& i);
