@@ -39,6 +39,7 @@ module rv_tester
         end
     end
 
+    import "DPI-C" function void rv_tester_streaming_dpi_init();
     import "DPI-C" function int rv_tester_parse_flags(); // dummy return value so that this gets called immediately. need this to happen before any other DPIs are called.
     import "DPI-C" context function void rv_tester_cvm_error_handler();
     import "DPI-C" context function void rv_tester_parse_memmap(int unsigned no_addr_rules);
@@ -136,6 +137,17 @@ module rv_tester
     always @(posedge clk[TB_CLK_IDX]) begin
         if(rerun_now) begin
             $display("<%0d> [RVTESTER]: rerunning test %0d time(s)", clocks, num_reruns);
+        end
+    end
+
+    /*
+    * Group all zebu zDPI DPIs here
+    * These are run on a separate thread than the slower zebi3
+    */
+    always @(posedge clk[TB_CLK_IDX]) begin
+        if (rv_tester_reset) begin
+            // Used for offine DPI
+            rv_tester_streaming_dpi_init();
         end
     end
 
