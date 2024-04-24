@@ -19,11 +19,15 @@
 
 class bridge : public bridge_base {
 
-using src_t = cac::src_t;
-using resource_t = cac::resource_t;
-using resource_id_t = cac::resource_id_t;
-using size_8_bytes_t = cac::size_8_bytes_t;
-using CacCore = cac::CacCore;
+private:
+  using src_t = cac::src_t;
+  using resource_t = cac::resource_t;
+  using resource_id_t = cac::resource_id_t;
+  using CacCore = cac::CacCore;
+
+public:
+  // Usec by some functions in bridge.cpp
+  using size_8_bytes_t = uint64_t;
 
 public:
   bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsigned id);
@@ -106,20 +110,21 @@ private:
   void translation_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   uint64_t translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t memclass);
 
-  void process_lrsc_pre_step(hart_id_t hart, const rv_instr_t& d);
-  void process_debug_pre_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
-  void process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
-  void process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
-  void process_exception_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
-  void process_satp_write_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
+  // Process pre/post-step
+  void pre_step_lrsc_poke(       hart_id_t hart, const rv_instr_t& d);
+  void pre_step_debug_poke(      hart_id_t hart, const rv_instr_t& d);
+  void pre_step_interrupt_poke(  hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
+  void post_step_interrupt_poke( hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
+  void post_step_exception_poke( hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
+  void post_step_satp_write_poke(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
 
   void process_timer_sw_interrupt(hart_id_t hart, rv_intr_t& i);
   void process_external_interrupt(hart_id_t hart, rv_intr_t& i);
   void check_and_defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
   void check_interrupt(hart_id_t hart, uint64_t mip, bool& taken, uint64_t& cause);
   void defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
-  void resetsstc(hart_id_t hart, uint64_t cycle, uint64_t csr);
-  void setsstc(hart_id_t hart, uint64_t cycle, uint64_t csr);
+  void resetsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr);
+  void setsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr);
   void poke_mip(hart_id_t hart, uint64_t time, uint64_t mip);
   void peek_mip(hart_id_t hart, uint64_t time, uint64_t& mip);
   void peek_seip(hart_id_t hart, uint64_t time, uint64_t& val);
