@@ -840,7 +840,7 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
   // CSR
   for (auto & c : d.csr) {
     uint64_t data = modify_csr_data(hart, c.csr_addr, c.csr_wdata);
-    size_8_bytes_t mask = modify_csr_mask(hart, c.csr_addr, c.csr_wmask);
+    size_8_bytes_t mask = modify_csr_mask(hart, c.csr_addr, c.csr_wdata, c.csr_wmask);
     if (FLAGS_csr_rd_check) {
       update_csr(hart, src_t::dut, c.csr_addr, data, mask);
       if (c.csr_addr == 0x001) update_csr(hart, src_t::dut, 0x003, data, mask); // On fflags update, update fcsr
@@ -1599,7 +1599,7 @@ uint64_t bridge::modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data) {
   return result;
 }
 
-cac::size_8_bytes_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, cac::size_8_bytes_t mask) {
+cac::size_8_bytes_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, uint64_t data, cac::size_8_bytes_t mask) {
   cac::size_8_bytes_t result = mask;
   // pmpaddr
   // Spec section...
@@ -1621,7 +1621,7 @@ cac::size_8_bytes_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, cac::
     }
   }
   if (addr == 0x680) {
-    uint16_t mode = mask >> 60;
+    uint16_t mode = data >> 60;
     constexpr uint16_t valid_modes[] = {0, 8, 9, 10};
     bool valid_mode = false;
     for (uint16_t valid_mode_value : valid_modes) {
