@@ -183,6 +183,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   }
   // Handle pre-step condition - Interrupts
   pre_step_interrupt_poke(hart, d, w);
+  lrsc_fail_ = false;
 
   // Handle pre-step condition - LR/SC fail
   pre_step_lrsc_poke(hart, d);
@@ -320,11 +321,13 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
   if (d.gpr.valid || d.fpr.valid || !d.vr.empty() || !d.csr.empty()) {
     update_regs(hart, d);
   }
-  if (FLAGS_memattr_check && d.mem_read.valid && (!is_vector(d.disasm))) {
-    update_mem_attr(hart, src_t::dut, d.mem_read.attr);
+  if (FLAGS_memattr_check && d.mem_read.valid && (!is_vector(d.disasm)) && !lrsc_fail_) {
+      update_mem_attr(hart, src_t::dut, d.mem_read.attr);
   }
-  if (FLAGS_memattr_check && d.mem_write.valid && (!is_vector(d.disasm))) {
-    update_mem_attr(hart, src_t::dut, d.mem_write.attr);
+  if (FLAGS_memattr_check && d.mem_write.valid && (!is_vector(d.disasm)) && !lrsc_fail_) {
+    if(!(((d.opcode & 0x7F) == 0x2F) && (d.opcode & 0xF8000000) == 0x18000000 && ((d.opcode & 0x00000F80) == 0x0))) {
+      update_mem_attr(hart, src_t::dut, d.mem_write.attr);
+    }
   }
 }
 
@@ -344,6 +347,7 @@ void bridge::pre_step_lrsc_poke(hart_id_t hart, const rv_instr_t& d) {
     // Check if Store-Conditional (SC) failed
     uint64_t fail_code = 1;
     if (d.gpr.rd_wdata == fail_code) {
+      lrsc_fail_ = true;
       bool valid;
       // Cancel Load-Reserved (LR)
       if (!client_->whisperCancelLr(hart, valid)) {
