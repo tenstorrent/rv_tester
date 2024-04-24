@@ -26,6 +26,7 @@ class smc_xtor : public device {
         pcg_extras::seed_seq_from<std::random_device> seed_source;
         bool in_boot_seq = true;
         bool reset_completion = false;
+        bool read_in_flight = false;
         pcg32 rng;
         void complete_smc_test()
         {
@@ -124,10 +125,11 @@ class smc_xtor : public device {
                      if(smc_xtor_rd.data[4] == 0x10){
                       reset_completion = true;
                      }
-                  }else{
+                  }else if (!read_in_flight) {
 
                     cvm::log(cvm::FULL, "[SMC] axi read 0xC000300C \n");
 
+                    read_in_flight = true;
                     axi_read(0xC000300C,4,4);
                   }
               }else{

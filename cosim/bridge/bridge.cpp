@@ -47,7 +47,7 @@ DEFINE_bool(fpr_check, true, "Enable cosim checks on fprs");
 DEFINE_bool(vec_check, true, "Enable cosim checks on vector regs");
 DEFINE_bool(csr_rd_check, true, "Enable cosim checks on csr reads");
 DEFINE_bool(csr_wr_check, true, "Enable cosim checks on csr writes");
-DEFINE_bool(memattr_check, false, "Enable cosim checks on mem attributes");
+DEFINE_bool(memattr_check, true, "Enable cosim checks on mem attributes");
 DEFINE_uint64(max_cycle, 1000000, "Max cycle limit to terminate the sim");
 DEFINE_int32(debug_excp_mcause, 24, "MCAUSE value for debug exception");
 DEFINE_bool(translation_check, false, "Do VA-PA translation check");
@@ -59,6 +59,8 @@ DEFINE_bool(standalone, true, "Enable whisper standalone run at beginning of sim
 DEFINE_bool(metrics, true, "Enable printing metrics in log file");
 DEFINE_uint32(max_pend_intr_age, 128, "Number of instructions allowed to retire before a pending interrupt should be taken");
 DEFINE_bool(whisper_log, true, "Enable whisper logging to iss_cosim.log and iss_cmd.log");
+DEFINE_bool(whisper_cosim_log, false, "Enable whisper logging to iss_cosim.log");
+DEFINE_bool(whisper_cmd_log, false, "Enable whisper logging to iss_cmd.log");
 DEFINE_bool(whisper_stdin_null, false, "Redirect whisoer stdin to null");
 DEFINE_bool(whisper_stdout_null, false, "Redirect whisoer stdout to null");
 DEFINE_bool(preload, false, "Whisper preload");
@@ -76,13 +78,13 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
     cac_(CacCore(num_harts)),
     csr_cac_(CacCore(num_harts))
 {
-    std::string traceFile = FLAGS_whisper_log ? "iss_cosim.log" : "";
-    std::string commandLog = FLAGS_whisper_log ? "iss_cmd.log" : "";
+    std::string traceFile  = (FLAGS_whisper_log || FLAGS_whisper_cosim_log) ? "iss_cosim.log" : "";
+    std::string commandLog = (FLAGS_whisper_log || FLAGS_whisper_cmd_log  ) ? "iss_cmd.log" : "";
     cosim_resynch_csr_defaults = {
       //"htval","mtval2", // RVDE-10043
       "mtinst","htinst", // RVDE-10005
       "vstart","vxsat","vxrm","vcsr", // Unimplemented
-      "sstatus","mstatus","mie","hie","vsie","sie", // RVDE-11840
+      "sstatus","mstatus","hstatus","mie","hie","vsie","sie", // RVDE-11840
       "tselect","tdata1","tdata2","tdata3","mcontext", // Unimplemented: RVDE-7518
       "fflags","fcsr", // Unimplemented
       "menvcfg","senvcfg", // FIXME: pointer masking change
@@ -318,10 +320,10 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
   if (d.gpr.valid || d.fpr.valid || !d.vr.empty() || !d.csr.empty()) {
     update_regs(hart, d);
   }
-  if (FLAGS_memattr_check && d.mem_read.valid) {
+  if (FLAGS_memattr_check && d.mem_read.valid && (!is_vector(d.disasm))) {
     update_mem_attr(hart, src_t::dut, d.mem_read.attr);
   }
-  if (FLAGS_memattr_check && d.mem_write.valid) {
+  if (FLAGS_memattr_check && d.mem_write.valid && (!is_vector(d.disasm))) {
     update_mem_attr(hart, src_t::dut, d.mem_write.attr);
   }
 }
@@ -838,7 +840,7 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
   // CSR
   for (auto & c : d.csr) {
     uint64_t data = modify_csr_data(hart, c.csr_addr, c.csr_wdata);
-    size_8_bytes_t mask = modify_csr_mask(hart, c.csr_addr, c.csr_wmask);
+    size_8_bytes_t mask = modify_csr_mask(hart, c.csr_addr, c.csr_wdata, c.csr_wmask);
     if (FLAGS_csr_rd_check) {
       update_csr(hart, src_t::dut, c.csr_addr, data, mask);
       if (c.csr_addr == 0x001) update_csr(hart, src_t::dut, 0x003, data, mask); // On fflags update, update fcsr
@@ -866,7 +868,8 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
   }
 }
 
-// Push DUT mem attr to cac
+// Push DUT mem attr to cac 
+// Currently disabling mem_attr checks for vectors
 void bridge::update_mem_attr(hart_id_t hart, src_t src, uint32_t data) {
   resource_id_t mem_attr = resource_id_t{
     .resource = resource_t::mem_attr,
@@ -1596,7 +1599,7 @@ uint64_t bridge::modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data) {
   return result;
 }
 
-cac::size_8_bytes_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, cac::size_8_bytes_t mask) {
+cac::size_8_bytes_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, uint64_t data, cac::size_8_bytes_t mask) {
   cac::size_8_bytes_t result = mask;
   // pmpaddr
   // Spec section...
@@ -1615,6 +1618,20 @@ cac::size_8_bytes_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, cac::
       result = result | 0x1ff;
     } else {
       result = result | 0x3ff;
+    }
+  }
+  if (addr == 0x680) {
+    uint16_t mode = data >> 60;
+    constexpr uint16_t valid_modes[] = {0, 8, 9, 10};
+    bool valid_mode = false;
+    for (uint16_t valid_mode_value : valid_modes) {
+      if (mode == valid_mode_value) {
+          valid_mode = true;
+          break;
+      }
+    }
+    if (!valid_mode) {
+      result = result & 0xfffffffffffffffULL;
     }
   }
   return result;

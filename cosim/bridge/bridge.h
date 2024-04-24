@@ -95,7 +95,7 @@ private:
   void update_mem_attr(hart_id_t hart, src_t src, uint32_t data);
   void update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data, cac::optional_const_ref<size_8_bytes_t> mask_ref = std::nullopt, bool shadow_csr = false, bool check_en = true);
   uint64_t modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data);
-  size_8_bytes_t modify_csr_mask(hart_id_t hart, uint64_t addr, size_8_bytes_t mask);
+  size_8_bytes_t modify_csr_mask(hart_id_t hart, uint64_t addr, uint64_t data, size_8_bytes_t mask);
   uint64_t get_csr(hart_id_t hart, src_t src, uint64_t addr);
   uint64_t get_csr_mask(hart_id_t hart, uint64_t addr);
   uint64_t get_csr_poke_mask(hart_id_t hart, uint64_t addr);
