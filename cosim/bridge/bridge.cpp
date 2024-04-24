@@ -1620,6 +1620,20 @@ cac::size_8_bytes_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, cac::
       result = result | 0x3ff;
     }
   }
+  if (addr == 0x680) {
+    uint16_t mode = mask >> 60;
+    constexpr uint16_t valid_modes[] = {0, 8, 9, 10};
+    bool valid_mode = false;
+    for (uint16_t valid_mode_value : valid_modes) {
+      if (mode == valid_mode_value) {
+          valid_mode = true;
+          break;
+      }
+    }
+    if (!valid_mode) {
+      result = result & 0xfffffffffffffffULL;
+    }
+  }
   return result;
 }
 
