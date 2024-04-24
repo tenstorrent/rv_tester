@@ -69,8 +69,11 @@ class logger_instrument {
 extern "C" {
 
     void rv_tester_streaming_dpi_init() {
-        // Dummy placeholder for now
-        printf("Hello from rv_tester_streaming_dpi_init\n");
+        char *env_var = std::getenv("ZEBU_OFFLINE_DPI");
+        if (env_var != nullptr && std::string(env_var) == "1") {
+            cvm::plusargs::parse();
+            cvm::log(cvm::NONE, "Initialize Offline DPI")
+        }
     }
 
     int rv_tester_parse_flags() {

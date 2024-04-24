@@ -146,6 +146,7 @@ module rv_tester
     */
     always @(posedge clk[TB_CLK_IDX]) begin
         if (rv_tester_reset) begin
+            // Used for offine DPI
             rv_tester_streaming_dpi_init();
         end
     end
