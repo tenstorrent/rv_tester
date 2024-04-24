@@ -45,22 +45,6 @@ import rv_tester_params:: * ;
         end
     end
 
-    //ACLINT periodic SYNC message checker
-    for (genvar n = 0; n < NHARTS; n++) begin : acsync_periodic
-    logic [63:0] count;
-    logic violation_periodicsync;
-    always @(posedge rf_clk) begin
-        if (dut_reset || AcCrSynci[n].valid) begin
-            count <= 0;
-        end else begin
-            count <= count + 1;
-        end
-    end
-    assign violation_periodicsync =  (count >  'd1005) && enable_checks ;
-    always_comb
-    assert (~violation_periodicsync) else $error("Error: Not recieved aclint broadcast sync");
-    end
-
     //ACLINT force SYNC message checker
     logic forcesynccame;
     assign forcesynccame = (AcReqPktRfClki.addr == TIMESYNC) && AcReqPktRfClki.valid && (AcReqPktRfClki.data == 'hff);

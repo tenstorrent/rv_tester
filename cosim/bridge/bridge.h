@@ -186,6 +186,7 @@ private:
   bool all_interrupts_defer_= 0;
   bool prev_resync_excp_defer_intr_ = 0;
   uint64_t pre_csr_defermip_ = 0;
+  uint64_t resynch_icause_ = 0;
   bool pre_undeferred_intr_;
   bool post_undeferred_intr_;
   std::array<uint32_t, max_intr> intr_age_{};
