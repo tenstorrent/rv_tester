@@ -59,6 +59,8 @@ DEFINE_bool(standalone, true, "Enable whisper standalone run at beginning of sim
 DEFINE_bool(metrics, true, "Enable printing metrics in log file");
 DEFINE_uint32(max_pend_intr_age, 128, "Number of instructions allowed to retire before a pending interrupt should be taken");
 DEFINE_bool(whisper_log, true, "Enable whisper logging to iss_cosim.log and iss_cmd.log");
+DEFINE_bool(whisper_cosim_log, false, "Enable whisper logging to iss_cosim.log");
+DEFINE_bool(whisper_cmd_log, false, "Enable whisper logging to iss_cmd.log");
 DEFINE_bool(whisper_stdin_null, false, "Redirect whisoer stdin to null");
 DEFINE_bool(whisper_stdout_null, false, "Redirect whisoer stdout to null");
 DEFINE_bool(preload, false, "Whisper preload");
@@ -76,8 +78,8 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
     cac_(CacCore(num_harts)),
     csr_cac_(CacCore(num_harts))
 {
-    std::string traceFile = FLAGS_whisper_log ? "iss_cosim.log" : "";
-    std::string commandLog = FLAGS_whisper_log ? "iss_cmd.log" : "";
+    std::string traceFile  = (FLAGS_whisper_log || FLAGS_whisper_cosim_log) ? "iss_cosim.log" : "";
+    std::string commandLog = (FLAGS_whisper_log || FLAGS_whisper_cmd_log  ) ? "iss_cmd.log" : "";
     cosim_resynch_csr_defaults = {
       //"htval","mtval2", // RVDE-10043
       "mtinst","htinst", // RVDE-10005
@@ -204,9 +206,9 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   // Check dut vs whisper
   const auto cac_status_verbosity = cvm::HIGH;
-  if(!excp_in_debug_mode){
+  if (!excp_in_debug_mode) {
     cac_.Step(hart, cvm::logger::check_verbosity(cac_status_verbosity));
-  }else{
+  } else {
     cac_.ResetStatus(hart);
     return;
   }
@@ -247,7 +249,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
     }
   }
   else {
-      log(cac_status_verbosity, "{}", cac_.GetStatusStr(hart));
+    log(cac_status_verbosity, "{}", cac_.GetStatusStr(hart));
   }
 
   // Save whisper state
@@ -470,7 +472,7 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
 }
 
 void bridge::post_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w) {
-  
+
   if (FLAGS_intr_defer_spcl) {
     if (d.disasm.find("csr") != std::string::npos) {
        uint64_t undeferred_mip = mip_ & ~ deferred_mip_;
@@ -557,7 +559,6 @@ void bridge::post_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, const
   }
 
   num_taken_interrupts_[intrtopriv_][w_.icause]++;
-
 }
 
 void bridge::post_step_exception_poke(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
@@ -839,7 +840,7 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
   // CSR
   for (auto & c : d.csr) {
     uint64_t data = modify_csr_data(hart, c.csr_addr, c.csr_wdata);
-    bridge::size_8_bytes_t mask = modify_csr_mask(hart, c.csr_addr, c.csr_wmask);
+    size_8_bytes_t mask = modify_csr_mask(hart, c.csr_addr, c.csr_wdata, c.csr_wmask);
     if (FLAGS_csr_rd_check) {
       update_csr(hart, src_t::dut, c.csr_addr, data, mask);
       if (c.csr_addr == 0x001) update_csr(hart, src_t::dut, 0x003, data, mask); // On fflags update, update fcsr
@@ -1595,7 +1596,7 @@ uint64_t bridge::modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data) {
   return result;
 }
 
-bridge::size_8_bytes_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, size_8_bytes_t mask) {
+bridge::size_8_bytes_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, uint64_t data, size_8_bytes_t mask) {
   size_8_bytes_t result = mask;
   // pmpaddr
   // Spec section...
@@ -1614,6 +1615,20 @@ bridge::size_8_bytes_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, si
       result = result | 0x1ff;
     } else {
       result = result | 0x3ff;
+    }
+  }
+  if (addr == 0x680) {
+    uint16_t mode = data >> 60;
+    constexpr uint16_t valid_modes[] = {0, 8, 9, 10};
+    bool valid_mode = false;
+    for (uint16_t valid_mode_value : valid_modes) {
+      if (mode == valid_mode_value) {
+          valid_mode = true;
+          break;
+      }
+    }
+    if (!valid_mode) {
+      result = result & 0xfffffffffffffffULL;
     }
   }
   return result;
