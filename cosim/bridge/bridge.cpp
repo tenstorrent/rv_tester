@@ -1232,6 +1232,7 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
       }
       resynch_csr_ = true;
       cvm::log(cvm::MEDIUM, "addr {:#x} data {:#x} \n", csr.csr_addr, get_csr(hart, src_t::dut, csr.csr_addr));
+      if (csr.csr_addr==0x15c || csr.csr_addr==0x25c || csr.csr_addr==0x35c) return;
       if (!client_->whisperPoke(hart, d.cycle, 'c', csr.csr_addr, get_csr(hart, src_t::dut, csr.csr_addr), valid)) {
         cvm::log(cvm::ERROR, "Error: Hart {}: Failed to resynch CSRs\n", hart);
         return;
