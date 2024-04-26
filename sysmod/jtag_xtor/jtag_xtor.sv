@@ -207,7 +207,7 @@ always @(posedge clk) begin
     read <= 1;
   end else begin
     if(read)begin
-      $display("final jtag read from tdo=%h",jtag_rx);
+      $display("final jtag read from tdo=%h at time = %t",jtag_rx[63:0],$time);
       read_data_valid_reg <= 1'b1; 
       read <= 0;
     end

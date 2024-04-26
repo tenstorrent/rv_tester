@@ -14,6 +14,7 @@
 
 
 DECLARE_bool(smc_en);
+DECLARE_bool(smc_sweep_test);
 DECLARE_int32(smc_reset_seq_start_ticks);
 class smc_xtor : public device {
 
@@ -34,6 +35,7 @@ class smc_xtor : public device {
 
     public:
         uint32_t start_smc_cnt=0,read_ram;
+        uint64_t write_ram; 
         uint32_t cnt_tick=0;
         struct smc_wr_t {
           uint32_t addr;
@@ -147,8 +149,11 @@ class smc_xtor : public device {
 
 
             if(start_smc_cnt == 0){
-              start_smc_cnt = (rng()% 5) + 45;
+              start_smc_cnt = (rng()% 5) + 25;
               // reset_completion = true;
+              if(FLAGS_smc_en){
+                cvm::log(cvm::LOW, "[SMC] Enable switch is set");
+              }
             }
             
             cvm::log(cvm::FULL, "[SMC] tick {:#X} start_smc_cnt {} \n",cnt_tick,start_smc_cnt);
@@ -157,7 +162,7 @@ class smc_xtor : public device {
 
             // cvm::log(cvm::HIGH, "[SMC] tick {:#X} \n",cnt_tick);
 
-            if(reset_completion){
+            if(reset_completion && FLAGS_smc_sweep_test){
                 if(end_test==1) complete_smc_test();
 
                 if(cnt_tick==start_smc_cnt) push_smc_sram_write_seq();
@@ -208,8 +213,19 @@ class smc_xtor : public device {
 
         void push_smc_sram_write_seq() {
           cvm::log(cvm::HIGH, "[smc_xtor] smc_xtor sram write seq\n");
+          write_ram = (rng()%0xFFFFFFFFFFFFFFFF);
           for(int i = 0; i < 8;i++){
-            smc_wr_txn_q.push({CPL_SRAM_BASE+i*4 ,0xFFFFFFFF});
+            smc_wr_txn_q.push({CPL_SRAM_BASE+i*8 ,0xFFFFFFFFFFFFFFFF});
+          }
+
+          for(int i = 200; i < 212;i++){
+            write_ram = (rng()%0xFFFFFFFFFFFFFFFF);
+            smc_wr_txn_q.push({CPL_SRAM_BASE+i*8 ,write_ram});
+          }
+
+          for(int i = 504; i < 511;i++){
+            write_ram = (rng()%0xFFFFFFFFFFFFFFFF);
+            smc_wr_txn_q.push({CPL_SRAM_BASE+i*8 ,write_ram});
           }
           cvm::log(cvm::HIGH, "[smc_xtor] smc_xtor sram write seq\n");
         }
