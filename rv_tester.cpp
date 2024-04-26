@@ -25,6 +25,7 @@ DEFINE_int32(num_reruns, 0, "Rerun the same test this many times, to test test c
 DEFINE_bool(trace_en, false, "Set this while running trace test");
 DEFINE_bool(overlay_mmr_en, false, "Set this while running overlay test");
 DEFINE_bool(jtag_en, false, "Set this while running jtag test");
+DEFINE_bool(smc_sweep_test ,false, "Set this while running small core sram sweep test");
 DEFINE_int32(trace_timeout, 50000, "trace test end timeout after to host end call");
 DEFINE_validator(num_reruns, &validate_ge0);
 DEFINE_string(gen_clocks_verbosity, "DEBUG", "verbosity at which to generate clocks with cvm::logger prints");
