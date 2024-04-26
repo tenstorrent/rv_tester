@@ -5,24 +5,25 @@ import datetime
 import yaml
 import os
 import base64
+from pathlib import Path
 
 
 def download_csv(url):
-    headers = {
-        'PRIVATE-TOKEN': os.environ['PERSONAL_PAT']
+    with open(Path.home() / ".gitlab_key", "r") as key:
+        headers = {
+            'PRIVATE-TOKEN': key.read()
+        }
 
-    }
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()  # Check for any HTTP errors
+        yaml_data = response.text
+        data_dict = yaml.safe_load(yaml_data)
+        cotent = data_dict['content']
+        base64_bytes = cotent.encode("ascii")
 
-    response = requests.get(url, headers=headers)
-    response.raise_for_status()  # Check for any HTTP errors
-    yaml_data = response.text
-    data_dict = yaml.safe_load(yaml_data)
-    cotent = data_dict['content']
-    base64_bytes = cotent.encode("ascii")
-
-    sample_string_bytes = base64.b64decode(base64_bytes)
-    rv_str = sample_string_bytes.decode("ascii")
-    return rv_str
+        sample_string_bytes = base64.b64decode(base64_bytes)
+        rv_str = sample_string_bytes.decode("ascii")
+        return rv_str
 
 
 # Example usage
