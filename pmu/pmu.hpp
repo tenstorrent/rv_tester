@@ -70,6 +70,9 @@ public:
       //Event (speculative) for every instance of disagreement between next-fetch predictor and Branch Target Predictor
       NFP_LATE_REDIRECT,
       PTC_NFP_LATE_REDIRECT,
+      //Event (speculative) for every instance of redirect caused by IFBUF full
+      IFBUF_FULL_REDIRECT,
+      PTC_IFBUF_FULL_REDIRECT,
       //Event for every instance of resync due to CSR access
       NONSPEC_RESYNC,
       PTC_NONSPEC_RESYNC,
@@ -85,7 +88,7 @@ public:
       //Event for retiring a branch instruction that mispredicted during its execution. The misprediction could be due to direction predictor or target predictor. This will not include mispredictions due to next-fetch predictor.
       BRANCH_MISSES,
       PTC_BRANCH_MISSES,
-      //Event for each retired  and mispredicted control flow instruction that uses the return address stack for prediction
+      //Event for each retired and mispredicted control flow instruction that uses the return address stack for prediction
       BR_RET_MISSES,
       PTC_BR_RET_MISSES,
       //Event for each retired and mispredicted indirect control flow instruction that uses the Branch Target Predictor. Return instructions are not included
@@ -256,12 +259,168 @@ public:
       //Event for each tlb invalidation -- this will track retired instructions that invalidate the TLB
       TLB_INVALIDATES,
       PTC_TLB_INVALIDATES,
+      //Event for a l1d_cache access caused by a demand Memory-read operation (filtered by load/store/prefetch/MMU/Snoop/All and by Aligned/CLC/4kX/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      L1D_READ_ACCESS_ALIGNED,
+      PTC_L1D_READ_ACCESS_ALIGNED,
+      //Event for a l1d_cache access caused by a demand Memory-read operation (filtered by load/store/prefetch/MMU/Snoop/All and by Aligned/CLC/4kX/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      L1D_READ_ACCESS_CLC,
+      PTC_L1D_READ_ACCESS_CLC,
+      //Event for a l1d_cache access caused by a demand Memory-read operation (filtered by load/store/prefetch/MMU/Snoop/All and by Aligned/CLC/4kX/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      L1D_READ_ACCESS_4KX,
+      PTC_L1D_READ_ACCESS_4KX,
+      //Event for a l1d_cache access caused by a demand Memory-read operation (filtered by load/store/prefetch/MMU/Snoop/All and by Aligned/CLC/4kX/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      L1D_READ_ACCESS_ALL,
+      PTC_L1D_READ_ACCESS_ALL,
+      //Event for a l1d_cache access caused by a demand Memory-read operation (filtered by load/store/prefetch/MMU/Snoop/All and by Aligned/CLC/4kX/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      L1D_WRITE_ACCESS_ALIGNED,
+      PTC_L1D_WRITE_ACCESS_ALIGNED,
+      //Event for a l1d_cache access caused by a demand Memory-read operation (filtered by load/store/prefetch/MMU/Snoop/All and by Aligned/CLC/4kX/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      L1D_WRITE_ACCESS_CLC,
+      PTC_L1D_WRITE_ACCESS_CLC,
+      //Event for a l1d_cache access caused by a demand Memory-read operation (filtered by load/store/prefetch/MMU/Snoop/All and by Aligned/CLC/4kX/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      L1D_WRITE_ACCESS_4KX,
+      PTC_L1D_WRITE_ACCESS_4KX,
+      //Event for a l1d_cache access caused by a demand Memory-read operation (filtered by load/store/prefetch/MMU/Snoop/All and by Aligned/CLC/4kX/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      L1D_WRITE_ACCESS_ALL,
+      PTC_L1D_WRITE_ACCESS_ALL,
+      //Event for a l1d_cache access caused by a demand Memory-read operation (filtered by load/store/prefetch/MMU/Snoop/All and by Aligned/CLC/4kX/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      L1D_PREFETCH_ACCESS_ALIGNED,
+      PTC_L1D_PREFETCH_ACCESS_ALIGNED,
+      //Event for a l1d_cache access caused by a demand Memory-read operation (filtered by load/store/prefetch/MMU/Snoop/All and by Aligned/CLC/4kX/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      L1D_PREFETCH_ACCESS_CLC,
+      PTC_L1D_PREFETCH_ACCESS_CLC,
+      //Event for a l1d_cache access caused by a demand Memory-read operation (filtered by load/store/prefetch/MMU/Snoop/All and by Aligned/CLC/4kX/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      L1D_PREFETCH_ACCESS_4KX,
+      PTC_L1D_PREFETCH_ACCESS_4KX,
+      //Event for a l1d_cache access caused by a demand Memory-read operation (filtered by load/store/prefetch/MMU/Snoop/All and by Aligned/CLC/4kX/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      L1D_PREFETCH_ACCESS_ALL,
+      PTC_L1D_PREFETCH_ACCESS_ALL,
+      //Event for a l1d_cache access caused by a demand Memory-read operation (filtered by load/store/prefetch/MMU/Snoop/All and by Aligned/CLC/4kX/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      L1D_MMU_ACCESS,
+      PTC_L1D_MMU_ACCESS,
+      //Event for a l1d_cache access caused by a demand Memory-read operation (filtered by load/store/prefetch/MMU/Snoop/All and by Aligned/CLC/4kX/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      L1D_SNOOP_ACCESS,
+      PTC_L1D_SNOOP_ACCESS,
+      //Event for a l1d_cache access caused by a demand Memory-read operation (filtered by load/store/prefetch/MMU/Snoop/All and by Aligned/CLC/4kX/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      L1D_ACCESS_ALL,
+      PTC_L1D_ACCESS_ALL,
+      //Event for a l1d_cache refill that is due to a demand Memory-read operation (filtered by load/store/prefetch/MMU/snoop/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      L1D_READ_MISS,
+      PTC_L1D_READ_MISS,
+      //Event for a l1d_cache refill that is due to a demand Memory-read operation (filtered by load/store/prefetch/MMU/snoop/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      L1D_WRITE_MISS,
+      PTC_L1D_WRITE_MISS,
+      //Event for a l1d_cache refill that is due to a demand Memory-read operation (filtered by load/store/prefetch/MMU/snoop/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      L1D_PREFETCH_MISS,
+      PTC_L1D_PREFETCH_MISS,
+      //Event for a l1d_cache refill that is due to a demand Memory-read operation (filtered by load/store/prefetch/MMU/snoop/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      L1D_MMU_MISS,
+      PTC_L1D_MMU_MISS,
+      //Event for a l1d_cache refill that is due to a demand Memory-read operation (filtered by load/store/prefetch/MMU/snoop/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      L1D_SNOOP_MISS,
+      PTC_L1D_SNOOP_MISS,
+      //Event for a l1d_cache refill that is due to a demand Memory-read operation (filtered by load/store/prefetch/MMU/snoop/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      L1D_MISS_ALL,
+      PTC_L1D_MISS_ALL,
+      //all l1 data cache invalidates (filtered by snoops/CMOs/load-evictions/store-evictions/prefetch-evictions)
+      L1D_CACHE_INVALIDATE_SNOOP,
+      PTC_L1D_CACHE_INVALIDATE_SNOOP,
+      //all l1 data cache invalidates (filtered by snoops/CMOs/load-evictions/store-evictions/prefetch-evictions)
+      L1D_CACHE_INVALIDATE_CMO,
+      PTC_L1D_CACHE_INVALIDATE_CMO,
+      //all l1 data cache invalidates (filtered by snoops/CMOs/load-evictions/store-evictions/prefetch-evictions)
+      L1D_CACHE_INVALIDATE_LOAD_EVICTION,
+      PTC_L1D_CACHE_INVALIDATE_LOAD_EVICTION,
+      //all l1 data cache invalidates (filtered by snoops/CMOs/load-evictions/store-evictions/prefetch-evictions)
+      L1D_CACHE_INVALIDATE_STORE_EVICTION,
+      PTC_L1D_CACHE_INVALIDATE_STORE_EVICTION,
+      //all l1 data cache invalidates (filtered by snoops/CMOs/load-evictions/store-evictions/prefetch-evictions)
+      L1D_CACHE_INVALIDATE_PREFETCH_EVICTION,
+      PTC_L1D_CACHE_INVALIDATE_PREFETCH_EVICTION,
+      //all l1 data cache invalidates (filtered by snoops/CMOs/load-evictions/store-evictions/prefetch-evictions)
+      L1D_CACHE_INVALIDATE_ALL,
+      PTC_L1D_CACHE_INVALIDATE_ALL,
       //Event (speculative) for micro-TLB miss caused by a demand memory operation
       UTLB_MISS,
       PTC_UTLB_MISS,
+      //Event for an l1 dTLB access caused by a demand Memory-read operation (filtered by load/store/prefetch/All and by 4k/huge-page/all and by Cacheable/Non-cacheable. Includes accesses made by Speculatively executed instructions.
+      DTLB_READ_ACCESS,
+      PTC_DTLB_READ_ACCESS,
+      //Event for an l1 dTLB access caused by a demand Memory-read operation (filtered by load/store/prefetch/All and by 4k/huge-page/all and by Cacheable/Non-cacheable. Includes accesses made by Speculatively executed instructions.
+      DTLB_WRITE_ACCESS,
+      PTC_DTLB_WRITE_ACCESS,
+      //Event for an l1 dTLB access caused by a demand Memory-read operation (filtered by load/store/prefetch/All and by 4k/huge-page/all and by Cacheable/Non-cacheable. Includes accesses made by Speculatively executed instructions.
+      DTLB_PREFETCH_ACCESS,
+      PTC_DTLB_PREFETCH_ACCESS,
+      //Event for an l1 dTLB access caused by a demand Memory-read operation (filtered by load/store/prefetch/All and by 4k/huge-page/all and by Cacheable/Non-cacheable. Includes accesses made by Speculatively executed instructions.
+      DTLB_ACCESS_4K,
+      PTC_DTLB_ACCESS_4K,
+      //Event for an l1 dTLB access caused by a demand Memory-read operation (filtered by load/store/prefetch/All and by 4k/huge-page/all and by Cacheable/Non-cacheable. Includes accesses made by Speculatively executed instructions.
+      DTLB_ACCESS_HUGEPAGE,
+      PTC_DTLB_ACCESS_HUGEPAGE,
+      //Event for an l1 dTLB access caused by a demand Memory-read operation (filtered by load/store/prefetch/All and by 4k/huge-page/all and by Cacheable/Non-cacheable. Includes accesses made by Speculatively executed instructions.
+      DTLB_ACCESS_CACHEABLE,
+      PTC_DTLB_ACCESS_CACHEABLE,
+      //Event for an l1 dTLB access caused by a demand Memory-read operation (filtered by load/store/prefetch/All and by 4k/huge-page/all and by Cacheable/Non-cacheable. Includes accesses made by Speculatively executed instructions.
+      DTLB_ACCESS_NONCACHEABLE,
+      PTC_DTLB_ACCESS_NONCACHEABLE,
+      //Event for an l1 dTLB access caused by a demand Memory-read operation (filtered by load/store/prefetch/All and by 4k/huge-page/all and by Cacheable/Non-cacheable. Includes accesses made by Speculatively executed instructions.
+      DTLB_ACCESS_ALL,
+      PTC_DTLB_ACCESS_ALL,
+      //Event for an l1 dTLB miss caused by a demand Memory-read operation (filtered by load/store/prefetch/All and by 4k/huge-page/All. Includes accesses made by Speculatively executed instructions.
+      DTLB_READ_MISS,
+      PTC_DTLB_READ_MISS,
+      //Event for an l1 dTLB miss caused by a demand Memory-read operation (filtered by load/store/prefetch/All and by 4k/huge-page/All. Includes accesses made by Speculatively executed instructions.
+      DTLB_WRITE_MISS,
+      PTC_DTLB_WRITE_MISS,
+      //Event for an l1 dTLB miss caused by a demand Memory-read operation (filtered by load/store/prefetch/All and by 4k/huge-page/All. Includes accesses made by Speculatively executed instructions.
+      DTLB_PREFETCH_MISS,
+      PTC_DTLB_PREFETCH_MISS,
+      //Event for an l1 dTLB miss caused by a demand Memory-read operation (filtered by load/store/prefetch/All and by 4k/huge-page/All. Includes accesses made by Speculatively executed instructions.
+      DTLB_MISS_4K,
+      PTC_DTLB_MISS_4K,
+      //Event for an l1 dTLB miss caused by a demand Memory-read operation (filtered by load/store/prefetch/All and by 4k/huge-page/All. Includes accesses made by Speculatively executed instructions.
+      DTLB_MISS_HUGEPAGE,
+      PTC_DTLB_MISS_HUGEPAGE,
+      //Event for an l1 dTLB miss caused by a demand Memory-read operation (filtered by load/store/prefetch/All and by 4k/huge-page/All. Includes accesses made by Speculatively executed instructions.
+      DTLB_MISS_ALL,
+      PTC_DTLB_MISS_ALL,
+      //Event for leaf TLB access (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
+      LEAF_TLB_ACCESS_LS,
+      PTC_LEAF_TLB_ACCESS_LS,
+      //Event for leaf TLB access (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
+      LEAF_TLB_ACCESS_FE,
+      PTC_LEAF_TLB_ACCESS_FE,
+      //Event for leaf TLB access (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
+      LEAF_TLB_ACCESS_PREFETCH,
+      PTC_LEAF_TLB_ACCESS_PREFETCH,
+      //Event for leaf TLB miss (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
+      LEAF_TLB_MISS_LS,
+      PTC_LEAF_TLB_MISS_LS,
+      //Event for leaf TLB miss (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
+      LEAF_TLB_MISS_FE,
+      PTC_LEAF_TLB_MISS_FE,
+      //Event for leaf TLB miss (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
+      LEAF_TLB_MISS_PREFETCH,
+      PTC_LEAF_TLB_MISS_PREFETCH,
       //Event for non-leaf TLB access (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
-      NONLEAF_TLB_ACCESS_FITER,
-      PTC_NONLEAF_TLB_ACCESS_FITER,
+      NONLEAF_TLB_ACCESS_LS,
+      PTC_NONLEAF_TLB_ACCESS_LS,
+      //Event for non-leaf TLB access (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
+      NONLEAF_TLB_ACCESS_FE,
+      PTC_NONLEAF_TLB_ACCESS_FE,
+      //Event for non-leaf TLB access (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
+      NONLEAF_TLB_ACCESS_PREFETCH,
+      PTC_NONLEAF_TLB_ACCESS_PREFETCH,
+      //Event for non-leaf TLB miss (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
+      NONLEAF_TLB_MISS_LS,
+      PTC_NONLEAF_TLB_MISS_LS,
+      //Event for non-leaf TLB miss (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
+      NONLEAF_TLB_MISS_FE,
+      PTC_NONLEAF_TLB_MISS_FE,
+      //Event for non-leaf TLB miss (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
+      NONLEAF_TLB_MISS_PREFETCH,
+      PTC_NONLEAF_TLB_MISS_PREFETCH,
       //Number of page walks initiated
       PAGE_WALKS,
       PTC_PAGE_WALKS,
@@ -274,9 +433,168 @@ public:
       //Event (speculative) for every cycle the instruction picker has ops --  but does not pick -- and there is a pending L1 DTLB demand miss
       STALLS_MEM_L1DTLB_MISS,
       PTC_STALLS_MEM_L1DTLB_MISS,
+      //Number of resyncs raised by LSU filtered by (RAW/RAR/All)
+      LSU_RESYNCS_RAW,
+      PTC_LSU_RESYNCS_RAW,
+      //Number of resyncs raised by LSU filtered by (RAW/RAR/All)
+      LSU_RESYNCS_RAR,
+      PTC_LSU_RESYNCS_RAR,
+      //Number of resyncs raised by LSU filtered by (RAW/RAR/All)
+      LSU_RESYNCS_ALL,
+      PTC_LSU_RESYNCS_ALL,
       //Event (speculative) for every instance of a Store instruction forwarding data to a Load instruction
       STLF_HITS,
       PTC_STLF_HITS,
+      //Event (speculative) for any condition triggering replay from LS (Filtered by Load/Store/Prefetch/MMU/All)
+      LS_REPLAY_LOAD,
+      PTC_LS_REPLAY_LOAD,
+      //Event (speculative) for any condition triggering replay from LS (Filtered by Load/Store/Prefetch/MMU/All)
+      LS_REPLAY_STORE,
+      PTC_LS_REPLAY_STORE,
+      //Event (speculative) for any condition triggering replay from LS (Filtered by Load/Store/Prefetch/MMU/All)
+      LS_REPLAY_PREFETCH,
+      PTC_LS_REPLAY_PREFETCH,
+      //Event (speculative) for any condition triggering replay from LS (Filtered by Load/Store/Prefetch/MMU/All)
+      LS_REPLAY_MMU,
+      PTC_LS_REPLAY_MMU,
+      //Event (speculative) for any condition triggering replay from LS (Filtered by Load/Store/Prefetch/MMU/All)
+      LS_REPLAY_ALL,
+      PTC_LS_REPLAY_ALL,
+      //Event (speculative) for any LS replay caused by the DC way predictor (Filtered by Load/Store/Prefetch/MMU/All)
+      LS_WAY_PREDICTOR_REPLAY_LOAD,
+      PTC_LS_WAY_PREDICTOR_REPLAY_LOAD,
+      //Event (speculative) for any LS replay caused by the DC way predictor (Filtered by Load/Store/Prefetch/MMU/All)
+      LS_WAY_PREDICTOR_REPLAY_STORE,
+      PTC_LS_WAY_PREDICTOR_REPLAY_STORE,
+      //Event (speculative) for any LS replay caused by the DC way predictor (Filtered by Load/Store/Prefetch/MMU/All)
+      LS_WAY_PREDICTOR_REPLAY_PREFETCH,
+      PTC_LS_WAY_PREDICTOR_REPLAY_PREFETCH,
+      //Event (speculative) for any LS replay caused by the DC way predictor (Filtered by Load/Store/Prefetch/MMU/All)
+      LS_WAY_PREDICTOR_REPLAY_MMU,
+      PTC_LS_WAY_PREDICTOR_REPLAY_MMU,
+      //Event (speculative) for any LS replay caused by the DC way predictor (Filtered by Load/Store/Prefetch/MMU/All)
+      LS_WAY_PREDICTOR_REPLAY_ALL,
+      PTC_LS_WAY_PREDICTOR_REPLAY_ALL,
+      //Event (speculative) for any LS replay caused by incorrect PA prediction (Filtered by Load/Store/Prefetch/MMU/All)
+      SIPT_REPLAY_LOAD,
+      PTC_SIPT_REPLAY_LOAD,
+      //Event (speculative) for any LS replay caused by incorrect PA prediction (Filtered by Load/Store/Prefetch/MMU/All)
+      SIPT_REPLAY_STORE,
+      PTC_SIPT_REPLAY_STORE,
+      //Event (speculative) for any LS replay caused by incorrect PA prediction (Filtered by Load/Store/Prefetch/MMU/All)
+      SIPT_REPLAY_PREFETCH,
+      PTC_SIPT_REPLAY_PREFETCH,
+      //Event (speculative) for any LS replay caused by incorrect PA prediction (Filtered by Load/Store/Prefetch/MMU/All)
+      SIPT_REPLAY_MMU,
+      PTC_SIPT_REPLAY_MMU,
+      //Event (speculative) for any LS replay caused by incorrect PA prediction (Filtered by Load/Store/Prefetch/MMU/All)
+      SIPT_REPLAY_ALL,
+      PTC_SIPT_REPLAY_ALL,
+      //Event (speculative) for any LS replay caused by STLF (Filtered by Load/Store/Prefetch/MMU/All)
+      STLF_REPLAY_LOAD,
+      PTC_STLF_REPLAY_LOAD,
+      //Event (speculative) for any LS replay caused by STLF (Filtered by Load/Store/Prefetch/MMU/All)
+      STLF_REPLAY_STORE,
+      PTC_STLF_REPLAY_STORE,
+      //Event (speculative) for any LS replay caused by STLF (Filtered by Load/Store/Prefetch/MMU/All)
+      STLF_REPLAY_PREFETCH,
+      PTC_STLF_REPLAY_PREFETCH,
+      //Event (speculative) for any LS replay caused by STLF (Filtered by Load/Store/Prefetch/MMU/All)
+      STLF_REPLAY_MMU,
+      PTC_STLF_REPLAY_MMU,
+      //Event (speculative) for any LS replay caused by STLF (Filtered by Load/Store/Prefetch/MMU/All)
+      STLF_REPLAY_ALL,
+      PTC_STLF_REPLAY_ALL,
+      //Event (speculative) for any LS replay caused by tag bank conflict (Filtered by Load/Store/Prefetch/MMU/All)
+      TAG_BANK_CONFLICT_REPLAY_LOAD,
+      PTC_TAG_BANK_CONFLICT_REPLAY_LOAD,
+      //Event (speculative) for any LS replay caused by tag bank conflict (Filtered by Load/Store/Prefetch/MMU/All)
+      TAG_BANK_CONFLICT_REPLAY_STORE,
+      PTC_TAG_BANK_CONFLICT_REPLAY_STORE,
+      //Event (speculative) for any LS replay caused by tag bank conflict (Filtered by Load/Store/Prefetch/MMU/All)
+      TAG_BANK_CONFLICT_REPLAY_PREFETCH,
+      PTC_TAG_BANK_CONFLICT_REPLAY_PREFETCH,
+      //Event (speculative) for any LS replay caused by tag bank conflict (Filtered by Load/Store/Prefetch/MMU/All)
+      TAG_BANK_CONFLICT_REPLAY_MMU,
+      PTC_TAG_BANK_CONFLICT_REPLAY_MMU,
+      //Event (speculative) for any LS replay caused by tag bank conflict (Filtered by Load/Store/Prefetch/MMU/All)
+      TAG_BANK_CONFLICT_REPLAY_ALL,
+      PTC_TAG_BANK_CONFLICT_REPLAY_ALL,
+      //Event (speculative) for any LS replay caused by data bank conflict (Filtered by Load/Store/Prefetch/MMU/All)
+      DATA_BANK_CONFLICT_REPLAY_LOAD,
+      PTC_DATA_BANK_CONFLICT_REPLAY_LOAD,
+      //Event (speculative) for any LS replay caused by data bank conflict (Filtered by Load/Store/Prefetch/MMU/All)
+      DATA_BANK_CONFLICT_REPLAY_STORE,
+      PTC_DATA_BANK_CONFLICT_REPLAY_STORE,
+      //Event (speculative) for any LS replay caused by data bank conflict (Filtered by Load/Store/Prefetch/MMU/All)
+      DATA_BANK_CONFLICT_REPLAY_PREFETCH,
+      PTC_DATA_BANK_CONFLICT_REPLAY_PREFETCH,
+      //Event (speculative) for any LS replay caused by data bank conflict (Filtered by Load/Store/Prefetch/MMU/All)
+      DATA_BANK_CONFLICT_REPLAY_MMU,
+      PTC_DATA_BANK_CONFLICT_REPLAY_MMU,
+      //Event (speculative) for any LS replay caused by data bank conflict (Filtered by Load/Store/Prefetch/MMU/All)
+      DATA_BANK_CONFLICT_REPLAY_ALL,
+      PTC_DATA_BANK_CONFLICT_REPLAY_ALL,
+      //Event for any replay caused by hitting on a fillbuffer entry (Filtered by Load/Store/Prefetch/MMU/All)
+      FILLBUF_HIT_REPLAY_LOAD,
+      PTC_FILLBUF_HIT_REPLAY_LOAD,
+      //Event for any replay caused by hitting on a fillbuffer entry (Filtered by Load/Store/Prefetch/MMU/All)
+      FILLBUF_HIT_REPLAY_STORE,
+      PTC_FILLBUF_HIT_REPLAY_STORE,
+      //Event for any replay caused by hitting on a fillbuffer entry (Filtered by Load/Store/Prefetch/MMU/All)
+      FILLBUF_HIT_REPLAY_PREFETCH,
+      PTC_FILLBUF_HIT_REPLAY_PREFETCH,
+      //Event for any replay caused by hitting on a fillbuffer entry (Filtered by Load/Store/Prefetch/MMU/All)
+      FILLBUF_HIT_REPLAY_MMU,
+      PTC_FILLBUF_HIT_REPLAY_MMU,
+      //Event for any replay caused by hitting on a fillbuffer entry (Filtered by Load/Store/Prefetch/MMU/All)
+      FILLBUF_HIT_REPLAY_ALL,
+      PTC_FILLBUF_HIT_REPLAY_ALL,
+      //Event for any replay caused by hitting on a transbuf entry (Filtered by Load/Store/Prefetch/MMU/All)
+      TRANSBUF_HIT_REPLAY_LOAD,
+      PTC_TRANSBUF_HIT_REPLAY_LOAD,
+      //Event for any replay caused by hitting on a transbuf entry (Filtered by Load/Store/Prefetch/MMU/All)
+      TRANSBUF_HIT_REPLAY_STORE,
+      PTC_TRANSBUF_HIT_REPLAY_STORE,
+      //Event for any replay caused by hitting on a transbuf entry (Filtered by Load/Store/Prefetch/MMU/All)
+      TRANSBUF_HIT_REPLAY_PREFETCH,
+      PTC_TRANSBUF_HIT_REPLAY_PREFETCH,
+      //Event for any replay caused by hitting on a transbuf entry (Filtered by Load/Store/Prefetch/MMU/All)
+      TRANSBUF_HIT_REPLAY_MMU,
+      PTC_TRANSBUF_HIT_REPLAY_MMU,
+      //Event for any replay caused by hitting on a transbuf entry (Filtered by Load/Store/Prefetch/MMU/All)
+      TRANSBUF_HIT_REPLAY_ALL,
+      PTC_TRANSBUF_HIT_REPLAY_ALL,
+      //Event for any replay caused by hitting on a reqbuf entry (Filtered by Load/Store/Prefetch/MMU/All)
+      REQBUF_HIT_REPLAY_LOAD,
+      PTC_REQBUF_HIT_REPLAY_LOAD,
+      //Event for any replay caused by hitting on a reqbuf entry (Filtered by Load/Store/Prefetch/MMU/All)
+      REQBUF_HIT_REPLAY_STORE,
+      PTC_REQBUF_HIT_REPLAY_STORE,
+      //Event for any replay caused by hitting on a reqbuf entry (Filtered by Load/Store/Prefetch/MMU/All)
+      REQBUF_HIT_REPLAY_PREFETCH,
+      PTC_REQBUF_HIT_REPLAY_PREFETCH,
+      //Event for any replay caused by hitting on a reqbuf entry (Filtered by Load/Store/Prefetch/MMU/All)
+      REQBUF_HIT_REPLAY_MMU,
+      PTC_REQBUF_HIT_REPLAY_MMU,
+      //Event for any replay caused by hitting on a reqbuf entry (Filtered by Load/Store/Prefetch/MMU/All)
+      REQBUF_HIT_REPLAY_ALL,
+      PTC_REQBUF_HIT_REPLAY_ALL,
+      //Event for any LS replay caused by DTLB miss (Filtered by Load/Store/Prefetch/MMU/All)
+      DTLB_REPLAY_LOAD,
+      PTC_DTLB_REPLAY_LOAD,
+      //Event for any LS replay caused by DTLB miss (Filtered by Load/Store/Prefetch/MMU/All)
+      DTLB_REPLAY_STORE,
+      PTC_DTLB_REPLAY_STORE,
+      //Event for any LS replay caused by DTLB miss (Filtered by Load/Store/Prefetch/MMU/All)
+      DTLB_REPLAY_PREFETCH,
+      PTC_DTLB_REPLAY_PREFETCH,
+      //Event for any LS replay caused by DTLB miss (Filtered by Load/Store/Prefetch/MMU/All)
+      DTLB_REPLAY_MMU,
+      PTC_DTLB_REPLAY_MMU,
+      //Event for any LS replay caused by DTLB miss (Filtered by Load/Store/Prefetch/MMU/All)
+      DTLB_REPLAY_ALL,
+      PTC_DTLB_REPLAY_ALL,
       //Event (speculative) for every instance of failed Read-After-Read queue allocation to a demand memory-read operation
       RAR_CANNOT_ALLOC,
       PTC_RAR_CANNOT_ALLOC,
@@ -289,9 +607,48 @@ public:
       //Event (speculative) for every instance of a failed Store-Merge-Buffer allocation to a demand memory-write operation
       SMB_CANNOT_ALLOC,
       PTC_SMB_CANNOT_ALLOC,
+      //Event (speculative) for every instance of a failed Memory-Request-Buffer allocation to a demand memory operation (filtered by load/store/prefetch/MMU/All)
+      REQBUF_CANNOT_ALLOC_LOAD,
+      PTC_REQBUF_CANNOT_ALLOC_LOAD,
+      //Event (speculative) for every instance of a failed Memory-Request-Buffer allocation to a demand memory operation (filtered by load/store/prefetch/MMU/All)
+      REQBUF_CANNOT_ALLOC_STORE,
+      PTC_REQBUF_CANNOT_ALLOC_STORE,
+      //Event (speculative) for every instance of a failed Memory-Request-Buffer allocation to a demand memory operation (filtered by load/store/prefetch/MMU/All)
+      REQBUF_CANNOT_ALLOC_PREFETCH,
+      PTC_REQBUF_CANNOT_ALLOC_PREFETCH,
+      //Event (speculative) for every instance of a failed Memory-Request-Buffer allocation to a demand memory operation (filtered by load/store/prefetch/MMU/All)
+      REQBUF_CANNOT_ALLOC_MMU,
+      PTC_REQBUF_CANNOT_ALLOC_MMU,
+      //Event (speculative) for every instance of a failed Memory-Request-Buffer allocation to a demand memory operation (filtered by load/store/prefetch/MMU/All)
+      REQBUF_CANNOT_ALLOC_ALL,
+      PTC_REQBUF_CANNOT_ALLOC_ALL,
       //Event for every instance of a failed FillBuffer allocation
       FILLBUF_CANNOT_ALLOC,
       PTC_FILLBUF_CANNOT_ALLOC,
+      //Event for every instance of a failed TransBuffer allocation (filtered by load/store/prefetch/MMU/All)
+      TRANSBUF_CANNOT_ALLOC_LOAD,
+      PTC_TRANSBUF_CANNOT_ALLOC_LOAD,
+      //Event for every instance of a failed TransBuffer allocation (filtered by load/store/prefetch/MMU/All)
+      TRANSBUF_CANNOT_ALLOC_STORE,
+      PTC_TRANSBUF_CANNOT_ALLOC_STORE,
+      //Event for every instance of a failed TransBuffer allocation (filtered by load/store/prefetch/MMU/All)
+      TRANSBUF_CANNOT_ALLOC_PREFETCH,
+      PTC_TRANSBUF_CANNOT_ALLOC_PREFETCH,
+      //Event for every instance of a failed TransBuffer allocation (filtered by load/store/prefetch/MMU/All)
+      TRANSBUF_CANNOT_ALLOC_MMU,
+      PTC_TRANSBUF_CANNOT_ALLOC_MMU,
+      //Event for every instance of a failed TransBuffer allocation (filtered by load/store/prefetch/MMU/All)
+      TRANSBUF_CANNOT_ALLOC_ALL,
+      PTC_TRANSBUF_CANNOT_ALLOC_ALL,
+      //Event for every instance of a failed Page Cross Buffer allocation (filtered by load/store/All)
+      PCB_CANNOT_ALLOC_LOAD,
+      PTC_PCB_CANNOT_ALLOC_LOAD,
+      //Event for every instance of a failed Page Cross Buffer allocation (filtered by load/store/All)
+      PCB_CANNOT_ALLOC_STORE,
+      PTC_PCB_CANNOT_ALLOC_STORE,
+      //Event for every instance of a failed Page Cross Buffer allocation (filtered by load/store/All)
+      PCB_CANNOT_ALLOC_ALL,
+      PTC_PCB_CANNOT_ALLOC_ALL,
       //Event for every instance of a failed Unaligned Data Buffer allocation
       UDB_CANNOT_ALLOC,
       PTC_UDB_CANNOT_ALLOC,
@@ -331,9 +688,6 @@ public:
       //Event for every instance of a load predicted by MDP
       MDP_TOTAL_PREDICTION,
       PTC_MDP_TOTAL_PREDICTION,
-      //Event for every retired long latency; non memory operation
-      LL_RETIRED,
-      PTC_LL_RETIRED,
       //Event for every retired atomic operation
       ATOMICS_RETIRED,
       PTC_ATOMICS_RETIRED,
@@ -380,362 +734,8 @@ public:
       PFC_PREFETCHES_LATE,
       PTC_PFC_PREFETCHES_LATE,
       //Event (speculative) for every L1D eviction which is an unused prefetch
-      PFC_VICTIM_PREFETCHES,
-      PTC_PFC_VICTIM_PREFETCHES,
-      //filtered event
-      L1D_READ_ACCESS_ALIGNED,
-      PTC_L1D_READ_ACCESS_ALIGNED,
-      //filtered event
-      L1D_READ_ACCESS_CLC,
-      PTC_L1D_READ_ACCESS_CLC,
-      //filtered event
-      L1D_READ_ACCESS_4KX,
-      PTC_L1D_READ_ACCESS_4KX,
-      //filtered event
-      L1D_READ_ACCESS_ALL,
-      PTC_L1D_READ_ACCESS_ALL,
-      //filtered event
-      L1D_WRITE_ACCESS_ALIGNED,
-      PTC_L1D_WRITE_ACCESS_ALIGNED,
-      //filtered event
-      L1D_WRITE_ACCESS_CLC,
-      PTC_L1D_WRITE_ACCESS_CLC,
-      //filtered event
-      L1D_WRITE_ACCESS_4KX,
-      PTC_L1D_WRITE_ACCESS_4KX,
-      //filtered event
-      L1D_WRITE_ACCESS_ALL,
-      PTC_L1D_WRITE_ACCESS_ALL,
-      //filtered event
-      L1D_PREFETCH_ACCESS_ALIGNED,
-      PTC_L1D_PREFETCH_ACCESS_ALIGNED,
-      //filtered event
-      L1D_PREFETCH_ACCESS_CLC,
-      PTC_L1D_PREFETCH_ACCESS_CLC,
-      //filtered event
-      L1D_PREFETCH_ACCESS_4KX,
-      PTC_L1D_PREFETCH_ACCESS_4KX,
-      //filtered event
-      L1D_PREFETCH_ACCESS_ALL,
-      PTC_L1D_PREFETCH_ACCESS_ALL,
-      //filtered event
-      L1D_MMU_ACCESS,
-      PTC_L1D_MMU_ACCESS,
-      //filtered event
-      L1D_SNOOP_ACCESS,
-      PTC_L1D_SNOOP_ACCESS,
-      //filtered event
-      L1D_ACCESS_ALL,
-      PTC_L1D_ACCESS_ALL,
-      //filtered event
-      L1D_READ_MISS,
-      PTC_L1D_READ_MISS,
-      //filtered event
-      L1D_WRITE_MISS,
-      PTC_L1D_WRITE_MISS,
-      //filtered event
-      L1D_PREFETCH_MISS,
-      PTC_L1D_PREFETCH_MISS,
-      //filtered event
-      L1D_MMU_MISS,
-      PTC_L1D_MMU_MISS,
-      //filtered event
-      L1D_SNOOP_MISS,
-      PTC_L1D_SNOOP_MISS,
-      //filtered event
-      L1D_MISS_ALL,
-      PTC_L1D_MISS_ALL,
-      //filtered event
-      L1D_CACHE_INVALIDATE_SNOOP,
-      PTC_L1D_CACHE_INVALIDATE_SNOOP,
-      //filtered event
-      L1D_CACHE_INVALIDATE_CMO,
-      PTC_L1D_CACHE_INVALIDATE_CMO,
-      //filtered event
-      L1D_CACHE_INVALIDATE_LOAD_EVICTION,
-      PTC_L1D_CACHE_INVALIDATE_LOAD_EVICTION,
-      //filtered event
-      L1D_CACHE_INVALIDATE_STORE_EVICTION,
-      PTC_L1D_CACHE_INVALIDATE_STORE_EVICTION,
-      //filtered event
-      L1D_CACHE_INVALIDATE_PREFETCH_EVICTION,
-      PTC_L1D_CACHE_INVALIDATE_PREFETCH_EVICTION,
-      //filtered event
-      DTLB_READ_ACCESS,
-      PTC_DTLB_READ_ACCESS,
-      //filtered event
-      DTLB_WRITE_ACCESS,
-      PTC_DTLB_WRITE_ACCESS,
-      //filtered event
-      DTLB_PREFETCH_ACCESS,
-      PTC_DTLB_PREFETCH_ACCESS,
-      //filtered event
-      DTLB_ACCESS_4K,
-      PTC_DTLB_ACCESS_4K,
-      //filtered event
-      DTLB_ACCESS_HUGEPAGE,
-      PTC_DTLB_ACCESS_HUGEPAGE,
-      //filtered event
-      DTLB_ACCESS_CACHEABLE,
-      PTC_DTLB_ACCESS_CACHEABLE,
-      //filtered event
-      DTLB_ACCESS_NONCACHEABLE,
-      PTC_DTLB_ACCESS_NONCACHEABLE,
-      //filtered event
-      DTLB_ACCESS_ALL,
-      PTC_DTLB_ACCESS_ALL,
-      //filtered event
-      DTLB_READ_MISS,
-      PTC_DTLB_READ_MISS,
-      //filtered event
-      DTLB_WRITE_MISS,
-      PTC_DTLB_WRITE_MISS,
-      //filtered event
-      DTLB_PREFETCH_MISS,
-      PTC_DTLB_PREFETCH_MISS,
-      //filtered event
-      DTLB_MISS_4K,
-      PTC_DTLB_MISS_4K,
-      //filtered event
-      DTLB_MISS_HUGEPAGE,
-      PTC_DTLB_MISS_HUGEPAGE,
-      //filtered event
-      DTLB_MISS_ALL,
-      PTC_DTLB_MISS_ALL,
-      //filtered event
-      LEAF_TLB_ACCESS_LS,
-      PTC_LEAF_TLB_ACCESS_LS,
-      //filtered event
-      LEAF_TLB_ACCESS_FE,
-      PTC_LEAF_TLB_ACCESS_FE,
-      //filtered event
-      LEAF_TLB_ACCESS_PREFETCH,
-      PTC_LEAF_TLB_ACCESS_PREFETCH,
-      //filtered event
-      LEAF_TLB_MISS_LS,
-      PTC_LEAF_TLB_MISS_LS,
-      //filtered event
-      LEAF_TLB_MISS_FE,
-      PTC_LEAF_TLB_MISS_FE,
-      //filtered event
-      LEAF_TLB_MISS_PREFETCH,
-      PTC_LEAF_TLB_MISS_PREFETCH,
-      //filtered event
-      NONLEAF_TLB_ACCESS_LS,
-      PTC_NONLEAF_TLB_ACCESS_LS,
-      //filtered event
-      NONLEAF_TLB_ACCESS_FE,
-      PTC_NONLEAF_TLB_ACCESS_FE,
-      //filtered event
-      NONLEAF_TLB_ACCESS_PREFETCH,
-      PTC_NONLEAF_TLB_ACCESS_PREFETCH,
-      //filtered event
-      NONLEAF_TLB_MISS_LS,
-      PTC_NONLEAF_TLB_MISS_LS,
-      //filtered event
-      NONLEAF_TLB_MISS_FE,
-      PTC_NONLEAF_TLB_MISS_FE,
-      //filtered event
-      NONLEAF_TLB_MISS_PREFETCH,
-      PTC_NONLEAF_TLB_MISS_PREFETCH,
-      //filtered event
-      LSU_RESYNCS_RAW,
-      PTC_LSU_RESYNCS_RAW,
-      //filtered event
-      LSU_RESYNCS_RAR,
-      PTC_LSU_RESYNCS_RAR,
-      //filtered event
-      LSU_RESYNCS_ALL,
-      PTC_LSU_RESYNCS_ALL,
-      //filtered event
-      LS_REPLAY_LOAD,
-      PTC_LS_REPLAY_LOAD,
-      //filtered event
-      LS_REPLAY_STORE,
-      PTC_LS_REPLAY_STORE,
-      //filtered event
-      LS_REPLAY_PREFETCH,
-      PTC_LS_REPLAY_PREFETCH,
-      //filtered event
-      LS_REPLAY_MMU,
-      PTC_LS_REPLAY_MMU,
-      //filtered event
-      LS_REPLAY_ALL,
-      PTC_LS_REPLAY_ALL,
-      //filtered event
-      LS_WAY_PREDICTOR_REPLAY_LOAD,
-      PTC_LS_WAY_PREDICTOR_REPLAY_LOAD,
-      //filtered event
-      LS_WAY_PREDICTOR_REPLAY_STORE,
-      PTC_LS_WAY_PREDICTOR_REPLAY_STORE,
-      //filtered event
-      LS_WAY_PREDICTOR_REPLAY_PREFETCH,
-      PTC_LS_WAY_PREDICTOR_REPLAY_PREFETCH,
-      //filtered event
-      LS_WAY_PREDICTOR_REPLAY_MMU,
-      PTC_LS_WAY_PREDICTOR_REPLAY_MMU,
-      //filtered event
-      LS_WAY_PREDICTOR_REPLAY_ALL,
-      PTC_LS_WAY_PREDICTOR_REPLAY_ALL,
-      //filtered event
-      SIPT_REPLAY_LOAD,
-      PTC_SIPT_REPLAY_LOAD,
-      //filtered event
-      SIPT_REPLAY_STORE,
-      PTC_SIPT_REPLAY_STORE,
-      //filtered event
-      SIPT_REPLAY_PREFETCH,
-      PTC_SIPT_REPLAY_PREFETCH,
-      //filtered event
-      SIPT_REPLAY_MMU,
-      PTC_SIPT_REPLAY_MMU,
-      //filtered event
-      SIPT_REPLAY_ALL,
-      PTC_SIPT_REPLAY_ALL,
-      //filtered event
-      STLF_REPLAY_LOAD,
-      PTC_STLF_REPLAY_LOAD,
-      //filtered event
-      STLF_REPLAY_STORE,
-      PTC_STLF_REPLAY_STORE,
-      //filtered event
-      STLF_REPLAY_PREFETCH,
-      PTC_STLF_REPLAY_PREFETCH,
-      //filtered event
-      STLF_REPLAY_MMU,
-      PTC_STLF_REPLAY_MMU,
-      //filtered event
-      STLF_REPLAY_ALL,
-      PTC_STLF_REPLAY_ALL,
-      //filtered event
-      TAG_BANK_CONFLICT_REPLAY_LOAD,
-      PTC_TAG_BANK_CONFLICT_REPLAY_LOAD,
-      //filtered event
-      TAG_BANK_CONFLICT_REPLAY_STORE,
-      PTC_TAG_BANK_CONFLICT_REPLAY_STORE,
-      //filtered event
-      TAG_BANK_CONFLICT_REPLAY_PREFETCH,
-      PTC_TAG_BANK_CONFLICT_REPLAY_PREFETCH,
-      //filtered event
-      TAG_BANK_CONFLICT_REPLAY_MMU,
-      PTC_TAG_BANK_CONFLICT_REPLAY_MMU,
-      //filtered event
-      TAG_BANK_CONFLICT_REPLAY_ALL,
-      PTC_TAG_BANK_CONFLICT_REPLAY_ALL,
-      //filtered event
-      DATA_BANK_CONFLICT_REPLAY_LOAD,
-      PTC_DATA_BANK_CONFLICT_REPLAY_LOAD,
-      //filtered event
-      DATA_BANK_CONFLICT_REPLAY_STORE,
-      PTC_DATA_BANK_CONFLICT_REPLAY_STORE,
-      //filtered event
-      DATA_BANK_CONFLICT_REPLAY_PREFETCH,
-      PTC_DATA_BANK_CONFLICT_REPLAY_PREFETCH,
-      //filtered event
-      DATA_BANK_CONFLICT_REPLAY_MMU,
-      PTC_DATA_BANK_CONFLICT_REPLAY_MMU,
-      //filtered event
-      DATA_BANK_CONFLICT_REPLAY_ALL,
-      PTC_DATA_BANK_CONFLICT_REPLAY_ALL,
-      //filtered event
-      FILLBUF_HIT_REPLAY_LOAD,
-      PTC_FILLBUF_HIT_REPLAY_LOAD,
-      //filtered event
-      FILLBUF_HIT_REPLAY_STORE,
-      PTC_FILLBUF_HIT_REPLAY_STORE,
-      //filtered event
-      FILLBUF_HIT_REPLAY_PREFETCH,
-      PTC_FILLBUF_HIT_REPLAY_PREFETCH,
-      //filtered event
-      FILLBUF_HIT_REPLAY_MMU,
-      PTC_FILLBUF_HIT_REPLAY_MMU,
-      //filtered event
-      FILLBUF_HIT_REPLAY_ALL,
-      PTC_FILLBUF_HIT_REPLAY_ALL,
-      //filtered event
-      TRANSBUF_HIT_REPLAY_LOAD,
-      PTC_TRANSBUF_HIT_REPLAY_LOAD,
-      //filtered event
-      TRANSBUF_HIT_REPLAY_STORE,
-      PTC_TRANSBUF_HIT_REPLAY_STORE,
-      //filtered event
-      TRANSBUF_HIT_REPLAY_PREFETCH,
-      PTC_TRANSBUF_HIT_REPLAY_PREFETCH,
-      //filtered event
-      TRANSBUF_HIT_REPLAY_MMU,
-      PTC_TRANSBUF_HIT_REPLAY_MMU,
-      //filtered event
-      TRANSBUF_HIT_REPLAY_ALL,
-      PTC_TRANSBUF_HIT_REPLAY_ALL,
-      //filtered event
-      REQBUF_HIT_REPLAY_LOAD,
-      PTC_REQBUF_HIT_REPLAY_LOAD,
-      //filtered event
-      REQBUF_HIT_REPLAY_STORE,
-      PTC_REQBUF_HIT_REPLAY_STORE,
-      //filtered event
-      REQBUF_HIT_REPLAY_PREFETCH,
-      PTC_REQBUF_HIT_REPLAY_PREFETCH,
-      //filtered event
-      REQBUF_HIT_REPLAY_MMU,
-      PTC_REQBUF_HIT_REPLAY_MMU,
-      //filtered event
-      REQBUF_HIT_REPLAY_ALL,
-      PTC_REQBUF_HIT_REPLAY_ALL,
-      //filtered event
-      DTLB_REPLAY_LOAD,
-      PTC_DTLB_REPLAY_LOAD,
-      //filtered event
-      DTLB_REPLAY_STORE,
-      PTC_DTLB_REPLAY_STORE,
-      //filtered event
-      DTLB_REPLAY_PREFETCH,
-      PTC_DTLB_REPLAY_PREFETCH,
-      //filtered event
-      DTLB_REPLAY_MMU,
-      PTC_DTLB_REPLAY_MMU,
-      //filtered event
-      DTLB_REPLAY_ALL,
-      PTC_DTLB_REPLAY_ALL,
-      //filtered event
-      REQBUF_CANNOT_ALLOC_LOAD,
-      PTC_REQBUF_CANNOT_ALLOC_LOAD,
-      //filtered event
-      REQBUF_CANNOT_ALLOC_STORE,
-      PTC_REQBUF_CANNOT_ALLOC_STORE,
-      //filtered event
-      REQBUF_CANNOT_ALLOC_PREFETCH,
-      PTC_REQBUF_CANNOT_ALLOC_PREFETCH,
-      //filtered event
-      REQBUF_CANNOT_ALLOC_MMU,
-      PTC_REQBUF_CANNOT_ALLOC_MMU,
-      //filtered event
-      REQBUF_CANNOT_ALLOC_ALL,
-      PTC_REQBUF_CANNOT_ALLOC_ALL,
-      //filtered event
-      TRANSBUF_CANNOT_ALLOC_LOAD,
-      PTC_TRANSBUF_CANNOT_ALLOC_LOAD,
-      //filtered event
-      TRANSBUF_CANNOT_ALLOC_STORE,
-      PTC_TRANSBUF_CANNOT_ALLOC_STORE,
-      //filtered event
-      TRANSBUF_CANNOT_ALLOC_PREFETCH,
-      PTC_TRANSBUF_CANNOT_ALLOC_PREFETCH,
-      //filtered event
-      TRANSBUF_CANNOT_ALLOC_MMU,
-      PTC_TRANSBUF_CANNOT_ALLOC_MMU,
-      //filtered event
-      TRANSBUF_CANNOT_ALLOC_ALL,
-      PTC_TRANSBUF_CANNOT_ALLOC_ALL,
-      //filtered event
-      PCB_CANNOT_ALLOC_LOAD,
-      PTC_PCB_CANNOT_ALLOC_LOAD,
-      //filtered event
-      PCB_CANNOT_ALLOC_STORE,
-      PTC_PCB_CANNOT_ALLOC_STORE,
-      //filtered event
-      PCB_CANNOT_ALLOC_ALL,
-      PTC_PCB_CANNOT_ALLOC_ALL,
+      PFC_USELESS_PREFETCHES,
+      PTC_PFC_USELESS_PREFETCHES,
     COUNT
     } counter;
 
@@ -766,6 +766,7 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::PAGE_CROSSING_FETCHBLOCKS] = pmcounters.page_crossing_fetchblocks;
       tmp[counter::NFP_EARLY_REDIRECT] = pmcounters.nfp_early_redirect;
       tmp[counter::NFP_LATE_REDIRECT] = pmcounters.nfp_late_redirect;
+      tmp[counter::IFBUF_FULL_REDIRECT] = pmcounters.ifbuf_full_redirect;
       tmp[counter::NONSPEC_RESYNC] = pmcounters.nonspec_resync;
       tmp[counter::FAULT_RESYNC] = pmcounters.fault_resync;
       tmp[counter::FAULT_REFETCH] = pmcounters.fault_refetch;
@@ -828,48 +829,6 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::CACHE_REFERENCES] = pmcounters.cache_references;
       tmp[counter::CACHE_MISSES] = pmcounters.cache_misses;
       tmp[counter::TLB_INVALIDATES] = pmcounters.tlb_invalidates;
-      tmp[counter::UTLB_MISS] = pmcounters.utlb_miss;
-      tmp[counter::NONLEAF_TLB_ACCESS_FITER] = pmcounters.nonleaf_tlb_access_fiter;
-      tmp[counter::PAGE_WALKS] = pmcounters.page_walks;
-      tmp[counter::STALLS_MEM_L1D_MISS] = pmcounters.stalls_mem_l1d_miss;
-      tmp[counter::STALLS_MEM_STORES] = pmcounters.stalls_mem_stores;
-      tmp[counter::STALLS_MEM_L1DTLB_MISS] = pmcounters.stalls_mem_l1dtlb_miss;
-      tmp[counter::STLF_HITS] = pmcounters.stlf_hits;
-      tmp[counter::RAR_CANNOT_ALLOC] = pmcounters.rar_cannot_alloc;
-      tmp[counter::RAW_CANNOT_ALLOC] = pmcounters.raw_cannot_alloc;
-      tmp[counter::LDQ_CANNOT_ALLOC] = pmcounters.ldq_cannot_alloc;
-      tmp[counter::SMB_CANNOT_ALLOC] = pmcounters.smb_cannot_alloc;
-      tmp[counter::FILLBUF_CANNOT_ALLOC] = pmcounters.fillbuf_cannot_alloc;
-      tmp[counter::UDB_CANNOT_ALLOC] = pmcounters.udb_cannot_alloc;
-      tmp[counter::UDB_DATA_RETURN] = pmcounters.udb_data_return;
-      tmp[counter::UDB_LOST] = pmcounters.udb_lost;
-      tmp[counter::UWP_ACCESS] = pmcounters.uwp_access;
-      tmp[counter::UWP_MISS] = pmcounters.uwp_miss;
-      tmp[counter::UWP_TRUE_HIT] = pmcounters.uwp_true_hit;
-      tmp[counter::WP_ACCESS] = pmcounters.wp_access;
-      tmp[counter::WP_MISS] = pmcounters.wp_miss;
-      tmp[counter::WP_TRUE_HIT] = pmcounters.wp_true_hit;
-      tmp[counter::MDP_CORRECT_PREDICTION] = pmcounters.mdp_correct_prediction;
-      tmp[counter::MDP_FALSE_HIT] = pmcounters.mdp_false_hit;
-      tmp[counter::MDP_FALSE_MISS] = pmcounters.mdp_false_miss;
-      tmp[counter::MDP_TOTAL_PREDICTION] = pmcounters.mdp_total_prediction;
-      tmp[counter::LL_RETIRED] = pmcounters.ll_retired;
-      tmp[counter::ATOMICS_RETIRED] = pmcounters.atomics_retired;
-      tmp[counter::LDST_MASKED_NANO] = pmcounters.ldst_masked_nano;
-      tmp[counter::LD_EXECUTED_NANO] = pmcounters.ld_executed_nano;
-      tmp[counter::ST_EXECUTED_NANO] = pmcounters.st_executed_nano;
-      tmp[counter::PFC_AGT_CANNOT_ALLOC] = pmcounters.pfc_agt_cannot_alloc;
-      tmp[counter::PFC_AGT_EVICT] = pmcounters.pfc_agt_evict;
-      tmp[counter::PFC_PHT_CANNOT_ALLOC] = pmcounters.pfc_pht_cannot_alloc;
-      tmp[counter::PFC_PHT_LOOKUP] = pmcounters.pfc_pht_lookup;
-      tmp[counter::PFC_PHT_HIT] = pmcounters.pfc_pht_hit;
-      tmp[counter::PFC_PRT_CANNOT_ALLOC] = pmcounters.pfc_prt_cannot_alloc;
-      tmp[counter::PFC_NO_TLB_CREDIT_STALLS] = pmcounters.pfc_no_tlb_credit_stalls;
-      tmp[counter::PFC_NO_TAG_CREDIT_STALLS] = pmcounters.pfc_no_tag_credit_stalls;
-      tmp[counter::PFC_PREFETCHES_SENT] = pmcounters.pfc_prefetches_sent;
-      tmp[counter::PFC_PREFETCHES_HIT] = pmcounters.pfc_prefetches_hit;
-      tmp[counter::PFC_PREFETCHES_LATE] = pmcounters.pfc_prefetches_late;
-      tmp[counter::PFC_VICTIM_PREFETCHES] = pmcounters.pfc_victim_prefetches;
       tmp[counter::L1D_READ_ACCESS_ALIGNED] = pmcounters.l1d_read_access_aligned;
       tmp[counter::L1D_READ_ACCESS_CLC] = pmcounters.l1d_read_access_clc;
       tmp[counter::L1D_READ_ACCESS_4KX] = pmcounters.l1d_read_access_4kx;
@@ -896,6 +855,8 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::L1D_CACHE_INVALIDATE_LOAD_EVICTION] = pmcounters.l1d_cache_invalidate_load_eviction;
       tmp[counter::L1D_CACHE_INVALIDATE_STORE_EVICTION] = pmcounters.l1d_cache_invalidate_store_eviction;
       tmp[counter::L1D_CACHE_INVALIDATE_PREFETCH_EVICTION] = pmcounters.l1d_cache_invalidate_prefetch_eviction;
+      tmp[counter::L1D_CACHE_INVALIDATE_ALL] = pmcounters.l1d_cache_invalidate_all;
+      tmp[counter::UTLB_MISS] = pmcounters.utlb_miss;
       tmp[counter::DTLB_READ_ACCESS] = pmcounters.dtlb_read_access;
       tmp[counter::DTLB_WRITE_ACCESS] = pmcounters.dtlb_write_access;
       tmp[counter::DTLB_PREFETCH_ACCESS] = pmcounters.dtlb_prefetch_access;
@@ -922,9 +883,14 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::NONLEAF_TLB_MISS_LS] = pmcounters.nonleaf_tlb_miss_ls;
       tmp[counter::NONLEAF_TLB_MISS_FE] = pmcounters.nonleaf_tlb_miss_fe;
       tmp[counter::NONLEAF_TLB_MISS_PREFETCH] = pmcounters.nonleaf_tlb_miss_prefetch;
+      tmp[counter::PAGE_WALKS] = pmcounters.page_walks;
+      tmp[counter::STALLS_MEM_L1D_MISS] = pmcounters.stalls_mem_l1d_miss;
+      tmp[counter::STALLS_MEM_STORES] = pmcounters.stalls_mem_stores;
+      tmp[counter::STALLS_MEM_L1DTLB_MISS] = pmcounters.stalls_mem_l1dtlb_miss;
       tmp[counter::LSU_RESYNCS_RAW] = pmcounters.lsu_resyncs_raw;
       tmp[counter::LSU_RESYNCS_RAR] = pmcounters.lsu_resyncs_rar;
       tmp[counter::LSU_RESYNCS_ALL] = pmcounters.lsu_resyncs_all;
+      tmp[counter::STLF_HITS] = pmcounters.stlf_hits;
       tmp[counter::LS_REPLAY_LOAD] = pmcounters.ls_replay_load;
       tmp[counter::LS_REPLAY_STORE] = pmcounters.ls_replay_store;
       tmp[counter::LS_REPLAY_PREFETCH] = pmcounters.ls_replay_prefetch;
@@ -975,11 +941,16 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::DTLB_REPLAY_PREFETCH] = pmcounters.dtlb_replay_prefetch;
       tmp[counter::DTLB_REPLAY_MMU] = pmcounters.dtlb_replay_mmu;
       tmp[counter::DTLB_REPLAY_ALL] = pmcounters.dtlb_replay_all;
+      tmp[counter::RAR_CANNOT_ALLOC] = pmcounters.rar_cannot_alloc;
+      tmp[counter::RAW_CANNOT_ALLOC] = pmcounters.raw_cannot_alloc;
+      tmp[counter::LDQ_CANNOT_ALLOC] = pmcounters.ldq_cannot_alloc;
+      tmp[counter::SMB_CANNOT_ALLOC] = pmcounters.smb_cannot_alloc;
       tmp[counter::REQBUF_CANNOT_ALLOC_LOAD] = pmcounters.reqbuf_cannot_alloc_load;
       tmp[counter::REQBUF_CANNOT_ALLOC_STORE] = pmcounters.reqbuf_cannot_alloc_store;
       tmp[counter::REQBUF_CANNOT_ALLOC_PREFETCH] = pmcounters.reqbuf_cannot_alloc_prefetch;
       tmp[counter::REQBUF_CANNOT_ALLOC_MMU] = pmcounters.reqbuf_cannot_alloc_mmu;
       tmp[counter::REQBUF_CANNOT_ALLOC_ALL] = pmcounters.reqbuf_cannot_alloc_all;
+      tmp[counter::FILLBUF_CANNOT_ALLOC] = pmcounters.fillbuf_cannot_alloc;
       tmp[counter::TRANSBUF_CANNOT_ALLOC_LOAD] = pmcounters.transbuf_cannot_alloc_load;
       tmp[counter::TRANSBUF_CANNOT_ALLOC_STORE] = pmcounters.transbuf_cannot_alloc_store;
       tmp[counter::TRANSBUF_CANNOT_ALLOC_PREFETCH] = pmcounters.transbuf_cannot_alloc_prefetch;
@@ -988,6 +959,35 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::PCB_CANNOT_ALLOC_LOAD] = pmcounters.pcb_cannot_alloc_load;
       tmp[counter::PCB_CANNOT_ALLOC_STORE] = pmcounters.pcb_cannot_alloc_store;
       tmp[counter::PCB_CANNOT_ALLOC_ALL] = pmcounters.pcb_cannot_alloc_all;
+      tmp[counter::UDB_CANNOT_ALLOC] = pmcounters.udb_cannot_alloc;
+      tmp[counter::UDB_DATA_RETURN] = pmcounters.udb_data_return;
+      tmp[counter::UDB_LOST] = pmcounters.udb_lost;
+      tmp[counter::UWP_ACCESS] = pmcounters.uwp_access;
+      tmp[counter::UWP_MISS] = pmcounters.uwp_miss;
+      tmp[counter::UWP_TRUE_HIT] = pmcounters.uwp_true_hit;
+      tmp[counter::WP_ACCESS] = pmcounters.wp_access;
+      tmp[counter::WP_MISS] = pmcounters.wp_miss;
+      tmp[counter::WP_TRUE_HIT] = pmcounters.wp_true_hit;
+      tmp[counter::MDP_CORRECT_PREDICTION] = pmcounters.mdp_correct_prediction;
+      tmp[counter::MDP_FALSE_HIT] = pmcounters.mdp_false_hit;
+      tmp[counter::MDP_FALSE_MISS] = pmcounters.mdp_false_miss;
+      tmp[counter::MDP_TOTAL_PREDICTION] = pmcounters.mdp_total_prediction;
+      tmp[counter::ATOMICS_RETIRED] = pmcounters.atomics_retired;
+      tmp[counter::LDST_MASKED_NANO] = pmcounters.ldst_masked_nano;
+      tmp[counter::LD_EXECUTED_NANO] = pmcounters.ld_executed_nano;
+      tmp[counter::ST_EXECUTED_NANO] = pmcounters.st_executed_nano;
+      tmp[counter::PFC_AGT_CANNOT_ALLOC] = pmcounters.pfc_agt_cannot_alloc;
+      tmp[counter::PFC_AGT_EVICT] = pmcounters.pfc_agt_evict;
+      tmp[counter::PFC_PHT_CANNOT_ALLOC] = pmcounters.pfc_pht_cannot_alloc;
+      tmp[counter::PFC_PHT_LOOKUP] = pmcounters.pfc_pht_lookup;
+      tmp[counter::PFC_PHT_HIT] = pmcounters.pfc_pht_hit;
+      tmp[counter::PFC_PRT_CANNOT_ALLOC] = pmcounters.pfc_prt_cannot_alloc;
+      tmp[counter::PFC_NO_TLB_CREDIT_STALLS] = pmcounters.pfc_no_tlb_credit_stalls;
+      tmp[counter::PFC_NO_TAG_CREDIT_STALLS] = pmcounters.pfc_no_tag_credit_stalls;
+      tmp[counter::PFC_PREFETCHES_SENT] = pmcounters.pfc_prefetches_sent;
+      tmp[counter::PFC_PREFETCHES_HIT] = pmcounters.pfc_prefetches_hit;
+      tmp[counter::PFC_PREFETCHES_LATE] = pmcounters.pfc_prefetches_late;
+      tmp[counter::PFC_USELESS_PREFETCHES] = pmcounters.pfc_useless_prefetches;
 
       return tmp;
     }
@@ -1034,6 +1034,8 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {PTC_NFP_EARLY_REDIRECT,"ptc_nfp_early_redirect"},
       {NFP_LATE_REDIRECT,"nfp_late_redirect"},
       {PTC_NFP_LATE_REDIRECT,"ptc_nfp_late_redirect"},
+      {IFBUF_FULL_REDIRECT,"ifbuf_full_redirect"},
+      {PTC_IFBUF_FULL_REDIRECT,"ptc_ifbuf_full_redirect"},
       {NONSPEC_RESYNC,"nonspec_resync"},
       {PTC_NONSPEC_RESYNC,"ptc_nonspec_resync"},
       {FAULT_RESYNC,"fault_resync"},
@@ -1158,90 +1160,6 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {PTC_CACHE_MISSES,"ptc_cache_misses"},
       {TLB_INVALIDATES,"tlb_invalidates"},
       {PTC_TLB_INVALIDATES,"ptc_tlb_invalidates"},
-      {UTLB_MISS,"utlb_miss"},
-      {PTC_UTLB_MISS,"ptc_utlb_miss"},
-      {NONLEAF_TLB_ACCESS_FITER,"nonleaf_tlb_access_fiter"},
-      {PTC_NONLEAF_TLB_ACCESS_FITER,"ptc_nonleaf_tlb_access_fiter"},
-      {PAGE_WALKS,"page_walks"},
-      {PTC_PAGE_WALKS,"ptc_page_walks"},
-      {STALLS_MEM_L1D_MISS,"stalls_mem_l1d_miss"},
-      {PTC_STALLS_MEM_L1D_MISS,"ptc_stalls_mem_l1d_miss"},
-      {STALLS_MEM_STORES,"stalls_mem_stores"},
-      {PTC_STALLS_MEM_STORES,"ptc_stalls_mem_stores"},
-      {STALLS_MEM_L1DTLB_MISS,"stalls_mem_l1dtlb_miss"},
-      {PTC_STALLS_MEM_L1DTLB_MISS,"ptc_stalls_mem_l1dtlb_miss"},
-      {STLF_HITS,"stlf_hits"},
-      {PTC_STLF_HITS,"ptc_stlf_hits"},
-      {RAR_CANNOT_ALLOC,"rar_cannot_alloc"},
-      {PTC_RAR_CANNOT_ALLOC,"ptc_rar_cannot_alloc"},
-      {RAW_CANNOT_ALLOC,"raw_cannot_alloc"},
-      {PTC_RAW_CANNOT_ALLOC,"ptc_raw_cannot_alloc"},
-      {LDQ_CANNOT_ALLOC,"ldq_cannot_alloc"},
-      {PTC_LDQ_CANNOT_ALLOC,"ptc_ldq_cannot_alloc"},
-      {SMB_CANNOT_ALLOC,"smb_cannot_alloc"},
-      {PTC_SMB_CANNOT_ALLOC,"ptc_smb_cannot_alloc"},
-      {FILLBUF_CANNOT_ALLOC,"fillbuf_cannot_alloc"},
-      {PTC_FILLBUF_CANNOT_ALLOC,"ptc_fillbuf_cannot_alloc"},
-      {UDB_CANNOT_ALLOC,"udb_cannot_alloc"},
-      {PTC_UDB_CANNOT_ALLOC,"ptc_udb_cannot_alloc"},
-      {UDB_DATA_RETURN,"udb_data_return"},
-      {PTC_UDB_DATA_RETURN,"ptc_udb_data_return"},
-      {UDB_LOST,"udb_lost"},
-      {PTC_UDB_LOST,"ptc_udb_lost"},
-      {UWP_ACCESS,"uwp_access"},
-      {PTC_UWP_ACCESS,"ptc_uwp_access"},
-      {UWP_MISS,"uwp_miss"},
-      {PTC_UWP_MISS,"ptc_uwp_miss"},
-      {UWP_TRUE_HIT,"uwp_true_hit"},
-      {PTC_UWP_TRUE_HIT,"ptc_uwp_true_hit"},
-      {WP_ACCESS,"wp_access"},
-      {PTC_WP_ACCESS,"ptc_wp_access"},
-      {WP_MISS,"wp_miss"},
-      {PTC_WP_MISS,"ptc_wp_miss"},
-      {WP_TRUE_HIT,"wp_true_hit"},
-      {PTC_WP_TRUE_HIT,"ptc_wp_true_hit"},
-      {MDP_CORRECT_PREDICTION,"mdp_correct_prediction"},
-      {PTC_MDP_CORRECT_PREDICTION,"ptc_mdp_correct_prediction"},
-      {MDP_FALSE_HIT,"mdp_false_hit"},
-      {PTC_MDP_FALSE_HIT,"ptc_mdp_false_hit"},
-      {MDP_FALSE_MISS,"mdp_false_miss"},
-      {PTC_MDP_FALSE_MISS,"ptc_mdp_false_miss"},
-      {MDP_TOTAL_PREDICTION,"mdp_total_prediction"},
-      {PTC_MDP_TOTAL_PREDICTION,"ptc_mdp_total_prediction"},
-      {LL_RETIRED,"ll_retired"},
-      {PTC_LL_RETIRED,"ptc_ll_retired"},
-      {ATOMICS_RETIRED,"atomics_retired"},
-      {PTC_ATOMICS_RETIRED,"ptc_atomics_retired"},
-      {LDST_MASKED_NANO,"ldst_masked_nano"},
-      {PTC_LDST_MASKED_NANO,"ptc_ldst_masked_nano"},
-      {LD_EXECUTED_NANO,"ld_executed_nano"},
-      {PTC_LD_EXECUTED_NANO,"ptc_ld_executed_nano"},
-      {ST_EXECUTED_NANO,"st_executed_nano"},
-      {PTC_ST_EXECUTED_NANO,"ptc_st_executed_nano"},
-      {PFC_AGT_CANNOT_ALLOC,"pfc_agt_cannot_alloc"},
-      {PTC_PFC_AGT_CANNOT_ALLOC,"ptc_pfc_agt_cannot_alloc"},
-      {PFC_AGT_EVICT,"pfc_agt_evict"},
-      {PTC_PFC_AGT_EVICT,"ptc_pfc_agt_evict"},
-      {PFC_PHT_CANNOT_ALLOC,"pfc_pht_cannot_alloc"},
-      {PTC_PFC_PHT_CANNOT_ALLOC,"ptc_pfc_pht_cannot_alloc"},
-      {PFC_PHT_LOOKUP,"pfc_pht_lookup"},
-      {PTC_PFC_PHT_LOOKUP,"ptc_pfc_pht_lookup"},
-      {PFC_PHT_HIT,"pfc_pht_hit"},
-      {PTC_PFC_PHT_HIT,"ptc_pfc_pht_hit"},
-      {PFC_PRT_CANNOT_ALLOC,"pfc_prt_cannot_alloc"},
-      {PTC_PFC_PRT_CANNOT_ALLOC,"ptc_pfc_prt_cannot_alloc"},
-      {PFC_NO_TLB_CREDIT_STALLS,"pfc_no_tlb_credit_stalls"},
-      {PTC_PFC_NO_TLB_CREDIT_STALLS,"ptc_pfc_no_tlb_credit_stalls"},
-      {PFC_NO_TAG_CREDIT_STALLS,"pfc_no_tag_credit_stalls"},
-      {PTC_PFC_NO_TAG_CREDIT_STALLS,"ptc_pfc_no_tag_credit_stalls"},
-      {PFC_PREFETCHES_SENT,"pfc_prefetches_sent"},
-      {PTC_PFC_PREFETCHES_SENT,"ptc_pfc_prefetches_sent"},
-      {PFC_PREFETCHES_HIT,"pfc_prefetches_hit"},
-      {PTC_PFC_PREFETCHES_HIT,"ptc_pfc_prefetches_hit"},
-      {PFC_PREFETCHES_LATE,"pfc_prefetches_late"},
-      {PTC_PFC_PREFETCHES_LATE,"ptc_pfc_prefetches_late"},
-      {PFC_VICTIM_PREFETCHES,"pfc_victim_prefetches"},
-      {PTC_PFC_VICTIM_PREFETCHES,"ptc_pfc_victim_prefetches"},
       {L1D_READ_ACCESS_ALIGNED,"l1d_read_access_aligned"},
       {PTC_L1D_READ_ACCESS_ALIGNED,"ptc_l1d_read_access_aligned"},
       {L1D_READ_ACCESS_CLC,"l1d_read_access_clc"},
@@ -1294,6 +1212,10 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {PTC_L1D_CACHE_INVALIDATE_STORE_EVICTION,"ptc_l1d_cache_invalidate_store_eviction"},
       {L1D_CACHE_INVALIDATE_PREFETCH_EVICTION,"l1d_cache_invalidate_prefetch_eviction"},
       {PTC_L1D_CACHE_INVALIDATE_PREFETCH_EVICTION,"ptc_l1d_cache_invalidate_prefetch_eviction"},
+      {L1D_CACHE_INVALIDATE_ALL,"l1d_cache_invalidate_all"},
+      {PTC_L1D_CACHE_INVALIDATE_ALL,"ptc_l1d_cache_invalidate_all"},
+      {UTLB_MISS,"utlb_miss"},
+      {PTC_UTLB_MISS,"ptc_utlb_miss"},
       {DTLB_READ_ACCESS,"dtlb_read_access"},
       {PTC_DTLB_READ_ACCESS,"ptc_dtlb_read_access"},
       {DTLB_WRITE_ACCESS,"dtlb_write_access"},
@@ -1346,12 +1268,22 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {PTC_NONLEAF_TLB_MISS_FE,"ptc_nonleaf_tlb_miss_fe"},
       {NONLEAF_TLB_MISS_PREFETCH,"nonleaf_tlb_miss_prefetch"},
       {PTC_NONLEAF_TLB_MISS_PREFETCH,"ptc_nonleaf_tlb_miss_prefetch"},
+      {PAGE_WALKS,"page_walks"},
+      {PTC_PAGE_WALKS,"ptc_page_walks"},
+      {STALLS_MEM_L1D_MISS,"stalls_mem_l1d_miss"},
+      {PTC_STALLS_MEM_L1D_MISS,"ptc_stalls_mem_l1d_miss"},
+      {STALLS_MEM_STORES,"stalls_mem_stores"},
+      {PTC_STALLS_MEM_STORES,"ptc_stalls_mem_stores"},
+      {STALLS_MEM_L1DTLB_MISS,"stalls_mem_l1dtlb_miss"},
+      {PTC_STALLS_MEM_L1DTLB_MISS,"ptc_stalls_mem_l1dtlb_miss"},
       {LSU_RESYNCS_RAW,"lsu_resyncs_raw"},
       {PTC_LSU_RESYNCS_RAW,"ptc_lsu_resyncs_raw"},
       {LSU_RESYNCS_RAR,"lsu_resyncs_rar"},
       {PTC_LSU_RESYNCS_RAR,"ptc_lsu_resyncs_rar"},
       {LSU_RESYNCS_ALL,"lsu_resyncs_all"},
       {PTC_LSU_RESYNCS_ALL,"ptc_lsu_resyncs_all"},
+      {STLF_HITS,"stlf_hits"},
+      {PTC_STLF_HITS,"ptc_stlf_hits"},
       {LS_REPLAY_LOAD,"ls_replay_load"},
       {PTC_LS_REPLAY_LOAD,"ptc_ls_replay_load"},
       {LS_REPLAY_STORE,"ls_replay_store"},
@@ -1452,6 +1384,14 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {PTC_DTLB_REPLAY_MMU,"ptc_dtlb_replay_mmu"},
       {DTLB_REPLAY_ALL,"dtlb_replay_all"},
       {PTC_DTLB_REPLAY_ALL,"ptc_dtlb_replay_all"},
+      {RAR_CANNOT_ALLOC,"rar_cannot_alloc"},
+      {PTC_RAR_CANNOT_ALLOC,"ptc_rar_cannot_alloc"},
+      {RAW_CANNOT_ALLOC,"raw_cannot_alloc"},
+      {PTC_RAW_CANNOT_ALLOC,"ptc_raw_cannot_alloc"},
+      {LDQ_CANNOT_ALLOC,"ldq_cannot_alloc"},
+      {PTC_LDQ_CANNOT_ALLOC,"ptc_ldq_cannot_alloc"},
+      {SMB_CANNOT_ALLOC,"smb_cannot_alloc"},
+      {PTC_SMB_CANNOT_ALLOC,"ptc_smb_cannot_alloc"},
       {REQBUF_CANNOT_ALLOC_LOAD,"reqbuf_cannot_alloc_load"},
       {PTC_REQBUF_CANNOT_ALLOC_LOAD,"ptc_reqbuf_cannot_alloc_load"},
       {REQBUF_CANNOT_ALLOC_STORE,"reqbuf_cannot_alloc_store"},
@@ -1462,6 +1402,8 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {PTC_REQBUF_CANNOT_ALLOC_MMU,"ptc_reqbuf_cannot_alloc_mmu"},
       {REQBUF_CANNOT_ALLOC_ALL,"reqbuf_cannot_alloc_all"},
       {PTC_REQBUF_CANNOT_ALLOC_ALL,"ptc_reqbuf_cannot_alloc_all"},
+      {FILLBUF_CANNOT_ALLOC,"fillbuf_cannot_alloc"},
+      {PTC_FILLBUF_CANNOT_ALLOC,"ptc_fillbuf_cannot_alloc"},
       {TRANSBUF_CANNOT_ALLOC_LOAD,"transbuf_cannot_alloc_load"},
       {PTC_TRANSBUF_CANNOT_ALLOC_LOAD,"ptc_transbuf_cannot_alloc_load"},
       {TRANSBUF_CANNOT_ALLOC_STORE,"transbuf_cannot_alloc_store"},
@@ -1478,6 +1420,64 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {PTC_PCB_CANNOT_ALLOC_STORE,"ptc_pcb_cannot_alloc_store"},
       {PCB_CANNOT_ALLOC_ALL,"pcb_cannot_alloc_all"},
       {PTC_PCB_CANNOT_ALLOC_ALL,"ptc_pcb_cannot_alloc_all"},
+      {UDB_CANNOT_ALLOC,"udb_cannot_alloc"},
+      {PTC_UDB_CANNOT_ALLOC,"ptc_udb_cannot_alloc"},
+      {UDB_DATA_RETURN,"udb_data_return"},
+      {PTC_UDB_DATA_RETURN,"ptc_udb_data_return"},
+      {UDB_LOST,"udb_lost"},
+      {PTC_UDB_LOST,"ptc_udb_lost"},
+      {UWP_ACCESS,"uwp_access"},
+      {PTC_UWP_ACCESS,"ptc_uwp_access"},
+      {UWP_MISS,"uwp_miss"},
+      {PTC_UWP_MISS,"ptc_uwp_miss"},
+      {UWP_TRUE_HIT,"uwp_true_hit"},
+      {PTC_UWP_TRUE_HIT,"ptc_uwp_true_hit"},
+      {WP_ACCESS,"wp_access"},
+      {PTC_WP_ACCESS,"ptc_wp_access"},
+      {WP_MISS,"wp_miss"},
+      {PTC_WP_MISS,"ptc_wp_miss"},
+      {WP_TRUE_HIT,"wp_true_hit"},
+      {PTC_WP_TRUE_HIT,"ptc_wp_true_hit"},
+      {MDP_CORRECT_PREDICTION,"mdp_correct_prediction"},
+      {PTC_MDP_CORRECT_PREDICTION,"ptc_mdp_correct_prediction"},
+      {MDP_FALSE_HIT,"mdp_false_hit"},
+      {PTC_MDP_FALSE_HIT,"ptc_mdp_false_hit"},
+      {MDP_FALSE_MISS,"mdp_false_miss"},
+      {PTC_MDP_FALSE_MISS,"ptc_mdp_false_miss"},
+      {MDP_TOTAL_PREDICTION,"mdp_total_prediction"},
+      {PTC_MDP_TOTAL_PREDICTION,"ptc_mdp_total_prediction"},
+      {ATOMICS_RETIRED,"atomics_retired"},
+      {PTC_ATOMICS_RETIRED,"ptc_atomics_retired"},
+      {LDST_MASKED_NANO,"ldst_masked_nano"},
+      {PTC_LDST_MASKED_NANO,"ptc_ldst_masked_nano"},
+      {LD_EXECUTED_NANO,"ld_executed_nano"},
+      {PTC_LD_EXECUTED_NANO,"ptc_ld_executed_nano"},
+      {ST_EXECUTED_NANO,"st_executed_nano"},
+      {PTC_ST_EXECUTED_NANO,"ptc_st_executed_nano"},
+      {PFC_AGT_CANNOT_ALLOC,"pfc_agt_cannot_alloc"},
+      {PTC_PFC_AGT_CANNOT_ALLOC,"ptc_pfc_agt_cannot_alloc"},
+      {PFC_AGT_EVICT,"pfc_agt_evict"},
+      {PTC_PFC_AGT_EVICT,"ptc_pfc_agt_evict"},
+      {PFC_PHT_CANNOT_ALLOC,"pfc_pht_cannot_alloc"},
+      {PTC_PFC_PHT_CANNOT_ALLOC,"ptc_pfc_pht_cannot_alloc"},
+      {PFC_PHT_LOOKUP,"pfc_pht_lookup"},
+      {PTC_PFC_PHT_LOOKUP,"ptc_pfc_pht_lookup"},
+      {PFC_PHT_HIT,"pfc_pht_hit"},
+      {PTC_PFC_PHT_HIT,"ptc_pfc_pht_hit"},
+      {PFC_PRT_CANNOT_ALLOC,"pfc_prt_cannot_alloc"},
+      {PTC_PFC_PRT_CANNOT_ALLOC,"ptc_pfc_prt_cannot_alloc"},
+      {PFC_NO_TLB_CREDIT_STALLS,"pfc_no_tlb_credit_stalls"},
+      {PTC_PFC_NO_TLB_CREDIT_STALLS,"ptc_pfc_no_tlb_credit_stalls"},
+      {PFC_NO_TAG_CREDIT_STALLS,"pfc_no_tag_credit_stalls"},
+      {PTC_PFC_NO_TAG_CREDIT_STALLS,"ptc_pfc_no_tag_credit_stalls"},
+      {PFC_PREFETCHES_SENT,"pfc_prefetches_sent"},
+      {PTC_PFC_PREFETCHES_SENT,"ptc_pfc_prefetches_sent"},
+      {PFC_PREFETCHES_HIT,"pfc_prefetches_hit"},
+      {PTC_PFC_PREFETCHES_HIT,"ptc_pfc_prefetches_hit"},
+      {PFC_PREFETCHES_LATE,"pfc_prefetches_late"},
+      {PTC_PFC_PREFETCHES_LATE,"ptc_pfc_prefetches_late"},
+      {PFC_USELESS_PREFETCHES,"pfc_useless_prefetches"},
+      {PTC_PFC_USELESS_PREFETCHES,"ptc_pfc_useless_prefetches"},
     };
 
   pmu(cvm::topology::loc_t, unsigned);

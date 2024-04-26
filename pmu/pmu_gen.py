@@ -46,21 +46,21 @@ for event in rv_events:
             desc[1] = "instructions"
         data_dict.append({"name": desc[1], "description": desc[2]})
 
-url = f"https://aus-gitlab.local.tenstorrent.com/api/v4//projects/{spec_id}/repository/files/src%2Fcluster%2Fascalon%5Fuarch%2Fsrc%2Fpmc%5Ffiltered%2Ecsv?ref=main"
-filtered_str = download_csv(url)
-filtered_events = filtered_str.split('\n')
-filter_pmcs = set()
-skip_header = True
-for event in filtered_events:
-    if skip_header:
-        skip_header = False
-        continue
-    if event:
-        desc = event.split(',')
-        data_dict.append({"name": desc[1], "description": "filtered event"})
-        filter_pmcs.add(desc[0])
+# url = f"https://aus-gitlab.local.tenstorrent.com/api/v4//projects/{spec_id}/repository/files/src%2Fcluster%2Fascalon%5Fuarch%2Fsrc%2Fpmc%5Ffiltered%2Ecsv?ref=main"
+# filtered_str = download_csv(url)
+# filtered_events = filtered_str.split('\n')
+# filter_pmcs = set()
+# skip_header = True
+# for event in filtered_events:
+#     if skip_header:
+#         skip_header = False
+#         continue
+#     if event:
+#         desc = event.split(',')
+#         data_dict.append({"name": desc[1], "description": "filtered event"})
+#         filter_pmcs.add(desc[0])
 
-data_dict = [dat for dat in data_dict if dat["name"] not in filter_pmcs]
+# data_dict = [dat for dat in data_dict if dat["name"] not in filter_pmcs]
 # print(data_dict)
 
 def create_cpp_frag(events: List[Dict[Any, Any]], path="gen_events.cpp"):
