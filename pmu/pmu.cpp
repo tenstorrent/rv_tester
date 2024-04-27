@@ -23,11 +23,9 @@ pmu::pmu(cvm::topology::loc_t loc, unsigned id)
 
     if (FLAGS_pmcounters_log != 0) {
       assert(to_string.size() == counter::COUNT);
+      log(cvm::NONE, "trigger");
       for (size_t i = 0; i < counter::COUNT; i++) {
-        if (i != counter::CPU_CYCLES)
-          log(cvm::NONE, ",{}", to_string.at(static_cast<counter>(i)));
-        else
-          log(cvm::NONE, "{}", to_string.at(static_cast<counter>(i)));
+        log(cvm::NONE, ",{}", to_string.at(static_cast<counter>(i)));
       }
       log(cvm::NONE, "\n");
     }
@@ -60,24 +58,32 @@ pmu::process(const rv_tester_transactions::pmu::pmcounters<>& pmcounters)
 
   cvm::log(cvm::HIGH, "[PMU] syncing counters\n");
 
-  counters = to_vector(pmcounters);
-
   if (pmcounters.perf_start)
     perf_region_start();
 
   if (pmcounters.perf_end)
     perf_region_end();
 
+  counters = to_vector(pmcounters);
+
   if (FLAGS_pmcounters_log != 0) {
+    log(cvm::NONE, "{}", trigger_str(pmcounters));
     for (size_t i = 0; i < counters.size(); i++) {
-      if (i != counter::CPU_CYCLES)
-        log(cvm::NONE, ",{:x}", counters[i]);
-      else
-        log(cvm::NONE, "{:x}", counters[i]);
+      log(cvm::NONE, ",{}", counters[i]);
     }
 
     log(cvm::NONE, "\n");
   }
+}
+
+std::string
+pmu::trigger_str(const rv_tester_transactions::pmu::pmcounters<>& pmcounters)
+{
+  return pmcounters.perf_start  ? "perf_start"  :
+         pmcounters.perf_end    ? "perf_end"    :
+         pmcounters.terminate   ? "terminate"   :
+         pmcounters.sync        ? "sync"        :
+                                  "none";
 }
 
 void
@@ -91,11 +97,9 @@ pmu::process(const rv_tester::terminate_called_fast&)
   sync_terminate_ = true;
 
   if (FLAGS_pmcounters_log != 0) {
+    log(cvm::NONE, "fast_terminate");
     for (size_t i = 0; i < counters.size(); i++) {
-      if (i != counter::CPU_CYCLES)
-        log(cvm::NONE, ",{:x}", counters[i]);
-      else
-        log(cvm::NONE, "{:x}", counters[i]);
+      log(cvm::NONE, ",{}", counters[i]);
     }
 
     log(cvm::NONE, "\n");
