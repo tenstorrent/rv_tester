@@ -34,6 +34,7 @@ DEFINE_bool(nostop_standalone,false, "Do not stop if standalone whisper fails");
 
 DEFINE_string(whisper_instr_lines, "", "Write instr cache line addresses used in test to a file");
 DEFINE_string(whisper_data_lines, "", "Write data cache line addresses used in test to a file");
+DEFINE_bool(whisper_csv_log, false, "Make whisper use a csv trace.");
 DEFINE_uint64(resetpc, 0x80000000, "Reset PC");
 
 extern void (*__tracerExtension)(void*);
@@ -100,6 +101,7 @@ constructSystem(uint16_t ncores, bool standalone) {
     hart.enableLinux(false);
     hart.tracePtw(true);
     hart.defineResetPc(FLAGS_resetpc);
+    hart.enableCsvLog(FLAGS_whisper_csv_log);
     if (FLAGS_whisper_stdout_null) hart.redirectOutputDescriptor(STDOUT_FILENO, "/dev/null");
     if (FLAGS_whisper_stdin_null) hart.redirectOutputDescriptor(STDIN_FILENO, "/dev/null");
     if (not isa.empty())
