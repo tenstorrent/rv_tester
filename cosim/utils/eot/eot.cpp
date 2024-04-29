@@ -60,25 +60,27 @@ void eot::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   if (ended_)
       return;
 
-  instr_count_++;
+  instr_count_[m_rvfi.hart]++;
 
   // End test on max_instr
-  if (FLAGS_max_instr > 0 && instr_count_ > FLAGS_max_instr) {
-    ended_ = true;
-    if (FLAGS_eot == "max_instr") {
-      cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", m_rvfi.cycle);
-      cvm::log(cvm::NONE, "<{}> Pass condition detected: +eot=max_instr +max_instr={}\n", m_rvfi.cycle, FLAGS_max_instr);
-      cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", m_rvfi.cycle);
-      auto location = cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0);
-      cvm::registry::messenger.signal<htif::terminate_t>(location, htif::terminate_t{.low_priority_based = true});
-      auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-      cvm::log(cvm::HIGH, "end time: {}\n", std::ctime(&now));
-      return;
-    } else {
-      cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", m_rvfi.cycle);
-      cvm::log(cvm::ERROR, "<{}> Error: max_instr limit reached: {}\n", m_rvfi.cycle, FLAGS_max_instr);
-      cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", m_rvfi.cycle);
-      return;
+  for (uint32_t i = 0; i < num_harts_; i++) {
+    if (FLAGS_max_instr > 0 && instr_count_[i] > FLAGS_max_instr) {
+      ended_ = true;
+      if (FLAGS_eot == "max_instr") {
+        cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", m_rvfi.cycle);
+        cvm::log(cvm::NONE, "<{}> Pass condition detected: +eot=max_instr +max_instr={}\n", m_rvfi.cycle, FLAGS_max_instr);
+        cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", m_rvfi.cycle);
+        auto location = cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0);
+        cvm::registry::messenger.signal<htif::terminate_t>(location, htif::terminate_t{.low_priority_based = true});
+        auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+        cvm::log(cvm::HIGH, "end time: {}\n", std::ctime(&now));
+        return;
+      } else {
+        cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", m_rvfi.cycle);
+        cvm::log(cvm::ERROR, "<{}> Error: max_instr limit reached: {}\n", m_rvfi.cycle, FLAGS_max_instr);
+        cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", m_rvfi.cycle);
+        return;
+      }
     }
   }
 }
