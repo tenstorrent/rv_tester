@@ -4,12 +4,13 @@
 #include "common/memmap.h"
 #include "sysmod/htif/htif.h"
 
-DEFINE_string(eot, "tohost", "Enable end-of-test mechanism. Supported options: tohost, max_instr");
+DEFINE_string(eot, "tohost", "Enable end-of-test mechanism. Supported options: tohost, max_instr, tohost_all");
 DEFINE_uint64(tohost, 0x0, "Use this tohost address if provided");
 DEFINE_uint32(max_instr, 100000, "Max instruction limit to terminate the sim");
 DECLARE_string(load);
 DECLARE_string(hex);
 
+REGISTRY_register(eot, TOP.PLATFORM, cvm::registry::all);
 
 void eot::get_tohost_addr() {
 
@@ -34,7 +35,7 @@ void eot::get_tohost_addr() {
     }
     catch (...) {
       tohost_in_elf = false;
-      if (FLAGS_eot == "tohost") {
+      if (FLAGS_eot == "tohost" || FLAGS_eot == "tohost_all") {
         cvm::log(cvm::NONE, "Warn: No tohost symbol in elf\n");
       }
     }
@@ -82,45 +83,47 @@ void eot::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   }
 }
 
-void eot::process_tohost(std::tuple<uint64_t,uint64_t,uint64_t> w) {
-
+void eot::process_tohost(uint64_t hartid, uint64_t cycle, uint64_t address, uint64_t data) {
   if (ended_)
       return;
 
-  if (tohost_addr_ != std::get<1>(w))
+  if (tohost_addr_ != address)
     return;
 
-  if (tohost_status_ != (std::get<2>(w) & 0x1))
+  if (tohost_status_ != (data & 0x1))
     return;
 
-  if (tohost_device_syscall_ != ((std::get<2>(w) >> 56) & 0xff))
+  if (tohost_device_syscall_ != ((data >> 56) & 0xff))
     return;
 
-  uint64_t cycle = std::get<0>(w);
-  uint64_t exit_code = (std::get<2>(w) >> 1) & 0x7fffffffffff;
+  uint64_t exit_code = (data >> 1) & 0x7fffffffffff;
 
-
-  ended_ = true;
-
-  if (exit_code == 0) {
-    cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
-    cvm::log(cvm::NONE, "<{}> Pass condition detected - tohost[0]=1, tohost[47:1]=0\n", cycle);
-    cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
-    auto location = cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0);
-    cvm::registry::messenger.signal<htif::terminate_t>(location, htif::terminate_t{.low_priority_based = true});
+  if (exit_code == 0 ) {
+      if (!std::count(terminated_harts_.begin(), terminated_harts_.end(), hartid)) {
+        eot::terminated_harts_.emplace_back(hartid);
+        cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
+        cvm::log(cvm::NONE, "<{}> Hart:<{}> Pass condition detected - tohost[0]=1, tohost[47:1]=0\n", cycle, hartid);
+        cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
+      }
+      if (FLAGS_eot != "tohost_all" || (terminated_harts_.size() >= num_harts_)) {
+        ended_ = true;
+        cvm::registry::messenger.signal<htif::terminate_t>( cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0),
+        htif::terminate_t{.low_priority_based = true});
+      }
   } else {
+    ended_ = true;
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
-    cvm::log(cvm::ERROR, "<{}> Error: Fail condition detected - tohost[0]=1, tohost[47:1]={:#x}\n", cycle,
-      exit_code);
+    cvm::log(cvm::ERROR, "<{}> Hart:<{}>Error: Fail condition detected - tohost[0]=1, tohost[47:1]={:#x}\n", cycle,
+      hartid, exit_code);
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
   }
 }
 
 void eot::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_insert) {
-  process_tohost(std::make_tuple(m_mcmi_insert.cycle, m_mcmi_insert.addr, m_mcmi_insert.data));
+   process_tohost(m_mcmi_insert.hart, m_mcmi_insert.cycle, m_mcmi_insert.addr, m_mcmi_insert.data);
 }
 
 void eot::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_bypass) {
-  process_tohost(std::make_tuple(m_mcmi_bypass.cycle, m_mcmi_bypass.addr, m_mcmi_bypass.data));
+   process_tohost(m_mcmi_bypass.hart, m_mcmi_bypass.cycle, m_mcmi_bypass.addr, m_mcmi_bypass.data);
 }
 

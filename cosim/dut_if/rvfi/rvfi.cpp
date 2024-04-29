@@ -61,7 +61,6 @@ rvfi::~rvfi() {
 }
 
 void rvfi::init() {
-  eot_ = std::make_unique<eot>(loc_);;
 
   if (FLAGS_cosim) {
     cvm::log(cvm::MEDIUM, "[RVFI loc {} id{}] Constructing bridge...\n", loc_, id_);
