@@ -229,9 +229,9 @@ void jtag_driver::drive_csv_jtag_cmds()
     }
     if(jtag_cmd == 7){  //JTAG quit, signal to end simulation once csv ends
  
-      cvm::log(cvm::ERROR, "[JTAGDRIVER] ******************* \n");
-      cvm::log(cvm::ERROR, "[JTAGDRIVER] Sending Quit signal \n");
-      cvm::log(cvm::ERROR, "[JTAGDRIVER] ******************* \n");
+      cvm::log(cvm::HIGH, "[JTAGDRIVER] ******************* \n");
+      cvm::log(cvm::HIGH, "[JTAGDRIVER] Sending Quit signal \n");
+      cvm::log(cvm::HIGH, "[JTAGDRIVER] ******************* \n");
       trickboxJtagWrite(hart, jtag_cmd, 0, 0,0,1);
     
     }
