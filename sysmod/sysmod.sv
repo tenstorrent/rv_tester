@@ -158,6 +158,7 @@ import rv_tester_params::*;
       end 
       else if(jtag_quit[0] === 1'b1 )begin 
         jtag_quiesced = 1'b1;
+        $display("[SYSMOD.SV] JTAG quit was given in %0d %t",jtag_quit[0],$time);
       end
     endfunction
     export "DPI-C"  function sysmod_jtag_req;
