@@ -31,6 +31,7 @@ class eot {
       id_ = id;
       get_tohost_addr();
       for (uint32_t i = 0; i < num_harts_; i++) {
+        instr_count_.push_back(0);
         connect<
           rv_tester_transactions::cosim::m_rvfi<>,
           rv_tester_transactions::cosim::m_mcmi_insert<>,
@@ -51,9 +52,9 @@ class eot {
   private:
 
     unsigned id_;
-    uint32_t instr_count_ = 0;
     uint32_t num_harts_ = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
-    std::vector <uint64_t> terminated_harts_;
+    std::vector<uint32_t> instr_count_;
+    std::vector<uint64_t> terminated_harts_;
     std::uint64_t tohost_addr_ = -1;
     const std::uint8_t tohost_status_ = 1;
     const std::uint8_t tohost_device_syscall_ = 0;
