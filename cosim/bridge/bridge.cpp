@@ -21,6 +21,7 @@
 
 // Plusargs
 DECLARE_string(bootrom_path);
+DECLARE_string(cplfw_path);
 DECLARE_string(load);
 DECLARE_string(hex);
 DECLARE_bool(mcm);
