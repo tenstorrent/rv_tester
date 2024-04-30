@@ -38,6 +38,8 @@ DEFINE_string(whisper_instr_lines, "", "Write instr cache line addresses used in
 DEFINE_string(whisper_data_lines, "", "Write data cache line addresses used in test to a file");
 DEFINE_bool(whisper_csv_log, false, "Make whisper use a csv trace.");
 DEFINE_uint64(resetpc, 0x80000000, "Reset PC");
+DEFINE_uint64(resetpcfw, 0xC0040000, "Reset firmware PC");
+
 
 extern void (*__tracerExtension)(void*);
 
@@ -107,8 +109,7 @@ constructSystem(uint16_t ncores, bool standalone, bool firmware) {
     hart.enableNewlib(false);
     hart.enableLinux(false);
     hart.tracePtw(true);
-  
-    if (firmware) hart.defineResetPc(0xC0040000);
+    if (firmware) hart.defineResetPc(FLAGS_resetpcfw);
     else hart.defineResetPc(FLAGS_resetpc);
     hart.enableCsvLog(FLAGS_whisper_csv_log);
     if (FLAGS_whisper_stdout_null) hart.redirectOutputDescriptor(STDOUT_FILENO, "/dev/null");
