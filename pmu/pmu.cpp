@@ -66,8 +66,6 @@ pmu::process(const rv_tester_transactions::pmu::pmcounters<>& pmcounters)
   if (pmcounters.perf_end)
     perf_region_end();
 
-  counters = to_vector(pmcounters);
-
   if (FLAGS_pmcounters_log != 0) {
     log(cvm::NONE, "{}", trigger_str(pmcounters));
     for (size_t i = 0; i < counters.size(); i++) {
