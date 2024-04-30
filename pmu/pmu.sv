@@ -41,13 +41,18 @@ import rv_tester_params::*;
     always @(posedge clk) begin
       if (reset) begin
         pmcounter[0] <= 0;
-      end else if (perf_start) begin
-        sync_cycles <= 1;
-      end else if (perf_end) begin
-        sync_cycles <= cpu_cycles;
+        cpu_cycles <= 0;
+        sync_cycles <= 0;
       end else begin
+        if (perf_start) begin
+          sync_cycles <= 1;
+        end else if (perf_end) begin
+          sync_cycles <= cpu_cycles;
+        end else begin
+          sync_cycles <= sync_cycles + 1;
+        end
+
         cpu_cycles <= cpu_cycles + 1;
-        sync_cycles <= sync_cycles + 1;
       end
     end
 
