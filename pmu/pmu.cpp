@@ -58,6 +58,8 @@ pmu::process(const rv_tester_transactions::pmu::pmcounters<>& pmcounters)
 
   cvm::log(cvm::HIGH, "[PMU] syncing counters\n");
 
+  counters = to_vector(pmcounters);
+
   if (pmcounters.perf_start)
     perf_region_start();
 
