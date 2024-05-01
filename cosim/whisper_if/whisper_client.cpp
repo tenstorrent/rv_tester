@@ -29,6 +29,7 @@ DECLARE_uint32(max_instr);
 DECLARE_string(archsample_lib_path);
 DECLARE_bool(standalone);
 DECLARE_uint64(hart_enable_mask);
+DECLARE_uint64(tohost);
 
 DEFINE_bool(nostop_standalone,false, "Do not stop if standalone whisper fails");
 
@@ -143,6 +144,8 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
         preload_log[i] = fopen(("preload_" + std::to_string(i) + ".csv").c_str(), "w");
         hart->setInitialStateFile(preload_log[i]);
       }
+      if (FLAGS_tohost)
+        hart->setToHostAddress(FLAGS_tohost);
       hart->setInstructionCountLimit(FLAGS_max_instr);
       hart->setWfiTimeout(0);
       threadVec.emplace_back(std::thread(threadFunc, hart));
