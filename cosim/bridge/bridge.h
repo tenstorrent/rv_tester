@@ -129,6 +129,7 @@ private:
   void peek_mip(hart_id_t hart, uint64_t time, uint64_t& mip);
   void peek_seip(hart_id_t hart, uint64_t time, uint64_t& val);
 
+  bool is_custom_excp(uint64_t cause);
   bool is_vector(const std::string& instr);
   bool is_compressed(const std::string& instr);
   bool is_ucode(const std::string& instr);
