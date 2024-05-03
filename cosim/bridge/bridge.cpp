@@ -570,9 +570,11 @@ void bridge::post_step_exception_poke(hart_id_t hart, const rv_instr_t& d, whisp
   if (!d.excp && !w_.excp)
     return;
 
-  bool custom_nonspec_resync = (d.excp && (d.ecause == 28));
-  if (custom_nonspec_resync) {
-    log(cvm::MEDIUM, "<{}> Special custom exception detected: NONSPEC_RESYNC\n", d.cycle);
+  if (d.excp && is_custom_excp(d.ecause)) {
+    log(cvm::MEDIUM, "<{}> Custom exception detected: {}\n", d.cycle, d.ecause);
+    // Vector conservative mode
+    if (d.ecause == 55)
+      resynch(hart, d);
     return;
   }
   
@@ -618,6 +620,10 @@ void bridge::post_step_exception_poke(hart_id_t hart, const rv_instr_t& d, whisp
     log(cvm::MEDIUM, "<{}> Whisper Step #{}: Extra step due to exception\n", w.time, step_);
   }
   update_whisper_state(hart,w);
+}
+
+bool bridge::is_custom_excp(uint64_t cause) {
+  return (cause >= 25 && cause <= 55);
 }
 
 void bridge::post_step_satp_write_poke(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w) {
