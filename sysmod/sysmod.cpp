@@ -29,6 +29,7 @@ DEFINE_string(load, "", "elf file (program) to load into memory");
 DEFINE_string(load_lz4, "", "lz4 compressed file (program) to load into memory");
 DEFINE_bool(bootrom, true, "Load bootrom before test");
 DEFINE_string(bootrom_path, "", "Path to bootrom object file");
+DEFINE_string(cplfw_path, "", "Path to cpl firmware object file");
 DEFINE_string(load_io, "", "load specified io dev with content from memory");
 DEFINE_bool(sysmod_tick_async, true, "Asynchronous sysmod_tick calls");
 DEFINE_uint64(sysmod_tick_update_threshold, 1, "Slow down tick update frequency by this factor. The tick is still eventually advanced the same cumulative amount, just not as often. Useful for emulation where the clock counts much faster but tests setup interrupts to happen very soon for simulation. They git hit by an interrupt storm and are stuck in the interrupt handler forever.");
@@ -331,6 +332,7 @@ sysmod::reset() {
   load_prog(FLAGS_hex, FLAGS_load, FLAGS_load_lz4);
   load_io(FLAGS_load_io);
   load_boot(FLAGS_bootrom_path);
+  load_cplfw(FLAGS_cplfw_path);
 }
 
 void
@@ -599,6 +601,26 @@ sysmod::load_boot(const std::string& boot)
     device::strb_t strb(8);
     for (size_t i = 0; i < 8; i++) strb[i] = true;
     dev("boot")->backdoor_write(dev("boot")->addr() + 0x9000, 8, data, strb);
+  }
+}
+
+void
+sysmod::load_cplfw(const std::string& cplfw)
+{
+  if (cplfw != "") {
+    cvm::log(cvm::MEDIUM, "Loading {}\n", cplfw);
+    if (cplfw.substr(cplfw.length() - 3) == "elf") {
+      if (not dev("memory") or not dynamic_cast<sysmod_mem&>(*dev("memory")).init_elf(cplfw)) {
+        cvm::log(cvm::ERROR, "No cpl firmware defined");
+        return;
+      }
+    }
+    if (cplfw.substr(cplfw.length() - 3) == "hex") {
+      if (not dev("memory") or not dynamic_cast<sysmod_mem&>(*dev("memory")).init_hex(cplfw)) {
+        cvm::log(cvm::ERROR, "No cpl firmware defined");
+        return;
+      }
+    }
   }
 }
 
