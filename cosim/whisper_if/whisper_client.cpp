@@ -582,7 +582,7 @@ whisperClient<URV>::whisperMcmIEvict(int hart, uint64_t time, uint64_t addr, boo
 
 template <typename URV>
 bool
-whisperClient<URV>::whisperTranslate(int hart, uint64_t vaddr, bool r, bool w, bool x,
+whisperClient<URV>::whisperTranslate(int hart, uint64_t vaddr, bool r, bool w, bool x, bool twoStage,
          bool supervisor, uint64_t& paddr, bool& valid)
 {
   req.hart = hart;
@@ -595,6 +595,7 @@ whisperClient<URV>::whisperTranslate(int hart, uint64_t vaddr, bool r, bool w, b
   else if (x) req.flags |= 4;
 
   if (supervisor) req.flags |= 8;
+  if (twoStage)   req.flags |= 16;
 
   if (not whisperCommand(req, reply))
     return false;
