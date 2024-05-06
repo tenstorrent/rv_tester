@@ -136,7 +136,7 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
     std::atomic<bool> max_instr = false;
     std::atomic<unsigned> finished = 0;  // Count of finished threads.
 
-    FILE* whisper_log = fopen("iss_standalone_firmware.log", "w");
+    FILE* whisper_log = fopen("iss_firmware.log", "w");
     FILE* preload_log[system_->hartCount()];
 
     auto threadFunc = [&result, &finished, &max_instr, whisper_log] (WdRiscv::Hart<URV>* hart) {
