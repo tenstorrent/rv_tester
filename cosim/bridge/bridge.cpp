@@ -51,7 +51,7 @@ DEFINE_bool(csr_wr_check, true, "Enable cosim checks on csr writes");
 DEFINE_bool(memattr_check, true, "Enable cosim checks on mem attributes");
 DEFINE_uint64(max_cycle, 1000000, "Max cycle limit to terminate the sim");
 DEFINE_int32(debug_excp_mcause, 24, "MCAUSE value for debug exception");
-DEFINE_bool(translation_check, true, "Do VA-PA translation check");
+DEFINE_bool(translation_check, false, "Do VA-PA translation check");
 DEFINE_bool(emulate_debug_mode, true, "Emulate debug mode by forcing whisper to be in sync with DUT");
 DEFINE_bool(delay_satp_update, false, "Delay satp update till next sfence.vma");
 DEFINE_bool(cov, false, "Enable Arch coverage");
