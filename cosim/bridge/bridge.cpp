@@ -1629,7 +1629,7 @@ bridge::size_8_bytes_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, ui
     }
   }
   if (addr == 0x680) {
-    uint16_t mode = data >> 60;
+    uint16_t mode = (data & mask) >> 60;
     constexpr uint16_t valid_modes[] = {0, 8, 9, 10};
     bool valid_mode = false;
     for (uint16_t valid_mode_value : valid_modes) {
