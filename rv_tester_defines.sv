@@ -1015,7 +1015,8 @@ package rv_tester_params;
     output rv_tester_params::csri_t          csri         [rv_tester_params::NHARTS-1:0],           \
     output rv_tester_params::pmci_t          pmci         [rv_tester_params::NHARTS-1:0],           \
     output rv_tester_params::mst_req_top     axi_msi,                                               \
-                                                                                                    \
+    output rv_tester_params::mst_req_top     [rv_tester_params::NHARTS-1:0] axi_msi_packets ,        \
+    output rv_tester_params::mst_req_top     [rv_tester_params::NHARTS-1:0] axi_ipi_packets ,        \
     output logic                                            dm_mem_tx_vld,                          \
     output logic                                            dm_mem_tx_we,                           \
     output logic [rv_tester_params::DM_AXI_ADDR_WIDTH-1:0]  dm_mem_tx_addr,                         \
@@ -1099,6 +1100,8 @@ package rv_tester_params;
     rv_tester_params::mst_req_top            axi_req_mst [rv_tester_params::AXI_MST_TOTAL-1:0];     \
     rv_tester_params::mst_resp_top           axi_rsp_mst [rv_tester_params::AXI_MST_TOTAL-1:0];     \
     rv_tester_params::mst_req_top            axi_msi;                                               \
+    rv_tester_params::mst_req_top            [rv_tester_params::NHARTS-1:0] axi_msi_packets  ;                                               \
+    rv_tester_params::mst_req_top            [rv_tester_params::NHARTS-1:0] axi_ipi_packets  ;                                               \
     rv_tester_params::aplic_mmr_req_top      aplic_mmr_axi_req_mst  [rv_tester_params::APLIC_MMR_AXI_MST_TOTAL-1:0];  \
     rv_tester_params::aplic_mmr_resp_top     aplic_mmr_axi_rsp_mst  [rv_tester_params::APLIC_MMR_AXI_MST_TOTAL-1:0];  \
     rv_tester_params::smc_req_top      smc_axi_req_mst  [rv_tester_params::SMC_AXI_MST_TOTAL-1:0];  \

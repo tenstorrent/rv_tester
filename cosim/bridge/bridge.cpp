@@ -507,24 +507,6 @@ void bridge::post_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, const
     }
   }
 
-  if (d.mem_write.valid && d.mem_write.size==4 && ((d.mem_write.pa>=0x40000000 &&  d.mem_write.pa <0x42000000) || (d.mem_write.pa>=0x44000000 &&  d.mem_write.pa < 0x46000000)) ) {
-    bool valid;
-    if (!client_->whisperPokeMem(hart, d.cycle, 'm', d.mem_write.pa, 4, w.value, valid)) {
-      cvm::log(cvm::ERROR, "Error: Hart {}: Failed to poke memory\n", hart);
-      return;
-    } else {
-    log(cvm::MEDIUM, "<{}> Poking msi to whisper because of a store\n", d.cycle);
-    }
-    uint64_t mip, seip, mipchange, msihart;
-    msihart = (d.mem_write.pa >> 18) & 0x7;
-    if (msihart < static_cast<uint64_t>(num_harts_)) {
-      peek_mip(msihart, d.cycle, mip);
-      peek_seip(msihart, d.cycle, seip);
-      mip |= seip<<9;
-      mipchange = mip & 0x1e00;
-      check_and_defer_interrupt(msihart, d.cycle, mipchange); // Defer new external interrupts (HGEIP,VSEIP,SEIP,MEIP) caused due to store
-    }
-  }
 
   if (!d.intr && !w_.intr)
     return;
@@ -1291,7 +1273,6 @@ void bridge::process_dut_mcm_insert(hart_id_t hart, mem_t& m) {
 // Process mem accesses - store bypass_writes
 void bridge::process_dut_mcm_bypass(hart_id_t hart, mem_t& m) {
   bool valid = false;
-
   if (!client_->whisperMcmBypass(hart, m.cycle, m.tag, m.pa, m.size, m.data, valid)) {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed mcm store bypass\n", hart);
     return;
