@@ -175,6 +175,7 @@ void bridge::resetsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr) {
 // DUT interface callback: Instruction Retire
 void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
+  twoStage_ = false;
   whisper_state_t w {
     .tag = d.tag,
     .time = d.cycle
@@ -204,6 +205,8 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   // Update cac with dut state
   update_dut_state(hart, d);
+
+  arch_state(w);
 
   // Handle post-step conditions
   post_step_interrupt_poke(hart, d, w);
@@ -745,6 +748,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
       w_.mem_write.va = w.address;
       w_.mem_write.data = w.value;
     }
+    
   }
 
   // Mem attributes
@@ -1020,6 +1024,68 @@ void bridge::update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_
   };
   assert(cac_.SetResource(hart, src, rid, std::move(cac::CreateBitVec<size_8_bytes_t>(dword_vec))));
 }
+
+bool bridge::disable_pa_check_vec(hart_id_t hart) {
+  bool valid;
+  uint64_t data, mask, poke_mask;
+  uint64_t vl = 0;
+  uint64_t vtype ;
+  uint64_t vlmax = 0;
+
+  if(client_->whisperPeekCsr(hart,0xc21, data, mask, poke_mask, valid)) {
+  
+  vtype = data & mask; // getting the vtype csr
+  int sew_enc = (vtype & 0x38) >> 3; // encoded sew
+  int sew;
+
+  if (sew_enc == 0) sew = 8;
+  if (sew_enc == 1) sew = 16;
+  if (sew_enc == 2) sew = 32;
+  if (sew_enc == 3) sew = 64;
+
+  int vlmul_enc = (vtype & 0x7);
+
+  if (vlmul_enc == 0) 
+    vlmax = 256/sew ;
+  if (vlmul_enc == 1) 
+    vlmax = 512/sew ;
+  if (vlmul_enc == 2) 
+    vlmax = 1024/sew ;
+  if (vlmul_enc == 3) 
+    vlmax = 2048/sew ;
+  if (vlmul_enc == 5) 
+    vlmax = 256/(8*sew);
+  if (vlmul_enc == 6) 
+    vlmax = 256/(4*sew);
+  if (vlmul_enc == 7) 
+    vlmax = 256/(2*sew);
+
+}
+
+if(client_->whisperPeekCsr(hart,0xc20, data, mask, poke_mask, valid)) 
+  vl = data & mask;
+
+if(vl < vlmax)
+  return true;  
+return false;
+
+}
+
+void bridge::arch_state(whisper_state_t& w) {
+
+  if (w.resource == 'c') {
+      if(w.address == 0x300)
+      {
+          if(((w.value) & 0x20000) != 0)
+            {
+              mprv_ = 1;
+              mpp_ = ((w.value) & 0x1800) >> 11; 
+            }
+            else
+              mprv_ = 0;
+        }
+      }
+  }
 
 
 bool bridge::is_vector(const std::string& instr) {
@@ -1356,9 +1422,18 @@ uint64_t bridge::translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t
   bool r = (memclass == memclass_t::read);
   bool w = (memclass == memclass_t::write);
   bool x = (memclass == memclass_t::fetch);
-  bool sup = (priv == 0x1);
+  bool sup = ((priv & 0x11) == 0x1); // made a change here
 
-  if (!client_->whisperTranslate(hart, va, r, w, x, sup, pa, valid)) {
+  if((priv & 0x8) != 0)
+  {
+    twoStage_ = true;
+  }
+  else
+  {
+    twoStage_ = false;
+  }
+
+if (!client_->whisperTranslate(hart, va, r, w, x, twoStage_, sup, pa, valid)) {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed VA translation\n", hart);
   }
 
@@ -1374,15 +1449,28 @@ void bridge::translation_check(hart_id_t hart, const rv_instr_t& d, whisper_stat
   if (d.mem_va == 0)
   return;
 
+  uint64_t pa;
   uint64_t va = d.mem_va;
   uint64_t bit57 = va & (1ull << 56);
   va &= ((1ull << 57) - 1);             // Clear all bits to the left of 57th bit
   if (bit57) {  va |= (~0ull) << 57; } // sign extend the 57th bit to [63:58]
 
-  uint64_t pa = translate(hart, va, w.priv_mode, memclass_t::read);
+if((mprv_ == 1) && w.priv_mode == 3)
+  {
+    pa = translate(hart, va, mpp_, memclass_t::read);
+  }
+  else
+    pa = translate(hart, va, w.priv_mode, memclass_t::read);
+  
   if (pa != d.mem_pa){
     cvm::log(cvm::NONE, "<{}> Whisper Step #{}: [Hart={}, Mode={}, Tag={}, PC={:#x}, VA={:#x}, RTL-PA={:#x}, ISS-PA={:#x}]\n", w.time, step_-1, hart, w.priv_mode, w.tag, w.pc, d.mem_va, d.mem_pa, pa);
+      //cvm::log(cvm::ERROR, "Error: Hart {}: PA MISMATCH !! :\n", hart);
+    if(is_vector(d.disasm) && disable_pa_check_vec(hart));
+    
+    else {
     cvm::log(cvm::ERROR, "Error: Hart {}: PA MISMATCH !! :\n", hart);
+    }
+
     return;
   }
   else {

@@ -84,6 +84,7 @@ private:
 private:
   
   void update_dut_state(hart_id_t hart, rv_instr_t& d);
+  void arch_state(whisper_state_t& w);
   void update_whisper_state(hart_id_t hart, whisper_state_t& w);
   void step(hart_id_t hart, whisper_state_t& w);
   void print_instr(hart_id_t hart, const whisper_state_t& w);
@@ -131,6 +132,7 @@ private:
 
   bool is_custom_excp(uint64_t cause);
   bool is_vector(const std::string& instr);
+  bool disable_pa_check_vec(hart_id_t hart);
   bool is_compressed(const std::string& instr);
   bool is_ucode(const std::string& instr);
   bool does_instr_match_resynch_list(const rv_instr_t& d, const std::string& instr);
@@ -174,9 +176,13 @@ private:
   bool debug_mode_ = false;
   bool excp_in_debug_mode = false;
   bool lrsc_fail_ = false;
+  bool twoStage_ = false;
 
   uint64_t satp_ = 0;
   uint64_t new_satp_ = 0;
+
+  uint16_t mprv_ = 0;
+  uint16_t mpp_ = 0;
 
   bool resynch_intr_cause_mismatch_ = false;
   bool resynch_csr_ = false;
