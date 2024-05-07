@@ -24,7 +24,6 @@ DECLARE_string(whisper_json_path);
 DECLARE_bool(whisper_stdin_null);
 DECLARE_bool(whisper_stdout_null);
 DECLARE_bool(preload);
-DECLARE_bool(smc_preload);
 DECLARE_bool(mcm);
 DECLARE_bool(cov);
 DECLARE_uint32(max_instr);
@@ -130,7 +129,7 @@ template <typename URV>
 int
 whisperClient<URV>::whisperConnect(uint16_t ncores)
 {
-  if(FLAGS_smc_preload) {
+  if(FLAGS_preload) {
     system_ = constructSystem<URV>(ncores, false, true);
 
     std::vector<std::thread> threadVec;
