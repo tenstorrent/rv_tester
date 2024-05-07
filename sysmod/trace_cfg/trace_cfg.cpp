@@ -46,8 +46,17 @@ void trace_cfg::axi_write() {
 
 void trace_cfg::axi_read(uint64_t addr, size_t length,
                           uint32_t id) {
-   cvm::registry::messenger.signal(loc(), trace_cfg_read_t{addr, length, id});
-   cvm::log(cvm::HIGH, "[axi_read prints] cnt_tick {} start_trace_cnt {} \n",cnt_tick,start_trace_cnt);
+   //cvm::registry::messenger.signal(loc(), trace_cfg_read_t{addr, length, id});
+   //cvm::log(cvm::HIGH, "[axi_read prints] cnt_tick {} start_trace_cnt {} \n",cnt_tick,start_trace_cnt);
+    cvm::log(cvm::FULL, "[TRACE CFG] axi read addr= {:#X} id = {} length = {}  \n",addr,id,length);
+  transactor::read_t r ;
+  r.addr = addr;
+  r.length = length;
+  auto* l = +[](transactor::read_t r, trace_cfg* dev) -> cvm::messenger::task<void>{
+    data_t d;
+    co_await dev->read(r,d);
+  };
+  cvm::registry::messenger.fork(l, r, this);
 }
 
 
