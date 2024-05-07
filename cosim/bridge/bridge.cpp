@@ -104,7 +104,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
     client_ = std::make_shared<whisperClient<uint64_t>>(traceFile, commandLog);
     auto platform = cvm::topology::get_from_type("PLATFORM", 0);
     cvm::registry::messenger.connect<rv_tester::terminate_called>(platform, [this] (const auto& v) { return this->process(v); });
-    if(FLAGS_random_intr | random_imsic_intr){
+    if(FLAGS_random_intr | FLAGS_random_imsic_intr){
        FLAGS_max_cycle = 2*FLAGS_max_cycle;
        cvm::log(cvm::FULL, "Doubling max_cycles for sim run to {}\n",FLAGS_max_cycle );
     }
