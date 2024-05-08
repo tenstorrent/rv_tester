@@ -43,8 +43,8 @@ module dmi_driver (
   logic [31:0] single_step_instr_cnt, single_step_executed_cnt;
   logic [31:0] ahead_queue_cnt, quit_queue_cnt, cnt;
   logic single_step_started, single_step_quit;
-  logic abs_read, abs_write, abs_read_data;
-  logic cores_in_halt_group, core_haltg_hreq, cores_in_resume_grp, core_resumeg_rreq, ack_havereset;
+  logic abs_read, abs_write, abs_read_data, sdtrig_fire, halted_sdtrig;
+  logic cores_in_halt_group, core_haltg_hreq, cores_in_resume_grp, core_resumeg_rreq, ack_havereset, remove_core_from_haltg, remove_core_from_resumeg;
   logic [7:0] core_in_halt_group, core_in_resume_grp, core_halted, core_resumed, core_ignore_hreq, core_ignore_rreq;
   logic [9:0] core_hg_check, core_rg_check;
   logic [2:0] core_halt_index, core_resume_index;
@@ -90,6 +90,11 @@ module dmi_driver (
     core_resumed <= 0;
     core_ignore_hreq <= 0;
     core_ignore_rreq <= 0;
+    remove_core_from_haltg <= 0;
+    remove_core_from_resumeg <= 0;
+    ack_havereset <= 0;
+    sdtrig_fire <= 0;
+    halted_sdtrig <= 0;
   end
 
   assign misc_signals[0] = poll;
@@ -166,6 +171,13 @@ module dmi_driver (
         $display("[Poll] Seen Halt Req and poll_p2, Doing Poll for halt req after ndmreset");
         ndmreset_halt_req = 1;
         poll = 1;
+      end else if(cmd.addr === 'h10 && cmd.op === 'h2 && sdtrig_fire === 'h1) begin
+        $display("[Poll] Check if the core is halted through sdtrig");
+        sdtrig_fire = 0;
+        halted_sdtrig = 1;
+        poll = 1;
+        $display("[Poll] Clearing sdtrig_fire = 0");
+        $display("[Poll] Setting halted_sdtrig = 1");
       end else if (cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[31] === '1 && cmd.data[1] === '0) begin
         core_hg_check = cmd.data[25:16];
         if(~core_in_halt_group[core_hg_check]) begin
@@ -202,6 +214,10 @@ module dmi_driver (
             $display("[Poll] Seen the abstract command with read");
             abs_read = 1;
             abs_data_temp_packet.reg_addr = cmd.data[15:0];
+            // if(cmd.data[15:0] === 'h07a2) begin
+            //   sdtrig_fire = 1;
+            //   $display("[Poll] Setting sdtrig_fire = 1");
+            // end
           end
         end
       end else if (cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[1] === 'h1 ) begin
@@ -218,18 +234,18 @@ module dmi_driver (
         $display("Core entering halt group");
         cores_in_halt_group = 1;
         poll = 1;
-    /*  end else if(core_in_halt_group && cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[31] === 'h1 && cmd.data[1] === 'h0) begin
-        $display("Core in halt group gets a haltreq");
-        core_haltg_hreq = 1;
-        poll = 1; */
+      end else if (cmd.addr === 'h32 && cmd.op === 'h2 && ~cmd.data[11] && cmd.data[2:1] === 'h1) begin
+        $display("Removing core from haltgroup");
+        remove_core_from_haltg = 1;
+        poll = 1;
       end else if(cmd.addr === 'h32 && cmd.op === 'h2 && cmd.data[11] && cmd.data[6:2] === 'h1 && cmd.data[1]) begin
         $display("Core entering resume group");
         cores_in_resume_grp = 1;
         poll = 1;
-   /*   end else if(core_in_resume_grp && cmd.op === 'h2 && cmd.data[30] === 'h1 && cmd.data[1] === 'h0) begin
-        $display("Core in resume group gets a resumereq");
-        core_resumeg_rreq = 1;
-        poll = 1; */
+      end else if(cmd.addr === 'h32 && cmd.op === 'h2 && cmd.data[11] && cmd.data[6:2] === 'h0) begin
+        $display("Removing core from resume group");
+        remove_core_from_resumeg = 1;
+        poll = 1;
       end else if(cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[28]) begin
         $display("[Poll] Acknowledge havereset");
         ack_havereset = 1;
@@ -266,18 +282,27 @@ module dmi_driver (
         end else if (cores_in_halt_group) begin
           $display("[Poll] Read dmcontrol to see which cores are added to halt group");
           dmi_req <= 41'h4100000000; //TODO(Bavani): Revisit
+        end else if (remove_core_from_haltg) begin
+          $display("[Poll] Read dmcontrol to see which cores are removed from halt group");
+          dmi_req <= 41'h4100000000;
         end else if (core_haltg_hreq) begin
           $display("[Poll] Read Haltsum reg");
           dmi_req <= 41'h10100000000;
         end else if (cores_in_resume_grp) begin
           $display("[Poll] Read dmcontrol to see which cores are added to resume group");
           dmi_req <= 41'h4100000000; //TODO(Bavani): Revisit
+        end else if (remove_core_from_resumeg) begin
+          $display("[Poll] Read dmcontrol to see which cores are removed from resume group");
+          dmi_req <= 41'h4100000000;
         end else if (core_resumeg_rreq) begin
           $display("[Poll] Read Haltsum reg");
           dmi_req <= 41'h10100000000;
         end else if (ack_havereset) begin
           $display("[Poll] Read dmstatus to clear anyhavereset and allhavereset");
           dmi_req <= 41'h4500000000;
+        end else if (halted_sdtrig) begin
+           $display("[Poll] dmstatus to check if the core is getting halted through sdtrig");
+           dmi_req <= 41'h4500000000;
         end
         wait (dmi_req_ready == 1);
         @(posedge clk) dmi_req_valid <= '0;
@@ -335,6 +360,9 @@ module dmi_driver (
         end else if(cores_in_halt_group) begin
           core_halt_index = dmi_resp.data[18:16];
           core_in_halt_group[core_halt_index] = 1;
+          if(core_ignore_hreq[core_halt_index] == 1) begin
+            core_ignore_hreq[core_halt_index] = 0;
+          end
           poll = 0;
           cores_in_halt_group = 0;
           $display("[Poll] Adding core%0d to halt group", core_halt_index);
@@ -355,9 +383,17 @@ module dmi_driver (
             core_haltg_hreq = 0;
             $display("[Poll] All cores in halt group are halted");
           end
+        end else if (remove_core_from_haltg) begin
+          core_halt_index = dmi_resp.data[18:16];
+          core_in_halt_group[core_halt_index] = 0;
+          remove_core_from_haltg = 0;
+          poll = 0;
         end else if(cores_in_resume_grp) begin
           core_resume_index = dmi_resp.data[18:16];
           core_in_resume_grp[core_resume_index] = 1;
+          if(core_ignore_rreq[core_resume_index] == 1) begin
+            core_ignore_rreq[core_resume_index] = 0;
+          end
           poll = 0;
           cores_in_resume_grp = 0;
           $display("[Poll] Adding core%0d to resume group", core_resume_index);
@@ -378,10 +414,32 @@ module dmi_driver (
             core_haltg_hreq = 0;
             $display("[Poll] All cores in resume group are resumed");
           end
-        end else if(ack_havereset && dmi_resp.data[19:18])begin
+        end else if (remove_core_from_resumeg) begin
+          core_resume_index = dmi_resp.data[18:16];
+          core_in_resume_grp[core_resume_index] = 0;
+          remove_core_from_resumeg = 0;
+          poll = 0;
+        end else if(ack_havereset && ~dmi_resp.data[19:18])begin
           ack_havereset = 0;
           poll = 0;
           $display("[Poll] Clear Ack havereset Poll");
+        // end else if(dmstatus_delay)begin
+        //   for(int ii=0;ii<100;ii++)
+        //   begin
+        //     $display("[Poll] Executing for loop in driver for dmstatus");
+        //     @(posedge clk) begin
+        //       if (ii === 99)
+        //       begin
+        //         dmstatus_delay = 0;
+        //         poll = 0;
+        //         $display("[Poll] Adding 100 cycles delay");
+        //       end
+        //     end
+        //   end
+        end else if(halted_sdtrig && dmi_resp.data[9:8] === 'h3)begin
+          halted_sdtrig = 0;
+          poll = 0;
+          $display("[Poll] Clearing halted_sdtrig = 0");
         end
       end
       $display("[Poll] Cleared poll for halt:%h resume:%h abstract:%h", halt_req, resume_req,

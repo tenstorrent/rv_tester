@@ -26,7 +26,8 @@ static unsigned field_width(unsigned n)
   return i;
 }
 
-bool ndm_reset_assert;
+bool ndm_reset_assert, hartsel_stable;
+uint32_t hart_haltreq_hg, hart_abscmd;
 
 REGISTRY_register(debug_module_t, TOP.PLATFORM.DM_MODEL, 0);
 
@@ -177,30 +178,54 @@ void debug_module_t::process(const rv_tester_transactions::dm_model::dm_load_dat
     cvm::log(cvm::HIGH, "Seen a matching load response for the same id as the previous load request\n");
     uint64_t expected_load_data_to_check = cvm::bitmanip::slice<uint64_t>(expected_load_data, (load_req_length * 4 - 1), 0);
     uint64_t actual_load_data_to_check = cvm::bitmanip::slice<uint64_t>(dm_load_data.data, (load_req_length * 4 - 1), 0);
+    uint64_t expected_debug_load_data_to_check = cvm::bitmanip::slice<uint64_t>(expected_load_data, (load_req_length * 8 - 1), 0);
+    uint64_t actual_debug_load_data_to_check = cvm::bitmanip::slice<uint64_t>(dm_load_data.data, (load_req_length * 8 - 1), 0);
 
-    if (expected_load_data_to_check != actual_load_data_to_check) {
-      uint32_t shifted_actual_data, hart_select, masked_actual_data, masked_expected_data, shifted_expected_data;
-      hart_select = 0x0000000F & load_req_addr;
-      cvm::log(cvm::HIGH, "[Test] Resumegroup:{:#x} hart_select:{:#x} \n",hart_state[hart_select].resumegroup, hart_select);
+    if ((expected_load_data_to_check != actual_load_data_to_check) && !(load_req_addr >= DEBUG_ROM_FLAGS) && !(load_req_addr < (DEBUG_ROM_FLAGS + 8))) {
       if(load_req_addr == DEBUG_ROM_FLAGS && !reflow_flags) {
         reflow_flags = true;
         cvm::log(cvm::HIGH, "Reflowing 0x400 read to allow DM to update state flag\n");
       }
-      else if (hart_state[hart_select].resumegroup)
-      {
-        shifted_actual_data = (actual_load_data_to_check >> (8 * hart_select));
-        shifted_expected_data = (expected_load_data_to_check >> (8 * hart_select));
-        masked_actual_data = shifted_actual_data & 0x0000000F;
-        masked_expected_data = shifted_expected_data & 0x0000000F;
-        if ((masked_actual_data != masked_expected_data))
-        {
-        cvm::log(cvm::ERROR, "[Error-Mismatch] The load data's are mismatching for Addr:{:#x} with Length:{:#x} ~~~ Shifted_Actual:{:#x} vs Shifted_Expected:{:#x}\n", load_req_addr, load_req_length, masked_actual_data, masked_expected_data);
-        }
-      }
+      // else if ((load_req_addr >= DEBUG_ROM_FLAGS) && (load_req_addr < (DEBUG_ROM_FLAGS + 8)) && ((load_req_addr & 0x0000000f) != hart_haltreq_hg))
+      // {
+      //   cvm::log(cvm::HIGH, "[Test] expected_load_data_to_check:{:#x} hart_select:{:#x} \n", expected_load_data_to_check, hart_select);
+      //   cvm::log(cvm::HIGH, "[Test] actual_load_data_to_check:{:#x} hart_select:{:#x} \n", actual_load_data_to_check, hart_select);
+      //   shifted_actual_data = (actual_load_data_to_check >> (8 * hart_select));
+      //   cvm::log(cvm::HIGH, "[Test] shifted_actual_data:{:#x} hart_select:{:#x} \n", shifted_actual_data, hart_select);
+      //   //shifted_expected_data = (expected_load_data_to_check >> (8 * hart_select));
+      //   masked_actual_data = shifted_actual_data & 0x0000000F;
+      //   masked_expected_data = expected_load_data_to_check & 0x0000000F;
+      //   cvm::log(cvm::HIGH, "[Test] masked_actual_data:{:#x} hart_select:{:#x} \n", masked_actual_data, hart_select);
+      //   cvm::log(cvm::HIGH, "[Test] masked_expected_data:{:#x} hart_select:{:#x} \n", masked_expected_data, hart_select);
+      //   if ((masked_actual_data != masked_expected_data))
+      //   {
+      //   cvm::log(cvm::ERROR, "[Error-Mismatch] The load data's are mismatching for Addr:{:#x} with Length:{:#x} ~~~ Shifted_Masked_Actual:{:#x} vs Masked_Expected:{:#x}\n", load_req_addr, load_req_length, masked_actual_data, masked_expected_data);
+      //   } 
+      // }
       else {
         reflow_flags = false;
         cvm::log(cvm::ERROR, "[Error-Mismatch] The load data's are mismatching for Addr:{:#x} with Length:{:#x} ~~~ Actual:{:#x} vs Expected:{:#x}\n",load_req_addr,load_req_length,actual_load_data_to_check,expected_load_data_to_check);
       }
+    }
+    else if ((expected_debug_load_data_to_check != actual_debug_load_data_to_check) && (load_req_addr >= DEBUG_ROM_FLAGS) && (load_req_addr < (DEBUG_ROM_FLAGS + 8)) && ((load_req_addr & 0x0000000f) != hart_haltreq_hg) && hart_state[0x0000000F & load_req_addr].resumegroup)
+      {
+        uint64_t shifted_actual_data, hart_select, masked_actual_data, masked_expected_data;
+      hart_select = 0x0000000F & load_req_addr;
+      cvm::log(cvm::HIGH, "[Test] hart_haltreq_hg:{:#x}  \n", hart_haltreq_hg);
+      cvm::log(cvm::HIGH, "[Test] Resumegroup:{:#x} hart_select:{:#x} \n",hart_state[hart_select].resumegroup, hart_select);
+      cvm::log(cvm::HIGH, "[Test] expected_debug_load_data_to_check:{:#x} hart_select:{:#x} \n", expected_debug_load_data_to_check, hart_select);
+      cvm::log(cvm::HIGH, "[Test] actual_debug_load_data_to_check:{:#x} hart_select:{:#x} \n", actual_debug_load_data_to_check, hart_select);
+      shifted_actual_data = (actual_debug_load_data_to_check >> (8 * hart_select));
+      cvm::log(cvm::HIGH, "[Test] shifted_actual_data:{:#x} hart_select:{:#x} \n", shifted_actual_data, hart_select);
+      //shifted_expected_data = (expected_load_data_to_check >> (8 * hart_select));
+        masked_actual_data = shifted_actual_data & 0x0000000F;
+        masked_expected_data = expected_debug_load_data_to_check & 0x0000000F;
+        cvm::log(cvm::HIGH, "[Test] masked_actual_data:{:#x} hart_select:{:#x} \n", masked_actual_data, hart_select);
+        cvm::log(cvm::HIGH, "[Test] masked_expected_data:{:#x} hart_select:{:#x} \n", masked_expected_data, hart_select);
+        if ((masked_actual_data != masked_expected_data))
+        {
+        cvm::log(cvm::ERROR, "[Error-Mismatch] The load data's are mismatching for Addr:{:#x} with Length:{:#x} ~~~ Shifted_Masked_Actual:{:#x} vs Masked_Expected:{:#x}\n", load_req_addr, load_req_length, masked_actual_data, masked_expected_data);
+              }
     }
   }
 }
@@ -372,8 +397,18 @@ bool debug_module_t::store(reg_t addr, size_t len, const uint8_t *bytes)
 
   if (addr == DEBUG_ROM_HALTED)
   {
+    // if((hart_haltreq_hg != dmcontrol.hartsel) && hartsel_stable) 
+    // {
+    //   cvm::log(cvm::HIGH,"if hartsel_stable:{:#x}, hart_haltreq_hg:{:#x}, dmcontrol.hartsel:{:#x} \n",hartsel_stable, hart_haltreq_hg, dmcontrol.hartsel);
+    //   hartsel_stable = false;
+    // }
+    // else 
+    // {
+    //   cvm::log(cvm::HIGH,"else hartsel_stable:{:#x}, hart_haltreq_hg:{:#x}, dmcontrol.hartsel:{:#x} \n",hartsel_stable, hart_haltreq_hg, dmcontrol.hartsel);
+    // }
     cvm::log(cvm::HIGH, "In the DEBUG_ROM Halted State\n");
     assert(len == 4);
+    //if (!hart_state[id].halted && (hart_haltreq_hg != dmcontrol.hartsel))
     if (!hart_state[id].halted)
     {
       cvm::log(cvm::HIGH, " hart_state[id = :{:#x}] is not halted\n", id);
@@ -381,18 +416,37 @@ bool debug_module_t::store(reg_t addr, size_t len, const uint8_t *bytes)
       if (hart_state[id].haltgroup)
       {
         cvm::log(cvm::HIGH, "hart_state[id = :{:#x}] is part of haltgroup\n", id);
-        debug_rom_flags[id] &= ~(1 << DEBUG_ROM_FLAG_HALTGRP);
-        cvm::log(cvm::HIGH, "debug_rom_flags haltgrp clear :{:#x}, :{:#x}\n", id, debug_rom_flags[id]);
+        if(hartsel_stable == false) {
+          cvm::log(cvm::HIGH, " before debug_rom_flags haltgrp clear :{:#x}, :{:#x}\n", id, debug_rom_flags[id]);
+          debug_rom_flags[id] &= ~(1 << DEBUG_ROM_FLAG_HALTGRP);
+          cvm::log(cvm::HIGH, "debug_rom_flags haltgrp clear :{:#x}, :{:#x}\n", id, debug_rom_flags[id]);
+        }
       }
-      else 
+      else { 
         cvm::log(cvm::HIGH, "hart_state[id = :{:#x}] is not part of haltgroup, :{:#x}\n", id, hart_state[id].haltgroup);
+      }
     }
+
     if (selected_hart_id() == id)
     {
+      //cvm::log(cvm::HIGH, "selected_hart_id() :{:#x}] id:{:#x}] \n",selected_hart_id(), id);
+      if((hart_haltreq_hg == id || hart_abscmd == id) && (hart_haltreq_hg != 0) && (hart_abscmd != 0))
+      {
+        debug_rom_flags[id] = 0;
+        cvm::log(cvm::HIGH, "[Display] debug_rom_flags[id] :{:#x}] id:{:#x}] \n", debug_rom_flags[id], id);
+        cvm::log(cvm::HIGH, "[Display] hart_haltreq_hg :{:#x}] hart_abscmd :{:#x}] \n", hart_haltreq_hg, hart_abscmd);
+      }
+      else {
+        cvm::log(cvm::HIGH, "[Display] Executing else in line 440\n");
+      }
       if (0 == (debug_rom_flags[id] & (1 << DEBUG_ROM_FLAG_GO)))
       {
         // abstract_command_completed = true;
+        cvm::log(cvm::HIGH, " busy is cleared in abstractcs.busy:{:#x}, debug_rom_flags[id]:{:#x} dmcontrol.hartsel:{:#x} id :{:#x}\n", abstractcs.busy, debug_rom_flags[id], dmcontrol.hartsel, id);
         abstractcs.busy = false;
+      }
+      else {
+        cvm::log(cvm::HIGH, " busy is not cleared in abstractcs.busy:{:#x}, debug_rom_flags[id]:{:#x} dmcontrol.hartsel:{:#x} id :{:#x} \n", abstractcs.busy, debug_rom_flags[id], dmcontrol.hartsel, id);
       }
     }
     return true;
@@ -402,7 +456,10 @@ bool debug_module_t::store(reg_t addr, size_t len, const uint8_t *bytes)
   {
     cvm::log(cvm::HIGH, "In the DEBUG_ROM Going State\n");
     assert(len == 4);
-    debug_rom_flags[id] &= ~(1 << DEBUG_ROM_FLAG_GO);
+    //debug_rom_flags[id] &= ~(1 << DEBUG_ROM_FLAG_GO); //correct
+    cvm::log(cvm::HIGH, "[Display] Before clearing debug_rom_flags[hart_abscmd]:{:#x}, hart_abscmd:{:#x} \n", debug_rom_flags[hart_abscmd], hart_abscmd );
+    debug_rom_flags[hart_abscmd] = 0;
+    cvm::log(cvm::HIGH, "[Display] After clearing debug_rom_flags[hart_abscmd]:{:#x}, hart_abscmd:{:#x} \n", debug_rom_flags[hart_abscmd], hart_abscmd );
     return true;
   }
 
@@ -412,6 +469,7 @@ bool debug_module_t::store(reg_t addr, size_t len, const uint8_t *bytes)
     assert(len == 4);
     hart_state[id].halted = false;
     hart_state[id].resumeack = true;
+    cvm::log(cvm::HIGH, "before debug_rom_flags resume  clear :{:#x}, :{:#x}\n", id, debug_rom_flags[id]);
     debug_rom_flags[id] &= ~(1 << DEBUG_ROM_FLAG_RESUME);
     cvm::log(cvm::HIGH, "debug_rom_flags resume  clear :{:#x}, :{:#x}\n", id, debug_rom_flags[id]);
     return true;
@@ -657,6 +715,8 @@ bool debug_module_t::perform_abstract_command()
   init_debug_abstract_buffer();
 
   cvm::log(cvm::HIGH, "[Abstract Cmd] Performing an abstract command\n");
+  hart_abscmd = dmcontrol.hartsel;
+  cvm::log(cvm::HIGH, "[Display] hart_abscmd :{:#x}] \n", hart_abscmd);
   if (abstractcs.cmderr != CMDERR_NONE)
     return true;
   if (abstractcs.busy)
@@ -861,6 +921,7 @@ bool debug_module_t::perform_abstract_command()
     // abstract_command_completed = false;
     if (!selected_hart_state().halted || !hart_available(dmcontrol.hartsel))
     {
+      cvm::log(cvm::HIGH, "line 889 selected_hart_state:{:#x} hart_available:{:#x}\n",selected_hart_state().halted, hart_available(dmcontrol.hartsel));
       abstractcs.cmderr = CMDERR_HALTRESUME;
       abstractcs.busy = false;
       return true;
@@ -897,6 +958,7 @@ bool debug_module_t::perform_abstract_command()
     debug_rom_flags[selected_hart_id()] |= 1 << DEBUG_ROM_FLAG_GO;
     if (!selected_hart_state().halted || !hart_available(dmcontrol.hartsel))
     {
+      cvm::log(cvm::HIGH, "line 926 selected_hart_state:{:#x} hart_available:{:#x}\n",selected_hart_state().halted, hart_available(dmcontrol.hartsel));
       abstractcs.cmderr = CMDERR_HALTRESUME;
       abstractcs.busy = false;
       return true;
@@ -986,10 +1048,12 @@ bool debug_module_t::perform_abstract_command()
 
   if (!selected_hart_state().halted || !hart_available(dmcontrol.hartsel))
   {
+    cvm::log(cvm::HIGH, "line 1016 selected_hart_state:{:#x} hart_available:{:#x}\n",selected_hart_state().halted, hart_available(dmcontrol.hartsel));
     abstractcs.cmderr = CMDERR_HALTRESUME;
     return true;
   }
-
+  debug_rom_flags[hart_abscmd] = true;
+  cvm::log(cvm::HIGH, "hart_abscmd:{:#x} debug_rom_flags[hart_abscmd]:{:#x}\n", hart_abscmd, debug_rom_flags[hart_abscmd]);
   return true;
 }
 
@@ -1054,7 +1118,7 @@ bool debug_module_t::dmi_write(unsigned address, uint32_t value)
         dmcontrol.hasel = 0;
       dmcontrol.hartsel = get_field(value, DM_DMCONTROL_HARTSELHI) << DM_DMCONTROL_HARTSELLO_LENGTH;
       dmcontrol.hartsel |= get_field(value, DM_DMCONTROL_HARTSELLO);
-      dmcontrol.hartsel = std::min(size_t(dmcontrol.hartsel), max_hartid - 1); //FIXME
+      //dmcontrol.hartsel = std::min(size_t(dmcontrol.hartsel), max_hartid - 1); //FIXME
       // dmcontrol.hartsel = max_hartid - 1;
 
       for (const auto &[hart_id, hart] : harts)
@@ -1073,17 +1137,32 @@ bool debug_module_t::dmi_write(unsigned address, uint32_t value)
             hart->halt_request = hart->HR_REGULAR;
             dmcontrol.haltreq = false;
             cvm::log(cvm::HIGH, "halt hart: {:#x}\n", hart_id);
+            if(hart_state[hart_id].haltgroup) 
+            {
+              hart_haltreq_hg = dmcontrol.hartsel;
+              hartsel_stable = true;
+            }
             for (const auto &[hart_id1, hart] : harts)
+            {
+              if (!hart_state[hart_id1].halted &&
+                  hart_state[hart_id1].haltgroup == hart_state[hart_id].haltgroup &&
+                  hart_available(hart_id1) && (hart_id1 != hart_id))
               {
-                if (!hart_state[hart_id1].halted &&
-                    hart_state[hart_id1].haltgroup == hart_state[hart_id].haltgroup &&
-                    hart_available(hart_id1) && (hart_id1 != hart_id))
-                {
-                  debug_rom_flags[hart_id1] |= (1 << DEBUG_ROM_FLAG_HALTGRP);
-                  cvm::log(cvm::HIGH, "debug_rom_flags haltgrp set :{:#x}, :{:#x}\n", hart_id1, debug_rom_flags[hart_id1]);
-                  hart->halt_request = hart->HR_GROUP;
-                }
+                cvm::log(cvm::HIGH, "before debug_rom_flags haltgrp set :{:#x}, :{:#x}\n", hart_id1, debug_rom_flags[hart_id1]);
+                debug_rom_flags[hart_id1] |= (1 << DEBUG_ROM_FLAG_HALTGRP);
+                cvm::log(cvm::HIGH, "debug_rom_flags haltgrp set :{:#x}, :{:#x}\n", hart_id1, debug_rom_flags[hart_id1]);
+                hart->halt_request = hart->HR_GROUP;
               }
+              else if (!hart_state[hart_id1].halted &&
+                hart_state[hart_id1].haltgroup == hart_state[hart_id].haltgroup &&
+                hart_available(hart_id1) && (hart_id1 == hart_id)) 
+              {
+                cvm::log(cvm::HIGH, "before debug_rom_flags haltgrp set :{:#x}, :{:#x}\n", hart_id1, debug_rom_flags[hart_id1]);
+                debug_rom_flags[hart_id1] = 0;
+                cvm::log(cvm::HIGH, "debug_rom_flags haltgrp set :{:#x}, :{:#x}\n", hart_id1, debug_rom_flags[hart_id1]);
+                hart->halt_request = hart->HR_GROUP;
+              }
+            }
           }
           else if (dmcontrol.ndmreset && hart_available(hart_id))
           {
@@ -1113,7 +1192,9 @@ bool debug_module_t::dmi_write(unsigned address, uint32_t value)
                     hart_state[hart_id1].resumegroup == hart_state[hart_id].resumegroup &&
                     hart_available(hart_id1))
                 {
-                  debug_rom_flags[hart_id1] |= (1 << DEBUG_ROM_FLAG_RESUME);
+                  cvm::log(cvm::HIGH, "before debug_rom_flags resumegrp set :{:#x}, :{:#x}\n", hart_id1, debug_rom_flags[hart_id1]);
+                   // debug_rom_flags[hart_id1] |= (1 << DEBUG_ROM_FLAG_RESUME);
+                  debug_rom_flags[hart_id1] = 0x2;
                   cvm::log(cvm::HIGH, "debug_rom_flags resumegrp set :{:#x}, :{:#x}\n", hart_id1, debug_rom_flags[hart_id1]);
                 }
               }
@@ -1136,6 +1217,26 @@ bool debug_module_t::dmi_write(unsigned address, uint32_t value)
           cvm::log(cvm::HIGH, "Ndmreset and pending is 0 in dm_model\n");
           ndm_reset_assert = false;
         }
+      }
+
+      if ((hart_haltreq_hg != dmcontrol.hartsel) && hartsel_stable) 
+      {
+        cvm::log(cvm::HIGH,"if hartsel_stable:{:#x}, hart_haltreq_hg:{:#x}, dmcontrol.hartsel:{:#x} \n",hartsel_stable, hart_haltreq_hg, dmcontrol.hartsel);
+        hartsel_stable = false;
+        for (const auto &[hart_id, hart] : harts)
+        {
+          if(hartsel_stable == false) 
+          {
+            cvm::log(cvm::HIGH, " before debug_rom_flags haltgrp clear hart_id:{:#x}, debug_rom_flags[hart_id]:{:#x}\n", hart_id, debug_rom_flags[hart_id]);
+            //debug_rom_flags[id] &= ~(1 << DEBUG_ROM_FLAG_HALTGRP);
+            debug_rom_flags[hart_id] = 0;
+            cvm::log(cvm::HIGH, "debug_rom_flags haltgrp clear hart_id:{:#x}, debug_rom_flags[hart_id]:{:#x}\n", hart_id, debug_rom_flags[hart_id]);
+          }
+        }
+      }
+      else 
+      {
+        cvm::log(cvm::HIGH,"else hartsel_stable:{:#x}, hart_haltreq_hg:{:#x}, dmcontrol.hartsel:{:#x} \n",hartsel_stable, hart_haltreq_hg, dmcontrol.hartsel);
       }
 // if (dmcontrol.ndmreset)
 // {
