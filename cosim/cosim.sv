@@ -376,8 +376,13 @@ endfunction
       if (reset) begin
         /* verilator lint_off BLKSEQ */
         max_cycle = cvm_plusargs::get_ulongint("max_cycle");
-        if (cvm_plusargs::get_int("max_stall_cycle") < (NHARTS*3000 + 7000)) max_stall_cycle = NHARTS*3000 + 7000;
-        else max_stall_cycle = cvm_plusargs::get_int("max_stall_cycle");
+        if (cvm_plusargs::get_int("max_stall_cycle") < (NHARTS*3000 + 7000)) begin
+          max_stall_cycle = NHARTS*3000 + 7000;
+          $display("Overwriting max_stall_cycle to (%d) cycles", max_stall_cycle);
+        end
+        else begin
+          max_stall_cycle = cvm_plusargs::get_int("max_stall_cycle");
+        end
         hart_enable_mask = cvm_plusargs::get_ulongint("hart_enable_mask");
         /* verilator lint_on BLKSEQ */
         cycles_since_retire <= 0;
