@@ -10,6 +10,7 @@ import rv_tester_params::*;
     parameter int NIFETCH = 1,
     parameter int NIEVICT = 1,
     parameter int RESET_CLOCKS = 10,
+    parameter int MAX_CSR_AFTER_NRET = 3,
     `TOPOLOGY,
     `RV_TESTER_TRANSACTIONS_COSIM_OUTPUT_PARAMS
 )(
@@ -33,6 +34,34 @@ import rv_tester_params::*;
     output rv_tester_pkg::terminate_t terminate,
     `RV_TESTER_TRANSACTIONS_COSIM_OUTPUT_PORTS
 );
+
+
+localparam CSR_SBITS = $clog2(CSR_COUNT);
+localparam MAXCSR = NRET + MAX_CSR_AFTER_NRET;
+
+
+//----------------------------------------------------------------------------
+// function retsel compresses CSR_COUNT down into MAXCSR+1 DPI calls
+//   we make the retsel function have MAXCSR+1 values to catch if we have too
+//   many CSR updates.  If s=MAXCSR then we went past the number DPIs we can
+//   accomodate  (0 .. MAXCSR-1)
+//----------------------------------------------------------------------------
+
+function automatic bit [MAXCSR:0][CSR_SBITS-1:0] retsel(input bit [CSR_COUNT-1:0] valid);
+    int s = 0;
+    int i = 0;
+    retsel = '1;
+    /* verilator lint_off WIDTH */
+    for(i=0;i<CSR_COUNT;i=i+1) begin
+        if (valid[i] == 1) begin
+            retsel[s] = i; 
+            if (s < MAXCSR) begin
+                s = s + 1;
+            end
+        end
+    end
+    /* verilator lint_on WIDTH */
+endfunction
 
     import "DPI-C" context function void cosim_set_scope(int unsigned location);
 
@@ -62,64 +91,85 @@ import rv_tester_params::*;
 
     // m_rvfi
     for (genvar n = 0; n < NRET; n++) begin
-        assign m_rvfis[n].valid = RVFI_EN & rvfi_enabled & ~dut_reset & rvfi[n].valid;
-        assign m_rvfis[n].data.location = location;
-        assign m_rvfis[n].data.cycle = clocks;
-        assign m_rvfis[n].data.hart = NUM;
-        assign m_rvfis[n].data.last_uop = rvfi[n].last_uop;
-        assign m_rvfis[n].data.last_insn = rvfi[n].last_insn;
-        assign m_rvfis[n].data.comp = rvfi[n].comp;
-        assign m_rvfis[n].data.order = rvfi[n].order;
-        assign m_rvfis[n].data.insn = rvfi[n].insn;
-        assign m_rvfis[n].data.uop = rvfi[n].uop;
-        assign m_rvfis[n].data.trap = rvfi[n].trap;
-        assign m_rvfis[n].data.cause = rvfi[n].cause;
-        assign m_rvfis[n].data.intr = rvfi[n].intr;
-        assign m_rvfis[n].data.mode = rvfi[n].mode;
+        assign m_rvfis[n].valid            = RVFI_EN & rvfi_enabled & ~dut_reset & rvfi[n].valid;
+        assign m_rvfis[n].data.location    = location;
+        assign m_rvfis[n].data.cycle       = clocks;
+        assign m_rvfis[n].data.hart        = NUM;
+        assign m_rvfis[n].data.last_uop    = rvfi[n].last_uop;
+        assign m_rvfis[n].data.last_insn   = rvfi[n].last_insn;
+        assign m_rvfis[n].data.comp        = rvfi[n].comp;
+        assign m_rvfis[n].data.order       = rvfi[n].order;
+        assign m_rvfis[n].data.insn        = rvfi[n].insn;
+        assign m_rvfis[n].data.uop         = rvfi[n].uop;
+        assign m_rvfis[n].data.trap        = rvfi[n].trap;
+        assign m_rvfis[n].data.cause       = rvfi[n].cause;
+        assign m_rvfis[n].data.intr        = rvfi[n].intr;
+        assign m_rvfis[n].data.mode        = rvfi[n].mode;
         assign m_rvfis[n].data.vec_cracked = rvfi[n].vec_cracked;
-        assign m_rvfis[n].data.ixl = rvfi[n].ixl;
-        assign m_rvfis[n].data.rd_addr = rvfi[n].rd_addr;
-        assign m_rvfis[n].data.rd_wdata = rvfi[n].rd_wdata;
-        assign m_rvfis[n].data.frd_valid = rvfi[n].frd_valid;
-        assign m_rvfis[n].data.frd_addr = rvfi[n].frd_addr;
-        assign m_rvfis[n].data.frd_wdata = rvfi[n].frd_wdata;
-        assign m_rvfis[n].data.vrd_valid = rvfi[n].vrd_valid;
-        assign m_rvfis[n].data.vrd_addr = rvfi[n].vrd_addr;
-        assign m_rvfis[n].data.vrd_wdata = rvfi[n].vrd_wdata;
-        assign m_rvfis[n].data.csr_valid = rvfi[n].csr_valid;
-        assign m_rvfis[n].data.csr_addr = rvfi[n].csr_addr;
-        assign m_rvfis[n].data.csr_wdata = rvfi[n].csr_wdata;
-        assign m_rvfis[n].data.csr_wmask = rvfi[n].csr_wmask;
-        assign m_rvfis[n].data.pc_rdata = rvfi[n].pc_rdata;
-        assign m_rvfis[n].data.pc_wdata = rvfi[n].pc_wdata;
-        assign m_rvfis[n].data.mem_addr = rvfi[n].mem_addr;
-        assign m_rvfis[n].data.mem_paddr = rvfi[n].mem_paddr;
-        assign m_rvfis[n].data.mem_rmask = rvfi[n].mem_rmask;
-        assign m_rvfis[n].data.mem_rdata = rvfi[n].mem_rdata;
-        assign m_rvfis[n].data.mem_wmask = rvfi[n].mem_wmask;
-        assign m_rvfis[n].data.mem_wdata = rvfi[n].mem_wdata;
-        assign m_rvfis[n].data.mem_attr = rvfi[n].mem_attr;
+        assign m_rvfis[n].data.ixl         = rvfi[n].ixl;
+        assign m_rvfis[n].data.rd_addr     = rvfi[n].rd_addr;
+        assign m_rvfis[n].data.rd_wdata    = rvfi[n].rd_wdata;
+        assign m_rvfis[n].data.frd_valid   = rvfi[n].frd_valid;
+        assign m_rvfis[n].data.frd_addr    = rvfi[n].frd_addr;
+        assign m_rvfis[n].data.frd_wdata   = rvfi[n].frd_wdata;
+        assign m_rvfis[n].data.vrd_valid   = rvfi[n].vrd_valid;
+        assign m_rvfis[n].data.vrd_addr    = rvfi[n].vrd_addr;
+        assign m_rvfis[n].data.vrd_wdata   = rvfi[n].vrd_wdata;
+        assign m_rvfis[n].data.csr_valid   = rvfi[n].csr_valid;
+        assign m_rvfis[n].data.csr_addr    = rvfi[n].csr_addr;
+        assign m_rvfis[n].data.csr_wdata   = rvfi[n].csr_wdata;
+        assign m_rvfis[n].data.csr_wmask   = rvfi[n].csr_wmask;
+        assign m_rvfis[n].data.pc_rdata    = rvfi[n].pc_rdata;
+        assign m_rvfis[n].data.pc_wdata    = rvfi[n].pc_wdata;
+        assign m_rvfis[n].data.mem_addr    = rvfi[n].mem_addr;
+        assign m_rvfis[n].data.mem_paddr   = rvfi[n].mem_paddr;
+        assign m_rvfis[n].data.mem_rmask   = rvfi[n].mem_rmask;
+        assign m_rvfis[n].data.mem_rdata   = rvfi[n].mem_rdata;
+        assign m_rvfis[n].data.mem_wmask   = rvfi[n].mem_wmask;
+        assign m_rvfis[n].data.mem_wdata   = rvfi[n].mem_wdata;
+        assign m_rvfis[n].data.mem_attr    = rvfi[n].mem_attr;
     end
 
     // m_csri
+    logic [CSR_COUNT-1:0] m_csris_valid;
+    logic [CSR_COUNT-1:0] valid_d0;
     logic [CSR_COUNT-1:0] valid_d1;
+    logic [CSR_COUNT-1:0][CSRLEN-1:0] addr_d1;
     logic [CSR_COUNT-1:0][63:0] data_d1;
     logic [CSR_COUNT-1:0][63:0] mask_d1;
+
     always @(posedge clk) begin
       for (int n = 0; n < CSR_COUNT; n++) begin
         valid_d1[n] <= csri[n].valid;
+        addr_d1[n] <= csri[n].addr;
         data_d1[n] <= csri[n].data;
         mask_d1[n] <= csri[n].mask;
       end
     end
+
+    bit [MAXCSR:0][CSR_SBITS-1:0] csr_sel;
+
+    assign csr_sel = retsel(m_csris_valid);
+
+    //-------------------------------------------------------------------------------------------
+    // if csr_sel[MAXCSR] == 1 then we went 1 past the MAX number of DPI calls we can make
+    //    only csr_sel[MAXCSR-1:0] are valid.  
+    //-------------------------------------------------------------------------------------------
+    always @(posedge clk) begin
+        assert (csr_sel[MAXCSR] == '1) else $error("More than %d CSR valids == 1",MAXCSR-1);
+    end
+
     for (genvar n = 0; n < CSR_COUNT; n++) begin
-        assign m_csris[n].valid = rvfi_enabled & ~dut_reset & ((csri[n].valid & ~valid_d1[n]) | (csri[n].valid & ((csri[n].data !== data_d1[n]) | (csri[n].mask !== mask_d1[n]))));
+        assign m_csris_valid[n] = rvfi_enabled & ~dut_reset & ((csri[n].valid & ~valid_d1[n]) | (csri[n].valid & ((csri[n].data !== data_d1[n]) | (csri[n].mask !== mask_d1[n]))));
+    end
+    for (genvar n = 0; n < MAXCSR; n++) begin
+        assign m_csris[n].valid         = (csr_sel[n] != '1) ? 1'b1 : 1'b0; 
         assign m_csris[n].data.location = location;
-        assign m_csris[n].data.cycle = csri[n].valid ? clocks : '0;
-        assign m_csris[n].data.hart = NUM;
-        assign m_csris[n].data.addr = csri[n].addr;
-        assign m_csris[n].data.mask = csri[n].mask;
-        assign m_csris[n].data.data = csri[n].data;
+        assign m_csris[n].data.cycle    = clocks;
+        assign m_csris[n].data.hart     = NUM;
+        assign m_csris[n].data.addr     = (csr_sel[n] != '1) ? csri[csr_sel[n]].addr : '0;
+        assign m_csris[n].data.mask     = (csr_sel[n] != '1) ? csri[csr_sel[n]].mask : '0;
+        assign m_csris[n].data.data     = (csr_sel[n] != '1) ? csri[csr_sel[n]].data : '0;
     end
 
     // m_mcmi_read
@@ -242,7 +292,7 @@ import rv_tester_params::*;
       mip[13] = intr.lcofi;
       mip[12] = intr.sgei;
       mip[11] = intr.mei;
-      mip[10]  = intr.vsei;
+      mip[10] = intr.vsei;
       mip[9]  = intr.sei;
       mip[7]  = intr.mti;
       mip[6]  = intr.vsti;
@@ -252,19 +302,18 @@ import rv_tester_params::*;
       return mip;
     endfunction
 
-
     localparam imsic_whisper_delays = 5;
     rv_tester_params::mst_req_top imsic_interrupt_delays[imsic_whisper_delays:0];
     rv_tester_params::mst_req_top imsic_interrupt_delayed;
     assign imsic_interrupt_delays[0]=imsic_interrupt;
     genvar i;
-   generate
-    for (i=1; i <= imsic_whisper_delays; i=i+1) begin
-      always @(posedge clk)
-      imsic_interrupt_delays[i] <= imsic_interrupt_delays[i-1];
-    end
-   endgenerate
-   assign imsic_interrupt_delayed = imsic_interrupt_delays[imsic_whisper_delays];
+    generate
+      for (i=1; i <= imsic_whisper_delays; i=i+1) begin
+        always @(posedge clk)
+        imsic_interrupt_delays[i] <= imsic_interrupt_delays[i-1];
+      end
+    endgenerate
+    assign imsic_interrupt_delayed = imsic_interrupt_delays[imsic_whisper_delays];
 
     // m_imsic_msi
     enum logic {idle, aw} msi_slave_state,msi_slave_state_d;
@@ -288,10 +337,10 @@ import rv_tester_params::*;
 
     function automatic bit [63:0] get_mip_mask(rv_tester_pkg::interrupt_t intr, rv_tester_pkg::interrupt_t intr_d1);
       bit [63:0] mask = 'h0;
-      mask[13]  = (intr.lcofi & ~intr_d1.lcofi);
-      mask[12]  = (intr.sgei & ~intr_d1.sgei) | (~intr.sgei & intr_d1.sgei);
+      mask[13] = (intr.lcofi & ~intr_d1.lcofi);
+      mask[12] = (intr.sgei & ~intr_d1.sgei) | (~intr.sgei & intr_d1.sgei);
       mask[11] = (intr.mei & ~intr_d1.mei) | (~intr.mei & intr_d1.mei);
-      mask[10]  = (intr.vsei & ~intr_d1.vsei) | (~intr.vsei & intr_d1.vsei);
+      mask[10] = (intr.vsei & ~intr_d1.vsei) | (~intr.vsei & intr_d1.vsei);
       mask[9]  = (intr.sei & ~intr_d1.sei) | (~intr.sei & intr_d1.sei);
       mask[7]  = (intr.mti & ~intr_d1.mti) | (~intr.mti & intr_d1.mti);
       mask[6]  = (intr.vsti & ~intr_d1.vsti) | (~intr.vsti & intr_d1.vsti);
@@ -303,10 +352,10 @@ import rv_tester_params::*;
 
     function automatic bit [63:0] get_mip_assert(rv_tester_pkg::interrupt_t intr, rv_tester_pkg::interrupt_t intr_d1);
       bit [63:0] mask = 'h0;
-      mask[13]  = (intr.lcofi & ~intr_d1.lcofi);
-      mask[12]  = (intr.sgei & ~intr_d1.sgei);
+      mask[13] = (intr.lcofi & ~intr_d1.lcofi);
+      mask[12] = (intr.sgei & ~intr_d1.sgei);
       mask[11] = (intr.mei & ~intr_d1.mei);
-      mask[10]  = (intr.vsei & ~intr_d1.vsei);
+      mask[10] = (intr.vsei & ~intr_d1.vsei);
       mask[9]  = (intr.sei & ~intr_d1.sei);
       mask[7]  = (intr.mti & ~intr_d1.mti);
       mask[6]  = (intr.vsti & ~intr_d1.vsti);
@@ -324,31 +373,31 @@ import rv_tester_params::*;
     bit boot_wfi;
 
     always @(posedge tb_clk) begin
-        if (reset) begin
-            /* verilator lint_off BLKSEQ */
-            max_cycle = cvm_plusargs::get_ulongint("max_cycle");
-            max_stall_cycle = cvm_plusargs::get_int("max_stall_cycle");
-            hart_enable_mask = cvm_plusargs::get_ulongint("hart_enable_mask");
-            /* verilator lint_on BLKSEQ */
-            cycles_since_retire <= 0;
-            boot_wfi <= '0;
-        end else if(!dut_reset) begin
-            cycles_since_retire <= cycles_since_retire + 1;
-            if (rvfi[0].valid !== 0) begin
-              cycles_since_retire <= 0;
-            end
-            if (NUM != 0 && hart_enable_mask[NUM] == 0 && rvfi[0].valid !== 0 && rvfi[0].insn[6:0] == 7'h73 && rvfi[0].pc_rdata < 'h20000) begin // WFI
-              boot_wfi <= '1;
-            end
-            if (max_stall_cycle > 0 && cycles_since_retire > max_stall_cycle && !boot_wfi) begin
-              $display("Error: Hart %0d: No instruction retired for max_stall_cycle (%0d) cycles", NUM, max_stall_cycle);
-              cosim_terminate();
-            end
-            if (max_cycle > 0 && clocks > max_cycle) begin
-              $display("Error: Hart %0d:  Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", NUM, max_cycle);
-              cosim_terminate();
-            end
+      if (reset) begin
+        /* verilator lint_off BLKSEQ */
+        max_cycle = cvm_plusargs::get_ulongint("max_cycle");
+        max_stall_cycle = cvm_plusargs::get_int("max_stall_cycle");
+        hart_enable_mask = cvm_plusargs::get_ulongint("hart_enable_mask");
+        /* verilator lint_on BLKSEQ */
+        cycles_since_retire <= 0;
+        boot_wfi <= '0;
+      end else if(!dut_reset) begin
+        cycles_since_retire <= cycles_since_retire + 1;
+        if (rvfi[0].valid !== 0) begin
+          cycles_since_retire <= 0;
         end
+        if (NUM != 0 && hart_enable_mask[NUM] == 0 && rvfi[0].valid !== 0 && rvfi[0].insn[6:0] == 7'h73 && rvfi[0].pc_rdata < 'h20000) begin // WFI
+          boot_wfi <= '1;
+        end
+        if (max_stall_cycle > 0 && cycles_since_retire > max_stall_cycle && !boot_wfi) begin
+          $display("Error: Hart %0d: No instruction retired for max_stall_cycle (%0d) cycles", NUM, max_stall_cycle);
+          cosim_terminate();
+        end
+        if (max_cycle > 0 && clocks > max_cycle) begin
+          $display("Error: Hart %0d:  Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", NUM, max_cycle);
+          cosim_terminate();
+        end
+      end
     end
 
 endmodule

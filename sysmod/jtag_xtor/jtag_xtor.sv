@@ -191,7 +191,15 @@ end
 //for future use
 always @(posedge clk) begin
   if (ir && ~jtag_resp.tdo_en) begin
-    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1:4],jtag_resp.tdo,jtag_rx[3:1]};
+    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1:5],jtag_resp.tdo,jtag_rx[4:1]};
+    read <= 1;
+  end else if (dr && ~jtag_resp.tdo_en && jtag_tx[0]) begin
+    read_data_valid_reg <= 1'b0; 
+    jtag_rx <= {jtag_resp.tdo,jtag_rx[68 :3],jtag_rx[2:0]};
+    read <= 1;
+  end else if (dr && ~jtag_resp.tdo_en && jtag_tx[1]) begin
+    read_data_valid_reg <= 1'b0; 
+    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1],jtag_resp.tdo,jtag_rx[68 :2],jtag_rx[0]};
     read <= 1;
   end else if (dr && ~jtag_resp.tdo_en) begin
     read_data_valid_reg <= 1'b0; 
@@ -199,7 +207,7 @@ always @(posedge clk) begin
     read <= 1;
   end else begin
     if(read)begin
-      $display("final jtag read from tdo=%h",jtag_rx[63:0]);
+      $display("final jtag read from tdo=%h at time = %t",jtag_rx[63:0],$time);
       read_data_valid_reg <= 1'b1; 
       read <= 0;
     end
@@ -228,3 +236,4 @@ end
 //end
 
 endmodule
+

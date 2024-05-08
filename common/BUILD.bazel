@@ -16,7 +16,9 @@ cc_library(
     deps = [
         "@opensrc-nlohmann-json//:json",
         "@cvm//:plusargs",
+        "@cvm//:logger",
         "@cvm//:registry",
+        "@fmt//:fmt"
     ],
     alwayslink = True,
     linkstatic = True,

@@ -7,6 +7,7 @@
 /// Model an htif (host target interface) device
 class htif : public device
 {
+
 public:
 
   htif(const std::string& tag, uint64_t addr, cvm::topology::loc_t loc);
@@ -49,4 +50,16 @@ private:
 
   uint64_t to_ = 0;
   uint64_t from_ = 0;
+
+  class pty {
+    private:
+      int master = -1;
+      int slave = -1;
+    public:
+      pty();
+      ~pty();
+      int read();
+      int write(char c);
+  };
+  pty pty_;
 };

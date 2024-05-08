@@ -45,6 +45,7 @@ class sysmod {
     void jtag_resp(std::bitset<70> rdata);
     void compose();
     void load_boot(const std::string& boot);
+    void load_cplfw(const std::string& cplfw);
     void load_prog(const std::string& hex, const std::string& load, const std::string& lz4);
     void load_io(const std::string& io);
     // Function to convert a bitset to an array of uint64_t
@@ -92,6 +93,7 @@ class sysmod {
     void uc_helper_backdoor_write(uc_helper::uc_helper_write_t w);
     void uc_helper_backdoor_read(uc_helper::uc_helper_read_req_t w);
     void trace_cfg_read_req_router(trace_cfg::trace_cfg_read_t r);
+    void smc_read_req_router(smc_xtor::smc_xtor_read_t r);
     void scratchpad_xtor_read_req_router(scratchpad_xtor::scratchpad_xtor_read_t r);
     void terminate(htif::terminate_t t);
 

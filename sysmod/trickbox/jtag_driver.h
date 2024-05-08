@@ -117,8 +117,10 @@ public:
 
 bool exitLoop() {
     if(loop_check_bit_type>0){
+      cvm::log(cvm::HIGH, "[jtag_driver_CHECK]: loop_rdata {},loop_check_bit_num {},loop_execution_cnt {}\n",loop_rdata,loop_check_bit_num,loop_execution_cnt);
       return isNthBitSet(loop_rdata,loop_check_bit_num);
     }else if(loop_check_bit_type == 0){
+      cvm::log(cvm::HIGH, "[jtag_driver_CHECK]: loop_rdata {},loop_check_bit_num {},loop_execution_cnt {}\n",loop_rdata,loop_check_bit_num,loop_execution_cnt);
       return isNthBitClear(loop_rdata,loop_check_bit_num);
     }else{
      cvm::log(cvm::HIGH, "[jtag_driver]: Wrong Exit loop condition detected \n");
@@ -130,6 +132,7 @@ bool exitLoop() {
   {
     if(loop_idx == 0 && loop_execution_cnt>0 && exitLoop()){
       //Check for status bit in rdata
+        loop_execution_cnt = 0;
         executing_loop = false;
         jtag_loop_q.clear();
         return;
@@ -160,7 +163,8 @@ bool exitLoop() {
       trickboxJtagWrite(hart, jtag_cmd, upper_jtag_data, lower_jtag_data,reg_length_data,0);
       if(loop_idx<loop_size){
         loop_idx++;
-      }else if(loop_idx == loop_size){
+      } 
+      if(loop_idx == loop_size){
         loop_idx = 0;
         loop_execution_cnt++;
         if(loop_execution_cnt > max_num_loops){

@@ -29,6 +29,7 @@ DEFINE_string(load, "", "elf file (program) to load into memory");
 DEFINE_string(load_lz4, "", "lz4 compressed file (program) to load into memory");
 DEFINE_bool(bootrom, true, "Load bootrom before test");
 DEFINE_string(bootrom_path, "", "Path to bootrom object file");
+DEFINE_string(cplfw_path, "", "Path to cpl firmware object file");
 DEFINE_string(load_io, "", "load specified io dev with content from memory");
 DEFINE_bool(sysmod_tick_async, true, "Asynchronous sysmod_tick calls");
 DEFINE_uint64(sysmod_tick_update_threshold, 1, "Slow down tick update frequency by this factor. The tick is still eventually advanced the same cumulative amount, just not as often. Useful for emulation where the clock counts much faster but tests setup interrupts to happen very soon for simulation. They git hit by an interrupt storm and are stuck in the interrupt handler forever.");
@@ -80,6 +81,7 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
             [this, source](const auto& r) {
                 cvm::log(cvm::DEBUG, "new read request at {:#x}\n", r.addr);
                 if (this->dev(r.addr)){
+                    cvm::log(cvm::FULL, "[sysmod] read: src={} id={}, addr={:#x}, len={}\n", source, r.id, r.addr, r.length);
                     cvm::registry::messenger.signal<device::read_t>(this->loc_, {r, source});
 
 		    }
@@ -197,18 +199,34 @@ sysmod::trace_cfg_read_req_router(trace_cfg::trace_cfg_read_t r) {
 }
 
 void
+sysmod::smc_read_req_router(smc_xtor::smc_xtor_read_t r) {
+
+    transactor::read_t rd;
+    rd.addr = r.addr;
+    rd.length = r.length;
+    rd.id =  r.id;
+
+    auto sources = cvm::topology::get_from_type("PLATFORM_TRANSACTOR");
+
+    if (this->dev(r.addr)){
+        cvm::registry::messenger.signal<device::read_t>(this->loc_, {rd, sources[0]});
+    }
+
+}
+
+void
 sysmod::scratchpad_xtor_read_req_router(scratchpad_xtor::scratchpad_xtor_read_t r) {
 
     transactor::read_t rd; 
     rd.addr = r.addr;
     rd.length = r.length;
     rd.id =  r.id;
-    cvm::log(cvm::LOW, "[SYSMOD] SCRATCHPAD_XTOR ROUTER - addr={:#x} \n", rd.addr);
+    cvm::log(cvm::FULL, "[SYSMOD] SCRATCHPAD_XTOR ROUTER - addr={:#x} \n", rd.addr);
 
     auto sources = cvm::topology::get_from_type("PLATFORM_TRANSACTOR");
 
     if (this->dev(r.addr)){
-    cvm::log(cvm::LOW, "[SYSMOD] SCRATCHPAD_XTOR ROUTER  send to device - addr={:#x} \n", rd.addr);
+    cvm::log(cvm::FULL, "[SYSMOD] SCRATCHPAD_XTOR ROUTER  send to device - addr={:#x} \n", rd.addr);
         cvm::registry::messenger.signal<device::read_t>(this->loc_, {rd, sources[0]});
     }
 
@@ -220,9 +238,9 @@ sysmod::uc_helper_backdoor_write(uc_helper::uc_helper_write_t w) {
         cvm::log(cvm::ERROR, "Error: [SYSMOD] uc_helper_backdoor_write: caching is enabled in rv_tester and it does not receive DMAs, so the test could fail if the CPU does a read to this address as it will receive the stale cached data");
     }
 
-    cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_write addr {:#x} \n",w.addr);
-    cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_write len {} \n",(unsigned)w.length);
-    cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_write data-vec : \n");
+    cvm::log(cvm::FULL,"[SYSMOD] uc_helper_backdoor_write addr {:#x} \n",w.addr);
+    cvm::log(cvm::FULL,"[SYSMOD] uc_helper_backdoor_write len {} \n",(unsigned)w.length);
+    cvm::log(cvm::FULL,"[SYSMOD] uc_helper_backdoor_write data-vec : \n");
      for (auto i: w.data){
          cvm::log(cvm::HIGH," {:#x} ",(unsigned)i);
       }
@@ -237,7 +255,7 @@ sysmod::uc_helper_backdoor_write(uc_helper::uc_helper_write_t w) {
    // dynamic_cast<sysmod_mem&>(*dev("memory")).write(wt);
 
 
-    cvm::log(cvm::HIGH, "[UC_HELPER] new backdoor write request at {:#x}", wt.addr);
+    cvm::log(cvm::FULL, "[UC_HELPER] new backdoor write request at {:#x}", wt.addr);
                 if (this->dev(wt.addr))
                     cvm::registry::messenger.signal<device::write_t>(this->loc_, {wt});
 
@@ -314,6 +332,7 @@ sysmod::reset() {
   load_prog(FLAGS_hex, FLAGS_load, FLAGS_load_lz4);
   load_io(FLAGS_load_io);
   load_boot(FLAGS_bootrom_path);
+  load_cplfw(FLAGS_cplfw_path);
 }
 
 void
@@ -403,6 +422,9 @@ sysmod::compose()
             [&](smc_xtor::smc_info_t i) { return this->smc_info_handler(i); });
         assert(masters.size() > 0);
         device = std::make_unique<smc_xtor>(tag, base, size, loc_, smc_master[0]);
+        cvm::registry::messenger.connect<smc_xtor::smc_xtor_read_t>(
+            loc_,
+            [&](smc_xtor::smc_xtor_read_t i) { return this->smc_read_req_router(i); });
       }
       else if (type == "aplic_mmr") {
         // TODO: cvm::ERROR
@@ -582,13 +604,33 @@ sysmod::load_boot(const std::string& boot)
   }
 }
 
+void
+sysmod::load_cplfw(const std::string& cplfw)
+{
+  if (cplfw != "") {
+    cvm::log(cvm::MEDIUM, "Loading {}\n", cplfw);
+    if (cplfw.substr(cplfw.length() - 3) == "elf") {
+      if (not dev("memory") or not dynamic_cast<sysmod_mem&>(*dev("memory")).init_elf(cplfw)) {
+        cvm::log(cvm::ERROR, "No cpl firmware defined");
+        return;
+      }
+    }
+    if (cplfw.substr(cplfw.length() - 3) == "hex") {
+      if (not dev("memory") or not dynamic_cast<sysmod_mem&>(*dev("memory")).init_hex(cplfw)) {
+        cvm::log(cvm::ERROR, "No cpl firmware defined");
+        return;
+      }
+    }
+  }
+}
+
 void sysmod::jtag_resp(std::bitset<70> rdata){
   auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0);
   std::vector<uint64_t> convertedArray = bitsetToUint64Array(rdata);
-  cvm::log(cvm::HIGH, "[SYSMOD.CPP] In JTAG RESP converted array size = {}\n", convertedArray.size());
+  cvm::log(cvm::FULL, "[SYSMOD.CPP] In JTAG RESP converted array size = {}\n", convertedArray.size());
   
   for (uint64_t num : convertedArray) {
-        cvm::log(cvm::HIGH, "[SYSMOD.CPP] In JTAG RESP converted array element = {}\n", num);
+        cvm::log(cvm::FULL, "[SYSMOD.CPP] In JTAG RESP converted array element = {}\n", num);
   }
   
   cvm::registry::messenger.signal(tbox_loc, jtag_driver::jtag_req_t{0, 0,0,convertedArray[0],0});
@@ -619,13 +661,6 @@ sysmod::jtag_tick(uint64_t advance)
 {
 
   jtag_ticks_ += advance;
-
-  // advance = 0;
-  // if (ticks_ >= FLAGS_sysmod_tick_update_threshold)  {
-  //     auto rem = ticks_ % FLAGS_sysmod_tick_update_threshold;
-  //     advance  = ticks_ - rem;
-  //     ticks_   = rem;
-  // }
 
    if (advance) {
        for (auto& d : devices_) {

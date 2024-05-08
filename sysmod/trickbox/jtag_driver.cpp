@@ -123,6 +123,8 @@ void jtag_driver::parse_jtag_from_csv()
          jtag_req.jtag_cmd = 6;
       }else if(jtag_cmd == "qt"){ //loop end, checkbitNum, CheckbitValue
          jtag_req.jtag_cmd = 7;
+      }else if (jtag_cmd == "//"){
+        continue; // skip line may be comment
       }
       else{
         cvm::log(cvm::ERROR, "Error: unknown command {} in jtag cfg file {}\n",jtag_cmd, FLAGS_jtag_input_file_path);
@@ -227,9 +229,9 @@ void jtag_driver::drive_csv_jtag_cmds()
     }
     if(jtag_cmd == 7){  //JTAG quit, signal to end simulation once csv ends
  
-      cvm::log(cvm::ERROR, "[JTAGDRIVER] ******************* \n");
-      cvm::log(cvm::ERROR, "[JTAGDRIVER] Sending Quit signal \n");
-      cvm::log(cvm::ERROR, "[JTAGDRIVER] ******************* \n");
+      cvm::log(cvm::HIGH, "[JTAGDRIVER] ******************* \n");
+      cvm::log(cvm::HIGH, "[JTAGDRIVER] Sending Quit signal \n");
+      cvm::log(cvm::HIGH, "[JTAGDRIVER] ******************* \n");
       trickboxJtagWrite(hart, jtag_cmd, 0, 0,0,1);
     
     }
@@ -241,7 +243,7 @@ void jtag_driver::drive_csv_jtag_cmds()
        cvm::log(cvm::HIGH, "[JTAGDRIVER] jtag check opcode Passed! expected {:#x} got {:#x} \n", lower_jtag_data,loop_rdata);
       }else{
        //FAIL
-       cvm::log(cvm::ERROR, "[JTAGDRIVER] jtag check opcode failed! expected {:#x} got {:#x} \n", lower_jtag_data,loop_rdata);
+       cvm::log(cvm::ERROR, "ERROR: [JTAGDRIVER] jtag check opcode failed! expected {:#x} got {:#x} \n", lower_jtag_data,loop_rdata);
       }
       jtag_cmd_q.pop(); // pop front eleme7t
     }

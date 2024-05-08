@@ -157,10 +157,14 @@ cvm::messenger::task<void> axi::operator()() {
             if (1) {
                 addr_t start  = (addr / strobe_width()) * strobe_width() + lower_byte_lane;
                 addr_t len    = upper_byte_lane - lower_byte_lane + 1;
-
+                
+                std::string d;
                 axi::data_t read_data;
                 if (!a.w || a.atop.transaction != NON_ATOMIC) {
                     read_data = co_await transactor::read(id, start, len);
+                    for (size_t i=0; i<read_data.size(); i++)
+                        d += fmt::format("{:02x}", read_data[i]);
+                    cvm::log(cvm::FULL, "[axi] r: id={}, last={}, len={}, size={}, data={}\n", a.id, last, len, read_data.size(), d);
                     read_data.resize(data_bus_bytes, 0);
                 }
 
@@ -201,6 +205,10 @@ cvm::messenger::task<void> axi::operator()() {
                             std::next(std::begin(read_data), data_bus_bytes - lower_byte_lane),
                             std::end(read_data)
                             );
+                  
+                    for (size_t i=0; i<read_data.size(); i++)
+                        d += fmt::format("{:02x}", read_data[i]);
+                    cvm::log(cvm::FULL, "[axi] after rotate: r: id={}, last={}, len={}, data={}\n", a.id, last, read_data.size(), d);
                     r_q_.enqueue(r_t(a.id, a.lock ? RESP_EXOKAY : RESP_OKAY, read_data, last));
                 }
             }

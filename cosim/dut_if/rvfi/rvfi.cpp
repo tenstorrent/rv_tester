@@ -61,7 +61,6 @@ rvfi::~rvfi() {
 }
 
 void rvfi::init() {
-  eot_ = std::make_unique<eot>(loc_);;
 
   if (FLAGS_cosim) {
     cvm::log(cvm::MEDIUM, "[RVFI loc {} id{}] Constructing bridge...\n", loc_, id_);
@@ -69,6 +68,8 @@ void rvfi::init() {
     bridge_ = std::make_unique<bridge>(cvm::topology::attr(platform_loc, "NHARTS").second, xlen, vlen, loc_, id_);
     bridge_->reset();
     count_ = 1;
+  } else {
+    cvm::log(cvm::MEDIUM, "Running with cosim is disabled\n");
   }
 }
 
@@ -98,9 +99,9 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   instrs_.push_back(instr);
   if (m_rvfi.last_insn) {
     rv_instr_group_t group;
-    group.cycle = instr.cycle;
+    group.cycle  = instr.cycle;
     group.instrs = instrs_;
-    group.csrs = hw_csrs_;
+    group.csrs   = hw_csrs_;
 
     send_instr_group(instr.hart, group);
 
@@ -184,7 +185,6 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
     cvm::log(cvm::HIGH, "start time: {}\n", std::ctime(&now));
     started = false;
   }
-
 
   // Metadata
   instr.valid = true;
@@ -357,7 +357,7 @@ void rvfi::print_csr(csr_t& csr) {
   log(cvm::NONE, "#NA {} {} {} {:016x} {:09x} c {:016x} {:016x} {:016x} (hw update)\n", csr.cycle, csr.hart, priv_to_string.at(static_cast<priv>(priv_)), 0, 0, csr.csr_addr, csr.csr_wdata, csr.csr_wmask);
 }
 
-void rvfi::print_instr(rv_instr_t& instr) {
+void rvfi::print_instr(const rv_instr_t& instr) {
   if (!FLAGS_rvfi_log) {
     return;
   }
@@ -397,7 +397,7 @@ void rvfi::print_instr(rv_instr_t& instr) {
       print_instr_resource(instr, fmt::format(" c {:016x} {:016x} {:016x}", c.csr_addr, c.csr_wdata, c.csr_wmask));
 }
 
-void rvfi::print_instr_resource(rv_instr_t& instr, std::string resource_str) {
+void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_str) {
   log(cvm::NONE, "#{} {} {} {} {:016x}", FLAGS_mcm ? instr.tag : instr.id, instr.cycle, instr.hart, priv_to_string.at(static_cast<priv>(instr.priv)),
      instr.pc.pc_rdata);
 
@@ -539,14 +539,14 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
     return;
 
   mem_t m;
-  m.valid = true;
-  m.hart = m_mcmi_read.hart;
-  m.cycle = m_mcmi_read.cycle;
-  m.tag = m_mcmi_read.order;
-  m.pa = m_mcmi_read.addr;
-  m.size = std::popcount(m_mcmi_read.mask);
-  m.data = m_mcmi_read.data;
-  m.amo = m_mcmi_read.amo;
+  m.valid  = true;
+  m.hart   = m_mcmi_read.hart;
+  m.cycle  = m_mcmi_read.cycle;
+  m.tag    = m_mcmi_read.order;
+  m.pa     = m_mcmi_read.addr;
+  m.size   = std::popcount(m_mcmi_read.mask);
+  m.data   = m_mcmi_read.data;
+  m.amo    = m_mcmi_read.amo;
   m.amo_op = m_mcmi_read.amo_op;
 
   // Handle SC
@@ -581,10 +581,10 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
   mem_t m;
   m.valid = true;
   m.cycle = m_mcmi_insert.cycle;
-  m.tag = m_mcmi_insert.order;
-  m.pa = m_mcmi_insert.addr;
-  m.size = std::popcount(m_mcmi_insert.mask);
-  m.data = m_mcmi_insert.data;
+  m.tag   = m_mcmi_insert.order;
+  m.pa    = m_mcmi_insert.addr;
+  m.size  = std::popcount(m_mcmi_insert.mask);
+  m.data  = m_mcmi_insert.data;
 
   bridge_->process_dut_mcm_insert(m_mcmi_insert.hart, m);
 }
@@ -597,14 +597,14 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
     return;
 
   mem_t m;
-  m.valid = true;
-  m.hart = m_mcmi_bypass.hart;
-  m.cycle = m_mcmi_bypass.cycle;
-  m.tag = m_mcmi_bypass.order;
-  m.pa = m_mcmi_bypass.addr;
-  m.size = std::popcount(m_mcmi_bypass.mask);
-  m.data = m_mcmi_bypass.data;
-  m.amo = m_mcmi_bypass.amo;
+  m.valid  = true;
+  m.hart   = m_mcmi_bypass.hart;
+  m.cycle  = m_mcmi_bypass.cycle;
+  m.tag    = m_mcmi_bypass.order;
+  m.pa     = m_mcmi_bypass.addr;
+  m.size   = std::popcount(m_mcmi_bypass.mask);
+  m.data   = m_mcmi_bypass.data;
+  m.amo    = m_mcmi_bypass.amo;
   m.amo_op = m_mcmi_bypass.amo_op;
 
   if (m.amo && m.amo_op != SC && FLAGS_emulate_amo_arithmetic) {
@@ -791,7 +791,7 @@ void rvfi::process(const rv_tester::terminate_called&) {
 }
 
 
-std::string rvfi::mem_attr_to_string(uint8_t mem_attr) {
+std::string rvfi::mem_attr_to_string(uint32_t mem_attr) {
     std::string result;
     result += (mem_attr & 0x800) ? "io," : "mem,";
     result += (mem_attr & 0x1000) ? "c"   : "nc";
@@ -800,8 +800,8 @@ std::string rvfi::mem_attr_to_string(uint8_t mem_attr) {
 };
 
 extern "C" {
-    void cosim_set_scope(cvm::topology::loc_t loc) {
-      svScope scope = svGetScope();
-      cvm::registry::messenger.signal<svScope>(loc, scope);
-    }
+  void cosim_set_scope(cvm::topology::loc_t loc) {
+    svScope scope = svGetScope();
+    cvm::registry::messenger.signal<svScope>(loc, scope);
+  }
 }

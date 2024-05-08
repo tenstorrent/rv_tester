@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <string_view>
 
 #include "cvm/plusargs.hpp"
@@ -22,7 +23,9 @@ DEFINE_bool(bypass_mem, true, "Bypass xbar+cache switch");
 DEFINE_bool(bypass_cache, false, "Bypass cache switch");
 DEFINE_int32(num_reruns, 0, "Rerun the same test this many times, to test test chaining for emulation. The test is run for a total of N+1 times.");
 DEFINE_bool(trace_en, false, "Set this while running trace test");
+DEFINE_bool(overlay_mmr_en, false, "Set this while running overlay test");
 DEFINE_bool(jtag_en, false, "Set this while running jtag test");
+DEFINE_bool(smc_sweep_test ,false, "Set this while running small core sram sweep test");
 DEFINE_int32(trace_timeout, 50000, "trace test end timeout after to host end call");
 DEFINE_validator(num_reruns, &validate_ge0);
 DEFINE_string(gen_clocks_verbosity, "DEBUG", "verbosity at which to generate clocks with cvm::logger prints");
@@ -66,6 +69,14 @@ class logger_instrument {
 };
 
 extern "C" {
+
+    void rv_tester_streaming_dpi_init() {
+        char *env_var = std::getenv("ZEBU_OFFLINE_DPI");
+        if (env_var != nullptr && std::string(env_var) == "1") {
+            cvm::plusargs::parse();
+            cvm::log(cvm::NONE, "Initialize Offline DPI");
+        }
+    }
 
     int rv_tester_parse_flags() {
         cvm::plusargs::parse();
