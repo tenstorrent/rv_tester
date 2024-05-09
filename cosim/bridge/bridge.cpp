@@ -1,4 +1,5 @@
 // Licensed under the Apache License, Version 2.0, see LICENSE.TT for details
+// vim: ft=c et ts=2 sw=0 sts
 
 #include "bridge.h"
 #include "util.h"
