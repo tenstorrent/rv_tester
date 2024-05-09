@@ -1273,6 +1273,7 @@ void bridge::process_dut_mcm_insert(hart_id_t hart, mem_t& m) {
 // Process mem accesses - store bypass_writes
 void bridge::process_dut_mcm_bypass(hart_id_t hart, mem_t& m) {
   bool valid = false;
+
   if (!client_->whisperMcmBypass(hart, m.cycle, m.tag, m.pa, m.size, m.data, valid)) {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed mcm store bypass\n", hart);
     return;
