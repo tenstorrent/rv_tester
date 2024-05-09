@@ -68,7 +68,7 @@ submodule_update:
         - .submodule-update-template
 
 infra_update:
-    stage: sha_update
+    stage: submodule_update
     extends:
         - .infra-update-template
 
