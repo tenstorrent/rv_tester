@@ -199,9 +199,6 @@ private:
   bool post_undeferred_intr_;
   std::array<uint32_t, max_intr> intr_age_{};
   uint32_t max_pend_intr_age_ = 0;
-  uint64_t imsic_m_file_start_ = 0x40000000;
-  uint64_t imsic_s_file_start_ = 0x44000000;
-  uint64_t imsic_file_size_ = 0x2000000;
 
   // Memmap
   memmap::memmap_t memmap_;
