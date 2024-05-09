@@ -67,6 +67,11 @@ submodule_update:
     extends:
         - .submodule-update-template
 
+infra_update:
+    stage: sha_update
+    extends:
+        - .infra-update-template
+
 container_update:
     stage: submodule_update
     extends:
