@@ -1,3 +1,5 @@
+// vim: ft=c et ts=2 sw=0 sts
+
 #include <iostream>
 #include <fstream>
 #include <cstring>
@@ -319,6 +321,21 @@ whisperClient<URV>::whisperPeekCsr(int hart, uint64_t addr, uint64_t& value, uin
   value = reply.value;
   mask = reply.address;
   poke_mask = reply.time;
+  return true;
+}
+
+template <typename URV>
+bool
+whisperClient<URV>::whisperPeekPc(int hart, uint64_t& value)
+{
+  req.hart = hart;
+  req.type = WhisperMessageType::Peek;
+  req.resource = 'p';
+
+  if (not whisperCommand(req, reply))
+    return false;
+
+  value = reply.value;
   return true;
 }
 
