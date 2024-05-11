@@ -124,6 +124,9 @@ constructSystem(uint16_t ncores, bool standalone, bool firmware) {
     hart.reset();
   }
 
+  if (not config.applyImsicConfig(*system))
+    return nullptr;
+
   return system;
 }
 
