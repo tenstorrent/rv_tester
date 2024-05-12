@@ -1029,6 +1029,10 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
   void process(const rv_tester::terminate_called_fast &);
   std::string trigger_str(const rv_tester_transactions::pmu::pmcounters<> &pmcounters);
 
+  bool shutdown_ready() {
+    return terminated_ and not sync_terminate_;
+  };
+
 private:
   cvm::file_logger log;
   cvm::topology::loc_t loc_;
@@ -1040,6 +1044,6 @@ private:
   uint64_t perf_end_cycle = 0;
   std::vector<uint64_t> perf_region;
 
-  bool terminated_ = false;
-  bool sync_terminate_ = false;
+  std::atomic<bool> terminated_ = false;
+  std::atomic<bool> sync_terminate_ = false;
 };
