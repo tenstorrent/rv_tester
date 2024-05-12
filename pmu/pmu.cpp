@@ -145,3 +145,12 @@ pmu::ipc_check()
     cvm::log(cvm::NONE, "IPC check passed. Act: {:.2f} Exp: {:.2f} Tolerance: {} %\n", ipc_actual, FLAGS_ipc_expected, FLAGS_ipc_tolerance_perc);
   }
 }
+
+bool
+pmu::shutdown_ready()
+{
+  if (FLAGS_perf)
+    return terminated_ and not sync_terminate_;
+  else
+    return true;
+}

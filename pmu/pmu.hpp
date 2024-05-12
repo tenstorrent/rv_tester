@@ -1029,9 +1029,7 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
   void process(const rv_tester::terminate_called_fast &);
   std::string trigger_str(const rv_tester_transactions::pmu::pmcounters<> &pmcounters);
 
-  bool shutdown_ready() {
-    return terminated_ and not sync_terminate_;
-  };
+  bool shutdown_ready();
 
 private:
   cvm::file_logger log;
