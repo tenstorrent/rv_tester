@@ -19,6 +19,7 @@
 #include <cstdlib>          // system
 #include <vector>
 #include <fmt/format.h>
+#include <random>
 
 // Plusargs
 DECLARE_string(bootrom_path);
@@ -29,6 +30,7 @@ DECLARE_bool(mcm);
 DECLARE_uint64(debug_entry_pc);
 DECLARE_uint64(debug_exit_pc);
 DECLARE_uint64(hart_enable_mask);
+DECLARE_uint32(num_harts);
 DECLARE_bool(random_intr);
 DECLARE_bool(random_imsic_intr);
 
@@ -113,6 +115,23 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
     if(FLAGS_max_stall_cycle < (nharts*3000 + 7000)){
         FLAGS_max_stall_cycle = nharts*3000 + 7000;
         cvm::log(cvm::LOW, "Overwriting max_stall_cycle to {} cycles\n",FLAGS_max_stall_cycle );
+    }
+    // Overwrite hart_enable_mask in a random fashion based on num_harts run-arg
+    // Do this only when hart_enable_mask run-arg is 0x1 (default value)
+    if(FLAGS_hart_enable_mask == 0x1){
+      std::random_device rd;
+      std::mt19937 gen(rd());
+      std::uniform_int_distribution<> dis(0, 7);
+      unsigned char hart_enable_mask = 0;
+      for (uint32_t i = 0; i < FLAGS_num_harts; ++i) {
+          int bit_position;
+          do {
+              bit_position = dis(gen);
+          } while ((hart_enable_mask >> bit_position) & 1); // Check if the bit is already set
+          hart_enable_mask |= (1 << bit_position);
+      }
+      FLAGS_hart_enable_mask = hart_enable_mask;
+      cvm::log(cvm::LOW, "Overwriting hart_enable_mask to 0x{:x}\n", FLAGS_hart_enable_mask);
     }
 }
 
