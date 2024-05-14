@@ -20,7 +20,7 @@ class smc_xtor : public device {
 
     private:
 
-        bool end_test=0;
+       //bool end_test=0;
         mem_manager m_;
         cvm::topology::loc_t axi_mst_loc_l;
         cvm::messenger::pool<axi::r_t>::channel_info channel;
@@ -150,87 +150,87 @@ class smc_xtor : public device {
             }
 
 
-            if(start_smc_cnt == 0){
-              start_smc_cnt = (rng()% 5) + 25;
-              // reset_completion = true;
-              if(FLAGS_smc_en){
-                cvm::log(cvm::LOW, "[SMC] Enable switch is set");
-              }
-            }
+            // if(start_smc_cnt == 0){
+            //   start_smc_cnt = (rng()% 5) + 25;
+            //   // reset_completion = true;
+            //   if(FLAGS_smc_en){
+            //     cvm::log(cvm::LOW, "[SMC] Enable switch is set");
+            //   }
+            // }
             
-            cvm::log(cvm::FULL, "[SMC] tick {:#X} start_smc_cnt {} \n",cnt_tick,start_smc_cnt);
+            //cvm::log(cvm::FULL, "[SMC] tick {:#X} start_smc_cnt {} \n",cnt_tick,start_smc_cnt);
            
             if(smc_wr_txn_q.size() > 0) axi_write();
 
             // cvm::log(cvm::HIGH, "[SMC] tick {:#X} \n",cnt_tick);
 
-            if(reset_completion && FLAGS_smc_sweep_test){
-                if(end_test==1) complete_smc_test();
+            // if(reset_completion && FLAGS_smc_sweep_test){
+            //     if(end_test==1) complete_smc_test();
 
-                if(cnt_tick==start_smc_cnt) push_smc_sram_write_seq();
-                // if(smc_wr_txn_q.size() > 0) axi_write();
-                if(cnt_tick==(start_smc_cnt+21) ) axi_read(CPL_SRAM_BASE,8,4);;
-                if(cnt_tick==(start_smc_cnt+22) ) axi_read(CPL_SRAM_BASE+0x8,8,4);;
+            //     if(cnt_tick==start_smc_cnt) push_smc_sram_write_seq();
+            //     // if(smc_wr_txn_q.size() > 0) axi_write();
+            //     if(cnt_tick==(start_smc_cnt+21) ) axi_read(CPL_SRAM_BASE,8,4);;
+            //     if(cnt_tick==(start_smc_cnt+22) ) axi_read(CPL_SRAM_BASE+0x8,8,4);;
 
-                while((smc_read_resp_q.size() >0) ){
-                  print_read_request(smc_read_resp_q.front());
-                  smc_read_resp_q.pop();
-                  cvm::log(cvm::HIGH, "[security test] queue size {} \n",smc_read_resp_q.size());
-                  if(smc_read_resp_q.size() == 0){
-                    end_test = 1;
-                    cvm::log(cvm::HIGH, "[security test] write and read check to small core sram ended\n");
-                }
-              }
-            }
+            //     while((smc_read_resp_q.size() >0) ){
+            //       print_read_request(smc_read_resp_q.front());
+            //       smc_read_resp_q.pop();
+            //       cvm::log(cvm::HIGH, "[security test] queue size {} \n",smc_read_resp_q.size());
+            //       if(smc_read_resp_q.size() == 0){
+            //         end_test = 1;
+            //         cvm::log(cvm::HIGH, "[security test] write and read check to small core sram ended\n");
+            //     }
+            //   }
+            // }
 
             cnt_tick ++;
         }
         
-        void print_read_request(const smc_xtor_read_req_t &request) {
+        // void print_read_request(const smc_xtor_read_req_t &request) {
            
             
-            std::stringstream ss;
+        //     std::stringstream ss;
 
-            for (const auto &byte : request.data) {
-                ss << static_cast<int>(byte) << " ";
-            }
+        //     for (const auto &byte : request.data) {
+        //         ss << static_cast<int>(byte) << " ";
+        //     }
 
    
-            std::string output = ss.str();
-            ss.clear();
-            ss.str("");
+        //     std::string output = ss.str();
+        //     ss.clear();
+        //     ss.str("");
 
-            for (const auto &bit : request.strb) {
-                ss <<  bit << " ";
-            }
-            std::string output2 = ss.str();
-            cvm::log(cvm::FULL,"Data: {} \n",output);
-            cvm::log(cvm::FULL,"STRB: {} \n",output2);
-        }
+        //     for (const auto &bit : request.strb) {
+        //         ss <<  bit << " ";
+        //     }
+        //     std::string output2 = ss.str();
+        //     cvm::log(cvm::FULL,"Data: {} \n",output);
+        //     cvm::log(cvm::FULL,"STRB: {} \n",output2);
+        // }
 
         void push_smc_enable_seq() {
           cvm::log(cvm::FULL, "[smc_xtor] smc_xtor inside enable smc seq\n");
           cvm::log(cvm::FULL, "[smc_xtor] smc_xtor completed enable smc seq\n");
         }
 
-        void push_smc_sram_write_seq() {
-          cvm::log(cvm::HIGH, "[smc_xtor] smc_xtor sram write seq\n");
-          write_ram = (rng()%0xFFFFFFFFFFFFFFFF);
-          for(int i = 0; i < 8;i++){
-            smc_wr_txn_q.push({CPL_SRAM_BASE+i*8 ,0xFFFFFFFFFFFFFFFF});
-          }
+        // void push_smc_sram_write_seq() {
+        //   cvm::log(cvm::HIGH, "[smc_xtor] smc_xtor sram write seq\n");
+        //   write_ram = (rng()%0xFFFFFFFFFFFFFFFF);
+        //   for(int i = 0; i < 8;i++){
+        //     smc_wr_txn_q.push({CPL_SRAM_BASE+i*8 ,0xFFFFFFFFFFFFFFFF});
+        //   }
 
-          for(int i = 200; i < 212;i++){
-            write_ram = (rng()%0xFFFFFFFFFFFFFFFF);
-            smc_wr_txn_q.push({CPL_SRAM_BASE+i*8 ,write_ram});
-          }
+        //   for(int i = 200; i < 212;i++){
+        //     write_ram = (rng()%0xFFFFFFFFFFFFFFFF);
+        //     smc_wr_txn_q.push({CPL_SRAM_BASE+i*8 ,write_ram});
+        //   }
 
-          for(int i = 504; i < 511;i++){
-            write_ram = (rng()%0xFFFFFFFFFFFFFFFF);
-            smc_wr_txn_q.push({CPL_SRAM_BASE+i*8 ,write_ram});
-          }
-          cvm::log(cvm::HIGH, "[smc_xtor] smc_xtor sram write seq\n");
-        }
+        //   for(int i = 504; i < 511;i++){
+        //     write_ram = (rng()%0xFFFFFFFFFFFFFFFF);
+        //     smc_wr_txn_q.push({CPL_SRAM_BASE+i*8 ,write_ram});
+        //   }
+        //   cvm::log(cvm::HIGH, "[smc_xtor] smc_xtor sram write seq\n");
+        // }
         
         void push_smc_boot_seq() {
           //Write 0x10 in 0xc000_300C // Clears cold power up done interrupt
