@@ -150,7 +150,11 @@ bool
 pmu::shutdown_ready()
 {
   if (FLAGS_perf)
-    return terminated_ and not sync_terminate_;
+    {
+      if (not terminated_)
+        cvm::log(cvm::ERROR, "Error: [PMU] asking for shutdown without termination.\n");
+      return terminated_ and not sync_terminate_;
+    }
   else
     return true;
 }
