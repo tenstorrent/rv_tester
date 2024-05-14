@@ -20,7 +20,7 @@ class smc_xtor : public device {
 
     private:
 
-        bool end_test=0;
+       //bool end_test=0;
         mem_manager m_;
         cvm::topology::loc_t axi_mst_loc_l;
         cvm::messenger::pool<axi::r_t>::channel_info channel;
