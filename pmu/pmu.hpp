@@ -37,9 +37,9 @@ public:
       STALLS_INDIRECT_MISS,
       //Event (speculative) for each cycle BPM1 mux is stalled due to a miss in instruction cache
       STALLS_ICACHE_MISS,
-      //Event (speculative) for each cycle BPM1 mux is stalled due to a miss in the ITLB
+      //Event (speculative) for each cycle BPM1 mux is stalled due to a miss in the IC
       STALLS_ITLB_MISS,
-      //Event (speculative) for each cycle BPM1 mux is stalled due to i-side request buffers full ITLB/I$
+      //Event (speculative) for each cycle BPM1 mux is stalled due to i-side request buffers full IC/I$
       STALLS_IRB_FULL,
       //Event (speculative) for each cycle BPM1 mux is stalled due to full IFBUF
       STALLS_IFBUF_FULL,
@@ -123,54 +123,68 @@ public:
       CYCLES_NO_VM_PRN,
       //Event (speculative) for each cycle Mapper is stalled due to no reorder buffer entries
       CYCLES_NO_ROB,
-      //Event for retired branch instructions. Branch instructions are all control instructions -- conditional and unconditional / direct and indirect jumps
-      BRANCH_INSTRUCTIONS,
-      //Event for each retiring operation
-      UOP_RETIRED,
-      //Event for every retired Load operation
-      LD_RETIRED,
-      //Event for every retired Store operation
-      ST_RETIRED,
-      //Event for every retired integer operation. This does not include Load or Store operations
-      INT_RETIRED,
-      //Event for every retired CSR operation
-      CSR_RETIRED,
+      //Event for each retired direct control flow instruction
+      OP_RETIRED_DIRECT_BRANCH,
       //Event for each retired control flow instruction that uses the return address stack for prediction
-      BR_RET_RETIRED,
+      OP_RETIRED_RET_BRANCH,
       //Event for each retired indirect control flow instruction that uses the Branch Target Predictor for prediction. Return instructions are not included
-      IND_BR_RETIRED,
+      OP_RETIRED_INDIRECT_BRANCH,
       //Event for each retired conditional control flow instruction that uses the Branch Direction Predictor
-      REL_BR_RETIRED,
+      OP_RETIRED_COND_BRANCH,
+      //Event for every retired Load operation
+      OP_RETIRED_LD,
+      //Event for every retired Store operation
+      OP_RETIRED_ST,
+      //Event for every retired integer operation. This does not include Load or Store operations
+      OP_RETIRED_INT,
+      //Event for every retired CSR operation
+      OP_RETIRED_CSR,
       //Event for every retired floating point operation. This does not include Load or Store operations
-      FP_RETIRED,
+      OP_RETIRED_FP,
       //Event for every retired vector operation. This does not include Load or Store operations
-      VEC_RETIRED,
-      //Event for every retired transfer(int->fp; int->vec; vec->int; fp->int; fp->vec; vec->fp) operation
-      XFER_RETIRED,
-      //Event for each confirmed operation
-      UOP_CONFIRMED,
-      //Event (speculative) for each int affinity op issuing. Multiple issues per cycle should be precisely counted
-      UOP_ISSUED_INT,
-      //Event (speculative) for each ls affinity op issuing. Multiple issues per cycle should be precisely counted
-      UOP_ISSUED_LDST,
-      //Event (speculative) for each fp affinity op issuing. Multiple issues per cycle should be precisely counted
-      UOP_ISSUED_FP,
-      //Event (speculative) for each vec affinity op issuing. Multiple issues per cycle should be precisely counted
-      UOP_ISSUED_VEC,
-      //Event (speculative) for every confirmed direct Branch
-      BR_DIRECT_SPEC,
-      //Event (speculative) for every confirmed indirect Branch
-      BR_INDIRECT_SPEC,
-      //Event (speculative) for every confirmed Return-type operation
-      BR_RET_SPEC,
+      OP_RETIRED_VEC,
+      //Event (speculative) for every confirmed load operation. This does not include Load or Store operations
+      OP_COMPLETE_LD,
+      //Event (speculative) for every confirmed store operation. This does not include Load or Store operations
+      OP_COMPLETE_ST,
       //Event (speculative) for every confirmed integer operation. This does not include Load or Store operations
-      INT_EXECUTED,
+      OP_COMPLETE_INT,
       //Event (speculative) for every confirmed floating point operation. This does not include Load or Store operations.
-      FP_EXECUTED,
+      OP_COMPLETE_FP,
       //Event (speculative) for every confirmed vector point operation. This does not include Load or Store operations.
-      VEC_EXECUTED,
-      //Event for each compressed instruction that is retired
-      COMPRESSED_INSTRET,
+      OP_COMPLETE_VEC,
+      //Event (speculative) for pipe 0 issuing. Multiple issues per cycle should be precisely counted
+      OP_ISSUED_PIPE0,
+      //Event (speculative) for pipe 1 issuing. Multiple issues per cycle should be precisely counted
+      OP_ISSUED_PIPE1,
+      //Event (speculative) for pipe 2 issuing. Multiple issues per cycle should be precisely counted
+      OP_ISSUED_PIPE2,
+      //Event (speculative) for pipe 3 issuing. Multiple issues per cycle should be precisely counted
+      OP_ISSUED_PIPE3,
+      //Event (speculative) for pipe 4 issuing. Multiple issues per cycle should be precisely counted
+      OP_ISSUED_PIPE4,
+      //Event (speculative) for pipe 5 issuing. Multiple issues per cycle should be precisely counted
+      OP_ISSUED_PIPE5,
+      //Event (speculative) for pipe 6 issuing. Multiple issues per cycle should be precisely counted
+      OP_ISSUED_PIPE6,
+      //Event (speculative) for pipe 7 issuing. Multiple issues per cycle should be precisely counted
+      OP_ISSUED_PIPE7,
+      //Event (speculative) for pipe 8 issuing. Multiple issues per cycle should be precisely counted
+      OP_ISSUED_PIPE8,
+      //Event (speculative) for pipe 9 issuing. Multiple issues per cycle should be precisely counted
+      OP_ISSUED_PIPE9,
+      //Event (speculative) for pipe 10 issuing. Multiple issues per cycle should be precisely counted
+      OP_ISSUED_PIPE10,
+      //Event (speculative) for pipe 11 issuing. Multiple issues per cycle should be precisely counted
+      OP_ISSUED_PIPE11,
+      //Event (speculative) for pipe 12 issuing. Multiple issues per cycle should be precisely counted
+      OP_ISSUED_PIPE12,
+      //Event (speculative) for pipe 13 issuing. Multiple issues per cycle should be precisely counted
+      OP_ISSUED_PIPE13,
+      //Event (speculative) for pipe 14 issuing. Multiple issues per cycle should be precisely counted
+      OP_ISSUED_PIPE14,
+      //Event (speculative) for pipe 15 issuing. Multiple issues per cycle should be precisely counted
+      OP_ISSUED_PIPE15,
       //The count will represent all the requests made to L1 I and D caches. Includes accesses made by Speculatively executed instructions and hardware prefetchers but does not include non-cacheable requests
       CACHE_REFERENCES,
       //Event for a request made to cache subsystem that misses in L1 I and D caches. Includes accesses made by Speculatively executed instructions and hardware prefetchers.  but does not include non-cacheable requests
@@ -267,24 +281,32 @@ public:
       LEAF_TLB_ACCESS_FE,
       //Event for leaf TLB access (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
       LEAF_TLB_ACCESS_PREFETCH,
+      //Event for leaf TLB access (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
+      LEAF_TLB_ACCESS_ALL,
       //Event for leaf TLB miss (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
       LEAF_TLB_MISS_LS,
       //Event for leaf TLB miss (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
       LEAF_TLB_MISS_FE,
       //Event for leaf TLB miss (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
       LEAF_TLB_MISS_PREFETCH,
+      //Event for leaf TLB miss (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
+      LEAF_TLB_MISS_ALL,
       //Event for non-leaf TLB access (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
       NONLEAF_TLB_ACCESS_LS,
       //Event for non-leaf TLB access (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
       NONLEAF_TLB_ACCESS_FE,
       //Event for non-leaf TLB access (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
       NONLEAF_TLB_ACCESS_PREFETCH,
+      //Event for non-leaf TLB access (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
+      NONLEAF_TLB_ACCESS_ALL,
       //Event for non-leaf TLB miss (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
       NONLEAF_TLB_MISS_LS,
       //Event for non-leaf TLB miss (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
       NONLEAF_TLB_MISS_FE,
       //Event for non-leaf TLB miss (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
       NONLEAF_TLB_MISS_PREFETCH,
+      //Event for non-leaf TLB miss (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
+      NONLEAF_TLB_MISS_ALL,
       //Number of page walks initiated
       PAGE_WALKS,
       //Event (speculative) for every cycle the instruction picker has ops -- but does not pick -- and there is a pending L1D demand miss
@@ -297,8 +319,6 @@ public:
       LSU_RESYNCS_RAW,
       //Number of resyncs raised by LSU filtered by (RAW/RAR/All)
       LSU_RESYNCS_RAR,
-      //Number of resyncs raised by LSU filtered by (RAW/RAR/All)
-      LSU_RESYNCS_ALL,
       //Event (speculative) for every instance of a Store instruction forwarding data to a Load instruction
       STLF_HITS,
       //Event (speculative) for any condition triggering replay from LS (Filtered by Load/Store/Prefetch/MMU/All)
@@ -334,10 +354,6 @@ public:
       //Event (speculative) for any LS replay caused by STLF (Filtered by Load/Store/Prefetch/MMU/All)
       STLF_REPLAY_LOAD,
       //Event (speculative) for any LS replay caused by STLF (Filtered by Load/Store/Prefetch/MMU/All)
-      STLF_REPLAY_STORE,
-      //Event (speculative) for any LS replay caused by STLF (Filtered by Load/Store/Prefetch/MMU/All)
-      STLF_REPLAY_PREFETCH,
-      //Event (speculative) for any LS replay caused by STLF (Filtered by Load/Store/Prefetch/MMU/All)
       STLF_REPLAY_MMU,
       //Event (speculative) for any LS replay caused by STLF (Filtered by Load/Store/Prefetch/MMU/All)
       STLF_REPLAY_ALL,
@@ -366,8 +382,6 @@ public:
       //Event for any replay caused by hitting on a fillbuffer entry (Filtered by Load/Store/Prefetch/MMU/All)
       FILLBUF_HIT_REPLAY_STORE,
       //Event for any replay caused by hitting on a fillbuffer entry (Filtered by Load/Store/Prefetch/MMU/All)
-      FILLBUF_HIT_REPLAY_PREFETCH,
-      //Event for any replay caused by hitting on a fillbuffer entry (Filtered by Load/Store/Prefetch/MMU/All)
       FILLBUF_HIT_REPLAY_MMU,
       //Event for any replay caused by hitting on a fillbuffer entry (Filtered by Load/Store/Prefetch/MMU/All)
       FILLBUF_HIT_REPLAY_ALL,
@@ -385,8 +399,6 @@ public:
       REQBUF_HIT_REPLAY_LOAD,
       //Event for any replay caused by hitting on a reqbuf entry (Filtered by Load/Store/Prefetch/MMU/All)
       REQBUF_HIT_REPLAY_STORE,
-      //Event for any replay caused by hitting on a reqbuf entry (Filtered by Load/Store/Prefetch/MMU/All)
-      REQBUF_HIT_REPLAY_PREFETCH,
       //Event for any replay caused by hitting on a reqbuf entry (Filtered by Load/Store/Prefetch/MMU/All)
       REQBUF_HIT_REPLAY_MMU,
       //Event for any replay caused by hitting on a reqbuf entry (Filtered by Load/Store/Prefetch/MMU/All)
@@ -561,30 +573,37 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::CYCLES_NO_VL_PRN] = pmcounters.cycles_no_vl_prn;
       tmp[counter::CYCLES_NO_VM_PRN] = pmcounters.cycles_no_vm_prn;
       tmp[counter::CYCLES_NO_ROB] = pmcounters.cycles_no_rob;
-      tmp[counter::BRANCH_INSTRUCTIONS] = pmcounters.branch_instructions;
-      tmp[counter::UOP_RETIRED] = pmcounters.uop_retired;
-      tmp[counter::LD_RETIRED] = pmcounters.ld_retired;
-      tmp[counter::ST_RETIRED] = pmcounters.st_retired;
-      tmp[counter::INT_RETIRED] = pmcounters.int_retired;
-      tmp[counter::CSR_RETIRED] = pmcounters.csr_retired;
-      tmp[counter::BR_RET_RETIRED] = pmcounters.br_ret_retired;
-      tmp[counter::IND_BR_RETIRED] = pmcounters.ind_br_retired;
-      tmp[counter::REL_BR_RETIRED] = pmcounters.rel_br_retired;
-      tmp[counter::FP_RETIRED] = pmcounters.fp_retired;
-      tmp[counter::VEC_RETIRED] = pmcounters.vec_retired;
-      tmp[counter::XFER_RETIRED] = pmcounters.xfer_retired;
-      tmp[counter::UOP_CONFIRMED] = pmcounters.uop_confirmed;
-      tmp[counter::UOP_ISSUED_INT] = pmcounters.uop_issued_int;
-      tmp[counter::UOP_ISSUED_LDST] = pmcounters.uop_issued_ldst;
-      tmp[counter::UOP_ISSUED_FP] = pmcounters.uop_issued_fp;
-      tmp[counter::UOP_ISSUED_VEC] = pmcounters.uop_issued_vec;
-      tmp[counter::BR_DIRECT_SPEC] = pmcounters.br_direct_spec;
-      tmp[counter::BR_INDIRECT_SPEC] = pmcounters.br_indirect_spec;
-      tmp[counter::BR_RET_SPEC] = pmcounters.br_ret_spec;
-      tmp[counter::INT_EXECUTED] = pmcounters.int_executed;
-      tmp[counter::FP_EXECUTED] = pmcounters.fp_executed;
-      tmp[counter::VEC_EXECUTED] = pmcounters.vec_executed;
-      tmp[counter::COMPRESSED_INSTRET] = pmcounters.compressed_instret;
+      tmp[counter::OP_RETIRED_DIRECT_BRANCH] = pmcounters.op_retired_direct_branch;
+      tmp[counter::OP_RETIRED_RET_BRANCH] = pmcounters.op_retired_ret_branch;
+      tmp[counter::OP_RETIRED_INDIRECT_BRANCH] = pmcounters.op_retired_indirect_branch;
+      tmp[counter::OP_RETIRED_COND_BRANCH] = pmcounters.op_retired_cond_branch;
+      tmp[counter::OP_RETIRED_LD] = pmcounters.op_retired_ld;
+      tmp[counter::OP_RETIRED_ST] = pmcounters.op_retired_st;
+      tmp[counter::OP_RETIRED_INT] = pmcounters.op_retired_int;
+      tmp[counter::OP_RETIRED_CSR] = pmcounters.op_retired_csr;
+      tmp[counter::OP_RETIRED_FP] = pmcounters.op_retired_fp;
+      tmp[counter::OP_RETIRED_VEC] = pmcounters.op_retired_vec;
+      tmp[counter::OP_COMPLETE_LD] = pmcounters.op_complete_ld;
+      tmp[counter::OP_COMPLETE_ST] = pmcounters.op_complete_st;
+      tmp[counter::OP_COMPLETE_INT] = pmcounters.op_complete_int;
+      tmp[counter::OP_COMPLETE_FP] = pmcounters.op_complete_fp;
+      tmp[counter::OP_COMPLETE_VEC] = pmcounters.op_complete_vec;
+      tmp[counter::OP_ISSUED_PIPE0] = pmcounters.op_issued_pipe0;
+      tmp[counter::OP_ISSUED_PIPE1] = pmcounters.op_issued_pipe1;
+      tmp[counter::OP_ISSUED_PIPE2] = pmcounters.op_issued_pipe2;
+      tmp[counter::OP_ISSUED_PIPE3] = pmcounters.op_issued_pipe3;
+      tmp[counter::OP_ISSUED_PIPE4] = pmcounters.op_issued_pipe4;
+      tmp[counter::OP_ISSUED_PIPE5] = pmcounters.op_issued_pipe5;
+      tmp[counter::OP_ISSUED_PIPE6] = pmcounters.op_issued_pipe6;
+      tmp[counter::OP_ISSUED_PIPE7] = pmcounters.op_issued_pipe7;
+      tmp[counter::OP_ISSUED_PIPE8] = pmcounters.op_issued_pipe8;
+      tmp[counter::OP_ISSUED_PIPE9] = pmcounters.op_issued_pipe9;
+      tmp[counter::OP_ISSUED_PIPE10] = pmcounters.op_issued_pipe10;
+      tmp[counter::OP_ISSUED_PIPE11] = pmcounters.op_issued_pipe11;
+      tmp[counter::OP_ISSUED_PIPE12] = pmcounters.op_issued_pipe12;
+      tmp[counter::OP_ISSUED_PIPE13] = pmcounters.op_issued_pipe13;
+      tmp[counter::OP_ISSUED_PIPE14] = pmcounters.op_issued_pipe14;
+      tmp[counter::OP_ISSUED_PIPE15] = pmcounters.op_issued_pipe15;
       tmp[counter::CACHE_REFERENCES] = pmcounters.cache_references;
       tmp[counter::CACHE_MISSES] = pmcounters.cache_misses;
       tmp[counter::TLB_INVALIDATES] = pmcounters.tlb_invalidates;
@@ -633,22 +652,25 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::LEAF_TLB_ACCESS_LS] = pmcounters.leaf_tlb_access_ls;
       tmp[counter::LEAF_TLB_ACCESS_FE] = pmcounters.leaf_tlb_access_fe;
       tmp[counter::LEAF_TLB_ACCESS_PREFETCH] = pmcounters.leaf_tlb_access_prefetch;
+      tmp[counter::LEAF_TLB_ACCESS_ALL] = pmcounters.leaf_tlb_access_all;
       tmp[counter::LEAF_TLB_MISS_LS] = pmcounters.leaf_tlb_miss_ls;
       tmp[counter::LEAF_TLB_MISS_FE] = pmcounters.leaf_tlb_miss_fe;
       tmp[counter::LEAF_TLB_MISS_PREFETCH] = pmcounters.leaf_tlb_miss_prefetch;
+      tmp[counter::LEAF_TLB_MISS_ALL] = pmcounters.leaf_tlb_miss_all;
       tmp[counter::NONLEAF_TLB_ACCESS_LS] = pmcounters.nonleaf_tlb_access_ls;
       tmp[counter::NONLEAF_TLB_ACCESS_FE] = pmcounters.nonleaf_tlb_access_fe;
       tmp[counter::NONLEAF_TLB_ACCESS_PREFETCH] = pmcounters.nonleaf_tlb_access_prefetch;
+      tmp[counter::NONLEAF_TLB_ACCESS_ALL] = pmcounters.nonleaf_tlb_access_all;
       tmp[counter::NONLEAF_TLB_MISS_LS] = pmcounters.nonleaf_tlb_miss_ls;
       tmp[counter::NONLEAF_TLB_MISS_FE] = pmcounters.nonleaf_tlb_miss_fe;
       tmp[counter::NONLEAF_TLB_MISS_PREFETCH] = pmcounters.nonleaf_tlb_miss_prefetch;
+      tmp[counter::NONLEAF_TLB_MISS_ALL] = pmcounters.nonleaf_tlb_miss_all;
       tmp[counter::PAGE_WALKS] = pmcounters.page_walks;
       tmp[counter::STALLS_MEM_L1D_MISS] = pmcounters.stalls_mem_l1d_miss;
       tmp[counter::STALLS_MEM_STORES] = pmcounters.stalls_mem_stores;
       tmp[counter::STALLS_MEM_L1DTLB_MISS] = pmcounters.stalls_mem_l1dtlb_miss;
       tmp[counter::LSU_RESYNCS_RAW] = pmcounters.lsu_resyncs_raw;
       tmp[counter::LSU_RESYNCS_RAR] = pmcounters.lsu_resyncs_rar;
-      tmp[counter::LSU_RESYNCS_ALL] = pmcounters.lsu_resyncs_all;
       tmp[counter::STLF_HITS] = pmcounters.stlf_hits;
       tmp[counter::LS_REPLAY_LOAD] = pmcounters.ls_replay_load;
       tmp[counter::LS_REPLAY_STORE] = pmcounters.ls_replay_store;
@@ -666,8 +688,6 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::SIPT_REPLAY_MMU] = pmcounters.sipt_replay_mmu;
       tmp[counter::SIPT_REPLAY_ALL] = pmcounters.sipt_replay_all;
       tmp[counter::STLF_REPLAY_LOAD] = pmcounters.stlf_replay_load;
-      tmp[counter::STLF_REPLAY_STORE] = pmcounters.stlf_replay_store;
-      tmp[counter::STLF_REPLAY_PREFETCH] = pmcounters.stlf_replay_prefetch;
       tmp[counter::STLF_REPLAY_MMU] = pmcounters.stlf_replay_mmu;
       tmp[counter::STLF_REPLAY_ALL] = pmcounters.stlf_replay_all;
       tmp[counter::TAG_BANK_CONFLICT_REPLAY_LOAD] = pmcounters.tag_bank_conflict_replay_load;
@@ -682,7 +702,6 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::DATA_BANK_CONFLICT_REPLAY_ALL] = pmcounters.data_bank_conflict_replay_all;
       tmp[counter::FILLBUF_HIT_REPLAY_LOAD] = pmcounters.fillbuf_hit_replay_load;
       tmp[counter::FILLBUF_HIT_REPLAY_STORE] = pmcounters.fillbuf_hit_replay_store;
-      tmp[counter::FILLBUF_HIT_REPLAY_PREFETCH] = pmcounters.fillbuf_hit_replay_prefetch;
       tmp[counter::FILLBUF_HIT_REPLAY_MMU] = pmcounters.fillbuf_hit_replay_mmu;
       tmp[counter::FILLBUF_HIT_REPLAY_ALL] = pmcounters.fillbuf_hit_replay_all;
       tmp[counter::TRANSBUF_HIT_REPLAY_LOAD] = pmcounters.transbuf_hit_replay_load;
@@ -692,7 +711,6 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::TRANSBUF_HIT_REPLAY_ALL] = pmcounters.transbuf_hit_replay_all;
       tmp[counter::REQBUF_HIT_REPLAY_LOAD] = pmcounters.reqbuf_hit_replay_load;
       tmp[counter::REQBUF_HIT_REPLAY_STORE] = pmcounters.reqbuf_hit_replay_store;
-      tmp[counter::REQBUF_HIT_REPLAY_PREFETCH] = pmcounters.reqbuf_hit_replay_prefetch;
       tmp[counter::REQBUF_HIT_REPLAY_MMU] = pmcounters.reqbuf_hit_replay_mmu;
       tmp[counter::REQBUF_HIT_REPLAY_ALL] = pmcounters.reqbuf_hit_replay_all;
       tmp[counter::DTLB_REPLAY_LOAD] = pmcounters.dtlb_replay_load;
@@ -751,7 +769,7 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       return tmp;
     }
 
-
+    
     const std::unordered_map<counter, std::string_view> to_string =
       {
       {CPU_CYCLES,"cpu_cycles"},
@@ -810,30 +828,37 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {CYCLES_NO_VL_PRN,"cycles_no_vl_prn"},
       {CYCLES_NO_VM_PRN,"cycles_no_vm_prn"},
       {CYCLES_NO_ROB,"cycles_no_rob"},
-      {BRANCH_INSTRUCTIONS,"branch_instructions"},
-      {UOP_RETIRED,"uop_retired"},
-      {LD_RETIRED,"ld_retired"},
-      {ST_RETIRED,"st_retired"},
-      {INT_RETIRED,"int_retired"},
-      {CSR_RETIRED,"csr_retired"},
-      {BR_RET_RETIRED,"br_ret_retired"},
-      {IND_BR_RETIRED,"ind_br_retired"},
-      {REL_BR_RETIRED,"rel_br_retired"},
-      {FP_RETIRED,"fp_retired"},
-      {VEC_RETIRED,"vec_retired"},
-      {XFER_RETIRED,"xfer_retired"},
-      {UOP_CONFIRMED,"uop_confirmed"},
-      {UOP_ISSUED_INT,"uop_issued_int"},
-      {UOP_ISSUED_LDST,"uop_issued_ldst"},
-      {UOP_ISSUED_FP,"uop_issued_fp"},
-      {UOP_ISSUED_VEC,"uop_issued_vec"},
-      {BR_DIRECT_SPEC,"br_direct_spec"},
-      {BR_INDIRECT_SPEC,"br_indirect_spec"},
-      {BR_RET_SPEC,"br_ret_spec"},
-      {INT_EXECUTED,"int_executed"},
-      {FP_EXECUTED,"fp_executed"},
-      {VEC_EXECUTED,"vec_executed"},
-      {COMPRESSED_INSTRET,"compressed_instret"},
+      {OP_RETIRED_DIRECT_BRANCH,"op_retired_direct_branch"},
+      {OP_RETIRED_RET_BRANCH,"op_retired_ret_branch"},
+      {OP_RETIRED_INDIRECT_BRANCH,"op_retired_indirect_branch"},
+      {OP_RETIRED_COND_BRANCH,"op_retired_cond_branch"},
+      {OP_RETIRED_LD,"op_retired_ld"},
+      {OP_RETIRED_ST,"op_retired_st"},
+      {OP_RETIRED_INT,"op_retired_int"},
+      {OP_RETIRED_CSR,"op_retired_csr"},
+      {OP_RETIRED_FP,"op_retired_fp"},
+      {OP_RETIRED_VEC,"op_retired_vec"},
+      {OP_COMPLETE_LD,"op_complete_ld"},
+      {OP_COMPLETE_ST,"op_complete_st"},
+      {OP_COMPLETE_INT,"op_complete_int"},
+      {OP_COMPLETE_FP,"op_complete_fp"},
+      {OP_COMPLETE_VEC,"op_complete_vec"},
+      {OP_ISSUED_PIPE0,"op_issued_pipe0"},
+      {OP_ISSUED_PIPE1,"op_issued_pipe1"},
+      {OP_ISSUED_PIPE2,"op_issued_pipe2"},
+      {OP_ISSUED_PIPE3,"op_issued_pipe3"},
+      {OP_ISSUED_PIPE4,"op_issued_pipe4"},
+      {OP_ISSUED_PIPE5,"op_issued_pipe5"},
+      {OP_ISSUED_PIPE6,"op_issued_pipe6"},
+      {OP_ISSUED_PIPE7,"op_issued_pipe7"},
+      {OP_ISSUED_PIPE8,"op_issued_pipe8"},
+      {OP_ISSUED_PIPE9,"op_issued_pipe9"},
+      {OP_ISSUED_PIPE10,"op_issued_pipe10"},
+      {OP_ISSUED_PIPE11,"op_issued_pipe11"},
+      {OP_ISSUED_PIPE12,"op_issued_pipe12"},
+      {OP_ISSUED_PIPE13,"op_issued_pipe13"},
+      {OP_ISSUED_PIPE14,"op_issued_pipe14"},
+      {OP_ISSUED_PIPE15,"op_issued_pipe15"},
       {CACHE_REFERENCES,"cache_references"},
       {CACHE_MISSES,"cache_misses"},
       {TLB_INVALIDATES,"tlb_invalidates"},
@@ -882,22 +907,25 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {LEAF_TLB_ACCESS_LS,"leaf_tlb_access_ls"},
       {LEAF_TLB_ACCESS_FE,"leaf_tlb_access_fe"},
       {LEAF_TLB_ACCESS_PREFETCH,"leaf_tlb_access_prefetch"},
+      {LEAF_TLB_ACCESS_ALL,"leaf_tlb_access_all"},
       {LEAF_TLB_MISS_LS,"leaf_tlb_miss_ls"},
       {LEAF_TLB_MISS_FE,"leaf_tlb_miss_fe"},
       {LEAF_TLB_MISS_PREFETCH,"leaf_tlb_miss_prefetch"},
+      {LEAF_TLB_MISS_ALL,"leaf_tlb_miss_all"},
       {NONLEAF_TLB_ACCESS_LS,"nonleaf_tlb_access_ls"},
       {NONLEAF_TLB_ACCESS_FE,"nonleaf_tlb_access_fe"},
       {NONLEAF_TLB_ACCESS_PREFETCH,"nonleaf_tlb_access_prefetch"},
+      {NONLEAF_TLB_ACCESS_ALL,"nonleaf_tlb_access_all"},
       {NONLEAF_TLB_MISS_LS,"nonleaf_tlb_miss_ls"},
       {NONLEAF_TLB_MISS_FE,"nonleaf_tlb_miss_fe"},
       {NONLEAF_TLB_MISS_PREFETCH,"nonleaf_tlb_miss_prefetch"},
+      {NONLEAF_TLB_MISS_ALL,"nonleaf_tlb_miss_all"},
       {PAGE_WALKS,"page_walks"},
       {STALLS_MEM_L1D_MISS,"stalls_mem_l1d_miss"},
       {STALLS_MEM_STORES,"stalls_mem_stores"},
       {STALLS_MEM_L1DTLB_MISS,"stalls_mem_l1dtlb_miss"},
       {LSU_RESYNCS_RAW,"lsu_resyncs_raw"},
       {LSU_RESYNCS_RAR,"lsu_resyncs_rar"},
-      {LSU_RESYNCS_ALL,"lsu_resyncs_all"},
       {STLF_HITS,"stlf_hits"},
       {LS_REPLAY_LOAD,"ls_replay_load"},
       {LS_REPLAY_STORE,"ls_replay_store"},
@@ -915,8 +943,6 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {SIPT_REPLAY_MMU,"sipt_replay_mmu"},
       {SIPT_REPLAY_ALL,"sipt_replay_all"},
       {STLF_REPLAY_LOAD,"stlf_replay_load"},
-      {STLF_REPLAY_STORE,"stlf_replay_store"},
-      {STLF_REPLAY_PREFETCH,"stlf_replay_prefetch"},
       {STLF_REPLAY_MMU,"stlf_replay_mmu"},
       {STLF_REPLAY_ALL,"stlf_replay_all"},
       {TAG_BANK_CONFLICT_REPLAY_LOAD,"tag_bank_conflict_replay_load"},
@@ -931,7 +957,6 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {DATA_BANK_CONFLICT_REPLAY_ALL,"data_bank_conflict_replay_all"},
       {FILLBUF_HIT_REPLAY_LOAD,"fillbuf_hit_replay_load"},
       {FILLBUF_HIT_REPLAY_STORE,"fillbuf_hit_replay_store"},
-      {FILLBUF_HIT_REPLAY_PREFETCH,"fillbuf_hit_replay_prefetch"},
       {FILLBUF_HIT_REPLAY_MMU,"fillbuf_hit_replay_mmu"},
       {FILLBUF_HIT_REPLAY_ALL,"fillbuf_hit_replay_all"},
       {TRANSBUF_HIT_REPLAY_LOAD,"transbuf_hit_replay_load"},
@@ -941,7 +966,6 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {TRANSBUF_HIT_REPLAY_ALL,"transbuf_hit_replay_all"},
       {REQBUF_HIT_REPLAY_LOAD,"reqbuf_hit_replay_load"},
       {REQBUF_HIT_REPLAY_STORE,"reqbuf_hit_replay_store"},
-      {REQBUF_HIT_REPLAY_PREFETCH,"reqbuf_hit_replay_prefetch"},
       {REQBUF_HIT_REPLAY_MMU,"reqbuf_hit_replay_mmu"},
       {REQBUF_HIT_REPLAY_ALL,"reqbuf_hit_replay_all"},
       {DTLB_REPLAY_LOAD,"dtlb_replay_load"},
