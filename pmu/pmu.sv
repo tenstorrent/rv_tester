@@ -1,5 +1,6 @@
 module pmu
 import rv_tester_params::*;
+import rv_tester_pkg::*;
 #(
   parameter int NUM = -1,
   parameter int NRET = 1,
