@@ -652,7 +652,7 @@ package rv_tester_params;
     typedef enum {
         CPU_CYCLES,
         INSTRUCTIONS,
-        BRANCH_INSTRUCTION,
+        BRANCH_INSTRUCTIONS,
         M_MODE_CYCLES,
         M_MODE_INSTRET,
         S_MODE_CYCLES,

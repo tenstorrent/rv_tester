@@ -419,7 +419,7 @@ pmu:
                 width: 64
             instructions:
                 width: 64
-            branch_instruction:
+            branch_instructions:
                 width: 64
             m_mode_cycles:
                 width: 64

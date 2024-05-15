@@ -46,7 +46,7 @@ import rv_tester_pkg::*;
     longint unsigned nret = {32'h0, NRET};
     longint unsigned pmcounter [EVENT_COUNT] = '{default:0};
     longint unsigned sc_pmcounter [SC_EVENT_COUNT] = '{default:0};
-    longint unsigned branch_instruction;
+    longint unsigned branch_instructions;
 
     always @(posedge clk) begin
       if (reset) begin
@@ -93,7 +93,7 @@ import rv_tester_pkg::*;
     endgenerate
 
    always_comb begin
-      branch_instruction = pmcounter[OP_RETIRED_DIRECT_BRANCH] + pmcounter[OP_RETIRED_RET_BRANCH] + 
+      branch_instructions = pmcounter[OP_RETIRED_DIRECT_BRANCH] + pmcounter[OP_RETIRED_RET_BRANCH] + 
                             pmcounter[OP_RETIRED_INDIRECT_BRANCH] + pmcounter[OP_RETIRED_COND_BRANCH];
    end
    
@@ -135,7 +135,7 @@ import rv_tester_pkg::*;
     assign pmcounterss[0].data.location = location;
     assign pmcounterss[0].data.cpu_cycles = cpu_cycles;
     assign pmcounterss[0].data.instructions = pmcounter[INSTRUCTIONS];
-    assign pmcounterss[0].data.branch_instruction = branch_instruction;
+    assign pmcounterss[0].data.branch_instructions = branch_instructions;
     assign pmcounterss[0].data.perf_start = perf_start;
     assign pmcounterss[0].data.perf_end = perf_end;
     assign pmcounterss[0].data.terminate = terminate;

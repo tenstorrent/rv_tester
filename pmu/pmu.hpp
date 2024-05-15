@@ -16,7 +16,7 @@ public:
       //Event for each retired instruction; implemented via the minstret CSR
       INSTRUCTIONS,
       //Sum of retired branches
-      BRANCH_INSTRUCTION,
+      BRANCH_INSTRUCTIONS,
       //Event for each CPU cycle that happens while in m mode
       M_MODE_CYCLES,
       //Event for each retired instruction that happens while in m mode
@@ -691,7 +691,7 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
 
       tmp[counter::CPU_CYCLES] = pmcounters.cpu_cycles;
       tmp[counter::INSTRUCTIONS] = pmcounters.instructions;
-      tmp[counter::BRANCH_INSTRUCTION] = pmcounters.branch_instruction;
+      tmp[counter::BRANCH_INSTRUCTIONS] = pmcounters.branch_instructions;
       tmp[counter::M_MODE_CYCLES] = pmcounters.m_mode_cycles;
       tmp[counter::M_MODE_INSTRET] = pmcounters.m_mode_instret;
       tmp[counter::S_MODE_CYCLES] = pmcounters.s_mode_cycles;
@@ -1032,7 +1032,7 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
     {
       {CPU_CYCLES,"cpu_cycles"},
       {INSTRUCTIONS,"instructions"},
-      {BRANCH_INSTRUCTION,"branch_instruction"},
+      {BRANCH_INSTRUCTIONS,"branch_instructions"},
       {M_MODE_CYCLES,"m_mode_cycles"},
       {M_MODE_INSTRET,"m_mode_instret"},
       {S_MODE_CYCLES,"s_mode_cycles"},
