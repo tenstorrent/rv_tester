@@ -164,6 +164,7 @@ void bridge::reset() {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed to poke boot memory\n", id_);
     return;
   }
+  cvm::registry::messenger.signal<uint64_t>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0), uint64_t(0));
   resetsstc_poke(id_,0,0x14d);
   resetsstc_poke(id_,0,0x24d);
 }
