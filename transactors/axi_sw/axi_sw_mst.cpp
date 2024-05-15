@@ -212,7 +212,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
  cvm::log(cvm::FULL, "Calling Push transactions\n");
   while (!transactions_.empty()) {
       auto& req = transactions_.front();
-      std::visit([this](auto&& arg) {
+      int r = std::visit([this](auto&& arg) {
           using T = std::decay_t<decltype(arg)>;
 
           if constexpr (std::is_same_v<T, axi::a_t>) {
@@ -228,7 +228,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
                         [=]() { axi_sw_mst_ar(arg.id, arg.addr, arg.len, arg.size, arg.burst, arg.lock); });
                   }
                   else
-                      return;
+                      return 1;
               }
               else {
                   cvm::log(cvm::FULL, "[axi_sw_mst] aw_req: arg.id :{:#x} , arg.addr: {:#x} , arg.len: {:#x} , arg.size: {:#x} , arg.burst: {:#x} , arg.atop.transaction: {:#x} , arg.lock: {:#x} \n", arg.id, arg.addr, arg.len, arg.size, arg.burst, arg.atop.transaction, arg.lock);
@@ -240,7 +240,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
                         [=]() { axi_sw_mst_aw(arg.id, arg.addr, arg.len, arg.size, arg.burst, arg.atop.transaction, arg.lock); });
                   }
                   else
-                      return;
+                      return 1;
               }
           }
           else if constexpr (std::is_same_v<T, axi::w_t>) {
@@ -250,12 +250,12 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
 
                   if (arg.strb.size() == 0) {
                       cvm::log(cvm::ERROR, "strb size is 0\n");
-                      return;
+                      return 1;
                   }
 
                   if (arg.strb.size() != arg.data.size()) {
                       cvm::log(cvm::ERROR, "strb size != data size\n");
-                      return;
+                      return 1;
                   }
 
                   cvm::registry::callbacks.push(
@@ -281,10 +281,14 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
           }
           else {
               cvm::log(cvm::ERROR, "unhandled axi_mst transaction type\n");
-              return;
+              return 1;
           }
 
+          return 0;
       }, req);
+
+      if (r) break;
+
       transactions_.pop_front();
   }
 }
