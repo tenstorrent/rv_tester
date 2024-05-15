@@ -43,7 +43,7 @@ import rv_tester_params::*;
     longint unsigned prev_sync_instructions = 0;
     longint unsigned nret = {32'h0, NRET};
     longint unsigned pmcounter [EVENT_COUNT] = '{default:0};
-    longint unsigned branch_instruction = 0;
+    longint unsigned branch_instruction;
 
     always @(posedge clk) begin
       if (reset) begin
