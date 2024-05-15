@@ -79,6 +79,8 @@ void eot::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
         cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", m_rvfi.cycle);
         cvm::log(cvm::ERROR, "<{}> Error: max_instr limit reached: {}\n", m_rvfi.cycle, FLAGS_max_instr);
         cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", m_rvfi.cycle);
+        cvm::registry::messenger.signal<htif::terminate_t>( cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0),
+        htif::terminate_t{.low_priority_based = true});
         return;
       }
     }
@@ -118,6 +120,8 @@ void eot::process_tohost(uint64_t hartid, uint64_t cycle, uint64_t address, uint
     cvm::log(cvm::ERROR, "<{}> Hart:<{}>Error: Fail condition detected - tohost[0]=1, tohost[47:1]={:#x}\n", cycle,
       hartid, exit_code);
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
+    cvm::registry::messenger.signal<htif::terminate_t>( cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0),
+    htif::terminate_t{.low_priority_based = true});
   }
 }
 

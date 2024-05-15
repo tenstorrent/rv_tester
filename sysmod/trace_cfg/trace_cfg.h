@@ -32,7 +32,7 @@ class trace_cfg : public device {
         }
 
     public:
-        uint32_t start_trace_cnt=0,n,read_ram=0;
+        uint32_t start_trace_cnt=0,n,id_val,read_ram=0;
         uint32_t cnt_tick=0;
         uint64_t axi_read_resp=0;
         std::unordered_map<std::string, uint32_t> macros,randomElements;
@@ -114,6 +114,7 @@ class trace_cfg : public device {
             if(start_trace_cnt == 0) {
               start_trace_cnt = (rng()% 5) + 30;
               n = (rng()% 5) + 3;
+              id_val = 0;
               std::ofstream outFile("output.txt");
               outFile.close();
             }
@@ -127,7 +128,8 @@ class trace_cfg : public device {
               if((trace_read_resp_q.size() == 2) && (cnt_tick == start_trace_cnt+132)) read_sram();
               if(read_ram > 0) {
                 cvm::log(cvm::HIGH, "[Trace_cfg] read RAM {} \n",read_ram);
-                axi_read(TR_DST_RAM_DATA,4,5);
+                axi_read(TR_DST_RAM_DATA,4,400+id_val);
+                id_val++;
                 read_ram = read_ram - 1;
                 if(read_ram == 0) end_test = 1;
               }
@@ -210,8 +212,8 @@ class trace_cfg : public device {
 
         void read_axi_pointers(){
           cvm::log(cvm::HIGH, "[overlay axi]reading WRITE/READ pointers\n");
-          axi_read(TR_DST_CONTROL,4,4);
-          axi_read(CDBG_NTRACE_CFG,8,4);
+          axi_read(TR_DST_CONTROL,4,504);
+          axi_read(CDBG_NTRACE_CFG,8,505);
         }
         
         void push_random_axi_read(std::unordered_map<std::string, uint32_t>  elements){
@@ -224,10 +226,12 @@ class trace_cfg : public device {
               std::cerr << "Error: Could not open the file!" << std::endl;
           }else{
 
+          int i = 0;
           // Loop through elements and write to file
           for (const auto& pair : elements) {
               outFile << "[overlay axi vals]" << pair.first << " = " << pair.second << std::endl;
-              axi_read(pair.second,8,4);
+              axi_read(pair.second,8,200+i);
+              i++;
           }
 
           }
@@ -280,8 +284,8 @@ class trace_cfg : public device {
 
         void read_pointers(){
           cvm::log(cvm::HIGH, "[Trace_cfg] trace_cfg reading WRITE/READ pointers\n");
-           axi_read(TR_DST_RAM_WP_LOW,4,5);
-           axi_read(TR_DST_RAM_RP_LOW,4,5);
+           axi_read(TR_DST_RAM_WP_LOW,4,305);
+           axi_read(TR_DST_RAM_RP_LOW,4,306);
         }
 
         void read_sram() {

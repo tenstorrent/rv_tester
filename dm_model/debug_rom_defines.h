@@ -9,9 +9,10 @@
 
 // Region of memory where each hart has 1
 // byte to read.
-#define DEBUG_ROM_FLAGS       0x400
-#define DEBUG_ROM_FLAG_GO     0
-#define DEBUG_ROM_FLAG_RESUME 1
+#define DEBUG_ROM_FLAGS        0x400
+#define DEBUG_ROM_FLAG_GO      0
+#define DEBUG_ROM_FLAG_RESUME  1
+#define DEBUG_ROM_FLAG_HALTGRP 2
 
 // These needs to match the link.ld         
 #define DEBUG_ROM_WHERETO 0x2F8

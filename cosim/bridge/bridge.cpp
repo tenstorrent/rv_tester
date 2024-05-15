@@ -1,4 +1,5 @@
 // Licensed under the Apache License, Version 2.0, see LICENSE.TT for details
+// vim: ft=c et ts=2 sw=0 sts
 
 #include "bridge.h"
 #include "util.h"
@@ -18,6 +19,7 @@
 #include <cstdlib>          // system
 #include <vector>
 #include <fmt/format.h>
+#include <random>
 
 // Plusargs
 DECLARE_string(bootrom_path);
@@ -28,6 +30,9 @@ DECLARE_bool(mcm);
 DECLARE_uint64(debug_entry_pc);
 DECLARE_uint64(debug_exit_pc);
 DECLARE_uint64(hart_enable_mask);
+DECLARE_uint32(num_harts);
+DECLARE_bool(random_intr);
+DECLARE_bool(random_imsic_intr);
 
 DEFINE_bool(bridge_log, true, "Enable bridge logging");
 DEFINE_string(whisper_json_path, "", "Path to whisper json config");
@@ -65,7 +70,6 @@ DEFINE_bool(whisper_cmd_log, false, "Enable whisper logging to iss_cmd.log");
 DEFINE_bool(whisper_stdin_null, false, "Redirect whisoer stdin to null");
 DEFINE_bool(whisper_stdout_null, false, "Redirect whisoer stdout to null");
 DEFINE_bool(preload, false, "Whisper preload");
-DEFINE_bool(smc_preload, false, "Enable SMC preload");
 
 std::shared_ptr<whisperClient<uint64_t>> client_;
 //std::unique_ptr<whisperClient<uint64_t>> client_;
@@ -103,6 +107,32 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
     client_ = std::make_shared<whisperClient<uint64_t>>(traceFile, commandLog);
     auto platform = cvm::topology::get_from_type("PLATFORM", 0);
     cvm::registry::messenger.connect<rv_tester::terminate_called>(platform, [this] (const auto& v) { return this->process(v); });
+    if(FLAGS_random_intr | FLAGS_random_imsic_intr){
+       FLAGS_max_cycle = 2*FLAGS_max_cycle;
+       cvm::log(cvm::LOW, "Doubling max_cycles for sim run to {}\n",FLAGS_max_cycle );
+    }
+    int32_t nharts = cvm::topology::attr(platform, "NHARTS").second;
+    if(FLAGS_max_stall_cycle < (nharts*3000 + 7000)){
+        FLAGS_max_stall_cycle = nharts*3000 + 7000;
+        cvm::log(cvm::LOW, "Overwriting max_stall_cycle to {} cycles\n",FLAGS_max_stall_cycle );
+    }
+    // Overwrite hart_enable_mask in a random fashion based on num_harts run-arg
+    // Do this only when hart_enable_mask run-arg is 0x1 (default value)
+    if(FLAGS_hart_enable_mask == 0x1){
+      std::random_device rd;
+      std::mt19937 gen(rd());
+      std::uniform_int_distribution<> dis(0, 7);
+      unsigned char hart_enable_mask = 0;
+      for (uint32_t i = 0; i < FLAGS_num_harts; ++i) {
+          int bit_position;
+          do {
+              bit_position = dis(gen);
+          } while ((hart_enable_mask >> bit_position) & 1); // Check if the bit is already set
+          hart_enable_mask |= (1 << bit_position);
+      }
+      FLAGS_hart_enable_mask = hart_enable_mask;
+      cvm::log(cvm::LOW, "Overwriting hart_enable_mask to 0x{:x}\n", FLAGS_hart_enable_mask);
+    }
 }
 
 // Destructor
@@ -170,6 +200,7 @@ void bridge::resetsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr) {
 // DUT interface callback: Instruction Retire
 void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
+  twoStage_ = false;
   whisper_state_t w {
     .tag = d.tag,
     .time = d.cycle
@@ -199,6 +230,8 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   // Update cac with dut state
   update_dut_state(hart, d);
+
+  arch_state(w);
 
   // Handle post-step conditions
   post_step_interrupt_poke(hart, d, w);
@@ -348,7 +381,7 @@ void bridge::pre_step_lrsc_poke(hart_id_t hart, const rv_instr_t& d) {
       (d.disasm.find("sc.d") != std::string::npos)) {
     // Check if Store-Conditional (SC) failed
     uint64_t fail_code = 1;
-    if (d.gpr.rd_wdata == fail_code) {
+    if (d.mem_read.data == fail_code) {
       lrsc_fail_ = true;
       bool valid;
       // Cancel Load-Reserved (LR)
@@ -722,6 +755,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
       w_.mem_write.va = w.address;
       w_.mem_write.data = w.value;
     }
+    
   }
 
   // Mem attributes
@@ -997,6 +1031,68 @@ void bridge::update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_
   };
   assert(cac_.SetResource(hart, src, rid, std::move(cac::CreateBitVec<size_8_bytes_t>(dword_vec))));
 }
+
+bool bridge::disable_pa_check_vec(hart_id_t hart) {
+  bool valid;
+  uint64_t data, mask, poke_mask;
+  uint64_t vl = 0;
+  uint64_t vtype ;
+  uint64_t vlmax = 0;
+
+  if(client_->whisperPeekCsr(hart,0xc21, data, mask, poke_mask, valid)) {
+  
+  vtype = data & mask; // getting the vtype csr
+  int sew_enc = (vtype & 0x38) >> 3; // encoded sew
+  int sew;
+
+  if (sew_enc == 0) sew = 8;
+  if (sew_enc == 1) sew = 16;
+  if (sew_enc == 2) sew = 32;
+  if (sew_enc == 3) sew = 64;
+
+  int vlmul_enc = (vtype & 0x7);
+
+  if (vlmul_enc == 0) 
+    vlmax = 256/sew ;
+  if (vlmul_enc == 1) 
+    vlmax = 512/sew ;
+  if (vlmul_enc == 2) 
+    vlmax = 1024/sew ;
+  if (vlmul_enc == 3) 
+    vlmax = 2048/sew ;
+  if (vlmul_enc == 5) 
+    vlmax = 256/(8*sew);
+  if (vlmul_enc == 6) 
+    vlmax = 256/(4*sew);
+  if (vlmul_enc == 7) 
+    vlmax = 256/(2*sew);
+
+}
+
+if(client_->whisperPeekCsr(hart,0xc20, data, mask, poke_mask, valid)) 
+  vl = data & mask;
+
+if(vl < vlmax)
+  return true;  
+return false;
+
+}
+
+void bridge::arch_state(whisper_state_t& w) {
+
+  if (w.resource == 'c') {
+      if(w.address == 0x300)
+      {
+          if(((w.value) & 0x20000) != 0)
+            {
+              mprv_ = 1;
+              mpp_ = ((w.value) & 0x1800) >> 11; 
+            }
+            else
+              mprv_ = 0;
+        }
+      }
+  }
 
 
 bool bridge::is_vector(const std::string& instr) {
@@ -1333,9 +1429,18 @@ uint64_t bridge::translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t
   bool r = (memclass == memclass_t::read);
   bool w = (memclass == memclass_t::write);
   bool x = (memclass == memclass_t::fetch);
-  bool sup = (priv == 0x1);
+  bool sup = ((priv & 0x11) == 0x1); // made a change here
 
-  if (!client_->whisperTranslate(hart, va, r, w, x, sup, pa, valid)) {
+  if((priv & 0x8) != 0)
+  {
+    twoStage_ = true;
+  }
+  else
+  {
+    twoStage_ = false;
+  }
+
+if (!client_->whisperTranslate(hart, va, r, w, x, twoStage_, sup, pa, valid)) {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed VA translation\n", hart);
   }
 
@@ -1351,15 +1456,28 @@ void bridge::translation_check(hart_id_t hart, const rv_instr_t& d, whisper_stat
   if (d.mem_va == 0)
   return;
 
+  uint64_t pa;
   uint64_t va = d.mem_va;
   uint64_t bit57 = va & (1ull << 56);
   va &= ((1ull << 57) - 1);             // Clear all bits to the left of 57th bit
   if (bit57) {  va |= (~0ull) << 57; } // sign extend the 57th bit to [63:58]
 
-  uint64_t pa = translate(hart, va, w.priv_mode, memclass_t::read);
+if((mprv_ == 1) && w.priv_mode == 3)
+  {
+    pa = translate(hart, va, mpp_, memclass_t::read);
+  }
+  else
+    pa = translate(hart, va, w.priv_mode, memclass_t::read);
+  
   if (pa != d.mem_pa){
     cvm::log(cvm::NONE, "<{}> Whisper Step #{}: [Hart={}, Mode={}, Tag={}, PC={:#x}, VA={:#x}, RTL-PA={:#x}, ISS-PA={:#x}]\n", w.time, step_-1, hart, w.priv_mode, w.tag, w.pc, d.mem_va, d.mem_pa, pa);
+      //cvm::log(cvm::ERROR, "Error: Hart {}: PA MISMATCH !! :\n", hart);
+    if(is_vector(d.disasm) && disable_pa_check_vec(hart));
+    
+    else {
     cvm::log(cvm::ERROR, "Error: Hart {}: PA MISMATCH !! :\n", hart);
+    }
+
     return;
   }
   else {

@@ -287,7 +287,15 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.mem_read.valid = (m_rvfi.mem_rmask != 0);
   instr.mem_read.va = m_rvfi.mem_addr;
   instr.mem_read.pa = m_rvfi.mem_paddr;
-  instr.mem_read.data = m_rvfi.mem_rdata;
+  if(mem_read_data_.count(instr.tag)>0)
+  {
+    instr.mem_read.data = mem_read_data_.at(instr.tag); 
+    // removing the key value pair from the map
+    mem_read_data_.erase(instr.tag);
+  }
+  else
+    instr.mem_read.data = m_rvfi.mem_rdata;
+
   instr.mem_read.size = log2(m_rvfi.mem_rmask + 1);
   instr.mem_read.attr = m_rvfi.mem_attr;
 
@@ -298,6 +306,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.mem_write.data = m_rvfi.mem_wdata;
   instr.mem_write.size = log2(m_rvfi.mem_wmask + 1);
   instr.mem_write.attr = m_rvfi.mem_attr;
+
 }
 
 void rvfi::append_uop_changes_to_instr(rv_instr_t& instr) {
@@ -532,11 +541,6 @@ void rvfi::process(const rv_tester_transactions::cosim::m_csri<>& m_csri) {
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_read) {
-  if (!FLAGS_mcm)
-    return;
-
-  if (terminated_)
-    return;
 
   mem_t m;
   m.valid  = true;
@@ -548,6 +552,17 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
   m.data   = m_mcmi_read.data;
   m.amo    = m_mcmi_read.amo;
   m.amo_op = m_mcmi_read.amo_op;
+
+  mem_read_data_.emplace(m.tag,m.data);  
+
+  if (!FLAGS_mcm)
+    return;
+
+  if (terminated_)
+    return;
+
+  if (!FLAGS_cosim)
+    return;
 
   // Handle SC
   // If read before bypass, store pass/fail result
@@ -578,6 +593,9 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
   if (terminated_)
     return;
 
+  if (!FLAGS_cosim)
+    return;
+
   mem_t m;
   m.valid = true;
   m.cycle = m_mcmi_insert.cycle;
@@ -594,6 +612,9 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
     return;
 
   if (terminated_)
+    return;
+
+  if (!FLAGS_cosim)
     return;
 
   mem_t m;
@@ -725,6 +746,9 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write<>& m_mcmi_w
   if (terminated_)
     return;
 
+  if (!FLAGS_cosim)
+    return;
+
   mem_cl_t m;
   m.valid = true;
   m.cycle = m_mcmi_write.cycle;
@@ -742,6 +766,9 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_req<>& m_m
   if (terminated_)
     return;
 
+  if (!FLAGS_cosim)
+    return;
+
   mem_t m;
   m.valid = true;
   m.tag = m_mcmi_ifetch_req.order;
@@ -755,6 +782,9 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>& m_
     return;
 
   if (terminated_)
+    return;
+
+  if (!FLAGS_cosim)
     return;
 
   if (ifetch_reqs_.find(m_mcmi_ifetch_resp.order) == ifetch_reqs_.end()) {
@@ -777,6 +807,9 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ievict<>& m_mcmi_
   if (terminated_)
     return;
 
+  if (!FLAGS_cosim)
+    return;
+    
   mem_t m;
   m.valid = true;
   m.cycle = m_mcmi_ievict.cycle;
