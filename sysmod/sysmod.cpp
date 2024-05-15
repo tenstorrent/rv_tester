@@ -22,6 +22,7 @@
 #include "trickbox/trickbox.h"
 #include "rv_tester/rv_tester_structs.h"
 #include "rv_tester/rv_tester_plusargs.h"
+#include "cosim/bridge_if/bridge_params.h"
 
 // internal flags
 DEFINE_string(hex, "", "hex file (program) to load into memory");
@@ -34,7 +35,7 @@ DEFINE_string(load_io, "", "load specified io dev with content from memory");
 DEFINE_bool(sysmod_tick_async, true, "Asynchronous sysmod_tick calls");
 DEFINE_uint64(sysmod_tick_update_threshold, 1, "Slow down tick update frequency by this factor. The tick is still eventually advanced the same cumulative amount, just not as often. Useful for emulation where the clock counts much faster but tests setup interrupts to happen very soon for simulation. They git hit by an interrupt storm and are stuck in the interrupt handler forever.");
 DEFINE_uint64(hart_enable_mask, 0x1, "Hart enable mask. Ex: To enable 2 harts in a 8-hart system, use 0x3.");
-
+DEFINE_string(set_csr, "", "+set_csr=<csr_num>:<value>,<num2>:<val2> ");
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 
 extern "C" {
@@ -55,7 +56,9 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
   cvm::registry::messenger.connect<svScope>(
       loc_,
       [this](svScope s) { return this->set_scope(s); });
-
+  cvm::registry::messenger.connect<uint64_t>(
+      loc_,
+      [this](const uint64_t& t) { return this->load_csr_boot(t); });
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::tick<>>(
       loc_,
       [this](const rv_tester_transactions::sysmod::tick<>& t) { return this->tick(t.advance); });
@@ -601,6 +604,105 @@ sysmod::load_boot(const std::string& boot)
     device::strb_t strb(8);
     for (size_t i = 0; i < 8; i++) strb[i] = true;
     dev("boot")->backdoor_write(dev("boot")->addr() + 0x9000, 8, data, strb);
+  }
+}
+void
+sysmod::load_csr_boot(uint64_t dummy)
+{
+  cvm::log(cvm::HIGH, "{}", dummy);
+  auto split_string = [] (const std::string& input, char delimiter) {
+    std::vector<std::string> tokens;
+    std::string token;
+    for (char c : input) {
+        if (c != delimiter)
+            token += c;
+        else {
+            tokens.push_back(token);
+            token.clear();
+        }
+    }
+    tokens.push_back(token);
+    return tokens;
+  };
+
+  if (FLAGS_bootrom && FLAGS_set_csr!="") {
+
+    std::map<uint64_t,    uint64_t> csr_data;
+    std::map<std::string, uint64_t> csr_map;
+    for (const auto& csr : csrs) {
+        csr_map[csr.name] = csr.address;
+    }
+    try { // parse the +set_csr and report any errors
+      char delimiter = ',';
+      std::vector<std::string> csr_num_val = split_string(FLAGS_set_csr, delimiter);
+      for (const auto& entry : csr_num_val) {
+        delimiter = ':';
+        std::vector<std::string> num_val = split_string(entry, delimiter);
+        auto csr = num_val.at(0); // expect both csr address("0x301") as well as string("misa")
+        auto value = stoull(num_val.at(1), nullptr, 0);
+        if (csr_map.count(csr))
+          csr_data[csr_map[csr]] = value;
+        else
+          csr_data[stoull(csr, nullptr, 0)] = value;
+      }
+    }
+    catch (...) {
+      cvm::log(cvm::ERROR, "ERROR occurred while parsing +set_csr={}\n", FLAGS_set_csr);
+      return;
+    }
+    int addr = dev("boot")->addr() + 0x8000;
+    int dest_gpr = 4, dest_gpr2 = 3; // use two registers x4, x3
+    int csr_opcode = 0x73, lui_opcode = 0x37, op_imm_opcode = 0x13, or_opcode = 0x33;
+
+    auto add_to_mem = [&addr,this] (const uint32_t op) { //simple lambda to poke to memory
+      device::strb_t strb(4);
+      for (size_t i = 0; i<4; i++) strb[i] = true;
+      cvm::log(cvm::HIGH, "OPCODE: {:#x}\n", op);
+      bool valid = true;
+      device::data_t data(4);
+      for (size_t i=0; i<4; i++) data[i] = op >> 8*i;
+      dev("boot")->backdoor_write(addr, 4, data, strb);
+      if (!client_->whisperPoke(0, 0, 'm', addr, op, valid)) // fixme client_ is a nullptr
+        cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
+      addr += 4;
+    };
+
+    for (auto const& [csr_num, value] : csr_data) {
+      uint32_t csr_op = 0;
+      if (value < 32)
+        csr_op = csr_opcode + (dest_gpr<<7) + (5<<12) + (value<<15) + (csr_num<<20); // csrwi csrnum, x4 (csrwi can accomodate [4:0] immediate otherwise, use GPR)
+      else {
+        uint32_t lui_op = lui_opcode + (dest_gpr<<7) + (((value & 0xfffff000)>>12)<<12);
+        add_to_mem(lui_op);
+
+        uint32_t ori_op = op_imm_opcode + (dest_gpr<<7) + (0b110<<12) + (dest_gpr<<15) + ((value & 0xfff)<<20);
+        add_to_mem(ori_op);
+
+        if (value & 0x80000000) { // data gets sign extended, shl and shr to correct it
+          uint32_t slli_op = op_imm_opcode + (dest_gpr<<7) + (0b001<<12) + (dest_gpr<<15) + (32<<20); // slli x4, x4, 32
+          add_to_mem(slli_op);
+          uint32_t srli_op = op_imm_opcode + (dest_gpr<<7) + (0b101<<12) + (dest_gpr<<15) + (32<<20); // srli x4, x4, 32
+          add_to_mem(srli_op);
+        }
+        if (value > uint64_t(0xffffffff)) {
+          // data is greater than 32-bits (another opcode, another temporary register)
+          uint32_t lui_op = lui_opcode + (dest_gpr2<<7) + ((((value>>32) & 0xfffff000) >> 12)<<12);
+          add_to_mem(lui_op);
+
+          uint32_t ori_op = 0x13 + (dest_gpr2<<7) + (0b110<<12) /*funct3*/ + (dest_gpr2<<15) + (((value>>32) & 0xfff)<<20);
+          add_to_mem(ori_op);
+
+          uint32_t slli_op = 0x13 + (dest_gpr2<<7) + (0b001<<12) + (dest_gpr2<<15) + (32<<20);
+          add_to_mem(slli_op);
+
+          uint32_t or_op = or_opcode + (dest_gpr<<7) + (0b110<<12) + (dest_gpr2<<15) + (dest_gpr<<20);
+          add_to_mem(or_op);
+        }
+        csr_op = csr_opcode + (dest_gpr<<7) + (1<<12) + (dest_gpr<<15) + (csr_num<<20); // csrw csrnum, x4
+      }
+      add_to_mem(csr_op);
+    }
+    add_to_mem(0x8067/*ret*/);
   }
 }
 
