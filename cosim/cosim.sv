@@ -30,6 +30,8 @@ import rv_tester_params::*;
     input mcmi_t [NIEVICT-1:0] mcmi_ievict,
     input rv_tester_pkg::interrupt_t wired_interrupt,
     input rv_tester_params::mst_req_top imsic_interrupt,
+    input rv_tester_params::mst_req_top imsic_msi,
+    input rv_tester_params::mst_req_top imsic_ipi,
     input debug_mode,
     output rv_tester_pkg::terminate_t terminate,
     `RV_TESTER_TRANSACTIONS_COSIM_OUTPUT_PORTS
@@ -303,17 +305,16 @@ endfunction
     endfunction
 
     localparam imsic_whisper_delays = 5;
-    rv_tester_params::mst_req_top imsic_interrupt_delays[imsic_whisper_delays:0];
-    rv_tester_params::mst_req_top imsic_interrupt_delayed;
-    assign imsic_interrupt_delays[0]=imsic_interrupt;
-    genvar i;
-    generate
-      for (i=1; i <= imsic_whisper_delays; i=i+1) begin
-        always @(posedge clk)
-        imsic_interrupt_delays[i] <= imsic_interrupt_delays[i-1];
-      end
-    endgenerate
-    assign imsic_interrupt_delayed = imsic_interrupt_delays[imsic_whisper_delays];
+    rv_tester_params::mst_req_top [imsic_whisper_delays-1:0] imsic_interrupt_delays, imsic_msi_delays, imsic_ipi_delays;
+    rv_tester_params::mst_req_top imsic_interrupt_delayed, imsic_msi_delayed, imsic_ipi_delayed;    
+    always @(posedge clk) begin
+      imsic_interrupt_delays <= {imsic_interrupt_delays[imsic_whisper_delays-2:0], imsic_interrupt};
+      imsic_msi_delays <= {imsic_msi_delays[imsic_whisper_delays-2:0], imsic_msi};
+      imsic_ipi_delays <= {imsic_ipi_delays[imsic_whisper_delays-2:0], imsic_ipi};
+    end
+   assign imsic_interrupt_delayed = imsic_interrupt_delays[imsic_whisper_delays-1];
+   assign imsic_msi_delayed = imsic_msi_delays[imsic_whisper_delays-1];
+   assign imsic_ipi_delayed = imsic_ipi_delays[imsic_whisper_delays-1];
 
     // m_imsic_msi
     enum logic {idle, aw} msi_slave_state,msi_slave_state_d;
@@ -333,6 +334,22 @@ endfunction
     /* verilator lint_off WIDTH */
     assign m_imsic_msis[0].data.addr = imsic_interrupt_delayed.aw.addr;
     assign m_imsic_msis[0].data.data = imsic_interrupt_delayed.w.data;
+    /* verilator lint_on WIDTH */
+
+    assign m_imsic_msis[1].valid = ~dut_reset && imsic_msi_delayed.aw_valid && imsic_msi_delayed.w_valid && rvfi_enabled;
+    assign m_imsic_msis[1].data.location = location;
+    assign m_imsic_msis[1].data.cycle = clocks;
+    /* verilator lint_off WIDTH */
+    assign m_imsic_msis[1].data.addr = imsic_msi_delayed.aw.addr;
+    assign m_imsic_msis[1].data.data = imsic_msi_delayed.w.data;
+    /* verilator lint_on WIDTH */
+
+    assign m_imsic_msis[2].valid = ~dut_reset && imsic_ipi_delayed.aw_valid && imsic_ipi_delayed.w_valid && rvfi_enabled;
+    assign m_imsic_msis[2].data.location = location;
+    assign m_imsic_msis[2].data.cycle = clocks;
+    /* verilator lint_off WIDTH */
+    assign m_imsic_msis[2].data.addr = imsic_ipi_delayed.aw.addr;
+    assign m_imsic_msis[2].data.data = imsic_ipi_delayed.w.data;
     /* verilator lint_on WIDTH */
 
     function automatic bit [63:0] get_mip_mask(rv_tester_pkg::interrupt_t intr, rv_tester_pkg::interrupt_t intr_d1);

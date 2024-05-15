@@ -509,7 +509,177 @@ public:
       PFC_PREFETCHES_LATE,
       //Event (speculative) for every L1D eviction which is an unused prefetch
       PFC_USELESS_PREFETCHES,
-    COUNT
+      //"Count each Memory-read operation or Memory-write operation that causes a cache access to SC. Each access to a cache line is counted
+      SC_CACHE_ACCESS,
+      //Count Memory-read operation that causes a cache access to SC.
+      SC_CACHE_RD,
+      //Count each Memory-read operation or Memory-write operation that causes a cache access to SC but is not completed by SC.
+      SC_CACHE_MISS,
+      //Count Memory-read operation that causes a cache access to SC but is not completed by SC.
+      SC_CACHE_MISS_RD,
+      //Counts each access counted by SC_CACHE_ACCESS that causes a refill of the SC from outside of SC.
+      SC_CACHE_REFILL,
+      //Counts each Memory-write operation that writes an entire line into SC without fetching data from outside SC.
+      SC_CACHE_ALLOCATE,
+      //Counts each write-back of dirty cache lines from SC to outside of SC.
+      SC_CACHE_WB_DIRTY,
+      //Counts each write-back of clean cache lines from SC to outside of SC.
+      SC_CACHE_WB_CLEAN,
+      //"Counts each invalidation of a cache line in SC
+      SC_CACHE_INVAL,
+      //Count external snoops received by SC.
+      SC_SNOOP,
+      //Count Memory-read operation to ScratchPad Memory.
+      SC_SCRATCHPAD_RD,
+      //Count Memory-write operation to ScratchPad Memory.
+      SC_SCRATCHPAD_WR,
+      //Read requests from fabric
+      F2SC_RD,
+      //Write requests from fabric
+      F2SC_WR,
+      //Cummulative cycles between MSHR allocation and release
+      MSHR_LIFETIME,
+      //Number of MSHR allocations
+      MSHR_ALLOCATIONS,
+      //ReadUnique requests to fabric
+      SC2F_RD_U,
+      //ReadClean requests to fabric
+      SC2F_RD_C,
+      //ReadOnce requests to fabric
+      SC2F_RD_O,
+      //Write requests to fabric
+      SC2F_WR,
+      //Read requests from instruction fetch
+      C2SC_RD_I,
+      //Read requests from data cache
+      C2SC_RD_D,
+      //Write requests from cores
+      C2SC_WB_FULL,
+      //Clean evictions from cores
+      C2SC_EVICT,
+      //Snoop writeback full from cores
+      C2SC_SNP_WB_FULL,
+      //
+      C2SC_WRNOSNPPTL,
+      //Snoop to cores
+      C2SC_SNP,
+      //Number of cycles that REQ channel is stalled
+      C2SC_REQ_STALL,
+      //Number of cycles that WDAT channel is stalled
+      C2SC_WDAT_STALL,
+      //Number of cycles that SRSP channel is stalled
+      C2SC_SRSP_STALL,
+      //Number of cycles that RDAT channel is stalled
+      C2SC_RDAT_STALL,
+      //Number of cycles that SNP channel is stalled
+      C2SC_SNP_STALL,
+      //Number of cycles that CRSP channel is stalled
+      C2SC_CRSP_STALL,
+      //Clean evictions to fabric
+      SC2F_EVICT,
+      //Dirty evictions to fabric
+      SC2F_WRBACKFULL,
+      //WDAT 32B beats to fabric
+      SC2F_WDAT,
+      //Snoop from fabric
+      SC2F_SNOOP,
+      //RDAT 32B beats from fabric
+      SC2F_RDAT,
+      //Number of cycles that REQ channel is stalled
+      SC2F_REQ_STALL,
+      //Number of cycles that WDAT channel is stalled
+      SC2F_WDAT_STALL,
+      //Number of cycles that SRSP channel is stalled
+      SC2F_SRSP_STALL,
+      //Number of cycles that RDAT channel is stalled
+      SC2F_RDAT_STALL,
+      //Number of cycles that SNP channel is stalled
+      SC2F_SNOOP_STALL,
+      //Number of cycles that CRSP channel is stalled
+      SC2F_CRSP_STALL,
+      //WDAT 32B beats to fabric
+      F2SC_WDAT,
+      //RDAT 32B beats from fabric
+      F2SC_RDAT,
+      //
+      F2SC_WRNOSNPPTL,
+      //Number of cycles that REQ channel is stalled
+      F2SC_REQ_STALL,
+      //Number of cycles that WDAT channel is stalled
+      F2SC_WDAT_STALL,
+      //Number of cycles that RDAT channel is stalled
+      F2SC_RDAT_STALL,
+      //Number of cycles that CRSP channel is stalled
+      F2SC_CRSP_STALL,
+      //SC tag array lookup
+      SC_TAG_LOOKUP,
+      //SC tag array write
+      SC_TAG_WRITE,
+      //SC state array write
+      SC_STATE_WRITE,
+      //SC repl array write
+      SC_REPL_WRITE,
+      //SC tag hit
+      SC_TAG_HIT,
+      //SC data array read
+      SC_DATA_READ,
+      //SC data array write
+      SC_DATA_WRITE,
+      //Cache line state from Invalid to Exclusive
+      SC_STATE_I2E,
+      //Cache line state from Invalid to Modified
+      SC_STATE_I2M,
+      //Cache line state from Invalid to Shared
+      SC_STATE_I2S,
+      //Cache line state from Shared to Invalid
+      SC_STATE_S2I,
+      //Cache line state from Shared to Modified
+      SC_STATE_S2M,
+      //Cache line state from Shared to Exclusive
+      SC_STATE_S2E,
+      //Cache line state from Modified to Invalid
+      SC_STATE_M2I,
+      //Cache line state from Modified to Shared
+      SC_STATE_M2S,
+      //Cache line state from Modified to Exclusive
+      SC_STATE_M2E,
+      //Cache line state from Exclusive to Invalid
+      SC_STATE_E2I,
+      //Cache line state from Exclusive to Shared
+      SC_STATE_E2S,
+      //Cache line state from Exclusive to Modified
+      SC_STATE_E2M,
+      //Snoop filter lookup
+      SFT_LOOKUP,
+      //Snoop filter hit
+      SFT_HIT,
+      //Snoop filter write
+      SFT_WRITE,
+      //Snoop filter eviciton
+      SFT_EVICTION,
+      //Snoop filter sends snoop to single I-cache
+      SFT_SNP_SINGLE_ICACHE,
+      //Snoop filter sends snoop to single D-cache
+      SFT_SNP_SINGLE_DCACHE,
+      //Snoop filter sends snoop to multiple cores
+      SFT_SNP_MULTI_CORES,
+      //Snoop filter replay due to no MSHR for evictions
+      SFT_EVICTION_REPLAY,
+      //Cummulative number of MSHRs used
+      MSHR_OCCUPANCY,
+      //SC not accept new requests due to no MSHR available
+      MSHR_FULL,
+      //MSHR same address queue entry allocated
+      MSHR_SAQ_ALLOC,
+      //MSHR same address queue is full
+      MSHR_SAQ_FULL,
+      //Cache line not allocated into SC due to no MSHR avaiable
+      NO_ALLOC_NO_MSHR,
+      //Cache line not allocated into SC due to allocation hint is not set
+      NO_ALLOC_HINT_NOT_SET,
+      //SC replay due to ECC errors
+      SC_REPLAY_ECC,
+      COUNT
     } counter;
 
 
@@ -519,7 +689,7 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
     {
       std::vector<uint64_t> tmp(counter::COUNT);
 
-            tmp[counter::CPU_CYCLES] = pmcounters.cpu_cycles;
+      tmp[counter::CPU_CYCLES] = pmcounters.cpu_cycles;
       tmp[counter::INSTRUCTIONS] = pmcounters.instructions;
       tmp[counter::BRANCH_INSTRUCTION] = pmcounters.branch_instruction;
       tmp[counter::M_MODE_CYCLES] = pmcounters.m_mode_cycles;
@@ -768,13 +938,98 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::PFC_PREFETCHES_HIT] = pmcounters.pfc_prefetches_hit;
       tmp[counter::PFC_PREFETCHES_LATE] = pmcounters.pfc_prefetches_late;
       tmp[counter::PFC_USELESS_PREFETCHES] = pmcounters.pfc_useless_prefetches;
+      tmp[counter::SC_CACHE_ACCESS] = pmcounters.sc_cache_access;
+      tmp[counter::SC_CACHE_RD] = pmcounters.sc_cache_rd;
+      tmp[counter::SC_CACHE_MISS] = pmcounters.sc_cache_miss;
+      tmp[counter::SC_CACHE_MISS_RD] = pmcounters.sc_cache_miss_rd;
+      tmp[counter::SC_CACHE_REFILL] = pmcounters.sc_cache_refill;
+      tmp[counter::SC_CACHE_ALLOCATE] = pmcounters.sc_cache_allocate;
+      tmp[counter::SC_CACHE_WB_DIRTY] = pmcounters.sc_cache_wb_dirty;
+      tmp[counter::SC_CACHE_WB_CLEAN] = pmcounters.sc_cache_wb_clean;
+      tmp[counter::SC_CACHE_INVAL] = pmcounters.sc_cache_inval;
+      tmp[counter::SC_SNOOP] = pmcounters.sc_snoop;
+      tmp[counter::SC_SCRATCHPAD_RD] = pmcounters.sc_scratchpad_rd;
+      tmp[counter::SC_SCRATCHPAD_WR] = pmcounters.sc_scratchpad_wr;
+      tmp[counter::F2SC_RD] = pmcounters.f2sc_rd;
+      tmp[counter::F2SC_WR] = pmcounters.f2sc_wr;
+      tmp[counter::MSHR_LIFETIME] = pmcounters.mshr_lifetime;
+      tmp[counter::MSHR_ALLOCATIONS] = pmcounters.mshr_allocations;
+      tmp[counter::SC2F_RD_U] = pmcounters.sc2f_rd_u;
+      tmp[counter::SC2F_RD_C] = pmcounters.sc2f_rd_c;
+      tmp[counter::SC2F_RD_O] = pmcounters.sc2f_rd_o;
+      tmp[counter::SC2F_WR] = pmcounters.sc2f_wr;
+      tmp[counter::C2SC_RD_I] = pmcounters.c2sc_rd_i;
+      tmp[counter::C2SC_RD_D] = pmcounters.c2sc_rd_d;
+      tmp[counter::C2SC_WB_FULL] = pmcounters.c2sc_wb_full;
+      tmp[counter::C2SC_EVICT] = pmcounters.c2sc_evict;
+      tmp[counter::C2SC_SNP_WB_FULL] = pmcounters.c2sc_snp_wb_full;
+      tmp[counter::C2SC_WRNOSNPPTL] = pmcounters.c2sc_wrnosnpptl;
+      tmp[counter::C2SC_SNP] = pmcounters.c2sc_snp;
+      tmp[counter::C2SC_REQ_STALL] = pmcounters.c2sc_req_stall;
+      tmp[counter::C2SC_WDAT_STALL] = pmcounters.c2sc_wdat_stall;
+      tmp[counter::C2SC_SRSP_STALL] = pmcounters.c2sc_srsp_stall;
+      tmp[counter::C2SC_RDAT_STALL] = pmcounters.c2sc_rdat_stall;
+      tmp[counter::C2SC_SNP_STALL] = pmcounters.c2sc_snp_stall;
+      tmp[counter::C2SC_CRSP_STALL] = pmcounters.c2sc_crsp_stall;
+      tmp[counter::SC2F_EVICT] = pmcounters.sc2f_evict;
+      tmp[counter::SC2F_WRBACKFULL] = pmcounters.sc2f_wrbackfull;
+      tmp[counter::SC2F_WDAT] = pmcounters.sc2f_wdat;
+      tmp[counter::SC2F_SNOOP] = pmcounters.sc2f_snoop;
+      tmp[counter::SC2F_RDAT] = pmcounters.sc2f_rdat;
+      tmp[counter::SC2F_REQ_STALL] = pmcounters.sc2f_req_stall;
+      tmp[counter::SC2F_WDAT_STALL] = pmcounters.sc2f_wdat_stall;
+      tmp[counter::SC2F_SRSP_STALL] = pmcounters.sc2f_srsp_stall;
+      tmp[counter::SC2F_RDAT_STALL] = pmcounters.sc2f_rdat_stall;
+      tmp[counter::SC2F_SNOOP_STALL] = pmcounters.sc2f_snoop_stall;
+      tmp[counter::SC2F_CRSP_STALL] = pmcounters.sc2f_crsp_stall;
+      tmp[counter::F2SC_WDAT] = pmcounters.f2sc_wdat;
+      tmp[counter::F2SC_RDAT] = pmcounters.f2sc_rdat;
+      tmp[counter::F2SC_WRNOSNPPTL] = pmcounters.f2sc_wrnosnpptl;
+      tmp[counter::F2SC_REQ_STALL] = pmcounters.f2sc_req_stall;
+      tmp[counter::F2SC_WDAT_STALL] = pmcounters.f2sc_wdat_stall;
+      tmp[counter::F2SC_RDAT_STALL] = pmcounters.f2sc_rdat_stall;
+      tmp[counter::F2SC_CRSP_STALL] = pmcounters.f2sc_crsp_stall;
+      tmp[counter::SC_TAG_LOOKUP] = pmcounters.sc_tag_lookup;
+      tmp[counter::SC_TAG_WRITE] = pmcounters.sc_tag_write;
+      tmp[counter::SC_STATE_WRITE] = pmcounters.sc_state_write;
+      tmp[counter::SC_REPL_WRITE] = pmcounters.sc_repl_write;
+      tmp[counter::SC_TAG_HIT] = pmcounters.sc_tag_hit;
+      tmp[counter::SC_DATA_READ] = pmcounters.sc_data_read;
+      tmp[counter::SC_DATA_WRITE] = pmcounters.sc_data_write;
+      tmp[counter::SC_STATE_I2E] = pmcounters.sc_state_i2e;
+      tmp[counter::SC_STATE_I2M] = pmcounters.sc_state_i2m;
+      tmp[counter::SC_STATE_I2S] = pmcounters.sc_state_i2s;
+      tmp[counter::SC_STATE_S2I] = pmcounters.sc_state_s2i;
+      tmp[counter::SC_STATE_S2M] = pmcounters.sc_state_s2m;
+      tmp[counter::SC_STATE_S2E] = pmcounters.sc_state_s2e;
+      tmp[counter::SC_STATE_M2I] = pmcounters.sc_state_m2i;
+      tmp[counter::SC_STATE_M2S] = pmcounters.sc_state_m2s;
+      tmp[counter::SC_STATE_M2E] = pmcounters.sc_state_m2e;
+      tmp[counter::SC_STATE_E2I] = pmcounters.sc_state_e2i;
+      tmp[counter::SC_STATE_E2S] = pmcounters.sc_state_e2s;
+      tmp[counter::SC_STATE_E2M] = pmcounters.sc_state_e2m;
+      tmp[counter::SFT_LOOKUP] = pmcounters.sft_lookup;
+      tmp[counter::SFT_HIT] = pmcounters.sft_hit;
+      tmp[counter::SFT_WRITE] = pmcounters.sft_write;
+      tmp[counter::SFT_EVICTION] = pmcounters.sft_eviction;
+      tmp[counter::SFT_SNP_SINGLE_ICACHE] = pmcounters.sft_snp_single_icache;
+      tmp[counter::SFT_SNP_SINGLE_DCACHE] = pmcounters.sft_snp_single_dcache;
+      tmp[counter::SFT_SNP_MULTI_CORES] = pmcounters.sft_snp_multi_cores;
+      tmp[counter::SFT_EVICTION_REPLAY] = pmcounters.sft_eviction_replay;
+      tmp[counter::MSHR_OCCUPANCY] = pmcounters.mshr_occupancy;
+      tmp[counter::MSHR_FULL] = pmcounters.mshr_full;
+      tmp[counter::MSHR_SAQ_ALLOC] = pmcounters.mshr_saq_alloc;
+      tmp[counter::MSHR_SAQ_FULL] = pmcounters.mshr_saq_full;
+      tmp[counter::NO_ALLOC_NO_MSHR] = pmcounters.no_alloc_no_mshr;
+      tmp[counter::NO_ALLOC_HINT_NOT_SET] = pmcounters.no_alloc_hint_not_set;
+      tmp[counter::SC_REPLAY_ECC] = pmcounters.sc_replay_ecc;
 
       return tmp;
     }
 
     
     const std::unordered_map<counter, std::string_view> to_string =
-      {
+    {
       {CPU_CYCLES,"cpu_cycles"},
       {INSTRUCTIONS,"instructions"},
       {BRANCH_INSTRUCTION,"branch_instruction"},
@@ -1024,6 +1279,91 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {PFC_PREFETCHES_HIT,"pfc_prefetches_hit"},
       {PFC_PREFETCHES_LATE,"pfc_prefetches_late"},
       {PFC_USELESS_PREFETCHES,"pfc_useless_prefetches"},
+      {SC_CACHE_ACCESS,"sc_cache_access"},
+      {SC_CACHE_RD,"sc_cache_rd"},
+      {SC_CACHE_MISS,"sc_cache_miss"},
+      {SC_CACHE_MISS_RD,"sc_cache_miss_rd"},
+      {SC_CACHE_REFILL,"sc_cache_refill"},
+      {SC_CACHE_ALLOCATE,"sc_cache_allocate"},
+      {SC_CACHE_WB_DIRTY,"sc_cache_wb_dirty"},
+      {SC_CACHE_WB_CLEAN,"sc_cache_wb_clean"},
+      {SC_CACHE_INVAL,"sc_cache_inval"},
+      {SC_SNOOP,"sc_snoop"},
+      {SC_SCRATCHPAD_RD,"sc_scratchpad_rd"},
+      {SC_SCRATCHPAD_WR,"sc_scratchpad_wr"},
+      {F2SC_RD,"f2sc_rd"},
+      {F2SC_WR,"f2sc_wr"},
+      {MSHR_LIFETIME,"mshr_lifetime"},
+      {MSHR_ALLOCATIONS,"mshr_allocations"},
+      {SC2F_RD_U,"sc2f_rd_u"},
+      {SC2F_RD_C,"sc2f_rd_c"},
+      {SC2F_RD_O,"sc2f_rd_o"},
+      {SC2F_WR,"sc2f_wr"},
+      {C2SC_RD_I,"c2sc_rd_i"},
+      {C2SC_RD_D,"c2sc_rd_d"},
+      {C2SC_WB_FULL,"c2sc_wb_full"},
+      {C2SC_EVICT,"c2sc_evict"},
+      {C2SC_SNP_WB_FULL,"c2sc_snp_wb_full"},
+      {C2SC_WRNOSNPPTL,"c2sc_wrnosnpptl"},
+      {C2SC_SNP,"c2sc_snp"},
+      {C2SC_REQ_STALL,"c2sc_req_stall"},
+      {C2SC_WDAT_STALL,"c2sc_wdat_stall"},
+      {C2SC_SRSP_STALL,"c2sc_srsp_stall"},
+      {C2SC_RDAT_STALL,"c2sc_rdat_stall"},
+      {C2SC_SNP_STALL,"c2sc_snp_stall"},
+      {C2SC_CRSP_STALL,"c2sc_crsp_stall"},
+      {SC2F_EVICT,"sc2f_evict"},
+      {SC2F_WRBACKFULL,"sc2f_wrbackfull"},
+      {SC2F_WDAT,"sc2f_wdat"},
+      {SC2F_SNOOP,"sc2f_snoop"},
+      {SC2F_RDAT,"sc2f_rdat"},
+      {SC2F_REQ_STALL,"sc2f_req_stall"},
+      {SC2F_WDAT_STALL,"sc2f_wdat_stall"},
+      {SC2F_SRSP_STALL,"sc2f_srsp_stall"},
+      {SC2F_RDAT_STALL,"sc2f_rdat_stall"},
+      {SC2F_SNOOP_STALL,"sc2f_snoop_stall"},
+      {SC2F_CRSP_STALL,"sc2f_crsp_stall"},
+      {F2SC_WDAT,"f2sc_wdat"},
+      {F2SC_RDAT,"f2sc_rdat"},
+      {F2SC_WRNOSNPPTL,"f2sc_wrnosnpptl"},
+      {F2SC_REQ_STALL,"f2sc_req_stall"},
+      {F2SC_WDAT_STALL,"f2sc_wdat_stall"},
+      {F2SC_RDAT_STALL,"f2sc_rdat_stall"},
+      {F2SC_CRSP_STALL,"f2sc_crsp_stall"},
+      {SC_TAG_LOOKUP,"sc_tag_lookup"},
+      {SC_TAG_WRITE,"sc_tag_write"},
+      {SC_STATE_WRITE,"sc_state_write"},
+      {SC_REPL_WRITE,"sc_repl_write"},
+      {SC_TAG_HIT,"sc_tag_hit"},
+      {SC_DATA_READ,"sc_data_read"},
+      {SC_DATA_WRITE,"sc_data_write"},
+      {SC_STATE_I2E,"sc_state_i2e"},
+      {SC_STATE_I2M,"sc_state_i2m"},
+      {SC_STATE_I2S,"sc_state_i2s"},
+      {SC_STATE_S2I,"sc_state_s2i"},
+      {SC_STATE_S2M,"sc_state_s2m"},
+      {SC_STATE_S2E,"sc_state_s2e"},
+      {SC_STATE_M2I,"sc_state_m2i"},
+      {SC_STATE_M2S,"sc_state_m2s"},
+      {SC_STATE_M2E,"sc_state_m2e"},
+      {SC_STATE_E2I,"sc_state_e2i"},
+      {SC_STATE_E2S,"sc_state_e2s"},
+      {SC_STATE_E2M,"sc_state_e2m"},
+      {SFT_LOOKUP,"sft_lookup"},
+      {SFT_HIT,"sft_hit"},
+      {SFT_WRITE,"sft_write"},
+      {SFT_EVICTION,"sft_eviction"},
+      {SFT_SNP_SINGLE_ICACHE,"sft_snp_single_icache"},
+      {SFT_SNP_SINGLE_DCACHE,"sft_snp_single_dcache"},
+      {SFT_SNP_MULTI_CORES,"sft_snp_multi_cores"},
+      {SFT_EVICTION_REPLAY,"sft_eviction_replay"},
+      {MSHR_OCCUPANCY,"mshr_occupancy"},
+      {MSHR_FULL,"mshr_full"},
+      {MSHR_SAQ_ALLOC,"mshr_saq_alloc"},
+      {MSHR_SAQ_FULL,"mshr_saq_full"},
+      {NO_ALLOC_NO_MSHR,"no_alloc_no_mshr"},
+      {NO_ALLOC_HINT_NOT_SET,"no_alloc_hint_not_set"},
+      {SC_REPLAY_ECC,"sc_replay_ecc"},
     };
 
   pmu(cvm::topology::loc_t, unsigned);

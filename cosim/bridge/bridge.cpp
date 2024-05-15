@@ -121,7 +121,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
     if(FLAGS_hart_enable_mask == 0x1){
       std::random_device rd;
       std::mt19937 gen(rd());
-      std::uniform_int_distribution<> dis(0, 7);
+      std::uniform_int_distribution<> dis(0, nharts - 1);
       unsigned char hart_enable_mask = 0;
       for (uint32_t i = 0; i < FLAGS_num_harts; ++i) {
           int bit_position;
@@ -164,6 +164,7 @@ void bridge::reset() {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed to poke boot memory\n", id_);
     return;
   }
+  cvm::registry::messenger.signal<uint64_t>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0), uint64_t(0));
   resetsstc_poke(id_,0,0x14d);
   resetsstc_poke(id_,0,0x24d);
 }
@@ -540,24 +541,6 @@ void bridge::post_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, const
     }
   }
 
-  if (d.mem_write.valid && d.mem_write.size==4 && ((d.mem_write.pa>=0x40000000 &&  d.mem_write.pa <0x42000000) || (d.mem_write.pa>=0x44000000 &&  d.mem_write.pa < 0x46000000)) ) {
-    bool valid;
-    if (!client_->whisperPokeMem(hart, d.cycle, 'm', d.mem_write.pa, 4, w.value, valid)) {
-      cvm::log(cvm::ERROR, "Error: Hart {}: Failed to poke memory\n", hart);
-      return;
-    } else {
-    log(cvm::MEDIUM, "<{}> Poking msi to whisper because of a store\n", d.cycle);
-    }
-    uint64_t mip, seip, mipchange, msihart;
-    msihart = (d.mem_write.pa >> 18) & 0x7;
-    if (msihart < static_cast<uint64_t>(num_harts_)) {
-      peek_mip(msihart, d.cycle, mip);
-      peek_seip(msihart, d.cycle, seip);
-      mip |= seip<<9;
-      mipchange = mip & 0x1e00;
-      check_and_defer_interrupt(msihart, d.cycle, mipchange); // Defer new external interrupts (HGEIP,VSEIP,SEIP,MEIP) caused due to store
-    }
-  }
 
   if (!d.intr && !w_.intr)
     return;

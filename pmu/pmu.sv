@@ -1,5 +1,6 @@
 module pmu
 import rv_tester_params::*;
+import rv_tester_pkg::*;
 #(
   parameter int NUM = -1,
   parameter int NRET = 1,
@@ -11,6 +12,7 @@ import rv_tester_params::*;
   input reset,
   input longint unsigned clocks,
   input pmci_t pmci,
+  input sc_pmci_t sc_pmci,
   input rvfi_t [NRET-1:0] rvfi,
   input bit terminate,
   `RV_TESTER_TRANSACTIONS_PMU_OUTPUT_PORTS
@@ -43,11 +45,13 @@ import rv_tester_params::*;
     longint unsigned prev_sync_instructions = 0;
     longint unsigned nret = {32'h0, NRET};
     longint unsigned pmcounter [EVENT_COUNT] = '{default:0};
+    longint unsigned sc_pmcounter [SC_EVENT_COUNT] = '{default:0};
     longint unsigned branch_instruction;
 
     always @(posedge clk) begin
       if (reset) begin
         pmcounter[0] <= 0;
+        sc_pmcounter[0] <= 0;
         cpu_cycles <= 0;
         sync_cycles <= 0;
         sync_instructions <= 1;
@@ -73,9 +77,16 @@ import rv_tester_params::*;
             if (reset) begin
                 pmcounter[i] <= 0;
             end else begin
-                //NOTE: Hack to support verilator builds -- if EVENT_COUNT is greater than 64, verilator fails to build with Error-BLKLOOPINIT
-                //Longer term fix would be adding a higher --unroll-count to verialator's CLI. no time for that on 9/12/2023, though
                 pmcounter[i] <= pmcounter[i] + {60'h0, pmci[i]};
+            end
+        end
+      end
+      for (genvar i=1; i < SC_EVENT_COUNT; i++) begin : sc_pmci_regs
+        always @(posedge clk) begin
+            if (reset) begin
+                sc_pmcounter[i] <= 0;
+            end else begin
+                sc_pmcounter[i] <= sc_pmcounter[i] + {58'h0, sc_pmci[i]};
             end
         end
       end
@@ -375,6 +386,91 @@ import rv_tester_params::*;
     assign pmcounterss[0].data.pfc_prefetches_hit = pmcounter[PFC_PREFETCHES_HIT];
     assign pmcounterss[0].data.pfc_prefetches_late = pmcounter[PFC_PREFETCHES_LATE];
     assign pmcounterss[0].data.pfc_useless_prefetches = pmcounter[PFC_USELESS_PREFETCHES];
+    assign pmcounterss[0].data.sc_cache_access = sc_pmcounter[SC_CACHE_ACCESS];
+    assign pmcounterss[0].data.sc_cache_rd = sc_pmcounter[SC_CACHE_RD];
+    assign pmcounterss[0].data.sc_cache_miss = sc_pmcounter[SC_CACHE_MISS];
+    assign pmcounterss[0].data.sc_cache_miss_rd = sc_pmcounter[SC_CACHE_MISS_RD];
+    assign pmcounterss[0].data.sc_cache_refill = sc_pmcounter[SC_CACHE_REFILL];
+    assign pmcounterss[0].data.sc_cache_allocate = sc_pmcounter[SC_CACHE_ALLOCATE];
+    assign pmcounterss[0].data.sc_cache_wb_dirty = sc_pmcounter[SC_CACHE_WB_DIRTY];
+    assign pmcounterss[0].data.sc_cache_wb_clean = sc_pmcounter[SC_CACHE_WB_CLEAN];
+    assign pmcounterss[0].data.sc_cache_inval = sc_pmcounter[SC_CACHE_INVAL];
+    assign pmcounterss[0].data.sc_snoop = sc_pmcounter[SC_SNOOP];
+    assign pmcounterss[0].data.sc_scratchpad_rd = sc_pmcounter[SC_SCRATCHPAD_RD];
+    assign pmcounterss[0].data.sc_scratchpad_wr = sc_pmcounter[SC_SCRATCHPAD_WR];
+    assign pmcounterss[0].data.f2sc_rd = sc_pmcounter[F2SC_RD];
+    assign pmcounterss[0].data.f2sc_wr = sc_pmcounter[F2SC_WR];
+    assign pmcounterss[0].data.mshr_lifetime = sc_pmcounter[MSHR_LIFETIME];
+    assign pmcounterss[0].data.mshr_allocations = sc_pmcounter[MSHR_ALLOCATIONS];
+    assign pmcounterss[0].data.sc2f_rd_u = sc_pmcounter[SC2F_RD_U];
+    assign pmcounterss[0].data.sc2f_rd_c = sc_pmcounter[SC2F_RD_C];
+    assign pmcounterss[0].data.sc2f_rd_o = sc_pmcounter[SC2F_RD_O];
+    assign pmcounterss[0].data.sc2f_wr = sc_pmcounter[SC2F_WR];
+    assign pmcounterss[0].data.c2sc_rd_i = sc_pmcounter[C2SC_RD_I];
+    assign pmcounterss[0].data.c2sc_rd_d = sc_pmcounter[C2SC_RD_D];
+    assign pmcounterss[0].data.c2sc_wb_full = sc_pmcounter[C2SC_WB_FULL];
+    assign pmcounterss[0].data.c2sc_evict = sc_pmcounter[C2SC_EVICT];
+    assign pmcounterss[0].data.c2sc_snp_wb_full = sc_pmcounter[C2SC_SNP_WB_FULL];
+    assign pmcounterss[0].data.c2sc_wrnosnpptl = sc_pmcounter[C2SC_WRNOSNPPTL];
+    assign pmcounterss[0].data.c2sc_snp = sc_pmcounter[C2SC_SNP];
+    assign pmcounterss[0].data.c2sc_req_stall = sc_pmcounter[C2SC_REQ_STALL];
+    assign pmcounterss[0].data.c2sc_wdat_stall = sc_pmcounter[C2SC_WDAT_STALL];
+    assign pmcounterss[0].data.c2sc_srsp_stall = sc_pmcounter[C2SC_SRSP_STALL];
+    assign pmcounterss[0].data.c2sc_rdat_stall = sc_pmcounter[C2SC_RDAT_STALL];
+    assign pmcounterss[0].data.c2sc_snp_stall = sc_pmcounter[C2SC_SNP_STALL];
+    assign pmcounterss[0].data.c2sc_crsp_stall = sc_pmcounter[C2SC_CRSP_STALL];
+    assign pmcounterss[0].data.sc2f_evict = sc_pmcounter[SC2F_EVICT];
+    assign pmcounterss[0].data.sc2f_wrbackfull = sc_pmcounter[SC2F_WRBACKFULL];
+    assign pmcounterss[0].data.sc2f_wdat = sc_pmcounter[SC2F_WDAT];
+    assign pmcounterss[0].data.sc2f_snoop = sc_pmcounter[SC2F_SNOOP];
+    assign pmcounterss[0].data.sc2f_rdat = sc_pmcounter[SC2F_RDAT];
+    assign pmcounterss[0].data.sc2f_req_stall = sc_pmcounter[SC2F_REQ_STALL];
+    assign pmcounterss[0].data.sc2f_wdat_stall = sc_pmcounter[SC2F_WDAT_STALL];
+    assign pmcounterss[0].data.sc2f_srsp_stall = sc_pmcounter[SC2F_SRSP_STALL];
+    assign pmcounterss[0].data.sc2f_rdat_stall = sc_pmcounter[SC2F_RDAT_STALL];
+    assign pmcounterss[0].data.sc2f_snoop_stall = sc_pmcounter[SC2F_SNOOP_STALL];
+    assign pmcounterss[0].data.sc2f_crsp_stall = sc_pmcounter[SC2F_CRSP_STALL];
+    assign pmcounterss[0].data.f2sc_wdat = sc_pmcounter[F2SC_WDAT];
+    assign pmcounterss[0].data.f2sc_rdat = sc_pmcounter[F2SC_RDAT];
+    assign pmcounterss[0].data.f2sc_wrnosnpptl = sc_pmcounter[F2SC_WRNOSNPPTL];
+    assign pmcounterss[0].data.f2sc_req_stall = sc_pmcounter[F2SC_REQ_STALL];
+    assign pmcounterss[0].data.f2sc_wdat_stall = sc_pmcounter[F2SC_WDAT_STALL];
+    assign pmcounterss[0].data.f2sc_rdat_stall = sc_pmcounter[F2SC_RDAT_STALL];
+    assign pmcounterss[0].data.f2sc_crsp_stall = sc_pmcounter[F2SC_CRSP_STALL];
+    assign pmcounterss[0].data.sc_tag_lookup = sc_pmcounter[SC_TAG_LOOKUP];
+    assign pmcounterss[0].data.sc_tag_write = sc_pmcounter[SC_TAG_WRITE];
+    assign pmcounterss[0].data.sc_state_write = sc_pmcounter[SC_STATE_WRITE];
+    assign pmcounterss[0].data.sc_repl_write = sc_pmcounter[SC_REPL_WRITE];
+    assign pmcounterss[0].data.sc_tag_hit = sc_pmcounter[SC_TAG_HIT];
+    assign pmcounterss[0].data.sc_data_read = sc_pmcounter[SC_DATA_READ];
+    assign pmcounterss[0].data.sc_data_write = sc_pmcounter[SC_DATA_WRITE];
+    assign pmcounterss[0].data.sc_state_i2e = sc_pmcounter[SC_STATE_I2E];
+    assign pmcounterss[0].data.sc_state_i2m = sc_pmcounter[SC_STATE_I2M];
+    assign pmcounterss[0].data.sc_state_i2s = sc_pmcounter[SC_STATE_I2S];
+    assign pmcounterss[0].data.sc_state_s2i = sc_pmcounter[SC_STATE_S2I];
+    assign pmcounterss[0].data.sc_state_s2m = sc_pmcounter[SC_STATE_S2M];
+    assign pmcounterss[0].data.sc_state_s2e = sc_pmcounter[SC_STATE_S2E];
+    assign pmcounterss[0].data.sc_state_m2i = sc_pmcounter[SC_STATE_M2I];
+    assign pmcounterss[0].data.sc_state_m2s = sc_pmcounter[SC_STATE_M2S];
+    assign pmcounterss[0].data.sc_state_m2e = sc_pmcounter[SC_STATE_M2E];
+    assign pmcounterss[0].data.sc_state_e2i = sc_pmcounter[SC_STATE_E2I];
+    assign pmcounterss[0].data.sc_state_e2s = sc_pmcounter[SC_STATE_E2S];
+    assign pmcounterss[0].data.sc_state_e2m = sc_pmcounter[SC_STATE_E2M];
+    assign pmcounterss[0].data.sft_lookup = sc_pmcounter[SFT_LOOKUP];
+    assign pmcounterss[0].data.sft_hit = sc_pmcounter[SFT_HIT];
+    assign pmcounterss[0].data.sft_write = sc_pmcounter[SFT_WRITE];
+    assign pmcounterss[0].data.sft_eviction = sc_pmcounter[SFT_EVICTION];
+    assign pmcounterss[0].data.sft_snp_single_icache = sc_pmcounter[SFT_SNP_SINGLE_ICACHE];
+    assign pmcounterss[0].data.sft_snp_single_dcache = sc_pmcounter[SFT_SNP_SINGLE_DCACHE];
+    assign pmcounterss[0].data.sft_snp_multi_cores = sc_pmcounter[SFT_SNP_MULTI_CORES];
+    assign pmcounterss[0].data.sft_eviction_replay = sc_pmcounter[SFT_EVICTION_REPLAY];
+    assign pmcounterss[0].data.mshr_occupancy = sc_pmcounter[MSHR_OCCUPANCY];
+    assign pmcounterss[0].data.mshr_full = sc_pmcounter[MSHR_FULL];
+    assign pmcounterss[0].data.mshr_saq_alloc = sc_pmcounter[MSHR_SAQ_ALLOC];
+    assign pmcounterss[0].data.mshr_saq_full = sc_pmcounter[MSHR_SAQ_FULL];
+    assign pmcounterss[0].data.no_alloc_no_mshr = sc_pmcounter[NO_ALLOC_NO_MSHR];
+    assign pmcounterss[0].data.no_alloc_hint_not_set = sc_pmcounter[NO_ALLOC_HINT_NOT_SET];
+    assign pmcounterss[0].data.sc_replay_ecc = sc_pmcounter[SC_REPLAY_ECC];
 
 endmodule
 

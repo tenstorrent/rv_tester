@@ -393,6 +393,8 @@ module rv_tester
           .mcmi_ievict(mcmi_ievict[NIEVICTS_CUMSUM[c] +: NIEVICTS[c]]),
           .wired_interrupt(interrupt_pend[c]),
           .imsic_interrupt(axi_msi), //FIXME
+          .imsic_msi(axi_msi_packets[c]), //FIXME
+          .imsic_ipi(axi_ipi_packets[c]), //FIXME
           .debug_mode(debug_mode[c]),
           .terminate(cosim_terminate[c]),
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PORTS(1, c, 0)
@@ -458,6 +460,7 @@ module rv_tester
           .reset(sysmod_reset),
           .clocks,
           .pmci(pmci[p]),
+          .sc_pmci(sc_pmci),
           .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
           .terminate,
           `RV_TESTER_TRANSACTIONS_PMU_SOURCE_PORTS(1, p, 0)
