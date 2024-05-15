@@ -118,7 +118,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
     }
     // Overwrite hart_enable_mask in a random fashion based on num_harts run-arg
     // Do this only when hart_enable_mask run-arg is 0x1 (default value)
-    if(FLAGS_hart_enable_mask == 0x1){
+    if((FLAGS_hart_enable_mask == 0x1) && (nharts > 1)){
       std::random_device rd;
       std::mt19937 gen(rd());
       std::uniform_int_distribution<> dis(0, 7);
