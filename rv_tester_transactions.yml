@@ -251,7 +251,7 @@ cosim:
 
     m_imsic_msi:
         domain: 1
-        num: 1
+        num: 3
         fields:
             cycle:
                 width: 64
