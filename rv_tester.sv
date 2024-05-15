@@ -458,6 +458,7 @@ module rv_tester
           .reset(sysmod_reset),
           .clocks,
           .pmci(pmci[p]),
+          .sc_pmci(sc_pmci),
           .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
           .terminate,
           `RV_TESTER_TRANSACTIONS_PMU_SOURCE_PORTS(1, p, 0)

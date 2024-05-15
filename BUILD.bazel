@@ -13,11 +13,15 @@ verilog_library(
 )
 
 verilog_library(
+    name = "rv_tester_pkg",
+    srcs = ["rv_tester_pkg.sv"],
+    visibility = ["//visibility:public"],
+)
+
+verilog_library(
     name = "defines",
-    srcs = [
-        "rv_tester_defines.sv",
-    ],
-    deps = ["pkg"],
+    srcs = [ "rv_tester_defines.sv", ],
+    deps = [ "rv_tester_pkg" ],
     visibility = ["//visibility:public"],
 )
 
