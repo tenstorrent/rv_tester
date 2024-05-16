@@ -69,6 +69,14 @@ public:
       d->tick(advance);
     }
   }
+  
+   
+  virtual void jtag_tick(uint64_t advance) override
+  {
+    for (auto& d : subdevices_) {
+      d->jtag_tick(advance);
+    }
+  }
 
   /// Initialize memory with elf file.
   bool init_elf(const std::string& path);

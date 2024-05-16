@@ -41,10 +41,13 @@ class sysmod {
 
     void set_scope(svScope s) { scope_ = s; }
     void tick(uint64_t advance);
+    void jtag_tick(uint64_t advance);
     void jtag_resp(std::bitset<70> rdata);
     void compose();
     void load_boot(const std::string& boot);
+    void load_cplfw(const std::string& cplfw);
     void load_prog(const std::string& hex, const std::string& load, const std::string& lz4);
+    void load_csr_boot(uint64_t);
     void load_io(const std::string& io);
     // Function to convert a bitset to an array of uint64_t
   //   std::vector<uint64_t> bitsetToUint64Array(const std::bitset<70>& bs) {
@@ -57,10 +60,11 @@ class sysmod {
   //     return result;
   //  }
    std::vector<uint64_t> bitsetToUint64Array(const std::bitset<70>& bitset) {
-    const size_t bitsetSize = 70;
+    const size_t bitsetSize = 64;//70;
     const size_t ulongSize = sizeof(uint64_t) * 8;
     const size_t arraySize = (bitsetSize + ulongSize - 1) / ulongSize;
-
+    
+     std::bitset<70> bitset_shifted = bitset>>4;
     std::vector<uint64_t> ulongArray(arraySize);
 
     for (size_t i = 0; i < bitsetSize; i += ulongSize) {
@@ -68,7 +72,7 @@ class sysmod {
         uint64_t value = 0;
 
         for (size_t j = 0; j < ulongSize && (i + j) < bitsetSize; ++j) {
-            value |= (bitset[i + j] ? 1UL : 0UL) << j;
+            value |= (bitset_shifted[i + j] ? 1UL : 0UL) << j;
         }
 
         ulongArray[ulongIndex] = value;
@@ -90,6 +94,7 @@ class sysmod {
     void uc_helper_backdoor_write(uc_helper::uc_helper_write_t w);
     void uc_helper_backdoor_read(uc_helper::uc_helper_read_req_t w);
     void trace_cfg_read_req_router(trace_cfg::trace_cfg_read_t r);
+    void smc_read_req_router(smc_xtor::smc_xtor_read_t r);
     void scratchpad_xtor_read_req_router(scratchpad_xtor::scratchpad_xtor_read_t r);
     void terminate(htif::terminate_t t);
 
@@ -114,5 +119,6 @@ class sysmod {
     int port = 50001;
 
     std::uint64_t ticks_ = 0;
+    std::uint64_t jtag_ticks_ = 0;
     //remote_bitbang_t remote_bitbang();
 };

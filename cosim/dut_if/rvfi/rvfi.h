@@ -69,13 +69,14 @@ class rvfi {
     void make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_instr_t& instr);
     void print_csr(csr_t& csr);
     void append_uop_changes_to_instr(rv_instr_t& instr);
-    void print_instr(rv_instr_t& instr);
-    void print_instr_resource(rv_instr_t& instr, std::string resource_str);
+    void print_instr(const rv_instr_t& instr);
+    void print_instr_resource(const rv_instr_t& instr, std::string resource_str);
     void send_instr(rv_instr_t& instr);
     void send_csr(csr_t& csr);
     void send_instr_group(hart_id_t hart, rv_instr_group_t& group);
     void enter_debug_mode(rv_instr_t& instr);
     void exit_debug_mode(rv_instr_t& instr);
+    std::string mem_attr_to_string(uint32_t mem_attr); 
 
   private:
 
@@ -107,6 +108,8 @@ class rvfi {
     std::unordered_map<uint64_t, mem_t> amo_writes_;
     std::unordered_map<uint64_t, mem_t> sc_result_;
     std::unordered_map<uint64_t, mem_t> sc_bypass_;
+
+    std::unordered_map<uint64_t, uint64_t> mem_read_data_; // new map for storing mem read data along with tag
 
     svScope scope_;
 

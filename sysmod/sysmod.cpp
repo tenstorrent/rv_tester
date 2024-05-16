@@ -22,6 +22,7 @@
 #include "trickbox/trickbox.h"
 #include "rv_tester/rv_tester_structs.h"
 #include "rv_tester/rv_tester_plusargs.h"
+#include "cosim/bridge_if/bridge_params.h"
 
 // internal flags
 DEFINE_string(hex, "", "hex file (program) to load into memory");
@@ -29,11 +30,12 @@ DEFINE_string(load, "", "elf file (program) to load into memory");
 DEFINE_string(load_lz4, "", "lz4 compressed file (program) to load into memory");
 DEFINE_bool(bootrom, true, "Load bootrom before test");
 DEFINE_string(bootrom_path, "", "Path to bootrom object file");
+DEFINE_string(cplfw_path, "", "Path to cpl firmware object file");
 DEFINE_string(load_io, "", "load specified io dev with content from memory");
 DEFINE_bool(sysmod_tick_async, true, "Asynchronous sysmod_tick calls");
 DEFINE_uint64(sysmod_tick_update_threshold, 1, "Slow down tick update frequency by this factor. The tick is still eventually advanced the same cumulative amount, just not as often. Useful for emulation where the clock counts much faster but tests setup interrupts to happen very soon for simulation. They git hit by an interrupt storm and are stuck in the interrupt handler forever.");
 DEFINE_uint64(hart_enable_mask, 0x1, "Hart enable mask. Ex: To enable 2 harts in a 8-hart system, use 0x3.");
-
+DEFINE_string(set_csr, "", "+set_csr=<csr_num>:<value>,<num2>:<val2> ");
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 
 extern "C" {
@@ -44,7 +46,7 @@ extern "C" {
   void sysmod_aplic_dir_interrupt(unsigned long* i) ;
   void sysmod_aplic_rnd_interrupt(unsigned hartid, unsigned val, unsigned int_val);
   void sysmod_dmi_write(unsigned hartid, unsigned upper_val, unsigned lower_val);
-  void sysmod_jtag_req(unsigned cmd,unsigned long upper_val, unsigned long lower_val, unsigned length);
+  void sysmod_jtag_req(unsigned cmd,unsigned long upper_val, unsigned long lower_val, unsigned length, unsigned quit);
   void sysmod_terminate();
 }
 
@@ -54,10 +56,15 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
   cvm::registry::messenger.connect<svScope>(
       loc_,
       [this](svScope s) { return this->set_scope(s); });
-
+  cvm::registry::messenger.connect<uint64_t>(
+      loc_,
+      [this](const uint64_t& t) { return this->load_csr_boot(t); });
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::tick<>>(
       loc_,
       [this](const rv_tester_transactions::sysmod::tick<>& t) { return this->tick(t.advance); });
+  cvm::registry::messenger.connect<rv_tester_transactions::sysmod::jtag_tick<>>(
+      loc_,
+      [this](const rv_tester_transactions::sysmod::jtag_tick<>& t) { return this->jtag_tick(t.advance); });
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::jtag_rdata<>>(
       loc_,
       [this](const rv_tester_transactions::sysmod::jtag_rdata<>& t) { return this->jtag_resp(t.rdata); });
@@ -77,6 +84,7 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
             [this, source](const auto& r) {
                 cvm::log(cvm::DEBUG, "new read request at {:#x}\n", r.addr);
                 if (this->dev(r.addr)){
+                    cvm::log(cvm::FULL, "[sysmod] read: src={} id={}, addr={:#x}, len={}\n", source, r.id, r.addr, r.length);
                     cvm::registry::messenger.signal<device::read_t>(this->loc_, {r, source});
 
 		    }
@@ -194,18 +202,34 @@ sysmod::trace_cfg_read_req_router(trace_cfg::trace_cfg_read_t r) {
 }
 
 void
+sysmod::smc_read_req_router(smc_xtor::smc_xtor_read_t r) {
+
+    transactor::read_t rd;
+    rd.addr = r.addr;
+    rd.length = r.length;
+    rd.id =  r.id;
+
+    auto sources = cvm::topology::get_from_type("PLATFORM_TRANSACTOR");
+
+    if (this->dev(r.addr)){
+        cvm::registry::messenger.signal<device::read_t>(this->loc_, {rd, sources[0]});
+    }
+
+}
+
+void
 sysmod::scratchpad_xtor_read_req_router(scratchpad_xtor::scratchpad_xtor_read_t r) {
 
     transactor::read_t rd; 
     rd.addr = r.addr;
     rd.length = r.length;
     rd.id =  r.id;
-    cvm::log(cvm::LOW, "[SYSMOD] SCRATCHPAD_XTOR ROUTER - addr={:#x} \n", rd.addr);
+    cvm::log(cvm::FULL, "[SYSMOD] SCRATCHPAD_XTOR ROUTER - addr={:#x} \n", rd.addr);
 
     auto sources = cvm::topology::get_from_type("PLATFORM_TRANSACTOR");
 
     if (this->dev(r.addr)){
-    cvm::log(cvm::LOW, "[SYSMOD] SCRATCHPAD_XTOR ROUTER  send to device - addr={:#x} \n", rd.addr);
+    cvm::log(cvm::FULL, "[SYSMOD] SCRATCHPAD_XTOR ROUTER  send to device - addr={:#x} \n", rd.addr);
         cvm::registry::messenger.signal<device::read_t>(this->loc_, {rd, sources[0]});
     }
 
@@ -217,9 +241,9 @@ sysmod::uc_helper_backdoor_write(uc_helper::uc_helper_write_t w) {
         cvm::log(cvm::ERROR, "Error: [SYSMOD] uc_helper_backdoor_write: caching is enabled in rv_tester and it does not receive DMAs, so the test could fail if the CPU does a read to this address as it will receive the stale cached data");
     }
 
-    cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_write addr {:#x} \n",w.addr);
-    cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_write len {} \n",(unsigned)w.length);
-    cvm::log(cvm::HIGH,"[SYSMOD] uc_helper_backdoor_write data-vec : \n");
+    cvm::log(cvm::FULL,"[SYSMOD] uc_helper_backdoor_write addr {:#x} \n",w.addr);
+    cvm::log(cvm::FULL,"[SYSMOD] uc_helper_backdoor_write len {} \n",(unsigned)w.length);
+    cvm::log(cvm::FULL,"[SYSMOD] uc_helper_backdoor_write data-vec : \n");
      for (auto i: w.data){
          cvm::log(cvm::HIGH," {:#x} ",(unsigned)i);
       }
@@ -234,7 +258,7 @@ sysmod::uc_helper_backdoor_write(uc_helper::uc_helper_write_t w) {
    // dynamic_cast<sysmod_mem&>(*dev("memory")).write(wt);
 
 
-    cvm::log(cvm::HIGH, "[UC_HELPER] new backdoor write request at {:#x}", wt.addr);
+    cvm::log(cvm::FULL, "[UC_HELPER] new backdoor write request at {:#x}", wt.addr);
                 if (this->dev(wt.addr))
                     cvm::registry::messenger.signal<device::write_t>(this->loc_, {wt});
 
@@ -282,7 +306,7 @@ sysmod::jtag_req(jtag_driver::jtag_data_t i) {
       scope(),
       [i]() {
         cvm::log(cvm::FULL, "[SYSMOD] trickbox jtag_driver::dmi.(upper,lower) = {:#x}, {:#x}\n",i.upper_jtag_data, i.lower_jtag_data, i.jtag_length_data);
-        sysmod_jtag_req(i.jtag_cmd, i.upper_jtag_data, i.lower_jtag_data,i.jtag_length_data);
+        sysmod_jtag_req(i.jtag_cmd, i.upper_jtag_data, i.lower_jtag_data,i.jtag_length_data,i.jtag_quit);
       });
 }
 
@@ -308,9 +332,10 @@ sysmod::terminate(htif::terminate_t t) {
 void
 sysmod::reset() {
   compose();
-  load_boot(FLAGS_bootrom_path);
   load_prog(FLAGS_hex, FLAGS_load, FLAGS_load_lz4);
   load_io(FLAGS_load_io);
+  load_boot(FLAGS_bootrom_path);
+  load_cplfw(FLAGS_cplfw_path);
 }
 
 void
@@ -330,6 +355,8 @@ sysmod::compose()
   auto platform_loc = cvm::topology::get_from_type("PLATFORM", 0);
   auto nharts = cvm::topology::attr(platform_loc, "NHARTS").second;
 
+  std::shared_ptr<mem_manager> mm = std::make_shared<mem_manager>();
+
   try {
     for(const auto& d : memmap_) {
       const auto base = d.second.base;
@@ -339,9 +366,8 @@ sysmod::compose()
 
       std::unique_ptr<device> device;
 
-
       if (type == "memory") {
-        device = std::make_unique<sysmod_mem>(tag, base, size, loc_);
+        device = std::make_unique<sysmod_mem>(tag, base, size, loc_, mm);
       }
       else if (type == "io_dev") {
         device = std::make_unique<io_dev>(tag, base, size, loc_);
@@ -399,6 +425,9 @@ sysmod::compose()
             [&](smc_xtor::smc_info_t i) { return this->smc_info_handler(i); });
         assert(masters.size() > 0);
         device = std::make_unique<smc_xtor>(tag, base, size, loc_, smc_master[0]);
+        cvm::registry::messenger.connect<smc_xtor::smc_xtor_read_t>(
+            loc_,
+            [&](smc_xtor::smc_xtor_read_t i) { return this->smc_read_req_router(i); });
       }
       else if (type == "aplic_mmr") {
         // TODO: cvm::ERROR
@@ -515,7 +544,10 @@ sysmod::load_prog(const std::string& hex, const std::string& load, const std::st
   for (const auto& d : memmap_) {
     const auto type = d.second.type;
     const auto tag  = d.second.tag;
-    if (load != "" && type == "memory") {
+
+    if (type != "memory") continue;
+
+    if (load != "") {
       cvm::log(cvm::MEDIUM, "Loading {}\n", load);
       if (not dev(tag) or not dynamic_cast<sysmod_mem&>(*dev(tag)).init_elf(load)) {
         cvm::log(cvm::ERROR, "Failed to load program");
@@ -524,7 +556,7 @@ sysmod::load_prog(const std::string& hex, const std::string& load, const std::st
       cvm::log(cvm::MEDIUM, "Loading {} complete\n", load);
     }
 
-    if (hex != "" && type == "memory") {
+    if (hex != "") {
       cvm::log(cvm::MEDIUM, "Loading {}\n", hex);
       if (not dev(tag) or not dynamic_cast<sysmod_mem&>(*dev(tag)).init_hex(hex)) {
         cvm::log(cvm::ERROR, "No memory defined");
@@ -541,7 +573,12 @@ sysmod::load_prog(const std::string& hex, const std::string& load, const std::st
       }
       cvm::log(cvm::MEDIUM, "Loading {} complete\n", lz4);
     }
+
+    // all memories share the same backing mem manaager
+    return;
   }
+
+  cvm::log(cvm::ERROR, "No memory found");
 }
 
 void
@@ -569,14 +606,136 @@ sysmod::load_boot(const std::string& boot)
     dev("boot")->backdoor_write(dev("boot")->addr() + 0x9000, 8, data, strb);
   }
 }
+void
+sysmod::load_csr_boot(uint64_t dummy)
+{
+  cvm::log(cvm::HIGH, "{}", dummy);
+  auto split_string = [] (const std::string& input, char delimiter) {
+    std::vector<std::string> tokens;
+    std::string token;
+    for (char c : input) {
+        if (c != delimiter)
+            token += c;
+        else {
+            tokens.push_back(token);
+            token.clear();
+        }
+    }
+    tokens.push_back(token);
+    return tokens;
+  };
+
+  if (FLAGS_bootrom && FLAGS_set_csr!="") {
+
+    std::map<uint64_t,    uint64_t> csr_data;
+    std::map<std::string, uint64_t> csr_map;
+    for (const auto& csr : csrs) {
+        csr_map[csr.name] = csr.address;
+    }
+    try { // parse the +set_csr and report any errors
+      char delimiter = ',';
+      std::vector<std::string> csr_num_val = split_string(FLAGS_set_csr, delimiter);
+      for (const auto& entry : csr_num_val) {
+        delimiter = ':';
+        std::vector<std::string> num_val = split_string(entry, delimiter);
+        auto csr = num_val.at(0); // expect both csr address("0x301") as well as string("misa")
+        auto value = stoull(num_val.at(1), nullptr, 0);
+        if (csr_map.count(csr))
+          csr_data[csr_map[csr]] = value;
+        else
+          csr_data[stoull(csr, nullptr, 0)] = value;
+      }
+    }
+    catch (...) {
+      cvm::log(cvm::ERROR, "ERROR occurred while parsing +set_csr={}\n", FLAGS_set_csr);
+      return;
+    }
+    int addr = dev("boot")->addr() + 0x8000;
+    int dest_gpr = 4, dest_gpr2 = 3; // use two registers x4, x3
+    int csr_opcode = 0x73, lui_opcode = 0x37, op_imm_opcode = 0x13, or_opcode = 0x33;
+
+    auto add_to_mem = [&addr,this] (const uint32_t op) { //simple lambda to poke to memory
+      device::strb_t strb(4);
+      for (size_t i = 0; i<4; i++) strb[i] = true;
+      cvm::log(cvm::HIGH, "OPCODE: {:#x}\n", op);
+      bool valid = true;
+      device::data_t data(4);
+      for (size_t i=0; i<4; i++) data[i] = op >> 8*i;
+      dev("boot")->backdoor_write(addr, 4, data, strb);
+      if (!client_->whisperPoke(0, 0, 'm', addr, op, valid)) // fixme client_ is a nullptr
+        cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
+      addr += 4;
+    };
+
+    for (auto const& [csr_num, value] : csr_data) {
+      uint32_t csr_op = 0;
+      if (value < 32)
+        csr_op = csr_opcode + (dest_gpr<<7) + (5<<12) + (value<<15) + (csr_num<<20); // csrwi csrnum, x4 (csrwi can accomodate [4:0] immediate otherwise, use GPR)
+      else {
+        uint32_t lui_op = lui_opcode + (dest_gpr<<7) + (((value & 0xfffff000)>>12)<<12);
+        add_to_mem(lui_op);
+
+        uint32_t ori_op = op_imm_opcode + (dest_gpr<<7) + (0b110<<12) + (dest_gpr<<15) + ((value & 0xfff)<<20);
+        add_to_mem(ori_op);
+
+        if (value & 0x80000000) { // data gets sign extended, shl and shr to correct it
+          uint32_t slli_op = op_imm_opcode + (dest_gpr<<7) + (0b001<<12) + (dest_gpr<<15) + (32<<20); // slli x4, x4, 32
+          add_to_mem(slli_op);
+          uint32_t srli_op = op_imm_opcode + (dest_gpr<<7) + (0b101<<12) + (dest_gpr<<15) + (32<<20); // srli x4, x4, 32
+          add_to_mem(srli_op);
+        }
+        if (value > uint64_t(0xffffffff)) {
+          // data is greater than 32-bits (another opcode, another temporary register)
+          uint32_t lui_op = lui_opcode + (dest_gpr2<<7) + ((((value>>32) & 0xfffff000) >> 12)<<12);
+          add_to_mem(lui_op);
+
+          uint32_t ori_op = 0x13 + (dest_gpr2<<7) + (0b110<<12) /*funct3*/ + (dest_gpr2<<15) + (((value>>32) & 0xfff)<<20);
+          add_to_mem(ori_op);
+
+          uint32_t slli_op = 0x13 + (dest_gpr2<<7) + (0b001<<12) + (dest_gpr2<<15) + (32<<20);
+          add_to_mem(slli_op);
+
+          uint32_t or_op = or_opcode + (dest_gpr<<7) + (0b110<<12) + (dest_gpr2<<15) + (dest_gpr<<20);
+          add_to_mem(or_op);
+        }
+        csr_op = csr_opcode + (dest_gpr<<7) + (1<<12) + (dest_gpr<<15) + (csr_num<<20); // csrw csrnum, x4
+      }
+      add_to_mem(csr_op);
+    }
+    add_to_mem(0x8067/*ret*/);
+  }
+}
+
+void
+sysmod::load_cplfw(const std::string& cplfw)
+{
+  if (cplfw != "") {
+    cvm::log(cvm::MEDIUM, "Loading {}\n", cplfw);
+    if (cplfw.substr(cplfw.length() - 3) == "elf") {
+      if (not dev("memory") or not dynamic_cast<sysmod_mem&>(*dev("memory")).init_elf(cplfw)) {
+        cvm::log(cvm::ERROR, "No cpl firmware defined");
+        return;
+      }
+    }
+    if (cplfw.substr(cplfw.length() - 3) == "hex") {
+      if (not dev("memory") or not dynamic_cast<sysmod_mem&>(*dev("memory")).init_hex(cplfw)) {
+        cvm::log(cvm::ERROR, "No cpl firmware defined");
+        return;
+      }
+    }
+  }
+}
 
 void sysmod::jtag_resp(std::bitset<70> rdata){
-  //std::cout<<"Got JTAG RESP : "<<std::hex<<rdata<<"\n";
   auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0);
-  //send response back to jtag driver
-  uint32_t half_rdata = 0xffffffff;//TODO change
   std::vector<uint64_t> convertedArray = bitsetToUint64Array(rdata);
-  cvm::registry::messenger.signal(tbox_loc, jtag_driver::jtag_req_t{0, 0,0,half_rdata,0});
+  cvm::log(cvm::FULL, "[SYSMOD.CPP] In JTAG RESP converted array size = {}\n", convertedArray.size());
+  
+  for (uint64_t num : convertedArray) {
+        cvm::log(cvm::FULL, "[SYSMOD.CPP] In JTAG RESP converted array element = {}\n", num);
+  }
+  
+  cvm::registry::messenger.signal(tbox_loc, jtag_driver::jtag_req_t{0, 0,0,convertedArray[0],0});
 
 }
 void
@@ -599,6 +758,18 @@ sysmod::tick(uint64_t advance)
   }
 }
 
+void
+sysmod::jtag_tick(uint64_t advance)
+{
+
+  jtag_ticks_ += advance;
+
+   if (advance) {
+       for (auto& d : devices_) {
+           d->jtag_tick(advance);
+       }
+   }
+}
 extern "C" {
 
   void sysmod_set_scope(cvm::topology::loc_t loc) {

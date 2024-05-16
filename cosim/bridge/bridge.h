@@ -19,11 +19,15 @@
 
 class bridge : public bridge_base {
 
-using src_t = cac::src_t;
-using resource_t = cac::resource_t;
-using resource_id_t = cac::resource_id_t;
-using size_8_bytes_t = cac::size_8_bytes_t;
-using CacCore = cac::CacCore;
+private:
+  using src_t = cac::src_t;
+  using resource_t = cac::resource_t;
+  using resource_id_t = cac::resource_id_t;
+  using CacCore = cac::CacCore;
+
+public:
+  // Usec by some functions in bridge.cpp
+  using size_8_bytes_t = uint64_t;
 
 public:
   bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsigned id);
@@ -80,6 +84,7 @@ private:
 private:
   
   void update_dut_state(hart_id_t hart, rv_instr_t& d);
+  void arch_state(whisper_state_t& w);
   void update_whisper_state(hart_id_t hart, whisper_state_t& w);
   void step(hart_id_t hart, whisper_state_t& w);
   void print_instr(hart_id_t hart, const whisper_state_t& w);
@@ -92,10 +97,10 @@ private:
   void update_regs(hart_id_t hart, const rv_instr_t& d);
   void update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_slice_index = 0);
   void update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, const std::vector<size_8_bytes_t>&& dword_vec);
-  void update_mem(hart_id_t hart, rv_instr_t& d);
+  void update_mem_attr(hart_id_t hart, src_t src, uint32_t data);
   void update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data, cac::optional_const_ref<size_8_bytes_t> mask_ref = std::nullopt, bool shadow_csr = false, bool check_en = true);
   uint64_t modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data);
-  size_8_bytes_t modify_csr_mask(hart_id_t hart, uint64_t addr, size_8_bytes_t mask);
+  size_8_bytes_t modify_csr_mask(hart_id_t hart, uint64_t addr, uint64_t data, size_8_bytes_t mask);
   uint64_t get_csr(hart_id_t hart, src_t src, uint64_t addr);
   uint64_t get_csr_mask(hart_id_t hart, uint64_t addr);
   uint64_t get_csr_poke_mask(hart_id_t hart, uint64_t addr);
@@ -106,25 +111,28 @@ private:
   void translation_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   uint64_t translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t memclass);
 
-  void process_lrsc_pre_step(hart_id_t hart, const rv_instr_t& d);
-  void process_debug_pre_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
-  void process_interrupt_pre_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
-  void process_interrupt_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
-  void process_exception_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
-  void process_satp_write_post_step(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
+  // Process pre/post-step
+  void pre_step_lrsc_poke(       hart_id_t hart, const rv_instr_t& d);
+  void pre_step_debug_poke(      hart_id_t hart, const rv_instr_t& d);
+  void pre_step_interrupt_poke(  hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
+  void post_step_interrupt_poke( hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
+  void post_step_exception_poke( hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
+  void post_step_satp_write_poke(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
 
   void process_timer_sw_interrupt(hart_id_t hart, rv_intr_t& i);
   void process_external_interrupt(hart_id_t hart, rv_intr_t& i);
   void check_and_defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
   void check_interrupt(hart_id_t hart, uint64_t mip, bool& taken, uint64_t& cause);
   void defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
-  void resetsstc(hart_id_t hart, uint64_t cycle, uint64_t csr);
-  void setsstc(hart_id_t hart, uint64_t cycle, uint64_t csr);
+  void resetsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr);
+  void setsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr);
   void poke_mip(hart_id_t hart, uint64_t time, uint64_t mip);
   void peek_mip(hart_id_t hart, uint64_t time, uint64_t& mip);
   void peek_seip(hart_id_t hart, uint64_t time, uint64_t& val);
 
+  bool is_custom_excp(uint64_t cause);
   bool is_vector(const std::string& instr);
+  bool disable_pa_check_vec(hart_id_t hart);
   bool is_compressed(const std::string& instr);
   bool is_ucode(const std::string& instr);
   bool does_instr_match_resynch_list(const rv_instr_t& d, const std::string& instr);
@@ -133,6 +141,7 @@ private:
   bool boot_read(const rv_instr_t& d);
   bool debug_mem_access(const rv_instr_t& d);
   bool unsupported_mmr_access(const rv_instr_t& d);
+  bool unsupported_csr_access(const std::string& instr);
   bool htif_read(const rv_instr_t& d);
   bool hpm_counter_read(const std::string& instr);
   bool mip_mismatch(const std::string& instr);
@@ -166,8 +175,14 @@ private:
   bool ecall_ = false;
   bool debug_mode_ = false;
   bool excp_in_debug_mode = false;
+  bool lrsc_fail_ = false;
+  bool twoStage_ = false;
+
   uint64_t satp_ = 0;
   uint64_t new_satp_ = 0;
+
+  uint16_t mprv_ = 0;
+  uint16_t mpp_ = 0;
 
   bool resynch_intr_cause_mismatch_ = false;
   bool resynch_csr_ = false;
@@ -185,6 +200,7 @@ private:
   bool all_interrupts_defer_= 0;
   bool prev_resync_excp_defer_intr_ = 0;
   uint64_t pre_csr_defermip_ = 0;
+  uint64_t resynch_icause_ = 0;
   bool pre_undeferred_intr_;
   bool post_undeferred_intr_;
   std::array<uint32_t, max_intr> intr_age_{};

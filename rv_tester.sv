@@ -39,6 +39,7 @@ module rv_tester
         end
     end
 
+    import "DPI-C" function void rv_tester_streaming_dpi_init();
     import "DPI-C" function int rv_tester_parse_flags(); // dummy return value so that this gets called immediately. need this to happen before any other DPIs are called.
     import "DPI-C" context function void rv_tester_cvm_error_handler();
     import "DPI-C" context function void rv_tester_parse_memmap(int unsigned no_addr_rules);
@@ -57,7 +58,10 @@ module rv_tester
     logic call_finish;
     int num_reruns = -1;
     bit trace_en = 0;
+    bit jtag_en = 0;
+    bit overlay_mmr_en = 0;
     logic trace_quiesced;
+    logic jtag_quiesced;
 
     logic terminate_now;
     logic rerun_now;
@@ -89,7 +93,7 @@ module rv_tester
     int unsigned cvm_verbosity, gen_clocks_verbosity;
 
     assign terminate           = (rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
-    assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && (dmi_commands_in_queue == '0) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout); 
+    assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && (dmi_commands_in_queue == '0) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced ); 
     
     assign rerun_now           = terminated && num_reruns > 0;
 
@@ -127,12 +131,23 @@ module rv_tester
         end else if(!trace_en)begin
           trace_counter <= trace_timeout + 10;
         end
-
+        
     end
 
     always @(posedge clk[TB_CLK_IDX]) begin
         if(rerun_now) begin
             $display("<%0d> [RVTESTER]: rerunning test %0d time(s)", clocks, num_reruns);
+        end
+    end
+
+    /*
+    * Group all zebu zDPI DPIs here
+    * These are run on a separate thread than the slower zebi3
+    */
+    always @(posedge clk[TB_CLK_IDX]) begin
+        if (rv_tester_reset) begin
+            // Used for offine DPI
+            rv_tester_streaming_dpi_init();
         end
     end
 
@@ -171,6 +186,8 @@ module rv_tester
             gen_clocks          <= cvm_verbosity >= gen_clocks_verbosity;
             bypass_mem          <= cvm_plusargs::get_bool("bypass_mem") != '0;
             trace_en            <= cvm_plusargs::get_bool("trace_en") != '0;
+            overlay_mmr_en            <= cvm_plusargs::get_bool("overlay_mmr_en") != '0;
+            jtag_en            <= cvm_plusargs::get_bool("jtag_en") != '0;
             bypass_cache        <= cvm_plusargs::get_bool("bypass_cache") != '0;
 
             $display("[RVTESTER]: reconstructing registry");
@@ -258,8 +275,10 @@ module rv_tester
     rv_tester_pkg::dm_write_t  trickbox_dmi_write;
 
     localparam int AXI_CLOCK_PERIOD = 1000000 / CLOCK_FREQ_MHZ[AXI_CLK_IDX];
+    localparam int JTAG_CLOCK_PERIOD = 100;
     sysmod #(
         .CLOCK_PERIOD_PS(AXI_CLOCK_PERIOD),
+        .JTAG_CLOCK_PERIOD_PS(JTAG_CLOCK_PERIOD),
         .SW_CLOCK_UPDATE_PERIOD_PS(SW_CLOCK_PERIOD_PS),
         .NUM(0),
         `TOPOLOGY_CFG,
@@ -268,6 +287,7 @@ module rv_tester
         .clk(clk[AXI_CLK_IDX]),
         .reset(sysmod_reset),
         .trace_quiesced(trace_quiesced),
+        .jtag_quiesced(jtag_quiesced),
         .bootstrap,
         .dmi_write(trickbox_dmi_write),
         .interrupt,
@@ -373,6 +393,8 @@ module rv_tester
           .mcmi_ievict(mcmi_ievict[NIEVICTS_CUMSUM[c] +: NIEVICTS[c]]),
           .wired_interrupt(interrupt_pend[c]),
           .imsic_interrupt(axi_msi), //FIXME
+          .imsic_msi(axi_msi_packets[c]), //FIXME
+          .imsic_ipi(axi_ipi_packets[c]), //FIXME
           .debug_mode(debug_mode[c]),
           .terminate(cosim_terminate[c]),
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PORTS(1, c, 0)
@@ -438,6 +460,7 @@ module rv_tester
           .reset(sysmod_reset),
           .clocks,
           .pmci(pmci[p]),
+          .sc_pmci(sc_pmci),
           .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
           .terminate,
           `RV_TESTER_TRANSACTIONS_PMU_SOURCE_PORTS(1, p, 0)

@@ -36,7 +36,7 @@ axi_sw<W,AW,AR,RQ>::axi_sw(cvm::topology::loc_t loc, unsigned id)
     r_q_rptr_(0), r_q_wptr_(r_q_max_) 
 
     {
-    cvm::log(cvm::FULL, "[axi_sw] Constructing axi_sw for loc=%d id=%d\n", loc,id);
+    cvm::log(cvm::FULL, "[axi_sw] Constructing axi_sw for loc={} id={}\n", loc,id);
     auto data_width = cvm::topology::attr(loc, "DATA_WIDTH").second;
     axi_ = new axi(data_width, loc, "axi" + std::to_string(id));
     cvm::registry::messenger.connect<svScope>(
@@ -112,10 +112,15 @@ void axi_sw<W,AW,AR,RQ>::r_resp() {
       cvm::registry::callbacks.push(
           scope_,
             [=]() {
+            std::string d;
+            for (int i=0; i<int(data_width_/8); i++)
+                d += fmt::format("{:02x}", copy.data[i]);
+            cvm::log(cvm::FULL, "[axi_sw] axi_sw_r_{}: id={}, last={}, data={}\n", data_width_/8, copy.id, copy.last, d);
+
             if(data_width_ == 64)
-            axi_sw_r_8(copy.id, copy.resp, copy.data.data(), copy.last); 
+            axi_sw_r_8(copy.id, copy.resp, copy.data.data(), copy.last);
             else if(data_width_ ==512)
-            axi_sw_r_64(copy.id, copy.resp, copy.data.data(), copy.last); 
+            axi_sw_r_64(copy.id, copy.resp, copy.data.data(), copy.last);
             else
             cvm::log(cvm::ERROR, "unsupported data width for axi_sw");
 

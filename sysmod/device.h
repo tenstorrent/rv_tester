@@ -49,10 +49,10 @@ class device {
           [read, dev] (const auto& r) {
               data_t data(r.r.length, 0);
               std::invoke(read, dev, r.r, data);
-              cvm::log(cvm::DEBUG,"[DEVICE.H] Initiate Non Coroutine Read From {} \n",dev->tag());
-	            for (auto element : data) {
-                cvm::log(cvm::DEBUG,"[DEVICE.H] Non Coroutine Read Data {:#x} \n",(uint32_t)element);
-              }
+              std::string ds;
+              for (size_t i=0; i<64; i++)
+                  ds += fmt::format("{:02x}", data[i]);
+              cvm::log(cvm::FULL, "[device] tag={}: src={}: r: id={}, addr={:#x}, len={}, size={}, data={}\n", dev->tag(), r.source, r.r.id, r.r.addr, r.r.length, data.size(), ds);
               cvm::registry::messenger.signal(r.source, transactor::read_response_t{r.r.id, std::move(data)});
               
           },
@@ -87,6 +87,7 @@ class device {
     virtual void backdoor_read(uint64_t, size_t, data_t&) { };
 
     virtual void tick(uint64_t) { };
+    virtual void jtag_tick(uint64_t) { };
 
     virtual void reset() { };
 

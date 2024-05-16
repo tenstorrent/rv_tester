@@ -8,15 +8,15 @@ namespace {
     constexpr int xlen = 64;
     constexpr int vlen = 256;
     constexpr int va_hi = 56;
-    constexpr uint64_t mmr_lo_addr = 0xa00'0000;
-    constexpr uint64_t mmr_hi_addr = 0xaff'ffff;
+    constexpr uint64_t mmr_lo_addr = 0x4200'0000;
+    constexpr uint64_t mmr_hi_addr = 0x4208'ffff;
 
     struct csr_entry {
         std::string name;
         uint64_t address;
     };
 
-    std::array<csr_entry, 328> csrs {{
+    std::array<csr_entry, 329> csrs {{
         {"fflags", 0x001},
         {"frm", 0x002},
         {"fcsr", 0x003},
@@ -339,6 +339,7 @@ namespace {
         {"vsireg", 0x251},
         {"mireg", 0x351},
         {"stopei", 0x15c},
+        {"vstopei", 0x25c},
         {"stopi", 0xDB0},
         {"miselect", 0x350},
         {"mtopei", 0x35C},
@@ -471,7 +472,8 @@ namespace {
         SEI = 9,
         VSEI = 10,
         MEI = 11,
-        SGEI = 12
+        SGEI = 12,
+        LCOFI = 13
     } intr;
 
     const std::unordered_map<intr, std::string_view> intr_to_string = {
@@ -486,6 +488,7 @@ namespace {
         {VSEI, "VSEI"},
         {MEI, "MEI"},
         {SGEI, "SGEI"},
+        {LCOFI, "LCOFI"}
     };
 
     typedef enum : size_t {

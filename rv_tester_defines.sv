@@ -117,7 +117,7 @@ package rv_tester_params;
     typedef logic [AXI_DATA_WIDTH-1:0] axi_data_t;
     typedef logic [AXI_STRB_WIDTH-1:0] axi_strb_t;
     typedef logic [AXI_ID_WIDTH  -1:0] axi_id_t;
-    
+
     typedef logic [NCIO_AXI_ADDR_WIDTH-1:0] ncio_axi_addr_t;
     typedef logic [NCIO_AXI_DATA_WIDTH-1:0] ncio_axi_data_t;
     typedef logic [NCIO_AXI_STRB_WIDTH-1:0] ncio_axi_strb_t;
@@ -127,7 +127,7 @@ package rv_tester_params;
     typedef logic [APLIC_MSI_AXI_DATA_WIDTH-1:0] aplic_msi_axi_data_t;
     typedef logic [APLIC_MSI_AXI_STRB_WIDTH-1:0] aplic_msi_axi_strb_t;
     typedef logic [APLIC_MSI_AXI_ID_WIDTH  -1:0] aplic_msi_axi_id_t;
-    
+
     // typedef logic [MSI_AXI_ADDR_WIDTH-1:0] msi_axi_addr_t;
     // typedef logic [MSI_AXI_DATA_WIDTH-1:0] msi_axi_data_t;
     // typedef logic [MSI_AXI_STRB_WIDTH-1:0] msi_axi_strb_t;
@@ -143,17 +143,17 @@ package rv_tester_params;
     typedef logic [APLIC_MMR_AXI_MST_STRB_WIDTH-1:0] aplic_mmr_strb_t;
     typedef logic [APLIC_MMR_AXI_MST_ID_WIDTH  -1:0] aplic_mmr_id_t;
 
-    
+
     typedef logic [SMC_AXI_MST_ADDR_WIDTH-1:0] smc_addr_t;
     typedef logic [SMC_AXI_MST_DATA_WIDTH-1:0] smc_data_t;
     typedef logic [SMC_AXI_MST_STRB_WIDTH-1:0] smc_strb_t;
     typedef logic [SMC_AXI_MST_ID_WIDTH  -1:0] smc_id_t;
-    
+
     typedef logic [PLL_AXI_MST_ADDR_WIDTH-1:0] pll_addr_t;
     typedef logic [PLL_AXI_MST_DATA_WIDTH-1:0] pll_data_t;
     typedef logic [PLL_AXI_MST_STRB_WIDTH-1:0] pll_strb_t;
     typedef logic [PLL_AXI_MST_ID_WIDTH  -1:0] pll_id_t;
-    
+
     typedef logic [PM_NW_AXI_MST_ADDR_WIDTH-1:0] pm_nw_addr_t;
     typedef logic [PM_NW_AXI_MST_DATA_WIDTH-1:0] pm_nw_data_t;
     typedef logic [PM_NW_AXI_MST_STRB_WIDTH-1:0] pm_nw_strb_t;
@@ -477,6 +477,7 @@ package rv_tester_params;
         logic [(RDLEN/8)-1:0]       mem_wmask;
         logic [RDLEN-1:0]           mem_rdata;
         logic [RDLEN-1:0]           mem_wdata;
+        logic [32-1:0]              mem_attr ;
         logic                       comp     ;
         logic [64-1:0]              uop      ;
         logic                       last_uop ;
@@ -651,105 +652,263 @@ package rv_tester_params;
     typedef enum {
         CPU_CYCLES,
         INSTRUCTIONS,
-        CACHE_REFERENCES,
-        CACHE_MISSES,
         BRANCH_INSTRUCTIONS,
-        BRANCH_MISSES,
-        BUS_CYCLES,
-        STALLED_CYCLES_FRONTEND,
-        STALLED_CYCLES_BACKEND,
-        REF_CPU_CYCLES,
-        L1D_READ_ACCESS,
-        L1D_READ_MISS,
-        L1D_WRITE_ACCESS,
-        L1D_WRITE_MISS,
-        L1D_PREFETCH_ACCESS,
-        L1D_PREFETCH_MISS,
-        L1I_READ_ACCESS,
-        L1I_READ_MISS,
-        L1I_WRITE_ACCESS,
-        L1I_WRITE_MISS,
-        L1I_PREFETCH_ACCESS,
-        L1I_PREFETCH_MISS,
-        LL_READ_ACCESS,
-        LL_READ_MISS,
-        LL_WRITE_ACCESS,
-        LL_WRITE_MISS,
-        LL_PREFETCH_ACCESS,
-        LL_PREFETCH_MISS,
-        DTLB_READ_ACCESS,
-        DTLB_READ_MISS,
-        DTLB_WRITE_ACCESS,
-        DTLB_WRITE_MISS,
-        DTLB_PREFETCH_ACCESS,
-        DTLB_PREFETCH_MISS,
-        ITLB_READ_ACCESS,
-        ITLB_READ_MISS,
-        ITLB_WRITE_ACCESS,
-        ITLB_WRITE_MISS,
-        ITLB_PREFETCH_ACCESS,
-        ITLB_PREFETCH_MISS,
-        BPU_WRITE_ACCESS,
-        L1D_CACHE_INVALIDATE,
-        STALLS_MEM_L1D_MISS,
-        STALLS_MEM_STORES,
-        STALLS_MEM_L1DTLB_MISS,
-        STALLS_MEM_L1D_MISS_L2_MISS,
-        STALLS_MEM_ANY,
-        STALLS_MEM_L1I_MISS,
-        NFP_MISPREDICT,
-        BR_IMMED_SPEC,
-        BR_INDIRECT_SPEC,
-        BR_RET_SPEC,
-        LD_SPEC,
-        ST_SPEC,
-        INT_SPEC,
-        FP_SPEC,
-        UOP_ISSUED,
-        UOP_RETIRED,
-        TOTAL_UOPS_FLUSHED,
-        TOTAL_IND_BR_RETIRED,
-        TOTAL_IND_BR_RETIRED_MISPRED,
-        LSU_RESYNCS,
-        TOTAL_FLUSHES,
-        LOAD_MISAL_ACCESSES,
-        STORE_MISAL_ACCESSES,
-        STLF_HITS,
-        VECTOR_BUSY_CYCLES,
         M_MODE_CYCLES,
         M_MODE_INSTRET,
         S_MODE_CYCLES,
         S_MODE_INSTRET,
         U_MODE_CYCLES,
         U_MODE_INSTRET,
-        COMPRESSED_INSTRET,
-        TLB_INVALIDATES,
-        BR_RET_RETIRED,
+        REF_CPU_CYCLES,
+        STALLS_BST_FULL,
+        STALLS_PFX_FULL,
+        STALLS_INDIRECT_MISS,
+        STALLS_ICACHE_MISS,
+        STALLS_ITLB_MISS,
+        STALLS_IRB_FULL,
+        STALLS_IFBUF_FULL,
+        STALLS_EXCEPTION,
+        PAGE_CROSSING_FETCHBLOCKS,
+        NFP_EARLY_REDIRECT,
+        NFP_LATE_REDIRECT,
+        IFBUF_FULL_REDIRECT,
+        NONSPEC_RESYNC,
+        FAULT_RESYNC,
+        FAULT_REFETCH,
+        CMODE_ENTRY,
+        BRANCH_MISSES,
         BR_RET_MISSES,
-        IND_BR_RETIRED,
         IND_BR_MISSES,
-        REL_BR_RETIRED,
         REL_BR_MISSES,
+        SPEC_BRANCH_REDIRECT,
+        SPEC_LSU_RESYNCS,
+        TOTAL_FLUSHES,
+        UOPS_DECODED,
+        L1I_READ_ACCESS,
+        L1I_READ_MISS,
+        L1I_PREFETCH_ACCESS,
+        L1I_PREFETCH_MISS,
+        ITLB_READ_ACCESS,
+        ITLB_READ_MISS,
+        ITLB_PREFETCH_ACCESS,
+        ITLB_PREFETCH_MISS,
+        IC_WAY_MISPRED,
+        RAS_UNDERFLOW,
+        RAS_OVERFLOW,
+        NUM_FETCHGROUPS,
+        BDP_BANK_CONFLICTS,
+        BTP_BANK_CONFLICTS,
+        BPU_WRITES,
+        STALLED_CYCLES_FRONTEND,
+        STALLED_CYCLES_BACKEND,
         CYCLES_NO_INT_PRN,
         CYCLES_NO_FP_PRN,
         CYCLES_NO_VEC_PRN,
-        IC_WAY_MISPRED,
-        LS_REPLAY,
-        LS_REPLAY_WAY_PREDICTOR,
-        CYCLES_LDQ_FULL,
-        CYCLES_STQ_FULL,
-        CYCLES_RAR_FULL,
-        CYCLES_RAW_FULL,
+        CYCLES_NO_VL_PRN,
+        CYCLES_NO_VM_PRN,
+        CYCLES_NO_ROB,
+        OP_RETIRED_DIRECT_BRANCH,
+        OP_RETIRED_RET_BRANCH,
+        OP_RETIRED_INDIRECT_BRANCH,
+        OP_RETIRED_COND_BRANCH,
+        OP_RETIRED_LD,
+        OP_RETIRED_ST,
+        OP_RETIRED_INT,
+        OP_RETIRED_CSR,
+        OP_RETIRED_FP,
+        OP_RETIRED_VEC,
+        OP_COMPLETE_LD,
+        OP_COMPLETE_ST,
+        OP_COMPLETE_INT,
+        OP_COMPLETE_FP,
+        OP_COMPLETE_VEC,
+        OP_ISSUED_PIPE0,
+        OP_ISSUED_PIPE1,
+        OP_ISSUED_PIPE2,
+        OP_ISSUED_PIPE3,
+        OP_ISSUED_PIPE4,
+        OP_ISSUED_PIPE5,
+        OP_ISSUED_PIPE6,
+        OP_ISSUED_PIPE7,
+        OP_ISSUED_PIPE8,
+        OP_ISSUED_PIPE9,
+        OP_ISSUED_PIPE10,
+        OP_ISSUED_PIPE11,
+        OP_ISSUED_PIPE12,
+        OP_ISSUED_PIPE13,
+        OP_ISSUED_PIPE14,
+        OP_ISSUED_PIPE15,
+        CACHE_REFERENCES,
+        CACHE_MISSES,
+        TLB_INVALIDATES,
+        L1D_READ_ACCESS_ALIGNED,
+        L1D_READ_ACCESS_CLC,
+        L1D_READ_ACCESS_4KX,
+        L1D_READ_ACCESS_ALL,
+        L1D_WRITE_ACCESS_ALIGNED,
+        L1D_WRITE_ACCESS_CLC,
+        L1D_WRITE_ACCESS_4KX,
+        L1D_WRITE_ACCESS_ALL,
+        L1D_PREFETCH_ACCESS_ALIGNED,
+        L1D_PREFETCH_ACCESS_CLC,
+        L1D_PREFETCH_ACCESS_4KX,
+        L1D_PREFETCH_ACCESS_ALL,
+        L1D_MMU_ACCESS,
+        L1D_SNOOP_ACCESS,
+        L1D_ACCESS_ALL,
+        L1D_READ_MISS,
+        L1D_WRITE_MISS,
+        L1D_PREFETCH_MISS,
+        L1D_MMU_MISS,
+        L1D_SNOOP_MISS,
+        L1D_MISS_ALL,
+        L1D_CACHE_INVALIDATE_SNOOP,
+        L1D_CACHE_INVALIDATE_CMO,
+        L1D_CACHE_INVALIDATE_LOAD_EVICTION,
+        L1D_CACHE_INVALIDATE_STORE_EVICTION,
+        L1D_CACHE_INVALIDATE_PREFETCH_EVICTION,
+        L1D_CACHE_INVALIDATE_ALL,
+        UTLB_MISS,
+        DTLB_READ_ACCESS,
+        DTLB_WRITE_ACCESS,
+        DTLB_PREFETCH_ACCESS,
+        DTLB_ACCESS_4K,
+        DTLB_ACCESS_HUGEPAGE,
+        DTLB_ACCESS_CACHEABLE,
+        DTLB_ACCESS_NONCACHEABLE,
+        DTLB_ACCESS_ALL,
+        DTLB_READ_MISS,
+        DTLB_WRITE_MISS,
+        DTLB_PREFETCH_MISS,
+        DTLB_MISS_4K,
+        DTLB_MISS_HUGEPAGE,
+        DTLB_MISS_ALL,
+        LEAF_TLB_ACCESS_LS,
+        LEAF_TLB_ACCESS_FE,
+        LEAF_TLB_ACCESS_PREFETCH,
+        LEAF_TLB_ACCESS_ALL,
+        LEAF_TLB_MISS_LS,
+        LEAF_TLB_MISS_FE,
+        LEAF_TLB_MISS_PREFETCH,
+        LEAF_TLB_MISS_ALL,
+        NONLEAF_TLB_ACCESS_LS,
+        NONLEAF_TLB_ACCESS_FE,
+        NONLEAF_TLB_ACCESS_PREFETCH,
+        NONLEAF_TLB_ACCESS_ALL,
+        NONLEAF_TLB_MISS_LS,
+        NONLEAF_TLB_MISS_FE,
+        NONLEAF_TLB_MISS_PREFETCH,
+        NONLEAF_TLB_MISS_ALL,
+        PAGE_WALKS,
+        STALLS_MEM_L1D_MISS,
+        STALLS_MEM_STORES,
+        STALLS_MEM_L1DTLB_MISS,
+        LSU_RESYNCS_RAW,
+        LSU_RESYNCS_RAR,
+        STLF_HITS,
+        LS_REPLAY_LOAD,
+        LS_REPLAY_STORE,
+        LS_REPLAY_PREFETCH,
+        LS_REPLAY_MMU,
+        LS_REPLAY_ALL,
+        LS_WAY_PREDICTOR_REPLAY_LOAD,
+        LS_WAY_PREDICTOR_REPLAY_STORE,
+        LS_WAY_PREDICTOR_REPLAY_PREFETCH,
+        LS_WAY_PREDICTOR_REPLAY_MMU,
+        LS_WAY_PREDICTOR_REPLAY_ALL,
+        SIPT_REPLAY_LOAD,
+        SIPT_REPLAY_STORE,
+        SIPT_REPLAY_PREFETCH,
+        SIPT_REPLAY_MMU,
+        SIPT_REPLAY_ALL,
+        STLF_REPLAY_LOAD,
+        STLF_REPLAY_MMU,
+        STLF_REPLAY_ALL,
+        TAG_BANK_CONFLICT_REPLAY_LOAD,
+        TAG_BANK_CONFLICT_REPLAY_STORE,
+        TAG_BANK_CONFLICT_REPLAY_PREFETCH,
+        TAG_BANK_CONFLICT_REPLAY_MMU,
+        TAG_BANK_CONFLICT_REPLAY_ALL,
+        DATA_BANK_CONFLICT_REPLAY_LOAD,
+        DATA_BANK_CONFLICT_REPLAY_STORE,
+        DATA_BANK_CONFLICT_REPLAY_PREFETCH,
+        DATA_BANK_CONFLICT_REPLAY_MMU,
+        DATA_BANK_CONFLICT_REPLAY_ALL,
+        FILLBUF_HIT_REPLAY_LOAD,
+        FILLBUF_HIT_REPLAY_STORE,
+        FILLBUF_HIT_REPLAY_MMU,
+        FILLBUF_HIT_REPLAY_ALL,
+        TRANSBUF_HIT_REPLAY_LOAD,
+        TRANSBUF_HIT_REPLAY_STORE,
+        TRANSBUF_HIT_REPLAY_PREFETCH,
+        TRANSBUF_HIT_REPLAY_MMU,
+        TRANSBUF_HIT_REPLAY_ALL,
+        REQBUF_HIT_REPLAY_LOAD,
+        REQBUF_HIT_REPLAY_STORE,
+        REQBUF_HIT_REPLAY_MMU,
+        REQBUF_HIT_REPLAY_ALL,
+        DTLB_REPLAY_LOAD,
+        DTLB_REPLAY_STORE,
+        DTLB_REPLAY_PREFETCH,
+        DTLB_REPLAY_MMU,
+        DTLB_REPLAY_ALL,
+        RAR_CANNOT_ALLOC,
+        RAW_CANNOT_ALLOC,
+        LDQ_CANNOT_ALLOC,
+        SMB_CANNOT_ALLOC,
+        REQBUF_CANNOT_ALLOC_LOAD,
+        REQBUF_CANNOT_ALLOC_STORE,
+        REQBUF_CANNOT_ALLOC_PREFETCH,
+        REQBUF_CANNOT_ALLOC_MMU,
+        REQBUF_CANNOT_ALLOC_ALL,
+        FILLBUF_CANNOT_ALLOC,
+        TRANSBUF_CANNOT_ALLOC_LOAD,
+        TRANSBUF_CANNOT_ALLOC_STORE,
+        TRANSBUF_CANNOT_ALLOC_PREFETCH,
+        TRANSBUF_CANNOT_ALLOC_MMU,
+        TRANSBUF_CANNOT_ALLOC_ALL,
+        PCB_CANNOT_ALLOC_LOAD,
+        PCB_CANNOT_ALLOC_STORE,
+        PCB_CANNOT_ALLOC_ALL,
+        UDB_CANNOT_ALLOC,
+        UDB_DATA_RETURN,
+        UDB_LOST,
+        UWP_ACCESS,
+        UWP_MISS,
+        UWP_TRUE_HIT,
+        WP_ACCESS,
+        WP_MISS,
+        WP_TRUE_HIT,
+        MDP_CORRECT_PREDICTION,
+        MDP_FALSE_HIT,
+        MDP_FALSE_MISS,
+        MDP_TOTAL_PREDICTION,
+        ATOMICS_RETIRED,
+        LDST_MASKED_NANO,
+        LD_EXECUTED_NANO,
+        ST_EXECUTED_NANO,
+        PFC_AGT_CANNOT_ALLOC,
+        PFC_AGT_EVICT,
+        PFC_PHT_CANNOT_ALLOC,
+        PFC_PHT_LOOKUP,
+        PFC_PHT_HIT,
+        PFC_PRT_CANNOT_ALLOC,
+        PFC_NO_TLB_CREDIT_STALLS,
+        PFC_NO_TAG_CREDIT_STALLS,
+        PFC_PREFETCHES_SENT,
+        PFC_PREFETCHES_HIT,
+        PFC_PREFETCHES_LATE,
+        PFC_USELESS_PREFETCHES,
         EVENT_COUNT
     } pmc_event_t;
-
+    
     typedef logic [3:0] pmc_counter_t;
     typedef pmc_counter_t [EVENT_COUNT-1:0] pmci_t;
 
     // --------------------------------------
     // typedefs to generate all data types
     // --------------------------------------
-    
+
     typedef logic [AXI_USER_ID_WIDTH-1:0] user_t;
 
     `AXI_TYPEDEF_AW_CHAN_T(mst_aw_chan_top, axi_mst_addr_t, axi_mst_id_t, user_t)
@@ -862,8 +1021,10 @@ package rv_tester_params;
     output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NIEVICTS-1:0]   mcmi_ievict,  \
     output rv_tester_params::csri_t          csri         [rv_tester_params::NHARTS-1:0],           \
     output rv_tester_params::pmci_t          pmci         [rv_tester_params::NHARTS-1:0],           \
+    output rv_tester_pkg::sc_pmci_t          sc_pmci,                                               \
     output rv_tester_params::mst_req_top     axi_msi,                                               \
-                                                                                                    \
+    output rv_tester_params::mst_req_top     [rv_tester_params::NHARTS-1:0] axi_msi_packets ,        \
+    output rv_tester_params::mst_req_top     [rv_tester_params::NHARTS-1:0] axi_ipi_packets ,        \
     output logic                                            dm_mem_tx_vld,                          \
     output logic                                            dm_mem_tx_we,                           \
     output logic [rv_tester_params::DM_AXI_ADDR_WIDTH-1:0]  dm_mem_tx_addr,                         \
@@ -936,6 +1097,7 @@ package rv_tester_params;
     rv_tester_params::mcmi_t                 [rv_tester_params::TOTAL_NIEVICTS-1:0]    mcmi_ievict; \
     rv_tester_params::csri_t                 csri          [rv_tester_params::NHARTS-1:0];          \
     rv_tester_params::pmci_t                 pmci          [rv_tester_params::NHARTS-1:0];          \
+    rv_tester_pkg::sc_pmci_t                 sc_pmci;                                               \
     rv_tester_params::slv_req_top            axi_req [rv_tester_params::AXI_TOTAL-1:0];             \
     rv_tester_params::slv_resp_top           axi_rsp [rv_tester_params::AXI_TOTAL-1:0];             \
     rv_tester_params::ncio_slv_req_top       ncio_axi_req [rv_tester_params::NCIO_AXI_TOTAL-1:0];             \
@@ -947,6 +1109,8 @@ package rv_tester_params;
     rv_tester_params::mst_req_top            axi_req_mst [rv_tester_params::AXI_MST_TOTAL-1:0];     \
     rv_tester_params::mst_resp_top           axi_rsp_mst [rv_tester_params::AXI_MST_TOTAL-1:0];     \
     rv_tester_params::mst_req_top            axi_msi;                                               \
+    rv_tester_params::mst_req_top            [rv_tester_params::NHARTS-1:0] axi_msi_packets  ;                                               \
+    rv_tester_params::mst_req_top            [rv_tester_params::NHARTS-1:0] axi_ipi_packets  ;                                               \
     rv_tester_params::aplic_mmr_req_top      aplic_mmr_axi_req_mst  [rv_tester_params::APLIC_MMR_AXI_MST_TOTAL-1:0];  \
     rv_tester_params::aplic_mmr_resp_top     aplic_mmr_axi_rsp_mst  [rv_tester_params::APLIC_MMR_AXI_MST_TOTAL-1:0];  \
     rv_tester_params::smc_req_top      smc_axi_req_mst  [rv_tester_params::SMC_AXI_MST_TOTAL-1:0];  \
