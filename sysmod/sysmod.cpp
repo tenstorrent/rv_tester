@@ -670,7 +670,7 @@ sysmod::load_csr_boot(uint64_t dummy)
     for (auto const& [csr_num, value] : csr_data) {
       uint32_t csr_op = 0;
       if (value < 32)
-        csr_op = csr_opcode + (dest_gpr<<7) + (5<<12) + (value<<15) + (csr_num<<20); // csrwi csrnum, x4 (csrwi can accomodate [4:0] immediate otherwise, use GPR)
+        csr_op = csr_opcode + (0/*x0*/<<7) + (5<<12) + (value<<15) + (csr_num<<20); // csrwi csrnum, x4 (csrwi can accomodate [4:0] immediate otherwise, use GPR)
       else {
         uint32_t lui_op = lui_opcode + (dest_gpr<<7) + (((value & 0xfffff000)>>12)<<12);
         add_to_mem(lui_op);
@@ -698,7 +698,7 @@ sysmod::load_csr_boot(uint64_t dummy)
           uint32_t or_op = or_opcode + (dest_gpr<<7) + (0b110<<12) + (dest_gpr2<<15) + (dest_gpr<<20);
           add_to_mem(or_op);
         }
-        csr_op = csr_opcode + (dest_gpr<<7) + (1<<12) + (dest_gpr<<15) + (csr_num<<20); // csrw csrnum, x4
+        csr_op = csr_opcode + (0/*x0*/<<7) + (1<<12) + (dest_gpr<<15) + (csr_num<<20); // csrw csrnum, x4
       }
       add_to_mem(csr_op);
     }
