@@ -1176,13 +1176,14 @@ bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const std::
     return true;
   }
   // Case #9
-<<<<<<< cosim/bridge/bridge.cpp
+
   if (d.intr && (d.icause == 0)){
     log(cvm::MEDIUM, "<{}> Resynch: Reason=[Debug Mode Interrupt]\n", d.cycle);
-=======
+   return true;
+  }
   if (unsupported_csr_access(instr)) {
     log(cvm::MEDIUM, "<{}> Resynch: Reason=[unsupported_csr_access]\n", d.cycle);
->>>>>>> cosim/bridge/bridge.cpp
+
     return true;
   }
   return false;
