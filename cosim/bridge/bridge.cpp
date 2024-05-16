@@ -202,12 +202,12 @@ void bridge::resetsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr) {
 
 // DUT interface callback: Instruction Retire
 void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
-<<<<<<< cosim/bridge/bridge.cpp
+
   // cvm::log(cvm::NONE, "Inside the process_dut_instr_retire function\n"); 
-=======
+
 
   twoStage_ = false;
->>>>>>> cosim/bridge/bridge.cpp
+
   whisper_state_t w {
     .tag = d.tag,
     .time = d.cycle
