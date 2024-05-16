@@ -256,6 +256,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   // Save whisper state
   ppw_ = pw_;
   pw_ = w;
+  pd_ = d;
 
   // Error on mismatch
   if (!cac_.GetStatus(hart)) {
@@ -1163,6 +1164,11 @@ bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const std::
     log(cvm::MEDIUM, "<{}> Resynch: Reason=[unsupported_csr_access]\n", d.cycle);
     return true;
   }
+  // Case #10
+  if (cpl_smc_access(d)) {
+    log(cvm::MEDIUM, "<{}> Resynch: Reason=[cpl_smc_access]\n", d.cycle);
+    return true;
+  }
   return false;
 }
 
@@ -1240,7 +1246,16 @@ bool bridge::hpm_counter_read(const std::string& instr) {
 }
 
 bool bridge::unsupported_csr_access(const std::string& instr) {
-  if ((instr.find("as_dbg_mux_sel") != std::string::npos))
+  if ((instr.find("as_dbg_mux_sel") != std::string::npos) ||
+      (instr.find("c_") != std::string::npos))
+    return true;
+  return false;
+}
+
+bool bridge::cpl_smc_access(const rv_instr_t& d){
+  if (d.mem_read.valid &&
+      d.mem_read.pa >= smc_lo_addr &&
+      d.mem_read.pa < smc_hi_addr)
     return true;
   return false;
 }
@@ -1874,6 +1889,7 @@ void bridge::report_metrics() {
   const std::string dest = (rfcm ? std::string(1, static_cast<char>(prev_whisp_state.resource)) : "none");
   const std::string dest_addr = (rfcm ? fmt::format("0x{:x}", prev_whisp_state.address) : "none");
   const std::string dest_data = (rfcm ? fmt::format("0x{:x}", prev_whisp_state.value) : "none");
+  const auto& src_addr = pd_.mem_read.valid ? pd_.mem_read.pa : 0;
   const auto& prev_instr = prev_prev_whisp_state.disasm;
   const auto& prev_mode = prev_prev_whisp_state.priv_mode;
   const auto& prev_trap = prev_prev_whisp_state.trap;
@@ -1889,6 +1905,7 @@ void bridge::report_metrics() {
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_dest\": {}}}\n", id_, num_dest);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dest\": \"{}\"}}\n", id_, dest);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dest_addr\": \"{}\"}}\n", id_, dest_addr);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_src_addr\": \"{:#x}\"}}\n", id_, src_addr);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dest_data\": \"{}\"}}\n", id_, dest_data);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_instr\": \"{}\"}}\n", id_, prev_instr);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_mode\": {}}}\n", id_, prev_mode);
