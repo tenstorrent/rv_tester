@@ -26,6 +26,7 @@ class trace_cfg : public device {
         cvm::messenger::pool<axi::r_t>::channel_info channel;
         pcg_extras::seed_seq_from<std::random_device> seed_source;
         pcg32 rng;
+        std::pair<uint64_t,size_t> read_req;
         void complete_trace_test()
         {
            cvm::registry::messenger.signal(loc(), trace_info_t{1,0});
@@ -56,8 +57,9 @@ class trace_cfg : public device {
           std::vector<uint8_t> data;
           std::vector<bool> strb;
         };
-        std::queue<trace_cfg_read_req_t> trace_read_resp_q;
-        std::queue<trace_wr_t>           trace_wr_txn_q;
+        std::queue<trace_cfg_read_req_t>  trace_read_resp_q;
+        std::queue<trace_wr_t>            trace_wr_txn_q;
+        std::queue<std::pair<uint64_t,size_t>> trace_misc_rd_txn_q;
         virtual void axi_write();
         virtual void axi_read(uint64_t addr, size_t length, uint32_t id);
         void write(const transactor::write_t& );
@@ -125,6 +127,11 @@ class trace_cfg : public device {
               if(cnt_tick==(start_trace_cnt+120)) push_trace_disable_seq();
               if(trace_wr_txn_q.size() > 0) axi_write();
               if(cnt_tick==(start_trace_cnt+130)) read_pointers();
+              if(trace_misc_rd_txn_q.size() > 0){
+                read_req = trace_misc_rd_txn_q.front();
+                trace_misc_rd_txn_q.pop();
+                axi_read(read_req.first,read_req.second,(start_trace_cnt+200)%1024);
+              }
               if((trace_read_resp_q.size() == 2) && (cnt_tick == start_trace_cnt+132)) read_sram();
               if(read_ram > 0) {
                 cvm::log(cvm::HIGH, "[Trace_cfg] read RAM {} \n",read_ram);
@@ -134,7 +141,7 @@ class trace_cfg : public device {
                 if(read_ram == 0) end_test = 1;
               }
             }else if(FLAGS_trace_en && FLAGS_overlay_mmr_en){
-              cvm::log(cvm::HIGH, "[overlay axi regress] overlay timer tick advance interval {} start_trace_cnt{} n {} \n",cnt_tick,start_trace_cnt,n);
+              // cvm::log(cvm::HIGH, "[overlay axi regress] overlay timer tick advance interval {} start_trace_cnt{} n {} \n",cnt_tick,start_trace_cnt,n);
                 if(end_test==1) complete_trace_test();
                 if(cnt_tick==start_trace_cnt){
                   cvm::log(cvm::HIGH, "[overlay axi regress] success \n");
@@ -145,6 +152,13 @@ class trace_cfg : public device {
                 if(cnt_tick==(start_trace_cnt+20)) push_random_axi_write(randomElements);
                 if(trace_wr_txn_q.size() > 0) axi_write();
                 if(cnt_tick==(start_trace_cnt+30)) push_random_axi_read(randomElements);
+
+                if(trace_misc_rd_txn_q.size() > 0){
+                  read_req = trace_misc_rd_txn_q.front();
+                  trace_misc_rd_txn_q.pop();
+                  axi_read(read_req.first,read_req.second,(start_trace_cnt+200)%1024);
+                  cvm::log(cvm::HIGH, "[overlay axi] recieved {} with id {} tick {}\n",read_req.first,(start_trace_cnt+200)%1024,cnt_tick);
+                }
 
                 while((trace_read_resp_q.size() >0) ){
                   print_read_request(trace_read_resp_q.front());
@@ -212,8 +226,8 @@ class trace_cfg : public device {
 
         void read_axi_pointers(){
           cvm::log(cvm::HIGH, "[overlay axi]reading WRITE/READ pointers\n");
-          axi_read(TR_DST_CONTROL,4,504);
-          axi_read(CDBG_NTRACE_CFG,8,505);
+          trace_misc_rd_txn_q.push({TR_DST_CONTROL,4});
+          trace_misc_rd_txn_q.push({CDBG_NTRACE_CFG,8});
         }
         
         void push_random_axi_read(std::unordered_map<std::string, uint32_t>  elements){
@@ -226,12 +240,12 @@ class trace_cfg : public device {
               std::cerr << "Error: Could not open the file!" << std::endl;
           }else{
 
-          int i = 0;
           // Loop through elements and write to file
-          for (const auto& pair : elements) {
-              outFile << "[overlay axi vals]" << pair.first << " = " << pair.second << std::endl;
-              axi_read(pair.second,8,200+i);
-              i++;
+          for(int i = 0; i < 15;i++){
+            for (const auto& pair : elements) {
+                outFile << "[overlay axi vals]" << pair.first << " = " << pair.second << std::endl;
+                trace_misc_rd_txn_q.push({pair.second,8});
+            }
           }
 
           }
@@ -242,8 +256,10 @@ class trace_cfg : public device {
 
         void push_random_axi_write(std::unordered_map<std::string, uint32_t>  elements){
           cvm::log(cvm::HIGH, "[overlay axi] overlay write axi seq size :{}\n",elements.size());
-          for (const auto& pair : elements) {
-              trace_wr_txn_q.push({pair.second,0xFFFF});
+          for(int i = 0; i < 15;i++){
+            for (const auto& pair : elements) {
+                trace_wr_txn_q.push({pair.second,0xFFFF});
+            }
           }
           cvm::log(cvm::HIGH, "[overlay axi] overlay write axi seq completed\n");
         }
@@ -267,7 +283,7 @@ class trace_cfg : public device {
           trace_wr_txn_q.push({CDBG_NODE1_EAP0_CFG,0x101316});
           trace_wr_txn_q.push({CDBG_TRACE_CFG,0x102810});
           // RTL FIX Needed for this MMR access
-          //trace_wr_txn_q.push({TR_DST_IMPL,0x1000000});
+          // trace_wr_txn_q.push({TR_DST_IMPL,0x1000000});
           trace_wr_txn_q.push({CDBG_CLA_CTRL_STS_CFG,0x60});
           cvm::log(cvm::HIGH, "[Trace_cfg] trace_cfg completed enable trace seq\n");
         }
@@ -284,8 +300,8 @@ class trace_cfg : public device {
 
         void read_pointers(){
           cvm::log(cvm::HIGH, "[Trace_cfg] trace_cfg reading WRITE/READ pointers\n");
-           axi_read(TR_DST_RAM_WP_LOW,4,305);
-           axi_read(TR_DST_RAM_RP_LOW,4,306);
+          trace_misc_rd_txn_q.push({TR_DST_RAM_WP_LOW,4});
+          trace_misc_rd_txn_q.push({TR_DST_RAM_RP_LOW,4});
         }
 
         void read_sram() {
