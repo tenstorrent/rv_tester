@@ -227,8 +227,10 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
                         scope_,
                         [=]() { axi_sw_mst_ar(arg.id, arg.addr, arg.len, arg.size, arg.burst, arg.lock); });
                   }
-                  else
+                  else {
+                      cvm::log(cvm::FULL, "[axi_sw_mst] skipping ar_req\n");
                       return 1;
+                  }
               }
               else {
                   cvm::log(cvm::FULL, "[axi_sw_mst] aw_req: arg.id :{:#x} , arg.addr: {:#x} , arg.len: {:#x} , arg.size: {:#x} , arg.burst: {:#x} , arg.atop.transaction: {:#x} , arg.lock: {:#x} \n", arg.id, arg.addr, arg.len, arg.size, arg.burst, arg.atop.transaction, arg.lock);
@@ -239,8 +241,10 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
                         scope_,
                         [=]() { axi_sw_mst_aw(arg.id, arg.addr, arg.len, arg.size, arg.burst, arg.atop.transaction, arg.lock); });
                   }
-                  else
+                  else {
+                      cvm::log(cvm::FULL, "[axi_sw_mst] skipping aw_req\n");
                       return 1;
+                  }
               }
           }
           else if constexpr (std::is_same_v<T, axi::w_t>) {
@@ -277,6 +281,9 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
                           else
                               cvm::log(cvm::ERROR, "unsupported data width for axi_sw_mst");
                       });
+              } else {
+                  cvm::log(cvm::FULL, "[axi_sw_mst] skipping wdata\n");
+                  return 1;
               }
           }
           else {
@@ -287,10 +294,14 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
           return 0;
       }, req);
 
+      cvm::log(cvm::FULL, "[axi_sw_mst] visit returned {}\n", r);
       if (r) break;
 
       transactions_.pop_front();
   }
+
+  cvm::log(cvm::FULL, "[axi_sw_mst] transactions left {}\n", transactions_.size());
+
 }
 
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
