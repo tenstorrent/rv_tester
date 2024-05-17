@@ -18,7 +18,7 @@ namespace {
         uint64_t address;
     };
 
-    std::array<csr_entry, 329> csrs {{
+    std::array<csr_entry, 354> csrs {{
         {"fflags", 0x001},
         {"frm", 0x002},
         {"fcsr", 0x003},
@@ -375,7 +375,7 @@ namespace {
         {"c_lscfg15", 0xBDF}
     }};
 
-    std::array<csr_entry, 8> nonzero_reset_csrs {{
+    std::array<csr_entry, 14> nonzero_reset_csrs {{
         {"mstatus", 0x300},
         {"misa", 0x301},
         {"medeleg", 0x302},
@@ -392,7 +392,7 @@ namespace {
         {"c_mcthrcfg1", 0xBC7}
     }};
 
-    std::array<csr_entry, 18> metrics_csrs {{
+    std::array<csr_entry, 43> metrics_csrs {{
         {"fcsr", 0x003},
         {"sstatus", 0x100},
         {"sie", 0x104},
