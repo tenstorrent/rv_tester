@@ -347,7 +347,32 @@ namespace {
         {"mtopei", 0x35C},
         {"mtopi", 0xFB0},
         {"mvien", 0x308},
-        {"mvip", 0x309}
+        {"mvip", 0x309},
+        {"c_fecfg", 0xBC0},
+        {"c_fecfg1", 0xBC1},
+        {"c_fecfg2", 0xBC2},
+        {"c_fecfg3", 0xBC3},
+        {"c_fecfg4", 0xBC4},
+        {"c_mccfg", 0xBC5},
+        {"c_mcthrcfg0", 0xBC6},
+        {"c_mcthrcfg1", 0xBC7},
+        {"c_tracecfg", 0xBC9},
+        {"c_lscfg0", 0xBD0},
+        {"c_lscfg1", 0xBD1},
+        {"c_lscfg2", 0xBD2},
+        {"c_lscfg3", 0xBD3},
+        {"c_lscfg4", 0xBD4},
+        {"c_lscfg5", 0xBD5},
+        {"c_lscfg6", 0xBD6},
+        {"c_lscfg7", 0xBD7},
+        {"c_lscfg8", 0xBD8},
+        {"c_lscfg9", 0xBD9},
+        {"c_lscfg10", 0xBDA},
+        {"c_lscfg11", 0xBDB},
+        {"c_lscfg12", 0xBDC},
+        {"c_lscfg13", 0xBDD},
+        {"c_lscfg14", 0xBDE},
+        {"c_lscfg15", 0xBDF}
     }};
 
     std::array<csr_entry, 8> nonzero_reset_csrs {{
@@ -358,7 +383,13 @@ namespace {
         {"sstatus", 0x100},
         {"vsstatus", 0x200},
         {"hstatus", 0x600},
-        {"mie", 0x304}
+        {"mie", 0x304},
+        {"c_fecfg", 0xBC0},
+        {"c_fecfg1", 0xBC1},
+        {"c_fecfg2", 0xBC2},
+        {"c_mccfg", 0xBC5},
+        {"c_mcthrcfg0", 0xBC6},
+        {"c_mcthrcfg1", 0xBC7}
     }};
 
     std::array<csr_entry, 18> metrics_csrs {{
@@ -379,7 +410,32 @@ namespace {
         {"mepc", 0x341},
         {"mcause", 0x342},
         {"mtval", 0x343},
-        {"mip", 0x344}
+        {"mip", 0x344},
+        {"c_fecfg", 0xBC0},
+        {"c_fecfg1", 0xBC1},
+        {"c_fecfg2", 0xBC2},
+        {"c_fecfg3", 0xBC3},
+        {"c_fecfg4", 0xBC4},
+        {"c_mccfg", 0xBC5},
+        {"c_mcthrcfg0", 0xBC6},
+        {"c_mcthrcfg1", 0xBC7},
+        {"c_tracecfg", 0xBC9},
+        {"c_lscfg0", 0xBD0},
+        {"c_lscfg1", 0xBD1},
+        {"c_lscfg2", 0xBD2},
+        {"c_lscfg3", 0xBD3},
+        {"c_lscfg4", 0xBD4},
+        {"c_lscfg5", 0xBD5},
+        {"c_lscfg6", 0xBD6},
+        {"c_lscfg7", 0xBD7},
+        {"c_lscfg8", 0xBD8},
+        {"c_lscfg9", 0xBD9},
+        {"c_lscfg10", 0xBDA},
+        {"c_lscfg11", 0xBDB},
+        {"c_lscfg12", 0xBDC},
+        {"c_lscfg13", 0xBDD},
+        {"c_lscfg14", 0xBDE},
+        {"c_lscfg15", 0xBDF}
     }};
 
     const std::unordered_map<uint64_t, uint64_t> shadow_csrs = {
