@@ -162,7 +162,7 @@ endfunction
     end
 
     for (genvar n = 0; n < CSR_COUNT; n++) begin
-        assign m_csris_valid[n] = rvfi_enabled & ~dut_reset & ((csri[n].valid & ~valid_d1[n]) | (csri[n].valid & ((csri[n].data !== data_d1[n]) | (csri[n].mask !== mask_d1[n]))));
+        assign m_csris_valid[n] = rvfi_enabled & ~dut_reset & ((csri[n].valid & ~valid_d1[n]) | (csri[n].valid & (((csri[n].data & csri[n].mask) !== (data_d1[n] & mask_d1[n])) | (csri[n].mask !== mask_d1[n]))));
     end
     for (genvar n = 0; n < MAXCSR; n++) begin
         assign m_csris[n].valid         = (csr_sel[n] != '1) ? 1'b1 : 1'b0; 
