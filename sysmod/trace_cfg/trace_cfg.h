@@ -11,6 +11,7 @@
 #include "transactor.h"
 #include "transactors/axi_sw/axi.h"
 #include "trace_defines.h"
+#include <unistd.h>
 
 
 DECLARE_bool(trace_en);
@@ -21,6 +22,7 @@ class trace_cfg : public device {
     private:
 
         bool end_test=0;
+        char cwd[1024];
         mem_manager m_;
         cvm::topology::loc_t axi_mst_loc_l;
         cvm::messenger::pool<axi::r_t>::channel_info channel;
@@ -33,7 +35,7 @@ class trace_cfg : public device {
         }
 
     public:
-        uint32_t start_trace_cnt=0,n,id_val,read_ram=0;
+        uint32_t start_trace_cnt=0,n,id_val,read_ram=0,axi_ids = 0;
         uint32_t cnt_tick=0;
         uint64_t axi_read_resp=0;
         std::unordered_map<std::string, uint32_t> macros,randomElements;
@@ -65,6 +67,23 @@ class trace_cfg : public device {
         void write(const transactor::write_t& );
         std::unordered_map<std::string, uint32_t> extractMacros(const std::string& filename);
         std::unordered_map<std::string, uint32_t> pickRandomElements(const std::unordered_map<std::string, uint32_t>& originalMap, uint32_t n) ;
+
+        std::unordered_map<std::string, std::uint32_t> addressMap = {
+            {"CDBG_NODE2_EAP1_CFG", 0x42002148},
+            {"CDBG_NODE2_EAP0_CFG", 0x42002140},
+            {"CDBG_NODE3_EAP0_CFG", 0x42002150},
+            {"CDBG_NODE3_EAP1_CFG", 0x42002158},
+            {"CDBG_SIGNAL_MASK0",   0x42002160},
+            {"CDBG_SIGNAL_MATCH0",  0x42002168},
+            {"CDBG_SIGNAL_MASK1",   0x42002170},
+            {"CDBG_SIGNAL_MATCH1",  0x42002178},
+            {"C_DBG_ONES_COUNT_VALUE",      0x420021D0},
+            {"C_DBG_ONES_COUNT_MASK",       0x420021C8},
+            {"C_DBG_TRANSITION_TO_VALUE",   0x420021C0},
+            {"C_DBG_TRANSITION_FROM_VALUE", 0x420021B8},
+            {"C_DBG_TRANSITION_MASK",       0x420021B0},
+            {"C_DBG_MUX_SEL",               0x42002198}
+        };
 
         cvm::messenger::task<void> read(const transactor::read_t& , data_t& );
 
@@ -117,8 +136,6 @@ class trace_cfg : public device {
               start_trace_cnt = (rng()% 5) + 30;
               n = (rng()% 5) + 3;
               id_val = 0;
-              std::ofstream outFile("output.txt");
-              outFile.close();
             }
             if(FLAGS_trace_en && !FLAGS_overlay_mmr_en) {
               cvm::log(cvm::HIGH, "[Trace_cfg] trace_cfg timer tick advance interval {} start_trace_cnt {} \n",cnt_tick,start_trace_cnt);
@@ -130,7 +147,8 @@ class trace_cfg : public device {
               if(trace_misc_rd_txn_q.size() > 0){
                 read_req = trace_misc_rd_txn_q.front();
                 trace_misc_rd_txn_q.pop();
-                axi_read(read_req.first,read_req.second,(start_trace_cnt+200)%1024);
+                axi_ids = rng()%200+400;
+                axi_read(read_req.first,read_req.second,axi_ids);
               }
               if((trace_read_resp_q.size() == 2) && (cnt_tick == start_trace_cnt+132)) read_sram();
               if(read_ram > 0) {
@@ -145,8 +163,7 @@ class trace_cfg : public device {
                 if(end_test==1) complete_trace_test();
                 if(cnt_tick==start_trace_cnt){
                   cvm::log(cvm::HIGH, "[overlay axi regress] success \n");
-                  macros = extractMacros("/proj_risc/user_dev/mvarman/AXI/testing/rv_tester/sysmod/trace_cfg/mmr_defines.h");
-                  randomElements= pickRandomElements(macros, n);
+                  randomElements= pickRandomElements(addressMap, n);
                 }
 
                 if(cnt_tick==(start_trace_cnt+20)) push_random_axi_write(randomElements);
@@ -156,8 +173,9 @@ class trace_cfg : public device {
                 if(trace_misc_rd_txn_q.size() > 0){
                   read_req = trace_misc_rd_txn_q.front();
                   trace_misc_rd_txn_q.pop();
-                  axi_read(read_req.first,read_req.second,(start_trace_cnt+200)%1024);
-                  cvm::log(cvm::HIGH, "[overlay axi] recieved {} with id {} tick {}\n",read_req.first,(start_trace_cnt+200)%1024,cnt_tick);
+                  axi_ids = rng()%200+400;
+                  axi_read(read_req.first,read_req.second,axi_ids);
+                  cvm::log(cvm::HIGH, "[overlay axi] recieved {} with id {} tick {}\n",read_req.first,axi_ids,cnt_tick);
                 }
 
                 while((trace_read_resp_q.size() >0) ){
@@ -232,26 +250,14 @@ class trace_cfg : public device {
         
         void push_random_axi_read(std::unordered_map<std::string, uint32_t>  elements){
           cvm::log(cvm::HIGH, "[overlay axi regress] success reading\n");
-          // Open the file for writing
-          std::ofstream outFile("output.txt");
-          
-          // Check if file opened successfully
-          if (!outFile.is_open()) {
-              std::cerr << "Error: Could not open the file!" << std::endl;
-          }else{
 
           // Loop through elements and write to file
           for(int i = 0; i < 15;i++){
             for (const auto& pair : elements) {
-                outFile << "[overlay axi vals]" << pair.first << " = " << pair.second << std::endl;
+                cvm::log(cvm::HIGH, "[overlay axi reads] address {} size {}",pair.first,pair.second);
                 trace_misc_rd_txn_q.push({pair.second,8});
             }
           }
-
-          }
-
-          // Close the file
-          outFile.close();
         }
 
         void push_random_axi_write(std::unordered_map<std::string, uint32_t>  elements){

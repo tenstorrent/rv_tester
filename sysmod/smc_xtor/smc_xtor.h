@@ -36,7 +36,7 @@ class smc_xtor : public device {
         }
 
     public:
-        uint32_t start_smc_cnt=0,read_ram;
+        uint32_t start_smc_cnt=0,read_ram,axi_ids = 0;
         uint64_t write_ram; 
         uint32_t cnt_tick=0;
         struct smc_wr_t {
@@ -174,7 +174,8 @@ class smc_xtor : public device {
                 if(smc_rd_txn_q.size() > 0) {
                   read_req = smc_rd_txn_q.front();
                   smc_rd_txn_q.pop();
-                  axi_read(read_req.first,read_req.second,(start_smc_cnt+200)%1024);
+                  axi_ids = rng()%200+200;
+                  axi_read(read_req.first,read_req.second,rng()%200+200);
                 }
 
                 while((smc_read_resp_q.size() >0) ){

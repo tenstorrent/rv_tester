@@ -71,34 +71,6 @@ void trace_cfg::write(const transactor::write_t& ) {
   // return;
 }
 
-// Function to parse a file and extract #define macros
-std::unordered_map<std::string, uint32_t> trace_cfg::extractMacros(const std::string& filename) {
-    std::unordered_map<std::string, uint32_t> macros;
-
-    std::ifstream file(filename);
-    if (!file.is_open()) {
-        std::cerr << "Error: Unable to open file " << filename << std::endl;
-        return macros;
-    }
-
-    std::string line;
-    while (std::getline(file, line)) {
-        std::istringstream iss(line);
-        std::string token;
-        iss >> token;
-        if (token == "#define") {
-            std::string macroName;
-            std::string macroValue;
-            iss >> macroName >> macroValue;
-            // std::cout<<"[value]"<<macroValue;
-            macros[macroName] = std::stoi(macroValue,0,16);
-        }
-    }
-
-    file.close();
-    return macros;
-}
-
 std::unordered_map<std::string, uint32_t> trace_cfg::pickRandomElements(const std::unordered_map<std::string, uint32_t>& originalMap, uint32_t n) {
     std::unordered_map<std::string, uint32_t> result;
     std::random_device rd;
