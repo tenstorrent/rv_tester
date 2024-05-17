@@ -51,7 +51,6 @@ import rv_tester_pkg::*;
     always @(posedge clk) begin
       if (reset) begin
         pmcounter[0] <= 0;
-        sc_pmcounter[0] <= 0;
         cpu_cycles <= 0;
         sync_cycles <= 0;
         sync_instructions <= 1;
@@ -81,12 +80,12 @@ import rv_tester_pkg::*;
             end
         end
       end
-      for (genvar i=1; i < SC_EVENT_COUNT; i++) begin : sc_pmci_regs
+      for (genvar i=0; i < SC_EVENT_COUNT; i++) begin : sc_pmci_regs
         always @(posedge clk) begin
             if (reset) begin
                 sc_pmcounter[i] <= 0;
             end else begin
-                sc_pmcounter[i] <= sc_pmcounter[i] + {58'h0, sc_pmci[i]};
+                sc_pmcounter[i] <= {58'h0, sc_pmci[i]};
             end
         end
       end
