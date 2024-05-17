@@ -90,7 +90,7 @@ package rv_tester_pkg;
         SC_EVENT_COUNT
     } sc_pmc_event_t;
 
-    typedef logic [5:0] sc_pmc_counter_t;
+    typedef logic [63:0] sc_pmc_counter_t;
     typedef sc_pmc_counter_t [SC_EVENT_COUNT-1:0] sc_pmci_t;
 
     typedef struct packed {
