@@ -3,6 +3,7 @@
 #include "interrupter.h"
 
  DEFINE_bool(random_intr, false, "Drive random interrups");
+ DEFINE_bool(injectintr, false, "Drive interrups at uarch events based on harness code");
  DEFINE_int32(intr_delay_min, 3, "Minimum Delay between 2 consecutive interrupts");
  DEFINE_int32(max_intr_count, 0, "Maximum interrupts that can be driven per test");
  DEFINE_int32(intr_delay_max, 5, "Maximum Delay between 2 consecutive interrupts");
