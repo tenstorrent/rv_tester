@@ -13,6 +13,7 @@ cc_library(
         "@cvm//:plusargs",
         "@cvm//:registry",
         "@cvm//:bitmanip",
+        "@cvm//:random",
         "@cvm//:topology",
     ],
     visibility = ["//visibility:public"],

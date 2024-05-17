@@ -6,6 +6,7 @@
 #include "cvm/plusargs.hpp"
 #include "cvm/registry.hpp"
 #include "cvm/topology.hpp"
+#include "cvm/random.hpp"
 #include "src/cac_lib.h"
 #include "sysmod/htif/htif.h"
 #include "whisper_client_decl.h"
@@ -27,6 +28,7 @@ DECLARE_string(cplfw_path);
 DECLARE_string(load);
 DECLARE_string(hex);
 DECLARE_bool(mcm);
+DECLARE_int32(seed);
 DECLARE_uint64(debug_entry_pc);
 DECLARE_uint64(debug_exit_pc);
 DECLARE_uint64(hart_enable_mask);
@@ -120,16 +122,12 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
     // Overwrite hart_enable_mask in a random fashion based on num_harts run-arg
     // Do this only when hart_enable_mask run-arg is 0x1 (default value)
     if(FLAGS_hart_enable_mask == 0x1){
-      std::random_device rd;
-      std::mt19937 gen(rd());
-      std::uniform_int_distribution<> dis(0, nharts - 1);
       unsigned char hart_enable_mask = 0;
-      for (uint32_t i = 0; i < FLAGS_num_harts; ++i) {
-          int bit_position;
-          do {
-              bit_position = dis(gen);
-          } while ((hart_enable_mask >> bit_position) & 1); // Check if the bit is already set
-          hart_enable_mask |= (1 << bit_position);
+      std::vector<uint8_t> bit_positions(FLAGS_num_harts);
+      cvm::rng<uint32_t> rng(FLAGS_seed);
+      std::generate(bit_positions.begin(), bit_positions.end(), [nharts, &rng]() { return rng() % nharts; });
+      for (uint8_t bit_position : bit_positions) {
+        hart_enable_mask |= (1 << (bit_position));
       }
       FLAGS_hart_enable_mask = hart_enable_mask;
       cvm::log(cvm::LOW, "Overwriting hart_enable_mask to 0x{:x}\n", FLAGS_hart_enable_mask);

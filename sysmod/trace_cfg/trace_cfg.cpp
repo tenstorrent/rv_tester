@@ -3,6 +3,7 @@
 #include "cvm/topology.hpp"
 #include "cvm/registry.hpp"
 #include "cvm/logger.hpp"
+#include "cvm/random.hpp"
 #include "trace_cfg.h"
 #include "transactors/axi_sw/axi.h"
 #include <fstream>
@@ -101,21 +102,20 @@ std::unordered_map<std::string, uint32_t> trace_cfg::extractMacros(const std::st
 
 std::unordered_map<std::string, uint32_t> trace_cfg::pickRandomElements(const std::unordered_map<std::string, uint32_t>& originalMap, uint32_t n) {
     std::unordered_map<std::string, uint32_t> result;
-    std::random_device rd;
-    std::mt19937 gen(rd());
     std::cout << "originalMap.size() " << originalMap.size() << std::endl;
-    std::uniform_int_distribution<> dis(0, originalMap.size() - 1);
-
     std::vector<std::pair<std::string, uint32_t>> elements;
 
     for (const auto& pair : originalMap) {
         elements.push_back(pair);
     }
 
-    for (uint32_t i = 0; i < n; ++i) {
-        int randomIndex = dis(gen);
+    std::vector<uint8_t> randomIndexes(n);
+    cvm::rng<uint32_t> rng(FLAGS_seed);
+    std::generate(randomIndexes.begin(), randomIndexes.end(), [originalMap, &rng]() { return rng() % originalMap.size(); });
+    for (uint8_t randomIndex : randomIndexes) {
         result.insert(elements[randomIndex]);
     }
+
     std::cout << "random result.size() " << result.size() << std::endl;
     return result;
 }
