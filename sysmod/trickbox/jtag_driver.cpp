@@ -40,27 +40,50 @@ jtag_driver::update_jtag_status(jtag_driver::jtag_req_t& i) {
   cvm::log(cvm::HIGH, "\n *** GOT RESP FROM JTAG TDO  {:#x}", i.jtag_op_data);
   loop_rdata = i.jtag_op_data;
 }
+// void jtag_driver::get_all_csv_templates()
+// {
+//   std::string directoryPath = FLAGS_jtag_template_dir_path;
+//   DIR *dir = opendir(directoryPath.c_str());
+//   cvm::log(cvm::NONE, "Debug commands directory:{}\n", directoryPath);
+//   if (!dir)
+//   {
+//     throw std::invalid_argument("Invalid directory path");
+//   }
+
+//   struct dirent *entry;
+//   while ((entry = readdir(dir)) != nullptr)
+//   {
+//     std::string filename = entry->d_name;
+//     if (filename.size() >= 4 && filename.substr(filename.size() - 4) == ".csv")
+//     {
+//       csvFilePaths.push_back(directoryPath + "/" + filename);
+//       cvm::log(cvm::NONE, "Pushing file:{}\n", filename);
+//     }
+//   }
+//   closedir(dir);
+// }
 void jtag_driver::get_all_csv_templates()
 {
-  std::string directoryPath = FLAGS_jtag_template_dir_path;
-  DIR *dir = opendir(directoryPath.c_str());
-  cvm::log(cvm::NONE, "Debug commands directory:{}\n", directoryPath);
-  if (!dir)
-  {
-    throw std::invalid_argument("Invalid directory path");
-  }
+    std::string directoryPath = FLAGS_dbg_template_dir_path;
+    cvm::log(cvm::NONE, "Debug commands directory:{}\n", directoryPath);
 
-  struct dirent *entry;
-  while ((entry = readdir(dir)) != nullptr)
-  {
-    std::string filename = entry->d_name;
-    if (filename.size() >= 4 && filename.substr(filename.size() - 4) == ".csv")
+    if (!std::filesystem::exists(directoryPath) || !std::filesystem::is_directory(directoryPath))
     {
-      csvFilePaths.push_back(directoryPath + "/" + filename);
-      cvm::log(cvm::NONE, "Pushing file:{}\n", filename);
+        throw std::invalid_argument("Invalid directory path");
     }
-  }
-  closedir(dir);
+
+    for (const auto& entry : std::filesystem::directory_iterator(directoryPath))
+    {
+        if (entry.is_regular_file())
+        {
+            std::string filename = entry.path().filename().string();
+            if (filename.size() >= 4 && filename.substr(filename.size() - 4) == ".csv")
+            {
+                csvFilePaths.push_back(entry.path().string());
+                cvm::log(cvm::NONE, "Pushing file:{}\n", filename);
+            }
+        }
+    }
 }
 
 void jtag_driver::parse_jtag_from_csv()
