@@ -64,7 +64,7 @@ jtag_driver::update_jtag_status(jtag_driver::jtag_req_t& i) {
 // }
 void jtag_driver::get_all_csv_templates()
 {
-    std::string directoryPath = FLAGS_dbg_template_dir_path;
+    std::string directoryPath = FLAGS_jtag_template_dir_path;
     cvm::log(cvm::NONE, "Debug commands directory:{}\n", directoryPath);
 
     if (!std::filesystem::exists(directoryPath) || !std::filesystem::is_directory(directoryPath))
