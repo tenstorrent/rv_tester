@@ -108,6 +108,8 @@ endfunction
         assign m_rvfis[n].data.intr        = rvfi[n].intr;
         assign m_rvfis[n].data.mode        = rvfi[n].mode;
         assign m_rvfis[n].data.vec_cracked = rvfi[n].vec_cracked;
+        assign m_rvfis[n].data.flags_valid = rvfi[n].flags_valid;
+        assign m_rvfis[n].data.flags       = rvfi[n].flags;
         assign m_rvfis[n].data.ixl         = rvfi[n].ixl;
         assign m_rvfis[n].data.rd_addr     = rvfi[n].rd_addr;
         assign m_rvfis[n].data.rd_wdata    = rvfi[n].rd_wdata;
