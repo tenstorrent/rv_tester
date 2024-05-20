@@ -1,6 +1,7 @@
 workspace(name = "rv_tester")
 
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
+load("@bazel_tools//tools/build_defs/repo:utils.bzl", "maybe")
 
 local_repository(
     name = "bzsim",
