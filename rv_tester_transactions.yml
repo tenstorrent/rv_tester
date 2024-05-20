@@ -56,6 +56,10 @@ cosim:
                 width: 4
             vec_cracked:
                 width: 1
+            flags_valid:
+                width: 1
+            flags:
+                width: 5
             ixl:
                 width: 2
             rd_addr:

@@ -56,6 +56,7 @@ DEFINE_bool(vec_check, true, "Enable cosim checks on vector regs");
 DEFINE_bool(csr_rd_check, true, "Enable cosim checks on csr reads");
 DEFINE_bool(csr_wr_check, true, "Enable cosim checks on csr writes");
 DEFINE_bool(memattr_check, true, "Enable cosim checks on mem attributes");
+DEFINE_bool(flags_check, false, "Enable cosim checks on fflags");
 DEFINE_uint64(max_cycle, 1000000, "Max cycle limit to terminate the sim");
 DEFINE_int32(debug_excp_mcause, 24, "MCAUSE value for debug exception");
 DEFINE_bool(translation_check, false, "Do VA-PA translation check");
@@ -362,6 +363,9 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
   }
   if (FLAGS_insn_check && !d.comp && !d.ucode && !is_vector(d.disasm) && !(d.disasm.substr(0,7)=="illegal")) {
     update_insn(hart, src_t::dut, d.opcode);
+  }
+  if (FLAGS_flags_check) {
+    update_flags(hart, src_t::dut, d.flags);
   }
   if (d.gpr.valid || d.fpr.valid || !d.vr.empty() || !d.csr.empty()) {
     update_regs(hart, d);
@@ -724,6 +728,9 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
   if (FLAGS_insn_check && !w_.comp && !w_.ucode && !is_vector(w.disasm) && !(w.disasm.substr(0,7)=="illegal"))
     update_insn(hart, src_t::iss, w.opcode);
 
+  if (FLAGS_flags_check)
+    update_flags(hart, src_t::iss, w.fp_flags);
+
   for (auto i = 0u; i < w.change_count; i++) {
     if (!client_->whisperChange(hart, w.resource, w.address, w.value,
         w.valid)) {
@@ -1021,6 +1028,14 @@ void bridge::update_insn(hart_id_t hart, src_t src, uint32_t data) {
     .offset = 0
   };
   assert(cac_.SetResource(hart, src, insn, std::move(cac::CreateBitVec<uint64_t>(data))));
+}
+
+void bridge::update_flags(hart_id_t hart, src_t src, uint32_t data) {
+  resource_id_t flags = resource_id_t{
+    .resource = resource_t::flags,
+    .offset = 0
+  };
+  assert(cac_.SetResource(hart, src, flags, std::move(cac::CreateBitVec<uint64_t>(data))));
 }
 
 void bridge::update_priv(hart_id_t hart, src_t src, uint32_t data) {

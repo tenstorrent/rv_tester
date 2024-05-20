@@ -194,6 +194,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.excp = excp_;
   instr.icause = icause_;
   instr.ecause = ecause_;
+  instr.flags = m_rvfi.flags_valid ? m_rvfi.flags : 0;
 
   // First/last uops for ucode sequences
   instr.first_uop = false;
@@ -509,19 +510,9 @@ void rvfi::process(const rv_tester_transactions::cosim::m_csri<>& m_csri) {
 
   csr_t c {true, m_csri.hart, m_csri.cycle, m_csri.addr, m_csri.mask, m_csri.data};
 
-  // check fscr CSR in CAC in the next step
-  if (m_csri.addr == 0x003) temp_fcsr = c;
-  else {
-    if (temp_fcsr.valid && (c.cycle > temp_fcsr.cycle)) {
-      hw_csrs_.push_back(temp_fcsr);
-      print_csr(temp_fcsr);
-      send_csr(temp_fcsr);
-      temp_fcsr.valid = false;
-    }
-    hw_csrs_.push_back(c);
-    print_csr(c);
-    send_csr(c);
-  }
+  hw_csrs_.push_back(c);
+  print_csr(c);
+  send_csr(c);
 }
 
 void rvfi::process(const rv_tester::terminate_called&) {
