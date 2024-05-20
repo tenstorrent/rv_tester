@@ -10,6 +10,24 @@ local_repository(
 load("@bzsim//:repositories.bzl", "bzsim_dependencies")
 bzsim_dependencies()
 
+opensrc_axi_hash="95166f2a48f86af247b9fecd0b1b8ed1cd689d3c"
+maybe(
+    git_repository,
+    name = "opensrc-axi",
+    commit = opensrc_axi_hash,
+    shallow_since = "1669784673 -0600",
+    remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-axi.git",
+)
+
+opensrc_axi_llc_hash="6783a802e257840458e72d702e0f68f90170ebfc"
+maybe(
+    git_repository,
+    name = "opensrc-axi_llc",
+    commit = opensrc_axi_llc_hash,
+    shallow_since = "1695756617 +0000",
+    remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-axi_llc.git",
+)
+
 load("//:repositories.bzl", "rv_tester_repositories")
 rv_tester_repositories()
 
