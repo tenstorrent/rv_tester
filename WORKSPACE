@@ -11,6 +11,15 @@ local_repository(
 load("@bzsim//:repositories.bzl", "bzsim_dependencies")
 bzsim_dependencies()
 
+opensrc_common_verification_hash="55db000bd24eae3091507ee2a59ce2f2360dee3e"
+maybe(
+    git_repository,
+    name = "opensrc-common_verification",
+    commit = opensrc_common_verification_hash,
+    shallow_since = "1658763133 -0500",
+    remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-common_verification.git",
+)
+
 opensrc_tech_cells_generic_hash="601da41b77f31ffb0fd6fc9259e99fe558d18de2"
 maybe(
     git_repository,
