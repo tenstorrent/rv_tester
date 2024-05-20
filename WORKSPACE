@@ -47,6 +47,24 @@ maybe(
     remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-axi.git",
 )
 
+opensrc_register_interface_hash="69a1114e40fc58fcf9cf9af0cdb8bb4cadab3d84"
+maybe(
+    git_repository,
+    name = "opensrc-register_interface",
+    commit = opensrc_register_interface_hash,
+    shallow_since = "1669784673 -0600",
+    remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-register_interface.git",
+)
+
+opensrc_apb_hash="d2fc024b3337f422b9f56186ddc1060cda26d22e"
+maybe(
+    git_repository,
+    name = "opensrc-apb",
+    commit = opensrc_apb_hash,
+    shallow_since = "1669784673 -0600",
+    remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-apb.git",
+)
+
 opensrc_axi_llc_hash="6783a802e257840458e72d702e0f68f90170ebfc"
 maybe(
     git_repository,
