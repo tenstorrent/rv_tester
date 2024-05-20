@@ -11,6 +11,15 @@ local_repository(
 load("@bzsim//:repositories.bzl", "bzsim_dependencies")
 bzsim_dependencies()
 
+opensrc_tech_cells_generic_hash="601da41b77f31ffb0fd6fc9259e99fe558d18de2"
+maybe(
+    git_repository,
+    name = "opensrc-tech_cells_generic",
+    commit = opensrc_tech_cells_generic_hash,
+    shallow_since = "1658763133 -0500",
+    remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-tech_cells_generic.git",
+)
+
 opensrc_axi_hash="95166f2a48f86af247b9fecd0b1b8ed1cd689d3c"
 maybe(
     git_repository,
