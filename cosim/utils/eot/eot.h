@@ -52,6 +52,7 @@ class eot {
   private:
 
     unsigned id_;
+    uint32_t previous_cycle_ = 0;
     uint32_t num_harts_ = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
     std::vector<uint32_t> instr_count_;
     std::vector<uint64_t> terminated_harts_;
@@ -59,5 +60,7 @@ class eot {
     const std::uint8_t tohost_status_ = 1;
     const std::uint8_t tohost_device_syscall_ = 0;
     bool ended_ = false;
+    std::chrono::time_point<std::chrono::system_clock> start, end;
+    std::chrono::duration<double> elapsed_seconds;
 };
 

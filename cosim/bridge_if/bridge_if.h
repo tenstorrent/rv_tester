@@ -176,11 +176,13 @@ typedef struct rv_instr_s {
   bool last_uop = false;
   bool comp = false;
   bool ucode = false;
+  bool step_only = false;
   uint8_t hart = 0;
   uint64_t id = 0;
   uint64_t cycle = 0;
   uint64_t tag = 0;
   uint32_t opcode = 0;
+  uint32_t steps = 0;
   std::string disasm = std::string(128, ' ');
   uint64_t uop = 0;
   bool vec_cracked = false;

@@ -38,6 +38,9 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
 
   connect<
     rv_tester_transactions::cosim::m_rvfi<>,
+    rv_tester_transactions::cosim::m_gp_regs<>,
+    rv_tester_transactions::cosim::m_fp_regs<>,
+    rv_tester_transactions::cosim::m_vc_regs<>,
     rv_tester_transactions::cosim::m_csri<>,
     rv_tester_transactions::cosim::m_trap<>,
     rv_tester_transactions::cosim::m_core_intr<>,
@@ -194,6 +197,8 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.comp = m_rvfi.comp;
   instr.tag = m_rvfi.order;
   instr.opcode = m_rvfi.insn;
+  instr.steps = m_rvfi.steps;
+  instr.step_only = m_rvfi.step_only;
   instr.disasm = whisper::disassemble(m_rvfi.insn);
   instr.uop = m_rvfi.uop;
   instr.vec_cracked = m_rvfi.vec_cracked;
@@ -429,6 +434,33 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
     log(cvm::NONE, " (compressed)");
 
   log(cvm::NONE, "\n");
+}
+void rvfi::process(const rv_tester_transactions::cosim::m_gp_regs<>& m_gp_regs) {
+  if (terminated_)
+    return;
+  log(cvm::NONE, "rvfi:processing m_gp_regs ");
+  //send_regs(m_gp_regs.hart,0, m_gp_regs.value);
+  uint64_t array[32];
+  int i;
+  for(i=0;i<32;i++) {
+     array[i] = m_gp_regs.value.at(i);
+     log(cvm::NONE, "rvfi:processing m_gp_regs GP[{}] = {}",i,array[i]);
+  }
+  bridge_->process_compare_gp_regs(m_gp_regs.hart,m_gp_regs.value);
+}
+
+void rvfi::process(const rv_tester_transactions::cosim::m_fp_regs<>& m_fp_regs) {
+  if (terminated_)
+    return;
+  //send_regs(m_fp_regs.hart,1, m_fp_regs.value);
+  bridge_->process_compare_fp_regs(m_fp_regs.hart , m_fp_regs.value);
+}
+
+void rvfi::process(const rv_tester_transactions::cosim::m_vc_regs<>& m_vc_regs) {
+  if (terminated_)
+    return;
+  //send_regs(m_vc_regs.hart,2, m_vc_regs.value);
+  bridge_->process_compare_vc_regs(m_vc_regs.hart , m_vc_regs.value);
 }
 
 void rvfi::send_instr(rv_instr_t& instr) {

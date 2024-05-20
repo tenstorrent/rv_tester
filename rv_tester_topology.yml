@@ -147,6 +147,27 @@ rv_tester: &rv_tester
       count: *rv_tester_nharts
       type:
         - cosim
+      m_gp_regs:
+        count: 1
+        type:
+          - rvfi
+        attrs:
+          max_csr_after_nret: 3
+          <<: *rv_tester_rvfi_attrs
+      m_fp_regs:
+        count: 1
+        type:
+          - rvfi
+        attrs:
+          max_csr_after_nret: 3
+          <<: *rv_tester_rvfi_attrs
+      m_vc_regs:
+        count: 1
+        type:
+          - rvfi
+        attrs:
+          max_csr_after_nret: 3
+          <<: *rv_tester_rvfi_attrs
       rvfi:
         count: 1
         type:

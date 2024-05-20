@@ -3,6 +3,7 @@
 #pragma once
 
 #include <string>
+#include <chrono>
 #include <algorithm>
 #include <iomanip>
 #include <vector>
@@ -24,6 +25,8 @@ private:
   using resource_t = cac::resource_t;
   using resource_id_t = cac::resource_id_t;
   using CacCore = cac::CacCore;
+  uint64_t previous_cycle;
+
 
 public:
   // Usec by some functions in bridge.cpp
@@ -46,6 +49,9 @@ public:
   virtual void process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) override;
   virtual void process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d) override;
   virtual void process_dut_csr_hw_update(hart_id_t hart, csr_t& c) override;
+  virtual void process_compare_gp_regs(hart_id_t hart, const std::array<std::uint64_t, 32> array);
+  virtual void process_compare_fp_regs(hart_id_t hart, const std::array<std::uint64_t, 32> array);
+  virtual void process_compare_vc_regs(hart_id_t hart, const std::array<std::array<std::uint64_t, 4>, 32> array);
 
   // Process memory access
   //   - Read (Ld completion)
@@ -129,6 +135,10 @@ private:
   void poke_mip(hart_id_t hart, uint64_t time, uint64_t mip);
   void peek_mip(hart_id_t hart, uint64_t time, uint64_t& mip);
   void peek_seip(hart_id_t hart, uint64_t time, uint64_t& val);
+  void get_gp_reg(uint32_t reg, uint64_t& data);
+  void get_fp_reg(uint32_t reg, uint64_t& data);
+  void get_vec_reg(uint32_t reg, uint8_t* data);
+
 
   bool is_custom_excp(uint64_t cause);
   bool is_vector(const std::string& instr);
@@ -162,6 +172,11 @@ private:
   CacCore cac_;
   CacCore csr_cac_;
 
+  uint64_t order_ = 0;
+
+  int last_tag_ = 0;
+  int last_cycle_ = 0;
+
   // Previous instruction's whisper state
   whisper_state_t pw_{};
   whisper_state_t ppw_{};
@@ -170,6 +185,8 @@ private:
   rv_instr_t w_;
 
   uint32_t step_ = 1;
+  uint64_t int_msec_;
+  uint64_t rvfi_calls_=0;
 
   // State variables
   bool ecall_ = false;
@@ -205,6 +222,10 @@ private:
   bool post_undeferred_intr_;
   std::array<uint32_t, max_intr> intr_age_{};
   uint32_t max_pend_intr_age_ = 0;
+  std::chrono::high_resolution_clock::time_point begin_time_;
+  std::chrono::high_resolution_clock::time_point end_time_;
+  std::chrono::high_resolution_clock::time_point start_of_test_;
+  bool first_call_ = true;
 
   // Memmap
   memmap::memmap_t memmap_;

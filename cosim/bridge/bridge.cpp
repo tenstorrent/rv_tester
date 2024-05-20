@@ -101,6 +101,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
     while (std::getline(iss, token, ',')) {
         cosim_resynch_csr_defaults.push_back(token);
     }
+    previous_cycle = 0;
     client_ = std::make_shared<whisperClient<uint64_t>>(traceFile, commandLog);
     auto platform = cvm::topology::get_from_type("PLATFORM", 0);
     cvm::registry::messenger.connect<rv_tester::terminate_called>(platform, [this] (const auto& v) { return this->process(v); });
@@ -143,6 +144,26 @@ void bridge::reset() {
   resetsstc_poke(id_,0,0x24d);
 }
 
+void bridge::get_gp_reg(uint32_t reg, uint64_t& data)
+{
+    if (!client_->whisperPeekGpr(id_, reg, data)) {
+        cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek GP {}\n", id_,reg);
+    }
+}
+void bridge::get_fp_reg(uint32_t reg, uint64_t& data)
+{
+    if (!client_->whisperPeekFpr(id_, reg, data)) {
+        cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek FP {}\n", id_,reg);
+    }
+}
+
+void bridge::get_vec_reg(uint32_t reg, uint8_t* data)
+{
+    if (!client_->whisperPeekVpr(id_, reg, data)) {
+        cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek VEC {}\n", id_,reg);
+    }
+}
+
 void bridge::csr_init() {
   bool valid;
   uint64_t data, mask, poke_mask;
@@ -171,9 +192,47 @@ void bridge::resetsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr) {
     return;
   }
 }
+// DUT interface callback: Instruction Retire
+void bridge::process_compare_gp_regs(hart_id_t hart, const std::array<std::uint64_t, 32> array) {
+    uint32_t i;
+    uint64_t data;
+    for(i=0;i<32;i++) {
+        get_gp_reg(i, data);
+        if (array.at(i) != data) {
+            cvm::log(cvm::ERROR, "Hart {}: mismatch of GP[{}] act={:#x} exp={:#x}\n", hart,i,array.at(1),data);
+        }
+    }
+}
+void bridge::process_compare_fp_regs(hart_id_t hart, const std::array<std::uint64_t, 32> array) {
+    int i;
+    uint64_t data;
+    for(i=0;i<32;i++) {
+        get_fp_reg(i, data);
+        //printf("FP[%d] = 0x%016lx\n",i,array.at(i));
+        if (array.at(i) != data) {
+            cvm::log(cvm::ERROR, "Hart {}: mismatch of FP[{}] act={:#x} exp={:#x}\n", hart,i,array.at(1),data);
+        }
+    }
+}
+void bridge::process_compare_vc_regs(hart_id_t hart, const std::array<std::array<std::uint64_t, 4>, 32> array) {
+    int i,j;
+    uint64_t data[4];
+    cvm::log(cvm::NONE, "Hart {}:VC[1] = {}\n", hart,array.at(1).at(1));
+    for(i=0;i<32;i++) {
+        get_vec_reg(i, (uint8_t*)data);
+        for(j=0;j<4;j++) {
+            if (array.at(i).at(j) != data[j]) {
+                cvm::log(cvm::ERROR, "Hart {}: mismatch of VEC[{}][{}] act={:#x} exp={:#x}\n", hart,i,j,array.at(i).at(j),data[j]);
+            }
+        }
+    }
+}
 
 // DUT interface callback: Instruction Retire
 void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
+  uint32_t s;
+  uint64_t data;
+  //uint64_t steps;
 
   twoStage_ = false;
   whisper_state_t w {
@@ -181,24 +240,89 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
     .time = d.cycle
   };
 
-  // Handle pre-step condition - Debug
-  if (debug_mode_) {
-    if (FLAGS_emulate_debug_mode) {
-      pre_step_debug_poke(hart, d);
-    } else {
-      return;
-    }
-  }
-  // Handle pre-step condition - Interrupts
-  pre_step_interrupt_poke(hart, d, w);
-  lrsc_fail_ = false;
 
-  // Handle pre-step condition - LR/SC fail
-  pre_step_lrsc_poke(hart, d);
+  //------------------------------------------------------------------------------------------------------------
+  // advance the instruction steps missed when using state-compare method and not sending rvfi packets
+  //   - we only advance the missing steps on the FIRST rvfi packet sent on this time-stamp (cycle)
+  //------------------------------------------------------------------------------------------------------------
+  //if ((d.steps != 0) & (d.cycle != previous_cycle)) {
+  rvfi_calls_++;
+  if (d.cycle != previous_cycle) {
+      end_time_ = std::chrono::high_resolution_clock::now();
+      if (first_call_ == false) {
+          //auto tclks = d.cycle - previous_cycle;
+          //auto int_usec = duration_cast<std::chrono::microseconds>(end_time_ - begin_time_).count();
+          //auto uips = (d.steps*1000000)/int_usec;
+          //auto ucps = (tclks*1000000)/int_usec;
+          //cvm::log(cvm::DEBUG, "INTERVAL steps={} clks={}  usec={}\n", d.steps,tclks,int_usec);
+          //cvm::log(cvm::DEBUG, "INTERVAL inst/sec = {}\n", uips);
+          //cvm::log(cvm::DEBUG, "INTERVAL clks/sec = {}\n", ucps);
+          int_msec_ = duration_cast<std::chrono::milliseconds>(end_time_ - start_of_test_).count();
+          //mips_ = (step_*1000)/int_msec_;
+          //mcps_ = (d.cycle*1000)/int_msec_;
+          //cvm::log(cvm::DEBUG, "TOTAL    steps={} clks={}  msec={}\n", step_,d.cycle,int_msec_);
+          //cvm::log(cvm::DEBUG, "TOTAL    inst/sec = {}\n", mips_);
+          //cvm::log(cvm::DEBUG, "TOTAL    clks/sec = {}\n", mcps_);
+      }
+      else {
+          start_of_test_ = end_time_;
+      }
+
+      begin_time_ = end_time_;
+      previous_cycle = d.cycle;
+      first_call_ = false;
+
+      for(s=0;s<d.steps;s++) {
+          last_tag_++;
+          last_cycle_++;
+          w.tag = last_tag_; 
+          w.time = last_cycle_; 
+          step(hart, w);
+          cvm::log(cvm::DEBUG, "step done  d_cycle={} d_pc={:#x} w_pc={:#x} opcode={:#x} disasm={} \n", d.cycle, d.pc.pc_rdata, w.pc, w.opcode,w.disasm);
+          
+          // Increment step count
+          step_++;
+      }
+      last_tag_   = d.tag;
+      last_cycle_ = d.cycle;
+
+      if (d.step_only == 1) {
+          cvm::log(cvm::DEBUG, "EOT force steps request\n");
+          return;
+      }
+  }
+
+  w.tag  = d.tag;
+  w.time = d.cycle;
+
+  //-----------------------------------------------------------------------
+  // if step_only flag == 1.. there is no instr to process... skip pre work
+  //-----------------------------------------------------------------------
+  if (d.step_only == 0) {
+    // Handle pre-step condition - Debug
+    if (debug_mode_) {
+      if (FLAGS_emulate_debug_mode) {
+        pre_step_debug_poke(hart, d);
+      } else {
+        return;
+      }
+    }
+    // Handle pre-step condition - Interrupts
+    pre_step_interrupt_poke(hart, d, w);
+    lrsc_fail_ = false;
+
+    // Handle pre-step condition - LR/SC fail
+    pre_step_lrsc_poke(hart, d);
+  }
 
   // Step whisper
   w_.clear();
+
+
+  
   step(hart, w);
+  get_gp_reg(15, data);
+  cvm::log(cvm::DEBUG, "final step done  d_cycle={} d_pc={:#x} w_pc={:#x} opcode={:#x} disasm={} GP15={:#x}\n", d.cycle, d.pc.pc_rdata, w.pc, w.opcode,w.disasm,data);
 
   // Update cac with whisper state
   update_whisper_state(hart, w);
@@ -1873,6 +1997,10 @@ void bridge::report_metrics() {
 
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_instructions\": {}}}\n", id_, instructions);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_cpu_cycles\": {}}}\n", id_, cpu_cycles);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_rvfi_calls\": {}}}\n", id_, rvfi_calls_);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_exec_time(ms)\": {}}}\n", id_, int_msec_);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_inst_per_sec\": {}}}\n", id_, instructions*1000/int_msec_);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_clks_per_sec\": {}}}\n", id_, cpu_cycles*1000/int_msec_);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_exceptions\": {}}}\n", id_, num_exceptions_);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_ipc\": {:.2f}}}\n", id_, ipc);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_instr\": \"{}\"}}\n", id_, instr);

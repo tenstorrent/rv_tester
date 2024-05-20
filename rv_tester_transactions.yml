@@ -38,6 +38,10 @@ cosim:
                 width: 1
             last_insn:
                 width: 1
+            steps:
+                width: 32
+            step_only:
+                width: 1
             comp:
                 width: 1
             order:
@@ -117,6 +121,32 @@ cosim:
             mem_attr:
                 qualify: "{data}.mem_rmask != '0 || {data}.mem_wmask != '0"
                 width: 32
+
+    m_gp_regs:
+        domain: 1
+        num: 1 
+        fields:
+            hart:
+                width: 32
+            value:
+                width: [[32, 64]]
+
+    m_fp_regs:
+        domain: 1
+        num: 1 
+        fields:
+            hart:
+                width: 32
+            value:
+                width: [[32, 64]]
+    m_vc_regs:
+        domain: 1
+        num: 1 
+        fields:
+            hart:
+                width: 32
+            value:
+                width: [[32, 4, 64]]
 
     m_mcmi_read:
         domain: 1

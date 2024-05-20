@@ -322,6 +322,55 @@ whisperClient<URV>::whisperPeekCsr(int hart, uint64_t addr, uint64_t& value, uin
   return true;
 }
 
+template <typename URV>
+bool
+whisperClient<URV>::whisperPeekGpr(int hart, uint64_t addr, uint64_t& value)
+{
+  req.hart = hart;
+  req.type = WhisperMessageType::Peek;
+  req.resource = 'r';
+  req.address = addr;
+
+  if (not whisperCommand(req, reply))
+    return false;
+
+  value = reply.value;
+  return true;
+}
+template <typename URV>
+bool
+whisperClient<URV>::whisperPeekFpr(int hart, uint64_t addr, uint64_t& value)
+{
+  req.hart = hart;
+  req.type = WhisperMessageType::Peek;
+  req.resource = 'f';
+  req.address = addr;
+
+  if (not whisperCommand(req, reply))
+    return false;
+
+  value = reply.value;
+  return true;
+}
+template <typename URV>
+bool
+whisperClient<URV>::whisperPeekVpr(int hart, uint64_t addr, uint8_t* value)
+{
+  int i;
+  req.hart = hart;
+  req.type = WhisperMessageType::Peek;
+  req.resource = 'v';
+  req.address = addr;
+
+  if (not whisperCommand(req, reply))
+    return false;
+
+  for(i=0;i<32;i++) {
+     value[i] = reply.buffer[i]; 
+  }
+  return true;
+}
+
 // Send a whisper poke command. Retrun true on successful comunication
 // and false on failure. Set valid to false if hart/resource/addr
 // are invalid.
