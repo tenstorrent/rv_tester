@@ -236,6 +236,17 @@ cosim:
             cause:
                 width: 64
 
+    m_ncio_axi_wr_req:
+        domain: 1
+        num: ${TOP.PLATFORM.NCIO_AXI.TOTAL}
+        fields:
+            cycle:
+                width: 64
+            addr:
+                width: ${TOP.PLATFORM.NCIO_AXI.ADDR_WIDTH}
+            data:
+                width: ${TOP.PLATFORM.CLLEN}
+
     m_core_intr:
         domain: 1
         num: 1

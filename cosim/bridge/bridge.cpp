@@ -206,6 +206,15 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
     .time = d.cycle
   };
 
+  if(mem_read_data_.count(d.tag)>0)
+  {
+    d.mem_read.data = mem_read_data_.at(d.tag); 
+    // removing the key value pair from the map
+    mem_read_data_.erase(d.tag);
+  }
+  // else
+  //   d.mem_read.data = m_rvfi.mem_rdata;
+
   // Handle pre-step condition - Debug
   if (debug_mode_) {
     if (FLAGS_emulate_debug_mode) {
@@ -1361,6 +1370,7 @@ void bridge::resynch(hart_id_t hart, const rv_instr_group_t& d) {
 // Process mem accesses - load resolves
 void bridge::process_dut_mcm_read(hart_id_t hart, mem_t& m) {
   bool valid = false;
+  mem_read_data_.emplace(m.tag,m.data);  
   if (!client_->whisperMcmRead(hart, m.cycle, m.tag, m.pa, m.size, m.data, valid)) {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed mcm load resolve\n", hart);
     return;

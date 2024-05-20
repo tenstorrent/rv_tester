@@ -219,6 +219,8 @@ private:
   int unmask_bits_instr, unmask_bits_uop = 0;
   std::vector<std::string> cosim_resynch_csr_defaults;
 
+  std::unordered_map<uint64_t, uint64_t> mem_read_data_; // new map for storing mem read data along with tag
+  
   bool terminated_ = false;
 
 };
