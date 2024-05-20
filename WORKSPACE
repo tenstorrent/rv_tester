@@ -29,6 +29,15 @@ maybe(
     remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-tech_cells_generic.git",
 )
 
+opensrc_common_cells_hash="7abf231af21e3b70de33bce1c53e093c1c775d7b"
+maybe(
+    git_repository,
+    name = "opensrc-common_cells",
+    commit = opensrc_common_cells_hash,
+    shallow_since = "1658763133 -0500",
+    remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-common_cells.git",
+)
+
 opensrc_axi_hash="95166f2a48f86af247b9fecd0b1b8ed1cd689d3c"
 maybe(
     git_repository,
