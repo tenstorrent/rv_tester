@@ -28,7 +28,6 @@ import rv_tester_params::*;
     input mcmi_t [NIFETCH-1:0] mcmi_ifetch_req,
     input mcmi_t [NIFETCH-1:0] mcmi_ifetch_resp,
     input mcmi_t [NIEVICT-1:0] mcmi_ievict,
-    input rv_tester_params::ncio_slv_req_top ncio_axi_req [rv_tester_params::NCIO_AXI_TOTAL-1:0],
     input rv_tester_pkg::interrupt_t wired_interrupt,
     input rv_tester_params::mst_req_top imsic_interrupt,
     input rv_tester_params::mst_req_top imsic_msi,
@@ -263,15 +262,6 @@ endfunction
         assign m_traps[n].data.location = location;
         assign m_traps[n].data.cycle = clocks;
         assign m_traps[n].data.cause = rvfi[n].cause;
-    end
-
-    // m_ncio_axi_wr_req
-    for (genvar n = 0; n < rv_tester_params::NCIO_AXI_TOTAL; n++) begin
-        assign m_ncio_axi_wr_reqs[n].valid = MCMI_EN & rvfi_enabled & ~dut_reset & (ncio_axi_req[n].w_valid != 0);
-        assign m_ncio_axi_wr_reqs[n].data.location = location;
-        assign m_ncio_axi_wr_reqs[n].data.cycle = clocks;
-        assign m_ncio_axi_wr_reqs[n].data.addr = ncio_axi_req[n].aw.addr;
-        assign m_ncio_axi_wr_reqs[n].data.data = ncio_axi_req[n].w.data;
     end
 
     // m_debug
