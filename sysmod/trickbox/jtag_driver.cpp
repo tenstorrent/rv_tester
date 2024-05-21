@@ -40,28 +40,7 @@ jtag_driver::update_jtag_status(jtag_driver::jtag_req_t& i) {
   cvm::log(cvm::HIGH, "\n *** GOT RESP FROM JTAG TDO  {:#x}", i.jtag_op_data);
   loop_rdata = i.jtag_op_data;
 }
-// void jtag_driver::get_all_csv_templates()
-// {
-//   std::string directoryPath = FLAGS_jtag_template_dir_path;
-//   DIR *dir = opendir(directoryPath.c_str());
-//   cvm::log(cvm::NONE, "Debug commands directory:{}\n", directoryPath);
-//   if (!dir)
-//   {
-//     throw std::invalid_argument("Invalid directory path");
-//   }
 
-//   struct dirent *entry;
-//   while ((entry = readdir(dir)) != nullptr)
-//   {
-//     std::string filename = entry->d_name;
-//     if (filename.size() >= 4 && filename.substr(filename.size() - 4) == ".csv")
-//     {
-//       csvFilePaths.push_back(directoryPath + "/" + filename);
-//       cvm::log(cvm::NONE, "Pushing file:{}\n", filename);
-//     }
-//   }
-//   closedir(dir);
-// }
 void jtag_driver::get_all_csv_templates()
 {
     std::string directoryPath = FLAGS_jtag_template_dir_path;

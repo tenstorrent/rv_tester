@@ -37,28 +37,7 @@ debugger::update_dm_status(debugger::dmi_status_t& i) {
   status = i.status;
   commands_in_queue = i.commands_in_queue;
 }
-// void debugger::get_all_csv_templates()
-// {
-//   std::string directoryPath = FLAGS_dbg_template_dir_path;
-//   DIR *dir = opendir(directoryPath.c_str());
-//   cvm::log(cvm::NONE, "Debug commands directory:{}\n", directoryPath);
-//   if (!dir)
-//   {
-//     throw std::invalid_argument("Invalid directory path");
-//   }
 
-//   struct dirent *entry;
-//   while ((entry = readdir(dir)) != nullptr)
-//   {
-//     std::string filename = entry->d_name;
-//     if (filename.size() >= 4 && filename.substr(filename.size() - 4) == ".csv")
-//     {
-//       csvFilePaths.push_back(directoryPath + "/" + filename);
-//       cvm::log(cvm::NONE, "Pushing file:{}\n", filename);
-//     }
-//   }
-//   closedir(dir);
-// }
 void debugger::get_all_csv_templates()
 {
     std::string directoryPath = FLAGS_dbg_template_dir_path;
