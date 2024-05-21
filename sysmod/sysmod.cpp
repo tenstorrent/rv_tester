@@ -639,34 +639,43 @@ sysmod::load_csr_boot(uint64_t dummy)
         delimiter = ':';
         std::vector<std::string> num_val = split_string(entry, delimiter);
         auto csr = num_val.at(0); // expect both csr address("0x301") as well as string("misa")
-        auto value = stoull(num_val.at(1), nullptr, 0);
+        auto value = std::stoull(num_val.at(1), nullptr, 0);
         if (csr_map.count(csr))
           csr_data[csr_map[csr]] = value;
-        else
-          csr_data[stoull(csr, nullptr, 0)] = value;
+        else {
+          char* p;
+          uint64_t csrn = std::strtoul(csr.c_str(), &p, 0);
+          if (*p == 0)
+            csr_data[csrn] = value;
+          else {
+            cvm::log(cvm::ERROR, "ERROR csr_name:{} is not defined (check for typo)\n", csr);
+            return;
+          }
+        }
       }
     }
     catch (...) {
-      cvm::log(cvm::ERROR, "ERROR occurred while parsing +set_csr={}\n", FLAGS_set_csr);
+      cvm::log(cvm::ERROR, "ERROR unable to parse +set_csr={}\n", FLAGS_set_csr);
       return;
     }
     int addr = dev("boot")->addr() + 0x8000;
-    int dest_gpr = 4, dest_gpr2 = 3; // use two registers x4, x3
+    int dest_gpr = 4, dest_gpr2 = 3;
     int csr_opcode = 0x73, lui_opcode = 0x37, op_imm_opcode = 0x13, or_opcode = 0x33;
 
     auto add_to_mem = [&addr,this] (const uint32_t op) { //simple lambda to poke to memory
       device::strb_t strb(4);
       for (size_t i = 0; i<4; i++) strb[i] = true;
-      cvm::log(cvm::HIGH, "OPCODE: {:#x}\n", op);
+      cvm::log(cvm::HIGH, "Address: {:#x} OPCODE: {:#x}\n",addr, op);
       bool valid = true;
       device::data_t data(4);
       for (size_t i=0; i<4; i++) data[i] = op >> 8*i;
       dev("boot")->backdoor_write(addr, 4, data, strb);
-      if (!client_->whisperPoke(0, 0, 'm', addr, op, valid)) // fixme client_ is a nullptr
+      if (!client_->whisperPoke(0, 0, 'm', addr, op, valid))
         cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
       addr += 4;
     };
 
+    cvm::log(cvm::HIGH, "Backdoor bootrom CSR writes to memory\n");
     for (auto const& [csr_num, value] : csr_data) {
       uint32_t csr_op = 0;
       if (value < 32)
