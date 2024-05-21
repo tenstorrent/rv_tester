@@ -9,12 +9,10 @@ def cosim_gen(name, packet, topology, harness, visibility = None, cc_attrs = {},
         name = name + "_rvfi",
         srcs = [
             "@rv_tester//cosim/dut_if/rvfi:rvfi.cpp",
-            "@rv_tester//cosim/dut_if/mcmi:mcmi.cpp",
             "@rv_tester//cosim/utils/eot:eot.cpp",
         ],
         hdrs = [
             "@rv_tester//cosim/dut_if/rvfi:rvfi.h",
-            "@rv_tester//cosim/dut_if/mcmi:mcmi.h",
             "@rv_tester//cosim/utils/eot:eot.h",
         ],
         deps = [
