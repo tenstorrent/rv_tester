@@ -11,6 +11,7 @@
 #include "transactor.h"
 #include "transactors/axi_sw/axi.h"
 #include "trace_defines.h"
+#include "mmr_defines.h"
 #include <unistd.h>
 
 
@@ -38,7 +39,8 @@ class trace_cfg : public device {
         uint32_t start_trace_cnt=0,n,id_val,read_ram=0,axi_ids = 0;
         uint32_t cnt_tick=0;
         uint64_t axi_read_resp=0;
-        std::unordered_map<std::string, uint32_t> macros,randomElements;
+        std::unordered_map<std::string, uint32_t> macros;
+        std::vector<decltype(mmr::list)> randomElements;
         struct trace_wr_t {
           uint32_t addr;
           uint32_t data;
@@ -66,7 +68,7 @@ class trace_cfg : public device {
         virtual void axi_read(uint64_t addr, size_t length, uint32_t id);
         void write(const transactor::write_t& );
         std::unordered_map<std::string, uint32_t> extractMacros(const std::string& filename);
-        std::unordered_map<std::string, uint32_t> pickRandomElements(const std::unordered_map<std::string, uint32_t>& originalMap, uint32_t n) ;
+        std::vector<decltype(mmr::list)> pickRandomElements(const std::unordered_map<std::string, uint32_t>& originalMap, uint32_t n) ;
 
         std::unordered_map<std::string, std::uint32_t> addressMap = {
             {"CDBG_NODE2_EAP1_CFG", 0x42002148},
@@ -248,23 +250,23 @@ class trace_cfg : public device {
           trace_misc_rd_txn_q.push({CDBG_NTRACE_CFG,8});
         }
         
-        void push_random_axi_read(std::unordered_map<std::string, uint32_t>  elements){
+        void push_random_axi_read(std::vector<decltype(mmr::list)>  elements){
           cvm::log(cvm::HIGH, "[overlay axi regress] success reading\n");
 
           // Loop through elements and write to file
           for(int i = 0; i < 15;i++){
             for (const auto& pair : elements) {
-                cvm::log(cvm::HIGH, "[overlay axi reads] address {} size {}",pair.first,pair.second);
-                trace_misc_rd_txn_q.push({pair.second,8});
+                cvm::log(cvm::HIGH, "[overlay axi reads] address {} size {}",pair,64);
+                trace_misc_rd_txn_q.push({pair,8});
             }
           }
         }
 
-        void push_random_axi_write(std::unordered_map<std::string, uint32_t>  elements){
+        void push_random_axi_write(std::vector<decltype(mmr::list)> elements){
           cvm::log(cvm::HIGH, "[overlay axi] overlay write axi seq size :{}\n",elements.size());
           for(int i = 0; i < 15;i++){
             for (const auto& pair : elements) {
-                trace_wr_txn_q.push({pair.second,0xFFFF});
+                trace_wr_txn_q.push({pair,0xFFFF});
             }
           }
           cvm::log(cvm::HIGH, "[overlay axi] overlay write axi seq completed\n");
