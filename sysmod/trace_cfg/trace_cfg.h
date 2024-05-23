@@ -11,6 +11,7 @@
 #include "transactor.h"
 #include "transactors/axi_sw/axi.h"
 #include "trace_defines.h"
+#include "mmr_defines.h"
 #include <unistd.h>
 using namespace mmr;
 
