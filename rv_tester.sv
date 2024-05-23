@@ -535,6 +535,15 @@ module rv_tester
             .axi_slv_w_ready (axi_rsp_llc[p].w_ready),
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PORTS(2, p, 0)
         );
+
+
+        ext_mem_stall_checker stall_checker(
+            .clk(clk[AXI_CLK_IDX]),
+            .reset_n(~reset[RESET_IDX]),
+            .axi_req(axi_req[p]),
+            .axi_rsp(axi_rsp[p])
+        );
+
     end
 
    localparam NoOfNcioMasters =  topology.TOP.PLATFORM.NCIO_AXI.TOTAL  ;
