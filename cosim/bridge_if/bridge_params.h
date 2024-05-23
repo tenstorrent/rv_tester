@@ -18,7 +18,7 @@ namespace {
         uint64_t address;
     };
 
-    std::array<csr_entry, 354> csrs {{
+    std::array<csr_entry, 355> csrs {{
         {"fflags", 0x001},
         {"frm", 0x002},
         {"fcsr", 0x003},
@@ -356,6 +356,7 @@ namespace {
         {"c_mccfg", 0xBC5},
         {"c_mcthrcfg0", 0xBC6},
         {"c_mcthrcfg1", 0xBC7},
+        {"c_wfitimer", 0xBC8},
         {"c_tracecfg", 0xBC9},
         {"c_lscfg0", 0xBD0},
         {"c_lscfg1", 0xBD1},
@@ -375,7 +376,7 @@ namespace {
         {"c_lscfg15", 0xBDF}
     }};
 
-    std::array<csr_entry, 14> nonzero_reset_csrs {{
+    std::array<csr_entry, 15> nonzero_reset_csrs {{
         {"mstatus", 0x300},
         {"misa", 0x301},
         {"medeleg", 0x302},
@@ -389,10 +390,11 @@ namespace {
         {"c_fecfg2", 0xBC2},
         {"c_mccfg", 0xBC5},
         {"c_mcthrcfg0", 0xBC6},
-        {"c_mcthrcfg1", 0xBC7}
+        {"c_mcthrcfg1", 0xBC7},
+        {"c_wfitimer", 0xBC8}
     }};
 
-    std::array<csr_entry, 43> metrics_csrs {{
+    std::array<csr_entry, 44> metrics_csrs {{
         {"fcsr", 0x003},
         {"sstatus", 0x100},
         {"sie", 0x104},
@@ -419,6 +421,7 @@ namespace {
         {"c_mccfg", 0xBC5},
         {"c_mcthrcfg0", 0xBC6},
         {"c_mcthrcfg1", 0xBC7},
+        {"c_wfitimer", 0xBC8},
         {"c_tracecfg", 0xBC9},
         {"c_lscfg0", 0xBD0},
         {"c_lscfg1", 0xBD1},

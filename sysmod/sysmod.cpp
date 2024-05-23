@@ -648,14 +648,14 @@ sysmod::load_csr_boot(uint64_t dummy)
           if (*p == 0)
             csr_data[csrn] = value;
           else {
-            cvm::log(cvm::ERROR, "ERROR csr_name:{} is not defined (check for typo)\n", csr);
+            cvm::log(cvm::ERROR, "Error: csr_name:{} undefined see +set_csr switch\n", csr);
             return;
           }
         }
       }
     }
     catch (...) {
-      cvm::log(cvm::ERROR, "ERROR unable to parse +set_csr={}\n", FLAGS_set_csr);
+      cvm::log(cvm::ERROR, "Error: unable to parse +set_csr={}\n", FLAGS_set_csr);
       return;
     }
     int addr = dev("boot")->addr() + 0x8000;
