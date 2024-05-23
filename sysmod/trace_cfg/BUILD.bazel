@@ -5,7 +5,6 @@ cc_library(
             "@rv_tester//transactors/axi_sw:axi.h",
             "trace_cfg.h",
             "trace_defines.h",
-            "mmr_defines.h",
             ],
     deps = [
         "//sysmod:device",

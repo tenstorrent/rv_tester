@@ -28,7 +28,6 @@ class smc_xtor : public device {
         bool in_boot_seq = true; 
         bool reset_completion = false;
         bool read_in_flight = false;
-        std::pair<uint64_t,size_t> read_req;
         pcg32 rng;
         void complete_smc_test()
         {
@@ -172,6 +171,7 @@ class smc_xtor : public device {
 
                 // if(smc_wr_txn_q.size() > 0) axi_write();
                 if(smc_rd_txn_q.size() > 0) {
+                  std::pair<uint64_t,size_t> read_req;
                   read_req = smc_rd_txn_q.front();
                   smc_rd_txn_q.pop();
                   axi_ids = rng()%200+200;
