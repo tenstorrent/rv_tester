@@ -71,27 +71,9 @@ void trace_cfg::write(const transactor::write_t& ) {
   // return;
 }
 
-std::vector<decltype(list[0])> trace_cfg::pickRandomElements(const std::unordered_map<std::string, uint32_t>& originalMap, uint32_t n) {
-    std::unordered_map<std::string, uint32_t> result;
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::cout << "originalMap.size() " << originalMap.size() << std::endl;
-    std::uniform_int_distribution<> dis(0, originalMap.size() - 1);
-    // std::unordered_map<std::string, uint32_t> 
-    std::vector<std::pair<std::string, uint32_t>> elements;
-
-    for (const auto& pair : originalMap) {
-        elements.push_back(pair);
-    }
-
-    for (uint32_t i = 0; i < n; ++i) {
-        int randomIndex = dis(gen);
-        result.insert(elements[randomIndex]);
-    }
-
-    int num = rng() % 10;
-    std::vector<decltype(list[0])> picks;
-    for (int i = 0; i < num; i++) picks.push_back(mmr::list[rng() % mmr::list.size()].value);
+auto trace_cfg::pickRandomElements(uint32_t n) -> trace_cfg::random_list {
+    random_list picks;
+    for (uint32_t i = 0; i < n; i++) picks.push_back(mmr::list[rng() % mmr::list.size()]);
 
     return picks;
 }
