@@ -14,7 +14,7 @@ DEFINE_bool(rvfi, true, "Enable rvfi");
 // TODO(mboisvert): See if we can combine the rvfi flags. The reason why the
 // rvfi_log flag was created is that +norvfi causes the max # of cycles to be
 // exceeded.
-DEFINE_bool(rvfi_log, true, "Enable rvfi logging");
+DEFINE_bool(rvfi_log,  true, "Enable rvfi logging");
 DEFINE_bool(rvfi_log_36b_uop, true, "rvfi log - print 36b uop instead of default 32b riscv opcode");
 DEFINE_bool(mcm, false, "Enable mcm");
 DEFINE_bool(cosim, true, "Enable cosim checking");
@@ -438,28 +438,18 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
 void rvfi::process(const rv_tester_transactions::cosim::m_gp_regs<>& m_gp_regs) {
   if (terminated_)
     return;
-  log(cvm::NONE, "rvfi:processing m_gp_regs ");
-  //send_regs(m_gp_regs.hart,0, m_gp_regs.value);
-  uint64_t array[32];
-  int i;
-  for(i=0;i<32;i++) {
-     array[i] = m_gp_regs.value.at(i);
-     log(cvm::NONE, "rvfi:processing m_gp_regs GP[{}] = {}",i,array[i]);
-  }
   bridge_->process_compare_gp_regs(m_gp_regs.hart,m_gp_regs.value);
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_fp_regs<>& m_fp_regs) {
   if (terminated_)
     return;
-  //send_regs(m_fp_regs.hart,1, m_fp_regs.value);
   bridge_->process_compare_fp_regs(m_fp_regs.hart , m_fp_regs.value);
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_vc_regs<>& m_vc_regs) {
   if (terminated_)
     return;
-  //send_regs(m_vc_regs.hart,2, m_vc_regs.value);
   bridge_->process_compare_vc_regs(m_vc_regs.hart , m_vc_regs.value);
 }
 

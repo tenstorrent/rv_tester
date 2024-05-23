@@ -354,7 +354,7 @@ whisperClient<URV>::whisperPeekFpr(int hart, uint64_t addr, uint64_t& value)
 }
 template <typename URV>
 bool
-whisperClient<URV>::whisperPeekVpr(int hart, uint64_t addr, uint8_t* value)
+whisperClient<URV>::whisperPeekVpr(int hart, uint64_t addr, std::array<std::uint8_t, 32>& value)
 {
   int i;
   req.hart = hart;

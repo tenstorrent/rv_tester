@@ -25,7 +25,7 @@ private:
   using resource_t = cac::resource_t;
   using resource_id_t = cac::resource_id_t;
   using CacCore = cac::CacCore;
-  uint64_t previous_cycle;
+  uint64_t previous_cycle_;
 
 
 public:
@@ -137,7 +137,7 @@ private:
   void peek_seip(hart_id_t hart, uint64_t time, uint64_t& val);
   void get_gp_reg(uint32_t reg, uint64_t& data);
   void get_fp_reg(uint32_t reg, uint64_t& data);
-  void get_vec_reg(uint32_t reg, uint8_t* data);
+  void get_vec_reg(uint32_t reg, std::array<std::uint8_t, 32>& data);
 
 
   bool is_custom_excp(uint64_t cause);
@@ -186,6 +186,7 @@ private:
 
   uint32_t step_ = 1;
   uint64_t int_msec_;
+  uint64_t whisper_time_=0;
   uint64_t rvfi_calls_=0;
 
   // State variables

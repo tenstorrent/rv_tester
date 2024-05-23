@@ -31,6 +31,7 @@ DECLARE_uint64(hart_enable_mask);
 DECLARE_bool(random_intr);
 DECLARE_bool(random_imsic_intr);
 
+DEFINE_bool(whisper_exec, true, "Enable rvfi instr processing...disable useful for measuring rvfi DPI performance");
 DEFINE_bool(bridge_log, true, "Enable bridge logging");
 DEFINE_string(whisper_json_path, "", "Path to whisper json config");
 DEFINE_bool(cosim_resynch, false, "Resynch whisper with dut state on every instruction");
@@ -101,7 +102,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
     while (std::getline(iss, token, ',')) {
         cosim_resynch_csr_defaults.push_back(token);
     }
-    previous_cycle = 0;
+    previous_cycle_ = 0;
     client_ = std::make_shared<whisperClient<uint64_t>>(traceFile, commandLog);
     auto platform = cvm::topology::get_from_type("PLATFORM", 0);
     cvm::registry::messenger.connect<rv_tester::terminate_called>(platform, [this] (const auto& v) { return this->process(v); });
@@ -157,7 +158,7 @@ void bridge::get_fp_reg(uint32_t reg, uint64_t& data)
     }
 }
 
-void bridge::get_vec_reg(uint32_t reg, uint8_t* data)
+void bridge::get_vec_reg(uint32_t reg, std::array<std::uint8_t, 32>& data)
 {
     if (!client_->whisperPeekVpr(id_, reg, data)) {
         cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek VEC {}\n", id_,reg);
@@ -196,6 +197,9 @@ void bridge::resetsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr) {
 void bridge::process_compare_gp_regs(hart_id_t hart, const std::array<std::uint64_t, 32> array) {
     uint32_t i;
     uint64_t data;
+    if (!FLAGS_whisper_exec) {
+       return;
+    }
     for(i=0;i<32;i++) {
         get_gp_reg(i, data);
         if (array.at(i) != data) {
@@ -206,9 +210,11 @@ void bridge::process_compare_gp_regs(hart_id_t hart, const std::array<std::uint6
 void bridge::process_compare_fp_regs(hart_id_t hart, const std::array<std::uint64_t, 32> array) {
     int i;
     uint64_t data;
+    if (!FLAGS_whisper_exec) {
+       return;
+    }
     for(i=0;i<32;i++) {
         get_fp_reg(i, data);
-        //printf("FP[%d] = 0x%016lx\n",i,array.at(i));
         if (array.at(i) != data) {
             cvm::log(cvm::ERROR, "Hart {}: mismatch of FP[{}] act={:#x} exp={:#x}\n", hart,i,array.at(1),data);
         }
@@ -216,13 +222,17 @@ void bridge::process_compare_fp_regs(hart_id_t hart, const std::array<std::uint6
 }
 void bridge::process_compare_vc_regs(hart_id_t hart, const std::array<std::array<std::uint64_t, 4>, 32> array) {
     int i,j;
-    uint64_t data[4];
-    cvm::log(cvm::NONE, "Hart {}:VC[1] = {}\n", hart,array.at(1).at(1));
-    for(i=0;i<32;i++) {
-        get_vec_reg(i, (uint8_t*)data);
+    std::array<std::uint8_t, 32> data8;
+    std::array<std::uint64_t, 4> data64;
+    if (!FLAGS_whisper_exec) {
+       return;
+    }
+    for(i=1;i<32;i++) {
+        get_vec_reg(i, data8);
+        data64 = reinterpret_cast<std::array<std::uint64_t, 4>&>(data8);
         for(j=0;j<4;j++) {
-            if (array.at(i).at(j) != data[j]) {
-                cvm::log(cvm::ERROR, "Hart {}: mismatch of VEC[{}][{}] act={:#x} exp={:#x}\n", hart,i,j,array.at(i).at(j),data[j]);
+            if (array.at(i).at(j) != data64[j]) {
+                cvm::log(cvm::ERROR, "Hart {}: mismatch of VEC[{}][{}] act={:#x} exp={:#x}\n", hart,i,j,array.at(i).at(j),data64[j]);
             }
         }
     }
@@ -231,8 +241,6 @@ void bridge::process_compare_vc_regs(hart_id_t hart, const std::array<std::array
 // DUT interface callback: Instruction Retire
 void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   uint32_t s;
-  uint64_t data;
-  //uint64_t steps;
 
   twoStage_ = false;
   whisper_state_t w {
@@ -245,31 +253,18 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   // advance the instruction steps missed when using state-compare method and not sending rvfi packets
   //   - we only advance the missing steps on the FIRST rvfi packet sent on this time-stamp (cycle)
   //------------------------------------------------------------------------------------------------------------
-  //if ((d.steps != 0) & (d.cycle != previous_cycle)) {
   rvfi_calls_++;
-  if (d.cycle != previous_cycle) {
+  if (d.cycle != previous_cycle_) {
       end_time_ = std::chrono::high_resolution_clock::now();
       if (first_call_ == false) {
-          //auto tclks = d.cycle - previous_cycle;
-          //auto int_usec = duration_cast<std::chrono::microseconds>(end_time_ - begin_time_).count();
-          //auto uips = (d.steps*1000000)/int_usec;
-          //auto ucps = (tclks*1000000)/int_usec;
-          //cvm::log(cvm::DEBUG, "INTERVAL steps={} clks={}  usec={}\n", d.steps,tclks,int_usec);
-          //cvm::log(cvm::DEBUG, "INTERVAL inst/sec = {}\n", uips);
-          //cvm::log(cvm::DEBUG, "INTERVAL clks/sec = {}\n", ucps);
           int_msec_ = duration_cast<std::chrono::milliseconds>(end_time_ - start_of_test_).count();
-          //mips_ = (step_*1000)/int_msec_;
-          //mcps_ = (d.cycle*1000)/int_msec_;
-          //cvm::log(cvm::DEBUG, "TOTAL    steps={} clks={}  msec={}\n", step_,d.cycle,int_msec_);
-          //cvm::log(cvm::DEBUG, "TOTAL    inst/sec = {}\n", mips_);
-          //cvm::log(cvm::DEBUG, "TOTAL    clks/sec = {}\n", mcps_);
       }
       else {
           start_of_test_ = end_time_;
       }
 
       begin_time_ = end_time_;
-      previous_cycle = d.cycle;
+      previous_cycle_ = d.cycle;
       first_call_ = false;
 
       for(s=0;s<d.steps;s++) {
@@ -277,7 +272,13 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
           last_cycle_++;
           w.tag = last_tag_; 
           w.time = last_cycle_; 
-          step(hart, w);
+          if (FLAGS_whisper_exec) {
+              int_msec_ = duration_cast<std::chrono::milliseconds>(end_time_ - start_of_test_).count();
+              auto stime = std::chrono::high_resolution_clock::now();
+              step(hart, w);
+              auto etime = std::chrono::high_resolution_clock::now();
+              whisper_time_ = whisper_time_ + (duration_cast<std::chrono::microseconds>(etime - stime).count());
+          }
           cvm::log(cvm::DEBUG, "step done  d_cycle={} d_pc={:#x} w_pc={:#x} opcode={:#x} disasm={} \n", d.cycle, d.pc.pc_rdata, w.pc, w.opcode,w.disasm);
           
           // Increment step count
@@ -290,6 +291,10 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
           cvm::log(cvm::DEBUG, "EOT force steps request\n");
           return;
       }
+  }
+
+  if (!FLAGS_whisper_exec) {
+     return;
   }
 
   w.tag  = d.tag;
@@ -319,10 +324,11 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   w_.clear();
 
 
-  
+  auto stime = std::chrono::high_resolution_clock::now();
   step(hart, w);
-  get_gp_reg(15, data);
-  cvm::log(cvm::DEBUG, "final step done  d_cycle={} d_pc={:#x} w_pc={:#x} opcode={:#x} disasm={} GP15={:#x}\n", d.cycle, d.pc.pc_rdata, w.pc, w.opcode,w.disasm,data);
+  auto etime = std::chrono::high_resolution_clock::now();
+  whisper_time_ = whisper_time_ + (duration_cast<std::chrono::microseconds>(etime - stime).count());
+  
 
   // Update cac with whisper state
   update_whisper_state(hart, w);
@@ -1998,7 +2004,8 @@ void bridge::report_metrics() {
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_instructions\": {}}}\n", id_, instructions);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_cpu_cycles\": {}}}\n", id_, cpu_cycles);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_rvfi_calls\": {}}}\n", id_, rvfi_calls_);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_exec_time(ms)\": {}}}\n", id_, int_msec_);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_exec_time_ms\": {}}}\n", id_, int_msec_);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_whisper_time_ms\": {}}}\n", id_, whisper_time_/1000);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_inst_per_sec\": {}}}\n", id_, instructions*1000/int_msec_);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_clks_per_sec\": {}}}\n", id_, cpu_cycles*1000/int_msec_);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_exceptions\": {}}}\n", id_, num_exceptions_);

@@ -53,7 +53,7 @@ class whisperClient {
     bool whisperCancelLr(int hart, bool& valid);
     bool whisperPeekGpr(int hart, uint64_t addr, uint64_t& value);
     bool whisperPeekFpr(int hart, uint64_t addr, uint64_t& value);
-    bool whisperPeekVpr(int hart, uint64_t addr, uint8_t*  value);
+    bool whisperPeekVpr(int hart, uint64_t addr, std::array<std::uint8_t, 32>&  value);
 
 
   private:

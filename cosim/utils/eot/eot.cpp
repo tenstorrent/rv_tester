@@ -8,7 +8,6 @@
 DEFINE_string(eot, "tohost", "Enable end-of-test mechanism. Supported options: tohost, max_instr, tohost_all");
 DEFINE_uint64(tohost, 0x0, "Use this tohost address if provided");
 DEFINE_uint32(max_instr, 100000, "Max instruction limit to terminate the sim");
-//DEFINE_uint32(scheck_period, 0, "state check period value");
 DECLARE_string(load);
 DECLARE_string(hex);
 
@@ -85,10 +84,6 @@ void eot::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
     if (FLAGS_max_instr > 0 && instr_count_[i] > FLAGS_max_instr) {
       ended_ = true;
       end = std::chrono::system_clock::now();
-      auto elapsed_time = end - start;
-      auto int_sec = static_cast<uint32_t>(elapsed_time.count());
-      auto ips = FLAGS_max_instr/int_sec;
-      cvm::log(cvm::NONE, "INSTRUCTIONS/SEC = {}\n", ips);
       if (FLAGS_eot == "max_instr") {
         cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", m_rvfi.cycle);
         cvm::log(cvm::NONE, "<{}> Pass condition detected: +eot=max_instr +max_instr={}\n", m_rvfi.cycle, FLAGS_max_instr);
@@ -124,16 +119,12 @@ void eot::process_tohost(uint64_t hartid, uint64_t cycle, uint64_t address, uint
   uint64_t exit_code = (data >> 1) & 0x7fffffffffff;
 
   end = std::chrono::system_clock::now();
-  auto elapsed_time = end - start;
-  auto int_sec = static_cast<uint32_t>(elapsed_time.count());
-  auto cps = cycle/int_sec;
-  cvm::log(cvm::NONE, "CLOCKS/SEC = {}\n", cps);
 
   if (exit_code == 0 ) {
       if (!std::count(terminated_harts_.begin(), terminated_harts_.end(), hartid)) {
         eot::terminated_harts_.emplace_back(hartid);
         cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
-        cvm::log(cvm::NONE, "<{}> Hart:<{}> EOT:Pass condition detected - tohost[0]=1, tohost[47:1]=0\n", cycle, hartid);
+        cvm::log(cvm::NONE, "<{}> Hart:<{}> Pass condition detected - tohost[0]=1, tohost[47:1]=0\n", cycle, hartid);
         cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
       }
       if (FLAGS_eot != "tohost_all" || (terminated_harts_.size() >= num_harts_)) {

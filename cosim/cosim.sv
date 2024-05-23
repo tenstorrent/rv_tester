@@ -70,7 +70,7 @@ localparam VC_WIDTH  = $size(rvfi[0].vrd_wdata);
         /* verilator lint_on WIDTH */
     endfunction
     
-    function automatic [4:0] count(input bit [NRET-1:0] valid, input bit [NRET-1:0][63:0] order);
+    function automatic [$clog2(NRET+1)-1:0] count(input bit [NRET-1:0] valid, input bit [NRET-1:0][63:0] order);
         bit [63:0] corder=0; 
         count = 0;
         /* verilator lint_off WIDTH */
@@ -156,7 +156,7 @@ localparam VC_WIDTH  = $size(rvfi[0].vrd_wdata);
     bit [NBYPASS-1:0]      eot_bypass_found;                // end-of-test event found in mcmi_bypass ifc
     bit [NRET-1:0]         force_steps;                     // At end-of-test if "steps" need to executed we can force bridge to do them 
     bit [31:0]             rvfi_steps;                      // total number of rvfi_valids we did NOT send 
-    bit [4:0]              valid_cnt;                       // number of rvfi_valids == 1 in 1 clock
+    bit [$clog2(NRET+1)-1:0] valid_cnt;                      // number of rvfi_valids == 1 in 1 clock
 
     bit                    eot_found;                       // end-of-test event found 
     bit                    eot_max_instr;                   // max # instructions end-of-test event found 
