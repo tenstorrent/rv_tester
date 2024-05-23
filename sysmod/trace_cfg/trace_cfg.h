@@ -12,7 +12,7 @@
 #include "transactors/axi_sw/axi.h"
 #include "trace_defines.h"
 #include <unistd.h>
-
+using namespace mmr;
 
 DECLARE_bool(trace_en);
 DECLARE_bool(overlay_mmr_en);
@@ -33,12 +33,13 @@ class trace_cfg : public device {
         {
            cvm::registry::messenger.signal(loc(), trace_info_t{1,0});
         }
+        typedef std::vector<decltype(mmr::list)::value_type> random_list;
 
     public:
         uint32_t start_trace_cnt=0,n,id_val,read_ram=0,axi_ids = 0;
         uint32_t cnt_tick=0;
         uint64_t axi_read_resp=0;
-        std::unordered_map<std::string, uint32_t> macros,randomElements;
+        std::unordered_map<std::string, uint32_t> macros;
         struct trace_wr_t {
           uint32_t addr;
           uint32_t data;
@@ -66,24 +67,7 @@ class trace_cfg : public device {
         virtual void axi_read(uint64_t addr, size_t length, uint32_t id);
         void write(const transactor::write_t& );
         std::unordered_map<std::string, uint32_t> extractMacros(const std::string& filename);
-        std::unordered_map<std::string, uint32_t> pickRandomElements(const std::unordered_map<std::string, uint32_t>& originalMap, uint32_t n) ;
-
-        std::unordered_map<std::string, std::uint32_t> addressMap = {
-            {"CDBG_NODE2_EAP1_CFG", 0x42002148},
-            {"CDBG_NODE2_EAP0_CFG", 0x42002140},
-            {"CDBG_NODE3_EAP0_CFG", 0x42002150},
-            {"CDBG_NODE3_EAP1_CFG", 0x42002158},
-            {"CDBG_SIGNAL_MASK0",   0x42002160},
-            {"CDBG_SIGNAL_MATCH0",  0x42002168},
-            {"CDBG_SIGNAL_MASK1",   0x42002170},
-            {"CDBG_SIGNAL_MATCH1",  0x42002178},
-            {"C_DBG_ONES_COUNT_VALUE",      0x420021D0},
-            {"C_DBG_ONES_COUNT_MASK",       0x420021C8},
-            {"C_DBG_TRANSITION_TO_VALUE",   0x420021C0},
-            {"C_DBG_TRANSITION_FROM_VALUE", 0x420021B8},
-            {"C_DBG_TRANSITION_MASK",       0x420021B0},
-            {"C_DBG_MUX_SEL",               0x42002198}
-        };
+        random_list pickRandomElements(uint32_t n) ;
 
         cvm::messenger::task<void> read(const transactor::read_t& , data_t& );
 
@@ -160,10 +144,11 @@ class trace_cfg : public device {
               }
             }else if(FLAGS_trace_en && FLAGS_overlay_mmr_en){
               // cvm::log(cvm::HIGH, "[overlay axi regress] overlay timer tick advance interval {} start_trace_cnt{} n {} \n",cnt_tick,start_trace_cnt,n);
+                random_list randomElements;
                 if(end_test==1) complete_trace_test();
                 if(cnt_tick==start_trace_cnt){
                   cvm::log(cvm::HIGH, "[overlay axi regress] success \n");
-                  randomElements= pickRandomElements(addressMap, n);
+                  randomElements = pickRandomElements(n);
                 }
 
                 if(cnt_tick==(start_trace_cnt+20)) push_random_axi_write(randomElements);
@@ -248,23 +233,23 @@ class trace_cfg : public device {
           trace_misc_rd_txn_q.push({CDBG_NTRACE_CFG,8});
         }
         
-        void push_random_axi_read(std::unordered_map<std::string, uint32_t>  elements){
+        void push_random_axi_read(const random_list&  elements){
           cvm::log(cvm::HIGH, "[overlay axi regress] success reading\n");
 
           // Loop through elements and write to file
           for(int i = 0; i < 15;i++){
-            for (const auto& pair : elements) {
-                cvm::log(cvm::HIGH, "[overlay axi reads] address {} size {}",pair.first,pair.second);
-                trace_misc_rd_txn_q.push({pair.second,8});
+            for (const auto& e : elements) {
+                cvm::log(cvm::HIGH, "[overlay axi reads] register {} address {} size {}", e.name, e.value, 64);
+                trace_misc_rd_txn_q.push({e.value,8});
             }
           }
         }
 
-        void push_random_axi_write(std::unordered_map<std::string, uint32_t>  elements){
+        void push_random_axi_write(const random_list& elements){
           cvm::log(cvm::HIGH, "[overlay axi] overlay write axi seq size :{}\n",elements.size());
           for(int i = 0; i < 15;i++){
-            for (const auto& pair : elements) {
-                trace_wr_txn_q.push({pair.second,0xFFFF});
+            for (const auto& e : elements) {
+                trace_wr_txn_q.push({e.value,0xFFFF});
             }
           }
           cvm::log(cvm::HIGH, "[overlay axi] overlay write axi seq completed\n");
