@@ -78,6 +78,7 @@ module rv_tester
     int quiesce_timeout = 500;
     int flush_counter = 0;
     int flush_timeout = 25000;
+    bit print_terminate_message = '1;
 
     int dmi_poll_counter = 0; 
     int dmi_poll_timeout = 8000;
@@ -213,20 +214,28 @@ module rv_tester
 
         automatic logic shutdowned = '0;
 
+        if (rv_tester_reset) begin
+            print_terminate_message <= '1;
+        end
+
         if (terminate_now && !terminated) begin
 
-            if (quiesced) begin
-                $display("<%0d> [RVTESTER]: exiting gracefully", clocks);
-            end else if (quiesce_counter == 0) begin
-                $display("<%0d> [RVTESTER]: exiting immediately because +quiesce_counter=0", clocks);
-            end else begin
-                $display("<%0d> [RVTESTER]: Error: Waiting to quiesce for more than %0d cycles", clocks, quiesce_timeout);
+            if (print_terminate_message) begin
+                if (quiesced) begin
+                    $display("<%0d> [RVTESTER]: exiting gracefully", clocks);
+                end else if (quiesce_counter == 0) begin
+                    $display("<%0d> [RVTESTER]: exiting immediately because +quiesce_counter=0", clocks);
+                end else begin
+                    $display("<%0d> [RVTESTER]: Error: Waiting to quiesce for more than %0d cycles", clocks, quiesce_timeout);
+                end
             end
 
             shutdowned = rv_tester_shutdown_registry() != '0;
 
             if (!shutdowned) begin
-                $display("<%0d> [RVTESTER]: Could not shutdown, trying again next cycle", clocks);
+                if (print_terminate_message) begin
+                    $display("<%0d> [RVTESTER]: Could not shutdown, trying again until timeout", clocks);
+                end
             end
 
             if (shutdowned && num_reruns == '0) begin
@@ -238,7 +247,7 @@ module rv_tester
                     $finish();
                 end
             end
-
+            print_terminate_message <= '0;
         end
 
         terminated <= !rv_tester_reset && (terminated || (terminate_now && shutdowned)) && !rerun_now;
@@ -526,6 +535,15 @@ module rv_tester
             .axi_slv_w_ready (axi_rsp_llc[p].w_ready),
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PORTS(2, p, 0)
         );
+
+
+        ext_mem_stall_checker stall_checker(
+            .clk(clk[AXI_CLK_IDX]),
+            .reset_n(~reset[RESET_IDX]),
+            .axi_req(axi_req[p]),
+            .axi_rsp(axi_rsp[p])
+        );
+
     end
 
    localparam NoOfNcioMasters =  topology.TOP.PLATFORM.NCIO_AXI.TOTAL  ;

@@ -1,6 +1,7 @@
 workspace(name = "rv_tester")
 
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
+load("@bazel_tools//tools/build_defs/repo:utils.bzl", "maybe")
 
 local_repository(
     name = "bzsim",
@@ -12,6 +13,9 @@ bzsim_dependencies()
 
 load("//:repositories.bzl", "rv_tester_repositories")
 rv_tester_repositories()
+
+load("//infra/bazel:opensrc_repositories.bzl", "opensrc_repositories")
+opensrc_repositories()
 
 load("@whisper//:deps.bzl", "whisper_dependencies")
 whisper_dependencies()
@@ -27,12 +31,6 @@ rv_tester_dependencies2()
 
 load("//infra/bazel:dependencies3.bzl", "rv_tester_dependencies3")
 rv_tester_dependencies3()
-
-load("//infra/bazel:dependencies4.bzl", "rv_tester_dependencies4")
-rv_tester_dependencies4()
-
-load("//infra/bazel:dependencies5.bzl", "rv_tester_dependencies5")
-rv_tester_dependencies5()
 
 # don't want testgen in repositories.bzl, as it's only for internal use
 # let other repos' testgen supercede this one in downstream repos

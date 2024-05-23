@@ -114,5 +114,4 @@ class rvfi {
     svScope scope_;
 
     bool terminated_ = false;
-    csr_t temp_fcsr;
 };

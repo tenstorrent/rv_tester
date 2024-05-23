@@ -187,233 +187,235 @@ public:
       OP_ISSUED_PIPE14,
       //Event (speculative) for pipe 15 issuing. Multiple issues per cycle should be precisely counted
       OP_ISSUED_PIPE15,
-      //The count will represent all the requests made to L1 I and D caches. Includes accesses made by Speculatively executed instructions and hardware prefetchers but does not include non-cacheable requests
+      //The count will represent all the requests made to L1 I and D caches. Includes accesses made by speculatively executed instructions and hardware prefetchers but does not include non-cacheable requests
       CACHE_REFERENCES,
-      //Event for a request made to cache subsystem that misses in L1 I and D caches. Includes accesses made by Speculatively executed instructions and hardware prefetchers.  but does not include non-cacheable requests
+      //Event for a request made to cache subsystem that misses in L1 I and D caches. Includes accesses made by speculatively executed instructions and hardware prefetchers.  but does not include non-cacheable requests
       CACHE_MISSES,
       //Event for each tlb invalidation -- this will track retired instructions that invalidate the TLB
       TLB_INVALIDATES,
-      //Event for a l1d_cache access caused by a demand Memory-read operation (filtered by load/store/prefetch/MMU/Snoop/All and by Aligned/CLC/4kX/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      //Event (speculative) for a l1d_cache access caused by an aligned demand memory-read operation. Does not include accesses to IO or noncacheable regions
       L1D_READ_ACCESS_ALIGNED,
-      //Event for a l1d_cache access caused by a demand Memory-read operation (filtered by load/store/prefetch/MMU/Snoop/All and by Aligned/CLC/4kX/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      //Event (speculative) for a l1d_cache access caused by a cacheline crossing demand memory-read operation. Does not include accesses to IO or noncacheable regions
       L1D_READ_ACCESS_CLC,
-      //Event for a l1d_cache access caused by a demand Memory-read operation (filtered by load/store/prefetch/MMU/Snoop/All and by Aligned/CLC/4kX/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      //Event (speculative) for a l1d_cache access caused by a page crossing demand memory-read operation. Does not include accesses to IO or noncacheable regions
       L1D_READ_ACCESS_4KX,
-      //Event for a l1d_cache access caused by a demand Memory-read operation (filtered by load/store/prefetch/MMU/Snoop/All and by Aligned/CLC/4kX/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      //Event (speculative) for a l1d_cache access caused by a all demand memory-read operation. Does not include accesses to IO or noncacheable regions
       L1D_READ_ACCESS_ALL,
-      //Event for a l1d_cache access caused by a demand Memory-read operation (filtered by load/store/prefetch/MMU/Snoop/All and by Aligned/CLC/4kX/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      //Event (speculative) for a l1d_cache access caused by an aligned demand memory-write operation. Does not include accesses to IO or noncacheable regions
       L1D_WRITE_ACCESS_ALIGNED,
-      //Event for a l1d_cache access caused by a demand Memory-read operation (filtered by load/store/prefetch/MMU/Snoop/All and by Aligned/CLC/4kX/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      //Event (speculative) for a l1d_cache access caused by a cacheline crossing demand memory-write operation. Does not include accesses to IO or noncacheable regions
       L1D_WRITE_ACCESS_CLC,
-      //Event for a l1d_cache access caused by a demand Memory-read operation (filtered by load/store/prefetch/MMU/Snoop/All and by Aligned/CLC/4kX/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      //Event (speculative) for a l1d_cache access caused by a page crossing demand memory-write operation. Does not include accesses to IO or noncacheable regions
       L1D_WRITE_ACCESS_4KX,
-      //Event for a l1d_cache access caused by a demand Memory-read operation (filtered by load/store/prefetch/MMU/Snoop/All and by Aligned/CLC/4kX/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      //Event (speculative) for a l1d_cache access caused by all demand memory-write operation. Does not include accesses to IO or noncacheable regions
       L1D_WRITE_ACCESS_ALL,
-      //Event for a l1d_cache access caused by a demand Memory-read operation (filtered by load/store/prefetch/MMU/Snoop/All and by Aligned/CLC/4kX/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      //Event (speculative) for a l1d_cache access caused by an aligned prefetch operation. Does not include accesses to IO or noncacheable regions
       L1D_PREFETCH_ACCESS_ALIGNED,
-      //Event for a l1d_cache access caused by a demand Memory-read operation (filtered by load/store/prefetch/MMU/Snoop/All and by Aligned/CLC/4kX/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      //Event (speculative) for a l1d_cache access caused by a cacheline crossing prefetch operation. Does not include accesses to IO or noncacheable regions
       L1D_PREFETCH_ACCESS_CLC,
-      //Event for a l1d_cache access caused by a demand Memory-read operation (filtered by load/store/prefetch/MMU/Snoop/All and by Aligned/CLC/4kX/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      //Event (speculative) for a l1d_cache access caused by a page crossing prefetch operation. Does not include accesses to IO or noncacheable regions
       L1D_PREFETCH_ACCESS_4KX,
-      //Event for a l1d_cache access caused by a demand Memory-read operation (filtered by load/store/prefetch/MMU/Snoop/All and by Aligned/CLC/4kX/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      //Event (speculative) for a l1d_cache access caused by all prefetch operation. Does not include accesses to IO or noncacheable regions
       L1D_PREFETCH_ACCESS_ALL,
-      //Event for a l1d_cache access caused by a demand Memory-read operation (filtered by load/store/prefetch/MMU/Snoop/All and by Aligned/CLC/4kX/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      //Event (speculative) for a l1d_cache access caused by a MMU operation. Does not include accesses to IO or noncacheable regions
       L1D_MMU_ACCESS,
-      //Event for a l1d_cache access caused by a demand Memory-read operation (filtered by load/store/prefetch/MMU/Snoop/All and by Aligned/CLC/4kX/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      //Event (speculative) for a l1d_cache access caused by a snoop operation. Does not include accesses to IO or noncacheable regions
       L1D_SNOOP_ACCESS,
-      //Event for a l1d_cache access caused by a demand Memory-read operation (filtered by load/store/prefetch/MMU/Snoop/All and by Aligned/CLC/4kX/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      //Event (speculative) for a l1d_cache access caused by all operations. Does not include accesses to IO or noncacheable regions
       L1D_ACCESS_ALL,
-      //Event for a l1d_cache refill that is due to a demand Memory-read operation (filtered by load/store/prefetch/MMU/snoop/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      //Event (speculative) for a l1d_cache refill that is due to a demand memory-read operation. Does not include accesses to IO or noncacheable regions
       L1D_READ_MISS,
-      //Event for a l1d_cache refill that is due to a demand Memory-read operation (filtered by load/store/prefetch/MMU/snoop/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      //Event (speculative) for a l1d_cache refill that is due to a demand memory-write operation. Does not include accesses to IO or noncacheable regions
       L1D_WRITE_MISS,
-      //Event for a l1d_cache refill that is due to a demand Memory-read operation (filtered by load/store/prefetch/MMU/snoop/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      //Event (speculative) for a l1d_cache refill that is due to a prefetch operation. Does not include accesses to IO or noncacheable regions
       L1D_PREFETCH_MISS,
-      //Event for a l1d_cache refill that is due to a demand Memory-read operation (filtered by load/store/prefetch/MMU/snoop/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      //Event (speculative) for a l1d_cache refill that is due to a MMU operation. Does not include accesses to IO or noncacheable regions
       L1D_MMU_MISS,
-      //Event for a l1d_cache refill that is due to a demand Memory-read operation (filtered by load/store/prefetch/MMU/snoop/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
-      L1D_SNOOP_MISS,
-      //Event for a l1d_cache refill that is due to a demand Memory-read operation (filtered by load/store/prefetch/MMU/snoop/All). Includes accesses made by Speculatively executed instructions but does not include accesses to IO or noncacheable regions
+      //Event (speculative) for a l1d_cache refill that is due to all operation. Does not include accesses to IO or noncacheable regions
       L1D_MISS_ALL,
-      //all l1 data cache invalidates (filtered by snoops/CMOs/load-evictions/store-evictions/prefetch-evictions)
+      //Event for all l1 data cache invalidates due to snoops from the Shared Cache
       L1D_CACHE_INVALIDATE_SNOOP,
-      //all l1 data cache invalidates (filtered by snoops/CMOs/load-evictions/store-evictions/prefetch-evictions)
+      //Event for all l1 data cache invalidates due to cache management operations
       L1D_CACHE_INVALIDATE_CMO,
-      //all l1 data cache invalidates (filtered by snoops/CMOs/load-evictions/store-evictions/prefetch-evictions)
+      //Event for all l1 data cache invalidates due to load evictions
       L1D_CACHE_INVALIDATE_LOAD_EVICTION,
-      //all l1 data cache invalidates (filtered by snoops/CMOs/load-evictions/store-evictions/prefetch-evictions)
+      //Event for all l1 data cache invalidates due to store evictions
       L1D_CACHE_INVALIDATE_STORE_EVICTION,
-      //all l1 data cache invalidates (filtered by snoops/CMOs/load-evictions/store-evictions/prefetch-evictions)
+      //Event for all l1 data cache invalidates due to prefetch evictions
       L1D_CACHE_INVALIDATE_PREFETCH_EVICTION,
-      //all l1 data cache invalidates (filtered by snoops/CMOs/load-evictions/store-evictions/prefetch-evictions)
+      //Event for all l1 data cache invalidates
       L1D_CACHE_INVALIDATE_ALL,
       //Event (speculative) for micro-TLB miss caused by a demand memory operation
       UTLB_MISS,
-      //Event for an l1 dTLB access caused by a demand Memory-read operation (filtered by load/store/prefetch/All and by 4k/huge-page/all and by Cacheable/Non-cacheable. Includes accesses made by Speculatively executed instructions.
+      //Event (speculative) for an l1 dTLB access caused by a demand memory-read operation.
       DTLB_READ_ACCESS,
-      //Event for an l1 dTLB access caused by a demand Memory-read operation (filtered by load/store/prefetch/All and by 4k/huge-page/all and by Cacheable/Non-cacheable. Includes accesses made by Speculatively executed instructions.
+      //Event (speculative) for an l1 dTLB access caused by a demand memory-write operation.
       DTLB_WRITE_ACCESS,
-      //Event for an l1 dTLB access caused by a demand Memory-read operation (filtered by load/store/prefetch/All and by 4k/huge-page/all and by Cacheable/Non-cacheable. Includes accesses made by Speculatively executed instructions.
+      //Event (speculative) for an l1 dTLB access caused by a prefetch operation.
       DTLB_PREFETCH_ACCESS,
-      //Event for an l1 dTLB access caused by a demand Memory-read operation (filtered by load/store/prefetch/All and by 4k/huge-page/all and by Cacheable/Non-cacheable. Includes accesses made by Speculatively executed instructions.
-      DTLB_ACCESS_4K,
-      //Event for an l1 dTLB access caused by a demand Memory-read operation (filtered by load/store/prefetch/All and by 4k/huge-page/all and by Cacheable/Non-cacheable. Includes accesses made by Speculatively executed instructions.
-      DTLB_ACCESS_HUGEPAGE,
-      //Event for an l1 dTLB access caused by a demand Memory-read operation (filtered by load/store/prefetch/All and by 4k/huge-page/all and by Cacheable/Non-cacheable. Includes accesses made by Speculatively executed instructions.
-      DTLB_ACCESS_CACHEABLE,
-      //Event for an l1 dTLB access caused by a demand Memory-read operation (filtered by load/store/prefetch/All and by 4k/huge-page/all and by Cacheable/Non-cacheable. Includes accesses made by Speculatively executed instructions.
-      DTLB_ACCESS_NONCACHEABLE,
-      //Event for an l1 dTLB access caused by a demand Memory-read operation (filtered by load/store/prefetch/All and by 4k/huge-page/all and by Cacheable/Non-cacheable. Includes accesses made by Speculatively executed instructions.
+      //Event (speculative) for an l1 dTLB access caused by a cacheable demand memory-read operation.
+      DTLB_READ_ACCESS_CACHEABLE,
+      //Event (speculative) for an l1 dTLB access caused by a non-cacheable demand memory-read operation.
+      DTLB_READ_ACCESS_NONCACHEABLE,
+      //Event (speculative) for an l1 dTLB access caused by a cacheable demand memory-write operation.
+      DTLB_WRITE_ACCESS_CACHEABLE,
+      //Event (speculative) for an l1 dTLB access caused by a non-cacheable demand memory-write operation.
+      DTLB_WRITE_ACCESS_NONCACHEABLE,
+      //Event (speculative) for an l1 dTLB access caused by all operation.
       DTLB_ACCESS_ALL,
-      //Event for an l1 dTLB miss caused by a demand Memory-read operation (filtered by load/store/prefetch/All and by 4k/huge-page/All. Includes accesses made by Speculatively executed instructions.
+      //Event (speculative) for an l1 dTLB refill caused by a demand memory-read operation.
       DTLB_READ_MISS,
-      //Event for an l1 dTLB miss caused by a demand Memory-read operation (filtered by load/store/prefetch/All and by 4k/huge-page/All. Includes accesses made by Speculatively executed instructions.
+      //Event (speculative) for an l1 dTLB refill caused by a demand memory-write operation.
       DTLB_WRITE_MISS,
-      //Event for an l1 dTLB miss caused by a demand Memory-read operation (filtered by load/store/prefetch/All and by 4k/huge-page/All. Includes accesses made by Speculatively executed instructions.
+      //Event (speculative) for an l1 dTLB refill caused by a prefetch operation.
       DTLB_PREFETCH_MISS,
-      //Event for an l1 dTLB miss caused by a demand Memory-read operation (filtered by load/store/prefetch/All and by 4k/huge-page/All. Includes accesses made by Speculatively executed instructions.
+      //Event (speculative) for 4k l1 dTLB refill caused by all operation.
       DTLB_MISS_4K,
-      //Event for an l1 dTLB miss caused by a demand Memory-read operation (filtered by load/store/prefetch/All and by 4k/huge-page/All. Includes accesses made by Speculatively executed instructions.
+      //Event (speculative) for huge page l1 dTLB refill caused by all operation.
       DTLB_MISS_HUGEPAGE,
-      //Event for an l1 dTLB miss caused by a demand Memory-read operation (filtered by load/store/prefetch/All and by 4k/huge-page/All. Includes accesses made by Speculatively executed instructions.
+      //Event (speculative) for both 4k and huge page l1 dTLB refill caused by all operation.
       DTLB_MISS_ALL,
-      //Event for leaf TLB access (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
+      //Event (speculative) for leaf TLB access caused by LS.
       LEAF_TLB_ACCESS_LS,
-      //Event for leaf TLB access (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
+      //Event (speculative) for leaf TLB access caused by FE.
       LEAF_TLB_ACCESS_FE,
-      //Event for leaf TLB access (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
-      LEAF_TLB_ACCESS_PREFETCH,
-      //Event for leaf TLB access (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
+      //Event (speculative) for leaf TLB access caused by MMU prefetch.
+      LEAF_TLB_ACCESS_MMU_PREFETCH,
+      //Event (speculative) for all leaf TLB access.
       LEAF_TLB_ACCESS_ALL,
-      //Event for leaf TLB miss (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
+      //Event (speculative) for leaf TLB miss caused by LS.
       LEAF_TLB_MISS_LS,
-      //Event for leaf TLB miss (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
+      //Event (speculative) for leaf TLB miss caused by FE.
       LEAF_TLB_MISS_FE,
-      //Event for leaf TLB miss (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
-      LEAF_TLB_MISS_PREFETCH,
-      //Event for leaf TLB miss (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
+      //Event (speculative) for leaf TLB miss caused by MMU prefetch.
+      LEAF_TLB_MISS_MMU_PREFETCH,
+      //Event (speculative) for all leaf TLB miss.
       LEAF_TLB_MISS_ALL,
-      //Event for non-leaf TLB access (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
+      //Event (speculative) for non-leaf TLB access caused by LS.
       NONLEAF_TLB_ACCESS_LS,
-      //Event for non-leaf TLB access (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
+      //Event (speculative) for non-leaf TLB access caused by FE.
       NONLEAF_TLB_ACCESS_FE,
-      //Event for non-leaf TLB access (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
-      NONLEAF_TLB_ACCESS_PREFETCH,
-      //Event for non-leaf TLB access (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
+      //Event (speculative) for non-leaf TLB access caused by MMU prefetch.
+      NONLEAF_TLB_ACCESS_MMU_PREFETCH,
+      //Event (speculative) for all non-leaf TLB access.
       NONLEAF_TLB_ACCESS_ALL,
-      //Event for non-leaf TLB miss (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
+      //Event (speculative) for non-leaf TLB miss caused by LS.
       NONLEAF_TLB_MISS_LS,
-      //Event for non-leaf TLB miss (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
+      //Event (speculative) for non-leaf TLB miss caused by FE.
       NONLEAF_TLB_MISS_FE,
-      //Event for non-leaf TLB miss (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
-      NONLEAF_TLB_MISS_PREFETCH,
-      //Event for non-leaf TLB miss (filtered by LS/FE/Prefetch). Includes accesses made by Speculatively executed instructions.
+      //Event (speculative) for non-leaf TLB miss caused by MMU prefetch.
+      NONLEAF_TLB_MISS_MMU_PREFETCH,
+      //Event (speculative) for all non-leaf TLB miss.
       NONLEAF_TLB_MISS_ALL,
-      //Number of page walks initiated
-      PAGE_WALKS,
+      //Event (speculative) for every page walk initiated by LS.
+      PAGE_WALKS_LS,
+      //Event (speculative) for every page walk initiated by FE.
+      PAGE_WALKS_FE,
+      //Event (speculative) for every page walk initiated by MMU Prefetch.
+      PAGE_WALKS_MMU_PREFETCH,
+      //Event (speculative) for every page walk.
+      PAGE_WALKS_ALL,
       //Event (speculative) for every cycle the instruction picker has ops -- but does not pick -- and there is a pending L1D demand miss
       STALLS_MEM_L1D_MISS,
       //Event (speculative) for every cycle the instruction picker has ops -- but does not pick -- and the STQ can not drain to SMB.
       STALLS_MEM_STORES,
       //Event (speculative) for every cycle the instruction picker has ops --  but does not pick -- and there is a pending L1 DTLB demand miss
       STALLS_MEM_L1DTLB_MISS,
-      //Number of resyncs raised by LSU filtered by (RAW/RAR/All)
+      //Event for all RAW resyncs raised by LSU
       LSU_RESYNCS_RAW,
-      //Number of resyncs raised by LSU filtered by (RAW/RAR/All)
-      LSU_RESYNCS_RAR,
-      //Event (speculative) for every instance of a Store instruction forwarding data to a Load instruction
+      //Event for all RAR resyncs raised by Store Pipe
+      LSU_RESYNCS_RAR_STPIPE,
+      //Event for all RAR resyncs raised by Load Pipe
+      LSU_RESYNCS_RAR_LDPIPE,
+      //Event (speculative) for every instance of a Store instruction forwarding data to a demand memory-read operation
       STLF_HITS,
-      //Event (speculative) for any condition triggering replay from LS (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event (speculative) for any condition triggering replay from LS due to a demand memory-read operation
       LS_REPLAY_LOAD,
-      //Event (speculative) for any condition triggering replay from LS (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event (speculative) for any condition triggering replay from LS due to a demand memory-write operation
       LS_REPLAY_STORE,
-      //Event (speculative) for any condition triggering replay from LS (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event (speculative) for any condition triggering replay from LS due to a prefetch operation
       LS_REPLAY_PREFETCH,
-      //Event (speculative) for any condition triggering replay from LS (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event (speculative) for any condition triggering replay from LS due to a MMU operation
       LS_REPLAY_MMU,
-      //Event (speculative) for any condition triggering replay from LS (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event (speculative) for any condition triggering replay from LS
       LS_REPLAY_ALL,
-      //Event (speculative) for any LS replay caused by the DC way predictor (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event (speculative) for any demand memory-read replay caused by the DC way predictor
       LS_WAY_PREDICTOR_REPLAY_LOAD,
-      //Event (speculative) for any LS replay caused by the DC way predictor (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event (speculative) for any demand memory-write replay caused by the DC way predictor
       LS_WAY_PREDICTOR_REPLAY_STORE,
-      //Event (speculative) for any LS replay caused by the DC way predictor (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event (speculative) for any prefetch replay caused by the DC way predictor
       LS_WAY_PREDICTOR_REPLAY_PREFETCH,
-      //Event (speculative) for any LS replay caused by the DC way predictor (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event (speculative) for any MMU operation replay caused by the DC way predictor
       LS_WAY_PREDICTOR_REPLAY_MMU,
-      //Event (speculative) for any LS replay caused by the DC way predictor (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event (speculative) for any LS replay caused by the DC way predictor
       LS_WAY_PREDICTOR_REPLAY_ALL,
-      //Event (speculative) for any LS replay caused by incorrect PA prediction (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event (speculative) for any demand memory-read replay caused by incorrect PA prediction
       SIPT_REPLAY_LOAD,
-      //Event (speculative) for any LS replay caused by incorrect PA prediction (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event (speculative) for any demand memory-write replay caused by incorrect PA prediction
       SIPT_REPLAY_STORE,
-      //Event (speculative) for any LS replay caused by incorrect PA prediction (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event (speculative) for any prefetch replay caused by incorrect PA prediction
       SIPT_REPLAY_PREFETCH,
-      //Event (speculative) for any LS replay caused by incorrect PA prediction (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event (speculative) for any MMU operation replay caused by incorrect PA prediction
       SIPT_REPLAY_MMU,
-      //Event (speculative) for any LS replay caused by incorrect PA prediction (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event (speculative) for any LS replay caused by incorrect PA prediction
       SIPT_REPLAY_ALL,
-      //Event (speculative) for any LS replay caused by STLF (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event (speculative) for any demand memory-read replay caused by STLF
       STLF_REPLAY_LOAD,
-      //Event (speculative) for any LS replay caused by STLF (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event (speculative) for any MMU operation replay caused by STLF
       STLF_REPLAY_MMU,
-      //Event (speculative) for any LS replay caused by STLF (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event (speculative) for any LS replay caused by STLF
       STLF_REPLAY_ALL,
-      //Event (speculative) for any LS replay caused by tag bank conflict (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event (speculative) for any demand memory-read replay caused by tag bank conflict
       TAG_BANK_CONFLICT_REPLAY_LOAD,
-      //Event (speculative) for any LS replay caused by tag bank conflict (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event (speculative) for any demand memory-write replay caused by tag bank conflict
       TAG_BANK_CONFLICT_REPLAY_STORE,
-      //Event (speculative) for any LS replay caused by tag bank conflict (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event (speculative) for any prefetch replay caused by tag bank conflict
       TAG_BANK_CONFLICT_REPLAY_PREFETCH,
-      //Event (speculative) for any LS replay caused by tag bank conflict (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event (speculative) for any MMU operation replay caused by tag bank conflict
       TAG_BANK_CONFLICT_REPLAY_MMU,
-      //Event (speculative) for any LS replay caused by tag bank conflict (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event (speculative) for any LS replay caused by tag bank conflict
       TAG_BANK_CONFLICT_REPLAY_ALL,
-      //Event (speculative) for any LS replay caused by data bank conflict (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event (speculative) for any demand memory-read replay caused by data bank conflict
       DATA_BANK_CONFLICT_REPLAY_LOAD,
-      //Event (speculative) for any LS replay caused by data bank conflict (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event (speculative) for any demand memory-write replay caused by data bank conflict
       DATA_BANK_CONFLICT_REPLAY_STORE,
-      //Event (speculative) for any LS replay caused by data bank conflict (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event (speculative) for any prefetch replay caused by data bank conflict
       DATA_BANK_CONFLICT_REPLAY_PREFETCH,
-      //Event (speculative) for any LS replay caused by data bank conflict (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event (speculative) for any MMU operation replay caused by data bank conflict
       DATA_BANK_CONFLICT_REPLAY_MMU,
-      //Event (speculative) for any LS replay caused by data bank conflict (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event (speculative) for any LS replay caused by data bank conflict
       DATA_BANK_CONFLICT_REPLAY_ALL,
-      //Event for any replay caused by hitting on a fillbuffer entry (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event for any demand memory-read replay caused by hitting on a fillbuffer entry
       FILLBUF_HIT_REPLAY_LOAD,
-      //Event for any replay caused by hitting on a fillbuffer entry (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event for any demand memory-write replay caused by hitting on a fillbuffer entry
       FILLBUF_HIT_REPLAY_STORE,
-      //Event for any replay caused by hitting on a fillbuffer entry (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event for any MMU operation replay caused by hitting on a fillbuffer entry
       FILLBUF_HIT_REPLAY_MMU,
-      //Event for any replay caused by hitting on a fillbuffer entry (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event for any LS replay caused by hitting on a fillbuffer entry
       FILLBUF_HIT_REPLAY_ALL,
-      //Event for any replay caused by hitting on a transbuf entry (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event for any demand memory-read replay caused by hitting on a transbuf entry
       TRANSBUF_HIT_REPLAY_LOAD,
-      //Event for any replay caused by hitting on a transbuf entry (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event for any demand memory-write replay caused by hitting on a transbuf entry
       TRANSBUF_HIT_REPLAY_STORE,
-      //Event for any replay caused by hitting on a transbuf entry (Filtered by Load/Store/Prefetch/MMU/All)
-      TRANSBUF_HIT_REPLAY_PREFETCH,
-      //Event for any replay caused by hitting on a transbuf entry (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event for any MMU operation replay caused by hitting on a transbuf entry
       TRANSBUF_HIT_REPLAY_MMU,
-      //Event for any replay caused by hitting on a transbuf entry (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event for any LS replay caused by hitting on a transbuf entry
       TRANSBUF_HIT_REPLAY_ALL,
-      //Event for any replay caused by hitting on a reqbuf entry (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event for any demand memory-read replay caused by hitting on a reqbuf entry
       REQBUF_HIT_REPLAY_LOAD,
-      //Event for any replay caused by hitting on a reqbuf entry (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event for any demand memory-write replay caused by hitting on a reqbuf entry
       REQBUF_HIT_REPLAY_STORE,
-      //Event for any replay caused by hitting on a reqbuf entry (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event for any MMU operation replay caused by hitting on a reqbuf entry
       REQBUF_HIT_REPLAY_MMU,
-      //Event for any replay caused by hitting on a reqbuf entry (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event for any LS replay caused by hitting on a reqbuf entry
       REQBUF_HIT_REPLAY_ALL,
-      //Event for any LS replay caused by DTLB miss (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event for any demand memory-read replay caused by DTLB miss
       DTLB_REPLAY_LOAD,
-      //Event for any LS replay caused by DTLB miss (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event for any demand memory-write replay caused by DTLB miss
       DTLB_REPLAY_STORE,
-      //Event for any LS replay caused by DTLB miss (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event for any prefetch replay caused by DTLB miss
       DTLB_REPLAY_PREFETCH,
-      //Event for any LS replay caused by DTLB miss (Filtered by Load/Store/Prefetch/MMU/All)
-      DTLB_REPLAY_MMU,
-      //Event for any LS replay caused by DTLB miss (Filtered by Load/Store/Prefetch/MMU/All)
+      //Event for any LS replay caused by DTLB miss
       DTLB_REPLAY_ALL,
       //Event (speculative) for every instance of failed Read-After-Read queue allocation to a demand memory-read operation
       RAR_CANNOT_ALLOC,
@@ -423,68 +425,66 @@ public:
       LDQ_CANNOT_ALLOC,
       //Event (speculative) for every instance of a failed Store-Merge-Buffer allocation to a demand memory-write operation
       SMB_CANNOT_ALLOC,
-      //Event (speculative) for every instance of a failed Memory-Request-Buffer allocation to a demand memory operation (filtered by load/store/prefetch/MMU/All)
+      //Event (speculative) for every instance of a failed Memory-Request-Buffer allocation to a demand memory-read operation
       REQBUF_CANNOT_ALLOC_LOAD,
-      //Event (speculative) for every instance of a failed Memory-Request-Buffer allocation to a demand memory operation (filtered by load/store/prefetch/MMU/All)
+      //Event (speculative) for every instance of a failed Memory-Request-Buffer allocation to a demand memory-write operation
       REQBUF_CANNOT_ALLOC_STORE,
-      //Event (speculative) for every instance of a failed Memory-Request-Buffer allocation to a demand memory operation (filtered by load/store/prefetch/MMU/All)
+      //Event (speculative) for every instance of a failed Memory-Request-Buffer allocation to a prefetch operation
       REQBUF_CANNOT_ALLOC_PREFETCH,
-      //Event (speculative) for every instance of a failed Memory-Request-Buffer allocation to a demand memory operation (filtered by load/store/prefetch/MMU/All)
+      //Event (speculative) for every instance of a failed Memory-Request-Buffer allocation to a MMU operation
       REQBUF_CANNOT_ALLOC_MMU,
-      //Event (speculative) for every instance of a failed Memory-Request-Buffer allocation to a demand memory operation (filtered by load/store/prefetch/MMU/All)
+      //Event (speculative) for every instance of a failed Memory-Request-Buffer allocation to all operation
       REQBUF_CANNOT_ALLOC_ALL,
       //Event for every instance of a failed FillBuffer allocation
       FILLBUF_CANNOT_ALLOC,
-      //Event for every instance of a failed TransBuffer allocation (filtered by load/store/prefetch/MMU/All)
+      //Event (speculative) for every instance of a failed TransBuffer allocation by a demand memory-read operation
       TRANSBUF_CANNOT_ALLOC_LOAD,
-      //Event for every instance of a failed TransBuffer allocation (filtered by load/store/prefetch/MMU/All)
+      //Event (speculative) for every instance of a failed TransBuffer allocation by a demand memory-write operation
       TRANSBUF_CANNOT_ALLOC_STORE,
-      //Event for every instance of a failed TransBuffer allocation (filtered by load/store/prefetch/MMU/All)
+      //Event (speculative) for every instance of a failed TransBuffer allocation by a demand prefetch operation
       TRANSBUF_CANNOT_ALLOC_PREFETCH,
-      //Event for every instance of a failed TransBuffer allocation (filtered by load/store/prefetch/MMU/All)
+      //Event (speculative) for every instance of a failed TransBuffer allocation by a demand MMU operation
       TRANSBUF_CANNOT_ALLOC_MMU,
-      //Event for every instance of a failed TransBuffer allocation (filtered by load/store/prefetch/MMU/All)
+      //Event (speculative) for every instance of a failed TransBuffer allocation
       TRANSBUF_CANNOT_ALLOC_ALL,
-      //Event for every instance of a failed Page Cross Buffer allocation (filtered by load/store/All)
+      //Event (speculative) for every instance of a failed Page Cross Buffer allocation by a demand memory-read operation
       PCB_CANNOT_ALLOC_LOAD,
-      //Event for every instance of a failed Page Cross Buffer allocation (filtered by load/store/All)
+      //Event (speculative) for every instance of a failed Page Cross Buffer allocation by a demand memory-write operation
       PCB_CANNOT_ALLOC_STORE,
-      //Event for every instance of a failed Page Cross Buffer allocation (filtered by load/store/All)
+      //Event (speculative) for every instance of a failed Page Cross Buffer allocation
       PCB_CANNOT_ALLOC_ALL,
-      //Event for every instance of a failed Unaligned Data Buffer allocation
+      //Event (speculative) for every instance of a failed Unaligned Data Buffer allocation
       UDB_CANNOT_ALLOC,
-      //Event for every instance a memory operation used the Unaligned Data Buffer for data return
+      //Event (speculative) for every instance a memory operation used the Unaligned Data Buffer for data return
       UDB_DATA_RETURN,
-      //Event for every instance an allocated Unaligned Data Buffer entry was lost to another cacheline crossing request
+      //Event (speculative) for every instance an allocated Unaligned Data Buffer entry was lost to another cacheline crossing request
       UDB_LOST,
-      //Event for micro way predictor access
+      //Event (speculative) for micro way predictor access
       UWP_ACCESS,
-      //Event for micro-way-predictor refill caused by a demand memory operation
+      //Event (speculative) for micro-way-predictor refill caused by a demand memory operation
       UWP_MISS,
-      //Event for every instance of a uWP hit matching the L1D hit way
+      //Event (speculative) for every instance of a uWP hit matching the L1D hit way
       UWP_TRUE_HIT,
-      //Event for way predictor access
+      //Event (speculative) for way predictor access
       WP_ACCESS,
-      //Event for a WP refill caused by a demand memory operation
+      //Event (speculative) for a WP refill caused by a demand memory operation
       WP_MISS,
-      //Event for every instance of a WP hit matching the L1D hit way
+      //Event (speculative) for every instance of a WP hit matching the L1D hit way
       WP_TRUE_HIT,
       //Event for a correct prediction by MDP
       MDP_CORRECT_PREDICTION,
       //Event for every instance of prediction by MDP where the load does not get its data from STLF
       MDP_FALSE_HIT,
-      //Event for every instance of MDP miss causing a RAW resync
-      MDP_FALSE_MISS,
       //Event for every instance of a load predicted by MDP
       MDP_TOTAL_PREDICTION,
       //Event for every retired atomic operation
       ATOMICS_RETIRED,
       //"Event (speculative) for every fully masked
-      LDST_MASKED_NANO,
+      LDST_MASKED_VEC_NANO,
       //Event (speculative) for every confirmed Load nano-operation
-      LD_EXECUTED_NANO,
+      LD_EXECUTED_VEC_NANO,
       //Event (speculative) for every confirmed Store nano-operation
-      ST_EXECUTED_NANO,
+      ST_EXECUTED_VEC_NANO,
       //Event (speculative) for every failed instance a new Active Generation Table allocation
       PFC_AGT_CANNOT_ALLOC,
       //Event (speculative) for every successful instance of Active Generation Table entry evicted to Pattern History Table
@@ -679,7 +679,7 @@ public:
       NO_ALLOC_HINT_NOT_SET,
       //SC replay due to ECC errors
       SC_REPLAY_ECC,
-      COUNT
+    COUNT
     } counter;
 
 
@@ -689,7 +689,7 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
     {
       std::vector<uint64_t> tmp(counter::COUNT);
 
-      tmp[counter::CPU_CYCLES] = pmcounters.cpu_cycles;
+            tmp[counter::CPU_CYCLES] = pmcounters.cpu_cycles;
       tmp[counter::INSTRUCTIONS] = pmcounters.instructions;
       tmp[counter::BRANCH_INSTRUCTIONS] = pmcounters.branch_instructions;
       tmp[counter::M_MODE_CYCLES] = pmcounters.m_mode_cycles;
@@ -799,7 +799,6 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::L1D_WRITE_MISS] = pmcounters.l1d_write_miss;
       tmp[counter::L1D_PREFETCH_MISS] = pmcounters.l1d_prefetch_miss;
       tmp[counter::L1D_MMU_MISS] = pmcounters.l1d_mmu_miss;
-      tmp[counter::L1D_SNOOP_MISS] = pmcounters.l1d_snoop_miss;
       tmp[counter::L1D_MISS_ALL] = pmcounters.l1d_miss_all;
       tmp[counter::L1D_CACHE_INVALIDATE_SNOOP] = pmcounters.l1d_cache_invalidate_snoop;
       tmp[counter::L1D_CACHE_INVALIDATE_CMO] = pmcounters.l1d_cache_invalidate_cmo;
@@ -811,10 +810,10 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::DTLB_READ_ACCESS] = pmcounters.dtlb_read_access;
       tmp[counter::DTLB_WRITE_ACCESS] = pmcounters.dtlb_write_access;
       tmp[counter::DTLB_PREFETCH_ACCESS] = pmcounters.dtlb_prefetch_access;
-      tmp[counter::DTLB_ACCESS_4K] = pmcounters.dtlb_access_4k;
-      tmp[counter::DTLB_ACCESS_HUGEPAGE] = pmcounters.dtlb_access_hugepage;
-      tmp[counter::DTLB_ACCESS_CACHEABLE] = pmcounters.dtlb_access_cacheable;
-      tmp[counter::DTLB_ACCESS_NONCACHEABLE] = pmcounters.dtlb_access_noncacheable;
+      tmp[counter::DTLB_READ_ACCESS_CACHEABLE] = pmcounters.dtlb_read_access_cacheable;
+      tmp[counter::DTLB_READ_ACCESS_NONCACHEABLE] = pmcounters.dtlb_read_access_noncacheable;
+      tmp[counter::DTLB_WRITE_ACCESS_CACHEABLE] = pmcounters.dtlb_write_access_cacheable;
+      tmp[counter::DTLB_WRITE_ACCESS_NONCACHEABLE] = pmcounters.dtlb_write_access_noncacheable;
       tmp[counter::DTLB_ACCESS_ALL] = pmcounters.dtlb_access_all;
       tmp[counter::DTLB_READ_MISS] = pmcounters.dtlb_read_miss;
       tmp[counter::DTLB_WRITE_MISS] = pmcounters.dtlb_write_miss;
@@ -824,26 +823,30 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::DTLB_MISS_ALL] = pmcounters.dtlb_miss_all;
       tmp[counter::LEAF_TLB_ACCESS_LS] = pmcounters.leaf_tlb_access_ls;
       tmp[counter::LEAF_TLB_ACCESS_FE] = pmcounters.leaf_tlb_access_fe;
-      tmp[counter::LEAF_TLB_ACCESS_PREFETCH] = pmcounters.leaf_tlb_access_prefetch;
+      tmp[counter::LEAF_TLB_ACCESS_MMU_PREFETCH] = pmcounters.leaf_tlb_access_mmu_prefetch;
       tmp[counter::LEAF_TLB_ACCESS_ALL] = pmcounters.leaf_tlb_access_all;
       tmp[counter::LEAF_TLB_MISS_LS] = pmcounters.leaf_tlb_miss_ls;
       tmp[counter::LEAF_TLB_MISS_FE] = pmcounters.leaf_tlb_miss_fe;
-      tmp[counter::LEAF_TLB_MISS_PREFETCH] = pmcounters.leaf_tlb_miss_prefetch;
+      tmp[counter::LEAF_TLB_MISS_MMU_PREFETCH] = pmcounters.leaf_tlb_miss_mmu_prefetch;
       tmp[counter::LEAF_TLB_MISS_ALL] = pmcounters.leaf_tlb_miss_all;
       tmp[counter::NONLEAF_TLB_ACCESS_LS] = pmcounters.nonleaf_tlb_access_ls;
       tmp[counter::NONLEAF_TLB_ACCESS_FE] = pmcounters.nonleaf_tlb_access_fe;
-      tmp[counter::NONLEAF_TLB_ACCESS_PREFETCH] = pmcounters.nonleaf_tlb_access_prefetch;
+      tmp[counter::NONLEAF_TLB_ACCESS_MMU_PREFETCH] = pmcounters.nonleaf_tlb_access_mmu_prefetch;
       tmp[counter::NONLEAF_TLB_ACCESS_ALL] = pmcounters.nonleaf_tlb_access_all;
       tmp[counter::NONLEAF_TLB_MISS_LS] = pmcounters.nonleaf_tlb_miss_ls;
       tmp[counter::NONLEAF_TLB_MISS_FE] = pmcounters.nonleaf_tlb_miss_fe;
-      tmp[counter::NONLEAF_TLB_MISS_PREFETCH] = pmcounters.nonleaf_tlb_miss_prefetch;
+      tmp[counter::NONLEAF_TLB_MISS_MMU_PREFETCH] = pmcounters.nonleaf_tlb_miss_mmu_prefetch;
       tmp[counter::NONLEAF_TLB_MISS_ALL] = pmcounters.nonleaf_tlb_miss_all;
-      tmp[counter::PAGE_WALKS] = pmcounters.page_walks;
+      tmp[counter::PAGE_WALKS_LS] = pmcounters.page_walks_ls;
+      tmp[counter::PAGE_WALKS_FE] = pmcounters.page_walks_fe;
+      tmp[counter::PAGE_WALKS_MMU_PREFETCH] = pmcounters.page_walks_mmu_prefetch;
+      tmp[counter::PAGE_WALKS_ALL] = pmcounters.page_walks_all;
       tmp[counter::STALLS_MEM_L1D_MISS] = pmcounters.stalls_mem_l1d_miss;
       tmp[counter::STALLS_MEM_STORES] = pmcounters.stalls_mem_stores;
       tmp[counter::STALLS_MEM_L1DTLB_MISS] = pmcounters.stalls_mem_l1dtlb_miss;
       tmp[counter::LSU_RESYNCS_RAW] = pmcounters.lsu_resyncs_raw;
-      tmp[counter::LSU_RESYNCS_RAR] = pmcounters.lsu_resyncs_rar;
+      tmp[counter::LSU_RESYNCS_RAR_STPIPE] = pmcounters.lsu_resyncs_rar_stpipe;
+      tmp[counter::LSU_RESYNCS_RAR_LDPIPE] = pmcounters.lsu_resyncs_rar_ldpipe;
       tmp[counter::STLF_HITS] = pmcounters.stlf_hits;
       tmp[counter::LS_REPLAY_LOAD] = pmcounters.ls_replay_load;
       tmp[counter::LS_REPLAY_STORE] = pmcounters.ls_replay_store;
@@ -879,7 +882,6 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::FILLBUF_HIT_REPLAY_ALL] = pmcounters.fillbuf_hit_replay_all;
       tmp[counter::TRANSBUF_HIT_REPLAY_LOAD] = pmcounters.transbuf_hit_replay_load;
       tmp[counter::TRANSBUF_HIT_REPLAY_STORE] = pmcounters.transbuf_hit_replay_store;
-      tmp[counter::TRANSBUF_HIT_REPLAY_PREFETCH] = pmcounters.transbuf_hit_replay_prefetch;
       tmp[counter::TRANSBUF_HIT_REPLAY_MMU] = pmcounters.transbuf_hit_replay_mmu;
       tmp[counter::TRANSBUF_HIT_REPLAY_ALL] = pmcounters.transbuf_hit_replay_all;
       tmp[counter::REQBUF_HIT_REPLAY_LOAD] = pmcounters.reqbuf_hit_replay_load;
@@ -889,7 +891,6 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::DTLB_REPLAY_LOAD] = pmcounters.dtlb_replay_load;
       tmp[counter::DTLB_REPLAY_STORE] = pmcounters.dtlb_replay_store;
       tmp[counter::DTLB_REPLAY_PREFETCH] = pmcounters.dtlb_replay_prefetch;
-      tmp[counter::DTLB_REPLAY_MMU] = pmcounters.dtlb_replay_mmu;
       tmp[counter::DTLB_REPLAY_ALL] = pmcounters.dtlb_replay_all;
       tmp[counter::RAR_CANNOT_ALLOC] = pmcounters.rar_cannot_alloc;
       tmp[counter::RAW_CANNOT_ALLOC] = pmcounters.raw_cannot_alloc;
@@ -920,12 +921,11 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::WP_TRUE_HIT] = pmcounters.wp_true_hit;
       tmp[counter::MDP_CORRECT_PREDICTION] = pmcounters.mdp_correct_prediction;
       tmp[counter::MDP_FALSE_HIT] = pmcounters.mdp_false_hit;
-      tmp[counter::MDP_FALSE_MISS] = pmcounters.mdp_false_miss;
       tmp[counter::MDP_TOTAL_PREDICTION] = pmcounters.mdp_total_prediction;
       tmp[counter::ATOMICS_RETIRED] = pmcounters.atomics_retired;
-      tmp[counter::LDST_MASKED_NANO] = pmcounters.ldst_masked_nano;
-      tmp[counter::LD_EXECUTED_NANO] = pmcounters.ld_executed_nano;
-      tmp[counter::ST_EXECUTED_NANO] = pmcounters.st_executed_nano;
+      tmp[counter::LDST_MASKED_VEC_NANO] = pmcounters.ldst_masked_vec_nano;
+      tmp[counter::LD_EXECUTED_VEC_NANO] = pmcounters.ld_executed_vec_nano;
+      tmp[counter::ST_EXECUTED_VEC_NANO] = pmcounters.st_executed_vec_nano;
       tmp[counter::PFC_AGT_CANNOT_ALLOC] = pmcounters.pfc_agt_cannot_alloc;
       tmp[counter::PFC_AGT_EVICT] = pmcounters.pfc_agt_evict;
       tmp[counter::PFC_PHT_CANNOT_ALLOC] = pmcounters.pfc_pht_cannot_alloc;
@@ -1029,7 +1029,7 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
 
     
     const std::unordered_map<counter, std::string_view> to_string =
-    {
+      {
       {CPU_CYCLES,"cpu_cycles"},
       {INSTRUCTIONS,"instructions"},
       {BRANCH_INSTRUCTIONS,"branch_instructions"},
@@ -1140,7 +1140,6 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {L1D_WRITE_MISS,"l1d_write_miss"},
       {L1D_PREFETCH_MISS,"l1d_prefetch_miss"},
       {L1D_MMU_MISS,"l1d_mmu_miss"},
-      {L1D_SNOOP_MISS,"l1d_snoop_miss"},
       {L1D_MISS_ALL,"l1d_miss_all"},
       {L1D_CACHE_INVALIDATE_SNOOP,"l1d_cache_invalidate_snoop"},
       {L1D_CACHE_INVALIDATE_CMO,"l1d_cache_invalidate_cmo"},
@@ -1152,10 +1151,10 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {DTLB_READ_ACCESS,"dtlb_read_access"},
       {DTLB_WRITE_ACCESS,"dtlb_write_access"},
       {DTLB_PREFETCH_ACCESS,"dtlb_prefetch_access"},
-      {DTLB_ACCESS_4K,"dtlb_access_4k"},
-      {DTLB_ACCESS_HUGEPAGE,"dtlb_access_hugepage"},
-      {DTLB_ACCESS_CACHEABLE,"dtlb_access_cacheable"},
-      {DTLB_ACCESS_NONCACHEABLE,"dtlb_access_noncacheable"},
+      {DTLB_READ_ACCESS_CACHEABLE,"dtlb_read_access_cacheable"},
+      {DTLB_READ_ACCESS_NONCACHEABLE,"dtlb_read_access_noncacheable"},
+      {DTLB_WRITE_ACCESS_CACHEABLE,"dtlb_write_access_cacheable"},
+      {DTLB_WRITE_ACCESS_NONCACHEABLE,"dtlb_write_access_noncacheable"},
       {DTLB_ACCESS_ALL,"dtlb_access_all"},
       {DTLB_READ_MISS,"dtlb_read_miss"},
       {DTLB_WRITE_MISS,"dtlb_write_miss"},
@@ -1165,26 +1164,30 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {DTLB_MISS_ALL,"dtlb_miss_all"},
       {LEAF_TLB_ACCESS_LS,"leaf_tlb_access_ls"},
       {LEAF_TLB_ACCESS_FE,"leaf_tlb_access_fe"},
-      {LEAF_TLB_ACCESS_PREFETCH,"leaf_tlb_access_prefetch"},
+      {LEAF_TLB_ACCESS_MMU_PREFETCH,"leaf_tlb_access_mmu_prefetch"},
       {LEAF_TLB_ACCESS_ALL,"leaf_tlb_access_all"},
       {LEAF_TLB_MISS_LS,"leaf_tlb_miss_ls"},
       {LEAF_TLB_MISS_FE,"leaf_tlb_miss_fe"},
-      {LEAF_TLB_MISS_PREFETCH,"leaf_tlb_miss_prefetch"},
+      {LEAF_TLB_MISS_MMU_PREFETCH,"leaf_tlb_miss_mmu_prefetch"},
       {LEAF_TLB_MISS_ALL,"leaf_tlb_miss_all"},
       {NONLEAF_TLB_ACCESS_LS,"nonleaf_tlb_access_ls"},
       {NONLEAF_TLB_ACCESS_FE,"nonleaf_tlb_access_fe"},
-      {NONLEAF_TLB_ACCESS_PREFETCH,"nonleaf_tlb_access_prefetch"},
+      {NONLEAF_TLB_ACCESS_MMU_PREFETCH,"nonleaf_tlb_access_mmu_prefetch"},
       {NONLEAF_TLB_ACCESS_ALL,"nonleaf_tlb_access_all"},
       {NONLEAF_TLB_MISS_LS,"nonleaf_tlb_miss_ls"},
       {NONLEAF_TLB_MISS_FE,"nonleaf_tlb_miss_fe"},
-      {NONLEAF_TLB_MISS_PREFETCH,"nonleaf_tlb_miss_prefetch"},
+      {NONLEAF_TLB_MISS_MMU_PREFETCH,"nonleaf_tlb_miss_mmu_prefetch"},
       {NONLEAF_TLB_MISS_ALL,"nonleaf_tlb_miss_all"},
-      {PAGE_WALKS,"page_walks"},
+      {PAGE_WALKS_LS,"page_walks_ls"},
+      {PAGE_WALKS_FE,"page_walks_fe"},
+      {PAGE_WALKS_MMU_PREFETCH,"page_walks_mmu_prefetch"},
+      {PAGE_WALKS_ALL,"page_walks_all"},
       {STALLS_MEM_L1D_MISS,"stalls_mem_l1d_miss"},
       {STALLS_MEM_STORES,"stalls_mem_stores"},
       {STALLS_MEM_L1DTLB_MISS,"stalls_mem_l1dtlb_miss"},
       {LSU_RESYNCS_RAW,"lsu_resyncs_raw"},
-      {LSU_RESYNCS_RAR,"lsu_resyncs_rar"},
+      {LSU_RESYNCS_RAR_STPIPE,"lsu_resyncs_rar_stpipe"},
+      {LSU_RESYNCS_RAR_LDPIPE,"lsu_resyncs_rar_ldpipe"},
       {STLF_HITS,"stlf_hits"},
       {LS_REPLAY_LOAD,"ls_replay_load"},
       {LS_REPLAY_STORE,"ls_replay_store"},
@@ -1220,7 +1223,6 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {FILLBUF_HIT_REPLAY_ALL,"fillbuf_hit_replay_all"},
       {TRANSBUF_HIT_REPLAY_LOAD,"transbuf_hit_replay_load"},
       {TRANSBUF_HIT_REPLAY_STORE,"transbuf_hit_replay_store"},
-      {TRANSBUF_HIT_REPLAY_PREFETCH,"transbuf_hit_replay_prefetch"},
       {TRANSBUF_HIT_REPLAY_MMU,"transbuf_hit_replay_mmu"},
       {TRANSBUF_HIT_REPLAY_ALL,"transbuf_hit_replay_all"},
       {REQBUF_HIT_REPLAY_LOAD,"reqbuf_hit_replay_load"},
@@ -1230,7 +1232,6 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {DTLB_REPLAY_LOAD,"dtlb_replay_load"},
       {DTLB_REPLAY_STORE,"dtlb_replay_store"},
       {DTLB_REPLAY_PREFETCH,"dtlb_replay_prefetch"},
-      {DTLB_REPLAY_MMU,"dtlb_replay_mmu"},
       {DTLB_REPLAY_ALL,"dtlb_replay_all"},
       {RAR_CANNOT_ALLOC,"rar_cannot_alloc"},
       {RAW_CANNOT_ALLOC,"raw_cannot_alloc"},
@@ -1261,12 +1262,11 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {WP_TRUE_HIT,"wp_true_hit"},
       {MDP_CORRECT_PREDICTION,"mdp_correct_prediction"},
       {MDP_FALSE_HIT,"mdp_false_hit"},
-      {MDP_FALSE_MISS,"mdp_false_miss"},
       {MDP_TOTAL_PREDICTION,"mdp_total_prediction"},
       {ATOMICS_RETIRED,"atomics_retired"},
-      {LDST_MASKED_NANO,"ldst_masked_nano"},
-      {LD_EXECUTED_NANO,"ld_executed_nano"},
-      {ST_EXECUTED_NANO,"st_executed_nano"},
+      {LDST_MASKED_VEC_NANO,"ldst_masked_vec_nano"},
+      {LD_EXECUTED_VEC_NANO,"ld_executed_vec_nano"},
+      {ST_EXECUTED_VEC_NANO,"st_executed_vec_nano"},
       {PFC_AGT_CANNOT_ALLOC,"pfc_agt_cannot_alloc"},
       {PFC_AGT_EVICT,"pfc_agt_evict"},
       {PFC_PHT_CANNOT_ALLOC,"pfc_pht_cannot_alloc"},
@@ -1364,7 +1364,7 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {NO_ALLOC_NO_MSHR,"no_alloc_no_mshr"},
       {NO_ALLOC_HINT_NOT_SET,"no_alloc_hint_not_set"},
       {SC_REPLAY_ECC,"sc_replay_ecc"},
-    };
+    }; 
 
   pmu(cvm::topology::loc_t, unsigned);
   ~pmu();

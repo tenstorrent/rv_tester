@@ -3,6 +3,7 @@
 #include "cvm/topology.hpp"
 #include "cvm/registry.hpp"
 #include "cvm/logger.hpp"
+#include "cvm/random.hpp"
 #include "trace_cfg.h"
 #include "transactors/axi_sw/axi.h"
 #include <fstream>

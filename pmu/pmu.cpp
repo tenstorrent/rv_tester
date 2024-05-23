@@ -111,14 +111,14 @@ void
 pmu::report()
 {
   for (size_t i = 0; i < counter::COUNT; i++) {
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_{}\": \"0x{:x}\"}}\n", id_, to_string.at(static_cast<counter>(i)), counters[i]);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_{}\": \"{}\"}}\n", id_, to_string.at(static_cast<counter>(i)), counters[i]);
     if (perf_start_cycle and perf_end_cycle)
-      cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_perf_{}\": \"0x{:x}\"}}\n", id_, to_string.at(static_cast<counter>(i)), perf_region[i]);
+      cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_perf_{}\": \"{}\"}}\n", id_, to_string.at(static_cast<counter>(i)), perf_region[i]);
   }
 
   if (perf_start_cycle and perf_end_cycle) {
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_perf_start_cycle\": \"0x{:x}\"}}\n", id_, perf_start_cycle);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_perf_end_cycle\": \"0x{:x}\"}}\n", id_, perf_end_cycle);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_perf_start_cycle\": \"{}\"}}\n", id_, perf_start_cycle);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_perf_end_cycle\": \"{}\"}}\n", id_, perf_end_cycle);
   }
 }
 
@@ -152,7 +152,11 @@ pmu::shutdown_ready()
   if (FLAGS_perf)
     {
       if (not terminated_)
-        cvm::log(cvm::ERROR, "Error: [PMU] asking for shutdown without termination.\n");
+        {
+          cvm::log(cvm::NONE, "Warning: [PMU] asking for shutdown without termination.\n");
+          // something went wrong, just allow terminate
+          return true;
+        }
       return terminated_ and not sync_terminate_;
     }
   else

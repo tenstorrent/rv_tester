@@ -6,6 +6,7 @@
 #include "cvm/plusargs.hpp"
 #include "cvm/registry.hpp"
 #include "cvm/topology.hpp"
+#include "cvm/random.hpp"
 #include "src/cac_lib.h"
 #include "sysmod/htif/htif.h"
 #include "whisper_client_decl.h"
@@ -27,6 +28,7 @@ DECLARE_string(cplfw_path);
 DECLARE_string(load);
 DECLARE_string(hex);
 DECLARE_bool(mcm);
+DECLARE_int32(seed);
 DECLARE_uint64(debug_entry_pc);
 DECLARE_uint64(debug_exit_pc);
 DECLARE_uint64(hart_enable_mask);
@@ -54,6 +56,7 @@ DEFINE_bool(vec_check, true, "Enable cosim checks on vector regs");
 DEFINE_bool(csr_rd_check, true, "Enable cosim checks on csr reads");
 DEFINE_bool(csr_wr_check, true, "Enable cosim checks on csr writes");
 DEFINE_bool(memattr_check, true, "Enable cosim checks on mem attributes");
+DEFINE_bool(flags_check, false, "Enable cosim checks on fflags");
 DEFINE_uint64(max_cycle, 1000000, "Max cycle limit to terminate the sim");
 DEFINE_int32(debug_excp_mcause, 24, "MCAUSE value for debug exception");
 DEFINE_bool(translation_check, false, "Do VA-PA translation check");
@@ -91,6 +94,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
       "mtinst","htinst", // RVDE-10005
       "vstart","vxsat","vxrm","vcsr", // Unimplemented
       "sstatus","mstatus","hstatus","mie","hie","vsie","sie", // RVDE-11840
+      "medeleg",// RVDE-14192
       "tselect","tdata1","tdata2","tdata3","mcontext", // Unimplemented: RVDE-7518
       "fflags","fcsr", // Unimplemented
       "menvcfg","senvcfg", // FIXME: pointer masking change
@@ -119,16 +123,12 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
     // Overwrite hart_enable_mask in a random fashion based on num_harts run-arg
     // Do this only when hart_enable_mask run-arg is 0x1 (default value)
     if(FLAGS_hart_enable_mask == 0x1){
-      std::random_device rd;
-      std::mt19937 gen(rd());
-      std::uniform_int_distribution<> dis(0, nharts - 1);
       unsigned char hart_enable_mask = 0;
-      for (uint32_t i = 0; i < FLAGS_num_harts; ++i) {
-          int bit_position;
-          do {
-              bit_position = dis(gen);
-          } while ((hart_enable_mask >> bit_position) & 1); // Check if the bit is already set
-          hart_enable_mask |= (1 << bit_position);
+      std::vector<uint8_t> bit_positions(FLAGS_num_harts);
+      cvm::rng<uint32_t> rng(FLAGS_seed);
+      std::generate(bit_positions.begin(), bit_positions.end(), [nharts, &rng]() { return rng() % nharts; });
+      for (uint8_t bit_position : bit_positions) {
+        hart_enable_mask |= (1 << (bit_position));
       }
       FLAGS_hart_enable_mask = hart_enable_mask;
       cvm::log(cvm::LOW, "Overwriting hart_enable_mask to 0x{:x}\n", FLAGS_hart_enable_mask);
@@ -256,6 +256,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   // Save whisper state
   ppw_ = pw_;
   pw_ = w;
+  pd_ = d;
 
   // Error on mismatch
   if (!cac_.GetStatus(hart)) {
@@ -353,6 +354,9 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
   }
   if (FLAGS_insn_check && !d.comp && !d.ucode && !is_vector(d.disasm) && !(d.disasm.substr(0,7)=="illegal")) {
     update_insn(hart, src_t::dut, d.opcode);
+  }
+  if (FLAGS_flags_check) {
+    update_flags(hart, src_t::dut, d.flags);
   }
   if (d.gpr.valid || d.fpr.valid || !d.vr.empty() || !d.csr.empty()) {
     update_regs(hart, d);
@@ -715,6 +719,9 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
   if (FLAGS_insn_check && !w_.comp && !w_.ucode && !is_vector(w.disasm) && !(w.disasm.substr(0,7)=="illegal"))
     update_insn(hart, src_t::iss, w.opcode);
 
+  if (FLAGS_flags_check)
+    update_flags(hart, src_t::iss, w.fp_flags);
+
   for (auto i = 0u; i < w.change_count; i++) {
     if (!client_->whisperChange(hart, w.resource, w.address, w.value,
         w.valid)) {
@@ -1014,6 +1021,14 @@ void bridge::update_insn(hart_id_t hart, src_t src, uint32_t data) {
   assert(cac_.SetResource(hart, src, insn, std::move(cac::CreateBitVec<uint64_t>(data))));
 }
 
+void bridge::update_flags(hart_id_t hart, src_t src, uint32_t data) {
+  resource_id_t flags = resource_id_t{
+    .resource = resource_t::flags,
+    .offset = 0
+  };
+  assert(cac_.SetResource(hart, src, flags, std::move(cac::CreateBitVec<uint64_t>(data))));
+}
+
 void bridge::update_priv(hart_id_t hart, src_t src, uint32_t data) {
   resource_id_t priv = resource_id_t{
     .resource = resource_t::priv_mode,
@@ -1163,6 +1178,11 @@ bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const std::
     log(cvm::MEDIUM, "<{}> Resynch: Reason=[unsupported_csr_access]\n", d.cycle);
     return true;
   }
+  // Case #10
+  if (cpl_smc_access(d)) {
+    log(cvm::MEDIUM, "<{}> Resynch: Reason=[cpl_smc_access]\n", d.cycle);
+    return true;
+  }
   return false;
 }
 
@@ -1240,7 +1260,16 @@ bool bridge::hpm_counter_read(const std::string& instr) {
 }
 
 bool bridge::unsupported_csr_access(const std::string& instr) {
-  if ((instr.find("as_dbg_mux_sel") != std::string::npos))
+  if ((instr.find("as_dbg_mux_sel") != std::string::npos) ||
+      (instr.find("c_") != std::string::npos))
+    return true;
+  return false;
+}
+
+bool bridge::cpl_smc_access(const rv_instr_t& d){
+  if (d.mem_read.valid &&
+      d.mem_read.pa >= smc_lo_addr &&
+      d.mem_read.pa < smc_hi_addr)
     return true;
   return false;
 }
@@ -1874,13 +1903,14 @@ void bridge::report_metrics() {
   const std::string dest = (rfcm ? std::string(1, static_cast<char>(prev_whisp_state.resource)) : "none");
   const std::string dest_addr = (rfcm ? fmt::format("0x{:x}", prev_whisp_state.address) : "none");
   const std::string dest_data = (rfcm ? fmt::format("0x{:x}", prev_whisp_state.value) : "none");
+  const auto& src_addr = pd_.mem_read.valid ? pd_.mem_read.pa : 0;
   const auto& prev_instr = prev_prev_whisp_state.disasm;
   const auto& prev_mode = prev_prev_whisp_state.priv_mode;
   const auto& prev_trap = prev_prev_whisp_state.trap;
   const auto& prev_num_dest = prev_prev_whisp_state.change_count;
 
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_instructions\": {}}}\n", id_, instructions);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_cpu_cycles\": {}}}\n", id_, cpu_cycles);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_instructions\": {}}}\n", id_, instructions);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_cycles\": {}}}\n", id_, cpu_cycles);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_exceptions\": {}}}\n", id_, num_exceptions_);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_ipc\": {:.2f}}}\n", id_, ipc);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_instr\": \"{}\"}}\n", id_, instr);
@@ -1889,6 +1919,7 @@ void bridge::report_metrics() {
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_dest\": {}}}\n", id_, num_dest);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dest\": \"{}\"}}\n", id_, dest);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dest_addr\": \"{}\"}}\n", id_, dest_addr);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_src_addr\": \"{:#x}\"}}\n", id_, src_addr);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dest_data\": \"{}\"}}\n", id_, dest_data);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_instr\": \"{}\"}}\n", id_, prev_instr);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_mode\": {}}}\n", id_, prev_mode);
