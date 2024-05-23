@@ -1056,6 +1056,11 @@ package rv_tester_params;
     input  rv_tester_params::pm_nw_req_top    pm_nw_axi_req_mst [rv_tester_params::PM_NW_AXI_MST_TOTAL-1:0],   \
     output rv_tester_params::pm_nw_resp_top   pm_nw_axi_rsp_mst [rv_tester_params::PM_NW_AXI_MST_TOTAL-1:0]
 
+`define _RV_TESTER_STALL_CHECKER_PORTS(input,output)                                                \
+    input clk,                                                                                      \
+    input reset_n,                                                                                  \
+    input rv_tester_params::slv_req_top     axi_req,                                                \
+    input rv_tester_params::slv_resp_top    axi_rsp
 
 `define RV_TESTER_VARS(topology)                                                                    \
     logic                                    clk             [rv_tester_params::NCLKS-1:0];         \

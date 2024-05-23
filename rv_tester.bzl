@@ -20,6 +20,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             "@rv_tester//:rv_tester_pkg.sv",
             "@rv_tester//:rv_tester_defines.sv",
             "@rv_tester//:dmi_driver.sv",
+            "@rv_tester//:rv_tester_stall_checker.sv",
         ],
         deps = [
             topology + "_sv",

@@ -28,7 +28,6 @@ REGISTRY_register(rvfi, COSIM, cvm::registry::all);
 rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
   : log("h" + std::to_string(id) + "_dut_rvfi.log"), loc_(loc), id_(id) {
   init();
-
   whisper::initialize();
 
   cvm::registry::messenger.connect<svScope>(
