@@ -46,6 +46,7 @@ import rv_tester_params::*;
       if(read_rsp & write_rsp) ext_mem_outstanding_response <= ext_mem_outstanding_response + 2;
       else if(read_rsp | write_rsp) ext_mem_outstanding_response <= ext_mem_outstanding_response + 1;
       if(ext_mem_outstanding_requests != ext_mem_outstanding_response) ext_mem_stall_counter <= ext_mem_stall_counter + 1;
+      else ext_mem_stall_counter <= 0;
       failed <= failed || fail;
     end
   end
