@@ -116,8 +116,8 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
        cvm::log(cvm::LOW, "Doubling max_cycles for sim run to {}\n",FLAGS_max_cycle );
     }
     int32_t nharts = cvm::topology::attr(platform, "NHARTS").second;
-    if((FLAGS_max_stall_cycle < (nharts*3000 + 7000)) && (FLAGS_max_stall_cycle != 0)){
-        FLAGS_max_stall_cycle = nharts*3000 + 7000;
+    if((FLAGS_max_stall_cycle < (20000 + (nharts-1)*2000)) && (FLAGS_max_stall_cycle != 0)){
+        FLAGS_max_stall_cycle = (20000 + (nharts-1)*2000));
         cvm::log(cvm::LOW, "Overwriting max_stall_cycle to {} cycles\n",FLAGS_max_stall_cycle );
     }
     // Overwrite hart_enable_mask in a random fashion based on num_harts run-arg
