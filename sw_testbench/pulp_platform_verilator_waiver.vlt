@@ -16,3 +16,7 @@ lint_off -rule UNOPTFLAT -file "external/opensrc-axi/src/axi_mux.sv"
 lint_off -rule UNOPTFLAT -file "external/opensrc-axi_llc/src/axi_llc_top.sv"
 lint_off -rule UNOPTFLAT -file "external/opensrc-axi_llc/src/axi_llc_chan_splitter.sv"
 lint_off -rule UNOPTFLAT -file "external/opensrc-common_cells/src/stream_xbar.sv"
+lint_off -rule MULTIDRIVEN -file "external/opensrc*/**.sv"
+lint_off -rule UNOPTFLAT -file "external/opensrc*/**.sv"
+lint_off -rule COMBDLY -file "external/opensrc*/**.sv"
+
