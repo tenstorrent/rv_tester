@@ -1103,6 +1103,7 @@ void bridge::arch_state(whisper_state_t& w) {
             {
               mprv_ = 1;
               mpp_ = ((w.value) & 0x1800) >> 11; 
+              mpv_ = ((w.value) & 0x8000000000) >> 39;
             }
             else
               mprv_ = 0;
@@ -1461,15 +1462,6 @@ uint64_t bridge::translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t
   bool x = (memclass == memclass_t::fetch);
   bool sup = ((priv & 0x11) == 0x1); // made a change here
 
-  if((priv & 0x8) != 0)
-  {
-    twoStage_ = true;
-  }
-  else
-  {
-    twoStage_ = false;
-  }
-
 if (!client_->whisperTranslate(hart, va, r, w, x, twoStage_, sup, pa, valid)) {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed VA translation\n", hart);
   }
@@ -1492,7 +1484,29 @@ void bridge::translation_check(hart_id_t hart, const rv_instr_t& d, whisper_stat
   va &= ((1ull << 57) - 1);             // Clear all bits to the left of 57th bit
   if (bit57) {  va |= (~0ull) << 57; } // sign extend the 57th bit to [63:58]
 
-if((mprv_ == 1) && w.priv_mode == 3)
+  // Conditions for two stage translation  
+  // When V = 1
+  if((w.priv_mode & 0x8) != 0)
+  {
+    twoStage_ = true;
+  }
+  // 2.) All flavours of Hypervisor Loads and Stores
+  if((w.opcode & 0x7f) == 0x73) 
+  {
+    // lower 7 bit opcode , upper 4 bits of funct7 and funct3 to differentiate from HFENCE and HINVAL
+    if(((w.opcode & 0xf0000000) == 0x60000000) && ((w.opcode & 0x7000) == 0x4000))
+    {
+      twoStage_ = true;
+    }
+  }
+  // 3.) When MPRV = 1 and MPV = 1 (Table 9.5 in Hypervisor spec)
+  if(mprv_ == 1 & mpv_ == 1)
+  {
+    twoStage_ = true;
+  }
+
+
+  if((mprv_ == 1) && w.priv_mode == 3)
   {
     pa = translate(hart, va, mpp_, memclass_t::read);
   }
