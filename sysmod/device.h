@@ -52,7 +52,7 @@ class device {
               std::string ds;
               for (size_t i=0; i<64; i++)
                   ds += fmt::format("{:02x}", data[i]);
-              cvm::log(cvm::FULL, "[device] tag={}: src={}: r: id={}, addr={:#x}, len={}, size={}, data={}\n", dev->tag(), r.source, r.r.id, r.r.addr, r.r.length, data.size(), ds);
+              cvm::log(cvm::MEDIUM, "[device] tag={}: src={}: r: id={}, addr={:#x}, len={}, size={}, data={}\n", dev->tag(), r.source, r.r.id, r.r.addr, r.r.length, data.size(), ds);
               cvm::registry::messenger.signal(r.source, transactor::read_response_t{r.r.id, std::move(data)});
               
           },
