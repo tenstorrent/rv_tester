@@ -124,9 +124,9 @@ module rv_tester
     
     always @(posedge clk[TB_CLK_IDX])begin
       if (rv_tester_reset)begin 
-         /* verilator lint_off WIDTH */
+        
            clock_mode <= clk_profile;
-         /* verilator lint_on WIDTH */
+        
       end
         /* verilator lint_off WIDTH */
       if(dyn_clk_switch & (clocks >10) &  ((clocks % freq_switch_ncycles) == 0)) begin
