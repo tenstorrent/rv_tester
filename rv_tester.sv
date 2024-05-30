@@ -128,58 +128,26 @@ module rv_tester
     end
    // assign clk = clock_mode ? profile1_clk: def_clk; //clkmux
     ////////////////// Clock mux Instantiation ///////////////////////////
-   clk_mux_glitch_free #(
-      .NUM_INPUTS(4),
-      .CLOCK_DURING_RESET(1)
-   ) i_clk_mux0 (
-     .clks_i         ({def_clk[0], profile1_clk[0], profile2_clk[0],0}),
-     .test_clk_i     (1'b0),             // FIXME:Add test clock
-     .test_en_i      (1'b0),             // FIXME:Add test enable
-     .async_rstn_i   (~rv_tester_reset),
-     .async_sel_i    (clock_mode),
-     //.async_sel_i    (0),
-     .clk_o          (clk[0])
-   );
+    for (genvar c = 0; c < NCLKS; c++) begin
+            if (!(PLL_CLOCK[c] && pll_clock_exists))begin
+               
+                clk_mux_glitch_free #(
+                    .NUM_INPUTS(4),
+                    .CLOCK_DURING_RESET(1)
+                ) i_clk_mux0 (
+                    .clks_i         ({def_clk[c], profile1_clk[c], profile2_clk[c],0}),
+                    .test_clk_i     (1'b0),             // FIXME:Add test clock
+                    .test_en_i      (1'b0),             // FIXME:Add test enable
+                    .async_rstn_i   (~rv_tester_reset),
+                    .async_sel_i    (clock_mode),
+                    //.async_sel_i    (0),
+                    .clk_o          (clk[c])
+                );
+            
+            end 
+           
+    end
    
-   clk_mux_glitch_free #(
-      .NUM_INPUTS(4),
-      .CLOCK_DURING_RESET(1)
-   ) i_clk_mux1 (
-     .clks_i         ({def_clk[1], profile1_clk[1], profile2_clk[1],0}),
-     .test_clk_i     (1'b0),             // FIXME:Add test clock
-     .test_en_i      (1'b0),             // FIXME:Add test enable
-     .async_rstn_i   (~rv_tester_reset),
-     .async_sel_i    (clock_mode),
-     //.async_sel_i    (0),
-     .clk_o          (clk[1])
-   );
-
-   clk_mux_glitch_free #(
-      .NUM_INPUTS(4),
-      .CLOCK_DURING_RESET(1)
-   ) i_clk_mux3 (
-     .clks_i         ({def_clk[3], profile1_clk[3],  profile2_clk[3],0}),
-     .test_clk_i     (1'b0),             // FIXME:Add test clock
-     .test_en_i      (1'b0),             // FIXME:Add test enable
-     .async_rstn_i   (~rv_tester_reset),
-     .async_sel_i    (clock_mode),
-     //.async_sel_i    (0),
-     .clk_o          (clk[3])
-   );
-
-      clk_mux_glitch_free #(
-      .NUM_INPUTS(4),
-      .CLOCK_DURING_RESET(1)
-   ) i_clk_mux4 (
-     .clks_i         ({def_clk[4], profile1_clk[4],  profile2_clk[4],0}),
-     .test_clk_i     (1'b0),             // FIXME:Add test clock
-     .test_en_i      (1'b0),             // FIXME:Add test enable
-     .async_rstn_i   (~rv_tester_reset),
-     .async_sel_i    (clock_mode),
-     //.async_sel_i    (0),
-     .clk_o          (clk[4])
-   );
-
 
 
     /*
