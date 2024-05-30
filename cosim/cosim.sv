@@ -46,6 +46,7 @@ localparam PA_WIDTH  = $size(rvfi[0].mem_paddr);
 localparam GP_WIDTH  = $size(rvfi[0].rd_wdata);
 localparam FP_WIDTH  = $size(rvfi[0].frd_wdata);
 localparam VC_WIDTH  = $size(rvfi[0].vrd_wdata);
+localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
 
     //----------------------------------------------------------------------------
     // function retsel compresses CSR_COUNT down into MAXCSR+1 DPI calls
@@ -141,6 +142,13 @@ localparam VC_WIDTH  = $size(rvfi[0].vrd_wdata);
     bit                                        fp_reg_written;
     bit                                        vc_reg_written;
 
+    bit [NWRITE-1:0]  mcmi_write_pokes;
+    bit               mcmi_write_poke;
+    bit [NBYPASS-1:0] mcmi_bypass_pokes;
+    bit               mcmi_bypass_poke;
+    longint unsigned scheck_addr_hi=0;
+    longint unsigned scheck_addr_lo=0;
+
     bit [31:0]             rvfi_scheck_cnt;
     bit [NRET-1:0]         rvfi_valids;
     bit [NRET-1:0][63:0]   rvfi_orders;
@@ -151,6 +159,7 @@ localparam VC_WIDTH  = $size(rvfi[0].vrd_wdata);
     bit [NRET-1:0]         csr_rw;
     bit [NRET-1:0]         excepts;
     bit [NRET-1:0]         intr_memw;
+    bit [NRET-1:0]         cmp_memw;
     bit [NRET-1:0]         poke_events;                     // events that should cause a Poke in Whisper 
     bit [NWRITE-1:0]       eot_writes_found;                // end-of-test event found in mcmi_writes ifc
     bit [NBYPASS-1:0]      eot_bypass_found;                // end-of-test event found in mcmi_bypass ifc
@@ -308,7 +317,9 @@ localparam VC_WIDTH  = $size(rvfi[0].vrd_wdata);
         //if (d.mem_write.valid && d.mem_write.size==4 && ((d.mem_write.pa>=0x40000000 &&  d.mem_write.pa <0x42000000) || (d.mem_write.pa>=0x44000000 &&  d.mem_write.pa < 0x46000000)) ) {
         assign intr_memw[n]= rvfi[n].valid & (rvfi[n].mem_wmask != 0) & (rvfi[n].mem_wmask[1:0]==2'b11) & (rvfi[n].mem_paddr[PA_WIDTH-1:32] == '0) & ((rvfi[n].mem_paddr[31:25]==7'h20) | (rvfi[n].mem_paddr[31:25]==7'h22));
 
-        assign poke_events[n]  = (sc_rw[n] | csr_rw[n] | excepts[n] | intr_memw[n] |  compare_state) | ~state_cmp_enabled; 
+        assign cmp_memw[n]= rvfi[n].valid & (rvfi[n].mem_wmask != 0) & (rvfi[n].mem_paddr[PA_WIDTH-1:0] >= scheck_addr_lo) & (rvfi[n].mem_paddr[PA_WIDTH-1:0] <= scheck_addr_hi);
+
+        assign poke_events[n]  = (sc_rw[n] | csr_rw[n] | excepts[n] | intr_memw[n] | cmp_memw[n] | compare_state) | ~state_cmp_enabled; 
     end
 
     assign send_rvfi = | poke_events;
@@ -540,12 +551,16 @@ localparam VC_WIDTH  = $size(rvfi[0].vrd_wdata);
         assign m_mcmi_writes[n].data.mask = mcmi_write[n].mask;
         assign m_mcmi_writes[n].data.data = mcmi_write[n].data;
 
+        assign mcmi_write_pokes[n] = (mcmi_write[n].addr <= scheck_addr_hi) & (mcmi_write[n].addr >= scheck_addr_lo) & mcmi_write[n].valid;
+
         //------------------------------------------------------------------------------------------- 
         // End-Of-Test logic:  memory write to designated address 
         //    - will cause a save-state event (force-steps=1 if NO instrs being retired currently
         //------------------------------------------------------------------------------------------- 
         assign eot_writes_found[n] = ((eot_addr != '0) &  mcmi_write[n].valid & (mcmi_write[n].addr == eot_addr) & ( mcmi_write[n].data[0] == 1'b1) & (mcmi_write[n].data[63:56] == 0)) ? 1'b1 : 1'b0;
     end
+
+    assign mcmi_write_poke = (mcmi_write_pokes != '0);
 
     // m_mcmi_bypass
     for (genvar n = 0; n < NBYPASS; n++) begin
@@ -564,7 +579,10 @@ localparam VC_WIDTH  = $size(rvfi[0].vrd_wdata);
         //    - will cause a save-state event (force-steps=1 if NO instrs being retired currently
         //------------------------------------------------------------------------------------------- 
         assign eot_bypass_found[n] = ((eot_addr != '0) &  mcmi_bypass[n].valid & (mcmi_bypass[n].addr == eot_addr) & ( mcmi_bypass[n].data[0] == 1'b1) & (mcmi_bypass[n].data[63:56] == 0)) ? 1'b1 : 1'b0;
+        assign mcmi_bypass_pokes[n] = (mcmi_bypass[n].addr <= scheck_addr_hi) & (mcmi_bypass[n].addr >= scheck_addr_lo) & mcmi_write[n].valid;
     end
+
+    assign mcmi_bypass_poke = (mcmi_bypass_pokes != '0);
 
     assign eot_found = ((eot_writes_found != 0) | (eot_bypass_found != 0) | eot_max_instr) ? 1'b1 : 1'b0; 
 
@@ -718,6 +736,8 @@ localparam VC_WIDTH  = $size(rvfi[0].vrd_wdata);
         max_cycle = cvm_plusargs::get_ulongint("max_cycle");
         max_stall_cycle = cvm_plusargs::get_int("max_stall_cycle");
         scheck_period = cvm_plusargs::get_int("scheck_period");
+        scheck_addr_hi = cvm_plusargs::get_ulongint("scheck_addr_hi");
+        scheck_addr_lo = cvm_plusargs::get_ulongint("scheck_addr_lo");
         max_instructions = cvm_plusargs::get_ulongint("max_instr");
         hart_enable_mask = cvm_plusargs::get_ulongint("hart_enable_mask");
         /* verilator lint_on BLKSEQ */
