@@ -94,7 +94,6 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
       "mtinst","htinst", // RVDE-10005
       "vstart","vxsat","vxrm","vcsr", // Unimplemented
       "sstatus","mstatus","hstatus","mie","hie","vsie","sie", // RVDE-11840
-      "medeleg",// RVDE-14192
       "tselect","tdata1","tdata2","tdata3","mcontext", // Unimplemented: RVDE-7518
       "fflags","fcsr", // Unimplemented
       "menvcfg","senvcfg", // FIXME: pointer masking change
@@ -171,9 +170,9 @@ void bridge::reset() {
 
 void bridge::csr_init() {
   bool valid;
-  uint64_t data, mask, poke_mask;
+  uint64_t data, mask, poke_mask, read_mask;
   for (const auto& csr: nonzero_reset_csrs) {
-    if (!client_->whisperPeekCsr(id_, csr.address, data, mask, poke_mask, valid)) {
+    if (!client_->whisperPeekCsr(id_, csr.address, data, mask, poke_mask, read_mask, valid)) {
       cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek csr\n", id_);
     }
     size_8_bytes_t cac_mask = 0xffffffffffffffff;
@@ -965,13 +964,13 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_
         // Check if PMP entry is locked
         if (w.address >= 0x3B0 && w.address < 0x3C0) {
           bool valid;
-          uint64_t pmpcfg, mask, reset;
+          uint64_t pmpcfg, mask, reset, read_mask;
           uint64_t i, pmp_cfg_reg, pmp_cfg_index;
           // For PMP addresses, which bits of the pmpcfgs to look for 
           i = w.address - 0x3B0;
           pmp_cfg_reg = ((i*8) / 64) * 2;
           pmp_cfg_index = (i*8) % 64;
-          client_->whisperPeekCsr(hart, 0x3A0 + pmp_cfg_reg, pmpcfg, mask, reset, valid);
+          client_->whisperPeekCsr(hart, 0x3A0 + pmp_cfg_reg, pmpcfg, mask, reset, read_mask, valid);
           if((pmpcfg >> (pmp_cfg_index + 7)) & 0x1) {
             break;
           }
@@ -1050,12 +1049,12 @@ void bridge::update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_
 
 bool bridge::disable_pa_check_vec(hart_id_t hart) {
   bool valid;
-  uint64_t data, mask, poke_mask;
+  uint64_t data, mask, poke_mask, read_mask;
   uint64_t vl = 0;
   uint64_t vtype ;
   uint64_t vlmax = 0;
 
-  if(client_->whisperPeekCsr(hart,0xc21, data, mask, poke_mask, valid)) {
+  if(client_->whisperPeekCsr(hart,0xc21, data, mask, poke_mask, read_mask, valid)) {
   
   vtype = data & mask; // getting the vtype csr
   int sew_enc = (vtype & 0x38) >> 3; // encoded sew
@@ -1085,7 +1084,7 @@ bool bridge::disable_pa_check_vec(hart_id_t hart) {
 
 }
 
-if(client_->whisperPeekCsr(hart,0xc20, data, mask, poke_mask, valid)) 
+if(client_->whisperPeekCsr(hart,0xc20, data, mask, poke_mask, read_mask, valid)) 
   vl = data & mask;
 
 if(vl < vlmax)
@@ -1737,13 +1736,13 @@ uint64_t bridge::modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data) {
   // Spec section...
   if (addr >= 0x3B0 && addr < 0x3C0) {
     bool valid;
-    uint64_t pmpcfg, mask, reset;
+    uint64_t pmpcfg, mask, reset, read_mask;
     uint64_t i, pmp_cfg_reg, pmp_cfg_index;
     // For PMP addresses, which bits of the pmpcfgs to look for 
     i = addr - 0x3B0;
     pmp_cfg_reg = ((i*8) / 64) * 2;
     pmp_cfg_index = (i*8) % 64;
-    client_->whisperPeekCsr(hart, 0x3A0 + pmp_cfg_reg, pmpcfg, mask, reset, valid);
+    client_->whisperPeekCsr(hart, 0x3A0 + pmp_cfg_reg, pmpcfg, mask, reset, read_mask, valid);
     if((pmpcfg >> (pmp_cfg_index + 4)) & 0x1) {
       result = data | 0x1ff;
     } else {
@@ -1761,13 +1760,13 @@ bridge::size_8_bytes_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, ui
   else result = mask & get_csr_mask(hart, addr);
   if (addr >= 0x3B0 && addr < 0x3C0) {
     bool valid;
-    uint64_t pmpcfg, mask_iss, reset;
+    uint64_t pmpcfg, mask_iss, reset, read_mask;
     uint64_t i, pmp_cfg_reg, pmp_cfg_index;
     // For PMP addresses, which bits of the pmpcfgs to look for 
     i = addr - 0x3B0;
     pmp_cfg_reg = ((i*8) / 64) * 2;
     pmp_cfg_index = (i*8) % 64;
-    client_->whisperPeekCsr(hart, 0x3A0 + pmp_cfg_reg, pmpcfg, mask_iss, reset, valid);
+    client_->whisperPeekCsr(hart, 0x3A0 + pmp_cfg_reg, pmpcfg, mask_iss, reset, read_mask, valid);
     if((pmpcfg >> (pmp_cfg_index + 4)) & 0x1) {
       result = result | 0x1ff;
     } else {
@@ -1831,9 +1830,9 @@ void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data,
           alias_mask = get_csr_poke_mask(hart, shadow_csr->second);
       }
       else {
-        uint64_t mask, poke_mask;
+        uint64_t mask, poke_mask, read_mask;
         bool valid;
-        if (!client_->whisperPeekCsr(hart, shadow_csr->second, data, mask, poke_mask, valid)) {
+        if (!client_->whisperPeekCsr(hart, shadow_csr->second, data, mask, poke_mask, read_mask, valid)) {
           cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek csr\n", hart);
         }
         alias_mask = get_csr_poke_mask(hart, shadow_csr->second);
@@ -1857,17 +1856,17 @@ uint64_t bridge::get_csr(hart_id_t hart, src_t src, uint64_t addr) {
 
 uint64_t bridge::get_csr_mask(hart_id_t hart, uint64_t addr) {
   bool valid;
-  uint64_t data, mask, poke_mask;
-  if (!client_->whisperPeekCsr(hart, addr, data, mask, poke_mask, valid)) {
+  uint64_t data, mask, poke_mask, read_mask;
+  if (!client_->whisperPeekCsr(hart, addr, data, mask, poke_mask, read_mask, valid)) {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek csr\n", hart);
   }
-  return mask;
+  return mask & read_mask;
 }
 
 uint64_t bridge::get_csr_poke_mask(hart_id_t hart, uint64_t addr) {
   bool valid;
-  uint64_t data, mask, poke_mask;
-  if (!client_->whisperPeekCsr(hart, addr, data, mask, poke_mask, valid)) {
+  uint64_t data, mask, poke_mask, read_mask;
+  if (!client_->whisperPeekCsr(hart, addr, data, mask, poke_mask, read_mask, valid)) {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek csr\n", hart);
   }
   return poke_mask;

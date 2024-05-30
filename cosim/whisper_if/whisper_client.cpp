@@ -310,7 +310,7 @@ whisperClient<URV>::whisperPeek(int hart, char resource, uint64_t addr, uint64_t
 template <typename URV>
 bool
 whisperClient<URV>::whisperPeekCsr(int hart, uint64_t addr, uint64_t& value, uint64_t& mask,
-         uint64_t& poke_mask, bool& valid)
+         uint64_t& poke_mask, uint64_t& read_mask, bool& valid)
 {
   req.hart = hart;
   req.type = WhisperMessageType::Peek;
@@ -324,6 +324,7 @@ whisperClient<URV>::whisperPeekCsr(int hart, uint64_t addr, uint64_t& value, uin
   value = reply.value;
   mask = reply.address;
   poke_mask = reply.time;
+  read_mask = reply.instrTag;
   return true;
 }
 
