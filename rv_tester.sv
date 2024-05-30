@@ -120,7 +120,9 @@ module rv_tester
       if(dyn_clk_switch & (clocks >10) &  ((clocks % freq_switch_ncycles) == 0)) begin
          //dynamically select clk from available profiles
          //this logic will generate the select pins of the mux ,which will switch between clks
-        //clock_mode <= ~clock_mode;
+        clock_mode <= clock_mode + 1'b1;
+        if(clock_mode == 2'b11)
+          clock_mode <= '0;
       end
        /* verilator lint_on WIDTH */
     end
