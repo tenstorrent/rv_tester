@@ -65,6 +65,9 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::jtag_tick<>>(
       loc_,
       [this](const rv_tester_transactions::sysmod::jtag_tick<>& t) { return this->jtag_tick(t.advance); });
+  cvm::registry::messenger.connect<rv_tester_transactions::sysmod::overlay_tick<>>(
+      loc_,
+      [this](const rv_tester_transactions::sysmod::overlay_tick<>& t) { return this->overlay_tick(t.advance); });
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::jtag_rdata<>>(
       loc_,
       [this](const rv_tester_transactions::sysmod::jtag_rdata<>& t) { return this->jtag_resp(t.rdata); });
@@ -776,6 +779,19 @@ sysmod::jtag_tick(uint64_t advance)
    if (advance) {
        for (auto& d : devices_) {
            d->jtag_tick(advance);
+       }
+   }
+}
+
+void
+sysmod::overlay_tick(uint64_t advance)
+{
+
+  overlay_ticks_ += advance;
+
+   if (advance) {
+       for (auto& d : devices_) {
+           d->overlay_tick(advance);
        }
    }
 }

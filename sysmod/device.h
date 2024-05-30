@@ -88,6 +88,7 @@ class device {
 
     virtual void tick(uint64_t) { };
     virtual void jtag_tick(uint64_t) { };
+    virtual void overlay_tick(uint64_t) { };
 
     virtual void reset() { };
 

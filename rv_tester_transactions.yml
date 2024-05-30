@@ -289,6 +289,12 @@ sysmod:
         fields:
             advance:
                 width: 64
+    overlay_tick:
+        domain: 2
+        num: 1
+        fields:
+            advance:
+                width: 64
     jtag_rdata:
         domain: 2
         num: 1

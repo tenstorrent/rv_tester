@@ -74,6 +74,8 @@ void trace_cfg::write(const transactor::write_t& ) {
 
 auto trace_cfg::pickRandomElements(uint32_t n) -> trace_cfg::random_list {
     random_list picks;
+
+    cvm::log(cvm::FULL, "[overlay axi] no of mmrs selected {} \n",n);
     for (uint32_t i = 0; i < n; i++) picks.push_back(mmr::list[rng() % mmr::list.size()]);
 
     return picks;

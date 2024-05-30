@@ -78,6 +78,13 @@ public:
     }
   }
 
+  virtual void overlay_tick(uint64_t advance) override
+  {
+    for (auto& d : subdevices_) {
+      d->overlay_tick(advance);
+    }
+  }
+
   /// Initialize memory with elf file.
   bool init_elf(const std::string& path);
 

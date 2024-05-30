@@ -1,11 +1,12 @@
 module sysmod
 import rv_tester_params::*;
 #(
-    parameter int CLOCK_PERIOD_PS           =     500,
-    parameter int JTAG_CLOCK_PERIOD_PS      =     100,
-    parameter int SW_CLOCK_UPDATE_PERIOD_PS = 100_000,
-    parameter int NUM                       =      -1,
-    parameter int JTAG_DR_WIDTH             =      70,
+    parameter int CLOCK_PERIOD_PS              =     500,
+    parameter int JTAG_CLOCK_PERIOD_PS         =     100,
+    parameter int OVERLAY_CLOCK_PERIOD_PS      =     100,
+    parameter int SW_CLOCK_UPDATE_PERIOD_PS    = 100_000,
+    parameter int NUM                          =      -1,
+    parameter int JTAG_DR_WIDTH                =      70,
     `TOPOLOGY,
     `RV_TESTER_TRANSACTIONS_SYSMOD_OUTPUT_PARAMS
 )(
@@ -104,6 +105,11 @@ import rv_tester_params::*;
     assign jtag_ticks[0].valid         = (0 == (clocks % JTAG_TICKS)) & (location != cvm_topology::nil);
     assign jtag_ticks[0].data.location = location;
     assign jtag_ticks[0].data.advance  = JTAG_TICKS;
+
+    localparam longint unsigned OVERLAY_TICKS = LU'(SW_CLOCK_UPDATE_PERIOD_PS)/LU'(OVERLAY_CLOCK_PERIOD_PS);
+    assign overlay_ticks[0].valid         = (0 == (clocks % OVERLAY_TICKS)) & (location != cvm_topology::nil);
+    assign overlay_ticks[0].data.location = location;
+    assign overlay_ticks[0].data.advance  = OVERLAY_TICKS;
 
     rv_tester_pkg::interrupt_t interrupt_d [NHARTS-1:0] = '{default: '0}; // FIXME how to reset these?
     rv_tester_pkg::interrupt_t interrupt_q [NHARTS-1:0];

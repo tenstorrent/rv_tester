@@ -65,6 +65,7 @@ class trace_cfg : public device {
         void write(const transactor::write_t& );
         std::unordered_map<std::string, uint32_t> extractMacros(const std::string& filename);
         random_list pickRandomElements(uint32_t n) ;
+        random_list randomElements;
 
         cvm::messenger::task<void> read(const transactor::read_t& , data_t& );
 
@@ -111,10 +112,10 @@ class trace_cfg : public device {
             x |= INT(data[i+(addr%64)]) << (i * 8);
         }     
         
-        virtual void tick(uint64_t) override
+        virtual void overlay_tick(uint64_t) override
         {
             if(start_trace_cnt == 0) {
-              start_trace_cnt = (rng()% 5) + 30;
+              start_trace_cnt = (rng()% 5) + 120;
               n = (rng()% 5) + 3;
               id_val = 0;
             }
@@ -142,11 +143,10 @@ class trace_cfg : public device {
               }
             }else if(FLAGS_trace_en && FLAGS_overlay_mmr_en){
               // cvm::log(cvm::HIGH, "[overlay axi regress] overlay timer tick advance interval {} start_trace_cnt{} n {} \n",cnt_tick,start_trace_cnt,n);
-                random_list randomElements;
                 if(end_test==1) complete_trace_test();
                 if(cnt_tick==start_trace_cnt){
-                  cvm::log(cvm::HIGH, "[overlay axi regress] success \n");
                   randomElements = pickRandomElements(n);
+                  cvm::log(cvm::HIGH, "[overlay axi regress] overlay timer tick advance interval {} start_trace_cnt{} n {} size {} \n",cnt_tick,start_trace_cnt,n,randomElements.size());
                 }
 
                 if(cnt_tick==(start_trace_cnt+20)) push_random_axi_write(randomElements);
@@ -220,10 +220,17 @@ class trace_cfg : public device {
       }
 
         void push_axi_mmr_seq() {
-          cvm::log(cvm::HIGH, "[overlay axi] overlay axi seq\n");
+          cvm::log(cvm::HIGH, "[overlay axi] overlay axi write seq\n");
           trace_wr_txn_q.push({trace_mmr::CDBG_CLA_COUNTER3_CFG,0xFF});
           trace_wr_txn_q.push({mmr::CDBG_NODE3_EAP1_CFG,0xFF});
-          cvm::log(cvm::HIGH, "[overlay axi] overlay axi seq completed\n");
+          cvm::log(cvm::HIGH, "[overlay axi] overlay axi write seq completed\n");
+        }
+
+        void push_read_axi_mmr_seq() {
+          cvm::log(cvm::HIGH, "[overlay axi] overlay axi read seq\n");
+          trace_misc_rd_txn_q.push({trace_mmr::CDBG_CLA_COUNTER3_CFG,8});
+          trace_misc_rd_txn_q.push({mmr::CDBG_NODE3_EAP1_CFG,8});
+          cvm::log(cvm::HIGH, "[overlay axi] overlay axi read seq completed\n");
         }
 
         void read_axi_pointers(){
@@ -233,12 +240,12 @@ class trace_cfg : public device {
         }
         
         void push_random_axi_read(const random_list&  elements){
-          cvm::log(cvm::HIGH, "[overlay axi regress] success reading\n");
+          cvm::log(cvm::HIGH, "[overlay axi regress] success reading with {} elements \n",elements.size());
 
           // Loop through elements and write to file
           for(int i = 0; i < 15;i++){
             for (const auto& e : elements) {
-                cvm::log(cvm::HIGH, "[overlay axi reads] register {} address {} size {}", e.name, e.value, 64);
+                cvm::log(cvm::FULL, "[overlay axi reads] register {} address {} size {} \n", e.name, e.value, 64);
                 trace_misc_rd_txn_q.push({e.value,8});
             }
           }
@@ -251,7 +258,7 @@ class trace_cfg : public device {
                 trace_wr_txn_q.push({e.value,0xFFFF});
             }
           }
-          cvm::log(cvm::HIGH, "[overlay axi] overlay write axi seq completed\n");
+          cvm::log(cvm::HIGH, "[overlay axi] overlay write axi seq completed with queue size {}\n",trace_wr_txn_q.size());
         }
         void push_trace_enable_seq() {
           cvm::log(cvm::HIGH, "[Trace_cfg] trace_cfg inside enable trace seq\n");
