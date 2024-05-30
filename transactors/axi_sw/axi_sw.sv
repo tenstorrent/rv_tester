@@ -69,7 +69,7 @@ module axi_sw #(
     parameter type qos_t    = logic [3:0],
     parameter type region_t = logic [3:0],
     parameter type atop_t   = logic [5:0],
-    parameter type user_t   = logic [7:0],
+    parameter type user_t   = logic [0:0],
     `RV_TESTER_TRANSACTIONS_AXI_SW_OUTPUT_PARAMS
 
 )(
@@ -85,6 +85,12 @@ module axi_sw #(
     input  size_t            axi_mst_ar_size,
     input  burst_t           axi_mst_ar_burst,
     input  logic             axi_mst_ar_lock,
+    input  cache_t           axi_mst_ar_cache,
+    input  prot_t            axi_mst_ar_prot,
+    input  qos_t             axi_mst_ar_qos,
+    input  region_t          axi_mst_ar_region,
+    input  atop_t            axi_mst_ar_atop,
+    input  user_t            axi_mst_ar_user,
 
     input  logic             axi_mst_aw_valid,
     input  id_t              axi_mst_aw_id,
@@ -92,8 +98,13 @@ module axi_sw #(
     input  len_t             axi_mst_aw_len,
     input  size_t            axi_mst_aw_size,
     input  burst_t           axi_mst_aw_burst,
-    input  atop_t            axi_mst_aw_atop,
     input  logic             axi_mst_aw_lock,
+    input  cache_t           axi_mst_aw_cache,
+    input  prot_t            axi_mst_aw_prot,
+    input  qos_t             axi_mst_aw_qos,
+    input  region_t          axi_mst_aw_region,
+    input  atop_t            axi_mst_aw_atop,
+    input  user_t            axi_mst_aw_user,
 
     input  logic             axi_mst_w_valid,
     input  data_t            axi_mst_w_data,
@@ -259,6 +270,14 @@ module axi_sw #(
                 aws[0].data.burst     <= axi_mst_aw_burst;
                 aws[0].data.lock      <= axi_mst_aw_lock;
                 aws[0].data.atop      <= axi_mst_aw_atop;
+                aws[0].data.cache     <= axi_mst_aw_cache;
+                aws[0].data.prot      <= axi_mst_aw_prot;
+                aws[0].data.qos       <= axi_mst_aw_qos;
+                aws[0].data.region    <= axi_mst_aw_region;
+                aws[0].data.atop      <= axi_mst_aw_atop;
+                aws[0].data.user      <= axi_mst_aw_user;
+
+
             end
             if (axi_mst_ar_valid && axi_slv_ar_ready) begin
                 ars[0].valid          <= '1 & (location != cvm_topology::nil);
@@ -269,6 +288,11 @@ module axi_sw #(
                 ars[0].data.size      <= axi_mst_ar_size;
                 ars[0].data.burst     <= axi_mst_ar_burst;
                 ars[0].data.lock      <= axi_mst_ar_lock;
+                ars[0].data.cache     <= axi_mst_ar_cache;
+                ars[0].data.prot      <= axi_mst_ar_prot;
+                ars[0].data.qos       <= axi_mst_ar_qos;
+                ars[0].data.region    <= axi_mst_ar_region;
+                ars[0].data.user      <= axi_mst_ar_user;
             end
         end
     end
@@ -352,7 +376,7 @@ module axi_sw_mst #(
     parameter type qos_t    = logic [3:0],
     parameter type region_t = logic [3:0],
     parameter type atop_t   = logic [5:0],
-    parameter type user_t   = logic [7:0],
+    parameter type user_t   = logic [0:0],
     `RV_TESTER_TRANSACTIONS_AXI_SW_MST_OUTPUT_PARAMS
 
 )(
@@ -368,6 +392,11 @@ module axi_sw_mst #(
     output size_t            axi_mst_ar_size,
     output burst_t           axi_mst_ar_burst,
     output logic             axi_mst_ar_lock,
+    output cache_t           axi_mst_ar_cache,  
+    output prot_t            axi_mst_ar_prot,  
+    output qos_t             axi_mst_ar_qos,   
+    output region_t          axi_mst_ar_region,
+    output user_t            axi_mst_ar_user,  
 
     output logic             axi_mst_aw_valid,
     output id_t              axi_mst_aw_id,
@@ -375,8 +404,13 @@ module axi_sw_mst #(
     output len_t             axi_mst_aw_len,
     output size_t            axi_mst_aw_size,
     output burst_t           axi_mst_aw_burst,
-    output atop_t            axi_mst_aw_atop,
     output logic             axi_mst_aw_lock,
+    output cache_t           axi_mst_aw_cache, 
+    output prot_t            axi_mst_aw_prot, 
+    output qos_t             axi_mst_aw_qos,  
+    output region_t          axi_mst_aw_region,
+    output atop_t            axi_mst_aw_atop,
+    output user_t            axi_mst_aw_user,
 
     output logic             axi_mst_w_valid,
     output data_t            axi_mst_w_data,
@@ -477,6 +511,11 @@ module axi_sw_mst #(
         axi_mst_ar_size  = ar.size;
         axi_mst_ar_burst = ar.burst;
         axi_mst_ar_lock  = ar.lock;
+        axi_mst_ar_cache = ar.cache; 
+        axi_mst_ar_prot  = ar.prot; 
+        axi_mst_ar_qos   = ar.qos;   
+        axi_mst_ar_region = ar.region;
+        axi_mst_ar_user  = ar.user; 
     end
 
     logic aw_queue_rptr_incremented, aw_queue_empty;
@@ -499,8 +538,13 @@ module axi_sw_mst #(
         axi_mst_aw_len   = aw.len;
         axi_mst_aw_size  = aw.size;
         axi_mst_aw_burst = aw.burst;
-        axi_mst_aw_atop  = aw.atop;
         axi_mst_aw_lock  = aw.lock;
+        axi_mst_aw_cache = aw.cache;  
+        axi_mst_aw_prot  = aw.prot; 
+        axi_mst_aw_qos   = aw.qos;  
+        axi_mst_aw_region= aw.region;
+        axi_mst_aw_atop  = aw.atop;
+        axi_mst_aw_user  = aw.user;
     end
 
     logic w_queue_rptr_incremented, w_queue_empty;

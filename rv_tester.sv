@@ -493,6 +493,11 @@ module rv_tester
             .axi_mst_ar_size (axi_req_llc[p].ar.size),
             .axi_mst_ar_lock (axi_req_llc[p].ar.lock),
             .axi_mst_ar_burst(axi_req_llc[p].ar.burst),
+            .axi_mst_ar_cache (axi_req_llc[p].ar.cache), 
+            .axi_mst_ar_prot  (axi_req_llc[p].ar.prot),
+            .axi_mst_ar_qos   (axi_req_llc[p].ar.qos), 
+            .axi_mst_ar_region(axi_req_llc[p].ar.region),
+            .axi_mst_ar_user  (axi_req_llc[p].ar.user), 
 
             .axi_mst_aw_valid(axi_req_llc[p].aw_valid),
             .axi_mst_aw_id   (axi_req_llc[p].aw.id),
