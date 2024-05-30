@@ -40,6 +40,18 @@ module rv_tester
                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(def_clk[c]));
                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE1_CLOCK_FREQ_MHZ[c])) profile1_clkgen(.clk(profile1_clk[c]));
                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE2_CLOCK_FREQ_MHZ[c])) profile2_clkgen(.clk(profile2_clk[c]));
+                clk_mux_glitch_free #(
+                    .NUM_INPUTS(4),
+                    .CLOCK_DURING_RESET(1)
+                ) i_clk_mux (
+                    .clks_i         ({def_clk[c], profile1_clk[c], profile2_clk[c],0}),
+                    .test_clk_i     (1'b0),             // FIXME:Add test clock
+                    .test_en_i      (1'b0),             // FIXME:Add test enable
+                    .async_rstn_i   (~rv_tester_reset),
+                    .async_sel_i    (clock_mode),
+                    //.async_sel_i    (0),
+                    .clk_o          (clk[c])
+                );
             end
          end
     
@@ -128,26 +140,6 @@ module rv_tester
     end
    // assign clk = clock_mode ? profile1_clk: def_clk; //clkmux
     ////////////////// Clock mux Instantiation ///////////////////////////
-    for (genvar c = 0; c < NCLKS; c++) begin
-            if (!(PLL_CLOCK[c] && pll_clock_exists))begin
-               
-                clk_mux_glitch_free #(
-                    .NUM_INPUTS(4),
-                    .CLOCK_DURING_RESET(1)
-                ) i_clk_mux0 (
-                    .clks_i         ({def_clk[c], profile1_clk[c], profile2_clk[c],0}),
-                    .test_clk_i     (1'b0),             // FIXME:Add test clock
-                    .test_en_i      (1'b0),             // FIXME:Add test enable
-                    .async_rstn_i   (~rv_tester_reset),
-                    .async_sel_i    (clock_mode),
-                    //.async_sel_i    (0),
-                    .clk_o          (clk[c])
-                );
-            
-            end 
-           
-    end
-   
 
 
     /*
