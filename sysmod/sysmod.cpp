@@ -19,6 +19,7 @@
 #include "null_dev/null_dev.h"
 #include "heartbeat/heartbeat.h"
 #include "htif/htif.h"
+#include "uart8250/uart8250.h"
 #include "trickbox/trickbox.h"
 #include "rv_tester/rv_tester_structs.h"
 #include "rv_tester/rv_tester_plusargs.h"
@@ -380,6 +381,9 @@ sysmod::compose()
         cvm::registry::messenger.connect<htif::terminate_t>(
             loc_,
             [&](htif::terminate_t t) { return this->terminate(t); });
+      }
+      else if (type == "uart8250") {
+        device = std::make_unique<uart8250>(tag, base, loc_);
       }
       else if (type == "dm") {
         // TODO: cvm::ERROR
