@@ -25,27 +25,30 @@ void uart8250::read(const transactor::read_t& r, data_t& data) {
                     iir_ |= 1;   // Set least sig bit indicating no interrupt.
                     set_interrupt_pending(false);
                     data[0] = res;
+                    break;
                 }
 
-            case 1: data[0] = ier_;
-            case 2: data[0] = iir_;
-            case 3: data[0] = lcr_;
-            case 4: data[0] = mcr_;
-            case 5: data[0] = lsr_;
-            case 6: data[0] = msr_;
-            case 7: data[0] = scr_;
+            case 1: data[0] = ier_; break;
+            case 2: data[0] = iir_; break;
+            case 3: data[0] = lcr_; break;
+            case 4: data[0] = mcr_; break;
+            case 5: data[0] = lsr_; break;
+            case 6: data[0] = msr_; break;
+            case 7: data[0] = scr_; break;
+            default:
+                cvm::log(cvm::ERROR, "Error: could not process uart read to address 0x{:x} of size {}\n", addr, length);
         }
     }
     else
     {
         switch (offset)
         {
-            case 0: data[0] = dll_;
-            case 1: data[0] = dlm_;
+            case 0: data[0] = dll_; break;
+            case 1: data[0] = dlm_; break;
+            default:
+                cvm::log(cvm::ERROR, "Error: could not process uart read to address 0x{:x} of size {}\n", addr, length);
         }
     }
-
-    cvm::log(cvm::ERROR, "Error: could not process uart read to address 0x{:x} of size {}\n", addr, length);
 }
 
 void uart8250::write(const transactor::write_t& w)
