@@ -32,11 +32,34 @@ module rv_tester
         `endif
         ;
         for (genvar c = 0; c < NCLKS; c++) begin
-            if (PLL_CLOCK[c] && pll_clock_exists)
+            if (PLL_CLOCK[c] && pll_clock_exists)begin
                 assign clk[c] = clk_pll[c];
-            else
-                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(clk[c]));
-        end
+            
+            end 
+            else begin
+                `ifdef CLK_MUX_UNSUPPORTED
+                                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(clk[c]));
+                `else
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(def_clk[c]));
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE1_CLOCK_FREQ_MHZ[c])) profile1_clkgen(.clk(profile1_clk[c]));
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE2_CLOCK_FREQ_MHZ[c])) profile2_clkgen(.clk(profile2_clk[c]));
+                
+                clk_mux_glitch_free #(
+                    .NUM_INPUTS(4),
+                    .CLOCK_DURING_RESET(1)
+                ) i_clk_mux (
+                    .clks_i         ({def_clk[c], profile1_clk[c], profile2_clk[c],0}),
+                    .test_clk_i     (1'b0),             // FIXME:Add test clock
+                    .test_en_i      (1'b0),             // FIXME:Add test enable
+                    .async_rstn_i   (~rv_tester_reset),
+                    .async_sel_i    (clock_mode),
+                    //.async_sel_i    (0),
+                    .clk_o          (clk[c])
+                );
+                `endif
+            end
+         end
+    
     end
 
     import "DPI-C" function void rv_tester_streaming_dpi_init();
@@ -54,10 +77,14 @@ module rv_tester
     logic sysmod_reset = '0;
     LU clocks = 0;
     bit cb_poll = '0;
+    bit dyn_clk_switch = '0;
     bit cb_success = '1;
     logic call_finish;
     int num_reruns = -1;
     bit trace_en = 0;
+    /* verilator lint_off UNOPTFLAT */
+    logic [1:0] clock_mode = '0;
+    /* verilator lint_on UNOPTFLAT */
     bit jtag_en = 0;
     bit overlay_mmr_en = 0;
     logic trace_quiesced;
@@ -86,6 +113,8 @@ module rv_tester
     logic [31:0] dmi_commands_in_queue; 
 
     int trace_timeout = 50000;
+    int freq_switch_ncycles = 7000;
+    int clk_profile = 0;
 
     int unsigned location = cvm_topology::nil;
 
@@ -97,6 +126,27 @@ module rv_tester
     assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && (dmi_commands_in_queue == '0) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced ); 
     
     assign rerun_now           = terminated && num_reruns > 0;
+   `ifndef CLK_MUX_UNSUPPORTED 
+    always @(posedge clk[TB_CLK_IDX])begin
+      if (rv_tester_reset)begin 
+        
+           clock_mode <= clk_profile[1:0];
+        
+      end
+        /* verilator lint_off WIDTH */
+      if(dyn_clk_switch & (clocks >10) &  ((clocks % freq_switch_ncycles) == 0)) begin
+         //dynamically select clk from available profiles
+         //this logic will generate the select pins of the mux ,which will switch between clks
+        clock_mode <= clock_mode + 1'b1;
+        if(clock_mode == 2'b11)
+          clock_mode <= '0;
+      end
+       /* verilator lint_on WIDTH */
+    end
+    `endif
+   // assign clk = clock_mode ? profile1_clk: def_clk; //clkmux
+    ////////////////// Clock mux Instantiation ///////////////////////////
+
 
     /*
     * Don't put an DPI calls here, zebu gets confused when signals are driven
@@ -183,6 +233,9 @@ module rv_tester
             quiesce_timeout     <= cvm_plusargs::get_int("quiesce_timeout");
             trace_timeout       <= cvm_plusargs::get_int("trace_timeout");
             flush_timeout       <= cvm_plusargs::get_int("flush_timeout");
+            freq_switch_ncycles <= cvm_plusargs::get_int("freq_switch_ncycles");
+            clk_profile         <= cvm_plusargs::get_int("clk_profile");
+            dyn_clk_switch      <= cvm_plusargs::get_bool("dyn_clk_switch") != '0;
             call_finish         <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
             gen_clocks          <= cvm_verbosity >= gen_clocks_verbosity;
             bypass_mem          <= cvm_plusargs::get_bool("bypass_mem") != '0;
