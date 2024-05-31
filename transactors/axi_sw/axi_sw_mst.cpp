@@ -182,14 +182,10 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const axi::w_t& w) {
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 bool
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::a_wrapper(uint64_t req_addr, size_t req_length, axi::a_t& a) {
-//axi_sw_mst<B, R, ARQ, AWQ, WQ>::a_wrapper(uint64_t req_addr, size_t req_length,axi::burst_t req_burst,axi::cache_mem_attr_t req_cache ,axi::prot_t req_prot ,axi::qos_t req_qos ,axi::user_t req_user , axi::a_t& a) {
 
     a.addr = req_addr;
     a.burst =axi::BURST_INCR; a.atop = false; a.lock = false;
-    // a.cache =req_cache; 
-    // a.prot = req_prot ;
-    // a.qos = req_qos;
-    // a.user = req_user;
+
 
     if (!next_id(a.id)) {
         cvm::log(cvm::ERROR, "No free id's remaining for axi master\n");
