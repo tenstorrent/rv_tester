@@ -107,13 +107,8 @@ class smc_xtor : public device {
         
         virtual void tick(uint64_t) override
         {
-           
-            cvm::log(cvm::FULL, "[SMC] tick {:#X} \n",cnt_tick);
-           if(cnt_tick >20){
-            axi_write_granular();
-            
-            }   
-//return;      
+            if(!FLAGS_smc_en)
+              return;
             cvm::log(cvm::FULL, "[SMC] tick {:#X} \n",cnt_tick);
             if(in_boot_seq && ( cnt_tick > uint32_t(FLAGS_smc_reset_seq_start_ticks))){
             cvm::log(cvm::FULL, "[SMC] IN BOOT SEQ {} reset complition {} \n",in_boot_seq,reset_completion);
