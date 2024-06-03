@@ -20,6 +20,10 @@ module rv_tester
 
     logic bypass_mem = 1;
     logic bypass_cache = 1;
+    logic rv_tester_reset = '1;
+    /* verilator lint_off UNOPTFLAT */
+    logic [1:0] clock_mode = '0;
+    /* verilator lint_on UNOPTFLAT */
 
     if (EXTERNAL_CLOCK) begin
         for (genvar c = 0; c < NCLKS; c++) begin
@@ -73,7 +77,7 @@ module rv_tester
     localparam int unsigned AxiIdWidthMstRv    = topology.TOP.PLATFORM.AXI.ID_WIDTH + $clog2(topology.TOP.PLATFORM.AXI.TOTAL) + 1;
 
     logic flush_complete;
-    logic rv_tester_reset = '1;
+    
     logic sysmod_reset = '0;
     LU clocks = 0;
     bit cb_poll = '0;
@@ -82,9 +86,7 @@ module rv_tester
     logic call_finish;
     int num_reruns = -1;
     bit trace_en = 0;
-    /* verilator lint_off UNOPTFLAT */
-    logic [1:0] clock_mode = '0;
-    /* verilator lint_on UNOPTFLAT */
+
     bit jtag_en = 0;
     bit overlay_mmr_en = 0;
     logic trace_quiesced;
