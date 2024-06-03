@@ -48,7 +48,7 @@ module rv_tester
                     .NUM_INPUTS(4),
                     .CLOCK_DURING_RESET(1)
                 ) i_clk_mux (
-                    .clks_i         ({def_clk[c], profile1_clk[c], profile2_clk[c],0}),
+                    .clks_i         ({def_clk[c], profile1_clk[c], profile2_clk[c],1'b0}),
                     .test_clk_i     (1'b0),             // FIXME:Add test clock
                     .test_en_i      (1'b0),             // FIXME:Add test enable
                     .async_rstn_i   (~rv_tester_reset),
