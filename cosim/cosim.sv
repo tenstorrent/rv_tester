@@ -71,20 +71,30 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
         /* verilator lint_on WIDTH */
     endfunction
     
-    function automatic [$clog2(NRET+1)-1:0] count(input bit [NRET-1:0] valid, input bit [NRET-1:0][63:0] order);
+    //---------------------------------------------------------------
+    // Function to return the count of VALIDS with UNIQUE ORDER bits
+    //---------------------------------------------------------------
+    function automatic [$clog2(NRET+1)-1:0] valid_count(input bit [NRET-1:0] valid, input bit [NRET-1:0][63:0] order, input bit [NRET-1:0] last_uops);
         bit [63:0] corder=0; 
-        count = 0;
+        valid_count = 0;
         /* verilator lint_off WIDTH */
         for(int i=0;i<NRET;i=i+1) begin
-            if (i==0) begin
-                if (valid[0] == 1) begin
-                   count = 1;
-                end
+            if ((valid[i] == 1'b1) & (last_uops[i] == 1'b1)) begin
+               valid_count = valid_count + 1;
             end
-            else begin
-                if ((valid[i] == 1) & ((order[i] != order[i-1]) )) begin
-                   count = count + 1; 
-                end
+        end
+        /* verilator lint_on WIDTH */
+    endfunction
+
+    //----------------------------------------------------------
+    // Function to return the highest valid order bits
+    //----------------------------------------------------------
+    function automatic [63:0] max_order(input bit [NRET-1:0] valid, input bit [NRET-1:0][63:0] order);
+        max_order = 0;
+        /* verilator lint_off WIDTH */
+        for(int i=NRET-1;i>=0;i=i-1) begin
+            if (valid[i] == 1) begin
+               return(order[i]); 
             end
         end
         /* verilator lint_on WIDTH */
@@ -102,6 +112,7 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
         return({1'b0,64'h0});
         /* verilator lint_on WIDTH */
     endfunction
+
     function automatic [256:0] hipri_wdata256(input bit [4:0] rsel, input bit [NRET-1:0] valid, input bit [NRET-1:0][4:0] rd_addr, input bit [NRET-1:0][255:0] wdata);
         /* verilator lint_off WIDTH */
         for(int i=NRET-1;i>=0;i=i-1) begin
@@ -118,11 +129,12 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
     import "DPI-C" context function void cosim_set_scope(int unsigned location);
 
 
+    bit PSC_enabled;
     typedef longint unsigned LU;
     int unsigned location = cvm_topology::nil;
     bit rvfi_enabled;
-    bit state_cmp_enabled;
     int unsigned scheck_period=0;
+    bit [31:0]  mcmi_poke_enable=0;
 
     bit get_cosim_compare_values = 1;
     bit reset_d1 = 1;
@@ -146,12 +158,37 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
     bit               mcmi_write_poke;
     bit [NBYPASS-1:0] mcmi_bypass_pokes;
     bit               mcmi_bypass_poke;
-    longint unsigned scheck_addr_hi=0;
-    longint unsigned scheck_addr_lo=0;
+    bit [NREAD-1:0]   mcmi_read_pokes;
+    bit               mcmi_read_poke;
+    bit [NINSERT-1:0] mcmi_insert_pokes;
+    bit               mcmi_insert_poke;
+    bit [NIEVICT-1:0] mcmi_ievict_pokes;
+    bit               mcmi_ievict_poke;
+
+    bit               mcmi_poke_write_en;     //mcmi_pokes[0];
+    bit               mcmi_poke_bypass_en;    //mcmi_pokes[1];
+    bit               mcmi_poke_read_en;      //mcmi_pokes[2];
+    bit               mcmi_poke_insert_en;    //mcmi_pokes[3];
+    bit               mcmi_poke_ievict_en;    //mcmi_pokes[4];
+
+    bit               mcmi_poke;
+    bit               force_compare;     
+ 
 
     bit [31:0]             rvfi_scheck_cnt;
     bit [NRET-1:0]         rvfi_valids;
     bit [NRET-1:0][63:0]   rvfi_orders;
+    bit [NRET-1:0]         rvfi_luops;
+    bit [63:0]             rvmax_order;
+    bit [63:0]             rvfi_steps;
+    bit [63:0]             rvfi_step_cnt;
+    bit [63:0]             rvfi_skips;
+    bit [63:0]             rvfi_exp_order;
+    bit                    rvfi_skip;
+    bit                    order_skip;
+    bit                    send_steps;
+    bit                    rvfi_first_valid;
+    bit [63:0]             val0_order;
     bit [NRET-1:0]         rvgp_valids;
     bit [NRET-1:0]         rvfp_valids;
     bit [NRET-1:0]         rvvc_valids;
@@ -161,17 +198,20 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
     bit [NRET-1:0]         intr_memw;
     bit [NRET-1:0]         cmp_memw;
     bit [NRET-1:0]         poke_events;                     // events that should cause a Poke in Whisper 
+    bit [NRET-1:0]         poke_no_uop;                     // events that should cause a Poke in Whisper 
+    bit                    poke_event;                      // 
+    bit [NRET-1:0][63:0]      rvfi_last_poke_orders;        // Tracks orders from previus cycle that "poked" but had last_uop=0
+    bit [NRET-1:0][NRET-1:0]  rvfi_no_uop_events;           // matchs current order to previous last_poke_orders that last_uop=1 now
+    bit                    poke_no_uop_event;
     bit [NWRITE-1:0]       eot_writes_found;                // end-of-test event found in mcmi_writes ifc
     bit [NBYPASS-1:0]      eot_bypass_found;                // end-of-test event found in mcmi_bypass ifc
-    bit [NRET-1:0]         force_steps;                     // At end-of-test if "steps" need to executed we can force bridge to do them 
-    bit [31:0]             rvfi_steps;                      // total number of rvfi_valids we did NOT send 
-    bit [$clog2(NRET+1)-1:0] valid_cnt;                      // number of rvfi_valids == 1 in 1 clock
+    bit [$clog2(NRET+1)-1:0] valid_cnt;                     // number of rvfi_valids == 1 in 1 clock
 
     bit                    eot_found;                       // end-of-test event found 
     bit                    eot_max_instr;                   // max # instructions end-of-test event found 
     bit                    rvfi_valid;
     bit                    send_rvfi;
-    bit                    compare_state;
+    bit                    psc_send_regs;
     bit                    gp_regs_changed, gp_changed; 
     bit                    fp_regs_changed, fp_changed; 
     bit                    vc_regs_changed, vc_changed; 
@@ -200,6 +240,7 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
     for(genvar n=0;n<NRET;n=n+1) begin
         assign rvfi_valids[n] = rvfi[n].valid ;
         assign rvfi_orders[n] = rvfi[n].order ;
+        assign rvfi_luops[n]  = rvfi[n].last_uop;
         assign rd_addr[n]     = rvfi[n].rd_addr[4:0];
         assign frd_addr[n]    = rvfi[n].frd_addr[4:0];
         assign vrd_addr[n]    = rvfi[n].vrd_addr[4:0];
@@ -214,20 +255,6 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
     assign rvfi_valid = | rvfi_valids;                        // OR of all valid retires
 
 
-    //------------------------------------------------------------------------------------------------------------------
-    // FORCE STEPS logic:
-    //   When the EOT is found we and we have UN-accounted for whisper steps to execute we need
-    //   send these immediately (poke event).
-    //   ISSUE: there may or may not be an RVFI valid to piggyback on to to issue the steps
-    //   FIX:   we will FORCE valid 0 to be high and set the "force_steps" flag to 1
-    //          force steps will tell the bridge that there are no instructions begin sent... just STEPS to execute
-    //          If there IS an instruction retiring we will not force the steps
-    //------------------------------------------------------------------------------------------------------------------
-
-    assign force_steps[0] = (~rvfi_valid & eot_found & (rvfi_steps != 0)) ? 1'b1: 1'b0;  
-    for(genvar n=1;n<NRET;n=n+1) begin
-        assign force_steps[n] = 1'b0; 
-    end
 
 
     //--------------------------------------------------------------------------------------------
@@ -253,10 +280,10 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
     assign vc_reg_written = (rvvc_valids != 0);
 
     always @(posedge clk) begin
-        if (dut_reset==1'b1)  
+        if (reset==1'b1)  
             gp_regs_changed <= 1'b0;
         else
-        if (compare_state) 
+        if (psc_send_regs) 
             gp_regs_changed <= 1'b0;                  // clear change register...unless we are writting in the save state too
         else
         if (gp_reg_written)                           // not saving the state..set if writting a GP register 
@@ -264,10 +291,10 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
     end
 
     always @(posedge clk) begin
-        if (dut_reset==1'b1)  
+        if (reset==1'b1)  
             fp_regs_changed <= 1'b0;
         else
-        if (compare_state) 
+        if (psc_send_regs) 
             fp_regs_changed <= 1'b0;                  // clear change register...unless we are writting in the save state too
         else
         if (fp_reg_written)                           // not saving the state..set if writting a FP register 
@@ -275,10 +302,10 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
     end
 
     always @(posedge clk) begin
-        if (dut_reset==1'b1)  
+        if (reset==1'b1)  
             vc_regs_changed <= 1'b0;
         else
-        if (compare_state) 
+        if (psc_send_regs) 
             vc_regs_changed <= 1'b0;                  // clear change register...unless we are writting in the save state too
         else
         if (vc_reg_written)                           // not saving the state..set if writting a vector register 
@@ -290,11 +317,6 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
     assign vc_changed = vc_regs_changed | vc_reg_written;
 
 
-    //---------------------------------------------------------------------------------
-    // State Compare method enabled with SCHECK_PERIOD set to value > 0
-    //    - when method not enabled we should operate in legacy mode
-    //---------------------------------------------------------------------------------
-    assign state_cmp_enabled = (scheck_period != 0);
 
 
     //---------------------------------------------------------------------------------
@@ -305,42 +327,74 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
     //        3) Execptions 
     //        4) Interrupts 
     //        5) Interrupts Causes 
-    //        6) End-Of-Test detected 
+    //        6) REGISTER COMPARE EVENT 
     //
-    //   - We force an RVFI to be sent when we need to do a SAVE STATES
-    //       - these only occur when there is an RVFI valid=1
     //---------------------------------------------------------------------------------
     for(genvar n=0;n<NRET;n=n+1) begin
         assign sc_rw[n]  = rvfi[n].valid & ((rvfi[n].insn[6:0] == 7'b0101111) & (rvfi[n].insn[14:13] == 2'b01)  & (rvfi[n].insn[31:27] == 5'b00011));
         assign csr_rw[n] = rvfi[n].valid & ((rvfi[n].insn[6:0] == 7'b1110011) & (rvfi[n].insn[14:12] != 3'b000));
         assign excepts[n]= rvfi[n].valid & (rvfi[n].intr  | rvfi[n].trap);
-        //if (d.mem_write.valid && d.mem_write.size==4 && ((d.mem_write.pa>=0x40000000 &&  d.mem_write.pa <0x42000000) || (d.mem_write.pa>=0x44000000 &&  d.mem_write.pa < 0x46000000)) ) {
         assign intr_memw[n]= rvfi[n].valid & (rvfi[n].mem_wmask != 0) & (rvfi[n].mem_wmask[1:0]==2'b11) & (rvfi[n].mem_paddr[PA_WIDTH-1:32] == '0) & ((rvfi[n].mem_paddr[31:25]==7'h20) | (rvfi[n].mem_paddr[31:25]==7'h22));
 
-        assign cmp_memw[n]= rvfi[n].valid & (rvfi[n].mem_wmask != 0) & (rvfi[n].mem_paddr[PA_WIDTH-1:0] >= scheck_addr_lo) & (rvfi[n].mem_paddr[PA_WIDTH-1:0] <= scheck_addr_hi);
-
-        assign poke_events[n]  = (sc_rw[n] | csr_rw[n] | excepts[n] | intr_memw[n] | cmp_memw[n] | compare_state) | ~state_cmp_enabled; 
+        assign poke_events[n]  = sc_rw[n] | csr_rw[n] | excepts[n] | intr_memw[n];
     end
 
-    assign send_rvfi = | poke_events;
+
+    for(genvar n=0;n<NRET;n=n+1) begin
+        always @(posedge clk)
+        begin
+            if (reset) 
+               rvfi_last_poke_orders[n] = '0;
+            else  
+               if (rvfi[n].valid & ~rvfi[n].last_uop & poke_events[n])
+                  rvfi_last_poke_orders[n] <= rvfi[n].order;
+        end
+ 
+        
+        //----------------------------------------------------------------------------------------------------------
+        // Match current order with last clocks rvfi orders that had a "poke" but last_uop=0 .. now last_up==1
+        //----------------------------------------------------------------------------------------------------------
+        for(genvar m=0;m<NRET;m=m+1) begin
+            assign rvfi_no_uop_events[n][m] = rvfi[n].valid & (rvfi[n].order == rvfi_last_poke_orders[m]) & rvfi[n].last_uop;
+        end
+        
+    end
+
+    assign poke_no_uop_event = (rvfi_no_uop_events != '0) ? 1'b1 : 1'b0;
+
+    assign poke_event = (poke_events != '0) | psc_send_regs | poke_no_uop_event; 
+
+    assign send_rvfi =  poke_event | ~PSC_enabled;
+
+    assign mcmi_poke_write_en  = mcmi_poke_enable[0];
+    assign mcmi_poke_bypass_en = mcmi_poke_enable[1];
+    assign mcmi_poke_read_en   = mcmi_poke_enable[2];
+    assign mcmi_poke_insert_en = mcmi_poke_enable[3];
+    assign mcmi_poke_ievict_en = mcmi_poke_enable[4];
+
+    assign mcmi_poke = (mcmi_poke_write_en  & mcmi_write_poke)  | 
+                       (mcmi_poke_bypass_en & mcmi_bypass_poke) |
+                       (mcmi_poke_read_en   & mcmi_read_poke)   |
+                       (mcmi_poke_insert_en & mcmi_insert_poke) |
+                       (mcmi_poke_ievict_en & mcmi_ievict_poke) ;
  
 
     
-    assign m_gp_regss[0].valid      = compare_state;
+    assign m_gp_regss[0].valid      = psc_send_regs;
     assign m_gp_regss[0].data.hart  = NUM;
     assign m_gp_regss[0].data.location = location;
     for(genvar n=0;n<NGP_REGS;n=n+1) begin
         assign m_gp_regss[0].data.value[n][63:0] = gp_wdata_in[n];
     end
 
-    assign m_fp_regss[0].valid = compare_state & fp_regs_changed;
+    assign m_fp_regss[0].valid = psc_send_regs & fp_regs_changed;
     assign m_fp_regss[0].data.hart  = NUM;
     assign m_fp_regss[0].data.location = location;
     for(genvar n=0;n<NFP_REGS;n=n+1) begin
         assign m_fp_regss[0].data.value[n][63:0] = fp_wdata_in[n];
     end
 
-    assign m_vc_regss[0].valid = compare_state & vc_regs_changed;
+    assign m_vc_regss[0].valid = psc_send_regs & vc_regs_changed;
     assign m_vc_regss[0].data.hart  = NUM;
     assign m_vc_regss[0].data.location = location;
     for(genvar n=0;n<NVC_REGS;n=n+1) begin
@@ -368,19 +422,16 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
         /* verilator lint_on BLKSEQ */
     endfunction
 
-
-    //--------------------------------------------------------------------------------------------------------
-    // force_steps == 1 ONLY for rvfi[0].  Only asserted when we need to advance the model but there are no
-    //   valid rvfi packets to piggyback on so we force rvfi pkt 0 to go in... but ONLY to step the ISS model
-    //--------------------------------------------------------------------------------------------------------
+    //---------------------------------------------------------------------------
+    // PERIODIC STATE COMPARE feature enabled when scheck_period value > 0
+    //---------------------------------------------------------------------------
+    assign PSC_enabled = (scheck_period != '0) ? 1'b1 : 1'b0;
 
     // m_rvfi
     for (genvar n = 0; n < NRET; n++) begin
-        assign m_rvfis[n].valid            = RVFI_EN & rvfi_enabled & ~dut_reset & (rvfi[n].valid | force_steps[n]) & send_rvfi;
+        assign m_rvfis[n].valid            = RVFI_EN & rvfi_enabled & ~dut_reset & rvfi[n].valid & send_rvfi;
         assign m_rvfis[n].data.location    = location;
         assign m_rvfis[n].data.cycle       = clocks;
-        assign m_rvfis[n].data.steps       = rvfi_steps;
-        assign m_rvfis[n].data.step_only   = force_steps[n]; 
         assign m_rvfis[n].data.hart        = NUM;
         assign m_rvfis[n].data.last_uop    = rvfi[n].last_uop;
         assign m_rvfis[n].data.last_insn   = rvfi[n].last_insn;
@@ -422,21 +473,69 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
     //---------------------------------------------------------------
     // Keep track of number of instructions we did NOT send to cosim
     //  steps will be used to advance the Whisper model 
+    //
+    //  we send a STEP msg to whisper under 2 conditions:
+    //       - a POKE event occurred (send_rvfi)
+    //       - an instruction order was OUT-of-order...
     //---------------------------------------------------------------
 
-    assign valid_cnt = count(rvfi_valids, rvfi_orders);
+    assign valid_cnt   = valid_count(rvfi_valids, rvfi_orders,rvfi_luops);    // count of valid-unique rvfi orders
+    assign rvmax_order = max_order(rvfi_valids, rvfi_orders);                 // highest order valid-unique rvfi
+
+    //----------------------------------------------------------------------
+    // order skip is when either order[0] does not equal expected-order  OR 
+    // when the orders in current RVFI packets is not sequential
+    //----------------------------------------------------------------------
+    assign order_skip  = ((rvfi_valids != '0) & (rvfi_exp_order != rvfi_orders[0]) & ~rvfi_first_valid) ? 1'b1 : 1'b0; 
+
+    assign val0_order   = rvfi_orders[0]; 
+    assign rvfi_skips   = (rvfi_exp_order != rvfi_orders[0]) ? val0_order - rvfi_exp_order - 1 : '0;               // number of missing orders
+
+
+    //---------------------------------------------------------------------------------------------------
+    // Send steps if:
+    //     ARE sending rvfi AND  accumulated-steps > 0   
+    // OR
+    //     NOT sending rvfi AND  we detected an out-of-order RVFI order 
+    //
+    // m_step sequence on the bridge:
+    //   - execute steps (increment tag and cycle as needed)
+    //   - add skips to tag value 
+    //   - execute final_steps (only needed if no RVFI packet is being sent) 
+    //---------------------------------------------------------------------------------------------------
+    assign send_steps   = (send_rvfi & (rvfi_steps != '0)) | order_skip;
+
+    assign m_stepss[0].valid            = RVFI_EN & rvfi_enabled & ~dut_reset & send_steps & PSC_enabled; 
+    assign m_stepss[0].data.location    = location;
+    assign m_stepss[0].data.n_retire    = NRET;
+    assign m_stepss[0].data.hart        = NUM;
+    assign m_stepss[0].data.cycle       = clocks;
+    assign m_stepss[0].data.steps       = rvfi_steps; 
+    assign m_stepss[0].data.skips       = rvfi_skips;
+    assign m_stepss[0].data.final_steps = (send_rvfi==1'b1) ? '0 : valid_cnt;        // No final steps IF rvfi is being sent too
 
     always @(posedge clk) begin
         if (dut_reset) begin
-            rvfi_steps   <= '0; 
+            rvfi_steps      <= '0; 
             rvfi_scheck_cnt <= '0; 
+            rvfi_exp_order  <= '0; 
+            rvfi_first_valid  <= 1'b1; 
+            instruction_cnt <= '0; 
+            cycles_since_retire <= '0; 
         end
         else begin
+            cycles_since_retire <= cycles_since_retire + 1;
+            //if (rvfi_valids[0] & rvfi_luops[0]) begin                                    // instruction(s) retiring 
             if (rvfi_valid) begin                                    // instruction(s) retiring 
-                if (~send_rvfi)                                      // we need to send a valid but we chose NOT to
+                cycles_since_retire <= 0;
+                instruction_cnt <= instruction_cnt + valid_cnt;
+                rvfi_first_valid  <= 1'b0; 
+                rvfi_exp_order <= rvmax_order + 1;                   // compute next clocks rvfi order start to find dropped instruction orders
+
+                if (~send_steps & ~send_rvfi)                        // we dno not need to STEP whisper  
                     rvfi_steps <= rvfi_steps + valid_cnt;            // increment how many valids we did NOT send
                 else
-                    rvfi_steps <= 0;                                 // reset the step counter
+                    rvfi_steps <= 0;                                 // we sent the step-count to whisper .... reset the step counter
 
                 if (rvfi_scheck_cnt >= scheck_period)                // if count == period  we will do a state compare too
                     rvfi_scheck_cnt <= '0;                           // clear counter
@@ -451,9 +550,11 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
     // Periodic COMPARE REGISTER STATE logic:
     //
     //  COSIM RTL:
-    //  - A compare_state is issued under 2 conditions:
+    //  - A psc_send_regs is issued under 2 conditions:
     //        - We have executed N or more instructions
-    //        - EOT has been detected
+    //        - An event occurs that we need to FORCE an RVFI message
+    //              - End of test (EOT)
+    //              - MCM poke events (if enabled) 
     //  - This will trigger 2 events 
     //        1) DPI call to send current state of GP/FP/VC register (fp and vc only if they have changed)  
     //              because this ifc is later in YML it will get received AFTER the RVFI packets are processed
@@ -467,7 +568,7 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
     //       - compares registers  
     //-----------------------------------------------------------------------------------------------------------------
 
-    assign compare_state = (rvfi_valid & ((rvfi_scheck_cnt >= scheck_period) & (scheck_period != 0))) | eot_found;
+    assign psc_send_regs = ((rvfi_valid & (rvfi_scheck_cnt >= scheck_period)) | eot_found) & PSC_enabled & RVFI_EN & rvfi_enabled & ~dut_reset;
  
 
     // m_csri
@@ -527,7 +628,9 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
         assign m_mcmi_reads[n].data.data = mcmi_read[n].data[63:0];
         assign m_mcmi_reads[n].data.amo = mcmi_read[n].amo;
         assign m_mcmi_reads[n].data.amo_op = mcmi_read[n].amo_op;
+        assign mcmi_read_pokes[n] = mcmi_read[n].valid;
     end
+    assign mcmi_read_poke = (mcmi_read_pokes != '0);
 
     // m_mcmi_insert
     for (genvar n = 0; n < NINSERT; n++) begin
@@ -539,7 +642,10 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
         assign m_mcmi_inserts[n].data.addr = mcmi_insert[n].addr;
         assign m_mcmi_inserts[n].data.mask = mcmi_insert[n].mask;
         assign m_mcmi_inserts[n].data.data = mcmi_insert[n].data[63:0];
+        assign mcmi_insert_pokes[n] = mcmi_insert[n].valid;
     end
+
+    assign mcmi_insert_poke = (mcmi_read_pokes != '0);
 
     // m_mcmi_write
     for (genvar n = 0; n < NWRITE; n++) begin
@@ -551,7 +657,7 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
         assign m_mcmi_writes[n].data.mask = mcmi_write[n].mask;
         assign m_mcmi_writes[n].data.data = mcmi_write[n].data;
 
-        assign mcmi_write_pokes[n] = (mcmi_write[n].addr <= scheck_addr_hi) & (mcmi_write[n].addr >= scheck_addr_lo) & mcmi_write[n].valid;
+        assign mcmi_write_pokes[n] = mcmi_write[n].valid;
 
         //------------------------------------------------------------------------------------------- 
         // End-Of-Test logic:  memory write to designated address 
@@ -579,12 +685,12 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
         //    - will cause a save-state event (force-steps=1 if NO instrs being retired currently
         //------------------------------------------------------------------------------------------- 
         assign eot_bypass_found[n] = ((eot_addr != '0) &  mcmi_bypass[n].valid & (mcmi_bypass[n].addr == eot_addr) & ( mcmi_bypass[n].data[0] == 1'b1) & (mcmi_bypass[n].data[63:56] == 0)) ? 1'b1 : 1'b0;
-        assign mcmi_bypass_pokes[n] = (mcmi_bypass[n].addr <= scheck_addr_hi) & (mcmi_bypass[n].addr >= scheck_addr_lo) & mcmi_write[n].valid;
+        assign mcmi_bypass_pokes[n] = mcmi_bypass[n].valid;
     end
 
     assign mcmi_bypass_poke = (mcmi_bypass_pokes != '0);
 
-    assign eot_found = ((eot_writes_found != 0) | (eot_bypass_found != 0) | eot_max_instr) ? 1'b1 : 1'b0; 
+    assign eot_found = ~dut_reset & ((eot_writes_found != 0) | (eot_bypass_found != 0) | eot_max_instr) ? 1'b1 : 1'b0; 
 
     // m_mcmi_ifetch
     for (genvar n = 0; n < NIFETCH; n++) begin
@@ -611,7 +717,9 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
         assign m_mcmi_ievicts[n].data.cycle = mcmi_ievict[n].valid ? clocks : '0;
         assign m_mcmi_ievicts[n].data.hart = NUM;
         assign m_mcmi_ievicts[n].data.addr = mcmi_ievict[n].addr;
+        assign mcmi_ievict_pokes[n] = mcmi_ievict[n].valid;
     end
+    assign mcmi_ievict_poke = (mcmi_ievict_pokes != '0);
 
     // m_trap
     for (genvar n = 0; n < NRET; n++) begin
@@ -736,22 +844,12 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
         max_cycle = cvm_plusargs::get_ulongint("max_cycle");
         max_stall_cycle = cvm_plusargs::get_int("max_stall_cycle");
         scheck_period = cvm_plusargs::get_int("scheck_period");
-        scheck_addr_hi = cvm_plusargs::get_ulongint("scheck_addr_hi");
-        scheck_addr_lo = cvm_plusargs::get_ulongint("scheck_addr_lo");
+        mcmi_poke_enable = cvm_plusargs::get_int("mcmi_poke_enables");
         max_instructions = cvm_plusargs::get_ulongint("max_instr");
         hart_enable_mask = cvm_plusargs::get_ulongint("hart_enable_mask");
         /* verilator lint_on BLKSEQ */
-        cycles_since_retire <= 0;
         boot_wfi <= '0;
-        instruction_cnt <= '0;
       end else if(!dut_reset) begin
-        cycles_since_retire <= cycles_since_retire + 1;
-        if (rvfi_valids != '0) begin
-            instruction_cnt <= instruction_cnt + valid_cnt;
-        end
-        if (rvfi[0].valid !== 0) begin
-          cycles_since_retire <= 0;
-        end
         if (NUM != 0 && hart_enable_mask[NUM] == 0 && rvfi[0].valid !== 0 && rvfi[0].insn[6:0] == 7'h73 && rvfi[0].pc_rdata < 'h20000) begin // WFI
           boot_wfi <= '1;
         end

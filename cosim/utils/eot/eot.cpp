@@ -62,6 +62,15 @@ void eot::get_tohost_addr() {
   cosim_set_eot(tohost_addr_,1,0);
 }
 
+void eot::process(const rv_tester_transactions::cosim::m_steps<>& m_steps) {
+
+  // When using periodic state check method add the missing step counts (only the first m_steps packet does this)
+  if (m_steps.steps > 0) {
+      instr_count_[m_steps.hart] = instr_count_[m_steps.hart] + m_steps.steps;
+      previous_cycle_ = m_steps.cycle;
+  }
+}
+
 void eot::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
 
   if (ended_)
@@ -69,12 +78,6 @@ void eot::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
 
   if (instr_count_[m_rvfi.hart] == 0) {
      start = std::chrono::system_clock::now();
-  }
-
-  // When using periodic state check method add the missing step counts (only the first m_rvfi packet does this)
-  if ((m_rvfi.steps > 0) & (m_rvfi.cycle != previous_cycle_)) {
-      instr_count_[m_rvfi.hart] = instr_count_[m_rvfi.hart] + m_rvfi.steps;
-      previous_cycle_ = m_rvfi.cycle;
   }
 
   instr_count_[m_rvfi.hart]++;

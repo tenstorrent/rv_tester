@@ -26,6 +26,23 @@ cosim:
             data:
                 width: ${TOP.PLATFORM.XLEN}
 
+    m_steps:
+        domain: 1
+        num: 1 
+        fields:
+            hart:
+                width: 32
+            n_retire:
+                width: 32
+            cycle:
+                width: 64
+            steps:
+                width: 64
+            skips:
+                width: 64
+            final_steps:
+                width: 64
+
     m_rvfi:
         domain: 1
         num: ${max(TOP.PLATFORM.COSIM.RVFI.NRETS)}
@@ -37,10 +54,6 @@ cosim:
             last_uop:
                 width: 1
             last_insn:
-                width: 1
-            steps:
-                width: 32
-            step_only:
                 width: 1
             comp:
                 width: 1

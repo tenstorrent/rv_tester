@@ -38,6 +38,7 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
 
   connect<
     rv_tester_transactions::cosim::m_rvfi<>,
+    rv_tester_transactions::cosim::m_steps<>,
     rv_tester_transactions::cosim::m_gp_regs<>,
     rv_tester_transactions::cosim::m_fp_regs<>,
     rv_tester_transactions::cosim::m_vc_regs<>,
@@ -197,8 +198,6 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.comp = m_rvfi.comp;
   instr.tag = m_rvfi.order;
   instr.opcode = m_rvfi.insn;
-  instr.steps = m_rvfi.steps;
-  instr.step_only = m_rvfi.step_only;
   instr.disasm = whisper::disassemble(m_rvfi.insn);
   instr.uop = m_rvfi.uop;
   instr.vec_cracked = m_rvfi.vec_cracked;
@@ -435,6 +434,12 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
 
   log(cvm::NONE, "\n");
 }
+void rvfi::process(const rv_tester_transactions::cosim::m_steps<>& m_steps) {
+  if (terminated_)
+    return;
+  bridge_->process_steps(m_steps.hart, m_steps.n_retire, m_steps.cycle, m_steps.steps, m_steps.skips, m_steps.final_steps);
+}
+
 void rvfi::process(const rv_tester_transactions::cosim::m_gp_regs<>& m_gp_regs) {
   if (terminated_)
     return;

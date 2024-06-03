@@ -47,6 +47,7 @@ public:
   //   - Table Walks
   //   - Exceptions/interrupt
   virtual void process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) override;
+  virtual void process_steps(hart_id_t hart, uint32_t n_retire, uint64_t cycle, uint64_t steps, uint64_t skips, uint64_t final_steps) override;
   virtual void process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d) override;
   virtual void process_dut_csr_hw_update(hart_id_t hart, csr_t& c) override;
   virtual void process_compare_gp_regs(hart_id_t hart, const std::array<std::uint64_t, 32> array);
@@ -174,8 +175,8 @@ private:
 
   uint64_t order_ = 0;
 
-  int last_tag_ = 0;
-  int last_cycle_ = 0;
+  uint64_t last_tag_[16] = {0};
+  uint64_t last_cycle_[16] = {0};
 
   // Previous instruction's whisper state
   whisper_state_t pw_{};
@@ -201,6 +202,9 @@ private:
 
   uint16_t mprv_ = 0;
   uint16_t mpp_ = 0;
+
+  uint64_t dummy_data_ = 0;
+  hart_id_t dummy_hart_ = 0;
 
   bool resynch_intr_cause_mismatch_ = false;
   bool resynch_csr_ = false;

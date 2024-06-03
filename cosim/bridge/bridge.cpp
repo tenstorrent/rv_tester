@@ -193,7 +193,6 @@ void bridge::resetsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr) {
     return;
   }
 }
-// DUT interface callback: Instruction Retire
 void bridge::process_compare_gp_regs(hart_id_t hart, const std::array<std::uint64_t, 32> array) {
     uint32_t i;
     uint64_t data;
@@ -238,60 +237,122 @@ void bridge::process_compare_vc_regs(hart_id_t hart, const std::array<std::array
     }
 }
 
+// DUT interface callback: Step Whisper 
+void bridge::process_steps(hart_id_t hart, uint32_t n_retire, uint64_t cycle, uint64_t steps, uint64_t skips, uint64_t final_steps) {
+
+
+  if (((skips >> 63) & 0x1) == 1) {
+     skips = 0;
+  }
+
+  cvm::log(cvm::NONE, "process_steps::START: hart={}, cycle={}, steps={} skips={} final_steps={} last_tag={}\n", hart,cycle,steps,skips,final_steps,last_tag_[hart]);
+
+  whisper_state_t w {
+    .tag =  last_tag_[hart],
+    .time = last_cycle_[hart]
+  };
+
+  end_time_ = std::chrono::high_resolution_clock::now();
+  if (first_call_ == false) {
+      int_msec_ = duration_cast<std::chrono::milliseconds>(end_time_ - start_of_test_).count();
+  }
+  else {
+      start_of_test_ = end_time_;
+  }
+
+  begin_time_ = end_time_;
+  previous_cycle_ = cycle;
+  first_call_ = false;
+
+  //----------------------------------------------------------------------
+  // Process the MISSING (or dropped steps accumulated so far)
+  //----------------------------------------------------------------------
+  for(uint64_t s=0;s<steps;s++) {
+      last_tag_[hart]++;
+      //----------------------------------------------------------------------------------------------------------------------------------------
+      // create pseudo-time-stamp by advancing the timestamp ever Nth whisper step/tag 
+      // ex: 20 steps = 3 timestamps of T,T+1,T+2  with retire counts of 8,8,4  respectively if CPU can retire max of 8 instructions per clock
+      //     We dont' know the real timestamps as that was lost 
+      //----------------------------------------------------------------------------------------------------------------------------------------
+      if ((s % n_retire) == 0) {                  
+         last_cycle_[hart]++;
+      }
+
+      w.tag = last_tag_[hart]; 
+      w.time = last_cycle_[hart]; 
+
+      if (FLAGS_whisper_exec) {
+          int_msec_ = duration_cast<std::chrono::milliseconds>(end_time_ - start_of_test_).count();
+          auto stime = std::chrono::high_resolution_clock::now();
+          step(hart, w);
+          auto etime = std::chrono::high_resolution_clock::now();
+          whisper_time_ = whisper_time_ + (duration_cast<std::chrono::microseconds>(etime - stime).count());
+      }
+      
+      // Increment step count
+      step_++;
+  }
+
+
+  //-------------------------------------------------------
+  // Add skips caused by out-of-order tag bits
+  //-------------------------------------------------------
+  last_tag_[hart]   = last_tag_[hart] + skips; 
+
+  //------------------------------------------------------
+  // now set time to current sim time 
+  //------------------------------------------------------
+  last_cycle_[hart] = cycle;
+
+  //------------------------------------------------------ 
+  // Process FINAL steps of the RVFI packet if needed
+  //------------------------------------------------------
+  for(uint64_t s=0;s<final_steps;s++) {
+      last_tag_[hart]++;
+      //----------------------------------------------------------------------------------------------------------------------------------------
+      // create pseudo-time-stamp by advancing the timestamp ever Nth whisper step/tag 
+      // ex: 20 steps = 3 timestamps of T,T+1,T+2  with retire counts of 8,8,4  respectively if CPU can retire max of 8 instructions per clock
+      //     We dont' know the real timestamps as that was lost 
+      //----------------------------------------------------------------------------------------------------------------------------------------
+      if ((s % n_retire) == 0) {                  
+         last_cycle_[hart]++;
+      }
+
+      w.tag = last_tag_[hart]; 
+      w.time = last_cycle_[hart]; 
+
+      if (FLAGS_whisper_exec) {
+          int_msec_ = duration_cast<std::chrono::milliseconds>(end_time_ - start_of_test_).count();
+          auto stime = std::chrono::high_resolution_clock::now();
+          step(hart, w);
+          auto etime = std::chrono::high_resolution_clock::now();
+          whisper_time_ = whisper_time_ + (duration_cast<std::chrono::microseconds>(etime - stime).count());
+      }
+      
+      // Increment step count
+      step_++;
+  }
+  cvm::log(cvm::NONE, "process_steps::END:   hart={}, steps={} skips={} last_tag={}\n", hart,steps,skips,last_tag_[hart]);
+}
+
 // DUT interface callback: Instruction Retire
 void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
-  uint32_t s;
 
+  cvm::log(cvm::NONE, "process_rvfi::START: hart={},d.cycle={} d.tag={} last_tag={}\n", hart,d.cycle,d.tag,last_tag_[hart]);
   twoStage_ = false;
   whisper_state_t w {
     .tag = d.tag,
     .time = d.cycle
   };
 
+  last_tag_[hart] = d.tag;
+  last_cycle_[hart] = d.cycle;
 
   //------------------------------------------------------------------------------------------------------------
   // advance the instruction steps missed when using state-compare method and not sending rvfi packets
   //   - we only advance the missing steps on the FIRST rvfi packet sent on this time-stamp (cycle)
   //------------------------------------------------------------------------------------------------------------
   rvfi_calls_++;
-  if (d.cycle != previous_cycle_) {
-      end_time_ = std::chrono::high_resolution_clock::now();
-      if (first_call_ == false) {
-          int_msec_ = duration_cast<std::chrono::milliseconds>(end_time_ - start_of_test_).count();
-      }
-      else {
-          start_of_test_ = end_time_;
-      }
-
-      begin_time_ = end_time_;
-      previous_cycle_ = d.cycle;
-      first_call_ = false;
-
-      for(s=0;s<d.steps;s++) {
-          last_tag_++;
-          last_cycle_++;
-          w.tag = last_tag_; 
-          w.time = last_cycle_; 
-          if (FLAGS_whisper_exec) {
-              int_msec_ = duration_cast<std::chrono::milliseconds>(end_time_ - start_of_test_).count();
-              auto stime = std::chrono::high_resolution_clock::now();
-              step(hart, w);
-              auto etime = std::chrono::high_resolution_clock::now();
-              whisper_time_ = whisper_time_ + (duration_cast<std::chrono::microseconds>(etime - stime).count());
-          }
-          cvm::log(cvm::DEBUG, "step done  d_cycle={} d_pc={:#x} w_pc={:#x} opcode={:#x} disasm={} \n", d.cycle, d.pc.pc_rdata, w.pc, w.opcode,w.disasm);
-          
-          // Increment step count
-          step_++;
-      }
-      last_tag_   = d.tag;
-      last_cycle_ = d.cycle;
-
-      if (d.step_only == 1) {
-          cvm::log(cvm::DEBUG, "EOT force steps request\n");
-          return;
-      }
-  }
 
   if (!FLAGS_whisper_exec) {
      return;
@@ -300,25 +361,20 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   w.tag  = d.tag;
   w.time = d.cycle;
 
-  //-----------------------------------------------------------------------
-  // if step_only flag == 1.. there is no instr to process... skip pre work
-  //-----------------------------------------------------------------------
-  if (d.step_only == 0) {
-    // Handle pre-step condition - Debug
-    if (debug_mode_) {
-      if (FLAGS_emulate_debug_mode) {
-        pre_step_debug_poke(hart, d);
-      } else {
-        return;
-      }
+  // Handle pre-step condition - Debug
+  if (debug_mode_) {
+    if (FLAGS_emulate_debug_mode) {
+      pre_step_debug_poke(hart, d);
+    } else {
+      return;
     }
-    // Handle pre-step condition - Interrupts
-    pre_step_interrupt_poke(hart, d, w);
-    lrsc_fail_ = false;
-
-    // Handle pre-step condition - LR/SC fail
-    pre_step_lrsc_poke(hart, d);
   }
+  // Handle pre-step condition - Interrupts
+  pre_step_interrupt_poke(hart, d, w);
+  lrsc_fail_ = false;
+
+  // Handle pre-step condition - LR/SC fail
+  pre_step_lrsc_poke(hart, d);
 
   // Step whisper
   w_.clear();
