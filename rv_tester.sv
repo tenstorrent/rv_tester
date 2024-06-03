@@ -41,26 +41,9 @@ module rv_tester
             
             end 
             else begin
-                `ifdef CLK_MUX_UNSUPPORTED
-                                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(clk[c]));
-                `else
-                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(def_clk[c]));
-                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE1_CLOCK_FREQ_MHZ[c])) profile1_clkgen(.clk(profile1_clk[c]));
-                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE2_CLOCK_FREQ_MHZ[c])) profile2_clkgen(.clk(profile2_clk[c]));
                 
-                clk_mux_glitch_free #(
-                    .NUM_INPUTS(4),
-                    .CLOCK_DURING_RESET(1)
-                ) i_clk_mux (
-                    .clks_i         ({def_clk[c], profile1_clk[c], profile2_clk[c],1'b0}),
-                    .test_clk_i     (1'b0),             // FIXME:Add test clock
-                    .test_en_i      (1'b0),             // FIXME:Add test enable
-                    .async_rstn_i   (~rv_tester_reset),
-                    .async_sel_i    (clock_mode),
-                    //.async_sel_i    (0),
-                    .clk_o          (clk[c])
-                );
-                `endif
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(clk[c]));
+
             end
          end
     
@@ -128,24 +111,7 @@ module rv_tester
     assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && (dmi_commands_in_queue == '0) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced ); 
     
     assign rerun_now           = terminated && num_reruns > 0;
-   `ifndef CLK_MUX_UNSUPPORTED 
-    always @(posedge clk[TB_CLK_IDX])begin
-      if (rv_tester_reset)begin 
-        
-           clock_mode <= clk_profile[1:0];
-        
-      end
-        /* verilator lint_off WIDTH */
-      if(dyn_clk_switch & (clocks >10) &  ((clocks % freq_switch_ncycles) == 0)) begin
-         //dynamically select clk from available profiles
-         //this logic will generate the select pins of the mux ,which will switch between clks
-        clock_mode <= clock_mode + 1'b1;
-        if(clock_mode == 2'b11)
-          clock_mode <= '0;
-      end
-       /* verilator lint_on WIDTH */
-    end
-    `endif
+
    // assign clk = clock_mode ? profile1_clk: def_clk; //clkmux
     ////////////////// Clock mux Instantiation ///////////////////////////
 
