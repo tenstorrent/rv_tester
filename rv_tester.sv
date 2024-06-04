@@ -20,6 +20,10 @@ module rv_tester
 
     logic bypass_mem = 1;
     logic bypass_cache = 1;
+    logic rv_tester_reset = '1;
+    /* verilator lint_off UNOPTFLAT */
+    logic [1:0] clock_mode = '0;
+    /* verilator lint_on UNOPTFLAT */
 
     if (EXTERNAL_CLOCK) begin
         for (genvar c = 0; c < NCLKS; c++) begin
@@ -32,11 +36,17 @@ module rv_tester
         `endif
         ;
         for (genvar c = 0; c < NCLKS; c++) begin
-            if (PLL_CLOCK[c] && pll_clock_exists)
+            if (PLL_CLOCK[c] && pll_clock_exists)begin
                 assign clk[c] = clk_pll[c];
-            else
+            
+            end 
+            else begin
+                
                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(clk[c]));
-        end
+
+            end
+         end
+    
     end
 
     import "DPI-C" function void rv_tester_streaming_dpi_init();
@@ -50,14 +60,16 @@ module rv_tester
     localparam int unsigned AxiIdWidthMstRv    = topology.TOP.PLATFORM.AXI.ID_WIDTH + $clog2(topology.TOP.PLATFORM.AXI.TOTAL) + 1;
 
     logic flush_complete;
-    logic rv_tester_reset = '1;
+    
     logic sysmod_reset = '0;
     LU clocks = 0;
     bit cb_poll = '0;
+    bit dyn_clk_switch = '0;
     bit cb_success = '1;
     logic call_finish;
     int num_reruns = -1;
     bit trace_en = 0;
+
     bit jtag_en = 0;
     bit overlay_mmr_en = 0;
     logic trace_quiesced;
@@ -86,6 +98,8 @@ module rv_tester
     logic [31:0] dmi_commands_in_queue; 
 
     int trace_timeout = 50000;
+    int freq_switch_ncycles = 7000;
+    int clk_profile = 0;
 
     int unsigned location = cvm_topology::nil;
 
@@ -97,6 +111,10 @@ module rv_tester
     assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && (dmi_commands_in_queue == '0) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced ); 
     
     assign rerun_now           = terminated && num_reruns > 0;
+
+   // assign clk = clock_mode ? profile1_clk: def_clk; //clkmux
+    ////////////////// Clock mux Instantiation ///////////////////////////
+
 
     /*
     * Don't put an DPI calls here, zebu gets confused when signals are driven
@@ -183,6 +201,9 @@ module rv_tester
             quiesce_timeout     <= cvm_plusargs::get_int("quiesce_timeout");
             trace_timeout       <= cvm_plusargs::get_int("trace_timeout");
             flush_timeout       <= cvm_plusargs::get_int("flush_timeout");
+            freq_switch_ncycles <= cvm_plusargs::get_int("freq_switch_ncycles");
+            clk_profile         <= cvm_plusargs::get_int("clk_profile");
+            dyn_clk_switch      <= cvm_plusargs::get_bool("dyn_clk_switch") != '0;
             call_finish         <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
             gen_clocks          <= cvm_verbosity >= gen_clocks_verbosity;
             bypass_mem          <= cvm_plusargs::get_bool("bypass_mem") != '0;

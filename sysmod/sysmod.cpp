@@ -19,6 +19,7 @@
 #include "null_dev/null_dev.h"
 #include "heartbeat/heartbeat.h"
 #include "htif/htif.h"
+#include "uart8250/uart8250.h"
 #include "trickbox/trickbox.h"
 #include "rv_tester/rv_tester_structs.h"
 #include "rv_tester/rv_tester_plusargs.h"
@@ -36,6 +37,7 @@ DEFINE_bool(sysmod_tick_async, true, "Asynchronous sysmod_tick calls");
 DEFINE_uint64(sysmod_tick_update_threshold, 1, "Slow down tick update frequency by this factor. The tick is still eventually advanced the same cumulative amount, just not as often. Useful for emulation where the clock counts much faster but tests setup interrupts to happen very soon for simulation. They git hit by an interrupt storm and are stuck in the interrupt handler forever.");
 DEFINE_uint64(hart_enable_mask, 0x1, "Hart enable mask. Ex: To enable 2 harts in a 8-hart system, use 0x3.");
 DEFINE_string(set_csr, "", "+set_csr=<csr_num>:<value>,<num2>:<val2> ");
+DECLARE_bool(cosim);
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 
 extern "C" {
@@ -335,6 +337,8 @@ sysmod::reset() {
   load_prog(FLAGS_hex, FLAGS_load, FLAGS_load_lz4);
   load_io(FLAGS_load_io);
   load_boot(FLAGS_bootrom_path);
+  if (!FLAGS_cosim)
+    load_csr_boot(0);
   load_cplfw(FLAGS_cplfw_path);
 }
 
@@ -380,6 +384,9 @@ sysmod::compose()
         cvm::registry::messenger.connect<htif::terminate_t>(
             loc_,
             [&](htif::terminate_t t) { return this->terminate(t); });
+      }
+      else if (type == "uart8250") {
+        device = std::make_unique<uart8250>(tag, base, loc_);
       }
       else if (type == "dm") {
         // TODO: cvm::ERROR
@@ -670,7 +677,7 @@ sysmod::load_csr_boot(uint64_t dummy)
       device::data_t data(4);
       for (size_t i=0; i<4; i++) data[i] = op >> 8*i;
       dev("boot")->backdoor_write(addr, 4, data, strb);
-      if (!client_->whisperPoke(0, 0, 'm', addr, op, valid))
+      if (client_ != nullptr && !client_->whisperPoke(0, 0, 'm', addr, op, valid))
         cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
       addr += 4;
     };
