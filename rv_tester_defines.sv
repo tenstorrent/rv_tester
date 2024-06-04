@@ -1072,8 +1072,8 @@ package rv_tester_params;
 `define RV_TESTER_VARS(topology)                                                                    \
     logic                                    clk             [rv_tester_params::NCLKS-1:0];         \
     logic                                    def_clk             [rv_tester_params::NCLKS-1:0];         \
-    //logic                                    profile1_clk             [rv_tester_params::NCLKS-1:0];         \
-    //logic                                    profile2_clk             [rv_tester_params::NCLKS-1:0];         \
+    logic                                    profile1_clk             [rv_tester_params::NCLKS-1:0];         \
+    logic                                    profile2_clk             [rv_tester_params::NCLKS-1:0];         \
     logic                                    clk_pll         [rv_tester_params::NCLKS-1:0];         \
     logic [rv_tester_params::NRESETS-1:0]    reset           /* Packed so zebu can force easily */; \
     rv_tester_params::bootstrap_t            bootstrap;                                             \
