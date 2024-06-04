@@ -271,6 +271,8 @@ class trace_cfg : public device {
           trace_wr_txn_q.push({trace_mmr::CDBG_CLA_COUNTER0_CFG,0x10000000});
           trace_wr_txn_q.push({trace_mmr::CDBG_NODE0_EAP0_CFG,0x11211});
           trace_wr_txn_q.push({trace_mmr::CDBG_NODE1_EAP0_CFG,0x101316});
+          trace_wr_txn_q.push({trace_mmr::CDBG_NODE0_EAP1_CFG,0x1001D});
+          trace_wr_txn_q.push({trace_mmr::CDBG_NODE1_EAP1_CFG,0x100022});
           trace_wr_txn_q.push({trace_mmr::CDBG_TRACE_CFG,0x102810});
           // RTL FIX Needed for this MMR access
           // trace_wr_txn_q.push({TR_DST_IMPL,0x1000000});
