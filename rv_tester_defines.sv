@@ -39,8 +39,8 @@ package rv_tester_params;
     parameter SOC_CLK_IDX = mods.TOP.PLATFORM.CLKI.SOC_CLK_IDX;
     parameter SW_CLOCK_PERIOD_PS = mods.TOP.PLATFORM.CLKI.SW_CLOCK_PERIOD_PS;
     parameter bit [NCLKS-1:0][31:0] CLOCK_FREQ_MHZ = mods.TOP.PLATFORM.CLKI.CLOCK_FREQ_MHZ;
-    parameter bit [NCLKS-1:0][31:0] PROFILE1_CLOCK_FREQ_MHZ = mods.TOP.PLATFORM.CLKI.PROFILE1_CLOCK_FREQ_MHZ;
-    parameter bit [NCLKS-1:0][31:0] PROFILE2_CLOCK_FREQ_MHZ = mods.TOP.PLATFORM.CLKI.PROFILE2_CLOCK_FREQ_MHZ;
+    //parameter bit [NCLKS-1:0][31:0] PROFILE1_CLOCK_FREQ_MHZ = mods.TOP.PLATFORM.CLKI.PROFILE1_CLOCK_FREQ_MHZ;
+    //parameter bit [NCLKS-1:0][31:0] PROFILE2_CLOCK_FREQ_MHZ = mods.TOP.PLATFORM.CLKI.PROFILE2_CLOCK_FREQ_MHZ;
     parameter bit [NCLKS-1:0][31:0] PLL_CLOCK = mods.TOP.PLATFORM.CLKI.PLL_CLOCK;
 
     // --------------------------------------
@@ -1072,8 +1072,8 @@ package rv_tester_params;
 `define RV_TESTER_VARS(topology)                                                                    \
     logic                                    clk             [rv_tester_params::NCLKS-1:0];         \
     logic                                    def_clk             [rv_tester_params::NCLKS-1:0];         \
-    logic                                    profile1_clk             [rv_tester_params::NCLKS-1:0];         \
-    logic                                    profile2_clk             [rv_tester_params::NCLKS-1:0];         \
+    //logic                                    profile1_clk             [rv_tester_params::NCLKS-1:0];         \
+    //logic                                    profile2_clk             [rv_tester_params::NCLKS-1:0];         \
     logic                                    clk_pll         [rv_tester_params::NCLKS-1:0];         \
     logic [rv_tester_params::NRESETS-1:0]    reset           /* Packed so zebu can force easily */; \
     rv_tester_params::bootstrap_t            bootstrap;                                             \
