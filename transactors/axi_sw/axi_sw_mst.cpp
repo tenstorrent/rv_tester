@@ -168,6 +168,13 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const WQ& w_q_ptr) {
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const axi::a_t& a) {
+    //id check
+    if (used_id(a.id)) {
+        cvm::log(cvm::ERROR, "[axi_sw_mst] bad request id: {}, pass unused id for transaction \n", a.id);
+        return;
+    }
+    alloc_id(a.id);
+
     transactions_.emplace_back(a);
     push_transactions();
 }

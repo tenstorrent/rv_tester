@@ -20,7 +20,9 @@ class axi_sw_mst {
           if constexpr (sizeof...(Args))
             connect<Args...>();
         }
-
+        inline void alloc_id(uint32_t id) {
+            ids_[id] = false;
+        }
         inline bool used_id(uint32_t id) {
             return !ids_[id];
         }

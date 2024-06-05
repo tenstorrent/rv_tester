@@ -115,7 +115,7 @@ class axi : public transactor {
             w_t(w_t&&) = default;
             w_t& operator=(w_t&&) = default;
             w_t(const w_t&) = default;
-            w_t& operator=(const w_t&) = delete;
+            w_t& operator=(const w_t&) = default;
         };
 
         struct r_t {
