@@ -36,6 +36,13 @@ class device {
       cvm::registry::messenger.connect<write_t>(
           loc_,
           [write, dev] (const auto& w) { 
+            std::string d, s;
+            if (cvm::logger::check_verbosity(cvm::FULL))
+              for (int i=63; i>=0; i--) {
+                d += fmt::format("{:02x}", w.w.data[i]);
+                s += fmt::format("{:01x}", w.w.strb[i] ? 1 : 0);
+              }
+            cvm::log(cvm::FULL, "[device] tag={}: aw/w: addr={:#x}, len={}, strb={}, data={}\n", dev->tag(), w.w.addr, w.w.length, s, d);
             return std::invoke(write, dev, w.w); 
             },
           [dev] (const auto& w) { return dev->has_addr(w.w.addr); });
@@ -49,10 +56,11 @@ class device {
           [read, dev] (const auto& r) {
               data_t data(r.r.length, 0);
               std::invoke(read, dev, r.r, data);
-              std::string ds;
-              for (size_t i=0; i<64; i++)
-                  ds += fmt::format("{:02x}", data[i]);
-              cvm::log(cvm::MEDIUM, "[device] tag={}: src={}: r: id={}, addr={:#x}, len={}, size={}, data={}\n", dev->tag(), r.source, r.r.id, r.r.addr, r.r.length, data.size(), ds);
+              std::string d;
+              if (cvm::logger::check_verbosity(cvm::FULL))
+                for (int i=63; i>=0; i--)
+                  d += fmt::format("{:02x}", data[i]);
+              cvm::log(cvm::FULL, "[device] tag={}: src={}: r: id={}, addr={:#x}, len={}, size={}, data={}\n", dev->tag(), r.source, r.r.id, r.r.addr, r.r.length, data.size(), d);
               cvm::registry::messenger.signal(r.source, transactor::read_response_t{r.r.id, std::move(data)});
               
           },

@@ -71,12 +71,11 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
 
   auto sources = cvm::topology::get_from_type("PLATFORM_TRANSACTOR");
     for (const auto& source : sources) {
-        cvm::log(cvm::MEDIUM, "[sysmod] axi transactor source:\n", source);
         cvm::registry::messenger.connect<transactor::write_t>(
             source,
             [this, source](const auto& w) {
                 if (this->dev(w.addr)) {
-                    cvm::log(cvm::MEDIUM, "[sysmod] write: src={} addr={:#x}\n", source, w.addr);
+                    cvm::log(cvm::HIGH, "[sysmod] write: src={} addr={:#x}\n", source, w.addr);
                     cvm::registry::messenger.signal<device::write_t>(this->loc_, {w});
                 }
             });
@@ -84,7 +83,7 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
             source,
             [this, source](const auto& r) {
                 if (this->dev(r.addr)){
-                    cvm::log(cvm::MEDIUM, "[sysmod] read: src={} id={}, addr={:#x}, len={}\n", source, r.id, r.addr, r.length);
+                    cvm::log(cvm::HIGH, "[sysmod] read: src={} id={}, addr={:#x}, len={}\n", source, r.id, r.addr, r.length);
                     cvm::registry::messenger.signal<device::read_t>(this->loc_, {r, source});
 		}
 

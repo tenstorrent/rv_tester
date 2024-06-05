@@ -61,7 +61,7 @@ axi_sw<W,AW,AR,RQ>::~axi_sw() {
 
 template < typename W,typename AW,typename AR, typename RQ>
 cvm::messenger::task<void> axi_sw<W,AW,AR,RQ>::process(const AW& aw) {
-    cvm::log(cvm::MEDIUM, "[axi_sw] aw: [id={}, addr={:#x}, size={}]\n", aw.id, aw.addr, aw.size);
+    cvm::log(cvm::FULL, "[axi_sw] aw: [id={}, addr={:#x}, size={}]\n", aw.id, aw.addr, aw.size);
     co_await a(axi::a_t{true, aw.id, aw.addr, aw.len, aw.size, axi::burst_t(aw.burst), aw.lock != 0, aw.atop});
     r_resp();
     co_return;
@@ -69,7 +69,7 @@ cvm::messenger::task<void> axi_sw<W,AW,AR,RQ>::process(const AW& aw) {
 
 template < typename W,typename AW,typename AR, typename RQ>
 cvm::messenger::task<void> axi_sw<W,AW,AR,RQ>::process(const AR& ar) {
-    cvm::log(cvm::MEDIUM, "[axi_sw] ar: [id={}, addr={:#x}, size={}]\n", ar.id, ar.addr, ar.size);
+    cvm::log(cvm::FULL, "[axi_sw] ar: [id={}, addr={:#x}, size={}]\n", ar.id, ar.addr, ar.size);
     co_await a(axi::a_t{false, ar.id, ar.addr, ar.len, ar.size, axi::burst_t(ar.burst), ar.lock != 0});
     r_resp();
     co_return;
@@ -77,7 +77,7 @@ cvm::messenger::task<void> axi_sw<W,AW,AR,RQ>::process(const AR& ar) {
 
 template < typename W,typename AW,typename AR, typename RQ>
 cvm::messenger::task<void> axi_sw<W,AW,AR,RQ>::process(const W& w) {
-    cvm::log(cvm::MEDIUM, "[axi_sw] w: [strb={:#x}, last={}]\n", w.strb, w.last);
+    cvm::log(cvm::FULL, "[axi_sw] w: [strb={:#x}, last={}]\n", w.strb, w.last);
     axi::data_t vdata = cvm::bitmanip::slice<decltype(w.data), axi::data_t>(w.data);
     axi::strb_t vstrb = cvm::bitmanip::slice<decltype(w.strb), axi::strb_t>(w.strb);
 
@@ -93,7 +93,7 @@ cvm::messenger::task<void> axi_sw<W,AW,AR,RQ>::process(const W& w) {
 
 template < typename W,typename AW,typename AR, typename RQ>
 void axi_sw<W,AW,AR,RQ>::process(const RQ& r_q_ptr) {
-    cvm::log(cvm::MEDIUM, "[axi_sw] r_q_ptr: [rptr={}]\n", r_q_ptr.r_ptr);
+    cvm::log(cvm::FULL, "[axi_sw] r_q_ptr: [rptr={}]\n", r_q_ptr.r_ptr);
     r_q_rptr_ = r_q_ptr.r_ptr;
     r_resp();
 }
@@ -102,7 +102,7 @@ template < typename W,typename AW,typename AR, typename RQ>
 void axi_sw<W,AW,AR,RQ>::r_resp() {
     while ( (r_q_wptr_ - r_q_rptr_) < r_q_max_ ) {
       auto [valid, result] = axi_->r(false);
-      cvm::log(cvm::MEDIUM, "[axi_sw] r_resp: [r_q dequeue valid={} wptr={} rptr={}]\n", valid, r_q_wptr_, r_q_rptr_);
+      cvm::log(cvm::FULL, "[axi_sw] r_resp: [r_q dequeue valid={} wptr={} rptr={}]\n", valid, r_q_wptr_, r_q_rptr_);
       if (!valid)
         break;
       r_q_wptr_ = (r_q_wptr_ + 1) % r_q_ptr_max_;
