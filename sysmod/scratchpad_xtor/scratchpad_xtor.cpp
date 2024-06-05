@@ -59,8 +59,7 @@ void scratchpad_xtor::axi_write() {
   std::vector<bool> strb= {1,1,1,1};
 
   addr = 0x60000000;
-  gen_data_strb(wr.addr,wr.data,data,strb);
-  
+
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb});
 }
 
