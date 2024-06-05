@@ -364,9 +364,7 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
       update_mem_attr(hart, src_t::dut, d.mem_read.attr);
   }
   if (FLAGS_memattr_check && d.mem_write.valid && (!is_vector(d.disasm)) && !lrsc_fail_) {
-    if(!(((d.opcode & 0x7F) == 0x2F) && (d.opcode & 0xF8000000) == 0x18000000 && ((d.opcode & 0x00000F80) == 0x0))) {
       update_mem_attr(hart, src_t::dut, d.mem_write.attr);
-    }
   }
 }
 
