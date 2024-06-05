@@ -53,7 +53,6 @@ class axi_sw_mst {
         void process(const transactor::write_request_t& req);
 
         bool a_wrapper(uint64_t req_addr, size_t req_length, axi::a_t& a);
-        //bool a_wrapper(uint64_t req_addr, size_t req_length, axi::burst_t req_burst,axi::cache_mem_attr_t req_cache,axi::prot_t req_prot,axi::qos_t req_qos,axi::user_t req_user , axi::a_t& a);
         void push_transactions();
 
         void reset_ptrs();
