@@ -6,3 +6,5 @@
 infra/bazel/opensrc_repositories.bzl
 repositories.bzl
 repositories2.bzl
+infra/container/gitlab-container.yml
+infra/container/container-id.sh
