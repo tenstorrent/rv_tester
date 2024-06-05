@@ -324,8 +324,18 @@ axi_sw:
                 widths: [2,2,2]
             lock:
                 widths: [1,1,1]
+            cache:
+                widths: [4,4,4]
+            prot:
+                widths: [3,3,3]
+            qos:
+                widths: [4,4,4]
+            region:
+                widths: [4,4,4]
             atop:
                 widths: [6,6,6]
+            user:
+                widths: [1,1,1]
     ar:
         domain: 2
         num: 1
@@ -341,6 +351,16 @@ axi_sw:
             burst:
                 widths: [2,2,2]
             lock:
+                widths: [1,1,1]
+            cache:
+                widths: [4,4,4]
+            prot:
+                widths: [3,3,3]
+            qos:
+                widths: [4,4,4]
+            region:
+                widths: [4,4,4]
+            user:
                 widths: [1,1,1]
 
     r_q_ptr:
