@@ -225,7 +225,7 @@ htif::write(const transactor::write_t& w)
       if (payload & 1)
 	{
 	  cvm::log(cvm::NONE, "Pass condition detected - tohost[0] = 1\n");
-          cvm::registry::messenger.signal<terminate_t>(loc(), terminate_t{});
+          cvm::registry::messenger.signal<terminate_t>(loc(), terminate_t{.low_priority_based = true});
 	}
     }
   else

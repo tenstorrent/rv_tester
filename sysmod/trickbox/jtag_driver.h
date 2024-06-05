@@ -117,10 +117,10 @@ public:
 
 bool exitLoop() {
     if(loop_check_bit_type>0){
-      cvm::log(cvm::HIGH, "[jtag_driver_CHECK]: loop_rdata {},loop_check_bit_num {},loop_execution_cnt {}\n",loop_rdata,loop_check_bit_num,loop_execution_cnt);
+      cvm::log(cvm::HIGH, "[jtag_driver_CHECK]: loop_rdata {:#x},loop_check_bit_num {},loop_execution_cnt {}\n",loop_rdata,loop_check_bit_num,loop_execution_cnt);
       return isNthBitSet(loop_rdata,loop_check_bit_num);
     }else if(loop_check_bit_type == 0){
-      cvm::log(cvm::HIGH, "[jtag_driver_CHECK]: loop_rdata {},loop_check_bit_num {},loop_execution_cnt {}\n",loop_rdata,loop_check_bit_num,loop_execution_cnt);
+      cvm::log(cvm::HIGH, "[jtag_driver_CHECK]: loop_rdata {:#x},loop_check_bit_num {},loop_execution_cnt {}\n",loop_rdata,loop_check_bit_num,loop_execution_cnt);
       return isNthBitClear(loop_rdata,loop_check_bit_num);
     }else{
      cvm::log(cvm::HIGH, "[jtag_driver]: Wrong Exit loop condition detected \n");

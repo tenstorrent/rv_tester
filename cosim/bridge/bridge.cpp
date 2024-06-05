@@ -94,7 +94,6 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
       "mtinst","htinst", // RVDE-10005
       "vstart","vxsat","vxrm","vcsr", // Unimplemented
       "sstatus","mstatus","hstatus","mie","hie","vsie","sie", // RVDE-11840
-      "medeleg",// RVDE-14192
       "tselect","tdata1","tdata2","tdata3","mcontext", // Unimplemented: RVDE-7518
       "fflags","fcsr", // Unimplemented
       "menvcfg","senvcfg", // FIXME: pointer masking change
@@ -116,22 +115,26 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
        cvm::log(cvm::LOW, "Doubling max_cycles for sim run to {}\n",FLAGS_max_cycle );
     }
     int32_t nharts = cvm::topology::attr(platform, "NHARTS").second;
-    if(FLAGS_max_stall_cycle < (nharts*3000 + 7000)){
-        FLAGS_max_stall_cycle = nharts*3000 + 7000;
+    if((FLAGS_max_stall_cycle < (20000 + (nharts-1)*2000)) && (FLAGS_max_stall_cycle != 0)){
+        FLAGS_max_stall_cycle = (20000 + (nharts-1)*2000);
         cvm::log(cvm::LOW, "Overwriting max_stall_cycle to {} cycles\n",FLAGS_max_stall_cycle );
     }
     // Overwrite hart_enable_mask in a random fashion based on num_harts run-arg
     // Do this only when hart_enable_mask run-arg is 0x1 (default value)
-    if(FLAGS_hart_enable_mask == 0x1){
-      unsigned char hart_enable_mask = 0;
-      std::vector<uint8_t> bit_positions(FLAGS_num_harts);
-      cvm::rng<uint32_t> rng(FLAGS_seed);
-      std::generate(bit_positions.begin(), bit_positions.end(), [nharts, &rng]() { return rng() % nharts; });
-      for (uint8_t bit_position : bit_positions) {
-        hart_enable_mask |= (1 << (bit_position));
-      }
-      FLAGS_hart_enable_mask = hart_enable_mask;
-      cvm::log(cvm::LOW, "Overwriting hart_enable_mask to 0x{:x}\n", FLAGS_hart_enable_mask);
+    if (FLAGS_hart_enable_mask == 0x1) {
+        unsigned char hart_enable_mask = 0;
+        std::set<uint8_t> unique_bit_positions;
+        cvm::rng<uint32_t> rng(FLAGS_seed);
+        // Generate unique bit positions
+        while (unique_bit_positions.size() < FLAGS_num_harts) {
+            unique_bit_positions.insert(rng() % FLAGS_num_harts);
+        }
+        // Set bits in hart_enable_mask
+        for (uint8_t bit_position : unique_bit_positions) {
+            hart_enable_mask |= (1 << bit_position);
+        }
+        FLAGS_hart_enable_mask = hart_enable_mask;
+        cvm::log(cvm::LOW, "Overwriting hart_enable_mask to 0x{:x}\n", FLAGS_hart_enable_mask);
     }
 }
 
@@ -171,9 +174,9 @@ void bridge::reset() {
 
 void bridge::csr_init() {
   bool valid;
-  uint64_t data, mask, poke_mask;
+  uint64_t data, mask, poke_mask, read_mask;
   for (const auto& csr: nonzero_reset_csrs) {
-    if (!client_->whisperPeekCsr(id_, csr.address, data, mask, poke_mask, valid)) {
+    if (!client_->whisperPeekCsr(id_, csr.address, data, mask, poke_mask, read_mask, valid)) {
       cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek csr\n", id_);
     }
     size_8_bytes_t cac_mask = 0xffffffffffffffff;
@@ -365,9 +368,7 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
       update_mem_attr(hart, src_t::dut, d.mem_read.attr);
   }
   if (FLAGS_memattr_check && d.mem_write.valid && (!is_vector(d.disasm)) && !lrsc_fail_) {
-    if(!(((d.opcode & 0x7F) == 0x2F) && (d.opcode & 0xF8000000) == 0x18000000 && ((d.opcode & 0x00000F80) == 0x0))) {
       update_mem_attr(hart, src_t::dut, d.mem_write.attr);
-    }
   }
 }
 
@@ -913,7 +914,9 @@ void bridge::update_mem_attr(hart_id_t hart, src_t src, uint32_t data) {
   };
   // Supported sttributes - [type:11, cacheability:12]
   uint32_t masked_data = data & 0x1800;
-  assert(cac_.SetResource(hart, src, mem_attr, std::move(cac::CreateBitVec<uint64_t>(masked_data))));
+  if (!cac_.SetResource(hart, src, mem_attr, std::move(cac::CreateBitVec<uint64_t>(masked_data)))) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: CAC: Failed to SetResource {}\n", hart, mem_attr.ToString());
+  }
 }
 
 std::bitset<256> create_bitset(bridge::size_8_bytes_t dword_vec_array [vlen/64]) {
@@ -965,13 +968,13 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_
         // Check if PMP entry is locked
         if (w.address >= 0x3B0 && w.address < 0x3C0) {
           bool valid;
-          uint64_t pmpcfg, mask, reset;
+          uint64_t pmpcfg, mask, reset, read_mask;
           uint64_t i, pmp_cfg_reg, pmp_cfg_index;
           // For PMP addresses, which bits of the pmpcfgs to look for 
           i = w.address - 0x3B0;
           pmp_cfg_reg = ((i*8) / 64) * 2;
           pmp_cfg_index = (i*8) % 64;
-          client_->whisperPeekCsr(hart, 0x3A0 + pmp_cfg_reg, pmpcfg, mask, reset, valid);
+          client_->whisperPeekCsr(hart, 0x3A0 + pmp_cfg_reg, pmpcfg, mask, reset, read_mask, valid);
           if((pmpcfg >> (pmp_cfg_index + 7)) & 0x1) {
             break;
           }
@@ -1010,7 +1013,9 @@ void bridge::update_pc(hart_id_t hart, src_t src, uint64_t data) {
     .resource = resource_t::pc_reg,
     .offset = 0
   };
-  assert(cac_.SetResource(hart, src, pc, std::move(cac::CreateBitVec<uint64_t>(data))));
+  if (!cac_.SetResource(hart, src, pc, std::move(cac::CreateBitVec<uint64_t>(data)))) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: CAC: Failed to SetResource {}\n", hart, pc.ToString());
+  }
 }
 
 void bridge::update_insn(hart_id_t hart, src_t src, uint32_t data) {
@@ -1018,7 +1023,9 @@ void bridge::update_insn(hart_id_t hart, src_t src, uint32_t data) {
     .resource = resource_t::insn_bytes,
     .offset = 0
   };
-  assert(cac_.SetResource(hart, src, insn, std::move(cac::CreateBitVec<uint64_t>(data))));
+  if (!cac_.SetResource(hart, src, insn, std::move(cac::CreateBitVec<uint64_t>(data)))) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: CAC: Failed to SetResource {}\n", hart, insn.ToString());
+  }
 }
 
 void bridge::update_flags(hart_id_t hart, src_t src, uint32_t data) {
@@ -1026,7 +1033,9 @@ void bridge::update_flags(hart_id_t hart, src_t src, uint32_t data) {
     .resource = resource_t::flags,
     .offset = 0
   };
-  assert(cac_.SetResource(hart, src, flags, std::move(cac::CreateBitVec<uint64_t>(data))));
+  if (!cac_.SetResource(hart, src, flags, std::move(cac::CreateBitVec<uint64_t>(data)))) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: CAC: Failed to SetResource {}\n", hart, flags.ToString());
+  }
 }
 
 void bridge::update_priv(hart_id_t hart, src_t src, uint32_t data) {
@@ -1034,7 +1043,9 @@ void bridge::update_priv(hart_id_t hart, src_t src, uint32_t data) {
     .resource = resource_t::priv_mode,
     .offset = 0
   };
-  assert(cac_.SetResource(hart, src, priv, std::move(cac::CreateBitVec<uint64_t>(data))));
+  if (!cac_.SetResource(hart, src, priv, std::move(cac::CreateBitVec<uint64_t>(data)))) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: CAC: Failed to SetResource {}\n", hart, priv.ToString());
+  }
 }
 
 void bridge::update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, const std::vector<size_8_bytes_t>&& dword_vec) {
@@ -1045,17 +1056,19 @@ void bridge::update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_
     .resource = resource,
     .offset = addr
   };
-  assert(cac_.SetResource(hart, src, rid, std::move(cac::CreateBitVec<size_8_bytes_t>(dword_vec))));
+  if (!cac_.SetResource(hart, src, rid, std::move(cac::CreateBitVec<size_8_bytes_t>(dword_vec)))) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: CAC: Failed to SetResource {}\n", hart, rid.ToString());
+  }
 }
 
 bool bridge::disable_pa_check_vec(hart_id_t hart) {
   bool valid;
-  uint64_t data, mask, poke_mask;
+  uint64_t data, mask, poke_mask, read_mask;
   uint64_t vl = 0;
   uint64_t vtype ;
   uint64_t vlmax = 0;
 
-  if(client_->whisperPeekCsr(hart,0xc21, data, mask, poke_mask, valid)) {
+  if(client_->whisperPeekCsr(hart,0xc21, data, mask, poke_mask, read_mask, valid)) {
   
   vtype = data & mask; // getting the vtype csr
   int sew_enc = (vtype & 0x38) >> 3; // encoded sew
@@ -1085,7 +1098,7 @@ bool bridge::disable_pa_check_vec(hart_id_t hart) {
 
 }
 
-if(client_->whisperPeekCsr(hart,0xc20, data, mask, poke_mask, valid)) 
+if(client_->whisperPeekCsr(hart,0xc20, data, mask, poke_mask, read_mask, valid)) 
   vl = data & mask;
 
 if(vl < vlmax)
@@ -1103,6 +1116,7 @@ void bridge::arch_state(whisper_state_t& w) {
             {
               mprv_ = 1;
               mpp_ = ((w.value) & 0x1800) >> 11; 
+              mpv_ = ((w.value) & 0x8000000000) >> 39;
             }
             else
               mprv_ = 0;
@@ -1461,15 +1475,6 @@ uint64_t bridge::translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t
   bool x = (memclass == memclass_t::fetch);
   bool sup = ((priv & 0x11) == 0x1); // made a change here
 
-  if((priv & 0x8) != 0)
-  {
-    twoStage_ = true;
-  }
-  else
-  {
-    twoStage_ = false;
-  }
-
 if (!client_->whisperTranslate(hart, va, r, w, x, twoStage_, sup, pa, valid)) {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed VA translation\n", hart);
   }
@@ -1492,7 +1497,29 @@ void bridge::translation_check(hart_id_t hart, const rv_instr_t& d, whisper_stat
   va &= ((1ull << 57) - 1);             // Clear all bits to the left of 57th bit
   if (bit57) {  va |= (~0ull) << 57; } // sign extend the 57th bit to [63:58]
 
-if((mprv_ == 1) && w.priv_mode == 3)
+  // Conditions for two stage translation  
+  // When V = 1
+  if((w.priv_mode & 0x8) != 0)
+  {
+    twoStage_ = true;
+  }
+  // 2.) All flavours of Hypervisor Loads and Stores
+  if((w.opcode & 0x7f) == 0x73) 
+  {
+    // lower 7 bit opcode , upper 4 bits of funct7 and funct3 to differentiate from HFENCE and HINVAL
+    if(((w.opcode & 0xf0000000) == 0x60000000) && ((w.opcode & 0x7000) == 0x4000))
+    {
+      twoStage_ = true;
+    }
+  }
+  // 3.) When MPRV = 1 and MPV = 1 (Table 9.5 in Hypervisor spec)
+  if(mprv_ == 1 & mpv_ == 1)
+  {
+    twoStage_ = true;
+  }
+
+
+  if((mprv_ == 1) && w.priv_mode == 3)
   {
     pa = translate(hart, va, mpp_, memclass_t::read);
   }
@@ -1723,13 +1750,13 @@ uint64_t bridge::modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data) {
   // Spec section...
   if (addr >= 0x3B0 && addr < 0x3C0) {
     bool valid;
-    uint64_t pmpcfg, mask, reset;
+    uint64_t pmpcfg, mask, reset, read_mask;
     uint64_t i, pmp_cfg_reg, pmp_cfg_index;
     // For PMP addresses, which bits of the pmpcfgs to look for 
     i = addr - 0x3B0;
     pmp_cfg_reg = ((i*8) / 64) * 2;
     pmp_cfg_index = (i*8) % 64;
-    client_->whisperPeekCsr(hart, 0x3A0 + pmp_cfg_reg, pmpcfg, mask, reset, valid);
+    client_->whisperPeekCsr(hart, 0x3A0 + pmp_cfg_reg, pmpcfg, mask, reset, read_mask, valid);
     if((pmpcfg >> (pmp_cfg_index + 4)) & 0x1) {
       result = data | 0x1ff;
     } else {
@@ -1747,13 +1774,13 @@ bridge::size_8_bytes_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, ui
   else result = mask & get_csr_mask(hart, addr);
   if (addr >= 0x3B0 && addr < 0x3C0) {
     bool valid;
-    uint64_t pmpcfg, mask_iss, reset;
+    uint64_t pmpcfg, mask_iss, reset, read_mask;
     uint64_t i, pmp_cfg_reg, pmp_cfg_index;
     // For PMP addresses, which bits of the pmpcfgs to look for 
     i = addr - 0x3B0;
     pmp_cfg_reg = ((i*8) / 64) * 2;
     pmp_cfg_index = (i*8) % 64;
-    client_->whisperPeekCsr(hart, 0x3A0 + pmp_cfg_reg, pmpcfg, mask_iss, reset, valid);
+    client_->whisperPeekCsr(hart, 0x3A0 + pmp_cfg_reg, pmpcfg, mask_iss, reset, read_mask, valid);
     if((pmpcfg >> (pmp_cfg_index + 4)) & 0x1) {
       result = result | 0x1ff;
     } else {
@@ -1803,7 +1830,9 @@ void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data,
   if (mask_ref != std::nullopt) {
     mask = cac::CreateBitVec<size_8_bytes_t>(mask_ref.value());
   }
-  assert(csr_cac_.SetResource(hart, src, csr_resource, std::move(cac::CreateBitVec<size_8_bytes_t>({data})), mask, check_en));
+  if (!csr_cac_.SetResource(hart, src, csr_resource, std::move(cac::CreateBitVec<size_8_bytes_t>({data})), mask, check_en)) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: CAC: Failed to SetResource {}\n", hart, csr_resource.ToString());
+  }
 
   // Also update shadow csr if applicable ex: mstatus/sstatus
   if (!shadow_csr && shadow_csrs.count(addr)) {
@@ -1817,9 +1846,9 @@ void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data,
           alias_mask = get_csr_poke_mask(hart, shadow_csr->second);
       }
       else {
-        uint64_t mask, poke_mask;
+        uint64_t mask, poke_mask, read_mask;
         bool valid;
-        if (!client_->whisperPeekCsr(hart, shadow_csr->second, data, mask, poke_mask, valid)) {
+        if (!client_->whisperPeekCsr(hart, shadow_csr->second, data, mask, poke_mask, read_mask, valid)) {
           cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek csr\n", hart);
         }
         alias_mask = get_csr_poke_mask(hart, shadow_csr->second);
@@ -1843,17 +1872,17 @@ uint64_t bridge::get_csr(hart_id_t hart, src_t src, uint64_t addr) {
 
 uint64_t bridge::get_csr_mask(hart_id_t hart, uint64_t addr) {
   bool valid;
-  uint64_t data, mask, poke_mask;
-  if (!client_->whisperPeekCsr(hart, addr, data, mask, poke_mask, valid)) {
+  uint64_t data, mask, poke_mask, read_mask;
+  if (!client_->whisperPeekCsr(hart, addr, data, mask, poke_mask, read_mask, valid)) {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek csr\n", hart);
   }
-  return mask;
+  return mask & read_mask;
 }
 
 uint64_t bridge::get_csr_poke_mask(hart_id_t hart, uint64_t addr) {
   bool valid;
-  uint64_t data, mask, poke_mask;
-  if (!client_->whisperPeekCsr(hart, addr, data, mask, poke_mask, valid)) {
+  uint64_t data, mask, poke_mask, read_mask;
+  if (!client_->whisperPeekCsr(hart, addr, data, mask, poke_mask, read_mask, valid)) {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek csr\n", hart);
   }
   return poke_mask;

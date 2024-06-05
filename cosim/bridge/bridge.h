@@ -186,6 +186,7 @@ private:
 
   uint16_t mprv_ = 0;
   uint16_t mpp_ = 0;
+  uint16_t mpv_ = 0;
 
   bool resynch_intr_cause_mismatch_ = false;
   bool resynch_csr_ = false;

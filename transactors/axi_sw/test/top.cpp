@@ -2,16 +2,12 @@
 #include "verilated.h"
 #include <stdio.h>
 
-static double vtime = 0;
-
-double sc_time_stamp() {
-    return vtime;
-}
-
 int main(int argc, char** argv, char** /*env*/) {
 
-    Vtb top;
-    Verilated::commandArgs(argc, argv);
+    VerilatedContext context;
+    context.threads(1);
+    context.commandArgs(argc, argv);
+    Vtb top(&context);
 
     printf("starting\n");
 
@@ -19,9 +15,9 @@ int main(int argc, char** argv, char** /*env*/) {
     while (!Verilated::gotFinish()) {
         top.eval();
         top.vclk = !top.vclk;
-        vtime += 5;
+        context.timeInc(5);
     }
 
-    printf("exiting after %f cycles\n", vtime/10);
+    printf("exiting after %" PRId64 " cycles\n", context.time()/10);
     exit(0);
 }

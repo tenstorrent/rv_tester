@@ -16,6 +16,7 @@ class axi : public transactor {
         typedef std::uint64_t addr_t      ;
         typedef std::uint8_t  len_t       ;
         typedef std::uint8_t  sz_t        ;
+        
         typedef enum : std::uint8_t {
             BURST_FIXED,
             BURST_INCR ,
@@ -53,6 +54,26 @@ class axi : public transactor {
             ATOP_UMIN,
             ATOP_INVALID,
         } atop_operation;
+        
+        typedef enum {
+           DEV_NBUF,
+           DEV_BUF,
+           NC_NBUF,
+           NC_BUF,
+           WT_NA,
+           WT_RA,
+           WT_WA,
+           WT_RWA,
+           WB_NA,
+           WB_RA,
+           WB_WA,
+           WB_RWA,
+        } cache_mem_attr_t;
+
+        typedef std::uint8_t  prot_t;
+        typedef std::uint8_t  qos_t;
+        typedef std::uint8_t  region_t;
+        typedef std::uint8_t  user_t;
 
         struct atop_t {
             atop_transaction transaction;
@@ -68,14 +89,20 @@ class axi : public transactor {
         };
 
         struct a_t {
-            bool    w    ;
-            id_t    id   ;
-            addr_t  addr ;
-            len_t   len  ;
-            sz_t    size ;
-            burst_t burst;
-            bool    lock ;
-            atop_t  atop = atop_t(0);
+            bool              w    ;
+            id_t              id   ;
+            addr_t            addr ;
+            len_t             len  ;
+            sz_t              size ;
+            burst_t           burst;
+            bool              lock ;
+            cache_mem_attr_t  cache;
+            prot_t            prot;
+            qos_t             qos;
+            region_t          region;
+            atop_t            atop = atop_t(0);
+            user_t            user;
+            
         };
 
         struct w_t {
@@ -88,7 +115,7 @@ class axi : public transactor {
             w_t(w_t&&) = default;
             w_t& operator=(w_t&&) = default;
             w_t(const w_t&) = default;
-            w_t& operator=(const w_t&) = delete;
+            w_t& operator=(const w_t&) = default;
         };
 
         struct r_t {

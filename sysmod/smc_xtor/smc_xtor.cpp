@@ -23,6 +23,27 @@ smc_xtor::smc_xtor(const std::string& tag, uint64_t addr, size_t size, cvm::topo
   channel = cvm::registry::messenger.channel<axi::r_t>(axi_mst_loc_l);
   push_smc_boot_seq();
 }
+void smc_xtor::axi_write_granular() {
+
+  axi::a_t aw_txn;
+  aw_txn.w    = true;
+  aw_txn.id   = 1;
+  aw_txn.addr = 0x1234;
+  aw_txn.len  = 1;
+  aw_txn.size = 1;
+  aw_txn.burst = axi::burst_t(0);
+  aw_txn.lock  =0;
+  aw_txn.cache  =axi::cache_mem_attr_t(0);
+  aw_txn.prot  =0;
+  aw_txn.qos  =0;
+  aw_txn.region  =0;
+  aw_txn.atop  =0;
+  aw_txn.user  =0;
+
+  cvm::log(cvm::LOW, "[Trickbox] SCMC_XTOR AXI WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
+  //cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb});
+  cvm::registry::messenger.signal(axi_mst_loc_l, aw_txn);
+}
 
 void smc_xtor::axi_write() {
   uint64_t addr;
