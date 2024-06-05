@@ -121,16 +121,20 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
     }
     // Overwrite hart_enable_mask in a random fashion based on num_harts run-arg
     // Do this only when hart_enable_mask run-arg is 0x1 (default value)
-    if(FLAGS_hart_enable_mask == 0x1){
-      unsigned char hart_enable_mask = 0;
-      std::vector<uint8_t> bit_positions(FLAGS_num_harts);
-      cvm::rng<uint32_t> rng(FLAGS_seed);
-      std::generate(bit_positions.begin(), bit_positions.end(), [nharts, &rng]() { return rng() % nharts; });
-      for (uint8_t bit_position : bit_positions) {
-        hart_enable_mask |= (1 << (bit_position));
-      }
-      FLAGS_hart_enable_mask = hart_enable_mask;
-      cvm::log(cvm::LOW, "Overwriting hart_enable_mask to 0x{:x}\n", FLAGS_hart_enable_mask);
+    if (FLAGS_hart_enable_mask == 0x1) {
+        unsigned char hart_enable_mask = 0;
+        std::set<uint8_t> unique_bit_positions;
+        cvm::rng<uint32_t> rng(FLAGS_seed);
+        // Generate unique bit positions
+        while (unique_bit_positions.size() < FLAGS_num_harts) {
+            unique_bit_positions.insert(rng() % FLAGS_num_harts);
+        }
+        // Set bits in hart_enable_mask
+        for (uint8_t bit_position : unique_bit_positions) {
+            hart_enable_mask |= (1 << bit_position);
+        }
+        FLAGS_hart_enable_mask = hart_enable_mask;
+        cvm::log(cvm::LOW, "Overwriting hart_enable_mask to 0x{:x}\n", FLAGS_hart_enable_mask);
     }
 }
 
