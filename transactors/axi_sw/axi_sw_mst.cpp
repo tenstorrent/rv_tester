@@ -317,8 +317,7 @@ void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const transactor::read_request_t& req) {
     axi::a_t a{ .w = false };
 
-    //if (!a_wrapper(req.addr, req.length,req.burst,req.cache,req.prot,req.qos,req.user, a))
-    if (!a_wrapper(req.addr, req.length, a))
+     if (!a_wrapper(req.addr, req.length, a))
         return;
 
     transactions_.emplace_back(a);
@@ -330,7 +329,6 @@ void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const transactor::write_request_t& req) {
     axi::a_t a{ .w = true };
 
-    //if (!a_wrapper(req.addr, req.length,req.burst,req.cache,req.prot,req.qos,req.user, a))
     if (!a_wrapper(req.addr, req.length, a))
         return;
 

@@ -22,14 +22,10 @@ scratchpad_xtor::scratchpad_xtor(const std::string& tag, uint64_t addr, size_t s
 }
 void scratchpad_xtor::axi_write_data_granular() {
  axi::w_t w_txn;
- //for(int i = 1; i <= 64; ++i) {
- //       w_txn.data.push_back(0); // Pushing values 1 to 64
- //       w_txn.strb.push_back(0);
- // }
+ 
   w_txn.data = {0,0,0,0,1};
   w_txn.strb = {0,0,0,0,1};
-  //w_txn.data[0] = 0x12;
-  //w_txn.strb[0] = 1;
+
   w_txn.last = 1;
   cvm::registry::messenger.signal(axi_mst_loc_l, w_txn);
 }
@@ -52,7 +48,7 @@ void scratchpad_xtor::axi_write_granular() {
   
  
   cvm::log(cvm::LOW, "[Trickbox] SCMC_XTOR AXI WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
-  //cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb});
+
   cvm::registry::messenger.signal(axi_mst_loc_l, aw_txn);
  
 }
@@ -61,11 +57,9 @@ void scratchpad_xtor::axi_write() {
   size_t length = 0x40;
   std::vector<uint8_t> data = {1,2,3,4};
   std::vector<bool> strb= {1,1,1,1};
-  //scratchpad_wr_t wr;
 
-  //addr = (uint64_t)wr.addr;
   addr = 0x60000000;
-  //gen_data_strb(wr.addr,wr.data,data,strb);
+  gen_data_strb(wr.addr,wr.data,data,strb);
   
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb});
 }

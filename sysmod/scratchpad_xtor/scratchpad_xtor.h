@@ -106,12 +106,9 @@ class scratchpad_xtor : public device {
         virtual void tick(uint64_t) override
         {
             cnt_tick ++;
-            //if(trigger_flag){
             cvm::log(cvm::LOW, "[Trickbox] SCRATCHPAD_XTOR tick {}\n",cnt_tick);
             if(cnt_tick == 60){
             cvm::log(cvm::LOW, "[Trickbox] SCRATCHPAD_XTOR trigger flag set \n");
-            //axi_read(0x60000000,2,5);
-	          //axi_write();
             axi_write_granular();
             trigger_flag = 0;
             }

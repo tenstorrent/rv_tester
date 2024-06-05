@@ -70,7 +70,6 @@ cvm::messenger::task<void> axi_sw<W,AW,AR,RQ>::process(const AW& aw) {
 template < typename W,typename AW,typename AR, typename RQ>
 cvm::messenger::task<void> axi_sw<W,AW,AR,RQ>::process(const AR& ar) {
     cvm::log(cvm::FULL, "[axi_sw] ar: [id={}, addr={:#x}, size={}]\n", ar.id, ar.addr, ar.size);
-    //co_await a(axi::a_t{false, ar.id, ar.addr, ar.len, ar.size, axi::burst_t(ar.burst), ar.lock != 0});
     co_await a(axi::a_t{false, ar.id, ar.addr, ar.len, ar.size, axi::burst_t(ar.burst), ar.lock != 0,axi::cache_mem_attr_t(ar.cache),ar.prot,ar.qos,ar.region, 0,ar.user});
     r_resp();
     co_return;
