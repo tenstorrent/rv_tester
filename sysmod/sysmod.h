@@ -63,8 +63,11 @@ class sysmod {
     const size_t bitsetSize = 64;//70;
     const size_t ulongSize = sizeof(uint64_t) * 8;
     const size_t arraySize = (bitsetSize + ulongSize - 1) / ulongSize;
-    
-     std::bitset<70> bitset_shifted = bitset>>4;
+
+    std::bitset<70> bitset_shifted = bitset>>2;
+
+    //jtag rx -> jtag.op_Data , we are shifting only by 2 since from jtag_xtor for each tap point we shift accordingly but all of them are shifted by 2
+    //std::cout<<"[JTAG RESP] original = " <<bitset<<" shifted = "<<bitset_shifted<<"\n";
     std::vector<uint64_t> ulongArray(arraySize);
 
     for (size_t i = 0; i < bitsetSize; i += ulongSize) {

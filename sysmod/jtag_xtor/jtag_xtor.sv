@@ -193,17 +193,25 @@ always @(posedge clk) begin
   if (ir && ~jtag_resp.tdo_en) begin
     jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1:5],jtag_resp.tdo,jtag_rx[4:1]};
     read <= 1;
-  end else if (dr && ~jtag_resp.tdo_en && jtag_tx[0]) begin
+  end else if (dr && ~jtag_resp.tdo_en && jtag_tx[0]) begin  //aclint
     read_data_valid_reg <= 1'b0; 
-    jtag_rx <= {jtag_resp.tdo,jtag_rx[68 :3],jtag_rx[2:0]};
+    jtag_rx <= {jtag_resp.tdo,jtag_rx[69 :5],jtag_rx[3:0]};
     read <= 1;
-  end else if (dr && ~jtag_resp.tdo_en && jtag_tx[1]) begin
+  end else if (dr && ~jtag_resp.tdo_en && jtag_tx[1]) begin  //pmnw
     read_data_valid_reg <= 1'b0; 
-    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1],jtag_resp.tdo,jtag_rx[68 :2],jtag_rx[0]};
+    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1],jtag_resp.tdo,jtag_rx[68 :4],jtag_rx[2:0]};
     read <= 1;
-  end else if (dr && ~jtag_resp.tdo_en) begin
+  end else if (dr && ~jtag_resp.tdo_en && jtag_tx[2]) begin  //smc
     read_data_valid_reg <= 1'b0; 
-    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1 : 68],jtag_resp.tdo,jtag_rx[67 :1]};
+    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1:68],jtag_resp.tdo,jtag_rx[67 :3],jtag_rx[1:0]};
+    read <= 1;
+  end else if (dr && ~jtag_resp.tdo_en && jtag_tx[3]) begin  //trace 
+    read_data_valid_reg <= 1'b0; 
+    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1:67],jtag_resp.tdo,jtag_rx[66 :2],jtag_rx[0]};
+    read <= 1;
+  end else if (dr && ~jtag_resp.tdo_en) begin      //axi
+    read_data_valid_reg <= 1'b0; 
+    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1 : 66],jtag_resp.tdo,jtag_rx[65 :1]};
     read <= 1;
   end else begin
     if(read)begin
