@@ -666,7 +666,7 @@ sysmod::load_csr_boot(uint64_t dummy)
       return;
     }
     int addr = dev("boot")->addr() + 0x8000;
-    int dest_gpr = 4, dest_gpr2 = 3;
+    int temp_gpr = 4, temp_gpr2 = 3, temp_gpr3 = 28;
     int csr_opcode = 0x73, lui_opcode = 0x37, op_imm_opcode = 0x13, or_opcode = 0x33;
 
     auto add_to_mem = [&addr,this] (const uint32_t op) { //simple lambda to poke to memory
@@ -688,33 +688,51 @@ sysmod::load_csr_boot(uint64_t dummy)
       if (value < 32)
         csr_op = csr_opcode + (0/*x0*/<<7) + (5<<12) + (value<<15) + (csr_num<<20); // csrwi csrnum, x4 (csrwi can accomodate [4:0] immediate otherwise, use GPR)
       else {
-        uint32_t lui_op = lui_opcode + (dest_gpr<<7) + (((value & 0xfffff000)>>12)<<12);
+        uint32_t lui_op = lui_opcode + (temp_gpr<<7) + (((value & 0xfffff000)>>12)<<12);
         add_to_mem(lui_op);
 
-        uint32_t ori_op = op_imm_opcode + (dest_gpr<<7) + (0b110<<12) + (dest_gpr<<15) + ((value & 0xfff)<<20);
-        add_to_mem(ori_op);
+        if (!(value & 0x800)) {
+          uint32_t ori_op = op_imm_opcode + (temp_gpr<<7) + (0b110<<12) + (temp_gpr<<15) + ((value & 0xfff)<<20);
+          add_to_mem(ori_op);
+        } else {
+            lui_op = lui_opcode + (temp_gpr3<<7) + (0x1000);
+            add_to_mem(lui_op);
+            uint32_t addw_op = (0x1b /*addw*/) + (temp_gpr3<<7) + (temp_gpr3<<15) + (((value & 0xfff) - 0x1000)<<20);
+            add_to_mem(addw_op);
+            uint32_t or_op = or_opcode + (temp_gpr<<7/*rd*/) + (0b110<<12) + (temp_gpr3<<15) + (temp_gpr<<20);
+            add_to_mem(or_op);
+        }
 
         if (value & 0x80000000) { // data gets sign extended, shl and shr to correct it
-          uint32_t slli_op = op_imm_opcode + (dest_gpr<<7) + (0b001<<12) + (dest_gpr<<15) + (32<<20); // slli x4, x4, 32
+          uint32_t slli_op = op_imm_opcode + (temp_gpr<<7) + (0b001<<12) + (temp_gpr<<15) + (32<<20); // slli x4, x4, 32
           add_to_mem(slli_op);
-          uint32_t srli_op = op_imm_opcode + (dest_gpr<<7) + (0b101<<12) + (dest_gpr<<15) + (32<<20); // srli x4, x4, 32
+          uint32_t srli_op = op_imm_opcode + (temp_gpr<<7) + (0b101<<12) + (temp_gpr<<15) + (32<<20); // srli x4, x4, 32
           add_to_mem(srli_op);
         }
         if (value > uint64_t(0xffffffff)) {
           // data is greater than 32-bits (another opcode, another temporary register)
-          uint32_t lui_op = lui_opcode + (dest_gpr2<<7) + ((((value>>32) & 0xfffff000) >> 12)<<12);
+          uint32_t lui_op = lui_opcode + (temp_gpr2<<7) + ((((value>>32) & 0xfffff000) >> 12)<<12);
           add_to_mem(lui_op);
 
-          uint32_t ori_op = 0x13 + (dest_gpr2<<7) + (0b110<<12) /*funct3*/ + (dest_gpr2<<15) + (((value>>32) & 0xfff)<<20);
-          add_to_mem(ori_op);
+          if (!((value>>32) & 0x800)) {
+            uint32_t ori_op = 0x13 + (temp_gpr2<<7) + (0b110<<12) /*funct3*/ + (temp_gpr2<<15) + (((value>>32) & 0xfff)<<20);
+            add_to_mem(ori_op);
+          } else {
+            lui_op = lui_opcode + (temp_gpr3<<7) + (0x1000);
+            add_to_mem(lui_op);
+            uint32_t addw_op = (0x1b /*addw*/) + (temp_gpr3<<7) + (temp_gpr3<<15) + ((((value>>32) & 0xfff) - 0x1000)<<20);
+            add_to_mem(addw_op);
+            uint32_t or_op = or_opcode + (temp_gpr2<<7) + (0b110<<12) + (temp_gpr3<<15) + (temp_gpr2<<20);
+            add_to_mem(or_op);
+          }
 
-          uint32_t slli_op = 0x13 + (dest_gpr2<<7) + (0b001<<12) + (dest_gpr2<<15) + (32<<20);
+          uint32_t slli_op = 0x13 + (temp_gpr2<<7) + (0b001<<12) + (temp_gpr2<<15) + (32<<20);
           add_to_mem(slli_op);
 
-          uint32_t or_op = or_opcode + (dest_gpr<<7) + (0b110<<12) + (dest_gpr2<<15) + (dest_gpr<<20);
+          uint32_t or_op = or_opcode + (temp_gpr<<7) + (0b110<<12) + (temp_gpr2<<15) + (temp_gpr<<20);
           add_to_mem(or_op);
         }
-        csr_op = csr_opcode + (0/*x0*/<<7) + (1<<12) + (dest_gpr<<15) + (csr_num<<20); // csrw csrnum, x4
+        csr_op = csr_opcode + (0/*x0*/<<7) + (1<<12) + (temp_gpr<<15) + (csr_num<<20); // csrw csrnum, x4
       }
       add_to_mem(csr_op);
     }
