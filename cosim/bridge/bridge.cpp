@@ -96,7 +96,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
       "sstatus","mstatus","hstatus","mie","hie","vsie","sie", // RVDE-11840
       "tselect","tdata1","tdata2","tdata3","mcontext", // Unimplemented: RVDE-7518
       "fflags","fcsr", // Unimplemented
-      "menvcfg","senvcfg", // FIXME: pointer masking change
+      "menvcfg","senvcfg","henvcfg", // FIXME: pointer masking change
       "pma","pmp", // FIXME: Performant NC change
       "vtype", // Permanent: Vector vtype will not be implemented
       "mip","hip","vsip","hvip","sip","mireg","sireg","vsireg","mtopei","stopei","vstopei", // Permanent: Interrupts
