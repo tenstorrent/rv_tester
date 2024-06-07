@@ -621,7 +621,6 @@ sysmod::load_boot(const std::string& boot)
       for (size_t i = 0; i < 8; i++) strb[i] = true;
       dev("boot")->backdoor_write(dev("boot")->addr() + 0x9008, 8, data, strb);
       
-      std::cout<<"BACKDOOR LOADED SP FLAGS\n";
       if(FLAGS_sp_ways_num < 25){
         device::data_t data(8);
         device::strb_t strb(8);
