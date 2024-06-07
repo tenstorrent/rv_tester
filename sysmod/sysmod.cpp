@@ -30,12 +30,14 @@ DEFINE_string(hex, "", "hex file (program) to load into memory");
 DEFINE_string(load, "", "elf file (program) to load into memory");
 DEFINE_string(load_lz4, "", "lz4 compressed file (program) to load into memory");
 DEFINE_bool(bootrom, true, "Load bootrom before test");
+DEFINE_bool(enable_sp_init, false, "Enable sharedcache scratchpad initilization from bootrom");
 DEFINE_string(bootrom_path, "", "Path to bootrom object file");
 DEFINE_string(cplfw_path, "", "Path to cpl firmware object file");
 DEFINE_string(load_io, "", "load specified io dev with content from memory");
 DEFINE_bool(sysmod_tick_async, true, "Asynchronous sysmod_tick calls");
 DEFINE_uint64(sysmod_tick_update_threshold, 1, "Slow down tick update frequency by this factor. The tick is still eventually advanced the same cumulative amount, just not as often. Useful for emulation where the clock counts much faster but tests setup interrupts to happen very soon for simulation. They git hit by an interrupt storm and are stuck in the interrupt handler forever.");
 DEFINE_uint64(hart_enable_mask, 0x1, "Hart enable mask. Ex: To enable 2 harts in a 8-hart system, use 0x3.");
+DEFINE_uint64(sp_ways_num, 0x1, "Number of sharedcache ways to be alloted as Scratchpad");
 DEFINE_string(set_csr, "", "+set_csr=<csr_num>:<value>,<num2>:<val2> ");
 DECLARE_bool(cosim);
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
@@ -611,6 +613,32 @@ sysmod::load_boot(const std::string& boot)
     device::strb_t strb(8);
     for (size_t i = 0; i < 8; i++) strb[i] = true;
     dev("boot")->backdoor_write(dev("boot")->addr() + 0x9000, 8, data, strb);
+
+    if(FLAGS_enable_sp_init){
+      device::data_t data(8);
+      for (size_t i = 0; i < 8; i++) data[i] = 0x1;
+      device::strb_t strb(8);
+      for (size_t i = 0; i < 8; i++) strb[i] = true;
+      dev("boot")->backdoor_write(dev("boot")->addr() + 0x9008, 8, data, strb);
+      
+      if(FLAGS_sp_ways_num < 25){
+        device::data_t data(8);
+        device::strb_t strb(8);
+        for (size_t i = 0; i < 8; i++){
+          if(i==0){
+             data[i] = uint8_t(FLAGS_sp_ways_num);
+             strb[i] = true;
+           }else{
+             data[i] = 0;
+             strb[i] = true; 
+           }
+        }
+        dev("boot")->backdoor_write(dev("boot")->addr() + 0x9010, 8, data, strb);
+      }else{
+            cvm::log(cvm::ERROR, "Error: Maximum 24 sharedcache ways can be alloted as Scratchpad \n");
+      }
+    }
+
   }
 }
 void
