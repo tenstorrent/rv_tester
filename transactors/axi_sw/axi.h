@@ -155,7 +155,9 @@ class axi : public transactor {
 
         axi(const data_width_t& data_width, const cvm::topology::loc_t loc, const std::string& tag)
           : transactor(loc, tag), data_width_(data_width)
-        { }
+        { 
+            cvm::log(cvm::MEDIUM, "[axi] Constructing axi for loc={} id={}\n", loc, tag);
+        }
 
         axi(axi&&) = delete;
         axi& operator=(axi&&) = delete;

@@ -10,4 +10,24 @@ genrule(
     visibility = ["//:__subpackages__"],
 )
 
+cc_library(
+    name = "axi",
+    srcs = [ "axi.cpp" ],
+    hdrs = [ "axi.h", "safe_queue.h" ],
+    deps = [
+        "@rv_tester//common:transactor",
+        "@cvm//:plusargs",
+        "@cvm//:topology",
+        "@cvm//:logger",
+        "@cvm//:registry",
+        "@cvm//:bitmanip",
+        "@cvm//:messenger",
+        "@fmt//:fmt"
+    ],
+    #alwayslink = True,
+    #linkstatic = True,
+    strip_include_prefix = ".",
+    visibility = ["//visibility:public"],
+)
+
 exports_files(["safe_queue.h"] + glob(["axi_sw.*", "axi.*", "axi_sw_mst.*"]))
