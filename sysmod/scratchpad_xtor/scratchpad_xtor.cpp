@@ -6,6 +6,7 @@
 #include "scratchpad_xtor.h"
 
 
+DEFINE_bool(sp_xtor_en, false, "Enable ");
 DECLARE_string(load);
 DECLARE_int32(seed);
 
