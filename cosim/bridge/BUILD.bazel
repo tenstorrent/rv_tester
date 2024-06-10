@@ -13,6 +13,7 @@ cc_library(
                 "@CoreArchChecker//src:cac_lib",
                 "@cvm//:plusargs",
                 "@cvm//:logger",
+                "@cvm//:random",
                 "@cvm//:topology",
                 "@fmt//:fmt",
                 "//sysmod/htif:htif",

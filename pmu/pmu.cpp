@@ -55,7 +55,7 @@ pmu::process(const rv_tester_transactions::pmu::pmcounters<>& pmcounters)
   if (terminated_ and not sync_terminate_)
     return;
   else if (terminated_)
-    sync_terminate_ = false;
+    sync_terminate_ = not pmcounters.terminate; // we need to wait until the last PMU packet
 
   cvm::log(cvm::HIGH, "[PMU] syncing counters\n");
 
@@ -111,14 +111,14 @@ void
 pmu::report()
 {
   for (size_t i = 0; i < counter::COUNT; i++) {
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_{}\": \"0x{:x}\"}}\n", id_, to_string.at(static_cast<counter>(i)), counters[i]);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_{}\": \"{}\"}}\n", id_, to_string.at(static_cast<counter>(i)), counters[i]);
     if (perf_start_cycle and perf_end_cycle)
-      cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_perf_{}\": \"0x{:x}\"}}\n", id_, to_string.at(static_cast<counter>(i)), perf_region[i]);
+      cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_perf_{}\": \"{}\"}}\n", id_, to_string.at(static_cast<counter>(i)), perf_region[i]);
   }
 
   if (perf_start_cycle and perf_end_cycle) {
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_perf_start_cycle\": \"0x{:x}\"}}\n", id_, perf_start_cycle);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_perf_end_cycle\": \"0x{:x}\"}}\n", id_, perf_end_cycle);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_perf_start_cycle\": \"{}\"}}\n", id_, perf_start_cycle);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_perf_end_cycle\": \"{}\"}}\n", id_, perf_end_cycle);
   }
 }
 
@@ -144,4 +144,21 @@ pmu::ipc_check()
   else {
     cvm::log(cvm::NONE, "IPC check passed. Act: {:.2f} Exp: {:.2f} Tolerance: {} %\n", ipc_actual, FLAGS_ipc_expected, FLAGS_ipc_tolerance_perc);
   }
+}
+
+bool
+pmu::shutdown_ready()
+{
+  if (FLAGS_perf)
+    {
+      if (not terminated_)
+        {
+          cvm::log(cvm::NONE, "Warning: [PMU] asking for shutdown without termination.\n");
+          // something went wrong, just allow terminate
+          return true;
+        }
+      return terminated_ and not sync_terminate_;
+    }
+  else
+    return true;
 }

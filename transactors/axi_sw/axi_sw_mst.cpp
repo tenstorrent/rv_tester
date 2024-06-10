@@ -40,8 +40,8 @@ extern "C" {
     void axi_sw_mst_aw_reset();
     void axi_sw_mst_w_reset();
 
-    void axi_sw_mst_ar(uint32_t id, uint64_t addr, uint8_t len, uint8_t size, uint8_t burst, uint8_t lock);
-    void axi_sw_mst_aw(uint32_t id, uint64_t addr, uint8_t len, uint8_t size, uint8_t burst, uint8_t atop, uint8_t lock);
+    void axi_sw_mst_ar(uint32_t id, uint64_t addr, uint8_t len, uint8_t size, uint8_t burst, uint8_t lock, uint8_t cache, uint8_t prot, uint8_t qos, uint8_t region, uint8_t user);
+    void axi_sw_mst_aw(uint32_t id, uint64_t addr, uint8_t len, uint8_t size, uint8_t burst, uint8_t lock, uint8_t cache, uint8_t prot, uint8_t qos, uint8_t region, uint8_t atop, uint8_t user);
     void axi_sw_mst_w_8(const uint8_t* data, const uint8_t* strb, uint8_t last);
     void axi_sw_mst_w_64(const uint8_t* data, const uint8_t* strb, uint8_t last);
 }
@@ -168,6 +168,13 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const WQ& w_q_ptr) {
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const axi::a_t& a) {
+    //id check
+    if (used_id(a.id)) {
+        cvm::log(cvm::ERROR, "[axi_sw_mst] bad request id: {}, pass unused id for transaction \n", a.id);
+        return;
+    }
+    alloc_id(a.id);
+
     transactions_.emplace_back(a);
     push_transactions();
 }
@@ -184,7 +191,8 @@ bool
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::a_wrapper(uint64_t req_addr, size_t req_length, axi::a_t& a) {
 
     a.addr = req_addr;
-    a.burst = axi::BURST_INCR; a.atop = false; a.lock = false;
+    a.burst =axi::BURST_INCR; a.atop = false; a.lock = false;
+
 
     if (!next_id(a.id)) {
         cvm::log(cvm::ERROR, "No free id's remaining for axi master\n");
@@ -212,7 +220,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
  cvm::log(cvm::FULL, "Calling Push transactions\n");
   while (!transactions_.empty()) {
       auto& req = transactions_.front();
-      std::visit([this](auto&& arg) {
+      int r = std::visit([this](auto&& arg) {
           using T = std::decay_t<decltype(arg)>;
 
           if constexpr (std::is_same_v<T, axi::a_t>) {
@@ -225,10 +233,12 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
                       ar_q_wptr_ = (ar_q_wptr_ + 1) % ar_q_ptr_max_;
                       cvm::registry::callbacks.push(
                         scope_,
-                        [=]() { axi_sw_mst_ar(arg.id, arg.addr, arg.len, arg.size, arg.burst, arg.lock); });
+                        [=]() { axi_sw_mst_ar(arg.id, arg.addr, arg.len, arg.size, arg.burst, arg.lock, arg.cache, arg.prot, arg.qos, arg.region, arg.user); });
                   }
-                  else
-                      return;
+                  else {
+                      cvm::log(cvm::FULL, "[axi_sw_mst] skipping ar_req\n");
+                      return 1;
+                  }
               }
               else {
                   cvm::log(cvm::FULL, "[axi_sw_mst] aw_req: arg.id :{:#x} , arg.addr: {:#x} , arg.len: {:#x} , arg.size: {:#x} , arg.burst: {:#x} , arg.atop.transaction: {:#x} , arg.lock: {:#x} \n", arg.id, arg.addr, arg.len, arg.size, arg.burst, arg.atop.transaction, arg.lock);
@@ -237,10 +247,12 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
                       aw_q_wptr_ = (aw_q_wptr_ + 1) % aw_q_ptr_max_;
                       cvm::registry::callbacks.push(
                         scope_,
-                        [=]() { axi_sw_mst_aw(arg.id, arg.addr, arg.len, arg.size, arg.burst, arg.atop.transaction, arg.lock); });
+                        [=]() { axi_sw_mst_aw(arg.id, arg.addr, arg.len, arg.size, arg.burst, arg.lock, arg.cache, arg.prot, arg.qos, arg.region, arg.atop.transaction, arg.user); });
                   }
-                  else
-                      return;
+                  else {
+                      cvm::log(cvm::FULL, "[axi_sw_mst] skipping aw_req\n");
+                      return 1;
+                  }
               }
           }
           else if constexpr (std::is_same_v<T, axi::w_t>) {
@@ -250,12 +262,12 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
 
                   if (arg.strb.size() == 0) {
                       cvm::log(cvm::ERROR, "strb size is 0\n");
-                      return;
+                      return 1;
                   }
 
                   if (arg.strb.size() != arg.data.size()) {
                       cvm::log(cvm::ERROR, "strb size != data size\n");
-                      return;
+                      return 1;
                   }
 
                   cvm::registry::callbacks.push(
@@ -277,16 +289,27 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
                           else
                               cvm::log(cvm::ERROR, "unsupported data width for axi_sw_mst");
                       });
+              } else {
+                  cvm::log(cvm::FULL, "[axi_sw_mst] skipping wdata\n");
+                  return 1;
               }
           }
           else {
               cvm::log(cvm::ERROR, "unhandled axi_mst transaction type\n");
-              return;
+              return 1;
           }
 
+          return 0;
       }, req);
+
+      cvm::log(cvm::FULL, "[axi_sw_mst] visit returned {}\n", r);
+      if (r) break;
+
       transactions_.pop_front();
   }
+
+  cvm::log(cvm::FULL, "[axi_sw_mst] transactions left {}\n", transactions_.size());
+
 }
 
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
@@ -294,7 +317,7 @@ void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const transactor::read_request_t& req) {
     axi::a_t a{ .w = false };
 
-    if (!a_wrapper(req.addr, req.length, a))
+     if (!a_wrapper(req.addr, req.length, a))
         return;
 
     transactions_.emplace_back(a);

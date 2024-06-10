@@ -19,15 +19,18 @@
 #include "null_dev/null_dev.h"
 #include "heartbeat/heartbeat.h"
 #include "htif/htif.h"
+#include "uart8250/uart8250.h"
 #include "trickbox/trickbox.h"
 #include "rv_tester/rv_tester_structs.h"
 #include "rv_tester/rv_tester_plusargs.h"
+#include "cosim/bridge_if/bridge_params.h"
 
 // internal flags
 DEFINE_string(hex, "", "hex file (program) to load into memory");
 DEFINE_string(load, "", "elf file (program) to load into memory");
 DEFINE_string(load_lz4, "", "lz4 compressed file (program) to load into memory");
 DEFINE_bool(bootrom, true, "Load bootrom before test");
+DEFINE_bool(enable_sp_init, false, "Enable sharedcache scratchpad initilization from bootrom");
 DEFINE_string(bootrom_path, "", "Path to bootrom object file");
 DEFINE_string(cplfw_path, "", "Path to cpl firmware object file");
 DEFINE_string(load_io, "", "load specified io dev with content from memory");
@@ -35,6 +38,9 @@ DEFINE_bool(sysmod_tick_async, true, "Asynchronous sysmod_tick calls");
 DEFINE_uint64(sysmod_tick_update_threshold, 1, "Slow down tick update frequency by this factor. The tick is still eventually advanced the same cumulative amount, just not as often. Useful for emulation where the clock counts much faster but tests setup interrupts to happen very soon for simulation. They git hit by an interrupt storm and are stuck in the interrupt handler forever.");
 DEFINE_uint64(hart_enable_mask, 0x1, "Hart enable mask. Ex: To enable 2 harts in a 8-hart system, use 0x3.");
 DEFINE_uint64(max_instructions, 0x0, "Max # instructions termination method value");
+DEFINE_uint64(sp_ways_num, 0x1, "Number of sharedcache ways to be alloted as Scratchpad");
+DEFINE_string(set_csr, "", "+set_csr=<csr_num>:<value>,<num2>:<val2> ");
+DECLARE_bool(cosim);
 
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 
@@ -56,7 +62,9 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
   cvm::registry::messenger.connect<svScope>(
       loc_,
       [this](svScope s) { return this->set_scope(s); });
-
+  cvm::registry::messenger.connect<uint64_t>(
+      loc_,
+      [this](const uint64_t& t) { return this->load_csr_boot(t); });
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::tick<>>(
       loc_,
       [this](const rv_tester_transactions::sysmod::tick<>& t) { return this->tick(t.advance); });
@@ -71,21 +79,19 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
     for (const auto& source : sources) {
         cvm::registry::messenger.connect<transactor::write_t>(
             source,
-            [this](const auto& w) {
-                // unnecessary but better for catching bugs
-                cvm::log(cvm::DEBUG, "new write request at {:#x}\n", w.addr);
-                if (this->dev(w.addr))
+            [this, source](const auto& w) {
+                if (this->dev(w.addr)) {
+                    cvm::log(cvm::HIGH, "[sysmod] write: src={} addr={:#x}\n", source, w.addr);
                     cvm::registry::messenger.signal<device::write_t>(this->loc_, {w});
+                }
             });
         cvm::registry::messenger.connect<transactor::read_t>(
             source,
             [this, source](const auto& r) {
-                cvm::log(cvm::DEBUG, "new read request at {:#x}\n", r.addr);
                 if (this->dev(r.addr)){
-                    cvm::log(cvm::FULL, "[sysmod] read: src={} id={}, addr={:#x}, len={}\n", source, r.id, r.addr, r.length);
+                    cvm::log(cvm::HIGH, "[sysmod] read: src={} id={}, addr={:#x}, len={}\n", source, r.id, r.addr, r.length);
                     cvm::registry::messenger.signal<device::read_t>(this->loc_, {r, source});
-
-		    }
+		}
 
             });
   }
@@ -333,6 +339,8 @@ sysmod::reset() {
   load_prog(FLAGS_hex, FLAGS_load, FLAGS_load_lz4);
   load_io(FLAGS_load_io);
   load_boot(FLAGS_bootrom_path);
+  if (!FLAGS_cosim)
+    load_csr_boot(0);
   load_cplfw(FLAGS_cplfw_path);
 }
 
@@ -378,6 +386,9 @@ sysmod::compose()
         cvm::registry::messenger.connect<htif::terminate_t>(
             loc_,
             [&](htif::terminate_t t) { return this->terminate(t); });
+      }
+      else if (type == "uart8250") {
+        device = std::make_unique<uart8250>(tag, base, loc_);
       }
       else if (type == "dm") {
         // TODO: cvm::ERROR
@@ -602,6 +613,158 @@ sysmod::load_boot(const std::string& boot)
     device::strb_t strb(8);
     for (size_t i = 0; i < 8; i++) strb[i] = true;
     dev("boot")->backdoor_write(dev("boot")->addr() + 0x9000, 8, data, strb);
+
+    if(FLAGS_enable_sp_init){
+      device::data_t data(8);
+      for (size_t i = 0; i < 8; i++) data[i] = 0x1;
+      device::strb_t strb(8);
+      for (size_t i = 0; i < 8; i++) strb[i] = true;
+      dev("boot")->backdoor_write(dev("boot")->addr() + 0x9008, 8, data, strb);
+      
+      if(FLAGS_sp_ways_num < 25){
+        device::data_t data(8);
+        device::strb_t strb(8);
+        for (size_t i = 0; i < 8; i++){
+          if(i==0){
+             data[i] = uint8_t(FLAGS_sp_ways_num);
+             strb[i] = true;
+           }else{
+             data[i] = 0;
+             strb[i] = true; 
+           }
+        }
+        dev("boot")->backdoor_write(dev("boot")->addr() + 0x9010, 8, data, strb);
+      }else{
+            cvm::log(cvm::ERROR, "Error: Maximum 24 sharedcache ways can be alloted as Scratchpad \n");
+      }
+    }
+
+  }
+}
+void
+sysmod::load_csr_boot(uint64_t dummy)
+{
+  cvm::log(cvm::HIGH, "{}", dummy);
+  auto split_string = [] (const std::string& input, char delimiter) {
+    std::vector<std::string> tokens;
+    std::string token;
+    for (char c : input) {
+        if (c != delimiter)
+            token += c;
+        else {
+            tokens.push_back(token);
+            token.clear();
+        }
+    }
+    tokens.push_back(token);
+    return tokens;
+  };
+
+  if (FLAGS_bootrom && FLAGS_set_csr!="") {
+
+    std::map<uint64_t,    uint64_t> csr_data;
+    std::map<std::string, uint64_t> csr_map;
+    for (const auto& csr : csrs) {
+        csr_map[csr.name] = csr.address;
+    }
+    try { // parse the +set_csr and report any errors
+      char delimiter = ',';
+      std::vector<std::string> csr_num_val = split_string(FLAGS_set_csr, delimiter);
+      for (const auto& entry : csr_num_val) {
+        delimiter = ':';
+        std::vector<std::string> num_val = split_string(entry, delimiter);
+        auto csr = num_val.at(0); // expect both csr address("0x301") as well as string("misa")
+        auto value = std::stoull(num_val.at(1), nullptr, 0);
+        if (csr_map.count(csr))
+          csr_data[csr_map[csr]] = value;
+        else {
+          char* p;
+          uint64_t csrn = std::strtoul(csr.c_str(), &p, 0);
+          if (*p == 0)
+            csr_data[csrn] = value;
+          else {
+            cvm::log(cvm::ERROR, "Error: csr_name:{} undefined see +set_csr switch\n", csr);
+            return;
+          }
+        }
+      }
+    }
+    catch (...) {
+      cvm::log(cvm::ERROR, "Error: unable to parse +set_csr={}\n", FLAGS_set_csr);
+      return;
+    }
+    int addr = dev("boot")->addr() + 0x8000;
+    int temp_gpr = 4, temp_gpr2 = 3, temp_gpr3 = 28;
+    int csr_opcode = 0x73, lui_opcode = 0x37, op_imm_opcode = 0x13, or_opcode = 0x33;
+
+    auto add_to_mem = [&addr,this] (const uint32_t op) { //simple lambda to poke to memory
+      device::strb_t strb(4);
+      for (size_t i = 0; i<4; i++) strb[i] = true;
+      cvm::log(cvm::HIGH, "Address: {:#x} OPCODE: {:#x}\n",addr, op);
+      bool valid = true;
+      device::data_t data(4);
+      for (size_t i=0; i<4; i++) data[i] = op >> 8*i;
+      dev("boot")->backdoor_write(addr, 4, data, strb);
+      if (client_ != nullptr && !client_->whisperPoke(0, 0, 'm', addr, op, valid))
+        cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
+      addr += 4;
+    };
+
+    cvm::log(cvm::HIGH, "Backdoor bootrom CSR writes to memory\n");
+    for (auto const& [csr_num, value] : csr_data) {
+      uint32_t csr_op = 0;
+      if (value < 32)
+        csr_op = csr_opcode + (0/*x0*/<<7) + (5<<12) + (value<<15) + (csr_num<<20); // csrwi csrnum, x4 (csrwi can accomodate [4:0] immediate otherwise, use GPR)
+      else {
+        uint32_t lui_op = lui_opcode + (temp_gpr<<7) + (((value & 0xfffff000)>>12)<<12);
+        add_to_mem(lui_op);
+
+        if (!(value & 0x800)) {
+          uint32_t ori_op = op_imm_opcode + (temp_gpr<<7) + (0b110<<12) + (temp_gpr<<15) + ((value & 0xfff)<<20);
+          add_to_mem(ori_op);
+        } else {
+            lui_op = lui_opcode + (temp_gpr3<<7) + (0x1000);
+            add_to_mem(lui_op);
+            uint32_t addw_op = (0x1b /*addw*/) + (temp_gpr3<<7) + (temp_gpr3<<15) + (((value & 0xfff) - 0x1000)<<20);
+            add_to_mem(addw_op);
+            uint32_t or_op = or_opcode + (temp_gpr<<7/*rd*/) + (0b110<<12) + (temp_gpr3<<15) + (temp_gpr<<20);
+            add_to_mem(or_op);
+        }
+
+        if (value & 0x80000000) { // data gets sign extended, shl and shr to correct it
+          uint32_t slli_op = op_imm_opcode + (temp_gpr<<7) + (0b001<<12) + (temp_gpr<<15) + (32<<20); // slli x4, x4, 32
+          add_to_mem(slli_op);
+          uint32_t srli_op = op_imm_opcode + (temp_gpr<<7) + (0b101<<12) + (temp_gpr<<15) + (32<<20); // srli x4, x4, 32
+          add_to_mem(srli_op);
+        }
+        if (value > uint64_t(0xffffffff)) {
+          // data is greater than 32-bits (another opcode, another temporary register)
+          uint32_t lui_op = lui_opcode + (temp_gpr2<<7) + ((((value>>32) & 0xfffff000) >> 12)<<12);
+          add_to_mem(lui_op);
+
+          if (!((value>>32) & 0x800)) {
+            uint32_t ori_op = 0x13 + (temp_gpr2<<7) + (0b110<<12) /*funct3*/ + (temp_gpr2<<15) + (((value>>32) & 0xfff)<<20);
+            add_to_mem(ori_op);
+          } else {
+            lui_op = lui_opcode + (temp_gpr3<<7) + (0x1000);
+            add_to_mem(lui_op);
+            uint32_t addw_op = (0x1b /*addw*/) + (temp_gpr3<<7) + (temp_gpr3<<15) + ((((value>>32) & 0xfff) - 0x1000)<<20);
+            add_to_mem(addw_op);
+            uint32_t or_op = or_opcode + (temp_gpr2<<7) + (0b110<<12) + (temp_gpr3<<15) + (temp_gpr2<<20);
+            add_to_mem(or_op);
+          }
+
+          uint32_t slli_op = 0x13 + (temp_gpr2<<7) + (0b001<<12) + (temp_gpr2<<15) + (32<<20);
+          add_to_mem(slli_op);
+
+          uint32_t or_op = or_opcode + (temp_gpr<<7) + (0b110<<12) + (temp_gpr2<<15) + (temp_gpr<<20);
+          add_to_mem(or_op);
+        }
+        csr_op = csr_opcode + (0/*x0*/<<7) + (1<<12) + (temp_gpr<<15) + (csr_num<<20); // csrw csrnum, x4
+      }
+      add_to_mem(csr_op);
+    }
+    add_to_mem(0x8067/*ret*/);
   }
 }
 

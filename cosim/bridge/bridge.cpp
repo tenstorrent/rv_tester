@@ -1,10 +1,12 @@
 // Licensed under the Apache License, Version 2.0, see LICENSE.TT for details
+// vim: ft=c et ts=2 sw=0 sts
 
 #include "bridge.h"
 #include "util.h"
 #include "cvm/plusargs.hpp"
 #include "cvm/registry.hpp"
 #include "cvm/topology.hpp"
+#include "cvm/random.hpp"
 #include "src/cac_lib.h"
 #include "sysmod/htif/htif.h"
 #include "whisper_client_decl.h"
@@ -18,6 +20,7 @@
 #include <cstdlib>          // system
 #include <vector>
 #include <fmt/format.h>
+#include <random>
 
 // Plusargs
 DECLARE_string(bootrom_path);
@@ -25,9 +28,11 @@ DECLARE_string(cplfw_path);
 DECLARE_string(load);
 DECLARE_string(hex);
 DECLARE_bool(mcm);
+DECLARE_int32(seed);
 DECLARE_uint64(debug_entry_pc);
 DECLARE_uint64(debug_exit_pc);
 DECLARE_uint64(hart_enable_mask);
+DECLARE_uint32(num_harts);
 DECLARE_bool(random_intr);
 DECLARE_bool(random_imsic_intr);
 
@@ -52,6 +57,7 @@ DEFINE_bool(vec_check, true, "Enable cosim checks on vector regs");
 DEFINE_bool(csr_rd_check, true, "Enable cosim checks on csr reads");
 DEFINE_bool(csr_wr_check, true, "Enable cosim checks on csr writes");
 DEFINE_bool(memattr_check, true, "Enable cosim checks on mem attributes");
+DEFINE_bool(flags_check, false, "Enable cosim checks on fflags");
 DEFINE_uint64(max_cycle, 1000000, "Max cycle limit to terminate the sim");
 DEFINE_int32(debug_excp_mcause, 24, "MCAUSE value for debug exception");
 DEFINE_bool(translation_check, false, "Do VA-PA translation check");
@@ -91,7 +97,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
       "sstatus","mstatus","hstatus","mie","hie","vsie","sie", // RVDE-11840
       "tselect","tdata1","tdata2","tdata3","mcontext", // Unimplemented: RVDE-7518
       "fflags","fcsr", // Unimplemented
-      "menvcfg","senvcfg", // FIXME: pointer masking change
+      "menvcfg","senvcfg","henvcfg", // FIXME: pointer masking change
       "pma","pmp", // FIXME: Performant NC change
       "vtype", // Permanent: Vector vtype will not be implemented
       "mip","hip","vsip","hvip","sip","mireg","sireg","vsireg","mtopei","stopei","vstopei", // Permanent: Interrupts
@@ -108,7 +114,29 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
     cvm::registry::messenger.connect<rv_tester::terminate_called>(platform, [this] (const auto& v) { return this->process(v); });
     if(FLAGS_random_intr | FLAGS_random_imsic_intr){
        FLAGS_max_cycle = 2*FLAGS_max_cycle;
-       cvm::log(cvm::FULL, "Doubling max_cycles for sim run to {}\n",FLAGS_max_cycle );
+       cvm::log(cvm::LOW, "Doubling max_cycles for sim run to {}\n",FLAGS_max_cycle );
+    }
+    int32_t nharts = cvm::topology::attr(platform, "NHARTS").second;
+    if((FLAGS_max_stall_cycle < (20000 + (nharts-1)*2000)) && (FLAGS_max_stall_cycle != 0)){
+        FLAGS_max_stall_cycle = (20000 + (nharts-1)*2000);
+        cvm::log(cvm::LOW, "Overwriting max_stall_cycle to {} cycles\n",FLAGS_max_stall_cycle );
+    }
+    // Overwrite hart_enable_mask in a random fashion based on num_harts run-arg
+    // Do this only when hart_enable_mask run-arg is 0x1 (default value)
+    if (FLAGS_hart_enable_mask == 0x1) {
+        unsigned char hart_enable_mask = 0;
+        std::set<uint8_t> unique_bit_positions;
+        cvm::rng<uint32_t> rng(FLAGS_seed);
+        // Generate unique bit positions
+        while (unique_bit_positions.size() < FLAGS_num_harts) {
+            unique_bit_positions.insert(rng() % FLAGS_num_harts);
+        }
+        // Set bits in hart_enable_mask
+        for (uint8_t bit_position : unique_bit_positions) {
+            hart_enable_mask |= (1 << bit_position);
+        }
+        FLAGS_hart_enable_mask = hart_enable_mask;
+        cvm::log(cvm::LOW, "Overwriting hart_enable_mask to 0x{:x}\n", FLAGS_hart_enable_mask);
     }
 }
 
@@ -141,6 +169,7 @@ void bridge::reset() {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed to poke boot memory\n", id_);
     return;
   }
+  cvm::registry::messenger.signal<uint64_t>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0), uint64_t(0));
   resetsstc_poke(id_,0,0x14d);
   resetsstc_poke(id_,0,0x24d);
 }
@@ -167,9 +196,9 @@ void bridge::get_vec_reg(uint32_t reg, std::array<std::uint8_t, 32>& data)
 
 void bridge::csr_init() {
   bool valid;
-  uint64_t data, mask, poke_mask;
+  uint64_t data, mask, poke_mask, read_mask;
   for (const auto& csr: nonzero_reset_csrs) {
-    if (!client_->whisperPeekCsr(id_, csr.address, data, mask, poke_mask, valid)) {
+    if (!client_->whisperPeekCsr(id_, csr.address, data, mask, poke_mask, read_mask, valid)) {
       cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek csr\n", id_);
     }
     size_8_bytes_t cac_mask = 0xffffffffffffffff;
@@ -416,6 +445,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   // Save whisper state
   ppw_ = pw_;
   pw_ = w;
+  pd_ = d;
 
   // Error on mismatch
   if (!cac_.GetStatus(hart)) {
@@ -514,6 +544,9 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
   if (FLAGS_insn_check && !d.comp && !d.ucode && !is_vector(d.disasm) && !(d.disasm.substr(0,7)=="illegal")) {
     update_insn(hart, src_t::dut, d.opcode);
   }
+  if (FLAGS_flags_check) {
+    update_flags(hart, src_t::dut, d.flags);
+  }
   if (d.gpr.valid || d.fpr.valid || !d.vr.empty() || !d.csr.empty()) {
     update_regs(hart, d);
   }
@@ -521,9 +554,7 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
       update_mem_attr(hart, src_t::dut, d.mem_read.attr);
   }
   if (FLAGS_memattr_check && d.mem_write.valid && (!is_vector(d.disasm)) && !lrsc_fail_) {
-    if(!(((d.opcode & 0x7F) == 0x2F) && (d.opcode & 0xF8000000) == 0x18000000 && ((d.opcode & 0x00000F80) == 0x0))) {
       update_mem_attr(hart, src_t::dut, d.mem_write.attr);
-    }
   }
 }
 
@@ -542,7 +573,7 @@ void bridge::pre_step_lrsc_poke(hart_id_t hart, const rv_instr_t& d) {
       (d.disasm.find("sc.d") != std::string::npos)) {
     // Check if Store-Conditional (SC) failed
     uint64_t fail_code = 1;
-    if (d.gpr.rd_wdata == fail_code) {
+    if (d.mem_read.data == fail_code) {
       lrsc_fail_ = true;
       bool valid;
       // Cancel Load-Reserved (LR)
@@ -701,24 +732,6 @@ void bridge::post_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, const
     }
   }
 
-  if (d.mem_write.valid && d.mem_write.size==4 && ((d.mem_write.pa>=0x40000000 &&  d.mem_write.pa <0x42000000) || (d.mem_write.pa>=0x44000000 &&  d.mem_write.pa < 0x46000000)) ) {
-    bool valid;
-    if (!client_->whisperPokeMem(hart, d.cycle, 'm', d.mem_write.pa, 4, w.value, valid)) {
-      cvm::log(cvm::ERROR, "Error: Hart {}: Failed to poke memory\n", hart);
-      return;
-    } else {
-    log(cvm::MEDIUM, "<{}> Poking msi to whisper because of a store\n", d.cycle);
-    }
-    uint64_t mip, seip, mipchange, msihart;
-    msihart = (d.mem_write.pa >> 18) & 0x7;
-    if (msihart < static_cast<uint64_t>(num_harts_)) {
-      peek_mip(msihart, d.cycle, mip);
-      peek_seip(msihart, d.cycle, seip);
-      mip |= seip<<9;
-      mipchange = mip & 0x1e00;
-      check_and_defer_interrupt(msihart, d.cycle, mipchange); // Defer new external interrupts (HGEIP,VSEIP,SEIP,MEIP) caused due to store
-    }
-  }
 
   if (!d.intr && !w_.intr)
     return;
@@ -892,6 +905,9 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
   // differentiate cracked instructions
   if (FLAGS_insn_check && !w_.comp && !w_.ucode && !is_vector(w.disasm) && !(w.disasm.substr(0,7)=="illegal"))
     update_insn(hart, src_t::iss, w.opcode);
+
+  if (FLAGS_flags_check)
+    update_flags(hart, src_t::iss, w.fp_flags);
 
   for (auto i = 0u; i < w.change_count; i++) {
     if (!client_->whisperChange(hart, w.resource, w.address, w.value,
@@ -1084,7 +1100,9 @@ void bridge::update_mem_attr(hart_id_t hart, src_t src, uint32_t data) {
   };
   // Supported sttributes - [type:11, cacheability:12]
   uint32_t masked_data = data & 0x1800;
-  assert(cac_.SetResource(hart, src, mem_attr, std::move(cac::CreateBitVec<uint64_t>(masked_data))));
+  if (!cac_.SetResource(hart, src, mem_attr, std::move(cac::CreateBitVec<uint64_t>(masked_data)))) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: CAC: Failed to SetResource {}\n", hart, mem_attr.ToString());
+  }
 }
 
 std::bitset<256> create_bitset(bridge::size_8_bytes_t dword_vec_array [vlen/64]) {
@@ -1136,13 +1154,13 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_
         // Check if PMP entry is locked
         if (w.address >= 0x3B0 && w.address < 0x3C0) {
           bool valid;
-          uint64_t pmpcfg, mask, reset;
+          uint64_t pmpcfg, mask, reset, read_mask;
           uint64_t i, pmp_cfg_reg, pmp_cfg_index;
           // For PMP addresses, which bits of the pmpcfgs to look for 
           i = w.address - 0x3B0;
           pmp_cfg_reg = ((i*8) / 64) * 2;
           pmp_cfg_index = (i*8) % 64;
-          client_->whisperPeekCsr(hart, 0x3A0 + pmp_cfg_reg, pmpcfg, mask, reset, valid);
+          client_->whisperPeekCsr(hart, 0x3A0 + pmp_cfg_reg, pmpcfg, mask, reset, read_mask, valid);
           if((pmpcfg >> (pmp_cfg_index + 7)) & 0x1) {
             break;
           }
@@ -1181,7 +1199,9 @@ void bridge::update_pc(hart_id_t hart, src_t src, uint64_t data) {
     .resource = resource_t::pc_reg,
     .offset = 0
   };
-  assert(cac_.SetResource(hart, src, pc, std::move(cac::CreateBitVec<uint64_t>(data))));
+  if (!cac_.SetResource(hart, src, pc, std::move(cac::CreateBitVec<uint64_t>(data)))) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: CAC: Failed to SetResource {}\n", hart, pc.ToString());
+  }
 }
 
 void bridge::update_insn(hart_id_t hart, src_t src, uint32_t data) {
@@ -1189,7 +1209,19 @@ void bridge::update_insn(hart_id_t hart, src_t src, uint32_t data) {
     .resource = resource_t::insn_bytes,
     .offset = 0
   };
-  assert(cac_.SetResource(hart, src, insn, std::move(cac::CreateBitVec<uint64_t>(data))));
+  if (!cac_.SetResource(hart, src, insn, std::move(cac::CreateBitVec<uint64_t>(data)))) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: CAC: Failed to SetResource {}\n", hart, insn.ToString());
+  }
+}
+
+void bridge::update_flags(hart_id_t hart, src_t src, uint32_t data) {
+  resource_id_t flags = resource_id_t{
+    .resource = resource_t::flags,
+    .offset = 0
+  };
+  if (!cac_.SetResource(hart, src, flags, std::move(cac::CreateBitVec<uint64_t>(data)))) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: CAC: Failed to SetResource {}\n", hart, flags.ToString());
+  }
 }
 
 void bridge::update_priv(hart_id_t hart, src_t src, uint32_t data) {
@@ -1197,7 +1229,9 @@ void bridge::update_priv(hart_id_t hart, src_t src, uint32_t data) {
     .resource = resource_t::priv_mode,
     .offset = 0
   };
-  assert(cac_.SetResource(hart, src, priv, std::move(cac::CreateBitVec<uint64_t>(data))));
+  if (!cac_.SetResource(hart, src, priv, std::move(cac::CreateBitVec<uint64_t>(data)))) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: CAC: Failed to SetResource {}\n", hart, priv.ToString());
+  }
 }
 
 void bridge::update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, const std::vector<size_8_bytes_t>&& dword_vec) {
@@ -1208,17 +1242,19 @@ void bridge::update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_
     .resource = resource,
     .offset = addr
   };
-  assert(cac_.SetResource(hart, src, rid, std::move(cac::CreateBitVec<size_8_bytes_t>(dword_vec))));
+  if (!cac_.SetResource(hart, src, rid, std::move(cac::CreateBitVec<size_8_bytes_t>(dword_vec)))) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: CAC: Failed to SetResource {}\n", hart, rid.ToString());
+  }
 }
 
 bool bridge::disable_pa_check_vec(hart_id_t hart) {
   bool valid;
-  uint64_t data, mask, poke_mask;
+  uint64_t data, mask, poke_mask, read_mask;
   uint64_t vl = 0;
   uint64_t vtype ;
   uint64_t vlmax = 0;
 
-  if(client_->whisperPeekCsr(hart,0xc21, data, mask, poke_mask, valid)) {
+  if(client_->whisperPeekCsr(hart,0xc21, data, mask, poke_mask, read_mask, valid)) {
   
   vtype = data & mask; // getting the vtype csr
   int sew_enc = (vtype & 0x38) >> 3; // encoded sew
@@ -1248,7 +1284,7 @@ bool bridge::disable_pa_check_vec(hart_id_t hart) {
 
 }
 
-if(client_->whisperPeekCsr(hart,0xc20, data, mask, poke_mask, valid)) 
+if(client_->whisperPeekCsr(hart,0xc20, data, mask, poke_mask, read_mask, valid)) 
   vl = data & mask;
 
 if(vl < vlmax)
@@ -1266,6 +1302,7 @@ void bridge::arch_state(whisper_state_t& w) {
             {
               mprv_ = 1;
               mpp_ = ((w.value) & 0x1800) >> 11; 
+              mpv_ = ((w.value) & 0x8000000000) >> 39;
             }
             else
               mprv_ = 0;
@@ -1339,6 +1376,11 @@ bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const std::
   // Case #9
   if (unsupported_csr_access(instr)) {
     log(cvm::MEDIUM, "<{}> Resynch: Reason=[unsupported_csr_access]\n", d.cycle);
+    return true;
+  }
+  // Case #10
+  if (cpl_smc_access(d)) {
+    log(cvm::MEDIUM, "<{}> Resynch: Reason=[cpl_smc_access]\n", d.cycle);
     return true;
   }
   return false;
@@ -1418,7 +1460,16 @@ bool bridge::hpm_counter_read(const std::string& instr) {
 }
 
 bool bridge::unsupported_csr_access(const std::string& instr) {
-  if ((instr.find("as_dbg_mux_sel") != std::string::npos))
+  if ((instr.find("as_dbg_mux_sel") != std::string::npos) ||
+      (instr.find("c_") != std::string::npos))
+    return true;
+  return false;
+}
+
+bool bridge::cpl_smc_access(const rv_instr_t& d){
+  if (d.mem_read.valid &&
+      d.mem_read.pa >= smc_lo_addr &&
+      d.mem_read.pa < smc_hi_addr)
     return true;
   return false;
 }
@@ -1610,15 +1661,6 @@ uint64_t bridge::translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t
   bool x = (memclass == memclass_t::fetch);
   bool sup = ((priv & 0x11) == 0x1); // made a change here
 
-  if((priv & 0x8) != 0)
-  {
-    twoStage_ = true;
-  }
-  else
-  {
-    twoStage_ = false;
-  }
-
 if (!client_->whisperTranslate(hart, va, r, w, x, twoStage_, sup, pa, valid)) {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed VA translation\n", hart);
   }
@@ -1641,7 +1683,29 @@ void bridge::translation_check(hart_id_t hart, const rv_instr_t& d, whisper_stat
   va &= ((1ull << 57) - 1);             // Clear all bits to the left of 57th bit
   if (bit57) {  va |= (~0ull) << 57; } // sign extend the 57th bit to [63:58]
 
-if((mprv_ == 1) && w.priv_mode == 3)
+  // Conditions for two stage translation  
+  // When V = 1
+  if((w.priv_mode & 0x8) != 0)
+  {
+    twoStage_ = true;
+  }
+  // 2.) All flavours of Hypervisor Loads and Stores
+  if((w.opcode & 0x7f) == 0x73) 
+  {
+    // lower 7 bit opcode , upper 4 bits of funct7 and funct3 to differentiate from HFENCE and HINVAL
+    if(((w.opcode & 0xf0000000) == 0x60000000) && ((w.opcode & 0x7000) == 0x4000))
+    {
+      twoStage_ = true;
+    }
+  }
+  // 3.) When MPRV = 1 and MPV = 1 (Table 9.5 in Hypervisor spec)
+  if(mprv_ == 1 & mpv_ == 1)
+  {
+    twoStage_ = true;
+  }
+
+
+  if((mprv_ == 1) && w.priv_mode == 3)
   {
     pa = translate(hart, va, mpp_, memclass_t::read);
   }
@@ -1872,13 +1936,13 @@ uint64_t bridge::modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data) {
   // Spec section...
   if (addr >= 0x3B0 && addr < 0x3C0) {
     bool valid;
-    uint64_t pmpcfg, mask, reset;
+    uint64_t pmpcfg, mask, reset, read_mask;
     uint64_t i, pmp_cfg_reg, pmp_cfg_index;
     // For PMP addresses, which bits of the pmpcfgs to look for 
     i = addr - 0x3B0;
     pmp_cfg_reg = ((i*8) / 64) * 2;
     pmp_cfg_index = (i*8) % 64;
-    client_->whisperPeekCsr(hart, 0x3A0 + pmp_cfg_reg, pmpcfg, mask, reset, valid);
+    client_->whisperPeekCsr(hart, 0x3A0 + pmp_cfg_reg, pmpcfg, mask, reset, read_mask, valid);
     if((pmpcfg >> (pmp_cfg_index + 4)) & 0x1) {
       result = data | 0x1ff;
     } else {
@@ -1896,13 +1960,13 @@ bridge::size_8_bytes_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, ui
   else result = mask & get_csr_mask(hart, addr);
   if (addr >= 0x3B0 && addr < 0x3C0) {
     bool valid;
-    uint64_t pmpcfg, mask_iss, reset;
+    uint64_t pmpcfg, mask_iss, reset, read_mask;
     uint64_t i, pmp_cfg_reg, pmp_cfg_index;
     // For PMP addresses, which bits of the pmpcfgs to look for 
     i = addr - 0x3B0;
     pmp_cfg_reg = ((i*8) / 64) * 2;
     pmp_cfg_index = (i*8) % 64;
-    client_->whisperPeekCsr(hart, 0x3A0 + pmp_cfg_reg, pmpcfg, mask_iss, reset, valid);
+    client_->whisperPeekCsr(hart, 0x3A0 + pmp_cfg_reg, pmpcfg, mask_iss, reset, read_mask, valid);
     if((pmpcfg >> (pmp_cfg_index + 4)) & 0x1) {
       result = result | 0x1ff;
     } else {
@@ -1952,7 +2016,9 @@ void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data,
   if (mask_ref != std::nullopt) {
     mask = cac::CreateBitVec<size_8_bytes_t>(mask_ref.value());
   }
-  assert(csr_cac_.SetResource(hart, src, csr_resource, std::move(cac::CreateBitVec<size_8_bytes_t>({data})), mask, check_en));
+  if (!csr_cac_.SetResource(hart, src, csr_resource, std::move(cac::CreateBitVec<size_8_bytes_t>({data})), mask, check_en)) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: CAC: Failed to SetResource {}\n", hart, csr_resource.ToString());
+  }
 
   // Also update shadow csr if applicable ex: mstatus/sstatus
   if (!shadow_csr && shadow_csrs.count(addr)) {
@@ -1966,9 +2032,9 @@ void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data,
           alias_mask = get_csr_poke_mask(hart, shadow_csr->second);
       }
       else {
-        uint64_t mask, poke_mask;
+        uint64_t mask, poke_mask, read_mask;
         bool valid;
-        if (!client_->whisperPeekCsr(hart, shadow_csr->second, data, mask, poke_mask, valid)) {
+        if (!client_->whisperPeekCsr(hart, shadow_csr->second, data, mask, poke_mask, read_mask, valid)) {
           cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek csr\n", hart);
         }
         alias_mask = get_csr_poke_mask(hart, shadow_csr->second);
@@ -1992,17 +2058,17 @@ uint64_t bridge::get_csr(hart_id_t hart, src_t src, uint64_t addr) {
 
 uint64_t bridge::get_csr_mask(hart_id_t hart, uint64_t addr) {
   bool valid;
-  uint64_t data, mask, poke_mask;
-  if (!client_->whisperPeekCsr(hart, addr, data, mask, poke_mask, valid)) {
+  uint64_t data, mask, poke_mask, read_mask;
+  if (!client_->whisperPeekCsr(hart, addr, data, mask, poke_mask, read_mask, valid)) {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek csr\n", hart);
   }
-  return mask;
+  return mask & read_mask;
 }
 
 uint64_t bridge::get_csr_poke_mask(hart_id_t hart, uint64_t addr) {
   bool valid;
-  uint64_t data, mask, poke_mask;
-  if (!client_->whisperPeekCsr(hart, addr, data, mask, poke_mask, valid)) {
+  uint64_t data, mask, poke_mask, read_mask;
+  if (!client_->whisperPeekCsr(hart, addr, data, mask, poke_mask, read_mask, valid)) {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek csr\n", hart);
   }
   return poke_mask;
@@ -2052,13 +2118,14 @@ void bridge::report_metrics() {
   const std::string dest = (rfcm ? std::string(1, static_cast<char>(prev_whisp_state.resource)) : "none");
   const std::string dest_addr = (rfcm ? fmt::format("0x{:x}", prev_whisp_state.address) : "none");
   const std::string dest_data = (rfcm ? fmt::format("0x{:x}", prev_whisp_state.value) : "none");
+  const auto& src_addr = pd_.mem_read.valid ? pd_.mem_read.pa : 0;
   const auto& prev_instr = prev_prev_whisp_state.disasm;
   const auto& prev_mode = prev_prev_whisp_state.priv_mode;
   const auto& prev_trap = prev_prev_whisp_state.trap;
   const auto& prev_num_dest = prev_prev_whisp_state.change_count;
 
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_instructions\": {}}}\n", id_, instructions);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_cpu_cycles\": {}}}\n", id_, cpu_cycles);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_instructions\": {}}}\n", id_, instructions);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_cycles\": {}}}\n", id_, cpu_cycles);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_rvfi_calls\": {}}}\n", id_, rvfi_calls_);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_exec_time_ms\": {}}}\n", id_, int_msec_);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_whisper_time_ms\": {}}}\n", id_, whisper_time_/1000);
@@ -2072,6 +2139,7 @@ void bridge::report_metrics() {
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_dest\": {}}}\n", id_, num_dest);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dest\": \"{}\"}}\n", id_, dest);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dest_addr\": \"{}\"}}\n", id_, dest_addr);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_src_addr\": \"{:#x}\"}}\n", id_, src_addr);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dest_data\": \"{}\"}}\n", id_, dest_data);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_instr\": \"{}\"}}\n", id_, prev_instr);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_mode\": {}}}\n", id_, prev_mode);

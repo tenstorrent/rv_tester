@@ -32,6 +32,10 @@ module rv_tester
 
     logic bypass_mem = 1;
     logic bypass_cache = 1;
+    logic rv_tester_reset = '1;
+    /* verilator lint_off UNOPTFLAT */
+    logic [1:0] clock_mode = '0;
+    /* verilator lint_on UNOPTFLAT */
 
     if (EXTERNAL_CLOCK) begin
         for (genvar c = 0; c < NCLKS; c++) begin
@@ -44,11 +48,17 @@ module rv_tester
         `endif
         ;
         for (genvar c = 0; c < NCLKS; c++) begin
-            if (PLL_CLOCK[c] && pll_clock_exists)
+            if (PLL_CLOCK[c] && pll_clock_exists)begin
                 assign clk[c] = clk_pll[c];
-            else
+            
+            end 
+            else begin
+                
                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(clk[c]));
-        end
+
+            end
+         end
+    
     end
 
     import "DPI-C" function void rv_tester_streaming_dpi_init();
@@ -62,14 +72,16 @@ module rv_tester
     localparam int unsigned AxiIdWidthMstRv    = topology.TOP.PLATFORM.AXI.ID_WIDTH + $clog2(topology.TOP.PLATFORM.AXI.TOTAL) + 1;
 
     logic flush_complete;
-    logic rv_tester_reset = '1;
+    
     logic sysmod_reset = '0;
     LU clocks = 0;
     bit cb_poll = '0;
+    bit dyn_clk_switch = '0;
     bit cb_success = '1;
     logic call_finish;
     int num_reruns = -1;
     bit trace_en = 0;
+
     bit jtag_en = 0;
     bit overlay_mmr_en = 0;
     logic trace_quiesced;
@@ -90,6 +102,7 @@ module rv_tester
     int quiesce_timeout = 500;
     int flush_counter = 0;
     int flush_timeout = 25000;
+    bit print_terminate_message = '1;
 
     int dmi_poll_counter = 0; 
     int dmi_poll_timeout = 8000;
@@ -97,6 +110,8 @@ module rv_tester
     logic [31:0] dmi_commands_in_queue; 
 
     int trace_timeout = 50000;
+    int freq_switch_ncycles = 7000;
+    int clk_profile = 0;
 
     int unsigned location = cvm_topology::nil;
 
@@ -108,6 +123,10 @@ module rv_tester
     assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && (dmi_commands_in_queue == '0) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced ); 
     
     assign rerun_now           = terminated && num_reruns > 0;
+
+   // assign clk = clock_mode ? profile1_clk: def_clk; //clkmux
+    ////////////////// Clock mux Instantiation ///////////////////////////
+
 
     /*
     * Don't put an DPI calls here, zebu gets confused when signals are driven
@@ -194,6 +213,9 @@ module rv_tester
             quiesce_timeout     <= cvm_plusargs::get_int("quiesce_timeout");
             trace_timeout       <= cvm_plusargs::get_int("trace_timeout");
             flush_timeout       <= cvm_plusargs::get_int("flush_timeout");
+            freq_switch_ncycles <= cvm_plusargs::get_int("freq_switch_ncycles");
+            clk_profile         <= cvm_plusargs::get_int("clk_profile");
+            dyn_clk_switch      <= cvm_plusargs::get_bool("dyn_clk_switch") != '0;
             call_finish         <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
             gen_clocks          <= cvm_verbosity >= gen_clocks_verbosity;
             bypass_mem          <= cvm_plusargs::get_bool("bypass_mem") != '0;
@@ -225,20 +247,28 @@ module rv_tester
 
         automatic logic shutdowned = '0;
 
+        if (rv_tester_reset) begin
+            print_terminate_message <= '1;
+        end
+
         if (terminate_now && !terminated) begin
 
-            if (quiesced) begin
-                $display("<%0d> [RVTESTER]: exiting gracefully", clocks);
-            end else if (quiesce_counter == 0) begin
-                $display("<%0d> [RVTESTER]: exiting immediately because +quiesce_counter=0", clocks);
-            end else begin
-                $display("<%0d> [RVTESTER]: Error: Waiting to quiesce for more than %0d cycles", clocks, quiesce_timeout);
+            if (print_terminate_message) begin
+                if (quiesced) begin
+                    $display("<%0d> [RVTESTER]: exiting gracefully", clocks);
+                end else if (quiesce_counter == 0) begin
+                    $display("<%0d> [RVTESTER]: exiting immediately because +quiesce_counter=0", clocks);
+                end else begin
+                    $display("<%0d> [RVTESTER]: Error: Waiting to quiesce for more than %0d cycles", clocks, quiesce_timeout);
+                end
             end
 
             shutdowned = rv_tester_shutdown_registry() != '0;
 
             if (!shutdowned) begin
-                $display("<%0d> [RVTESTER]: Could not shutdown, trying again next cycle", clocks);
+                if (print_terminate_message) begin
+                    $display("<%0d> [RVTESTER]: Could not shutdown, trying again until timeout", clocks);
+                end
             end
 
             if (shutdowned && num_reruns == '0) begin
@@ -250,7 +280,7 @@ module rv_tester
                     $finish();
                 end
             end
-
+            print_terminate_message <= '0;
         end
 
         terminated <= !rv_tester_reset && (terminated || (terminate_now && shutdowned)) && !rerun_now;
@@ -405,6 +435,8 @@ module rv_tester
           .mcmi_ievict(mcmi_ievict[NIEVICTS_CUMSUM[c] +: NIEVICTS[c]]),
           .wired_interrupt(interrupt_pend[c]),
           .imsic_interrupt(axi_msi), //FIXME
+          .imsic_msi(axi_msi_packets[c]), //FIXME
+          .imsic_ipi(axi_ipi_packets[c]), //FIXME
           .debug_mode(debug_mode[c]),
           .terminate(cosim_terminate[c]),
           .eot_addr(eot_addr),
@@ -471,6 +503,7 @@ module rv_tester
           .reset(sysmod_reset),
           .clocks,
           .pmci(pmci[p]),
+          .sc_pmci(sc_pmci),
           .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
           .terminate,
           `RV_TESTER_TRANSACTIONS_PMU_SOURCE_PORTS(1, p, 0)
@@ -503,6 +536,11 @@ module rv_tester
             .axi_mst_ar_size (axi_req_llc[p].ar.size),
             .axi_mst_ar_lock (axi_req_llc[p].ar.lock),
             .axi_mst_ar_burst(axi_req_llc[p].ar.burst),
+            .axi_mst_ar_cache (axi_req_llc[p].ar.cache), 
+            .axi_mst_ar_prot  (axi_req_llc[p].ar.prot),
+            .axi_mst_ar_qos   (axi_req_llc[p].ar.qos), 
+            .axi_mst_ar_region(axi_req_llc[p].ar.region),
+            .axi_mst_ar_user  (axi_req_llc[p].ar.user), 
 
             .axi_mst_aw_valid(axi_req_llc[p].aw_valid),
             .axi_mst_aw_id   (axi_req_llc[p].aw.id),
@@ -536,6 +574,15 @@ module rv_tester
             .axi_slv_w_ready (axi_rsp_llc[p].w_ready),
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PORTS(2, p, 0)
         );
+
+
+        ext_mem_stall_checker stall_checker(
+            .clk(clk[AXI_CLK_IDX]),
+            .reset_n(~reset[RESET_IDX]),
+            .axi_req(axi_req[p]),
+            .axi_rsp(axi_rsp[p])
+        );
+
     end
 
    localparam NoOfNcioMasters =  topology.TOP.PLATFORM.NCIO_AXI.TOTAL  ;
@@ -678,6 +725,11 @@ module rv_tester
             .axi_mst_ar_size (axi_req_mst[p].ar.size),
             .axi_mst_ar_lock (axi_req_mst[p].ar.lock),
             .axi_mst_ar_burst(axi_req_mst[p].ar.burst),
+            .axi_mst_ar_cache (axi_req_mst[p].ar.cache), 
+            .axi_mst_ar_prot  (axi_req_mst[p].ar.prot),
+            .axi_mst_ar_qos   (axi_req_mst[p].ar.qos),
+            .axi_mst_ar_region(axi_req_mst[p].ar.region),
+            .axi_mst_ar_user  (axi_req_mst[p].ar.user),
 
             .axi_mst_aw_valid(axi_req_mst[p].aw_valid),
             .axi_mst_aw_id   (axi_req_mst[p].aw.id),
@@ -686,7 +738,12 @@ module rv_tester
             .axi_mst_aw_size (axi_req_mst[p].aw.size),
             .axi_mst_aw_burst(axi_req_mst[p].aw.burst),
             .axi_mst_aw_lock (axi_req_mst[p].aw.lock),
+            .axi_mst_aw_cache(axi_req_mst[p].aw.cache), 
+            .axi_mst_aw_prot (axi_req_mst[p].aw.prot), 
+            .axi_mst_aw_qos  (axi_req_mst[p].aw.qos),  
+            .axi_mst_aw_region(axi_req_mst[p].aw.region),
             .axi_mst_aw_atop (axi_req_mst[p].aw.atop),
+            .axi_mst_aw_user (axi_req_mst[p].aw.user),
 
             .axi_mst_w_valid(axi_req_mst[p].w_valid),
             .axi_mst_w_data (axi_req_mst[p].w.data),

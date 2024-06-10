@@ -200,6 +200,7 @@ typedef struct rv_instr_s {
   uint64_t ecause = 0;
   uint64_t mem_va = 0;
   uint64_t mem_pa = 0;
+  uint32_t flags = 0;
 
   // Registers
   pc_t pc;

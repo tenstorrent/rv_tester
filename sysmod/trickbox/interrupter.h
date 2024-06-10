@@ -30,6 +30,7 @@ DECLARE_bool(disable_stip);
 DECLARE_bool(disable_mtip);
 DECLARE_bool(disable_seip);
 DECLARE_bool(disable_meip);
+DECLARE_bool(injectintr);
 // Define a core local interruptor (interrupter) at the given address
 // and for the given hart count. The size will be 48k bytes.
 class interrupter : public subdevice

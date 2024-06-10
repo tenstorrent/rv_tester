@@ -11,7 +11,7 @@
 #include "transactor.h"
 #include "transactors/axi_sw/axi.h"
 
-
+DECLARE_bool(sp_xtor_en);
 class scratchpad_xtor : public device {
 
     private:
@@ -51,6 +51,8 @@ class scratchpad_xtor : public device {
         std::queue<scratchpad_wr_t>           scratchpad_wr_txn_q;
         virtual void axi_write();
         virtual void axi_read(uint64_t addr, size_t length, uint32_t id);
+        virtual void axi_write_granular();
+        virtual void axi_write_data_granular();
         //void write(const transactor::write_t& );
         void write(const transactor::write_t& );
 
@@ -104,10 +106,16 @@ class scratchpad_xtor : public device {
         virtual void tick(uint64_t) override
         {
             cnt_tick ++;
-            if(trigger_flag){
-            cvm::log(cvm::LOW, "[Trickbox] SCRATCHPAD_XTOR trigger flag set \n");
-            axi_read(0x90a0080,2,5);
+            if(!FLAGS_sp_xtor_en)
+            return;
+            cvm::log(cvm::HIGH, " SCRATCHPAD_XTOR tick {}\n",cnt_tick);
+            if(cnt_tick == 60){
+            cvm::log(cvm::HIGH, " SCRATCHPAD_XTOR trigger flag set \n");
+            axi_write_granular();
             trigger_flag = 0;
+            }
+            if(cnt_tick == 60){
+            axi_write_data_granular();
             }
         }
         

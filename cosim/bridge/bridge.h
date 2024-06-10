@@ -101,6 +101,7 @@ private:
   void update_pc(hart_id_t hart, src_t src, uint64_t data);
   void update_priv(hart_id_t hart, src_t src, uint32_t data);
   void update_insn(hart_id_t hart, src_t src, uint32_t data);
+  void update_flags(hart_id_t hart, src_t src, uint32_t data);
   void update_regs(hart_id_t hart, const rv_instr_t& d);
   void update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_slice_index = 0);
   void update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, const std::vector<size_8_bytes_t>&& dword_vec);
@@ -153,6 +154,7 @@ private:
   bool debug_mem_access(const rv_instr_t& d);
   bool unsupported_mmr_access(const rv_instr_t& d);
   bool unsupported_csr_access(const std::string& instr);
+  bool cpl_smc_access(const rv_instr_t& d);
   bool htif_read(const rv_instr_t& d);
   bool hpm_counter_read(const std::string& instr);
   bool mip_mismatch(const std::string& instr);
@@ -184,6 +186,7 @@ private:
 
   // Create a copy of whisper instr in similar format as dut
   rv_instr_t w_;
+  rv_instr_t pd_;
 
   uint32_t step_ = 1;
   uint64_t int_msec_;
@@ -202,6 +205,7 @@ private:
 
   uint16_t mprv_ = 0;
   uint16_t mpp_ = 0;
+  uint16_t mpv_ = 0;
 
   uint64_t dummy_data_ = 0;
   hart_id_t dummy_hart_ = 0;

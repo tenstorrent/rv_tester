@@ -39,6 +39,8 @@ package rv_tester_params;
     parameter SOC_CLK_IDX = mods.TOP.PLATFORM.CLKI.SOC_CLK_IDX;
     parameter SW_CLOCK_PERIOD_PS = mods.TOP.PLATFORM.CLKI.SW_CLOCK_PERIOD_PS;
     parameter bit [NCLKS-1:0][31:0] CLOCK_FREQ_MHZ = mods.TOP.PLATFORM.CLKI.CLOCK_FREQ_MHZ;
+    //parameter bit [NCLKS-1:0][31:0] PROFILE1_CLOCK_FREQ_MHZ = mods.TOP.PLATFORM.CLKI.PROFILE1_CLOCK_FREQ_MHZ;
+    //parameter bit [NCLKS-1:0][31:0] PROFILE2_CLOCK_FREQ_MHZ = mods.TOP.PLATFORM.CLKI.PROFILE2_CLOCK_FREQ_MHZ;
     parameter bit [NCLKS-1:0][31:0] PLL_CLOCK = mods.TOP.PLATFORM.CLKI.PLL_CLOCK;
 
     // --------------------------------------
@@ -455,7 +457,6 @@ package rv_tester_params;
         logic                       halt     ;
         logic                       intr     ;
         logic [4-1:0]               mode     ;
-        logic                       vec_cracked;
         logic [2-1:0]               ixl      ;
         logic [6-1:0]               rd_addr  ;
         logic [XLEN-1:0]            rd_wdata ;
@@ -465,6 +466,9 @@ package rv_tester_params;
         logic                       vrd_valid;
         logic [6-1:0]               vrd_addr ;
         logic [VLEN-1:0]            vrd_wdata;
+        logic                       vec_cracked;
+        logic                       flags_valid;
+        logic [5-1:0]               flags    ;
         logic                       csr_valid;
         logic [CSRLEN-1:0]          csr_addr ;
         logic [XLEN-1:0]            csr_wdata;
@@ -652,6 +656,7 @@ package rv_tester_params;
     typedef enum {
         CPU_CYCLES,
         INSTRUCTIONS,
+        BRANCH_INSTRUCTIONS,
         M_MODE_CYCLES,
         M_MODE_INSTRET,
         S_MODE_CYCLES,
@@ -706,30 +711,37 @@ package rv_tester_params;
         CYCLES_NO_VL_PRN,
         CYCLES_NO_VM_PRN,
         CYCLES_NO_ROB,
-        BRANCH_INSTRUCTIONS,
-        UOP_RETIRED,
-        LD_RETIRED,
-        ST_RETIRED,
-        INT_RETIRED,
-        CSR_RETIRED,
-        BR_RET_RETIRED,
-        IND_BR_RETIRED,
-        REL_BR_RETIRED,
-        FP_RETIRED,
-        VEC_RETIRED,
-        XFER_RETIRED,
-        UOP_CONFIRMED,
-        UOP_ISSUED_INT,
-        UOP_ISSUED_LDST,
-        UOP_ISSUED_FP,
-        UOP_ISSUED_VEC,
-        BR_DIRECT_SPEC,
-        BR_INDIRECT_SPEC,
-        BR_RET_SPEC,
-        INT_EXECUTED,
-        FP_EXECUTED,
-        VEC_EXECUTED,
-        COMPRESSED_INSTRET,
+        OP_RETIRED_DIRECT_BRANCH,
+        OP_RETIRED_RET_BRANCH,
+        OP_RETIRED_INDIRECT_BRANCH,
+        OP_RETIRED_COND_BRANCH,
+        OP_RETIRED_LD,
+        OP_RETIRED_ST,
+        OP_RETIRED_INT,
+        OP_RETIRED_CSR,
+        OP_RETIRED_FP,
+        OP_RETIRED_VEC,
+        OP_COMPLETE_LD,
+        OP_COMPLETE_ST,
+        OP_COMPLETE_INT,
+        OP_COMPLETE_FP,
+        OP_COMPLETE_VEC,
+        OP_ISSUED_PIPE0,
+        OP_ISSUED_PIPE1,
+        OP_ISSUED_PIPE2,
+        OP_ISSUED_PIPE3,
+        OP_ISSUED_PIPE4,
+        OP_ISSUED_PIPE5,
+        OP_ISSUED_PIPE6,
+        OP_ISSUED_PIPE7,
+        OP_ISSUED_PIPE8,
+        OP_ISSUED_PIPE9,
+        OP_ISSUED_PIPE10,
+        OP_ISSUED_PIPE11,
+        OP_ISSUED_PIPE12,
+        OP_ISSUED_PIPE13,
+        OP_ISSUED_PIPE14,
+        OP_ISSUED_PIPE15,
         CACHE_REFERENCES,
         CACHE_MISSES,
         TLB_INVALIDATES,
@@ -752,7 +764,6 @@ package rv_tester_params;
         L1D_WRITE_MISS,
         L1D_PREFETCH_MISS,
         L1D_MMU_MISS,
-        L1D_SNOOP_MISS,
         L1D_MISS_ALL,
         L1D_CACHE_INVALIDATE_SNOOP,
         L1D_CACHE_INVALIDATE_CMO,
@@ -764,10 +775,10 @@ package rv_tester_params;
         DTLB_READ_ACCESS,
         DTLB_WRITE_ACCESS,
         DTLB_PREFETCH_ACCESS,
-        DTLB_ACCESS_4K,
-        DTLB_ACCESS_HUGEPAGE,
-        DTLB_ACCESS_CACHEABLE,
-        DTLB_ACCESS_NONCACHEABLE,
+        DTLB_READ_ACCESS_CACHEABLE,
+        DTLB_READ_ACCESS_NONCACHEABLE,
+        DTLB_WRITE_ACCESS_CACHEABLE,
+        DTLB_WRITE_ACCESS_NONCACHEABLE,
         DTLB_ACCESS_ALL,
         DTLB_READ_MISS,
         DTLB_WRITE_MISS,
@@ -777,23 +788,30 @@ package rv_tester_params;
         DTLB_MISS_ALL,
         LEAF_TLB_ACCESS_LS,
         LEAF_TLB_ACCESS_FE,
-        LEAF_TLB_ACCESS_PREFETCH,
+        LEAF_TLB_ACCESS_MMU_PREFETCH,
+        LEAF_TLB_ACCESS_ALL,
         LEAF_TLB_MISS_LS,
         LEAF_TLB_MISS_FE,
-        LEAF_TLB_MISS_PREFETCH,
+        LEAF_TLB_MISS_MMU_PREFETCH,
+        LEAF_TLB_MISS_ALL,
         NONLEAF_TLB_ACCESS_LS,
         NONLEAF_TLB_ACCESS_FE,
-        NONLEAF_TLB_ACCESS_PREFETCH,
+        NONLEAF_TLB_ACCESS_MMU_PREFETCH,
+        NONLEAF_TLB_ACCESS_ALL,
         NONLEAF_TLB_MISS_LS,
         NONLEAF_TLB_MISS_FE,
-        NONLEAF_TLB_MISS_PREFETCH,
-        PAGE_WALKS,
+        NONLEAF_TLB_MISS_MMU_PREFETCH,
+        NONLEAF_TLB_MISS_ALL,
+        PAGE_WALKS_LS,
+        PAGE_WALKS_FE,
+        PAGE_WALKS_MMU_PREFETCH,
+        PAGE_WALKS_ALL,
         STALLS_MEM_L1D_MISS,
         STALLS_MEM_STORES,
         STALLS_MEM_L1DTLB_MISS,
         LSU_RESYNCS_RAW,
-        LSU_RESYNCS_RAR,
-        LSU_RESYNCS_ALL,
+        LSU_RESYNCS_RAR_STPIPE,
+        LSU_RESYNCS_RAR_LDPIPE,
         STLF_HITS,
         LS_REPLAY_LOAD,
         LS_REPLAY_STORE,
@@ -811,8 +829,6 @@ package rv_tester_params;
         SIPT_REPLAY_MMU,
         SIPT_REPLAY_ALL,
         STLF_REPLAY_LOAD,
-        STLF_REPLAY_STORE,
-        STLF_REPLAY_PREFETCH,
         STLF_REPLAY_MMU,
         STLF_REPLAY_ALL,
         TAG_BANK_CONFLICT_REPLAY_LOAD,
@@ -827,23 +843,19 @@ package rv_tester_params;
         DATA_BANK_CONFLICT_REPLAY_ALL,
         FILLBUF_HIT_REPLAY_LOAD,
         FILLBUF_HIT_REPLAY_STORE,
-        FILLBUF_HIT_REPLAY_PREFETCH,
         FILLBUF_HIT_REPLAY_MMU,
         FILLBUF_HIT_REPLAY_ALL,
         TRANSBUF_HIT_REPLAY_LOAD,
         TRANSBUF_HIT_REPLAY_STORE,
-        TRANSBUF_HIT_REPLAY_PREFETCH,
         TRANSBUF_HIT_REPLAY_MMU,
         TRANSBUF_HIT_REPLAY_ALL,
         REQBUF_HIT_REPLAY_LOAD,
         REQBUF_HIT_REPLAY_STORE,
-        REQBUF_HIT_REPLAY_PREFETCH,
         REQBUF_HIT_REPLAY_MMU,
         REQBUF_HIT_REPLAY_ALL,
         DTLB_REPLAY_LOAD,
         DTLB_REPLAY_STORE,
         DTLB_REPLAY_PREFETCH,
-        DTLB_REPLAY_MMU,
         DTLB_REPLAY_ALL,
         RAR_CANNOT_ALLOC,
         RAW_CANNOT_ALLOC,
@@ -874,12 +886,11 @@ package rv_tester_params;
         WP_TRUE_HIT,
         MDP_CORRECT_PREDICTION,
         MDP_FALSE_HIT,
-        MDP_FALSE_MISS,
         MDP_TOTAL_PREDICTION,
         ATOMICS_RETIRED,
-        LDST_MASKED_NANO,
-        LD_EXECUTED_NANO,
-        ST_EXECUTED_NANO,
+        LDST_MASKED_VEC_NANO,
+        LD_EXECUTED_VEC_NANO,
+        ST_EXECUTED_VEC_NANO,
         PFC_AGT_CANNOT_ALLOC,
         PFC_AGT_EVICT,
         PFC_PHT_CANNOT_ALLOC,
@@ -893,7 +904,7 @@ package rv_tester_params;
         PFC_PREFETCHES_LATE,
         PFC_USELESS_PREFETCHES,
         EVENT_COUNT
-    } pmc_event_t;
+    } pmc_event_t; 
     
     typedef logic [3:0] pmc_counter_t;
     typedef pmc_counter_t [EVENT_COUNT-1:0] pmci_t;
@@ -983,6 +994,9 @@ package rv_tester_params;
     // --------------------------------------
 `define _RV_TESTER_PORTS(input,output)                                                              \
     input                                    clk                [rv_tester_params::NCLKS-1:0],      \
+    input                                    def_clk                [rv_tester_params::NCLKS-1:0],      \
+    input                                    profile1_clk                [rv_tester_params::NCLKS-1:0],      \
+    input                                    profile2_clk                [rv_tester_params::NCLKS-1:0],      \
     output                                   clk_pll            [rv_tester_params::NCLKS-1:0],      \
     input  [rv_tester_params::NRESETS-1:0]   reset, /*Packed so zebu can easily force*/             \
     input  rv_tester_params::bootstrap_t     bootstrap,                                             \
@@ -1014,8 +1028,10 @@ package rv_tester_params;
     output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NIEVICTS-1:0]   mcmi_ievict,  \
     output rv_tester_params::csri_t          csri         [rv_tester_params::NHARTS-1:0],           \
     output rv_tester_params::pmci_t          pmci         [rv_tester_params::NHARTS-1:0],           \
+    output rv_tester_pkg::sc_pmci_t          sc_pmci,                                               \
     output rv_tester_params::mst_req_top     axi_msi,                                               \
-                                                                                                    \
+    output rv_tester_params::mst_req_top     [rv_tester_params::NHARTS-1:0] axi_msi_packets ,        \
+    output rv_tester_params::mst_req_top     [rv_tester_params::NHARTS-1:0] axi_ipi_packets ,        \
     output logic                                            dm_mem_tx_vld,                          \
     output logic                                            dm_mem_tx_we,                           \
     output logic [rv_tester_params::DM_AXI_ADDR_WIDTH-1:0]  dm_mem_tx_addr,                         \
@@ -1047,9 +1063,17 @@ package rv_tester_params;
     input  rv_tester_params::pm_nw_req_top    pm_nw_axi_req_mst [rv_tester_params::PM_NW_AXI_MST_TOTAL-1:0],   \
     output rv_tester_params::pm_nw_resp_top   pm_nw_axi_rsp_mst [rv_tester_params::PM_NW_AXI_MST_TOTAL-1:0]
 
+`define _RV_TESTER_STALL_CHECKER_PORTS(input,output)                                                \
+    input clk,                                                                                      \
+    input reset_n,                                                                                  \
+    input rv_tester_params::slv_req_top     axi_req,                                                \
+    input rv_tester_params::slv_resp_top    axi_rsp
 
 `define RV_TESTER_VARS(topology)                                                                    \
     logic                                    clk             [rv_tester_params::NCLKS-1:0];         \
+    logic                                    def_clk             [rv_tester_params::NCLKS-1:0];         \
+    logic                                    profile1_clk             [rv_tester_params::NCLKS-1:0];         \
+    logic                                    profile2_clk             [rv_tester_params::NCLKS-1:0];         \
     logic                                    clk_pll         [rv_tester_params::NCLKS-1:0];         \
     logic [rv_tester_params::NRESETS-1:0]    reset           /* Packed so zebu can force easily */; \
     rv_tester_params::bootstrap_t            bootstrap;                                             \
@@ -1088,6 +1112,7 @@ package rv_tester_params;
     rv_tester_params::mcmi_t                 [rv_tester_params::TOTAL_NIEVICTS-1:0]    mcmi_ievict; \
     rv_tester_params::csri_t                 csri          [rv_tester_params::NHARTS-1:0];          \
     rv_tester_params::pmci_t                 pmci          [rv_tester_params::NHARTS-1:0];          \
+    rv_tester_pkg::sc_pmci_t                 sc_pmci;                                               \
     rv_tester_params::slv_req_top            axi_req [rv_tester_params::AXI_TOTAL-1:0];             \
     rv_tester_params::slv_resp_top           axi_rsp [rv_tester_params::AXI_TOTAL-1:0];             \
     rv_tester_params::ncio_slv_req_top       ncio_axi_req [rv_tester_params::NCIO_AXI_TOTAL-1:0];             \
@@ -1099,6 +1124,8 @@ package rv_tester_params;
     rv_tester_params::mst_req_top            axi_req_mst [rv_tester_params::AXI_MST_TOTAL-1:0];     \
     rv_tester_params::mst_resp_top           axi_rsp_mst [rv_tester_params::AXI_MST_TOTAL-1:0];     \
     rv_tester_params::mst_req_top            axi_msi;                                               \
+    rv_tester_params::mst_req_top            [rv_tester_params::NHARTS-1:0] axi_msi_packets  ;                                               \
+    rv_tester_params::mst_req_top            [rv_tester_params::NHARTS-1:0] axi_ipi_packets  ;                                               \
     rv_tester_params::aplic_mmr_req_top      aplic_mmr_axi_req_mst  [rv_tester_params::APLIC_MMR_AXI_MST_TOTAL-1:0];  \
     rv_tester_params::aplic_mmr_resp_top     aplic_mmr_axi_rsp_mst  [rv_tester_params::APLIC_MMR_AXI_MST_TOTAL-1:0];  \
     rv_tester_params::smc_req_top      smc_axi_req_mst  [rv_tester_params::SMC_AXI_MST_TOTAL-1:0];  \

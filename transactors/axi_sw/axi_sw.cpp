@@ -62,7 +62,7 @@ axi_sw<W,AW,AR,RQ>::~axi_sw() {
 template < typename W,typename AW,typename AR, typename RQ>
 cvm::messenger::task<void> axi_sw<W,AW,AR,RQ>::process(const AW& aw) {
     cvm::log(cvm::FULL, "[axi_sw] aw: [id={}, addr={:#x}, size={}]\n", aw.id, aw.addr, aw.size);
-    co_await a(axi::a_t{true, aw.id, aw.addr, aw.len, aw.size, axi::burst_t(aw.burst), aw.lock != 0, aw.atop});
+    co_await a(axi::a_t{true, aw.id, aw.addr, aw.len, aw.size, axi::burst_t(aw.burst), aw.lock != 0,axi::cache_mem_attr_t(aw.cache),aw.prot,aw.qos,aw.region, aw.atop,aw.user});
     r_resp();
     co_return;
 }
@@ -70,7 +70,7 @@ cvm::messenger::task<void> axi_sw<W,AW,AR,RQ>::process(const AW& aw) {
 template < typename W,typename AW,typename AR, typename RQ>
 cvm::messenger::task<void> axi_sw<W,AW,AR,RQ>::process(const AR& ar) {
     cvm::log(cvm::FULL, "[axi_sw] ar: [id={}, addr={:#x}, size={}]\n", ar.id, ar.addr, ar.size);
-    co_await a(axi::a_t{false, ar.id, ar.addr, ar.len, ar.size, axi::burst_t(ar.burst), ar.lock != 0});
+    co_await a(axi::a_t{false, ar.id, ar.addr, ar.len, ar.size, axi::burst_t(ar.burst), ar.lock != 0,axi::cache_mem_attr_t(ar.cache),ar.prot,ar.qos,ar.region, 0,ar.user});
     r_resp();
     co_return;
 }
@@ -102,7 +102,7 @@ template < typename W,typename AW,typename AR, typename RQ>
 void axi_sw<W,AW,AR,RQ>::r_resp() {
     while ( (r_q_wptr_ - r_q_rptr_) < r_q_max_ ) {
       auto [valid, result] = axi_->r(false);
-      cvm::log(cvm::FULL, "[axi_sw] r_resp: [r_q dequeue valid={}]\n", valid);
+      cvm::log(cvm::FULL, "[axi_sw] r_resp: [r_q dequeue valid={} wptr={} rptr={}]\n", valid, r_q_wptr_, r_q_rptr_);
       if (!valid)
         break;
       r_q_wptr_ = (r_q_wptr_ + 1) % r_q_ptr_max_;
