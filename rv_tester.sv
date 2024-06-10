@@ -101,6 +101,8 @@ module rv_tester
     int freq_switch_ncycles = 7000;
     int clk_profile = 0;
 
+    int assertion_test_cycle = 0;
+
     int unsigned location = cvm_topology::nil;
 
     bit gen_clocks = '0;
@@ -197,20 +199,21 @@ module rv_tester
             rv_tester_error_terminate.terminate = '0;
             /* verilator lint_on BLKSEQ */
 
-            cb_poll             <= cvm_plusargs::get_bool("cb_async") == '0;
-            quiesce_timeout     <= cvm_plusargs::get_int("quiesce_timeout");
-            trace_timeout       <= cvm_plusargs::get_int("trace_timeout");
-            flush_timeout       <= cvm_plusargs::get_int("flush_timeout");
-            freq_switch_ncycles <= cvm_plusargs::get_int("freq_switch_ncycles");
-            clk_profile         <= cvm_plusargs::get_int("clk_profile");
-            dyn_clk_switch      <= cvm_plusargs::get_bool("dyn_clk_switch") != '0;
-            call_finish         <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
-            gen_clocks          <= cvm_verbosity >= gen_clocks_verbosity;
-            bypass_mem          <= cvm_plusargs::get_bool("bypass_mem") != '0;
-            trace_en            <= cvm_plusargs::get_bool("trace_en") != '0;
-            overlay_mmr_en            <= cvm_plusargs::get_bool("overlay_mmr_en") != '0;
-            jtag_en            <= cvm_plusargs::get_bool("jtag_en") != '0;
-            bypass_cache        <= cvm_plusargs::get_bool("bypass_cache") != '0;
+            cb_poll              <= cvm_plusargs::get_bool("cb_async") == '0;
+            quiesce_timeout      <= cvm_plusargs::get_int("quiesce_timeout");
+            trace_timeout        <= cvm_plusargs::get_int("trace_timeout");
+            flush_timeout        <= cvm_plusargs::get_int("flush_timeout");
+            freq_switch_ncycles  <= cvm_plusargs::get_int("freq_switch_ncycles");
+            clk_profile          <= cvm_plusargs::get_int("clk_profile");
+            dyn_clk_switch       <= cvm_plusargs::get_bool("dyn_clk_switch") != '0;
+            call_finish          <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
+            gen_clocks           <= cvm_verbosity >= gen_clocks_verbosity;
+            bypass_mem           <= cvm_plusargs::get_bool("bypass_mem") != '0;
+            trace_en             <= cvm_plusargs::get_bool("trace_en") != '0;
+            overlay_mmr_en       <= cvm_plusargs::get_bool("overlay_mmr_en") != '0;
+            jtag_en              <= cvm_plusargs::get_bool("jtag_en") != '0;
+            bypass_cache         <= cvm_plusargs::get_bool("bypass_cache") != '0;
+            assertion_test_cycle <= cvm_plusargs::get_int("assertion_test_cycle");
 
             $display("[RVTESTER]: reconstructing registry");
             rv_tester_build_registry();
@@ -1075,5 +1078,9 @@ module rv_tester
 	.flush_complete		( flush_complete ),
 	.bist_status_done	()
     );
+
+    always @(posedge clk[TB_CLK_IDX]) begin
+        assert(assertion_test_cycle == '0 || clocks != LU'(assertion_test_cycle)) else $error("assertion test");
+    end
 
 endmodule
