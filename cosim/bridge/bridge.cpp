@@ -283,13 +283,11 @@ void bridge::process_steps(hart_id_t hart, uint32_t n_retire, uint64_t cycle, ui
 
   end_time_ = std::chrono::high_resolution_clock::now();
   if (first_call_ == false) {
-      int_msec_ = duration_cast<std::chrono::milliseconds>(end_time_ - start_of_test_).count();
   }
-  else {
+  if (first_call_) {
       start_of_test_ = end_time_;
   }
 
-  begin_time_ = end_time_;
   previous_cycle_ = cycle;
   first_call_ = false;
 
@@ -311,7 +309,6 @@ void bridge::process_steps(hart_id_t hart, uint32_t n_retire, uint64_t cycle, ui
       w.time = last_cycle_[hart]; 
 
       if (FLAGS_whisper_exec) {
-          int_msec_ = duration_cast<std::chrono::milliseconds>(end_time_ - start_of_test_).count();
           auto stime = std::chrono::high_resolution_clock::now();
           step(hart, w);
           auto etime = std::chrono::high_resolution_clock::now();
@@ -351,7 +348,6 @@ void bridge::process_steps(hart_id_t hart, uint32_t n_retire, uint64_t cycle, ui
       w.time = last_cycle_[hart]; 
 
       if (FLAGS_whisper_exec) {
-          int_msec_ = duration_cast<std::chrono::milliseconds>(end_time_ - start_of_test_).count();
           auto stime = std::chrono::high_resolution_clock::now();
           step(hart, w);
           auto etime = std::chrono::high_resolution_clock::now();
@@ -2123,14 +2119,17 @@ void bridge::report_metrics() {
   const auto& prev_mode = prev_prev_whisp_state.priv_mode;
   const auto& prev_trap = prev_prev_whisp_state.trap;
   const auto& prev_num_dest = prev_prev_whisp_state.change_count;
+  const auto test_time = duration_cast<std::chrono::milliseconds>(end_time_ - start_of_test_).count();
 
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_instructions\": {}}}\n", id_, instructions);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_cycles\": {}}}\n", id_, cpu_cycles);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_rvfi_calls\": {}}}\n", id_, rvfi_calls_);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_exec_time_ms\": {}}}\n", id_, int_msec_);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_exec_time_ms\": {}}}\n", id_, test_time);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_whisper_time_ms\": {}}}\n", id_, whisper_time_/1000);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_inst_per_sec\": {}}}\n", id_, instructions*1000/int_msec_);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_clks_per_sec\": {}}}\n", id_, cpu_cycles*1000/int_msec_);
+  if (test_time != 0) {
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_inst_per_sec\": {}}}\n", id_, instructions*1000/test_time);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_clks_per_sec\": {}}}\n", id_, cpu_cycles*1000/test_time);
+  }
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_exceptions\": {}}}\n", id_, num_exceptions_);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_ipc\": {:.2f}}}\n", id_, ipc);
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_instr\": \"{}\"}}\n", id_, instr);

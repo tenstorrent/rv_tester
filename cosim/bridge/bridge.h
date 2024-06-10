@@ -189,7 +189,6 @@ private:
   rv_instr_t pd_;
 
   uint32_t step_ = 1;
-  uint64_t int_msec_;
   uint64_t whisper_time_=0;
   uint64_t rvfi_calls_=0;
 
