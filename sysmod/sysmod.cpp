@@ -1,10 +1,12 @@
 #include <iostream>
 #include <thread>
 #include <unordered_map>
+#include <set>
 #include "cvm/plusargs.hpp"
 #include "cvm/topology.hpp"
 #include "cvm/registry.hpp"
 #include "cvm/logger.hpp"
+#include "cvm/random.hpp"
 #include "sysmod.h"
 #include "mem/sysmod_mem.h"
 #include "clint/clint.h"
@@ -36,9 +38,10 @@ DEFINE_string(cplfw_path, "", "Path to cpl firmware object file");
 DEFINE_string(load_io, "", "load specified io dev with content from memory");
 DEFINE_bool(sysmod_tick_async, true, "Asynchronous sysmod_tick calls");
 DEFINE_uint64(sysmod_tick_update_threshold, 1, "Slow down tick update frequency by this factor. The tick is still eventually advanced the same cumulative amount, just not as often. Useful for emulation where the clock counts much faster but tests setup interrupts to happen very soon for simulation. They git hit by an interrupt storm and are stuck in the interrupt handler forever.");
-DEFINE_uint64(hart_enable_mask, 0x1, "Hart enable mask. Ex: To enable 2 harts in a 8-hart system, use 0x3.");
 DEFINE_uint64(sp_ways_num, 0x1, "Number of sharedcache ways to be alloted as Scratchpad");
 DEFINE_string(set_csr, "", "+set_csr=<csr_num>:<value>,<num2>:<val2> ");
+DECLARE_uint64(hart_enable_mask);
+DECLARE_uint32(num_harts);
 DECLARE_bool(cosim);
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 
@@ -333,6 +336,7 @@ sysmod::terminate(htif::terminate_t t) {
 
 void
 sysmod::reset() {
+  override_plusargs();
   compose();
   load_prog(FLAGS_hex, FLAGS_load, FLAGS_load_lz4);
   load_io(FLAGS_load_io);
@@ -340,6 +344,28 @@ sysmod::reset() {
   if (!FLAGS_cosim)
     load_csr_boot(0);
   load_cplfw(FLAGS_cplfw_path);
+}
+
+void
+sysmod::override_plusargs()
+{
+  // Overwrite hart_enable_mask in a random fashion based on num_harts run-arg
+  // Do this only when hart_enable_mask run-arg is 0x1 (default value)
+  if (FLAGS_hart_enable_mask == 0x1) {
+    unsigned char hart_enable_mask = 0;
+    std::set<uint8_t> unique_bit_positions;
+    cvm::rng<uint32_t> rng(FLAGS_seed);
+    // Generate unique bit positions
+    while (unique_bit_positions.size() < FLAGS_num_harts) {
+      unique_bit_positions.insert(rng() % FLAGS_num_harts);
+    }
+    // Set bits in hart_enable_mask
+    for (uint8_t bit_position : unique_bit_positions) {
+      hart_enable_mask |= (1 << bit_position);
+    }
+    FLAGS_hart_enable_mask = hart_enable_mask;
+    cvm::log(cvm::LOW, "Overwriting hart_enable_mask to {:#x}\n", FLAGS_hart_enable_mask);
+  }
 }
 
 void
