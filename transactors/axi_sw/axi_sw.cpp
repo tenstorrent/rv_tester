@@ -102,7 +102,7 @@ template < typename W,typename AW,typename AR, typename RQ>
 void axi_sw<W,AW,AR,RQ>::r_resp() {
     while ( (r_q_wptr_ - r_q_rptr_) < r_q_max_ ) {
       auto [valid, result] = axi_->r(false);
-      cvm::log(cvm::FULL, "[axi_sw] r_resp: [r_q dequeue valid={}]\n", valid);
+      cvm::log(cvm::FULL, "[axi_sw] r_resp: [r_q dequeue valid={} wptr={} rptr={}]\n", valid, r_q_wptr_, r_q_rptr_);
       if (!valid)
         break;
       r_q_wptr_ = (r_q_wptr_ + 1) % r_q_ptr_max_;

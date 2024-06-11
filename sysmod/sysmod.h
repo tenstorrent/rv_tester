@@ -43,6 +43,7 @@ class sysmod {
     void tick(uint64_t advance);
     void jtag_tick(uint64_t advance);
     void jtag_resp(std::bitset<70> rdata);
+    void override_plusargs();
     void compose();
     void load_boot(const std::string& boot);
     void load_cplfw(const std::string& cplfw);

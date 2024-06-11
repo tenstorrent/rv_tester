@@ -6,6 +6,9 @@
 #include "scratchpad_xtor.h"
 #include "sysmod/sysmod_plusargs.h"
 
+
+DEFINE_bool(sp_xtor_en, false, "Enable ");
+
 scratchpad_xtor::scratchpad_xtor(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc)
   : device(tag, addr, size, loc, &scratchpad_xtor::write, &scratchpad_xtor::read, this), axi_mst_loc_l(axi_mst_loc)
 {

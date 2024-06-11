@@ -1,10 +1,12 @@
 #include <iostream>
 #include <thread>
 #include <unordered_map>
+#include <set>
 #include "cvm/plusargs.hpp"
 #include "cvm/topology.hpp"
 #include "cvm/registry.hpp"
 #include "cvm/logger.hpp"
+#include "cvm/random.hpp"
 #include "sysmod.h"
 #include "mem/sysmod_mem.h"
 #include "clint/clint.h"
@@ -31,12 +33,13 @@ DEFINE_string(hex, "", "hex file (program) to load into memory");
 DEFINE_string(load, "", "elf file (program) to load into memory");
 DEFINE_string(load_lz4, "", "lz4 compressed file (program) to load into memory");
 DEFINE_bool(bootrom, true, "Load bootrom before test");
+DEFINE_bool(enable_sp_init, false, "Enable sharedcache scratchpad initilization from bootrom");
 DEFINE_string(bootrom_path, "", "Path to bootrom object file");
 DEFINE_string(cplfw_path, "", "Path to cpl firmware object file");
 DEFINE_string(load_io, "", "load specified io dev with content from memory");
 DEFINE_bool(sysmod_tick_async, true, "Asynchronous sysmod_tick calls");
 DEFINE_uint64(sysmod_tick_update_threshold, 1, "Slow down tick update frequency by this factor. The tick is still eventually advanced the same cumulative amount, just not as often. Useful for emulation where the clock counts much faster but tests setup interrupts to happen very soon for simulation. They git hit by an interrupt storm and are stuck in the interrupt handler forever.");
-DEFINE_uint64(hart_enable_mask, 0x1, "Hart enable mask. Ex: To enable 2 harts in a 8-hart system, use 0x3.");
+DEFINE_uint64(sp_ways_num, 0x1, "Number of sharedcache ways to be alloted as Scratchpad");
 DEFINE_string(set_csr, "", "+set_csr=<csr_num>:<value>,<num2>:<val2> ");
 DEFINE_int32(seed, 1, "Simulation seed passed down for randomization");
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
@@ -76,21 +79,19 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
     for (const auto& source : sources) {
         cvm::registry::messenger.connect<transactor::write_t>(
             source,
-            [this](const auto& w) {
-                // unnecessary but better for catching bugs
-                cvm::log(cvm::DEBUG, "new write request at {:#x}\n", w.addr);
-                if (this->dev(w.addr))
+            [this, source](const auto& w) {
+                if (this->dev(w.addr)) {
+                    cvm::log(cvm::HIGH, "[sysmod] write: src={} addr={:#x}\n", source, w.addr);
                     cvm::registry::messenger.signal<device::write_t>(this->loc_, {w});
+                }
             });
         cvm::registry::messenger.connect<transactor::read_t>(
             source,
             [this, source](const auto& r) {
-                cvm::log(cvm::DEBUG, "new read request at {:#x}\n", r.addr);
                 if (this->dev(r.addr)){
-                    cvm::log(cvm::FULL, "[sysmod] read: src={} id={}, addr={:#x}, len={}\n", source, r.id, r.addr, r.length);
+                    cvm::log(cvm::HIGH, "[sysmod] read: src={} id={}, addr={:#x}, len={}\n", source, r.id, r.addr, r.length);
                     cvm::registry::messenger.signal<device::read_t>(this->loc_, {r, source});
-
-		    }
+		}
 
             });
   }
@@ -334,6 +335,7 @@ sysmod::terminate(htif::terminate_t t) {
 
 void
 sysmod::reset() {
+  override_plusargs();
   compose();
   load_prog(FLAGS_hex, FLAGS_load, FLAGS_load_lz4);
   load_io(FLAGS_load_io);
@@ -341,6 +343,28 @@ sysmod::reset() {
   if (!FLAGS_cosim)
     load_csr_boot(0);
   load_cplfw(FLAGS_cplfw_path);
+}
+
+void
+sysmod::override_plusargs()
+{
+  // Overwrite hart_enable_mask in a random fashion based on num_harts run-arg
+  // Do this only when hart_enable_mask run-arg is 0x1 (default value)
+  if (FLAGS_hart_enable_mask == 0x1) {
+    unsigned char hart_enable_mask = 0;
+    std::set<uint8_t> unique_bit_positions;
+    cvm::rng<uint32_t> rng(FLAGS_seed);
+    // Generate unique bit positions
+    while (unique_bit_positions.size() < FLAGS_num_harts) {
+      unique_bit_positions.insert(rng() % FLAGS_num_harts);
+    }
+    // Set bits in hart_enable_mask
+    for (uint8_t bit_position : unique_bit_positions) {
+      hart_enable_mask |= (1 << bit_position);
+    }
+    FLAGS_hart_enable_mask = hart_enable_mask;
+    cvm::log(cvm::LOW, "Overwriting hart_enable_mask to {:#x}\n", FLAGS_hart_enable_mask);
+  }
 }
 
 void
@@ -612,6 +636,32 @@ sysmod::load_boot(const std::string& boot)
     device::strb_t strb(8);
     for (size_t i = 0; i < 8; i++) strb[i] = true;
     dev("boot")->backdoor_write(dev("boot")->addr() + 0x9000, 8, data, strb);
+
+    if(FLAGS_enable_sp_init){
+      device::data_t data(8);
+      for (size_t i = 0; i < 8; i++) data[i] = 0x1;
+      device::strb_t strb(8);
+      for (size_t i = 0; i < 8; i++) strb[i] = true;
+      dev("boot")->backdoor_write(dev("boot")->addr() + 0x9008, 8, data, strb);
+      
+      if(FLAGS_sp_ways_num < 25){
+        device::data_t data(8);
+        device::strb_t strb(8);
+        for (size_t i = 0; i < 8; i++){
+          if(i==0){
+             data[i] = uint8_t(FLAGS_sp_ways_num);
+             strb[i] = true;
+           }else{
+             data[i] = 0;
+             strb[i] = true; 
+           }
+        }
+        dev("boot")->backdoor_write(dev("boot")->addr() + 0x9010, 8, data, strb);
+      }else{
+            cvm::log(cvm::ERROR, "Error: Maximum 24 sharedcache ways can be alloted as Scratchpad \n");
+      }
+    }
+
   }
 }
 void
