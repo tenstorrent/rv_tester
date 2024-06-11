@@ -116,9 +116,7 @@ module rv_tester
     bit overlay_mmr_en = 0;
     logic trace_quiesced;
     logic jtag_quiesced;
-    /* verilator lint_off UNOPTFLAT */
-    logic [1:0] clock_mode = '0;
-    /* verilator lint_on UNOPTFLAT */
+
 
     logic terminate_now;
     logic rerun_now;
