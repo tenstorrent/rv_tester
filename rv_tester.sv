@@ -90,7 +90,6 @@ module rv_tester
     
          end
     
-    end
 
     import "DPI-C" function void rv_tester_streaming_dpi_init();
     import "DPI-C" function int rv_tester_parse_flags(); // dummy return value so that this gets called immediately. need this to happen before any other DPIs are called.
