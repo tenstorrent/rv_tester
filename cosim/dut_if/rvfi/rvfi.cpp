@@ -146,7 +146,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_core_intr<>& m_core_in
 
   bridge_->process_dut_interrupt(id_, intr);
   if (FLAGS_rvfi_log) {
-    log(cvm::NONE, "#{} {} 0 (mip:{:#x} mask:{:#x} assert:{:#x})\n", count_, intr.cycle, intr.mip, intr.mip_mask, intr.mip_assert);
+    log(cvm::NONE, "#{} 0 (mip:{:#x} mask:{:#x} assert:{:#x})\n", count_, intr.mip, intr.mip_mask, intr.mip_assert);
   }
 }
 
@@ -167,7 +167,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_imsic_msi<>& m_imsic_m
 
   bridge_->process_dut_imsic_msi(id_, mem);
   if (FLAGS_rvfi_log) {
-    log(cvm::NONE, "#{} {} {} (imsic: [addr={:#x} data={:#x}])\n", count_, mem.cycle, id_, mem.pa, mem.data);
+    log(cvm::NONE, "#{} {} (imsic: [addr={:#x} data={:#x}])\n", count_, id_, mem.pa, mem.data);
   }
 }
 
@@ -362,7 +362,7 @@ std::tuple<uint64_t, uint64_t, uint8_t> rvfi::get_mem_attributes(uint64_t addr, 
 }
 
 void rvfi::print_csr(csr_t& csr) {
-  log(cvm::NONE, "#NA {} {} {} {:016x} {:09x} c {:016x} {:016x} {:016x} (hw update)\n", csr.cycle, csr.hart, priv_to_string.at(static_cast<priv>(priv_)), 0, 0, csr.csr_addr, csr.csr_wdata, csr.csr_wmask);
+  log(cvm::NONE, "#NA {} {} {:016x} {:09x} c {:016x} {:016x} {:016x} (hw update)\n", csr.hart, priv_to_string.at(static_cast<priv>(priv_)), 0, 0, csr.csr_addr, csr.csr_wdata, csr.csr_wmask);
 }
 
 void rvfi::print_instr(const rv_instr_t& instr) {
@@ -408,7 +408,7 @@ void rvfi::print_instr(const rv_instr_t& instr) {
 void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_str) {
   std::string dut_log;
 
-  dut_log += fmt::format("#{} {} {} {} {:016x}", FLAGS_mcm ? instr.tag : instr.id, instr.cycle, instr.hart, priv_to_string.at(static_cast<priv>(instr.priv)),
+  dut_log += fmt::format("#{} {} {} {:016x}", FLAGS_mcm ? instr.tag : instr.id, instr.hart, priv_to_string.at(static_cast<priv>(instr.priv)),
      instr.pc.pc_rdata);
 
   if (FLAGS_rvfi_log_36b_uop)
@@ -482,18 +482,11 @@ void rvfi::enter_debug_mode(rv_instr_t& instr) {
 
   if ((uint64_t)instr.pc.pc_rdata == FLAGS_debug_entry_pc) {
 
-    rv_debug_t debug;
-
-    debug.cycle = instr.cycle;
-    debug.enter = true;
-    debug.exit  = false;
-    debug.hart  = instr.hart;
-
     if (FLAGS_rvfi_log) {
-      log(cvm::NONE, "#{} {} 0 (enter debug mode)\n", count_, debug.cycle);
+      log(cvm::NONE, "#{} 0 (enter debug mode)\n", count_);
     }
 
-    bridge_->enter_debug_mode(debug);
+    bridge_->enter_debug_mode();
   }
 }
 
@@ -506,18 +499,11 @@ void rvfi::exit_debug_mode(rv_instr_t& instr) {
 
   if ((uint64_t)instr.pc.pc_rdata == FLAGS_debug_exit_pc) {
 
-    rv_debug_t debug;
-
-    debug.cycle = instr.cycle;
-    debug.enter = false;
-    debug.exit  = true;
-    debug.hart  = instr.hart;
-
     if (FLAGS_rvfi_log) {
-      log(cvm::NONE, "#{} {} 0 (exit debug mode)\n", count_, debug.cycle);
+      log(cvm::NONE, "#{} 0 (exit debug mode)\n", count_);
     }
 
-    bridge_->exit_debug_mode(debug);
+    bridge_->exit_debug_mode();
   }
 }
 

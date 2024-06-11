@@ -63,8 +63,8 @@ public:
   virtual void process_dut_imsic_msi(hart_id_t hart, mem_t& m) override;
 
   // Debug mode
-  virtual void enter_debug_mode(rv_debug_t& d) override;
-  virtual void exit_debug_mode(rv_debug_t& d) override;
+  virtual void enter_debug_mode() override;
+  virtual void exit_debug_mode() override;
 
   void reset();
   void csr_init();
@@ -128,15 +128,15 @@ private:
   void resetsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr);
   void setsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr);
   void poke_mip(hart_id_t hart, uint64_t time, uint64_t mip);
-  void peek_mip(hart_id_t hart, uint64_t time, uint64_t& mip);
-  void peek_seip(hart_id_t hart, uint64_t time, uint64_t& val);
+  void peek_mip(hart_id_t hart, uint64_t& mip);
+  void peek_seip(hart_id_t hart, uint64_t& val);
 
   bool is_custom_excp(uint64_t cause);
   bool is_vector(const std::string& instr);
   bool disable_pa_check_vec(hart_id_t hart);
   bool is_compressed(const std::string& instr);
   bool is_ucode(const std::string& instr);
-  bool does_instr_match_resynch_list(const rv_instr_t& d, const std::string& instr);
+  bool does_instr_match_resynch_list(const std::string& instr);
   bool does_instr_match_resynch_condition(const rv_instr_t& d, const std::string& instr);
   bool clint_read(const rv_instr_t& d);
   bool boot_read(const rv_instr_t& d);
