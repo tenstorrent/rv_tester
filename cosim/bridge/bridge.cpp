@@ -74,6 +74,8 @@ DEFINE_bool(whisper_cmd_log, false, "Enable whisper logging to iss_cmd.log");
 DEFINE_bool(whisper_stdin_null, false, "Redirect whisoer stdin to null");
 DEFINE_bool(whisper_stdout_null, false, "Redirect whisoer stdout to null");
 DEFINE_bool(preload, false, "Whisper preload");
+DEFINE_int32(scheck_period, 0, "state-check period instruction count");
+DEFINE_int32(mcmi_poke_enables, 0, "MCM interface poke enables");
 
 std::shared_ptr<whisperClient<uint64_t>> client_;
 //std::unique_ptr<whisperClient<uint64_t>> client_;
@@ -222,7 +224,7 @@ void bridge::resetsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr) {
     return;
   }
 }
-void bridge::process_compare_gp_regs(hart_id_t hart, const std::array<std::uint64_t, 32> array) {
+void bridge::process_compare_gp_regs(hart_id_t hart, const std::array<std::uint64_t, 32>& array) {
     uint32_t i;
     uint64_t data;
     if (!FLAGS_whisper_exec) {
@@ -235,7 +237,7 @@ void bridge::process_compare_gp_regs(hart_id_t hart, const std::array<std::uint6
         }
     }
 }
-void bridge::process_compare_fp_regs(hart_id_t hart, const std::array<std::uint64_t, 32> array) {
+void bridge::process_compare_fp_regs(hart_id_t hart, const std::array<std::uint64_t, 32>& array) {
     int i;
     uint64_t data;
     if (!FLAGS_whisper_exec) {
@@ -248,7 +250,7 @@ void bridge::process_compare_fp_regs(hart_id_t hart, const std::array<std::uint6
         }
     }
 }
-void bridge::process_compare_vc_regs(hart_id_t hart, const std::array<std::array<std::uint64_t, 4>, 32> array) {
+void bridge::process_compare_vc_regs(hart_id_t hart, const std::array<std::array<std::uint64_t, 4>, 32>& array) {
     int i,j;
     std::array<std::uint8_t, 32> data8;
     std::array<std::uint64_t, 4> data64;

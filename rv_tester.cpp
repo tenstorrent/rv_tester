@@ -18,8 +18,6 @@ static bool validate_ge0(const char* flagname, const int value) {
 
 DEFINE_int32(quiesce_timeout, 500, "cycles to wait after eot condition before calling $finish");
 DEFINE_int32(flush_timeout, 25000, "cycles to wait after flush is initiated before calling $finish");
-DEFINE_int32(scheck_period, 0, "state-check period instruction count");
-DEFINE_int32(mcmi_poke_enables, 0, "MCM interface poke enables");
 DEFINE_bool(terminate_call_finish, true, "Call $finish on sim termination");
 DEFINE_bool(bypass_mem, true, "Bypass xbar+cache switch");
 DEFINE_bool(bypass_cache, false, "Bypass cache switch");

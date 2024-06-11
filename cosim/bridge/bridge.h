@@ -50,9 +50,9 @@ public:
   virtual void process_steps(hart_id_t hart, uint32_t n_retire, uint64_t cycle, uint64_t steps, uint64_t skips, uint64_t final_steps) override;
   virtual void process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d) override;
   virtual void process_dut_csr_hw_update(hart_id_t hart, csr_t& c) override;
-  virtual void process_compare_gp_regs(hart_id_t hart, const std::array<std::uint64_t, 32> array);
-  virtual void process_compare_fp_regs(hart_id_t hart, const std::array<std::uint64_t, 32> array);
-  virtual void process_compare_vc_regs(hart_id_t hart, const std::array<std::array<std::uint64_t, 4>, 32> array);
+  virtual void process_compare_gp_regs(hart_id_t hart, const std::array<std::uint64_t, 32>& array);
+  virtual void process_compare_fp_regs(hart_id_t hart, const std::array<std::uint64_t, 32>& array);
+  virtual void process_compare_vc_regs(hart_id_t hart, const std::array<std::array<std::uint64_t, 4>, 32>& array);
 
   // Process memory access
   //   - Read (Ld completion)
@@ -230,7 +230,6 @@ private:
   bool post_undeferred_intr_;
   std::array<uint32_t, max_intr> intr_age_{};
   uint32_t max_pend_intr_age_ = 0;
-  std::chrono::high_resolution_clock::time_point begin_time_;
   std::chrono::high_resolution_clock::time_point end_time_;
   std::chrono::high_resolution_clock::time_point start_of_test_;
   bool first_call_ = true;

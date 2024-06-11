@@ -140,18 +140,21 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
 
     bit get_cosim_compare_values = 1;
     bit reset_d1 = 1;
-    bit [NGP_REGS-1:0][4:0]                    rd_addr;               //register-retire load enable
-    bit [NGP_REGS-1:0][4:0]                    frd_addr;              //register-retire load enable
-    bit [NGP_REGS-1:0][4:0]                    vrd_addr;              //register-retire load enable
+    bit [NRET    -1:0][4:0]                    rd_addr;               //register-retire load enable
+    bit [NRET    -1:0][4:0]                    frd_addr;              //register-retire load enable
+    bit [NRET    -1:0][4:0]                    vrd_addr;              //register-retire load enable
     bit [NGP_REGS-1:0]                         rd_load;               //register-retire load enable
     bit [NFP_REGS-1:0]                         frd_load;
     bit [NVC_REGS-1:0]                         vrd_load;
     bit [NGP_REGS-1:0][GP_WIDTH-1:0]           srd_wdata;              //retister-retire write data
     bit [NFP_REGS-1:0][FP_WIDTH-1:0]           sfrd_wdata;              //NRET entry is used for feedback of current value
     bit [NVC_REGS-1:0][VC_WIDTH-1:0]           svrd_wdata;
-    bit [NGP_REGS-1:0][GP_WIDTH-1:0]           rd_wdata,  gp_wdata_in, gp_regs;
-    bit [NFP_REGS-1:0][FP_WIDTH-1:0]           frd_wdata, fp_wdata_in, fp_regs;
-    bit [NVC_REGS-1:0][VC_WIDTH-1:0]           vrd_wdata, vc_wdata_in, vc_regs;
+    bit [NRET    -1:0][GP_WIDTH-1:0]           rd_wdata;
+    bit [NGP_REGS-1:0][GP_WIDTH-1:0]           gp_wdata_in, gp_regs;
+    bit [NRET    -1:0][FP_WIDTH-1:0]           frd_wdata;
+    bit [NFP_REGS-1:0][FP_WIDTH-1:0]           fp_wdata_in, fp_regs;
+    bit [NRET    -1:0][VC_WIDTH-1:0]           vrd_wdata;
+    bit [NVC_REGS-1:0][VC_WIDTH-1:0]           vc_wdata_in, vc_regs;
     bit                                        gp_reg_written;
     bit                                        fp_reg_written;
     bit                                        vc_reg_written;
@@ -221,8 +224,8 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
     // Timeout checks
     int max_stall_cycle = 50000;
     longint unsigned max_cycle;
-    bit [31:0] max_instructions;
-    bit [31:0] instruction_cnt;
+    longint unsigned max_instructions;
+    longint unsigned instruction_cnt;
     int cycles_since_retire;
     longint unsigned hart_enable_mask;
     bit boot_wfi;
@@ -346,7 +349,7 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
         always @(posedge clk)
         begin
             if (reset) 
-               rvfi_last_poke_orders[n] = '0;
+               rvfi_last_poke_orders[n] <= '0;
             else  
                if (rvfi[n].valid & ~rvfi[n].last_uop & poke_events[n])
                   rvfi_last_poke_orders[n] <= rvfi[n].order;
@@ -400,7 +403,7 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
     assign m_vc_regss[0].data.hart  = NUM;
     assign m_vc_regss[0].data.location = location;
     for(genvar n=0;n<NVC_REGS;n=n+1) begin
-        assign m_vc_regss[0].data.value[n] = vc_wdata_in[n];
+        assign m_vc_regss[0].data.value[n] = 256'(vc_wdata_in[n]); // FIXME this needs to be parameterized properly
     end
 
 
@@ -516,7 +519,7 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
     assign m_stepss[0].data.cycle       = clocks;
     assign m_stepss[0].data.steps       = rvfi_steps; 
     assign m_stepss[0].data.skips       = rvfi_skips;
-    assign m_stepss[0].data.final_steps = (send_rvfi==1'b1) ? '0 : valid_cnt;        // No final steps IF rvfi is being sent too
+    assign m_stepss[0].data.final_steps = (send_rvfi==1'b1) ? '0 : 64'(valid_cnt);        // No final steps IF rvfi is being sent too
 
     always @(posedge clk) begin
         if (dut_reset) begin
@@ -532,19 +535,19 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
             //if (rvfi_valids[0] & rvfi_luops[0]) begin                                    // instruction(s) retiring 
             if (rvfi_valid) begin                                    // instruction(s) retiring 
                 cycles_since_retire <= 0;
-                instruction_cnt <= instruction_cnt + valid_cnt;
+                instruction_cnt <= instruction_cnt + 64'(valid_cnt);
                 rvfi_first_valid  <= 1'b0; 
                 rvfi_exp_order <= rvmax_order + 1;                   // compute next clocks rvfi order start to find dropped instruction orders
 
                 if (~send_steps & ~send_rvfi)                        // we dno not need to STEP whisper  
-                    rvfi_steps <= rvfi_steps + valid_cnt;            // increment how many valids we did NOT send
+                    rvfi_steps <= rvfi_steps + 64'(valid_cnt);       // increment how many valids we did NOT send
                 else
                     rvfi_steps <= 0;                                 // we sent the step-count to whisper .... reset the step counter
 
                 if (rvfi_scheck_cnt >= scheck_period)                // if count == period  we will do a state compare too
                     rvfi_scheck_cnt <= '0;                           // clear counter
                 else
-                    rvfi_scheck_cnt <= rvfi_scheck_cnt + valid_cnt;          
+                    rvfi_scheck_cnt <= rvfi_scheck_cnt + 32'(valid_cnt);          
 
             end 
         end      
@@ -667,7 +670,7 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
         // End-Of-Test logic:  memory write to designated address 
         //    - will cause a save-state event (force-steps=1 if NO instrs being retired currently
         //------------------------------------------------------------------------------------------- 
-        assign eot_writes_found[n] = ((eot_addr != '0) &  mcmi_write[n].valid & (mcmi_write[n].addr == eot_addr) & ( mcmi_write[n].data[0] == 1'b1) & (mcmi_write[n].data[63:56] == 0)) ? 1'b1 : 1'b0;
+        assign eot_writes_found[n] = ((eot_addr != '0) &  mcmi_write[n].valid & (mcmi_write[n].addr == $bits(mcmi_write[n].addr)'(eot_addr)) & ( mcmi_write[n].data[0] == 1'b1) & (mcmi_write[n].data[63:56] == 0)) ? 1'b1 : 1'b0;
     end
 
     assign mcmi_write_poke = (mcmi_write_pokes != '0);
@@ -688,7 +691,7 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
         // End-Of-Test logic:  memory write to designated address 
         //    - will cause a save-state event (force-steps=1 if NO instrs being retired currently
         //------------------------------------------------------------------------------------------- 
-        assign eot_bypass_found[n] = ((eot_addr != '0) &  mcmi_bypass[n].valid & (mcmi_bypass[n].addr == eot_addr) & ( mcmi_bypass[n].data[0] == 1'b1) & (mcmi_bypass[n].data[63:56] == 0)) ? 1'b1 : 1'b0;
+        assign eot_bypass_found[n] = ((eot_addr != '0) &  mcmi_bypass[n].valid & (mcmi_bypass[n].addr == $bits(mcmi_bypass[n].addr)'(eot_addr)) & ( mcmi_bypass[n].data[0] == 1'b1) & (mcmi_bypass[n].data[63:56] == 0)) ? 1'b1 : 1'b0;
         assign mcmi_bypass_pokes[n] = mcmi_bypass[n].valid;
     end
 
@@ -734,7 +737,7 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
     end
 
     // When using periodic whisper updates... check for eot if max instruction method is used
-    assign eot_max_instr = ((scheck_period > 0) & (max_instructions > 0) &  ((instruction_cnt+valid_cnt) >= (max_instructions))) ? 1'b1: 1'b0;
+    assign eot_max_instr = ((scheck_period > 0) & (max_instructions > 0) &  ((instruction_cnt+64'(valid_cnt)) >= (max_instructions))) ? 1'b1: 1'b0;
 
     // m_debug
     logic debug_mode_d1;
