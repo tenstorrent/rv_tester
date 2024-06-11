@@ -12,6 +12,10 @@
 #include "whisper_client_decl.h"
 #include "whisper_decoder.h"
 #include "rv_tester/rv_tester_plusargs.h"
+#include "sysmod/trickbox/interrupter.h"
+#include "sysmod/trickbox/imsic_driver.h"
+#include "cosim/dut_if/rvfi/rvfi_plusargs.h"
+#include "sysmod/sysmod_plusargs.h"
 
 #include <cstring>          // strlen
 #include <sstream>          // stringstream
@@ -21,20 +25,6 @@
 #include <vector>
 #include <fmt/format.h>
 #include <random>
-
-// Plusargs
-DECLARE_string(bootrom_path);
-DECLARE_string(cplfw_path);
-DECLARE_string(load);
-DECLARE_string(hex);
-DECLARE_bool(mcm);
-DECLARE_int32(seed);
-DECLARE_uint64(debug_entry_pc);
-DECLARE_uint64(debug_exit_pc);
-DECLARE_uint64(hart_enable_mask);
-DECLARE_uint32(num_harts);
-DECLARE_bool(random_intr);
-DECLARE_bool(random_imsic_intr);
 
 DEFINE_bool(bridge_log, true, "Enable bridge logging");
 DEFINE_string(whisper_json_path, "", "Path to whisper json config");

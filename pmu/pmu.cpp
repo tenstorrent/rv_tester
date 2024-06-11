@@ -1,6 +1,7 @@
 #include "cvm/plusargs.hpp"
 #include "cvm/registry.hpp"
 #include "pmu.hpp"
+#include "sysmod/sysmod_plusargs.h"
 
 DEFINE_bool(perf, false, "Enable core performance metrics");
 // TODO: control which are dumped? might not be useful
@@ -10,8 +11,6 @@ DEFINE_bool(pmcounters_log, false, "Dump pmcounters in log");
 DEFINE_bool(ipc_check, false, "Check IPC within a tolerance %");
 DEFINE_double(ipc_expected, 0.0, "Expected IPC");
 DEFINE_int32(ipc_tolerance_perc, 5, "IPC tolerance %");
-DECLARE_string(load);
-DECLARE_uint64(hart_enable_mask);
 
 REGISTRY_register(pmu, PMCI, cvm::registry::all);
 

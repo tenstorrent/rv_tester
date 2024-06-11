@@ -31,6 +31,7 @@ DECLARE_int32(imsic_vs_intr_threshold);
 DECLARE_int32(imsic_hart_threshold);
 DECLARE_int32(imsic_intr_start_delay);
 DECLARE_int32(seed);
+DECLARE_bool(random_imsic_intr);
 // Define a core local interruptor (imsic_driver) at the given address
 // and for the given hart count. The size will be 48k bytes.
 class imsic_driver : public subdevice

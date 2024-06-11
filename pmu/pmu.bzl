@@ -20,6 +20,7 @@ def pmu_gen(name, packet, topology, harness, visibility = None, cc_attrs = {}, *
             "@cvm//:logger",
             "@cvm//:bitmanip",
             "@cvm//:registry",
+            "@rv_tester//sysmod:sysmod_plusargs",
          ],
         alwayslink = True,
         visibility = visibility,

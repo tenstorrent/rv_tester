@@ -15,24 +15,11 @@
 #include "whisper_client.h"
 #include "HartConfig.hpp"
 #include "Hart.hpp"
+#include "cosim/dut_if/rvfi/rvfi_plusargs.h"
+#include "sysmod/sysmod_plusargs.h"
+#include "cosim/bridge/bridge_plusargs.h"
+#include "cosim/utils/eot/eot_plusargs.h"
 
-DECLARE_string(load);
-DECLARE_string(hex);
-DECLARE_string(load_lz4);
-DECLARE_bool(bootrom);
-DECLARE_string(bootrom_path);
-DECLARE_string(cplfw_path);
-DECLARE_string(whisper_json_path);
-DECLARE_bool(whisper_stdin_null);
-DECLARE_bool(whisper_stdout_null);
-DECLARE_bool(preload);
-DECLARE_bool(mcm);
-DECLARE_bool(cov);
-DECLARE_uint32(max_instr);
-DECLARE_string(archsample_lib_path);
-DECLARE_bool(standalone);
-DECLARE_uint64(hart_enable_mask);
-DECLARE_uint64(tohost);
 
 DEFINE_bool(nostop_standalone,false, "Do not stop if standalone whisper fails");
 
