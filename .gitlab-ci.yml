@@ -9,6 +9,12 @@ stages:
     - build
     - notify
 
+lint:
+    stage: build
+    scripts:
+        - ! git grep DECLARE_ -- '**.c' '**.cpp' || (echo "Error: Put DECLARE_ statements in header files"; exit 1)
+    timeout: 1h
+
 smoke:
     extends:
         - .bzsim-template
