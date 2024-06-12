@@ -233,7 +233,7 @@ void bridge::process_compare_gp_regs(hart_id_t hart, const std::array<std::uint6
     for(i=0;i<32;i++) {
         get_gp_reg(i, data);
         if (array.at(i) != data) {
-            cvm::log(cvm::ERROR, "Hart {}: mismatch of GP[{}] act={:#x} exp={:#x}\n", hart,i,array.at(1),data);
+            cvm::log(cvm::ERROR, "Hart {}: mismatch of GP[{}] act={:#x} exp={:#x}\n", hart,i,array.at(i),data);
         }
     }
 }
@@ -246,7 +246,7 @@ void bridge::process_compare_fp_regs(hart_id_t hart, const std::array<std::uint6
     for(i=0;i<32;i++) {
         get_fp_reg(i, data);
         if (array.at(i) != data) {
-            cvm::log(cvm::ERROR, "Hart {}: mismatch of FP[{}] act={:#x} exp={:#x}\n", hart,i,array.at(1),data);
+            cvm::log(cvm::ERROR, "Hart {}: mismatch of FP[{}] act={:#x} exp={:#x}\n", hart,i,array.at(i),data);
         }
     }
 }
