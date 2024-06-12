@@ -1,3 +1,62 @@
+module cosim_reg_bank
+#(
+  parameter int NUM    = 1,
+  parameter int WIDTH  = 1,
+  parameter int PORTS  = 1,
+
+  localparam int AW = $clog2(NUM)
+)(
+  input  logic clk,
+  input  logic reset,
+  input  logic reset_changed,
+  input  logic             wen   [PORTS],
+  input  logic [WIDTH-1:0] wdata [PORTS],
+  input  logic [AW   -1:0] waddr [PORTS],
+  output logic [WIDTH-1:0] regs  [NUM]  ,
+  output logic             changed
+);
+
+  logic [WIDTH-1:0] regs_1T [NUM];
+
+  always_comb begin
+    regs = regs_1T;
+    for (int i = 0; i < PORTS; i++) begin
+      if (wen[i]) begin
+        regs[waddr[i]] = wdata[i];
+      end
+    end
+  end
+
+  // FIXME remove reset and send an enable vec for what's been written
+  always_ff @(posedge clk) begin
+    if (reset) begin
+      for (int i = 0; i < NUM; i++) begin
+        regs_1T[i] <= '0;
+      end
+    end else begin
+      regs_1T <= regs;
+    end
+  end
+
+  logic changed_1T;
+
+  always_comb begin
+    changed = changed_1T;
+    if (reset || reset_changed) begin
+      changed = 1'b0;
+    end else if (!changed) begin
+      for (int i = 0; i <PORTS; i++) begin
+        changed |= wen[i];
+      end
+    end
+  end
+
+  always_ff @(posedge clk) begin
+    changed_1T <= changed;
+  end
+
+endmodule
+
 module cosim
 import rv_tester_params::*;
 #(
@@ -140,24 +199,21 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
 
     bit get_cosim_compare_values = 1;
     bit reset_d1 = 1;
-    bit [NRET    -1:0][4:0]                    rd_addr;               //register-retire load enable
-    bit [NRET    -1:0][4:0]                    frd_addr;              //register-retire load enable
-    bit [NRET    -1:0][4:0]                    vrd_addr;              //register-retire load enable
-    bit [NGP_REGS-1:0]                         rd_load;               //register-retire load enable
-    bit [NFP_REGS-1:0]                         frd_load;
-    bit [NVC_REGS-1:0]                         vrd_load;
-    bit [NGP_REGS-1:0][GP_WIDTH-1:0]           srd_wdata;              //retister-retire write data
-    bit [NFP_REGS-1:0][FP_WIDTH-1:0]           sfrd_wdata;              //NRET entry is used for feedback of current value
-    bit [NVC_REGS-1:0][VC_WIDTH-1:0]           svrd_wdata;
-    bit [NRET    -1:0][GP_WIDTH-1:0]           rd_wdata;
-    bit [NGP_REGS-1:0][GP_WIDTH-1:0]           gp_wdata_in, gp_regs;
-    bit [NRET    -1:0][FP_WIDTH-1:0]           frd_wdata;
-    bit [NFP_REGS-1:0][FP_WIDTH-1:0]           fp_wdata_in, fp_regs;
-    bit [NRET    -1:0][VC_WIDTH-1:0]           vrd_wdata;
-    bit [NVC_REGS-1:0][VC_WIDTH-1:0]           vc_wdata_in, vc_regs;
-    bit                                        gp_reg_written;
-    bit                                        fp_reg_written;
-    bit                                        vc_reg_written;
+    bit [4:0]           rd_addr     [NRET    ]; //register-retire load enable
+    bit [4:0]           frd_addr    [NRET    ]; //register-retire load enable
+    bit [4:0]           vrd_addr    [NRET    ]; //register-retire load enable
+    bit                 rd_load     [NGP_REGS]; //register-retire load enable
+    bit                 frd_load    [NFP_REGS];
+    bit                 vrd_load    [NVC_REGS];
+    bit [GP_WIDTH-1:0]  rd_wdata    [NRET    ];
+    bit [GP_WIDTH-1:0]  gp_wdata_in [NGP_REGS];
+    bit [FP_WIDTH-1:0]  frd_wdata   [NRET    ];
+    bit [FP_WIDTH-1:0]  fp_wdata_in [NFP_REGS];
+    bit [VC_WIDTH-1:0]  vrd_wdata   [NRET    ];
+    bit [VC_WIDTH-1:0]  vc_wdata_in [NVC_REGS];
+    bit                 gp_reg_written;
+    bit                 fp_reg_written;
+    bit                 vc_reg_written;
 
     bit [NWRITE-1:0]  mcmi_write_pokes;
     bit               mcmi_write_poke;
@@ -194,9 +250,9 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
     bit                    send_steps;
     bit                    rvfi_first_valid;
     bit [63:0]             val0_order;
-    bit [NRET-1:0]         rvgp_valids;
-    bit [NRET-1:0]         rvfp_valids;
-    bit [NRET-1:0]         rvvc_valids;
+    bit                    rvgp_valids[NRET];
+    bit                    rvfp_valids[NRET];
+    bit                    rvvc_valids[NRET];
     bit [NRET-1:0]         sc_rw;
     bit [NRET-1:0]         csr_rw;
     bit [NRET-1:0]         excepts;
@@ -217,9 +273,9 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
     bit                    rvfi_valid;
     bit                    send_rvfi;
     bit                    psc_send_regs;
-    bit                    gp_regs_changed, gp_changed; 
-    bit                    fp_regs_changed, fp_changed; 
-    bit                    vc_regs_changed, vc_changed; 
+    bit                    gp_changed; 
+    bit                    fp_changed; 
+    bit                    vc_changed; 
 
     // Timeout checks
     int max_stall_cycle = 50000;
@@ -230,17 +286,42 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
     longint unsigned hart_enable_mask;
     bit boot_wfi;
 
-    for(genvar n=0;n<NGP_REGS;n=n+1) begin
-        assign {rd_load[n], srd_wdata[n]}  = hipri_wdata64( n, rvgp_valids, rd_addr, rd_wdata);
-        assign {frd_load[n],sfrd_wdata[n]} = hipri_wdata64( n, rvfp_valids, frd_addr, frd_wdata);
-        if (VC_WIDTH==256) 
-            assign {vrd_load[n],svrd_wdata[n]} = hipri_wdata256(n, rvvc_valids, vrd_addr, vrd_wdata);
-        else
-            assign {vrd_load[n],svrd_wdata[n]} = hipri_wdata64(n, rvvc_valids, vrd_addr, vrd_wdata);
-        assign gp_wdata_in[n] = (rd_load[n]==1'b1)  ? srd_wdata[n]  : gp_regs[n];
-        assign fp_wdata_in[n] = (frd_load[n]==1'b1) ? sfrd_wdata[n] : fp_regs[n];
-        assign vc_wdata_in[n] = (vrd_load[n]==1'b1) ? svrd_wdata[n] : vc_regs[n];
-    end
+    //--------------------------------------------------------------------------------------------
+    // Track writes to GP,FP,VEC registers for comparison with Whisper 
+    //--------------------------------------------------------------------------------------------
+
+    cosim_reg_bank #(NGP_REGS, GP_WIDTH, NRET) gp_regs_bank (
+      .clk          (clk),
+      .reset        (reset),
+      .wen          (rvgp_valids),
+      .wdata        (rd_wdata),
+      .waddr        (rd_addr),
+      .regs         (gp_wdata_in),
+      .changed      (gp_changed),
+      .reset_changed(psc_send_regs)
+    );
+
+    cosim_reg_bank #(NFP_REGS, FP_WIDTH, NRET) fp_regs_bank (
+      .clk          (clk),
+      .reset        (reset),
+      .wen          (rvfp_valids),
+      .wdata        (frd_wdata),
+      .waddr        (frd_addr),
+      .regs         (fp_wdata_in),
+      .changed      (fp_changed),
+      .reset_changed(psc_send_regs)
+    );
+
+    cosim_reg_bank #(NVC_REGS, VC_WIDTH, NRET) vc_regs_bank (
+      .clk          (clk),
+      .reset        (reset),
+      .wen          (rvvc_valids),
+      .wdata        (vrd_wdata),
+      .waddr        (vrd_addr),
+      .regs         (vc_wdata_in),
+      .changed      (vc_changed),
+      .reset_changed(psc_send_regs)
+    );
 
     for(genvar n=0;n<NRET;n=n+1) begin
         assign rvfi_valids[n] = rvfi[n].valid ;
@@ -258,71 +339,6 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
     end
 
     assign rvfi_valid = | rvfi_valids;                        // OR of all valid retires
-
-
-
-
-    //--------------------------------------------------------------------------------------------
-    // Track writes to GP,FP,VEC registers for comparison with Whisper 
-    //--------------------------------------------------------------------------------------------
-    for(genvar r=0;r<NGP_REGS;r=r+1) begin
-        always @(posedge clk) begin
-            if (dut_reset==1'b1)  begin
-                gp_regs[r] <= '0;
-                fp_regs[r] <= '0;
-                vc_regs[r] <= '0;
-            end
-            else begin
-                gp_regs[r] <= gp_wdata_in[r]; 
-                fp_regs[r] <= fp_wdata_in[r]; 
-                vc_regs[r] <= vc_wdata_in[r]; 
-            end
-        end
-    end
-
-    assign gp_reg_written = (rvgp_valids != 0);
-    assign fp_reg_written = (rvfp_valids != 0);
-    assign vc_reg_written = (rvvc_valids != 0);
-
-    always @(posedge clk) begin
-        if (reset==1'b1)  
-            gp_regs_changed <= 1'b0;
-        else
-        if (psc_send_regs) 
-            gp_regs_changed <= 1'b0;                  // clear change register...unless we are writting in the save state too
-        else
-        if (gp_reg_written)                           // not saving the state..set if writting a GP register 
-            gp_regs_changed <= 1'b1;
-    end
-
-    always @(posedge clk) begin
-        if (reset==1'b1)  
-            fp_regs_changed <= 1'b0;
-        else
-        if (psc_send_regs) 
-            fp_regs_changed <= 1'b0;                  // clear change register...unless we are writting in the save state too
-        else
-        if (fp_reg_written)                           // not saving the state..set if writting a FP register 
-            fp_regs_changed <= 1'b1;
-    end
-
-    always @(posedge clk) begin
-        if (reset==1'b1)  
-            vc_regs_changed <= 1'b0;
-        else
-        if (psc_send_regs) 
-            vc_regs_changed <= 1'b0;                  // clear change register...unless we are writting in the save state too
-        else
-        if (vc_reg_written)                           // not saving the state..set if writting a vector register 
-            vc_regs_changed <= 1'b1;
-    end
-
-    assign gp_changed = gp_regs_changed | gp_reg_written;
-    assign fp_changed = fp_regs_changed | fp_reg_written;
-    assign vc_changed = vc_regs_changed | vc_reg_written;
-
-
-
 
     //---------------------------------------------------------------------------------
     // POKE EVENTS logic
@@ -392,14 +408,14 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
         assign m_gp_regss[0].data.value[n][63:0] = gp_wdata_in[n];
     end
 
-    assign m_fp_regss[0].valid = psc_send_regs & fp_regs_changed;
+    assign m_fp_regss[0].valid = psc_send_regs & fp_changed;
     assign m_fp_regss[0].data.hart  = NUM;
     assign m_fp_regss[0].data.location = location;
     for(genvar n=0;n<NFP_REGS;n=n+1) begin
         assign m_fp_regss[0].data.value[n][63:0] = fp_wdata_in[n];
     end
 
-    assign m_vc_regss[0].valid = psc_send_regs & vc_regs_changed;
+    assign m_vc_regss[0].valid = psc_send_regs & vc_changed;
     assign m_vc_regss[0].data.hart  = NUM;
     assign m_vc_regss[0].data.location = location;
     for(genvar n=0;n<NVC_REGS;n=n+1) begin
