@@ -11,8 +11,8 @@ stages:
 
 lint:
     stage: build
-    scripts:
-        - ! git grep DECLARE_ -- '**.c' '**.cpp' || (echo "Error: Put DECLARE_ statements in header files"; exit 1)
+    script:
+        - ! git grep DECLARE_ -- '**.c' '**.cpp' || (echo "Error - DECLARE statements must be in header files"; exit 1)
     timeout: 1h
 
 smoke:
