@@ -24,9 +24,6 @@ DEFINE_bool(emulate_amo_arithmetic, true, "Emulate amo arithmetic if dut harness
 DEFINE_uint64(debug_entry_pc, 0xa110800, "Debug Mode entry PC");
 DEFINE_uint64(debug_exit_pc, 0xa110860, "Debug Mode exit PC");
 
-// TODO: remove this
-DECLARE_string(load);
-
 REGISTRY_register(rvfi, COSIM, cvm::registry::all);
 
 rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
