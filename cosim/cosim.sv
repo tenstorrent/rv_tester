@@ -385,7 +385,7 @@ endfunction
     endfunction
 
     // Timeout checks
-    int max_stall_cycle = 50000;
+    int max_stall_cycle = 20000;
     longint unsigned max_cycle;
     int cycles_since_retire;
     longint unsigned hart_enable_mask;
