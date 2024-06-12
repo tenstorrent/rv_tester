@@ -28,7 +28,7 @@ DECLARE_bool(whisper_stdout_null);
 DECLARE_bool(preload);
 DECLARE_bool(mcm);
 DECLARE_bool(cov);
-DECLARE_uint32(max_instr);
+DECLARE_uint64(max_instr);
 DECLARE_string(archsample_lib_path);
 DECLARE_bool(standalone);
 DECLARE_uint64(hart_enable_mask);
