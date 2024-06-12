@@ -50,7 +50,7 @@ typedef struct pc_s {
 
 typedef struct gpr_s {
   bool valid;
-  uint64_t rd_addr;
+  uint32_t rd_addr;
   uint64_t rd_wdata;
 
   gpr_s() {
@@ -70,13 +70,18 @@ typedef struct gpr_s {
 
 typedef struct fpr_s {
   bool valid;
-  uint64_t frd_addr;
-  bool frd_wvalid;
+  uint32_t frd_addr;
   uint64_t frd_wdata;
 
   fpr_s() {
     clear();
   }
+
+  constexpr fpr_s(bool valid, uint32_t frd_addr, uint64_t frd_wdata) :
+    valid(valid),
+    frd_addr(frd_addr),
+    frd_wdata(frd_wdata)
+  {}
 
   void clear() {
     valid = false;
@@ -204,8 +209,8 @@ typedef struct rv_instr_s {
 
   // Registers
   pc_t pc;
-  gpr_t gpr;
-  fpr_t fpr;
+  std::vector<gpr_t> gpr;
+  std::vector<fpr_t> fpr;
   std::vector<vr_t> vr;
   std::vector<csr_t> csr;
 

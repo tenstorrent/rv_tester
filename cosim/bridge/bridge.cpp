@@ -545,7 +545,7 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
   if (FLAGS_flags_check) {
     update_flags(hart, src_t::dut, d.flags);
   }
-  if (d.gpr.valid || d.fpr.valid || !d.vr.empty() || !d.csr.empty()) {
+  if (!d.gpr.empty() || !d.fpr.empty() || !d.vr.empty() || !d.csr.empty()) {
     update_regs(hart, d);
   }
   if (FLAGS_memattr_check && d.mem_read.valid && (!is_vector(d.disasm)) && !lrsc_fail_) {
@@ -918,15 +918,11 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
     }
     // Populate w_ with bridge_if struct
     if (w.resource == 'r') {
-      w_.gpr.valid = true;
-      w_.gpr.rd_addr = w.address;
-      w_.gpr.rd_wdata = w.value;
+      w_.gpr.emplace_back(true, w.address, w.value);
       update_regs(hart, w);
     }
     if (w.resource == 'f') {
-      w_.fpr.valid = true;
-      w_.fpr.frd_addr = w.address;
-      w_.fpr.frd_wdata = w.value;
+      w_.fpr.emplace_back(true, w.address, w.value);
       update_regs(hart, w);
     }
     if (w.resource == 'v') {
@@ -1041,12 +1037,20 @@ std::vector<bridge::size_8_bytes_t> create_dword_vec(const std::bitset<256>& inp
 // Push DUT register state to cac
 void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
   // GPR
-  if (FLAGS_gpr_check && d.gpr.valid) {
-    update_regs(hart, src_t::dut, resource_t::int_reg, d.gpr.rd_addr, {d.gpr.rd_wdata});
+  if (FLAGS_gpr_check) {
+    for (const auto& gpr: d.gpr) {
+      if (gpr.valid) {
+        update_regs(hart, src_t::dut, resource_t::int_reg, gpr.rd_addr, {gpr.rd_wdata});
+      }
+    }
   }
   // FPR
-  if (FLAGS_fpr_check && d.fpr.valid) {
-    update_regs(hart, src_t::dut, resource_t::fp_reg, d.fpr.frd_addr, {d.fpr.frd_wdata});
+  if (FLAGS_fpr_check) {
+    for (const auto& fpr: d.fpr) {
+      if (fpr.valid) {
+        update_regs(hart, src_t::dut, resource_t::fp_reg, fpr.frd_addr, {fpr.frd_wdata});
+      }
+    }
   }
 
   // VR
@@ -1504,25 +1508,29 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
     }
   }
 
-  if (d.gpr.valid) {
-    if (FLAGS_bridge_log) {
-      log(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: X{}={:#x}\n", d.cycle, step_, d.gpr.rd_addr,
-        d.gpr.rd_wdata);
-    }
-    if (!client_->whisperPoke(hart, d.cycle, 'r', d.gpr.rd_addr, d.gpr.rd_wdata, valid)) {
-      cvm::log(cvm::ERROR, "Error: Hart {}: Failed to resynch GPR\n", hart);
-      return;
+  for (const auto& gpr : d.gpr) {
+    if (gpr.valid) {
+      if (FLAGS_bridge_log) {
+        log(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: X{}={:#x}\n", d.cycle, step_, gpr.rd_addr,
+          gpr.rd_wdata);
+      }
+      if (!client_->whisperPoke(hart, d.cycle, 'r', gpr.rd_addr, gpr.rd_wdata, valid)) {
+        cvm::log(cvm::ERROR, "Error: Hart {}: Failed to resynch GPR\n", hart);
+        return;
+      }
     }
   }
 
-  if (d.fpr.valid) {
-    if (FLAGS_bridge_log) {
-      log(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: F{}={:#x}\n", d.cycle, step_, d.fpr.frd_addr,
-        d.fpr.frd_wdata);
-    }
-    if (!client_->whisperPoke(hart, d.cycle, 'f', d.fpr.frd_addr, d.fpr.frd_wdata, valid)) {
-      cvm::log(cvm::ERROR, "Error: Hart {}: Failed to resynch FP\n", hart);
-      return;
+  for (const auto& fpr : d.fpr) {
+    if (fpr.valid) {
+      if (FLAGS_bridge_log) {
+        log(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: F{}={:#x}\n", d.cycle, step_, fpr.frd_addr,
+          fpr.frd_wdata);
+      }
+      if (!client_->whisperPoke(hart, d.cycle, 'f', fpr.frd_addr, fpr.frd_wdata, valid)) {
+        cvm::log(cvm::ERROR, "Error: Hart {}: Failed to resynch FP\n", hart);
+        return;
+      }
     }
   }
 

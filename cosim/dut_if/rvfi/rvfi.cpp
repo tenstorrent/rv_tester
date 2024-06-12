@@ -248,20 +248,21 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.pc.pc_rdata = m_rvfi.pc_rdata;
 
   // GPR
-  instr.gpr.valid = (m_rvfi.rd_addr != 0);
-  instr.gpr.rd_addr = m_rvfi.rd_addr;
-  instr.gpr.rd_wdata = m_rvfi.rd_wdata;
-  // Collect vec cracked uop gpr write
-  if (instr.gpr.valid && instr.vec_cracked){
-    cracked_gpr_.valid = (m_rvfi.rd_addr != 0);
-    cracked_gpr_.rd_addr = m_rvfi.rd_addr;
-    cracked_gpr_.rd_wdata = m_rvfi.rd_wdata;
+  if (m_rvfi.rd_addr != 0) {
+    if (!instr.vec_cracked) {
+      instr.gpr.emplace_back(true, m_rvfi.rd_addr, m_rvfi.rd_wdata);
+    } else {
+      // Collect vec cracked uop gpr write
+      cracked_gpr_.valid = true;
+      cracked_gpr_.rd_addr = m_rvfi.rd_addr;
+      cracked_gpr_.rd_wdata = m_rvfi.rd_wdata;
+    }
   }
 
   // FPR
-  instr.fpr.valid = m_rvfi.frd_valid;
-  instr.fpr.frd_addr = m_rvfi.frd_addr;
-  instr.fpr.frd_wdata = m_rvfi.frd_wdata;
+  if (m_rvfi.frd_valid) {
+    instr.fpr.emplace_back(true, m_rvfi.frd_addr, m_rvfi.frd_wdata);
+  }
 
   // VR
   if (m_rvfi.vrd_valid) {
@@ -316,9 +317,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
 void rvfi::append_uop_changes_to_instr(rv_instr_t& instr) {
   // GPR
   if (cracked_gpr_.valid) {
-    instr.gpr.valid = cracked_gpr_.valid;
-    instr.gpr.rd_addr = cracked_gpr_.rd_addr;
-    instr.gpr.rd_wdata = cracked_gpr_.rd_wdata;
+    instr.gpr.emplace_back(true, cracked_gpr_.rd_addr, cracked_gpr_.rd_wdata);
     cracked_gpr_.valid = false;
   }
 
@@ -375,7 +374,7 @@ void rvfi::print_instr(const rv_instr_t& instr) {
     return;
   }
 
-  int resource_count = instr.gpr.valid + instr.fpr.valid + instr.vr.size() + instr.csr.size() + instr.mem_write.valid;
+  int resource_count = instr.gpr.size() + instr.fpr.size() + instr.vr.size() + instr.csr.size() + instr.mem_write.valid;
 
   // Print r0 = 0 if nothing modified
   if (!resource_count) {
@@ -384,11 +383,11 @@ void rvfi::print_instr(const rv_instr_t& instr) {
   }
 
   // Print modified resources in this order - r, f, v, m, c
-  if (instr.gpr.valid)
-    print_instr_resource(instr, fmt::format(" r {:016x} {:016x}", instr.gpr.rd_addr, instr.gpr.rd_wdata));
+  for (const auto& gpr : instr.gpr)
+    print_instr_resource(instr, fmt::format(" r {:016x} {:016x}", gpr.rd_addr, gpr.rd_wdata));
 
-  if (instr.fpr.valid)
-    print_instr_resource(instr, fmt::format(" f {:016x} {:016x}", instr.fpr.frd_addr, instr.fpr.frd_wdata));
+  for (const auto& fpr : instr.fpr)
+    print_instr_resource(instr, fmt::format(" f {:016x} {:016x}", fpr.frd_addr, fpr.frd_wdata));
 
   for (auto& vr : instr.vr){
     if (vr.valid) {
