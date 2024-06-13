@@ -110,7 +110,7 @@ module rv_tester
     int unsigned cvm_verbosity, gen_clocks_verbosity;
 
     assign terminate           = (rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
-    assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && (dmi_commands_in_queue == '0) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced ); 
+    assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue == '0) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced ); 
     
     assign rerun_now           = terminated && num_reruns > 0;
 
@@ -386,6 +386,9 @@ module rv_tester
             if (dmi_poll_counter > dmi_poll_timeout) begin
                 $display("<%0d> [RVTESTER]: Error: Debug poll timeout limit reached.", clocks);
                 dmi_poll_timeout_terminate <= 1;
+            end
+            else if ((dmi_poll_counter >= 'h1) && terminate) begin
+               $display("<%0d> [RVTESTER]: Debug poll stopped as test pass condition detected limit reached", clocks); 
             end
         end
     end
