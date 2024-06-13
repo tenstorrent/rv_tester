@@ -161,32 +161,6 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
         /* verilator lint_on WIDTH */
     endfunction
 
-    function automatic [64:0] hipri_wdata64(input bit [4:0] rsel, input bit [NRET-1:0] valid, input bit [NRET-1:0][4:0] rd_addr, input bit [NRET-1:0][63:0] wdata);
-        /* verilator lint_off WIDTH */
-        for(int i=NRET-1;i>=0;i=i-1) begin
-            if (valid[i] == 1'b1) begin
-                if (rd_addr[i] == rsel) begin
-                   return({1'b1,wdata[i]});
-                end
-            end
-        end
-        return({1'b0,64'h0});
-        /* verilator lint_on WIDTH */
-    endfunction
-
-    function automatic [256:0] hipri_wdata256(input bit [4:0] rsel, input bit [NRET-1:0] valid, input bit [NRET-1:0][4:0] rd_addr, input bit [NRET-1:0][255:0] wdata);
-        /* verilator lint_off WIDTH */
-        for(int i=NRET-1;i>=0;i=i-1) begin
-            if (valid[i] == 1'b1) begin
-                if (rd_addr[i] == rsel) begin
-                   return({1'b1,wdata[i]});
-                end
-            end
-        end
-        return({1'b0,256'h0});
-        /* verilator lint_on WIDTH */
-    endfunction
-
     import "DPI-C" context function void cosim_set_scope(int unsigned location);
 
 
