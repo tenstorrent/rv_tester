@@ -5,6 +5,7 @@ load("@rv_tester//sysmod:sysmod.bzl", "sysmod_gen")
 load("@rv_tester//pmu:pmu.bzl", "pmu_gen")
 load("@rv_tester//dm_model:dm_model.bzl", "dm_model_gen")
 load("@rv_tester//aplic_monitor:aplic_monitor.bzl", "aplic_monitor_gen")
+load("@rv_tester//reset_driver:reset_driver.bzl", "reset_driver_gen")
 load("@rv_tester//aclint_checker:aclint_checker.bzl", "aclint_checker_gen")
 load("@rv_tester//transactors/axi_sw:axi_sw.bzl", "axi_sw_gen")
 
@@ -76,6 +77,14 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
         cc_attrs = cc_attrs,
     )
 
+    reset_driver_gen(
+        name = name + "_reset_driver",
+        packet = name  + "_transactions",
+        topology = topology,
+        harness = name + "_harness",
+        cc_attrs = cc_attrs,
+    )
+
     aclint_checker_gen(
         name = name + "_aclint_checker",
         packet = name  + "_transactions",
@@ -105,6 +114,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             name + "_pmu_sv",
             name + "_dm_model_sv",
             name + "_aplic_monitor_sv",
+            name + "_reset_driver_sv",
             name + "_aclint_checker_sv",
             name + "_axi_sw_sv",
             "@opensrc-axi_llc//:axi_llc",
@@ -132,6 +142,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             name + "_pmu_dpi",
             name + "_dm_model_dpi",
             name + "_aplic_monitor_dpi",
+            name + "_reset_driver_dpi",
             name + "_aclint_checker_dpi",
             name + "_axi_sw_dpi",
             topology + "_cc",

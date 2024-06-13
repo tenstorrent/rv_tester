@@ -1212,6 +1212,15 @@ aclint_checker:
             data:
                 width: ${TOP.PLATFORM.XLEN}
 
+reset_driver:
+    num: 1
+    tick:
+        domain: 2
+        num: 1
+        fields:
+            advance:
+                width: 64
+
 aplic_monitor:
     num: 1
     aplic_intr_req:

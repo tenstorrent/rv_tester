@@ -434,7 +434,16 @@ module rv_tester
       );
     end
 `endif
-
+   
+   reset_driver#(
+      .NUM(0),
+        `TOPOLOGY_CFG,
+        `RV_TESTER_TRANSACTIONS_RESET_DRIVER_SOURCE_PARAMS(0)
+   )i_reset_driver(
+    .clk(clk[AXI_CLK_IDX]),
+        .reset(sysmod_reset),
+        `RV_TESTER_TRANSACTIONS_RESET_DRIVER_SOURCE_PORTS(2,0,0)
+   );
 
     aplic_monitor #(
         .NUM(0),

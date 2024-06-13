@@ -137,7 +137,12 @@ rv_tester: &rv_tester
       count: 1
       type:
         - aplic_monitor
-
+    
+    reset_driver:
+      count: 1
+      type:
+        - reset_driver
+        
     aclint_checker:
       count: 1
       type:
