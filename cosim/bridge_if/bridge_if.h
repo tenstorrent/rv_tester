@@ -243,6 +243,13 @@ typedef struct rv_instr_group_s {
   }
 } rv_instr_group_t;
 
+typedef struct rv_debug_s {
+  bool enter;
+  bool exit;
+  uint64_t cycle;
+  uint64_t hart;
+} rv_debug_t;
+
 typedef struct rv_intr_s {
   uint64_t cycle;
   uint64_t mip;
