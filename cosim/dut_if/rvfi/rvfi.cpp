@@ -407,37 +407,40 @@ void rvfi::print_instr(const rv_instr_t& instr) {
 }
 
 void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_str) {
-  log(cvm::NONE, "#{} {} {} {} {:016x}", FLAGS_mcm ? instr.tag : instr.id, instr.cycle, instr.hart, priv_to_string.at(static_cast<priv>(instr.priv)),
+  std::string dut_log;
+
+  dut_log += fmt::format("#{} {} {} {} {:016x}", FLAGS_mcm ? instr.tag : instr.id, instr.cycle, instr.hart, priv_to_string.at(static_cast<priv>(instr.priv)),
      instr.pc.pc_rdata);
 
   if (FLAGS_rvfi_log_36b_uop)
-    log(cvm::NONE, " {:09x}", instr.uop);
+    dut_log += fmt::format(" {:09x}", instr.uop);
   else
-    log(cvm::NONE, " {:08x}", instr.opcode);
+    dut_log += fmt::format(" {:08x}", instr.opcode);
 
-  log(cvm::NONE, resource_str);
+  dut_log += fmt::format(" {}", resource_str);
 
   if (!instr.ucode)
-    log(cvm::NONE, " {}", whisper::disassemble(instr.opcode));
+    dut_log += fmt::format(" {}", whisper::disassemble(instr.opcode));
   else
-    log(cvm::NONE, " {} (microcode)", cosim_util::get_nth_word(instr.disasm, 1));
+    dut_log += fmt::format(" {} (microcode)", cosim_util::get_nth_word(instr.disasm, 1));
 
   if (instr.mem_write.valid)
-    log(cvm::NONE, " [{:#x}:{:#x}:{}]", instr.mem_write.va, instr.mem_write.pa, mem_attr_to_string(instr.mem_write.attr));
+    dut_log += fmt::format(" [{:#x}:{:#x}:{}]", instr.mem_write.va, instr.mem_write.pa, mem_attr_to_string(instr.mem_write.attr));
 
   if (instr.mem_read.valid)
-    log(cvm::NONE, " [{:#x}:{:#x}:{}]", instr.mem_read.va, instr.mem_read.pa, mem_attr_to_string(instr.mem_read.attr));
+    dut_log += fmt::format(" [{:#x}:{:#x}:{}]", instr.mem_read.va, instr.mem_read.pa, mem_attr_to_string(instr.mem_read.attr));
 
   if (instr.intr)
-    log(cvm::NONE, " (interrupt:{})", instr.icause);
+    dut_log += fmt::format(" (interrupt:{})", instr.icause);
 
   if (instr.excp)
-    log(cvm::NONE, " (exception:{})", instr.ecause);
+    dut_log += fmt::format(" (exception:{})", instr.ecause);
 
   if (instr.comp)
-    log(cvm::NONE, " (compressed)");
+    dut_log += fmt::format(" (compressed)");
 
-  log(cvm::NONE, "\n");
+  dut_log += fmt::format("\n");
+  log(cvm::NONE, fmt::to_string(dut_log));
 }
 
 void rvfi::send_instr(rv_instr_t& instr) {
