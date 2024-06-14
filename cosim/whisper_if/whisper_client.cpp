@@ -123,6 +123,10 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
 {
   if(FLAGS_preload) {
     system_ = constructSystem<URV>(ncores, false, true);
+    if (system_ == nullptr) {
+      std::cerr << "Error: could not construct system\n";
+      return -1;
+    }
 
     std::vector<std::thread> threadVec;
 
@@ -171,6 +175,10 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
   // run once before starting cosim
   if (FLAGS_standalone && FLAGS_hart_enable_mask == 0x1) {
     system_ = constructSystem<URV>(ncores, true, false);
+    if (system_ == nullptr) {
+      std::cerr << "Error: could not construct system\n";
+      return -1;
+    }
 
     std::vector<std::thread> threadVec;
 
@@ -246,6 +254,11 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
   }
 
   system_ = constructSystem<URV>(ncores, false, false);
+  if (system_ == nullptr) {
+    std::cerr << "Error: could not construct system\n";
+    return -1;
+  }
+
   server_ = std::make_unique<WdRiscv::Server<URV>>(*system_);
 
   return 0;
