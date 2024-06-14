@@ -36,8 +36,8 @@ typedef struct whisper_state_s {
 
 // dut <-> bridge
 typedef struct pc_s {
-  bool valid;
-  uint64_t pc_rdata;
+  bool valid = false;
+  uint64_t pc_rdata = 0;
 
   pc_s() {
     clear();

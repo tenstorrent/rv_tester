@@ -52,7 +52,7 @@ public:
   virtual void process_dut_csr_hw_update(hart_id_t hart, csr_t& c) override;
   virtual void process_compare_gp_regs(hart_id_t hart, const std::array<std::uint64_t, 32>& array);
   virtual void process_compare_fp_regs(hart_id_t hart, const std::array<std::uint64_t, 32>& array);
-  virtual void process_compare_vc_regs(hart_id_t hart, const std::array<std::array<std::uint64_t, 4>, 32>& array);
+  virtual void process_compare_vc_regs(hart_id_t hart, const std::array<std::bitset<256>, 32>& array);
 
   // Process memory access
   //   - Read (Ld completion)
@@ -94,6 +94,7 @@ private:
   void arch_state(whisper_state_t& w);
   void update_whisper_state(hart_id_t hart, whisper_state_t& w);
   void step(hart_id_t hart, whisper_state_t& w);
+  void compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w, const rv_instr_t& d);
   void print_instr(hart_id_t hart, const whisper_state_t& w);
   void print_instr_stdout(hart_id_t hart, const rv_instr_t& d);
   void print_instr_stdout(hart_id_t hart, const whisper_state_t& w);
@@ -176,9 +177,6 @@ private:
   CacCore csr_cac_;
 
   uint64_t order_ = 0;
-
-  uint64_t last_tag_[16] = {0};
-  uint64_t last_cycle_[16] = {0};
 
   // Previous instruction's whisper state
   whisper_state_t pw_{};

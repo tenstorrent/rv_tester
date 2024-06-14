@@ -163,7 +163,7 @@ cosim:
             hart:
                 width: 32
             value:
-                width: [[32, 4, 64]]
+                width: [[32, 256]]
 
     m_mcmi_read:
         domain: 1

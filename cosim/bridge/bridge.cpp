@@ -79,6 +79,29 @@ DEFINE_int32(mcmi_poke_enables, 0, "MCM interface poke enables");
 
 std::shared_ptr<whisperClient<uint64_t>> client_;
 //std::unique_ptr<whisperClient<uint64_t>> client_;
+
+static std::vector<bridge::size_8_bytes_t> create_dword_vec(const std::bitset<256>& input) {
+    // Calculate the number of 8-byte chunks needed for the 256-bit input
+    size_t num_chunks = (256 + 63) / 64; // Round up division
+
+    // Create a vector to store the chunks
+    std::vector<bridge::size_8_bytes_t> dword_vec(num_chunks);
+
+    // Convert and store each chunk of 64 bits (8 bytes)
+    for (size_t i = 0; i < num_chunks; ++i) {
+        bridge::size_8_bytes_t chunk = 0;
+        for (size_t j = 0; j < 64; ++j) {
+            size_t bit_index = i * 64 + j;
+            if (bit_index < 256 && input[bit_index]) {
+                chunk |= (bridge::size_8_bytes_t(1) << j);
+            }
+        }
+        dword_vec[i] = chunk;
+    }
+
+    return dword_vec;
+}
+
 // Constructor
 bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsigned id)
   : log("h" + std::to_string(id) + "_bridge.log"),
@@ -225,47 +248,52 @@ void bridge::resetsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr) {
   }
 }
 void bridge::process_compare_gp_regs(hart_id_t hart, const std::array<std::uint64_t, 32>& array) {
-    uint32_t i;
-    uint64_t data;
-    if (!FLAGS_whisper_exec) {
+    if (!FLAGS_whisper_exec || !FLAGS_gpr_check) {
        return;
     }
-    for(i=0;i<32;i++) {
-        get_gp_reg(i, data);
-        if (array.at(i) != data) {
-            cvm::log(cvm::ERROR, "Hart {}: mismatch of GP[{}] act={:#x} exp={:#x}\n", hart,i,array.at(i),data);
-        }
+    for(int i=0;i<32;i++) {
+       uint64_t data;
+       pd_.gpr.emplace_back(true, i, array[i]);
+       get_gp_reg(i, data);
+       update_regs(hart, src_t::dut, resource_t::int_reg, i, {array[i]});
+       update_regs(hart, src_t::iss, resource_t::int_reg, i, {data});
     }
+    compare_dut_whisper_state(hart, pw_, pd_);
 }
 void bridge::process_compare_fp_regs(hart_id_t hart, const std::array<std::uint64_t, 32>& array) {
-    int i;
-    uint64_t data;
-    if (!FLAGS_whisper_exec) {
+    if (!FLAGS_whisper_exec || !FLAGS_fpr_check) {
        return;
     }
-    for(i=0;i<32;i++) {
+    for(int i=0;i<32;i++) {
+        uint64_t data;
+        pd_.fpr.emplace_back(true, i, array[i]);
         get_fp_reg(i, data);
-        if (array.at(i) != data) {
-            cvm::log(cvm::ERROR, "Hart {}: mismatch of FP[{}] act={:#x} exp={:#x}\n", hart,i,array.at(i),data);
-        }
+        update_regs(hart, src_t::dut, resource_t::fp_reg, i, {array[i]});
+        update_regs(hart, src_t::iss, resource_t::fp_reg, i, {data});
     }
+    compare_dut_whisper_state(hart, pw_, pd_);
 }
-void bridge::process_compare_vc_regs(hart_id_t hart, const std::array<std::array<std::uint64_t, 4>, 32>& array) {
-    int i,j;
-    std::array<std::uint8_t, 32> data8;
-    std::array<std::uint64_t, 4> data64;
-    if (!FLAGS_whisper_exec) {
+void bridge::process_compare_vc_regs(hart_id_t hart, const std::array<std::bitset<256>, 32>& array) {
+    if (!FLAGS_whisper_exec || !FLAGS_vec_check) {
        return;
     }
-    for(i=1;i<32;i++) {
+    for(int i=1;i<32;i++) {
+        std::array<std::uint8_t, 32> data8;
+        std::vector<bridge::size_8_bytes_t> data64;
+        pd_.vr.emplace_back(true, i, array[i]);
         get_vec_reg(i, data8);
-        data64 = reinterpret_cast<std::array<std::uint64_t, 4>&>(data8);
-        for(j=0;j<4;j++) {
-            if (array.at(i).at(j) != data64[j]) {
-                cvm::log(cvm::ERROR, "Hart {}: mismatch of VEC[{}][{}] act={:#x} exp={:#x}\n", hart,i,j,array.at(i).at(j),data64[j]);
+        for(int j=0;j<4;j++) {
+            bridge::size_8_bytes_t q = 0;
+            for (int k = 0; k < 8; k++) {
+                q = q | bridge::size_8_bytes_t(data8[8*j + k]) << (k*8);
             }
+            data64.push_back(q);
         }
+
+        update_regs(hart, src_t::dut, resource_t::vec_reg, i, create_dword_vec(array[i]));
+        update_regs(hart, src_t::iss, resource_t::vec_reg, i, std::move(data64));
     }
+    compare_dut_whisper_state(hart, pw_, pd_);
 }
 
 // DUT interface callback: Step Whisper 
@@ -276,11 +304,11 @@ void bridge::process_steps(hart_id_t hart, uint32_t n_retire, uint64_t cycle, ui
      skips = 0;
   }
 
-  cvm::log(cvm::NONE, "process_steps::START: hart={}, cycle={}, steps={} skips={} final_steps={} last_tag={}\n", hart,cycle,steps,skips,final_steps,last_tag_[hart]);
+  cvm::log(cvm::NONE, "process_steps::START: hart={}, cycle={}, steps={} skips={} final_steps={} last_tag={}\n", hart,cycle,steps,skips,final_steps,pw_.tag);
 
   whisper_state_t w {
-    .tag =  last_tag_[hart],
-    .time = last_cycle_[hart]
+    .tag =  pw_.tag,
+    .time = pw_.time,
   };
 
   end_time_ = std::chrono::high_resolution_clock::now();
@@ -297,18 +325,15 @@ void bridge::process_steps(hart_id_t hart, uint32_t n_retire, uint64_t cycle, ui
   // Process the MISSING (or dropped steps accumulated so far)
   //----------------------------------------------------------------------
   for(uint64_t s=0;s<steps;s++) {
-      last_tag_[hart]++;
+      w.tag++;
       //----------------------------------------------------------------------------------------------------------------------------------------
       // create pseudo-time-stamp by advancing the timestamp ever Nth whisper step/tag 
       // ex: 20 steps = 3 timestamps of T,T+1,T+2  with retire counts of 8,8,4  respectively if CPU can retire max of 8 instructions per clock
       //     We dont' know the real timestamps as that was lost 
       //----------------------------------------------------------------------------------------------------------------------------------------
       if ((s % n_retire) == 0) {                  
-         last_cycle_[hart]++;
+         w.time++;
       }
-
-      w.tag = last_tag_[hart]; 
-      w.time = last_cycle_[hart]; 
 
       if (FLAGS_whisper_exec) {
           auto stime = std::chrono::high_resolution_clock::now();
@@ -325,29 +350,26 @@ void bridge::process_steps(hart_id_t hart, uint32_t n_retire, uint64_t cycle, ui
   //-------------------------------------------------------
   // Add skips caused by out-of-order tag bits
   //-------------------------------------------------------
-  last_tag_[hart]   = last_tag_[hart] + skips; 
+  w.tag += skips;
 
   //------------------------------------------------------
   // now set time to current sim time 
   //------------------------------------------------------
-  last_cycle_[hart] = cycle;
+  w.time = cycle;
 
   //------------------------------------------------------ 
   // Process FINAL steps of the RVFI packet if needed
   //------------------------------------------------------
   for(uint64_t s=0;s<final_steps;s++) {
-      last_tag_[hart]++;
+      w.tag++;
       //----------------------------------------------------------------------------------------------------------------------------------------
       // create pseudo-time-stamp by advancing the timestamp ever Nth whisper step/tag 
       // ex: 20 steps = 3 timestamps of T,T+1,T+2  with retire counts of 8,8,4  respectively if CPU can retire max of 8 instructions per clock
       //     We dont' know the real timestamps as that was lost 
       //----------------------------------------------------------------------------------------------------------------------------------------
       if ((s % n_retire) == 0) {                  
-         last_cycle_[hart]++;
+         w.time++;
       }
-
-      w.tag = last_tag_[hart]; 
-      w.time = last_cycle_[hart]; 
 
       if (FLAGS_whisper_exec) {
           auto stime = std::chrono::high_resolution_clock::now();
@@ -359,21 +381,22 @@ void bridge::process_steps(hart_id_t hart, uint32_t n_retire, uint64_t cycle, ui
       // Increment step count
       step_++;
   }
-  cvm::log(cvm::NONE, "process_steps::END:   hart={}, steps={} skips={} last_tag={}\n", hart,steps,skips,last_tag_[hart]);
+
+  ppw_ = pw_;
+  pw_ = w;
+  pd_ = rv_instr_t{};
+  cvm::log(cvm::NONE, "process_steps::END:   hart={}, steps={} skips={} last_tag={}\n", hart,steps,skips,pw_.tag);
 }
 
 // DUT interface callback: Instruction Retire
 void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
-  cvm::log(cvm::NONE, "process_rvfi::START: hart={},d.cycle={} d.tag={} last_tag={}\n", hart,d.cycle,d.tag,last_tag_[hart]);
+  cvm::log(cvm::NONE, "process_rvfi::START: hart={},d.cycle={} d.tag={} last_tag={}\n", hart,d.cycle,d.tag,pw_.tag);
   twoStage_ = false;
   whisper_state_t w {
     .tag = d.tag,
     .time = d.cycle
   };
-
-  last_tag_[hart] = d.tag;
-  last_cycle_[hart] = d.cycle;
 
   //------------------------------------------------------------------------------------------------------------
   // advance the instruction steps missed when using state-compare method and not sending rvfi packets
@@ -428,11 +451,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   //}
   post_step_satp_write_poke(hart, d, w);
 
-  // Check dut vs whisper
-  const auto cac_status_verbosity = cvm::HIGH;
-  if (!excp_in_debug_mode) {
-    cac_.Step(hart, cvm::logger::check_verbosity(cac_status_verbosity));
-  } else {
+  if (excp_in_debug_mode) {
     cac_.ResetStatus(hart);
     return;
   }
@@ -444,6 +463,22 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   ppw_ = pw_;
   pw_ = w;
   pd_ = d;
+
+
+  // Check dut vs whisper
+  compare_dut_whisper_state(hart, w, d);
+
+  // Save whisper state
+  prev_mip_ = mip_;
+  prev_e_mip_ = e_mip_;
+
+  // TLB checks
+  translation_check(hart, d, w);
+}
+
+void bridge::compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w, const rv_instr_t& d) {
+  const auto cac_status_verbosity = cvm::HIGH;
+  cac_.Step(hart, cvm::logger::check_verbosity(cac_status_verbosity));
 
   // Error on mismatch
   if (!cac_.GetStatus(hart)) {
@@ -476,13 +511,6 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   else {
     log(cac_status_verbosity, "{}", cac_.GetStatusStr(hart));
   }
-
-  // Save whisper state
-  prev_mip_ = mip_;
-  prev_e_mip_ = e_mip_;
-
-  // TLB checks
-  translation_check(hart, d, w);
 }
 
 void bridge::process_dut_csr_hw_update(hart_id_t hart, csr_t& c) {
@@ -1010,28 +1038,6 @@ void bridge::step(hart_id_t hart, whisper_state_t& w) {
   if (FLAGS_bridge_log) {
     print_instr(hart, w);
   }
-}
-
-std::vector<bridge::size_8_bytes_t> create_dword_vec(const std::bitset<256>& input) {
-    // Calculate the number of 8-byte chunks needed for the 256-bit input
-    size_t num_chunks = (256 + 63) / 64; // Round up division
-
-    // Create a vector to store the chunks
-    std::vector<bridge::size_8_bytes_t> dword_vec(num_chunks);
-
-    // Convert and store each chunk of 64 bits (8 bytes)
-    for (size_t i = 0; i < num_chunks; ++i) {
-        bridge::size_8_bytes_t chunk = 0;
-        for (size_t j = 0; j < 64; ++j) {
-            size_t bit_index = i * 64 + j;
-            if (bit_index < 256 && input[bit_index]) {
-                chunk |= (bridge::size_8_bytes_t(1) << j);
-            }
-        }
-        dword_vec[i] = chunk;
-    }
-
-    return dword_vec;
 }
 
 // Push DUT register state to cac
