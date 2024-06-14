@@ -29,9 +29,12 @@ module reset_driver #(
         /* verilator lint_on BLKANDNBLK */
     always @(posedge clk) begin
         clocks <= clocks + 1;
-        if (!flag) begin
-            clocks <= 0;
-            flag <= 1;
+        if(!flag)begin
+          clocks <= 0;
+          flag <= 1;
+        end
+        if (clocks ==2) begin
+            //clocks <= 0;
             /* verilator lint_off BLKSEQ */
             sysmod_tick_async = cvm_plusargs::get_bool("sysmod_tick_async") != '0;
             location = cvm_topology::get_location(topology.TOP.PLATFORM.RESET_DRIVER.ID, NUM);
