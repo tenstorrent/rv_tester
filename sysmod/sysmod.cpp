@@ -26,6 +26,7 @@
 #include "rv_tester/rv_tester_structs.h"
 #include "rv_tester/rv_tester_plusargs.h"
 #include "cosim/bridge_if/bridge_params.h"
+#include "cosim/dut_if/rvfi/rvfi_plusargs.h"
 
 // internal flags
 DEFINE_string(hex, "", "hex file (program) to load into memory");
@@ -40,9 +41,7 @@ DEFINE_bool(sysmod_tick_async, true, "Asynchronous sysmod_tick calls");
 DEFINE_uint64(sysmod_tick_update_threshold, 1, "Slow down tick update frequency by this factor. The tick is still eventually advanced the same cumulative amount, just not as often. Useful for emulation where the clock counts much faster but tests setup interrupts to happen very soon for simulation. They git hit by an interrupt storm and are stuck in the interrupt handler forever.");
 DEFINE_uint64(sp_ways_num, 0x1, "Number of sharedcache ways to be alloted as Scratchpad");
 DEFINE_string(set_csr, "", "+set_csr=<csr_num>:<value>,<num2>:<val2> ");
-DECLARE_uint64(hart_enable_mask);
-DECLARE_uint32(num_harts);
-DECLARE_bool(cosim);
+DEFINE_int32(seed, 1, "Simulation seed passed down for randomization");
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 
 extern "C" {

@@ -36,3 +36,8 @@ Copy the following generated files to the appropriate location (look for the AUT
 - gen_events.sv -> pmu/pmu.sv
 - defines.sv -> rv_tester_defines.sv
 - events.yaml -> rv_tester_transactions.yml
+
+### Plusargs
+Please add any `DECLARE` statements for plusargs into header files rather than 
+putting them into C source files. 
+Follow best practices outlined at https://gflags.github.io/gflags/#declare

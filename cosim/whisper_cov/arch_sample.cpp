@@ -10,8 +10,6 @@
 #include "cvm/plusargs.hpp"
 #include "cvm/registry.hpp"
 
-DECLARE_bool(cov);
-
 using namespace ArchCov;
 covSampleInterface covSampleInterface_;
 svScope scope_;

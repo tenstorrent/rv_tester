@@ -30,7 +30,6 @@
 
 // DEFINE_string(dbg_input_file_path, "", "Path to file containing debugger commands");
 DECLARE_string(dbg_input_file_path);
-DECLARE_int32(seed);
 DECLARE_bool(random_dbg_entry);
 DECLARE_int32(random_dbg_start_delay);
 DECLARE_int32(dbg_delay_min);

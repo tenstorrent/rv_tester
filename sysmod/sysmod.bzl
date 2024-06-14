@@ -60,6 +60,7 @@ def sysmod_gen(name, packet, topology, visibility = None, cc_attrs = {}, **kwarg
           "@rv_tester//sysmod/null_dev:null_dev",
           "@rv_tester//sysmod/heartbeat:heartbeat",
           "@rv_tester//cosim/bridge_if:bridge_if",
+          "@rv_tester//cosim/dut_if/rvfi:rvfi_plusargs",
           "@cvm//:plusargs",
           "@cvm//:topology",
           "@cvm//:registry",

@@ -9,6 +9,15 @@ stages:
     - build
     - notify
 
+lint:
+    extends:
+        - .smoke-rules-all-branches-template
+    stage: build
+    script:
+        - (! git grep DECLARE_ -- '**.c' '**.cpp') || (echo "Error - DECLARE statements must be in header files"; exit 1)
+        - python3 plusarg_lint.py
+    timeout: 1h
+
 smoke:
     extends:
         - .bzsim-template

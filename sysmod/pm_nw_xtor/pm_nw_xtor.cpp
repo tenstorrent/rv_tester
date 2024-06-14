@@ -5,11 +5,7 @@
 #include "cvm/logger.hpp"
 #include "pm_nw_xtor.h"
 #include "transactors/axi_sw/axi.h"
-
-
-DECLARE_string(load);
-DECLARE_int32(seed);
-DECLARE_bool(pm_nw_en);
+#include "sysmod/sysmod_plusargs.h"
 
 
 pm_nw_xtor::pm_nw_xtor(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc)
