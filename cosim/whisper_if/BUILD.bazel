@@ -13,7 +13,8 @@ cc_library(
         "//sysmod:sysmod_plusargs",
         "//cosim/dut_if/rvfi:rvfi_plusargs",
         "//cosim/bridge:bridge_plusargs",
-        "//cosim/utils/eot:eot_plusargs"
+        "//cosim/utils/eot:eot_plusargs",
+        "//:plusargs"
     ],
     alwayslink = True,
     linkopts = ["-lrt"],

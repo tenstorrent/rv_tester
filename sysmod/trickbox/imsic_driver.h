@@ -17,11 +17,11 @@
 #include "cvm/registry.hpp"
 #include "cvm/logger.hpp"
 #include "imsic_driver.h"
+#include "sysmod/trickbox/interrupter.h"
 
 DECLARE_int32(imsic_intr_delay_min);//, 4, "Minimum Delay between 2 consecutive interrupts");
 DECLARE_int32(imsic_intr_delay_max);//, 7, "Maximum Delay between 2 consecutive interrupts");
 DECLARE_bool(random_imsic_intr);//, false, "Drive random interrups");
-DECLARE_int32(max_intr_count);
 DECLARE_bool(disable_m_imsic_intr);
 DECLARE_bool(disable_s_imsic_intr);
 DECLARE_bool(disable_vs_imsic_intr);
@@ -30,8 +30,6 @@ DECLARE_int32(imsic_intr_threshold);
 DECLARE_int32(imsic_vs_intr_threshold);
 DECLARE_int32(imsic_hart_threshold);
 DECLARE_int32(imsic_intr_start_delay);
-DECLARE_int32(seed);
-DECLARE_bool(random_imsic_intr);
 // Define a core local interruptor (imsic_driver) at the given address
 // and for the given hart count. The size will be 48k bytes.
 class imsic_driver : public subdevice

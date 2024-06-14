@@ -1,6 +1,7 @@
 #include "cvm/plusargs.hpp"
 #include "cvm/logger.hpp"
 #include "interrupter.h"
+#include "sysmod/sysmod_plusargs.h"
 
  DEFINE_bool(random_intr, false, "Drive random interrups");
  DEFINE_bool(injectintr, false, "Drive interrups at uarch events based on harness code");

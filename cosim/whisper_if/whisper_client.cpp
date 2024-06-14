@@ -19,6 +19,7 @@
 #include "sysmod/sysmod_plusargs.h"
 #include "cosim/bridge/bridge_plusargs.h"
 #include "cosim/utils/eot/eot_plusargs.h"
+#include "rv_tester_plusargs.h"
 
 
 DEFINE_bool(nostop_standalone,false, "Do not stop if standalone whisper fails");
