@@ -53,6 +53,7 @@ public:
   virtual void process_compare_gp_regs(hart_id_t hart, const std::array<std::uint64_t, 32>& array);
   virtual void process_compare_fp_regs(hart_id_t hart, const std::array<std::uint64_t, 32>& array);
   virtual void process_compare_vc_regs(hart_id_t hart, const std::array<std::bitset<256>, 32>& array);
+  virtual void process_compare_vc_regs(hart_id_t hart, const std::array<std::uint64_t, 32>& array);
 
   // Process memory access
   //   - Read (Ld completion)

@@ -393,7 +393,7 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
     assign m_vc_regss[0].data.hart  = NUM;
     assign m_vc_regss[0].data.location = location;
     for(genvar n=0;n<NVC_REGS;n=n+1) begin
-        assign m_vc_regss[0].data.value[n] = 256'(vc_wdata_in[n]); // FIXME this needs to be parameterized properly
+        assign m_vc_regss[0].data.value[n] = vc_wdata_in[n];
     end
 
 

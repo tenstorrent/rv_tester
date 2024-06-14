@@ -163,7 +163,7 @@ cosim:
             hart:
                 width: 32
             value:
-                width: [[32, 256]]
+                width: [[32, ${TOP.PLATFORM.VLEN}]]
 
     m_mcmi_read:
         domain: 1

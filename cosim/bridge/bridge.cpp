@@ -273,6 +273,15 @@ void bridge::process_compare_fp_regs(hart_id_t hart, const std::array<std::uint6
     }
     compare_dut_whisper_state(hart, pw_, pd_);
 }
+
+void bridge::process_compare_vc_regs(hart_id_t hart, const std::array<std::uint64_t, 32>& array) {
+    std::array<std::bitset<256>, 32> data;
+    for(int i=0;i<32;i++) {
+        data[i] = array[i];
+    }
+    process_compare_vc_regs(hart, data);
+}
+
 void bridge::process_compare_vc_regs(hart_id_t hart, const std::array<std::bitset<256>, 32>& array) {
     if (!FLAGS_whisper_exec || !FLAGS_vec_check) {
        return;
