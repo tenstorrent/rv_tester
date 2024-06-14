@@ -38,6 +38,9 @@ class smc_xtor : public device {
         uint32_t start_smc_cnt=0,read_ram,axi_ids = 0;
         uint64_t write_ram; 
         uint32_t cnt_tick=0;
+        struct smc_ip_data_t{
+          uint32_t data;
+        };
         struct smc_wr_t {
           uint32_t addr;
           uint64_t data;
@@ -67,7 +70,7 @@ class smc_xtor : public device {
         virtual void axi_write_granular();
         virtual void axi_read(uint64_t addr, size_t length, uint32_t id);
         void write(const transactor::write_t& );
-       
+        void update_reset_driver_status(smc_ip_data_t i); 
         cvm::messenger::task<void> read(const transactor::read_t& , data_t& );
 
         void gen_data_strb(uint64_t addr, uint32_t value, data_t& wdata, std::vector<bool>& strb) {

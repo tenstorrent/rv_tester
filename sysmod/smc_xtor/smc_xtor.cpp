@@ -19,9 +19,15 @@ smc_xtor::smc_xtor(const std::string& tag, uint64_t addr, size_t size, cvm::topo
   if (FLAGS_load != "") {
     init_elf(FLAGS_load);
   }
- 
+  auto smc_xtor_loc = cvm::topology::get_from_type("SMC_XTOR", 0); 
+  cvm::registry::messenger.connect<smc_xtor::smc_ip_data_t>(
+            smc_xtor_loc,
+            [&](smc_xtor::smc_ip_data_t i) { return this->update_reset_driver_status(i); });
   channel = cvm::registry::messenger.channel<axi::r_t>(axi_mst_loc_l);
   push_smc_boot_seq();
+}
+void smc_xtor::update_reset_driver_status(smc_ip_data_t i){
+  std::cout<<"GOT update from reset driver "<<i.data<<"\n";
 }
 void smc_xtor::axi_write_granular() {
 

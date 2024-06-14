@@ -20,6 +20,7 @@ def reset_driver_gen(name, packet, topology, harness, visibility = None, cc_attr
 		"@cvm//:registry",
 		"@cvm//:bitmanip",
 		"@aplic//:Aplic",
+		"@rv_tester//sysmod/smc_xtor:smc_xtor",
 		],
 		alwayslink = True,
 		visibility = visibility,

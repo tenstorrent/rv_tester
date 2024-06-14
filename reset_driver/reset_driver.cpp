@@ -8,6 +8,13 @@
 #include "cvm/registry.hpp"
 #include "cvm/bitmanip.hpp"
 #include "reset_driver.hpp"
+
+DEFINE_bool(reset_driver, true, "Enable reset driver");
+DEFINE_bool(mid_sim_reset_en, true, "Enable mid sim reset driving");
+DEFINE_bool(mid_sim_warm_reset_en, false, "Enable mid sim warm reset driving");
+// TODO: control which are dumped? might not be useful
+DEFINE_uint64(mid_sim_reset_period, 7000, "Drive midsim reset every N cycles");
+DEFINE_uint64(mid_sim_warm_reset_period, 7000, "Drive midsim reset every N cycles");
 REGISTRY_register(reset_driver, TOP.PLATFORM.RESET_DRIVER, 0);
 
 reset_driver::reset_driver(cvm::topology::loc_t loc, unsigned id) 

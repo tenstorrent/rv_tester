@@ -11,6 +11,8 @@
 #include "cvm/logger.hpp"
 #include "cvm/topology.hpp"
 #include "rv_tester_transactions.hpp"
+//#include "smc_xtor.h"
+#include "sysmod/smc_xtor/smc_xtor.h"
 #include "Aplic.hpp"
 
 
@@ -57,6 +59,15 @@ public:
     if(ticks==10){
       perform_warm_reset();
     }
+    if(ticks ==20){
+      smc_xtor::smc_ip_data_t smc_data;
+      smc_data.data = 1;
+    }
+    if(send_update_to_smc & (ticks >10)){
+      std::cout<<"\nreset driver sending update to smc xtor\n";
+      auto smc_xtor_loc = cvm::topology::get_from_type("SMC_XTOR", 0);
+      cvm::registry::messenger.signal(smc_xtor_loc, smc_xtor::smc_ip_data_t{123});
+    }
 
   }
    
@@ -92,7 +103,7 @@ public:
 
   
   
-  // Used to assert/deassert a reset_driver interrupt (PIPI) for given hart.
+  // Used to assert/deassert a reset_driver pin for given hart.
    void driveResetPulse(reset_data_t t)
    {
     cvm::log(cvm::FULL, "[Reset Driver] driveResetPulse t.resetnum {} txntype {} iniyt {}\n",t.reset_num,t.txn_type,t.init_value);
@@ -158,6 +169,9 @@ private:
   uint64_t timer_ = 0;
   uint64_t ticks = 0;
   uint64_t timer_advance = 200;
+  bool run_cold_reset_seq = false;
+  bool run_warm_reset_seq = false;
+  bool send_update_to_smc = true;
   // uint64_t timer_rand_intr = 500;
   uint64_t reset_driver_base = 0x9000000;
   
