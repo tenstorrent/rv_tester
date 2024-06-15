@@ -82,7 +82,7 @@ void parse() {
                 log_str += fmt::format("****************************************** \n");
                 log_str += fmt::format(" ERROR: Memmap.json check failed: Overlap detected between   {}   and    {} \n",vec_m[i].first,vec_m[j].first);
                 log_str += fmt::format("****************************************** \n");
-                log(cvm::NONE, fmt::to_string(log_str));
+                cvm::log(cvm::NONE, fmt::to_string(log_str));
                 overlapDetected = true;
             }
         }
