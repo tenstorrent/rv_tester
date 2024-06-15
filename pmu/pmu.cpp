@@ -22,12 +22,14 @@ pmu::pmu(cvm::topology::loc_t loc, unsigned id)
     counters.resize(counter::COUNT, 0);
 
     if (FLAGS_pmcounters_log != 0) {
+      std::string log_str;
       assert(to_string.size() == counter::COUNT);
-      log(cvm::NONE, "trigger");
+      log_str += fmt::format("trigger");
       for (size_t i = 0; i < counter::COUNT; i++) {
-        log(cvm::NONE, ",{}", to_string.at(static_cast<counter>(i)));
+        log_str += fmt::format(",{}", to_string.at(static_cast<counter>(i)));
       }
-      log(cvm::NONE, "\n");
+      log_str += fmt::format("\n");
+      log(cvm::NONE, fmt::to_string(log_str));
     }
 
     auto platform = cvm::topology::get_from_type("PLATFORM", 0);
@@ -67,12 +69,13 @@ pmu::process(const rv_tester_transactions::pmu::pmcounters<>& pmcounters)
     perf_region_end();
 
   if (FLAGS_pmcounters_log != 0) {
-    log(cvm::NONE, "{}", trigger_str(pmcounters));
+    std::string log_str;
+    log_str += fmt::format("{}", trigger_str(pmcounters));
     for (size_t i = 0; i < counters.size(); i++) {
-      log(cvm::NONE, ",{}", counters[i]);
+      log_str += fmt::format(",{}", counters[i]);
     }
-
-    log(cvm::NONE, "\n");
+    log_str += fmt::format("\n");
+    log(cvm::NONE, fmt::to_string(log_str));
   }
 }
 
@@ -97,12 +100,13 @@ pmu::process(const rv_tester::terminate_called_fast&)
   sync_terminate_ = true;
 
   if (FLAGS_pmcounters_log != 0) {
-    log(cvm::NONE, "fast_terminate");
+    std::string log_str;
+    log_str += fmt::format("fast_terminate");
     for (size_t i = 0; i < counters.size(); i++) {
-      log(cvm::NONE, ",{}", counters[i]);
+      log_str += fmt::format(",{}", counters[i]);
     }
-
-    log(cvm::NONE, "\n");
+    log_str += fmt::format("\n");
+    log(cvm::NONE, fmt::to_string(log_str));
   }
 }
 
