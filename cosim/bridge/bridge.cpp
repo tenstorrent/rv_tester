@@ -1417,11 +1417,13 @@ void bridge::process_dut_mcm_write(hart_id_t hart, mem_cl_t& m) {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed mcm store drain\n", hart);
     return;
   }
-  log(cvm::HIGH, "<{}> mcm_write [valid={}, addr={:#x}, mask={:016x}, data=",
+  std::string log_str;
+  log_str += fmt::format("<{}> mcm_write [valid={}, addr={:#x}, mask={:016x}, data=",
     m.cycle, valid, m.pa, m.mask);
   for (int i=63; i>=0; i--)
-    log(cvm::HIGH, "{:02x}", data[i]);
-  log(cvm::HIGH, "]\n");
+    log_str += fmt::format("{:02x}", data[i]);
+  log_str += fmt::format("]\n");
+  log(cvm::HIGH, fmt::to_string(log_str));
 }
 
 // Process inst fetches
