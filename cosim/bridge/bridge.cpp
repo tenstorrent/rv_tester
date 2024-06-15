@@ -328,7 +328,7 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
   if (FLAGS_priv_check) {
     update_priv(hart, src_t::dut, d.priv);
   }
-  if (FLAGS_insn_check && !d.comp && !d.ucode && !is_vector(d.disasm) && !(d.disasm.substr(0,7)=="illegal")) {
+  if (FLAGS_insn_check && !d.comp && !d.ucode && !is_vector(d.disasm) && !(d.disasm.substr(0,7)=="illegal") && !d.csr_cracked) {
     update_insn(hart, src_t::dut, d.opcode);
   }
   if (FLAGS_flags_check && (d.flags != 0)) {
@@ -678,6 +678,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
   w_.trap = w.trap;
   w_.comp = is_compressed(w.disasm);
   w_.ucode = is_ucode(w.disasm) || w.trap; // system opcode
+  w_.csr_cracked = is_cracked_csr(w.disasm);
   w_.mem_read.valid = w.is_load;
   w_.pc.valid = true;
   w_.pc.pc_rdata = w.pc;
@@ -690,7 +691,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
 
   // FIXME Instruction byte checking disabled for vectors till we find a way to
   // differentiate cracked instructions
-  if (FLAGS_insn_check && !w_.comp && !w_.ucode && !is_vector(w.disasm) && !(w.disasm.substr(0,7)=="illegal"))
+  if (FLAGS_insn_check && !w_.comp && !w_.ucode && !is_vector(w.disasm) && !(w.disasm.substr(0,7)=="illegal") && !w_.csr_cracked)
     update_insn(hart, src_t::iss, w.opcode);
 
   if (FLAGS_flags_check && (w.fp_flags != 0))
@@ -1083,10 +1084,8 @@ return false;
 void bridge::arch_state(whisper_state_t& w) {
 
   if (w.resource == 'c') {
-      if(w.address == 0x300)
-      {
-          if(((w.value) & 0x20000) != 0)
-            {
+      if(w.address == 0x300) {
+          if(((w.value) & 0x20000) != 0) {
               mprv_ = 1;
               mpp_ = ((w.value) & 0x1800) >> 11; 
               mpv_ = ((w.value) & 0x8000000000) >> 39;
@@ -1094,6 +1093,9 @@ void bridge::arch_state(whisper_state_t& w) {
             else
               mprv_ = 0;
         }
+      }
+      if (w.address == 0xBC2) {
+        csr_rename_en_ = !((w.value & 0x200) >> 9);
       }
   }
 
@@ -1115,6 +1117,14 @@ bool bridge::is_ucode(const std::string& instr) {
       (instr.find("sret") != std::string::npos) ||
       (instr.find("ecall") != std::string::npos) ||
       (instr.find("ebreak") != std::string::npos))
+    return true;
+  return false;
+}
+
+bool bridge::is_cracked_csr(const std::string& instr) {
+  if (csr_rename_en_ &&
+      ((instr.find("epc") != std::string::npos) ||
+      (instr.find("scratch") != std::string::npos)))
     return true;
   return false;
 }
@@ -1790,13 +1800,25 @@ bool bridge::is_custom_csr(uint64_t addr) {
           (addr >= 0xBC0 && addr <= 0xBFF));
 }
 
-bool bridge::is_supported_csr(uint64_t addr) {
-  return (addr >= 0x7E0 && addr <= 0x7EF); // pmacfg0-15
+bool bridge::is_pmacfg_csr(uint64_t addr) {
+  return (addr >= 0x7E0 && addr <= 0x7EF);
+}
+
+bool bridge::is_chicken_bit_csr(uint64_t addr) {
+  return (addr >= 0xBC0 && addr <= 0xBDF);
 }
 
 void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data, cac::optional_const_ref<size_8_bytes_t> mask_ref, bool shadow_csr, bool check_en) {
-  if (is_custom_csr(addr) && !is_supported_csr(addr))
+  if (is_custom_csr(addr) &&
+      !is_pmacfg_csr(addr) &&
+      !is_chicken_bit_csr(addr))
     return;
+
+  bool check = true;
+  if (is_chicken_bit_csr(addr))
+    check = false; // FIXME: Reset values in json
+  else
+    check = check_en;
 
   resource_id_t csr_resource = resource_id_t{
     .resource = resource_t::csr_reg,
@@ -1806,7 +1828,7 @@ void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data,
   if (mask_ref != std::nullopt) {
     mask = cac::CreateBitVec<size_8_bytes_t>(mask_ref.value());
   }
-  if (!csr_cac_.SetResource(hart, src, csr_resource, std::move(cac::CreateBitVec<size_8_bytes_t>({data})), mask, check_en)) {
+  if (!csr_cac_.SetResource(hart, src, csr_resource, std::move(cac::CreateBitVec<size_8_bytes_t>({data})), mask, check)) {
     cvm::log(cvm::ERROR, "Error: Hart {}: CAC: Failed to SetResource {}\n", hart, csr_resource.ToString());
   }
 
