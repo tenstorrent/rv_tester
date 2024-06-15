@@ -243,12 +243,12 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.pc.pc_rdata = m_rvfi.pc_rdata;
 
   // GPR
-  instr.gpr.valid = (m_rvfi.rd_addr != 0);
+  instr.gpr.valid = (m_rvfi.rd_addr > 0) && (m_rvfi.rd_addr <= 31);
   instr.gpr.rd_addr = m_rvfi.rd_addr;
   instr.gpr.rd_wdata = m_rvfi.rd_wdata;
-  // Collect vec cracked uop gpr write
-  if (instr.gpr.valid && instr.vec_cracked){
-    cracked_gpr_.valid = (m_rvfi.rd_addr != 0);
+  // Collect gpr write from a cracked uop
+  if (instr.gpr.valid && instr.last_uop) {
+    cracked_gpr_.valid = (m_rvfi.rd_addr > 0) && (m_rvfi.rd_addr <= 31);
     cracked_gpr_.rd_addr = m_rvfi.rd_addr;
     cracked_gpr_.rd_wdata = m_rvfi.rd_wdata;
   }
@@ -286,6 +286,13 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
     if (!m_rvfi.last_uop) {
       ucode_csrs_.push_back(c);
     }
+  }
+
+  // CSR renaming
+  instr.csr_cracked = ((m_rvfi.rd_addr >= 32) && (m_rvfi.rd_addr <= 37));
+  if (renamed_csr.count(static_cast<renamed_csr_reg>(m_rvfi.rd_addr))) {
+    csr_t c {true, m_rvfi.hart, m_rvfi.cycle, renamed_csr.at(static_cast<renamed_csr_reg>(m_rvfi.rd_addr)), std::numeric_limits<uint64_t>::max(), m_rvfi.rd_wdata};
+    instr.csr.push_back(c);
   }
 
   // tlb
@@ -436,6 +443,9 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
     dut_log += fmt::format(" {}", whisper::disassemble(instr.opcode));
   else
     dut_log += fmt::format(" {} (microcode)", cosim_util::get_nth_word(instr.disasm, 1));
+
+  if (instr.csr_cracked)
+    dut_log += fmt::format(" (csr_rename:x{})", instr.gpr.rd_addr);
 
   if (instr.flags)
     dut_log += fmt::format(" (flags:{:#x})", instr.flags);

@@ -578,4 +578,22 @@ namespace {
         {AMOMAXU, "AMOMAXU"}
     };
 
+    typedef enum : size_t {
+        MEPC = 32,
+        SEPC = 33,
+        VSEPC = 34,
+        MSCRATCH = 35,
+        SSCRATCH = 36,
+        VSSCRATCH = 37
+    } renamed_csr_reg;
+
+    const std::unordered_map<renamed_csr_reg, uint32_t> renamed_csr = {
+        {MEPC, 0x341},
+        {SEPC, 0x141},
+        {VSEPC, 0x241},
+        {MSCRATCH, 0x340},
+        {SSCRATCH, 0x140},
+        {VSSCRATCH, 0x240}
+    };
+
 }
