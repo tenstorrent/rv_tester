@@ -313,8 +313,6 @@ void bridge::process_steps(hart_id_t hart, uint32_t n_retire, uint64_t cycle, ui
      skips = 0;
   }
 
-  cvm::log(cvm::NONE, "process_steps::START: hart={}, cycle={}, steps={} skips={} final_steps={} last_tag={}\n", hart,cycle,steps,skips,final_steps,pw_.tag);
-
   whisper_state_t w {
     .tag =  pw_.tag,
     .time = pw_.time,
@@ -394,13 +392,11 @@ void bridge::process_steps(hart_id_t hart, uint32_t n_retire, uint64_t cycle, ui
   ppw_ = pw_;
   pw_ = w;
   pd_ = rv_instr_t{};
-  cvm::log(cvm::NONE, "process_steps::END:   hart={}, steps={} skips={} last_tag={}\n", hart,steps,skips,pw_.tag);
 }
 
 // DUT interface callback: Instruction Retire
 void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
-  cvm::log(cvm::NONE, "process_rvfi::START: hart={},d.cycle={} d.tag={} last_tag={}\n", hart,d.cycle,d.tag,pw_.tag);
   twoStage_ = false;
   whisper_state_t w {
     .tag = d.tag,
