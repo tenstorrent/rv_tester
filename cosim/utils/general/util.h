@@ -1,7 +1,10 @@
 #include <string>
+#include <vector>
+#include <cstdint>
 
 namespace cosim_util {
     std::string exec(const char* cmd);
     void rtrim(std::string &s);
     std::string get_nth_word(const std::string& s, int n);
+    std::vector<uint32_t> opcode_move_value_to_register(uint64_t value, uint32_t rd, uint32_t temp_gpr2, uint32_t temp_gpr3);
 };
