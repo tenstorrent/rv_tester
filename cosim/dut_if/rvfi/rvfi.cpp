@@ -448,7 +448,7 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
     dut_log += fmt::format(" {} (microcode)", cosim_util::get_nth_word(instr.disasm, 1));
 
   if (instr.csr_cracked)
-    dut_log += fmt::format(" (csr_rename:x{})", instr.gpr.rd_addr);
+    dut_log += fmt::format(" (csr_rename:x{})", instr.gpr[0].rd_addr);
 
   if (instr.flags)
     dut_log += fmt::format(" (flags:{:#x})", instr.flags);
