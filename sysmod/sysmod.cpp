@@ -1,10 +1,12 @@
 #include <iostream>
 #include <thread>
 #include <unordered_map>
+#include <set>
 #include "cvm/plusargs.hpp"
 #include "cvm/topology.hpp"
 #include "cvm/registry.hpp"
 #include "cvm/logger.hpp"
+#include "cvm/random.hpp"
 #include "sysmod.h"
 #include "mem/sysmod_mem.h"
 #include "clint/clint.h"
@@ -24,6 +26,8 @@
 #include "rv_tester/rv_tester_structs.h"
 #include "rv_tester/rv_tester_plusargs.h"
 #include "cosim/bridge_if/bridge_params.h"
+#include "cosim/dut_if/rvfi/rvfi_plusargs.h"
+#include "cosim/utils/general/util.h"
 
 // internal flags
 DEFINE_string(hex, "", "hex file (program) to load into memory");
@@ -36,10 +40,10 @@ DEFINE_string(cplfw_path, "", "Path to cpl firmware object file");
 DEFINE_string(load_io, "", "load specified io dev with content from memory");
 DEFINE_bool(sysmod_tick_async, true, "Asynchronous sysmod_tick calls");
 DEFINE_uint64(sysmod_tick_update_threshold, 1, "Slow down tick update frequency by this factor. The tick is still eventually advanced the same cumulative amount, just not as often. Useful for emulation where the clock counts much faster but tests setup interrupts to happen very soon for simulation. They git hit by an interrupt storm and are stuck in the interrupt handler forever.");
-DEFINE_uint64(hart_enable_mask, 0x1, "Hart enable mask. Ex: To enable 2 harts in a 8-hart system, use 0x3.");
 DEFINE_uint64(sp_ways_num, 0x1, "Number of sharedcache ways to be alloted as Scratchpad");
 DEFINE_string(set_csr, "", "+set_csr=<csr_num>:<value>,<num2>:<val2> ");
-DECLARE_bool(cosim);
+DEFINE_string(set_mmr, "", "+set_mmr=<addr>:<size>:<value>,<addr2>:<size>:<val2>");
+DEFINE_int32(seed, 1, "Simulation seed passed down for randomization");
 
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 
@@ -63,7 +67,7 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
       [this](svScope s) { return this->set_scope(s); });
   cvm::registry::messenger.connect<uint64_t>(
       loc_,
-      [this](const uint64_t& t) { return this->load_csr_boot(t); });
+      [this](const uint64_t& t) { return this->load_csr_mmr_boot(t); });
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::tick<>>(
       loc_,
       [this](const rv_tester_transactions::sysmod::tick<>& t) { return this->tick(t.advance); });
@@ -334,13 +338,36 @@ sysmod::terminate(htif::terminate_t t) {
 
 void
 sysmod::reset() {
+  override_plusargs();
   compose();
   load_prog(FLAGS_hex, FLAGS_load, FLAGS_load_lz4);
   load_io(FLAGS_load_io);
   load_boot(FLAGS_bootrom_path);
   if (!FLAGS_cosim)
-    load_csr_boot(0);
+    load_csr_mmr_boot(0);
   load_cplfw(FLAGS_cplfw_path);
+}
+
+void
+sysmod::override_plusargs()
+{
+  // Overwrite hart_enable_mask in a random fashion based on num_harts run-arg
+  // Do this only when hart_enable_mask run-arg is 0x1 (default value)
+  if (FLAGS_hart_enable_mask == 0x1) {
+    unsigned char hart_enable_mask = 0;
+    std::set<uint8_t> unique_bit_positions;
+    cvm::rng<uint32_t> rng(FLAGS_seed);
+    // Generate unique bit positions
+    while (unique_bit_positions.size() < FLAGS_num_harts) {
+      unique_bit_positions.insert(rng() % FLAGS_num_harts);
+    }
+    // Set bits in hart_enable_mask
+    for (uint8_t bit_position : unique_bit_positions) {
+      hart_enable_mask |= (1 << bit_position);
+    }
+    FLAGS_hart_enable_mask = hart_enable_mask;
+    cvm::log(cvm::LOW, "Overwriting hart_enable_mask to {:#x}\n", FLAGS_hart_enable_mask);
+  }
 }
 
 void
@@ -640,32 +667,96 @@ sysmod::load_boot(const std::string& boot)
 
   }
 }
+
 void
-sysmod::load_csr_boot(uint64_t dummy)
+sysmod::load_csr_mmr_boot(uint64_t)
 {
-  cvm::log(cvm::HIGH, "{}", dummy);
+  if (!FLAGS_bootrom)
+      return;
+  if (FLAGS_set_csr == "" && FLAGS_set_mmr == "")
+      return;
+
   auto split_string = [] (const std::string& input, char delimiter) {
     std::vector<std::string> tokens;
     std::string token;
     for (char c : input) {
-        if (c != delimiter)
-            token += c;
-        else {
-            tokens.push_back(token);
-            token.clear();
-        }
+      if (c != delimiter)
+        token += c;
+      else {
+        tokens.push_back(token);
+        token.clear();
+      }
     }
     tokens.push_back(token);
     return tokens;
   };
+  int addr;
+  auto add_to_mem = [&addr, this] (const uint32_t op) {
+    device::strb_t strb(4);
+    for (size_t i = 0; i<4; i++) strb[i] = true;
+    cvm::log(cvm::HIGH, "Address: {:#x} OPCODE: {:#x}\n",addr, op);
+    bool valid = true;
+    device::data_t data(4);
+    for (size_t i=0; i<4; i++) data[i] = op >> 8*i;
+    dev("boot")->backdoor_write(addr, 4, data, strb);
+    if (client_ != nullptr && !client_->whisperPoke(0, 0, 'm', addr, op, valid))
+      cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
+    addr += 4;
+  };
 
-  if (FLAGS_bootrom && FLAGS_set_csr!="") {
-
+  if (FLAGS_set_mmr != "") {
+    cvm::log(cvm::HIGH, "Backdoor writes to MMR addresses\n");
+    std::vector<std::tuple<uint64_t, uint64_t, uint64_t>> mmr_data;
+    std::map<std::string, uint64_t> mmr_map;
+    for (const auto& mmr : mmrs)
+      mmr_map[mmr.name] = mmr.address;
+    try {
+      std::vector<std::string> mmr_vals = split_string(FLAGS_set_mmr, ',');
+      for (const auto& entry : mmr_vals) {
+        std::vector<std::string> mmr_val = split_string(entry, ':');
+        auto mmr = mmr_val.at(0);
+        addr = mmr_map.count(mmr)? mmr_map[mmr] : std::stoull(mmr_val.at(0), nullptr, 0);
+        auto size  = std::stoull(mmr_val.at(1), nullptr, 0);
+        auto value = std::stoull(mmr_val.at(2), nullptr, 0);
+        if (!(size == 1 || size == 2 || size == 4 || size == 8)) {
+          cvm::log(cvm::ERROR, "Error: MMR size should be 1,2,4,8. see string:{}\n", entry);
+          return;
+        }
+        mmr_data.push_back(std::make_tuple(addr, size, value));
+      }
+    }
+    catch (...) {
+      cvm::log(cvm::ERROR, "Error: unable to parse +set_mmr={}\n", FLAGS_set_csr);
+      return;
+    }
+    int dest_gpr_addr = 28, dest_gpr_value = 29, temp_gpr2 = 30, temp_gpr3 = 31;
+    int store_opcode = 0x23;
+    addr = dev("boot")->addr() + 0x7000;
+    for (auto &mmr_val : mmr_data) {
+      auto addr  = std::get<0>(mmr_val);
+      auto size  = std::get<1>(mmr_val);
+      auto value = std::get<2>(mmr_val);
+      std::vector<uint32_t> opcodes  = cosim_util::opcode_move_value_to_register(addr, dest_gpr_addr, temp_gpr2, temp_gpr3);
+      for (auto& opcode: opcodes) add_to_mem(opcode);
+      opcodes = cosim_util::opcode_move_value_to_register(value, dest_gpr_value, temp_gpr2, temp_gpr3);
+      for (auto& opcode: opcodes) add_to_mem(opcode);
+      uint32_t store_op = store_opcode + (dest_gpr_value<<20) + (dest_gpr_addr<<15);
+      if (size == 8)
+       store_op |= (0b011)<<12;
+      else if (size == 4)
+        store_op |= (0b010)<<12;
+      else if (size == 2)
+        store_op |= (0b001)<<12;
+      add_to_mem(store_op);
+    }
+  add_to_mem(0x8067/*ret*/);
+  }
+  if (FLAGS_set_csr != "") {
     std::map<uint64_t,    uint64_t> csr_data;
     std::map<std::string, uint64_t> csr_map;
-    for (const auto& csr : csrs) {
-        csr_map[csr.name] = csr.address;
-    }
+    for (const auto& csr : csrs)
+      csr_map[csr.name] = csr.address;
+
     try { // parse the +set_csr and report any errors
       char delimiter = ',';
       std::vector<std::string> csr_num_val = split_string(FLAGS_set_csr, delimiter);
@@ -692,78 +783,21 @@ sysmod::load_csr_boot(uint64_t dummy)
       cvm::log(cvm::ERROR, "Error: unable to parse +set_csr={}\n", FLAGS_set_csr);
       return;
     }
-    int addr = dev("boot")->addr() + 0x8000;
-    int temp_gpr = 4, temp_gpr2 = 3, temp_gpr3 = 28;
-    int csr_opcode = 0x73, lui_opcode = 0x37, op_imm_opcode = 0x13, or_opcode = 0x33;
-
-    auto add_to_mem = [&addr,this] (const uint32_t op) { //simple lambda to poke to memory
-      device::strb_t strb(4);
-      for (size_t i = 0; i<4; i++) strb[i] = true;
-      cvm::log(cvm::HIGH, "Address: {:#x} OPCODE: {:#x}\n",addr, op);
-      bool valid = true;
-      device::data_t data(4);
-      for (size_t i=0; i<4; i++) data[i] = op >> 8*i;
-      dev("boot")->backdoor_write(addr, 4, data, strb);
-      if (client_ != nullptr && !client_->whisperPoke(0, 0, 'm', addr, op, valid))
-        cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
-      addr += 4;
-    };
-
     cvm::log(cvm::HIGH, "Backdoor bootrom CSR writes to memory\n");
+    int csr_opcode = 0x73;
+    addr = dev("boot")->addr() + 0x8000;
     for (auto const& [csr_num, value] : csr_data) {
       uint32_t csr_op = 0;
-      if (value < 32)
-        csr_op = csr_opcode + (0/*x0*/<<7) + (5<<12) + (value<<15) + (csr_num<<20); // csrwi csrnum, x4 (csrwi can accomodate [4:0] immediate otherwise, use GPR)
-      else {
-        uint32_t lui_op = lui_opcode + (temp_gpr<<7) + (((value & 0xfffff000)>>12)<<12);
-        add_to_mem(lui_op);
-
-        if (!(value & 0x800)) {
-          uint32_t ori_op = op_imm_opcode + (temp_gpr<<7) + (0b110<<12) + (temp_gpr<<15) + ((value & 0xfff)<<20);
-          add_to_mem(ori_op);
-        } else {
-            lui_op = lui_opcode + (temp_gpr3<<7) + (0x1000);
-            add_to_mem(lui_op);
-            uint32_t addw_op = (0x1b /*addw*/) + (temp_gpr3<<7) + (temp_gpr3<<15) + (((value & 0xfff) - 0x1000)<<20);
-            add_to_mem(addw_op);
-            uint32_t or_op = or_opcode + (temp_gpr<<7/*rd*/) + (0b110<<12) + (temp_gpr3<<15) + (temp_gpr<<20);
-            add_to_mem(or_op);
-        }
-
-        if (value & 0x80000000) { // data gets sign extended, shl and shr to correct it
-          uint32_t slli_op = op_imm_opcode + (temp_gpr<<7) + (0b001<<12) + (temp_gpr<<15) + (32<<20); // slli x4, x4, 32
-          add_to_mem(slli_op);
-          uint32_t srli_op = op_imm_opcode + (temp_gpr<<7) + (0b101<<12) + (temp_gpr<<15) + (32<<20); // srli x4, x4, 32
-          add_to_mem(srli_op);
-        }
-        if (value > uint64_t(0xffffffff)) {
-          // data is greater than 32-bits (another opcode, another temporary register)
-          uint32_t lui_op = lui_opcode + (temp_gpr2<<7) + ((((value>>32) & 0xfffff000) >> 12)<<12);
-          add_to_mem(lui_op);
-
-          if (!((value>>32) & 0x800)) {
-            uint32_t ori_op = 0x13 + (temp_gpr2<<7) + (0b110<<12) /*funct3*/ + (temp_gpr2<<15) + (((value>>32) & 0xfff)<<20);
-            add_to_mem(ori_op);
-          } else {
-            lui_op = lui_opcode + (temp_gpr3<<7) + (0x1000);
-            add_to_mem(lui_op);
-            uint32_t addw_op = (0x1b /*addw*/) + (temp_gpr3<<7) + (temp_gpr3<<15) + ((((value>>32) & 0xfff) - 0x1000)<<20);
-            add_to_mem(addw_op);
-            uint32_t or_op = or_opcode + (temp_gpr2<<7) + (0b110<<12) + (temp_gpr3<<15) + (temp_gpr2<<20);
-            add_to_mem(or_op);
-          }
-
-          uint32_t slli_op = 0x13 + (temp_gpr2<<7) + (0b001<<12) + (temp_gpr2<<15) + (32<<20);
-          add_to_mem(slli_op);
-
-          uint32_t or_op = or_opcode + (temp_gpr<<7) + (0b110<<12) + (temp_gpr2<<15) + (temp_gpr<<20);
-          add_to_mem(or_op);
-        }
-        csr_op = csr_opcode + (0/*x0*/<<7) + (1<<12) + (temp_gpr<<15) + (csr_num<<20); // csrw csrnum, x4
-      }
+      if (value > 32) {
+        int dest_gpr = 4, temp_gpr2 = 3, temp_gpr3 = 28;
+        std::vector<uint32_t> opcodes = cosim_util::opcode_move_value_to_register(value, dest_gpr, temp_gpr2, temp_gpr3);
+        for (auto& opcode: opcodes) add_to_mem(opcode);
+        csr_op = csr_opcode + (0/*x0*/<<7) + (1<<12) + (dest_gpr<<15) + (csr_num<<20);
+      } else
+        csr_op = csr_opcode + (0/*x0*/<<7) + (5<<12) + (value<<15) + (csr_num<<20);
       add_to_mem(csr_op);
     }
-    add_to_mem(0x8067/*ret*/);
+  add_to_mem(0x8067/*ret*/);
   }
 }
 

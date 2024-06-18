@@ -9,9 +9,18 @@ cc_library(
         "@cvm//:logger",
         "@cvm//:messenger",
         "@rv_tester//common:common",
+        "//sysmod:sysmod_plusargs"
     ],
     alwayslink = True,
     linkstatic = True,
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "sysmod_plusargs",
+    hdrs = ["sysmod_plusargs.h"],
+    deps = ["@cvm//:plusargs"],
+
     visibility = ["//visibility:public"],
 )
 

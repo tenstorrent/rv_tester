@@ -12,6 +12,10 @@
 #include "whisper_client_decl.h"
 #include "whisper_decoder.h"
 #include "rv_tester/rv_tester_plusargs.h"
+#include "sysmod/trickbox/interrupter.h"
+#include "sysmod/trickbox/imsic_driver.h"
+#include "cosim/dut_if/rvfi/rvfi_plusargs.h"
+#include "sysmod/sysmod_plusargs.h"
 
 #include <cstring>          // strlen
 #include <sstream>          // stringstream
@@ -21,20 +25,6 @@
 #include <vector>
 #include <fmt/format.h>
 #include <random>
-
-// Plusargs
-DECLARE_string(bootrom_path);
-DECLARE_string(cplfw_path);
-DECLARE_string(load);
-DECLARE_string(hex);
-DECLARE_bool(mcm);
-DECLARE_int32(seed);
-DECLARE_uint64(debug_entry_pc);
-DECLARE_uint64(debug_exit_pc);
-DECLARE_uint64(hart_enable_mask);
-DECLARE_uint32(num_harts);
-DECLARE_bool(random_intr);
-DECLARE_bool(random_imsic_intr);
 
 DEFINE_bool(whisper_exec, true, "Enable rvfi instr processing...disable useful for measuring rvfi DPI performance");
 DEFINE_bool(bridge_log, true, "Enable bridge logging");
@@ -145,23 +135,6 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
     if((FLAGS_max_stall_cycle < (20000 + (nharts-1)*2000)) && (FLAGS_max_stall_cycle != 0)){
         FLAGS_max_stall_cycle = (20000 + (nharts-1)*2000);
         cvm::log(cvm::LOW, "Overwriting max_stall_cycle to {} cycles\n",FLAGS_max_stall_cycle );
-    }
-    // Overwrite hart_enable_mask in a random fashion based on num_harts run-arg
-    // Do this only when hart_enable_mask run-arg is 0x1 (default value)
-    if (FLAGS_hart_enable_mask == 0x1) {
-        unsigned char hart_enable_mask = 0;
-        std::set<uint8_t> unique_bit_positions;
-        cvm::rng<uint32_t> rng(FLAGS_seed);
-        // Generate unique bit positions
-        while (unique_bit_positions.size() < FLAGS_num_harts) {
-            unique_bit_positions.insert(rng() % FLAGS_num_harts);
-        }
-        // Set bits in hart_enable_mask
-        for (uint8_t bit_position : unique_bit_positions) {
-            hart_enable_mask |= (1 << bit_position);
-        }
-        FLAGS_hart_enable_mask = hart_enable_mask;
-        cvm::log(cvm::LOW, "Overwriting hart_enable_mask to 0x{:x}\n", FLAGS_hart_enable_mask);
     }
 }
 
@@ -572,10 +545,10 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
   if (FLAGS_priv_check) {
     update_priv(hart, src_t::dut, d.priv);
   }
-  if (FLAGS_insn_check && !d.comp && !d.ucode && !is_vector(d.disasm) && !(d.disasm.substr(0,7)=="illegal")) {
+  if (FLAGS_insn_check && !d.comp && !d.ucode && !is_vector(d.disasm) && !(d.disasm.substr(0,7)=="illegal") && !d.csr_cracked) {
     update_insn(hart, src_t::dut, d.opcode);
   }
-  if (FLAGS_flags_check) {
+  if (FLAGS_flags_check && (d.flags != 0)) {
     update_flags(hart, src_t::dut, d.flags);
   }
   if (!d.gpr.empty() || !d.fpr.empty() || !d.vr.empty() || !d.csr.empty()) {
@@ -922,6 +895,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
   w_.trap = w.trap;
   w_.comp = is_compressed(w.disasm);
   w_.ucode = is_ucode(w.disasm) || w.trap; // system opcode
+  w_.csr_cracked = is_cracked_csr(w.disasm);
   w_.mem_read.valid = w.is_load;
   w_.pc.valid = true;
   w_.pc.pc_rdata = w.pc;
@@ -934,10 +908,10 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
 
   // FIXME Instruction byte checking disabled for vectors till we find a way to
   // differentiate cracked instructions
-  if (FLAGS_insn_check && !w_.comp && !w_.ucode && !is_vector(w.disasm) && !(w.disasm.substr(0,7)=="illegal"))
+  if (FLAGS_insn_check && !w_.comp && !w_.ucode && !is_vector(w.disasm) && !(w.disasm.substr(0,7)=="illegal") && !w_.csr_cracked)
     update_insn(hart, src_t::iss, w.opcode);
 
-  if (FLAGS_flags_check)
+  if (FLAGS_flags_check && (w.fp_flags != 0))
     update_flags(hart, src_t::iss, w.fp_flags);
 
   for (auto i = 0u; i < w.change_count; i++) {
@@ -1309,10 +1283,8 @@ return false;
 void bridge::arch_state(whisper_state_t& w) {
 
   if (w.resource == 'c') {
-      if(w.address == 0x300)
-      {
-          if(((w.value) & 0x20000) != 0)
-            {
+      if(w.address == 0x300) {
+          if(((w.value) & 0x20000) != 0) {
               mprv_ = 1;
               mpp_ = ((w.value) & 0x1800) >> 11; 
               mpv_ = ((w.value) & 0x8000000000) >> 39;
@@ -1320,6 +1292,9 @@ void bridge::arch_state(whisper_state_t& w) {
             else
               mprv_ = 0;
         }
+      }
+      if (w.address == 0xBC2) {
+        csr_rename_en_ = !((w.value & 0x200) >> 9);
       }
   }
 
@@ -1341,6 +1316,14 @@ bool bridge::is_ucode(const std::string& instr) {
       (instr.find("sret") != std::string::npos) ||
       (instr.find("ecall") != std::string::npos) ||
       (instr.find("ebreak") != std::string::npos))
+    return true;
+  return false;
+}
+
+bool bridge::is_cracked_csr(const std::string& instr) {
+  if (csr_rename_en_ &&
+      ((instr.find("epc") != std::string::npos) ||
+      (instr.find("scratch") != std::string::npos)))
     return true;
   return false;
 }
@@ -1637,11 +1620,13 @@ void bridge::process_dut_mcm_write(hart_id_t hart, mem_cl_t& m) {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed mcm store drain\n", hart);
     return;
   }
-  log(cvm::HIGH, "<{}> mcm_write [valid={}, addr={:#x}, mask={:016x}, data=",
+  std::string log_str;
+  log_str += fmt::format("<{}> mcm_write [valid={}, addr={:#x}, mask={:016x}, data=",
     m.cycle, valid, m.pa, m.mask);
   for (int i=63; i>=0; i--)
-    log(cvm::HIGH, "{:02x}", data[i]);
-  log(cvm::HIGH, "]\n");
+    log_str += fmt::format("{:02x}", data[i]);
+  log_str += fmt::format("]\n");
+  log(cvm::HIGH, fmt::to_string(log_str));
 }
 
 // Process inst fetches
@@ -1677,6 +1662,9 @@ uint64_t bridge::translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t
   bool w = (memclass == memclass_t::write);
   bool x = (memclass == memclass_t::fetch);
   bool sup = ((priv & 0x11) == 0x1); // made a change here
+  
+if(twoStage_ == true)
+  sup = false;
 
 if (!client_->whisperTranslate(hart, va, r, w, x, twoStage_, sup, pa, valid)) {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed VA translation\n", hart);
@@ -2017,13 +2005,25 @@ bool bridge::is_custom_csr(uint64_t addr) {
           (addr >= 0xBC0 && addr <= 0xBFF));
 }
 
-bool bridge::is_supported_csr(uint64_t addr) {
-  return (addr >= 0x7E0 && addr <= 0x7EF); // pmacfg0-15
+bool bridge::is_pmacfg_csr(uint64_t addr) {
+  return (addr >= 0x7E0 && addr <= 0x7EF);
+}
+
+bool bridge::is_chicken_bit_csr(uint64_t addr) {
+  return (addr >= 0xBC0 && addr <= 0xBDF);
 }
 
 void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data, cac::optional_const_ref<size_8_bytes_t> mask_ref, bool shadow_csr, bool check_en) {
-  if (is_custom_csr(addr) && !is_supported_csr(addr))
+  if (is_custom_csr(addr) &&
+      !is_pmacfg_csr(addr) &&
+      !is_chicken_bit_csr(addr))
     return;
+
+  bool check = true;
+  if (is_chicken_bit_csr(addr))
+    check = false; // FIXME: Reset values in json
+  else
+    check = check_en;
 
   resource_id_t csr_resource = resource_id_t{
     .resource = resource_t::csr_reg,
@@ -2033,7 +2033,7 @@ void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data,
   if (mask_ref != std::nullopt) {
     mask = cac::CreateBitVec<size_8_bytes_t>(mask_ref.value());
   }
-  if (!csr_cac_.SetResource(hart, src, csr_resource, std::move(cac::CreateBitVec<size_8_bytes_t>({data})), mask, check_en)) {
+  if (!csr_cac_.SetResource(hart, src, csr_resource, std::move(cac::CreateBitVec<size_8_bytes_t>({data})), mask, check)) {
     cvm::log(cvm::ERROR, "Error: Hart {}: CAC: Failed to SetResource {}\n", hart, csr_resource.ToString());
   }
 

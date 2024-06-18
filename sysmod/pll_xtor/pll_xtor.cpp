@@ -5,10 +5,7 @@
 #include "cvm/logger.hpp"
 #include "pll_xtor.h"
 #include "transactors/axi_sw/axi.h"
-
-
-DECLARE_string(load);
-DECLARE_int32(seed);
+#include "sysmod/sysmod_plusargs.h"
 
 
 pll_xtor::pll_xtor(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc)

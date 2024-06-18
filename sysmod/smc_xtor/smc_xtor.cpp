@@ -5,10 +5,9 @@
 #include "cvm/logger.hpp"
 #include "smc_xtor.h"
 #include "transactors/axi_sw/axi.h"
+#include "sysmod/sysmod_plusargs.h"
 
 
-DECLARE_string(load);
-DECLARE_int32(seed);
 DEFINE_int32(smc_reset_seq_start_ticks, 14, "Number of sysmod ticks after which smc should start reset boot sequence");
 DEFINE_bool(smc_en, false, "Enable smc transactor");
 

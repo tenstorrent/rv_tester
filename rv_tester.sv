@@ -113,6 +113,8 @@ module rv_tester
     int freq_switch_ncycles = 7000;
     int clk_profile = 0;
 
+    int assertion_test_cycle = 0;
+
     int unsigned location = cvm_topology::nil;
 
     bit gen_clocks = '0;
@@ -120,7 +122,7 @@ module rv_tester
     int unsigned cvm_verbosity, gen_clocks_verbosity;
 
     assign terminate           = (rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
-    assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && (dmi_commands_in_queue == '0) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced ); 
+    assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue == '0) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced ); 
     
     assign rerun_now           = terminated && num_reruns > 0;
 
@@ -209,20 +211,21 @@ module rv_tester
             rv_tester_error_terminate.terminate = '0;
             /* verilator lint_on BLKSEQ */
 
-            cb_poll             <= cvm_plusargs::get_bool("cb_async") == '0;
-            quiesce_timeout     <= cvm_plusargs::get_int("quiesce_timeout");
-            trace_timeout       <= cvm_plusargs::get_int("trace_timeout");
-            flush_timeout       <= cvm_plusargs::get_int("flush_timeout");
-            freq_switch_ncycles <= cvm_plusargs::get_int("freq_switch_ncycles");
-            clk_profile         <= cvm_plusargs::get_int("clk_profile");
-            dyn_clk_switch      <= cvm_plusargs::get_bool("dyn_clk_switch") != '0;
-            call_finish         <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
-            gen_clocks          <= cvm_verbosity >= gen_clocks_verbosity;
-            bypass_mem          <= cvm_plusargs::get_bool("bypass_mem") != '0;
-            trace_en            <= cvm_plusargs::get_bool("trace_en") != '0;
-            overlay_mmr_en            <= cvm_plusargs::get_bool("overlay_mmr_en") != '0;
-            jtag_en            <= cvm_plusargs::get_bool("jtag_en") != '0;
-            bypass_cache        <= cvm_plusargs::get_bool("bypass_cache") != '0;
+            cb_poll              <= cvm_plusargs::get_bool("cb_async") == '0;
+            quiesce_timeout      <= cvm_plusargs::get_int("quiesce_timeout");
+            trace_timeout        <= cvm_plusargs::get_int("trace_timeout");
+            flush_timeout        <= cvm_plusargs::get_int("flush_timeout");
+            freq_switch_ncycles  <= cvm_plusargs::get_int("freq_switch_ncycles");
+            clk_profile          <= cvm_plusargs::get_int("clk_profile");
+            dyn_clk_switch       <= cvm_plusargs::get_bool("dyn_clk_switch") != '0;
+            call_finish          <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
+            gen_clocks           <= cvm_verbosity >= gen_clocks_verbosity;
+            bypass_mem           <= cvm_plusargs::get_bool("bypass_mem") != '0;
+            trace_en             <= cvm_plusargs::get_bool("trace_en") != '0;
+            overlay_mmr_en       <= cvm_plusargs::get_bool("overlay_mmr_en") != '0;
+            jtag_en              <= cvm_plusargs::get_bool("jtag_en") != '0;
+            bypass_cache         <= cvm_plusargs::get_bool("bypass_cache") != '0;
+            assertion_test_cycle <= cvm_plusargs::get_int("assertion_test_cycle");
 
             $display("[RVTESTER]: reconstructing registry");
             rv_tester_build_registry();
@@ -395,6 +398,9 @@ module rv_tester
             if (dmi_poll_counter > dmi_poll_timeout) begin
                 $display("<%0d> [RVTESTER]: Error: Debug poll timeout limit reached.", clocks);
                 dmi_poll_timeout_terminate <= 1;
+            end
+            else if ((dmi_poll_counter >= 'h1) && terminate) begin
+               $display("<%0d> [RVTESTER]: Debug poll stopped as test pass condition detected limit reached", clocks); 
             end
         end
     end
@@ -1088,5 +1094,9 @@ module rv_tester
 	.flush_complete		( flush_complete ),
 	.bist_status_done	()
     );
+
+    always @(posedge clk[TB_CLK_IDX]) begin
+        assert(assertion_test_cycle == '0 || clocks != LU'(assertion_test_cycle)) else $error("assertion test");
+    end
 
 endmodule

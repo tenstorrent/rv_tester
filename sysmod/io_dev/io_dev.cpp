@@ -2,9 +2,7 @@
 #include "cvm/plusargs.hpp"
 #include "cvm/topology.hpp"
 #include "io_dev.h"
-
-
-DECLARE_string(load);
+#include "sysmod/sysmod_plusargs.h"
 
 
 io_dev::io_dev(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc)

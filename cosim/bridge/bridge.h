@@ -116,7 +116,8 @@ private:
   uint64_t get_csr_poke_mask(hart_id_t hart, uint64_t addr);
   std::string get_csr_name(const std::string& addr);
   bool is_custom_csr(uint64_t addr);
-  bool is_supported_csr(uint64_t addr);
+  bool is_pmacfg_csr(uint64_t addr);
+  bool is_chicken_bit_csr(uint64_t addr);
 
   void translation_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   uint64_t translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t memclass);
@@ -149,6 +150,7 @@ private:
   bool disable_pa_check_vec(hart_id_t hart);
   bool is_compressed(const std::string& instr);
   bool is_ucode(const std::string& instr);
+  bool is_cracked_csr(const std::string& instr);
   bool does_instr_match_resynch_list(const rv_instr_t& d, const std::string& instr);
   bool does_instr_match_resynch_condition(const rv_instr_t& d, const std::string& instr);
   bool clint_read(const rv_instr_t& d);
@@ -204,6 +206,7 @@ private:
   uint16_t mprv_ = 0;
   uint16_t mpp_ = 0;
   uint16_t mpv_ = 0;
+  bool csr_rename_en_ = false;
 
   uint64_t dummy_data_ = 0;
   hart_id_t dummy_hart_ = 0;

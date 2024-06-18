@@ -15,24 +15,12 @@
 #include "whisper_client.h"
 #include "HartConfig.hpp"
 #include "Hart.hpp"
+#include "cosim/dut_if/rvfi/rvfi_plusargs.h"
+#include "sysmod/sysmod_plusargs.h"
+#include "cosim/bridge/bridge_plusargs.h"
+#include "cosim/utils/eot/eot_plusargs.h"
+#include "rv_tester_plusargs.h"
 
-DECLARE_string(load);
-DECLARE_string(hex);
-DECLARE_string(load_lz4);
-DECLARE_bool(bootrom);
-DECLARE_string(bootrom_path);
-DECLARE_string(cplfw_path);
-DECLARE_string(whisper_json_path);
-DECLARE_bool(whisper_stdin_null);
-DECLARE_bool(whisper_stdout_null);
-DECLARE_bool(preload);
-DECLARE_bool(mcm);
-DECLARE_bool(cov);
-DECLARE_uint64(max_instr);
-DECLARE_string(archsample_lib_path);
-DECLARE_bool(standalone);
-DECLARE_uint64(hart_enable_mask);
-DECLARE_uint64(tohost);
 
 DEFINE_bool(nostop_standalone,false, "Do not stop if standalone whisper fails");
 
@@ -136,6 +124,10 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
 {
   if(FLAGS_preload) {
     system_ = constructSystem<URV>(ncores, false, true);
+    if (system_ == nullptr) {
+      std::cerr << "Error: could not construct system\n";
+      return -1;
+    }
 
     std::vector<std::thread> threadVec;
 
@@ -184,6 +176,10 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
   // run once before starting cosim
   if (FLAGS_standalone && FLAGS_hart_enable_mask == 0x1) {
     system_ = constructSystem<URV>(ncores, true, false);
+    if (system_ == nullptr) {
+      std::cerr << "Error: could not construct system\n";
+      return -1;
+    }
 
     std::vector<std::thread> threadVec;
 
@@ -259,6 +255,11 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
   }
 
   system_ = constructSystem<URV>(ncores, false, false);
+  if (system_ == nullptr) {
+    std::cerr << "Error: could not construct system\n";
+    return -1;
+  }
+
   server_ = std::make_unique<WdRiscv::Server<URV>>(*system_);
 
   return 0;
