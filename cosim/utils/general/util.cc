@@ -46,3 +46,53 @@ std::string cosim_util::get_nth_word(const std::string& s, int n) {
     }
     return word;
 }
+
+std::vector<uint32_t> cosim_util::opcode_move_value_to_register(uint64_t value, uint32_t rd, uint32_t temp_gpr2, uint32_t temp_gpr3) {
+    // generates a list of opcodes to move an immediate value to register
+    // temp_gpr2, temp_gpr3 are needed for intermediate values, user should ensure to store earlier values of this gpr if its important
+    std::vector<uint32_t> opcodes;
+    int lui_opcode = 0x37, op_imm_opcode = 0x13, or_opcode = 0x33, addw_opcode = 0x1b;
+
+    uint32_t lui_op = lui_opcode + (rd<<7) + (((value & 0xfffff000)>>12)<<12);
+    opcodes.push_back(lui_op);
+    if (value & 0x800) {
+        lui_op = lui_opcode + (temp_gpr3<<7) + (0x1000);
+        opcodes.push_back(lui_op);
+        uint32_t addw_op = addw_opcode + (temp_gpr3<<7) + (temp_gpr3<<15) + (((value & 0xfff) - 0x1000)<<20);
+        opcodes.push_back(addw_op);
+        uint32_t or_op = or_opcode + (rd<<7/*rd*/) + (0b110<<12) + (temp_gpr3<<15) + (rd<<20);
+        opcodes.push_back(or_op);
+    } else {
+        uint32_t ori_op = op_imm_opcode + (rd<<7) + (0b110<<12) + (rd<<15) + ((value & 0xfff)<<20);
+        opcodes.push_back(ori_op);
+    }
+
+    if (value & 0x80000000) { // data gets sign extended, shl and shr to correct it
+        uint32_t slli_op = op_imm_opcode + (rd<<7) + (0b001<<12) + (rd<<15) + (32<<20); // slli x4, x4, 32
+        opcodes.push_back(slli_op);
+        uint32_t srli_op = op_imm_opcode + (rd<<7) + (0b101<<12) + (rd<<15) + (32<<20); // srli x4, x4, 32
+        opcodes.push_back(srli_op);
+    }
+    if (value > uint64_t(0xffffffff)) { // data is greater than 32-bits (another opcode, another temporary register)
+        uint32_t lui_op = lui_opcode + (temp_gpr2<<7) + ((((value>>32) & 0xfffff000) >> 12)<<12);
+        opcodes.push_back(lui_op);
+
+        if ((value>>32) & 0x800) {
+          lui_op = lui_opcode + (temp_gpr3<<7) + (0x1000);
+          opcodes.push_back(lui_op);
+          uint32_t addw_op = addw_opcode + (temp_gpr3<<7) + (temp_gpr3<<15) + ((((value>>32) & 0xfff) - 0x1000)<<20);
+          opcodes.push_back(addw_op);
+          uint32_t or_op = or_opcode + (temp_gpr2<<7) + (0b110<<12) + (temp_gpr3<<15) + (temp_gpr2<<20);
+          opcodes.push_back(or_op);
+        } else {
+          uint32_t ori_op = op_imm_opcode + (temp_gpr2<<7) + (0b110<<12) /*funct3*/ + (temp_gpr2<<15) + (((value>>32) & 0xfff)<<20);
+          opcodes.push_back(ori_op);
+        }
+        uint32_t slli_op = op_imm_opcode + (temp_gpr2<<7) + (0b001<<12) + (temp_gpr2<<15) + (32<<20);
+        opcodes.push_back(slli_op);
+        uint32_t or_op = or_opcode + (rd<<7) + (0b110<<12) + (temp_gpr2<<15) + (rd<<20);
+        opcodes.push_back(or_op);
+      }
+    return opcodes;
+}
+
