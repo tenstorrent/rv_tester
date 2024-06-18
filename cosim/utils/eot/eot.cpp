@@ -8,7 +8,7 @@
 
 DEFINE_string(eot, "tohost", "Enable end-of-test mechanism. Supported options: tohost, max_instr, tohost_all");
 DEFINE_uint64(tohost, 0x0, "Use this tohost address if provided");
-DEFINE_uint32(max_instr, 100000, "Max instruction limit to terminate the sim");
+DEFINE_uint64(max_instr, 100000, "Max instruction limit to terminate the sim");
 
 REGISTRY_register(eot, TOP.PLATFORM, cvm::registry::all);
 
