@@ -10,8 +10,11 @@
 #include "cvm/registry.hpp"
 #include "transactor.h"
 #include "transactors/axi_sw/axi.h"
+#include "sysmod/sysmod_plusargs.h"
 
 DECLARE_bool(sp_xtor_en);
+DECLARE_bool(sp_xtor_mmr_prog_en);
+
 class scratchpad_xtor : public device {
 
     private:
@@ -53,6 +56,8 @@ class scratchpad_xtor : public device {
         virtual void axi_read(uint64_t addr, size_t length, uint32_t id);
         virtual void axi_write_granular();
         virtual void axi_write_data_granular();
+        virtual void axi_write_mmr_granular();
+        virtual void axi_write_mmr_data_granular();
         //void write(const transactor::write_t& );
         void write(const transactor::write_t& );
 
@@ -116,6 +121,16 @@ class scratchpad_xtor : public device {
             }
             if(cnt_tick == 60){
             axi_write_data_granular();
+            }
+	    if(FLAGS_sp_xtor_mmr_prog_en){
+	       if(cnt_tick == 24){
+               cvm::log(cvm::HIGH, " SCRATCHPAD_XTOR trigger flag set \n");
+               axi_write_mmr_granular();
+               trigger_flag = 0;
+               }
+               if(cnt_tick == 24){
+               axi_write_mmr_data_granular();
+               }
             }
         }
         
