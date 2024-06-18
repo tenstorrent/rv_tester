@@ -856,7 +856,7 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
         max_stall_cycle = cvm_plusargs::get_int("max_stall_cycle");
         scheck_period = cvm_plusargs::get_int("scheck_period");
         mcmi_poke_enable = cvm_plusargs::get_int("mcmi_poke_enables");
-        max_instructions = cvm_plusargs::get_ulongint("max_instr");
+        max_instructions = cvm_plusargs::get_int("max_instr");
         hart_enable_mask = cvm_plusargs::get_ulongint("hart_enable_mask");
         /* verilator lint_on BLKSEQ */
         boot_wfi <= '0;
