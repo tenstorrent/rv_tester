@@ -849,13 +849,6 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
       return mask;
     endfunction
 
-    // Timeout checks
-    int max_stall_cycle = 20000;
-    longint unsigned max_cycle;
-    int cycles_since_retire;
-    longint unsigned hart_enable_mask;
-    bit boot_wfi;
-
     always @(posedge tb_clk) begin
       if (reset) begin
         /* verilator lint_off BLKSEQ */
