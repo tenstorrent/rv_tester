@@ -18,6 +18,9 @@ cc_library(
                 "@fmt//:fmt",
                 "//sysmod/htif:htif",
                 "//:plusargs",
+                "//cosim/dut_if/rvfi:rvfi_plusargs",
+                "//sysmod:sysmod_plusargs",
+                "//sysmod/trickbox:trickbox",
                ],
     data     = [
                 "@whisper//:whisper",
@@ -27,3 +30,10 @@ cc_library(
     strip_include_prefix = ".",
 )
 
+cc_library(
+    name    = "bridge_plusargs",
+    hdrs    = ["bridge_plusargs.h"],
+    deps    = ["@cvm//:plusargs"],
+
+    visibility = ["//visibility:public"],
+)

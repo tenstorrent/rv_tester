@@ -30,7 +30,6 @@
 
 // DEFINE_string(jtag_input_file_path, "", "Path to file containing jtag_driver commands");
 DECLARE_string(jtag_input_file_path);
-DECLARE_int32(seed);
 DECLARE_bool(random_jtag_entry);
 DECLARE_int32(random_jtag_start_delay);
 DECLARE_int32(jtag_delay_min);

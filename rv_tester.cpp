@@ -31,7 +31,7 @@ DEFINE_int32(freq_switch_ncycles, 20000, "Switch clk frequencies after freq_swit
 DEFINE_int32(clk_profile, 0, "Clk profile to drive various clocks");
 DEFINE_bool(dyn_clk_switch, false, "Enable dynamic clk switching");
 DEFINE_validator(num_reruns, &validate_ge0);
-DEFINE_string(gen_clocks_verbosity, "DEBUG", "verbosity at which to generate clocks with cvm::logger prints");
+DEFINE_string(gen_clocks_verbosity, "HIGH", "verbosity at which to generate clocks with cvm::logger prints");
 DEFINE_int32(assertion_test_cycle, 0, "If non-zero, assert false on this cycle. Used for testing assertion infrastructure.");
 
 extern "C" void rv_tester_terminate();

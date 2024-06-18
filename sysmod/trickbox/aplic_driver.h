@@ -19,16 +19,12 @@
 #include "cvm/registry.hpp"
 #include "cvm/logger.hpp"
 #include "aplic_driver.h"
+#include "sysmod/trickbox/interrupter.h"
 
-DECLARE_int32(intr_delay_min);//, 4, "Minimum Delay between 2 consecutive interrupts");
-DECLARE_int32(intr_delay_max);//, 7, "Maximum Delay between 2 consecutive interrupts");
 DECLARE_bool(random_aplic_intr);//, false, "Drive random interrups");
 DECLARE_bool(debug_aplic_driver);
-DECLARE_int32(max_simul_intr );
 DECLARE_int32(num_interrupts);
 DECLARE_int32(toggle_prob);
-DECLARE_int32(tbox_start_delay);
-DECLARE_int32(seed);
 
 // Define a core local interruptor (aplic_driver) at the given address
 // and for the given hart count. The size will be 48k bytes.
