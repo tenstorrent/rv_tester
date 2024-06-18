@@ -13,6 +13,8 @@
 
 DECLARE_bool(sp_xtor_en);
 DECLARE_bool(sp_xtor_mmr_prog_en);
+DECLARE_string(load);
+DECLARE_int32(seed);
 class scratchpad_xtor : public device {
 
     private:

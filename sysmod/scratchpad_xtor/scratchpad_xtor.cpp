@@ -8,8 +8,7 @@
 
 DEFINE_bool(sp_xtor_en, false, "Enable scratchpad transactor acceses ");
 DEFINE_bool(sp_xtor_mmr_prog_en, false, "Enable programming of SP mmr from Scraptchpad transactor ");
-DECLARE_string(load);
-DECLARE_int32(seed);
+
 
 scratchpad_xtor::scratchpad_xtor(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc)
   : device(tag, addr, size, loc, &scratchpad_xtor::write, &scratchpad_xtor::read, this), axi_mst_loc_l(axi_mst_loc)
