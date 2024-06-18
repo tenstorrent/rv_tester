@@ -406,14 +406,14 @@ whisperClient<URV>::whisperStep(int hart, uint64_t time, uint64_t instrTag, uint
   instruction = reply.resource;
   changeCount = reply.value;
 
-  // Recover privilege mode (2 bits), fpFlags (4 bits), and trap (1
+  // Recover privilege mode (2 bits), fpFlags (5 bits), and trap (1
   // bit) from flags field.
   unsigned mode = reply.flags & 3;
-  unsigned flags = (reply.flags >> 2) & 0xf;
-  unsigned trap = (reply.flags >> 6) & 1;
-  unsigned stop = (reply.flags >> 7) & 1;
-  unsigned virt = (reply.flags >> 9) & 1;
-  unsigned load = (reply.flags >> 11) & 1;
+  unsigned flags = (reply.flags >> 2) & 0x1f;
+  unsigned trap = (reply.flags >> 7) & 1;
+  unsigned stop = (reply.flags >> 8) & 1;
+  unsigned virt = (reply.flags >> 10) & 1;
+  unsigned load = (reply.flags >> 12) & 1;
 
   privMode = mode | (virt << 3);
   fpFlags = flags;
