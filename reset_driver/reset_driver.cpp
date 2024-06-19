@@ -28,7 +28,10 @@ std::cout<<"\n constructing reset driver loc "<<std::dec<<loc <<" id "<<id<<"\n"
       loc_,
       [this](const rv_tester_transactions::reset_driver::tick<>& t) { return this->tick(t.advance); });
                                                                     
-                                                                              
+  auto reset_driver_loc = cvm::topology::get_from_type("RESET_DRIVER", 0); 
+  cvm::registry::messenger.connect<smc_xtor::smc_reset_driver_data_t>(
+            reset_driver_loc,
+            [&](smc_xtor::smc_reset_driver_data_t i) { return this->update_smc_status(i); });                                                                           
  
 
   reset();
@@ -46,6 +49,12 @@ void
 reset_driver::checkUsage()
 {
 
+}
+void
+reset_driver::update_smc_status(smc_xtor::smc_reset_driver_data_t i)
+{
+
+    cvm::log(cvm::FULL, "[Reset Driver] GOT data from smc ::update_smc_status  {} \n",i.data);
 }
 void
 reset_driver::init_pins()

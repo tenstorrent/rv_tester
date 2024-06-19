@@ -40,6 +40,13 @@ public:
     unsigned pulse_width;
     bool release_val;
   };
+  struct hold_data_t {
+    unsigned txn_type; //0:init 1:regular
+    unsigned init_value;
+    unsigned reset_num;
+    unsigned pulse_width;
+    bool release_val;
+  };
   struct hold_sigs_t{
     unsigned hold_sigs;
   };
@@ -146,6 +153,7 @@ void perform_cold_reset();
 void deassert_warm_reset_holds();
 void perform_warm_reset();
 void assert_warm_reset_holds();
+void update_smc_status(smc_xtor::smc_reset_driver_data_t i);
 void wait_for_reset_completion_ack();
 private:
   // cvm::file_logger log;

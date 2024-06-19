@@ -41,6 +41,9 @@ class smc_xtor : public device {
         struct smc_ip_data_t{
           uint32_t data;
         };
+        struct smc_reset_driver_data_t{
+          uint32_t data;
+        };
         struct smc_wr_t {
           uint32_t addr;
           uint64_t data;
@@ -67,6 +70,7 @@ class smc_xtor : public device {
         std::queue<smc_wr_t>              smc_boot_wr_txn_q;
         uint32_t smc_id = 0;
         virtual void axi_write();
+        virtual void send_info_to_reset_driver();
         virtual void axi_write_granular();
         virtual void axi_read(uint64_t addr, size_t length, uint32_t id);
         void write(const transactor::write_t& );
@@ -193,6 +197,9 @@ class smc_xtor : public device {
             }
 
             cnt_tick ++;
+            if(cnt_tick >12){
+              send_info_to_reset_driver();
+            }
         }
         
         void print_read_request(const smc_xtor_read_req_t &request) {

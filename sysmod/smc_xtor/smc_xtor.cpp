@@ -50,6 +50,13 @@ void smc_xtor::axi_write_granular() {
   //cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb});
   cvm::registry::messenger.signal(axi_mst_loc_l, aw_txn);
 }
+void smc_xtor::send_info_to_reset_driver(){
+//send sig to reset driver
+auto reset_driver_loc = cvm::topology::get_from_type("RESET_DRIVER", 0);
+cvm::registry::messenger.signal(reset_driver_loc, smc_xtor::smc_reset_driver_data_t{443});
+cvm::log(cvm::FULL, "[SMC] sending info to reset driver *** 443  \n");
+
+}
 
 void smc_xtor::axi_write() {
   uint64_t addr;
