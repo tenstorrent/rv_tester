@@ -52,6 +52,10 @@ class whisperClient {
     bool whisperCheckInterrupt(int hart, uint64_t mip, bool& interrupt, uint64_t& cause);
     bool whisperGetSeiPin(int hart, uint64_t& value);
     bool whisperCancelLr(int hart, bool& valid);
+    bool whisperPeekGpr(int hart, uint64_t addr, uint64_t& value);
+    bool whisperPeekFpr(int hart, uint64_t addr, uint64_t& value);
+    bool whisperPeekVpr(int hart, uint64_t addr, std::array<std::uint8_t, 32>&  value);
+
 
   private:
 

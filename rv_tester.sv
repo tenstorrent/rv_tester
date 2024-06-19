@@ -8,6 +8,18 @@ module rv_tester
     `_RV_TESTER_PORTS(output,input)
 );
 
+    longint eot_addr;
+    byte    eot_status;
+    byte    eot_syscall;
+
+    export "DPI-C" function cosim_set_eot;
+    function void cosim_set_eot(input longint unsigned addr, input byte status, input byte syscall);
+       eot_addr    = addr;
+       eot_status  = status;
+       eot_syscall = syscall;
+    endfunction
+
+
     typedef longint unsigned LU;
 
     localparam int unsigned NoAddrRules = 20;
@@ -53,7 +65,7 @@ module rv_tester
     import "DPI-C" function int rv_tester_parse_flags(); // dummy return value so that this gets called immediately. need this to happen before any other DPIs are called.
     import "DPI-C" context function void rv_tester_cvm_error_handler();
     import "DPI-C" context function void rv_tester_parse_memmap(int unsigned no_addr_rules);
-    import "DPI-C" function void rv_tester_build_registry();
+    import "DPI-C" context function void rv_tester_build_registry();
     import "DPI-C" function byte unsigned rv_tester_shutdown_registry();
     import "DPI-C" context function bit rv_tester_flush_callbacks();
 
@@ -433,6 +445,7 @@ module rv_tester
           .imsic_ipi(axi_ipi_packets[c]), //FIXME
           .debug_mode(debug_mode[c]),
           .terminate(cosim_terminate[c]),
+          .eot_addr(eot_addr),
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PORTS(1, c, 0)
       );
     end

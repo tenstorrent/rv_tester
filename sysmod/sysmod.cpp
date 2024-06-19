@@ -44,6 +44,7 @@ DEFINE_uint64(sp_ways_num, 0x1, "Number of sharedcache ways to be alloted as Scr
 DEFINE_string(set_csr, "", "+set_csr=<csr_num>:<value>,<num2>:<val2> ");
 DEFINE_string(set_mmr, "", "+set_mmr=<addr>:<size>:<value>,<addr2>:<size>:<val2>");
 DEFINE_int32(seed, 1, "Simulation seed passed down for randomization");
+
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 
 extern "C" {
