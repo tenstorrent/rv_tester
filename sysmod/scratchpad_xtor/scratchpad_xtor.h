@@ -29,8 +29,10 @@ class scratchpad_xtor : public device {
         cvm::messenger::pool<axi::r_t>::channel_info channel;
         pcg_extras::seed_seq_from<std::random_device> seed_source;
         pcg32 rng;
+        data_t ref_data;
+        strb_t ref_data_strb;
         uint64_t scratchpad_xtor_base  = 0x9070000;
-
+        bool read_in_flight = false;
     public:
         uint32_t start_scratchpad_cnt,read_ram;
         uint32_t cnt_tick=0;
@@ -55,6 +57,7 @@ class scratchpad_xtor : public device {
         virtual void axi_write();
         virtual void axi_read(uint64_t addr, size_t length, uint32_t id);
         virtual void axi_write_granular();
+        cvm::messenger::task<void> axi_read_granular(const transactor::read_t& , data_t& );
         virtual void axi_write_data_granular();
         virtual void axi_write_mmr_granular();
         virtual void axi_write_mmr_data_granular();
@@ -121,6 +124,11 @@ class scratchpad_xtor : public device {
             }
             if(cnt_tick == 60){
             axi_write_data_granular();
+            }
+            if(cnt_tick == 62){
+               //axi_read_granular();
+               cvm::log(cvm::HIGH, " SCRATCHPAD_XTOR READ SP DATA \n");
+               axi_read(0x60000000,4,4);
             }
 	    if(FLAGS_sp_xtor_mmr_prog_en){
 	       if(cnt_tick == 24){
