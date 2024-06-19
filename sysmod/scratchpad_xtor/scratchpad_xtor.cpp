@@ -61,7 +61,8 @@ void scratchpad_xtor::axi_write_data_granular() {
  
   w_txn.data = {1,2,3,4, 5,6,7,8, 9,0xa,0xb,0xc, 0xd,0xe,0xf,0,  0xd,0xe,0xa,0xd, 0xb,0xe,0xe,0xf,  0xc,0,0,1, 0xb,0xa,0xd,0xa, 1,1,1,1, 2,2,2,2,  0,0,0,0 ,0,0,0,0 ,0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0};
   w_txn.strb = {1,1,1,1, 1,1,1,1, 1,1,1,1,       1,1,1,1,             1,1,1,1,       1,1,1,1,         1,1,1,1,      1,1,1,1,    1,1,1,1, 1,1,1,1,  0,0,0,0, 0,0,0,0 ,0,0,0,0 ,0,0,0,0 ,0,0,0,0 ,0,0,0,0};
-
+  ref_data = w_txn.data;
+  ref_data_strb = w_txn.strb;
   w_txn.last = 1;
   cvm::registry::messenger.signal(axi_mst_loc_l, w_txn);
 }
@@ -118,7 +119,13 @@ cvm::messenger::task<void> scratchpad_xtor::axi_read_granular(const transactor::
   scratchpad_xtor_rd.id = 2;
   scratchpad_xtor_rd.data = resp.data;  
   for (int i = 0; i < int(resp.data.size()); ++i) {
+
          cvm::log(cvm::FULL, "[scratchpad] read resp byte {} =  {:#X} \n",i,uint32_t(resp.data[i]));
+         if(ref_data_strb[i]){
+          if(ref_data[i] != resp.data[i]){
+            cvm::log(cvm::ERROR, "Error: [Scratchpad] Read data {:#X}  not matching with previously written data {:#X} ",uint32_t(ref_data[i]),uint32_t(resp.data[i]));
+          }
+         }
     }
 
   scratchpad_read_resp_q.push(scratchpad_xtor_rd); 
@@ -198,9 +205,6 @@ cvm::messenger::task<void> scratchpad_xtor::read(const transactor::read_t& r, da
   scratchpad_xtor_rd.length = length;
   scratchpad_xtor_rd.id = r.id;
   scratchpad_xtor_rd.data = resp.data;  
-  // for (int i = 0; i < int(resp.data.size()); ++i) {
-  //       std::cout<<"Scratchpad XTOR Read Resp byte["<<i<<"]" << uint32_t(resp.data[i]) << " \n";
-  //   }
 
   scratchpad_read_resp_q.push(scratchpad_xtor_rd); 
   cvm::log(cvm::FULL, "[scratchpad] read addr {:#X} completed\n",addr);
