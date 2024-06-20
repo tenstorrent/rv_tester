@@ -77,10 +77,12 @@ void parse() {
             uint64_t end_j = vec_m[j].second.base + vec_m[j].second.size;
 
             if ((vec_m[i].second.base < end_j && vec_m[j].second.base < end_i)) {
-                cvm::log(cvm::NONE,"\n\n");
-                cvm::log(cvm::NONE,"****************************************** \n");
-                cvm::log(cvm::NONE," ERROR: Memmap.json check failed: Overlap detected between   {}   and    {} \n",vec_m[i].first,vec_m[j].first);
-                cvm::log(cvm::NONE,"****************************************** \n");
+                std::string log_str;
+                log_str += fmt::format("\n\n");
+                log_str += fmt::format("****************************************** \n");
+                log_str += fmt::format(" ERROR: Memmap.json check failed: Overlap detected between   {}   and    {} \n",vec_m[i].first,vec_m[j].first);
+                log_str += fmt::format("****************************************** \n");
+                cvm::log(cvm::NONE, fmt::to_string(log_str));
                 overlapDetected = true;
             }
         }

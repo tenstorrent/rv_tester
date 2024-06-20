@@ -1,9 +1,9 @@
 #include "cvm/plusargs.hpp"
 #include "cvm/logger.hpp"
 #include "uc_helper.h"
+#include "sysmod/sysmod_plusargs.h"
 
 
-DECLARE_string(load);
 DEFINE_bool(debug_uc_helper, false, "Enable internal uc helper debug logging");
 
 uc_helper::uc_helper(const std::string& tag, uint64_t addr, unsigned, cvm::topology::loc_t loc, mem_manager &m_)

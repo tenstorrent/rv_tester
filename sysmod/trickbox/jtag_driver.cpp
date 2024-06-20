@@ -2,6 +2,7 @@
 #include "cvm/topology.hpp"
 #include "cvm/logger.hpp"
 #include "jtag_driver.h"
+#include "sysmod/sysmod_plusargs.h"
 
 DEFINE_string(jtag_input_file_path, "", "Path to file containing jtag_driver commands");
 DEFINE_bool(random_jtag_entry, false, "Enter debug mode randomly after random intervals");

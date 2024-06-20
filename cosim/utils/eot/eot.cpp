@@ -1,16 +1,18 @@
 #include "eot.h"
+#include "svdpi.h"
 #include <chrono>
 #include <iostream>
 #include "common/memmap.h"
 #include "sysmod/htif/htif.h"
+#include "sysmod/sysmod_plusargs.h"
 
 DEFINE_string(eot, "tohost", "Enable end-of-test mechanism. Supported options: tohost, max_instr, tohost_all");
 DEFINE_uint64(tohost, 0x0, "Use this tohost address if provided");
-DEFINE_uint32(max_instr, 100000, "Max instruction limit to terminate the sim");
-DECLARE_string(load);
-DECLARE_string(hex);
+DEFINE_uint64(max_instr, 100000, "Max instruction limit to terminate the sim");
 
 REGISTRY_register(eot, TOP.PLATFORM, cvm::registry::all);
+
+extern "C" void cosim_set_eot(std::uint64_t addr, std::uint8_t status, std::uint8_t syscall);
 
 void eot::get_tohost_addr() {
 
@@ -19,6 +21,8 @@ void eot::get_tohost_addr() {
   if (FLAGS_tohost != 0x0) {
     tohost_addr_ = FLAGS_tohost;
     cvm::log(cvm::NONE, "[eot] tohost from plusarg:: addr=[{:#x}]\n", tohost_addr_);
+
+    cosim_set_eot(tohost_addr_,1,0);
     return;
   }
 
@@ -40,6 +44,7 @@ void eot::get_tohost_addr() {
       }
     }
     cvm::log(cvm::NONE, "[eot] tohost from elf:: cmd=[{}] addr_str=[{}] addr=[{:#x}]\n", cmd, addr_str, tohost_addr_);
+    cosim_set_eot(tohost_addr_,1,0);
   }
   if (tohost_in_elf)
     return;
@@ -53,6 +58,16 @@ void eot::get_tohost_addr() {
   } else {
     cvm::log(cvm::ERROR, "[eot] tohost from memmap:: htif not found in memmap\n", tohost_addr_);
   }
+  cosim_set_eot(tohost_addr_,1,0);
+}
+
+void eot::process(const rv_tester_transactions::cosim::m_steps<>& m_steps) {
+
+  // When using periodic state check method add the missing step counts (only the first m_steps packet does this)
+  if (m_steps.steps > 0) {
+      instr_count_[m_steps.hart] = instr_count_[m_steps.hart] + m_steps.steps;
+      previous_cycle_ = m_steps.cycle;
+  }
 }
 
 void eot::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
@@ -60,12 +75,17 @@ void eot::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   if (ended_)
       return;
 
+  if (instr_count_[m_rvfi.hart] == 0) {
+     start = std::chrono::system_clock::now();
+  }
+
   instr_count_[m_rvfi.hart]++;
 
   // End test on max_instr
   for (uint32_t i = 0; i < num_harts_; i++) {
     if (FLAGS_max_instr > 0 && instr_count_[i] > FLAGS_max_instr) {
       ended_ = true;
+      end = std::chrono::system_clock::now();
       if (FLAGS_eot == "max_instr") {
         cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", m_rvfi.cycle);
         cvm::log(cvm::NONE, "<{}> Pass condition detected: +eot=max_instr +max_instr={}\n", m_rvfi.cycle, FLAGS_max_instr);
@@ -102,6 +122,8 @@ void eot::process_tohost(uint64_t hartid, uint64_t cycle, uint64_t address, uint
 
   uint64_t exit_code = (data >> 1) & 0x7fffffffffff;
 
+  end = std::chrono::system_clock::now();
+
   if (exit_code == 0 ) {
       if (!std::count(terminated_harts_.begin(), terminated_harts_.end(), hartid)) {
         eot::terminated_harts_.emplace_back(hartid);
@@ -132,4 +154,5 @@ void eot::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_i
 void eot::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_bypass) {
    process_tohost(m_mcmi_bypass.hart, m_mcmi_bypass.cycle, m_mcmi_bypass.addr, m_mcmi_bypass.data);
 }
+
 

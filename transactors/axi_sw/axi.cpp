@@ -159,16 +159,20 @@ cvm::messenger::task<void> axi::operator()() {
                 addr_t len    = upper_byte_lane - lower_byte_lane + 1;
                 
                 std::string d;
+                std::string s;
                 axi::data_t read_data;
                 if (!a.w || a.atop.transaction != NON_ATOMIC) {
+                    cvm::log(cvm::FULL, "[axi] ar: id={}, addr={:#x}, len={}, size={}. tr: len={}\n", a.id, start, a.len, a.size, len);
                     read_data = co_await transactor::read(id, start, len);
-                    for (size_t i=0; i<read_data.size(); i++)
+                    if (cvm::logger::check_verbosity(cvm::FULL))
+                      for (int i=read_data.size()-1; i>=0; i--)
                         d += fmt::format("{:02x}", read_data[i]);
                     cvm::log(cvm::FULL, "[axi] r: id={}, last={}, len={}, size={}, data={}\n", a.id, last, len, read_data.size(), d);
                     read_data.resize(data_bus_bytes, 0);
                 }
 
                 if (a.w) {
+                    cvm::log(cvm::FULL, "[axi] aw: id={}, addr={:#x}, len={}, size={}. tr: len={}\n", a.id, start, a.len, a.size, len);
                     auto w = w_q_.dequeue();
                     if (!!w.last != last) {
                         cvm::log(cvm::ERROR, "ERROR: [axi] w.last not set in for write to addr {:#x}\n", start);
@@ -206,9 +210,6 @@ cvm::messenger::task<void> axi::operator()() {
                             std::end(read_data)
                             );
                   
-                    for (size_t i=0; i<read_data.size(); i++)
-                        d += fmt::format("{:02x}", read_data[i]);
-                    cvm::log(cvm::FULL, "[axi] after rotate: r: id={}, last={}, len={}, data={}\n", a.id, last, read_data.size(), d);
                     r_q_.enqueue(r_t(a.id, a.lock ? RESP_EXOKAY : RESP_OKAY, read_data, last));
                 }
             }

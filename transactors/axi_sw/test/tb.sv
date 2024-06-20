@@ -21,6 +21,11 @@ module tb(
     typedef logic [7:0] len_t   ;
     typedef logic [2:0] size_t  ;
     typedef logic [5:0] atop_t  ;
+    typedef logic [3:0] cache_t ;
+    typedef logic [2:0] prot_t  ;
+    typedef logic [3:0] qos_t   ;
+    typedef logic [3:0] region_t;
+    typedef logic  user_t  ;
 
     logic             axi_mst_ar_valid;
     id_t              axi_mst_ar_id;
@@ -29,6 +34,12 @@ module tb(
     size_t            axi_mst_ar_size;
     burst_t           axi_mst_ar_burst;
     logic             axi_mst_ar_lock;
+    cache_t           axi_mst_ar_cache;  
+    prot_t            axi_mst_ar_prot;  
+    qos_t             axi_mst_ar_qos;   
+    region_t          axi_mst_ar_region;
+    user_t            axi_mst_ar_user;
+    atop_t            axi_mst_ar_atop;
 
     logic             axi_mst_aw_valid;
     id_t              axi_mst_aw_id;
@@ -36,8 +47,13 @@ module tb(
     len_t             axi_mst_aw_len;
     size_t            axi_mst_aw_size;
     burst_t           axi_mst_aw_burst;
-    atop_t            axi_mst_aw_atop;
     logic             axi_mst_aw_lock;
+    cache_t           axi_mst_aw_cache; 
+    prot_t            axi_mst_aw_prot; 
+    qos_t             axi_mst_aw_qos;  
+    region_t          axi_mst_aw_region;
+    atop_t            axi_mst_aw_atop;
+    user_t            axi_mst_aw_user;
 
     logic             axi_mst_w_valid;
     data_t            axi_mst_w_data;

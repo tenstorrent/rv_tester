@@ -29,7 +29,7 @@ module top
         .*
     );
 
-    function void write_rvfi(byte unsigned valid, int unsigned hartid, int unsigned nretid, int unsigned insn, longint unsigned pc);
+    function automatic void write_rvfi(byte unsigned valid, int unsigned hartid, int unsigned nretid, int unsigned insn, longint unsigned pc);
         int unsigned idx = hartid * topology_pkg::mods.TOP.PLATFORM.COSIM.RVFI.NRETS_CUMSUM[hartid] + nretid;
         rvfi[idx].valid = (valid != '0);
         rvfi[idx].hart = hartid[HARTLEN-1:0];

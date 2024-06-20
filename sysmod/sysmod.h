@@ -44,11 +44,12 @@ class sysmod {
     void jtag_tick(uint64_t advance);
     void overlay_tick(uint64_t advance);
     void jtag_resp(std::bitset<70> rdata);
+    void override_plusargs();
     void compose();
     void load_boot(const std::string& boot);
     void load_cplfw(const std::string& cplfw);
     void load_prog(const std::string& hex, const std::string& load, const std::string& lz4);
-    void load_csr_boot(uint64_t);
+    void load_csr_mmr_boot(uint64_t);
     void load_io(const std::string& io);
     // Function to convert a bitset to an array of uint64_t
   //   std::vector<uint64_t> bitsetToUint64Array(const std::bitset<70>& bs) {
@@ -64,8 +65,11 @@ class sysmod {
     const size_t bitsetSize = 64;//70;
     const size_t ulongSize = sizeof(uint64_t) * 8;
     const size_t arraySize = (bitsetSize + ulongSize - 1) / ulongSize;
-    
-     std::bitset<70> bitset_shifted = bitset>>4;
+
+    std::bitset<70> bitset_shifted = bitset>>2;
+
+    //jtag rx -> jtag.op_Data , we are shifting only by 2 since from jtag_xtor for each tap point we shift accordingly but all of them are shifted by 2
+    //std::cout<<"[JTAG RESP] original = " <<bitset<<" shifted = "<<bitset_shifted<<"\n";
     std::vector<uint64_t> ulongArray(arraySize);
 
     for (size_t i = 0; i < bitsetSize; i += ulongSize) {

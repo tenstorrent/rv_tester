@@ -6,16 +6,13 @@
 #include "cvm/random.hpp"
 #include "trace_cfg.h"
 #include "transactors/axi_sw/axi.h"
+#include "sysmod/sysmod_plusargs.h"
 #include <fstream>
 #include <sstream>
 #include <string>
 #include <vector>
 #include <unordered_map>
 #include <random>
-
-
-DECLARE_string(load);
-DECLARE_int32(seed);
 
 
 trace_cfg::trace_cfg(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc)

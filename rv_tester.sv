@@ -8,6 +8,18 @@ module rv_tester
     `_RV_TESTER_PORTS(output,input)
 );
 
+    longint eot_addr;
+    byte    eot_status;
+    byte    eot_syscall;
+
+    export "DPI-C" function cosim_set_eot;
+    function void cosim_set_eot(input longint unsigned addr, input byte status, input byte syscall);
+       eot_addr    = addr;
+       eot_status  = status;
+       eot_syscall = syscall;
+    endfunction
+
+
     typedef longint unsigned LU;
 
     localparam int unsigned NoAddrRules = 20;
@@ -20,6 +32,10 @@ module rv_tester
 
     logic bypass_mem = 1;
     logic bypass_cache = 1;
+    logic rv_tester_reset = '1;
+    /* verilator lint_off UNOPTFLAT */
+    logic [1:0] clock_mode = '0;
+    /* verilator lint_on UNOPTFLAT */
 
     if (EXTERNAL_CLOCK) begin
         for (genvar c = 0; c < NCLKS; c++) begin
@@ -32,32 +48,40 @@ module rv_tester
         `endif
         ;
         for (genvar c = 0; c < NCLKS; c++) begin
-            if (PLL_CLOCK[c] && pll_clock_exists)
+            if (PLL_CLOCK[c] && pll_clock_exists)begin
                 assign clk[c] = clk_pll[c];
-            else
+            
+            end 
+            else begin
+                
                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(clk[c]));
-        end
+
+            end
+         end
+    
     end
 
     import "DPI-C" function void rv_tester_streaming_dpi_init();
     import "DPI-C" function int rv_tester_parse_flags(); // dummy return value so that this gets called immediately. need this to happen before any other DPIs are called.
     import "DPI-C" context function void rv_tester_cvm_error_handler();
     import "DPI-C" context function void rv_tester_parse_memmap(int unsigned no_addr_rules);
-    import "DPI-C" function void rv_tester_build_registry();
+    import "DPI-C" context function void rv_tester_build_registry();
     import "DPI-C" function byte unsigned rv_tester_shutdown_registry();
     import "DPI-C" context function bit rv_tester_flush_callbacks();
 
     localparam int unsigned AxiIdWidthMstRv    = topology.TOP.PLATFORM.AXI.ID_WIDTH + $clog2(topology.TOP.PLATFORM.AXI.TOTAL) + 1;
 
     logic flush_complete;
-    logic rv_tester_reset = '1;
+    
     logic sysmod_reset = '0;
     LU clocks = 0;
     bit cb_poll = '0;
+    bit dyn_clk_switch = '0;
     bit cb_success = '1;
     logic call_finish;
     int num_reruns = -1;
     bit trace_en = 0;
+
     bit jtag_en = 0;
     bit overlay_mmr_en = 0;
     logic trace_quiesced;
@@ -86,6 +110,10 @@ module rv_tester
     logic [31:0] dmi_commands_in_queue; 
 
     int trace_timeout = 50000;
+    int freq_switch_ncycles = 7000;
+    int clk_profile = 0;
+
+    int assertion_test_cycle = 0;
 
     int unsigned location = cvm_topology::nil;
 
@@ -94,9 +122,13 @@ module rv_tester
     int unsigned cvm_verbosity, gen_clocks_verbosity;
 
     assign terminate           = (rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
-    assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && (dmi_commands_in_queue == '0) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced ); 
+    assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue == '0) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced ); 
     
     assign rerun_now           = terminated && num_reruns > 0;
+
+   // assign clk = clock_mode ? profile1_clk: def_clk; //clkmux
+    ////////////////// Clock mux Instantiation ///////////////////////////
+
 
     /*
     * Don't put an DPI calls here, zebu gets confused when signals are driven
@@ -179,17 +211,21 @@ module rv_tester
             rv_tester_error_terminate.terminate = '0;
             /* verilator lint_on BLKSEQ */
 
-            cb_poll             <= cvm_plusargs::get_bool("cb_async") == '0;
-            quiesce_timeout     <= cvm_plusargs::get_int("quiesce_timeout");
-            trace_timeout       <= cvm_plusargs::get_int("trace_timeout");
-            flush_timeout       <= cvm_plusargs::get_int("flush_timeout");
-            call_finish         <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
-            gen_clocks          <= cvm_verbosity >= gen_clocks_verbosity;
-            bypass_mem          <= cvm_plusargs::get_bool("bypass_mem") != '0;
-            trace_en            <= cvm_plusargs::get_bool("trace_en") != '0;
-            overlay_mmr_en            <= cvm_plusargs::get_bool("overlay_mmr_en") != '0;
-            jtag_en            <= cvm_plusargs::get_bool("jtag_en") != '0;
-            bypass_cache        <= cvm_plusargs::get_bool("bypass_cache") != '0;
+            cb_poll              <= cvm_plusargs::get_bool("cb_async") == '0;
+            quiesce_timeout      <= cvm_plusargs::get_int("quiesce_timeout");
+            trace_timeout        <= cvm_plusargs::get_int("trace_timeout");
+            flush_timeout        <= cvm_plusargs::get_int("flush_timeout");
+            freq_switch_ncycles  <= cvm_plusargs::get_int("freq_switch_ncycles");
+            clk_profile          <= cvm_plusargs::get_int("clk_profile");
+            dyn_clk_switch       <= cvm_plusargs::get_bool("dyn_clk_switch") != '0;
+            call_finish          <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
+            gen_clocks           <= cvm_verbosity >= gen_clocks_verbosity;
+            bypass_mem           <= cvm_plusargs::get_bool("bypass_mem") != '0;
+            trace_en             <= cvm_plusargs::get_bool("trace_en") != '0;
+            overlay_mmr_en       <= cvm_plusargs::get_bool("overlay_mmr_en") != '0;
+            jtag_en              <= cvm_plusargs::get_bool("jtag_en") != '0;
+            bypass_cache         <= cvm_plusargs::get_bool("bypass_cache") != '0;
+            assertion_test_cycle <= cvm_plusargs::get_int("assertion_test_cycle");
 
             $display("[RVTESTER]: reconstructing registry");
             rv_tester_build_registry();
@@ -365,6 +401,9 @@ module rv_tester
                 $display("<%0d> [RVTESTER]: Error: Debug poll timeout limit reached.", clocks);
                 dmi_poll_timeout_terminate <= 1;
             end
+            else if ((dmi_poll_counter >= 'h1) && terminate) begin
+               $display("<%0d> [RVTESTER]: Debug poll stopped as test pass condition detected limit reached", clocks); 
+            end
         end
     end
 
@@ -408,6 +447,7 @@ module rv_tester
           .imsic_ipi(axi_ipi_packets[c]), //FIXME
           .debug_mode(debug_mode[c]),
           .terminate(cosim_terminate[c]),
+          .eot_addr(eot_addr),
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PORTS(1, c, 0)
       );
     end
@@ -504,6 +544,11 @@ module rv_tester
             .axi_mst_ar_size (axi_req_llc[p].ar.size),
             .axi_mst_ar_lock (axi_req_llc[p].ar.lock),
             .axi_mst_ar_burst(axi_req_llc[p].ar.burst),
+            .axi_mst_ar_cache (axi_req_llc[p].ar.cache), 
+            .axi_mst_ar_prot  (axi_req_llc[p].ar.prot),
+            .axi_mst_ar_qos   (axi_req_llc[p].ar.qos), 
+            .axi_mst_ar_region(axi_req_llc[p].ar.region),
+            .axi_mst_ar_user  (axi_req_llc[p].ar.user), 
 
             .axi_mst_aw_valid(axi_req_llc[p].aw_valid),
             .axi_mst_aw_id   (axi_req_llc[p].aw.id),
@@ -688,6 +733,11 @@ module rv_tester
             .axi_mst_ar_size (axi_req_mst[p].ar.size),
             .axi_mst_ar_lock (axi_req_mst[p].ar.lock),
             .axi_mst_ar_burst(axi_req_mst[p].ar.burst),
+            .axi_mst_ar_cache (axi_req_mst[p].ar.cache), 
+            .axi_mst_ar_prot  (axi_req_mst[p].ar.prot),
+            .axi_mst_ar_qos   (axi_req_mst[p].ar.qos),
+            .axi_mst_ar_region(axi_req_mst[p].ar.region),
+            .axi_mst_ar_user  (axi_req_mst[p].ar.user),
 
             .axi_mst_aw_valid(axi_req_mst[p].aw_valid),
             .axi_mst_aw_id   (axi_req_mst[p].aw.id),
@@ -696,7 +746,12 @@ module rv_tester
             .axi_mst_aw_size (axi_req_mst[p].aw.size),
             .axi_mst_aw_burst(axi_req_mst[p].aw.burst),
             .axi_mst_aw_lock (axi_req_mst[p].aw.lock),
+            .axi_mst_aw_cache(axi_req_mst[p].aw.cache), 
+            .axi_mst_aw_prot (axi_req_mst[p].aw.prot), 
+            .axi_mst_aw_qos  (axi_req_mst[p].aw.qos),  
+            .axi_mst_aw_region(axi_req_mst[p].aw.region),
             .axi_mst_aw_atop (axi_req_mst[p].aw.atop),
+            .axi_mst_aw_user (axi_req_mst[p].aw.user),
 
             .axi_mst_w_valid(axi_req_mst[p].w_valid),
             .axi_mst_w_data (axi_req_mst[p].w.data),
@@ -1041,5 +1096,9 @@ module rv_tester
 	.flush_complete		( flush_complete ),
 	.bist_status_done	()
     );
+
+    always @(posedge clk[TB_CLK_IDX]) begin
+        assert(assertion_test_cycle == '0 || clocks != LU'(assertion_test_cycle)) else $error("assertion test");
+    end
 
 endmodule

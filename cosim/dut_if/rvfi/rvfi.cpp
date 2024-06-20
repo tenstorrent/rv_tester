@@ -5,6 +5,7 @@
 #include "cvm/bitmanip.hpp"
 #include "cvm/callbacks.hpp"
 #include "cvm/registry.hpp"
+#include "sysmod/sysmod_plusargs.h"
 
 #include <iostream>
 #include <chrono>
@@ -14,12 +15,11 @@ DEFINE_bool(rvfi, true, "Enable rvfi");
 // TODO(mboisvert): See if we can combine the rvfi flags. The reason why the
 // rvfi_log flag was created is that +norvfi causes the max # of cycles to be
 // exceeded.
-DEFINE_bool(rvfi_log, true, "Enable rvfi logging");
+DEFINE_bool(rvfi_log,  true, "Enable rvfi logging");
 DEFINE_bool(rvfi_log_36b_uop, true, "rvfi log - print 36b uop instead of default 32b riscv opcode");
 DEFINE_bool(mcm, false, "Enable mcm");
 DEFINE_bool(cosim, true, "Enable cosim checking");
 DEFINE_bool(emulate_amo_arithmetic, true, "Emulate amo arithmetic if dut harness does not provide amo outputs");
-DECLARE_string(load);
 
 DEFINE_uint64(debug_entry_pc, 0xa110800, "Debug Mode entry PC");
 DEFINE_uint64(debug_exit_pc, 0xa110860, "Debug Mode exit PC");
@@ -37,6 +37,10 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
 
   connect<
     rv_tester_transactions::cosim::m_rvfi<>,
+    rv_tester_transactions::cosim::m_steps<>,
+    rv_tester_transactions::cosim::m_gp_regs<>,
+    rv_tester_transactions::cosim::m_fp_regs<>,
+    rv_tester_transactions::cosim::m_vc_regs<>,
     rv_tester_transactions::cosim::m_csri<>,
     rv_tester_transactions::cosim::m_trap<>,
     rv_tester_transactions::cosim::m_core_intr<>,
@@ -201,7 +205,6 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.excp = excp_;
   instr.icause = icause_;
   instr.ecause = ecause_;
-  instr.flags = m_rvfi.flags_valid ? m_rvfi.flags : 0;
 
   // First/last uops for ucode sequences
   instr.first_uop = false;
@@ -244,28 +247,39 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.pc.pc_rdata = m_rvfi.pc_rdata;
 
   // GPR
-  instr.gpr.valid = (m_rvfi.rd_addr != 0);
-  instr.gpr.rd_addr = m_rvfi.rd_addr;
-  instr.gpr.rd_wdata = m_rvfi.rd_wdata;
-  // Collect vec cracked uop gpr write
-  if (instr.gpr.valid && instr.vec_cracked){
-    cracked_gpr_.valid = (m_rvfi.rd_addr != 0);
-    cracked_gpr_.rd_addr = m_rvfi.rd_addr;
-    cracked_gpr_.rd_wdata = m_rvfi.rd_wdata;
+  if ((m_rvfi.rd_addr > 0) && (m_rvfi.rd_addr <= 31)) {
+    if (instr.last_uop) {
+      instr.gpr.emplace_back(true, m_rvfi.rd_addr, m_rvfi.rd_wdata);
+    } else {
+      // Collect gpr write from a cracked uop
+      cracked_gpr_.valid = true;
+      cracked_gpr_.rd_addr = m_rvfi.rd_addr;
+      cracked_gpr_.rd_wdata = m_rvfi.rd_wdata;
+    }
   }
 
   // FPR
-  instr.fpr.valid = m_rvfi.frd_valid;
-  instr.fpr.frd_addr = m_rvfi.frd_addr;
-  instr.fpr.frd_wdata = m_rvfi.frd_wdata;
+  if (m_rvfi.frd_valid) {
+    instr.fpr.emplace_back(true, m_rvfi.frd_addr, m_rvfi.frd_wdata);
+  }
 
   // VR
   if (m_rvfi.vrd_valid) {
     vr_t vr {true, m_rvfi.vrd_addr, m_rvfi.vrd_wdata};
     instr.vr.push_back(vr);
-    // Accumulate cracked vr writes
+    // Accumulate vr writes across cracked uops
     if (m_rvfi.vrd_addr < 32) {
       cracked_vrs_.push_back(vr);
+    }
+  }
+
+  // Flags
+  instr.flags = 0;
+  if (m_rvfi.flags_valid) {
+    instr.flags = m_rvfi.flags;
+    // Accumulate flags writes across cracked uops
+    if (instr.vec_cracked) {
+      cracked_flags_ |= m_rvfi.flags;
     }
   }
 
@@ -277,6 +291,13 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
     if (!m_rvfi.last_uop) {
       ucode_csrs_.push_back(c);
     }
+  }
+
+  // CSR renaming
+  instr.csr_cracked = ((m_rvfi.rd_addr >= 32) && (m_rvfi.rd_addr <= 37));
+  if (renamed_csr.count(static_cast<renamed_csr_reg>(m_rvfi.rd_addr))) {
+    csr_t c {true, m_rvfi.hart, m_rvfi.cycle, renamed_csr.at(static_cast<renamed_csr_reg>(m_rvfi.rd_addr)), std::numeric_limits<uint64_t>::max(), m_rvfi.rd_wdata};
+    instr.csr.push_back(c);
   }
 
   // tlb
@@ -312,9 +333,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
 void rvfi::append_uop_changes_to_instr(rv_instr_t& instr) {
   // GPR
   if (cracked_gpr_.valid) {
-    instr.gpr.valid = cracked_gpr_.valid;
-    instr.gpr.rd_addr = cracked_gpr_.rd_addr;
-    instr.gpr.rd_wdata = cracked_gpr_.rd_wdata;
+    instr.gpr.emplace_back(true, cracked_gpr_.rd_addr, cracked_gpr_.rd_wdata);
     cracked_gpr_.valid = false;
   }
 
@@ -326,6 +345,10 @@ void rvfi::append_uop_changes_to_instr(rv_instr_t& instr) {
     }
     cracked_vrs_.clear();
   }
+
+  // Flags
+  instr.flags |= cracked_flags_;
+  cracked_flags_ = 0;
 
   // CSR
   if (!ucode_csrs_.empty()) {
@@ -371,7 +394,7 @@ void rvfi::print_instr(const rv_instr_t& instr) {
     return;
   }
 
-  int resource_count = instr.gpr.valid + instr.fpr.valid + instr.vr.size() + instr.csr.size() + instr.mem_write.valid;
+  int resource_count = instr.gpr.size() + instr.fpr.size() + instr.vr.size() + instr.csr.size() + instr.mem_write.valid;
 
   // Print r0 = 0 if nothing modified
   if (!resource_count) {
@@ -380,11 +403,11 @@ void rvfi::print_instr(const rv_instr_t& instr) {
   }
 
   // Print modified resources in this order - r, f, v, m, c
-  if (instr.gpr.valid)
-    print_instr_resource(instr, fmt::format(" r {:016x} {:016x}", instr.gpr.rd_addr, instr.gpr.rd_wdata));
+  for (const auto& gpr : instr.gpr)
+    print_instr_resource(instr, fmt::format(" r {:016x} {:016x}", gpr.rd_addr, gpr.rd_wdata));
 
-  if (instr.fpr.valid)
-    print_instr_resource(instr, fmt::format(" f {:016x} {:016x}", instr.fpr.frd_addr, instr.fpr.frd_wdata));
+  for (const auto& fpr : instr.fpr)
+    print_instr_resource(instr, fmt::format(" f {:016x} {:016x}", fpr.frd_addr, fpr.frd_wdata));
 
   for (auto& vr : instr.vr){
     if (vr.valid) {
@@ -407,37 +430,69 @@ void rvfi::print_instr(const rv_instr_t& instr) {
 }
 
 void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_str) {
-  log(cvm::NONE, "#{} {} {} {} {:016x}", FLAGS_mcm ? instr.tag : instr.id, instr.cycle, instr.hart, priv_to_string.at(static_cast<priv>(instr.priv)),
+  std::string dut_log;
+
+  dut_log += fmt::format("#{} {} {} {} {:016x}", FLAGS_mcm ? instr.tag : instr.id, instr.cycle, instr.hart, priv_to_string.at(static_cast<priv>(instr.priv)),
      instr.pc.pc_rdata);
 
   if (FLAGS_rvfi_log_36b_uop)
-    log(cvm::NONE, " {:09x}", instr.uop);
+    dut_log += fmt::format(" {:09x}", instr.uop);
   else
-    log(cvm::NONE, " {:08x}", instr.opcode);
+    dut_log += fmt::format(" {:08x}", instr.opcode);
 
-  log(cvm::NONE, resource_str);
+  dut_log += fmt::format(" {}", resource_str);
 
   if (!instr.ucode)
-    log(cvm::NONE, " {}", whisper::disassemble(instr.opcode));
+    dut_log += fmt::format(" {}", whisper::disassemble(instr.opcode));
   else
-    log(cvm::NONE, " {} (microcode)", cosim_util::get_nth_word(instr.disasm, 1));
+    dut_log += fmt::format(" {} (microcode)", cosim_util::get_nth_word(instr.disasm, 1));
+
+  if (instr.csr_cracked)
+    dut_log += fmt::format(" (csr_rename:x{})", instr.gpr[0].rd_addr);
+
+  if (instr.flags)
+    dut_log += fmt::format(" (flags:{:#x})", instr.flags);
 
   if (instr.mem_write.valid)
-    log(cvm::NONE, " [{:#x}:{:#x}:{}]", instr.mem_write.va, instr.mem_write.pa, mem_attr_to_string(instr.mem_write.attr));
+    dut_log += fmt::format(" [{:#x}:{:#x}:{}]", instr.mem_write.va, instr.mem_write.pa, mem_attr_to_string(instr.mem_write.attr));
 
   if (instr.mem_read.valid)
-    log(cvm::NONE, " [{:#x}:{:#x}:{}]", instr.mem_read.va, instr.mem_read.pa, mem_attr_to_string(instr.mem_read.attr));
+    dut_log += fmt::format(" [{:#x}:{:#x}:{}]", instr.mem_read.va, instr.mem_read.pa, mem_attr_to_string(instr.mem_read.attr));
 
   if (instr.intr)
-    log(cvm::NONE, " (interrupt:{})", instr.icause);
+    dut_log += fmt::format(" (interrupt:{})", instr.icause);
 
   if (instr.excp)
-    log(cvm::NONE, " (exception:{})", instr.ecause);
+    dut_log += fmt::format(" (exception:{})", instr.ecause);
 
   if (instr.comp)
-    log(cvm::NONE, " (compressed)");
+    dut_log += fmt::format(" (compressed)");
 
-  log(cvm::NONE, "\n");
+  dut_log += fmt::format("\n");
+  log(cvm::NONE, fmt::to_string(dut_log));
+}
+void rvfi::process(const rv_tester_transactions::cosim::m_steps<>& m_steps) {
+  if (terminated_)
+    return;
+  bridge_->process_steps(m_steps.hart, m_steps.n_retire, m_steps.cycle, m_steps.steps, m_steps.skips, m_steps.final_steps);
+}
+
+void rvfi::process(const rv_tester_transactions::cosim::m_gp_regs<>& m_gp_regs) {
+  if (terminated_)
+    return;
+  bridge_->process_compare_gp_regs(m_gp_regs.hart,m_gp_regs.value);
+}
+
+void rvfi::process(const rv_tester_transactions::cosim::m_fp_regs<>& m_fp_regs) {
+  if (terminated_)
+    return;
+  bridge_->process_compare_fp_regs(m_fp_regs.hart , m_fp_regs.value);
+}
+
+void rvfi::process(const rv_tester_transactions::cosim::m_vc_regs<>& m_vc_regs) {
+  if (terminated_)
+    return;
+  bridge_->process_compare_vc_regs(m_vc_regs.hart , m_vc_regs.value);
 }
 
 void rvfi::send_instr(rv_instr_t& instr) {
