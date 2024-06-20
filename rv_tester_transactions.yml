@@ -1218,7 +1218,7 @@ reset_driver:
         domain: 2
         num: 1
         fields:
-            advance:
+            num_clocks:
                 width: 64
 
 aplic_monitor:

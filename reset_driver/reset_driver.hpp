@@ -19,6 +19,16 @@
 #define max_hartid 1 // Define the maximum number of harts in the system
 #define halt_on_reset false
 
+DECLARE_bool(reset_driver);
+DECLARE_bool(rst_sram_hold);
+DECLARE_bool(rst_debug_hold);
+DECLARE_bool(rst_critical_hold);
+DECLARE_bool(mid_sim_reset_en);
+DECLARE_bool(mid_sim_warm_reset_en);
+DECLARE_uint32(reset_pulse_period);
+DECLARE_uint32(hold_pulse_period);
+DECLARE_uint64(mid_sim_reset_period);
+DECLARE_uint64(mid_sim_warm_reset_period);
 typedef uint64_t reg_t;
 
 
@@ -41,11 +51,8 @@ public:
     bool release_val;
   };
   struct hold_data_t {
-    unsigned txn_type; //0:init 1:regular
-    unsigned init_value;
-    unsigned reset_num;
     unsigned pulse_width;
-    bool release_val;
+    unsigned pinval;
   };
   struct hold_sigs_t{
     unsigned hold_sigs;
@@ -56,15 +63,30 @@ public:
   // Called for every cycle the JTAG TAP spends in Run-Test/Idle.
   // void run_test_idle();
 
-  void tick(uint64_t advance){
-   std::cout<<"[tick] RESET DRIVER STANDALONE adv by "<<advance<<" ticks "<<ticks<<"\n";
-   timer_ += advance;
-    timer_advance = advance;
-    ticks++;
-    cvm::log(cvm::FULL, "[Reset Driver] Timer tick {} advance interval {} \n", timer_, timer_advance);
+  void tick(uint64_t num_clocks){
+    ticks = num_clocks;
+    std::cout<<"[tick] RESET DRIVER STANDALONE clocks:: "<<num_clocks<<" ticks "<<ticks<<"\n";
+    cvm::log(cvm::FULL, "[Reset Driver] Timer tick {} num_clocks {} \n", num_clocks, ticks);
     processResets();
+    processHolds();
+    if(FLAGS_mid_sim_reset_en && (ticks % FLAGS_mid_sim_reset_period == 0)){
+      //perform mid sim cold reset
+    }
+    if(FLAGS_mid_sim_warm_reset_en && (ticks % FLAGS_mid_sim_warm_reset_period == 0)){
+      //perform mid sim cold reset
+      perform_warm_reset();
+    }
     if(ticks==10){
       perform_warm_reset();
+    }
+    if(ticks==11){
+    assert_warm_reset_holds();
+    }
+    if(ticks==20){
+    deassert_warm_reset_holds();
+    }
+    if(ticks==28){
+    deassert_warm_reset_holds();
     }
     if(ticks ==20){
       smc_xtor::smc_ip_data_t smc_data;
@@ -93,10 +115,26 @@ public:
              if(ticks == phase2_cycles[i]){
                phase2_cycles[i] = 0;
                driveResetValid[i] = 0;
+               driveResetInProgress[i] = false;
             }
         }
     }
    }
+   
+  }
+
+  void processHolds()
+  {
+     std::cout<<"\n In PROCESS HOLDS : if valid drive holds\n"; 
+        if (driveHoldValid) {
+         std::cout<<"\n In PROCESS HOLDS : Found valid drive holds\n"; 
+            //std::cout << i << " ";
+            if(ticks == hold_cycles){
+              driveHoldValid = false;
+              hold_cycles = 0;
+            }
+        }
+   
    
   }
   // Called when one of the attached harts was reset.
@@ -108,7 +146,15 @@ public:
      }
   void process(const rv_tester_transactions::reset_driver::tick<>& tick);
 
-  
+   // Used to assert/deassert a reset_driver pin for given hart.
+   void driveHoldPulse(hold_data_t t)
+   {
+    if(!driveHoldValid){  
+      driveHoldValid = true;
+      hold_cycles = ticks + t.pulse_width;
+      driveHoldPin(t.pinval);
+    }
+   }
   
   // Used to assert/deassert a reset_driver pin for given hart.
    void driveResetPulse(reset_data_t t)
@@ -135,13 +181,23 @@ public:
    }
    void driveResetPin(unsigned pin, unsigned value){
     //SOME CVM msg
-    std::cout<<"\n Driving PIN: "<<pin<<" with value :"<<value;
+    std::cout<<"\n ************Driving RESET PIN: "<<pin<<" with value :"<<value;
     reset_sigs_t i;
     i.reset_sigs =  (value << pin);
       cvm::registry::callbacks.push(
        scope(),
        [i]() {
           reset_driver_drive_resets(i.reset_sigs);
+        });
+ }
+    void driveHoldPin(unsigned pinvalue){
+    //SOME CVM msg
+    std::cout<<"\n *************Driving HOLD PIN: "<<pinvalue<<"\n";
+
+      cvm::registry::callbacks.push(
+       scope(),
+       [pinvalue]() {
+          reset_driver_drive_holds(pinvalue);
         });
  }
     //cvm::registry::messenger.signal(loc(), i);
@@ -166,17 +222,22 @@ private:
   void reset();
 
    
-  // std::vector<uint64_t> timeCompare_;  // One per interrupt type.
+
    std::vector<uint32_t> phase1_cycles;  // Number of cycles counted.
    std::vector<uint32_t> phase2_cycles;  // Number of cycles counted.
+   
    std::vector<bool> driveResetValid; // Valid bit for interrupt
    std::vector<bool> driveResetInProgress; // Valid bit for interrupt
    std::vector<bool> ResetRelVal; // Valid bit for interrupt
-  // std::vector<bool> IntrValue_; // Value of interrupt pin
-  // std::vector<bool> timerIntPrev_; // Value of interrupt pin
-  uint64_t timer_ = 0;
+
+   unsigned hold_cycles; 
+   bool driveHoldValid = false; // Valid bit for interrupt
+   bool driveHoldInProgress = false; // Valid bit for interrupt
+   std::vector<bool> HoldVal; // Valid bit for interrupt
+   bool drive_holds = true;
+
+
   uint64_t ticks = 0;
-  uint64_t timer_advance = 200;
   bool run_cold_reset_seq = false;
   bool run_warm_reset_seq = false;
   bool send_update_to_smc = true;

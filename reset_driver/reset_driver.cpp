@@ -10,15 +10,20 @@
 #include "reset_driver.hpp"
 
 DEFINE_bool(reset_driver, true, "Enable reset driver");
+DEFINE_bool(rst_sram_hold, true, "Enable reset driver sram hold");
+DEFINE_bool(rst_debug_hold, false, "Enable reset driver debug hold");
+DEFINE_bool(rst_critical_hold, true, "Enable reset driver critical hold");
 DEFINE_bool(mid_sim_reset_en, true, "Enable mid sim reset driving");
 DEFINE_bool(mid_sim_warm_reset_en, false, "Enable mid sim warm reset driving");
 // TODO: control which are dumped? might not be useful
+DEFINE_uint32(reset_pulse_period, 16, "Hold Reset pin value for N cycles");
+DEFINE_uint32(hold_pulse_period, 16, "Hold HOLD pin value for N cycles");
 DEFINE_uint64(mid_sim_reset_period, 7000, "Drive midsim reset every N cycles");
 DEFINE_uint64(mid_sim_warm_reset_period, 7000, "Drive midsim reset every N cycles");
 REGISTRY_register(reset_driver, TOP.PLATFORM.RESET_DRIVER, 0);
 
 reset_driver::reset_driver(cvm::topology::loc_t loc, unsigned id) 
-: scope_(nullptr), loc_(loc), id_(id) ,phase1_cycles(3),phase2_cycles(3),driveResetValid(3),driveResetInProgress(3),ResetRelVal(3), timer_(0)
+: scope_(nullptr), loc_(loc), id_(id) ,phase1_cycles(3),phase2_cycles(3),driveResetValid(3),driveResetInProgress(3),ResetRelVal(3)
 {
 std::cout<<"\n constructing reset driver loc "<<std::dec<<loc <<" id "<<id<<"\n";
   cvm::registry::messenger.connect<svScope>(
@@ -26,7 +31,7 @@ std::cout<<"\n constructing reset driver loc "<<std::dec<<loc <<" id "<<id<<"\n"
       [this](svScope s) { return this->set_scope(s); });
   cvm::registry::messenger.connect<rv_tester_transactions::reset_driver::tick<>>(
       loc_,
-      [this](const rv_tester_transactions::reset_driver::tick<>& t) { return this->tick(t.advance); });
+      [this](const rv_tester_transactions::reset_driver::tick<>& t) { return this->tick(t.num_clocks); });
                                                                     
   auto reset_driver_loc = cvm::topology::get_from_type("RESET_DRIVER", 0); 
   cvm::registry::messenger.connect<smc_xtor::smc_reset_driver_data_t>(
@@ -37,13 +42,6 @@ std::cout<<"\n constructing reset driver loc "<<std::dec<<loc <<" id "<<id<<"\n"
   reset();
 }
 
-
-// void reset_driver::process(const rv_tester_transactions::reset_driver::msi_req<> &msi_req)
-// {
-//   //APLIC MSI request
-//   //on observing MSI , we can query the aplic model for MSI or can check in a queue if current MSI should be observed or not 
-//    cvm::log(cvm::DEBUG,"[APLIC MONITOR] Process0: location {} \n",msi_req.location);
-// }
 
 void
 reset_driver::checkUsage()
@@ -85,15 +83,26 @@ void reset_driver::assert_warm_reset_holds(){
     //   `uvm_info(get_name(),$sformatf("[RST_CTRL] Asserted SRAM Hold...."),UVM_LOW)
     //   misc_vif.cluster_sram_hold = 1;
     // end
+    unsigned hold_value = 0;
+    hold_data_t hold_data;
+    if(FLAGS_rst_sram_hold)
+        hold_value = hold_value | 1<<0;
     // if($test$plusargs("CRITICAL_HOLD")) begin
     //   `uvm_info(get_name(),$sformatf("[RST_CTRL] Asserted Critical Signal Hold...."),UVM_LOW)
     //   misc_vif.cluster_critical_signal_hold = 1;
     // end
+    if(FLAGS_rst_debug_hold)
+        hold_value = hold_value | 1<<1;
     // if($test$plusargs("DEBUG_HOLD")) begin
     //   `uvm_info(get_name(),$sformatf("[RST_CTRL] Asserted Debug Hold...."),UVM_LOW)
     //   misc_vif.cluster_debug_hold = 1;
     // end
     // repeat(16) @(posedge misc_vif.sc_clk);
+    if(FLAGS_rst_critical_hold)
+        hold_value = hold_value | 1<<2;
+    
+    hold_data = {16,hold_value};
+    driveHoldPulse(hold_data);
 }
 
 void reset_driver::perform_warm_reset(){
@@ -121,6 +130,26 @@ void reset_driver:: deassert_warm_reset_holds(){
     //   misc_vif.cluster_debug_hold = 0;
     // end
     // repeat(16) @(posedge misc_vif.sc_clk); 
+    unsigned hold_value = 0;
+    hold_data_t hold_data;
+    if(FLAGS_rst_sram_hold)
+        hold_value = hold_value & ~(0<<0);
+    // if($test$plusargs("CRITICAL_HOLD")) begin
+    //   `uvm_info(get_name(),$sformatf("[RST_CTRL] Asserted Critical Signal Hold...."),UVM_LOW)
+    //   misc_vif.cluster_critical_signal_hold = 1;
+    // end
+    if(FLAGS_rst_debug_hold)
+        hold_value = hold_value & ~(1<<1);
+    // if($test$plusargs("DEBUG_HOLD")) begin
+    //   `uvm_info(get_name(),$sformatf("[RST_CTRL] Asserted Debug Hold...."),UVM_LOW)
+    //   misc_vif.cluster_debug_hold = 1;
+    // end
+    // repeat(16) @(posedge misc_vif.sc_clk);
+    if(FLAGS_rst_critical_hold)
+        hold_value = hold_value & ~(1<<2);
+    
+    hold_data = {16,hold_value};
+    driveHoldPulse(hold_data);
 }
 void reset_driver::reset()
 {

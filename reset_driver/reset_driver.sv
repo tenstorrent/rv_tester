@@ -17,10 +17,15 @@ module reset_driver #(
 
     import "DPI-C" context function void reset_driver_set_scope(int unsigned location);
     int unsigned location = cvm_topology::nil;
+    int unsigned cold_reset_cycles = 0;
+    int unsigned warm_reset_cycles = 0;
+    bit mid_sim_reset_en = 0;
+    bit mid_sim_warm_reset_en = 0;
   
     logic reset_done;
         typedef longint unsigned LU;
     LU clocks = 0;
+    LU init_clocks = 500;
     
     bit sysmod_tick_async = '1;
     bit [3:0] o_resets;
@@ -38,6 +43,10 @@ module reset_driver #(
             /* verilator lint_off BLKSEQ */
             sysmod_tick_async = cvm_plusargs::get_bool("sysmod_tick_async") != '0;
             location = cvm_topology::get_location(topology.TOP.PLATFORM.RESET_DRIVER.ID, NUM);
+            cold_reset_cycles        <= cvm_plusargs::get_int("trace_timeout");
+            warm_reset_cycles        <= cvm_plusargs::get_int("flush_timeout");
+            mid_sim_reset_en          = cvm_plusargs::get_bool("mid_sim_reset_en") != '0;
+            mid_sim_warm_reset_en     = cvm_plusargs::get_bool("mid_sim_warm_reset_en") != '0;
             if (location != cvm_topology::nil) begin
                $display("\nsv::RESET DRIVER pass scope from sv to cpp : location : %d\n",location);
               reset_driver_set_scope(location);
@@ -48,9 +57,12 @@ module reset_driver #(
     end
 
     //localparam longint unsigned TICKS = LU'(SW_CLOCK_UPDATE_PERIOD_PS)/LU'(CLOCK_PERIOD_PS);
-    assign ticks[0].valid         = (clocks % 2 == 0) & (location != cvm_topology::nil);
+    /* verilator lint_off WIDTHEXPAND */
+    assign ticks[0].valid         =  (location != cvm_topology::nil) & ((clocks < init_clocks)|(mid_sim_reset_en & ((clocks % cold_reset_cycles) < 500))| (mid_sim_warm_reset_en & ((clocks % warm_reset_cycles) < 500))) ;
+    //assign ticks[0].valid         = (clocks % 2 == 0) & (location != cvm_topology::nil) & ((clocks < init_clocks)|(mid_sim_reset_en & ((clocks % cold_reset_cycles) < 500))| (mid_sim_warm_reset_en & ((clocks % warm_reset_cycles) < 500))) ;
+    /* verilator lint_on WIDTHEXPAND */
     assign ticks[0].data.location = location;
-    assign ticks[0].data.advance  = 2;
+    assign ticks[0].data.num_clocks  = clocks;
 
     export "DPI-C" function reset_driver_drive_resets;
     function void reset_driver_drive_resets (int unsigned reset_pins);
