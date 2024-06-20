@@ -321,7 +321,7 @@ module rv_tester
 
     localparam int AXI_CLOCK_PERIOD = 1000000 / CLOCK_FREQ_MHZ[AXI_CLK_IDX];
     localparam int JTAG_CLOCK_PERIOD = 100;
-    localparam int OVERLAY_CLOCK_PERIOD = 740;
+    localparam int OVERLAY_CLOCK_PERIOD = 2*AXI_CLOCK_PERIOD;
     sysmod #(
         .CLOCK_PERIOD_PS(AXI_CLOCK_PERIOD),
         .JTAG_CLOCK_PERIOD_PS(JTAG_CLOCK_PERIOD),
