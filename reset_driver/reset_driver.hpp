@@ -11,15 +11,13 @@
 #include "cvm/logger.hpp"
 #include "cvm/topology.hpp"
 #include "rv_tester_transactions.hpp"
-//#include "smc_xtor.h"
 #include "sysmod/smc_xtor/smc_xtor.h"
-#include "Aplic.hpp"
 
 
 #define max_hartid 1 // Define the maximum number of harts in the system
 #define halt_on_reset false
 
-DECLARE_bool(reset_driver);
+DECLARE_bool(reset_driver_en);
 DECLARE_bool(rst_sram_hold);
 DECLARE_bool(rst_debug_hold);
 DECLARE_bool(rst_critical_hold);
@@ -41,7 +39,6 @@ class reset_driver
 {
 public:
   reset_driver(cvm::topology::loc_t, unsigned);
-  //virtual ~reset_driver() = default;
 
   struct reset_data_t {
     unsigned txn_type; //0:init 1:regular
@@ -60,15 +57,16 @@ public:
   struct reset_sigs_t{
     unsigned reset_sigs;
   };
-  // Called for every cycle the JTAG TAP spends in Run-Test/Idle.
-  // void run_test_idle();
 
   void tick(uint64_t num_clocks){
+    if(!FLAGS_reset_driver_en)
+      return;
+
     ticks = num_clocks;
-    std::cout<<"[tick] RESET DRIVER STANDALONE clocks:: "<<num_clocks<<" ticks "<<ticks<<"\n";
     cvm::log(cvm::FULL, "[Reset Driver] Timer tick {} num_clocks {} \n", num_clocks, ticks);
     processResets();
     processHolds();
+
     if((ticks >500)&& FLAGS_mid_sim_reset_en && (ticks % FLAGS_mid_sim_reset_period == 0)){
       //perform mid sim cold reset
     }
@@ -99,21 +97,19 @@ public:
       smc_data.data = 1;
     }
     if(send_update_to_smc & (ticks >10)){
-      std::cout<<"\nreset driver sending update to smc xtor\n";
       auto smc_xtor_loc = cvm::topology::get_from_type("SMC_XTOR", 0);
       cvm::registry::messenger.signal(smc_xtor_loc, smc_xtor::smc_ip_data_t{123});
     }
 
-  }
+}
    
-  void processResets()
-  {
+void processResets()
+{
    if(ticks==2){
     init_pins();
    }else{
        for (size_t i = 0; i < driveResetValid.size(); ++i) {
         if (driveResetValid[i]) {
-            //std::cout << i << " ";
             if(ticks == phase1_cycles[i]){
               driveResetPin(i,ResetRelVal[i]);
               phase1_cycles[i] = 0;
@@ -127,14 +123,11 @@ public:
     }
    }
    
-  }
+}
 
-  void processHolds()
-  {
-     std::cout<<"\n In PROCESS HOLDS : if valid drive holds\n"; 
+void processHolds()
+{
         if (driveHoldValid) {
-         std::cout<<"\n In PROCESS HOLDS : Found valid drive holds\n"; 
-            //std::cout << i << " ";
             if(ticks == hold_cycles){
               driveHoldValid = false;
               hold_cycles = 0;
@@ -142,30 +135,28 @@ public:
         }
    
    
-  }
-  // Called when one of the attached harts was reset.
-  //void proc_reset(unsigned id);
+}
 
-  void set_scope(svScope s) {
-    std::cout<<"\n RESET driver setsvscope\n";
+void set_scope(svScope s) {
      scope_ = s; 
-     }
-  void process(const rv_tester_transactions::reset_driver::tick<>& tick);
+}
 
-   // Used to assert/deassert a reset_driver pin for given hart.
-   void driveHoldPulse(hold_data_t t)
-   {
+void process(const rv_tester_transactions::reset_driver::tick<>& tick);
+
+// Used to assert/deassert a reset_driver pin for given hart.
+void driveHoldPulse(hold_data_t t)
+{
     if(!driveHoldValid){  
       driveHoldValid = true;
       hold_cycles = ticks + t.pulse_width;
       driveHoldPin(t.pinval);
     }
-   }
+}
   
-  // Used to assert/deassert a reset_driver pin for given hart.
-   void driveResetPulse(reset_data_t t)
+// Used to assert/deassert a reset_driver pin for given hart.
+void driveResetPulse(reset_data_t t)
    {
-    cvm::log(cvm::FULL, "[Reset Driver] driveResetPulse t.resetnum {} txntype {} iniyt {}\n",t.reset_num,t.txn_type,t.init_value);
+    cvm::log(cvm::FULL, "[Reset Driver] driveResetPulse t.resetnum {} txntype {} init {}\n",t.reset_num,t.txn_type,t.init_value);
     if(t.txn_type == 1){// pulse transaction
        driveResetValid.at(t.reset_num) = true;
        driveResetInProgress.at(t.reset_num) = true;
@@ -179,15 +170,14 @@ public:
        driveResetPin(i,((t.init_value>>i)&0x1));
       }
     }
-     //cvm::registry::messenger.signal(loc(), t);
-   }
-    void driveHoldSigs(){
+}
+
+void driveHoldSigs(){
     //cvm msg to hold sigs
 
-   }
-   void driveResetPin(unsigned pin, unsigned value){
-    //SOME CVM msg
-    std::cout<<"\n ************Driving RESET PIN: "<<pin<<" with value :"<<value;
+}
+
+void driveResetPin(unsigned pin, unsigned value){
     reset_sigs_t i;
     i.reset_sigs =  (value << pin);
       cvm::registry::callbacks.push(
@@ -196,17 +186,15 @@ public:
           reset_driver_drive_resets(i.reset_sigs);
         });
  }
-    void driveHoldPin(unsigned pinvalue){
-    //SOME CVM msg
-    std::cout<<"\n *************Driving HOLD PIN: "<<pinvalue<<"\n";
 
+void driveHoldPin(unsigned pinvalue){
+    //SOME CVM msg
       cvm::registry::callbacks.push(
        scope(),
        [pinvalue]() {
           reset_driver_drive_holds(pinvalue);
         });
  }
-    //cvm::registry::messenger.signal(loc(), i);
 
   //Check plusarg usage
 void checkUsage();
@@ -217,15 +205,15 @@ void perform_warm_reset();
 void assert_warm_reset_holds();
 void update_smc_status(smc_xtor::smc_reset_driver_data_t i);
 void wait_for_reset_completion_ack();
+
 private:
-  // cvm::file_logger log;
-     svScope scope() { return scope_; }
+    svScope scope() { return scope_; }
     unsigned id() { return id_; }
 
     svScope scope_;
     cvm::topology::loc_t loc_;
     unsigned id_;
-  void reset();
+    void reset();
 
    
 
@@ -242,14 +230,14 @@ private:
    std::vector<bool> HoldVal; // Valid bit for interrupt
    bool drive_holds = true;
 
-  bool holds_asseted = false;
+   bool holds_asseted = false;
 
-  uint64_t ticks = 0;
-  bool run_cold_reset_seq = false;
-  bool run_warm_reset_seq = false;
-  bool send_update_to_smc = true;
-  // uint64_t timer_rand_intr = 500;
-  uint64_t reset_driver_base = 0x9000000;
+   uint64_t ticks = 0;
+   bool run_cold_reset_seq = false;
+   bool run_warm_reset_seq = false;
+   bool send_update_to_smc = true;
+   // uint64_t timer_rand_intr = 500;
+   uint64_t reset_driver_base = 0x9000000;
   
 };
 
