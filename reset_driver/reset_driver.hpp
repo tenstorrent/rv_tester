@@ -69,12 +69,18 @@ public:
     cvm::log(cvm::FULL, "[Reset Driver] Timer tick {} num_clocks {} \n", num_clocks, ticks);
     processResets();
     processHolds();
-    if(FLAGS_mid_sim_reset_en && (ticks % FLAGS_mid_sim_reset_period == 0)){
+    if((ticks >500)&& FLAGS_mid_sim_reset_en && (ticks % FLAGS_mid_sim_reset_period == 0)){
       //perform mid sim cold reset
     }
-    if(FLAGS_mid_sim_warm_reset_en && (ticks % FLAGS_mid_sim_warm_reset_period == 0)){
+    if((ticks>500)&& FLAGS_mid_sim_warm_reset_en && (ticks % FLAGS_mid_sim_warm_reset_period == 0)){
       //perform mid sim cold reset
       perform_warm_reset();
+      assert_warm_reset_holds();
+    }
+    if((ticks>500)&& FLAGS_mid_sim_warm_reset_en && (ticks % FLAGS_mid_sim_warm_reset_period == 20)){
+      //perform mid sim cold reset
+      //perform_warm_reset();
+      deassert_warm_reset_holds();
     }
     if(ticks==10){
       perform_warm_reset();
@@ -236,6 +242,7 @@ private:
    std::vector<bool> HoldVal; // Valid bit for interrupt
    bool drive_holds = true;
 
+  bool holds_asseted = false;
 
   uint64_t ticks = 0;
   bool run_cold_reset_seq = false;
