@@ -440,8 +440,13 @@ module rv_tester
         `TOPOLOGY_CFG,
         `RV_TESTER_TRANSACTIONS_RESET_DRIVER_SOURCE_PARAMS(0)
    )i_reset_driver(
-    .clk(clk[AXI_CLK_IDX]),
+        .clk(clk[AXI_CLK_IDX]),
         .reset(sysmod_reset),
+        .cold_reset_n(cold_reset_n),          
+        .warm_reset_n(warm_reset_n),   
+        .sram_hold(sram_hold),      
+        .debug_hold(debug_hold),     
+        .critical_hold(critical_hold),  
         `RV_TESTER_TRANSACTIONS_RESET_DRIVER_SOURCE_PORTS(2,0,0)
    );
 

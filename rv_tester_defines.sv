@@ -1006,6 +1006,11 @@ package rv_tester_params;
     input                                    terminate,                                             \
     input  logic                             terminated,                                            \
     output                                   quiesced,                                              \
+    input                                    cold_reset_n,                                          \
+    input                                    warm_reset_n,                                          \
+    input                                    sram_hold,                                             \
+    input                                    debug_hold,                                            \
+    input                                    critical_hold,                                         \
     input  rv_tester_pkg::aplic_interrupt_t  aplic_interrupt,                                       \
     input  rv_tester_pkg::dm_write_t         dmi_write,                                             \
     input  rv_tester_pkg::jtag_if_t          jtag_req,                                              \
@@ -1084,6 +1089,11 @@ package rv_tester_params;
     rv_tester_pkg::aplic_interrupt_t         aplic_interrupt;                                       \
     logic                                    terminated;                                            \
     logic                                    quiesced;                                              \
+    logic                                    cold_reset_n;                                          \
+    logic                                    warm_reset_n;                                          \
+    logic                                    sram_hold;                                             \
+    logic                                    debug_hold;                                            \
+    logic                                    critical_hold;                                         \
     rv_tester_pkg::dm_write_t                dmi_write;                                             \
     rv_tester_pkg::jtag_if_t                 jtag_req;                                              \
     rv_tester_pkg::jtag_if_tck               jtag_tck_trst;                                         \
