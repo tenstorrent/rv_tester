@@ -22,7 +22,7 @@ namespace {
         uint64_t address;
     };
 
-    std::array<csr_entry, 355> csrs {{
+    std::array<csr_entry, 356> csrs {{
         {"fflags", 0x001},
         {"frm", 0x002},
         {"fcsr", 0x003},
@@ -336,6 +336,7 @@ namespace {
         {"tdata2", 0x7A2},
         {"tdata3", 0x7A3},
         {"mcontext", 0x7A8},
+        {"tinfo", 0x7A4},
         {"dcsr", 0x7B0},
         {"dpc", 0x7B1},
         {"dscratch0", 0x7B2},

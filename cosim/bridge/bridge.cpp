@@ -110,7 +110,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
       "mtinst","htinst", // RVDE-10005
       "vstart","vxsat","vxrm","vcsr", // Unimplemented
       "sstatus","mstatus","hstatus","mie","hie","vsie","sie", // RVDE-11840
-      "tselect","tdata1","tdata2","tdata3","mcontext", // Unimplemented: RVDE-7518
+      "tselect","tdata1","tdata2","tdata3","mcontext","tinfo", // Unimplemented: RVDE-7518, RVTOOLS-3124
       "fflags","fcsr", // Unimplemented
       "menvcfg","senvcfg","henvcfg", // FIXME: pointer masking change
       "pma","pmp", // FIXME: Performant NC change
