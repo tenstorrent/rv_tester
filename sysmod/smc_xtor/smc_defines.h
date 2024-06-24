@@ -1,4 +1,5 @@
-#define SMC_LOCAL_BASE       0xC0000000
+// 0xC000_0000 will be added by SMC RTL hence removing that from BASE Address
+#define SMC_LOCAL_BASE       0x02100000
 #define SMC_GLOBAL_BASE      0x00000000
 
 #define CPL_INFW_BASE        SMC_LOCAL_BASE + 0x015000
