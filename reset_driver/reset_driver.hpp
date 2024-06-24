@@ -231,6 +231,8 @@ private:
    bool drive_holds = true;
 
    bool holds_asseted = false;
+   unsigned num_resets = 0;
+   unsigned num_warm_resets = 0;
 
    uint64_t ticks = 0;
    bool run_cold_reset_seq = false;

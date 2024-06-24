@@ -17,6 +17,8 @@ DEFINE_bool(mid_sim_reset_en, false, "Enable mid sim reset driving");
 DEFINE_bool(mid_sim_warm_reset_en, false, "Enable mid sim warm reset driving");
 // TODO: control which are dumped? might not be useful
 DEFINE_uint32(reset_pulse_period, 16, "Hold Reset pin value for N cycles");
+DEFINE_uint32(num_resets, 3, "toggle resets N times");
+DEFINE_uint32(num_warm_resets, 3, "toggle warm resets N times");
 DEFINE_uint32(hold_pulse_period, 16, "Hold HOLD pin value for N cycles");
 DEFINE_uint64(mid_sim_reset_period, 7000, "Drive midsim reset every N cycles");
 DEFINE_uint64(mid_sim_warm_reset_period, 2000, "Drive midsim reset every N cycles");
@@ -65,6 +67,10 @@ reset_driver::init_pins()
     driveHoldPulse(hold_data);
 }
 void reset_driver::perform_cold_reset(){
+    if(num_resets < FLAGS_num_resets){
+       num_resets++;
+    }else
+     return;
     reset_data_t rst_data = {1,0,0,FLAGS_reset_pulse_period,1};
     driveResetPulse(rst_data);
 }
@@ -76,6 +82,9 @@ void reset_driver::wait_for_reset_completion_ack(){
 void reset_driver::assert_warm_reset_holds(){
     unsigned hold_value = 0;
     hold_data_t hold_data;
+    if(num_warm_resets >= FLAGS_num_warm_resets)
+       return;
+    
     if(FLAGS_rst_sram_hold)
         hold_value = hold_value | 1<<0;
     
@@ -90,7 +99,10 @@ void reset_driver::assert_warm_reset_holds(){
 }
 
 void reset_driver::perform_warm_reset(){
-    
+    if(num_warm_resets < FLAGS_num_warm_resets){
+       num_warm_resets++;
+    }else
+     return;
     reset_data_t rst_data = {1,0,2,FLAGS_reset_pulse_period,1};
     driveResetPulse(rst_data);
 
@@ -98,6 +110,8 @@ void reset_driver::perform_warm_reset(){
 void reset_driver:: deassert_warm_reset_holds(){
     unsigned hold_value = 0;
     hold_data_t hold_data;
+    if(num_warm_resets >= FLAGS_num_warm_resets)
+       return;
     if(FLAGS_rst_sram_hold)
         hold_value = hold_value & ~(0<<0);
     
