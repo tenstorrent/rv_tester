@@ -230,7 +230,7 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
         if (!result) {
           std::cerr << "Error: Test failed on Standalone Whisper, stopping simulation\n";
           return -1;
-        } else if (max_instr) {
+        } else if (max_instr && (FLAGS_max_instr != 0)) {
           std::cerr << "Error: Test reached max instr on standalone Whisper, stopping simulation\n";
           return -1;
         }
