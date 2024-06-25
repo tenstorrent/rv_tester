@@ -36,8 +36,8 @@ typedef struct whisper_state_s {
 
 // dut <-> bridge
 typedef struct pc_s {
-  bool valid;
-  uint64_t pc_rdata;
+  bool valid = false;
+  uint64_t pc_rdata = 0;
 
   pc_s() {
     clear();
@@ -50,7 +50,7 @@ typedef struct pc_s {
 
 typedef struct gpr_s {
   bool valid;
-  uint64_t rd_addr;
+  uint32_t rd_addr;
   uint64_t rd_wdata;
 
   gpr_s() {
@@ -70,13 +70,18 @@ typedef struct gpr_s {
 
 typedef struct fpr_s {
   bool valid;
-  uint64_t frd_addr;
-  bool frd_wvalid;
+  uint32_t frd_addr;
   uint64_t frd_wdata;
 
   fpr_s() {
     clear();
   }
+
+  constexpr fpr_s(bool valid, uint32_t frd_addr, uint64_t frd_wdata) :
+    valid(valid),
+    frd_addr(frd_addr),
+    frd_wdata(frd_wdata)
+  {}
 
   void clear() {
     valid = false;
@@ -169,6 +174,14 @@ typedef struct mem_cl_s {
   }
 } mem_cl_t;
 
+typedef struct rv_steps_s {
+  // Metadata
+  bool valid = false;
+  uint64_t cycle = 0;
+  uint32_t steps = 0;
+  uint32_t skips = 0;
+} rv_steps_t;
+
 typedef struct rv_instr_s {
   // Metadata
   bool valid = false;
@@ -184,6 +197,7 @@ typedef struct rv_instr_s {
   std::string disasm = std::string(128, ' ');
   uint64_t uop = 0;
   bool vec_cracked = false;
+  bool csr_cracked = false;
   bool trap = false;
   uint8_t priv = 3;
   bool intr = false;
@@ -196,8 +210,8 @@ typedef struct rv_instr_s {
 
   // Registers
   pc_t pc;
-  gpr_t gpr;
-  fpr_t fpr;
+  std::vector<gpr_t> gpr;
+  std::vector<fpr_t> fpr;
   std::vector<vr_t> vr;
   std::vector<csr_t> csr;
 
@@ -242,6 +256,13 @@ typedef struct rv_instr_group_s {
     csrs.clear();
   }
 } rv_instr_group_t;
+
+typedef struct rv_debug_s {
+  bool enter;
+  bool exit;
+  uint64_t cycle;
+  uint64_t hart;
+} rv_debug_t;
 
 typedef struct rv_intr_s {
   uint64_t cycle;

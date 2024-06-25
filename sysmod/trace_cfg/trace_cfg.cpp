@@ -6,16 +6,13 @@
 #include "cvm/random.hpp"
 #include "trace_cfg.h"
 #include "transactors/axi_sw/axi.h"
+#include "sysmod/sysmod_plusargs.h"
 #include <fstream>
 #include <sstream>
 #include <string>
 #include <vector>
 #include <unordered_map>
 #include <random>
-
-
-DECLARE_string(load);
-DECLARE_int32(seed);
 
 
 trace_cfg::trace_cfg(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc)
@@ -74,6 +71,7 @@ void trace_cfg::write(const transactor::write_t& ) {
 
 auto trace_cfg::pickRandomElements(uint32_t n) -> trace_cfg::random_list {
     random_list picks;
+    cvm::log(cvm::FULL, "[overlay axi] no of mmrs selected {} \n",n);
     for (uint32_t i = 0; i < n; i++) picks.push_back(mmr::list[rng() % mmr::list.size()]);
 
     return picks;

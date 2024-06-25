@@ -40,7 +40,11 @@ class rvfi {
     void init();
     void set_scope(svScope s) { scope_ = s; }
     void process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi);
+    void process(const rv_tester_transactions::cosim::m_steps<>& m_steps);
     void process(const rv_tester_transactions::cosim::m_trap<>& m_trap);
+    void process(const rv_tester_transactions::cosim::m_gp_regs<>& m_gp_regs);
+    void process(const rv_tester_transactions::cosim::m_fp_regs<>& m_fp_regs);
+    void process(const rv_tester_transactions::cosim::m_vc_regs<>& m_vc_regs);
     void process(const rv_tester_transactions::cosim::m_core_intr<>& m_core_intr);
     void process(const rv_tester_transactions::cosim::m_imsic_msi<>& m_imsic_msi);
     void process(const rv_tester_transactions::cosim::m_debug<>& m_debug);
@@ -102,6 +106,7 @@ class rvfi {
     std::vector<rv_instr_t> instrs_;
     std::vector<vr_t> cracked_vrs_;
     std::vector<csr_t> hw_csrs_, ucode_csrs_;
+    uint32_t cracked_flags_ = 0;
     gpr_s cracked_gpr_;
 
     std::unordered_map<uint64_t, mem_t> ifetch_reqs_;

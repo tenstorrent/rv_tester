@@ -15,24 +15,12 @@
 #include "whisper_client.h"
 #include "HartConfig.hpp"
 #include "Hart.hpp"
+#include "cosim/dut_if/rvfi/rvfi_plusargs.h"
+#include "sysmod/sysmod_plusargs.h"
+#include "cosim/bridge/bridge_plusargs.h"
+#include "cosim/utils/eot/eot_plusargs.h"
+#include "rv_tester_plusargs.h"
 
-DECLARE_string(load);
-DECLARE_string(hex);
-DECLARE_string(load_lz4);
-DECLARE_bool(bootrom);
-DECLARE_string(bootrom_path);
-DECLARE_string(cplfw_path);
-DECLARE_string(whisper_json_path);
-DECLARE_bool(whisper_stdin_null);
-DECLARE_bool(whisper_stdout_null);
-DECLARE_bool(preload);
-DECLARE_bool(mcm);
-DECLARE_bool(cov);
-DECLARE_uint32(max_instr);
-DECLARE_string(archsample_lib_path);
-DECLARE_bool(standalone);
-DECLARE_uint64(hart_enable_mask);
-DECLARE_uint64(tohost);
 
 DEFINE_bool(nostop_standalone,false, "Do not stop if standalone whisper fails");
 
@@ -242,7 +230,7 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
         if (!result) {
           std::cerr << "Error: Test failed on Standalone Whisper, stopping simulation\n";
           return -1;
-        } else if (max_instr) {
+        } else if (max_instr && (FLAGS_max_instr != 0)) {
           std::cerr << "Error: Test reached max instr on standalone Whisper, stopping simulation\n";
           return -1;
         }
@@ -356,6 +344,55 @@ whisperClient<URV>::whisperPeekPc(int hart, uint64_t& value)
   return true;
 }
 
+template <typename URV>
+bool
+whisperClient<URV>::whisperPeekGpr(int hart, uint64_t addr, uint64_t& value)
+{
+  req.hart = hart;
+  req.type = WhisperMessageType::Peek;
+  req.resource = 'r';
+  req.address = addr;
+
+  if (not whisperCommand(req, reply))
+    return false;
+
+  value = reply.value;
+  return true;
+}
+template <typename URV>
+bool
+whisperClient<URV>::whisperPeekFpr(int hart, uint64_t addr, uint64_t& value)
+{
+  req.hart = hart;
+  req.type = WhisperMessageType::Peek;
+  req.resource = 'f';
+  req.address = addr;
+
+  if (not whisperCommand(req, reply))
+    return false;
+
+  value = reply.value;
+  return true;
+}
+template <typename URV>
+bool
+whisperClient<URV>::whisperPeekVpr(int hart, uint64_t addr, std::array<std::uint8_t, 32>& value)
+{
+  int i;
+  req.hart = hart;
+  req.type = WhisperMessageType::Peek;
+  req.resource = 'v';
+  req.address = addr;
+
+  if (not whisperCommand(req, reply))
+    return false;
+
+  for(i=0;i<32;i++) {
+     value[i] = reply.buffer[i]; 
+  }
+  return true;
+}
+
 // Send a whisper poke command. Retrun true on successful comunication
 // and false on failure. Set valid to false if hart/resource/addr
 // are invalid.
@@ -418,14 +455,16 @@ whisperClient<URV>::whisperStep(int hart, uint64_t time, uint64_t instrTag, uint
   instruction = reply.resource;
   changeCount = reply.value;
 
-  // Recover privilege mode (2 bits), fpFlags (4 bits), and trap (1
+  // Recover privilege mode (2 bits), fpFlags (5 bits), and trap (1
   // bit) from flags field.
-  unsigned mode = reply.flags & 3;
-  unsigned flags = (reply.flags >> 2) & 0xf;
-  unsigned trap = (reply.flags >> 6) & 1;
-  unsigned stop = (reply.flags >> 7) & 1;
-  unsigned virt = (reply.flags >> 9) & 1;
-  unsigned load = (reply.flags >> 11) & 1;
+  WhisperFlags wflags(reply.flags);
+
+  unsigned mode = wflags.bits.privMode;
+  unsigned flags = wflags.bits.fpFlags;
+  unsigned trap = wflags.bits.trap;
+  unsigned stop = wflags.bits.stop;
+  unsigned virt = wflags.bits.virt;
+  unsigned load = wflags.bits.load;
 
   privMode = mode | (virt << 3);
   fpFlags = flags;
