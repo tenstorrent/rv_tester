@@ -287,7 +287,7 @@ void jtag_driver::drive_csv_jtag_cmds()
     }
     
     if(jtag_cmd == 6){ //le loop end, checkbitNum, CheckbitValue
-       cvm::log(cvm::ERROR, "[JTAGDRIVER] jtag loop end detected without loop start \n");
+       cvm::log(cvm::ERROR, "ERROR: [JTAGDRIVER] jtag loop end detected without loop start \n");
     }
 
 
