@@ -826,7 +826,7 @@ sysmod::load_csr_mmr_boot(uint64_t)
     addr = dev("boot")->addr() + 0x8000;
     for (auto const& [csr_num, value] : csr_data) {
       uint32_t csr_op = 0;
-      if (value > 32) {
+      if (value >= 32) {
         int dest_gpr = 4, temp_gpr2 = 3, temp_gpr3 = 28;
         std::vector<uint32_t> opcodes = cosim_util::opcode_move_value_to_register(value, dest_gpr, temp_gpr2, temp_gpr3);
         for (auto& opcode: opcodes) add_to_mem(opcode);
