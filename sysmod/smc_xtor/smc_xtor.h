@@ -8,6 +8,7 @@
 #include <mem_manager.h>
 #include "pcg_random.hpp"
 #include "cvm/registry.hpp"
+#include "rv_tester_plusargs.h"
 #include "transactor.h"
 #include "transactors/axi_sw/axi.h"
 #include "smc_defines.h"
@@ -16,6 +17,7 @@
 DECLARE_bool(smc_en);
 DECLARE_bool(smc_sweep_test);
 DECLARE_int32(smc_reset_seq_start_ticks);
+DECLARE_uint64(hart_enable_mask);
 class smc_xtor : public device {
 
     private:
@@ -70,9 +72,10 @@ class smc_xtor : public device {
        
         cvm::messenger::task<void> read(const transactor::read_t& , data_t& );
 
-        void gen_data_strb(uint64_t addr, uint32_t value, data_t& wdata, std::vector<bool>& strb) {
+        void gen_data_strb(uint32_t addr, uint64_t value, data_t& wdata, std::vector<bool>& strb) {
             uint8_t b_index =  static_cast<uint8_t>(addr & 0x7);
 
+            cvm::log(cvm::LOW, "[SMC] gen_strb  data:{:#X} \n",value);
             for (uint8_t i = 0; i < 8; ++i) {
                   wdata.push_back(0x0);
                   strb.push_back(0x0);
@@ -255,7 +258,48 @@ class smc_xtor : public device {
           smc_boot_wr_txn_q.push({ 0x02102008,0x1});
           //Write 0x00 in 0x0210_200C // Release core no fetch control
           smc_boot_wr_txn_q.push({ 0x0210200C,0x000000000});
+
+          if (FLAGS_hart_enable_mask == 0xff) {
+            cvm::log(cvm::LOW, "[SMC_XTOR] smc_xtor 8C FuseMMR config\n");
+            smc_boot_wr_txn_q.push({0x4200FFF8 ,0xFDB975318700});	// Core fuse MMR
+            smc_boot_wr_txn_q.push({0x4201FFF8 ,0xFDB975318700});	// Core fuse MMR
+            smc_boot_wr_txn_q.push({0x4202FFF8 ,0xFDB975318700});	// Core fuse MMR
+            smc_boot_wr_txn_q.push({0x4203FFF8 ,0xFDB975318700});	// Core fuse MMR
+            smc_boot_wr_txn_q.push({0x4204FFF8 ,0xFDB975318700});	// Core fuse MMR
+            smc_boot_wr_txn_q.push({0x4205FFF8 ,0xFDB975318700});	// Core fuse MMR
+            smc_boot_wr_txn_q.push({0x4206FFF8 ,0xFDB975318700});	// Core fuse MMR
+            smc_boot_wr_txn_q.push({0x4207FFF8 ,0xFDB975318700});	// Core fuse MMR
+            
+            smc_boot_wr_txn_q.push({0x4208FFF8 ,0xFDB975318700});		// Trace fuse MMR
+            //smc_boot_wr_txn_q.push({0x4208FFFC ,0xFDB9});
+            smc_boot_wr_txn_q.push({0x4218FFF8 ,0xFDB975318700});	// ACLINT fuse MMR
+            smc_boot_wr_txn_q.push({0x4219FFF8 ,0xFDB975318700});	// DM fuse MMR
+            // FIXME:: SW RTL support is not there
+            // smc_boot_wr_txn_q.push({0x421BFFF8 ,0xFDB975318700});	// SW fuse MMR
+
+          }
+          else if (FLAGS_hart_enable_mask == 0x3) {
+            cvm::log(cvm::LOW, "[SMC_XTOR] smc_xtor 2C FuseMMR config\n");
+            smc_boot_wr_txn_q.push({0x4200FFF8 ,0x318700});	// Core fuse MMR
+            smc_boot_wr_txn_q.push({0x4201FFF8 ,0x318700});	// Core fuse MMR
+            smc_boot_wr_txn_q.push({0x4208FFF8 ,0x318700});	// Trace fuse MMR
+            smc_boot_wr_txn_q.push({0x4218FFF8 ,0x318700});	// ACLINT fuse MMR
+            smc_boot_wr_txn_q.push({0x4219FFF8 ,0x318700});	// DM fuse MMR
+            // FIXME:: SW RTL support is not there
+            // smc_boot_wr_txn_q.push({0x421BFFF8 ,0x318700});	// SW fuse MMR
+
+          }
+          else {
+            cvm::log(cvm::LOW, "[SMC_XTOR] smc_xtor 1C FuseMMR config\n");
+            smc_boot_wr_txn_q.push({0x4200FFF8 ,0x18700});	// Core fuse MMR
+            smc_boot_wr_txn_q.push({0x4208FFF8 ,0x18700});	// Trace fuse MMR
+            smc_boot_wr_txn_q.push({0x4218FFF8 ,0x18700});	// ACLINT fuse MMR
+            smc_boot_wr_txn_q.push({0x4219FFF8 ,0x18700});	// DM fuse MMR
+            // FIXME:: SW RTL support is not there
+            // smc_boot_wr_txn_q.push({0x421BFFF8 ,0x18700});	// SW fuse MMR
+          }
         }
+
         void push_smc_disable_seq() {
           cvm::log(cvm::FULL, "[smc_xtor] smc_xtor inside disable smc seq\n");
           cvm::log(cvm::FULL, "[smc_xtor] smc_xtor completed disable smc seq\n");
