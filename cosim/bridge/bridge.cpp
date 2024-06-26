@@ -110,7 +110,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
       "mtinst","htinst", // RVDE-10005
       "vstart","vxsat","vxrm","vcsr", // Unimplemented
       "sstatus","mstatus","hstatus","mie","hie","vsie","sie", // RVDE-11840
-      "tselect","tdata1","tdata2","tdata3","mcontext", // Unimplemented: RVDE-7518
+      "tselect","tdata1","tdata2","tdata3","mcontext","tinfo", // Unimplemented: RVDE-7518, RVTOOLS-3124
       "fflags","fcsr", // Unimplemented
       "menvcfg","senvcfg","henvcfg", // FIXME: pointer masking change
       "pma","pmp", // FIXME: Performant NC change
@@ -941,7 +941,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
     if (w.resource == 'c') {
       csr_t c;
       c.valid = true;
-      c.csr_addr = w.address;
+      c.csr_addr = w.address & 0xfff;
       c.csr_wdata = w.value;
       w_.csr.push_back(c);
       update_regs(hart, w);
@@ -1152,7 +1152,7 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_
             break;
           }
         }
-        update_csr(hart, src_t::iss, w.address, w.value);
+        update_csr(hart, src_t::iss, w.address & 0xfff, w.value);
       }
 
       if (w.address == 0x344) {

@@ -226,25 +226,25 @@ class smc_xtor : public device {
           cvm::log(cvm::HIGH, "[smc_xtor] smc_xtor sram write seq\n");
           write_ram = (rng()%0xFFFFFFFFFFFFFFFF);
           for(int i = 0; i < 8;i++){
-            smc_wr_txn_q.push({static_cast<uint32_t>(CPL_SRAM_BASE+i*8) ,0xFFFFFFFFFFFFFFFF});
+            smc_wr_txn_q.push({static_cast<uint32_t>(smc_mmr_base::CPL_SRAM_BASE+i*8) ,0xFFFFFFFFFFFFFFFF});
           }
 
           for(int i = 200; i < 212;i++){
             write_ram = (rng()%0xFFFFFFFFFFFFFFFF);
-            smc_wr_txn_q.push({static_cast<uint32_t>(CPL_SRAM_BASE+i*8) ,write_ram});
+            smc_wr_txn_q.push({static_cast<uint32_t>(smc_mmr_base::CPL_SRAM_BASE+i*8) ,write_ram});
           }
 
           for(int i = 504; i < 511;i++){
             write_ram = (rng()%0xFFFFFFFFFFFFFFFF);
-            smc_wr_txn_q.push({static_cast<uint32_t>(CPL_SRAM_BASE+i*8) ,write_ram});
+            smc_wr_txn_q.push({static_cast<uint32_t>(smc_mmr_base::CPL_SRAM_BASE+i*8) ,write_ram});
           }
           cvm::log(cvm::HIGH, "[smc_xtor] smc_xtor sram write seq\n");
         }
 
          void push_smc_sram_read_seq() {
           cvm::log(cvm::HIGH, "[smc_xtor] smc_xtor sram read seq\n");
-          smc_rd_txn_q.push({static_cast<uint32_t>(CPL_SRAM_BASE),8});
-          smc_rd_txn_q.push({static_cast<uint32_t>(CPL_SRAM_BASE+0x8),8});
+          smc_rd_txn_q.push({static_cast<uint32_t>(smc_mmr_base::CPL_SRAM_BASE),8});
+          smc_rd_txn_q.push({static_cast<uint32_t>(smc_mmr_base::CPL_SRAM_BASE+0x8),8});
           cvm::log(cvm::HIGH, "[smc_xtor] smc_xtor sram read seq\n");
         }
         
