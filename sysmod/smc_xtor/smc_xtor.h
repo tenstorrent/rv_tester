@@ -254,8 +254,6 @@ class smc_xtor : public device {
           smc_boot_wr_txn_q.push({ 0x02102004,0x1});
           //Write 0x1 in 0x0210_2008  // Release cluster warm reset
           smc_boot_wr_txn_q.push({ 0x02102008,0x1});
-          //Write 0x00 in 0x0210_200C // Release core no fetch control
-          smc_boot_wr_txn_q.push({ 0x0210200C,0x000000000});
 
           if (FLAGS_hart_enable_mask == 0xff) {
             cvm::log(cvm::LOW, "[SMC_XTOR] smc_xtor 8C FuseMMR config\n");
@@ -274,6 +272,7 @@ class smc_xtor : public device {
             smc_boot_wr_txn_q.push({0x4219FFF8 ,0xFDB975318700});	// DM fuse MMR
             // FIXME:: SW RTL support is not there
             // smc_boot_wr_txn_q.push({0x421BFFF8 ,0xFDB975318700});	// SW fuse MMR
+            smc_boot_wr_txn_q.push({0x421AFFF8 ,0xFDB975318700});	// SC fuse MMR
 
           }
           else if (FLAGS_hart_enable_mask == 0x3) {
@@ -285,6 +284,7 @@ class smc_xtor : public device {
             smc_boot_wr_txn_q.push({0x4219FFF8 ,0x318700});	// DM fuse MMR
             // FIXME:: SW RTL support is not there
             // smc_boot_wr_txn_q.push({0x421BFFF8 ,0x318700});	// SW fuse MMR
+            smc_boot_wr_txn_q.push({0x421AFFF8 ,0x318700});	// SC fuse MMR
 
           }
           else {
@@ -295,7 +295,11 @@ class smc_xtor : public device {
             smc_boot_wr_txn_q.push({0x4219FFF8 ,0x18700});	// DM fuse MMR
             // FIXME:: SW RTL support is not there
             // smc_boot_wr_txn_q.push({0x421BFFF8 ,0x18700});	// SW fuse MMR
+            smc_boot_wr_txn_q.push({0x421AFFF8 ,0x18700});	// SC fuse MMR
           }
+
+          //Write 0x00 in 0x0210_200C // Release core no fetch control
+          smc_boot_wr_txn_q.push({ 0x0210200C,0x000000000});
         }
 
         void push_smc_disable_seq() {
