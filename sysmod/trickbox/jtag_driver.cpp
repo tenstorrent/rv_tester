@@ -2,6 +2,7 @@
 #include "cvm/topology.hpp"
 #include "cvm/logger.hpp"
 #include "jtag_driver.h"
+#include "sysmod/sysmod_plusargs.h"
 
 DEFINE_string(jtag_input_file_path, "", "Path to file containing jtag_driver commands");
 DEFINE_bool(random_jtag_entry, false, "Enter debug mode randomly after random intervals");
@@ -286,7 +287,7 @@ void jtag_driver::drive_csv_jtag_cmds()
     }
     
     if(jtag_cmd == 6){ //le loop end, checkbitNum, CheckbitValue
-       cvm::log(cvm::ERROR, "[JTAGDRIVER] jtag loop end detected without loop start \n");
+       cvm::log(cvm::ERROR, "ERROR: [JTAGDRIVER] jtag loop end detected without loop start \n");
     }
 
 

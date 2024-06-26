@@ -199,7 +199,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::a_wrapper(uint64_t req_addr, size_t req_length, 
         return false;
     }
 
-    if ((a.addr & axi::addr_t(~0xFFF)) != ((a.addr + req_length) & axi::addr_t(~0xFFF))) {
+    if ((a.addr & axi::addr_t(~0xFFF)) != ((a.addr + req_length - 1) & axi::addr_t(~0xFFF))) {
         cvm::log(cvm::ERROR, "Request crosses 4k boundary, addr: {}, length: {}\n", req_addr, req_length);
         return false;
     }

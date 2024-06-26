@@ -1,1 +1,9 @@
 exports_files(["rvfi.cpp", "rvfi.h"])
+
+cc_library(
+    name = "rvfi_plusargs",
+    hdrs = ["rvfi_plusargs.h"],
+    deps = ["@cvm//:plusargs"],
+
+    visibility = ["//visibility:public"],
+)

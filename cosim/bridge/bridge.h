@@ -3,6 +3,7 @@
 #pragma once
 
 #include <string>
+#include <chrono>
 #include <algorithm>
 #include <iomanip>
 #include <vector>
@@ -24,6 +25,8 @@ private:
   using resource_t = cac::resource_t;
   using resource_id_t = cac::resource_id_t;
   using CacCore = cac::CacCore;
+  uint64_t previous_cycle_;
+
 
 public:
   // Usec by some functions in bridge.cpp
@@ -44,8 +47,13 @@ public:
   //   - Table Walks
   //   - Exceptions/interrupt
   virtual void process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) override;
+  virtual void process_steps(hart_id_t hart, uint32_t n_retire, uint64_t cycle, uint64_t steps, uint64_t skips, uint64_t final_steps) override;
   virtual void process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d) override;
   virtual void process_dut_csr_hw_update(hart_id_t hart, csr_t& c) override;
+  virtual void process_compare_gp_regs(hart_id_t hart, const std::array<std::uint64_t, 32>& array);
+  virtual void process_compare_fp_regs(hart_id_t hart, const std::array<std::uint64_t, 32>& array);
+  virtual void process_compare_vc_regs(hart_id_t hart, const std::array<std::bitset<256>, 32>& array);
+  virtual void process_compare_vc_regs(hart_id_t hart, const std::array<std::uint64_t, 32>& array);
 
   // Process memory access
   //   - Read (Ld completion)
@@ -87,6 +95,7 @@ private:
   void arch_state(whisper_state_t& w);
   void update_whisper_state(hart_id_t hart, whisper_state_t& w);
   void step(hart_id_t hart, whisper_state_t& w);
+  void compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w, const rv_instr_t& d);
   void print_instr(hart_id_t hart, const whisper_state_t& w);
   void print_instr_stdout(hart_id_t hart, const rv_instr_t& d);
   void print_instr_stdout(hart_id_t hart, const whisper_state_t& w);
@@ -107,7 +116,8 @@ private:
   uint64_t get_csr_poke_mask(hart_id_t hart, uint64_t addr);
   std::string get_csr_name(const std::string& addr);
   bool is_custom_csr(uint64_t addr);
-  bool is_supported_csr(uint64_t addr);
+  bool is_pmacfg_csr(uint64_t addr);
+  bool is_chicken_bit_csr(uint64_t addr);
 
   void translation_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   uint64_t translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t memclass);
@@ -130,12 +140,17 @@ private:
   void poke_mip(hart_id_t hart, uint64_t time, uint64_t mip);
   void peek_mip(hart_id_t hart, uint64_t time, uint64_t& mip);
   void peek_seip(hart_id_t hart, uint64_t time, uint64_t& val);
+  void get_gp_reg(uint32_t reg, uint64_t& data);
+  void get_fp_reg(uint32_t reg, uint64_t& data);
+  void get_vec_reg(uint32_t reg, std::array<std::uint8_t, 32>& data);
+
 
   bool is_custom_excp(uint64_t cause);
   bool is_vector(const std::string& instr);
   bool disable_pa_check_vec(hart_id_t hart);
   bool is_compressed(const std::string& instr);
   bool is_ucode(const std::string& instr);
+  bool is_cracked_csr(const std::string& instr);
   bool does_instr_match_resynch_list(const rv_instr_t& d, const std::string& instr);
   bool does_instr_match_resynch_condition(const rv_instr_t& d, const std::string& instr);
   bool clint_read(const rv_instr_t& d);
@@ -164,6 +179,8 @@ private:
   CacCore cac_;
   CacCore csr_cac_;
 
+  uint64_t order_ = 0;
+
   // Previous instruction's whisper state
   whisper_state_t pw_{};
   whisper_state_t ppw_{};
@@ -173,6 +190,8 @@ private:
   rv_instr_t pd_;
 
   uint32_t step_ = 1;
+  uint64_t whisper_time_=0;
+  uint64_t rvfi_calls_=0;
 
   // State variables
   bool ecall_ = false;
@@ -187,6 +206,10 @@ private:
   uint16_t mprv_ = 0;
   uint16_t mpp_ = 0;
   uint16_t mpv_ = 0;
+  bool csr_rename_en_ = false;
+
+  uint64_t dummy_data_ = 0;
+  hart_id_t dummy_hart_ = 0;
 
   bool resynch_intr_cause_mismatch_ = false;
   bool resynch_csr_ = false;
@@ -209,6 +232,9 @@ private:
   bool post_undeferred_intr_;
   std::array<uint32_t, max_intr> intr_age_{};
   uint32_t max_pend_intr_age_ = 0;
+  std::chrono::high_resolution_clock::time_point end_time_;
+  std::chrono::high_resolution_clock::time_point start_of_test_;
+  bool first_call_ = true;
 
   // Memmap
   memmap::memmap_t memmap_;

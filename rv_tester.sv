@@ -8,6 +8,18 @@ module rv_tester
     `_RV_TESTER_PORTS(output,input)
 );
 
+    longint eot_addr;
+    byte    eot_status;
+    byte    eot_syscall;
+
+    export "DPI-C" function cosim_set_eot;
+    function void cosim_set_eot(input longint unsigned addr, input byte status, input byte syscall);
+       eot_addr    = addr;
+       eot_status  = status;
+       eot_syscall = syscall;
+    endfunction
+
+
     typedef longint unsigned LU;
 
     localparam int unsigned NoAddrRules = 20;
@@ -95,7 +107,7 @@ module rv_tester
     import "DPI-C" function int rv_tester_parse_flags(); // dummy return value so that this gets called immediately. need this to happen before any other DPIs are called.
     import "DPI-C" context function void rv_tester_cvm_error_handler();
     import "DPI-C" context function void rv_tester_parse_memmap(int unsigned no_addr_rules);
-    import "DPI-C" function void rv_tester_build_registry();
+    import "DPI-C" context function void rv_tester_build_registry();
     import "DPI-C" function byte unsigned rv_tester_shutdown_registry();
     import "DPI-C" context function bit rv_tester_flush_callbacks();
 
@@ -153,7 +165,7 @@ module rv_tester
     int unsigned cvm_verbosity, gen_clocks_verbosity;
 
     assign terminate           = (rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
-    assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && (dmi_commands_in_queue == '0) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced ); 
+    assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue == '0) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced ); 
     
     assign rerun_now           = terminated && num_reruns > 0;
 
@@ -461,6 +473,9 @@ module rv_tester
                 $display("<%0d> [RVTESTER]: Error: Debug poll timeout limit reached.", clocks);
                 dmi_poll_timeout_terminate <= 1;
             end
+            else if ((dmi_poll_counter >= 'h1) && terminate) begin
+               $display("<%0d> [RVTESTER]: Debug poll stopped as test pass condition detected limit reached", clocks); 
+            end
         end
     end
 
@@ -504,6 +519,7 @@ module rv_tester
           .imsic_ipi(axi_ipi_packets[c]), //FIXME
           .debug_mode(debug_mode[c]),
           .terminate(cosim_terminate[c]),
+          .eot_addr(eot_addr),
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PORTS(1, c, 0)
       );
     end

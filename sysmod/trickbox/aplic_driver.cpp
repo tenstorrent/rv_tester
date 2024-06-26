@@ -1,6 +1,7 @@
 #include "cvm/plusargs.hpp"
 #include "cvm/logger.hpp"
 #include "aplic_driver.h"
+#include "sysmod/sysmod_plusargs.h"
 
  DEFINE_bool(random_aplic_intr, false, "Drive random aplic interrups");
  DEFINE_int32(num_interrupts, 10, "Maximum interrupt index driven in single example");
