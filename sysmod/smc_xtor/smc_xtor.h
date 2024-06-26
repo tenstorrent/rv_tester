@@ -17,7 +17,6 @@
 DECLARE_bool(smc_en);
 DECLARE_bool(smc_sweep_test);
 DECLARE_int32(smc_reset_seq_start_ticks);
-DECLARE_uint64(hart_enable_mask);
 class smc_xtor : public device {
 
     private:
@@ -75,7 +74,6 @@ class smc_xtor : public device {
         void gen_data_strb(uint32_t addr, uint64_t value, data_t& wdata, std::vector<bool>& strb) {
             uint8_t b_index =  static_cast<uint8_t>(addr & 0x7);
 
-            cvm::log(cvm::LOW, "[SMC] gen_strb  data:{:#X} \n",value);
             for (uint8_t i = 0; i < 8; ++i) {
                   wdata.push_back(0x0);
                   strb.push_back(0x0);
