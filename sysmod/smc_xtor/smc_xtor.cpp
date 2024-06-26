@@ -55,13 +55,13 @@ void smc_xtor::axi_write() {
   smc_wr_txn_q.pop();
   addr = (uint64_t)wr.addr;
   gen_data_strb(wr.addr,wr.data,data,strb);
-  cvm::log(cvm::FULL, "[SMC] write {:#X} loc :{:#X} data:{:#X} \n",addr,axi_mst_loc_l,wr.data);
+  cvm::log(cvm::HIGH, "[SMC] write {:#X} loc :{:#X} data:{:#X} \n",addr,axi_mst_loc_l,wr.data);
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb});
 }
 
 void smc_xtor::axi_read(uint64_t addr, size_t length,
                           uint32_t id) {
-  cvm::log(cvm::FULL, "[SMC] axi read addr= {:#X} id = {} length = {}  \n",addr,id,length);
+  cvm::log(cvm::HIGH, "[SMC] axi read addr= {:#X} id = {} length = {}  \n",addr,id,length);
   transactor::read_t r ;
   r.addr = addr;
   r.length = length;
