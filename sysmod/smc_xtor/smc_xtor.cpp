@@ -26,7 +26,19 @@ smc_xtor::smc_xtor(const std::string& tag, uint64_t addr, size_t size, cvm::topo
   push_smc_boot_seq();
 }
 void smc_xtor::update_reset_driver_status(smc_ip_data_t i){
-  std::cout<<"GOT update from reset driver "<<i.data<<"\n";
+  cvm::log(cvm::NONE, "GOT update from reset driver {:#x} \n",i.data);
+  if (i.data == 1) { // Mid-sim cold reset
+     cvm::log(cvm::NONE, "GOT mid-sim cold reset indication\n");
+     push_smc_boot_seq();
+    reset_completion = false;
+    in_boot_seq = true;
+    read_in_flight = false;
+  }
+  else if (i.data == 2) { // Mid-sim warm reset
+    cvm::log(cvm::NONE, "GOT mid-sim warn reset indication\n");
+    push_smc_boot_seq();
+    in_boot_seq = true;
+  }
 }
 void smc_xtor::axi_write_granular() {
 

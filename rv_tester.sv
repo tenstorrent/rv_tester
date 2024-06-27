@@ -350,7 +350,7 @@ module rv_tester
     
     dmi_driver i_dmi_driver(
         .clk(clk[AXI_CLK_IDX]),
-        .reset(reset[RESET_IDX]),
+        .reset(~fb_debug_reset_n),
         .dmi_req_ready,
         .dmi_resp_valid,
         .dmi_resp,
@@ -456,13 +456,14 @@ module rv_tester
         `TOPOLOGY_CFG,
         `RV_TESTER_TRANSACTIONS_RESET_DRIVER_SOURCE_PARAMS(0)
    )i_reset_driver(
-        .clk(clk[AXI_CLK_IDX]),
+        .clk(clk[SOC_CLK_IDX]),
         .reset(sysmod_reset),
         .cold_reset_n(cold_reset_n),          
         .warm_reset_n(warm_reset_n),   
         .sram_hold(sram_hold),      
         .debug_hold(debug_hold),     
-        .critical_hold(critical_hold),  
+        .critical_hold(critical_hold),
+        .force_ss_to_ref_clock_n(force_ss_to_ref_clock_n),
         `RV_TESTER_TRANSACTIONS_RESET_DRIVER_SOURCE_PORTS(2,0,0)
    );
 

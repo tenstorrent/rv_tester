@@ -1012,6 +1012,9 @@ package rv_tester_params;
     input                                    sram_hold,                                             \
     input                                    debug_hold,                                            \
     input                                    critical_hold,                                         \
+    input                                    force_ss_to_ref_clock_n,                               \
+    output                                   fb_warm_reset_n,                                       \
+    output                                   fb_debug_reset_n,                                      \
     input  rv_tester_pkg::aplic_interrupt_t  aplic_interrupt,                                       \
     input  rv_tester_pkg::dm_write_t         dmi_write,                                             \
     input  rv_tester_pkg::jtag_if_t          jtag_req,                                              \
@@ -1095,6 +1098,9 @@ package rv_tester_params;
     logic                                    sram_hold;                                             \
     logic                                    debug_hold;                                            \
     logic                                    critical_hold;                                         \
+    logic                                    force_ss_to_ref_clock_n;                               \
+    logic                                    fb_warm_reset_n;                                       \
+    logic                                    fb_debug_reset_n;                                      \
     rv_tester_pkg::dm_write_t                dmi_write;                                             \
     rv_tester_pkg::jtag_if_t                 jtag_req;                                              \
     rv_tester_pkg::jtag_if_tck               jtag_tck_trst;                                         \

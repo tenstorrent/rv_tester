@@ -116,12 +116,12 @@ class smc_xtor : public device {
         {
             if(!FLAGS_smc_en)
               return;
-            cvm::log(cvm::FULL, "[SMC] tick {:#X} \n",cnt_tick);
+            cvm::log(cvm::NONE, "[SMC] tick {:#X} \n",cnt_tick);
             if(in_boot_seq && ( cnt_tick > uint32_t(FLAGS_smc_reset_seq_start_ticks))){
-            cvm::log(cvm::FULL, "[SMC] IN BOOT SEQ {} reset complition {} \n",in_boot_seq,reset_completion);
+            cvm::log(cvm::NONE, "[SMC] IN BOOT SEQ {} reset complition {} \n",in_boot_seq,reset_completion);
               if(!reset_completion){
-                  cvm::log(cvm::FULL, "[SMC] Check axi read response for 0x0210300C \n");
-                  cvm::log(cvm::FULL, "[SMC] axi read response  Queue size for  0x0210300C = {} \n",smc_read_resp_q.size());
+                  cvm::log(cvm::NONE, "[SMC] Check axi read response for 0x0210300C \n");
+                  cvm::log(cvm::NONE, "[SMC] axi read response  Queue size for  0x0210300C = {} \n",smc_read_resp_q.size());
                   if(smc_read_resp_q.size() >0){
                      smc_xtor_read_req_t smc_xtor_rd;
                      smc_xtor_rd = smc_read_resp_q.front();
@@ -132,17 +132,18 @@ class smc_xtor : public device {
                     //  cvm::log(cvm::FULL, "[SMC] read resp data= {:#X} \n", d);
        
                      if(smc_xtor_rd.data[4] == 0x10){
+                      cvm::log(cvm::NONE, "[SMC] axi read poll done 0x0210300C \n"); 
                       reset_completion = true;
                      }
                   }else if (!read_in_flight) {
 
-                    cvm::log(cvm::FULL, "[SMC] axi read 0x0210300C \n");
+                    cvm::log(cvm::NONE, "[SMC] axi read 0x0210300C \n");
 
                     read_in_flight = true;
                     axi_read(0x0210300C,4,204);
                   }
               }else{
-                  cvm::log(cvm::FULL, "[SMC] Drive axi write requests for boot sequence  \n");
+                  cvm::log(cvm::NONE, "[SMC] Drive axi write requests for boot sequence  \n");
                  if(smc_boot_wr_txn_q.size()>0){
                    smc_wr_t smc_boot_txn;
                    smc_boot_txn = smc_boot_wr_txn_q.front();
@@ -150,7 +151,7 @@ class smc_xtor : public device {
                    smc_wr_txn_q.push(smc_boot_txn);
                  }else{
                   //boot done
-                  cvm::log(cvm::FULL, "[SMC]  boot sequence completed \n");
+                  cvm::log(cvm::NONE, "[SMC]  boot sequence completed \n");
                   in_boot_seq = false;
                  }
               }
@@ -161,7 +162,7 @@ class smc_xtor : public device {
               start_smc_cnt = (rng()% 5) + 25;
               // reset_completion = true;
               if(FLAGS_smc_en){
-                cvm::log(cvm::LOW, "[SMC] Enable switch is set");
+                cvm::log(cvm::LOW, "[SMC] Enable switch is set \n");
               }
             }
             

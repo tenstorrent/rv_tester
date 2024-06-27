@@ -13,6 +13,7 @@ module reset_driver #(
   output sram_hold,
   output debug_hold,
   output critical_hold,
+  output force_ss_to_ref_clock_n,
   `RV_TESTER_TRANSACTIONS_RESET_DRIVER_OUTPUT_PORTS
 );
 
@@ -71,6 +72,7 @@ module reset_driver #(
     assign debug_hold = o_holds[2];
     assign cold_reset_n = o_resets[0]; 
     assign warm_reset_n = o_resets[2];
+    assign force_ss_to_ref_clock_n = 1'b1;
     export "DPI-C" function reset_driver_drive_resets;
     function void reset_driver_drive_resets (int unsigned reset_pins);
       $display("\n **** Reset Driver Driving Reset Pins = %h ****\n",reset_pins);

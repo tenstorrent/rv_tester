@@ -23,6 +23,8 @@ DECLARE_bool(rst_debug_hold);
 DECLARE_bool(rst_critical_hold);
 DECLARE_bool(mid_sim_reset_en);
 DECLARE_bool(mid_sim_warm_reset_en);
+DECLARE_uint32(num_resets);
+DECLARE_uint32(num_warm_resets);
 DECLARE_uint32(reset_pulse_period);
 DECLARE_uint32(hold_pulse_period);
 DECLARE_uint64(mid_sim_reset_period);
@@ -67,45 +69,59 @@ public:
     processResets();
     processHolds();
 
-    if((ticks >500)&& FLAGS_mid_sim_reset_en && (ticks % FLAGS_mid_sim_reset_period == 0)){
-      //perform mid sim cold reset
-    }
-    if((ticks>500)&& FLAGS_mid_sim_warm_reset_en && (ticks % FLAGS_mid_sim_warm_reset_period == 0)){
-      //perform mid sim cold reset
-      perform_warm_reset();
-      assert_warm_reset_holds();
-    }
+    // if((ticks >500)&& FLAGS_mid_sim_reset_en && (ticks % FLAGS_mid_sim_reset_period == 0)){
+    //   //perform mid sim cold reset
+    // }
+    // if((ticks>500)&& FLAGS_mid_sim_warm_reset_en && (ticks % FLAGS_mid_sim_warm_reset_period == 0)){
+    //   //perform mid sim cold reset
+    //   perform_warm_reset();
+    //   assert_warm_reset_holds();
+    // }
     if((ticks>500)&& FLAGS_mid_sim_warm_reset_en && (ticks % FLAGS_mid_sim_warm_reset_period == 20)){
       //perform mid sim cold reset
-      //perform_warm_reset();
-      deassert_warm_reset_holds();
+      if(num_warm_resets < FLAGS_num_warm_resets){
+
+        perform_warm_reset();
+        auto smc_xtor_loc = cvm::topology::get_from_type("SMC_XTOR", 0);
+        cvm::registry::messenger.signal(smc_xtor_loc, smc_xtor::smc_ip_data_t{2}); 
+      
+        num_warm_resets++;
+      }
+      else
+        return;
     }
-    if(ticks==10){
-      perform_warm_reset();
+
+    if(ticks==5){
+      perform_cold_reset();
     }
-    if(ticks==11){
-    assert_warm_reset_holds();
-    }
-    if(ticks==20){
-    deassert_warm_reset_holds();
-    }
-    if(ticks==28){
-    deassert_warm_reset_holds();
-    }
-    if(ticks ==20){
-      smc_xtor::smc_ip_data_t smc_data;
-      smc_data.data = 1;
-    }
-    if(send_update_to_smc & (ticks >10)){
-      auto smc_xtor_loc = cvm::topology::get_from_type("SMC_XTOR", 0);
-      cvm::registry::messenger.signal(smc_xtor_loc, smc_xtor::smc_ip_data_t{123});
-    }
+    // if(ticks==5000){
+    //   perform_warm_reset();
+    // }
+    // if(ticks==11){
+    // assert_warm_reset_holds();
+    // }
+    // if(ticks==20){
+    // deassert_warm_reset_holds();
+    // }
+    // if(ticks==28){
+    // deassert_warm_reset_holds();
+    // }
+    // if(ticks ==20){
+    //   smc_xtor::smc_ip_data_t smc_data;
+    //   smc_data.data = 1;
+    // }
+    // if(send_update_to_smc & (ticks >10)){
+    //   auto smc_xtor_loc = cvm::topology::get_from_type("SMC_XTOR", 0);
+    //   cvm::registry::messenger.signal(smc_xtor_loc, smc_xtor::smc_ip_data_t{123});
+    // }
 
 }
    
 void processResets()
 {
-   if(ticks==2){
+  // cvm::log(cvm::NONE, "[Reset Driver] Timer tick: {}\n", ticks);
+   if(ticks==3){
+    cvm::log(cvm::NONE, "[Reset Driver] Ticks==2 starting init of pins\n");
     init_pins();
    }else{
        for (size_t i = 0; i < driveResetValid.size(); ++i) {
@@ -177,9 +193,24 @@ void driveHoldSigs(){
 
 }
 
+// // Used to assert/deassert a reset_driver pin for given hart.
+// void driveResetPin(unsigned value){
+  
+// }
+
 void driveResetPin(unsigned pin, unsigned value){
     reset_sigs_t i;
-    i.reset_sigs =  (value << pin);
+
+    if (value) {
+        // Set the bit at position 'pin' to 1
+        glob_reset_state |= (1 << pin);
+    } else {
+        // Set the bit at position 'pin' to 0
+        glob_reset_state &= ~(1 << pin);
+    }
+
+    i.reset_sigs =  glob_reset_state;
+
       cvm::registry::callbacks.push(
        scope(),
        [i]() {
@@ -235,6 +266,7 @@ private:
    unsigned num_warm_resets = 0;
 
    uint64_t ticks = 0;
+   uint8_t glob_reset_state = 0;
    bool run_cold_reset_seq = false;
    bool run_warm_reset_seq = false;
    bool send_update_to_smc = true;

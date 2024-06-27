@@ -9,19 +9,19 @@
 #include "cvm/bitmanip.hpp"
 #include "reset_driver.hpp"
 
-DEFINE_bool(reset_driver_en, false, "Enable reset driver");
+DEFINE_bool(reset_driver_en, true, "Enable reset driver");
 DEFINE_bool(rst_sram_hold, false, "Enable reset driver sram hold");
 DEFINE_bool(rst_debug_hold, false, "Enable reset driver debug hold");
 DEFINE_bool(rst_critical_hold, false, "Enable reset driver critical hold");
 DEFINE_bool(mid_sim_reset_en, false, "Enable mid sim reset driving");
-DEFINE_bool(mid_sim_warm_reset_en, false, "Enable mid sim warm reset driving");
+DEFINE_bool(mid_sim_warm_reset_en, true, "Enable mid sim warm reset driving");
 // TODO: control which are dumped? might not be useful
 DEFINE_uint32(reset_pulse_period, 16, "Hold Reset pin value for N cycles");
 DEFINE_uint32(num_resets, 3, "toggle resets N times");
-DEFINE_uint32(num_warm_resets, 3, "toggle warm resets N times");
+DEFINE_uint32(num_warm_resets, 1, "toggle warm resets N times");
 DEFINE_uint32(hold_pulse_period, 16, "Hold HOLD pin value for N cycles");
 DEFINE_uint64(mid_sim_reset_period, 7000, "Drive midsim reset every N cycles");
-DEFINE_uint64(mid_sim_warm_reset_period, 2000, "Drive midsim reset every N cycles");
+DEFINE_uint64(mid_sim_warm_reset_period, 1000, "Drive midsim reset every N cycles");
 DEFINE_uint64(reset_chk_threshold_period, 2, "Check for reset conditions before n cycles of reset period");
 DEFINE_uint64(reset_chk_period, 300, "Time to execute reset sequences  after reset");
 REGISTRY_register(reset_driver, TOP.PLATFORM.RESET_DRIVER, 0);
@@ -60,13 +60,14 @@ reset_driver::update_smc_status(smc_xtor::smc_reset_driver_data_t i)
 void
 reset_driver::init_pins()
 {
-    cvm::log(cvm::FULL, "[Reset Driver] Init pins \n");
+    cvm::log(cvm::NONE, "[Reset Driver] Initializing reset pins\n");
     reset_data_t rst_data = {0,4,0,0,0};
-    hold_data_t hold_data = {1,5};
+    hold_data_t hold_data = {1,0};
     driveResetPulse(rst_data);
     driveHoldPulse(hold_data);
 }
 void reset_driver::perform_cold_reset(){
+    cvm::log(cvm::NONE, "[Reset Driver] Performing Cold Reset Sequence\n");
     if(num_resets < FLAGS_num_resets){
        num_resets++;
     }else
@@ -99,14 +100,11 @@ void reset_driver::assert_warm_reset_holds(){
 }
 
 void reset_driver::perform_warm_reset(){
-    if(num_warm_resets < FLAGS_num_warm_resets){
-       num_warm_resets++;
-    }else
-     return;
+    cvm::log(cvm::NONE, "[Reset Driver] Performing Warm Reset Sequence\n");
     reset_data_t rst_data = {1,0,2,FLAGS_reset_pulse_period,1};
     driveResetPulse(rst_data);
-
 }
+
 void reset_driver:: deassert_warm_reset_holds(){
     unsigned hold_value = 0;
     hold_data_t hold_data;
