@@ -305,7 +305,7 @@ module rv_tester
             rv_tester_build_registry();
 
         end
-
+        clock_mode <= clk_profile[1:0];
         num_reruns      <= num_reruns - int'(rerun_now);
         if (num_reruns < 0) begin
             num_reruns  <= cvm_plusargs::get_int("num_reruns");
