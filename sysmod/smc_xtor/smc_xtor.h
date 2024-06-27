@@ -134,6 +134,7 @@ class smc_xtor : public device {
                      if(smc_xtor_rd.data[4] == 0x10){
                       cvm::log(cvm::NONE, "[SMC] axi read poll done 0x0210300C \n"); 
                       reset_completion = true;
+                      send_info_to_reset_driver();
                      }
                   }else if (!read_in_flight) {
 
@@ -198,9 +199,9 @@ class smc_xtor : public device {
             }
 
             cnt_tick ++;
-            if(cnt_tick >12){
-              send_info_to_reset_driver();
-            }
+            // if(cnt_tick >12){
+            //   send_info_to_reset_driver();
+            // }
         }
         
         void print_read_request(const smc_xtor_read_req_t &request) {

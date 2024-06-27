@@ -4,10 +4,7 @@ module reset_driver #(
   `RV_TESTER_TRANSACTIONS_RESET_DRIVER_OUTPUT_PARAMS
 )(
   input clk,
-  input tb_clk,
-  input reset,
   input bit terminate,
-  input logic [7:0] misc_signals,
   output cold_reset_n,
   output warm_reset_n,
   output sram_hold,
@@ -34,6 +31,7 @@ module reset_driver #(
     bit sysmod_tick_async = '1;
     bit [3:0] o_resets;
     bit [3:0] o_holds;
+    bit o_force_clk;
     bit flag = 0;
         /* verilator lint_on BLKANDNBLK */
     always @(posedge clk) begin
@@ -84,5 +82,11 @@ module reset_driver #(
       o_holds = hold_pins[3:0];
     endfunction
     export "DPI-C" function reset_driver_drive_holds;
+
+    function void reset_driver_drive_force_clk (int unsigned force_clk_pin);
+      $display("\n **** Reset Driver Driving Hold Pins = %h ****\n",force_clk_pin);
+      o_force_clk = force_clk_pin;
+    endfunction
+    export "DPI-C" function reset_driver_drive_force_clk;
 
 endmodule

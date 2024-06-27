@@ -457,7 +457,6 @@ module rv_tester
         `RV_TESTER_TRANSACTIONS_RESET_DRIVER_SOURCE_PARAMS(0)
    )i_reset_driver(
         .clk(clk[SOC_CLK_IDX]),
-        .reset(sysmod_reset),
         .cold_reset_n(cold_reset_n),          
         .warm_reset_n(warm_reset_n),   
         .sram_hold(sram_hold),      
