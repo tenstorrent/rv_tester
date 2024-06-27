@@ -829,8 +829,6 @@ pmu:
                 width: 64
             sipt_replay_store:
                 width: 64
-            sipt_replay_prefetch:
-                width: 64
             sipt_replay_all:
                 width: 64
             reqbuf_hit_replay_load:
@@ -852,6 +850,8 @@ pmu:
             l1d_cache_invalidate_snoop:
                 width: 64
             l1d_cache_invalidate_cmo:
+                width: 64
+            l1d_cache_invalidate_ras:
                 width: 64
             l1d_cache_invalidate_all:
                 width: 64
@@ -903,11 +903,13 @@ pmu:
                 width: 64
             udb_lost:
                 width: 64
-            atomic_retired_lr:
+            atomics_retired_lr:
                 width: 64
-            ld_masked_vec_nano:
+            lr_stall:
                 width: 64
             ld_executed_vec_nano:
+                width: 64
+            ld_masked_vec_nano:
                 width: 64
             stlf_hits:
                 width: 64
@@ -1152,7 +1154,7 @@ pmu:
             terminate:
                 width: 1
             sync:
-                width: 1 
+                width: 1
 dm_model:
     num: 1
     dmi_status:
