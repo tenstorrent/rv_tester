@@ -34,7 +34,7 @@ module rv_tester
     logic bypass_cache = 1;
     logic rv_tester_reset = '1;
     /* verilator lint_off UNOPTFLAT */
-    logic [1:0] clock_mode = '0;
+    logic [1:0] clock_mode = 2'b00;
     /* verilator lint_on UNOPTFLAT */
 
     if (EXTERNAL_CLOCK) begin
@@ -77,7 +77,7 @@ module rv_tester
  
                 ) i_clk_mux (
  
-                    .clks_i         ({def_clk[c], profile1_clk[c], profile2_clk[c],0}),
+                    .clks_i         ({1'b0, profile2_clk[c], profile1_clk[c], def_clk[c]}),
  
                     .test_clk_i     (1'b0),             // FIXME:Add test clock
  
