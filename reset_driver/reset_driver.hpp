@@ -72,6 +72,19 @@ public:
     // if((ticks >500)&& FLAGS_mid_sim_reset_en && (ticks % FLAGS_mid_sim_reset_period == 0)){
     //   //perform mid sim cold reset
     // }
+    if((ticks>500)&& FLAGS_mid_sim_reset_en && (ticks % FLAGS_mid_sim_reset_period == 20)){
+      //perform mid sim cold reset
+      if(num_resets < FLAGS_num_resets){
+
+        perform_cold_reset();
+        auto smc_xtor_loc = cvm::topology::get_from_type("SMC_XTOR", 0);
+        cvm::registry::messenger.signal(smc_xtor_loc, smc_xtor::smc_ip_data_t{1}); 
+      
+        num_resets++;
+      }
+      else
+        return;
+    }
     // if((ticks>500)&& FLAGS_mid_sim_warm_reset_en && (ticks % FLAGS_mid_sim_warm_reset_period == 0)){
     //   //perform mid sim cold reset
     //   perform_warm_reset();
@@ -92,7 +105,10 @@ public:
     }
 
     if(ticks==5){
+      // TODO (pravin)
+      // assert_force(); -> 16cyc,
       perform_cold_reset();
+      // de_assert_force(); -> 16cyc,
     }
     // if(ticks==5000){
     //   perform_warm_reset();

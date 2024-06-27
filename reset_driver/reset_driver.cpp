@@ -17,10 +17,10 @@ DEFINE_bool(mid_sim_reset_en, false, "Enable mid sim reset driving");
 DEFINE_bool(mid_sim_warm_reset_en, true, "Enable mid sim warm reset driving");
 // TODO: control which are dumped? might not be useful
 DEFINE_uint32(reset_pulse_period, 16, "Hold Reset pin value for N cycles");
-DEFINE_uint32(num_resets, 3, "toggle resets N times");
+DEFINE_uint32(num_resets, 1, "toggle resets N times");
 DEFINE_uint32(num_warm_resets, 1, "toggle warm resets N times");
 DEFINE_uint32(hold_pulse_period, 16, "Hold HOLD pin value for N cycles");
-DEFINE_uint64(mid_sim_reset_period, 7000, "Drive midsim reset every N cycles");
+DEFINE_uint64(mid_sim_reset_period, 1500, "Drive midsim reset every N cycles");
 DEFINE_uint64(mid_sim_warm_reset_period, 1000, "Drive midsim reset every N cycles");
 DEFINE_uint64(reset_chk_threshold_period, 2, "Check for reset conditions before n cycles of reset period");
 DEFINE_uint64(reset_chk_period, 300, "Time to execute reset sequences  after reset");
@@ -68,10 +68,6 @@ reset_driver::init_pins()
 }
 void reset_driver::perform_cold_reset(){
     cvm::log(cvm::NONE, "[Reset Driver] Performing Cold Reset Sequence\n");
-    if(num_resets < FLAGS_num_resets){
-       num_resets++;
-    }else
-     return;
     reset_data_t rst_data = {1,0,0,FLAGS_reset_pulse_period,1};
     driveResetPulse(rst_data);
 }
