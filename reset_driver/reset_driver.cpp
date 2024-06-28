@@ -11,11 +11,11 @@
 
 DEFINE_bool(reset_driver_en, true, "Enable reset driver");
 DEFINE_bool(rst_sram_hold, false, "Enable reset driver sram hold");
-DEFINE_bool(rst_debug_hold, true, "Enable reset driver debug hold");
+DEFINE_bool(rst_debug_hold, false, "Enable reset driver debug hold");
 DEFINE_bool(rst_critical_hold, false, "Enable reset driver critical hold");
+DEFINE_bool(rst_random_holds, true, "Eanble reset random holds");
 DEFINE_bool(mid_sim_reset_en, false, "Enable mid sim reset driving");
 DEFINE_bool(mid_sim_warm_reset_en, true, "Enable mid sim warm reset driving");
-// TODO: control which are dumped? might not be useful
 DEFINE_uint32(reset_pulse_period, 16, "Hold Reset pin value for N cycles");
 DEFINE_uint32(num_resets, 1, "toggle resets N times");
 DEFINE_uint32(num_warm_resets, 1, "toggle warm resets N times");
@@ -29,6 +29,8 @@ REGISTRY_register(reset_driver, TOP.PLATFORM.RESET_DRIVER, 0);
 reset_driver::reset_driver(cvm::topology::loc_t loc, unsigned id) 
 : scope_(nullptr), loc_(loc), id_(id) ,phase1_cycles(3),phase2_cycles(3),driveResetValid(3),driveResetInProgress(3),ResetRelVal(3)
 {
+  rng.seed(FLAGS_seed);
+
   cvm::registry::messenger.connect<svScope>(
       loc_,
       [this](svScope s) { return this->set_scope(s); });
@@ -97,18 +99,28 @@ void reset_driver::deassert_force_clock(){
 void reset_driver::assert_warm_reset_holds(){
     unsigned hold_value = 0;
     hold_data_t hold_data;
+    std::vector<int> hold_values = {0, 1, 2, 4, 3, 5, 6, 7};
     cvm::log(cvm::NONE, "[Reset Driver] Assertting Warm Reset Holds\n");
     if(num_warm_resets >= FLAGS_num_warm_resets)
        return;
-    
-    if(FLAGS_rst_sram_hold)
-        hold_value = hold_value | 1<<0;
-    
-    if(FLAGS_rst_critical_hold)
-        hold_value = hold_value | 1<<1;
-    
-    if(FLAGS_rst_debug_hold)
-        hold_value = hold_value | 1<<2;
+    if (FLAGS_rst_random_holds) {
+        cvm::log(cvm::NONE, "[Reset Driver] Random Resets Holds:: seed={}, random_seed_value={}\n",FLAGS_seed, rng());
+        hold_value = hold_values[rng()%8];
+
+        cvm::log(cvm::NONE, "[Reset Driver] Random Resets Holds:: sram_hold={}, critical_hold={}, debug_hold={}\n", ((hold_value >> 0) & 1), ((hold_value >> 1) & 1), ((hold_value >> 2) & 1));
+    }
+    else {
+        if(FLAGS_rst_sram_hold)
+            hold_value = hold_value | 1<<0;
+        
+        if(FLAGS_rst_critical_hold)
+            hold_value = hold_value | 1<<1;
+        
+        if(FLAGS_rst_debug_hold)
+            hold_value = hold_value | 1<<2;
+
+        cvm::log(cvm::NONE, "[Reset Driver] Directed Resets Holds:: sram_hold={}, critical_hold={}, debug_hold={}\n", ((hold_value >> 0) & 1), ((hold_value >> 1) & 1), ((hold_value >> 2) & 1));
+    }
     
     hold_data = {FLAGS_hold_pulse_period,hold_value};
     driveHoldPulse(hold_data);
@@ -126,14 +138,6 @@ void reset_driver:: deassert_warm_reset_holds(){
     cvm::log(cvm::NONE, "[Reset Driver] De-Assertting Warm Reset Holds\n");
     if(num_warm_resets > FLAGS_num_warm_resets)
        return;
-    // if(FLAGS_rst_sram_hold)
-    //     hold_value = hold_value & ~(0<<0);
-    
-    // if(FLAGS_rst_critical_hold)
-    //     hold_value = hold_value & ~(1<<1);
-    
-    // if(FLAGS_rst_debug_hold)
-    //     hold_value = hold_value & ~(1<<2);
     
     hold_data = {FLAGS_hold_pulse_period,hold_value};
     driveHoldPulse(hold_data);

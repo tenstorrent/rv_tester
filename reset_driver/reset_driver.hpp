@@ -7,20 +7,18 @@
 #include <vector>
 #include <cassert>
 #include <unordered_set>
-
+#include "pcg_random.hpp"
 #include "cvm/logger.hpp"
 #include "cvm/topology.hpp"
 #include "rv_tester_transactions.hpp"
 #include "sysmod/smc_xtor/smc_xtor.h"
 
-
-#define max_hartid 1 // Define the maximum number of harts in the system
-#define halt_on_reset false
-
+DECLARE_int32(seed);
 DECLARE_bool(reset_driver_en);
 DECLARE_bool(rst_sram_hold);
 DECLARE_bool(rst_debug_hold);
 DECLARE_bool(rst_critical_hold);
+DECLARE_bool(rst_random_holds);
 DECLARE_bool(mid_sim_reset_en);
 DECLARE_bool(mid_sim_warm_reset_en);
 DECLARE_uint32(num_resets);
@@ -29,8 +27,6 @@ DECLARE_uint32(reset_pulse_period);
 DECLARE_uint32(hold_pulse_period);
 DECLARE_uint64(mid_sim_reset_period);
 DECLARE_uint64(mid_sim_warm_reset_period);
-typedef uint64_t reg_t;
-
 
 extern "C" {
   void reset_driver_drive_resets(unsigned reset_pins) ;
@@ -205,9 +201,8 @@ public:
    
 void processResets()
 {
-  // cvm::log(cvm::NONE, "[Reset Driver] Timer tick: {}\n", ticks);
    if(ticks==3){
-    cvm::log(cvm::NONE, "[Reset Driver] Ticks==2 starting init of pins\n");
+    cvm::log(cvm::NONE, "[Reset Driver] Ticks==3 starting init of pins\n");
     init_pins();
    }else{
        for (size_t i = 0; i < driveResetValid.size(); ++i) {
@@ -354,9 +349,9 @@ private:
     cvm::topology::loc_t loc_;
     unsigned id_;
     void reset();
-
+    pcg_extras::seed_seq_from<std::random_device> seed_source;
+    pcg32 rng;
    
-
    std::vector<uint32_t> phase1_cycles;  // Number of cycles counted.
    std::vector<uint32_t> phase2_cycles;  // Number of cycles counted.
    
