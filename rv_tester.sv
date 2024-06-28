@@ -145,39 +145,21 @@ module rv_tester
     
     assign rerun_now           = terminated && num_reruns > 0;
 
-   // assign clk = clock_mode ? profile1_clk: def_clk; //clkmux
-    ////////////////// Clock mux Instantiation ///////////////////////////
   `ifndef CLK_MUX_UNSUPPORTED 
- 
     always @(posedge clk[TB_CLK_IDX])begin
- 
       if (rv_tester_reset)begin 
-   
             clock_mode <= clk_profile[1:0];
-       
- 
       end
- 
-        /* verilator lint_off WIDTH */
- 
+      /* verilator lint_off WIDTH */
       if(dyn_clk_switch & (clocks >10) &  ((clocks % freq_switch_ncycles) == 0)) begin
- 
-         //dynamically select clk from available profiles
- 
-         //this logic will generate the select pins of the mux ,which will switch between clks
- 
+        //dynamically select clk from available profiles
+        //this logic will generate the select pins of the mux ,which will switch between clks
         clock_mode <= clock_mode + 1'b1;
- 
         if(clock_mode == 2'b11)
- 
           clock_mode <= '0;
- 
       end
- 
        /* verilator lint_on WIDTH */
- 
     end
- 
     `endif
 
     /*
@@ -281,7 +263,7 @@ module rv_tester
             rv_tester_build_registry();
 
         end
-        clock_mode <= clk_profile[1:0];
+        clock_mode      <= clk_profile[1:0];
         num_reruns      <= num_reruns - int'(rerun_now);
         if (num_reruns < 0) begin
             num_reruns  <= cvm_plusargs::get_int("num_reruns");
