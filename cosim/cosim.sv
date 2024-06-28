@@ -68,7 +68,6 @@ import rv_tester_params::*;
     parameter int NBYPASS = 1,
     parameter int NIFETCH = 1,
     parameter int NIEVICT = 1,
-    parameter int RESET_CLOCKS = 10,
     parameter int MAX_CSR_AFTER_NRET = 3,
     `TOPOLOGY,
     `RV_TESTER_TRANSACTIONS_COSIM_OUTPUT_PARAMS
@@ -416,6 +415,15 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
         terminate.terminate = '1;
         /* verilator lint_on BLKSEQ */
     endfunction
+
+    // m_reset
+    logic dut_reset_d1;
+    always @(posedge clk) begin
+        dut_reset_d1 <= dut_reset;
+    end
+    assign m_resets[0].valid            = RVFI_EN & rvfi_enabled & (dut_reset_d1 & ~dut_reset);
+    assign m_resets[0].data.location    = location;
+    assign m_resets[0].data.cycle       = clocks;
 
     //---------------------------------------------------------------------------
     // PERIODIC STATE COMPARE feature enabled when scheck_period value > 0

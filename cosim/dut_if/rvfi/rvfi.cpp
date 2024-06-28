@@ -36,6 +36,7 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     [&](svScope s) { return this->set_scope(s); });
 
   connect<
+    rv_tester_transactions::cosim::m_reset<>,
     rv_tester_transactions::cosim::m_rvfi<>,
     rv_tester_transactions::cosim::m_steps<>,
     rv_tester_transactions::cosim::m_gp_regs<>,
@@ -74,6 +75,17 @@ void rvfi::init() {
   } else {
     cvm::log(cvm::MEDIUM, "Running with cosim is disabled\n");
   }
+}
+
+void rvfi::process(const rv_tester_transactions::cosim::m_reset<>& m_reset) {
+  if (terminated_)
+    return;
+
+  if (loc_ != m_reset.location)
+    return;
+
+  cvm::log(cvm::MEDIUM, "[RVFI] Reset\n");
+  bridge_->reset();
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {

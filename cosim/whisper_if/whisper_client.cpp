@@ -28,8 +28,6 @@ DEFINE_string(whisper_instr_lines, "", "Write instr cache line addresses used in
 DEFINE_string(whisper_data_lines, "", "Write data cache line addresses used in test to a file");
 DEFINE_bool(whisper_csv_log, false, "Make whisper use a csv trace.");
 DEFINE_uint32(whisper_tlb_size, 0, "Specify whisper tlb size");
-DEFINE_uint64(resetpc, 0x80000000, "Reset PC");
-DEFINE_uint64(resetpcfw, 0xC0040000, "Reset firmware PC");
 
 
 extern void (*__tracerExtension)(void*);
@@ -696,10 +694,11 @@ whisperClient<URV>::whisperCancelLr(int hart, bool& valid)
 
 template <typename URV>
 bool
-whisperClient<URV>::whisperReset(int hart, bool& valid)
+whisperClient<URV>::whisperReset(int hart, uint64_t addr, bool& valid)
 {
   req.hart = hart;
   req.type = WhisperMessageType::Reset;
+  req.address = addr;
 
   if (not whisperCommand(req, reply))
     return false;

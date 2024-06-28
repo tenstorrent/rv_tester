@@ -421,14 +421,13 @@ module rv_tester
           .NBYPASS(NBYPASSES[c]),
           .NIFETCH(NIFETCHES[c]),
           .NIEVICT(NIEVICTS[c]),
-          .RESET_CLOCKS(RESET_TB_CLOCKS[RESET_IDX]),
           `TOPOLOGY_CFG,
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PARAMS(0)
       ) cosim (
           .tb_clk(clk[TB_CLK_IDX]),
           .clk(clk[CORE_CLK_IDX]),
           .reset(sysmod_reset),
-          .dut_reset(reset[RESET_IDX]),
+          .dut_reset(~fb_warm_reset_n),
           .clocks,
           .rvfi(rvfi[NRETS_CUMSUM[c] +: NRETS[c]]),
           .csri(csri[c]),

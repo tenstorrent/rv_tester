@@ -178,6 +178,7 @@ private:
   int vlen_ = 0;
   CacCore cac_;
   CacCore csr_cac_;
+  bool first_reset_ = true;
 
   uint64_t order_ = 0;
 
