@@ -315,7 +315,6 @@ import rv_tester_pkg::*;
     assign pmcounterss[0].data.dtlb_replay_all = pmcounter[DTLB_REPLAY_ALL];
     assign pmcounterss[0].data.sipt_replay_load = pmcounter[SIPT_REPLAY_LOAD];
     assign pmcounterss[0].data.sipt_replay_store = pmcounter[SIPT_REPLAY_STORE];
-    assign pmcounterss[0].data.sipt_replay_prefetch = pmcounter[SIPT_REPLAY_PREFETCH];
     assign pmcounterss[0].data.sipt_replay_all = pmcounter[SIPT_REPLAY_ALL];
     assign pmcounterss[0].data.reqbuf_hit_replay_load = pmcounter[REQBUF_HIT_REPLAY_LOAD];
     assign pmcounterss[0].data.reqbuf_hit_replay_store = pmcounter[REQBUF_HIT_REPLAY_STORE];
@@ -327,6 +326,7 @@ import rv_tester_pkg::*;
     assign pmcounterss[0].data.fillbuf_hit_replay_all = pmcounter[FILLBUF_HIT_REPLAY_ALL];
     assign pmcounterss[0].data.l1d_cache_invalidate_snoop = pmcounter[L1D_CACHE_INVALIDATE_SNOOP];
     assign pmcounterss[0].data.l1d_cache_invalidate_cmo = pmcounter[L1D_CACHE_INVALIDATE_CMO];
+    assign pmcounterss[0].data.l1d_cache_invalidate_ras = pmcounter[L1D_CACHE_INVALIDATE_RAS];
     assign pmcounterss[0].data.l1d_cache_invalidate_all = pmcounter[L1D_CACHE_INVALIDATE_ALL];
     assign pmcounterss[0].data.lsu_resyncs_rar_stpipe = pmcounter[LSU_RESYNCS_RAR_STPIPE];
     assign pmcounterss[0].data.lsu_resyncs_rar_ldpipe = pmcounter[LSU_RESYNCS_RAR_LDPIPE];
@@ -352,9 +352,10 @@ import rv_tester_pkg::*;
     assign pmcounterss[0].data.udb_cannot_alloc = pmcounter[UDB_CANNOT_ALLOC];
     assign pmcounterss[0].data.udb_data_return = pmcounter[UDB_DATA_RETURN];
     assign pmcounterss[0].data.udb_lost = pmcounter[UDB_LOST];
-    assign pmcounterss[0].data.atomic_retired_lr = pmcounter[ATOMIC_RETIRED_LR];
-    assign pmcounterss[0].data.ld_masked_vec_nano = pmcounter[LD_MASKED_VEC_NANO];
+    assign pmcounterss[0].data.atomics_retired_lr = pmcounter[ATOMICS_RETIRED_LR];
+    assign pmcounterss[0].data.lr_stall = pmcounter[LR_STALL];
     assign pmcounterss[0].data.ld_executed_vec_nano = pmcounter[LD_EXECUTED_VEC_NANO];
+    assign pmcounterss[0].data.ld_masked_vec_nano = pmcounter[LD_MASKED_VEC_NANO];
     assign pmcounterss[0].data.stlf_hits = pmcounter[STLF_HITS];
     assign pmcounterss[0].data.dfp_access = pmcounter[DFP_ACCESS];
     assign pmcounterss[0].data.tlb_invalidates = pmcounter[TLB_INVALIDATES];
@@ -387,7 +388,7 @@ import rv_tester_pkg::*;
     assign pmcounterss[0].data.pfc_prt_cannot_alloc = pmcounter[PFC_PRT_CANNOT_ALLOC];
     assign pmcounterss[0].data.pfc_no_tlb_credit_stalls = pmcounter[PFC_NO_TLB_CREDIT_STALLS];
     assign pmcounterss[0].data.pfc_no_tag_credit_stalls = pmcounter[PFC_NO_TAG_CREDIT_STALLS];
-    assign pmcounterss[0].data.pfc_prefetches_sent = pmcounter[PFC_PREFETCHES_SENT]; 
+    assign pmcounterss[0].data.pfc_prefetches_sent = pmcounter[PFC_PREFETCHES_SENT];
 
 endmodule
 

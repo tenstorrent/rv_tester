@@ -361,13 +361,11 @@ public:
       DTLB_REPLAY_PREFETCH,
       //Event for any LS replay caused by DTLB miss
       DTLB_REPLAY_ALL,
-      //Event (speculative) for any demand memory-read replay caused by incorrect PA prediction
+      //Event (speculative) for any demand memory-read replay caused by mismatch between RSTLB and DTLB/UTLB
       SIPT_REPLAY_LOAD,
-      //Event (speculative) for any demand memory-write replay caused by incorrect PA prediction
+      //Event (speculative) for any demand memory-write replay caused by mismatch between RSTLB and DTLB/UTLB
       SIPT_REPLAY_STORE,
-      //Event (speculative) for any prefetch replay caused by incorrect PA prediction
-      SIPT_REPLAY_PREFETCH,
-      //Event (speculative) for any LS replay caused by incorrect PA prediction
+      //Event (speculative) for any LS replay caused by mismatch between RSTLB and DTLB/UTLB
       SIPT_REPLAY_ALL,
       //Event for any demand memory-read replay caused by hitting on a reqbuf entry
       REQBUF_HIT_REPLAY_LOAD,
@@ -389,6 +387,8 @@ public:
       L1D_CACHE_INVALIDATE_SNOOP,
       //Event for all l1 data cache invalidates due to cache management operations
       L1D_CACHE_INVALIDATE_CMO,
+      //Event for all l1 data cache invalidates due to RAS errors
+      L1D_CACHE_INVALIDATE_RAS,
       //Event for all l1 data cache invalidates
       L1D_CACHE_INVALIDATE_ALL,
       //Event for all RAR resyncs raised by Store Pipe
@@ -440,11 +440,13 @@ public:
       //Event (speculative) for every instance an allocated Unaligned Data Buffer entry was lost to another cacheline crossing request
       UDB_LOST,
       //Event for every retired load reserved operation
-      ATOMIC_RETIRED_LR,
-      //"Event (speculative) for every fully masked
-      LD_MASKED_VEC_NANO,
+      ATOMICS_RETIRED_LR,
+      //Stall cycles due to load reserved operation
+      LR_STALL,
       //Event (speculative) for every confirmed Load nano-operation
       LD_EXECUTED_VEC_NANO,
+      //"Event (speculative) for every fully masked
+      LD_MASKED_VEC_NANO,
       //Event (speculative) for every instance of a Store instruction forwarding data to a demand memory-read operation
       STLF_HITS,
       //Event (speculative) for any data pipe access
@@ -868,7 +870,6 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::DTLB_REPLAY_ALL] = pmcounters.dtlb_replay_all;
       tmp[counter::SIPT_REPLAY_LOAD] = pmcounters.sipt_replay_load;
       tmp[counter::SIPT_REPLAY_STORE] = pmcounters.sipt_replay_store;
-      tmp[counter::SIPT_REPLAY_PREFETCH] = pmcounters.sipt_replay_prefetch;
       tmp[counter::SIPT_REPLAY_ALL] = pmcounters.sipt_replay_all;
       tmp[counter::REQBUF_HIT_REPLAY_LOAD] = pmcounters.reqbuf_hit_replay_load;
       tmp[counter::REQBUF_HIT_REPLAY_STORE] = pmcounters.reqbuf_hit_replay_store;
@@ -880,6 +881,7 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::FILLBUF_HIT_REPLAY_ALL] = pmcounters.fillbuf_hit_replay_all;
       tmp[counter::L1D_CACHE_INVALIDATE_SNOOP] = pmcounters.l1d_cache_invalidate_snoop;
       tmp[counter::L1D_CACHE_INVALIDATE_CMO] = pmcounters.l1d_cache_invalidate_cmo;
+      tmp[counter::L1D_CACHE_INVALIDATE_RAS] = pmcounters.l1d_cache_invalidate_ras;
       tmp[counter::L1D_CACHE_INVALIDATE_ALL] = pmcounters.l1d_cache_invalidate_all;
       tmp[counter::LSU_RESYNCS_RAR_STPIPE] = pmcounters.lsu_resyncs_rar_stpipe;
       tmp[counter::LSU_RESYNCS_RAR_LDPIPE] = pmcounters.lsu_resyncs_rar_ldpipe;
@@ -905,9 +907,10 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::UDB_CANNOT_ALLOC] = pmcounters.udb_cannot_alloc;
       tmp[counter::UDB_DATA_RETURN] = pmcounters.udb_data_return;
       tmp[counter::UDB_LOST] = pmcounters.udb_lost;
-      tmp[counter::ATOMIC_RETIRED_LR] = pmcounters.atomic_retired_lr;
-      tmp[counter::LD_MASKED_VEC_NANO] = pmcounters.ld_masked_vec_nano;
+      tmp[counter::ATOMICS_RETIRED_LR] = pmcounters.atomics_retired_lr;
+      tmp[counter::LR_STALL] = pmcounters.lr_stall;
       tmp[counter::LD_EXECUTED_VEC_NANO] = pmcounters.ld_executed_vec_nano;
+      tmp[counter::LD_MASKED_VEC_NANO] = pmcounters.ld_masked_vec_nano;
       tmp[counter::STLF_HITS] = pmcounters.stlf_hits;
       tmp[counter::DFP_ACCESS] = pmcounters.dfp_access;
       tmp[counter::TLB_INVALIDATES] = pmcounters.tlb_invalidates;
@@ -1210,7 +1213,6 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {DTLB_REPLAY_ALL,"dtlb_replay_all"},
       {SIPT_REPLAY_LOAD,"sipt_replay_load"},
       {SIPT_REPLAY_STORE,"sipt_replay_store"},
-      {SIPT_REPLAY_PREFETCH,"sipt_replay_prefetch"},
       {SIPT_REPLAY_ALL,"sipt_replay_all"},
       {REQBUF_HIT_REPLAY_LOAD,"reqbuf_hit_replay_load"},
       {REQBUF_HIT_REPLAY_STORE,"reqbuf_hit_replay_store"},
@@ -1222,6 +1224,7 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {FILLBUF_HIT_REPLAY_ALL,"fillbuf_hit_replay_all"},
       {L1D_CACHE_INVALIDATE_SNOOP,"l1d_cache_invalidate_snoop"},
       {L1D_CACHE_INVALIDATE_CMO,"l1d_cache_invalidate_cmo"},
+      {L1D_CACHE_INVALIDATE_RAS,"l1d_cache_invalidate_ras"},
       {L1D_CACHE_INVALIDATE_ALL,"l1d_cache_invalidate_all"},
       {LSU_RESYNCS_RAR_STPIPE,"lsu_resyncs_rar_stpipe"},
       {LSU_RESYNCS_RAR_LDPIPE,"lsu_resyncs_rar_ldpipe"},
@@ -1247,9 +1250,10 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {UDB_CANNOT_ALLOC,"udb_cannot_alloc"},
       {UDB_DATA_RETURN,"udb_data_return"},
       {UDB_LOST,"udb_lost"},
-      {ATOMIC_RETIRED_LR,"atomic_retired_lr"},
-      {LD_MASKED_VEC_NANO,"ld_masked_vec_nano"},
+      {ATOMICS_RETIRED_LR,"atomics_retired_lr"},
+      {LR_STALL,"lr_stall"},
       {LD_EXECUTED_VEC_NANO,"ld_executed_vec_nano"},
+      {LD_MASKED_VEC_NANO,"ld_masked_vec_nano"},
       {STLF_HITS,"stlf_hits"},
       {DFP_ACCESS,"dfp_access"},
       {TLB_INVALIDATES,"tlb_invalidates"},
@@ -1368,7 +1372,7 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {NO_ALLOC_NO_MSHR,"no_alloc_no_mshr"},
       {NO_ALLOC_HINT_NOT_SET,"no_alloc_hint_not_set"},
       {SC_REPLAY_ECC,"sc_replay_ecc"},
-    };
+    }; 
 
   pmu(cvm::topology::loc_t, unsigned);
   ~pmu();
