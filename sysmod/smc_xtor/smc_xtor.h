@@ -134,7 +134,7 @@ class smc_xtor : public device {
                      if(smc_xtor_rd.data[4] == 0x10){
                       cvm::log(cvm::NONE, "[SMC] axi read poll done 0x0210300C \n"); 
                       reset_completion = true;
-                      send_info_to_reset_driver();
+                      // send_info_to_reset_driver();
                      }
                   }else if (!read_in_flight) {
 
@@ -143,15 +143,16 @@ class smc_xtor : public device {
                     read_in_flight = true;
                     axi_read(0x0210300C,4,204);
                   }
-              }else{
-                  cvm::log(cvm::NONE, "[SMC] Drive axi write requests for boot sequence  \n");
+              }else{ 
                  if(smc_boot_wr_txn_q.size()>0){
+                   cvm::log(cvm::NONE, "[SMC] Drive axi write requests for boot sequence  \n");
                    smc_wr_t smc_boot_txn;
                    smc_boot_txn = smc_boot_wr_txn_q.front();
                    smc_boot_wr_txn_q.pop();
                    smc_wr_txn_q.push(smc_boot_txn);
                  }else{
                   //boot done
+                  send_info_to_reset_driver();
                   cvm::log(cvm::NONE, "[SMC]  boot sequence completed \n");
                   in_boot_seq = false;
                  }
@@ -258,6 +259,7 @@ class smc_xtor : public device {
         }
         
         void push_smc_boot_seq() {
+          cvm::log(cvm::NONE, "[SMC] Pushing SMC boot sequence\n");
           // 0xC000_0000 will be added by SMC RTL hence removing that from BASE Address
           //Write 0x10 in 0x0210_300C // Clears cold power up done interrupt
           smc_boot_wr_txn_q.push({ 0x0210300C,0x10});

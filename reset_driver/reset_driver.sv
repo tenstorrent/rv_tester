@@ -26,7 +26,7 @@ module reset_driver #(
     logic reset_done;
     typedef longint unsigned LU;
     LU clocks = 0;
-    LU init_clocks = 500;
+    LU init_clocks = 750;
     
     bit sysmod_tick_async = '1;
     bit [3:0] o_resets;
@@ -70,7 +70,7 @@ module reset_driver #(
     assign debug_hold = o_holds[2];
     assign cold_reset_n = o_resets[0]; 
     assign warm_reset_n = o_resets[2];
-    assign force_ss_to_ref_clock_n = 1'b1;
+    assign force_ss_to_ref_clock_n = o_force_clk;
     export "DPI-C" function reset_driver_drive_resets;
     function void reset_driver_drive_resets (int unsigned reset_pins);
       $display("\n **** Reset Driver Driving Reset Pins = %h ****\n",reset_pins);
@@ -85,7 +85,7 @@ module reset_driver #(
 
     function void reset_driver_drive_force_clk (int unsigned force_clk_pin);
       $display("\n **** Reset Driver Driving Hold Pins = %h ****\n",force_clk_pin);
-      o_force_clk = force_clk_pin;
+      o_force_clk = force_clk_pin[0];
     endfunction
     export "DPI-C" function reset_driver_drive_force_clk;
 

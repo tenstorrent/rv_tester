@@ -65,7 +65,7 @@ void smc_xtor::send_info_to_reset_driver(){
 //send sig to reset driver
 auto reset_driver_loc = cvm::topology::get_from_type("RESET_DRIVER", 0);
 cvm::registry::messenger.signal(reset_driver_loc, smc_xtor::smc_reset_driver_data_t{443});
-cvm::log(cvm::FULL, "[SMC] sending info to reset driver *** 443  \n");
+cvm::log(cvm::NONE, "[SMC] sending info to reset driver *** 443  \n");
 
 }
 

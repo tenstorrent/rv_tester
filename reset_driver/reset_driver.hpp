@@ -75,7 +75,7 @@ public:
     processHolds();
     processforceclk();
 
-    if(cold_boot_reset_done && (ticks>500) && FLAGS_mid_sim_reset_en){ //perform mid sim cold reset
+    if(cold_boot_reset_done && (ticks>750) && FLAGS_mid_sim_reset_en){ //perform mid sim cold reset
       if(num_resets >= FLAGS_num_resets)
         return;
       else {
@@ -113,7 +113,7 @@ public:
       }
     }
 
-    if(cold_boot_reset_done && (ticks>500) && FLAGS_mid_sim_warm_reset_en){ //perform mid sim warm reset
+    if(cold_boot_reset_done && (ticks>750) && FLAGS_mid_sim_warm_reset_en){ //perform mid sim warm reset
       if(num_warm_resets >= FLAGS_num_warm_resets)
         return;
       else {
@@ -145,20 +145,27 @@ public:
           reset_sequence_ticks = ticks;
 
           perform_warm_reset();
+          send_reset_req_to_smc = true;
+        }
+
+        if (ticks == (reset_sequence_ticks + 2*FLAGS_reset_pulse_period) && (send_reset_req_to_smc == true)) {
+          cvm::log(cvm::NONE, "[Reset Driver] Mid-sim warm reset - Req sent to SMC xtor\n");
+          auto smc_xtor_loc = cvm::topology::get_from_type("SMC_XTOR", 0);
+          cvm::registry::messenger.signal(smc_xtor_loc, smc_xtor::smc_ip_data_t{2});
+          send_reset_req_to_smc = false;
         }
         
-        if (ticks == (reset_sequence_ticks + 2*FLAGS_reset_pulse_period) && (reset_sequence_in_progress == true)) {
+        if (reset_ack_from_smc_xtor && (ticks >= (reset_sequence_ticks + 2*FLAGS_reset_pulse_period)) && (reset_sequence_in_progress == true)) {
           cvm::log(cvm::NONE, "[Reset Driver] Mid-sim warm reset - Holds deasserted\n");
           reset_sequence_in_progress = false;
           holds_deassert_in_progress = true;
           holds_deassert_ticks = ticks;
+          reset_ack_from_smc_xtor = false;
 
-          auto smc_xtor_loc = cvm::topology::get_from_type("SMC_XTOR", 0);
-          cvm::registry::messenger.signal(smc_xtor_loc, smc_xtor::smc_ip_data_t{2});
           deassert_warm_reset_holds();
         }
 
-        if (ticks == (holds_deassert_ticks + FLAGS_hold_pulse_period) && (holds_deassert_in_progress == true)) {
+        if ((ticks > (holds_deassert_ticks + FLAGS_hold_pulse_period)) && (holds_deassert_in_progress == true)) {
           cvm::log(cvm::NONE, "[Reset Driver] Mid-sim warm reset done\n");
           holds_deassert_in_progress = false;
           num_warm_resets++;
@@ -379,8 +386,9 @@ private:
    bool holds_assert_in_progress = false;
    bool reset_sequence_in_progress = false;
    bool holds_deassert_in_progress = false;
-
+   bool send_reset_req_to_smc = false;
    bool cold_boot_ack_from_smc_xtor = false;
+   bool reset_ack_from_smc_xtor = false;
    bool cold_boot_reset_done = false;
 
    bool run_cold_reset_seq = false;

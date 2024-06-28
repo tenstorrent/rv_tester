@@ -53,7 +53,10 @@ void reset_driver::checkUsage()
 void reset_driver::update_smc_status(smc_xtor::smc_reset_driver_data_t i)
 {
     cvm::log(cvm::FULL, "[Reset Driver] GOT data from smc ::update_smc_status  {} \n",i.data);
-    cold_boot_ack_from_smc_xtor = true; 
+    if (cold_boot_ack_from_smc_xtor == false)
+        cold_boot_ack_from_smc_xtor = true; 
+    else 
+        reset_ack_from_smc_xtor = true;
 }
 
 void reset_driver::init_pins()
@@ -80,7 +83,7 @@ void reset_driver::wait_for_reset_completion_ack(){
 void reset_driver::assert_force_clock(){
     cvm::log(cvm::NONE, "[Reset Driver] Assertting force_ss_to_ref_clk pin\n");
     forceclk_data_t forceclk_data;
-    forceclk_data = {FLAGS_hold_pulse_period,0};
+    forceclk_data = {FLAGS_hold_pulse_period,1};
     driveforceclkPulse(forceclk_data);
 }
 
