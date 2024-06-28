@@ -93,7 +93,6 @@ class smc_xtor : public device {
                   strb.push_back(0x0);
             }  
             for (uint8_t i = 0; i < 8; ++i) {
-                  cvm::log(cvm::LOW, "[Trickbox] SCMC_XTOR  addr={:#x}  b_index={:#x}\n", addr,b_index);
                   uint8_t currentByte = static_cast<uint8_t>((value >> (8 * i)) & 0xFF);
                   wdata[i+b_index] = currentByte;
                   strb[i+b_index] = 0x1;

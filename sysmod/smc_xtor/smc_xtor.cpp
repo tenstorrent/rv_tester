@@ -63,8 +63,6 @@ void smc_xtor::axi_write() {
   else {
     gen_data_strb_8b(wr.addr,wr.data,data,strb);
   }
-   for (uint8_t i = 0; i < 8; ++i) {
-  }
   cvm::log(cvm::HIGH, "[SMC] write {:#X} loc :{:#X} data:{:#X} \n",addr,axi_mst_loc_l,wr.data);
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb});
 }
