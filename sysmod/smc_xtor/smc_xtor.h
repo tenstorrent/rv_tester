@@ -71,7 +71,21 @@ class smc_xtor : public device {
        
         cvm::messenger::task<void> read(const transactor::read_t& , data_t& );
 
-        void gen_data_strb(uint32_t addr, uint64_t value, data_t& wdata, std::vector<bool>& strb) {
+        void gen_data_strb_4b(uint32_t addr, uint32_t value, data_t& wdata, std::vector<bool>& strb) {
+            uint8_t b_index =  static_cast<uint8_t>(addr & 0x7);
+
+            for (uint8_t i = 0; i < 8; ++i) {
+                  wdata.push_back(0x0);
+                  strb.push_back(0x0);
+            }  
+            for (uint8_t i = 0; i < 4; ++i) {
+                  uint8_t currentByte = static_cast<uint8_t>((value >> (8 * i)) & 0xFF);
+                  wdata[i+b_index] = currentByte;
+                  strb[i+b_index] = 0x1;
+            }  
+        }
+
+        void gen_data_strb_8b(uint32_t addr, uint64_t value, data_t& wdata, std::vector<bool>& strb) {
             uint8_t b_index =  static_cast<uint8_t>(addr & 0x7);
 
             for (uint8_t i = 0; i < 8; ++i) {
@@ -79,6 +93,7 @@ class smc_xtor : public device {
                   strb.push_back(0x0);
             }  
             for (uint8_t i = 0; i < 8; ++i) {
+                  cvm::log(cvm::LOW, "[Trickbox] SCMC_XTOR  addr={:#x}  b_index={:#x}\n", addr,b_index);
                   uint8_t currentByte = static_cast<uint8_t>((value >> (8 * i)) & 0xFF);
                   wdata[i+b_index] = currentByte;
                   strb[i+b_index] = 0x1;
@@ -272,7 +287,7 @@ class smc_xtor : public device {
             smc_boot_wr_txn_q.push({0x4219FFF8 ,0xFDB975318700});	// DM fuse MMR
             // FIXME:: SW RTL support is not there
             // smc_boot_wr_txn_q.push({0x421BFFF8 ,0xFDB975318700});	// SW fuse MMR
-            smc_boot_wr_txn_q.push({0x421AFFF8 ,0xFDB975318700});	// SC fuse MMR
+            smc_boot_wr_txn_q.push({0x421A7FD8 ,0xFDB975318700});	// SC fuse MMR
 
           }
           else if (FLAGS_hart_enable_mask == 0x3) {
@@ -284,7 +299,7 @@ class smc_xtor : public device {
             smc_boot_wr_txn_q.push({0x4219FFF8 ,0x318700});	// DM fuse MMR
             // FIXME:: SW RTL support is not there
             // smc_boot_wr_txn_q.push({0x421BFFF8 ,0x318700});	// SW fuse MMR
-            smc_boot_wr_txn_q.push({0x421AFFF8 ,0x318700});	// SC fuse MMR
+            smc_boot_wr_txn_q.push({0x421A7FD8 ,0x318700});	// SC fuse MMR
 
           }
           else {
@@ -295,7 +310,7 @@ class smc_xtor : public device {
             smc_boot_wr_txn_q.push({0x4219FFF8 ,0x18700});	// DM fuse MMR
             // FIXME:: SW RTL support is not there
             // smc_boot_wr_txn_q.push({0x421BFFF8 ,0x18700});	// SW fuse MMR
-            smc_boot_wr_txn_q.push({0x421AFFF8 ,0x18700});	// SC fuse MMR
+            smc_boot_wr_txn_q.push({0x421A7FD8 ,0x18700});	// SC fuse MMR
           }
 
           //Write 0x00 in 0x0210_200C // Release core no fetch control
