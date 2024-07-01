@@ -10,14 +10,14 @@
 #include "reset_driver.hpp"
 
 DEFINE_bool(reset_driver_en, true, "Enable reset driver");
-DEFINE_bool(rst_sram_hold, false, "Enable reset driver sram hold");
-DEFINE_bool(rst_debug_hold, false, "Enable reset driver debug hold");
-DEFINE_bool(rst_critical_hold, false, "Enable reset driver critical hold");
-DEFINE_bool(rst_random_holds, true, "Eanble reset random holds");
-DEFINE_bool(mid_sim_reset_en, false, "Enable mid sim reset driving");
+DEFINE_bool(rst_sram_hold, true, "Enable reset driver sram hold");
+DEFINE_bool(rst_debug_hold, true, "Enable reset driver debug hold");
+DEFINE_bool(rst_critical_hold, true, "Enable reset driver critical hold");
+DEFINE_bool(rst_random_holds, false, "Enable reset random holds");
+DEFINE_bool(mid_sim_reset_en, true, "Enable mid sim reset driving");
 DEFINE_bool(mid_sim_warm_reset_en, true, "Enable mid sim warm reset driving");
 DEFINE_uint32(reset_pulse_period, 16, "Hold Reset pin value for N cycles");
-DEFINE_uint32(num_resets, 1, "toggle resets N times");
+DEFINE_uint32(num_resets, 2, "toggle resets N times");
 DEFINE_uint32(num_warm_resets, 1, "toggle warm resets N times");
 DEFINE_uint32(hold_pulse_period, 16, "Hold HOLD pin value for N cycles");
 DEFINE_uint64(mid_sim_reset_period, 1500, "Drive midsim reset every N cycles");

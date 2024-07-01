@@ -27,6 +27,7 @@ DECLARE_uint32(reset_pulse_period);
 DECLARE_uint32(hold_pulse_period);
 DECLARE_uint64(mid_sim_reset_period);
 DECLARE_uint64(mid_sim_warm_reset_period);
+DECLARE_uint64(reset_chk_period);
 
 extern "C" {
   void reset_driver_drive_resets(unsigned reset_pins) ;
@@ -79,7 +80,7 @@ public:
         cvm::log(cvm::FULL, "[Reset Driver] Progress flags are, force_clk_assert_in_progress={}, reset_sequence_in_progress={}\n",force_clk_assert_in_progress,reset_sequence_in_progress);
         cvm::log(cvm::FULL, "[Reset Driver] Ticks are, force_clk_assert_ticks={}, reset_sequence_ticks={}\n",force_clk_assert_ticks,reset_sequence_ticks);
 
-        if ((force_clk_assert_in_progress == false) && (reset_sequence_in_progress == false)) {
+        if ((force_clk_assert_in_progress == false) && (ticks > (force_clk_assert_ticks + FLAGS_reset_chk_period)) &&  (reset_sequence_in_progress == false)) {
           cvm::log(cvm::NONE, "[Reset Driver] Mid-sim cold reset - Force clocks asserted\n");
           force_clk_assert_in_progress = true;
           force_clk_assert_ticks = ticks;
@@ -94,16 +95,23 @@ public:
           reset_sequence_ticks = ticks;
 
           perform_cold_reset();
+          send_reset_req_to_smc = true;
         }
-        
-        if ((cold_boot_reset_done == true) && (reset_sequence_in_progress == true)) {
-          reset_sequence_in_progress = false;
-          num_resets++;
-          cvm::log(cvm::NONE, "[Reset Driver] Cold Boot Reset done\n");
+
+        if (ticks == (reset_sequence_ticks + 2*FLAGS_reset_pulse_period) && (reset_sequence_in_progress == true) && (send_reset_req_to_smc == true)){
+          cvm::log(cvm::NONE, "[Reset Driver] Mid-sim cold reset - Req sent to SMC xtor\n");
 
           auto smc_xtor_loc = cvm::topology::get_from_type("SMC_XTOR", 0);
-          cvm::registry::messenger.signal(smc_xtor_loc, smc_xtor::smc_ip_data_t{1}); 
+          cvm::registry::messenger.signal(smc_xtor_loc, smc_xtor::smc_ip_data_t{1});
+          send_reset_req_to_smc = false; 
+        }
+        
+        if ((reset_ack_from_smc_xtor == true) && (reset_sequence_in_progress == true)) {
+          reset_sequence_in_progress = false;
+          reset_ack_from_smc_xtor = false;
 
+          num_resets++;
+          cvm::log(cvm::NONE, "[Reset Driver] Mid-sim cold reset done\n");
           deassert_force_clock();
         }
       }
@@ -116,8 +124,8 @@ public:
         cvm::log(cvm::FULL, "[Reset Driver] Ticks={}, Inside the mid-sim warm reset function\n",ticks); 
         cvm::log(cvm::FULL, "[Reset Driver] Progress flags are, holds_assert_in_progress={}, reset_sequence_in_progress={}, holds_deassert_in_progress={}\n",holds_assert_in_progress,reset_sequence_in_progress,holds_deassert_in_progress);
         cvm::log(cvm::FULL, "[Reset Driver] Ticks are, holds_assert_ticks={}, reset_sequence_ticks={}, holds_deassert_ticks={}\n",holds_assert_ticks,reset_sequence_ticks,holds_deassert_ticks);
-        
-        if ((ticks > (holds_deassert_ticks + FLAGS_hold_pulse_period)) && (force_clk_assert_in_progress == false) && (holds_assert_in_progress == false) && (reset_sequence_in_progress == false) && (holds_deassert_in_progress == false)) {
+
+        if ((ticks > (holds_deassert_ticks + FLAGS_hold_pulse_period)) && (ticks > (force_clk_assert_ticks + FLAGS_reset_chk_period)) && (force_clk_assert_in_progress == false) && (holds_assert_in_progress == false) && (reset_sequence_in_progress == false) && (holds_deassert_in_progress == false)) {
           cvm::log(cvm::NONE, "[Reset Driver] Mid-sim warm reset - Force clocks asserted\n");
           force_clk_assert_in_progress = true;
           force_clk_assert_ticks = ticks;
