@@ -913,7 +913,13 @@ pmu:
                 width: 64
             stlf_hits:
                 width: 64
-            dfp_access:
+            dfp_access_load:
+                width: 64
+            dfp_access_store:
+                width: 64
+            dfp_access_mmu:
+                width: 64
+            dfp_access_all:
                 width: 64
             tlb_invalidates:
                 width: 64
@@ -937,7 +943,15 @@ pmu:
                 width: 64
             st_masked_vec_nano:
                 width: 64
-            tap_access:
+            tap_access_load:
+                width: 64
+            tap_access_store:
+                width: 64
+            tap_access_prefetch:
+                width: 64
+            tap_access_mmu:
+                width: 64
+            tap_access_all:
                 width: 64
             uwp_access:
                 width: 64
@@ -955,7 +969,13 @@ pmu:
                 width: 64
             pfc_useless_prefetches:
                 width: 64
-            tlp_access:
+            tlp_access_load:
+                width: 64
+            tlp_access_store:
+                width: 64
+            tlp_access_prefetch:
+                width: 64
+            tlp_access_all:
                 width: 64
             fillbuf_cannot_alloc:
                 width: 64
