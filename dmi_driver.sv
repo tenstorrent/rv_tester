@@ -158,9 +158,9 @@ module dmi_driver (
       wait (dmi_req_ready == 1);
       @(posedge clk) dmi_req_valid <= '0;
       wait (dmi_resp_valid == 1);
-      @(posedge clk) dmi_resp_ready = 1;
+      @(posedge clk) dmi_resp_ready <= 1;
       response_queue.push_back(dmi_resp);
-      @(posedge clk) dmi_resp_ready = 0;
+      @(posedge clk) dmi_resp_ready <= 0;
     end
   endtask : drive_dmi_cmd
 
