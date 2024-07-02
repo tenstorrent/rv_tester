@@ -742,6 +742,7 @@ package rv_tester_params;
         OP_ISSUED_PIPE13,
         OP_ISSUED_PIPE14,
         OP_ISSUED_PIPE15,
+        WASTED_ISSUE_SLOTS_VIA_THROTTLING,
         CACHE_REFERENCES,
         CACHE_MISSES,
         L1D_READ_ACCESS_NON_CLC,
@@ -916,7 +917,7 @@ package rv_tester_params;
         PFC_NO_TAG_CREDIT_STALLS,
         PFC_PREFETCHES_SENT,
         EVENT_COUNT
-    } pmc_event_t; 
+    } pmc_event_t;
     
     typedef logic [3:0] pmc_counter_t;
     typedef pmc_counter_t [EVENT_COUNT-1:0] pmci_t;
