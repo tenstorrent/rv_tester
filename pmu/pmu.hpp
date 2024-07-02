@@ -361,13 +361,11 @@ public:
       DTLB_REPLAY_PREFETCH,
       //Event for any LS replay caused by DTLB miss
       DTLB_REPLAY_ALL,
-      //Event (speculative) for any demand memory-read replay caused by incorrect PA prediction
+      //Event (speculative) for any demand memory-read replay caused by mismatch between RSTLB and DTLB/UTLB
       SIPT_REPLAY_LOAD,
-      //Event (speculative) for any demand memory-write replay caused by incorrect PA prediction
+      //Event (speculative) for any demand memory-write replay caused by mismatch between RSTLB and DTLB/UTLB
       SIPT_REPLAY_STORE,
-      //Event (speculative) for any prefetch replay caused by incorrect PA prediction
-      SIPT_REPLAY_PREFETCH,
-      //Event (speculative) for any LS replay caused by incorrect PA prediction
+      //Event (speculative) for any LS replay caused by mismatch between RSTLB and DTLB/UTLB
       SIPT_REPLAY_ALL,
       //Event for any demand memory-read replay caused by hitting on a reqbuf entry
       REQBUF_HIT_REPLAY_LOAD,
@@ -389,6 +387,8 @@ public:
       L1D_CACHE_INVALIDATE_SNOOP,
       //Event for all l1 data cache invalidates due to cache management operations
       L1D_CACHE_INVALIDATE_CMO,
+      //Event for all l1 data cache invalidates due to RAS errors
+      L1D_CACHE_INVALIDATE_RAS,
       //Event for all l1 data cache invalidates
       L1D_CACHE_INVALIDATE_ALL,
       //Event for all RAR resyncs raised by Store Pipe
@@ -440,15 +440,23 @@ public:
       //Event (speculative) for every instance an allocated Unaligned Data Buffer entry was lost to another cacheline crossing request
       UDB_LOST,
       //Event for every retired load reserved operation
-      ATOMIC_RETIRED_LR,
-      //"Event (speculative) for every fully masked
-      LD_MASKED_VEC_NANO,
+      ATOMICS_RETIRED_LR,
+      //Stall cycles due to load reserved operation
+      LR_STALL,
       //Event (speculative) for every confirmed Load nano-operation
       LD_EXECUTED_VEC_NANO,
+      //"Event (speculative) for every fully masked
+      LD_MASKED_VEC_NANO,
       //Event (speculative) for every instance of a Store instruction forwarding data to a demand memory-read operation
       STLF_HITS,
+      //Event (speculative) for data pipe access by load
+      DFP_ACCESS_LOAD,
+      //Event (speculative) for data pipe access by store
+      DFP_ACCESS_STORE,
+      //Event (speculative) for data pipe access by mmu
+      DFP_ACCESS_MMU,
       //Event (speculative) for any data pipe access
-      DFP_ACCESS,
+      DFP_ACCESS_ALL,
       //Event for each tlb invalidation -- this will track retired instructions that invalidate the TLB
       TLB_INVALIDATES,
       //Event (speculative) for every cycle the instruction picker has ops -- but does not pick -- and the STQ can not drain to SMB
@@ -471,8 +479,16 @@ public:
       ST_EXECUTED_VEC_NANO,
       //"Event (speculative) for every fully masked
       ST_MASKED_VEC_NANO,
+      //Event (speculative) for tag pipe access by load
+      TAP_ACCESS_LOAD,
+      //Event (speculative) for tag pipe access by store
+      TAP_ACCESS_STORE,
+      //Event (speculative) for tag pipe access by prefetch
+      TAP_ACCESS_PREFETCH,
+      //Event (speculative) for tag pipe access by mmu
+      TAP_ACCESS_MMU,
       //Event (speculative) for any tag pipe access
-      TAP_ACCESS,
+      TAP_ACCESS_ALL,
       //Event (speculative) for micro way predictor access
       UWP_ACCESS,
       //Event (speculative) for micro-way-predictor refill caused by a demand memory operation
@@ -489,8 +505,14 @@ public:
       PFC_PREFETCHES_HIT,
       //Event (speculative) for every L1D eviction which is an unused prefetch
       PFC_USELESS_PREFETCHES,
+      //Event (speculative) for tlp pipe access by load
+      TLP_ACCESS_LOAD,
+      //Event (speculative) for tlp pipe access by store
+      TLP_ACCESS_STORE,
+      //Event (speculative) for tlp pipe access by prefetch
+      TLP_ACCESS_PREFETCH,
       //Event (speculative) for any tlp pipe access
-      TLP_ACCESS,
+      TLP_ACCESS_ALL,
       //Event for every instance of a failed FillBuffer allocation
       FILLBUF_CANNOT_ALLOC,
       //Event (speculative) for every failed instance a new Active Generation Table allocation
@@ -868,7 +890,6 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::DTLB_REPLAY_ALL] = pmcounters.dtlb_replay_all;
       tmp[counter::SIPT_REPLAY_LOAD] = pmcounters.sipt_replay_load;
       tmp[counter::SIPT_REPLAY_STORE] = pmcounters.sipt_replay_store;
-      tmp[counter::SIPT_REPLAY_PREFETCH] = pmcounters.sipt_replay_prefetch;
       tmp[counter::SIPT_REPLAY_ALL] = pmcounters.sipt_replay_all;
       tmp[counter::REQBUF_HIT_REPLAY_LOAD] = pmcounters.reqbuf_hit_replay_load;
       tmp[counter::REQBUF_HIT_REPLAY_STORE] = pmcounters.reqbuf_hit_replay_store;
@@ -880,6 +901,7 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::FILLBUF_HIT_REPLAY_ALL] = pmcounters.fillbuf_hit_replay_all;
       tmp[counter::L1D_CACHE_INVALIDATE_SNOOP] = pmcounters.l1d_cache_invalidate_snoop;
       tmp[counter::L1D_CACHE_INVALIDATE_CMO] = pmcounters.l1d_cache_invalidate_cmo;
+      tmp[counter::L1D_CACHE_INVALIDATE_RAS] = pmcounters.l1d_cache_invalidate_ras;
       tmp[counter::L1D_CACHE_INVALIDATE_ALL] = pmcounters.l1d_cache_invalidate_all;
       tmp[counter::LSU_RESYNCS_RAR_STPIPE] = pmcounters.lsu_resyncs_rar_stpipe;
       tmp[counter::LSU_RESYNCS_RAR_LDPIPE] = pmcounters.lsu_resyncs_rar_ldpipe;
@@ -905,11 +927,15 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::UDB_CANNOT_ALLOC] = pmcounters.udb_cannot_alloc;
       tmp[counter::UDB_DATA_RETURN] = pmcounters.udb_data_return;
       tmp[counter::UDB_LOST] = pmcounters.udb_lost;
-      tmp[counter::ATOMIC_RETIRED_LR] = pmcounters.atomic_retired_lr;
-      tmp[counter::LD_MASKED_VEC_NANO] = pmcounters.ld_masked_vec_nano;
+      tmp[counter::ATOMICS_RETIRED_LR] = pmcounters.atomics_retired_lr;
+      tmp[counter::LR_STALL] = pmcounters.lr_stall;
       tmp[counter::LD_EXECUTED_VEC_NANO] = pmcounters.ld_executed_vec_nano;
+      tmp[counter::LD_MASKED_VEC_NANO] = pmcounters.ld_masked_vec_nano;
       tmp[counter::STLF_HITS] = pmcounters.stlf_hits;
-      tmp[counter::DFP_ACCESS] = pmcounters.dfp_access;
+      tmp[counter::DFP_ACCESS_LOAD] = pmcounters.dfp_access_load;
+      tmp[counter::DFP_ACCESS_STORE] = pmcounters.dfp_access_store;
+      tmp[counter::DFP_ACCESS_MMU] = pmcounters.dfp_access_mmu;
+      tmp[counter::DFP_ACCESS_ALL] = pmcounters.dfp_access_all;
       tmp[counter::TLB_INVALIDATES] = pmcounters.tlb_invalidates;
       tmp[counter::STALLS_MEM_STORES] = pmcounters.stalls_mem_stores;
       tmp[counter::LSU_RESYNCS_RAW] = pmcounters.lsu_resyncs_raw;
@@ -921,7 +947,11 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::ATOMICS_RETIRED_AMO] = pmcounters.atomics_retired_amo;
       tmp[counter::ST_EXECUTED_VEC_NANO] = pmcounters.st_executed_vec_nano;
       tmp[counter::ST_MASKED_VEC_NANO] = pmcounters.st_masked_vec_nano;
-      tmp[counter::TAP_ACCESS] = pmcounters.tap_access;
+      tmp[counter::TAP_ACCESS_LOAD] = pmcounters.tap_access_load;
+      tmp[counter::TAP_ACCESS_STORE] = pmcounters.tap_access_store;
+      tmp[counter::TAP_ACCESS_PREFETCH] = pmcounters.tap_access_prefetch;
+      tmp[counter::TAP_ACCESS_MMU] = pmcounters.tap_access_mmu;
+      tmp[counter::TAP_ACCESS_ALL] = pmcounters.tap_access_all;
       tmp[counter::UWP_ACCESS] = pmcounters.uwp_access;
       tmp[counter::UWP_MISS] = pmcounters.uwp_miss;
       tmp[counter::UWP_TRUE_HIT] = pmcounters.uwp_true_hit;
@@ -930,7 +960,10 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::WP_TRUE_HIT] = pmcounters.wp_true_hit;
       tmp[counter::PFC_PREFETCHES_HIT] = pmcounters.pfc_prefetches_hit;
       tmp[counter::PFC_USELESS_PREFETCHES] = pmcounters.pfc_useless_prefetches;
-      tmp[counter::TLP_ACCESS] = pmcounters.tlp_access;
+      tmp[counter::TLP_ACCESS_LOAD] = pmcounters.tlp_access_load;
+      tmp[counter::TLP_ACCESS_STORE] = pmcounters.tlp_access_store;
+      tmp[counter::TLP_ACCESS_PREFETCH] = pmcounters.tlp_access_prefetch;
+      tmp[counter::TLP_ACCESS_ALL] = pmcounters.tlp_access_all;
       tmp[counter::FILLBUF_CANNOT_ALLOC] = pmcounters.fillbuf_cannot_alloc;
       tmp[counter::PFC_AGT_CANNOT_ALLOC] = pmcounters.pfc_agt_cannot_alloc;
       tmp[counter::PFC_AGT_EVICT] = pmcounters.pfc_agt_evict;
@@ -1210,7 +1243,6 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {DTLB_REPLAY_ALL,"dtlb_replay_all"},
       {SIPT_REPLAY_LOAD,"sipt_replay_load"},
       {SIPT_REPLAY_STORE,"sipt_replay_store"},
-      {SIPT_REPLAY_PREFETCH,"sipt_replay_prefetch"},
       {SIPT_REPLAY_ALL,"sipt_replay_all"},
       {REQBUF_HIT_REPLAY_LOAD,"reqbuf_hit_replay_load"},
       {REQBUF_HIT_REPLAY_STORE,"reqbuf_hit_replay_store"},
@@ -1222,6 +1254,7 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {FILLBUF_HIT_REPLAY_ALL,"fillbuf_hit_replay_all"},
       {L1D_CACHE_INVALIDATE_SNOOP,"l1d_cache_invalidate_snoop"},
       {L1D_CACHE_INVALIDATE_CMO,"l1d_cache_invalidate_cmo"},
+      {L1D_CACHE_INVALIDATE_RAS,"l1d_cache_invalidate_ras"},
       {L1D_CACHE_INVALIDATE_ALL,"l1d_cache_invalidate_all"},
       {LSU_RESYNCS_RAR_STPIPE,"lsu_resyncs_rar_stpipe"},
       {LSU_RESYNCS_RAR_LDPIPE,"lsu_resyncs_rar_ldpipe"},
@@ -1247,11 +1280,15 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {UDB_CANNOT_ALLOC,"udb_cannot_alloc"},
       {UDB_DATA_RETURN,"udb_data_return"},
       {UDB_LOST,"udb_lost"},
-      {ATOMIC_RETIRED_LR,"atomic_retired_lr"},
-      {LD_MASKED_VEC_NANO,"ld_masked_vec_nano"},
+      {ATOMICS_RETIRED_LR,"atomics_retired_lr"},
+      {LR_STALL,"lr_stall"},
       {LD_EXECUTED_VEC_NANO,"ld_executed_vec_nano"},
+      {LD_MASKED_VEC_NANO,"ld_masked_vec_nano"},
       {STLF_HITS,"stlf_hits"},
-      {DFP_ACCESS,"dfp_access"},
+      {DFP_ACCESS_LOAD,"dfp_access_load"},
+      {DFP_ACCESS_STORE,"dfp_access_store"},
+      {DFP_ACCESS_MMU,"dfp_access_mmu"},
+      {DFP_ACCESS_ALL,"dfp_access_all"},
       {TLB_INVALIDATES,"tlb_invalidates"},
       {STALLS_MEM_STORES,"stalls_mem_stores"},
       {LSU_RESYNCS_RAW,"lsu_resyncs_raw"},
@@ -1263,7 +1300,11 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {ATOMICS_RETIRED_AMO,"atomics_retired_amo"},
       {ST_EXECUTED_VEC_NANO,"st_executed_vec_nano"},
       {ST_MASKED_VEC_NANO,"st_masked_vec_nano"},
-      {TAP_ACCESS,"tap_access"},
+      {TAP_ACCESS_LOAD,"tap_access_load"},
+      {TAP_ACCESS_STORE,"tap_access_store"},
+      {TAP_ACCESS_PREFETCH,"tap_access_prefetch"},
+      {TAP_ACCESS_MMU,"tap_access_mmu"},
+      {TAP_ACCESS_ALL,"tap_access_all"},
       {UWP_ACCESS,"uwp_access"},
       {UWP_MISS,"uwp_miss"},
       {UWP_TRUE_HIT,"uwp_true_hit"},
@@ -1272,7 +1313,10 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {WP_TRUE_HIT,"wp_true_hit"},
       {PFC_PREFETCHES_HIT,"pfc_prefetches_hit"},
       {PFC_USELESS_PREFETCHES,"pfc_useless_prefetches"},
-      {TLP_ACCESS,"tlp_access"},
+      {TLP_ACCESS_LOAD,"tlp_access_load"},
+      {TLP_ACCESS_STORE,"tlp_access_store"},
+      {TLP_ACCESS_PREFETCH,"tlp_access_prefetch"},
+      {TLP_ACCESS_ALL,"tlp_access_all"},
       {FILLBUF_CANNOT_ALLOC,"fillbuf_cannot_alloc"},
       {PFC_AGT_CANNOT_ALLOC,"pfc_agt_cannot_alloc"},
       {PFC_AGT_EVICT,"pfc_agt_evict"},
@@ -1375,6 +1419,7 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
 
   void report();
   void ipc_check();
+  void l1d_read_miss_check();
 
   // snapshot current counter values, to be used in perf region
   void perf_region_start() {
@@ -1396,7 +1441,7 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
     perf_end_cycle = counters[CPU_CYCLES];
   }
 
-  bool is_within_range(double, double, int);
+  bool is_within_range(double, double, int, bool);
   void process(const rv_tester_transactions::pmu::pmcounters<> &pmcounters);
   void process(const rv_tester::terminate_called_fast &);
   std::string trigger_str(const rv_tester_transactions::pmu::pmcounters<> &pmcounters);

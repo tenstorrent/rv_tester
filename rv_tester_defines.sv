@@ -39,8 +39,8 @@ package rv_tester_params;
     parameter SOC_CLK_IDX = mods.TOP.PLATFORM.CLKI.SOC_CLK_IDX;
     parameter SW_CLOCK_PERIOD_PS = mods.TOP.PLATFORM.CLKI.SW_CLOCK_PERIOD_PS;
     parameter bit [NCLKS-1:0][31:0] CLOCK_FREQ_MHZ = mods.TOP.PLATFORM.CLKI.CLOCK_FREQ_MHZ;
-    //parameter bit [NCLKS-1:0][31:0] PROFILE1_CLOCK_FREQ_MHZ = mods.TOP.PLATFORM.CLKI.PROFILE1_CLOCK_FREQ_MHZ;
-    //parameter bit [NCLKS-1:0][31:0] PROFILE2_CLOCK_FREQ_MHZ = mods.TOP.PLATFORM.CLKI.PROFILE2_CLOCK_FREQ_MHZ;
+    parameter bit [NCLKS-1:0][31:0] PROFILE1_CLOCK_FREQ_MHZ = mods.TOP.PLATFORM.CLKI.PROFILE1_CLOCK_FREQ_MHZ;
+    parameter bit [NCLKS-1:0][31:0] PROFILE2_CLOCK_FREQ_MHZ = mods.TOP.PLATFORM.CLKI.PROFILE2_CLOCK_FREQ_MHZ;
     parameter bit [NCLKS-1:0][31:0] PLL_CLOCK = mods.TOP.PLATFORM.CLKI.PLL_CLOCK;
 
     // --------------------------------------
@@ -831,7 +831,6 @@ package rv_tester_params;
         DTLB_REPLAY_ALL,
         SIPT_REPLAY_LOAD,
         SIPT_REPLAY_STORE,
-        SIPT_REPLAY_PREFETCH,
         SIPT_REPLAY_ALL,
         REQBUF_HIT_REPLAY_LOAD,
         REQBUF_HIT_REPLAY_STORE,
@@ -843,6 +842,7 @@ package rv_tester_params;
         FILLBUF_HIT_REPLAY_ALL,
         L1D_CACHE_INVALIDATE_SNOOP,
         L1D_CACHE_INVALIDATE_CMO,
+        L1D_CACHE_INVALIDATE_RAS,
         L1D_CACHE_INVALIDATE_ALL,
         LSU_RESYNCS_RAR_STPIPE,
         LSU_RESYNCS_RAR_LDPIPE,
@@ -868,11 +868,15 @@ package rv_tester_params;
         UDB_CANNOT_ALLOC,
         UDB_DATA_RETURN,
         UDB_LOST,
-        ATOMIC_RETIRED_LR,
-        LD_MASKED_VEC_NANO,
+        ATOMICS_RETIRED_LR,
+        LR_STALL,
         LD_EXECUTED_VEC_NANO,
+        LD_MASKED_VEC_NANO,
         STLF_HITS,
-        DFP_ACCESS,
+        DFP_ACCESS_LOAD,
+        DFP_ACCESS_STORE,
+        DFP_ACCESS_MMU,
+        DFP_ACCESS_ALL,
         TLB_INVALIDATES,
         STALLS_MEM_STORES,
         LSU_RESYNCS_RAW,
@@ -884,7 +888,11 @@ package rv_tester_params;
         ATOMICS_RETIRED_AMO,
         ST_EXECUTED_VEC_NANO,
         ST_MASKED_VEC_NANO,
-        TAP_ACCESS,
+        TAP_ACCESS_LOAD,
+        TAP_ACCESS_STORE,
+        TAP_ACCESS_PREFETCH,
+        TAP_ACCESS_MMU,
+        TAP_ACCESS_ALL,
         UWP_ACCESS,
         UWP_MISS,
         UWP_TRUE_HIT,
@@ -893,7 +901,10 @@ package rv_tester_params;
         WP_TRUE_HIT,
         PFC_PREFETCHES_HIT,
         PFC_USELESS_PREFETCHES,
-        TLP_ACCESS,
+        TLP_ACCESS_LOAD,
+        TLP_ACCESS_STORE,
+        TLP_ACCESS_PREFETCH,
+        TLP_ACCESS_ALL,
         FILLBUF_CANNOT_ALLOC,
         PFC_AGT_CANNOT_ALLOC,
         PFC_AGT_EVICT,
@@ -995,9 +1006,6 @@ package rv_tester_params;
     // --------------------------------------
 `define _RV_TESTER_PORTS(input,output)                                                              \
     input                                    clk                [rv_tester_params::NCLKS-1:0],      \
-    input                                    def_clk                [rv_tester_params::NCLKS-1:0],      \
-    input                                    profile1_clk                [rv_tester_params::NCLKS-1:0],      \
-    input                                    profile2_clk                [rv_tester_params::NCLKS-1:0],      \
     output                                   clk_pll            [rv_tester_params::NCLKS-1:0],      \
     input  [rv_tester_params::NRESETS-1:0]   reset, /*Packed so zebu can easily force*/             \
     input  rv_tester_params::bootstrap_t     bootstrap,                                             \
@@ -1080,9 +1088,6 @@ package rv_tester_params;
 
 `define RV_TESTER_VARS(topology)                                                                    \
     logic                                    clk             [rv_tester_params::NCLKS-1:0];         \
-    logic                                    def_clk             [rv_tester_params::NCLKS-1:0];         \
-    logic                                    profile1_clk             [rv_tester_params::NCLKS-1:0];         \
-    logic                                    profile2_clk             [rv_tester_params::NCLKS-1:0];         \
     logic                                    clk_pll         [rv_tester_params::NCLKS-1:0];         \
     logic [rv_tester_params::NRESETS-1:0]    reset           /* Packed so zebu can force easily */; \
     rv_tester_params::bootstrap_t            bootstrap;                                             \

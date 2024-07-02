@@ -71,6 +71,7 @@ cvm::log(cvm::NONE, "[SMC] sending info to reset driver *** 443  \n");
 
 void smc_xtor::axi_write() {
   uint64_t addr;
+  uint32_t t_addr;
   size_t length = 0x8;
   std::vector<uint8_t> data;
   std::vector<bool> strb;
@@ -79,14 +80,21 @@ void smc_xtor::axi_write() {
   wr = smc_wr_txn_q.front();
   smc_wr_txn_q.pop();
   addr = (uint64_t)wr.addr;
-  gen_data_strb(wr.addr,wr.data,data,strb);
-  cvm::log(cvm::FULL, "[SMC] write {:#X} loc :{:#X} data:{:#X} \n",addr,axi_mst_loc_l,wr.data);
+  t_addr = (uint32_t)wr.addr;
+  t_addr = t_addr & 0xFFFF;
+  if((t_addr >= 0x2000) && (t_addr < 0x3FFF)) {
+    gen_data_strb_4b(wr.addr,wr.data,data,strb);
+  }
+  else {
+    gen_data_strb_8b(wr.addr,wr.data,data,strb);
+  }
+  cvm::log(cvm::HIGH, "[SMC] write {:#X} loc :{:#X} data:{:#X} \n",addr,axi_mst_loc_l,wr.data);
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb});
 }
 
 void smc_xtor::axi_read(uint64_t addr, size_t length,
                           uint32_t id) {
-  cvm::log(cvm::FULL, "[SMC] axi read addr= {:#X} id = {} length = {}  \n",addr,id,length);
+  cvm::log(cvm::HIGH, "[SMC] axi read addr= {:#X} id = {} length = {}  \n",addr,id,length);
   transactor::read_t r ;
   r.addr = addr;
   r.length = length;
