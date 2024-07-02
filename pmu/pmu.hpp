@@ -1419,6 +1419,7 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
 
   void report();
   void ipc_check();
+  void l1d_read_miss_check();
 
   // snapshot current counter values, to be used in perf region
   void perf_region_start() {
@@ -1440,7 +1441,7 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
     perf_end_cycle = counters[CPU_CYCLES];
   }
 
-  bool is_within_range(double, double, int);
+  bool is_within_range(double, double, int, bool);
   void process(const rv_tester_transactions::pmu::pmcounters<> &pmcounters);
   void process(const rv_tester::terminate_called_fast &);
   std::string trigger_str(const rv_tester_transactions::pmu::pmcounters<> &pmcounters);
