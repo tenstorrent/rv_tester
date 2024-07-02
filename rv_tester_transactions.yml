@@ -651,6 +651,8 @@ pmu:
                 width: 64
             op_issued_pipe15:
                 width: 64
+            wasted_issue_slots_via_throttling:
+                width: 64
             cache_references:
                 width: 64
             cache_misses:
