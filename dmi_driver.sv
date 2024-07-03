@@ -307,8 +307,8 @@ module dmi_driver (
         wait (dmi_req_ready == 1);
         @(posedge clk) dmi_req_valid <= '0;
         wait (dmi_resp_valid == 1);
-        @(posedge clk) dmi_resp_ready = 1;
-        @(posedge clk) dmi_resp_ready = 0;
+        @(posedge clk) dmi_resp_ready <= 1;
+        @(posedge clk) dmi_resp_ready <= 0;
         //check dmstatus
         // $display("\ndmi resp %h\n",dmi_resp.data);
         if (resume_req && dmi_resp.data[17:16] === 2'b11) begin
