@@ -72,6 +72,18 @@ public:
   void reset() override {
   }
 
+ uint64_t convertToUInt64(const std::vector<uint8_t>& vec) {
+    if (vec.size() != 8) {
+        throw std::invalid_argument("Vector must have exactly 8 elements.");
+    }
+
+    uint64_t result = 0;
+    for (size_t i = 0; i < 8; ++i) {
+        result |= static_cast<uint64_t>(vec[i]) << (8 *  i);
+    }
+
+    return result;
+}
   struct uc_helper_write_t {
         uint64_t addr;
         size_t length;
