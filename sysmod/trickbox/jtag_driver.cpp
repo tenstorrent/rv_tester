@@ -100,8 +100,11 @@ void jtag_driver::parse_jtag_from_csv()
       std::string length;
       
       jtag_req_t jtag_req;
-      
       instr = row[0];
+
+      if (instr == "//"){
+        continue; // skip line may be comment
+      }
       data_s = row[1];
       length = row[2]; //TODO
       
@@ -124,10 +127,14 @@ void jtag_driver::parse_jtag_from_csv()
          jtag_req.jtag_cmd = 5;
       }else if(jtag_cmd == "le"){ //loop end, checkbitNum, CheckbitValue
          jtag_req.jtag_cmd = 6;
-      }else if(jtag_cmd == "qt"){ //loop end, checkbitNum, CheckbitValue
+      }else if(jtag_cmd == "qt"){ //end test
          jtag_req.jtag_cmd = 7;
-      }else if (jtag_cmd == "//"){
-        continue; // skip line may be comment
+      }else if(jtag_cmd == "rv"){ //reverse
+         jtag_req.jtag_cmd = 8;
+      }else if(jtag_cmd == "sl"){ //shift left
+         jtag_req.jtag_cmd = 9;
+      }else if(jtag_cmd == "sr"){ //shift right
+         jtag_req.jtag_cmd = 10;
       }
       else{
         cvm::log(cvm::ERROR, "Error: unknown command {} in jtag cfg file {}\n",jtag_cmd, FLAGS_jtag_input_file_path);
@@ -249,6 +256,46 @@ void jtag_driver::drive_csv_jtag_cmds()
        cvm::log(cvm::ERROR, "ERROR: [JTAGDRIVER] jtag check opcode failed! expected {:#x} got {:#x} \n", lower_jtag_data,loop_rdata);
       }
       jtag_cmd_q.pop(); // pop front eleme7t
+    }
+
+    if(jtag_cmd == 8){  //Reverse
+
+      uint64_t temp_rev = 0;
+ 
+      // traversing bits of 'n' from the right
+      while (loop_rdata > 0) {
+          // bitwise left shift
+          // 'rev' by 1
+          temp_rev <<= 1;
+  
+          // if current bit is '1'
+          if ((loop_rdata & 1) == 1)
+              temp_rev ^= 1;
+  
+          // bitwise right shift
+          // 'n' by 1
+          loop_rdata >>= 1;
+      }
+      loop_rdata  = temp_rev ;
+
+      jtag_cmd_q.pop(); // pop front element
+    }
+
+    if(jtag_cmd == 9){  //shift left
+      uint64_t shifted = loop_rdata;
+
+      shifted <<= lower_jtag_data;
+
+      loop_rdata = shifted ;    
+      jtag_cmd_q.pop(); // pop front element
+    }
+
+    if(jtag_cmd == 10){  //shift right
+      uint64_t shifted = loop_rdata;
+      shifted >>= lower_jtag_data;
+
+      loop_rdata = shifted ;    
+      jtag_cmd_q.pop(); // pop front element
     }
     
     if(jtag_cmd == 5){ //ls loop start
