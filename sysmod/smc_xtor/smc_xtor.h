@@ -269,7 +269,7 @@ class smc_xtor : public device {
           //Write 0x1 in 0x0210_2008  // Release cluster warm reset
           smc_boot_wr_txn_q.push({ 0x02102008,0x1});
 
-          if (FLAGS_hart_enable_mask == 0xff) {
+          if (FLAGS_hart_enable_mask > 0x3) {
             cvm::log(cvm::LOW, "[SMC_XTOR] smc_xtor 8C FuseMMR config\n");
 
             smc_boot_wr_txn_q.push({0x421BFFF8 ,0xFDB975318700});	// SW fuse MMR
