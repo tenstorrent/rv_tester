@@ -271,6 +271,8 @@ class smc_xtor : public device {
 
           if (FLAGS_hart_enable_mask == 0xff) {
             cvm::log(cvm::LOW, "[SMC_XTOR] smc_xtor 8C FuseMMR config\n");
+
+            smc_boot_wr_txn_q.push({0x421BFFF8 ,0xFDB975318700});	// SW fuse MMR
             smc_boot_wr_txn_q.push({0x4200FFF8 ,0xFDB975318700});	// Core fuse MMR
             smc_boot_wr_txn_q.push({0x4201FFF8 ,0xFDB975318700});	// Core fuse MMR
             smc_boot_wr_txn_q.push({0x4202FFF8 ,0xFDB975318700});	// Core fuse MMR
@@ -281,36 +283,33 @@ class smc_xtor : public device {
             smc_boot_wr_txn_q.push({0x4207FFF8 ,0xFDB975318700});	// Core fuse MMR
             
             smc_boot_wr_txn_q.push({0x4208FFF8 ,0xFDB975318700});		// Trace fuse MMR
-            //smc_boot_wr_txn_q.push({0x4208FFFC ,0xFDB9});
             smc_boot_wr_txn_q.push({0x4218FFF8 ,0xFDB975318700});	// ACLINT fuse MMR
             smc_boot_wr_txn_q.push({0x4219FFF8 ,0xFDB975318700});	// DM fuse MMR
-            // FIXME:: SW RTL support is not there
-            // smc_boot_wr_txn_q.push({0x421BFFF8 ,0xFDB975318700});	// SW fuse MMR
             //smc_boot_wr_txn_q.push({0x421A7FD8 ,0xFDB975318700});	// SC fuse MMR
             smc_boot_wr_txn_q.push({0x421AFEC0 ,0xFDB9753187ff});	// SC fuse MMR
 
           }
           else if (FLAGS_hart_enable_mask == 0x3) {
             cvm::log(cvm::LOW, "[SMC_XTOR] smc_xtor 2C FuseMMR config\n");
+
+            smc_boot_wr_txn_q.push({0x421BFFF8 ,0x318700});	// SW fuse MMR
             smc_boot_wr_txn_q.push({0x4200FFF8 ,0x318700});	// Core fuse MMR
             smc_boot_wr_txn_q.push({0x4201FFF8 ,0x318700});	// Core fuse MMR
             smc_boot_wr_txn_q.push({0x4208FFF8 ,0x318700});	// Trace fuse MMR
             smc_boot_wr_txn_q.push({0x4218FFF8 ,0x318700});	// ACLINT fuse MMR
             smc_boot_wr_txn_q.push({0x4219FFF8 ,0x318700});	// DM fuse MMR
-            // FIXME:: SW RTL support is not there
-            // smc_boot_wr_txn_q.push({0x421BFFF8 ,0x318700});	// SW fuse MMR
             //smc_boot_wr_txn_q.push({0x421A7FD8 ,0x318700});	// SC fuse MMR
             smc_boot_wr_txn_q.push({0x421AFEC0 ,0x3187ff});	// SC fuse MMR
 
           }
           else {
             cvm::log(cvm::LOW, "[SMC_XTOR] smc_xtor 1C FuseMMR config\n");
+
+            smc_boot_wr_txn_q.push({0x421BFFF8 ,0x18700});	// SW fuse MMR
             smc_boot_wr_txn_q.push({0x4200FFF8 ,0x18700});	// Core fuse MMR
             smc_boot_wr_txn_q.push({0x4208FFF8 ,0x18700});	// Trace fuse MMR
             smc_boot_wr_txn_q.push({0x4218FFF8 ,0x18700});	// ACLINT fuse MMR
             smc_boot_wr_txn_q.push({0x4219FFF8 ,0x18700});	// DM fuse MMR
-            // FIXME:: SW RTL support is not there
-            // smc_boot_wr_txn_q.push({0x421BFFF8 ,0x18700});	// SW fuse MMR
             //smc_boot_wr_txn_q.push({0x421A7FD8 ,0x18700});	// SC fuse MMR
             smc_boot_wr_txn_q.push({0x421AFED8 ,0x187ff});	// SC fuse MMR
           }
