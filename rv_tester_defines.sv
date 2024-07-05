@@ -769,6 +769,7 @@ package rv_tester_params;
         TRANSBUF_OR_REQBUF_CANNOT_ALLOC_PREFETCH,
         TRANSBUF_OR_REQBUF_CANNOT_ALLOC_MMU,
         TRANSBUF_CANNOT_ALLOC_ALL,
+        L1D_WRITE_UPGRADE_REQ,
         DTLB_READ_ACCESS,
         DTLB_WRITE_ACCESS,
         DTLB_PREFETCH_ACCESS,
@@ -917,7 +918,7 @@ package rv_tester_params;
         PFC_NO_TAG_CREDIT_STALLS,
         PFC_PREFETCHES_SENT,
         EVENT_COUNT
-    } pmc_event_t;
+    } pmc_event_t; 
     
     typedef logic [3:0] pmc_counter_t;
     typedef pmc_counter_t [EVENT_COUNT-1:0] pmci_t;
