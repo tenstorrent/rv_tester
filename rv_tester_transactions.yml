@@ -705,6 +705,8 @@ pmu:
                 width: 64
             transbuf_cannot_alloc_all:
                 width: 64
+            l1d_write_upgrade_req:
+                width: 64
             dtlb_read_access:
                 width: 64
             dtlb_write_access:
