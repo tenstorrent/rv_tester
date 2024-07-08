@@ -36,6 +36,9 @@ module rv_tester
     /* verilator lint_off UNOPTFLAT */
     logic [1:0] clock_mode = 2'b00;
     /* verilator lint_on UNOPTFLAT */
+    logic  def_clk      [NCLKS-1:0];         
+    logic  profile1_clk [NCLKS-1:0];         
+    logic  profile2_clk [NCLKS-1:0];         
 
     if (EXTERNAL_CLOCK) begin
         for (genvar c = 0; c < NCLKS; c++) begin
@@ -50,57 +53,30 @@ module rv_tester
         for (genvar c = 0; c < NCLKS; c++) begin
             if (PLL_CLOCK[c] && pll_clock_exists)begin
                 assign clk[c] = clk_pll[c];
-                assign clk[c] = clk_pll[c];
-           
             end
             else begin
- 
                 `ifdef CLK_MUX_UNSUPPORTED
- 
-                                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(clk[c]));
- 
+                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(clk[c]));
                 `else
- 
-                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(def_clk[c]));
- 
-                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE1_CLOCK_FREQ_MHZ[c])) profile1_clkgen(.clk(profile1_clk[c]));
- 
-                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE2_CLOCK_FREQ_MHZ[c])) profile2_clkgen(.clk(profile2_clk[c]));
- 
-                
+                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(def_clk[c]));
+                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE1_CLOCK_FREQ_MHZ[c])) profile1_clkgen(.clk(profile1_clk[c]));
+                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE2_CLOCK_FREQ_MHZ[c])) profile2_clkgen(.clk(profile2_clk[c]));
  
                 clk_mux_glitch_free #(
- 
                     .NUM_INPUTS(4),
- 
                     .CLOCK_DURING_RESET(1)
- 
                 ) i_clk_mux (
- 
                     .clks_i         ({1'b0, profile2_clk[c], profile1_clk[c], def_clk[c]}),
- 
                     .test_clk_i     (1'b0),             // FIXME:Add test clock
- 
                     .test_en_i      (1'b0),             // FIXME:Add test enable
- 
                     .async_rstn_i   (~rv_tester_reset),
- 
                     .async_sel_i    (clock_mode),
- 
-                    //.async_sel_i    (0),
- 
                     .clk_o          (clk[c])
- 
                 );
- 
                 `endif
- 
             end
- 
          end
- 
-    
-         end
+     end
     
 
     import "DPI-C" function void rv_tester_streaming_dpi_init();
@@ -169,39 +145,21 @@ module rv_tester
     
     assign rerun_now           = terminated && num_reruns > 0;
 
-   // assign clk = clock_mode ? profile1_clk: def_clk; //clkmux
-    ////////////////// Clock mux Instantiation ///////////////////////////
   `ifndef CLK_MUX_UNSUPPORTED 
- 
     always @(posedge clk[TB_CLK_IDX])begin
- 
       if (rv_tester_reset)begin 
-   
             clock_mode <= clk_profile[1:0];
-       
- 
       end
- 
-        /* verilator lint_off WIDTH */
- 
+      /* verilator lint_off WIDTH */
       if(dyn_clk_switch & (clocks >10) &  ((clocks % freq_switch_ncycles) == 0)) begin
- 
-         //dynamically select clk from available profiles
- 
-         //this logic will generate the select pins of the mux ,which will switch between clks
- 
+        //dynamically select clk from available profiles
+        //this logic will generate the select pins of the mux ,which will switch between clks
         clock_mode <= clock_mode + 1'b1;
- 
         if(clock_mode == 2'b11)
- 
           clock_mode <= '0;
- 
       end
- 
        /* verilator lint_on WIDTH */
- 
     end
- 
     `endif
 
     /*
@@ -305,7 +263,7 @@ module rv_tester
             rv_tester_build_registry();
 
         end
-        clock_mode <= clk_profile[1:0];
+        clock_mode      <= clk_profile[1:0];
         num_reruns      <= num_reruns - int'(rerun_now);
         if (num_reruns < 0) begin
             num_reruns  <= cvm_plusargs::get_int("num_reruns");

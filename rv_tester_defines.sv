@@ -742,6 +742,7 @@ package rv_tester_params;
         OP_ISSUED_PIPE13,
         OP_ISSUED_PIPE14,
         OP_ISSUED_PIPE15,
+        WASTED_ISSUE_SLOTS_VIA_THROTTLING,
         CACHE_REFERENCES,
         CACHE_MISSES,
         L1D_READ_ACCESS_NON_CLC,
@@ -768,6 +769,7 @@ package rv_tester_params;
         TRANSBUF_OR_REQBUF_CANNOT_ALLOC_PREFETCH,
         TRANSBUF_OR_REQBUF_CANNOT_ALLOC_MMU,
         TRANSBUF_CANNOT_ALLOC_ALL,
+        L1D_WRITE_UPGRADE_REQ,
         DTLB_READ_ACCESS,
         DTLB_WRITE_ACCESS,
         DTLB_PREFETCH_ACCESS,
@@ -873,7 +875,10 @@ package rv_tester_params;
         LD_EXECUTED_VEC_NANO,
         LD_MASKED_VEC_NANO,
         STLF_HITS,
-        DFP_ACCESS,
+        DFP_ACCESS_LOAD,
+        DFP_ACCESS_STORE,
+        DFP_ACCESS_MMU,
+        DFP_ACCESS_ALL,
         TLB_INVALIDATES,
         STALLS_MEM_STORES,
         LSU_RESYNCS_RAW,
@@ -885,7 +890,11 @@ package rv_tester_params;
         ATOMICS_RETIRED_AMO,
         ST_EXECUTED_VEC_NANO,
         ST_MASKED_VEC_NANO,
-        TAP_ACCESS,
+        TAP_ACCESS_LOAD,
+        TAP_ACCESS_STORE,
+        TAP_ACCESS_PREFETCH,
+        TAP_ACCESS_MMU,
+        TAP_ACCESS_ALL,
         UWP_ACCESS,
         UWP_MISS,
         UWP_TRUE_HIT,
@@ -894,7 +903,10 @@ package rv_tester_params;
         WP_TRUE_HIT,
         PFC_PREFETCHES_HIT,
         PFC_USELESS_PREFETCHES,
-        TLP_ACCESS,
+        TLP_ACCESS_LOAD,
+        TLP_ACCESS_STORE,
+        TLP_ACCESS_PREFETCH,
+        TLP_ACCESS_ALL,
         FILLBUF_CANNOT_ALLOC,
         PFC_AGT_CANNOT_ALLOC,
         PFC_AGT_EVICT,
@@ -996,9 +1008,6 @@ package rv_tester_params;
     // --------------------------------------
 `define _RV_TESTER_PORTS(input,output)                                                              \
     input                                    clk                [rv_tester_params::NCLKS-1:0],      \
-    input                                    def_clk                [rv_tester_params::NCLKS-1:0],      \
-    input                                    profile1_clk                [rv_tester_params::NCLKS-1:0],      \
-    input                                    profile2_clk                [rv_tester_params::NCLKS-1:0],      \
     output                                   clk_pll            [rv_tester_params::NCLKS-1:0],      \
     input  [rv_tester_params::NRESETS-1:0]   reset, /*Packed so zebu can easily force*/             \
     input  rv_tester_params::bootstrap_t     bootstrap,                                             \
@@ -1073,9 +1082,6 @@ package rv_tester_params;
 
 `define RV_TESTER_VARS(topology)                                                                    \
     logic                                    clk             [rv_tester_params::NCLKS-1:0];         \
-    logic                                    def_clk             [rv_tester_params::NCLKS-1:0];         \
-    logic                                    profile1_clk             [rv_tester_params::NCLKS-1:0];         \
-    logic                                    profile2_clk             [rv_tester_params::NCLKS-1:0];         \
     logic                                    clk_pll         [rv_tester_params::NCLKS-1:0];         \
     logic [rv_tester_params::NRESETS-1:0]    reset           /* Packed so zebu can force easily */; \
     rv_tester_params::bootstrap_t            bootstrap;                                             \

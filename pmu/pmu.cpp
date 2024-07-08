@@ -11,6 +11,9 @@ DEFINE_bool(pmcounters_log, false, "Dump pmcounters in log");
 DEFINE_bool(ipc_check, false, "Check IPC within a tolerance %");
 DEFINE_double(ipc_expected, 0.0, "Expected IPC");
 DEFINE_int32(ipc_tolerance_perc, 5, "IPC tolerance %");
+DEFINE_bool(l1d_read_miss_check, false, "Check L1D miss rate within a tolerance %");
+DEFINE_double(l1d_read_miss_expected, 0.0, "Expected L1D miss rate");
+DEFINE_int32(l1d_read_miss_tolerance_perc, 20, "L1D miss rate tolerance %");
 
 REGISTRY_register(pmu, PMCI, cvm::registry::all);
 
@@ -43,6 +46,8 @@ pmu::~pmu()
 {
   if (FLAGS_perf && FLAGS_ipc_check && (FLAGS_hart_enable_mask & (1ull << id_)) != 0)
       ipc_check();
+  if (FLAGS_perf && FLAGS_l1d_read_miss_check && (FLAGS_hart_enable_mask & (1ull << id_)) != 0)
+      l1d_read_miss_check();
   if (FLAGS_perf)
       report();
 }
@@ -126,9 +131,12 @@ pmu::report()
 }
 
 bool
-pmu::is_within_range(double actual, double expected, int tolerance_perc)
+pmu::is_within_range(double actual, double expected, int tolerance_perc, bool higher_is_better)
 {
-  if (actual > expected)
+  if (higher_is_better && actual > expected)
+    return true;
+
+  if (!higher_is_better && actual < expected)
     return true;
 
   double tolerance = expected * (tolerance_perc / 100.0);
@@ -141,11 +149,25 @@ pmu::ipc_check()
   const auto& used = (perf_start_cycle and perf_end_cycle)? perf_region : counters;
   double ipc_actual = used[CPU_CYCLES] ? static_cast<double>(used[INSTRUCTIONS]) / static_cast<double>(used[CPU_CYCLES]) : 0.0;
 
-  if (!is_within_range(ipc_actual, FLAGS_ipc_expected, FLAGS_ipc_tolerance_perc)) {
+  if (!is_within_range(ipc_actual, FLAGS_ipc_expected, FLAGS_ipc_tolerance_perc, true)) {
     cvm::log(cvm::ERROR, "Error: IPC check failed. Act: {:.2f} Exp: {:.2f} Tolerance: {} %\n", ipc_actual, FLAGS_ipc_expected, FLAGS_ipc_tolerance_perc);
   }
   else {
     cvm::log(cvm::NONE, "IPC check passed. Act: {:.2f} Exp: {:.2f} Tolerance: {} %\n", ipc_actual, FLAGS_ipc_expected, FLAGS_ipc_tolerance_perc);
+  }
+}
+
+void
+pmu::l1d_read_miss_check()
+{
+  const auto& used = (perf_start_cycle and perf_end_cycle)? perf_region : counters;
+  double l1d_read_miss_actual = used[L1D_READ_ACCESS_ALL] ? static_cast<double>(used[L1D_READ_MISS]) / static_cast<double>(used[L1D_READ_ACCESS_ALL]) * 100.0 : 0.0;
+
+  if (!is_within_range(l1d_read_miss_actual, FLAGS_l1d_read_miss_expected, FLAGS_l1d_read_miss_tolerance_perc, false)) {
+    cvm::log(cvm::ERROR, "Error: l1d_read_miss check failed. Act: {:.2f} % Exp: {:.2f} % Tolerance: {} %\n", l1d_read_miss_actual, FLAGS_l1d_read_miss_expected, FLAGS_l1d_read_miss_tolerance_perc);
+  }
+  else {
+    cvm::log(cvm::NONE, "l1d_read_miss check passed. Act: {:.2f} Exp: {:.2f} Tolerance: {} %\n", l1d_read_miss_actual, FLAGS_l1d_read_miss_expected, FLAGS_l1d_read_miss_tolerance_perc);
   }
 }
 
