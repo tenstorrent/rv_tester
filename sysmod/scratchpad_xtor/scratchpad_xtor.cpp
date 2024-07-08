@@ -9,6 +9,7 @@
 
 DEFINE_bool(sp_xtor_en, false, "Enable scratchpad transactor acceses ");
 DEFINE_bool(sp_xtor_mmr_prog_en, false, "Enable programming of SP mmr from Scraptchpad transactor ");
+DEFINE_bool(sp_xtor_rnd_traffic_en, false, "Enable programming of SP mmr from Scraptchpad transactor ");
 
 
 scratchpad_xtor::scratchpad_xtor(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc)
@@ -66,12 +67,14 @@ void scratchpad_xtor::axi_write_data_granular() {
   w_txn.last = 1;
   cvm::registry::messenger.signal(axi_mst_loc_l, w_txn);
 }
-void scratchpad_xtor::axi_write_granular() {
+//void scratchpad_xtor::axi_write_granular() {
+void scratchpad_xtor::axi_write_granular(uint64_t addr) {
 
   axi::a_t aw_txn;
   aw_txn.w    = true;
   aw_txn.id   = 1;
-  aw_txn.addr = 0x60000000;
+  //aw_txn.addr = 0x60000000;
+  aw_txn.addr = addr;
   aw_txn.len  = 0;
   aw_txn.size = 6;
   aw_txn.burst = axi::burst_t(0);
@@ -89,12 +92,13 @@ void scratchpad_xtor::axi_write_granular() {
   cvm::registry::messenger.signal(axi_mst_loc_l, aw_txn);
  
 }
-cvm::messenger::task<void> scratchpad_xtor::axi_read_granular(const transactor::read_t& , data_t&) {
+cvm::messenger::task<void> scratchpad_xtor::axi_read_granular(const transactor::read_t& r , data_t&) {
 
   axi::a_t ar_txn;
   ar_txn.w    = false;
   ar_txn.id   = 2;
-  ar_txn.addr = 0x60000000;
+  //ar_txn.addr = 0x60000000;
+  ar_txn.addr = r.addr;
   ar_txn.len  = 0;
   ar_txn.size = 6;
   ar_txn.burst = axi::burst_t(0);
