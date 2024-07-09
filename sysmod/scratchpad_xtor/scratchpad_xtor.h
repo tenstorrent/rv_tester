@@ -14,6 +14,7 @@
 
 DECLARE_bool(sp_xtor_en);
 DECLARE_bool(sp_xtor_mmr_prog_en);
+DECLARE_bool(sp_xtor_rnd_traffic_en);
 
 class scratchpad_xtor : public device {
 
@@ -36,6 +37,9 @@ class scratchpad_xtor : public device {
     public:
         uint32_t start_scratchpad_cnt,read_ram;
         uint32_t cnt_tick=0;
+        uint32_t rnd_traffic_cnt_tick=60;
+        uint64_t sp_base = 0x60000000;
+        uint64_t sp_addr = 0x60000000;
         struct scratchpad_wr_t {
           uint32_t addr;
           uint32_t data;
@@ -56,7 +60,7 @@ class scratchpad_xtor : public device {
         std::queue<scratchpad_wr_t>           scratchpad_wr_txn_q;
         virtual void axi_write();
         virtual void axi_read(uint64_t addr, size_t length, uint32_t id);
-        virtual void axi_write_granular();
+        virtual void axi_write_granular(uint64_t addr);
         cvm::messenger::task<void> axi_read_granular(const transactor::read_t& , data_t& );
         virtual void axi_write_data_granular();
         virtual void axi_write_mmr_granular();
@@ -116,10 +120,27 @@ class scratchpad_xtor : public device {
             cnt_tick ++;
             if(!FLAGS_sp_xtor_en)
             return;
+            
+            if(FLAGS_sp_xtor_rnd_traffic_en){
+                
+             if(cnt_tick == rnd_traffic_cnt_tick){
+               uint64_t offset = rng() % 500;
+               sp_addr = sp_base + (offset <<6);
+               axi_write_granular(sp_addr);
+             }
+             if(cnt_tick == rnd_traffic_cnt_tick+ 2){
+               axi_write_data_granular();
+             }
+             if(cnt_tick == rnd_traffic_cnt_tick+ 8){
+                axi_read(sp_addr,4,4);
+                rnd_traffic_cnt_tick = cnt_tick + rng()% 60; //5 cycle min buffer
+             }
+            }else{
             cvm::log(cvm::HIGH, " SCRATCHPAD_XTOR tick {}\n",cnt_tick);
             if(cnt_tick == 60){
             cvm::log(cvm::HIGH, " SCRATCHPAD_XTOR trigger flag set \n");
-            axi_write_granular();
+            uint64_t addr = 0x60000000;
+            axi_write_granular(addr);
             trigger_flag = 0;
             }
             if(cnt_tick == 60){
@@ -129,6 +150,7 @@ class scratchpad_xtor : public device {
                //axi_read_granular();
                cvm::log(cvm::HIGH, " SCRATCHPAD_XTOR READ SP DATA \n");
                axi_read(0x60000000,4,4);
+            }
             }
 	    if(FLAGS_sp_xtor_mmr_prog_en){
 	       if(cnt_tick == 24){
