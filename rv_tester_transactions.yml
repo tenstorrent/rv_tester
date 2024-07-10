@@ -349,7 +349,7 @@ sysmod:
 axi_sw:
     num: [${TOP.PLATFORM.AXI.TOTAL},${TOP.PLATFORM.NCIO_AXI.TOTAL},${TOP.PLATFORM.APLIC_MSI_AXI.TOTAL}]
     w:
-        domain: 2
+        domain: [2, 2, 2]
         num: 1
         fields:
             data:
@@ -359,7 +359,7 @@ axi_sw:
             last:
                 widths: [1,1,1]
     aw:
-        domain: 2
+        domain: [2, 2, 2]
         num: 1
         fields:
             id:
@@ -387,7 +387,7 @@ axi_sw:
             user:
                 widths: [1,1,1]
     ar:
-        domain: 2
+        domain: [2, 2, 2]
         num: 1
         fields:
             id:
@@ -414,7 +414,7 @@ axi_sw:
                 widths: [1,1,1]
 
     r_q_ptr:
-        domain: 2
+        domain: [2, 2, 2]
         num: 1
         fields:
             r_ptr:
@@ -424,7 +424,7 @@ axi_sw_mst:
     num: [${TOP.PLATFORM.AXI_MST.TOTAL}, ${TOP.PLATFORM.APLIC_MMR_AXI_MST.TOTAL}, ${TOP.PLATFORM.SMC_AXI_MST.TOTAL}, ${TOP.PLATFORM.PLL_AXI_MST.TOTAL}, ${TOP.PLATFORM.PM_NW_AXI_MST.TOTAL}]
 
     b:
-        domain: 2
+        domain: [2, 2, 3, 3, 3]
         num: 1
         fields:
             id:
@@ -433,7 +433,7 @@ axi_sw_mst:
                 widths: [2, 2, 2, 2, 2]
 
     r:
-        domain: 2
+        domain: [2, 2, 3, 3, 3]
         num: 1
         fields:
             id:
@@ -446,21 +446,21 @@ axi_sw_mst:
                 widths: [1, 1, 1, 1, 1]
 
     ar_q_ptr:
-        domain: 2
+        domain: [2, 2, 3, 3, 3]
         num: 1
         fields:
             ar_ptr:
                 widths: [${TOP.PLATFORM.AXI_MST.AR_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.APLIC_MMR_AXI_MST.AR_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.SMC_AXI_MST.AR_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.PLL_AXI_MST.AR_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.PM_NW_AXI_MST.AR_Q_PTR_MAX_LOG2}]
 
     aw_q_ptr:
-        domain: 2
+        domain: [2, 2, 3, 3, 3]
         num: 1
         fields:
             aw_ptr:
                 widths: [${TOP.PLATFORM.AXI_MST.AW_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.APLIC_MMR_AXI_MST.AW_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.SMC_AXI_MST.AW_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.PLL_AXI_MST.AW_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.PM_NW_AXI_MST.AW_Q_PTR_MAX_LOG2}]
 
     w_q_ptr:
-        domain: 2
+        domain: [2, 2, 3, 3, 3]
         num: 1
         fields:
             w_ptr:
@@ -1295,6 +1295,21 @@ reset_driver:
         fields:
             num_clocks:
                 width: 64
+
+pwrmgmt:
+    num: 1
+    m_tick:
+        domain: 3
+        num: 1
+        fields:
+            cycle:
+                width: 32
+    m_nofetch:
+        domain: 3
+        num: 1
+        fields:
+            cycle:
+                width: 32
 
 aplic_monitor:
     num: 1

@@ -11,7 +11,8 @@ cc_library(
         "pcg_extras.hpp",
         "pcg_uint128.hpp",
         "remote_bitbang.h",
-        "memmap.h"
+        "memmap.h",
+        "rand_gflags.h"
     ],
     deps = [
         "@opensrc-nlohmann-json//:json",
@@ -47,3 +48,20 @@ cc_library(
     strip_include_prefix = ".",
     visibility = ["//visibility:public"],
 )
+
+cc_library(
+    name = "rand_gflags",
+    srcs = [ ],
+    hdrs = [ "rand_gflags.h" ],
+    deps = [
+        "@cvm//:plusargs",
+        "@cvm//:logger",
+        "@cvm//:registry",
+        "@fmt//:fmt"
+    ],
+    alwayslink = True,
+    linkstatic = True,
+    strip_include_prefix = ".",
+    visibility = ["//visibility:public"],
+)
+

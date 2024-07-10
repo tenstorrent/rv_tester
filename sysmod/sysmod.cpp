@@ -13,7 +13,6 @@
 #include "aclint/aclint.h"
 #include "dm/dm.h"
 #include "trace_cfg/trace_cfg.h"
-#include "smc_xtor/smc_xtor.h"
 #include "pll_xtor/pll_xtor.h"
 #include "pm_nw_xtor/pm_nw_xtor.h"
 #include "aplic_mmr/aplic_mmr.h"
@@ -174,17 +173,6 @@ sysmod::trace_info_handler(trace_cfg::trace_info_t i) {
 }
 
 void
-sysmod::smc_info_handler(smc_xtor::smc_info_t i) {
-        cvm::log(cvm::HIGH, "[SYSMOD] trace_info {} \n",i.smc_quiesced);
- // cvm::registry::callbacks.push(
- //     scope(),
- //     [i]() {
- //       cvm::log(cvm::HIGH, "[SYSMOD] smc_info \n");
- //       sysmod_trace_info(i.trace_quiesced);
- //     });
-}
-
-void
 sysmod::pll_info_handler(pll_xtor::pll_info_t i) {
         cvm::log(cvm::HIGH, "[SYSMOD] trace_info {} \n",i.pll_quiesced);
  // cvm::registry::callbacks.push(
@@ -220,22 +208,6 @@ sysmod::aplic_interrupt(aplic_driver::aplic_driver_write_t i) {
 
 void
 sysmod::trace_cfg_read_req_router(trace_cfg::trace_cfg_read_t r) {
-
-    transactor::read_t rd;
-    rd.addr = r.addr;
-    rd.length = r.length;
-    rd.id =  r.id;
-
-    auto sources = cvm::topology::get_from_type("PLATFORM_TRANSACTOR");
-
-    if (this->dev(r.addr)){
-        cvm::registry::messenger.signal<device::read_t>(this->loc_, {rd, sources[0]});
-    }
-
-}
-
-void
-sysmod::smc_read_req_router(smc_xtor::smc_xtor_read_t r) {
 
     transactor::read_t rd;
     rd.addr = r.addr;
@@ -427,7 +399,6 @@ sysmod::compose()
   memmap::get(memmap_);
 
   auto mmr_master = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MMR_MST");
-  auto smc_master = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_SMC_MST");
   auto pll_master = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_PLL_MST");
   auto pm_nw_master = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_PM_NW_MST");
   auto masters = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST");
@@ -500,17 +471,6 @@ sysmod::compose()
             loc_,
             [&](scratchpad_xtor::scratchpad_xtor_read_t i) { return this->scratchpad_xtor_read_req_router(i); });
       }
-      else if (type == "smc_xtor") {
-        // TODO: cvm::ERROR
-        cvm::registry::messenger.connect<smc_xtor::smc_info_t>(
-            loc_,
-            [&](smc_xtor::smc_info_t i) { return this->smc_info_handler(i); });
-        assert(masters.size() > 0);
-        device = std::make_unique<smc_xtor>(tag, base, size, loc_, smc_master[0]);
-        cvm::registry::messenger.connect<smc_xtor::smc_xtor_read_t>(
-            loc_,
-            [&](smc_xtor::smc_xtor_read_t i) { return this->smc_read_req_router(i); });
-      }
       else if (type == "aplic_mmr") {
         // TODO: cvm::ERROR
         assert(mmr_master.size() > 0);
@@ -556,7 +516,7 @@ sysmod::compose()
             [&](trace_cfg::trace_cfg_read_t i) { return this->trace_cfg_read_req_router(i); });
       }
       else
-        cvm::log(cvm::ERROR, "Error: unknown type %s", type);
+        cvm::log(cvm::ERROR, "Error: unknown sysmod type %s\n", type);
 
       devices_.emplace_back(std::move(device));
     }

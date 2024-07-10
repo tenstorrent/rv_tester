@@ -1,0 +1,3 @@
+exports_files(["pwrmgmt.sv", "pwrmgmt.cpp", "pwrmgmt.hpp", "reset_sequence.cpp", "reset_sequence.hpp"])
+
+

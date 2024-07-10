@@ -103,6 +103,10 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const B& b) {
         axi::b_t(b.id, axi::resp_t(b.resp))
     );
 
+    cvm::registry::messenger.signal<transactor::write_response_t>(
+        loc_,
+        transactor::write_response_t{b.id});
+
     free_id(b.id);
     push_transactions();
 }
@@ -119,7 +123,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const R& r) {
 
     axi::data_t vdata = cvm::bitmanip::slice<decltype(r.data), axi::data_t>(r.data);
     std::string d;
-    for (int i=0; i<int(data_width_/8); i++)
+    for (int i=int(data_width_/8)-1; i>=0; i--)
         d += fmt::format("{:02x}", vdata[i]);
     cvm::log(cvm::FULL, "[axi_sw_mst] axi_sw_r_{}: id={}, last={}, data={}\n", data_width_/8, r.id, r.last, d);
 
@@ -356,6 +360,7 @@ template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::reset_ptrs() {
 
+    cvm::log(cvm::FULL, "[axi_sw_mst] reset_ptrs loc={}\n", loc_);
     ar_q_wptr_ = 0;
     aw_q_wptr_ = 0;
     w_q_wptr_ = 0;

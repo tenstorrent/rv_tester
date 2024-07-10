@@ -143,12 +143,12 @@ rv_tester: &rv_tester
       count: 1
       type:
         - aplic_monitor
-    
-    reset_driver:
+
+    pwrmgmt:
       count: 1
       type:
-        - reset_driver
-        
+        - pwrmgmt
+
     aclint_checker:
       count: 1
       type:

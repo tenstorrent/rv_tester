@@ -25,9 +25,14 @@ module top
         .TOPOLOGY(topology_pkg::topology_t),
         .topology(topology_pkg::mods)
     ) tester (
-        .clk_pll(),
         .*
     );
+
+    assign dut_clk = clk;
+    assign dut_reset[CORE_RESET_IDX] = reset[COLD_RESET_IDX];
+    assign dut_reset[AXI_RESET_IDX] = reset[COLD_RESET_IDX];
+    assign dut_reset[SOC_RESET_IDX] = reset[COLD_RESET_IDX];
+    assign dut_reset[REF_RESET_IDX] = reset[COLD_RESET_IDX];
 
     function automatic void write_rvfi(byte unsigned valid, int unsigned hartid, int unsigned nretid, int unsigned insn, longint unsigned pc);
         int unsigned idx = hartid * topology_pkg::mods.TOP.PLATFORM.COSIM.RVFI.NRETS_CUMSUM[hartid] + nretid;
@@ -61,14 +66,14 @@ module top
     end
 
     always @(posedge clk[CORE_CLK_IDX]) begin
-        if (!reset[RESET_IDX]) begin
+        if (!reset[COLD_RESET_IDX]) begin
             clocks <= clocks + 1;
         end
         case(HARNESS)
         SW_1C:
-          get_1c_stimulus(reset[RESET_IDX]);
+          get_1c_stimulus(reset[COLD_RESET_IDX]);
         SW_2C:
-          get_2c_stimulus(reset[RESET_IDX]);
+          get_2c_stimulus(reset[COLD_RESET_IDX]);
         default:
             $error("No harness specified");
         endcase
