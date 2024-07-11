@@ -1,13 +1,12 @@
 #include "reset_sequence.hpp"
-#include "pwrmgmt.hpp"
 #include "rand_gflags.h"
 
 REGISTRY_register(reset_sequence, PWRMGMT, cvm::registry::all);
 
 DEFINE_uint32(pll_pwrup_timeout, 50, "Number of soc cycles expected for pll to be stable");
 DEFINE_string(warm_reset, "off", "Enable warm resets in the sim - off/directed/random/trigger");
-DEFINE_string(warm_reset_count, "0:4", "Number of warm resets in the sim if random mode enabled");
-DEFINE_string(warm_reset_interval, "20000:50000", "TB cycle interval between warm resets in the sim if random mode enabled");
+DEFINE_string(warm_reset_count, "1", "Number of warm resets in the sim if random mode enabled");
+DEFINE_string(warm_reset_interval, "5000", "TB cycle interval between warm resets in the sim if random mode enabled");
 DEFINE_string(warm_reset_trigger_type, "", "Send warm reset on a trigger");
 DEFINE_string(warm_reset_trigger_interval, "0:100", "TB cycle interval from trigger to warm reset");
 DEFINE_string(warm_reset_sram_hold, "0:1", "Sram hold");
@@ -36,14 +35,12 @@ extern "C" {
 reset_sequence::reset_sequence(cvm::topology::loc_t loc, unsigned) : loc_(loc), scope_(nullptr) {
   cvm::log(cvm::NONE, "[pwrmgmt] loc={}\n", loc_);
 
-  // AXI4 SMC master location
+  // Topology
+  nharts_ = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
   smc_axi_loc_ = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_SMC_MST", 0);
 
   // Scope
   cvm::registry::messenger.connect<svScope>(loc_, [this](svScope s) { return this->set_scope(s); });
-
-  // FIXME
-  cvm::registry::messenger.connect<rv_tester_transactions::pwrmgmt::m_tick<>>(loc_, [this] (const auto& v) { return this->process(v); });
 
   // Channels
   tick_channel_ = cvm::registry::messenger.channel<rv_tester_transactions::pwrmgmt::m_tick<>>(loc_);
@@ -61,6 +58,7 @@ reset_sequence::reset_sequence(cvm::topology::loc_t loc, unsigned) : loc_(loc), 
 
 void reset_sequence::cold_reset_sequence_thread() {
   auto *task = +[] (reset_sequence* m) -> cvm::messenger::task<void> {
+    cvm::log(cvm::NONE, "[pwrmgmt] spawning cold reset sequence\n");
     co_await m->cold_reset_sequence();
     co_return;
   };
@@ -69,6 +67,7 @@ void reset_sequence::cold_reset_sequence_thread() {
 
 void reset_sequence::warm_reset_random_mode_sequence_thread() {
   auto *task = +[] (reset_sequence* m) -> cvm::messenger::task<void> {
+    cvm::log(cvm::NONE, "[pwrmgmt] spawning warm reset sequence\n");
     co_await m->warm_reset_random_mode_sequence();
     co_return;
   };
@@ -98,7 +97,15 @@ cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
   // Deassert cold reset
   cold_reset(0);
 
-  co_await cpl_reset_sequence();
+  // Wait for 16 clock ticks
+  for (int i=0; i<16; ++i)
+    co_await tick();
+
+  // Check and clear pll status
+  co_await check_pll_status();
+  co_await clear_pll_status();
+
+  co_await cpl_reset_sequence(COLD);
 
   co_return;
 }
@@ -144,9 +151,9 @@ cvm::messenger::task<void> reset_sequence::warm_reset_sequence() {
 
   // Assert holds
   reset_hold(
-    gflags::warm_reset_rand.get("sram_hold"),
-    gflags::warm_reset_rand.get("debug_hold"),
-    gflags::warm_reset_rand.get("critical_hold")
+    gflags::warm_reset_rand.get("warm_reset_sram_hold"),
+    gflags::warm_reset_rand.get("warm_reset_debug_hold"),
+    gflags::warm_reset_rand.get("warm_reset_critical_hold")
   );
 
   // Wait for 16 clock ticks
@@ -163,28 +170,20 @@ cvm::messenger::task<void> reset_sequence::warm_reset_sequence() {
   // Deassert warm reset
   warm_reset(0);
 
-  co_await cpl_reset_sequence();
+  // Wait for 16 clock ticks
+  for (int i=0; i<16; ++i)
+    co_await tick();
+
+  co_await cpl_reset_sequence(WARM);
 
   co_return;
 }
 
-cvm::messenger::task<void> reset_sequence::cpl_reset_sequence() {
-  // Wait for 16 clock ticks
-  for (int i=0; i<16; ++i)
-    co_await tick();
-
-  // Check pll status
-  co_await check_pll_status();
-
-  // Program pll and reset controller
-  co_await clear_pll_status();
+cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t ) {
+  // Program reset controller
   co_await release_cpl_reset();
   co_await program_fuses();
   co_await release_cpl_nofetch();
-
-  // Wait for 16 clock ticks
-  for (int i=0; i<16; ++i)
-    co_await tick();
 
   // Deassert force_ref_clk
   force_ref_clk(0);
@@ -200,7 +199,7 @@ cvm::messenger::task<void> reset_sequence::check_pll_status() {
   uint32_t count = 0;
   while (true) {
     co_await tick();
-    auto data = co_await read(pll_interrupts, 4);
+    auto data = co_await read(pll_interrupts, SZ_4B);
     if (data & (1 << cold_powerup_done))
       break;
 
@@ -214,43 +213,39 @@ cvm::messenger::task<void> reset_sequence::check_pll_status() {
 
 cvm::messenger::task<void> reset_sequence::clear_pll_status() {
   co_await tick();
-  co_await write(pll_interrupts, 4, (1 << cold_powerup_done));
+  co_await write(pll_interrupts, SZ_4B, (1 << cold_powerup_done));
   co_return;
 }
 
 cvm::messenger::task<void> reset_sequence::release_cpl_reset() {
   co_await tick();
-  co_await write(rst_ctl_cold, 4, (1 << cpl_cl_cold_reset_n));
-
-  co_await tick();
-  co_await write(rst_ctl_warm, 4, (1 << cpl_cl_warm_reset_n));
+  co_await write(rst_ctl_warm, SZ_4B, (1 << cpl_cl_warm_reset_n));
 
   co_return;
 }
 
 cvm::messenger::task<void> reset_sequence::program_fuses() {
   co_await tick();
-  co_await write(fuse_core_mmr,   8, 0x18700);
-  co_await write(fuse_trace_mmr,  8, 0x18700);
-  co_await write(fuse_aclint_mmr, 8, 0x18700);
-  co_await write(fuse_dm_mmr,     8, 0x18700);
-  co_await write(fuse_sc_mmr,     8, 0x18700);
-  //co_await write(fuse_sw_mmr,     8, 0x18700);
+
+  for (uint32_t i=0; i<nharts_; ++i)
+    co_await write(fuse_core_mmr + i * fuse_hart_offset,   SZ_8B, 0x18700);
+
+  co_await write(fuse_trace_mmr,  SZ_8B, 0x18700);
+  co_await write(fuse_aclint_mmr, SZ_8B, 0x18700);
+  co_await write(fuse_dm_mmr,     SZ_8B, 0x18700);
+  co_await write(fuse_sc_mmr,     SZ_8B, 0x18700);
+  //co_await write(fuse_sw_mmr,     SZ_8B, 0x18700);
 
   co_return;
 }
 
 cvm::messenger::task<void> reset_sequence::release_cpl_nofetch() {
   co_await tick();
-  co_await write(rst_ctl_nofetch, 4, (0 << cpl_cl_no_fetch));
-}
-
-void reset_sequence::process(const rv_tester_transactions::pwrmgmt::m_tick<>& m_tick) {
-  cvm::log(cvm::NONE, "[pwrmgmt] tick - {}\n", m_tick.cycle);
+  co_await write(rst_ctl_nofetch, SZ_4B, (0 << cpl_cl_no_fetch));
 }
 
 cvm::messenger::task<void> reset_sequence::tick() {
-  co_await cvm::registry::messenger.wait<rv_tester_transactions::pwrmgmt::m_tick<>>(tick_channel_, nullptr);
+  co_await cvm::registry::messenger.wait<rv_tester_transactions::pwrmgmt::m_tick<>>(loc_);
   co_return;
 }
 
@@ -288,7 +283,7 @@ cvm::messenger::task<void> reset_sequence::write(uint64_t addr, size_t sz, uint6
   for(int i=0; i<8; ++i)
     strb[i] = (mask & (0xFFull << (i*8))) != 0;
   cvm::log(cvm::NONE, "[pwrmgmt] write req - addr={:#x}, sz={}, data={:#x}, dword={:#x} mask={:#x}\n", addr, sz, data, dword, mask);
-  cvm::registry::messenger.signal(smc_axi_loc_, transactor::write_request_t{addr, 8, byte_array, strb});
+  cvm::registry::messenger.signal(smc_axi_loc_, transactor::write_request_t{addr, SZ_8B, byte_array, strb});
   auto resp = co_await cvm::registry::messenger.wait<transactor::write_response_t>(smc_axi_loc_);
   cvm::log(cvm::NONE, "[pwrmgmt] write resp - id={}, addr={:#x}, sz={}, data={:#x}, dword={:#x} mask={:#x}\n", resp.id, addr, sz, data, dword, mask);
   co_return;

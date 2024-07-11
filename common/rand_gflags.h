@@ -21,6 +21,7 @@ namespace gflags {
       void randomize() {
         for (auto& [name, entry] : entries) {
           entry.current_value = entry.distrib(gen);
+          cvm::log(cvm::MEDIUM, "[rand_gflags] {} = {}\n", name, entry.current_value);
         }
       }
 

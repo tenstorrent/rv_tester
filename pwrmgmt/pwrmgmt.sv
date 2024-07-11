@@ -59,7 +59,7 @@ import rv_tester_params::*;
     core_no_fetch_d1 <= core_no_fetch;
     soc_clocks <= soc_clocks + 1;
     warm_reset_tick <= 0;
-    if (tb_clocks >= warm_reset_interval) begin
+    if (tb_clocks > warm_reset_interval) begin
       warm_reset_tick <= 1;
     end
   end

@@ -4,6 +4,7 @@
 #include "cvm/logger.hpp"
 #include "cvm/plusargs.hpp"
 #include "rv_tester_transactions.hpp"
+#include "pwrmgmt.hpp"
 #include "transactor.h"
 #include "svdpi.h"
 
@@ -18,7 +19,6 @@ class reset_sequence {
 
   private:
 
-    void process(const rv_tester_transactions::pwrmgmt::m_tick<>& m_tick);
     void cold_reset_sequence_thread();
     void warm_reset_random_mode_sequence_thread();
     void warm_reset_trigger_mode_sequence_thread();
@@ -31,7 +31,7 @@ class reset_sequence {
     cvm::messenger::task<void> tick();
     cvm::messenger::task<void> nofetch();
     cvm::messenger::task<void> trigger();
-    cvm::messenger::task<void> cpl_reset_sequence();
+    cvm::messenger::task<void> cpl_reset_sequence(rst_t );
     cvm::messenger::task<void> check_pll_status();
     cvm::messenger::task<void> clear_pll_status();
     cvm::messenger::task<void> release_cpl_reset();
@@ -57,4 +57,6 @@ class reset_sequence {
 
     cvm::messenger::pool<rv_tester_transactions::pwrmgmt::m_tick<>>::channel_info tick_channel_;
     cvm::messenger::pool<rv_tester_transactions::pwrmgmt::m_nofetch<>>::channel_info nofetch_channel_;
+
+    uint32_t nharts_ = 0;
 };
