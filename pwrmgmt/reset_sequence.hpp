@@ -55,8 +55,5 @@ class reset_sequence {
     cvm::topology::loc_t loc_, smc_axi_loc_;
     svScope scope_;
 
-    cvm::messenger::pool<rv_tester_transactions::pwrmgmt::m_tick<>>::channel_info tick_channel_;
-    cvm::messenger::pool<rv_tester_transactions::pwrmgmt::m_nofetch<>>::channel_info nofetch_channel_;
-
     uint32_t nharts_ = 0;
 };

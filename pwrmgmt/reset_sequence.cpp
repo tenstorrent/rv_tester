@@ -42,10 +42,6 @@ reset_sequence::reset_sequence(cvm::topology::loc_t loc, unsigned) : loc_(loc), 
   // Scope
   cvm::registry::messenger.connect<svScope>(loc_, [this](svScope s) { return this->set_scope(s); });
 
-  // Channels
-  tick_channel_ = cvm::registry::messenger.channel<rv_tester_transactions::pwrmgmt::m_tick<>>(loc_);
-  nofetch_channel_ = cvm::registry::messenger.channel<rv_tester_transactions::pwrmgmt::m_nofetch<>>(loc_);
-
   // Sequence threads
   cold_reset_sequence_thread();
   if (FLAGS_warm_reset == "random") {
@@ -250,7 +246,7 @@ cvm::messenger::task<void> reset_sequence::tick() {
 }
 
 cvm::messenger::task<void> reset_sequence::nofetch() {
-  co_await cvm::registry::messenger.wait<rv_tester_transactions::pwrmgmt::m_nofetch<>>(nofetch_channel_, nullptr);
+  co_await cvm::registry::messenger.wait<rv_tester_transactions::pwrmgmt::m_nofetch<>>(loc_);
   co_return;
 }
 
