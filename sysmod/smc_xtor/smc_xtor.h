@@ -17,6 +17,7 @@
 DECLARE_bool(smc_en);
 DECLARE_bool(smc_sweep_test);
 DECLARE_int32(smc_reset_seq_start_ticks);
+DECLARE_int32(smc_core_freq_Mhz);
 class smc_xtor : public device {
 
     private:
@@ -29,6 +30,9 @@ class smc_xtor : public device {
         bool in_boot_seq = true; 
         bool reset_completion = false;
         bool read_in_flight = false;
+        bool pll_programming_done = false;
+        bool pll_dfs_done = false;
+        bool pll_scalar_divider = 3;
         pcg32 rng;
         void complete_smc_test()
         {
@@ -126,9 +130,9 @@ class smc_xtor : public device {
               return;
             cvm::log(cvm::FULL, "[SMC] tick {:#X} \n",cnt_tick);
             if(in_boot_seq && ( cnt_tick > uint32_t(FLAGS_smc_reset_seq_start_ticks))){
-            cvm::log(cvm::FULL, "[SMC] IN BOOT SEQ {} reset complition {} \n",in_boot_seq,reset_completion);
-              if(!reset_completion){
-                  cvm::log(cvm::FULL, "[SMC] Check axi read response for 0x0210300C \n");
+            cvm::log(cvm::FULL, "[SMC] IN BOOT SEQ {} reset completion {} {}\n",in_boot_seq,reset_completion);
+              if(!reset_completion || (pll_programming_done & !pll_dfs_done)){
+                  cvm::log(cvm::FULL, "[SMC] Check axi read response for 0x0210300C, pll_programming_done {} \n", pll_programming_done);
                   cvm::log(cvm::FULL, "[SMC] axi read response  Queue size for  0x0210300C = {} \n",smc_read_resp_q.size());
                   if(smc_read_resp_q.size() >0){
                      smc_xtor_read_req_t smc_xtor_rd;
@@ -139,8 +143,10 @@ class smc_xtor : public device {
                     //    d += fmt::format("{:02x}", smc_xtor_rd.data[i]);
                     //  cvm::log(cvm::FULL, "[SMC] read resp data= {:#X} \n", d);
        
-                     if(smc_xtor_rd.data[4] == 0x10){
+                     if(smc_xtor_rd.data[4] == 0x10 && !pll_programming_done){
                       reset_completion = true;
+                     } else if ((( smc_xtor_rd.data[4]& 0x1) == 1) && pll_programming_done) {
+                      pll_dfs_done = true;
                      }
                   }else if (!read_in_flight) {
 
@@ -149,7 +155,15 @@ class smc_xtor : public device {
                     read_in_flight = true;
                     axi_read(0x0210300C,4,204);
                   }
-              }else{
+              }
+              else if (FLAGS_smc_core_freq_Mhz && !pll_programming_done){
+                pll_scalar_divider = (2400/FLAGS_smc_core_freq_Mhz);
+                smc_wr_txn_q.push({0x02103014,static_cast<uint64_t>(1<<16|52<<6|pll_scalar_divider)});
+                smc_wr_txn_q.push({0x02103004,1});//Enable DFS in pll controller
+                pll_programming_done = true;
+                read_in_flight = false;
+              }
+              else{
                   cvm::log(cvm::FULL, "[SMC] Drive axi write requests for boot sequence  \n");
                  if(smc_boot_wr_txn_q.size()>0){
                    smc_wr_t smc_boot_txn;
