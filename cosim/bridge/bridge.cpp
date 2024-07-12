@@ -900,6 +900,10 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
   w_.pc.valid = true;
   w_.pc.pc_rdata = w.pc;
 
+  zicbom_ = false;
+  if(((w.opcode & 0x7fff) == 0x200f) && (((w.opcode>>20)==0)||((w.opcode>>20)==1)||((w.opcode>>20)==2))) // cbo - inval, clean , flush
+    zicbom_ = true;
+
   if (FLAGS_pc_check)
     update_pc(hart, src_t::iss, w.pc);
 
@@ -956,7 +960,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
 
   // Mem attributes
   // Disabling mem_attr checks for vectors currently
-  if (FLAGS_memattr_check && !w_.trap && !is_vector(w.disasm) && (w_.mem_read.valid || w_.mem_write.valid)) {
+  if (FLAGS_memattr_check && !w_.trap && !is_vector(w.disasm) && (w_.mem_read.valid || w_.mem_write.valid || zicbom_)) {
     bool valid; 
     uint64_t eff_mem_attr;
     if (!client_->whisperPeek(hart, 's', WhisperSpecialResource::EffMemAttr, eff_mem_attr, valid)) {
