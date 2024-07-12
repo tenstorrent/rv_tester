@@ -1334,6 +1334,10 @@ bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const std::
     log(cvm::MEDIUM, "<{}> Resynch: Reason=[clint_read]\n", d.cycle);
     return true;
   }
+  if (tbox_read(d)) {
+    log(cvm::MEDIUM, "<{}> Resynch: Reason=[tbox_read]\n", d.cycle);
+    return true;
+  }
   // Case #2
   if (htif_read(d)) {
     log(cvm::MEDIUM, "<{}> Resynch: Reason=[htif_read]\n", d.cycle);
@@ -1384,7 +1388,20 @@ bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const std::
 
 bool bridge::clint_read(const rv_instr_t& d) {
   if (d.mem_read.valid) {
-    for (const auto& s : {"clint", "aclint", "trickbox"}) {
+    for (const auto& s : {"clint", "aclint"}) {
+      auto it = memmap_.find(s);
+      if (it != memmap_.end()) {
+        if (d.mem_read.pa >= it->second.base && d.mem_read.pa < it->second.end) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+bool bridge::tbox_read(const rv_instr_t& d) {
+  if (d.mem_read.valid) {
+    for (const auto& s : {"trickbox"}) {
       auto it = memmap_.find(s);
       if (it != memmap_.end()) {
         if (d.mem_read.pa >= it->second.base && d.mem_read.pa < it->second.end) {

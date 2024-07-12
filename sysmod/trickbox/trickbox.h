@@ -19,7 +19,7 @@
 #include "jtag_driver.h"
 #include "imsic_driver.h"
 #include "aplic_driver.h"
-#include "tboxtrig_mem.h"
+#include "triggers.h"
 #include "uc_helper.h"
 #include <mem_manager.h>
 
