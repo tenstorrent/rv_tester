@@ -9,7 +9,7 @@ namespace {
     constexpr int vlen = 256;
     constexpr int va_hi = 56;
     constexpr uint64_t mmr_lo_addr = 0x4200'0000;
-    constexpr uint64_t mmr_hi_addr = 0x4208'ffff;
+    constexpr uint64_t mmr_hi_addr = 0x421a'ffff;
     constexpr uint64_t smc_lo_addr = 0xc000'0000;
     constexpr uint64_t smc_hi_addr = 0xffff'ffff;
 
