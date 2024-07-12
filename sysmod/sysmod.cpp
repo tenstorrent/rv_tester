@@ -77,6 +77,9 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::jtag_rdata<>>(
       loc_,
       [this](const rv_tester_transactions::sysmod::jtag_rdata<>& t) { return this->jtag_resp(t.rdata); });
+  cvm::registry::messenger.connect<rv_tester_transactions::sysmod::tbox_trigger<>>(
+      loc_,
+      [this](const rv_tester_transactions::sysmod::tbox_trigger<>& t) { return this->tboxtrig_updatemem(t.addr,t.data); });
   cvm::registry::messenger.connect<sysmod::backdoor_read_t>(
       loc_,
       [this](sysmod::backdoor_read_t t) {
@@ -911,6 +914,16 @@ sysmod::jtag_tick(uint64_t advance)
            d->jtag_tick(advance);
        }
    }
+}
+void sysmod::tboxtrig_updatemem(uint64_t addr, uint64_t data) {
+    cvm::log(cvm::NONE, "[SYSMOD.CPP] Got C2 entry\n");
+
+    device::data_t dataw(8);
+    for (size_t i = 0; i < 8; i++) dataw[i] = (data >> 8*i) & 0xff;
+    device::strb_t strb(8);
+    for (size_t i = 0; i < 8; i++) strb[i] = true;
+
+    dev("trickbox")->backdoor_write(addr, 8, dataw, strb);
 }
 extern "C" {
   void sysmod_set_scope(cvm::topology::loc_t loc) {

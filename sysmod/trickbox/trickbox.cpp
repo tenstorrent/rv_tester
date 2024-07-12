@@ -21,6 +21,8 @@ trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned, cvm::topolog
   subdevices_.emplace_back(sub);
   sub = new imsic_driver("imsic_driver", addr + 0x70000, 1, loc, axi_mst_loc_l);
   subdevices_.emplace_back(sub);
+  sub = new tboxtrig_mem("tboxtrig_mem", addr + 0x78000, 1, loc);
+  subdevices_.emplace_back(sub);
   sub = new uc_helper("uc_helper", addr + 0x80000, 1, loc, m_);
   subdevices_.emplace_back(sub);
   sub = new aplic_driver("aplic_driver", addr + 0x90000, 1, loc);
@@ -70,6 +72,16 @@ trickbox::write(const transactor::write_t& w)
   auto& data = w.data;
   auto& strb = w.strb;
 
+  for (auto& d : subdevices_) {
+    d->write(addr,length,data,strb);
+  }
+}
+void trickbox::backdoor_write(uint64_t addr, size_t length, data_t& data, strb_t& strb) 
+{
+uint64_t t_data;  
+deserializeInt(data,t_data);
+
+cvm::log (cvm::HIGH,"TRICKBOX BACKDOOR WRITE::::: ADDR:{:#x} DATA:{:#x}\n",addr,t_data);
   for (auto& d : subdevices_) {
     d->write(addr,length,data,strb);
   }

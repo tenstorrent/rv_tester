@@ -367,6 +367,7 @@ module rv_tester
         .jtag_quiesced(jtag_quiesced),
         .bootstrap,
         .dmi_write(trickbox_dmi_write),
+        .tbox_trigger_c2(tbox_trigger_c2),
         .interrupt,
         .jtag_req,
         .jtag_tck_trst,

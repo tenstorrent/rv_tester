@@ -1384,7 +1384,7 @@ bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const std::
 
 bool bridge::clint_read(const rv_instr_t& d) {
   if (d.mem_read.valid) {
-    for (const auto& s : {"clint", "aclint"}) {
+    for (const auto& s : {"clint", "aclint", "trickbox"}) {
       auto it = memmap_.find(s);
       if (it != memmap_.end()) {
         if (d.mem_read.pa >= it->second.base && d.mem_read.pa < it->second.end) {

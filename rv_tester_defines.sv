@@ -538,6 +538,14 @@ package rv_tester_params;
         logic valid;
     } cr_ac_axi_pkt;
     // --------------------------------------
+    // C2 
+    // --------------------------------------
+    typedef struct packed {
+        logic [63:0] data;
+        logic [63:0] addr;
+        logic valid;
+    } tboxtrig_pkt;
+    // --------------------------------------
     // CSRI - Control Status Registers
     // --------------------------------------
     typedef enum {
@@ -1069,6 +1077,7 @@ package rv_tester_params;
     output rv_tester_params::cr_ac_axi_pkt AcReqPktRfClki, \
     output logic [63:0] AcMtimei, \
     output logic [8:0]  AcMtipi, \
+    output rv_tester_params::tboxtrig_pkt tbox_trigger_c2  [rv_tester_params::NHARTS-1:0], \
     input  rv_tester_params::pll_req_top    pll_axi_req_mst [rv_tester_params::PLL_AXI_MST_TOTAL-1:0],   \
     output rv_tester_params::pll_resp_top   pll_axi_rsp_mst [rv_tester_params::PLL_AXI_MST_TOTAL-1:0],   \
     input  rv_tester_params::pm_nw_req_top    pm_nw_axi_req_mst [rv_tester_params::PM_NW_AXI_MST_TOTAL-1:0],   \
@@ -1143,6 +1152,7 @@ package rv_tester_params;
     rv_tester_params::cr_ac_axi_pkt AcReqPktRfClki; \
     logic [63:0] AcMtimei; \
     logic [8:0]  AcMtipi;  \
+    rv_tester_params::tboxtrig_pkt tbox_trigger_c2 [rv_tester_params::NHARTS-1:0]; \
     rv_tester_params::pll_req_top    pll_axi_req_mst [rv_tester_params::PLL_AXI_MST_TOTAL-1:0];   \
     rv_tester_params::pll_resp_top   pll_axi_rsp_mst [rv_tester_params::PLL_AXI_MST_TOTAL-1:0];   \
     rv_tester_params::pm_nw_req_top    pm_nw_axi_req_mst [rv_tester_params::PM_NW_AXI_MST_TOTAL-1:0];   \
