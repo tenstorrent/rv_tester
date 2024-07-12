@@ -28,6 +28,8 @@ void scratchpad_xtor::axi_write_mmr_data_granular() {
  
  w_txn.data = {0,0,0,0, 0,0,0,0, 0,0,0,0 ,0,0,0,0,  1,0,0,0, 0,0,0,0 ,0,0,0,0,  0,0,0,0, 0,0,0,0 ,0,0,0,0, 0,0,0,0 ,0,0,0,0 ,0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0};
  w_txn.strb = {0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,  1,1,1,1, 1,1,1,1 ,0,0,0,0,  0,0,0,0, 0,0,0,0 ,0,0,0,0 ,0,0,0,0 ,0,0,0,0 ,0,0,0,0 ,0,0,0,0, 0,0,0,0, 0,0,0,0};
+ //w_txn.data = {1,0,0,0, 0,0,0,0, 0,0,0,0 ,0,0,0,0,  0,0,0,0, 0,0,0,0};
+ //w_txn.strb = {1,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,  1,1,1,1, 1,1,1,1};
 
   w_txn.last = 1;
   cvm::registry::messenger.signal(axi_mst_loc_l, w_txn);
@@ -37,9 +39,11 @@ void scratchpad_xtor::axi_write_mmr_granular() {
   axi::a_t aw_txn;
   aw_txn.w    = true;
   aw_txn.id   = 12;
+  //aw_txn.addr = 0x421a0010;
   aw_txn.addr = 0x421a0010;
   aw_txn.len  = 0;
-  aw_txn.size = 6;
+  aw_txn.size = 3;
+  //aw_txn.size = 6;
   aw_txn.burst = axi::burst_t(0);
   aw_txn.lock  =0;
   aw_txn.cache  =axi::cache_mem_attr_t(0);
