@@ -338,6 +338,14 @@ sysmod:
         fields:
             rdata:
                 width: 70
+    event_triggers:
+        domain: 2
+        num: ${TOP.PLATFORM.NHARTS}
+        fields:
+            data:
+                width: 64
+            addr:
+                width: 64
 
 axi_sw:
     num: [${TOP.PLATFORM.AXI.TOTAL},${TOP.PLATFORM.NCIO_AXI.TOTAL},${TOP.PLATFORM.APLIC_MSI_AXI.TOTAL}]
