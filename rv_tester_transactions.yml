@@ -338,7 +338,7 @@ sysmod:
         fields:
             rdata:
                 width: 70
-    tbox_trigger:
+    event_triggers:
         domain: 2
         num: ${TOP.PLATFORM.NHARTS}
         fields:

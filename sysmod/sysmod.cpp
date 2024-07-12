@@ -77,9 +77,9 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::jtag_rdata<>>(
       loc_,
       [this](const rv_tester_transactions::sysmod::jtag_rdata<>& t) { return this->jtag_resp(t.rdata); });
-  cvm::registry::messenger.connect<rv_tester_transactions::sysmod::tbox_trigger<>>(
+  cvm::registry::messenger.connect<rv_tester_transactions::sysmod::event_triggers<>>(
       loc_,
-      [this](const rv_tester_transactions::sysmod::tbox_trigger<>& t) { return this->tboxtrig_updatemem(t.addr,t.data); });
+      [this](const rv_tester_transactions::sysmod::event_triggers<>& t) { return this->tboxtrig_updatemem(t.addr,t.data); });
   cvm::registry::messenger.connect<sysmod::backdoor_read_t>(
       loc_,
       [this](sysmod::backdoor_read_t t) {

@@ -17,7 +17,7 @@ import rv_tester_params::*;
     output rv_tester_pkg::interrupt_t interrupt [NHARTS-1:0],
     output rv_tester_pkg::aplic_interrupt_t aplic_interrupt,
     output rv_tester_pkg::dm_write_t  dmi_write,
-    input  tboxtrig_pkt tbox_trigger_c2 [NHARTS-1:0],
+    input  event_trigger_intf_t event_triggers [NHARTS-1:0],
     output rv_tester_pkg::jtag_if_t  jtag_req,
     output rv_tester_pkg::jtag_if_tck  jtag_tck_trst,
     input rv_tester_pkg::jtag_if_out  jtag_resp,
@@ -197,10 +197,11 @@ import rv_tester_params::*;
   assign jtag_rdatas[0].data.rdata     = jtag_rx;//upper32 bits for future use
   assign jtag_rdatas_jtag_busy = jtag_busy ;
 
+  // Currently we have only NHARTS C2 triggers, new triggers shall send message on event_triggerss[NHARTS+:NHARTS] and increment rv_tester_transactions.yml
   for (genvar n = 0; n < NHARTS; n++) begin: tboxtrigc2
-  assign tbox_triggers[n].valid         = tbox_trigger_c2[n].valid;
-  assign tbox_triggers[n].data.location = location;
-  assign tbox_triggers[n].data.data     = tbox_trigger_c2[n].data;
-  assign tbox_triggers[n].data.addr     = tbox_trigger_c2[n].addr;
+  assign event_triggerss[n].valid         = event_triggers[n][C2].valid;
+  assign event_triggerss[n].data.location = location;
+  assign event_triggerss[n].data.data     = event_triggers[n][C2].data;
+  assign event_triggerss[n].data.addr     = event_triggers[n][C2].addr;
   end
 endmodule
