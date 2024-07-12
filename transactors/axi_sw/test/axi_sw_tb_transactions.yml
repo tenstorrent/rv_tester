@@ -78,6 +78,8 @@ axi_sw:
         fields:
             r_ptr:
                 widths: [${TOP.PLATFORM.AXI.R_Q_PTR_MAX_LOG2},${TOP.PLATFORM.NCIO_AXI.R_Q_PTR_MAX_LOG2}]
+            clock:
+                widths: [64, 64]
 
 
 axi_sw_mst:

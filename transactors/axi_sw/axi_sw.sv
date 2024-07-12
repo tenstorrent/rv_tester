@@ -13,7 +13,7 @@
             name``_q[idx_t'(name``_wptr_nxt % PD)] = data;     \
             name``_wptr_nxt++;                                 \
         end                                                    \
-    end                                                        \
+    end
 
 `define AXI_SW_DPI_FIFO_RESET(name)                        \
     function void name``_reset();                          \
@@ -202,13 +202,15 @@ module axi_sw #(
     end
 
     logic b_queue_aw_lock;
+    logic ar_history_full;
+    logic read_latency_requirement_met;
 
     assign axi_slv_aw_ready = !b_queue_full;
-    assign axi_slv_ar_ready = '1;
+    assign axi_slv_ar_ready = !ar_history_full;
     assign axi_slv_w_ready  = !axi_mst_w_last || !w_last_queue_full;
     assign axi_slv_b_valid  = !b_queue_empty && !w_last_queue_empty;
     assign axi_slv_b_resp   = b_queue_aw_lock ? RESP_EXOKAY : RESP_OKAY;
-    assign axi_slv_r_valid  = !r_queue_empty;
+    assign axi_slv_r_valid  = !r_queue_empty && read_latency_requirement_met;
 
     axi_sw_fifo #(
         .D         (1),
@@ -238,6 +240,15 @@ module axi_sw #(
         .pop         (axi_slv_b_valid && axi_mst_b_ready                  )
     );
 
+    logic [64-1:0] clocks;
+    always_ff @(posedge clk) begin
+        if (!reset_n) begin
+            clocks <= '0;
+        end else begin
+            clocks <= clocks + 64'(1);
+        end
+    end
+
     always @(posedge clk) begin
         aws[0].valid      <= '0;
         ars[0].valid      <= '0;
@@ -249,6 +260,7 @@ module axi_sw #(
                 r_q_ptrs[0].valid         <= '1 & (location != cvm_topology::nil);
                 r_q_ptrs[0].data.location <= location;
                 r_q_ptrs[0].data.r_ptr    <= r_queue_rptr;
+                r_q_ptrs[0].data.clock    <= clocks;
             end
         end
 
@@ -297,41 +309,119 @@ module axi_sw #(
         end
     end
 
+    localparam int CW = 16;
+    int unsigned read_latency                   = '0;
+    int unsigned read_latency_timeout_threshold = '0;
+    int unsigned read_latency_fifo_threshold    = '0;
+    bit          read_latency_fixed             = '0;
+    always @(posedge clk) begin
+        if (sys_reset) begin
+            /* verilator lint_off BLKSEQ */
+            automatic int unsigned max     = cvm_plusargs::get_int("axi_sw_read_latency_max");
+            automatic int unsigned fixed   = cvm_plusargs::get_int("axi_sw_read_latency_fixed");
+            read_latency_timeout_threshold = cvm_plusargs::get_int("axi_sw_read_latency_timeout_threshold");
+            read_latency_fifo_threshold    = cvm_plusargs::get_int("axi_sw_read_latency_fifo_threshold");
+            read_latency       = max | fixed;
+            read_latency_fixed = fixed != 0;
+            /* verilator lint_on BLKSEQ */
+            if (max != 0 && fixed != 0                                            ) $error("Error: +axi_sw_read_latency_max and +axi_sw_read_latency_fixed cannot both be set");
+            if (read_latency     >= (32'(1)) << CW                                ) $error("Error: +axi_sw_read_latency_max/+axi_sw_read_latency_fixed (%0d) overflows counter width (%0d)", read_latency, CW);
+            if (read_latency != 0 && read_latency_timeout_threshold > read_latency) $error("Error: +axi_flush_threshold (%0d) > +axi_sw_read_latency_max/+axi_sw_read_latency_fixed (%0d)", read_latency_timeout_threshold, read_latency);
+        end
+    end
+
+    localparam AR_HISTORY_Q_MAX = 16;
+
+    logic                   ar_history_empty;
+    logic [CW         -1:0] ar_history_q;
+    logic [$clog2(AR_HISTORY_Q_MAX+1)-1:0] ar_history_size;
+
+    axi_sw_fifo #(
+        .D(AR_HISTORY_Q_MAX),
+        .T(logic[CW-1:0])
+    ) ar_history (
+        .clk,
+        .reset_n,
+        .push(axi_mst_ar_valid && axi_slv_ar_ready && read_latency != '0),
+        .d(CW'(clocks)),
+        .pop (axi_slv_r_valid  && axi_mst_r_ready  && read_latency != '0 && axi_slv_r_last), // axi_sw_r_wptr != axi_sw_r_wptr_nxt
+        .q(ar_history_q),
+        .full(ar_history_full),
+        .size(ar_history_size),
+        .empty(ar_history_empty)
+    );
+
+    assign read_latency_requirement_met = !read_latency_fixed || ar_history_empty || (CW'(clocks) - ar_history_q) >= CW'(read_latency);
+
+    import "DPI-C" function byte unsigned axi_sw_flush(int unsigned location, longint unsigned clock, int unsigned rptr);
+
+    logic flushed;
+    logic [$bits(axi_sw_r_wptr)-1:0] axi_sw_r_wptr_prev;
+
+    always_ff @(posedge clk) begin
+        if (!reset_n) begin
+            flushed <= '0;
+        end else if (flushed) begin // on zebu it takes some number of clocks for the export called by this import to take affect
+            if (axi_sw_r_wptr_prev != axi_sw_r_wptr) begin
+                flushed <= '0;
+            end
+        end else if (!ar_history_empty && read_latency != 0) begin
+            if (r_queue_empty) begin
+                automatic logic fifo_near_critical    = ($bits(ar_history_size)'(AR_HISTORY_Q_MAX) - ar_history_size) <= $bits(ar_history_size)'(read_latency_fifo_threshold);
+                automatic logic timeout_near_critical = CW'(clocks) - ar_history_q >= CW'(read_latency - read_latency_timeout_threshold);
+                automatic logic fifo_critical         = ar_history_full;
+                automatic logic timeout_critical      = CW'(clocks) - ar_history_q == CW'(read_latency - read_latency_timeout_threshold);
+                if (CW'(clocks) == ar_history_q) $error("Error: clocks wrapped around timer");
+                if (fifo_near_critical || timeout_near_critical) begin
+                    automatic byte unsigned success;
+                    success = axi_sw_flush(location, clocks, 32'(r_queue_rptr));
+                    if (success == '0 && (fifo_critical || timeout_critical)) begin
+                        $error("Error: couldn't maintain requested axi read latency");
+                    end
+                    flushed <= success != '0;
+                    axi_sw_r_wptr_prev <= axi_sw_r_wptr;
+                end
+            end
+        end
+    end
+
 endmodule
 
 module axi_sw_fifo #(
-    parameter int unsigned D = 1    ,
-    parameter type         T = logic
+    parameter  int unsigned D = 1    ,
+    parameter  type         T = logic,
+    localparam type         ptr_t = logic[$clog2(D+1)-1:0]
 )(
-    input  logic      clk,
-    input  logic      reset_n,
-    input  logic      push,
-    input  T          d,
-    input  logic      pop,
-    output T          q,
-    output logic      full,
-    output logic      empty
+    input  logic                clk,
+    input  logic                reset_n,
+    input  logic                push,
+    input  T                    d,
+    input  logic                pop,
+    output T                    q,
+    output ptr_t                size,
+    output logic                full,
+    output logic                empty
 );
 
     if ((D & (D-1)) != 0)
         $error("Depth %0d not a power of 2, modulo operator below is going to be more gates", D);
 
-    typedef logic [$clog2(D+1)-1:0] ptr_t;
-
-    ptr_t size, rptr, wptr;
+    ptr_t rptr, wptr;
 
     T ram[D];
 
     assign size  = wptr - rptr;
     assign full  = size == ptr_t'(D);
-    assign empty = !size;
+    assign empty = size == '0;
+
+    localparam int M = D > 1 ? $clog2(D) : 1;
 
     always_ff @(posedge clk) begin
         if (reset_n) begin
             rptr <= rptr + ptr_t'(pop );
             wptr <= wptr + ptr_t'(push);
             if (push) begin
-                ram[wptr % ptr_t'(D)] <= d;
+                ram[M'(wptr % ptr_t'(D))] <= d;
             end
         end else begin
             rptr <= '0;
@@ -344,7 +434,7 @@ module axi_sw_fifo #(
     pop_when_empty: assert property(@(posedge clk) disable iff(!reset_n) pop  -> !empty)
         else $error("popping when fifo is empty");
 
-    assign q = ram[rptr % ptr_t'(D)];
+    assign q = ram[M'(rptr % ptr_t'(D))];
 
 endmodule
 
