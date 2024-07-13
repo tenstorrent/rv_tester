@@ -376,7 +376,7 @@ sysmod::override_plusargs()
   // Overwrite hart_enable_mask in a random fashion based on num_harts run-arg
   // Do this only when hart_enable_mask run-arg is 0x1 (default value)
   if (FLAGS_hart_enable_mask == 0x1) {
-    unsigned char hart_enable_mask = 0;
+    uint8_t mask = 0;
     std::set<uint8_t> unique_bit_positions;
     cvm::rng<uint32_t> rng(FLAGS_seed);
     std::ostringstream oss;
@@ -385,14 +385,14 @@ sysmod::override_plusargs()
     while (unique_bit_positions.size() < FLAGS_num_harts) {
       unique_bit_positions.insert(rng() % FLAGS_num_harts);
     }
-    // Set bits in hart_enable_mask
+    // Set bits in mask
     for (uint8_t bit_position : unique_bit_positions) {
       if (i != 0) oss << ",";
       oss << std::to_string(bit_position);
       ++i;
-      hart_enable_mask |= (1 << bit_position);
+      mask |= (1 << bit_position);
     }
-    FLAGS_hart_enable_mask = hart_enable_mask;
+    FLAGS_hart_enable_mask = mask;
     FLAGS_hart_enable_id = oss.str();
     cvm::log(cvm::LOW, "[sysmod] Overwriting hart_enable_mask to {:#x}\n", FLAGS_hart_enable_mask);
     cvm::log(cvm::LOW, "[sysmod] Overwriting hart_enable_id to {}\n", FLAGS_hart_enable_id);

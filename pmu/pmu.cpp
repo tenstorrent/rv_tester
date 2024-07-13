@@ -44,9 +44,9 @@ pmu::pmu(cvm::topology::loc_t loc, unsigned id)
 
 pmu::~pmu()
 {
-  if (FLAGS_perf && FLAGS_ipc_check && (FLAGS_hart_enable_mask & (1ull << id_)) != 0)
+  if (FLAGS_perf && FLAGS_ipc_check && (FLAGS_hart_enable_mask & (1u << id_)) != 0)
       ipc_check();
-  if (FLAGS_perf && FLAGS_l1d_read_miss_check && (FLAGS_hart_enable_mask & (1ull << id_)) != 0)
+  if (FLAGS_perf && FLAGS_l1d_read_miss_check && (FLAGS_hart_enable_mask & (1u << id_)) != 0)
       l1d_read_miss_check();
   if (FLAGS_perf)
       report();
