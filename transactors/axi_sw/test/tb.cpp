@@ -14,6 +14,22 @@
 DEFINE_bool(covg_disable_cg, false, "vcs cov arg");
 DEFINE_int32(cg_coverage_control, false, "vcs cov arg");
 DEFINE_string(cm_dir, "", "vcs cov arg");
+DEFINE_string(log, "", "run.log");
+
+DEFINE_bool(UVM_DISABLE_AUTO_COMPONENT, false, "UVM_DISABLE_AUTO_COMPONENT");
+DEFINE_bool(UVM_TR_RECORD, false, "UVM_TR_RECORD");
+DEFINE_string(fsdb_all, "", "fsdb+all");
+DEFINE_bool(vcs_initreg_0, false, "vcs+initreg+0");
+DEFINE_int64(fsdb_dump_on, 0, "fsdb_dump_on");
+DEFINE_int64(fsdb_dump_off, 0, "fsdb_dump_off");
+DEFINE_int64(fsdb_cycle_on, 0, "fsdb_cycle_on");
+DEFINE_int64(fsdb_cycle_off, 0, "fsdb_cycle_off");
+DEFINE_string(UVM_VERDI_TRACE, "", "UVM_VERDI_TRACE");
+DEFINE_string(fsdb_gate, "", "fsdb_gate");
+DEFINE_bool(l, false, "l");
+DEFINE_string(sml, "", "sml");
+DEFINE_bool(ucli, false, "ucli");
+DEFINE_bool(ucli2Proc, false, "ucli2Proc");
 
 extern "C" void get_stim(
         std::uint32_t  clocks,

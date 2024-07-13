@@ -420,6 +420,8 @@ axi_sw:
         fields:
             r_ptr:
                 widths: [${TOP.PLATFORM.AXI.R_Q_PTR_MAX_LOG2},${TOP.PLATFORM.NCIO_AXI.R_Q_PTR_MAX_LOG2},${TOP.PLATFORM.APLIC_MSI_AXI.R_Q_PTR_MAX_LOG2}]
+            clock:
+                widths: [64, 64, 64]
 
 axi_sw_mst:
     num: [${TOP.PLATFORM.AXI_MST.TOTAL}, ${TOP.PLATFORM.APLIC_MMR_AXI_MST.TOTAL}, ${TOP.PLATFORM.SMC_AXI_MST.TOTAL}, ${TOP.PLATFORM.PLL_AXI_MST.TOTAL}, ${TOP.PLATFORM.PM_NW_AXI_MST.TOTAL}]

@@ -14,6 +14,19 @@
 
 #include "rv_tester_transactions.hpp"
 
+struct axi_sw_defs {
+
+    typedef std::uint32_t r_q_ptr_t   ;
+
+    struct r_q_ptr_blocking_update_t {
+        std::uint64_t clock;
+        r_q_ptr_t r_ptr;
+        bool* successful;
+        std::atomic<bool>* done;
+    };
+
+};
+
 template < typename W,typename AW,typename AR, typename RQ>
 class axi_sw {
 
@@ -44,7 +57,7 @@ class axi_sw {
 
     public:
 
-        typedef std::uint32_t r_q_ptr_t   ;
+        using r_q_ptr_t = axi_sw_defs::r_q_ptr_t;
 
     private:
 
@@ -52,6 +65,7 @@ class axi_sw {
         cvm::messenger::task<void> process(const AR& ar);
         cvm::messenger::task<void> process(const  W& w);
         void process(const RQ& r_ptr);
+        void process(const axi_sw_defs::r_q_ptr_blocking_update_t& r_q_ptr);
         void r_resp();
         void set_scope(svScope scope);
         void reset_ptrs();
@@ -66,6 +80,13 @@ class axi_sw {
         const r_q_ptr_t     r_q_ptr_max_;
 
         r_q_ptr_t r_q_rptr_, r_q_wptr_;
+        std::uint64_t r_q_rptr_update_time_;
+        int r_q_rptr_blocking_update_consecutive_spurious_calls_ = 0;
+
+        std::deque<axi::r_t> r_q_;
+        std::mutex r_q_mutex_;
+        std::mutex r_dpi_mutex_;
+        bool r_dpi();
 
         axi* axi_;
 
