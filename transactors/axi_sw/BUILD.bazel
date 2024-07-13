@@ -17,6 +17,7 @@ cc_library(
     deps = [
         "@rv_tester//common:transactor",
         "@cvm//:plusargs",
+        "@cvm//:plusargs_dpi",
         "@cvm//:topology",
         "@cvm//:logger",
         "@cvm//:registry",
