@@ -20,13 +20,19 @@ namespace {
   constexpr uint32_t cpl_cl_warm_reset_n = 0;
   constexpr uint32_t cpl_cl_no_fetch     = 0;
 
-  constexpr uint32_t fuse_core_mmr       = 0x4200'FFF8;
-  constexpr uint32_t fuse_trace_mmr      = 0x4208'FFF8;
-  constexpr uint32_t fuse_aclint_mmr     = 0x4218'FFF8;
-  constexpr uint32_t fuse_dm_mmr         = 0x4219'FFF8;
-  constexpr uint32_t fuse_sc_mmr         = 0x421A'7FD8;
-  constexpr uint32_t fuse_sw_mmr         = 0x421B'FFF8;
-  constexpr uint32_t fuse_hart_offset    = 0x0001'0000;
+  constexpr uint32_t core_fuse_mmr       = 0x4200'FFF8;
+  constexpr uint32_t trace_fuse_mmr      = 0x4208'FFF8;
+  constexpr uint32_t aclint_fuse_mmr     = 0x4218'FFF8;
+  constexpr uint32_t dm_fuse_mmr         = 0x4219'FFF8;
+  constexpr uint32_t sc_fuse_mmr         = 0x421A'7FD8;
+  constexpr uint32_t sw_fuse_mmr         = 0x421B'FFF8;
+  constexpr uint32_t core_fuse_offset    = 0x0001'0000;
+
+  constexpr uint32_t core_fuse_idx       = 16;
+  constexpr uint32_t trace_fuse_idx      = 8;
+  constexpr uint32_t dm_fuse_idx         = 9;
+  constexpr uint32_t sc_fuse_idx         = 0;
+  constexpr uint32_t lock_idx            = 15;
 
   typedef enum : bool { COLD = true, WARM = false } rst_t;
   typedef enum : size_t { SZ_4B = 4, SZ_8B = 8 } sz_t;

@@ -84,6 +84,7 @@ extern "C" {
 
     int rv_tester_parse_flags() {
         cvm::plusargs::parse();
+        cvm::registry::rand_plusargs.setup();
         return 0;
     }
 
@@ -116,6 +117,7 @@ extern "C" {
     }
 
     uint8_t rv_tester_shutdown_registry() {
+        cvm::registry::check();
         return cvm::registry::shutdown();
     }
 

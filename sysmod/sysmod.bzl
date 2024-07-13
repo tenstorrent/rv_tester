@@ -62,6 +62,7 @@ def sysmod_gen(name, packet, topology, visibility = None, cc_attrs = {}, **kwarg
           "@rv_tester//cosim/dut_if/rvfi:rvfi_plusargs",
           "@rv_tester//cosim/utils/general:util",
           "@cvm//:plusargs",
+          "@cvm//:plusargs_dpi",
           "@cvm//:topology",
           "@cvm//:registry",
           packet + "_cc",

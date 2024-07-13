@@ -1304,7 +1304,7 @@ pwrmgmt:
         fields:
             cycle:
                 width: 32
-    m_nofetch:
+    m_force_ref_clk:
         domain: 3
         num: 1
         fields:

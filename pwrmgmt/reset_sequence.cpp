@@ -1,30 +1,20 @@
 #include "reset_sequence.hpp"
-#include "rand_gflags.h"
+#include "rv_tester_plusargs.h"
+#include <sstream>
 
 REGISTRY_register(reset_sequence, PWRMGMT, cvm::registry::all);
 
 DEFINE_uint32(pll_pwrup_timeout, 50, "Number of soc cycles expected for pll to be stable");
-DEFINE_string(warm_reset, "off", "Enable warm resets in the sim - off/directed/random/trigger");
-DEFINE_string(warm_reset_count, "1", "Number of warm resets in the sim if random mode enabled");
-DEFINE_string(warm_reset_interval, "5000", "TB cycle interval between warm resets in the sim if random mode enabled");
+DEFINE_string(warm_reset, "off", "Enable warm resets in the sim - off/random/trigger");
+DEFINE_string(warm_reset_count, "rand:0:4", "Number of warm resets in the sim if random mode enabled");
+DEFINE_string(warm_reset_interval, "rand:5000:50000", "TB cycle interval between warm resets in the sim if random mode enabled");
 DEFINE_string(warm_reset_trigger_type, "", "Send warm reset on a trigger");
-DEFINE_string(warm_reset_trigger_interval, "0:100", "TB cycle interval from trigger to warm reset");
-DEFINE_string(warm_reset_sram_hold, "0:1", "Sram hold");
-DEFINE_string(warm_reset_debug_hold, "0:1", "Debug hold");
-DEFINE_string(warm_reset_critical_hold, "0:1", "Critical hold");
-
-namespace gflags {
-  std::vector<std::string> warm_reset_rand_flags = {
-    "warm_reset_count", "warm_reset_interval", "warm_reset_trigger_interval", "warm_reset_sram_hold", "warm_reset_debug_hold", "warm_reset_critical_hold"
-  };
-
-  rand warm_reset_rand(warm_reset_rand_flags);
-}
+DEFINE_string(warm_reset_trigger_interval, "rand:0:100", "TB cycle interval from trigger to warm reset");
+DEFINE_string(warm_reset_sram_hold, "rand:0:1", "Sram hold");
+DEFINE_string(warm_reset_debug_hold, "rand:0:1", "Debug hold");
+DEFINE_string(warm_reset_critical_hold, "rand:0:1", "Critical hold");
 
 extern "C" {
-  std::uint32_t warm_reset_rand_get(const char* p) {
-    return gflags::warm_reset_rand.get(p);
-  }
   void pwrmgmt_init();
   void pwrmgmt_cold_reset(uint8_t val);
   void pwrmgmt_warm_reset(uint8_t val);
@@ -33,10 +23,7 @@ extern "C" {
 }
 
 reset_sequence::reset_sequence(cvm::topology::loc_t loc, unsigned) : loc_(loc), scope_(nullptr) {
-  cvm::log(cvm::NONE, "[pwrmgmt] loc={}\n", loc_);
-
   // Topology
-  nharts_ = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
   smc_axi_loc_ = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_SMC_MST", 0);
 
   // Scope
@@ -45,16 +32,26 @@ reset_sequence::reset_sequence(cvm::topology::loc_t loc, unsigned) : loc_(loc), 
   // Sequence threads
   cold_reset_sequence_thread();
   if (FLAGS_warm_reset == "random") {
-    gflags::warm_reset_rand.randomize();
+    warm_reset_init_rand();
     warm_reset_random_mode_sequence_thread();
   } else if (FLAGS_warm_reset == "trigger") {
     warm_reset_trigger_mode_sequence_thread();
   }
 }
 
+void reset_sequence::warm_reset_init_rand() {
+  // Flags that need to be randomized only once per sim
+  cvm::registry::rand_plusargs.rand("warm_reset_count");
+  cvm::log(cvm::NONE, "[pwrmgmt] +warm_reset_count={}\n", cvm::registry::rand_plusargs.get("warm_reset_count"));
+}
+
+void reset_sequence::check() {
+  // Called just before destruction
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"pwrmgmt_warm_reset_count\": \"{}\"}}\n", warm_reset_count_);
+}
+
 void reset_sequence::cold_reset_sequence_thread() {
   auto *task = +[] (reset_sequence* m) -> cvm::messenger::task<void> {
-    cvm::log(cvm::NONE, "[pwrmgmt] spawning cold reset sequence\n");
     co_await m->cold_reset_sequence();
     co_return;
   };
@@ -63,7 +60,6 @@ void reset_sequence::cold_reset_sequence_thread() {
 
 void reset_sequence::warm_reset_random_mode_sequence_thread() {
   auto *task = +[] (reset_sequence* m) -> cvm::messenger::task<void> {
-    cvm::log(cvm::NONE, "[pwrmgmt] spawning warm reset sequence\n");
     co_await m->warm_reset_random_mode_sequence();
     co_return;
   };
@@ -103,27 +99,30 @@ cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
 
   co_await cpl_reset_sequence(COLD);
 
+  // Deassert force_ref_clk
+  force_ref_clk(0);
+
   co_return;
 }
 
 cvm::messenger::task<void> reset_sequence::warm_reset_random_mode_sequence() {
-  for (uint32_t i = 0; i < gflags::warm_reset_rand.get("warm_reset_count"); ++i) {
-    // Wait on nofetch deassertion
-    co_await nofetch();
+  // Wait on force_ref_clk deassertion
+  co_await force_ref_clk();
 
-    // Randomize state
-    gflags::warm_reset_rand.randomize();
-
-    // Wait for next tick
+  for (uint32_t i = 0; i < cvm::registry::rand_plusargs.get("warm_reset_count"); ++i) {
+    // Wait for next tick generated after a random interval "warm_reset_interval"
     co_await tick();
+
+    warm_reset_count_++;
+    cvm::log(cvm::NONE, "[pwrmgmt] Starting warm reset sequence - count = {}\n", warm_reset_count_);
 
     co_await warm_reset_sequence();
   }
 }
 
 cvm::messenger::task<void> reset_sequence::warm_reset_trigger_mode_sequence() {
-  // Wait on nofetch deassertion
-  co_await nofetch();
+  // Wait on force_ref_clk deassertion
+  co_await force_ref_clk();
 
   // Wait for next selected trigger
   co_await trigger();
@@ -135,8 +134,8 @@ cvm::messenger::task<void> reset_sequence::warm_reset_trigger_mode_sequence() {
 }
 
 cvm::messenger::task<void> reset_sequence::warm_reset_sequence() {
-  // Wait for next clock tick
-  co_await tick();
+    // Wait for next tick
+    co_await tick();
 
   // Assert force_ref_clk
   force_ref_clk(1);
@@ -147,9 +146,9 @@ cvm::messenger::task<void> reset_sequence::warm_reset_sequence() {
 
   // Assert holds
   reset_hold(
-    gflags::warm_reset_rand.get("warm_reset_sram_hold"),
-    gflags::warm_reset_rand.get("warm_reset_debug_hold"),
-    gflags::warm_reset_rand.get("warm_reset_critical_hold")
+    cvm::registry::rand_plusargs.get_rand("warm_reset_sram_hold"),
+    cvm::registry::rand_plusargs.get_rand("warm_reset_debug_hold"),
+    cvm::registry::rand_plusargs.get_rand("warm_reset_critical_hold")
   );
 
   // Wait for 16 clock ticks
@@ -172,21 +171,16 @@ cvm::messenger::task<void> reset_sequence::warm_reset_sequence() {
 
   co_await cpl_reset_sequence(WARM);
 
+  // Deassert force_ref_clk
+  force_ref_clk(0);
+
   co_return;
 }
 
 cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t ) {
-  // Program reset controller
   co_await release_cpl_reset();
   co_await program_fuses();
   co_await release_cpl_nofetch();
-
-  // Deassert force_ref_clk
-  force_ref_clk(0);
-
-  // Wait for 16 clock ticks
-  for (int i=0; i<16; ++i)
-    co_await tick();
 
   co_return;
 }
@@ -223,14 +217,15 @@ cvm::messenger::task<void> reset_sequence::release_cpl_reset() {
 cvm::messenger::task<void> reset_sequence::program_fuses() {
   co_await tick();
 
-  for (uint32_t i=0; i<nharts_; ++i)
-    co_await write(fuse_core_mmr + i * fuse_hart_offset,   SZ_8B, 0x18700);
+  // FIXME co_await write(sw_fuse_mmr,     SZ_8B, fuse_val());
 
-  co_await write(fuse_trace_mmr,  SZ_8B, 0x18700);
-  co_await write(fuse_aclint_mmr, SZ_8B, 0x18700);
-  co_await write(fuse_dm_mmr,     SZ_8B, 0x18700);
-  co_await write(fuse_sc_mmr,     SZ_8B, 0x18700);
-  //co_await write(fuse_sw_mmr,     SZ_8B, 0x18700);
+  for (uint32_t i=0; i<FLAGS_num_harts; ++i)
+    co_await write(core_fuse_mmr + i * core_fuse_offset,   SZ_8B, fuse_val());
+
+  co_await write(trace_fuse_mmr,  SZ_8B, fuse_val());
+  co_await write(aclint_fuse_mmr, SZ_8B, fuse_val());
+  co_await write(dm_fuse_mmr,     SZ_8B, fuse_val());
+  co_await write(sc_fuse_mmr,     SZ_8B, fuse_val());
 
   co_return;
 }
@@ -245,8 +240,8 @@ cvm::messenger::task<void> reset_sequence::tick() {
   co_return;
 }
 
-cvm::messenger::task<void> reset_sequence::nofetch() {
-  co_await cvm::registry::messenger.wait<rv_tester_transactions::pwrmgmt::m_nofetch<>>(loc_);
+cvm::messenger::task<void> reset_sequence::force_ref_clk() {
+  co_await cvm::registry::messenger.wait<rv_tester_transactions::pwrmgmt::m_force_ref_clk<>>(loc_);
   co_return;
 }
 
@@ -346,3 +341,49 @@ std::vector<uint8_t> reset_sequence::convert_to_byte_array(const std::vector<uin
   return result;
 }
 
+uint64_t reset_sequence::core_fuse_val() {
+  uint64_t core_fuse = 0;
+  std::vector<uint64_t> core_mhartid = mhartid();
+  for (uint32_t i=0; i<FLAGS_num_harts; ++i)
+    core_fuse |= (((core_mhartid[i] << 1) | core_en(i)) << (4*i));
+  core_fuse = core_fuse << core_fuse_idx;
+  return core_fuse;
+}
+
+uint64_t reset_sequence::core_en(uint32_t c) {
+  return static_cast<uint64_t>((FLAGS_hart_enable_mask & (1u << c)) >> c);
+}
+
+std::vector<uint64_t> reset_sequence::mhartid() {
+  std::vector<uint64_t> core_mhartid {};
+  std::istringstream ss(FLAGS_hart_enable_id);
+  std::string token;
+
+  while (std::getline(ss, token, ',')) {
+    core_mhartid.push_back(std::stoull(token));
+  }
+  return core_mhartid;
+}
+
+uint64_t reset_sequence::trace_fuse_val() {
+  return static_cast<uint64_t>(FLAGS_trace_enable << trace_fuse_idx);
+}
+
+uint64_t reset_sequence::dm_fuse_val() {
+  return static_cast<uint64_t>(FLAGS_debug_enable << dm_fuse_idx);
+}
+
+uint64_t reset_sequence::sc_fuse_val() {
+  uint64_t sc_fuse = 0;
+
+  for (uint32_t i=0; i<FLAGS_num_sc_ways/4; ++i) {
+    uint32_t segment = (FLAGS_sc_way_enable_mask >> (4*i)) & 0xf;
+    if (segment == 0xf)
+      sc_fuse |= (1ull << i);
+  }
+  return sc_fuse;
+}
+
+uint64_t reset_sequence::fuse_val() {
+  return core_fuse_val() | trace_fuse_val() | dm_fuse_val() | sc_fuse_val() | (1ull << lock_idx);
+}

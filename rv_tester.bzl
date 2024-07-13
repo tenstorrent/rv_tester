@@ -135,6 +135,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             "@rv_tester//:structs",
             "@rv_tester//common:common",
             "@cvm//:plusargs",
+            "@cvm//:plusargs_dpi",
             "@cvm//:registry",
             "@aplic//:Aplic",
             name + "_transactions_cc",
@@ -157,7 +158,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
     native.cc_library(
         name = rv_tester_assert_dpi,
         srcs = ["@rv_tester//:rv_tester_assert_handler.cpp"],
-        deps = ["@cvm//:logger", "@cvm//:plusargs"],
+        deps = ["@cvm//:logger", "@cvm//:plusargs", "@cvm//:plusargs_dpi"],
         alwayslink = True,
         visibility = visibility,
     )

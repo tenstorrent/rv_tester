@@ -488,6 +488,7 @@ module rv_tester
         `TOPOLOGY_CFG,
         `RV_TESTER_TRANSACTIONS_PWRMGMT_SOURCE_PARAMS(0)
     ) pwrmgmt (
+        .init(init_pulse),
         .tb_clk(clk[TB_CLK_IDX]),
         .tb_reset(sysmod_reset),
         .dut_clk(dut_clk),

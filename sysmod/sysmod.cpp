@@ -376,16 +376,23 @@ sysmod::override_plusargs()
     unsigned char hart_enable_mask = 0;
     std::set<uint8_t> unique_bit_positions;
     cvm::rng<uint32_t> rng(FLAGS_seed);
+    std::ostringstream oss;
+    uint32_t i = 0;
     // Generate unique bit positions
     while (unique_bit_positions.size() < FLAGS_num_harts) {
       unique_bit_positions.insert(rng() % FLAGS_num_harts);
     }
     // Set bits in hart_enable_mask
     for (uint8_t bit_position : unique_bit_positions) {
+      if (i != 0) oss << ",";
+      oss << std::to_string(bit_position);
+      ++i;
       hart_enable_mask |= (1 << bit_position);
     }
     FLAGS_hart_enable_mask = hart_enable_mask;
-    cvm::log(cvm::LOW, "Overwriting hart_enable_mask to {:#x}\n", FLAGS_hart_enable_mask);
+    FLAGS_hart_enable_id = oss.str();
+    cvm::log(cvm::LOW, "[sysmod] Overwriting hart_enable_mask to {:#x}\n", FLAGS_hart_enable_mask);
+    cvm::log(cvm::LOW, "[sysmod] Overwriting hart_enable_id to {}\n", FLAGS_hart_enable_id);
   }
 }
 

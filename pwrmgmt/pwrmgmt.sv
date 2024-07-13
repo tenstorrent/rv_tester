@@ -6,6 +6,7 @@ import rv_tester_params::*;
   `RV_TESTER_TRANSACTIONS_PWRMGMT_OUTPUT_PARAMS
 )
 (
+  input logic init,
   input logic tb_clk,
   input logic tb_reset,
   input logic dut_clk [NCLKS-1:0],
@@ -19,15 +20,18 @@ import rv_tester_params::*;
 );
 
   import "DPI-C" context function void pwrmgmt_set_scope(int unsigned location);
-  import "DPI-C" function int unsigned warm_reset_rand_get(string plusarg);
 
   int unsigned location = cvm_topology::nil;
+  int unsigned warm_reset_count;
+  bit warm_reset_en;
   always @(posedge tb_clk) begin
     if (tb_reset) begin
       /* verilator lint_off BLKSEQ */
       location = cvm_topology::get_location(topology_pkg::mods.TOP.PLATFORM.PWRMGMT.ID, NUM);
       if (location != cvm_topology::nil) begin
         pwrmgmt_set_scope(location);
+        warm_reset_en = cvm_plusargs::get_string("warm_reset") != "off";
+        warm_reset_count = cvm_rand_plusargs::get("warm_reset_count");
       end
       /* verilator lint_on BLKSEQ */
     end
@@ -42,12 +46,14 @@ import rv_tester_params::*;
   int unsigned warm_reset_interval = 0;
   bit warm_reset_tick = 0;
   logic [NHARTS-1:0] core_no_fetch_d1;
+  logic warm_reset_d1;
+  logic force_ref_clk_d1;
 
   always @(posedge tb_clk) begin
-    if (~&core_no_fetch) begin
+    if (warm_reset_en & (warm_reset_count != 0) & ~force_ref_clk) begin
       tb_clocks <= tb_clocks + 1;
-      if (|core_no_fetch_d1) begin
-        warm_reset_interval <= warm_reset_rand_get("warm_reset_interval");
+      if (force_ref_clk_d1) begin
+        warm_reset_interval <= cvm_rand_plusargs::get_rand("warm_reset_interval");
       end
     end
     else if (warm_reset_tick) begin
@@ -57,24 +63,31 @@ import rv_tester_params::*;
 
   always @(posedge dut_clk[SOC_CLK_IDX]) begin
     core_no_fetch_d1 <= core_no_fetch;
+    warm_reset_d1 <= warm_reset;
+    force_ref_clk_d1 <= force_ref_clk;
     soc_clocks <= soc_clocks + 1;
     warm_reset_tick <= 0;
-    if (tb_clocks > warm_reset_interval) begin
+    if ((tb_clocks > warm_reset_interval) & ~force_ref_clk) begin
       warm_reset_tick <= 1;
     end
+    /* verilator lint_off BLKSEQ */
+    if (warm_reset & ~warm_reset_d1) begin
+      warm_reset_count = warm_reset_count - 1;
+    end
+    /* verilator lint_on BLKSEQ */
   end
 
   // m_tick
-  // - during reset sequence till core_no_fetch is deasserted, send every clock
+  // - during reset sequence till force_ref_clk is deasserted, send every clock
   // - after rest sequence, send a tick only to start a warm reset
-  assign m_ticks[0].valid = (|core_no_fetch | warm_reset_tick) & (location != cvm_topology::nil);
+  assign m_ticks[0].valid =  (init | force_ref_clk | warm_reset_tick) & (location != cvm_topology::nil);
   assign m_ticks[0].data.location = location;
   assign m_ticks[0].data.cycle = soc_clocks;
 
-  // m_nofetch
-  assign m_nofetchs[0].valid = (~&core_no_fetch & |core_no_fetch_d1) & (location != cvm_topology::nil);
-  assign m_nofetchs[0].data.location = location;
-  assign m_nofetchs[0].data.cycle = soc_clocks;
+  // m_force_ref_clk
+  assign m_force_ref_clks[0].valid = (~force_ref_clk & force_ref_clk_d1) & (location != cvm_topology::nil);
+  assign m_force_ref_clks[0].data.location = location;
+  assign m_force_ref_clks[0].data.cycle = soc_clocks;
 
   // -------------------------
   // C++->SV Callbacks
