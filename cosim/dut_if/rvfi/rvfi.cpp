@@ -138,9 +138,11 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
 
   if ((m_trap.cause >> 63) & 0x1) {
     intr_ = true;
+    excp_ = false;
     icause_ = (m_trap.cause & 0x3f);
   } else {
     excp_ = true;
+    intr_ = false;
     ecause_ = (m_trap.cause & 0xff);
   }
 }

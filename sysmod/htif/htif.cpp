@@ -9,6 +9,7 @@
 #include "cvm/registry.hpp"
 #include "cvm/logger.hpp"
 #include "cvm/plusargs.hpp"
+#include "cosim/utils/eot/eot_plusargs.h"
 
 DEFINE_bool(htif_flip, false, "Reverse the htif tohost/fromhost address order");
 DEFINE_bool(pty, false, "Use a pseudo-terminal for the HTIF console");
@@ -225,6 +226,7 @@ htif::write(const transactor::write_t& w)
       if (payload & 1)
 	{
 	  cvm::log(cvm::NONE, "Pass condition detected - tohost[0] = 1\n");
+      if (FLAGS_eot != "tohost_all")
           cvm::registry::messenger.signal<terminate_t>(loc(), terminate_t{.low_priority_based = true});
 	}
     }

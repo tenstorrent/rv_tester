@@ -907,6 +907,10 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
   w_.pc.valid = true;
   w_.pc.pc_rdata = w.pc;
 
+  zicbom_ = false;
+  if(((w.opcode & 0x7fff) == 0x200f) && (((w.opcode>>20)==0)||((w.opcode>>20)==1)||((w.opcode>>20)==2))) // cbo - inval, clean , flush
+    zicbom_ = true;
+
   if (FLAGS_pc_check)
     update_pc(hart, src_t::iss, w.pc);
 
@@ -963,7 +967,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
 
   // Mem attributes
   // Disabling mem_attr checks for vectors currently
-  if (FLAGS_memattr_check && !w_.trap && !is_vector(w.disasm) && (w_.mem_read.valid || w_.mem_write.valid)) {
+  if (FLAGS_memattr_check && !w_.trap && !is_vector(w.disasm) && (w_.mem_read.valid || w_.mem_write.valid || zicbom_)) {
     bool valid; 
     uint64_t eff_mem_attr;
     if (!client_->whisperPeek(hart, 's', WhisperSpecialResource::EffMemAttr, eff_mem_attr, valid)) {
@@ -1341,6 +1345,10 @@ bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const std::
     log(cvm::MEDIUM, "<{}> Resynch: Reason=[clint_read]\n", d.cycle);
     return true;
   }
+  if (tbox_read(d)) {
+    log(cvm::MEDIUM, "<{}> Resynch: Reason=[tbox_read]\n", d.cycle);
+    return true;
+  }
   // Case #2
   if (htif_read(d)) {
     log(cvm::MEDIUM, "<{}> Resynch: Reason=[htif_read]\n", d.cycle);
@@ -1392,6 +1400,19 @@ bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const std::
 bool bridge::clint_read(const rv_instr_t& d) {
   if (d.mem_read.valid) {
     for (const auto& s : {"clint", "aclint"}) {
+      auto it = memmap_.find(s);
+      if (it != memmap_.end()) {
+        if (d.mem_read.pa >= it->second.base && d.mem_read.pa < it->second.end) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+bool bridge::tbox_read(const rv_instr_t& d) {
+  if (d.mem_read.valid) {
+    for (const auto& s : {"trickbox"}) {
       auto it = memmap_.find(s);
       if (it != memmap_.end()) {
         if (d.mem_read.pa >= it->second.base && d.mem_read.pa < it->second.end) {

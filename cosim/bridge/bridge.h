@@ -154,6 +154,7 @@ private:
   bool does_instr_match_resynch_list(const rv_instr_t& d, const std::string& instr);
   bool does_instr_match_resynch_condition(const rv_instr_t& d, const std::string& instr);
   bool clint_read(const rv_instr_t& d);
+  bool tbox_read(const rv_instr_t& d);
   bool boot_read(const rv_instr_t& d);
   bool debug_mem_access(const rv_instr_t& d);
   bool unsupported_mmr_access(const rv_instr_t& d);
@@ -200,6 +201,7 @@ private:
   bool excp_in_debug_mode = false;
   bool lrsc_fail_ = false;
   bool twoStage_ = false;
+  bool zicbom_ = false;
 
   uint64_t satp_ = 0;
   uint64_t new_satp_ = 0;

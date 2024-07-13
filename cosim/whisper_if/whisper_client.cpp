@@ -28,7 +28,9 @@ DEFINE_string(whisper_instr_lines, "", "Write instr cache line addresses used in
 DEFINE_string(whisper_data_lines, "", "Write data cache line addresses used in test to a file");
 DEFINE_bool(whisper_csv_log, false, "Make whisper use a csv trace.");
 DEFINE_uint32(whisper_tlb_size, 0, "Specify whisper tlb size");
-
+DEFINE_uint64(resetpc, 0x80000000, "Reset PC");
+DEFINE_uint64(resetpcfw, 0xC0040000, "Reset firmware PC");
+DEFINE_string(isa, "", "Override isa spec");
 
 extern void (*__tracerExtension)(void*);
 
@@ -104,9 +106,15 @@ constructSystem(uint16_t ncores, bool standalone, bool firmware) {
     hart.setTlbSize(FLAGS_whisper_tlb_size);
     if (FLAGS_whisper_stdout_null) hart.redirectOutputDescriptor(STDOUT_FILENO, "/dev/null");
     if (FLAGS_whisper_stdin_null) hart.redirectOutputDescriptor(STDIN_FILENO, "/dev/null");
-    if (not isa.empty())
-      if (not hart.configIsa(isa, false))
+    if (not isa.empty()){
+      if (FLAGS_isa != ""){
+        if (not hart.configIsa(FLAGS_isa, false))
+          return nullptr;
+      }
+      else if (not hart.configIsa(isa, false)){
         return nullptr;
+      }
+    }
     hart.reset();
   }
 

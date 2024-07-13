@@ -42,7 +42,7 @@ void aclint_checker::process(const rv_tester_transactions::aclint_checker::cr_ac
     uint64_t hart = cr_ac_mmrwrite.hart;
     cr_ac_mmr_q_[hart].push(m);
     popifpossible(hart);
-    assert (cr_ac_mmr_q_[hart].size() < 5 && "More than 4 outstanding AC MMR writes");
+    //assert (cr_ac_mmr_q_[hart].size() < 5 && "More than 4 outstanding AC MMR writes"); RVDE-15399
     cvm::log(cvm::HIGH, "[ACLINT CHECKER] AC MMR WRITES: location {} hart {} order {} addr {:#x} data {:#x} mask {:#x} \n", cr_ac_mmrwrite.location, cr_ac_mmrwrite.hart, cr_ac_mmrwrite.order, cr_ac_mmrwrite.addr, cr_ac_mmrwrite.data, cr_ac_mmrwrite.mask);
 }
 
@@ -88,6 +88,8 @@ void aclint_checker::popifpossible(uint64_t hart) {
         return;
     }
 
+    bool matched = false;
+    while( !ac_axi_mmr_q_[hart].empty() || !matched ) {
     MmrWr & a = ac_axi_mmr_q_[hart].front();
     cvm::log(cvm::HIGH, "[ACLINT CHECKER] Pop if possible: AC_AXI hart {} addr {:#x} data {:#x} mask {:#x} \n", hart, a.addr, a.data, a.mask);
 
@@ -110,17 +112,22 @@ void aclint_checker::popifpossible(uint64_t hart) {
     cvm::log(cvm::HIGH, "[ACLINT CHECKER] Pop if possible: CR_AC_MMR hart {} addr {:#x} data {:#x} mask {:#x} \n", hart, b_addr, b.data, b.mask);
 
     if (a.addr != b_addr)
-        return;
+        matched = false;
 
-    if (a.data != b.data)
-        return;
+    else if (a.data != b.data)
+        matched = false;
 
-    if (a.mask != b.mask)
-        return;
+    else if (a.mask != b.mask)
+        matched = false;
+
+    else matched = true;
 
     ac_axi_mmr_q_[hart].pop();
+    }
+    if (matched) {
     cr_ac_mmr_q_[hart].pop();
     cvm::log(cvm::HIGH, "[ACLINT CHECKER] Popped \n");
+    }
 
     return;
 

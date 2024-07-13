@@ -187,6 +187,8 @@ public:
       OP_ISSUED_PIPE14,
       //Event (speculative) for pipe 15 issuing. Multiple issues per cycle should be precisely counted
       OP_ISSUED_PIPE15,
+      // Event for counting wasted issue slot due to issue throttling
+      WASTED_ISSUE_SLOTS_VIA_THROTTLING,
       //The count will represent all the requests made to L1 I and D caches. Includes accesses made by speculatively executed instructions and hardware prefetchers but does not include non-cacheable requests
       CACHE_REFERENCES,
       //Event for a request made to cache subsystem that misses in L1 I and D caches. Includes accesses made by speculatively executed instructions and hardware prefetchers.  but does not include non-cacheable requests
@@ -239,6 +241,8 @@ public:
       TRANSBUF_OR_REQBUF_CANNOT_ALLOC_MMU,
       //Event (speculative) for every instance of a failed TransBuffer or ReqBuffer allocation
       TRANSBUF_CANNOT_ALLOC_ALL,
+      //Event for a store allocating the memory request buffer for an upgrade request of an L1D cache line
+      L1D_WRITE_UPGRADE_REQ,
       //Event (speculative) for an l1 dTLB access caused by a demand memory-read operation
       DTLB_READ_ACCESS,
       //Event (speculative) for an l1 dTLB access caused by a demand memory-write operation
@@ -801,6 +805,7 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::OP_ISSUED_PIPE13] = pmcounters.op_issued_pipe13;
       tmp[counter::OP_ISSUED_PIPE14] = pmcounters.op_issued_pipe14;
       tmp[counter::OP_ISSUED_PIPE15] = pmcounters.op_issued_pipe15;
+      tmp[counter::WASTED_ISSUE_SLOTS_VIA_THROTTLING] = pmcounters.wasted_issue_slots_via_throttling;
       tmp[counter::CACHE_REFERENCES] = pmcounters.cache_references;
       tmp[counter::CACHE_MISSES] = pmcounters.cache_misses;
       tmp[counter::L1D_READ_ACCESS_NON_CLC] = pmcounters.l1d_read_access_non_clc;
@@ -827,6 +832,7 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::TRANSBUF_OR_REQBUF_CANNOT_ALLOC_PREFETCH] = pmcounters.transbuf_or_reqbuf_cannot_alloc_prefetch;
       tmp[counter::TRANSBUF_OR_REQBUF_CANNOT_ALLOC_MMU] = pmcounters.transbuf_or_reqbuf_cannot_alloc_mmu;
       tmp[counter::TRANSBUF_CANNOT_ALLOC_ALL] = pmcounters.transbuf_cannot_alloc_all;
+      tmp[counter::L1D_WRITE_UPGRADE_REQ] = pmcounters.l1d_write_upgrade_req;
       tmp[counter::DTLB_READ_ACCESS] = pmcounters.dtlb_read_access;
       tmp[counter::DTLB_WRITE_ACCESS] = pmcounters.dtlb_write_access;
       tmp[counter::DTLB_PREFETCH_ACCESS] = pmcounters.dtlb_prefetch_access;
@@ -1154,6 +1160,7 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {OP_ISSUED_PIPE13,"op_issued_pipe13"},
       {OP_ISSUED_PIPE14,"op_issued_pipe14"},
       {OP_ISSUED_PIPE15,"op_issued_pipe15"},
+      {WASTED_ISSUE_SLOTS_VIA_THROTTLING,"wasted_issue_slots_via_throttling"},
       {CACHE_REFERENCES,"cache_references"},
       {CACHE_MISSES,"cache_misses"},
       {L1D_READ_ACCESS_NON_CLC,"l1d_read_access_non_clc"},
@@ -1180,6 +1187,7 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {TRANSBUF_OR_REQBUF_CANNOT_ALLOC_PREFETCH,"transbuf_or_reqbuf_cannot_alloc_prefetch"},
       {TRANSBUF_OR_REQBUF_CANNOT_ALLOC_MMU,"transbuf_or_reqbuf_cannot_alloc_mmu"},
       {TRANSBUF_CANNOT_ALLOC_ALL,"transbuf_cannot_alloc_all"},
+      {L1D_WRITE_UPGRADE_REQ,"l1d_write_upgrade_req"},
       {DTLB_READ_ACCESS,"dtlb_read_access"},
       {DTLB_WRITE_ACCESS,"dtlb_write_access"},
       {DTLB_PREFETCH_ACCESS,"dtlb_prefetch_access"},
@@ -1412,7 +1420,7 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {NO_ALLOC_NO_MSHR,"no_alloc_no_mshr"},
       {NO_ALLOC_HINT_NOT_SET,"no_alloc_hint_not_set"},
       {SC_REPLAY_ECC,"sc_replay_ecc"},
-    };
+    }; 
 
   pmu(cvm::topology::loc_t, unsigned);
   ~pmu();

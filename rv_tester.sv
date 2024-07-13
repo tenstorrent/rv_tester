@@ -35,11 +35,15 @@ module rv_tester
     logic rv_tester_reset = '1;
 
     /* verilator lint_off UNOPTFLAT */
-    logic [1:0] clock_mode = 2'b00;
+    logic [2:0] clock_mode = 3'b000;
     /* verilator lint_on UNOPTFLAT */
     logic  def_clk      [NCLKS-1:0];
     logic  profile1_clk [NCLKS-1:0];
     logic  profile2_clk [NCLKS-1:0];
+    logic  profile3_clk [NCLKS-1:0];
+    logic  profile4_clk [NCLKS-1:0];
+    logic  profile5_clk [NCLKS-1:0];
+    logic  profile6_clk [NCLKS-1:0];
 
     if (EXTERNAL_CLOCK) begin
         for (genvar c = 0; c < NCLKS; c++) begin
@@ -53,12 +57,16 @@ module rv_tester
              rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(def_clk[c]));
              rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE1_CLOCK_FREQ_MHZ[c])) profile1_clkgen(.clk(profile1_clk[c]));
              rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE2_CLOCK_FREQ_MHZ[c])) profile2_clkgen(.clk(profile2_clk[c]));
+             rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE3_CLOCK_FREQ_MHZ[c])) profile3_clkgen(.clk(profile3_clk[c]));
+             rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE4_CLOCK_FREQ_MHZ[c])) profile4_clkgen(.clk(profile4_clk[c]));
+             rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE5_CLOCK_FREQ_MHZ[c])) profile5_clkgen(.clk(profile5_clk[c]));
+             rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE6_CLOCK_FREQ_MHZ[c])) profile6_clkgen(.clk(profile6_clk[c]));
  
             clk_mux_glitch_free #(
-                .NUM_INPUTS(4),
+                .NUM_INPUTS(7),
                 .CLOCK_DURING_RESET(1)
             ) i_clk_mux (
-                .clks_i         ({1'b0, profile2_clk[c], profile1_clk[c], def_clk[c]}),
+                .clks_i         ({profile6_clk[c], profile5_clk[c], profile4_clk[c], profile3_clk[c],profile2_clk[c], profile1_clk[c], def_clk[c]}),
                 .test_clk_i     (1'b0),             // FIXME:Add test clock
                 .test_en_i      (1'b0),             // FIXME:Add test enable
                 .async_rstn_i   (~rv_tester_reset),
@@ -143,14 +151,14 @@ module rv_tester
   `ifndef CLK_MUX_UNSUPPORTED 
     always @(posedge clk[TB_CLK_IDX])begin
       if (rv_tester_reset)begin 
-            clock_mode <= clk_profile[1:0];
+            clock_mode <= clk_profile[2:0];
       end
       /* verilator lint_off WIDTH */
       if(dyn_clk_switch & (clocks >10) &  ((clocks % freq_switch_ncycles) == 0)) begin
         //dynamically select clk from available profiles
         //this logic will generate the select pins of the mux ,which will switch between clks
         clock_mode <= clock_mode + 1'b1;
-        if(clock_mode == 2'b11)
+        if(clock_mode == 3'b111)
           clock_mode <= '0;
       end
        /* verilator lint_on WIDTH */
@@ -260,7 +268,7 @@ module rv_tester
             rv_tester_build_registry();
 
         end
-        clock_mode      <= clk_profile[1:0];
+        clock_mode      <= clk_profile[2:0];
         num_reruns      <= num_reruns - int'(rerun_now);
         if (num_reruns < 0) begin
             num_reruns  <= cvm_plusargs::get_int("num_reruns");
@@ -368,6 +376,7 @@ module rv_tester
         .jtag_quiesced(jtag_quiesced),
         .bootstrap,
         .dmi_write(trickbox_dmi_write),
+        .event_triggers(event_triggers),
         .interrupt,
         .jtag_req,
         .jtag_tck_trst,

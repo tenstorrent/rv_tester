@@ -41,6 +41,10 @@ package rv_tester_params;
     parameter bit [NCLKS-1:0][31:0] CLOCK_FREQ_MHZ = mods.TOP.PLATFORM.CLKI.CLOCK_FREQ_MHZ;
     parameter bit [NCLKS-1:0][31:0] PROFILE1_CLOCK_FREQ_MHZ = mods.TOP.PLATFORM.CLKI.PROFILE1_CLOCK_FREQ_MHZ;
     parameter bit [NCLKS-1:0][31:0] PROFILE2_CLOCK_FREQ_MHZ = mods.TOP.PLATFORM.CLKI.PROFILE2_CLOCK_FREQ_MHZ;
+    parameter bit [NCLKS-1:0][31:0] PROFILE3_CLOCK_FREQ_MHZ = mods.TOP.PLATFORM.CLKI.PROFILE3_CLOCK_FREQ_MHZ;
+    parameter bit [NCLKS-1:0][31:0] PROFILE4_CLOCK_FREQ_MHZ = mods.TOP.PLATFORM.CLKI.PROFILE4_CLOCK_FREQ_MHZ;
+    parameter bit [NCLKS-1:0][31:0] PROFILE5_CLOCK_FREQ_MHZ = mods.TOP.PLATFORM.CLKI.PROFILE5_CLOCK_FREQ_MHZ;
+    parameter bit [NCLKS-1:0][31:0] PROFILE6_CLOCK_FREQ_MHZ = mods.TOP.PLATFORM.CLKI.PROFILE6_CLOCK_FREQ_MHZ;
 
     // --------------------------------------
     // Reset interface
@@ -545,6 +549,16 @@ package rv_tester_params;
         logic valid;
     } cr_ac_axi_pkt;
     // --------------------------------------
+    // C2 
+    // --------------------------------------
+    typedef enum {C2, TRIGGER_COUNT} event_trigger_type_t;
+    typedef struct packed {
+        logic [63:0] data;
+        logic [63:0] addr;
+        logic valid;
+    } event_trigger_t;
+    typedef event_trigger_t [TRIGGER_COUNT-1:0] event_trigger_intf_t;
+    // --------------------------------------
     // CSRI - Control Status Registers
     // --------------------------------------
     typedef enum {
@@ -749,6 +763,7 @@ package rv_tester_params;
         OP_ISSUED_PIPE13,
         OP_ISSUED_PIPE14,
         OP_ISSUED_PIPE15,
+        WASTED_ISSUE_SLOTS_VIA_THROTTLING,
         CACHE_REFERENCES,
         CACHE_MISSES,
         L1D_READ_ACCESS_NON_CLC,
@@ -775,6 +790,7 @@ package rv_tester_params;
         TRANSBUF_OR_REQBUF_CANNOT_ALLOC_PREFETCH,
         TRANSBUF_OR_REQBUF_CANNOT_ALLOC_MMU,
         TRANSBUF_CANNOT_ALLOC_ALL,
+        L1D_WRITE_UPGRADE_REQ,
         DTLB_READ_ACCESS,
         DTLB_WRITE_ACCESS,
         DTLB_PREFETCH_ACCESS,
@@ -1078,6 +1094,7 @@ package rv_tester_params;
     output rv_tester_params::cr_ac_axi_pkt AcReqPktRfClki, \
     output logic [63:0] AcMtimei, \
     output logic [8:0]  AcMtipi, \
+    output rv_tester_params::event_trigger_intf_t event_triggers  [rv_tester_params::NHARTS-1:0], \
     input  rv_tester_params::pll_req_top    pll_axi_req_mst [rv_tester_params::PLL_AXI_MST_TOTAL-1:0],   \
     output rv_tester_params::pll_resp_top   pll_axi_rsp_mst [rv_tester_params::PLL_AXI_MST_TOTAL-1:0],   \
     input  rv_tester_params::pm_nw_req_top    pm_nw_axi_req_mst [rv_tester_params::PM_NW_AXI_MST_TOTAL-1:0],   \
@@ -1156,6 +1173,7 @@ package rv_tester_params;
     rv_tester_params::cr_ac_axi_pkt AcReqPktRfClki; \
     logic [63:0] AcMtimei; \
     logic [8:0]  AcMtipi;  \
+    rv_tester_params::event_trigger_intf_t event_triggers [rv_tester_params::NHARTS-1:0]; \
     rv_tester_params::pll_req_top    pll_axi_req_mst [rv_tester_params::PLL_AXI_MST_TOTAL-1:0];   \
     rv_tester_params::pll_resp_top   pll_axi_rsp_mst [rv_tester_params::PLL_AXI_MST_TOTAL-1:0];   \
     rv_tester_params::pm_nw_req_top    pm_nw_axi_req_mst [rv_tester_params::PM_NW_AXI_MST_TOTAL-1:0];   \
