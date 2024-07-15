@@ -31,7 +31,7 @@ import rv_tester_params::*;
       if (location != cvm_topology::nil) begin
         pwrmgmt_set_scope(location);
         warm_reset_en = cvm_plusargs::get_string("warm_reset") != "off";
-        warm_reset_count = cvm_rand_plusargs::get("warm_reset_count");
+        warm_reset_count = cvm_rand::get("warm_reset_count");
       end
       /* verilator lint_on BLKSEQ */
     end
@@ -53,7 +53,7 @@ import rv_tester_params::*;
     if (warm_reset_en & (warm_reset_count != 0) & ~force_ref_clk) begin
       tb_clocks <= tb_clocks + 1;
       if (force_ref_clk_d1) begin
-        warm_reset_interval <= cvm_rand_plusargs::get_rand("warm_reset_interval");
+        warm_reset_interval <= cvm_rand::get("warm_reset_interval");
       end
     end
     else if (warm_reset_tick) begin

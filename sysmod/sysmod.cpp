@@ -42,7 +42,6 @@ DEFINE_uint64(sysmod_tick_update_threshold, 1, "Slow down tick update frequency 
 DEFINE_uint64(sp_ways_num, 0x1, "Number of sharedcache ways to be alloted as Scratchpad");
 DEFINE_string(set_csr, "", "+set_csr=<csr_num>:<value>,<num2>:<val2> ");
 DEFINE_string(set_mmr, "", "+set_mmr=<addr>:<size>:<value>,<addr2>:<size>:<val2>");
-DEFINE_int32(seed, 1, "Simulation seed passed down for randomization");
 
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 
@@ -378,7 +377,7 @@ sysmod::override_plusargs()
   if (FLAGS_hart_enable_mask == 0x1) {
     uint8_t mask = 0;
     std::set<uint8_t> unique_bit_positions;
-    cvm::rng<uint32_t> rng(FLAGS_seed);
+    cvm::rand::rng<uint32_t> rng;
     std::ostringstream oss;
     uint32_t i = 0;
     // Generate unique bit positions

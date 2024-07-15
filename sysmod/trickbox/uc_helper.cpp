@@ -2,6 +2,7 @@
 #include "cvm/logger.hpp"
 #include "uc_helper.h"
 #include "sysmod/sysmod_plusargs.h"
+#include "rv_tester/rv_tester_plusargs.h"
 
 
 DEFINE_bool(debug_uc_helper, false, "Enable internal uc helper debug logging");

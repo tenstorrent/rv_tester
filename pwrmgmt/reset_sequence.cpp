@@ -6,13 +6,13 @@ REGISTRY_register(reset_sequence, PWRMGMT, cvm::registry::all);
 
 DEFINE_uint32(pll_pwrup_timeout, 50, "Number of soc cycles expected for pll to be stable");
 DEFINE_string(warm_reset, "off", "Enable warm resets in the sim - off/random/trigger");
-DEFINE_string(warm_reset_count, "rand:0:4", "Number of warm resets in the sim if random mode enabled");
-DEFINE_string(warm_reset_interval, "rand:5000:50000", "TB cycle interval between warm resets in the sim if random mode enabled");
+DEFINE_string(warm_reset_count, "0:4", "Number of warm resets in the sim if random mode enabled");
+DEFINE_string(warm_reset_interval, "5000:50000", "TB cycle interval between warm resets in the sim if random mode enabled");
 DEFINE_string(warm_reset_trigger_type, "", "Send warm reset on a trigger");
 DEFINE_string(warm_reset_trigger_interval, "rand:0:100", "TB cycle interval from trigger to warm reset");
-DEFINE_string(warm_reset_sram_hold, "rand:0:1", "Sram hold");
-DEFINE_string(warm_reset_debug_hold, "rand:0:1", "Debug hold");
-DEFINE_string(warm_reset_critical_hold, "rand:0:1", "Critical hold");
+DEFINE_string(warm_reset_sram_hold, "0:1", "Sram hold");
+DEFINE_string(warm_reset_debug_hold, "0:1", "Debug hold");
+DEFINE_string(warm_reset_critical_hold, "0:1", "Critical hold");
 
 extern "C" {
   void pwrmgmt_init();
@@ -32,17 +32,10 @@ reset_sequence::reset_sequence(cvm::topology::loc_t loc, unsigned) : loc_(loc), 
   // Sequence threads
   cold_reset_sequence_thread();
   if (FLAGS_warm_reset == "random") {
-    warm_reset_init_rand();
     warm_reset_random_mode_sequence_thread();
   } else if (FLAGS_warm_reset == "trigger") {
     warm_reset_trigger_mode_sequence_thread();
   }
-}
-
-void reset_sequence::warm_reset_init_rand() {
-  // Flags that need to be randomized only once per sim
-  cvm::registry::rand_plusargs.rand("warm_reset_count");
-  cvm::log(cvm::NONE, "[pwrmgmt] +warm_reset_count={}\n", cvm::registry::rand_plusargs.get("warm_reset_count"));
 }
 
 void reset_sequence::check() {
@@ -102,6 +95,9 @@ cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
   // Deassert force_ref_clk
   force_ref_clk(0);
 
+  // Wait for next tick
+  co_await tick();
+
   co_return;
 }
 
@@ -109,7 +105,7 @@ cvm::messenger::task<void> reset_sequence::warm_reset_random_mode_sequence() {
   // Wait on force_ref_clk deassertion
   co_await force_ref_clk();
 
-  for (uint32_t i = 0; i < cvm::registry::rand_plusargs.get("warm_reset_count"); ++i) {
+  while (true) {
     // Wait for next tick generated after a random interval "warm_reset_interval"
     co_await tick();
 
@@ -134,9 +130,6 @@ cvm::messenger::task<void> reset_sequence::warm_reset_trigger_mode_sequence() {
 }
 
 cvm::messenger::task<void> reset_sequence::warm_reset_sequence() {
-    // Wait for next tick
-    co_await tick();
-
   // Assert force_ref_clk
   force_ref_clk(1);
 
@@ -146,9 +139,9 @@ cvm::messenger::task<void> reset_sequence::warm_reset_sequence() {
 
   // Assert holds
   reset_hold(
-    cvm::registry::rand_plusargs.get_rand("warm_reset_sram_hold"),
-    cvm::registry::rand_plusargs.get_rand("warm_reset_debug_hold"),
-    cvm::registry::rand_plusargs.get_rand("warm_reset_critical_hold")
+    cvm::rand::get(FLAGS_warm_reset_sram_hold),
+    cvm::rand::get(FLAGS_warm_reset_debug_hold),
+    cvm::rand::get(FLAGS_warm_reset_critical_hold)
   );
 
   // Wait for 16 clock ticks
@@ -173,6 +166,9 @@ cvm::messenger::task<void> reset_sequence::warm_reset_sequence() {
 
   // Deassert force_ref_clk
   force_ref_clk(0);
+
+  // Wait for next tick
+  co_await tick();
 
   co_return;
 }
@@ -284,7 +280,7 @@ void reset_sequence::init() {
   cvm::registry::callbacks.push(
     scope_,
     []() {
-      cvm::log(cvm::NONE, "[pwrmgmt] assert cold_reset\n");
+      cvm::log(cvm::NONE, "[pwrmgmt] assert cold_reset, force_ref_clk\n");
       pwrmgmt_init();
     });
 }

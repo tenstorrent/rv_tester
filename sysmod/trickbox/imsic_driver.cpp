@@ -2,6 +2,7 @@
 #include "cvm/logger.hpp"
 #include "imsic_driver.h"
 #include "sysmod/sysmod_plusargs.h"
+#include "rv_tester/rv_tester_plusargs.h"
 
  DEFINE_bool(random_imsic_intr, false, "Drive random interrups");
  DEFINE_bool(disable_m_imsic_intr, false, "Drive random imsic  interrups to M file");

@@ -10,6 +10,7 @@ cc_library(
         "//sysmod:device",
         "@mem_manager//:mem_manager",
         "@rv_tester//common:common",
+        "@rv_tester//:plusargs",
         "@cvm//:plusargs",
         "@cvm//:registry",
         "@cvm//:bitmanip",

@@ -6,6 +6,7 @@
 #include "pll_xtor.h"
 #include "transactors/axi_sw/axi.h"
 #include "sysmod/sysmod_plusargs.h"
+#include "rv_tester/rv_tester_plusargs.h"
 
 
 pll_xtor::pll_xtor(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc)

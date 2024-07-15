@@ -5,6 +5,7 @@
 #include "cvm/logger.hpp"
 #include "scratchpad_xtor.h"
 #include "sysmod/sysmod_plusargs.h"
+#include "rv_tester/rv_tester_plusargs.h"
 
 
 DEFINE_bool(sp_xtor_en, false, "Enable scratchpad transactor acceses ");

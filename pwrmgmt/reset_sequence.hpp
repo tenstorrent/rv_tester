@@ -3,6 +3,7 @@
 #include "cvm/registry.hpp"
 #include "cvm/logger.hpp"
 #include "cvm/plusargs.hpp"
+#include "cvm/random.hpp"
 #include "rv_tester_transactions.hpp"
 #include "pwrmgmt.hpp"
 #include "transactor.h"
@@ -29,7 +30,6 @@ class reset_sequence {
     cvm::messenger::task<void> warm_reset_random_mode_sequence();
     cvm::messenger::task<void> warm_reset_trigger_mode_sequence();
     cvm::messenger::task<void> warm_reset_sequence();
-    void warm_reset_init_rand();
 
     cvm::messenger::task<void> tick();
     cvm::messenger::task<void> force_ref_clk();

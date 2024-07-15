@@ -21,7 +21,7 @@ def pwrmgmt_gen(name, packet, topology, harness, visibility = None, cc_attrs = {
             "@rv_tester//:structs",
             packet + "_cc",
             "@cvm//:plusargs",
-            "@cvm//:plusargs_dpi",
+            "@cvm//:random",
             "@cvm//:logger",
             "@cvm//:registry",
             "@rv_tester//:plusargs"
@@ -35,6 +35,7 @@ def pwrmgmt_gen(name, packet, topology, harness, visibility = None, cc_attrs = {
         srcs = ["@rv_tester//pwrmgmt:pwrmgmt.sv"],
         deps = [
             "@cvm//:plusargs_sv",
+            "@cvm//:random_sv",
             "@cvm//:topology_sv",
             packet + "_sv",
             topology + "_sv",

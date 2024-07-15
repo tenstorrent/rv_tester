@@ -1,6 +1,7 @@
 #include "rv_tester_plusargs.h"
 #include "cvm/logger.hpp"
 
+DEFINE_uint64(seed, 1, "Simulation seed passed down for randomization");
 DEFINE_int32(max_stall_cycle, 20000, "Max stall cycle limit to terminate the sim");
 DEFINE_uint32(num_harts, 1, "Number of enabled harts - upto 8");
 DEFINE_uint32(hart_enable_mask, 0x1, "Hart enable mask. Ex: With 2 enabled harts in a 8-hart system, could be 0x18. Should match num_harts.");

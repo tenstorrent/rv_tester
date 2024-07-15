@@ -7,6 +7,7 @@
 #include "trace_cfg.h"
 #include "transactors/axi_sw/axi.h"
 #include "sysmod/sysmod_plusargs.h"
+#include "rv_tester/rv_tester_plusargs.h"
 #include <fstream>
 #include <sstream>
 #include <string>
