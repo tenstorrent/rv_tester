@@ -115,7 +115,7 @@ class trace_cfg : public device {
         virtual void tick(uint64_t) override
         {
             if(start_trace_cnt == 0) {
-              start_trace_cnt = (rng()% 5) + 120;
+              start_trace_cnt = (rng()% 5) + 30;
               n = (rng()% 5) + 3;
               id_val = 0;
             }
