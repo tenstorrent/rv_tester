@@ -725,21 +725,6 @@ sysmod::load_csr_mmr_boot(uint64_t)
       return;
   if (FLAGS_set_csr == "" && FLAGS_set_mmr == "")
       return;
-
-  auto split_string = [] (const std::string& input, char delimiter) {
-    std::vector<std::string> tokens;
-    std::string token;
-    for (char c : input) {
-      if (c != delimiter)
-        token += c;
-      else {
-        tokens.push_back(token);
-        token.clear();
-      }
-    }
-    tokens.push_back(token);
-    return tokens;
-  };
   int addr;
   auto add_to_mem = [&addr, this] (const uint32_t op) {
     device::strb_t strb(4);
@@ -761,9 +746,9 @@ sysmod::load_csr_mmr_boot(uint64_t)
     for (const auto& mmr : mmrs)
       mmr_map[mmr.name] = mmr.address;
     try {
-      std::vector<std::string> mmr_vals = split_string(FLAGS_set_mmr, ',');
+      std::vector<std::string> mmr_vals = cosim_util::split_string(FLAGS_set_mmr, ',');
       for (const auto& entry : mmr_vals) {
-        std::vector<std::string> mmr_val = split_string(entry, ':');
+        std::vector<std::string> mmr_val = cosim_util::split_string(entry, ':');
         auto mmr = mmr_val.at(0);
         addr = mmr_map.count(mmr)? mmr_map[mmr] : std::stoull(mmr_val.at(0), nullptr, 0);
         auto size  = std::stoull(mmr_val.at(1), nullptr, 0);
@@ -809,10 +794,10 @@ sysmod::load_csr_mmr_boot(uint64_t)
 
     try { // parse the +set_csr and report any errors
       char delimiter = ',';
-      std::vector<std::string> csr_num_val = split_string(FLAGS_set_csr, delimiter);
+      std::vector<std::string> csr_num_val = cosim_util::split_string(FLAGS_set_csr, delimiter);
       for (const auto& entry : csr_num_val) {
         delimiter = ':';
-        std::vector<std::string> num_val = split_string(entry, delimiter);
+        std::vector<std::string> num_val = cosim_util::split_string(entry, delimiter);
         auto csr = num_val.at(0); // expect both csr address("0x301") as well as string("misa")
         auto value = std::stoull(num_val.at(1), nullptr, 0);
         if (csr_map.count(csr))
