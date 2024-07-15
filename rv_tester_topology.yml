@@ -145,9 +145,11 @@ rv_tester: &rv_tester
         - aplic_monitor
 
     pwrmgmt:
-      count: 1
+      count: *rv_tester_pwrmgmt_ctrl
       type:
         - pwrmgmt
+      attrs:
+        <<: *rv_tester_pwrmgmt_attrs
 
     aclint_checker:
       count: 1

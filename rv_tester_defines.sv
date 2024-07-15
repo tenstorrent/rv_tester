@@ -945,6 +945,11 @@ package rv_tester_params;
     typedef pmc_counter_t [EVENT_COUNT-1:0] pmci_t;
 
     // --------------------------------------
+    // Pwrmgmt
+    // --------------------------------------
+    parameter bit PWRMGMT_EN = mods.TOP.PLATFORM.PWRMGMT.PWRMGMT_EN == 1;
+
+    // --------------------------------------
     // typedefs to generate all data types
     // --------------------------------------
 

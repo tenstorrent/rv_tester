@@ -200,6 +200,7 @@ cvm::messenger::task<void> reset_sequence::check_pll_status() {
 cvm::messenger::task<void> reset_sequence::clear_pll_status() {
   co_await tick();
   co_await write(pll_interrupts, SZ_4B, (1 << cold_powerup_done));
+
   co_return;
 }
 
@@ -229,6 +230,8 @@ cvm::messenger::task<void> reset_sequence::program_fuses() {
 cvm::messenger::task<void> reset_sequence::release_cpl_nofetch() {
   co_await tick();
   co_await write(rst_ctl_nofetch, SZ_4B, (0 << cpl_cl_no_fetch));
+
+  co_return;
 }
 
 cvm::messenger::task<void> reset_sequence::tick() {

@@ -114,7 +114,6 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             name + "_pmu_sv",
             name + "_dm_model_sv",
             name + "_aplic_monitor_sv",
-            name + "_pwrmgmt_sv",
             name + "_aclint_checker_sv",
             name + "_axi_sw_sv",
             "@opensrc-axi_llc//:axi_llc",
@@ -123,6 +122,9 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
         ] + select({
           "@rv_tester//:cosim_off": ["@rv_tester//:no_cosim"],
           "//conditions:default":   [name + "_cosim_sv"],
+        }) + select({
+          "@rv_tester//:pwrmgmt_off": [],
+          "//conditions:default":   [name + "_pwrmgmt_sv"],
         }),
         visibility = visibility,
     )
@@ -143,13 +145,15 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             name + "_pmu_dpi",
             name + "_dm_model_dpi",
             name + "_aplic_monitor_dpi",
-            name + "_pwrmgmt_dpi",
             name + "_aclint_checker_dpi",
             name + "_axi_sw_dpi",
             topology + "_cc",
         ] + select({
           "@rv_tester//:cosim_off": [],
           "//conditions:default":   [name + "_cosim_dpi"],
+        }) + select({
+          "@rv_tester//:pwrmgmt_off": [],
+          "//conditions:default":   [name + "_pwrmgmt_dpi"],
         }),
         alwayslink = True,
         visibility = visibility,

@@ -330,11 +330,9 @@ module rv_tester
     // We also assert reset at the end of the test to quiesce the DPIs.
     logic reset_pullup;
     assign reset_pullup = rv_tester_reset || sysmod_reset || terminate_now || terminated;
+
     assign reset[COLD_RESET_IDX] = cold_reset || reset_pullup;
     assign reset[WARM_RESET_IDX] = warm_reset;
-
-    assign init_pulse = (clocks <= 10);
-    assign force_ref_clk = pwrmgmt_force_ref_clk || init_pulse;
 
 `ifdef NEGEDGE_UNSUPPORTED
     always@(posedge clk[TB_CLK_IDX]) begin
@@ -492,23 +490,34 @@ module rv_tester
     end
 `endif
 
-    pwrmgmt #(
-        .NUM(0),
-        `TOPOLOGY_CFG,
-        `RV_TESTER_TRANSACTIONS_PWRMGMT_SOURCE_PARAMS(0)
-    ) pwrmgmt (
-        .init(init_pulse),
-        .tb_clk(clk[TB_CLK_IDX]),
-        .tb_reset(sysmod_reset),
-        .dut_clk(dut_clk),
-        .dut_reset(dut_reset),
-        .core_no_fetch(core_no_fetch),
-        .cold_reset(cold_reset),
-        .warm_reset(warm_reset),
-        .reset_hold(reset_hold),
-        .force_ref_clk(pwrmgmt_force_ref_clk),
-        `RV_TESTER_TRANSACTIONS_PWRMGMT_SOURCE_PORTS(3,0,0)
-    );
+    localparam RESET_CLOCKS = 16;
+    assign init_pulse = (clocks < RESET_CLOCKS);
+    generate
+        if (PWRMGMT_EN) begin : pwrmgmt_gen
+            pwrmgmt #(
+                .NUM(0),
+                `TOPOLOGY_CFG,
+                `RV_TESTER_TRANSACTIONS_PWRMGMT_SOURCE_PARAMS(0)
+            ) pwrmgmt (
+                .init(init_pulse),
+                .tb_clk(clk[TB_CLK_IDX]),
+                .tb_reset(sysmod_reset),
+                .dut_clk(dut_clk),
+                .dut_reset(dut_reset),
+                .core_no_fetch(core_no_fetch),
+                .cold_reset(cold_reset),
+                .warm_reset(warm_reset),
+                .reset_hold(reset_hold),
+                .force_ref_clk(pwrmgmt_force_ref_clk),
+                `RV_TESTER_TRANSACTIONS_PWRMGMT_SOURCE_PORTS(3,0,0)
+            );
+            assign force_ref_clk = pwrmgmt_force_ref_clk || init_pulse;
+        end else begin
+            assign cold_reset = (clocks < RESET_CLOCKS);
+            assign warm_reset = '0;
+            assign force_ref_clk = '1;
+        end
+    endgenerate
 
     aplic_monitor #(
         .NUM(0),

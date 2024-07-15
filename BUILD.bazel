@@ -8,11 +8,6 @@ verilog_library(
 )
 
 verilog_library(
-    name = "no_cosim",
-    srcs = ["define_no_cosim.sv"],
-)
-
-verilog_library(
     name = "rv_tester_pkg",
     srcs = ["rv_tester_pkg.sv"],
     visibility = ["//visibility:public"],
@@ -35,6 +30,24 @@ config_setting(
     name = "cosim_off",
     flag_values = {
       ":cosim" : "False",
+    }
+)
+
+verilog_library(
+    name = "no_cosim",
+    srcs = ["define_no_cosim.sv"],
+)
+
+bool_flag(
+    name = "pwrmgmt",
+    build_setting_default = True,
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "pwrmgmt_off",
+    flag_values = {
+      ":pwrmgmt" : "False",
     }
 )
 

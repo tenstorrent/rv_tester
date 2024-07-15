@@ -17,7 +17,6 @@ def pwrmgmt_gen(name, packet, topology, harness, visibility = None, cc_attrs = {
         ],
         deps = [
             "@rv_tester//common:transactor",
-            "@rv_tester//common:rand_gflags",
             "@rv_tester//:structs",
             packet + "_cc",
             "@cvm//:plusargs",
