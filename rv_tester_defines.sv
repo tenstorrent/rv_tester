@@ -871,6 +871,15 @@ package rv_tester_params;
         LS_CHILLOUT_CYCLES_MEDIUM,
         LS_CHILLOUT_CYCLES_HEAVY,
         LS_CHILLOUT_CYCLES_ALL,
+        LS_CHILLOUT_CYCLES_LDC,
+        LS_CHILLOUT_CYCLES_STC,
+        LS_CHILLOUT_CYCLES_MMU,
+        LS_CHILLOUT_CYCLES_CIF,
+        LS_CHILLOUT_REQUESTS_LDC,
+        LS_CHILLOUT_REQUESTS_STC,
+        LS_CHILLOUT_REQUESTS_MMU,
+        LS_CHILLOUT_REQUESTS_CIF,
+        LS_CHILLOUT_REQUESTS_ALL,
         UTLB_MISS,
         LDQ_CANNOT_ALLOC,
         MDP_CORRECT_PREDICTION,
@@ -932,7 +941,7 @@ package rv_tester_params;
         PFC_NO_TAG_CREDIT_STALLS,
         PFC_PREFETCHES_SENT,
         EVENT_COUNT
-    } pmc_event_t; 
+    } pmc_event_t;
     
     typedef logic [3:0] pmc_counter_t;
     typedef pmc_counter_t [EVENT_COUNT-1:0] pmci_t;
