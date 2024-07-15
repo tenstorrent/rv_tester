@@ -78,7 +78,8 @@ void rvfi::init() {
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_reset<>& m_reset) {
-  if (terminated_)
+
+  if (!FLAGS_cosim || terminated_)
     return;
 
   if (loc_ != m_reset.location)
