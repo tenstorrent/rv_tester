@@ -30,6 +30,7 @@ class smc_xtor : public device {
         bool in_boot_seq = true; 
         bool reset_completion = false;
         bool read_in_flight = false;
+        bool write_in_flight = false;
         bool pll_programming_done = false;
         bool pll_dfs_done = false;
         bool pll_scalar_divider = 3;
@@ -189,7 +190,9 @@ class smc_xtor : public device {
             
             cvm::log(cvm::FULL, "[SMC] tick {:#X} start_smc_cnt {} \n",cnt_tick,start_smc_cnt);
            
-            if(smc_wr_txn_q.size() > 0) axi_write();
+            if((smc_wr_txn_q.size() > 0) && !write_in_flight){
+	      axi_write();
+	    }
 
             cvm::log(cvm::HIGH, "[SMC] tick {:#X} \n",cnt_tick);
 
