@@ -891,6 +891,24 @@ pmu:
                 width: 64
             ls_chillout_cycles_all:
                 width: 64
+            ls_chillout_cycles_ldc:
+                width: 64
+            ls_chillout_cycles_stc:
+                width: 64
+            ls_chillout_cycles_mmu:
+                width: 64
+            ls_chillout_cycles_cif:
+                width: 64
+            ls_chillout_requests_ldc:
+                width: 64
+            ls_chillout_requests_stc:
+                width: 64
+            ls_chillout_requests_mmu:
+                width: 64
+            ls_chillout_requests_cif:
+                width: 64
+            ls_chillout_requests_all:
+                width: 64
             utlb_miss:
                 width: 64
             ldq_cannot_alloc:

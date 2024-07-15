@@ -417,6 +417,24 @@ public:
       LS_CHILLOUT_CYCLES_HEAVY,
       //Event to count chillout cycles in all modes
       LS_CHILLOUT_CYCLES_ALL,
+      //Event to count chillout cycles due to a request from ldc
+      LS_CHILLOUT_CYCLES_LDC,
+      //Event to count chillout cycles due to a request from ldc
+      LS_CHILLOUT_CYCLES_STC,
+      //Event to count chillout cycles due to a request from ldc
+      LS_CHILLOUT_CYCLES_MMU,
+      //Event to count chillout cycles due to a request from ldc
+      LS_CHILLOUT_CYCLES_CIF,
+      //Event to count each time we enter chillout mode due to a request from ldc
+      LS_CHILLOUT_REQUESTS_LDC,
+      //Event to count each time we enter chillout mode due to a request from stc
+      LS_CHILLOUT_REQUESTS_STC,
+      //Event to count each time we enter chillout mode due to a request from mmu
+      LS_CHILLOUT_REQUESTS_MMU,
+      //Event to count each time we enter chillout mode due to a request from cif
+      LS_CHILLOUT_REQUESTS_CIF,
+      //Event to count each time we enter chillout mode due to a request from all
+      LS_CHILLOUT_REQUESTS_ALL,
       //Event (speculative) for micro-TLB miss caused by a demand memory operation
       UTLB_MISS,
       //Event (speculative) for every instance of a failed Load Queue allocation to a demand memory-read operation
@@ -920,6 +938,15 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::LS_CHILLOUT_CYCLES_MEDIUM] = pmcounters.ls_chillout_cycles_medium;
       tmp[counter::LS_CHILLOUT_CYCLES_HEAVY] = pmcounters.ls_chillout_cycles_heavy;
       tmp[counter::LS_CHILLOUT_CYCLES_ALL] = pmcounters.ls_chillout_cycles_all;
+      tmp[counter::LS_CHILLOUT_CYCLES_LDC] = pmcounters.ls_chillout_cycles_ldc;
+      tmp[counter::LS_CHILLOUT_CYCLES_STC] = pmcounters.ls_chillout_cycles_stc;
+      tmp[counter::LS_CHILLOUT_CYCLES_MMU] = pmcounters.ls_chillout_cycles_mmu;
+      tmp[counter::LS_CHILLOUT_CYCLES_CIF] = pmcounters.ls_chillout_cycles_cif;
+      tmp[counter::LS_CHILLOUT_REQUESTS_LDC] = pmcounters.ls_chillout_requests_ldc;
+      tmp[counter::LS_CHILLOUT_REQUESTS_STC] = pmcounters.ls_chillout_requests_stc;
+      tmp[counter::LS_CHILLOUT_REQUESTS_MMU] = pmcounters.ls_chillout_requests_mmu;
+      tmp[counter::LS_CHILLOUT_REQUESTS_CIF] = pmcounters.ls_chillout_requests_cif;
+      tmp[counter::LS_CHILLOUT_REQUESTS_ALL] = pmcounters.ls_chillout_requests_all;
       tmp[counter::UTLB_MISS] = pmcounters.utlb_miss;
       tmp[counter::LDQ_CANNOT_ALLOC] = pmcounters.ldq_cannot_alloc;
       tmp[counter::MDP_CORRECT_PREDICTION] = pmcounters.mdp_correct_prediction;
@@ -1275,6 +1302,15 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {LS_CHILLOUT_CYCLES_MEDIUM,"ls_chillout_cycles_medium"},
       {LS_CHILLOUT_CYCLES_HEAVY,"ls_chillout_cycles_heavy"},
       {LS_CHILLOUT_CYCLES_ALL,"ls_chillout_cycles_all"},
+      {LS_CHILLOUT_CYCLES_LDC,"ls_chillout_cycles_ldc"},
+      {LS_CHILLOUT_CYCLES_STC,"ls_chillout_cycles_stc"},
+      {LS_CHILLOUT_CYCLES_MMU,"ls_chillout_cycles_mmu"},
+      {LS_CHILLOUT_CYCLES_CIF,"ls_chillout_cycles_cif"},
+      {LS_CHILLOUT_REQUESTS_LDC,"ls_chillout_requests_ldc"},
+      {LS_CHILLOUT_REQUESTS_STC,"ls_chillout_requests_stc"},
+      {LS_CHILLOUT_REQUESTS_MMU,"ls_chillout_requests_mmu"},
+      {LS_CHILLOUT_REQUESTS_CIF,"ls_chillout_requests_cif"},
+      {LS_CHILLOUT_REQUESTS_ALL,"ls_chillout_requests_all"},
       {UTLB_MISS,"utlb_miss"},
       {LDQ_CANNOT_ALLOC,"ldq_cannot_alloc"},
       {MDP_CORRECT_PREDICTION,"mdp_correct_prediction"},
