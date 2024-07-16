@@ -1,7 +1,7 @@
 rv_tester_nharts: &rv_tester_nharts 2
 rv_tester_clk_count: &rv_tester_clk_count 5
 rv_tester_reset_count: &rv_tester_reset_count 2
-rv_tester_pwrmgmt_ctrl: &rv_tester_pwrmgmt_ctrl 1
+rv_tester_pwrmgmt_ctrl: &rv_tester_pwrmgmt_ctrl 0
 
 rv_tester_platform_attrs: &rv_tester_platform_attrs
   NHARTS: 2
@@ -54,4 +54,4 @@ rv_tester_reseti_attrs: &rv_tester_reseti_attrs
   REF_RESET_IDX: 3
 
 rv_tester_pwrmgmt_attrs: &rv_tester_pwrmgmt_attrs
-  PWRMGMT_EN: 1
+  PWRMGMT_EN: 0

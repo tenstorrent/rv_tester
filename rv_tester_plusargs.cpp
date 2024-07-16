@@ -1,5 +1,5 @@
-#include "rv_tester_plusargs.h"
 #include "cvm/logger.hpp"
+#include "cvm/plusargs.hpp"
 
 DEFINE_uint64(seed, 1, "Simulation seed passed down for randomization");
 DEFINE_int32(max_stall_cycle, 20000, "Max stall cycle limit to terminate the sim");

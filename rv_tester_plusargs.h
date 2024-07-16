@@ -11,3 +11,4 @@ DECLARE_uint32(num_sc_ways);
 DECLARE_uint32(sc_way_enable_mask);
 DECLARE_uint32(trace_enable);
 DECLARE_uint32(debug_enable);
+DECLARE_double(ext_mem_stall_factor);
