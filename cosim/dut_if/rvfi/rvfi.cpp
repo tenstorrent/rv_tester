@@ -126,9 +126,11 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
 
   if ((m_trap.cause >> 63) & 0x1) {
     intr_ = true;
+    excp_ = false;
     icause_ = (m_trap.cause & 0x3f);
   } else {
     excp_ = true;
+    intr_ = false;
     ecause_ = (m_trap.cause & 0xff);
   }
 }
@@ -298,6 +300,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   if (renamed_csr.count(static_cast<renamed_csr_reg>(m_rvfi.rd_addr))) {
     csr_t c {true, m_rvfi.hart, m_rvfi.cycle, renamed_csr.at(static_cast<renamed_csr_reg>(m_rvfi.rd_addr)), std::numeric_limits<uint64_t>::max(), m_rvfi.rd_wdata};
     instr.csr.push_back(c);
+    instr.gpr.emplace_back(false, m_rvfi.rd_addr, m_rvfi.rd_wdata);
   }
 
   // tlb

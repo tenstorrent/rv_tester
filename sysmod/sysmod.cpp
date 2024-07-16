@@ -80,6 +80,32 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::jtag_rdata<>>(
       loc_,
       [this](const rv_tester_transactions::sysmod::jtag_rdata<>& t) { return this->jtag_resp(t.rdata); });
+  cvm::registry::messenger.connect<sysmod::backdoor_read_t>(
+      loc_,
+      [this](sysmod::backdoor_read_t t) {
+      auto *task = +[] (sysmod* m, backdoor_read_t w) -> cvm::messenger::task<void> {
+          *w.out_data = co_await m->backdoor_read(w.address);
+          *w.flag = true;
+          w.flag->notify_one();
+          co_return;
+      };
+      cvm::registry::messenger.fork(task, this, std::move(t));
+      }
+      );
+
+  cvm::registry::messenger.connect<sysmod::backdoor_write_t>(
+      loc_,
+      [this](sysmod::backdoor_write_t t) { 
+      auto *task = +[] (sysmod* m, backdoor_write_t w) -> cvm::messenger::task<void> {
+          co_await m->backdoor_write(w);
+          *w.flag = true;
+          w.flag->notify_one();
+          co_return;
+      };
+      cvm::registry::messenger.fork(task, this, std::move(t));
+      }
+      );
+
 
   auto sources = cvm::topology::get_from_type("PLATFORM_TRANSACTOR");
     for (const auto& source : sources) {
@@ -272,6 +298,27 @@ sysmod::uc_helper_backdoor_write(uc_helper::uc_helper_write_t w) {
                 if (this->dev(wt.addr))
                     cvm::registry::messenger.signal<device::write_t>(this->loc_, {wt});
 
+}
+
+cvm::messenger::task<uint64_t> sysmod::backdoor_write(sysmod::backdoor_write_t t) {
+    cvm::log(cvm::HIGH, "[BACKDOOR_WRITE] new backdoor write request at {:#x} value:{:#x} size: {:#x}\n", t.address, t.data, t.size);
+    device::data_t datax(8);
+    device::strb_t strbx(8);
+    for (int i = 0; i < t.size; ++i, t.data >>= 8) {
+      datax[i] = t.data & 0xff;
+      strbx[i] = true;
+    }
+    dev("memory")->backdoor_write(t.address, t.size, datax, strbx);
+    co_return 0;
+}
+
+cvm::messenger::task<uint64_t> sysmod::backdoor_read(uint64_t address) {
+    device::data_t data(8);
+    dev("memory")->backdoor_read(address, 8, data);
+    uint64_t read_data = 0;
+    for (int i = 0; i < 8; ++i)
+        read_data |= uint64_t(data[i]) << (i*8);
+    co_return read_data;
 }
 
 void
@@ -791,7 +838,7 @@ sysmod::load_csr_mmr_boot(uint64_t)
     addr = dev("boot")->addr() + 0x8000;
     for (auto const& [csr_num, value] : csr_data) {
       uint32_t csr_op = 0;
-      if (value > 32) {
+      if (value >= 32) {
         int dest_gpr = 4, temp_gpr2 = 3, temp_gpr3 = 28;
         std::vector<uint32_t> opcodes = cosim_util::opcode_move_value_to_register(value, dest_gpr, temp_gpr2, temp_gpr3);
         for (auto& opcode: opcodes) add_to_mem(opcode);
@@ -882,11 +929,26 @@ sysmod::overlay_tick(uint64_t advance)
    }
 }
 extern "C" {
-
   void sysmod_set_scope(cvm::topology::loc_t loc) {
     svScope scope = svGetScope();
     cvm::registry::messenger.signal<svScope>(
         loc,
         scope);
+  }
+
+  uint64_t backdoor_read(uint64_t address) {
+    uint64_t out_data;
+    std::atomic<bool> flag{false};
+    auto loc_ = cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0);
+    cvm::registry::messenger.signal_async<sysmod::backdoor_read_t>(loc_, sysmod::backdoor_read_t{address, &flag, &out_data});
+    flag.wait(false);
+    return out_data;
+  }
+  void backdoor_write(uint64_t address, uint64_t data) {
+    std::atomic<bool> flag{false};
+    auto loc_ = cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0);
+    cvm::registry::messenger.signal_async<sysmod::backdoor_write_t>(loc_, sysmod::backdoor_write_t{address, data, 8, &flag});
+    flag.wait(false);
+    return;
   }
 }

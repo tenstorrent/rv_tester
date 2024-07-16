@@ -28,6 +28,18 @@
 class sysmod {
 
   public:
+    struct backdoor_read_t {
+      uint64_t address;
+      std::atomic<bool>* flag;
+      uint64_t* out_data;
+    };
+
+    struct backdoor_write_t {
+      uint64_t address;
+      uint64_t data;
+      int size;
+      std::atomic<bool>* flag;
+    };
 
     sysmod(cvm::topology::loc_t loc, unsigned id);
 
@@ -102,6 +114,8 @@ class sysmod {
     void smc_read_req_router(smc_xtor::smc_xtor_read_t r);
     void scratchpad_xtor_read_req_router(scratchpad_xtor::scratchpad_xtor_read_t r);
     void terminate(htif::terminate_t t);
+    cvm::messenger::task<uint64_t> backdoor_read(uint64_t address);
+    cvm::messenger::task<uint64_t> backdoor_write(backdoor_write_t);
 
   private:
 

@@ -60,12 +60,12 @@ class trace_cfg : public device {
         std::queue<trace_cfg_read_req_t>  trace_read_resp_q;
         std::queue<trace_wr_t>            trace_wr_txn_q;
         std::queue<std::pair<uint64_t,size_t>> trace_misc_rd_txn_q;
+        random_list randomElements;
         virtual void axi_write();
         virtual void axi_read(uint64_t addr, size_t length, uint32_t id);
         void write(const transactor::write_t& );
         std::unordered_map<std::string, uint32_t> extractMacros(const std::string& filename);
         random_list pickRandomElements(uint32_t n) ;
-        random_list randomElements;
 
         cvm::messenger::task<void> read(const transactor::read_t& , data_t& );
 
@@ -143,14 +143,15 @@ class trace_cfg : public device {
               }
             }else if(FLAGS_trace_en && FLAGS_overlay_mmr_en){
               // cvm::log(cvm::HIGH, "[overlay axi regress] overlay timer tick advance interval {} start_trace_cnt{} n {} \n",cnt_tick,start_trace_cnt,n);
+                
                 if(end_test==1) complete_trace_test();
                 if(cnt_tick==start_trace_cnt){
                   randomElements = pickRandomElements(n);
                   cvm::log(cvm::HIGH, "[overlay axi regress] overlay timer tick advance interval {} start_trace_cnt{} n {} size {} \n",cnt_tick,start_trace_cnt,n,randomElements.size());
                 }
 
-                if(cnt_tick==(start_trace_cnt+20)) push_random_axi_write(randomElements);
-                if(trace_wr_txn_q.size() > 0) axi_write();
+                // if(cnt_tick==(start_trace_cnt+20)) push_random_axi_write(randomElements);
+                // if(trace_wr_txn_q.size() > 0) axi_write();
                 if(cnt_tick==(start_trace_cnt+30)) push_random_axi_read(randomElements);
 
                 if(trace_misc_rd_txn_q.size() > 0){
@@ -159,11 +160,11 @@ class trace_cfg : public device {
                   trace_misc_rd_txn_q.pop();
                   axi_ids = rng()%200+400;
                   axi_read(read_req.first,read_req.second,axi_ids);
-                  cvm::log(cvm::HIGH, "[overlay axi] recieved {} with id {} tick {}\n",read_req.first,axi_ids,cnt_tick);
+                  cvm::log(cvm::HIGH, "[overlay axi] recieved {:#X} with id {} tick {}\n",read_req.first,axi_ids,cnt_tick);
                 }
 
                 while((trace_read_resp_q.size() >0) ){
-                  print_read_request(trace_read_resp_q.front());
+                  print_read_request(trace_read_resp_q.front(),1);
                   trace_read_resp_q.pop();
                   cvm::log(cvm::HIGH, "[overlay axi] queue size {} \n",trace_read_resp_q.size());
                   if(trace_read_resp_q.size() == 0){
@@ -176,7 +177,7 @@ class trace_cfg : public device {
         }
 
         void print_read_request(const trace_cfg_read_req_t  &request,int read=0) {
-          cvm::log(cvm::HIGH, "Address: {} \n",request.addr);
+          cvm::log(cvm::HIGH, "Address: {:#X} \n",request.addr);
           cvm::log(cvm::HIGH, "Length: {} \n",request.length);
           cvm::log(cvm::HIGH, "ID: {} \n ",request.id );
             
@@ -201,20 +202,20 @@ class trace_cfg : public device {
 
           if(read == 1){
             deserializeInt(request.data,axi_read_resp, uint64_t(request.addr));
-            cvm::log(cvm::HIGH, "[overlay axi] axi_read_resp {} \n",axi_read_resp);
             if(axi_read_resp == 0x0){
-              cvm::log(cvm::HIGH, "[overlay axi] expected data matched{} \n",axi_read_resp);
-            }else{
-              cvm::log(cvm::ERROR, "[overlay axi] expected data :{} and received data:{}\n",0x0,axi_read_resp);
+              cvm::log(cvm::HIGH, "[overlay axi] expected data matched {:#x} \n",axi_read_resp);
+            }
+            else{
+              cvm::log(cvm::ERROR, "ERROR: [overlay axi] expected data :{:#x} and received data:{}\n",0x0,axi_read_resp);
             }
 
           }else{
             deserializeInt(request.data,axi_read_resp, uint64_t(request.addr));
-            cvm::log(cvm::HIGH, "[overlay axi] axi_read_resp {} \n",axi_read_resp);
             if(axi_read_resp == 0xffff){
-              cvm::log(cvm::HIGH, "[overlay axi] expected data matched{} \n",axi_read_resp);
-            }else{
-              cvm::log(cvm::ERROR, "[overlay axi] expected data :{} and received data:{}\n",0xff,axi_read_resp);
+              cvm::log(cvm::HIGH, "[overlay axi] expected data matched {:#x} \n",axi_read_resp);
+            }
+            else{
+              cvm::log(cvm::ERROR, "ERROR: [overlay axi] expected data :{:#x} and received data:{}\n",0xffff,axi_read_resp);
             }
           }
       }
@@ -245,7 +246,7 @@ class trace_cfg : public device {
           // Loop through elements and write to file
           for(int i = 0; i < 15;i++){
             for (const auto& e : elements) {
-                cvm::log(cvm::FULL, "[overlay axi reads] register {} address {} size {} \n", e.name, e.value, 64);
+                cvm::log(cvm::FULL, "[overlay axi reads] register {} address {:#x} size {} \n", e.name, e.value, 64);
                 trace_misc_rd_txn_q.push({e.value,8});
             }
           }
@@ -256,6 +257,7 @@ class trace_cfg : public device {
           for(int i = 0; i < 15;i++){
             for (const auto& e : elements) {
                 trace_wr_txn_q.push({e.value,0xFFFF});
+                cvm::log(cvm::HIGH, "[overlay axi] overlay write for address {:#x} done\n",e.value);
             }
           }
           cvm::log(cvm::HIGH, "[overlay axi] overlay write axi seq completed with queue size {}\n",trace_wr_txn_q.size());

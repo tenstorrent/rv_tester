@@ -110,7 +110,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
       "mtinst","htinst", // RVDE-10005
       "vstart","vxsat","vxrm","vcsr", // Unimplemented
       "sstatus","mstatus","hstatus","mie","hie","vsie","sie", // RVDE-11840
-      "tselect","tdata1","tdata2","tdata3","mcontext", // Unimplemented: RVDE-7518
+      "tselect","tdata1","tdata2","tdata3","mcontext","tinfo", // Unimplemented: RVDE-7518, RVTOOLS-3124
       "fflags","fcsr", // Unimplemented
       "menvcfg","senvcfg","henvcfg", // FIXME: pointer masking change
       "pma","pmp", // FIXME: Performant NC change
@@ -900,6 +900,10 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
   w_.pc.valid = true;
   w_.pc.pc_rdata = w.pc;
 
+  zicbom_ = false;
+  if(((w.opcode & 0x7fff) == 0x200f) && (((w.opcode>>20)==0)||((w.opcode>>20)==1)||((w.opcode>>20)==2))) // cbo - inval, clean , flush
+    zicbom_ = true;
+
   if (FLAGS_pc_check)
     update_pc(hart, src_t::iss, w.pc);
 
@@ -941,7 +945,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
     if (w.resource == 'c') {
       csr_t c;
       c.valid = true;
-      c.csr_addr = w.address;
+      c.csr_addr = w.address & 0xfff;
       c.csr_wdata = w.value;
       w_.csr.push_back(c);
       update_regs(hart, w);
@@ -956,7 +960,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
 
   // Mem attributes
   // Disabling mem_attr checks for vectors currently
-  if (FLAGS_memattr_check && !w_.trap && !is_vector(w.disasm) && (w_.mem_read.valid || w_.mem_write.valid)) {
+  if (FLAGS_memattr_check && !w_.trap && !is_vector(w.disasm) && (w_.mem_read.valid || w_.mem_write.valid || zicbom_)) {
     bool valid; 
     uint64_t eff_mem_attr;
     if (!client_->whisperPeek(hart, 's', WhisperSpecialResource::EffMemAttr, eff_mem_attr, valid)) {
@@ -1152,7 +1156,7 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_
             break;
           }
         }
-        update_csr(hart, src_t::iss, w.address, w.value);
+        update_csr(hart, src_t::iss, w.address & 0xfff, w.value);
       }
 
       if (w.address == 0x344) {

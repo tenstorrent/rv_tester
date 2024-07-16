@@ -30,7 +30,7 @@ DEFINE_bool(whisper_csv_log, false, "Make whisper use a csv trace.");
 DEFINE_uint32(whisper_tlb_size, 0, "Specify whisper tlb size");
 DEFINE_uint64(resetpc, 0x80000000, "Reset PC");
 DEFINE_uint64(resetpcfw, 0xC0040000, "Reset firmware PC");
-
+DEFINE_string(isa, "", "Override isa spec");
 
 extern void (*__tracerExtension)(void*);
 
@@ -106,9 +106,15 @@ constructSystem(uint16_t ncores, bool standalone, bool firmware) {
     hart.setTlbSize(FLAGS_whisper_tlb_size);
     if (FLAGS_whisper_stdout_null) hart.redirectOutputDescriptor(STDOUT_FILENO, "/dev/null");
     if (FLAGS_whisper_stdin_null) hart.redirectOutputDescriptor(STDIN_FILENO, "/dev/null");
-    if (not isa.empty())
-      if (not hart.configIsa(isa, false))
+    if (not isa.empty()){
+      if (FLAGS_isa != ""){
+        if (not hart.configIsa(FLAGS_isa, false))
+          return nullptr;
+      }
+      else if (not hart.configIsa(isa, false)){
         return nullptr;
+      }
+    }
     hart.reset();
   }
 
@@ -230,7 +236,7 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
         if (!result) {
           std::cerr << "Error: Test failed on Standalone Whisper, stopping simulation\n";
           return -1;
-        } else if (max_instr) {
+        } else if (max_instr && (FLAGS_max_instr != 0)) {
           std::cerr << "Error: Test reached max instr on standalone Whisper, stopping simulation\n";
           return -1;
         }
