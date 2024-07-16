@@ -6,7 +6,6 @@
 #include "pm_nw_xtor.h"
 #include "transactors/axi_sw/axi.h"
 #include "sysmod/sysmod_plusargs.h"
-#include "rv_tester/rv_tester_plusargs.h"
 
 
 pm_nw_xtor::pm_nw_xtor(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc)

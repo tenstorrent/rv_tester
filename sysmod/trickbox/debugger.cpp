@@ -3,7 +3,6 @@
 #include "cvm/logger.hpp"
 #include "debugger.h"
 #include "sysmod/sysmod_plusargs.h"
-#include "rv_tester/rv_tester_plusargs.h"
 
 DEFINE_string(dbg_input_file_path, "", "Path to file containing debugger commands");
 DEFINE_bool(random_dbg_entry, false, "Enter debug mode randomly after random intervals");

@@ -1,7 +1,7 @@
 #include "cvm/plusargs.hpp"
 #include "cvm/registry.hpp"
 #include "pmu.hpp"
-#include "rv_tester_plusargs.h"
+#include "sysmod/sysmod_plusargs.h"
 
 DEFINE_bool(perf, false, "Enable core performance metrics");
 // TODO: control which are dumped? might not be useful

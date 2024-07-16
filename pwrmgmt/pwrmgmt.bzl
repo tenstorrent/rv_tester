@@ -16,6 +16,7 @@ def pwrmgmt_gen(name, packet, topology, harness, visibility = None, cc_attrs = {
             "@rv_tester//pwrmgmt:reset_sequence.hpp",
         ],
         deps = [
+            "@rv_tester//sysmod:sysmod_plusargs",
             "@rv_tester//common:transactor",
             "@rv_tester//:structs",
             packet + "_cc",
@@ -23,7 +24,6 @@ def pwrmgmt_gen(name, packet, topology, harness, visibility = None, cc_attrs = {
             "@cvm//:random",
             "@cvm//:logger",
             "@cvm//:registry",
-            "@rv_tester//:plusargs"
          ],
         alwayslink = True,
         visibility = visibility,

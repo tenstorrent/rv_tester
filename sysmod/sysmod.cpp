@@ -42,6 +42,14 @@ DEFINE_uint64(sysmod_tick_update_threshold, 1, "Slow down tick update frequency 
 DEFINE_uint64(sp_ways_num, 0x1, "Number of sharedcache ways to be alloted as Scratchpad");
 DEFINE_string(set_csr, "", "+set_csr=<csr_num>:<value>,<num2>:<val2> ");
 DEFINE_string(set_mmr, "", "+set_mmr=<addr>:<size>:<value>,<addr2>:<size>:<val2>");
+DEFINE_uint64(seed, 1, "Simulation seed passed down for randomization");
+DEFINE_uint32(num_harts, 1, "Number of enabled harts - upto 8");
+DEFINE_uint32(hart_enable_mask, 0x1, "Hart enable mask. Ex: With 2 enabled harts in a 8-hart system, could be 0x18. Should match num_harts.");
+DEFINE_string(hart_enable_id, "0", "Hart id sequence corresponding to physical cores. Ex: With 2 enabled harts in a 8-hart system, could be 4,3 i.e. hart0=core4, hart1=core3.");
+DEFINE_uint32(num_sc_ways, 24, "Number of enabled SC ways - upto 24 in multiples of 4");
+DEFINE_uint32(sc_way_enable_mask, 0xFFFFFF, "SC way enable mask. Ex: With 20 enabled ways out of 24, could be 0xF0_FFFF.");
+DEFINE_uint32(trace_enable, 1, "Trace enable fuse");
+DEFINE_uint32(debug_enable, 3, "Debug enable fuse");
 
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 

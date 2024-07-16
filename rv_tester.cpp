@@ -8,8 +8,8 @@
 #include "cvm/random.hpp"
 #include "memmap.h"
 #include "rv_tester_transactions.hpp"
-#include "rv_tester/rv_tester_plusargs.h"
 #include "rv_tester/rv_tester_structs.h"
+#include "sysmod/sysmod_plusargs.h"
 static bool validate_ge0(const char* flagname, const int value) {
     if (value < 0) {
         cvm::log(cvm::NONE, "Invalid value for +{}={}, must be >= 0\n", flagname, value);
@@ -87,6 +87,7 @@ extern "C" {
 
     int rv_tester_parse_flags() {
         cvm::plusargs::parse();
+        cvm::rand::seed(FLAGS_seed);
         return 0;
     }
 

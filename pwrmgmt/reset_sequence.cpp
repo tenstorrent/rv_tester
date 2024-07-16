@@ -1,5 +1,5 @@
 #include "reset_sequence.hpp"
-#include "rv_tester_plusargs.h"
+#include "sysmod/sysmod_plusargs.h"
 #include <sstream>
 
 REGISTRY_register(reset_sequence, PWRMGMT, cvm::registry::all);
@@ -214,15 +214,17 @@ cvm::messenger::task<void> reset_sequence::release_cpl_reset() {
 cvm::messenger::task<void> reset_sequence::program_fuses() {
   co_await tick();
 
-  // FIXME co_await write(sw_fuse_mmr,     SZ_8B, fuse_val());
+  uint64_t fuse = fuse_val();
+
+  co_await write(sw_fuse_mmr,     SZ_8B, fuse);
 
   for (uint32_t i=0; i<FLAGS_num_harts; ++i)
-    co_await write(core_fuse_mmr + i * core_fuse_offset,   SZ_8B, fuse_val());
+    co_await write(core_fuse_mmr + i * core_fuse_offset,   SZ_8B, fuse);
 
-  co_await write(trace_fuse_mmr,  SZ_8B, fuse_val());
-  co_await write(aclint_fuse_mmr, SZ_8B, fuse_val());
-  co_await write(dm_fuse_mmr,     SZ_8B, fuse_val());
-  co_await write(sc_fuse_mmr,     SZ_8B, fuse_val());
+  co_await write(trace_fuse_mmr,  SZ_8B, fuse);
+  co_await write(aclint_fuse_mmr, SZ_8B, fuse);
+  co_await write(dm_fuse_mmr,     SZ_8B, fuse);
+  co_await write(sc_fuse_mmr,     SZ_8B, fuse);
 
   co_return;
 }
