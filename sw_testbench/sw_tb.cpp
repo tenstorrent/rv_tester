@@ -10,6 +10,7 @@
 int main(int argc, char** argv) {
 
     VerilatedContext context;
+    context.threads(1);
     context.commandArgs(argc, argv);
     Vtop top(&context);
 

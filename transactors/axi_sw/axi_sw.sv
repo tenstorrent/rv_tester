@@ -13,7 +13,7 @@
             name``_q[idx_t'(name``_wptr_nxt % PD)] = data;     \
             name``_wptr_nxt++;                                 \
         end                                                    \
-    end                                                        \
+    end
 
 `define AXI_SW_DPI_FIFO_RESET(name)                        \
     function void name``_reset();                          \
@@ -61,10 +61,15 @@ module axi_sw #(
     parameter type strb_t   = logic [STRB_WIDTH-1:0],
 
     parameter type burst_t  = logic [1:0],
-    parameter type atop_t   = logic [5:0],
     parameter type resp_t   = logic [1:0],
     parameter type len_t    = logic [7:0],
     parameter type size_t   = logic [2:0],
+    parameter type cache_t  = logic [3:0],
+    parameter type prot_t   = logic [2:0],
+    parameter type qos_t    = logic [3:0],
+    parameter type region_t = logic [3:0],
+    parameter type atop_t   = logic [5:0],
+    parameter type user_t   = logic [0:0],
     `RV_TESTER_TRANSACTIONS_AXI_SW_OUTPUT_PARAMS
 
 )(
@@ -80,6 +85,12 @@ module axi_sw #(
     input  size_t            axi_mst_ar_size,
     input  burst_t           axi_mst_ar_burst,
     input  logic             axi_mst_ar_lock,
+    input  cache_t           axi_mst_ar_cache,
+    input  prot_t            axi_mst_ar_prot,
+    input  qos_t             axi_mst_ar_qos,
+    input  region_t          axi_mst_ar_region,
+    input  atop_t            axi_mst_ar_atop,
+    input  user_t            axi_mst_ar_user,
 
     input  logic             axi_mst_aw_valid,
     input  id_t              axi_mst_aw_id,
@@ -87,8 +98,13 @@ module axi_sw #(
     input  len_t             axi_mst_aw_len,
     input  size_t            axi_mst_aw_size,
     input  burst_t           axi_mst_aw_burst,
-    input  atop_t            axi_mst_aw_atop,
     input  logic             axi_mst_aw_lock,
+    input  cache_t           axi_mst_aw_cache,
+    input  prot_t            axi_mst_aw_prot,
+    input  qos_t             axi_mst_aw_qos,
+    input  region_t          axi_mst_aw_region,
+    input  atop_t            axi_mst_aw_atop,
+    input  user_t            axi_mst_aw_user,
 
     input  logic             axi_mst_w_valid,
     input  data_t            axi_mst_w_data,
@@ -186,13 +202,15 @@ module axi_sw #(
     end
 
     logic b_queue_aw_lock;
+    logic ar_history_full;
+    logic read_latency_requirement_met;
 
     assign axi_slv_aw_ready = !b_queue_full;
-    assign axi_slv_ar_ready = '1;
+    assign axi_slv_ar_ready = !ar_history_full;
     assign axi_slv_w_ready  = !axi_mst_w_last || !w_last_queue_full;
     assign axi_slv_b_valid  = !b_queue_empty && !w_last_queue_empty;
     assign axi_slv_b_resp   = b_queue_aw_lock ? RESP_EXOKAY : RESP_OKAY;
-    assign axi_slv_r_valid  = !r_queue_empty;
+    assign axi_slv_r_valid  = !r_queue_empty && read_latency_requirement_met;
 
     axi_sw_fifo #(
         .D         (1),
@@ -222,6 +240,15 @@ module axi_sw #(
         .pop         (axi_slv_b_valid && axi_mst_b_ready                  )
     );
 
+    logic [64-1:0] clocks;
+    always_ff @(posedge clk) begin
+        if (!reset_n) begin
+            clocks <= '0;
+        end else begin
+            clocks <= clocks + 64'(1);
+        end
+    end
+
     always @(posedge clk) begin
         aws[0].valid      <= '0;
         ars[0].valid      <= '0;
@@ -233,6 +260,7 @@ module axi_sw #(
                 r_q_ptrs[0].valid         <= '1 & (location != cvm_topology::nil);
                 r_q_ptrs[0].data.location <= location;
                 r_q_ptrs[0].data.r_ptr    <= r_queue_rptr;
+                r_q_ptrs[0].data.clock    <= clocks;
             end
         end
 
@@ -254,6 +282,14 @@ module axi_sw #(
                 aws[0].data.burst     <= axi_mst_aw_burst;
                 aws[0].data.lock      <= axi_mst_aw_lock;
                 aws[0].data.atop      <= axi_mst_aw_atop;
+                aws[0].data.cache     <= axi_mst_aw_cache;
+                aws[0].data.prot      <= axi_mst_aw_prot;
+                aws[0].data.qos       <= axi_mst_aw_qos;
+                aws[0].data.region    <= axi_mst_aw_region;
+                aws[0].data.atop      <= axi_mst_aw_atop;
+                aws[0].data.user      <= axi_mst_aw_user;
+
+
             end
             if (axi_mst_ar_valid && axi_slv_ar_ready) begin
                 ars[0].valid          <= '1 & (location != cvm_topology::nil);
@@ -264,6 +300,87 @@ module axi_sw #(
                 ars[0].data.size      <= axi_mst_ar_size;
                 ars[0].data.burst     <= axi_mst_ar_burst;
                 ars[0].data.lock      <= axi_mst_ar_lock;
+                ars[0].data.cache     <= axi_mst_ar_cache;
+                ars[0].data.prot      <= axi_mst_ar_prot;
+                ars[0].data.qos       <= axi_mst_ar_qos;
+                ars[0].data.region    <= axi_mst_ar_region;
+                ars[0].data.user      <= axi_mst_ar_user;
+            end
+        end
+    end
+
+    localparam int CW = 16;
+    int unsigned read_latency                   = '0;
+    int unsigned read_latency_timeout_threshold = '0;
+    int unsigned read_latency_fifo_threshold    = '0;
+    bit          read_latency_fixed             = '0;
+    always @(posedge clk) begin
+        if (sys_reset) begin
+            /* verilator lint_off BLKSEQ */
+            automatic int unsigned max     = cvm_plusargs::get_int("axi_sw_read_latency_max");
+            automatic int unsigned fixed   = cvm_plusargs::get_int("axi_sw_read_latency_fixed");
+            read_latency_timeout_threshold = cvm_plusargs::get_int("axi_sw_read_latency_timeout_threshold");
+            read_latency_fifo_threshold    = cvm_plusargs::get_int("axi_sw_read_latency_fifo_threshold");
+            read_latency       = max | fixed;
+            read_latency_fixed = fixed != 0;
+            /* verilator lint_on BLKSEQ */
+            if (max != 0 && fixed != 0                                            ) $error("Error: +axi_sw_read_latency_max and +axi_sw_read_latency_fixed cannot both be set");
+            if (read_latency     >= (32'(1)) << CW                                ) $error("Error: +axi_sw_read_latency_max/+axi_sw_read_latency_fixed (%0d) overflows counter width (%0d)", read_latency, CW);
+            if (read_latency != 0 && read_latency_timeout_threshold > read_latency) $error("Error: +axi_flush_threshold (%0d) > +axi_sw_read_latency_max/+axi_sw_read_latency_fixed (%0d)", read_latency_timeout_threshold, read_latency);
+        end
+    end
+
+    localparam AR_HISTORY_Q_MAX = 16;
+
+    logic                   ar_history_empty;
+    logic [CW         -1:0] ar_history_q;
+    logic [$clog2(AR_HISTORY_Q_MAX+1)-1:0] ar_history_size;
+
+    axi_sw_fifo #(
+        .D(AR_HISTORY_Q_MAX),
+        .T(logic[CW-1:0])
+    ) ar_history (
+        .clk,
+        .reset_n,
+        .push(axi_mst_ar_valid && axi_slv_ar_ready && read_latency != '0),
+        .d(CW'(clocks)),
+        .pop (axi_slv_r_valid  && axi_mst_r_ready  && read_latency != '0 && axi_slv_r_last), // axi_sw_r_wptr != axi_sw_r_wptr_nxt
+        .q(ar_history_q),
+        .full(ar_history_full),
+        .size(ar_history_size),
+        .empty(ar_history_empty)
+    );
+
+    assign read_latency_requirement_met = !read_latency_fixed || ar_history_empty || (CW'(clocks) - ar_history_q) >= CW'(read_latency);
+
+    import "DPI-C" function byte unsigned axi_sw_flush(int unsigned location, longint unsigned clock, int unsigned rptr);
+
+    logic flushed;
+    logic [$bits(axi_sw_r_wptr)-1:0] axi_sw_r_wptr_prev;
+
+    always_ff @(posedge clk) begin
+        if (!reset_n) begin
+            flushed <= '0;
+        end else if (flushed) begin // on zebu it takes some number of clocks for the export called by this import to take affect
+            if (axi_sw_r_wptr_prev != axi_sw_r_wptr) begin
+                flushed <= '0;
+            end
+        end else if (!ar_history_empty && read_latency != 0) begin
+            if (r_queue_empty) begin
+                automatic logic fifo_near_critical    = ($bits(ar_history_size)'(AR_HISTORY_Q_MAX) - ar_history_size) <= $bits(ar_history_size)'(read_latency_fifo_threshold);
+                automatic logic timeout_near_critical = CW'(clocks) - ar_history_q >= CW'(read_latency - read_latency_timeout_threshold);
+                automatic logic fifo_critical         = ar_history_full;
+                automatic logic timeout_critical      = CW'(clocks) - ar_history_q == CW'(read_latency - read_latency_timeout_threshold);
+                if (CW'(clocks) == ar_history_q) $error("Error: clocks wrapped around timer");
+                if (fifo_near_critical || timeout_near_critical) begin
+                    automatic byte unsigned success;
+                    success = axi_sw_flush(location, clocks, 32'(r_queue_rptr));
+                    if (success == '0 && (fifo_critical || timeout_critical)) begin
+                        $error("Error: couldn't maintain requested axi read latency");
+                    end
+                    flushed <= success != '0;
+                    axi_sw_r_wptr_prev <= axi_sw_r_wptr;
+                end
             end
         end
     end
@@ -271,38 +388,40 @@ module axi_sw #(
 endmodule
 
 module axi_sw_fifo #(
-    parameter int unsigned D = 1    ,
-    parameter type         T = logic
+    parameter  int unsigned D = 1    ,
+    parameter  type         T = logic,
+    localparam type         ptr_t = logic[$clog2(D+1)-1:0]
 )(
-    input  logic      clk,
-    input  logic      reset_n,
-    input  logic      push,
-    input  T          d,
-    input  logic      pop,
-    output T          q,
-    output logic      full,
-    output logic      empty
+    input  logic                clk,
+    input  logic                reset_n,
+    input  logic                push,
+    input  T                    d,
+    input  logic                pop,
+    output T                    q,
+    output ptr_t                size,
+    output logic                full,
+    output logic                empty
 );
 
     if ((D & (D-1)) != 0)
         $error("Depth %0d not a power of 2, modulo operator below is going to be more gates", D);
 
-    typedef logic [$clog2(D+1)-1:0] ptr_t;
-
-    ptr_t size, rptr, wptr;
+    ptr_t rptr, wptr;
 
     T ram[D];
 
     assign size  = wptr - rptr;
     assign full  = size == ptr_t'(D);
-    assign empty = !size;
+    assign empty = size == '0;
+
+    localparam int M = D > 1 ? $clog2(D) : 1;
 
     always_ff @(posedge clk) begin
         if (reset_n) begin
             rptr <= rptr + ptr_t'(pop );
             wptr <= wptr + ptr_t'(push);
             if (push) begin
-                ram[wptr % ptr_t'(D)] <= d;
+                ram[M'(wptr % ptr_t'(D))] <= d;
             end
         end else begin
             rptr <= '0;
@@ -315,7 +434,7 @@ module axi_sw_fifo #(
     pop_when_empty: assert property(@(posedge clk) disable iff(!reset_n) pop  -> !empty)
         else $error("popping when fifo is empty");
 
-    assign q = ram[rptr % ptr_t'(D)];
+    assign q = ram[M'(rptr % ptr_t'(D))];
 
 endmodule
 
@@ -339,11 +458,15 @@ module axi_sw_mst #(
     parameter type strb_t   = logic [STRB_WIDTH-1:0],
 
     parameter type burst_t  = logic [1:0],
-    parameter type atop_t   = logic [5:0],
     parameter type resp_t   = logic [1:0],
     parameter type len_t    = logic [7:0],
     parameter type size_t   = logic [2:0],
-
+    parameter type cache_t  = logic [3:0],
+    parameter type prot_t   = logic [2:0],
+    parameter type qos_t    = logic [3:0],
+    parameter type region_t = logic [3:0],
+    parameter type atop_t   = logic [5:0],
+    parameter type user_t   = logic [0:0],
     `RV_TESTER_TRANSACTIONS_AXI_SW_MST_OUTPUT_PARAMS
 
 )(
@@ -359,6 +482,11 @@ module axi_sw_mst #(
     output size_t            axi_mst_ar_size,
     output burst_t           axi_mst_ar_burst,
     output logic             axi_mst_ar_lock,
+    output cache_t           axi_mst_ar_cache,  
+    output prot_t            axi_mst_ar_prot,  
+    output qos_t             axi_mst_ar_qos,   
+    output region_t          axi_mst_ar_region,
+    output user_t            axi_mst_ar_user,  
 
     output logic             axi_mst_aw_valid,
     output id_t              axi_mst_aw_id,
@@ -366,8 +494,13 @@ module axi_sw_mst #(
     output len_t             axi_mst_aw_len,
     output size_t            axi_mst_aw_size,
     output burst_t           axi_mst_aw_burst,
-    output atop_t            axi_mst_aw_atop,
     output logic             axi_mst_aw_lock,
+    output cache_t           axi_mst_aw_cache, 
+    output prot_t            axi_mst_aw_prot, 
+    output qos_t             axi_mst_aw_qos,  
+    output region_t          axi_mst_aw_region,
+    output atop_t            axi_mst_aw_atop,
+    output user_t            axi_mst_aw_user,
 
     output logic             axi_mst_w_valid,
     output data_t            axi_mst_w_data,
@@ -403,6 +536,11 @@ module axi_sw_mst #(
         size_t            size;
         burst_t           burst;
         logic             lock;
+        cache_t           cache;  
+        prot_t            prot;  
+        qos_t             qos;   
+        region_t          region;
+        user_t            user;  
     } ar_t;
 
     typedef struct packed {
@@ -411,8 +549,13 @@ module axi_sw_mst #(
         len_t             len;
         size_t            size;
         burst_t           burst;
-        atop_t            atop;
         logic             lock;
+        cache_t           cache;  
+        prot_t            prot;  
+        qos_t             qos;   
+        region_t          region;
+        atop_t            atop;  
+        user_t            user;  
     } aw_t;
 
     typedef struct packed {
@@ -443,9 +586,9 @@ module axi_sw_mst #(
 
     `AXI_SW_DPI_FIFO(axi_sw_mst_ar, ar_t, AR_Q_MAX, clk, sys_reset, reset_n, axi_slv_ar_ready && axi_mst_ar_valid, ar_queue_rptr_incremented, ar_queue_empty, ar, ar_queue_rptr)
 
-    function void axi_sw_mst_ar (int unsigned id, longint unsigned addr, byte unsigned len, byte unsigned size, byte unsigned burst, byte unsigned lock);
+    function void axi_sw_mst_ar (int unsigned id, longint unsigned addr, byte unsigned len, byte unsigned size, byte unsigned burst, byte unsigned lock, byte unsigned cache, byte unsigned prot, byte unsigned qos, byte unsigned region, byte unsigned user);
         ar_t p;
-        p = '{id: id_t'(id), addr: addr_t'(addr), len: len_t'(len), size: size_t'(size), burst: burst_t'(burst), lock: (1)'(lock)};
+        p = '{id: id_t'(id), addr: addr_t'(addr), len: len_t'(len), size: size_t'(size), burst: burst_t'(burst), lock: (1)'(lock), cache: cache_t'(cache), prot: prot_t'(prot), qos: qos_t'(qos), region: region_t'(region), user: user_t'(user)};
         `AXI_SW_DPI_FIFO_PUSH(axi_sw_mst_ar,AR_Q_MAX,p,ar_queue_rptr)
     endfunction
     export "DPI-C" function axi_sw_mst_ar;
@@ -458,6 +601,11 @@ module axi_sw_mst #(
         axi_mst_ar_size  = ar.size;
         axi_mst_ar_burst = ar.burst;
         axi_mst_ar_lock  = ar.lock;
+        axi_mst_ar_cache = ar.cache; 
+        axi_mst_ar_prot  = ar.prot; 
+        axi_mst_ar_qos   = ar.qos;   
+        axi_mst_ar_region = ar.region;
+        axi_mst_ar_user  = ar.user; 
     end
 
     logic aw_queue_rptr_incremented, aw_queue_empty;
@@ -466,9 +614,9 @@ module axi_sw_mst #(
 
     `AXI_SW_DPI_FIFO(axi_sw_mst_aw, aw_t, AW_Q_MAX, clk, sys_reset, reset_n, axi_slv_aw_ready && axi_mst_aw_valid, aw_queue_rptr_incremented, aw_queue_empty, aw, aw_queue_rptr)
 
-    function void axi_sw_mst_aw (int unsigned id, longint unsigned addr, byte unsigned len, byte unsigned size, byte unsigned burst, byte unsigned atop, byte unsigned lock);
+    function void axi_sw_mst_aw (int unsigned id, longint unsigned addr, byte unsigned len, byte unsigned size, byte unsigned burst,  byte unsigned lock, byte unsigned cache, byte unsigned prot, byte unsigned qos, byte unsigned region, byte unsigned atop, byte unsigned user);
         aw_t p;
-        p = '{id: id_t'(id), addr: addr_t'(addr), len: len_t'(len), size: size_t'(size), burst: burst_t'(burst), atop: atop_t'(atop), lock: 1'(lock)};
+        p = '{id: id_t'(id), addr: addr_t'(addr), len: len_t'(len), size: size_t'(size), burst: burst_t'(burst), lock: 1'(lock), cache: cache_t'(cache), prot: prot_t'(prot), qos: qos_t'(qos), region: region_t'(region), atop: atop_t'(atop), user: user_t'(user)};
         `AXI_SW_DPI_FIFO_PUSH(axi_sw_mst_aw,AW_Q_MAX,p,aw_queue_rptr)
     endfunction
     export "DPI-C" function axi_sw_mst_aw;
@@ -480,8 +628,13 @@ module axi_sw_mst #(
         axi_mst_aw_len   = aw.len;
         axi_mst_aw_size  = aw.size;
         axi_mst_aw_burst = aw.burst;
-        axi_mst_aw_atop  = aw.atop;
         axi_mst_aw_lock  = aw.lock;
+        axi_mst_aw_cache = aw.cache;  
+        axi_mst_aw_prot  = aw.prot; 
+        axi_mst_aw_qos   = aw.qos;  
+        axi_mst_aw_region= aw.region;
+        axi_mst_aw_atop  = aw.atop;
+        axi_mst_aw_user  = aw.user;
     end
 
     logic w_queue_rptr_incremented, w_queue_empty;

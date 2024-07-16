@@ -1,9 +1,9 @@
 #include "cvm/plusargs.hpp"
 #include "cvm/logger.hpp"
 #include "uc_helper.h"
+#include "sysmod/sysmod_plusargs.h"
 
 
-DECLARE_string(load);
 DEFINE_bool(debug_uc_helper, false, "Enable internal uc helper debug logging");
 
 uc_helper::uc_helper(const std::string& tag, uint64_t addr, unsigned, cvm::topology::loc_t loc, mem_manager &m_)
@@ -42,10 +42,9 @@ uc_helper::update_mem_model(uc_helper::trickbox_mem_req_t& i) {
   for(int j=0;j<(int)i.length;j++){
     mem::datum_t m_data_p = (mem::datum_t)i.data[j];
     cvm::log(cvm::HIGH,"\nUC_HELPER updating mem model : addr {:#x} Data {:#x} \n",i.addr+j,(uint32_t)i.data[j]);
-    word = word |( m_data_p<<(j*8));
     m_.write(uc_helper_base + j,1,&m_data_p); //update trickbox mem model
   }
-  
+  word = convertToUInt64(i.data);
   cvm::log(cvm::HIGH, "[UC_HELPER] BACKDOOR read_dev read addr {:#x} data {:#x} \n",tx_addr,word);
   uint64_t poke_data = word;
 

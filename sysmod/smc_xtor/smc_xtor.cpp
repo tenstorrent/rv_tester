@@ -5,12 +5,12 @@
 #include "cvm/logger.hpp"
 #include "smc_xtor.h"
 #include "transactors/axi_sw/axi.h"
+#include "sysmod/sysmod_plusargs.h"
 
 
-DECLARE_string(load);
-DECLARE_int32(seed);
 DEFINE_int32(smc_reset_seq_start_ticks, 14, "Number of sysmod ticks after which smc should start reset boot sequence");
 DEFINE_bool(smc_en, false, "Enable smc transactor");
+DEFINE_int32(smc_core_freq_Mhz,0,"core frequency for DFS");
 
 smc_xtor::smc_xtor(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc)
   : device(tag, addr, size, loc, &smc_xtor::write, &smc_xtor::read, this), axi_mst_loc_l(axi_mst_loc)
@@ -23,9 +23,31 @@ smc_xtor::smc_xtor(const std::string& tag, uint64_t addr, size_t size, cvm::topo
   channel = cvm::registry::messenger.channel<axi::r_t>(axi_mst_loc_l);
   push_smc_boot_seq();
 }
+void smc_xtor::axi_write_granular() {
+
+  axi::a_t aw_txn;
+  aw_txn.w    = true;
+  aw_txn.id   = 1;
+  aw_txn.addr = 0x1234;
+  aw_txn.len  = 1;
+  aw_txn.size = 1;
+  aw_txn.burst = axi::burst_t(0);
+  aw_txn.lock  =0;
+  aw_txn.cache  =axi::cache_mem_attr_t(0);
+  aw_txn.prot  =0;
+  aw_txn.qos  =0;
+  aw_txn.region  =0;
+  aw_txn.atop  =0;
+  aw_txn.user  =0;
+
+  cvm::log(cvm::LOW, "[Trickbox] SCMC_XTOR AXI WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
+  //cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb});
+  cvm::registry::messenger.signal(axi_mst_loc_l, aw_txn);
+}
 
 void smc_xtor::axi_write() {
   uint64_t addr;
+  uint32_t t_addr;
   size_t length = 0x8;
   std::vector<uint8_t> data;
   std::vector<bool> strb;
@@ -34,14 +56,21 @@ void smc_xtor::axi_write() {
   wr = smc_wr_txn_q.front();
   smc_wr_txn_q.pop();
   addr = (uint64_t)wr.addr;
-  gen_data_strb(wr.addr,wr.data,data,strb);
-  cvm::log(cvm::FULL, "[SMC] write {:#X} loc :{:#X} data:{:#X} \n",addr,axi_mst_loc_l,wr.data);
+  t_addr = (uint32_t)wr.addr;
+  t_addr = t_addr & 0xFFFF;
+  if((t_addr >= 0x2000) && (t_addr < 0x3FFF)) {
+    gen_data_strb_4b(wr.addr,wr.data,data,strb);
+  }
+  else {
+    gen_data_strb_8b(wr.addr,wr.data,data,strb);
+  }
+  cvm::log(cvm::HIGH, "[SMC] write {:#X} loc :{:#X} data:{:#X} \n",addr,axi_mst_loc_l,wr.data);
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb});
 }
 
 void smc_xtor::axi_read(uint64_t addr, size_t length,
                           uint32_t id) {
-  cvm::log(cvm::FULL, "[SMC] axi read addr= {:#X} id = {} length = {}  \n",addr,id,length);
+  cvm::log(cvm::HIGH, "[SMC] axi read addr= {:#X} id = {} length = {}  \n",addr,id,length);
   transactor::read_t r ;
   r.addr = addr;
   r.length = length;

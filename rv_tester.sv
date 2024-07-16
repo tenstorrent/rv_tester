@@ -8,6 +8,18 @@ module rv_tester
     `_RV_TESTER_PORTS(output,input)
 );
 
+    longint eot_addr;
+    byte    eot_status;
+    byte    eot_syscall;
+
+    export "DPI-C" function cosim_set_eot;
+    function void cosim_set_eot(input longint unsigned addr, input byte status, input byte syscall);
+       eot_addr    = addr;
+       eot_status  = status;
+       eot_syscall = syscall;
+    endfunction
+
+
     typedef longint unsigned LU;
 
     localparam int unsigned NoAddrRules = 20;
@@ -20,6 +32,17 @@ module rv_tester
 
     logic bypass_mem = 1;
     logic bypass_cache = 1;
+    logic rv_tester_reset = '1;
+    /* verilator lint_off UNOPTFLAT */
+    logic [2:0] clock_mode = 3'b000;
+    /* verilator lint_on UNOPTFLAT */
+    logic  def_clk      [NCLKS-1:0];         
+    logic  profile1_clk [NCLKS-1:0];         
+    logic  profile2_clk [NCLKS-1:0];         
+    logic  profile3_clk [NCLKS-1:0];         
+    logic  profile4_clk [NCLKS-1:0];         
+    logic  profile5_clk [NCLKS-1:0];         
+    logic  profile6_clk [NCLKS-1:0];         
 
     if (EXTERNAL_CLOCK) begin
         for (genvar c = 0; c < NCLKS; c++) begin
@@ -32,36 +55,64 @@ module rv_tester
         `endif
         ;
         for (genvar c = 0; c < NCLKS; c++) begin
-            if (PLL_CLOCK[c] && pll_clock_exists)
+            if (PLL_CLOCK[c] && pll_clock_exists)begin
                 assign clk[c] = clk_pll[c];
-            else
-                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(clk[c]));
-        end
-    end
+            end
+            else begin
+                `ifdef CLK_MUX_UNSUPPORTED
+                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(clk[c]));
+                `else
+                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(def_clk[c]));
+                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE1_CLOCK_FREQ_MHZ[c])) profile1_clkgen(.clk(profile1_clk[c]));
+                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE2_CLOCK_FREQ_MHZ[c])) profile2_clkgen(.clk(profile2_clk[c]));
+                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE3_CLOCK_FREQ_MHZ[c])) profile3_clkgen(.clk(profile3_clk[c]));
+                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE4_CLOCK_FREQ_MHZ[c])) profile4_clkgen(.clk(profile4_clk[c]));
+                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE5_CLOCK_FREQ_MHZ[c])) profile5_clkgen(.clk(profile5_clk[c]));
+                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE6_CLOCK_FREQ_MHZ[c])) profile6_clkgen(.clk(profile6_clk[c]));
+ 
+                clk_mux_glitch_free #(
+                    .NUM_INPUTS(7),
+                    .CLOCK_DURING_RESET(1)
+                ) i_clk_mux (
+                    .clks_i         ({profile6_clk[c], profile5_clk[c], profile4_clk[c], profile3_clk[c],profile2_clk[c], profile1_clk[c], def_clk[c]}),
+                    .test_clk_i     (1'b0),             // FIXME:Add test clock
+                    .test_en_i      (1'b0),             // FIXME:Add test enable
+                    .async_rstn_i   (~rv_tester_reset),
+                    .async_sel_i    (clock_mode),
+                    .clk_o          (clk[c])
+                );
+                `endif
+            end
+         end
+     end
+    
 
     import "DPI-C" function void rv_tester_streaming_dpi_init();
     import "DPI-C" function int rv_tester_parse_flags(); // dummy return value so that this gets called immediately. need this to happen before any other DPIs are called.
     import "DPI-C" context function void rv_tester_cvm_error_handler();
     import "DPI-C" context function void rv_tester_parse_memmap(int unsigned no_addr_rules);
-    import "DPI-C" function void rv_tester_build_registry();
+    import "DPI-C" context function void rv_tester_build_registry();
     import "DPI-C" function byte unsigned rv_tester_shutdown_registry();
     import "DPI-C" context function bit rv_tester_flush_callbacks();
 
     localparam int unsigned AxiIdWidthMstRv    = topology.TOP.PLATFORM.AXI.ID_WIDTH + $clog2(topology.TOP.PLATFORM.AXI.TOTAL) + 1;
 
     logic flush_complete;
-    logic rv_tester_reset = '1;
+    
     logic sysmod_reset = '0;
     LU clocks = 0;
     bit cb_poll = '0;
+    bit dyn_clk_switch = '0;
     bit cb_success = '1;
     logic call_finish;
     int num_reruns = -1;
     bit trace_en = 0;
+
     bit jtag_en = 0;
     bit overlay_mmr_en = 0;
     logic trace_quiesced;
     logic jtag_quiesced;
+
 
     logic terminate_now;
     logic rerun_now;
@@ -78,6 +129,7 @@ module rv_tester
     int quiesce_timeout = 500;
     int flush_counter = 0;
     int flush_timeout = 25000;
+    bit print_terminate_message = '1;
 
     int dmi_poll_counter = 0; 
     int dmi_poll_timeout = 8000;
@@ -85,6 +137,10 @@ module rv_tester
     logic [31:0] dmi_commands_in_queue; 
 
     int trace_timeout = 50000;
+    int freq_switch_ncycles = 7000;
+    int clk_profile = 0;
+
+    int assertion_test_cycle = 0;
 
     int unsigned location = cvm_topology::nil;
 
@@ -93,9 +149,26 @@ module rv_tester
     int unsigned cvm_verbosity, gen_clocks_verbosity;
 
     assign terminate           = (rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
-    assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && (dmi_commands_in_queue == '0) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced ); 
+    assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue == '0) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced ); 
     
     assign rerun_now           = terminated && num_reruns > 0;
+
+  `ifndef CLK_MUX_UNSUPPORTED 
+    always @(posedge clk[TB_CLK_IDX])begin
+      if (rv_tester_reset)begin 
+            clock_mode <= clk_profile[2:0];
+      end
+      /* verilator lint_off WIDTH */
+      if(dyn_clk_switch & (clocks >10) &  ((clocks % freq_switch_ncycles) == 0)) begin
+        //dynamically select clk from available profiles
+        //this logic will generate the select pins of the mux ,which will switch between clks
+        clock_mode <= clock_mode + 1'b1;
+        if(clock_mode == 3'b111)
+          clock_mode <= '0;
+      end
+       /* verilator lint_on WIDTH */
+    end
+    `endif
 
     /*
     * Don't put an DPI calls here, zebu gets confused when signals are driven
@@ -178,23 +251,27 @@ module rv_tester
             rv_tester_error_terminate.terminate = '0;
             /* verilator lint_on BLKSEQ */
 
-            cb_poll             <= cvm_plusargs::get_bool("cb_async") == '0;
-            quiesce_timeout     <= cvm_plusargs::get_int("quiesce_timeout");
-            trace_timeout       <= cvm_plusargs::get_int("trace_timeout");
-            flush_timeout       <= cvm_plusargs::get_int("flush_timeout");
-            call_finish         <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
-            gen_clocks          <= cvm_verbosity >= gen_clocks_verbosity;
-            bypass_mem          <= cvm_plusargs::get_bool("bypass_mem") != '0;
-            trace_en            <= cvm_plusargs::get_bool("trace_en") != '0;
-            overlay_mmr_en            <= cvm_plusargs::get_bool("overlay_mmr_en") != '0;
-            jtag_en            <= cvm_plusargs::get_bool("jtag_en") != '0;
-            bypass_cache        <= cvm_plusargs::get_bool("bypass_cache") != '0;
+            cb_poll              <= cvm_plusargs::get_bool("cb_async") == '0;
+            quiesce_timeout      <= cvm_plusargs::get_int("quiesce_timeout");
+            trace_timeout        <= cvm_plusargs::get_int("trace_timeout");
+            flush_timeout        <= cvm_plusargs::get_int("flush_timeout");
+            freq_switch_ncycles  <= cvm_plusargs::get_int("freq_switch_ncycles");
+            clk_profile          <= cvm_plusargs::get_int("clk_profile");
+            dyn_clk_switch       <= cvm_plusargs::get_bool("dyn_clk_switch") != '0;
+            call_finish          <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
+            gen_clocks           <= cvm_verbosity >= gen_clocks_verbosity;
+            bypass_mem           <= cvm_plusargs::get_bool("bypass_mem") != '0;
+            trace_en             <= cvm_plusargs::get_bool("trace_en") != '0;
+            overlay_mmr_en       <= cvm_plusargs::get_bool("overlay_mmr_en") != '0;
+            jtag_en              <= cvm_plusargs::get_bool("jtag_en") != '0;
+            bypass_cache         <= cvm_plusargs::get_bool("bypass_cache") != '0;
+            assertion_test_cycle <= cvm_plusargs::get_int("assertion_test_cycle");
 
             $display("[RVTESTER]: reconstructing registry");
             rv_tester_build_registry();
 
         end
-
+        clock_mode      <= clk_profile[2:0];
         num_reruns      <= num_reruns - int'(rerun_now);
         if (num_reruns < 0) begin
             num_reruns  <= cvm_plusargs::get_int("num_reruns");
@@ -213,20 +290,28 @@ module rv_tester
 
         automatic logic shutdowned = '0;
 
+        if (rv_tester_reset) begin
+            print_terminate_message <= '1;
+        end
+
         if (terminate_now && !terminated) begin
 
-            if (quiesced) begin
-                $display("<%0d> [RVTESTER]: exiting gracefully", clocks);
-            end else if (quiesce_counter == 0) begin
-                $display("<%0d> [RVTESTER]: exiting immediately because +quiesce_counter=0", clocks);
-            end else begin
-                $display("<%0d> [RVTESTER]: Error: Waiting to quiesce for more than %0d cycles", clocks, quiesce_timeout);
+            if (print_terminate_message) begin
+                if (quiesced) begin
+                    $display("<%0d> [RVTESTER]: exiting gracefully", clocks);
+                end else if (quiesce_counter == 0) begin
+                    $display("<%0d> [RVTESTER]: exiting immediately because +quiesce_counter=0", clocks);
+                end else begin
+                    $display("<%0d> [RVTESTER]: Error: Waiting to quiesce for more than %0d cycles", clocks, quiesce_timeout);
+                end
             end
 
             shutdowned = rv_tester_shutdown_registry() != '0;
 
             if (!shutdowned) begin
-                $display("<%0d> [RVTESTER]: Could not shutdown, trying again next cycle", clocks);
+                if (print_terminate_message) begin
+                    $display("<%0d> [RVTESTER]: Could not shutdown, trying again until timeout", clocks);
+                end
             end
 
             if (shutdowned && num_reruns == '0) begin
@@ -238,7 +323,7 @@ module rv_tester
                     $finish();
                 end
             end
-
+            print_terminate_message <= '0;
         end
 
         terminated <= !rv_tester_reset && (terminated || (terminate_now && shutdowned)) && !rerun_now;
@@ -290,6 +375,7 @@ module rv_tester
         .jtag_quiesced(jtag_quiesced),
         .bootstrap,
         .dmi_write(trickbox_dmi_write),
+        .event_triggers(event_triggers),
         .interrupt,
         .jtag_req,
         .jtag_tck_trst,
@@ -354,6 +440,9 @@ module rv_tester
                 $display("<%0d> [RVTESTER]: Error: Debug poll timeout limit reached.", clocks);
                 dmi_poll_timeout_terminate <= 1;
             end
+            else if ((dmi_poll_counter >= 'h1) && terminate) begin
+               $display("<%0d> [RVTESTER]: Debug poll stopped as test pass condition detected limit reached", clocks); 
+            end
         end
     end
 
@@ -397,6 +486,7 @@ module rv_tester
           .imsic_ipi(axi_ipi_packets[c]), //FIXME
           .debug_mode(debug_mode[c]),
           .terminate(cosim_terminate[c]),
+          .eot_addr(eot_addr),
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PORTS(1, c, 0)
       );
     end
@@ -493,6 +583,11 @@ module rv_tester
             .axi_mst_ar_size (axi_req_llc[p].ar.size),
             .axi_mst_ar_lock (axi_req_llc[p].ar.lock),
             .axi_mst_ar_burst(axi_req_llc[p].ar.burst),
+            .axi_mst_ar_cache (axi_req_llc[p].ar.cache), 
+            .axi_mst_ar_prot  (axi_req_llc[p].ar.prot),
+            .axi_mst_ar_qos   (axi_req_llc[p].ar.qos), 
+            .axi_mst_ar_region(axi_req_llc[p].ar.region),
+            .axi_mst_ar_user  (axi_req_llc[p].ar.user), 
 
             .axi_mst_aw_valid(axi_req_llc[p].aw_valid),
             .axi_mst_aw_id   (axi_req_llc[p].aw.id),
@@ -526,6 +621,15 @@ module rv_tester
             .axi_slv_w_ready (axi_rsp_llc[p].w_ready),
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PORTS(2, p, 0)
         );
+
+
+        ext_mem_stall_checker stall_checker(
+            .clk(clk[AXI_CLK_IDX]),
+            .reset_n(~reset[RESET_IDX]),
+            .axi_req(axi_req[p]),
+            .axi_rsp(axi_rsp[p])
+        );
+
     end
 
    localparam NoOfNcioMasters =  topology.TOP.PLATFORM.NCIO_AXI.TOTAL  ;
@@ -668,6 +772,11 @@ module rv_tester
             .axi_mst_ar_size (axi_req_mst[p].ar.size),
             .axi_mst_ar_lock (axi_req_mst[p].ar.lock),
             .axi_mst_ar_burst(axi_req_mst[p].ar.burst),
+            .axi_mst_ar_cache (axi_req_mst[p].ar.cache), 
+            .axi_mst_ar_prot  (axi_req_mst[p].ar.prot),
+            .axi_mst_ar_qos   (axi_req_mst[p].ar.qos),
+            .axi_mst_ar_region(axi_req_mst[p].ar.region),
+            .axi_mst_ar_user  (axi_req_mst[p].ar.user),
 
             .axi_mst_aw_valid(axi_req_mst[p].aw_valid),
             .axi_mst_aw_id   (axi_req_mst[p].aw.id),
@@ -676,7 +785,12 @@ module rv_tester
             .axi_mst_aw_size (axi_req_mst[p].aw.size),
             .axi_mst_aw_burst(axi_req_mst[p].aw.burst),
             .axi_mst_aw_lock (axi_req_mst[p].aw.lock),
+            .axi_mst_aw_cache(axi_req_mst[p].aw.cache), 
+            .axi_mst_aw_prot (axi_req_mst[p].aw.prot), 
+            .axi_mst_aw_qos  (axi_req_mst[p].aw.qos),  
+            .axi_mst_aw_region(axi_req_mst[p].aw.region),
             .axi_mst_aw_atop (axi_req_mst[p].aw.atop),
+            .axi_mst_aw_user (axi_req_mst[p].aw.user),
 
             .axi_mst_w_valid(axi_req_mst[p].w_valid),
             .axi_mst_w_data (axi_req_mst[p].w.data),
@@ -1021,5 +1135,9 @@ module rv_tester
 	.flush_complete		( flush_complete ),
 	.bist_status_done	()
     );
+
+    always @(posedge clk[TB_CLK_IDX]) begin
+        assert(assertion_test_cycle == '0 || clocks != LU'(assertion_test_cycle)) else $error("assertion test");
+    end
 
 endmodule

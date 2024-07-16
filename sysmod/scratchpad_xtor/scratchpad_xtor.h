@@ -10,7 +10,11 @@
 #include "cvm/registry.hpp"
 #include "transactor.h"
 #include "transactors/axi_sw/axi.h"
+#include "sysmod/sysmod_plusargs.h"
 
+DECLARE_bool(sp_xtor_en);
+DECLARE_bool(sp_xtor_mmr_prog_en);
+DECLARE_bool(sp_xtor_rnd_traffic_en);
 
 class scratchpad_xtor : public device {
 
@@ -26,11 +30,16 @@ class scratchpad_xtor : public device {
         cvm::messenger::pool<axi::r_t>::channel_info channel;
         pcg_extras::seed_seq_from<std::random_device> seed_source;
         pcg32 rng;
+        data_t ref_data;
+        strb_t ref_data_strb;
         uint64_t scratchpad_xtor_base  = 0x9070000;
-
+        bool read_in_flight = false;
     public:
         uint32_t start_scratchpad_cnt,read_ram;
         uint32_t cnt_tick=0;
+        uint32_t rnd_traffic_cnt_tick=60;
+        uint64_t sp_base = 0x60000000;
+        uint64_t sp_addr = 0x60000000;
         struct scratchpad_wr_t {
           uint32_t addr;
           uint32_t data;
@@ -51,6 +60,11 @@ class scratchpad_xtor : public device {
         std::queue<scratchpad_wr_t>           scratchpad_wr_txn_q;
         virtual void axi_write();
         virtual void axi_read(uint64_t addr, size_t length, uint32_t id);
+        virtual void axi_write_granular(uint64_t addr);
+        cvm::messenger::task<void> axi_read_granular(const transactor::read_t& , data_t& );
+        virtual void axi_write_data_granular();
+        virtual void axi_write_mmr_granular();
+        virtual void axi_write_mmr_data_granular();
         //void write(const transactor::write_t& );
         void write(const transactor::write_t& );
 
@@ -104,10 +118,49 @@ class scratchpad_xtor : public device {
         virtual void tick(uint64_t) override
         {
             cnt_tick ++;
-            if(trigger_flag){
-            cvm::log(cvm::LOW, "[Trickbox] SCRATCHPAD_XTOR trigger flag set \n");
-            axi_read(0x90a0080,2,5);
+            if(!FLAGS_sp_xtor_en)
+            return;
+            
+            if(FLAGS_sp_xtor_rnd_traffic_en){
+                
+             if(cnt_tick == rnd_traffic_cnt_tick){
+               uint64_t offset = rng() % 500;
+               sp_addr = sp_base + (offset <<6);
+               axi_write_granular(sp_addr);
+             }
+             if(cnt_tick == rnd_traffic_cnt_tick+ 2){
+               axi_write_data_granular();
+             }
+             if(cnt_tick == rnd_traffic_cnt_tick+ 8){
+                axi_read(sp_addr,4,4);
+                rnd_traffic_cnt_tick = cnt_tick + rng()% 60; //5 cycle min buffer
+             }
+            }else{
+            cvm::log(cvm::HIGH, " SCRATCHPAD_XTOR tick {}\n",cnt_tick);
+            if(cnt_tick == 60){
+            cvm::log(cvm::HIGH, " SCRATCHPAD_XTOR trigger flag set \n");
+            uint64_t addr = 0x60000000;
+            axi_write_granular(addr);
             trigger_flag = 0;
+            }
+            if(cnt_tick == 60){
+            axi_write_data_granular();
+            }
+            if(cnt_tick == 62){
+               //axi_read_granular();
+               cvm::log(cvm::HIGH, " SCRATCHPAD_XTOR READ SP DATA \n");
+               axi_read(0x60000000,4,4);
+            }
+            }
+	    if(FLAGS_sp_xtor_mmr_prog_en){
+	       if(cnt_tick == 24){
+               cvm::log(cvm::HIGH, " SCRATCHPAD_XTOR trigger flag set \n");
+               axi_write_mmr_granular();
+               trigger_flag = 0;
+               }
+               if(cnt_tick == 24){
+               axi_write_mmr_data_granular();
+               }
             }
         }
         

@@ -1,6 +1,8 @@
 #include "cvm/plusargs.hpp"
 #include "trickbox.h"
-DECLARE_string(load);
+#include "sysmod/sysmod_plusargs.h"
+
+
 trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc )
   : device(tag, addr, 0xc0000 /* size */, loc, &trickbox::write, &trickbox::read, this), axi_mst_loc_l(axi_mst_loc)
 {
@@ -18,6 +20,8 @@ trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned, cvm::topolog
   sub = new jtag_driver("jtag_driver", addr + 0xa0000, 1, loc);
   subdevices_.emplace_back(sub);
   sub = new imsic_driver("imsic_driver", addr + 0x70000, 1, loc, axi_mst_loc_l);
+  subdevices_.emplace_back(sub);
+  sub = new triggers("triggers", addr + 0x78000, 1, loc);
   subdevices_.emplace_back(sub);
   sub = new uc_helper("uc_helper", addr + 0x80000, 1, loc, m_);
   subdevices_.emplace_back(sub);
@@ -68,6 +72,16 @@ trickbox::write(const transactor::write_t& w)
   auto& data = w.data;
   auto& strb = w.strb;
 
+  for (auto& d : subdevices_) {
+    d->write(addr,length,data,strb);
+  }
+}
+void trickbox::backdoor_write(uint64_t addr, size_t length, data_t& data, strb_t& strb) 
+{
+uint64_t t_data;  
+deserializeInt(data,t_data);
+
+cvm::log (cvm::HIGH,"TRICKBOX BACKDOOR WRITE::::: ADDR:{:#x} DATA:{:#x}\n",addr,t_data);
   for (auto& d : subdevices_) {
     d->write(addr,length,data,strb);
   }

@@ -14,7 +14,7 @@ def rv_tester_repositories():
         #sha256 = "af87959afe497dc8dfd4c6cb66e1279cb98ccc84284619ebfec27d9c09a903de",
     )
 
-    corearchcoverage_hash="28164725f8a7074dca669b643737a73642273e7b"
+    corearchcoverage_hash="77dc0018d43c4c6ba4848b65121fecbff0ba3df1"
     maybe(
         git_repository,
         name = "corearchcoverage",
@@ -23,11 +23,11 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv/dv/corearchcoverage.git",
     )
 
-    cvm_hash="ae6594cffb71b2fc3f6a2610141cdd1a843e3fb1"
+    cvm_hash="56bd16f4ff53f18da591c6cbc99dd73a761d5a71"
     maybe(
         http_archive,
         name = "cvm",
-        sha256 = "0f51c5bea789104784d7af328a843d0a4f11b9737f5862509399c6619325e213",
+        sha256 = "ac3bafd49bb0bc6c2ffe9b5376a6647f996d0644bfe533ac07acdad730f682fa",
         strip_prefix = "cvm-{commit}".format(commit=cvm_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/{commit}/cvm-{commit}.tar.bz2".format(commit=cvm_hash),
     )
@@ -49,11 +49,11 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv/swerv-iss.git",
     )
 
-    CoreArchChecker_hash="eeeeeeec81f52038a46e92cb61be66429e64801c"
+    CoreArchChecker_hash="d0b4f6c60815966a4ef182fb623caba2132cfca9"
     maybe(
         http_archive,
         name = "CoreArchChecker",
-        sha256 = "292bdee4e7ae963e38cce7d96588ce747f3e5324ac392c9e0056fd3a0410d392",
+        sha256 = "2a556f3ccc458b67cff523076f7f7dc1fc07dede85fe04e5199a2bb5fe467bb8",
         strip_prefix = "CoreArchChecker-{commit}".format(commit=CoreArchChecker_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/CoreArchChecker/-/archive/{commit}/CoreArchChecker-{commit}.tar.bz2".format(commit=CoreArchChecker_hash),
     )
@@ -91,15 +91,6 @@ def rv_tester_repositories():
         commit = checkin_script_hash,
         shallow_since = "1669784673 -0600",
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/checkin-script.git",
-    )
-
-    opensrc_axi_llc_hash="6783a802e257840458e72d702e0f68f90170ebfc"
-    maybe(
-        git_repository,
-        name = "opensrc-axi_llc",
-        commit = opensrc_axi_llc_hash,
-        shallow_since = "1695756617 +0000",
-        remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-axi_llc.git",
     )
 
     aplic_model_hash="b5cd6bc4f2ec2a9fff32e68a670b23d9b777f2c1"

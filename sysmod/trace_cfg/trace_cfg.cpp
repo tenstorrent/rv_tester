@@ -3,18 +3,16 @@
 #include "cvm/topology.hpp"
 #include "cvm/registry.hpp"
 #include "cvm/logger.hpp"
+#include "cvm/random.hpp"
 #include "trace_cfg.h"
 #include "transactors/axi_sw/axi.h"
+#include "sysmod/sysmod_plusargs.h"
 #include <fstream>
 #include <sstream>
 #include <string>
 #include <vector>
 #include <unordered_map>
 #include <random>
-
-
-DECLARE_string(load);
-DECLARE_int32(seed);
 
 
 trace_cfg::trace_cfg(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc)
@@ -71,53 +69,12 @@ void trace_cfg::write(const transactor::write_t& ) {
   // return;
 }
 
-// Function to parse a file and extract #define macros
-std::unordered_map<std::string, uint32_t> trace_cfg::extractMacros(const std::string& filename) {
-    std::unordered_map<std::string, uint32_t> macros;
+auto trace_cfg::pickRandomElements(uint32_t n) -> trace_cfg::random_list {
+    random_list picks;
+    cvm::log(cvm::FULL, "[overlay axi] no of mmrs selected {} \n",n);
+    for (uint32_t i = 0; i < n; i++) picks.push_back(mmr::list[rng() % mmr::list.size()]);
 
-    std::ifstream file(filename);
-    if (!file.is_open()) {
-        std::cerr << "Error: Unable to open file " << filename << std::endl;
-        return macros;
-    }
-
-    std::string line;
-    while (std::getline(file, line)) {
-        std::istringstream iss(line);
-        std::string token;
-        iss >> token;
-        if (token == "#define") {
-            std::string macroName;
-            std::string macroValue;
-            iss >> macroName >> macroValue;
-            // std::cout<<"[value]"<<macroValue;
-            macros[macroName] = std::stoi(macroValue,0,16);
-        }
-    }
-
-    file.close();
-    return macros;
-}
-
-std::unordered_map<std::string, uint32_t> trace_cfg::pickRandomElements(const std::unordered_map<std::string, uint32_t>& originalMap, uint32_t n) {
-    std::unordered_map<std::string, uint32_t> result;
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::cout << "originalMap.size() " << originalMap.size() << std::endl;
-    std::uniform_int_distribution<> dis(0, originalMap.size() - 1);
-
-    std::vector<std::pair<std::string, uint32_t>> elements;
-
-    for (const auto& pair : originalMap) {
-        elements.push_back(pair);
-    }
-
-    for (uint32_t i = 0; i < n; ++i) {
-        int randomIndex = dis(gen);
-        result.insert(elements[randomIndex]);
-    }
-    std::cout << "random result.size() " << result.size() << std::endl;
-    return result;
+    return picks;
 }
 
 cvm::messenger::task<void> trace_cfg::read(const transactor::read_t& r, data_t& ) {

@@ -15,24 +15,12 @@
 #include "whisper_client.h"
 #include "HartConfig.hpp"
 #include "Hart.hpp"
+#include "cosim/dut_if/rvfi/rvfi_plusargs.h"
+#include "sysmod/sysmod_plusargs.h"
+#include "cosim/bridge/bridge_plusargs.h"
+#include "cosim/utils/eot/eot_plusargs.h"
+#include "rv_tester_plusargs.h"
 
-DECLARE_string(load);
-DECLARE_string(hex);
-DECLARE_string(load_lz4);
-DECLARE_bool(bootrom);
-DECLARE_string(bootrom_path);
-DECLARE_string(cplfw_path);
-DECLARE_string(whisper_json_path);
-DECLARE_bool(whisper_stdin_null);
-DECLARE_bool(whisper_stdout_null);
-DECLARE_bool(preload);
-DECLARE_bool(mcm);
-DECLARE_bool(cov);
-DECLARE_uint32(max_instr);
-DECLARE_string(archsample_lib_path);
-DECLARE_bool(standalone);
-DECLARE_uint64(hart_enable_mask);
-DECLARE_uint64(tohost);
 
 DEFINE_bool(nostop_standalone,false, "Do not stop if standalone whisper fails");
 
@@ -42,7 +30,7 @@ DEFINE_bool(whisper_csv_log, false, "Make whisper use a csv trace.");
 DEFINE_uint32(whisper_tlb_size, 0, "Specify whisper tlb size");
 DEFINE_uint64(resetpc, 0x80000000, "Reset PC");
 DEFINE_uint64(resetpcfw, 0xC0040000, "Reset firmware PC");
-
+DEFINE_string(isa, "", "Override isa spec");
 
 extern void (*__tracerExtension)(void*);
 
@@ -118,9 +106,15 @@ constructSystem(uint16_t ncores, bool standalone, bool firmware) {
     hart.setTlbSize(FLAGS_whisper_tlb_size);
     if (FLAGS_whisper_stdout_null) hart.redirectOutputDescriptor(STDOUT_FILENO, "/dev/null");
     if (FLAGS_whisper_stdin_null) hart.redirectOutputDescriptor(STDIN_FILENO, "/dev/null");
-    if (not isa.empty())
-      if (not hart.configIsa(isa, false))
+    if (not isa.empty()){
+      if (FLAGS_isa != ""){
+        if (not hart.configIsa(FLAGS_isa, false))
+          return nullptr;
+      }
+      else if (not hart.configIsa(isa, false)){
         return nullptr;
+      }
+    }
     hart.reset();
   }
 
@@ -136,6 +130,10 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
 {
   if(FLAGS_preload) {
     system_ = constructSystem<URV>(ncores, false, true);
+    if (system_ == nullptr) {
+      std::cerr << "Error: could not construct system\n";
+      return -1;
+    }
 
     std::vector<std::thread> threadVec;
 
@@ -184,6 +182,10 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
   // run once before starting cosim
   if (FLAGS_standalone && FLAGS_hart_enable_mask == 0x1) {
     system_ = constructSystem<URV>(ncores, true, false);
+    if (system_ == nullptr) {
+      std::cerr << "Error: could not construct system\n";
+      return -1;
+    }
 
     std::vector<std::thread> threadVec;
 
@@ -234,7 +236,7 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
         if (!result) {
           std::cerr << "Error: Test failed on Standalone Whisper, stopping simulation\n";
           return -1;
-        } else if (max_instr) {
+        } else if (max_instr && (FLAGS_max_instr != 0)) {
           std::cerr << "Error: Test reached max instr on standalone Whisper, stopping simulation\n";
           return -1;
         }
@@ -259,6 +261,11 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
   }
 
   system_ = constructSystem<URV>(ncores, false, false);
+  if (system_ == nullptr) {
+    std::cerr << "Error: could not construct system\n";
+    return -1;
+  }
+
   server_ = std::make_unique<WdRiscv::Server<URV>>(*system_);
 
   return 0;
@@ -309,7 +316,7 @@ whisperClient<URV>::whisperPeek(int hart, char resource, uint64_t addr, uint64_t
 template <typename URV>
 bool
 whisperClient<URV>::whisperPeekCsr(int hart, uint64_t addr, uint64_t& value, uint64_t& mask,
-         uint64_t& poke_mask, bool& valid)
+         uint64_t& poke_mask, uint64_t& read_mask, bool& valid)
 {
   req.hart = hart;
   req.type = WhisperMessageType::Peek;
@@ -323,6 +330,7 @@ whisperClient<URV>::whisperPeekCsr(int hart, uint64_t addr, uint64_t& value, uin
   value = reply.value;
   mask = reply.address;
   poke_mask = reply.time;
+  read_mask = reply.instrTag;
   return true;
 }
 
@@ -338,6 +346,55 @@ whisperClient<URV>::whisperPeekPc(int hart, uint64_t& value)
     return false;
 
   value = reply.value;
+  return true;
+}
+
+template <typename URV>
+bool
+whisperClient<URV>::whisperPeekGpr(int hart, uint64_t addr, uint64_t& value)
+{
+  req.hart = hart;
+  req.type = WhisperMessageType::Peek;
+  req.resource = 'r';
+  req.address = addr;
+
+  if (not whisperCommand(req, reply))
+    return false;
+
+  value = reply.value;
+  return true;
+}
+template <typename URV>
+bool
+whisperClient<URV>::whisperPeekFpr(int hart, uint64_t addr, uint64_t& value)
+{
+  req.hart = hart;
+  req.type = WhisperMessageType::Peek;
+  req.resource = 'f';
+  req.address = addr;
+
+  if (not whisperCommand(req, reply))
+    return false;
+
+  value = reply.value;
+  return true;
+}
+template <typename URV>
+bool
+whisperClient<URV>::whisperPeekVpr(int hart, uint64_t addr, std::array<std::uint8_t, 32>& value)
+{
+  int i;
+  req.hart = hart;
+  req.type = WhisperMessageType::Peek;
+  req.resource = 'v';
+  req.address = addr;
+
+  if (not whisperCommand(req, reply))
+    return false;
+
+  for(i=0;i<32;i++) {
+     value[i] = reply.buffer[i]; 
+  }
   return true;
 }
 
@@ -403,15 +460,17 @@ whisperClient<URV>::whisperStep(int hart, uint64_t time, uint64_t instrTag, uint
   instruction = reply.resource;
   changeCount = reply.value;
 
-  // Recover privilege mode (2 bits), fpFlags (4 bits), and trap (1
+  // Recover privilege mode (2 bits), fpFlags (5 bits), and trap (1
   // bit) from flags field.
-  unsigned mode = reply.flags & 3;
-  unsigned flags = (reply.flags >> 2) & 0xf;
-  unsigned trap = (reply.flags >> 6) & 1;
-  unsigned stop = (reply.flags >> 7) & 1;
-  unsigned virt = (reply.flags >> 9) & 1;
-  unsigned debug = (reply.flags >> 10) & 1;
-  unsigned load = (reply.flags >> 11) & 1;
+  WhisperFlags wflags(reply.flags);
+
+  unsigned mode = wflags.bits.privMode;
+  unsigned flags = wflags.bits.fpFlags;
+  unsigned trap = wflags.bits.trap;
+  unsigned stop = wflags.bits.stop;
+  unsigned virt = wflags.bits.virt;
+  unsigned debug = wflags.bits.debug;
+  unsigned load = wflags.bits.load;
 
 
   privMode = debug ? 5 : mode | (virt << 3);

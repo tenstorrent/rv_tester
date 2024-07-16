@@ -28,6 +28,18 @@
 class sysmod {
 
   public:
+    struct backdoor_read_t {
+      uint64_t address;
+      std::atomic<bool>* flag;
+      uint64_t* out_data;
+    };
+
+    struct backdoor_write_t {
+      uint64_t address;
+      uint64_t data;
+      int size;
+      std::atomic<bool>* flag;
+    };
 
     sysmod(cvm::topology::loc_t loc, unsigned id);
 
@@ -43,11 +55,12 @@ class sysmod {
     void tick(uint64_t advance);
     void jtag_tick(uint64_t advance);
     void jtag_resp(std::bitset<70> rdata);
+    void override_plusargs();
     void compose();
     void load_boot(const std::string& boot);
     void load_cplfw(const std::string& cplfw);
     void load_prog(const std::string& hex, const std::string& load, const std::string& lz4);
-    void load_csr_boot(uint64_t);
+    void load_csr_mmr_boot(uint64_t);
     void load_io(const std::string& io);
     // Function to convert a bitset to an array of uint64_t
   //   std::vector<uint64_t> bitsetToUint64Array(const std::bitset<70>& bs) {
@@ -63,8 +76,11 @@ class sysmod {
     const size_t bitsetSize = 64;//70;
     const size_t ulongSize = sizeof(uint64_t) * 8;
     const size_t arraySize = (bitsetSize + ulongSize - 1) / ulongSize;
-    
-     std::bitset<70> bitset_shifted = bitset>>4;
+
+    std::bitset<70> bitset_shifted = bitset>>2;
+
+    //jtag rx -> jtag.op_Data , we are shifting only by 2 since from jtag_xtor for each tap point we shift accordingly but all of them are shifted by 2
+    //std::cout<<"[JTAG RESP] original = " <<bitset<<" shifted = "<<bitset_shifted<<"\n";
     std::vector<uint64_t> ulongArray(arraySize);
 
     for (size_t i = 0; i < bitsetSize; i += ulongSize) {
@@ -90,6 +106,7 @@ class sysmod {
     void dmi_write(debugger::dmi_data_t s);
     void jtag_req(jtag_driver::jtag_data_t i);
     void tbox_interrupt(interrupter::interrupt_t i);
+    void tboxtrig_updatemem(uint64_t addr, uint64_t data);
     void aplic_interrupt(aplic_driver::aplic_driver_write_t i);
     void uc_helper_backdoor_write(uc_helper::uc_helper_write_t w);
     void uc_helper_backdoor_read(uc_helper::uc_helper_read_req_t w);
@@ -97,6 +114,8 @@ class sysmod {
     void smc_read_req_router(smc_xtor::smc_xtor_read_t r);
     void scratchpad_xtor_read_req_router(scratchpad_xtor::scratchpad_xtor_read_t r);
     void terminate(htif::terminate_t t);
+    cvm::messenger::task<uint64_t> backdoor_read(uint64_t address);
+    cvm::messenger::task<uint64_t> backdoor_write(backdoor_write_t);
 
   private:
 

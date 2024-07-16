@@ -42,7 +42,7 @@ class whisperClient {
     bool whisperPokeMem(int hart, uint64_t time, char resource, uint64_t addr, unsigned size, uint64_t value, bool& valid);
     bool whisperPeek(int hart, char resource, uint64_t addr, uint64_t& value, bool& valid);
     bool whisperPeekPc(int hart, uint64_t& value);
-    bool whisperPeekCsr(int hart, uint64_t addr, uint64_t& value, uint64_t& mask, uint64_t& reset_value, bool& valid);
+    bool whisperPeekCsr(int hart, uint64_t addr, uint64_t& value, uint64_t& mask, uint64_t& reset_value, uint64_t& read_mask, bool& valid);
     bool whisperReset(int hart, bool& valid);
     bool whisperQuit();
     bool whisperPageTableWalk(int hart, bool isInstr, bool isAddr, svOpenArrayHandle items, unsigned& itemCount, bool& valid);
@@ -52,6 +52,10 @@ class whisperClient {
     bool whisperCheckInterrupt(int hart, uint64_t mip, bool& interrupt, uint64_t& cause);
     bool whisperGetSeiPin(int hart, uint64_t& value);
     bool whisperCancelLr(int hart, bool& valid);
+    bool whisperPeekGpr(int hart, uint64_t addr, uint64_t& value);
+    bool whisperPeekFpr(int hart, uint64_t addr, uint64_t& value);
+    bool whisperPeekVpr(int hart, uint64_t addr, std::array<std::uint8_t, 32>&  value);
+
 
   private:
 

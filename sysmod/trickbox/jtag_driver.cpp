@@ -2,6 +2,7 @@
 #include "cvm/topology.hpp"
 #include "cvm/logger.hpp"
 #include "jtag_driver.h"
+#include "sysmod/sysmod_plusargs.h"
 
 DEFINE_string(jtag_input_file_path, "", "Path to file containing jtag_driver commands");
 DEFINE_bool(random_jtag_entry, false, "Enter debug mode randomly after random intervals");
@@ -40,27 +41,29 @@ jtag_driver::update_jtag_status(jtag_driver::jtag_req_t& i) {
   cvm::log(cvm::HIGH, "\n *** GOT RESP FROM JTAG TDO  {:#x}", i.jtag_op_data);
   loop_rdata = i.jtag_op_data;
 }
+
 void jtag_driver::get_all_csv_templates()
 {
-  std::string directoryPath = FLAGS_jtag_template_dir_path;
-  DIR *dir = opendir(directoryPath.c_str());
-  cvm::log(cvm::NONE, "Debug commands directory:{}\n", directoryPath);
-  if (!dir)
-  {
-    throw std::invalid_argument("Invalid directory path");
-  }
+    std::string directoryPath = FLAGS_jtag_template_dir_path;
+    cvm::log(cvm::NONE, "Debug commands directory:{}\n", directoryPath);
 
-  struct dirent *entry;
-  while ((entry = readdir(dir)) != nullptr)
-  {
-    std::string filename = entry->d_name;
-    if (filename.size() >= 4 && filename.substr(filename.size() - 4) == ".csv")
+    if (!std::filesystem::exists(directoryPath) || !std::filesystem::is_directory(directoryPath))
     {
-      csvFilePaths.push_back(directoryPath + "/" + filename);
-      cvm::log(cvm::NONE, "Pushing file:{}\n", filename);
+        throw std::invalid_argument("Invalid directory path");
     }
-  }
-  closedir(dir);
+
+    for (const auto& entry : std::filesystem::directory_iterator(directoryPath))
+    {
+        if (entry.is_regular_file())
+        {
+            std::string filename = entry.path().filename().string();
+            if (filename.size() >= 4 && filename.substr(filename.size() - 4) == ".csv")
+            {
+                csvFilePaths.push_back(entry.path().string());
+                cvm::log(cvm::NONE, "Pushing file:{}\n", filename);
+            }
+        }
+    }
 }
 
 void jtag_driver::parse_jtag_from_csv()
@@ -97,8 +100,11 @@ void jtag_driver::parse_jtag_from_csv()
       std::string length;
       
       jtag_req_t jtag_req;
-      
       instr = row[0];
+
+      if (instr == "//"){
+        continue; // skip line may be comment
+      }
       data_s = row[1];
       length = row[2]; //TODO
       
@@ -121,10 +127,14 @@ void jtag_driver::parse_jtag_from_csv()
          jtag_req.jtag_cmd = 5;
       }else if(jtag_cmd == "le"){ //loop end, checkbitNum, CheckbitValue
          jtag_req.jtag_cmd = 6;
-      }else if(jtag_cmd == "qt"){ //loop end, checkbitNum, CheckbitValue
+      }else if(jtag_cmd == "qt"){ //end test
          jtag_req.jtag_cmd = 7;
-      }else if (jtag_cmd == "//"){
-        continue; // skip line may be comment
+      }else if(jtag_cmd == "rv"){ //reverse
+         jtag_req.jtag_cmd = 8;
+      }else if(jtag_cmd == "sl"){ //shift left
+         jtag_req.jtag_cmd = 9;
+      }else if(jtag_cmd == "sr"){ //shift right
+         jtag_req.jtag_cmd = 10;
       }
       else{
         cvm::log(cvm::ERROR, "Error: unknown command {} in jtag cfg file {}\n",jtag_cmd, FLAGS_jtag_input_file_path);
@@ -247,6 +257,46 @@ void jtag_driver::drive_csv_jtag_cmds()
       }
       jtag_cmd_q.pop(); // pop front eleme7t
     }
+
+    if(jtag_cmd == 8){  //Reverse
+
+      uint64_t temp_rev = 0;
+ 
+      // traversing bits of 'n' from the right
+      while (loop_rdata > 0) {
+          // bitwise left shift
+          // 'rev' by 1
+          temp_rev <<= 1;
+  
+          // if current bit is '1'
+          if ((loop_rdata & 1) == 1)
+              temp_rev ^= 1;
+  
+          // bitwise right shift
+          // 'n' by 1
+          loop_rdata >>= 1;
+      }
+      loop_rdata  = temp_rev ;
+
+      jtag_cmd_q.pop(); // pop front element
+    }
+
+    if(jtag_cmd == 9){  //shift left
+      uint64_t shifted = loop_rdata;
+
+      shifted <<= lower_jtag_data;
+
+      loop_rdata = shifted ;    
+      jtag_cmd_q.pop(); // pop front element
+    }
+
+    if(jtag_cmd == 10){  //shift right
+      uint64_t shifted = loop_rdata;
+      shifted >>= lower_jtag_data;
+
+      loop_rdata = shifted ;    
+      jtag_cmd_q.pop(); // pop front element
+    }
     
     if(jtag_cmd == 5){ //ls loop start
       
@@ -284,7 +334,7 @@ void jtag_driver::drive_csv_jtag_cmds()
     }
     
     if(jtag_cmd == 6){ //le loop end, checkbitNum, CheckbitValue
-       cvm::log(cvm::ERROR, "[JTAGDRIVER] jtag loop end detected without loop start \n");
+       cvm::log(cvm::ERROR, "ERROR: [JTAGDRIVER] jtag loop end detected without loop start \n");
     }
 
 

@@ -5,9 +5,7 @@
 #include "cvm/logger.hpp"
 #include "dm.h"
 #include "transactors/axi_sw/axi.h"
-
-
-DECLARE_string(load);
+#include "sysmod/sysmod_plusargs.h"
 
 
 dm::dm(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc)

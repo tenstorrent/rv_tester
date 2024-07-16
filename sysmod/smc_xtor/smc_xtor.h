@@ -8,6 +8,7 @@
 #include <mem_manager.h>
 #include "pcg_random.hpp"
 #include "cvm/registry.hpp"
+#include "rv_tester_plusargs.h"
 #include "transactor.h"
 #include "transactors/axi_sw/axi.h"
 #include "smc_defines.h"
@@ -16,18 +17,22 @@
 DECLARE_bool(smc_en);
 DECLARE_bool(smc_sweep_test);
 DECLARE_int32(smc_reset_seq_start_ticks);
+DECLARE_int32(smc_core_freq_Mhz);
 class smc_xtor : public device {
 
     private:
 
-       //bool end_test=0;
+        bool end_test=0;
         mem_manager m_;
         cvm::topology::loc_t axi_mst_loc_l;
         cvm::messenger::pool<axi::r_t>::channel_info channel;
         pcg_extras::seed_seq_from<std::random_device> seed_source;
-        bool in_boot_seq = true;
+        bool in_boot_seq = true; 
         bool reset_completion = false;
         bool read_in_flight = false;
+        bool pll_programming_done = false;
+        bool pll_dfs_done = false;
+        bool pll_scalar_divider = 3;
         pcg32 rng;
         void complete_smc_test()
         {
@@ -35,7 +40,7 @@ class smc_xtor : public device {
         }
 
     public:
-        uint32_t start_smc_cnt=0,read_ram;
+        uint32_t start_smc_cnt=0,read_ram,axi_ids = 0;
         uint64_t write_ram; 
         uint32_t cnt_tick=0;
         struct smc_wr_t {
@@ -58,18 +63,33 @@ class smc_xtor : public device {
           std::vector<uint8_t> data;
           std::vector<bool> strb;
         };
-        std::queue<smc_xtor_read_req_t> smc_read_resp_q;
-        std::queue<smc_wr_t>            smc_wr_txn_q;
-        std::queue<smc_xtor_read_req_t> smc_rd_txn_q;
-        std::queue<smc_wr_t>            smc_boot_wr_txn_q;
+        std::queue<smc_xtor_read_req_t>   smc_read_resp_q;
+        std::queue<smc_wr_t>              smc_wr_txn_q;
+        std::queue<std::pair<uint64_t,size_t>> smc_rd_txn_q;
+        std::queue<smc_wr_t>              smc_boot_wr_txn_q;
         uint32_t smc_id = 0;
         virtual void axi_write();
+        virtual void axi_write_granular();
         virtual void axi_read(uint64_t addr, size_t length, uint32_t id);
         void write(const transactor::write_t& );
        
         cvm::messenger::task<void> read(const transactor::read_t& , data_t& );
 
-        void gen_data_strb(uint64_t addr, uint32_t value, data_t& wdata, std::vector<bool>& strb) {
+        void gen_data_strb_4b(uint32_t addr, uint32_t value, data_t& wdata, std::vector<bool>& strb) {
+            uint8_t b_index =  static_cast<uint8_t>(addr & 0x7);
+
+            for (uint8_t i = 0; i < 8; ++i) {
+                  wdata.push_back(0x0);
+                  strb.push_back(0x0);
+            }  
+            for (uint8_t i = 0; i < 4; ++i) {
+                  uint8_t currentByte = static_cast<uint8_t>((value >> (8 * i)) & 0xFF);
+                  wdata[i+b_index] = currentByte;
+                  strb[i+b_index] = 0x1;
+            }  
+        }
+
+        void gen_data_strb_8b(uint32_t addr, uint64_t value, data_t& wdata, std::vector<bool>& strb) {
             uint8_t b_index =  static_cast<uint8_t>(addr & 0x7);
 
             for (uint8_t i = 0; i < 8; ++i) {
@@ -108,13 +128,12 @@ class smc_xtor : public device {
         {
             if(!FLAGS_smc_en)
               return;
-                        
             cvm::log(cvm::FULL, "[SMC] tick {:#X} \n",cnt_tick);
             if(in_boot_seq && ( cnt_tick > uint32_t(FLAGS_smc_reset_seq_start_ticks))){
-            cvm::log(cvm::FULL, "[SMC] IN BOOT SEQ {} reset complition {} \n",in_boot_seq,reset_completion);
-              if(!reset_completion){
-                  cvm::log(cvm::FULL, "[SMC] Check axi read response for 0xC000300C \n");
-                  cvm::log(cvm::FULL, "[SMC] axi read response  Queue size for  0xC000300C = {} \n",smc_read_resp_q.size());
+            cvm::log(cvm::FULL, "[SMC] IN BOOT SEQ {} reset completion {} {}\n",in_boot_seq,reset_completion);
+              if(!reset_completion || (pll_programming_done & !pll_dfs_done)){
+                  cvm::log(cvm::FULL, "[SMC] Check axi read response for 0x0210300C, pll_programming_done {} \n", pll_programming_done);
+                  cvm::log(cvm::FULL, "[SMC] axi read response  Queue size for  0x0210300C = {} \n",smc_read_resp_q.size());
                   if(smc_read_resp_q.size() >0){
                      smc_xtor_read_req_t smc_xtor_rd;
                      smc_xtor_rd = smc_read_resp_q.front();
@@ -124,17 +143,27 @@ class smc_xtor : public device {
                     //    d += fmt::format("{:02x}", smc_xtor_rd.data[i]);
                     //  cvm::log(cvm::FULL, "[SMC] read resp data= {:#X} \n", d);
        
-                     if(smc_xtor_rd.data[4] == 0x10){
+                     if(smc_xtor_rd.data[4] == 0x10 && !pll_programming_done){
                       reset_completion = true;
+                     } else if ((( smc_xtor_rd.data[4]& 0x1) == 1) && pll_programming_done) {
+                      pll_dfs_done = true;
                      }
                   }else if (!read_in_flight) {
 
-                    cvm::log(cvm::FULL, "[SMC] axi read 0xC000300C \n");
+                    cvm::log(cvm::FULL, "[SMC] axi read 0x0210300C \n");
 
                     read_in_flight = true;
-                    axi_read(0xC000300C,4,4);
+                    axi_read(0x0210300C,4,204);
                   }
-              }else{
+              }
+              else if (FLAGS_smc_core_freq_Mhz && !pll_programming_done){
+                pll_scalar_divider = (2400/FLAGS_smc_core_freq_Mhz);
+                smc_wr_txn_q.push({0x02103014,static_cast<uint64_t>(1<<16|52<<6|pll_scalar_divider)});
+                smc_wr_txn_q.push({0x02103004,1});//Enable DFS in pll controller
+                pll_programming_done = true;
+                read_in_flight = false;
+              }
+              else{
                   cvm::log(cvm::FULL, "[SMC] Drive axi write requests for boot sequence  \n");
                  if(smc_boot_wr_txn_q.size()>0){
                    smc_wr_t smc_boot_txn;
@@ -150,98 +179,159 @@ class smc_xtor : public device {
             }
 
 
-            // if(start_smc_cnt == 0){
-            //   start_smc_cnt = (rng()% 5) + 25;
-            //   // reset_completion = true;
-            //   if(FLAGS_smc_en){
-            //     cvm::log(cvm::LOW, "[SMC] Enable switch is set");
-            //   }
-            // }
+            if(start_smc_cnt == 0){
+              start_smc_cnt = (rng()% 5) + 25;
+              // reset_completion = true;
+              if(FLAGS_smc_en){
+                cvm::log(cvm::LOW, "[SMC] Enable switch is set");
+              }
+            }
             
-            //cvm::log(cvm::FULL, "[SMC] tick {:#X} start_smc_cnt {} \n",cnt_tick,start_smc_cnt);
+            cvm::log(cvm::FULL, "[SMC] tick {:#X} start_smc_cnt {} \n",cnt_tick,start_smc_cnt);
            
             if(smc_wr_txn_q.size() > 0) axi_write();
 
-            // cvm::log(cvm::HIGH, "[SMC] tick {:#X} \n",cnt_tick);
+            cvm::log(cvm::HIGH, "[SMC] tick {:#X} \n",cnt_tick);
 
-            // if(reset_completion && FLAGS_smc_sweep_test){
-            //     if(end_test==1) complete_smc_test();
+            if(reset_completion && !in_boot_seq && FLAGS_smc_sweep_test){
+                if(end_test==1) complete_smc_test();
 
-            //     if(cnt_tick==start_smc_cnt) push_smc_sram_write_seq();
-            //     // if(smc_wr_txn_q.size() > 0) axi_write();
-            //     if(cnt_tick==(start_smc_cnt+21) ) axi_read(CPL_SRAM_BASE,8,4);;
-            //     if(cnt_tick==(start_smc_cnt+22) ) axi_read(CPL_SRAM_BASE+0x8,8,4);;
+                if(cnt_tick==start_smc_cnt) push_smc_sram_write_seq();
 
-            //     while((smc_read_resp_q.size() >0) ){
-            //       print_read_request(smc_read_resp_q.front());
-            //       smc_read_resp_q.pop();
-            //       cvm::log(cvm::HIGH, "[security test] queue size {} \n",smc_read_resp_q.size());
-            //       if(smc_read_resp_q.size() == 0){
-            //         end_test = 1;
-            //         cvm::log(cvm::HIGH, "[security test] write and read check to small core sram ended\n");
-            //     }
-            //   }
-            // }
+                // if(smc_wr_txn_q.size() > 0) axi_write();
+                if(smc_rd_txn_q.size() > 0) {
+                  std::pair<uint64_t,size_t> read_req;
+                  read_req = smc_rd_txn_q.front();
+                  smc_rd_txn_q.pop();
+                  axi_ids = rng()%200+200;
+                  axi_read(read_req.first,read_req.second,rng()%200+200);
+                }
+
+                while((smc_read_resp_q.size() >0) ){
+                  print_read_request(smc_read_resp_q.front());
+                  smc_read_resp_q.pop();
+                  cvm::log(cvm::HIGH, "[security test] queue size {} \n",smc_read_resp_q.size());
+                  if(smc_read_resp_q.size() == 0){
+                    end_test = 1;
+                    cvm::log(cvm::HIGH, "[security test] write and read check to small core sram ended\n");
+                }
+              }
+            }
 
             cnt_tick ++;
         }
         
-        // void print_read_request(const smc_xtor_read_req_t &request) {
+        void print_read_request(const smc_xtor_read_req_t &request) {
            
             
-        //     std::stringstream ss;
+            std::stringstream ss;
 
-        //     for (const auto &byte : request.data) {
-        //         ss << static_cast<int>(byte) << " ";
-        //     }
+            for (const auto &byte : request.data) {
+                ss << static_cast<int>(byte) << " ";
+            }
 
    
-        //     std::string output = ss.str();
-        //     ss.clear();
-        //     ss.str("");
+            std::string output = ss.str();
+            ss.clear();
+            ss.str("");
 
-        //     for (const auto &bit : request.strb) {
-        //         ss <<  bit << " ";
-        //     }
-        //     std::string output2 = ss.str();
-        //     cvm::log(cvm::FULL,"Data: {} \n",output);
-        //     cvm::log(cvm::FULL,"STRB: {} \n",output2);
-        // }
+            for (const auto &bit : request.strb) {
+                ss <<  bit << " ";
+            }
+            std::string output2 = ss.str();
+            cvm::log(cvm::FULL,"Data: {} \n",output);
+            cvm::log(cvm::FULL,"STRB: {} \n",output2);
+        }
 
         void push_smc_enable_seq() {
           cvm::log(cvm::FULL, "[smc_xtor] smc_xtor inside enable smc seq\n");
           cvm::log(cvm::FULL, "[smc_xtor] smc_xtor completed enable smc seq\n");
         }
 
-        // void push_smc_sram_write_seq() {
-        //   cvm::log(cvm::HIGH, "[smc_xtor] smc_xtor sram write seq\n");
-        //   write_ram = (rng()%0xFFFFFFFFFFFFFFFF);
-        //   for(int i = 0; i < 8;i++){
-        //     smc_wr_txn_q.push({CPL_SRAM_BASE+i*8 ,0xFFFFFFFFFFFFFFFF});
-        //   }
+        void push_smc_sram_write_seq() {
+          cvm::log(cvm::HIGH, "[smc_xtor] smc_xtor sram write seq\n");
+          write_ram = (rng()%0xFFFFFFFFFFFFFFFF);
+          for(int i = 0; i < 8;i++){
+            smc_wr_txn_q.push({static_cast<uint32_t>(smc_mmr_base::CPL_SRAM_BASE+i*8) ,0xFFFFFFFFFFFFFFFF});
+          }
 
-        //   for(int i = 200; i < 212;i++){
-        //     write_ram = (rng()%0xFFFFFFFFFFFFFFFF);
-        //     smc_wr_txn_q.push({CPL_SRAM_BASE+i*8 ,write_ram});
-        //   }
+          for(int i = 200; i < 212;i++){
+            write_ram = (rng()%0xFFFFFFFFFFFFFFFF);
+            smc_wr_txn_q.push({static_cast<uint32_t>(smc_mmr_base::CPL_SRAM_BASE+i*8) ,write_ram});
+          }
 
-        //   for(int i = 504; i < 511;i++){
-        //     write_ram = (rng()%0xFFFFFFFFFFFFFFFF);
-        //     smc_wr_txn_q.push({CPL_SRAM_BASE+i*8 ,write_ram});
-        //   }
-        //   cvm::log(cvm::HIGH, "[smc_xtor] smc_xtor sram write seq\n");
-        // }
+          for(int i = 504; i < 511;i++){
+            write_ram = (rng()%0xFFFFFFFFFFFFFFFF);
+            smc_wr_txn_q.push({static_cast<uint32_t>(smc_mmr_base::CPL_SRAM_BASE+i*8) ,write_ram});
+          }
+          cvm::log(cvm::HIGH, "[smc_xtor] smc_xtor sram write seq\n");
+        }
+
+         void push_smc_sram_read_seq() {
+          cvm::log(cvm::HIGH, "[smc_xtor] smc_xtor sram read seq\n");
+          smc_rd_txn_q.push({static_cast<uint32_t>(smc_mmr_base::CPL_SRAM_BASE),8});
+          smc_rd_txn_q.push({static_cast<uint32_t>(smc_mmr_base::CPL_SRAM_BASE+0x8),8});
+          cvm::log(cvm::HIGH, "[smc_xtor] smc_xtor sram read seq\n");
+        }
         
         void push_smc_boot_seq() {
-          //Write 0x10 in 0xc000_300C // Clears cold power up done interrupt
-          smc_boot_wr_txn_q.push({ 0xC000300C,0x10});
-          //Write 0x1 in 0xc000_2004  // Release cluster cold reset
-          smc_boot_wr_txn_q.push({ 0xC0002004,0x1});
-          //Write 0x1 in 0xc000_2008  // Release cluster warm reset
-          smc_boot_wr_txn_q.push({ 0xC0002008,0x1});
-          //Write 0x00 in 0xc000_200C // Release core no fetch control
-          smc_boot_wr_txn_q.push({ 0xC000200C,0x000000000});
+          // 0xC000_0000 will be added by SMC RTL hence removing that from BASE Address
+          //Write 0x10 in 0x0210_300C // Clears cold power up done interrupt
+          smc_boot_wr_txn_q.push({ 0x0210300C,0x10});
+          //Write 0x1 in 0x0210_2004  // Release cluster cold reset
+          smc_boot_wr_txn_q.push({ 0x02102004,0x1});
+          //Write 0x1 in 0x0210_2008  // Release cluster warm reset
+          smc_boot_wr_txn_q.push({ 0x02102008,0x1});
+
+          if (FLAGS_hart_enable_mask > 0x3) {
+            cvm::log(cvm::LOW, "[SMC_XTOR] smc_xtor 8C FuseMMR config\n");
+
+            smc_boot_wr_txn_q.push({0x421BFFF8 ,0xFDB975318700});	// SW fuse MMR
+            smc_boot_wr_txn_q.push({0x4200FFF8 ,0xFDB975318700});	// Core fuse MMR
+            smc_boot_wr_txn_q.push({0x4201FFF8 ,0xFDB975318700});	// Core fuse MMR
+            smc_boot_wr_txn_q.push({0x4202FFF8 ,0xFDB975318700});	// Core fuse MMR
+            smc_boot_wr_txn_q.push({0x4203FFF8 ,0xFDB975318700});	// Core fuse MMR
+            smc_boot_wr_txn_q.push({0x4204FFF8 ,0xFDB975318700});	// Core fuse MMR
+            smc_boot_wr_txn_q.push({0x4205FFF8 ,0xFDB975318700});	// Core fuse MMR
+            smc_boot_wr_txn_q.push({0x4206FFF8 ,0xFDB975318700});	// Core fuse MMR
+            smc_boot_wr_txn_q.push({0x4207FFF8 ,0xFDB975318700});	// Core fuse MMR
+            
+            smc_boot_wr_txn_q.push({0x4208FFF8 ,0xFDB975318700});		// Trace fuse MMR
+            smc_boot_wr_txn_q.push({0x4218FFF8 ,0xFDB975318700});	// ACLINT fuse MMR
+            smc_boot_wr_txn_q.push({0x4219FFF8 ,0xFDB975318700});	// DM fuse MMR
+            //smc_boot_wr_txn_q.push({0x421A7FD8 ,0xFDB975318700});	// SC fuse MMR
+            smc_boot_wr_txn_q.push({0x421AFEC0 ,0xFDB9753187ff});	// SC fuse MMR
+
+          }
+          else if (FLAGS_hart_enable_mask == 0x3) {
+            cvm::log(cvm::LOW, "[SMC_XTOR] smc_xtor 2C FuseMMR config\n");
+
+            smc_boot_wr_txn_q.push({0x421BFFF8 ,0x318700});	// SW fuse MMR
+            smc_boot_wr_txn_q.push({0x4200FFF8 ,0x318700});	// Core fuse MMR
+            smc_boot_wr_txn_q.push({0x4201FFF8 ,0x318700});	// Core fuse MMR
+            smc_boot_wr_txn_q.push({0x4208FFF8 ,0x318700});	// Trace fuse MMR
+            smc_boot_wr_txn_q.push({0x4218FFF8 ,0x318700});	// ACLINT fuse MMR
+            smc_boot_wr_txn_q.push({0x4219FFF8 ,0x318700});	// DM fuse MMR
+            //smc_boot_wr_txn_q.push({0x421A7FD8 ,0x318700});	// SC fuse MMR
+            smc_boot_wr_txn_q.push({0x421AFEC0 ,0x3187ff});	// SC fuse MMR
+
+          }
+          else {
+            cvm::log(cvm::LOW, "[SMC_XTOR] smc_xtor 1C FuseMMR config\n");
+
+            smc_boot_wr_txn_q.push({0x421BFFF8 ,0x18700});	// SW fuse MMR
+            smc_boot_wr_txn_q.push({0x4200FFF8 ,0x18700});	// Core fuse MMR
+            smc_boot_wr_txn_q.push({0x4208FFF8 ,0x18700});	// Trace fuse MMR
+            smc_boot_wr_txn_q.push({0x4218FFF8 ,0x18700});	// ACLINT fuse MMR
+            smc_boot_wr_txn_q.push({0x4219FFF8 ,0x18700});	// DM fuse MMR
+            //smc_boot_wr_txn_q.push({0x421A7FD8 ,0x18700});	// SC fuse MMR
+            smc_boot_wr_txn_q.push({0x421AFED8 ,0x187ff});	// SC fuse MMR
+          }
+
+          //Write 0x00 in 0x0210_200C // Release core no fetch control
+          smc_boot_wr_txn_q.push({ 0x0210200C,0x000000000});
         }
+
         void push_smc_disable_seq() {
           cvm::log(cvm::FULL, "[smc_xtor] smc_xtor inside disable smc seq\n");
           cvm::log(cvm::FULL, "[smc_xtor] smc_xtor completed disable smc seq\n");

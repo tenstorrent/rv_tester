@@ -2,6 +2,7 @@
 #include "cvm/topology.hpp"
 #include "cvm/logger.hpp"
 #include "debugger.h"
+#include "sysmod/sysmod_plusargs.h"
 
 DEFINE_string(dbg_input_file_path, "", "Path to file containing debugger commands");
 DEFINE_bool(random_dbg_entry, false, "Enter debug mode randomly after random intervals");
@@ -37,27 +38,29 @@ debugger::update_dm_status(debugger::dmi_status_t& i) {
   status = i.status;
   commands_in_queue = i.commands_in_queue;
 }
+
 void debugger::get_all_csv_templates()
 {
-  std::string directoryPath = FLAGS_dbg_template_dir_path;
-  DIR *dir = opendir(directoryPath.c_str());
-  cvm::log(cvm::NONE, "Debug commands directory:{}\n", directoryPath);
-  if (!dir)
-  {
-    throw std::invalid_argument("Invalid directory path");
-  }
+    std::string directoryPath = FLAGS_dbg_template_dir_path;
+    cvm::log(cvm::NONE, "Debug commands directory:{}\n", directoryPath);
 
-  struct dirent *entry;
-  while ((entry = readdir(dir)) != nullptr)
-  {
-    std::string filename = entry->d_name;
-    if (filename.size() >= 4 && filename.substr(filename.size() - 4) == ".csv")
+    if (!std::filesystem::exists(directoryPath) || !std::filesystem::is_directory(directoryPath))
     {
-      csvFilePaths.push_back(directoryPath + "/" + filename);
-      cvm::log(cvm::NONE, "Pushing file:{}\n", filename);
+        throw std::invalid_argument("Invalid directory path");
     }
-  }
-  closedir(dir);
+
+    for (const auto& entry : std::filesystem::directory_iterator(directoryPath))
+    {
+        if (entry.is_regular_file())
+        {
+            std::string filename = entry.path().filename().string();
+            if (filename.size() >= 4 && filename.substr(filename.size() - 4) == ".csv")
+            {
+                csvFilePaths.push_back(entry.path().string());
+                cvm::log(cvm::NONE, "Pushing file:{}\n", filename);
+            }
+        }
+    }
 }
 
 void debugger::parse_dmi_from_csv()

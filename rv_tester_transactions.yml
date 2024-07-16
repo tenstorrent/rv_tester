@@ -26,6 +26,23 @@ cosim:
             data:
                 width: ${TOP.PLATFORM.XLEN}
 
+    m_steps:
+        domain: 1
+        num: 1 
+        fields:
+            hart:
+                width: 32
+            n_retire:
+                width: 32
+            cycle:
+                width: 64
+            steps:
+                width: 64
+            skips:
+                width: 64
+            final_steps:
+                width: 64
+
     m_rvfi:
         domain: 1
         num: ${max(TOP.PLATFORM.COSIM.RVFI.NRETS)}
@@ -56,6 +73,10 @@ cosim:
                 width: 4
             vec_cracked:
                 width: 1
+            flags_valid:
+                width: 1
+            flags:
+                width: 5
             ixl:
                 width: 2
             rd_addr:
@@ -117,6 +138,32 @@ cosim:
             mem_attr:
                 qualify: "{data}.mem_rmask != '0 || {data}.mem_wmask != '0"
                 width: 32
+
+    m_gp_regs:
+        domain: 1
+        num: 1 
+        fields:
+            hart:
+                width: 32
+            value:
+                width: [[32, ${TOP.PLATFORM.XLEN}]]
+
+    m_fp_regs:
+        domain: 1
+        num: 1 
+        fields:
+            hart:
+                width: 32
+            value:
+                width: [[32, ${TOP.PLATFORM.FLEN}]]
+    m_vc_regs:
+        domain: 1
+        num: 1 
+        fields:
+            hart:
+                width: 32
+            value:
+                width: [[32, ${TOP.PLATFORM.VLEN}]]
 
     m_mcmi_read:
         domain: 1
@@ -291,11 +338,19 @@ sysmod:
         fields:
             rdata:
                 width: 70
+    event_triggers:
+        domain: 2
+        num: ${TOP.PLATFORM.NHARTS}
+        fields:
+            data:
+                width: 64
+            addr:
+                width: 64
 
 axi_sw:
     num: [${TOP.PLATFORM.AXI.TOTAL},${TOP.PLATFORM.NCIO_AXI.TOTAL},${TOP.PLATFORM.APLIC_MSI_AXI.TOTAL}]
     w:
-        domain: 2
+        domain: [2,2,2]
         num: 1
         fields:
             data:
@@ -305,7 +360,7 @@ axi_sw:
             last:
                 widths: [1,1,1]
     aw:
-        domain: 2
+        domain: [2,2,2]
         num: 1
         fields:
             id:
@@ -320,10 +375,20 @@ axi_sw:
                 widths: [2,2,2]
             lock:
                 widths: [1,1,1]
+            cache:
+                widths: [4,4,4]
+            prot:
+                widths: [3,3,3]
+            qos:
+                widths: [4,4,4]
+            region:
+                widths: [4,4,4]
             atop:
                 widths: [6,6,6]
+            user:
+                widths: [1,1,1]
     ar:
-        domain: 2
+        domain: [2,2,2]
         num: 1
         fields:
             id:
@@ -338,19 +403,31 @@ axi_sw:
                 widths: [2,2,2]
             lock:
                 widths: [1,1,1]
+            cache:
+                widths: [4,4,4]
+            prot:
+                widths: [3,3,3]
+            qos:
+                widths: [4,4,4]
+            region:
+                widths: [4,4,4]
+            user:
+                widths: [1,1,1]
 
     r_q_ptr:
-        domain: 2
+        domain: [2,2,2]
         num: 1
         fields:
             r_ptr:
                 widths: [${TOP.PLATFORM.AXI.R_Q_PTR_MAX_LOG2},${TOP.PLATFORM.NCIO_AXI.R_Q_PTR_MAX_LOG2},${TOP.PLATFORM.APLIC_MSI_AXI.R_Q_PTR_MAX_LOG2}]
+            clock:
+                widths: [64, 64, 64]
 
 axi_sw_mst:
     num: [${TOP.PLATFORM.AXI_MST.TOTAL}, ${TOP.PLATFORM.APLIC_MMR_AXI_MST.TOTAL}, ${TOP.PLATFORM.SMC_AXI_MST.TOTAL}, ${TOP.PLATFORM.PLL_AXI_MST.TOTAL}, ${TOP.PLATFORM.PM_NW_AXI_MST.TOTAL}]
 
     b:
-        domain: 2
+        domain: [2,2,2,2,2]
         num: 1
         fields:
             id:
@@ -359,7 +436,7 @@ axi_sw_mst:
                 widths: [2, 2, 2, 2, 2]
 
     r:
-        domain: 2
+        domain: [2,2,2,2,2]
         num: 1
         fields:
             id:
@@ -372,21 +449,21 @@ axi_sw_mst:
                 widths: [1, 1, 1, 1, 1]
 
     ar_q_ptr:
-        domain: 2
+        domain: [2,2,2,2,2]
         num: 1
         fields:
             ar_ptr:
                 widths: [${TOP.PLATFORM.AXI_MST.AR_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.APLIC_MMR_AXI_MST.AR_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.SMC_AXI_MST.AR_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.PLL_AXI_MST.AR_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.PM_NW_AXI_MST.AR_Q_PTR_MAX_LOG2}]
 
     aw_q_ptr:
-        domain: 2
+        domain: [2,2,2,2,2]
         num: 1
         fields:
             aw_ptr:
                 widths: [${TOP.PLATFORM.AXI_MST.AW_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.APLIC_MMR_AXI_MST.AW_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.SMC_AXI_MST.AW_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.PLL_AXI_MST.AW_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.PM_NW_AXI_MST.AW_Q_PTR_MAX_LOG2}]
 
     w_q_ptr:
-        domain: 2
+        domain: [2,2,2,2,2]
         num: 1
         fields:
             w_ptr:
@@ -405,16 +482,9 @@ pmu:
     num: ${TOP.PLATFORM.NHARTS}
     pmcounters:
         domain: 1
-        num: 1  #AUTOGENERATED -- NOTOUCH 
+        num: 1
+        #AUTOGENERATED -- NOTOUCH 
         fields:
-            perf_start:
-                width: 1
-            perf_end:
-                width: 1
-            terminate:
-                width: 1
-            sync:
-                width: 1
             cpu_cycles:
                 width: 64
             instructions:
@@ -591,13 +661,13 @@ pmu:
                 width: 64
             op_issued_pipe15:
                 width: 64
+            wasted_issue_slots_via_throttling:
+                width: 64
             cache_references:
                 width: 64
             cache_misses:
                 width: 64
-            tlb_invalidates:
-                width: 64
-            l1d_read_access_aligned:
+            l1d_read_access_non_clc:
                 width: 64
             l1d_read_access_clc:
                 width: 64
@@ -605,7 +675,7 @@ pmu:
                 width: 64
             l1d_read_access_all:
                 width: 64
-            l1d_write_access_aligned:
+            l1d_write_access_non_clc:
                 width: 64
             l1d_write_access_clc:
                 width: 64
@@ -613,11 +683,9 @@ pmu:
                 width: 64
             l1d_write_access_all:
                 width: 64
-            l1d_prefetch_access_aligned:
+            l1d_prefetch_access_non_clc:
                 width: 64
             l1d_prefetch_access_clc:
-                width: 64
-            l1d_prefetch_access_4kx:
                 width: 64
             l1d_prefetch_access_all:
                 width: 64
@@ -635,23 +703,19 @@ pmu:
                 width: 64
             l1d_mmu_miss:
                 width: 64
-            l1d_snoop_miss:
-                width: 64
             l1d_miss_all:
                 width: 64
-            l1d_cache_invalidate_snoop:
+            transbuf_or_reqbuf_cannot_alloc_load:
                 width: 64
-            l1d_cache_invalidate_cmo:
+            transbuf_or_reqbuf_cannot_alloc_store:
                 width: 64
-            l1d_cache_invalidate_load_eviction:
+            transbuf_or_reqbuf_cannot_alloc_prefetch:
                 width: 64
-            l1d_cache_invalidate_store_eviction:
+            transbuf_or_reqbuf_cannot_alloc_mmu:
                 width: 64
-            l1d_cache_invalidate_prefetch_eviction:
+            transbuf_cannot_alloc_all:
                 width: 64
-            l1d_cache_invalidate_all:
-                width: 64
-            utlb_miss:
+            l1d_write_upgrade_req:
                 width: 64
             dtlb_read_access:
                 width: 64
@@ -659,13 +723,13 @@ pmu:
                 width: 64
             dtlb_prefetch_access:
                 width: 64
-            dtlb_access_4k:
+            dtlb_read_access_cacheable:
                 width: 64
-            dtlb_access_hugepage:
+            dtlb_read_access_noncacheable:
                 width: 64
-            dtlb_access_cacheable:
+            dtlb_write_access_cacheable:
                 width: 64
-            dtlb_access_noncacheable:
+            dtlb_write_access_noncacheable:
                 width: 64
             dtlb_access_all:
                 width: 64
@@ -685,7 +749,7 @@ pmu:
                 width: 64
             leaf_tlb_access_fe:
                 width: 64
-            leaf_tlb_access_prefetch:
+            leaf_tlb_access_mmu_prefetch:
                 width: 64
             leaf_tlb_access_all:
                 width: 64
@@ -693,7 +757,7 @@ pmu:
                 width: 64
             leaf_tlb_miss_fe:
                 width: 64
-            leaf_tlb_miss_prefetch:
+            leaf_tlb_miss_mmu_prefetch:
                 width: 64
             leaf_tlb_miss_all:
                 width: 64
@@ -701,7 +765,7 @@ pmu:
                 width: 64
             nonleaf_tlb_access_fe:
                 width: 64
-            nonleaf_tlb_access_prefetch:
+            nonleaf_tlb_access_mmu_prefetch:
                 width: 64
             nonleaf_tlb_access_all:
                 width: 64
@@ -709,23 +773,17 @@ pmu:
                 width: 64
             nonleaf_tlb_miss_fe:
                 width: 64
-            nonleaf_tlb_miss_prefetch:
+            nonleaf_tlb_miss_mmu_prefetch:
                 width: 64
             nonleaf_tlb_miss_all:
                 width: 64
-            page_walks:
+            page_table_walks_ls:
                 width: 64
-            stalls_mem_l1d_miss:
+            page_table_walks_fe:
                 width: 64
-            stalls_mem_stores:
+            page_table_walks_mmu_prefetch:
                 width: 64
-            stalls_mem_l1dtlb_miss:
-                width: 64
-            lsu_resyncs_raw:
-                width: 64
-            lsu_resyncs_rar:
-                width: 64
-            stlf_hits:
+            page_table_walks_all:
                 width: 64
             ls_replay_load:
                 width: 64
@@ -737,41 +795,11 @@ pmu:
                 width: 64
             ls_replay_all:
                 width: 64
-            ls_way_predictor_replay_load:
-                width: 64
-            ls_way_predictor_replay_store:
-                width: 64
-            ls_way_predictor_replay_prefetch:
-                width: 64
-            ls_way_predictor_replay_mmu:
-                width: 64
-            ls_way_predictor_replay_all:
-                width: 64
-            sipt_replay_load:
-                width: 64
-            sipt_replay_store:
-                width: 64
-            sipt_replay_prefetch:
-                width: 64
-            sipt_replay_mmu:
-                width: 64
-            sipt_replay_all:
-                width: 64
             stlf_replay_load:
                 width: 64
             stlf_replay_mmu:
                 width: 64
             stlf_replay_all:
-                width: 64
-            tag_bank_conflict_replay_load:
-                width: 64
-            tag_bank_conflict_replay_store:
-                width: 64
-            tag_bank_conflict_replay_prefetch:
-                width: 64
-            tag_bank_conflict_replay_mmu:
-                width: 64
-            tag_bank_conflict_replay_all:
                 width: 64
             data_bank_conflict_replay_load:
                 width: 64
@@ -783,23 +811,39 @@ pmu:
                 width: 64
             data_bank_conflict_replay_all:
                 width: 64
-            fillbuf_hit_replay_load:
+            ls_way_predictor_replay_load:
                 width: 64
-            fillbuf_hit_replay_store:
+            ls_way_predictor_replay_store:
                 width: 64
-            fillbuf_hit_replay_mmu:
+            ls_way_predictor_replay_prefetch:
                 width: 64
-            fillbuf_hit_replay_all:
+            ls_way_predictor_replay_mmu:
                 width: 64
-            transbuf_hit_replay_load:
+            ls_way_predictor_replay_all:
                 width: 64
-            transbuf_hit_replay_store:
+            tag_bank_conflict_replay_load:
                 width: 64
-            transbuf_hit_replay_prefetch:
+            tag_bank_conflict_replay_store:
                 width: 64
-            transbuf_hit_replay_mmu:
+            tag_bank_conflict_replay_prefetch:
                 width: 64
-            transbuf_hit_replay_all:
+            tag_bank_conflict_replay_mmu:
+                width: 64
+            tag_bank_conflict_replay_all:
+                width: 64
+            dtlb_replay_load:
+                width: 64
+            dtlb_replay_store:
+                width: 64
+            dtlb_replay_prefetch:
+                width: 64
+            dtlb_replay_all:
+                width: 64
+            sipt_replay_load:
+                width: 64
+            sipt_replay_store:
+                width: 64
+            sipt_replay_all:
                 width: 64
             reqbuf_hit_replay_load:
                 width: 64
@@ -809,57 +853,119 @@ pmu:
                 width: 64
             reqbuf_hit_replay_all:
                 width: 64
-            dtlb_replay_load:
+            fillbuf_hit_replay_load:
                 width: 64
-            dtlb_replay_store:
+            fillbuf_hit_replay_store:
                 width: 64
-            dtlb_replay_prefetch:
+            fillbuf_hit_replay_mmu:
                 width: 64
-            dtlb_replay_mmu:
+            fillbuf_hit_replay_all:
                 width: 64
-            dtlb_replay_all:
+            l1d_cache_invalidate_snoop:
+                width: 64
+            l1d_cache_invalidate_cmo:
+                width: 64
+            l1d_cache_invalidate_ras:
+                width: 64
+            l1d_cache_invalidate_all:
+                width: 64
+            lsu_resyncs_rar_stpipe:
+                width: 64
+            lsu_resyncs_rar_ldpipe:
+                width: 64
+            lsu_resyncs_rar_all:
+                width: 64
+            pfc_prefetches_late_l1pend:
+                width: 64
+            pfc_prefetches_late_reqbuf:
+                width: 64
+            pfc_prefetches_late_wasted:
+                width: 64
+            pfc_prefetches_late_all:
+                width: 64
+            ls_chillout_cycles_relaxed:
+                width: 64
+            ls_chillout_cycles_medium:
+                width: 64
+            ls_chillout_cycles_heavy:
+                width: 64
+            ls_chillout_cycles_all:
+                width: 64
+            utlb_miss:
+                width: 64
+            ldq_cannot_alloc:
+                width: 64
+            mdp_correct_prediction:
+                width: 64
+            mdp_false_hit:
+                width: 64
+            mdp_total_prediction:
+                width: 64
+            stalls_mem_l1d_miss:
+                width: 64
+            stalls_mem_l1dtlb_miss:
                 width: 64
             rar_cannot_alloc:
                 width: 64
             raw_cannot_alloc:
                 width: 64
-            ldq_cannot_alloc:
-                width: 64
-            smb_cannot_alloc:
-                width: 64
-            reqbuf_cannot_alloc_load:
-                width: 64
-            reqbuf_cannot_alloc_store:
-                width: 64
-            reqbuf_cannot_alloc_prefetch:
-                width: 64
-            reqbuf_cannot_alloc_mmu:
-                width: 64
-            reqbuf_cannot_alloc_all:
-                width: 64
-            fillbuf_cannot_alloc:
-                width: 64
-            transbuf_cannot_alloc_load:
-                width: 64
-            transbuf_cannot_alloc_store:
-                width: 64
-            transbuf_cannot_alloc_prefetch:
-                width: 64
-            transbuf_cannot_alloc_mmu:
-                width: 64
-            transbuf_cannot_alloc_all:
-                width: 64
-            pcb_cannot_alloc_load:
-                width: 64
-            pcb_cannot_alloc_store:
-                width: 64
-            pcb_cannot_alloc_all:
+            pcb_cannot_alloc:
                 width: 64
             udb_cannot_alloc:
                 width: 64
             udb_data_return:
                 width: 64
             udb_lost:
+                width: 64
+            atomics_retired_lr:
+                width: 64
+            lr_stall:
+                width: 64
+            ld_executed_vec_nano:
+                width: 64
+            ld_masked_vec_nano:
+                width: 64
+            stlf_hits:
+                width: 64
+            dfp_access_load:
+                width: 64
+            dfp_access_store:
+                width: 64
+            dfp_access_mmu:
+                width: 64
+            dfp_access_all:
+                width: 64
+            tlb_invalidates:
+                width: 64
+            stalls_mem_stores:
+                width: 64
+            lsu_resyncs_raw:
+                width: 64
+            smb_wants_to_alloc:
+                width: 64
+            smb_cannot_alloc:
+                width: 64
+            atomics_retired_sc:
+                width: 64
+            atomics_retired_sc_fail:
+                width: 64
+            atomics_retired_sc_success:
+                width: 64
+            atomics_retired_amo:
+                width: 64
+            st_executed_vec_nano:
+                width: 64
+            st_masked_vec_nano:
+                width: 64
+            tap_access_load:
+                width: 64
+            tap_access_store:
+                width: 64
+            tap_access_prefetch:
+                width: 64
+            tap_access_mmu:
+                width: 64
+            tap_access_all:
                 width: 64
             uwp_access:
                 width: 64
@@ -873,21 +979,19 @@ pmu:
                 width: 64
             wp_true_hit:
                 width: 64
-            mdp_correct_prediction:
+            pfc_prefetches_hit:
                 width: 64
-            mdp_false_hit:
+            pfc_useless_prefetches:
                 width: 64
-            mdp_false_miss:
+            tlp_access_load:
                 width: 64
-            mdp_total_prediction:
+            tlp_access_store:
                 width: 64
-            atomics_retired:
+            tlp_access_prefetch:
                 width: 64
-            ldst_masked_nano:
+            tlp_access_all:
                 width: 64
-            ld_executed_nano:
-                width: 64
-            st_executed_nano:
+            fillbuf_cannot_alloc:
                 width: 64
             pfc_agt_cannot_alloc:
                 width: 64
@@ -907,182 +1011,184 @@ pmu:
                 width: 64
             pfc_prefetches_sent:
                 width: 64
-            pfc_prefetches_hit:
-                width: 64
-            pfc_prefetches_late:
-                width: 64
-            pfc_useless_prefetches:
-                width: 64
             sc_cache_access:
-                width: 64
+                width: 33
             sc_cache_rd:
-                width: 64
+                width: 33
             sc_cache_miss:
-                width: 64
+                width: 33
             sc_cache_miss_rd:
-                width: 64
+                width: 33
             sc_cache_refill:
-                width: 64
+                width: 33
             sc_cache_allocate:
-                width: 64
+                width: 33
             sc_cache_wb_dirty:
-                width: 64
+                width: 33
             sc_cache_wb_clean:
-                width: 64
+                width: 33
             sc_cache_inval:
-                width: 64
+                width: 33
             sc_snoop:
-                width: 64
+                width: 33
             sc_scratchpad_rd:
-                width: 64
+                width: 33
             sc_scratchpad_wr:
-                width: 64
+                width: 33
             f2sc_rd:
-                width: 64
+                width: 33
             f2sc_wr:
-                width: 64
+                width: 33
             mshr_lifetime:
-                width: 64
+                width: 33
             mshr_allocations:
-                width: 64
+                width: 33
             sc2f_rd_u:
-                width: 64
+                width: 33
             sc2f_rd_c:
-                width: 64
+                width: 33
             sc2f_rd_o:
-                width: 64
+                width: 33
             sc2f_wr:
-                width: 64
+                width: 33
             c2sc_rd_i:
-                width: 64
+                width: 33
             c2sc_rd_d:
-                width: 64
+                width: 33
             c2sc_wb_full:
-                width: 64
+                width: 33
             c2sc_evict:
-                width: 64
+                width: 33
             c2sc_snp_wb_full:
-                width: 64
+                width: 33
             c2sc_wrnosnpptl:
-                width: 64
+                width: 33
             c2sc_snp:
-                width: 64
+                width: 33
             c2sc_req_stall:
-                width: 64
+                width: 33
             c2sc_wdat_stall:
-                width: 64
+                width: 33
             c2sc_srsp_stall:
-                width: 64
+                width: 33
             c2sc_rdat_stall:
-                width: 64
+                width: 33
             c2sc_snp_stall:
-                width: 64
+                width: 33
             c2sc_crsp_stall:
-                width: 64
+                width: 33
             sc2f_evict:
-                width: 64
+                width: 33
             sc2f_wrbackfull:
-                width: 64
+                width: 33
             sc2f_wdat:
-                width: 64
+                width: 33
             sc2f_snoop:
-                width: 64
+                width: 33
             sc2f_rdat:
-                width: 64
+                width: 33
             sc2f_req_stall:
-                width: 64
+                width: 33
             sc2f_wdat_stall:
-                width: 64
+                width: 33
             sc2f_srsp_stall:
-                width: 64
+                width: 33
             sc2f_rdat_stall:
-                width: 64
+                width: 33
             sc2f_snoop_stall:
-                width: 64
+                width: 33
             sc2f_crsp_stall:
-                width: 64
+                width: 33
             f2sc_wdat:
-                width: 64
+                width: 33
             f2sc_rdat:
-                width: 64
+                width: 33
             f2sc_wrnosnpptl:
-                width: 64
+                width: 33
             f2sc_req_stall:
-                width: 64
+                width: 33
             f2sc_wdat_stall:
-                width: 64
+                width: 33
             f2sc_rdat_stall:
-                width: 64
+                width: 33
             f2sc_crsp_stall:
-                width: 64
+                width: 33
             sc_tag_lookup:
-                width: 64
+                width: 33
             sc_tag_write:
-                width: 64
+                width: 33
             sc_state_write:
-                width: 64
+                width: 33
             sc_repl_write:
-                width: 64
+                width: 33
             sc_tag_hit:
-                width: 64
+                width: 33
             sc_data_read:
-                width: 64
+                width: 33
             sc_data_write:
-                width: 64
+                width: 33
             sc_state_i2e:
-                width: 64
+                width: 33
             sc_state_i2m:
-                width: 64
+                width: 33
             sc_state_i2s:
-                width: 64
+                width: 33
             sc_state_s2i:
-                width: 64
+                width: 33
             sc_state_s2m:
-                width: 64
+                width: 33
             sc_state_s2e:
-                width: 64
+                width: 33
             sc_state_m2i:
-                width: 64
+                width: 33
             sc_state_m2s:
-                width: 64
+                width: 33
             sc_state_m2e:
-                width: 64
+                width: 33
             sc_state_e2i:
-                width: 64
+                width: 33
             sc_state_e2s:
-                width: 64
+                width: 33
             sc_state_e2m:
-                width: 64
+                width: 33
             sft_lookup:
-                width: 64
+                width: 33
             sft_hit:
-                width: 64
+                width: 33
             sft_write:
-                width: 64
+                width: 33
             sft_eviction:
-                width: 64
+                width: 33
             sft_snp_single_icache:
-                width: 64
+                width: 33
             sft_snp_single_dcache:
-                width: 64
+                width: 33
             sft_snp_multi_cores:
-                width: 64
+                width: 33
             sft_eviction_replay:
-                width: 64
+                width: 33
             mshr_occupancy:
-                width: 64
+                width: 33
             mshr_full:
-                width: 64
+                width: 33
             mshr_saq_alloc:
-                width: 64
+                width: 33
             mshr_saq_full:
-                width: 64
+                width: 33
             no_alloc_no_mshr:
-                width: 64
+                width: 33
             no_alloc_hint_not_set:
-                width: 64
+                width: 33
             sc_replay_ecc:
-                width: 64
+                width: 33
+            perf_start:
+                width: 1
+            perf_end:
+                width: 1
+            terminate:
+                width: 1
+            sync:
+                width: 1
 dm_model:
     num: 1
     dmi_status:
@@ -1241,3 +1347,4 @@ __domains:
     2:
         always_block_header: "(* ZEBU_NATIVE_DPI_PROC *)" # this makes DPI imports that have no outputs be scheduled immediately
         priority: highest_priority
+__max_byte_transfer: 896
