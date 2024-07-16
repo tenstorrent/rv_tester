@@ -221,7 +221,7 @@ void bridge::setsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr) {
 }
 void bridge::resetsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr) {
   bool valid;
-  if (!client_->whisperPoke(hart, cycle, 'c', csr, 0xffffffff, valid)) {
+  if (!client_->whisperPoke(hart, cycle, 'c', csr, 0xffffffffffffffff, valid)) {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed to poke timecmp csr\n", id_);
     return;
   }
