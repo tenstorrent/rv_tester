@@ -19,6 +19,7 @@
 #include "sysmod/sysmod_plusargs.h"
 #include "cosim/bridge/bridge_plusargs.h"
 #include "cosim/utils/eot/eot_plusargs.h"
+#include "cosim/utils/general/util.h"
 #include "rv_tester_plusargs.h"
 
 
@@ -29,6 +30,7 @@ DEFINE_string(whisper_data_lines, "", "Write data cache line addresses used in t
 DEFINE_bool(whisper_csv_log, false, "Make whisper use a csv trace.");
 DEFINE_uint32(whisper_tlb_size, 0, "Specify whisper tlb size");
 DEFINE_string(isa, "", "Override isa spec");
+DEFINE_string(stee_secure_region, "", "colon separated pair of numbers (same as whisper's --steesr)");
 
 extern void (*__tracerExtension)(void*);
 
@@ -203,14 +205,21 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
 
     for (unsigned i = 0; i < system_->hartCount(); ++i) {
       WdRiscv::Hart<URV>* hart = system_->ithHart(i).get();
+
+      hart->setInstructionCountLimit(FLAGS_max_instr);
+      hart->setWfiTimeout(0);
+      if (FLAGS_tohost)
+        hart->setToHostAddress(FLAGS_tohost);
       if (FLAGS_preload) {
         preload_log[i] = fopen(("preload_" + std::to_string(i) + ".csv").c_str(), "w");
         hart->setInitialStateFile(preload_log[i]);
       }
-      if (FLAGS_tohost)
-        hart->setToHostAddress(FLAGS_tohost);
-      hart->setInstructionCountLimit(FLAGS_max_instr);
-      hart->setWfiTimeout(0);
+      if (FLAGS_stee_secure_region != "") {
+        std::vector<std::string> secure_region = cosim_util::split_string(FLAGS_stee_secure_region, ':');
+        auto start = std::stoull(secure_region.at(0), nullptr, 0);
+        auto end   = std::stoull(secure_region.at(1), nullptr, 0);
+        hart->configSteeSecureRegion(start, end);
+      }
       threadVec.emplace_back(std::thread(threadFunc, hart));
     }
 

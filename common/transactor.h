@@ -36,7 +36,7 @@ class transactor {
     struct write_response_t {
         uint32_t id;
     };
-
+ 
     struct write_request_t {
         uint64_t addr;
         size_t length;

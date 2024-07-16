@@ -44,7 +44,7 @@ void
 void
 triggers::read_dev(uint64_t addr, size_t length, data_t& data)
 {
-    cvm::log(cvm::HIGH, "[triggers] Came in tboxtrigmem \n",tag());
+    cvm::log(cvm::HIGH, "[triggers] Came in tboxtrigmem tag {}\n",tag());
  if (not has_addr(addr)){
     cvm::log(cvm::HIGH, "[triggers] Discarding read request since tag {} is not matching \n",tag());
    return;
