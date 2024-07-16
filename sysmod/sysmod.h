@@ -107,6 +107,7 @@ class sysmod {
     void dmi_write(debugger::dmi_data_t s);
     void jtag_req(jtag_driver::jtag_data_t i);
     void tbox_interrupt(interrupter::interrupt_t i);
+    void tboxtrig_updatemem(uint64_t addr, uint64_t data);
     void aplic_interrupt(aplic_driver::aplic_driver_write_t i);
     void uc_helper_backdoor_write(uc_helper::uc_helper_write_t w);
     void uc_helper_backdoor_read(uc_helper::uc_helper_read_req_t w);

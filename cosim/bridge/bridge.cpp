@@ -136,6 +136,10 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
         FLAGS_max_stall_cycle = (20000 + (nharts-1)*2000);
         cvm::log(cvm::LOW, "Overwriting max_stall_cycle to {} cycles\n",FLAGS_max_stall_cycle );
     }
+    if((FLAGS_max_cycle < static_cast<gflags::uint64>(1000000 + (nharts - 1) * 75000)) && (FLAGS_max_cycle != 0)){
+        FLAGS_max_cycle = (1000000 + (nharts-1)*75000);
+        cvm::log(cvm::LOW, "Overwriting max_cycle to {} cycles\n",FLAGS_max_cycle );
+    }
 }
 
 // Destructor
@@ -1338,6 +1342,10 @@ bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const std::
     log(cvm::MEDIUM, "<{}> Resynch: Reason=[clint_read]\n", d.cycle);
     return true;
   }
+  if (tbox_read(d)) {
+    log(cvm::MEDIUM, "<{}> Resynch: Reason=[tbox_read]\n", d.cycle);
+    return true;
+  }
   // Case #2
   if (htif_read(d)) {
     log(cvm::MEDIUM, "<{}> Resynch: Reason=[htif_read]\n", d.cycle);
@@ -1389,6 +1397,19 @@ bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const std::
 bool bridge::clint_read(const rv_instr_t& d) {
   if (d.mem_read.valid) {
     for (const auto& s : {"clint", "aclint"}) {
+      auto it = memmap_.find(s);
+      if (it != memmap_.end()) {
+        if (d.mem_read.pa >= it->second.base && d.mem_read.pa < it->second.end) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+bool bridge::tbox_read(const rv_instr_t& d) {
+  if (d.mem_read.valid) {
+    for (const auto& s : {"trickbox"}) {
       auto it = memmap_.find(s);
       if (it != memmap_.end()) {
         if (d.mem_read.pa >= it->second.base && d.mem_read.pa < it->second.end) {

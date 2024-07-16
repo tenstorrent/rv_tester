@@ -14,6 +14,7 @@ cc_library(
         "//cosim/dut_if/rvfi:rvfi_plusargs",
         "//cosim/bridge:bridge_plusargs",
         "//cosim/utils/eot:eot_plusargs",
+        "//cosim/utils/general:util",
         "//:plusargs"
     ],
     alwayslink = True,

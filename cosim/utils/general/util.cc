@@ -96,3 +96,18 @@ std::vector<uint32_t> cosim_util::opcode_move_value_to_register(uint64_t value, 
     return opcodes;
 }
 
+std::vector<std::string> cosim_util::split_string (const std::string& input, char delimiter) {
+  std::vector<std::string> tokens;
+  std::string token;
+  for (char c : input) {
+    if (c != delimiter)
+      token += c;
+    else {
+      tokens.push_back(token);
+      token.clear();
+    }
+  }
+  tokens.push_back(token);
+  return tokens;
+};
+

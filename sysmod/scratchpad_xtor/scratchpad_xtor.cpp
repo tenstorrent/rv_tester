@@ -39,7 +39,7 @@ void scratchpad_xtor::axi_write_mmr_granular() {
   aw_txn.id   = 12;
   aw_txn.addr = 0x421a0010;
   aw_txn.len  = 0;
-  aw_txn.size = 6;
+  aw_txn.size = 3;
   aw_txn.burst = axi::burst_t(0);
   aw_txn.lock  =0;
   aw_txn.cache  =axi::cache_mem_attr_t(0);

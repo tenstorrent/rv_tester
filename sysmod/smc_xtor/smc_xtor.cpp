@@ -58,6 +58,7 @@ void smc_xtor::axi_write() {
   addr = (uint64_t)wr.addr;
   t_addr = (uint32_t)wr.addr;
   t_addr = t_addr & 0xFFFF;
+  write_in_flight = true;
   if((t_addr >= 0x2000) && (t_addr < 0x3FFF)) {
     gen_data_strb_4b(wr.addr,wr.data,data,strb);
   }
@@ -66,6 +67,14 @@ void smc_xtor::axi_write() {
   }
   cvm::log(cvm::HIGH, "[SMC] write {:#X} loc :{:#X} data:{:#X} \n",addr,axi_mst_loc_l,wr.data);
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb});
+  cvm::topology::loc_t axi_mst_loc_lambda = axi_mst_loc_l;
+   auto* l = +[](cvm::topology::loc_t axi_mst_loc_lambda) -> cvm::messenger::task<void>{
+    co_await cvm::registry::messenger.wait<transactor::write_response_t>(axi_mst_loc_lambda);
+    //auto resp = co_await cvm::registry::messenger.wait<transactor::write_response_t>(axi_mst_loc_lambda);
+  };
+  cvm::registry::messenger.fork(l,axi_mst_loc_lambda);
+  write_in_flight = false;
+
 }
 
 void smc_xtor::axi_read(uint64_t addr, size_t length,

@@ -19,6 +19,7 @@
 #include "jtag_driver.h"
 #include "imsic_driver.h"
 #include "aplic_driver.h"
+#include "triggers.h"
 #include "uc_helper.h"
 #include <mem_manager.h>
 
@@ -62,7 +63,7 @@ public:
 
   // Write to this trickbox.
   void write(const transactor::write_t& w);
-  
+  virtual void backdoor_write(uint64_t addr, size_t length, data_t& data, strb_t& strb) override;  
   virtual void tick(uint64_t advance) override
   {
     for (auto& d : subdevices_) {

@@ -103,6 +103,10 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const B& b) {
         axi::b_t(b.id, axi::resp_t(b.resp))
     );
 
+    cvm::registry::messenger.signal<transactor::write_response_t>(
+        loc_,
+        transactor::write_response_t{b.id});
+
     free_id(b.id);
     push_transactions();
 }

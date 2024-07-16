@@ -80,6 +80,9 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::jtag_rdata<>>(
       loc_,
       [this](const rv_tester_transactions::sysmod::jtag_rdata<>& t) { return this->jtag_resp(t.rdata); });
+  cvm::registry::messenger.connect<rv_tester_transactions::sysmod::event_triggers<>>(
+      loc_,
+      [this](const rv_tester_transactions::sysmod::event_triggers<>& t) { return this->tboxtrig_updatemem(t.addr,t.data); });
   cvm::registry::messenger.connect<sysmod::backdoor_read_t>(
       loc_,
       [this](sysmod::backdoor_read_t t) {
@@ -362,7 +365,7 @@ sysmod::jtag_req(jtag_driver::jtag_data_t i) {
   cvm::registry::callbacks.push(
       scope(),
       [i]() {
-        cvm::log(cvm::FULL, "[SYSMOD] trickbox jtag_driver::dmi.(upper,lower) = {:#x}, {:#x}\n",i.upper_jtag_data, i.lower_jtag_data, i.jtag_length_data);
+        cvm::log(cvm::FULL, "[SYSMOD] trickbox jtag_driver::dmi.(upper,lower) = {:#x}, {:#x} length = {:#x}\n",i.upper_jtag_data, i.lower_jtag_data, i.jtag_length_data);
         sysmod_jtag_req(i.jtag_cmd, i.upper_jtag_data, i.lower_jtag_data,i.jtag_length_data,i.jtag_quit);
       });
 }
@@ -725,21 +728,6 @@ sysmod::load_csr_mmr_boot(uint64_t)
       return;
   if (FLAGS_set_csr == "" && FLAGS_set_mmr == "")
       return;
-
-  auto split_string = [] (const std::string& input, char delimiter) {
-    std::vector<std::string> tokens;
-    std::string token;
-    for (char c : input) {
-      if (c != delimiter)
-        token += c;
-      else {
-        tokens.push_back(token);
-        token.clear();
-      }
-    }
-    tokens.push_back(token);
-    return tokens;
-  };
   int addr;
   auto add_to_mem = [&addr, this] (const uint32_t op) {
     device::strb_t strb(4);
@@ -761,9 +749,9 @@ sysmod::load_csr_mmr_boot(uint64_t)
     for (const auto& mmr : mmrs)
       mmr_map[mmr.name] = mmr.address;
     try {
-      std::vector<std::string> mmr_vals = split_string(FLAGS_set_mmr, ',');
+      std::vector<std::string> mmr_vals = cosim_util::split_string(FLAGS_set_mmr, ',');
       for (const auto& entry : mmr_vals) {
-        std::vector<std::string> mmr_val = split_string(entry, ':');
+        std::vector<std::string> mmr_val = cosim_util::split_string(entry, ':');
         auto mmr = mmr_val.at(0);
         addr = mmr_map.count(mmr)? mmr_map[mmr] : std::stoull(mmr_val.at(0), nullptr, 0);
         auto size  = std::stoull(mmr_val.at(1), nullptr, 0);
@@ -809,10 +797,10 @@ sysmod::load_csr_mmr_boot(uint64_t)
 
     try { // parse the +set_csr and report any errors
       char delimiter = ',';
-      std::vector<std::string> csr_num_val = split_string(FLAGS_set_csr, delimiter);
+      std::vector<std::string> csr_num_val = cosim_util::split_string(FLAGS_set_csr, delimiter);
       for (const auto& entry : csr_num_val) {
         delimiter = ':';
-        std::vector<std::string> num_val = split_string(entry, delimiter);
+        std::vector<std::string> num_val = cosim_util::split_string(entry, delimiter);
         auto csr = num_val.at(0); // expect both csr address("0x301") as well as string("misa")
         auto value = std::stoull(num_val.at(1), nullptr, 0);
         if (csr_map.count(csr))
@@ -915,9 +903,18 @@ sysmod::jtag_tick(uint64_t advance)
        }
    }
 }
+void sysmod::tboxtrig_updatemem(uint64_t addr, uint64_t data) {
+    cvm::log(cvm::NONE, "[SYSMOD.CPP] Got C2 entry\n");
 
-void
-sysmod::overlay_tick(uint64_t advance)
+    device::data_t dataw(8);
+    for (size_t i = 0; i < 8; i++) dataw[i] = (data >> 8*i) & 0xff;
+    device::strb_t strb(8);
+    for (size_t i = 0; i < 8; i++) strb[i] = true;
+
+    dev("trickbox")->backdoor_write(addr, 8, dataw, strb);
+}
+
+void sysmod::overlay_tick(uint64_t advance)
 {
 
   overlay_ticks_ += advance;
