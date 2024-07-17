@@ -33,7 +33,7 @@ extern "C" {
   void axi_sw_r_64(axi::id_t id, axi::resp_t resp, const axi::datum_t* data, axi::last_t last);
 }
 
-template < typename W,typename AW,typename AR, typename RQ>
+template <typename W, typename AW, typename AR, typename RQ>
 axi_sw<W,AW,AR,RQ>::axi_sw(cvm::topology::loc_t loc, unsigned id)
   : scope_(nullptr), loc_(loc),
     id_width_(cvm::topology::attr(loc_, "ID_WIDTH").second),
@@ -41,7 +41,6 @@ axi_sw<W,AW,AR,RQ>::axi_sw(cvm::topology::loc_t loc, unsigned id)
     strb_width_(cvm::topology::attr(loc_, "STRB_WIDTH").second),
     r_q_max_(cvm::topology::attr(loc, "R_Q_MAX").second), r_q_ptr_max_(cvm::topology::attr(loc, "R_Q_PTR_MAX").second),
     r_q_rptr_(0), r_q_wptr_(r_q_max_), r_q_rptr_update_time_(0)
-
     {
     cvm::log(cvm::FULL, "[axi_sw] Constructing axi_sw for loc={} id={}\n", loc,id);
 
@@ -61,7 +60,7 @@ axi_sw<W,AW,AR,RQ>::axi_sw(cvm::topology::loc_t loc, unsigned id)
    connect<RQ,axi_sw_defs::r_q_ptr_blocking_update_t>();
 }
 
-template < typename W,typename AW,typename AR, typename RQ>
+template <typename W, typename AW, typename AR, typename RQ>
 axi_sw<W,AW,AR,RQ>::~axi_sw() {
     if (axi_) {
         delete axi_;
@@ -70,7 +69,7 @@ axi_sw<W,AW,AR,RQ>::~axi_sw() {
     ::destroyed = true;
 }
 
-template < typename W,typename AW,typename AR, typename RQ>
+template <typename W, typename AW, typename AR, typename RQ>
 cvm::messenger::task<void> axi_sw<W,AW,AR,RQ>::process(const AW& aw) {
     cvm::log(cvm::FULL, "[axi_sw] aw: [id={}, addr={:#x}, size={}]\n", aw.id, aw.addr, aw.size);
     co_await a(axi::a_t{true, aw.id, aw.addr, aw.len, aw.size, axi::burst_t(aw.burst), aw.lock != 0,axi::cache_mem_attr_t(aw.cache),aw.prot,aw.qos,aw.region, aw.atop,aw.user});
@@ -78,7 +77,7 @@ cvm::messenger::task<void> axi_sw<W,AW,AR,RQ>::process(const AW& aw) {
     co_return;
 }
 
-template < typename W,typename AW,typename AR, typename RQ>
+template <typename W, typename AW, typename AR, typename RQ>
 cvm::messenger::task<void> axi_sw<W,AW,AR,RQ>::process(const AR& ar) {
     cvm::log(cvm::FULL, "[axi_sw] ar: [id={}, addr={:#x}, size={}]\n", ar.id, ar.addr, ar.size);
     co_await a(axi::a_t{false, ar.id, ar.addr, ar.len, ar.size, axi::burst_t(ar.burst), ar.lock != 0,axi::cache_mem_attr_t(ar.cache),ar.prot,ar.qos,ar.region, 0,ar.user});
@@ -86,7 +85,7 @@ cvm::messenger::task<void> axi_sw<W,AW,AR,RQ>::process(const AR& ar) {
     co_return;
 }
 
-template < typename W,typename AW,typename AR, typename RQ>
+template <typename W, typename AW, typename AR, typename RQ>
 cvm::messenger::task<void> axi_sw<W,AW,AR,RQ>::process(const W& w) {
     cvm::log(cvm::FULL, "[axi_sw] w: [strb={:#x}, last={}]\n", w.strb, w.last);
     axi::data_t vdata = cvm::bitmanip::slice<decltype(w.data), axi::data_t>(w.data);
@@ -102,11 +101,11 @@ cvm::messenger::task<void> axi_sw<W,AW,AR,RQ>::process(const W& w) {
     co_return;
 }
 
-template < typename W,typename AW,typename AR, typename RQ>
+template <typename W, typename AW, typename AR, typename RQ>
 void axi_sw<W,AW,AR,RQ>::process(const axi_sw_defs::r_q_ptr_blocking_update_t& r_q_ptr) {
     struct _t {
         std::atomic<bool>& d;
-        _t(std::atomic<bool>& d) : d(d) {} 
+        _t(std::atomic<bool>& d) : d(d) {}
         ~_t() {
             d = true;
             d.notify_one();
@@ -132,7 +131,7 @@ void axi_sw<W,AW,AR,RQ>::process(const axi_sw_defs::r_q_ptr_blocking_update_t& r
     }
 
     if (r_q_rptr_blocking_update_consecutive_spurious_calls_ >= 0 && r_q_rptr_blocking_update_consecutive_spurious_calls_ > FLAGS_axi_sw_read_consecutive_spurious_calls_allowed) {
-        cvm::log(cvm::ERROR, "Error: no dpis sent in blocking read data update {} after {} failed attempts\n", r_q_ptr.clock, r_q_rptr_blocking_update_consecutive_spurious_calls_);
+        cvm::log(cvm::ERROR, "[axi_sw] Error: no dpis sent in blocking read data update {} after {} failed attempts\n", r_q_ptr.clock, r_q_rptr_blocking_update_consecutive_spurious_calls_);
     }
     *r_q_ptr.successful = sent != 0;
 }
@@ -167,12 +166,12 @@ bool axi_sw<W,AW,AR,RQ>::r_dpi() {
     else if(data_width_ == 512)
         axi_sw_r_64(r.id, r.resp, r.data.data(), r.last);
     else
-        cvm::log(cvm::ERROR, "unsupported data width for axi_sw");
+        cvm::log(cvm::ERROR, "[axi_sw] Error: unsupported data width for axi_sw");
 
     return true;
 }
 
-template < typename W,typename AW,typename AR, typename RQ>
+template <typename W, typename AW, typename AR, typename RQ>
 void axi_sw<W,AW,AR,RQ>::r_resp() {
     while ( (r_q_wptr_ - r_q_rptr_) < r_q_max_ ) {
       auto [valid, result] = axi_->r(false);
@@ -188,7 +187,7 @@ void axi_sw<W,AW,AR,RQ>::r_resp() {
       if (!FLAGS_axi_sw_read_no_callbacks) {
         cvm::registry::callbacks.push(
             scope_,
-              [this]() { 
+              [this]() {
                   std::lock_guard<std::mutex> l(r_dpi_mutex_);
                   r_dpi();
               }
@@ -197,14 +196,14 @@ void axi_sw<W,AW,AR,RQ>::r_resp() {
     }
 }
 
-template < typename W,typename AW,typename AR, typename RQ>
+template <typename W, typename AW, typename AR, typename RQ>
 void axi_sw<W,AW,AR,RQ>::reset_ptrs() {
     r_q_rptr_ = 0;
     r_q_wptr_ = 0;
     r_q_rptr_update_time_ = 0;
 }
 
-template < typename W,typename AW,typename AR, typename RQ>
+template <typename W, typename AW, typename AR, typename RQ>
 void axi_sw<W,AW,AR,RQ>::set_scope(svScope scope) {
     scope_ = scope;
 }
