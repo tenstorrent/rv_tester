@@ -31,6 +31,6 @@ class sysmod_mem : public device {
         bool init_elf(const std::string& path);
 
         /// Initialize memory with LZ4 compressed file.
-        bool init_lz4(const std::string& path);
+        bool init_lz4(const std::string& path, uint64_t offset = 0);
 
 };

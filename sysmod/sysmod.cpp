@@ -31,7 +31,7 @@
 // internal flags
 DEFINE_string(hex, "", "hex file (program) to load into memory");
 DEFINE_string(load, "", "elf file (program) to load into memory");
-DEFINE_string(load_lz4, "", "lz4 compressed file (program) to load into memory");
+DEFINE_string(load_lz4, "", "lz4 compressed file (program) to load into memory. If there's a colon, the number after the colon is interpreted as the offset to load the image into memory");
 DEFINE_bool(bootrom, true, "Load bootrom before test");
 DEFINE_bool(enable_sp_init, false, "Enable sharedcache scratchpad initilization from bootrom");
 DEFINE_string(bootrom_path, "", "Path to bootrom object file");
@@ -80,6 +80,9 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::jtag_tick<>>(
       loc_,
       [this](const rv_tester_transactions::sysmod::jtag_tick<>& t) { return this->jtag_tick(t.advance); });
+  cvm::registry::messenger.connect<rv_tester_transactions::sysmod::overlay_tick<>>(
+      loc_,
+      [this](const rv_tester_transactions::sysmod::overlay_tick<>& t) { return this->overlay_tick(t.advance); });
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::jtag_rdata<>>(
       loc_,
       [this](const rv_tester_transactions::sysmod::jtag_rdata<>& t) { return this->jtag_resp(t.rdata); });
@@ -626,7 +629,16 @@ sysmod::load_prog(const std::string& hex, const std::string& load, const std::st
 
     if (lz4 != "") {
       cvm::log(cvm::MEDIUM, "Loading {}\n", lz4);
-      if (not dev("memory") or not dynamic_cast<sysmod_mem&>(*dev("memory")).init_lz4(lz4)) {
+      // split string by colon into file path and offset
+      // if no colon is found, assume offset is 0
+      std::string file = FLAGS_load_lz4;
+      uint64_t offset = 0;
+      if(std::size_t pos = FLAGS_load_lz4.find(':'); pos != std::string::npos) {
+        file = FLAGS_load_lz4.substr(0, pos);
+        std::string offset_str = FLAGS_load_lz4.substr(pos + 1);
+        offset = std::stoull(offset_str, nullptr, 0);
+      }
+      if (not dev("memory") or not dynamic_cast<sysmod_mem&>(*dev("memory")).init_lz4(file, offset)) {
         cvm::log(cvm::ERROR, "No memory defined");
         return;
       }
@@ -883,6 +895,18 @@ void sysmod::tboxtrig_updatemem(uint64_t addr, uint64_t data) {
     for (size_t i = 0; i < 8; i++) strb[i] = true;
 
     dev("trickbox")->backdoor_write(addr, 8, dataw, strb);
+}
+
+void sysmod::overlay_tick(uint64_t advance)
+{
+
+  overlay_ticks_ += advance;
+
+   if (advance) {
+       for (auto& d : devices_) {
+           d->overlay_tick(advance);
+       }
+   }
 }
 extern "C" {
   void sysmod_set_scope(cvm::topology::loc_t loc) {

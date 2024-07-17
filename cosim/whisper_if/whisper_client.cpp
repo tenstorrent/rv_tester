@@ -62,8 +62,15 @@ constructSystem(uint16_t ncores, bool standalone, bool firmware) {
 
 
   if (FLAGS_load_lz4 != "") {
-    std::vector<std::string> targets = {FLAGS_load_lz4};
-    if (not system->loadLz4Files(targets, 0, false))
+    std::string file = FLAGS_load_lz4;
+    uint64_t offset = 0;
+    if(std::size_t pos = FLAGS_load_lz4.find(':'); pos != std::string::npos) {
+      file = FLAGS_load_lz4.substr(0, pos);
+      std::string offset_str = FLAGS_load_lz4.substr(pos + 1);
+      offset = std::stoull(offset_str, nullptr, 0);
+    }
+    std::vector<std::string> targets = {file};
+    if (not system->loadLz4Files(targets, offset, false))
       return nullptr;
   }
 
@@ -318,8 +325,7 @@ whisperClient<URV>::whisperPeek(int hart, char resource, uint64_t addr, uint64_t
 
   valid = reply.type != WhisperMessageType::Invalid;
   value = reply.value;
-  return true;
-}
+  return true;}
 
 template <typename URV>
 bool
@@ -477,9 +483,11 @@ whisperClient<URV>::whisperStep(int hart, uint64_t time, uint64_t instrTag, uint
   unsigned trap = wflags.bits.trap;
   unsigned stop = wflags.bits.stop;
   unsigned virt = wflags.bits.virt;
+  unsigned debug = wflags.bits.debug;
   unsigned load = wflags.bits.load;
 
-  privMode = mode | (virt << 3);
+
+  privMode = debug ? 5 : mode | (virt << 3);
   fpFlags = flags;
   hasTrap = trap;
   hasStop = stop;
@@ -763,6 +771,7 @@ template <typename URV>
 bool
 whisperClient<URV>::whisperEnterDebug()
 {
+  std::cout<<"Whisper client Enter Debug\n";
   req.hart = 0;
   req.type = WhisperMessageType::EnterDebug;
 
@@ -776,6 +785,7 @@ template <typename URV>
 bool
 whisperClient<URV>::whisperExitDebug()
 {
+  std::cout<<"Whisper client Exit Debug\n";
   req.hart = 0;
   req.type = WhisperMessageType::ExitDebug;
 

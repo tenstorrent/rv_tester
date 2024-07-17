@@ -939,6 +939,7 @@ namespace {
     };
 
     typedef enum : size_t {
+        DEBUG = 0,
         SSI = 1,
         VSSI = 2,
         MSI = 3,
@@ -953,6 +954,7 @@ namespace {
     } intr;
 
     const std::unordered_map<intr, std::string_view> intr_to_string = {
+        {DEBUG, "DEBUG"},
         {SSI, "SSI"},
         {VSSI, "VSSI"},
         {MSI, "MSI"},
