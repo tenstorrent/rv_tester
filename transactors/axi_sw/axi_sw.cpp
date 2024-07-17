@@ -20,7 +20,7 @@ DEFINE_int32(axi_sw_read_latency_timeout_threshold, 1, "How many cycles under ax
 DEFINE_int32(axi_sw_read_latency_fifo_threshold, 1, "How many remaining fifo entries in the read request history fifo before stopping the clock on zebu.");
 DEFINE_int32(axi_sw_read_latency_fixed, 0, "Fixed latency of axi reads");
 DEFINE_bool(axi_sw_read_no_callbacks, false, "Plusarg to test synchronous read flushes are working by turning off asynchronous callbacks. Must use with +axi_sw_read_latenxy_*");
-DEFINE_int32(axi_sw_read_consecutive_spurious_calls_allowed, 0, "Ignore N spurious call after a non-spurious call. Set to -1 to ignore all spurious calls. Spurious calls should not break function but slow down emulation.");
+DEFINE_int32(axi_sw_read_consecutive_spurious_calls_allowed, -1, "Ignore N spurious call after a non-spurious call. Set to -1 to ignore all spurious calls. Spurious calls should not break function but slow down emulation.");
 
 namespace {
     bool destroyed = false;
@@ -131,7 +131,7 @@ void axi_sw<W,AW,AR,RQ>::process(const axi_sw_defs::r_q_ptr_blocking_update_t& r
         r_q_rptr_blocking_update_consecutive_spurious_calls_ ++;
     }
 
-    if (r_q_rptr_blocking_update_consecutive_spurious_calls_ >= 0 && r_q_rptr_blocking_update_consecutive_spurious_calls_ > FLAGS_axi_sw_read_consecutive_spurious_calls_allowed) {
+    if (FLAGS_axi_sw_read_consecutive_spurious_calls_allowed >= 0 && r_q_rptr_blocking_update_consecutive_spurious_calls_ > FLAGS_axi_sw_read_consecutive_spurious_calls_allowed) {
         cvm::log(cvm::ERROR, "Error: no dpis sent in blocking read data update {} after {} failed attempts\n", r_q_ptr.clock, r_q_rptr_blocking_update_consecutive_spurious_calls_);
     }
     *r_q_ptr.successful = sent != 0;
