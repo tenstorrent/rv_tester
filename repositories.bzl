@@ -67,11 +67,11 @@ def rv_tester_repositories():
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/forks/rules_python/-/archive/{VERSION}/rules_python-{VERSION}.tar.bz2".format(VERSION=rules_python_version)
     )
 
-    mem_manager_hash="676b131ee3b6b02ec7778bc47bc58d593343b8da"
+    mem_manager_hash="937feeda4906c3ac6947bb4deb2dd2df75cf765e"
     maybe(
         http_archive,
         name = "mem_manager",
-        sha256 = "d8c7b4af95af9c4aac57c4231ea8b619a64e31a2f36b9eb539b8d62f1834df68",
+        sha256 = "6bfefda857cf12650432e379246778f4411d13b2015ae1b4ec3aa3a2c9003395",
         strip_prefix = "mem-manager-{commit}".format(commit=mem_manager_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/mem-manager/-/archive/{commit}/mem-manager-{commit}.tar.bz2".format(commit=mem_manager_hash),
     )

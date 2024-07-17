@@ -32,7 +32,7 @@
 // internal flags
 DEFINE_string(hex, "", "hex file (program) to load into memory");
 DEFINE_string(load, "", "elf file (program) to load into memory");
-DEFINE_string(load_lz4, "", "lz4 compressed file (program) to load into memory");
+DEFINE_string(load_lz4, "", "lz4 compressed file (program) to load into memory. If there's a colon, the number after the colon is interpreted as the offset to load the image into memory");
 DEFINE_bool(bootrom, true, "Load bootrom before test");
 DEFINE_bool(enable_sp_init, false, "Enable sharedcache scratchpad initilization from bootrom");
 DEFINE_string(bootrom_path, "", "Path to bootrom object file");
@@ -655,7 +655,16 @@ sysmod::load_prog(const std::string& hex, const std::string& load, const std::st
 
     if (lz4 != "") {
       cvm::log(cvm::MEDIUM, "Loading {}\n", lz4);
-      if (not dev("memory") or not dynamic_cast<sysmod_mem&>(*dev("memory")).init_lz4(lz4)) {
+      // split string by colon into file path and offset
+      // if no colon is found, assume offset is 0
+      std::string file = FLAGS_load_lz4;
+      uint64_t offset = 0;
+      if(std::size_t pos = FLAGS_load_lz4.find(':'); pos != std::string::npos) {
+        file = FLAGS_load_lz4.substr(0, pos);
+        std::string offset_str = FLAGS_load_lz4.substr(pos + 1);
+        offset = std::stoull(offset_str, nullptr, 0);
+      }
+      if (not dev("memory") or not dynamic_cast<sysmod_mem&>(*dev("memory")).init_lz4(file, offset)) {
         cvm::log(cvm::ERROR, "No memory defined");
         return;
       }
