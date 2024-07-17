@@ -4,6 +4,7 @@
 
 REGISTRY_register(reset_sequence, PWRMGMT, cvm::registry::all);
 
+DEFINE_bool(pwrmgmt, false, "Runtime disable for pwrmgmt");
 DEFINE_uint32(pll_pwrup_timeout, 50, "Number of soc cycles expected for pll to be stable");
 DEFINE_string(warm_reset, "off", "Enable warm resets in the sim - off/random/trigger");
 DEFINE_string(warm_reset_count, "0:4", "Number of warm resets in the sim if random mode enabled");
@@ -23,6 +24,7 @@ extern "C" {
 }
 
 reset_sequence::reset_sequence(cvm::topology::loc_t loc, unsigned) : loc_(loc), scope_(nullptr) {
+
   // Topology
   smc_axi_loc_ = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_SMC_MST", 0);
 
@@ -85,6 +87,9 @@ cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
   // Wait for 16 clock ticks
   for (int i=0; i<16; ++i)
     co_await tick();
+
+  if (!FLAGS_pwrmgmt)
+    co_return;
 
   // Check and clear pll status
   co_await check_pll_status();

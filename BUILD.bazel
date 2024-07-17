@@ -40,7 +40,7 @@ verilog_library(
 
 bool_flag(
     name = "pwrmgmt",
-    build_setting_default = False,
+    build_setting_default = True,
     visibility = ["//visibility:public"],
 )
 
