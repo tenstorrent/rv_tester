@@ -50,7 +50,7 @@ uc_helper::update_mem_model(uc_helper::trickbox_mem_req_t& i) {
 
   //Poke same data to whisper memory        
   cvm::log(cvm::HIGH, "[UC_HELPER] BACKDOOR whisper poke addr{:#x} poke_data {:#x} \n",uc_helper_base,poke_data);
-  if (!client_->whisperPoke(hart, 0, 'm', uc_helper_base, poke_data, valid)) {
+  if (!client_->whisperPokeMen(hart, 0, 'm', uc_helper_base,8, poke_data, valid)) {
     cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
     return;
   }{
@@ -139,7 +139,7 @@ void
          mem::datum_t m_data_p = (mem::datum_t)m_data;
       
          //Poke same data to whisper memory        
-         if (!client_->whisperPoke(hart, 0, 'm', tx_addr + i, poke_data, valid)) {
+         if (!client_->whisperPokeMem(hart, 0, 'm', tx_addr + i,8, poke_data, valid)) {
           cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
           return;
          }
@@ -163,7 +163,7 @@ void
        bool valid;
        
        cvm::log(cvm::HIGH, "[UC_HELPER] Init of Address Range Completed  \n");
-       if (!client_->whisperPoke(hart, 0, 'm', uc_helper_base, poke_data, valid)) {
+       if (!client_->whisperPokeMem(hart, 0, 'm', uc_helper_base,8, poke_data, valid)) {
           cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
           return;
        } 
