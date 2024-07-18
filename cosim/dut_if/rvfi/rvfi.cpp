@@ -21,8 +21,8 @@ DEFINE_bool(mcm, false, "Enable mcm");
 DEFINE_bool(cosim, true, "Enable cosim checking");
 DEFINE_bool(emulate_amo_arithmetic, true, "Emulate amo arithmetic if dut harness does not provide amo outputs");
 
-DEFINE_uint64(debug_entry_pc, 0xa110800, "Debug Mode entry PC");
-DEFINE_uint64(debug_exit_pc, 0xa110860, "Debug Mode exit PC");
+DEFINE_uint64(debug_entry_pc, 0x42190800, "Debug Mode entry PC");
+DEFINE_uint64(debug_exit_pc, 0x42190860, "Debug Mode exit PC");
 
 REGISTRY_register(rvfi, COSIM, cvm::registry::all);
 
@@ -537,7 +537,7 @@ void rvfi::enter_debug_mode(rv_instr_t& instr) {
     return;
 
   if ((uint64_t)instr.pc.pc_rdata == FLAGS_debug_entry_pc) {
-
+    // (instr.intr && (instr.icause == 0)) { 
     rv_debug_t debug;
 
     debug.cycle = instr.cycle;

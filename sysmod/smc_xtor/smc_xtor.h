@@ -131,7 +131,7 @@ class smc_xtor : public device {
               return;
             cvm::log(cvm::FULL, "[SMC] tick {:#X} \n",cnt_tick);
             if(in_boot_seq && ( cnt_tick > uint32_t(FLAGS_smc_reset_seq_start_ticks))){
-            cvm::log(cvm::FULL, "[SMC] IN BOOT SEQ {} reset completion {} {}\n",in_boot_seq,reset_completion);
+            cvm::log(cvm::FULL, "[SMC] IN BOOT SEQ {} reset completion {}\n",in_boot_seq,reset_completion);
               if(!reset_completion || (pll_programming_done & !pll_dfs_done)){
                   cvm::log(cvm::FULL, "[SMC] Check axi read response for 0x0210300C, pll_programming_done {} \n", pll_programming_done);
                   cvm::log(cvm::FULL, "[SMC] axi read response  Queue size for  0x0210300C = {} \n",smc_read_resp_q.size());

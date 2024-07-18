@@ -74,6 +74,9 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::jtag_tick<>>(
       loc_,
       [this](const rv_tester_transactions::sysmod::jtag_tick<>& t) { return this->jtag_tick(t.advance); });
+  cvm::registry::messenger.connect<rv_tester_transactions::sysmod::overlay_tick<>>(
+      loc_,
+      [this](const rv_tester_transactions::sysmod::overlay_tick<>& t) { return this->overlay_tick(t.advance); });
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::jtag_rdata<>>(
       loc_,
       [this](const rv_tester_transactions::sysmod::jtag_rdata<>& t) { return this->jtag_resp(t.rdata); });
@@ -362,7 +365,7 @@ sysmod::jtag_req(jtag_driver::jtag_data_t i) {
   cvm::registry::callbacks.push(
       scope(),
       [i]() {
-        cvm::log(cvm::FULL, "[SYSMOD] trickbox jtag_driver::dmi.(upper,lower) = {:#x}, {:#x}\n",i.upper_jtag_data, i.lower_jtag_data, i.jtag_length_data);
+        cvm::log(cvm::FULL, "[SYSMOD] trickbox jtag_driver::dmi.(upper,lower) = {:#x}, {:#x} length = {:#x}\n",i.upper_jtag_data, i.lower_jtag_data, i.jtag_length_data);
         sysmod_jtag_req(i.jtag_cmd, i.upper_jtag_data, i.lower_jtag_data,i.jtag_length_data,i.jtag_quit);
       });
 }
@@ -918,6 +921,18 @@ void sysmod::tboxtrig_updatemem(uint64_t addr, uint64_t data) {
     for (size_t i = 0; i < 8; i++) strb[i] = true;
 
     dev("trickbox")->backdoor_write(addr, 8, dataw, strb);
+}
+
+void sysmod::overlay_tick(uint64_t advance)
+{
+
+  overlay_ticks_ += advance;
+
+   if (advance) {
+       for (auto& d : devices_) {
+           d->overlay_tick(advance);
+       }
+   }
 }
 extern "C" {
   void sysmod_set_scope(cvm::topology::loc_t loc) {
