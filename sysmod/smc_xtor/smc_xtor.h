@@ -30,7 +30,7 @@ class smc_xtor : public device {
         bool in_boot_seq = true; 
         bool reset_completion = false;
         bool read_in_flight = false;
-        bool write_in_flight = false;
+        std::atomic<bool> write_in_flight = false;
         bool pll_programming_done = false;
         bool pll_dfs_done = false;
         bool pll_scalar_divider = 3;
