@@ -50,7 +50,7 @@ uc_helper::update_mem_model(uc_helper::trickbox_mem_req_t& i) {
 
   //Poke same data to whisper memory        
   cvm::log(cvm::HIGH, "[UC_HELPER] BACKDOOR whisper poke addr{:#x} poke_data {:#x} \n",uc_helper_base,poke_data);
-  if (!client_->whisperPokeMen(hart, 0, 'm', uc_helper_base,8, poke_data, valid)) {
+  if (!client_->whisperPokeMem(hart, 0, 'm', uc_helper_base,8, poke_data, valid)) {
     cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
     return;
   }{
