@@ -68,12 +68,13 @@ void smc_xtor::axi_write() {
   cvm::log(cvm::HIGH, "[SMC] write {:#X} loc :{:#X} data:{:#X} \n",addr,axi_mst_loc_l,wr.data);
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb});
   cvm::topology::loc_t axi_mst_loc_lambda = axi_mst_loc_l;
-   auto* l = +[](cvm::topology::loc_t axi_mst_loc_lambda) -> cvm::messenger::task<void>{
-    co_await cvm::registry::messenger.wait<transactor::write_response_t>(axi_mst_loc_lambda);
+  auto t = std::make_tuple(axi_mst_loc_lambda, std::ref(write_in_flight));
+  auto* l = +[](decltype(t) t) -> cvm::messenger::task<void>{
+    co_await cvm::registry::messenger.wait<transactor::write_response_t>(std::get<0>(t));
     //auto resp = co_await cvm::registry::messenger.wait<transactor::write_response_t>(axi_mst_loc_lambda);
+    std::get<1>(t) = false;
   };
-  cvm::registry::messenger.fork(l,axi_mst_loc_lambda);
-  write_in_flight = false;
+  cvm::registry::messenger.fork(l, t);
 
 }
 
