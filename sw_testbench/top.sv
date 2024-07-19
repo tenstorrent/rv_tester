@@ -34,9 +34,10 @@ module top
     assign dut_reset[SOC_RESET_IDX] = reset[COLD_RESET_IDX];
     assign dut_reset[REF_RESET_IDX] = reset[COLD_RESET_IDX];
 
-    function automatic void write_rvfi(byte unsigned valid, int unsigned hartid, int unsigned nretid, int unsigned insn, longint unsigned pc);
+    function automatic void write_rvfi(byte unsigned valid, int unsigned order, int unsigned hartid, int unsigned nretid, int unsigned insn, longint unsigned pc);
         int unsigned idx = hartid * topology_pkg::mods.TOP.PLATFORM.COSIM.RVFI.NRETS_CUMSUM[hartid] + nretid;
         rvfi[idx].valid = (valid != '0);
+        rvfi[idx].order = {32'h0, order};
         rvfi[idx].hart = hartid[HARTLEN-1:0];
         rvfi[idx].pc_rdata = pc;
         rvfi[idx].insn = insn;
@@ -47,10 +48,11 @@ module top
 
     export "DPI-C" function write_rvfi;
 
-    import "DPI-C" context function void get_1c_stimulus(logic reset);
-    import "DPI-C" context function void get_2c_stimulus(logic reset);
+    import "DPI-C" context function void get_1c_stimulus(logic reset, int unsigned order);
+    import "DPI-C" context function void get_2c_stimulus(logic reset, int unsigned order);
 
     longint unsigned clocks = '0;
+    int unsigned order = '0;
     assign quiesced = '1;
     assign dmi_req_ready = '0;
     assign dmi_resp_valid = '0;
@@ -69,11 +71,12 @@ module top
         if (!reset[COLD_RESET_IDX]) begin
             clocks <= clocks + 1;
         end
+        order <= order + 1;
         case(HARNESS)
         SW_1C:
-          get_1c_stimulus(reset[COLD_RESET_IDX]);
+          get_1c_stimulus(reset[COLD_RESET_IDX], order);
         SW_2C:
-          get_2c_stimulus(reset[COLD_RESET_IDX]);
+          get_2c_stimulus(reset[COLD_RESET_IDX], order);
         default:
             $error("No harness specified");
         endcase

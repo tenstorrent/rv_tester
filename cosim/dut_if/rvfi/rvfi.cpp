@@ -63,7 +63,7 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
   uint32_t ncores = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
   if (ncores > 1) {
     FLAGS_mcm = true;
-    cvm::log(cvm::NONE, "[plusargs] +mcm");
+    cvm::log(cvm::NONE, "[plusargs] +mcm\n");
   }
 
   // Reset/init configuration
