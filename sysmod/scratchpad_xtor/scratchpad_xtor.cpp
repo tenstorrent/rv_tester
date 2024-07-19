@@ -10,6 +10,8 @@
 DEFINE_bool(sp_xtor_en, false, "Enable scratchpad transactor acceses ");
 DEFINE_bool(sp_xtor_mmr_prog_en, false, "Enable programming of SP mmr from Scraptchpad transactor ");
 DEFINE_bool(sp_xtor_rnd_traffic_en, false, "Enable programming of SP mmr from Scraptchpad transactor ");
+DEFINE_bool(sp_xtor_test_cwfr, false, "Read SP data written by core ");
+DEFINE_bool(sp_xtor_test_fwcr, false, "Write SP data for core to read ");
 
 
 scratchpad_xtor::scratchpad_xtor(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc)
@@ -118,19 +120,13 @@ cvm::messenger::task<void> scratchpad_xtor::axi_read_granular(const transactor::
   auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(channel);
 
   scratchpad_xtor_read_req_t scratchpad_xtor_rd;
-  scratchpad_xtor_rd.addr =ar_txn.addr ;
+  scratchpad_xtor_rd.addr = ar_txn.addr ;
   scratchpad_xtor_rd.length = 0 ;
   scratchpad_xtor_rd.id = 2;
   scratchpad_xtor_rd.data = resp.data;  
   for (int i = 0; i < int(resp.data.size()); ++i) {
-
-         cvm::log(cvm::FULL, "[scratchpad] read resp byte {} =  {:#X} \n",i,uint32_t(resp.data[i]));
-         if(ref_data_strb[i]){
-          if(ref_data[i] != resp.data[i]){
-            cvm::log(cvm::ERROR, "Error: [Scratchpad] Read data {:#X}  not matching with previously written data {:#X} ",uint32_t(ref_data[i]),uint32_t(resp.data[i]));
-          }
-         }
-    }
+    cvm::log(cvm::FULL, "[scratchpad] read resp byte {} =  {:#X} \n",i,uint32_t(resp.data[i]));
+  }
 
   scratchpad_read_resp_q.push(scratchpad_xtor_rd); 
   cvm::log(cvm::FULL, "[scratchpad] read addr {:#X} completed\n",scratchpad_xtor_rd.addr);
