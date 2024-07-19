@@ -43,9 +43,9 @@ DEFINE_uint64(sp_ways_num, 0x1, "Number of sharedcache ways to be alloted as Scr
 DEFINE_string(set_csr, "", "+set_csr=<csr_num>:<value>,<num2>:<val2> ");
 DEFINE_string(set_mmr, "", "+set_mmr=<addr>:<size>:<value>,<addr2>:<size>:<val2>");
 DEFINE_uint64(seed, 1, "Simulation seed passed down for randomization");
-DEFINE_uint32(num_harts, 1, "Number of enabled harts - upto 8");
-DEFINE_uint32(hart_enable_mask, 0x1, "Hart enable mask. Ex: With 2 enabled harts in a 8-hart system, could be 0x18. Should match num_harts.");
-DEFINE_string(hart_enable_id, "0", "Hart id sequence corresponding to physical cores. Ex: With 2 enabled harts in a 8-hart system, could be 4,3 i.e. hart0=core4, hart1=core3.");
+DEFINE_uint32(num_harts, 0, "Number of enabled harts - upto 8");
+DEFINE_uint32(hart_enable_mask, 0, "Hart enable mask. Ex: With 2 enabled harts in a 8-hart system, could be 0x18. Should match num_harts.");
+DEFINE_string(hart_enable_id, "", "Hart id sequence corresponding to physical cores. Ex: With 2 enabled harts in a 8-hart system, could be 4,3 i.e. hart0=core4, hart1=core3.");
 DEFINE_uint32(num_sc_ways, 24, "Number of enabled SC ways - upto 24 in multiples of 4");
 DEFINE_uint32(sc_way_enable_mask, 0xFFFFFF, "SC way enable mask. Ex: With 20 enabled ways out of 24, could be 0xF0_FFFF.");
 DEFINE_uint32(trace_enable, 1, "Trace enable fuse");
@@ -137,6 +137,27 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
             });
   }
 
+  // Flags configuration
+  uint32_t ncores = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
+  uint32_t nharts = 0;
+  if (FLAGS_num_harts == 0 && FLAGS_hart_enable_mask == 0)
+    nharts = ncores;
+  else if (FLAGS_num_harts != 0)
+    nharts = FLAGS_num_harts;
+  else if (FLAGS_hart_enable_mask != 0)
+    nharts = std::bitset<32>(FLAGS_hart_enable_mask).count();
+
+  std::ostringstream oss;
+  FLAGS_num_harts = nharts;
+  FLAGS_hart_enable_mask = (1u << nharts) - 1;
+  for (uint32_t i = 0; i < nharts; ++i) 
+    oss << i << (i < nharts - 1 ? "," : "");
+  FLAGS_hart_enable_id = oss.str();
+
+  cvm::log(cvm::NONE, "[plusargs] +num_harts={} +hart_enable_mask={} +hart_enable_id={}\n",
+    FLAGS_num_harts, FLAGS_hart_enable_mask, FLAGS_hart_enable_id);
+
+  // Reset configuration
   reset();
 }
 
@@ -370,7 +391,6 @@ sysmod::terminate(htif::terminate_t t) {
 
 void
 sysmod::reset() {
-  override_plusargs();
   compose();
   load_prog(FLAGS_hex, FLAGS_load, FLAGS_load_lz4);
   load_io(FLAGS_load_io);
@@ -378,35 +398,6 @@ sysmod::reset() {
   if (!FLAGS_cosim)
     load_csr_mmr_boot(0);
   load_cplfw(FLAGS_cplfw_path);
-}
-
-void
-sysmod::override_plusargs()
-{
-  // Overwrite hart_enable_mask in a random fashion based on num_harts run-arg
-  // Do this only when hart_enable_mask run-arg is 0x1 (default value)
-  if (FLAGS_hart_enable_mask == 0x1) {
-    uint8_t mask = 0;
-    std::set<uint8_t> unique_bit_positions;
-    cvm::rand::rng<uint32_t> rng;
-    std::ostringstream oss;
-    uint32_t i = 0;
-    // Generate unique bit positions
-    while (unique_bit_positions.size() < FLAGS_num_harts) {
-      unique_bit_positions.insert(rng() % FLAGS_num_harts);
-    }
-    // Set bits in mask
-    for (uint8_t bit_position : unique_bit_positions) {
-      if (i != 0) oss << ",";
-      oss << std::to_string(bit_position);
-      ++i;
-      mask |= (1 << bit_position);
-    }
-    FLAGS_hart_enable_mask = mask;
-    FLAGS_hart_enable_id = oss.str();
-    cvm::log(cvm::LOW, "[sysmod] Overwriting hart_enable_mask to {:#x}\n", FLAGS_hart_enable_mask);
-    cvm::log(cvm::LOW, "[sysmod] Overwriting hart_enable_id to {}\n", FLAGS_hart_enable_id);
-  }
 }
 
 void

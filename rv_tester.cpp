@@ -86,6 +86,7 @@ extern "C" {
     }
 
     int rv_tester_parse_flags() {
+        cvm::log(cvm::NONE, "[plusargs] Parsing...\n");
         cvm::plusargs::parse();
         cvm::rand::seed(FLAGS_seed);
         return 0;

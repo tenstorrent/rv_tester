@@ -32,7 +32,6 @@ class rvfi {
   public:
 
     rvfi(cvm::topology::loc_t loc, unsigned id);
-
     ~rvfi();
 
   private:

@@ -21,6 +21,10 @@ extern "C" {
   void pwrmgmt_warm_reset(uint8_t val);
   void pwrmgmt_reset_hold(uint8_t sram, uint8_t debug, uint8_t critical);
   void pwrmgmt_force_ref_clk(uint8_t val);
+
+  uint8_t pwrmgmt_get_warm_reset_en(const char* mode) {
+    return (std::string(mode) != "off");
+  }
 }
 
 reset_sequence::reset_sequence(cvm::topology::loc_t loc, unsigned) : loc_(loc), scope_(nullptr) {
@@ -70,8 +74,9 @@ void reset_sequence::warm_reset_trigger_mode_sequence_thread() {
 };
 
 cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
-  // Wait for first clock tick
-  co_await tick();
+  // Wait for first couple clock ticks
+  for (int i=0; i<2; ++i)
+    co_await tick();
 
   // Init values for all pins
   // Assert cold reset

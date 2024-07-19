@@ -492,10 +492,10 @@ module rv_tester
     end
 `endif
 
-    localparam RESET_CLOCKS = 16;
-    assign init_pulse = (clocks < RESET_CLOCKS);
+    localparam RESET_TB_CLOCKS = 100;
+    assign init_pulse = (clocks < RESET_TB_CLOCKS);
     generate
-        if (PWRMGMT_EN) begin : pwrmgmt_gen
+        if (PWRMGMT_EN) begin : pwrmgmt
             pwrmgmt #(
                 .NUM(0),
                 `TOPOLOGY_CFG,
@@ -515,7 +515,7 @@ module rv_tester
             );
             assign force_ref_clk = pwrmgmt_force_ref_clk || init_pulse;
         end else begin
-            assign cold_reset = (clocks < RESET_CLOCKS);
+            assign cold_reset = (clocks < RESET_TB_CLOCKS);
             assign warm_reset = '0;
             assign force_ref_clk = '1;
         end

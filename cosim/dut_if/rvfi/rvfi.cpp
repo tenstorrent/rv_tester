@@ -28,7 +28,6 @@ REGISTRY_register(rvfi, COSIM, cvm::registry::all);
 
 rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
   : log("h" + std::to_string(id) + "_dut_rvfi.log"), loc_(loc), id_(id) {
-  init();
   whisper::initialize();
 
   cvm::registry::messenger.connect<svScope>(
@@ -59,6 +58,16 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
   connect<
     rv_tester::terminate_called
   >(cvm::topology::get_from_type("PLATFORM", 0));
+
+  // Flags configuration
+  uint32_t ncores = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
+  if (ncores > 1) {
+    FLAGS_mcm = true;
+    cvm::log(cvm::NONE, "[plusargs] +mcm");
+  }
+
+  // Reset/init configuration
+  init();
 }
 
 rvfi::~rvfi() {
