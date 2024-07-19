@@ -170,7 +170,7 @@ private:
 
 private:
 
-  cvm::file_logger log;
+  cvm::file_logger bridge_log_;
   cvm::topology::loc_t loc_;
   unsigned id_;
 
