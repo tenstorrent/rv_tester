@@ -133,7 +133,7 @@ class scratchpad_xtor : public device {
              }
              if(cnt_tick == rnd_traffic_cnt_tick+ 8){
                 axi_read(sp_addr,4,4);
-                rnd_traffic_cnt_tick = cnt_tick + rng()% 60; //5 cycle min buffer
+                rnd_traffic_cnt_tick = cnt_tick + 5 + rng()% 60; //5 cycle min buffer
              }
             }else{
             cvm::log(cvm::HIGH, " SCRATCHPAD_XTOR tick {}\n",cnt_tick);
