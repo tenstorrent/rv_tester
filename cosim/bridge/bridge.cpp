@@ -26,6 +26,8 @@
 #include <fmt/format.h>
 #include <random>
 
+DEFINE_uint64(resetpc, 0x80000000, "Reset PC");
+DEFINE_uint64(resetpcfw, 0xC0040000, "Reset firmware PC");
 DEFINE_bool(whisper_exec, true, "Enable rvfi instr processing...disable useful for measuring rvfi DPI performance");
 DEFINE_bool(bridge_log, true, "Enable bridge logging");
 DEFINE_string(whisper_json_path, "", "Path to whisper json config");
@@ -158,13 +160,18 @@ void bridge::reset() {
   cac_.Reset();
   assert(cac_.SetVlen(vlen_));
 
-  if (client_->whisperConnect(num_harts_) != 0) {
+  if (first_reset_ && client_->whisperConnect(num_harts_) != 0) {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed whisper_connect\n", id_);
     return;
   }
 
+  first_reset_ = false;
+
   bool valid;
-  client_->whisperReset(0, valid);
+  if (!client_->whisperReset(id_, FLAGS_resetpc, valid)) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: Failed whisper reset\n", id_);
+    return;
+  }
 
   // Init csr reset values in cac
   csr_init();
