@@ -237,13 +237,16 @@ void jtag_driver::drive_csv_jtag_cmds()
       cvm::log(cvm::HIGH, "[JTAGDRIVER] Pushing jtag nops for {} ticks\n", nop_count);
       jtag_cmd_q.pop(); // pop front eleme7t
     }
-    if(jtag_cmd == 7){  //JTAG quit, signal to end simulation once csv ends
+    if(jtag_cmd == 7 && !FLAGS_random_jtag_entry){  //JTAG quit, signal to end simulation once csv ends
  
       cvm::log(cvm::HIGH, "[JTAGDRIVER] ******************* \n");
       cvm::log(cvm::HIGH, "[JTAGDRIVER] Sending Quit signal \n");
       cvm::log(cvm::HIGH, "[JTAGDRIVER] ******************* \n");
       trickboxJtagWrite(hart, jtag_cmd, 0, 0,0,1);
     
+    }else if(jtag_cmd == 7){
+      csv_completed = 1;
+      jtag_cmd_q.pop();
     }
 
     if(jtag_cmd == 4){  //ck expecting check on rdata
