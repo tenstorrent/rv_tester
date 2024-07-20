@@ -248,6 +248,12 @@ bool exitLoop() {
           parse_jtag_from_csv();
           genNextJtagEvents();
           snippets_driven++;
+        }else{
+          cvm::log(cvm::HIGH, "[JTAGDRIVER] ******************* \n");
+          cvm::log(cvm::HIGH, "[JTAGDRIVER] Sending Quit signal \n");
+          cvm::log(cvm::HIGH, "[JTAGDRIVER] ******************* \n");
+          trickboxJtagWrite(0, 7, 0, 0,0,1);
+          //arg1 hart = 0, arg2 jtag_cmd = 7(qt)
         }
       }
     }
