@@ -1,9 +1,7 @@
-#include "rv_tester_plusargs.h"
 #include "cvm/logger.hpp"
+#include "cvm/plusargs.hpp"
 
 DEFINE_int32(max_stall_cycle, 20000, "Max stall cycle limit to terminate the sim");
-DEFINE_uint32(num_harts, 1, "Max number of harts to enable");
-DEFINE_uint64(hart_enable_mask, 0x1, "Hart enable mask. Ex: To enable 2 harts in a 8-hart system, use 0x3. Should match num_harts.");
 
 DEFINE_double(ext_mem_stall_factor, 0.8, "Apply mult factor for shared cache to max_stall_cycle");
 
