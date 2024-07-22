@@ -239,15 +239,22 @@ bool exitLoop() {
     cvm::log(cvm::FULL, "Timer chk jtag evt \n");
     if (FLAGS_random_jtag_entry)
     {
-      if (timer_ >= timer_rand_debug)
+      if (timer_ >= timer_rand_debug && csv_completed )
       {
         cvm::log(cvm::HIGH, "Timer passed random evt Value\n");
         rnd_jtag_trigger = 1;
+        csv_completed = 0;
         if (snippets_driven < (unsigned)FLAGS_jtag_max_snippets)
         {
           parse_jtag_from_csv();
           genNextJtagEvents();
           snippets_driven++;
+        }else{
+          cvm::log(cvm::HIGH, "[JTAGDRIVER] ******************* \n");
+          cvm::log(cvm::HIGH, "[JTAGDRIVER] Sending Quit signal \n");
+          cvm::log(cvm::HIGH, "[JTAGDRIVER] ******************* \n");
+          trickboxJtagWrite(0, 7, 0, 0,0,1);
+          //arg1 hart = 0, arg2 jtag_cmd = 7(qt)
         }
       }
     }
@@ -277,6 +284,7 @@ private:
   uint64_t jtag_driver_trigger = 0x9060000;
   uint64_t jtag_driver_status_addr = 0x9061000;
   uint64_t jtag_driver_num_cmds_addr = 0x9061000;
+  uint8_t  csv_completed = 1;
   uint32_t status;
   uint32_t commands_in_queue;
   
