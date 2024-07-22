@@ -5,7 +5,10 @@
 REGISTRY_register(reset_sequence, PWRMGMT, cvm::registry::all);
 
 DEFINE_bool(pwrmgmt, false, "Runtime disable for pwrmgmt");
-DEFINE_uint32(pll_pwrup_timeout, 50, "Number of soc cycles expected for pll to be stable");
+DEFINE_uint32(pll_pwrup_timeout, 50, "Number of soc cycles expected for pll power up to complete");
+DEFINE_bool(pll_dfs, false, "Enable dfs sequence during cold boot");
+DEFINE_uint32(pll_dfs_freq, 1200, "Clock freq for dfs");
+DEFINE_uint32(pll_dfs_timeout, 50, "Number of soc cycles expected for pll dfs to complete");
 DEFINE_string(warm_reset, "off", "Enable warm resets in the sim - off/random/trigger");
 DEFINE_string(warm_reset_count, "0:4", "Number of warm resets in the sim if random mode enabled");
 DEFINE_string(warm_reset_interval, "5000:50000", "TB cycle interval between warm resets in the sim if random mode enabled");
@@ -96,10 +99,14 @@ cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
   if (!FLAGS_pwrmgmt)
     co_return;
 
-  // Check and clear pll status
-  co_await check_pll_status();
-  co_await clear_pll_status();
+  // PLL cold powerup sequence
+  co_await pll_startup_sequence();
 
+  // PLL dfs sequence
+  if (FLAGS_pll_dfs)
+    co_await pll_dfs_sequence();
+
+  // Reset controller sequence
   co_await cpl_reset_sequence(COLD);
 
   // Deassert force_ref_clk
@@ -191,12 +198,19 @@ cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t ) {
   co_return;
 }
 
+cvm::messenger::task<void> reset_sequence::pll_startup_sequence() {
+  co_await check_pll_status();
+  co_await clear_pll_status();
+
+  co_return;
+}
+
 cvm::messenger::task<void> reset_sequence::check_pll_status() {
   uint32_t count = 0;
   while (true) {
     co_await tick();
     auto data = co_await read(pll_interrupts, SZ_4B);
-    if (data & (1 << cold_powerup_done))
+    if (data & (1 << cold_powerup_idx))
       break;
 
     count++;
@@ -209,7 +223,27 @@ cvm::messenger::task<void> reset_sequence::check_pll_status() {
 
 cvm::messenger::task<void> reset_sequence::clear_pll_status() {
   co_await tick();
-  co_await write(pll_interrupts, SZ_4B, (1 << cold_powerup_done));
+  co_await write(pll_interrupts, SZ_4B, (1 << cold_powerup_idx));
+
+  co_return;
+}
+
+cvm::messenger::task<void> reset_sequence::pll_dfs_sequence() {
+  uint32_t freq_ratio = 2400 / FLAGS_pll_dfs_freq;
+  co_await write(pll_parameters0, SZ_4B, (1 << scalar_div_idx | 52 << main_divider_div_idx | freq_ratio << pre_divider_div_idx));
+  co_await write(pll_control, SZ_4B, (1 << dfs_req_idx));
+
+  uint32_t count = 0;
+  while (true) {
+    co_await tick();
+    auto data = co_await read(pll_interrupts, SZ_4B);
+    if (data & (1 << dfs_done_idx))
+      break;
+
+    count++;
+    if (count > FLAGS_pll_dfs_timeout)
+      cvm::log(cvm::ERROR, "Error: PLL dfs not done after {} soc clocks\n", FLAGS_pll_dfs_timeout);
+  }
 
   co_return;
 }
