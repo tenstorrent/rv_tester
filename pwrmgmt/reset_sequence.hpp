@@ -35,8 +35,10 @@ class reset_sequence {
     cvm::messenger::task<void> force_ref_clk();
     cvm::messenger::task<void> trigger();
     cvm::messenger::task<void> cpl_reset_sequence(rst_t );
+    cvm::messenger::task<void> pll_startup_sequence();
     cvm::messenger::task<void> check_pll_status();
     cvm::messenger::task<void> clear_pll_status();
+    cvm::messenger::task<void> pll_dfs_sequence();
     cvm::messenger::task<void> release_cpl_reset();
     cvm::messenger::task<void> program_fuses();
     cvm::messenger::task<void> release_cpl_nofetch();
