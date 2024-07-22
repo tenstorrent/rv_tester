@@ -6,6 +6,7 @@ module jtag_xtor
 )(
   input clk,
   input reset,
+  input bit [31:0] tap_sel,
   input rv_tester_pkg::jtag_if_out  jtag_resp,
   output rv_tester_pkg::jtag_if_t   jtag_req,
   output rv_tester_pkg::jtag_if_tck   jtag_tck_trst,
@@ -193,23 +194,27 @@ always @(posedge clk) begin
   if (ir && ~jtag_resp.tdo_en) begin
     jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1:5],jtag_resp.tdo,jtag_rx[4:1]};
     read <= 1;
-  end else if (dr && ~jtag_resp.tdo_en && jtag_tx[0]) begin  //aclint
+  end else if (dr && ~jtag_resp.tdo_en && (tap_sel == 1) ) begin  //DTM
     read_data_valid_reg <= 1'b0; 
-    jtag_rx <= {jtag_resp.tdo,jtag_rx[69 :5],jtag_rx[3:0]};
+    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1:35],jtag_resp.tdo,jtag_rx[34 :1 ]};
     read <= 1;
-  end else if (dr && ~jtag_resp.tdo_en && jtag_tx[1]) begin  //pmnw
+  end else if (dr && ~jtag_resp.tdo_en && (tap_sel == 3) ) begin  //aclint
     read_data_valid_reg <= 1'b0; 
-    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1],jtag_resp.tdo,jtag_rx[68 :4],jtag_rx[2:0]};
+    jtag_rx <= {jtag_resp.tdo,jtag_rx[69 :1 ]};
     read <= 1;
-  end else if (dr && ~jtag_resp.tdo_en && jtag_tx[2]) begin  //smc
+  end else if (dr && ~jtag_resp.tdo_en && (tap_sel == 4) ) begin  //pmnw
     read_data_valid_reg <= 1'b0; 
-    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1:68],jtag_resp.tdo,jtag_rx[67 :3],jtag_rx[1:0]};
+    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1],jtag_resp.tdo,jtag_rx[68 :1]};
     read <= 1;
-  end else if (dr && ~jtag_resp.tdo_en && jtag_tx[3]) begin  //trace 
+  end else if (dr && ~jtag_resp.tdo_en && (tap_sel == 5)) begin  //smc
     read_data_valid_reg <= 1'b0; 
-    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1:67],jtag_resp.tdo,jtag_rx[66 :2],jtag_rx[0]};
+    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1:38],jtag_resp.tdo,jtag_rx[37:1]};
     read <= 1;
-  end else if (dr && ~jtag_resp.tdo_en) begin      //axi
+  end else if (dr && ~jtag_resp.tdo_en && (tap_sel == 6)) begin  //trace 
+    read_data_valid_reg <= 1'b0; 
+    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1:67],jtag_resp.tdo,jtag_rx[66 :1]};
+    read <= 1;
+  end else if (dr && ~jtag_resp.tdo_en && (tap_sel == 2)) begin      //axi
     read_data_valid_reg <= 1'b0; 
     jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1 : 66],jtag_resp.tdo,jtag_rx[65 :1]};
     read <= 1;

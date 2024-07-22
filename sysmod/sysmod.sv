@@ -50,6 +50,7 @@ import rv_tester_params::*;
     bit        read_data_valid_reg;
     bit [JTAG_DR_WIDTH-1 :0] jtag_tx;
     bit [JTAG_DR_WIDTH-1 :0] jtag_rx;
+    bit [31 :0] tap_sel;
     bit        jtag_busy;
     bit jtag_rdatas_jtag_busy;
     /* verilator lint_on BLKANDNBLK */
@@ -58,6 +59,7 @@ import rv_tester_params::*;
     jtag_xtor #(.JTAG_DR_WIDTH(JTAG_DR_WIDTH))  i_jtag_xtor(
         .clk(clk),
         .reset(reset),
+        .tap_sel(tap_sel),
         .command(command),
         .jtag_req(jtag_req),
         .jtag_resp(jtag_resp),
@@ -154,11 +156,12 @@ import rv_tester_params::*;
     endfunction
     export "DPI-C"  function sysmod_dmi_write;
 
-    function sysmod_jtag_req (int unsigned jtag_cmd_ip,longint upper_value,longint lower_value,int unsigned reg_length, int unsigned jtag_quit);
+    function sysmod_jtag_req (int unsigned jtag_cmd_ip,longint upper_value,longint lower_value,int unsigned reg_length, int unsigned jtag_quit , int unsigned tap_cfg_sel);
       if(jtag_quit[0] === 1'b0 )begin 
         jtag_enable_begin = 1'b1;
         command = jtag_cmd_ip[1:0];
         jtag_tx = {upper_value[5:0],lower_value};
+        tap_sel = tap_cfg_sel; 
         length = reg_length[31:0];
         jtag_quiesced = 1'b0;
         $display("[SYSMOD.SV] JTAG driver %h %h %h",upper_value, lower_value,reg_length);

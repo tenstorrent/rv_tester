@@ -159,7 +159,7 @@ bool exitLoop() {
     
     if(jtag_cmd<3){
       hart = 0; // hart bits position TBD, till TBD it is always zero
-      trickboxJtagWrite(hart, jtag_cmd, upper_jtag_data, lower_jtag_data,reg_length_data,0);
+      trickboxJtagWrite(hart, jtag_cmd, upper_jtag_data, lower_jtag_data,reg_length_data,0,tap_cfg_sel);
       if(loop_idx<loop_size){
         loop_idx++;
       } 
@@ -206,6 +206,7 @@ bool exitLoop() {
     unsigned long lower_jtag_data;
     unsigned jtag_length_data;
     unsigned jtag_quit;
+    unsigned tap_cfg_sel;
   };
 
 
@@ -223,11 +224,11 @@ bool exitLoop() {
   }jtag_status_t; 
   // Used to assert/deassert a trickbox interrupt (PIPI) for given hart.
   // virtual void trickboxjtagWrite(unsigned hart, unsigned upper_jtag_data, unsigned lower_jtag_data, cbs_t& cbs)
-  virtual void trickboxJtagWrite(unsigned hart,unsigned jtag_cmd, unsigned long upper_jtag_data, unsigned long lower_jtag_data,unsigned reg_length_data,unsigned jtag_quit)
+  virtual void trickboxJtagWrite(unsigned hart,unsigned jtag_cmd, unsigned long upper_jtag_data, unsigned long lower_jtag_data,unsigned reg_length_data,unsigned jtag_quit, unsigned tap_cfg_sel)
   {
     cvm::log(cvm::HIGH, "TrickBox jtag Write to hart:{}, upper jtag data:{:#x}, lower jtag data:{:#x}, reg length data:{:#x}", hart, upper_jtag_data, lower_jtag_data,reg_length_data);
     // cbs.push_back(cb_t{Callback::TRICKBOX_jtag_WR, hart, upper_jtag_data, lower_jtag_data, 0});
-    cvm::registry::messenger.signal(loc(), jtag_data_t{hart,jtag_cmd, upper_jtag_data, lower_jtag_data,reg_length_data,jtag_quit});
+    cvm::registry::messenger.signal(loc(), jtag_data_t{hart,jtag_cmd, upper_jtag_data, lower_jtag_data,reg_length_data,jtag_quit,tap_cfg_sel});
     // cvm::messenger::send(jtag_t, jtag_pkt);
   }
 
@@ -248,6 +249,12 @@ bool exitLoop() {
           parse_jtag_from_csv();
           genNextJtagEvents();
           snippets_driven++;
+        }else{
+          cvm::log(cvm::HIGH, "[JTAGDRIVER] ******************* \n");
+          cvm::log(cvm::HIGH, "[JTAGDRIVER] Sending Quit signal \n");
+          cvm::log(cvm::HIGH, "[JTAGDRIVER] ******************* \n");
+          trickboxJtagWrite(0, 7, 0, 0,0,1);
+          //arg1 hart = 0, arg2 jtag_cmd = 7(qt)
         }
       }
     }
@@ -318,4 +325,5 @@ private:
   unsigned file_idx = 0;
   unsigned snippets_driven = 0;
   unsigned num_ticks= 0;
+  unsigned tap_cfg_sel= 0;
 };
