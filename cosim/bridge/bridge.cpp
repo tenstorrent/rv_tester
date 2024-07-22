@@ -472,6 +472,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   // Save whisper state
   prev_mip_ = mip_;
   prev_e_mip_ = e_mip_;
+  mem_poke_.clear();
 
   // TLB checks
   translation_check(hart, d, w);
@@ -1590,7 +1591,7 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
       log(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: M[{:#x}]={:#x}\n", d.cycle, step_, pa,
         d.mem_write.data);
     }
-    if (!client_->whisperPoke(hart, d.cycle, 'm', pa, d.mem_write.data, valid)) {
+    if (!client_->whisperPokeMem(hart, d.cycle, 'm', pa, d.mem_write.size, d.mem_write.data, valid)) {
       cvm::log(cvm::ERROR, "Error: Hart {}: Failed to resynch memory\n", hart);
       return;
     }
@@ -1598,19 +1599,33 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
 
   for (auto& csr : d.csr) {
     if (csr.valid) {
-      if (FLAGS_bridge_log) {
-        log(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: C[{:#x}]={:#x}\n", d.cycle, step_, csr.csr_addr,
-          csr.csr_wdata);
-      }
       resynch_csr_ = true;
-      cvm::log(cvm::MEDIUM, "addr {:#x} data {:#x} \n", csr.csr_addr, get_csr(hart, src_t::dut, csr.csr_addr));
-      if (csr.csr_addr==0x15c || csr.csr_addr==0x25c || csr.csr_addr==0x35c) return;
+      // Resynch msi poke for topei cases
+      if (csr.csr_addr==0x15c || csr.csr_addr==0x25c || csr.csr_addr==0x35c) {
+        log(cvm::MEDIUM, "<{}> topei resynch\n", d.cycle);
+        for (const auto &m : mem_poke_) {
+          if (FLAGS_bridge_log) {
+            log(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: Mpoke[{:#x}]={:#x}\n", d.cycle, step_, m.pa, m.data);
+          }
+          if (!client_->whisperPokeMem(hart, d.cycle, 'm', m.pa, m.size, m.data, valid)) {
+            cvm::log(cvm::ERROR, "Error: Hart {}: Failed to resynch memory\n", hart);
+            return;
+          }
+          process_imsic_msi(hart, m);
+        }
+        continue;
+      }
+      if (FLAGS_bridge_log) {
+        log(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: C[{:#x}]={:#x}\n", d.cycle, step_, csr.csr_addr, 
+          get_csr(hart, src_t::dut, csr.csr_addr));
+      }
       if (!client_->whisperPoke(hart, d.cycle, 'c', csr.csr_addr, get_csr(hart, src_t::dut, csr.csr_addr), valid)) {
         cvm::log(cvm::ERROR, "Error: Hart {}: Failed to resynch CSRs\n", hart);
         return;
       }
     }
   }
+
 }
 
 void bridge::resynch(hart_id_t hart, const rv_instr_group_t& d) {
@@ -1804,7 +1819,7 @@ void bridge::process_external_interrupt(hart_id_t hart, rv_intr_t& i) {
     mip_ = (i.mip & i.mip_mask) | (mip_ & ~i.mip_mask);
     e_mip_ = mip_ & 0x1e00;
     check_and_defer_interrupt(hart, i.cycle, i.mip_assert);
-  log(cvm::MEDIUM, "<{}> External interrupt: Hart {} mip {:#x} mask {:#x} assert {:#x}\n", hart, i.cycle, i.mip, i.mip_mask, i.mip_assert);
+  log(cvm::MEDIUM, "<{}> External interrupt: Hart {} mip {:#x} mask {:#x} assert {:#x}\n", i.cycle, hart, i.mip, i.mip_mask, i.mip_assert);
 }
 
 void bridge::process_timer_sw_interrupt(hart_id_t hart, rv_intr_t& i) {
@@ -1861,6 +1876,16 @@ void bridge::process_timer_sw_interrupt(hart_id_t hart, rv_intr_t& i) {
 }
 
 void bridge::process_dut_imsic_msi(hart_id_t hart, mem_t& m) {
+  mem_poke_.push_back(m);
+  log(cvm::MEDIUM, "<{}> poke_mem:: push: [addr={:#x} data={:#x}]\n", m.cycle, m.pa, m.data);
+  for (const auto &p : mem_poke_) {
+    log(cvm::MEDIUM, "<{}> poke_mem: [addr={:#x} data={:#x}]\n", p.cycle, p.pa, p.data);
+  }
+
+  process_imsic_msi(hart, m);
+}
+
+void bridge::process_imsic_msi(hart_id_t hart, const mem_t& m) {
   log(cvm::MEDIUM, "<{}> IMSIC interrupt: [addr={:#x} data={:#x}]\n", m.cycle, m.pa, m.data);
 
   // Poke imsic write into whisper memory
@@ -2124,6 +2149,10 @@ void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data,
 }
 
 uint64_t bridge::get_csr(hart_id_t hart, src_t src, uint64_t addr) {
+  // Special handling for mip
+  if (addr == 0x344)
+    return mip_;
+
   std::vector<bool> bool_vec;
   std::vector<uint64_t> dword_vec;
   resource_id_t csr_resource = resource_id_t{
