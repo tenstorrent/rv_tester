@@ -50,7 +50,7 @@ import rv_tester_params::*;
     bit        read_data_valid_reg;
     bit [JTAG_DR_WIDTH-1 :0] jtag_tx;
     bit [JTAG_DR_WIDTH-1 :0] jtag_rx;
-    bit [4 :0] tap_sel;
+    bit [31 :0] tap_sel;
     bit        jtag_busy;
     bit jtag_rdatas_jtag_busy;
     /* verilator lint_on BLKANDNBLK */

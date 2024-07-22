@@ -6,7 +6,7 @@ module jtag_xtor
 )(
   input clk,
   input reset,
-  input bit [4:0] tap_sel,
+  input bit [31:0] tap_sel,
   input rv_tester_pkg::jtag_if_out  jtag_resp,
   output rv_tester_pkg::jtag_if_t   jtag_req,
   output rv_tester_pkg::jtag_if_tck   jtag_tck_trst,
