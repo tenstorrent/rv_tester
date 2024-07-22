@@ -196,7 +196,7 @@ always @(posedge clk) begin
     read <= 1;
   end else if (dr && ~jtag_resp.tdo_en && (tap_sel == 1) ) begin  //DTM
     read_data_valid_reg <= 1'b0; 
-    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1:35],jtag_resp.tdo,jtag_rx[34 :1 ]};
+    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1:42],jtag_resp.tdo,jtag_rx[41 :1 ]};
     read <= 1;
   end else if (dr && ~jtag_resp.tdo_en && (tap_sel == 3) ) begin  //aclint
     read_data_valid_reg <= 1'b0; 
@@ -215,6 +215,10 @@ always @(posedge clk) begin
     jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1:67],jtag_resp.tdo,jtag_rx[66 :1]};
     read <= 1;
   end else if (dr && ~jtag_resp.tdo_en && (tap_sel == 2)) begin      //axi
+    read_data_valid_reg <= 1'b0; 
+    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1 : 66],jtag_resp.tdo,jtag_rx[65 :1]};
+    read <= 1;
+  end else if (dr && ~jtag_resp.tdo_en && (tap_sel == 7)) begin      //core h2 [TODO] update with correct behavior of H2 path
     read_data_valid_reg <= 1'b0; 
     jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1 : 66],jtag_resp.tdo,jtag_rx[65 :1]};
     read <= 1;
