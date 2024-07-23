@@ -24,7 +24,7 @@ def opensrc_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-tech_cells_generic.git",
     )
 
-    opensrc_common_cells_hash="16135359d85eba15d918998748fd67856cd9f70d"
+    opensrc_common_cells_hash="d39db0ab542c90561426ff57e7ba30e722de2c67"
     maybe(
         git_repository,
         name = "opensrc-common_cells",
@@ -69,3 +69,20 @@ def opensrc_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-axi_llc.git",
     )
 
+    tensix_tt_tech_hash="8b250cc57664707fc112514eb61a8d46cb78b61b"
+    maybe(
+        git_repository,
+        name = "tensix-tt_tech",
+        commit = tensix_tt_tech_hash,
+        shallow_since = "1669784673 -0600",
+        remote = "git@aus-gitlab.local.tenstorrent.com:riscv/tensix-forks/tensix-tt_tech.git",
+    )
+
+    tensix_hw_common_old_hash="4030f2ec9d9d3a0e3cc850051f336b9712138e18"
+    maybe(
+        git_repository,
+        name = "tensix-hw-common-old",
+        commit = tensix_hw_common_old_hash,
+        shallow_since = "1669784673 -0600",
+        remote = "git@aus-gitlab.local.tenstorrent.com:riscv/tensix-forks/tensix-hw-common-old.git",
+    )
