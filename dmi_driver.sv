@@ -48,6 +48,7 @@ module dmi_driver (
   logic [7:0] core_in_halt_group, core_in_resume_grp, core_halted, core_resumed, core_ignore_hreq, core_ignore_rreq;
   logic [9:0] core_hg_check, core_rg_check;
   logic [2:0] core_halt_index, core_resume_index;
+  logic tdata1_write, check_trigger_type, mcontrol6_trigger, trigger_to_fire, trigger_fired_halted, check_cause_trigger, cause_trigger, to_check_cause;
   logic dcsr_abscmd, dcsr_write, ss_step_bit, core_to_halt_after_ss, core_halted_after_ss;
 
   int file_descr;
@@ -96,6 +97,14 @@ module dmi_driver (
     ack_havereset <= 0;
     sdtrig_fire <= 0;
     halted_sdtrig <= 0;
+    tdata1_write <= 0;
+    check_trigger_type <= 0;
+    mcontrol6_trigger <= 0;
+    trigger_to_fire <= 0;
+    trigger_fired_halted <= 0;
+    check_cause_trigger <= 0;
+    cause_trigger <=0;
+    to_check_cause <= 0;
     dcsr_abscmd <= 0;
     dcsr_write <= 0;
     ss_step_bit <= 0;
@@ -216,8 +225,10 @@ module dmi_driver (
           if (cmd.data[16] === 'h1) begin
             $display("[Poll] Seen the abstract command with write");
             abs_write = 1;
-            poll = 1;
-            if(cmd.data[15:0] === 'h07b0) begin
+            if(cmd.data[15:0] === 'h07a1) begin
+              $display("[sdtrig:Poll] Seen an abstract command write on tdata1");
+              tdata1_write = 1;
+            end else if (cmd.data[15:0] === 'h07b0) begin
               $display("[Poll] Seen the abstract command with write on dcsr");
               dcsr_abscmd = 1;
             end
@@ -229,6 +240,10 @@ module dmi_driver (
             //   sdtrig_fire = 1;
             //   $display("[Poll] Setting sdtrig_fire = 1");
             // end
+            if(to_check_cause && cmd.data[15:0] === 'h7b0) begin
+              to_check_cause = 0;
+              check_cause_trigger = 1;
+            end
           end
         end
       end else if (cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[1] === 'h1 ) begin
@@ -270,9 +285,27 @@ module dmi_driver (
         dcsr_abscmd = 0;
         dcsr_write = 1;
         poll = 1;
-      end else if(core_to_halt_after_ss && cmd.addr === 'h11 && cmd.op === 'h1) begin
+      end else if(core_to_halt_after_ss && cmd.addr === 'h11 && cmd.op === 'h1 && ~trigger_to_fire) begin
         $display("[Single step] Core resuming after step configuration");
         poll = 1;
+      end else if(cmd.addr === 'h16 && cmd.op === 'h1 && tdata1_write) begin
+        $display("trigger type is configured in tdata1");
+        tdata1_write = 0;
+        check_trigger_type = 1;
+        poll = 1;
+      end else if(trigger_to_fire && cmd.addr === 'h11 && cmd.op === 'h1) begin
+        $display("[Sdtrig] Core resuming after sdtrig configuration");
+        poll = 1;
+        trigger_fired_halted = 1;
+        trigger_to_fire = 0;
+        if(core_to_halt_after_ss) begin
+          core_to_halt_after_ss = 0;
+          $display("[Sdtrig] Sdtrig takes priority over single stepping");
+        end
+      end else if(check_cause_trigger && cmd.addr === 'h4 && cmd.op === 'h1) begin
+        poll = 1;
+        check_cause_trigger = 0;
+        cause_trigger = 1;
       end
     end
   endtask : is_poll_needed
@@ -332,6 +365,15 @@ module dmi_driver (
         end else if (core_to_halt_after_ss) begin
           $display("[Poll] check for the core to be halted after ss");
           dmi_req <= 41'h4500000000;
+        end else if (check_trigger_type) begin
+          $display("[Poll] data1 to check if the trigger type is mcontrol6");
+          dmi_req <= 41'h1500000000;
+        end else if (trigger_fired_halted) begin
+          $display("[Poll] dmstatus to check if the core is getting halted through sdtrig");
+          dmi_req <= 41'h4500000000;
+        end else if(cause_trigger) begin
+          $display("[Poll] dcsr to check if cause is 2(trigger)");
+          dmi_req <= 41'h1100000000;
         end
         wait (dmi_req_ready == 1);
         @(posedge clk) dmi_req_valid <= '0;
@@ -343,6 +385,10 @@ module dmi_driver (
         if (resume_req && dmi_resp.data[17:16] === 2'b11) begin
           resume_req = 0;
           poll = 0;
+          if(mcontrol6_trigger) begin
+            trigger_to_fire = 1;
+            mcontrol6_trigger = 0;
+          end
           $display("[Poll] Clear Resume Req Poll");
           do_file_writes();
           if(ss_step_bit) begin
@@ -472,6 +518,10 @@ module dmi_driver (
         //       end
         //     end
         //   end
+        // end else if(check_trigger_type && dmi_resp.data[31:28] === 'h6) begin
+        //   mcontrol6_trigger = 1;
+        //   check_trigger_type = 0;
+        //   poll = 0;
         end else if(halted_sdtrig && dmi_resp.data[9:8] === 'h3)begin
           halted_sdtrig = 0;
           poll = 0;
@@ -492,6 +542,21 @@ module dmi_driver (
           core_halted_after_ss = 1;
           poll = 0;
           $display("[Poll] core_halted_after_ss is set");
+        end else if(check_trigger_type) begin
+          if(dmi_resp.data[31:28] === 'h6) begin
+            mcontrol6_trigger = 1;
+          end
+          check_trigger_type = 0;
+          poll = 0;
+        end else if(trigger_fired_halted && dmi_resp.data[9:8] === 'h3)begin
+          trigger_fired_halted =0;
+          to_check_cause = 1;
+          poll = 0;
+          $display("[Poll:Sdtrig] Trigger fired and core entered debug mode");
+        end else if(cause_trigger && dmi_resp.data[8:6] === 'h2) begin
+          cause_trigger = 0;
+          poll = 0;
+          $display("[Poll:Sdtrig] core halt cause is set to 2(trigger)");
         end
       end
       $display("[Poll] Cleared poll for halt:%h resume:%h abstract:%h", halt_req, resume_req,
