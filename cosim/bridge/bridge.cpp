@@ -699,9 +699,6 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
         defer_interrupt(hart, w.time, 0);
         deferred_intr_ = false;
       }
-
-    } else {
-      cvm::log(cvm::ERROR, "Error: Hart {}: DUT took interrupt, Whisper did not. cause:[{}]\n", hart, d.icause);
     }
     return;
   }
@@ -1811,7 +1808,7 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
     process_external_interrupt(hart, i);
   } 
   if (i.mip_mask & 0x20ee) {
-    process_timer_sw_interrupt(hart, i);
+    process_local_interrupt(hart, i);
   }
 }
 
@@ -1822,49 +1819,22 @@ void bridge::process_external_interrupt(hart_id_t hart, rv_intr_t& i) {
   log(cvm::MEDIUM, "<{}> External interrupt: Hart {} mip {:#x} mask {:#x} assert {:#x}\n", i.cycle, hart, i.mip, i.mip_mask, i.mip_assert);
 }
 
-void bridge::process_timer_sw_interrupt(hart_id_t hart, rv_intr_t& i) {
+void bridge::process_local_interrupt(hart_id_t hart, rv_intr_t& i) {
   log(cvm::MEDIUM, "<{}> Timer/Sw interrupt: mip {:#x} mask {:#x} assert {:#x}\n", i.cycle, i.mip, i.mip_mask, i.mip_assert);
-
-  // Ideally, would have liked to poke mip with a mask
-  // Since we can't, doing a rmw instead
-  uint64_t mip, mip_mask;
-  // ~0x1e60: Currently wires from harness for mip.STIP and mip.VSTIP are
-  // outputs of MS which only convey SSTC based writes we should avoid poking of mip from MS during menvcfg.stce=0
-  mip_mask = i.mip_mask & (~0x1e60); 
 
   // POKE 0x14d 0x24d
   if(i.mip & i.mip_assert & 0x20) { setsstc_poke(hart, i.cycle, 0x14d); stimecmppoked_ = true; }
   if(i.mip & i.mip_assert & 0x40) { setsstc_poke(hart, i.cycle, 0x24d); vstimecmppoked_ = true;}
 
-  if(i.mip_mask & 0x20) {
-  uint64_t menvcfg;
-  bool valid;
-  if (!client_->whisperPeek(hart, 'c', 0x30a, menvcfg, valid)) {
-    cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek mip\n", hart);
-    return;
-  }
-  if (static_cast<int64_t>(menvcfg) < 0) mip_mask |= 0x20;
-  }
-
-  if(i.mip_mask & 0x40) {
-  uint64_t menvcfg, henvcfg;
-  bool valid;
-  if (!client_->whisperPeek(hart, 'c', 0x30a, menvcfg, valid)) {
-    cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek mip\n", hart);
-    return;
-  }
-  if (!client_->whisperPeek(hart, 'c', 0x60a, henvcfg, valid)) {
-    cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek mip\n", hart);
-    return;
-  }
-  if (static_cast<int64_t>(menvcfg) < 0 && static_cast<int64_t>(henvcfg) < 0) mip_mask |= 0x40;
-  }
-
   // POKE 0x14d 0x24d
   if( ~i.mip_assert & i.mip_mask & 0x20) { resetsstc_poke(hart, i.cycle, 0x14d); stimecmppoked_ = false; }
   if( ~i.mip_assert & i.mip_mask & 0x40) { resetsstc_poke(hart, i.cycle, 0x24d); vstimecmppoked_ = false; }
+
+  // Ideally, would have liked to poke mip with a mask
+  // Since we can't, doing a rmw instead
+  uint64_t mip;
   peek_mip(hart, i.cycle, mip);
-  mip_ = (mip & ~mip_mask) | (i.mip & mip_mask); 
+  mip_ = (mip & 0x3e66) | (i.mip & ~0x1e00);
   poke_mip(hart, i.cycle, mip_);
 
   uint64_t w_seip;
@@ -1944,6 +1914,7 @@ void bridge::check_interrupt(hart_id_t hart, uint64_t mip, bool& taken, uint64_t
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed whisper API call - whisperCheckInterrupt\n", hart);
     return;
   }
+  log(cvm::MEDIUM, "<> Whisper check_interrupt: mip: {:#x} taken: {} cause: {}\n", mip, taken, cause);
 }
 
 void bridge::poke_mip(hart_id_t hart, uint64_t time, uint64_t mip) {
