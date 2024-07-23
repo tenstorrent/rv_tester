@@ -45,15 +45,22 @@ package rv_tester_params;
     parameter bit [NCLKS-1:0][31:0] PROFILE4_CLOCK_FREQ_MHZ = mods.TOP.PLATFORM.CLKI.PROFILE4_CLOCK_FREQ_MHZ;
     parameter bit [NCLKS-1:0][31:0] PROFILE5_CLOCK_FREQ_MHZ = mods.TOP.PLATFORM.CLKI.PROFILE5_CLOCK_FREQ_MHZ;
     parameter bit [NCLKS-1:0][31:0] PROFILE6_CLOCK_FREQ_MHZ = mods.TOP.PLATFORM.CLKI.PROFILE6_CLOCK_FREQ_MHZ;
-    parameter bit [NCLKS-1:0][31:0] PLL_CLOCK = mods.TOP.PLATFORM.CLKI.PLL_CLOCK;
 
     // --------------------------------------
     // Reset interface
     // --------------------------------------
     parameter NRESETS = mods.TOP.PLATFORM.RESETI.NRESETS;
     parameter COLD_RESET_IDX = mods.TOP.PLATFORM.RESETI.COLD_RESET_IDX;
-    parameter RESET_IDX = mods.TOP.PLATFORM.RESETI.RESET_IDX;
-    parameter bit [NRESETS-1:0][31:0] RESET_TB_CLOCKS = mods.TOP.PLATFORM.RESETI.RESET_TB_CLOCKS;
+    parameter WARM_RESET_IDX = mods.TOP.PLATFORM.RESETI.WARM_RESET_IDX;
+    parameter NHOLDS = mods.TOP.PLATFORM.RESETI.NHOLDS;
+    parameter SRAM_HOLD_IDX = mods.TOP.PLATFORM.RESETI.SRAM_HOLD_IDX;
+    parameter DEBUG_HOLD_IDX = mods.TOP.PLATFORM.RESETI.DEBUG_HOLD_IDX;
+    parameter CRITICAL_HOLD_IDX = mods.TOP.PLATFORM.RESETI.CRITICAL_HOLD_IDX;
+    parameter NDOMAINS = mods.TOP.PLATFORM.RESETI.NDOMAINS;
+    parameter CORE_RESET_IDX = mods.TOP.PLATFORM.RESETI.CORE_RESET_IDX;
+    parameter AXI_RESET_IDX = mods.TOP.PLATFORM.RESETI.AXI_RESET_IDX;
+    parameter SOC_RESET_IDX = mods.TOP.PLATFORM.RESETI.SOC_RESET_IDX;
+    parameter REF_RESET_IDX = mods.TOP.PLATFORM.RESETI.REF_RESET_IDX;
 
     // --------------------------------------
     // AXI interface
@@ -947,6 +954,11 @@ package rv_tester_params;
     typedef pmc_counter_t [EVENT_COUNT-1:0] pmci_t;
 
     // --------------------------------------
+    // Pwrmgmt
+    // --------------------------------------
+    parameter bit PWRMGMT_EN = mods.TOP.PLATFORM.PWRMGMT.PWRMGMT_EN == 1;
+
+    // --------------------------------------
     // typedefs to generate all data types
     // --------------------------------------
 
@@ -1031,8 +1043,12 @@ package rv_tester_params;
     // --------------------------------------
 `define _RV_TESTER_PORTS(input,output)                                                              \
     input                                    clk                [rv_tester_params::NCLKS-1:0],      \
-    output                                   clk_pll            [rv_tester_params::NCLKS-1:0],      \
+    output                                   dut_clk            [rv_tester_params::NCLKS-1:0],      \
+    input                                    force_ref_clk,                                         \
+    output [rv_tester_params::NHARTS-1:0]    core_no_fetch,                                         \
     input  [rv_tester_params::NRESETS-1:0]   reset, /*Packed so zebu can easily force*/             \
+    input  [rv_tester_params::NHOLDS-1:0]    reset_hold,                                            \
+    output [rv_tester_params::NDOMAINS-1:0]  dut_reset,                                             \
     input  rv_tester_params::bootstrap_t     bootstrap,                                             \
     input  rv_tester_pkg::interrupt_t        interrupt          [rv_tester_params::NHARTS-1:0],     \
     output rv_tester_pkg::interrupt_t        interrupt_pend     [rv_tester_params::NHARTS-1:0],     \
@@ -1041,6 +1057,7 @@ package rv_tester_params;
     input                                    terminate,                                             \
     input  logic                             terminated,                                            \
     output                                   quiesced,                                              \
+    input logic [64-1:0]                     cosim_eot_addr,                                        \
     input  rv_tester_pkg::aplic_interrupt_t  aplic_interrupt,                                       \
     input  rv_tester_pkg::dm_write_t         dmi_write,                                             \
     input  rv_tester_pkg::jtag_if_t          jtag_req,                                              \
@@ -1107,8 +1124,12 @@ package rv_tester_params;
 
 `define RV_TESTER_VARS(topology)                                                                    \
     logic                                    clk             [rv_tester_params::NCLKS-1:0];         \
-    logic                                    clk_pll         [rv_tester_params::NCLKS-1:0];         \
+    logic                                    dut_clk         [rv_tester_params::NCLKS-1:0];         \
+    logic                                    force_ref_clk;                                         \
+    logic [rv_tester_params::NHARTS-1:0]     core_no_fetch;                                         \
     logic [rv_tester_params::NRESETS-1:0]    reset           /* Packed so zebu can force easily */; \
+    logic [rv_tester_params::NHOLDS-1:0]     reset_hold;                                            \
+    logic [rv_tester_params::NDOMAINS-1:0]   dut_reset;                                             \
     rv_tester_params::bootstrap_t            bootstrap;                                             \
     rv_tester_pkg::interrupt_t               interrupt       [rv_tester_params::NHARTS-1:0];        \
     rv_tester_pkg::interrupt_t               interrupt_pend  [rv_tester_params::NHARTS-1:0];        \
@@ -1118,6 +1139,7 @@ package rv_tester_params;
     rv_tester_pkg::aplic_interrupt_t         aplic_interrupt;                                       \
     logic                                    terminated;                                            \
     logic                                    quiesced;                                              \
+    logic [64-1:0]                           cosim_eot_addr;                                        \
     rv_tester_pkg::dm_write_t                dmi_write;                                             \
     rv_tester_pkg::jtag_if_t                 jtag_req;                                              \
     rv_tester_pkg::jtag_if_tck               jtag_tck_trst;                                         \

@@ -5,6 +5,7 @@ load("@rv_tester//sysmod:sysmod.bzl", "sysmod_gen")
 load("@rv_tester//pmu:pmu.bzl", "pmu_gen")
 load("@rv_tester//dm_model:dm_model.bzl", "dm_model_gen")
 load("@rv_tester//aplic_monitor:aplic_monitor.bzl", "aplic_monitor_gen")
+load("@rv_tester//pwrmgmt:pwrmgmt.bzl", "pwrmgmt_gen")
 load("@rv_tester//aclint_checker:aclint_checker.bzl", "aclint_checker_gen")
 load("@rv_tester//transactors/axi_sw:axi_sw.bzl", "axi_sw_gen")
 
@@ -76,6 +77,14 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
         cc_attrs = cc_attrs,
     )
 
+    pwrmgmt_gen(
+        name = name + "_pwrmgmt",
+        packet = name  + "_transactions",
+        topology = topology,
+        harness = name + "_harness",
+        cc_attrs = cc_attrs,
+    )
+
     aclint_checker_gen(
         name = name + "_aclint_checker",
         packet = name  + "_transactions",
@@ -113,6 +122,9 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
         ] + select({
           "@rv_tester//:cosim_off": ["@rv_tester//:no_cosim"],
           "//conditions:default":   [name + "_cosim_sv"],
+        }) + select({
+          "@rv_tester//:pwrmgmt_off": [],
+          "//conditions:default":   [name + "_pwrmgmt_sv"],
         }),
         visibility = visibility,
     )
@@ -121,10 +133,11 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
         name = rv_tester_dpi,
         srcs = ["@rv_tester//:rv_tester.cpp"],
         deps = [
-            "@rv_tester//:plusargs",
+            "@rv_tester//sysmod:sysmod_plusargs",
             "@rv_tester//:structs",
             "@rv_tester//common:common",
             "@cvm//:plusargs",
+            "@cvm//:random",
             "@cvm//:registry",
             "@aplic//:Aplic",
             name + "_transactions_cc",
@@ -138,6 +151,9 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
         ] + select({
           "@rv_tester//:cosim_off": [],
           "//conditions:default":   [name + "_cosim_dpi"],
+        }) + select({
+          "@rv_tester//:pwrmgmt_off": [],
+          "//conditions:default":   [name + "_pwrmgmt_dpi"],
         }),
         alwayslink = True,
         visibility = visibility,

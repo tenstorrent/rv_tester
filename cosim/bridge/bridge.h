@@ -130,7 +130,8 @@ private:
   void post_step_exception_poke( hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
   void post_step_satp_write_poke(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
 
-  void process_timer_sw_interrupt(hart_id_t hart, rv_intr_t& i);
+  void process_imsic_msi(hart_id_t hart, const mem_t& m);
+  void process_local_interrupt(hart_id_t hart, rv_intr_t& i);
   void process_external_interrupt(hart_id_t hart, rv_intr_t& i);
   void check_and_defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
   void check_interrupt(hart_id_t hart, uint64_t mip, bool& taken, uint64_t& cause);
@@ -179,6 +180,7 @@ private:
   int vlen_ = 0;
   CacCore cac_;
   CacCore csr_cac_;
+  bool first_reset_ = true;
 
   uint64_t order_ = 0;
 
@@ -220,6 +222,7 @@ private:
   bool vstimecmppoked_ = false;
   bool stimecmppoked_ = false;
   uint64_t intrtopriv_ = 3;
+  std::vector<mem_t> mem_poke_{};
   uint64_t mip_ = 0;
   uint64_t prev_mip_ = 0;
   uint64_t e_mip_ = 0;

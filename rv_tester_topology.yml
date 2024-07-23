@@ -48,6 +48,12 @@ rv_tester: &rv_tester
             - pm_nw_xtor
           attrs:
               clock_divisor: 100
+      smc_xtor:
+          count: 1
+          type:
+            - smc_xtor
+          attrs:
+              clock_divisor: 100
     axi:
       count: *rv_tester_axi_count
       type:
@@ -137,6 +143,13 @@ rv_tester: &rv_tester
       count: 1
       type:
         - aplic_monitor
+
+    pwrmgmt:
+      count: *rv_tester_pwrmgmt_ctrl
+      type:
+        - pwrmgmt
+      attrs:
+        <<: *rv_tester_pwrmgmt_attrs
 
     aclint_checker:
       count: 1
