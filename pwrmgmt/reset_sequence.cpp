@@ -343,7 +343,11 @@ cvm::messenger::task<void> reset_sequence::write(uint64_t addr, size_t sz, const
     auto byte_array = convert_to_byte_array({dword});
     cvm::log(cvm::NONE, "[pwrmgmt] batch write req : {} - addr={:#x}, sz={}, data={:#x}, dword={:#x} mask={:#x}\n", i, addr_n, sz, data[i], dword, mask);
     cvm::registry::messenger.signal(smc_axi_loc_, transactor::write_request_t{addr_n, SZ_8B, byte_array, strb});
-    // FIXME - Add support for grabbing the transactor and forking write requests
+  };
+  // Note - simultaneous burst write calls might result in interleaved resposes
+  for(int i=0; i < size; i++){
+    uint64_t addr_n = addr + i*sz;
+    uint64_t dword = (addr_n % 8) ? (data[i] << 32) : data[i];
     auto resp = co_await cvm::registry::messenger.wait<transactor::write_response_t>(smc_axi_loc_);
     cvm::log(cvm::NONE, "[pwrmgmt] batch write resp : {} - id={}, addr={:#x}, sz={}, data={:#x}, dword={:#x} mask={:#x}\n", i, resp.id, addr_n, sz, data[i], dword, mask);
   };
