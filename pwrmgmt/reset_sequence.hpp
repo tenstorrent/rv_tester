@@ -41,6 +41,8 @@ class reset_sequence {
     cvm::messenger::task<void> pll_dfs_sequence();
     cvm::messenger::task<void> release_cpl_reset();
     cvm::messenger::task<void> program_fuses();
+    cvm::messenger::task<void> program_patch();
+    cvm::messenger::task<void> batch_write(uint32_t start_addr, uint64_t data[], int size);
     cvm::messenger::task<void> release_cpl_nofetch();
 
     cvm::messenger::task<uint64_t> read(uint64_t addr, size_t sz);

@@ -41,6 +41,28 @@ namespace {
   constexpr uint32_t sc_fuse_idx            = 0;
   constexpr uint32_t lock_idx               = 15;
 
+  constexpr uint32_t core_pversion_mmr          = 0x4200'5000;
+  constexpr uint32_t core_pcontrol_mmr          = 0x4200'5040;
+  constexpr uint32_t core_preg0_mmr             = 0x4200'5080;
+  constexpr uint32_t core_preg1_mmr             = 0x4200'5088;
+  constexpr uint32_t core_preg2_mmr             = 0x4200'5090;
+  constexpr uint32_t core_preg3_mmr             = 0x4200'5098;
+  constexpr uint32_t core_ptvec_csr             = 0x4200'3DA8;
+
+  constexpr uint32_t smc_local_base             = 0x0210'0000;
+  constexpr uint32_t cpl_sram_base              = smc_local_base +0x40000;
+  constexpr uint32_t cpl_patch_ram_base         = cpl_sram_base +0x0c000;
+  constexpr uint32_t cpl_patch_ram_ptrig_0     =  cpl_patch_ram_base + 0x0400;
+  constexpr uint32_t cpl_patch_ram_ptrig_1     =  cpl_patch_ram_base + 0x0440;
+  constexpr uint32_t cpl_patch_ram_ptrig_2     =  cpl_patch_ram_base + 0x0480;
+  constexpr uint32_t cpl_patch_ram_ptrig_3     =  cpl_patch_ram_base + 0x04c0;
+  constexpr uint32_t cpl_patch_ram_pbody_0     =  cpl_patch_ram_base + 0x0500;
+  constexpr uint32_t cpl_patch_ram_pbody_1     =  cpl_patch_ram_base + 0x0900;
+  constexpr uint32_t cpl_patch_ram_pbody_2     =  cpl_patch_ram_base + 0x0d00;
+  constexpr uint32_t cpl_patch_ram_pbody_3     =  cpl_patch_ram_base + 0x01100;
+  constexpr uint32_t cpl_patch_ram_pdata       =  cpl_patch_ram_base + 0x1600;
+
+
   typedef enum : bool { COLD = true, WARM = false } rst_t;
   typedef enum : size_t { SZ_4B = 4, SZ_8B = 8 } sz_t;
 }
