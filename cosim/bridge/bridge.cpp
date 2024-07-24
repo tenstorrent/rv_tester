@@ -603,12 +603,14 @@ void bridge::pre_step_lrsc_poke(hart_id_t hart, const rv_instr_t& d) {
       (d.disasm.find("sc.d") != std::string::npos)) {
     // Check if Store-Conditional (SC) failed
     uint64_t fail_code = 1;
-    if (d.gpr.rd_wdata == fail_code) {
-      lrsc_fail_ = true;
-      bool valid;
-      // Cancel Load-Reserved (LR)
-      if (!client_->whisperCancelLr(hart, valid)) {
-        cvm::log(cvm::ERROR, "Error: Hart {}: Failed to CancelLr\n", hart);
+    if (!d.gpr.empty()) {
+      if (d.gpr[0].rd_wdata == fail_code) {
+        lrsc_fail_ = true;
+        bool valid;
+        // Cancel Load-Reserved (LR)
+        if (!client_->whisperCancelLr(hart, valid)) {
+          cvm::log(cvm::ERROR, "Error: Hart {}: Failed to CancelLr\n", hart);
+        }
       }
     }
   }
