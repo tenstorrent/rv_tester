@@ -17,6 +17,7 @@ DEFINE_string(warm_reset_trigger_interval, "rand:0:100", "TB cycle interval from
 DEFINE_string(warm_reset_sram_hold, "0:1", "Sram hold");
 DEFINE_string(warm_reset_debug_hold, "0:1", "Debug hold");
 DEFINE_string(warm_reset_critical_hold, "0:1", "Critical hold");
+DEFINE_bool(patch_en, false, "Enable instruction patching");
 
 extern "C" {
   void pwrmgmt_init();
@@ -193,6 +194,9 @@ cvm::messenger::task<void> reset_sequence::warm_reset_sequence() {
 cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t ) {
   co_await release_cpl_reset();
   co_await program_fuses();
+  if (FLAGS_patch_en) { 
+    co_await program_patch();
+  };
   co_await release_cpl_nofetch();
 
   co_return;
@@ -325,6 +329,32 @@ cvm::messenger::task<void> reset_sequence::write(uint64_t addr, size_t sz, uint6
   co_return;
 }
 
+cvm::messenger::task<void> reset_sequence::write(uint64_t addr, size_t sz, const std::vector<uint64_t>& data ) {
+  assert(sz <= 8);
+  uint64_t mask = (sz == 8) ? ~uint64_t(0) : ((uint64_t)1 << (sz*8)) - 1;
+  mask = (addr % 8) ? (mask << 32) : mask;
+  std::vector<bool> strb(8, false);
+  for(int i=0; i<8; ++i)
+    strb[i] = (mask & (0xFFull << (i*8))) != 0;
+  int size = data.size();
+  for(int i=0; i < size; i++){
+    uint64_t addr_n = addr + i*sz;
+    uint64_t dword = (addr_n % 8) ? (data[i] << 32) : data[i];
+    auto byte_array = convert_to_byte_array({dword});
+    cvm::log(cvm::NONE, "[pwrmgmt] batch write req : {} - addr={:#x}, sz={}, data={:#x}, dword={:#x} mask={:#x}\n", i, addr_n, sz, data[i], dword, mask);
+    cvm::registry::messenger.signal(smc_axi_loc_, transactor::write_request_t{addr_n, SZ_8B, byte_array, strb});
+  };
+  // Note - simultaneous burst write calls might result in interleaved resposes
+  for(int i=0; i < size; i++){
+    uint64_t addr_n = addr + i*sz;
+    uint64_t dword = (addr_n % 8) ? (data[i] << 32) : data[i];
+    auto resp = co_await cvm::registry::messenger.wait<transactor::write_response_t>(smc_axi_loc_);
+    cvm::log(cvm::NONE, "[pwrmgmt] batch write resp : {} - id={}, addr={:#x}, sz={}, data={:#x}, dword={:#x} mask={:#x}\n", i, resp.id, addr_n, sz, data[i], dword, mask);
+  };
+  co_return;
+};
+
+
 void reset_sequence::init() {
   cvm::registry::callbacks.push(
     scope_,
@@ -432,3 +462,42 @@ uint64_t reset_sequence::sc_fuse_val() {
 uint64_t reset_sequence::fuse_val() {
   return core_fuse_val() | trace_fuse_val() | dm_fuse_val() | sc_fuse_val() | (1ull << lock_idx);
 }
+
+
+cvm::messenger::task<void> reset_sequence::program_patch() {
+  co_await tick();
+  
+  co_await write(cpl_patch_ram_base, SZ_8B, concatenate_uint32_to_uint64(patch_header) );
+  co_await write(cpl_patch_ram_ptrig_0, SZ_8B, concatenate_uint32_to_uint64(patch_trig_0) );
+  co_await write(cpl_patch_ram_ptrig_1, SZ_8B, concatenate_uint32_to_uint64(patch_trig_1) );
+  co_await write(cpl_patch_ram_ptrig_2, SZ_8B, concatenate_uint32_to_uint64(patch_trig_2) );
+  co_await write(cpl_patch_ram_ptrig_3, SZ_8B, concatenate_uint32_to_uint64(patch_trig_3) );
+  co_await write(cpl_patch_ram_pbody_0, SZ_8B, concatenate_uint32_to_uint64(patch_body_subw) );
+  co_await write(cpl_patch_ram_pbody_1, SZ_8B, concatenate_uint32_to_uint64(patch_body_sub) );
+
+  for (uint32_t i=0; i<FLAGS_num_harts; ++i) {
+    //co_await write(core_pversion_mmr + i * core_fuse_offset, SZ_8B, 0xD); //pversion
+    co_await write(core_preg0_mmr + i * core_fuse_offset, SZ_8B, 0xFFFFFFFF4149893b);//preg0 :subw x18, x19, x20
+    co_await write(core_preg1_mmr + i * core_fuse_offset, SZ_8B, 0xFE00707F40000033);//preg1 :sub
+    co_await write(core_pcontrol_mmr + i * core_fuse_offset, SZ_8B, 0x83FF83FF);//pcontrol
+    //co_await write(core_pcontrol_mmr + i * core_fuse_offset, SZ_8B, 0x8001);//pcontrol
+    co_await write(core_ptvec_csr + i * core_fuse_offset, SZ_8B, 0x210C00000); //Program PtVec register
+  };
+
+  co_return;
+};
+
+std::vector<uint64_t> reset_sequence::concatenate_uint32_to_uint64(const std::vector<uint32_t>& input) {
+      std::vector<uint64_t> result;
+      int size = input.size();
+      // Loop through input array and concatenate pairs
+      for (int i = 0; i < size; i += 2) {
+          uint32_t low = input[i];
+          uint32_t high = (i + 1 < size) ? input[i + 1] : 0;  // Use 0 if no pair available
+          uint64_t concatenated = static_cast<uint64_t>(high) << 32 | low;
+          result.push_back(concatenated);
+      }
+      return result;
+  };
+
+
