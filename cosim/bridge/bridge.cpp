@@ -218,6 +218,12 @@ void bridge::csr_init() {
     update_csr(id_, src_t::iss, csr.address, data, cac_mask);
     csr_cac_.Step(id_, false);
   }
+
+  // CSR rename
+  if (!client_->whisperPeekCsr(id_, 0xBC2, data, mask, poke_mask, read_mask, valid)) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek csr\n", id_);
+  }
+  csr_rename_en_ = !((data & 0x200) >> 9);
 }
 
 void bridge::setsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr) {
@@ -1353,8 +1359,9 @@ bool bridge::is_ucode(const std::string& instr) {
 
 bool bridge::is_cracked_csr(const std::string& instr) {
   if (csr_rename_en_ &&
-      ((instr.find("epc") != std::string::npos) ||
-      (instr.find("scratch") != std::string::npos)))
+      ((instr.find("mscratch") != std::string::npos) ||
+       (instr.find("sscratch") != std::string::npos) ||
+       (instr.find("vsscratch") != std::string::npos)))
     return true;
   return false;
 }
