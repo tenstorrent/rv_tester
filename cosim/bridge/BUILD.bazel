@@ -19,6 +19,7 @@ cc_library(
                 "//sysmod/htif:htif",
                 "//:plusargs",
                 "//cosim/dut_if/rvfi:rvfi_plusargs",
+                "//cosim/utils/eot:eot_plusargs",
                 "//sysmod:sysmod_plusargs",
                 "//sysmod/trickbox:trickbox",
                ],

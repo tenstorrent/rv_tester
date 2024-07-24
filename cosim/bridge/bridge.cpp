@@ -16,6 +16,7 @@
 #include "sysmod/trickbox/imsic_driver.h"
 #include "cosim/dut_if/rvfi/rvfi_plusargs.h"
 #include "sysmod/sysmod_plusargs.h"
+#include "cosim/utils/eot/eot_plusargs.h"
 
 #include <cstring>          // strlen
 #include <sstream>          // stringstream
@@ -144,6 +145,10 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
     if((FLAGS_max_cycle < static_cast<gflags::uint64>(1000000 + (nharts - 1) * 75000)) && (FLAGS_max_cycle != 0)){
         FLAGS_max_cycle = (1000000 + (nharts-1)*75000);
         cvm::log(cvm::LOW, "Overwriting max_cycle to {} cycles\n",FLAGS_max_cycle );
+    }
+    if((FLAGS_max_instr < static_cast<gflags::uint64>(100000 + (nharts - 1) * 20000)) && (FLAGS_max_instr != 0) && (FLAGS_eot != "max_instr")){
+        FLAGS_max_instr = (100000 + (nharts-1)*20000);
+        cvm::log(cvm::LOW, "Overwriting max_instr to {} cycles\n",FLAGS_max_instr );
     }
 }
 
