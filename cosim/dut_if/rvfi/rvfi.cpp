@@ -320,7 +320,6 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   // CSR renaming
   uint64_t src = (m_rvfi.uop >> 16) & 0x3f;
   instr.csr_renamed = (((m_rvfi.rd_addr >= 35) && (m_rvfi.rd_addr <= 37))) || ((src >= 35) && (src <= 37));
-  log(cvm::NONE, "src={}\n", src);
   if (renamed_csr.count(static_cast<renamed_csr_reg>(m_rvfi.rd_addr))) {
     csr_t c {true, m_rvfi.hart, m_rvfi.cycle, renamed_csr.at(static_cast<renamed_csr_reg>(m_rvfi.rd_addr)), std::numeric_limits<uint64_t>::max(), m_rvfi.rd_wdata};
     instr.csr.push_back(c);
