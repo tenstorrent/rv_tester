@@ -603,7 +603,7 @@ void bridge::pre_step_lrsc_poke(hart_id_t hart, const rv_instr_t& d) {
       (d.disasm.find("sc.d") != std::string::npos)) {
     // Check if Store-Conditional (SC) failed
     uint64_t fail_code = 1;
-    if (d.mem_read.data == fail_code) {
+    if (d.gpr.rd_wdata == fail_code) {
       lrsc_fail_ = true;
       bool valid;
       // Cancel Load-Reserved (LR)
