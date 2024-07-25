@@ -189,8 +189,7 @@ module rv_tester
             flush_counter   <= '0;
             instructions    <= '0;
             dmi_poll_timeout_terminate <= '0;
-        end
-        if (!init_pulse) begin
+        end else if (!init_pulse) begin
             sysmod_reset    <= '0;
         end
         if(trace_en && (quiesce_counter >= quiesce_timeout)) begin

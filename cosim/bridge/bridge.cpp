@@ -16,6 +16,7 @@
 #include "sysmod/trickbox/imsic_driver.h"
 #include "cosim/dut_if/rvfi/rvfi_plusargs.h"
 #include "sysmod/sysmod_plusargs.h"
+#include "cosim/utils/eot/eot_plusargs.h"
 
 #include <cstring>          // strlen
 #include <sstream>          // stringstream
@@ -119,6 +120,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
       "pma","pmp", // FIXME: Performant NC change
       "vtype", // Permanent: Vector vtype will not be implemented
       "mip","hip","vsip","hvip","sip","mireg","sireg","vsireg","mtopei","stopei","vstopei", // Permanent: Interrupts
+      "mtopi", "stopi", "vstopi", // RVTOOLS-3189
       "hpmcounter","hpmevent","scountovf","mcycle","minstret","minstreth", // Permanent: PMC events
       "dcsr","dscratch0","dscratch1" // Permanent: Debug events
 
@@ -144,6 +146,10 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
     if((FLAGS_max_cycle < static_cast<gflags::uint64>(1000000 + (nharts - 1) * 75000)) && (FLAGS_max_cycle != 0)){
         FLAGS_max_cycle = (1000000 + (nharts-1)*75000);
         cvm::log(cvm::LOW, "Overwriting max_cycle to {} cycles\n",FLAGS_max_cycle );
+    }
+    if((FLAGS_max_instr < static_cast<gflags::uint64>(100000 + (nharts - 1) * 20000)) && (FLAGS_max_instr != 0) && (FLAGS_eot != "max_instr")){
+        FLAGS_max_instr = (100000 + (nharts-1)*20000);
+        cvm::log(cvm::LOW, "Overwriting max_instr to {} cycles\n",FLAGS_max_instr );
     }
 }
 
@@ -178,6 +184,10 @@ void bridge::reset() {
 
   // Write hart enable mask to boot mem
   if (!client_->whisperPoke(id_, 0, 'm', memmap_.at("boot").base + 0x9000, FLAGS_hart_enable_mask, valid)) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: Failed to poke boot memory\n", id_);
+    return;
+  }
+  if (!client_->whisperPoke(id_, 0, 'm', memmap_.at("boot").base + 0x9018, FLAGS_hart_sync_en, valid)) {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed to poke boot memory\n", id_);
     return;
   }
@@ -218,6 +228,12 @@ void bridge::csr_init() {
     update_csr(id_, src_t::iss, csr.address, data, cac_mask);
     csr_cac_.Step(id_, false);
   }
+
+  // CSR rename
+  if (!client_->whisperPeekCsr(id_, 0xBC2, data, mask, poke_mask, read_mask, valid)) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek csr\n", id_);
+  }
+  csr_rename_en_ = !((data & 0x200) >> 9);
 }
 
 void bridge::setsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr) {
@@ -569,7 +585,7 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
   if (FLAGS_priv_check) {
     update_priv(hart, src_t::dut, d.priv);
   }
-  if (FLAGS_insn_check && !d.comp && !d.ucode && !is_vector(d.disasm) && !(d.disasm.substr(0,7)=="illegal") && !d.csr_cracked) {
+  if (FLAGS_insn_check && !d.comp && !d.ucode && !is_vector(d.disasm) && !(d.disasm.substr(0,7)=="illegal") && !d.csr_renamed) {
     update_insn(hart, src_t::dut, d.opcode);
   }
   if (FLAGS_flags_check && (d.flags != 0)) {
@@ -922,7 +938,6 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
   w_.trap = w.trap;
   w_.comp = is_compressed(w.disasm);
   w_.ucode = is_ucode(w.disasm) || w.trap; // system opcode
-  w_.csr_cracked = is_cracked_csr(w.disasm);
   w_.mem_read.valid = w.is_load;
   w_.pc.valid = true;
   w_.pc.pc_rdata = w.pc;
@@ -939,7 +954,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
 
   // FIXME Instruction byte checking disabled for vectors till we find a way to
   // differentiate cracked instructions
-  if (FLAGS_insn_check && !w_.comp && !w_.ucode && !is_vector(w.disasm) && !(w.disasm.substr(0,7)=="illegal") && !w_.csr_cracked)
+  if (FLAGS_insn_check && !w_.comp && !w_.ucode && !is_vector(w.disasm) && !(w.disasm.substr(0,7)=="illegal") && !is_renamed_csr(w.disasm))
     update_insn(hart, src_t::iss, w.opcode);
 
   if (FLAGS_flags_check && (w.fp_flags != 0))
@@ -1351,10 +1366,11 @@ bool bridge::is_ucode(const std::string& instr) {
   return false;
 }
 
-bool bridge::is_cracked_csr(const std::string& instr) {
+bool bridge::is_renamed_csr(const std::string& instr) {
   if (csr_rename_en_ &&
-      ((instr.find("epc") != std::string::npos) ||
-      (instr.find("scratch") != std::string::npos)))
+      ((instr.find("mscratch") != std::string::npos) ||
+       (instr.find("sscratch") != std::string::npos) ||
+       (instr.find("vsscratch") != std::string::npos)))
     return true;
   return false;
 }
