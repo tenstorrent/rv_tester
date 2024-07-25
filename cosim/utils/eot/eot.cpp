@@ -9,6 +9,7 @@
 DEFINE_string(eot, "tohost", "Enable end-of-test mechanism. Supported options: tohost, max_instr, tohost_all");
 DEFINE_uint64(tohost, 0x0, "Use this tohost address if provided");
 DEFINE_uint64(max_instr, 100000, "Max instruction limit to terminate the sim");
+DEFINE_uint64(min_instr,      0, "min instruction limit to pass the sim");
 
 REGISTRY_register(eot, TOP.PLATFORM, cvm::registry::all);
 
@@ -155,4 +156,12 @@ void eot::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_b
    process_tohost(m_mcmi_bypass.hart, m_mcmi_bypass.cycle, m_mcmi_bypass.addr, m_mcmi_bypass.data);
 }
 
-
+eot::~eot() {
+    int h = 0;
+    for(const auto i : instr_count_) {
+        if (i < FLAGS_min_instr) {
+            cvm::log(cvm::ERROR, "Hart:<{}> Error: instruction count {} did not meet +min_instr={}\n", h, i, FLAGS_min_instr);
+        }
+        h++;
+    }
+}
