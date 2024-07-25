@@ -669,14 +669,14 @@ sysmod::load_boot(const std::string& boot)
     dev("boot")->backdoor_write(dev("boot")->addr() + 0x9000, 8, data, strb);
 
     // Write hart_sync_en for bootrom to access
-    device::data_t data(8);
-    device::strb_t strb(8);
+    device::data_t data1(8);
+    device::strb_t strb1(8);
     for (size_t i = 0; i < 8; i++) {
-      if (i==0) data[i] = uint8_t(FLAGS_hart_sync_en);
-      else      data[i] = 0;
-      strb[i] = true;
+      if (i==0) data1[i] = uint8_t(FLAGS_hart_sync_en);
+      else      data1[i] = 0;
+      strb1[i] = true;
     }
-    dev("boot")->backdoor_write(dev("boot")->addr() + 0x9018, 8, data, strb);
+    dev("boot")->backdoor_write(dev("boot")->addr() + 0x9018, 8, data1, strb1);
 
     if(FLAGS_enable_sp_init){
       device::data_t data(8);
