@@ -19,7 +19,6 @@ module rv_tester
        eot_syscall = syscall;
     endfunction
 
-
     typedef longint unsigned LU;
 
     localparam int unsigned NoAddrRules = 20;
@@ -190,8 +189,7 @@ module rv_tester
             flush_counter   <= '0;
             instructions    <= '0;
             dmi_poll_timeout_terminate <= '0;
-        end
-        if (!init_pulse) begin
+        end else if (!init_pulse) begin
             sysmod_reset    <= '0;
         end
         if(trace_en && (quiesce_counter >= quiesce_timeout)) begin
@@ -491,6 +489,14 @@ module rv_tester
       );
     end
 `endif
+
+    always @(posedge clk[TB_CLK_IDX]) begin
+        if (eot_status != 0) 
+        /* verilator lint_off ASSIGNIN */
+            cosim_eot_addr <= eot_addr;
+        /* verilator lint_on ASSIGNIN */
+    end
+
 
     localparam RESET_TB_CLOCKS = 100;
     assign init_pulse = (clocks < RESET_TB_CLOCKS);

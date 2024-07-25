@@ -41,6 +41,7 @@ class eot {
       }
     }
     eot(cvm::topology::loc_t loc): eot(loc, 1){}
+    ~eot();
 
   private:
 

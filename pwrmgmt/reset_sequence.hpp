@@ -35,17 +35,22 @@ class reset_sequence {
     cvm::messenger::task<void> force_ref_clk();
     cvm::messenger::task<void> trigger();
     cvm::messenger::task<void> cpl_reset_sequence(rst_t );
+    cvm::messenger::task<void> pll_startup_sequence();
     cvm::messenger::task<void> check_pll_status();
     cvm::messenger::task<void> clear_pll_status();
+    cvm::messenger::task<void> pll_dfs_sequence();
     cvm::messenger::task<void> release_cpl_reset();
     cvm::messenger::task<void> program_fuses();
+    cvm::messenger::task<void> program_patch();
     cvm::messenger::task<void> release_cpl_nofetch();
 
     cvm::messenger::task<uint64_t> read(uint64_t addr, size_t sz);
     cvm::messenger::task<void> write(uint64_t addr, size_t sz, uint64_t data);
+    cvm::messenger::task<void> write(uint64_t addr, size_t sz, const std::vector<uint64_t>& data);
 
     std::vector<uint64_t> convert_to_dword_array(const std::vector<uint8_t>& byte_array);
     std::vector<uint8_t> convert_to_byte_array(const std::vector<uint64_t>& dword_array);
+    std::vector<uint64_t> concatenate_uint32_to_uint64(const std::vector<uint32_t>& input); 
 
     uint64_t fuse_val();
     uint64_t core_fuse_val();

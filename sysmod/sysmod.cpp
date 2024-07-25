@@ -50,6 +50,7 @@ DEFINE_uint32(num_sc_ways, 24, "Number of enabled SC ways - upto 24 in multiples
 DEFINE_uint32(sc_way_enable_mask, 0xFFFFFF, "SC way enable mask. Ex: With 20 enabled ways out of 24, could be 0xF0_FFFF.");
 DEFINE_uint32(trace_enable, 1, "Trace enable fuse");
 DEFINE_uint32(debug_enable, 3, "Debug enable fuse");
+DEFINE_bool(hart_sync_en, true, "Enable hart sync routine in bootrom");
 
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 
@@ -61,7 +62,7 @@ extern "C" {
   void sysmod_aplic_dir_interrupt(unsigned long* i) ;
   void sysmod_aplic_rnd_interrupt(unsigned hartid, unsigned val, unsigned int_val);
   void sysmod_dmi_write(unsigned hartid, unsigned upper_val, unsigned lower_val);
-  void sysmod_jtag_req(unsigned cmd,unsigned long upper_val, unsigned long lower_val, unsigned length, unsigned quit);
+  void sysmod_jtag_req(unsigned cmd,unsigned long upper_val, unsigned long lower_val, unsigned length, unsigned quit,unsigned tap_cfg_sel);
   void sysmod_terminate();
 }
 
@@ -366,7 +367,7 @@ sysmod::jtag_req(jtag_driver::jtag_data_t i) {
       scope(),
       [i]() {
         cvm::log(cvm::FULL, "[SYSMOD] trickbox jtag_driver::dmi.(upper,lower) = {:#x}, {:#x} length = {:#x}\n",i.upper_jtag_data, i.lower_jtag_data, i.jtag_length_data);
-        sysmod_jtag_req(i.jtag_cmd, i.upper_jtag_data, i.lower_jtag_data,i.jtag_length_data,i.jtag_quit);
+        sysmod_jtag_req(i.jtag_cmd, i.upper_jtag_data, i.lower_jtag_data,i.jtag_length_data,i.jtag_quit,i.tap_cfg_sel);
       });
 }
 
@@ -666,6 +667,16 @@ sysmod::load_boot(const std::string& boot)
     device::strb_t strb(8);
     for (size_t i = 0; i < 8; i++) strb[i] = true;
     dev("boot")->backdoor_write(dev("boot")->addr() + 0x9000, 8, data, strb);
+
+    // Write hart_sync_en for bootrom to access
+    device::data_t data1(8);
+    device::strb_t strb1(8);
+    for (size_t i = 0; i < 8; i++) {
+      if (i==0) data1[i] = uint8_t(FLAGS_hart_sync_en);
+      else      data1[i] = 0;
+      strb1[i] = true;
+    }
+    dev("boot")->backdoor_write(dev("boot")->addr() + 0x9018, 8, data1, strb1);
 
     if(FLAGS_enable_sp_init){
       device::data_t data(8);

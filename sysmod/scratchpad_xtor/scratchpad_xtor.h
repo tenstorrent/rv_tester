@@ -15,6 +15,8 @@
 DECLARE_bool(sp_xtor_en);
 DECLARE_bool(sp_xtor_mmr_prog_en);
 DECLARE_bool(sp_xtor_rnd_traffic_en);
+DECLARE_bool(sp_xtor_test_cwfr);
+DECLARE_bool(sp_xtor_test_fwcr);
 
 class scratchpad_xtor : public device {
 
@@ -135,7 +137,22 @@ class scratchpad_xtor : public device {
                 axi_read(sp_addr,4,4);
                 rnd_traffic_cnt_tick = cnt_tick + 5 + rng()% 60; //5 cycle min buffer
              }
-            }else{
+            }else if(FLAGS_sp_xtor_test_cwfr){
+              if(cnt_tick == 60){
+                cvm::log(cvm::HIGH, " **** SCRATCHPAD_XTOR CORE Write Fabric Read Test **** \n");
+                axi_read(0x60000000,4,4); 
+              }
+            }else if(FLAGS_sp_xtor_test_fwcr){
+              if(cnt_tick == 34){
+                cvm::log(cvm::HIGH, " **** SCRATCHPAD_XTOR Fabric Write Core Read Test **** \n");
+                uint64_t addr = 0x60000000;
+                axi_write_granular(addr);
+              }
+              if(cnt_tick == 34){
+                axi_write_data_granular();
+              }
+            }
+            else{
             cvm::log(cvm::HIGH, " SCRATCHPAD_XTOR tick {}\n",cnt_tick);
             if(cnt_tick == 60){
             cvm::log(cvm::HIGH, " SCRATCHPAD_XTOR trigger flag set \n");
