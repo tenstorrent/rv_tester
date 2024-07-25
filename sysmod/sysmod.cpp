@@ -50,7 +50,7 @@ DEFINE_uint32(num_sc_ways, 24, "Number of enabled SC ways - upto 24 in multiples
 DEFINE_uint32(sc_way_enable_mask, 0xFFFFFF, "SC way enable mask. Ex: With 20 enabled ways out of 24, could be 0xF0_FFFF.");
 DEFINE_uint32(trace_enable, 1, "Trace enable fuse");
 DEFINE_uint32(debug_enable, 3, "Debug enable fuse");
-DEFINE_bool(hart_sync_en, true, "Enable hart sync routine in bootrom");
+DEFINE_bool(hart_sync_en, false, "Enable hart sync routine in bootrom");
 
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 
