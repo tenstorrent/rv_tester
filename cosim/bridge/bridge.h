@@ -17,6 +17,7 @@
 
 #include "whisper_client.h"
 #include "rv_tester/rv_tester_structs.h"
+#include "cvm/registry.hpp"
 
 class bridge : public bridge_base {
 
@@ -32,7 +33,8 @@ public:
   // Usec by some functions in bridge.cpp
   using size_8_bytes_t = uint64_t;
 
-public:
+  struct error {};
+
   bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsigned id);
   ~bridge();
 
@@ -251,5 +253,13 @@ private:
   std::vector<std::string> cosim_resynch_csr_defaults;
 
   bool terminated_ = false;
+
+  template <typename... Args>
+      void print(cvm::verbosity_level v, Args&&... args) {
+          cvm::log(v, std::forward<Args>(args)...);
+          if (v <= cvm::verbosity_level::ERROR) {
+              cvm::registry::messenger.signal<error>(loc_, {});
+          }
+      }
 
 };

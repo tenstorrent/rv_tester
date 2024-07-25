@@ -52,7 +52,8 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     rv_tester_transactions::cosim::m_mcmi_ifetch_req<>,
     rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>,
     rv_tester_transactions::cosim::m_mcmi_ievict<>,
-    rv_tester_transactions::cosim::m_debug<>
+    rv_tester_transactions::cosim::m_debug<>,
+    bridge::error
   >(loc);
 
   connect<
@@ -893,6 +894,11 @@ void rvfi::process(const rv_tester::terminate_called&) {
   terminated_ = true;
 }
 
+
+void rvfi::process(const bridge::error&) {
+  cvm::log(cvm::HIGH, "[RVFI] cosim error, stopping further rvfi processing\n");
+  terminated_ = true;
+}
 
 std::string rvfi::mem_attr_to_string(uint32_t mem_attr) {
     std::string result;
