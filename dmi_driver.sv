@@ -48,6 +48,7 @@ module dmi_driver (
   logic [7:0] core_in_halt_group, core_in_resume_grp, core_halted, core_resumed, core_ignore_hreq, core_ignore_rreq;
   logic [9:0] core_hg_check, core_rg_check;
   logic [2:0] core_halt_index, core_resume_index;
+  logic dcsr_abscmd, dcsr_write, ss_step_bit, core_to_halt_after_ss, core_halted_after_ss;
 
   int file_descr;
 
@@ -95,6 +96,11 @@ module dmi_driver (
     ack_havereset <= 0;
     sdtrig_fire <= 0;
     halted_sdtrig <= 0;
+    dcsr_abscmd <= 0;
+    dcsr_write <= 0;
+    ss_step_bit <= 0;
+    core_to_halt_after_ss <= 0;
+    core_halted_after_ss <= 0;
   end
 
   assign misc_signals[0] = poll;
@@ -210,6 +216,11 @@ module dmi_driver (
           if (cmd.data[16] === 'h1) begin
             $display("[Poll] Seen the abstract command with write");
             abs_write = 1;
+            poll = 1;
+            if(cmd.data[15:0] === 'h07b0) begin
+              $display("[Poll] Seen the abstract command with write on dcsr");
+              dcsr_abscmd = 1;
+            end
           end else if (cmd.data[16] === 'h0) begin
             $display("[Poll] Seen the abstract command with read");
             abs_read = 1;
@@ -225,6 +236,10 @@ module dmi_driver (
         ndm_reset_init = 1;
         ndm_reset_assert_done = 1;
         poll = 1;
+        if(ss_step_bit) begin
+          ss_step_bit = 0;
+          $display("[Poll] Step field gets cleared with ndmreset");
+        end
       end else if (ndm_reset_assert_done === 'h1 && cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[1] === 'h0 ) begin
         $display("[Poll] Making NdmReset = 0, Doing Poll");
         ndm_reset_assert_done = 0;
@@ -249,6 +264,14 @@ module dmi_driver (
       end else if(cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[28]) begin
         $display("[Poll] Acknowledge havereset");
         ack_havereset = 1;
+        poll = 1;
+      end else if(dcsr_abscmd && cmd.addr === 'h16 && cmd.op === 'h1) begin
+        $display("[Single step] step bit configured in dcsr");
+        dcsr_abscmd = 0;
+        dcsr_write = 1;
+        poll = 1;
+      end else if(core_to_halt_after_ss && cmd.addr === 'h11 && cmd.op === 'h1) begin
+        $display("[Single step] Core resuming after step configuration");
         poll = 1;
       end
     end
@@ -301,8 +324,14 @@ module dmi_driver (
           $display("[Poll] Read dmstatus to clear anyhavereset and allhavereset");
           dmi_req <= 41'h4500000000;
         end else if (halted_sdtrig) begin
-           $display("[Poll] dmstatus to check if the core is getting halted through sdtrig");
-           dmi_req <= 41'h4500000000;
+          $display("[Poll] dmstatus to check if the core is getting halted through sdtrig");
+          dmi_req <= 41'h4500000000;
+        end else if (dcsr_write) begin
+          $display("[Poll] data0 to check if the step bit is set");
+          dmi_req <= 41'h1100000000;
+        end else if (core_to_halt_after_ss) begin
+          $display("[Poll] check for the core to be halted after ss");
+          dmi_req <= 41'h4500000000;
         end
         wait (dmi_req_ready == 1);
         @(posedge clk) dmi_req_valid <= '0;
@@ -316,6 +345,13 @@ module dmi_driver (
           poll = 0;
           $display("[Poll] Clear Resume Req Poll");
           do_file_writes();
+          if(ss_step_bit) begin
+            core_to_halt_after_ss = 1;
+            $display("core_to_halt_after_ss is set");
+          end
+          if(core_halted_after_ss) begin
+            core_halted_after_ss = 0;
+          end
         end else if (halt_req && dmi_resp.data[9:8] === 2'b11) begin
           halt_req = 0;
           poll = 0;
@@ -440,6 +476,22 @@ module dmi_driver (
           halted_sdtrig = 0;
           poll = 0;
           $display("[Poll] Clearing halted_sdtrig = 0");
+        end else if(dcsr_write) begin
+          if(dmi_resp.data[2] === 'h1) begin
+            ss_step_bit = 1;
+            $display("[Poll] step bit is set in dcsr");
+          end else if(dmi_resp.data[2] === 'h0 && ss_step_bit) begin
+            ss_step_bit = 0;
+            $display("[Poll] step bit is cleared in dcsr");
+          end
+          poll = 0;
+          dcsr_write = 0;
+          $display("[Poll] dcsr_write polling completed");
+        end else if(core_to_halt_after_ss && dmi_resp.data[9:8] === 2'b11) begin
+          core_to_halt_after_ss = 0;
+          core_halted_after_ss = 1;
+          poll = 0;
+          $display("[Poll] core_halted_after_ss is set");
         end
       end
       $display("[Poll] Cleared poll for halt:%h resume:%h abstract:%h", halt_req, resume_req,

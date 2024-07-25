@@ -43,7 +43,7 @@ class whisperClient {
     bool whisperPeek(int hart, char resource, uint64_t addr, uint64_t& value, bool& valid);
     bool whisperPeekPc(int hart, uint64_t& value);
     bool whisperPeekCsr(int hart, uint64_t addr, uint64_t& value, uint64_t& mask, uint64_t& reset_value, uint64_t& read_mask, bool& valid);
-    bool whisperReset(int hart, bool& valid);
+    bool whisperReset(int hart, uint64_t addr, bool& valid);
     bool whisperQuit();
     bool whisperPageTableWalk(int hart, bool isInstr, bool isAddr, svOpenArrayHandle items, unsigned& itemCount, bool& valid);
     bool whisperTranslate(int hart, uint64_t vaddr, bool r, bool w, bool x, bool twoStage, bool supervisor, uint64_t& paddr, bool& valid);

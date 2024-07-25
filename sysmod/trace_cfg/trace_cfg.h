@@ -112,7 +112,7 @@ class trace_cfg : public device {
             x |= INT(data[i+(addr%64)]) << (i * 8);
         }     
         
-        virtual void tick(uint64_t) override
+        virtual void overlay_tick(uint64_t) override
         {
             if(start_trace_cnt == 0) {
               start_trace_cnt = (rng()% 5) + 30;
@@ -150,8 +150,8 @@ class trace_cfg : public device {
                   cvm::log(cvm::HIGH, "[overlay axi regress] overlay timer tick advance interval {} start_trace_cnt{} n {} size {} \n",cnt_tick,start_trace_cnt,n,randomElements.size());
                 }
 
-                if(cnt_tick==(start_trace_cnt+20)) push_random_axi_write(randomElements);
-                if(trace_wr_txn_q.size() > 0) axi_write();
+                // if(cnt_tick==(start_trace_cnt+20)) push_random_axi_write(randomElements);
+                // if(trace_wr_txn_q.size() > 0) axi_write();
                 if(cnt_tick==(start_trace_cnt+30)) push_random_axi_read(randomElements);
 
                 if(trace_misc_rd_txn_q.size() > 0){
@@ -164,7 +164,7 @@ class trace_cfg : public device {
                 }
 
                 while((trace_read_resp_q.size() >0) ){
-                  print_read_request(trace_read_resp_q.front());
+                  print_read_request(trace_read_resp_q.front(),1);
                   trace_read_resp_q.pop();
                   cvm::log(cvm::HIGH, "[overlay axi] queue size {} \n",trace_read_resp_q.size());
                   if(trace_read_resp_q.size() == 0){

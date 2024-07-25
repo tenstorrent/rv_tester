@@ -26,6 +26,8 @@
 #include <fmt/format.h>
 #include <random>
 
+DEFINE_uint64(resetpc, 0x80000000, "Reset PC");
+DEFINE_uint64(resetpcfw, 0xC0040000, "Reset firmware PC");
 DEFINE_bool(whisper_exec, true, "Enable rvfi instr processing...disable useful for measuring rvfi DPI performance");
 DEFINE_bool(bridge_log, true, "Enable bridge logging");
 DEFINE_string(whisper_json_path, "", "Path to whisper json config");
@@ -47,7 +49,7 @@ DEFINE_bool(vec_check, true, "Enable cosim checks on vector regs");
 DEFINE_bool(csr_rd_check, true, "Enable cosim checks on csr reads");
 DEFINE_bool(csr_wr_check, true, "Enable cosim checks on csr writes");
 DEFINE_bool(memattr_check, true, "Enable cosim checks on mem attributes");
-DEFINE_bool(flags_check, false, "Enable cosim checks on fflags");
+DEFINE_bool(flags_check, true, "Enable cosim checks on fflags");
 DEFINE_uint64(max_cycle, 1000000, "Max cycle limit to terminate the sim");
 DEFINE_int32(debug_excp_mcause, 24, "MCAUSE value for debug exception");
 DEFINE_bool(translation_check, false, "Do VA-PA translation check");
@@ -106,6 +108,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
     std::string traceFile  = (FLAGS_whisper_log || FLAGS_whisper_cosim_log) ? "iss_cosim.log" : "";
     std::string commandLog = (FLAGS_whisper_log || FLAGS_whisper_cmd_log  ) ? "iss_cmd.log" : "";
     cosim_resynch_csr_defaults = {
+
       //"htval","mtval2", // RVDE-10043
       "mtinst","htinst", // RVDE-10005
       "vstart","vxsat","vxrm","vcsr", // Unimplemented
@@ -116,7 +119,9 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
       "pma","pmp", // FIXME: Performant NC change
       "vtype", // Permanent: Vector vtype will not be implemented
       "mip","hip","vsip","hvip","sip","mireg","sireg","vsireg","mtopei","stopei","vstopei", // Permanent: Interrupts
-      "hpmcounter","hpmevent","scountovf","mcycle","minstret","minstreth" // Permanent: PMC events
+      "hpmcounter","hpmevent","scountovf","mcycle","minstret","minstreth", // Permanent: PMC events
+      "dcsr","dscratch0","dscratch1" // Permanent: Debug events
+
     };
     std::istringstream iss(FLAGS_cosim_resynch_csr);
     std::string token;
@@ -136,6 +141,10 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
         FLAGS_max_stall_cycle = (20000 + (nharts-1)*2000);
         cvm::log(cvm::LOW, "Overwriting max_stall_cycle to {} cycles\n",FLAGS_max_stall_cycle );
     }
+    if((FLAGS_max_cycle < static_cast<gflags::uint64>(1000000 + (nharts - 1) * 75000)) && (FLAGS_max_cycle != 0)){
+        FLAGS_max_cycle = (1000000 + (nharts-1)*75000);
+        cvm::log(cvm::LOW, "Overwriting max_cycle to {} cycles\n",FLAGS_max_cycle );
+    }
 }
 
 // Destructor
@@ -151,13 +160,18 @@ void bridge::reset() {
   cac_.Reset();
   assert(cac_.SetVlen(vlen_));
 
-  if (client_->whisperConnect(num_harts_) != 0) {
+  if (first_reset_ && client_->whisperConnect(num_harts_) != 0) {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed whisper_connect\n", id_);
     return;
   }
 
+  first_reset_ = false;
+
   bool valid;
-  client_->whisperReset(0, valid);
+  if (!client_->whisperReset(id_, FLAGS_resetpc, valid)) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: Failed whisper reset\n", id_);
+    return;
+  }
 
   // Init csr reset values in cac
   csr_init();
@@ -215,7 +229,7 @@ void bridge::setsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr) {
 }
 void bridge::resetsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr) {
   bool valid;
-  if (!client_->whisperPoke(hart, cycle, 'c', csr, 0xffffffff, valid)) {
+  if (!client_->whisperPoke(hart, cycle, 'c', csr, 0xffffffffffffffff, valid)) {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed to poke timecmp csr\n", id_);
     return;
   }
@@ -370,7 +384,11 @@ void bridge::process_steps(hart_id_t hart, uint32_t n_retire, uint64_t cycle, ui
 // DUT interface callback: Instruction Retire
 void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
+  // cvm::log(cvm::NONE, "Inside the process_dut_instr_retire function\n"); 
+
+
   twoStage_ = false;
+
   whisper_state_t w {
     .tag = d.tag,
     .time = d.cycle
@@ -388,6 +406,11 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   w.tag  = d.tag;
   w.time = d.cycle;
+
+  // Handle debug interrupt
+  if (d.intr && (d.icause == 0)){
+    return;
+  }
 
   // Handle pre-step condition - Debug
   if (debug_mode_) {
@@ -562,7 +585,9 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
   }
 }
 
+
 void bridge::pre_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
+  cvm::log(cvm::NONE, "Debug pre step poking instruction in Debug mode\n", hart); 
   bool valid;
   if (!client_->whisperPoke(hart, 0, 'm', instr.pc.pc_rdata, instr.opcode, valid)) {
     cvm::log(cvm::ERROR, "Error: Hart {}: Failed to poke memory\n", hart);
@@ -754,6 +779,10 @@ void bridge::post_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, const
   }
 
   if (d.intr && !w_.intr && !FLAGS_cosim_resynch) {
+    // If Debug mode intterupt is seen, don't flag an error, Whisper gets poked based on PC fetches
+    if (d.icause == 0) 
+      return;
+
     print_instr_stdout(hart, w);
     cvm::log(cvm::ERROR, "Error: Hart {}: DUT took interrupt, Whisper did not. cause:[{}]\n", hart, d.icause);
     return;
@@ -1378,8 +1407,14 @@ bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const std::
     return true;
   }
   // Case #9
+
+  if (d.intr && (d.icause == 0)){
+    log(cvm::MEDIUM, "<{}> Resynch: Reason=[Debug Mode Interrupt]\n", d.cycle);
+   return true;
+  }
   if (unsupported_csr_access(instr)) {
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[unsupported_csr_access]\n", d.cycle);
+
     return true;
   }
   // Case #10
@@ -1929,17 +1964,23 @@ void bridge::enter_debug_mode(rv_debug_t& d) {
     0x000000130380006f,
     0x000000130580006f,
     0x000000130180006f
-  };
+
+   };
   bridge_log_(cvm::NONE, "<{}> Enter debug mode\n", d.cycle);
-  debug_mode_ = true;
-  if (!client_->whisperEnterDebug()) {
-    cvm::log(cvm::ERROR, "Error: Hart {}: Failed to enter debug mode\n", id_);
-    return;
+  if (!debug_mode_) {
+    if (!client_->whisperEnterDebug()) {
+      cvm::log(cvm::ERROR, "Error: Hart {}: Failed to enter debug mode\n", id_);
+      return;
+    }
   }
 
+  debug_mode_ = true;
+
   bool valid;
-  for(int i=0;i<14;i++){
-    uint64_t debugROM_loc = FLAGS_debug_entry_pc + i*8;
+ for(int i=13;i>=0;i--){
+    
+    uint64_t debugROM_loc = FLAGS_debug_entry_pc + (13-i)*8;
+
     if (!client_->whisperPoke(0, 0, 'm', debugROM_loc,debugROM[i] , valid)) {
       cvm::log(cvm::ERROR, "Error: Hart {}: Failed to poke debug memory\n", 0);
       return;

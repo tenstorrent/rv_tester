@@ -13,7 +13,6 @@
 #include "aclint/aclint.h"
 #include "dm/dm.h"
 #include "trace_cfg/trace_cfg.h"
-#include "smc_xtor/smc_xtor.h"
 #include "pll_xtor/pll_xtor.h"
 #include "pm_nw_xtor/pm_nw_xtor.h"
 #include "aplic_mmr/aplic_mmr.h"
@@ -43,7 +42,14 @@ DEFINE_uint64(sysmod_tick_update_threshold, 1, "Slow down tick update frequency 
 DEFINE_uint64(sp_ways_num, 0x1, "Number of sharedcache ways to be alloted as Scratchpad");
 DEFINE_string(set_csr, "", "+set_csr=<csr_num>:<value>,<num2>:<val2> ");
 DEFINE_string(set_mmr, "", "+set_mmr=<addr>:<size>:<value>,<addr2>:<size>:<val2>");
-DEFINE_int32(seed, 1, "Simulation seed passed down for randomization");
+DEFINE_uint64(seed, 1, "Simulation seed passed down for randomization");
+DEFINE_uint32(num_harts, 0, "Number of enabled harts - upto 8");
+DEFINE_uint32(hart_enable_mask, 0, "Hart enable mask. Ex: With 2 enabled harts in a 8-hart system, could be 0x18. Should match num_harts.");
+DEFINE_string(hart_enable_id, "", "Hart id sequence corresponding to physical cores. Ex: With 2 enabled harts in a 8-hart system, could be 4,3 i.e. hart0=core4, hart1=core3.");
+DEFINE_uint32(num_sc_ways, 24, "Number of enabled SC ways - upto 24 in multiples of 4");
+DEFINE_uint32(sc_way_enable_mask, 0xFFFFFF, "SC way enable mask. Ex: With 20 enabled ways out of 24, could be 0xF0_FFFF.");
+DEFINE_uint32(trace_enable, 1, "Trace enable fuse");
+DEFINE_uint32(debug_enable, 3, "Debug enable fuse");
 
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 
@@ -74,6 +80,9 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::jtag_tick<>>(
       loc_,
       [this](const rv_tester_transactions::sysmod::jtag_tick<>& t) { return this->jtag_tick(t.advance); });
+  cvm::registry::messenger.connect<rv_tester_transactions::sysmod::overlay_tick<>>(
+      loc_,
+      [this](const rv_tester_transactions::sysmod::overlay_tick<>& t) { return this->overlay_tick(t.advance); });
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::jtag_rdata<>>(
       loc_,
       [this](const rv_tester_transactions::sysmod::jtag_rdata<>& t) { return this->jtag_resp(t.rdata); });
@@ -128,6 +137,27 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
             });
   }
 
+  // Flags configuration
+  uint32_t ncores = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
+  uint32_t nharts = 0;
+  if (FLAGS_num_harts == 0 && FLAGS_hart_enable_mask == 0)
+    nharts = ncores;
+  else if (FLAGS_num_harts != 0)
+    nharts = FLAGS_num_harts;
+  else if (FLAGS_hart_enable_mask != 0)
+    nharts = std::bitset<32>(FLAGS_hart_enable_mask).count();
+
+  std::ostringstream oss;
+  FLAGS_num_harts = nharts;
+  FLAGS_hart_enable_mask = (1u << nharts) - 1;
+  for (uint32_t i = 0; i < nharts; ++i) 
+    oss << i << (i < nharts - 1 ? "," : "");
+  FLAGS_hart_enable_id = oss.str();
+
+  cvm::log(cvm::NONE, "[plusargs] +num_harts={} +hart_enable_mask={} +hart_enable_id={}\n",
+    FLAGS_num_harts, FLAGS_hart_enable_mask, FLAGS_hart_enable_id);
+
+  // Reset configuration
   reset();
 }
 
@@ -177,17 +207,6 @@ sysmod::trace_info_handler(trace_cfg::trace_info_t i) {
 }
 
 void
-sysmod::smc_info_handler(smc_xtor::smc_info_t i) {
-        cvm::log(cvm::HIGH, "[SYSMOD] trace_info {} \n",i.smc_quiesced);
- // cvm::registry::callbacks.push(
- //     scope(),
- //     [i]() {
- //       cvm::log(cvm::HIGH, "[SYSMOD] smc_info \n");
- //       sysmod_trace_info(i.trace_quiesced);
- //     });
-}
-
-void
 sysmod::pll_info_handler(pll_xtor::pll_info_t i) {
         cvm::log(cvm::HIGH, "[SYSMOD] trace_info {} \n",i.pll_quiesced);
  // cvm::registry::callbacks.push(
@@ -223,22 +242,6 @@ sysmod::aplic_interrupt(aplic_driver::aplic_driver_write_t i) {
 
 void
 sysmod::trace_cfg_read_req_router(trace_cfg::trace_cfg_read_t r) {
-
-    transactor::read_t rd;
-    rd.addr = r.addr;
-    rd.length = r.length;
-    rd.id =  r.id;
-
-    auto sources = cvm::topology::get_from_type("PLATFORM_TRANSACTOR");
-
-    if (this->dev(r.addr)){
-        cvm::registry::messenger.signal<device::read_t>(this->loc_, {rd, sources[0]});
-    }
-
-}
-
-void
-sysmod::smc_read_req_router(smc_xtor::smc_xtor_read_t r) {
 
     transactor::read_t rd;
     rd.addr = r.addr;
@@ -362,7 +365,7 @@ sysmod::jtag_req(jtag_driver::jtag_data_t i) {
   cvm::registry::callbacks.push(
       scope(),
       [i]() {
-        cvm::log(cvm::FULL, "[SYSMOD] trickbox jtag_driver::dmi.(upper,lower) = {:#x}, {:#x}\n",i.upper_jtag_data, i.lower_jtag_data, i.jtag_length_data);
+        cvm::log(cvm::FULL, "[SYSMOD] trickbox jtag_driver::dmi.(upper,lower) = {:#x}, {:#x} length = {:#x}\n",i.upper_jtag_data, i.lower_jtag_data, i.jtag_length_data);
         sysmod_jtag_req(i.jtag_cmd, i.upper_jtag_data, i.lower_jtag_data,i.jtag_length_data,i.jtag_quit);
       });
 }
@@ -388,7 +391,6 @@ sysmod::terminate(htif::terminate_t t) {
 
 void
 sysmod::reset() {
-  override_plusargs();
   compose();
   load_prog(FLAGS_hex, FLAGS_load, FLAGS_load_lz4);
   load_io(FLAGS_load_io);
@@ -396,28 +398,6 @@ sysmod::reset() {
   if (!FLAGS_cosim)
     load_csr_mmr_boot(0);
   load_cplfw(FLAGS_cplfw_path);
-}
-
-void
-sysmod::override_plusargs()
-{
-  // Overwrite hart_enable_mask in a random fashion based on num_harts run-arg
-  // Do this only when hart_enable_mask run-arg is 0x1 (default value)
-  if (FLAGS_hart_enable_mask == 0x1) {
-    unsigned char hart_enable_mask = 0;
-    std::set<uint8_t> unique_bit_positions;
-    cvm::rng<uint32_t> rng(FLAGS_seed);
-    // Generate unique bit positions
-    while (unique_bit_positions.size() < FLAGS_num_harts) {
-      unique_bit_positions.insert(rng() % FLAGS_num_harts);
-    }
-    // Set bits in hart_enable_mask
-    for (uint8_t bit_position : unique_bit_positions) {
-      hart_enable_mask |= (1 << bit_position);
-    }
-    FLAGS_hart_enable_mask = hart_enable_mask;
-    cvm::log(cvm::LOW, "Overwriting hart_enable_mask to {:#x}\n", FLAGS_hart_enable_mask);
-  }
 }
 
 void
@@ -430,7 +410,6 @@ sysmod::compose()
   memmap::get(memmap_);
 
   auto mmr_master = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MMR_MST");
-  auto smc_master = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_SMC_MST");
   auto pll_master = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_PLL_MST");
   auto pm_nw_master = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_PM_NW_MST");
   auto masters = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST");
@@ -503,17 +482,6 @@ sysmod::compose()
             loc_,
             [&](scratchpad_xtor::scratchpad_xtor_read_t i) { return this->scratchpad_xtor_read_req_router(i); });
       }
-      else if (type == "smc_xtor") {
-        // TODO: cvm::ERROR
-        cvm::registry::messenger.connect<smc_xtor::smc_info_t>(
-            loc_,
-            [&](smc_xtor::smc_info_t i) { return this->smc_info_handler(i); });
-        assert(masters.size() > 0);
-        device = std::make_unique<smc_xtor>(tag, base, size, loc_, smc_master[0]);
-        cvm::registry::messenger.connect<smc_xtor::smc_xtor_read_t>(
-            loc_,
-            [&](smc_xtor::smc_xtor_read_t i) { return this->smc_read_req_router(i); });
-      }
       else if (type == "aplic_mmr") {
         // TODO: cvm::ERROR
         assert(mmr_master.size() > 0);
@@ -559,7 +527,7 @@ sysmod::compose()
             [&](trace_cfg::trace_cfg_read_t i) { return this->trace_cfg_read_req_router(i); });
       }
       else
-        cvm::log(cvm::ERROR, "Error: unknown type %s", type);
+        cvm::log(cvm::ERROR, "Error: unknown sysmod type %s\n", type);
 
       devices_.emplace_back(std::move(device));
     }
@@ -918,6 +886,18 @@ void sysmod::tboxtrig_updatemem(uint64_t addr, uint64_t data) {
     for (size_t i = 0; i < 8; i++) strb[i] = true;
 
     dev("trickbox")->backdoor_write(addr, 8, dataw, strb);
+}
+
+void sysmod::overlay_tick(uint64_t advance)
+{
+
+  overlay_ticks_ += advance;
+
+   if (advance) {
+       for (auto& d : devices_) {
+           d->overlay_tick(advance);
+       }
+   }
 }
 extern "C" {
   void sysmod_set_scope(cvm::topology::loc_t loc) {

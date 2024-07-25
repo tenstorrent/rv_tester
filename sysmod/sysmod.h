@@ -16,7 +16,6 @@
 #include "trickbox/jtag_driver.h"
 #include "scratchpad_xtor/scratchpad_xtor.h"
 #include "trace_cfg/trace_cfg.h"
-#include "smc_xtor/smc_xtor.h"
 #include "pll_xtor/pll_xtor.h"
 #include "pm_nw_xtor/pm_nw_xtor.h"
 #include "cvm/topology.hpp"
@@ -54,8 +53,8 @@ class sysmod {
     void set_scope(svScope s) { scope_ = s; }
     void tick(uint64_t advance);
     void jtag_tick(uint64_t advance);
+    void overlay_tick(uint64_t advance);
     void jtag_resp(std::bitset<70> rdata);
-    void override_plusargs();
     void compose();
     void load_boot(const std::string& boot);
     void load_cplfw(const std::string& cplfw);
@@ -98,7 +97,6 @@ class sysmod {
 }
   protected:
     void trace_info_handler(trace_cfg::trace_info_t i);
-    void smc_info_handler(smc_xtor::smc_info_t i);
     void pll_info_handler(pll_xtor::pll_info_t i);
     void pm_nw_info_handler(pm_nw_xtor::pm_nw_info_t i);
     void timer_interrupt(clint::timer_t t);
@@ -111,7 +109,6 @@ class sysmod {
     void uc_helper_backdoor_write(uc_helper::uc_helper_write_t w);
     void uc_helper_backdoor_read(uc_helper::uc_helper_read_req_t w);
     void trace_cfg_read_req_router(trace_cfg::trace_cfg_read_t r);
-    void smc_read_req_router(smc_xtor::smc_xtor_read_t r);
     void scratchpad_xtor_read_req_router(scratchpad_xtor::scratchpad_xtor_read_t r);
     void terminate(htif::terminate_t t);
     cvm::messenger::task<uint64_t> backdoor_read(uint64_t address);
@@ -139,5 +136,6 @@ class sysmod {
 
     std::uint64_t ticks_ = 0;
     std::uint64_t jtag_ticks_ = 0;
+    std::uint64_t overlay_ticks_ = 0;
     //remote_bitbang_t remote_bitbang();
 };

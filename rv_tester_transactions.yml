@@ -11,6 +11,13 @@ cosim:
             count:
                 width: 32
 
+    m_reset:
+        domain: 1
+        num: 1
+        fields:
+            cycle:
+                width: 64
+
     m_csri:
         domain: 1
         num: ${max(TOP.PLATFORM.COSIM.RVFI.NRETS) + TOP.PLATFORM.MAX_CSR_AFTER_NRET}
@@ -332,6 +339,12 @@ sysmod:
         fields:
             advance:
                 width: 64
+    overlay_tick:
+        domain: 2
+        num: 1
+        fields:
+            advance:
+                width: 64
     jtag_rdata:
         domain: 2
         num: 1
@@ -427,7 +440,7 @@ axi_sw_mst:
     num: [${TOP.PLATFORM.AXI_MST.TOTAL}, ${TOP.PLATFORM.APLIC_MMR_AXI_MST.TOTAL}, ${TOP.PLATFORM.SMC_AXI_MST.TOTAL}, ${TOP.PLATFORM.PLL_AXI_MST.TOTAL}, ${TOP.PLATFORM.PM_NW_AXI_MST.TOTAL}]
 
     b:
-        domain: [2,2,2,2,2]
+        domain: [2, 2, 3, 3, 3]
         num: 1
         fields:
             id:
@@ -436,7 +449,7 @@ axi_sw_mst:
                 widths: [2, 2, 2, 2, 2]
 
     r:
-        domain: [2,2,2,2,2]
+        domain: [2, 2, 3, 3, 3]
         num: 1
         fields:
             id:
@@ -449,21 +462,21 @@ axi_sw_mst:
                 widths: [1, 1, 1, 1, 1]
 
     ar_q_ptr:
-        domain: [2,2,2,2,2]
+        domain: [2, 2, 3, 3, 3]
         num: 1
         fields:
             ar_ptr:
                 widths: [${TOP.PLATFORM.AXI_MST.AR_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.APLIC_MMR_AXI_MST.AR_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.SMC_AXI_MST.AR_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.PLL_AXI_MST.AR_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.PM_NW_AXI_MST.AR_Q_PTR_MAX_LOG2}]
 
     aw_q_ptr:
-        domain: [2,2,2,2,2]
+        domain: [2, 2, 3, 3, 3]
         num: 1
         fields:
             aw_ptr:
                 widths: [${TOP.PLATFORM.AXI_MST.AW_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.APLIC_MMR_AXI_MST.AW_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.SMC_AXI_MST.AW_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.PLL_AXI_MST.AW_Q_PTR_MAX_LOG2}, ${TOP.PLATFORM.PM_NW_AXI_MST.AW_Q_PTR_MAX_LOG2}]
 
     w_q_ptr:
-        domain: [2,2,2,2,2]
+        domain: [2, 2, 3, 3, 3]
         num: 1
         fields:
             w_ptr:
@@ -1311,6 +1324,30 @@ aclint_checker:
                 width: 64
             data:
                 width: ${TOP.PLATFORM.XLEN}
+
+reset_driver:
+    num: 1
+    tick:
+        domain: 2
+        num: 1
+        fields:
+            num_clocks:
+                width: 64
+
+pwrmgmt:
+    num: 1
+    m_tick:
+        domain: 3
+        num: 1
+        fields:
+            cycle:
+                width: 32
+    m_force_ref_clk:
+        domain: 3
+        num: 1
+        fields:
+            cycle:
+                width: 32
 
 aplic_monitor:
     num: 1

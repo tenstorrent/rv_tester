@@ -21,14 +21,13 @@ DEFINE_bool(mcm, false, "Enable mcm");
 DEFINE_bool(cosim, true, "Enable cosim checking");
 DEFINE_bool(emulate_amo_arithmetic, true, "Emulate amo arithmetic if dut harness does not provide amo outputs");
 
-DEFINE_uint64(debug_entry_pc, 0xa110800, "Debug Mode entry PC");
-DEFINE_uint64(debug_exit_pc, 0xa110860, "Debug Mode exit PC");
+DEFINE_uint64(debug_entry_pc, 0x42190800, "Debug Mode entry PC");
+DEFINE_uint64(debug_exit_pc, 0x42190860, "Debug Mode exit PC");
 
 REGISTRY_register(rvfi, COSIM, cvm::registry::all);
 
 rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
   : log("h" + std::to_string(id) + "_dut_rvfi.log"), loc_(loc), id_(id) {
-  init();
   whisper::initialize();
 
   cvm::registry::messenger.connect<svScope>(
@@ -36,6 +35,7 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     [&](svScope s) { return this->set_scope(s); });
 
   connect<
+    rv_tester_transactions::cosim::m_reset<>,
     rv_tester_transactions::cosim::m_rvfi<>,
     rv_tester_transactions::cosim::m_steps<>,
     rv_tester_transactions::cosim::m_gp_regs<>,
@@ -58,6 +58,16 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
   connect<
     rv_tester::terminate_called
   >(cvm::topology::get_from_type("PLATFORM", 0));
+
+  // Flags configuration
+  uint32_t ncores = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
+  if (ncores > 1) {
+    FLAGS_mcm = true;
+    cvm::log(cvm::NONE, "[plusargs] +mcm\n");
+  }
+
+  // Reset/init configuration
+  init();
 }
 
 rvfi::~rvfi() {
@@ -74,6 +84,18 @@ void rvfi::init() {
   } else {
     cvm::log(cvm::MEDIUM, "Running with cosim is disabled\n");
   }
+}
+
+void rvfi::process(const rv_tester_transactions::cosim::m_reset<>& m_reset) {
+
+  if (!FLAGS_cosim || terminated_)
+    return;
+
+  if (loc_ != m_reset.location)
+    return;
+
+  cvm::log(cvm::MEDIUM, "[RVFI] Reset\n");
+  bridge_->reset();
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
@@ -537,7 +559,7 @@ void rvfi::enter_debug_mode(rv_instr_t& instr) {
     return;
 
   if ((uint64_t)instr.pc.pc_rdata == FLAGS_debug_entry_pc) {
-
+    // (instr.intr && (instr.icause == 0)) { 
     rv_debug_t debug;
 
     debug.cycle = instr.cycle;

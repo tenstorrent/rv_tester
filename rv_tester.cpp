@@ -5,9 +5,11 @@
 #include "cvm/registry.hpp"
 #include "cvm/callbacks.hpp"
 #include "cvm/logger.hpp"
+#include "cvm/random.hpp"
 #include "memmap.h"
 #include "rv_tester_transactions.hpp"
 #include "rv_tester/rv_tester_structs.h"
+#include "sysmod/sysmod_plusargs.h"
 static bool validate_ge0(const char* flagname, const int value) {
     if (value < 0) {
         cvm::log(cvm::NONE, "Invalid value for +{}={}, must be >= 0\n", flagname, value);
@@ -78,12 +80,15 @@ extern "C" {
         char *env_var = std::getenv("ZEBU_OFFLINE_DPI");
         if (env_var != nullptr && std::string(env_var) == "1") {
             cvm::plusargs::parse();
+            cvm::rand::seed(FLAGS_seed);
             cvm::log(cvm::NONE, "Initialize Offline DPI");
         }
     }
 
     int rv_tester_parse_flags() {
+        cvm::log(cvm::NONE, "[plusargs] Parsing...\n");
         cvm::plusargs::parse();
+        cvm::rand::seed(FLAGS_seed);
         return 0;
     }
 
@@ -116,6 +121,7 @@ extern "C" {
     }
 
     uint8_t rv_tester_shutdown_registry() {
+        cvm::registry::check();
         return cvm::registry::shutdown();
     }
 

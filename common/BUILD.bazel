@@ -11,7 +11,7 @@ cc_library(
         "pcg_extras.hpp",
         "pcg_uint128.hpp",
         "remote_bitbang.h",
-        "memmap.h"
+        "memmap.h",
     ],
     deps = [
         "@opensrc-nlohmann-json//:json",
