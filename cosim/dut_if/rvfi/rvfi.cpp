@@ -312,10 +312,10 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   if (m_rvfi.flags_valid) {
     instr.flags = m_rvfi.flags;
     // Accumulate flags writes across cracked uops
-    if (instr.vec_cracked) {
-      cracked_flags_ |= m_rvfi.flags;
-    }
+    cracked_flags_ |= m_rvfi.flags;
   }
+  // Accumulate vec_cracked bool across cracked uops
+  vec_cracked_ |= instr.vec_cracked;
 
   // CSR
   if (m_rvfi.csr_valid) {
@@ -382,7 +382,8 @@ void rvfi::append_uop_changes_to_instr(rv_instr_t& instr) {
   }
 
   // Flags
-  instr.flags |= cracked_flags_;
+  if (vec_cracked_) instr.flags |= cracked_flags_;
+  vec_cracked_ = 0;
   cracked_flags_ = 0;
 
   // CSR
