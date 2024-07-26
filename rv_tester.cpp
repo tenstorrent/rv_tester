@@ -56,7 +56,9 @@ class logger_instrument {
         }
 
         void check() {
-            cvm::registry::messenger.signal<rv_tester::terminate_called>(loc, rv_tester::terminate_called{});
+            // we want this to be low prio and async so it goes behind existing rvfi transactions in the queue
+            // because of QoS this could have been seen before all rvfi transactions up to this instruction were processed
+            cvm::registry::messenger.signal_async<rv_tester::terminate_called>(loc, rv_tester::terminate_called{}, cvm::messenger::lowest_priority);
             cvm::registry::callbacks.push(
                 scope,
                 []() {

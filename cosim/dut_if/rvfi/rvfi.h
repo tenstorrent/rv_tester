@@ -61,6 +61,7 @@ class rvfi {
     void process(const rv_tester_transactions::cosim::m_mcmi_ievict<>& m_mcmi_ievict);
 
     void process(const rv_tester::terminate_called&);
+    void process(const bridge::error &);
 
     std::tuple<uint64_t, uint64_t, uint8_t> get_mem_attributes(uint64_t addr, uint8_t mask, uint64_t data);
 
