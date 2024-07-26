@@ -20,7 +20,7 @@ DEFINE_string(warm_reset_critical_hold, "0:1", "Critical hold");
 DEFINE_bool(patch_en, false, "Enable instruction patching");
 DEFINE_bool(patch_cpl_filter_dis, false, "Disable programming of inbound and outbound filters in core");
 DEFINE_bool(patch_registers_check, false, "Enable read write checking of patch related registers");
-DEFINE_bool(patch_lock_cfg, true, "Lock the patch mmrs while boot programming ");
+DEFINE_bool(patch_cfg_lock, true, "Lock the patch mmrs while boot programming ");
 
 extern "C" {
   void pwrmgmt_init();
@@ -494,7 +494,7 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
     co_await write(core_preg1_mmr + i * core_fuse_offset, SZ_8B, 0xFE00707F40000033);//preg1 :sub
     //co_await write(core_preg1_mmr + i * core_fuse_offset, SZ_8B, 0xFFFFFFFF405201b3);//preg1 :sub x3, x4, x5
     uint64_t pcontrol_data = 0x03FF03FF;
-    if (FLAGS_patch_lock_cfg) pcontrol_data = pcontrol_data | 0x8000800080008000;
+    if (FLAGS_patch_cfg_lock) pcontrol_data = pcontrol_data | 0x8000800080008000;
     co_await write(core_pcontrol_mmr + i * core_fuse_offset, SZ_8B, pcontrol_data);//pcontrol
     //co_await write(core_pcontrol_mmr + i * core_fuse_offset, SZ_8B, 0x8001);//pcontrol
     //co_await write(core_ptvec_csr + i * core_fuse_offset, SZ_8B, 0x4210C000); //Program PtVec register
