@@ -539,7 +539,7 @@ module rv_tester
             .dut_reset(dut_reset[AXI_RESET_IDX]),
             .no_fetch(core_no_fetch[c]),
             .nmi(nmi[c]),
-            `RV_TESTER_TRANSACTIONS_INTERRUPTS_SOURCE_PORTS(2,0,0)
+            `RV_TESTER_TRANSACTIONS_INTERRUPTS_SOURCE_PORTS(2,c,0)
         );
     end
 
