@@ -47,7 +47,7 @@ namespace {
   constexpr uint32_t core_preg1_mmr             = 0x4200'5088;
   constexpr uint32_t core_preg2_mmr             = 0x4200'5090;
   constexpr uint32_t core_preg3_mmr             = 0x4200'5098;
-  constexpr uint32_t core_ptvec_csr             = 0x4200'3DA8;
+  constexpr uint32_t core_ptvec_csr             = 0x4200'07CA;
 
   constexpr uint32_t smc_local_base             = 0x0210'0000;
   constexpr uint32_t cpl_sram_base              = smc_local_base +0x40000;
@@ -61,7 +61,13 @@ namespace {
   constexpr uint32_t cpl_patch_ram_pbody_2     =  cpl_patch_ram_base + 0x0d00;
   constexpr uint32_t cpl_patch_ram_pbody_3     =  cpl_patch_ram_base + 0x01100;
   constexpr uint32_t cpl_patch_ram_pdata       =  cpl_patch_ram_base + 0x1600;
-
+  constexpr uint32_t cpl_in_filter_addr_l      =  smc_local_base + 0x15008;
+  constexpr uint32_t cpl_in_filter_addr_h      =  smc_local_base + 0x15010;
+  constexpr uint32_t cpl_in_filter_config      =  smc_local_base + 0x15000;
+  constexpr uint32_t cpl_out_filter_addr_l     =  smc_local_base + 0x16008;
+  constexpr uint32_t cpl_out_filter_addr_h     =  smc_local_base + 0x16010;
+  constexpr uint32_t cpl_out_filter_config     =  smc_local_base + 0x16000;
+ 
 
   typedef enum : bool { COLD = true, WARM = false } rst_t;
   typedef enum : size_t { SZ_4B = 4, SZ_8B = 8 } sz_t;
@@ -72,7 +78,7 @@ namespace {
     0x7c9f9073,        //0x4214c008 :    	csrw	0x7c9,t6
     0x7b209073,        //0x4214c00c :    	csrw	dscratch0,ra
     0x7b311073,        //0x4214c010 :    	csrw	dscratch1,sp
-    0x7b506ff3,        //0x4214c014 :    	csrrsi	t6,0x7b5,0
+    0x7ca06ff3,        //0x4214c014 :    	csrrsi	t6,0x7ca,0
     0x00cfd093,        //0x4214c018 :    	srli	ra,t6,0xc
     0x00c09093,        //0x4214c01c :    	slli	ra,ra,0xc
     0xf1406173,        //0x4214c020 :    	csrrsi	sp,mhartid,0
@@ -126,129 +132,81 @@ namespace {
     0x7c906ff3,        //0x4214c0e0 :    	csrrsi	t6,0x7c9,0
     0x002fff93,        //0x4214c0e4 :    	andi	t6,t6,2
     0x7c9f9073,        //0x4214c0e8 :    	csrw	0x7c9,t6
-    0x7b509073,        //0x4214c0ec :    	csrw	0x7b5,ra
-    0x00c0d093,        //0x4214c0f0 :    	srli	ra,ra,0xc
-    0x00c09093,        //0x4214c0f4 :    	slli	ra,ra,0xc
-    0xf1406173,        //0x4214c0f8 :    	csrrsi	sp,mhartid,0
-    0x00717113,        //0x4214c0fc :    	andi	sp,sp,7
-    0x00811113,        //0x4214c100 :    	slli	sp,sp,0x8
-    0x00110133,        //0x4214c104 :    	add	sp,sp,ra
-    0x00001fb7,        //0x4214c108 :    	lui	t6,0x1
-    0x600f8f9b,        //0x4214c10c :    	addiw	t6,t6,1536 # 1600 <tohost-0x6fffea00>
-    0x01f10133,        //0x4214c110 :    	add	sp,sp,t6
-    0x00812f03,        //0x4214c114 :    	lw	t5,8(sp)
-    0x01012f83,        //0x4214c118 :    	lw	t6,16(sp)
-    0x7b2f1073,        //0x4214c11c :    	csrw	dscratch0,t5
-    0x7b3f9073,        //0x4214c120 :    	csrw	dscratch1,t6
-    0x01812183,        //0x4214c124 :    	lw	gp,24(sp)
-    0x02012203,        //0x4214c128 :    	lw	tp,32(sp)
-    0x02812283,        //0x4214c12c :    	lw	t0,40(sp)
-    0x03012303,        //0x4214c130 :    	lw	t1,48(sp)
-    0x03812383,        //0x4214c134 :    	lw	t2,56(sp)
-    0x04012403,        //0x4214c138 :    	lw	s0,64(sp)
-    0x04812483,        //0x4214c13c :    	lw	s1,72(sp)
-    0x05012503,        //0x4214c140 :    	lw	a0,80(sp)
-    0x05812583,        //0x4214c144 :    	lw	a1,88(sp)
-    0x06012603,        //0x4214c148 :    	lw	a2,96(sp)
-    0x06812683,        //0x4214c14c :    	lw	a3,104(sp)
-    0x07012703,        //0x4214c150 :    	lw	a4,112(sp)
-    0x07812783,        //0x4214c154 :    	lw	a5,120(sp)
-    0x08012803,        //0x4214c158 :    	lw	a6,128(sp)
-    0x08812883,        //0x4214c15c :    	lw	a7,136(sp)
-    0x09012903,        //0x4214c160 :    	lw	s2,144(sp)
-    0x09812983,        //0x4214c164 :    	lw	s3,152(sp)
-    0x0a012a03,        //0x4214c168 :    	lw	s4,160(sp)
-    0x0a812a83,        //0x4214c16c :    	lw	s5,168(sp)
-    0x0b012b03,        //0x4214c170 :    	lw	s6,176(sp)
-    0x0b812b83,        //0x4214c174 :    	lw	s7,184(sp)
-    0x0c012c03,        //0x4214c178 :    	lw	s8,192(sp)
-    0x0c812c83,        //0x4214c17c :    	lw	s9,200(sp)
-    0x0d012d03,        //0x4214c180 :    	lw	s10,208(sp)
-    0x0d812d83,        //0x4214c184 :    	lw	s11,216(sp)
-    0x0e012e03,        //0x4214c188 :    	lw	t3,224(sp)
-    0x0e812e83,        //0x4214c18c :    	lw	t4,232(sp)
-    0x0f012f03,        //0x4214c190 :    	lw	t5,240(sp)
-    0x0f812f83,        //0x4214c194 :    	lw	t6,248(sp)
-    0x7b2060f3,        //0x4214c198 :    	csrrsi	ra,dscratch0,0
-    0x7b306173,        //0x4214c19c :    	csrrsi	sp,dscratch1,0
-    0x7c906ff3,        //0x4214c1a0 :    	csrrsi	t6,0x7c9,0
-    0x003fef93,        //0x4214c1a4 :    	ori	t6,t6,3
-    0x7c9f9073,        //0x4214c1a4 :    	csrw	0x7c9,t6
-    0x7b200073,        //0x4214c1a8 :    	dret
-    0x00000013,        //0x4214c1ac :    	nop
-    0x00000013,        //0x4214c1b0 :    	nop
+    0x7b109073,        //0x4214c0ec :    	csrw	dpc,ra
+    0x7ca060f3,        //0x4214c0f0 :    	csrrsi	ra,0x7ca,0
+    0x00c0d093,        //0x4214c0f4 :    	srli	ra,ra,0xc
+    0x00c09093,        //0x4214c0f8 :    	slli	ra,ra,0xc
+    0xf1406173,        //0x4214c0fc :    	csrrsi	sp,mhartid,0
+    0x00717113,        //0x4214c100 :    	andi	sp,sp,7
+    0x00811113,        //0x4214c104 :    	slli	sp,sp,0x8
+    0x00110133,        //0x4214c108 :    	add	sp,sp,ra
+    0x00001fb7,        //0x4214c10c :    	lui	t6,0x1
+    0x600f8f9b,        //0x4214c110 :    	addiw	t6,t6,1536 # 1600 <tohost-0x6fffea00>
+    0x01f10133,        //0x4214c114 :    	add	sp,sp,t6
+    0x00812f03,        //0x4214c118 :    	lw	t5,8(sp)
+    0x01012f83,        //0x4214c11c :    	lw	t6,16(sp)
+    0x7b2f1073,        //0x4214c120 :    	csrw	dscratch0,t5
+    0x7b3f9073,        //0x4214c124 :    	csrw	dscratch1,t6
+    0x01812183,        //0x4214c128 :    	lw	gp,24(sp)
+    0x02012203,        //0x4214c12c :    	lw	tp,32(sp)
+    0x02812283,        //0x4214c130 :    	lw	t0,40(sp)
+    0x03012303,        //0x4214c134 :    	lw	t1,48(sp)
+    0x03812383,        //0x4214c138 :    	lw	t2,56(sp)
+    0x04012403,        //0x4214c13c :    	lw	s0,64(sp)
+    0x04812483,        //0x4214c140 :    	lw	s1,72(sp)
+    0x05012503,        //0x4214c144 :    	lw	a0,80(sp)
+    0x05812583,        //0x4214c148 :    	lw	a1,88(sp)
+    0x06012603,        //0x4214c14c :    	lw	a2,96(sp)
+    0x06812683,        //0x4214c150 :    	lw	a3,104(sp)
+    0x07012703,        //0x4214c154 :    	lw	a4,112(sp)
+    0x07812783,        //0x4214c158 :    	lw	a5,120(sp)
+    0x08012803,        //0x4214c15c :    	lw	a6,128(sp)
+    0x08812883,        //0x4214c160 :    	lw	a7,136(sp)
+    0x09012903,        //0x4214c164 :    	lw	s2,144(sp)
+    0x09812983,        //0x4214c168 :    	lw	s3,152(sp)
+    0x0a012a03,        //0x4214c16c :    	lw	s4,160(sp)
+    0x0a812a83,        //0x4214c170 :    	lw	s5,168(sp)
+    0x0b012b03,        //0x4214c174 :    	lw	s6,176(sp)
+    0x0b812b83,        //0x4214c178 :    	lw	s7,184(sp)
+    0x0c012c03,        //0x4214c17c :    	lw	s8,192(sp)
+    0x0c812c83,        //0x4214c180 :    	lw	s9,200(sp)
+    0x0d012d03,        //0x4214c184 :    	lw	s10,208(sp)
+    0x0d812d83,        //0x4214c188 :    	lw	s11,216(sp)
+    0x0e012e03,        //0x4214c18c :    	lw	t3,224(sp)
+    0x0e812e83,        //0x4214c190 :    	lw	t4,232(sp)
+    0x0f012f03,        //0x4214c194 :    	lw	t5,240(sp)
+    0x0f812f83,        //0x4214c198 :    	lw	t6,248(sp)
+    0x7b2060f3,        //0x4214c19c :    	csrrsi	ra,dscratch0,0
+    0x7b306173,        //0x4214c1a0 :    	csrrsi	sp,dscratch1,0
+    0x7c906ff3,        //0x4214c1a4 :    	csrrsi	t6,0x7c9,0
+    0x001fef93,        //0x4214c1a8 :    	ori	t6,t6,1
+    0x7c9f9073,        //0x4214c1ac :    	csrw	0x7c9,t6
+    //0x12000073,        //0x4214c1b0 :    	sfence.vma
+    0x7b200073,        //0x4214c1b4 :    	dret
+    0x7c9f9073,        //0x4214c1b8 :    	nop
+    0x7b200073,        //0x4214c1bc :    	nop
+    0x00000013,        //0x4214c1c0 :    	nop
+    0x00000013,        //0x4214c1c4 :    	nop
   };
   std::vector<uint32_t> patch_trig_0 = {
     0x4214cfb7,        	//lui	t6,0x4214c
     0x500f8f9b,        	//addiw	t6,t6,1280 # 4214c500 <tohost-0x2deb3b00>
     0x000f8067,        	//jr	t6
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013          //nop
   };
   std::vector<uint32_t> patch_trig_1 = {
     0x4214dfb7,        	//lui	t6,0x4214d
     0x900f8f9b,        	//addiw	t6,t6,-1792 # 4214c900 <tohost-0x2deb3700>
     0x000f8067,        	//jr	t6
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
   };
   std::vector<uint32_t> patch_trig_2 = {
     0x4214dfb7,         //lui	t6,0x4214d
     0xd00f8f9b,         //addiw	t6,t6,-768 # 4214cd00 <tohost-0x2deb3300>
     0x000f8067,         //jr	t6
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
   };
   std::vector<uint32_t> patch_trig_3 = {
     0x4214dfb7,         //lui	t6,0x4214d
     0x100f8f9b,         //addiw	t6,t6,256 # 4214d100 <tohost-0x2deb2f00>
     0x000f8067,         //jr	t6
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
   };
   std::vector<uint32_t> patch_body_sub = {
     0x00f1d213,          	//srli	tp,gp,0xf
@@ -275,16 +233,6 @@ namespace {
     0x4214cfb7,          	//lui	t6,0x4214c
     0x0e0f8f9b,          	//addiw	t6,t6,224 # 4214c0e0 <tohost-0x2deb3f20>
     0x000f8067,          	//jr	t6
-    0x00000013,           //nop
-    0x00000013,           //nop
-    0x00000013,           //nop
-    0x00000013,           //nop
-    0x00000013,           //nop
-    0x00000013,           //nop
-    0x00000013,           //nop
-    0x00000013,           //nop
-    0x00000013,           //nop
-    0x00000013,           //nop
   };
   std::vector<uint32_t> patch_body_subw = {
     0x7b106ff3,         //csrrsi	t6,dpc,0
@@ -293,12 +241,6 @@ namespace {
     0x7b1f9073,         //csrw	dpc,t6
     0x00000f93,         //li	t6,0
     0x7b200073,         //dret
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
-    0x00000013,         //nop
   };
 }
 
