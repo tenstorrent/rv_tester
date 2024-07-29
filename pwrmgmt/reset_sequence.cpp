@@ -38,6 +38,7 @@ reset_sequence::reset_sequence(cvm::topology::loc_t loc, unsigned) : loc_(loc), 
 
   // Topology
   smc_axi_loc_ = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_SMC_MST", 0);
+  num_cores_ = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
 
   // Scope
   cvm::registry::messenger.connect<svScope>(loc_, [this](svScope s) { return this->set_scope(s); });
@@ -269,7 +270,7 @@ cvm::messenger::task<void> reset_sequence::program_fuses() {
 
   co_await write(sw_fuse_mmr,     SZ_8B, fuse);
 
-  for (uint32_t i=0; i<FLAGS_num_harts; ++i)
+  for (uint32_t i = 0; i < FLAGS_num_harts; ++i)
     co_await write(core_fuse_mmr + i * core_fuse_offset,   SZ_8B, fuse);
 
   co_await write(trace_fuse_mmr,  SZ_8B, fuse);
@@ -282,7 +283,7 @@ cvm::messenger::task<void> reset_sequence::program_fuses() {
 
 cvm::messenger::task<void> reset_sequence::release_cpl_nofetch() {
   co_await tick();
-  co_await write(rst_ctl_nofetch, SZ_4B, (0 << cpl_cl_no_fetch));
+  co_await write(rst_ctl_nofetch, SZ_4B, ((~FLAGS_hart_enable_mask << cpl_cl_no_fetch) & 0xff));
 
   co_return;
 }
@@ -421,9 +422,9 @@ std::vector<uint8_t> reset_sequence::convert_to_byte_array(const std::vector<uin
 
 uint64_t reset_sequence::core_fuse_val() {
   uint64_t core_fuse = 0;
-  std::vector<uint64_t> core_mhartid = mhartid();
-  for (uint32_t i=0; i<FLAGS_num_harts; ++i)
-    core_fuse |= (((core_mhartid[i] << 1) | core_en(i)) << (4*i));
+  std::vector<uint64_t> id = mhartid();
+  for (uint32_t i=0; i<id.size(); ++i)
+    core_fuse |= (((i << 1u) | 1u) << (4 * id[i]));
   core_fuse = core_fuse << core_fuse_idx;
   return core_fuse;
 }
@@ -436,7 +437,6 @@ std::vector<uint64_t> reset_sequence::mhartid() {
   std::vector<uint64_t> core_mhartid {};
   std::istringstream ss(FLAGS_hart_enable_id);
   std::string token;
-
   while (std::getline(ss, token, ',')) {
     core_mhartid.push_back(std::stoull(token));
   }

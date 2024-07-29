@@ -44,6 +44,10 @@ class sysmod {
 
     ~sysmod();
 
+    void configure_plusargs();
+    uint32_t get_rand_mask(uint32_t nharts, uint32_t ncores);
+    std::string get_rand_id(uint32_t mask, uint32_t ncores);
+
     device* dev(uint64_t addr);
     device* dev(const std::string& tag);
 

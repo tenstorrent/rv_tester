@@ -139,27 +139,115 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
   }
 
   // Flags configuration
-  uint32_t ncores = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
-  uint32_t nharts = 0;
-  if (FLAGS_num_harts == 0 && FLAGS_hart_enable_mask == 0)
-    nharts = ncores;
-  else if (FLAGS_num_harts != 0)
-    nharts = FLAGS_num_harts;
-  else if (FLAGS_hart_enable_mask != 0)
-    nharts = std::bitset<32>(FLAGS_hart_enable_mask).count();
-
-  std::ostringstream oss;
-  FLAGS_num_harts = nharts;
-  FLAGS_hart_enable_mask = (1u << nharts) - 1;
-  for (uint32_t i = 0; i < nharts; ++i) 
-    oss << i << (i < nharts - 1 ? "," : "");
-  FLAGS_hart_enable_id = oss.str();
-
-  cvm::log(cvm::NONE, "[plusargs] +num_harts={} +hart_enable_mask={} +hart_enable_id={}\n",
-    FLAGS_num_harts, FLAGS_hart_enable_mask, FLAGS_hart_enable_id);
+  configure_plusargs();
 
   // Reset configuration
   reset();
+}
+
+void
+sysmod::configure_plusargs()
+{
+  // Plusargs: num_harts, hart_enable_mask, hart_enable_id
+  uint32_t ncores = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
+  uint32_t nharts = FLAGS_num_harts;
+  uint32_t mask = FLAGS_hart_enable_mask;
+  std::vector<uint32_t> id{};
+  uint32_t id_mask = 0;
+  std::istringstream ss(FLAGS_hart_enable_id);
+  std::string token;
+  while (std::getline(ss, token, ',')) {
+    if (token != "") {
+      uint32_t t = std::stoull(token);
+      id.push_back(t);
+      id_mask |= (1 << t);
+    }
+  }
+
+  // switch {num_harts, hart_enable_mask, hart_enable_id}
+  uint8_t expr = ((nharts != 0) << 2) | ((mask != 0) << 1) | !id.empty();
+  switch (expr) {
+    case 0:
+      FLAGS_num_harts = ncores;
+      FLAGS_hart_enable_mask = (1u << nharts) - 1;
+      FLAGS_hart_enable_id = get_rand_id(FLAGS_hart_enable_mask, ncores);
+      break;
+    case 1:
+      assert((std::bitset<32>(id_mask).count() <= ncores) &&
+        "Incompatible plusargs: hart_enable_id, ncores");
+      FLAGS_num_harts = std::bitset<32>(id_mask).count();
+      FLAGS_hart_enable_mask = id_mask;
+      break;
+    case 2:
+      assert((std::bitset<32>(mask).count() <= ncores) &&
+        "Incompatible plusargs: hart_enable_mask, ncores");
+      FLAGS_num_harts = std::bitset<32>(mask).count();
+      FLAGS_hart_enable_id = get_rand_id(mask, ncores);
+      break;
+    case 3:
+      assert((mask == id_mask) && (std::bitset<32>(mask).count() <= ncores) &&
+        "Incompatible plusargs: hart_enable_mask, hart_enable_id, ncores");
+      FLAGS_num_harts = std::bitset<32>(mask).count();
+      break;
+    case 4:
+      assert((nharts <= ncores) &&
+        "Incompatible plusargs: num_harts, ncores");
+      FLAGS_hart_enable_mask = get_rand_mask(nharts, ncores);
+      FLAGS_hart_enable_id = get_rand_id(FLAGS_hart_enable_mask, ncores);
+      break;
+    case 5:
+      assert((nharts <= ncores) && (std::bitset<32>(id_mask).count() == nharts) &&
+        "Incompatible plusargs: num_harts, hart_enable_id, ncores");
+      FLAGS_hart_enable_mask = id_mask;
+      break;
+    case 6:
+      assert((nharts <= ncores) && (std::bitset<32>(mask).count() == nharts) &&
+        "Incompatible plusargs: num_harts, hart_enable_mask, ncores");
+      FLAGS_hart_enable_id = get_rand_id(mask, ncores);
+      break;
+    case 7:
+      assert((nharts <= ncores) && (std::bitset<32>(mask).count() == nharts) && (mask == id_mask) &&
+        "Incompatible plusargs: num_harts, hart_enable_mask, hart_enable_id, ncores");
+      break;
+  }
+  cvm::log(cvm::NONE, "[plusargs] +num_harts={} +hart_enable_mask={:#x} +hart_enable_id={}\n",
+    FLAGS_num_harts, FLAGS_hart_enable_mask, FLAGS_hart_enable_id);
+}
+
+uint32_t
+sysmod::get_rand_mask(uint32_t nharts, uint32_t ncores)
+{
+  // Ex: input: nharts=4
+  // Ex: output: mask=0x9a - available cores: 1,3,4,7
+  cvm::rand::rng<uint32_t> rng;
+  std::bitset<8> mask;
+  // Generate unique bit positions
+  while (mask.count() < nharts) {
+    mask.set(rng() % ncores);
+  }
+  return static_cast<uint32_t>(mask.to_ulong());
+}
+
+std::string
+sysmod::get_rand_id(uint32_t mask, uint32_t ncores)
+{
+  // Ex: input: mask=0x9a - available cores: 1,3,4,7
+  // Ex: output: hart_enable_id ex: 4,7,1,3 - can be in any order
+  cvm::rand::rng<uint32_t> rng;
+  std::vector<uint32_t> positions{};
+  for (uint32_t i = 0; i < ncores; ++i)
+    if ((mask >> i) & 1u)
+      positions.push_back(i);
+
+  std::shuffle(std::begin(positions), std::end(positions), rng);
+
+  std::string result;
+  for (size_t i = 0; i < positions.size(); ++i) {
+    result += std::to_string(positions[i]);
+    if (i < positions.size() - 1) 
+      result += ",";
+  }
+  return result;
 }
 
 sysmod::~sysmod()
