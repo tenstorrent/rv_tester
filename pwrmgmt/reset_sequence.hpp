@@ -23,16 +23,12 @@ class reset_sequence {
   private:
 
     void cold_reset_sequence_thread();
-    void warm_reset_random_mode_sequence_thread();
-    void warm_reset_trigger_mode_sequence_thread();
+    void warm_reset_sequence_thread();
 
     cvm::messenger::task<void> cold_reset_sequence();
-    cvm::messenger::task<void> warm_reset_random_mode_sequence();
-    cvm::messenger::task<void> warm_reset_trigger_mode_sequence();
     cvm::messenger::task<void> warm_reset_sequence();
 
     cvm::messenger::task<void> tick();
-    cvm::messenger::task<void> force_ref_clk();
     cvm::messenger::task<void> trigger();
     cvm::messenger::task<void> cpl_reset_sequence(rst_t );
     cvm::messenger::task<void> pll_startup_sequence();
@@ -71,5 +67,5 @@ class reset_sequence {
     cvm::topology::loc_t loc_, smc_axi_loc_;
     svScope scope_;
 
-    uint32_t warm_reset_count_ = 0;
+    static int reset_count_;
 };

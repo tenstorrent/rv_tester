@@ -79,11 +79,13 @@ module rv_tester
 
     import "DPI-C" function void rv_tester_streaming_dpi_init();
     import "DPI-C" function int rv_tester_parse_flags(); // dummy return value so that this gets called immediately. need this to happen before any other DPIs are called.
+    import "DPI-C" function void rv_tester_set_seed();
     import "DPI-C" context function void rv_tester_cvm_error_handler();
     import "DPI-C" context function void rv_tester_parse_memmap(int unsigned no_addr_rules);
     import "DPI-C" context function void rv_tester_build_registry();
     import "DPI-C" function byte unsigned rv_tester_shutdown_registry();
     import "DPI-C" context function bit rv_tester_flush_callbacks();
+    import "DPI-C" function bit pwrmgmt_get_warm_reset_en(string mode);
 
     localparam int unsigned AxiIdWidthMstRv    = topology.TOP.PLATFORM.AXI.ID_WIDTH + $clog2(topology.TOP.PLATFORM.AXI.TOTAL) + 1;
 
@@ -100,8 +102,16 @@ module rv_tester
     bit cb_success = '1;
     logic call_finish;
     int num_reruns = -1;
-    bit trace_en = 0;
 
+    string warm_reset_string;
+    logic warm_reset_en;
+    logic warm_reset_now;
+    logic warm_reset_now_d1;
+    logic warm_reset_requested = 0;
+    int num_resets = -1;
+    int target_num_resets = 0;
+
+    bit trace_en = 0;
     bit jtag_en = 0;
     bit overlay_mmr_en = 0;
     logic trace_quiesced;
@@ -144,8 +154,8 @@ module rv_tester
 
     assign terminate           = (rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
     assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue == '0) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced ); 
-    
-    assign rerun_now           = terminated && num_reruns > 0;
+
+    assign rerun_now           = (terminated && (num_reruns > 0)) || (warm_reset_en && warm_reset_requested && (num_resets < target_num_resets));
 
   `ifndef CLK_MUX_UNSUPPORTED 
     always @(posedge clk[TB_CLK_IDX])begin
@@ -233,6 +243,8 @@ module rv_tester
 
             $display("[RVTESTER]: new test");
             _ = rv_tester_parse_flags();
+            if (num_resets < 0)
+                rv_tester_set_seed();
             rv_tester_cvm_error_handler();
             rv_tester_parse_memmap(NoAddrRules);
 
@@ -243,6 +255,8 @@ module rv_tester
             cvm_verbosity               = cvm_logger::get_verbosity(cvm_verbosity_string);
             gen_clocks_verbosity        = cvm_logger::get_verbosity(gen_clocks_verbosity_string);
             location                    = cvm_topology::get_location(topology_pkg::mods.TOP.PLATFORM.ID, 0);
+            warm_reset_string           = cvm_plusargs::get_string("warm_reset");
+            warm_reset_en               = pwrmgmt_get_warm_reset_en(warm_reset_string);
             rv_tester_error_terminate.terminate = '0;
             /* verilator lint_on BLKSEQ */
 
@@ -272,6 +286,11 @@ module rv_tester
             num_reruns  <= cvm_plusargs::get_int("num_reruns");
         end
 
+        num_resets <= num_resets + int'(warm_reset_requested);
+        if (warm_reset_en && (num_resets < 0)) begin
+            num_resets          <= 0;
+            target_num_resets   <= cvm_rand::get("warm_reset_count");
+        end
     end
 
     /*
@@ -323,13 +342,25 @@ module rv_tester
 
         terminated <= !rv_tester_reset && (terminated || (terminate_now && shutdowned)) && !rerun_now;
 
+        if (warm_reset_requested) begin
+            shutdowned = rv_tester_shutdown_registry() != '0;
+            if (!shutdowned) begin
+                if (print_terminate_message) begin
+                    $display("<%0d> [RVTESTER]: Could not shutdown, trying again until timeout", clocks);
+                end
+            end
+        end
+
+        warm_reset_now_d1 <= warm_reset_now;
+        warm_reset_requested <= warm_reset_now & ~warm_reset_now_d1;
+
     end
 
     // We also assert reset at the end of the test to quiesce the DPIs.
     logic reset_pullup;
     assign reset_pullup = rv_tester_reset || sysmod_reset || terminate_now || terminated;
 
-    assign reset[COLD_RESET_IDX] = cold_reset || reset_pullup;
+    assign reset[COLD_RESET_IDX] = cold_reset || (reset_pullup && quiesced);
     assign reset[WARM_RESET_IDX] = warm_reset;
 
 `ifdef NEGEDGE_UNSUPPORTED
@@ -390,7 +421,7 @@ module rv_tester
     
     dmi_driver i_dmi_driver(
         .clk(dut_clk[AXI_CLK_IDX]),
-        .reset(~dut_reset[AXI_RESET_IDX]),
+        .reset(dut_reset[AXI_RESET_IDX]),
         .dmi_req_ready,
         .dmi_resp_valid,
         .dmi_resp,
@@ -512,9 +543,12 @@ module rv_tester
                 .tb_reset(sysmod_reset),
                 .dut_clk(dut_clk),
                 .dut_reset(dut_reset),
-                .core_no_fetch(core_no_fetch),
+                .reset_count(num_resets),
+                .target_reset_count(target_num_resets),
                 .cold_reset(cold_reset),
                 .warm_reset(warm_reset),
+                .warm_reset_en(warm_reset_en),
+                .warm_reset_now(warm_reset_now),
                 .reset_hold(reset_hold),
                 .force_ref_clk(pwrmgmt_force_ref_clk),
                 `RV_TESTER_TRANSACTIONS_PWRMGMT_SOURCE_PORTS(3,0,0)
@@ -624,7 +658,7 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(0)
         ) axi_sw(
             .clk(dut_clk[AXI_CLK_IDX]),
-            .reset_n(~dut_reset[AXI_RESET_IDX]),
+            .reset_n(~dut_reset[AXI_RESET_IDX] & ~force_ref_clk),
             .sys_reset(sysmod_reset),
             .axi_mst_ar_valid(axi_req_llc[p].ar_valid),
             .axi_mst_ar_id   (axi_req_llc[p].ar.id),
@@ -695,7 +729,7 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(1)
         ) ncio_axi_sw(
             .clk(dut_clk[AXI_CLK_IDX]),
-            .reset_n(~dut_reset[AXI_RESET_IDX]),
+            .reset_n(~dut_reset[AXI_RESET_IDX] & ~force_ref_clk),
             .sys_reset(sysmod_reset),
             .axi_mst_ar_valid(ncio_axi_req[p].ar_valid),
             .axi_mst_ar_id   (ncio_axi_req[p].ar.id),

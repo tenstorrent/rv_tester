@@ -68,10 +68,10 @@ module top
     end
 
     always @(posedge clk[CORE_CLK_IDX]) begin
+        clocks <= clocks + 1;
         if (!reset[COLD_RESET_IDX]) begin
-            clocks <= clocks + 1;
+          order <= order + 1;
         end
-        order <= order + 1;
         case(HARNESS)
         SW_1C:
           get_1c_stimulus(reset[COLD_RESET_IDX], order);
@@ -80,6 +80,11 @@ module top
         default:
             $error("No harness specified");
         endcase
+    end
+
+    initial begin
+        $dumpfile("dump.vcd");
+        $dumpvars;
     end
 
 endmodule
