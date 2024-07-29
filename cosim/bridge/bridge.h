@@ -82,6 +82,7 @@ public:
   void final_phase();
   void report_metrics();
   void process(const rv_tester::terminate_called &);
+  void set_patch_mode(bool patch_mode) { patch_mode_ = int(patch_mode); }
 
 private:
 
@@ -255,6 +256,7 @@ private:
   std::vector<std::string> cosim_resynch_csr_defaults;
 
   bool terminated_ = false;
+  int patch_mode_  = 0; // 0:not in patch mode, 1: entered patch mode, step whisper, >2: inside patch mode, dont step whisper
 
   template <typename... Args>
       void print(cvm::verbosity_level v, Args&&... args) {

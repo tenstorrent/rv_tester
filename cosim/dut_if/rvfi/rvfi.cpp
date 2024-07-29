@@ -134,6 +134,10 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
     instrs_.clear();
     hw_csrs_.clear();
   }
+  if (disable_patch_mode_) {
+      bridge_->set_patch_mode(false);
+      disable_patch_mode_ = false;
+  }
 
   // Clear state
   intr_ = false;
@@ -155,6 +159,10 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
     excp_ = true;
     intr_ = false;
     ecause_ = (m_trap.cause & 0xff);
+    if (m_trap.cause >= 60) {
+      bridge_->set_patch_mode(true);
+      patch_mode_ = true;
+    }
   }
 }
 
@@ -249,7 +257,6 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
     ucode_ = true;
   } else {
     ucode_ = false;
-    count_++;
   }
 
   // Priv mode
@@ -266,11 +273,19 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
     if (ucode_priv_change_) {
       instr.priv = priv_;
       ucode_priv_change_ = false;
+      if (priv_ == 0x4 && patch_mode_) { // dret changes mode from D to M/S/U (exit from patch mode)
+        disable_patch_mode_ = true;
+        patch_mode_ = false;
+      }
     }
     priv_ = m_rvfi.mode;
     if (!priv_to_string.count(static_cast<priv>(instr.priv)))
       cvm::log(cvm::ERROR, "Error: Invalid rvfi privilege mode: {:#x}\n", instr.priv);
   }
+
+  if (m_rvfi.last_uop && !patch_mode_)
+    count_++;
+
   if ((instr.priv & 0x3) == 0x3) { // Ignore V bit if M mode
     instr.priv = 0x3;
   }
@@ -504,6 +519,9 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
 
   if (instr.comp)
     dut_log += fmt::format(" (compressed)");
+
+  if (patch_mode_)
+    dut_log += fmt::format(" (patch)");
 
   dut_log += fmt::format("\n");
   log(cvm::NONE, fmt::to_string(dut_log));
