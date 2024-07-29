@@ -569,7 +569,7 @@ module rv_tester
         .cl_clk(dut_clk[CORE_CLK_IDX]),
         .rf_clk(dut_clk[REF_CLK_IDX]),
         .reset(sysmod_reset),
-        .dut_reset(dut_reset[REF_RESET_IDX]),
+        .dut_reset(dut_reset[AXI_RESET_IDX]),
         .terminate,
         .AcCrSynci(AcCrSynci),
         .AcReqPkti(AcReqPkti),
