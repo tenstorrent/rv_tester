@@ -30,8 +30,7 @@ nmi_sequence::nmi_sequence(cvm::topology::loc_t loc, unsigned id) : loc_(loc), i
   }
 }
 
-void nmi_sequence::check() {
-  // Called just before destruction
+nmi_sequence::~nmi_sequence() {
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_interrupts_nmi_count\": \"{}\"}}\n", id_, nmi_count_);
 }
 
