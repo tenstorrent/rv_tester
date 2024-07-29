@@ -14,9 +14,7 @@ class nmi_sequence {
   public:
 
     nmi_sequence(cvm::topology::loc_t loc, unsigned id);
-    ~nmi_sequence() {}
-
-    void check();
+    ~nmi_sequence();
 
     void set_scope(svScope s) { scope_ = s; }
 
