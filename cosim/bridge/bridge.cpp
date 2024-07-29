@@ -405,6 +405,8 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   // cvm::log(cvm::NONE, "Inside the process_dut_instr_retire function\n"); 
 
+  if (patch_mode_ > 1)
+    return;
 
   twoStage_ = false;
 
@@ -449,13 +451,18 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   // Step whisper
   w_.clear();
 
-
-  auto stime = std::chrono::high_resolution_clock::now();
-  step(hart, w);
-  auto etime = std::chrono::high_resolution_clock::now();
-  whisper_time_ = whisper_time_ + (duration_cast<std::chrono::microseconds>(etime - stime).count());
+  if (patch_mode_ <= 1) {
+    auto stime = std::chrono::high_resolution_clock::now();
+    step(hart, w);
+    auto etime = std::chrono::high_resolution_clock::now();
+    whisper_time_ = whisper_time_ + (duration_cast<std::chrono::microseconds>(etime - stime).count());
+  }
+  if (patch_mode_) {
+    patch_mode_++;
+    cac_.ResetStatus(hart);
+    return;
+  } 
   
-
   // Update cac with whisper state
   update_whisper_state(hart, w);
 
@@ -544,9 +551,10 @@ void bridge::process_dut_csr_hw_update(hart_id_t hart, csr_t& c) {
 }
 
 void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d) {
+  if (patch_mode_)
+    return;
   if (!FLAGS_csr_wr_check)
     return;
-
   const auto cac_status_verbosity = cvm::HIGH;
   // Step csr cac
   csr_cac_.Step(hart, cvm::logger::check_verbosity(cac_status_verbosity));
