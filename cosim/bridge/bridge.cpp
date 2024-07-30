@@ -2044,10 +2044,6 @@ void bridge::enter_debug_mode(rv_debug_t& d) {
 void bridge::exit_debug_mode(rv_debug_t& d) {
   bridge_log_(cvm::NONE, "<{}> Exit debug mode\n", d.cycle);
   debug_mode_ = false;
-  // if (!client_->whisperExitDebug()) {
-  //   cvm::log(cvm::ERROR, "Error: Hart {}: Failed to exit debug mode\n", id_);
-  //   return;
-  // }
 }
 
 uint64_t bridge::modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data) {
