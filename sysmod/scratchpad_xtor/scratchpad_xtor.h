@@ -28,6 +28,7 @@ class scratchpad_xtor : public device {
         uint64_t trigger_addr =0;
         uint64_t trigger_mode =0;
         uint64_t sp_mmr_base =0;
+        uint64_t sp_xtor_num_accesses =0;
         cvm::topology::loc_t axi_mst_loc_l;
         cvm::messenger::pool<axi::r_t>::channel_info channel;
         pcg_extras::seed_seq_from<std::random_device> seed_source;
