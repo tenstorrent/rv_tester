@@ -184,7 +184,7 @@ class scratchpad_xtor : public device {
         
         // add max mem size
         scratchpad_xtor(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc);
-
+        ~scratchpad_xtor();
 
            /// Initialize memory with elf file.
         bool init_elf(const std::string& path);
