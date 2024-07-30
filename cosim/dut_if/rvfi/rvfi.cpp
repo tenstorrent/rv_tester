@@ -590,7 +590,6 @@ void rvfi::enter_debug_mode(rv_instr_t& instr) {
   if (terminated_)
     return;
 
-  // if ((uint64_t)instr.pc.pc_rdata == FLAGS_debug_entry_pc) {
   if (instr.intr && (instr.icause == 0)) { 
     rv_debug_t debug;
 
