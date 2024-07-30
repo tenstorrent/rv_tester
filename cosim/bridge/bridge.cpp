@@ -635,7 +635,7 @@ void bridge::pre_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
   // }
 
   if (!client_->whisperPoke(hart, 0, 'm', instr.pc.pc_rdata, opcode, valid)) {
-    cvm::log(cvm::ERROR, "Error: Hart {}: Failed to poke memory\n", hart);
+    print(cvm::ERROR, "Error: Hart {}: Failed to poke memory\n", hart);
     return;
   }
   return;
@@ -1518,7 +1518,7 @@ bool bridge::imsic_mismatch(const std::string& instr) {
 }
 
 bool bridge::debug_mem_access(const rv_instr_t& d){
-  log(cvm::NONE, "<{}> debug_mem_access: valid={} for pa={}]\n", d.cycle, d.mem_read.valid, d.mem_read.pa);
+  print(cvm::NONE, "<{}> debug_mem_access: valid={} for pa={}]\n", d.cycle, d.mem_read.valid, d.mem_read.pa);
   if (d.mem_read.valid && debug_mode_ &&
       ((d.mem_read.pa < FLAGS_debug_entry_pc) || (d.mem_read.pa > FLAGS_debug_exit_pc)) &&
       ((d.mem_read.pa >= FLAGS_debug_mem_base) && (d.mem_read.pa < (FLAGS_debug_mem_base + FLAGS_debug_mem_size)))
