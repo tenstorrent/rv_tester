@@ -1007,6 +1007,10 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
       w_.mem_write.valid = true;
       w_.mem_write.va = w.address;
       w_.mem_write.data = w.value;
+      if((w.address<0x64000000) && (w.address>=0x60000000) && FLAGS_enable_sp_init){
+           num_sp_accesses_++;
+      }
+
     }
     
   }
@@ -2255,6 +2259,7 @@ void bridge::report_metrics() {
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_trap\": {}}}\n", id_, prev_trap);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_num_dest\": {}}}\n", id_, prev_num_dest);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_max_pend_intr_age\": {}}}\n", id_, max_pend_intr_age_);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_scratchpad_accesses\": {}}}\n", id_, num_sp_accesses_);
   
   // Whisper csr values
   for (auto& csr : metrics_csrs) {
