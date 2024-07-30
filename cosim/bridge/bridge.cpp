@@ -452,16 +452,16 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   w_.clear();
 
   if (patch_mode_ <= 1) {
-  auto stime = std::chrono::high_resolution_clock::now();
-  step(hart, w);
-  auto etime = std::chrono::high_resolution_clock::now();
-  whisper_time_ = whisper_time_ + (duration_cast<std::chrono::microseconds>(etime - stime).count());
+    auto stime = std::chrono::high_resolution_clock::now();
+    step(hart, w);
+    auto etime = std::chrono::high_resolution_clock::now();
+    whisper_time_ = whisper_time_ + (duration_cast<std::chrono::microseconds>(etime - stime).count());
   }
   if (patch_mode_) {
     patch_mode_++;
     cac_.ResetStatus(hart);
     return;
-  } 
+  }
 
   // Update cac with whisper state
   update_whisper_state(hart, w);
