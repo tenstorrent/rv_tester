@@ -101,6 +101,7 @@ module rv_tester
     logic call_finish;
     int num_reruns = -1;
     bit trace_en = 0;
+    bit cla_clk_halt = 0;
 
     bit jtag_en = 0;
     bit overlay_mmr_en = 0;
@@ -257,6 +258,7 @@ module rv_tester
             gen_clocks           <= cvm_verbosity >= gen_clocks_verbosity;
             bypass_mem           <= cvm_plusargs::get_bool("bypass_mem") != '0;
             trace_en             <= cvm_plusargs::get_bool("trace_en") != '0;
+            cla_clk_halt         <= cvm_plusargs::get_bool("cla_clk_halt") != '0;
             overlay_mmr_en       <= cvm_plusargs::get_bool("overlay_mmr_en") != '0;
             jtag_en              <= cvm_plusargs::get_bool("jtag_en") != '0;
             bypass_cache         <= cvm_plusargs::get_bool("bypass_cache") != '0;
@@ -287,6 +289,10 @@ module rv_tester
 
         if (rv_tester_reset) begin
             print_terminate_message <= '1;
+        end
+
+        if(terminate_now && cla_clk_halt && !shutdown) begin
+            $error("RV_TESTER ::CLK_HALT is not generated before test termination");
         end
 
         if (terminate_now && !terminated) begin
