@@ -81,7 +81,7 @@ extern "C" {
         if (env_var != nullptr && std::string(env_var) == "1") {
             cvm::plusargs::parse();
             cvm::rand::seed(FLAGS_seed);
-            cvm::log(cvm::NONE, "Initialize Offline DPI");
+            cvm::log(cvm::NONE, "Initialize Offline DPI\n");
         }
     }
 
