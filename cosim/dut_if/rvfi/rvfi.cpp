@@ -159,7 +159,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
     excp_ = true;
     intr_ = false;
     ecause_ = (m_trap.cause & 0xff);
-    if (m_trap.cause >= 60) {
+    if (m_trap.cause >= 60 && FLAGS_cosim) {
       bridge_->set_patch_mode(true);
       patch_mode_ = true;
     }
