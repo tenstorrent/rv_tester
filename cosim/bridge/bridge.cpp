@@ -452,17 +452,17 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   w_.clear();
 
   if (patch_mode_ <= 1) {
-    auto stime = std::chrono::high_resolution_clock::now();
-    step(hart, w);
-    auto etime = std::chrono::high_resolution_clock::now();
-    whisper_time_ = whisper_time_ + (duration_cast<std::chrono::microseconds>(etime - stime).count());
+  auto stime = std::chrono::high_resolution_clock::now();
+  step(hart, w);
+  auto etime = std::chrono::high_resolution_clock::now();
+  whisper_time_ = whisper_time_ + (duration_cast<std::chrono::microseconds>(etime - stime).count());
   }
   if (patch_mode_) {
     patch_mode_++;
     cac_.ResetStatus(hart);
     return;
   } 
-  
+
   // Update cac with whisper state
   update_whisper_state(hart, w);
 
@@ -617,8 +617,25 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
 void bridge::pre_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
   print(cvm::NONE, "Debug pre step poking instruction in Debug mode\n", hart); 
   bool valid;
-  if (!client_->whisperPoke(hart, 0, 'm', instr.pc.pc_rdata, instr.opcode, valid)) {
-    print(cvm::ERROR, "Error: Hart {}: Failed to poke memory\n", hart);
+  uint32_t opcode;
+  if (instr.pc.pc_rdata == FLAGS_debug_exit_pc) {
+    opcode = 0x7b200073; // Dret instruction opcode
+  }
+  else {
+    opcode = instr.opcode;
+  }
+
+  // Needed to Resynch data as well in MCM
+  // if (instr.mem_read.valid) {
+  //   log(cvm::NONE, "debug_mem_access (whisperPokeMem): pa={:#x} ; size={} ; data={}]\n", instr.mem_read.pa, 4, instr.mem_read.data);
+  //   if (!client_->whisperPokeMem(hart, 0, 'm', instr.mem_read.pa, instr.mem_read.size, instr.mem_read.data, valid)) {
+  //     cvm::log(cvm::ERROR, "Error: Hart {}: Failed to poke memory\n", hart);
+  //     return;
+  //   }
+  // }
+
+  if (!client_->whisperPoke(hart, 0, 'm', instr.pc.pc_rdata, opcode, valid)) {
+    cvm::log(cvm::ERROR, "Error: Hart {}: Failed to poke memory\n", hart);
     return;
   }
   return;
@@ -1371,6 +1388,7 @@ bool bridge::is_compressed(const std::string& instr) {
 bool bridge::is_ucode(const std::string& instr) {
   if ((instr.find("mret") != std::string::npos) ||
       (instr.find("sret") != std::string::npos) ||
+      (instr.find("dret") != std::string::npos) ||
       (instr.find("ecall") != std::string::npos) ||
       (instr.find("ebreak") != std::string::npos))
     return true;
@@ -1500,9 +1518,10 @@ bool bridge::imsic_mismatch(const std::string& instr) {
 }
 
 bool bridge::debug_mem_access(const rv_instr_t& d){
+  log(cvm::NONE, "<{}> debug_mem_access: valid={} for pa={}]\n", d.cycle, d.mem_read.valid, d.mem_read.pa);
   if (d.mem_read.valid && debug_mode_ &&
-      ((d.mem_read.pa < FLAGS_debug_entry_pc) ||
-      ((d.mem_read.pa > FLAGS_debug_exit_pc) && (d.mem_read.pa <=0x1000)))
+      ((d.mem_read.pa < FLAGS_debug_entry_pc) || (d.mem_read.pa > FLAGS_debug_exit_pc)) &&
+      ((d.mem_read.pa >= FLAGS_debug_mem_base) && (d.mem_read.pa < (FLAGS_debug_mem_base + FLAGS_debug_mem_size)))
       )
     return true;
   return false;
@@ -1628,7 +1647,7 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
       if (csr.csr_addr==0x15c || csr.csr_addr==0x25c || csr.csr_addr==0x35c) {
         bridge_log_(cvm::MEDIUM, "<{}> topei resynch\n", d.cycle);
         for (const auto &m : mem_poke_) {
-          if (FLAGS_bridge_log) {
+      if (FLAGS_bridge_log) {
             bridge_log_(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: Mpoke[{:#x}]={:#x}\n", d.cycle, step_, m.pa, m.data);
           }
           if (!client_->whisperPokeMem(hart, d.cycle, 'm', m.pa, m.size, m.data, valid)) {
@@ -1972,22 +1991,33 @@ void bridge::peek_seip(hart_id_t hart, uint64_t time, uint64_t& val) {
 
 // Debug Mode
 void bridge::enter_debug_mode(rv_debug_t& d) {
-  uint64_t debugROM[14] = {
+  uint64_t debugROM[26] = {
     0x7b2000737b202473,
-    0x10802823f1402473,
-    0xaa5ff06f7b202473,
-    0x1000242300100073,
-    0x7b20247310002c23,
-    0xfddff06ffc0414e3,
-    0x0024741340044403,
-    0xf140247302041263,
+    0x7b30257310852823,
+    0xf1402473a41ff06f,
+    0x7b2024737b302573,
+    0x10052423f9dff06f,
+    0x7b04307304046413,
+    0x000474337b042073,
+    0x1804641300047433,
+    0x001000737b202473,
+    0x7b30257310052c23,
+    0x00c5151300c55513,
+    0x00000517fd5ff06f,
+    0xf8041ee300247413,
+    0x4004440300a40433,
+    0xf140247304041a63,
     0x0014741340044403,
-    0x10802023f1402473,
+    0x00a4043310852023,
+    0xf140247304041863,
+    0x0044741340044403,
+    0x00a40433f1402473,
+    0x00c5151300c55513,
+    0x000005177b351073,
     0x7b2410730ff0000f,
-    0x000000130380006f,
-    0x000000130580006f,
+    0x000000130640006f,
+    0x000000130b40006f,
     0x000000130180006f
-
    };
   bridge_log_(cvm::NONE, "<{}> Enter debug mode\n", d.cycle);
   if (!debug_mode_) {
@@ -2000,9 +2030,9 @@ void bridge::enter_debug_mode(rv_debug_t& d) {
   debug_mode_ = true;
 
   bool valid;
- for(int i=13;i>=0;i--){
+ for(int i=25;i>=0;i--){
     
-    uint64_t debugROM_loc = FLAGS_debug_entry_pc + (13-i)*8;
+    uint64_t debugROM_loc = FLAGS_debug_entry_pc + (25-i)*8;
 
     if (!client_->whisperPoke(0, 0, 'm', debugROM_loc,debugROM[i] , valid)) {
       print(cvm::ERROR, "Error: Hart {}: Failed to poke debug memory\n", 0);
@@ -2014,10 +2044,10 @@ void bridge::enter_debug_mode(rv_debug_t& d) {
 void bridge::exit_debug_mode(rv_debug_t& d) {
   bridge_log_(cvm::NONE, "<{}> Exit debug mode\n", d.cycle);
   debug_mode_ = false;
-  if (!client_->whisperExitDebug()) {
-    print(cvm::ERROR, "Error: Hart {}: Failed to exit debug mode\n", id_);
-    return;
-  }
+  // if (!client_->whisperExitDebug()) {
+  //   cvm::log(cvm::ERROR, "Error: Hart {}: Failed to exit debug mode\n", id_);
+  //   return;
+  // }
 }
 
 uint64_t bridge::modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data) {
