@@ -52,7 +52,8 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     rv_tester_transactions::cosim::m_mcmi_ifetch_req<>,
     rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>,
     rv_tester_transactions::cosim::m_mcmi_ievict<>,
-    rv_tester_transactions::cosim::m_debug<>
+    rv_tester_transactions::cosim::m_debug<>,
+    bridge::error
   >(loc);
 
   connect<
@@ -133,6 +134,10 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
     instrs_.clear();
     hw_csrs_.clear();
   }
+  if (disable_patch_mode_) {
+      bridge_->set_patch_mode(false);
+      disable_patch_mode_ = false;
+  }
 
   // Clear state
   intr_ = false;
@@ -154,6 +159,10 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
     excp_ = true;
     intr_ = false;
     ecause_ = (m_trap.cause & 0xff);
+    if (m_trap.cause >= 60) {
+      bridge_->set_patch_mode(true);
+      patch_mode_ = true;
+    }
   }
 }
 
@@ -230,6 +239,14 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.icause = icause_;
   instr.ecause = ecause_;
 
+  // Renamed csr sequence
+  uint64_t src = (m_rvfi.uop >> 16) & 0x3f;
+  bool src_renamed = (src >= 35) && (src <= 37);
+  bool dest_renamed = (m_rvfi.rd_addr >= 35) && (m_rvfi.rd_addr <= 37);
+  instr.csr_renamed = src_renamed || dest_renamed;
+  instr.csr_renamed_name = src_renamed ? renamed_csr_to_string.at(static_cast<renamed_csr_reg>(src)) :
+    dest_renamed ? renamed_csr_to_string.at(static_cast<renamed_csr_reg>(m_rvfi.rd_addr)) : "";
+
   // First/last uops for ucode sequences
   instr.first_uop = false;
   instr.last_uop = m_rvfi.last_uop;
@@ -240,7 +257,6 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
     ucode_ = true;
   } else {
     ucode_ = false;
-    count_++;
   }
 
   // Priv mode
@@ -257,11 +273,19 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
     if (ucode_priv_change_) {
       instr.priv = priv_;
       ucode_priv_change_ = false;
+      if (priv_ == 0x4 && patch_mode_) { // dret changes mode from D to M/S/U (exit from patch mode)
+        disable_patch_mode_ = true;
+        patch_mode_ = false;
+      }
     }
     priv_ = m_rvfi.mode;
     if (!priv_to_string.count(static_cast<priv>(instr.priv)))
       cvm::log(cvm::ERROR, "Error: Invalid rvfi privilege mode: {:#x}\n", instr.priv);
   }
+
+  if (m_rvfi.last_uop && !patch_mode_)
+    count_++;
+
   if ((instr.priv & 0x3) == 0x3) { // Ignore V bit if M mode
     instr.priv = 0x3;
   }
@@ -279,6 +303,8 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
       cracked_gpr_.valid = true;
       cracked_gpr_.rd_addr = m_rvfi.rd_addr;
       cracked_gpr_.rd_wdata = m_rvfi.rd_wdata;
+      // This is for print in the rvfi log
+      instr.gpr.emplace_back(false, m_rvfi.rd_addr, m_rvfi.rd_wdata);
     }
   }
 
@@ -302,10 +328,10 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   if (m_rvfi.flags_valid) {
     instr.flags = m_rvfi.flags;
     // Accumulate flags writes across cracked uops
-    if (instr.vec_cracked) {
-      cracked_flags_ |= m_rvfi.flags;
-    }
+    cracked_flags_ |= m_rvfi.flags;
   }
+  // Accumulate vec_cracked bool across cracked uops
+  vec_cracked_ |= instr.vec_cracked;
 
   // CSR
   if (m_rvfi.csr_valid) {
@@ -318,10 +344,10 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   }
 
   // CSR renaming
-  instr.csr_cracked = ((m_rvfi.rd_addr >= 32) && (m_rvfi.rd_addr <= 37));
   if (renamed_csr.count(static_cast<renamed_csr_reg>(m_rvfi.rd_addr))) {
     csr_t c {true, m_rvfi.hart, m_rvfi.cycle, renamed_csr.at(static_cast<renamed_csr_reg>(m_rvfi.rd_addr)), std::numeric_limits<uint64_t>::max(), m_rvfi.rd_wdata};
     instr.csr.push_back(c);
+      // This is for print in the rvfi log
     instr.gpr.emplace_back(false, m_rvfi.rd_addr, m_rvfi.rd_wdata);
   }
 
@@ -372,7 +398,8 @@ void rvfi::append_uop_changes_to_instr(rv_instr_t& instr) {
   }
 
   // Flags
-  instr.flags |= cracked_flags_;
+  if (vec_cracked_) instr.flags |= cracked_flags_;
+  vec_cracked_ = 0;
   cracked_flags_ = 0;
 
   // CSR
@@ -449,7 +476,7 @@ void rvfi::print_instr(const rv_instr_t& instr) {
   if (instr.mem_write.valid)
     print_instr_resource(instr, fmt::format(" m {:016x} {:016x}", instr.mem_write.va, instr.mem_write.data));
 
-  if (!instr.ucode || !instr.last_uop)
+  if ((!instr.ucode || !instr.last_uop) && !instr.csr_renamed)
     for (auto& c : instr.csr)
       print_instr_resource(instr, fmt::format(" c {:016x} {:016x} {:016x}", c.csr_addr, c.csr_wdata, c.csr_wmask));
 }
@@ -467,13 +494,13 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
 
   dut_log += fmt::format(" {}", resource_str);
 
-  if (!instr.ucode)
+  if (!instr.ucode || instr.csr_renamed || cracked_gpr_.valid)
     dut_log += fmt::format(" {}", whisper::disassemble(instr.opcode));
   else
     dut_log += fmt::format(" {} (microcode)", cosim_util::get_nth_word(instr.disasm, 1));
 
-  if (instr.csr_cracked)
-    dut_log += fmt::format(" (csr_rename:x{})", instr.gpr[0].rd_addr);
+  if (instr.csr_renamed)
+    dut_log += fmt::format(" (csr_rename:{})", instr.csr_renamed_name);
 
   if (instr.flags)
     dut_log += fmt::format(" (flags:{:#x})", instr.flags);
@@ -492,6 +519,9 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
 
   if (instr.comp)
     dut_log += fmt::format(" (compressed)");
+
+  if (patch_mode_)
+    dut_log += fmt::format(" (patch)");
 
   dut_log += fmt::format("\n");
   log(cvm::NONE, fmt::to_string(dut_log));
@@ -893,6 +923,11 @@ void rvfi::process(const rv_tester::terminate_called&) {
   terminated_ = true;
 }
 
+
+void rvfi::process(const bridge::error&) {
+  cvm::log(cvm::HIGH, "[RVFI] cosim error, stopping further rvfi processing\n");
+  terminated_ = true;
+}
 
 std::string rvfi::mem_attr_to_string(uint32_t mem_attr) {
     std::string result;

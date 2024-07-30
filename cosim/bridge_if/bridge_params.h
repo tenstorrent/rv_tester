@@ -1014,4 +1014,13 @@ namespace {
         {VSSCRATCH, 0x240}
     };
 
+    const std::unordered_map<renamed_csr_reg, std::string_view> renamed_csr_to_string = {
+        {MEPC, "mepc"},
+        {SEPC, "sepc"},
+        {VSEPC, "vsepc"},
+        {MSCRATCH, "mscratch"},
+        {SSCRATCH, "sscratch"},
+        {VSSCRATCH, "vsscratch"}
+    };
+
 }

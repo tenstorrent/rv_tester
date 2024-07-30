@@ -17,6 +17,7 @@
 
 #include "whisper_client.h"
 #include "rv_tester/rv_tester_structs.h"
+#include "cvm/registry.hpp"
 
 class bridge : public bridge_base {
 
@@ -32,7 +33,8 @@ public:
   // Usec by some functions in bridge.cpp
   using size_8_bytes_t = uint64_t;
 
-public:
+  struct error {};
+
   bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsigned id);
   ~bridge();
 
@@ -80,6 +82,7 @@ public:
   void final_phase();
   void report_metrics();
   void process(const rv_tester::terminate_called &);
+  void set_patch_mode(bool patch_mode) { patch_mode_ = int(patch_mode); }
 
 private:
 
@@ -151,7 +154,7 @@ private:
   bool disable_pa_check_vec(hart_id_t hart);
   bool is_compressed(const std::string& instr);
   bool is_ucode(const std::string& instr);
-  bool is_cracked_csr(const std::string& instr);
+  bool is_renamed_csr(const std::string& instr);
   bool does_instr_match_resynch_list(const rv_instr_t& d, const std::string& instr);
   bool does_instr_match_resynch_condition(const rv_instr_t& d, const std::string& instr);
   bool clint_read(const rv_instr_t& d);
@@ -171,7 +174,7 @@ private:
 
 private:
 
-  cvm::file_logger log;
+  cvm::file_logger bridge_log_;
   cvm::topology::loc_t loc_;
   unsigned id_;
 
@@ -253,5 +256,14 @@ private:
   std::vector<std::string> cosim_resynch_csr_defaults;
 
   bool terminated_ = false;
+  int patch_mode_  = 0; // 0:not in patch mode, 1: entered patch mode, step whisper, >2: inside patch mode, dont step whisper
+
+  template <typename... Args>
+      void print(cvm::verbosity_level v, Args&&... args) {
+          cvm::log(v, std::forward<Args>(args)...);
+          if (v <= cvm::verbosity_level::ERROR) {
+              cvm::registry::messenger.signal<error>(loc_, {});
+          }
+      }
 
 };
