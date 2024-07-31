@@ -155,7 +155,7 @@ import rv_tester_params:: * ;
 
     logic [63:0] wcount, wcount_next;
     assign wcount_next = wtimecmp_wr_valid ? (AcReqPktRfClki.data > AcMtimei ? 64'(AcReqPktRfClki.data - AcMtimei) : 64'b0)
-                        : (wcount == 0 ? 64'b0 : 64'(wcount -1));
+                        : (wcount == 0 ? 64'b0 : 64'(wcount -10));
     always @(posedge rf_clk) begin
     if (dut_reset) wcount <= 'hffffffff;
     else wcount <= wcount_next;
