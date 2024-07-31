@@ -101,6 +101,7 @@ module rv_tester
     logic call_finish;
     int num_reruns = -1;
     bit trace_en = 0;
+    bit cla_clk_halt = 0;
 
     bit jtag_en = 0;
     bit overlay_mmr_en = 0;
@@ -142,8 +143,8 @@ module rv_tester
     string cvm_verbosity_string, gen_clocks_verbosity_string;
     int unsigned cvm_verbosity, gen_clocks_verbosity;
 
-    assign terminate           = (rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
-    assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue == '0) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced ); 
+    assign terminate           = (shutdown || rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
+    assign terminate_now       = (terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue == '0) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced )) || shutdown; 
     
     assign rerun_now           = terminated && num_reruns > 0;
 
@@ -257,6 +258,7 @@ module rv_tester
             gen_clocks           <= cvm_verbosity >= gen_clocks_verbosity;
             bypass_mem           <= cvm_plusargs::get_bool("bypass_mem") != '0;
             trace_en             <= cvm_plusargs::get_bool("trace_en") != '0;
+            cla_clk_halt         <= cvm_plusargs::get_bool("cla_clk_halt") != '0;
             overlay_mmr_en       <= cvm_plusargs::get_bool("overlay_mmr_en") != '0;
             jtag_en              <= cvm_plusargs::get_bool("jtag_en") != '0;
             bypass_cache         <= cvm_plusargs::get_bool("bypass_cache") != '0;
@@ -287,6 +289,10 @@ module rv_tester
 
         if (rv_tester_reset) begin
             print_terminate_message <= '1;
+        end
+
+        if(terminate_now && cla_clk_halt && !shutdown) begin
+            $error("RV_TESTER ::CLK_HALT is not generated before test termination");
         end
 
         if (terminate_now && !terminated) begin
