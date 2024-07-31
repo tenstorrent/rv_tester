@@ -365,7 +365,7 @@ module rv_tester
     rv_tester_pkg::dm_write_t  trickbox_dmi_write;
 
     localparam int AXI_CLOCK_PERIOD = 1000000 / CLOCK_FREQ_MHZ[AXI_CLK_IDX];
-    localparam int JTAG_CLOCK_PERIOD = 100;
+    localparam int JTAG_CLOCK_PERIOD = 10*100;
     localparam int OVERLAY_CLOCK_PERIOD = 2*AXI_CLOCK_PERIOD;
     sysmod #(
         .CLOCK_PERIOD_PS(AXI_CLOCK_PERIOD),

@@ -164,7 +164,7 @@ import rv_tester_params::*;
         tap_sel = tap_cfg_sel; 
         length = reg_length[31:0];
         jtag_quiesced = 1'b0;
-        $display("[SYSMOD.SV] JTAG driver %h %h %h",upper_value, lower_value,reg_length);
+        $display("[SYSMOD.SV] JTAG driver %h %h %h %h %h",upper_value, lower_value,reg_length,tap_sel,tap_cfg_sel);
       end 
       else if(jtag_quit[0] === 1'b1 )begin 
         jtag_quiesced = 1'b1;
