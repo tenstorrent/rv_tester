@@ -22,7 +22,9 @@ DEFINE_bool(cosim, true, "Enable cosim checking");
 DEFINE_bool(emulate_amo_arithmetic, true, "Emulate amo arithmetic if dut harness does not provide amo outputs");
 
 DEFINE_uint64(debug_entry_pc, 0x42190800, "Debug Mode entry PC");
-DEFINE_uint64(debug_exit_pc, 0x42190860, "Debug Mode exit PC");
+DEFINE_uint64(debug_exit_pc, 0x421908cc, "Debug Mode exit PC");
+DEFINE_uint64(debug_mem_base, 0x42190000, "Debug Memory Base Address");
+DEFINE_uint64(debug_mem_size, 0x1000, "Debug Memory Size");
 
 REGISTRY_register(rvfi, COSIM, cvm::registry::all);
 
@@ -52,7 +54,8 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     rv_tester_transactions::cosim::m_mcmi_ifetch_req<>,
     rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>,
     rv_tester_transactions::cosim::m_mcmi_ievict<>,
-    rv_tester_transactions::cosim::m_debug<>
+    rv_tester_transactions::cosim::m_debug<>,
+    bridge::error
   >(loc);
 
   connect<
@@ -133,6 +136,10 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
     instrs_.clear();
     hw_csrs_.clear();
   }
+  if (disable_patch_mode_) {
+      bridge_->set_patch_mode(false);
+      disable_patch_mode_ = false;
+  }
 
   // Clear state
   intr_ = false;
@@ -154,6 +161,10 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
     excp_ = true;
     intr_ = false;
     ecause_ = (m_trap.cause & 0xff);
+    if (m_trap.cause >= 60 && FLAGS_cosim) {
+      bridge_->set_patch_mode(true);
+      patch_mode_ = true;
+    }
   }
 }
 
@@ -248,7 +259,6 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
     ucode_ = true;
   } else {
     ucode_ = false;
-    count_++;
   }
 
   // Priv mode
@@ -265,11 +275,19 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
     if (ucode_priv_change_) {
       instr.priv = priv_;
       ucode_priv_change_ = false;
+      if (priv_ == 0x4 && patch_mode_) { // dret changes mode from D to M/S/U (exit from patch mode)
+        disable_patch_mode_ = true;
+        patch_mode_ = false;
+      }
     }
     priv_ = m_rvfi.mode;
     if (!priv_to_string.count(static_cast<priv>(instr.priv)))
       cvm::log(cvm::ERROR, "Error: Invalid rvfi privilege mode: {:#x}\n", instr.priv);
   }
+
+  if (m_rvfi.last_uop && !patch_mode_)
+    count_++;
+
   if ((instr.priv & 0x3) == 0x3) { // Ignore V bit if M mode
     instr.priv = 0x3;
   }
@@ -312,10 +330,10 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   if (m_rvfi.flags_valid) {
     instr.flags = m_rvfi.flags;
     // Accumulate flags writes across cracked uops
-    if (instr.vec_cracked) {
-      cracked_flags_ |= m_rvfi.flags;
-    }
+    cracked_flags_ |= m_rvfi.flags;
   }
+  // Accumulate vec_cracked bool across cracked uops
+  vec_cracked_ |= instr.vec_cracked;
 
   // CSR
   if (m_rvfi.csr_valid) {
@@ -382,7 +400,8 @@ void rvfi::append_uop_changes_to_instr(rv_instr_t& instr) {
   }
 
   // Flags
-  instr.flags |= cracked_flags_;
+  if (vec_cracked_) instr.flags |= cracked_flags_;
+  vec_cracked_ = 0;
   cracked_flags_ = 0;
 
   // CSR
@@ -503,6 +522,9 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
   if (instr.comp)
     dut_log += fmt::format(" (compressed)");
 
+  if (patch_mode_)
+    dut_log += fmt::format(" (patch)");
+
   dut_log += fmt::format("\n");
   log(cvm::NONE, fmt::to_string(dut_log));
 }
@@ -568,8 +590,7 @@ void rvfi::enter_debug_mode(rv_instr_t& instr) {
   if (terminated_)
     return;
 
-  if ((uint64_t)instr.pc.pc_rdata == FLAGS_debug_entry_pc) {
-    // (instr.intr && (instr.icause == 0)) { 
+  if (instr.intr && (instr.icause == 0)) { 
     rv_debug_t debug;
 
     debug.cycle = instr.cycle;
@@ -582,6 +603,7 @@ void rvfi::enter_debug_mode(rv_instr_t& instr) {
     }
 
     bridge_->enter_debug_mode(debug);
+    in_debug_mode_ = true;
   }
 }
 
@@ -606,6 +628,7 @@ void rvfi::exit_debug_mode(rv_instr_t& instr) {
     }
 
     bridge_->exit_debug_mode(debug);
+    in_debug_mode_ = false;
   }
 }
 
@@ -889,7 +912,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ievict<>& m_mcmi_
 
   if (!FLAGS_cosim)
     return;
-    
+
   mem_t m;
   m.valid = true;
   m.cycle = m_mcmi_ievict.cycle;
@@ -903,6 +926,11 @@ void rvfi::process(const rv_tester::terminate_called&) {
   terminated_ = true;
 }
 
+
+void rvfi::process(const bridge::error&) {
+  cvm::log(cvm::HIGH, "[RVFI] cosim error, stopping further rvfi processing\n");
+  terminated_ = true;
+}
 
 std::string rvfi::mem_attr_to_string(uint32_t mem_attr) {
     std::string result;

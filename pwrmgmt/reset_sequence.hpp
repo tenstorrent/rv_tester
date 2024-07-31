@@ -14,9 +14,7 @@ class reset_sequence {
   public:
 
     reset_sequence(cvm::topology::loc_t loc, unsigned id);
-    ~reset_sequence() {}
-
-    void check();
+    ~reset_sequence();
 
     void set_scope(svScope s) { scope_ = s; }
 

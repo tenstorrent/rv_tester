@@ -51,8 +51,7 @@ reset_sequence::reset_sequence(cvm::topology::loc_t loc, unsigned) : loc_(loc), 
   }
 }
 
-void reset_sequence::check() {
-  // Called just before destruction
+reset_sequence::~reset_sequence() {
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"pwrmgmt_warm_reset_count\": \"{}\"}}\n", warm_reset_count_);
 }
 

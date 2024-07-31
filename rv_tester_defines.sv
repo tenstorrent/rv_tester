@@ -1050,6 +1050,7 @@ package rv_tester_params;
     input  [rv_tester_params::NHOLDS-1:0]    reset_hold,                                            \
     output [rv_tester_params::NDOMAINS-1:0]  dut_reset,                                             \
     input  rv_tester_params::bootstrap_t     bootstrap,                                             \
+    input  [rv_tester_params::NHARTS-1:0]    nmi,                                                   \
     input  rv_tester_pkg::interrupt_t        interrupt          [rv_tester_params::NHARTS-1:0],     \
     output rv_tester_pkg::interrupt_t        interrupt_pend     [rv_tester_params::NHARTS-1:0],     \
     output                                   debug_mode         [rv_tester_params::NHARTS-1:0],     \
@@ -1130,6 +1131,7 @@ package rv_tester_params;
     logic [rv_tester_params::NHOLDS-1:0]     reset_hold;                                            \
     logic [rv_tester_params::NDOMAINS-1:0]   dut_reset;                                             \
     rv_tester_params::bootstrap_t            bootstrap;                                             \
+    logic [rv_tester_params::NHARTS-1:0]     nmi;                                                   \
     rv_tester_pkg::interrupt_t               interrupt       [rv_tester_params::NHARTS-1:0];        \
     rv_tester_pkg::interrupt_t               interrupt_pend  [rv_tester_params::NHARTS-1:0];        \
     logic                                    debug_mode      [rv_tester_params::NHARTS-1:0];        \

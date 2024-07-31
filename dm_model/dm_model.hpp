@@ -20,7 +20,7 @@
 #include "debug_rom.h"
 #include "debug_rom_defines.h"
 
-#define max_hartid 1 // Define the maximum number of harts in the system
+#define max_hartid 8 // Define the maximum number of harts in the system
 #define halt_on_reset false
 #define core_fuse_map (int[]) {0}  
 

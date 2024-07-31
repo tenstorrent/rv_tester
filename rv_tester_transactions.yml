@@ -1349,6 +1349,15 @@ pwrmgmt:
             cycle:
                 width: 32
 
+interrupts:
+    num: ${TOP.PLATFORM.NHARTS}
+    m_nmi_tick:
+        domain: 2
+        num: 1
+        fields:
+            cycle:
+                width: 32
+
 aplic_monitor:
     num: 1
     aplic_intr_req:

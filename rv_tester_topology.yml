@@ -151,6 +151,11 @@ rv_tester: &rv_tester
       attrs:
         <<: *rv_tester_pwrmgmt_attrs
 
+    interrupts:
+      count: *rv_tester_nharts
+      type:
+        - interrupts
+
     aclint_checker:
       count: 1
       type:
