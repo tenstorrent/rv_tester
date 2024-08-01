@@ -570,7 +570,7 @@ cvm::messenger::task<void> reset_sequence::patch_ram_check() {
   uint32_t addr;
   co_await tick();
   for( int i = 0; i<20;i++ ){
-    addr = cpl_patch_ram_base + (rand()%cpl_patch_ram_pdata)/8;
+    addr = cpl_patch_ram_base + (rand()%4096)/8;
     actual_data = co_await read(addr, SZ_8B);
     if (patch_ram.find(addr) == patch_ram.end())
       exp_data = 0;
