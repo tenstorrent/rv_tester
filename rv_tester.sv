@@ -119,6 +119,7 @@ module rv_tester
     logic cosim_terminate_any;
     int instructions = 0;
 
+    int rand_dmi_driver_dly = 0;
     int quiesce_counter = 0;
     int trace_counter = 5000;
     int quiesce_timeout = 500;
@@ -249,6 +250,7 @@ module rv_tester
             rv_tester_error_terminate.terminate = '0;
             /* verilator lint_on BLKSEQ */
 
+            rand_dmi_driver_dly  <= cvm_plusargs::get_int("rand_dmi_driver_dly"); 
             cb_poll              <= cvm_plusargs::get_bool("cb_async") == '0;
             quiesce_timeout      <= cvm_plusargs::get_int("quiesce_timeout");
             trace_timeout        <= cvm_plusargs::get_int("trace_timeout");
@@ -399,6 +401,8 @@ module rv_tester
     dmi_driver i_dmi_driver(
         .clk(dut_clk[AXI_CLK_IDX]),
         .reset(~dut_reset[AXI_RESET_IDX]),
+        .rand_dmi_driver_dly,
+        
         .dmi_req_ready,
         .dmi_resp_valid,
         .dmi_resp,
