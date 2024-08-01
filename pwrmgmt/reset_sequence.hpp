@@ -41,6 +41,7 @@ class reset_sequence {
     cvm::messenger::task<void> program_fuses();
     cvm::messenger::task<void> program_patch();
     cvm::messenger::task<void> release_cpl_nofetch();
+    cvm::messenger::task<void> patch_ram_check();
 
     cvm::messenger::task<uint64_t> read(uint64_t addr, size_t sz);
     cvm::messenger::task<void> write(uint64_t addr, size_t sz, uint64_t data);
@@ -63,6 +64,7 @@ class reset_sequence {
     void warm_reset(uint8_t assert);
     void reset_hold(uint8_t sram, uint8_t debug, uint8_t critical);
     void force_ref_clk(uint8_t assert);
+    void populate_patch_ram(uint64_t addr, const std::vector<uint64_t>& data);
 
   private:
 

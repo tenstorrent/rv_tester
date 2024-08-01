@@ -2,6 +2,7 @@
 
 #include "cvm/registry.hpp"
 #include "cvm/logger.hpp"
+#include <map>
 
 namespace {
   constexpr uint32_t pll_ip_ver             = 0x210'3000;
@@ -59,7 +60,7 @@ namespace {
   constexpr uint32_t cpl_patch_ram_pbody_0     =  cpl_patch_ram_base + 0x0500;
   constexpr uint32_t cpl_patch_ram_pbody_1     =  cpl_patch_ram_base + 0x0900;
   constexpr uint32_t cpl_patch_ram_pbody_2     =  cpl_patch_ram_base + 0x0d00;
-  constexpr uint32_t cpl_patch_ram_pbody_3     =  cpl_patch_ram_base + 0x01100;
+  constexpr uint32_t cpl_patch_ram_pbody_3     =  cpl_patch_ram_base + 0x1100;
   constexpr uint32_t cpl_patch_ram_pdata       =  cpl_patch_ram_base + 0x1600;
   constexpr uint32_t cpl_in_filter_addr_l      =  smc_local_base + 0x15008;
   constexpr uint32_t cpl_in_filter_addr_h      =  smc_local_base + 0x15010;
@@ -72,9 +73,11 @@ namespace {
   typedef enum : bool { COLD = true, WARM = false } rst_t;
   typedef enum : size_t { SZ_4B = 4, SZ_8B = 8 } sz_t;
 
+  std::map<uint32_t, uint64_t> patch_ram;
+  
   std::vector<uint32_t> patch_header = {
-    0x7c906ff3,        //0x4214c000 :    	csrrsi	t6,0x7c9,0
-    0x002fff93,        //0x4214c004 :    	andi	t6,t6,2
+    0x7c902ff3,        //0x4214c000 :    	csrr	t6,0x7c9
+    0xffefff93,        //0x4214c004 :    	andi	t6,t6,-2
     0x7c9f9073,        //0x4214c008 :    	csrw	0x7c9,t6
     0x7b209073,        //0x4214c00c :    	csrw	dscratch0,ra
     0x7b311073,        //0x4214c010 :    	csrw	dscratch1,sp
@@ -129,8 +132,8 @@ namespace {
     0x40020213,        //0x4214c0d4 :    	addi	tp,tp,1024 # 400 <tohost-0x6ffffc00>
     0x7b106f73,        //0x4214c0d8 :    	csrrsi	t5,dpc,0
     0x00020067,        //0x4214c0dc :    	jr	tp # 0 <tohost-0x70000000>
-    0x7c906ff3,        //0x4214c0e0 :    	csrrsi	t6,0x7c9,0
-    0x002fff93,        //0x4214c0e4 :    	andi	t6,t6,2
+    0x7c902ff3,        //0x4214c0e0 :    	csrr	t6,0x7c9
+    0xffefff93,        //0x4214c0e4 :    	andi	t6,t6,-2
     0x7c9f9073,        //0x4214c0e8 :    	csrw	0x7c9,t6
     0x7b109073,        //0x4214c0ec :    	csrw	dpc,ra
     0x7ca060f3,        //0x4214c0f0 :    	csrrsi	ra,0x7ca,0
@@ -178,15 +181,7 @@ namespace {
     0x0f812f83,        //0x4214c198 :    	lw	t6,248(sp)
     0x7b2060f3,        //0x4214c19c :    	csrrsi	ra,dscratch0,0
     0x7b306173,        //0x4214c1a0 :    	csrrsi	sp,dscratch1,0
-    0x7c906ff3,        //0x4214c1a4 :    	csrrsi	t6,0x7c9,0
-    0x001fef93,        //0x4214c1a8 :    	ori	t6,t6,1
-    0x7c9f9073,        //0x4214c1ac :    	csrw	0x7c9,t6
-    //0x12000073,        //0x4214c1b0 :    	sfence.vma
-    0x7b200073,        //0x4214c1b4 :    	dret
-    0x7c9f9073,        //0x4214c1b8 :    	nop
-    0x7b200073,        //0x4214c1bc :    	nop
-    0x00000013,        //0x4214c1c0 :    	nop
-    0x00000013,        //0x4214c1c4 :    	nop
+    0x7b200073,        //0x4214c1a4 :     dret
   };
   std::vector<uint32_t> patch_trig_0 = {
     0x4214cfb7,        	//lui	t6,0x4214c
@@ -221,8 +216,6 @@ namespace {
     0x00329293,          	//slli	t0,t0,0x3
     0x002282b3,          	//add	t0,t0,sp
     0x0002b283,          	//ld	t0,0(t0)
-    0x00300f93,          	//li	t6,3
-    0x7c9f9073,          	//csrw	0x7c9,t6
     0xfff2c213,          	//not	tp,t0
     0x00100f93,          	//li	t6,1
     0x01f20233,          	//add	tp,tp,t6
@@ -241,6 +234,24 @@ namespace {
     0x7b1f9073,         //csrw	dpc,t6
     0x00000f93,         //li	t6,0
     0x7b200073,         //dret
+  };
+
+
+  std::vector<uint32_t>  patch_body_jump ={
+    0x0041d213,         // srli	tp,gp,0x4
+    0x01f27213,         // andi	tp,tp,31
+    0x0101d293,         // srli	t0,gp,0x10
+    0x01f2f293,         // andi	t0,t0,31
+    0x0181d313,         // srli	t1,gp,0x18
+    0x01f37313,         // andi	t1,t1,31
+    0x0242d463,         // bge	t0,tp,40 <.jump>
+    0x004f7093,         // andi	ra,t5,4
+    0x4214cfb7,         // lui	t6,0x4214c
+    0x0e0f8f9b,         // addiw	t6,t6,224 # 4214c0e0 <tohost-0x2deb3f20>
+    0x000f8067,         // jr	t6
+    0x4214cfb7,         // lui	t6,0x4214c
+    0x0e0f8f9b,         // addiw	t6,t6,224 # 4214c0e0 <tohost-0x2deb3f20>
+    0x000f8067,         // jr	t6
   };
 }
 
