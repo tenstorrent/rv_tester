@@ -123,4 +123,5 @@ class rvfi {
     svScope scope_;
 
     bool terminated_ = false;
+    bool in_debug_mode_ = false;
 };

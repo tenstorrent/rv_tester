@@ -22,14 +22,13 @@ import rv_tester_params::*;
   import "DPI-C" context function void pwrmgmt_set_scope(int unsigned location);
   import "DPI-C" function bit pwrmgmt_get_warm_reset_en(string mode);
 
-  int unsigned location = cvm_topology::nil;
+  parameter int unsigned location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.PWRMGMT.ID, NUM);
   int unsigned warm_reset_count;
   string warm_reset_mode;
   bit warm_reset_en;
   always @(posedge tb_clk) begin
     if (tb_reset) begin
       /* verilator lint_off BLKSEQ */
-      location = cvm_topology::get_location(topology_pkg::mods.TOP.PLATFORM.PWRMGMT.ID, NUM);
       if (location != cvm_topology::nil) begin
         pwrmgmt_set_scope(location);
         warm_reset_mode = cvm_plusargs::get_string("warm_reset");

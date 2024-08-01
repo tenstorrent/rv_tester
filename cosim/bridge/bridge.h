@@ -198,6 +198,7 @@ private:
   uint32_t step_ = 1;
   uint64_t whisper_time_=0;
   uint64_t rvfi_calls_=0;
+  uint64_t num_sp_accesses_ = 0;
 
   // State variables
   bool ecall_ = false;
@@ -243,6 +244,7 @@ private:
   std::chrono::high_resolution_clock::time_point end_time_;
   std::chrono::high_resolution_clock::time_point start_of_test_;
   bool first_call_ = true;
+  
 
   // Memmap
   memmap::memmap_t memmap_;
