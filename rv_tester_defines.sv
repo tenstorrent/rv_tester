@@ -6,7 +6,7 @@
 
 package rv_tester_params;
 
-    import topology_pkg::mods;
+    import cvm_topology_gen::mods;
 
     // --------------------------------------
     // Platform RISCV Arch

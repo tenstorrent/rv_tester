@@ -21,7 +21,7 @@ import rv_tester_params:: * ;
         `RV_TESTER_TRANSACTIONS_ACLINT_CHECKER_OUTPUT_PORTS
 );
 
-    int unsigned location = cvm_topology::nil;
+    parameter int unsigned location = cvm_topology_gen::get_location (topology.TOP.PLATFORM.ACLINT_CHECKER.ID, 0);
     logic reset_done;
     localparam  WAKECORE = 'h380010;
     localparam  WAKETIME = 'h380008;
@@ -34,7 +34,6 @@ import rv_tester_params:: * ;
     always @(posedge tb_clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */
-            location = cvm_topology::get_location(topology.TOP.PLATFORM.ACLINT_CHECKER.ID, 0);
             enable_checks = cvm_plusargs::get_bool("aclint") != '0;
             if (enable_checks)
             $display("SV: ACLINT_CHECKER location %d time %t\n",location,$time);
@@ -88,7 +87,7 @@ import rv_tester_params:: * ;
             counter[j] <= 0;
         end else begin
             counter[j] <= counter[j]+1;
-        end 
+        end
         if (dut_reset || AcMtipi[j] || ~enable_checks) begin
             st[j] <= idle;
             counter_check[j] <= 'hffffffff ;
@@ -161,7 +160,7 @@ import rv_tester_params:: * ;
     end
     /* verilator lint_on WIDTH */
     return hart;
-  endfunction 
+  endfunction
 
   function automatic logic [3:0] get_hart_bypass(int n);
     logic [3:0] hart;
@@ -175,7 +174,7 @@ import rv_tester_params:: * ;
     end
     /* verilator lint_on WIDTH */
     return hart;
-  endfunction 
+  endfunction
 
 
 
