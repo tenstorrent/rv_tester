@@ -10,10 +10,12 @@ def interrupts_gen(name, packet, topology, harness, visibility = None, cc_attrs 
         srcs = [
             "@rv_tester//interrupts:interrupts.cpp",
             "@rv_tester//interrupts:nmi_sequence.cpp",
+            "@rv_tester//interrupts:interrupt_trigger_sequence.cpp",
         ],
         hdrs = [
             "@rv_tester//interrupts:interrupts.hpp",
             "@rv_tester//interrupts:nmi_sequence.hpp",
+            "@rv_tester//interrupts:interrupt_trigger_sequence.hpp",
         ],
         deps = [
             "@rv_tester//sysmod:sysmod_plusargs",
