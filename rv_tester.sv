@@ -119,6 +119,7 @@ module rv_tester
     logic cosim_terminate_any;
     int instructions = 0;
 
+    int rand_dmi_driver_dly = 0;
     int quiesce_counter = 0;
     int trace_counter = 5000;
     int quiesce_timeout = 500;
@@ -137,7 +138,7 @@ module rv_tester
 
     int assertion_test_cycle = 0;
 
-    int unsigned location = cvm_topology::nil;
+    parameter int unsigned location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.ID, 0);
 
     bit gen_clocks = '0;
     string cvm_verbosity_string, gen_clocks_verbosity_string;
@@ -243,10 +244,10 @@ module rv_tester
             gen_clocks_verbosity_string = cvm_plusargs::get_string("gen_clocks_verbosity");
             cvm_verbosity               = cvm_logger::get_verbosity(cvm_verbosity_string);
             gen_clocks_verbosity        = cvm_logger::get_verbosity(gen_clocks_verbosity_string);
-            location                    = cvm_topology::get_location(topology_pkg::mods.TOP.PLATFORM.ID, 0);
             rv_tester_error_terminate.terminate = '0;
             /* verilator lint_on BLKSEQ */
 
+            rand_dmi_driver_dly  <= cvm_plusargs::get_int("rand_dmi_driver_dly"); 
             cb_poll              <= cvm_plusargs::get_bool("cb_async") == '0;
             quiesce_timeout      <= cvm_plusargs::get_int("quiesce_timeout");
             trace_timeout        <= cvm_plusargs::get_int("trace_timeout");
@@ -397,6 +398,8 @@ module rv_tester
     dmi_driver i_dmi_driver(
         .clk(dut_clk[AXI_CLK_IDX]),
         .reset(~dut_reset[AXI_RESET_IDX]),
+        .rand_dmi_driver_dly,
+        
         .dmi_req_ready,
         .dmi_resp_valid,
         .dmi_resp,
@@ -625,8 +628,7 @@ module rv_tester
             .ID_WIDTH(AxiIdWidthMstRv),
             .STRB_WIDTH(topology.TOP.PLATFORM.AXI.STRB_WIDTH),
             .R_Q_MAX(topology.TOP.PLATFORM.AXI.R_Q_MAX),
-            .TOPO_ID(topology.TOP.PLATFORM.AXI.ID),
-            .NUM(p),
+            .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.AXI.ID, p)),
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(0)
         ) axi_sw(
             .clk(dut_clk[AXI_CLK_IDX]),
@@ -696,8 +698,7 @@ module rv_tester
             .ID_WIDTH(topology.TOP.PLATFORM.NCIO_AXI.ID_WIDTH),
             .STRB_WIDTH(topology.TOP.PLATFORM.NCIO_AXI.STRB_WIDTH),
             .R_Q_MAX(topology.TOP.PLATFORM.AXI.R_Q_MAX),
-            .TOPO_ID(topology.TOP.PLATFORM.NCIO_AXI.ID),
-            .NUM(p),
+            .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.NCIO_AXI.ID, p)),
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(1)
         ) ncio_axi_sw(
             .clk(dut_clk[AXI_CLK_IDX]),
@@ -754,8 +755,7 @@ module rv_tester
             .ID_WIDTH(topology.TOP.PLATFORM.APLIC_MSI_AXI.ID_WIDTH),
             .STRB_WIDTH(topology.TOP.PLATFORM.APLIC_MSI_AXI.STRB_WIDTH),
             .R_Q_MAX(topology.TOP.PLATFORM.AXI.R_Q_MAX),
-            .TOPO_ID(topology.TOP.PLATFORM.APLIC_MSI_AXI.ID),
-            .NUM(p),
+            .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.APLIC_MSI_AXI.ID, p)),
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(2)
         ) aplic_msi_axi_sw(
             .clk(dut_clk[AXI_CLK_IDX]),
@@ -814,8 +814,7 @@ module rv_tester
             .AR_Q_MAX(topology.TOP.PLATFORM.AXI_MST.AR_Q_MAX),
             .AW_Q_MAX(topology.TOP.PLATFORM.AXI_MST.AW_Q_MAX),
             .W_Q_MAX(topology.TOP.PLATFORM.AXI_MST.W_Q_MAX),
-            .TOPO_ID(topology.TOP.PLATFORM.AXI_MST.ID),
-            .NUM(p),
+            .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.AXI_MST.ID, p)),
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(0)
         ) axi_sw_mst (
             .clk(dut_clk[AXI_CLK_IDX]),
@@ -883,8 +882,7 @@ module rv_tester
             .AR_Q_MAX(topology.TOP.PLATFORM.APLIC_MMR_AXI_MST.AR_Q_MAX),
             .AW_Q_MAX(topology.TOP.PLATFORM.APLIC_MMR_AXI_MST.AW_Q_MAX),
             .W_Q_MAX(topology.TOP.PLATFORM.APLIC_MMR_AXI_MST.W_Q_MAX),
-            .TOPO_ID(topology.TOP.PLATFORM.APLIC_MMR_AXI_MST.ID),
-            .NUM(p),
+            .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.APLIC_MMR_AXI_MST.ID, p)),
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(1)
         ) aplic_mmr_sw_mst (
             .clk(dut_clk[AXI_CLK_IDX]),
@@ -942,8 +940,7 @@ module rv_tester
             .AR_Q_MAX(topology.TOP.PLATFORM.SMC_AXI_MST.AR_Q_MAX),
             .AW_Q_MAX(topology.TOP.PLATFORM.SMC_AXI_MST.AW_Q_MAX),
             .W_Q_MAX(topology.TOP.PLATFORM.SMC_AXI_MST.W_Q_MAX),
-            .TOPO_ID(topology.TOP.PLATFORM.SMC_AXI_MST.ID),
-            .NUM(p),
+            .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.SMC_AXI_MST.ID, p)),
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(2)
         ) smc_sw_mst (
             .clk(dut_clk[SOC_CLK_IDX]),
@@ -1003,8 +1000,7 @@ module rv_tester
             .AR_Q_MAX(topology.TOP.PLATFORM.PLL_AXI_MST.AR_Q_MAX),
             .AW_Q_MAX(topology.TOP.PLATFORM.PLL_AXI_MST.AW_Q_MAX),
             .W_Q_MAX(topology.TOP.PLATFORM.PLL_AXI_MST.W_Q_MAX),
-            .TOPO_ID(topology.TOP.PLATFORM.PLL_AXI_MST.ID),
-            .NUM(p),
+            .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.PLL_AXI_MST.ID, p)),
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(3)
         ) pll_sw_mst (
             .clk(dut_clk[SOC_CLK_IDX]),
@@ -1064,8 +1060,7 @@ module rv_tester
             .AR_Q_MAX(topology.TOP.PLATFORM.PM_NW_AXI_MST.AR_Q_MAX),
             .AW_Q_MAX(topology.TOP.PLATFORM.PM_NW_AXI_MST.AW_Q_MAX),
             .W_Q_MAX(topology.TOP.PLATFORM.PM_NW_AXI_MST.W_Q_MAX),
-            .TOPO_ID(topology.TOP.PLATFORM.PM_NW_AXI_MST.ID),
-            .NUM(p),
+            .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.PM_NW_AXI_MST.ID, p)),
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(4)
         ) pm_nw_sw_mst (
             .clk(dut_clk[SOC_CLK_IDX]),

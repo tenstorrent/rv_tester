@@ -18,7 +18,7 @@ import rv_tester_pkg::*;
   `RV_TESTER_TRANSACTIONS_PMU_OUTPUT_PORTS
 );
 
-    int unsigned location = cvm_topology::nil;
+    parameter int unsigned location = cvm_topology_gen::get_location (topology.TOP.PLATFORM.PMCI.ID, NUM);
     longint unsigned period = 0;
     longint unsigned instructions = 0;
     bit cycle_sync_en, instruction_sync_en;
@@ -32,7 +32,6 @@ import rv_tester_pkg::*;
     always @(posedge tb_clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */
-            location = cvm_topology::get_location(topology.TOP.PLATFORM.PMCI.ID, NUM);
             perf_enabled = (cvm_plusargs::get_bool("perf") != '0) & (location != cvm_topology::nil);
             period = cvm_plusargs::get_ulongint("sync_pmcounters_period");
             instructions = cvm_plusargs::get_ulongint("sync_pmcounters_instructions");
@@ -84,10 +83,10 @@ import rv_tester_pkg::*;
     endgenerate
 
    always_comb begin
-      branch_instructions = pmcounter[OP_RETIRED_DIRECT_BRANCH] + pmcounter[OP_RETIRED_RET_BRANCH] + 
+      branch_instructions = pmcounter[OP_RETIRED_DIRECT_BRANCH] + pmcounter[OP_RETIRED_RET_BRANCH] +
                             pmcounter[OP_RETIRED_INDIRECT_BRANCH] + pmcounter[OP_RETIRED_COND_BRANCH];
    end
-   
+
     bit [NRET-1:0] perf_match_array_start;
     bit [NRET-1:0] perf_match_array_end;
     always @(*) begin
