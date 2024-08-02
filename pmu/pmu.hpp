@@ -425,16 +425,26 @@ public:
       LS_CHILLOUT_CYCLES_MMU,
       //Event to count chillout cycles due to a request from ldc
       LS_CHILLOUT_CYCLES_CIF,
-      //Event to count each time we enter chillout mode due to a request from ldc
+      //Event to count each time ldc requests chillout mode
       LS_CHILLOUT_REQUESTS_LDC,
-      //Event to count each time we enter chillout mode due to a request from stc
+      //Event to count each time stc requests chillout mode
       LS_CHILLOUT_REQUESTS_STC,
-      //Event to count each time we enter chillout mode due to a request from mmu
+      //Event to count each time mmu requests chillout mode
       LS_CHILLOUT_REQUESTS_MMU,
-      //Event to count each time we enter chillout mode due to a request from cif
+      //Event to count each time cif requests chillout mode
       LS_CHILLOUT_REQUESTS_CIF,
-      //Event to count each time we enter chillout mode due to a request from all
+      //Event to count each time anyone requests chillout mode
       LS_CHILLOUT_REQUESTS_ALL,
+      //Event to count each time we enter chillout mode due to a request from ldc
+      LS_CHILLOUT_ENTRANCES_LDC,
+      //Event to count each time we enter chillout mode due to a request from stc
+      LS_CHILLOUT_ENTRANCES_STC,
+      //Event to count each time we enter chillout mode due to a request from mmu
+      LS_CHILLOUT_ENTRANCES_MMU,
+      //Event to count each time we enter chillout mode due to a request from cif
+      LS_CHILLOUT_ENTRANCES_CIF,
+      //Event to count each time we enter chillout mode due to a request from all
+      LS_CHILLOUT_ENTRANCES_ALL,
       //Event (speculative) for micro-TLB miss caused by a demand memory operation
       UTLB_MISS,
       //Event (speculative) for every instance of a failed Load Queue allocation to a demand memory-read operation
@@ -511,12 +521,30 @@ public:
       TAP_ACCESS_MMU,
       //Event (speculative) for any tag pipe access
       TAP_ACCESS_ALL,
-      //Event (speculative) for micro way predictor access
-      UWP_ACCESS,
-      //Event (speculative) for micro-way-predictor refill caused by a demand memory operation
-      UWP_MISS,
-      //Event (speculative) for every instance of a uWP hit matching the L1D hit way
-      UWP_TRUE_HIT,
+      //Event (speculative) for micro way predictor access from AGP
+      UWP_ACCESS_AGP,
+      //Event (speculative) for micro way predictor access from ARB
+      UWP_ACCESS_ARB,
+      //Event (speculative) for any micro way predictor access
+      UWP_ACCESS_ALL,
+      //Event (speculative) for an AGP-copy micro-way-predictor refill caused by a demand memory operation
+      UWP_MISS_AGP,
+      //Event (speculative) for a TAP/DFP-copy micro-way-predictor refill caused by a demand memory operation
+      UWP_MISS_TAP_DFP,
+      //Event (speculative) for any micro-way-predictor refill caused by a demand memory operation
+      UWP_MISS_ALL,
+      //Event (speculative) for every instance of an AGP access uWP hit matching the L1D hit way
+      UWP_TRUE_HIT_AGP,
+      //Event (speculative) for every instance of an ARB access uWP hit matching the L1D hit way
+      UWP_TRUE_HIT_ARB,
+      //Event (speculative) for every instance of any uWP hit matching the L1D hit way
+      UWP_TRUE_HIT_ALL,
+      //Event (speculative) for an AGP-copy micro-way-predictor invalidate
+      UWP_INVALIDATE_AGP,
+      //Event (speculative) for a TAP/DFP-copy micro-way-predictor invalidate
+      UWP_INVALIDATE_TAP_DFP,
+      //Event (speculative) for any micro-way-predictor invalidate
+      UWP_INVALIDATE_ALL,
       //Event (speculative) for way predictor access
       WP_ACCESS,
       //Event (speculative) for a WP refill caused by a demand memory operation
@@ -947,6 +975,11 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::LS_CHILLOUT_REQUESTS_MMU] = pmcounters.ls_chillout_requests_mmu;
       tmp[counter::LS_CHILLOUT_REQUESTS_CIF] = pmcounters.ls_chillout_requests_cif;
       tmp[counter::LS_CHILLOUT_REQUESTS_ALL] = pmcounters.ls_chillout_requests_all;
+      tmp[counter::LS_CHILLOUT_ENTRANCES_LDC] = pmcounters.ls_chillout_entrances_ldc;
+      tmp[counter::LS_CHILLOUT_ENTRANCES_STC] = pmcounters.ls_chillout_entrances_stc;
+      tmp[counter::LS_CHILLOUT_ENTRANCES_MMU] = pmcounters.ls_chillout_entrances_mmu;
+      tmp[counter::LS_CHILLOUT_ENTRANCES_CIF] = pmcounters.ls_chillout_entrances_cif;
+      tmp[counter::LS_CHILLOUT_ENTRANCES_ALL] = pmcounters.ls_chillout_entrances_all;
       tmp[counter::UTLB_MISS] = pmcounters.utlb_miss;
       tmp[counter::LDQ_CANNOT_ALLOC] = pmcounters.ldq_cannot_alloc;
       tmp[counter::MDP_CORRECT_PREDICTION] = pmcounters.mdp_correct_prediction;
@@ -985,9 +1018,18 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::TAP_ACCESS_PREFETCH] = pmcounters.tap_access_prefetch;
       tmp[counter::TAP_ACCESS_MMU] = pmcounters.tap_access_mmu;
       tmp[counter::TAP_ACCESS_ALL] = pmcounters.tap_access_all;
-      tmp[counter::UWP_ACCESS] = pmcounters.uwp_access;
-      tmp[counter::UWP_MISS] = pmcounters.uwp_miss;
-      tmp[counter::UWP_TRUE_HIT] = pmcounters.uwp_true_hit;
+      tmp[counter::UWP_ACCESS_AGP] = pmcounters.uwp_access_agp;
+      tmp[counter::UWP_ACCESS_ARB] = pmcounters.uwp_access_arb;
+      tmp[counter::UWP_ACCESS_ALL] = pmcounters.uwp_access_all;
+      tmp[counter::UWP_MISS_AGP] = pmcounters.uwp_miss_agp;
+      tmp[counter::UWP_MISS_TAP_DFP] = pmcounters.uwp_miss_tap_dfp;
+      tmp[counter::UWP_MISS_ALL] = pmcounters.uwp_miss_all;
+      tmp[counter::UWP_TRUE_HIT_AGP] = pmcounters.uwp_true_hit_agp;
+      tmp[counter::UWP_TRUE_HIT_ARB] = pmcounters.uwp_true_hit_arb;
+      tmp[counter::UWP_TRUE_HIT_ALL] = pmcounters.uwp_true_hit_all;
+      tmp[counter::UWP_INVALIDATE_AGP] = pmcounters.uwp_invalidate_agp;
+      tmp[counter::UWP_INVALIDATE_TAP_DFP] = pmcounters.uwp_invalidate_tap_dfp;
+      tmp[counter::UWP_INVALIDATE_ALL] = pmcounters.uwp_invalidate_all;
       tmp[counter::WP_ACCESS] = pmcounters.wp_access;
       tmp[counter::WP_MISS] = pmcounters.wp_miss;
       tmp[counter::WP_TRUE_HIT] = pmcounters.wp_true_hit;
@@ -1311,6 +1353,11 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {LS_CHILLOUT_REQUESTS_MMU,"ls_chillout_requests_mmu"},
       {LS_CHILLOUT_REQUESTS_CIF,"ls_chillout_requests_cif"},
       {LS_CHILLOUT_REQUESTS_ALL,"ls_chillout_requests_all"},
+      {LS_CHILLOUT_ENTRANCES_LDC,"ls_chillout_entrances_ldc"},
+      {LS_CHILLOUT_ENTRANCES_STC,"ls_chillout_entrances_stc"},
+      {LS_CHILLOUT_ENTRANCES_MMU,"ls_chillout_entrances_mmu"},
+      {LS_CHILLOUT_ENTRANCES_CIF,"ls_chillout_entrances_cif"},
+      {LS_CHILLOUT_ENTRANCES_ALL,"ls_chillout_entrances_all"},
       {UTLB_MISS,"utlb_miss"},
       {LDQ_CANNOT_ALLOC,"ldq_cannot_alloc"},
       {MDP_CORRECT_PREDICTION,"mdp_correct_prediction"},
@@ -1349,9 +1396,18 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {TAP_ACCESS_PREFETCH,"tap_access_prefetch"},
       {TAP_ACCESS_MMU,"tap_access_mmu"},
       {TAP_ACCESS_ALL,"tap_access_all"},
-      {UWP_ACCESS,"uwp_access"},
-      {UWP_MISS,"uwp_miss"},
-      {UWP_TRUE_HIT,"uwp_true_hit"},
+      {UWP_ACCESS_AGP,"uwp_access_agp"},
+      {UWP_ACCESS_ARB,"uwp_access_arb"},
+      {UWP_ACCESS_ALL,"uwp_access_all"},
+      {UWP_MISS_AGP,"uwp_miss_agp"},
+      {UWP_MISS_TAP_DFP,"uwp_miss_tap_dfp"},
+      {UWP_MISS_ALL,"uwp_miss_all"},
+      {UWP_TRUE_HIT_AGP,"uwp_true_hit_agp"},
+      {UWP_TRUE_HIT_ARB,"uwp_true_hit_arb"},
+      {UWP_TRUE_HIT_ALL,"uwp_true_hit_all"},
+      {UWP_INVALIDATE_AGP,"uwp_invalidate_agp"},
+      {UWP_INVALIDATE_TAP_DFP,"uwp_invalidate_tap_dfp"},
+      {UWP_INVALIDATE_ALL,"uwp_invalidate_all"},
       {WP_ACCESS,"wp_access"},
       {WP_MISS,"wp_miss"},
       {WP_TRUE_HIT,"wp_true_hit"},
@@ -1456,7 +1512,7 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {NO_ALLOC_NO_MSHR,"no_alloc_no_mshr"},
       {NO_ALLOC_HINT_NOT_SET,"no_alloc_hint_not_set"},
       {SC_REPLAY_ECC,"sc_replay_ecc"},
-    }; 
+    };
 
   pmu(cvm::topology::loc_t, unsigned);
   ~pmu();
