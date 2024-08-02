@@ -550,6 +550,21 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_INTERRUPTS_SOURCE_PORTS(2,c,0)
         );
     end
+    for (genvar c = 0; c < NHARTS; c++) begin: triggers
+        triggers #(
+            .NUM(c),
+            `TOPOLOGY_CFG,
+            `RV_TESTER_TRANSACTIONS_TRIGGERS_SOURCE_PARAMS(0)
+        ) triggers (
+            .tb_clk(clk[TB_CLK_IDX]),
+            .tb_reset(sysmod_reset),
+            .dut_clk(dut_clk[AXI_CLK_IDX]),
+            .dut_reset(dut_reset[AXI_RESET_IDX]),
+            .no_fetch(core_no_fetch[c]),
+            .nmi(nmi[c]),
+            `RV_TESTER_TRANSACTIONS_TRIGGERS_SOURCE_PORTS(2,c,0)
+        );
+    end
 
     aplic_monitor #(
         .NUM(0),

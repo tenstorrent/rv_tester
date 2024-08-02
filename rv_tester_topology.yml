@@ -156,6 +156,11 @@ rv_tester: &rv_tester
       type:
         - interrupts
 
+    triggers:
+      count: *rv_tester_nharts
+      type:
+        - triggers
+        
     aclint_checker:
       count: 1
       type:

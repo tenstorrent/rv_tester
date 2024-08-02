@@ -7,6 +7,7 @@ load("@rv_tester//dm_model:dm_model.bzl", "dm_model_gen")
 load("@rv_tester//aplic_monitor:aplic_monitor.bzl", "aplic_monitor_gen")
 load("@rv_tester//pwrmgmt:pwrmgmt.bzl", "pwrmgmt_gen")
 load("@rv_tester//interrupts:interrupts.bzl", "interrupts_gen")
+load("@rv_tester//triggers:triggers.bzl", "triggers_gen")
 load("@rv_tester//aclint_checker:aclint_checker.bzl", "aclint_checker_gen")
 load("@rv_tester//transactors/axi_sw:axi_sw.bzl", "axi_sw_gen")
 
