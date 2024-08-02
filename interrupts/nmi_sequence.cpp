@@ -21,6 +21,8 @@ nmi_sequence::nmi_sequence(cvm::topology::loc_t loc, unsigned id) : loc_(loc), i
 
   // Scope
   cvm::registry::messenger.connect<svScope>(loc_, [this](svScope s) { return this->set_scope(s); });
+   
+  cvm::rand::seed(1);
 
   // nmi sequence threads
   if (FLAGS_nmi == "random") {
@@ -69,18 +71,22 @@ cvm::messenger::task<void> nmi_sequence::random_mode() {
 }
 
 cvm::messenger::task<void> nmi_sequence::trigger_mode() {
-  // Wait for next selected trigger
-  co_await trigger();
+  while(1){
+     // Wait for next selected trigger
+     co_await trigger();
 
-  // Wait for tick after trigger
-  co_await tick();
+     // Wait for random ticks after trigger
+     int num_ticks = rng1() %10;  //TODO:change to dist
+     for(int i=0;i<num_ticks;i++)
+       co_await tick();
 
-  nmi(id_, ASSERT);
+     nmi(id_, ASSERT);
 
-  // Wait for next tick generated after a random width "nmi_width"
-  co_await tick();
+     // Wait for next tick generated after a random width "nmi_width"
+     co_await tick();
 
-  nmi(id_, DEASSERT);
+     nmi(id_, DEASSERT);
+  }
 }
 
 void nmi_sequence::init() {
@@ -106,6 +112,8 @@ cvm::messenger::task<void> nmi_sequence::tick() {
 }
 
 cvm::messenger::task<void> nmi_sequence::trigger() {
+  co_await cvm::registry::messenger.wait<rv_tester_transactions::triggers::m_event_trigger_tick<>>(loc_);
   co_return;
 }
+
 

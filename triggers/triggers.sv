@@ -30,6 +30,18 @@ import rv_tester_params::*;
   // -------------------------
   // SV->C++ Messages/Packets
   // -------------------------
+  logic tb_reset_d1;
+  always @(posedge tb_clk) begin
+    tb_reset_d1 <= tb_reset;
+    if (~tb_reset & tb_reset_d1) begin
+      /* verilator lint_off BLKSEQ */
+      location = cvm_topology::get_location(topology_pkg::mods.TOP.PLATFORM.TRIGGERS.ID, NUM);
+      if (location != cvm_topology::nil) begin
+        triggers_set_scope(location);
+      end
+      /* verilator lint_on BLKSEQ */
+    end
+  end
 
   bit [TRIGGER_COUNT-1:0] prev_event_trigger = 0;
   bit interrupt_trigger_in_progress = 0;
@@ -58,29 +70,14 @@ end
     dut_clocks <= dut_clocks + 1;
   end
 
-  // m_nmi_tick
-  //assign m_event_trigger_ticks[0].valid = event_based_interrupt & (location != cvm_topology::nil);
-  assign m_event_trigger_ticks[0].valid = 1'b1 & (location != cvm_topology::nil);
+  // m_event_trigger_ticks
+  assign m_event_trigger_ticks[0].valid = event_based_interrupt & (location != cvm_topology::nil);
   assign m_event_trigger_ticks[0].data.location = location;
   /* verilator lint_off WIDTHEXPAND */
   assign m_event_trigger_ticks[0].data.event_trigger = event_trigger;
   /* verilator lint_on WIDTHEXPAND */
 
-  // -------------------------
-  // C++->SV Callbacks
-  // -------------------------
 
-  export "DPI-C" function trigger_triggers_init;
-  export "DPI-C" function trigger_triggers;
 
-  function void trigger_triggers_init();
-   /* verilator lint_off BLKSEQ */
-    /* verilator lint_on BLKSEQ */
-  endfunction
 
-  function void trigger_triggers(int val);
-     /* verilator lint_off BLKSEQ */
-    $display("\ntrigger based interrupt %d\n",val);
-    /* verilator lint_on BLKSEQ */
-  endfunction
 endmodule

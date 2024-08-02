@@ -31,6 +31,8 @@ class nmi_sequence {
 
     void init();
     void nmi(unsigned hart, uint8_t assert);
+    
+    cvm::rand::rng<int64_t> rng1;
 
   private:
 

@@ -1,13 +1,13 @@
 #pragma once
 #include <iostream>
 #include <unistd.h>
+#include <sstream>
 #include "cvm/registry.hpp"
 #include "cvm/logger.hpp"
 #include "cvm/plusargs.hpp"
 #include "cvm/random.hpp"
 #include "rv_tester_transactions.hpp"
 #include "interrupts.hpp"
-//#include "triggers.hpp"
 #include "transactor.h"
 #include "svdpi.h"
 
@@ -31,6 +31,8 @@ class external_interrupt_sequence {
 
     void init();
     void drive_interrupt();
+    void capture_trigger_info(int32_t a);
+    void gen_interrupt_timings();
 
   private:
 
@@ -42,9 +44,13 @@ class external_interrupt_sequence {
    
     cvm::rand::rng<int64_t> rng1;
 
+    
+    uint32_t interrupts_driven = 0;
     uint32_t ext_interrupt_count_ = 0;
     uint32_t ext_trig_interrupt_count_ = 0;
     uint32_t msi_m_file_addr  = 0x40000000;
     uint32_t msi_v_file_addr  = 0x44000000;
     uint32_t msi_vs_file_addr = 0x44000000;
+    int32_t  last_trigger     = 0;
+    int32_t  current_trigger  = 0;
 };
