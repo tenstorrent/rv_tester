@@ -95,6 +95,14 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
         cc_attrs = cc_attrs,
     )
 
+    triggers_gen(
+        name = name + "_triggers",
+        packet = name  + "_transactions",
+        topology = topology,
+        harness = name + "_harness",
+        cc_attrs = cc_attrs,
+    )
+
     aclint_checker_gen(
         name = name + "_aclint_checker",
         packet = name  + "_transactions",
@@ -126,6 +134,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             name + "_aplic_monitor_sv",
             name + "_aclint_checker_sv",
             name + "_interrupts_sv",
+            name + "_triggers_sv",
             name + "_axi_sw_sv",
             "@opensrc-axi_llc//:axi_llc",
             "@opensrc-axi//:axi",
@@ -158,6 +167,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             name + "_aplic_monitor_dpi",
             name + "_aclint_checker_dpi",
             name + "_interrupts_dpi",
+            name + "_triggers_dpi",
             name + "_axi_sw_dpi",
             topology + "_cc",
         ] + select({

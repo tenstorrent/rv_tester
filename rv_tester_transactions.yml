@@ -1357,12 +1357,6 @@ interrupts:
         fields:
             cycle:
                 width: 32
-    m_event_trigger_tick:
-        domain: 2
-        num: 1
-        fields:
-            event_trigger:
-                width: 32
 
 triggers:
     num: ${TOP.PLATFORM.NHARTS}
