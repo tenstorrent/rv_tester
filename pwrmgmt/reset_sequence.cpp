@@ -1,5 +1,6 @@
 #include "reset_sequence.hpp"
 #include "sysmod/sysmod_plusargs.h"
+#include "pmu/pmu_plusargs.h"
 #include <sstream>
 
 REGISTRY_register(reset_sequence, PWRMGMT, cvm::registry::all);
@@ -160,9 +161,9 @@ cvm::messenger::task<void> reset_sequence::warm_reset_sequence() {
 
   // Assert holds
   reset_hold(
-    cvm::rand::get(FLAGS_warm_reset_sram_hold),
-    cvm::rand::get(FLAGS_warm_reset_debug_hold),
-    cvm::rand::get(FLAGS_warm_reset_critical_hold)
+    cvm::rand::get<uint32_t>(FLAGS_warm_reset_sram_hold),
+    cvm::rand::get<uint32_t>(FLAGS_warm_reset_debug_hold),
+    cvm::rand::get<uint32_t>(FLAGS_warm_reset_critical_hold)
   );
 
   // Wait for 16 clock ticks
@@ -453,8 +454,9 @@ uint64_t reset_sequence::dm_fuse_val() {
 uint64_t reset_sequence::sc_fuse_val() {
   uint64_t sc_fuse = 0;
 
-  for (uint32_t i=0; i<FLAGS_num_sc_ways/4; ++i) {
-    uint32_t segment = (FLAGS_sc_way_enable_mask >> (4*i)) & 0xf;
+  int32_t nways = cvm::topology::attr(cvm::topology::get_from_type("CORE", 0), "SC_NUM_WAYS").second;
+  for (int i=0; i<nways/4; ++i) {
+    uint32_t segment = (~FLAGS_sc_dis_ways_mask >> (4*i)) & 0xf;
     if (segment == 0xf)
       sc_fuse |= (1ull << i);
   }
