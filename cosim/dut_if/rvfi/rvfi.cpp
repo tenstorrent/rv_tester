@@ -22,7 +22,9 @@ DEFINE_bool(cosim, true, "Enable cosim checking");
 DEFINE_bool(emulate_amo_arithmetic, true, "Emulate amo arithmetic if dut harness does not provide amo outputs");
 
 DEFINE_uint64(debug_entry_pc, 0x42190800, "Debug Mode entry PC");
-DEFINE_uint64(debug_exit_pc, 0x42190860, "Debug Mode exit PC");
+DEFINE_uint64(debug_exit_pc, 0x421908cc, "Debug Mode exit PC");
+DEFINE_uint64(debug_mem_base, 0x42190000, "Debug Memory Base Address");
+DEFINE_uint64(debug_mem_size, 0x1000, "Debug Memory Size");
 
 REGISTRY_register(rvfi, COSIM, cvm::registry::all);
 
@@ -159,7 +161,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
     excp_ = true;
     intr_ = false;
     ecause_ = (m_trap.cause & 0xff);
-    if (m_trap.cause >= 60) {
+    if (m_trap.cause >= 60 && FLAGS_cosim) {
       bridge_->set_patch_mode(true);
       patch_mode_ = true;
     }
@@ -588,8 +590,7 @@ void rvfi::enter_debug_mode(rv_instr_t& instr) {
   if (terminated_)
     return;
 
-  if ((uint64_t)instr.pc.pc_rdata == FLAGS_debug_entry_pc) {
-    // (instr.intr && (instr.icause == 0)) { 
+  if (instr.intr && (instr.icause == 0)) { 
     rv_debug_t debug;
 
     debug.cycle = instr.cycle;
@@ -602,6 +603,7 @@ void rvfi::enter_debug_mode(rv_instr_t& instr) {
     }
 
     bridge_->enter_debug_mode(debug);
+    in_debug_mode_ = true;
   }
 }
 
@@ -626,6 +628,7 @@ void rvfi::exit_debug_mode(rv_instr_t& instr) {
     }
 
     bridge_->exit_debug_mode(debug);
+    in_debug_mode_ = false;
   }
 }
 
@@ -909,7 +912,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ievict<>& m_mcmi_
 
   if (!FLAGS_cosim)
     return;
-    
+
   mem_t m;
   m.valid = true;
   m.cycle = m_mcmi_ievict.cycle;

@@ -18,7 +18,7 @@ import rv_tester_pkg::*;
   `RV_TESTER_TRANSACTIONS_PMU_OUTPUT_PORTS
 );
 
-    int unsigned location = cvm_topology::nil;
+    parameter int unsigned location = cvm_topology_gen::get_location (topology.TOP.PLATFORM.PMCI.ID, NUM);
     longint unsigned period = 0;
     longint unsigned instructions = 0;
     bit cycle_sync_en, instruction_sync_en;
@@ -32,7 +32,6 @@ import rv_tester_pkg::*;
     always @(posedge tb_clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */
-            location = cvm_topology::get_location(topology.TOP.PLATFORM.PMCI.ID, NUM);
             perf_enabled = (cvm_plusargs::get_bool("perf") != '0) & (location != cvm_topology::nil);
             period = cvm_plusargs::get_ulongint("sync_pmcounters_period");
             instructions = cvm_plusargs::get_ulongint("sync_pmcounters_instructions");
@@ -84,10 +83,10 @@ import rv_tester_pkg::*;
     endgenerate
 
    always_comb begin
-      branch_instructions = pmcounter[OP_RETIRED_DIRECT_BRANCH] + pmcounter[OP_RETIRED_RET_BRANCH] + 
+      branch_instructions = pmcounter[OP_RETIRED_DIRECT_BRANCH] + pmcounter[OP_RETIRED_RET_BRANCH] +
                             pmcounter[OP_RETIRED_INDIRECT_BRANCH] + pmcounter[OP_RETIRED_COND_BRANCH];
    end
-   
+
     bit [NRET-1:0] perf_match_array_start;
     bit [NRET-1:0] perf_match_array_end;
     always @(*) begin
@@ -340,6 +339,11 @@ import rv_tester_pkg::*;
     assign pmcounterss[0].data.ls_chillout_requests_mmu = pmcounter[LS_CHILLOUT_REQUESTS_MMU];
     assign pmcounterss[0].data.ls_chillout_requests_cif = pmcounter[LS_CHILLOUT_REQUESTS_CIF];
     assign pmcounterss[0].data.ls_chillout_requests_all = pmcounter[LS_CHILLOUT_REQUESTS_ALL];
+    assign pmcounterss[0].data.ls_chillout_entrances_ldc = pmcounter[LS_CHILLOUT_ENTRANCES_LDC];
+    assign pmcounterss[0].data.ls_chillout_entrances_stc = pmcounter[LS_CHILLOUT_ENTRANCES_STC];
+    assign pmcounterss[0].data.ls_chillout_entrances_mmu = pmcounter[LS_CHILLOUT_ENTRANCES_MMU];
+    assign pmcounterss[0].data.ls_chillout_entrances_cif = pmcounter[LS_CHILLOUT_ENTRANCES_CIF];
+    assign pmcounterss[0].data.ls_chillout_entrances_all = pmcounter[LS_CHILLOUT_ENTRANCES_ALL];
     assign pmcounterss[0].data.utlb_miss = pmcounter[UTLB_MISS];
     assign pmcounterss[0].data.ldq_cannot_alloc = pmcounter[LDQ_CANNOT_ALLOC];
     assign pmcounterss[0].data.mdp_correct_prediction = pmcounter[MDP_CORRECT_PREDICTION];
@@ -378,9 +382,18 @@ import rv_tester_pkg::*;
     assign pmcounterss[0].data.tap_access_prefetch = pmcounter[TAP_ACCESS_PREFETCH];
     assign pmcounterss[0].data.tap_access_mmu = pmcounter[TAP_ACCESS_MMU];
     assign pmcounterss[0].data.tap_access_all = pmcounter[TAP_ACCESS_ALL];
-    assign pmcounterss[0].data.uwp_access = pmcounter[UWP_ACCESS];
-    assign pmcounterss[0].data.uwp_miss = pmcounter[UWP_MISS];
-    assign pmcounterss[0].data.uwp_true_hit = pmcounter[UWP_TRUE_HIT];
+    assign pmcounterss[0].data.uwp_access_agp = pmcounter[UWP_ACCESS_AGP];
+    assign pmcounterss[0].data.uwp_access_arb = pmcounter[UWP_ACCESS_ARB];
+    assign pmcounterss[0].data.uwp_access_all = pmcounter[UWP_ACCESS_ALL];
+    assign pmcounterss[0].data.uwp_miss_agp = pmcounter[UWP_MISS_AGP];
+    assign pmcounterss[0].data.uwp_miss_tap_dfp = pmcounter[UWP_MISS_TAP_DFP];
+    assign pmcounterss[0].data.uwp_miss_all = pmcounter[UWP_MISS_ALL];
+    assign pmcounterss[0].data.uwp_true_hit_agp = pmcounter[UWP_TRUE_HIT_AGP];
+    assign pmcounterss[0].data.uwp_true_hit_arb = pmcounter[UWP_TRUE_HIT_ARB];
+    assign pmcounterss[0].data.uwp_true_hit_all = pmcounter[UWP_TRUE_HIT_ALL];
+    assign pmcounterss[0].data.uwp_invalidate_agp = pmcounter[UWP_INVALIDATE_AGP];
+    assign pmcounterss[0].data.uwp_invalidate_tap_dfp = pmcounter[UWP_INVALIDATE_TAP_DFP];
+    assign pmcounterss[0].data.uwp_invalidate_all = pmcounter[UWP_INVALIDATE_ALL];
     assign pmcounterss[0].data.wp_access = pmcounter[WP_ACCESS];
     assign pmcounterss[0].data.wp_miss = pmcounter[WP_MISS];
     assign pmcounterss[0].data.wp_true_hit = pmcounter[WP_TRUE_HIT];

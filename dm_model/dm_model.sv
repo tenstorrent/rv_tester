@@ -10,11 +10,11 @@ module dm_model #(
   input dmi_resp_valid,
   input rv_tester_pkg::dmi_resp_t dmi_resp,
   input bit terminate,
-  input logic                                            dm_mem_tx_vld,       
-  input logic                                            dm_mem_tx_we,        
-  input logic [rv_tester_params::DM_AXI_ADDR_WIDTH-1:0]  dm_mem_tx_addr,      
-  input logic [rv_tester_params::DM_AXI_DATA_WIDTH-1:0]  dm_mem_tx_rd_data,   
-  input logic [rv_tester_params::DM_AXI_DATA_WIDTH-1:0]  dm_mem_tx_wr_data,   
+  input logic                                            dm_mem_tx_vld,
+  input logic                                            dm_mem_tx_we,
+  input logic [rv_tester_params::DM_AXI_ADDR_WIDTH-1:0]  dm_mem_tx_addr,
+  input logic [rv_tester_params::DM_AXI_DATA_WIDTH-1:0]  dm_mem_tx_rd_data,
+  input logic [rv_tester_params::DM_AXI_DATA_WIDTH-1:0]  dm_mem_tx_wr_data,
   input logic [rv_tester_params::DM_AXI_STRB_WIDTH-1:0]  dm_mem_tx_wr_data_be,
   input logic [7:0] misc_signals,
   input logic                                            dmi_status,
@@ -22,18 +22,9 @@ module dm_model #(
   `RV_TESTER_TRANSACTIONS_DM_MODEL_OUTPUT_PORTS
 );
 
-    int unsigned location = cvm_topology::nil;
+    parameter int unsigned location = cvm_topology_gen::get_location (topology.TOP.PLATFORM.DM_MODEL.ID, 0);
 
     logic dm_mem_tx_rd_data_resp_vld;
-
-    always @(posedge clk) begin
-        if (reset) begin
-            /* verilator lint_off BLKSEQ */
-            location = cvm_topology::get_location(topology.TOP.PLATFORM.DM_MODEL.ID, 0);
-            // perf_enabled = (cvm_plusargs::get_bool("perf") != '0) & (location != cvm_topology::nil);
-            /* verilator lint_on BLKSEQ */
-        end
-    end
 
     // assign dmi_statuss[0].valid = !reset;
     // assign dmi_statuss[0].status = dmi_status;
@@ -74,5 +65,5 @@ module dm_model #(
       else
         dm_mem_tx_rd_data_resp_vld <= (dm_mem_tx_vld && ~dm_mem_tx_we);
     end
- 
+
 endmodule

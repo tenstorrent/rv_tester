@@ -25,6 +25,12 @@ scratchpad_xtor::scratchpad_xtor(const std::string& tag, uint64_t addr, size_t s
  
   channel = cvm::registry::messenger.channel<axi::r_t>(axi_mst_loc_l);
 }
+// Destructor
+scratchpad_xtor::~scratchpad_xtor() {
+  //report metrics before quiting
+  cvm::log(cvm::LOW, "[Trickbox] Total Scratchpad accesses from fabric side={:#x} \n", sp_xtor_num_accesses);
+ 
+}
 void scratchpad_xtor::axi_write_mmr_data_granular() {
  axi::w_t w_txn;
  
@@ -52,7 +58,7 @@ void scratchpad_xtor::axi_write_mmr_granular() {
   aw_txn.user  =8;
   
  
-  cvm::log(cvm::LOW, "[Trickbox] SCMC_XTOR AXI MMR WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
+  cvm::log(cvm::LOW, "[Trickbox] SP_XTOR AXI MMR WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
 
   cvm::registry::messenger.signal(axi_mst_loc_l, aw_txn);
  
@@ -88,8 +94,8 @@ void scratchpad_xtor::axi_write_granular(uint64_t addr) {
   aw_txn.atop  =0;
   aw_txn.user  =0;
   
- 
-  cvm::log(cvm::LOW, "[Trickbox] SCMC_XTOR AXI WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
+  sp_xtor_num_accesses++;
+  cvm::log(cvm::LOW, "[Trickbox] SP_XTOR AXI WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
 
   cvm::registry::messenger.signal(axi_mst_loc_l, aw_txn);
  
@@ -112,8 +118,8 @@ cvm::messenger::task<void> scratchpad_xtor::axi_read_granular(const transactor::
   ar_txn.atop  =0;
   ar_txn.user  =0;
   
- 
-  cvm::log(cvm::LOW, "[Trickbox] SCMC_XTOR AXI READ GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", ar_txn.addr);
+  sp_xtor_num_accesses++;
+  cvm::log(cvm::LOW, "[Trickbox] SP_XTOR AXI READ GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", ar_txn.addr);
 
   cvm::registry::messenger.signal(axi_mst_loc_l, ar_txn);
 
@@ -141,7 +147,7 @@ void scratchpad_xtor::axi_write() {
   std::vector<bool> strb= {1,1,1,1};
 
   addr = 0x60000000;
-
+  sp_xtor_num_accesses++;
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb});
 }
 
@@ -152,6 +158,7 @@ void scratchpad_xtor::axi_read(uint64_t addr, size_t length,
   transactor::read_t r ;
   r.addr = addr;
   r.length = length;
+  sp_xtor_num_accesses++;
   auto* l = +[](transactor::read_t r, scratchpad_xtor* dev) -> cvm::messenger::task<void>{
     data_t d;
     //co_await dev->read(r,d);

@@ -8,6 +8,7 @@ DECLARE_string(load_lz4);
 DECLARE_bool(bootrom);
 DECLARE_string(bootrom_path);
 DECLARE_string(cplfw_path);
+DECLARE_bool(enable_sp_init);
 DECLARE_uint64(seed);
 DECLARE_uint32(num_harts);
 DECLARE_uint32(hart_enable_mask);
