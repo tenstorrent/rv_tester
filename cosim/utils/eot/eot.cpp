@@ -6,10 +6,13 @@
 #include "sysmod/htif/htif.h"
 #include "sysmod/sysmod_plusargs.h"
 
+constexpr std::uint64_t max_instr_pc_default = std::numeric_limits<std::uint64_t>::max();
+
 DEFINE_string(eot, "tohost", "Enable end-of-test mechanism. Supported options: tohost, max_instr, tohost_all");
 DEFINE_uint64(tohost, 0x0, "Use this tohost address if provided");
 DEFINE_uint64(max_instr, 100000, "Max instruction limit to terminate the sim");
 DEFINE_uint64(min_instr,      0, "min instruction limit to pass the sim");
+DEFINE_uint64(max_instr_pc, max_instr_pc_default, "The PC that must be seen at or after max_instr count is reached before ending the test");
 
 REGISTRY_register(eot, TOP.PLATFORM, cvm::registry::all);
 
@@ -84,7 +87,7 @@ void eot::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
 
   // End test on max_instr
   for (uint32_t i = 0; i < num_harts_; i++) {
-    if (FLAGS_max_instr > 0 && instr_count_[i] > FLAGS_max_instr) {
+    if (FLAGS_max_instr > 0 && instr_count_[i] > FLAGS_max_instr && (FLAGS_max_instr_pc == max_instr_pc_default || FLAGS_max_instr_pc == m_rvfi.pc_rdata)) {
       ended_ = true;
       end = std::chrono::system_clock::now();
       if (FLAGS_eot == "max_instr") {
