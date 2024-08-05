@@ -552,6 +552,19 @@ module rv_tester
         );
     end
 
+    trace #(
+       .NUM(0),
+       `TOPOLOGY_CFG,
+       `RV_TESTER_TRANSACTIONS_TRACE_SOURCE_PARAMS(0)
+    ) trace (
+        .tb_clk(clk[TB_CLK_IDX]),
+        .tb_reset(sysmod_reset),
+        .clk(dut_clk[AXI_CLK_IDX]),
+        .reset(dut_reset[AXI_RESET_IDX]),
+        .core_no_fetch(core_no_fetch),
+        `RV_TESTER_TRANSACTIONS_TRACE_SOURCE_PORTS(2,0,0)
+    );
+
     aplic_monitor #(
         .NUM(0),
         `TOPOLOGY_CFG,
