@@ -142,7 +142,7 @@ module rv_tester
     string cvm_verbosity_string, gen_clocks_verbosity_string;
     int unsigned cvm_verbosity, gen_clocks_verbosity;
 
-    assign terminate           = (rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
+    assign terminate           = (rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset || tj_max_interrupt;
     assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue == '0) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced ); 
     
     assign rerun_now           = terminated && num_reruns > 0;
@@ -291,6 +291,9 @@ module rv_tester
 
         if (terminate_now && !terminated) begin
 
+            if(tj_max_interrupt) begin
+                $display("<%0d> [RVTESTER]: TJ Max interrupt detected. Terminting the test.", clocks);
+            end
             if (print_terminate_message) begin
                 if (quiesced) begin
                     $display("<%0d> [RVTESTER]: exiting gracefully", clocks);
@@ -299,6 +302,7 @@ module rv_tester
                 end else begin
                     $display("<%0d> [RVTESTER]: Error: Waiting to quiesce for more than %0d cycles", clocks, quiesce_timeout);
                 end
+
             end
 
             shutdowned = rv_tester_shutdown_registry() != '0;
