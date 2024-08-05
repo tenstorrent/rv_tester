@@ -15,6 +15,7 @@
 #include <random>
 
 DEFINE_bool(cla_clk_halt, false, "Enable CLA clk halt events");
+DEFINE_bool(cla_nmi, false, "Enable CLA NMI events");
 
 trace_cfg::trace_cfg(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc)
   : device(tag, addr, size, loc, &trace_cfg::write, &trace_cfg::read, this), axi_mst_loc_l(axi_mst_loc)
