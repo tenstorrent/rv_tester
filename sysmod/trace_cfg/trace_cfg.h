@@ -15,6 +15,8 @@
 
 DECLARE_bool(trace_en);
 DECLARE_bool(overlay_mmr_en);
+DECLARE_bool(cla_clk_halt);
+DECLARE_bool(cla_nmi);
 
 class trace_cfg : public device {
 
@@ -33,6 +35,7 @@ class trace_cfg : public device {
         typedef std::vector<decltype(mmr::list)::value_type> random_list;
 
     public:
+        uint32_t start_clk_halt_cnt=0;
         uint32_t start_trace_cnt=0,n,id_val,read_ram=0,axi_ids = 0;
         uint32_t cnt_tick=0;
         uint64_t axi_read_resp=0;
@@ -116,6 +119,7 @@ class trace_cfg : public device {
         {
             if(start_trace_cnt == 0) {
               start_trace_cnt = (rng()% 5) + 30;
+              start_clk_halt_cnt = (rng()% 40) + 50 ;
               n = (rng()% 5) + 3;
               id_val = 0;
             }
@@ -173,6 +177,20 @@ class trace_cfg : public device {
                   }
                 }
               }
+
+            //--------------------------------- CLK HALT--------------------------------------
+            if(FLAGS_cla_clk_halt) {
+              cvm::log(cvm::LOW, "[Trace_cfg::CLK_HALT] trace_cfg timer tick advance interval {} start_clk_halt_cnt {} \n",cnt_tick,start_clk_halt_cnt);
+              if(cnt_tick==start_clk_halt_cnt) push_clk_halt_cfg();
+              if(trace_wr_txn_q.size() > 0) axi_write();
+             }
+
+            //--------------------------------- CLA NMI --------------------------------------
+            if(FLAGS_cla_nmi) {
+              cvm::log(cvm::LOW, "[Trace_cfg::NMI] trace_cfg timer tick advance interval {} start_cla_nmi_cnt {} \n",cnt_tick,start_clk_halt_cnt);
+              if(cnt_tick==start_clk_halt_cnt) push_cla_nmi_cfg();
+              if(trace_wr_txn_q.size() > 0) axi_write();
+             }
             cnt_tick ++;
         }
 
@@ -220,6 +238,24 @@ class trace_cfg : public device {
           }
       }
 
+        void push_clk_halt_cfg() {
+          cvm::log(cvm::HIGH, "[overlay axi] Push CLK HALT Configs\n");
+          trace_wr_txn_q.push({trace_mmr::CDBG_CLA_CTRL_STS_CFG,0x40});
+          trace_wr_txn_q.push({trace_mmr::CDBG_CLA_COUNTER0_CFG,0x40000000});
+          trace_wr_txn_q.push({trace_mmr::CDBG_NODE0_EAP0_CFG,0x10049});
+          trace_wr_txn_q.push({trace_mmr::CDBG_NODE1_EAP0_CFG,0x101306});
+          trace_wr_txn_q.push({trace_mmr::CDBG_CLA_CTRL_STS_CFG,0x60});
+        }
+
+        void push_cla_nmi_cfg() {
+          cvm::log(cvm::HIGH, "[overlay axi] Push CLA NMI Configs\n");
+          trace_wr_txn_q.push({trace_mmr::CDBG_CLA_CTRL_STS_CFG,0x40});
+          trace_wr_txn_q.push({trace_mmr::CDBG_CLA_COUNTER0_CFG,0x25000000});
+          trace_wr_txn_q.push({trace_mmr::CDBG_NODE0_EAP0_CFG,0x10049});
+          trace_wr_txn_q.push({trace_mmr::CDBG_NODE1_EAP0_CFG,0x10130A});
+          trace_wr_txn_q.push({trace_mmr::CDBG_CLA_CTRL_STS_CFG,0x60});
+
+        }
         void push_axi_mmr_seq() {
           cvm::log(cvm::HIGH, "[overlay axi] overlay axi write seq\n");
           trace_wr_txn_q.push({trace_mmr::CDBG_CLA_COUNTER3_CFG,0xFF});

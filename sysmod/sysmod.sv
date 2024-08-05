@@ -29,7 +29,7 @@ import rv_tester_params::*;
 
     typedef longint unsigned LU;
     LU clocks = 0;
-    int unsigned location = cvm_topology::nil;
+    parameter int unsigned location = cvm_topology_gen::get_location (topology.TOP.PLATFORM.SYSMOD.ID, NUM);
     bit sysmod_tick_async = '1;
 
     /* verilator lint_off UNOPTFLAT */
@@ -81,7 +81,6 @@ import rv_tester_params::*;
             /* verilator lint_off BLKSEQ */
             jtag_quiesced = 0;
             sysmod_tick_async = cvm_plusargs::get_bool("sysmod_tick_async") != '0;
-            location = cvm_topology::get_location(topology.TOP.PLATFORM.SYSMOD.ID, NUM);
             if (location != cvm_topology::nil) begin
               sysmod_set_scope(location);
             end
@@ -103,7 +102,7 @@ import rv_tester_params::*;
     assign ticks[0].valid         = (0 == (clocks % TICKS)) & (location != cvm_topology::nil);
     assign ticks[0].data.location = location;
     assign ticks[0].data.advance  = TICKS;
-    
+
     localparam longint unsigned JTAG_TICKS = LU'(SW_CLOCK_UPDATE_PERIOD_PS)/LU'(JTAG_CLOCK_PERIOD_PS);
     assign jtag_ticks[0].valid         = (0 == (clocks % JTAG_TICKS)) & (location != cvm_topology::nil);
     assign jtag_ticks[0].data.location = location;
@@ -157,16 +156,16 @@ import rv_tester_params::*;
     export "DPI-C"  function sysmod_dmi_write;
 
     function sysmod_jtag_req (int unsigned jtag_cmd_ip,longint upper_value,longint lower_value,int unsigned reg_length, int unsigned jtag_quit , int unsigned tap_cfg_sel);
-      if(jtag_quit[0] === 1'b0 )begin 
+      if(jtag_quit[0] === 1'b0 )begin
         jtag_enable_begin = 1'b1;
         command = jtag_cmd_ip[1:0];
         jtag_tx = {upper_value[5:0],lower_value};
-        tap_sel = tap_cfg_sel; 
+        tap_sel = tap_cfg_sel;
         length = reg_length[31:0];
         jtag_quiesced = 1'b0;
-        $display("[SYSMOD.SV] JTAG driver %h %h %h",upper_value, lower_value,reg_length);
-      end 
-      else if(jtag_quit[0] === 1'b1 )begin 
+        $display("[SYSMOD.SV] JTAG driver %h %h %h %h %h",upper_value, lower_value,reg_length,tap_sel,tap_cfg_sel);
+      end
+      else if(jtag_quit[0] === 1'b1 )begin
         jtag_quiesced = 1'b1;
         $display("[SYSMOD.SV] JTAG quit was given in %0d %t",jtag_quit[0],$time);
       end

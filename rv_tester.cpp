@@ -35,6 +35,7 @@ DEFINE_bool(dyn_clk_switch, false, "Enable dynamic clk switching");
 DEFINE_validator(num_reruns, &validate_ge0);
 DEFINE_string(gen_clocks_verbosity, "HIGH", "verbosity at which to generate clocks with cvm::logger prints");
 DEFINE_int32(assertion_test_cycle, 0, "If non-zero, assert false on this cycle. Used for testing assertion infrastructure.");
+DEFINE_int32(rand_dmi_driver_dly, 0, "Random delay cycles, to be used while driving DMI transactions");
 
 extern "C" void rv_tester_terminate();
 extern "C" void rv_tester_set_address_map(std::uint32_t i, std::uint64_t start_addr, std::uint64_t end_addr, std::uint32_t device);
@@ -56,7 +57,9 @@ class logger_instrument {
         }
 
         void check() {
-            cvm::registry::messenger.signal<rv_tester::terminate_called>(loc, rv_tester::terminate_called{});
+            // we want this to be low prio and async so it goes behind existing rvfi transactions in the queue
+            // because of QoS this could have been seen before all rvfi transactions up to this instruction were processed
+            cvm::registry::messenger.signal_async<rv_tester::terminate_called>(loc, rv_tester::terminate_called{}, cvm::messenger::lowest_priority);
             cvm::registry::callbacks.push(
                 scope,
                 []() {
@@ -81,7 +84,7 @@ extern "C" {
         if (env_var != nullptr && std::string(env_var) == "1") {
             cvm::plusargs::parse();
             cvm::rand::seed(FLAGS_seed);
-            cvm::log(cvm::NONE, "Initialize Offline DPI");
+            cvm::log(cvm::NONE, "Initialize Offline DPI\n");
         }
     }
 
