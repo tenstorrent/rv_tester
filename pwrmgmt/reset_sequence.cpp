@@ -11,7 +11,7 @@ DEFINE_uint32(pll_dfs_freq, 1200, "Clock freq for dfs");
 DEFINE_uint32(pll_dfs_timeout, 50, "Number of soc cycles expected for pll dfs to complete");
 DEFINE_string(warm_reset, "off", "Enable warm resets in the sim - off/random/trigger");
 DEFINE_string(warm_reset_count, "0:4", "Number of warm resets in the sim if random mode enabled");
-DEFINE_string(warm_reset_interval, "5000:50000", "TB cycle interval between warm resets in the sim if random mode enabled");
+DEFINE_string(warm_reset_interval, "2000:10000", "TB cycle interval between warm resets in the sim if random mode enabled");
 DEFINE_string(warm_reset_trigger_type, "", "Send warm reset on a trigger");
 DEFINE_string(warm_reset_trigger_interval, "rand:0:100", "TB cycle interval from trigger to warm reset");
 DEFINE_string(warm_reset_sram_hold, "0:1", "Sram hold");
@@ -34,8 +34,6 @@ extern "C" {
   }
 }
 
-int reset_sequence::reset_count_ = -1;
-
 reset_sequence::reset_sequence(cvm::topology::loc_t loc, unsigned) : loc_(loc), scope_(nullptr) {
 
   // Topology
@@ -44,7 +42,15 @@ reset_sequence::reset_sequence(cvm::topology::loc_t loc, unsigned) : loc_(loc), 
   // Scope
   cvm::registry::messenger.connect<svScope>(loc_, [this](svScope s) { return this->set_scope(s); });
 
-  reset_count_++;
+  // Reset count
+  cvm::registry::messenger.connect<int>(loc_, [this](int c) { return this->start(c); });
+}
+
+void reset_sequence::start(int reset_count) {
+
+  reset_count_ = reset_count;
+
+  cvm::log(cvm::HIGH, "[reset_sequence] count = {}\n", reset_count_);
 
   // Sequence threads
   if (reset_count_ == 0)
@@ -55,7 +61,7 @@ reset_sequence::reset_sequence(cvm::topology::loc_t loc, unsigned) : loc_(loc), 
 }
 
 reset_sequence::~reset_sequence() {
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"pwrmgmt_warm_reset_count\": \"{}\"}}\n", warm_reset_count_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"pwrmgmt_warm_reset_count\": \"{}\"}}\n", reset_count_);
 }
 
 void reset_sequence::cold_reset_sequence_thread() {
@@ -75,9 +81,8 @@ void reset_sequence::warm_reset_sequence_thread() {
 };
 
 cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
-  // Wait for first couple clock ticks
-  for (int i=0; i<2; ++i)
-    co_await tick();
+  // Wait for first clock tick
+  co_await tick();
 
   // Init values for all pins
   // Assert cold reset
@@ -90,12 +95,14 @@ cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
   // Deassert cold reset
   cold_reset(0);
 
+  if (!FLAGS_pwrmgmt) {
+    force_ref_clk(0);
+    co_return;
+  }
+
   // Wait for 16 clock ticks
   for (int i=0; i<16; ++i)
     co_await tick();
-
-  if (!FLAGS_pwrmgmt)
-    co_return;
 
   // PLL cold powerup sequence
   co_await pll_startup_sequence();
@@ -117,10 +124,6 @@ cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
 }
 
 cvm::messenger::task<void> reset_sequence::warm_reset_sequence() {
-  // Wait for first couple clock ticks
-  for (int i=0; i<2; ++i)
-    co_await tick();
-
   // Assert force_ref_clk
   force_ref_clk(1);
 
@@ -148,6 +151,11 @@ cvm::messenger::task<void> reset_sequence::warm_reset_sequence() {
 
   // Deassert warm reset
   warm_reset(0);
+
+  if (!FLAGS_pwrmgmt) {
+    force_ref_clk(0);
+    co_return;
+  }
 
   // Wait for 16 clock ticks
   for (int i=0; i<16; ++i)
@@ -468,15 +476,15 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
   if (FLAGS_patch_registers_check) {
     uint64_t data;
     data = co_await read(core_preg0_mmr, SZ_8B);
-    cvm::log(cvm::NONE, "[pwrmgmt] Read preg0:   addr 0x{:x} , data 0x{:x} \n", core_preg0_mmr, data );
+    cvm::log(cvm::HIGH, "[pwrmgmt] Read preg0:   addr 0x{:x} , data 0x{:x} \n", core_preg0_mmr, data );
     data = co_await read(core_preg1_mmr, SZ_8B);
-    cvm::log(cvm::NONE, "[pwrmgmt] Read preg1:  addr 0x{:x} , data 0x{:x} \n", core_preg1_mmr, data );
+    cvm::log(cvm::HIGH, "[pwrmgmt] Read preg1:  addr 0x{:x} , data 0x{:x} \n", core_preg1_mmr, data );
     data = co_await read(core_preg2_mmr, SZ_8B);
-    cvm::log(cvm::NONE, "[pwrmgmt] Read preg2:  addr 0x{:x} , data 0x{:x} \n", core_preg2_mmr, data );
+    cvm::log(cvm::HIGH, "[pwrmgmt] Read preg2:  addr 0x{:x} , data 0x{:x} \n", core_preg2_mmr, data );
     data = co_await read(core_preg3_mmr, SZ_8B);
-    cvm::log(cvm::NONE, "[pwrmgmt] Read preg3:  addr 0x{:x} , data 0x{:x} \n", core_preg3_mmr, data );
+    cvm::log(cvm::HIGH, "[pwrmgmt] Read preg3:  addr 0x{:x} , data 0x{:x} \n", core_preg3_mmr, data );
     data = co_await read(core_pcontrol_mmr, SZ_8B);
-    cvm::log(cvm::NONE, "[pwrmgmt] Read pcontrol:  addr 0x{:x} , data 0x{:x} \n", core_pcontrol_mmr, data );
+    cvm::log(cvm::HIGH, "[pwrmgmt] Read pcontrol:  addr 0x{:x} , data 0x{:x} \n", core_pcontrol_mmr, data );
   };
 
   co_return;

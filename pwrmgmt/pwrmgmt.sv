@@ -6,7 +6,6 @@ import rv_tester_params::*;
   `RV_TESTER_TRANSACTIONS_PWRMGMT_OUTPUT_PARAMS
 )
 (
-  input logic init,
   input logic tb_clk,
   input logic tb_reset,
   input logic dut_clk [NCLKS-1:0],
@@ -23,23 +22,24 @@ import rv_tester_params::*;
 );
 
   import "DPI-C" context function void pwrmgmt_set_scope(int unsigned location);
+  import "DPI-C" function void pwrmgmt_set_reset_count(int unsigned location, int count);
 
-  int unsigned warm_reset_interval = 0;
-  logic tb_reset_d1 = 0;
   parameter int unsigned location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.PWRMGMT.ID, NUM);
-  int unsigned warm_reset_count;
-  string warm_reset_mode;
-  bit warm_reset_en;
+  int unsigned warm_reset_interval = 0;
+  int unsigned tb_clocks = 0;
   always @(posedge tb_clk) begin
-    tb_reset_d1 <= tb_reset;
-    if (tb_reset & ~tb_reset_d1) begin
+    if (tb_reset) begin
       /* verilator lint_off BLKSEQ */
       if (location != cvm_topology::nil) begin
         pwrmgmt_set_scope(location);
-        if (reset_count <= 0)
+        pwrmgmt_set_reset_count(location, reset_count);
+        if (reset_count == 0)
           pwrmgmt_init();
-        if (warm_reset_en)
-          warm_reset_interval <= cvm_rand::get("warm_reset_interval");
+        if (warm_reset_en) begin
+          warm_reset_interval = cvm_rand::get("warm_reset_interval");
+          $display("[%0d] [pwrmgmt] Target warm reset count: %0d, current count: %0d, current interval: %0d TB clocks",
+            tb_clocks, target_reset_count, reset_count, warm_reset_interval);
+        end
       end
       /* verilator lint_on BLKSEQ */
     end
@@ -49,7 +49,6 @@ import rv_tester_params::*;
   // SV->C++ Messages/Packets
   // -------------------------
 
-  int unsigned tb_clocks = 0;
   int unsigned soc_clocks = 0;
   logic warm_reset_tick = 0;
   logic force_ref_clk_d1;
@@ -60,10 +59,6 @@ import rv_tester_params::*;
       tb_clocks <= 0;
     end else if (warm_reset_en & (reset_count < target_reset_count) & ~force_ref_clk) begin
       tb_clocks <= tb_clocks + 1;
-      if (force_ref_clk_d1) begin
-        warm_reset_interval <= cvm_rand::get("warm_reset_interval");
-        $display("[%0d] [pwrmgmt] Target warm reset interval: %0d TB clocks", tb_clocks, warm_reset_interval);
-      end
     end
   end
 
@@ -82,7 +77,7 @@ import rv_tester_params::*;
   // - during reset sequence till force_ref_clk is deasserted, send every clock
   // - after rest sequence, send a tick only to start a warm reset
   logic tick_valid;
-  assign tick_valid = (init | force_ref_clk) & (location != cvm_topology::nil);
+  assign tick_valid = (force_ref_clk | warm_reset_now) & (location != cvm_topology::nil);
   assign m_ticks[0].valid = tick_valid;
   assign m_ticks[0].data.location = location;
   assign m_ticks[0].data.cycle = tick_valid ? soc_clocks : 0;

@@ -360,7 +360,7 @@ template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::reset_ptrs() {
 
-    cvm::log(cvm::FULL, "[axi_sw_mst] reset_ptrs loc={}\n", loc_);
+    cvm::log(cvm::HIGH, "[axi_sw_mst] reset_ptrs loc={}\n", loc_);
     ar_q_wptr_ = 0;
     aw_q_wptr_ = 0;
     w_q_wptr_ = 0;

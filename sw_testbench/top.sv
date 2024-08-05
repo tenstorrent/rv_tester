@@ -82,9 +82,4 @@ module top
         endcase
     end
 
-    initial begin
-        $dumpfile("dump.vcd");
-        $dumpvars;
-    end
-
 endmodule

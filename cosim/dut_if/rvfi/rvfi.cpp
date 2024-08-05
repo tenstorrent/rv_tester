@@ -97,7 +97,8 @@ void rvfi::process(const rv_tester_transactions::cosim::m_reset<>& m_reset) {
   if (loc_ != m_reset.location)
     return;
 
-  cvm::log(cvm::MEDIUM, "[RVFI] Reset\n");
+  in_reset_ = false;
+  cvm::log(cvm::MEDIUM, "[rvfi] reset\n");
   bridge_->reset();
 }
 

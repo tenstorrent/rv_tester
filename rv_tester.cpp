@@ -95,7 +95,7 @@ extern "C" {
     }
 
     void rv_tester_set_seed() {
-        cvm::log(cvm::NONE, "[plusargs] +seed={}\n", FLAGS_seed);
+        cvm::log(cvm::NONE, "[random] +seed={}\n", FLAGS_seed);
         cvm::rand::seed(FLAGS_seed);
     }
 

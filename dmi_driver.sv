@@ -149,7 +149,7 @@ module dmi_driver (
       clk_cnt = 0;
     else
       clk_cnt = clk_cnt + 1;
-    if (clk_cnt == ext_trig_delay) begin
+    if (clk_cnt != 0 && clk_cnt == ext_trig_delay) begin
       command_trigger = 1;
       $display("[DMI Driver] The delay was executed and asserting the trigger");
     end

@@ -94,6 +94,8 @@ class rvfi {
 
     rv_instr_t prev_instr_;
 
+    uint64_t in_reset_ = true;
+
     uint64_t count_ = 1;
 
     bool ucode_ = false;

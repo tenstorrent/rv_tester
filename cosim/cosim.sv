@@ -171,7 +171,7 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
     bit [31:0]  mcmi_poke_enable=0;
 
     bit get_cosim_compare_values = 1;
-    bit reset_d1 = 1;
+    //bit reset_d1 = 1;
     bit [4:0]           rd_addr     [NRET    ]; //register-retire load enable
     bit [4:0]           frd_addr    [NRET    ]; //register-retire load enable
     bit [4:0]           vrd_addr    [NRET    ]; //register-retire load enable
@@ -396,11 +396,16 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
     end
 
 
+    logic reset_d1;
+    always @(posedge tb_clk) begin
+        reset_d1 <= reset;
+    end
     always @(posedge tb_clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */
             rvfi_enabled = (cvm_plusargs::get_bool("rvfi") != '0) & (location != cvm_topology::nil);
             if (rvfi_enabled) begin
+              $display("[cosim]: reset");
               cosim_set_scope(location);
             end
             terminate.terminate = '0;
@@ -750,7 +755,7 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
     // m_core_intr
     rv_tester_pkg::interrupt_t wired_interrupt_d1;
     always @(posedge clk) begin
-      if (reset) begin
+      if (dut_reset) begin
         wired_interrupt_d1 <= 0;
       end else begin
         wired_interrupt_d1 <= wired_interrupt;
@@ -794,7 +799,7 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
     enum logic {idle, aw} msi_slave_state,msi_slave_state_d;
     logic msi_addr_in_imsic_range;
     always @(posedge clk) begin
-       if (reset) begin
+       if (dut_reset) begin
         msi_slave_state <= idle;
        end else begin
         msi_slave_state <= msi_slave_state_d;

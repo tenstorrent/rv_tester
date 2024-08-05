@@ -16,9 +16,11 @@ class reset_sequence {
     reset_sequence(cvm::topology::loc_t loc, unsigned id);
     ~reset_sequence();
 
-    void set_scope(svScope s) { scope_ = s; }
 
   private:
+
+    void set_scope(svScope s) { scope_ = s; }
+    void start(int reset_count);
 
     void cold_reset_sequence_thread();
     void warm_reset_sequence_thread();
@@ -65,5 +67,5 @@ class reset_sequence {
     cvm::topology::loc_t loc_, smc_axi_loc_;
     svScope scope_;
 
-    static int reset_count_;
+    int reset_count_;
 };
