@@ -308,6 +308,12 @@ cvm::messenger::task<uint64_t> sysmod::backdoor_write(sysmod::backdoor_write_t t
     cvm::log(cvm::HIGH, "[BACKDOOR_WRITE] new backdoor write request at {:#x} value:{:#x} size: {:#x}\n", t.address, t.data, t.size);
     device::data_t datax(8);
     device::strb_t strbx(8);
+
+    if (client_ != nullptr) {
+      bool valid = true;
+      client_->whisperPokeMem(0, 0, 'm', t.address, 8, t.data, valid);
+    }
+      
     for (int i = 0; i < t.size; ++i, t.data >>= 8) {
       datax[i] = t.data & 0xff;
       strbx[i] = true;

@@ -6,7 +6,7 @@
 
 package rv_tester_params;
 
-    import topology_pkg::mods;
+    import cvm_topology_gen::mods;
 
     // --------------------------------------
     // Platform RISCV Arch
@@ -887,6 +887,11 @@ package rv_tester_params;
         LS_CHILLOUT_REQUESTS_MMU,
         LS_CHILLOUT_REQUESTS_CIF,
         LS_CHILLOUT_REQUESTS_ALL,
+        LS_CHILLOUT_ENTRANCES_LDC,
+        LS_CHILLOUT_ENTRANCES_STC,
+        LS_CHILLOUT_ENTRANCES_MMU,
+        LS_CHILLOUT_ENTRANCES_CIF,
+        LS_CHILLOUT_ENTRANCES_ALL,
         UTLB_MISS,
         LDQ_CANNOT_ALLOC,
         MDP_CORRECT_PREDICTION,
@@ -925,9 +930,18 @@ package rv_tester_params;
         TAP_ACCESS_PREFETCH,
         TAP_ACCESS_MMU,
         TAP_ACCESS_ALL,
-        UWP_ACCESS,
-        UWP_MISS,
-        UWP_TRUE_HIT,
+        UWP_ACCESS_AGP,
+        UWP_ACCESS_ARB,
+        UWP_ACCESS_ALL,
+        UWP_MISS_AGP,
+        UWP_MISS_TAP_DFP,
+        UWP_MISS_ALL,
+        UWP_TRUE_HIT_AGP,
+        UWP_TRUE_HIT_ARB,
+        UWP_TRUE_HIT_ALL,
+        UWP_INVALIDATE_AGP,
+        UWP_INVALIDATE_TAP_DFP,
+        UWP_INVALIDATE_ALL,
         WP_ACCESS,
         WP_MISS,
         WP_TRUE_HIT,
@@ -1058,6 +1072,7 @@ package rv_tester_params;
     input                                    terminate,                                             \
     input  logic                             terminated,                                            \
     output                                   quiesced,                                              \
+    output                                   tj_max_interrupt,                                      \
     input logic [64-1:0]                     cosim_eot_addr,                                        \
     input  rv_tester_pkg::aplic_interrupt_t  aplic_interrupt,                                       \
     input  rv_tester_pkg::dm_write_t         dmi_write,                                             \
@@ -1140,6 +1155,7 @@ package rv_tester_params;
     logic                                    terminate;                                             \
     rv_tester_pkg::aplic_interrupt_t         aplic_interrupt;                                       \
     logic                                    terminated;                                            \
+    logic                                    tj_max_interrupt;                                      \
     logic                                    quiesced;                                              \
     logic [64-1:0]                           cosim_eot_addr;                                        \
     rv_tester_pkg::dm_write_t                dmi_write;                                             \

@@ -137,8 +137,8 @@ import rv_tester_params::*;
 
 localparam CSR_SBITS = $clog2(CSR_COUNT);
 localparam MAXCSR = NRET + MAX_CSR_AFTER_NRET;
-localparam NGP_REGS  = 32; 
-localparam NFP_REGS  = 32; 
+localparam NGP_REGS  = 32;
+localparam NFP_REGS  = 32;
 localparam NVC_REGS  = 32;
 localparam PA_WIDTH  = $size(rvfi[0].mem_paddr);
 localparam GP_WIDTH  = $size(rvfi[0].rd_wdata);
@@ -156,7 +156,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
     //   many CSR updates.  If s=MAXCSR then we went past the number DPIs we can
     //   accomodate  (0 .. MAXCSR-1)
     //----------------------------------------------------------------------------
-    
+
     function automatic bit [MAXCSR:0][CSR_SBITS-1:0] retsel(input bit [CSR_COUNT-1:0] valid);
         int s = 0;
         int i = 0;
@@ -172,12 +172,12 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
         end
         /* verilator lint_on WIDTH */
     endfunction
-    
+
     //---------------------------------------------------------------
     // Function to return the count of VALIDS with UNIQUE ORDER bits
     //---------------------------------------------------------------
     function automatic [$clog2(NRET+1)-1:0] valid_count(input bit [NRET-1:0] valid, input bit [NRET-1:0][63:0] order, input bit [NRET-1:0] last_uops);
-        bit [63:0] corder=0; 
+        bit [63:0] corder=0;
         valid_count = 0;
         /* verilator lint_off WIDTH */
         for(int i=0;i<NRET;i=i+1) begin
@@ -196,7 +196,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
         /* verilator lint_off WIDTH */
         for(int i=NRET-1;i>=0;i=i-1) begin
             if (valid[i] == 1) begin
-               return(order[i]); 
+               return(order[i]);
             end
         end
         /* verilator lint_on WIDTH */
@@ -224,7 +224,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
 
     bit PSC_enabled;
     typedef longint unsigned LU;
-    int unsigned location = cvm_topology::nil;
+    parameter int unsigned location = cvm_topology_gen::get_location (topology.TOP.PLATFORM.COSIM.ID, NUM);
     bit rvfi_enabled;
     int unsigned cosim_period=0;
     int unsigned PSC_period=0;
@@ -281,8 +281,8 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
     longint unsigned       mrvfi_cnt;
 
     bit               mcmi_poke;
-    bit               force_compare;     
- 
+    bit               force_compare;
+
 
     bit [31:0]             rvfi_scheck_cnt;
     bit [NRET-1:0]         rvfi_valids;
@@ -341,8 +341,8 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
     bit [NINSERT-1:0]      eot_insert_found;                // end-of-test event found in mcmi_insert ifc
     bit [$clog2(NRET+1)-1:0] valid_cnt;                     // number of rvfi_valids == 1 in 1 clock
 
-    bit                    eot_found;                       // end-of-test event found 
-    bit                    eot_max_instr;                   // max # instructions end-of-test event found 
+    bit                    eot_found;                       // end-of-test event found
+    bit                    eot_max_instr;                   // max # instructions end-of-test event found
     bit                    rvfi_valid;
     bit                    send_rvfi;
     bit                    send_regs;
@@ -364,7 +364,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
     bit boot_wfi;
 
     //--------------------------------------------------------------------------------------------
-    // Track writes to GP,FP,VEC registers for comparison with Whisper 
+    // Track writes to GP,FP,VEC registers for comparison with Whisper
     //--------------------------------------------------------------------------------------------
 
     cosim_reg_bank #(NGP_REGS, GP_WIDTH, NRET) gp_regs_bank (
@@ -503,7 +503,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
             //assign rvfi_no_uop_events[n][m] = rvfi[n].valid & (rvfi[n].order == rvfi_last_poke_orders[m]);
             assign rvfi_no_uop_events[n][m] = rvfi[n].valid & (rvfi[n].order == rvfi_last_poke_orders[m]) & rvfi[n].last_uop ;  // TRY THIS
         end
-        
+
     end
 
     always @(posedge clk)
@@ -573,12 +573,11 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
     assign mcmi_poke_insert_en = mcmi_poke_enable[3];
     assign mcmi_poke_ievict_en = mcmi_poke_enable[4];
 
-    assign mcmi_poke = (mcmi_poke_write_en  & mcmi_write_poke)  | 
+    assign mcmi_poke = (mcmi_poke_write_en  & mcmi_write_poke)  |
                        (mcmi_poke_bypass_en & mcmi_bypass_poke) |
                        (mcmi_poke_read_en   & mcmi_read_poke)   |
                        (mcmi_poke_insert_en & mcmi_insert_poke) |
                        (mcmi_poke_ievict_en & mcmi_ievict_poke) ;
- 
 
     
     assign m_gp_regss[0].valid      = send_regs;
@@ -609,7 +608,6 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
     always @(posedge tb_clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */
-            location = cvm_topology::get_location(topology.TOP.PLATFORM.COSIM.ID, NUM);
             rvfi_enabled = (cvm_plusargs::get_bool("rvfi") != '0) & (location != cvm_topology::nil);
             if (rvfi_enabled) begin
               cosim_set_scope(location);
@@ -678,7 +676,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
 
     //---------------------------------------------------------------
     // Keep track of number of instructions we did NOT send to cosim
-    //  steps will be used to advance the Whisper model 
+    //  steps will be used to advance the Whisper model
     //
     //  we send a STEP msg to whisper under 2 conditions:
     //       - a POKE event occurred (send_rvfi)
@@ -689,7 +687,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
     assign rvmax_order = max_order(rvfi_valids, rvfi_orders);                 // highest order valid-unique rvfi
 
     //----------------------------------------------------------------------
-    // order skip is when either order[0] does not equal expected-order  OR 
+    // order skip is when either order[0] does not equal expected-order  OR
     // when the orders in current RVFI packets is not sequential
     //----------------------------------------------------------------------
     //assign order_skip  = ((rvfi_valids != '0) & (rvfi_skips != '0) & ~rvfi_first_valid) ? 1'b1 : 1'b0; 
@@ -701,43 +699,43 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
 
     //---------------------------------------------------------------------------------------------------
     // Send steps if:
-    //     ARE sending rvfi AND  accumulated-steps > 0   
+    //     ARE sending rvfi AND  accumulated-steps > 0
     // OR
-    //     NOT sending rvfi AND  we detected an out-of-order RVFI order 
+    //     NOT sending rvfi AND  we detected an out-of-order RVFI order
     //
     // m_step sequence on the bridge:
     //   - execute steps (increment tag and cycle as needed)
-    //   - add skips to tag value 
-    //   - execute final_steps (only needed if no RVFI packet is being sent) 
+    //   - add skips to tag value
+    //   - execute final_steps (only needed if no RVFI packet is being sent)
     //---------------------------------------------------------------------------------------------------
     //assign send_steps   = (send_rvfi & (rvfi_steps != '0)) & rvfi_valid | order_skip | ((poke_event_in & ~poke_event_out) & (rvfi_steps != '0));
     assign send_steps   = (send_rvfi & (rvfi_steps != '0)) ;
 
-    assign m_stepss[0].valid            = RVFI_EN & rvfi_enabled & ~dut_reset & send_steps & PSC_enabled; 
+    assign m_stepss[0].valid            = RVFI_EN & rvfi_enabled & ~dut_reset & send_steps & PSC_enabled;
     assign m_stepss[0].data.location    = location;
     assign m_stepss[0].data.n_retire    = NRET;
     assign m_stepss[0].data.hart        = NUM;
     assign m_stepss[0].data.cycle       = clocks;
-    assign m_stepss[0].data.steps       = rvfi_steps; 
+    assign m_stepss[0].data.steps       = rvfi_steps;
     assign m_stepss[0].data.skips       = rvfi_skips;
     assign m_stepss[0].data.final_steps = (send_rvfi==1'b1) ? '0 : 64'(valid_cnt);        // No final steps IF rvfi is being sent too
 
     always @(posedge clk) begin
         if (dut_reset) begin
-            rvfi_steps      <= '0; 
-            rvfi_scheck_cnt <= '0; 
-            rvfi_exp_order  <= '0; 
-            rvfi_first_valid  <= 1'b1; 
-            instruction_cnt <= '0; 
-            cycles_since_retire <= '0; 
+            rvfi_steps      <= '0;
+            rvfi_scheck_cnt <= '0;
+            rvfi_exp_order  <= '0;
+            rvfi_first_valid  <= 1'b1;
+            instruction_cnt <= '0;
+            cycles_since_retire <= '0;
         end
         else begin
             cycles_since_retire <= cycles_since_retire + 1;
-            //if (rvfi_valids[0] & rvfi_luops[0]) begin                                    // instruction(s) retiring 
-            if (rvfi_valid) begin                                    // instruction(s) retiring 
+            //if (rvfi_valids[0] & rvfi_luops[0]) begin                                    // instruction(s) retiring
+            if (rvfi_valid) begin                                    // instruction(s) retiring
                 cycles_since_retire <= 0;
                 instruction_cnt <= instruction_cnt + 64'(valid_cnt);
-                rvfi_first_valid  <= 1'b0; 
+                rvfi_first_valid  <= 1'b0;
                 rvfi_exp_order <= rvmax_order + 1;                   // compute next clocks rvfi order start to find dropped instruction orders
             end 
 
@@ -771,13 +769,13 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
     //        1) DPI call to send current state of GP/FP/VC register (fp and vc only if they have changed)  
     //              because this ifc is later in YML it will get received AFTER the RVFI packets are processed
     //        2) DPI call to end  RVFI packet via poke_events with the following flags:
-    //              - force_steps:  only used during EOT to force the ISS to execute its remaining steps 
+    //              - force_steps:  only used during EOT to force the ISS to execute its remaining steps
     //
     //  BRIDGE C++
-    //  - FIRST retirement packet will execute the missing "steps" ... the other pkts will ignore this flag 
+    //  - FIRST retirement packet will execute the missing "steps" ... the other pkts will ignore this flag
     //      - if "force_steps" flag is set to 1, then return back to rtl as there no instructions to process
     //  - GP/FP/VC register state messages received AFTER the RVFI (if it is sent)
-    //       - compares registers  
+    //       - compares registers
     //-----------------------------------------------------------------------------------------------------------------
 
     //assign send_regs = ((rvfi_valid & (rvfi_scheck_cnt >= cosim_period) & (rvfi_val_luops == 0)) | eot_found | reg_waddr5_event) & PSC_enabled & RVFI_EN & rvfi_enabled & ~dut_reset;
@@ -822,7 +820,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
         assign m_csris_valid[n] = rvfi_enabled & ~dut_reset & ((csri[n].valid & ~valid_d1[n]) | (csri[n].valid & (((csri[n].data & csri[n].mask) !== (data_d1[n] & mask_d1[n])) | (csri[n].mask !== mask_d1[n]))));
     end
     for (genvar n = 0; n < MAXCSR; n++) begin
-        assign m_csris[n].valid         = (csr_sel[n] != '1) ? 1'b1 : 1'b0; 
+        assign m_csris[n].valid         = (csr_sel[n] != '1) ? 1'b1 : 1'b0;
         assign m_csris[n].data.location = location;
         assign m_csris[n].data.cycle    = clocks;
         assign m_csris[n].data.hart     = NUM;
@@ -877,10 +875,10 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
 
         assign mcmi_write_pokes[n] = mcmi_write[n].valid;
 
-        //------------------------------------------------------------------------------------------- 
-        // End-Of-Test logic:  memory write to designated address 
+        //-------------------------------------------------------------------------------------------
+        // End-Of-Test logic:  memory write to designated address
         //    - will cause a save-state event (force-steps=1 if NO instrs being retired currently
-        //------------------------------------------------------------------------------------------- 
+        //-------------------------------------------------------------------------------------------
         assign eot_writes_found[n] = ((eot_addr != '0) &  mcmi_write[n].valid & (mcmi_write[n].addr == $bits(mcmi_write[n].addr)'(eot_addr)) & ( mcmi_write[n].data[0] == 1'b1) & (mcmi_write[n].data[63:56] == 0)) ? 1'b1 : 1'b0;
     end
 
@@ -898,10 +896,10 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
         assign m_mcmi_bypasss[n].data.data = mcmi_bypass[n].data[63:0];
         assign m_mcmi_bypasss[n].data.amo = mcmi_bypass[n].amo;
         assign m_mcmi_bypasss[n].data.amo_op = mcmi_bypass[n].amo_op;
-        //------------------------------------------------------------------------------------------- 
-        // End-Of-Test logic:  memory write to designated address 
+        //-------------------------------------------------------------------------------------------
+        // End-Of-Test logic:  memory write to designated address
         //    - will cause a save-state event (force-steps=1 if NO instrs being retired currently
-        //------------------------------------------------------------------------------------------- 
+        //-------------------------------------------------------------------------------------------
         assign eot_bypass_found[n] = ((eot_addr != '0) &  mcmi_bypass[n].valid & (mcmi_bypass[n].addr == $bits(mcmi_bypass[n].addr)'(eot_addr)) & ( mcmi_bypass[n].data[0] == 1'b1) & (mcmi_bypass[n].data[63:56] == 0)) ? 1'b1 : 1'b0;
         assign mcmi_bypass_pokes[n] = mcmi_bypass[n].valid;
     end
@@ -994,7 +992,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
 
     localparam imsic_whisper_delays = 5;
     rv_tester_params::mst_req_top [imsic_whisper_delays-1:0] imsic_interrupt_delays, imsic_msi_delays, imsic_ipi_delays;
-    rv_tester_params::mst_req_top imsic_interrupt_delayed, imsic_msi_delayed, imsic_ipi_delayed;    
+    rv_tester_params::mst_req_top imsic_interrupt_delayed, imsic_msi_delayed, imsic_ipi_delayed;
     always @(posedge clk) begin
       imsic_interrupt_delays <= {imsic_interrupt_delays[imsic_whisper_delays-2:0], imsic_interrupt};
       imsic_msi_delays <= {imsic_msi_delays[imsic_whisper_delays-2:0], imsic_msi};
