@@ -1,3 +1,10 @@
 exports_files(["pmu.cpp", "pmu.hpp", "pmu.sv"])
 
 
+cc_library(
+    name = "pmu_plusargs",
+    hdrs = ["pmu_plusargs.h"],
+    deps = ["@cvm//:plusargs"],
+
+    visibility = ["//visibility:public"],
+)
