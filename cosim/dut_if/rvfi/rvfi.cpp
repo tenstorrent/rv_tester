@@ -108,6 +108,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   if (loc_ != m_rvfi.location)
     return;
 
+
   // Construct rv_instr_t and send to bridge
   rv_instr_t instr;
   make_instr(m_rvfi, instr);
@@ -144,6 +145,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   // Clear state
   intr_ = false;
   excp_ = false;
+
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
@@ -531,25 +533,41 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
 void rvfi::process(const rv_tester_transactions::cosim::m_steps<>& m_steps) {
   if (terminated_)
     return;
+  if (!FLAGS_cosim)
+    return;
+  if (loc_ != m_steps.location)
+    return;
   bridge_->process_steps(m_steps.hart, m_steps.n_retire, m_steps.cycle, m_steps.steps, m_steps.skips, m_steps.final_steps);
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_gp_regs<>& m_gp_regs) {
   if (terminated_)
     return;
-  bridge_->process_compare_gp_regs(m_gp_regs.hart,m_gp_regs.value);
+  if (!FLAGS_cosim)
+    return;
+  if (loc_ != m_gp_regs.location)
+    return;
+  bridge_->process_compare_gp_regs(m_gp_regs.hart,m_gp_regs.cycle,m_gp_regs.value);
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_fp_regs<>& m_fp_regs) {
   if (terminated_)
     return;
-  bridge_->process_compare_fp_regs(m_fp_regs.hart , m_fp_regs.value);
+  if (!FLAGS_cosim)
+    return;
+  if (loc_ != m_fp_regs.location)
+    return;
+  bridge_->process_compare_fp_regs(m_fp_regs.hart ,m_fp_regs.cycle, m_fp_regs.value);
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_vc_regs<>& m_vc_regs) {
   if (terminated_)
     return;
-  bridge_->process_compare_vc_regs(m_vc_regs.hart , m_vc_regs.value);
+  if (!FLAGS_cosim)
+    return;
+  if (loc_ != m_vc_regs.location)
+    return;
+  bridge_->process_compare_vc_regs(m_vc_regs.hart ,m_vc_regs.cycle, m_vc_regs.value);
 }
 
 void rvfi::send_instr(rv_instr_t& instr) {
