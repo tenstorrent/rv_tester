@@ -44,15 +44,6 @@ class sysmod {
 
     ~sysmod();
 
-    void configure_plusargs();
-    void core_harvest_plusargs();
-    void sc_harvest_plusargs();
-    uint32_t get_rand_mask(uint32_t n, uint32_t max);
-    std::string get_rand_id(uint32_t mask, uint32_t ncores);
-    int32_t get_rand_ways_mask(int32_t n, int32_t max);
-    int32_t get_rand_dis_ways(int32_t max);
-    int32_t get_rand_sp_ways(int32_t max);
-
     device* dev(uint64_t addr);
     device* dev(const std::string& tag);
 
