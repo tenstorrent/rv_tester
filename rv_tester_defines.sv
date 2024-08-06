@@ -1072,6 +1072,7 @@ package rv_tester_params;
     input                                    terminate,                                             \
     input  logic                             terminated,                                            \
     output                                   quiesced,                                              \
+    output                                   tj_max_interrupt,                                      \
     input logic [64-1:0]                     cosim_eot_addr,                                        \
     input  rv_tester_pkg::aplic_interrupt_t  aplic_interrupt,                                       \
     input  rv_tester_pkg::dm_write_t         dmi_write,                                             \
@@ -1154,6 +1155,7 @@ package rv_tester_params;
     logic                                    terminate;                                             \
     rv_tester_pkg::aplic_interrupt_t         aplic_interrupt;                                       \
     logic                                    terminated;                                            \
+    logic                                    tj_max_interrupt;                                      \
     logic                                    quiesced;                                              \
     logic [64-1:0]                           cosim_eot_addr;                                        \
     rv_tester_pkg::dm_write_t                dmi_write;                                             \

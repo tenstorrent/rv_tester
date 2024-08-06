@@ -69,6 +69,14 @@ namespace {
   constexpr uint32_t cpl_out_filter_config     =  smc_local_base + 0x16000;
  
 
+  constexpr uint32_t pm_mbox_base          =  0x0217'0000;
+  constexpr uint32_t pm_mbox_reg           =  pm_mbox_base + 0x08;
+  constexpr uint32_t pm_mbox_regdata       =  pm_mbox_base + 0x10;
+
+  constexpr uint8_t thub_reg_base           =  0x0;
+  constexpr uint8_t thub_threhold_param_reg =  thub_reg_base + 0x50;
+
+
   typedef enum : bool { COLD = true, WARM = false } rst_t;
   typedef enum : size_t { SZ_4B = 4, SZ_8B = 8 } sz_t;
 
