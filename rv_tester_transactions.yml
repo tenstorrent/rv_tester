@@ -922,6 +922,16 @@ pmu:
                 width: 64
             ls_chillout_requests_all:
                 width: 64
+            ls_chillout_entrances_ldc:
+                width: 64
+            ls_chillout_entrances_stc:
+                width: 64
+            ls_chillout_entrances_mmu:
+                width: 64
+            ls_chillout_entrances_cif:
+                width: 64
+            ls_chillout_entrances_all:
+                width: 64
             utlb_miss:
                 width: 64
             ldq_cannot_alloc:
@@ -998,11 +1008,29 @@ pmu:
                 width: 64
             tap_access_all:
                 width: 64
-            uwp_access:
+            uwp_access_agp:
                 width: 64
-            uwp_miss:
+            uwp_access_arb:
                 width: 64
-            uwp_true_hit:
+            uwp_access_all:
+                width: 64
+            uwp_miss_agp:
+                width: 64
+            uwp_miss_tap_dfp:
+                width: 64
+            uwp_miss_all:
+                width: 64
+            uwp_true_hit_agp:
+                width: 64
+            uwp_true_hit_arb:
+                width: 64
+            uwp_true_hit_all:
+                width: 64
+            uwp_invalidate_agp:
+                width: 64
+            uwp_invalidate_tap_dfp:
+                width: 64
+            uwp_invalidate_all:
                 width: 64
             wp_access:
                 width: 64
