@@ -204,59 +204,85 @@ namespace {
     0x000f8067,         //jr	t6
   };
   std::vector<uint32_t> patch_body_sub = {
-    0x00f1d213,          	//srli	tp,gp,0xf
-    0x01f27213,          	//andi	tp,tp,31
-    0x0141d293,          	//srli	t0,gp,0x14
-    0x01f2f293,          	//andi	t0,t0,31
-    0x0071d313,          	//srli	t1,gp,0x7
-    0x01f37313,          	//andi	t1,t1,31
-    0x00321213,          	//slli	tp,tp,0x3
-    0x00220233,          	//add	tp,tp,sp
-    0x00023203,          	//ld	tp,0(tp) # 0 <tohost-0x70000000>
-    0x00329293,          	//slli	t0,t0,0x3
-    0x002282b3,          	//add	t0,t0,sp
-    0x0002b283,          	//ld	t0,0(t0)
-    0x00300f93,          	//li	t6,3   
-    0x7c9f9073,          	//csrw	0x7c9,t6
-    0xfff2c213,          	//not	tp,t0
-    0x00100f93,          	//li	t6,1
-    0x01f20233,          	//add	tp,tp,t6
-    0x00331313,          	//slli	t1,t1,0x3
-    0x00230333,          	//add	t1,t1,sp
-    0x7c902ff3,          //csrr	t6,0x7c9
-    0xffefff93,          //andi	t6,t6,-2
-    0x7c9f9073,          //csrw	0x7c9,t6
-    0x00433023,          	//sd	tp,0(t1)
-    0x004f0093,          	//addi	ra,t5,4
-    0x4214cfb7,          	//lui	t6,0x4214c
-    0x0e0f8f9b,          	//addiw	t6,t6,224 # 4214c0e0 <tohost-0x2deb3f20>
-    0x000f8067,          	//jr	t6
-  };
-  std::vector<uint32_t> patch_body_subw = {
-    0x7b106ff3,         //csrrsi	t6,dpc,0
-    0x004f8f93,         //addi	t6,t6,4
-    0x41498933,         //sub	s2,s3,s4
-    0x7b1f9073,         //csrw	dpc,t6
-    0x00000f93,         //li	t6,0
-    0x7b200073,         //dret
+    0x00f1d213,          //	srli	tp,gp,0xf
+    0x01f27213,          //	andi	tp,tp,31
+    0x0141d293,          //	srli	t0,gp,0x14
+    0x01f2f293,          //	andi	t0,t0,31
+    0x0071d313,          //	srli	t1,gp,0x7
+    0x01f37313,          //	andi	t1,t1,31
+    0x00321213,          //	slli	tp,tp,0x3
+    0x00220233,          //	add	tp,tp,sp
+    0x00023203,          //	ld	tp,0(tp) # 0 <tohost-0x70000000>
+    0x00329293,          //	slli	t0,t0,0x3
+    0x002282b3,          //	add	t0,t0,sp
+    0x0002b283,          //	ld	t0,0(t0)
+    0xfff2c293,          //	not	t0,t0
+    0x00520233,          //	add	tp,tp,t0
+    0x00120213,          //	addi	tp,tp,1 # 1 <tohost-0x6fffffff>
+    0x00331313,          //	slli	t1,t1,0x3
+    0x00230333,          //	add	t1,t1,sp
+    0x00433023,          //	sd	tp,0(t1)
+    0x7c9023f3,          //	csrr	t2,0x7c9
+    0x0023f393,          //	andi	t2,t2,2
+    0x00238393,          //	addi	t2,t2,2
+    0x007f00b3,          //	add	ra,t5,t2
+    0x4214cfb7,          //	lui	t6,0x4214c
+    0x0e0f8f9b,          //	addiw	t6,t6,224 # 4214c0e0 <tohost-0x2deb3f20>
+    0x000f8067,          //	jr	t6
   };
 
 
-  std::vector<uint32_t>  patch_body_jump ={
-    0x0041d213,         // srli	tp,gp,0x4
-    0x01f27213,         // andi	tp,tp,31
-    0x0101d293,         // srli	t0,gp,0x10
-    0x01f2f293,         // andi	t0,t0,31
-    0x0181d313,         // srli	t1,gp,0x18
-    0x01f37313,         // andi	t1,t1,31
-    0x0242d463,         // bge	t0,tp,40 <.jump>
-    0x004f7093,         // andi	ra,t5,4
+  std::vector<uint32_t>  patch_body_blt ={
+    0x00f1d213,          	// srli	tp,gp,0xf
+    0x01f27213,          	// andi	tp,tp,31
+    0x0141d293,          	// srli	t0,gp,0x14
+    0x01f2f293,          	// andi	t0,t0,31
+    0x0071d313,          	// srli	t1,gp,0x7
+    0x01f37313,          	// andi	t1,t1,31
+    0x005223b3,          	// slt	t2,tp,t0
+    0x00400413,          	// li	s0,4
+    0x007474b3,          	// and	s1,s0,t2
+    0xfff3c393,          	// not	t2,t2
+    0x00737533,          	// and	a0,t1,t2
+    0x00a4e5b3,          	// or	a1,s1,a0
+    0x00bf00b3,          	// add	ra,t5,a1
+    0x7c9023f3,          	// csrr	t2,0x7c9
+    0x0023f393,          	// andi	t2,t2,2
+    0x00238393,          	// addi	t2,t2,2
+    0x007f00b3,          	// add	ra,t5,t2
+    0x4214cfb7,          	// lui	t6,0x4214c
+    0x0e0f8f9b,          	// addiw	t6,t6,224 # 4214c0e0 <tohost-0x2deb3f20>
+    0x000f8067,          	// jr	t6
+  };
+
+    std::vector<uint32_t>  patch_body_wfi ={
+    0x00000013,         // nop
+    0x004f0093,         // addi	ra,t5,4
     0x4214cfb7,         // lui	t6,0x4214c
     0x0e0f8f9b,         // addiw	t6,t6,224 # 4214c0e0 <tohost-0x2deb3f20>
     0x000f8067,         // jr	t6
-    0x4214cfb7,         // lui	t6,0x4214c
-    0x0e0f8f9b,         // addiw	t6,t6,224 # 4214c0e0 <tohost-0x2deb3f20>
-    0x000f8067,         // jr	t6
+
+  };
+
+
+  std::vector<uint32_t>  patch_body_any = {
+    0x4214dfb7,          //	lui	t6,0x4214d
+    0x118f8f9b,          //	addiw	t6,t6,280 # 4214d118 <tohost-0x2deb2ee8>
+    0x003fb023,          //	sd	gp,0(t6)
+    0x7c902ff3,          //	csrr	t6,0x7c9
+    0x001fef93,          //	ori	t6,t6,1
+    0x7c9f9073,          //	csrw	0x7c9,t6
+    0x00000013,          //	nop
+    0x7c902ff3,          //	csrr	t6,0x7c9
+    0x002fff93,          //	andi	t6,t6,2
+    0x7c9f9073,          //	csrw	0x7c9,t6
+    0x7c9023f3,          //	csrr	t2,0x7c9
+    0x0023f393,          //	andi	t2,t2,2
+    0x00238393,          //	addi	t2,t2,2
+    0x007f00b3,          //	add	ra,t5,t2
+    0x4214cfb7,          //	lui	t6,0x4214c
+    0x0e0f8f9b,          //	addiw	t6,t6,224 # 4214c0e0 <tohost-0x2deb3f20>
+    0x000f8067,          //	jr	t6
   };
 }
 

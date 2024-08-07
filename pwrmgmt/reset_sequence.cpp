@@ -488,9 +488,10 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
   co_await write(cpl_patch_ram_ptrig_1, SZ_8B, concatenate_uint32_to_uint64(patch_trig_1) );
   co_await write(cpl_patch_ram_ptrig_2, SZ_8B, concatenate_uint32_to_uint64(patch_trig_2) );
   co_await write(cpl_patch_ram_ptrig_3, SZ_8B, concatenate_uint32_to_uint64(patch_trig_3) );
-  co_await write(cpl_patch_ram_pbody_0, SZ_8B, concatenate_uint32_to_uint64(patch_body_subw) );
+  co_await write(cpl_patch_ram_pbody_0, SZ_8B, concatenate_uint32_to_uint64(patch_body_wfi) );
   co_await write(cpl_patch_ram_pbody_1, SZ_8B, concatenate_uint32_to_uint64(patch_body_sub) );
-  co_await write(cpl_patch_ram_pbody_2, SZ_8B, concatenate_uint32_to_uint64(patch_body_jump) );
+  co_await write(cpl_patch_ram_pbody_2, SZ_8B, concatenate_uint32_to_uint64(patch_body_blt) );
+  co_await write(cpl_patch_ram_pbody_3, SZ_8B, concatenate_uint32_to_uint64(patch_body_any) );
 
   if (FLAGS_patch_ram_check) { 
      populate_patch_ram(cpl_patch_ram_base, concatenate_uint32_to_uint64(patch_header) );
@@ -498,22 +499,26 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
      populate_patch_ram(cpl_patch_ram_ptrig_1, concatenate_uint32_to_uint64(patch_trig_1) );
      populate_patch_ram(cpl_patch_ram_ptrig_2, concatenate_uint32_to_uint64(patch_trig_2) );
      populate_patch_ram(cpl_patch_ram_ptrig_3, concatenate_uint32_to_uint64(patch_trig_3) );
-     populate_patch_ram(cpl_patch_ram_pbody_0, concatenate_uint32_to_uint64(patch_body_subw) );
+     populate_patch_ram(cpl_patch_ram_pbody_0, concatenate_uint32_to_uint64(patch_body_wfi) );
      populate_patch_ram(cpl_patch_ram_pbody_1, concatenate_uint32_to_uint64(patch_body_sub) );
-     populate_patch_ram(cpl_patch_ram_pbody_2, concatenate_uint32_to_uint64(patch_body_jump) );
+     populate_patch_ram(cpl_patch_ram_pbody_2, concatenate_uint32_to_uint64(patch_body_blt) );
+     populate_patch_ram(cpl_patch_ram_pbody_3, concatenate_uint32_to_uint64(patch_body_any) );
     co_await patch_ram_check();
   };
  
 
   std::unordered_map<uint32_t, uint64_t> patch_cfg;
   patch_cfg[core_pversion_mmr] = rand()%0xFF;
-  patch_cfg[core_preg0_mmr] = 0xFFFFFFFF4149893b;//preg0 :subw x18, x19, x20
-  //patch_cfg[core_preg1_mmr] = 0xFE00707F40000033;//preg1 :sub
-  patch_cfg[core_preg1_mmr] = 0xFFFFFFFF405201b3;//preg1 :sub x3, x4, x5
-  //patch_cfg[core_preg2_mmr] = 0xFE00707F00004063;//preg2: blt
-  patch_cfg[core_preg3_mmr] = 0;
-
-  uint64_t pcontrol_data =  0x03FF03FF;
+  patch_cfg[core_preg0_mmr] = 0xFFFFFFFF'10500073;//preg0 :wfi
+  patch_cfg[core_preg1_mmr] = 0xFE00707F'40000033;//preg1 :sub
+  patch_cfg[core_preg2_mmr] = 0xFE00707F'00004063;//preg2: blt
+  patch_cfg[core_preg3_mmr] = 0xFE00707F'0800202f;//preg3 : amoswap.w
+  
+  uint64_t pcontrol_data =  0x03FE03FE03FE03FE;
+  pcontrol_data =  pcontrol_data | 0x1; // enable patch 0
+  pcontrol_data =  pcontrol_data | 0x1'0000; // enable patch 1
+  pcontrol_data =  pcontrol_data | 0x1'0000'0000; // enable patch 2
+  pcontrol_data =  pcontrol_data | 0x1'0000'0000'0000; // enable patch 3
   if (FLAGS_patch_cfg_lock) pcontrol_data = pcontrol_data | 0x8000800080008000;
 
 
