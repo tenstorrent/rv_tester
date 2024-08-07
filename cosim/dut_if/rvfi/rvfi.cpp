@@ -535,8 +535,6 @@ void rvfi::process(const rv_tester_transactions::cosim::m_steps<>& m_steps) {
     return;
   if (!FLAGS_cosim)
     return;
-  if (loc_ != m_steps.location)
-    return;
   bridge_->process_steps(m_steps.hart, m_steps.n_retire, m_steps.cycle, m_steps.steps, m_steps.skips, m_steps.final_steps);
 }
 

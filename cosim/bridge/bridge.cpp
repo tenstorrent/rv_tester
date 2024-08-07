@@ -72,14 +72,14 @@ DEFINE_int32(mcmi_poke_enables, 0, "MCM interface poke enables");
 DEFINE_bool(psc_compare_only, true, "Peridoic COSIM will only compare current register states preload");
 DEFINE_uint64(debug_cycle, 0, "enabled debug");
 
-//#define IF_DEBUG if (debug_on_)
-#define IF_DEBUG if (0)
+#define IF_DEBUG(str) if (debug_on_)  print(cvm::NONE, "DEBUG::line={: <5}::{: <30} ::{}\n",__LINE__,__FUNCTION__,str);
+//#define IF_DEBUG(str) if (0)  print(cvm::NONE, "DEBUG::line={: <5}::{: <30} ::{}\n",__LINE__,__FUNCTION__,str);
 
 std::shared_ptr<whisperClient<uint64_t>> client_;
 //std::unique_ptr<whisperClient<uint64_t>> client_;
 
-//#define log \
-//#   error "Don't use cvm::log, use print() instead. This will cause errors to be reported to rvfi and stop further cosim checking."
+#define log \
+#   error "Don't use cvm::log, use print() instead. This will cause errors to be reported to rvfi and stop further cosim checking."
 
 static std::vector<bridge::size_8_bytes_t> create_dword_vec(const std::bitset<256>& input) {
     // Calculate the number of 8-byte chunks needed for the 256-bit input
@@ -471,8 +471,8 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
     print(cvm::HIGH, "                        :: grd_addr={}, grd_wdata={:#x}\n", gpr.rd_addr,gpr.rd_wdata);
   }
 
-  if ((d.cycle >= FLAGS_debug_cycle) & (FLAGS_debug_cycle > 0)) {
-     printf("Setting debug_on_ = true\n");
+  if ((d.cycle >= FLAGS_debug_cycle) & (FLAGS_debug_cycle > 0) & !debug_on_) {
+     print(cvm::MEDIUM,"Setting debug_on_ = true\n");
      cvm::logger::set_verbosity(cvm::HIGH);
      debug_on_ = true;
   }
@@ -497,9 +497,9 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   w.time = d.cycle;
 
   // Handle debug interrupt
-  IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: check dut interrupt\n", __LINE__,__FUNCTION__);}
+  IF_DEBUG("check dut interrupt");
   if (d.intr && (d.icause == 0)){
-    IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: dut has interrupt cause=0\n", __LINE__,__FUNCTION__);}
+    IF_DEBUG("dut has interrupt cause=0");
     return;
   }
 
@@ -538,11 +538,11 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   // Update cac with whisper state
   if (!psc_stepping_) {
-    IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: updating whispter state\n", __LINE__,__FUNCTION__);}
+    IF_DEBUG("updating whispter state");
     update_whisper_state(hart, w);
 
     // Update cac with dut state
-    IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: updating dut state\n", __LINE__,__FUNCTION__);}
+    IF_DEBUG("updating dut state");
     update_dut_state(hart, d);
   }
 
@@ -556,11 +556,11 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   post_step_satp_write_poke(hart, d, w);
 
   if (excp_in_debug_mode) {
-    IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: excp_in_debug_mode==1 ..reset status and return\n", __LINE__,__FUNCTION__);}
+    IF_DEBUG("excp_in_debug_mode==1 ..reset status and return");
     cac_.ResetStatus(hart);
     return;
   }
-  IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: no excp in debug mode...keep going\n", __LINE__,__FUNCTION__);}
+  IF_DEBUG("no excp in debug mode...keep going");
 
   // Increment step count
   step_++;
@@ -590,7 +590,7 @@ void bridge::compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w,
 
   // Error on mismatch
   if (!cac_.GetStatus(hart)) {
-    IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: CaC compare failed...\n", __LINE__,__FUNCTION__);}
+    IF_DEBUG("CaC compare failed...");
     cac_.ResetStatus(hart);
     if (FLAGS_cosim_resynch) {
       if (FLAGS_bridge_log) {
@@ -608,7 +608,7 @@ void bridge::compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w,
       // to continue without failing
       if (does_instr_match_resynch_list(d, instr) ||
           does_instr_match_resynch_condition(d, instr)) {
-        IF_DEBUG {printf("DEBUG::LINE=%8u : %s  :: matched condition for a resynch\n", __LINE__,__FUNCTION__);}
+        IF_DEBUG("matched condition for a resynch");
         resynch(hart, d);
         cac_.ResetStatus(hart);
       } else {
@@ -626,7 +626,7 @@ void bridge::compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w,
     //    therefore we could miscompare still from a a device memory read
     //------------------------------------------------------------------------------------------------------------
     if (FLAGS_cosim_period != 0) {
-      IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: CaC compared... but in PSC mode we still need to check\n", __LINE__,__FUNCTION__);}
+      IF_DEBUG("CaC compared... but in PSC mode we still need to check");
       std::string instr = cosim_util::get_nth_word(w.disasm, 1);
       std::string resource = cac_.GetResourceStr(hart);
       if (instr.substr(0,3) == "csr") {
@@ -634,7 +634,7 @@ void bridge::compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w,
       }
       if (does_instr_match_resynch_list(d, instr) ||
          does_instr_match_resynch_condition(d, instr)) {
-        IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: found condition for resynch\n", __LINE__,__FUNCTION__);}
+        IF_DEBUG("found condition for resynch");
         for (auto& csr : d.csr) {
            csr.valid = 0;
         }
@@ -696,7 +696,6 @@ void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d)
 }
 
 void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
-  IF_DEBUG {printf("DEBUG::LINE=%8u : %s\n", __LINE__,__FUNCTION__);}
   if (FLAGS_pc_check) {
     update_pc(hart, src_t::dut, d.pc.pc_rdata);
   }
@@ -768,16 +767,16 @@ void bridge::pre_step_lrsc_poke(hart_id_t hart, const rv_instr_t& d) {
 void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
 // FIXME We are deferring all interrupts, if new interrupt was made possible due to execution of a csr op previously
   if (FLAGS_intr_defer_spcl) {
-    IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: FLAGS_intr_defer_spcl==1\n", __LINE__,__FUNCTION__);}
+    IF_DEBUG("FLAGS_intr_defer_spcl==1");
     if (d.disasm.find("csr") != std::string::npos) {
-      IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: CSR instruction\n", __LINE__,__FUNCTION__);}
+      IF_DEBUG("CSR instruction");
       bool valid;
       if (!client_->whisperPeek(hart, 's', WhisperSpecialResource::DeferredInterrupts, deferred_mip_, valid)) {
         print(cvm::ERROR, "Error: Hart {}: Failed whisper API call - whisperGetDeferredInterrupts\n", hart);
         return;
       }
       if (prev_sync_intr_) {
-        IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: prev_sync_intr==1\n", __LINE__,__FUNCTION__);}
+        IF_DEBUG("prev_sync_intr==1");
         bridge_log_(cvm::MEDIUM, "<{}> All interrupts Defer\n", d.cycle);
         all_interrupts_defer_ = true;
         pre_csr_defermip_ = deferred_mip_;
@@ -792,7 +791,7 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
   }
 
   if (!mip_ && !prev_mip_) {
-    IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: mip_==0  and prev_mip_==0 ... return\n", __LINE__,__FUNCTION__);}
+    IF_DEBUG("mip_==0  and prev_mip_==0 ... return");
     return;
   }
 
@@ -801,12 +800,12 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
   check_interrupt(hart, mip_, w_intr, w_cause);
 
   if (!d.intr && !w_intr) {
-    IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: no dut intr and no whisper intr....return\n", __LINE__,__FUNCTION__);}
+    IF_DEBUG("no dut intr and no whisper intr....return");
     return;
   }
 
   if (!d.intr && w_intr) {
-    IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: no dut intr ... but whisper has intr\n", __LINE__,__FUNCTION__);}
+    IF_DEBUG("no dut intr ... but whisper has intr");
     intr_age_[w_cause]++;
     bridge_log_(cvm::HIGH, "<{}> intr_age_[{}][{}]++={}\n", w.time, hart, w_cause, intr_age_[w_cause]);
 
@@ -848,7 +847,7 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
   // Timing sensitive resynch cases
   // 1. DUT took older interrupt that deasserted before retire
   if (d.intr && !w_intr && !FLAGS_cosim_resynch) {
-    IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: dut intr==1 and whisper intr==0\n", __LINE__,__FUNCTION__);}
+    IF_DEBUG("dut intr==1 and whisper intr==0");
     check_interrupt(hart, prev_mip_, w_intr, w_cause);
     if (w_intr && (w_cause == d.icause)) {
       bridge_log_(cvm::MEDIUM, "<{}> DUT took interrupt, Whisper did not. cause:[{}] (Timing sensitive mismatch: Resynch and keep going)\n", w.time, d.icause);
@@ -865,7 +864,7 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
 
   // 2. DUT took older interrupt but a newer one asserted before retire
   if (d.icause != w_cause) {
-    IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: dut cause != whisper cause\n", __LINE__,__FUNCTION__);}
+    IF_DEBUG("dut cause != whisper cause");
     check_interrupt(hart, prev_mip_, w_intr, w_cause);
     if (w_intr && (w_cause == d.icause)) {
       bridge_log_(cvm::MEDIUM, "<{}> DUT vs Whisper interrupt cause mismatch [{},{}] age [{},{}] (Timing sensitive mismatch: Resynch and keep going)\n",
@@ -877,18 +876,18 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
 
   // Undefer all interrupts
   if (deferred_intr_) {
-    IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: deferred intr == 1\n", __LINE__,__FUNCTION__);}
+    IF_DEBUG("deferred intr == 1");
     defer_interrupt(hart, w.time, 0);
     deferred_intr_ = false;
   }
 
   if (FLAGS_retire_ucode_trap) {
-    IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: FLAG retire_ucode_trap == 1 ... return\n", __LINE__,__FUNCTION__);}
+    IF_DEBUG("FLAG retire_ucode_trap == 1 ... return");
     return;
   }
 
   step(hart, w);
-  IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: add an extra 'step' to whisper\n", __LINE__,__FUNCTION__);}
+  IF_DEBUG("add an extra 'step' to whisper");
   if (FLAGS_bridge_log) {
     bridge_log_(cvm::MEDIUM, "<{}> Whisper Step #{}: Extra step due to interrupt\n", w.time, step_);
   }
@@ -897,9 +896,9 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
 void bridge::post_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w) {
 
   if (FLAGS_intr_defer_spcl) {
-    IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: FLAG intr_defer_spcl==1\n", __LINE__,__FUNCTION__);}
+    IF_DEBUG("FLAG intr_defer_spcl==1");
     if (d.disasm.find("csr") != std::string::npos) {
-       IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: CSR instruction\n", __LINE__,__FUNCTION__);}
+       IF_DEBUG("CSR instruction");
        uint64_t undeferred_mip = mip_ & ~ deferred_mip_;
        uint64_t undeferred_w_cause;
        check_interrupt(hart, undeferred_mip, post_undeferred_intr_, undeferred_w_cause);
@@ -907,25 +906,25 @@ void bridge::post_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, const
     }
 
     if (all_interrupts_defer_) {
-      IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: all_interrupts_defer==1 .. defer and clear this flag\n", __LINE__,__FUNCTION__);}
+      IF_DEBUG("all_interrupts_defer==1 .. defer and clear this flag");
       defer_interrupt(hart, d.cycle, pre_csr_defermip_);
       all_interrupts_defer_ = false;
     }
 
     if ((w.disasm.find("mret") != std::string::npos) || (w.disasm.find("sret") != std::string::npos)) {
-      IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: MRET instruction.. set flag prev_sync_intr=1 \n", __LINE__,__FUNCTION__);}
+      IF_DEBUG("MRET instruction.. set flag prev_sync_intr=1 ");
       if(prev_mip_ != mip_) {
-        IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: prev_mip != mip_ .. check and defer\n", __LINE__,__FUNCTION__);}
+        IF_DEBUG("prev_mip != mip_ .. check and defer");
         check_and_defer_interrupt(hart, d.cycle, ~prev_mip_ & mip_);
       }
       prev_sync_intr_ = true; // This will waive cases when after execution of mret there exists a csr operation which needs to be interrupted.
     }
 
     if (w.disasm.find("vsstimecmp") != std::string::npos)  {
-      IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: VSSTIMECMP instruction\n", __LINE__,__FUNCTION__);}
+      IF_DEBUG("VSSTIMECMP instruction");
       if (!vstimecmppoked_) resetsstc_poke(hart,d.cycle, 0x24d); else setsstc_poke(hart,d.cycle, 0x24d);
     } else if (w.disasm.find("stimecmp") != std::string::npos) {
-      IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: STIMECMP instruction\n", __LINE__,__FUNCTION__);}
+      IF_DEBUG("STIMECMP instruction");
       if (w.priv_mode == 9) {if (!vstimecmppoked_) resetsstc_poke(hart,d.cycle, 0x24d); else setsstc_poke(hart,d.cycle, 0x24d);}
       else if (!stimecmppoked_)  resetsstc_poke(hart,d.cycle, 0x14d); else setsstc_poke(hart,d.cycle, 0x14d);
     }
@@ -933,7 +932,7 @@ void bridge::post_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, const
 
 
   if (!d.intr && !w_.intr) {
-    IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: d.intr==0 and w.intr==0  .. return\n", __LINE__,__FUNCTION__);}
+    IF_DEBUG("d.intr==0 and w.intr==0  .. return");
     return;
   }
 
@@ -951,7 +950,7 @@ void bridge::post_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, const
   }
 
   if (d.intr && !w_.intr && !FLAGS_cosim_resynch) {
-    IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: d.intr==1 and w.intr==0  .. return IF d.cause==0\n", __LINE__,__FUNCTION__);}
+    IF_DEBUG("d.intr==1 and w.intr==0  .. return IF d.cause==0");
     // If Debug mode intterupt is seen, don't flag an error, Whisper gets poked based on PC fetches
     if (d.icause == 0) 
       return;
@@ -968,7 +967,7 @@ void bridge::post_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, const
     return;
   }
   if (resynch_icause_) {
-    IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: resynch_icause_==1\n", __LINE__,__FUNCTION__);}
+    IF_DEBUG("resynch_icause_==1");
     uint64_t resynch_mip_mask, resynch_mip;
     resynch_mip_mask = (1 << resynch_icause_);
     resynch_icause_ = 0;
@@ -993,16 +992,16 @@ void bridge::post_step_exception_poke(hart_id_t hart, const rv_instr_t& d, whisp
   
 
   if (!d.excp && !w_.excp)
-    IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: d.excp==0 and w.excp==0\n", __LINE__,__FUNCTION__);}
+    IF_DEBUG("d.excp==0 and w.excp==0");
     return;
 
 
   if (d.excp && is_custom_excp(d.ecause)) {
-    IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: d.excp==1 and is_custom_excp ... return\n", __LINE__,__FUNCTION__);}
+    IF_DEBUG("d.excp==1 and is_custom_excp ... return");
     bridge_log_(cvm::MEDIUM, "<{}> Custom exception detected: {}\n", d.cycle, d.ecause);
     // Vector conservative mode
     if (d.ecause == 55)
-      IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: d.cause==55...resynch \n", __LINE__,__FUNCTION__);}
+      IF_DEBUG("d.cause==55...resynch ");
       resynch(hart, d);
     return;
   }
@@ -1010,7 +1009,7 @@ void bridge::post_step_exception_poke(hart_id_t hart, const rv_instr_t& d, whisp
   bridge_log_(cvm::MEDIUM, "<{}> Exception detected. dut:[{}, {}] whisper:[{}, {}]\n", w.time, d.excp, d.ecause, w_.excp, w_.ecause);
 
   if (d.excp && !w_.excp && !FLAGS_cosim_resynch) {
-    IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: d.excp==1 and w.excp==0 ... return\n", __LINE__,__FUNCTION__);}
+    IF_DEBUG("d.excp==1 and w.excp==0 ... return");
     print_instr_stdout(hart, w);
     print(cvm::ERROR, "Error: Hart {}: DUT took exception, Whisper did not. Cause: {}\n", hart,
       excp_to_string.count(static_cast<excp>(d.ecause)) ? excp_to_string.at(static_cast<excp>(d.ecause)) : std::to_string(d.ecause));
@@ -1018,7 +1017,7 @@ void bridge::post_step_exception_poke(hart_id_t hart, const rv_instr_t& d, whisp
   }
   
   if (w_.excp && !d.excp && !FLAGS_cosim_resynch) {
-    IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: d.excp==0 and w.excp==1 ... return\n", __LINE__,__FUNCTION__);}
+    IF_DEBUG("d.excp==0 and w.excp==1 ... return");
     print_instr_stdout(hart, w);
     print(cvm::ERROR, "Error: Hart {}: Whisper took exception, DUT did not. Cause: {}\n", hart,
       excp_to_string.count(static_cast<excp>(w_.ecause)) ? excp_to_string.at(static_cast<excp>(w_.ecause)) : std::to_string(w_.ecause));
@@ -1037,7 +1036,7 @@ void bridge::post_step_exception_poke(hart_id_t hart, const rv_instr_t& d, whisp
 
   // If DUT indicates retire on ucode trap handler, extra step not needed
   if (FLAGS_retire_ucode_trap)
-    IF_DEBUG {printf("DEBUG::LINE=%8u : %-30s :: FLAGS_retire_ucode_trap==1 ... return\n", __LINE__,__FUNCTION__);}
+    IF_DEBUG("FLAGS_retire_ucode_trap==1 ... return");
     return;
 
 
@@ -1053,7 +1052,6 @@ bool bridge::is_custom_excp(uint64_t cause) {
 }
 
 void bridge::post_step_satp_write_poke(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w) {
-  IF_DEBUG {printf("DEBUG::LINE=%8u : %s\n", __LINE__,__FUNCTION__);}
   if (!FLAGS_delay_satp_update)
     return;
 
@@ -1101,7 +1099,7 @@ void bridge::post_step_satp_write_poke(hart_id_t hart, const rv_instr_t& d, cons
 
 void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
 
-  IF_DEBUG {printf("DEBUG::LINE=%8u : %s\n", __LINE__,__FUNCTION__);}
+  IF_DEBUG("function called");
   w_.valid = true;
   w_.cycle = w.time;
   w_.tag = w.tag;
@@ -1704,13 +1702,11 @@ bool bridge::hpm_counter_read(const std::string& instr) {
 }
 
 bool bridge::unsupported_csr_access(const std::string& instr) {
-  IF_DEBUG { print(cvm::MEDIUM, "DEBUG:: unsupported_csr_access: instr={}]\n", instr); }
   if ((instr.find("as_dbg_mux_sel") != std::string::npos) ||
       (instr.find("c_") != std::string::npos)) {
-    IF_DEBUG {printf("DEBUG::LINE=%8u : %s\n", __LINE__,__FUNCTION__);}
+    IF_DEBUG("CSR instruction") ;
     return true;
   }
-  IF_DEBUG {printf("DEBUG::LINE=%8u : %s\n", __LINE__,__FUNCTION__);}
   return false;
 }
 
