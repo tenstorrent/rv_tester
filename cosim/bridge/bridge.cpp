@@ -125,7 +125,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
       "mip","hip","vsip","hvip","sip","mireg","sireg","vsireg","mtopei","stopei","vstopei", // Permanent: Interrupts
       "mtopi", "stopi", "vstopi", // RVTOOLS-3189
       "hpmcounter","hpmevent","scountovf","mcycle","minstret","minstreth", // Permanent: PMC events
-      "dcsr","dscratch0","dscratch1" // Permanent: Debug events
+      "dcsr","dpc","dscratch0", "dscratch1" // Permanent: Debug events
 
     };
     std::istringstream iss(FLAGS_cosim_resynch_csr);
@@ -403,11 +403,6 @@ void bridge::process_steps(hart_id_t hart, uint32_t n_retire, uint64_t cycle, ui
 // DUT interface callback: Instruction Retire
 void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
-  // cvm::log(cvm::NONE, "Inside the process_dut_instr_retire function\n"); 
-
-  if (patch_mode_ > 1)
-    return;
-
   twoStage_ = false;
 
   whisper_state_t w {
@@ -458,8 +453,8 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
     whisper_time_ = whisper_time_ + (duration_cast<std::chrono::microseconds>(etime - stime).count());
   }
   if (patch_mode_) {
-    patch_mode_++;
     cac_.ResetStatus(hart);
+    patch_mode_ = 2;
     return;
   }
 
@@ -479,6 +474,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   post_step_satp_write_poke(hart, d, w);
 
   if (excp_in_debug_mode) {
+    excp_in_debug_mode = false;
     cac_.ResetStatus(hart);
     return;
   }
@@ -553,6 +549,7 @@ void bridge::process_dut_csr_hw_update(hart_id_t hart, csr_t& c) {
 void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d) {
   if (patch_mode_)
     return;
+
   if (!FLAGS_csr_wr_check)
     return;
   const auto cac_status_verbosity = cvm::HIGH;
@@ -625,18 +622,15 @@ void bridge::pre_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
     opcode = instr.opcode;
   }
 
-  // Needed to Resynch data as well in MCM
-  // if (instr.mem_read.valid) {
-  //   log(cvm::NONE, "debug_mem_access (whisperPokeMem): pa={:#x} ; size={} ; data={}]\n", instr.mem_read.pa, 4, instr.mem_read.data);
-  //   if (!client_->whisperPokeMem(hart, 0, 'm', instr.mem_read.pa, instr.mem_read.size, instr.mem_read.data, valid)) {
-  //     cvm::log(cvm::ERROR, "Error: Hart {}: Failed to poke memory\n", hart);
-  //     return;
-  //   }
-  // }
-
   if (!client_->whisperPoke(hart, 0, 'm', instr.pc.pc_rdata, opcode, valid)) {
     print(cvm::ERROR, "Error: Hart {}: Failed to poke memory\n", hart);
     return;
+  }
+  if (instr.excp && (instr.ecause == 3)){
+    if (!client_->whisperPoke(hart, 0, 'r', 0x6, FLAGS_debug_entry_pc, valid)) {
+      print(cvm::ERROR, "Error: Hart {}: Failed to poke x6 register\n", hart);
+      return;
+    }
   }
   return;
 }
@@ -1524,9 +1518,7 @@ bool bridge::imsic_mismatch(const std::string& instr) {
 bool bridge::debug_mem_access(const rv_instr_t& d){
   print(cvm::NONE, "<{}> debug_mem_access: valid={} for pa={}]\n", d.cycle, d.mem_read.valid, d.mem_read.pa);
   if (d.mem_read.valid && debug_mode_ &&
-      ((d.mem_read.pa < FLAGS_debug_entry_pc) || (d.mem_read.pa > FLAGS_debug_exit_pc)) &&
-      ((d.mem_read.pa >= FLAGS_debug_mem_base) && (d.mem_read.pa < (FLAGS_debug_mem_base + FLAGS_debug_mem_size)))
-      )
+      (d.mem_read.pa >= FLAGS_debug_mem_base) && (d.mem_read.pa < (FLAGS_debug_mem_base + FLAGS_debug_mem_size)))
     return true;
   return false;
 }
@@ -1694,6 +1686,12 @@ void bridge::resynch(hart_id_t hart, const rv_instr_group_t& d) {
 // Process mem accesses - load resolves
 void bridge::process_dut_mcm_read(hart_id_t hart, mem_t& m) {
   bool valid = false;
+  if (debug_mode_) {
+    if (!client_->whisperPokeMem(hart, m.cycle, 'm', m.pa, m.size, m.data, valid)) {
+      print(cvm::ERROR, "Error: Hart {}: Failed to poke memory\n", hart);
+      return;
+    }
+  }
   if (!client_->whisperMcmRead(hart, m.cycle, m.tag, m.pa, m.size, m.data, valid)) {
     print(cvm::ERROR, "Error: Hart {}: Failed mcm load resolve\n", hart);
     return;

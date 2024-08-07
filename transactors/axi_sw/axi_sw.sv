@@ -153,14 +153,15 @@ module axi_sw #(
     logic w_last_queue_full, w_last_queue_empty;
     logic r_queue_empty     ;
 
-    import "DPI-C" context function void axi_sw_set_scope(int unsigned location);
+    // dummy return value to make sure it's not zDPI
+    import "DPI-C" context function byte unsigned axi_sw_set_scope(int unsigned location);
 
     always @(posedge clk) begin
         if (sys_reset) begin
             /* verilator lint_off BLKSEQ */
                 // FIXME add a reset for the axi xtor
             if (LOCATION != cvm_topology::nil) begin
-                axi_sw_set_scope(LOCATION);
+                automatic byte unsigned _ = axi_sw_set_scope(LOCATION);
             end
             /* verilator lint_on BLKSEQ */
         end
@@ -562,14 +563,15 @@ module axi_sw_mst #(
     } w_t;
 
 
-    import "DPI-C" context function void axi_sw_mst_set_scope(int unsigned location);
+    // dummy return value to make sure it's not zDPI
+    import "DPI-C" context function byte unsigned axi_sw_mst_set_scope(int unsigned location);
 
     always @(posedge clk) begin
         if (sys_reset) begin
             /* verilator lint_off BLKSEQ */
                 // FIXME add a reset for the axi xtor
             if (LOCATION != cvm_topology::nil) begin
-                axi_sw_mst_set_scope(LOCATION);
+                automatic byte unsigned _ = axi_sw_mst_set_scope(LOCATION);
             end
             /* verilator lint_on BLKSEQ */
         end

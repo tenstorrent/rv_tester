@@ -10,6 +10,7 @@ DEFINE_uint32(pll_pwrup_timeout, 50, "Number of soc cycles expected for pll powe
 DEFINE_bool(pll_dfs, false, "Enable dfs sequence during cold boot");
 DEFINE_uint32(pll_dfs_freq, 1200, "Clock freq for dfs");
 DEFINE_uint32(pll_dfs_timeout, 50, "Number of soc cycles expected for pll dfs to complete");
+DEFINE_uint32(num_thubs, 4, "Number of temprature hubs");
 DEFINE_string(warm_reset, "off", "Enable warm resets in the sim - off/random/trigger");
 DEFINE_string(warm_reset_count, "0:4", "Number of warm resets in the sim if random mode enabled");
 DEFINE_string(warm_reset_interval, "5000:50000", "TB cycle interval between warm resets in the sim if random mode enabled");
@@ -19,10 +20,12 @@ DEFINE_string(warm_reset_sram_hold, "0:1", "Sram hold");
 DEFINE_string(warm_reset_debug_hold, "0:1", "Debug hold");
 DEFINE_string(warm_reset_critical_hold, "0:1", "Critical hold");
 DEFINE_bool(patch_en, false, "Enable instruction patching");
+DEFINE_bool(tj_max, false, "Program lower TJ Max Threshold");
 DEFINE_bool(patch_cpl_filter_dis, false, "Disable programming of inbound and outbound filters in core");
 DEFINE_bool(patch_registers_check, false, "Enable read write checking of patch related registers");
 DEFINE_bool(patch_ram_check, false, "Enable read write checking of patch ram region");
 DEFINE_bool(patch_cfg_lock, true, "Lock the patch mmrs while boot programming ");
+
 
 extern "C" {
   void pwrmgmt_init();
@@ -198,6 +201,10 @@ cvm::messenger::task<void> reset_sequence::warm_reset_sequence() {
 cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
   co_await release_cpl_reset();
   co_await program_fuses();
+  if(FLAGS_tj_max)
+  {
+    co_await program_thub_threshold();
+  };
   if (FLAGS_patch_en && rst_type == COLD) { 
     co_await program_patch();
   } else if (FLAGS_patch_ram_check) {
@@ -583,6 +590,32 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
   co_return;
 };
 
+cvm::messenger::task<void> reset_sequence::write_thub_reg(uint8_t addr, uint32_t data, uint8_t satellite_num, uint8_t mbox_num) {
+
+    uint64_t w_data;
+    uint8_t pkt_type = 0x8;
+    uint8_t ext_pkt = 0x3;
+    uint8_t int_addr;
+    
+    // Divide address by 4
+    int_addr = addr >> 2;
+    w_data = ((uint64_t)int_addr << 28) | ((0xF << 24) | (data >> 8 ) );
+    co_await tick();
+    // Write to REGDATA
+    co_await write(pm_mbox_regdata, SZ_8B, w_data);
+
+    w_data = 0;
+    w_data |= (0 << 26) | (1 << 23) | (ext_pkt << 20) | (mbox_num << 16) | ((data & 0xff)<<8) | (satellite_num << 4) | pkt_type;
+    co_await write(pm_mbox_reg, SZ_8B, w_data);
+}
+
+cvm::messenger::task<void> reset_sequence::program_thub_threshold() {
+  co_await tick();
+  for (uint8_t i=0; i<FLAGS_num_thubs; ++i) {
+      co_await write_thub_reg(thub_threhold_param_reg,0x05400640,i+9,i);
+  };
+ 
+};
 std::vector<uint64_t> reset_sequence::concatenate_uint32_to_uint64(const std::vector<uint32_t>& input) {
       std::vector<uint64_t> result;
       int size = input.size();
