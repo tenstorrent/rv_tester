@@ -479,6 +479,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   post_step_satp_write_poke(hart, d, w);
 
   if (excp_in_debug_mode) {
+    excp_in_debug_mode = false;
     cac_.ResetStatus(hart);
     return;
   }
@@ -637,6 +638,12 @@ void bridge::pre_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
   if (!client_->whisperPoke(hart, 0, 'm', instr.pc.pc_rdata, opcode, valid)) {
     print(cvm::ERROR, "Error: Hart {}: Failed to poke memory\n", hart);
     return;
+  }
+  if (instr.excp && (instr.ecause == 3)){
+    if (!client_->whisperPoke(hart, 0, 'r', 0x6, FLAGS_debug_entry_pc, valid)) {
+      print(cvm::ERROR, "Error: Hart {}: Failed to poke x6 register\n", hart);
+      return;
+    }
   }
   return;
 }
