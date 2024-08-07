@@ -360,6 +360,40 @@ cvm::messenger::task<void> reset_sequence::write(uint64_t addr, size_t sz, const
   co_return;
 };
 
+cvm::messenger::task<void> reset_sequence::csr_write(uint32_t core_id, uint64_t addr, uint64_t data) {
+  uint64_t cmd = 0;
+  uint32_t offset = core_id * core_fuse_offset;
+  cvm::log(cvm::NONE, "[pwrmgmt] csr write req - core_id = {}, addr={:#x}, data={:#x} \n", core_id, addr, data );
+  do { 
+    cmd = co_await read(core_crCsrCommandPort + offset, SZ_8B);
+  } while ((cmd>>62) == 0x1 );
+  uint32_t unit = core_id;
+  uint64_t wr = 1;
+  cmd = wr << 61 |unit<<12|addr;
+  co_await write(core_crCsrDataPort + offset, SZ_8B, data);
+  co_await write(core_crCsrCommandPort + offset, SZ_8B, cmd);
+  co_return;
+}
+
+
+cvm::messenger::task<uint64_t> reset_sequence::csr_read(uint32_t core_id, uint64_t addr) {
+  uint64_t cmd = 0;
+  uint32_t offset = core_id * core_fuse_offset;
+  cvm::log(cvm::NONE, "[pwrmgmt] csr read req - core_id = {}, addr={:#x} \n", core_id, addr );
+  do { 
+    cmd = co_await read(core_crCsrCommandPort + offset, SZ_8B);
+  } while ((cmd>>62) == 0x1 );
+  uint8_t unit = core_id;
+  uint64_t wr = 0;
+  cmd = wr << 61 |unit<<12|addr;
+  co_await write(core_crCsrCommandPort + offset, SZ_8B, cmd);
+  do { 
+    cmd = co_await read(core_crCsrCommandPort + offset, SZ_8B);
+  } while ((cmd>>62) == 0x1 );
+  cvm::log(cvm::NONE, "[pwrmgmt] csr read res - core_id = {}, addr={:#x} \n", core_id, addr );
+  auto data = co_await read(core_crCsrDataPort + offset, SZ_8B);
+  co_return data;
+}
 
 void reset_sequence::init() {
   cvm::registry::callbacks.push(
@@ -518,7 +552,7 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
   pcontrol_data =  pcontrol_data | 0x1; // enable patch 0
   pcontrol_data =  pcontrol_data | 0x1'0000; // enable patch 1
   pcontrol_data =  pcontrol_data | 0x1'0000'0000; // enable patch 2
-  pcontrol_data =  pcontrol_data | 0x1'0000'0000'0000; // enable patch 3
+  //pcontrol_data =  pcontrol_data | 0x1'0000'0000'0000; // enable patch 3
   if (FLAGS_patch_cfg_lock) pcontrol_data = pcontrol_data | 0x8000800080008000;
 
 
@@ -526,7 +560,7 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
     uint32_t offset = i * core_fuse_offset;
     for (auto j : patch_cfg)
       co_await write(j.first + offset, SZ_8B, j.second);
-    //co_await write(core_ptvec_csr + i * core_fuse_offset, SZ_8B, 0x4210C000); //Program PtVec register
+    co_await csr_write(i, core_ptvec_csr , 0x4210C000);
     co_await write(core_pcontrol_mmr + offset, SZ_8B, pcontrol_data);
   };
 

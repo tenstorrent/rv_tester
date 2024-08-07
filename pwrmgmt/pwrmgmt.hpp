@@ -48,7 +48,12 @@ namespace {
   constexpr uint32_t core_preg1_mmr             = 0x4200'5088;
   constexpr uint32_t core_preg2_mmr             = 0x4200'5090;
   constexpr uint32_t core_preg3_mmr             = 0x4200'5098;
-  constexpr uint32_t core_ptvec_csr             = 0x4200'07CA;
+  
+  constexpr uint32_t core_ptvec_csr             = 0x0000'07CA;
+  
+  constexpr uint32_t core_crCsrCommandPort      = 0x4200'4008;
+  constexpr uint32_t core_crCsrDataPort         = 0x4200'4000;
+
 
   constexpr uint32_t smc_local_base             = 0x0210'0000;
   constexpr uint32_t cpl_sram_base              = smc_local_base +0x40000;
@@ -72,6 +77,7 @@ namespace {
 
   typedef enum : bool { COLD = true, WARM = false } rst_t;
   typedef enum : size_t { SZ_4B = 4, SZ_8B = 8 } sz_t;
+  typedef enum : bool { WR = 1, RD = 0 } access_t;
 
   std::map<uint32_t, uint64_t> patch_ram;
   
