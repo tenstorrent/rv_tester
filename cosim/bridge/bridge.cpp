@@ -1658,7 +1658,7 @@ bool bridge::mip_mismatch(const std::string& instr) {
 
 bool bridge::imsic_mismatch(const std::string& instr) {
   if ((instr.find("top") != std::string::npos) &&
-      (e_mip_ != prev_e_mip_))
+      (e_mip_ != prev_e_mip_ || mem_poke_.size() != 0))
     return true;
   return false;
 }
