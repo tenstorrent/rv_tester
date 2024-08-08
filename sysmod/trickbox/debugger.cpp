@@ -57,10 +57,11 @@ void debugger::get_all_csv_templates()
             if (filename.size() >= 4 && filename.substr(filename.size() - 4) == ".csv")
             {
                 csvFilePaths.push_back(entry.path().string());
-                cvm::log(cvm::NONE, "Pushing file:{}\n", filename);
+                cvm::log(cvm::MEDIUM, "Pushing file:{}\n", filename);
             }
         }
     }
+    std::sort(csvFilePaths.begin(), csvFilePaths.end());
 }
 
 void debugger::parse_dmi_from_csv()
@@ -198,6 +199,15 @@ void debugger::parse_dmi_from_csv()
       // PRINT CSV DATA
       cvm::log(cvm::MEDIUM, "Pushing dmi request: op {} addr {:#x} data {:#x}\n", dmi_req.op, dmi_req.addr, dmi_req.data);
     }
+
+    // Add a dummy check-point to ensure all DMI commands part of the previous trigger is executed
+    dmi_req_t dmi_req;
+    dmi_req.op = 3;
+    dmi_req.addr = 0;
+    dmi_req.data = 0;
+    dmi_req.func_bits = 0;
+    dmi_cmd_q.push(dmi_req);
+
     file_parsing_done = 1;
   }
   else
