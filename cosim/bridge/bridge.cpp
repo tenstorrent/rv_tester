@@ -626,7 +626,7 @@ void bridge::pre_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
     print(cvm::ERROR, "Error: Hart {}: Failed to poke memory\n", hart);
     return;
   }
-  if (instr.excp){
+  if (instr.excp && (instr.ecause == 3)){
     if (!client_->whisperPoke(hart, 0, 'r', 0x6, FLAGS_debug_entry_pc, valid)) {
       print(cvm::ERROR, "Error: Hart {}: Failed to poke x6 register\n", hart);
       return;

@@ -128,7 +128,7 @@ module rv_tester
     bit print_terminate_message = '1;
 
     int dmi_poll_counter = 0; 
-    int dmi_poll_timeout = 50000;
+    int dmi_poll_timeout = 8000;
     logic dmi_poll_timeout_terminate;
     logic [31:0] dmi_commands_in_queue; 
 
@@ -144,8 +144,8 @@ module rv_tester
     string cvm_verbosity_string, gen_clocks_verbosity_string;
     int unsigned cvm_verbosity, gen_clocks_verbosity;
 
-    assign terminate           = (shutdown || tj_max_interrupt || rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
-    assign terminate_now       = (terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue == '0) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced )) || shutdown || tj_max_interrupt; 
+    assign terminate           = (shutdown || rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset|| tj_max_interrupt;
+    assign terminate_now       = (terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue == '0) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced )) || shutdown; 
 
     
     assign rerun_now           = terminated && num_reruns > 0;
@@ -251,7 +251,6 @@ module rv_tester
             rand_dmi_driver_dly  <= cvm_plusargs::get_int("rand_dmi_driver_dly"); 
             cb_poll              <= cvm_plusargs::get_bool("cb_async") == '0;
             quiesce_timeout      <= cvm_plusargs::get_int("quiesce_timeout");
-            dmi_poll_timeout     <= cvm_plusargs::get_int("dmi_poll_timeout");
             trace_timeout        <= cvm_plusargs::get_int("trace_timeout");
             flush_timeout        <= cvm_plusargs::get_int("flush_timeout");
             freq_switch_ncycles  <= cvm_plusargs::get_int("freq_switch_ncycles");
@@ -455,7 +454,7 @@ module rv_tester
                 dmi_poll_timeout_terminate <= 1;
             end
             else if ((dmi_poll_counter >= 'h1) && terminate) begin
-               $display("<%0d> [RVTESTER]: Debug poll stopped as terminate condition detected", clocks); 
+               $display("<%0d> [RVTESTER]: Debug poll stopped as test pass condition detected limit reached", clocks); 
             end
         end
     end
