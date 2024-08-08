@@ -45,6 +45,7 @@ DEFINE_uint64(sp_ways_num, 0x1, "Number of sharedcache ways to be alloted as Scr
 DEFINE_string(set_csr, "", "+set_csr=<csr_num>:<value>,<num2>:<val2> ");
 DEFINE_string(set_mmr, "", "+set_mmr=<addr>:<size>:<value>,<addr2>:<size>:<val2>");
 DEFINE_uint64(seed, 1, "Simulation seed passed down for randomization");
+DEFINE_bool(rand_core_harvest, false, "Randomize core harvest options");
 DEFINE_uint32(num_harts, 0, "Number of enabled harts - upto 8");
 DEFINE_uint32(hart_enable_mask, 0, "Hart enable mask. Ex: With 2 enabled harts in a 8-hart system, could be 0x18. Should match num_harts.");
 DEFINE_string(hart_enable_id, "", "Hart id sequence corresponding to physical cores. Ex: With 2 enabled harts in a 8-hart system, could be 4,3 i.e. hart0=core4, hart1=core3.");
@@ -193,7 +194,10 @@ sysmod::core_harvest_plusargs()
     case 0: // Nothing specified. Assume nharts = ncores.
       FLAGS_num_harts = ncores;
       FLAGS_hart_enable_mask = (1u << ncores) - 1;
-      FLAGS_hart_enable_id = get_rand_id(FLAGS_hart_enable_mask, ncores);
+      if (FLAGS_rand_core_harvest)
+        FLAGS_hart_enable_id = get_rand_id(FLAGS_hart_enable_mask, ncores);
+      else
+        FLAGS_hart_enable_id = get_id(FLAGS_hart_enable_mask, ncores);
       break;
     case 1: // +hart_enable_id
       FLAGS_num_harts = id_harts;
@@ -201,7 +205,10 @@ sysmod::core_harvest_plusargs()
       break;
     case 2: // +hart_enable_mask
       FLAGS_num_harts = mask_harts;
-      FLAGS_hart_enable_id = get_rand_id(mask, ncores);
+      if (FLAGS_rand_core_harvest)
+        FLAGS_hart_enable_id = get_rand_id(mask, ncores);
+      else
+        FLAGS_hart_enable_id = get_id(mask, ncores);
       break;
     case 3: // +hart_enable_mask, +hart_enable_id
       if (mask_harts != id_harts)
@@ -209,8 +216,13 @@ sysmod::core_harvest_plusargs()
       FLAGS_num_harts = mask_harts;
       break;
     case 4: // +num_harts
-      FLAGS_hart_enable_mask = get_rand_mask(nharts, ncores);
-      FLAGS_hart_enable_id = get_rand_id(FLAGS_hart_enable_mask, ncores);
+      if (FLAGS_rand_core_harvest) {
+        FLAGS_hart_enable_mask = get_rand_mask(nharts, ncores);
+        FLAGS_hart_enable_id = get_rand_id(FLAGS_hart_enable_mask, ncores);
+      } else {
+        FLAGS_hart_enable_mask = (1u << nharts) - 1;
+        FLAGS_hart_enable_id = get_id(FLAGS_hart_enable_mask, ncores);
+      }
       break;
     case 5: // +num_harts, +hart_enable_id
       if (nharts != id_harts)
@@ -347,6 +359,28 @@ sysmod::get_rand_id(uint32_t mask, uint32_t ncores)
 
   // Shuffle the vector
   std::shuffle(std::begin(positions), std::end(positions), cvm::rand::gen);
+
+  // String the positions into a list
+  std::string result;
+  for (size_t i = 0; i < positions.size(); ++i) {
+    result += std::to_string(positions[i]);
+    if (i < positions.size() - 1) 
+      result += ",";
+  }
+  return result;
+}
+
+std::string
+sysmod::get_id(uint32_t mask, uint32_t ncores)
+{
+  // Ex: input: mask=0x9a - available cores: 1,3,4,7
+  // Ex: output: hart_enable_id ex: 4,7,1,3 - can be in any order
+
+  // Create and fill a vector with positions from the mask
+  std::vector<uint32_t> positions{};
+  for (uint32_t i = 0; i < ncores; ++i)
+    if ((mask >> i) & 1u)
+      positions.push_back(i);
 
   // String the positions into a list
   std::string result;
