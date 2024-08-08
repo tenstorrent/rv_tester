@@ -369,7 +369,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::reset_ptrs() {
 
 extern "C" {
 
-  void axi_sw_mst_set_scope(cvm::topology::loc_t loc) {
+  std::uint8_t axi_sw_mst_set_scope(cvm::topology::loc_t loc) {
     svScope scope = svGetScope();
 
     axi_sw_mst_ar_reset();
@@ -379,6 +379,8 @@ extern "C" {
     cvm::registry::messenger.signal<svScope>(
         loc,
         scope);
+
+    return 0;
   }
 
 }
