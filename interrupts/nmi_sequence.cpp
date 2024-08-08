@@ -73,6 +73,7 @@ cvm::messenger::task<void> nmi_sequence::random_mode() {
 cvm::messenger::task<void> nmi_sequence::trigger_mode() {
   while(1){
      // Wait for next selected trigger
+     std::cout <<"NMI TRIGGER LOOP : wait for trigger\n";
      co_await trigger();
 
      // Wait for random ticks after trigger
@@ -80,6 +81,7 @@ cvm::messenger::task<void> nmi_sequence::trigger_mode() {
      for(int i=0;i<num_ticks;i++)
        co_await tick();
 
+     std::cout <<"NMI TRIGGER LOOP : drive NMI\n";
      nmi(id_, ASSERT);
 
      // Wait for next tick generated after a random width "nmi_width"

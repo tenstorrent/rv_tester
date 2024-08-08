@@ -24,6 +24,7 @@ external_interrupt_sequence::external_interrupt_sequence(cvm::topology::loc_t lo
   cvm::rand::seed(1);
 
   // trigger sequence threads
+  interrupts_driven = 0;
   if (FLAGS_interrupt_trigger_en) {
     trigger_mode_thread();
   }
@@ -71,7 +72,7 @@ cvm::messenger::task<void> external_interrupt_sequence::trigger_mode() {
   // Wait for next selected trigger
   while(1){
     bool abrupt_exit = false;
-
+    std::cout <<"EXT INTP TRIGGER : wait for trigger\n";
     co_await trigger();
     if(last_trigger != current_trigger){ //trigger transition detected
       gen_interrupt_timings();//empty as of today
@@ -82,6 +83,7 @@ cvm::messenger::task<void> external_interrupt_sequence::trigger_mode() {
        uint8_t num = rng1() % 10 ;//dist.get(); // will be a random number with the weight distribution every time
        
        for(int i =0; i< num;i++){
+         std::cout <<"EXT INTP TRIGGER LOOP : wait for trigger\n";
          co_await trigger();
          if(last_trigger != current_trigger){
            abrupt_exit = true;
@@ -90,6 +92,7 @@ cvm::messenger::task<void> external_interrupt_sequence::trigger_mode() {
        }
       
        if(!abrupt_exit){
+         std::cout <<"EXT INTP TRIGGER LOOP : drive interrupt\n";
          drive_interrupt();
          interrupts_driven++;
        }
@@ -117,7 +120,7 @@ void external_interrupt_sequence::drive_interrupt(){
    unsigned vs_id          = (rng1() % (FLAGS_imsic_vs_intr_threshold )) ; //gen iter between 1 to max simul instr
    
 
-   cvm::log(cvm::HIGH,"[ExtInterruptSeq] IMSIC interrupt num: {} interrupt file: {} Interrupt hart:{} hypervisor/supervisor id : {}\n", static_cast<uint32_t>(interrupt_num), interrupt_file, interrupt_hart, vs_id);
+   cvm::log(cvm::LOW,"[ExtInterruptSeq] IMSIC interrupt num: {} interrupt file: {} Interrupt hart:{} hypervisor/supervisor id : {}\n", static_cast<uint32_t>(interrupt_num), interrupt_file, interrupt_hart, vs_id);
    
    uint32_t addr1 = 0x900;
    if(interrupt_file == 0x0){
