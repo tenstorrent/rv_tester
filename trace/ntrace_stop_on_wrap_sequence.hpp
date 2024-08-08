@@ -25,11 +25,21 @@ class ntrace_stop_on_wrap_sequence {
     cvm::messenger::task<void> main();
     cvm::messenger::task<void> core_no_fetch();
 
+    cvm::messenger::task<void> enable_trace_funnel();
+    cvm::messenger::task<void> disable_trace_funnel();
+    cvm::messenger::task<void> deactivate_trace_funnel();
     cvm::messenger::task<void> poll_ntrace_ram_en();
     cvm::messenger::task<void> disable_ntrace_ram();
     cvm::messenger::task<void> read_ntrace_ram();
     cvm::messenger::task<void> enable_ntrace_ram();
     cvm::messenger::task<void> enable_ntrace();
+    cvm::messenger::task<void> check_dst_trace_ram_en();
+    cvm::messenger::task<void> poll_dst_trace_ram_en();
+    cvm::messenger::task<void> disable_dst_trace_ram();
+    cvm::messenger::task<void> read_dst_trace_ram();
+    cvm::messenger::task<void> enable_dst_trace_ram();
+    cvm::messenger::task<void> enable_dst_trace();
+    cvm::messenger::task<void> disable_dst_trace();
 
     cvm::messenger::task<void> tick();
     cvm::messenger::task<uint64_t> read(uint64_t addr, size_t sz);
