@@ -50,7 +50,7 @@ import rv_tester_params::*;
   int unsigned trigger_start_clocks = 0;
   bit event_based_interrupt = 0;
   int unsigned dut_clocks = 0;
-  always @(event_trigger) begin
+  always @(posedge event_trigger[PATCH]) begin
       /* verilator lint_off BLKSEQ */
     if (tb_reset) begin
       //prev_event_trigger = event_trigger;
