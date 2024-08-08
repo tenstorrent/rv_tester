@@ -1,5 +1,5 @@
 #pragma once
-
+#include <iostream>
 #include "cvm/registry.hpp"
 #include "cvm/logger.hpp"
 #include "cvm/plusargs.hpp"
