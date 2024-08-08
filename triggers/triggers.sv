@@ -47,28 +47,29 @@ import rv_tester_params::*;
   bit [TRIGGER_COUNT-1:0] prev_event_trigger = 0;
   bit interrupt_trigger_in_progress = 0;
   int unsigned captured_clocks = 0;
+  int unsigned trigger_start_clocks = 0;
   bit event_based_interrupt = 0;
   int unsigned dut_clocks = 0;
-  always @(posedge tb_clk) begin
+  always @(event_trigger) begin
       /* verilator lint_off BLKSEQ */
     if (tb_reset) begin
-      prev_event_trigger = event_trigger;
+      //prev_event_trigger = event_trigger;
+      event_based_interrupt = 1'b0;
     end
     else begin 
-        if (event_trigger != prev_event_trigger) begin
-            event_based_interrupt = 1'b1;
-            captured_clocks = dut_clocks;
-        end
-        if(dut_clocks < captured_clocks + 50 ) begin
-            event_based_interrupt = 1'b0;
-        end
+          event_based_interrupt = 1'b1;
+          trigger_start_clocks = dut_clocks;
     end
-    prev_event_trigger = event_trigger;
       /* verilator lint_on BLKSEQ */
 end
 
   always @(posedge dut_clk) begin
     dut_clocks <= dut_clocks + 1;
+    if(trigger_start_clocks + 50 == dut_clocks)
+      /* verilator lint_off BLKSEQ */
+          event_based_interrupt = 1'b0;
+      /* verilator lint_on BLKSEQ */
+
   end
 
   // m_event_trigger_ticks
