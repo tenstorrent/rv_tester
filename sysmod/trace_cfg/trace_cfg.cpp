@@ -114,7 +114,7 @@ void trace_cfg::gen_data_strb(uint64_t addr, uint32_t value, data_t& wdata, std:
 }
 
 void trace_cfg::push_clk_halt_cfg() {
-  cvm::log(cvm::HIGH, "[overlay axi] Push CLK HALT Configs\n");
+  cvm::log(cvm::LOW, "[overlay axi] Push CLK HALT Configs\n");
   trace_wr_txn_q.push({trace_mmr::CDBG_CLA_CTRL_STS_CFG,0x40});
   trace_wr_txn_q.push({trace_mmr::CDBG_CLA_COUNTER0_CFG,0x40000000});
   trace_wr_txn_q.push({trace_mmr::CDBG_NODE0_EAP0_CFG,0x10049});
@@ -123,7 +123,7 @@ void trace_cfg::push_clk_halt_cfg() {
 }
 
 void trace_cfg::push_cla_nmi_cfg() {
-  cvm::log(cvm::HIGH, "[overlay axi] Push CLA NMI Configs\n");
+  cvm::log(cvm::LOW, "[overlay axi] Push CLA NMI Configs\n");
   trace_wr_txn_q.push({trace_mmr::CDBG_CLA_CTRL_STS_CFG,0x40});
   trace_wr_txn_q.push({trace_mmr::CDBG_CLA_COUNTER0_CFG,0x25000000});
   trace_wr_txn_q.push({trace_mmr::CDBG_NODE0_EAP0_CFG,0x10049});
