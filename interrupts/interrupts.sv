@@ -32,7 +32,7 @@ import rv_tester_params::*;
     end
     if (~tb_reset & tb_reset_d1) begin
       /* verilator lint_off BLKSEQ */
-      location = cvm_topology::get_location(topology_pkg::mods.TOP.PLATFORM.INTERRUPTS.ID, NUM);
+      location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.INTERRUPTS.ID, NUM);
       if (location != cvm_topology::nil) begin
         interrupts_set_scope(location);
         nmi_mode = cvm_plusargs::get_string("nmi");

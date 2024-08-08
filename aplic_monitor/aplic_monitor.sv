@@ -8,13 +8,13 @@ module aplic_monitor #(
   input bit terminate,
   input rv_tester_params::aplic_mmr_req_top axi_req_mst, //MMR REQ
   input rv_tester_params::aplic_mmr_resp_top axi_resp_mst, //MMR REQ
-  input rv_tester_params::aplic_msi_slv_req_top msi_axi_req, //MMR READ 
+  input rv_tester_params::aplic_msi_slv_req_top msi_axi_req, //MMR READ
   input logic[1023:0] aplic_pin_input,
   input logic [7:0] misc_signals,
   `RV_TESTER_TRANSACTIONS_APLIC_MONITOR_OUTPUT_PORTS
 );
 
-    int unsigned location = cvm_topology::nil;
+    parameter int unsigned location = cvm_topology_gen::get_location (topology.TOP.PLATFORM.APLIC_MONITOR.ID, 0);
     logic[1023:0] aplic_pin_input_prev;
     logic pin_changed_at_clock_edge;
     logic reset_done;
@@ -25,7 +25,6 @@ module aplic_monitor #(
             /* verilator lint_on BLKSEQ */
         if (reset) begin
             /* verilator lint_off BLKSEQ */
-            location = cvm_topology::get_location(topology.TOP.PLATFORM.APLIC_MONITOR.ID, 0);
             //$display("SV: APLIC_MONITOR location %d time %t\n",location,$time);
             /* verilator lint_on BLKSEQ */
             /* verilator lint_off BLKSEQ */
@@ -40,13 +39,13 @@ module aplic_monitor #(
         // end
 
     end
-    
+
     assign pin_changed_at_clock_edge = ( aplic_pin_input_prev!== aplic_pin_input) ? 1'b1 : 1'b0;
     //APLIC INPUT PINS MONITOR
     assign aplic_intr_reqs[0].valid = !reset && pin_changed_at_clock_edge &&(reset_done=== 1'b1);
     assign aplic_intr_reqs[0].data.location = location;
     assign aplic_intr_reqs[0].data.pin_value = aplic_pin_input;
-    
+
     //APLIC MMR WRITE MONITOR
     assign aplic_mmr_stores[0].valid = !reset && axi_req_mst.w_valid && axi_req_mst.aw_valid && axi_resp_mst.aw_ready && (reset_done=== 1'b1);
     assign aplic_mmr_stores[0].data.location = location;
