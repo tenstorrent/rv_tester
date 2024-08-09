@@ -37,6 +37,7 @@ class nmi_sequence {
   private:
 
     cvm::topology::loc_t loc_;
+    cvm::topology::loc_t triggers_loc;
     unsigned id_;
     svScope scope_;
 

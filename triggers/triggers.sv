@@ -35,7 +35,6 @@ import rv_tester_params::*;
     tb_reset_d1 <= tb_reset;
     if (~tb_reset & tb_reset_d1) begin
       /* verilator lint_off BLKSEQ */
-     // location = cvm_topology::get_location(topology_pkg::mods.TOP.PLATFORM.TRIGGERS.ID, NUM);
       location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.TRIGGERS.ID, NUM);
       if (location != cvm_topology::nil) begin
         triggers_set_scope(location);

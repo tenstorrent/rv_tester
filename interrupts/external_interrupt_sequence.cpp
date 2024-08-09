@@ -18,12 +18,17 @@ external_interrupt_sequence::external_interrupt_sequence(cvm::topology::loc_t lo
       [this](const rv_tester_transactions::triggers::m_event_trigger_tick<>& t) { return this->capture_trigger_info(t.event_trigger); }); 
   
   auto masters = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST");
+
   
   axi_mst_loc_l = masters[0];
+  
+  
+  triggers_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.TRIGGERS", 0);
+
 
   cvm::rand::seed(1);
 
-  // trigger sequence threads
+  // trigger sequence threads`
   interrupts_driven = 0;
   if (FLAGS_interrupt_trigger_en) {
     trigger_mode_thread();
@@ -72,7 +77,6 @@ cvm::messenger::task<void> external_interrupt_sequence::trigger_mode() {
   // Wait for next selected trigger
   while(1){
     bool abrupt_exit = false;
-    std::cout <<"EXT INTP TRIGGER : wait for trigger\n";
     co_await trigger();
     if(last_trigger != current_trigger){ //trigger transition detected
       gen_interrupt_timings();//empty as of today
@@ -83,7 +87,6 @@ cvm::messenger::task<void> external_interrupt_sequence::trigger_mode() {
        uint8_t num = rng1() % 10 ;//dist.get(); // will be a random number with the weight distribution every time
        
        for(int i =0; i< num;i++){
-         std::cout <<"EXT INTP TRIGGER LOOP : wait for trigger\n";
          co_await trigger();
          if(last_trigger != current_trigger){
            abrupt_exit = true;
@@ -92,7 +95,6 @@ cvm::messenger::task<void> external_interrupt_sequence::trigger_mode() {
        }
       
        if(!abrupt_exit){
-         std::cout <<"EXT INTP TRIGGER LOOP : drive interrupt\n";
          drive_interrupt();
          interrupts_driven++;
        }
@@ -102,12 +104,12 @@ cvm::messenger::task<void> external_interrupt_sequence::trigger_mode() {
 
 
 cvm::messenger::task<void> external_interrupt_sequence::tick() {
-  co_await cvm::registry::messenger.wait<rv_tester_transactions::triggers::m_event_trigger_tick<>>(loc_);
+  co_await cvm::registry::messenger.wait<rv_tester_transactions::triggers::m_event_trigger_tick<>>(triggers_loc);
   co_return;
 }
 
 cvm::messenger::task<void> external_interrupt_sequence::trigger() {
-  co_await cvm::registry::messenger.wait<rv_tester_transactions::triggers::m_event_trigger_tick<>>(loc_);
+  co_await cvm::registry::messenger.wait<rv_tester_transactions::triggers::m_event_trigger_tick<>>(triggers_loc);
   co_return;
 }
 

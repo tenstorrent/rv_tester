@@ -21,6 +21,7 @@ nmi_sequence::nmi_sequence(cvm::topology::loc_t loc, unsigned id) : loc_(loc), i
 
   // Scope
   cvm::registry::messenger.connect<svScope>(loc_, [this](svScope s) { return this->set_scope(s); });
+  triggers_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.TRIGGERS", 0);
    
   cvm::rand::seed(1);
 
@@ -114,7 +115,7 @@ cvm::messenger::task<void> nmi_sequence::tick() {
 }
 
 cvm::messenger::task<void> nmi_sequence::trigger() {
-  co_await cvm::registry::messenger.wait<rv_tester_transactions::triggers::m_event_trigger_tick<>>(loc_);
+  co_await cvm::registry::messenger.wait<rv_tester_transactions::triggers::m_event_trigger_tick<>>(triggers_loc);
   co_return;
 }
 
