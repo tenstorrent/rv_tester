@@ -201,12 +201,14 @@ void debugger::parse_dmi_from_csv()
     }
 
     // Add a dummy check-point to ensure all DMI commands part of the previous trigger is executed
-    dmi_req_t dmi_req;
-    dmi_req.op = 3;
-    dmi_req.addr = 0;
-    dmi_req.data = 0;
-    dmi_req.func_bits = 0;
-    dmi_cmd_q.push(dmi_req);
+    if (FLAGS_random_dbg_entry) {
+      dmi_req_t dmi_req;
+      dmi_req.op = 3;
+      dmi_req.addr = 0;
+      dmi_req.data = 0;
+      dmi_req.func_bits = 0;
+      dmi_cmd_q.push(dmi_req);
+    }
 
     file_parsing_done = 1;
   }
