@@ -1,5 +1,6 @@
 #include "ntrace_stop_on_wrap_sequence.hpp"
 #include "sysmod/sysmod_plusargs.h"
+#include "fmt/ranges.h"
 
 REGISTRY_register(ntrace_stop_on_wrap_sequence, TRACE, cvm::registry::all);
 
@@ -255,19 +256,27 @@ cvm::messenger::task<uint64_t> ntrace_stop_on_wrap_sequence::read(uint64_t addr,
 }
 
 cvm::messenger::task<void> ntrace_stop_on_wrap_sequence::write(uint64_t addr, size_t sz, uint64_t data, bool block /* = true */) {
-  cvm::log(cvm::NONE, "[trace] Entered into write  addr={:#x},\n", addr);
   assert(sz <= 8);
+
+  uint64_t offset = addr & 0x3f;
+  uint64_t aligned_addr = addr & ~0x3full;
+  auto byte_array = convert_to_byte_array(data, offset);
+
   uint64_t mask = (sz == 8) ? ~uint64_t(0) : ((uint64_t)1 << (sz*8)) - 1;
-  auto byte_array = convert_to_byte_array({data});
-  std::vector<bool> strb(8, false);
-  for(int i=0; i<8; ++i)
-    strb[i] = (mask & (0xFFull << (i*8))) != 0;
-  cvm::log(cvm::NONE, "[trace] write req - addr={:#x}, sz={}, data={:#x}, strb={:#x}\n", addr, sz, data, mask);
-  cvm::registry::messenger.signal(axi_mst_loc_, transactor::write_request_t{addr, sz, byte_array, strb});
+  mask <<= (offset * 8);
+
+  std::bitset<64> mask_bits(mask);
+  std::vector<bool> strb(64, false);
+  for (int i = 0; i < 64; ++i) {
+      strb[i] = mask_bits.test(i);
+  }
+
+  cvm::log(cvm::NONE, "[trace] write req - addr={:#x}, sz={}, data={:#x}, mask={:#x}\n", aligned_addr, sz, data, mask);
+  cvm::registry::messenger.signal(axi_mst_loc_, transactor::write_request_t{aligned_addr, sz, byte_array, strb});
   if (!block)
     co_return;
   auto resp = co_await cvm::registry::messenger.wait<transactor::write_response_t>(axi_mst_loc_);
-  cvm::log(cvm::NONE, "[trace] write resp - id={}, addr={:#x}, sz={}, data={:#x}, strb={:#x}\n", resp.id, addr, sz, data, mask);
+  cvm::log(cvm::NONE, "[trace] write resp - id={}, addr={:#x}, sz={}, data={:#x}, mask={:#x}\n", resp.id, aligned_addr, sz, data, mask);
   co_return;
 }
 
@@ -279,12 +288,14 @@ std::vector<uint64_t> ntrace_stop_on_wrap_sequence::convert_to_dword_array(const
   return result;
 }
 
-std::vector<uint8_t> ntrace_stop_on_wrap_sequence::convert_to_byte_array(const std::vector<uint64_t>& dword_array) {
-  std::vector<uint8_t> result(dword_array.size() * sizeof(uint64_t));
-  std::copy(reinterpret_cast<const uint8_t*>(dword_array.data()),
-            reinterpret_cast<const uint8_t*>(dword_array.data()) + dword_array.size() * sizeof(uint64_t),
-            result.begin());
-  return result;
+std::vector<uint8_t> ntrace_stop_on_wrap_sequence::convert_to_byte_array(uint64_t data, uint64_t shift) {
+    std::vector<uint8_t> byte_vector(64, 0); // Initialize a 64-byte vector with zeros
+    for (int i = 0; i < 8; ++i) {
+        if (shift + i < 64) {
+            byte_vector[shift + i] = static_cast<uint8_t>((data >> (i * 8)) & 0xFF);
+        }
+    }
+    return byte_vector;
 }
 
 //void ntrace_stop_on_wrap_sequence::init() {

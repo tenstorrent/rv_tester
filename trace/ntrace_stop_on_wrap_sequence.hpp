@@ -46,7 +46,7 @@ class ntrace_stop_on_wrap_sequence {
     cvm::messenger::task<void> write(uint64_t addr, size_t sz, uint64_t data, bool block = true);
 
     std::vector<uint64_t> convert_to_dword_array(const std::vector<uint8_t>& byte_array);
-    std::vector<uint8_t> convert_to_byte_array(const std::vector<uint64_t>& dword_array);
+    std::vector<uint8_t> convert_to_byte_array(uint64_t data, uint64_t shift);
 
     //void init();
 
