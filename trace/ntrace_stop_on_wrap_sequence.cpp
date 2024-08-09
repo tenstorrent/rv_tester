@@ -107,7 +107,7 @@ cvm::messenger::task<void> ntrace_stop_on_wrap_sequence::check_dst_trace_ram_en(
     if (data & (1 << tr_ram_enable_idx))
       break;
 
-    for(uint8_t cnt_loop=0;cnt_loop < 500;cnt_loop ++){
+    for(int cnt_loop=0;cnt_loop < 500;cnt_loop ++){
       co_await tick();
     }
   }
@@ -120,14 +120,14 @@ cvm::messenger::task<void> ntrace_stop_on_wrap_sequence::poll_dst_trace_ram_en()
   while (true) {
   auto data = co_await read(cdbg_cla_ctrl_status, SZ_8B);
   data = data & 0xFFFF'FF9F;
-  write(cdbg_cla_ctrl_status,SZ_8B,data);
+  co_await write(cdbg_cla_ctrl_status,SZ_8B,data);
   data = co_await read(tr_dst_control, SZ_4B);
   data = data & 0xFFFF'FFFD;
-    for(uint8_t cnt_loop=0;cnt_loop < 500;cnt_loop ++){
+    for(int cnt_loop=0;cnt_loop < 500;cnt_loop ++){
       co_await tick();
     }
     cvm::log(cvm::NONE, "[trace] read tr_ram_control\n");
-    auto data = co_await read(tr_dst_ram_control, SZ_4B);
+    data = co_await read(tr_dst_ram_control, SZ_4B);
     cvm::log(cvm::NONE, "[trace] read tr_ram_control data: {:#x}\n", data);
     if ((data & (1 << tr_ram_enable_idx)) == 0){
       cvm::log(cvm::NONE, "[trace] Checking DST Trace RAM Enable Completed....\n");
@@ -142,10 +142,10 @@ cvm::messenger::task<void> ntrace_stop_on_wrap_sequence::disable_dst_trace() {
   cvm::log(cvm::NONE, "[trace] Disabling DST Trace Generation....\n");
   auto data = co_await read(cdbg_cla_ctrl_status, SZ_8B);
   data = data & 0xFFFF'FF9F;
-  write(cdbg_cla_ctrl_status,SZ_8B,data);
+  co_await write(cdbg_cla_ctrl_status,SZ_8B,data);
   data = co_await read(tr_dst_control, SZ_4B);
   data = data & 0xFFFF'FFFD;
-  write(tr_dst_control,SZ_4B,data);
+  co_await write(tr_dst_control,SZ_4B,data);
 
   while(1){
     auto data = co_await read(tr_dst_control, SZ_4B);
@@ -162,7 +162,7 @@ cvm::messenger::task<void> ntrace_stop_on_wrap_sequence::disable_dst_trace_ram()
   cvm::log(cvm::NONE, "[trace] Disabling DST Trace RAM....\n");
   auto data = co_await read(tr_dst_ram_control, SZ_4B);
   data = data & 0xFFFF'FFFC;
-  write(tr_dst_ram_control,SZ_4B,data);
+  co_await write(tr_dst_ram_control,SZ_4B,data);
   cvm::log(cvm::NONE, "[trace] Disabling DST Trace RAM Completed....\n");
   co_return;
 }
@@ -186,49 +186,49 @@ cvm::messenger::task<void> ntrace_stop_on_wrap_sequence::enable_dst_trace_ram() 
   cvm::log(cvm::NONE, "[trace] Re-enabling DST Trace RAM....\n");
   auto data = co_await read(tr_dst_ram_control, SZ_4B);
   data = data | 0x3;
-  write(tr_dst_ram_control,SZ_4B,data);
+  co_await write(tr_dst_ram_control,SZ_4B,data);
   cvm::log(cvm::NONE, "[trace] Re-enabling DST Trace RAM Completed....\n");
   co_return;
 }
 
 cvm::messenger::task<void> ntrace_stop_on_wrap_sequence::enable_trace_funnel() {
   cvm::log(cvm::NONE, "[trace] Re-enabling DST Trace Funnel....\n");
-  write(tr_funnel_control,SZ_4B,0x3);
+  co_await write(tr_funnel_control,SZ_4B,0x3);
   cvm::log(cvm::NONE, "[trace] Re-enabling DST Trace Funnel Completed....\n");
   co_return;
 }
 
 cvm::messenger::task<void> ntrace_stop_on_wrap_sequence::disable_trace_funnel() {
   cvm::log(cvm::NONE, "[trace] Disabling DST Trace Funnel....\n");
-  write(tr_funnel_control,SZ_4B,0x1);
+  co_await write(tr_funnel_control,SZ_4B,0x1);
   cvm::log(cvm::NONE, "[trace] Disabling DST Trace Funnel Completed....\n");
   co_return;
 }
 
 cvm::messenger::task<void> ntrace_stop_on_wrap_sequence::deactivate_trace_funnel() {
   cvm::log(cvm::NONE, "[trace] Deactivate DST Trace Funnel....\n");
-  write(tr_funnel_control,SZ_4B,0x0);
+  co_await write(tr_funnel_control,SZ_4B,0x0);
   cvm::log(cvm::NONE, "[trace] Deactivate DST Trace Funnel Completed....\n");
   co_return;
 }
 
 cvm::messenger::task<void> ntrace_stop_on_wrap_sequence::enable_dst_trace() {
   cvm::log(cvm::NONE, "[trace] Re-enabling DST Trace....\n");
-  write(cdbg_cla_counter0,SZ_8B,0xA00'0000);
+  co_await write(cdbg_cla_counter0,SZ_8B,0xA00'0000);
 
   // Enable CLA CLK
   auto data = co_await read(cdbg_cla_ctrl_status, SZ_8B);
   data = data | 0x40; 
-  write(cdbg_cla_ctrl_status,SZ_8B,data);
+  co_await write(cdbg_cla_ctrl_status,SZ_8B,data);
   
   // Enable DST Packetizer
   auto dst_cntrl = co_await read(tr_dst_control, SZ_4B);
   dst_cntrl = dst_cntrl | 0x2;
-  write(tr_dst_control,SZ_4B,dst_cntrl);
+  co_await write(tr_dst_control,SZ_4B,dst_cntrl);
 
   // Enable CLA EAP
   data = data | 0x60; 
-  write(cdbg_cla_ctrl_status,SZ_8B,data);
+  co_await write(cdbg_cla_ctrl_status,SZ_8B,data);
   cvm::log(cvm::NONE, "[trace] Re-enabling DST Trace Completed....\n");
   co_return;
 }
