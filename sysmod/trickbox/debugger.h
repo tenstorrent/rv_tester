@@ -104,9 +104,9 @@ public:
       timer_ = 0;
       file_idx = rng() % csvFilePaths.size();
       timer_rand_debug = timer_ + FLAGS_random_dbg_start_delay + (rand_num * timer_advance);
-      cmd_trigger_rand_debug = timer_ + 50*FLAGS_random_dbg_start_delay + (rand_num * timer_advance); 
+      // cmd_trigger_rand_debug = timer_ + 50*FLAGS_random_dbg_start_delay + (rand_num * timer_advance); 
       cvm::log(cvm::HIGH, "Random Debug Injection of CSV file ID:{} Timer delay:{}\n", file_idx, timer_rand_debug);
-      cvm::log(cvm::HIGH, "Command Execution Trigger Timer delay:{}\n", cmd_trigger_rand_debug);
+      // cvm::log(cvm::HIGH, "Command Execution Trigger Timer delay:{}\n", cmd_trigger_rand_debug);
     }
   }
   void parse_dmi_from_csv();
@@ -148,33 +148,44 @@ public:
     cvm::log(cvm::FULL, "Timer chk dbg evt \n");
     if (FLAGS_random_dbg_entry)
     {
-      if (timer_ >= timer_rand_debug)
-      {
-        cvm::log(cvm::HIGH, "Timer passed random evt Value\n");
+      if ((timer_ >= timer_rand_debug) & (checkpoint_triggers_pending == 0) & (cmd_trigger_in_progress == false) & (file_parsing_in_progress == false))
+      { 
         if (snippets_driven < (unsigned)FLAGS_dbg_max_snippets)
         {
+          cvm::log(cvm::HIGH, "Rand Debug Timer passed, parsing the CSV snippet\n");
           parse_dmi_from_csv();
-          genNextDebugEvents();
           snippets_driven++;
+          file_parsing_in_progress = true;
+        }
+
+        if (file_parsing_done & file_parsing_in_progress){
+          cvm::log(cvm::HIGH, "CSV snippet parsing done, generating CmdTrigger event\n");
+          genNextCmdTriggerEvents();
+          file_parsing_in_progress = false;
+          cmd_trigger_in_progress = true;
         }
       }
 
-      if ((timer_ >= cmd_trigger_rand_debug) & (checkpoint_triggers_pending>0) & file_parsing_done) 
+      if ((timer_ >= cmd_trigger_rand_debug) & (checkpoint_triggers_pending>=0) & dmi_cmd_q.empty() & file_parsing_done & cmd_trigger_in_progress) 
       {
-        rand_dbg_entry_cmd_trigger = 1;
-        cvm::log(cvm::HIGH, "Timer passed random evt Value to provide cmd trigger\n");
-        checkpoint_triggers_pending -= 1;
-        if (checkpoint_triggers_pending>0)
-        {
-          genNextCmdTriggerEvents();
+        if (checkpoint_triggers_pending == 0)
+          genNextDebugEvents();
+        
+        else {
+          rand_dbg_entry_cmd_trigger = 1;
+          cvm::log(cvm::HIGH, "Timer passed random evt Value to provide cmd trigger\n");
+          checkpoint_triggers_pending -= 1;
+          if (checkpoint_triggers_pending>0)
+            genNextCmdTriggerEvents();
         }
+
       }
     }
   }
 
   void genNextCmdTriggerEvents()
   {
-    int32_t rand_num = (rng() % (FLAGS_dbg_delay_max - FLAGS_dbg_delay_min + 1)) + 10*FLAGS_dbg_delay_min;
+    int32_t rand_num = (rng() % (FLAGS_dbg_delay_max - FLAGS_dbg_delay_min + 1)) + 5*FLAGS_dbg_delay_min;
     cmd_trigger_rand_debug = timer_ + (rand_num * timer_advance);
     cvm::log(cvm::HIGH, "Next Command Execution Trigger Timer delay:{}\n", cmd_trigger_rand_debug);
   }
@@ -187,6 +198,8 @@ public:
       timer_rand_debug = timer_ + (rand_num * timer_advance);
       file_idx = rng() % csvFilePaths.size();
       cvm::log(cvm::HIGH, "Next Random Debug Injection of CSV file ID:{} Timer delay:{}\n", file_idx, timer_rand_debug);
+
+      cmd_trigger_in_progress = false;
     }
   }
 
@@ -229,4 +242,6 @@ private:
   unsigned file_idx = 0;
   bool file_loading_done = false;
   unsigned snippets_driven = 0;
+  bool file_parsing_in_progress = false;
+  bool cmd_trigger_in_progress = false;
 };
