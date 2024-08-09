@@ -43,10 +43,13 @@ class reset_sequence {
     cvm::messenger::task<void> write_thub_reg(uint8_t addr, uint32_t data, uint8_t satellite_num, uint8_t mbox_num);
     cvm::messenger::task<void> program_thub_threshold();
     cvm::messenger::task<void> release_cpl_nofetch();
+    cvm::messenger::task<void> patch_ram_check();
 
     cvm::messenger::task<uint64_t> read(uint64_t addr, size_t sz);
     cvm::messenger::task<void> write(uint64_t addr, size_t sz, uint64_t data);
     cvm::messenger::task<void> write(uint64_t addr, size_t sz, const std::vector<uint64_t>& data);
+    cvm::messenger::task<void>csr_write(uint32_t core_id, uint64_t addr, uint64_t data);
+    cvm::messenger::task<uint64_t>csr_read(uint32_t core_id, uint64_t addr);
 
     std::vector<uint64_t> convert_to_dword_array(const std::vector<uint8_t>& byte_array);
     std::vector<uint8_t> convert_to_byte_array(const std::vector<uint64_t>& dword_array);
@@ -65,6 +68,7 @@ class reset_sequence {
     void warm_reset(uint8_t assert);
     void reset_hold(uint8_t sram, uint8_t debug, uint8_t critical);
     void force_ref_clk(uint8_t assert);
+    void populate_patch_ram(uint64_t addr, const std::vector<uint64_t>& data);
 
   private:
 

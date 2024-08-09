@@ -1082,7 +1082,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
         cosim_period = cvm_plusargs::get_int("cosim_period");
         mcmi_poke_enable = cvm_plusargs::get_int("mcmi_poke_enables");
         max_instructions = cvm_plusargs::get_ulongint("max_instr");
-        hart_enable_mask = cvm_plusargs::get_ulongint("hart_enable_mask");
+        hart_enable_mask = cvm_plusargs::get_int("hart_enable_mask");
         debug_entry_pc_arg = cvm_plusargs::get_ulongint("debug_entry_pc");
         debug_exit_pc_arg  = cvm_plusargs::get_ulongint("debug_exit_pc");
 

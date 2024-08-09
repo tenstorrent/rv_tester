@@ -33,7 +33,6 @@ DEFINE_bool(whisper_exec, true, "Enable rvfi instr processing...disable useful f
 DEFINE_bool(bridge_log, true, "Enable bridge logging");
 DEFINE_string(whisper_json_path, "", "Path to whisper json config");
 DEFINE_bool(cosim_resynch, false, "Resynch whisper with dut state on every instruction");
-DEFINE_uint32(cosim_period, 0, "Cosim check period");
 DEFINE_string(cosim_resynch_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
 DEFINE_string(cosim_resynch_prev_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
 DEFINE_string(cosim_resynch_csr, "", "List of csr mnemonics to resynch whisper with dut state"); 
@@ -68,12 +67,14 @@ DEFINE_bool(whisper_cmd_log, false, "Enable whisper logging to iss_cmd.log");
 DEFINE_bool(whisper_stdin_null, false, "Redirect whisoer stdin to null");
 DEFINE_bool(whisper_stdout_null, false, "Redirect whisoer stdout to null");
 DEFINE_bool(preload, false, "Whisper preload");
+
 DEFINE_int32(mcmi_poke_enables, 0, "MCM interface poke enables");
 DEFINE_bool(psc_compare_only, true, "Peridoic COSIM will only compare current register states preload");
 DEFINE_uint64(debug_cycle, 0, "enabled debug");
+DEFINE_uint64(cosim_period, 0, "COSIM periodic mode enable");
 
-#define IF_DEBUG(str) if (debug_on_)  print(cvm::NONE, "DEBUG::line={: <5}::{: <30} ::{}\n",__LINE__,__FUNCTION__,str);
-//#define IF_DEBUG(str) if (0)  print(cvm::NONE, "DEBUG::line={: <5}::{: <30} ::{}\n",__LINE__,__FUNCTION__,str);
+//#define IF_DEBUG(str) if (debug_on_)  print(cvm::NONE, "DEBUG::line={: <5}::{: <30} ::{}\n",__LINE__,__FUNCTION__,str);
+#define IF_DEBUG(str) if (0)  print(cvm::NONE, "DEBUG::line={: <5}::{: <30} ::{}\n",__LINE__,__FUNCTION__,str);
 
 std::shared_ptr<whisperClient<uint64_t>> client_;
 //std::unique_ptr<whisperClient<uint64_t>> client_;
@@ -143,7 +144,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
       "mip","hip","vsip","hvip","sip","mireg","sireg","vsireg","mtopei","stopei","vstopei", // Permanent: Interrupts
       "mtopi", "stopi", "vstopi", // RVTOOLS-3189
       "hpmcounter","hpmevent","scountovf","mcycle","minstret","minstreth", // Permanent: PMC events
-      "dcsr","dscratch0","dscratch1" // Permanent: Debug events
+      "dcsr","dpc","dscratch0", "dscratch1" // Permanent: Debug events
 
     };
     std::istringstream iss(FLAGS_cosim_resynch_csr);
@@ -489,6 +490,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   //   - we only advance the missing steps on the FIRST rvfi packet sent on this time-stamp (cycle)
   //------------------------------------------------------------------------------------------------------------
   rvfi_calls_++;
+
   if (!FLAGS_whisper_exec) {
      return;
   }
@@ -531,8 +533,9 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
     whisper_time_ = whisper_time_ + (duration_cast<std::chrono::microseconds>(etime - stime).count());
   }
   if (patch_mode_) {
-    patch_mode_++;
+    //patch_mode_++;
     cac_.ResetStatus(hart);
+    patch_mode_ = 2;
     return;
   }
 
@@ -731,18 +734,15 @@ void bridge::pre_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
     opcode = instr.opcode;
   }
 
-  // Needed to Resynch data as well in MCM
-  // if (instr.mem_read.valid) {
-  //   log(cvm::NONE, "debug_mem_access (whisperPokeMem): pa={:#x} ; size={} ; data={}]\n", instr.mem_read.pa, 4, instr.mem_read.data);
-  //   if (!client_->whisperPokeMem(hart, 0, 'm', instr.mem_read.pa, instr.mem_read.size, instr.mem_read.data, valid)) {
-  //     print(cvm::ERROR, "Error: Hart {}: Failed to poke memory\n", hart);
-  //     return;
-  //   }
-  // }
-
   if (!client_->whisperPoke(hart, 0, 'm', instr.pc.pc_rdata, opcode, valid)) {
     print(cvm::ERROR, "Error: Hart {}: Failed to poke memory\n", hart);
     return;
+  }
+  if (instr.excp && (instr.ecause == 3)){
+    if (!client_->whisperPoke(hart, 0, 'r', 0x6, FLAGS_debug_entry_pc, valid)) {
+      print(cvm::ERROR, "Error: Hart {}: Failed to poke x6 register\n", hart);
+      return;
+    }
   }
   return;
 }
@@ -991,18 +991,19 @@ void bridge::post_step_exception_poke(hart_id_t hart, const rv_instr_t& d, whisp
   }
   
 
-  if (!d.excp && !w_.excp)
+  if (!d.excp && !w_.excp) {
     IF_DEBUG("d.excp==0 and w.excp==0");
     return;
-
+  }
 
   if (d.excp && is_custom_excp(d.ecause)) {
     IF_DEBUG("d.excp==1 and is_custom_excp ... return");
     bridge_log_(cvm::MEDIUM, "<{}> Custom exception detected: {}\n", d.cycle, d.ecause);
     // Vector conservative mode
-    if (d.ecause == 55)
+    if (d.ecause == 55) {
       IF_DEBUG("d.cause==55...resynch ");
       resynch(hart, d);
+    }
     return;
   }
   
@@ -1035,9 +1036,10 @@ void bridge::post_step_exception_poke(hart_id_t hart, const rv_instr_t& d, whisp
   num_exceptions_++;
 
   // If DUT indicates retire on ucode trap handler, extra step not needed
-  if (FLAGS_retire_ucode_trap)
+  if (FLAGS_retire_ucode_trap) {
     IF_DEBUG("FLAGS_retire_ucode_trap==1 ... return");
     return;
+  }
 
 
   step(hart, w);
@@ -1664,12 +1666,10 @@ bool bridge::imsic_mismatch(const std::string& instr) {
 }
 
 bool bridge::debug_mem_access(const rv_instr_t& d){
+  print(cvm::NONE, "<{}> debug_mem_access: valid={} for pa={}]\n", d.cycle, d.mem_read.valid, d.mem_read.pa);
   if (d.mem_read.valid && debug_mode_ &&
-      ((d.mem_read.pa < FLAGS_debug_entry_pc) || (d.mem_read.pa > FLAGS_debug_exit_pc)) &&
-      ((d.mem_read.pa >= FLAGS_debug_mem_base) && (d.mem_read.pa < (FLAGS_debug_mem_base + FLAGS_debug_mem_size)))
-      ) {
+      (d.mem_read.pa >= FLAGS_debug_mem_base) && (d.mem_read.pa < (FLAGS_debug_mem_base + FLAGS_debug_mem_size)))
     return true;
-  }
   return false;
 }
 
@@ -1838,6 +1838,12 @@ void bridge::resynch(hart_id_t hart, const rv_instr_group_t& d) {
 // Process mem accesses - load resolves
 void bridge::process_dut_mcm_read(hart_id_t hart, mem_t& m) {
   bool valid = false;
+  if (debug_mode_) {
+    if (!client_->whisperPokeMem(hart, m.cycle, 'm', m.pa, m.size, m.data, valid)) {
+      print(cvm::ERROR, "Error: Hart {}: Failed to poke memory\n", hart);
+      return;
+    }
+  }
   if (!client_->whisperMcmRead(hart, m.cycle, m.tag, m.pa, m.size, m.data, valid)) {
     print(cvm::ERROR, "Error: Hart {}: Failed mcm load resolve\n", hart);
     return;
