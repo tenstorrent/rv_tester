@@ -567,7 +567,7 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
     uint32_t offset = i * core_fuse_offset;
     for (auto j : patch_cfg)
       co_await write(j.first + offset, SZ_8B, j.second);
-    co_await csr_write(i, core_ptvec_csr , 0x4210C000);
+    //co_await csr_write(i, core_ptvec_csr , 0x4210C000); FIXME : Enable CSR write once its fixed
     co_await write(core_pcontrol_mmr + offset, SZ_8B, pcontrol_data);
   };
 
