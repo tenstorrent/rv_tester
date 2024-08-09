@@ -360,7 +360,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
     longint unsigned debug_entry_pc_arg;
     longint unsigned debug_exit_pc_arg;
     int cycles_since_retire;
-    longint unsigned hart_enable_mask;
+    int hart_enable_mask;
     bit boot_wfi;
 
     //--------------------------------------------------------------------------------------------
