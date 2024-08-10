@@ -29,10 +29,6 @@ module top
     );
 
     assign dut_clk = clk;
-    assign dut_reset[CORE_RESET_IDX] = reset[COLD_RESET_IDX];
-    assign dut_reset[AXI_RESET_IDX] = reset[COLD_RESET_IDX];
-    assign dut_reset[SOC_RESET_IDX] = reset[COLD_RESET_IDX];
-    assign dut_reset[REF_RESET_IDX] = reset[COLD_RESET_IDX];
 
     function automatic void write_rvfi(byte unsigned valid, int unsigned order, int unsigned hartid, int unsigned nretid, int unsigned insn, longint unsigned pc);
         int unsigned idx = hartid * cvm_topology_gen::mods.TOP.PLATFORM.COSIM.RVFI.NRETS_CUMSUM[hartid] + nretid;
