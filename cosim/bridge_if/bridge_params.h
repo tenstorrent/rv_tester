@@ -22,7 +22,7 @@ namespace {
         uint64_t address;
     };
 
-    std::array<csr_entry, 356> csrs {{
+    std::array<csr_entry, 357> csrs {{
         {"fflags", 0x001},
         {"frm", 0x002},
         {"fcsr", 0x003},
@@ -348,6 +348,7 @@ namespace {
         {"stopei", 0x15c},
         {"vstopei", 0x25c},
         {"stopi", 0xDB0},
+        {"vstopi", 0xEB0},
         {"miselect", 0x350},
         {"mtopei", 0x35C},
         {"mtopi", 0xFB0},
@@ -1012,6 +1013,15 @@ namespace {
         {MSCRATCH, 0x340},
         {SSCRATCH, 0x140},
         {VSSCRATCH, 0x240}
+    };
+
+    const std::unordered_map<renamed_csr_reg, std::string_view> renamed_csr_to_string = {
+        {MEPC, "mepc"},
+        {SEPC, "sepc"},
+        {VSEPC, "vsepc"},
+        {MSCRATCH, "mscratch"},
+        {SSCRATCH, "sscratch"},
+        {VSSCRATCH, "vsscratch"}
     };
 
 }

@@ -218,9 +218,9 @@ always @(posedge clk) begin
     read_data_valid_reg <= 1'b0; 
     jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1 : 66],jtag_resp.tdo,jtag_rx[65 :1]};
     read <= 1;
-  end else if (dr && ~jtag_resp.tdo_en && (tap_sel == 7)) begin      //core h2 [TODO] update with correct behavior of H2 path
+  end else if (dr && ~jtag_resp.tdo_en && (tap_sel == 7)) begin      //core h2
     read_data_valid_reg <= 1'b0; 
-    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1 : 66],jtag_resp.tdo,jtag_rx[65 :1]};
+    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1:67],jtag_resp.tdo,jtag_rx[66 :1]};
     read <= 1;
   end else begin
     if(read)begin

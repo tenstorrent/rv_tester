@@ -143,8 +143,8 @@ void jtag_driver::parse_jtag_from_csv()
         cvm::log(cvm::ERROR, "Error: unknown command {} in jtag cfg file {}\n",jtag_cmd, FLAGS_jtag_input_file_path);
       }
       
-      if(jtag_req.jtag_cmd<3){ 
-         length = row[2];  //length NA for nop and check
+      if(jtag_req.jtag_cmd<3 || jtag_req.jtag_cmd == 4){ 
+         length = row[2];  //length NA for nop 
       }
       
       data_s.erase(std::remove_if(data_s.begin(), data_s.end(), ::isspace), data_s.end());
@@ -181,7 +181,7 @@ void jtag_driver::parse_jtag_from_csv()
          }
 
       }
-      if((jtag_req.jtag_cmd<3) || (jtag_req.jtag_cmd ==6)){
+      if((jtag_req.jtag_cmd<3) || (jtag_req.jtag_cmd ==6) || (jtag_req.jtag_cmd ==4)){
         try{
           jtag_req.jtag_length_data = std::stoul(length,nullptr,10);
           
@@ -191,15 +191,7 @@ void jtag_driver::parse_jtag_from_csv()
       }else{
          jtag_req.jtag_length_data = 0;
       }
-      if(jtag_req.jtag_cmd == 11){
-        try{
-          tap_cfg_sel = std::stoul(data_s,nullptr,16); 
-          
-        } catch (const std::invalid_argument& e) {
-            std::cerr << "[JTAG DRIVER] Invalid argument for stoul csv arg 2: " << e.what() << std::endl;
-        }
-        continue;
-      }
+      
       content.push_back(row);
       jtag_cmd_q.push(jtag_req);
       // PRINT CSV DATA
@@ -263,12 +255,17 @@ void jtag_driver::drive_csv_jtag_cmds()
 
     if(jtag_cmd == 4){  //ck expecting check on rdata
       //check last saved rdata == lower_jtag_data ??
-      if(loop_rdata == lower_jtag_data){
+      uint64_t mask = (1ULL << reg_length_data) - 1;
+      auto result = reg_length_data == 64 ? loop_rdata : loop_rdata & mask;
+
+      cvm::log(cvm::HIGH, "[JTAGDRIVER] reg_length_data {} loop_rdata {:#x} lower_jtag_data {:#x} mask {:#x} expression {:#x}\n",reg_length_data,loop_rdata,lower_jtag_data,mask,(1 << reg_length_data));
+      
+      if(result == lower_jtag_data){
        //PASS
-       cvm::log(cvm::HIGH, "[JTAGDRIVER] jtag check opcode Passed! expected {:#x} got {:#x} \n", lower_jtag_data,loop_rdata);
+       cvm::log(cvm::HIGH, "[JTAGDRIVER] jtag check opcode Passed! expected {:#x} got {:#x} \n", lower_jtag_data,result);
       }else{
        //FAIL
-       cvm::log(cvm::ERROR, "ERROR: [JTAGDRIVER] jtag check opcode failed! expected {:#x} got {:#x} \n", lower_jtag_data,loop_rdata);
+       cvm::log(cvm::ERROR, "\nERROR: [JTAGDRIVER] jtag check opcode failed! expected {:#x} got {:#x} \n", lower_jtag_data,result);
       }
       jtag_cmd_q.pop(); // pop front eleme7t
     }
@@ -313,6 +310,19 @@ void jtag_driver::drive_csv_jtag_cmds()
       jtag_cmd_q.pop(); // pop front element
     }
     
+    if(jtag_req.jtag_cmd == 11 && lower_jtag_data <= 8){
+        
+        try{
+          tap_cfg_sel = lower_jtag_data; 
+          cvm::log(cvm::HIGH, "[JTAGDRIVER] tap_sel {} \n", tap_cfg_sel);
+          
+        } catch (const std::invalid_argument& e) {
+            std::cerr << "[JTAG DRIVER] Invalid argument for stoul csv arg 2: " << e.what() << std::endl;
+        }
+        jtag_cmd_q.pop();
+        // continue;
+    }
+
     if(jtag_cmd == 5){ //ls loop start
       
       unsigned jtag_cmd_temp = 0;

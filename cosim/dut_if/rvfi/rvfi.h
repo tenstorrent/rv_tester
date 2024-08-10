@@ -61,6 +61,7 @@ class rvfi {
     void process(const rv_tester_transactions::cosim::m_mcmi_ievict<>& m_mcmi_ievict);
 
     void process(const rv_tester::terminate_called&);
+    void process(const bridge::error &);
 
     std::tuple<uint64_t, uint64_t, uint8_t> get_mem_attributes(uint64_t addr, uint8_t mask, uint64_t data);
 
@@ -98,6 +99,8 @@ class rvfi {
     bool ucode_ = false;
     bool intr_ = false;
     bool excp_ = false;
+    bool patch_mode_         = false;
+    bool disable_patch_mode_ = false;
     uint64_t icause_ = 0;
     uint64_t ecause_ = 0;
     uint8_t priv_ = 3;
@@ -107,6 +110,7 @@ class rvfi {
     std::vector<vr_t> cracked_vrs_;
     std::vector<csr_t> hw_csrs_, ucode_csrs_;
     uint32_t cracked_flags_ = 0;
+    bool vec_cracked_ = false;
     gpr_s cracked_gpr_;
 
     std::unordered_map<uint64_t, mem_t> ifetch_reqs_;
@@ -117,4 +121,5 @@ class rvfi {
     svScope scope_;
 
     bool terminated_ = false;
+    bool in_debug_mode_ = false;
 };

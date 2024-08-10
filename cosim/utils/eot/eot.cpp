@@ -6,9 +6,14 @@
 #include "sysmod/htif/htif.h"
 #include "sysmod/sysmod_plusargs.h"
 
+constexpr std::uint64_t recent_pc_default = std::numeric_limits<std::uint64_t>::max();
+
 DEFINE_string(eot, "tohost", "Enable end-of-test mechanism. Supported options: tohost, max_instr, tohost_all");
 DEFINE_uint64(tohost, 0x0, "Use this tohost address if provided");
 DEFINE_uint64(max_instr, 100000, "Max instruction limit to terminate the sim");
+DEFINE_uint64(min_instr,      0, "min instruction limit to pass the sim");
+DEFINE_uint64(recent_pc, recent_pc_default, "The PC that must be in the last +recent_pc_instr instructions before the test ended");
+DEFINE_uint64(recent_pc_instr, 100000, "+recent_pc should have been seen within this many instructions of end of test");
 
 REGISTRY_register(eot, TOP.PLATFORM, cvm::registry::all);
 
@@ -80,6 +85,11 @@ void eot::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   }
 
   instr_count_[m_rvfi.hart]++;
+
+  if (m_rvfi.pc_rdata == FLAGS_recent_pc) {
+      recent_pc_instr_count_ = instr_count_[m_rvfi.hart];
+      recent_pc_hart_        = m_rvfi.hart;
+  }
 
   // End test on max_instr
   for (uint32_t i = 0; i < num_harts_; i++) {
@@ -155,4 +165,17 @@ void eot::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_b
    process_tohost(m_mcmi_bypass.hart, m_mcmi_bypass.cycle, m_mcmi_bypass.addr, m_mcmi_bypass.data);
 }
 
-
+eot::~eot() {
+    int h = 0;
+    for(const auto i : instr_count_) {
+        if (i < FLAGS_min_instr) {
+            cvm::log(cvm::ERROR, "Hart:<{}> Error: instruction count {} did not meet +min_instr={}\n", h, i, FLAGS_min_instr);
+        }
+        h++;
+    }
+    if (FLAGS_recent_pc != recent_pc_default) {
+        if (!(recent_pc_hart_ >= 0 && instr_count_[recent_pc_hart_] - recent_pc_instr_count_ <= FLAGS_recent_pc_instr)) {
+            cvm::log(cvm::ERROR, "Error: did not see PC +recent_pc=0x{:#x} in +recent_pc_instr={} instructions before test ended\n", FLAGS_recent_pc, FLAGS_recent_pc_instr);
+        }
+    }
+}

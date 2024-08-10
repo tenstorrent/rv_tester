@@ -197,7 +197,8 @@ typedef struct rv_instr_s {
   std::string disasm = std::string(128, ' ');
   uint64_t uop = 0;
   bool vec_cracked = false;
-  bool csr_cracked = false;
+  bool csr_renamed = false;
+  std::string csr_renamed_name = "";
   bool trap = false;
   uint8_t priv = 3;
   bool intr = false;

@@ -7,5 +7,7 @@ top:
       count: 1
       type:
         - core
+      attrs:
+        SC_NUM_WAYS: 24
 
   <<: *rv_tester

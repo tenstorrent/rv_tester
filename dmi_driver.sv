@@ -2,6 +2,9 @@
 module dmi_driver (
     input logic                     clk,
     input logic                     reset,
+
+    input logic [31:0]              rand_dmi_driver_dly,
+    
     input logic                     dmi_req_ready,
     input logic                     dmi_resp_valid,
     input rv_tester_pkg::dmi_resp_t dmi_resp,
@@ -16,12 +19,6 @@ module dmi_driver (
 
     input rv_tester_pkg::dm_write_t trickbox_dmi_write
 );
-
-  // always @(posedge clk) begin
-  //   if(dmi_req_valid && dmi_req_ready) begin
-  //     dmi_monitor_dpi(dmi_req.data,dmi_req.op,dmi_req.addr); //DPI-Call
-  //   end
-  // end
 
   // -----------------------------
   // DMI Stimulus
@@ -168,6 +165,9 @@ module dmi_driver (
 
   task drive_dmi_cmd(input rv_tester_pkg::dmi_req_t cmd);
     begin
+      repeat (rand_dmi_driver_dly) begin
+        @(posedge clk);
+      end
       @(posedge clk) dmi_req_valid <= '1;
       dmi_req <= cmd;
       wait (dmi_req_ready == 1);

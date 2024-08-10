@@ -101,6 +101,7 @@ module rv_tester
     logic call_finish;
     int num_reruns = -1;
     bit trace_en = 0;
+    bit cla_clk_halt = 0;
 
     bit jtag_en = 0;
     bit overlay_mmr_en = 0;
@@ -118,6 +119,7 @@ module rv_tester
     logic cosim_terminate_any;
     int instructions = 0;
 
+    int rand_dmi_driver_dly = 0;
     int quiesce_counter = 0;
     int trace_counter = 5000;
     int quiesce_timeout = 500;
@@ -126,7 +128,7 @@ module rv_tester
     bit print_terminate_message = '1;
 
     int dmi_poll_counter = 0; 
-    int dmi_poll_timeout = 8000;
+    int dmi_poll_timeout = 50000;
     logic dmi_poll_timeout_terminate;
     logic [31:0] dmi_commands_in_queue; 
 
@@ -136,14 +138,15 @@ module rv_tester
 
     int assertion_test_cycle = 0;
 
-    int unsigned location = cvm_topology::nil;
+    parameter int unsigned location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.ID, 0);
 
     bit gen_clocks = '0;
     string cvm_verbosity_string, gen_clocks_verbosity_string;
     int unsigned cvm_verbosity, gen_clocks_verbosity;
 
-    assign terminate           = (rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
-    assign terminate_now       = terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue == '0) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced ); 
+    assign terminate           = (shutdown || tj_max_interrupt || rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sysmod_reset) || quiesce_counter > 0) && !rv_tester_reset;
+    assign terminate_now       = (terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue == '0) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced )) || shutdown || tj_max_interrupt; 
+
     
     assign rerun_now           = terminated && num_reruns > 0;
 
@@ -189,8 +192,7 @@ module rv_tester
             flush_counter   <= '0;
             instructions    <= '0;
             dmi_poll_timeout_terminate <= '0;
-        end
-        if (!init_pulse) begin
+        end else if (!init_pulse) begin
             sysmod_reset    <= '0;
         end
         if(trace_en && (quiesce_counter >= quiesce_timeout)) begin
@@ -243,12 +245,13 @@ module rv_tester
             gen_clocks_verbosity_string = cvm_plusargs::get_string("gen_clocks_verbosity");
             cvm_verbosity               = cvm_logger::get_verbosity(cvm_verbosity_string);
             gen_clocks_verbosity        = cvm_logger::get_verbosity(gen_clocks_verbosity_string);
-            location                    = cvm_topology::get_location(topology_pkg::mods.TOP.PLATFORM.ID, 0);
             rv_tester_error_terminate.terminate = '0;
             /* verilator lint_on BLKSEQ */
 
+            rand_dmi_driver_dly  <= cvm_plusargs::get_int("rand_dmi_driver_dly"); 
             cb_poll              <= cvm_plusargs::get_bool("cb_async") == '0;
             quiesce_timeout      <= cvm_plusargs::get_int("quiesce_timeout");
+            dmi_poll_timeout     <= cvm_plusargs::get_int("dmi_poll_timeout");
             trace_timeout        <= cvm_plusargs::get_int("trace_timeout");
             flush_timeout        <= cvm_plusargs::get_int("flush_timeout");
             freq_switch_ncycles  <= cvm_plusargs::get_int("freq_switch_ncycles");
@@ -258,6 +261,7 @@ module rv_tester
             gen_clocks           <= cvm_verbosity >= gen_clocks_verbosity;
             bypass_mem           <= cvm_plusargs::get_bool("bypass_mem") != '0;
             trace_en             <= cvm_plusargs::get_bool("trace_en") != '0;
+            cla_clk_halt         <= cvm_plusargs::get_bool("cla_clk_halt") != '0;
             overlay_mmr_en       <= cvm_plusargs::get_bool("overlay_mmr_en") != '0;
             jtag_en              <= cvm_plusargs::get_bool("jtag_en") != '0;
             bypass_cache         <= cvm_plusargs::get_bool("bypass_cache") != '0;
@@ -290,8 +294,15 @@ module rv_tester
             print_terminate_message <= '1;
         end
 
+        if(terminate_now && cla_clk_halt && !shutdown) begin
+            $error("RV_TESTER ::CLK_HALT is not generated before test termination");
+        end
+
         if (terminate_now && !terminated) begin
 
+            if(tj_max_interrupt) begin
+                $display("<%0d> [RVTESTER]: TJ Max interrupt detected. Terminting the test.", clocks);
+            end
             if (print_terminate_message) begin
                 if (quiesced) begin
                     $display("<%0d> [RVTESTER]: exiting gracefully", clocks);
@@ -300,6 +311,7 @@ module rv_tester
                 end else begin
                     $display("<%0d> [RVTESTER]: Error: Waiting to quiesce for more than %0d cycles", clocks, quiesce_timeout);
                 end
+
             end
 
             shutdowned = rv_tester_shutdown_registry() != '0;
@@ -358,7 +370,7 @@ module rv_tester
     rv_tester_pkg::dm_write_t  trickbox_dmi_write;
 
     localparam int AXI_CLOCK_PERIOD = 1000000 / CLOCK_FREQ_MHZ[AXI_CLK_IDX];
-    localparam int JTAG_CLOCK_PERIOD = 100;
+    localparam int JTAG_CLOCK_PERIOD = 10*100;
     localparam int OVERLAY_CLOCK_PERIOD = 2*AXI_CLOCK_PERIOD;
     sysmod #(
         .CLOCK_PERIOD_PS(AXI_CLOCK_PERIOD),
@@ -392,6 +404,8 @@ module rv_tester
     dmi_driver i_dmi_driver(
         .clk(dut_clk[AXI_CLK_IDX]),
         .reset(~dut_reset[AXI_RESET_IDX]),
+        .rand_dmi_driver_dly,
+        
         .dmi_req_ready,
         .dmi_resp_valid,
         .dmi_resp,
@@ -441,7 +455,7 @@ module rv_tester
                 dmi_poll_timeout_terminate <= 1;
             end
             else if ((dmi_poll_counter >= 'h1) && terminate) begin
-               $display("<%0d> [RVTESTER]: Debug poll stopped as test pass condition detected limit reached", clocks); 
+               $display("<%0d> [RVTESTER]: Debug poll stopped as terminate condition detected", clocks); 
             end
         end
     end
@@ -528,6 +542,22 @@ module rv_tester
         end
     endgenerate
 
+    for (genvar c = 0; c < NHARTS; c++) begin: interrupts
+        interrupts #(
+            .NUM(c),
+            `TOPOLOGY_CFG,
+            `RV_TESTER_TRANSACTIONS_INTERRUPTS_SOURCE_PARAMS(0)
+        ) interrupts (
+            .tb_clk(clk[TB_CLK_IDX]),
+            .tb_reset(sysmod_reset),
+            .dut_clk(dut_clk[AXI_CLK_IDX]),
+            .dut_reset(dut_reset[AXI_RESET_IDX]),
+            .no_fetch(core_no_fetch[c]),
+            .nmi(nmi[c]),
+            `RV_TESTER_TRANSACTIONS_INTERRUPTS_SOURCE_PORTS(2,c,0)
+        );
+    end
+
     aplic_monitor #(
         .NUM(0),
         `TOPOLOGY_CFG,
@@ -604,8 +634,7 @@ module rv_tester
             .ID_WIDTH(AxiIdWidthMstRv),
             .STRB_WIDTH(topology.TOP.PLATFORM.AXI.STRB_WIDTH),
             .R_Q_MAX(topology.TOP.PLATFORM.AXI.R_Q_MAX),
-            .TOPO_ID(topology.TOP.PLATFORM.AXI.ID),
-            .NUM(p),
+            .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.AXI.ID, p)),
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(0)
         ) axi_sw(
             .clk(dut_clk[AXI_CLK_IDX]),
@@ -675,8 +704,7 @@ module rv_tester
             .ID_WIDTH(topology.TOP.PLATFORM.NCIO_AXI.ID_WIDTH),
             .STRB_WIDTH(topology.TOP.PLATFORM.NCIO_AXI.STRB_WIDTH),
             .R_Q_MAX(topology.TOP.PLATFORM.AXI.R_Q_MAX),
-            .TOPO_ID(topology.TOP.PLATFORM.NCIO_AXI.ID),
-            .NUM(p),
+            .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.NCIO_AXI.ID, p)),
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(1)
         ) ncio_axi_sw(
             .clk(dut_clk[AXI_CLK_IDX]),
@@ -733,8 +761,7 @@ module rv_tester
             .ID_WIDTH(topology.TOP.PLATFORM.APLIC_MSI_AXI.ID_WIDTH),
             .STRB_WIDTH(topology.TOP.PLATFORM.APLIC_MSI_AXI.STRB_WIDTH),
             .R_Q_MAX(topology.TOP.PLATFORM.AXI.R_Q_MAX),
-            .TOPO_ID(topology.TOP.PLATFORM.APLIC_MSI_AXI.ID),
-            .NUM(p),
+            .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.APLIC_MSI_AXI.ID, p)),
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(2)
         ) aplic_msi_axi_sw(
             .clk(dut_clk[AXI_CLK_IDX]),
@@ -793,8 +820,7 @@ module rv_tester
             .AR_Q_MAX(topology.TOP.PLATFORM.AXI_MST.AR_Q_MAX),
             .AW_Q_MAX(topology.TOP.PLATFORM.AXI_MST.AW_Q_MAX),
             .W_Q_MAX(topology.TOP.PLATFORM.AXI_MST.W_Q_MAX),
-            .TOPO_ID(topology.TOP.PLATFORM.AXI_MST.ID),
-            .NUM(p),
+            .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.AXI_MST.ID, p)),
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(0)
         ) axi_sw_mst (
             .clk(dut_clk[AXI_CLK_IDX]),
@@ -862,8 +888,7 @@ module rv_tester
             .AR_Q_MAX(topology.TOP.PLATFORM.APLIC_MMR_AXI_MST.AR_Q_MAX),
             .AW_Q_MAX(topology.TOP.PLATFORM.APLIC_MMR_AXI_MST.AW_Q_MAX),
             .W_Q_MAX(topology.TOP.PLATFORM.APLIC_MMR_AXI_MST.W_Q_MAX),
-            .TOPO_ID(topology.TOP.PLATFORM.APLIC_MMR_AXI_MST.ID),
-            .NUM(p),
+            .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.APLIC_MMR_AXI_MST.ID, p)),
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(1)
         ) aplic_mmr_sw_mst (
             .clk(dut_clk[AXI_CLK_IDX]),
@@ -921,8 +946,7 @@ module rv_tester
             .AR_Q_MAX(topology.TOP.PLATFORM.SMC_AXI_MST.AR_Q_MAX),
             .AW_Q_MAX(topology.TOP.PLATFORM.SMC_AXI_MST.AW_Q_MAX),
             .W_Q_MAX(topology.TOP.PLATFORM.SMC_AXI_MST.W_Q_MAX),
-            .TOPO_ID(topology.TOP.PLATFORM.SMC_AXI_MST.ID),
-            .NUM(p),
+            .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.SMC_AXI_MST.ID, p)),
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(2)
         ) smc_sw_mst (
             .clk(dut_clk[SOC_CLK_IDX]),
@@ -982,8 +1006,7 @@ module rv_tester
             .AR_Q_MAX(topology.TOP.PLATFORM.PLL_AXI_MST.AR_Q_MAX),
             .AW_Q_MAX(topology.TOP.PLATFORM.PLL_AXI_MST.AW_Q_MAX),
             .W_Q_MAX(topology.TOP.PLATFORM.PLL_AXI_MST.W_Q_MAX),
-            .TOPO_ID(topology.TOP.PLATFORM.PLL_AXI_MST.ID),
-            .NUM(p),
+            .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.PLL_AXI_MST.ID, p)),
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(3)
         ) pll_sw_mst (
             .clk(dut_clk[SOC_CLK_IDX]),
@@ -1043,8 +1066,7 @@ module rv_tester
             .AR_Q_MAX(topology.TOP.PLATFORM.PM_NW_AXI_MST.AR_Q_MAX),
             .AW_Q_MAX(topology.TOP.PLATFORM.PM_NW_AXI_MST.AW_Q_MAX),
             .W_Q_MAX(topology.TOP.PLATFORM.PM_NW_AXI_MST.W_Q_MAX),
-            .TOPO_ID(topology.TOP.PLATFORM.PM_NW_AXI_MST.ID),
-            .NUM(p),
+            .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.PM_NW_AXI_MST.ID, p)),
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(4)
         ) pm_nw_sw_mst (
             .clk(dut_clk[SOC_CLK_IDX]),

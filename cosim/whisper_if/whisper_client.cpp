@@ -584,6 +584,15 @@ whisperClient<URV>::whisperMcmInsert(int hart, uint64_t time, uint64_t instrTag,
   req.value = value;
   req.size = size;
 
+  if (size > 8)
+    {
+      // Inserts with size larger than 8 should use the vector interface to pass
+      // the vector data. Here we accept size larger than 8 if the data is zero
+      // (this maybe used for the cbo.zero instruction).
+      assert(value == 0);
+      req.buffer.fill(0);
+    }
+
   if (not whisperCommand(req, reply))
     return false;
 

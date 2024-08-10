@@ -1,23 +1,22 @@
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
 
-def pwrmgmt_gen(name, packet, topology, harness, visibility = None, cc_attrs = {}, **kwargs):
+def interrupts_gen(name, packet, topology, harness, visibility = None, cc_attrs = {}, **kwargs):
 
-    pwrmgmt_dpi = name + "_dpi"
-    pwrmgmt_sv = name + "_sv"
+    interrupts_dpi = name + "_dpi"
+    interrupts_sv = name + "_sv"
 
     native.cc_library(
-        name = pwrmgmt_dpi,
+        name = interrupts_dpi,
         srcs = [
-            "@rv_tester//pwrmgmt:pwrmgmt.cpp",
-            "@rv_tester//pwrmgmt:reset_sequence.cpp",
+            "@rv_tester//interrupts:interrupts.cpp",
+            "@rv_tester//interrupts:nmi_sequence.cpp",
         ],
         hdrs = [
-            "@rv_tester//pwrmgmt:pwrmgmt.hpp",
-            "@rv_tester//pwrmgmt:reset_sequence.hpp",
+            "@rv_tester//interrupts:interrupts.hpp",
+            "@rv_tester//interrupts:nmi_sequence.hpp",
         ],
         deps = [
             "@rv_tester//sysmod:sysmod_plusargs",
-            "@rv_tester//pmu:pmu_plusargs",
             "@rv_tester//common:transactor",
             "@rv_tester//:structs",
             packet + "_cc",
@@ -31,8 +30,8 @@ def pwrmgmt_gen(name, packet, topology, harness, visibility = None, cc_attrs = {
     )
 
     verilog_library(
-        name = pwrmgmt_sv,
-        srcs = ["@rv_tester//pwrmgmt:pwrmgmt.sv"],
+        name = interrupts_sv,
+        srcs = ["@rv_tester//interrupts:interrupts.sv"],
         deps = [
             "@cvm//:plusargs_sv",
             "@cvm//:random_sv",
