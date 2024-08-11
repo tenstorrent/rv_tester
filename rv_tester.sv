@@ -91,9 +91,10 @@ module rv_tester
 
     logic flush_complete;
 
+    bit perf = 0;
     /* verilator lint_off MULTIDRIVEN */
-    logic [NDOMAINS-1:0] sys_reset;
-    logic [NDOMAINS-1:0] eff_dut_reset;
+    logic sys_reset [NCLKS-1:0];
+    logic dut_reset [NCLKS-1:0];
     /* verilator lint_on MULTIDRIVEN */
     logic init_pulse;
     logic warm_reset_pulse;
@@ -144,7 +145,7 @@ module rv_tester
 
     int rand_dmi_driver_dly = 0;
     int dmi_poll_counter = 0; 
-    int dmi_poll_timeout = 8000;
+    int dmi_poll_timeout = 50000;
     logic dmi_poll_timeout_terminate;
     logic [31:0] dmi_commands_in_queue; 
 
@@ -162,10 +163,12 @@ module rv_tester
     string cvm_verbosity_string, gen_clocks_verbosity_string;
     int unsigned cvm_verbosity, gen_clocks_verbosity;
 
-    assign terminate           = (shutdown || rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sys_reset[TB_RESET_IDX]) || quiesce_counter > 0) && !rv_tester_reset;
-    assign terminate_now       = (shutdown || (terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue == '0) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced ))); 
 
-    assign rerun_now           = (terminated && (num_reruns > 0)) || (warm_reset_en && warm_reset_requested && (num_resets < target_num_resets));
+    assign terminate           = (shutdown || tj_max_interrupt || rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sys_reset[TB_CLK_IDX]) || quiesce_counter > 0) && !rv_tester_reset;
+    assign terminate_now       = (terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue == '0) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced )) || shutdown || tj_max_interrupt; 
+
+    
+    assign rerun_now           = (terminated && (num_reruns > 0)) || (warm_reset_en && (num_resets < target_num_resets));
 
   `ifndef CLK_MUX_UNSUPPORTED 
     always @(posedge clk[TB_CLK_IDX])begin
@@ -194,7 +197,7 @@ module rv_tester
 
         rv_tester_reset <= rerun_now;
         clocks          <= clocks + 1;
-        sys_reset[TB_RESET_IDX] <= '0;
+        sys_reset[TB_CLK_IDX] <= '0;
 
         quiesce_counter <= quiesce_counter + int'(terminate);
         flush_counter   <= flush_counter + int'(quiesced);
@@ -208,7 +211,7 @@ module rv_tester
             flush_counter   <= '0;
             instructions    <= '0;
             dmi_poll_timeout_terminate <= '0;
-            sys_reset <= '1;
+            sys_reset <= '{default: 1};
         end
 
         if (rv_tester_reset && terminated) begin
@@ -276,8 +279,11 @@ module rv_tester
             rv_tester_error_terminate.terminate = '0;
             /* verilator lint_on BLKSEQ */
 
+            perf                 <= cvm_plusargs::get_bool("perf") != '0;
+            rand_dmi_driver_dly  <= cvm_plusargs::get_int("rand_dmi_driver_dly"); 
             cb_poll              <= cvm_plusargs::get_bool("cb_async") == '0;
             quiesce_timeout      <= cvm_plusargs::get_int("quiesce_timeout");
+            dmi_poll_timeout     <= cvm_plusargs::get_int("dmi_poll_timeout");
             trace_timeout        <= cvm_plusargs::get_int("trace_timeout");
             flush_timeout        <= cvm_plusargs::get_int("flush_timeout");
             freq_switch_ncycles  <= cvm_plusargs::get_int("freq_switch_ncycles");
@@ -333,6 +339,9 @@ module rv_tester
 
         if (terminate_now && !terminated) begin
 
+            if(tj_max_interrupt) begin
+                $display("<%0d> [RVTESTER]: TJ Max interrupt detected. Terminting the test.", clocks);
+            end
             if (print_terminate_message) begin
                 if (quiesced) begin
                     $display("<%0d> [RVTESTER]: exiting gracefully", clocks);
@@ -341,6 +350,7 @@ module rv_tester
                 end else begin
                     $display("<%0d> [RVTESTER]: Error: Waiting to quiesce for more than %0d cycles", clocks, quiesce_timeout);
                 end
+
             end
 
             shutdowned = rv_tester_shutdown_registry() != '0;
@@ -384,33 +394,35 @@ module rv_tester
 
     /* verilator lint_off BLKSEQ */
     always @(posedge dut_clk[CORE_CLK_IDX]) begin
-        sys_reset[CORE_RESET_IDX] <= '0;
-        eff_dut_reset[CORE_RESET_IDX] = dut_reset[CORE_RESET_IDX] || force_ref_clk;
+        sys_reset[CORE_CLK_IDX] <= '0;
     end
 
     always @(posedge dut_clk[AXI_CLK_IDX]) begin
-        sys_reset[AXI_RESET_IDX] <= '0;
-        eff_dut_reset[AXI_RESET_IDX] = dut_reset[AXI_RESET_IDX] || force_ref_clk;
+        sys_reset[AXI_CLK_IDX] <= '0;
     end
 
     always @(posedge dut_clk[SOC_CLK_IDX]) begin
         soc_clocks <= soc_clocks + 1;
-        sys_reset[SOC_RESET_IDX] <= '0;
-        eff_dut_reset[SOC_RESET_IDX] = dut_reset[SOC_RESET_IDX] | force_ref_clk;
+        sys_reset[SOC_CLK_IDX] <= '0;
     end
 
     always @(posedge dut_clk[REF_CLK_IDX]) begin
-        sys_reset[REF_RESET_IDX] <= '0;
-        eff_dut_reset[REF_RESET_IDX] = dut_reset[REF_RESET_IDX] || force_ref_clk;
+        sys_reset[REF_CLK_IDX] <= '0;
     end
     /* verilator lint_on BLKSEQ */
 
     // We also assert reset at the end of the test to quiesce the DPIs.
     logic reset_pullup;
-    assign reset_pullup = rv_tester_reset || sys_reset[TB_RESET_IDX] || terminate_now || terminated;
+    assign reset_pullup = rv_tester_reset || sys_reset[TB_CLK_IDX] || terminate_now || terminated;
 
     assign reset[COLD_RESET_IDX] = cold_reset || init_pulse || (reset_pullup && !warm_reset_pulse);
     assign reset[WARM_RESET_IDX] = warm_reset;
+
+    assign dut_reset[TB_CLK_IDX] = reset[COLD_RESET_IDX] || reset[WARM_RESET_IDX];
+    assign dut_reset[CORE_CLK_IDX] = &core_no_fetch[NHARTS-1:0];
+    assign dut_reset[AXI_CLK_IDX] = &core_no_fetch[NHARTS-1:0];
+    assign dut_reset[SOC_CLK_IDX] = cold_reset;
+    assign dut_reset[REF_CLK_IDX] = &core_no_fetch[NHARTS-1:0];
 
 `ifdef NEGEDGE_UNSUPPORTED
     always@(posedge clk[TB_CLK_IDX]) begin
@@ -449,7 +461,7 @@ module rv_tester
         `RV_TESTER_TRANSACTIONS_SYSMOD_SOURCE_PARAMS(0)
     ) sysmod (
         .clk(dut_clk[AXI_CLK_IDX]),
-        .reset(sys_reset[TB_RESET_IDX]),
+        .reset(sys_reset[TB_CLK_IDX]),
         .trace_quiesced(trace_quiesced),
         .jtag_quiesced(jtag_quiesced),
         .bootstrap,
@@ -470,7 +482,7 @@ module rv_tester
     
     dmi_driver i_dmi_driver(
         .clk(dut_clk[AXI_CLK_IDX]),
-        .reset(dut_reset[AXI_RESET_IDX]),
+        .reset(~dut_reset[AXI_CLK_IDX]),
         .rand_dmi_driver_dly,
         .dmi_req_ready,
         .dmi_resp_valid,
@@ -492,7 +504,7 @@ module rv_tester
         `RV_TESTER_TRANSACTIONS_DM_MODEL_SOURCE_PARAMS(0)
     ) i_dm_model(
         .clk(dut_clk[AXI_CLK_IDX]),
-        .reset(sys_reset[TB_RESET_IDX]),
+        .reset(sys_reset[TB_CLK_IDX]),
         .dmi_req(dmi_req),
         .dmi_req_valid(dmi_req_valid),
         .dmi_resp_valid(dmi_resp_valid),
@@ -511,7 +523,7 @@ module rv_tester
     );
 
     always @(posedge dut_clk[AXI_CLK_IDX]) begin
-        if (sys_reset[TB_RESET_IDX] | !dmi_status)
+        if (sys_reset[TB_CLK_IDX] | !dmi_status)
             dmi_poll_counter <= 0; 
         else if (dmi_status) begin
             dmi_poll_counter <= dmi_poll_counter + 1;
@@ -521,7 +533,7 @@ module rv_tester
                 dmi_poll_timeout_terminate <= 1;
             end
             else if ((dmi_poll_counter >= 'h1) && terminate) begin
-               $display("<%0d> [RVTESTER]: Debug poll stopped as test pass condition detected limit reached", clocks); 
+               $display("<%0d> [RVTESTER]: Debug poll stopped as terminate condition detected", clocks); 
             end
         end
     end
@@ -547,8 +559,8 @@ module rv_tester
       ) cosim (
           .tb_clk(clk[TB_CLK_IDX]),
           .clk(dut_clk[CORE_CLK_IDX]),
-          .reset(sys_reset[TB_RESET_IDX]),
-          .dut_reset(eff_dut_reset[CORE_RESET_IDX]),
+          .reset(sys_reset[TB_CLK_IDX]),
+          .dut_reset(dut_reset[CORE_CLK_IDX]),
           .clocks,
           .rvfi(rvfi[NRETS_CUMSUM[c] +: NRETS[c]]),
           .csri(csri[c]),
@@ -591,7 +603,7 @@ module rv_tester
                 `RV_TESTER_TRANSACTIONS_PWRMGMT_SOURCE_PARAMS(0)
             ) pwrmgmt (
                 .tb_clk(clk[TB_CLK_IDX]),
-                .tb_reset(sys_reset[TB_RESET_IDX]),
+                .tb_reset(sys_reset[TB_CLK_IDX]),
                 .dut_clk(dut_clk),
                 .dut_reset(dut_reset),
                 .reset_count(num_resets),
@@ -604,7 +616,7 @@ module rv_tester
                 .force_ref_clk(pwrmgmt_force_ref_clk),
                 `RV_TESTER_TRANSACTIONS_PWRMGMT_SOURCE_PORTS(3,0,0)
             );
-            assign force_ref_clk = pwrmgmt_force_ref_clk || init_pulse || warm_reset_pulse;
+            assign force_ref_clk = !perf ? pwrmgmt_force_ref_clk || init_pulse || warm_reset_pulse : '0;
         end else begin
             assign cold_reset = (clocks < RESET_TB_CLOCKS);
             assign warm_reset = '0;
@@ -619,9 +631,9 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_INTERRUPTS_SOURCE_PARAMS(0)
         ) interrupts (
             .tb_clk(clk[TB_CLK_IDX]),
-            .tb_reset(sys_reset[TB_RESET_IDX]),
+            .tb_reset(sys_reset[TB_CLK_IDX]),
             .dut_clk(dut_clk[AXI_CLK_IDX]),
-            .dut_reset(eff_dut_reset[AXI_RESET_IDX]),
+            .dut_reset(dut_reset[AXI_CLK_IDX]),
             .no_fetch(core_no_fetch[c]),
             .nmi(nmi[c]),
             `RV_TESTER_TRANSACTIONS_INTERRUPTS_SOURCE_PORTS(2,c,0)
@@ -634,7 +646,7 @@ module rv_tester
         `RV_TESTER_TRANSACTIONS_APLIC_MONITOR_SOURCE_PARAMS(0)
     ) i_aplic_monitor(
         .clk(dut_clk[AXI_CLK_IDX]),
-        .reset(sys_reset[TB_RESET_IDX]),
+        .reset(sys_reset[TB_CLK_IDX]),
         .terminate,
         .aplic_pin_input(aplic_interrupt),
         .msi_axi_req('0),
@@ -653,8 +665,8 @@ module rv_tester
         .tb_clk(clk[TB_CLK_IDX]),
         .cl_clk(dut_clk[CORE_CLK_IDX]),
         .rf_clk(dut_clk[REF_CLK_IDX]),
-        .reset(sys_reset[TB_RESET_IDX]),
-        .dut_reset(eff_dut_reset[REF_RESET_IDX]),
+        .reset(sys_reset[TB_CLK_IDX]),
+        .dut_reset(dut_reset[REF_CLK_IDX]),
         .terminate,
         .AcCrSynci(AcCrSynci),
         .AcReqPkti(AcReqPkti),
@@ -680,9 +692,9 @@ module rv_tester
           `TOPOLOGY_CFG,
           `RV_TESTER_TRANSACTIONS_PMU_SOURCE_PARAMS(0)
       ) pmu (
-          .tb_clk(clk[TB_CLK_IDX]),
           .clk(dut_clk[CORE_CLK_IDX]),
-          .reset(sys_reset[TB_RESET_IDX]),
+          .sys_reset(sys_reset[TB_CLK_IDX]),
+          .reset(dut_reset[CORE_CLK_IDX]),
           .clocks,
           .pmci(pmci[p]),
           .sc_pmci(sc_pmci),
@@ -708,8 +720,8 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(0)
         ) axi_sw(
             .clk(dut_clk[AXI_CLK_IDX]),
-            .reset_n(~eff_dut_reset[AXI_RESET_IDX]),
-            .sys_reset(sys_reset[AXI_RESET_IDX]),
+            .sys_reset(sys_reset[AXI_CLK_IDX]),
+            .reset_n(~dut_reset[AXI_CLK_IDX]),
             .axi_mst_ar_valid(axi_req_llc[p].ar_valid),
             .axi_mst_ar_id   (axi_req_llc[p].ar.id),
             .axi_mst_ar_addr (axi_req_llc[p].ar.addr),
@@ -759,7 +771,7 @@ module rv_tester
 
         ext_mem_stall_checker stall_checker(
             .clk(dut_clk[AXI_CLK_IDX]),
-            .reset_n(~eff_dut_reset[AXI_RESET_IDX]),
+            .reset_n(~dut_reset[AXI_CLK_IDX]),
             .axi_req(axi_req[p]),
             .axi_rsp(axi_rsp[p])
         );
@@ -778,8 +790,8 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(1)
         ) ncio_axi_sw(
             .clk(dut_clk[AXI_CLK_IDX]),
-            .reset_n(~eff_dut_reset[AXI_RESET_IDX]),
-            .sys_reset(sys_reset[AXI_RESET_IDX]),
+            .sys_reset(sys_reset[AXI_CLK_IDX]),
+            .reset_n(~dut_reset[AXI_CLK_IDX]),
             .axi_mst_ar_valid(ncio_axi_req[p].ar_valid),
             .axi_mst_ar_id   (ncio_axi_req[p].ar.id),
             .axi_mst_ar_addr (ncio_axi_req[p].ar.addr),
@@ -835,8 +847,8 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(2)
         ) aplic_msi_axi_sw(
             .clk(dut_clk[AXI_CLK_IDX]),
-            .reset_n(~eff_dut_reset[AXI_RESET_IDX]),
-            .sys_reset(sys_reset[AXI_RESET_IDX]),
+            .sys_reset(sys_reset[AXI_CLK_IDX]),
+            .reset_n(~dut_reset[AXI_CLK_IDX]),
             .axi_mst_ar_valid(aplic_msi_axi_req[p].ar_valid),
             .axi_mst_ar_id   (aplic_msi_axi_req[p].ar.id),
             .axi_mst_ar_addr (aplic_msi_axi_req[p].ar.addr),
@@ -894,8 +906,8 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(0)
         ) axi_sw_mst (
             .clk(dut_clk[AXI_CLK_IDX]),
-            .reset_n(~eff_dut_reset[AXI_RESET_IDX]),
-            .sys_reset(sys_reset[AXI_RESET_IDX]),
+            .sys_reset(sys_reset[AXI_CLK_IDX]),
+            .reset_n(~dut_reset[AXI_CLK_IDX]),
             .axi_mst_ar_valid(axi_req_mst[p].ar_valid),
             .axi_mst_ar_id   (axi_req_mst[p].ar.id),
             .axi_mst_ar_addr (axi_req_mst[p].ar.addr),
@@ -962,8 +974,8 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(1)
         ) aplic_mmr_sw_mst (
             .clk(dut_clk[AXI_CLK_IDX]),
-            .reset_n(~eff_dut_reset[AXI_RESET_IDX]),
-            .sys_reset(sys_reset[AXI_RESET_IDX]),
+            .sys_reset(sys_reset[AXI_CLK_IDX]),
+            .reset_n(~dut_reset[AXI_CLK_IDX]),
             .axi_mst_ar_valid(aplic_mmr_axi_req_mst[p].ar_valid),
             .axi_mst_ar_id   (aplic_mmr_axi_req_mst[p].ar.id),
             .axi_mst_ar_addr (aplic_mmr_axi_req_mst[p].ar.addr),
@@ -1020,8 +1032,8 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(2)
         ) smc_sw_mst (
             .clk(dut_clk[SOC_CLK_IDX]),
-            .reset_n(~dut_reset[SOC_RESET_IDX]),
-            .sys_reset(sys_reset[SOC_RESET_IDX]),
+            .sys_reset(sys_reset[SOC_CLK_IDX]),
+            .reset_n(~dut_reset[SOC_CLK_IDX]),
             .axi_mst_ar_valid(smc_axi_req_mst[p].ar_valid),
             .axi_mst_ar_id   (smc_axi_req_mst[p].ar.id),
             .axi_mst_ar_addr (smc_axi_req_mst[p].ar.addr),
@@ -1080,8 +1092,8 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(3)
         ) pll_sw_mst (
             .clk(dut_clk[SOC_CLK_IDX]),
-            .reset_n(~dut_reset[SOC_RESET_IDX]),
-            .sys_reset(sys_reset[SOC_RESET_IDX]),
+            .sys_reset(sys_reset[SOC_CLK_IDX]),
+            .reset_n(~dut_reset[SOC_CLK_IDX]),
             .axi_mst_ar_valid(pll_axi_req_mst[p].ar_valid),
             .axi_mst_ar_id   (pll_axi_req_mst[p].ar.id),
             .axi_mst_ar_addr (pll_axi_req_mst[p].ar.addr),
@@ -1140,8 +1152,8 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(4)
         ) pm_nw_sw_mst (
             .clk(dut_clk[SOC_CLK_IDX]),
-            .reset_n(~dut_reset[SOC_RESET_IDX]),
-            .sys_reset(sys_reset[SOC_RESET_IDX]),
+            .sys_reset(sys_reset[SOC_CLK_IDX]),
+            .reset_n(~dut_reset[SOC_CLK_IDX]),
             .axi_mst_ar_valid(pm_nw_axi_req_mst[p].ar_valid),
             .axi_mst_ar_id   (pm_nw_axi_req_mst[p].ar.id),
             .axi_mst_ar_addr (pm_nw_axi_req_mst[p].ar.addr),
@@ -1251,7 +1263,7 @@ module rv_tester
 	.NumMastersMem		( NoOfMasters )
     ) rv_tester_mem(
         .clk                    ( dut_clk[AXI_CLK_IDX] ),
-        .rst_n                  ( ~eff_dut_reset[AXI_RESET_IDX] ),
+        .rst_n                  ( ~dut_reset[AXI_CLK_IDX] ),
         .axi_req_up             ( axi_req ),
         .axi_resp_up            ( axi_rsp ),
         .axi_req_mst_up         ( axi_req_llc ),

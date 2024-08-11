@@ -255,7 +255,7 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
     longint unsigned max_cycle;
     longint unsigned max_instructions;
     longint unsigned instruction_cnt;
-    int cycles_since_retire;
+    int cycles_since_retire = 0;
     int hart_enable_mask;
     bit boot_wfi;
 
@@ -876,12 +876,16 @@ localparam MCM_AWIDTH  = $size(mcmi_write[0].addr);
         if (NUM != 0 && hart_enable_mask[NUM] == 0 && rvfi[0].valid !== 0 && rvfi[0].insn[6:0] == 7'h73 && rvfi[0].pc_rdata < 'h20000) begin // WFI
           boot_wfi <= '1;
         end
-        if (max_stall_cycle > 0 && cycles_since_retire > max_stall_cycle && !boot_wfi) begin
+        if (max_stall_cycle > 0 && cycles_since_retire > max_stall_cycle && !boot_wfi && hart_enable_mask[NUM] == 1) begin
           $display("Error: Hart %0d: No instruction retired for max_stall_cycle (%0d) cycles", NUM, max_stall_cycle);
           cosim_terminate();
         end
-        if (max_cycle > 0 && clocks > max_cycle) begin
+        if (max_cycle > 0 && clocks > max_cycle && hart_enable_mask[NUM] == 1) begin
           $display("Error: Hart %0d:  Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", NUM, max_cycle);
+          cosim_terminate();
+        end
+        if (rvfi[0].valid !== 0 && hart_enable_mask[NUM] == 0) begin
+          $display("Error: Core %0d: Instruction retire seen on disabled/harvested core", NUM);
           cosim_terminate();
         end
       end

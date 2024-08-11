@@ -65,6 +65,7 @@ namespace trace_mmr {
     X(TR_DST_RAM_DATA        ,0x42082040)\
     X(TR_DST_CONTROL         ,0x42002000)\
     X(TR_DST_IMPL            ,0x42002004)\
+    X(TR_DST_INSTFEATURES    ,0x42002008)\
     X(CDBG_CLA_CTRL_STS_CFG  ,0x42002190)\
     X(CDBG_MUX_SEL_CFG       ,0x42002198)\
     X(CDBG_CLA_COUNTER0_CFG  ,0x42002100)\

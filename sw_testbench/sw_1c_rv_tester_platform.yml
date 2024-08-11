@@ -47,12 +47,6 @@ rv_tester_reseti_attrs: &rv_tester_reseti_attrs
   SRAM_HOLD_IDX: 0
   DEBUG_HOLD_IDX: 1
   CRITICAL_HOLD_IDX: 2
-  NDOMAINS: 5
-  TB_RESET_IDX: 0
-  CORE_RESET_IDX: 1
-  AXI_RESET_IDX: 2
-  SOC_RESET_IDX: 3
-  REF_RESET_IDX: 4
 
 rv_tester_pwrmgmt_attrs: &rv_tester_pwrmgmt_attrs
   PWRMGMT_EN: 1

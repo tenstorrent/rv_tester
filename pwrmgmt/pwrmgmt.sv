@@ -9,7 +9,7 @@ import rv_tester_params::*;
   input logic tb_clk,
   input logic tb_reset,
   input logic dut_clk [NCLKS-1:0],
-  input logic [NDOMAINS-1:0] dut_reset,
+  input logic dut_reset [NCLKS-1:0],
   input int reset_count,
   input int target_reset_count,
   input logic warm_reset_en,
@@ -33,7 +33,7 @@ import rv_tester_params::*;
       if (location != cvm_topology::nil) begin
         pwrmgmt_set_scope(location);
         pwrmgmt_set_reset_count(location, reset_count);
-        if (reset_count == 0)
+        if (reset_count <= 0)
           pwrmgmt_init();
         if (warm_reset_en) begin
           warm_reset_interval = cvm_rand::get("warm_reset_interval");

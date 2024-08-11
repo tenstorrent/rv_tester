@@ -6,6 +6,7 @@
 #include "cvm/topology.hpp"
 #include "cvm/registry.hpp"
 #include "cvm/logger.hpp"
+#include <fmt/ranges.h>
 #include "cvm/random.hpp"
 #include "sysmod.h"
 #include "mem/sysmod_mem.h"
@@ -26,6 +27,7 @@
 #include "rv_tester/rv_tester_plusargs.h"
 #include "cosim/bridge_if/bridge_params.h"
 #include "cosim/dut_if/rvfi/rvfi_plusargs.h"
+#include "pmu/pmu_plusargs.h"
 #include "cosim/utils/general/util.h"
 
 // internal flags
@@ -43,11 +45,14 @@ DEFINE_uint64(sp_ways_num, 0x1, "Number of sharedcache ways to be alloted as Scr
 DEFINE_string(set_csr, "", "+set_csr=<csr_num>:<value>,<num2>:<val2> ");
 DEFINE_string(set_mmr, "", "+set_mmr=<addr>:<size>:<value>,<addr2>:<size>:<val2>");
 DEFINE_uint64(seed, 1, "Simulation seed passed down for randomization");
+DEFINE_bool(rand_core_harvest, false, "Randomize core harvest options");
 DEFINE_uint32(num_harts, 0, "Number of enabled harts - upto 8");
 DEFINE_uint32(hart_enable_mask, 0, "Hart enable mask. Ex: With 2 enabled harts in a 8-hart system, could be 0x18. Should match num_harts.");
 DEFINE_string(hart_enable_id, "", "Hart id sequence corresponding to physical cores. Ex: With 2 enabled harts in a 8-hart system, could be 4,3 i.e. hart0=core4, hart1=core3.");
-DEFINE_uint32(num_sc_ways, 24, "Number of enabled SC ways - upto 24 in multiples of 4");
-DEFINE_uint32(sc_way_enable_mask, 0xFFFFFF, "SC way enable mask. Ex: With 20 enabled ways out of 24, could be 0xF0_FFFF.");
+DEFINE_bool(rand_sc_harvest, false, "Randomize sc harvest options");
+DEFINE_int32(num_sc_dis_ways, -1, "Number of disabled SC ways - upto 24 in multiples of 4");
+DEFINE_int32(sc_dis_ways_mask, -1, "SC way enable mask. Ex: With 20 enabled ways out of 24, could be 0xF0_FFFF.");
+DEFINE_int32(num_sp_ways, -1, "Number of SC ways reserved for scratchpad");
 DEFINE_uint32(trace_enable, 1, "Trace enable fuse");
 DEFINE_uint32(debug_enable, 3, "Debug enable fuse");
 DEFINE_bool(hart_sync_en, true, "Enable hart sync routine in bootrom");
@@ -139,27 +144,314 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
   }
 
   // Flags configuration
-  uint32_t ncores = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
-  uint32_t nharts = 0;
-  if (FLAGS_num_harts == 0 && FLAGS_hart_enable_mask == 0)
-    nharts = ncores;
-  else if (FLAGS_num_harts != 0)
-    nharts = FLAGS_num_harts;
-  else if (FLAGS_hart_enable_mask != 0)
-    nharts = std::bitset<32>(FLAGS_hart_enable_mask).count();
-
-  std::ostringstream oss;
-  FLAGS_num_harts = nharts;
-  FLAGS_hart_enable_mask = (1u << nharts) - 1;
-  for (uint32_t i = 0; i < nharts; ++i) 
-    oss << i << (i < nharts - 1 ? "," : "");
-  FLAGS_hart_enable_id = oss.str();
-
-  cvm::log(cvm::NONE, "[plusargs] +num_harts={} +hart_enable_mask={} +hart_enable_id={}\n",
-    FLAGS_num_harts, FLAGS_hart_enable_mask, FLAGS_hart_enable_id);
+  configure_plusargs();
 
   // Reset configuration
   reset();
+}
+
+void
+sysmod::configure_plusargs()
+{
+  core_harvest_plusargs();
+  sc_harvest_plusargs();
+}
+
+void
+sysmod::core_harvest_plusargs()
+{
+  // Plusargs: num_harts, hart_enable_mask, hart_enable_id
+  uint32_t ncores = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
+  uint32_t nharts = FLAGS_num_harts;
+  uint32_t mask = FLAGS_hart_enable_mask;
+  uint32_t mask_harts = std::bitset<32>(mask).count();
+  std::vector<uint32_t> id{};
+  uint32_t id_mask = 0;
+  uint32_t id_harts = std::bitset<32>(id_mask).count();
+  std::istringstream ss(FLAGS_hart_enable_id);
+  std::string token;
+  while (std::getline(ss, token, ',')) {
+    if (token != "") {
+      uint32_t t = std::stoull(token);
+      id.push_back(t);
+      id_mask |= (1 << t);
+    }
+  }
+
+  // Basic validation of plusargs
+  if ((nharts != 0) && (nharts > ncores))
+    cvm::log(cvm::ERROR, "Error: Invalid plusarg: +num_harts {} should be between [1,{}]\n", nharts, ncores);
+
+  if ((mask_harts != 0) && (mask_harts > ncores))
+    cvm::log(cvm::ERROR, "Error: Invalid plusarg: count(+hart_enable_mask {:#x}) should be between [1,{}]\n", mask, ncores);
+
+  if ((id_harts != 0) && (id_harts > ncores))
+    cvm::log(cvm::ERROR, "Error: Invalid plusarg: count(+hart_enable_id {}) should be between [1,{}]\n", id_harts, ncores);
+
+  // switch {num_harts, hart_enable_mask, hart_enable_id}
+  uint8_t expr = ((nharts != 0) << 2) | ((mask != 0) << 1) | !id.empty();
+  switch (expr) {
+    case 0: // Nothing specified. Assume nharts = ncores.
+      FLAGS_num_harts = ncores;
+      FLAGS_hart_enable_mask = (1u << ncores) - 1;
+      if (FLAGS_rand_core_harvest)
+        FLAGS_hart_enable_id = get_rand_id(FLAGS_hart_enable_mask, ncores);
+      else
+        FLAGS_hart_enable_id = get_id(FLAGS_hart_enable_mask, ncores);
+      break;
+    case 1: // +hart_enable_id
+      FLAGS_num_harts = id_harts;
+      FLAGS_hart_enable_mask = id_mask;
+      break;
+    case 2: // +hart_enable_mask
+      FLAGS_num_harts = mask_harts;
+      if (FLAGS_rand_core_harvest)
+        FLAGS_hart_enable_id = get_rand_id(mask, ncores);
+      else
+        FLAGS_hart_enable_id = get_id(mask, ncores);
+      break;
+    case 3: // +hart_enable_mask, +hart_enable_id
+      if (mask_harts != id_harts)
+        cvm::log(cvm::ERROR, "Error: Incompatible plusargs: count(+hart_enable_mask {:#x}) != count(+hart_enable_id {})\n", mask, id);
+      FLAGS_num_harts = mask_harts;
+      break;
+    case 4: // +num_harts
+      if (FLAGS_rand_core_harvest) {
+        FLAGS_hart_enable_mask = get_rand_mask(nharts, ncores);
+        FLAGS_hart_enable_id = get_rand_id(FLAGS_hart_enable_mask, ncores);
+      } else {
+        FLAGS_hart_enable_mask = (1u << nharts) - 1;
+        FLAGS_hart_enable_id = get_id(FLAGS_hart_enable_mask, ncores);
+      }
+      break;
+    case 5: // +num_harts, +hart_enable_id
+      if (nharts != id_harts)
+        cvm::log(cvm::ERROR, "Error: Incompatible plusargs: +num_harts {}) != count(+hart_enable_id {})\n", nharts, id);
+      FLAGS_hart_enable_mask = id_mask;
+      break;
+    case 6: // +num_harts, +hart_enable_mask
+      if (nharts != mask_harts)
+        cvm::log(cvm::ERROR, "Error: Incompatible plusargs: +num_harts {}) != count(+hart_enable_mask {:#x})\n", nharts, mask);
+      FLAGS_hart_enable_id = get_rand_id(mask, ncores);
+      break;
+    case 7: // +num_harts, +hart_enable_mask, +hart_enable_id
+      if ((nharts != mask_harts) || (nharts != id_harts))
+        cvm::log(cvm::ERROR, "Error: Incompatible plusargs: +num_harts {}) != count(+hart_enable_mask {:#x}) != count(+hart_enable_id {}\n", nharts, mask, id);
+      if (mask != id_mask)
+        cvm::log(cvm::ERROR, "Error: Incompatible plusargs: +hart_enable_mask {:#x}) != mask(+hart_enable_id {}\n", mask, id);
+      break;
+  }
+  cvm::log(cvm::NONE, "[plusargs] +num_harts {} +hart_enable_mask {:#x} +hart_enable_id {}\n",
+    FLAGS_num_harts, FLAGS_hart_enable_mask, FLAGS_hart_enable_id);
+}
+
+void
+sysmod::sc_harvest_plusargs()
+{
+  // Plusargs: num_sc_dis_ways, sc_dis_ways_mask, num_sp_ways
+  int32_t nways = cvm::topology::attr(cvm::topology::get_from_type("CORE", 0), "SC_NUM_WAYS").second;
+  int32_t dis_ways = FLAGS_num_sc_dis_ways;
+  int32_t sp_ways = FLAGS_num_sp_ways;
+  int32_t mask = FLAGS_sc_dis_ways_mask;
+  int32_t mask_dis_ways = (int32_t)std::bitset<32>(mask).count();
+
+  // Basic validation of plusargs
+  if (nways > 32)
+    cvm::log(cvm::ERROR, "Error: Invalid topology attr: SC_NUM_WAYS {}, should be between [0,32]\n", nways);
+
+  if ((dis_ways != -1) && (dis_ways < 0 || dis_ways > nways))
+    cvm::log(cvm::ERROR, "Error: Invalid plusarg: +num_sc_dis_ways {}, should be between [0,{}]\n", dis_ways, nways);
+
+  if ((dis_ways != -1) && (dis_ways % 4 != 0))
+    cvm::log(cvm::ERROR, "Error: Invalid plusarg: +num_sc_dis_ways {}, should be a multiple of 4\n", dis_ways, nways);
+
+  if ((sp_ways != -1) && (sp_ways < 0 || sp_ways > nways))
+    cvm::log(cvm::ERROR, "Error: Invalid plusarg: +num_sp_ways {}, should be between [0,{}]\n", sp_ways);
+
+  if ((mask != -1) && (mask_dis_ways < 0 || mask_dis_ways > nways))
+    cvm::log(cvm::ERROR, "Error: Invalid plusarg: count(+sc_dis_ways_mask {}) should be between [0,{}]\n", mask, nways);
+
+  // switch {num_sc_dis_ways, sc_dis_ways_mask, num_sp_ways}
+  uint8_t expr = ((dis_ways != -1) << 2) | ((mask != -1) << 1) | (sp_ways != -1);
+  switch (expr) {
+    case 0:
+      if (FLAGS_perf || !FLAGS_rand_sc_harvest) {
+        FLAGS_num_sc_dis_ways = 0;
+        FLAGS_sc_dis_ways_mask = 0;
+        FLAGS_num_sp_ways = 0;
+      } else {
+        FLAGS_num_sc_dis_ways = get_rand_dis_ways(nways);
+        FLAGS_sc_dis_ways_mask = get_rand_ways_mask(FLAGS_num_sc_dis_ways, nways);
+        FLAGS_num_sp_ways = get_rand_sp_ways(nways - FLAGS_num_sc_dis_ways);
+      }
+      break;
+    case 1: // +num_sp_ways
+      FLAGS_num_sc_dis_ways = get_rand_dis_ways(nways - sp_ways);
+      FLAGS_sc_dis_ways_mask = get_rand_ways_mask(FLAGS_num_sc_dis_ways, nways);
+      break;
+    case 2: // +sc_dis_ways_mask
+      FLAGS_num_sc_dis_ways = mask_dis_ways;
+      FLAGS_num_sp_ways = get_rand_sp_ways(nways - FLAGS_num_sc_dis_ways);
+      break;
+    case 3: // +num_sp_ways, +sc_dis_ways_mask
+      if (((mask_dis_ways + sp_ways) < 0) || ((mask_dis_ways + sp_ways) > 24))
+        cvm::log(cvm::ERROR, "Error: Incompatible plusargs: count(+sc_dis_ways_mask {}) + +num_sp_ways {}, should be between [0,{}]\n", mask_dis_ways, sp_ways, nways);
+      FLAGS_num_sc_dis_ways = mask_dis_ways;
+      break;
+    case 4: // +num_sc_dis_ways
+      FLAGS_sc_dis_ways_mask = get_rand_ways_mask(FLAGS_num_sc_dis_ways, nways);
+      FLAGS_num_sp_ways = get_rand_sp_ways(nways - FLAGS_num_sc_dis_ways);
+      break;
+    case 5: // +num_sc_dis_ways, +num_sp_ways
+      if (((dis_ways + sp_ways) < 0) || ((dis_ways + sp_ways) > 24))
+        cvm::log(cvm::ERROR, "Error: Incompatible plusargs: +num_sc_dis_ways {} + +num_sp_ways {}, should be between [0,{}]\n", dis_ways, sp_ways, nways);
+      FLAGS_sc_dis_ways_mask = get_rand_ways_mask(dis_ways, nways);
+      break;
+    case 6: // +num_sc_dis_ways, +sc_dis_ways_mask
+      if (dis_ways != mask_dis_ways)
+        cvm::log(cvm::ERROR, "Error: Incompatible plusargs: +num_sc_dis_ways {} != count(+num_dis_ways_mask {})\n", dis_ways, mask_dis_ways);
+      FLAGS_num_sp_ways = get_rand_sp_ways(nways - FLAGS_num_sc_dis_ways);
+      break;
+    case 7: // +num_sc_dis_ways, +sc_dis_ways_mask, +num_sp_ways
+      if (dis_ways != mask_dis_ways)
+        cvm::log(cvm::ERROR, "Error: Incompatible plusargs: +num_sc_dis_ways {} != count(+num_dis_ways_mask {})\n", dis_ways, mask_dis_ways);
+      if (((dis_ways + sp_ways) < 0) || ((dis_ways + sp_ways) > 24))
+        cvm::log(cvm::ERROR, "Error: Incompatible plusargs: +num_sc_dis_ways {} + +num_sp_ways {}, should be between [0,{}]\n", dis_ways, sp_ways, nways);
+      break;
+  }
+
+  cvm::log(cvm::NONE, "[plusargs] +num_sc_dis_ways {} +sc_dis_ways_mask {:#x} +num_sp_ways {}\n",
+    FLAGS_num_sc_dis_ways, FLAGS_sc_dis_ways_mask, FLAGS_num_sp_ways);
+}
+
+uint32_t
+sysmod::get_rand_mask(uint32_t n, uint32_t max)
+{
+  // Ex: input: n=4, max=8
+  // Ex: output: mask=0x9a - bits: 1,3,4,7
+
+  // Create and fill a vector with all possible positions using std::iota
+  std::vector<uint32_t> all_positions(max);
+  std::iota(all_positions.begin(), all_positions.end(), 0);
+
+  // Shuffle the vector
+  std::shuffle(std::begin(all_positions), std::end(all_positions), cvm::rand::gen);
+
+  // Create the mask using the first n elements
+  uint32_t mask = 0;
+  for (size_t i = 0; i < n; ++i)
+    mask |= (1u << all_positions[i]);
+
+  return mask;
+}
+
+std::string
+sysmod::get_rand_id(uint32_t mask, uint32_t ncores)
+{
+  // Ex: input: mask=0x9a - available cores: 1,3,4,7
+  // Ex: output: hart_enable_id ex: 4,7,1,3 - can be in any order
+
+  // Create and fill a vector with positions from the mask
+  std::vector<uint32_t> positions{};
+  for (uint32_t i = 0; i < ncores; ++i)
+    if ((mask >> i) & 1u)
+      positions.push_back(i);
+
+  // Shuffle the vector
+  std::shuffle(std::begin(positions), std::end(positions), cvm::rand::gen);
+
+  // String the positions into a list
+  std::string result;
+  for (size_t i = 0; i < positions.size(); ++i) {
+    result += std::to_string(positions[i]);
+    if (i < positions.size() - 1) 
+      result += ",";
+  }
+  return result;
+}
+
+std::string
+sysmod::get_id(uint32_t mask, uint32_t ncores)
+{
+  // Ex: input: mask=0x9a - available cores: 1,3,4,7
+  // Ex: output: hart_enable_id ex: 4,7,1,3 - can be in any order
+
+  // Create and fill a vector with positions from the mask
+  std::vector<uint32_t> positions{};
+  for (uint32_t i = 0; i < ncores; ++i)
+    if ((mask >> i) & 1u)
+      positions.push_back(i);
+
+  // String the positions into a list
+  std::string result;
+  for (size_t i = 0; i < positions.size(); ++i) {
+    result += std::to_string(positions[i]);
+    if (i < positions.size() - 1) 
+      result += ",";
+  }
+  return result;
+}
+
+int32_t
+sysmod::get_rand_ways_mask(int32_t n, int32_t max)
+{
+  int32_t mask = 0;
+  uint32_t m = get_rand_mask((uint32_t)n/4, (uint32_t)max/4);
+  for (int i=0; i<max/4; ++i)
+    if ((m >> i) & 1u)
+      mask |= (0xf << (4*i));
+  return mask;
+}
+
+int32_t
+sysmod::get_rand_dis_ways(int32_t nways)
+{
+  if (nways == 0)
+    return nways;
+
+  // Discrete distribution for dis_ways
+  // In SC, ways are disabled only in multiples of 4
+  // Since we are enabling SC harvest randomization only in select sims,
+  // let randomization always disable at least min = 4 ways
+  // Keep halving the weights
+  // Ex: nways = 24, max = 6, weights = {0.5, 0.25, 0.125 ...}
+  // Ex: generated value range gen = [0, 5]
+  // Ex: return value = (gen + 1) * 4;
+  int32_t max = nways / 4;
+  std::vector<double> weights(max);
+  for (int i = 0; i < max; ++i) {
+      weights[i] = std::pow(0.5, i + 1);
+  }
+
+  cvm::rand::discrete_dist<int32_t> dist(weights);
+  cvm::log(cvm::HIGH, "[random] Probabilities for selecting disabled SC way groups [1..{}] = [{:.2f}]\n",
+    max, fmt::join(dist.probabilities(), ", "));
+  return (dist() + 1) * 4;
+}
+
+int32_t
+sysmod::get_rand_sp_ways(int32_t max)
+{
+  if (max == 0)
+    return 0;
+
+  // Discrete distribution for sp_ways
+  // In SC, scratch pad ways can be anywhere from 0 to max
+  // Let probabilities be biased towards a smaller scratch pad 
+  // with mostly up to 4 ways
+  // Ex: max = 24, weights = {1.0} upto 4 ways and {0.1} after that
+  std::vector<double> weights(max);
+  for (int i = 0; i < max+1; ++i) {
+    if (i <= 4)
+      weights[i] = 1.0;
+    else
+      weights[i] = 0.1;
+  }
+
+  cvm::rand::discrete_dist<int32_t> dist(weights);
+  cvm::log(cvm::HIGH, "[random] Probabilities for selecting SP ways [0..{}] = [{:.2f}]\n",
+    max, fmt::join(dist.probabilities(), ", "));
+  return dist();
 }
 
 sysmod::~sysmod()
