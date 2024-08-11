@@ -120,8 +120,6 @@ class rvfi {
     std::unordered_map<uint64_t, mem_t> sc_result_;
     std::unordered_map<uint64_t, mem_t> sc_bypass_;
 
-    std::unordered_map<uint64_t, uint64_t> mem_read_data_; // new map for storing mem read data along with tag
-
     svScope scope_;
 
     bool terminated_ = false;
