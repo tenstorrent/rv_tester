@@ -1,5 +1,6 @@
 #include "reset_sequence.hpp"
 #include "sysmod/sysmod_plusargs.h"
+#include "pmu/pmu_plusargs.h"
 #include <sstream>
 #include <unordered_map>
 
@@ -21,6 +22,7 @@ DEFINE_string(warm_reset_debug_hold, "0:1", "Debug hold");
 DEFINE_string(warm_reset_critical_hold, "0:1", "Critical hold");
 DEFINE_bool(patch_en, false, "Enable instruction patching");
 DEFINE_bool(tj_max, false, "Program lower TJ Max Threshold");
+DEFINE_bool(temp_throttle, false, "Program lower Temp throttle for core");
 DEFINE_bool(patch_cpl_filter_dis, false, "Disable programming of inbound and outbound filters in core");
 DEFINE_bool(patch_registers_check, false, "Enable read write checking of patch related registers");
 DEFINE_bool(patch_ram_check, false, "Enable read write checking of patch ram region");
@@ -43,6 +45,7 @@ reset_sequence::reset_sequence(cvm::topology::loc_t loc, unsigned) : loc_(loc), 
 
   // Topology
   smc_axi_loc_ = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_SMC_MST", 0);
+  num_cores_ = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
 
   // Scope
   cvm::registry::messenger.connect<svScope>(loc_, [this](svScope s) { return this->set_scope(s); });
@@ -164,9 +167,9 @@ cvm::messenger::task<void> reset_sequence::warm_reset_sequence() {
 
   // Assert holds
   reset_hold(
-    cvm::rand::get(FLAGS_warm_reset_sram_hold),
-    cvm::rand::get(FLAGS_warm_reset_debug_hold),
-    cvm::rand::get(FLAGS_warm_reset_critical_hold)
+    cvm::rand::get<uint32_t>(FLAGS_warm_reset_sram_hold),
+    cvm::rand::get<uint32_t>(FLAGS_warm_reset_debug_hold),
+    cvm::rand::get<uint32_t>(FLAGS_warm_reset_critical_hold)
   );
 
   // Wait for 16 clock ticks
@@ -201,10 +204,7 @@ cvm::messenger::task<void> reset_sequence::warm_reset_sequence() {
 cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
   co_await release_cpl_reset();
   co_await program_fuses();
-  if(FLAGS_tj_max)
-  {
-    co_await program_thub_threshold();
-  };
+  co_await program_thub_threshold();
   if (FLAGS_patch_en && rst_type == COLD) { 
     co_await program_patch();
   } else if (FLAGS_patch_ram_check) {
@@ -279,7 +279,7 @@ cvm::messenger::task<void> reset_sequence::program_fuses() {
 
   co_await write(sw_fuse_mmr,     SZ_8B, fuse);
 
-  for (uint32_t i=0; i<FLAGS_num_harts; ++i)
+  for (uint32_t i = 0; i < FLAGS_num_harts; ++i)
     co_await write(core_fuse_mmr + i * core_fuse_offset,   SZ_8B, fuse);
 
   co_await write(trace_fuse_mmr,  SZ_8B, fuse);
@@ -292,7 +292,7 @@ cvm::messenger::task<void> reset_sequence::program_fuses() {
 
 cvm::messenger::task<void> reset_sequence::release_cpl_nofetch() {
   co_await tick();
-  co_await write(rst_ctl_nofetch, SZ_4B, (0 << cpl_cl_no_fetch));
+  co_await write(rst_ctl_nofetch, SZ_4B, ((~FLAGS_hart_enable_mask << cpl_cl_no_fetch) & 0xff));
 
   co_return;
 }
@@ -371,14 +371,15 @@ cvm::messenger::task<void> reset_sequence::csr_write(uint32_t core_id, uint64_t 
   uint64_t cmd = 0;
   uint32_t offset = core_id * core_fuse_offset;
   cvm::log(cvm::NONE, "[pwrmgmt] csr write req - core_id = {}, addr={:#x}, data={:#x} \n", core_id, addr, data );
-  do { 
-    cmd = co_await read(core_crCsrCommandPort + offset, SZ_8B);
-  } while ((cmd>>62) == 0x1 );
   uint32_t unit = core_id;
-  uint64_t wr = 1;
-  cmd = wr << 61 |unit<<12|addr;
+  uint64_t wr = 0x1;
+  uint64_t en = 0x1;
+  cmd = en<<62 | wr << 61 | unit<<12|addr;
   co_await write(core_crCsrDataPort + offset, SZ_8B, data);
   co_await write(core_crCsrCommandPort + offset, SZ_8B, cmd);
+  do { 
+    cmd = co_await read(core_crCsrCommandPort + offset, SZ_8B);
+  } while ((cmd>>63) != 0x0 );
   co_return;
 }
 
@@ -387,16 +388,17 @@ cvm::messenger::task<uint64_t> reset_sequence::csr_read(uint32_t core_id, uint64
   uint64_t cmd = 0;
   uint32_t offset = core_id * core_fuse_offset;
   cvm::log(cvm::NONE, "[pwrmgmt] csr read req - core_id = {}, addr={:#x} \n", core_id, addr );
-  do { 
-    cmd = co_await read(core_crCsrCommandPort + offset, SZ_8B);
-  } while ((cmd>>62) == 0x1 );
+  //do { 
+  //  cmd = co_await read(core_crCsrCommandPort + offset, SZ_8B);
+  //} while ((cmd>>63) != 0x0 );
   uint8_t unit = core_id;
   uint64_t wr = 0;
-  cmd = wr << 61 |unit<<12|addr;
+  uint64_t en = 0x1;
+  cmd = en <<62 | wr << 61 |unit<<12|addr;
   co_await write(core_crCsrCommandPort + offset, SZ_8B, cmd);
   do { 
     cmd = co_await read(core_crCsrCommandPort + offset, SZ_8B);
-  } while ((cmd>>62) == 0x1 );
+  } while ((cmd>>63) != 0x0 );
   cvm::log(cvm::NONE, "[pwrmgmt] csr read res - core_id = {}, addr={:#x} \n", core_id, addr );
   auto data = co_await read(core_crCsrDataPort + offset, SZ_8B);
   co_return data;
@@ -465,9 +467,9 @@ std::vector<uint8_t> reset_sequence::convert_to_byte_array(const std::vector<uin
 
 uint64_t reset_sequence::core_fuse_val() {
   uint64_t core_fuse = 0;
-  std::vector<uint64_t> core_mhartid = mhartid();
-  for (uint32_t i=0; i<FLAGS_num_harts; ++i)
-    core_fuse |= (((core_mhartid[i] << 1) | core_en(i)) << (4*i));
+  std::vector<uint64_t> id = mhartid();
+  for (uint32_t i=0; i<id.size(); ++i)
+    core_fuse |= (((i << 1u) | 1u) << (4 * id[i]));
   core_fuse = core_fuse << core_fuse_idx;
   return core_fuse;
 }
@@ -480,7 +482,6 @@ std::vector<uint64_t> reset_sequence::mhartid() {
   std::vector<uint64_t> core_mhartid {};
   std::istringstream ss(FLAGS_hart_enable_id);
   std::string token;
-
   while (std::getline(ss, token, ',')) {
     core_mhartid.push_back(std::stoull(token));
   }
@@ -498,8 +499,9 @@ uint64_t reset_sequence::dm_fuse_val() {
 uint64_t reset_sequence::sc_fuse_val() {
   uint64_t sc_fuse = 0;
 
-  for (uint32_t i=0; i<FLAGS_num_sc_ways/4; ++i) {
-    uint32_t segment = (FLAGS_sc_way_enable_mask >> (4*i)) & 0xf;
+  int32_t nways = cvm::topology::attr(cvm::topology::get_from_type("CORE", 0), "SC_NUM_WAYS").second;
+  for (int i=0; i<nways/4; ++i) {
+    uint32_t segment = (~FLAGS_sc_dis_ways_mask >> (4*i)) & 0xf;
     if (segment == 0xf)
       sc_fuse |= (1ull << i);
   }
@@ -567,7 +569,7 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
     uint32_t offset = i * core_fuse_offset;
     for (auto j : patch_cfg)
       co_await write(j.first + offset, SZ_8B, j.second);
-    co_await csr_write(i, core_ptvec_csr , 0x4210C000);
+    //co_await csr_write(i, core_ptvec_csr , 0x4210C000); FIXME : Enable CSR write once its fixed
     co_await write(core_pcontrol_mmr + offset, SZ_8B, pcontrol_data);
   };
 
@@ -611,8 +613,19 @@ cvm::messenger::task<void> reset_sequence::write_thub_reg(uint8_t addr, uint32_t
 
 cvm::messenger::task<void> reset_sequence::program_thub_threshold() {
   co_await tick();
-  for (uint8_t i=0; i<FLAGS_num_thubs; ++i) {
-      co_await write_thub_reg(thub_threhold_param_reg,0x05400640,i+9,i);
+  if(FLAGS_tj_max)
+    {
+    for (uint8_t i=0; i<FLAGS_num_thubs; ++i) {
+        co_await write_thub_reg(thub_threhold_param_reg,0x05400640,i+9,i);
+    };
+  };
+  if(FLAGS_temp_throttle)
+  {
+  //for(uint32_t p =0; p < FLAGS_num_harts; ++p)
+  //  {
+      co_await csr_write(0, core_pwr_throttle_cfg_0 , 0x000078830372a211);
+      co_await csr_write(0, core_pwr_throttle_cfg_1 , 0x1041017ecb594129);
+    //};
   };
  
 };

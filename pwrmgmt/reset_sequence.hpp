@@ -75,5 +75,6 @@ class reset_sequence {
     cvm::topology::loc_t loc_, smc_axi_loc_;
     svScope scope_;
 
+    uint32_t num_cores_ = 0;
     uint32_t warm_reset_count_ = 0;
 };

@@ -50,6 +50,8 @@ namespace {
   constexpr uint32_t core_preg3_mmr             = 0x4200'5098;
   
   constexpr uint32_t core_ptvec_csr             = 0x0000'07CA;
+  constexpr uint32_t core_pwr_throttle_cfg_0    = 0x0000'0BC6;
+  constexpr uint32_t core_pwr_throttle_cfg_1    = 0x0000'0BC7;
   
   constexpr uint32_t core_crCsrCommandPort      = 0x4200'4008;
   constexpr uint32_t core_crCsrDataPort         = 0x4200'4000;
