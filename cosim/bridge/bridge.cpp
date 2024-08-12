@@ -37,7 +37,8 @@ DEFINE_string(cosim_resynch_instr, "", "List of instruction mnemonics to resynch
 DEFINE_string(cosim_resynch_prev_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
 DEFINE_string(cosim_resynch_csr, "", "List of csr mnemonics to resynch whisper with dut state"); 
 DEFINE_bool(mip_resynch, true, "Resynch whisper with dut state on mip mismatch condition");
-DEFINE_bool(imsic_resynch, true, "Resynch whisper with dut state on imsic mismatch condition");
+DEFINE_bool(topi_resynch, true, "Resynch whisper with dut state on topi mismatch condition");
+DEFINE_bool(topei_resynch, true, "Resynch whisper with dut state on topei mismatch condition");
 DEFINE_bool(intr_defer_spcl, true, "Defer all interrupts in special cases");
 DEFINE_bool(intr_timeout_resynch, true, "Ignore whisper timeout error condition");
 DEFINE_bool(retire_ucode_trap, true, "DUT indicates retire on a trap after executing the ucode trap handler");
@@ -1438,27 +1439,31 @@ bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const std::
     return true;
   }
   // Case #7
-  if (FLAGS_imsic_resynch && topei_mismatch(instr)) {
-    bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[topei_mismatch]\n", d.cycle);
+  if (FLAGS_topi_resynch && topi_mismatch(instr)) {
+    bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[topi_mismatch]\n", d.cycle);
     return true;
   }
   // Case #8
+  if (FLAGS_topei_resynch && topei_mismatch(instr)) {
+    bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[topei_mismatch]\n", d.cycle);
+    return true;
+  }
+  // Case #9
   if (unsupported_mmr_access(d)) {
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[mmr_access]\n", d.cycle);
     return true;
   }
-  // Case #9
-
+  // Case #10
   if (d.intr && (d.icause == 0)){
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[Debug Mode Interrupt]\n", d.cycle);
    return true;
   }
+  // Case #11
   if (unsupported_csr_access(instr)) {
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[unsupported_csr_access]\n", d.cycle);
-
     return true;
   }
-  // Case #10
+  // Case #12
   if (cpl_smc_access(d)) {
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[cpl_smc_access]\n", d.cycle);
     return true;
