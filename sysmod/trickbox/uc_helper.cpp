@@ -139,7 +139,7 @@ void
          mem::datum_t m_data_p = (mem::datum_t)m_data;
       
          //Poke same data to whisper memory        
-         if (!client_->whisperPokeMem(hart, 0, 'm', tx_addr + i,8, poke_data, valid)) {
+         if (!client_->whisperPokeMem(hart, 0, 'm', tx_addr + i,1, poke_data, valid)) {
           cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
           return;
          }
