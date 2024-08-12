@@ -2042,7 +2042,7 @@ void bridge::enter_debug_mode(rv_debug_t& d) {
   bool valid;
   for(int i=25; i>=0; i--) {
     uint64_t debugROM_loc = FLAGS_debug_entry_pc + (25-i)*8;
-    if (!client_->whisperPoke(0, 0, 'm', debugROM_loc, debugROM[i], valid)) {
+    if (!client_->whisperPokeMem(0, 0, 'm', debugROM_loc, 8, debugROM[i], valid)) {
       print(cvm::ERROR, "Error: Hart {}: Failed to poke debug memory\n", id_);
       return;
     }
