@@ -1438,8 +1438,8 @@ bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const std::
     return true;
   }
   // Case #7
-  if (FLAGS_imsic_resynch && imsic_mismatch(instr)) {
-    bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[imsic_mismatch]\n", d.cycle);
+  if (FLAGS_imsic_resynch && topei_mismatch(instr)) {
+    bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[topei_mismatch]\n", d.cycle);
     return true;
   }
   // Case #8
@@ -1508,8 +1508,15 @@ bool bridge::mip_mismatch(const std::string& instr) {
   return false;
 }
 
-bool bridge::imsic_mismatch(const std::string& instr) {
-  if ((instr.find("top") != std::string::npos) &&
+bool bridge::topi_mismatch(const std::string& instr) {
+  if ((instr.find("topi") != std::string::npos) &&
+      (mip_ != prev_mip_ || mem_poke_.size() != 0))
+    return true;
+  return false;
+}
+
+bool bridge::topei_mismatch(const std::string& instr) {
+  if ((instr.find("topei") != std::string::npos) &&
       (e_mip_ != prev_e_mip_ || mem_poke_.size() != 0))
     return true;
   return false;
@@ -1639,11 +1646,12 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
   for (auto& csr : d.csr) {
     if (csr.valid) {
       resynch_csr_ = true;
-      // Resynch msi poke for topei cases
-      if (csr.csr_addr==0x15c || csr.csr_addr==0x25c || csr.csr_addr==0x35c) {
-        bridge_log_(cvm::MEDIUM, "<{}> topei resynch\n", d.cycle);
+      // Resynch msi poke for topi/topei cases
+      if (csr.csr_addr==0x15c || csr.csr_addr==0x25c || csr.csr_addr==0x35c ||
+          csr.csr_addr==0xdb0 || csr.csr_addr==0xfb0) {
+        bridge_log_(cvm::MEDIUM, "<{}> topi/topei resynch\n", d.cycle);
         for (const auto &m : mem_poke_) {
-      if (FLAGS_bridge_log) {
+          if (FLAGS_bridge_log) {
             bridge_log_(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: Mpoke[{:#x}]={:#x}\n", d.cycle, step_, m.pa, m.data);
           }
           if (!client_->whisperPokeMem(hart, d.cycle, 'm', m.pa, m.size, m.data, valid)) {
