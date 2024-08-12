@@ -468,13 +468,11 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   // Handle post-step conditions
   post_step_interrupt_poke(hart, d, w);
-  //if(!debug_mode_){
   post_step_exception_poke(hart, d, w);
   //}
   post_step_satp_write_poke(hart, d, w);
 
   if (excp_in_debug_mode) {
-    excp_in_debug_mode = false;
     cac_.ResetStatus(hart);
     return;
   }
@@ -549,7 +547,6 @@ void bridge::process_dut_csr_hw_update(hart_id_t hart, csr_t& c) {
 void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d) {
   if (patch_mode_)
     return;
-
   if (!FLAGS_csr_wr_check)
     return;
   const auto cac_status_verbosity = cvm::HIGH;
@@ -626,7 +623,7 @@ void bridge::pre_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
     print(cvm::ERROR, "Error: Hart {}: Failed to poke memory\n", hart);
     return;
   }
-  if (instr.excp && (instr.ecause == 3)){
+  if (instr.excp){
     if (!client_->whisperPoke(hart, 0, 'r', 0x6, FLAGS_debug_entry_pc, valid)) {
       print(cvm::ERROR, "Error: Hart {}: Failed to poke x6 register\n", hart);
       return;
@@ -845,21 +842,32 @@ void bridge::post_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, const
 
 void bridge::post_step_exception_poke(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
 
+  excp_in_debug_mode = false;
   if (!d.excp && !w_.excp)
     return;
 
   if (d.excp && is_custom_excp(d.ecause)) {
-    bridge_log_(cvm::MEDIUM, "<{}> Custom exception detected: {}\n", d.cycle, d.ecause);
+    bridge_log_(cvm::MEDIUM, "<{}> Custom exception detected: {}  {:#x}\n", d.cycle, d.ecause, d.pc.pc_rdata);
     // Vector conservative mode
-    if (d.ecause == 55)
+    if (d.ecause == 55) {
       resynch(hart, d);
+    } else if (d.ecause == 33) { // custom debug mode enter exception
+      rv_debug_t debug;
+      debug.cycle = d.cycle;
+      debug.enter = true;
+      debug.exit  = false;
+      debug.hart  = d.hart;
+      enter_debug_mode(debug);
+      if (FLAGS_emulate_debug_mode)
+        excp_in_debug_mode = true;
+    }
     return;
   }
   
-  if(debug_mode_ && FLAGS_emulate_debug_mode && (d.excp )){
+  if (debug_mode_ && FLAGS_emulate_debug_mode && d.excp){
     excp_in_debug_mode = true;
     return;
-  }else{
+  } else {
     excp_in_debug_mode = false;
   }
   
@@ -2020,7 +2028,7 @@ void bridge::enter_debug_mode(rv_debug_t& d) {
     0x000000130640006f,
     0x000000130b40006f,
     0x000000130180006f
-   };
+  };
   bridge_log_(cvm::NONE, "<{}> Enter debug mode\n", d.cycle);
   if (!debug_mode_) {
     if (!client_->whisperEnterDebug()) {
@@ -2032,12 +2040,10 @@ void bridge::enter_debug_mode(rv_debug_t& d) {
   debug_mode_ = true;
 
   bool valid;
- for(int i=25;i>=0;i--){
-    
+  for(int i=25; i>=0; i--) {
     uint64_t debugROM_loc = FLAGS_debug_entry_pc + (25-i)*8;
-
-    if (!client_->whisperPoke(0, 0, 'm', debugROM_loc,debugROM[i] , valid)) {
-      print(cvm::ERROR, "Error: Hart {}: Failed to poke debug memory\n", 0);
+    if (!client_->whisperPoke(0, 0, 'm', debugROM_loc, debugROM[i], valid)) {
+      print(cvm::ERROR, "Error: Hart {}: Failed to poke debug memory\n", id_);
       return;
     }
   }
@@ -2196,6 +2202,8 @@ uint64_t bridge::get_csr_mask(hart_id_t hart, uint64_t addr) {
   if (!client_->whisperPeekCsr(hart, addr, data, mask, poke_mask, read_mask, valid)) {
     print(cvm::ERROR, "Error: Hart {}: Failed to peek csr\n", hart);
   }
+  if (debug_mode_ && addr == 0x7b0) //TODO: this list may need to be extended for all CSRs accessible only via Debug mode
+    return poke_mask;
   return mask & read_mask;
 }
 
