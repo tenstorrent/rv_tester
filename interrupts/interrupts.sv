@@ -57,30 +57,26 @@ import rv_tester_params::*;
 
   always @(posedge tb_clk) begin
     /* verilator lint_off BLKSEQ */
-    //if (nmi_start | nmi_end) begin
-    //  tb_clocks = 0;
-    //end
-    if (nmi_en && (nmi_count != 0) && ~&core_no_fetch) begin
+    if (nmi_en && (nmi_count != 0) && ~core_no_fetch) begin
       tb_clocks = tb_clocks + 1;
     end
     /* verilator lint_on BLKSEQ */
   end
 
-  logic [NHARTS-1:0] core_no_fetch_d1;
+  logic core_no_fetch_d1;
   int unsigned dut_clocks = 0;
   always @(posedge clk) begin
     core_no_fetch_d1 <= core_no_fetch;
     nmi_in_progress_d1 <= nmi_in_progress;
     dut_clocks <= dut_clocks + 1;
+    /* verilator lint_off BLKSEQ */
     if (nmi_end) begin
-      /* verilator lint_off BLKSEQ */
       tb_clocks = 0;
       nmi_count = nmi_count - 1;
       nmi_interval = cvm_rand::get("nmi_interval");
       nmi_width = cvm_rand::get("nmi_width");
       $display("[interrupts] rand: nmi_count = %0d nmi_interval = %0d nmi_width = %0d",
         nmi_count, nmi_interval, nmi_width);
-      /* verilator lint_on BLKSEQ */
     end
     else if (nmi_in_progress && (tb_clocks > nmi_width)) begin
       nmi_in_progress = '0;
@@ -89,10 +85,11 @@ import rv_tester_params::*;
       nmi_in_progress = '1;
       tb_clocks = 0;
     end
+    /* verilator lint_on BLKSEQ */
   end
 
   // m_core_no_fetch
-  assign m_core_no_fetchs[0].valid = (~&core_no_fetch & &core_no_fetch_d1) & (location != cvm_topology::nil);
+  assign m_core_no_fetchs[0].valid = (~core_no_fetch & core_no_fetch_d1) & (location != cvm_topology::nil);
   assign m_core_no_fetchs[0].data.location = location;
   assign m_core_no_fetchs[0].data.val = core_no_fetch;
 

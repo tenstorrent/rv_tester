@@ -1390,7 +1390,7 @@ interrupts:
         num: 1
         fields:
             val:
-                width: ${TOP.PLATFORM.NHARTS}
+                width: 1
 
 aplic_monitor:
     num: 1
