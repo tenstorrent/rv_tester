@@ -1751,7 +1751,6 @@ void bridge::process_dut_mcm_write(hart_id_t hart, mem_cl_t& m) {
   for (unsigned i=0; i<64; i++) {
     data[i] = (uint8_t)((m.data >> (i*8)) & std::bitset<512>(0xff)).to_ulong();
   }
-
   bool valid = false;
   if (!client_->whisperMcmWrite(hart, m.cycle, m.pa, 64, data, m.mask, valid)) {
     print(cvm::ERROR, "Error: Hart {}: Failed mcm store drain\n", hart);
@@ -2044,7 +2043,7 @@ void bridge::enter_debug_mode(rv_debug_t& d) {
   };
   bridge_log_(cvm::NONE, "<{}> Enter debug mode\n", d.cycle);
   if (!debug_mode_) {
-    if (!client_->whisperEnterDebug()) {
+    if (!client_->whisperEnterDebug(d.hart)) {
       print(cvm::ERROR, "Error: Hart {}: Failed to enter debug mode\n", id_);
       return;
     }
@@ -2055,8 +2054,8 @@ void bridge::enter_debug_mode(rv_debug_t& d) {
   bool valid;
   for(int i=25; i>=0; i--) {
     uint64_t debugROM_loc = FLAGS_debug_entry_pc + (25-i)*8;
-    if (!client_->whisperPokeMem(0, 0, 'm', debugROM_loc, 8, debugROM[i], valid)) {
-      print(cvm::ERROR, "Error: Hart {}: Failed to poke debug memory\n", id_);
+    if (!client_->whisperPokeMem(d.hart, 0, 'm', debugROM_loc, 8, debugROM[i], valid)) {
+      print(cvm::ERROR, "Error: Hart {}: Failed to poke debug memory\n", d.hart);
       return;
     }
   }
