@@ -45,8 +45,9 @@ module rv_tester
     logic  profile6_clk [NCLKS-1:0];
 
     if (EXTERNAL_CLOCK) begin
-        for (genvar c = 0; c < NCLKS; c++) begin
-            assign clk[c] = clk_ext[c];
+        assign clk[TB_CLK_IDX] = clk_ext[TB_CLK_IDX];
+        for (genvar c = 1; c < NCLKS; c++) begin
+            assign clk[c] = force_ref_clk ? clk_ext[REF_CLK_IDX] : clk_ext[c];
         end
     end else begin
         for (genvar c = 0; c < NCLKS; c++) begin
@@ -93,7 +94,7 @@ module rv_tester
 
     bit perf = 0;
     /* verilator lint_off MULTIDRIVEN */
-    logic sys_reset [NCLKS-1:0];
+    logic [NCLKS-1:0] sys_reset = '1;
     logic dut_reset [NCLKS-1:0];
     /* verilator lint_on MULTIDRIVEN */
     logic init_pulse;
@@ -111,10 +112,10 @@ module rv_tester
     int num_reruns = -1;
 
     string warm_reset_string;
-    logic warm_reset_en;
-    logic warm_reset_now;
-    logic warm_reset_now_d1;
-    logic warm_reset_requested = 0;
+    logic warm_reset_en = 0;
+    logic warm_reset_req;
+    logic warm_reset_req_d1;
+    logic warm_reset_now = 0;
     int num_resets = -1;
     int target_num_resets = 0;
 
@@ -164,11 +165,11 @@ module rv_tester
     int unsigned cvm_verbosity, gen_clocks_verbosity;
 
 
-    assign terminate           = (shutdown || tj_max_interrupt || rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sys_reset[TB_CLK_IDX]) || quiesce_counter > 0) && !rv_tester_reset;
-    assign terminate_now       = (terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue == '0) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced )) || shutdown || tj_max_interrupt; 
+    assign terminate           = (rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sys_reset[TB_CLK_IDX]) || quiesce_counter > 0) && !rv_tester_reset;
+    assign terminate_now       = (terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue == '0) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced )) || warm_reset_now; 
 
     
-    assign rerun_now           = (terminated && (num_reruns > 0)) || (warm_reset_en && (num_resets < target_num_resets));
+    assign rerun_now           = terminated && ((num_reruns > 0) || (warm_reset_en && (num_resets <= target_num_resets)));
 
   `ifndef CLK_MUX_UNSUPPORTED 
     always @(posedge clk[TB_CLK_IDX])begin
@@ -197,7 +198,6 @@ module rv_tester
 
         rv_tester_reset <= rerun_now;
         clocks          <= clocks + 1;
-        sys_reset[TB_CLK_IDX] <= '0;
 
         quiesce_counter <= quiesce_counter + int'(terminate);
         flush_counter   <= flush_counter + int'(quiesced);
@@ -211,14 +211,9 @@ module rv_tester
             flush_counter   <= '0;
             instructions    <= '0;
             dmi_poll_timeout_terminate <= '0;
-            sys_reset <= '{default: 1};
         end
 
-        if (rv_tester_reset && terminated) begin
-            clocks          <= '0;
-        end
-
-        if (terminate_now && !terminated) begin
+        if (terminate && terminated) begin
             num_resets      <= -1;
         end
 
@@ -311,7 +306,7 @@ module rv_tester
             num_reruns  <= cvm_plusargs::get_int("num_reruns");
         end
 
-        num_resets <= num_resets + int'(warm_reset_requested);
+        num_resets <= num_resets + int'(warm_reset_now);
         if (warm_reset_en && (num_resets < 0)) begin
             num_resets          <= 0;
             target_num_resets   <= cvm_rand::get("warm_reset_count");
@@ -343,7 +338,9 @@ module rv_tester
                 $display("<%0d> [RVTESTER]: TJ Max interrupt detected. Terminting the test.", clocks);
             end
             if (print_terminate_message) begin
-                if (quiesced) begin
+                if (warm_reset_now) begin
+                    $display("<%0d> [RVTESTER]: starting warm reset", clocks);
+                end else if (quiesced) begin
                     $display("<%0d> [RVTESTER]: exiting gracefully", clocks);
                 end else if (quiesce_counter == 0) begin
                     $display("<%0d> [RVTESTER]: exiting immediately because +quiesce_counter=0", clocks);
@@ -361,7 +358,7 @@ module rv_tester
                 end
             end
 
-            if (shutdowned && num_reruns == '0) begin
+            if (shutdowned && num_reruns == '0 && warm_reset_req == '0) begin
                 $display("INFO_PASS_METRIC:{\"instruction_count\": %0d}", instructions);
                 $display("INFO_PASS_REGR_METRIC:{\"name\": \"instructions\", \"value\":%0d, \"type\": \"i\", \"action\": \"sum\"}", instructions);
                 $display("INFO_PASS:{\"clocks\": %0d}", clocks);
@@ -375,41 +372,24 @@ module rv_tester
 
         terminated <= !rv_tester_reset && (terminated || (terminate_now && shutdowned)) && !rerun_now;
 
-        if (warm_reset_requested) begin
+        if (warm_reset_now) begin
             /* verilator lint_off BLKSEQ */
             warm_reset_clocks = soc_clocks;
             /* verilator lint_on BLKSEQ */
-            shutdowned = rv_tester_shutdown_registry() != '0;
-            if (!shutdowned) begin
-                if (print_terminate_message) begin
-                    $display("<%0d> [RVTESTER]: Could not shutdown, trying again until timeout", clocks);
-                end
-            end
         end
 
-        warm_reset_now_d1 <= warm_reset_now;
-        warm_reset_requested <= warm_reset_now & ~warm_reset_now_d1;
+        warm_reset_req_d1 <= warm_reset_req;
+        warm_reset_now <= warm_reset_req & ~warm_reset_req_d1;
 
     end
 
-    /* verilator lint_off BLKSEQ */
-    always @(posedge dut_clk[CORE_CLK_IDX]) begin
-        sys_reset[CORE_CLK_IDX] <= '0;
+    for (genvar c = 0; c < NCLKS; c++) begin
+        always @(posedge dut_clk[c]) begin
+            sys_reset[c] <= '0;
+            if (rv_tester_reset)
+                sys_reset <= '1;
+        end
     end
-
-    always @(posedge dut_clk[AXI_CLK_IDX]) begin
-        sys_reset[AXI_CLK_IDX] <= '0;
-    end
-
-    always @(posedge dut_clk[SOC_CLK_IDX]) begin
-        soc_clocks <= soc_clocks + 1;
-        sys_reset[SOC_CLK_IDX] <= '0;
-    end
-
-    always @(posedge dut_clk[REF_CLK_IDX]) begin
-        sys_reset[REF_CLK_IDX] <= '0;
-    end
-    /* verilator lint_on BLKSEQ */
 
     // We also assert reset at the end of the test to quiesce the DPIs.
     logic reset_pullup;
@@ -419,8 +399,8 @@ module rv_tester
     assign reset[WARM_RESET_IDX] = warm_reset;
 
     assign dut_reset[TB_CLK_IDX] = reset[COLD_RESET_IDX] || reset[WARM_RESET_IDX];
-    assign dut_reset[CORE_CLK_IDX] = &core_no_fetch[NHARTS-1:0];
-    assign dut_reset[AXI_CLK_IDX] = &core_no_fetch[NHARTS-1:0];
+    assign dut_reset[CORE_CLK_IDX] = &core_no_fetch[NHARTS-1:0] | force_ref_clk;
+    assign dut_reset[AXI_CLK_IDX] = &core_no_fetch[NHARTS-1:0] | force_ref_clk;
     assign dut_reset[SOC_CLK_IDX] = cold_reset;
     assign dut_reset[REF_CLK_IDX] = &core_no_fetch[NHARTS-1:0];
 
@@ -461,7 +441,7 @@ module rv_tester
         `RV_TESTER_TRANSACTIONS_SYSMOD_SOURCE_PARAMS(0)
     ) sysmod (
         .clk(dut_clk[AXI_CLK_IDX]),
-        .reset(sys_reset[TB_CLK_IDX]),
+        .reset(sys_reset[AXI_CLK_IDX]),
         .trace_quiesced(trace_quiesced),
         .jtag_quiesced(jtag_quiesced),
         .bootstrap,
@@ -611,7 +591,7 @@ module rv_tester
                 .cold_reset(cold_reset),
                 .warm_reset(warm_reset),
                 .warm_reset_en(warm_reset_en),
-                .warm_reset_now(warm_reset_now),
+                .warm_reset_req(warm_reset_req),
                 .reset_hold(reset_hold),
                 .force_ref_clk(pwrmgmt_force_ref_clk),
                 `RV_TESTER_TRANSACTIONS_PWRMGMT_SOURCE_PORTS(3,0,0)

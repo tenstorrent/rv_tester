@@ -52,6 +52,7 @@ module top
     assign quiesced = '1;
     assign dmi_req_ready = '0;
     assign dmi_resp_valid = '0;
+    assign core_no_fetch = reset[COLD_RESET_IDX] || reset[WARM_RESET_IDX];
 
     for (genvar i = 0; i < cvm_topology_gen::mods.TOP.PLATFORM.NHARTS; i++) begin
       assign debug_mode[i] = '0;

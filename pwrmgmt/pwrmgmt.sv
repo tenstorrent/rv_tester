@@ -15,7 +15,7 @@ import rv_tester_params::*;
   input logic warm_reset_en,
   output logic cold_reset,
   output logic warm_reset,
-  output logic warm_reset_now,
+  output logic warm_reset_req,
   output logic [NHOLDS-1:0] reset_hold,
   output logic force_ref_clk,
   `RV_TESTER_TRANSACTIONS_PWRMGMT_OUTPUT_PORTS
@@ -71,13 +71,13 @@ import rv_tester_params::*;
     end
   end
 
-  assign warm_reset_now = warm_reset_tick;
+  assign warm_reset_req = warm_reset_tick;
 
   // m_tick
   // - during reset sequence till force_ref_clk is deasserted, send every clock
   // - after rest sequence, send a tick only to start a warm reset
   logic tick_valid;
-  assign tick_valid = (force_ref_clk | warm_reset_now) & (location != cvm_topology::nil);
+  assign tick_valid = (force_ref_clk | warm_reset_req) & (location != cvm_topology::nil);
   assign m_ticks[0].valid = tick_valid;
   assign m_ticks[0].data.location = location;
   assign m_ticks[0].data.cycle = tick_valid ? soc_clocks : 0;
