@@ -27,6 +27,7 @@ DEFINE_bool(patch_cpl_filter_dis, false, "Disable programming of inbound and out
 DEFINE_bool(patch_registers_check, false, "Enable read write checking of patch related registers");
 DEFINE_bool(patch_ram_check, false, "Enable read write checking of patch ram region");
 DEFINE_bool(patch_cfg_lock, true, "Lock the patch mmrs while boot programming ");
+DEFINE_bool(fuse_reg_check, false, "Check RW and lockability of fuses ");
 
 
 extern "C" {
@@ -203,7 +204,10 @@ cvm::messenger::task<void> reset_sequence::warm_reset_sequence() {
 
 cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
   co_await release_cpl_reset();
-  co_await program_fuses();
+  if (rst_type == COLD)  
+    co_await program_fuses();
+  if (FLAGS_fuse_reg_check)
+    co_await fuse_register_check();
   co_await program_thub_threshold();
   if (FLAGS_patch_en && rst_type == COLD) { 
     co_await program_patch();
@@ -211,7 +215,8 @@ cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
     co_await patch_ram_check();
   };
   co_await release_cpl_nofetch();
-
+  if (FLAGS_fuse_reg_check)
+    co_await fuse_mmr_csr_access_check();
   co_return;
 }
 
@@ -647,6 +652,7 @@ void reset_sequence::populate_patch_ram(uint64_t addr, const std::vector<uint64_
   for(int i=0; i < size; i++){
     uint64_t addr_n = addr + i*8;
     patch_ram[addr_n] = data[i];
+    //cvm::log(cvm::NONE, "[pwrmgmt]  populate_patch_ram : addr 0x{:x} , data 0x{:x} \n", addr_n, data[i] );
   }
 };
 
@@ -655,7 +661,7 @@ cvm::messenger::task<void> reset_sequence::patch_ram_check() {
   uint32_t addr;
   co_await tick();
   for( int i = 0; i<20;i++ ){
-    addr = cpl_patch_ram_base + (rand()%4096)/8;
+    addr = cpl_patch_ram_base + (rand()%512)*8;
     actual_data = co_await read(addr, SZ_8B);
     if (patch_ram.find(addr) == patch_ram.end())
       exp_data = 0;
@@ -666,5 +672,46 @@ cvm::messenger::task<void> reset_sequence::patch_ram_check() {
     else
       cvm::log(cvm::NONE, "[pwrmgmt]  patch ram check : addr 0x{:x} , data 0x{:x} \n", addr, actual_data );
   };  
+  co_return;
+};
+
+
+cvm::messenger::task<void> reset_sequence::fuse_register_check() {
+  co_await tick();
+
+  uint64_t fuse = fuse_val();
+  std::vector<uint64_t> fuse_registers = { 
+    sw_fuse_mmr,
+    trace_fuse_mmr,
+    aclint_fuse_mmr,
+    dm_fuse_mmr,
+    sc_fuse_mmr
+  };
+  for (uint32_t i=0; i<FLAGS_num_harts; ++i)
+    fuse_registers.push_back(core_fuse_mmr + i * core_fuse_offset);
+  uint64_t actual_data;
+  for (auto addr : fuse_registers) {
+    actual_data = co_await read(addr, SZ_8B);
+    if (fuse != actual_data)
+      cvm::log(cvm::ERROR, "[pwrmgmt] Fuse reg read check ERROR : addr 0x{:x} ,  Expected :0x{:x}, Actual : 0x{:x} \n", addr, fuse, actual_data );
+    else
+      cvm::log(cvm::NONE, "[pwrmgmt]  Fuse reg read check : addr 0x{:x} , data 0x{:x} \n", addr, actual_data );
+  };
+
+    for (auto addr : fuse_registers) {
+      co_await write(addr, SZ_8B, rand()%0xFFFF'FFFF'FFFF'FFFF);
+      actual_data = co_await read(addr, SZ_8B);
+      if (fuse != actual_data)
+        cvm::log(cvm::ERROR, "[pwrmgmt] Fuse reg lock check ERROR : addr 0x{:x} ,  Expected :0x{:x}, Actual : 0x{:x} \n", addr, fuse, actual_data );
+      else
+        cvm::log(cvm::NONE, "[pwrmgmt]  Fuse reg lock check : addr 0x{:x} , data 0x{:x} \n", addr, actual_data );
+    };
+  co_return;
+};
+
+
+cvm::messenger::task<void> reset_sequence::fuse_mmr_csr_access_check() {
+  co_await tick();
+  //FIXME : ADD read write accesses to disabled cores
   co_return;
 };
