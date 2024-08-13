@@ -18,13 +18,15 @@ import rv_tester_params::*;
   import "DPI-C" context function void triggers_set_scope(int unsigned location);
 
   logic [TRIGGER_COUNT-1:0] event_trigger;
+  logic [7:0] patch_trigger; 
   genvar i;
   generate
-    for (i = 0; i < TRIGGER_COUNT; i = i + 1) begin
-      assign event_trigger[i] = event_trigger_vec[i].valid;
+    for (i = 0; i < 8; i = i + 1) begin
+      assign patch_trigger[i] = event_trigger_vec[i].valid;
     end
   endgenerate
 
+  assign event_trigger[PATCH] = |patch_trigger;
   int unsigned location = cvm_topology::nil;
   
   // -------------------------
@@ -75,7 +77,7 @@ end
   assign m_event_trigger_ticks[0].valid = event_based_interrupt & (location != cvm_topology::nil);
   assign m_event_trigger_ticks[0].data.location = location;
   /* verilator lint_off WIDTHEXPAND */
-  assign m_event_trigger_ticks[0].data.event_trigger = event_trigger;
+  assign m_event_trigger_ticks[0].data.event_trigger = patch_trigger;
   /* verilator lint_on WIDTHEXPAND */
 
 
