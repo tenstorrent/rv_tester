@@ -778,10 +778,10 @@ whisperClient<URV>::whisperPageTableWalk(int, bool, bool,
 
 template <typename URV>
 bool
-whisperClient<URV>::whisperEnterDebug()
+whisperClient<URV>::whisperEnterDebug(int hart)
 {
   std::cout<<"Whisper client Enter Debug\n";
-  req.hart = 0;
+  req.hart = hart;
   req.type = WhisperMessageType::EnterDebug;
 
   if (not whisperCommand(req, reply))
@@ -792,10 +792,10 @@ whisperClient<URV>::whisperEnterDebug()
 
 template <typename URV>
 bool
-whisperClient<URV>::whisperExitDebug()
+whisperClient<URV>::whisperExitDebug(int hart)
 {
   std::cout<<"Whisper client Exit Debug\n";
-  req.hart = 0;
+  req.hart = hart;
   req.type = WhisperMessageType::ExitDebug;
 
   if (not whisperCommand(req, reply))

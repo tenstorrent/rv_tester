@@ -22,10 +22,12 @@ DEFINE_string(warm_reset_debug_hold, "0:1", "Debug hold");
 DEFINE_string(warm_reset_critical_hold, "0:1", "Critical hold");
 DEFINE_bool(patch_en, false, "Enable instruction patching");
 DEFINE_bool(tj_max, false, "Program lower TJ Max Threshold");
+DEFINE_bool(temp_throttle, false, "Program lower Temp throttle for core");
 DEFINE_bool(patch_cpl_filter_dis, false, "Disable programming of inbound and outbound filters in core");
 DEFINE_bool(patch_registers_check, false, "Enable read write checking of patch related registers");
 DEFINE_bool(patch_ram_check, false, "Enable read write checking of patch ram region");
 DEFINE_bool(patch_cfg_lock, true, "Lock the patch mmrs while boot programming ");
+DEFINE_bool(fuse_reg_check, false, "Check RW and lockability of fuses ");
 
 
 extern "C" {
@@ -202,18 +204,19 @@ cvm::messenger::task<void> reset_sequence::warm_reset_sequence() {
 
 cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
   co_await release_cpl_reset();
-  co_await program_fuses();
-  if(FLAGS_tj_max)
-  {
-    co_await program_thub_threshold();
-  };
+  if (rst_type == COLD)  
+    co_await program_fuses();
+  if (FLAGS_fuse_reg_check)
+    co_await fuse_register_check();
+  co_await program_thub_threshold();
   if (FLAGS_patch_en && rst_type == COLD) { 
     co_await program_patch();
   } else if (FLAGS_patch_ram_check) {
     co_await patch_ram_check();
   };
   co_await release_cpl_nofetch();
-
+  if (FLAGS_fuse_reg_check)
+    co_await fuse_mmr_csr_access_check();
   co_return;
 }
 
@@ -373,14 +376,15 @@ cvm::messenger::task<void> reset_sequence::csr_write(uint32_t core_id, uint64_t 
   uint64_t cmd = 0;
   uint32_t offset = core_id * core_fuse_offset;
   cvm::log(cvm::NONE, "[pwrmgmt] csr write req - core_id = {}, addr={:#x}, data={:#x} \n", core_id, addr, data );
-  do { 
-    cmd = co_await read(core_crCsrCommandPort + offset, SZ_8B);
-  } while ((cmd>>62) == 0x1 );
   uint32_t unit = core_id;
-  uint64_t wr = 1;
-  cmd = wr << 61 |unit<<12|addr;
+  uint64_t wr = 0x1;
+  uint64_t en = 0x1;
+  cmd = en<<62 | wr << 61 | unit<<12|addr;
   co_await write(core_crCsrDataPort + offset, SZ_8B, data);
   co_await write(core_crCsrCommandPort + offset, SZ_8B, cmd);
+  do { 
+    cmd = co_await read(core_crCsrCommandPort + offset, SZ_8B);
+  } while ((cmd>>63) != 0x0 );
   co_return;
 }
 
@@ -389,16 +393,17 @@ cvm::messenger::task<uint64_t> reset_sequence::csr_read(uint32_t core_id, uint64
   uint64_t cmd = 0;
   uint32_t offset = core_id * core_fuse_offset;
   cvm::log(cvm::NONE, "[pwrmgmt] csr read req - core_id = {}, addr={:#x} \n", core_id, addr );
-  do { 
-    cmd = co_await read(core_crCsrCommandPort + offset, SZ_8B);
-  } while ((cmd>>62) == 0x1 );
+  //do { 
+  //  cmd = co_await read(core_crCsrCommandPort + offset, SZ_8B);
+  //} while ((cmd>>63) != 0x0 );
   uint8_t unit = core_id;
   uint64_t wr = 0;
-  cmd = wr << 61 |unit<<12|addr;
+  uint64_t en = 0x1;
+  cmd = en <<62 | wr << 61 |unit<<12|addr;
   co_await write(core_crCsrCommandPort + offset, SZ_8B, cmd);
   do { 
     cmd = co_await read(core_crCsrCommandPort + offset, SZ_8B);
-  } while ((cmd>>62) == 0x1 );
+  } while ((cmd>>63) != 0x0 );
   cvm::log(cvm::NONE, "[pwrmgmt] csr read res - core_id = {}, addr={:#x} \n", core_id, addr );
   auto data = co_await read(core_crCsrDataPort + offset, SZ_8B);
   co_return data;
@@ -569,7 +574,7 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
     uint32_t offset = i * core_fuse_offset;
     for (auto j : patch_cfg)
       co_await write(j.first + offset, SZ_8B, j.second);
-    co_await csr_write(i, core_ptvec_csr , 0x4210C000);
+    //co_await csr_write(i, core_ptvec_csr , 0x4210C000); FIXME : Enable CSR write once its fixed
     co_await write(core_pcontrol_mmr + offset, SZ_8B, pcontrol_data);
   };
 
@@ -613,8 +618,19 @@ cvm::messenger::task<void> reset_sequence::write_thub_reg(uint8_t addr, uint32_t
 
 cvm::messenger::task<void> reset_sequence::program_thub_threshold() {
   co_await tick();
-  for (uint8_t i=0; i<FLAGS_num_thubs; ++i) {
-      co_await write_thub_reg(thub_threhold_param_reg,0x05400640,i+9,i);
+  if(FLAGS_tj_max)
+    {
+    for (uint8_t i=0; i<FLAGS_num_thubs; ++i) {
+        co_await write_thub_reg(thub_threhold_param_reg,0x05400640,i+9,i);
+    };
+  };
+  if(FLAGS_temp_throttle)
+  {
+  //for(uint32_t p =0; p < FLAGS_num_harts; ++p)
+  //  {
+      co_await csr_write(0, core_pwr_throttle_cfg_0 , 0x000078830372a211);
+      co_await csr_write(0, core_pwr_throttle_cfg_1 , 0x1041017ecb594129);
+    //};
   };
  
 };
@@ -636,6 +652,7 @@ void reset_sequence::populate_patch_ram(uint64_t addr, const std::vector<uint64_
   for(int i=0; i < size; i++){
     uint64_t addr_n = addr + i*8;
     patch_ram[addr_n] = data[i];
+    //cvm::log(cvm::NONE, "[pwrmgmt]  populate_patch_ram : addr 0x{:x} , data 0x{:x} \n", addr_n, data[i] );
   }
 };
 
@@ -644,7 +661,7 @@ cvm::messenger::task<void> reset_sequence::patch_ram_check() {
   uint32_t addr;
   co_await tick();
   for( int i = 0; i<20;i++ ){
-    addr = cpl_patch_ram_base + (rand()%4096)/8;
+    addr = cpl_patch_ram_base + (rand()%512)*8;
     actual_data = co_await read(addr, SZ_8B);
     if (patch_ram.find(addr) == patch_ram.end())
       exp_data = 0;
@@ -655,5 +672,46 @@ cvm::messenger::task<void> reset_sequence::patch_ram_check() {
     else
       cvm::log(cvm::NONE, "[pwrmgmt]  patch ram check : addr 0x{:x} , data 0x{:x} \n", addr, actual_data );
   };  
+  co_return;
+};
+
+
+cvm::messenger::task<void> reset_sequence::fuse_register_check() {
+  co_await tick();
+
+  uint64_t fuse = fuse_val();
+  std::vector<uint64_t> fuse_registers = { 
+    sw_fuse_mmr,
+    trace_fuse_mmr,
+    aclint_fuse_mmr,
+    dm_fuse_mmr,
+    sc_fuse_mmr
+  };
+  for (uint32_t i=0; i<FLAGS_num_harts; ++i)
+    fuse_registers.push_back(core_fuse_mmr + i * core_fuse_offset);
+  uint64_t actual_data;
+  for (auto addr : fuse_registers) {
+    actual_data = co_await read(addr, SZ_8B);
+    if (fuse != actual_data)
+      cvm::log(cvm::ERROR, "[pwrmgmt] Fuse reg read check ERROR : addr 0x{:x} ,  Expected :0x{:x}, Actual : 0x{:x} \n", addr, fuse, actual_data );
+    else
+      cvm::log(cvm::NONE, "[pwrmgmt]  Fuse reg read check : addr 0x{:x} , data 0x{:x} \n", addr, actual_data );
+  };
+
+    for (auto addr : fuse_registers) {
+      co_await write(addr, SZ_8B, rand()%0xFFFF'FFFF'FFFF'FFFF);
+      actual_data = co_await read(addr, SZ_8B);
+      if (fuse != actual_data)
+        cvm::log(cvm::ERROR, "[pwrmgmt] Fuse reg lock check ERROR : addr 0x{:x} ,  Expected :0x{:x}, Actual : 0x{:x} \n", addr, fuse, actual_data );
+      else
+        cvm::log(cvm::NONE, "[pwrmgmt]  Fuse reg lock check : addr 0x{:x} , data 0x{:x} \n", addr, actual_data );
+    };
+  co_return;
+};
+
+
+cvm::messenger::task<void> reset_sequence::fuse_mmr_csr_access_check() {
+  co_await tick();
+  //FIXME : ADD read write accesses to disabled cores
   co_return;
 };

@@ -47,8 +47,8 @@ class whisperClient {
     bool whisperQuit();
     bool whisperPageTableWalk(int hart, bool isInstr, bool isAddr, svOpenArrayHandle items, unsigned& itemCount, bool& valid);
     bool whisperTranslate(int hart, uint64_t vaddr, bool r, bool w, bool x, bool twoStage, bool supervisor, uint64_t& paddr, bool& valid);
-    bool whisperEnterDebug();
-    bool whisperExitDebug();
+    bool whisperEnterDebug(int hart);
+    bool whisperExitDebug(int hart);
     bool whisperCheckInterrupt(int hart, uint64_t mip, bool& interrupt, uint64_t& cause);
     bool whisperGetSeiPin(int hart, uint64_t& value);
     bool whisperCancelLr(int hart, bool& valid);
