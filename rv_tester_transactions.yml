@@ -1385,6 +1385,12 @@ interrupts:
         fields:
             cycle:
                 width: 32
+    m_core_no_fetch:
+        domain: 2
+        num: 1
+        fields:
+            val:
+                width: ${TOP.PLATFORM.NHARTS}
 
 aplic_monitor:
     num: 1
