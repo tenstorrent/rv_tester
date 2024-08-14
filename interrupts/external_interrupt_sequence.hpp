@@ -43,7 +43,8 @@ class external_interrupt_sequence {
     svScope scope_;
 
    
-    cvm::rand::rng<int64_t> rng1;
+   
+    cvm::rand::uniform_dist<int64_t> rng1;
 
     
     uint32_t interrupts_driven = 0;
