@@ -44,6 +44,8 @@ class reset_sequence {
     cvm::messenger::task<void> program_thub_threshold();
     cvm::messenger::task<void> release_cpl_nofetch();
     cvm::messenger::task<void> patch_ram_check();
+    cvm::messenger::task<void> fuse_register_check();
+    cvm::messenger::task<void> fuse_mmr_csr_access_check();
 
     cvm::messenger::task<uint64_t> read(uint64_t addr, size_t sz);
     cvm::messenger::task<void> write(uint64_t addr, size_t sz, uint64_t data);
@@ -75,5 +77,6 @@ class reset_sequence {
     cvm::topology::loc_t loc_, smc_axi_loc_;
     svScope scope_;
 
+    uint32_t num_cores_ = 0;
     uint32_t warm_reset_count_ = 0;
 };

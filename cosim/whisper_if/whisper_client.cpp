@@ -584,6 +584,15 @@ whisperClient<URV>::whisperMcmInsert(int hart, uint64_t time, uint64_t instrTag,
   req.value = value;
   req.size = size;
 
+  if (size > 8)
+    {
+      // Inserts with size larger than 8 should use the vector interface to pass
+      // the vector data. Here we accept size larger than 8 if the data is zero
+      // (this maybe used for the cbo.zero instruction).
+      assert(value == 0);
+      req.buffer.fill(0);
+    }
+
   if (not whisperCommand(req, reply))
     return false;
 
@@ -769,10 +778,10 @@ whisperClient<URV>::whisperPageTableWalk(int, bool, bool,
 
 template <typename URV>
 bool
-whisperClient<URV>::whisperEnterDebug()
+whisperClient<URV>::whisperEnterDebug(int hart)
 {
   std::cout<<"Whisper client Enter Debug\n";
-  req.hart = 0;
+  req.hart = hart;
   req.type = WhisperMessageType::EnterDebug;
 
   if (not whisperCommand(req, reply))
@@ -783,10 +792,10 @@ whisperClient<URV>::whisperEnterDebug()
 
 template <typename URV>
 bool
-whisperClient<URV>::whisperExitDebug()
+whisperClient<URV>::whisperExitDebug(int hart)
 {
   std::cout<<"Whisper client Exit Debug\n";
-  req.hart = 0;
+  req.hart = hart;
   req.type = WhisperMessageType::ExitDebug;
 
   if (not whisperCommand(req, reply))

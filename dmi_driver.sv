@@ -47,6 +47,9 @@ module dmi_driver (
   logic [2:0] core_halt_index, core_resume_index;
   logic tdata1_write, check_trigger_type, mcontrol6_trigger, trigger_to_fire, trigger_fired_halted, check_cause_trigger, cause_trigger, to_check_cause;
   logic dcsr_abscmd, dcsr_write, ss_step_bit, core_to_halt_after_ss, core_halted_after_ss;
+  logic check_step_core, core_hg_resumed_ss, core_haltsum_ss, core_check_haltsum_ss;
+  logic [2:0] core_ss_index, core_halted_ss, core_halted_sdtrig;
+  logic tselect_core, tselect_core_complete, core_rg_halt_sdtrig, core_haltsum_sdtrig, check_haltsum_sdtrig;
 
   int file_descr;
 
@@ -107,6 +110,18 @@ module dmi_driver (
     ss_step_bit <= 0;
     core_to_halt_after_ss <= 0;
     core_halted_after_ss <= 0;
+    check_step_core <= 0;
+    core_ss_index <= 0;
+    core_hg_resumed_ss <= 0;
+    core_haltsum_ss <= 0;
+    core_check_haltsum_ss <= 0;
+    core_halted_ss <= 0;
+    tselect_core <= 0;
+    tselect_core_complete <= 0;
+    core_rg_halt_sdtrig <= 0;
+    core_haltsum_sdtrig <= 0;
+    check_haltsum_sdtrig <= 0;
+    core_halted_sdtrig <= 0;
   end
 
   assign misc_signals[0] = poll;
@@ -231,6 +246,9 @@ module dmi_driver (
             end else if (cmd.data[15:0] === 'h07b0) begin
               $display("[Poll] Seen the abstract command with write on dcsr");
               dcsr_abscmd = 1;
+            end else if(cmd.data[15:0] === 'h07a0)begin
+              tselect_core = 1;
+              $display("[sdtrig:Poll] Check which core has sdtrig configurations");
             end
           end else if (cmd.data[16] === 'h0) begin
             $display("[Poll] Seen the abstract command with read");
@@ -293,6 +311,11 @@ module dmi_driver (
         tdata1_write = 0;
         check_trigger_type = 1;
         poll = 1;
+      end else if(cmd.addr === 'h16 && cmd.op === 'h1 && tselect_core) begin
+        $display("trigger type is configured in tdata1");
+        tselect_core = 0;
+        tselect_core_complete = 1;
+        poll = 1;
       end else if(trigger_to_fire && cmd.addr === 'h11 && cmd.op === 'h1) begin
         $display("[Sdtrig] Core resuming after sdtrig configuration");
         poll = 1;
@@ -306,6 +329,20 @@ module dmi_driver (
         poll = 1;
         check_cause_trigger = 0;
         cause_trigger = 1;
+      end else if(ss_step_bit && cmd.addr === 'h10 && cmd.op === 'h1) begin
+        poll = 1;
+        check_step_core = 1;
+        ss_step_bit = 0;
+        $display("[ss_hg] check_step_core set, check which core to single step");
+      end else if(core_haltsum_ss && cmd.addr === 'h11 && cmd.op === 'h1) begin
+        poll = 1;
+        core_haltsum_ss = 0;
+        core_check_haltsum_ss = 1;
+        $display("[ss_hg] core_check_haltsum_ss is set");
+      end else if(core_haltsum_sdtrig && cmd.addr === 'h11 && cmd.op === 'h1) begin
+        poll = 1;
+        check_haltsum_sdtrig = 1;
+        core_haltsum_sdtrig = 0;
       end
     end
   endtask : is_poll_needed
@@ -374,6 +411,18 @@ module dmi_driver (
         end else if(cause_trigger) begin
           $display("[Poll] dcsr to check if cause is 2(trigger)");
           dmi_req <= 41'h1100000000;
+        end else if(check_step_core) begin
+          dmi_req <= 41'h4100000000;
+          $display("[Poll] check which core to single step in hartgroup");
+        end else if(core_check_haltsum_ss) begin
+          $display("[Poll] Read Haltsum reg for single step");
+          dmi_req <= 41'h10100000000;
+        end else if(tselect_core_complete) begin
+          $display("[Poll] check heartsel in dmcontrol for sdtrig config");
+          dmi_req <= 41'h4100000000;
+        end else if(check_haltsum_sdtrig) begin
+          $display("[Poll] Read Haltsum reg for sdtrig");
+          dmi_req <= 41'h10100000000;
         end
         wait (dmi_req_ready == 1);
         @(posedge clk) dmi_req_valid <= '0;
@@ -388,6 +437,7 @@ module dmi_driver (
           if(mcontrol6_trigger) begin
             trigger_to_fire = 1;
             mcontrol6_trigger = 0;
+            $display("[Poll] trigger_to_fire is set");
           end
           $display("[Poll] Clear Resume Req Poll");
           do_file_writes();
@@ -397,6 +447,7 @@ module dmi_driver (
           end
           if(core_halted_after_ss) begin
             core_halted_after_ss = 0;
+            $display("core_halted_after_ss is cleared");
           end
         end else if (halt_req && dmi_resp.data[9:8] === 2'b11) begin
           halt_req = 0;
@@ -463,6 +514,8 @@ module dmi_driver (
           (core_halted[5] || core_ignore_hreq[5]) && (core_halted[6] || core_ignore_hreq[6]) && (core_halted[7] || core_ignore_hreq[7])) begin
             poll = 0;
             core_haltg_hreq = 0;
+            core_halted = 0;
+            core_ignore_hreq = 0;
             $display("[Poll] All cores in halt group are halted");
           end
         end else if (remove_core_from_haltg) begin
@@ -493,8 +546,21 @@ module dmi_driver (
           (core_resumed[2] || core_ignore_rreq[2]) && (core_resumed[3] || core_ignore_rreq[3]) && (core_resumed[4] || core_ignore_rreq[4]) &&
           (core_resumed[5] || core_ignore_rreq[5]) && (core_resumed[6] || core_ignore_rreq[6]) && (core_resumed[7] || core_ignore_rreq[7])) begin
             poll = 0;
-            core_haltg_hreq = 0;
+            core_resumeg_rreq = 0;
+            core_resumed = 0;
+            core_ignore_rreq = 0;
             $display("[Poll] All cores in resume group are resumed");
+          end
+          if(core_hg_resumed_ss == 1) begin
+            core_haltsum_ss = 1;
+            core_hg_resumed_ss = 0;
+            $display("[Poll] core_haltsum_ss is set");
+          end
+          if(mcontrol6_trigger && core_rg_halt_sdtrig) begin
+            core_haltsum_sdtrig = 1;
+            core_rg_halt_sdtrig = 0;
+            mcontrol6_trigger = 0;
+            $display("[Poll] core_haltsum_sdtrig is set ");
           end
         end else if (remove_core_from_resumeg) begin
           core_resume_index = dmi_resp.data[18:16];
@@ -557,6 +623,46 @@ module dmi_driver (
           cause_trigger = 0;
           poll = 0;
           $display("[Poll:Sdtrig] core halt cause is set to 2(trigger)");
+        end else if(check_step_core) begin
+          core_ss_index = dmi_resp.data[18:16];
+          core_hg_resumed_ss = 1;
+          check_step_core = 0;
+          poll = 0;
+          $display("[Poll:ss_hg] core_hg_resumed_ss is set");
+        end else if(core_check_haltsum_ss) begin
+          for(int ii=0; ii<8; ii++) begin
+            if(ii == core_ss_index) begin
+              core_halted_ss[ii] = 1;
+            end else begin
+              core_halted_ss[ii] = 0;
+            end
+          end
+          if(core_halted_ss && dmi_resp.data[2:0]) begin
+            poll = 0;
+            core_check_haltsum_ss = 0;
+            core_halted_ss = 0;
+            $display("[Poll:ss_hg] haltsum_ss = %h as expected", core_halted_ss);
+          end
+        end else if(tselect_core_complete) begin
+          core_ss_index = dmi_resp.data[18:16];
+          core_rg_halt_sdtrig = 1;
+          tselect_core_complete = 0;
+          poll = 0;
+          $display("[Poll:sdtrig_hg] core_rg_halt_sdtrig is set");
+        end else if(check_haltsum_sdtrig) begin
+          for(int ii=0; ii<8; ii++) begin
+            if(ii == core_ss_index) begin
+              core_halted_sdtrig[ii] = 1;
+            end else begin
+              core_halted_sdtrig[ii] = 0;
+            end
+          end
+          if(core_halted_sdtrig && dmi_resp.data[2:0]) begin
+            poll = 0;
+            check_haltsum_sdtrig = 0;
+            core_halted_sdtrig = 0;
+            $display("[Poll:ss_hg] haltsum_ss = %h as expected", core_halted_sdtrig);
+          end
         end
       end
       $display("[Poll] Cleared poll for halt:%h resume:%h abstract:%h", halt_req, resume_req,
