@@ -78,7 +78,7 @@ cvm::messenger::task<void> nmi_sequence::trigger_mode() {
      co_await trigger();
 
      // Wait for random ticks after trigger
-     int num_ticks = rng1() %10;  //TODO:change to dist
+     int num_ticks = rng1() %10;  
      for(int i=0;i<num_ticks;i++)
        co_await tick();
 
