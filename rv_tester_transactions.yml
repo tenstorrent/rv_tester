@@ -1392,6 +1392,14 @@ interrupts:
             val:
                 width: 1
 
+triggers:
+    num: ${TOP.PLATFORM.NHARTS}
+    m_event_trigger_tick:
+        domain: 2
+        num: 1
+        fields:
+            event_trigger:
+                width: 32
 aplic_monitor:
     num: 1
     aplic_intr_req:
