@@ -560,8 +560,8 @@ module rv_tester
         ) interrupts (
             .tb_clk(clk[TB_CLK_IDX]),
             .tb_reset(sysmod_reset),
-            .dut_clk(dut_clk[AXI_CLK_IDX]),
-            .dut_reset(dut_reset[AXI_CLK_IDX]),
+            .clk(dut_clk[AXI_CLK_IDX]),
+            .reset(dut_reset[AXI_CLK_IDX]),
             .no_fetch(core_no_fetch[c]),
             .nmi(nmi[c]),
             `RV_TESTER_TRANSACTIONS_INTERRUPTS_SOURCE_PORTS(2,c,0)
