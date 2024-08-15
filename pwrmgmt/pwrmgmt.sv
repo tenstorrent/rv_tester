@@ -10,7 +10,7 @@ import rv_tester_params::*;
   input logic tb_clk,
   input logic tb_reset,
   input logic dut_clk [NCLKS-1:0],
-  input logic dut_reset [NCLKS-1:0],
+  input logic [NDOMAINS-1:0] dut_reset,
   input logic [NHARTS-1:0] core_no_fetch,
   output logic cold_reset,
   output logic warm_reset,
