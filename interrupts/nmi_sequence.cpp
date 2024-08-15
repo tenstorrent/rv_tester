@@ -5,7 +5,7 @@ REGISTRY_register(nmi_sequence, INTERRUPTS, cvm::registry::all);
 
 DEFINE_string(nmi, "off", "Enable nmi_sequence in the sim - off/random/trigger");
 DEFINE_string(nmi_count, "0:4", "Number of nmi sequences in the sim if random mode enabled");
-DEFINE_string(nmi_interval, "5000:50000", "TB cycle interval between nmi sequences in the sim if random mode enabled");
+DEFINE_string(nmi_interval, "1000:4000", "TB cycle interval between nmi sequences in the sim if random mode enabled");
 DEFINE_string(nmi_width, "200:500", "TB cycle width of nmi pulses in the sim if random mode enabled");
 DEFINE_int32(patch_mode_nmi_interval,10,"Number of Maximum cycles between two nmi while entering patch mode");
 
@@ -53,6 +53,10 @@ void nmi_sequence::trigger_mode_thread() {
 };
 
 cvm::messenger::task<void> nmi_sequence::random_mode() {
+
+  co_await core_no_fetch();
+  cvm::log(cvm::NONE, "[interrupts] nmi sequence - no fetch observed\n");
+
   while (true) {
     // Wait for next tick generated after a random interval "nmi_interval"
     co_await tick();
@@ -87,6 +91,11 @@ cvm::messenger::task<void> nmi_sequence::trigger_mode() {
 
      nmi(id_, DEASSERT);
   }
+}
+
+cvm::messenger::task<void> nmi_sequence::core_no_fetch() {
+  co_await cvm::registry::messenger.wait<rv_tester_transactions::interrupts::m_core_no_fetch<>>(loc_);
+  co_return;
 }
 
 void nmi_sequence::init() {
