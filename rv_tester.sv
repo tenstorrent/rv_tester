@@ -45,8 +45,9 @@ module rv_tester
     logic  profile6_clk [NCLKS-1:0];
 
     if (EXTERNAL_CLOCK) begin
-        for (genvar c = 0; c < NCLKS; c++) begin
-            assign clk[c] = clk_ext[c];
+        assign clk[TB_CLK_IDX] = clk_ext[TB_CLK_IDX];
+        for (genvar c = 1; c < NCLKS; c++) begin
+            assign clk[c] = force_ref_clk ? clk_ext[REF_CLK_IDX] : clk_ext[c];
         end
     end else begin
         for (genvar c = 0; c < NCLKS; c++) begin
@@ -89,6 +90,8 @@ module rv_tester
 
     logic flush_complete;
 
+    bit perf = 0;
+    logic dut_reset [NCLKS-1:0];
     logic init_pulse;
     logic pwrmgmt_force_ref_clk;
     logic sysmod_reset = '0;
@@ -248,6 +251,7 @@ module rv_tester
             rv_tester_error_terminate.terminate = '0;
             /* verilator lint_on BLKSEQ */
 
+            perf                 <= cvm_plusargs::get_bool("perf") != '0;
             rand_dmi_driver_dly  <= cvm_plusargs::get_int("rand_dmi_driver_dly"); 
             cb_poll              <= cvm_plusargs::get_bool("cb_async") == '0;
             quiesce_timeout      <= cvm_plusargs::get_int("quiesce_timeout");
@@ -345,6 +349,12 @@ module rv_tester
     assign reset[COLD_RESET_IDX] = cold_reset || reset_pullup;
     assign reset[WARM_RESET_IDX] = warm_reset;
 
+    assign dut_reset[TB_CLK_IDX] = reset[COLD_RESET_IDX] || reset[WARM_RESET_IDX];
+    assign dut_reset[CORE_CLK_IDX] = &core_no_fetch[NHARTS-1:0];
+    assign dut_reset[AXI_CLK_IDX] = &core_no_fetch[NHARTS-1:0];
+    assign dut_reset[SOC_CLK_IDX] = cold_reset;
+    assign dut_reset[REF_CLK_IDX] = &core_no_fetch[NHARTS-1:0];
+
 `ifdef NEGEDGE_UNSUPPORTED
     always@(posedge clk[TB_CLK_IDX]) begin
 `else
@@ -403,7 +413,7 @@ module rv_tester
     
     dmi_driver i_dmi_driver(
         .clk(dut_clk[AXI_CLK_IDX]),
-        .reset(~dut_reset[AXI_RESET_IDX]),
+        .reset(~dut_reset[AXI_CLK_IDX]),
         .rand_dmi_driver_dly,
         
         .dmi_req_ready,
@@ -482,7 +492,7 @@ module rv_tester
           .tb_clk(clk[TB_CLK_IDX]),
           .clk(dut_clk[CORE_CLK_IDX]),
           .reset(sysmod_reset),
-          .dut_reset(dut_reset[CORE_RESET_IDX]),
+          .dut_reset(dut_reset[CORE_CLK_IDX]),
           .clocks,
           .rvfi(rvfi[NRETS_CUMSUM[c] +: NRETS[c]]),
           .csri(csri[c]),
@@ -534,7 +544,7 @@ module rv_tester
                 .force_ref_clk(pwrmgmt_force_ref_clk),
                 `RV_TESTER_TRANSACTIONS_PWRMGMT_SOURCE_PORTS(3,0,0)
             );
-            assign force_ref_clk = pwrmgmt_force_ref_clk || init_pulse;
+            assign force_ref_clk = !perf ? pwrmgmt_force_ref_clk || init_pulse : '0;
         end else begin
             assign cold_reset = (clocks < RESET_TB_CLOCKS);
             assign warm_reset = '0;
@@ -551,7 +561,7 @@ module rv_tester
             .tb_clk(clk[TB_CLK_IDX]),
             .tb_reset(sysmod_reset),
             .clk(dut_clk[AXI_CLK_IDX]),
-            .reset(dut_reset[AXI_RESET_IDX]),
+            .reset(dut_reset[AXI_CLK_IDX]),
             .core_no_fetch(core_no_fetch[c]),
             .nmi(nmi[c]),
             `RV_TESTER_TRANSACTIONS_INTERRUPTS_SOURCE_PORTS(2,c,0)
@@ -599,7 +609,7 @@ module rv_tester
         .cl_clk(dut_clk[CORE_CLK_IDX]),
         .rf_clk(dut_clk[REF_CLK_IDX]),
         .reset(sysmod_reset),
-        .dut_reset(dut_reset[REF_RESET_IDX]),
+        .dut_reset(dut_reset[REF_CLK_IDX]),
         .terminate,
         .AcCrSynci(AcCrSynci),
         .AcReqPkti(AcReqPkti),
@@ -625,9 +635,9 @@ module rv_tester
           `TOPOLOGY_CFG,
           `RV_TESTER_TRANSACTIONS_PMU_SOURCE_PARAMS(0)
       ) pmu (
-          .tb_clk(clk[TB_CLK_IDX]),
           .clk(dut_clk[CORE_CLK_IDX]),
-          .reset(sysmod_reset),
+          .reset(dut_reset[CORE_CLK_IDX]),
+          .sys_reset(sysmod_reset),
           .clocks,
           .pmci(pmci[p]),
           .sc_pmci(sc_pmci),
@@ -653,7 +663,7 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(0)
         ) axi_sw(
             .clk(dut_clk[AXI_CLK_IDX]),
-            .reset_n(~dut_reset[AXI_RESET_IDX]),
+            .reset_n(~dut_reset[AXI_CLK_IDX]),
             .sys_reset(sysmod_reset),
             .axi_mst_ar_valid(axi_req_llc[p].ar_valid),
             .axi_mst_ar_id   (axi_req_llc[p].ar.id),
@@ -704,7 +714,7 @@ module rv_tester
 
         ext_mem_stall_checker stall_checker(
             .clk(dut_clk[AXI_CLK_IDX]),
-            .reset_n(~dut_reset[AXI_RESET_IDX]),
+            .reset_n(~dut_reset[AXI_CLK_IDX]),
             .axi_req(axi_req[p]),
             .axi_rsp(axi_rsp[p])
         );
@@ -723,7 +733,7 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(1)
         ) ncio_axi_sw(
             .clk(dut_clk[AXI_CLK_IDX]),
-            .reset_n(~dut_reset[AXI_RESET_IDX]),
+            .reset_n(~dut_reset[AXI_CLK_IDX]),
             .sys_reset(sysmod_reset),
             .axi_mst_ar_valid(ncio_axi_req[p].ar_valid),
             .axi_mst_ar_id   (ncio_axi_req[p].ar.id),
@@ -780,7 +790,7 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(2)
         ) aplic_msi_axi_sw(
             .clk(dut_clk[AXI_CLK_IDX]),
-            .reset_n(~dut_reset[AXI_RESET_IDX]),
+            .reset_n(~dut_reset[AXI_CLK_IDX]),
             .sys_reset(sysmod_reset),
             .axi_mst_ar_valid(aplic_msi_axi_req[p].ar_valid),
             .axi_mst_ar_id   (aplic_msi_axi_req[p].ar.id),
@@ -839,7 +849,7 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(0)
         ) axi_sw_mst (
             .clk(dut_clk[AXI_CLK_IDX]),
-            .reset_n(~dut_reset[AXI_RESET_IDX]),
+            .reset_n(~dut_reset[AXI_CLK_IDX]),
             .sys_reset(sysmod_reset),
             .axi_mst_ar_valid(axi_req_mst[p].ar_valid),
             .axi_mst_ar_id   (axi_req_mst[p].ar.id),
@@ -907,7 +917,7 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(1)
         ) aplic_mmr_sw_mst (
             .clk(dut_clk[AXI_CLK_IDX]),
-            .reset_n(~dut_reset[AXI_RESET_IDX]),
+            .reset_n(~dut_reset[AXI_CLK_IDX]),
             .sys_reset(sysmod_reset),
             .axi_mst_ar_valid(aplic_mmr_axi_req_mst[p].ar_valid),
             .axi_mst_ar_id   (aplic_mmr_axi_req_mst[p].ar.id),
@@ -965,7 +975,7 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(2)
         ) smc_sw_mst (
             .clk(dut_clk[SOC_CLK_IDX]),
-            .reset_n(~dut_reset[SOC_RESET_IDX]),
+            .reset_n(~dut_reset[SOC_CLK_IDX]),
             .sys_reset(sysmod_reset),
             .axi_mst_ar_valid(smc_axi_req_mst[p].ar_valid),
             .axi_mst_ar_id   (smc_axi_req_mst[p].ar.id),
@@ -1025,7 +1035,7 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(3)
         ) pll_sw_mst (
             .clk(dut_clk[SOC_CLK_IDX]),
-            .reset_n(~dut_reset[SOC_RESET_IDX]),
+            .reset_n(~dut_reset[SOC_CLK_IDX]),
             .sys_reset(sysmod_reset),
             .axi_mst_ar_valid(pll_axi_req_mst[p].ar_valid),
             .axi_mst_ar_id   (pll_axi_req_mst[p].ar.id),
@@ -1085,7 +1095,7 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(4)
         ) pm_nw_sw_mst (
             .clk(dut_clk[SOC_CLK_IDX]),
-            .reset_n(~dut_reset[SOC_RESET_IDX]),
+            .reset_n(~dut_reset[SOC_CLK_IDX]),
             .sys_reset(sysmod_reset),
             .axi_mst_ar_valid(pm_nw_axi_req_mst[p].ar_valid),
             .axi_mst_ar_id   (pm_nw_axi_req_mst[p].ar.id),
@@ -1196,7 +1206,7 @@ module rv_tester
 	.NumMastersMem		( NoOfMasters )
     ) rv_tester_mem(
         .clk                    ( dut_clk[AXI_CLK_IDX] ),
-        .rst_n                  ( ~dut_reset[AXI_RESET_IDX] ),
+        .rst_n                  ( ~dut_reset[AXI_CLK_IDX] ),
         .axi_req_up             ( axi_req ),
         .axi_resp_up            ( axi_rsp ),
         .axi_req_mst_up         ( axi_req_llc ),
