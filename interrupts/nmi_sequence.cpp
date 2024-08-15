@@ -7,6 +7,7 @@ DEFINE_string(nmi, "off", "Enable nmi_sequence in the sim - off/random/trigger")
 DEFINE_string(nmi_count, "0:4", "Number of nmi sequences in the sim if random mode enabled");
 DEFINE_string(nmi_interval, "5000:50000", "TB cycle interval between nmi sequences in the sim if random mode enabled");
 DEFINE_string(nmi_width, "200:500", "TB cycle width of nmi pulses in the sim if random mode enabled");
+DEFINE_int32(patch_mode_nmi_interval,10,"Number of Maximum cycles between two nmi while entering patch mode")
 
 extern "C" {
   void interrupts_init();
@@ -22,8 +23,6 @@ nmi_sequence::nmi_sequence(cvm::topology::loc_t loc, unsigned id) : loc_(loc), i
   // Scope
   cvm::registry::messenger.connect<svScope>(loc_, [this](svScope s) { return this->set_scope(s); });
   triggers_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.TRIGGERS", 0);
-   
-  cvm::rand::seed(1);
 
   // nmi sequence threads
   if (FLAGS_nmi == "random") {
@@ -74,15 +73,13 @@ cvm::messenger::task<void> nmi_sequence::random_mode() {
 cvm::messenger::task<void> nmi_sequence::trigger_mode() {
   while(1){
      // Wait for next selected trigger
-     std::cout <<"NMI TRIGGER LOOP : wait for trigger\n";
      co_await trigger();
 
      // Wait for random ticks after trigger
-     int num_ticks = rng1() %10;  
+     int num_ticks = rng1() %FLAGS_patch_mode_nmi_interval;  
      for(int i=0;i<num_ticks;i++)
        co_await tick();
 
-     std::cout <<"NMI TRIGGER LOOP : drive NMI\n";
      nmi(id_, ASSERT);
 
      // Wait for next tick generated after a random width "nmi_width"

@@ -45,6 +45,7 @@ class external_interrupt_sequence {
    
    
     cvm::rand::uniform_dist<int64_t> rng1;
+    uint32_t trigger_interrupt_count_;
 
     
     uint32_t interrupts_driven = 0;

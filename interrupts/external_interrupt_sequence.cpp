@@ -4,9 +4,9 @@
 REGISTRY_register(external_interrupt_sequence, INTERRUPTS, cvm::registry::all);
 
 DEFINE_bool(interrupt_trigger_en, true, "Enable event based external_interrupt_sequence in the sim");
-DEFINE_int32(trigger_interrupt_count, 10, "Number of nmi sequences in the sim if random mode enabled");
-DEFINE_string(trigger_interrupt_ratio, "6:2:2", "Ratio of Number of interrupts randomly driven  in phases after trigger event");
-DEFINE_int32(interrupt_trigger_interval,100, "TB cycle interval between nmi sequences in the sim if random mode enabled");
+DEFINE_string(trigger_interrupt_count, "7:10", "Number of MSI in the sim if random mode enabled");
+DEFINE_string(trigger_interrupt_weight_ratio, "6:2:2", "Ratio of Number of interrupts randomly driven  in phases after trigger event");
+DEFINE_int32(interrupt_trigger_interval,10, "Max TB cycle interval between MSI random mode enabled");
 
 
 external_interrupt_sequence::external_interrupt_sequence(cvm::topology::loc_t loc, unsigned id) : loc_(loc), id_(id), scope_(nullptr) {
@@ -17,17 +17,12 @@ external_interrupt_sequence::external_interrupt_sequence(cvm::topology::loc_t lo
       loc_,
       [this](const rv_tester_transactions::triggers::m_event_trigger_tick<>& t) { return this->capture_trigger_info(t.event_trigger); }); 
   
-  auto masters = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST");
-
-  
-  axi_mst_loc_l = masters[0];
-  
+ 
+  axi_mst_loc_l = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST", 0);
   
   triggers_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.TRIGGERS", 0);
 
-
-  cvm::rand::seed(1);
-
+  trigger_interrupt_count_ =  cvm::rand::get<uint32_t>(FLAGS_trigger_interrupt_count);
   // trigger sequence threads`
   interrupts_driven = 0;
   if (FLAGS_interrupt_trigger_en) {
@@ -74,18 +69,18 @@ void external_interrupt_sequence::trigger_mode_thread() {
 
 
 cvm::messenger::task<void> external_interrupt_sequence::trigger_mode() {
-  // Wait for next selected trigger
   while(1){
     bool abrupt_exit = false;
+    // Wait for next selected trigger
     co_await trigger();
     if(last_trigger != current_trigger){ //trigger transition detected
       gen_interrupt_timings();//empty as of today
       interrupts_driven = 0;
     }
 
-    if(interrupts_driven < (uint32_t)FLAGS_trigger_interrupt_count){
-       uint8_t num = rng1() % 10 ;//dist.get(); // will be a random number with the weight distribution every time
-       
+    if(interrupts_driven < trigger_interrupt_count_){
+       uint8_t num = rng1() % FLAGS_interrupt_trigger_interval ;
+       //wait for num cycles before driving next MSI
        for(int i =0; i< num;i++){
          co_await trigger();
          if(last_trigger != current_trigger){
@@ -116,37 +111,37 @@ cvm::messenger::task<void> external_interrupt_sequence::trigger() {
   // Used to assert/deassert a interrupter interrupt (PIPI) for given hart.
 void external_interrupt_sequence::drive_interrupt(){
     
-   unsigned interrupt_num  = (rng1() % (FLAGS_imsic_intr_threshold )) ; //gen iter between 1 to max simul instr
-   unsigned interrupt_file = (rng1() % (3 )) ; //gen iter between 1 to max simul instr
-   unsigned interrupt_hart = (rng1() % (FLAGS_imsic_hart_threshold )) ; //gen iter between 1 to max simul instr
-   unsigned vs_id          = (rng1() % (FLAGS_imsic_vs_intr_threshold )) ; //gen iter between 1 to max simul instr
+   unsigned interrupt_num  = (rng1() % (FLAGS_imsic_intr_threshold )) ; 
+   unsigned interrupt_file = (rng1() % (3 )) ; //gen either machine supervisor or hypervisor file
+   unsigned interrupt_hart = (rng1() % (FLAGS_imsic_hart_threshold )) ; // sel rand hart
+   unsigned vs_id          = (rng1() % (FLAGS_imsic_vs_intr_threshold )) ; //sel vs id
    
 
    cvm::log(cvm::LOW,"[ExtInterruptSeq] IMSIC interrupt num: {} interrupt file: {} Interrupt hart:{} hypervisor/supervisor id : {}\n", static_cast<uint32_t>(interrupt_num), interrupt_file, interrupt_hart, vs_id);
    
-   uint32_t addr1 = 0x900;
+   uint32_t addr;
    if(interrupt_file == 0x0){
-      addr1 = msi_m_file_addr + (interrupt_hart << 18);
+      addr = msi_m_file_addr + (interrupt_hart << 18);
    }else if(interrupt_file == 0x01){
-      addr1 = msi_v_file_addr + (interrupt_hart << 18);;
+      addr = msi_v_file_addr + (interrupt_hart << 18);;
    }else if(interrupt_file == 0x02){
-      addr1 = msi_vs_file_addr+ (vs_id << 12) + (interrupt_hart << 18);
+      addr = msi_vs_file_addr+ (vs_id << 12) + (interrupt_hart << 18);
    }else{
       cvm::log(cvm::ERROR, "[ExtInterruptSeq] Wrong IMSIC interrupt file specified\n");
    }
-   uint32_t length1 = 0x40;
+   uint32_t length = 0x40;
 
-   std::vector<uint8_t> data1;
-   std::vector<bool> strb1;
+   std::vector<uint8_t> data;
+   std::vector<bool> strb;
    for (uint8_t i = 0; i < 64; ++i) {
-     data1.push_back(0x0);
-     strb1.push_back(0x0);
+     data.push_back(0x0);
+     strb.push_back(0x0);
    }  
    for (uint8_t i = 0; i < 4; ++i) {
      uint8_t currentByte = static_cast<uint8_t>((interrupt_num >> (8 * i)) & 0xFF);
-     data1[i] = currentByte;
-     strb1[i] = 0x1;
+     data[i] = currentByte;
+     strb[i] = 0x1;
    }
-   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length1, data1, strb1});
+   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data, strb});
  
   }
