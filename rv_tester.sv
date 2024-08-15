@@ -45,8 +45,9 @@ module rv_tester
     logic  profile6_clk [NCLKS-1:0];
 
     if (EXTERNAL_CLOCK) begin
-        for (genvar c = 0; c < NCLKS; c++) begin
-            assign clk[c] = clk_ext[c];
+        assign clk[TB_CLK_IDX] = clk_ext[TB_CLK_IDX];
+        for (genvar c = 1; c < NCLKS; c++) begin
+            assign clk[c] = force_ref_clk ? clk_ext[REF_CLK_IDX] : clk_ext[c];
         end
     end else begin
         for (genvar c = 0; c < NCLKS; c++) begin
