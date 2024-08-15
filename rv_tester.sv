@@ -562,7 +562,7 @@ module rv_tester
             .tb_reset(sysmod_reset),
             .clk(dut_clk[AXI_CLK_IDX]),
             .reset(dut_reset[AXI_CLK_IDX]),
-            .no_fetch(core_no_fetch[c]),
+            .core_no_fetch(core_no_fetch[c]),
             .nmi(nmi[c]),
             `RV_TESTER_TRANSACTIONS_INTERRUPTS_SOURCE_PORTS(2,c,0)
         );
