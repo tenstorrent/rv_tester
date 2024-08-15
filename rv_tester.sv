@@ -567,7 +567,7 @@ module rv_tester
             .tb_clk(clk[TB_CLK_IDX]),
             .tb_reset(sysmod_reset),
             .dut_clk(dut_clk[AXI_CLK_IDX]),
-            .dut_reset(dut_reset[AXI_CLK_IDX]),
+            .dut_reset(dut_reset[AXI_RESET_IDX]),
             .no_fetch(core_no_fetch[c]),
             .event_trigger_vec(event_triggers[c]),
             `RV_TESTER_TRANSACTIONS_TRIGGERS_SOURCE_PORTS(2,c,0)
