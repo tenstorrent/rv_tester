@@ -167,7 +167,8 @@ private:
   bool htif_read(const rv_instr_t& d);
   bool hpm_counter_read(const std::string& instr);
   bool mip_mismatch(const std::string& instr);
-  bool imsic_mismatch(const std::string& instr);
+  bool topi_mismatch(const std::string& instr);
+  bool topei_mismatch(const std::string& instr);
   void resynch(hart_id_t hart, const rv_instr_group_t& d);
   void resynch(hart_id_t hart, const rv_instr_t& d);
   std::string get_nth_word(const std::string& s, int n);

@@ -276,7 +276,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
 
                   cvm::registry::callbacks.push(
                       scope_,
-                      [=]() {
+                      [=, this]() {
                           std::vector<uint8_t> strb(((arg.strb.size() - 1) >> 3) + 1, 0);
                           for (size_t i = 0; i < arg.strb.size(); i++) {
                               size_t idx = i >> 3;

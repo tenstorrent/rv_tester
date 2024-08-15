@@ -1,21 +1,17 @@
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
 
-def interrupts_gen(name, packet, topology, harness, visibility = None, cc_attrs = {}, **kwargs):
+def triggers_gen(name, packet, topology, harness, visibility = None, cc_attrs = {}, **kwargs):
 
-    interrupts_dpi = name + "_dpi"
-    interrupts_sv = name + "_sv"
+    triggers_dpi = name + "_dpi"
+    triggers_sv = name + "_sv"
 
     native.cc_library(
-        name = interrupts_dpi,
+        name = triggers_dpi,
         srcs = [
-            "@rv_tester//interrupts:interrupts.cpp",
-            "@rv_tester//interrupts:nmi_sequence.cpp",
-            "@rv_tester//interrupts:external_interrupt_sequence.cpp",
+            "@rv_tester//triggers:triggers.cpp",
         ],
         hdrs = [
-            "@rv_tester//interrupts:interrupts.hpp",
-            "@rv_tester//interrupts:nmi_sequence.hpp",
-            "@rv_tester//interrupts:external_interrupt_sequence.hpp",
+            "@rv_tester//triggers:triggers.hpp",
         ],
         deps = [
             "@rv_tester//sysmod:sysmod_plusargs",
@@ -32,8 +28,8 @@ def interrupts_gen(name, packet, topology, harness, visibility = None, cc_attrs 
     )
 
     verilog_library(
-        name = interrupts_sv,
-        srcs = ["@rv_tester//interrupts:interrupts.sv"],
+        name = triggers_sv,
+        srcs = ["@rv_tester//triggers:triggers.sv"],
         deps = [
             "@cvm//:plusargs_sv",
             "@cvm//:random_sv",
