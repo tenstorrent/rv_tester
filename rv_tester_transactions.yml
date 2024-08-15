@@ -152,6 +152,8 @@ cosim:
         fields:
             hart:
                 width: 32
+            cycle:
+                width: 64
             value:
                 width: [[32, ${TOP.PLATFORM.XLEN}]]
 
@@ -161,14 +163,19 @@ cosim:
         fields:
             hart:
                 width: 32
+            cycle:
+                width: 64
             value:
                 width: [[32, ${TOP.PLATFORM.FLEN}]]
+
     m_vc_regs:
         domain: 1
         num: 1 
         fields:
             hart:
                 width: 32
+            cycle:
+                width: 64
             value:
                 width: [[32, ${TOP.PLATFORM.VLEN}]]
 

@@ -89,6 +89,7 @@ module rv_tester
 
     logic flush_complete;
 
+    xbar_rule_t [NoAddrRules-1:0] addr_map, addr_map_final, addr_map_idx1;    
     logic init_pulse;
     logic pwrmgmt_force_ref_clk;
     logic sysmod_reset = '0;
@@ -101,6 +102,9 @@ module rv_tester
     logic call_finish;
     int num_reruns = -1;
     bit trace_en = 0;
+
+    bit [NHARTS-1:0] poke_event_out;
+    bit poke_event_in;
     bit cla_clk_halt = 0;
 
     bit jtag_en = 0;
@@ -465,6 +469,8 @@ module rv_tester
     // coverage
     arch_sample arch_sample ();
 
+    assign poke_event_in = (poke_event_out != '0) ? 1'b1 : 1'b0;
+
 `ifndef NO_COSIM
     for (genvar c = 0; c < NHARTS; c++) begin: cosim_inst
       cosim #(
@@ -476,6 +482,8 @@ module rv_tester
           .NBYPASS(NBYPASSES[c]),
           .NIFETCH(NIFETCHES[c]),
           .NIEVICT(NIEVICTS[c]),
+          .NoAddrRules(NoAddrRules),
+          .rule_t(xbar_rule_t),
           `TOPOLOGY_CFG,
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PARAMS(0)
       ) cosim (
@@ -500,6 +508,9 @@ module rv_tester
           .debug_mode(debug_mode[c]),
           .terminate(cosim_terminate[c]),
           .eot_addr(eot_addr),
+          .addr_map(addr_map),
+          .poke_event_out(poke_event_out[c]),
+          .poke_event_in(poke_event_in),
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PORTS(1, c, 0)
       );
     end
@@ -1156,7 +1167,7 @@ module rv_tester
     mst_req_rv axi_req_llc [NoOfMasters-1:0];
     mst_resp_rv axi_rsp_llc [NoOfMasters-1:0];
 
-    xbar_rule_t [NoAddrRules-1:0] addr_map, addr_map_final, addr_map_idx1;
+
 
     function automatic void rv_tester_set_address_map(int unsigned i, longint unsigned start_addr, longint unsigned end_addr, int unsigned device);
         localparam int unsigned AW = topology.TOP.PLATFORM.AXI.ADDR_WIDTH;
