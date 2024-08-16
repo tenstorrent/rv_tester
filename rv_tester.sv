@@ -45,8 +45,9 @@ module rv_tester
     logic  profile6_clk [NCLKS-1:0];
 
     if (EXTERNAL_CLOCK) begin
-        for (genvar c = 0; c < NCLKS; c++) begin
-            assign clk[c] = clk_ext[c];
+        assign clk[TB_CLK_IDX] = clk_ext[TB_CLK_IDX];
+        for (genvar c = 1; c < NCLKS; c++) begin
+            assign clk[c] = force_ref_clk ? clk_ext[REF_CLK_IDX] : clk_ext[c];
         end
     end else begin
         for (genvar c = 0; c < NCLKS; c++) begin
@@ -90,6 +91,7 @@ module rv_tester
     logic flush_complete;
 
     xbar_rule_t [NoAddrRules-1:0] addr_map, addr_map_final, addr_map_idx1;    
+    bit perf = 0;
     logic init_pulse;
     logic pwrmgmt_force_ref_clk;
     logic sysmod_reset = '0;
@@ -252,6 +254,7 @@ module rv_tester
             rv_tester_error_terminate.terminate = '0;
             /* verilator lint_on BLKSEQ */
 
+            perf                 <= cvm_plusargs::get_bool("perf") != '0;
             rand_dmi_driver_dly  <= cvm_plusargs::get_int("rand_dmi_driver_dly"); 
             cb_poll              <= cvm_plusargs::get_bool("cb_async") == '0;
             quiesce_timeout      <= cvm_plusargs::get_int("quiesce_timeout");
@@ -545,7 +548,7 @@ module rv_tester
                 .force_ref_clk(pwrmgmt_force_ref_clk),
                 `RV_TESTER_TRANSACTIONS_PWRMGMT_SOURCE_PORTS(3,0,0)
             );
-            assign force_ref_clk = pwrmgmt_force_ref_clk || init_pulse;
+            assign force_ref_clk = perf ? '0 : (pwrmgmt_force_ref_clk || init_pulse);
         end else begin
             assign cold_reset = (clocks < RESET_TB_CLOCKS);
             assign warm_reset = '0;
@@ -637,9 +640,9 @@ module rv_tester
           `TOPOLOGY_CFG,
           `RV_TESTER_TRANSACTIONS_PMU_SOURCE_PARAMS(0)
       ) pmu (
-          .tb_clk(clk[TB_CLK_IDX]),
           .clk(dut_clk[CORE_CLK_IDX]),
-          .reset(sysmod_reset),
+          .reset(dut_reset[CORE_RESET_IDX]),
+          .sys_reset(sysmod_reset),
           .clocks,
           .pmci(pmci[p]),
           .sc_pmci(sc_pmci),

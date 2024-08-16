@@ -7,9 +7,9 @@ import rv_tester_pkg::*;
   `TOPOLOGY,
   `RV_TESTER_TRANSACTIONS_PMU_OUTPUT_PARAMS
 )(
-  input tb_clk,
   input clk,
   input reset,
+  input sys_reset,
   input longint unsigned clocks,
   input pmci_t pmci,
   input sc_pmci_t sc_pmci,
@@ -29,8 +29,8 @@ import rv_tester_pkg::*;
     bit perf_end = '0;
     logic terminate_1T;
 
-    always @(posedge tb_clk) begin
-        if (reset) begin
+    always @(posedge clk) begin
+        if (sys_reset) begin
             /* verilator lint_off BLKSEQ */
             perf_enabled = (cvm_plusargs::get_bool("perf") != '0) & (location != cvm_topology::nil);
             period = cvm_plusargs::get_ulongint("sync_pmcounters_period");
