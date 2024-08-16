@@ -1,0 +1,373 @@
+#pragma once
+
+#include <unistd.h>
+#include <iostream>
+#include <iostream>
+#include <iomanip>
+#include <string>
+#include <map>
+#include <random>
+#include <cmath>
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <queue>
+#include <vector>
+#include <filesystem>
+#include <dirent.h>
+#include <cstdlib>
+#include <ctime>
+
+#include <iostream>
+#include <string>
+#include <cstring>
+#include <algorithm>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#include <ifaddrs.h>
+#include <netdb.h>
+#include "cvm/logger.hpp"
+#include "cvm/random.hpp"
+// #include "rv_tester_transactions.hpp"
+#include "svdpi.h"
+
+#include "cvm/plusargs.hpp"
+#include "cvm/topology.hpp"
+#include "cvm/registry.hpp"
+
+#include "vpi_user.h"
+#include "cvm/registry.hpp"
+#include "cvm/logger.hpp"
+#include "cvm/plusargs.hpp"
+#include "cvm/random.hpp"
+#include "rv_tester_transactions.hpp"
+#include "jtag_driver.hpp"
+#include "transactor.h"
+#include "svdpi.h"
+
+DECLARE_string(jtag_input_file_path);
+DECLARE_bool(random_jtag_entry);
+DECLARE_int32(random_jtag_start_delay);
+DECLARE_bool(jtag_remote_debugger_mode);
+DECLARE_int32(jtag_delay_min);
+DECLARE_int32(jtag_delay_max);
+DECLARE_int32(jtag_max_snippets);
+DECLARE_string(jtag_template_dir_path);
+
+DECLARE_int32(jtag_max_loop_count);
+DECLARE_string(jtag_txn_file);
+class jtag_socket_sequence {
+
+  public:
+
+    jtag_socket_sequence(cvm::topology::loc_t loc, unsigned id);
+    //~jtag_socket_sequence();
+    virtual ~jtag_socket_sequence() ;
+
+    void set_scope(svScope s) { scope_ = s; }
+
+  virtual void jtag_tick(uint64_t advance) 
+  {
+    num_ticks++;
+    cvm::log(cvm::HIGH, "[jtag_driver]: JTAG Tick {}\n",num_ticks);
+    timer_ += advance;
+    timer_advance = advance;
+    if(num_ticks == 31){
+        if(FLAGS_jtag_remote_debugger_mode){
+          int PORT = 8088;
+    
+          auto* l = +[](int PORT, jtag_socket_sequence* dev) -> cvm::messenger::task<void>{
+          co_await dev->open_socket_to_listen();
+        };
+     cvm::registry::messenger.fork(l,PORT, this);
+   // open_socket_to_listen();
+      }
+    }
+    if( num_ticks > 30) 
+    {
+    checkJtagEvents();
+
+    if(executing_nop){
+      nop_count--;
+      cvm::log(cvm::HIGH, "[jtag_driver]: Executing Nop ,Nop count {}\n",nop_count);
+      if(nop_count==0)
+        executing_nop = false;
+    }else if(executing_loop){
+      cvm::log(cvm::HIGH, "[jtag_driver]: Executing loop \n");
+      Run_cmd_loop();
+    }else{
+    drive_csv_jtag_cmds();
+    }
+   }
+  }
+ bool isNthBitSet(uint64_t number,int N) {
+    // Shift the number right by 62 bits and check if the least significant bit is set
+    return (number >> N) & 1;
+ }
+ 
+ bool isNthBitClear(uint64_t number,int N) {
+    // Shift the number right by 62 bits and check if the least significant bit is not set
+    return !((number >> N) & 1);
+ }
+
+bool exitLoop() {
+    if(loop_check_bit_type>0){
+      cvm::log(cvm::HIGH, "[jtag_driver_CHECK]: loop_rdata {:#x},loop_check_bit_num {},loop_execution_cnt {}\n",loop_rdata,loop_check_bit_num,loop_execution_cnt);
+      return isNthBitSet(loop_rdata,loop_check_bit_num);
+    }else if(loop_check_bit_type == 0){
+      cvm::log(cvm::HIGH, "[jtag_driver_CHECK]: loop_rdata {:#x},loop_check_bit_num {},loop_execution_cnt {}\n",loop_rdata,loop_check_bit_num,loop_execution_cnt);
+      return isNthBitClear(loop_rdata,loop_check_bit_num);
+    }else{
+     cvm::log(cvm::HIGH, "[jtag_driver]: Wrong Exit loop condition detected \n");
+     return false;
+    }
+    
+ }
+ void Run_cmd_loop()
+  {
+    if(loop_idx == 0 && loop_execution_cnt>0 && exitLoop()){
+      //Check for status bit in rdata
+        loop_execution_cnt = 0;
+        executing_loop = false;
+        jtag_loop_q.clear();
+        return;
+    }else{
+        drive_cmd_loop_txn();
+    }
+  }
+
+  void drive_cmd_loop_txn(){
+    
+    jtag_req_t jtag_req;
+    unsigned jtag_cmd = 0;
+    unsigned long  upper_jtag_data = 0;
+    unsigned long lower_jtag_data = 0;
+    unsigned reg_length_data = 0;
+    unsigned hart = 0;
+    
+    jtag_req = jtag_loop_q[loop_idx];
+    jtag_cmd = jtag_req.jtag_cmd;
+    upper_jtag_data = jtag_req.jtag_ip_data_upper;
+    lower_jtag_data = jtag_req.jtag_ip_data_lower;
+    reg_length_data = jtag_req.jtag_length_data;
+    
+    cvm::log(cvm::HIGH, "[jtag_driver]: JTAG loop command {}\n",jtag_cmd);
+    
+    if(jtag_cmd<3){
+      hart = 0; // hart bits position TBD, till TBD it is always zero
+      trickboxJtagWrite(hart, jtag_cmd, upper_jtag_data, lower_jtag_data,reg_length_data,0,tap_cfg_sel);
+      if(loop_idx<loop_size){
+        loop_idx++;
+      } 
+      if(loop_idx == loop_size){
+        loop_idx = 0;
+        loop_execution_cnt++;
+        if(loop_execution_cnt > max_num_loops){
+          cvm::log(cvm::ERROR, "[jtag_driver]: Maximum number of polling attempts reached {}\n",loop_execution_cnt);
+        }
+      }
+    }else{
+      cvm::log(cvm::ERROR, "[jtag_driver]: Unsupported keyword in jtag csv loop {}\n",jtag_cmd);
+    }
+
+    
+  } 
+  void reset() 
+  {
+    cvm::log(cvm::HIGH, "[jtag_driver]: Reset jtag_driver\n");
+    uint32_t rand_num = 0;
+    if (FLAGS_random_jtag_entry)
+    {
+      cvm::log(cvm::HIGH, "[jtag_driver]: Enable random injection of debug mode :: {}\n", FLAGS_random_jtag_entry);
+      get_all_csv_templates();
+      if (FLAGS_jtag_delay_min)
+      {
+        rand_num = (rng() % (FLAGS_jtag_delay_max - FLAGS_jtag_delay_min + 1)) + FLAGS_jtag_delay_min;
+      }
+      timer_ = 0;
+      file_idx = rng() % csvFilePaths.size();
+      timer_rand_debug = timer_ + FLAGS_random_jtag_start_delay + (rand_num * timer_advance);
+      cvm::log(cvm::HIGH, "Random Debug Injection of CSV file ID:{} Timer delay:{}\n", file_idx, timer_rand_debug);
+    }
+  }
+  void parse_jtag_from_csv();
+  void drive_csv_jtag_cmds();
+  void get_all_csv_templates();
+  void setNonBlocking(int socket);
+  std::string process_string(const std::string& input);
+  cvm::messenger::task<void> open_socket_to_listen();
+
+  std::string get_local_ip_address();
+
+  // std::string getLocalIPAddress();
+  
+  struct jtag_data_t
+  {
+    unsigned hart;
+    unsigned jtag_cmd;
+    unsigned long upper_jtag_data;
+    unsigned long lower_jtag_data;
+    unsigned jtag_length_data;
+    unsigned jtag_quit;
+    unsigned tap_cfg_sel;
+  };
+
+
+  struct jtag_req_t
+  {
+    unsigned jtag_cmd; 
+    uint64_t jtag_ip_data_lower;
+    uint64_t jtag_ip_data_upper;
+    uint64_t jtag_op_data;
+    unsigned jtag_length_data;
+  };
+  typedef struct{ 
+        unsigned status;
+        unsigned commands_in_queue;
+  }jtag_status_t; 
+
+
+  void update_jtag_status(jtag_req_t& i);
+  cvm::messenger::task<void> jtag_tick();
+
+  void checkJtagEvents()
+  {
+    cvm::log(cvm::FULL, "Timer chk jtag evt \n");
+    if (FLAGS_random_jtag_entry)
+    {
+      if (timer_ >= timer_rand_debug && csv_completed )
+      {
+        cvm::log(cvm::HIGH, "Timer passed random evt Value\n");
+        rnd_jtag_trigger = 1;
+        csv_completed = 0;
+        if (snippets_driven < (unsigned)FLAGS_jtag_max_snippets)
+        {
+          parse_jtag_from_csv();
+          genNextJtagEvents();
+          snippets_driven++;
+        }else{
+          cvm::log(cvm::HIGH, "[JTAGDRIVER] ******************* \n");
+          cvm::log(cvm::HIGH, "[JTAGDRIVER] Sending Quit signal \n");
+          cvm::log(cvm::HIGH, "[JTAGDRIVER] ******************* \n");
+          trickboxJtagWrite(0, 7, 0, 0,0,1,tap_cfg_sel);
+          //arg1 hart = 0, arg2 jtag_cmd = 7(qt)
+        }
+      }
+    }
+  }
+
+  void genNextJtagEvents()
+  {
+    cvm::log(cvm::HIGH, "Generating Next timer evt value\n");
+    if (FLAGS_random_jtag_entry)
+    {
+      int32_t rand_num = (rng() % (FLAGS_jtag_delay_max - FLAGS_jtag_delay_min + 1)) + FLAGS_jtag_delay_min;
+      timer_rand_debug = timer_ + (rand_num * timer_advance);
+      file_idx = rng() % csvFilePaths.size();
+    }
+  }
+
+  std::vector<uint64_t> bitsetToUint64Array(const std::bitset<70>& bitset) {
+    const size_t bitsetSize = 64;//70;
+    const size_t ulongSize = sizeof(uint64_t) * 8;
+    const size_t arraySize = (bitsetSize + ulongSize - 1) / ulongSize;
+
+    std::bitset<70> bitset_shifted = bitset>>2;
+
+    //jtag rx -> jtag.op_Data , we are shifting only by 2 since from jtag_xtor for each tap point we shift accordingly but all of them are shifted by 2
+    //std::cout<<"[JTAG RESP] original = " <<bitset<<" shifted = "<<bitset_shifted<<"\n";
+    std::vector<uint64_t> ulongArray(arraySize);
+
+    for (size_t i = 0; i < bitsetSize; i += ulongSize) {
+        size_t ulongIndex = i / ulongSize;
+        uint64_t value = 0;
+
+        for (size_t j = 0; j < ulongSize && (i + j) < bitsetSize; ++j) {
+            value |= (bitset_shifted[i + j] ? 1UL : 0UL) << j;
+        }
+
+        ulongArray[ulongIndex] = value;
+    }
+
+    return ulongArray;
+}
+
+  private:
+
+    void random_mode_thread();
+    void trigger_mode_thread();
+
+    cvm::messenger::task<void> random_mode();
+    cvm::messenger::task<void> trigger_mode();
+   
+    cvm::messenger::task<void> tick();
+    cvm::messenger::task<void> trigger();
+    virtual void trickboxJtagWrite(unsigned hart,unsigned jtag_cmd, unsigned long upper_jtag_data, unsigned long lower_jtag_data,unsigned reg_length_data,unsigned jtag_quit, unsigned tap_cfg_sel);
+    void jtag_resp(std::bitset<70> rdata);
+    void init();
+    void jtag_socket(unsigned hart, uint8_t assert);
+    void drive_jtag_cmds();
+    void process_input_string(std::string line);
+
+  private:
+
+    cvm::topology::loc_t loc_;
+    unsigned id_;
+    svScope scope_;
+
+    uint32_t jtag_socket_count_ = 0;
+    std::vector<uint32_t> soft_;              // Software interrupt: one per hart.
+  std::vector<uint64_t> timeCompare_;       // One per interrupt type.
+  std::vector<uint32_t> IntrHart_;          // Hart to be interrupted.
+  std::vector<bool> delayedRandomIntValid_; // Valid bit for interrupt
+  std::vector<bool> IntrValue_;             // Value of interrupt pin
+  std::vector<bool> timerIntPrev_;          // Value of interrupt pin
+  uint64_t timer_ = 0;
+  uint64_t timer_advance = 200;
+  uint64_t jtag_driver_base = 0x9050000;
+  uint64_t jtag_driver_trigger = 0x9060000;
+  uint64_t jtag_driver_status_addr = 0x9061000;
+  uint64_t jtag_driver_num_cmds_addr = 0x9061000;
+  uint8_t  csv_completed = 1;
+  uint32_t status;
+  uint32_t commands_in_queue;
+  cvm::rand::rng<int64_t> rng;
+  bool      executing_nop = false;
+  uint32_t  nop_count = 0; 
+  
+  //bool      expecting_check = false;
+
+  bool      executing_loop = false;
+  uint32_t  loop_size = 0; 
+  uint32_t  loop_idx = 0; 
+  uint32_t  loop_execution_cnt = 0; 
+  uint32_t  max_num_loops = 0; 
+  uint32_t  loop_check_bit_num = 0;
+  //uint64_t  expected_check_value = 0x0;
+  bool      loop_check_bit_type = 0; //0->chk if bit is zero 1-> chk if bit is 1
+  
+  uint64_t loop_rdata;
+  std::vector<std::vector<std::string>> csv_data;
+  std::queue<jtag_req_t> jtag_cmd_q;
+  std::vector<jtag_req_t> jtag_loop_q;
+  std::queue<jtag_req_t> jtag_rsp_q;
+  unsigned jtag_file_mode = 0;
+  unsigned jtag_trigger = 0;
+  unsigned rnd_jtag_trigger = 0;
+  //unsigned step_ahead_queue_on = 0;
+  //unsigned step_quit_queue_on = 0;
+  //unsigned step_instr_cnt = 0;
+  uint64_t timer_rand_debug = 500;
+  std::vector<std::vector<std::string>> content;
+  std::vector<std::string> row;
+  // file(FLAGS_jtag_input_file_path);
+  // Create a vector to store the file paths
+  std::vector<std::string> filePaths;
+  std::vector<std::string> csvFilePaths;
+  unsigned file_idx = 0;
+  unsigned snippets_driven = 0;
+  unsigned num_ticks= 0;
+  unsigned tap_cfg_sel= 0;
+};
