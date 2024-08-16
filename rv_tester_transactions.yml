@@ -1385,7 +1385,26 @@ interrupts:
         fields:
             cycle:
                 width: 32
-
+jtag_driver:
+    num: 1
+    m_jtag_driver_tick:
+        domain: 2
+        num: 1
+        fields:
+            cycle:
+                width: 32
+    jtag_tick:
+        domain: 2
+        num: 1
+        fields:
+            advance:
+                width: 64
+    jtag_rdata:
+        domain: 2
+        num: 1
+        fields:
+            rdata:
+                width: 70
 aplic_monitor:
     num: 1
     aplic_intr_req:

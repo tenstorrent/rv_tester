@@ -1,11 +1,14 @@
 #include "cvm/plusargs.hpp"
 #include "cvm/topology.hpp"
 #include "cvm/logger.hpp"
+#include "cvm/registry.hpp"
+#include "cvm/logger.hpp"
 #include "jtag_driver.h"
 #include "sysmod/sysmod_plusargs.h"
 
 DEFINE_string(jtag_input_file_path, "", "Path to file containing jtag_driver commands");
 DEFINE_bool(random_jtag_entry, false, "Enter debug mode randomly after random intervals");
+DEFINE_bool(jtag_remote_debugger_mode, false, "Accept JTAG transactions over scoket");
 DEFINE_int32(random_jtag_start_delay, 300, "delay after which random interrupts should start");
 DEFINE_int32(jtag_delay_min, 6, "Minimum Delay between 2 consecutive debug mode requests");
 DEFINE_int32(jtag_max_loop_count, 50, "Number of times loop should run before flagging error");
@@ -13,7 +16,8 @@ DEFINE_int32(jtag_delay_max, 9, "Maximum Delay between 2 consecutive debug mopde
 DEFINE_int32(jtag_max_snippets, 1, "Maximum number of debug snippets to be driven");
 DEFINE_string(jtag_template_dir_path, "", "Path to file containing jtag_driver commands");
 DEFINE_string(jtag_txn_file,"","File containing jtag transaction requests");
-
+//#define PORT 8080
+//#define BUFFER_SIZE 1024
 jtag_driver::jtag_driver(const std::string &tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc)
     : subdevice(tag, addr, 0x20000 /* size */, loc), soft_(hartCount),
       timeCompare_(6), IntrHart_(6), delayedRandomIntValid_(6), IntrValue_(6), timerIntPrev_(hartCount), timer_(0)
@@ -24,6 +28,7 @@ jtag_driver::jtag_driver(const std::string &tag, uint64_t addr, unsigned hartCou
   jtag_driver_status_addr = addr + 0x500;
   jtag_driver_num_cmds_addr = addr + 0x600;
   reset();
+
   if(FLAGS_jtag_input_file_path != "")
      parse_jtag_from_csv();
   // jtag_trigger = 1;
@@ -429,3 +434,122 @@ void jtag_driver::write(uint64_t addr, size_t, const data_t &data,
     jtag_trigger = 1;
   }
 }
+
+// std::string jtag_driver::getLocalIPAddress() {
+//     struct ifaddrs *ifaddr, *ifa;
+//     int family, s;
+//     char host[NI_MAXHOST];
+
+//     if (getifaddrs(&ifaddr) == -1) {
+//         perror("getifaddrs");
+//         exit(EXIT_FAILURE);
+//     }
+
+//     std::string ipAddress = "Unable to get IP address";
+
+//     for (ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next) {
+//         if (ifa->ifa_addr == nullptr)
+//             continue;
+
+//         family = ifa->ifa_addr->sa_family;
+
+//         if (family == AF_INET) {
+//             s = getnameinfo(ifa->ifa_addr, sizeof(struct sockaddr_in),
+//                             host, NI_MAXHOST, nullptr, 0, NI_NUMERICHOST);
+//             if (s != 0) {
+//                 std::cerr << "getnameinfo() failed: " << gai_strerror(s) << std::endl;
+//                 exit(EXIT_FAILURE);
+//             }
+
+//             if (std::string(ifa->ifa_name) == "lo")
+//                 continue; // Skip loopback address
+
+//             ipAddress = host;
+//         }
+//     }
+
+//     freeifaddrs(ifaddr);
+//     return ipAddress;
+// }
+std::string jtag_driver::process_string(const std::string& input) {
+    size_t pos = input.find(',');
+    if (pos != std::string::npos) {
+        return input.substr(0, pos);
+    }
+    return "";
+}
+cvm::messenger::task<void> jtag_driver::open_socket_to_listen(int PORT){
+    int server_fd, new_socket;
+    struct sockaddr_in address;
+    socklen_t addrlen = sizeof(address);
+    char buffer[1024] = {0};
+
+    // Creating socket file descriptor
+    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
+        perror("socket failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Set socket to non-blocking mode
+    int flags = fcntl(server_fd, F_GETFL, 0);
+    fcntl(server_fd, F_SETFL, flags | O_NONBLOCK);
+
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = inet_addr("127.0.0.1"); // Bind to 127.0.0.1
+    address.sin_port = htons(PORT);
+
+    // Binding the socket to the network address and port
+    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
+        perror("bind failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Listening for incoming connections
+    if (listen(server_fd, 3) < 0) {
+        perror("listen");
+        exit(EXIT_FAILURE);
+    }
+
+    std::cout << "Server is listening on " << inet_ntoa(address.sin_addr) << ":" << PORT << std::endl;
+
+    while (true) {
+        // Accepting incoming connection (non-blocking)
+        new_socket = accept(server_fd, (struct sockaddr *)&address, &addrlen);
+        if (new_socket >= 0) {
+            std::cout << "Connection accepted from " << inet_ntoa(address.sin_addr) << ":" << ntohs(address.sin_port) << std::endl;
+
+            // Process multiple requests from the same client
+            while (true) {
+                int valread = ::read(new_socket, buffer, 1024);
+                if (valread > 0) {
+                    std::cout << "Received: " << buffer << std::endl;
+
+                    // Process the string and send the first element back
+                    std::string response = process_string(buffer);
+                    trickboxJtagWrite(0, 2, 2, 2,2,0,0);
+
+                    send(new_socket, response.c_str(), response.length(), 0);
+                    std::cout << "Response sent: " << response << std::endl;
+                } else if (valread == 0) {
+                    std::cout << "Client disconnected" << std::endl;
+                    break; // Client disconnected
+                } else if (valread < 0 && errno != EWOULDBLOCK) {
+                    perror("read");
+                    break;
+                }
+                memset(buffer, 0, sizeof(buffer)); // Clear buffer
+            }
+
+            close(new_socket);
+        }
+        usleep(10000);  // Small delay to prevent busy-waiting
+    }
+
+    close(server_fd);
+} 
+
+// cvm::messenger::task<void> jtag_driver::jtag_tick() {
+//   //co_await cvm::registry::messenger.wait<rv_tester_transactions::interrupts::m_nmi_tick<>>(loc_);
+//   co_await cvm::registry::messenger.wait<rv_tester_transactions::sysmod::jtag_tick<>>(sysmod_loc_);
+//   co_return;
+// }

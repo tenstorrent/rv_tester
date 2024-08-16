@@ -7,6 +7,7 @@ load("@rv_tester//dm_model:dm_model.bzl", "dm_model_gen")
 load("@rv_tester//aplic_monitor:aplic_monitor.bzl", "aplic_monitor_gen")
 load("@rv_tester//pwrmgmt:pwrmgmt.bzl", "pwrmgmt_gen")
 load("@rv_tester//interrupts:interrupts.bzl", "interrupts_gen")
+load("@rv_tester//jtag_driver:jtag_driver.bzl", "jtag_driver_gen")
 load("@rv_tester//aclint_checker:aclint_checker.bzl", "aclint_checker_gen")
 load("@rv_tester//transactors/axi_sw:axi_sw.bzl", "axi_sw_gen")
 
@@ -94,6 +95,14 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
         cc_attrs = cc_attrs,
     )
 
+    jtag_driver_gen(
+        name = name + "_jtag_driver",
+        packet = name  + "_transactions",
+        topology = topology,
+        harness = name + "_harness",
+        cc_attrs = cc_attrs,
+    )
+
     aclint_checker_gen(
         name = name + "_aclint_checker",
         packet = name  + "_transactions",
@@ -125,6 +134,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             name + "_aplic_monitor_sv",
             name + "_aclint_checker_sv",
             name + "_interrupts_sv",
+            name + "_jtag_driver_sv",
             name + "_axi_sw_sv",
             "@opensrc-axi_llc//:axi_llc",
             "@opensrc-axi//:axi",
@@ -157,6 +167,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             name + "_aplic_monitor_dpi",
             name + "_aclint_checker_dpi",
             name + "_interrupts_dpi",
+            name + "_jtag_driver_dpi",
             name + "_axi_sw_dpi",
             topology + "_cc",
         ] + select({
