@@ -35,8 +35,9 @@ import rv_tester_params::*;
         nmi_count = cvm_rand::get("nmi_count");
         nmi_interval = cvm_rand::get("nmi_interval");
         nmi_width = cvm_rand::get("nmi_width");
-        $display("[interrupts] rand: nmi_count = %0d nmi_interval = %0d nmi_width = %0d",
-          nmi_count, nmi_interval, nmi_width);
+        if (nmi_en)
+          $display("[interrupts] rand: nmi_count = %0d nmi_interval = %0d nmi_width = %0d",
+            nmi_count, nmi_interval, nmi_width);
       end
       /* verilator lint_on BLKSEQ */
     end
@@ -81,7 +82,7 @@ import rv_tester_params::*;
     else if (nmi_in_progress && (tb_clocks > nmi_width)) begin
       nmi_in_progress = '0;
     end
-    else if (tb_clocks > nmi_interval) begin
+    else if (nmi_en & (tb_clocks > nmi_interval)) begin
       nmi_in_progress = '1;
       tb_clocks = 0;
     end
@@ -89,12 +90,12 @@ import rv_tester_params::*;
   end
 
   // m_core_no_fetch
-  assign m_core_no_fetchs[0].valid = (~core_no_fetch & core_no_fetch_d1) & (location != cvm_topology::nil);
+  assign m_core_no_fetchs[0].valid = nmi_en & (~core_no_fetch & core_no_fetch_d1) & (location != cvm_topology::nil);
   assign m_core_no_fetchs[0].data.location = location;
   assign m_core_no_fetchs[0].data.val = core_no_fetch;
 
   // m_nmi_tick
-  assign m_nmi_ticks[0].valid = ~reset & (nmi_start | nmi_end) & (location != cvm_topology::nil);
+  assign m_nmi_ticks[0].valid = ~reset & nmi_en & (nmi_start | nmi_end) & (location != cvm_topology::nil);
   assign m_nmi_ticks[0].data.location = location;
   assign m_nmi_ticks[0].data.cycle = (nmi_start | nmi_end) ? tb_clocks : '0;
 
