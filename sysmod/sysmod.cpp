@@ -167,7 +167,6 @@ sysmod::core_harvest_plusargs()
   uint32_t mask_harts = std::bitset<32>(mask).count();
   std::vector<uint32_t> id{};
   uint32_t id_mask = 0;
-  uint32_t id_harts = std::bitset<32>(id_mask).count();
   std::istringstream ss(FLAGS_hart_enable_id);
   std::string token;
   while (std::getline(ss, token, ',')) {
@@ -177,6 +176,7 @@ sysmod::core_harvest_plusargs()
       id_mask |= (1 << t);
     }
   }
+  uint32_t id_harts = std::bitset<32>(id_mask).count();
 
   // Basic validation of plusargs
   if ((nharts != 0) && (nharts > ncores))
@@ -226,19 +226,19 @@ sysmod::core_harvest_plusargs()
       break;
     case 5: // +num_harts, +hart_enable_id
       if (nharts != id_harts)
-        cvm::log(cvm::ERROR, "Error: Incompatible plusargs: +num_harts {}) != count(+hart_enable_id {})\n", nharts, id);
+        cvm::log(cvm::ERROR, "Error: Incompatible plusargs: (+num_harts {}) != count(+hart_enable_id {})\n", nharts, id);
       FLAGS_hart_enable_mask = id_mask;
       break;
     case 6: // +num_harts, +hart_enable_mask
       if (nharts != mask_harts)
-        cvm::log(cvm::ERROR, "Error: Incompatible plusargs: +num_harts {}) != count(+hart_enable_mask {:#x})\n", nharts, mask);
+        cvm::log(cvm::ERROR, "Error: Incompatible plusargs: (+num_harts {}) != count(+hart_enable_mask {:#x})\n", nharts, mask);
       FLAGS_hart_enable_id = get_rand_id(mask, ncores);
       break;
     case 7: // +num_harts, +hart_enable_mask, +hart_enable_id
       if ((nharts != mask_harts) || (nharts != id_harts))
-        cvm::log(cvm::ERROR, "Error: Incompatible plusargs: +num_harts {}) != count(+hart_enable_mask {:#x}) != count(+hart_enable_id {}\n", nharts, mask, id);
+        cvm::log(cvm::ERROR, "Error: Incompatible plusargs: (+num_harts {}) != count(+hart_enable_mask {:#x}) != count(+hart_enable_id {})\n", nharts, mask, id);
       if (mask != id_mask)
-        cvm::log(cvm::ERROR, "Error: Incompatible plusargs: +hart_enable_mask {:#x}) != mask(+hart_enable_id {}\n", mask, id);
+        cvm::log(cvm::ERROR, "Error: Incompatible plusargs: (+hart_enable_mask {:#x}) != mask(+hart_enable_id {}\n", mask, id);
       break;
   }
   cvm::log(cvm::NONE, "[plusargs] +num_harts {} +hart_enable_mask {:#x} +hart_enable_id {}\n",
@@ -348,6 +348,10 @@ sysmod::get_rand_mask(uint32_t n, uint32_t max)
 std::string
 sysmod::get_rand_id(uint32_t mask, uint32_t ncores)
 {
+
+  // FIXME RVDE-15823: Don't randomize ids till the hartid bug is fixed
+  return get_id(mask, ncores);
+
   // Ex: input: mask=0x9a - available cores: 1,3,4,7
   // Ex: output: hart_enable_id ex: 4,7,1,3 - can be in any order
 
