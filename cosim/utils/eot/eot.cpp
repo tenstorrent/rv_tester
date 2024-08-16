@@ -141,7 +141,7 @@ void eot::process_tohost(uint64_t hartid, uint64_t cycle, uint64_t address, uint
         cvm::log(cvm::NONE, "<{}> Hart:<{}> Pass condition detected - tohost[0]=1, tohost[47:1]=0\n", cycle, hartid);
         cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
       }
-      if (FLAGS_eot != "tohost_all" || (terminated_harts_.size() >= num_harts_)) {
+      if (FLAGS_eot != "tohost_all" || (terminated_harts_.size() >= FLAGS_num_harts)) {
         ended_ = true;
         cvm::registry::messenger.signal<htif::terminate_t>( cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0),
         htif::terminate_t{.low_priority_based = true});
