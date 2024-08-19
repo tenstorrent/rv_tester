@@ -1,19 +1,26 @@
 #include "jtag_socket_sequence.hpp"
-#include "sysmod/sysmod_plusargs.h"
+//#include "sysmod/sysmod_plusargs.h"
 
 REGISTRY_register(jtag_socket_sequence, JTAG_DRIVER, cvm::registry::all);
 
-DEFINE_string(jtag_socket, "off", "Enable jtag_socket_sequence in the sim - off/random/trigger");
-DEFINE_string(jtag_socket_count, "0:4", "Number of jtag_socket sequences in the sim if random mode enabled");
-DEFINE_string(jtag_socket_interval, "5000:50000", "TB cycle interval between jtag_socket sequences in the sim if random mode enabled");
-DEFINE_string(jtag_socket_width, "200:500", "TB cycle width of jtag_socket pulses in the sim if random mode enabled");
-
+DEFINE_string(jtag_driver_mode, "off", "Enable jtag_socket_sequence in the sim - off/csv/socket");
+DEFINE_string(jtag_input_file_path, "", "Path to file containing jtag_driver commands");
+DEFINE_bool(random_jtag_entry, false, "Enter debug mode randomly after random intervals");
+DEFINE_bool(jtag_remote_debugger_mode, false, "Accept JTAG transactions over scoket");
+DEFINE_int32(random_jtag_start_delay, 300, "delay after which random interrupts should start");
+DEFINE_int32(jtag_delay_min, 6, "Minimum Delay between 2 consecutive debug mode requests");
+DEFINE_int32(jtag_max_loop_count, 50, "Number of times loop should run before flagging error");
+DEFINE_int32(jtag_delay_max, 9, "Maximum Delay between 2 consecutive debug mopde requests");
+DEFINE_int32(jtag_socket_port, 8088, "Port number for JTAG socket communication");
+DEFINE_int32(jtag_max_snippets, 1, "Maximum number of debug snippets to be driven");
+DEFINE_string(jtag_template_dir_path, "", "Path to file containing jtag_driver commands");
+DEFINE_string(jtag_txn_file,"","File containing jtag transaction requests");
 extern "C" {
   void jtag_driver_init();
   void jtag_driver_jtag_socket(uint8_t val);
   void drive_jtag_req(unsigned cmd,unsigned long upper_val, unsigned long lower_val, unsigned length, unsigned quit,unsigned tap_cfg_sel);
 
-  uint8_t jtag_driver_get_jtag_socket_en(const char* mode) {
+  uint8_t jtag_driver_get_en(const char* mode) {
     return (std::string(mode) != "off");
   }
 }
@@ -25,23 +32,25 @@ jtag_socket_sequence::jtag_socket_sequence(cvm::topology::loc_t loc, unsigned id
   cvm::registry::messenger.connect<rv_tester_transactions::jtag_driver::jtag_rdata<>>(
       loc_,
       [this](const rv_tester_transactions::jtag_driver::jtag_rdata<>& t) { return this->jtag_resp(t.rdata); }); 
-  
+  cvm::registry::messenger.connect<rv_tester_transactions::jtag_driver::m_jtag_driver_tick<>>(
+      loc_,
+      [this](const rv_tester_transactions::jtag_driver::m_jtag_driver_tick<>& t) { return this->jtag_tick(t.cycle); }); 
 
   // jtag_socket sequence threads
   std::cout<<"\n PRT creating JATG socket sequence \n";
-  trigger_mode_thread();
-  if (FLAGS_jtag_socket == "random") {
-    random_mode_thread();
-  } else if (FLAGS_jtag_socket == "trigger") {
-    trigger_mode_thread();
+  //socket_mode_thread();
+  if (FLAGS_jtag_driver_mode == "csv") {
+    csv_mode_thread();
+  } else if (FLAGS_jtag_driver_mode == "socket") {
+    socket_mode_thread();
   }
 }
 
  jtag_socket_sequence::~jtag_socket_sequence() {
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_jtag_driver_jtag_socket_count\": \"{}\"}}\n", id_, jtag_socket_count_);
+    //cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_jtag_driver_jtag_socket_count\": \"{}\"}}\n", id_, jtag_socket_count_);
 }
 
-void jtag_socket_sequence::random_mode_thread() {
+void jtag_socket_sequence::csv_mode_thread() {
   auto *task = +[] (jtag_socket_sequence* m) -> cvm::messenger::task<void> {
     co_await m->random_mode();
     co_return;
@@ -49,7 +58,7 @@ void jtag_socket_sequence::random_mode_thread() {
   cvm::registry::messenger.fork(task, this);
 };
 
-void jtag_socket_sequence::trigger_mode_thread() {
+void jtag_socket_sequence::socket_mode_thread() {
   auto *task = +[] (jtag_socket_sequence* m) -> cvm::messenger::task<void> {
     co_await m->open_socket_to_listen();
     co_return;
@@ -62,8 +71,7 @@ cvm::messenger::task<void> jtag_socket_sequence::random_mode() {
     // Wait for next tick generated after a random interval "jtag_socket_interval"
     co_await tick();
 
-    jtag_socket_count_++;
-    cvm::log(cvm::HIGH, "[jtag_driver][h{}] Starting jtag_socket sequence - count = {}\n", id_, jtag_socket_count_);
+    //cvm::log(cvm::HIGH, "[jtag_driver][h{}] Starting jtag_socket sequence - count = {}\n", id_, jtag_socket_count_);
 
     jtag_socket(id_, ASSERT);
 
@@ -808,9 +816,11 @@ std::string jtag_socket_sequence::get_local_ip_address() {
 cvm::messenger::task<void> jtag_socket_sequence::open_socket_to_listen(){
     int server_fd, new_socket;
     struct sockaddr_in address;
+    bool quit_communication = false;
     socklen_t addrlen = sizeof(address);
     char buffer[1024] = {0};
-    int PORT=8088;
+    //int PORT=8088;
+    int PORT=FLAGS_jtag_socket_port;
     int tick_count = 0;
    std::cout<<"\n PRT opening socket to listen ...\n";
     // Creating socket file descriptor
@@ -845,8 +855,12 @@ cvm::messenger::task<void> jtag_socket_sequence::open_socket_to_listen(){
 
     while (true) {
        tick_count++;
-      std::cout << "Server is listening on  tick cnt" <<std::dec<< tick_count << std::endl;
-      std::cout << "Server's local IP address: " << get_local_ip_address() << std::endl;
+       std::cout << "Server is listening on  tick cnt" <<std::dec<< tick_count << std::endl;
+       std::cout << "Server's local IP address: " << get_local_ip_address() << std::endl;
+       if(quit_communication){
+        break;
+       }
+       co_await tick();
        if(tick_count < 10){
         co_await tick();
         continue;
@@ -868,16 +882,23 @@ cvm::messenger::task<void> jtag_socket_sequence::open_socket_to_listen(){
                     process_input_string(input_line);
                     drive_jtag_cmds();
 
-                    // Process the string and send the first element back
-                    std::string response = process_string(buffer);
+                    // Send Response back
+                    std::stringstream ss;
+                    ss << std::hex << loop_rdata; // Convert to hexadecimal string
+    
+                    std::string str = ss.str();
+                    std::cout << "Hexadecimal string for jtag Rdata: " << str << std::endl;
+                    std::string response = str + ",OK";
                     co_await tick();
                     send(new_socket, response.c_str(), response.length(), 0);
                     std::cout << "Response sent: " << response << std::endl;
                 } else if (valread == 0) {
                     std::cout << "Client disconnected" << std::endl;
+                    quit_communication = true;
                     break; // Client disconnected
                 } else if (valread < 0 && errno != EWOULDBLOCK) {
                     perror("read");
+                    quit_communication = true;
                     break;
                 }
                 memset(buffer, 0, sizeof(buffer)); // Clear buffer

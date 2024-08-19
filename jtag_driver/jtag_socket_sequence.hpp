@@ -2,15 +2,13 @@
 
 #include <unistd.h>
 #include <iostream>
-#include <iostream>
 #include <iomanip>
 #include <string>
+#include <sstream>
 #include <map>
 #include <random>
 #include <cmath>
 #include <fstream>
-#include <iostream>
-#include <sstream>
 #include <string>
 #include <queue>
 #include <vector>
@@ -19,7 +17,6 @@
 #include <cstdlib>
 #include <ctime>
 
-#include <iostream>
 #include <string>
 #include <cstring>
 #include <algorithm>
@@ -46,18 +43,13 @@
 #include "jtag_driver.hpp"
 #include "transactor.h"
 #include "svdpi.h"
+#include "sysmod/sysmod_plusargs.h"
 
-DECLARE_string(jtag_input_file_path);
-DECLARE_bool(random_jtag_entry);
-DECLARE_int32(random_jtag_start_delay);
-DECLARE_bool(jtag_remote_debugger_mode);
-DECLARE_int32(jtag_delay_min);
-DECLARE_int32(jtag_delay_max);
-DECLARE_int32(jtag_max_snippets);
-DECLARE_string(jtag_template_dir_path);
-
-DECLARE_int32(jtag_max_loop_count);
-DECLARE_string(jtag_txn_file);
+ DECLARE_bool(random_jtag_entry);
+ DECLARE_int32(random_jtag_start_delay);
+ DECLARE_int32(jtag_delay_min);
+ DECLARE_int32(jtag_delay_max);
+ DECLARE_int32(jtag_max_snippets);
 class jtag_socket_sequence {
 
   public:
@@ -71,19 +63,19 @@ class jtag_socket_sequence {
   virtual void jtag_tick(uint64_t advance) 
   {
     num_ticks++;
-    cvm::log(cvm::HIGH, "[jtag_driver]: JTAG Tick {}\n",num_ticks);
+    cvm::log(cvm::HIGH, "[jtag_socket_sequence]: JTAG Tick {}\n",num_ticks);
     timer_ += advance;
     timer_advance = advance;
     if(num_ticks == 31){
-        if(FLAGS_jtag_remote_debugger_mode){
-          int PORT = 8088;
+  //       if(FLAGS_jtag_remote_debugger_mode){
+  //         int PORT = 8088;
     
-          auto* l = +[](int PORT, jtag_socket_sequence* dev) -> cvm::messenger::task<void>{
-          co_await dev->open_socket_to_listen();
-        };
-     cvm::registry::messenger.fork(l,PORT, this);
-   // open_socket_to_listen();
-      }
+  //         auto* l = +[](int PORT, jtag_socket_sequence* dev) -> cvm::messenger::task<void>{
+  //         co_await dev->open_socket_to_listen();
+  //       };
+  //    cvm::registry::messenger.fork(l,PORT, this);
+  //  // open_socket_to_listen();
+  //    }
     }
     if( num_ticks > 30) 
     {
@@ -91,11 +83,11 @@ class jtag_socket_sequence {
 
     if(executing_nop){
       nop_count--;
-      cvm::log(cvm::HIGH, "[jtag_driver]: Executing Nop ,Nop count {}\n",nop_count);
+      cvm::log(cvm::HIGH, "[jtag_socket_sequence]: Executing Nop ,Nop count {}\n",nop_count);
       if(nop_count==0)
         executing_nop = false;
     }else if(executing_loop){
-      cvm::log(cvm::HIGH, "[jtag_driver]: Executing loop \n");
+      cvm::log(cvm::HIGH, "[jtag_socket_sequence]: Executing loop \n");
       Run_cmd_loop();
     }else{
     drive_csv_jtag_cmds();
@@ -296,8 +288,8 @@ bool exitLoop() {
 
   private:
 
-    void random_mode_thread();
-    void trigger_mode_thread();
+    void csv_mode_thread();
+    void socket_mode_thread();
 
     cvm::messenger::task<void> random_mode();
     cvm::messenger::task<void> trigger_mode();
@@ -317,7 +309,6 @@ bool exitLoop() {
     unsigned id_;
     svScope scope_;
 
-    uint32_t jtag_socket_count_ = 0;
     std::vector<uint32_t> soft_;              // Software interrupt: one per hart.
   std::vector<uint64_t> timeCompare_;       // One per interrupt type.
   std::vector<uint32_t> IntrHart_;          // Hart to be interrupted.

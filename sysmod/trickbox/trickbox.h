@@ -16,7 +16,7 @@
 #include "cvm/topology.hpp"
 #include "interrupter.h"
 #include "debugger.h"
-#include "jtag_driver.h"
+//#include "jtag_driver.h"
 #include "imsic_driver.h"
 #include "aplic_driver.h"
 #include "triggers.h"

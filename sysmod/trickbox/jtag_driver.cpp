@@ -6,16 +6,16 @@
 #include "jtag_driver.h"
 #include "sysmod/sysmod_plusargs.h"
 
-DEFINE_string(jtag_input_file_path, "", "Path to file containing jtag_driver commands");
-DEFINE_bool(random_jtag_entry, false, "Enter debug mode randomly after random intervals");
-DEFINE_bool(jtag_remote_debugger_mode, false, "Accept JTAG transactions over scoket");
-DEFINE_int32(random_jtag_start_delay, 300, "delay after which random interrupts should start");
-DEFINE_int32(jtag_delay_min, 6, "Minimum Delay between 2 consecutive debug mode requests");
-DEFINE_int32(jtag_max_loop_count, 50, "Number of times loop should run before flagging error");
-DEFINE_int32(jtag_delay_max, 9, "Maximum Delay between 2 consecutive debug mopde requests");
-DEFINE_int32(jtag_max_snippets, 1, "Maximum number of debug snippets to be driven");
-DEFINE_string(jtag_template_dir_path, "", "Path to file containing jtag_driver commands");
-DEFINE_string(jtag_txn_file,"","File containing jtag transaction requests");
+// DEFINE_string(jtag_input_file_path, "", "Path to file containing jtag_driver commands");
+// DEFINE_bool(random_jtag_entry, false, "Enter debug mode randomly after random intervals");
+// DEFINE_bool(jtag_remote_debugger_mode, false, "Accept JTAG transactions over scoket");
+// DEFINE_int32(random_jtag_start_delay, 300, "delay after which random interrupts should start");
+// DEFINE_int32(jtag_delay_min, 6, "Minimum Delay between 2 consecutive debug mode requests");
+// DEFINE_int32(jtag_max_loop_count, 50, "Number of times loop should run before flagging error");
+// DEFINE_int32(jtag_delay_max, 9, "Maximum Delay between 2 consecutive debug mopde requests");
+// DEFINE_int32(jtag_max_snippets, 1, "Maximum number of debug snippets to be driven");
+// DEFINE_string(jtag_template_dir_path, "", "Path to file containing jtag_driver commands");
+// DEFINE_string(jtag_txn_file,"","File containing jtag transaction requests");
 //#define PORT 8080
 //#define BUFFER_SIZE 1024
 jtag_driver::jtag_driver(const std::string &tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc)

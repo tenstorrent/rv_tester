@@ -13,7 +13,7 @@
 #include "trickbox/uc_helper.h"
 #include "trickbox/aplic_driver.h"
 #include "trickbox/debugger.h"
-#include "trickbox/jtag_driver.h"
+//#include "trickbox/jtag_driver.h"
 #include "scratchpad_xtor/scratchpad_xtor.h"
 #include "trace_cfg/trace_cfg.h"
 #include "pll_xtor/pll_xtor.h"
@@ -54,7 +54,7 @@ class sysmod {
     void tick(uint64_t advance);
     void jtag_tick(uint64_t advance);
     void overlay_tick(uint64_t advance);
-    void jtag_resp(std::bitset<70> rdata);
+    //void jtag_resp(std::bitset<70> rdata);
     void compose();
     void load_boot(const std::string& boot);
     void load_cplfw(const std::string& cplfw);
@@ -102,7 +102,7 @@ class sysmod {
     void timer_interrupt(clint::timer_t t);
     void sw_interrupt(clint::sw_t s);
     void dmi_write(debugger::dmi_data_t s);
-    void jtag_req(jtag_driver::jtag_data_t i);
+    //void jtag_req(jtag_driver::jtag_data_t i);
     void tbox_interrupt(interrupter::interrupt_t i);
     void tboxtrig_updatemem(uint64_t addr, uint64_t data);
     void aplic_interrupt(aplic_driver::aplic_driver_write_t i);

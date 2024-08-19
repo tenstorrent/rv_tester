@@ -21,7 +21,7 @@ import rv_tester_params::*;
 );
 
   import "DPI-C" context function void jtag_driver_set_scope(int unsigned location);
-  import "DPI-C" function bit jtag_driver_get_jtag_socket_en(string mode);
+  import "DPI-C" function bit jtag_driver_get_en(string mode);
    // -------------------------
   // C++->SV Callbacks
   // -------------------------
@@ -38,7 +38,7 @@ import rv_tester_params::*;
   
   int unsigned location = cvm_topology::nil;
   logic tb_reset_d1;
-  string jtag_socket_mode;
+  string jtag_driver_mode;
   bit jtag_socket_en;
   int unsigned jtag_socket_count;
   int unsigned jtag_socket_interval;
@@ -94,11 +94,11 @@ import rv_tester_params::*;
       location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.JTAG_DRIVER.ID, NUM);
       if (location != cvm_topology::nil) begin
         jtag_driver_set_scope(location);
-        jtag_socket_mode = cvm_plusargs::get_string("jtag_socket");
-        jtag_socket_en = jtag_driver_get_jtag_socket_en(jtag_socket_mode);
-        jtag_socket_count <= cvm_rand::get("jtag_socket_count");
-        jtag_socket_interval <= cvm_rand::get("jtag_socket_interval");
-        jtag_socket_width <= cvm_rand::get("jtag_socket_width");
+        jtag_driver_mode = cvm_plusargs::get_string("jtag_driver_mode");
+        jtag_socket_en = jtag_driver_get_en(jtag_driver_mode);
+        //jtag_socket_count <= cvm_rand::get("jtag_socket_count");
+        //jtag_socket_interval <= cvm_rand::get("jtag_socket_interval");
+        //jtag_socket_width <= cvm_rand::get("jtag_socket_width");
       end
       /* verilator lint_on BLKSEQ */
     end
@@ -113,24 +113,25 @@ import rv_tester_params::*;
   bit jtag_socket_end = 0;
   bit jtag_socket_in_progress = 0;
   always @(posedge tb_clk) begin
-    if (jtag_socket_en && (jtag_socket_count != 0) && ~|no_fetch) begin
+    //if (jtag_socket_en && (jtag_socket_count != 0) && ~|no_fetch) begin
+    if (jtag_socket_en  && ~|no_fetch) begin
       tb_clocks <= tb_clocks + 1;
       jtag_socket_start <= '0;
       jtag_socket_end <= '0;
-      if (tb_clocks > jtag_socket_interval) begin
-        jtag_socket_start <= '1;
-        jtag_socket_in_progress <= '1;
-        tb_clocks <= 0;
-      end
-      if (jtag_socket_in_progress && (tb_clocks > jtag_socket_width)) begin
-        tb_clocks <= 0;
-        jtag_socket_in_progress <= '0;
-        jtag_socket_end <= '1;
-      end
+      // if (tb_clocks > jtag_socket_interval) begin
+      //   jtag_socket_start <= '1;
+      //   jtag_socket_in_progress <= '1;
+      //   tb_clocks <= 0;
+      // end
+      // if (jtag_socket_in_progress && (tb_clocks > jtag_socket_width)) begin
+      //   tb_clocks <= 0;
+      //   jtag_socket_in_progress <= '0;
+      //   jtag_socket_end <= '1;
+      // end
       if (jtag_socket_end) begin
-        jtag_socket_count <= jtag_socket_count - 1;
-        jtag_socket_interval <= cvm_rand::get("jtag_socket_interval");
-        jtag_socket_width <= cvm_rand::get("jtag_socket_width");
+        //jtag_socket_count <= jtag_socket_count - 1;
+        //jtag_socket_interval <= cvm_rand::get("jtag_socket_interval");
+        //jtag_socket_width <= cvm_rand::get("jtag_socket_width");
       end
     end
      //JTAG
