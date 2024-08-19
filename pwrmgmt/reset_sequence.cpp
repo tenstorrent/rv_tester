@@ -113,6 +113,11 @@ cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
   for (int i=0; i<16; ++i)
     co_await tick();
 
+  if (!FLAGS_pwrmgmt) {
+    force_ref_clk(0);
+    co_return;
+  }
+
   // PLL cold powerup sequence
   co_await pll_startup_sequence();
 

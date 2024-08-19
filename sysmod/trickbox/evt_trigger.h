@@ -18,13 +18,13 @@
 #include "cvm/logger.hpp"
 #include "whisper_client_decl.h"
 
-class triggers : public subdevice
+class evt_trigger : public subdevice
 {
 public:
 
-  triggers(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc);
+  evt_trigger(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc);
   // Destructor.
-  virtual ~triggers();
+  virtual ~evt_trigger();
 
   // Copy n bytes from the given integer, x, to the data iterator
   // following little endian convention. If n is larger than the size
