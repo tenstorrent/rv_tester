@@ -113,11 +113,6 @@ cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
   for (int i=0; i<16; ++i)
     co_await tick();
 
-  if (!FLAGS_pwrmgmt) {
-    force_ref_clk(0);
-    co_return;
-  }
-
   // PLL cold powerup sequence
   co_await pll_startup_sequence();
 
@@ -388,51 +383,6 @@ cvm::messenger::task<uint64_t> reset_sequence::csr_read(uint32_t core_id, uint64
   co_return data;
 }
 
-void reset_sequence::init() {
-  cvm::registry::callbacks.push(
-    scope_,
-    []() {
-      cvm::log(cvm::MEDIUM, "[pwrmgmt] assert cold_reset, force_ref_clk\n");
-      pwrmgmt_init();
-    });
-}
-
-void reset_sequence::cold_reset(uint8_t assert) {
-  cvm::registry::callbacks.push(
-    scope_,
-    [assert]() {
-      cvm::log(cvm::MEDIUM, "[pwrmgmt] {} cold reset\n", assert ? "assert" : "deassert");
-      pwrmgmt_cold_reset(assert);
-    });
-}
-
-void reset_sequence::warm_reset(uint8_t assert) {
-  cvm::registry::callbacks.push(
-    scope_,
-    [assert]() {
-      cvm::log(cvm::MEDIUM, "[pwrmgmt] {} warm reset\n", assert ? "assert" : "deassert");
-      pwrmgmt_warm_reset(assert);
-    });
-};
-
-void reset_sequence::reset_hold(uint8_t sram, uint8_t debug, uint8_t critical) {
-  cvm::registry::callbacks.push(
-    scope_,
-    [sram,debug,critical]() {
-      cvm::log(cvm::MEDIUM, "[pwrmgmt] reset holds [sram={}, debug={}, critical={}]\n", sram, debug, critical);
-      pwrmgmt_reset_hold(sram, debug, critical);
-    });
-}
-
-void reset_sequence::force_ref_clk(uint8_t assert) {
-  cvm::registry::callbacks.push(
-    scope_,
-    [assert]() {
-      cvm::log(cvm::MEDIUM, "[pwrmgmt] {} force_ref_clk\n", assert ? "assert" : "deassert");
-      pwrmgmt_force_ref_clk(assert);
-    });
-}
-
 std::vector<uint64_t> reset_sequence::convert_to_dword_array(const std::vector<uint8_t>& byte_array) {
   std::vector<uint64_t> result(byte_array.size() / sizeof(uint64_t));
   std::copy(reinterpret_cast<const uint64_t*>(byte_array.data()),
@@ -693,3 +643,52 @@ cvm::messenger::task<void> reset_sequence::fuse_mmr_csr_access_check() {
   //FIXME : ADD read write accesses to disabled cores
   co_return;
 };
+
+
+//-----------------------------------------------------------------------------------------------
+// Drivers
+//-----------------------------------------------------------------------------------------------
+void reset_sequence::init() {
+  cvm::registry::callbacks.push(
+    scope_,
+    []() {
+      cvm::log(cvm::MEDIUM, "[pwrmgmt] assert cold_reset, force_ref_clk\n");
+      pwrmgmt_init();
+    });
+}
+
+void reset_sequence::cold_reset(uint8_t assert) {
+  cvm::registry::callbacks.push(
+    scope_,
+    [assert]() {
+      cvm::log(cvm::MEDIUM, "[pwrmgmt] {} cold reset\n", assert ? "assert" : "deassert");
+      pwrmgmt_cold_reset(assert);
+    });
+}
+
+void reset_sequence::warm_reset(uint8_t assert) {
+  cvm::registry::callbacks.push(
+    scope_,
+    [assert]() {
+      cvm::log(cvm::MEDIUM, "[pwrmgmt] {} warm reset\n", assert ? "assert" : "deassert");
+      pwrmgmt_warm_reset(assert);
+    });
+};
+
+void reset_sequence::reset_hold(uint8_t sram, uint8_t debug, uint8_t critical) {
+  cvm::registry::callbacks.push(
+    scope_,
+    [sram,debug,critical]() {
+      cvm::log(cvm::MEDIUM, "[pwrmgmt] reset holds [sram={}, debug={}, critical={}]\n", sram, debug, critical);
+      pwrmgmt_reset_hold(sram, debug, critical);
+    });
+}
+
+void reset_sequence::force_ref_clk(uint8_t assert) {
+  cvm::registry::callbacks.push(
+    scope_,
+    [assert]() {
+      cvm::log(cvm::MEDIUM, "[pwrmgmt] {} force_ref_clk\n", assert ? "assert" : "deassert");
+      pwrmgmt_force_ref_clk(assert);
+    });
+}

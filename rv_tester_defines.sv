@@ -1055,9 +1055,11 @@ package rv_tester_params;
     // --------------------------------------
 `define _RV_TESTER_PORTS(input,output)                                                              \
     input                                    clk                [rv_tester_params::NCLKS-1:0],      \
-    output                                   dut_clk            [rv_tester_params::NCLKS-1:0],      \
+    input                                    dut_clk            [rv_tester_params::NCLKS-1:0],      \
+    input                                    dut_reset          [rv_tester_params::NCLKS-1:0],      \
+    output                                   dut_reset_req,                                         \
+    input                                    dut_reset_req_active,                                  \
     input                                    force_ref_clk,                                         \
-    output [rv_tester_params::NHARTS-1:0]    core_no_fetch,                                         \
     input  [rv_tester_params::NRESETS-1:0]   reset, /*Packed so zebu can easily force*/             \
     input  [rv_tester_params::NHOLDS-1:0]    reset_hold,                                            \
     input  rv_tester_params::bootstrap_t     bootstrap,                                             \
@@ -1065,11 +1067,10 @@ package rv_tester_params;
     input  rv_tester_pkg::interrupt_t        interrupt          [rv_tester_params::NHARTS-1:0],     \
     output rv_tester_pkg::interrupt_t        interrupt_pend     [rv_tester_params::NHARTS-1:0],     \
     output                                   debug_mode         [rv_tester_params::NHARTS-1:0],     \
-    output                                   shutdown,                                              \
+    output                                   dut_terminate,                                         \
     input                                    terminate,                                             \
     input  logic                             terminated,                                            \
     output                                   quiesced,                                              \
-    output                                   tj_max_interrupt,                                      \
     input logic [64-1:0]                     cosim_eot_addr,                                        \
     input  rv_tester_pkg::aplic_interrupt_t  aplic_interrupt,                                       \
     input  rv_tester_pkg::dm_write_t         dmi_write,                                             \
@@ -1138,8 +1139,10 @@ package rv_tester_params;
 `define RV_TESTER_VARS(topology)                                                                    \
     logic                                    clk             [rv_tester_params::NCLKS-1:0];         \
     logic                                    dut_clk         [rv_tester_params::NCLKS-1:0];         \
+    logic                                    dut_reset       [rv_tester_params::NCLKS-1:0];         \
+    logic                                    dut_reset_req;                                         \
+    logic                                    dut_reset_req_active;                                  \
     logic                                    force_ref_clk;                                         \
-    logic [rv_tester_params::NHARTS-1:0]     core_no_fetch;                                         \
     logic [rv_tester_params::NRESETS-1:0]    reset           /* Packed so zebu can force easily */; \
     logic [rv_tester_params::NHOLDS-1:0]     reset_hold;                                            \
     rv_tester_params::bootstrap_t            bootstrap;                                             \
@@ -1147,11 +1150,10 @@ package rv_tester_params;
     rv_tester_pkg::interrupt_t               interrupt       [rv_tester_params::NHARTS-1:0];        \
     rv_tester_pkg::interrupt_t               interrupt_pend  [rv_tester_params::NHARTS-1:0];        \
     logic                                    debug_mode      [rv_tester_params::NHARTS-1:0];        \
-    logic                                    shutdown;                                              \
+    logic                                    dut_terminate;                                         \
     logic                                    terminate;                                             \
     rv_tester_pkg::aplic_interrupt_t         aplic_interrupt;                                       \
     logic                                    terminated;                                            \
-    logic                                    tj_max_interrupt;                                      \
     logic                                    quiesced;                                              \
     logic [64-1:0]                           cosim_eot_addr;                                        \
     rv_tester_pkg::dm_write_t                dmi_write;                                             \

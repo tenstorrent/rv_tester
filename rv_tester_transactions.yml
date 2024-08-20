@@ -1406,12 +1406,12 @@ interrupts:
         fields:
             cycle:
                 width: 32
-    m_core_no_fetch:
+    m_reset:
         domain: 2
         num: 1
         fields:
-            val:
-                width: 1
+            cycle:
+                width: 32
 
 triggers:
     num: ${TOP.PLATFORM.NHARTS}
