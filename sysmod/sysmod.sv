@@ -13,15 +13,15 @@ import rv_tester_params::*;
     input clk,
     input reset,
     output logic trace_quiesced,
-    output logic jtag_quiesced,
+    //output logic jtag_quiesced,
     output rv_tester_params::bootstrap_t bootstrap,
     output rv_tester_pkg::interrupt_t interrupt [NHARTS-1:0],
     output rv_tester_pkg::aplic_interrupt_t aplic_interrupt,
     output rv_tester_pkg::dm_write_t  dmi_write,
     input  event_trigger_intf_t event_triggers [NHARTS-1:0],
-    output rv_tester_pkg::jtag_if_t  jtag_req,
-    output rv_tester_pkg::jtag_if_tck  jtag_tck_trst,
-    input rv_tester_pkg::jtag_if_out  jtag_resp,
+    //output rv_tester_pkg::jtag_if_t  jtag_req,
+    //output rv_tester_pkg::jtag_if_tck  jtag_tck_trst,
+    //input rv_tester_pkg::jtag_if_out  jtag_resp,
     output rv_tester_pkg::terminate_t terminate,
     `RV_TESTER_TRANSACTIONS_SYSMOD_OUTPUT_PORTS
 );
@@ -56,22 +56,22 @@ import rv_tester_params::*;
     /* verilator lint_on BLKANDNBLK */
 
 
-    jtag_xtor #(.JTAG_DR_WIDTH(JTAG_DR_WIDTH))  i_jtag_xtor(
-        .clk(clk),
-        .reset(reset),
-        .tap_sel(tap_sel),
-        .command(command),
-        .jtag_req(jtag_req),
-        .jtag_resp(jtag_resp),
-        .jtag_tck_trst(jtag_tck_trst),
-        .jtag_busy(jtag_busy),
-        .jtag_enable(jtag_enable_begin),
-        .read_data_valid_reg(read_data_valid_reg),
-        .length(length),
-        .jtag_tx(jtag_tx),
-        .jtag_rx(jtag_rx),
-        .misc_signals('0)
-    );
+    // jtag_xtor #(.JTAG_DR_WIDTH(JTAG_DR_WIDTH))  i_jtag_xtor(
+    //     .clk(clk),
+    //     .reset(reset),
+    //     .tap_sel(tap_sel),
+    //     .command(command),
+    //     .jtag_req(jtag_req),
+    //     .jtag_resp(jtag_resp),
+    //     .jtag_tck_trst(jtag_tck_trst),
+    //     .jtag_busy(jtag_busy),
+    //     .jtag_enable(jtag_enable_begin),
+    //     .read_data_valid_reg(read_data_valid_reg),
+    //     .length(length),
+    //     .jtag_tx(jtag_tx),
+    //     .jtag_rx(jtag_rx),
+    //     .misc_signals('0)
+    // );
 
     /* verilator lint_on BLKANDNBLK */
     always @(posedge clk) begin
@@ -79,7 +79,7 @@ import rv_tester_params::*;
         if (reset) begin
             clocks <= 0;
             /* verilator lint_off BLKSEQ */
-            jtag_quiesced = 0;
+            //jtag_quiesced = 0;
             sysmod_tick_async = cvm_plusargs::get_bool("sysmod_tick_async") != '0;
             if (location != cvm_topology::nil) begin
               sysmod_set_scope(location);
@@ -155,22 +155,22 @@ import rv_tester_params::*;
     endfunction
     export "DPI-C"  function sysmod_dmi_write;
 
-    function sysmod_jtag_req (int unsigned jtag_cmd_ip,longint upper_value,longint lower_value,int unsigned reg_length, int unsigned jtag_quit , int unsigned tap_cfg_sel);
-      if(jtag_quit[0] === 1'b0 )begin
-        jtag_enable_begin = 1'b1;
-        command = jtag_cmd_ip[1:0];
-        jtag_tx = {upper_value[5:0],lower_value};
-        tap_sel = tap_cfg_sel;
-        length = reg_length[31:0];
-        jtag_quiesced = 1'b0;
-        $display("[SYSMOD.SV] JTAG driver %h %h %h %h %h",upper_value, lower_value,reg_length,tap_sel,tap_cfg_sel);
-      end
-      else if(jtag_quit[0] === 1'b1 )begin
-        jtag_quiesced = 1'b1;
-        $display("[SYSMOD.SV] JTAG quit was given in %0d %t",jtag_quit[0],$time);
-      end
-    endfunction
-    export "DPI-C"  function sysmod_jtag_req;
+    // function sysmod_jtag_req (int unsigned jtag_cmd_ip,longint upper_value,longint lower_value,int unsigned reg_length, int unsigned jtag_quit , int unsigned tap_cfg_sel);
+    //   if(jtag_quit[0] === 1'b0 )begin
+    //     jtag_enable_begin = 1'b1;
+    //     command = jtag_cmd_ip[1:0];
+    //     jtag_tx = {upper_value[5:0],lower_value};
+    //     tap_sel = tap_cfg_sel;
+    //     length = reg_length[31:0];
+    //     //jtag_quiesced = 1'b0;
+    //     $display("[SYSMOD.SV] JTAG driver %h %h %h %h %h",upper_value, lower_value,reg_length,tap_sel,tap_cfg_sel);
+    //   end
+    //   else if(jtag_quit[0] === 1'b1 )begin
+    //     //jtag_quiesced = 1'b1;
+    //     $display("[SYSMOD.SV] JTAG quit was given in %0d %t",jtag_quit[0],$time);
+    //   end
+    // endfunction
+    // export "DPI-C"  function sysmod_jtag_req;
 
 
     always @(posedge clk) begin

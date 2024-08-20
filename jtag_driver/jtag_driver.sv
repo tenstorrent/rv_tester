@@ -7,12 +7,16 @@ import rv_tester_params::*;
   `RV_TESTER_TRANSACTIONS_JTAG_DRIVER_OUTPUT_PARAMS
 )
 (
-  input logic tb_clk,
-  input logic tb_reset,
+  input logic clk,
+  input logic reset,
   input logic dut_clk,
   input logic dut_reset,
   input logic no_fetch,
   output logic jtag_socket,
+  output rv_tester_pkg::jtag_if_t   jtag_req,
+  input rv_tester_pkg::jtag_if_out  jtag_resp,
+  output rv_tester_pkg::jtag_if_tck   jtag_tck_trst,
+  output logic jtag_quiesced,
   //// . old
  
   ////
@@ -37,7 +41,7 @@ import rv_tester_params::*;
   endfunction
   
   int unsigned location = cvm_topology::nil;
-  logic tb_reset_d1;
+  logic reset_d1;
   string jtag_driver_mode;
   bit jtag_socket_en;
   int unsigned jtag_socket_count;
@@ -61,9 +65,9 @@ import rv_tester_params::*;
   //output bit [JTAG_DR_WIDTH-1:0] jtag_rx,
   /////////////////////////////////////
   bit [31:0] tap_sel;
-  rv_tester_pkg::jtag_if_out  jtag_resp;
-   rv_tester_pkg::jtag_if_t   jtag_req;
-   rv_tester_pkg::jtag_if_tck   jtag_tck_trst;
+  // rv_tester_pkg::jtag_if_out  jtag_resp;
+  //  rv_tester_pkg::jtag_if_t   jtag_req;
+  // rv_tester_pkg::jtag_if_tck   jtag_tck_trst;
    bit[1:0]  command;
    reg       read_data_valid_reg;
    bit jtag_busy;
@@ -72,7 +76,7 @@ import rv_tester_params::*;
    bit [63:0] misc_signals; 
    bit [JTAG_DR_WIDTH-1:0] jtag_rx;
   
-   bit jtag_quiesced;
+   //bit jtag_quiesced;
    bit        jtag_enable_begin = '0;
    bit        jtag_enable_d = '0;
    bit        jtag_enable_end = '0;
@@ -84,12 +88,12 @@ import rv_tester_params::*;
 
   ////////////////////////////////////
 
-  always @(posedge tb_clk) begin
-    tb_reset_d1 <= tb_reset;
-    if (tb_reset) begin
+  always @(posedge clk) begin
+    reset_d1 <= reset;
+    if (reset) begin
       jtag_driver_init();
     end
-    if (~tb_reset & tb_reset_d1) begin
+    if (~reset & reset_d1) begin
       /* verilator lint_off BLKSEQ */
       location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.JTAG_DRIVER.ID, NUM);
       if (location != cvm_topology::nil) begin
@@ -112,7 +116,7 @@ import rv_tester_params::*;
   bit jtag_socket_start = 0;
   bit jtag_socket_end = 0;
   bit jtag_socket_in_progress = 0;
-  always @(posedge tb_clk) begin
+  always @(posedge clk) begin
     //if (jtag_socket_en && (jtag_socket_count != 0) && ~|no_fetch) begin
     if (jtag_socket_en  && ~|no_fetch) begin
       tb_clocks <= tb_clocks + 1;
@@ -206,12 +210,12 @@ typedef enum logic [1:0] {
   endfunction
   assign pos_tdo_en= ~jtag_resp.tdo_en;
 
-  assign jtag_tck_trst.tck = tb_clk;
-  assign jtag_tck_trst.trst = tb_reset;
+  assign jtag_tck_trst.tck = clk;
+  assign jtag_tck_trst.trst = reset;
 
 
-always @(posedge tb_clk) begin
-  if (tb_reset) begin
+always @(posedge clk) begin
+  if (reset) begin
     state <= IDLE;
     shiftCount <= 32'b0;
     read_data_valid <= 1'b0;
@@ -347,7 +351,7 @@ always @(posedge pos_tdo_en) begin
 end
 
 //for future use
-always @(posedge tb_clk) begin
+always @(posedge clk) begin
   if (ir && ~jtag_resp.tdo_en) begin
     jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1:5],jtag_resp.tdo,jtag_rx[4:1]};
     read <= 1;
