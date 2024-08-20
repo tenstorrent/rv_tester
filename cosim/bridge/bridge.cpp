@@ -189,16 +189,8 @@ void bridge::reset() {
   cac_.Reset();
   assert(cac_.SetVlen(vlen_));
 
-  if (first_reset_ && client_->whisperConnect(num_harts_) != 0) {
+  if (client_->whisperConnect(num_harts_) != 0) {
     print(cvm::ERROR, "Error: Hart {}: Failed whisper_connect\n", id_);
-    return;
-  }
-
-  first_reset_ = false;
-
-  bool valid;
-  if (!client_->whisperReset(id_, FLAGS_resetpc, valid)) {
-    print(cvm::ERROR, "Error: Hart {}: Failed whisper reset\n", id_);
     return;
   }
 
@@ -206,6 +198,7 @@ void bridge::reset() {
   csr_init();
 
   // Write hart enable mask to boot mem
+  bool valid;
   if (!client_->whisperPoke(id_, 0, 'm', memmap_.at("boot").base + 0x9000, FLAGS_hart_enable_mask, valid)) {
     print(cvm::ERROR, "Error: Hart {}: Failed to poke boot memory\n", id_);
     return;

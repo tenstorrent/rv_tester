@@ -610,6 +610,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
             /* verilator lint_off BLKSEQ */
             rvfi_enabled = (cvm_plusargs::get_bool("rvfi") != '0) & (location != cvm_topology::nil);
             if (rvfi_enabled) begin
+              $display("[cosim]: reset");
               cosim_set_scope(location);
             end
             terminate.terminate = '0;
@@ -968,7 +969,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
     // m_core_intr
     rv_tester_pkg::interrupt_t wired_interrupt_d1;
     always @(posedge clk) begin
-      if (reset) begin
+      if (dut_reset) begin
         wired_interrupt_d1 <= 0;
       end else begin
         wired_interrupt_d1 <= wired_interrupt;
@@ -1012,7 +1013,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
     enum logic {idle, aw} msi_slave_state,msi_slave_state_d;
     logic msi_addr_in_imsic_range;
     always @(posedge clk) begin
-       if (reset) begin
+       if (dut_reset) begin
         msi_slave_state <= idle;
        end else begin
         msi_slave_state <= msi_slave_state_d;
