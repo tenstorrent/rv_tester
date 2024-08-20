@@ -730,6 +730,9 @@ void bridge::pre_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
   if (instr.pc.pc_rdata == FLAGS_debug_exit_pc) {
     opcode = 0x7b200073; // Dret instruction opcode
   }
+  else if(instr.excp) {
+    opcode = 0x00100073; //E-break opcode
+  }
   else {
     opcode = instr.opcode;
   }
@@ -737,12 +740,6 @@ void bridge::pre_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
   if (!client_->whisperPoke(hart, 0, 'm', instr.pc.pc_rdata, opcode, valid)) {
     print(cvm::ERROR, "Error: Hart {}: Failed to poke memory\n", hart);
     return;
-  }
-  if (instr.excp){
-    if (!client_->whisperPoke(hart, 0, 'r', 0x6, FLAGS_debug_entry_pc, valid)) {
-      print(cvm::ERROR, "Error: Hart {}: Failed to poke x6 register\n", hart);
-      return;
-    }
   }
   return;
 }
@@ -1864,9 +1861,17 @@ void bridge::process_dut_mcm_read(hart_id_t hart, mem_t& m) {
       return;
     }
   }
-  if (!client_->whisperMcmRead(hart, m.cycle, m.tag, m.pa, m.size, m.data, valid)) {
-    print(cvm::ERROR, "Error: Hart {}: Failed mcm load resolve\n", hart);
-    return;
+  if (m.v_ext){
+    std::vector<bridge::size_8_bytes_t> data_vec = create_dword_vec(m.data_vec);
+    if (!client_->whisperMcmVecRead(hart, m.cycle, m.tag, m.pa, m.size, data_vec, valid)) {
+      print(cvm::ERROR, "Error: Hart {}: Failed mcm vec load\n", hart);
+      return;
+    }
+  } else {
+    if (!client_->whisperMcmRead(hart, m.cycle, m.tag, m.pa, m.size, m.data, valid)) {
+      print(cvm::ERROR, "Error: Hart {}: Failed mcm load\n", hart);
+      return;
+    }
   }
   bridge_log_(cvm::HIGH, "<{}> mcm_read [valid={}, tag={}, addr={:#x}, size={}, data={:#x}]\n",
     m.cycle, valid, m.tag, m.pa, m.size, m.data);
@@ -1875,10 +1880,17 @@ void bridge::process_dut_mcm_read(hart_id_t hart, mem_t& m) {
 // Process mem accesses - store inserts
 void bridge::process_dut_mcm_insert(hart_id_t hart, mem_t& m) {
   bool valid = false;
-
-  if (!client_->whisperMcmInsert(hart, m.cycle, m.tag, m.pa, m.size, m.data, valid)) {
-    print(cvm::ERROR, "Error: Hart {}: Failed mcm store insert\n", hart);
-    return;
+  if (m.v_ext){
+    std::vector<bridge::size_8_bytes_t> data_vec = create_dword_vec(m.data_vec);
+    if (!client_->whisperMcmVecInsert(hart, m.cycle, m.tag, m.pa, m.size, data_vec, valid)) {
+      print(cvm::ERROR, "Error: Hart {}: Failed mcm load insert\n", hart);
+      return;
+    }
+  } else {
+    if (!client_->whisperMcmInsert(hart, m.cycle, m.tag, m.pa, m.size, m.data, valid)) {
+      print(cvm::ERROR, "Error: Hart {}: Failed mcm load insert\n", hart);
+      return;
+    }
   }
   bridge_log_(cvm::HIGH, "<{}> mcm_insert [valid={}, tag={}, addr={:#x}, size={}, data={:#x}]\n",
     m.cycle, valid, m.tag, m.pa, m.size, m.data);

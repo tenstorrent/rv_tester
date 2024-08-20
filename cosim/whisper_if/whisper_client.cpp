@@ -571,6 +571,85 @@ whisperClient<URV>::whisperMcmRead(int hart, uint64_t time, uint64_t instrTag, u
   return true;
 }
 
+std::vector<uint8_t> convert_to_byte_array(const std::vector<uint64_t>& dword_array) {
+  const uint8_t* begin = reinterpret_cast<const uint8_t*>(dword_array.data());
+  const uint8_t* end = begin + dword_array.size() * sizeof(uint64_t);
+  std::vector<uint8_t> result(begin, end);
+  // std::reverse(result.begin(), result.end());
+  return result;
+}
+
+template <typename URV>
+bool
+whisperClient<URV>::whisperMcmVecRead(int hart, uint64_t time, uint64_t instrTag, uint64_t addr,
+		  unsigned size, std::vector<uint64_t> value, bool& valid)
+{
+  WhisperMessage req(hart, WhisperMessageType::McmRead);
+  req.time = time;
+  req.instrTag = instrTag;
+  req.address = addr;
+  req.size = size; // Total size in bytes
+
+  std::vector<uint8_t> byte_value = convert_to_byte_array(value);
+
+  if (size <= 8){
+    uint64_t u64 = 0;
+    for (unsigned i = 0; i < size; ++i){
+      uint8_t byte = byte_value[i];
+      u64 = (u64 << 8) | byte;
+    }
+    return whisperMcmRead(hart, time, instrTag, addr, size, value[0], valid);
+  }
+
+  for (unsigned i = 0; i < size; ++i){
+    req.buffer.at(i) = byte_value[i];
+  }
+
+  WhisperMessage reply;
+  if (not whisperCommand(req, reply))
+    return false;
+
+  valid = reply.type != WhisperMessageType::Invalid;
+  return true;
+}
+
+template <typename URV>
+bool
+whisperClient<URV>::whisperMcmVecInsert(int hart, uint64_t time, uint64_t instrTag, uint64_t addr,
+		    unsigned size, std::vector<uint64_t> value, bool& valid)
+{
+  WhisperMessage req(hart, WhisperMessageType::McmInsert);
+  req.time = time;
+  req.instrTag = instrTag;
+  req.address = addr;
+  req.size = size;   // Total size in bytes
+
+  std::vector<uint8_t> byte_value = convert_to_byte_array(value);
+
+  if (size <= 8)
+  {
+    uint64_t u64 = 0;
+    std::vector<uint8_t> byte_value = convert_to_byte_array(value);
+    for (unsigned i = 0; i < size; ++i)
+    {
+      uint8_t byte = byte_value[i];
+      u64 = (u64 << 8) | byte;
+    }
+    return whisperMcmInsert(hart, time, instrTag, addr, size, value[0], valid);
+  }
+
+  for (unsigned i = 0; i < size; ++i) {
+    req.buffer.at(i) = byte_value[i];
+  }
+
+  WhisperMessage reply;
+  if (not whisperCommand(req, reply))
+    return false;
+
+  valid = reply.type != WhisperMessageType::Invalid;
+  return true;
+}
+
 template <typename URV>
 bool
 whisperClient<URV>::whisperMcmInsert(int hart, uint64_t time, uint64_t instrTag, uint64_t addr,

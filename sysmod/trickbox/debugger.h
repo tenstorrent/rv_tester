@@ -92,6 +92,7 @@ public:
   void reset() override
   {
     cvm::log(cvm::HIGH, "[Debugger]: Reset debugger\n");
+    dbg_snippets_name = "";
     uint32_t rand_num = 0;
     if (FLAGS_random_dbg_entry)
     {
@@ -244,4 +245,5 @@ private:
   unsigned snippets_driven = 0;
   bool file_parsing_in_progress = false;
   bool cmd_trigger_in_progress = false;
+  std::string dbg_snippets_name = "";
 };
