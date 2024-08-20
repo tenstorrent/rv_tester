@@ -730,6 +730,9 @@ void bridge::pre_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
   if (instr.pc.pc_rdata == FLAGS_debug_exit_pc) {
     opcode = 0x7b200073; // Dret instruction opcode
   }
+  else if(instr.excp) {
+    opcode = 0x00100073; //E-break opcode
+  }
   else {
     opcode = instr.opcode;
   }
@@ -737,12 +740,6 @@ void bridge::pre_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
   if (!client_->whisperPoke(hart, 0, 'm', instr.pc.pc_rdata, opcode, valid)) {
     print(cvm::ERROR, "Error: Hart {}: Failed to poke memory\n", hart);
     return;
-  }
-  if (instr.excp){
-    if (!client_->whisperPoke(hart, 0, 'r', 0x6, FLAGS_debug_entry_pc, valid)) {
-      print(cvm::ERROR, "Error: Hart {}: Failed to poke x6 register\n", hart);
-      return;
-    }
   }
   return;
 }
