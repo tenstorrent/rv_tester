@@ -83,7 +83,7 @@ public:
     std::lock_guard<std::mutex> lock(mutex_);
     timer_ += advance;
     timer_advance = advance;
-    cvm::log(cvm::HIGH, "[Debugger]: Tick, timer:{}\n",timer_);
+    cvm::log(cvm::FULL, "[Debugger]: Tick, timer:{}\n",timer_);
     checkDebugEvents();
 
     drive_csv_dmi_cmds();
