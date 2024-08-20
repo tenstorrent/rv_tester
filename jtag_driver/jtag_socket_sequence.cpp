@@ -51,6 +51,8 @@ jtag_socket_sequence::jtag_socket_sequence(cvm::topology::loc_t loc, unsigned id
 }
 
 void jtag_socket_sequence::csv_mode_thread() {
+  if(FLAGS_jtag_input_file_path != "")
+     parse_jtag_from_csv();
   auto *task = +[] (jtag_socket_sequence* m) -> cvm::messenger::task<void> {
     co_await m->random_mode();
     co_return;
@@ -71,31 +73,8 @@ cvm::messenger::task<void> jtag_socket_sequence::random_mode() {
     // Wait for next tick generated after a random interval "jtag_socket_interval"
     co_await tick();
 
-    //cvm::log(cvm::HIGH, "[jtag_driver][h{}] Starting jtag_socket sequence - count = {}\n", id_, jtag_socket_count_);
-
-    jtag_socket(id_, ASSERT);
-
-    // Wait for next tick generated after a random width "jtag_socket_width"
-    co_await tick();
-
-    jtag_socket(id_, DEASSERT);
   }
   co_return;
-}
-
-cvm::messenger::task<void> jtag_socket_sequence::trigger_mode() {
-  // Wait for next selected trigger
-  co_await trigger();
-
-  // Wait for tick after trigger
-  co_await tick();
-
-  jtag_socket(id_, ASSERT);
-
-  // Wait for next tick generated after a random width "jtag_socket_width"
-  co_await tick();
-
-  jtag_socket(id_, DEASSERT);
 }
 
 void jtag_socket_sequence::init() {
@@ -888,7 +867,7 @@ cvm::messenger::task<void> jtag_socket_sequence::open_socket_to_listen(){
     
                     std::string str = ss.str();
                     std::cout << "Hexadecimal string for jtag Rdata: " << str << std::endl;
-                    std::string response = str + ",OK";
+                    std::string response = "ACK," + str;
                     co_await tick();
                     send(new_socket, response.c_str(), response.length(), 0);
                     std::cout << "Response sent: " << response << std::endl;

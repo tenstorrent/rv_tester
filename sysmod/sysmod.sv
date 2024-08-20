@@ -42,18 +42,7 @@ import rv_tester_params::*;
     bit dmi_write_end = '0;
     bit [63:0] dm_wdata = '0;
 
-    bit [1:0]  command= '0;
-    bit [31:0]  length= '0;
-    bit        jtag_enable_begin = '0;
-    bit        jtag_enable_d = '0;
-    bit        jtag_enable_end = '0;
-    bit        read_data_valid_reg;
-    bit [JTAG_DR_WIDTH-1 :0] jtag_tx;
-    bit [JTAG_DR_WIDTH-1 :0] jtag_rx;
-    bit [31 :0] tap_sel;
-    bit        jtag_busy;
-    bit jtag_rdatas_jtag_busy;
-    /* verilator lint_on BLKANDNBLK */
+      /* verilator lint_on BLKANDNBLK */
 
 
     // jtag_xtor #(.JTAG_DR_WIDTH(JTAG_DR_WIDTH))  i_jtag_xtor(
@@ -189,21 +178,14 @@ import rv_tester_params::*;
             dmi_write.dm_wdata <= dm_wdata;
             dmi_write_end <='1;
         end
-        //JTAG
-        if(jtag_enable_end)begin
-            jtag_enable_begin <= '0;
-            jtag_enable_end <= '0;
-        end
-        else if(jtag_enable_begin)begin
-            jtag_enable_end <='1;
-        end
+
 
     end
 
-  assign jtag_rdatas[0].valid         = read_data_valid_reg;
-  assign jtag_rdatas[0].data.location = location;
-  assign jtag_rdatas[0].data.rdata     = jtag_rx;//upper32 bits for future use
-  assign jtag_rdatas_jtag_busy = jtag_busy ;
+  // assign jtag_rdatas[0].valid         = read_data_valid_reg;
+  // assign jtag_rdatas[0].data.location = location;
+  // assign jtag_rdatas[0].data.rdata     = jtag_rx;//upper32 bits for future use
+  // assign jtag_rdatas_jtag_busy = jtag_busy ;
 
   // Currently we have only NHARTS C2 triggers, new triggers shall send message on event_triggerss[NHARTS+:NHARTS] and increment rv_tester_transactions.yml
   for (genvar n = 0; n < NHARTS; n++) begin: tboxtrigc2

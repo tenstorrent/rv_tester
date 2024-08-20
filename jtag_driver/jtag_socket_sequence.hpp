@@ -66,17 +66,6 @@ class jtag_socket_sequence {
     cvm::log(cvm::HIGH, "[jtag_socket_sequence]: JTAG Tick {}\n",num_ticks);
     timer_ += advance;
     timer_advance = advance;
-    if(num_ticks == 31){
-  //       if(FLAGS_jtag_remote_debugger_mode){
-  //         int PORT = 8088;
-    
-  //         auto* l = +[](int PORT, jtag_socket_sequence* dev) -> cvm::messenger::task<void>{
-  //         co_await dev->open_socket_to_listen();
-  //       };
-  //    cvm::registry::messenger.fork(l,PORT, this);
-  //  // open_socket_to_listen();
-  //    }
-    }
     if( num_ticks > 30) 
     {
     checkJtagEvents();
