@@ -1864,9 +1864,17 @@ void bridge::process_dut_mcm_read(hart_id_t hart, mem_t& m) {
       return;
     }
   }
-  if (!client_->whisperMcmRead(hart, m.cycle, m.tag, m.pa, m.size, m.data, valid)) {
-    print(cvm::ERROR, "Error: Hart {}: Failed mcm load resolve\n", hart);
-    return;
+  if (m.v_ext){
+    std::vector<bridge::size_8_bytes_t> data_vec = create_dword_vec(m.data_vec);
+    if (!client_->whisperMcmVecRead(hart, m.cycle, m.tag, m.pa, m.size, data_vec, valid)) {
+      print(cvm::ERROR, "Error: Hart {}: Failed mcm vec load\n", hart);
+      return;
+    }
+  } else {
+    if (!client_->whisperMcmRead(hart, m.cycle, m.tag, m.pa, m.size, m.data, valid)) {
+      print(cvm::ERROR, "Error: Hart {}: Failed mcm load\n", hart);
+      return;
+    }
   }
   bridge_log_(cvm::HIGH, "<{}> mcm_read [valid={}, tag={}, addr={:#x}, size={}, data={:#x}]\n",
     m.cycle, valid, m.tag, m.pa, m.size, m.data);
@@ -1875,10 +1883,17 @@ void bridge::process_dut_mcm_read(hart_id_t hart, mem_t& m) {
 // Process mem accesses - store inserts
 void bridge::process_dut_mcm_insert(hart_id_t hart, mem_t& m) {
   bool valid = false;
-
-  if (!client_->whisperMcmInsert(hart, m.cycle, m.tag, m.pa, m.size, m.data, valid)) {
-    print(cvm::ERROR, "Error: Hart {}: Failed mcm store insert\n", hart);
-    return;
+  if (m.v_ext){
+    std::vector<bridge::size_8_bytes_t> data_vec = create_dword_vec(m.data_vec);
+    if (!client_->whisperMcmVecInsert(hart, m.cycle, m.tag, m.pa, m.size, data_vec, valid)) {
+      print(cvm::ERROR, "Error: Hart {}: Failed mcm load insert\n", hart);
+      return;
+    }
+  } else {
+    if (!client_->whisperMcmInsert(hart, m.cycle, m.tag, m.pa, m.size, m.data, valid)) {
+      print(cvm::ERROR, "Error: Hart {}: Failed mcm load insert\n", hart);
+      return;
+    }
   }
   bridge_log_(cvm::HIGH, "<{}> mcm_insert [valid={}, tag={}, addr={:#x}, size={}, data={:#x}]\n",
     m.cycle, valid, m.tag, m.pa, m.size, m.data);
