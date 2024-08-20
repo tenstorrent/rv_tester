@@ -76,9 +76,9 @@ namespace trace_mmr {
     X(CDBG_NODE0_EAP1_CFG    ,0x42002128)\
     X(CDBG_NODE1_EAP0_CFG    ,0x42002130)\
     X(CDBG_NODE1_EAP1_CFG    ,0x42002138)\
+    X(CDBG_NODE2_EAP0_CFG    ,0x42002140)\
     X(CDBG_TRACE_CFG         ,0x420021A0)\
     X(CDBG_NTRACE_CFG        ,0x420021A8)\
-    X(CDBG_MUX_SEL_EXT_CFG   ,0x42002220)\
 
 
  enum reg : uint32_t {

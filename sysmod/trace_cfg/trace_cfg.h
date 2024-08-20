@@ -17,6 +17,7 @@ DECLARE_bool(trace_en);
 DECLARE_bool(overlay_mmr_en);
 DECLARE_bool(cla_clk_halt);
 DECLARE_bool(cla_nmi);
+DECLARE_bool(cla_rand_nmi_trig_en);
 
 class trace_cfg : public device {
 
@@ -36,7 +37,7 @@ class trace_cfg : public device {
 
     public:
         bool is_smem_mode;
-        uint32_t start_clk_halt_cnt=0,trace_stop_cnt;
+        uint32_t start_clk_halt_cnt=0,trace_stop_cnt, start_cla_nmi_cnt, start_rand_nmi_trig_cnt;
         uint32_t trace_start_cnt=0,n,id_val,read_ram=0,axi_ids = 0;
         uint32_t cnt_tick=0;
         uint64_t axi_read_resp=0;
@@ -73,6 +74,7 @@ class trace_cfg : public device {
         void gen_data_strb(uint64_t addr, uint32_t value, data_t& wdata, std::vector<bool>& strb);
         void push_clk_halt_cfg();
         void push_cla_nmi_cfg();
+        void push_rand_nmi_trigg_cfg();
         void push_axi_mmr_seq();
         void push_read_axi_mmr_seq();
         void read_axi_pointers();
