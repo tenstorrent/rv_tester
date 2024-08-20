@@ -532,6 +532,9 @@ package rv_tester_params;
         logic [CLLEN-1:0]           data ;
         logic                       amo;
         logic [4:0]                 amo_op;
+        logic                       v_ext;
+        logic [36-1:0]              opcode;
+        logic [7:0]                 nano_op_elem_idx;
     } mcmi_t;
 
     // --------------------------------------

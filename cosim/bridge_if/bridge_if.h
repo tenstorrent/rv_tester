@@ -138,15 +138,19 @@ typedef struct mem_s {
   bool valid;
   uint32_t hart;
   uint64_t cycle;
+  uint64_t opcode;
   uint64_t tag;
   uint64_t va;
   uint64_t pa;
   uint8_t size;
   uint64_t data;
+  std::bitset<256> data_vec;
   bool amo;
   uint8_t amo_op;
+  bool v_ext;
   uint32_t attr;
-
+  uint8_t nano_op_elem_idx;
+  
   mem_s() {
     clear();
   }
