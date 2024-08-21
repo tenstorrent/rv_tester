@@ -327,7 +327,7 @@ module axi_sw #(
         end
     end
 
-    localparam AR_HISTORY_Q_MAX = 16;
+    localparam AR_HISTORY_Q_MAX = 128;
 
     logic                   ar_history_empty;
     logic [CW         -1:0] ar_history_q;
