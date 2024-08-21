@@ -625,6 +625,15 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
         /* verilator lint_on BLKSEQ */
     endfunction
 
+     // m_reset
+    logic dut_reset_d1;
+    always @(posedge clk) begin
+        dut_reset_d1 <= dut_reset;
+    end
+    assign m_resets[0].valid            = RVFI_EN & rvfi_enabled & (dut_reset_d1 & ~dut_reset);
+    assign m_resets[0].data.location    = location;
+    assign m_resets[0].data.cycle       = clocks;
+
     //-----------------------------------------------------------------------------------------------------------
     // PERIODIC STATE COMPARE feature enabled when cosim_period value > 0
     //-----------------------------------------------------------------------------------------------------------
