@@ -207,6 +207,16 @@ void bridge::reset() {
     print(cvm::ERROR, "Error: Hart {}: Failed to poke boot memory\n", id_);
     return;
   }
+
+  uint64_t poke_data = uint64_t(FLAGS_enable_sp_init);
+  if (!client_->whisperPokeMem(0, 0, 'm', dev("boot")->addr() + 0x9008, 8, poke_data, valid))
+      cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
+  
+  poke_data = uint64_t(FLAGS_num_sp_ways);
+  if (!client_->whisperPokeMem(0, 0, 'm', dev("boot")->addr() + 0x9010, 8, poke_data, valid))
+     cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
+ 
+
   cvm::registry::messenger.signal<uint64_t>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0), uint64_t(0));
   resetsstc_poke(id_,0,0x14d);
   resetsstc_poke(id_,0,0x24d);

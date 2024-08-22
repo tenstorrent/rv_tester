@@ -701,7 +701,6 @@ sysmod::reset() {
   if (!FLAGS_cosim)
     load_csr_mmr_boot(0);
   load_cplfw(FLAGS_cplfw_path);
-  poke_bootrom_updates_to_cosim();
 }
 
 void
@@ -948,19 +947,6 @@ sysmod::load_prog(const std::string& hex, const std::string& load, const std::st
 }
 
 void
-sysmod::poke_bootrom_updates_to_cosim(){
-  bool valid;
-  uint64_t poke_data = 0x01;
-  if (client_ != nullptr && !client_->whisperPokeMem(0, 0, 'm', dev("boot")->addr() + 0x9008, 8, poke_data, valid))
-      cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
-  
-  poke_data = uint64_t(FLAGS_sp_ways_num);
-  if (client_ != nullptr && !client_->whisperPokeMem(0, 0, 'm', dev("boot")->addr() + 0x9010, 8, poke_data, valid))
-    cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
- 
-
-}
-void
 sysmod::load_boot(const std::string& boot)
 {
   if (FLAGS_bootrom && boot != "") {
@@ -1006,12 +992,12 @@ sysmod::load_boot(const std::string& boot)
       for (size_t i = 0; i < 8; i++) strb[i] = true;
       dev("boot")->backdoor_write(dev("boot")->addr() + 0x9008, 8, data, strb);
  
-      if(FLAGS_sp_ways_num < 25){
+      if(FLAGS_num_sp_ways < 25){
         device::data_t data(8);
         device::strb_t strb(8);
         for (size_t i = 0; i < 8; i++){
           if(i==0){
-             data[i] = uint8_t(FLAGS_sp_ways_num);
+             data[i] = uint8_t(FLAGS_num_sp_ways);
              strb[i] = true;
            }else{
              data[i] = 0;

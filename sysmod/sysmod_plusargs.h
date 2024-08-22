@@ -18,7 +18,7 @@ DECLARE_int32(num_sc_dis_ways);
 DECLARE_int32(sc_dis_ways_mask);
 DECLARE_uint32(trace_enable);
 DECLARE_uint32(debug_enable);
-
+DECLARE_int32(num_sp_ways);
 
 DECLARE_int32(imsic_intr_delay_min);//, 4, "Minimum Delay between 2 consecutive interrupts");
 DECLARE_int32(imsic_intr_delay_max);//, 7, "Maximum Delay between 2 consecutive interrupts");
