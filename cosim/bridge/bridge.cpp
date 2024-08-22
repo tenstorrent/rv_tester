@@ -220,8 +220,8 @@ void bridge::reset() {
      return;
   }
  
-
-  cvm::registry::messenger.signal<uint64_t>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0), uint64_t(0));
+  cvm::registry::messenger.signal<uint64_t>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0), uint64_t(0)); // sysmod needs whisper client
+  cvm::registry::messenger.signal<uint64_t>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0), uint64_t(1));
   resetsstc_poke(id_,0,0x14d);
   resetsstc_poke(id_,0,0x24d);
 }
