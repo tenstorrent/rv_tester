@@ -74,6 +74,8 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
 }
 
 rvfi::~rvfi() {
+  if (FLAGS_num_harts == 1 && count_ == 1)
+    cvm::log(cvm::ERROR, "Error: rvfi termination without processing any instructions\n");
 }
 
 void rvfi::init() {
