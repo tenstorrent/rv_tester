@@ -79,7 +79,11 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
       [this](svScope s) { return this->set_scope(s); });
   cvm::registry::messenger.connect<uint64_t>(
       loc_,
-      [this](const uint64_t& t) { return this->load_csr_mmr_boot(t); });
+      [this](const uint64_t& t) {  // FIXME: using signal to send data from whisper client to sysmod
+      if (t == 0)
+        return this->load_csr_mmr_boot(t);
+      return this->store_dm_randpc();
+      });
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::tick<>>(
       loc_,
       [this](const rv_tester_transactions::sysmod::tick<>& t) { return this->tick(t.advance); });
@@ -1143,6 +1147,19 @@ sysmod::load_cplfw(const std::string& cplfw)
         return;
       }
     }
+  }
+}
+void
+sysmod::store_dm_randpc()
+{
+  if (client_ != nullptr && client_->dm_randpc != 0) {
+    device::data_t dataw(8);
+    device::strb_t strb(8);
+    for (size_t i=0; i<8; i++) {
+      dataw[i] = (client_->dm_randpc >> 8*i) & 0xff;
+      strb[i]  = true;
+    }
+    dev("trickbox")->backdoor_write(client_->dm_randpc_addr, 8, dataw, strb); //write to trickbox location
   }
 }
 
