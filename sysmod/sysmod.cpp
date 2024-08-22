@@ -52,6 +52,7 @@ DEFINE_string(hart_enable_id, "", "Hart id sequence corresponding to physical co
 DEFINE_bool(rand_sc_harvest, false, "Randomize sc harvest options");
 DEFINE_int32(num_sc_dis_ways, -1, "Number of disabled SC ways - upto 24 in multiples of 4");
 DEFINE_int32(sc_dis_ways_mask, -1, "SC way enable mask. Ex: With 20 enabled ways out of 24, could be 0xF0_FFFF.");
+DEFINE_bool(rand_sp_ways, false, "Randomize number of SC ways reserved for scratchpad");
 DEFINE_int32(num_sp_ways, -1, "Number of SC ways reserved for scratchpad");
 DEFINE_uint32(trace_enable, 1, "Trace enable fuse");
 DEFINE_uint32(debug_enable, 3, "Debug enable fuse");
@@ -252,6 +253,10 @@ sysmod::core_harvest_plusargs()
 void
 sysmod::sc_harvest_plusargs()
 {
+  if (FLAGS_enable_sp_init) {
+    FLAGS_rand_sp_ways = true;
+  }
+
   // Plusargs: num_sc_dis_ways, sc_dis_ways_mask, num_sp_ways
   int32_t nways = cvm::topology::attr(cvm::topology::get_from_type("CORE", 0), "SC_NUM_WAYS").second;
   int32_t dis_ways = FLAGS_num_sc_dis_ways;
@@ -282,20 +287,32 @@ sysmod::sc_harvest_plusargs()
       if (FLAGS_perf || !FLAGS_rand_sc_harvest) {
         FLAGS_num_sc_dis_ways = 0;
         FLAGS_sc_dis_ways_mask = 0;
-        FLAGS_num_sp_ways = 0;
       } else {
         FLAGS_num_sc_dis_ways = get_rand_dis_ways(nways);
         FLAGS_sc_dis_ways_mask = get_rand_ways_mask(FLAGS_num_sc_dis_ways, nways);
+      }
+      if (FLAGS_perf || !FLAGS_rand_sp_ways) {
+        FLAGS_num_sp_ways = 0;
+      } else {
         FLAGS_num_sp_ways = get_rand_sp_ways(nways - FLAGS_num_sc_dis_ways);
       }
       break;
     case 1: // +num_sp_ways
-      FLAGS_num_sc_dis_ways = get_rand_dis_ways(nways - sp_ways);
-      FLAGS_sc_dis_ways_mask = get_rand_ways_mask(FLAGS_num_sc_dis_ways, nways);
+      if (!FLAGS_rand_sc_harvest) {
+        FLAGS_num_sc_dis_ways = 0;
+        FLAGS_sc_dis_ways_mask = 0;
+      } else {
+        FLAGS_num_sc_dis_ways = get_rand_dis_ways(nways - sp_ways);
+        FLAGS_sc_dis_ways_mask = get_rand_ways_mask(FLAGS_num_sc_dis_ways, nways);
+      }
       break;
     case 2: // +sc_dis_ways_mask
       FLAGS_num_sc_dis_ways = mask_dis_ways;
-      FLAGS_num_sp_ways = get_rand_sp_ways(nways - FLAGS_num_sc_dis_ways);
+      if (!FLAGS_rand_sp_ways) {
+        FLAGS_num_sp_ways = 0;
+      } else {
+        FLAGS_num_sp_ways = get_rand_sp_ways(nways - FLAGS_num_sc_dis_ways);
+      }
       break;
     case 3: // +num_sp_ways, +sc_dis_ways_mask
       if (((mask_dis_ways + sp_ways) < 0) || ((mask_dis_ways + sp_ways) > 24))
@@ -304,7 +321,11 @@ sysmod::sc_harvest_plusargs()
       break;
     case 4: // +num_sc_dis_ways
       FLAGS_sc_dis_ways_mask = get_rand_ways_mask(FLAGS_num_sc_dis_ways, nways);
-      FLAGS_num_sp_ways = get_rand_sp_ways(nways - FLAGS_num_sc_dis_ways);
+      if (!FLAGS_rand_sp_ways) {
+        FLAGS_num_sp_ways = 0;
+      } else {
+        FLAGS_num_sp_ways = get_rand_sp_ways(nways - FLAGS_num_sc_dis_ways);
+      }
       break;
     case 5: // +num_sc_dis_ways, +num_sp_ways
       if (((dis_ways + sp_ways) < 0) || ((dis_ways + sp_ways) > 24))
@@ -314,7 +335,11 @@ sysmod::sc_harvest_plusargs()
     case 6: // +num_sc_dis_ways, +sc_dis_ways_mask
       if (dis_ways != mask_dis_ways)
         cvm::log(cvm::ERROR, "Error: Incompatible plusargs: +num_sc_dis_ways {} != count(+num_dis_ways_mask {})\n", dis_ways, mask_dis_ways);
-      FLAGS_num_sp_ways = get_rand_sp_ways(nways - FLAGS_num_sc_dis_ways);
+      if (!FLAGS_rand_sp_ways) {
+        FLAGS_num_sp_ways = 0;
+      } else {
+        FLAGS_num_sp_ways = get_rand_sp_ways(nways - FLAGS_num_sc_dis_ways);
+      }
       break;
     case 7: // +num_sc_dis_ways, +sc_dis_ways_mask, +num_sp_ways
       if (dis_ways != mask_dis_ways)
@@ -449,8 +474,8 @@ sysmod::get_rand_sp_ways(int32_t max)
   // with mostly up to 4 ways
   // Ex: max = 24, weights = {1.0} upto 4 ways and {0.1} after that
   std::vector<double> weights(max);
-  for (int i = 0; i < max+1; ++i) {
-    if (i <= 4)
+  for (int i = 0; i < max; ++i) {
+    if (i < 4)
       weights[i] = 1.0;
     else
       weights[i] = 0.1;
@@ -459,7 +484,7 @@ sysmod::get_rand_sp_ways(int32_t max)
   cvm::rand::discrete_dist<int32_t> dist(weights);
   cvm::log(cvm::HIGH, "[random] Probabilities for selecting SP ways [0..{}] = [{:.2f}]\n",
     max, fmt::join(dist.probabilities(), ", "));
-  return dist();
+  return (dist() + 1);
 }
 
 sysmod::~sysmod()

@@ -208,18 +208,21 @@ void bridge::reset() {
     return;
   }
 
-  uint64_t poke_data = uint64_t(FLAGS_enable_sp_init);
-  if (!client_->whisperPokeMem(0, 0, 'm', memmap_.at("boot").base + 0x9008, 8, poke_data, valid)){
+
+
+  if(FLAGS_enable_sp_init){ //only poke num ways when sp_init is required
+    uint64_t poke_data = uint64_t(FLAGS_enable_sp_init);
+    if (!client_->whisperPokeMem(0, 0, 'm', memmap_.at("boot").base + 0x9008, 8, poke_data, valid)){
       print(cvm::ERROR, "Error: Hart {}: Failed to poke boot memory\n", id_);
       return;
+    }
+    poke_data = uint64_t(FLAGS_num_sp_ways);
+    if (!client_->whisperPokeMem(0, 0, 'm', memmap_.at("boot").base + 0x9010, 8, poke_data, valid)){
+       print(cvm::ERROR, "Error: Hart {}: Failed to poke boot memory\n", id_);
+       return;
+    }
   }
-  
-  poke_data = uint64_t(FLAGS_num_sp_ways);
-  if (!client_->whisperPokeMem(0, 0, 'm', memmap_.at("boot").base + 0x9010, 8, poke_data, valid)){
-     print(cvm::ERROR, "Error: Hart {}: Failed to poke boot memory\n", id_);
-     return;
-  }
- 
+
   cvm::registry::messenger.signal<uint64_t>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0), uint64_t(0)); // sysmod needs whisper client
   cvm::registry::messenger.signal<uint64_t>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0), uint64_t(1));
   resetsstc_poke(id_,0,0x14d);
