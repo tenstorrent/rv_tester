@@ -283,7 +283,9 @@ sysmod::sc_harvest_plusargs()
         FLAGS_num_sc_dis_ways = 0;
         FLAGS_sc_dis_ways_mask = 0;
         FLAGS_num_sp_ways = 0;
-      } else {
+      } else if(FLAGS_enable_sp_init && !FLAGS_rand_sc_harvest){
+        FLAGS_num_sp_ways = 1;
+      } else{
         FLAGS_num_sc_dis_ways = get_rand_dis_ways(nways);
         FLAGS_sc_dis_ways_mask = get_rand_ways_mask(FLAGS_num_sc_dis_ways, nways);
         FLAGS_num_sp_ways = get_rand_sp_ways(nways - FLAGS_num_sc_dis_ways);
