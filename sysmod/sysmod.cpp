@@ -955,7 +955,7 @@ sysmod::poke_bootrom_updates_to_cosim(){
       cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
   
   poke_data = uint64_t(FLAGS_sp_ways_num);
-  if (client_ != nullptr && !client_->whisperPokeMem(0, 0, 'm', dev("boot")->addr() + 0x9010, 8, poke_data, valid));
+  if (client_ != nullptr && !client_->whisperPokeMem(0, 0, 'm', dev("boot")->addr() + 0x9010, 8, poke_data, valid))
     cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
  
 
