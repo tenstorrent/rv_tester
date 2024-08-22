@@ -950,7 +950,7 @@ sysmod::load_prog(const std::string& hex, const std::string& load, const std::st
 void
 sysmod::poke_bootrom_updates_to_cosim(){
   bool valid;
-  uint64_t poke_data = 0x0101010101010101;
+  uint64_t poke_data = 0x01;
   if (client_ != nullptr && !client_->whisperPokeMem(0, 0, 'm', dev("boot")->addr() + 0x9008, 8, poke_data, valid))
       cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
   
@@ -996,7 +996,12 @@ sysmod::load_boot(const std::string& boot)
 
     if(FLAGS_enable_sp_init){
       device::data_t data(8);
-      for (size_t i = 0; i < 8; i++) data[i] = 0x1;
+      for (size_t i = 0; i < 8; i++){ 
+        if(i==0)
+          data[i] = 0x1;
+        else
+          data[i] = 0x0;        
+        }
       device::strb_t strb(8);
       for (size_t i = 0; i < 8; i++) strb[i] = true;
       dev("boot")->backdoor_write(dev("boot")->addr() + 0x9008, 8, data, strb);
