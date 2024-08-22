@@ -625,7 +625,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
         /* verilator lint_on BLKSEQ */
     endfunction
 
-    // m_reset
+     // m_reset
     logic dut_reset_d1;
     always @(posedge clk) begin
         dut_reset_d1 <= dut_reset;

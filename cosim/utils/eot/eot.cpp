@@ -84,6 +84,10 @@ void eot::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
      start = std::chrono::system_clock::now();
   }
 
+  // We don't want to increment instr_count and check for EOT if this is not the last uop
+  if (!m_rvfi.last_uop)
+      return;
+
   instr_count_[m_rvfi.hart]++;
 
   if (m_rvfi.pc_rdata == FLAGS_recent_pc) {
