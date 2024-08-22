@@ -986,24 +986,31 @@ sysmod::load_boot(const std::string& boot)
 
     if(FLAGS_enable_sp_init){
       device::data_t data(8);
-      for (size_t i = 0; i < 8; i++) data[i] = 0x1;
+      for (size_t i = 0; i < 8; i++){ 
+        if(i==0)
+          data[i] = 0x1;
+        else
+          data[i] = 0x0;        
+        }
       device::strb_t strb(8);
       for (size_t i = 0; i < 8; i++) strb[i] = true;
       dev("boot")->backdoor_write(dev("boot")->addr() + 0x9008, 8, data, strb);
-      
-      if(FLAGS_sp_ways_num < 25){
+ 
+      if(FLAGS_num_sp_ways < 25){
         device::data_t data(8);
         device::strb_t strb(8);
         for (size_t i = 0; i < 8; i++){
           if(i==0){
-             data[i] = uint8_t(FLAGS_sp_ways_num);
+             data[i] = uint8_t(FLAGS_num_sp_ways);
              strb[i] = true;
            }else{
              data[i] = 0;
              strb[i] = true; 
            }
         }
+        
         dev("boot")->backdoor_write(dev("boot")->addr() + 0x9010, 8, data, strb);
+
       }else{
             cvm::log(cvm::ERROR, "Error: Maximum 24 sharedcache ways can be alloted as Scratchpad \n");
       }
