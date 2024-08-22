@@ -70,6 +70,7 @@ class sysmod {
     void load_cplfw(const std::string& cplfw);
     void load_prog(const std::string& hex, const std::string& load, const std::string& lz4);
     void load_csr_mmr_boot(uint64_t);
+    void poke_bootrom_updates_to_cosim();
     void load_io(const std::string& io);
     // Function to convert a bitset to an array of uint64_t
   //   std::vector<uint64_t> bitsetToUint64Array(const std::bitset<70>& bs) {
