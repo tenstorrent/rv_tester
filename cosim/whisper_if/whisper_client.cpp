@@ -182,10 +182,10 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
     std::vector<std::thread> threadVec;
 
     FILE* preload_log[system_->hartCount()];
-    whisper_log = fopen("iss_firmware.log", "w");
+    whisper_log = fopen("iss_standalone.log", "w");
     for (unsigned i = 0; i < system_->hartCount(); ++i) {
       WdRiscv::Hart<URV>* hart = system_->ithHart(i).get();
-      preload_log[i] = fopen(("firmware_preload_" + std::to_string(i) + ".csv").c_str(), "w");
+      preload_log[i] = fopen(("preload_" + std::to_string(i) + ".csv").c_str(), "w");
       constructHart(hart, true, preload_log[i]);
       threadVec.emplace_back(std::thread(threadFunc, hart));
     }
