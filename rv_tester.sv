@@ -700,7 +700,7 @@ module rv_tester
           `RV_TESTER_TRANSACTIONS_PMU_SOURCE_PARAMS(0)
       ) pmu (
           .clk(dut_clk[CORE_CLK_IDX]),
-          .sys_reset(sys_reset[TB_CLK_IDX]),
+          .sys_reset(sys_reset[CORE_CLK_IDX]),
           .reset(dut_reset[CORE_CLK_IDX]),
           .clocks,
           .pmci(pmci[p]),
