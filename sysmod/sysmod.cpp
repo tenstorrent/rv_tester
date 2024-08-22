@@ -987,7 +987,8 @@ sysmod::load_boot(const std::string& boot)
       for (size_t i = 0; i < 8; i++) strb[i] = true;
       dev("boot")->backdoor_write(dev("boot")->addr() + 0x9008, 8, data, strb);
       bool valid;
-      client_->whisperPokeMem(0, 0, 'm', dev("boot")->addr() + 0x9008, 8, data, valid);
+      uint64_t poke_data = 0x0101010101010101;
+      client_->whisperPokeMem(0, 0, 'm', dev("boot")->addr() + 0x9008, 8, poke_data, valid);
       if(FLAGS_sp_ways_num < 25){
         device::data_t data(8);
         device::strb_t strb(8);
@@ -1000,8 +1001,9 @@ sysmod::load_boot(const std::string& boot)
              strb[i] = true; 
            }
         }
+        poke_data = uint64_t(FLAGS_sp_ways_num);
         dev("boot")->backdoor_write(dev("boot")->addr() + 0x9010, 8, data, strb);
-        client_->whisperPokeMem(0, 0, 'm', dev("boot")->addr() + 0x9010, 8, data, valid);
+        client_->whisperPokeMem(0, 0, 'm', dev("boot")->addr() + 0x9010, 8, poke_data, valid);
       }else{
             cvm::log(cvm::ERROR, "Error: Maximum 24 sharedcache ways can be alloted as Scratchpad \n");
       }
