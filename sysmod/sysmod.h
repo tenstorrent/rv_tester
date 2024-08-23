@@ -16,7 +16,7 @@
 #include "trickbox/jtag_driver.h"
 #include "scratchpad_xtor/scratchpad_xtor.h"
 #include "trace_cfg/trace_cfg.h"
-#include "pll_xtor/pll_xtor.h"
+#include "cla_cfg/cla_cfg.h"
 #include "pm_nw_xtor/pm_nw_xtor.h"
 #include "cvm/topology.hpp"
 
@@ -105,7 +105,7 @@ class sysmod {
     void store_dm_randpc();
   protected:
     void trace_info_handler(trace_cfg::trace_info_t i);
-    void pll_info_handler(pll_xtor::pll_info_t i);
+    void cla_info_handler(cla_cfg::cla_info_t i);
     void pm_nw_info_handler(pm_nw_xtor::pm_nw_info_t i);
     void timer_interrupt(clint::timer_t t);
     void sw_interrupt(clint::sw_t s);
