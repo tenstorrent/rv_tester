@@ -14,9 +14,6 @@
 #include <unordered_map>
 #include <random>
 
-DEFINE_bool(cla_clk_halt, false, "Enable CLA clk halt events");
-DEFINE_bool(cla_nmi, false, "Enable CLA NMI events");
-DEFINE_bool(cla_rand_nmi_trig_en, false, "Enable CLA NMI/XTrigger events");
 
 trace_cfg::trace_cfg(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc)
   : device(tag, addr, size, loc, &trace_cfg::write, &trace_cfg::read, this), axi_mst_loc_l(axi_mst_loc)
@@ -112,57 +109,6 @@ void trace_cfg::gen_data_strb(uint64_t addr, uint32_t value, data_t& wdata, std:
           wdata[i+b_index] = currentByte;
           strb[i+b_index] = 0x1;
     }  
-}
-
-void trace_cfg::push_clk_halt_cfg() {
-  cvm::log(cvm::LOW, "[overlay axi] Push CLK HALT Configs\n");
-  trace_wr_txn_q.push({trace_mmr::CDBG_CLA_CTRL_STS_CFG,0x40});
-  trace_wr_txn_q.push({trace_mmr::CDBG_CLA_COUNTER0_CFG,0x40000000});
-  trace_wr_txn_q.push({trace_mmr::CDBG_NODE0_EAP0_CFG,0x10049});
-  trace_wr_txn_q.push({trace_mmr::CDBG_NODE1_EAP0_CFG,0x101306});
-  trace_wr_txn_q.push({trace_mmr::CDBG_CLA_CTRL_STS_CFG,0x60});
-}
-
-void trace_cfg::push_cla_nmi_cfg() {
-  cvm::log(cvm::NONE, "[overlay axi] Push CLA NMI Configs\n");
-  trace_wr_txn_q.push({trace_mmr::CDBG_CLA_CTRL_STS_CFG,0x40});
-  trace_wr_txn_q.push({trace_mmr::CDBG_CLA_COUNTER0_CFG,0x25000000});
-  trace_wr_txn_q.push({trace_mmr::CDBG_NODE0_EAP0_CFG,0x10049});
-  trace_wr_txn_q.push({trace_mmr::CDBG_NODE1_EAP0_CFG,0x10130A});
-  trace_wr_txn_q.push({trace_mmr::CDBG_CLA_CTRL_STS_CFG,0x60});
-
-}
-
-void trace_cfg::push_rand_nmi_trigg_cfg() {
-  uint32_t wait_on_count,wait_off_count,event_count;
-  uint32_t wdata;
-  bool nmi_event;
-
-  wait_on_count = (rng()% 201) + 1000;    // On Delay 1000-1200 CLK cycle
-  wait_off_count = (rng()% 101) + 700;    // Off Delay 700-800 CLK cycle
-  event_count = (rng()% 101) + 400;       // Event on Delay 400-500 CLK cycle
-  nmi_event = rng();                      // NMI = 1, Trigger = 0
-
-  cvm::log(cvm::NONE, "[overlay axi] Push NMI/Trigger Configs nmi_event {} \n",nmi_event);
-  trace_wr_txn_q.push({trace_mmr::CDBG_CLA_CTRL_STS_CFG,0x40});
-  wdata = 0; wdata = (wait_on_count << 16);
-  trace_wr_txn_q.push({trace_mmr::CDBG_CLA_COUNTER0_CFG,wdata}); // CNT0 - On count
-  wdata = 0; wdata = (event_count << 16);
-  trace_wr_txn_q.push({trace_mmr::CDBG_CLA_COUNTER1_CFG,wdata}); // CNT1 - event count
-  wdata = 0; wdata = (wait_off_count << 16);
-  trace_wr_txn_q.push({trace_mmr::CDBG_CLA_COUNTER2_CFG,wdata}); // CNT2 - Off count
-
-  trace_wr_txn_q.push({trace_mmr::CDBG_NODE0_EAP0_CFG,0x10048}); // ALWAYS ON, AUTOINCR0
-  trace_wr_txn_q.push({trace_mmr::CDBG_NODE0_EAP1_CFG,0x101645});// TARGET MATCH-0, CLRCNT0, AUTOINCR1, DEST-1
-  if(nmi_event){
-    trace_wr_txn_q.push({trace_mmr::CDBG_NODE1_EAP0_CFG,0x10009});// ALWAYS ON, NMI
-  }
-  else {
-    trace_wr_txn_q.push({trace_mmr::CDBG_NODE1_EAP0_CFG,0x1081D});// ALWAYS ON, TRIGGER-0,1
-  }
-  trace_wr_txn_q.push({trace_mmr::CDBG_NODE1_EAP1_CFG,0x131A56});// TRAGET MATCH-1. CLRCNT1, AUTOINCR2, DEST-2
-  trace_wr_txn_q.push({trace_mmr::CDBG_NODE2_EAP0_CFG,0x161900});// TRAGET MATCH-2. CLRCNT2, DEST-0
-  trace_wr_txn_q.push({trace_mmr::CDBG_CLA_CTRL_STS_CFG,0x60});
 }
 
 void trace_cfg::push_axi_mmr_seq() {
@@ -346,13 +292,10 @@ void trace_cfg::overlay_tick(uint64_t) {
     if(trace_start_cnt == 0) {
       trace_start_cnt = (rng()% 5) + 20;
       trace_stop_cnt = trace_start_cnt + (rng()% 20) + 100;
-      start_clk_halt_cnt = (rng()% 40) + 50 ;
-      start_cla_nmi_cnt = (rng()% 40) + 50 ;
-      start_rand_nmi_trig_cnt = (rng()% 40) + 50 ;
       n = (rng()% 5) + 3;
       id_val = 0;
       is_smem_mode = rng();
-      cvm::log(cvm::NONE, "[Trace_cfg] trace_cfg IS_SMEM {} trace_start_cnt  {} trace_stop_cnt {} start_clk_halt_cnt {} start_cla_nmi_cnt {} start_rand_nmi_trig_cnt {} \n",is_smem_mode,trace_start_cnt,trace_stop_cnt,start_clk_halt_cnt,start_cla_nmi_cnt,start_rand_nmi_trig_cnt);
+      cvm::log(cvm::NONE, "[Trace_cfg] trace_cfg IS_SMEM {} trace_start_cnt  {} trace_stop_cnt {} \n",is_smem_mode,trace_start_cnt,trace_stop_cnt);
     }
     if(FLAGS_trace_en && !FLAGS_overlay_mmr_en) {
       cvm::log(cvm::HIGH, "[Trace_cfg] trace_cfg timer tick advance interval {} trace_start_cnt {} \n",cnt_tick,trace_start_cnt);
@@ -415,25 +358,6 @@ void trace_cfg::overlay_tick(uint64_t) {
         }
       }
 
-    //--------------------------------- CLK HALT--------------------------------------
-    if(FLAGS_cla_clk_halt) {
-      cvm::log(cvm::HIGH, "[Trace_cfg::CLK_HALT] trace_cfg timer tick advance interval {} start_clk_halt_cnt {} \n",cnt_tick,start_clk_halt_cnt);
-      if(cnt_tick==start_clk_halt_cnt) push_clk_halt_cfg();
-      if(trace_wr_txn_q.size() > 0) axi_write();
-     }
-
-    //--------------------------------- CLA NMI --------------------------------------
-    if(FLAGS_cla_nmi) {
-      cvm::log(cvm::HIGH, "[Trace_cfg::NMI] trace_cfg timer tick advance interval {} start_cla_nmi_cnt {} \n",cnt_tick,start_cla_nmi_cnt);
-      if(cnt_tick==start_cla_nmi_cnt) push_cla_nmi_cfg();
-      if(trace_wr_txn_q.size() > 0) axi_write();
-     }
-    //--------------------------------- CLA NMI --------------------------------------
-    if(FLAGS_cla_rand_nmi_trig_en) {
-      cvm::log(cvm::HIGH, "[Trace_cfg::NMI/XTRIGGER] trace_cfg timer tick advance interval {} start_rand_nmi_trig_cnt {} \n",cnt_tick,start_rand_nmi_trig_cnt);
-      if(cnt_tick==start_rand_nmi_trig_cnt) push_rand_nmi_trigg_cfg();
-      if(trace_wr_txn_q.size() > 0) axi_write();
-     }     
     cnt_tick ++;
 }
 

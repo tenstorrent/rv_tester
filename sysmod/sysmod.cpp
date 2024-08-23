@@ -14,7 +14,7 @@
 #include "aclint/aclint.h"
 #include "dm/dm.h"
 #include "trace_cfg/trace_cfg.h"
-#include "pll_xtor/pll_xtor.h"
+#include "cla_cfg/cla_cfg.h"
 #include "pm_nw_xtor/pm_nw_xtor.h"
 #include "aplic_mmr/aplic_mmr.h"
 #include "io_dev/io_dev.h"
@@ -504,8 +504,8 @@ sysmod::trace_info_handler(trace_cfg::trace_info_t i) {
 }
 
 void
-sysmod::pll_info_handler(pll_xtor::pll_info_t i) {
-        cvm::log(cvm::HIGH, "[SYSMOD] trace_info {} \n",i.pll_quiesced);
+sysmod::cla_info_handler(cla_cfg::cla_info_t i) {
+        cvm::log(cvm::HIGH, "[SYSMOD] cla_info {} \n",i.cla_quiesced);
  // cvm::registry::callbacks.push(
  //     scope(),
  //     [i]() {
@@ -713,7 +713,6 @@ sysmod::compose()
   memmap::get(memmap_);
 
   auto mmr_master = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MMR_MST");
-  auto pll_master = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_PLL_MST");
   auto pm_nw_master = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_PM_NW_MST");
   auto masters = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST");
   auto platform_loc = cvm::topology::get_from_type("PLATFORM", 0);
@@ -760,14 +759,8 @@ sysmod::compose()
             [&](trace_cfg::trace_info_t i) { return this->trace_info_handler(i); });
         assert(masters.size() > 0);
         device = std::make_unique<trace_cfg>(tag, base, size, loc_, masters[0]);
-      }
-      else if (type == "pll_xtor") {
         // TODO: cvm::ERROR
-        cvm::registry::messenger.connect<pll_xtor::pll_info_t>(
-            loc_,
-            [&](pll_xtor::pll_info_t i) { return this->pll_info_handler(i); });
-        assert(masters.size() > 0);
-        device = std::make_unique<pll_xtor>(tag, base, size, loc_, pll_master[0]);
+
       }
       else if (type == "pm_nw_xtor") {
         // TODO: cvm::ERROR
@@ -834,7 +827,13 @@ sysmod::compose()
 
       devices_.emplace_back(std::move(device));
     }
-
+    cvm::registry::messenger.connect<cla_cfg::cla_info_t>(
+        loc_,
+        [&](cla_cfg::cla_info_t i) { return this->cla_info_handler(i); });
+    assert(masters.size() > 0);
+    std::unique_ptr<device> device;
+    device = std::make_unique<cla_cfg>("cla_cfg", 0x42000000, 0x100, loc_, masters[0]);
+    devices_.emplace_back(std::move(device));
     devices_.emplace_back(std::make_unique<heartbeat>("heartbeat", 0, 0, loc_));
   }
   catch (std::exception& e) {
