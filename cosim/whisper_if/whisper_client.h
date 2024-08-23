@@ -42,7 +42,8 @@ class whisperClient {
 
       whisperQuit();
     }
-
+    uint64_t dm_randpc = 0;
+    uint64_t dm_randpc_addr = 0;
     int whisperConnect(uint16_t ncores);
     bool whisperConnected();
     void whisperDisableMcm();
