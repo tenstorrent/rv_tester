@@ -56,11 +56,6 @@ package rv_tester_params;
     parameter SRAM_HOLD_IDX = mods.TOP.PLATFORM.RESETI.SRAM_HOLD_IDX;
     parameter DEBUG_HOLD_IDX = mods.TOP.PLATFORM.RESETI.DEBUG_HOLD_IDX;
     parameter CRITICAL_HOLD_IDX = mods.TOP.PLATFORM.RESETI.CRITICAL_HOLD_IDX;
-    parameter NDOMAINS = mods.TOP.PLATFORM.RESETI.NDOMAINS;
-    parameter CORE_RESET_IDX = mods.TOP.PLATFORM.RESETI.CORE_RESET_IDX;
-    parameter AXI_RESET_IDX = mods.TOP.PLATFORM.RESETI.AXI_RESET_IDX;
-    parameter SOC_RESET_IDX = mods.TOP.PLATFORM.RESETI.SOC_RESET_IDX;
-    parameter REF_RESET_IDX = mods.TOP.PLATFORM.RESETI.REF_RESET_IDX;
 
     // --------------------------------------
     // AXI interface
@@ -1065,7 +1060,6 @@ package rv_tester_params;
     output [rv_tester_params::NHARTS-1:0]    core_no_fetch,                                         \
     input  [rv_tester_params::NRESETS-1:0]   reset, /*Packed so zebu can easily force*/             \
     input  [rv_tester_params::NHOLDS-1:0]    reset_hold,                                            \
-    output [rv_tester_params::NDOMAINS-1:0]  dut_reset,                                             \
     input  rv_tester_params::bootstrap_t     bootstrap,                                             \
     input  [rv_tester_params::NHARTS-1:0]    nmi,                                                   \
     input  rv_tester_pkg::interrupt_t        interrupt          [rv_tester_params::NHARTS-1:0],     \
@@ -1148,7 +1142,6 @@ package rv_tester_params;
     logic [rv_tester_params::NHARTS-1:0]     core_no_fetch;                                         \
     logic [rv_tester_params::NRESETS-1:0]    reset           /* Packed so zebu can force easily */; \
     logic [rv_tester_params::NHOLDS-1:0]     reset_hold;                                            \
-    logic [rv_tester_params::NDOMAINS-1:0]   dut_reset;                                             \
     rv_tester_params::bootstrap_t            bootstrap;                                             \
     logic [rv_tester_params::NHARTS-1:0]     nmi;                                                   \
     rv_tester_pkg::interrupt_t               interrupt       [rv_tester_params::NHARTS-1:0];        \

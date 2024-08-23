@@ -12,4 +12,10 @@ extern "C" {
         scope);
   }
 
+  void pwrmgmt_set_reset_count(cvm::topology::loc_t loc, int count) {
+    cvm::registry::messenger.signal<int>(
+        loc,
+        count);
+  }
+
 }

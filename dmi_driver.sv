@@ -34,7 +34,7 @@ module dmi_driver (
       single_step_ahead_command_queue_backup[$], single_step_quit_command_queue_backup[$];
 
   logic command_trigger, response_trigger;
-  logic [31:0] clk_cnt;
+  logic [31:0] clk_cnt = '0;
   logic halt_req, resume_req, abstr_cmd_req, poll, poll_p2, ndm_reset_init, ndm_reset_ack, ndm_reset_assert_done, ndm_reset_priority, poll_reset_completion, ndmreset_halt_req;
   logic [31:0] ext_trig_delay;
   logic [31:0] single_step_instr_cnt, single_step_executed_cnt;
@@ -160,8 +160,11 @@ module dmi_driver (
   end
 
   always @(negedge clk) begin
-    clk_cnt = clk_cnt + 1;
-    if (clk_cnt == ext_trig_delay) begin
+    if (reset)
+      clk_cnt = 0;
+    else
+      clk_cnt = clk_cnt + 1;
+    if (clk_cnt != 0 && clk_cnt == ext_trig_delay) begin
       command_trigger = 1;
       $display("[DMI Driver] The delay was executed and asserting the trigger");
     end

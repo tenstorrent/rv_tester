@@ -92,8 +92,12 @@ extern "C" {
     int rv_tester_parse_flags() {
         cvm::log(cvm::NONE, "[plusargs] Parsing...\n");
         cvm::plusargs::parse();
-        cvm::rand::seed(FLAGS_seed);
         return 0;
+    }
+
+    void rv_tester_set_seed() {
+        cvm::log(cvm::NONE, "[random] +seed={}\n", FLAGS_seed);
+        cvm::rand::seed(FLAGS_seed);
     }
 
     void rv_tester_parse_memmap(std::uint32_t no_addr_rules) {

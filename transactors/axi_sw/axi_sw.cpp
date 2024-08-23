@@ -198,6 +198,7 @@ void axi_sw<W,AW,AR,RQ>::r_resp() {
 
 template <typename W, typename AW, typename AR, typename RQ>
 void axi_sw<W,AW,AR,RQ>::reset_ptrs() {
+    cvm::log(cvm::HIGH, "[axi_sw] reset_ptrs loc={}\n", loc_);
     r_q_rptr_ = 0;
     r_q_wptr_ = 0;
     r_q_rptr_update_time_ = 0;
