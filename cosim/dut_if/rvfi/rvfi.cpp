@@ -74,7 +74,8 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
 }
 
 rvfi::~rvfi() {
-  if (FLAGS_cosim && FLAGS_num_harts == 1 && count_ == 1)
+  uint32_t ncores = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
+  if (FLAGS_rvfi && ncores == 1 && count_ == 1)
     cvm::log(cvm::ERROR, "Error: rvfi termination without processing any instructions\n");
 }
 
@@ -93,7 +94,7 @@ void rvfi::init() {
 
 void rvfi::process(const rv_tester_transactions::cosim::m_reset<>& m_reset) {
 
-  if (!FLAGS_cosim || terminated_)
+  if (terminated_)
     return;
 
   if (loc_ != m_reset.location)
