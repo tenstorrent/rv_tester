@@ -102,7 +102,10 @@ void rvfi::process(const rv_tester_transactions::cosim::m_reset<>& m_reset) {
 
   in_reset_ = false;
   cvm::log(cvm::MEDIUM, "[rvfi] reset\n");
-  bridge_->reset();
+
+  if (FLAGS_cosim) {
+    bridge_->reset();
+  }
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
