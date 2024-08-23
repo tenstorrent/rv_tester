@@ -852,7 +852,7 @@ sysmod::compose()
             [&](trace_cfg::trace_cfg_read_t i) { return this->trace_cfg_read_req_router(i); });
       }
       else
-        cvm::log(cvm::ERROR, "Error: unknown sysmod type %s\n", type);
+        cvm::log(cvm::ERROR, "Error: unknown sysmod type {} \n", type);
 
       devices_.emplace_back(std::move(device));
     }
