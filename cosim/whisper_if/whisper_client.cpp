@@ -883,5 +883,21 @@ whisperClient<URV>::whisperGetSeiPin(int hart, uint64_t& value)
   return true;
 }
 
+template <typename URV>
+bool
+whisperClient<URV>::whisperNmi(int hart, uint64_t time, uint64_t cause)
+{
+  req.hart = hart;
+  req.type = WhisperMessageType::Nmi;
+  req.time = time;
+  req.value = cause;
+
+  if (not whisperCommand(req, reply))
+    return false;
+
+  return true;
+}
+
+
 template class whisperClient<uint32_t>;
 template class whisperClient<uint64_t>;
