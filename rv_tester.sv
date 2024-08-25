@@ -29,6 +29,7 @@ module rv_tester
         logic [topology.TOP.PLATFORM.AXI.ADDR_WIDTH-1:0] end_addr;
       } xbar_rule_t;
 
+    bit flag_force_ref_clk;
     bit force_ref_clk_d1;
     bit force_ref_clk_d2;
     logic bypass_mem = 1;
@@ -290,6 +291,7 @@ module rv_tester
             /* verilator lint_on BLKSEQ */
 
             perf                 <= cvm_plusargs::get_bool("perf") != '0;
+            flag_force_ref_clk   <= cvm_plusargs::get_bool("force_ref_clk") != '0;
             rand_dmi_driver_dly  <= cvm_plusargs::get_int("rand_dmi_driver_dly"); 
             cb_poll              <= cvm_plusargs::get_bool("cb_async") == '0;
             quiesce_timeout      <= cvm_plusargs::get_int("quiesce_timeout");
@@ -634,7 +636,7 @@ module rv_tester
                 `RV_TESTER_TRANSACTIONS_PWRMGMT_SOURCE_PORTS(3,0,0)
             );
             assign reset_window = pwrmgmt_force_ref_clk || init_pulse || warm_reset_pulse;
-            assign force_ref_clk = perf ? '0 : reset_window;
+            assign force_ref_clk = flag_force_ref_clk ? reset_window : '0;
         end else begin
             assign cold_reset = (clocks < RESET_TB_CLOCKS);
             assign warm_reset = '0;
