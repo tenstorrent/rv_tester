@@ -585,6 +585,7 @@ module rv_tester
           .mcmi_ifetch_req(mcmi_ifetch_req[NIFETCHES_CUMSUM[c] +: NIFETCHES[c]]),
           .mcmi_ifetch_resp(mcmi_ifetch_resp[NIFETCHES_CUMSUM[c] +: NIFETCHES[c]]),
           .mcmi_ievict(mcmi_ievict[NIEVICTS_CUMSUM[c] +: NIEVICTS[c]]),
+          .nmi_pend(nmi_pend[c]),
           .wired_interrupt(interrupt_pend[c]),
           .imsic_interrupt(axi_msi), //FIXME
           .imsic_msi(axi_msi_packets[c]), //FIXME
@@ -648,10 +649,10 @@ module rv_tester
             `TOPOLOGY_CFG,
             `RV_TESTER_TRANSACTIONS_INTERRUPTS_SOURCE_PARAMS(0)
         ) interrupts (
-            .tb_clk(dut_clk[TB_CLK_IDX]),
-            .tb_reset(sys_reset[TB_CLK_IDX]),
             .clk(dut_clk[AXI_CLK_IDX]),
+            .sys_reset(sys_reset[AXI_CLK_IDX]),
             .reset(dut_reset[AXI_CLK_IDX]),
+            .clocks,
             .nmi(nmi[c]),
             `RV_TESTER_TRANSACTIONS_INTERRUPTS_SOURCE_PORTS(2,c,0)
         );

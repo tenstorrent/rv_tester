@@ -122,6 +122,7 @@ import rv_tester_params::*;
     input mcmi_t [NIFETCH-1:0] mcmi_ifetch_req,
     input mcmi_t [NIFETCH-1:0] mcmi_ifetch_resp,
     input mcmi_t [NIEVICT-1:0] mcmi_ievict,
+    input logic nmi_pend,
     input rv_tester_pkg::interrupt_t wired_interrupt,
     input rv_tester_params::mst_req_top imsic_interrupt,
     input rv_tester_params::mst_req_top imsic_msi,
@@ -974,6 +975,16 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
     assign m_debugs[0].data.cycle = clocks;
     assign m_debugs[0].data.enter = debug_mode;
     assign m_debugs[0].data.exit = ~debug_mode;
+
+    // m_nmi_pend
+    logic nmi_pend_d1;
+    always @(posedge clk) begin
+      nmi_pend_d1 <= nmi_pend;
+    end
+    assign m_core_nmis[0].valid = ~dut_reset & (nmi_pend & ~nmi_pend_d1) | (~nmi_pend & nmi_pend_d1) & rvfi_enabled;
+    assign m_core_nmis[0].data.location = location;
+    assign m_core_nmis[0].data.cycle = clocks;
+    assign m_core_nmis[0].data.nmi_assert = nmi_pend & ~nmi_pend_d1;
 
     // m_core_intr
     rv_tester_pkg::interrupt_t wired_interrupt_d1;
