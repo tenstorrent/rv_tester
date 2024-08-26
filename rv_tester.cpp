@@ -80,15 +80,6 @@ class logger_instrument {
 
 extern "C" {
 
-    void rv_tester_streaming_dpi_init() {
-        char *env_var = std::getenv("ZEBU_OFFLINE_DPI");
-        if (env_var != nullptr && std::string(env_var) == "1") {
-            cvm::plusargs::parse();
-            cvm::rand::seed(FLAGS_seed);
-            cvm::log(cvm::NONE, "Initialize Offline DPI\n");
-        }
-    }
-
     int rv_tester_parse_flags() {
         cvm::log(cvm::NONE, "[plusargs] Parsing...\n");
         cvm::plusargs::parse();
@@ -138,6 +129,17 @@ extern "C" {
     void rv_tester_cvm_error_handler() {
         logger_instrument::set_scope(svGetScope());
         cvm::set_logger_handler(cvm::ERROR, cvm::registry::check);
+    }
+
+    void rv_tester_streaming_dpi_init() {
+        char *env_var = std::getenv("ZEBU_OFFLINE_DPI");
+        if (env_var != nullptr && std::string(env_var) == "1") {
+            rv_tester_parse_flags();
+            rv_tester_cvm_error_handler();
+            memmap::parse();
+            rv_tester_build_registry();
+            cvm::log(cvm::NONE, "Initialize Offline DPI\n");
+        }
     }
 }
 

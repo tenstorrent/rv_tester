@@ -20,6 +20,8 @@ REGISTRY_register(eot, TOP.PLATFORM, cvm::registry::all);
 extern "C" void cosim_set_eot(std::uint64_t addr, std::uint8_t status, std::uint8_t syscall);
 
 void eot::get_tohost_addr() {
+  char *env_var = std::getenv("ZEBU_OFFLINE_DPI");
+  bool is_zebu_offline = (env_var != nullptr && std::string(env_var) == "1");
 
   // Get tohost address from
   // 1. plusarg if provided
@@ -27,7 +29,9 @@ void eot::get_tohost_addr() {
     tohost_addr_ = FLAGS_tohost;
     cvm::log(cvm::NONE, "[eot] tohost from plusarg:: addr=[{:#x}]\n", tohost_addr_);
 
-    cosim_set_eot(tohost_addr_,1,0);
+    if (!is_zebu_offline) {
+      cosim_set_eot(tohost_addr_,1,0);
+    }
     return;
   }
 
@@ -49,7 +53,9 @@ void eot::get_tohost_addr() {
       }
     }
     cvm::log(cvm::NONE, "[eot] tohost from elf:: cmd=[{}] addr_str=[{}] addr=[{:#x}]\n", cmd, addr_str, tohost_addr_);
-    cosim_set_eot(tohost_addr_,1,0);
+    if (!is_zebu_offline) {
+      cosim_set_eot(tohost_addr_,1,0);
+    }
   }
   if (tohost_in_elf)
     return;
@@ -63,7 +69,9 @@ void eot::get_tohost_addr() {
   } else {
     cvm::log(cvm::ERROR, "[eot] tohost from memmap:: htif not found in memmap\n", tohost_addr_);
   }
-  cosim_set_eot(tohost_addr_,1,0);
+  if (!is_zebu_offline) {
+    cosim_set_eot(tohost_addr_,1,0);
+  }
 }
 
 void eot::process(const rv_tester_transactions::cosim::m_steps<>& m_steps) {
