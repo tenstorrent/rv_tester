@@ -14,8 +14,6 @@
 #include <unordered_map>
 #include <random>
 
-DEFINE_bool(cla_clk_halt, false, "Enable CLA clk halt events");
-DEFINE_bool(cla_nmi, false, "Enable CLA NMI events");
 
 trace_cfg::trace_cfg(const std::string& tag, uint64_t addr, size_t size, cvm::topology::loc_t loc, cvm::topology::loc_t axi_mst_loc)
   : device(tag, addr, size, loc, &trace_cfg::write, &trace_cfg::read, this), axi_mst_loc_l(axi_mst_loc)
@@ -113,24 +111,6 @@ void trace_cfg::gen_data_strb(uint64_t addr, uint32_t value, data_t& wdata, std:
     }  
 }
 
-void trace_cfg::push_clk_halt_cfg() {
-  cvm::log(cvm::LOW, "[overlay axi] Push CLK HALT Configs\n");
-  trace_wr_txn_q.push({trace_mmr::CDBG_CLA_CTRL_STS_CFG,0x40});
-  trace_wr_txn_q.push({trace_mmr::CDBG_CLA_COUNTER0_CFG,0x40000000});
-  trace_wr_txn_q.push({trace_mmr::CDBG_NODE0_EAP0_CFG,0x10049});
-  trace_wr_txn_q.push({trace_mmr::CDBG_NODE1_EAP0_CFG,0x101306});
-  trace_wr_txn_q.push({trace_mmr::CDBG_CLA_CTRL_STS_CFG,0x60});
-}
-
-void trace_cfg::push_cla_nmi_cfg() {
-  cvm::log(cvm::LOW, "[overlay axi] Push CLA NMI Configs\n");
-  trace_wr_txn_q.push({trace_mmr::CDBG_CLA_CTRL_STS_CFG,0x40});
-  trace_wr_txn_q.push({trace_mmr::CDBG_CLA_COUNTER0_CFG,0x25000000});
-  trace_wr_txn_q.push({trace_mmr::CDBG_NODE0_EAP0_CFG,0x10049});
-  trace_wr_txn_q.push({trace_mmr::CDBG_NODE1_EAP0_CFG,0x10130A});
-  trace_wr_txn_q.push({trace_mmr::CDBG_CLA_CTRL_STS_CFG,0x60});
-
-}
 void trace_cfg::push_axi_mmr_seq() {
   cvm::log(cvm::HIGH, "[overlay axi] overlay axi write seq\n");
   trace_wr_txn_q.push({trace_mmr::CDBG_CLA_COUNTER3_CFG,0xFF});
@@ -235,10 +215,9 @@ void trace_cfg::push_trace_enable_seq() {
   // CLA/Paketizer config
   trace_wr_txn_q.push({trace_mmr::CDBG_CLA_CTRL_STS_CFG,0x40});
   trace_wr_txn_q.push({trace_mmr::TR_DST_CONTROL,0x3000003});
-  trace_wr_txn_q.push({trace_mmr::CDBG_MUX_SEL_EXT_CFG,0x1});
-  trace_wr_txn_q.push({trace_mmr::CDBG_MUX_SEL_EXT_CFG,0x5});
-  trace_wr_txn_q.push({trace_mmr::CDBG_MUX_SEL_EXT_CFG,0x9});
-  trace_wr_txn_q.push({trace_mmr::CDBG_MUX_SEL_CFG,0x0});
+  trace_wr_txn_q.push({trace_mmr::CDBG_MUX_SEL_CFG,0x1});
+  trace_wr_txn_q.push({trace_mmr::CDBG_MUX_SEL_CFG,0x5});
+  trace_wr_txn_q.push({trace_mmr::CDBG_MUX_SEL_CFG,0x9});
   ram_control = 0x10000000 + (is_smem_mode * 0x40000000);
   trace_wr_txn_q.push({trace_mmr::CDBG_CLA_COUNTER0_CFG,ram_control});
   trace_wr_txn_q.push({trace_mmr::CDBG_NODE0_EAP0_CFG,0x11211});
@@ -313,11 +292,10 @@ void trace_cfg::overlay_tick(uint64_t) {
     if(trace_start_cnt == 0) {
       trace_start_cnt = (rng()% 5) + 20;
       trace_stop_cnt = trace_start_cnt + (rng()% 20) + 100;
-      start_clk_halt_cnt = (rng()% 40) + 50 ;
       n = (rng()% 5) + 3;
       id_val = 0;
       is_smem_mode = rng();
-      cvm::log(cvm::HIGH, "[Trace_cfg] trace_cfg IS_SMEM {} trace_start_cnt  {} trace_stop_cnt {} start_clk_halt_cnt {} \n",is_smem_mode,trace_start_cnt,trace_stop_cnt,start_clk_halt_cnt);
+      cvm::log(cvm::NONE, "[Trace_cfg] trace_cfg IS_SMEM {} trace_start_cnt  {} trace_stop_cnt {} \n",is_smem_mode,trace_start_cnt,trace_stop_cnt);
     }
     if(FLAGS_trace_en && !FLAGS_overlay_mmr_en) {
       cvm::log(cvm::HIGH, "[Trace_cfg] trace_cfg timer tick advance interval {} trace_start_cnt {} \n",cnt_tick,trace_start_cnt);
@@ -380,19 +358,6 @@ void trace_cfg::overlay_tick(uint64_t) {
         }
       }
 
-    //--------------------------------- CLK HALT--------------------------------------
-    if(FLAGS_cla_clk_halt) {
-      cvm::log(cvm::HIGH, "[Trace_cfg::CLK_HALT] trace_cfg timer tick advance interval {} start_clk_halt_cnt {} \n",cnt_tick,start_clk_halt_cnt);
-      if(cnt_tick==start_clk_halt_cnt) push_clk_halt_cfg();
-      if(trace_wr_txn_q.size() > 0) axi_write();
-     }
-
-    //--------------------------------- CLA NMI --------------------------------------
-    if(FLAGS_cla_nmi) {
-      cvm::log(cvm::HIGH, "[Trace_cfg::NMI] trace_cfg timer tick advance interval {} start_cla_nmi_cnt {} \n",cnt_tick,start_clk_halt_cnt);
-      if(cnt_tick==start_clk_halt_cnt) push_cla_nmi_cfg();
-      if(trace_wr_txn_q.size() > 0) axi_write();
-     }
     cnt_tick ++;
 }
 

@@ -31,6 +31,12 @@ debugger::debugger(const std::string &tag, uint64_t addr, unsigned hartCount, cv
 
 debugger::~debugger()
 {
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"dm_rand_snippets_mode\": \"{}\"}}\n", FLAGS_random_dbg_entry);
+  if (FLAGS_random_dbg_entry) {
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"dm_rand_snippets_max_count\": \"{}\"}}\n", FLAGS_dbg_max_snippets);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"dm_rand_snippets_delay\": \"{}_{}\"}}\n", FLAGS_dbg_delay_min, FLAGS_dbg_delay_max);
+  }
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"dm_rand_snippets_name\": \"{}\"}}\n", dbg_snippets_name);
 }
 void
 debugger::update_dm_status(debugger::dmi_status_t& i) {
@@ -67,11 +73,17 @@ void debugger::get_all_csv_templates()
 void debugger::parse_dmi_from_csv()
 {
 
-  std::string file_name;
-  if (FLAGS_random_dbg_entry)
+  std::string file_name, file_csv_name;
+  if (FLAGS_random_dbg_entry) {
     file_name = csvFilePaths[file_idx];
-  else
+    file_csv_name = file_name.substr(file_name.find_last_of('/') + 1, file_name.size() - file_name.find_last_of('/') - 5);
+    dbg_snippets_name.append(file_csv_name); 
+  }
+  else {
     file_name = FLAGS_dbg_input_file_path;
+    file_csv_name = file_name.substr(file_name.find_last_of('/') + 1, file_name.size() - file_name.find_last_of('/') - 5);
+    dbg_snippets_name.append(file_csv_name);
+  }
 
   cvm::log(cvm::NONE, "Parse DMI Commands from CSV:{}\n", file_name);
   std::fstream file(file_name, std::ios::in);

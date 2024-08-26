@@ -1,6 +1,7 @@
 #include "axi_sw_mst.h"
 #include "cvm/topology.hpp"
 #include "cvm/registry.hpp"
+#include "cvm/plusargs.hpp"
 #include "cvm/bitmanip.hpp"
 #include "cvm/logger.hpp"
 
@@ -35,6 +36,7 @@ REGISTRY_register((axi_sw_mst<rv_tester_transactions::axi_sw_mst::b<4>,
                               rv_tester_transactions::axi_sw_mst::w_q_ptr<4>>), PM_NW_AXI_MST, cvm::registry::all);
 
 
+DEFINE_bool(axi_mask_bad_response, false, "Plusarg to mask bad responses on AXI bus");
 extern "C" {
     void axi_sw_mst_ar_reset();
     void axi_sw_mst_aw_reset();
@@ -94,7 +96,11 @@ void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const B& b) {
     if (b.resp != axi::RESP_OKAY or not used_id(b.id)) {
         // could have EXOKAY if it was locked, but assume not for now
-        cvm::log(cvm::ERROR, "[axi_sw_mst] Error: bad b.response id:{} resp: {}\n", b.id, b.resp);
+        if(!FLAGS_axi_mask_bad_response){
+            cvm::log(cvm::ERROR, "[axi_sw_mst] Error: bad b.response id:{} resp: {}\n", b.id, b.resp);
+        }else{
+            cvm::log(cvm::LOW, "[axi_sw_mst] Masking bad b.response id:{} resp: {}\n", b.id, b.resp);
+        }
         return;
     }
 
@@ -115,7 +121,11 @@ template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const R& r) {
     if (r.resp != axi::RESP_OKAY or not used_id(r.id)) {
-        cvm::log(cvm::ERROR, "[axi_sw_mst] Error: bad r.response id: {} resp: {} last: {}\n", r.id, r.resp, r.last);
+        if(!FLAGS_axi_mask_bad_response){
+            cvm::log(cvm::ERROR, "[axi_sw_mst] Error: bad r.response id: {} resp: {} last: {}\n", r.id, r.resp, r.last);
+        }else{
+            cvm::log(cvm::LOW, "[axi_sw_mst] Masking bad r.response id: {} resp: {} last: {}\n", r.id, r.resp, r.last);
+        }
         return;
     }
 
@@ -360,7 +370,7 @@ template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::reset_ptrs() {
 
-    cvm::log(cvm::FULL, "[axi_sw_mst] reset_ptrs loc={}\n", loc_);
+    cvm::log(cvm::HIGH, "[axi_sw_mst] reset_ptrs loc={}\n", loc_);
     ar_q_wptr_ = 0;
     aw_q_wptr_ = 0;
     w_q_wptr_ = 0;

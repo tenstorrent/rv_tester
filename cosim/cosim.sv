@@ -610,6 +610,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
             /* verilator lint_off BLKSEQ */
             rvfi_enabled = (cvm_plusargs::get_bool("rvfi") != '0) & (location != cvm_topology::nil);
             if (rvfi_enabled) begin
+              $display("[cosim]: reset");
               cosim_set_scope(location);
             end
             terminate.terminate = '0;
@@ -623,6 +624,15 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
         terminate.terminate = '1;
         /* verilator lint_on BLKSEQ */
     endfunction
+
+     // m_reset
+    logic dut_reset_d1;
+    always @(posedge clk) begin
+        dut_reset_d1 <= dut_reset;
+    end
+    assign m_resets[0].valid            = RVFI_EN & rvfi_enabled & (dut_reset_d1 & ~dut_reset);
+    assign m_resets[0].data.location    = location;
+    assign m_resets[0].data.cycle       = clocks;
 
     //-----------------------------------------------------------------------------------------------------------
     // PERIODIC STATE COMPARE feature enabled when cosim_period value > 0
@@ -838,11 +848,15 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
         /* verilator lint_on WIDTH */
         assign m_mcmi_reads[n].data.hart = NUM;
         assign m_mcmi_reads[n].data.order = mcmi_read[n].order;
+        assign m_mcmi_reads[n].data.opcode = mcmi_read[n].opcode;
         assign m_mcmi_reads[n].data.addr = mcmi_read[n].addr;
         assign m_mcmi_reads[n].data.mask = mcmi_read[n].mask;
         assign m_mcmi_reads[n].data.data = mcmi_read[n].data[63:0];
+        assign m_mcmi_reads[n].data.data_vec = mcmi_read[n].data[255:0];
         assign m_mcmi_reads[n].data.amo = mcmi_read[n].amo;
         assign m_mcmi_reads[n].data.amo_op = mcmi_read[n].amo_op;
+        assign m_mcmi_reads[n].data.v_ext = mcmi_read[n].v_ext;
+        assign m_mcmi_reads[n].data.nano_op_elem_idx = mcmi_read[n].nano_op_elem_idx;
         assign mcmi_read_pokes[n] = mcmi_read[n].valid;
     end
     assign mcmi_read_poke = (mcmi_read_pokes != '0);
@@ -857,6 +871,8 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
         assign m_mcmi_inserts[n].data.addr = mcmi_insert[n].addr;
         assign m_mcmi_inserts[n].data.mask = mcmi_insert[n].mask;
         assign m_mcmi_inserts[n].data.data = mcmi_insert[n].data[63:0];
+        assign m_mcmi_inserts[n].data.data_vec = mcmi_insert[n].data[255:0];
+        assign m_mcmi_inserts[n].data.v_ext = mcmi_insert[n].v_ext;
         assign mcmi_insert_pokes[n] = mcmi_insert[n].valid;
         assign eot_insert_found[n] = ((eot_addr != '0) &  mcmi_insert[n].valid & (mcmi_insert[n].addr == $bits(mcmi_insert[n].addr)'(eot_addr)) & ( mcmi_insert[n].data[0] == 1'b1) & (mcmi_insert[n].data[63:56] == 0)) ? 1'b1 : 1'b0;
     end
@@ -962,7 +978,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
     // m_core_intr
     rv_tester_pkg::interrupt_t wired_interrupt_d1;
     always @(posedge clk) begin
-      if (reset) begin
+      if (dut_reset) begin
         wired_interrupt_d1 <= 0;
       end else begin
         wired_interrupt_d1 <= wired_interrupt;
@@ -1006,7 +1022,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
     enum logic {idle, aw} msi_slave_state,msi_slave_state_d;
     logic msi_addr_in_imsic_range;
     always @(posedge clk) begin
-       if (reset) begin
+       if (dut_reset) begin
         msi_slave_state <= idle;
        end else begin
         msi_slave_state <= msi_slave_state_d;

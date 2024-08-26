@@ -77,9 +77,8 @@ public:
   virtual void write(uint64_t addr, size_t length, const data_t &data,
                      const strb_t &strb) override;
 
-  virtual void tick(uint64_t advance) override
+  virtual void tick(uint64_t ) override
   {
-     cvm::log(cvm::FULL, "[jtag_driver]: Tick {}\n",advance);
   }
   virtual void jtag_tick(uint64_t advance) override
   {

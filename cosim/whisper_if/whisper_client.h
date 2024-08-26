@@ -25,7 +25,8 @@ class whisperClient {
         fclose(commandLog_);
       }
     }
-
+    uint64_t dm_randpc = 0;
+    uint64_t dm_randpc_addr = 0;
     int whisperConnect(uint16_t ncores);
     bool whisperConnected();
     void whisperDisableMcm();
@@ -33,6 +34,8 @@ class whisperClient {
     bool whisperSimpleStep(int hart, uint64_t& pc, uint32_t& instruction, unsigned& changeCount);
     bool whisperChange(int hart, uint32_t& resource, uint64_t& addr, uint64_t& value, bool& valid);
     bool whisperMcmRead(int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, bool& valid);
+    bool whisperMcmVecRead(int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, bool& valid);
+    bool whisperMcmVecInsert(int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, bool& valid);
     bool whisperMcmInsert(int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, bool& valid);
     bool whisperMcmBypass(int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, bool& valid);
     bool whisperMcmWrite(int hart, uint64_t time, uint64_t addr, unsigned size, svOpenArrayHandle handle, uint64_t mask, bool& valid);
@@ -56,6 +59,8 @@ class whisperClient {
     bool whisperPeekFpr(int hart, uint64_t addr, uint64_t& value);
     bool whisperPeekVpr(int hart, uint64_t addr, std::array<std::uint8_t, 32>&  value);
 
+    // Deliver a non-maskable interrupt to whisper.
+    bool whisperNmi(int hart, uint64_t time, uint64_t cause);
 
   private:
 

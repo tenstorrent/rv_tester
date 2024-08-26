@@ -187,6 +187,8 @@ cosim:
                 width: 64
             hart:
                 width: 32
+            opcode:
+                width: 36
             order:
                 width: 64
             addr:
@@ -195,10 +197,17 @@ cosim:
                 width: 64
             data:
                 width: ${TOP.PLATFORM.XLEN}
+            v_ext:
+                width: 1
+            data_vec:
+                qualify: v_ext
+                width: ${TOP.PLATFORM.VLEN}
             amo:
                 width: 1
             amo_op:
                 width: 5
+            nano_op_elem_idx:
+                width: 8
 
     m_mcmi_insert:
         domain: 1
@@ -216,6 +225,11 @@ cosim:
                 width: 64
             data:
                 width: ${TOP.PLATFORM.XLEN}
+            v_ext:
+                width: 1
+            data_vec:
+                qualify: v_ext
+                width: ${TOP.PLATFORM.VLEN}
 
     m_mcmi_bypass:
         domain: 1
@@ -1392,12 +1406,12 @@ interrupts:
         fields:
             cycle:
                 width: 32
-    m_core_no_fetch:
+    m_reset:
         domain: 2
         num: 1
         fields:
-            val:
-                width: 1
+            cycle:
+                width: 32
 
 triggers:
     num: ${TOP.PLATFORM.NHARTS}
