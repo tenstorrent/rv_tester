@@ -8,6 +8,7 @@ DEFINE_bool(perf, false, "Enable core performance metrics");
 DEFINE_uint64(sync_pmcounters_period, 0, "Sync pmcounters every X cycles. A value of 0 means no sync, only update on terminate.");
 DEFINE_uint64(sync_pmcounters_instructions, 0, "Sync pmcounters every X instructions. A value of 0 means no sync, only update on terminate.");
 DEFINE_bool(pmcounters_log, false, "Dump pmcounters in log");
+DEFINE_bool(force_ref_clk, true, "Run with ref clk till reset completion");
 DEFINE_bool(ipc_check, false, "Check IPC within a tolerance %");
 DEFINE_double(ipc_expected, 0.0, "Expected IPC");
 DEFINE_int32(ipc_tolerance_perc, 5, "IPC tolerance %");

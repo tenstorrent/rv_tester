@@ -167,7 +167,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
         FLAGS_max_stall_cycle = (20000 + (nharts-1)*2000);
         print(cvm::LOW, "Overwriting max_stall_cycle to {} cycles\n",FLAGS_max_stall_cycle );
     }
-    if((FLAGS_max_cycle < static_cast<gflags::uint64>(1000000 + (nharts - 1) * 75000)) && (FLAGS_max_cycle != 0)){
+    if((FLAGS_max_cycle < static_cast<gflags::uint64>(1000000 + (nharts - 1) * 75000)) && (FLAGS_max_cycle != 0) && (nharts != 1)){
         FLAGS_max_cycle = (1000000 + (nharts-1)*75000);
         print(cvm::LOW, "Overwriting max_cycle to {} cycles\n",FLAGS_max_cycle );
     }
@@ -1332,9 +1332,16 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
       }
       else if (c.csr_addr == 0x301){ // On misa.H update, update mideleg
         if ((c.csr_wmask >> 7) & 0x1) {
-          mask = 0x1444;
-          if ((c.csr_wdata >> 7) & 0x1) update_csr(hart, src_t::dut, 0x303, 0x1444, mask, false, false);
-          else update_csr(hart, src_t::dut, 0x303, 0, mask, false, false);
+          if ((c.csr_wdata >> 7) & 0x1) {
+            mask = 0x1444;
+            update_csr(hart, src_t::dut, 0x303, 0x1444, mask, false, false);
+          }
+          else {
+            mask = 0xF00000;
+            update_csr(hart, src_t::dut, 0x302, 0, mask, false, false);
+            mask = 0x1444;
+            update_csr(hart, src_t::dut, 0x303, 0, mask, false, false);
+          }
         }
       }
     }

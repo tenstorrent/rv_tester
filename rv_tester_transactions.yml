@@ -594,7 +594,13 @@ pmu:
                 width: 64
             total_flushes:
                 width: 64
+            total_traps:
+                width: 64
             uops_decoded:
+                width: 64
+            decode_serialize_before_cycles:
+                width: 64
+            decode_serialize_after_cycles:
                 width: 64
             l1i_read_access:
                 width: 64
@@ -864,6 +870,12 @@ pmu:
                 width: 64
             ls_way_predictor_replay_all:
                 width: 64
+            ls_micro_way_predictor_replay_load:
+                width: 64
+            ls_micro_way_predictor_replay_prefetch:
+                width: 64
+            ls_micro_way_predictor_replay_all:
+                width: 64
             tag_bank_conflict_replay_load:
                 width: 64
             tag_bank_conflict_replay_store:
@@ -903,6 +915,20 @@ pmu:
             fillbuf_hit_replay_mmu:
                 width: 64
             fillbuf_hit_replay_all:
+                width: 64
+            l1d_victim_fill_evict:
+                width: 64
+            l1d_victim_early_evict:
+                width: 64
+            l1d_victim_demand_req:
+                width: 64
+            l1d_victim_prefetch_req:
+                width: 64
+            l1d_victim_mru_alloc:
+                width: 64
+            l1d_victim_lru_alloc:
+                width: 64
+            l1d_victim_all:
                 width: 64
             l1d_cache_invalidate_snoop:
                 width: 64
@@ -962,7 +988,17 @@ pmu:
                 width: 64
             ls_chillout_entrances_all:
                 width: 64
-            utlb_miss:
+            utlb_hit_load:
+                width: 64
+            utlb_hit_store:
+                width: 64
+            utlb_hit_all:
+                width: 64
+            utlb_miss_load:
+                width: 64
+            utlb_miss_store:
+                width: 64
+            utlb_miss_all:
                 width: 64
             ldq_cannot_alloc:
                 width: 64
@@ -1004,6 +1040,12 @@ pmu:
                 width: 64
             dfp_access_mmu:
                 width: 64
+            dfp_access_evict:
+                width: 64
+            dfp_access_fill:
+                width: 64
+            dfp_access_snoop:
+                width: 64
             dfp_access_all:
                 width: 64
             tlb_invalidates:
@@ -1035,6 +1077,12 @@ pmu:
             tap_access_prefetch:
                 width: 64
             tap_access_mmu:
+                width: 64
+            tap_access_evict:
+                width: 64
+            tap_access_fill:
+                width: 64
+            tap_access_snoop:
                 width: 64
             tap_access_all:
                 width: 64
@@ -1076,7 +1124,9 @@ pmu:
                 width: 64
             tlp_access_store:
                 width: 64
-            tlp_access_prefetch:
+            tlp_access_agp:
+                width: 64
+            tlp_access_arb:
                 width: 64
             tlp_access_all:
                 width: 64
@@ -1086,11 +1136,17 @@ pmu:
                 width: 64
             pfc_agt_evict:
                 width: 64
-            pfc_pht_cannot_alloc:
+            pfc_pht_tap_lookup:
                 width: 64
-            pfc_pht_lookup:
+            pfc_pht_tap_hit:
                 width: 64
-            pfc_pht_hit:
+            pfc_pht_agt_alloc:
+                width: 64
+            pfc_pht_agt_update:
+                width: 64
+            pfc_prt_alloc:
+                width: 64
+            pfc_prt_update:
                 width: 64
             pfc_prt_cannot_alloc:
                 width: 64
@@ -1099,6 +1155,10 @@ pmu:
             pfc_no_tag_credit_stalls:
                 width: 64
             pfc_prefetches_sent:
+                width: 64
+            pfc_prt_l1d_evict_hit:
+                width: 64
+            pfc_prt_reqbuf_alloc_hit:
                 width: 64
             sc_cache_access:
                 width: 33
