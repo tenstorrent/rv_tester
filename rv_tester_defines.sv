@@ -56,11 +56,6 @@ package rv_tester_params;
     parameter SRAM_HOLD_IDX = mods.TOP.PLATFORM.RESETI.SRAM_HOLD_IDX;
     parameter DEBUG_HOLD_IDX = mods.TOP.PLATFORM.RESETI.DEBUG_HOLD_IDX;
     parameter CRITICAL_HOLD_IDX = mods.TOP.PLATFORM.RESETI.CRITICAL_HOLD_IDX;
-    parameter NDOMAINS = mods.TOP.PLATFORM.RESETI.NDOMAINS;
-    parameter CORE_RESET_IDX = mods.TOP.PLATFORM.RESETI.CORE_RESET_IDX;
-    parameter AXI_RESET_IDX = mods.TOP.PLATFORM.RESETI.AXI_RESET_IDX;
-    parameter SOC_RESET_IDX = mods.TOP.PLATFORM.RESETI.SOC_RESET_IDX;
-    parameter REF_RESET_IDX = mods.TOP.PLATFORM.RESETI.REF_RESET_IDX;
 
     // --------------------------------------
     // AXI interface
@@ -532,6 +527,9 @@ package rv_tester_params;
         logic [CLLEN-1:0]           data ;
         logic                       amo;
         logic [4:0]                 amo_op;
+        logic                       v_ext;
+        logic [36-1:0]              opcode;
+        logic [7:0]                 nano_op_elem_idx;
     } mcmi_t;
 
     // --------------------------------------
@@ -1057,22 +1055,22 @@ package rv_tester_params;
     // --------------------------------------
 `define _RV_TESTER_PORTS(input,output)                                                              \
     input                                    clk                [rv_tester_params::NCLKS-1:0],      \
-    output                                   dut_clk            [rv_tester_params::NCLKS-1:0],      \
+    input                                    dut_clk            [rv_tester_params::NCLKS-1:0],      \
+    input                                    dut_reset          [rv_tester_params::NCLKS-1:0],      \
+    output                                   dut_reset_req,                                         \
+    input                                    dut_reset_req_active,                                  \
     input                                    force_ref_clk,                                         \
-    output [rv_tester_params::NHARTS-1:0]    core_no_fetch,                                         \
     input  [rv_tester_params::NRESETS-1:0]   reset, /*Packed so zebu can easily force*/             \
     input  [rv_tester_params::NHOLDS-1:0]    reset_hold,                                            \
-    output [rv_tester_params::NDOMAINS-1:0]  dut_reset,                                             \
     input  rv_tester_params::bootstrap_t     bootstrap,                                             \
     input  [rv_tester_params::NHARTS-1:0]    nmi,                                                   \
     input  rv_tester_pkg::interrupt_t        interrupt          [rv_tester_params::NHARTS-1:0],     \
     output rv_tester_pkg::interrupt_t        interrupt_pend     [rv_tester_params::NHARTS-1:0],     \
     output                                   debug_mode         [rv_tester_params::NHARTS-1:0],     \
-    output                                   shutdown,                                              \
+    output                                   dut_terminate,                                         \
     input                                    terminate,                                             \
     input  logic                             terminated,                                            \
     output                                   quiesced,                                              \
-    output                                   tj_max_interrupt,                                      \
     input logic [64-1:0]                     cosim_eot_addr,                                        \
     input  rv_tester_pkg::aplic_interrupt_t  aplic_interrupt,                                       \
     input  rv_tester_pkg::dm_write_t         dmi_write,                                             \
@@ -1141,21 +1139,21 @@ package rv_tester_params;
 `define RV_TESTER_VARS(topology)                                                                    \
     logic                                    clk             [rv_tester_params::NCLKS-1:0];         \
     logic                                    dut_clk         [rv_tester_params::NCLKS-1:0];         \
+    logic                                    dut_reset       [rv_tester_params::NCLKS-1:0];         \
+    logic                                    dut_reset_req;                                         \
+    logic                                    dut_reset_req_active;                                  \
     logic                                    force_ref_clk;                                         \
-    logic [rv_tester_params::NHARTS-1:0]     core_no_fetch;                                         \
     logic [rv_tester_params::NRESETS-1:0]    reset           /* Packed so zebu can force easily */; \
     logic [rv_tester_params::NHOLDS-1:0]     reset_hold;                                            \
-    logic [rv_tester_params::NDOMAINS-1:0]   dut_reset;                                             \
     rv_tester_params::bootstrap_t            bootstrap;                                             \
     logic [rv_tester_params::NHARTS-1:0]     nmi;                                                   \
     rv_tester_pkg::interrupt_t               interrupt       [rv_tester_params::NHARTS-1:0];        \
     rv_tester_pkg::interrupt_t               interrupt_pend  [rv_tester_params::NHARTS-1:0];        \
     logic                                    debug_mode      [rv_tester_params::NHARTS-1:0];        \
-    logic                                    shutdown;                                              \
+    logic                                    dut_terminate;                                         \
     logic                                    terminate;                                             \
     rv_tester_pkg::aplic_interrupt_t         aplic_interrupt;                                       \
     logic                                    terminated;                                            \
-    logic                                    tj_max_interrupt;                                      \
     logic                                    quiesced;                                              \
     logic [64-1:0]                           cosim_eot_addr;                                        \
     rv_tester_pkg::dm_write_t                dmi_write;                                             \

@@ -166,7 +166,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
         FLAGS_max_stall_cycle = (20000 + (nharts-1)*2000);
         print(cvm::LOW, "Overwriting max_stall_cycle to {} cycles\n",FLAGS_max_stall_cycle );
     }
-    if((FLAGS_max_cycle < static_cast<gflags::uint64>(1000000 + (nharts - 1) * 75000)) && (FLAGS_max_cycle != 0)){
+    if((FLAGS_max_cycle < static_cast<gflags::uint64>(1000000 + (nharts - 1) * 75000)) && (FLAGS_max_cycle != 0) && (nharts != 1)){
         FLAGS_max_cycle = (1000000 + (nharts-1)*75000);
         print(cvm::LOW, "Overwriting max_cycle to {} cycles\n",FLAGS_max_cycle );
     }
@@ -189,16 +189,8 @@ void bridge::reset() {
   cac_.Reset();
   assert(cac_.SetVlen(vlen_));
 
-  if (first_reset_ && client_->whisperConnect(num_harts_) != 0) {
+  if (client_->whisperConnect(num_harts_) != 0) {
     print(cvm::ERROR, "Error: Hart {}: Failed whisper_connect\n", id_);
-    return;
-  }
-
-  first_reset_ = false;
-
-  bool valid;
-  if (!client_->whisperReset(id_, FLAGS_resetpc, valid)) {
-    print(cvm::ERROR, "Error: Hart {}: Failed whisper reset\n", id_);
     return;
   }
 
@@ -206,6 +198,7 @@ void bridge::reset() {
   csr_init();
 
   // Write hart enable mask to boot mem
+  bool valid;
   if (!client_->whisperPoke(id_, 0, 'm', memmap_.at("boot").base + 0x9000, FLAGS_hart_enable_mask, valid)) {
     print(cvm::ERROR, "Error: Hart {}: Failed to poke boot memory\n", id_);
     return;
@@ -214,7 +207,24 @@ void bridge::reset() {
     print(cvm::ERROR, "Error: Hart {}: Failed to poke boot memory\n", id_);
     return;
   }
-  cvm::registry::messenger.signal<uint64_t>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0), uint64_t(0));
+
+
+
+  if(FLAGS_enable_sp_init){ //only poke num ways when sp_init is required
+    uint64_t poke_data = uint64_t(FLAGS_enable_sp_init);
+    if (!client_->whisperPokeMem(0, 0, 'm', memmap_.at("boot").base + 0x9008, 8, poke_data, valid)){
+      print(cvm::ERROR, "Error: Hart {}: Failed to poke boot memory\n", id_);
+      return;
+    }
+    poke_data = uint64_t(FLAGS_num_sp_ways);
+    if (!client_->whisperPokeMem(0, 0, 'm', memmap_.at("boot").base + 0x9010, 8, poke_data, valid)){
+       print(cvm::ERROR, "Error: Hart {}: Failed to poke boot memory\n", id_);
+       return;
+    }
+  }
+
+  cvm::registry::messenger.signal<uint64_t>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0), uint64_t(0)); // sysmod needs whisper client
+  cvm::registry::messenger.signal<uint64_t>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0), uint64_t(1));
   resetsstc_poke(id_,0,0x14d);
   resetsstc_poke(id_,0,0x24d);
 }
@@ -730,6 +740,9 @@ void bridge::pre_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
   if (instr.pc.pc_rdata == FLAGS_debug_exit_pc) {
     opcode = 0x7b200073; // Dret instruction opcode
   }
+  else if(instr.excp) {
+    opcode = 0x00100073; //E-break opcode
+  }
   else {
     opcode = instr.opcode;
   }
@@ -737,12 +750,6 @@ void bridge::pre_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
   if (!client_->whisperPoke(hart, 0, 'm', instr.pc.pc_rdata, opcode, valid)) {
     print(cvm::ERROR, "Error: Hart {}: Failed to poke memory\n", hart);
     return;
-  }
-  if (instr.excp){
-    if (!client_->whisperPoke(hart, 0, 'r', 0x6, FLAGS_debug_entry_pc, valid)) {
-      print(cvm::ERROR, "Error: Hart {}: Failed to poke x6 register\n", hart);
-      return;
-    }
   }
   return;
 }
@@ -1299,9 +1306,16 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
       }
       else if (c.csr_addr == 0x301){ // On misa.H update, update mideleg
         if ((c.csr_wmask >> 7) & 0x1) {
-          mask = 0x1444;
-          if ((c.csr_wdata >> 7) & 0x1) update_csr(hart, src_t::dut, 0x303, 0x1444, mask, false, false);
-          else update_csr(hart, src_t::dut, 0x303, 0, mask, false, false);
+          if ((c.csr_wdata >> 7) & 0x1) {
+            mask = 0x1444;
+            update_csr(hart, src_t::dut, 0x303, 0x1444, mask, false, false);
+          }
+          else {
+            mask = 0xF00000;
+            update_csr(hart, src_t::dut, 0x302, 0, mask, false, false);
+            mask = 0x1444;
+            update_csr(hart, src_t::dut, 0x303, 0, mask, false, false);
+          }
         }
       }
     }
@@ -1864,9 +1878,17 @@ void bridge::process_dut_mcm_read(hart_id_t hart, mem_t& m) {
       return;
     }
   }
-  if (!client_->whisperMcmRead(hart, m.cycle, m.tag, m.pa, m.size, m.data, valid)) {
-    print(cvm::ERROR, "Error: Hart {}: Failed mcm load resolve\n", hart);
-    return;
+  if (m.v_ext){
+    std::vector<bridge::size_8_bytes_t> data_vec = create_dword_vec(m.data_vec);
+    if (!client_->whisperMcmVecRead(hart, m.cycle, m.tag, m.pa, m.size, data_vec, valid)) {
+      print(cvm::ERROR, "Error: Hart {}: Failed mcm vec load\n", hart);
+      return;
+    }
+  } else {
+    if (!client_->whisperMcmRead(hart, m.cycle, m.tag, m.pa, m.size, m.data, valid)) {
+      print(cvm::ERROR, "Error: Hart {}: Failed mcm load\n", hart);
+      return;
+    }
   }
   bridge_log_(cvm::HIGH, "<{}> mcm_read [valid={}, tag={}, addr={:#x}, size={}, data={:#x}]\n",
     m.cycle, valid, m.tag, m.pa, m.size, m.data);
@@ -1875,10 +1897,17 @@ void bridge::process_dut_mcm_read(hart_id_t hart, mem_t& m) {
 // Process mem accesses - store inserts
 void bridge::process_dut_mcm_insert(hart_id_t hart, mem_t& m) {
   bool valid = false;
-
-  if (!client_->whisperMcmInsert(hart, m.cycle, m.tag, m.pa, m.size, m.data, valid)) {
-    print(cvm::ERROR, "Error: Hart {}: Failed mcm store insert\n", hart);
-    return;
+  if (m.v_ext){
+    std::vector<bridge::size_8_bytes_t> data_vec = create_dword_vec(m.data_vec);
+    if (!client_->whisperMcmVecInsert(hart, m.cycle, m.tag, m.pa, m.size, data_vec, valid)) {
+      print(cvm::ERROR, "Error: Hart {}: Failed mcm load insert\n", hart);
+      return;
+    }
+  } else {
+    if (!client_->whisperMcmInsert(hart, m.cycle, m.tag, m.pa, m.size, m.data, valid)) {
+      print(cvm::ERROR, "Error: Hart {}: Failed mcm load insert\n", hart);
+      return;
+    }
   }
   bridge_log_(cvm::HIGH, "<{}> mcm_insert [valid={}, tag={}, addr={:#x}, size={}, data={:#x}]\n",
     m.cycle, valid, m.tag, m.pa, m.size, m.data);

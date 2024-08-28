@@ -2,7 +2,6 @@
   { "tag" : "memory" , "type" : "memory", "base" : "0x80000000", "size" : "0x000fffff7fffffff" },
   { "tag" : "clint" , "type" : "clint" , "base" : "0x00200000", "size" : "0x0000010" },
   { "tag" : "trickbox"  , "type" : "trickbox" , "base" : "0x0000000009000000", "size" : "0x000000000000010" },
-  { "tag" : "pll_xtor"  , "type" : "pll_xtor" , "base" : "0x0000000009000200", "size" : "0x000000000000010" },
   { "tag" : "pm_nw_xtor"  , "type" : "pm_nw_xtor" , "base" : "0x0000000009000300", "size" : "0x0000000000000010" },
   { "tag" : "htif" , "type" : "htif" , "base" : "0x70000000", "size" : "0x00000010" },
   { "tag" : "boot" , "type" : "memory" , "base" : "0x0000000000000000", "size" : "0x0000000000000010" },

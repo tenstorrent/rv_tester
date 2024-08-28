@@ -16,7 +16,7 @@
 #include "trickbox/jtag_driver.h"
 #include "scratchpad_xtor/scratchpad_xtor.h"
 #include "trace_cfg/trace_cfg.h"
-#include "pll_xtor/pll_xtor.h"
+#include "cla_cfg/cla_cfg.h"
 #include "pm_nw_xtor/pm_nw_xtor.h"
 #include "cvm/topology.hpp"
 
@@ -81,33 +81,31 @@ class sysmod {
   //      }
   //     return result;
   //  }
-   std::vector<uint64_t> bitsetToUint64Array(const std::bitset<70>& bitset) {
-    const size_t bitsetSize = 64;//70;
-    const size_t ulongSize = sizeof(uint64_t) * 8;
-    const size_t arraySize = (bitsetSize + ulongSize - 1) / ulongSize;
+    std::vector<uint64_t> bitsetToUint64Array(const std::bitset<70>& bitset) {
+      const size_t bitsetSize = 64;//70;
+      const size_t ulongSize = sizeof(uint64_t) * 8;
+      const size_t arraySize = (bitsetSize + ulongSize - 1) / ulongSize;
 
-    std::bitset<70> bitset_shifted = bitset>>2;
+      std::bitset<70> bitset_shifted = bitset>>2;
 
-    //jtag rx -> jtag.op_Data , we are shifting only by 2 since from jtag_xtor for each tap point we shift accordingly but all of them are shifted by 2
-    //std::cout<<"[JTAG RESP] original = " <<bitset<<" shifted = "<<bitset_shifted<<"\n";
-    std::vector<uint64_t> ulongArray(arraySize);
+      //jtag rx -> jtag.op_Data , we are shifting only by 2 since from jtag_xtor for each tap point we shift accordingly but all of them are shifted by 2
+      //std::cout<<"[JTAG RESP] original = " <<bitset<<" shifted = "<<bitset_shifted<<"\n";
+      std::vector<uint64_t> ulongArray(arraySize);
 
-    for (size_t i = 0; i < bitsetSize; i += ulongSize) {
+      for (size_t i = 0; i < bitsetSize; i += ulongSize) {
         size_t ulongIndex = i / ulongSize;
         uint64_t value = 0;
-
-        for (size_t j = 0; j < ulongSize && (i + j) < bitsetSize; ++j) {
-            value |= (bitset_shifted[i + j] ? 1UL : 0UL) << j;
-        }
+        for (size_t j = 0; j < ulongSize && (i + j) < bitsetSize; ++j)
+          value |= (bitset_shifted[i + j] ? 1UL : 0UL) << j;
 
         ulongArray[ulongIndex] = value;
+      }
+      return ulongArray;
     }
-
-    return ulongArray;
-}
+    void store_dm_randpc();
   protected:
     void trace_info_handler(trace_cfg::trace_info_t i);
-    void pll_info_handler(pll_xtor::pll_info_t i);
+    void cla_info_handler(cla_cfg::cla_info_t i);
     void pm_nw_info_handler(pm_nw_xtor::pm_nw_info_t i);
     void timer_interrupt(clint::timer_t t);
     void sw_interrupt(clint::sw_t s);

@@ -14,7 +14,7 @@
 #include "aclint/aclint.h"
 #include "dm/dm.h"
 #include "trace_cfg/trace_cfg.h"
-#include "pll_xtor/pll_xtor.h"
+#include "cla_cfg/cla_cfg.h"
 #include "pm_nw_xtor/pm_nw_xtor.h"
 #include "aplic_mmr/aplic_mmr.h"
 #include "io_dev/io_dev.h"
@@ -52,6 +52,7 @@ DEFINE_string(hart_enable_id, "", "Hart id sequence corresponding to physical co
 DEFINE_bool(rand_sc_harvest, false, "Randomize sc harvest options");
 DEFINE_int32(num_sc_dis_ways, -1, "Number of disabled SC ways - upto 24 in multiples of 4");
 DEFINE_int32(sc_dis_ways_mask, -1, "SC way enable mask. Ex: With 20 enabled ways out of 24, could be 0xF0_FFFF.");
+DEFINE_bool(rand_sp_ways, false, "Randomize number of SC ways reserved for scratchpad");
 DEFINE_int32(num_sp_ways, -1, "Number of SC ways reserved for scratchpad");
 DEFINE_uint32(trace_enable, 1, "Trace enable fuse");
 DEFINE_uint32(debug_enable, 3, "Debug enable fuse");
@@ -79,7 +80,11 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
       [this](svScope s) { return this->set_scope(s); });
   cvm::registry::messenger.connect<uint64_t>(
       loc_,
-      [this](const uint64_t& t) { return this->load_csr_mmr_boot(t); });
+      [this](const uint64_t& t) {  // FIXME: using signal to send data from whisper client to sysmod
+      if (t == 0)
+        return this->load_csr_mmr_boot(t);
+      return this->store_dm_randpc();
+      });
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::tick<>>(
       loc_,
       [this](const rv_tester_transactions::sysmod::tick<>& t) { return this->tick(t.advance); });
@@ -248,6 +253,10 @@ sysmod::core_harvest_plusargs()
 void
 sysmod::sc_harvest_plusargs()
 {
+  if (FLAGS_enable_sp_init) {
+    FLAGS_rand_sp_ways = true;
+  }
+
   // Plusargs: num_sc_dis_ways, sc_dis_ways_mask, num_sp_ways
   int32_t nways = cvm::topology::attr(cvm::topology::get_from_type("CORE", 0), "SC_NUM_WAYS").second;
   int32_t dis_ways = FLAGS_num_sc_dis_ways;
@@ -278,20 +287,32 @@ sysmod::sc_harvest_plusargs()
       if (FLAGS_perf || !FLAGS_rand_sc_harvest) {
         FLAGS_num_sc_dis_ways = 0;
         FLAGS_sc_dis_ways_mask = 0;
-        FLAGS_num_sp_ways = 0;
       } else {
         FLAGS_num_sc_dis_ways = get_rand_dis_ways(nways);
         FLAGS_sc_dis_ways_mask = get_rand_ways_mask(FLAGS_num_sc_dis_ways, nways);
+      }
+      if (FLAGS_perf || !FLAGS_rand_sp_ways) {
+        FLAGS_num_sp_ways = 0;
+      } else {
         FLAGS_num_sp_ways = get_rand_sp_ways(nways - FLAGS_num_sc_dis_ways);
       }
       break;
     case 1: // +num_sp_ways
-      FLAGS_num_sc_dis_ways = get_rand_dis_ways(nways - sp_ways);
-      FLAGS_sc_dis_ways_mask = get_rand_ways_mask(FLAGS_num_sc_dis_ways, nways);
+      if (!FLAGS_rand_sc_harvest) {
+        FLAGS_num_sc_dis_ways = 0;
+        FLAGS_sc_dis_ways_mask = 0;
+      } else {
+        FLAGS_num_sc_dis_ways = get_rand_dis_ways(nways - sp_ways);
+        FLAGS_sc_dis_ways_mask = get_rand_ways_mask(FLAGS_num_sc_dis_ways, nways);
+      }
       break;
     case 2: // +sc_dis_ways_mask
       FLAGS_num_sc_dis_ways = mask_dis_ways;
-      FLAGS_num_sp_ways = get_rand_sp_ways(nways - FLAGS_num_sc_dis_ways);
+      if (!FLAGS_rand_sp_ways) {
+        FLAGS_num_sp_ways = 0;
+      } else {
+        FLAGS_num_sp_ways = get_rand_sp_ways(nways - FLAGS_num_sc_dis_ways);
+      }
       break;
     case 3: // +num_sp_ways, +sc_dis_ways_mask
       if (((mask_dis_ways + sp_ways) < 0) || ((mask_dis_ways + sp_ways) > 24))
@@ -300,7 +321,11 @@ sysmod::sc_harvest_plusargs()
       break;
     case 4: // +num_sc_dis_ways
       FLAGS_sc_dis_ways_mask = get_rand_ways_mask(FLAGS_num_sc_dis_ways, nways);
-      FLAGS_num_sp_ways = get_rand_sp_ways(nways - FLAGS_num_sc_dis_ways);
+      if (!FLAGS_rand_sp_ways) {
+        FLAGS_num_sp_ways = 0;
+      } else {
+        FLAGS_num_sp_ways = get_rand_sp_ways(nways - FLAGS_num_sc_dis_ways);
+      }
       break;
     case 5: // +num_sc_dis_ways, +num_sp_ways
       if (((dis_ways + sp_ways) < 0) || ((dis_ways + sp_ways) > 24))
@@ -310,7 +335,11 @@ sysmod::sc_harvest_plusargs()
     case 6: // +num_sc_dis_ways, +sc_dis_ways_mask
       if (dis_ways != mask_dis_ways)
         cvm::log(cvm::ERROR, "Error: Incompatible plusargs: +num_sc_dis_ways {} != count(+num_dis_ways_mask {})\n", dis_ways, mask_dis_ways);
-      FLAGS_num_sp_ways = get_rand_sp_ways(nways - FLAGS_num_sc_dis_ways);
+      if (!FLAGS_rand_sp_ways) {
+        FLAGS_num_sp_ways = 0;
+      } else {
+        FLAGS_num_sp_ways = get_rand_sp_ways(nways - FLAGS_num_sc_dis_ways);
+      }
       break;
     case 7: // +num_sc_dis_ways, +sc_dis_ways_mask, +num_sp_ways
       if (dis_ways != mask_dis_ways)
@@ -445,8 +474,8 @@ sysmod::get_rand_sp_ways(int32_t max)
   // with mostly up to 4 ways
   // Ex: max = 24, weights = {1.0} upto 4 ways and {0.1} after that
   std::vector<double> weights(max);
-  for (int i = 0; i < max+1; ++i) {
-    if (i <= 4)
+  for (int i = 0; i < max; ++i) {
+    if (i < 4)
       weights[i] = 1.0;
     else
       weights[i] = 0.1;
@@ -455,7 +484,7 @@ sysmod::get_rand_sp_ways(int32_t max)
   cvm::rand::discrete_dist<int32_t> dist(weights);
   cvm::log(cvm::HIGH, "[random] Probabilities for selecting SP ways [0..{}] = [{:.2f}]\n",
     max, fmt::join(dist.probabilities(), ", "));
-  return dist();
+  return (dist() + 1);
 }
 
 sysmod::~sysmod()
@@ -504,8 +533,8 @@ sysmod::trace_info_handler(trace_cfg::trace_info_t i) {
 }
 
 void
-sysmod::pll_info_handler(pll_xtor::pll_info_t i) {
-        cvm::log(cvm::HIGH, "[SYSMOD] trace_info {} \n",i.pll_quiesced);
+sysmod::cla_info_handler(cla_cfg::cla_info_t i) {
+        cvm::log(cvm::HIGH, "[SYSMOD] cla_info {} \n",i.cla_quiesced);
  // cvm::registry::callbacks.push(
  //     scope(),
  //     [i]() {
@@ -713,7 +742,6 @@ sysmod::compose()
   memmap::get(memmap_);
 
   auto mmr_master = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MMR_MST");
-  auto pll_master = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_PLL_MST");
   auto pm_nw_master = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_PM_NW_MST");
   auto masters = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST");
   auto platform_loc = cvm::topology::get_from_type("PLATFORM", 0);
@@ -760,14 +788,8 @@ sysmod::compose()
             [&](trace_cfg::trace_info_t i) { return this->trace_info_handler(i); });
         assert(masters.size() > 0);
         device = std::make_unique<trace_cfg>(tag, base, size, loc_, masters[0]);
-      }
-      else if (type == "pll_xtor") {
         // TODO: cvm::ERROR
-        cvm::registry::messenger.connect<pll_xtor::pll_info_t>(
-            loc_,
-            [&](pll_xtor::pll_info_t i) { return this->pll_info_handler(i); });
-        assert(masters.size() > 0);
-        device = std::make_unique<pll_xtor>(tag, base, size, loc_, pll_master[0]);
+
       }
       else if (type == "pm_nw_xtor") {
         // TODO: cvm::ERROR
@@ -830,11 +852,17 @@ sysmod::compose()
             [&](trace_cfg::trace_cfg_read_t i) { return this->trace_cfg_read_req_router(i); });
       }
       else
-        cvm::log(cvm::ERROR, "Error: unknown sysmod type %s\n", type);
+        cvm::log(cvm::ERROR, "Error: unknown sysmod type {} \n", type);
 
       devices_.emplace_back(std::move(device));
     }
-
+    cvm::registry::messenger.connect<cla_cfg::cla_info_t>(
+        loc_,
+        [&](cla_cfg::cla_info_t i) { return this->cla_info_handler(i); });
+    assert(masters.size() > 0);
+    std::unique_ptr<device> device;
+    device = std::make_unique<cla_cfg>("cla_cfg", 0x42000000, 0x100, loc_, masters[0]);
+    devices_.emplace_back(std::move(device));
     devices_.emplace_back(std::make_unique<heartbeat>("heartbeat", 0, 0, loc_));
   }
   catch (std::exception& e) {
@@ -982,24 +1010,31 @@ sysmod::load_boot(const std::string& boot)
 
     if(FLAGS_enable_sp_init){
       device::data_t data(8);
-      for (size_t i = 0; i < 8; i++) data[i] = 0x1;
+      for (size_t i = 0; i < 8; i++){ 
+        if(i==0)
+          data[i] = 0x1;
+        else
+          data[i] = 0x0;        
+        }
       device::strb_t strb(8);
       for (size_t i = 0; i < 8; i++) strb[i] = true;
       dev("boot")->backdoor_write(dev("boot")->addr() + 0x9008, 8, data, strb);
-      
-      if(FLAGS_sp_ways_num < 25){
+ 
+      if(FLAGS_num_sp_ways < 25){
         device::data_t data(8);
         device::strb_t strb(8);
         for (size_t i = 0; i < 8; i++){
           if(i==0){
-             data[i] = uint8_t(FLAGS_sp_ways_num);
+             data[i] = uint8_t(FLAGS_num_sp_ways);
              strb[i] = true;
            }else{
              data[i] = 0;
              strb[i] = true; 
            }
         }
+        
         dev("boot")->backdoor_write(dev("boot")->addr() + 0x9010, 8, data, strb);
+
       }else{
             cvm::log(cvm::ERROR, "Error: Maximum 24 sharedcache ways can be alloted as Scratchpad \n");
       }
@@ -1143,6 +1178,19 @@ sysmod::load_cplfw(const std::string& cplfw)
         return;
       }
     }
+  }
+}
+void
+sysmod::store_dm_randpc()
+{
+  if (client_ != nullptr && client_->dm_randpc != 0) {
+    device::data_t dataw(8);
+    device::strb_t strb(8);
+    for (size_t i=0; i<8; i++) {
+      dataw[i] = (client_->dm_randpc >> 8*i) & 0xff;
+      strb[i]  = true;
+    }
+    dev("trickbox")->backdoor_write(client_->dm_randpc_addr, 8, dataw, strb); //write to trickbox location
   }
 }
 

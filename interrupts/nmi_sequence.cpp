@@ -54,7 +54,7 @@ void nmi_sequence::trigger_mode_thread() {
 
 cvm::messenger::task<void> nmi_sequence::random_mode() {
 
-  co_await core_no_fetch();
+  co_await reset();
   cvm::log(cvm::NONE, "[interrupts] nmi sequence - no fetch observed\n");
 
   while (true) {
@@ -93,8 +93,8 @@ cvm::messenger::task<void> nmi_sequence::trigger_mode() {
   }
 }
 
-cvm::messenger::task<void> nmi_sequence::core_no_fetch() {
-  co_await cvm::registry::messenger.wait<rv_tester_transactions::interrupts::m_core_no_fetch<>>(loc_);
+cvm::messenger::task<void> nmi_sequence::reset() {
+  co_await cvm::registry::messenger.wait<rv_tester_transactions::interrupts::m_reset<>>(loc_);
   co_return;
 }
 
