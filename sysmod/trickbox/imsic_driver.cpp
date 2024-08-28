@@ -10,7 +10,7 @@
  DEFINE_bool(disable_random_hart_imsic_intr, false, "Drive random imsic  interrups to random harts");
  DEFINE_int32(imsic_intr_delay_min, 3, "Minimum Delay between 2 consecutive interrupts");
  DEFINE_int32(imsic_intr_delay_max, 5, "Maximum Delay between 2 consecutive interrupts");
- DEFINE_int32(imsic_intr_threshold, 255, "imsic_intr interrupts threshold value");
+ DEFINE_int32(imsic_intr_threshold, 256, "imsic_intr interrupts threshold value");
  DEFINE_int32(imsic_vs_intr_threshold, 63, "imsic_vs_intr interrupts threshold value");
  DEFINE_int32(imsic_hart_threshold, 1, "harts threshold value");
  DEFINE_int32(imsic_intr_start_delay, 5000, "delay after which random interrupts should start");
