@@ -1310,7 +1310,7 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
             update_csr(hart, src_t::dut, 0x303, 0x1444, 0x1444, false, false);
           }
           else {
-            update_csr(hart, src_t::dut, 0x303, 0, 0xF00000, false, false);
+            update_csr(hart, src_t::dut, 0x302, 0, 0xF00000, false, false);
             update_csr(hart, src_t::dut, 0x303, 0, 0x1444, false, false);
           }
         }
