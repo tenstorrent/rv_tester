@@ -1307,11 +1307,14 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
       else if (c.csr_addr == 0x301){ // On misa.H update, update mideleg
         if ((c.csr_wmask >> 7) & 0x1) {
           if ((c.csr_wdata >> 7) & 0x1) {
-            update_csr(hart, src_t::dut, 0x303, 0x1444, 0x1444, false, false);
+            mask = 0x1444;
+            update_csr(hart, src_t::dut, 0x303, 0x1444, mask, false, false);
           }
           else {
-            update_csr(hart, src_t::dut, 0x302, 0, 0xF00000, false, false);
-            update_csr(hart, src_t::dut, 0x303, 0, 0x1444, false, false);
+            mask = 0xF00000;
+            update_csr(hart, src_t::dut, 0x302, 0, mask, false, false);
+            mask = 0x1444;
+            update_csr(hart, src_t::dut, 0x303, 0, mask, false, false);
           }
         }
       }
