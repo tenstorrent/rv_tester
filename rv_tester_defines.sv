@@ -971,6 +971,7 @@ package rv_tester_params;
         PFC_USELESS_PREFETCHES,
         TLP_ACCESS_LOAD,
         TLP_ACCESS_STORE,
+        TLP_ACCESS_PREFETCH,
         TLP_ACCESS_AGP,
         TLP_ACCESS_ARB,
         TLP_ACCESS_ALL,

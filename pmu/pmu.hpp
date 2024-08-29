@@ -607,6 +607,8 @@ public:
       TLP_ACCESS_LOAD,
       //Event (speculative) for tlp pipe access by store
       TLP_ACCESS_STORE,
+      //Event (speculative) for tlp pipe access by prefetch
+      TLP_ACCESS_PREFETCH,
       //Event (speculative) for tlp pipe access from AGP
       TLP_ACCESS_AGP,
       //Event (speculative) for tlp pipe access from ARB
@@ -1121,6 +1123,7 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::PFC_USELESS_PREFETCHES] = pmcounters.pfc_useless_prefetches;
       tmp[counter::TLP_ACCESS_LOAD] = pmcounters.tlp_access_load;
       tmp[counter::TLP_ACCESS_STORE] = pmcounters.tlp_access_store;
+      tmp[counter::TLP_ACCESS_PREFETCH] = pmcounters.tlp_access_prefetch;
       tmp[counter::TLP_ACCESS_AGP] = pmcounters.tlp_access_agp;
       tmp[counter::TLP_ACCESS_ARB] = pmcounters.tlp_access_arb;
       tmp[counter::TLP_ACCESS_ALL] = pmcounters.tlp_access_all;
@@ -1529,6 +1532,7 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {PFC_USELESS_PREFETCHES,"pfc_useless_prefetches"},
       {TLP_ACCESS_LOAD,"tlp_access_load"},
       {TLP_ACCESS_STORE,"tlp_access_store"},
+      {TLP_ACCESS_PREFETCH,"tlp_access_prefetch"},
       {TLP_ACCESS_AGP,"tlp_access_agp"},
       {TLP_ACCESS_ARB,"tlp_access_arb"},
       {TLP_ACCESS_ALL,"tlp_access_all"},
