@@ -93,46 +93,8 @@ whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) {
   cvm::registry::messenger.procedure<whisperPeekGprRPC>(loc, [this] (int hart, uint64_t addr, uint64_t& value) {return this->whisperPeekGpr(hart, addr, value);});
   cvm::registry::messenger.procedure<whisperPeekFprRPC>(loc, [this] (int hart, uint64_t addr, uint64_t& value) {return this->whisperPeekFpr(hart, addr, value);});
   cvm::registry::messenger.procedure<whisperPeekVprRPC>(loc, [this] (int hart, uint64_t addr, std::array<std::uint8_t, 32>&  value) {return this->whisperPeekVpr(hart, addr, value);});
+  cvm::registry::messenger.procedure<whisperNmiRPC>(loc, [this] (int hart, uint64_t time, uint64_t cause) {return this->whisperNmi(hart, time, cause);});
 
-
-
-  // using namespace std::placeholders;
-  // cvm::registry::messenger.procedure<whisperConnectRPC>(loc, std::bind(&whisperClient::whisperConnect, this, _1));   // https://stackoverflow.com/a/14189561
-
-  // std::function<int (uint16_t)> whisperConnect_l = [this](uint16_t ncores) {return this->whisperConnect(ncores);};
-  // cvm::registry::messenger.procedure<whisperConnectRPC>(loc, whisperConnect_l);
-
-  // cvm::registry::messenger.procedure<whisperConnectRPC>(loc, [this](uint16_t ncores) {return this->whisperConnect(ncores);});
-  // cvm::registry::messenger.procedure<whisperConnectedRPC>(loc, );
-  // cvm::registry::messenger.procedure<whisperDisableMcmRPC>(loc, this.whisperDisableMcm);
-  // cvm::registry::messenger.procedure<whisperStepRPC>(loc, this.whisperStep);
-  // cvm::registry::messenger.procedure<whisperSimpleStepRPC>(loc, this.whisperSimpleStep);
-  // cvm::registry::messenger.procedure<whisperChangeRPC>(loc, this.whisperChange);
-  // cvm::registry::messenger.procedure<whisperMcmReadRPC>(loc, this.whisperMcmRead);
-  // cvm::registry::messenger.procedure<whisperMcmVecReadRPC>(loc, this.whisperMcmVecRead);
-  // cvm::registry::messenger.procedure<whisperMcmVecInsertRPC>(loc, this.whisperMcmVecInsert);
-  // cvm::registry::messenger.procedure<whisperMcmInsertRPC>(loc, this.whisperMcmInsert);
-  // cvm::registry::messenger.procedure<whisperMcmBypassRPC>(loc, this.whisperMcmBypass);
-  // cvm::registry::messenger.procedure<whisperMcmWriteRPC>(loc, this.whisperMcmWrite);
-  // cvm::registry::messenger.procedure<whisperMcmIFetchRPC>(loc, this.whisperMcmIFetch);
-  // cvm::registry::messenger.procedure<whisperMcmIEvictRPC>(loc, this.whisperMcmIEvict);
-  // cvm::registry::messenger.procedure<whisperPokeRPC>(loc, this.whisperPoke);
-  // cvm::registry::messenger.procedure<whisperPokeMemRPC>(loc, this.whisperPokeMem);
-  // cvm::registry::messenger.procedure<whisperPeekRPC>(loc, this.whisperPeek);
-  // cvm::registry::messenger.procedure<whisperPeekPcRPC>(loc, this.whisperPeekPc);
-  // cvm::registry::messenger.procedure<whisperPeekCsrRPC>(loc, this.whisperPeekCsr);
-  // cvm::registry::messenger.procedure<whisperResetRPC>(loc, this.whisperReset);
-  // cvm::registry::messenger.procedure<whisperQuitRPC>(loc, this.whisperQuit);
-  // cvm::registry::messenger.procedure<whisperPageTableWalkRPC>(loc, this.whisperPageTableWalk);
-  // cvm::registry::messenger.procedure<whisperTranslateRPC>(loc, this.whisperTranslate);
-  // cvm::registry::messenger.procedure<whisperEnterDebugRPC>(loc, this.whisperEnterDebug);
-  // cvm::registry::messenger.procedure<whisperExitDebugRPC>(loc, this.whisperExitDebug);
-  // cvm::registry::messenger.procedure<whisperCheckInterruptRPC>(loc, this.whisperCheckInterrupt);
-  // cvm::registry::messenger.procedure<whisperGetSeiPinRPC>(loc, this.whisperGetSeiPin);
-  // cvm::registry::messenger.procedure<whisperCancelLrRPC>(loc, this.whisperCancelLr);
-  // cvm::registry::messenger.procedure<whisperPeekGprRPC>(loc, this.whisperPeekGpr);
-  // cvm::registry::messenger.procedure<whisperPeekFprRPC>(loc, this.whisperPeekFpr);
-  // cvm::registry::messenger.procedure<whisperPeekVprRPC>(loc, this.whisperPeekVpr);
 }
 
 template <typename URV>
@@ -980,6 +942,22 @@ whisperClient<URV>::whisperGetSeiPin(int hart, uint64_t& value)
 
   return true;
 }
+
+template <typename URV>
+bool
+whisperClient<URV>::whisperNmi(int hart, uint64_t time, uint64_t cause)
+{
+  req.hart = hart;
+  req.type = WhisperMessageType::Nmi;
+  req.time = time;
+  req.value = cause;
+
+  if (not whisperCommand(req, reply))
+    return false;
+
+  return true;
+}
+
 
 template class whisperClient<uint32_t>;
 template class whisperClient<uint64_t>;

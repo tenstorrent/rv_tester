@@ -10,7 +10,6 @@ import rv_tester_params::*;
   input logic tb_reset,
   input logic clk,
   input logic reset,
-  input logic core_no_fetch,
   output logic nmi,
   `RV_TESTER_TRANSACTIONS_INTERRUPTS_OUTPUT_PORTS
 );
@@ -58,16 +57,16 @@ import rv_tester_params::*;
 
   always @(posedge tb_clk) begin
     /* verilator lint_off BLKSEQ */
-    if (nmi_en && (nmi_count != 0) && ~core_no_fetch) begin
+    if (nmi_en && (nmi_count != 0) && ~reset) begin
       tb_clocks = tb_clocks + 1;
     end
     /* verilator lint_on BLKSEQ */
   end
 
-  logic core_no_fetch_d1;
+  logic reset_d1;
   int unsigned dut_clocks = 0;
   always @(posedge clk) begin
-    core_no_fetch_d1 <= core_no_fetch;
+    reset_d1 <= reset;
     nmi_in_progress_d1 <= nmi_in_progress;
     dut_clocks <= dut_clocks + 1;
     /* verilator lint_off BLKSEQ */
@@ -89,10 +88,10 @@ import rv_tester_params::*;
     /* verilator lint_on BLKSEQ */
   end
 
-  // m_core_no_fetch
-  assign m_core_no_fetchs[0].valid = nmi_en & (~core_no_fetch & core_no_fetch_d1) & (location != cvm_topology::nil);
-  assign m_core_no_fetchs[0].data.location = location;
-  assign m_core_no_fetchs[0].data.val = core_no_fetch;
+  // m_reset
+  assign m_resets[0].valid = nmi_en & (~reset & reset_d1) & (location != cvm_topology::nil);
+  assign m_resets[0].data.location = location;
+  assign m_resets[0].data.cycle = tb_clocks;
 
   // m_nmi_tick
   assign m_nmi_ticks[0].valid = ~reset & nmi_en & (nmi_start | nmi_end) & (location != cvm_topology::nil);

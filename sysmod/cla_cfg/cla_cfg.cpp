@@ -105,21 +105,41 @@ void cla_cfg::gen_data_strb(uint64_t addr, uint32_t value, data_t& wdata, std::v
 }
 
 void cla_cfg::push_clk_halt_cfg() {
+  uint32_t addr_offset=0,cntr_data;
+  uint32_t mask = FLAGS_hart_enable_mask;
   cvm::log(cvm::NONE, "[CLA_CFG] Push CLK HALT Configs\n");
-  cla_wr_txn_q.push({cla_mmr::CDBG_CLA_CTRL_STS_CFG,0x40});
-  cla_wr_txn_q.push({cla_mmr::CDBG_CLA_COUNTER0_CFG,0x40000000});
-  cla_wr_txn_q.push({cla_mmr::CDBG_NODE0_EAP0_CFG,0x10049});
-  cla_wr_txn_q.push({cla_mmr::CDBG_NODE1_EAP0_CFG,0x101306});
-  cla_wr_txn_q.push({cla_mmr::CDBG_CLA_CTRL_STS_CFG,0x60});
+
+  for(uint32_t i=0; i< 8 ; i++){
+    if((mask & (1 << i))){
+      cvm::log(cvm::NONE, "[CLA_CFG] Push CLA HALT Configs for Core-{} \n",i);
+      addr_offset = 0x10000 * i;
+      cntr_data = rng()%0x2000 + 0x4000;
+      cntr_data = cntr_data << 16;
+      cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + addr_offset),0x40});
+      cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_COUNTER0_CFG + addr_offset),cntr_data});
+      cla_wr_txn_q.push({(cla_mmr::CDBG_NODE0_EAP0_CFG + addr_offset),0x10049});
+      cla_wr_txn_q.push({(cla_mmr::CDBG_NODE1_EAP0_CFG + addr_offset),0x101306});
+      cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + addr_offset),0x60});
+    }
+  }
 }
 
 void cla_cfg::push_cla_nmi_cfg() {
+  uint32_t addr_offset=0;
+  uint32_t mask = FLAGS_hart_enable_mask;
   cvm::log(cvm::NONE, "[CLA_CFG] Push CLA NMI Configs\n");
-  cla_wr_txn_q.push({cla_mmr::CDBG_CLA_CTRL_STS_CFG,0x40});
-  cla_wr_txn_q.push({cla_mmr::CDBG_CLA_COUNTER0_CFG,0x4E200000});
-  cla_wr_txn_q.push({cla_mmr::CDBG_NODE0_EAP0_CFG,0x10049});
-  cla_wr_txn_q.push({cla_mmr::CDBG_NODE1_EAP0_CFG,0x10130A});
-  cla_wr_txn_q.push({cla_mmr::CDBG_CLA_CTRL_STS_CFG,0x60});
+
+  for(uint32_t i=0; i< 8 ; i++){
+    if((mask & (1 << i))){
+      cvm::log(cvm::NONE, "[CLA_CFG] Push CLA NMI Configs for Core-{} \n",i);
+      addr_offset = 0x10000 * i;
+      cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + addr_offset),0x40});
+      cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_COUNTER0_CFG + addr_offset),0x25000000});
+      cla_wr_txn_q.push({(cla_mmr::CDBG_NODE0_EAP0_CFG + addr_offset),0x10049});
+      cla_wr_txn_q.push({(cla_mmr::CDBG_NODE1_EAP0_CFG + addr_offset),0x10130A});
+      cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + addr_offset),0x60});
+    }
+  }
 
 }
 

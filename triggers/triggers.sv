@@ -8,9 +8,8 @@ import rv_tester_params::*;
 (
   input logic tb_clk,
   input logic tb_reset,
-  input logic dut_clk,
-  input logic dut_reset,
-  input logic no_fetch,
+  input logic clk,
+  input logic reset,
   input event_trigger_intf_t event_trigger_vec,
   `RV_TESTER_TRANSACTIONS_TRIGGERS_OUTPUT_PORTS
 );
@@ -48,7 +47,7 @@ import rv_tester_params::*;
   int unsigned captured_clocks = 0;
   int unsigned trigger_start_clocks = 0;
   bit event_based_interrupt = 0;
-  int unsigned dut_clocks = 0;
+  int unsigned clocks = 0;
   always @(posedge event_trigger[PATCH]) begin
       /* verilator lint_off BLKSEQ */
     if (tb_reset) begin
@@ -57,14 +56,14 @@ import rv_tester_params::*;
     end
     else begin 
           event_based_interrupt = 1'b1;
-          trigger_start_clocks = dut_clocks;
+          trigger_start_clocks = clocks;
     end
       /* verilator lint_on BLKSEQ */
 end
 
-  always @(posedge dut_clk) begin
-    dut_clocks <= dut_clocks + 1;
-    if(trigger_start_clocks + 50 == dut_clocks)
+  always @(posedge clk) begin
+    clocks <= clocks + 1;
+    if(trigger_start_clocks + 50 == clocks)
       /* verilator lint_off BLKSEQ */
           event_based_interrupt = 1'b0;
       /* verilator lint_on BLKSEQ */

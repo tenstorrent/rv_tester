@@ -28,7 +28,7 @@ class nmi_sequence {
 
     cvm::messenger::task<void> tick();
     cvm::messenger::task<void> trigger();
-    cvm::messenger::task<void> core_no_fetch();
+    cvm::messenger::task<void> reset();
 
     void init();
     void nmi(unsigned hart, uint8_t assert);

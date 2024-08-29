@@ -8,7 +8,7 @@ import rv_tester_params::*;
 (
   input logic tb_clk,
   input logic tb_reset,
-  input logic dut_clk [NCLKS-1:0],
+  input logic clk [NCLKS-1:0],
   input logic dut_reset [NCLKS-1:0],
   input int reset_count,
   input int target_reset_count,
@@ -62,7 +62,7 @@ import rv_tester_params::*;
     end
   end
 
-  always @(posedge dut_clk[SOC_CLK_IDX]) begin
+  always @(posedge clk[SOC_CLK_IDX]) begin
     soc_clocks <= soc_clocks + 1;
     warm_reset_tick <= 0;
     if (warm_reset_en & (reset_count < target_reset_count) & (tb_clocks > warm_reset_interval) & ~force_ref_clk) begin

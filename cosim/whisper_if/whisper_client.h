@@ -10,17 +10,6 @@
 #include "cvm/messenger.hpp"
 #include "cvm/registry.hpp"
 
-// #define FUNCTION_TYPE(func) std::remove_pointer<decltype(&func)>::type    // TODO: move this to messenger.hpp
-
-// #define CVM_MESSENGER_procedure_call(name, func_type) \
-// struct name : cvm::messenger::procedure_call_function<func_type> {};
-
-// Procedure Call Declarations
-
-// CVM_MESSENGER_procedure_call(whisperPokeRPC, bool (int, uint64_t, char, uint64_t, uint64_t, bool&));
-
-#define WHISPER_LOC cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0)
-
 template <typename URV>
 class whisperClient {
 
@@ -50,6 +39,7 @@ class whisperClient {
     uint64_t get_dm_randpc(void) {return dm_randpc;}
     void set_dm_randpc_addr(uint64_t _dm_randpc_addr) {dm_randpc_addr = _dm_randpc_addr;}
     uint64_t get_dm_randpc_addr(void) {return dm_randpc_addr;}
+
     int whisperConnect(uint16_t ncores);
     bool whisperConnected();
     void whisperDisableMcm();
@@ -82,6 +72,8 @@ class whisperClient {
     bool whisperPeekFpr(int hart, uint64_t addr, uint64_t& value);
     bool whisperPeekVpr(int hart, uint64_t addr, std::array<std::uint8_t, 32>&  value);
 
+    // Deliver a non-maskable interrupt to whisper.
+    bool whisperNmi(int hart, uint64_t time, uint64_t cause);
 
   private:
 
@@ -134,6 +126,7 @@ class whisperClient {
     CVM_MESSENGER_procedure_call(whisperPeekGprRPC, bool (int, uint64_t, uint64_t&));
     CVM_MESSENGER_procedure_call(whisperPeekFprRPC, bool (int, uint64_t, uint64_t&));
     CVM_MESSENGER_procedure_call(whisperPeekVprRPC, bool (int, uint64_t, std::array<std::uint8_t, 32>&)); 
+    CVM_MESSENGER_procedure_call(whisperNmiRPC, bool (int, uint64_t, uint64_t));
 };
 
 

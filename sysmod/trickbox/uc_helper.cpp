@@ -126,7 +126,7 @@ void
       mem::datum_t m_data_p = (mem::datum_t)m_data;
 
       bool valid;
-      if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0/*hart*/, 0, 'm', tx_addr + i, 8, poke_data, valid)) { //Poke same data to whisper memory
+      if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0/*hart*/, 0, 'm', tx_addr + i, 1, poke_data, valid)) { //Poke same data to whisper memory
        cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
        return;
       }
@@ -168,11 +168,11 @@ void
       cvm::log(cvm::HIGH, "[UC_HELPER] Poll for sysmod to send read response  \n");
     cvm::log(cvm::HIGH, "[UC_HELPER] Recieved  read response From sysmod  \n");
 
-  } else if(addr ==(uc_helper_base + 0x500)) {
+  } else if(addr == (uc_helper_base + 0x500)) {
     cvm::log(cvm::HIGH, "[UC_HELPER] Backdoor randpc address: {:#x} Data:{:#x}\n", addr, t_data);
     for (int j=0; j<8; j++) {
       mem::datum_t m_data_p = (mem::datum_t) data[j];
-      m_.write(uc_helper_base+j, 1, &m_data_p);
+      m_.write(addr+j, 1, &m_data_p);
     }
   }
 }
