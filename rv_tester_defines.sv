@@ -995,6 +995,20 @@ package rv_tester_params;
     typedef logic [3:0] pmc_counter_t;
     typedef pmc_counter_t [EVENT_COUNT-1:0] pmci_t;
 
+    typedef enum {
+        HPMCOUNTER3,
+        HPMCOUNTER4,
+        HPMCOUNTER5,
+        HPMCOUNTER6,
+        HPMCOUNTER7,
+        HPMCOUNTER8,
+        HPMCOUNTER9,
+        HPMCOUNTER10 
+    } hpm_num_t;
+
+    typedef logic [63:0] hpm_counter_t;
+    typedef hpm_counter_t [7:0] hpmi_t;
+
     // --------------------------------------
     // Pwrmgmt
     // --------------------------------------
@@ -1124,6 +1138,7 @@ package rv_tester_params;
     output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NIEVICTS-1:0]   mcmi_ievict,  \
     output rv_tester_params::csri_t          csri         [rv_tester_params::NHARTS-1:0],           \
     output rv_tester_params::pmci_t          pmci         [rv_tester_params::NHARTS-1:0],           \
+    output rv_tester_params::hpmi_t          hpmi         [rv_tester_params::NHARTS-1:0],           \
     output rv_tester_pkg::sc_pmci_t          sc_pmci,                                               \
     output rv_tester_params::mst_req_top     axi_msi,                                               \
     output rv_tester_params::mst_req_top     [rv_tester_params::NHARTS-1:0] axi_msi_packets ,        \
@@ -1214,6 +1229,7 @@ package rv_tester_params;
     rv_tester_params::mcmi_t                 [rv_tester_params::TOTAL_NIEVICTS-1:0]    mcmi_ievict; \
     rv_tester_params::csri_t                 csri          [rv_tester_params::NHARTS-1:0];          \
     rv_tester_params::pmci_t                 pmci          [rv_tester_params::NHARTS-1:0];          \
+    rv_tester_params::hpmi_t                 hpmi          [rv_tester_params::NHARTS-1:0];          \
     rv_tester_pkg::sc_pmci_t                 sc_pmci;                                               \
     rv_tester_params::slv_req_top            axi_req [rv_tester_params::AXI_TOTAL-1:0];             \
     rv_tester_params::slv_resp_top           axi_rsp [rv_tester_params::AXI_TOTAL-1:0];             \
