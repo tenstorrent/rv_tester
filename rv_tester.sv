@@ -80,12 +80,6 @@ module rv_tester
          end
      end
 
-     assign dut_clk[TB_CLK_IDX] = clk[TB_CLK_IDX];
-     for (genvar c = 1; c < NCLKS; c++) begin
-         assign dut_clk[c] = force_ref_clk_d2 ? clk[REF_CLK_IDX] : clk[c];
-     end
-
-
     import "DPI-C" function void rv_tester_streaming_dpi_init();
     import "DPI-C" function int rv_tester_parse_flags(); // dummy return value so that this gets called immediately. need this to happen before any other DPIs are called.
     import "DPI-C" function void rv_tester_set_seed();
@@ -103,8 +97,9 @@ module rv_tester
     xbar_rule_t [NoAddrRules-1:0] addr_map, addr_map_final, addr_map_idx1;    
     bit perf = 0;
     /* verilator lint_off MULTIDRIVEN */
-    logic [NCLKS-1:0] sys_reset = '1;
+    logic sys_reset [NCLKS-1:0];
     /* verilator lint_on MULTIDRIVEN */
+    logic sys_reset_any;
     logic dut_reset_req_in_progress = '0;
     logic dut_reset_req_d1;
     logic init_pulse;
@@ -183,8 +178,8 @@ module rv_tester
     assign dut_terminate_any = dut_terminate;
 
 
-    assign terminate           = (dut_terminate_any || rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sys_reset[TB_CLK_IDX]) || quiesce_counter > 0) && !rv_tester_reset;
-    assign terminate_now       = (terminate_1T && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue == '0) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced )) || dut_terminate_any || warm_reset_now;
+    assign terminate           = (dut_terminate_any || rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sys_reset_any) || quiesce_counter > 0) && !rv_tester_reset;
+    assign terminate_now       = (terminate_1T && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue == '0) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced )) || dut_terminate_any || warm_reset_now; 
 
     
     assign rerun_now           = terminated && ((num_reruns > 0) || (warm_reset_en && (num_resets <= target_num_resets)));
@@ -397,11 +392,28 @@ module rv_tester
     end
 
     // sys_reset per clock domain
+    logic sys_reset_pending [NCLKS-1:0];
     for (genvar c = 0; c < NCLKS; c++) begin
-        always @(posedge dut_clk[c]) begin
-            sys_reset[c] <= '0;
-            if (rv_tester_reset)
-                sys_reset <= '1;
+        if (c != TB_CLK_IDX) begin
+            rv_tester_cdc_pulse cdc_pulse (
+                .clk_a (dut_clk[TB_CLK_IDX]),
+                .clk_b (dut_clk[c]),
+                .pulse_a (rv_tester_reset),
+                .pulse_b (sys_reset[c]),
+                .pulse_pending_or_asserted_a (sys_reset_pending[c])
+            );
+        end else begin
+            always_ff @(posedge dut_clk[TB_CLK_IDX]) begin
+                sys_reset[c] <= rv_tester_reset;
+            end
+            assign sys_reset_pending[c] = sys_reset[c];
+        end
+    end
+
+    always_comb begin
+        sys_reset_any = '0;
+        for (int c = 0; c < NCLKS; c++) begin
+            sys_reset_any |= sys_reset_pending[c];
         end
     end
 
@@ -428,14 +440,14 @@ module rv_tester
 
     // We also assert reset at the end of the test to quiesce the DPIs.
     logic reset_pullup;
-    assign reset_pullup = rv_tester_reset || sys_reset[TB_CLK_IDX] || terminate_now || terminated;
+    assign reset_pullup = rv_tester_reset || sys_reset_any || terminate_now || terminated;
 
     assign reset[COLD_RESET_IDX] = cold_reset || init_pulse || (reset_pullup && !warm_reset_pulse);
     assign reset[WARM_RESET_IDX] = warm_reset;
 
     assign dut_reset[TB_CLK_IDX] = reset[COLD_RESET_IDX] || reset[WARM_RESET_IDX];
-    assign dut_reset[CORE_CLK_IDX] = reset_window;
-    assign dut_reset[AXI_CLK_IDX] = reset_window;
+    assign dut_reset[CORE_CLK_IDX] = &core_no_fetch;
+    assign dut_reset[AXI_CLK_IDX] = &core_no_fetch;
     assign dut_reset[SOC_CLK_IDX] = reset[COLD_RESET_IDX];
     assign dut_reset[REF_CLK_IDX] = reset_window;
 
