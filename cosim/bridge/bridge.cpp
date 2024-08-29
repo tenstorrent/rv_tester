@@ -31,7 +31,6 @@ DEFINE_uint64(resetpc, 0x80000000, "Reset PC");
 DEFINE_uint64(resetpcfw, 0xC0040000, "Reset firmware PC");
 DEFINE_bool(whisper_exec, true, "Enable rvfi instr processing...disable useful for measuring rvfi DPI performance");
 DEFINE_bool(bridge_log, true, "Enable bridge logging");
-DEFINE_string(whisper_json_path, "", "Path to whisper json config");
 DEFINE_bool(cosim_resynch, false, "Resynch whisper with dut state on every instruction");
 DEFINE_string(cosim_resynch_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
 DEFINE_string(cosim_resynch_prev_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
@@ -62,11 +61,6 @@ DEFINE_string(archsample_lib_path, "", "Path to libarchsample.so");
 DEFINE_bool(standalone, true, "Enable whisper standalone run at beginning of sim");
 DEFINE_bool(metrics, true, "Enable printing metrics in log file");
 DEFINE_uint32(max_pend_intr_age, 128, "Number of instructions allowed to retire before a pending interrupt should be taken");
-// DEFINE_bool(whisper_log, true, "Enable whisper logging to iss_cosim.log and iss_cmd.log");
-// DEFINE_bool(whisper_cosim_log, false, "Enable whisper logging to iss_cosim.log");
-// DEFINE_bool(whisper_cmd_log, false, "Enable whisper logging to iss_cmd.log");
-// DEFINE_bool(whisper_stdin_null, false, "Redirect whisoer stdin to null");
-// DEFINE_bool(whisper_stdout_null, false, "Redirect whisoer stdout to null");
 DEFINE_bool(preload, false, "Whisper preload");
 
 DEFINE_int32(mcmi_poke_enables, 0, "MCM interface poke enables");
@@ -173,7 +167,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
 
 // Destructor
 bridge::~bridge() {
-  report_metrics();
+  // report_metrics();
 }
 
 void bridge::reset() {
@@ -206,12 +200,12 @@ void bridge::reset() {
 
   if(FLAGS_enable_sp_init){ //only poke num ways when sp_init is required
     uint64_t poke_data = uint64_t(FLAGS_enable_sp_init);
-    if (!client_->whisperPokeMem(0, 0, 'm', memmap_.at("boot").base + 0x9008, 8, poke_data, valid)){
+    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(WHISPER_LOC, 0, 0, 'm', memmap_.at("boot").base + 0x9008, 8, poke_data, valid)){
       print(cvm::ERROR, "Error: Hart {}: Failed to poke boot memory\n", id_);
       return;
     }
     poke_data = uint64_t(FLAGS_num_sp_ways);
-    if (!client_->whisperPokeMem(0, 0, 'm', memmap_.at("boot").base + 0x9010, 8, poke_data, valid)){
+    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(WHISPER_LOC, 0, 0, 'm', memmap_.at("boot").base + 0x9010, 8, poke_data, valid)){
        print(cvm::ERROR, "Error: Hart {}: Failed to poke boot memory\n", id_);
        return;
     }
@@ -2419,15 +2413,17 @@ std::string bridge::get_csr_name(const std::string& csr_addr) {
 }
 
 void bridge::final_phase() {
-  //report_metrics();
+  // report_metrics();
 }
 
 void bridge::process(const rv_tester::terminate_called&) {
   terminated_ = true;
+  // report_metrics();
 }
 
 void bridge::report_metrics() {
   if (!FLAGS_metrics || !cvm::registry::messenger.call<whisperClient<uint64_t>::whisperConnectedRPC>(WHISPER_LOC))
+  // if (!FLAGS_metrics)
     return;
 
   print(cvm::NONE, "[COSIM] Report metrics...\n");

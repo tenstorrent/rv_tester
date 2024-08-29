@@ -38,6 +38,9 @@ DEFINE_bool(whisper_cosim_log, false, "Enable whisper logging to iss_cosim.log")
 DEFINE_bool(whisper_cmd_log, false, "Enable whisper logging to iss_cmd.log");
 DEFINE_bool(dm_randpc, false, "Random PC to DM via trickbox"); // this should be in whisper_client.cpp
 DEFINE_uint64(dm_randpc_addr, 0x9080500, "Random PC to DM address");
+DEFINE_bool(whisper_stdin_null, false, "Redirect whisoer stdin to null");
+DEFINE_bool(whisper_stdout_null, false, "Redirect whisoer stdout to null");
+DEFINE_string(whisper_json_path, "", "Path to whisper json config");
 
 REGISTRY_register(whisperClient<uint64_t>, TOP.PLATFORM.WHISPER_CLIENT, 0);
 
@@ -46,12 +49,18 @@ extern void (*__tracerExtension)(void*);
 
 template <typename URV>
 whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) {
+  cvm::log(cvm::MEDIUM, "[whisperClient] initializing whisperClient\n");
 
   std::string traceFile  = (FLAGS_whisper_log || FLAGS_whisper_cosim_log) ? "iss_cosim.log" : "";
   std::string commandLog = (FLAGS_whisper_log || FLAGS_whisper_cmd_log  ) ? "iss_cmd.log" : "";
 
   traceFile_ = traceFile.empty() ? nullptr : fopen(traceFile.c_str(), "w");
   commandLog_ = commandLog.empty() ? nullptr : fopen(commandLog.c_str(), "w");
+
+  cvm::registry::messenger.procedure<set_dm_randpc_RPC>(loc, [this] (uint64_t dm_randpc) {return this->set_dm_randpc(dm_randpc);});
+  cvm::registry::messenger.procedure<get_dm_randpc_RPC>(loc, [this] () {return this->get_dm_randpc();});
+  cvm::registry::messenger.procedure<set_dm_randpc_addr_RPC>(loc, [this] (uint64_t dm_randpc_addr) {return this->set_dm_randpc_addr(dm_randpc_addr);});
+  cvm::registry::messenger.procedure<get_dm_randpc_addr_RPC>(loc, [this] () {return this->get_dm_randpc_addr();});
 
   cvm::registry::messenger.procedure<whisperConnectRPC>(loc, [this] (uint16_t ncores) {return this->whisperConnect(ncores);});
   cvm::registry::messenger.procedure<whisperConnectedRPC>(loc, [this] () {return this->whisperConnected();});

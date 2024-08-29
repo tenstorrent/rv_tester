@@ -16,7 +16,7 @@
 #include "cvm/topology.hpp"
 #include "cvm/registry.hpp"
 #include "cvm/logger.hpp"
-#include "whisper_client_decl.h"
+#include "whisper_client.h"
 
 class evt_trigger : public subdevice
 {
