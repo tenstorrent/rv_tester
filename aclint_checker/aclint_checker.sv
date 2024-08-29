@@ -46,7 +46,7 @@ import rv_tester_params:: * ;
 
     //ACLINT force SYNC message checker
     logic forcesynccame;
-    assign forcesynccame = (AcReqPktRfClki.addr == TIMESYNC) && AcReqPktRfClki.valid && (AcReqPktRfClki.data == 'hff);
+    assign forcesynccame = (AcReqPktRfClki.addr == TIMESYNC) && AcReqPktRfClki.valid && AcReqPktRfClki.mask=='hff && (AcReqPktRfClki.data == 'hff);
 
     for (genvar n = 0; n < NHARTS; n++) begin : acsync_force
 
@@ -109,13 +109,13 @@ import rv_tester_params:: * ;
     always @(posedge rf_clk) begin
         if(reset) begin
             wakecore <= 0;
-        end else if ((AcReqPktRfClki.addr == WAKECORE) && AcReqPktRfClki.valid) begin
+        end else if ((AcReqPktRfClki.addr == WAKECORE) && AcReqPktRfClki.valid && AcReqPktRfClki.mask=='hff) begin
             wakecore <= AcReqPktRfClki.data;
         end
     end
     always_comb begin
         for (int j = 0; j < 9; j++) begin
-            mtimecmp_wr_valid[j] = AcReqPktRfClki.valid && ( (AcReqPktRfClki.addr == (MTIMECMP0 + (j<<3) )) || ((AcReqPktRfClki.addr == WAKETIME ) && wakecore==j) );
+            mtimecmp_wr_valid[j] = AcReqPktRfClki.valid && AcReqPktRfClki.mask=='hff && ( (AcReqPktRfClki.addr == (MTIMECMP0 + (j<<3) )) || ((AcReqPktRfClki.addr == WAKETIME ) && wakecore==j) );
         end
     end
 
