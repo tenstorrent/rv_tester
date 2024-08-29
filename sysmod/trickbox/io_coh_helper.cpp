@@ -11,6 +11,8 @@ io_coh_helper::io_coh_helper(const std::string& tag, uint64_t addr, unsigned, cv
 {
   rng.seed(FLAGS_seed);
   io_coh_helper_base = addr;
+  axi_mst_loc_l  = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST", 0);
+  
   reset();
   checkUsage();
 }
@@ -46,7 +48,10 @@ io_coh_helper::read_dev(uint64_t addr, size_t length, data_t& data)
     uint64_t backdoor_read_data =  0;
     serializeInt(backdoor_read_data, length, data);
   }
-
+  if(addr ==(io_coh_helper_base + 0x5b0)) {
+    uint64_t backdoor_write_status =  (uint64_t)write_in_flight;
+    serializeInt(backdoor_write_status, length, data);
+  }
 
 
   return;
@@ -65,6 +70,7 @@ io_coh_helper::checkUsage(){
 void
 io_coh_helper::overlay_write(uint64_t addr,uint64_t data)
 {
+  cvm::log(cvm::HIGH, "[io_coh_helper] overlay_write: {:#x} \n", addr);
      uint32_t length = 0x40;
     std::vector<uint8_t> data1;
     std::vector<bool> strb1;
@@ -153,7 +159,7 @@ void
 
   } else if (addr ==(io_coh_helper_base + 0x300)) {
     cvm::log(cvm::HIGH, "[io_coh_helper] Transfer type {:#x}  \n",t_data);
-    tx_type = 0;
+    tx_type = t_data;
     
 
   } else if(addr ==(io_coh_helper_base + 0x400)) {
