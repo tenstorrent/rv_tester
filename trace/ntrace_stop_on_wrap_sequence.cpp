@@ -100,15 +100,17 @@ cvm::messenger::task<void> ntrace_stop_on_wrap_sequence::enable_ntrace() {
 }
 
 cvm::messenger::task<void> ntrace_stop_on_wrap_sequence::check_dst_trace_ram_en() {
+
+  cvm::log(cvm::NONE, "[trace] Check DST RAM ENABLE \n");
   while (true) {
 
-    cvm::log(cvm::NONE, "[trace] Check DST RAM ENABLE \n");
     auto data = co_await read(tr_dst_ram_control, SZ_4B);
-    cvm::log(cvm::NONE, "[trace] Check DST RAM ENABLE data: {:#x}\n", data);
-    if (data & (1 << tr_ram_enable_idx))
+    if (data & (1 << tr_ram_enable_idx)){
+      cvm::log(cvm::NONE, "[trace] Observed DST RAM ENABLE data: {:#x}\n", data);
       break;
+    }
 
-    for(int cnt_loop=0;cnt_loop < 500;cnt_loop ++){
+    for(int cnt_loop=0;cnt_loop < 800;cnt_loop ++){
       co_await tick();
     }
   }
@@ -119,19 +121,13 @@ cvm::messenger::task<void> ntrace_stop_on_wrap_sequence::check_dst_trace_ram_en(
 cvm::messenger::task<void> ntrace_stop_on_wrap_sequence::poll_dst_trace_ram_en() {
   cvm::log(cvm::NONE, "[trace] Checking DST Trace RAM Enable....\n");
   while (true) {
-  auto data = co_await read(cdbg_cla_ctrl_status, SZ_8B);
-  data = data & 0xFFFF'FF9F;
-  co_await write(cdbg_cla_ctrl_status,SZ_8B,data);
-  data = co_await read(tr_dst_control, SZ_4B);
-  data = data & 0xFFFF'FFFD;
-    for(int cnt_loop=0;cnt_loop < 500;cnt_loop ++){
+
+    for(int cnt_loop=0;cnt_loop < 800;cnt_loop ++){
       co_await tick();
     }
-    cvm::log(cvm::NONE, "[trace] read tr_ram_control\n");
-    data = co_await read(tr_dst_ram_control, SZ_4B);
-    cvm::log(cvm::NONE, "[trace] read tr_ram_control data: {:#x}\n", data);
+    auto data = co_await read(tr_dst_ram_control, SZ_4B);
     if ((data & (1 << tr_ram_enable_idx)) == 0){
-      cvm::log(cvm::NONE, "[trace] Checking DST Trace RAM Enable Completed....\n");
+      cvm::log(cvm::NONE, "[trace] Observed DST Trace RAM Enable ....\n");
       break;
     }
   }
@@ -185,6 +181,8 @@ cvm::messenger::task<void> ntrace_stop_on_wrap_sequence::read_dst_trace_ram() {
 
 cvm::messenger::task<void> ntrace_stop_on_wrap_sequence::enable_dst_trace_ram() {
   cvm::log(cvm::NONE, "[trace] Re-enabling DST Trace RAM....\n");
+  co_await write(tr_dst_ram_limit_low,SZ_4B,0x1000);
+  co_await write(tr_dst_ram_rp_low,SZ_4B,0x0);
   auto data = co_await read(tr_dst_ram_control, SZ_4B);
   data = data | 0x3;
   co_await write(tr_dst_ram_control,SZ_4B,data);
@@ -215,7 +213,7 @@ cvm::messenger::task<void> ntrace_stop_on_wrap_sequence::deactivate_trace_funnel
 
 cvm::messenger::task<void> ntrace_stop_on_wrap_sequence::enable_dst_trace() {
   cvm::log(cvm::NONE, "[trace] Re-enabling DST Trace....\n");
-  co_await write(cdbg_cla_counter0,SZ_8B,0xA00'0000);
+  co_await write(cdbg_cla_counter0,SZ_8B,0x3A00'0000);
 
   // Enable CLA CLK
   auto data = co_await read(cdbg_cla_ctrl_status, SZ_8B);
@@ -246,33 +244,39 @@ cvm::messenger::task<void> ntrace_stop_on_wrap_sequence::tick() {
 }
 
 cvm::messenger::task<uint64_t> ntrace_stop_on_wrap_sequence::read(uint64_t addr, size_t sz) {
+  uint64_t rdata;
+  uint8_t offset = static_cast<uint8_t>(addr & 0x3f);
+
   assert(sz <= 8);
   cvm::log(cvm::NONE, "[trace] read req - addr={:#x}, sz={}\n", addr, sz);
   cvm::registry::messenger.signal(axi_mst_loc_, transactor::read_request_t{addr, sz});
   auto resp = co_await cvm::registry::messenger.wait<transactor::read_response_t>(axi_mst_loc_);
-  auto data = convert_to_dword_array(resp.data);
-  cvm::log(cvm::NONE, "[trace] read resp - id={}, addr={:#x}, sz={}, data={:#x}\n", resp.id, addr, sz, data[0]);
-  co_return data[0];
+  rdata = convert_to_dword_array(resp.data,offset,sz);
+  cvm::log(cvm::NONE, "[trace] read resp - id={}, addr={:#x}, sz={}, data={:#x}\n", resp.id, addr, sz, rdata);
+  co_return rdata;
 }
 
 cvm::messenger::task<void> ntrace_stop_on_wrap_sequence::write(uint64_t addr, size_t sz, uint64_t data, bool block /* = true */) {
   assert(sz <= 8);
 
-  uint64_t offset = addr & 0x3f;
+  uint8_t offset = static_cast<uint8_t>(addr & 0x3f);
   uint64_t aligned_addr = addr & ~0x3full;
   auto byte_array = convert_to_byte_array(data, offset);
 
-  uint64_t mask = (sz == 8) ? ~uint64_t(0) : ((uint64_t)1 << (sz*8)) - 1;
-  mask <<= (offset * 8);
+  uint64_t mask = (sz == 64) ? ~uint64_t(0) : ((uint64_t)1 << (sz*8)) - 1;
+  // mask <<= (offset * 8);
 
-  std::bitset<64> mask_bits(mask);
+  // std::bitset<64> mask_bits(mask);
   std::vector<bool> strb(64, false);
-  for (int i = 0; i < 64; ++i) {
-      strb[i] = mask_bits.test(i);
+  for (int i = 0; i < static_cast<int>(sz); ++i) {
+      if (offset + i < 64) {
+          cvm::log(cvm::NONE, "[trace] write strb index={:#x}\n", (offset + i));
+          strb[offset + i] = 1;
+      }
   }
 
   cvm::log(cvm::NONE, "[trace] write req - addr={:#x}, sz={}, data={:#x}, mask={:#x}\n", aligned_addr, sz, data, mask);
-  cvm::registry::messenger.signal(axi_mst_loc_, transactor::write_request_t{aligned_addr, sz, byte_array, strb});
+  cvm::registry::messenger.signal(axi_mst_loc_, transactor::write_request_t{aligned_addr, 64, byte_array, strb});
   if (!block)
     co_return;
   auto resp = co_await cvm::registry::messenger.wait<transactor::write_response_t>(axi_mst_loc_);
@@ -280,15 +284,15 @@ cvm::messenger::task<void> ntrace_stop_on_wrap_sequence::write(uint64_t addr, si
   co_return;
 }
 
-std::vector<uint64_t> ntrace_stop_on_wrap_sequence::convert_to_dword_array(const std::vector<uint8_t>& byte_array) {
-  std::vector<uint64_t> result(byte_array.size() / sizeof(uint64_t));
-  std::copy(reinterpret_cast<const uint64_t*>(byte_array.data()),
-            reinterpret_cast<const uint64_t*>(byte_array.data() + byte_array.size()),
-            result.begin());
+uint64_t ntrace_stop_on_wrap_sequence::convert_to_dword_array(const std::vector<uint8_t>& byte_array, uint8_t shift, size_t sz) {
+  uint64_t result=0;
+  for (int i = 0; i < static_cast<int>(sz); ++i) {
+     result = result | static_cast<uint64_t>(byte_array[shift+i]) << (i*8);
+  }
   return result;
 }
 
-std::vector<uint8_t> ntrace_stop_on_wrap_sequence::convert_to_byte_array(uint64_t data, uint64_t shift) {
+std::vector<uint8_t> ntrace_stop_on_wrap_sequence::convert_to_byte_array(uint64_t data, uint8_t shift) {
     std::vector<uint8_t> byte_vector(64, 0); // Initialize a 64-byte vector with zeros
     for (int i = 0; i < 8; ++i) {
         if (shift + i < 64) {
