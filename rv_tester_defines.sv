@@ -56,11 +56,6 @@ package rv_tester_params;
     parameter SRAM_HOLD_IDX = mods.TOP.PLATFORM.RESETI.SRAM_HOLD_IDX;
     parameter DEBUG_HOLD_IDX = mods.TOP.PLATFORM.RESETI.DEBUG_HOLD_IDX;
     parameter CRITICAL_HOLD_IDX = mods.TOP.PLATFORM.RESETI.CRITICAL_HOLD_IDX;
-    parameter NDOMAINS = mods.TOP.PLATFORM.RESETI.NDOMAINS;
-    parameter CORE_RESET_IDX = mods.TOP.PLATFORM.RESETI.CORE_RESET_IDX;
-    parameter AXI_RESET_IDX = mods.TOP.PLATFORM.RESETI.AXI_RESET_IDX;
-    parameter SOC_RESET_IDX = mods.TOP.PLATFORM.RESETI.SOC_RESET_IDX;
-    parameter REF_RESET_IDX = mods.TOP.PLATFORM.RESETI.REF_RESET_IDX;
 
     // --------------------------------------
     // AXI interface
@@ -532,6 +527,9 @@ package rv_tester_params;
         logic [CLLEN-1:0]           data ;
         logic                       amo;
         logic [4:0]                 amo_op;
+        logic                       v_ext;
+        logic [36-1:0]              opcode;
+        logic [7:0]                 nano_op_elem_idx;
     } mcmi_t;
 
     // --------------------------------------
@@ -551,7 +549,7 @@ package rv_tester_params;
     // --------------------------------------
     // C2 
     // --------------------------------------
-    typedef enum {C2, TRIGGER_COUNT} event_trigger_type_t;
+    typedef enum {C2,PATCH,TRIGGER_COUNT} event_trigger_type_t;
     typedef struct packed {
         logic [63:0] data;
         logic [63:0] addr;
@@ -708,7 +706,10 @@ package rv_tester_params;
         SPEC_BRANCH_REDIRECT,
         SPEC_LSU_RESYNCS,
         TOTAL_FLUSHES,
+        TOTAL_TRAPS,
         UOPS_DECODED,
+        DECODE_SERIALIZE_BEFORE_CYCLES,
+        DECODE_SERIALIZE_AFTER_CYCLES,
         L1I_READ_ACCESS,
         L1I_READ_MISS,
         L1I_PREFETCH_ACCESS,
@@ -843,6 +844,9 @@ package rv_tester_params;
         LS_WAY_PREDICTOR_REPLAY_PREFETCH,
         LS_WAY_PREDICTOR_REPLAY_MMU,
         LS_WAY_PREDICTOR_REPLAY_ALL,
+        LS_MICRO_WAY_PREDICTOR_REPLAY_LOAD,
+        LS_MICRO_WAY_PREDICTOR_REPLAY_PREFETCH,
+        LS_MICRO_WAY_PREDICTOR_REPLAY_ALL,
         TAG_BANK_CONFLICT_REPLAY_LOAD,
         TAG_BANK_CONFLICT_REPLAY_STORE,
         TAG_BANK_CONFLICT_REPLAY_PREFETCH,
@@ -863,6 +867,13 @@ package rv_tester_params;
         FILLBUF_HIT_REPLAY_STORE,
         FILLBUF_HIT_REPLAY_MMU,
         FILLBUF_HIT_REPLAY_ALL,
+        L1D_VICTIM_FILL_EVICT,
+        L1D_VICTIM_EARLY_EVICT,
+        L1D_VICTIM_DEMAND_REQ,
+        L1D_VICTIM_PREFETCH_REQ,
+        L1D_VICTIM_MRU_ALLOC,
+        L1D_VICTIM_LRU_ALLOC,
+        L1D_VICTIM_ALL,
         L1D_CACHE_INVALIDATE_SNOOP,
         L1D_CACHE_INVALIDATE_CMO,
         L1D_CACHE_INVALIDATE_RAS,
@@ -892,7 +903,12 @@ package rv_tester_params;
         LS_CHILLOUT_ENTRANCES_MMU,
         LS_CHILLOUT_ENTRANCES_CIF,
         LS_CHILLOUT_ENTRANCES_ALL,
-        UTLB_MISS,
+        UTLB_HIT_LOAD,
+        UTLB_HIT_STORE,
+        UTLB_HIT_ALL,
+        UTLB_MISS_LOAD,
+        UTLB_MISS_STORE,
+        UTLB_MISS_ALL,
         LDQ_CANNOT_ALLOC,
         MDP_CORRECT_PREDICTION,
         MDP_FALSE_HIT,
@@ -913,6 +929,9 @@ package rv_tester_params;
         DFP_ACCESS_LOAD,
         DFP_ACCESS_STORE,
         DFP_ACCESS_MMU,
+        DFP_ACCESS_EVICT,
+        DFP_ACCESS_FILL,
+        DFP_ACCESS_SNOOP,
         DFP_ACCESS_ALL,
         TLB_INVALIDATES,
         STALLS_MEM_STORES,
@@ -929,6 +948,9 @@ package rv_tester_params;
         TAP_ACCESS_STORE,
         TAP_ACCESS_PREFETCH,
         TAP_ACCESS_MMU,
+        TAP_ACCESS_EVICT,
+        TAP_ACCESS_FILL,
+        TAP_ACCESS_SNOOP,
         TAP_ACCESS_ALL,
         UWP_ACCESS_AGP,
         UWP_ACCESS_ARB,
@@ -950,17 +972,24 @@ package rv_tester_params;
         TLP_ACCESS_LOAD,
         TLP_ACCESS_STORE,
         TLP_ACCESS_PREFETCH,
+        TLP_ACCESS_AGP,
+        TLP_ACCESS_ARB,
         TLP_ACCESS_ALL,
         FILLBUF_CANNOT_ALLOC,
         PFC_AGT_CANNOT_ALLOC,
         PFC_AGT_EVICT,
-        PFC_PHT_CANNOT_ALLOC,
-        PFC_PHT_LOOKUP,
-        PFC_PHT_HIT,
+        PFC_PHT_TAP_LOOKUP,
+        PFC_PHT_TAP_HIT,
+        PFC_PHT_AGT_ALLOC,
+        PFC_PHT_AGT_UPDATE,
+        PFC_PRT_ALLOC,
+        PFC_PRT_UPDATE,
         PFC_PRT_CANNOT_ALLOC,
         PFC_NO_TLB_CREDIT_STALLS,
         PFC_NO_TAG_CREDIT_STALLS,
         PFC_PREFETCHES_SENT,
+        PFC_PRT_L1D_EVICT_HIT,
+        PFC_PRT_REQBUF_ALLOC_HIT,
         EVENT_COUNT
     } pmc_event_t;
     
@@ -1058,17 +1087,19 @@ package rv_tester_params;
 `define _RV_TESTER_PORTS(input,output)                                                              \
     input                                    clk                [rv_tester_params::NCLKS-1:0],      \
     output                                   dut_clk            [rv_tester_params::NCLKS-1:0],      \
+    input                                    dut_reset          [rv_tester_params::NCLKS-1:0],      \
+    output                                   dut_reset_req,                                         \
+    input                                    dut_reset_req_active,                                  \
     input                                    force_ref_clk,                                         \
     output [rv_tester_params::NHARTS-1:0]    core_no_fetch,                                         \
     input  [rv_tester_params::NRESETS-1:0]   reset, /*Packed so zebu can easily force*/             \
     input  [rv_tester_params::NHOLDS-1:0]    reset_hold,                                            \
-    output [rv_tester_params::NDOMAINS-1:0]  dut_reset,                                             \
     input  rv_tester_params::bootstrap_t     bootstrap,                                             \
     input  [rv_tester_params::NHARTS-1:0]    nmi,                                                   \
     input  rv_tester_pkg::interrupt_t        interrupt          [rv_tester_params::NHARTS-1:0],     \
     output rv_tester_pkg::interrupt_t        interrupt_pend     [rv_tester_params::NHARTS-1:0],     \
     output                                   debug_mode         [rv_tester_params::NHARTS-1:0],     \
-    output                                   shutdown,                                              \
+    output                                   dut_terminate,                                         \
     input                                    terminate,                                             \
     input  logic                             terminated,                                            \
     output                                   quiesced,                                              \
@@ -1140,17 +1171,19 @@ package rv_tester_params;
 `define RV_TESTER_VARS(topology)                                                                    \
     logic                                    clk             [rv_tester_params::NCLKS-1:0];         \
     logic                                    dut_clk         [rv_tester_params::NCLKS-1:0];         \
+    logic                                    dut_reset       [rv_tester_params::NCLKS-1:0];         \
+    logic                                    dut_reset_req;                                         \
+    logic                                    dut_reset_req_active;                                  \
     logic                                    force_ref_clk;                                         \
     logic [rv_tester_params::NHARTS-1:0]     core_no_fetch;                                         \
     logic [rv_tester_params::NRESETS-1:0]    reset           /* Packed so zebu can force easily */; \
     logic [rv_tester_params::NHOLDS-1:0]     reset_hold;                                            \
-    logic [rv_tester_params::NDOMAINS-1:0]   dut_reset;                                             \
     rv_tester_params::bootstrap_t            bootstrap;                                             \
     logic [rv_tester_params::NHARTS-1:0]     nmi;                                                   \
     rv_tester_pkg::interrupt_t               interrupt       [rv_tester_params::NHARTS-1:0];        \
     rv_tester_pkg::interrupt_t               interrupt_pend  [rv_tester_params::NHARTS-1:0];        \
     logic                                    debug_mode      [rv_tester_params::NHARTS-1:0];        \
-    logic                                    shutdown;                                              \
+    logic                                    dut_terminate;                                         \
     logic                                    terminate;                                             \
     rv_tester_pkg::aplic_interrupt_t         aplic_interrupt;                                       \
     logic                                    terminated;                                            \

@@ -52,10 +52,10 @@ public:
   virtual void process_steps(hart_id_t hart, uint32_t n_retire, uint64_t cycle, uint64_t steps, uint64_t skips, uint64_t final_steps) override;
   virtual void process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d) override;
   virtual void process_dut_csr_hw_update(hart_id_t hart, csr_t& c) override;
-  virtual void process_compare_gp_regs(hart_id_t hart, const std::array<std::uint64_t, 32>& array);
-  virtual void process_compare_fp_regs(hart_id_t hart, const std::array<std::uint64_t, 32>& array);
-  virtual void process_compare_vc_regs(hart_id_t hart, const std::array<std::bitset<256>, 32>& array);
-  virtual void process_compare_vc_regs(hart_id_t hart, const std::array<std::uint64_t, 32>& array);
+  virtual void process_compare_gp_regs(hart_id_t hart, uint64_t cycle, const std::array<std::uint64_t, 32>& array);
+  virtual void process_compare_fp_regs(hart_id_t hart, uint64_t cycle, const std::array<std::uint64_t, 32>& array);
+  virtual void process_compare_vc_regs(hart_id_t hart, uint64_t cycle, const std::array<std::bitset<256>, 32>& array);
+  virtual void process_compare_vc_regs(hart_id_t hart, uint64_t cycle, const std::array<std::uint64_t, 32>& array);
 
   // Process memory access
   //   - Read (Ld completion)
@@ -98,7 +98,7 @@ private:
   void arch_state(whisper_state_t& w);
   void update_whisper_state(hart_id_t hart, whisper_state_t& w);
   void step(hart_id_t hart, whisper_state_t& w);
-  void compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w, const rv_instr_t& d);
+  void compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w, rv_instr_t& d);
   void print_instr(hart_id_t hart, const whisper_state_t& w);
   void print_instr_stdout(hart_id_t hart, const rv_instr_t& d);
   void print_instr_stdout(hart_id_t hart, const whisper_state_t& w);
@@ -167,7 +167,8 @@ private:
   bool htif_read(const rv_instr_t& d);
   bool hpm_counter_read(const std::string& instr);
   bool mip_mismatch(const std::string& instr);
-  bool imsic_mismatch(const std::string& instr);
+  bool topi_mismatch(const std::string& instr);
+  bool topei_mismatch(const std::string& instr);
   void resynch(hart_id_t hart, const rv_instr_group_t& d);
   void resynch(hart_id_t hart, const rv_instr_t& d);
   std::string get_nth_word(const std::string& s, int n);
@@ -183,7 +184,6 @@ private:
   int vlen_ = 0;
   CacCore cac_;
   CacCore csr_cac_;
-  bool first_reset_ = true;
 
   uint64_t order_ = 0;
 
@@ -196,9 +196,10 @@ private:
   rv_instr_t pd_;
 
   uint32_t step_ = 1;
+  uint32_t cycle_ = 1;
   uint64_t whisper_time_=0;
   uint64_t rvfi_calls_=0;
-  uint64_t num_sp_accesses_ = 0;
+  bool psc_stepping_ = false;
 
   // State variables
   bool ecall_ = false;
@@ -244,7 +245,7 @@ private:
   std::chrono::high_resolution_clock::time_point end_time_;
   std::chrono::high_resolution_clock::time_point start_of_test_;
   bool first_call_ = true;
-  
+  bool debug_on_ = false;
 
   // Memmap
   memmap::memmap_t memmap_;
@@ -252,6 +253,7 @@ private:
   std::array<std::array<int, 16>, 12> num_taken_interrupts_{};
 
   int num_exceptions_ = 0;
+  int num_sp_accesses_ = 0;
 
   size_8_bytes_t dword_vec_array [vlen/64] = {0};
   int unmask_bits_instr, unmask_bits_uop = 0;

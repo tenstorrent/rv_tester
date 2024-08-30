@@ -94,6 +94,8 @@ class rvfi {
 
     rv_instr_t prev_instr_;
 
+    bool in_reset_ = true;
+
     uint64_t count_ = 1;
 
     bool ucode_ = false;
@@ -117,8 +119,6 @@ class rvfi {
     std::unordered_map<uint64_t, mem_t> amo_writes_;
     std::unordered_map<uint64_t, mem_t> sc_result_;
     std::unordered_map<uint64_t, mem_t> sc_bypass_;
-
-    std::unordered_map<uint64_t, uint64_t> mem_read_data_; // new map for storing mem read data along with tag
 
     svScope scope_;
 

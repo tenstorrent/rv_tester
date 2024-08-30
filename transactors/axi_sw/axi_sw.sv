@@ -153,14 +153,15 @@ module axi_sw #(
     logic w_last_queue_full, w_last_queue_empty;
     logic r_queue_empty     ;
 
-    import "DPI-C" context function void axi_sw_set_scope(int unsigned location);
+    // dummy return value to make sure it's not zDPI
+    import "DPI-C" context function byte unsigned axi_sw_set_scope(int unsigned location);
 
     always @(posedge clk) begin
         if (sys_reset) begin
             /* verilator lint_off BLKSEQ */
                 // FIXME add a reset for the axi xtor
             if (LOCATION != cvm_topology::nil) begin
-                axi_sw_set_scope(LOCATION);
+                automatic byte unsigned _ = axi_sw_set_scope(LOCATION);
             end
             /* verilator lint_on BLKSEQ */
         end
@@ -318,16 +319,15 @@ module axi_sw #(
             automatic int unsigned fixed   = cvm_plusargs::get_int("axi_sw_read_latency_fixed");
             read_latency_timeout_threshold = cvm_plusargs::get_int("axi_sw_read_latency_timeout_threshold");
             read_latency_fifo_threshold    = cvm_plusargs::get_int("axi_sw_read_latency_fifo_threshold");
-            read_latency       = max | fixed;
+            read_latency       = (fixed != 0) ? fixed : max;
             read_latency_fixed = fixed != 0;
             /* verilator lint_on BLKSEQ */
-            if (max != 0 && fixed != 0                                            ) $error("Error: +axi_sw_read_latency_max and +axi_sw_read_latency_fixed cannot both be set");
             if (read_latency     >= (32'(1)) << CW                                ) $error("Error: +axi_sw_read_latency_max/+axi_sw_read_latency_fixed (%0d) overflows counter width (%0d)", read_latency, CW);
             if (read_latency != 0 && read_latency_timeout_threshold > read_latency) $error("Error: +axi_flush_threshold (%0d) > +axi_sw_read_latency_max/+axi_sw_read_latency_fixed (%0d)", read_latency_timeout_threshold, read_latency);
         end
     end
 
-    localparam AR_HISTORY_Q_MAX = 16;
+    localparam AR_HISTORY_Q_MAX = 128;
 
     logic                   ar_history_empty;
     logic [CW         -1:0] ar_history_q;
@@ -562,14 +562,15 @@ module axi_sw_mst #(
     } w_t;
 
 
-    import "DPI-C" context function void axi_sw_mst_set_scope(int unsigned location);
+    // dummy return value to make sure it's not zDPI
+    import "DPI-C" context function byte unsigned axi_sw_mst_set_scope(int unsigned location);
 
     always @(posedge clk) begin
         if (sys_reset) begin
             /* verilator lint_off BLKSEQ */
                 // FIXME add a reset for the axi xtor
             if (LOCATION != cvm_topology::nil) begin
-                axi_sw_mst_set_scope(LOCATION);
+                automatic byte unsigned _ = axi_sw_mst_set_scope(LOCATION);
             end
             /* verilator lint_on BLKSEQ */
         end

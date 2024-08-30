@@ -74,6 +74,9 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
 }
 
 rvfi::~rvfi() {
+  uint32_t ncores = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
+  if (FLAGS_rvfi && ncores == 1 && count_ == 1)
+    cvm::log(cvm::ERROR, "Error: rvfi termination without processing any instructions\n");
 }
 
 void rvfi::init() {
@@ -91,22 +94,27 @@ void rvfi::init() {
 
 void rvfi::process(const rv_tester_transactions::cosim::m_reset<>& m_reset) {
 
-  if (!FLAGS_cosim || terminated_)
+  if (terminated_)
     return;
 
   if (loc_ != m_reset.location)
     return;
 
-  cvm::log(cvm::MEDIUM, "[RVFI] Reset\n");
-  bridge_->reset();
+  in_reset_ = false;
+  cvm::log(cvm::MEDIUM, "[rvfi] reset\n");
+
+  if (FLAGS_cosim) {
+    bridge_->reset();
+  }
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
-  if (terminated_)
+  if (terminated_ || in_reset_)
     return;
 
   if (loc_ != m_rvfi.location)
     return;
+
 
   // Construct rv_instr_t and send to bridge
   rv_instr_t instr;
@@ -144,10 +152,11 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   // Clear state
   intr_ = false;
   excp_ = false;
+
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
-  if (terminated_)
+  if (terminated_ || in_reset_)
     return;
 
   if (loc_ != m_trap.location)
@@ -169,7 +178,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_core_intr<>& m_core_intr) {
-  if (terminated_)
+  if (terminated_ || in_reset_)
     return;
 
   if (loc_ != m_core_intr.location)
@@ -191,7 +200,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_core_intr<>& m_core_in
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_imsic_msi<>& m_imsic_msi) {
-  if (terminated_)
+  if (terminated_ || in_reset_)
     return;
 
   if (loc_ != m_imsic_msi.location)
@@ -361,15 +370,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.mem_read.valid = (m_rvfi.mem_rmask != 0);
   instr.mem_read.va = m_rvfi.mem_addr;
   instr.mem_read.pa = m_rvfi.mem_paddr;
-  if(mem_read_data_.count(instr.tag)>0)
-  {
-    instr.mem_read.data = mem_read_data_.at(instr.tag); 
-    // removing the key value pair from the map
-    mem_read_data_.erase(instr.tag);
-  }
-  else
-    instr.mem_read.data = m_rvfi.mem_rdata;
-
+  instr.mem_read.data = m_rvfi.mem_rdata;
   instr.mem_read.size = log2(m_rvfi.mem_rmask + 1);
   instr.mem_read.attr = m_rvfi.mem_attr;
 
@@ -380,7 +381,6 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.mem_write.data = m_rvfi.mem_wdata;
   instr.mem_write.size = log2(m_rvfi.mem_wmask + 1);
   instr.mem_write.attr = m_rvfi.mem_attr;
-
 }
 
 void rvfi::append_uop_changes_to_instr(rv_instr_t& instr) {
@@ -529,34 +529,48 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
   log(cvm::NONE, fmt::to_string(dut_log));
 }
 void rvfi::process(const rv_tester_transactions::cosim::m_steps<>& m_steps) {
-  if (terminated_)
+  if (terminated_ || in_reset_)
+    return;
+  if (!FLAGS_cosim)
     return;
   bridge_->process_steps(m_steps.hart, m_steps.n_retire, m_steps.cycle, m_steps.steps, m_steps.skips, m_steps.final_steps);
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_gp_regs<>& m_gp_regs) {
-  if (terminated_)
+  if (terminated_ || in_reset_)
     return;
-  bridge_->process_compare_gp_regs(m_gp_regs.hart,m_gp_regs.value);
+  if (!FLAGS_cosim)
+    return;
+  if (loc_ != m_gp_regs.location)
+    return;
+  bridge_->process_compare_gp_regs(m_gp_regs.hart,m_gp_regs.cycle,m_gp_regs.value);
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_fp_regs<>& m_fp_regs) {
-  if (terminated_)
+  if (terminated_ || in_reset_)
     return;
-  bridge_->process_compare_fp_regs(m_fp_regs.hart , m_fp_regs.value);
+  if (!FLAGS_cosim)
+    return;
+  if (loc_ != m_fp_regs.location)
+    return;
+  bridge_->process_compare_fp_regs(m_fp_regs.hart ,m_fp_regs.cycle, m_fp_regs.value);
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_vc_regs<>& m_vc_regs) {
-  if (terminated_)
+  if (terminated_ || in_reset_)
     return;
-  bridge_->process_compare_vc_regs(m_vc_regs.hart , m_vc_regs.value);
+  if (!FLAGS_cosim)
+    return;
+  if (loc_ != m_vc_regs.location)
+    return;
+  bridge_->process_compare_vc_regs(m_vc_regs.hart ,m_vc_regs.cycle, m_vc_regs.value);
 }
 
 void rvfi::send_instr(rv_instr_t& instr) {
   if (!FLAGS_cosim)
     return;
 
-  if (terminated_)
+  if (terminated_ || in_reset_)
     return;
 
   bridge_->process_dut_instr_retire(instr.hart, instr);
@@ -566,7 +580,7 @@ void rvfi::send_instr_group(hart_id_t hart, rv_instr_group_t& group) {
   if (!FLAGS_cosim)
     return;
 
-  if (terminated_)
+  if (terminated_ || in_reset_)
     return;
 
   bridge_->process_dut_instr_group_retire(hart, group);
@@ -576,7 +590,7 @@ void rvfi::send_csr(csr_t& csr) {
   if (!FLAGS_cosim)
     return;
 
-  if (terminated_)
+  if (terminated_ || in_reset_)
     return;
 
   bridge_->process_dut_csr_hw_update(csr.hart, csr);
@@ -587,7 +601,7 @@ void rvfi::enter_debug_mode(rv_instr_t& instr) {
   if (!FLAGS_cosim)
     return;
 
-  if (terminated_)
+  if (terminated_ || in_reset_)
     return;
 
   if (instr.intr && (instr.icause == 0)) { 
@@ -611,7 +625,7 @@ void rvfi::exit_debug_mode(rv_instr_t& instr) {
   if (!FLAGS_cosim)
     return;
 
-  if (terminated_)
+  if (terminated_ || in_reset_)
     return;
 
   if ((uint64_t)instr.pc.pc_rdata == FLAGS_debug_exit_pc) {
@@ -633,7 +647,7 @@ void rvfi::exit_debug_mode(rv_instr_t& instr) {
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_csri<>& m_csri) {
-  if (terminated_)
+  if (terminated_ || in_reset_)
     return;
 
   csr_t c {true, m_csri.hart, m_csri.cycle, m_csri.addr, m_csri.mask, m_csri.data};
@@ -644,28 +658,29 @@ void rvfi::process(const rv_tester_transactions::cosim::m_csri<>& m_csri) {
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_read) {
+  if (!FLAGS_mcm)
+    return;
+
+  if (terminated_ || in_reset_)
+    return;
+
+  if (!FLAGS_cosim)
+    return;
 
   mem_t m;
   m.valid  = true;
   m.hart   = m_mcmi_read.hart;
   m.cycle  = m_mcmi_read.cycle;
+  m.opcode  = m_mcmi_read.opcode;
   m.tag    = m_mcmi_read.order;
   m.pa     = m_mcmi_read.addr;
   m.size   = std::popcount(m_mcmi_read.mask);
   m.data   = m_mcmi_read.data;
+  m.data_vec   = m_mcmi_read.data_vec;
   m.amo    = m_mcmi_read.amo;
   m.amo_op = m_mcmi_read.amo_op;
-
-  mem_read_data_.emplace(m.tag,m.data);  
-
-  if (!FLAGS_mcm)
-    return;
-
-  if (terminated_)
-    return;
-
-  if (!FLAGS_cosim)
-    return;
+  m.v_ext  = m_mcmi_read.v_ext;
+  m.nano_op_elem_idx = m_mcmi_read.nano_op_elem_idx;
 
   // Handle SC
   // If read before bypass, store pass/fail result
@@ -706,6 +721,8 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
   m.pa    = m_mcmi_insert.addr;
   m.size  = std::popcount(m_mcmi_insert.mask);
   m.data  = m_mcmi_insert.data;
+  m.data_vec  = m_mcmi_insert.data_vec;
+  m.v_ext  = m_mcmi_insert.v_ext;
 
   bridge_->process_dut_mcm_insert(m_mcmi_insert.hart, m);
 }
@@ -714,7 +731,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
   if (!FLAGS_mcm)
     return;
 
-  if (terminated_)
+  if (terminated_ || in_reset_)
     return;
 
   if (!FLAGS_cosim)
@@ -866,7 +883,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_req<>& m_m
   if (!FLAGS_mcm)
     return;
 
-  if (terminated_)
+  if (terminated_ || in_reset_)
     return;
 
   if (!FLAGS_cosim)
@@ -884,7 +901,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>& m_
   if (!FLAGS_mcm)
     return;
 
-  if (terminated_)
+  if (terminated_ || in_reset_)
     return;
 
   if (!FLAGS_cosim)
@@ -907,7 +924,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ievict<>& m_mcmi_
   if (!FLAGS_mcm)
     return;
 
-  if (terminated_)
+  if (terminated_ || in_reset_)
     return;
 
   if (!FLAGS_cosim)

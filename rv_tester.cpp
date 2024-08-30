@@ -28,6 +28,7 @@ DEFINE_bool(trace_en, false, "Set this while running trace test");
 DEFINE_bool(overlay_mmr_en, false, "Set this while running overlay test");
 DEFINE_bool(jtag_en, false, "Set this while running jtag test");
 DEFINE_bool(smc_sweep_test ,false, "Set this while running small core sram sweep test");
+DEFINE_int32(dmi_poll_timeout, 50000, "Debug poll timeout after to host end call");
 DEFINE_int32(trace_timeout, 50000, "trace test end timeout after to host end call");
 DEFINE_int32(freq_switch_ncycles, 20000, "Switch clk frequencies after freq_switch_ncycles");
 DEFINE_int32(clk_profile, 0, "Clk profile to drive various clocks");
@@ -91,8 +92,12 @@ extern "C" {
     int rv_tester_parse_flags() {
         cvm::log(cvm::NONE, "[plusargs] Parsing...\n");
         cvm::plusargs::parse();
-        cvm::rand::seed(FLAGS_seed);
         return 0;
+    }
+
+    void rv_tester_set_seed() {
+        cvm::log(cvm::NONE, "[random] +seed={}\n", FLAGS_seed);
+        cvm::rand::seed(FLAGS_seed);
     }
 
     void rv_tester_parse_memmap(std::uint32_t no_addr_rules) {

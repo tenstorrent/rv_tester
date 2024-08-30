@@ -1,5 +1,5 @@
 #pragma once
-
+#include <iostream>
 #include "cvm/registry.hpp"
 #include "cvm/logger.hpp"
 #include "cvm/plusargs.hpp"
@@ -28,13 +28,17 @@ class nmi_sequence {
 
     cvm::messenger::task<void> tick();
     cvm::messenger::task<void> trigger();
+    cvm::messenger::task<void> reset();
 
     void init();
     void nmi(unsigned hart, uint8_t assert);
+    
+    cvm::rand::uniform_dist<int64_t> rng1;
 
   private:
 
     cvm::topology::loc_t loc_;
+    cvm::topology::loc_t triggers_loc;
     unsigned id_;
     svScope scope_;
 

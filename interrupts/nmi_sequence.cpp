@@ -5,8 +5,9 @@ REGISTRY_register(nmi_sequence, INTERRUPTS, cvm::registry::all);
 
 DEFINE_string(nmi, "off", "Enable nmi_sequence in the sim - off/random/trigger");
 DEFINE_string(nmi_count, "0:4", "Number of nmi sequences in the sim if random mode enabled");
-DEFINE_string(nmi_interval, "5000:50000", "TB cycle interval between nmi sequences in the sim if random mode enabled");
+DEFINE_string(nmi_interval, "1000:4000", "TB cycle interval between nmi sequences in the sim if random mode enabled");
 DEFINE_string(nmi_width, "200:500", "TB cycle width of nmi pulses in the sim if random mode enabled");
+DEFINE_int32(patch_mode_nmi_interval,10,"Number of Maximum cycles between two nmi while entering patch mode");
 
 extern "C" {
   void interrupts_init();
@@ -21,6 +22,7 @@ nmi_sequence::nmi_sequence(cvm::topology::loc_t loc, unsigned id) : loc_(loc), i
 
   // Scope
   cvm::registry::messenger.connect<svScope>(loc_, [this](svScope s) { return this->set_scope(s); });
+  triggers_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.TRIGGERS", 0);
 
   // nmi sequence threads
   if (FLAGS_nmi == "random") {
@@ -51,6 +53,10 @@ void nmi_sequence::trigger_mode_thread() {
 };
 
 cvm::messenger::task<void> nmi_sequence::random_mode() {
+
+  co_await reset();
+  cvm::log(cvm::NONE, "[interrupts] nmi sequence - no fetch observed\n");
+
   while (true) {
     // Wait for next tick generated after a random interval "nmi_interval"
     co_await tick();
@@ -69,18 +75,27 @@ cvm::messenger::task<void> nmi_sequence::random_mode() {
 }
 
 cvm::messenger::task<void> nmi_sequence::trigger_mode() {
-  // Wait for next selected trigger
-  co_await trigger();
+  while(1){
+     // Wait for next selected trigger
+     co_await trigger();
 
-  // Wait for tick after trigger
-  co_await tick();
+     // Wait for random ticks after trigger
+     int num_ticks = rng1() %FLAGS_patch_mode_nmi_interval;  
+     for(int i=0;i<num_ticks;i++)
+       co_await tick();
 
-  nmi(id_, ASSERT);
+     nmi(id_, ASSERT);
 
-  // Wait for next tick generated after a random width "nmi_width"
-  co_await tick();
+     // Wait for next tick generated after a random width "nmi_width"
+     co_await tick();
 
-  nmi(id_, DEASSERT);
+     nmi(id_, DEASSERT);
+  }
+}
+
+cvm::messenger::task<void> nmi_sequence::reset() {
+  co_await cvm::registry::messenger.wait<rv_tester_transactions::interrupts::m_reset<>>(loc_);
+  co_return;
 }
 
 void nmi_sequence::init() {
@@ -106,6 +121,8 @@ cvm::messenger::task<void> nmi_sequence::tick() {
 }
 
 cvm::messenger::task<void> nmi_sequence::trigger() {
+  co_await cvm::registry::messenger.wait<rv_tester_transactions::triggers::m_event_trigger_tick<>>(triggers_loc);
   co_return;
 }
+
 
