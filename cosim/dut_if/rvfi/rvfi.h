@@ -125,4 +125,5 @@ class rvfi {
 
     bool terminated_ = false;
     bool in_debug_mode_ = false;
+    bool shutdown_called_ = false;
 };

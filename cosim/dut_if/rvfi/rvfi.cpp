@@ -81,7 +81,10 @@ rvfi::~rvfi() {
 
 bool rvfi::shutdown_ready() {
   // need to report metrics before registry calls destructors
-  bridge_->report_metrics();
+  if (!shutdown_called_) {
+    bridge_->report_metrics();
+    shutdown_called_ = true;
+  }
   return true;
 }
 
