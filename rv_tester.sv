@@ -678,9 +678,9 @@ module rv_tester
        `RV_TESTER_TRANSACTIONS_TRACE_SOURCE_PARAMS(0)
     ) trace (
         .tb_clk(clk[TB_CLK_IDX]),
-        .tb_reset(sysmod_reset),
+        .tb_reset(sys_reset[TB_CLK_IDX]),
         .clk(dut_clk[AXI_CLK_IDX]),
-        .reset(dut_reset[AXI_RESET_IDX]),
+        .reset(dut_reset[AXI_CLK_IDX]),
         .core_no_fetch(core_no_fetch),
         `RV_TESTER_TRANSACTIONS_TRACE_SOURCE_PORTS(2,0,0)
     );
