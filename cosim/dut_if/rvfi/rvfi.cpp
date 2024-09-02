@@ -210,10 +210,10 @@ void rvfi::process(const rv_tester_transactions::cosim::m_core_nmi<>& m_core_nmi
   rv_nmi_t nmi;
   nmi.cycle = m_core_nmi.cycle;
   nmi.valid = m_core_nmi.nmi_assert;
-  nmi.cause = 0;
+  nmi.cause = m_core_nmi.nmi_cause;
 
   if (FLAGS_rvfi_log)
-    log(cvm::NONE, "#{} {} 0 (nmi:{:#x})\n", count_, nmi.cycle, nmi.valid);
+    log(cvm::NONE, "#{} {} 0 (nmi:{} cause:{})\n", count_, nmi.cycle, nmi.valid, nmi.cause);
 
   if (!FLAGS_cosim)
     return;

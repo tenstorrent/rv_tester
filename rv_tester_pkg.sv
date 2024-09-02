@@ -109,6 +109,11 @@ package rv_tester_pkg;
         logic ssi;
     } interrupt_t;
 
+    typedef struct packed {
+        logic nmi;
+        logic clai;
+    } nmi_t;
+
     typedef enum logic [1:0] {
         DTM_NOP   = 2'h0,
         DTM_READ  = 2'h1,

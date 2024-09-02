@@ -332,6 +332,8 @@ cosim:
                 width: 64
             nmi_assert:
                 width: 1
+            nmi_cause:
+                width: 64
 
     m_imsic_msi:
         domain: 1

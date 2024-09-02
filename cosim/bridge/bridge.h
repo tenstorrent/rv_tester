@@ -232,6 +232,7 @@ private:
   uint64_t intrtopriv_ = 3;
   std::vector<mem_t> mem_poke_{};
   rv_nmi_t nmi_ {};
+  bool nmi_poke_pending_ = false;
   uint64_t mip_ = 0;
   uint64_t prev_mip_ = 0;
   uint64_t e_mip_ = 0;

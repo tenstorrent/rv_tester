@@ -774,10 +774,10 @@ void bridge::pre_step_lrsc_poke(hart_id_t hart, const rv_instr_t& d) {
 }
 
 void bridge::pre_step_nmi_poke(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
-  if (!d.intr && !nmi_.valid)
+  if (!nmi_.valid || !nmi_poke_pending_)
     return;
 
-  if (!d.intr && nmi_.valid) {
+  if (!d.intr && nmi_poke_pending_) {
     nmi_age_++;
     bridge_log_(cvm::HIGH, "<{}> nmi_age++={}\n", w.time, nmi_age_);
     if ((nmi_age_ > FLAGS_max_pend_nmi_age) && !FLAGS_cosim_resynch && !FLAGS_intr_timeout_resynch) {
@@ -790,11 +790,12 @@ void bridge::pre_step_nmi_poke(hart_id_t hart, const rv_instr_t& d, whisper_stat
   nmi_age_ = 0;
 
   if (FLAGS_bridge_log) {
-    bridge_log_(cvm::MEDIUM, "<{}> NMI taken by DUT. dcause:[{}]\n", w.time, d.icause);
+    bridge_log_(cvm::MEDIUM, "<{}> NMI taken by DUT. dcause:[{}]\n", w.time, nmi_.cause);
   }
 
   // Poke nmi into whisper (how do we deassert?)
   poke_nmi(hart, nmi_.cycle, nmi_.cause);
+  nmi_poke_pending_ = false;
 }
 
 void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
@@ -2081,12 +2082,18 @@ void bridge::process_dut_nmi(hart_id_t hart, rv_nmi_t& n) {
   nmi_ = n;
   bridge_log_(cvm::MEDIUM, "<{}> NMI: Hart {} valid: {}\n", n.cycle, hart, n.valid);
 
+  if (n.valid) {
+    nmi_poke_pending_ = true;
+  }
+
   // If NMI pin deasserts before any retire, poke it to whisper
   // with the assumption that RTL has seen it
   // If we don't poke here, we will miss it since the poke in pre_step
   // will see nmi as deasserted
-  if (!n.valid && nmi_age_ == 0)
+  if (!n.valid && nmi_age_ == 0) {
     poke_nmi(hart, nmi_.cycle, nmi_.cause);
+    nmi_poke_pending_ = false;
+  }
 }
 
 void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
