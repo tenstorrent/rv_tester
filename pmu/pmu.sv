@@ -425,6 +425,7 @@ import rv_tester_pkg::*;
     assign pmcounterss[0].data.pfc_useless_prefetches = pmcounter[PFC_USELESS_PREFETCHES];
     assign pmcounterss[0].data.tlp_access_load = pmcounter[TLP_ACCESS_LOAD];
     assign pmcounterss[0].data.tlp_access_store = pmcounter[TLP_ACCESS_STORE];
+    assign pmcounterss[0].data.tlp_access_prefetch = pmcounter[TLP_ACCESS_PREFETCH];
     assign pmcounterss[0].data.tlp_access_agp = pmcounter[TLP_ACCESS_AGP];
     assign pmcounterss[0].data.tlp_access_arb = pmcounter[TLP_ACCESS_ARB];
     assign pmcounterss[0].data.tlp_access_all = pmcounter[TLP_ACCESS_ALL];

@@ -1126,6 +1126,8 @@ pmu:
                 width: 64
             tlp_access_store:
                 width: 64
+            tlp_access_prefetch:
+                width: 64
             tlp_access_agp:
                 width: 64
             tlp_access_arb:

@@ -28,6 +28,11 @@ module top
         .*
     );
 
+    assign dut_clk = clk;
+    /* verilator lint_off WIDTHEXPAND */
+    assign core_no_fetch = reset[COLD_RESET_IDX] || reset[WARM_RESET_IDX];
+    /* verilator lint_on WIDTHEXPAND */
+
     function automatic void write_rvfi(byte unsigned valid, int unsigned order, int unsigned hartid, int unsigned nretid, int unsigned insn, longint unsigned pc);
         int unsigned idx = hartid * cvm_topology_gen::mods.TOP.PLATFORM.COSIM.RVFI.NRETS_CUMSUM[hartid] + nretid;
         rvfi[idx].valid = (valid != '0);

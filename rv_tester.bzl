@@ -123,6 +123,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             "@rv_tester//:rv_tester.sv",
             "@rv_tester//:rv_tester_clkgen.sv",
             "@rv_tester//:rv_tester_mem.sv",
+            "@rv_tester//:rv_tester_lib.sv",
         ],
         deps = [
             "@cvm//:logger_sv",
