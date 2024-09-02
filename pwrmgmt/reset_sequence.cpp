@@ -90,12 +90,14 @@ void reset_sequence::warm_reset_sequence_thread() {
 };
 
 cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
-  // Wait for first clock tick
-  co_await tick();
+  // Wait for 16 clock ticks
+  for (int i=0; i<16; ++i)
+    co_await tick();
 
   // Init values for all pins
   // Assert cold reset
   init();
+  co_await cold_reset_ack();
 
   // Wait for 16 clock ticks
   for (int i=0; i<16; ++i)
@@ -103,6 +105,7 @@ cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
 
   // Deassert cold reset
   cold_reset(0);
+  co_await cold_reset_ack();
 
   if (!FLAGS_pwrmgmt) {
     force_ref_clk(0);
@@ -278,6 +281,12 @@ cvm::messenger::task<void> reset_sequence::release_cpl_nofetch() {
   co_await tick();
   co_await write(rst_ctl_nofetch, SZ_4B, ((~FLAGS_hart_enable_mask << cpl_cl_no_fetch) & 0xff));
 
+  co_return;
+}
+
+cvm::messenger::task<void> reset_sequence::cold_reset_ack() {
+  cvm::log(cvm::MEDIUM, "[pwrmgmt] waiting for cold_reset_ack\n");
+  co_await cvm::registry::messenger.wait<rv_tester_transactions::pwrmgmt::m_cold_reset_ack<>>(loc_);
   co_return;
 }
 
