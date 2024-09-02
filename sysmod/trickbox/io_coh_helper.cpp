@@ -115,7 +115,7 @@ cvm::messenger::task<void> io_coh_helper::blocking_read(const transactor::read_t
   read_in_flight = true;
   cvm::registry::messenger.signal(axi_mst_loc_l, transactor::read_request_t{addr, length});
 
-  auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(channel);
+  auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(axi_mst_loc_l);
   read_in_flight = false;
 
   cvm::log(cvm::HIGH, "[io_coh_helper] blocking read data begin: \n");
