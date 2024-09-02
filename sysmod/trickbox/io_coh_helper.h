@@ -99,7 +99,6 @@ protected:
 
 private:
   cvm::topology::loc_t axi_mst_loc_l;
-  cvm::messenger::pool<axi::r_t>::channel_info channel;
   uint64_t io_coh_helper_base = 0x9000000;
   uint64_t tx_status = 0;
   uint64_t tx_addr = 0x90a0000;
