@@ -19,7 +19,7 @@
 #include "cla_cfg/cla_cfg.h"
 #include "pm_nw_xtor/pm_nw_xtor.h"
 #include "cvm/topology.hpp"
-#include "cr_sc_chi_checker_params.hpp"
+#include "sysmod_params.hpp"
 
 #include <string>
 

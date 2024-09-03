@@ -29,6 +29,7 @@
 #include "cosim/dut_if/rvfi/rvfi_plusargs.h"
 #include "pmu/pmu_plusargs.h"
 #include "cosim/utils/general/util.h"
+#include "sysmod_params.hpp"
 
 // internal flags
 DEFINE_string(hex, "", "hex file (program) to load into memory");
