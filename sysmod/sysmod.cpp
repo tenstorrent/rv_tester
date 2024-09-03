@@ -113,6 +113,13 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
       }
       );
 
+  uint32_t num_harts = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
+  for(uint32_t i = 0 ; i < num_harts ; i++) {
+    int unsigned location = cvm::topology::get_from_type("CORE", i);
+    cvm::registry::messenger.connect<inval_load_s>(location , [this] (const auto& payload) { return this->store_inval_load(payload); });
+    cvm::registry::messenger.connect<inval_crsp_s>(location , [this] (const auto& payld) { return this->store_inval_crsp(payld); });
+  }
+
   cvm::registry::messenger.connect<sysmod::backdoor_write_t>(
       loc_,
       [this](sysmod::backdoor_write_t t) { 
@@ -627,6 +634,47 @@ sysmod::uc_helper_backdoor_write(uc_helper::uc_helper_write_t w) {
                 if (this->dev(wt.addr))
                     cvm::registry::messenger.signal<device::write_t>(this->loc_, {wt});
 
+}
+void sysmod::store_inval_crsp(const inval_crsp_s& payld) {
+  inval_crsp_ = payld;
+  // Compulsive Backdoor write
+  device::data_t data(8);
+  uint64_t read_data = 0;
+  uint64_t ld_addr = ((inval_crsp_.address) >> 6) << 6; // Starting from cacheline base address
+  // Performing Whisper Poke for entire Cacheline Granularity
+  for(uint64_t offset = 0 ; offset < 8 ; offset = offset + 1) {
+    read_data = 0;
+    dev("memory")->backdoor_read(ld_addr + (offset*8), 8, data);
+    for (int i=0; i<8; ++i) 
+      read_data |= uint64_t(data[i]) << (i*8);
+    if(client_ != nullptr) {
+      bool valid = true;
+      client_->whisperPokeMem(0, 0, 'm', (ld_addr + (offset*8)), 8, read_data, valid);
+    }
+  }
+}
+
+void sysmod::store_inval_load(const inval_load_s& payload) {
+  inval_load_ = payload;
+  // Do a backdoor read for the load's address
+  device::data_t data(8);
+  uint64_t read_data = 0;
+  uint64_t ld_addr = inval_load_.address; 
+  size_t length;
+  length = inval_load_.size;
+  int size = length;
+  dev("memory")->backdoor_read(ld_addr, length, data);
+  for (int i=0; i<size; ++i)
+    read_data |= uint64_t(data[i]) << (i*8);
+  if(inval_load_.data == read_data)
+  {
+    // No need to poke entire cacheline granularity - that will be done after CRSP
+    if(client_ != nullptr) {
+        bool valid = true;
+        cvm::log(cvm::HIGH, "CBO_INVAL_MONITOR :: Whisper Poke with data:{:#x} for address:{:#x}\n",read_data,ld_addr);
+        client_->whisperPokeMem(0, 0, 'm', ld_addr, 8, read_data, valid);
+      }
+  }
 }
 
 cvm::messenger::task<uint64_t> sysmod::backdoor_write(sysmod::backdoor_write_t t) {

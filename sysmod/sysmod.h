@@ -19,6 +19,7 @@
 #include "cla_cfg/cla_cfg.h"
 #include "pm_nw_xtor/pm_nw_xtor.h"
 #include "cvm/topology.hpp"
+#include "cr_sc_chi_checker_params.hpp"
 
 #include <string>
 
@@ -127,6 +128,8 @@ class sysmod {
     void reset();
 
     void process(const rv_tester_transactions::sysmod::tick<>& tick);
+    void store_inval_load(const inval_load_s& payload);
+    void store_inval_crsp(const inval_crsp_s& payld);
 
     svScope scope() { return scope_; }
     unsigned id() { return id_; }
@@ -141,6 +144,9 @@ class sysmod {
     memmap::memmap_t memmap_;
     std::string hostname = "localhost";
     int port = 50001;
+
+    inval_load_s inval_load_;
+    inval_crsp_s inval_crsp_;
 
     std::uint64_t ticks_ = 0;
     std::uint64_t jtag_ticks_ = 0;

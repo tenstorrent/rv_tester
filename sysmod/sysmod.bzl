@@ -65,6 +65,7 @@ def sysmod_gen(name, packet, topology, visibility = None, cc_attrs = {}, **kwarg
           "@cvm//:plusargs",
           "@cvm//:topology",
           "@cvm//:registry",
+          "@risc-p-cores//dv/core/core_rv_tester/cr_sc_chi_checker:cr_sc_chi_checker_params",
           packet + "_cc",
         ],
         alwayslink = True,
