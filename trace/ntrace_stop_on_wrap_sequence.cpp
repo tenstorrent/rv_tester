@@ -4,7 +4,7 @@
 
 REGISTRY_register(ntrace_stop_on_wrap_sequence, TRACE, cvm::registry::all);
 
-DEFINE_bool(ntrace_stop_on_wrap, true, "Enable ntrace_stop_on_wrap_sequence in the sim");
+DEFINE_bool(ntrace_stop_on_wrap, false, "Enable ntrace_stop_on_wrap_sequence in the sim");
 
 extern "C" {
   //void trace_init();
