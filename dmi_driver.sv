@@ -4,6 +4,7 @@ module dmi_driver (
     input logic                     reset,
 
     input logic [31:0]              rand_dmi_driver_dly,
+    input logic [31:0]              hart_enable_mask,
     
     input logic                     dmi_req_ready,
     input logic                     dmi_resp_valid,
@@ -50,8 +51,9 @@ module dmi_driver (
   logic check_step_core, core_hg_resumed_ss, core_haltsum_ss, core_check_haltsum_ss;
   logic [2:0] core_ss_index, core_halted_ss, core_halted_sdtrig;
   logic tselect_core, tselect_core_complete, core_rg_halt_sdtrig, core_haltsum_sdtrig, check_haltsum_sdtrig;
+  logic check_hartsellen, check_dmstatus_disc, hart_discovery, dmcontrol_hartsel;
 
-  int file_descr;
+  int file_descr, count_hart_enable_mask;
 
   typedef struct packed {
     logic [15:0] reg_addr;
@@ -122,6 +124,14 @@ module dmi_driver (
     core_haltsum_sdtrig <= 0;
     check_haltsum_sdtrig <= 0;
     core_halted_sdtrig <= 0;
+    check_hartsellen <= 0;
+    check_dmstatus_disc <= 0;
+    hart_discovery <= 0;
+    dmcontrol_hartsel <= 0;
+  end
+
+  initial begin
+    count_hart_enable_mask = $countones(hart_enable_mask);
   end
 
   assign misc_signals[0] = poll;
@@ -346,6 +356,15 @@ module dmi_driver (
         poll = 1;
         check_haltsum_sdtrig = 1;
         core_haltsum_sdtrig = 0;
+      end else if(cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[23:16] === 'hff) begin
+        poll = 1;
+        check_hartsellen = 1;
+        $display("check_hartsellen is set");
+      end else if(check_dmstatus_disc && cmd.addr === 'h10 && cmd.op === 'h2) begin
+        poll = 1;
+        hart_discovery = 1;
+        dmcontrol_hartsel = cmd.data[18:16];
+        $display("hart_discovery is set, dmcontrol_hartsel:%h ", dmcontrol_hartsel);
       end
     end
   endtask : is_poll_needed
@@ -426,6 +445,12 @@ module dmi_driver (
         end else if(check_haltsum_sdtrig) begin
           $display("[Poll] Read Haltsum reg for sdtrig");
           dmi_req <= 41'h10100000000;
+        end else if(check_hartsellen) begin
+          $display("[Poll] Check dmcontrol hartsellen based on DM fuse enable");
+          dmi_req <= 41'h4100000000;
+        end else if(hart_discovery) begin
+          $display("[Poll] Check dmstatus to see if the enabled hart is running");
+          dmi_req <= 41'h4500000000;
         end
         wait (dmi_req_ready == 1);
         @(posedge clk) dmi_req_valid <= '0;
@@ -665,6 +690,40 @@ module dmi_driver (
             check_haltsum_sdtrig = 0;
             core_halted_sdtrig = 0;
             $display("[Poll:ss_hg] haltsum_ss = %h as expected", core_halted_sdtrig);
+          end
+        end else if(check_hartsellen) begin
+          if(count_hart_enable_mask <= 2 && dmi_resp.data[16] === 1 && dmi_resp.data[25:17] === 0) begin
+            check_hartsellen = 0;
+            check_dmstatus_disc = 1;
+            poll = 0;
+            $display("Hartsellen should be 'b1");
+          end else if(count_hart_enable_mask <= 4 && dmi_resp.data[17:16] === 3 && dmi_resp.data[25:18] === 0) begin
+            check_hartsellen = 0;
+            check_dmstatus_disc = 1;
+            poll = 0;
+            $display("Hartsellen should be 'b11");
+          end else if(count_hart_enable_mask <= 8 && dmi_resp.data[18:16] === 7 && dmi_resp.data[25:19] === 0 ) begin
+            check_hartsellen = 0;
+            check_dmstatus_disc = 1;
+            poll = 0;
+            $display("Hartsellen should be 'b11");
+          end
+        end else if(hart_discovery) begin
+          $display("Chcking Hartsel in dmcontrol, hart_enable_mask[dmcontrol_hartsel]:%h, dmcontrol_hartsel:%h, dmi_resp.data[11:10]:%h", hart_enable_mask[dmcontrol_hartsel], dmcontrol_hartsel, dmi_resp.data[11:10]);
+          if(hart_enable_mask[dmcontrol_hartsel] === 1 && dmi_resp.data[11:10] === 3)  begin
+            hart_discovery = 0;
+            poll = 0;
+            dmcontrol_hartsel = 0;
+            $display("Selected hart is running as it's enabled");
+          end else if(hart_enable_mask[dmcontrol_hartsel] === 0 && dmi_resp.data[13:12] === 3 && dmi_resp.data[11:10] === 0) begin
+            hart_discovery = 0;
+            poll = 0;
+            dmcontrol_hartsel = 0;
+            $display("Selected hart is unavailable as it's disabled");
+          end
+          if(dmcontrol_hartsel === 7) begin
+            check_dmstatus_disc = 0;
+            $display("Clear check_dmstatus_disc");
           end
         end
       end

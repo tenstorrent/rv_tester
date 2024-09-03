@@ -152,6 +152,7 @@ module rv_tester
     int flush_timeout = 25000;
     bit print_terminate_message = '1;
 
+    int hart_enable_mask = 0;
     int rand_dmi_driver_dly = 0;
     int dmi_poll_counter = 0; 
     int dmi_poll_timeout = 50000;
@@ -307,6 +308,7 @@ module rv_tester
             overlay_mmr_en       <= cvm_plusargs::get_bool("overlay_mmr_en") != '0;
             jtag_en              <= cvm_plusargs::get_bool("jtag_en") != '0;
             rand_dmi_driver_dly  <= cvm_plusargs::get_int("rand_dmi_driver_dly");
+            hart_enable_mask     <= cvm_plusargs::get_int("hart_enable_mask");
 
             $display("[RVTESTER]: reconstructing registry");
             rv_tester_build_registry();
@@ -509,6 +511,8 @@ module rv_tester
         .clk(dut_clk[AXI_CLK_IDX]),
         .reset(~dut_reset[AXI_CLK_IDX]),
         .rand_dmi_driver_dly,
+        .hart_enable_mask,
+
         .dmi_req_ready,
         .dmi_resp_valid,
         .dmi_resp,
