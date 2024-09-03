@@ -73,6 +73,7 @@ class axi_sw_mst {
         uint32_t w_q_rptr_, w_q_wptr_;
 
         std::vector<bool> ids_;
+        std::vector<bool> chk_rsp_err_ids_;
         std::vector<size_t> sizes_;
         std::unordered_map<size_t, std::vector<uint8_t>> read_data_;
         std::deque<std::variant<axi::a_t, axi::w_t>> transactions_;
