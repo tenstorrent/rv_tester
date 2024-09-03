@@ -36,7 +36,6 @@ REGISTRY_register((axi_sw_mst<rv_tester_transactions::axi_sw_mst::b<4>,
                               rv_tester_transactions::axi_sw_mst::w_q_ptr<4>>), PM_NW_AXI_MST, cvm::registry::all);
 
 
-DEFINE_bool(axi_mask_bad_response, false, "Plusarg to mask bad responses on AXI bus");
 extern "C" {
     void axi_sw_mst_ar_reset();
     void axi_sw_mst_aw_reset();
@@ -97,7 +96,7 @@ void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const B& b) {
     if (b.resp != axi::RESP_OKAY or not used_id(b.id)) {
         // could have EXOKAY if it was locked, but assume not for now
-        if(!FLAGS_axi_mask_bad_response | chk_rsp_err_ids_[b.id]){
+        if(chk_rsp_err_ids_[b.id]){
             cvm::log(cvm::ERROR, "[axi_sw_mst] Error: bad b.response id:{} resp: {}\n", b.id, b.resp);
         }else{
             cvm::log(cvm::LOW, "[axi_sw_mst] Masking bad b.response id:{} resp: {}\n", b.id, b.resp);
@@ -122,7 +121,7 @@ template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const R& r) {
     if (r.resp != axi::RESP_OKAY or not used_id(r.id)) {
-        if(!FLAGS_axi_mask_bad_response | chk_rsp_err_ids_[r.id]){
+        if(chk_rsp_err_ids_[r.id]){
             cvm::log(cvm::ERROR, "[axi_sw_mst] Error: bad r.response id: {} resp: {} last: {}\n", r.id, r.resp, r.last);
         }else{
             cvm::log(cvm::LOW, "[axi_sw_mst] Masking bad r.response id: {} resp: {} last: {}\n", r.id, r.resp, r.last);
