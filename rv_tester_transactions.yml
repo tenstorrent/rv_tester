@@ -324,6 +324,17 @@ cosim:
             mip_assert:
                 width: 64
 
+    m_core_nmi:
+        domain: 1
+        num: 1
+        fields:
+            cycle:
+                width: 64
+            nmi_assert:
+                width: 1
+            nmi_cause:
+                width: 64
+
     m_imsic_msi:
         domain: 1
         num: 3
@@ -1467,13 +1478,13 @@ interrupts:
         num: 1
         fields:
             cycle:
-                width: 32
+                width: 64
     m_reset:
         domain: 2
         num: 1
         fields:
             cycle:
-                width: 32
+                width: 64
 
 triggers:
     num: ${TOP.PLATFORM.NHARTS}
