@@ -253,26 +253,32 @@ namespace {
 
 
   std::vector<uint32_t>  patch_body_blt ={
-    0x00f1d213,          	// srli	tp,gp,0xf
-    0x01f27213,          	// andi	tp,tp,31
-    0x0141d293,          	// srli	t0,gp,0x14
-    0x01f2f293,          	// andi	t0,t0,31
-    0x0071d313,          	// srli	t1,gp,0x7
-    0x01f37313,          	// andi	t1,t1,31
-    0x005223b3,          	// slt	t2,tp,t0
-    0x00400413,          	// li	s0,4
-    0x007474b3,          	// and	s1,s0,t2
-    0xfff3c393,          	// not	t2,t2
-    0x00737533,          	// and	a0,t1,t2
-    0x00a4e5b3,          	// or	a1,s1,a0
-    0x00bf00b3,          	// add	ra,t5,a1
-    0x7c9023f3,          	// csrr	t2,0x7c9
-    0x0023f393,          	// andi	t2,t2,2
-    0x00238393,          	// addi	t2,t2,2
-    0x007f00b3,          	// add	ra,t5,t2
-    0x4214cfb7,          	// lui	t6,0x4214c
-    0x0e4f8f9b,          	// addiw	t6,t6,228 # 4214c0e4 <tohost-0x2deb3f1c>
-    0x000f8067,          	// jr	t6
+    0x00f1d213,          // srli	tp,gp,0xf
+    0x01f27213,          // andi	tp,tp,31
+    0x00321213,          // slli	tp,tp,0x3
+    0x00220233,          // add	tp,tp,sp
+    0x0141d293,          // srli	t0,gp,0x14
+    0x01f2f293,          // andi	t0,t0,31
+    0x00329293,          // slli	t0,t0,0x3
+    0x002282b3,          // add	t0,t0,sp
+    0x00735313,          // srli	t1,t1,0x7
+    0x01f37313,          // andi	t1,t1,31
+    0x00331313,          // slli	t1,t1,0x3
+    0x00230333,          // add	t1,t1,sp
+    0x005223b3,          // slt	t2,tp,t0
+    0x00400413,          // li	s0,4
+    0x007474b3,          // and	s1,s0,t2
+    0xfff3c393,          // not	t2,t2
+    0x00737533,          // and	a0,t1,t2
+    0x00a4e5b3,          // or	a1,s1,a0
+    0x00bf00b3,          // add	ra,t5,a1
+    0x7c9023f3,          // csrr	t2,0x7c9
+    0x0023f393,          // andi	t2,t2,2
+    0x00238393,          // addi	t2,t2,2
+    0x007f00b3,          // add	ra,t5,t2
+    0x4214cfb7,          // lui	t6,0x4214c
+    0x0e4f8f9b,          // addiw	t6,t6,228 # 4214c0e4 <preg3+0x14704c>
+    0x000f8067           // jr	t6
   };
 
     std::vector<uint32_t>  patch_body_wfi ={
@@ -303,6 +309,78 @@ namespace {
     0x4214cfb7,          //	lui	t6,0x4214c
     0x0e4f8f9b,          //	addiw	t6,t6,228 # 4214c0e4 <tohost-0x2deb3f1c>
     0x000f8067,          //	jr	t6
+  };
+
+  std::vector<uint32_t>  patch_body_amoswap = {
+    0x00f1d213,          // srli	tp,gp,0xf
+    0x01f27213,          // andi	tp,tp,31
+    0x00321213,          // slli	tp,tp,0x3
+    0x00220233,          // add	tp,tp,sp
+    0x0141d293,          // srli	t0,gp,0x14
+    0x01f2f293,          // andi	t0,t0,31
+    0x00329293,          // slli	t0,t0,0x3
+    0x002282b3,          // add	t0,t0,sp
+    0x0071d313,          // srli t1,gp,0x7
+    0x01f37313,          // andi	t1,t1,31
+    0x00331313,          // slli	t1,t1,0x3
+    0x00230333,          // add	t1,t1,sp
+    0x00023203,          // ld	tp,0(tp) # 0 <mstatus-0x300>
+    0x0002b483,          // ld	s1,0(t0)
+    0x7c902573,          // csrr	a0,0x7c9
+    0x00156513,          // ori	a0,a0,1
+    0x7c951073,          // csrw	0x7c9,a0
+    0x100223af,          // lr.w	t2,(tp)
+    0x1892242f,          // sc.w	s0,s1,(tp)
+    0xfe041ce3,          // bnez	s0,-8
+    0x7c902573,          // csrr	a0,0x7c9
+    0x00257513,          // andi	a0,a0,2
+    0x7c951073,          // csrw	0x7c9,a0
+    0x00733023,          // sd	t2,0(t1)
+    0x0072b023,          // sd	t2,0(t0)
+    0x004f0093,          // addi	ra,t5,4
+    0x4214cfb7,          // lui	t6,0x4214c
+    0x0e4f8f9b,          // addiw	t6,t6,228 # 4214c0e4 <preg3+0x14704c>
+    0x000f8067,          // jr	t6
+  };
+
+std::vector<uint32_t>  patch_body_blt_arith = {
+    0x00f1d213,          	// srli	tp,gp,0xf
+    0x01f27213,          	// andi	tp,tp,31
+    0x00321213,          	// slli	tp,tp,0x3
+    0x00220233,          	// add	tp,tp,sp
+    0x0141d293,          	// srli	t0,gp,0x14
+    0x01f2f293,          	// andi	t0,t0,31
+    0x00329293,          	// slli	t0,t0,0x3
+    0x002282b3,          	// add	t0,t0,sp
+    0x0191d313,          	// srli	t1,gp,0x19
+    0x03f37493,          	// andi	s1,t1,63
+    0x00549493,          	// slli	s1,s1,0x5
+    0x04037313,          	// andi	t1,t1,64
+    0x00531313,          	// slli	t1,t1,0x5
+    0x00936333,          	// or	t1,t1,s1
+    0x0071d513,          	// srli	a0,gp,0x7
+    0x01e57493,          	// andi	s1,a0,30
+    0x00936333,          	// or	t1,t1,s1
+    0x00157493,          	// andi	s1,a0,1
+    0x00a49493,          	// slli	s1,s1,0xa
+    0x00936333,          	// or	t1,t1,s1
+    0x03431313,          	// slli	t1,t1,0x34
+    0x43435313,          	// srai	t1,t1,0x34
+    0x00023203,          	// ld	tp,0(tp) # 0 <mstatus-0x300>
+    0x0002b283,          	// ld	t0,0(t0)
+    0x40520eb3,          	// sub	t4,tp,t0
+    0x43fede13,          	// srai	t3,t4,0x3f
+    0x01c373b3,          	// and	t2,t1,t3
+    0xfffe4e13,          	// not	t3,t3
+    0x7c902473,          	// csrr	s0,0x7c9
+    0x00247413,          	// andi	s0,s0,2
+    0x00240413,          	// addi	s0,s0,2
+    0x01c47433,          	// and	s0,s0,t3
+    0x007403b3,          	// add	t2,s0,t2
+    0x01e380b3,          	// add	ra,t2,t5
+    0x4214cfb7,          	// lui	t6,0x4214c
+    0x0e4f8f9b,          	// addiw	t6,t6,228 # 4214c0e4 <preg3+0x14704c>
+    0x000f8067          	// jr	t6
   };
 }
 
