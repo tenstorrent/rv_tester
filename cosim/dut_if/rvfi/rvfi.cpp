@@ -80,13 +80,8 @@ rvfi::~rvfi() {
     cvm::log(cvm::ERROR, "Error: rvfi termination without processing any instructions\n");
 }
 
-bool rvfi::shutdown_ready() {
-  // need to report metrics before registry calls destructors
-  if (!shutdown_called_) {
-    bridge_->report_metrics();
-    shutdown_called_ = true;
-  }
-  return true;
+void rvfi::check() {
+  bridge_->report_metrics();
 }
 
 void rvfi::init() {

@@ -33,7 +33,7 @@ class rvfi {
 
     rvfi(cvm::topology::loc_t loc, unsigned id);
     ~rvfi();
-    bool shutdown_ready();
+    void check();
 
   private:
 
@@ -126,5 +126,4 @@ class rvfi {
 
     bool terminated_ = false;
     bool in_debug_mode_ = false;
-    bool shutdown_called_ = false;
 };
