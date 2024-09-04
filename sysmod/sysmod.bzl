@@ -65,6 +65,7 @@ def sysmod_gen(name, packet, topology, visibility = None, cc_attrs = {}, **kwarg
           "@cvm//:plusargs",
           "@cvm//:topology",
           "@cvm//:registry",
+          "@rv_tester//sysmod:sysmod_params",
           packet + "_cc",
         ],
         alwayslink = True,
