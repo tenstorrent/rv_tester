@@ -467,7 +467,7 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
   co_await write(cpl_patch_ram_ptrig_3, SZ_8B, concatenate_uint32_to_uint64(patch_trig_3) );
   co_await write(cpl_patch_ram_pbody_0, SZ_8B, concatenate_uint32_to_uint64(patch_body_wfi) );
   co_await write(cpl_patch_ram_pbody_1, SZ_8B, concatenate_uint32_to_uint64(patch_body_sub) );
-  co_await write(cpl_patch_ram_pbody_2, SZ_8B, concatenate_uint32_to_uint64(patch_body_blt) );
+  co_await write(cpl_patch_ram_pbody_2, SZ_8B, concatenate_uint32_to_uint64(patch_body_blt_arith) );
   co_await write(cpl_patch_ram_pbody_3, SZ_8B, concatenate_uint32_to_uint64(patch_body_amoswap) );
 
   if (FLAGS_patch_ram_check) { 
@@ -478,7 +478,7 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
      populate_patch_ram(cpl_patch_ram_ptrig_3, concatenate_uint32_to_uint64(patch_trig_3) );
      populate_patch_ram(cpl_patch_ram_pbody_0, concatenate_uint32_to_uint64(patch_body_wfi) );
      populate_patch_ram(cpl_patch_ram_pbody_1, concatenate_uint32_to_uint64(patch_body_sub) );
-     populate_patch_ram(cpl_patch_ram_pbody_2, concatenate_uint32_to_uint64(patch_body_blt) );
+     populate_patch_ram(cpl_patch_ram_pbody_2, concatenate_uint32_to_uint64(patch_body_blt_arith) );
      populate_patch_ram(cpl_patch_ram_pbody_3, concatenate_uint32_to_uint64(patch_body_amoswap) );
     co_await patch_ram_check();
   };
@@ -494,8 +494,8 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
   uint64_t pcontrol_data =  0x03FE03FE03FE03FE;
   pcontrol_data =  pcontrol_data | 0x1; // enable patch 0
   pcontrol_data =  pcontrol_data | 0x1'0000; // enable patch 1
-  //pcontrol_data =  pcontrol_data | 0x1'0000'0000; // enable patch 2
-  pcontrol_data =  pcontrol_data | 0x1'0000'0000'0000; // enable patch 3
+  pcontrol_data =  pcontrol_data | 0x1'0000'0000; // enable patch 2
+  //pcontrol_data =  pcontrol_data | 0x1'0000'0000'0000; // enable patch 3
   if (FLAGS_patch_cfg_lock) pcontrol_data = pcontrol_data | 0x8000800080008000;
 
 
