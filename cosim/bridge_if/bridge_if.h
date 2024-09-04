@@ -275,3 +275,9 @@ typedef struct rv_intr_s {
   uint64_t mip_mask;
   uint64_t mip_assert;
 } rv_intr_t;  
+
+typedef struct rv_nmi_s {
+  uint64_t cycle;
+  bool valid;
+  uint64_t cause;
+} rv_nmi_t;
