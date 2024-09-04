@@ -996,6 +996,20 @@ package rv_tester_params;
     typedef logic [3:0] pmc_counter_t;
     typedef pmc_counter_t [EVENT_COUNT-1:0] pmci_t;
 
+    typedef enum {
+        HPMCOUNTER3,
+        HPMCOUNTER4,
+        HPMCOUNTER5,
+        HPMCOUNTER6,
+        HPMCOUNTER7,
+        HPMCOUNTER8,
+        HPMCOUNTER9,
+        HPMCOUNTER10 
+    } hpm_num_t;
+
+    typedef logic [63:0] hpm_counter_t;
+    typedef hpm_counter_t [7:0] hpmi_t;
+
     // --------------------------------------
     // Pwrmgmt
     // --------------------------------------
@@ -1086,15 +1100,17 @@ package rv_tester_params;
     // --------------------------------------
 `define _RV_TESTER_PORTS(input,output)                                                              \
     input                                    clk                [rv_tester_params::NCLKS-1:0],      \
-    input                                    dut_clk            [rv_tester_params::NCLKS-1:0],      \
+    output                                   dut_clk            [rv_tester_params::NCLKS-1:0],      \
     input                                    dut_reset          [rv_tester_params::NCLKS-1:0],      \
     output                                   dut_reset_req,                                         \
     input                                    dut_reset_req_active,                                  \
     input                                    force_ref_clk,                                         \
+    output [rv_tester_params::NHARTS-1:0]    core_no_fetch,                                         \
     input  [rv_tester_params::NRESETS-1:0]   reset, /*Packed so zebu can easily force*/             \
     input  [rv_tester_params::NHOLDS-1:0]    reset_hold,                                            \
     input  rv_tester_params::bootstrap_t     bootstrap,                                             \
-    input  [rv_tester_params::NHARTS-1:0]    nmi,                                                   \
+    input  rv_tester_pkg::nmi_t              nmi                [rv_tester_params::NHARTS-1:0],     \
+    output rv_tester_pkg::nmi_t              nmi_pend           [rv_tester_params::NHARTS-1:0],     \
     input  rv_tester_pkg::interrupt_t        interrupt          [rv_tester_params::NHARTS-1:0],     \
     output rv_tester_pkg::interrupt_t        interrupt_pend     [rv_tester_params::NHARTS-1:0],     \
     output                                   debug_mode         [rv_tester_params::NHARTS-1:0],     \
@@ -1125,6 +1141,7 @@ package rv_tester_params;
     output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NIEVICTS-1:0]   mcmi_ievict,  \
     output rv_tester_params::csri_t          csri         [rv_tester_params::NHARTS-1:0],           \
     output rv_tester_params::pmci_t          pmci         [rv_tester_params::NHARTS-1:0],           \
+    output rv_tester_params::hpmi_t          hpmi         [rv_tester_params::NHARTS-1:0],           \
     output rv_tester_pkg::sc_pmci_t          sc_pmci,                                               \
     output rv_tester_params::mst_req_top     axi_msi,                                               \
     output rv_tester_params::mst_req_top     [rv_tester_params::NHARTS-1:0] axi_msi_packets ,        \
@@ -1174,10 +1191,12 @@ package rv_tester_params;
     logic                                    dut_reset_req;                                         \
     logic                                    dut_reset_req_active;                                  \
     logic                                    force_ref_clk;                                         \
+    logic [rv_tester_params::NHARTS-1:0]     core_no_fetch;                                         \
     logic [rv_tester_params::NRESETS-1:0]    reset           /* Packed so zebu can force easily */; \
     logic [rv_tester_params::NHOLDS-1:0]     reset_hold;                                            \
     rv_tester_params::bootstrap_t            bootstrap;                                             \
-    logic [rv_tester_params::NHARTS-1:0]     nmi;                                                   \
+    rv_tester_pkg::nmi_t                     nmi             [rv_tester_params::NHARTS-1:0];        \
+    rv_tester_pkg::nmi_t                     nmi_pend        [rv_tester_params::NHARTS-1:0];        \
     rv_tester_pkg::interrupt_t               interrupt       [rv_tester_params::NHARTS-1:0];        \
     rv_tester_pkg::interrupt_t               interrupt_pend  [rv_tester_params::NHARTS-1:0];        \
     logic                                    debug_mode      [rv_tester_params::NHARTS-1:0];        \
@@ -1215,6 +1234,7 @@ package rv_tester_params;
     rv_tester_params::mcmi_t                 [rv_tester_params::TOTAL_NIEVICTS-1:0]    mcmi_ievict; \
     rv_tester_params::csri_t                 csri          [rv_tester_params::NHARTS-1:0];          \
     rv_tester_params::pmci_t                 pmci          [rv_tester_params::NHARTS-1:0];          \
+    rv_tester_params::hpmi_t                 hpmi          [rv_tester_params::NHARTS-1:0];          \
     rv_tester_pkg::sc_pmci_t                 sc_pmci;                                               \
     rv_tester_params::slv_req_top            axi_req [rv_tester_params::AXI_TOTAL-1:0];             \
     rv_tester_params::slv_resp_top           axi_rsp [rv_tester_params::AXI_TOTAL-1:0];             \

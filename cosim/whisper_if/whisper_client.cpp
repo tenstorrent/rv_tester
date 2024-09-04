@@ -41,11 +41,52 @@ DEFINE_uint64(dm_randpc_addr, 0x9080500, "Random PC to DM address");
 DEFINE_bool(whisper_stdin_null, false, "Redirect whisoer stdin to null");
 DEFINE_bool(whisper_stdout_null, false, "Redirect whisoer stdout to null");
 DEFINE_string(whisper_json_path, "", "Path to whisper json config");
+DEFINE_uint64(nmi_vec, 0, "NMI handler PC");
+DEFINE_uint64(nme_vec, 0, "NMI exception handler PC");
 
 REGISTRY_register(whisperClient<uint64_t>, TOP.PLATFORM.WHISPER_CLIENT, 0);
 
-
 extern void (*__tracerExtension)(void*);
+
+uint64_t
+getNmiPc() {
+  if (FLAGS_nmi_vec != 0) {
+    return FLAGS_nmi_vec;
+  } else {
+    std::string cmd = "nm " + FLAGS_load + " | grep -w nmivec";
+    std::string result = cosim_util::exec(cmd.c_str());
+    std::string addr_str = result.substr(0, 16);
+    uint64_t nmivec_addr_ = 0;
+
+    try {
+      nmivec_addr_ = std::stoul(addr_str, nullptr, 16);
+    }
+    catch (...) {
+      std::cout << "Warn: No nmivec symbol in elf\n";
+    }
+    return nmivec_addr_;
+  }
+}
+
+uint64_t
+getNmiExceptionPc() {
+  if (FLAGS_nme_vec != 0) {
+    return FLAGS_nme_vec;
+  } else {
+    std::string cmd = "nm " + FLAGS_load + " | grep -w nmevec";
+    std::string result = cosim_util::exec(cmd.c_str());
+    std::string addr_str = result.substr(0, 16);
+    uint64_t nmevec_addr_ = 0;
+
+    try {
+      nmevec_addr_ = std::stoul(addr_str, nullptr, 16);
+    }
+    catch (...) {
+      std::cout << "Warn: No nmevec symbol in elf\n";
+    }
+    return nmevec_addr_;
+  }
+}
 
 template <typename URV>
 whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) {
@@ -172,6 +213,8 @@ constructSystem(uint16_t ncores, bool standalone, bool firmware) {
     hart.tracePtw(true);
     if (firmware) hart.defineResetPc(FLAGS_resetpcfw);
     else          hart.defineResetPc(FLAGS_resetpc);
+    hart.defineNmiPc(getNmiPc());
+    hart.defineNmiExceptionPc(getNmiExceptionPc());
     hart.enableCsvLog(FLAGS_whisper_csv_log);
     hart.setTlbSize(FLAGS_whisper_tlb_size);
     if (FLAGS_whisper_stdout_null) hart.redirectOutputDescriptor(STDOUT_FILENO, "/dev/null");
@@ -957,7 +1000,6 @@ whisperClient<URV>::whisperNmi(int hart, uint64_t time, uint64_t cause)
 
   return true;
 }
-
 
 template class whisperClient<uint32_t>;
 template class whisperClient<uint64_t>;

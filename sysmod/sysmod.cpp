@@ -29,6 +29,7 @@
 #include "cosim/dut_if/rvfi/rvfi_plusargs.h"
 #include "pmu/pmu_plusargs.h"
 #include "cosim/utils/general/util.h"
+#include "sysmod_params.hpp"
 
 // internal flags
 DEFINE_string(hex, "", "hex file (program) to load into memory");
@@ -112,6 +113,13 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
       cvm::registry::messenger.fork(task, this, std::move(t));
       }
       );
+
+  uint32_t num_harts = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
+  for(uint32_t i = 0 ; i < num_harts ; i++) {
+    int unsigned location = cvm::topology::get_from_type("CORE", i);
+    cvm::registry::messenger.connect<inval_load_s>(location , [this] (const auto& payload) { return this->store_inval_load(payload); });
+    cvm::registry::messenger.connect<inval_crsp_s>(location , [this] (const auto& payld) { return this->store_inval_crsp(payld); });
+  }
 
   cvm::registry::messenger.connect<sysmod::backdoor_write_t>(
       loc_,
@@ -378,9 +386,6 @@ std::string
 sysmod::get_rand_id(uint32_t mask, uint32_t ncores)
 {
 
-  // FIXME RVDE-15823: Don't randomize ids till the hartid bug is fixed
-  return get_id(mask, ncores);
-
   // Ex: input: mask=0x9a - available cores: 1,3,4,7
   // Ex: output: hart_enable_id ex: 4,7,1,3 - can be in any order
 
@@ -628,6 +633,48 @@ sysmod::uc_helper_backdoor_write(uc_helper::uc_helper_write_t w) {
                     cvm::registry::messenger.signal<device::write_t>(this->loc_, {wt});
 
 }
+// FIXME: Use Remote Procedure calls to make code generic
+void sysmod::store_inval_crsp(const inval_crsp_s& payld) {
+  inval_crsp_ = payld;
+  // Compulsive Backdoor write
+  device::data_t data(8);
+  uint64_t read_data = 0;
+  uint64_t ld_addr = ((inval_crsp_.address) >> 6) << 6; // Starting from cacheline base address
+  // Performing Whisper Poke for entire Cacheline Granularity
+  for(uint64_t offset = 0 ; offset < 8 ; offset = offset + 1) {
+    read_data = 0;
+    dev("memory")->backdoor_read(ld_addr + (offset*8), 8, data);
+    for (int i=0; i<8; ++i) 
+      read_data |= uint64_t(data[i]) << (i*8);
+    bool valid = true;
+    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', (ld_addr + (offset*8)), 8, read_data, valid)) {
+      cvm::log(cvm::ERROR, "Error: store_inval_crsp failed to poke whisper memory");
+    }
+  }
+}
+
+void sysmod::store_inval_load(const inval_load_s& payload) {
+  inval_load_ = payload;
+  // Do a backdoor read for the load's address
+  device::data_t data(8);
+  uint64_t read_data = 0;
+  uint64_t ld_addr = inval_load_.address; 
+  size_t length;
+  length = inval_load_.size;
+  int size = length;
+  dev("memory")->backdoor_read(ld_addr, length, data);
+  for (int i=0; i<size; ++i)
+    read_data |= uint64_t(data[i]) << (i*8);
+  if(inval_load_.data == read_data)
+  {
+    // No need to poke entire cacheline granularity - that will be done after CRSP
+    bool valid = true;
+    cvm::log(cvm::HIGH, "CBO_INVAL_MONITOR :: Whisper Poke with data:{:#x} for address:{:#x}\n",read_data,ld_addr);
+    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', ld_addr, 8, read_data, valid)) {
+      cvm::log(cvm::ERROR, "Error: store_inval_load failed to poke whisper memory\n"); 
+    }
+  }
+}
 
 cvm::messenger::task<uint64_t> sysmod::backdoor_write(sysmod::backdoor_write_t t) {
     cvm::log(cvm::HIGH, "[BACKDOOR_WRITE] new backdoor write request at {:#x} value:{:#x} size: {:#x}\n", t.address, t.data, t.size);
@@ -636,7 +683,7 @@ cvm::messenger::task<uint64_t> sysmod::backdoor_write(sysmod::backdoor_write_t t
 
     bool valid = true;
     if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', t.address, 8, t.data, valid)) {
-      cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
+      cvm::log(cvm::ERROR, "Error: backdoor_write failed to poke whisper memory\n");
     }
       
     for (int i = 0; i < t.size; ++i, t.data >>= 8) {
@@ -991,9 +1038,9 @@ sysmod::load_boot(const std::string& boot)
         return;
       }
     }
-    // Write hart_enable_mask for bootrom to access
+    // Write num_harts for bootrom to access
     device::data_t data(8);
-    for (size_t i = 0; i < 8; i++) data[i] = FLAGS_hart_enable_mask >> 8*i;
+    for (size_t i = 0; i < 8; i++) data[i] = FLAGS_num_harts >> 8*i;
     device::strb_t strb(8);
     for (size_t i = 0; i < 8; i++) strb[i] = true;
     dev("boot")->backdoor_write(dev("boot")->addr() + 0x9000, 8, data, strb);

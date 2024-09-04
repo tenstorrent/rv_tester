@@ -6,3 +6,4 @@ DECLARE_uint64(resetpcfw);
 DECLARE_bool(preload);
 DECLARE_string(archsample_lib_path);
 DECLARE_bool(standalone);
+DECLARE_uint64(max_cycle);

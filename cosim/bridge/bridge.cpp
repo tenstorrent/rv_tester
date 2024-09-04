@@ -60,6 +60,7 @@ DEFINE_bool(cov, false, "Enable Arch coverage");
 DEFINE_string(archsample_lib_path, "", "Path to libarchsample.so");
 DEFINE_bool(standalone, true, "Enable whisper standalone run at beginning of sim");
 DEFINE_bool(metrics, true, "Enable printing metrics in log file");
+DEFINE_uint32(max_pend_nmi_age, 128, "Number of instructions allowed to retire before a pending nmi should be taken");
 DEFINE_uint32(max_pend_intr_age, 128, "Number of instructions allowed to retire before a pending interrupt should be taken");
 DEFINE_bool(preload, false, "Whisper preload");
 
@@ -125,14 +126,14 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
 
       //"htval","mtval2", // RVDE-10043
       "mtinst","htinst", // RVDE-10005
-      "vstart","vxsat","vxrm","vcsr", // Unimplemented
       "sstatus","mstatus","hstatus","mie","hie","vsie","sie", // RVDE-11840
+      "vxsat", // Vectors RVDE-17338
       "tselect","tdata1","tdata2","tdata3","mcontext","tinfo", // Unimplemented: RVDE-7518, RVTOOLS-3124
       "fflags","fcsr", // Unimplemented
       "menvcfg","senvcfg","henvcfg", // FIXME: pointer masking change
       "pma","pmp", // FIXME: Performant NC change
       "vtype", // Permanent: Vector vtype will not be implemented
-      "mip","hip","vsip","hvip","sip","mireg","sireg","vsireg","mtopei","stopei","vstopei", // Permanent: Interrupts
+      "mip", "mvip", "hip","vsip","hvip","sip","mireg","sireg","vsireg","mtopei","stopei","vstopei", // Permanent: Interrupts
       "mtopi", "stopi", "vstopi", // RVTOOLS-3189
       "hpmcounter","hpmevent","scountovf","mcycle","minstret","minstreth", // Permanent: PMC events
       "dcsr","dpc","dscratch0", "dscratch1" // Permanent: Debug events
@@ -183,9 +184,9 @@ void bridge::reset() {
   // Init csr reset values in cac
   csr_init();
 
-  // Write hart enable mask to boot mem
+  // Write num_harts to boot mem
   bool valid;
-  if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, 0, 'm', memmap_.at("boot").base + 0x9000, FLAGS_hart_enable_mask, valid)) {
+  if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, 0, 'm', memmap_.at("boot").base + 0x9000, FLAGS_num_harts, valid)) {
     print(cvm::ERROR, "Error: Hart {}: Failed to poke boot memory\n", id_);
     return;
   }
@@ -514,6 +515,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
     }
   }
   // Handle pre-step condition - Interrupts
+  pre_step_nmi_poke(hart, d, w);
   pre_step_interrupt_poke(hart, d, w);
   lrsc_fail_ = false;
 
@@ -757,6 +759,31 @@ void bridge::pre_step_lrsc_poke(hart_id_t hart, const rv_instr_t& d) {
   }
 }
 
+void bridge::pre_step_nmi_poke(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
+  if (!nmi_.valid || !nmi_poke_pending_)
+    return;
+
+  if (!d.intr && nmi_poke_pending_) {
+    nmi_age_++;
+    bridge_log_(cvm::HIGH, "<{}> nmi_age++={}\n", w.time, nmi_age_);
+    if ((nmi_age_ > FLAGS_max_pend_nmi_age) && !FLAGS_cosim_resynch && !FLAGS_intr_timeout_resynch) {
+      print(cvm::ERROR, "Error: Hart {}: Whisper wants to take NMI, DUT does not. timeout: [{}] retires\n",
+        hart, FLAGS_max_pend_nmi_age);
+    }
+    return;
+  }
+
+  nmi_age_ = 0;
+
+  if (FLAGS_bridge_log) {
+    bridge_log_(cvm::MEDIUM, "<{}> NMI taken by DUT. dcause:[{}]\n", w.time, nmi_.cause);
+  }
+
+  // Poke nmi into whisper (how do we deassert?)
+  poke_nmi(hart, nmi_.cycle, nmi_.cause);
+  nmi_poke_pending_ = false;
+}
+
 void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
 // FIXME We are deferring all interrupts, if new interrupt was made possible due to execution of a csr op previously
   if (FLAGS_intr_defer_spcl) {
@@ -783,7 +810,7 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
     }
   }
 
-  if (!mip_ && !prev_mip_) {
+  if ((!mip_ && !prev_mip_) || nmi_.valid) {
     IF_DEBUG("mip_==0  and prev_mip_==0 ... return");
     return;
   }
@@ -2039,6 +2066,24 @@ void bridge::translation_check(hart_id_t hart, const rv_instr_t& d, whisper_stat
 }
 
 // Interrupts
+void bridge::process_dut_nmi(hart_id_t hart, rv_nmi_t& n) {
+  nmi_ = n;
+  bridge_log_(cvm::MEDIUM, "<{}> NMI: Hart {} valid: {}\n", n.cycle, hart, n.valid);
+
+  if (n.valid) {
+    nmi_poke_pending_ = true;
+  }
+
+  // If NMI pin deasserts before any retire, poke it to whisper
+  // with the assumption that RTL has seen it
+  // If we don't poke here, we will miss it since the poke in pre_step
+  // will see nmi as deasserted
+  if (!n.valid && nmi_age_ == 0) {
+    poke_nmi(hart, nmi_.cycle, nmi_.cause);
+    nmi_poke_pending_ = false;
+  }
+}
+
 void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
   if (i.mip_mask & 0x1e00) {
     process_external_interrupt(hart, i);
@@ -2151,6 +2196,14 @@ void bridge::check_interrupt(hart_id_t hart, uint64_t mip, bool& taken, uint64_t
     return;
   }
   bridge_log_(cvm::MEDIUM, "<> Whisper check_interrupt: mip: {:#x} taken: {} cause: {}\n", mip, taken, cause);
+}
+
+void bridge::poke_nmi(hart_id_t hart, uint64_t time, uint64_t cause) {
+  if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperNmiRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, time, cause)) {
+    print(cvm::ERROR, "Error: Hart {}: Failed to poke nmi\n", hart);
+    return;
+  }
+  bridge_log_(cvm::MEDIUM, "<{}> Whisper poke: nmi: {:#x}\n", time, cause);
 }
 
 void bridge::poke_mip(hart_id_t hart, uint64_t time, uint64_t mip) {
