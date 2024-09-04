@@ -636,6 +636,7 @@ sysmod::uc_helper_backdoor_write(uc_helper::uc_helper_write_t w) {
                     cvm::registry::messenger.signal<device::write_t>(this->loc_, {wt});
 
 }
+// FIXME: Use Remote Procedure calls to make code generic
 void sysmod::store_inval_crsp(const inval_crsp_s& payld) {
   inval_crsp_ = payld;
   // Compulsive Backdoor write
