@@ -386,9 +386,6 @@ std::string
 sysmod::get_rand_id(uint32_t mask, uint32_t ncores)
 {
 
-  // FIXME RVDE-15823: Don't randomize ids till the hartid bug is fixed
-  return get_id(mask, ncores);
-
   // Ex: input: mask=0x9a - available cores: 1,3,4,7
   // Ex: output: hart_enable_id ex: 4,7,1,3 - can be in any order
 
@@ -1041,9 +1038,9 @@ sysmod::load_boot(const std::string& boot)
         return;
       }
     }
-    // Write hart_enable_mask for bootrom to access
+    // Write num_harts for bootrom to access
     device::data_t data(8);
-    for (size_t i = 0; i < 8; i++) data[i] = FLAGS_hart_enable_mask >> 8*i;
+    for (size_t i = 0; i < 8; i++) data[i] = FLAGS_num_harts >> 8*i;
     device::strb_t strb(8);
     for (size_t i = 0; i < 8; i++) strb[i] = true;
     dev("boot")->backdoor_write(dev("boot")->addr() + 0x9000, 8, data, strb);

@@ -197,9 +197,9 @@ void bridge::reset() {
   // Init csr reset values in cac
   csr_init();
 
-  // Write hart enable mask to boot mem
+  // Write num_harts to boot mem
   bool valid;
-  if (!client_->whisperPoke(id_, 0, 'm', memmap_.at("boot").base + 0x9000, FLAGS_hart_enable_mask, valid)) {
+  if (!client_->whisperPoke(id_, 0, 'm', memmap_.at("boot").base + 0x9000, FLAGS_num_harts, valid)) {
     print(cvm::ERROR, "Error: Hart {}: Failed to poke boot memory\n", id_);
     return;
   }
