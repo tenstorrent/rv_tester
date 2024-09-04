@@ -69,6 +69,7 @@ public:
   virtual void process_dut_mcm_ievict(hart_id_t hart, mem_t& m) override;
 
   // Interrupts
+  virtual void process_dut_nmi(hart_id_t hart, rv_nmi_t& n) override;
   virtual void process_dut_interrupt(hart_id_t hart, rv_intr_t& i) override;
   virtual void process_dut_imsic_msi(hart_id_t hart, mem_t& m) override;
 
@@ -128,6 +129,7 @@ private:
   // Process pre/post-step
   void pre_step_lrsc_poke(       hart_id_t hart, const rv_instr_t& d);
   void pre_step_debug_poke(      hart_id_t hart, const rv_instr_t& d);
+  void pre_step_nmi_poke(  hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
   void pre_step_interrupt_poke(  hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
   void post_step_interrupt_poke( hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
   void post_step_exception_poke( hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
@@ -141,6 +143,7 @@ private:
   void defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
   void resetsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr);
   void setsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr);
+  void poke_nmi(hart_id_t hart, uint64_t time, uint64_t cause);
   void poke_mip(hart_id_t hart, uint64_t time, uint64_t mip);
   void peek_mip(hart_id_t hart, uint64_t time, uint64_t& mip);
   void peek_seip(hart_id_t hart, uint64_t time, uint64_t& val);
@@ -228,6 +231,8 @@ private:
   bool stimecmppoked_ = false;
   uint64_t intrtopriv_ = 3;
   std::vector<mem_t> mem_poke_{};
+  rv_nmi_t nmi_ {};
+  bool nmi_poke_pending_ = false;
   uint64_t mip_ = 0;
   uint64_t prev_mip_ = 0;
   uint64_t e_mip_ = 0;
@@ -242,6 +247,7 @@ private:
   bool post_undeferred_intr_;
   std::array<uint32_t, max_intr> intr_age_{};
   uint32_t max_pend_intr_age_ = 0;
+  uint32_t nmi_age_ = 0;
   std::chrono::high_resolution_clock::time_point end_time_;
   std::chrono::high_resolution_clock::time_point start_of_test_;
   bool first_call_ = true;
