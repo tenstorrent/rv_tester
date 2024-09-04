@@ -706,7 +706,7 @@ module dmi_driver (
             check_hartsellen = 0;
             check_dmstatus_disc = 1;
             poll = 0;
-            $display("Hartsellen should be 'b11");
+            $display("Hartsellen should be 'b111");
           end
         end else if(hart_discovery) begin
           $display("Chcking Hartsel in dmcontrol, hart_enable_mask[dmcontrol_hartsel]:%h, dmcontrol_hartsel:%h, dmi_resp.data[11:10]:%h", hart_enable_mask[dmcontrol_hartsel], dmcontrol_hartsel, dmi_resp.data[11:10]);
