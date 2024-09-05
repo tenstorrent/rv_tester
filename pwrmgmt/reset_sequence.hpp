@@ -60,6 +60,7 @@ class reset_sequence {
     uint64_t trace_fuse_val();
     uint64_t dm_fuse_val();
     uint64_t sc_fuse_val();
+    uint64_t export_control_fuse_val();
     uint64_t core_en(uint32_t c);
     std::vector<uint64_t> mhartid();
 

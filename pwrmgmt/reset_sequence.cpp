@@ -430,6 +430,10 @@ uint64_t reset_sequence::dm_fuse_val() {
   return static_cast<uint64_t>(FLAGS_debug_enable << dm_fuse_idx);
 }
 
+uint64_t reset_sequence::export_control_fuse_val() {
+  return static_cast<uint64_t>(FLAGS_export_control_en << exp_ctrl_fuse_idx);
+}
+
 uint64_t reset_sequence::sc_fuse_val() {
   uint64_t sc_fuse = 0;
 
@@ -443,7 +447,7 @@ uint64_t reset_sequence::sc_fuse_val() {
 }
 
 uint64_t reset_sequence::fuse_val() {
-  return core_fuse_val() | trace_fuse_val() | dm_fuse_val() | sc_fuse_val() | (1ull << lock_idx);
+  return core_fuse_val() | trace_fuse_val() | dm_fuse_val() | sc_fuse_val() | export_control_fuse_val() | (1ull << lock_idx);
 }
 
 
