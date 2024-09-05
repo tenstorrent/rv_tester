@@ -155,7 +155,7 @@ void io_coh_helper::overlay_write(uint64_t addr,uint64_t data) {
 
 
 void io_coh_helper::overlay_read(uint64_t addr) {
-  cvm::log(cvm::FULL, "[io_coh_helper] axi read addr= {:#X} id = {} length = {}  \n",addr);
+  cvm::log(cvm::FULL, "[io_coh_helper] axi read addr= {:#X}   \n",addr);
    transactor::read_t r ;
    r.addr = addr;
    r.length = 0x40;
