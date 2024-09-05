@@ -75,7 +75,7 @@ void io_coh_helper::gen_data_strb(uint64_t addr, uint32_t value, data_t& wdata, 
           wdata.push_back(0x0);
           strb.push_back(0x0);
     }  
-    for (uint8_t i = 0; i < 4; ++i) {
+    for (uint8_t i = 0; i < 8; ++i) {
           uint8_t currentByte = static_cast<uint8_t>((value >> (8 * i)) & 0xFF);
           wdata[i+b_index] = currentByte;
           strb[i+b_index] = 0x1;
