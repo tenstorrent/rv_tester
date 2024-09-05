@@ -102,8 +102,7 @@ class rvfi {
     bool ucode_ = false;
     bool intr_ = false;
     bool excp_ = false;
-    bool patch_mode_         = false;
-    bool disable_patch_mode_ = false;
+    bool patch_mode_ = false;
     uint64_t icause_ = 0;
     uint64_t ecause_ = 0;
     uint8_t priv_ = 3;
