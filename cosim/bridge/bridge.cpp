@@ -540,23 +540,19 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   // Step whisper
   w_.clear();
 
-  if (patch_mode_ <= 1) {
+  if (patch_mode_ == NO_PATCH || patch_mode_ == ENTER_PATCH) {
     auto stime = std::chrono::high_resolution_clock::now();
     step(hart, w);
+    step_++;
     auto etime = std::chrono::high_resolution_clock::now();
     whisper_time_ = whisper_time_ + (duration_cast<std::chrono::microseconds>(etime - stime).count());
   }
-  if (patch_mode_) {
-    //patch_mode_++;
-    cac_.ResetStatus(hart);
-    patch_mode_ = 2;
-    return;
-  }
-
   // Update cac with whisper state
   if (!psc_stepping_) {
-    IF_DEBUG("updating whispter state");
-    update_whisper_state(hart, w);
+    if (patch_mode_ == NO_PATCH || patch_mode_ == ENTER_PATCH) {
+      IF_DEBUG("updating whisper state");
+      update_whisper_state(hart, w);
+    }
 
     // Update cac with dut state
     IF_DEBUG("updating dut state");
@@ -578,28 +574,35 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   }
   IF_DEBUG("no excp in debug mode...keep going");
 
-  // Increment step count
-  step_++;
+  // Save whisper state
+  if (patch_mode_ == NO_PATCH || patch_mode_ == ENTER_PATCH) {
+    ppw_ = pw_;
+    pw_ = w;
+    pd_ = d;
+  }
+  // Check dut vs whisper
+  if (patch_mode_ == NO_PATCH || patch_mode_ == EXIT_PATCH)
+    compare_dut_whisper_state(hart, w, d);
 
   // Save whisper state
-  ppw_ = pw_;
-  pw_ = w;
-  pd_ = d;
-
-
-  // Check dut vs whisper
-  compare_dut_whisper_state(hart, w, d);
-
   // Interrupt state
-  prev_mip_ = mip_;
-  prev_e_mip_ = e_mip_;
-  mip_age_++;
-  e_mip_age_++;
-
-  msi_.clear();
+  if (patch_mode_ == NO_PATCH || patch_mode_ == EXIT_PATCH) {
+    prev_mip_ = mip_;
+    prev_e_mip_ = e_mip_;
+    mip_age_++;
+    e_mip_age_++;
+    msi_.clear();
+  }
 
   // TLB checks
-  translation_check(hart, d, w);
+  if (patch_mode_ == NO_PATCH)
+    translation_check(hart, d, w);
+
+  if (patch_mode_ == ENTER_PATCH)
+    patch_mode_ = IN_PATCH;
+
+  if (patch_mode_ == EXIT_PATCH)
+    patch_mode_ = NO_PATCH;
 }
 
 void bridge::compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w, rv_instr_t& d) {
@@ -715,13 +718,13 @@ void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d)
 }
 
 void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
-  if (FLAGS_pc_check) {
+  if (FLAGS_pc_check && !(patch_mode_ == IN_PATCH || patch_mode_ == EXIT_PATCH)) {
     update_pc(hart, src_t::dut, d.pc.pc_rdata);
   }
-  if (FLAGS_priv_check) {
+  if (FLAGS_priv_check && !(patch_mode_ == IN_PATCH || patch_mode_ == EXIT_PATCH)) {
     update_priv(hart, src_t::dut, d.priv);
   }
-  if (FLAGS_insn_check && !d.comp && !d.ucode && !is_vector(d.disasm) && !(d.disasm.substr(0,7)=="illegal") && !d.csr_renamed) {
+  if (FLAGS_insn_check && !d.comp && !d.ucode && !is_vector(d.disasm) && !(d.disasm.substr(0,7)=="illegal") && !d.csr_renamed && !(patch_mode_ == IN_PATCH || patch_mode_ == EXIT_PATCH)) {
     update_insn(hart, src_t::dut, d.opcode);
   }
   if (FLAGS_flags_check && (d.flags != 0)) {
@@ -730,10 +733,10 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
   if (!d.gpr.empty() || !d.fpr.empty() || !d.vr.empty() || !d.csr.empty()) {
     update_regs(hart, d);
   }
-  if (FLAGS_memattr_check && d.mem_read.valid && (!is_vector(d.disasm)) && !lrsc_fail_) {
+  if (FLAGS_memattr_check && d.mem_read.valid && (!is_vector(d.disasm)) && !lrsc_fail_ && patch_mode_ == NO_PATCH) {
       update_mem_attr(hart, src_t::dut, d.mem_read.attr);
   }
-  if (FLAGS_memattr_check && d.mem_write.valid && (!is_vector(d.disasm)) && !lrsc_fail_) {
+  if (FLAGS_memattr_check && d.mem_write.valid && (!is_vector(d.disasm)) && !lrsc_fail_ && patch_mode_ == NO_PATCH) {
       update_mem_attr(hart, src_t::dut, d.mem_write.attr);
   }
 }
@@ -1025,6 +1028,8 @@ void bridge::post_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, const
 
 void bridge::post_step_exception_poke(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
 
+  if (patch_mode_ != NO_PATCH)
+    return;
 
   if(debug_mode_ && FLAGS_emulate_debug_mode && (d.excp )){
     excp_in_debug_mode = true;
@@ -1177,7 +1182,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
 
   // FIXME Instruction byte checking disabled for vectors till we find a way to
   // differentiate cracked instructions
-  if (FLAGS_insn_check && !w_.comp && !w_.ucode && !is_vector(w.disasm) && !(w.disasm.substr(0,7)=="illegal") && !is_renamed_csr(w.disasm))
+  if (FLAGS_insn_check && !w_.comp && !w_.ucode && !is_vector(w.disasm) && !(w.disasm.substr(0,7)=="illegal") && !is_renamed_csr(w.disasm) && patch_mode_ == NO_PATCH)
     update_insn(hart, src_t::iss, w.opcode);
 
   if (FLAGS_flags_check && (w.fp_flags != 0))
@@ -1229,7 +1234,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
 
   // Mem attributes
   // Disabling mem_attr checks for vectors currently
-  if (FLAGS_memattr_check && !w_.trap && !is_vector(w.disasm) && (w_.mem_read.valid || w_.mem_write.valid || zicbom_)) {
+  if (FLAGS_memattr_check && !w_.trap && !is_vector(w.disasm) && (w_.mem_read.valid || w_.mem_write.valid || zicbom_) && patch_mode_ == NO_PATCH) {
     bool valid; 
     uint64_t eff_mem_attr;
     if (!client_->whisperPeek(hart, 's', WhisperSpecialResource::EffMemAttr, eff_mem_attr, valid)) {
@@ -1299,6 +1304,11 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
     for (const auto& gpr: d.gpr) {
       if (gpr.valid) {
         update_regs(hart, src_t::dut, resource_t::int_reg, gpr.rd_addr, {gpr.rd_wdata});
+        if (patch_mode_ != NO_PATCH) {
+          uint64_t data;
+          get_gp_reg(gpr.rd_addr, data);
+          update_regs(hart, src_t::iss, resource_t::int_reg, gpr.rd_addr, {data});
+        }
       }
     }
   }
@@ -1307,6 +1317,11 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
     for (const auto& fpr: d.fpr) {
       if (fpr.valid) {
         update_regs(hart, src_t::dut, resource_t::fp_reg, fpr.frd_addr, {fpr.frd_wdata});
+        if (patch_mode_ != NO_PATCH) {
+          uint64_t data;
+          get_fp_reg(fpr.frd_addr, data);
+          update_regs(hart, src_t::iss, resource_t::fp_reg, fpr.frd_addr, {data});
+        }
       }
     }
   }
@@ -1316,6 +1331,18 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
     for (auto & vr : d.vr) {
       if (vr.valid){
         update_regs(hart, src_t::dut, resource_t::vec_reg, vr.vrd_addr, create_dword_vec(vr.vrd_wdata));
+        if (patch_mode_ != NO_PATCH) {
+          std::array<std::uint8_t, 32> data;
+          std::vector<bridge::size_8_bytes_t> data64;
+          get_vec_reg(vr.vrd_addr, data);
+          for(int j=0; j<4; j++) {
+            bridge::size_8_bytes_t q = 0;
+            for (int k=0; k<8; k++) 
+              q = q | bridge::size_8_bytes_t(data[8*j + k]) << (k*8);
+            data64.push_back(q);
+          }
+          update_regs(hart, src_t::iss, resource_t::vec_reg, vr.vrd_addr, std::move(data64));
+        }
       }
     }
   }
@@ -1326,6 +1353,14 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
     size_8_bytes_t mask = modify_csr_mask(hart, c.csr_addr, c.csr_wdata, c.csr_wmask);
     if (FLAGS_csr_rd_check) {
       update_csr(hart, src_t::dut, c.csr_addr, data, mask);
+      if (patch_mode_ != NO_PATCH) {
+        bool valid;
+        uint64_t w_data, w_mask, w_poke_mask, w_read_mask;
+        if (!client_->whisperPeekCsr(hart, c.csr_addr, w_data, w_mask, w_poke_mask, w_read_mask, valid)) {
+          print(cvm::ERROR, "Error: Hart {}: Failed to peek csr\n", hart);
+        }
+        update_csr(hart, src_t::iss, c.csr_addr, data, mask);
+      }
       if (c.csr_addr == 0x001) update_csr(hart, src_t::dut, 0x003, data, mask); // On fflags update, update fcsr
       else if (c.csr_addr == 0x002) { // On frm update, update fcsr
         data = data << 5;
@@ -1522,7 +1557,7 @@ bool bridge::disable_pa_check_vec(hart_id_t hart) {
   uint64_t vlmax = 0;
 
   if(client_->whisperPeekCsr(hart,0xc21, data, mask, poke_mask, read_mask, valid)) {
-  
+
   vtype = data & mask; // getting the vtype csr
   int sew_enc = (vtype & 0x38) >> 3; // encoded sew
   int sew;
