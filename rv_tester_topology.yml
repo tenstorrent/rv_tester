@@ -171,6 +171,11 @@ rv_tester: &rv_tester
       type:
         - aclint_checker
 
+    whisper_client:
+      count: 1
+      type:
+        - whisper_client
+
     cosim:
       count: *rv_tester_nharts
       type:

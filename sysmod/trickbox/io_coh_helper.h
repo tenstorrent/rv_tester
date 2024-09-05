@@ -21,7 +21,6 @@
 #include <mem_manager.h>
 #include "transactor.h"
 #include "transactors/axi_sw/axi.h"
-#include "whisper_client_decl.h"
 
 // Define a core local interruptor (io_coh_helper) at the given address
 // and for the given hart count. The size will be 48k bytes.

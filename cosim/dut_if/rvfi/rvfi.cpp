@@ -80,13 +80,17 @@ rvfi::~rvfi() {
     cvm::log(cvm::ERROR, "Error: rvfi termination without processing any instructions\n");
 }
 
+void rvfi::check() {
+  bridge_->report_metrics();
+}
+
 void rvfi::init() {
 
   if (FLAGS_cosim) {
     cvm::log(cvm::MEDIUM, "[RVFI loc {} id{}] Constructing bridge...\n", loc_, id_);
     auto platform_loc = cvm::topology::get_from_type("PLATFORM", 0);
     bridge_ = std::make_unique<bridge>(cvm::topology::attr(platform_loc, "NHARTS").second, xlen, vlen, loc_, id_);
-    bridge_->reset();
+    // bridge_->reset();    // call reset in process for m_reset, or else whisper might not yet be initialized
     count_ = 1;
   } else {
     cvm::log(cvm::MEDIUM, "Running with cosim is disabled\n");
