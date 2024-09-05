@@ -1490,6 +1490,12 @@ pwrmgmt:
         fields:
             cycle:
                 width: 32
+    m_cold_reset_ack:
+        domain: 3
+        num: 1
+        fields:
+            assertion:
+                width: 1
 
 interrupts:
     num: ${TOP.PLATFORM.NHARTS}
