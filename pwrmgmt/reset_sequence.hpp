@@ -28,6 +28,7 @@ class reset_sequence {
     cvm::messenger::task<void> cold_reset_sequence();
     cvm::messenger::task<void> warm_reset_sequence();
 
+    cvm::messenger::task<void> cold_reset_ack();
     cvm::messenger::task<void> tick();
     cvm::messenger::task<void> trigger();
     cvm::messenger::task<void> cpl_reset_sequence(rst_t );

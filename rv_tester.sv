@@ -439,16 +439,30 @@ module rv_tester
 
     // We also assert reset at the end of the test to quiesce the DPIs.
     logic reset_pullup;
-    assign reset_pullup = rv_tester_reset || sys_reset_any || terminate_now || terminated;
+    logic cold_reset_pullup = 0;
+    logic warm_reset_pullup = 0;
+    assign reset_pullup = rv_tester_reset || terminate_now || terminated;
 
-    assign reset[COLD_RESET_IDX] = cold_reset || init_pulse || (reset_pullup && !warm_reset_pulse);
+    assign reset[COLD_RESET_IDX] = cold_reset || cold_reset_pullup;
     assign reset[WARM_RESET_IDX] = warm_reset;
 
     assign dut_reset[TB_CLK_IDX] = reset[COLD_RESET_IDX] || reset[WARM_RESET_IDX];
-    assign dut_reset[CORE_CLK_IDX] = &core_no_fetch;
-    assign dut_reset[AXI_CLK_IDX] = &core_no_fetch;
+    assign dut_reset[CORE_CLK_IDX] = &core_no_fetch || reset[WARM_RESET_IDX] || warm_reset_pullup;
+    assign dut_reset[AXI_CLK_IDX] = &core_no_fetch || reset[WARM_RESET_IDX] || warm_reset_pullup;
     assign dut_reset[SOC_CLK_IDX] = reset[COLD_RESET_IDX];
     assign dut_reset[REF_CLK_IDX] = reset_window;
+
+    always@(posedge dut_clk[TB_CLK_IDX]) begin
+        if (reset_pullup)
+            if (!warm_reset_req)
+                cold_reset_pullup <= '1;
+            else
+                warm_reset_pullup <= '1;
+        if (cold_reset)
+            cold_reset_pullup <= '0;
+        if (warm_reset)
+            warm_reset_pullup <= '0;
+    end
 
 `ifdef NEGEDGE_UNSUPPORTED
     always@(posedge dut_clk[TB_CLK_IDX]) begin
@@ -638,10 +652,9 @@ module rv_tester
                 `TOPOLOGY_CFG,
                 `RV_TESTER_TRANSACTIONS_PWRMGMT_SOURCE_PARAMS(0)
             ) pwrmgmt (
-                .tb_clk(dut_clk[TB_CLK_IDX]),
-                .tb_reset(sys_reset[TB_CLK_IDX]),
-                .clk(clk),
-                .dut_reset(dut_reset),
+                .clk(dut_clk),
+                .reset(dut_reset),
+                .sys_reset(sys_reset),
                 .reset_count(num_resets),
                 .target_reset_count(target_num_resets),
                 .cold_reset(cold_reset),
@@ -676,6 +689,19 @@ module rv_tester
         );
     end
 
+    trace #(
+       .NUM(0),
+       `TOPOLOGY_CFG,
+       `RV_TESTER_TRANSACTIONS_TRACE_SOURCE_PARAMS(0)
+    ) trace (
+        .tb_clk(clk[TB_CLK_IDX]),
+        .tb_reset(sys_reset[TB_CLK_IDX]),
+        .clk(dut_clk[AXI_CLK_IDX]),
+        .reset(dut_reset[AXI_CLK_IDX]),
+        .core_no_fetch(core_no_fetch),
+        `RV_TESTER_TRANSACTIONS_TRACE_SOURCE_PORTS(2,0,0)
+    );
+    
     for (genvar c = 0; c < NHARTS; c++) begin: triggers
         triggers #(
             .NUM(c),
