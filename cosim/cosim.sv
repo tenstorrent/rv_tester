@@ -362,6 +362,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
     longint unsigned debug_exit_pc_arg;
     int cycles_since_retire;
     int hart_enable_mask;
+    int nharts;
     bit boot_wfi;
 
     //--------------------------------------------------------------------------------------------
@@ -1119,6 +1120,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
         cosim_period = cvm_plusargs::get_int("cosim_period");
         mcmi_poke_enable = cvm_plusargs::get_int("mcmi_poke_enables");
         max_instructions = cvm_plusargs::get_ulongint("max_instr");
+        nharts = cvm_plusargs::get_int("num_harts");
         hart_enable_mask = cvm_plusargs::get_int("hart_enable_mask");
         debug_entry_pc_arg = cvm_plusargs::get_ulongint("debug_entry_pc");
         debug_exit_pc_arg  = cvm_plusargs::get_ulongint("debug_exit_pc");
@@ -1126,18 +1128,18 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
         /* verilator lint_on BLKSEQ */
         boot_wfi <= '0;
       end else if(!dut_reset) begin
-        if (NUM != 0 && hart_enable_mask[NUM] == 0 && rvfi[0].valid !== 0 && rvfi[0].insn[6:0] == 7'h73 && rvfi[0].pc_rdata < 'h20000) begin // WFI
+        if (NUM != 0 && rvfi[0].valid == '1 && rvfi[0].insn[6:0] == 7'h73 && rvfi[0].pc_rdata < 'h20000) begin // WFI
           boot_wfi <= '1;
         end
-        if (max_stall_cycle > 0 && cycles_since_retire > max_stall_cycle && !boot_wfi && hart_enable_mask[NUM] == 1) begin
+        if (max_stall_cycle > 0 && cycles_since_retire > max_stall_cycle && !boot_wfi && NUM < nharts) begin
           $display("Error: Hart %0d: No instruction retired for max_stall_cycle (%0d) cycles", NUM, max_stall_cycle);
           cosim_terminate();
         end
-        if (max_cycle > 0 && clocks > max_cycle && hart_enable_mask[NUM] == 1) begin
+        if (max_cycle > 0 && clocks > max_cycle && NUM < nharts) begin
           $display("Error: Hart %0d:  Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", NUM, max_cycle);
           cosim_terminate();
         end
-        if (rvfi[0].valid !== 0 && hart_enable_mask[NUM] == 0) begin
+        if (rvfi[0].valid == '1 && NUM > nharts) begin
           $display("Error: Core %0d: Instruction retire seen on disabled/harvested core", NUM);
           cosim_terminate();
         end

@@ -17,7 +17,7 @@ DEFINE_bool(rvfi, true, "Enable rvfi");
 // exceeded.
 DEFINE_bool(rvfi_log,  true, "Enable rvfi logging");
 DEFINE_bool(rvfi_log_36b_uop, true, "rvfi log - print 36b uop instead of default 32b riscv opcode");
-DEFINE_bool(mcm, false, "Enable mcm");
+DEFINE_bool(mcm, true, "Enable mcm");
 DEFINE_bool(cosim, true, "Enable cosim checking");
 DEFINE_bool(emulate_amo_arithmetic, true, "Emulate amo arithmetic if dut harness does not provide amo outputs");
 
@@ -680,7 +680,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_csri<>& m_csri) {
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_read) {
-  if (!FLAGS_mcm)
+  if (!FLAGS_mcm || patch_mode_)
     return;
 
   if (terminated_ || in_reset_)
@@ -727,7 +727,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_insert) {
-  if (!FLAGS_mcm)
+  if (!FLAGS_mcm || patch_mode_)
     return;
 
   if (terminated_)
@@ -750,7 +750,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_bypass) {
-  if (!FLAGS_mcm)
+  if (!FLAGS_mcm || patch_mode_)
     return;
 
   if (terminated_ || in_reset_)
@@ -882,7 +882,7 @@ void rvfi::amo_arithmetic(amo_op op, uint64_t& read_data, uint64_t& write_data, 
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write<>& m_mcmi_write) {
-  if (!FLAGS_mcm)
+  if (!FLAGS_mcm || patch_mode_)
     return;
 
   if (terminated_)
@@ -902,7 +902,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write<>& m_mcmi_w
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_req<>& m_mcmi_ifetch_req) {
-  if (!FLAGS_mcm)
+  if (!FLAGS_mcm || patch_mode_)
     return;
 
   if (terminated_ || in_reset_)
@@ -920,7 +920,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_req<>& m_m
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>& m_mcmi_ifetch_resp) {
-  if (!FLAGS_mcm)
+  if (!FLAGS_mcm || patch_mode_)
     return;
 
   if (terminated_ || in_reset_)
@@ -943,7 +943,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>& m_
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ievict<>& m_mcmi_ievict) {
-  if (!FLAGS_mcm)
+  if (!FLAGS_mcm || patch_mode_)
     return;
 
   if (terminated_ || in_reset_)

@@ -136,14 +136,14 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
 
       //"htval","mtval2", // RVDE-10043
       "mtinst","htinst", // RVDE-10005
-      "vstart","vxsat","vxrm","vcsr", // Unimplemented
       "sstatus","mstatus","hstatus","mie","hie","vsie","sie", // RVDE-11840
+      "vxsat", // Vectors RVDE-17338
       "tselect","tdata1","tdata2","tdata3","mcontext","tinfo", // Unimplemented: RVDE-7518, RVTOOLS-3124
       "fflags","fcsr", // Unimplemented
       "menvcfg","senvcfg","henvcfg", // FIXME: pointer masking change
       "pma","pmp", // FIXME: Performant NC change
       "vtype", // Permanent: Vector vtype will not be implemented
-      "mip","hip","vsip","hvip","sip","mireg","sireg","vsireg","mtopei","stopei","vstopei", // Permanent: Interrupts
+      "mip", "mvip", "hip","vsip","hvip","sip","mireg","sireg","vsireg","mtopei","stopei","vstopei", // Permanent: Interrupts
       "mtopi", "stopi", "vstopi", // RVTOOLS-3189
       "hpmcounter","hpmevent","scountovf","mcycle","minstret","minstreth", // Permanent: PMC events
       "dcsr","dpc","dscratch0", "dscratch1" // Permanent: Debug events
@@ -198,9 +198,9 @@ void bridge::reset() {
   // Init csr reset values in cac
   csr_init();
 
-  // Write hart enable mask to boot mem
+  // Write num_harts to boot mem
   bool valid;
-  if (!client_->whisperPoke(id_, 0, 'm', memmap_.at("boot").base + 0x9000, FLAGS_hart_enable_mask, valid)) {
+  if (!client_->whisperPoke(id_, 0, 'm', memmap_.at("boot").base + 0x9000, FLAGS_num_harts, valid)) {
     print(cvm::ERROR, "Error: Hart {}: Failed to poke boot memory\n", id_);
     return;
   }
