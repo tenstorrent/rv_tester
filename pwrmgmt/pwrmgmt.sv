@@ -33,7 +33,8 @@ import rv_tester_params::*;
         pwrmgmt_set_scope(location);
         pwrmgmt_set_reset_count(location, reset_count);
         if (reset_count <= 0)
-          pwrmgmt_force_ref_clk(1);
+          //FIXME pwrmgmt_force_ref_clk(1);
+          pwrmgmt_init();
         if (warm_reset_en) begin
           warm_reset_interval = cvm_rand::get("warm_reset_interval");
           $display("[%0d] [pwrmgmt] Target warm reset count: %0d, current count: %0d, current interval: %0d TB clocks",
@@ -85,10 +86,10 @@ import rv_tester_params::*;
 
   // m_cold_reset
   logic cold_reset_ack_valid;
-  assign cold_reset_ack_valid = (cold_reset === '1 && cold_reset_d1 !== '1) || (cold_reset_d1 === '1 && cold_reset !== '1);
+  assign cold_reset_ack_valid = (cold_reset_d1 && ~cold_reset);
   assign m_cold_reset_acks[0].valid = cold_reset_ack_valid && (location != cvm_topology::nil);
   assign m_cold_reset_acks[0].data.location = location;
-  assign m_cold_reset_acks[0].data.assertion = (cold_reset === '1 && cold_reset_d1 !== '1);
+  assign m_cold_reset_acks[0].data.assertion = '0;
 
   // -------------------------
   // C++->SV Callbacks

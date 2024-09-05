@@ -100,7 +100,6 @@ module rv_tester
     logic sys_reset [NCLKS-1:0];
     /* verilator lint_on MULTIDRIVEN */
     logic sys_reset_any;
-    logic dut_reset_any;
     logic dut_reset_req_in_progress = '0;
     logic dut_reset_req_d1;
     logic init_pulse;
@@ -176,7 +175,7 @@ module rv_tester
     logic dut_terminate_any;
 
 
-    assign dut_terminate_any = dut_reset_any ? '0 : dut_terminate;
+    assign dut_terminate_any = dut_terminate;
 
 
     assign terminate           = (dut_terminate_any || rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sys_reset_any) || quiesce_counter > 0) && !rv_tester_reset;
@@ -417,13 +416,6 @@ module rv_tester
         end
     end
 
-    always_comb begin
-        dut_reset_any = '0;
-        for (int c = 0; c < NCLKS; c++) begin
-            dut_reset_any |= dut_reset[c];
-        end
-    end
-
     // soc clock counter
     always @(posedge dut_clk[SOC_CLK_IDX]) begin
         soc_clocks <= soc_clocks + 1;
@@ -447,23 +439,29 @@ module rv_tester
 
     // We also assert reset at the end of the test to quiesce the DPIs.
     logic reset_pullup;
-    logic reset_pullup_in_progress;
+    logic cold_reset_pullup = 0;
+    logic warm_reset_pullup = 0;
     assign reset_pullup = rv_tester_reset || terminate_now || terminated;
 
-    assign reset[COLD_RESET_IDX] = cold_reset || ((reset_pullup || reset_pullup_in_progress) && !warm_reset_req) ;
+    assign reset[COLD_RESET_IDX] = cold_reset || cold_reset_pullup;
     assign reset[WARM_RESET_IDX] = warm_reset;
 
     assign dut_reset[TB_CLK_IDX] = reset[COLD_RESET_IDX] || reset[WARM_RESET_IDX];
-    assign dut_reset[CORE_CLK_IDX] = &core_no_fetch !== '0;
-    assign dut_reset[AXI_CLK_IDX] = &core_no_fetch !== '0;
+    assign dut_reset[CORE_CLK_IDX] = &core_no_fetch || reset[WARM_RESET_IDX] || warm_reset_pullup;
+    assign dut_reset[AXI_CLK_IDX] = &core_no_fetch || reset[WARM_RESET_IDX] || warm_reset_pullup;
     assign dut_reset[SOC_CLK_IDX] = reset[COLD_RESET_IDX];
     assign dut_reset[REF_CLK_IDX] = reset_window;
 
     always@(posedge dut_clk[TB_CLK_IDX]) begin
-        if (reset_pullup && !warm_reset_req)
-            reset_pullup_in_progress <= '1;
-        else if (cold_reset)
-            reset_pullup_in_progress <= '0;
+        if (reset_pullup)
+            if (!warm_reset_req)
+                cold_reset_pullup <= '1;
+            else
+                warm_reset_pullup <= '1;
+        if (cold_reset)
+            cold_reset_pullup <= '0;
+        if (warm_reset)
+            warm_reset_pullup <= '0;
     end
 
 `ifdef NEGEDGE_UNSUPPORTED
