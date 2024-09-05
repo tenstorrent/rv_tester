@@ -67,24 +67,54 @@ io_coh_helper::checkUsage(){
 
 }
 
-void
-io_coh_helper::overlay_write(uint64_t addr,uint64_t data)
-{
-  cvm::log(cvm::HIGH, "[io_coh_helper] overlay_write: {:#x} \n", addr);
-     uint32_t length = 0x40;
-    std::vector<uint8_t> data1;
-    std::vector<bool> strb1;
+
+
+void io_coh_helper::gen_data_strb(uint64_t addr, uint32_t value, data_t& wdata, std::vector<bool>& strb) {
+    uint8_t b_index =  static_cast<uint8_t>(addr & 0x3F);
+
     for (uint8_t i = 0; i < 64; ++i) {
-      data1.push_back(0x0);
-      strb1.push_back(0x0);
+          wdata.push_back(0x0);
+          strb.push_back(0x0);
     }  
     for (uint8_t i = 0; i < 4; ++i) {
-      uint8_t currentByte = static_cast<uint8_t>((data >> (8 * i)) & 0xFF);
-      data1[i] = currentByte;
-      strb1[i] = 0x1;
-    }
-    cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data1, strb1});
-    cvm::topology::loc_t axi_mst_loc_lambda = axi_mst_loc_l;
+          uint8_t currentByte = static_cast<uint8_t>((value >> (8 * i)) & 0xFF);
+          wdata[i+b_index] = currentByte;
+          strb[i+b_index] = 0x1;
+    }  
+}
+void io_coh_helper::overlay_write(uint64_t addr,uint64_t data) {
+
+  axi::a_t aw_txn;
+  aw_txn.w    = true;
+  aw_txn.id   = 12;
+  aw_txn.addr = addr;
+  aw_txn.len  = 0;
+  aw_txn.size = 3;
+  aw_txn.burst = axi::burst_t(0);
+  aw_txn.lock  =0;
+  aw_txn.cache  =axi::cache_mem_attr_t(0);
+  aw_txn.prot  =2;
+  aw_txn.qos  =0;
+  aw_txn.region  =0;
+  aw_txn.atop  =0;
+  aw_txn.user  =8;
+  
+ 
+  cvm::log(cvm::LOW, "[Trickbox] SP_XTOR AXI MMR WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
+
+  cvm::registry::messenger.signal(axi_mst_loc_l, aw_txn);
+  axi::w_t w_txn;
+  std::vector<uint8_t> data_vec;
+  std::vector<bool> strb_vec;
+  gen_data_strb(addr,data,data_vec,strb_vec);
+   for (uint8_t i = 0; i < 64; ++i) {
+          w_txn.data.push_back(data_vec[i]);
+          w_txn.strb.push_back(strb_vec[i]);
+    }  
+  
+  w_txn.last = 1;
+  cvm::registry::messenger.signal(axi_mst_loc_l, w_txn);
+  cvm::topology::loc_t axi_mst_loc_lambda = axi_mst_loc_l;
     write_in_flight = true;
     auto t = std::make_tuple(axi_mst_loc_lambda, std::ref(write_in_flight));
     auto* l = +[](decltype(t) t) -> cvm::messenger::task<void>{
@@ -93,6 +123,33 @@ io_coh_helper::overlay_write(uint64_t addr,uint64_t data)
   };
   cvm::registry::messenger.fork(l, t);
 }
+
+// void
+// io_coh_helper::overlay_write(uint64_t addr,uint64_t data)
+// {
+//   cvm::log(cvm::HIGH, "[io_coh_helper] overlay_write: {:#x} \n", addr);
+//      uint32_t length = 0x40;
+//     std::vector<uint8_t> data1;
+//     std::vector<bool> strb1;
+//     for (uint8_t i = 0; i < 64; ++i) {
+//       data1.push_back(0x0);
+//       strb1.push_back(0x0);
+//     }  
+//     for (uint8_t i = 0; i < 4; ++i) {
+//       uint8_t currentByte = static_cast<uint8_t>((data >> (8 * i)) & 0xFF);
+//       data1[i] = currentByte;
+//       strb1[i] = 0x1;
+//     }
+//     cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data1, strb1});
+//     cvm::topology::loc_t axi_mst_loc_lambda = axi_mst_loc_l;
+//     write_in_flight = true;
+//     auto t = std::make_tuple(axi_mst_loc_lambda, std::ref(write_in_flight));
+//     auto* l = +[](decltype(t) t) -> cvm::messenger::task<void>{
+//     co_await cvm::registry::messenger.wait<transactor::write_response_t>(std::get<0>(t));
+//     std::get<1>(t) = false;
+//   };
+//   cvm::registry::messenger.fork(l, t);
+// }
 
 
 
@@ -108,14 +165,31 @@ void io_coh_helper::overlay_read(uint64_t addr) {
    };
    cvm::registry::messenger.fork(l, r, this);
 }
+cvm::messenger::task<void> io_coh_helper::blocking_read(const transactor::read_t& r , data_t&) {
 
-cvm::messenger::task<void> io_coh_helper::blocking_read(const transactor::read_t& r, data_t& ) {
-  auto& addr = r.addr;
-  auto& length = r.length;
+  axi::a_t ar_txn;
+  ar_txn.w    = false;
+  ar_txn.id   = 2;
+  //ar_txn.addr = 0x60000000;
+  ar_txn.addr = r.addr;
+  ar_txn.len  = 0;
+  ar_txn.size = 6;
+  ar_txn.burst = axi::burst_t(0);
+  ar_txn.lock  =0;
+  ar_txn.cache  =axi::cache_mem_attr_t(0);
+  ar_txn.prot  =2;
+  ar_txn.qos  =0;
+  ar_txn.region  =0;
+  ar_txn.atop  =0;
+  ar_txn.user  =0;
+  
+  cvm::log(cvm::HIGH, "[io_coh_helper] blocking read data begin: \n");
+
   read_in_flight = true;
-  cvm::registry::messenger.signal(axi_mst_loc_l, transactor::read_request_t{addr, length});
+  cvm::registry::messenger.signal(axi_mst_loc_l, ar_txn);
 
   auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(axi_mst_loc_l);
+
   read_in_flight = false;
 
   cvm::log(cvm::HIGH, "[io_coh_helper] blocking read data begin: \n");
@@ -130,7 +204,9 @@ cvm::messenger::task<void> io_coh_helper::blocking_read(const transactor::read_t
   std::string output = ss.str();
   cvm::log(cvm::HIGH, "[io_coh_helper] blocking read data end:  {}\n",output);
   co_return;
+ 
 }
+
 
 
 void
