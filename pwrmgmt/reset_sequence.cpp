@@ -24,10 +24,10 @@ DEFINE_bool(patch_en, false, "Enable instruction patching");
 DEFINE_bool(tj_max, false, "Program lower TJ Max Threshold");
 DEFINE_bool(temp_throttle, false, "Program lower Temp throttle for core");
 DEFINE_bool(patch_cpl_filter_dis, false, "Disable programming of inbound and outbound filters in core");
-DEFINE_bool(patch_registers_check, false, "Enable read write checking of patch related registers");
+DEFINE_bool(patch_mmr_check, false, "Enable read write checking of patch related registers");
 DEFINE_bool(patch_ram_check, false, "Enable read write checking of patch ram region");
 DEFINE_bool(patch_cfg_lock, true, "Lock the patch mmrs while boot programming ");
-DEFINE_bool(fuse_reg_check, false, "Check RW and lockability of fuses ");
+DEFINE_bool(fuse_mmr_check, false, "Check RW and lockability of fuses ");
 
 
 extern "C" {
@@ -188,8 +188,8 @@ cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
   co_await release_cpl_reset();
   if (rst_type == COLD)  
     co_await program_fuses();
-  if (FLAGS_fuse_reg_check)
-    co_await fuse_register_check();
+  if (FLAGS_fuse_mmr_check)
+    co_await fuse_mmr_check();
   co_await program_thub_threshold();
   if (FLAGS_patch_en && rst_type == COLD) { 
     co_await program_patch();
@@ -197,8 +197,8 @@ cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
     co_await patch_ram_check();
   };
   co_await release_cpl_nofetch();
-  if (FLAGS_fuse_reg_check)
-    co_await fuse_mmr_csr_access_check();
+  if (FLAGS_fuse_mmr_check)
+    co_await disabled_mmr_csr_check();
   co_return;
 }
 
@@ -476,8 +476,8 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
   co_await write(cpl_patch_ram_ptrig_3, SZ_8B, concatenate_uint32_to_uint64(patch_trig_3) );
   co_await write(cpl_patch_ram_pbody_0, SZ_8B, concatenate_uint32_to_uint64(patch_body_wfi) );
   co_await write(cpl_patch_ram_pbody_1, SZ_8B, concatenate_uint32_to_uint64(patch_body_sub) );
-  co_await write(cpl_patch_ram_pbody_2, SZ_8B, concatenate_uint32_to_uint64(patch_body_blt) );
-  co_await write(cpl_patch_ram_pbody_3, SZ_8B, concatenate_uint32_to_uint64(patch_body_any) );
+  co_await write(cpl_patch_ram_pbody_2, SZ_8B, concatenate_uint32_to_uint64(patch_body_blt_arith) );
+  co_await write(cpl_patch_ram_pbody_3, SZ_8B, concatenate_uint32_to_uint64(patch_body_amoswap) );
 
   if (FLAGS_patch_ram_check) { 
      populate_patch_ram(cpl_patch_ram_base, concatenate_uint32_to_uint64(patch_header) );
@@ -487,8 +487,8 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
      populate_patch_ram(cpl_patch_ram_ptrig_3, concatenate_uint32_to_uint64(patch_trig_3) );
      populate_patch_ram(cpl_patch_ram_pbody_0, concatenate_uint32_to_uint64(patch_body_wfi) );
      populate_patch_ram(cpl_patch_ram_pbody_1, concatenate_uint32_to_uint64(patch_body_sub) );
-     populate_patch_ram(cpl_patch_ram_pbody_2, concatenate_uint32_to_uint64(patch_body_blt) );
-     populate_patch_ram(cpl_patch_ram_pbody_3, concatenate_uint32_to_uint64(patch_body_any) );
+     populate_patch_ram(cpl_patch_ram_pbody_2, concatenate_uint32_to_uint64(patch_body_blt_arith) );
+     populate_patch_ram(cpl_patch_ram_pbody_3, concatenate_uint32_to_uint64(patch_body_amoswap) );
     co_await patch_ram_check();
   };
  
@@ -497,7 +497,7 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
   patch_cfg[core_pversion_mmr] = rand()%0xFF;
   patch_cfg[core_preg0_mmr] = 0xFFFFFFFF'10500073;//preg0 :wfi
   patch_cfg[core_preg1_mmr] = 0xFE00707F'40000033;//preg1 :sub
-  patch_cfg[core_preg2_mmr] = 0xFE00707F'00004063;//preg2: blt
+  patch_cfg[core_preg2_mmr] = 0x0000707F'00004063;//preg2: blt
   patch_cfg[core_preg3_mmr] = 0xFE00707F'0800202f;//preg3 : amoswap.w
   
   uint64_t pcontrol_data =  0x03FE03FE03FE03FE;
@@ -516,14 +516,16 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
     co_await write(core_pcontrol_mmr + offset, SZ_8B, pcontrol_data);
   };
 
-  if (FLAGS_patch_registers_check) {
+  if (FLAGS_patch_mmr_check) {
     patch_cfg[core_pcontrol_mmr] = pcontrol_data;
     uint64_t data;
     int random_cid = rand()%FLAGS_num_harts;
     uint32_t offset = random_cid * core_fuse_offset;
     for (auto i : patch_cfg) { 
       if (i.first != core_pversion_mmr && FLAGS_patch_cfg_lock)
-        co_await write(i.first + offset, SZ_8B, rand()%0xFFFFFFFFFFFFFFFF); //Writes to check lock-ability 
+        co_await write(i.first + offset, SZ_8B, rand()%0xFFFFFFFFFFFFFFFF); //Writes to check lock-ability
+    };
+    for (auto i : patch_cfg) {
       data = co_await read(i.first + offset, SZ_8B);
       if (data != i.second)
         cvm::log(cvm::ERROR, "[pwrmgmt] patch registers check ERROR : addr 0x{:x} ,  Expected :0x{:x}, Actual : 0x{:x} \n", i.first, i.second, data );
@@ -613,7 +615,8 @@ cvm::messenger::task<void> reset_sequence::patch_ram_check() {
   co_return;
 };
 
-cvm::messenger::task<void> reset_sequence::fuse_register_check() {
+
+cvm::messenger::task<void> reset_sequence::fuse_mmr_check() {
   co_await tick();
 
   uint64_t fuse = fuse_val();
@@ -647,7 +650,7 @@ cvm::messenger::task<void> reset_sequence::fuse_register_check() {
 };
 
 
-cvm::messenger::task<void> reset_sequence::fuse_mmr_csr_access_check() {
+cvm::messenger::task<void> reset_sequence::disabled_mmr_csr_check() {
   co_await tick();
   //FIXME : ADD read write accesses to disabled cores
   co_return;

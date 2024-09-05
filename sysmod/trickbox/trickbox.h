@@ -21,6 +21,7 @@
 #include "aplic_driver.h"
 #include "evt_trigger.h"
 #include "uc_helper.h"
+#include "io_coh_helper.h"
 #include <mem_manager.h>
 
 // Define a core local  (trickbox) at the given address

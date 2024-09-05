@@ -102,6 +102,7 @@ class axi : public transactor {
             region_t          region;
             atop_t            atop = atop_t(0);
             user_t            user;
+            bool              rsp_err_chk = true;
             
         };
 

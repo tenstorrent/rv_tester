@@ -36,7 +36,6 @@ REGISTRY_register((axi_sw_mst<rv_tester_transactions::axi_sw_mst::b<4>,
                               rv_tester_transactions::axi_sw_mst::w_q_ptr<4>>), PM_NW_AXI_MST, cvm::registry::all);
 
 
-DEFINE_bool(axi_mask_bad_response, false, "Plusarg to mask bad responses on AXI bus");
 extern "C" {
     void axi_sw_mst_ar_reset();
     void axi_sw_mst_aw_reset();
@@ -63,7 +62,8 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::axi_sw_mst(cvm::topology::loc_t loc, unsigned /*
       ar_q_rptr_(0), ar_q_wptr_(ar_q_max_),
       aw_q_rptr_(0), aw_q_wptr_(aw_q_max_),
       w_q_rptr_(0), w_q_wptr_(w_q_max_),
-      ids_(size_t(1) << id_width_, true)
+      ids_(size_t(1) << id_width_, true),
+      chk_rsp_err_ids_(size_t(1) << id_width_, true)
 {
     cvm::log(cvm::FULL, "[axi_sw_mst] Constructing axi_sw_mst for loc={} \n", loc);
     // available burst sizes
@@ -96,7 +96,7 @@ void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const B& b) {
     if (b.resp != axi::RESP_OKAY or not used_id(b.id)) {
         // could have EXOKAY if it was locked, but assume not for now
-        if(!FLAGS_axi_mask_bad_response){
+        if(chk_rsp_err_ids_[b.id]){
             cvm::log(cvm::ERROR, "[axi_sw_mst] Error: bad b.response id:{} resp: {}\n", b.id, b.resp);
         }else{
             cvm::log(cvm::LOW, "[axi_sw_mst] Masking bad b.response id:{} resp: {}\n", b.id, b.resp);
@@ -121,7 +121,7 @@ template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const R& r) {
     if (r.resp != axi::RESP_OKAY or not used_id(r.id)) {
-        if(!FLAGS_axi_mask_bad_response){
+        if(chk_rsp_err_ids_[r.id]){
             cvm::log(cvm::ERROR, "[axi_sw_mst] Error: bad r.response id: {} resp: {} last: {}\n", r.id, r.resp, r.last);
         }else{
             cvm::log(cvm::LOW, "[axi_sw_mst] Masking bad r.response id: {} resp: {} last: {}\n", r.id, r.resp, r.last);
@@ -188,6 +188,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const axi::a_t& a) {
         return;
     }
     alloc_id(a.id);
+    chk_rsp_err_ids_[a.id] = a.rsp_err_chk;
 
     transactions_.emplace_back(a);
     push_transactions();
@@ -329,7 +330,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const transactor::read_request_t& req) {
-    axi::a_t a{ .w = false };
+    axi::a_t a{ .w = false , .rsp_err_chk = req.rsp_err_chk};
 
      if (!a_wrapper(req.addr, req.length, a))
         return;
@@ -341,7 +342,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const transactor::read_request_t& req) {
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const transactor::write_request_t& req) {
-    axi::a_t a{ .w = true };
+    axi::a_t a{ .w = true, .rsp_err_chk = req.rsp_err_chk };
 
     if (!a_wrapper(req.addr, req.length, a))
         return;

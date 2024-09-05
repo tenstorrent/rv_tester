@@ -153,6 +153,7 @@ module rv_tester
     int flush_timeout = 25000;
     bit print_terminate_message = '1;
 
+    int hart_enable_mask = 0;
     int rand_dmi_driver_dly = 0;
     int dmi_poll_counter = 0; 
     int dmi_poll_timeout = 50000;
@@ -180,7 +181,6 @@ module rv_tester
 
     assign terminate           = (dut_terminate_any || rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sys_reset_any) || quiesce_counter > 0) && !rv_tester_reset;
     assign terminate_now       = (terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue == '0) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced )) || dut_terminate_any || warm_reset_now; 
-
     
     assign rerun_now           = terminated && ((num_reruns > 0) || (warm_reset_en && (num_resets <= target_num_resets)));
 
@@ -308,6 +308,7 @@ module rv_tester
             overlay_mmr_en       <= cvm_plusargs::get_bool("overlay_mmr_en") != '0;
             jtag_en              <= cvm_plusargs::get_bool("jtag_en") != '0;
             rand_dmi_driver_dly  <= cvm_plusargs::get_int("rand_dmi_driver_dly");
+            hart_enable_mask     <= cvm_plusargs::get_int("hart_enable_mask");
 
             $display("[RVTESTER]: reconstructing registry");
             rv_tester_build_registry();
@@ -525,6 +526,8 @@ module rv_tester
         .clk(dut_clk[AXI_CLK_IDX]),
         .reset(~dut_reset[AXI_CLK_IDX]),
         .rand_dmi_driver_dly,
+        .hart_enable_mask,
+
         .dmi_req_ready,
         .dmi_resp_valid,
         .dmi_resp,
@@ -616,6 +619,7 @@ module rv_tester
           .mcmi_ifetch_req(mcmi_ifetch_req[NIFETCHES_CUMSUM[c] +: NIFETCHES[c]]),
           .mcmi_ifetch_resp(mcmi_ifetch_resp[NIFETCHES_CUMSUM[c] +: NIFETCHES[c]]),
           .mcmi_ievict(mcmi_ievict[NIEVICTS_CUMSUM[c] +: NIEVICTS[c]]),
+          .nmi_pend(nmi_pend[c]),
           .wired_interrupt(interrupt_pend[c]),
           .imsic_interrupt(axi_msi), //FIXME
           .imsic_msi(axi_msi_packets[c]), //FIXME
@@ -678,11 +682,11 @@ module rv_tester
             `TOPOLOGY_CFG,
             `RV_TESTER_TRANSACTIONS_INTERRUPTS_SOURCE_PARAMS(0)
         ) interrupts (
-            .tb_clk(dut_clk[TB_CLK_IDX]),
-            .tb_reset(sys_reset[TB_CLK_IDX]),
             .clk(dut_clk[AXI_CLK_IDX]),
+            .sys_reset(sys_reset[AXI_CLK_IDX]),
             .reset(dut_reset[AXI_CLK_IDX]),
-            .nmi(nmi[c]),
+            .clocks,
+            .nmi(nmi[c].nmi),
             `RV_TESTER_TRANSACTIONS_INTERRUPTS_SOURCE_PORTS(2,c,0)
         );
     end
