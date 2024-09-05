@@ -37,6 +37,7 @@ DEFINE_string(cosim_resynch_instr, "", "List of instruction mnemonics to resynch
 DEFINE_string(cosim_resynch_prev_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
 DEFINE_string(cosim_resynch_csr, "", "List of csr mnemonics to resynch whisper with dut state"); 
 DEFINE_bool(mip_resynch, true, "Resynch whisper with dut state on mip mismatch condition");
+DEFINE_uint64(mip_resynch_threshold, 32, "Resynch whisper with dut state on mip mismatch if within threshold number of instructions");
 DEFINE_bool(topi_resynch, true, "Resynch whisper with dut state on topi mismatch condition");
 DEFINE_bool(topei_resynch, true, "Resynch whisper with dut state on topei mismatch condition");
 DEFINE_bool(intr_defer_spcl, true, "Defer all interrupts in special cases");
@@ -589,10 +590,13 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   // Check dut vs whisper
   compare_dut_whisper_state(hart, w, d);
 
-  // Save whisper state
+  // Interrupt state
   prev_mip_ = mip_;
   prev_e_mip_ = e_mip_;
-  mem_poke_.clear();
+  mip_age_++;
+  e_mip_age_++;
+
+  msi_.clear();
 
   // TLB checks
   translation_check(hart, d, w);
@@ -823,6 +827,11 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
       check_interrupt(hart, undeferred_mip, pre_undeferred_intr_, undeferred_w_cause);
     }
   }
+
+  if (prev_mip_ != mip_)
+    mip_age_ = 0;
+  if (prev_e_mip_ != e_mip_)
+    e_mip_age_ = 0;
 
   if ((!mip_ && !prev_mip_) || nmi_.valid) {
     IF_DEBUG("mip_==0  and prev_mip_==0 ... return");
@@ -1706,21 +1715,21 @@ bool bridge::boot_read(const rv_instr_t& d) {
 
 bool bridge::mip_mismatch(const std::string& instr) {
   if ((instr.find("mip") != std::string::npos) &&
-      (mip_ != prev_mip_))
+      (mip_age_ < FLAGS_mip_resynch_threshold))
     return true;
   return false;
 }
 
 bool bridge::topi_mismatch(const std::string& instr) {
   if ((instr.find("topi") != std::string::npos) &&
-      (mip_ != prev_mip_ || mem_poke_.size() != 0))
+      (mip_age_ < FLAGS_mip_resynch_threshold || msi_.size() != 0))
     return true;
   return false;
 }
 
 bool bridge::topei_mismatch(const std::string& instr) {
   if ((instr.find("topei") != std::string::npos) &&
-      (e_mip_ != prev_e_mip_ || mem_poke_.size() != 0))
+      (e_mip_age_ < FLAGS_mip_resynch_threshold || msi_.size() != 0))
     return true;
   return false;
 }
@@ -1855,7 +1864,7 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
       if (csr.csr_addr==0x15c || csr.csr_addr==0x25c || csr.csr_addr==0x35c ||
           csr.csr_addr==0xdb0 || csr.csr_addr==0xfb0) {
         bridge_log_(cvm::MEDIUM, "<{}> topi/topei resynch\n", d.cycle);
-        for (const auto &m : mem_poke_) {
+        for (const auto &m : msi_) {
           if (FLAGS_bridge_log) {
             bridge_log_(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: Mpoke[{:#x}]={:#x}\n", d.cycle, step_, m.pa, m.data);
           }
@@ -2139,12 +2148,7 @@ void bridge::process_local_interrupt(hart_id_t hart, rv_intr_t& i) {
 }
 
 void bridge::process_dut_imsic_msi(hart_id_t hart, mem_t& m) {
-  mem_poke_.push_back(m);
-  bridge_log_(cvm::MEDIUM, "<{}> poke_mem:: push: [addr={:#x} data={:#x}]\n", m.cycle, m.pa, m.data);
-  for (const auto &p : mem_poke_) {
-    bridge_log_(cvm::MEDIUM, "<{}> poke_mem: [addr={:#x} data={:#x}]\n", p.cycle, p.pa, p.data);
-  }
-
+  msi_.push_back(m);
   process_imsic_msi(hart, m);
 }
 

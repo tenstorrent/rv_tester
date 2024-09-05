@@ -230,13 +230,15 @@ private:
   bool vstimecmppoked_ = false;
   bool stimecmppoked_ = false;
   uint64_t intrtopriv_ = 3;
-  std::vector<mem_t> mem_poke_{};
+  std::vector<mem_t> msi_{};
   rv_nmi_t nmi_ {};
   bool nmi_poke_pending_ = false;
   uint64_t mip_ = 0;
   uint64_t prev_mip_ = 0;
+  uint64_t mip_age_ = 0;
   uint64_t e_mip_ = 0;
   uint64_t prev_e_mip_ = 0;
+  uint64_t e_mip_age_ = 0;
   uint64_t deferred_mip_ = 0;
   bool prev_sync_intr_ = 0;
   bool all_interrupts_defer_= 0;
