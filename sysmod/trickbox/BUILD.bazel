@@ -8,6 +8,7 @@ cc_library(
       "imsic_driver.cpp",
       "aplic_driver.cpp",
       "uc_helper.cpp",
+      "io_coh_helper.cpp",
       "trickbox.cpp"
     ],
     hdrs = [
@@ -21,6 +22,7 @@ cc_library(
       "imsic_driver.h",
       "aplic_driver.h",
       "uc_helper.h",
+      "io_coh_helper.h",
       "trickbox.h"
     ],
     deps = [
