@@ -45,7 +45,6 @@ io_coh_helper::read_dev(uint64_t addr, size_t length, data_t& data)
     serializeInt(read_in_flight_data, length, data);
   }
   if(addr ==(io_coh_helper_base + 0x580)) {
-    uint64_t backdoor_read_data =  0;
     serializeInt(backdoor_read_data, length, data);
   }
   if(addr ==(io_coh_helper_base + 0x5b0)) {
