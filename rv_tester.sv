@@ -676,6 +676,19 @@ module rv_tester
         );
     end
 
+    trace #(
+       .NUM(0),
+       `TOPOLOGY_CFG,
+       `RV_TESTER_TRANSACTIONS_TRACE_SOURCE_PARAMS(0)
+    ) trace (
+        .tb_clk(clk[TB_CLK_IDX]),
+        .tb_reset(sys_reset[TB_CLK_IDX]),
+        .clk(dut_clk[AXI_CLK_IDX]),
+        .reset(dut_reset[AXI_CLK_IDX]),
+        .core_no_fetch(core_no_fetch),
+        `RV_TESTER_TRANSACTIONS_TRACE_SOURCE_PORTS(2,0,0)
+    );
+    
     for (genvar c = 0; c < NHARTS; c++) begin: triggers
         triggers #(
             .NUM(c),

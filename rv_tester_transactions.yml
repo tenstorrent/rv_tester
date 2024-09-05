@@ -1506,6 +1506,21 @@ interrupts:
             cycle:
                 width: 64
 
+trace:
+    num: 1
+    m_core_no_fetch:
+        domain: 2
+        num: 1
+        fields:
+            val:
+                width: ${TOP.PLATFORM.NHARTS}
+    m_tick:
+        domain: 2
+        num: 1
+        fields:
+            cycle:
+                width: 32
+
 triggers:
     num: ${TOP.PLATFORM.NHARTS}
     m_event_trigger_tick:
