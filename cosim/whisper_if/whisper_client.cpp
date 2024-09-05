@@ -413,13 +413,15 @@ whisperClient<URV>::whisperPeek(int hart, char resource, uint64_t addr, uint64_t
   req.type = WhisperMessageType::Peek;
   req.resource = resource;
   req.address = addr;
+  req.tag[0] = 0;
 
   if (not whisperCommand(req, reply))
     return false;
 
   valid = reply.type != WhisperMessageType::Invalid;
   value = reply.value;
-  return true;}
+  return true;
+}
 
 template <typename URV>
 bool
@@ -430,6 +432,7 @@ whisperClient<URV>::whisperPeekCsr(int hart, uint64_t addr, uint64_t& value, uin
   req.type = WhisperMessageType::Peek;
   req.resource = 'c';
   req.address = addr;
+  req.tag[0] = 0;
 
   if (not whisperCommand(req, reply))
     return false;
@@ -449,6 +452,7 @@ whisperClient<URV>::whisperPeekPc(int hart, uint64_t& value)
   req.hart = hart;
   req.type = WhisperMessageType::Peek;
   req.resource = 'p';
+  req.tag[0] = 0;
 
   if (not whisperCommand(req, reply))
     return false;
@@ -465,6 +469,7 @@ whisperClient<URV>::whisperPeekGpr(int hart, uint64_t addr, uint64_t& value)
   req.type = WhisperMessageType::Peek;
   req.resource = 'r';
   req.address = addr;
+  req.tag[0] = 0;
 
   if (not whisperCommand(req, reply))
     return false;
@@ -480,6 +485,7 @@ whisperClient<URV>::whisperPeekFpr(int hart, uint64_t addr, uint64_t& value)
   req.type = WhisperMessageType::Peek;
   req.resource = 'f';
   req.address = addr;
+  req.tag[0] = 0;
 
   if (not whisperCommand(req, reply))
     return false;
@@ -495,6 +501,7 @@ whisperClient<URV>::whisperPeekVpr(int hart, uint64_t addr, std::array<std::uint
   req.type = WhisperMessageType::Peek;
   req.resource = 'v';
   req.address = addr;
+  req.tag[0] = 0;
 
   if (not whisperCommand(req, reply))
     return false;
@@ -519,6 +526,7 @@ whisperClient<URV>::whisperPoke(int hart, uint64_t time, char resource, uint64_t
   req.address = addr;
   req.value = value;
   req.time = time;
+  req.tag[0] = 0;
 
   if (not whisperCommand(req, reply))
     return false;
@@ -540,6 +548,7 @@ whisperClient<URV>::whisperPokeMem(int hart, uint64_t time, char resource, uint6
   req.value = value;
   req.time = time;
   req.size = size;
+  req.tag[0] = 0;
 
   if (not whisperCommand(req, reply))
     return false;
@@ -975,6 +984,7 @@ whisperClient<URV>::whisperGetSeiPin(int hart, uint64_t& value)
   req.type = WhisperMessageType::Peek;
   req.resource = 's';
   req.address = WhisperSpecialResource::Seipin;
+  req.tag[0] = 0;
 
   WhisperMessage reply;
 
