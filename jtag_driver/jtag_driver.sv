@@ -388,7 +388,9 @@ end
 always @(posedge clk) begin
   if(read_data_valid_reg == 1'b1)begin
     read_data_valid_reg <= 1'b0; 
-    jtag_rx = 1344'b0;
+    /* verilator lint_off BLKSEQ */
+    jtag_rx <= 1344'b0;
+    /* verilator lint_on BLKSEQ */
   end
   if (ir && ~jtag_resp.tdo_en) begin
     jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-2:0],jtag_resp.tdo};

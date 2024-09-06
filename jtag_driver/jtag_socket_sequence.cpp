@@ -766,7 +766,7 @@ cvm::messenger::task<void> jtag_socket_sequence::open_socket_to_listen(){
     //int PORT=8088;
     int PORT=FLAGS_jtag_socket_port;
     int tick_count = 0;
-    cvm::log(cvm::HIGH,"\n [JTAGDRIVER.CPP] opening socket to listen ...\n";
+    cvm::log(cvm::HIGH,"\n [JTAGDRIVER.CPP] opening socket to listen ...\n");
     // Creating socket file descriptor
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
         perror("socket failed");
