@@ -242,8 +242,8 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
               bool write = arg.w;
 
               if (!write) {
-                  cvm::log(cvm::FULL, "[axi_sw_mst] ar_req: [id={}, addr={:#x},len={} size={} burst:{} lock:{}\n", arg.id, arg.addr,arg.len, arg.size, arg.burst, arg.lock);
-                  cvm::log(cvm::FULL, "[axi_sw_mst] ar_req ar_q_wptr:{} ar_q_rptr:{} ar_q_max_:{} \n", ar_q_wptr_ ,ar_q_rptr_ ,ar_q_max_);
+                  cvm::log(cvm::FULL, "[axi_sw_mst] ar: [id={}, addr={:#x},len={} size={} burst={} lock={}]\n", arg.id, arg.addr, arg.len, arg.size, arg.burst, arg.lock);
+                  cvm::log(cvm::FULL, "[axi_sw_mst] ar: [ar_q_wptr:{} ar_q_rptr:{} ar_q_max_:{}]\n", ar_q_wptr_, ar_q_rptr_, ar_q_max_);
                   if ((ar_q_wptr_ - ar_q_rptr_ ) < ar_q_max_) {
                       ar_q_wptr_ = (ar_q_wptr_ + 1) % ar_q_ptr_max_;
                       cvm::registry::callbacks.push(
@@ -256,8 +256,8 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
                   }
               }
               else {
-                  cvm::log(cvm::FULL, "[axi_sw_mst] aw_req: arg.id :{:#x} , arg.addr: {:#x} , arg.len: {:#x} , arg.size: {:#x} , arg.burst: {:#x} , arg.atop.transaction: {:#x} , arg.lock: {:#x} \n", arg.id, arg.addr, arg.len, arg.size, arg.burst, arg.atop.transaction, arg.lock);
-                  cvm::log(cvm::FULL, "[axi_sw_mst] aw_req aw_q_wptr:{} aw_q_rptr:{} aw_q_max_:{} \n", aw_q_wptr_ ,aw_q_rptr_ ,aw_q_max_);
+                  cvm::log(cvm::FULL, "[axi_sw_mst] aw: [id={}, addr={:#x}, len={}, size={}, burst={}, lock={}]\n", arg.id, arg.addr, arg.len, arg.size, arg.burst, arg.lock);
+                  cvm::log(cvm::FULL, "[axi_sw_mst] aw: [aw_q_wptr:{} aw_q_rptr:{} aw_q_max_:{}]\n", aw_q_wptr_, aw_q_rptr_, aw_q_max_);
                   if ((aw_q_wptr_ - aw_q_rptr_ ) < aw_q_max_) {
                       aw_q_wptr_ = (aw_q_wptr_ + 1) % aw_q_ptr_max_;
                       cvm::registry::callbacks.push(
