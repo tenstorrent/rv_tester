@@ -1,7 +1,7 @@
 `ifndef DMI_TB_WRITES_UNSUPPORTED
 module dmi_driver (
     input logic                     clk,
-    input logic                     reset,
+    input logic                     reset_n,
 
     input logic [31:0]              rand_dmi_driver_dly,
     input logic [31:0]              hart_enable_mask,
@@ -170,7 +170,7 @@ module dmi_driver (
   end
 
   always @(negedge clk) begin
-    if (reset)
+    if (reset_n)
       clk_cnt = 0;
     else
       clk_cnt = clk_cnt + 1;

@@ -132,10 +132,12 @@ extern "C" {
 
     uint8_t rv_tester_shutdown_registry() {
         if (!check_called) {
+            cvm::log(cvm::NONE, "[registry] check...\n");
             cvm::registry::check();
             check_called = true;
         }
 
+        cvm::log(cvm::NONE, "[registry] shutdown...\n");
         return cvm::registry::shutdown();
     }
 
