@@ -203,6 +203,7 @@ bool exitLoop() {
     uint64_t jtag_ip_data_upper;
     uint64_t jtag_op_data;
     unsigned jtag_length_data;
+    unsigned long ip_data_array[21];
   };
   typedef struct{ 
         unsigned status;
@@ -241,7 +242,7 @@ bool exitLoop() {
 
   void genNextJtagEvents()
   {
-    cvm::log(cvm::HIGH, "Generating Next timer evt value\n");
+    cvm::log(cvm::HIGH, "[JTAGDRIVER.cpp]Generating Next timer evt value\n");
     if (FLAGS_random_jtag_entry)
     {
       int32_t rand_num = (rng() % (FLAGS_jtag_delay_max - FLAGS_jtag_delay_min + 1)) + FLAGS_jtag_delay_min;
@@ -250,12 +251,13 @@ bool exitLoop() {
     }
   }
 
-  std::vector<uint64_t> bitsetToUint64Array(const std::bitset<70>& bitset) {
-    const size_t bitsetSize = 64;//70;
+  std::vector<uint64_t> bitsetToUint64Array(const std::bitset<1344>& bitset) {
+    const size_t bitsetSize = 1344;//64;//70;
     const size_t ulongSize = sizeof(uint64_t) * 8;
     const size_t arraySize = (bitsetSize + ulongSize - 1) / ulongSize;
 
-    std::bitset<70> bitset_shifted = bitset>>2;
+    //std::bitset<70> bitset_shifted = bitset>>2;
+    std::bitset<1344> bitset_shifted = bitset;
 
     //jtag rx -> jtag.op_Data , we are shifting only by 2 since from jtag_xtor for each tap point we shift accordingly but all of them are shifted by 2
     //std::cout<<"[JTAG RESP] original = " <<bitset<<" shifted = "<<bitset_shifted<<"\n";
@@ -281,16 +283,21 @@ bool exitLoop() {
     void socket_mode_thread();
 
     cvm::messenger::task<void> random_mode();
-    cvm::messenger::task<void> trigger_mode();
    
     cvm::messenger::task<void> tick();
     cvm::messenger::task<void> trigger();
+    cvm::messenger::task<void> resp();
     virtual void trickboxJtagWrite(unsigned hart,unsigned jtag_cmd, unsigned long upper_jtag_data, unsigned long lower_jtag_data,unsigned reg_length_data,unsigned jtag_quit, unsigned tap_cfg_sel);
-    void jtag_resp(std::bitset<70> rdata);
+    virtual void trickboxJtagWriteSocket(unsigned hart,unsigned jtag_cmd,  unsigned long* lower_jtag_data,unsigned reg_length_data,unsigned jtag_quit, unsigned tap_cfg_sel);
+    //void jtag_resp(std::bitset<70> rdata);
+    void jtag_resp(std::bitset<1344> rdata);
     void init();
     void jtag_socket(unsigned hart, uint8_t assert);
     void drive_jtag_cmds();
     void process_input_string(std::string line);
+    std::string formatHexWithPadding(uint64_t hexNumber, int n);
+    std::string bitset_to_hex(const std::bitset<1344>& bits, int n);
+    std::bitset<1344> hexStringToBitset( std::string& hex);
 
   private:
 
@@ -311,6 +318,7 @@ bool exitLoop() {
   uint64_t jtag_driver_status_addr = 0x9061000;
   uint64_t jtag_driver_num_cmds_addr = 0x9061000;
   uint8_t  csv_completed = 1;
+  bool execute_qt = false;
   uint32_t status;
   uint32_t commands_in_queue;
   cvm::rand::rng<int64_t> rng;
@@ -329,6 +337,8 @@ bool exitLoop() {
   bool      loop_check_bit_type = 0; //0->chk if bit is zero 1-> chk if bit is 1
   
   uint64_t loop_rdata;
+  std::vector<uint64_t> rdata_Array;
+  std::bitset<1344> jtag_rdata;
   std::vector<std::vector<std::string>> csv_data;
   std::queue<jtag_req_t> jtag_cmd_q;
   std::vector<jtag_req_t> jtag_loop_q;
@@ -340,6 +350,7 @@ bool exitLoop() {
   //unsigned step_quit_queue_on = 0;
   //unsigned step_instr_cnt = 0;
   uint64_t timer_rand_debug = 500;
+  int padding_length = 64;
   std::vector<std::vector<std::string>> content;
   std::vector<std::string> row;
   // file(FLAGS_jtag_input_file_path);

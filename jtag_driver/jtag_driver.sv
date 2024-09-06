@@ -2,7 +2,7 @@ module jtag_driver
 import rv_tester_params::*;
 #(
   parameter int NUM = -1,
-  parameter int JTAG_DR_WIDTH             =      70,
+  parameter int JTAG_DR_WIDTH             =      1344,
   `TOPOLOGY,
   `RV_TESTER_TRANSACTIONS_JTAG_DRIVER_OUTPUT_PARAMS
 )
@@ -33,6 +33,7 @@ import rv_tester_params::*;
   export "DPI-C" function jtag_driver_init;
   export "DPI-C" function jtag_driver_jtag_socket;
   export "DPI-C" function drive_jtag_req; 
+  export "DPI-C" function drive_jtag_req_socket; 
 
   function void jtag_driver_init();
   endfunction
@@ -69,7 +70,7 @@ import rv_tester_params::*;
   //  rv_tester_pkg::jtag_if_t   jtag_req;
   // rv_tester_pkg::jtag_if_tck   jtag_tck_trst;
    bit[1:0]  command;
-   reg       read_data_valid_reg;
+   bit       read_data_valid_reg;
    bit jtag_busy;
    bit [31:0] length;
    bit [JTAG_DR_WIDTH-1:0] jtag_tx;
@@ -112,6 +113,7 @@ import rv_tester_params::*;
   // SV->C++ Messages/Packets
   // -------------------------
 
+  bit read = '0;
   int unsigned tb_clocks = 0;
   bit jtag_socket_start = 0;
   bit jtag_socket_end = 0;
@@ -161,8 +163,11 @@ import rv_tester_params::*;
   assign m_jtag_driver_ticks[0].data.cycle = (jtag_socket_start | jtag_socket_end) ? dut_clocks : '0;
   
   assign jtag_rdatas[0].valid         = read_data_valid_reg;
+  //assign jtag_rdatas[0].valid         = read;//read_data_valid_reg;
   assign jtag_rdatas[0].data.location = location;
+  /* verilator lint_off WIDTHEXPAND */
   assign jtag_rdatas[0].data.rdata     = jtag_rx;//upper32 bits for future use
+  /* verilator lint_on WIDTHEXPAND */
   assign jtag_rdatas_jtag_busy = jtag_busy ;
  // jtag xtor
 
@@ -179,7 +184,6 @@ typedef enum logic [1:0] {
   bit [31:0] counter = '0;
   bit [31:0] delay_counter = '0;
 
-  bit read = '0;
   bit jtag_req_begin = '0;
   bit jtag_req_begin_d = '0;
   bit[1:0]  command_l = '0;
@@ -197,11 +201,42 @@ typedef enum logic [1:0] {
       jtag_enable_begin = 1'b1;
         /* verilator lint_on BLKSEQ */
       command = jtag_cmd_ip[1:0];
+      /* verilator lint_off WIDTHEXPAND */
       jtag_tx = {upper_value[5:0],lower_value};
+      /* verilator lint_on WIDTHEXPAND */
       tap_sel = tap_cfg_sel;
       length = reg_length[31:0];
       jtag_quiesced = 1'b0;
       $display("[JTAG_DRIVER.SV] JTAG driver %h %h %h %h %h",upper_value, lower_value,reg_length,tap_sel,tap_cfg_sel);
+    end
+    else if(jtag_quit[0] === 1'b1 )begin
+      jtag_quiesced = 1'b1;
+      $display("[JTAG_DRIVER.SV] JTAG quit was given in %0d %t",jtag_quit[0],$time);
+    end
+  endfunction
+
+  function drive_jtag_req_socket(int unsigned jtag_cmd_ip,longint unsigned lower_value[21],int unsigned reg_length, int unsigned jtag_quit , int unsigned tap_cfg_sel);
+    if(jtag_quit[0] === 1'b0 )begin
+        /* verilator lint_off BLKSEQ */
+      jtag_enable_begin = 1'b1;
+        /* verilator lint_on BLKSEQ */
+      command = jtag_cmd_ip[1:0];
+      //jtag_tx = {upper_value[5:0],lower_value};
+      jtag_tx = {lower_value[20], lower_value[19], lower_value[18], lower_value[17], lower_value[16], 
+      lower_value[15], lower_value[14], lower_value[13], lower_value[12], lower_value[11],
+      lower_value[10], lower_value[9], lower_value[8], lower_value[7], lower_value[6], 
+      lower_value[5], lower_value[4], lower_value[3], lower_value[2], lower_value[1], 
+      lower_value[0]};
+      tap_sel = tap_cfg_sel;
+      length = reg_length[31:0];
+      jtag_quiesced = 1'b0;
+      $display("[JTAG_DRIVER.SV] JTAG driver socket  %h %h %h %h\n", lower_value[0],reg_length,tap_sel,tap_cfg_sel);
+
+      $display("[JTAG_DRIVER.SV] JTAG DRIVER socket jtag_tx %h \n",jtag_tx);
+      for(int i=0;i<21;i++)begin
+      $display("[JTAG_DRIVER.SV] JTAG DRIVER socket input data [%d]=%h \n",i,lower_value[i]);
+      end
+
     end
     else if(jtag_quit[0] === 1'b1 )begin
       jtag_quiesced = 1'b1;
@@ -350,51 +385,74 @@ always @(posedge pos_tdo_en) begin
   counter <= 32'b0;
 end
 
-//for future use
 always @(posedge clk) begin
-  if (ir && ~jtag_resp.tdo_en) begin
-    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1:5],jtag_resp.tdo,jtag_rx[4:1]};
-    read <= 1;
-  end else if (dr && ~jtag_resp.tdo_en && (tap_sel == 1) ) begin  //DTM
-    read_data_valid_reg <= 1'b0; 
-    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1:42],jtag_resp.tdo,jtag_rx[41 :1 ]};
-    read <= 1;
-  end else if (dr && ~jtag_resp.tdo_en && (tap_sel == 3) ) begin  //aclint
-    read_data_valid_reg <= 1'b0; 
-    jtag_rx <= {jtag_resp.tdo,jtag_rx[69 :1 ]};
-    read <= 1;
-  end else if (dr && ~jtag_resp.tdo_en && (tap_sel == 4) ) begin  //pmnw
-    read_data_valid_reg <= 1'b0; 
-    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1],jtag_resp.tdo,jtag_rx[68 :1]};
-    read <= 1;
-  end else if (dr && ~jtag_resp.tdo_en && (tap_sel == 5)) begin  //smc
-    read_data_valid_reg <= 1'b0; 
-    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1:38],jtag_resp.tdo,jtag_rx[37:1]};
-    read <= 1;
-  end else if (dr && ~jtag_resp.tdo_en && (tap_sel == 6)) begin  //trace 
-    read_data_valid_reg <= 1'b0; 
-    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1:67],jtag_resp.tdo,jtag_rx[66 :1]};
-    read <= 1;
-  end else if (dr && ~jtag_resp.tdo_en && (tap_sel == 2)) begin      //axi
-    read_data_valid_reg <= 1'b0; 
-    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1 : 66],jtag_resp.tdo,jtag_rx[65 :1]};
-    read <= 1;
-  end else if (dr && ~jtag_resp.tdo_en && (tap_sel == 7)) begin      //core h2
-    read_data_valid_reg <= 1'b0; 
-    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1:67],jtag_resp.tdo,jtag_rx[66 :1]};
-    read <= 1;
-  end else begin
-    if(read)begin
-      $display("final jtag read from tdo=%h at time = %t",jtag_rx[63:0],$time);
-      read_data_valid_reg <= 1'b1; 
-      read <= 0;
-    end
-  end 
-
   if(read_data_valid_reg == 1'b1)begin
     read_data_valid_reg <= 1'b0; 
+    jtag_rx = 1344'b0;
+  end
+  if (ir && ~jtag_resp.tdo_en) begin
+    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-2:0],jtag_resp.tdo};
+    read <= 1;
+    read_data_valid_reg <= 1'b0; 
+  end else if (dr && ~jtag_resp.tdo_en ) begin  
+    read_data_valid_reg <= 1'b1; 
+    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-2:0],jtag_resp.tdo};
+                       //{WIDTH{1'b0}, one_bit_signal};
+    read <= 1;
+    read_data_valid_reg <= 1'b0; 
+  end else begin
+      if(read)begin
+        $display("final jtag read from tdo=%h at time = %t",jtag_rx[511:0],$time);
+        read_data_valid_reg <= 1'b1; 
+        read <= 0;
+      end
   end
 end
+//for future use
+//always @(posedge clk) begin
+//  if (ir && ~jtag_resp.tdo_en) begin
+//    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1:5],jtag_resp.tdo,jtag_rx[4:1]};
+//    read <= 1;
+//  end else if (dr && ~jtag_resp.tdo_en && (tap_sel == 1) ) begin  //DTM
+//    read_data_valid_reg <= 1'b0; 
+//    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1:42],jtag_resp.tdo,jtag_rx[41 :1 ]};
+//    read <= 1;
+//  end else if (dr && ~jtag_resp.tdo_en && (tap_sel == 3) ) begin  //aclint
+//    read_data_valid_reg <= 1'b0; 
+//    jtag_rx <= {jtag_resp.tdo,jtag_rx[69 :1 ]};
+//    read <= 1;
+//  end else if (dr && ~jtag_resp.tdo_en && (tap_sel == 4) ) begin  //pmnw
+//    read_data_valid_reg <= 1'b0; 
+//    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1],jtag_resp.tdo,jtag_rx[68 :1]};
+//    read <= 1;
+//  end else if (dr && ~jtag_resp.tdo_en && (tap_sel == 5)) begin  //smc
+//    read_data_valid_reg <= 1'b0; 
+//    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1:38],jtag_resp.tdo,jtag_rx[37:1]};
+//    read <= 1;
+//  end else if (dr && ~jtag_resp.tdo_en && (tap_sel == 6)) begin  //trace 
+//    read_data_valid_reg <= 1'b0; 
+//    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1:67],jtag_resp.tdo,jtag_rx[66 :1]};
+//    read <= 1;
+//  end else if (dr && ~jtag_resp.tdo_en && (tap_sel == 2)) begin      //axi
+//    read_data_valid_reg <= 1'b0; 
+//    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1 : 66],jtag_resp.tdo,jtag_rx[65 :1]};
+//    read <= 1;
+//  end else if (dr && ~jtag_resp.tdo_en && (tap_sel == 7)) begin      //core h2
+//    read_data_valid_reg <= 1'b0; 
+//    jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-1:67],jtag_resp.tdo,jtag_rx[66 :1]};
+//    read <= 1;
+//  end else begin
+//    if(read)begin
+//      $display("final jtag read from tdo=%h at time = %t",jtag_rx[63:0],$time);
+//      read_data_valid_reg <= 1'b1; 
+//      read <= 0;
+//    end
+//  end 
+//
+//  if(read_data_valid_reg == 1'b1)begin
+//    read_data_valid_reg <= 1'b0; 
+//  end
+//end
 
 
 // assign jtag_rdatas[0].valid         = read_data_valid_reg;

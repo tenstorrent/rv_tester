@@ -1404,7 +1404,7 @@ jtag_driver:
         num: 1
         fields:
             rdata:
-                width: 70
+                width: 1344
 aplic_monitor:
     num: 1
     aplic_intr_req:
