@@ -276,7 +276,7 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
                     };
 
   if(FLAGS_preload) {
-    system_ = constructSystem<URV>(ncores, false, true);
+    system_ = constructSystem<URV>(FLAGS_num_harts, false, true);
     if (system_ == nullptr) {
       std::cerr << "Error: could not construct system\n";
       return -1;
@@ -304,7 +304,7 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
 
   // run once before starting cosim
   if (FLAGS_standalone && ((FLAGS_num_harts <= 1) || (FLAGS_hart_enable_mask <= 1))) {
-    system_ = constructSystem<URV>(ncores, true, false);
+    system_ = constructSystem<URV>(FLAGS_num_harts, true, false);
     if (system_ == nullptr) {
       std::cerr << "Error: could not construct system\n";
       return -1;
