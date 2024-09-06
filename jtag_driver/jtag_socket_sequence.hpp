@@ -25,6 +25,8 @@
 #include <unistd.h>
 #include <ifaddrs.h>
 #include <netdb.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include "cvm/logger.hpp"
 #include "cvm/random.hpp"
 // #include "rv_tester_transactions.hpp"

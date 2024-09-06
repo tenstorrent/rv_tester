@@ -246,7 +246,7 @@ typedef enum logic [1:0] {
   assign pos_tdo_en= ~jtag_resp.tdo_en;
 
   assign jtag_tck_trst.tck = clk;
-  assign jtag_tck_trst.trst = reset;
+  assign jtag_tck_trst.trst = reset & ~((dut_clocks > 100) && (dut_clocks <110));
 
 
 always @(posedge clk) begin

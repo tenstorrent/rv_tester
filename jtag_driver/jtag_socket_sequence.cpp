@@ -19,7 +19,8 @@ extern "C" {
   void jtag_driver_init();
   void jtag_driver_jtag_socket(uint8_t val);
   void drive_jtag_req(unsigned cmd,unsigned long upper_val, unsigned long lower_val, unsigned length, unsigned quit,unsigned tap_cfg_sel);
-  void drive_jtag_req_socket(unsigned cmd, const unsigned long* lower_val, unsigned length, unsigned quit,unsigned tap_cfg_sel);
+  //void drive_jtag_req_socket(unsigned cmd, const unsigned long* lower_val, unsigned length, unsigned quit,unsigned tap_cfg_sel);
+  void drive_jtag_req_socket(unsigned cmd, const unsigned long lower_val[], unsigned length, unsigned quit,unsigned tap_cfg_sel);
 
   uint8_t jtag_driver_get_en(const char* mode) {
     return (std::string(mode) != "off");
@@ -897,14 +898,16 @@ cvm::messenger::task<void> jtag_socket_sequence::open_socket_to_listen(){
     // cbs.push_back(cb_t{Callback::TRICKBOX_jtag_WR, hart, upper_jtag_data, lower_jtag_data, 0});
     //cvm::registry::messenger.signal(12, jtag_data_t{hart,jtag_cmd, upper_jtag_data, lower_jtag_data,reg_length_data,jtag_quit,tap_cfg_sel});
     // cvm::messenger::send(jtag_t, jtag_pkt);
-
+    unsigned long jtag_ip_array[21];
      for (size_t i = 0; i < 21; ++i) {
+            jtag_ip_array[i] = lower_jtag_data[i]; 
             cvm::log(cvm::HIGH," trickboxJtagWriteSocket JTAGDRIVER Socket Data[{}]:{:#x} \n",i, lower_jtag_data[i]);
     }
     cvm::registry::callbacks.push(
     scope_,
-    [jtag_cmd, lower_jtag_data,reg_length_data,jtag_quit,tap_cfg_sel]() {
-      drive_jtag_req_socket(jtag_cmd,lower_jtag_data,reg_length_data,jtag_quit,tap_cfg_sel);
+    [jtag_cmd, jtag_ip_array,reg_length_data,jtag_quit,tap_cfg_sel]() {
+      drive_jtag_req_socket(jtag_cmd,jtag_ip_array,reg_length_data,jtag_quit,tap_cfg_sel);
+      //drive_jtag_req_socket(jtag_cmd,lower_jtag_data,reg_length_data,jtag_quit,tap_cfg_sel);
     });
 
   }
