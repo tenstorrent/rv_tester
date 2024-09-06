@@ -58,6 +58,7 @@ DEFINE_int32(num_sp_ways, -1, "Number of SC ways reserved for scratchpad");
 DEFINE_uint32(trace_enable, 1, "Trace enable fuse");
 DEFINE_uint32(debug_enable, 3, "Debug enable fuse");
 DEFINE_bool(hart_sync_en, true, "Enable hart sync routine in bootrom");
+DEFINE_bool(export_control_en, false, "Enable export control to reduce FP double precision");
 
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 
@@ -296,7 +297,10 @@ sysmod::sc_harvest_plusargs()
         FLAGS_num_sc_dis_ways = 0;
         FLAGS_sc_dis_ways_mask = 0;
       } else {
+
         FLAGS_num_sc_dis_ways = get_rand_dis_ways(nways);
+        cvm::log(cvm::MEDIUM, " Randomizing sc ways : {}, num_sc_dis_ways = {}\n", nways, FLAGS_num_sc_dis_ways );
+
         FLAGS_sc_dis_ways_mask = get_rand_ways_mask(FLAGS_num_sc_dis_ways, nways);
       }
       if (FLAGS_perf || !FLAGS_rand_sp_ways) {
@@ -462,7 +466,7 @@ sysmod::get_rand_dis_ways(int32_t nways)
   }
 
   cvm::rand::discrete_dist<int32_t> dist(weights);
-  cvm::log(cvm::HIGH, "[random] Probabilities for selecting disabled SC way groups [1..{}] = [{:.2f}]\n",
+  cvm::log(cvm::MEDIUM, "[random] Probabilities for selecting disabled SC way groups [1..{}] = [{:.2f}]\n",
     max, fmt::join(dist.probabilities(), ", "));
   return (dist() + 1) * 4;
 }

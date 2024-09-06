@@ -37,6 +37,7 @@ namespace {
   constexpr uint32_t core_fuse_offset       = 0x0001'0000;
 
   constexpr uint32_t core_fuse_idx          = 16;
+  constexpr uint32_t exp_ctrl_fuse_idx      = 11;
   constexpr uint32_t trace_fuse_idx         = 8;
   constexpr uint32_t dm_fuse_idx            = 9;
   constexpr uint32_t sc_fuse_idx            = 0;
