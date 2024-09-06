@@ -152,6 +152,8 @@ cosim:
         fields:
             hart:
                 width: 32
+            cycle:
+                width: 64
             value:
                 width: [[32, ${TOP.PLATFORM.XLEN}]]
 
@@ -161,14 +163,19 @@ cosim:
         fields:
             hart:
                 width: 32
+            cycle:
+                width: 64
             value:
                 width: [[32, ${TOP.PLATFORM.FLEN}]]
+
     m_vc_regs:
         domain: 1
         num: 1 
         fields:
             hart:
                 width: 32
+            cycle:
+                width: 64
             value:
                 width: [[32, ${TOP.PLATFORM.VLEN}]]
 
@@ -180,6 +187,8 @@ cosim:
                 width: 64
             hart:
                 width: 32
+            opcode:
+                width: 36
             order:
                 width: 64
             addr:
@@ -188,10 +197,17 @@ cosim:
                 width: 64
             data:
                 width: ${TOP.PLATFORM.XLEN}
+            v_ext:
+                width: 1
+            data_vec:
+                qualify: v_ext
+                width: ${TOP.PLATFORM.VLEN}
             amo:
                 width: 1
             amo_op:
                 width: 5
+            nano_op_elem_idx:
+                width: 8
 
     m_mcmi_insert:
         domain: 1
@@ -209,6 +225,11 @@ cosim:
                 width: 64
             data:
                 width: ${TOP.PLATFORM.XLEN}
+            v_ext:
+                width: 1
+            data_vec:
+                qualify: v_ext
+                width: ${TOP.PLATFORM.VLEN}
 
     m_mcmi_bypass:
         domain: 1
@@ -301,6 +322,17 @@ cosim:
             mip_mask:
                 width: 64
             mip_assert:
+                width: 64
+
+    m_core_nmi:
+        domain: 1
+        num: 1
+        fields:
+            cycle:
+                width: 64
+            nmi_assert:
+                width: 1
+            nmi_cause:
                 width: 64
 
     m_imsic_msi:
@@ -564,7 +596,13 @@ pmu:
                 width: 64
             total_flushes:
                 width: 64
+            total_traps:
+                width: 64
             uops_decoded:
+                width: 64
+            decode_serialize_before_cycles:
+                width: 64
+            decode_serialize_after_cycles:
                 width: 64
             l1i_read_access:
                 width: 64
@@ -834,6 +872,12 @@ pmu:
                 width: 64
             ls_way_predictor_replay_all:
                 width: 64
+            ls_micro_way_predictor_replay_load:
+                width: 64
+            ls_micro_way_predictor_replay_prefetch:
+                width: 64
+            ls_micro_way_predictor_replay_all:
+                width: 64
             tag_bank_conflict_replay_load:
                 width: 64
             tag_bank_conflict_replay_store:
@@ -873,6 +917,20 @@ pmu:
             fillbuf_hit_replay_mmu:
                 width: 64
             fillbuf_hit_replay_all:
+                width: 64
+            l1d_victim_fill_evict:
+                width: 64
+            l1d_victim_early_evict:
+                width: 64
+            l1d_victim_demand_req:
+                width: 64
+            l1d_victim_prefetch_req:
+                width: 64
+            l1d_victim_mru_alloc:
+                width: 64
+            l1d_victim_lru_alloc:
+                width: 64
+            l1d_victim_all:
                 width: 64
             l1d_cache_invalidate_snoop:
                 width: 64
@@ -932,7 +990,17 @@ pmu:
                 width: 64
             ls_chillout_entrances_all:
                 width: 64
-            utlb_miss:
+            utlb_hit_load:
+                width: 64
+            utlb_hit_store:
+                width: 64
+            utlb_hit_all:
+                width: 64
+            utlb_miss_load:
+                width: 64
+            utlb_miss_store:
+                width: 64
+            utlb_miss_all:
                 width: 64
             ldq_cannot_alloc:
                 width: 64
@@ -974,6 +1042,12 @@ pmu:
                 width: 64
             dfp_access_mmu:
                 width: 64
+            dfp_access_evict:
+                width: 64
+            dfp_access_fill:
+                width: 64
+            dfp_access_snoop:
+                width: 64
             dfp_access_all:
                 width: 64
             tlb_invalidates:
@@ -1005,6 +1079,12 @@ pmu:
             tap_access_prefetch:
                 width: 64
             tap_access_mmu:
+                width: 64
+            tap_access_evict:
+                width: 64
+            tap_access_fill:
+                width: 64
+            tap_access_snoop:
                 width: 64
             tap_access_all:
                 width: 64
@@ -1048,6 +1128,10 @@ pmu:
                 width: 64
             tlp_access_prefetch:
                 width: 64
+            tlp_access_agp:
+                width: 64
+            tlp_access_arb:
+                width: 64
             tlp_access_all:
                 width: 64
             fillbuf_cannot_alloc:
@@ -1056,11 +1140,17 @@ pmu:
                 width: 64
             pfc_agt_evict:
                 width: 64
-            pfc_pht_cannot_alloc:
+            pfc_pht_tap_lookup:
                 width: 64
-            pfc_pht_lookup:
+            pfc_pht_tap_hit:
                 width: 64
-            pfc_pht_hit:
+            pfc_pht_agt_alloc:
+                width: 64
+            pfc_pht_agt_update:
+                width: 64
+            pfc_prt_alloc:
+                width: 64
+            pfc_prt_update:
                 width: 64
             pfc_prt_cannot_alloc:
                 width: 64
@@ -1069,6 +1159,10 @@ pmu:
             pfc_no_tag_credit_stalls:
                 width: 64
             pfc_prefetches_sent:
+                width: 64
+            pfc_prt_l1d_evict_hit:
+                width: 64
+            pfc_prt_reqbuf_alloc_hit:
                 width: 64
             sc_cache_access:
                 width: 33
@@ -1248,6 +1342,26 @@ pmu:
                 width: 1
             sync:
                 width: 1
+    hpmcounters:
+        domain: 1
+        num: 1
+        fields:
+            hpmcounter3:
+                width: 64
+            hpmcounter4:
+                width: 64
+            hpmcounter5:
+                width: 64
+            hpmcounter6:
+                width: 64
+            hpmcounter7:
+                width: 64
+            hpmcounter8:
+                width: 64
+            hpmcounter9:
+                width: 64
+            hpmcounter10:
+                width: 64
 dm_model:
     num: 1
     dmi_status:
@@ -1376,10 +1490,37 @@ pwrmgmt:
         fields:
             cycle:
                 width: 32
+    m_cold_reset_ack:
+        domain: 3
+        num: 1
+        fields:
+            assertion:
+                width: 1
 
 interrupts:
     num: ${TOP.PLATFORM.NHARTS}
     m_nmi_tick:
+        domain: 2
+        num: 1
+        fields:
+            cycle:
+                width: 64
+    m_reset:
+        domain: 2
+        num: 1
+        fields:
+            cycle:
+                width: 64
+
+trace:
+    num: 1
+    m_core_no_fetch:
+        domain: 2
+        num: 1
+        fields:
+            val:
+                width: ${TOP.PLATFORM.NHARTS}
+    m_tick:
         domain: 2
         num: 1
         fields:
@@ -1405,6 +1546,15 @@ jtag_driver:
         fields:
             rdata:
                 width: 1344
+
+triggers:
+    num: ${TOP.PLATFORM.NHARTS}
+    m_event_trigger_tick:
+        domain: 2
+        num: 1
+        fields:
+            event_trigger:
+                width: 32
 aplic_monitor:
     num: 1
     aplic_intr_req:

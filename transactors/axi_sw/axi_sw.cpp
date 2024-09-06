@@ -198,6 +198,7 @@ void axi_sw<W,AW,AR,RQ>::r_resp() {
 
 template <typename W, typename AW, typename AR, typename RQ>
 void axi_sw<W,AW,AR,RQ>::reset_ptrs() {
+    cvm::log(cvm::HIGH, "[axi_sw] reset_ptrs loc={}\n", loc_);
     r_q_rptr_ = 0;
     r_q_wptr_ = 0;
     r_q_rptr_update_time_ = 0;
@@ -210,7 +211,7 @@ void axi_sw<W,AW,AR,RQ>::set_scope(svScope scope) {
 
 extern "C" {
 
-  void axi_sw_set_scope(cvm::topology::loc_t loc) {
+  std::uint8_t axi_sw_set_scope(cvm::topology::loc_t loc) {
     svScope scope = svGetScope();
 
     axi_sw_r_reset();
@@ -218,6 +219,8 @@ extern "C" {
     cvm::registry::messenger.signal<svScope>(
         loc,
         scope);
+
+    return 0;
   }
 
   std::uint8_t axi_sw_flush(cvm::topology::loc_t loc, std::uint64_t clock, axi_sw_defs::r_q_ptr_t ptr) {

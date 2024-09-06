@@ -161,10 +161,25 @@ rv_tester: &rv_tester
       type:
         - jtag_driver
 
+    trace:
+      count: 1
+      type:
+        - trace
+
+    triggers:
+      count: *rv_tester_nharts
+      type:
+        - triggers
+        
     aclint_checker:
       count: 1
       type:
         - aclint_checker
+
+    whisper_client:
+      count: 1
+      type:
+        - whisper_client
 
     cosim:
       count: *rv_tester_nharts

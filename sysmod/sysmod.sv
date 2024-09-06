@@ -66,6 +66,7 @@ import rv_tester_params::*;
     always @(posedge clk) begin
         clocks <= clocks + 1;
         if (reset) begin
+            $display("[sysmod]: reset");
             clocks <= 0;
             /* verilator lint_off BLKSEQ */
             //jtag_quiesced = 0;

@@ -16,9 +16,10 @@
 //#include "trickbox/jtag_driver.h"
 #include "scratchpad_xtor/scratchpad_xtor.h"
 #include "trace_cfg/trace_cfg.h"
-#include "pll_xtor/pll_xtor.h"
+#include "cla_cfg/cla_cfg.h"
 #include "pm_nw_xtor/pm_nw_xtor.h"
 #include "cvm/topology.hpp"
+#include "sysmod_params.hpp"
 
 #include <string>
 
@@ -43,6 +44,16 @@ class sysmod {
     sysmod(cvm::topology::loc_t loc, unsigned id);
 
     ~sysmod();
+
+    void configure_plusargs();
+    void core_harvest_plusargs();
+    void sc_harvest_plusargs();
+    uint32_t get_rand_mask(uint32_t n, uint32_t max);
+    std::string get_rand_id(uint32_t mask, uint32_t ncores);
+    std::string get_id(uint32_t mask, uint32_t ncores);
+    int32_t get_rand_ways_mask(int32_t n, int32_t max);
+    int32_t get_rand_dis_ways(int32_t max);
+    int32_t get_rand_sp_ways(int32_t max);
 
     device* dev(uint64_t addr);
     device* dev(const std::string& tag);
@@ -71,33 +82,31 @@ class sysmod {
   //      }
   //     return result;
   //  }
-   std::vector<uint64_t> bitsetToUint64Array(const std::bitset<70>& bitset) {
-    const size_t bitsetSize = 64;//70;
-    const size_t ulongSize = sizeof(uint64_t) * 8;
-    const size_t arraySize = (bitsetSize + ulongSize - 1) / ulongSize;
+    std::vector<uint64_t> bitsetToUint64Array(const std::bitset<70>& bitset) {
+      const size_t bitsetSize = 64;//70;
+      const size_t ulongSize = sizeof(uint64_t) * 8;
+      const size_t arraySize = (bitsetSize + ulongSize - 1) / ulongSize;
 
-    std::bitset<70> bitset_shifted = bitset>>2;
+      std::bitset<70> bitset_shifted = bitset>>2;
 
-    //jtag rx -> jtag.op_Data , we are shifting only by 2 since from jtag_xtor for each tap point we shift accordingly but all of them are shifted by 2
-    //std::cout<<"[JTAG RESP] original = " <<bitset<<" shifted = "<<bitset_shifted<<"\n";
-    std::vector<uint64_t> ulongArray(arraySize);
+      //jtag rx -> jtag.op_Data , we are shifting only by 2 since from jtag_xtor for each tap point we shift accordingly but all of them are shifted by 2
+      //std::cout<<"[JTAG RESP] original = " <<bitset<<" shifted = "<<bitset_shifted<<"\n";
+      std::vector<uint64_t> ulongArray(arraySize);
 
-    for (size_t i = 0; i < bitsetSize; i += ulongSize) {
+      for (size_t i = 0; i < bitsetSize; i += ulongSize) {
         size_t ulongIndex = i / ulongSize;
         uint64_t value = 0;
-
-        for (size_t j = 0; j < ulongSize && (i + j) < bitsetSize; ++j) {
-            value |= (bitset_shifted[i + j] ? 1UL : 0UL) << j;
-        }
+        for (size_t j = 0; j < ulongSize && (i + j) < bitsetSize; ++j)
+          value |= (bitset_shifted[i + j] ? 1UL : 0UL) << j;
 
         ulongArray[ulongIndex] = value;
+      }
+      return ulongArray;
     }
-
-    return ulongArray;
-}
+    void store_dm_randpc();
   protected:
     void trace_info_handler(trace_cfg::trace_info_t i);
-    void pll_info_handler(pll_xtor::pll_info_t i);
+    void cla_info_handler(cla_cfg::cla_info_t i);
     void pm_nw_info_handler(pm_nw_xtor::pm_nw_info_t i);
     void timer_interrupt(clint::timer_t t);
     void sw_interrupt(clint::sw_t s);
@@ -119,6 +128,8 @@ class sysmod {
     void reset();
 
     void process(const rv_tester_transactions::sysmod::tick<>& tick);
+    void store_inval_load(const inval_load_s& payload);
+    void store_inval_crsp(const inval_crsp_s& payld);
 
     svScope scope() { return scope_; }
     unsigned id() { return id_; }
@@ -133,6 +144,9 @@ class sysmod {
     memmap::memmap_t memmap_;
     std::string hostname = "localhost";
     int port = 50001;
+
+    inval_load_s inval_load_;
+    inval_crsp_s inval_crsp_;
 
     std::uint64_t ticks_ = 0;
     std::uint64_t jtag_ticks_ = 0;

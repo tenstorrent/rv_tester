@@ -19,6 +19,13 @@
 #include "rv_tester/rv_tester_structs.h"
 #include "cvm/registry.hpp"
 
+enum patch_mode {
+    NO_PATCH = 0,  //--> Not in PATCH mode
+    ENTER_PATCH,   //--> Entered patch, helpful to identify the instruction and step whisper (just) once, No CaC
+    IN_PATCH,      //--> Inside patch mode, record the DUT changes, do not step whisper, no CaC
+    EXIT_PATCH     //--> Exiting patch, helpful to identify the instruction and do the CaC checks.
+};
+
 class bridge : public bridge_base {
 
 private:
@@ -52,10 +59,10 @@ public:
   virtual void process_steps(hart_id_t hart, uint32_t n_retire, uint64_t cycle, uint64_t steps, uint64_t skips, uint64_t final_steps) override;
   virtual void process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d) override;
   virtual void process_dut_csr_hw_update(hart_id_t hart, csr_t& c) override;
-  virtual void process_compare_gp_regs(hart_id_t hart, const std::array<std::uint64_t, 32>& array);
-  virtual void process_compare_fp_regs(hart_id_t hart, const std::array<std::uint64_t, 32>& array);
-  virtual void process_compare_vc_regs(hart_id_t hart, const std::array<std::bitset<256>, 32>& array);
-  virtual void process_compare_vc_regs(hart_id_t hart, const std::array<std::uint64_t, 32>& array);
+  virtual void process_compare_gp_regs(hart_id_t hart, uint64_t cycle, const std::array<std::uint64_t, 32>& array);
+  virtual void process_compare_fp_regs(hart_id_t hart, uint64_t cycle, const std::array<std::uint64_t, 32>& array);
+  virtual void process_compare_vc_regs(hart_id_t hart, uint64_t cycle, const std::array<std::bitset<256>, 32>& array);
+  virtual void process_compare_vc_regs(hart_id_t hart, uint64_t cycle, const std::array<std::uint64_t, 32>& array);
 
   // Process memory access
   //   - Read (Ld completion)
@@ -69,6 +76,7 @@ public:
   virtual void process_dut_mcm_ievict(hart_id_t hart, mem_t& m) override;
 
   // Interrupts
+  virtual void process_dut_nmi(hart_id_t hart, rv_nmi_t& n) override;
   virtual void process_dut_interrupt(hart_id_t hart, rv_intr_t& i) override;
   virtual void process_dut_imsic_msi(hart_id_t hart, mem_t& m) override;
 
@@ -82,7 +90,13 @@ public:
   void final_phase();
   void report_metrics();
   void process(const rv_tester::terminate_called &);
-  void set_patch_mode(bool patch_mode) { patch_mode_ = int(patch_mode); }
+  void set_patch_mode(bool patch) {
+    if (patch) {
+      patch_mode_ = ENTER_PATCH;
+    } else {
+      patch_mode_ = EXIT_PATCH;
+    }
+  }
 
 private:
 
@@ -98,7 +112,7 @@ private:
   void arch_state(whisper_state_t& w);
   void update_whisper_state(hart_id_t hart, whisper_state_t& w);
   void step(hart_id_t hart, whisper_state_t& w);
-  void compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w, const rv_instr_t& d);
+  void compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w, rv_instr_t& d);
   void print_instr(hart_id_t hart, const whisper_state_t& w);
   void print_instr_stdout(hart_id_t hart, const rv_instr_t& d);
   void print_instr_stdout(hart_id_t hart, const whisper_state_t& w);
@@ -128,6 +142,7 @@ private:
   // Process pre/post-step
   void pre_step_lrsc_poke(       hart_id_t hart, const rv_instr_t& d);
   void pre_step_debug_poke(      hart_id_t hart, const rv_instr_t& d);
+  void pre_step_nmi_poke(  hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
   void pre_step_interrupt_poke(  hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
   void post_step_interrupt_poke( hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
   void post_step_exception_poke( hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
@@ -141,6 +156,7 @@ private:
   void defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
   void resetsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr);
   void setsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr);
+  void poke_nmi(hart_id_t hart, uint64_t time, uint64_t cause);
   void poke_mip(hart_id_t hart, uint64_t time, uint64_t mip);
   void peek_mip(hart_id_t hart, uint64_t time, uint64_t& mip);
   void peek_seip(hart_id_t hart, uint64_t time, uint64_t& val);
@@ -167,7 +183,8 @@ private:
   bool htif_read(const rv_instr_t& d);
   bool hpm_counter_read(const std::string& instr);
   bool mip_mismatch(const std::string& instr);
-  bool imsic_mismatch(const std::string& instr);
+  bool topi_mismatch(const std::string& instr);
+  bool topei_mismatch(const std::string& instr);
   void resynch(hart_id_t hart, const rv_instr_group_t& d);
   void resynch(hart_id_t hart, const rv_instr_t& d);
   std::string get_nth_word(const std::string& s, int n);
@@ -183,7 +200,6 @@ private:
   int vlen_ = 0;
   CacCore cac_;
   CacCore csr_cac_;
-  bool first_reset_ = true;
 
   uint64_t order_ = 0;
 
@@ -196,9 +212,10 @@ private:
   rv_instr_t pd_;
 
   uint32_t step_ = 1;
+  uint32_t cycle_ = 1;
   uint64_t whisper_time_=0;
   uint64_t rvfi_calls_=0;
-  uint64_t num_sp_accesses_ = 0;
+  bool psc_stepping_ = false;
 
   // State variables
   bool ecall_ = false;
@@ -226,11 +243,15 @@ private:
   bool vstimecmppoked_ = false;
   bool stimecmppoked_ = false;
   uint64_t intrtopriv_ = 3;
-  std::vector<mem_t> mem_poke_{};
+  std::vector<mem_t> msi_{};
+  rv_nmi_t nmi_ {};
+  bool nmi_poke_pending_ = false;
   uint64_t mip_ = 0;
   uint64_t prev_mip_ = 0;
+  uint64_t mip_age_ = 0;
   uint64_t e_mip_ = 0;
   uint64_t prev_e_mip_ = 0;
+  uint64_t e_mip_age_ = 0;
   uint64_t deferred_mip_ = 0;
   bool prev_sync_intr_ = 0;
   bool all_interrupts_defer_= 0;
@@ -241,10 +262,11 @@ private:
   bool post_undeferred_intr_;
   std::array<uint32_t, max_intr> intr_age_{};
   uint32_t max_pend_intr_age_ = 0;
+  uint32_t nmi_age_ = 0;
   std::chrono::high_resolution_clock::time_point end_time_;
   std::chrono::high_resolution_clock::time_point start_of_test_;
   bool first_call_ = true;
-  
+  bool debug_on_ = false;
 
   // Memmap
   memmap::memmap_t memmap_;
@@ -252,13 +274,14 @@ private:
   std::array<std::array<int, 16>, 12> num_taken_interrupts_{};
 
   int num_exceptions_ = 0;
+  int num_sp_accesses_ = 0;
 
   size_8_bytes_t dword_vec_array [vlen/64] = {0};
   int unmask_bits_instr, unmask_bits_uop = 0;
   std::vector<std::string> cosim_resynch_csr_defaults;
 
   bool terminated_ = false;
-  int patch_mode_  = 0; // 0:not in patch mode, 1: entered patch mode, step whisper, >2: inside patch mode, dont step whisper
+  enum patch_mode patch_mode_ = NO_PATCH;
 
   template <typename... Args>
       void print(cvm::verbosity_level v, Args&&... args) {

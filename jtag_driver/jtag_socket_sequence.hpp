@@ -65,7 +65,7 @@ class jtag_socket_sequence {
   virtual void jtag_tick(uint64_t advance) 
   {
     num_ticks++;
-    cvm::log(cvm::HIGH, "[jtag_socket_sequence]: JTAG Tick {}\n",num_ticks);
+    cvm::log(cvm::LOW, "[jtag_socket_sequence]: JTAG Tick {}\n",num_ticks);
     timer_ += advance;
     timer_advance = advance;
     if( num_ticks > 30) 
@@ -74,11 +74,11 @@ class jtag_socket_sequence {
 
     if(executing_nop){
       nop_count--;
-      cvm::log(cvm::HIGH, "[jtag_socket_sequence]: Executing Nop ,Nop count {}\n",nop_count);
+      cvm::log(cvm::LOW, "[jtag_socket_sequence]: Executing Nop ,Nop count {}\n",nop_count);
       if(nop_count==0)
         executing_nop = false;
     }else if(executing_loop){
-      cvm::log(cvm::HIGH, "[jtag_socket_sequence]: Executing loop \n");
+      cvm::log(cvm::LOW, "[jtag_socket_sequence]: Executing loop \n");
       Run_cmd_loop();
     }else{
     drive_csv_jtag_cmds();
@@ -97,13 +97,13 @@ class jtag_socket_sequence {
 
 bool exitLoop() {
     if(loop_check_bit_type>0){
-      cvm::log(cvm::HIGH, "[jtag_driver_CHECK]: loop_rdata {:#x},loop_check_bit_num {},loop_execution_cnt {}\n",loop_rdata,loop_check_bit_num,loop_execution_cnt);
+      cvm::log(cvm::LOW, "[jtag_driver_CHECK]: loop_rdata {:#x},loop_check_bit_num {},loop_execution_cnt {}\n",loop_rdata,loop_check_bit_num,loop_execution_cnt);
       return isNthBitSet(loop_rdata,loop_check_bit_num);
     }else if(loop_check_bit_type == 0){
-      cvm::log(cvm::HIGH, "[jtag_driver_CHECK]: loop_rdata {:#x},loop_check_bit_num {},loop_execution_cnt {}\n",loop_rdata,loop_check_bit_num,loop_execution_cnt);
+      cvm::log(cvm::LOW, "[jtag_driver_CHECK]: loop_rdata {:#x},loop_check_bit_num {},loop_execution_cnt {}\n",loop_rdata,loop_check_bit_num,loop_execution_cnt);
       return isNthBitClear(loop_rdata,loop_check_bit_num);
     }else{
-     cvm::log(cvm::HIGH, "[jtag_driver]: Wrong Exit loop condition detected \n");
+     cvm::log(cvm::LOW, "[jtag_driver]: Wrong Exit loop condition detected \n");
      return false;
     }
     
@@ -136,7 +136,7 @@ bool exitLoop() {
     lower_jtag_data = jtag_req.jtag_ip_data_lower;
     reg_length_data = jtag_req.jtag_length_data;
     
-    cvm::log(cvm::HIGH, "[jtag_driver]: JTAG loop command {}\n",jtag_cmd);
+    cvm::log(cvm::LOW, "[jtag_driver]: JTAG loop command {}\n",jtag_cmd);
     
     if(jtag_cmd<3){
       hart = 0; // hart bits position TBD, till TBD it is always zero
@@ -159,11 +159,11 @@ bool exitLoop() {
   } 
   void reset() 
   {
-    cvm::log(cvm::HIGH, "[jtag_driver]: Reset jtag_driver\n");
+    cvm::log(cvm::LOW, "[jtag_driver]: Reset jtag_driver\n");
     uint32_t rand_num = 0;
     if (FLAGS_random_jtag_entry)
     {
-      cvm::log(cvm::HIGH, "[jtag_driver]: Enable random injection of debug mode :: {}\n", FLAGS_random_jtag_entry);
+      cvm::log(cvm::LOW, "[jtag_driver]: Enable random injection of debug mode :: {}\n", FLAGS_random_jtag_entry);
       get_all_csv_templates();
       if (FLAGS_jtag_delay_min)
       {
@@ -172,7 +172,7 @@ bool exitLoop() {
       timer_ = 0;
       file_idx = rng() % csvFilePaths.size();
       timer_rand_debug = timer_ + FLAGS_random_jtag_start_delay + (rand_num * timer_advance);
-      cvm::log(cvm::HIGH, "Random Debug Injection of CSV file ID:{} Timer delay:{}\n", file_idx, timer_rand_debug);
+      cvm::log(cvm::LOW, "Random Debug Injection of CSV file ID:{} Timer delay:{}\n", file_idx, timer_rand_debug);
     }
   }
   void parse_jtag_from_csv();
@@ -218,12 +218,12 @@ bool exitLoop() {
 
   void checkJtagEvents()
   {
-    cvm::log(cvm::FULL, "Timer chk jtag evt \n");
+    cvm::log(cvm::LOW, "Timer chk jtag evt \n");
     if (FLAGS_random_jtag_entry)
     {
       if (timer_ >= timer_rand_debug && csv_completed )
       {
-        cvm::log(cvm::HIGH, "Timer passed random evt Value\n");
+        cvm::log(cvm::LOW, "Timer passed random evt Value\n");
         rnd_jtag_trigger = 1;
         csv_completed = 0;
         if (snippets_driven < (unsigned)FLAGS_jtag_max_snippets)
@@ -232,9 +232,9 @@ bool exitLoop() {
           genNextJtagEvents();
           snippets_driven++;
         }else{
-          cvm::log(cvm::HIGH, "[JTAGDRIVER] ******************* \n");
-          cvm::log(cvm::HIGH, "[JTAGDRIVER] Sending Quit signal \n");
-          cvm::log(cvm::HIGH, "[JTAGDRIVER] ******************* \n");
+          cvm::log(cvm::LOW, "[JTAGDRIVER] ******************* \n");
+          cvm::log(cvm::LOW, "[JTAGDRIVER] Sending Quit signal \n");
+          cvm::log(cvm::LOW, "[JTAGDRIVER] ******************* \n");
           trickboxJtagWrite(0, 7, 0, 0,0,1,tap_cfg_sel);
           //arg1 hart = 0, arg2 jtag_cmd = 7(qt)
         }
@@ -244,7 +244,7 @@ bool exitLoop() {
 
   void genNextJtagEvents()
   {
-    cvm::log(cvm::HIGH, "[JTAGDRIVER.cpp]Generating Next timer evt value\n");
+    cvm::log(cvm::LOW, "[JTAGDRIVER.cpp]Generating Next timer evt value\n");
     if (FLAGS_random_jtag_entry)
     {
       int32_t rand_num = (rng() % (FLAGS_jtag_delay_max - FLAGS_jtag_delay_min + 1)) + FLAGS_jtag_delay_min;
@@ -323,7 +323,7 @@ bool exitLoop() {
   bool execute_qt = false;
   uint32_t status;
   uint32_t commands_in_queue;
-  cvm::rand::rng<int64_t> rng;
+  cvm::rand::uniform_dist<int64_t> rng;
   bool      executing_nop = false;
   uint32_t  nop_count = 0; 
   

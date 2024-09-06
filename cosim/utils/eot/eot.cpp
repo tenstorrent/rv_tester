@@ -6,10 +6,14 @@
 #include "sysmod/htif/htif.h"
 #include "sysmod/sysmod_plusargs.h"
 
+constexpr std::uint64_t recent_pc_default = std::numeric_limits<std::uint64_t>::max();
+
 DEFINE_string(eot, "tohost", "Enable end-of-test mechanism. Supported options: tohost, max_instr, tohost_all");
 DEFINE_uint64(tohost, 0x0, "Use this tohost address if provided");
 DEFINE_uint64(max_instr, 100000, "Max instruction limit to terminate the sim");
 DEFINE_uint64(min_instr,      0, "min instruction limit to pass the sim");
+DEFINE_uint64(recent_pc, recent_pc_default, "The PC that must be in the last +recent_pc_instr instructions before the test ended");
+DEFINE_uint64(recent_pc_instr, 100000, "+recent_pc should have been seen within this many instructions of end of test");
 
 REGISTRY_register(eot, TOP.PLATFORM, cvm::registry::all);
 
@@ -80,7 +84,16 @@ void eot::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
      start = std::chrono::system_clock::now();
   }
 
+  // We don't want to increment instr_count and check for EOT if this is not the last uop
+  if (!m_rvfi.last_uop)
+      return;
+
   instr_count_[m_rvfi.hart]++;
+
+  if (m_rvfi.pc_rdata == FLAGS_recent_pc) {
+      recent_pc_instr_count_ = instr_count_[m_rvfi.hart];
+      recent_pc_hart_        = m_rvfi.hart;
+  }
 
   // End test on max_instr
   for (uint32_t i = 0; i < num_harts_; i++) {
@@ -132,7 +145,7 @@ void eot::process_tohost(uint64_t hartid, uint64_t cycle, uint64_t address, uint
         cvm::log(cvm::NONE, "<{}> Hart:<{}> Pass condition detected - tohost[0]=1, tohost[47:1]=0\n", cycle, hartid);
         cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
       }
-      if (FLAGS_eot != "tohost_all" || (terminated_harts_.size() >= num_harts_)) {
+      if (FLAGS_eot != "tohost_all" || (terminated_harts_.size() >= FLAGS_num_harts)) {
         ended_ = true;
         cvm::registry::messenger.signal<htif::terminate_t>( cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0),
         htif::terminate_t{.low_priority_based = true});
@@ -163,5 +176,10 @@ eot::~eot() {
             cvm::log(cvm::ERROR, "Hart:<{}> Error: instruction count {} did not meet +min_instr={}\n", h, i, FLAGS_min_instr);
         }
         h++;
+    }
+    if (FLAGS_recent_pc != recent_pc_default) {
+        if (!(recent_pc_hart_ >= 0 && instr_count_[recent_pc_hart_] - recent_pc_instr_count_ <= FLAGS_recent_pc_instr)) {
+            cvm::log(cvm::ERROR, "Error: did not see PC +recent_pc=0x{:#x} in +recent_pc_instr={} instructions before test ended\n", FLAGS_recent_pc, FLAGS_recent_pc_instr);
+        }
     }
 }

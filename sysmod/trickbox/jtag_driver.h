@@ -94,14 +94,13 @@ public:
   virtual void write(uint64_t addr, size_t length, const data_t &data,
                      const strb_t &strb) override;
 
-  virtual void tick(uint64_t advance) override
+  virtual void tick(uint64_t ) override
   {
-     cvm::log(cvm::HIGH, "[jtag_driver]: Tick {}\n",advance);
   }
   virtual void jtag_tick(uint64_t advance) override
   {
     num_ticks++;
-    cvm::log(cvm::HIGH, "[jtag_driver]: JTAG Tick {}\n",num_ticks);
+    cvm::log(cvm::FULL, "[jtag_driver]: JTAG Tick {}\n",num_ticks);
     timer_ += advance;
     timer_advance = advance;
     if(num_ticks == 31){
