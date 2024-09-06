@@ -33,6 +33,7 @@ DEFINE_bool(whisper_exec, true, "Enable rvfi instr processing...disable useful f
 DEFINE_bool(bridge_log, true, "Enable bridge logging");
 DEFINE_bool(cosim_resynch, false, "Resynch whisper with dut state on every instruction");
 DEFINE_string(cosim_resynch_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
+DEFINE_string(cosim_error_instr, "", "List of instruction mnemonics on which we should terminate with an error");
 DEFINE_string(cosim_resynch_prev_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
 DEFINE_string(cosim_resynch_csr, "", "List of csr mnemonics to resynch whisper with dut state"); 
 DEFINE_bool(mip_resynch, true, "Resynch whisper with dut state on mip mismatch condition");
@@ -546,6 +547,13 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   }
 
   arch_state(w);
+
+  // Fail right away if unexpected instruction as per plusarg
+  std::string instr = cosim_util::get_nth_word(w.disasm, 1);
+  if (does_instr_match_error_list(instr)) {
+    print(cvm::ERROR, "Error: Hart {}: Unexpected instruction: +cosim_error_instr {}\n", hart, instr);
+    return;
+  }
 
   // Handle post-step conditions
   post_step_interrupt_poke(hart, d, w);
@@ -1807,6 +1815,23 @@ bool bridge::cpl_smc_access(const rv_instr_t& d){
       d.mem_read.pa >= smc_lo_addr &&
       d.mem_read.pa < smc_hi_addr)
     return true;
+  return false;
+}
+
+bool bridge::does_instr_match_error_list(const std::string& instr) {
+  if (FLAGS_cosim_error_instr == "")
+    return false;
+
+  std::stringstream ss(FLAGS_cosim_error_instr);
+
+  while(ss.good()) {
+    std::string s;
+    std::getline(ss, s, ',' );
+
+    if (instr.find(s) != std::string::npos) {
+      return true;
+    }
+  }
   return false;
 }
 
