@@ -15,7 +15,7 @@ def opensrc_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-common_verification.git",
     )
 
-    opensrc_tech_cells_generic_hash="6aac0ff239ce061e9023dc5ce8368025805721b0"
+    opensrc_tech_cells_generic_hash="dcc236271a68d3f51b6c295349b8e07875efe4e2"
     maybe(
         git_repository,
         name = "opensrc-tech_cells_generic",
