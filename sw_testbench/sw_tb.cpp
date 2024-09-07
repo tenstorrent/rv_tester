@@ -3,7 +3,11 @@
 
 #include "Vtop.h"
 #include "verilated.h"
-#include "verilated_vcd_c.h"
+#ifdef FST_EN
+    #include "verilated_fst_c.h"
+#else
+    #include "verilated_vcd_c.h"
+#endif
 #include "cvm/registry.hpp"
 
 
@@ -31,52 +35,103 @@ int main(int argc, char** argv) {
         time_increment = std::gcd(time_increment, half_period_ps[i]);
     }
 
-    // VCD dump
-    std::unique_ptr<VerilatedVcdC> tfp;
-    const char* vcd_cycle_on_parg = vl_mc_scan_plusargs("vcd_cycle_on=");
     int core_cycle = 0;
-    int vcd_cycle_on = 0;
-    bool waves_started = false;
-    if (vcd_cycle_on_parg) {
-        Verilated::traceEverOn(true);
-        tfp = std::make_unique<VerilatedVcdC>();
-        vcd_cycle_on = atoi(vcd_cycle_on_parg);
-    }
 
-    while (!Verilated::gotFinish()) {
-        top.eval();
+    #ifdef FST_EN 
+        // FST dump
 
-        // Clock generation
-        bool toggled = false;
-        do {
-            context.timeInc(time_increment);
-            for (unsigned i=0; i<nclks; i++) {
-                if ((context.time() % half_period_ps[i]) == 0) {
-                    top.clk_ext[i] = !top.clk_ext[i];
-                    toggles[i]++;
-                    toggled = true;
-                }
-            }
-        } while (!toggled);
-        core_cycle = toggles[core_clk_idx]/2;
-
-        // VCD dump
-        if (tfp && (core_cycle >= vcd_cycle_on)) {
-            if (!waves_started) {
-#ifdef VERILATOR_WAVES
-                top.trace(tfp.get(), 99);  // Trace 99 levels of hierarchy (or see below)
-#endif
-                tfp->open("dump.vcd");
-                waves_started = true;
-            }
-            tfp->dump(context.time());
+        std::unique_ptr<VerilatedFstC> tfp;
+        const char* vcd_cycle_on_parg = vl_mc_scan_plusargs("vcd_cycle_on=");
+        int vcd_cycle_on = 0;
+        bool waves_started = false;
+        if (vcd_cycle_on_parg) {
+            Verilated::traceEverOn(true);
+            tfp = std::make_unique<VerilatedFstC>();
+            vcd_cycle_on = atoi(vcd_cycle_on_parg);
         }
-    }
 
-    if (tfp) {
-        tfp->flush();
-        tfp->close();
-    }
+        while (!Verilated::gotFinish()) {
+            top.eval();
+
+            // Clock generation
+            bool toggled = false;
+            do {
+                context.timeInc(time_increment);
+                for (unsigned i=0; i<nclks; i++) {
+                    if ((context.time() % half_period_ps[i]) == 0) {
+                        top.clk_ext[i] = !top.clk_ext[i];
+                        toggles[i]++;
+                        toggled = true;
+                    }
+                }
+            } while (!toggled);
+            core_cycle = toggles[core_clk_idx]/2;
+
+            // FST dump
+            if (tfp && (core_cycle >= vcd_cycle_on)) {
+                if (!waves_started) {
+        #ifdef VERILATOR_WAVES
+                    top.trace(tfp.get(), 99);  // Trace 99 levels of hierarchy (or see below)
+        #endif
+                    tfp->open("dump.fst");
+                    waves_started = true;
+                }
+                tfp->dump(context.time());
+            }
+        }
+
+        if (tfp) {
+            tfp->flush();
+            tfp->close();
+        }
+    #else 
+        // VCD dump
+
+        std::unique_ptr<VerilatedVcdC> tfp;
+        const char* vcd_cycle_on_parg = vl_mc_scan_plusargs("vcd_cycle_on=");
+        int vcd_cycle_on = 0;
+        bool waves_started = false;
+        if (vcd_cycle_on_parg) {
+            Verilated::traceEverOn(true);
+            tfp = std::make_unique<VerilatedVcdC>();
+            vcd_cycle_on = atoi(vcd_cycle_on_parg);
+        }
+
+        while (!Verilated::gotFinish()) {
+            top.eval();
+
+            // Clock generation
+            bool toggled = false;
+            do {
+                context.timeInc(time_increment);
+                for (unsigned i=0; i<nclks; i++) {
+                    if ((context.time() % half_period_ps[i]) == 0) {
+                        top.clk_ext[i] = !top.clk_ext[i];
+                        toggles[i]++;
+                        toggled = true;
+                    }
+                }
+            } while (!toggled);
+            core_cycle = toggles[core_clk_idx]/2;
+
+            // VCD dump
+            if (tfp && (core_cycle >= vcd_cycle_on)) {
+                if (!waves_started) {
+        #ifdef VERILATOR_WAVES
+                    top.trace(tfp.get(), 99);  // Trace 99 levels of hierarchy (or see below)
+        #endif
+                    tfp->open("dump.vcd");
+                    waves_started = true;
+                }
+                tfp->dump(context.time());
+            }
+        }
+
+        if (tfp) {
+            tfp->flush();
+            tfp->close();
+        }
+#endif
 
     printf("[main] exiting after %d core cycles\n", core_cycle);
     top.final();
