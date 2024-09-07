@@ -29,12 +29,14 @@ smoke:
         - ${BZSIM} test smoke ${BZSIM_OPTS}
     timeout: 1h
 
-notify_rv_common:
+notify_riscv_cluster:
     stage: notify
     extends:
         - .notify-template
     trigger:
-        project: riscv/rv-common
+        project: riscv/riscv_cluster
+    variables:
+        UPDATE_DIRECTORY: rv-common
 
 asan+ubsan:
     extends:
