@@ -14,7 +14,7 @@ def rv_tester_repositories():
         #sha256 = "af87959afe497dc8dfd4c6cb66e1279cb98ccc84284619ebfec27d9c09a903de",
     )
 
-    corearchcoverage_hash="441b86e3a18566eb2aefc65b100af65113e1dbd5"
+    corearchcoverage_hash="a00c288ce154fbc0c7c39bcce4d8b8991d97980c"
     maybe(
         git_repository,
         name = "corearchcoverage",
