@@ -845,11 +845,11 @@ cvm::messenger::task<void> jtag_socket_sequence::open_socket_to_listen(){
                     cvm::log(cvm::LOW, "\n[JTAGDRIVER.cpp] Hexadecimal padded string for jtag Rdata: {} \n ",padded_str );
                     std::string response;
                     if(execute_qt){
-                      response = "ACK,00000000000000000";
+                      response = "ACK,0x00000000000000000";
                       execute_qt = false;
                     }else{
                      //OLD response = "ACK," + str;
-                     response = "ACK," + padded_str;
+                     response = "ACK,0x" + padded_str;
                     }
                     send(new_socket, response.c_str(), response.length(), 0);
                     cvm::log(cvm::LOW,"[JTAGDRIVER.cpp] Response sent: {} \n", response );
