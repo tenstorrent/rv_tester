@@ -28,6 +28,7 @@ DEFINE_bool(patch_mmr_check, false, "Enable read write checking of patch related
 DEFINE_bool(patch_ram_check, false, "Enable read write checking of patch ram region");
 DEFINE_bool(patch_cfg_lock, true, "Lock the patch mmrs while boot programming ");
 DEFINE_bool(fuse_mmr_check, false, "Check RW and lockability of fuses ");
+DEFINE_bool(init_smc_infilters, false, "Enable filter programming for JTAG and Overlay to access SRAM ");
 
 
 extern "C" {
@@ -191,6 +192,10 @@ cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
   if (FLAGS_fuse_mmr_check)
     co_await fuse_mmr_check();
   co_await program_thub_threshold();
+  if(FLAGS_init_smc_infilters) {
+    init_smc_filters();
+  }
+
   if (FLAGS_patch_en && rst_type == COLD) { 
     co_await program_patch();
   } else if (FLAGS_patch_ram_check) {
@@ -354,11 +359,10 @@ cvm::messenger::task<void> reset_sequence::write(uint64_t addr, size_t sz, const
   co_return;
 };
 
-cvm::messenger::task<void> reset_sequence::csr_write(uint32_t core_id, uint64_t addr, uint64_t data) {
+cvm::messenger::task<void> reset_sequence::csr_write(uint32_t core_id, uint32_t unit, uint64_t addr, uint64_t data) {
   uint64_t cmd = 0;
   uint32_t offset = core_id * core_fuse_offset;
   cvm::log(cvm::NONE, "[pwrmgmt] csr write req - core_id = {}, addr={:#x}, data={:#x} \n", core_id, addr, data );
-  uint32_t unit = core_id;
   uint64_t wr = 0x1;
   uint64_t en = 0x1;
   cmd = en<<62 | wr << 61 | unit<<12|addr;
@@ -371,14 +375,10 @@ cvm::messenger::task<void> reset_sequence::csr_write(uint32_t core_id, uint64_t 
 }
 
 
-cvm::messenger::task<uint64_t> reset_sequence::csr_read(uint32_t core_id, uint64_t addr) {
+cvm::messenger::task<uint64_t> reset_sequence::csr_read(uint32_t core_id, uint32_t unit,uint64_t addr) {
   uint64_t cmd = 0;
   uint32_t offset = core_id * core_fuse_offset;
   cvm::log(cvm::NONE, "[pwrmgmt] csr read req - core_id = {}, addr={:#x} \n", core_id, addr );
-  //do { 
-  //  cmd = co_await read(core_crCsrCommandPort + offset, SZ_8B);
-  //} while ((cmd>>63) != 0x0 );
-  uint8_t unit = core_id;
   uint64_t wr = 0;
   uint64_t en = 0x1;
   cmd = en <<62 | wr << 61 |unit<<12|addr;
@@ -386,11 +386,10 @@ cvm::messenger::task<uint64_t> reset_sequence::csr_read(uint32_t core_id, uint64
   do { 
     cmd = co_await read(core_crCsrCommandPort + offset, SZ_8B);
   } while ((cmd>>63) != 0x0 );
-  cvm::log(cvm::NONE, "[pwrmgmt] csr read res - core_id = {}, addr={:#x} \n", core_id, addr );
+  cvm::log(cvm::NONE, "[pwrmgmt] cr read res - core_id = {}, addr={:#x} \n", core_id, addr );
   auto data = co_await read(core_crCsrDataPort + offset, SZ_8B);
   co_return data;
 }
-
 std::vector<uint64_t> reset_sequence::convert_to_dword_array(const std::vector<uint8_t>& byte_array) {
   std::vector<uint64_t> result(byte_array.size() / sizeof(uint64_t));
   std::copy(reinterpret_cast<const uint64_t*>(byte_array.data()),
@@ -463,13 +462,13 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
   co_await tick();
   if (!FLAGS_patch_cpl_filter_dis) { 
     //CPL AXI in filter programming
-    co_await write(cpl_in_filter_addr_l ,SZ_8B , 0x4C000);
-    co_await write(cpl_in_filter_addr_h ,SZ_8B , 0x4EFFF);
-    co_await write(cpl_in_filter_config ,SZ_8B , 0x81010113);      
+    co_await write(cpl_in_filter0_addr_l ,SZ_8B , 0x4C000);
+    co_await write(cpl_in_filter0_addr_h ,SZ_8B , 0x4EFFF);
+    co_await write(cpl_in_filter0_config ,SZ_8B , 0x81010113);      
     //CPL AXI out filter programming
-    co_await write(cpl_out_filter_addr_l ,SZ_8B , 0x4C000);
-    co_await write(cpl_out_filter_addr_h ,SZ_8B , 0x4EFFF);
-    co_await write(cpl_out_filter_config ,SZ_8B , 0x81010113);
+    co_await write(cpl_out_filter0_addr_l ,SZ_8B , 0x4C000);
+    co_await write(cpl_out_filter0_addr_h ,SZ_8B , 0x4EFFF);
+    co_await write(cpl_out_filter0_config ,SZ_8B , 0x81010113);
   };  
 
   co_await write(cpl_patch_ram_base, SZ_8B, concatenate_uint32_to_uint64(patch_header) );
@@ -569,11 +568,12 @@ cvm::messenger::task<void> reset_sequence::program_thub_threshold() {
   };
   if(FLAGS_temp_throttle)
   {
-  //for(uint32_t p =0; p < FLAGS_num_harts; ++p)
-  //  {
-      co_await csr_write(0, core_pwr_throttle_cfg_0 , 0x000078830372a211);
-      co_await csr_write(0, core_pwr_throttle_cfg_1 , 0x1041017ecb594129);
-    //};
+  for(uint32_t p =0; p < FLAGS_num_harts; ++p) // Fixed for 8 core config as THUB is only in 8c
+  {
+      // Write to MC power config
+      co_await csr_write(p, 0x8,core_pwr_throttle_cfg_0 , 0x000078830372a211);
+      co_await csr_write(p, 0x8,core_pwr_throttle_cfg_1 , 0x1041017ecb594129);
+    };
   };
  
 };
@@ -618,7 +618,19 @@ cvm::messenger::task<void> reset_sequence::patch_ram_check() {
   co_return;
 };
 
-
+cvm::messenger::task<void> reset_sequence::init_smc_filters() {
+  
+  co_await tick();
+    //CPL AXI in filter programming
+    co_await write(cpl_in_filter1_addr_l ,SZ_8B , 0x41000);
+    co_await write(cpl_in_filter1_addr_h ,SZ_8B , 0x41FFF);
+    co_await write(cpl_in_filter1_config ,SZ_8B , 0x8000000000010113);      
+    //CPL AXI in filter programming
+    co_await write(cpl_in_filter2_addr_l ,SZ_8B , 0x42000);
+    co_await write(cpl_in_filter2_addr_h ,SZ_8B , 0x42FFF);
+    co_await write(cpl_in_filter2_config ,SZ_8B , 0x8000000000020113);      
+  co_return;
+};
 cvm::messenger::task<void> reset_sequence::fuse_mmr_check() {
   co_await tick();
 
