@@ -83,6 +83,8 @@ void io_coh_helper::gen_data_strb(uint64_t addr, uint32_t value, data_t& wdata, 
 }
 void io_coh_helper::overlay_write(uint64_t addr,uint64_t data) {
 
+  int hart = 0;
+  bool valid;
   axi::a_t aw_txn;
   aw_txn.w    = true;
   aw_txn.id   = 12;
@@ -99,7 +101,7 @@ void io_coh_helper::overlay_write(uint64_t addr,uint64_t data) {
   aw_txn.user  =8;
   
  
-  cvm::log(cvm::LOW, "[Trickbox] SP_XTOR AXI MMR WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
+  cvm::log(cvm::LOW, "[io_coh_helper] SP_XTOR AXI MMR WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
 
   cvm::registry::messenger.signal(axi_mst_loc_l, aw_txn);
   axi::w_t w_txn;
@@ -121,6 +123,16 @@ void io_coh_helper::overlay_write(uint64_t addr,uint64_t data) {
     std::get<1>(t) = false;
   };
   cvm::registry::messenger.fork(l, t);
+
+  //Poke same data to whisper memory
+  cvm::log(cvm::HIGH, "[io_coh_helper] Backdoor whisper poke addr{:#x} poke_data {:#x} \n",addr,data);
+  if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0, 'm', addr,8, data, valid)) {
+    cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
+    return;
+  }{
+
+  cvm::log(cvm::HIGH, "[io_coh_helper] backdoor whisper poke  Successful for addr{:#x} poke_data {:#x} \n",addr,data);
+  }
 }
 
 // void
