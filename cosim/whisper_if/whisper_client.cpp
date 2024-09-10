@@ -22,6 +22,7 @@
 #include "cosim/utils/eot/eot_plusargs.h"
 #include "cosim/utils/general/util.h"
 #include "rv_tester_plusargs.h"
+#include "cvm/registry.hpp"
 
 
 DEFINE_bool(nostop_standalone,false, "Do not stop if standalone whisper fails");
@@ -32,10 +33,18 @@ DEFINE_bool(whisper_csv_log, false, "Make whisper use a csv trace.");
 DEFINE_uint32(whisper_tlb_size, 0, "Specify whisper tlb size");
 DEFINE_string(isa, "", "Override isa spec");
 DEFINE_string(stee_secure_region, "", "colon separated pair of numbers (same as whisper's --steesr)");
+DEFINE_bool(whisper_log, true, "Enable whisper logging to iss_cosim.log and iss_cmd.log");
+DEFINE_bool(whisper_cosim_log, false, "Enable whisper logging to iss_cosim.log");
+DEFINE_bool(whisper_cmd_log, false, "Enable whisper logging to iss_cmd.log");
 DEFINE_bool(dm_randpc, false, "Random PC to DM via trickbox"); // this should be in whisper_client.cpp
 DEFINE_uint64(dm_randpc_addr, 0x9080500, "Random PC to DM address");
+DEFINE_bool(whisper_stdin_null, false, "Redirect whisoer stdin to null");
+DEFINE_bool(whisper_stdout_null, false, "Redirect whisoer stdout to null");
+DEFINE_string(whisper_json_path, "", "Path to whisper json config");
 DEFINE_uint64(nmi_vec, 0, "NMI handler PC");
 DEFINE_uint64(nme_vec, 0, "NMI exception handler PC");
+
+REGISTRY_register(whisperClient<uint64_t>, TOP.PLATFORM.WHISPER_CLIENT, 0);
 
 extern void (*__tracerExtension)(void*);
 
@@ -77,6 +86,56 @@ getNmiExceptionPc() {
     }
     return nmevec_addr_;
   }
+}
+
+template <typename URV>
+whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) {
+  cvm::log(cvm::MEDIUM, "[whisperClient] initializing whisperClient\n");
+
+  std::string traceFile  = (FLAGS_whisper_log || FLAGS_whisper_cosim_log) ? "iss_cosim.log" : "";
+  std::string commandLog = (FLAGS_whisper_log || FLAGS_whisper_cmd_log  ) ? "iss_cmd.log" : "";
+
+  traceFile_ = traceFile.empty() ? nullptr : fopen(traceFile.c_str(), "w");
+  commandLog_ = commandLog.empty() ? nullptr : fopen(commandLog.c_str(), "w");
+
+  cvm::registry::messenger.procedure<set_dm_randpc_RPC>(loc, [this] (uint64_t dm_randpc) {return this->set_dm_randpc(dm_randpc);});
+  cvm::registry::messenger.procedure<get_dm_randpc_RPC>(loc, [this] () {return this->get_dm_randpc();});
+  cvm::registry::messenger.procedure<set_dm_randpc_addr_RPC>(loc, [this] (uint64_t dm_randpc_addr) {return this->set_dm_randpc_addr(dm_randpc_addr);});
+  cvm::registry::messenger.procedure<get_dm_randpc_addr_RPC>(loc, [this] () {return this->get_dm_randpc_addr();});
+
+  cvm::registry::messenger.procedure<whisperConnectRPC>(loc, [this] (uint16_t ncores) {return this->whisperConnect(ncores);});
+  cvm::registry::messenger.procedure<whisperConnectedRPC>(loc, [this] () {return this->whisperConnected();});
+  cvm::registry::messenger.procedure<whisperDisableMcmRPC>(loc, [this] () {return this->whisperDisableMcm();});
+  cvm::registry::messenger.procedure<whisperStepRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t& pc, uint32_t& instruction, unsigned& changeCount, std::string& disasm, uint32_t& privMode, uint32_t& fpFlags, bool& hasTrap, bool& hasStop, bool& isLoad) {return this->whisperStep(hart, time, instrTag, pc, instruction, changeCount, disasm, privMode, fpFlags, hasTrap, hasStop, isLoad);});
+  cvm::registry::messenger.procedure<whisperSimpleStepRPC>(loc, [this] (int hart, uint64_t& pc, uint32_t& instruction, unsigned& changeCount) {return this->whisperSimpleStep(hart, pc, instruction, changeCount);});
+  cvm::registry::messenger.procedure<whisperChangeRPC>(loc, [this] (int hart, uint32_t& resource, uint64_t& addr, uint64_t& value, bool& valid) {return this->whisperChange(hart, resource, addr, value, valid);});
+  cvm::registry::messenger.procedure<whisperMcmReadRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, bool& valid) {return this->whisperMcmRead(hart, time, instrTag, addr, size, value, valid);});
+  cvm::registry::messenger.procedure<whisperMcmVecReadRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, bool& valid) {return this->whisperMcmVecRead(hart, time, instrTag, addr, size, value, valid);});
+  cvm::registry::messenger.procedure<whisperMcmVecInsertRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, bool& valid) {return this->whisperMcmVecInsert(hart, time, instrTag, addr, size, value, valid);});
+  cvm::registry::messenger.procedure<whisperMcmInsertRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, bool& valid) {return this->whisperMcmInsert(hart, time, instrTag, addr, size, value, valid);});
+  cvm::registry::messenger.procedure<whisperMcmBypassRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, bool& valid) {return this->whisperMcmBypass(hart, time, instrTag, addr, size, value, valid);});
+  cvm::registry::messenger.procedure<whisperMcmWriteRPC>(loc, [this] (int hart, uint64_t time, uint64_t addr, unsigned size, svOpenArrayHandle handle, uint64_t mask, bool& valid) {return this->whisperMcmWrite(hart, time, addr, size, handle, mask, valid);});
+  cvm::registry::messenger.procedure<whisperMcmIFetchRPC>(loc, [this] (int hart, uint64_t time, uint64_t addr, bool& valid) {return this->whisperMcmIFetch(hart, time, addr, valid);});
+  cvm::registry::messenger.procedure<whisperMcmIEvictRPC>(loc, [this] (int hart, uint64_t time, uint64_t addr, bool& valid) {return this->whisperMcmIEvict(hart, time, addr, valid);});
+  cvm::registry::messenger.procedure<whisperPokeRPC>(loc, [this] (int hart, uint64_t time, char resource, uint64_t addr, uint64_t value, bool& valid) {return this->whisperPoke(hart, time, resource, addr, value, valid);});
+  cvm::registry::messenger.procedure<whisperPokeMemRPC>(loc, [this] (int hart, uint64_t time, char resource, uint64_t addr, unsigned size, uint64_t value, bool& valid) {return this->whisperPokeMem(hart, time, resource, addr, size, value, valid);});
+  cvm::registry::messenger.procedure<whisperPeekRPC>(loc, [this] (int hart, char resource, uint64_t addr, uint64_t& value, bool& valid) {return this->whisperPeek(hart, resource, addr, value, valid);});
+  cvm::registry::messenger.procedure<whisperPeekPcRPC>(loc, [this] (int hart, uint64_t& value) {return this->whisperPeekPc(hart, value);});
+  cvm::registry::messenger.procedure<whisperPeekCsrRPC>(loc, [this] (int hart, uint64_t addr, uint64_t& value, uint64_t& mask, uint64_t& reset_value, uint64_t& read_mask, bool& valid) {return this->whisperPeekCsr(hart, addr, value, mask, reset_value, read_mask, valid);});
+  cvm::registry::messenger.procedure<whisperResetRPC>(loc, [this] (int hart, uint64_t addr, bool& valid) {return this->whisperReset(hart, addr, valid);});
+  cvm::registry::messenger.procedure<whisperQuitRPC>(loc, [this] () {return this->whisperQuit();});
+  cvm::registry::messenger.procedure<whisperPageTableWalkRPC>(loc, [this] (int hart, bool isInstr, bool isAddr, svOpenArrayHandle items, unsigned& itemCount, bool& valid) {return this->whisperPageTableWalk(hart, isInstr, isAddr, items, itemCount, valid);});
+  cvm::registry::messenger.procedure<whisperTranslateRPC>(loc, [this] (int hart, uint64_t vaddr, bool r, bool w, bool x, bool twoStage, bool supervisor, uint64_t& paddr, bool& valid) {return this->whisperTranslate(hart, vaddr, r, w, x, twoStage, supervisor, paddr, valid);});
+  cvm::registry::messenger.procedure<whisperEnterDebugRPC>(loc, [this] (int hart) {return this->whisperEnterDebug(hart);});
+  cvm::registry::messenger.procedure<whisperExitDebugRPC>(loc, [this] (int hart) {return this->whisperExitDebug(hart);});
+  cvm::registry::messenger.procedure<whisperCheckInterruptRPC>(loc, [this] (int hart, uint64_t mip, bool& interrupt, uint64_t& cause) {return this->whisperCheckInterrupt(hart, mip, interrupt, cause);});
+  cvm::registry::messenger.procedure<whisperGetSeiPinRPC>(loc, [this] (int hart, uint64_t& value) {return this->whisperGetSeiPin(hart, value);});
+  cvm::registry::messenger.procedure<whisperCancelLrRPC>(loc, [this] (int hart, bool& valid) {return this->whisperCancelLr(hart, valid);});
+  cvm::registry::messenger.procedure<whisperPeekGprRPC>(loc, [this] (int hart, uint64_t addr, uint64_t& value) {return this->whisperPeekGpr(hart, addr, value);});
+  cvm::registry::messenger.procedure<whisperPeekFprRPC>(loc, [this] (int hart, uint64_t addr, uint64_t& value) {return this->whisperPeekFpr(hart, addr, value);});
+  cvm::registry::messenger.procedure<whisperPeekVprRPC>(loc, [this] (int hart, uint64_t addr, std::array<std::uint8_t, 32>&  value) {return this->whisperPeekVpr(hart, addr, value);});
+  cvm::registry::messenger.procedure<whisperNmiRPC>(loc, [this] (int hart, uint64_t time, uint64_t cause) {return this->whisperNmi(hart, time, cause);});
+
 }
 
 template <typename URV>
@@ -217,7 +276,7 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
                     };
 
   if(FLAGS_preload) {
-    system_ = constructSystem<URV>(ncores, false, true);
+    system_ = constructSystem<URV>(FLAGS_num_harts, false, true);
     if (system_ == nullptr) {
       std::cerr << "Error: could not construct system\n";
       return -1;
@@ -245,7 +304,7 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
 
   // run once before starting cosim
   if (FLAGS_standalone && ((FLAGS_num_harts <= 1) || (FLAGS_hart_enable_mask <= 1))) {
-    system_ = constructSystem<URV>(ncores, true, false);
+    system_ = constructSystem<URV>(FLAGS_num_harts, true, false);
     if (system_ == nullptr) {
       std::cerr << "Error: could not construct system\n";
       return -1;
@@ -354,13 +413,15 @@ whisperClient<URV>::whisperPeek(int hart, char resource, uint64_t addr, uint64_t
   req.type = WhisperMessageType::Peek;
   req.resource = resource;
   req.address = addr;
+  req.tag[0] = 0;
 
   if (not whisperCommand(req, reply))
     return false;
 
   valid = reply.type != WhisperMessageType::Invalid;
   value = reply.value;
-  return true;}
+  return true;
+}
 
 template <typename URV>
 bool
@@ -371,6 +432,7 @@ whisperClient<URV>::whisperPeekCsr(int hart, uint64_t addr, uint64_t& value, uin
   req.type = WhisperMessageType::Peek;
   req.resource = 'c';
   req.address = addr;
+  req.tag[0] = 0;
 
   if (not whisperCommand(req, reply))
     return false;
@@ -390,6 +452,7 @@ whisperClient<URV>::whisperPeekPc(int hart, uint64_t& value)
   req.hart = hart;
   req.type = WhisperMessageType::Peek;
   req.resource = 'p';
+  req.tag[0] = 0;
 
   if (not whisperCommand(req, reply))
     return false;
@@ -406,6 +469,7 @@ whisperClient<URV>::whisperPeekGpr(int hart, uint64_t addr, uint64_t& value)
   req.type = WhisperMessageType::Peek;
   req.resource = 'r';
   req.address = addr;
+  req.tag[0] = 0;
 
   if (not whisperCommand(req, reply))
     return false;
@@ -421,6 +485,7 @@ whisperClient<URV>::whisperPeekFpr(int hart, uint64_t addr, uint64_t& value)
   req.type = WhisperMessageType::Peek;
   req.resource = 'f';
   req.address = addr;
+  req.tag[0] = 0;
 
   if (not whisperCommand(req, reply))
     return false;
@@ -436,6 +501,7 @@ whisperClient<URV>::whisperPeekVpr(int hart, uint64_t addr, std::array<std::uint
   req.type = WhisperMessageType::Peek;
   req.resource = 'v';
   req.address = addr;
+  req.tag[0] = 0;
 
   if (not whisperCommand(req, reply))
     return false;
@@ -460,6 +526,7 @@ whisperClient<URV>::whisperPoke(int hart, uint64_t time, char resource, uint64_t
   req.address = addr;
   req.value = value;
   req.time = time;
+  req.tag[0] = 0;
 
   if (not whisperCommand(req, reply))
     return false;
@@ -481,6 +548,7 @@ whisperClient<URV>::whisperPokeMem(int hart, uint64_t time, char resource, uint6
   req.value = value;
   req.time = time;
   req.size = size;
+  req.tag[0] = 0;
 
   if (not whisperCommand(req, reply))
     return false;
@@ -916,6 +984,7 @@ whisperClient<URV>::whisperGetSeiPin(int hart, uint64_t& value)
   req.type = WhisperMessageType::Peek;
   req.resource = 's';
   req.address = WhisperSpecialResource::Seipin;
+  req.tag[0] = 0;
 
   WhisperMessage reply;
 

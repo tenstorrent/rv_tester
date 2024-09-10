@@ -7,15 +7,15 @@
 #include "System.hpp"
 #include "Server.hpp"
 #include "WhisperMessage.h"
+#include "cvm/messenger.hpp"
+#include "cvm/registry.hpp"
 
 template <typename URV>
 class whisperClient {
 
   public:
-    whisperClient(std::string traceFile, std::string commandLog) :
-      traceFile_(traceFile.empty() ? nullptr : fopen(traceFile.c_str(), "w")),
-      commandLog_(commandLog.empty() ? nullptr : fopen(commandLog.c_str(), "w"))
-  {}
+
+    whisperClient(cvm::topology::loc_t loc, unsigned);
 
     ~whisperClient() {
       if (traceFile_ != nullptr) {
@@ -24,9 +24,22 @@ class whisperClient {
       if (commandLog_ != nullptr) {
         fclose(commandLog_);
       }
+
+      whisperQuit();
     }
-    uint64_t dm_randpc = 0;
-    uint64_t dm_randpc_addr = 0;
+
+    // Whisper Client Procedure Calls
+    // 1. Add the function declaration here
+    // 2. Use CVM_MESSENGER_procedure_call() to add a procedure call type
+    // 3. Register the function with messenger in the whisperClient constructor
+    // 4. Call the function with cvm::registry::messenger.call<whisper...RPC>() 
+
+    // getter and setter to access class variable through procedure calls
+    void set_dm_randpc(uint64_t _dm_randpc) {dm_randpc = _dm_randpc;}
+    uint64_t get_dm_randpc(void) {return dm_randpc;}
+    void set_dm_randpc_addr(uint64_t _dm_randpc_addr) {dm_randpc_addr = _dm_randpc_addr;}
+    uint64_t get_dm_randpc_addr(void) {return dm_randpc_addr;}
+
     int whisperConnect(uint16_t ncores);
     bool whisperConnected();
     void whisperDisableMcm();
@@ -72,4 +85,48 @@ class whisperClient {
     FILE* commandLog_ = nullptr;
     WhisperMessage req {};
     WhisperMessage reply {};
+
+    uint64_t dm_randpc = 0;
+    uint64_t dm_randpc_addr = 0;
+
+  public:
+    CVM_MESSENGER_procedure_call(set_dm_randpc_RPC, void (uint64_t)); 
+    CVM_MESSENGER_procedure_call(get_dm_randpc_RPC, uint64_t (void)); 
+    CVM_MESSENGER_procedure_call(set_dm_randpc_addr_RPC, void (uint64_t)); 
+    CVM_MESSENGER_procedure_call(get_dm_randpc_addr_RPC, uint64_t (void)); 
+
+    CVM_MESSENGER_procedure_call(whisperConnectRPC, int (uint16_t));
+    CVM_MESSENGER_procedure_call(whisperConnectedRPC, bool (void));
+    CVM_MESSENGER_procedure_call(whisperDisableMcmRPC, void(void));
+    CVM_MESSENGER_procedure_call(whisperStepRPC, bool(int, uint64_t, uint64_t, uint64_t&, uint32_t&, unsigned&, std::string&, uint32_t&, uint32_t&, bool&, bool&, bool&));
+    CVM_MESSENGER_procedure_call(whisperSimpleStepRPC, bool (int, uint64_t&, uint32_t&, unsigned&));
+    CVM_MESSENGER_procedure_call(whisperChangeRPC, bool (int, uint32_t&, uint64_t&, uint64_t&, bool&));
+    CVM_MESSENGER_procedure_call(whisperMcmReadRPC, bool (int, uint64_t, uint64_t, uint64_t, unsigned, uint64_t, bool&));
+    CVM_MESSENGER_procedure_call(whisperMcmVecReadRPC, bool (int, uint64_t, uint64_t, uint64_t, unsigned, std::vector<uint64_t>, bool&));
+    CVM_MESSENGER_procedure_call(whisperMcmVecInsertRPC, bool (int, uint64_t, uint64_t, uint64_t, unsigned, std::vector<uint64_t>, bool&));
+    CVM_MESSENGER_procedure_call(whisperMcmInsertRPC, bool (int, uint64_t, uint64_t, uint64_t, unsigned, uint64_t, bool&));
+    CVM_MESSENGER_procedure_call(whisperMcmBypassRPC, bool (int, uint64_t, uint64_t, uint64_t, unsigned, uint64_t, bool&));
+    CVM_MESSENGER_procedure_call(whisperMcmWriteRPC, bool (int, uint64_t, uint64_t, unsigned, svOpenArrayHandle, uint64_t, bool&));
+    CVM_MESSENGER_procedure_call(whisperMcmIFetchRPC, bool (int, uint64_t, uint64_t, bool&));
+    CVM_MESSENGER_procedure_call(whisperMcmIEvictRPC, bool (int, uint64_t, uint64_t, bool&));
+    CVM_MESSENGER_procedure_call(whisperPokeRPC, bool (int, uint64_t, char, uint64_t, uint64_t, bool&));
+    CVM_MESSENGER_procedure_call(whisperPokeMemRPC, bool (int, uint64_t, char, uint64_t, unsigned, uint64_t, bool&));
+    CVM_MESSENGER_procedure_call(whisperPeekRPC, bool (int, char, uint64_t, uint64_t&, bool&));
+    CVM_MESSENGER_procedure_call(whisperPeekPcRPC, bool (int, uint64_t& value));
+    CVM_MESSENGER_procedure_call(whisperPeekCsrRPC, bool (int, uint64_t, uint64_t&, uint64_t&, uint64_t&, uint64_t&, bool&));
+    CVM_MESSENGER_procedure_call(whisperResetRPC, bool (int, uint64_t, bool&));
+    CVM_MESSENGER_procedure_call(whisperQuitRPC, bool (void));
+    CVM_MESSENGER_procedure_call(whisperPageTableWalkRPC, bool (int, bool, bool, svOpenArrayHandle, unsigned&, bool&));
+    CVM_MESSENGER_procedure_call(whisperTranslateRPC, bool (int, uint64_t, bool, bool, bool, bool, bool, uint64_t&, bool&));
+    CVM_MESSENGER_procedure_call(whisperEnterDebugRPC, bool (int));
+    CVM_MESSENGER_procedure_call(whisperExitDebugRPC, bool (int));
+    CVM_MESSENGER_procedure_call(whisperCheckInterruptRPC, bool (int, uint64_t, bool&, uint64_t&));
+    CVM_MESSENGER_procedure_call(whisperGetSeiPinRPC, bool (int, uint64_t&));
+    CVM_MESSENGER_procedure_call(whisperCancelLrRPC, bool (int, bool&));
+    CVM_MESSENGER_procedure_call(whisperPeekGprRPC, bool (int, uint64_t, uint64_t&));
+    CVM_MESSENGER_procedure_call(whisperPeekFprRPC, bool (int, uint64_t, uint64_t&));
+    CVM_MESSENGER_procedure_call(whisperPeekVprRPC, bool (int, uint64_t, std::array<std::uint8_t, 32>&)); 
+    CVM_MESSENGER_procedure_call(whisperNmiRPC, bool (int, uint64_t, uint64_t));
 };
+
+

@@ -80,13 +80,17 @@ rvfi::~rvfi() {
     cvm::log(cvm::ERROR, "Error: rvfi termination without processing any instructions\n");
 }
 
+void rvfi::check() {
+  bridge_->report_metrics();
+}
+
 void rvfi::init() {
 
   if (FLAGS_cosim) {
     cvm::log(cvm::MEDIUM, "[RVFI loc {} id{}] Constructing bridge...\n", loc_, id_);
     auto platform_loc = cvm::topology::get_from_type("PLATFORM", 0);
     bridge_ = std::make_unique<bridge>(cvm::topology::attr(platform_loc, "NHARTS").second, xlen, vlen, loc_, id_);
-    bridge_->reset();
+    // bridge_->reset();    // call reset in process for m_reset, or else whisper might not yet be initialized
     count_ = 1;
   } else {
     cvm::log(cvm::MEDIUM, "Running with cosim is disabled\n");
@@ -145,10 +149,6 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
     instrs_.clear();
     hw_csrs_.clear();
   }
-  if (disable_patch_mode_) {
-      bridge_->set_patch_mode(false);
-      disable_patch_mode_ = false;
-  }
 
   // Clear state
   intr_ = false;
@@ -171,7 +171,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
     excp_ = true;
     intr_ = false;
     ecause_ = (m_trap.cause & 0xff);
-    if (m_trap.cause >= 60 && FLAGS_cosim) {
+    if (m_trap.cause >= 58 && FLAGS_cosim) {
       bridge_->set_patch_mode(true);
       patch_mode_ = true;
     }
@@ -307,7 +307,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
       instr.priv = priv_;
       ucode_priv_change_ = false;
       if (priv_ == 0x4 && patch_mode_) { // dret changes mode from D to M/S/U (exit from patch mode)
-        disable_patch_mode_ = true;
+        bridge_->set_patch_mode(false);
         patch_mode_ = false;
       }
     }

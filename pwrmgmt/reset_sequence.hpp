@@ -28,6 +28,7 @@ class reset_sequence {
     cvm::messenger::task<void> cold_reset_sequence();
     cvm::messenger::task<void> warm_reset_sequence();
 
+    cvm::messenger::task<void> cold_reset_ack();
     cvm::messenger::task<void> tick();
     cvm::messenger::task<void> trigger();
     cvm::messenger::task<void> cpl_reset_sequence(rst_t );
@@ -60,6 +61,7 @@ class reset_sequence {
     uint64_t trace_fuse_val();
     uint64_t dm_fuse_val();
     uint64_t sc_fuse_val();
+    uint64_t export_control_fuse_val();
     uint64_t core_en(uint32_t c);
     std::vector<uint64_t> mhartid();
 

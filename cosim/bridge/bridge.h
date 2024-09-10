@@ -19,6 +19,13 @@
 #include "rv_tester/rv_tester_structs.h"
 #include "cvm/registry.hpp"
 
+enum patch_mode {
+    NO_PATCH = 0,  //--> Not in PATCH mode
+    ENTER_PATCH,   //--> Entered patch, helpful to identify the instruction and step whisper (just) once, No CaC
+    IN_PATCH,      //--> Inside patch mode, record the DUT changes, do not step whisper, no CaC
+    EXIT_PATCH     //--> Exiting patch, helpful to identify the instruction and do the CaC checks.
+};
+
 class bridge : public bridge_base {
 
 private:
@@ -83,7 +90,13 @@ public:
   void final_phase();
   void report_metrics();
   void process(const rv_tester::terminate_called &);
-  void set_patch_mode(bool patch_mode) { patch_mode_ = int(patch_mode); }
+  void set_patch_mode(bool patch) {
+    if (patch) {
+      patch_mode_ = ENTER_PATCH;
+    } else {
+      patch_mode_ = EXIT_PATCH;
+    }
+  }
 
 private:
 
@@ -158,6 +171,7 @@ private:
   bool is_compressed(const std::string& instr);
   bool is_ucode(const std::string& instr);
   bool is_renamed_csr(const std::string& instr);
+  bool does_instr_match_error_list(const std::string& instr);
   bool does_instr_match_resynch_list(const rv_instr_t& d, const std::string& instr);
   bool does_instr_match_resynch_condition(const rv_instr_t& d, const std::string& instr);
   bool clint_read(const rv_instr_t& d);
@@ -230,13 +244,15 @@ private:
   bool vstimecmppoked_ = false;
   bool stimecmppoked_ = false;
   uint64_t intrtopriv_ = 3;
-  std::vector<mem_t> mem_poke_{};
+  std::vector<mem_t> msi_{};
   rv_nmi_t nmi_ {};
   bool nmi_poke_pending_ = false;
   uint64_t mip_ = 0;
   uint64_t prev_mip_ = 0;
+  uint64_t mip_age_ = 0;
   uint64_t e_mip_ = 0;
   uint64_t prev_e_mip_ = 0;
+  uint64_t e_mip_age_ = 0;
   uint64_t deferred_mip_ = 0;
   bool prev_sync_intr_ = 0;
   bool all_interrupts_defer_= 0;
@@ -266,7 +282,7 @@ private:
   std::vector<std::string> cosim_resynch_csr_defaults;
 
   bool terminated_ = false;
-  int patch_mode_  = 0; // 0:not in patch mode, 1: entered patch mode, step whisper, >2: inside patch mode, dont step whisper
+  enum patch_mode patch_mode_ = NO_PATCH;
 
   template <typename... Args>
       void print(cvm::verbosity_level v, Args&&... args) {

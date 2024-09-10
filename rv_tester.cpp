@@ -41,6 +41,7 @@ DEFINE_int32(rand_dmi_driver_dly, 0, "Random delay cycles, to be used while driv
 extern "C" void rv_tester_terminate();
 extern "C" void rv_tester_set_address_map(std::uint32_t i, std::uint64_t start_addr, std::uint64_t end_addr, std::uint32_t device);
 
+static bool check_called;
 class logger_instrument {
 
     public:
@@ -124,12 +125,19 @@ extern "C" {
     }
 
     void rv_tester_build_registry() {
+        check_called = false;
         cvm::registry::build();
         cvm::registry::configure();
     }
 
     uint8_t rv_tester_shutdown_registry() {
-        cvm::registry::check();
+        if (!check_called) {
+            cvm::log(cvm::NONE, "[registry] check...\n");
+            cvm::registry::check();
+            check_called = true;
+        }
+
+        cvm::log(cvm::NONE, "[registry] shutdown...\n");
         return cvm::registry::shutdown();
     }
 

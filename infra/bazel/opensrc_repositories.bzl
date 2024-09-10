@@ -6,7 +6,7 @@ load("@bazel_tools//tools/build_defs/repo:utils.bzl", "maybe")
 
 def opensrc_repositories():
 
-    opensrc_common_verification_hash="55db000bd24eae3091507ee2a59ce2f2360dee3e"
+    opensrc_common_verification_hash="3a0ef66d18442c25ba1138e8514c296421762843"
     maybe(
         git_repository,
         name = "opensrc-common_verification",
@@ -15,7 +15,7 @@ def opensrc_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-common_verification.git",
     )
 
-    opensrc_tech_cells_generic_hash="6aac0ff239ce061e9023dc5ce8368025805721b0"
+    opensrc_tech_cells_generic_hash="dcc236271a68d3f51b6c295349b8e07875efe4e2"
     maybe(
         git_repository,
         name = "opensrc-tech_cells_generic",
@@ -33,7 +33,7 @@ def opensrc_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-common_cells.git",
     )
 
-    opensrc_axi_hash="870639a9a9e21f36e2d302b0fc4fa53892610a6e"
+    opensrc_axi_hash="b9bd1aaa35e402f56bb9a579da835eef83db83c2"
     maybe(
         git_repository,
         name = "opensrc-axi",
@@ -42,7 +42,7 @@ def opensrc_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-axi.git",
     )
 
-    opensrc_register_interface_hash="1a67c3b018bb6bda6e93872cd2e418cf0c9865cc"
+    opensrc_register_interface_hash="9dc30db811befb21b8a5c11bec105a66a9ec9e18"
     maybe(
         git_repository,
         name = "opensrc-register_interface",
@@ -51,7 +51,7 @@ def opensrc_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-register_interface.git",
     )
 
-    opensrc_apb_hash="07457725498babfacd5736418d6445107453d790"
+    opensrc_apb_hash="2ac09e5a118929c98273624633bc688096720b56"
     maybe(
         git_repository,
         name = "opensrc-apb",

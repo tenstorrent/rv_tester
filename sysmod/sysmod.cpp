@@ -58,6 +58,7 @@ DEFINE_int32(num_sp_ways, -1, "Number of SC ways reserved for scratchpad");
 DEFINE_uint32(trace_enable, 1, "Trace enable fuse");
 DEFINE_uint32(debug_enable, 3, "Debug enable fuse");
 DEFINE_bool(hart_sync_en, true, "Enable hart sync routine in bootrom");
+DEFINE_bool(export_control_en, false, "Enable export control to reduce FP double precision");
 
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 
@@ -296,7 +297,10 @@ sysmod::sc_harvest_plusargs()
         FLAGS_num_sc_dis_ways = 0;
         FLAGS_sc_dis_ways_mask = 0;
       } else {
+
         FLAGS_num_sc_dis_ways = get_rand_dis_ways(nways);
+        cvm::log(cvm::MEDIUM, " Randomizing sc ways : {}, num_sc_dis_ways = {}\n", nways, FLAGS_num_sc_dis_ways );
+
         FLAGS_sc_dis_ways_mask = get_rand_ways_mask(FLAGS_num_sc_dis_ways, nways);
       }
       if (FLAGS_perf || !FLAGS_rand_sp_ways) {
@@ -462,7 +466,7 @@ sysmod::get_rand_dis_ways(int32_t nways)
   }
 
   cvm::rand::discrete_dist<int32_t> dist(weights);
-  cvm::log(cvm::HIGH, "[random] Probabilities for selecting disabled SC way groups [1..{}] = [{:.2f}]\n",
+  cvm::log(cvm::MEDIUM, "[random] Probabilities for selecting disabled SC way groups [1..{}] = [{:.2f}]\n",
     max, fmt::join(dist.probabilities(), ", "));
   return (dist() + 1) * 4;
 }
@@ -646,9 +650,9 @@ void sysmod::store_inval_crsp(const inval_crsp_s& payld) {
     dev("memory")->backdoor_read(ld_addr + (offset*8), 8, data);
     for (int i=0; i<8; ++i) 
       read_data |= uint64_t(data[i]) << (i*8);
-    if(client_ != nullptr) {
-      bool valid = true;
-      client_->whisperPokeMem(0, 0, 'm', (ld_addr + (offset*8)), 8, read_data, valid);
+    bool valid = true;
+    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', (ld_addr + (offset*8)), 8, read_data, valid)) {
+      cvm::log(cvm::ERROR, "Error: store_inval_crsp failed to poke whisper memory");
     }
   }
 }
@@ -668,11 +672,11 @@ void sysmod::store_inval_load(const inval_load_s& payload) {
   if(inval_load_.data == read_data)
   {
     // No need to poke entire cacheline granularity - that will be done after CRSP
-    if(client_ != nullptr) {
-        bool valid = true;
-        cvm::log(cvm::HIGH, "CBO_INVAL_MONITOR :: Whisper Poke with data:{:#x} for address:{:#x}\n",read_data,ld_addr);
-        client_->whisperPokeMem(0, 0, 'm', ld_addr, 8, read_data, valid);
-      }
+    bool valid = true;
+    cvm::log(cvm::HIGH, "CBO_INVAL_MONITOR :: Whisper Poke with data:{:#x} for address:{:#x}\n",read_data,ld_addr);
+    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', ld_addr, 8, read_data, valid)) {
+      cvm::log(cvm::ERROR, "Error: store_inval_load failed to poke whisper memory\n"); 
+    }
   }
 }
 
@@ -681,9 +685,9 @@ cvm::messenger::task<uint64_t> sysmod::backdoor_write(sysmod::backdoor_write_t t
     device::data_t datax(8);
     device::strb_t strbx(8);
 
-    if (client_ != nullptr) {
-      bool valid = true;
-      client_->whisperPokeMem(0, 0, 'm', t.address, 8, t.data, valid);
+    bool valid = true;
+    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', t.address, 8, t.data, valid)) {
+      cvm::log(cvm::ERROR, "Error: backdoor_write failed to poke whisper memory\n");
     }
       
     for (int i = 0; i < t.size; ++i, t.data >>= 8) {
@@ -1106,7 +1110,7 @@ sysmod::load_csr_mmr_boot(uint64_t)
     device::data_t data(4);
     for (size_t i=0; i<4; i++) data[i] = op >> 8*i;
     dev("boot")->backdoor_write(addr, 4, data, strb);
-    if (client_ != nullptr && !client_->whisperPoke(0, 0, 'm', addr, op, valid))
+    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', addr, op, valid))
       cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
     addr += 4;
   };
@@ -1230,14 +1234,14 @@ sysmod::load_cplfw(const std::string& cplfw)
 void
 sysmod::store_dm_randpc()
 {
-  if (client_ != nullptr && client_->dm_randpc != 0) {
+  if (cvm::registry::messenger.call<whisperClient<uint64_t>::get_dm_randpc_RPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0)) != 0) {
     device::data_t dataw(8);
     device::strb_t strb(8);
     for (size_t i=0; i<8; i++) {
-      dataw[i] = (client_->dm_randpc >> 8*i) & 0xff;
+      dataw[i] = (cvm::registry::messenger.call<whisperClient<uint64_t>::get_dm_randpc_RPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0)) >> 8*i) & 0xff;
       strb[i]  = true;
     }
-    dev("trickbox")->backdoor_write(client_->dm_randpc_addr, 8, dataw, strb); //write to trickbox location
+    dev("trickbox")->backdoor_write(cvm::registry::messenger.call<whisperClient<uint64_t>::get_dm_randpc_addr_RPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0)), 8, dataw, strb); //write to trickbox location
   }
 }
 

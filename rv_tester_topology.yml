@@ -156,6 +156,11 @@ rv_tester: &rv_tester
       type:
         - interrupts
 
+    trace:
+      count: 1
+      type:
+        - trace
+
     triggers:
       count: *rv_tester_nharts
       type:
@@ -165,6 +170,11 @@ rv_tester: &rv_tester
       count: 1
       type:
         - aclint_checker
+
+    whisper_client:
+      count: 1
+      type:
+        - whisper_client
 
     cosim:
       count: *rv_tester_nharts

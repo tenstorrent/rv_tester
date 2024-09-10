@@ -90,12 +90,14 @@ void reset_sequence::warm_reset_sequence_thread() {
 };
 
 cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
-  // Wait for first clock tick
-  co_await tick();
+  // Wait for 16 clock ticks
+  for (int i=0; i<16; ++i)
+    co_await tick();
 
   // Init values for all pins
   // Assert cold reset
   init();
+  //FIXME co_await cold_reset_ack();
 
   // Wait for 16 clock ticks
   for (int i=0; i<16; ++i)
@@ -103,6 +105,7 @@ cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
 
   // Deassert cold reset
   cold_reset(0);
+  co_await cold_reset_ack();
 
   if (!FLAGS_pwrmgmt) {
     force_ref_clk(0);
@@ -281,6 +284,11 @@ cvm::messenger::task<void> reset_sequence::release_cpl_nofetch() {
   co_return;
 }
 
+cvm::messenger::task<void> reset_sequence::cold_reset_ack() {
+  co_await cvm::registry::messenger.wait<rv_tester_transactions::pwrmgmt::m_cold_reset_ack<>>(loc_);
+  co_return;
+}
+
 cvm::messenger::task<void> reset_sequence::tick() {
   co_await cvm::registry::messenger.wait<rv_tester_transactions::pwrmgmt::m_tick<>>(loc_);
   co_return;
@@ -430,6 +438,10 @@ uint64_t reset_sequence::dm_fuse_val() {
   return static_cast<uint64_t>(FLAGS_debug_enable << dm_fuse_idx);
 }
 
+uint64_t reset_sequence::export_control_fuse_val() {
+  return static_cast<uint64_t>(FLAGS_export_control_en << exp_ctrl_fuse_idx);
+}
+
 uint64_t reset_sequence::sc_fuse_val() {
   uint64_t sc_fuse = 0;
 
@@ -443,7 +455,7 @@ uint64_t reset_sequence::sc_fuse_val() {
 }
 
 uint64_t reset_sequence::fuse_val() {
-  return core_fuse_val() | trace_fuse_val() | dm_fuse_val() | sc_fuse_val() | (1ull << lock_idx);
+  return core_fuse_val() | trace_fuse_val() | dm_fuse_val() | sc_fuse_val() | export_control_fuse_val() | (1ull << lock_idx);
 }
 
 
