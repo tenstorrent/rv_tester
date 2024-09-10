@@ -1132,15 +1132,15 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
           boot_wfi <= '1;
         end
         if (max_stall_cycle > 0 && cycles_since_retire > max_stall_cycle && !boot_wfi && NUM < nharts) begin
-          $display("Error: Hart %0d: No instruction retired for max_stall_cycle (%0d) cycles", NUM, max_stall_cycle);
+          $display("\nError: Hart %0d: No instruction retired for max_stall_cycle (%0d) cycles", NUM, max_stall_cycle);
           cosim_terminate();
         end
         if (max_cycle > 0 && clocks > max_cycle && NUM < nharts) begin
-          $display("Error: Hart %0d:  Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", NUM, max_cycle);
+          $display("\nError: Hart %0d:  Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", NUM, max_cycle);
           cosim_terminate();
         end
         if (rvfi[0].valid == '1 && NUM > nharts) begin
-          $display("Error: Core %0d: Instruction retire seen on disabled/harvested core", NUM);
+          $display("\nError: Core %0d: Instruction retire seen on disabled/harvested core", NUM);
           cosim_terminate();
         end
       end
