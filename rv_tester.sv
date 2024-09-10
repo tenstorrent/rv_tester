@@ -352,7 +352,7 @@ module rv_tester
                 end else if (quiesce_counter == 0) begin
                     $display("<%0d> [RVTESTER]: exiting immediately because +quiesce_counter=0", clocks);
                 end else begin
-                    $display("<%0d> [RVTESTER]: Error: Waiting to quiesce for more than %0d cycles", clocks, quiesce_timeout);
+                    $display("\n<%0d> [RVTESTER]: Error: Waiting to quiesce for more than %0d cycles", clocks, quiesce_timeout);
                 end
 
             end
@@ -568,7 +568,7 @@ module rv_tester
             dmi_poll_counter <= dmi_poll_counter + 1;
 
             if (dmi_poll_counter > dmi_poll_timeout) begin
-                $display("<%0d> [RVTESTER]: Error: Debug poll timeout limit reached.", clocks);
+                $display("\n<%0d> [RVTESTER]: Error: Debug poll timeout limit reached.", clocks);
                 dmi_poll_timeout_terminate <= 1;
             end
             else if ((dmi_poll_counter >= 'h1) && terminate) begin
