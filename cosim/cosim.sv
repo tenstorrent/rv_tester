@@ -967,7 +967,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
     function automatic rv_tester_pkg::trap_e get_trap_id(logic [XLEN-1:0] cause);
       if (cause[63:62] == 'h3)
         return rv_tester_pkg::NMI;
-      else if (cause[63:62] == 'h1)
+      else if (cause[63:62] == 'h2)
         return rv_tester_pkg::INTR;
       else
         return rv_tester_pkg::EXCP;
