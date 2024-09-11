@@ -680,7 +680,10 @@ void rvfi::process(const rv_tester_transactions::cosim::m_csri<>& m_csri) {
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_read) {
-  if (!FLAGS_mcm || patch_mode_)
+  if (!FLAGS_mcm)
+    return;
+
+  if ((m_mcmi_read.addr >= patch_ram_lo) && (m_mcmi_read.addr < patch_ram_hi))
     return;
 
   if (terminated_ || in_reset_)
@@ -727,7 +730,10 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_insert) {
-  if (!FLAGS_mcm || patch_mode_)
+  if (!FLAGS_mcm)
+    return;
+
+  if ((m_mcmi_insert.addr >= patch_ram_lo) && (m_mcmi_insert.addr < patch_ram_hi))
     return;
 
   if (terminated_)
@@ -750,7 +756,10 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_bypass) {
-  if (!FLAGS_mcm || patch_mode_)
+  if (!FLAGS_mcm)
+    return;
+
+  if ((m_mcmi_bypass.addr >= patch_ram_lo) && (m_mcmi_bypass.addr < patch_ram_hi))
     return;
 
   if (terminated_ || in_reset_)
@@ -882,7 +891,10 @@ void rvfi::amo_arithmetic(amo_op op, uint64_t& read_data, uint64_t& write_data, 
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write<>& m_mcmi_write) {
-  if (!FLAGS_mcm || patch_mode_)
+  if (!FLAGS_mcm)
+    return;
+
+  if ((m_mcmi_write.addr >= patch_ram_lo) && (m_mcmi_write.addr < patch_ram_hi))
     return;
 
   if (terminated_)
@@ -902,7 +914,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write<>& m_mcmi_w
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_req<>& m_mcmi_ifetch_req) {
-  if (!FLAGS_mcm || patch_mode_)
+  if (!FLAGS_mcm)
     return;
 
   if (terminated_ || in_reset_)
@@ -920,7 +932,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_req<>& m_m
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>& m_mcmi_ifetch_resp) {
-  if (!FLAGS_mcm || patch_mode_)
+  if (!FLAGS_mcm)
     return;
 
   if (terminated_ || in_reset_)
@@ -943,7 +955,10 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>& m_
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ievict<>& m_mcmi_ievict) {
-  if (!FLAGS_mcm || patch_mode_)
+  if (!FLAGS_mcm)
+    return;
+
+  if ((m_mcmi_ievict.addr >= patch_ram_lo) && (m_mcmi_ievict.addr < patch_ram_hi))
     return;
 
   if (terminated_ || in_reset_)

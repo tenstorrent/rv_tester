@@ -12,6 +12,8 @@ namespace {
     constexpr uint64_t mmr_hi_addr = 0x421a'ffff;
     constexpr uint64_t smc_lo_addr = 0xc000'0000;
     constexpr uint64_t smc_hi_addr = 0xffff'ffff;
+    constexpr uint64_t patch_ram_lo = 0x4214C000;
+    constexpr uint64_t patch_ram_hi = 0x4214DFF8;
 
     struct csr_entry {
         std::string name;
