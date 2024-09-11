@@ -56,6 +56,10 @@ DEFINE_int32(sc_dis_ways_mask, -1, "SC way enable mask. Ex: With 20 enabled ways
 DEFINE_bool(rand_sp_ways, false, "Randomize number of SC ways reserved for scratchpad");
 DEFINE_int32(num_sp_ways, -1, "Number of SC ways reserved for scratchpad");
 DEFINE_uint32(trace_enable, 1, "Trace enable fuse");
+DEFINE_int32(strobe_type,4, "strobe type need to be driven for random access");
+DEFINE_uint32(overlay_num_times,3, "Maximum number of debug snippets to be driven");
+DEFINE_int32(overlay_idle,5, "Number of idle cycles between each transfer");
+DEFINE_int32(start_overlay_access,10, "Start tick point for starting overlay access");
 DEFINE_uint32(debug_enable, 3, "Debug enable fuse");
 DEFINE_bool(hart_sync_en, true, "Enable hart sync routine in bootrom");
 DEFINE_bool(export_control_en, false, "Enable export control to reduce FP double precision");
