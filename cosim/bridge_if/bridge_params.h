@@ -1026,4 +1026,9 @@ namespace {
         {VSSCRATCH, "vsscratch"}
     };
 
+    typedef enum : size_t {
+        EXCP = 0,
+        INTR = 1,
+        NMI = 2
+    } trap_t;
 }

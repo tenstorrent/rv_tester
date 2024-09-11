@@ -960,8 +960,18 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
         assign m_traps[n].valid = RVFI_EN & rvfi_enabled & ~dut_reset & (rvfi[n].cause != 0);
         assign m_traps[n].data.location = location;
         assign m_traps[n].data.cycle = clocks;
+        assign m_traps[n].data.id = get_trap_id(rvfi[n].cause);
         assign m_traps[n].data.cause = rvfi[n].cause;
     end
+
+    function automatic rv_tester_pkg::trap_e get_trap_id(logic [XLEN-1:0] cause);
+      if (cause[63:62] == 'h3)
+        return rv_tester_pkg::NMI;
+      else if (cause[63:62] == 'h1)
+        return rv_tester_pkg::INTR;
+      else
+        return rv_tester_pkg::EXCP;
+    endfunction
 
     // When using periodic whisper updates... check for eot if max instruction method is used
     assign eot_max_instr = ((cosim_period > 0) & (max_instructions > 0) &  ((instruction_cnt+64'(valid_cnt)) >= (max_instructions))) ? 1'b1: 1'b0;
