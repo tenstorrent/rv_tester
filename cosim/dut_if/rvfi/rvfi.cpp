@@ -153,7 +153,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   // Clear state
   intr_ = false;
   excp_ = false;
-
+  nmi_ = false;
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
@@ -163,14 +163,15 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
   if (loc_ != m_trap.location)
     return;
 
-  if ((m_trap.cause >> 63) & 0x1) {
+  if (m_trap.id == NMI) {
+    nmi_ = true;
+    ncause_ = m_trap.cause & 0x3;
+  } else if (m_trap.id == INTR) {
     intr_ = true;
-    excp_ = false;
-    icause_ = (m_trap.cause & 0x3f);
-  } else {
+    icause_ = m_trap.cause & 0x3f;
+  } else if (m_trap.id == EXCP) {
     excp_ = true;
-    intr_ = false;
-    ecause_ = (m_trap.cause & 0xff);
+    ecause_ = m_trap.cause & 0xff;
     if (m_trap.cause >= 58 && FLAGS_cosim) {
       bridge_->set_patch_mode(true);
       patch_mode_ = true;
@@ -267,9 +268,11 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.uop = m_rvfi.uop;
   instr.vec_cracked = m_rvfi.vec_cracked;
   instr.trap = m_rvfi.trap || intr_ || excp_;
+  instr.nmi = nmi_;
+  instr.ncause = ncause_;
   instr.intr = intr_;
-  instr.excp = excp_;
   instr.icause = icause_;
+  instr.excp = excp_;
   instr.ecause = ecause_;
 
   // Renamed csr sequence
@@ -534,6 +537,9 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
 
   if (instr.mem_read.valid)
     dut_log += fmt::format(" [{:#x}:{:#x}:{}]", instr.mem_read.va, instr.mem_read.pa, mem_attr_to_string(instr.mem_read.attr));
+
+  if (instr.nmi)
+    dut_log += fmt::format(" (nmi:{})", instr.ncause);
 
   if (instr.intr)
     dut_log += fmt::format(" (interrupt:{})", instr.icause);

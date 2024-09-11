@@ -308,6 +308,8 @@ cosim:
         fields:
             cycle:
                 width: 64
+            id:
+                width: 2
             cause:
                 width: 64
 
