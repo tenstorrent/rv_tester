@@ -685,9 +685,10 @@ cvm::messenger::task<uint64_t> sysmod::backdoor_write(sysmod::backdoor_write_t t
     device::data_t datax(8);
     device::strb_t strbx(8);
 
-    bool valid = true;
-    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', t.address, 8, t.data, valid)) {
-      cvm::log(cvm::ERROR, "Error: backdoor_write failed to poke whisper memory\n");
+    if (FLAGS_cosim) {
+      bool valid = true;
+      if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', t.address, 8, t.data, valid))
+        cvm::log(cvm::ERROR, "Error: backdoor_write failed to poke whisper memory\n");
     }
       
     for (int i = 0; i < t.size; ++i, t.data >>= 8) {
