@@ -960,8 +960,18 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
         assign m_traps[n].valid = RVFI_EN & rvfi_enabled & ~dut_reset & (rvfi[n].cause != 0);
         assign m_traps[n].data.location = location;
         assign m_traps[n].data.cycle = clocks;
+        assign m_traps[n].data.id = get_trap_id(rvfi[n].cause);
         assign m_traps[n].data.cause = rvfi[n].cause;
     end
+
+    function automatic rv_tester_pkg::trap_e get_trap_id(logic [XLEN-1:0] cause);
+      if (cause[63:62] == 'h3)
+        return rv_tester_pkg::NMI;
+      else if (cause[63:62] == 'h1)
+        return rv_tester_pkg::INTR;
+      else
+        return rv_tester_pkg::EXCP;
+    endfunction
 
     // When using periodic whisper updates... check for eot if max instruction method is used
     assign eot_max_instr = ((cosim_period > 0) & (max_instructions > 0) &  ((instruction_cnt+64'(valid_cnt)) >= (max_instructions))) ? 1'b1: 1'b0;
@@ -1132,15 +1142,15 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
           boot_wfi <= '1;
         end
         if (max_stall_cycle > 0 && cycles_since_retire > max_stall_cycle && !boot_wfi && NUM < nharts) begin
-          $display("Error: Hart %0d: No instruction retired for max_stall_cycle (%0d) cycles", NUM, max_stall_cycle);
+          $display("\nError: Hart %0d: No instruction retired for max_stall_cycle (%0d) cycles", NUM, max_stall_cycle);
           cosim_terminate();
         end
         if (max_cycle > 0 && clocks > max_cycle && NUM < nharts) begin
-          $display("Error: Hart %0d:  Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", NUM, max_cycle);
+          $display("\nError: Hart %0d:  Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", NUM, max_cycle);
           cosim_terminate();
         end
         if (rvfi[0].valid == '1 && NUM > nharts) begin
-          $display("Error: Core %0d: Instruction retire seen on disabled/harvested core", NUM);
+          $display("\nError: Core %0d: Instruction retire seen on disabled/harvested core", NUM);
           cosim_terminate();
         end
       end

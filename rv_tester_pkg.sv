@@ -115,6 +115,12 @@ package rv_tester_pkg;
     } nmi_t;
 
     typedef enum logic [1:0] {
+        EXCP   = 2'h0,
+        INTR   = 2'h1,
+        NMI    = 2'h2
+    } trap_e;
+
+    typedef enum logic [1:0] {
         DTM_NOP   = 2'h0,
         DTM_READ  = 2'h1,
         DTM_WRITE = 2'h2
