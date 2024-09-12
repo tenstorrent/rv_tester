@@ -382,6 +382,34 @@ module axi_sw #(
         end
     end
 
+    logic [63:0] read_bytes;
+    logic [63:0] write_bytes;
+    always_ff @(posedge clk) begin
+        if (!reset_n) begin
+            read_bytes <= '0;
+            write_bytes <= '0;
+        end else begin
+            if (axi_mst_ar_valid & axi_slv_ar_ready) begin
+                read_bytes <= read_bytes + 64'(1 << axi_mst_ar_size);
+            end
+            if (axi_mst_aw_valid & axi_slv_aw_ready) begin
+                write_bytes <= write_bytes + 64'(1 << axi_mst_aw_size);
+            end
+        end
+    end
+
+    final begin
+        logic [63:0] read_bandwidth_bpc = read_bytes / clocks;
+        logic [63:0] write_bandwidth_bpc = write_bytes / clocks;
+        $display("INFO_PASS_METRIC:{\"%s_clocks\": %0d}", tag, clocks);
+        $display("INFO_PASS_METRIC:{\"%s_read_bytes\": %0d}", tag, read_bytes);
+        $display("INFO_PASS_METRIC:{\"%s_read_bandwidth_bytes_per_cycle\": %.2f}", tag, read_bandwidth_bpc);
+        $display("INFO_PASS_METRIC:{\"%s_read_bandwidth_utilisation_perc\": %.2f}", tag, read_bandwidth_bpc * 100 / DATA_WIDTH);
+        $display("INFO_PASS_METRIC:{\"%s_write_bytes\": %0d}", tag, write_bytes);
+        $display("INFO_PASS_METRIC:{\"%s_write_bandwidth_bytes_per_cycle\": %.2f}", tag, write_bandwidth_bpc);
+        $display("INFO_PASS_METRIC:{\"%s_write_bandwidth_utilisation_perc\": %.2f}", tag, write_bandwidth_bpc * 100 / DATA_WIDTH);
+    end
+
 endmodule
 
 module axi_sw_fifo #(
