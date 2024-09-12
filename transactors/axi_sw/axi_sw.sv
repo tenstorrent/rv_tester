@@ -404,10 +404,10 @@ module axi_sw #(
         $display("INFO_PASS_METRIC:{\"%s_clocks\": %0d}", tag, clocks);
         $display("INFO_PASS_METRIC:{\"%s_read_bytes\": %0d}", tag, read_bytes);
         $display("INFO_PASS_METRIC:{\"%s_read_bandwidth_bytes_per_cycle\": %.2f}", tag, read_bandwidth_bpc);
-        $display("INFO_PASS_METRIC:{\"%s_read_bandwidth_utilisation_perc\": %.2f}", tag, read_bandwidth_bpc * 100 / DATA_WIDTH);
+        $display("INFO_PASS_METRIC:{\"%s_read_bandwidth_utilisation_perc\": %.2f}", tag, read_bandwidth_bpc * 100 / 64'(DATA_WIDTH));
         $display("INFO_PASS_METRIC:{\"%s_write_bytes\": %0d}", tag, write_bytes);
         $display("INFO_PASS_METRIC:{\"%s_write_bandwidth_bytes_per_cycle\": %.2f}", tag, write_bandwidth_bpc);
-        $display("INFO_PASS_METRIC:{\"%s_write_bandwidth_utilisation_perc\": %.2f}", tag, write_bandwidth_bpc * 100 / DATA_WIDTH);
+        $display("INFO_PASS_METRIC:{\"%s_write_bandwidth_utilisation_perc\": %.2f}", tag, write_bandwidth_bpc * 100 / 64'(DATA_WIDTH));
     end
 
 endmodule
