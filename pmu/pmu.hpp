@@ -17,7 +17,7 @@ public:
       INSTRUCTIONS,
       //Sum of retired branches
       BRANCH_INSTRUCTIONS,
-      //Event for each CPU cycle that happens while in m mode
+      //Simulation only event for each CPU cycle that happens while in m mode
       M_MODE_CYCLES,
       //Event for each retired instruction that happens while in m mode
       M_MODE_INSTRET,
@@ -131,6 +131,8 @@ public:
       CYCLES_NO_VM_PRN,
       //Event (speculative) for each cycle Mapper is stalled due to no reorder buffer entries
       CYCLES_NO_ROB,
+      //Event for every NOP instruction dispatched
+      DISPATCHED_NOPS,
       //Event for each retired direct control flow instruction
       OP_RETIRED_DIRECT_BRANCH,
       //Event for each retired control flow instruction that uses the return address stack for prediction
@@ -337,8 +339,6 @@ public:
       DATA_BANK_CONFLICT_REPLAY_LOAD,
       //Event (speculative) for any demand memory-write replay caused by data bank conflict
       DATA_BANK_CONFLICT_REPLAY_STORE,
-      //Event (speculative) for any prefetch replay caused by data bank conflict
-      DATA_BANK_CONFLICT_REPLAY_PREFETCH,
       //Event (speculative) for any MMU operation replay caused by data bank conflict
       DATA_BANK_CONFLICT_REPLAY_MMU,
       //Event (speculative) for any LS replay caused by data bank conflict
@@ -619,6 +619,20 @@ public:
       FILLBUF_CANNOT_ALLOC,
       //Event for every failed instance a new Active Generation Table allocation
       PFC_AGT_CANNOT_ALLOC,
+      //Event for every instance of AGT entry allocation
+      PFC_AGT_TRAINING_ALLOC,
+      //Event for every instance of AGT entry update
+      PFC_AGT_TRAINING_UPDATE,
+      //Event for every instance of AGT entry allocation or update by a TAG miss instruction
+      PFC_AGT_TRAINING_TAG_MISS,
+      //Event for every instance of AGT entry allocation or update by a TAG hit on a prefetched line
+      PFC_AGT_TRAINING_PF_HIT,
+      //Event for every instance of AGT entry allocation or update by a load instruction
+      PFC_AGT_TRAINING_LOAD,
+      //Event for every instance of AGT entry allocation or update by a store instruction
+      PFC_AGT_TRAINING_STORE,
+      //Event for every instance of AGT entry allocation or update
+      PFC_AGT_TRAINING_ALL,
       //Event for every successful instance of Active Generation Table entry evicted to Pattern History Table
       PFC_AGT_EVICT,
       //Event for every instance of read-access (lookup) to Pattern History Table
@@ -885,6 +899,7 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::CYCLES_NO_VL_PRN] = pmcounters.cycles_no_vl_prn;
       tmp[counter::CYCLES_NO_VM_PRN] = pmcounters.cycles_no_vm_prn;
       tmp[counter::CYCLES_NO_ROB] = pmcounters.cycles_no_rob;
+      tmp[counter::DISPATCHED_NOPS] = pmcounters.dispatched_nops;
       tmp[counter::OP_RETIRED_DIRECT_BRANCH] = pmcounters.op_retired_direct_branch;
       tmp[counter::OP_RETIRED_RET_BRANCH] = pmcounters.op_retired_ret_branch;
       tmp[counter::OP_RETIRED_INDIRECT_BRANCH] = pmcounters.op_retired_indirect_branch;
@@ -988,7 +1003,6 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::STLF_REPLAY_ALL] = pmcounters.stlf_replay_all;
       tmp[counter::DATA_BANK_CONFLICT_REPLAY_LOAD] = pmcounters.data_bank_conflict_replay_load;
       tmp[counter::DATA_BANK_CONFLICT_REPLAY_STORE] = pmcounters.data_bank_conflict_replay_store;
-      tmp[counter::DATA_BANK_CONFLICT_REPLAY_PREFETCH] = pmcounters.data_bank_conflict_replay_prefetch;
       tmp[counter::DATA_BANK_CONFLICT_REPLAY_MMU] = pmcounters.data_bank_conflict_replay_mmu;
       tmp[counter::DATA_BANK_CONFLICT_REPLAY_ALL] = pmcounters.data_bank_conflict_replay_all;
       tmp[counter::LS_WAY_PREDICTOR_REPLAY_LOAD] = pmcounters.ls_way_predictor_replay_load;
@@ -1129,6 +1143,13 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::TLP_ACCESS_ALL] = pmcounters.tlp_access_all;
       tmp[counter::FILLBUF_CANNOT_ALLOC] = pmcounters.fillbuf_cannot_alloc;
       tmp[counter::PFC_AGT_CANNOT_ALLOC] = pmcounters.pfc_agt_cannot_alloc;
+      tmp[counter::PFC_AGT_TRAINING_ALLOC] = pmcounters.pfc_agt_training_alloc;
+      tmp[counter::PFC_AGT_TRAINING_UPDATE] = pmcounters.pfc_agt_training_update;
+      tmp[counter::PFC_AGT_TRAINING_TAG_MISS] = pmcounters.pfc_agt_training_tag_miss;
+      tmp[counter::PFC_AGT_TRAINING_PF_HIT] = pmcounters.pfc_agt_training_pf_hit;
+      tmp[counter::PFC_AGT_TRAINING_LOAD] = pmcounters.pfc_agt_training_load;
+      tmp[counter::PFC_AGT_TRAINING_STORE] = pmcounters.pfc_agt_training_store;
+      tmp[counter::PFC_AGT_TRAINING_ALL] = pmcounters.pfc_agt_training_all;
       tmp[counter::PFC_AGT_EVICT] = pmcounters.pfc_agt_evict;
       tmp[counter::PFC_PHT_TAP_LOOKUP] = pmcounters.pfc_pht_tap_lookup;
       tmp[counter::PFC_PHT_TAP_HIT] = pmcounters.pfc_pht_tap_hit;
@@ -1294,6 +1315,7 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {CYCLES_NO_VL_PRN,"cycles_no_vl_prn"},
       {CYCLES_NO_VM_PRN,"cycles_no_vm_prn"},
       {CYCLES_NO_ROB,"cycles_no_rob"},
+      {DISPATCHED_NOPS,"dispatched_nops"},
       {OP_RETIRED_DIRECT_BRANCH,"op_retired_direct_branch"},
       {OP_RETIRED_RET_BRANCH,"op_retired_ret_branch"},
       {OP_RETIRED_INDIRECT_BRANCH,"op_retired_indirect_branch"},
@@ -1397,7 +1419,6 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {STLF_REPLAY_ALL,"stlf_replay_all"},
       {DATA_BANK_CONFLICT_REPLAY_LOAD,"data_bank_conflict_replay_load"},
       {DATA_BANK_CONFLICT_REPLAY_STORE,"data_bank_conflict_replay_store"},
-      {DATA_BANK_CONFLICT_REPLAY_PREFETCH,"data_bank_conflict_replay_prefetch"},
       {DATA_BANK_CONFLICT_REPLAY_MMU,"data_bank_conflict_replay_mmu"},
       {DATA_BANK_CONFLICT_REPLAY_ALL,"data_bank_conflict_replay_all"},
       {LS_WAY_PREDICTOR_REPLAY_LOAD,"ls_way_predictor_replay_load"},
@@ -1538,6 +1559,13 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {TLP_ACCESS_ALL,"tlp_access_all"},
       {FILLBUF_CANNOT_ALLOC,"fillbuf_cannot_alloc"},
       {PFC_AGT_CANNOT_ALLOC,"pfc_agt_cannot_alloc"},
+      {PFC_AGT_TRAINING_ALLOC,"pfc_agt_training_alloc"},
+      {PFC_AGT_TRAINING_UPDATE,"pfc_agt_training_update"},
+      {PFC_AGT_TRAINING_TAG_MISS,"pfc_agt_training_tag_miss"},
+      {PFC_AGT_TRAINING_PF_HIT,"pfc_agt_training_pf_hit"},
+      {PFC_AGT_TRAINING_LOAD,"pfc_agt_training_load"},
+      {PFC_AGT_TRAINING_STORE,"pfc_agt_training_store"},
+      {PFC_AGT_TRAINING_ALL,"pfc_agt_training_all"},
       {PFC_AGT_EVICT,"pfc_agt_evict"},
       {PFC_PHT_TAP_LOOKUP,"pfc_pht_tap_lookup"},
       {PFC_PHT_TAP_HIT,"pfc_pht_tap_hit"},

@@ -778,7 +778,7 @@ void bridge::pre_step_nmi_poke(hart_id_t hart, const rv_instr_t& d, whisper_stat
   if (!nmi_.valid || !nmi_poke_pending_)
     return;
 
-  if (!d.intr && nmi_poke_pending_) {
+  if (!d.nmi && nmi_poke_pending_) {
     nmi_age_++;
     bridge_log_(cvm::HIGH, "<{}> nmi_age++={}\n", w.time, nmi_age_);
     if ((nmi_age_ > FLAGS_max_pend_nmi_age) && !FLAGS_cosim_resynch && !FLAGS_intr_timeout_resynch) {
@@ -2371,6 +2371,15 @@ uint64_t bridge::modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data) {
     } else {
       result = data & 0xfffffffffffffc00;
     }
+  }
+  if ((addr == 0x60C) || (addr == 0x10C)) {
+    bool valid;
+    uint64_t mstateen, mask_iss, reset, read_mask;
+    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0x30C, mstateen, mask_iss, reset, read_mask, valid)) {
+      print(cvm::ERROR, "Error: Hart {}: Failed to peek CSR\n", hart);
+    }
+    print(cvm::MEDIUM, "hstateen or stateen entered, rtl: {:#x}\n", result);
+    result = result & mstateen;
   }
   return result;
 }

@@ -70,12 +70,18 @@ namespace {
   constexpr uint32_t cpl_patch_ram_pbody_2     =  cpl_patch_ram_base + 0x0d00;
   constexpr uint32_t cpl_patch_ram_pbody_3     =  cpl_patch_ram_base + 0x1100;
   constexpr uint32_t cpl_patch_ram_pdata       =  cpl_patch_ram_base + 0x1500;
-  constexpr uint32_t cpl_in_filter_addr_l      =  smc_local_base + 0x15008;
-  constexpr uint32_t cpl_in_filter_addr_h      =  smc_local_base + 0x15010;
-  constexpr uint32_t cpl_in_filter_config      =  smc_local_base + 0x15000;
-  constexpr uint32_t cpl_out_filter_addr_l     =  smc_local_base + 0x16008;
-  constexpr uint32_t cpl_out_filter_addr_h     =  smc_local_base + 0x16010;
-  constexpr uint32_t cpl_out_filter_config     =  smc_local_base + 0x16000;
+  constexpr uint32_t cpl_in_filter0_addr_l      =  smc_local_base + 0x15008;
+  constexpr uint32_t cpl_in_filter0_addr_h      =  smc_local_base + 0x15010;
+  constexpr uint32_t cpl_in_filter0_config      =  smc_local_base + 0x15000;
+  constexpr uint32_t cpl_out_filter0_addr_l     =  smc_local_base + 0x16008;
+  constexpr uint32_t cpl_out_filter0_addr_h     =  smc_local_base + 0x16010;
+  constexpr uint32_t cpl_out_filter0_config     =  smc_local_base + 0x16000;
+  constexpr uint32_t cpl_in_filter1_config      =  smc_local_base + 0x15020;
+  constexpr uint32_t cpl_in_filter1_addr_l      =  smc_local_base + 0x15028;
+  constexpr uint32_t cpl_in_filter1_addr_h      =  smc_local_base + 0x15030;
+  constexpr uint32_t cpl_in_filter2_config      =  smc_local_base + 0x15040;
+  constexpr uint32_t cpl_in_filter2_addr_l      =  smc_local_base + 0x15048;
+  constexpr uint32_t cpl_in_filter2_addr_h      =  smc_local_base + 0x15050;
  
 
   constexpr uint32_t pm_mbox_base          =  0x0217'0000;
