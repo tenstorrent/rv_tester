@@ -250,7 +250,7 @@ void cla_cfg::overlay_tick(uint64_t) {
     //--------------------------------- CLA XTrigger/NMI ------------------------------
     if(FLAGS_cla_rand_nmi_trig_en) {
       cvm::log(cvm::NONE, "[CLA_CFG::NMI/XTRIGGER] cla_cfg timer tick advance interval {} start_rand_nmi_trig_cnt {} \n",cnt_tick,start_rand_nmi_trig_cnt);
-      if((cnt_tick==start_rand_nmi_trig_cnt) && (nmi_total_cnt > 0)) push_rand_nmi_trigg_cfg();
+      if((cnt_tick==start_rand_nmi_trig_cnt) && (trig_total_cnt > 0)) push_rand_nmi_trigg_cfg();
       if(cnt_tick==(rand_disable_trig_dly)) push_rand_nmi_trigg_cfg_off();
       if(cla_wr_txn_q.size() > 0) axi_write();
      }     
