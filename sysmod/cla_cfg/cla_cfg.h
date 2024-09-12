@@ -72,8 +72,6 @@ class cla_cfg : public device {
         virtual void write_axi_mst(uint64_t addr, size_t length, const data_t& data, const strb_t& strb);
         virtual void read_axi_mst(uint64_t addr, size_t length, data_t& data);
 
-//        std::unordered_map<std::string, uint32_t> extractMacros(const std::string& filename);
-
         cvm::messenger::task<void> read(const transactor::read_t& , data_t& );
 
         template <typename INT>
