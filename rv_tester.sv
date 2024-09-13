@@ -915,6 +915,7 @@ module rv_tester
 
    localparam NoOfAplicMomMsiMasters =  topology.TOP.PLATFORM.APLIC_MSI_AXI.TOTAL  ;
     for (genvar p = 0; p < NoOfAplicMomMsiMasters; p++) begin : aplic_msi_axi_sw_slvs
+        localparam string tag = $sformatf("aplic_slv%0d", p);
         axi_sw #(
             .ADDR_WIDTH(topology.TOP.PLATFORM.APLIC_MSI_AXI.ADDR_WIDTH),
             .DATA_WIDTH(topology.TOP.PLATFORM.APLIC_MSI_AXI.DATA_WIDTH),
@@ -922,6 +923,7 @@ module rv_tester
             .STRB_WIDTH(topology.TOP.PLATFORM.APLIC_MSI_AXI.STRB_WIDTH),
             .R_Q_MAX(topology.TOP.PLATFORM.AXI.R_Q_MAX),
             .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.APLIC_MSI_AXI.ID, p)),
+            .tag(tag),
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(2)
         ) aplic_msi_axi_sw(
             .clk(dut_clk[AXI_CLK_IDX]),
@@ -1042,6 +1044,7 @@ module rv_tester
 
 
     for (genvar p = 0; p < topology.TOP.PLATFORM.APLIC_MMR_AXI_MST.TOTAL; p++) begin : aplic_mmr_axi_sw_msts
+        localparam string tag = $sformatf("aplic_mmr_mst%0d", p);
         axi_sw_mst #(
             .ADDR_WIDTH(topology.TOP.PLATFORM.APLIC_MMR_AXI_MST.ADDR_WIDTH),
             .DATA_WIDTH(topology.TOP.PLATFORM.APLIC_MMR_AXI_MST.DATA_WIDTH),
@@ -1051,6 +1054,7 @@ module rv_tester
             .AW_Q_MAX(topology.TOP.PLATFORM.APLIC_MMR_AXI_MST.AW_Q_MAX),
             .W_Q_MAX(topology.TOP.PLATFORM.APLIC_MMR_AXI_MST.W_Q_MAX),
             .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.APLIC_MMR_AXI_MST.ID, p)),
+            .tag(tag),
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(1)
         ) aplic_mmr_sw_mst (
             .clk(dut_clk[AXI_CLK_IDX]),
@@ -1162,6 +1166,7 @@ module rv_tester
     // Connections
 
     for (genvar p = 0; p < topology.TOP.PLATFORM.PLL_AXI_MST.TOTAL; p++) begin : pll_axi_sw_msts
+        localparam string tag = $sformatf("pll_mst%0d", p);
         axi_sw_mst #(
             .ADDR_WIDTH(topology.TOP.PLATFORM.PLL_AXI_MST.ADDR_WIDTH),
             .DATA_WIDTH(topology.TOP.PLATFORM.PLL_AXI_MST.DATA_WIDTH),
@@ -1171,6 +1176,7 @@ module rv_tester
             .AW_Q_MAX(topology.TOP.PLATFORM.PLL_AXI_MST.AW_Q_MAX),
             .W_Q_MAX(topology.TOP.PLATFORM.PLL_AXI_MST.W_Q_MAX),
             .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.PLL_AXI_MST.ID, p)),
+            .tag(tag),
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(3)
         ) pll_sw_mst (
             .clk(dut_clk[SOC_CLK_IDX]),
@@ -1222,6 +1228,7 @@ module rv_tester
     //PM_NW Connections
 
     for (genvar p = 0; p < topology.TOP.PLATFORM.PM_NW_AXI_MST.TOTAL; p++) begin : pm_nw_axi_sw_msts
+        localparam string tag = $sformatf("pm_nw_mst%0d", p);
         axi_sw_mst #(
             .ADDR_WIDTH(topology.TOP.PLATFORM.PM_NW_AXI_MST.ADDR_WIDTH),
             .DATA_WIDTH(topology.TOP.PLATFORM.PM_NW_AXI_MST.DATA_WIDTH),
@@ -1231,6 +1238,7 @@ module rv_tester
             .AW_Q_MAX(topology.TOP.PLATFORM.PM_NW_AXI_MST.AW_Q_MAX),
             .W_Q_MAX(topology.TOP.PLATFORM.PM_NW_AXI_MST.W_Q_MAX),
             .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.PM_NW_AXI_MST.ID, p)),
+            .tag(tag),
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(4)
         ) pm_nw_sw_mst (
             .clk(dut_clk[SOC_CLK_IDX]),
