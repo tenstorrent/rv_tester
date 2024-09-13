@@ -16,7 +16,6 @@
 #include "trace_cfg/trace_cfg.h"
 #include "cla_cfg/cla_cfg.h"
 #include "pm_nw_xtor/pm_nw_xtor.h"
-#include "aplic_mmr/aplic_mmr.h"
 #include "io_dev/io_dev.h"
 #include "null_dev/null_dev.h"
 #include "heartbeat/heartbeat.h"
@@ -71,8 +70,6 @@ extern "C" {
   void sysmod_sw_interrupt(unsigned hartid, unsigned val);
   void sysmod_tbox_interrupt(unsigned hartid, unsigned val, unsigned int_val);
   void sysmod_trace_info(unsigned trace_info_s);
-  void sysmod_aplic_dir_interrupt(unsigned long* i) ;
-  void sysmod_aplic_rnd_interrupt(unsigned hartid, unsigned val, unsigned int_val);
   void sysmod_dmi_write(unsigned hartid, unsigned upper_val, unsigned lower_val);
   void sysmod_jtag_req(unsigned cmd,unsigned long upper_val, unsigned long lower_val, unsigned length, unsigned quit,unsigned tap_cfg_sel);
   void sysmod_terminate();
@@ -566,18 +563,6 @@ sysmod::pm_nw_info_handler(pm_nw_xtor::pm_nw_info_t i) {
  //       sysmod_trace_info(i.trace_quiesced);
  //     });
 }
-void
-sysmod::aplic_interrupt(aplic_driver::aplic_driver_write_t i) {
-  cvm::registry::callbacks.push(
-      scope(),
-      [i]() {
-        unsigned long arr[16];
-        for (int j = 0; j < 16; j++) {
-        arr[j] = i.aplic_pin_values_vec[j];
-        }
-        sysmod_aplic_dir_interrupt(arr);
-      });
-}
 
 void
 sysmod::trace_cfg_read_req_router(trace_cfg::trace_cfg_read_t r) {
@@ -863,11 +848,6 @@ sysmod::compose()
             loc_,
             [&](scratchpad_xtor::scratchpad_xtor_read_t i) { return this->scratchpad_xtor_read_req_router(i); });
       }
-      else if (type == "aplic_mmr") {
-        // TODO: cvm::ERROR
-        assert(mmr_master.size() > 0);
-        device = std::make_unique<aplic_mmr>(tag, base, size, loc_, mmr_master[0]);
-      }
       else if (type == "clint") {
         device = std::make_unique<clint>(tag, base, nharts, loc_);
         cvm::registry::messenger.connect<clint::timer_t>(
@@ -888,9 +868,6 @@ sysmod::compose()
         cvm::registry::messenger.connect<interrupter::interrupt_t>(
             loc_,
             [&](interrupter::interrupt_t i) { return this->tbox_interrupt(i); });
-	cvm::registry::messenger.connect<aplic_driver::aplic_driver_write_t>(
-            loc_,
-            [&](aplic_driver::aplic_driver_write_t i) { return this->aplic_interrupt(i); });
         cvm::registry::messenger.connect<debugger::dmi_data_t>(
             loc_,
             [&](debugger::dmi_data_t i) { return this->dmi_write(i); });

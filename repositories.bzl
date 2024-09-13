@@ -92,11 +92,3 @@ def rv_tester_repositories():
         shallow_since = "1669784673 -0600",
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/checkin-script.git",
     )
-
-    aplic_model_hash="b5cd6bc4f2ec2a9fff32e68a670b23d9b777f2c1"
-    git_repository(
-        name = "aplic",
-        commit = aplic_model_hash,
-        recursive_init_submodules = True,
-        remote = "git@aus-gitlab.local.tenstorrent.com:riscv/aplic.git",
-    )
