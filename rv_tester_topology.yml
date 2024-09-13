@@ -36,18 +36,6 @@ rv_tester: &rv_tester
             - trickbox
           attrs:
               clock_divisor: 100
-      pll_xtor:
-          count: 1
-          type:
-            - pll_xtor
-          attrs:
-              clock_divisor: 100
-      pm_nw_xtor:
-          count: 1
-          type:
-            - pm_nw_xtor
-          attrs:
-              clock_divisor: 100
       smc_xtor:
           count: 1
           type:
@@ -90,24 +78,6 @@ rv_tester: &rv_tester
         <<: *rv_tester_smc_axi_mst_attrs
         <<: *rv_tester_axi_sw_mst
 
-    pll_axi_mst:
-      count: *rv_tester_pll_axi_mst_count
-      type:
-        - pll_axi_mst
-        - platform_transactor_pll_mst
-      attrs:
-        <<: *rv_tester_pll_axi_mst_attrs
-        <<: *rv_tester_axi_sw_mst
-
-    pm_nw_axi_mst:
-      count: *rv_tester_pm_nw_axi_mst_count
-      type:
-        - pm_nw_axi_mst
-        - platform_transactor_pm_nw_mst
-      attrs:
-        <<: *rv_tester_pm_nw_axi_mst_attrs
-        <<: *rv_tester_axi_sw_mst
-    
     dm_axi:
       count: *rv_tester_dm_axi_count
       type:

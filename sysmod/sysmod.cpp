@@ -15,7 +15,6 @@
 #include "dm/dm.h"
 #include "trace_cfg/trace_cfg.h"
 #include "cla_cfg/cla_cfg.h"
-#include "pm_nw_xtor/pm_nw_xtor.h"
 #include "io_dev/io_dev.h"
 #include "null_dev/null_dev.h"
 #include "heartbeat/heartbeat.h"
@@ -554,17 +553,6 @@ sysmod::cla_info_handler(cla_cfg::cla_info_t i) {
 }
 
 void
-sysmod::pm_nw_info_handler(pm_nw_xtor::pm_nw_info_t i) {
-        cvm::log(cvm::HIGH, "[SYSMOD] trace_info {} \n",i.pm_nw_quiesced);
- // cvm::registry::callbacks.push(
- //     scope(),
- //     [i]() {
- //       cvm::log(cvm::HIGH, "[SYSMOD] smc_info \n");
- //       sysmod_trace_info(i.trace_quiesced);
- //     });
-}
-
-void
 sysmod::trace_cfg_read_req_router(trace_cfg::trace_cfg_read_t r) {
 
     transactor::read_t rd;
@@ -782,8 +770,6 @@ sysmod::compose()
   // Load memmap
   memmap::get(memmap_);
 
-  auto mmr_master = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MMR_MST");
-  auto pm_nw_master = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_PM_NW_MST");
   auto masters = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST");
   auto platform_loc = cvm::topology::get_from_type("PLATFORM", 0);
   auto nharts = cvm::topology::attr(platform_loc, "NHARTS").second;
@@ -831,14 +817,6 @@ sysmod::compose()
         device = std::make_unique<trace_cfg>(tag, base, size, loc_, masters[0]);
         // TODO: cvm::ERROR
 
-      }
-      else if (type == "pm_nw_xtor") {
-        // TODO: cvm::ERROR
-        cvm::registry::messenger.connect<pm_nw_xtor::pm_nw_info_t>(
-            loc_,
-            [&](pm_nw_xtor::pm_nw_info_t i) { return this->pm_nw_info_handler(i); });
-        assert(masters.size() > 0);
-        device = std::make_unique<pm_nw_xtor>(tag, base, size, loc_, pm_nw_master[0]);
       }
       else if (type == "scratchpad_xtor") {
         // TODO: cvm::ERROR
