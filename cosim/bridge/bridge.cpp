@@ -1668,6 +1668,7 @@ bool bridge::is_compressed(const std::string& instr) {
 
 bool bridge::is_ucode(const std::string& instr) {
   if ((instr.find("mret") != std::string::npos) ||
+      (instr.find("mnret") != std::string::npos) ||
       (instr.find("sret") != std::string::npos) ||
       (instr.find("dret") != std::string::npos) ||
       (instr.find("ecall") != std::string::npos) ||
