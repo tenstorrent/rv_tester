@@ -15,26 +15,7 @@ REGISTRY_register((axi_sw_mst<rv_tester_transactions::axi_sw_mst::b<1>,
                               rv_tester_transactions::axi_sw_mst::r<1>,
                               rv_tester_transactions::axi_sw_mst::ar_q_ptr<1>,
                               rv_tester_transactions::axi_sw_mst::aw_q_ptr<1>,
-                              rv_tester_transactions::axi_sw_mst::w_q_ptr<1>>), APLIC_MMR_AXI_MST, cvm::registry::all);
-
-REGISTRY_register((axi_sw_mst<rv_tester_transactions::axi_sw_mst::b<2>,
-                              rv_tester_transactions::axi_sw_mst::r<2>,
-                              rv_tester_transactions::axi_sw_mst::ar_q_ptr<2>,
-                              rv_tester_transactions::axi_sw_mst::aw_q_ptr<2>,
-                              rv_tester_transactions::axi_sw_mst::w_q_ptr<2>>), SMC_AXI_MST, cvm::registry::all);
-
-REGISTRY_register((axi_sw_mst<rv_tester_transactions::axi_sw_mst::b<3>,
-                              rv_tester_transactions::axi_sw_mst::r<3>,
-                              rv_tester_transactions::axi_sw_mst::ar_q_ptr<3>,
-                              rv_tester_transactions::axi_sw_mst::aw_q_ptr<3>,
-                              rv_tester_transactions::axi_sw_mst::w_q_ptr<3>>), PLL_AXI_MST, cvm::registry::all);
-
-REGISTRY_register((axi_sw_mst<rv_tester_transactions::axi_sw_mst::b<4>,
-                              rv_tester_transactions::axi_sw_mst::r<4>,
-                              rv_tester_transactions::axi_sw_mst::ar_q_ptr<4>,
-                              rv_tester_transactions::axi_sw_mst::aw_q_ptr<4>,
-                              rv_tester_transactions::axi_sw_mst::w_q_ptr<4>>), PM_NW_AXI_MST, cvm::registry::all);
-
+                              rv_tester_transactions::axi_sw_mst::w_q_ptr<1>>), SMC_AXI_MST, cvm::registry::all);
 
 extern "C" {
     void axi_sw_mst_ar_reset();

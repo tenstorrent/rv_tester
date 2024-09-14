@@ -18,7 +18,6 @@
 #include "debugger.h"
 #include "jtag_driver.h"
 #include "imsic_driver.h"
-#include "aplic_driver.h"
 #include "evt_trigger.h"
 #include "uc_helper.h"
 #include "io_coh_helper.h"
