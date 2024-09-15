@@ -159,22 +159,6 @@ module tb(
         );
     end
 
-   for (genvar p = 0; p < topology.TOP.PLATFORM.AXI_MST.TOTAL; p++) begin : axi_sw_msts2
-        axi_sw_mst #(
-            .ADDR_WIDTH(topology.TOP.PLATFORM.AXI_MST.ADDR_WIDTH),
-            .DATA_WIDTH(topology.TOP.PLATFORM.AXI_MST.DATA_WIDTH),
-            .ID_WIDTH(topology.TOP.PLATFORM.AXI_MST.ID_WIDTH  ),
-            .STRB_WIDTH(topology.TOP.PLATFORM.AXI_MST.STRB_WIDTH),
-            .AR_Q_MAX(topology.TOP.PLATFORM.AXI_MST.AR_Q_MAX),
-            .AW_Q_MAX(topology.TOP.PLATFORM.AXI_MST.AW_Q_MAX),
-            .W_Q_MAX(topology.TOP.PLATFORM.AXI_MST.W_Q_MAX),
-            .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.AXI_MST.ID, p)),
-            `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(0)
-        ) aplicmst (
-            .reset_n('0),
-            .sys_reset(sys_reset)
-        );
-    end
     for (genvar p = 0; p < topology.TOP.PLATFORM.SMC_AXI_MST.TOTAL; p++) begin : axi_sw_msts3
         axi_sw_mst #(
             .ADDR_WIDTH(topology.TOP.PLATFORM.SMC_AXI_MST.ADDR_WIDTH),
@@ -187,39 +171,6 @@ module tb(
             .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.SMC_AXI_MST.ID, p)),
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(0)
         ) smc_mst (
-            .reset_n('0),
-            .sys_reset(sys_reset)
-        );
-    end
-    for (genvar p = 0; p < topology.TOP.PLATFORM.PLL_AXI_MST.TOTAL; p++) begin : axi_sw_msts4
-        axi_sw_mst #(
-            .ADDR_WIDTH(topology.TOP.PLATFORM.PLL_AXI_MST.ADDR_WIDTH),
-            .DATA_WIDTH(topology.TOP.PLATFORM.PLL_AXI_MST.DATA_WIDTH),
-            .ID_WIDTH(topology.TOP.PLATFORM.PLL_AXI_MST.ID_WIDTH  ),
-            .STRB_WIDTH(topology.TOP.PLATFORM.PLL_AXI_MST.STRB_WIDTH),
-            .AR_Q_MAX(topology.TOP.PLATFORM.PLL_AXI_MST.AR_Q_MAX),
-            .AW_Q_MAX(topology.TOP.PLATFORM.PLL_AXI_MST.AW_Q_MAX),
-            .W_Q_MAX(topology.TOP.PLATFORM.PLL_AXI_MST.W_Q_MAX),
-            .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.PLL_AXI_MST.ID, p)),
-            `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(0)
-        ) pllmst (
-            .reset_n('0),
-            .sys_reset(sys_reset)
-        );
-    end
-
-    for (genvar p = 0; p < topology.TOP.PLATFORM.PLL_AXI_MST.TOTAL; p++) begin : axi_sw_msts5
-        axi_sw_mst #(
-            .ADDR_WIDTH(topology.TOP.PLATFORM.PLL_AXI_MST.ADDR_WIDTH),
-            .DATA_WIDTH(topology.TOP.PLATFORM.PLL_AXI_MST.DATA_WIDTH),
-            .ID_WIDTH(topology.TOP.PLATFORM.PLL_AXI_MST.ID_WIDTH  ),
-            .STRB_WIDTH(topology.TOP.PLATFORM.PLL_AXI_MST.STRB_WIDTH),
-            .AR_Q_MAX(topology.TOP.PLATFORM.PLL_AXI_MST.AR_Q_MAX),
-            .AW_Q_MAX(topology.TOP.PLATFORM.PLL_AXI_MST.AW_Q_MAX),
-            .W_Q_MAX(topology.TOP.PLATFORM.PLL_AXI_MST.W_Q_MAX),
-            .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.PLL_AXI_MST.ID, p)),
-            `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(0)
-        ) pmnwmst (
             .reset_n('0),
             .sys_reset(sys_reset)
         );

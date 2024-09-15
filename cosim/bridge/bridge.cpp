@@ -556,8 +556,9 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   }
 
   // Handle post-step conditions
-  post_step_interrupt_poke(hart, d, w);
-  post_step_exception_poke(hart, d, w);
+  post_step_nmi_check(hart, d, w);
+  post_step_interrupt_check(hart, d, w);
+  post_step_exception_check(hart, d, w);
   //}
   post_step_satp_write_poke(hart, d, w);
 
@@ -933,7 +934,7 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
   }
 }
 
-void bridge::post_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w) {
+void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w) {
 
   if (FLAGS_intr_defer_spcl) {
     IF_DEBUG("FLAG intr_defer_spcl==1");
@@ -1020,7 +1021,36 @@ void bridge::post_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, const
   num_taken_interrupts_[intrtopriv_][w_.icause]++;
 }
 
-void bridge::post_step_exception_poke(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
+void bridge::post_step_nmi_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
+  if (!d.nmi && !w_.nmi)
+    return;
+
+  bridge_log_(cvm::MEDIUM, "<{}> NMI detected. dut:[{}, {}] whisper:[{}, {}]\n", w.time, d.nmi, d.ncause, w_.nmi, w_.ncause);
+
+  if (d.nmi && !w_.nmi && !FLAGS_cosim_resynch) {
+    print_instr_stdout(hart, w);
+    print(cvm::ERROR, "Error: Hart {}: DUT took NMI, Whisper did not. Cause: {}\n", hart,
+      nmi_to_string.count(static_cast<nmi>(d.ncause)) ? nmi_to_string.at(static_cast<nmi>(d.ncause)) : std::to_string(d.ncause));
+    return;
+  }
+
+  if (!d.nmi && w_.nmi && !FLAGS_cosim_resynch) {
+    print_instr_stdout(hart, w);
+    print(cvm::ERROR, "Error: Hart {}: Whisper took NMI, DUT did not. Cause: {}\n", hart,
+      nmi_to_string.count(static_cast<nmi>(w_.ncause)) ? nmi_to_string.at(static_cast<nmi>(w_.ncause)) : std::to_string(w_.ncause));
+    return;
+  }
+
+  if (d.nmi && w_.nmi && (d.ncause != w_.ncause) && !FLAGS_cosim_resynch) {
+    print_instr_stdout(hart, w);
+    print(cvm::ERROR, "Error: Hart {}: DUT vs Whisper NMI cause mismatch. Dut: {}, Whisper: {}\n", hart,
+      nmi_to_string.count(static_cast<nmi>(d.ncause)) ? nmi_to_string.at(static_cast<nmi>(d.ncause)) : std::to_string(d.ncause),
+      nmi_to_string.count(static_cast<nmi>(w_.ncause)) ? nmi_to_string.at(static_cast<nmi>(w_.ncause)) : std::to_string(w_.ncause));
+    return;
+  }
+}
+
+void bridge::post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
 
   if (patch_mode_ != NO_PATCH)
     return;
@@ -1241,12 +1271,26 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
 
   // Interrupts/Exceptions
   if (w_.trap) {
+    bool cause_valid = false;
     uint64_t cause = 0;
+    uint64_t ncause = 0;
     for (auto& c : w_.csr) {
-      if ((c.csr_addr == 0x342) || (c.csr_addr == 0x142) || (((w.priv_mode == 0x8) || (w.priv_mode == 0x9)) && (c.csr_addr == 0x242)))
+      if (c.csr_addr == 0x742) {
+        cause_valid = true;
+        ncause = c.csr_wdata;
+      }
+      if ((c.csr_addr == 0x342) || (c.csr_addr == 0x142) || (((w.priv_mode == 0x8) || (w.priv_mode == 0x9)) && (c.csr_addr == 0x242))) {
+        cause_valid = true;
         cause = c.csr_wdata;
+      }
     }
-    if ((cause >> 63) & 0x1) {
+    if (!cause_valid)
+      return;
+
+    if ((ncause >> 63) & 0x1) {
+      w_.nmi = true;
+      w_.ncause = (ncause & 0x3);
+    } else if ((cause >> 63) & 0x1) {
       w_.intr = true;
       w_.icause = (cause & 0x3f);
     } else {

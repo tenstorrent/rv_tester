@@ -132,10 +132,6 @@ package rv_tester_pkg;
     } dm_write_t;
 
     typedef struct packed {
-        logic [1023:0] pins;
-    } aplic_interrupt_t;
-
-    typedef struct packed {
         logic [6:0]  addr;
         dtm_op_e     op;
         logic [31:0] data;

@@ -4,7 +4,6 @@ load("@rv_tester//cosim:cosim.bzl", "cosim_gen")
 load("@rv_tester//sysmod:sysmod.bzl", "sysmod_gen")
 load("@rv_tester//pmu:pmu.bzl", "pmu_gen")
 load("@rv_tester//dm_model:dm_model.bzl", "dm_model_gen")
-load("@rv_tester//aplic_monitor:aplic_monitor.bzl", "aplic_monitor_gen")
 load("@rv_tester//pwrmgmt:pwrmgmt.bzl", "pwrmgmt_gen")
 load("@rv_tester//interrupts:interrupts.bzl", "interrupts_gen")
 load("@rv_tester//trace:trace.bzl", "trace_gen")
@@ -66,14 +65,6 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
 
     dm_model_gen(
         name = name + "_dm_model",
-        packet = name  + "_transactions",
-        topology = topology,
-        harness = name + "_harness",
-        cc_attrs = cc_attrs,
-    )
-    
-    aplic_monitor_gen(
-        name = name + "_aplic_monitor",
         packet = name  + "_transactions",
         topology = topology,
         harness = name + "_harness",
@@ -141,7 +132,6 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             name + "_sysmod_sv",
             name + "_pmu_sv",
             name + "_dm_model_sv",
-            name + "_aplic_monitor_sv",
             name + "_aclint_checker_sv",
             name + "_interrupts_sv",
             name + "_trace_sv",
@@ -170,12 +160,10 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             "@cvm//:plusargs",
             "@cvm//:random",
             "@cvm//:registry",
-            "@aplic//:Aplic",
             name + "_transactions_cc",
             name + "_sysmod_dpi",
             name + "_pmu_dpi",
             name + "_dm_model_dpi",
-            name + "_aplic_monitor_dpi",
             name + "_aclint_checker_dpi",
             name + "_interrupts_dpi",
             name + "_trace_dpi",

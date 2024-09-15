@@ -24,7 +24,7 @@ namespace {
         uint64_t address;
     };
 
-    std::array<csr_entry, 357> csrs {{
+    std::array<csr_entry, 361> csrs {{
         {"fflags", 0x001},
         {"frm", 0x002},
         {"fcsr", 0x003},
@@ -97,6 +97,10 @@ namespace {
         {"menvcfgh", 0x31A},
         {"mseccfg", 0x747},
         {"mseccfgh", 0x757},
+        {"mnscratch", 0x740},
+        {"mnepc", 0x741},
+        {"mncause", 0x742},
+        {"mnstatus", 0x744},
         {"pmpcfg0", 0x3A0},
         {"pmpcfg1", 0x3A1},
         {"pmpcfg2", 0x3A2},
@@ -969,6 +973,16 @@ namespace {
         {MEI, "MEI"},
         {SGEI, "SGEI"},
         {LCOFI, "LCOFI"}
+    };
+
+    typedef enum : size_t {
+        EXT_NMI = 2,
+        CLA_NMI = 3
+    } nmi;
+
+    const std::unordered_map<nmi, std::string_view> nmi_to_string = {
+        {EXT_NMI, "EXT_NMI"},
+        {CLA_NMI, "CLA_NMI"}
     };
 
     typedef enum : size_t {
