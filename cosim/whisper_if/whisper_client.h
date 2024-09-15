@@ -74,6 +74,7 @@ class whisperClient {
 
     // Deliver a non-maskable interrupt to whisper.
     bool whisperNmi(int hart, uint64_t time, uint64_t cause);
+    bool whisperClearNmi(int hart, uint64_t time);
 
   private:
 
@@ -127,6 +128,7 @@ class whisperClient {
     CVM_MESSENGER_procedure_call(whisperPeekFprRPC, bool (int, uint64_t, uint64_t&));
     CVM_MESSENGER_procedure_call(whisperPeekVprRPC, bool (int, uint64_t, std::array<std::uint8_t, 32>&)); 
     CVM_MESSENGER_procedure_call(whisperNmiRPC, bool (int, uint64_t, uint64_t));
+    CVM_MESSENGER_procedure_call(whisperClearNmiRPC, bool (int, uint64_t));
 };
 
 

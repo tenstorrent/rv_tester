@@ -158,6 +158,7 @@ private:
   void resetsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr);
   void setsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr);
   void poke_nmi(hart_id_t hart, uint64_t time, uint64_t cause);
+  void clear_nmi(hart_id_t hart, uint64_t time);
   void poke_mip(hart_id_t hart, uint64_t time, uint64_t mip);
   void peek_mip(hart_id_t hart, uint64_t time, uint64_t& mip);
   void peek_seip(hart_id_t hart, uint64_t time, uint64_t& val);
