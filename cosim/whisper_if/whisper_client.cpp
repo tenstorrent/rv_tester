@@ -135,6 +135,7 @@ whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) {
   cvm::registry::messenger.procedure<whisperPeekFprRPC>(loc, [this] (int hart, uint64_t addr, uint64_t& value) {return this->whisperPeekFpr(hart, addr, value);});
   cvm::registry::messenger.procedure<whisperPeekVprRPC>(loc, [this] (int hart, uint64_t addr, std::array<std::uint8_t, 32>&  value) {return this->whisperPeekVpr(hart, addr, value);});
   cvm::registry::messenger.procedure<whisperNmiRPC>(loc, [this] (int hart, uint64_t time, uint64_t cause) {return this->whisperNmi(hart, time, cause);});
+  cvm::registry::messenger.procedure<whisperClearNmiRPC>(loc, [this] (int hart, uint64_t time) {return this->whisperClearNmi(hart, time);});
 
 }
 
@@ -1004,6 +1005,20 @@ whisperClient<URV>::whisperNmi(int hart, uint64_t time, uint64_t cause)
   req.type = WhisperMessageType::Nmi;
   req.time = time;
   req.value = cause;
+
+  if (not whisperCommand(req, reply))
+    return false;
+
+  return true;
+}
+
+template <typename URV>
+bool
+whisperClient<URV>::whisperClearNmi(int hart, uint64_t time)
+{
+  req.hart = hart;
+  req.type = WhisperMessageType::ClearNmi;
+  req.time = time;
 
   if (not whisperCommand(req, reply))
     return false;

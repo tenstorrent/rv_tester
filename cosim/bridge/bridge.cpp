@@ -795,7 +795,7 @@ void bridge::pre_step_nmi_poke(hart_id_t hart, const rv_instr_t& d, whisper_stat
     bridge_log_(cvm::MEDIUM, "<{}> NMI taken by DUT. dcause:[{}]\n", w.time, nmi_.cause);
   }
 
-  // Poke nmi into whisper (how do we deassert?)
+  // Poke nmi into whisper
   poke_nmi(hart, nmi_.cycle, nmi_.cause);
   nmi_poke_pending_ = false;
 }
@@ -2186,14 +2186,8 @@ void bridge::process_dut_nmi(hart_id_t hart, rv_nmi_t& n) {
 
   if (n.valid) {
     nmi_poke_pending_ = true;
-  }
-
-  // If NMI pin deasserts before any retire, poke it to whisper
-  // with the assumption that RTL has seen it
-  // If we don't poke here, we will miss it since the poke in pre_step
-  // will see nmi as deasserted
-  if (!n.valid && nmi_age_ == 0) {
-    poke_nmi(hart, nmi_.cycle, nmi_.cause);
+  } else {
+    clear_nmi(hart, nmi_.cycle);
     nmi_poke_pending_ = false;
   }
 }
@@ -2313,6 +2307,14 @@ void bridge::poke_nmi(hart_id_t hart, uint64_t time, uint64_t cause) {
     return;
   }
   bridge_log_(cvm::MEDIUM, "<{}> Whisper poke: nmi: {:#x}\n", time, cause);
+}
+
+void bridge::clear_nmi(hart_id_t hart, uint64_t time) {
+  if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperClearNmiRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, time)) {
+    print(cvm::ERROR, "Error: Hart {}: Failed to clear nmi\n", hart);
+    return;
+  }
+  bridge_log_(cvm::MEDIUM, "<{}> Whisper clear nmi\n", time);
 }
 
 void bridge::poke_mip(hart_id_t hart, uint64_t time, uint64_t mip) {
