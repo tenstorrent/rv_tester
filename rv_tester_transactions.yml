@@ -78,7 +78,7 @@ cosim:
                 width: 64
             mode:
                 width: 4
-            vec_cracked:
+            vec:
                 width: 1
             flags_valid:
                 width: 1

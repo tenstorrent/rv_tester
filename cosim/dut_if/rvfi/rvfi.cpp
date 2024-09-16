@@ -268,7 +268,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.opcode = m_rvfi.insn;
   instr.disasm = whisper::disassemble(m_rvfi.insn);
   instr.uop = m_rvfi.uop;
-  instr.vec_cracked = m_rvfi.vec_cracked;
+  instr.vec_cracked = m_rvfi.vec & !m_rvfi.last_uop;
   instr.trap = m_rvfi.trap || intr_ || excp_;
   instr.nmi = nmi_;
   instr.ncause = ncause_;
