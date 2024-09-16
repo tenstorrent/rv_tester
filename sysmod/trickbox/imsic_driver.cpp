@@ -12,6 +12,7 @@
  DEFINE_int32(imsic_intr_delay_max, 5, "Maximum Delay between 2 consecutive interrupts");
  DEFINE_int32(imsic_intr_threshold, 256, "imsic_intr interrupts threshold value");
  DEFINE_int32(imsic_vs_intr_threshold, 63, "imsic_vs_intr interrupts threshold value");
+ DEFINE_int32(imsic_vs_id_threshold, 5, "imsic guest file id threshold value");
  DEFINE_int32(imsic_hart_threshold, 1, "harts threshold value");
  DEFINE_int32(imsic_intr_start_delay, 5000, "delay after which random interrupts should start");
  DEFINE_string(imsic_intr_disable_mask,"0x00","Set bit in hex string to disable random generation of interrupt i.e. +imsic_intr_disable_mask=0x01 will disable interrupt corresponding to bit 0 ");

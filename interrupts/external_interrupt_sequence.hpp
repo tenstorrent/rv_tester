@@ -52,7 +52,7 @@ class external_interrupt_sequence {
     uint32_t ext_interrupt_count_ = 0;
     uint32_t ext_trig_interrupt_count_ = 0;
     uint32_t msi_m_file_addr  = 0x40000000;
-    uint32_t msi_v_file_addr  = 0x44000000;
+    uint32_t msi_s_file_addr  = 0x44000000;
     uint32_t msi_vs_file_addr = 0x44000000;
     int32_t  last_trigger     = 0;
     int32_t  current_trigger  = 0;
