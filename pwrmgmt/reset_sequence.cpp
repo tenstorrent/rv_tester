@@ -273,8 +273,11 @@ cvm::messenger::task<void> reset_sequence::program_fuses() {
 
   for (uint32_t i = 0; i < FLAGS_num_harts; ++i)
     co_await write(core_fuse_mmr + i * core_fuse_offset,   SZ_8B, fuse);
-
-  co_await write(trace_fuse_mmr,  SZ_8B, fuse);
+  
+  //co_await write(trace_fuse_mmr+4,  SZ_4B, (fuse>>32) & 0xFFFFFFFF);
+  //co_await write(trace_fuse_mmr, SZ_4B, fuse & 0xFFFFFFFF ); //FIXME: Enable 8B transaction after RVDE-17674 is fixed 
+  co_await write(trace_fuse_mmr, SZ_8B, fuse & 0xFFFFFFFFFFF7FFF ); //FIXME: Enable 8B transaction after RVDE-17674 is fixed 
+  co_await write(trace_fuse_mmr, SZ_8B, fuse );  
   co_await write(aclint_fuse_mmr, SZ_8B, fuse);
   co_await write(dm_fuse_mmr,     SZ_8B, fuse);
   co_await write(sc_fuse_mmr,     SZ_8B, fuse);
@@ -642,6 +645,7 @@ cvm::messenger::task<void> reset_sequence::fuse_mmr_check() {
     dm_fuse_mmr,
     sc_fuse_mmr
   };
+  
   for (uint32_t i=0; i<FLAGS_num_harts; ++i)
     fuse_registers.push_back(core_fuse_mmr + i * core_fuse_offset);
   uint64_t actual_data;
@@ -661,6 +665,16 @@ cvm::messenger::task<void> reset_sequence::fuse_mmr_check() {
       else
         cvm::log(cvm::NONE, "[pwrmgmt]  Fuse reg lock check : addr 0x{:x} , data 0x{:x} \n", addr, actual_data );
     };
+
+  std::vector<uint64_t> id = mhartid();
+  uint64_t physical_id = 0;
+  for (uint32_t i=0; i<FLAGS_num_harts; ++i) { 
+      physical_id = co_await read(core_physical_id_mmr + i * core_fuse_offset, SZ_8B);
+      //FIXME : Add a check for mhartid csr
+      if (id[i] != (physical_id & 0x7))
+        cvm::log(cvm::ERROR, "[pwrmgmt] Core ID to Virtual ID mapping ERROR : Virtual id 0x{:x} ,  Expected Core ID :0x{:x}, Actual Core ID : 0x{:x} \n", i, id[i], (physical_id & 0x7) );
+  };
+  
   co_return;
 };
 
