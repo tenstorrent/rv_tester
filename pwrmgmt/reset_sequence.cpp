@@ -274,7 +274,10 @@ cvm::messenger::task<void> reset_sequence::program_fuses() {
   for (uint32_t i = 0; i < FLAGS_num_harts; ++i)
     co_await write(core_fuse_mmr + i * core_fuse_offset,   SZ_8B, fuse);
   
-  if (FLAGS_trace_enable) co_await write(trace_fuse_mmr,  SZ_8B, fuse);
+  //co_await write(trace_fuse_mmr+4,  SZ_4B, (fuse>>32) & 0xFFFFFFFF);
+  //co_await write(trace_fuse_mmr, SZ_4B, fuse & 0xFFFFFFFF ); //FIXME: Enable 8B transaction after RVDE-17674 is fixed 
+  co_await write(trace_fuse_mmr, SZ_8B, fuse & 0xFFFFFFFFFFF7FFF ); //FIXME: Enable 8B transaction after RVDE-17674 is fixed 
+  co_await write(trace_fuse_mmr, SZ_8B, fuse );  
   co_await write(aclint_fuse_mmr, SZ_8B, fuse);
   co_await write(dm_fuse_mmr,     SZ_8B, fuse);
   co_await write(sc_fuse_mmr,     SZ_8B, fuse);
@@ -637,11 +640,12 @@ cvm::messenger::task<void> reset_sequence::fuse_mmr_check() {
   uint64_t fuse = fuse_val();
   std::vector<uint64_t> fuse_registers = { 
     sw_fuse_mmr,
+    trace_fuse_mmr,
     aclint_fuse_mmr,
     dm_fuse_mmr,
     sc_fuse_mmr
   };
-  if (FLAGS_trace_enable) fuse_registers.push_back(trace_fuse_mmr);
+  
   for (uint32_t i=0; i<FLAGS_num_harts; ++i)
     fuse_registers.push_back(core_fuse_mmr + i * core_fuse_offset);
   uint64_t actual_data;
