@@ -92,7 +92,7 @@ public:
     if(interrupt_file == 0x0){
        addr1 = msi_m_file_addr + (interrupt_hart << 18);
     }else if(interrupt_file == 0x01){
-       addr1 = msi_s_file_addr + (interrupt_hart << 18);;
+       addr1 = msi_s_file_addr + (interrupt_hart << 18);
     }else if(interrupt_file == 0x02){
        addr1 = msi_vs_file_addr+ (vs_id << 12) + (interrupt_hart << 18);
     }else{
