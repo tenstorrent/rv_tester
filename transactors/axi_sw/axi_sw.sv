@@ -755,11 +755,15 @@ module axi_sw_metrics #(
     function automatic logic [63:0] divide_with_precision(input logic [63:0] dividend, input logic [63:0] divisor,
       output logic [63:0] result_int, output logic [63:0] result_fraction);
       logic [63:0] result;
+      logic [127:0] scaled_dividend;
 
+      scaled_dividend = dividend * 100;
       if (divisor != 0) begin
-          result = dividend / divisor;
+          /* verilator lint_off WIDTHTRUNC */
+          result = scaled_dividend / {64'b0,divisor};
+          /* verilator lint_on WIDTHTRUNC */
       end else begin
-          result = 0;
+          result = '0;
       end
 
       result_int = result / 100;
