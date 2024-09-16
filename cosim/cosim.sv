@@ -452,7 +452,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
         assign mtrap_valids[n] = m_traps[n].valid;  
         assign mflags[n]       = rvfi[n].flags_valid; 
         assign rvfi_excps[n]   = ~rvfi[n].cause[63] & (rvfi[n].cause != '0); 
-        assign vec_crack[n]   = rvfi[n].valid & rvfi[n].vec_cracked; 
+        assign vec_crack[n]   = rvfi[n].valid & rvfi[n].vec & !rvfi[n].last_uop;
 
         assign gp_waddr5[n]    = rvgp_valids[n] & rd_addr[n][5];                  // Writing to a GP register above 31...poke
         assign fp_waddr5[n]    = rvfp_valids[n] & frd_addr[n][5];                 // Writing to a FP register above 31...poke
@@ -657,7 +657,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
         assign m_rvfis[n].data.cause       = rvfi[n].cause;
         assign m_rvfis[n].data.intr        = rvfi[n].intr;
         assign m_rvfis[n].data.mode        = rvfi[n].mode;
-        assign m_rvfis[n].data.vec_cracked = rvfi[n].vec_cracked;
+        assign m_rvfis[n].data.vec         = rvfi[n].vec;
         assign m_rvfis[n].data.flags_valid = rvfi[n].flags_valid;
         assign m_rvfis[n].data.flags       = rvfi[n].flags;
         assign m_rvfis[n].data.ixl         = rvfi[n].ixl;
