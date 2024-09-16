@@ -124,7 +124,7 @@ void external_interrupt_sequence::drive_interrupt(){
    if(interrupt_file == 0x0){
       addr = msi_m_file_addr + (interrupt_hart << 18);
    }else if(interrupt_file == 0x01){
-      addr = msi_s_file_addr + (interrupt_hart << 18);;
+      addr = msi_s_file_addr + (interrupt_hart << 18);
    }else if(interrupt_file == 0x02){
       addr = msi_vs_file_addr+ (vs_id << 12) + (interrupt_hart << 18);
    }else{
