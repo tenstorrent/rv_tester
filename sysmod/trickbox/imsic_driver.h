@@ -153,23 +153,23 @@ protected:
         unsigned intr_file = 0;
         unsigned intr_hart = 0;
         unsigned intr_vs_id = 0;
-	      unsigned disable_flags = FLAGS_disable_m_imsic_intr |( FLAGS_disable_s_imsic_intr <<1) |( FLAGS_disable_vs_imsic_intr <<2);
+	unsigned disable_flags = FLAGS_disable_m_imsic_intr |( FLAGS_disable_s_imsic_intr <<1) |( FLAGS_disable_vs_imsic_intr <<2);
         if(disable_flags == 0x7)
 	      cvm::log(cvm::ERROR, "[Trickbox] Cant generate IMSIC interrupts when all interrupts are disabled \n");
 
-	      do{
-          intr_file = (rng() % (3 )) ; //gen iter between 1 to max simul instr
-	      }while(((1<< intr_file)& disable_flags) != 0);
-
-        if (intr_file < 0x2)
-          intr_num = rng() % FLAGS_imsic_intr_threshold;
-        else:
-          intr_num = rng() % FLAGS_imsic_vs_intr_threshold;
-
-	      if(!FLAGS_disable_random_hart_imsic_intr)
-          intr_hart = (rng() % (FLAGS_imsic_hart_threshold )) ; //gen iter between 1 to max simul instr
-	      if(!FLAGS_disable_vs_imsic_intr)
+	do{
+        intr_file = (rng() % (3 )) ; //gen iter between 1 to max simul instr
+	}while(((1<< intr_file)& disable_flags) != 0);
+        
+  if(!FLAGS_disable_vs_imsic_intr)
+          intr_vs_id = (rng() % (FLAGS_imsic_vs_intr_threshold )) ; //gen iter between 1 to max simul instr
+  if(!FLAGS_disable_vs_imsic_intr)
           intr_vs_id = (rng() % (FLAGS_imsic_vs_id_threshold )) + 1; //vsid from 1 to imsic_vs_id_threshold
+
+	if(!FLAGS_disable_random_hart_imsic_intr)
+          intr_hart = (rng() % (FLAGS_imsic_hart_threshold )) ; //gen iter between 1 to max simul instr
+	if(!FLAGS_disable_vs_imsic_intr)
+          intr_vs_id = (rng() % (FLAGS_imsic_vs_intr_threshold )) ; //gen iter between 1 to max simul instr
        
         intr_num = intr_num |(intr_file<<12)|(intr_hart<<16)|(intr_vs_id<<28);
         cvm::log(cvm::HIGH, "[Trickbox] Driving imsic_intr {} interrupts in a cycle \n", intr_num);
