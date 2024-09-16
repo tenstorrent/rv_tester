@@ -755,11 +755,9 @@ module axi_sw_metrics #(
     function automatic logic [63:0] divide_with_precision(input logic [63:0] dividend, input logic [63:0] divisor,
       output logic [63:0] result_int, output logic [63:0] result_fraction);
       logic [63:0] result;
-      logic [127:0] scaled_dividend;
 
-      scaled_dividend = dividend * 100;
       if (divisor != 0) begin
-          result = scaled_dividend / divisor;
+          result = dividend / divisor;
       end else begin
           result = 0;
       end
@@ -771,14 +769,14 @@ module axi_sw_metrics #(
     endfunction
 
     logic [63:0] read_bandwidth_bpc, read_bandwidth_bpc_int, read_bandwidth_bpc_fra;
-    logic [127:0] write_bandwidth_bpc, write_bandwidth_bpc_int, write_bandwidth_bpc_fra;
-    logic [127:0] read_bandwidth_util, read_bandwidth_util_int, read_bandwidth_util_fra;
-    logic [127:0] write_bandwidth_util, write_bandwidth_util_int, write_bandwidth_util_fra;
+    logic [63:0] write_bandwidth_bpc, write_bandwidth_bpc_int, write_bandwidth_bpc_fra;
+    logic [63:0] read_bandwidth_util, read_bandwidth_util_int, read_bandwidth_util_fra;
+    logic [63:0] write_bandwidth_util, write_bandwidth_util_int, write_bandwidth_util_fra;
     final begin
         read_bandwidth_bpc = divide_with_precision(read_bytes, clocks, read_bandwidth_bpc_int, read_bandwidth_bpc_fra);
         write_bandwidth_bpc = divide_with_precision(write_bytes, clocks, write_bandwidth_bpc_int, write_bandwidth_bpc_fra);
-        read_bandwidth_util = divide_with_precision(read_bandwidth_bpc, 64'(DATA_WIDTH/8), read_bandwidth_util_int, read_bandwidth_util_fra);
-        write_bandwidth_util = divide_with_precision(write_bandwidth_bpc, 64'(DATA_WIDTH/8), write_bandwidth_util_int, write_bandwidth_util_fra);
+        read_bandwidth_util = divide_with_precision(read_bandwidth_bpc, 64'(DATA_WIDTH)/8, read_bandwidth_util_int, read_bandwidth_util_fra);
+        write_bandwidth_util = divide_with_precision(write_bandwidth_bpc, 64'(DATA_WIDTH)/8, write_bandwidth_util_int, write_bandwidth_util_fra);
         $display("INFO_PASS_METRIC:{\"%s_clocks\": %0d}", tag, clocks);
         $display("INFO_PASS_METRIC:{\"%s_read_bytes\": %0d}", tag, read_bytes);
         $display("INFO_PASS_METRIC:{\"%s_read_bandwidth_bytes_per_cycle\": %0d.%02d}", tag, read_bandwidth_bpc_int, read_bandwidth_bpc_fra);
