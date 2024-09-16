@@ -43,6 +43,7 @@ DEFINE_bool(whisper_stdout_null, false, "Redirect whisoer stdout to null");
 DEFINE_string(whisper_json_path, "", "Path to whisper json config");
 DEFINE_uint64(nmi_vec, 0, "NMI handler PC");
 DEFINE_uint64(nme_vec, 0, "NMI exception handler PC");
+DEFINE_bool(ppo, true, "Enable ppo checks");
 
 REGISTRY_register(whisperClient<uint64_t>, TOP.PLATFORM.WHISPER_CLIENT, 0);
 
@@ -163,7 +164,7 @@ constructSystem(uint16_t ncores, bool standalone, bool firmware) {
   if (FLAGS_mcm && !standalone) {
     bool checkAll = false;
     config.getMcmCheckAll(checkAll);
-    system->enableMcm(64, checkAll);
+    system->enableMcm(64, checkAll, FLAGS_ppo);
   }
 
   if (FLAGS_load_lz4 != "") {
