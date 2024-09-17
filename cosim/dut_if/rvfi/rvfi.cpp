@@ -165,12 +165,18 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
 
   if (m_trap.id == NMI) {
     nmi_ = true;
+    intr_ = false;
+    excp_ = false;
     ncause_ = m_trap.cause & 0x3;
   } else if (m_trap.id == INTR) {
+    nmi_ = false;
     intr_ = true;
+    excp_ = false;    
     icause_ = m_trap.cause & 0x3f;
   } else if (m_trap.id == EXCP) {
-    excp_ = true;
+    nmi_ = false;
+    intr_ = false;
+    excp_ = true; 
     ecause_ = m_trap.cause & 0xff;
     if (FLAGS_cosim)
       if (m_trap.cause == 60) {
