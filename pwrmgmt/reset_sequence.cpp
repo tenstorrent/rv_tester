@@ -331,7 +331,7 @@ cvm::messenger::task<void> reset_sequence::write(uint64_t addr, size_t sz, uint6
   for(int i=0; i<8; ++i)
     strb[i] = (mask & (0xFFull << (i*8))) != 0;
   cvm::log(cvm::MEDIUM, "[pwrmgmt] write req - addr={:#x}, sz={}, data={:#x}, dword={:#x} mask={:#x}\n", addr, sz, data, dword, mask);
-  cvm::registry::messenger.signal(smc_axi_loc_, transactor::write_request_t{addr, sz, byte_array, strb});
+  cvm::registry::messenger.signal(smc_axi_loc_, transactor::write_request_t{addr, SZ_8B, byte_array, strb});
   auto resp = co_await cvm::registry::messenger.wait<transactor::write_response_t>(smc_axi_loc_);
   cvm::log(cvm::MEDIUM, "[pwrmgmt] write resp - id={}, addr={:#x}, sz={}, data={:#x}, dword={:#x} mask={:#x}\n", resp.id, addr, sz, data, dword, mask);
   co_return;
@@ -350,7 +350,7 @@ cvm::messenger::task<void> reset_sequence::write(uint64_t addr, size_t sz, const
     uint64_t dword = (addr_n % 8) ? (data[i] << 32) : data[i];
     auto byte_array = convert_to_byte_array({dword});
     cvm::log(cvm::MEDIUM, "[pwrmgmt] batch write req : {} - addr={:#x}, sz={}, data={:#x}, dword={:#x} mask={:#x}\n", i, addr_n, sz, data[i], dword, mask);
-    cvm::registry::messenger.signal(smc_axi_loc_, transactor::write_request_t{addr_n, sz, byte_array, strb});
+    cvm::registry::messenger.signal(smc_axi_loc_, transactor::write_request_t{addr_n, SZ_8B, byte_array, strb});
   };
   // Note - simultaneous burst write calls might result in interleaved resposes
   for(int i=0; i < size; i++){
