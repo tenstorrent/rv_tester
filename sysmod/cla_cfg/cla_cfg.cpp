@@ -173,8 +173,8 @@ void cla_cfg::push_rand_nmi_trigg_cfg() {
   wait_on_count = (rng()% 201) + 1000;    // On Delay 1000-1200 CLK cycle
   wait_off_count = (rng()% 101) + 700;    // Off Delay 700-800 CLK cycle
   event_count = (rng()% 101) + 200;       // Event on Delay 200-300 CLK cycle
-  nmi_event = 0; // rng();                      // NMI = 1, Trigger = 0
-  eap_ctrl = (FLAGS_num_harts * 2) << 7;
+  nmi_event = 0; // rng();                // NMI = 1, Trigger = 0
+  eap_ctrl = 12;                          // Considering 12 value as per waves
   active_core = (FLAGS_num_harts == 1) ? 0 : (rng() % FLAGS_num_harts);
   rand_disable_trig_dly = (rng() % 50)+ 500 + cnt_tick;  // 500 - 550 delay before disabling
 
