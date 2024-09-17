@@ -172,10 +172,12 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
   } else if (m_trap.id == EXCP) {
     excp_ = true;
     ecause_ = m_trap.cause & 0xff;
-    if (m_trap.cause == 60 && FLAGS_cosim) {
-      bridge_->set_patch_mode(true);
-      patch_mode_ = true;
-    }
+    if (FLAGS_cosim)
+      if (m_trap.cause == 60) {
+        cvm::log(cvm::HIGH, "enter patch via exception\n");
+        bridge_->set_patch_mode(1); // ENTER_PATCH
+        patch_mode_ = true;
+      }
   }
 }
 
@@ -266,7 +268,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.opcode = m_rvfi.insn;
   instr.disasm = whisper::disassemble(m_rvfi.insn);
   instr.uop = m_rvfi.uop;
-  instr.vec_cracked = m_rvfi.vec_cracked;
+  instr.vec_cracked = m_rvfi.vec & !m_rvfi.last_uop;
   instr.trap = m_rvfi.trap || intr_ || excp_;
   instr.nmi = nmi_;
   instr.ncause = ncause_;
@@ -296,6 +298,11 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   }
 
   // Priv mode
+  if (FLAGS_cosim && priv_ == 0x4 && !patch_mode_) { // when we enter patch mode via ucode
+    cvm::log(cvm::HIGH, "Patch mode: probably Ucode instruction\n");
+    bridge_->set_patch_mode(2); // IN_PATCH
+    patch_mode_ = true;
+  }
   instr.priv = m_rvfi.mode;
   if (instr.ucode && (m_rvfi.mode != priv_)) {
     if (instr.first_uop) {
@@ -310,7 +317,8 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
       instr.priv = priv_;
       ucode_priv_change_ = false;
       if (priv_ == 0x4 && patch_mode_) { // dret changes mode from D to M/S/U (exit from patch mode)
-        bridge_->set_patch_mode(false);
+        cvm::log(cvm::HIGH, "Exit patch\n");
+        bridge_->set_patch_mode(3); // EXIT_PATCH
         patch_mode_ = false;
       }
     }

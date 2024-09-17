@@ -286,7 +286,7 @@ package rv_tester_params;
         logic                       vrd_valid;
         logic [6-1:0]               vrd_addr ;
         logic [VLEN-1:0]            vrd_wdata;
-        logic                       vec_cracked;
+        logic                       vec      ;
         logic                       flags_valid;
         logic [5-1:0]               flags    ;
         logic                       csr_valid;
