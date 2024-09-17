@@ -128,7 +128,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
 
   if (!m_rvfi.last_uop)
     return;
-  
+
   // Append accumulated uop changes for ucode instructions
   append_uop_changes_to_instr(instr); 
   enter_debug_mode(instr);
@@ -150,10 +150,14 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
     hw_csrs_.clear();
   }
 
+  // Save state
+  tag_ = instr.tag;
+
   // Clear state
   intr_ = false;
   excp_ = false;
   nmi_ = false;
+  vec_excp_ = false;
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
@@ -165,17 +169,34 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
 
   if (m_trap.id == NMI) {
     nmi_ = true;
+    intr_ = false;
+    excp_ = false;
     ncause_ = m_trap.cause & 0x3;
   } else if (m_trap.id == INTR) {
+    nmi_ = false;
     intr_ = true;
+    excp_ = false;    
     icause_ = m_trap.cause & 0x3f;
   } else if (m_trap.id == EXCP) {
+    // Patch special case
+    if (FLAGS_cosim) {
+      if (m_trap.cause == 60) {
+        cvm::log(cvm::HIGH, "enter patch via exception\n");
+        bridge_->set_patch_mode(1); // ENTER_PATCH
+        patch_mode_ = true;
+      }
+    }
+    // RVTOOLS-3265: Vector special case
+    // Send instr with old tag if we encounter excp in middle of a vector instruction
+    // Potentially there could be some element stores that drained
+    if (excp_ && ecause_ == CUSTOM_VEC_CMODE) {
+      vec_excp_ = true;
+    }
+    // Set exception state
+    nmi_ = false;
+    intr_ = false;
     excp_ = true;
     ecause_ = m_trap.cause & 0xff;
-    if (m_trap.cause == 60 && FLAGS_cosim) {
-      bridge_->set_patch_mode(true);
-      patch_mode_ = true;
-    }
   }
 }
 
@@ -266,7 +287,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.opcode = m_rvfi.insn;
   instr.disasm = whisper::disassemble(m_rvfi.insn);
   instr.uop = m_rvfi.uop;
-  instr.vec_cracked = m_rvfi.vec_cracked;
+  instr.vec_cracked = m_rvfi.vec & !m_rvfi.last_uop;
   instr.trap = m_rvfi.trap || intr_ || excp_;
   instr.nmi = nmi_;
   instr.ncause = ncause_;
@@ -274,6 +295,10 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.icause = icause_;
   instr.excp = excp_;
   instr.ecause = ecause_;
+
+  // RVTOOLS-3265: Adjust tag for vec excp
+  if (vec_excp_)
+    instr.tag = tag_ + 1;
 
   // Renamed csr sequence
   uint64_t src = (m_rvfi.uop >> 16) & 0x3f;
@@ -296,6 +321,11 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   }
 
   // Priv mode
+  if (FLAGS_cosim && priv_ == 0x4 && !patch_mode_) { // when we enter patch mode via ucode
+    cvm::log(cvm::HIGH, "Patch mode: probably Ucode instruction\n");
+    bridge_->set_patch_mode(2); // IN_PATCH
+    patch_mode_ = true;
+  }
   instr.priv = m_rvfi.mode;
   if (instr.ucode && (m_rvfi.mode != priv_)) {
     if (instr.first_uop) {
@@ -310,7 +340,8 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
       instr.priv = priv_;
       ucode_priv_change_ = false;
       if (priv_ == 0x4 && patch_mode_) { // dret changes mode from D to M/S/U (exit from patch mode)
-        bridge_->set_patch_mode(false);
+        cvm::log(cvm::HIGH, "Exit patch\n");
+        bridge_->set_patch_mode(3); // EXIT_PATCH
         patch_mode_ = false;
       }
     }

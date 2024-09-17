@@ -343,7 +343,7 @@ bool debug_module_t::load(reg_t addr, size_t len, uint8_t *bytes)
     return true;
   }
 
-  if (addr >= 0x2c0 && addr <= 0x2f0)
+  if ((addr >= 0x2c0 && addr <= 0x2f0) || ( addr >= 0x3b8 && addr <0x400)) 
   {
     cvm::log(cvm::FULL, "Reserved space ::: Addr={:#x}, Length={:#x}\n",addr,len);
     return true;

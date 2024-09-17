@@ -90,13 +90,7 @@ public:
   void final_phase();
   void report_metrics();
   void process(const rv_tester::terminate_called &);
-  void set_patch_mode(bool patch) {
-    if (patch) {
-      patch_mode_ = ENTER_PATCH;
-    } else {
-      patch_mode_ = EXIT_PATCH;
-    }
-  }
+  void set_patch_mode(int patch) { patch_mode_ = static_cast<patch_mode> (patch); }
 
 private:
 

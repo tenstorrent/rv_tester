@@ -100,6 +100,8 @@ class rvfi {
 
     uint64_t count_ = 1;
 
+    uint64_t tag_ = false;
+    bool vec_excp_ = false;
     bool ucode_ = false;
     bool nmi_ = false;
     bool intr_ = false;
