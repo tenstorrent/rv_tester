@@ -44,6 +44,7 @@ DEFINE_string(whisper_json_path, "", "Path to whisper json config");
 DEFINE_uint64(nmi_vec, 0, "NMI handler PC");
 DEFINE_uint64(nme_vec, 0, "NMI exception handler PC");
 DEFINE_bool(ppo, true, "Enable ppo checks");
+DEFINE_bool(firmware, false, "Load firmware elf from cplfw_path if enabled");
 
 REGISTRY_register(whisperClient<uint64_t>, TOP.PLATFORM.WHISPER_CLIENT, 0);
 
@@ -278,7 +279,7 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
                     };
 
   if(FLAGS_preload) {
-    system_ = constructSystem<URV>(FLAGS_num_harts, false, true);
+    system_ = constructSystem<URV>(FLAGS_num_harts, false, FLAGS_firmware);
     if (system_ == nullptr) {
       std::cerr << "Error: could not construct system\n";
       return -1;
@@ -306,7 +307,7 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
 
   // run once before starting cosim
   if (FLAGS_standalone && ((FLAGS_num_harts <= 1) || (FLAGS_hart_enable_mask <= 1))) {
-    system_ = constructSystem<URV>(FLAGS_num_harts, true, false);
+    system_ = constructSystem<URV>(FLAGS_num_harts, true, FLAGS_firmware);
     if (system_ == nullptr) {
       std::cerr << "Error: could not construct system\n";
       return -1;
@@ -340,7 +341,7 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
       WdRiscv::Hart<URV>* hart = system_->ithHart(0).get();
       uint64_t total_ = hart->getInstructionCount();
 
-      std::shared_ptr<WdRiscv::System<URV>> system_new = constructSystem<URV>(1, true, false);
+      std::shared_ptr<WdRiscv::System<URV>> system_new = constructSystem<URV>(1, true, FLAGS_firmware);
       WdRiscv::Hart<URV>* hart_new = system_new->ithHart(0).get();
       constructHart(hart_new, 0);
       cvm::rand::uniform_dist<int> rng1;
@@ -370,7 +371,7 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
     }
   }
 
-  system_ = constructSystem<URV>(ncores, false, false);
+  system_ = constructSystem<URV>(ncores, false, FLAGS_firmware);
   if (system_ == nullptr) {
     std::cerr << "Error: could not construct system\n";
     return -1;
