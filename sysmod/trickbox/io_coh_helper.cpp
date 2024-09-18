@@ -261,7 +261,7 @@ void
 
   } else if(addr ==(io_coh_helper_base + 0x200)) {
     tx_data0 = t_data;
-    wdata_vec.push_back(t_data);
+    wdata_vec.push_back(uint8_t(t_data));
     cvm::log(cvm::HIGH, "[io_coh_helper] Transfer wdata {:#x}  \n",t_data);
   } else if (addr ==(io_coh_helper_base + 0x300)) {
     cvm::log(cvm::HIGH, "[io_coh_helper] Transfer type {:#x}  \n",t_data);
