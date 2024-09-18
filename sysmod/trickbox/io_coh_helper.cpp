@@ -106,7 +106,7 @@ void io_coh_helper::overlay_write(uint64_t addr) {
   aw_txn.id   = 12;
   aw_txn.addr = addr;
   aw_txn.len  = 0;
-  aw_txn.size = 3;
+  aw_txn.size = log2(tx_size);//3;
   aw_txn.burst = axi::burst_t(0);
   aw_txn.lock  =0;
   aw_txn.cache  =axi::cache_mem_attr_t(0);
