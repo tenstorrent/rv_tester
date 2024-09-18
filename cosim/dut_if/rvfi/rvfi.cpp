@@ -813,6 +813,8 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
   m.pa     = m_mcmi_bypass.addr;
   m.size   = std::popcount(m_mcmi_bypass.mask);
   m.data   = m_mcmi_bypass.data;
+  m.data_vec  = m_mcmi_bypass.data_vec;
+  m.v_ext  = m_mcmi_bypass.v_ext;
   m.amo    = m_mcmi_bypass.amo;
   m.amo_op = m_mcmi_bypass.amo_op;
 
