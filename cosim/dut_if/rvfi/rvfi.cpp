@@ -56,7 +56,7 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>,
     rv_tester_transactions::cosim::m_mcmi_ievict<>,
     rv_tester_transactions::cosim::m_debug<>,
-    bridge::error
+    bridge::error_loc
   >(loc);
 
   connect<
@@ -1018,7 +1018,7 @@ void rvfi::process(const rv_tester::terminate_called&) {
 }
 
 
-void rvfi::process(const bridge::error&) {
+void rvfi::process(const bridge::error_loc&) {
   cvm::log(cvm::HIGH, "[RVFI] cosim error, stopping further rvfi processing\n");
   terminated_ = true;
 }

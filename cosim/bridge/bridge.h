@@ -18,6 +18,7 @@
 #include "whisper_client.h"
 #include "rv_tester/rv_tester_structs.h"
 #include "cvm/registry.hpp"
+#include <fmt/format.h>
 
 enum patch_mode {
     NO_PATCH = 0,  //--> Not in PATCH mode
@@ -40,7 +41,7 @@ public:
   // Usec by some functions in bridge.cpp
   using size_8_bytes_t = uint64_t;
 
-  struct error {};
+  struct error_loc {};
 
   bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsigned id);
   ~bridge();
@@ -284,8 +285,14 @@ private:
       void print(cvm::verbosity_level v, Args&&... args) {
           cvm::log(v, std::forward<Args>(args)...);
           if (v <= cvm::verbosity_level::ERROR) {
-              cvm::registry::messenger.signal<error>(loc_, {});
+              cvm::registry::messenger.signal<error_loc>(loc_, {});
           }
       }
-
+  template <typename... Args>
+      void error(Args&&... args) {
+          std::string prefix = "Error: ";
+          if (patch_mode_) { prefix += "PATCH ";}
+          std::string out = prefix + fmt::format(std::forward<Args>(args)...) + "\n"; // for those who forget newline
+          print(cvm::ERROR, out);
+      }
 };
