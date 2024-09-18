@@ -76,7 +76,7 @@ void io_coh_helper::gen_data_strb(uint64_t addr,  data_t& wdata, std::vector<boo
           strb.push_back(0x0);
     }  
     wdata_vec.resize(8, 0);
-    for(j=0;j<8;++j){
+    for(uint8_t j=0;j<8;++j){
     for (uint8_t i = 0; i < 8; ++i) {
           uint8_t currentByte = static_cast<uint8_t>((wdata_vec[j] >> (8 * i)) & 0xFF);
           if((j*8 + i +b_index) <63){
@@ -109,7 +109,7 @@ void io_coh_helper::overlay_write(uint64_t addr) {
   aw_txn.user  =8;
   
  
-  cvm::log(cvm::LOW, "[io_coh_helper] SP_XTOR AXI MMR WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);yy
+  cvm::log(cvm::LOW, "[io_coh_helper] SP_XTOR AXI MMR WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
 
   cvm::registry::messenger.signal(axi_mst_loc_l, aw_txn);
   axi::w_t w_txn;
