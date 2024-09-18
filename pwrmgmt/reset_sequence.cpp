@@ -206,10 +206,10 @@ cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
     co_await disabled_mmr_csr_check();
   co_return;
 }
+
 cvm::messenger::task<void> reset_sequence::program_fe_resetvector() {
   co_await tick();
-  co_await write(core_resetvector_mmr, 8, 0x10004);
-
+  co_await write(core_resetvector_mmr, 8, FLAGS_resetpc);
   co_return;
 }
 
