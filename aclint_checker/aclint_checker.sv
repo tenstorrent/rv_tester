@@ -107,7 +107,7 @@ import rv_tester_params:: * ;
 
     logic [63:0] wakecore;
     always @(posedge rf_clk) begin
-        if(reset) begin
+        if(dut_reset) begin
             wakecore <= 0;
         end else if ((AcReqPktRfClki.addr == WAKECORE) && AcReqPktRfClki.valid && AcReqPktRfClki.mask=='hff) begin
             wakecore <= AcReqPktRfClki.data;
