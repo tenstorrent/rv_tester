@@ -110,9 +110,6 @@ private:
   uint64_t tx_type = 0;
   uint64_t tx_size = 0;
   uint64_t tx_data0 = 0;
-  uint64_t tx_data1 = 0;
-  uint64_t tx_data2 = 0;
-  uint64_t tx_data3 = 0;
   //uint64_t rx_data = 0;
   //uint8_t  read_flag = 0;
   mem_manager m_;
