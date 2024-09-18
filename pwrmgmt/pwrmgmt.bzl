@@ -17,7 +17,6 @@ def pwrmgmt_gen(name, packet, topology, harness, visibility = None, cc_attrs = {
         ],
         deps = [
             "@rv_tester//sysmod:sysmod_plusargs",
-            "@rv_tester//cosim/bridge:bridge_plusargs",
             "@rv_tester//pmu:pmu_plusargs",
             "@rv_tester//common:transactor",
             "@rv_tester//:structs",
