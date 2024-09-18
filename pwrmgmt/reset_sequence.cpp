@@ -195,7 +195,7 @@ cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
   if(FLAGS_init_smc_infilters) {
     init_smc_filters();
   }
-
+  co_await program_fe_resetvector();
   if (FLAGS_patch_en && rst_type == COLD) { 
     co_await program_patch();
   } else if (FLAGS_patch_ram_check) {
@@ -204,6 +204,12 @@ cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
   co_await release_cpl_nofetch();
   if (FLAGS_fuse_mmr_check)
     co_await disabled_mmr_csr_check();
+  co_return;
+}
+cvm::messenger::task<void> reset_sequence::program_fe_resetvector() {
+  co_await tick();
+  co_await write(core_resetvector_mmr, 8, 0x10004);
+
   co_return;
 }
 
