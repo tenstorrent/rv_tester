@@ -9,11 +9,11 @@ def jtag_driver_gen(name, packet, topology, harness, visibility = None, cc_attrs
         name = jtag_driver_dpi,
         srcs = [
             "@rv_tester//jtag_driver:jtag_driver.cpp",
-            "@rv_tester//jtag_driver:jtag_socket_sequence.cpp",
+            "@rv_tester//jtag_driver:jtag_sequence.cpp",
         ],
         hdrs = [
             "@rv_tester//jtag_driver:jtag_driver.hpp",
-            "@rv_tester//jtag_driver:jtag_socket_sequence.hpp",
+            "@rv_tester//jtag_driver:jtag_sequence.hpp",
         ],
         deps = [
             "@rv_tester//sysmod:sysmod_plusargs",

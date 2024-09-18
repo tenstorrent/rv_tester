@@ -1,11 +1,12 @@
-#include "jtag_socket_sequence.hpp"
+#include "jtag_sequence.hpp"
 //#include "sysmod/sysmod_plusargs.h"
 
-REGISTRY_register(jtag_socket_sequence, JTAG_DRIVER, cvm::registry::all);
+REGISTRY_register(jtag_sequence, JTAG_DRIVER, cvm::registry::all);
 
-DEFINE_string(jtag_driver_mode, "off", "Enable jtag_socket_sequence in the sim - off/csv/socket");
+DEFINE_string(jtag_driver_mode, "off", "Enable jtag_sequence in the sim - off/csv/socGket");
 DEFINE_string(jtag_input_file_path, "", "Path to file containing jtag_driver commands");
 DEFINE_bool(random_jtag_entry, false, "Enter debug mode randomly after random intervals");
+DEFINE_bool(reverse_jtag_rdata, false, "Reverse data recived on JTAG tdo");
 DEFINE_bool(jtag_remote_debugger_mode, false, "Accept JTAG transactions over scoket");
 DEFINE_int32(random_jtag_start_delay, 300, "delay after which random interrupts should start");
 DEFINE_int32(jtag_delay_min, 6, "Minimum Delay between 2 consecutive debug mode requests");
@@ -27,7 +28,7 @@ extern "C" {
   }
 }
 
-jtag_socket_sequence::jtag_socket_sequence(cvm::topology::loc_t loc, unsigned id) : loc_(loc), id_(id), scope_(nullptr) {
+jtag_sequence::jtag_sequence(cvm::topology::loc_t loc, unsigned id) : loc_(loc), id_(id), scope_(nullptr) {
 
   // Scope
   cvm::registry::messenger.connect<svScope>(loc_, [this](svScope s) { return this->set_scope(s); });
@@ -46,35 +47,35 @@ jtag_socket_sequence::jtag_socket_sequence(cvm::topology::loc_t loc, unsigned id
   }
 }
 
- jtag_socket_sequence::~jtag_socket_sequence() {
+ jtag_sequence::~jtag_sequence() {
 }
 
-void jtag_socket_sequence::csv_mode_thread() {
+void jtag_sequence::csv_mode_thread() {
   if(FLAGS_jtag_input_file_path != "")
      parse_jtag_from_csv();
-  auto *task = +[] (jtag_socket_sequence* m) -> cvm::messenger::task<void> {
+  auto *task = +[] (jtag_sequence* m) -> cvm::messenger::task<void> {
     co_await m->random_mode();
     co_return;
   };
   cvm::registry::messenger.fork(task, this);
 };
 
-void jtag_socket_sequence::socket_mode_thread() {
-  auto *task = +[] (jtag_socket_sequence* m) -> cvm::messenger::task<void> {
+void jtag_sequence::socket_mode_thread() {
+  auto *task = +[] (jtag_sequence* m) -> cvm::messenger::task<void> {
     co_await m->open_socket_to_listen();
     co_return;
   };
   cvm::registry::messenger.fork(task, this);
 };
 
-cvm::messenger::task<void> jtag_socket_sequence::random_mode() {
+cvm::messenger::task<void> jtag_sequence::random_mode() {
   while (true) {
     co_await tick();
   }
   co_return;
 }
 
-void jtag_socket_sequence::init() {
+void jtag_sequence::init() {
   cvm::registry::callbacks.push(
     scope_,
     []() {
@@ -82,7 +83,7 @@ void jtag_socket_sequence::init() {
     });
 }
 
-void jtag_socket_sequence::jtag_socket(unsigned hart, uint8_t assert) {
+void jtag_sequence::jtag_socket(unsigned hart, uint8_t assert) {
   cvm::registry::callbacks.push(
     scope_,
     [assert, hart]() {
@@ -91,29 +92,29 @@ void jtag_socket_sequence::jtag_socket(unsigned hart, uint8_t assert) {
     });
 }
 
-cvm::messenger::task<void> jtag_socket_sequence::tick() {
+cvm::messenger::task<void> jtag_sequence::tick() {
   co_await cvm::registry::messenger.wait<rv_tester_transactions::jtag_driver::m_jtag_driver_tick<>>(loc_);
   co_return;
 }
 
-cvm::messenger::task<void> jtag_socket_sequence::resp() {
+cvm::messenger::task<void> jtag_sequence::resp() {
   co_await cvm::registry::messenger.wait<rv_tester_transactions::jtag_driver::jtag_rdata<>>(loc_);
   co_await tick();
   co_return;
 }
 
-cvm::messenger::task<void> jtag_socket_sequence::trigger() {
+cvm::messenger::task<void> jtag_sequence::trigger() {
   co_return;
 }
 
 
 void
-jtag_socket_sequence::update_jtag_status(jtag_socket_sequence::jtag_req_t& i) {
+jtag_sequence::update_jtag_status(jtag_sequence::jtag_req_t& i) {
   cvm::log(cvm::LOW, "\n[JTAGDRIVER.CPP] GOT RESP FROM JTAG TDO  {:#x}", i.jtag_op_data);
   loop_rdata = i.jtag_op_data;
 }
 
-void jtag_socket_sequence::get_all_csv_templates()
+void jtag_sequence::get_all_csv_templates()
 {
     std::string directoryPath = FLAGS_jtag_template_dir_path;
     cvm::log(cvm::NONE, "[JTAGDRIVER.CPP]Debug commands directory:{}\n", directoryPath);
@@ -137,7 +138,7 @@ void jtag_socket_sequence::get_all_csv_templates()
     }
 }
 
-void jtag_socket_sequence::parse_jtag_from_csv()
+void jtag_sequence::parse_jtag_from_csv()
 {
 
 
@@ -221,7 +222,7 @@ void jtag_socket_sequence::parse_jtag_from_csv()
       data_s.erase(std::remove_if(data_s.begin(), data_s.end(), ::isspace), data_s.end());
       // convert string to lowercase for uniformity
       std::transform(data_s.begin(), data_s.end(), data_s.begin(), ::tolower);
-      // cvm::log(cvm::LOW, "[jtag_socket_sequence] length {:#x}\n",length);
+      // cvm::log(cvm::LOW, "[jtag_sequence] length {:#x}\n",length);
       //check data length
       unsigned data_len = data_s.length();
       if(data_len>16){
@@ -278,7 +279,7 @@ void jtag_socket_sequence::parse_jtag_from_csv()
 }
 
 
-void jtag_socket_sequence::process_input_string(std::string line)
+void jtag_sequence::process_input_string(std::string line)
 {
 
 
@@ -356,7 +357,7 @@ void jtag_socket_sequence::process_input_string(std::string line)
       data_s.erase(std::remove_if(data_s.begin(), data_s.end(), ::isspace), data_s.end());
       // convert string to lowercase for uniformity
       std::transform(data_s.begin(), data_s.end(), data_s.begin(), ::tolower);
-      // cvm::log(cvm::LOW, "[jtag_socket_sequence] length {:#x}\n",length);
+      // cvm::log(cvm::LOW, "[jtag_sequence] length {:#x}\n",length);
       //check data length
       unsigned data_len = data_s.length();
       if (data_s.substr(0, 2) == "0x" || data_s.substr(0, 2) == "0X") {
@@ -390,7 +391,9 @@ void jtag_socket_sequence::process_input_string(std::string line)
     
 
 }
-void jtag_socket_sequence::drive_csv_jtag_cmds()
+
+
+void jtag_sequence::drive_csv_jtag_cmds()
 {
   if(!executing_nop || !executing_loop){
   if (!jtag_cmd_q.empty())
@@ -439,10 +442,21 @@ void jtag_socket_sequence::drive_csv_jtag_cmds()
 
     if(jtag_cmd == 4){  //ck expecting check on rdata
       //check last saved rdata == lower_jtag_data ??
+     if(FLAGS_reverse_jtag_rdata){
+      jtag_reversed_rdata = reverseLowerBits(jtag_rdata, reg_length_data);
+     }
+    
+    cvm::log(cvm::LOW, "\n[JTAGDRIVER.CPP] Reversed jtag_rdata {} , reg_data_length {}\n", jtag_reversed_rdata,reg_length_data);
+     std::vector<uint64_t> convertedArray = bitsetToUint64Array(jtag_reversed_rdata);
       uint64_t mask = (1ULL << reg_length_data) - 1;
-      auto result = reg_length_data == 64 ? loop_rdata : loop_rdata & mask;
-
-      cvm::log(cvm::LOW, "[JTAGDRIVER.CPP] reg_length_data {} loop_rdata {:#x} lower_jtag_data {:#x} mask {:#x} expression {:#x}\n",reg_length_data,loop_rdata,lower_jtag_data,mask,(1 << reg_length_data));
+      auto result = reg_length_data == 64 ? convertedArray[0] : convertedArray[0] & mask;
+      if(tap_cfg_sel == 6){
+        result = result<<1;
+      } 
+      if(tap_cfg_sel == 5){
+        result = result<<4;
+      } 
+      cvm::log(cvm::LOW, "[JTAGDRIVER.CPP] reg_length_data {} loop_rdata {:#x} lower_jtag_data {:#x} mask {:#x} expression {:#x}\n",reg_length_data,convertedArray[0],lower_jtag_data,mask,(1 << reg_length_data));
       
       if(result == lower_jtag_data){
        //PASS
@@ -557,7 +571,7 @@ void jtag_socket_sequence::drive_csv_jtag_cmds()
 }
 
 
-void jtag_socket_sequence::drive_jtag_cmds()
+void jtag_sequence::drive_jtag_cmds()
 {
   if(!executing_nop || !executing_loop){
   if (!jtag_cmd_q.empty())
@@ -733,7 +747,7 @@ void jtag_socket_sequence::drive_jtag_cmds()
 
 
 
-std::string jtag_socket_sequence::process_string(const std::string& input) {
+std::string jtag_sequence::process_string(const std::string& input) {
     size_t pos = input.find(',');
     if (pos != std::string::npos) {
         return input.substr(0, pos);
@@ -741,7 +755,7 @@ std::string jtag_socket_sequence::process_string(const std::string& input) {
     return "";
 }
 
-std::string jtag_socket_sequence::get_local_ip_address() {
+std::string jtag_sequence::get_local_ip_address() {
     char hostbuffer[256];
     char *IPbuffer;
     struct hostent *host_entry;
@@ -758,7 +772,7 @@ std::string jtag_socket_sequence::get_local_ip_address() {
     return std::string(IPbuffer);
 }
 
-cvm::messenger::task<void> jtag_socket_sequence::open_socket_to_listen(){
+cvm::messenger::task<void> jtag_sequence::open_socket_to_listen(){
     int server_fd, new_socket;
     struct sockaddr_in address;
     bool quit_communication = false;
@@ -876,7 +890,7 @@ cvm::messenger::task<void> jtag_socket_sequence::open_socket_to_listen(){
 
   // Used to assert/deassert a trickbox interrupt (PIPI) for given hart.
   // virtual void trickboxjtagWrite(unsigned hart, unsigned upper_jtag_data, unsigned lower_jtag_data, cbs_t& cbs)
-  void jtag_socket_sequence::trickboxJtagWrite(unsigned hart,unsigned jtag_cmd, unsigned long upper_jtag_data, unsigned long lower_jtag_data,unsigned reg_length_data,unsigned jtag_quit, unsigned tap_cfg_sel)
+  void jtag_sequence::trickboxJtagWrite(unsigned hart,unsigned jtag_cmd, unsigned long upper_jtag_data, unsigned long lower_jtag_data,unsigned reg_length_data,unsigned jtag_quit, unsigned tap_cfg_sel)
   {
     cvm::log(cvm::LOW, "[JTAGDRIVER.cpp]TrickBox jtag Write to hart:{}, upper jtag data:{:#x}, lower jtag data:{:#x}, reg length data:{:#x}", hart, upper_jtag_data, lower_jtag_data,reg_length_data);
     // cbs.push_back(cb_t{Callback::TRICKBOX_jtag_WR, hart, upper_jtag_data, lower_jtag_data, 0});
@@ -892,7 +906,7 @@ cvm::messenger::task<void> jtag_socket_sequence::open_socket_to_listen(){
 
    // Used to assert/deassert a trickbox interrupt (PIPI) for given hart.
   // virtual void trickboxjtagWrite(unsigned hart, unsigned upper_jtag_data, unsigned lower_jtag_data, cbs_t& cbs)
-  void jtag_socket_sequence::trickboxJtagWriteSocket(unsigned hart,unsigned jtag_cmd, unsigned long* lower_jtag_data,unsigned reg_length_data,unsigned jtag_quit, unsigned tap_cfg_sel)
+  void jtag_sequence::trickboxJtagWriteSocket(unsigned hart,unsigned jtag_cmd, unsigned long* lower_jtag_data,unsigned reg_length_data,unsigned jtag_quit, unsigned tap_cfg_sel)
   {
     cvm::log(cvm::LOW, "[JTAGDRIVER.cpp]TrickBox socket jtag Write to hart:{},  reg length data:{:#x}", hart, reg_length_data);
     // cbs.push_back(cb_t{Callback::TRICKBOX_jtag_WR, hart, upper_jtag_data, lower_jtag_data, 0});
@@ -912,7 +926,7 @@ cvm::messenger::task<void> jtag_socket_sequence::open_socket_to_listen(){
 
   }
 
-std::bitset<1344> jtag_socket_sequence::hexStringToBitset(std::string& hexString) {
+std::bitset<1344> jtag_sequence::hexStringToBitset(std::string& hexString) {
  
 
     std::bitset<1344> bits;
@@ -940,7 +954,7 @@ std::bitset<1344> jtag_socket_sequence::hexStringToBitset(std::string& hexString
 }
 
 
-std::string jtag_socket_sequence::bitset_to_hex(const std::bitset<1344>& bits, int n) {
+std::string jtag_sequence::bitset_to_hex(const std::bitset<1344>& bits, int n) {
     std::stringstream hex_string;
 
     // Group bits into chunks of 4 and convert to hex
@@ -959,7 +973,7 @@ std::string jtag_socket_sequence::bitset_to_hex(const std::bitset<1344>& bits, i
     // Return the resulting hex string
     return hex_output;
 }
-std::string jtag_socket_sequence::formatHexWithPadding(uint64_t hexNumber, int n) {
+std::string jtag_sequence::formatHexWithPadding(uint64_t hexNumber, int n) {
     // Calculate the number of hexadecimal digits needed for n bits
     int hexDigits = n / 4;  // 4 bits per hex digit
 
@@ -972,8 +986,9 @@ std::string jtag_socket_sequence::formatHexWithPadding(uint64_t hexNumber, int n
 
     return ss.str();
 }
-  //void jtag_socket_sequence::jtag_resp(std::bitset<100> rdata){
-  void jtag_socket_sequence::jtag_resp(std::bitset<1344> rdata){
+  //void jtag_sequence::jtag_resp(std::bitset<100> rdata){
+  void jtag_sequence::jtag_resp(std::bitset<1344> rdata){
+  
   std::vector<uint64_t> convertedArray = bitsetToUint64Array(rdata);
   jtag_rdata = rdata;
   cvm::log(cvm::LOW, "[JTAG_DRIVER.CPP] In JTAG RESP converted array size = {}\n", convertedArray.size());

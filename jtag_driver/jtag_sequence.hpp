@@ -29,7 +29,6 @@
 #include <unistd.h>
 #include "cvm/logger.hpp"
 #include "cvm/random.hpp"
-// #include "rv_tester_transactions.hpp"
 #include "svdpi.h"
 
 #include "cvm/plusargs.hpp"
@@ -52,20 +51,19 @@
  DECLARE_int32(jtag_delay_min);
  DECLARE_int32(jtag_delay_max);
  DECLARE_int32(jtag_max_snippets);
-class jtag_socket_sequence {
+class jtag_sequence {
 
   public:
 
-    jtag_socket_sequence(cvm::topology::loc_t loc, unsigned id);
-    //~jtag_socket_sequence();
-    virtual ~jtag_socket_sequence() ;
+    jtag_sequence(cvm::topology::loc_t loc, unsigned id);
+    virtual ~jtag_sequence() ;
 
     void set_scope(svScope s) { scope_ = s; }
 
   virtual void jtag_tick(uint64_t advance) 
   {
     num_ticks++;
-    cvm::log(cvm::LOW, "[jtag_socket_sequence]: JTAG Tick {}\n",num_ticks);
+    cvm::log(cvm::LOW, "[jtag_sequence]: JTAG Tick {}\n",num_ticks);
     timer_ += advance;
     timer_advance = advance;
     if( num_ticks > 30) 
@@ -74,11 +72,11 @@ class jtag_socket_sequence {
 
     if(executing_nop){
       nop_count--;
-      cvm::log(cvm::LOW, "[jtag_socket_sequence]: Executing Nop ,Nop count {}\n",nop_count);
+      cvm::log(cvm::LOW, "[jtag_sequence]: Executing Nop ,Nop count {}\n",nop_count);
       if(nop_count==0)
         executing_nop = false;
     }else if(executing_loop){
-      cvm::log(cvm::LOW, "[jtag_socket_sequence]: Executing loop \n");
+      cvm::log(cvm::LOW, "[jtag_sequence]: Executing loop \n");
       Run_cmd_loop();
     }else{
     drive_csv_jtag_cmds();
@@ -252,7 +250,23 @@ bool exitLoop() {
       file_idx = rng() % csvFilePaths.size();
     }
   }
+template <std::size_t N>
+std::bitset<N> reverseLowerBits(const std::bitset<N>& bs, std::size_t split_length) {
+    // Ensure split_length does not exceed the bitset size N
+    split_length = std::min(split_length, N);
+    
+     cvm::log(cvm::LOW, "[JTAGDRIVER.CPP] split_length {}\n",split_length);
+    // Create a new bitset to store the reversed bits
+    std::bitset<N> reversed;
+    
+    // Reverse the lower 'split_length' bits
+    for (std::size_t i = 0; i < split_length; ++i) {
+        reversed[i] = bs[split_length - 1 - i];
+     cvm::log(cvm::LOW, "[JTAGDRIVER.CPP] reversed[{}] = {}\n",i,reversed[i]);
+    }
 
+    return reversed;
+}
   std::vector<uint64_t> bitsetToUint64Array(const std::bitset<1344>& bitset) {
     const size_t bitsetSize = 1344;//64;//70;
     const size_t ulongSize = sizeof(uint64_t) * 8;
@@ -341,6 +355,7 @@ bool exitLoop() {
   uint64_t loop_rdata;
   std::vector<uint64_t> rdata_Array;
   std::bitset<1344> jtag_rdata;
+  std::bitset<1344> jtag_reversed_rdata;
   std::vector<std::vector<std::string>> csv_data;
   std::queue<jtag_req_t> jtag_cmd_q;
   std::vector<jtag_req_t> jtag_loop_q;

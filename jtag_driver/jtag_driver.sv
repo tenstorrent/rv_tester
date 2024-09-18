@@ -42,6 +42,7 @@ import rv_tester_params::*;
   endfunction
   
   int unsigned location = cvm_topology::nil;
+  int unsigned push_idx = 0;
   logic reset_d1;
   string jtag_driver_mode;
   bit jtag_socket_en;
@@ -257,6 +258,9 @@ always @(posedge clk) begin
     delay_counter <= 32'b0;
     jtag_req.tms <= 1'b0;
     jtag_req.tdi <= 1'b0;
+    /* verilator lint_off MULTIDRIVEN */
+    push_idx <= 32'b0;
+    /* verilator lint_on MULTIDRIVEN */
   end else begin
     /* verilator lint_off CASEINCOMPLETE */
     if(jtag_req_begin_d)begin
@@ -399,6 +403,9 @@ always @(posedge clk) begin
   end else if (dr && ~jtag_resp.tdo_en ) begin  
     read_data_valid_reg <= 1'b1; 
     jtag_rx <= {jtag_rx[JTAG_DR_WIDTH-2:0],jtag_resp.tdo};
+    //jtag_rx[push_idx] <= jtag_resp.tdo;
+    push_idx <= push_idx +1;
+    
                        //{WIDTH{1'b0}, one_bit_signal};
     read <= 1;
     read_data_valid_reg <= 1'b0; 
@@ -407,6 +414,7 @@ always @(posedge clk) begin
         $display("final jtag read from tdo=%h at time = %t",jtag_rx[511:0],$time);
         read_data_valid_reg <= 1'b1; 
         read <= 0;
+        push_idx <= 0;
       end
   end
 end
