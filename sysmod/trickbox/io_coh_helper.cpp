@@ -133,13 +133,15 @@ void io_coh_helper::overlay_write(uint64_t addr) {
   cvm::registry::messenger.fork(l, t);
 
   //Poke same data to whisper memory
-  cvm::log(cvm::HIGH, "[io_coh_helper] Backdoor whisper poke addr{:#x} poke_data {:#x} \n",addr,data);
-  if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0, 'm', addr,8, data, valid)) {
+  cvm::log(cvm::HIGH, "[io_coh_helper] Backdoor whisper poke addr{:#x} poke_data {:#x} \n",addr,data_vec[0]);
+  for (uint8_t i = 0; i < 64; ++i) {
+  if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0, 'm', addr+ i,1, data_vec[i], valid)) {
     cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
     return;
   }{
 
-  cvm::log(cvm::HIGH, "[io_coh_helper] backdoor whisper poke  Successful for addr{:#x} poke_data {:#x} \n",addr,data);
+  cvm::log(cvm::HIGH, "[io_coh_helper] backdoor whisper poke  Successful for addr{:#x} poke_data {:#x} \n",addr + i,data_vec[i]);
+  }
   }
 }
 
