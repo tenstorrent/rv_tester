@@ -88,7 +88,7 @@ public:
     return result;
 }
 
-void gen_data_strb(uint64_t addr, uint32_t value, data_t& wdata, std::vector<bool>& strb);
+void gen_data_strb(uint64_t addr, data_t& wdata, std::vector<bool>& strb);
 protected:
 
   //Check plusarg usage
