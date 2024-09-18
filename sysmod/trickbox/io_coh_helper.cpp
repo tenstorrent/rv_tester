@@ -68,20 +68,28 @@ io_coh_helper::checkUsage(){
 
 
 
-void io_coh_helper::gen_data_strb(uint64_t addr, uint32_t value, data_t& wdata, std::vector<bool>& strb) {
+void io_coh_helper::gen_data_strb(uint64_t addr,  data_t& wdata, std::vector<bool>& strb) {
     uint8_t b_index =  static_cast<uint8_t>(addr & 0x3F);
 
     for (uint8_t i = 0; i < 64; ++i) {
           wdata.push_back(0x0);
           strb.push_back(0x0);
     }  
+    wdata_vec.resize(8, 0);
+    for(j=0;j<8;++j){
     for (uint8_t i = 0; i < 8; ++i) {
-          uint8_t currentByte = static_cast<uint8_t>((value >> (8 * i)) & 0xFF);
-          wdata[i+b_index] = currentByte;
-          strb[i+b_index] = 0x1;
+          uint8_t currentByte = static_cast<uint8_t>((wdata_vec[j] >> (8 * i)) & 0xFF);
+          if((j*8 + i +b_index) <63){
+            wdata[j*8+i+b_index] = currentByte;
+            strb[j*8+i+b_index] = 0x1;
+	  }else{
+           cvm::log(cvm::NONE, "[io_coh_helper] loop exceeding cacheline boundry addr: {:#x} i: {} j: {} b_index: {}\n",addr);
+	  }
     }  
+    }
 }
-void io_coh_helper::overlay_write(uint64_t addr,uint64_t data) {
+
+void io_coh_helper::overlay_write(uint64_t addr) {
 
   int hart = 0;
   bool valid;
@@ -101,13 +109,13 @@ void io_coh_helper::overlay_write(uint64_t addr,uint64_t data) {
   aw_txn.user  =8;
   
  
-  cvm::log(cvm::LOW, "[io_coh_helper] SP_XTOR AXI MMR WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
+  cvm::log(cvm::LOW, "[io_coh_helper] SP_XTOR AXI MMR WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);yy
 
   cvm::registry::messenger.signal(axi_mst_loc_l, aw_txn);
   axi::w_t w_txn;
   std::vector<uint8_t> data_vec;
   std::vector<bool> strb_vec;
-  gen_data_strb(addr,data,data_vec,strb_vec);
+  gen_data_strb(addr,data_vec,strb_vec);
    for (uint8_t i = 0; i < 64; ++i) {
           w_txn.data.push_back(data_vec[i]);
           w_txn.strb.push_back(strb_vec[i]);
@@ -235,32 +243,37 @@ void
     if (t_data > 0)
       cvm::log(cvm::ERROR, "[io_coh_helper] Only Clearing of io_coh_helper Status allowed, Illegal to set status bit manually \n");
     tx_status = t_data & 0x1;
+    wdata_vec = {};
 
   } else if(addr == (io_coh_helper_base + 0x100)) {
     tx_addr = t_data;
     cvm::log(cvm::HIGH, "[io_coh_helper] Transfer Start Addr {:#x} \n",t_data);
 
   } else if(addr ==(io_coh_helper_base + 0x200)) {
-    tx_data = t_data;
+    tx_data0 = t_data;
+    wdata_vec.push_back(t_data);
     cvm::log(cvm::HIGH, "[io_coh_helper] Transfer wdata {:#x}  \n",t_data);
-
   } else if (addr ==(io_coh_helper_base + 0x300)) {
     cvm::log(cvm::HIGH, "[io_coh_helper] Transfer type {:#x}  \n",t_data);
     tx_type = t_data;
     
-
   } else if(addr ==(io_coh_helper_base + 0x400)) {
     cvm::log(cvm::HIGH, "[io_coh_helper] Transfer trigger {:#x}  \n",t_data);
     
     if(tx_type == 0){
-      overlay_write(tx_addr,tx_data);
+    if(wdata_vec.size()!= tx_size){
+      cvm::log(cvm::ERROR, "[io_coh_helper] wdata vector size doesnt match programmed size \n");
+
+    }else{
+      overlay_write(tx_addr);
+      }
     }else if(tx_type == 1){
       backdoor_read_data = 0;
       overlay_read(tx_addr);
     }
 
-  } else if(addr ==(io_coh_helper_base + 0x500)) {
-    cvm::log(cvm::HIGH, "[io_coh_helper] Backdoor randpc address: {:#x} Data:{:#x}\n", addr, t_data);
+  } else if(addr ==(io_coh_helper_base + 0x600)) {
+    tx_size = t_data;
  
   }
 }

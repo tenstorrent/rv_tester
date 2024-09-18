@@ -96,6 +96,8 @@ protected:
   void overlay_write(uint64_t addr,uint64_t data);
   void overlay_read(uint64_t addr);
   cvm::messenger::task<void> blocking_read(const transactor::read_t& r, data_t& );
+  std::vector<uint64_t> wdata_vec;
+  std::vector<uint64_t> rdata_vec;
 
 private:
   cvm::topology::loc_t axi_mst_loc_l;
@@ -106,7 +108,11 @@ private:
   //uint64_t tx_size = 2;
  // uint64_t tx_trigger = 0;
   uint64_t tx_type = 0;
-  uint64_t tx_data = 0;
+  uint64_t tx_size = 0;
+  uint64_t tx_data0 = 0;
+  uint64_t tx_data1 = 0;
+  uint64_t tx_data2 = 0;
+  uint64_t tx_data3 = 0;
   //uint64_t rx_data = 0;
   //uint8_t  read_flag = 0;
   mem_manager m_;
