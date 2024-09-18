@@ -74,7 +74,7 @@ getNmiExceptionPc() {
   if (FLAGS_nme_vec != 0) {
     return FLAGS_nme_vec;
   } else {
-    std::string cmd = "nm " + FLAGS_load + " | grep -w nmevec";
+    std::string cmd = "nm " + FLAGS_load + " " + FLAGS_bootrom_path + " | grep -w nmevec";
     std::string result = cosim_util::exec(cmd.c_str());
     std::string addr_str = result.substr(0, 16);
     uint64_t nmevec_addr_ = 0;
