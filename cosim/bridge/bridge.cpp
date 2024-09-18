@@ -2045,13 +2045,21 @@ void bridge::process_dut_mcm_insert(hart_id_t hart, mem_t& m) {
 void bridge::process_dut_mcm_bypass(hart_id_t hart, mem_t& m) {
   bool valid = false;
 
-  if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmBypassRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, m.data, valid)) {
-    error("Hart {}: Failed mcm store bypass\n", hart);
-    return;
+  if (m.v_ext){
+    std::vector<bridge::size_8_bytes_t> data_vec = create_dword_vec(m.data_vec);
+    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmVecBypassRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, data_vec, valid)) {
+      error("Error: Hart {}: Failed mcm store bypass\n", hart);
+      return;
+    }
+  } else {
+    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmBypassRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, m.data, valid)) {
+      error("Error: Hart {}: Failed mcm store bypass\n", hart);
+      return;
+    }
   }
-  bridge_log_(cvm::HIGH, "<{}> mcm_bypass [valid={}, tag={}, addr={:#x}, size={}, data={:#x}]\n",
-    m.cycle, valid, m.tag, m.pa, m.size, m.data);
-}
+  bridge_log_(cvm::HIGH, "<{}> mcm_bypass [valid={}, tag={}, vec={}, addr={:#x}, size={}, data={:#x}]\n",
+    m.cycle, valid, m.tag, m.v_ext, m.pa, m.size, m.data);
+ }
 
 // Process mem accesses - store drains
 void bridge::process_dut_mcm_write(hart_id_t hart, mem_cl_t& m) {
