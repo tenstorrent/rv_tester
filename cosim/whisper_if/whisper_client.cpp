@@ -54,7 +54,7 @@ getNmiPc() {
   if (FLAGS_nmi_vec != 0) {
     return FLAGS_nmi_vec;
   } else {
-    std::string cmd = "nm " + FLAGS_load + " | grep -w nmivec";
+    std::string cmd = "nm " + FLAGS_load + " " + FLAGS_bootrom_path + " | grep -w nmivec";
     std::string result = cosim_util::exec(cmd.c_str());
     std::string addr_str = result.substr(0, 16);
     uint64_t nmivec_addr_ = 0;
