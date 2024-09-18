@@ -1,6 +1,6 @@
 #include "reset_sequence.hpp"
 #include "sysmod/sysmod_plusargs.h"
-#include "bridge/bridge_plusargs.h"
+#include "cosim/bridge/bridge_plusargs.h"
 #include "pmu/pmu_plusargs.h"
 #include <sstream>
 #include <unordered_map>
