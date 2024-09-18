@@ -178,7 +178,7 @@ void debugger::parse_dmi_from_csv()
         dmi_req.func_bits = 4;
       }
 
-      if (dmi_req.op != 3)
+      if ((dmi_req.op != 3)&&(dmi_req.op != 0))
       {
         // remove underscores from addr
         row[1].erase(std::remove(row[1].begin(), row[1].end(), '_'), row[1].end());
@@ -205,11 +205,12 @@ void debugger::parse_dmi_from_csv()
           cvm::log(cvm::ERROR, "[Trickbox] Invalid argument: data for stoul csv arg 2: {}\n", e.what());
         }
       }
-
-      content.push_back(row);
-      dmi_cmd_q.push(dmi_req);
-      // PRINT CSV DATA
-      cvm::log(cvm::MEDIUM, "Pushing dmi request: op {} addr {:#x} data {:#x}\n", dmi_req.op, dmi_req.addr, dmi_req.data);
+      if (dmi_req.op != 0) {
+        content.push_back(row);
+        dmi_cmd_q.push(dmi_req);
+        // PRINT CSV DATA
+        cvm::log(cvm::MEDIUM, "Pushing dmi request: op {} addr {:#x} data {:#x}\n", dmi_req.op, dmi_req.addr, dmi_req.data);
+      }
     }
 
     // Add a dummy check-point to ensure all DMI commands part of the previous trigger is executed
