@@ -97,6 +97,8 @@ protected:
   void overlay_read(uint64_t addr);
   cvm::messenger::task<void> blocking_read(const transactor::read_t& r, data_t& );
   std::vector<uint64_t> wdata_vec;
+  std::vector<uint8_t> wdata_byte_vec;
+  std::vector<uint8_t> rdata_byte_vec;
   std::vector<uint64_t> rdata_vec;
 
 private:

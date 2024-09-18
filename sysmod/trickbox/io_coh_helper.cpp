@@ -75,18 +75,26 @@ void io_coh_helper::gen_data_strb(uint64_t addr,  data_t& wdata, std::vector<boo
           wdata.push_back(0x0);
           strb.push_back(0x0);
     }  
-    wdata_vec.resize(8, 0);
-    for(uint8_t j=0;j<8;++j){
-    for (uint8_t i = 0; i < 8; ++i) {
-          uint8_t currentByte = static_cast<uint8_t>((wdata_vec[j] >> (8 * i)) & 0xFF);
-          if((j*8 + i +b_index) <63){
-            wdata[j*8+i+b_index] = currentByte;
-            strb[j*8+i+b_index] = 0x1;
-	  }else{
-           cvm::log(cvm::NONE, "[io_coh_helper] loop exceeding cacheline boundry addr: {:#x} i: {} j: {} b_index: {}\n",addr);
+   // wdata_vec.resize(8, 0);
+   // for(uint8_t j=0;j<8;++j){
+   // for (uint8_t i = 0; i < 8; ++i) {
+   //       uint8_t currentByte = static_cast<uint8_t>((wdata_vec[j] >> (8 * i)) & 0xFF);
+   //       if((j*8 + i +b_index) <63){
+   //         wdata[j*8+i+b_index] = currentByte;
+   //         strb[j*8+i+b_index] = 0x1;
+   //       }else{
+   //        cvm::log(cvm::NONE, "[io_coh_helper] loop exceeding cacheline boundry addr: {:#x} i: {} j: {} b_index: {}\n",addr);
+   //       }
+   // }  
+   // }
+   for(uint8_t i=0;i<tx_size;i++ ){
+         if((i +b_index) <63){
+           wdata[i+b_index] = wdata_vec[i];
+           strb[i+b_index] = 0x1;
+	   
 	  }
-    }  
-    }
+   }
+   
 }
 
 void io_coh_helper::overlay_write(uint64_t addr) {
