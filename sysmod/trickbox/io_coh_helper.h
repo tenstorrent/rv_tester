@@ -111,6 +111,7 @@ private:
  // uint64_t tx_trigger = 0;
   uint64_t tx_type = 0;
   uint64_t tx_size = 0;
+  uint64_t read_counter = 0;
   uint64_t tx_data0 = 0;
   //uint64_t rx_data = 0;
   //uint8_t  read_flag = 0;

@@ -45,7 +45,14 @@ io_coh_helper::read_dev(uint64_t addr, size_t length, data_t& data)
     serializeInt(read_in_flight_data, length, data);
   }
   if(addr ==(io_coh_helper_base + 0x580)) {
-    serializeInt(backdoor_read_data, length, data);
+   // serializeInt(backdoor_read_data, length, data);
+   if(read_counter<tx_size){
+    data[0] = rdata_byte_vec[read_counter];
+    read_counter++;
+    }else{
+    cvm::log(cvm::ERROR, "[io_coh_helper] read request exceeded programmed read size: {:#x} \n", tx_size);
+    }
+
   }
   if(addr ==(io_coh_helper_base + 0x5b0)) {
     uint64_t backdoor_write_status =  (uint64_t)write_in_flight;
@@ -202,7 +209,8 @@ cvm::messenger::task<void> io_coh_helper::blocking_read(const transactor::read_t
   //ar_txn.addr = 0x60000000;
   ar_txn.addr = r.addr;
   ar_txn.len  = 0;
-  ar_txn.size = 6;
+  //ar_txn.size = 6;
+  ar_txn.size = log2(tx_size);
   ar_txn.burst = axi::burst_t(0);
   ar_txn.lock  =0;
   ar_txn.cache  =axi::cache_mem_attr_t(0);
@@ -223,8 +231,11 @@ cvm::messenger::task<void> io_coh_helper::blocking_read(const transactor::read_t
 
   cvm::log(cvm::HIGH, "[io_coh_helper] blocking read data begin: \n");
   backdoor_read_data = 0;
-    for (size_t i = 0; i < 8; ++i) {
-        backdoor_read_data |= static_cast<uint64_t>(resp.data[i]) << (8 *  i);
+  read_counter = 0;
+    //for (size_t i = 0; i < 8; ++i) {
+    for (size_t i = 0; i < tx_size; ++i) {
+        //backdoor_read_data |= static_cast<uint64_t>(resp.data[i]) << (8 *  i);
+         rdata_byte_vec[i] = uint8_t(resp.data[i]);
     }
   std::stringstream ss;
     for (const auto &byte : resp.data) {
