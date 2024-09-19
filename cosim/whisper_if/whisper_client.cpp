@@ -591,7 +591,7 @@ whisperClient<URV>::whisperStep(int hart, uint64_t time, uint64_t instrTag, uint
   unsigned load  = wflags.bits.load;
 
 
-  privMode = debug? 5 : mode | (virt << 3);
+  privMode = debug? 6 : mode | (virt << 3);
   fpFlags  = flags;
   hasTrap  = trap;
   hasStop  = stop;
