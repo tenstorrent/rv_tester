@@ -5,6 +5,7 @@ module dmi_driver (
 
     input logic [31:0]              rand_dmi_driver_dly,
     input logic [31:0]              hart_enable_mask,
+    input logic [31:0]              dm_single_step_count,
     
     input logic                     dmi_req_ready,
     input logic                     dmi_resp_valid,
@@ -38,7 +39,7 @@ module dmi_driver (
   logic [31:0] clk_cnt = '0;
   logic halt_req, resume_req, abstr_cmd_req, poll, poll_p2, ndm_reset_init, ndm_reset_ack, ndm_reset_assert_done, ndm_reset_priority, poll_reset_completion, ndmreset_halt_req;
   logic [31:0] ext_trig_delay;
-  logic [31:0] single_step_instr_cnt, single_step_executed_cnt;
+  logic [31:0] single_step_executed_cnt;
   logic [31:0] ahead_queue_cnt, quit_queue_cnt, cnt;
   logic single_step_started, single_step_quit;
   logic abs_read, abs_write, abs_read_data, sdtrig_fire, halted_sdtrig;
@@ -53,7 +54,7 @@ module dmi_driver (
   logic tselect_core, tselect_core_complete, core_rg_halt_sdtrig, core_haltsum_sdtrig, check_haltsum_sdtrig;
   logic check_hartsellen, check_dmstatus_disc, hart_discovery, dmcontrol_hartsel;
 
-  int file_descr, count_hart_enable_mask, dmi_command_in_step_ahead_queue_size, dmi_command_in_step_quit_queue_size;
+  int file_descr, count_hart_enable_mask, dmi_command_in_step_ahead_queue_size, dmi_command_in_step_quit_queue_size, single_step_instr_cnt;
 
   typedef struct packed {
     logic [15:0] reg_addr;
@@ -136,6 +137,7 @@ module dmi_driver (
     count_hart_enable_mask = $countones(hart_enable_mask);
   end
 
+  assign single_step_instr_cnt = dm_single_step_count;
   assign misc_signals[0] = poll;
   assign dmi_status = poll;
 
