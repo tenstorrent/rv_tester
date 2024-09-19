@@ -508,7 +508,7 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
   uint64_t pcontrol_data =  0x03FE03FE03FE03FE;
   pcontrol_data =  pcontrol_data | 0x1; // enable patch 0
   pcontrol_data =  pcontrol_data | 0x1'0000; // enable patch 1
-  pcontrol_data =  pcontrol_data | 0x1'0000'0000; // enable patch 2
+  //pcontrol_data =  pcontrol_data | 0x1'0000'0000; // enable patch 2
   //pcontrol_data =  pcontrol_data | 0x1'0000'0000'0000; // enable patch 3
   if (FLAGS_patch_cfg_lock) pcontrol_data = pcontrol_data | 0x8000800080008000;
 
