@@ -58,7 +58,7 @@ class axi_sw_mst {
 
         // If an id is available, claim it and return the value.
         // Otherwise, indicate no ID's are available.
-        std::optional<unsigned> avail_id() {
+        std::optional<unsigned> claim_id() {
           unsigned id;
           if (next_id(id)) {
             return id;
