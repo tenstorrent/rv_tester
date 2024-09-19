@@ -912,6 +912,8 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
         assign m_mcmi_bypasss[n].data.addr = mcmi_bypass[n].addr;
         assign m_mcmi_bypasss[n].data.mask = mcmi_bypass[n].mask;
         assign m_mcmi_bypasss[n].data.data = mcmi_bypass[n].data[63:0];
+        assign m_mcmi_bypasss[n].data.data_vec = mcmi_bypass[n].data[255:0];
+        assign m_mcmi_bypasss[n].data.v_ext = mcmi_bypass[n].v_ext;
         assign m_mcmi_bypasss[n].data.amo = mcmi_bypass[n].amo;
         assign m_mcmi_bypasss[n].data.amo_op = mcmi_bypass[n].amo_op;
         //-------------------------------------------------------------------------------------------

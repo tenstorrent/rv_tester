@@ -251,6 +251,11 @@ cosim:
                 width: 1
             amo_op:
                 width: 5
+            v_ext:
+                width: 1
+            data_vec:
+                qualify: v_ext
+                width: ${TOP.PLATFORM.VLEN}
 
     m_mcmi_write:
         domain: 1

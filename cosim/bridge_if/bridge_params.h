@@ -921,7 +921,8 @@ namespace {
         INST_GUEST_PAGE_FAULT = 20,
         LD_GUEST_PAGE_FAULT = 21,
         VIRT_INST_FAULT = 22,
-        ST_AMO_GUEST_PAGE_FAULT = 23
+        ST_AMO_GUEST_PAGE_FAULT = 23,
+        CUSTOM_VEC_CMODE = 55
     } excp;
 
     const std::unordered_map<excp, std::string_view> excp_to_string = {
