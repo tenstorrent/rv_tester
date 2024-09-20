@@ -134,6 +134,8 @@ module rv_tester
     logic jtag_quiesced;
 
 
+    logic terminate_1T = '0;
+    logic terminated_1T = '0;
     logic terminate_now;
     logic rerun_now;
     /* verilator lint_off UNOPTFLAT */
@@ -153,7 +155,6 @@ module rv_tester
 
     int hart_enable_mask = 0;
     int rand_dmi_driver_dly = 0;
-    int dm_single_step_count = 0;
     int dmi_poll_counter = 0; 
     int dmi_poll_timeout = 50000;
     logic dmi_poll_timeout_terminate;
@@ -179,9 +180,9 @@ module rv_tester
 
 
     assign terminate           = (dut_terminate_any || rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sys_reset_any) || quiesce_counter > 0) && !rv_tester_reset;
-    assign terminate_now       = (terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue == '0) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced )) || dut_terminate_any || warm_reset_now; 
+    assign terminate_now       = (terminate_1T && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue == '0) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced )) || dut_terminate_any || warm_reset_now; 
     
-    assign rerun_now           = terminated && ((num_reruns > 0) || (warm_reset_en && (num_resets <= target_num_resets)) || dut_reset_req);
+    assign rerun_now           = terminated && !terminated_1T && ((num_reruns > 0) || (warm_reset_en && (num_resets <= target_num_resets)) || dut_reset_req);
 
   `ifndef CLK_MUX_UNSUPPORTED 
     always @(posedge dut_clk[TB_CLK_IDX])begin
@@ -288,8 +289,7 @@ module rv_tester
 
             perf                 <= cvm_plusargs::get_bool("perf") != '0;
             flag_force_ref_clk   <= cvm_plusargs::get_bool("force_ref_clk") != '0;
-            rand_dmi_driver_dly  <= cvm_plusargs::get_int("rand_dmi_driver_dly");
-            dm_single_step_count <= cvm_plusargs::get_int("dm_single_step_count"); 
+            rand_dmi_driver_dly  <= cvm_plusargs::get_int("rand_dmi_driver_dly"); 
             cb_poll              <= cvm_plusargs::get_bool("cb_async") == '0;
             quiesce_timeout      <= cvm_plusargs::get_int("quiesce_timeout");
             dmi_poll_timeout     <= cvm_plusargs::get_int("dmi_poll_timeout");
@@ -379,7 +379,9 @@ module rv_tester
             print_terminate_message <= '0;
         end
 
-        terminated <= !rv_tester_reset && (terminated || (terminate_now && shutdowned)) && !rerun_now;
+        terminate_1T <= terminate;
+        terminated <= !rv_tester_reset && (terminated || (terminate_now && shutdowned));
+        terminated_1T <= terminated;
 
         if (warm_reset_now) begin
             /* verilator lint_off BLKSEQ */
@@ -523,7 +525,6 @@ module rv_tester
         .reset_n(~reset[WARM_RESET_IDX] || reset_hold[DEBUG_HOLD_IDX]),
         .rand_dmi_driver_dly,
         .hart_enable_mask,
-        .dm_single_step_count,
 
         .dmi_req_ready,
         .dmi_resp_valid,
