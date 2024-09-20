@@ -36,6 +36,7 @@ DEFINE_string(cosim_resynch_instr, "", "List of instruction mnemonics to resynch
 DEFINE_string(cosim_error_instr, "", "List of instruction mnemonics on which we should terminate with an error");
 DEFINE_string(cosim_resynch_prev_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
 DEFINE_string(cosim_resynch_csr, "", "List of csr mnemonics to resynch whisper with dut state"); 
+DEFINE_string(cosim_error_excp, "", "List of exception codes on which we should terminate with an error");
 DEFINE_bool(mip_resynch, true, "Resynch whisper with dut state on mip mismatch condition");
 DEFINE_uint64(mip_resynch_threshold, 32, "Resynch whisper with dut state on mip mismatch if within threshold number of instructions");
 DEFINE_bool(topi_resynch, true, "Resynch whisper with dut state on topi mismatch condition");
@@ -550,10 +551,15 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   arch_state(w);
 
   // Fail right away if unexpected instruction as per plusarg
+  // Don't fail on instruction page faults
   std::string instr = cosim_util::get_nth_word(w.disasm, 1);
   if (does_instr_match_error_list(instr)) {
-    error("Hart {}: Unexpected instruction: +cosim_error_instr {}\n", hart, instr);
-    return;
+    if (instr == "illegal" && d.excp && d.ecause == INSN_PAGE_FAULT) {
+      // Skip the error
+    } else {
+      error("Hart {}: Unexpected instruction: +cosim_error_instr {}\n", hart, instr);
+      return;
+    }
   }
 
   // Handle post-step conditions
@@ -1061,10 +1067,15 @@ void bridge::post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whis
   }else{
     excp_in_debug_mode = false;
   }
-  
 
   if (!d.excp && !w_.excp) {
     IF_DEBUG("d.excp==0 and w.excp==0");
+    return;
+  }
+
+  if (d.excp && does_excp_match_error_list(std::to_string(d.ecause))) {
+    error("Hart {}: Unexpected exception: +cosim_error_excp {} ({})\n", hart, d.ecause,
+      excp_to_string.count(static_cast<excp>(d.ecause)) ? excp_to_string.at(static_cast<excp>(d.ecause)) : std::to_string(d.ecause));
     return;
   }
 
@@ -1085,7 +1096,6 @@ void bridge::post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whis
     }
     return;
   }
-  
 
   bridge_log_(cvm::MEDIUM, "<{}> Exception detected. dut:[{}, {}] whisper:[{}, {}]\n", w.time, d.excp, d.ecause, w_.excp, w_.ecause);
 
@@ -1862,6 +1872,23 @@ bool bridge::cpl_smc_access(const rv_instr_t& d){
       d.mem_read.pa >= smc_lo_addr &&
       d.mem_read.pa < smc_hi_addr)
     return true;
+  return false;
+}
+
+bool bridge::does_excp_match_error_list(const std::string& excp) {
+  if (FLAGS_cosim_error_excp == "")
+    return false;
+
+  std::stringstream ss(FLAGS_cosim_error_excp);
+
+  while(ss.good()) {
+    std::string s;
+    std::getline(ss, s, ',' );
+
+    if (excp.find(s) != std::string::npos) {
+      return true;
+    }
+  }
   return false;
 }
 
