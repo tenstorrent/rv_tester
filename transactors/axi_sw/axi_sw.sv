@@ -382,7 +382,7 @@ module axi_sw #(
         end
     end
 
-    axi_sw_metrics #(.DATA_WIDTH(DATA_WIDTH), .tag(tag)) axi_sw_metrics ( .* );
+    // axi_sw_metrics #(.DATA_WIDTH(DATA_WIDTH), .tag(tag)) axi_sw_metrics ( .* );
 
 endmodule
 
@@ -714,7 +714,7 @@ module axi_sw_mst #(
         end
     end
 
-    axi_sw_metrics #(.DATA_WIDTH(DATA_WIDTH), .tag(tag)) axi_sw_metrics ( .* );
+    // axi_sw_metrics #(.DATA_WIDTH(DATA_WIDTH), .tag(tag)) axi_sw_metrics ( .* );
 
 endmodule
 
