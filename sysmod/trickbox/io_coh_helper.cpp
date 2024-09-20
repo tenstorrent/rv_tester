@@ -45,6 +45,7 @@ io_coh_helper::read_dev(uint64_t addr, size_t length, data_t& data)
     serializeInt(read_in_flight_data, length, data);
   }
   if(addr ==(io_coh_helper_base + 0x580)) {
+    cvm::log(cvm::ERROR, "[io_coh_helper] read request  programmed read size: {:#x} read counter {:#x} \n", tx_size,read_counter);
    // serializeInt(backdoor_read_data, length, data);
    if(read_counter<tx_size){
     data[0] = rdata_byte_vec[read_counter];
@@ -235,14 +236,15 @@ cvm::messenger::task<void> io_coh_helper::blocking_read(const transactor::read_t
     //for (size_t i = 0; i < 8; ++i) {
     for (size_t i = 0; i < tx_size; ++i) {
         //backdoor_read_data |= static_cast<uint64_t>(resp.data[i]) << (8 *  i);
-         rdata_byte_vec[i] = uint8_t(resp.data[i]);
+         rdata_byte_vec.push_back(uint8_t(resp.data[i]));
+         cvm::log(cvm::HIGH, "[io_coh_helper] blocking read data[{}] = {}: \n",i,uint32_t(rdata_byte_vec[i]));
     }
-  std::stringstream ss;
-    for (const auto &byte : resp.data) {
-    ss << static_cast<int>(byte) << " ";
-  }
-  std::string output = ss.str();
-  cvm::log(cvm::HIGH, "[io_coh_helper] blocking read data end:  {}\n",output);
+  //std::stringstream ss;
+  //  for (const auto &byte : resp.data) {
+  //  ss << static_cast<int>(byte) << " ";
+  //}
+  //std::string output = ss.str();
+  //cvm::log(cvm::HIGH, "[io_coh_helper] blocking read data end:  {}\n",output);
   co_return;
  
 }
