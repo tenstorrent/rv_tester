@@ -1825,7 +1825,7 @@ bool bridge::topei_mismatch(const std::string& instr) {
 }
 
 bool bridge::debug_mem_access(const rv_instr_t& d){
-  print(cvm::NONE, "<{}> debug_mem_access: valid={} for pa={}]\n", d.cycle, d.mem_read.valid, d.mem_read.pa);
+  print(cvm::HIGH, "<{}> debug_mem_access: valid={} for pa={}]\n", d.cycle, d.mem_read.valid, d.mem_read.pa);
   if (d.mem_read.valid && debug_mode_ &&
       (d.mem_read.pa >= FLAGS_debug_mem_base) && (d.mem_read.pa < (FLAGS_debug_mem_base + FLAGS_debug_mem_size)))
     return true;
