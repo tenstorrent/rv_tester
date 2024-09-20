@@ -382,8 +382,6 @@ module axi_sw #(
         end
     end
 
-    // axi_sw_metrics #(.DATA_WIDTH(DATA_WIDTH), .tag(tag)) axi_sw_metrics ( .* );
-
 endmodule
 
 module axi_sw_fifo #(
@@ -712,82 +710,6 @@ module axi_sw_mst #(
             rs[0].data.resp     <= axi_slv_r_resp;
             rs[0].data.last     <= axi_slv_r_last;
         end
-    end
-
-    // axi_sw_metrics #(.DATA_WIDTH(DATA_WIDTH), .tag(tag)) axi_sw_metrics ( .* );
-
-endmodule
-
-module axi_sw_metrics #(
-    parameter int unsigned DATA_WIDTH = 32'd0,
-    parameter type size_t   = logic [2:0],
-    parameter string tag = "notag"
-)(
-    input  clk,
-    input  reset_n,
-    input logic [63:0] clocks,
-
-    input logic axi_mst_ar_valid,
-    input size_t axi_mst_ar_size,
-    input logic axi_slv_ar_ready,
-    input logic axi_mst_aw_valid,
-    input size_t axi_mst_aw_size,
-    input logic axi_slv_aw_ready
-);
-
-    logic [63:0] read_bytes;
-    logic [63:0] write_bytes;
-    always_ff @(posedge clk) begin
-        if (!reset_n) begin
-            read_bytes <= '0;
-            write_bytes <= '0;
-        end else begin
-            if (axi_mst_ar_valid & axi_slv_ar_ready) begin
-                read_bytes <= read_bytes + 64'(1 << axi_mst_ar_size);
-            end
-            if (axi_mst_aw_valid & axi_slv_aw_ready) begin
-                write_bytes <= write_bytes + 64'(1 << axi_mst_aw_size);
-            end
-        end
-    end
-
-    // Function to perform division with two decimal places of precision
-    function automatic logic [63:0] divide_with_precision(input logic [63:0] dividend, input logic [63:0] divisor,
-      output logic [63:0] result_int, output logic [63:0] result_fraction);
-      logic [63:0] result;
-      logic [127:0] scaled_dividend;
-
-      scaled_dividend = dividend * 100;
-      if (divisor != 0) begin
-          /* verilator lint_off WIDTHTRUNC */
-          result = scaled_dividend / {64'b0,divisor};
-          /* verilator lint_on WIDTHTRUNC */
-      end else begin
-          result = '0;
-      end
-
-      result_int = result / 100;
-      result_fraction = result % 100;
-
-      return result_int * 100 + result_fraction;
-    endfunction
-
-    logic [63:0] read_bandwidth_bpc, read_bandwidth_bpc_int, read_bandwidth_bpc_fra;
-    logic [63:0] write_bandwidth_bpc, write_bandwidth_bpc_int, write_bandwidth_bpc_fra;
-    logic [63:0] read_bandwidth_util, read_bandwidth_util_int, read_bandwidth_util_fra;
-    logic [63:0] write_bandwidth_util, write_bandwidth_util_int, write_bandwidth_util_fra;
-    final begin
-        read_bandwidth_bpc = divide_with_precision(read_bytes, clocks, read_bandwidth_bpc_int, read_bandwidth_bpc_fra);
-        write_bandwidth_bpc = divide_with_precision(write_bytes, clocks, write_bandwidth_bpc_int, write_bandwidth_bpc_fra);
-        read_bandwidth_util = divide_with_precision(read_bandwidth_bpc, 64'(DATA_WIDTH)/8, read_bandwidth_util_int, read_bandwidth_util_fra);
-        write_bandwidth_util = divide_with_precision(write_bandwidth_bpc, 64'(DATA_WIDTH)/8, write_bandwidth_util_int, write_bandwidth_util_fra);
-        $display("INFO_PASS_METRIC:{\"%s_clocks\": %0d}", tag, clocks);
-        $display("INFO_PASS_METRIC:{\"%s_read_bytes\": %0d}", tag, read_bytes);
-        $display("INFO_PASS_METRIC:{\"%s_read_bandwidth_bytes_per_cycle\": %0d.%02d}", tag, read_bandwidth_bpc_int, read_bandwidth_bpc_fra);
-        $display("INFO_PASS_METRIC:{\"%s_read_bandwidth_utilisation_perc\": %0d.%02d}", tag, read_bandwidth_util_int, read_bandwidth_util_fra);
-        $display("INFO_PASS_METRIC:{\"%s_write_bytes\": %0d}", tag, write_bytes);
-        $display("INFO_PASS_METRIC:{\"%s_write_bandwidth_bytes_per_cycle\": %0d.%02d}", tag, write_bandwidth_bpc_int, write_bandwidth_bpc_fra);
-        $display("INFO_PASS_METRIC:{\"%s_write_bandwidth_utilisation_perc\": %0d.%02d}", tag, write_bandwidth_util_int, write_bandwidth_util_fra);
     end
 
 endmodule

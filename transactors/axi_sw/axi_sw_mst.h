@@ -60,6 +60,7 @@ class axi_sw_mst {
         void set_scope(svScope scope);
         svScope scope_;
         cvm::topology::loc_t loc_;
+        unsigned id_;
         size_t id_width_;
         size_t data_width_;
         size_t strb_width_;
@@ -78,7 +79,11 @@ class axi_sw_mst {
         std::unordered_map<size_t, std::vector<uint8_t>> read_data_;
         std::deque<std::variant<axi::a_t, axi::w_t>> transactions_;
 
+        uint64_t read_bytes_;
+        uint64_t write_bytes_;
+
     public:
 
         axi_sw_mst(cvm::topology::loc_t loc, unsigned id);
+        ~axi_sw_mst();
 };
