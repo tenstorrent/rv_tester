@@ -110,6 +110,7 @@ module rv_tester
     logic cold_reset;
     logic warm_reset;
     LU clocks = 0;
+    LU axi_clocks;
     bit cb_poll = '0;
     bit dyn_clk_switch = '0;
     bit cb_success = '1;
@@ -368,9 +369,10 @@ module rv_tester
             end
 
             if (shutdowned && num_reruns == '0 && !warm_reset_req && !dut_reset_req) begin
+                $display("INFO_PASS_METRIC:{\"axi_clocks\": %0d}", axi_clocks);
+                $display("INFO_PASS_METRIC:{\"clocks\": %0d}", clocks);
                 $display("INFO_PASS_METRIC:{\"instruction_count\": %0d}", instructions);
                 $display("INFO_PASS_REGR_METRIC:{\"name\": \"instructions\", \"value\":%0d, \"type\": \"i\", \"action\": \"sum\"}", instructions);
-                $display("INFO_PASS:{\"clocks\": %0d}", clocks);
 
                 if (call_finish) begin
                     $finish();
@@ -409,6 +411,15 @@ module rv_tester
                 sys_reset[c] <= rv_tester_reset;
             end
             assign sys_reset_pending[c] = sys_reset[c];
+        end
+    end
+
+    // Clock counts
+    always_ff @(posedge dut_clk[AXI_CLK_IDX]) begin
+        if (dut_reset[AXI_CLK_IDX]) begin
+            axi_clocks <= 0;
+        end else begin
+            axi_clocks <= axi_clocks + 1;
         end
     end
 
