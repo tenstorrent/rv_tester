@@ -45,7 +45,7 @@ io_coh_helper::read_dev(uint64_t addr, size_t length, data_t& data)
     serializeInt(read_in_flight_data, length, data);
   }
   if(addr ==(io_coh_helper_base + 0x580)) {
-    cvm::log(cvm::ERROR, "[io_coh_helper] read request  programmed read size: {:#x} read counter {:#x} \n", tx_size,read_counter);
+    cvm::log(cvm::HIGH, "[io_coh_helper] read request  programmed read size: {:#x} read counter {:#x} \n", tx_size,read_counter);
    // serializeInt(backdoor_read_data, length, data);
    if(read_counter<tx_size){
     data[0] = rdata_byte_vec[read_counter];
