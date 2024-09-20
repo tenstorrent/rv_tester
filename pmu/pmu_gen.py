@@ -7,7 +7,7 @@ import os
 import base64
 from pathlib import Path
 
-pmcounter_width = 64
+pmcounter_width = 33
 pmci_width = 33
 
 def download_csv(url):
