@@ -357,9 +357,9 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
     instr.priv = 0x3;
   }
 
-  if (instr.priv == 0x7) { // Make the DP mode as well same as DE mode for Cosim Checks
-    instr.priv = 0x6;
-  }
+  // if (instr.priv == 0x7) { // Make the DP mode as well same as DE mode for Cosim Checks
+  //   instr.priv = 0x6;
+  // }
 
   // PC
   instr.pc.valid = true;
