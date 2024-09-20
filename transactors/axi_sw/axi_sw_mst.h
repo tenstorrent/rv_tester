@@ -51,13 +51,22 @@ class axi_sw_mst {
         void process(const axi::w_t& w);
         void process(const transactor::read_request_t& req);
         void process(const transactor::write_request_t& req);
-
         bool a_wrapper(uint64_t req_addr, size_t req_length, axi::a_t& a);
         void push_transactions();
-
         void reset_ptrs();
-
         void set_scope(svScope scope);
+
+        // If an id is available, claim it and return the value.
+        // Otherwise, indicate no ID's are available.
+        std::optional<unsigned> claim_id() {
+          unsigned id;
+          if (next_id(id)) {
+            return id;
+          }
+          else
+            return std::nullopt;
+        }
+
         svScope scope_;
         cvm::topology::loc_t loc_;
         size_t id_width_;
@@ -81,4 +90,6 @@ class axi_sw_mst {
     public:
 
         axi_sw_mst(cvm::topology::loc_t loc, unsigned id);
+
+        CVM_MESSENGER_procedure_call(claim_id, std::optional<unsigned> ());
 };
