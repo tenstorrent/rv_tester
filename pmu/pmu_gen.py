@@ -7,7 +7,7 @@ import os
 import base64
 from pathlib import Path
 
-pmcounter_width = 64
+pmcounter_width = 33
 pmci_width = 33
 
 def download_csv(url):
@@ -133,9 +133,9 @@ def create_sv_frag(events: List[Dict[Any, Any]], f, prefix="", skip_pre = False)
     assign pmcounterss[0].data.cpu_cycles = {pmcounter_width}'(cpu_cycles);
     assign pmcounterss[0].data.instructions = {pmcounter_width}'(pmcounter[INSTRUCTIONS]);
     assign pmcounterss[0].data.branch_instructions = {pmcounter_width}'(branch_instructions);
-    assign pmcounterss[0].data.perf_start = {pmcounter_width}'(perf_start);
-    assign pmcounterss[0].data.perf_end = {pmcounter_width}'(perf_end);
-    assign pmcounterss[0].data.terminate = {pmcounter_width}'(terminate);
+    assign pmcounterss[0].data.perf_start = 1'(perf_start);
+    assign pmcounterss[0].data.perf_end = 1'(perf_end);
+    assign pmcounterss[0].data.terminate = 1'(terminate);
     assign pmcounterss[0].data.sync = (cycle_sync_en && (sync_cycles % period) == 0) || (instruction_sync_en && (((prev_sync_instructions % instructions) > nret) && ((sync_instructions % instructions) < nret)));
 """
     if not skip_pre:
@@ -185,13 +185,13 @@ def create_yaml_frag(events: List[Dict[Any, Any]], f, mod="", skip_prelude = Fal
 
     if skip_prelude:
         poslude ="""            perf_start:
-                    width: 1
-                perf_end:
-                    width: 1
-                terminate:
-                    width: 1
-                sync:
-                    width: 1"""
+                width: 1
+            perf_end:
+                width: 1
+            terminate:
+                width: 1
+            sync:
+                width: 1"""
         f.write(poslude)
 
 def create_monitor_frag(events: List[Dict[Any, Any]], prefix="", path="gen_monitor.sv"):
