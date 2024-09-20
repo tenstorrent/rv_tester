@@ -112,6 +112,12 @@ cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
     force_ref_clk(0);
     co_return;
   }
+  // Wait for 16 clock ticks
+  for (int i=0; i<16; ++i)
+    co_await tick();
+
+  // Deassert force_ref_clk
+  force_ref_clk(0);
 
   // Wait for 16 clock ticks
   for (int i=0; i<16; ++i)
@@ -126,9 +132,6 @@ cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
 
   // Reset controller sequence
   co_await cpl_reset_sequence(COLD);
-
-  // Deassert force_ref_clk
-  force_ref_clk(0);
 
   // Wait for next tick
   co_await tick();
@@ -208,6 +211,7 @@ cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
 }
 
 cvm::messenger::task<void> reset_sequence::pll_startup_sequence() {
+  cvm::log(cvm::NONE, "PLL cold power up polling sequence0 started\n");
   co_await check_pll_status();
   co_await clear_pll_status();
 
@@ -216,6 +220,7 @@ cvm::messenger::task<void> reset_sequence::pll_startup_sequence() {
 
 cvm::messenger::task<void> reset_sequence::check_pll_status() {
   uint32_t count = 0;
+  cvm::log(cvm::NONE, "PLL cold power up polling sequence started\n");
   while (true) {
     co_await tick();
     auto data = co_await read(pll_interrupts, SZ_4B);
@@ -260,6 +265,12 @@ cvm::messenger::task<void> reset_sequence::pll_dfs_sequence() {
 cvm::messenger::task<void> reset_sequence::release_cpl_reset() {
   co_await tick();
   co_await write(rst_ctl_warm, SZ_4B, (1 << cpl_cl_warm_reset_n));
+
+  // Wait for 16 clock ticks
+  for (int i=0; i<16; ++i)
+  co_await tick();
+
+  co_await write(rst_ctl_warm, SZ_4B, (1 << cpl_force_ss_to_ref_clock_n));
 
   co_return;
 }
