@@ -42,6 +42,7 @@ DEFINE_bool(topi_resynch, true, "Resynch whisper with dut state on topi mismatch
 DEFINE_bool(topei_resynch, true, "Resynch whisper with dut state on topei mismatch condition");
 DEFINE_bool(intr_defer_spcl, true, "Defer all interrupts in special cases");
 DEFINE_bool(intr_timeout_resynch, true, "Ignore whisper timeout error condition");
+DEFINE_bool(fcvt_cracked, false, "Break fcvt instruction into uops");
 DEFINE_bool(retire_ucode_trap, true, "DUT indicates retire on a trap after executing the ucode trap handler");
 DEFINE_bool(pc_check, true, "Enable cosim checks on pc");
 DEFINE_bool(priv_check, true, "Enable cosim checks on priv mode");
@@ -1671,7 +1672,9 @@ bool bridge::is_ucode(const std::string& instr) {
       (instr.find("sret") != std::string::npos) ||
       (instr.find("dret") != std::string::npos) ||
       (instr.find("ecall") != std::string::npos) ||
-      (instr.find("ebreak") != std::string::npos))
+      (instr.find("ebreak") != std::string::npos) ||
+      (FLAGS_fcvt_cracked && ((instr.find("fcvt.d.l") != std::string::npos) ||
+      (instr.find("fcvt.d.w") != std::string::npos))))
     return true;
   return false;
 }
