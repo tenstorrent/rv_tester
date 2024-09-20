@@ -30,14 +30,14 @@ def download_csv(url):
 
 # Core pmc events
 spec_id = 246
-sha = "167d18a1e656378f0428c98bf25fcf137f1c6105"
-url = f"https://aus-gitlab.local.tenstorrent.com/api/v4//projects/{spec_id}/repository/files/src%2Fcluster%2Fascalon%5Fuarch%2Fsrc%2Fcore%5Fpmc%2Ecsv?ref={sha}"
+#sha = "167d18a1e656378f0428c98bf25fcf137f1c6105" # The SHA of aegissocspec for picking up the correct CSVs
+url = f"https://aus-gitlab.local.tenstorrent.com/api/v4//projects/{spec_id}/repository/files/src%2Fcluster%2Fascalon%5Fuarch%2Fsrc%2Fcore%5Fpmc%2Ecsv?ref=main"
 data_str = download_csv(url)
 core_data_dict = []
 core_events = data_str.split('\n')
 
 # Sharedcache pmc events
-sc_url = f"https://aus-gitlab.local.tenstorrent.com/api/v4//projects/{spec_id}/repository/files/src%2Fcluster%2Fascalon%5Fuarch%2Fsrc%2Fsharedcache%5Fpmc%2Ecsv?ref={sha}"
+sc_url = f"https://aus-gitlab.local.tenstorrent.com/api/v4//projects/{spec_id}/repository/files/src%2Fcluster%2Fascalon%5Fuarch%2Fsrc%2Fsharedcache%5Fpmc%2Ecsv?ref=main"
 sc_data_str = download_csv(sc_url)
 sc_data_dict = []
 sc_events = sc_data_str.split('\n')
