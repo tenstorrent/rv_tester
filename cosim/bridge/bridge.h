@@ -244,6 +244,7 @@ private:
   uint64_t intrtopriv_ = 3;
   std::vector<mem_t> msi_{};
   rv_nmi_t nmi_ {};
+  rv_nmi_t prev_nmi_ {};
   bool nmi_poke_pending_ = false;
   uint64_t mip_ = 0;
   uint64_t prev_mip_ = 0;
@@ -262,6 +263,7 @@ private:
   std::array<uint32_t, max_intr> intr_age_{};
   uint32_t max_pend_intr_age_ = 0;
   uint32_t nmi_age_ = 0;
+  uint32_t nmi_taken_count_ = 0;
   std::chrono::high_resolution_clock::time_point end_time_;
   std::chrono::high_resolution_clock::time_point start_of_test_;
   bool first_call_ = true;
