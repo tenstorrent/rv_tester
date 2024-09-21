@@ -136,6 +136,7 @@ module dmi_driver (
     count_hart_enable_mask = $countones(hart_enable_mask);
   end
 
+  // assign single_step_instr_cnt = dm_single_step_count; FIXME(Bavani) : Use different variable as it conflicts with the existing to multiple drivers
   assign misc_signals[0] = poll;
   assign dmi_status = poll;
 
