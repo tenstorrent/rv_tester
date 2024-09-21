@@ -2698,7 +2698,7 @@ void bridge::report_metrics() {
         }
     }
   }
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_nmi_taken_count\": \"{}\"}}\n", id_, nmi_taken_count_);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_nmi_taken_count\": \"{}\"}}\n", id_, nmi_taken_count_);
 
   if (!terminated_) {
     // Step one final time to collect metrics for next instruction
