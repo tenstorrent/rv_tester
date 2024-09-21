@@ -38,6 +38,7 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
 
   connect<
     rv_tester_transactions::cosim::m_reset<>,
+    rv_tester_transactions::cosim::m_disable_checks<>,
     rv_tester_transactions::cosim::m_rvfi<>,
     rv_tester_transactions::cosim::m_steps<>,
     rv_tester_transactions::cosim::m_gp_regs<>,
@@ -984,7 +985,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>& m_
     return;
 
   if (ifetch_reqs_.find(m_mcmi_ifetch_resp.order) == ifetch_reqs_.end()) {
-    cvm::log(cvm::ERROR, "Error: Ifetch resp with no matching req - [id={}]", m_mcmi_ifetch_resp.order);
+    cvm::log(cvm::ERROR, "Error: Ifetch resp with no matching req - [id={}]\n", m_mcmi_ifetch_resp.order);
   }
 
   mem_t m;
@@ -1025,6 +1026,11 @@ void rvfi::process(const rv_tester::terminate_called&) {
 
 void rvfi::process(const bridge::error_loc&) {
   cvm::log(cvm::HIGH, "[RVFI] cosim error, stopping further rvfi processing\n");
+  terminated_ = true;
+}
+
+void rvfi::process(const rv_tester_transactions::cosim::m_disable_checks<>&) {
+  cvm::log(cvm::HIGH, "[RVFI] disable_checks indication, stopping further rvfi processing\n");
   terminated_ = true;
 }
 
