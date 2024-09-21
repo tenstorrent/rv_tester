@@ -40,6 +40,7 @@ class rvfi {
     void init();
     void set_scope(svScope s) { scope_ = s; }
     void process(const rv_tester_transactions::cosim::m_reset<>& m_reset);
+    void process(const rv_tester_transactions::cosim::m_disable_checks<>& m_disable_checks);
     void process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi);
     void process(const rv_tester_transactions::cosim::m_steps<>& m_steps);
     void process(const rv_tester_transactions::cosim::m_trap<>& m_trap);

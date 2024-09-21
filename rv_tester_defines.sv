@@ -894,6 +894,7 @@ package rv_tester_params;
     input  rv_tester_pkg::interrupt_t        interrupt          [rv_tester_params::NHARTS-1:0],     \
     output rv_tester_pkg::interrupt_t        interrupt_pend     [rv_tester_params::NHARTS-1:0],     \
     output                                   debug_mode         [rv_tester_params::NHARTS-1:0],     \
+    output                                   disable_checks,                                            \
     output                                   dut_terminate,                                         \
     input                                    terminate,                                             \
     input  logic                             terminated,                                            \
@@ -969,6 +970,7 @@ package rv_tester_params;
     rv_tester_pkg::interrupt_t               interrupt       [rv_tester_params::NHARTS-1:0];        \
     rv_tester_pkg::interrupt_t               interrupt_pend  [rv_tester_params::NHARTS-1:0];        \
     logic                                    debug_mode      [rv_tester_params::NHARTS-1:0];        \
+    logic                                    disable_checks;                                            \
     logic                                    dut_terminate;                                         \
     logic                                    terminate;                                             \
     logic                                    terminated;                                            \
