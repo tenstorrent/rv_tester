@@ -723,6 +723,8 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
     update_pc(hart, src_t::dut, d.pc.pc_rdata);
   }
   if (FLAGS_priv_check && !(patch_mode_ == IN_PATCH || patch_mode_ == EXIT_PATCH)) {
+    if (d.priv == 0x7) // Update DEBUG_PROGBUF Mode to be DEBUG_ROM Mode for Cosim checks
+      d.priv = 0x6;
     update_priv(hart, src_t::dut, d.priv);
   }
   if (FLAGS_insn_check && !d.comp && !d.ucode && !is_vector(d.disasm) && !(d.disasm.substr(0,7)=="illegal") && !d.csr_renamed && !(patch_mode_ == IN_PATCH || patch_mode_ == EXIT_PATCH)) {
@@ -757,7 +759,7 @@ void bridge::pre_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
     opcode = instr.opcode;
   }
 
-  if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0, 'm', instr.pc.pc_rdata, opcode, valid)) {
+  if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0, 'm', instr.pc.pc_rdata, 4 /*Size*/, opcode, valid)) {
     error("Hart {}: Failed to poke memory\n", hart);
     return;
   }
