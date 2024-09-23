@@ -195,7 +195,14 @@ void io_coh_helper::overlay_write(uint64_t addr) {
 // }
 
 
+void io_coh_helper::drive_burst() {
+  cvm::log(cvm::FULL, "[io_coh_helper] drive burst    \n");
 
+   auto* l = +[]( io_coh_helper* dev) -> cvm::messenger::task<void>{
+     co_await dev->blocking_burst_thread();
+   };
+   cvm::registry::messenger.fork(l, this);
+}
 
 void io_coh_helper::overlay_read(uint64_t addr) {
   cvm::log(cvm::FULL, "[io_coh_helper] axi read addr= {:#X}   \n",addr);
@@ -257,6 +264,97 @@ cvm::messenger::task<void> io_coh_helper::blocking_read(const transactor::read_t
  
 }
 
+cvm::messenger::task<void> io_coh_helper::blocking_burst_thread() {
+  bool valid;
+  int hart = 0;
+
+  burst_in_flight = true;
+  for (int i=0; i<int(txns_vec.size()); i++) {
+  axi::a_t a_txn;
+  a_txn.w    = txns_vec[i].r0_w1;
+  a_txn.id   = axi_id++;
+  a_txn.addr = txns_vec[i].addr;
+  //ar_txn.addr = r.addr;
+  a_txn.len  = 0;
+  //ar_txn.size = 6;
+  a_txn.size = txns_vec[i].size;
+  a_txn.burst = axi::burst_t(0);
+  a_txn.lock  =0;
+  a_txn.cache  =axi::cache_mem_attr_t(0);
+  a_txn.prot  =2;
+  a_txn.qos  =0;
+  a_txn.region  =0;
+  a_txn.atop  =0;
+  a_txn.user  =0;
+  
+  cvm::log(cvm::HIGH, "[io_coh_helper] blocking burst data begin: \n");
+
+  read_in_flight = true;
+  rdata_byte_vec = {};
+
+  cvm::registry::messenger.signal(axi_mst_loc_l, a_txn);
+  if(txns_vec[i].r0_w1 == 0){
+  //READ
+  auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(axi_mst_loc_l);
+  cvm::log(cvm::HIGH, "[io_coh_helper] blocking read data begin: \n");
+  backdoor_read_data = 0;
+  read_counter = 0;
+    //for (size_t i = 0; i < 8; ++i) {
+    for (size_t i = 0; i < tx_size; ++i) {
+        //backdoor_read_data |= static_cast<uint64_t>(resp.data[i]) << (8 *  i);
+         rdata_byte_vec.push_back(uint8_t(resp.data[i]));
+         cvm::log(cvm::HIGH, "[io_coh_helper] blocking read data[{}] = {}: \n",i,uint32_t(rdata_byte_vec[i]));
+    }
+  read_in_flight = false;
+
+  }else{
+
+  axi::w_t w_txn;
+  std::vector<uint8_t> data_vec;
+  std::vector<bool> strb_vec;
+
+  uint8_t b_index =  static_cast<uint8_t>(txns_vec[i].addr & 0x3F);
+
+    for (uint8_t i = 0; i < 64; ++i) {
+          data_vec.push_back(0x0);
+          strb_vec.push_back(0x0);
+    }  
+
+   for(uint8_t i=0;i<txns_vec[i].size;i++ ){
+         if((i +b_index) <63){
+           data_vec[i+b_index] = txns_vec[i].wdata_byte_vec[i];
+           strb_vec[i+b_index] = 0x1;
+	   
+	  }
+   }
+   for (uint8_t i = 0; i < 64; ++i) {
+          w_txn.data.push_back(data_vec[i]);
+          w_txn.strb.push_back(strb_vec[i]);
+    }  
+  
+  w_txn.last = 1;
+  cvm::registry::messenger.signal(axi_mst_loc_l, w_txn);
+  co_await cvm::registry::messenger.wait<transactor::write_response_t>(axi_mst_loc_l);
+
+  //Poke same data to whisper memory
+  cvm::log(cvm::HIGH, "[io_coh_helper] Backdoor whisper poke burst mode addr{:#x} poke_data {:#x} \n",txns_vec[i].addr,data_vec[0]);
+  for (uint8_t i = 0; i < tx_size; ++i) {
+  if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0, 'm', txns_vec[i].addr+ i,1, data_vec[i], valid)) {
+    cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
+    co_return;
+  }{
+
+  cvm::log(cvm::HIGH, "[io_coh_helper] backdoor whisper poke  Successful for addr{:#x} poke_data {:#x} \n",txns_vec[i].addr + i,data_vec[i]);
+  }
+  }
+
+  }
+
+  }
+  burst_in_flight = false;
+  co_return;
+ 
+}
 
 
 void
@@ -287,7 +385,7 @@ void
       tx.r0_w1 = false;
     }
     tx.size = tx_type_size & 0x0f;
-    tx.wdata_byte_vec = wdata_byte_vec;
+    tx.wdata_byte_vec = wdata_vec;
     txns_vec.push_back(tx);
   } else if(addr == (io_coh_helper_base + 0x100)) {
     tx_addr = t_data;
@@ -323,15 +421,16 @@ void
       backdoor_read_data = 0;
       overlay_read(tx_addr);
     }else if(tx_type == 2){
-       for (int i=0; i<int(txns_vec.size()); i++) { 
-        burst_in_flight = true;
-        if(txns_vec[i].r0_w1){
-           overlay_write(txns_vec[i].addr);
-        }else{
-           backdoor_read_data = 0;
-            overlay_read(txns_vec[i].addr);
-        }
-       }
+      //  for (int i=0; i<int(txns_vec.size()); i++) { 
+      //   burst_in_flight = true;
+      //   if(txns_vec[i].r0_w1){
+      //      overlay_write(txns_vec[i].addr);
+      //   }else{
+      //      backdoor_read_data = 0;
+      //       overlay_read(txns_vec[i].addr);
+      //   }
+      //  }
+      drive_burst();
     }
 
   } else if(addr ==(io_coh_helper_base + 0x600)) {
