@@ -128,6 +128,7 @@ private:
   mem_manager m_;
   bool write_in_flight = false; 
   bool read_in_flight = false; 
+  bool burst_in_flight = false; 
   pcg_extras::seed_seq_from<std::random_device> seed_source;
   pcg32 rng;
   //unsigned hartCount;

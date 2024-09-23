@@ -41,8 +41,14 @@ io_coh_helper::read_dev(uint64_t addr, size_t length, data_t& data)
   }
   cvm::log(cvm::HIGH, "[io_coh_helper] read address: {:#x} \n", addr);
   if(addr ==(io_coh_helper_base + 0x500)) {
+    if(tx_type == 1){
     uint64_t read_in_flight_data =  (uint64_t)read_in_flight;
     serializeInt(read_in_flight_data, length, data);
+    }
+    if(tx_type == 2){
+    uint64_t burst_in_flight_data =  (uint64_t)(read_in_flight | write_in_flight);
+    serializeInt(burst_in_flight_data, length, data);
+    }
   }
   if(addr ==(io_coh_helper_base + 0x580)) {
     cvm::log(cvm::HIGH, "[io_coh_helper] read request  programmed read size: {:#x} read counter {:#x} \n", tx_size,read_counter);
@@ -224,6 +230,8 @@ cvm::messenger::task<void> io_coh_helper::blocking_read(const transactor::read_t
   cvm::log(cvm::HIGH, "[io_coh_helper] blocking read data begin: \n");
 
   read_in_flight = true;
+  rdata_byte_vec = {};
+
   cvm::registry::messenger.signal(axi_mst_loc_l, ar_txn);
 
   auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(axi_mst_loc_l);
@@ -273,7 +281,7 @@ void
     //tx_type_size = (uint8_t)t_data; 
     axi_txns tx;
     tx.addr = tx_addr_burst;
-    if((tx_type_size >>7)>0){
+    if((tx_type_size >>8)>0){
       tx.r0_w1 = true;
     }else{
       tx.r0_w1 = false;
@@ -287,7 +295,7 @@ void
     tx_addr_burst = t_data;
     
   } else if(addr == (io_coh_helper_base + 0x180)) {
-    cvm::log(cvm::HIGH, "[io_coh_helper] Burst Transfer Start Addr {:#x} \n",t_data);
+    cvm::log(cvm::HIGH, "[io_coh_helper] Burst Transfer Size {:#x} \n",t_data);
     tx_type_size = (uint8_t)t_data; 
   }else if(addr ==(io_coh_helper_base + 0x200)) {
     tx_data0 = t_data;
@@ -316,6 +324,7 @@ void
       overlay_read(tx_addr);
     }else if(tx_type == 2){
        for (int i=0; i<int(txns_vec.size()); i++) { 
+        burst_in_flight = true;
         if(txns_vec[i].r0_w1){
            overlay_write(txns_vec[i].addr);
         }else{
