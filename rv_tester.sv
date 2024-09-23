@@ -156,6 +156,7 @@ module rv_tester
 
     int hart_enable_mask = 0;
     int rand_dmi_driver_dly = 0;
+    int dm_single_step_count = 0;
     int dmi_poll_counter = 0; 
     int dmi_poll_timeout = 50000;
     logic dmi_poll_timeout_terminate;
@@ -290,7 +291,8 @@ module rv_tester
 
             perf                 <= cvm_plusargs::get_bool("perf") != '0;
             flag_force_ref_clk   <= cvm_plusargs::get_bool("force_ref_clk") != '0;
-            rand_dmi_driver_dly  <= cvm_plusargs::get_int("rand_dmi_driver_dly"); 
+            rand_dmi_driver_dly  <= cvm_plusargs::get_int("rand_dmi_driver_dly");
+            dm_single_step_count <= cvm_plusargs::get_int("dm_single_step_count");
             cb_poll              <= cvm_plusargs::get_bool("cb_async") == '0;
             quiesce_timeout      <= cvm_plusargs::get_int("quiesce_timeout");
             dmi_poll_timeout     <= cvm_plusargs::get_int("dmi_poll_timeout");
@@ -536,6 +538,7 @@ module rv_tester
         .reset_n(~reset[WARM_RESET_IDX] || reset_hold[DEBUG_HOLD_IDX]),
         .rand_dmi_driver_dly,
         .hart_enable_mask,
+        .dm_single_step_count,
 
         .dmi_req_ready,
         .dmi_resp_valid,
