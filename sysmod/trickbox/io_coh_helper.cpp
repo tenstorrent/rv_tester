@@ -111,7 +111,7 @@ void io_coh_helper::overlay_write(uint64_t addr) {
   bool valid;
   axi::a_t aw_txn;
   aw_txn.w    = true;
-  aw_txn.id   = 12;
+  aw_txn.id   = axi_id++;
   aw_txn.addr = addr;
   aw_txn.len  = 0;
   aw_txn.size = log2(tx_size);//3;
@@ -206,7 +206,7 @@ cvm::messenger::task<void> io_coh_helper::blocking_read(const transactor::read_t
 
   axi::a_t ar_txn;
   ar_txn.w    = false;
-  ar_txn.id   = 2;
+  ar_txn.id   = axi_id++;
   //ar_txn.addr = 0x60000000;
   ar_txn.addr = r.addr;
   ar_txn.len  = 0;
@@ -228,7 +228,6 @@ cvm::messenger::task<void> io_coh_helper::blocking_read(const transactor::read_t
 
   auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(axi_mst_loc_l);
 
-  read_in_flight = false;
 
   cvm::log(cvm::HIGH, "[io_coh_helper] blocking read data begin: \n");
   backdoor_read_data = 0;
@@ -239,6 +238,7 @@ cvm::messenger::task<void> io_coh_helper::blocking_read(const transactor::read_t
          rdata_byte_vec.push_back(uint8_t(resp.data[i]));
          cvm::log(cvm::HIGH, "[io_coh_helper] blocking read data[{}] = {}: \n",i,uint32_t(rdata_byte_vec[i]));
     }
+  read_in_flight = false;
   //std::stringstream ss;
   //  for (const auto &byte : resp.data) {
   //  ss << static_cast<int>(byte) << " ";
@@ -268,17 +268,38 @@ void
     tx_status = t_data & 0x1;
     wdata_vec = {};
 
+  }else if(addr == (io_coh_helper_base + 0x080)) {
+    cvm::log(cvm::HIGH, "[io_coh_helper] Burst Transfer latch Addr {:#x} type_size {:#x}\n",tx_addr_burst,tx_type_size);
+    //tx_type_size = (uint8_t)t_data; 
+    axi_txns tx;
+    tx.addr = tx_addr_burst;
+    if((tx_type_size >>7)>0){
+      tx.r0_w1 = true;
+    }else{
+      tx.r0_w1 = false;
+    }
+    tx.size = tx_type_size & 0x0f;
+    tx.wdata_byte_vec = wdata_byte_vec;
+    txns_vec.push_back(tx);
   } else if(addr == (io_coh_helper_base + 0x100)) {
     tx_addr = t_data;
     cvm::log(cvm::HIGH, "[io_coh_helper] Transfer Start Addr {:#x} \n",t_data);
-
-  } else if(addr ==(io_coh_helper_base + 0x200)) {
+    tx_addr_burst = t_data;
+    
+  } else if(addr == (io_coh_helper_base + 0x180)) {
+    cvm::log(cvm::HIGH, "[io_coh_helper] Burst Transfer Start Addr {:#x} \n",t_data);
+    tx_type_size = (uint8_t)t_data; 
+  }else if(addr ==(io_coh_helper_base + 0x200)) {
     tx_data0 = t_data;
     wdata_vec.push_back(uint8_t(t_data));
     cvm::log(cvm::HIGH, "[io_coh_helper] Transfer wdata {:#x}  \n",t_data);
   } else if (addr ==(io_coh_helper_base + 0x300)) {
     cvm::log(cvm::HIGH, "[io_coh_helper] Transfer type {:#x}  \n",t_data);
     tx_type = t_data;
+    if(tx_type==2){
+      //create array of structs
+      txns_vec = {};
+    }
     
   } else if(addr ==(io_coh_helper_base + 0x400)) {
     cvm::log(cvm::HIGH, "[io_coh_helper] Transfer trigger {:#x}  \n",t_data);
@@ -293,6 +314,15 @@ void
     }else if(tx_type == 1){
       backdoor_read_data = 0;
       overlay_read(tx_addr);
+    }else if(tx_type == 2){
+       for (int i=0; i<int(txns_vec.size()); i++) { 
+        if(txns_vec[i].r0_w1){
+           overlay_write(txns_vec[i].addr);
+        }else{
+           backdoor_read_data = 0;
+            overlay_read(txns_vec[i].addr);
+        }
+       }
     }
 
   } else if(addr ==(io_coh_helper_base + 0x600)) {
