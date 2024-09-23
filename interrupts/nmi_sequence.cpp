@@ -34,7 +34,7 @@ nmi_sequence::nmi_sequence(cvm::topology::loc_t loc, unsigned id) : loc_(loc), i
 }
 
 nmi_sequence::~nmi_sequence() {
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_interrupts_nmi_count\": \"{}\"}}\n", id_, nmi_count_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_nmi_toggled_count\": \"{}\"}}\n", id_, nmi_count_);
 }
 
 void nmi_sequence::random_mode_thread() {

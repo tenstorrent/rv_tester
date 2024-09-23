@@ -64,7 +64,7 @@ DEFINE_bool(cov, false, "Enable Arch coverage");
 DEFINE_string(archsample_lib_path, "", "Path to libarchsample.so");
 DEFINE_bool(standalone, true, "Enable whisper standalone run at beginning of sim");
 DEFINE_bool(metrics, true, "Enable printing metrics in log file");
-DEFINE_uint32(max_pend_nmi_age, 128, "Number of instructions allowed to retire before a pending nmi should be taken");
+DEFINE_uint32(max_pend_nmi_age, 16, "Number of instructions allowed to retire before a pending nmi should be taken");
 DEFINE_uint32(max_pend_intr_age, 128, "Number of instructions allowed to retire before a pending interrupt should be taken");
 DEFINE_bool(preload, false, "Whisper preload");
 
@@ -589,6 +589,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   // Save whisper state
   // Interrupt state
   if (patch_mode_ == NO_PATCH || patch_mode_ == EXIT_PATCH) {
+    prev_nmi_ = nmi_;
     prev_mip_ = mip_;
     prev_e_mip_ = e_mip_;
     mip_age_++;
@@ -784,7 +785,7 @@ void bridge::pre_step_lrsc_poke(hart_id_t hart, const rv_instr_t& d) {
 }
 
 void bridge::pre_step_nmi_poke(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
-  if (!nmi_.valid || !nmi_poke_pending_)
+  if (!nmi_poke_pending_ && !d.nmi)
     return;
 
   if (!d.nmi && nmi_poke_pending_) {
@@ -797,8 +798,16 @@ void bridge::pre_step_nmi_poke(hart_id_t hart, const rv_instr_t& d, whisper_stat
     return;
   }
 
-  nmi_age_ = 0;
+  // Timing sensitive resynch cases
+  // 1. DUT took nmi that deasserted before retire
+  if (d.nmi && !nmi_poke_pending_ && (prev_nmi_.valid != nmi_.valid)) {
+      bridge_log_(cvm::MEDIUM, "<{}> DUT took NMI, Whisper does not want to. cause:[{}] (Timing sensitive mismatch: Resynch and keep going)\n", w.time, prev_nmi_.cause);
+      poke_nmi(hart, d.cycle, prev_nmi_.cause);
+      nmi_poke_pending_ = false;
+      return;
+  }
 
+  nmi_age_ = 0;
   if (FLAGS_bridge_log) {
     bridge_log_(cvm::MEDIUM, "<{}> NMI taken by DUT. dcause:[{}]\n", w.time, nmi_.cause);
   }
@@ -806,6 +815,7 @@ void bridge::pre_step_nmi_poke(hart_id_t hart, const rv_instr_t& d, whisper_stat
   // Poke nmi into whisper
   poke_nmi(hart, nmi_.cycle, nmi_.cause);
   nmi_poke_pending_ = false;
+  nmi_taken_count_++;
 }
 
 void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
@@ -839,7 +849,7 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
   if (prev_e_mip_ != e_mip_)
     e_mip_age_ = 0;
 
-  if ((!mip_ && !prev_mip_) || nmi_.valid) {
+  if (!mip_ && !prev_mip_) {
     IF_DEBUG("mip_==0  and prev_mip_==0 ... return");
     return;
   }
@@ -1056,6 +1066,11 @@ void bridge::post_step_nmi_check(hart_id_t hart, const rv_instr_t& d, whisper_st
       nmi_to_string.count(static_cast<nmi>(w_.ncause)) ? nmi_to_string.at(static_cast<nmi>(w_.ncause)) : std::to_string(w_.ncause));
     return;
   }
+
+  // Clear nmi on first step after taking timing sensitive nmi
+  if (d.nmi && !nmi_.valid && prev_nmi_.valid) {
+    clear_nmi(hart, d.cycle);
+  }
 }
 
 void bridge::post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
@@ -1108,7 +1123,7 @@ void bridge::post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whis
       excp_to_string.count(static_cast<excp>(d.ecause)) ? excp_to_string.at(static_cast<excp>(d.ecause)) : std::to_string(d.ecause));
     return;
   }
-  
+
   if (w_.excp && !d.excp && !FLAGS_cosim_resynch) {
     IF_DEBUG("d.excp==0 and w.excp==1 ... return");
     print_instr_stdout(hart, w);
@@ -2337,7 +2352,9 @@ void bridge::check_interrupt(hart_id_t hart, uint64_t mip, bool& taken, uint64_t
     error("Hart {}: Failed whisper API call - whisperCheckInterrupt\n", hart);
     return;
   }
-  bridge_log_(cvm::MEDIUM, "<> Whisper check_interrupt: mip: {:#x} taken: {} cause: {}\n", mip, taken, cause);
+  if (FLAGS_bridge_log) {
+    bridge_log_(cvm::MEDIUM, "<> Whisper check_interrupt: mip: {:#x} taken: {} cause: {}\n", mip, taken, cause);
+  }
 }
 
 void bridge::poke_nmi(hart_id_t hart, uint64_t time, uint64_t cause) {
@@ -2714,6 +2731,7 @@ void bridge::report_metrics() {
         }
     }
   }
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_nmi_taken_count\": \"{}\"}}\n", id_, nmi_taken_count_);
 
   if (!terminated_) {
     // Step one final time to collect metrics for next instruction

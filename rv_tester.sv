@@ -110,6 +110,7 @@ module rv_tester
     logic cold_reset;
     logic warm_reset;
     LU clocks = 0;
+    LU axi_clocks;
     bit cb_poll = '0;
     bit dyn_clk_switch = '0;
     bit cb_success = '1;
@@ -155,6 +156,7 @@ module rv_tester
 
     int hart_enable_mask = 0;
     int rand_dmi_driver_dly = 0;
+    int dm_single_step_count = 0;
     int dmi_poll_counter = 0; 
     int dmi_poll_timeout = 50000;
     logic dmi_poll_timeout_terminate;
@@ -289,7 +291,8 @@ module rv_tester
 
             perf                 <= cvm_plusargs::get_bool("perf") != '0;
             flag_force_ref_clk   <= cvm_plusargs::get_bool("force_ref_clk") != '0;
-            rand_dmi_driver_dly  <= cvm_plusargs::get_int("rand_dmi_driver_dly"); 
+            rand_dmi_driver_dly  <= cvm_plusargs::get_int("rand_dmi_driver_dly");
+            dm_single_step_count <= cvm_plusargs::get_int("dm_single_step_count");
             cb_poll              <= cvm_plusargs::get_bool("cb_async") == '0;
             quiesce_timeout      <= cvm_plusargs::get_int("quiesce_timeout");
             dmi_poll_timeout     <= cvm_plusargs::get_int("dmi_poll_timeout");
@@ -368,9 +371,10 @@ module rv_tester
             end
 
             if (shutdowned && num_reruns == '0 && !warm_reset_req && !dut_reset_req) begin
+                $display("INFO_PASS_METRIC:{\"axi_clocks\": %0d}", axi_clocks);
+                $display("INFO_PASS_METRIC:{\"clocks\": %0d}", clocks);
                 $display("INFO_PASS_METRIC:{\"instruction_count\": %0d}", instructions);
                 $display("INFO_PASS_REGR_METRIC:{\"name\": \"instructions\", \"value\":%0d, \"type\": \"i\", \"action\": \"sum\"}", instructions);
-                $display("INFO_PASS:{\"clocks\": %0d}", clocks);
 
                 if (call_finish) begin
                     $finish();
@@ -409,6 +413,15 @@ module rv_tester
                 sys_reset[c] <= rv_tester_reset;
             end
             assign sys_reset_pending[c] = sys_reset[c];
+        end
+    end
+
+    // Clock counts
+    always_ff @(posedge dut_clk[AXI_CLK_IDX]) begin
+        if (dut_reset[AXI_CLK_IDX]) begin
+            axi_clocks <= 0;
+        end else begin
+            axi_clocks <= axi_clocks + 1;
         end
     end
 
@@ -525,6 +538,7 @@ module rv_tester
         .reset_n(~reset[WARM_RESET_IDX] || reset_hold[DEBUG_HOLD_IDX]),
         .rand_dmi_driver_dly,
         .hart_enable_mask,
+        .dm_single_step_count,
 
         .dmi_req_ready,
         .dmi_resp_valid,
@@ -628,6 +642,7 @@ module rv_tester
           .addr_map(addr_map),
           .poke_event_out(poke_event_out[c]),
           .poke_event_in(poke_event_in),
+          .disable_checks(disable_checks),
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PORTS(1, c, 0)
       );
     end
