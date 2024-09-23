@@ -91,11 +91,12 @@ public:
 void gen_data_strb(uint64_t addr, data_t& wdata, std::vector<bool>& strb);
 
 typedef struct{
-uint64_t addr;
-uint8_t size;
-bool    r0_w1;
-std::vector<uint8_t> wdata_byte_vec;
+  uint64_t addr;
+  uint8_t size;
+  bool    r0_w1;
+  std::vector<uint8_t> wdata_byte_vec;
 }axi_txns;
+
 protected:
 
   //Check plusarg usage
@@ -119,13 +120,10 @@ private:
   uint64_t tx_addr_burst = 0x90a0000;
   uint8_t  tx_type_size = 0;
   uint64_t backdoor_read_data = 0;
-  //uint64_t tx_size = 2;
- // uint64_t tx_trigger = 0;
   uint64_t tx_type = 0;
   uint64_t tx_size = 0;
   uint64_t read_counter = 0;
   uint64_t tx_data0 = 0;
-  //uint64_t rx_data = 0;
   uint8_t  axi_id = 12;
   mem_manager m_;
   bool write_in_flight = false; 
@@ -133,6 +131,5 @@ private:
   bool burst_in_flight = false; 
   pcg_extras::seed_seq_from<std::random_device> seed_source;
   pcg32 rng;
-  //unsigned hartCount;
 };
 

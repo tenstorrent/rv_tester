@@ -89,18 +89,7 @@ void io_coh_helper::gen_data_strb(uint64_t addr,  data_t& wdata, std::vector<boo
           wdata.push_back(0x0);
           strb.push_back(0x0);
     }  
-   // wdata_vec.resize(8, 0);
-   // for(uint8_t j=0;j<8;++j){
-   // for (uint8_t i = 0; i < 8; ++i) {
-   //       uint8_t currentByte = static_cast<uint8_t>((wdata_vec[j] >> (8 * i)) & 0xFF);
-   //       if((j*8 + i +b_index) <63){
-   //         wdata[j*8+i+b_index] = currentByte;
-   //         strb[j*8+i+b_index] = 0x1;
-   //       }else{
-   //        cvm::log(cvm::NONE, "[io_coh_helper] loop exceeding cacheline boundry addr: {:#x} i: {} j: {} b_index: {}\n",addr);
-   //       }
-   // }  
-   // }
+
    for(uint8_t i=0;i<tx_size;i++ ){
          if((i +b_index) <63){
            wdata[i+b_index] = wdata_vec[i];
@@ -167,33 +156,6 @@ void io_coh_helper::overlay_write(uint64_t addr) {
   }
 }
 
-// void
-// io_coh_helper::overlay_write(uint64_t addr,uint64_t data)
-// {
-//   cvm::log(cvm::HIGH, "[io_coh_helper] overlay_write: {:#x} \n", addr);
-//      uint32_t length = 0x40;
-//     std::vector<uint8_t> data1;
-//     std::vector<bool> strb1;
-//     for (uint8_t i = 0; i < 64; ++i) {
-//       data1.push_back(0x0);
-//       strb1.push_back(0x0);
-//     }  
-//     for (uint8_t i = 0; i < 4; ++i) {
-//       uint8_t currentByte = static_cast<uint8_t>((data >> (8 * i)) & 0xFF);
-//       data1[i] = currentByte;
-//       strb1[i] = 0x1;
-//     }
-//     cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data1, strb1});
-//     cvm::topology::loc_t axi_mst_loc_lambda = axi_mst_loc_l;
-//     write_in_flight = true;
-//     auto t = std::make_tuple(axi_mst_loc_lambda, std::ref(write_in_flight));
-//     auto* l = +[](decltype(t) t) -> cvm::messenger::task<void>{
-//     co_await cvm::registry::messenger.wait<transactor::write_response_t>(std::get<0>(t));
-//     std::get<1>(t) = false;
-//   };
-//   cvm::registry::messenger.fork(l, t);
-// }
-
 
 void io_coh_helper::drive_burst() {
   cvm::log(cvm::FULL, "[io_coh_helper] drive burst    \n");
@@ -215,6 +177,7 @@ void io_coh_helper::overlay_read(uint64_t addr) {
    };
    cvm::registry::messenger.fork(l, r, this);
 }
+
 cvm::messenger::task<void> io_coh_helper::blocking_read(const transactor::read_t& r , data_t&) {
 
   axi::a_t ar_txn;
@@ -247,19 +210,12 @@ cvm::messenger::task<void> io_coh_helper::blocking_read(const transactor::read_t
   cvm::log(cvm::HIGH, "[io_coh_helper] blocking read data begin: \n");
   backdoor_read_data = 0;
   read_counter = 0;
-    //for (size_t i = 0; i < 8; ++i) {
     for (size_t i = 0; i < tx_size; ++i) {
-        //backdoor_read_data |= static_cast<uint64_t>(resp.data[i]) << (8 *  i);
          rdata_byte_vec.push_back(uint8_t(resp.data[i]));
          cvm::log(cvm::HIGH, "[io_coh_helper] blocking read data[{}] = {}: \n",i,uint32_t(rdata_byte_vec[i]));
     }
   read_in_flight = false;
-  //std::stringstream ss;
-  //  for (const auto &byte : resp.data) {
-  //  ss << static_cast<int>(byte) << " ";
-  //}
-  //std::string output = ss.str();
-  //cvm::log(cvm::HIGH, "[io_coh_helper] blocking read data end:  {}\n",output);
+  
   co_return;
  
 }
@@ -421,15 +377,6 @@ void
       backdoor_read_data = 0;
       overlay_read(tx_addr);
     }else if(tx_type == 2){
-      //  for (int i=0; i<int(txns_vec.size()); i++) { 
-      //   burst_in_flight = true;
-      //   if(txns_vec[i].r0_w1){
-      //      overlay_write(txns_vec[i].addr);
-      //   }else{
-      //      backdoor_read_data = 0;
-      //       overlay_read(txns_vec[i].addr);
-      //   }
-      //  }
       drive_burst();
     }
 
