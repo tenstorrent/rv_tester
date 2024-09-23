@@ -46,7 +46,7 @@ io_coh_helper::read_dev(uint64_t addr, size_t length, data_t& data)
     serializeInt(read_in_flight_data, length, data);
     }
     if(tx_type == 2){
-    uint64_t burst_in_flight_data =  (uint64_t)(read_in_flight | write_in_flight);
+    uint64_t burst_in_flight_data =  (uint64_t)(burst_in_flight);
     serializeInt(burst_in_flight_data, length, data);
     }
   }
