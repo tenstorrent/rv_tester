@@ -728,6 +728,10 @@ pmu:
                 width: 33
             op_issued_pipe15:
                 width: 33
+            op_issued_fp64:
+                width: 33
+            fp64_export_overflow:
+                width: 33
             wasted_issue_slots_via_throttling:
                 width: 33
             cache_references:
