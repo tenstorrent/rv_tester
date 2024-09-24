@@ -72,10 +72,11 @@ class axi_sw {
 
         svScope scope_;
         cvm::topology::loc_t loc_;
+        unsigned id_;
         size_t id_width_;
         size_t data_width_;
         size_t strb_width_;
-        
+
         const r_q_ptr_t     r_q_max_    ;
         const r_q_ptr_t     r_q_ptr_max_;
 
@@ -89,6 +90,9 @@ class axi_sw {
         bool r_dpi();
 
         axi* axi_;
+
+        uint64_t read_bytes_;
+        uint64_t write_bytes_;
 
     public:
 

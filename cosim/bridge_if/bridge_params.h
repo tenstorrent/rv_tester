@@ -886,7 +886,8 @@ namespace {
         HS = 1,
         M = 3,
         P = 4,
-        DE = 5,
+        DE = 6,
+        DP = 7,
         VU = 8,
         VS = 9,
         VM = 11
@@ -898,6 +899,7 @@ namespace {
         {M, "M"},
         {P, "P"},
         {DE, "DE"},
+        {DP, "DP"},
         {VU, "VU"},
         {VS, "VS"},
         {VM, "M"},

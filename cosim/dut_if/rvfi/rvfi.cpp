@@ -38,6 +38,7 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
 
   connect<
     rv_tester_transactions::cosim::m_reset<>,
+    rv_tester_transactions::cosim::m_disable_checks<>,
     rv_tester_transactions::cosim::m_rvfi<>,
     rv_tester_transactions::cosim::m_steps<>,
     rv_tester_transactions::cosim::m_gp_regs<>,
@@ -353,9 +354,13 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   if (m_rvfi.last_uop && !patch_mode_)
     count_++;
 
-  if ((instr.priv & 0x3) == 0x3) { // Ignore V bit if M mode
+  if ((instr.priv & 0x7) == 0x3) { // Ignore V bit if M mode
     instr.priv = 0x3;
   }
+
+  // if (instr.priv == 0x7) { // Make the DP mode as well same as DE mode for Cosim Checks
+  //   instr.priv = 0x6;
+  // }
 
   // PC
   instr.pc.valid = true;
@@ -496,6 +501,9 @@ std::tuple<uint64_t, uint64_t, uint8_t> rvfi::get_mem_attributes(uint64_t addr, 
 }
 
 void rvfi::print_csr(csr_t& csr) {
+  if (!FLAGS_rvfi_log) {
+    return;
+  }
   log(cvm::NONE, "#NA {} {} {} {:016x} {:09x} c {:016x} {:016x} {:016x} (hw update)\n", csr.cycle, csr.hart, priv_to_string.at(static_cast<priv>(priv_)), 0, 0, csr.csr_addr, csr.csr_wdata, csr.csr_wmask);
 }
 
@@ -981,7 +989,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>& m_
     return;
 
   if (ifetch_reqs_.find(m_mcmi_ifetch_resp.order) == ifetch_reqs_.end()) {
-    cvm::log(cvm::ERROR, "Error: Ifetch resp with no matching req - [id={}]", m_mcmi_ifetch_resp.order);
+    cvm::log(cvm::ERROR, "Error: Ifetch resp with no matching req - [id={}]\n", m_mcmi_ifetch_resp.order);
   }
 
   mem_t m;
@@ -1022,6 +1030,11 @@ void rvfi::process(const rv_tester::terminate_called&) {
 
 void rvfi::process(const bridge::error_loc&) {
   cvm::log(cvm::HIGH, "[RVFI] cosim error, stopping further rvfi processing\n");
+  terminated_ = true;
+}
+
+void rvfi::process(const rv_tester_transactions::cosim::m_disable_checks<>&) {
+  cvm::log(cvm::HIGH, "[RVFI] disable_checks indication, stopping further rvfi processing\n");
   terminated_ = true;
 }
 

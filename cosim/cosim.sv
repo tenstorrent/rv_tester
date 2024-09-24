@@ -132,6 +132,7 @@ import rv_tester_params::*;
     input bit poke_event_in,
     output bit poke_event_out,
     output rv_tester_pkg::terminate_t terminate,
+    input logic disable_checks,
     `RV_TESTER_TRANSACTIONS_COSIM_OUTPUT_PORTS
 );
 
@@ -635,6 +636,10 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
     assign m_resets[0].valid            = RVFI_EN & rvfi_enabled & (dut_reset_d1 & ~dut_reset);
     assign m_resets[0].data.location    = location;
     assign m_resets[0].data.cycle       = clocks;
+
+    assign m_disable_checkss[0].valid            = RVFI_EN & rvfi_enabled & disable_checks;
+    assign m_disable_checkss[0].data.location    = location;
+    assign m_disable_checkss[0].data.cycle       = clocks;
 
     //-----------------------------------------------------------------------------------------------------------
     // PERIODIC STATE COMPARE feature enabled when cosim_period value > 0
