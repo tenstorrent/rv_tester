@@ -68,8 +68,14 @@ interrupter::read(uint64_t addr, size_t, data_t&)
 {
   co_return;
 }
-
-void interrupter::read_dev(uint64_t , size_t ,  data_t& ){
+uint64_t mnscratch_array[2];
+void interrupter::read_dev(uint64_t addr, size_t ,  data_t& data){
+  if(addr==(interrupter_base + 0x4000)){
+    data[0] = mnscratch_array[0];
+  }
+  else if(addr==(interrupter_base + 0x4008)){
+    data[0] = mnscratch_array[1];
+  }
   return;
 }
 void
@@ -109,7 +115,13 @@ interrupter::write(uint64_t addr, size_t, const data_t& data,
      IntrValue_.at(intr_loc) = eventFlag;
      }
     }
-    else if(addr==(interrupter_base + 0x4000))
+    else if(addr==(interrupter_base + 0x4000)){
+      mnscratch_array[0] = data[0];
+    }
+    else if(addr==(interrupter_base + 0x4008)){
+      mnscratch_array[1] = data[0];
+    }
+    else if(addr==(interrupter_base + 0x4016))
     {
      //TODO If needed enable/disable random interrupts from asm
      //unsigned hart = t_data & 0xfff;
