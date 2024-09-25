@@ -182,7 +182,7 @@ module rv_tester
 
 
     assign terminate           = (dut_terminate_any || rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sys_reset_any) || quiesce_counter > 0) && !rv_tester_reset;
-    assign terminate_now       = (terminate_1T && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue <= '1) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced )) || dut_terminate_any || warm_reset_now; 
+    assign terminate_now       = (terminate_1T && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue <= 'h1) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced )) || dut_terminate_any || warm_reset_now; 
     
     assign rerun_now           = terminated && !terminated_1T && ((num_reruns > 0) || (warm_reset_en && (num_resets <= target_num_resets)) || dut_reset_req);
 
