@@ -704,6 +704,19 @@ module rv_tester
         );
     end
 
+    for (genvar c = 0; c < NHARTS; c++) begin: snoop_gen
+        snoop_gen #(
+            .NUM(c),
+            `TOPOLOGY_CFG,
+            `RV_TESTER_TRANSACTIONS_SNOOP_GEN_SOURCE_PARAMS(0)
+        ) snoop_gen (
+            .clk(dut_clk[AXI_CLK_IDX]),
+            .sys_reset(sys_reset[AXI_CLK_IDX]),
+            .reset(dut_reset[AXI_CLK_IDX]),
+            .clocks,
+            `RV_TESTER_TRANSACTIONS_SNOOP_GEN_SOURCE_PORTS(2,c,0)
+        );
+    end
     trace #(
        .NUM(0),
        `TOPOLOGY_CFG,

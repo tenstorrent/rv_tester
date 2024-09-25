@@ -135,34 +135,6 @@ void io_coh_helper::overlay_write(uint64_t addr,uint64_t data) {
   }
 }
 
-// void
-// io_coh_helper::overlay_write(uint64_t addr,uint64_t data)
-// {
-//   cvm::log(cvm::HIGH, "[io_coh_helper] overlay_write: {:#x} \n", addr);
-//      uint32_t length = 0x40;
-//     std::vector<uint8_t> data1;
-//     std::vector<bool> strb1;
-//     for (uint8_t i = 0; i < 64; ++i) {
-//       data1.push_back(0x0);
-//       strb1.push_back(0x0);
-//     }  
-//     for (uint8_t i = 0; i < 4; ++i) {
-//       uint8_t currentByte = static_cast<uint8_t>((data >> (8 * i)) & 0xFF);
-//       data1[i] = currentByte;
-//       strb1[i] = 0x1;
-//     }
-//     cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr, length, data1, strb1});
-//     cvm::topology::loc_t axi_mst_loc_lambda = axi_mst_loc_l;
-//     write_in_flight = true;
-//     auto t = std::make_tuple(axi_mst_loc_lambda, std::ref(write_in_flight));
-//     auto* l = +[](decltype(t) t) -> cvm::messenger::task<void>{
-//     co_await cvm::registry::messenger.wait<transactor::write_response_t>(std::get<0>(t));
-//     std::get<1>(t) = false;
-//   };
-//   cvm::registry::messenger.fork(l, t);
-// }
-
-
 
 
 void io_coh_helper::overlay_read(uint64_t addr) {
@@ -247,7 +219,6 @@ void
   } else if (addr ==(io_coh_helper_base + 0x300)) {
     cvm::log(cvm::HIGH, "[io_coh_helper] Transfer type {:#x}  \n",t_data);
     tx_type = t_data;
-    
 
   } else if(addr ==(io_coh_helper_base + 0x400)) {
     cvm::log(cvm::HIGH, "[io_coh_helper] Transfer trigger {:#x}  \n",t_data);
