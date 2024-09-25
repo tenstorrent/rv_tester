@@ -579,6 +579,8 @@ package rv_tester_params;
         OP_ISSUED_PIPE13,
         OP_ISSUED_PIPE14,
         OP_ISSUED_PIPE15,
+        OP_ISSUED_FP64,
+        FP64_EXPORT_OVERFLOW,
         WASTED_ISSUE_SLOTS_VIA_THROTTLING,
         CACHE_REFERENCES,
         CACHE_MISSES,
