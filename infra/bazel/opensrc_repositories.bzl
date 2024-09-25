@@ -33,7 +33,7 @@ def opensrc_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-common_cells.git",
     )
 
-    opensrc_axi_hash="88efa4238bc891d7330a059e8d30c3122c8c8d09"
+    opensrc_axi_hash="66f365ca411e16c62c356cf3d22ab818f48a82c7"
     maybe(
         git_repository,
         name = "opensrc-axi",
