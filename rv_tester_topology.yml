@@ -104,7 +104,7 @@ rv_tester: &rv_tester
         - interrupts
 
     snoop_gen:
-      count: *rv_tester_nharts
+      count: 1
       type:
         - snoop_gen
 

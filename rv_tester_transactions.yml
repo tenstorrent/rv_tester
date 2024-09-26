@@ -1526,7 +1526,7 @@ pwrmgmt:
                 width: 1
 
 snoop_gen:
-    num: ${TOP.PLATFORM.NHARTS}
+    num: 1
     m_tick:
         domain: 2
         num: 1
