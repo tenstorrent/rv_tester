@@ -136,7 +136,7 @@ cvm::messenger::task<void> snoop_gen_sequence::blocking_read(const transactor::r
 
   axi::a_t ar_txn;
   ar_txn.w    = false;
-  ar_txn.id   = 2;
+  ar_txn.id   = axi_id++;
   //ar_txn.addr = 0x60000000;
   ar_txn.addr = r.addr;
   ar_txn.len  = 0;

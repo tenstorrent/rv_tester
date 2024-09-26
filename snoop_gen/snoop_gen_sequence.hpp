@@ -53,4 +53,5 @@ class snoop_gen_sequence {
     std::vector<uint64_t> snoop_addrs; 
     bool read_in_flight = false; 
     uint32_t snoops_driven = 0;
+    uint8_t axi_id = 0;
 };
