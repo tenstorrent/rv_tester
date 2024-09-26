@@ -49,10 +49,9 @@ class aclint_checker {
         // cvm::file_logger log;
         void reset();
 
-    std::vector < std::queue < MmrWr >> cr_ac_mmr_q_;
-    std::vector < std::queue < MmrWr >> ac_axi_mmr_q_;
-    std::vector < std::unordered_map < int,
-    MmrWr >> cr_ac_bypass_;
+    std::unordered_map < int, std::queue < MmrWr >> cr_ac_mmr_q_;
+    std::unordered_map < int, std::queue < MmrWr >> ac_axi_mmr_q_;
+    std::unordered_map < int, std::unordered_map < int, MmrWr >> cr_ac_bypass_;
     const uint64_t cluster_id_end_ = 25;
     const uint64_t cluster_id_start_ = 21;
     const uint64_t mmr_base_start_ = 27;
