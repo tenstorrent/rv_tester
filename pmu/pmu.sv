@@ -220,6 +220,8 @@ import rv_tester_pkg::*;
     assign pmcounterss[0].data.op_issued_pipe13 = 33'(pmcounter[OP_ISSUED_PIPE13]);
     assign pmcounterss[0].data.op_issued_pipe14 = 33'(pmcounter[OP_ISSUED_PIPE14]);
     assign pmcounterss[0].data.op_issued_pipe15 = 33'(pmcounter[OP_ISSUED_PIPE15]);
+    assign pmcounterss[0].data.op_issued_fp64 = 33'(pmcounter[OP_ISSUED_FP64]);
+    assign pmcounterss[0].data.fp64_export_overflow = 33'(pmcounter[FP64_EXPORT_OVERFLOW]);
     assign pmcounterss[0].data.wasted_issue_slots_via_throttling = 33'(pmcounter[WASTED_ISSUE_SLOTS_VIA_THROTTLING]);
     assign pmcounterss[0].data.cache_references = 33'(pmcounter[CACHE_REFERENCES]);
     assign pmcounterss[0].data.cache_misses = 33'(pmcounter[CACHE_MISSES]);

@@ -17,6 +17,7 @@ import rv_tester_params::*;
   output logic warm_reset_req,
   output logic [NHOLDS-1:0] reset_hold,
   output logic force_ref_clk,
+  input logic core_no_fetch,
   `RV_TESTER_TRANSACTIONS_PWRMGMT_OUTPUT_PORTS
 );
 
@@ -58,7 +59,7 @@ import rv_tester_params::*;
     force_ref_clk_d1 <= force_ref_clk;
     if (warm_reset_tick) begin
       tb_clocks <= 0;
-    end else if (warm_reset_en & (reset_count < target_reset_count) & ~force_ref_clk) begin
+    end else if (warm_reset_en & (reset_count < target_reset_count) & ~core_no_fetch) begin
       tb_clocks <= tb_clocks + 1;
     end
   end
@@ -67,7 +68,7 @@ import rv_tester_params::*;
     cold_reset_d1 <= cold_reset;
     soc_clocks <= soc_clocks + 1;
     warm_reset_tick <= 0;
-    if (warm_reset_en & (reset_count < target_reset_count) & (tb_clocks > warm_reset_interval) & ~force_ref_clk) begin
+    if (warm_reset_en & (reset_count < target_reset_count) & (tb_clocks > warm_reset_interval) & ~core_no_fetch) begin
       $display("[%0d] [pwrmgmt] Warm reset now", tb_clocks);
       warm_reset_tick <= 1;
     end
@@ -79,7 +80,7 @@ import rv_tester_params::*;
   // - during reset sequence till force_ref_clk is deasserted, send every clock
   // - after rest sequence, send a tick only to start a warm reset
   logic tick_valid;
-  assign tick_valid = (force_ref_clk | warm_reset_req) & (location != cvm_topology::nil);
+  assign tick_valid = (core_no_fetch | force_ref_clk | warm_reset_req) & (location != cvm_topology::nil);
   assign m_ticks[0].valid = tick_valid;
   assign m_ticks[0].data.location = location;
   assign m_ticks[0].data.cycle = tick_valid ? soc_clocks : 0;

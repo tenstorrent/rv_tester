@@ -195,6 +195,10 @@ public:
       OP_ISSUED_PIPE14,
       //Event (speculative) for pipe 15 issuing. Multiple issues per cycle should be precisely counted
       OP_ISSUED_PIPE15,
+      //Event (speculative) for fp64 ops issued. Multiple issues oer cycle should be precisely counted
+      OP_ISSUED_FP64,
+      //Event for counting cycles where we overflowed the export restriction on FP64 Ops 
+      FP64_EXPORT_OVERFLOW,
       // Event for counting wasted issue slot due to issue throttling
       WASTED_ISSUE_SLOTS_VIA_THROTTLING,
       //The count will represent all the requests made to L1 I and D caches. Includes accesses made by speculatively executed instructions and hardware prefetchers but does not include non-cacheable requests
@@ -931,6 +935,8 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::OP_ISSUED_PIPE13] = pmcounters.op_issued_pipe13;
       tmp[counter::OP_ISSUED_PIPE14] = pmcounters.op_issued_pipe14;
       tmp[counter::OP_ISSUED_PIPE15] = pmcounters.op_issued_pipe15;
+      tmp[counter::OP_ISSUED_FP64] = pmcounters.op_issued_fp64;
+      tmp[counter::FP64_EXPORT_OVERFLOW] = pmcounters.fp64_export_overflow;
       tmp[counter::WASTED_ISSUE_SLOTS_VIA_THROTTLING] = pmcounters.wasted_issue_slots_via_throttling;
       tmp[counter::CACHE_REFERENCES] = pmcounters.cache_references;
       tmp[counter::CACHE_MISSES] = pmcounters.cache_misses;
@@ -1347,6 +1353,8 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {OP_ISSUED_PIPE13,"op_issued_pipe13"},
       {OP_ISSUED_PIPE14,"op_issued_pipe14"},
       {OP_ISSUED_PIPE15,"op_issued_pipe15"},
+      {OP_ISSUED_FP64,"op_issued_fp64"},
+      {FP64_EXPORT_OVERFLOW,"fp64_export_overflow"},
       {WASTED_ISSUE_SLOTS_VIA_THROTTLING,"wasted_issue_slots_via_throttling"},
       {CACHE_REFERENCES,"cache_references"},
       {CACHE_MISSES,"cache_misses"},
