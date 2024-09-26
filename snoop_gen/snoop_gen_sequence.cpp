@@ -73,7 +73,7 @@ cvm::messenger::task<void> snoop_gen_sequence::rand_mode() {
             for(int i = 0; i<int(snoop_loop); i++){
                unsigned idx = rng1() % snoop_addrs.size(); 
                cvm::log(cvm::HIGH, "[SNOOP_GEN_SEQUENCE] burst mode : snoop_loop selected idx  {}  and addr: {:#x} \n",idx,snoop_addrs[idx]);
-               cvm::registry::messenger.signal(axi_mst_loc_l, transactor::read_request_t{snoop_addrs[idx], 8});
+               overlay_read(snoop_addrs[idx]);
                snoop_addrs.erase(snoop_addrs.begin() + idx); 
                snoops_driven++;
             }
@@ -84,7 +84,7 @@ cvm::messenger::task<void> snoop_gen_sequence::rand_mode() {
           cvm::log(cvm::HIGH, "[SNOOP_GEN_SEQUENCE] single mode : snoops_driven {} max_snoop_count {}  \n",snoops_driven,max_snoop_count);
           if(snoop_addrs.size() > 4){
                cvm::log(cvm::HIGH, "[SNOOP_GEN_SEQUENCE] single mode : snoop_loop selected addr: {:#x} \n",snoop_addrs[0]);
-               cvm::registry::messenger.signal(axi_mst_loc_l, transactor::read_request_t{snoop_addrs[0], 1});
+               overlay_read(snoop_addrs[0]);
                snoop_addrs.erase(snoop_addrs.begin()); 
                snoops_driven++;
           }
@@ -94,7 +94,7 @@ cvm::messenger::task<void> snoop_gen_sequence::rand_mode() {
           if(int(snoop_addrs.size()) > FLAGS_snoop_trigger_threshold ){
                unsigned idx = rng1() % snoop_addrs.size(); 
                cvm::log(cvm::HIGH, "[SNOOP_GEN_SEQUENCE] single shuffled mode : snoop_loop selected idx  {}  and addr: {:#x} \n",idx,snoop_addrs[idx]);
-               cvm::registry::messenger.signal(axi_mst_loc_l, transactor::read_request_t{snoop_addrs[idx], 8});
+               overlay_read(snoop_addrs[idx]);
                snoop_addrs.erase(snoop_addrs.begin() + idx); 
                snoops_driven++;
             
@@ -119,4 +119,57 @@ cvm::messenger::task<void> snoop_gen_sequence::trigger() {
   auto trace_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.TRACE", 0);
   co_await cvm::registry::messenger.wait<rv_tester_transactions::trace::m_tick<>>(trace_loc);
   co_return;
+}
+
+
+void snoop_gen_sequence::overlay_read(uint64_t addr) {
+  cvm::log(cvm::FULL, "[io_coh_helper] axi read addr= {:#X}   \n",addr);
+   transactor::read_t r ;
+   r.addr = addr;
+   r.length = 0x40;
+   auto* l = +[](transactor::read_t r, snoop_gen_sequence* dev) -> cvm::messenger::task<void>{
+     co_await dev->blocking_read(r);
+   };
+   cvm::registry::messenger.fork(l, r, this);
+}
+cvm::messenger::task<void> snoop_gen_sequence::blocking_read(const transactor::read_t& r ) {
+
+  axi::a_t ar_txn;
+  ar_txn.w    = false;
+  ar_txn.id   = 2;
+  //ar_txn.addr = 0x60000000;
+  ar_txn.addr = r.addr;
+  ar_txn.len  = 0;
+  ar_txn.size = 6;
+  ar_txn.burst = axi::burst_t(0);
+  ar_txn.lock  =0;
+  ar_txn.cache  =axi::cache_mem_attr_t(0);
+  ar_txn.prot  =2;
+  ar_txn.qos  =0;
+  ar_txn.region  =0;
+  ar_txn.atop  =0;
+  ar_txn.user  =0;
+  
+  cvm::log(cvm::HIGH, "[snoop_gen_sequence] blocking read data begin: \n");
+
+  read_in_flight = true;
+  cvm::registry::messenger.signal(axi_mst_loc_l, ar_txn);
+
+  auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(axi_mst_loc_l);
+
+  read_in_flight = false;
+
+  // cvm::log(cvm::HIGH, "[snoop_gen_sequence] blocking read data begin: \n");
+  // backdoor_read_data = 0;
+  //   for (size_t i = 0; i < 8; ++i) {
+  //       backdoor_read_data |= static_cast<uint64_t>(resp.data[i]) << (8 *  i);
+  //   }
+  // std::stringstream ss;
+  //   for (const auto &byte : resp.data) {
+  //   ss << static_cast<int>(byte) << " ";
+  // }
+  // std::string output = ss.str();
+  // cvm::log(cvm::HIGH, "[snoop_gen_sequence] blocking read data end:  {}\n",output);
+  co_return;
+ 
 }

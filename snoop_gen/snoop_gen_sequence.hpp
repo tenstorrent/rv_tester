@@ -10,6 +10,9 @@
 #include "snoop_gen.hpp"
 #include "transactor.h"
 #include "svdpi.h"
+#include "sysmod/device.h"
+#include "transactor.h"
+#include "transactors/axi_sw/axi.h"
 
 class snoop_gen_sequence {
 
@@ -31,7 +34,9 @@ class snoop_gen_sequence {
 
     void init();
     void push_snoop_info(uint64_t push_addr);
-
+    void overlay_read(uint64_t addr);
+    cvm::messenger::task<void> blocking_read(const transactor::read_t& r);
+  
   private:
 
     cvm::topology::loc_t loc_;
@@ -46,5 +51,6 @@ class snoop_gen_sequence {
     uint32_t max_snoop_count;
 
     std::vector<uint64_t> snoop_addrs; 
+    bool read_in_flight = false; 
     uint32_t snoops_driven = 0;
 };
