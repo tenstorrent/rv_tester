@@ -281,46 +281,28 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
     dest_renamed ? renamed_csr_to_string.at(static_cast<renamed_csr_reg>(m_rvfi.rd_addr)) : "";
 
   // First/last uops for ucode sequences
-  instr.first_uop = false;
-  instr.last_uop = m_rvfi.last_uop;
-  instr.ucode = ucode_ || !m_rvfi.last_uop;
-  if (!m_rvfi.last_uop) {
-    if (!ucode_)
-      instr.first_uop = true;
-    ucode_ = true;
-  } else {
-    ucode_ = false;
-  }
+  //instr.first_uop = false;
+  instr.first_uop = m_rvfi.first_uop;
+  instr.last_uop  = m_rvfi.last_uop;
+  instr.ucode  = m_rvfi.ucode;
+  instr.priv  = m_rvfi.priv;
 
-  // Priv mode
-  instr.priv = m_rvfi.mode;
-  if (instr.ucode && (m_rvfi.mode != priv_)) {
-    if (instr.first_uop) {
-      priv_ = m_rvfi.mode;
-    } else {
-      instr.priv = priv_;
-      ucode_priv_change_ = true;
-    }
-  }
+
+  //cvm::log(cvm::HIGH, "last_uop={} change={} priv={}\n", m_rvfi.last_uop, m_rvfi.priv_change,m_rvfi.priv);
   if (m_rvfi.last_uop) {
-    if (ucode_priv_change_) {
-      instr.priv = priv_;
-      ucode_priv_change_ = false;
-      if (priv_ == 0x4 && patch_mode_) { // dret changes mode from D to M/S/U (exit from patch mode)
-        bridge_->set_patch_mode(false);
-        patch_mode_ = false;
+      if (!priv_to_string.count(static_cast<priv>(instr.priv))) {
+          cvm::log(cvm::ERROR, "Error: Invalid rvfi privilege mode: {:#x}\n", instr.priv);
       }
-    }
-    priv_ = m_rvfi.mode;
-    if (!priv_to_string.count(static_cast<priv>(instr.priv)))
-      cvm::log(cvm::ERROR, "Error: Invalid rvfi privilege mode: {:#x}\n", instr.priv);
+      if (m_rvfi.priv_change) {
+          if (m_rvfi.priv  == 0x4 && patch_mode_) { // dret changes mode from D to M/S/U (exit from patch mode)
+             bridge_->set_patch_mode(false);
+             patch_mode_ = false;
+          }
+      }
   }
 
-  if (m_rvfi.last_uop && !patch_mode_)
+  if (m_rvfi.last_uop && !patch_mode_) {
     count_++;
-
-  if ((instr.priv & 0x3) == 0x3) { // Ignore V bit if M mode
-    instr.priv = 0x3;
   }
 
   // PC

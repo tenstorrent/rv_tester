@@ -58,7 +58,15 @@ cosim:
                 width: 64
             hart:
                 width: 32
+            first_uop:
+                width: 1
             last_uop:
+                width: 1
+            ucode:
+                width: 1
+            priv:
+                width: 4
+            priv_change:
                 width: 1
             last_insn:
                 width: 1
