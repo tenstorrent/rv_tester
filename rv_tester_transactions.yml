@@ -1494,7 +1494,7 @@ aclint_checker:
         num: ${TOP.PLATFORM.COSIM.RVFI.TOTAL_NRETS}
         fields:
             hart:
-                width: 4
+                width: 14
             order:
                 width: 64
             addr:
