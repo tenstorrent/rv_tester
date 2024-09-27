@@ -37,6 +37,7 @@ DEFINE_validator(num_reruns, &validate_ge0);
 DEFINE_string(gen_clocks_verbosity, "HIGH", "verbosity at which to generate clocks with cvm::logger prints");
 DEFINE_int32(assertion_test_cycle, 0, "If non-zero, assert false on this cycle. Used for testing assertion infrastructure.");
 DEFINE_int32(rand_dmi_driver_dly, 0, "Random delay cycles, to be used while driving DMI transactions");
+DEFINE_int32(dm_single_step_count, 0, "No of times core to single step, to be used while driving DMI transactions");
 
 extern "C" void rv_tester_terminate();
 extern "C" void rv_tester_set_address_map(std::uint32_t i, std::uint64_t start_addr, std::uint64_t end_addr, std::uint32_t device);
@@ -132,10 +133,12 @@ extern "C" {
 
     uint8_t rv_tester_shutdown_registry() {
         if (!check_called) {
+            cvm::log(cvm::NONE, "[registry] check...\n");
             cvm::registry::check();
             check_called = true;
         }
 
+        cvm::log(cvm::NONE, "[registry] shutdown...\n");
         return cvm::registry::shutdown();
     }
 

@@ -43,6 +43,7 @@ DEFINE_bool(whisper_stdout_null, false, "Redirect whisoer stdout to null");
 DEFINE_string(whisper_json_path, "", "Path to whisper json config");
 DEFINE_uint64(nmi_vec, 0, "NMI handler PC");
 DEFINE_uint64(nme_vec, 0, "NMI exception handler PC");
+DEFINE_bool(ppo, true, "Enable ppo checks");
 
 REGISTRY_register(whisperClient<uint64_t>, TOP.PLATFORM.WHISPER_CLIENT, 0);
 
@@ -53,7 +54,7 @@ getNmiPc() {
   if (FLAGS_nmi_vec != 0) {
     return FLAGS_nmi_vec;
   } else {
-    std::string cmd = "nm " + FLAGS_load + " | grep -w nmivec";
+    std::string cmd = "nm " + FLAGS_load + " " + FLAGS_bootrom_path + " | grep -w nmivec";
     std::string result = cosim_util::exec(cmd.c_str());
     std::string addr_str = result.substr(0, 16);
     uint64_t nmivec_addr_ = 0;
@@ -73,7 +74,7 @@ getNmiExceptionPc() {
   if (FLAGS_nme_vec != 0) {
     return FLAGS_nme_vec;
   } else {
-    std::string cmd = "nm " + FLAGS_load + " | grep -w nmevec";
+    std::string cmd = "nm " + FLAGS_load + " " + FLAGS_bootrom_path + " | grep -w nmevec";
     std::string result = cosim_util::exec(cmd.c_str());
     std::string addr_str = result.substr(0, 16);
     uint64_t nmevec_addr_ = 0;
@@ -113,6 +114,7 @@ whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) {
   cvm::registry::messenger.procedure<whisperMcmVecReadRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, bool& valid) {return this->whisperMcmVecRead(hart, time, instrTag, addr, size, value, valid);});
   cvm::registry::messenger.procedure<whisperMcmVecInsertRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, bool& valid) {return this->whisperMcmVecInsert(hart, time, instrTag, addr, size, value, valid);});
   cvm::registry::messenger.procedure<whisperMcmInsertRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, bool& valid) {return this->whisperMcmInsert(hart, time, instrTag, addr, size, value, valid);});
+  cvm::registry::messenger.procedure<whisperMcmVecBypassRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, bool& valid) {return this->whisperMcmVecBypass(hart, time, instrTag, addr, size, value, valid);});
   cvm::registry::messenger.procedure<whisperMcmBypassRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, bool& valid) {return this->whisperMcmBypass(hart, time, instrTag, addr, size, value, valid);});
   cvm::registry::messenger.procedure<whisperMcmWriteRPC>(loc, [this] (int hart, uint64_t time, uint64_t addr, unsigned size, svOpenArrayHandle handle, uint64_t mask, bool& valid) {return this->whisperMcmWrite(hart, time, addr, size, handle, mask, valid);});
   cvm::registry::messenger.procedure<whisperMcmIFetchRPC>(loc, [this] (int hart, uint64_t time, uint64_t addr, bool& valid) {return this->whisperMcmIFetch(hart, time, addr, valid);});
@@ -135,6 +137,7 @@ whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) {
   cvm::registry::messenger.procedure<whisperPeekFprRPC>(loc, [this] (int hart, uint64_t addr, uint64_t& value) {return this->whisperPeekFpr(hart, addr, value);});
   cvm::registry::messenger.procedure<whisperPeekVprRPC>(loc, [this] (int hart, uint64_t addr, std::array<std::uint8_t, 32>&  value) {return this->whisperPeekVpr(hart, addr, value);});
   cvm::registry::messenger.procedure<whisperNmiRPC>(loc, [this] (int hart, uint64_t time, uint64_t cause) {return this->whisperNmi(hart, time, cause);});
+  cvm::registry::messenger.procedure<whisperClearNmiRPC>(loc, [this] (int hart, uint64_t time) {return this->whisperClearNmi(hart, time);});
 
 }
 
@@ -162,7 +165,7 @@ constructSystem(uint16_t ncores, bool standalone, bool firmware) {
   if (FLAGS_mcm && !standalone) {
     bool checkAll = false;
     config.getMcmCheckAll(checkAll);
-    system->enableMcm(64, checkAll);
+    system->enableMcm(64, checkAll, FLAGS_ppo);
   }
 
   if (FLAGS_load_lz4 != "") {
@@ -276,7 +279,7 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
                     };
 
   if(FLAGS_preload) {
-    system_ = constructSystem<URV>(ncores, false, true);
+    system_ = constructSystem<URV>(FLAGS_num_harts, false, true);
     if (system_ == nullptr) {
       std::cerr << "Error: could not construct system\n";
       return -1;
@@ -304,7 +307,7 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
 
   // run once before starting cosim
   if (FLAGS_standalone && ((FLAGS_num_harts <= 1) || (FLAGS_hart_enable_mask <= 1))) {
-    system_ = constructSystem<URV>(ncores, true, false);
+    system_ = constructSystem<URV>(FLAGS_num_harts, true, false);
     if (system_ == nullptr) {
       std::cerr << "Error: could not construct system\n";
       return -1;
@@ -588,7 +591,7 @@ whisperClient<URV>::whisperStep(int hart, uint64_t time, uint64_t instrTag, uint
   unsigned load  = wflags.bits.load;
 
 
-  privMode = debug? 5 : mode | (virt << 3);
+  privMode = debug? 6 : mode | (virt << 3);
   fpFlags  = flags;
   hasTrap  = trap;
   hasStop  = stop;
@@ -638,6 +641,13 @@ whisperClient<URV>::whisperChange(int hart, uint32_t& resource, uint64_t& addr, 
   return true;
 }
 
+std::vector<uint8_t> convert_to_byte_array(const std::vector<uint64_t>& dword_array) {
+  const uint8_t* begin = reinterpret_cast<const uint8_t*>(dword_array.data());
+  const uint8_t* end = begin + dword_array.size() * sizeof(uint64_t);
+  std::vector<uint8_t> result(begin, end);
+  // std::reverse(result.begin(), result.end());
+  return result;
+}
 
 template <typename URV>
 bool
@@ -659,20 +669,13 @@ whisperClient<URV>::whisperMcmRead(int hart, uint64_t time, uint64_t instrTag, u
   return true;
 }
 
-std::vector<uint8_t> convert_to_byte_array(const std::vector<uint64_t>& dword_array) {
-  const uint8_t* begin = reinterpret_cast<const uint8_t*>(dword_array.data());
-  const uint8_t* end = begin + dword_array.size() * sizeof(uint64_t);
-  std::vector<uint8_t> result(begin, end);
-  // std::reverse(result.begin(), result.end());
-  return result;
-}
-
 template <typename URV>
 bool
 whisperClient<URV>::whisperMcmVecRead(int hart, uint64_t time, uint64_t instrTag, uint64_t addr,
 		  unsigned size, std::vector<uint64_t> value, bool& valid)
 {
-  WhisperMessage req(hart, WhisperMessageType::McmRead);
+  req.hart = hart;
+  req.type = WhisperMessageType::McmRead;
   req.time = time;
   req.instrTag = instrTag;
   req.address = addr;
@@ -706,7 +709,8 @@ bool
 whisperClient<URV>::whisperMcmVecInsert(int hart, uint64_t time, uint64_t instrTag, uint64_t addr,
 		    unsigned size, std::vector<uint64_t> value, bool& valid)
 {
-  WhisperMessage req(hart, WhisperMessageType::McmInsert);
+  req.hart = hart;
+  req.type = WhisperMessageType::McmInsert;
   req.time = time;
   req.instrTag = instrTag;
   req.address = addr;
@@ -717,7 +721,6 @@ whisperClient<URV>::whisperMcmVecInsert(int hart, uint64_t time, uint64_t instrT
   if (size <= 8)
   {
     uint64_t u64 = 0;
-    std::vector<uint8_t> byte_value = convert_to_byte_array(value);
     for (unsigned i = 0; i < size; ++i)
     {
       uint8_t byte = byte_value[i];
@@ -769,6 +772,44 @@ whisperClient<URV>::whisperMcmInsert(int hart, uint64_t time, uint64_t instrTag,
 
 template <typename URV>
 bool
+whisperClient<URV>::whisperMcmVecBypass(int hart, uint64_t time, uint64_t instrTag, uint64_t addr,
+		    unsigned size, std::vector<uint64_t> value, bool& valid)
+{
+  req.hart = hart;
+  req.type = WhisperMessageType::McmBypass;
+  req.time = time;
+  req.instrTag = instrTag;
+  req.address = addr;
+  req.size = size;   // Total size in bytes
+
+  std::vector<uint8_t> byte_value = convert_to_byte_array(value);
+
+  if (size <= 8)
+  {
+    uint64_t u64 = 0;
+    for (unsigned i = 0; i < size; ++i)
+    {
+      uint8_t byte = byte_value[i];
+      u64 = (u64 << 8) | byte;
+    }
+    return whisperMcmBypass(hart, time, instrTag, addr, size, value[0], valid);
+  }
+
+  for (unsigned i = 0; i < size; ++i) {
+    req.buffer.at(i) = byte_value[i];
+  }
+
+  WhisperMessage reply;
+  if (not whisperCommand(req, reply))
+    return false;
+
+  valid = reply.type != WhisperMessageType::Invalid;
+  return true;
+}
+
+
+template <typename URV>
+bool
 whisperClient<URV>::whisperMcmBypass(int hart, uint64_t time, uint64_t instrTag, uint64_t addr,
 		 unsigned size, uint64_t value, bool& valid)
 {
@@ -779,6 +820,15 @@ whisperClient<URV>::whisperMcmBypass(int hart, uint64_t time, uint64_t instrTag,
   req.address = addr;
   req.value = value;
   req.size = size;
+
+  if (size > 8)
+    {
+      // Bypasses with size larger than 8 should use the vector interface to pass
+      // the vector data. Here we accept size larger than 8 if the data is zero
+      // (this maybe used for the cbo.zero instruction).
+      assert(value == 0);
+      req.buffer.fill(0);
+    }
 
   if (not whisperCommand(req, reply))
     return false;
@@ -1004,6 +1054,20 @@ whisperClient<URV>::whisperNmi(int hart, uint64_t time, uint64_t cause)
   req.type = WhisperMessageType::Nmi;
   req.time = time;
   req.value = cause;
+
+  if (not whisperCommand(req, reply))
+    return false;
+
+  return true;
+}
+
+template <typename URV>
+bool
+whisperClient<URV>::whisperClearNmi(int hart, uint64_t time)
+{
+  req.hart = hart;
+  req.type = WhisperMessageType::ClearNmi;
+  req.time = time;
 
   if (not whisperCommand(req, reply))
     return false;

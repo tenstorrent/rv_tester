@@ -68,8 +68,14 @@ interrupter::read(uint64_t addr, size_t, data_t&)
 {
   co_return;
 }
-
-void interrupter::read_dev(uint64_t , size_t ,  data_t& ){
+uint64_t mnscratch_array[2];
+void interrupter::read_dev(uint64_t addr, size_t length,  data_t& data){
+  if(addr==(interrupter_base + 0x2000)){
+    serializeInt(mnscratch_array[0], length, data);
+  }
+  else if(addr==(interrupter_base + 0x2008)){
+    serializeInt(mnscratch_array[1], length, data);
+  }
   return;
 }
 void
@@ -108,6 +114,12 @@ interrupter::write(uint64_t addr, size_t, const data_t& data,
      delayedRandomIntValid_.at(intr_loc) = 1; // Valid
      IntrValue_.at(intr_loc) = eventFlag;
      }
+    }
+    else if(addr==(interrupter_base + 0x2000)){
+      mnscratch_array[0] = t_data;
+    }
+    else if(addr==(interrupter_base + 0x2008)){
+      mnscratch_array[1] = t_data;
     }
     else if(addr==(interrupter_base + 0x4000))
     {

@@ -28,5 +28,7 @@ DECLARE_bool(disable_vs_imsic_intr);
 DECLARE_bool(disable_random_hart_imsic_intr);
 DECLARE_int32(imsic_intr_threshold);
 DECLARE_int32(imsic_vs_intr_threshold);
+DECLARE_int32(imsic_vs_id_threshold);
 DECLARE_int32(imsic_hart_threshold);
 DECLARE_int32(imsic_intr_start_delay);
+DECLARE_bool(export_control_en);

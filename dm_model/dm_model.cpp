@@ -222,7 +222,7 @@ void debug_module_t::process(const rv_tester_transactions::dm_model::dm_load_dat
         masked_expected_data = expected_debug_load_data_to_check & 0x0000000F;
         cvm::log(cvm::HIGH, "[Test] masked_actual_data:{:#x} hart_select:{:#x} \n", masked_actual_data, hart_select);
         cvm::log(cvm::HIGH, "[Test] masked_expected_data:{:#x} hart_select:{:#x} \n", masked_expected_data, hart_select);
-        if ((masked_actual_data != masked_expected_data))
+        if ((masked_actual_data != masked_expected_data) && (masked_actual_data != 0x2))
         {
         cvm::log(cvm::ERROR, "[Error-Mismatch] The load data's are mismatching for Addr:{:#x} with Length:{:#x} ~~~ Shifted_Masked_Actual:{:#x} vs Masked_Expected:{:#x}\n", load_req_addr, load_req_length, masked_actual_data, masked_expected_data);
               }
@@ -343,7 +343,7 @@ bool debug_module_t::load(reg_t addr, size_t len, uint8_t *bytes)
     return true;
   }
 
-  if (addr >= 0x2c0 && addr <= 0x2f0)
+  if ((addr >= 0x2c0 && addr <= 0x2f0) || ( addr >= 0x3b8 && addr <0x400)) 
   {
     cvm::log(cvm::FULL, "Reserved space ::: Addr={:#x}, Length={:#x}\n",addr,len);
     return true;

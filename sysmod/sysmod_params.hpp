@@ -5,6 +5,7 @@ namespace{
         uint32_t cycle;
         uint64_t address;
         uint8_t txnid;
+        uint8_t hart;
     } cbo_inval_req_t;
 
     typedef struct inval_load_s{
@@ -21,7 +22,6 @@ namespace{
 
     typedef struct inval_map_clean_s{
         uint64_t key;
-        uint8_t txnid;
+        uint16_t txn_key;
     } inval_map_clean_t;
 }
-

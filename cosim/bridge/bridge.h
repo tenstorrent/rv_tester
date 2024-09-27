@@ -18,6 +18,7 @@
 #include "whisper_client.h"
 #include "rv_tester/rv_tester_structs.h"
 #include "cvm/registry.hpp"
+#include <fmt/format.h>
 
 enum patch_mode {
     NO_PATCH = 0,  //--> Not in PATCH mode
@@ -40,7 +41,7 @@ public:
   // Usec by some functions in bridge.cpp
   using size_8_bytes_t = uint64_t;
 
-  struct error {};
+  struct error_loc {};
 
   bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsigned id);
   ~bridge();
@@ -90,13 +91,7 @@ public:
   void final_phase();
   void report_metrics();
   void process(const rv_tester::terminate_called &);
-  void set_patch_mode(bool patch) {
-    if (patch) {
-      patch_mode_ = ENTER_PATCH;
-    } else {
-      patch_mode_ = EXIT_PATCH;
-    }
-  }
+  void set_patch_mode(int patch) { patch_mode_ = static_cast<patch_mode> (patch); }
 
 private:
 
@@ -144,8 +139,9 @@ private:
   void pre_step_debug_poke(      hart_id_t hart, const rv_instr_t& d);
   void pre_step_nmi_poke(  hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
   void pre_step_interrupt_poke(  hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
-  void post_step_interrupt_poke( hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
-  void post_step_exception_poke( hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
+  void post_step_nmi_check( hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
+  void post_step_interrupt_check( hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
+  void post_step_exception_check( hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
   void post_step_satp_write_poke(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
 
   void process_imsic_msi(hart_id_t hart, const mem_t& m);
@@ -157,6 +153,7 @@ private:
   void resetsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr);
   void setsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr);
   void poke_nmi(hart_id_t hart, uint64_t time, uint64_t cause);
+  void clear_nmi(hart_id_t hart, uint64_t time);
   void poke_mip(hart_id_t hart, uint64_t time, uint64_t mip);
   void peek_mip(hart_id_t hart, uint64_t time, uint64_t& mip);
   void peek_seip(hart_id_t hart, uint64_t time, uint64_t& val);
@@ -171,6 +168,8 @@ private:
   bool is_compressed(const std::string& instr);
   bool is_ucode(const std::string& instr);
   bool is_renamed_csr(const std::string& instr);
+  bool does_excp_match_error_list(const std::string& instr);
+  bool does_instr_match_error_list(const std::string& instr);
   bool does_instr_match_resynch_list(const rv_instr_t& d, const std::string& instr);
   bool does_instr_match_resynch_condition(const rv_instr_t& d, const std::string& instr);
   bool clint_read(const rv_instr_t& d);
@@ -245,6 +244,7 @@ private:
   uint64_t intrtopriv_ = 3;
   std::vector<mem_t> msi_{};
   rv_nmi_t nmi_ {};
+  rv_nmi_t prev_nmi_ {};
   bool nmi_poke_pending_ = false;
   uint64_t mip_ = 0;
   uint64_t prev_mip_ = 0;
@@ -263,6 +263,7 @@ private:
   std::array<uint32_t, max_intr> intr_age_{};
   uint32_t max_pend_intr_age_ = 0;
   uint32_t nmi_age_ = 0;
+  uint32_t nmi_taken_count_ = 0;
   std::chrono::high_resolution_clock::time_point end_time_;
   std::chrono::high_resolution_clock::time_point start_of_test_;
   bool first_call_ = true;
@@ -287,8 +288,14 @@ private:
       void print(cvm::verbosity_level v, Args&&... args) {
           cvm::log(v, std::forward<Args>(args)...);
           if (v <= cvm::verbosity_level::ERROR) {
-              cvm::registry::messenger.signal<error>(loc_, {});
+              cvm::registry::messenger.signal<error_loc>(loc_, {});
           }
       }
-
+  template <typename... Args>
+      void error(Args&&... args) {
+          std::string prefix = "Error: ";
+          if (patch_mode_) { prefix += "PATCH ";}
+          std::string out = prefix + fmt::format(std::forward<Args>(args)...) + "\n"; // for those who forget newline
+          print(cvm::ERROR, out);
+      }
 };

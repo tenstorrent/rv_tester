@@ -132,6 +132,7 @@ import rv_tester_params::*;
     input bit poke_event_in,
     output bit poke_event_out,
     output rv_tester_pkg::terminate_t terminate,
+    input logic disable_checks,
     `RV_TESTER_TRANSACTIONS_COSIM_OUTPUT_PORTS
 );
 
@@ -479,7 +480,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
         assign mtrap_valids[n] = m_traps[n].valid;  
         assign mflags[n]       = rvfi[n].flags_valid; 
         assign rvfi_excps[n]   = ~rvfi[n].cause[63] & (rvfi[n].cause != '0); 
-        assign vec_crack[n]   = rvfi[n].valid & rvfi[n].vec_cracked; 
+        assign vec_crack[n]   = rvfi[n].valid & rvfi[n].vec & !rvfi[n].last_uop;
 
         assign gp_waddr5[n]    = rvgp_valids[n] & rd_addr[n][5];                  // Writing to a GP register above 31...poke
         assign fp_waddr5[n]    = rvfp_valids[n] & frd_addr[n][5];                 // Writing to a FP register above 31...poke
@@ -662,6 +663,10 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
     assign m_resets[0].data.location    = location;
     assign m_resets[0].data.cycle       = clocks;
 
+    assign m_disable_checkss[0].valid            = RVFI_EN & rvfi_enabled & disable_checks;
+    assign m_disable_checkss[0].data.location    = location;
+    assign m_disable_checkss[0].data.cycle       = clocks;
+
     //-----------------------------------------------------------------------------------------------------------
     // PERIODIC STATE COMPARE feature enabled when cosim_period value > 0
     //-----------------------------------------------------------------------------------------------------------
@@ -687,7 +692,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
         assign m_rvfis[n].data.cause       = rvfi[n].cause;
         assign m_rvfis[n].data.intr        = rvfi[n].intr;
         assign m_rvfis[n].data.mode        = rvfi[n].mode;
-        assign m_rvfis[n].data.vec_cracked = rvfi[n].vec_cracked;
+        assign m_rvfis[n].data.vec         = rvfi[n].vec;
         assign m_rvfis[n].data.flags_valid = rvfi[n].flags_valid;
         assign m_rvfis[n].data.flags       = rvfi[n].flags;
         assign m_rvfis[n].data.ixl         = rvfi[n].ixl;
@@ -1003,6 +1008,8 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
         assign m_mcmi_bypasss[n].data.addr = mcmi_bypass[n].addr;
         assign m_mcmi_bypasss[n].data.mask = mcmi_bypass[n].mask;
         assign m_mcmi_bypasss[n].data.data = mcmi_bypass[n].data[63:0];
+        assign m_mcmi_bypasss[n].data.data_vec = mcmi_bypass[n].data[255:0];
+        assign m_mcmi_bypasss[n].data.v_ext = mcmi_bypass[n].v_ext;
         assign m_mcmi_bypasss[n].data.amo = mcmi_bypass[n].amo;
         assign m_mcmi_bypasss[n].data.amo_op = mcmi_bypass[n].amo_op;
         //-------------------------------------------------------------------------------------------
@@ -1051,11 +1058,21 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
         assign m_traps[n].valid = RVFI_EN & rvfi_enabled & ~dut_reset & (rvfi[n].cause != 0);
         assign m_traps[n].data.location = location;
         assign m_traps[n].data.cycle = clocks;
+        assign m_traps[n].data.id = get_trap_id(rvfi[n].cause);
         assign m_traps[n].data.cause = rvfi[n].cause;
         assign rvfi_set_patch[n] =  RVFI_EN & rvfi_enabled & ~dut_reset & (rvfi[n].cause != 0) & (rvfi[n].cause >= 58) & ~rvfi[n].cause[63];
     end
    
     
+
+    function automatic rv_tester_pkg::trap_e get_trap_id(logic [XLEN-1:0] cause);
+      if (cause[63:62] == 'h3)
+        return rv_tester_pkg::NMI;
+      else if (cause[63:62] == 'h2)
+        return rv_tester_pkg::INTR;
+      else
+        return rv_tester_pkg::EXCP;
+    endfunction
 
     // When using periodic whisper updates... check for eot if max instruction method is used
     assign eot_max_instr = ((cosim_period > 0) & (max_instructions > 0) &  ((instruction_cnt+64'(valid_cnt)) >= (max_instructions))) ? 1'b1: 1'b0;
@@ -1226,15 +1243,15 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
           boot_wfi <= '1;
         end
         if (max_stall_cycle > 0 && cycles_since_retire > max_stall_cycle && !boot_wfi && NUM < nharts) begin
-          $display("Error: Hart %0d: No instruction retired for max_stall_cycle (%0d) cycles", NUM, max_stall_cycle);
+          $display("\nError: Hart %0d: No instruction retired for max_stall_cycle (%0d) cycles", NUM, max_stall_cycle);
           cosim_terminate();
         end
         if (max_cycle > 0 && clocks > max_cycle && NUM < nharts) begin
-          $display("Error: Hart %0d:  Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", NUM, max_cycle);
+          $display("\nError: Hart %0d:  Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", NUM, max_cycle);
           cosim_terminate();
         end
         if (rvfi[0].valid == '1 && NUM > nharts) begin
-          $display("Error: Core %0d: Instruction retire seen on disabled/harvested core", NUM);
+          $display("\nError: Core %0d: Instruction retire seen on disabled/harvested core", NUM);
           cosim_terminate();
         end
       end

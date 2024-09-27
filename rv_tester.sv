@@ -100,7 +100,6 @@ module rv_tester
     logic sys_reset [NCLKS-1:0];
     /* verilator lint_on MULTIDRIVEN */
     logic sys_reset_any;
-    logic dut_reset_req_in_progress = '0;
     logic dut_reset_req_d1;
     logic init_pulse;
     logic warm_reset_pulse;
@@ -111,6 +110,7 @@ module rv_tester
     logic cold_reset;
     logic warm_reset;
     LU clocks = 0;
+    LU axi_clocks;
     bit cb_poll = '0;
     bit dyn_clk_switch = '0;
     bit cb_success = '1;
@@ -135,6 +135,8 @@ module rv_tester
     logic jtag_quiesced;
 
 
+    logic terminate_1T = '0;
+    logic terminated_1T = '0;
     logic terminate_now;
     logic rerun_now;
     /* verilator lint_off UNOPTFLAT */
@@ -154,6 +156,7 @@ module rv_tester
 
     int hart_enable_mask = 0;
     int rand_dmi_driver_dly = 0;
+    int dm_single_step_count = 0;
     int dmi_poll_counter = 0; 
     int dmi_poll_timeout = 50000;
     logic dmi_poll_timeout_terminate;
@@ -179,9 +182,9 @@ module rv_tester
 
 
     assign terminate           = (dut_terminate_any || rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sys_reset_any) || quiesce_counter > 0) && !rv_tester_reset;
-    assign terminate_now       = (terminate && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue == '0) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced )) || dut_terminate_any || warm_reset_now; 
+    assign terminate_now       = (terminate_1T && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue <= 'h1) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced )) || dut_terminate_any || warm_reset_now; 
     
-    assign rerun_now           = terminated && ((num_reruns > 0) || (warm_reset_en && (num_resets <= target_num_resets)));
+    assign rerun_now           = terminated && !terminated_1T && ((num_reruns > 0) || (warm_reset_en && (num_resets <= target_num_resets)) || dut_reset_req);
 
   `ifndef CLK_MUX_UNSUPPORTED 
     always @(posedge dut_clk[TB_CLK_IDX])begin
@@ -288,7 +291,8 @@ module rv_tester
 
             perf                 <= cvm_plusargs::get_bool("perf") != '0;
             flag_force_ref_clk   <= cvm_plusargs::get_bool("force_ref_clk") != '0;
-            rand_dmi_driver_dly  <= cvm_plusargs::get_int("rand_dmi_driver_dly"); 
+            rand_dmi_driver_dly  <= cvm_plusargs::get_int("rand_dmi_driver_dly");
+            dm_single_step_count <= cvm_plusargs::get_int("dm_single_step_count");
             cb_poll              <= cvm_plusargs::get_bool("cb_async") == '0;
             quiesce_timeout      <= cvm_plusargs::get_int("quiesce_timeout");
             dmi_poll_timeout     <= cvm_plusargs::get_int("dmi_poll_timeout");
@@ -353,7 +357,7 @@ module rv_tester
                 end else if (quiesce_counter == 0) begin
                     $display("<%0d> [RVTESTER]: exiting immediately because +quiesce_counter=0", clocks);
                 end else begin
-                    $display("<%0d> [RVTESTER]: Error: Waiting to quiesce for more than %0d cycles", clocks, quiesce_timeout);
+                    $display("\n<%0d> [RVTESTER]: Error: Waiting to quiesce for more than %0d cycles", clocks, quiesce_timeout);
                 end
 
             end
@@ -366,10 +370,11 @@ module rv_tester
                 end
             end
 
-            if (shutdowned && num_reruns == '0 && warm_reset_req == '0) begin
+            if (shutdowned && num_reruns == '0 && !warm_reset_req && !dut_reset_req) begin
+                $display("INFO_PASS_METRIC:{\"axi_clocks\": %0d}", axi_clocks);
+                $display("INFO_PASS_METRIC:{\"clocks\": %0d}", clocks);
                 $display("INFO_PASS_METRIC:{\"instruction_count\": %0d}", instructions);
                 $display("INFO_PASS_REGR_METRIC:{\"name\": \"instructions\", \"value\":%0d, \"type\": \"i\", \"action\": \"sum\"}", instructions);
-                $display("INFO_PASS:{\"clocks\": %0d}", clocks);
 
                 if (call_finish) begin
                     $finish();
@@ -378,7 +383,9 @@ module rv_tester
             print_terminate_message <= '0;
         end
 
-        terminated <= !rv_tester_reset && (terminated || (terminate_now && shutdowned)) && !rerun_now;
+        terminate_1T <= terminate;
+        terminated <= !rv_tester_reset && (terminated || (terminate_now && shutdowned));
+        terminated_1T <= terminated;
 
         if (warm_reset_now) begin
             /* verilator lint_off BLKSEQ */
@@ -409,6 +416,15 @@ module rv_tester
         end
     end
 
+    // Clock counts
+    always_ff @(posedge dut_clk[AXI_CLK_IDX]) begin
+        if (dut_reset[AXI_CLK_IDX]) begin
+            axi_clocks <= 0;
+        end else begin
+            axi_clocks <= axi_clocks + 1;
+        end
+    end
+
     always_comb begin
         sys_reset_any = '0;
         for (int c = 0; c < NCLKS; c++) begin
@@ -427,16 +443,6 @@ module rv_tester
         force_ref_clk_d2 <= force_ref_clk_d1;
     end
 
-    // posedge on dut_reset_req should trigger a warm reset
-    always @(posedge dut_clk[AXI_CLK_IDX]) begin
-        dut_reset_req_d1 <= dut_reset_req;
-        if (dut_reset_req & reset_window & ~dut_reset_req_d1)
-            dut_reset_req_in_progress <= '1;
-        if (~reset_window)
-            dut_reset_req_in_progress <= '0;
-    end
-    assign dut_reset_req_active = dut_reset_req_in_progress;
-
     // We also assert reset at the end of the test to quiesce the DPIs.
     logic reset_pullup;
     logic cold_reset_pullup = 0;
@@ -454,15 +460,23 @@ module rv_tester
 
     always@(posedge dut_clk[TB_CLK_IDX]) begin
         if (reset_pullup)
-            if (!warm_reset_req)
+            if (!warm_reset_req && !dut_reset_req)
                 cold_reset_pullup <= '1;
             else
                 warm_reset_pullup <= '1;
-        if (cold_reset)
+        if (cold_reset) begin
             cold_reset_pullup <= '0;
+            warm_reset_pullup <= '0;
+        end
         if (warm_reset)
             warm_reset_pullup <= '0;
     end
+
+    // posedge on dut_reset_req should trigger a warm reset
+    always @(posedge dut_clk[AXI_CLK_IDX]) begin
+        dut_reset_req_d1 <= dut_reset_req;
+    end
+    assign dut_reset_req_active = dut_reset_req && warm_reset_pullup;
 
 `ifdef NEGEDGE_UNSUPPORTED
     always@(posedge dut_clk[TB_CLK_IDX]) begin
@@ -511,7 +525,6 @@ module rv_tester
         .jtag_req,
         .jtag_tck_trst,
         .jtag_resp,
-        .aplic_interrupt,
         .terminate(sysmod_terminate),
         `RV_TESTER_TRANSACTIONS_SYSMOD_SOURCE_PORTS(2, 0, 0)
     );
@@ -522,9 +535,10 @@ module rv_tester
     
     dmi_driver i_dmi_driver(
         .clk(dut_clk[AXI_CLK_IDX]),
-        .reset(~dut_reset[AXI_CLK_IDX]),
+        .reset_n(~reset[WARM_RESET_IDX] || reset_hold[DEBUG_HOLD_IDX]),
         .rand_dmi_driver_dly,
         .hart_enable_mask,
+        .dm_single_step_count,
 
         .dmi_req_ready,
         .dmi_resp_valid,
@@ -571,7 +585,7 @@ module rv_tester
             dmi_poll_counter <= dmi_poll_counter + 1;
 
             if (dmi_poll_counter > dmi_poll_timeout) begin
-                $display("<%0d> [RVTESTER]: Error: Debug poll timeout limit reached.", clocks);
+                $display("\n<%0d> [RVTESTER]: Error: Debug poll timeout limit reached.", clocks);
                 dmi_poll_timeout_terminate <= 1;
             end
             else if ((dmi_poll_counter >= 'h1) && terminate) begin
@@ -628,6 +642,7 @@ module rv_tester
           .addr_map(addr_map),
           .poke_event_out(poke_event_out[c]),
           .poke_event_in(poke_event_in),
+          .disable_checks(disable_checks),
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PORTS(1, c, 0)
       );
     end
@@ -663,6 +678,7 @@ module rv_tester
                 .warm_reset_req(warm_reset_req),
                 .reset_hold(reset_hold),
                 .force_ref_clk(pwrmgmt_force_ref_clk),
+                .core_no_fetch(|core_no_fetch),
                 `RV_TESTER_TRANSACTIONS_PWRMGMT_SOURCE_PORTS(3,0,0)
             );
             assign reset_window = pwrmgmt_force_ref_clk || init_pulse || warm_reset_pulse;
@@ -717,23 +733,6 @@ module rv_tester
         );
     end
 
-    aplic_monitor #(
-        .NUM(0),
-        `TOPOLOGY_CFG,
-        `RV_TESTER_TRANSACTIONS_APLIC_MONITOR_SOURCE_PARAMS(0)
-    ) i_aplic_monitor(
-        .clk(dut_clk[AXI_CLK_IDX]),
-        .reset(sys_reset[TB_CLK_IDX]),
-        .terminate,
-        .aplic_pin_input(aplic_interrupt),
-        .msi_axi_req('0),
-        .axi_req_mst(aplic_mmr_axi_req_mst[0]),
-        .axi_resp_mst(aplic_mmr_axi_rsp_mst[0]),
-        //.axi_resp_mst('0),
-        .misc_signals('0),
-        `RV_TESTER_TRANSACTIONS_APLIC_MONITOR_SOURCE_PORTS(1,0,0)
-    );
-
     aclint_checker #(
         .NUM(0),
         `TOPOLOGY_CFG,
@@ -787,6 +786,7 @@ module rv_tester
 
     localparam NoOfMasters = ( topology.TOP.PLATFORM.AXI.TOTAL < 2 ) ? 2 : topology.TOP.PLATFORM.AXI.TOTAL ;
     for (genvar p = 0; p < NoOfMasters; p++) begin : axi_sw_slvs
+        localparam string tag = $sformatf("coh_slv%0d", p);
         axi_sw #(
             .ADDR_WIDTH(topology.TOP.PLATFORM.AXI.ADDR_WIDTH),
             .DATA_WIDTH(topology.TOP.PLATFORM.AXI.DATA_WIDTH),
@@ -794,6 +794,7 @@ module rv_tester
             .STRB_WIDTH(topology.TOP.PLATFORM.AXI.STRB_WIDTH),
             .R_Q_MAX(topology.TOP.PLATFORM.AXI.R_Q_MAX),
             .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.AXI.ID, p)),
+            .tag(tag),
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(0)
         ) axi_sw(
             .clk(dut_clk[AXI_CLK_IDX]),
@@ -857,6 +858,7 @@ module rv_tester
 
    localparam NoOfNcioMasters =  topology.TOP.PLATFORM.NCIO_AXI.TOTAL  ;
     for (genvar p = 0; p < NoOfNcioMasters; p++) begin : ncio_axi_sw_slvs
+        localparam string tag = $sformatf("non_coh_slv%0d", p);
         axi_sw #(
             .ADDR_WIDTH(topology.TOP.PLATFORM.NCIO_AXI.ADDR_WIDTH),
             .DATA_WIDTH(topology.TOP.PLATFORM.NCIO_AXI.DATA_WIDTH),
@@ -864,6 +866,7 @@ module rv_tester
             .STRB_WIDTH(topology.TOP.PLATFORM.NCIO_AXI.STRB_WIDTH),
             .R_Q_MAX(topology.TOP.PLATFORM.AXI.R_Q_MAX),
             .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.NCIO_AXI.ID, p)),
+            .tag(tag),
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(1)
         ) ncio_axi_sw(
             .clk(dut_clk[AXI_CLK_IDX]),
@@ -911,66 +914,8 @@ module rv_tester
         );
     end
 
-
-   localparam NoOfAplicMomMsiMasters =  topology.TOP.PLATFORM.APLIC_MSI_AXI.TOTAL  ;
-    for (genvar p = 0; p < NoOfAplicMomMsiMasters; p++) begin : aplic_msi_axi_sw_slvs
-        axi_sw #(
-            .ADDR_WIDTH(topology.TOP.PLATFORM.APLIC_MSI_AXI.ADDR_WIDTH),
-            .DATA_WIDTH(topology.TOP.PLATFORM.APLIC_MSI_AXI.DATA_WIDTH),
-            .ID_WIDTH(topology.TOP.PLATFORM.APLIC_MSI_AXI.ID_WIDTH),
-            .STRB_WIDTH(topology.TOP.PLATFORM.APLIC_MSI_AXI.STRB_WIDTH),
-            .R_Q_MAX(topology.TOP.PLATFORM.AXI.R_Q_MAX),
-            .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.APLIC_MSI_AXI.ID, p)),
-            `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(2)
-        ) aplic_msi_axi_sw(
-            .clk(dut_clk[AXI_CLK_IDX]),
-            .sys_reset(sys_reset[AXI_CLK_IDX]),
-            .reset_n(~dut_reset[AXI_CLK_IDX]),
-            .axi_mst_ar_valid(aplic_msi_axi_req[p].ar_valid),
-            .axi_mst_ar_id   (aplic_msi_axi_req[p].ar.id),
-            .axi_mst_ar_addr (aplic_msi_axi_req[p].ar.addr),
-            .axi_mst_ar_len  (aplic_msi_axi_req[p].ar.len),
-            .axi_mst_ar_size (aplic_msi_axi_req[p].ar.size),
-            .axi_mst_ar_lock (aplic_msi_axi_req[p].ar.lock),
-            .axi_mst_ar_burst(aplic_msi_axi_req[p].ar.burst),
-
-            .axi_mst_aw_valid(aplic_msi_axi_req[p].aw_valid),
-            .axi_mst_aw_id   (aplic_msi_axi_req[p].aw.id),
-            .axi_mst_aw_addr (aplic_msi_axi_req[p].aw.addr),
-            .axi_mst_aw_len  (aplic_msi_axi_req[p].aw.len),
-            .axi_mst_aw_size (aplic_msi_axi_req[p].aw.size),
-            .axi_mst_aw_burst(aplic_msi_axi_req[p].aw.burst),
-            .axi_mst_aw_lock (aplic_msi_axi_req[p].aw.lock),
-            .axi_mst_aw_atop (aplic_msi_axi_req[p].aw.atop),
-
-            .axi_mst_w_valid(aplic_msi_axi_req[p].w_valid),
-            .axi_mst_w_data (aplic_msi_axi_req[p].w.data),
-            .axi_mst_w_strb (aplic_msi_axi_req[p].w.strb),
-            .axi_mst_w_last (aplic_msi_axi_req[p].w.last),
-
-            .axi_mst_b_ready(aplic_msi_axi_req[p].b_ready),
-            .axi_mst_r_ready(aplic_msi_axi_req[p].r_ready),
-
-            .axi_slv_b_valid(aplic_msi_axi_rsp[p].b_valid),
-            .axi_slv_b_id   (aplic_msi_axi_rsp[p].b.id),
-            .axi_slv_b_resp (aplic_msi_axi_rsp[p].b.resp),
-
-            .axi_slv_r_valid(aplic_msi_axi_rsp[p].r_valid),
-            .axi_slv_r_id   (aplic_msi_axi_rsp[p].r.id),
-            .axi_slv_r_data (aplic_msi_axi_rsp[p].r.data),
-            .axi_slv_r_resp (aplic_msi_axi_rsp[p].r.resp),
-            .axi_slv_r_last (aplic_msi_axi_rsp[p].r.last),
-
-            .axi_slv_aw_ready(aplic_msi_axi_rsp[p].aw_ready),
-            .axi_slv_ar_ready(aplic_msi_axi_rsp[p].ar_ready),
-            .axi_slv_w_ready (aplic_msi_axi_rsp[p].w_ready),
-            `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PORTS(2, p, 2)
-        );
-    end
-
-
-
     for (genvar p = 0; p < topology.TOP.PLATFORM.AXI_MST.TOTAL; p++) begin : axi_sw_msts
+        localparam string tag = $sformatf("non_coh_mst%0d", p);
         axi_sw_mst #(
             .ADDR_WIDTH(topology.TOP.PLATFORM.AXI_MST.ADDR_WIDTH),
             .DATA_WIDTH(topology.TOP.PLATFORM.AXI_MST.DATA_WIDTH),
@@ -980,6 +925,7 @@ module rv_tester
             .AW_Q_MAX(topology.TOP.PLATFORM.AXI_MST.AW_Q_MAX),
             .W_Q_MAX(topology.TOP.PLATFORM.AXI_MST.W_Q_MAX),
             .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.AXI_MST.ID, p)),
+            .tag(tag),
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(0)
         ) axi_sw_mst (
             .clk(dut_clk[AXI_CLK_IDX]),
@@ -1037,66 +983,8 @@ module rv_tester
         );
     end
 
-
-    for (genvar p = 0; p < topology.TOP.PLATFORM.APLIC_MMR_AXI_MST.TOTAL; p++) begin : aplic_mmr_axi_sw_msts
-        axi_sw_mst #(
-            .ADDR_WIDTH(topology.TOP.PLATFORM.APLIC_MMR_AXI_MST.ADDR_WIDTH),
-            .DATA_WIDTH(topology.TOP.PLATFORM.APLIC_MMR_AXI_MST.DATA_WIDTH),
-            .ID_WIDTH(topology.TOP.PLATFORM.APLIC_MMR_AXI_MST.ID_WIDTH  ),
-            .STRB_WIDTH(topology.TOP.PLATFORM.APLIC_MMR_AXI_MST.STRB_WIDTH),
-            .AR_Q_MAX(topology.TOP.PLATFORM.APLIC_MMR_AXI_MST.AR_Q_MAX),
-            .AW_Q_MAX(topology.TOP.PLATFORM.APLIC_MMR_AXI_MST.AW_Q_MAX),
-            .W_Q_MAX(topology.TOP.PLATFORM.APLIC_MMR_AXI_MST.W_Q_MAX),
-            .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.APLIC_MMR_AXI_MST.ID, p)),
-            `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(1)
-        ) aplic_mmr_sw_mst (
-            .clk(dut_clk[AXI_CLK_IDX]),
-            .sys_reset(sys_reset[AXI_CLK_IDX]),
-            .reset_n(~dut_reset[AXI_CLK_IDX]),
-            .axi_mst_ar_valid(aplic_mmr_axi_req_mst[p].ar_valid),
-            .axi_mst_ar_id   (aplic_mmr_axi_req_mst[p].ar.id),
-            .axi_mst_ar_addr (aplic_mmr_axi_req_mst[p].ar.addr),
-            .axi_mst_ar_len  (aplic_mmr_axi_req_mst[p].ar.len),
-            .axi_mst_ar_size (aplic_mmr_axi_req_mst[p].ar.size),
-            .axi_mst_ar_lock (aplic_mmr_axi_req_mst[p].ar.lock),
-            .axi_mst_ar_burst(aplic_mmr_axi_req_mst[p].ar.burst),
-
-            .axi_mst_aw_valid(aplic_mmr_axi_req_mst[p].aw_valid),
-            .axi_mst_aw_id   (aplic_mmr_axi_req_mst[p].aw.id),
-            .axi_mst_aw_addr (aplic_mmr_axi_req_mst[p].aw.addr),
-            .axi_mst_aw_len  (aplic_mmr_axi_req_mst[p].aw.len),
-            .axi_mst_aw_size (aplic_mmr_axi_req_mst[p].aw.size),
-            .axi_mst_aw_burst(aplic_mmr_axi_req_mst[p].aw.burst),
-            .axi_mst_aw_lock (aplic_mmr_axi_req_mst[p].aw.lock),
-            .axi_mst_aw_atop (aplic_mmr_axi_req_mst[p].aw.atop),
-
-            .axi_mst_w_valid(aplic_mmr_axi_req_mst[p].w_valid),
-            .axi_mst_w_data (aplic_mmr_axi_req_mst[p].w.data),
-            .axi_mst_w_strb (aplic_mmr_axi_req_mst[p].w.strb),
-            .axi_mst_w_last (aplic_mmr_axi_req_mst[p].w.last),
-
-            .axi_mst_b_ready(aplic_mmr_axi_req_mst[p].b_ready),
-            .axi_mst_r_ready(aplic_mmr_axi_req_mst[p].r_ready),
-
-            .axi_slv_b_valid(aplic_mmr_axi_rsp_mst[p].b_valid),
-            .axi_slv_b_id   (aplic_mmr_axi_rsp_mst[p].b.id),
-            .axi_slv_b_resp (aplic_mmr_axi_rsp_mst[p].b.resp),
-
-            .axi_slv_r_valid(aplic_mmr_axi_rsp_mst[p].r_valid),
-            .axi_slv_r_id   (aplic_mmr_axi_rsp_mst[p].r.id),
-            .axi_slv_r_data (aplic_mmr_axi_rsp_mst[p].r.data),
-            .axi_slv_r_resp (aplic_mmr_axi_rsp_mst[p].r.resp),
-            .axi_slv_r_last (aplic_mmr_axi_rsp_mst[p].r.last),
-
-            .axi_slv_aw_ready(aplic_mmr_axi_rsp_mst[p].aw_ready),
-            .axi_slv_ar_ready(aplic_mmr_axi_rsp_mst[p].ar_ready),
-            .axi_slv_w_ready (aplic_mmr_axi_rsp_mst[p].w_ready),
-            `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PORTS(2, p, 1)
-        );
-    end
-//SMC Connections
-
     for (genvar p = 0; p < topology.TOP.PLATFORM.SMC_AXI_MST.TOTAL; p++) begin : smc_axi_sw_msts
+        localparam string tag = $sformatf("smc_mst%0d", p);
         axi_sw_mst #(
             .ADDR_WIDTH(topology.TOP.PLATFORM.SMC_AXI_MST.ADDR_WIDTH),
             .DATA_WIDTH(topology.TOP.PLATFORM.SMC_AXI_MST.DATA_WIDTH),
@@ -1106,7 +994,8 @@ module rv_tester
             .AW_Q_MAX(topology.TOP.PLATFORM.SMC_AXI_MST.AW_Q_MAX),
             .W_Q_MAX(topology.TOP.PLATFORM.SMC_AXI_MST.W_Q_MAX),
             .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.SMC_AXI_MST.ID, p)),
-            `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(2)
+            .tag(tag),
+            `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(1)
         ) smc_sw_mst (
             .clk(dut_clk[SOC_CLK_IDX]),
             .sys_reset(sys_reset[SOC_CLK_IDX]),
@@ -1149,127 +1038,7 @@ module rv_tester
             .axi_slv_aw_ready(smc_axi_rsp_mst[p].aw_ready),
             .axi_slv_ar_ready(smc_axi_rsp_mst[p].ar_ready),
             .axi_slv_w_ready (smc_axi_rsp_mst[p].w_ready),
-            `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PORTS(3, p, 2)
-        );
-    end
-
-    //PLL 
-    // Connections
-
-    for (genvar p = 0; p < topology.TOP.PLATFORM.PLL_AXI_MST.TOTAL; p++) begin : pll_axi_sw_msts
-        axi_sw_mst #(
-            .ADDR_WIDTH(topology.TOP.PLATFORM.PLL_AXI_MST.ADDR_WIDTH),
-            .DATA_WIDTH(topology.TOP.PLATFORM.PLL_AXI_MST.DATA_WIDTH),
-            .ID_WIDTH(topology.TOP.PLATFORM.PLL_AXI_MST.ID_WIDTH  ),
-            .STRB_WIDTH(topology.TOP.PLATFORM.PLL_AXI_MST.STRB_WIDTH),
-            .AR_Q_MAX(topology.TOP.PLATFORM.PLL_AXI_MST.AR_Q_MAX),
-            .AW_Q_MAX(topology.TOP.PLATFORM.PLL_AXI_MST.AW_Q_MAX),
-            .W_Q_MAX(topology.TOP.PLATFORM.PLL_AXI_MST.W_Q_MAX),
-            .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.PLL_AXI_MST.ID, p)),
-            `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(3)
-        ) pll_sw_mst (
-            .clk(dut_clk[SOC_CLK_IDX]),
-            .sys_reset(sys_reset[SOC_CLK_IDX]),
-            .reset_n(~dut_reset[SOC_CLK_IDX]),
-            .axi_mst_ar_valid(pll_axi_req_mst[p].ar_valid),
-            .axi_mst_ar_id   (pll_axi_req_mst[p].ar.id),
-            .axi_mst_ar_addr (pll_axi_req_mst[p].ar.addr),
-            .axi_mst_ar_len  (pll_axi_req_mst[p].ar.len),
-            .axi_mst_ar_size (pll_axi_req_mst[p].ar.size),
-            .axi_mst_ar_lock (pll_axi_req_mst[p].ar.lock),
-            .axi_mst_ar_burst(pll_axi_req_mst[p].ar.burst),
-
-            .axi_mst_aw_valid(pll_axi_req_mst[p].aw_valid),
-            .axi_mst_aw_id   (pll_axi_req_mst[p].aw.id),
-            .axi_mst_aw_addr (pll_axi_req_mst[p].aw.addr),
-            .axi_mst_aw_len  (pll_axi_req_mst[p].aw.len),
-            .axi_mst_aw_size (pll_axi_req_mst[p].aw.size),
-            .axi_mst_aw_burst(pll_axi_req_mst[p].aw.burst),
-            .axi_mst_aw_lock (pll_axi_req_mst[p].aw.lock),
-            .axi_mst_aw_atop (pll_axi_req_mst[p].aw.atop),
-
-            .axi_mst_w_valid(pll_axi_req_mst[p].w_valid),
-            .axi_mst_w_data (pll_axi_req_mst[p].w.data),
-            .axi_mst_w_strb (pll_axi_req_mst[p].w.strb),
-            .axi_mst_w_last (pll_axi_req_mst[p].w.last),
-
-            .axi_mst_b_ready(pll_axi_req_mst[p].b_ready),
-            .axi_mst_r_ready(pll_axi_req_mst[p].r_ready),
-
-            .axi_slv_b_valid(pll_axi_rsp_mst[p].b_valid),
-            .axi_slv_b_id   (pll_axi_rsp_mst[p].b.id),
-            .axi_slv_b_resp (pll_axi_rsp_mst[p].b.resp),
-
-            .axi_slv_r_valid(pll_axi_rsp_mst[p].r_valid),
-            .axi_slv_r_id   (pll_axi_rsp_mst[p].r.id),
-            .axi_slv_r_data (pll_axi_rsp_mst[p].r.data),
-            .axi_slv_r_resp (pll_axi_rsp_mst[p].r.resp),
-            .axi_slv_r_last (pll_axi_rsp_mst[p].r.last),
-
-            .axi_slv_aw_ready(pll_axi_rsp_mst[p].aw_ready),
-            .axi_slv_ar_ready(pll_axi_rsp_mst[p].ar_ready),
-            .axi_slv_w_ready (pll_axi_rsp_mst[p].w_ready),
-            `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PORTS(3, p, 3)
-        );
-    end
-
-
-    //PM_NW Connections
-
-    for (genvar p = 0; p < topology.TOP.PLATFORM.PM_NW_AXI_MST.TOTAL; p++) begin : pm_nw_axi_sw_msts
-        axi_sw_mst #(
-            .ADDR_WIDTH(topology.TOP.PLATFORM.PM_NW_AXI_MST.ADDR_WIDTH),
-            .DATA_WIDTH(topology.TOP.PLATFORM.PM_NW_AXI_MST.DATA_WIDTH),
-            .ID_WIDTH(topology.TOP.PLATFORM.PM_NW_AXI_MST.ID_WIDTH  ),
-            .STRB_WIDTH(topology.TOP.PLATFORM.PM_NW_AXI_MST.STRB_WIDTH),
-            .AR_Q_MAX(topology.TOP.PLATFORM.PM_NW_AXI_MST.AR_Q_MAX),
-            .AW_Q_MAX(topology.TOP.PLATFORM.PM_NW_AXI_MST.AW_Q_MAX),
-            .W_Q_MAX(topology.TOP.PLATFORM.PM_NW_AXI_MST.W_Q_MAX),
-            .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.PM_NW_AXI_MST.ID, p)),
-            `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(4)
-        ) pm_nw_sw_mst (
-            .clk(dut_clk[SOC_CLK_IDX]),
-            .sys_reset(sys_reset[SOC_CLK_IDX]),
-            .reset_n(~dut_reset[SOC_CLK_IDX]),
-            .axi_mst_ar_valid(pm_nw_axi_req_mst[p].ar_valid),
-            .axi_mst_ar_id   (pm_nw_axi_req_mst[p].ar.id),
-            .axi_mst_ar_addr (pm_nw_axi_req_mst[p].ar.addr),
-            .axi_mst_ar_len  (pm_nw_axi_req_mst[p].ar.len),
-            .axi_mst_ar_size (pm_nw_axi_req_mst[p].ar.size),
-            .axi_mst_ar_lock (pm_nw_axi_req_mst[p].ar.lock),
-            .axi_mst_ar_burst(pm_nw_axi_req_mst[p].ar.burst),
-
-            .axi_mst_aw_valid(pm_nw_axi_req_mst[p].aw_valid),
-            .axi_mst_aw_id   (pm_nw_axi_req_mst[p].aw.id),
-            .axi_mst_aw_addr (pm_nw_axi_req_mst[p].aw.addr),
-            .axi_mst_aw_len  (pm_nw_axi_req_mst[p].aw.len),
-            .axi_mst_aw_size (pm_nw_axi_req_mst[p].aw.size),
-            .axi_mst_aw_burst(pm_nw_axi_req_mst[p].aw.burst),
-            .axi_mst_aw_lock (pm_nw_axi_req_mst[p].aw.lock),
-            .axi_mst_aw_atop (pm_nw_axi_req_mst[p].aw.atop),
-
-            .axi_mst_w_valid(pm_nw_axi_req_mst[p].w_valid),
-            .axi_mst_w_data (pm_nw_axi_req_mst[p].w.data),
-            .axi_mst_w_strb (pm_nw_axi_req_mst[p].w.strb),
-            .axi_mst_w_last (pm_nw_axi_req_mst[p].w.last),
-
-            .axi_mst_b_ready(pm_nw_axi_req_mst[p].b_ready),
-            .axi_mst_r_ready(pm_nw_axi_req_mst[p].r_ready),
-
-            .axi_slv_b_valid(pm_nw_axi_rsp_mst[p].b_valid),
-            .axi_slv_b_id   (pm_nw_axi_rsp_mst[p].b.id),
-            .axi_slv_b_resp (pm_nw_axi_rsp_mst[p].b.resp),
-
-            .axi_slv_r_valid(pm_nw_axi_rsp_mst[p].r_valid),
-            .axi_slv_r_id   (pm_nw_axi_rsp_mst[p].r.id),
-            .axi_slv_r_data (pm_nw_axi_rsp_mst[p].r.data),
-            .axi_slv_r_resp (pm_nw_axi_rsp_mst[p].r.resp),
-            .axi_slv_r_last (pm_nw_axi_rsp_mst[p].r.last),
-
-            .axi_slv_aw_ready(pm_nw_axi_rsp_mst[p].aw_ready),
-            .axi_slv_ar_ready(pm_nw_axi_rsp_mst[p].ar_ready),
-            .axi_slv_w_ready (pm_nw_axi_rsp_mst[p].w_ready),
-            `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PORTS(3, p, 4)
+            `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PORTS(3, p, 1)
         );
     end
 
