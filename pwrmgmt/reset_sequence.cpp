@@ -3,6 +3,9 @@
 #include "pmu/pmu_plusargs.h"
 #include <sstream>
 #include <unordered_map>
+#include <iostream>
+#include <fstream>
+#include <vector>
 
 REGISTRY_register(reset_sequence, PWRMGMT, cvm::registry::all);
 
@@ -33,6 +36,10 @@ DEFINE_bool(patch_cfg_lock, true, "Lock the patch mmrs while boot programming ")
 DEFINE_bool(fuse_mmr_check, false, "Check RW and lockability of fuses ");
 DEFINE_bool(init_smc_infilters, false, "Enable filter programming for JTAG and Overlay to access SRAM ");
 DEFINE_bool(smc_axi_access, false, "Enable random AXI access from SMC ");
+DEFINE_string(patch_ucode_input_file_path, "", "Path to file containing patch ucode routine");
+DEFINE_string(patches, "WFI,SUB,BLT,AMOSWAP", "+patches=<instr1>,<instr2>,<instr3>,<instr4>; default will be picked if not specified ");
+DEFINE_string(disable_patches, "BLT,AMOSWAP", "+disable_patches=<instr1>,<instr2>,<instr3>,<instr4>; default will be picked if not specified ");
+DEFINE_bool(rand_patch, false, "Randomly pick 4 instructions available in the CSV to be pacthed");
 
 
 extern "C" {
@@ -498,6 +505,7 @@ uint64_t reset_sequence::fuse_val() {
 
 cvm::messenger::task<void> reset_sequence::program_patch() {
   co_await tick();
+  read_patch_csv();
   if (!FLAGS_patch_cpl_filter_dis) { 
     //CPL AXI in filter programming
     co_await write(cpl_in_filter0_addr_l ,SZ_8B , 0x4C000);
@@ -509,42 +517,64 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
     co_await write(cpl_out_filter0_config ,SZ_8B , 0x81010113);
   };  
 
+  std::string token;
+  std::vector<std::string> disable_patch_instr = {"patch_prolouge","patch_epilouge"};
+  std::istringstream ss1(FLAGS_disable_patches);
+  while (std::getline(ss1, token, ',')) {
+    disable_patch_instr.push_back(token);
+  }
+  
+  std::vector<std::string> patch_instr = {} ;
+  if (FLAGS_rand_patch) {
+    for (auto const& [key, value] : patches) 
+      if (std::find(disable_patch_instr.begin(), disable_patch_instr.end(), key) == disable_patch_instr.end())
+        patch_instr.push_back(key);
+    std::shuffle(std::begin(patch_instr), std::end(patch_instr), cvm::rand::gen);
+  } else {
+    std::istringstream ss(FLAGS_patches);
+    while (std::getline(ss, token, ',')) {
+      if (std::find(disable_patch_instr.begin(), disable_patch_instr.end(), token) == disable_patch_instr.end())
+        patch_instr.push_back(token);
+    }
+  }
+  
+
+  std::unordered_map<uint32_t, uint64_t> patch_cfg;
+  patch_cfg[core_pversion_mmr] = rand()%0xFF;
+
+
+  std::vector<uint32_t> patch_header = patches["patch_prolouge"].ucodes;
+
+  patch_header.insert(patch_header.end(), patches["patch_epilouge"].ucodes.begin(), patches["patch_epilouge"].ucodes.end()); 
+
   co_await write(cpl_patch_ram_base, SZ_8B, concatenate_uint32_to_uint64(patch_header) );
   co_await write(cpl_patch_ram_ptrig_0, SZ_8B, concatenate_uint32_to_uint64(patch_trig_0) );
   co_await write(cpl_patch_ram_ptrig_1, SZ_8B, concatenate_uint32_to_uint64(patch_trig_1) );
   co_await write(cpl_patch_ram_ptrig_2, SZ_8B, concatenate_uint32_to_uint64(patch_trig_2) );
   co_await write(cpl_patch_ram_ptrig_3, SZ_8B, concatenate_uint32_to_uint64(patch_trig_3) );
-  co_await write(cpl_patch_ram_pbody_0, SZ_8B, concatenate_uint32_to_uint64(patch_body_wfi) );
-  co_await write(cpl_patch_ram_pbody_1, SZ_8B, concatenate_uint32_to_uint64(patch_body_sub) );
-  co_await write(cpl_patch_ram_pbody_2, SZ_8B, concatenate_uint32_to_uint64(patch_body_blt_arith) );
-  co_await write(cpl_patch_ram_pbody_3, SZ_8B, concatenate_uint32_to_uint64(patch_body_amoswap) );
 
-  if (FLAGS_patch_ram_check) { 
-     populate_patch_ram(cpl_patch_ram_base, concatenate_uint32_to_uint64(patch_header) );
-     populate_patch_ram(cpl_patch_ram_ptrig_0, concatenate_uint32_to_uint64(patch_trig_0) );
-     populate_patch_ram(cpl_patch_ram_ptrig_1, concatenate_uint32_to_uint64(patch_trig_1) );
-     populate_patch_ram(cpl_patch_ram_ptrig_2, concatenate_uint32_to_uint64(patch_trig_2) );
-     populate_patch_ram(cpl_patch_ram_ptrig_3, concatenate_uint32_to_uint64(patch_trig_3) );
-     populate_patch_ram(cpl_patch_ram_pbody_0, concatenate_uint32_to_uint64(patch_body_wfi) );
-     populate_patch_ram(cpl_patch_ram_pbody_1, concatenate_uint32_to_uint64(patch_body_sub) );
-     populate_patch_ram(cpl_patch_ram_pbody_2, concatenate_uint32_to_uint64(patch_body_blt_arith) );
-     populate_patch_ram(cpl_patch_ram_pbody_3, concatenate_uint32_to_uint64(patch_body_amoswap) );
+  uint64_t pcontrol_data = 0;
+
+  for (int i = 0; i < (int)patch_instr.size(); ++i) { 
+    std::string patchTag = patch_instr[i];
+    cvm::log(cvm::MEDIUM, "[pwrmgmt] Patching instruction: {} , patchMask: 0x{:x}, Opcode: 0x{:x}, enableMask: 0x{:x}\n", patchTag, patches[patchTag].patchMask, patches[patchTag].patchInstruction, patches[patchTag].enableMask);
+    patch_cfg[core_preg0_mmr+(i*8)] = ((uint64_t)patches[patchTag].patchMask<<32 | patches[patchTag].patchInstruction); 
+    std::vector<uint32_t> ucode_body = patches[patchTag].ucodes;
+    co_await write(cpl_patch_ram_pbody_0+(i*0x400), SZ_8B, concatenate_uint32_to_uint64(ucode_body) );
+    if (FLAGS_patch_ram_check) populate_patch_ram(cpl_patch_ram_pbody_0+(i*0x400), concatenate_uint32_to_uint64(ucode_body));
+    pcontrol_data =  pcontrol_data | (((uint64_t)patches[patchTag].enableMask | 1) << i*16); // enable patch 
+    cvm::log(cvm::MEDIUM, "[pwrmgmt] pcontrol_data : 0x{:x}\n", pcontrol_data);
+    if (i == 3) break;
+  }
+  if (FLAGS_patch_ram_check) {
+    populate_patch_ram(cpl_patch_ram_base, concatenate_uint32_to_uint64(patch_header) );
+    populate_patch_ram(cpl_patch_ram_ptrig_0, concatenate_uint32_to_uint64(patch_trig_0) );
+    populate_patch_ram(cpl_patch_ram_ptrig_1, concatenate_uint32_to_uint64(patch_trig_1) );
+    populate_patch_ram(cpl_patch_ram_ptrig_2, concatenate_uint32_to_uint64(patch_trig_2) );
+    populate_patch_ram(cpl_patch_ram_ptrig_3, concatenate_uint32_to_uint64(patch_trig_3) );
     co_await patch_ram_check();
-  };
- 
+  }
 
-  std::unordered_map<uint32_t, uint64_t> patch_cfg;
-  patch_cfg[core_pversion_mmr] = rand()%0xFF;
-  patch_cfg[core_preg0_mmr] = 0xFFFFFFFF'10500073;//preg0 :wfi
-  patch_cfg[core_preg1_mmr] = 0xFE00707F'40000033;//preg1 :sub
-  patch_cfg[core_preg2_mmr] = 0x0000707F'00004063;//preg2: blt
-  patch_cfg[core_preg3_mmr] = 0xFE00707F'0800202f;//preg3 : amoswap.w
-  
-  uint64_t pcontrol_data =  0x03FE03FE03FE03FE;
-  pcontrol_data =  pcontrol_data | 0x1; // enable patch 0
-  pcontrol_data =  pcontrol_data | 0x1'0000; // enable patch 1
-  //pcontrol_data =  pcontrol_data | 0x1'0000'0000; // enable patch 2
-  //pcontrol_data =  pcontrol_data | 0x1'0000'0000'0000; // enable patch 3
   if (FLAGS_patch_cfg_lock) pcontrol_data = pcontrol_data | 0x8000800080008000;
 
 
@@ -883,3 +913,84 @@ cvm::messenger::task<void> reset_sequence::delay_counters(){
   co_return;
  };
  
+// Helper function to trim whitespace from a string
+std::string trim(const std::string& str) {
+    size_t first = str.find_first_not_of(" \t");
+    if (first == std::string::npos) {
+        return ""; 
+    }
+    size_t last = str.find_last_not_of(" \t");
+    return str.substr(first, (last - first + 1));
+}
+
+void reset_sequence::read_patch_csv() {
+    std::ifstream file(FLAGS_patch_ucode_input_file_path); //"@chips//dv/tb/patch/patch_ucode.csv"
+    cvm::log(cvm::MEDIUM, "Patch Ucode CSV : {}\n" , FLAGS_patch_ucode_input_file_path);
+
+    std::string line;
+    // Skip header row
+    std::getline(file, line); 
+    std::string currentPatchTag; 
+
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string patchTag, ucode, patchInstruction, patchMask, enableMask;
+        std::getline(ss, patchTag, ',');
+        std::getline(ss, ucode, ',');
+        std::getline(ss, patchInstruction, ',');
+        std::getline(ss, patchMask, ',');
+        std::getline(ss, enableMask, ',');
+
+        // Trim leading/trailing whitespace
+        patchTag = trim(patchTag);
+        ucode = trim(ucode);
+        patchInstruction = trim(patchInstruction);
+        patchMask = trim(patchMask);
+        enableMask = trim(enableMask);
+
+        // Convert to hexadecimal and discard "0x" prefix
+        if (ucode.substr(0, 2) == "0x") {
+            ucode = ucode.substr(2); 
+        }
+        if (patchInstruction.substr(0, 2) == "0x") {
+            patchInstruction = patchInstruction.substr(2); 
+        }
+        if (patchMask.substr(0, 2) == "0x") {
+            patchMask = patchMask.substr(2); 
+        }
+        if (enableMask.substr(0, 2) == "0x") {
+            enableMask = enableMask.substr(2); 
+        }
+
+        // If patchTag is not empty, it's a new instruction
+        if (!patchTag.empty()) {
+            currentPatchTag = patchTag;
+            patches[currentPatchTag] = {
+                patchTag, 
+                {}, 
+                static_cast<uint32_t>(std::stoul(patchInstruction, nullptr, 16)), 
+                static_cast<uint32_t>(std::stoul(patchMask, nullptr, 16)),
+                static_cast<uint32_t>(std::stoul(enableMask, nullptr, 16))
+            }; 
+        } 
+        else if (!ucode.empty()) { // If ucode is not empty and we have a current patch
+            patches[currentPatchTag].ucodes.push_back(static_cast<uint32_t>(std::stoul(ucode, nullptr, 16)));
+        } 
+    }
+
+    // Output the parsed patches, formatting hex values
+
+    for (const auto& pair : patches) {
+        cvm::log(cvm::HIGH, "Patch Tag: {} \n" ,pair.second.patchTag);
+        cvm::log(cvm::HIGH, "Patch Instruction: 0x{:x}\n",pair.second.patchInstruction);
+        cvm::log(cvm::HIGH, "Patch Mask: 0x{:x}\n", pair.second.patchMask);
+        cvm::log(cvm::HIGH, "Enable Mask: 0x{:x}\n", pair.second.enableMask);
+        cvm::log(cvm::HIGH, "Ucodes: ");
+        for (const auto& ucode : pair.second.ucodes) {
+            cvm::log(cvm::HIGH, "0x{:x}, ",ucode); 
+        }
+        cvm::log(cvm::HIGH, "\n***********************\n"); 
+
+      
+    }
+}
