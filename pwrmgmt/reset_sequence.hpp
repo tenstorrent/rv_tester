@@ -81,7 +81,8 @@ class reset_sequence {
     void reset_hold(uint8_t sram, uint8_t debug, uint8_t critical);
     void force_ref_clk(uint8_t assert);
     void populate_patch_ram(uint64_t addr, const std::vector<uint64_t>& data);
-
+    void read_patch_csv();
+    
   private:
 
     cvm::topology::loc_t loc_, smc_axi_loc_;
