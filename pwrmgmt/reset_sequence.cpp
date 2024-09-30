@@ -38,8 +38,8 @@ DEFINE_bool(init_smc_infilters, false, "Enable filter programming for JTAG and O
 DEFINE_bool(smc_axi_access, false, "Enable random AXI access from SMC ");
 DEFINE_string(patch_ucode_input_file_path, "", "Path to file containing patch ucode routine");
 DEFINE_string(patches, "WFI,SUB,BLT,AMOSWAP", "+patches=<instr1>,<instr2>,<instr3>,<instr4>; default will be picked if not specified ");
-DEFINE_string(disable_patches, "BLT,AMOSWAP", "+disable_patches=<instr1>,<instr2>,<instr3>,<instr4>; default will be picked if not specified ");
-DEFINE_bool(rand_patch, false, "Randomly pick 4 instructions available in the CSV to be pacthed");
+DEFINE_string(disable_patches, "", "+disable_patches=<instr1>,<instr2>,<instr3>,<instr4>; default will be picked if not specified ");
+DEFINE_bool(rand_patch, false, "Randomly pick 4 instructions available in the CSV to be patched");
 
 
 extern "C" {
