@@ -365,6 +365,8 @@ sysmod:
         fields:
             advance:
                 width: 64
+            dut_reset_req:
+                width: 1
     jtag_tick:
         domain: 2
         num: 1

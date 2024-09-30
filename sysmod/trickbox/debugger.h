@@ -26,6 +26,7 @@
 #include "cvm/registry.hpp"
 #include "subdevice.h"
 #include "vpi_user.h"
+// #include "rv_tester_transactions.hpp"
 //#include "dm_model/dm_model.hpp"
 
 // DEFINE_string(dbg_input_file_path, "", "Path to file containing debugger commands");
@@ -87,6 +88,12 @@ public:
     checkDebugEvents();
 
     drive_csv_dmi_cmds();
+  }
+
+  virtual void is_dut_reset_req(bool dut_reset_req_f) override
+  {
+    cvm::log(cvm::LOW,"Value of dut_reset_req in debugger is : {}\n",dut_reset_req);
+    dut_reset_req = dut_reset_req_f;
   }
 
   void reset() override
@@ -246,4 +253,6 @@ private:
   bool file_parsing_in_progress = false;
   bool cmd_trigger_in_progress = false;
   std::string dbg_snippets_name = "";
+  bool dut_reset_req = false;
+  bool ndm_reset_occured = false;
 };

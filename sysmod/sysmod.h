@@ -63,6 +63,7 @@ class sysmod {
 
     void set_scope(svScope s) { scope_ = s; }
     void tick(uint64_t advance);
+    void is_dut_reset_req(bool dut_reset_req);
     void jtag_tick(uint64_t advance);
     void overlay_tick(uint64_t advance);
     void jtag_resp(std::bitset<70> rdata);
@@ -152,4 +153,6 @@ class sysmod {
     std::uint64_t jtag_ticks_ = 0;
     std::uint64_t overlay_ticks_ = 0;
     //remote_bitbang_t remote_bitbang();
+
+    // bool dut_reset_req;
 };

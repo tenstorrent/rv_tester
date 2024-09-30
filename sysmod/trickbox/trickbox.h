@@ -71,6 +71,14 @@ public:
       d->tick(advance);
     }
   }
+
+  virtual void is_dut_reset_req(bool dut_reset_req) override 
+  {
+    cvm::log(cvm::LOW,"Value of dut_reset_req in trickbox is : {}\n",dut_reset_req);
+    for (auto& d : subdevices_) {
+      d->is_dut_reset_req(dut_reset_req);
+    }
+  }
   
    
   virtual void jtag_tick(uint64_t advance) override

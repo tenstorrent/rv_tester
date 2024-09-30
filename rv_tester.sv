@@ -499,6 +499,7 @@ module rv_tester
     ) sysmod (
         .clk(dut_clk[AXI_CLK_IDX]),
         .reset(sys_reset[AXI_CLK_IDX]),
+        .dut_reset_req,
         .trace_quiesced(trace_quiesced),
         .jtag_quiesced(jtag_quiesced),
         .bootstrap,
@@ -543,7 +544,7 @@ module rv_tester
         `RV_TESTER_TRANSACTIONS_DM_MODEL_SOURCE_PARAMS(0)
     ) i_dm_model(
         .clk(dut_clk[AXI_CLK_IDX]),
-        .reset(sys_reset[TB_CLK_IDX]),
+        .reset(~(~reset[WARM_RESET_IDX] || reset_hold[DEBUG_HOLD_IDX])),
         .dmi_req(dmi_req),
         .dmi_req_valid(dmi_req_valid),
         .dmi_resp_valid(dmi_resp_valid),

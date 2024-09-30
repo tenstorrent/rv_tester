@@ -3,6 +3,7 @@
 #include "cvm/logger.hpp"
 #include "debugger.h"
 #include "sysmod/sysmod_plusargs.h"
+#include <fstream>
 
 DEFINE_string(dbg_input_file_path, "", "Path to file containing debugger commands");
 DEFINE_bool(random_dbg_entry, false, "Enter debug mode randomly after random intervals");
@@ -23,14 +24,38 @@ debugger::debugger(const std::string &tag, uint64_t addr, unsigned hartCount, cv
   dmi_driver_num_cmds_addr = addr + 0x600;
   reset();
 
-  auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0); 
+  auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0);
   cvm::registry::messenger.connect<debugger::dmi_status_t>(
             tbox_loc,
             [&](debugger::dmi_status_t i) { return this->update_dm_status(i); });
+
+  std::ifstream myfile;
+  myfile.open ("reset_state.txt");
+  if(myfile.is_open()) {
+    // fin.seekg(-1,ios_base::end);                // go to one spot before the EOF
+    // fin.readline();
+    std::string line;
+    std::getline(myfile, line);
+    cvm::log(cvm::LOW, "Reset State in Debugger is: {}\n", line);
+    if (line == "Ndm-Reset") {
+      ndm_reset_occured = true;
+    }
+    
+  }
+  myfile.close();
 }
 
 debugger::~debugger()
 {
+  std::ofstream myfile;
+  myfile.open ("reset_state.txt", std::ios_base::app);
+  cvm::log(cvm::LOW, "Attempting to write the State in Debugger\n");
+  if (dut_reset_req){
+    cvm::log(cvm::LOW, "State written to Debugger : Ndm-Reset\n");
+    myfile << "Ndm-Reset";
+  }
+  myfile.close();
+
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"dm_rand_snippets_mode\": \"{}\"}}\n", FLAGS_random_dbg_entry);
   if (FLAGS_random_dbg_entry) {
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"dm_rand_snippets_max_count\": \"{}\"}}\n", FLAGS_dbg_max_snippets);
@@ -322,7 +347,7 @@ void debugger::write(uint64_t addr, size_t, const data_t &data,
     trickboxDmiWrite(hart, upper_dmi_data, lower_dmi_data); // Commented until DMI PORT is not in master
   }
 
-  if (addr == debugger_file_load_trigger && !FLAGS_random_dbg_entry && !file_loading_done)
+  if (addr == debugger_file_load_trigger && !FLAGS_random_dbg_entry && !file_loading_done && !ndm_reset_occured)
   {
     file_loading_done = true;
     cvm::log(cvm::NONE, "[Trickbox] Debugger file loading trigger\n");
