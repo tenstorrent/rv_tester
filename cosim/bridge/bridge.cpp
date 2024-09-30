@@ -2481,7 +2481,6 @@ uint64_t bridge::modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data) {
     if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0x30C, mstateen, mask_iss, reset, read_mask, valid)) {
       error("Hart {}: Failed to peek CSR\n", hart);
     }
-    print(cvm::MEDIUM, "hstateen or stateen entered, rtl: {:#x}\n", result);
     result = result & mstateen;
   }
   return result;
