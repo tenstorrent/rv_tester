@@ -32,14 +32,14 @@ DEFINE_bool(temp_throttle, false, "Program lower Temp throttle for core");
 DEFINE_bool(patch_cpl_filter_dis, false, "Disable programming of inbound and outbound filters in core");
 DEFINE_bool(patch_mmr_check, false, "Enable read write checking of patch related registers");
 DEFINE_bool(patch_ram_check, false, "Enable read write checking of patch ram region");
-DEFINE_bool(patch_cfg_lock, true, "Lock the patch mmrs while boot programming ");
+DEFINE_bool(patch_cfg_lock, false, "Lock the patch mmrs while boot programming ");
 DEFINE_bool(fuse_mmr_check, false, "Check RW and lockability of fuses ");
 DEFINE_bool(init_smc_infilters, false, "Enable filter programming for JTAG and Overlay to access SRAM ");
 DEFINE_bool(smc_axi_access, false, "Enable random AXI access from SMC ");
 DEFINE_string(patch_ucode_input_file_path, "", "Path to file containing patch ucode routine");
 DEFINE_string(patches, "WFI,SUB,BLT,AMOSWAP", "+patches=<instr1>,<instr2>,<instr3>,<instr4>; default will be picked if not specified ");
-DEFINE_string(disable_patches, "BLT,AMOSWAP", "+disable_patches=<instr1>,<instr2>,<instr3>,<instr4>; default will be picked if not specified ");
-DEFINE_bool(rand_patch, false, "Randomly pick 4 instructions available in the CSV to be pacthed");
+DEFINE_string(disable_patches, "AMOSWAP", "+disable_patches=<instr1>,<instr2>,<instr3>,<instr4>; default will be picked if not specified ");
+DEFINE_bool(rand_patch, false, "Randomly pick 4 instructions available in the CSV to be patched");
 
 
 extern "C" {
