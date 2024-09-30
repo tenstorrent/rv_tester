@@ -7,8 +7,8 @@ import os
 import base64
 from pathlib import Path
 
-pmcounter_width = 33
-pmci_width = 33
+pmcounter_width = 32
+pmci_width = 32
 
 def download_csv(url):
     with open(Path.home() / ".gitlab_key", "r") as key:
@@ -93,11 +93,9 @@ def create_cpp_frag(events: List[Dict[Any, Any]], path="gen_events.hpp"):
 
 std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>& pmcounters)
     {
-      std::vector<uint64_t> tmp(counter::COUNT);
 
       """
     to_vec_post = """
-      return tmp;
     }
 
     """
@@ -105,7 +103,7 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
     f.write(to_vec_pre)
     for event in events:
         name = event["name"]
-        f.write(f"{tab}tmp[counter::{name.upper()}] = pmcounters.{name};")
+        f.write(f"{tab}counters[counter::{name.upper()}] = pmcounters.{name} + counters[counter::{name.upper()}];")
         f.write("\n")
     f.write(to_vec_post)
 
