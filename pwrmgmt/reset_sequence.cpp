@@ -23,7 +23,7 @@ DEFINE_string(warm_reset_count, "0:4", "Number of warm resets in the sim if rand
 DEFINE_string(warm_reset_interval, "2000:10000", "TB cycle interval between warm resets in the sim if random mode enabled");
 DEFINE_string(warm_reset_trigger_type, "", "Send warm reset on a trigger");
 DEFINE_string(warm_reset_trigger_interval, "rand:0:100", "TB cycle interval from trigger to warm reset");
-DEFINE_string(warm_reset_sram_hold, "0:1", "Sram hold");
+DEFINE_string(warm_reset_sram_hold, "0:0", "Sram hold");
 DEFINE_string(warm_reset_debug_hold, "0:1", "Debug hold");
 DEFINE_string(warm_reset_critical_hold, "0:1", "Critical hold");
 DEFINE_bool(patch_en, false, "Enable instruction patching");
