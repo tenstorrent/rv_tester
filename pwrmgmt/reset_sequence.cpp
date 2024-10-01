@@ -139,8 +139,8 @@ cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
   // Deassert force_ref_clk
   force_ref_clk(0);
 
-  // Wait for 16 clock ticks
-  for (int i=0; i<16; ++i)
+  // Wait for 32 clock ticks
+  for (int i=0; i<32; ++i)
     co_await tick();
 
   // PLL cold powerup sequence
@@ -200,8 +200,8 @@ cvm::messenger::task<void> reset_sequence::warm_reset_sequence() {
   // Deassert force_ref_clk
   force_ref_clk(0);
 
-  // Wait for 16 clock ticks
-  for (int i=0; i<16; ++i)
+  // Wait for 32 clock ticks
+  for (int i=0; i<32; ++i)
     co_await tick();
 
   co_await cpl_reset_sequence(WARM);
