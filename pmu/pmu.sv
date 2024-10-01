@@ -20,6 +20,8 @@ import rv_tester_pkg::*;
 );
 
     parameter int unsigned location = cvm_topology_gen::get_location (topology.TOP.PLATFORM.PMCI.ID, NUM);
+    parameter int shift_term =  32;
+    parameter longint unsigned transmission_overflow_threshold =  1 << shift_term;
     longint unsigned period = 0;
     longint unsigned instructions = 0;
     bit cycle_sync_en, instruction_sync_en;
@@ -46,6 +48,7 @@ import rv_tester_pkg::*;
     longint unsigned prev_sync_instructions = 0;
     longint unsigned nret = {32'h0, NRET};
     int unsigned pmcounter [EVENT_COUNT] = '{default:0};
+    int unsigned pmcounter_image [EVENT_COUNT] = '{default:0};
     longint unsigned branch_instructions;
 
     always @(posedge clk) begin
@@ -79,6 +82,34 @@ import rv_tester_pkg::*;
             end else begin
                 pmcounter[i] <= pmcounter[i] + {60'h0, pmci[i]};
             end
+        end
+      end
+    endgenerate
+
+    generate
+      for (genvar i=1; i < EVENT_COUNT; i++) begin : pmcounter_image_regs
+        always @(posedge clk) begin
+            if (reset) begin
+                pmcounter_image[i] <= 0;
+            end else if (!reset && perf_enabled && (terminate || (cycle_sync_en && (sync_cycles % period) == 0) || (instruction_sync_en && (((prev_sync_instructions % instructions) > nret) && ((sync_instructions % instructions) < nret))) || perf_start || perf_end)) begin // Using pmcounterss[0].valid as a check to capture an image of the pmcounter values during sync
+                pmcounter_image[i] <= pmcounter[i];
+            end else begin
+                pmcounter_image[i] <= pmcounter_image[i];
+            end
+        end
+      end
+    endgenerate
+
+    generate
+      for (genvar i=1; i < EVENT_COUNT; i++) begin : pmcounter_transmission_overflow_check
+        always @(posedge clk) begin : pmcounter_transmisison_overflow_assertion
+          if (reset) begin
+          end else begin
+            if ((pmcounter[i] - pmcounter_image[i]) > transmission_overflow_threshold) begin
+              $error("Threshold overflow between pmcounter syncs: pmcounter[%0d]: %0h, pmcounter_image[%0d]: %0h, threshold: %0h, difference: %0h",
+              i, pmcounter[i], i, pmcounter_image[i], transmission_overflow_threshold, (pmcounter[i] - pmcounter_image[i]));
+            end
+          end
         end
       end
     endgenerate
