@@ -1400,6 +1400,12 @@ pmu:
                 width: 33
             sc_replay_ecc:
                 width: 33
+            sc_cancel_piperesult:
+                width: 33
+            sc_victim:
+                width: 33
+            no_alloc_srrip:
+                width: 33
             perf_start:
                 width: 1
             perf_end:
