@@ -449,14 +449,26 @@ void jtag_sequence::drive_csv_jtag_cmds()
     cvm::log(cvm::LOW, "\n[JTAGDRIVER.CPP] Reversed jtag_rdata {} , reg_data_length {}\n", jtag_reversed_rdata,reg_length_data);
      std::vector<uint64_t> convertedArray = bitsetToUint64Array(jtag_reversed_rdata);
       uint64_t mask = (1ULL << reg_length_data) - 1;
-      auto result = reg_length_data == 64 ? convertedArray[0] : convertedArray[0] & mask;
+      auto result = reg_length_data >= 64 ? convertedArray[0] : convertedArray[0] & mask;
+
+      if(tap_cfg_sel == 3){
+        result = result<<2;
+      } 
       if(tap_cfg_sel == 6){
         result = result<<1;
       } 
       if(tap_cfg_sel == 5){
         result = result<<4;
-      } 
-      cvm::log(cvm::LOW, "[JTAGDRIVER.CPP] reg_length_data {} loop_rdata {:#x} lower_jtag_data {:#x} mask {:#x} expression {:#x}\n",reg_length_data,convertedArray[0],lower_jtag_data,mask,(1 << reg_length_data));
+      }
+      if(tap_cfg_sel == 7){
+        result = result<<1;
+      }
+
+      if(tap_cfg_sel == 4){
+        result = result<<1;
+      }
+
+      cvm::log(cvm::LOW, "Line no 464 [JTAGDRIVER.CPP] reg_length_data {} loop_rdata {:#x} lower_jtag_data {:#x} mask {:#x} expression {:#x}\n",reg_length_data,convertedArray[0],lower_jtag_data,mask,(1 << reg_length_data));
       
       if(result == lower_jtag_data){
        //PASS
@@ -628,10 +640,11 @@ void jtag_sequence::drive_jtag_cmds()
 
     if(jtag_cmd == 4){  //ck expecting check on rdata
       //check last saved rdata == lower_jtag_data ??
+      
       uint64_t mask = (1ULL << reg_length_data) - 1;
-      auto result = reg_length_data == 64 ? loop_rdata : loop_rdata & mask;
-
-      cvm::log(cvm::LOW, "[JTAGDRIVER.CPP] reg_length_data {} loop_rdata {:#x} lower_jtag_data {:#x} mask {:#x} expression {:#x}\n",reg_length_data,loop_rdata,lower_jtag_data,mask,(1 << reg_length_data));
+      auto result = reg_length_data = 64 ? loop_rdata : loop_rdata & mask;
+   
+     cvm::log(cvm::LOW, "JTAG_COMMAND 638  [JTAGDRIVER.CPP] reg_length_data {} loop_rdata {:#x} lower_jtag_data {:#x} mask {:#x} expression {:#x}\n",reg_length_data,loop_rdata,lower_jtag_data,mask,(1 << reg_length_data));
       
       if(result == lower_jtag_data){
        //PASS
