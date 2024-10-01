@@ -1399,7 +1399,13 @@ pmu:
             no_alloc_hint_not_set:
                 width: 32
             sc_replay_ecc:
-                width: 32
+                width: 33
+            sc_cancel_piperesult:
+                width: 33
+            sc_victim:
+                width: 33
+            no_alloc_srrip:
+                width: 33
             perf_start:
                 width: 1
             perf_end:
