@@ -1070,7 +1070,7 @@ sysmod::load_csr_mmr_boot(uint64_t)
     device::data_t data(4);
     for (size_t i=0; i<4; i++) data[i] = op >> 8*i;
     dev("boot")->backdoor_write(addr, 4, data, strb);
-    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', addr, op, valid))
+    if (FLAGS_cosim && !cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', addr, op, valid))
       cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
     addr += 4;
   };
