@@ -64,7 +64,7 @@ module rv_tester
              rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE4_CLOCK_FREQ_MHZ[c])) profile4_clkgen(.clk(profile4_clk[c]));
              rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE5_CLOCK_FREQ_MHZ[c])) profile5_clkgen(.clk(profile5_clk[c]));
              rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE6_CLOCK_FREQ_MHZ[c])) profile6_clkgen(.clk(profile6_clk[c]));
- 
+
             clk_mux_glitch_free #(
                 .NUM_INPUTS(7),
                 .CLOCK_DURING_RESET(1)
@@ -94,7 +94,7 @@ module rv_tester
 
     logic flush_complete;
 
-    xbar_rule_t [NoAddrRules-1:0] addr_map, addr_map_final, addr_map_idx1;    
+    xbar_rule_t [NoAddrRules-1:0] addr_map, addr_map_final, addr_map_idx1;
     bit perf = 0;
     /* verilator lint_off MULTIDRIVEN */
     logic sys_reset [NCLKS-1:0];
@@ -157,10 +157,10 @@ module rv_tester
     int hart_enable_mask = 0;
     int rand_dmi_driver_dly = 0;
     int dm_single_step_count = 0;
-    int dmi_poll_counter = 0; 
+    int dmi_poll_counter = 0;
     int dmi_poll_timeout = 50000;
     logic dmi_poll_timeout_terminate;
-    logic [31:0] dmi_commands_in_queue; 
+    logic [31:0] dmi_commands_in_queue;
 
     int trace_timeout = 50000;
     int freq_switch_ncycles = 7000;
@@ -182,13 +182,13 @@ module rv_tester
 
 
     assign terminate           = (dut_terminate_any || rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sys_reset_any) || quiesce_counter > 0) && !rv_tester_reset;
-    assign terminate_now       = (terminate_1T && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue <= 'h1) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced )) || dut_terminate_any || warm_reset_now; 
-    
+    assign terminate_now       = (terminate_1T && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue <= 'h1) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced )) || dut_terminate_any || warm_reset_now;
+
     assign rerun_now           = terminated && !terminated_1T && ((num_reruns > 0) || (warm_reset_en && (num_resets <= target_num_resets)) || dut_reset_req);
 
-  `ifndef CLK_MUX_UNSUPPORTED 
+  `ifndef CLK_MUX_UNSUPPORTED
     always @(posedge dut_clk[TB_CLK_IDX])begin
-      if (rv_tester_reset)begin 
+      if (rv_tester_reset)begin
             clock_mode <= clk_profile[2:0];
       end
       /* verilator lint_off WIDTH */
@@ -372,7 +372,7 @@ module rv_tester
 
             if (shutdowned && num_reruns == '0 && !warm_reset_req && !dut_reset_req) begin
                 $display("INFO_PASS_METRIC:{\"axi_clocks\": %0d}", axi_clocks);
-                $display("INFO_PASS_METRIC:{\"clocks\": %0d}", clocks);
+                $display("INFO_PASS:{\"clocks\": %0d}", clocks);
                 $display("INFO_PASS_METRIC:{\"instruction_count\": %0d}", instructions);
                 $display("INFO_PASS_REGR_METRIC:{\"name\": \"instructions\", \"value\":%0d, \"type\": \"i\", \"action\": \"sum\"}", instructions);
 
@@ -532,7 +532,7 @@ module rv_tester
 `ifndef DMI_TB_WRITES_UNSUPPORTED
     logic [7:0] misc_signals;
     logic dmi_status;
-    
+
     dmi_driver i_dmi_driver(
         .clk(dut_clk[AXI_CLK_IDX]),
         .reset_n(~reset[WARM_RESET_IDX] || reset_hold[DEBUG_HOLD_IDX]),
@@ -580,7 +580,7 @@ module rv_tester
 
     always @(posedge dut_clk[AXI_CLK_IDX]) begin
         if (sys_reset[TB_CLK_IDX] | !dmi_status)
-            dmi_poll_counter <= 0; 
+            dmi_poll_counter <= 0;
         else if (dmi_status) begin
             dmi_poll_counter <= dmi_poll_counter + 1;
 
@@ -589,7 +589,7 @@ module rv_tester
                 dmi_poll_timeout_terminate <= 1;
             end
             else if ((dmi_poll_counter >= 'h1) && terminate) begin
-               $display("<%0d> [RVTESTER]: Debug poll stopped as terminate condition detected", clocks); 
+               $display("<%0d> [RVTESTER]: Debug poll stopped as terminate condition detected", clocks);
             end
         end
     end
@@ -649,7 +649,7 @@ module rv_tester
 `endif
 
     always @(posedge dut_clk[TB_CLK_IDX]) begin
-        if (eot_status != 0) 
+        if (eot_status != 0)
         /* verilator lint_off ASSIGNIN */
             cosim_eot_addr <= eot_addr;
         /* verilator lint_on ASSIGNIN */
@@ -717,7 +717,7 @@ module rv_tester
         .core_no_fetch(core_no_fetch),
         `RV_TESTER_TRANSACTIONS_TRACE_SOURCE_PORTS(2,0,0)
     );
-    
+
     for (genvar c = 0; c < NHARTS; c++) begin: triggers
         triggers #(
             .NUM(c),
@@ -807,11 +807,11 @@ module rv_tester
             .axi_mst_ar_size (axi_req_llc[p].ar.size),
             .axi_mst_ar_lock (axi_req_llc[p].ar.lock),
             .axi_mst_ar_burst(axi_req_llc[p].ar.burst),
-            .axi_mst_ar_cache (axi_req_llc[p].ar.cache), 
+            .axi_mst_ar_cache (axi_req_llc[p].ar.cache),
             .axi_mst_ar_prot  (axi_req_llc[p].ar.prot),
-            .axi_mst_ar_qos   (axi_req_llc[p].ar.qos), 
+            .axi_mst_ar_qos   (axi_req_llc[p].ar.qos),
             .axi_mst_ar_region(axi_req_llc[p].ar.region),
-            .axi_mst_ar_user  (axi_req_llc[p].ar.user), 
+            .axi_mst_ar_user  (axi_req_llc[p].ar.user),
 
             .axi_mst_aw_valid(axi_req_llc[p].aw_valid),
             .axi_mst_aw_id   (axi_req_llc[p].aw.id),
@@ -938,7 +938,7 @@ module rv_tester
             .axi_mst_ar_size (axi_req_mst[p].ar.size),
             .axi_mst_ar_lock (axi_req_mst[p].ar.lock),
             .axi_mst_ar_burst(axi_req_mst[p].ar.burst),
-            .axi_mst_ar_cache (axi_req_mst[p].ar.cache), 
+            .axi_mst_ar_cache (axi_req_mst[p].ar.cache),
             .axi_mst_ar_prot  (axi_req_mst[p].ar.prot),
             .axi_mst_ar_qos   (axi_req_mst[p].ar.qos),
             .axi_mst_ar_region(axi_req_mst[p].ar.region),
@@ -951,9 +951,9 @@ module rv_tester
             .axi_mst_aw_size (axi_req_mst[p].aw.size),
             .axi_mst_aw_burst(axi_req_mst[p].aw.burst),
             .axi_mst_aw_lock (axi_req_mst[p].aw.lock),
-            .axi_mst_aw_cache(axi_req_mst[p].aw.cache), 
-            .axi_mst_aw_prot (axi_req_mst[p].aw.prot), 
-            .axi_mst_aw_qos  (axi_req_mst[p].aw.qos),  
+            .axi_mst_aw_cache(axi_req_mst[p].aw.cache),
+            .axi_mst_aw_prot (axi_req_mst[p].aw.prot),
+            .axi_mst_aw_qos  (axi_req_mst[p].aw.qos),
             .axi_mst_aw_region(axi_req_mst[p].aw.region),
             .axi_mst_aw_atop (axi_req_mst[p].aw.atop),
             .axi_mst_aw_user (axi_req_mst[p].aw.user),
