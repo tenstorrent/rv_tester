@@ -2654,10 +2654,11 @@ void bridge::process(const rv_tester::terminate_called&) {
 }
 
 void bridge::report_metrics() {
-  if (!FLAGS_metrics)
+  if (!FLAGS_metrics || !cvm::registry::messenger.call<whisperClient<uint64_t>::whisperConnectedRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0)))
+  // if (!FLAGS_metrics)
     return;
 
-  print(cvm::NONE, "[cosim] Report metrics...\n");
+  print(cvm::NONE, "[COSIM] Report metrics...\n");
 
   const auto& prev_whisp_state = pw_;
   const auto& prev_prev_whisp_state = ppw_;
@@ -2705,32 +2706,6 @@ void bridge::report_metrics() {
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_max_pend_intr_age\": {}}}\n", id_, max_pend_intr_age_);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_scratchpad_accesses\": {}}}\n", id_, num_sp_accesses_);
 
-  // Interrupts taken count
-  for (size_t i = 0; i < num_taken_interrupts_.size(); i++) {
-    for (size_t j = 0; j < num_taken_interrupts_[i].size(); j++) {
-        if (num_taken_interrupts_[i][j] != 0) {
-            print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_taken_interrupt_count_{}_{}\": {}}}\n", id_, intr_to_string.at(static_cast<intr>(j)), priv_to_string.at(static_cast<priv>(i)), num_taken_interrupts_[i][j]);
-        }
-    }
-  }
-  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_nmi_taken_count\": \"{}\"}}\n", id_, nmi_taken_count_);
-
-  // Regression level metrics
-  if (id_ == 0) {
-    // Average ipc
-    print(cvm::NONE, "INFO_PASS_REGR_METRIC:{{\"name\": \"ipc\", \"value\": {:.2f}, \"type\": \"d\", \"action\": \"avg\"}}\n", ipc);
-  }
-
-  // DUT csr values
-  for (auto& csr : metrics_csrs) {
-    uint64_t csr_data = get_csr(id_, src_t::dut, csr.address);
-    print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dut_csr_{}\": \"0x{:x}\"}}\n", id_, csr.name, csr_data);
-  }
-
-  // Metrics that need whisperClient interaction
-  if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperConnectedRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0)))
-    return;
-
   // Whisper csr values
   for (auto& csr : metrics_csrs) {
     uint64_t csr_data;
@@ -2741,24 +2716,46 @@ void bridge::report_metrics() {
     print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_iss_csr_{}\": \"0x{:x}\"}}\n", id_, csr.name, csr_data);
   }
 
-  // Step one final time to collect metrics for next instruction
-  whisper_state_t w;
-  if (FLAGS_mcm) {
-    cvm::registry::messenger.call<whisperClient<uint64_t>::whisperDisableMcmRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0));
-    w = { .tag = prev_whisp_state.tag+1, .time = prev_whisp_state.time+1 };
+  // DUT csr values
+  for (auto& csr : metrics_csrs) {
+    uint64_t csr_data = get_csr(id_, src_t::dut, csr.address);
+    print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dut_csr_{}\": \"0x{:x}\"}}\n", id_, csr.name, csr_data);
   }
-  else {
-    w = { .tag = step_+1, .time = prev_whisp_state.time+1 };
+
+  // Interrupts taken count
+  for (size_t i = 0; i < num_taken_interrupts_.size(); i++) {
+    for (size_t j = 0; j < num_taken_interrupts_[i].size(); j++) {
+        if (num_taken_interrupts_[i][j] != 0) {
+            print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_taken_interrupt_count_{}_{}\": {}}}\n", id_, intr_to_string.at(static_cast<intr>(j)), priv_to_string.at(static_cast<priv>(i)), num_taken_interrupts_[i][j]);
+        }
+    }
   }
-  step(id_, w);
-  const auto& next_instr = w.disasm;
-  const auto& next_mode = w.priv_mode;
-  const auto& next_trap = w.trap;
-  const auto& next_num_dest = w.change_count;
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_nmi_taken_count\": \"{}\"}}\n", id_, nmi_taken_count_);
 
-  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_instr\": \"{}\"}}\n", id_, next_instr);
-  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_mode\": {}}}\n", id_, next_mode);
-  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_trap\": {}}}\n", id_, next_trap);
-  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_num_dest\": {}}}\n", id_, next_num_dest);
+  if (!terminated_) {
+    // Step one final time to collect metrics for next instruction
+    whisper_state_t w;
+    if (FLAGS_mcm) {
+      cvm::registry::messenger.call<whisperClient<uint64_t>::whisperDisableMcmRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0));
+      w = { .tag = prev_whisp_state.tag+1, .time = prev_whisp_state.time+1 };
+    }
+    else {
+      w = { .tag = step_+1, .time = prev_whisp_state.time+1 };
+    }
+    step(id_, w);
+    const auto& next_instr = w.disasm;
+    const auto& next_mode = w.priv_mode;
+    const auto& next_trap = w.trap;
+    const auto& next_num_dest = w.change_count;
 
+    print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_instr\": \"{}\"}}\n", id_, next_instr);
+    print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_mode\": {}}}\n", id_, next_mode);
+    print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_trap\": {}}}\n", id_, next_trap);
+    print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_num_dest\": {}}}\n", id_, next_num_dest);
+  }
+  // Regression level metrics from hart 0
+  if (id_ == 0) {
+    // Average ipc
+    print(cvm::NONE, "INFO_PASS_REGR_METRIC:{{\"name\": \"ipc\", \"value\": {:.2f}, \"type\": \"d\", \"action\": \"avg\"}}\n", ipc);
+  }
 }
