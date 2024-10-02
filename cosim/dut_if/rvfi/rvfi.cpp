@@ -82,7 +82,9 @@ rvfi::~rvfi() {
 }
 
 void rvfi::check() {
-  bridge_->report_metrics();
+  if (FLAGS_cosim) {
+    bridge_->report_metrics();
+  }
 }
 
 void rvfi::init() {
