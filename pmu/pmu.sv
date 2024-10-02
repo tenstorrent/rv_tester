@@ -24,7 +24,7 @@ import rv_tester_pkg::*;
     parameter longint unsigned transmission_overflow_threshold =  1 << shift_term;
     longint unsigned period = 0;
     longint unsigned instructions = 0;
-    longint unsigned instructions_image = 0;
+    bit instructions_overflow_bit = 0;
     bit cycle_sync_en, instruction_sync_en;
     assign cycle_sync_en = (period != '0);
     assign instruction_sync_en = (instructions != '0);
@@ -32,6 +32,9 @@ import rv_tester_pkg::*;
     bit perf_start = '0;
     bit perf_end = '0;
     logic terminate_1T;
+    logic pmcounters_overflow_sync;
+    logic counters_overflow_sync;
+    logic overflow_sync;
 
     always @(posedge clk) begin
         if (sys_reset) begin
@@ -44,15 +47,15 @@ import rv_tester_pkg::*;
     end
 
     longint unsigned cpu_cycles = 0;
-    longint unsigned cpu_cycles_image = 0;
+    bit cpu_cycles_overflow_bit = 0;
     longint unsigned sync_cycles = 0;
     longint unsigned sync_instructions = 0;
     longint unsigned prev_sync_instructions = 0;
     longint unsigned nret = {32'h0, NRET};
-    int unsigned pmcounter [EVENT_COUNT] = '{default:0};
-    int unsigned pmcounter_image [EVENT_COUNT] = '{default:0};
+    longint unsigned pmcounter [EVENT_COUNT] = '{default:0};
+    bit pmcounter_overflow_bit [EVENT_COUNT] = '{default:0};
     longint unsigned branch_instructions;
-    longint unsigned branch_instructions_image;
+    bit branch_instructions_overflow_bit;
 
     always @(posedge clk) begin
       if (reset) begin
@@ -90,59 +93,42 @@ import rv_tester_pkg::*;
     endgenerate
 
     generate
-      for (genvar i=1; i < EVENT_COUNT; i++) begin : pmcounter_image_regs
+      for (genvar i=1; i < EVENT_COUNT; i++) begin : pmcounters_overflow_bit_sync
         always @(posedge clk) begin
             if (reset) begin
-                pmcounter_image[i] <= 0;
-		cpu_cycles_image <= 0;
-    		instructions_image <= 0;
-    		branch_instructions_image <= 0;
+                pmcounter_overflow_bit[i] <= 0;
+                pmcounters_overflow_sync <= 0;
             end else if (pmcounterss[0].valid) begin 
-                pmcounter_image[i] <= pmcounter[i];
-		cpu_cycles_image <= cpu_cycles;
-    		instructions_image <= instructions;
-    		branch_instructions_image <= branch_instructions;
+                pmcounter_overflow_bit[i] <= pmcounter[i][$size(pmcounter, 2)/2];
+                pmcounters_overflow_sync <= 0;
             end else begin
-                pmcounter_image[i] <= pmcounter_image[i];
-		cpu_cycles_image <= cpu_cycles_image;
-    		instructions_image <= instructions_image;
-    		branch_instructions_image <= branch_instructions_image;
+                pmcounter_overflow_bit[i] <= pmcounter_overflow_bit[i];
+                pmcounters_overflow_sync <= pmcounters_overflow_sync | (pmcounter_overflow_bit[i] ^ pmcounter[i][$size(pmcounter, 2)/2]);
             end
         end
       end
     endgenerate
 
-    always @(posedge clk) begin : counter_transmisison_overflow_assertion
+    always @(posedge clk) begin : counters_overflow_bit_sync
       if (reset) begin
+        cpu_cycles_overflow_bit <= 0;
+        instructions_overflow_bit <= 0;
+        branch_instructions_overflow_bit <= 0;
+        counters_overflow_sync <= 0;
+      end else if (pmcounterss[0].valid) begin 
+        cpu_cycles_overflow_bit <= cpu_cycles[$size(cpu_cycles, 1)/2];
+        instructions_overflow_bit <= instructions[$size(instructions, 1)/2];
+        branch_instructions_overflow_bit <= branch_instructions[$size(branch_instructions, 1)/2];
+        counters_overflow_sync <= 0;
       end else begin
-        if ((cpu_cycles - cpu_cycles_image) > transmission_overflow_threshold) begin
-          $error("Threshold overflow between counter syncs: cpu_cycles: %0h, cpu_cycles_image: %0h, threshold: %0h, difference: %0h",
-          cpu_cycles, cpu_cycles_image, transmission_overflow_threshold, (cpu_cycles - cpu_cycles_image));
-        end
-        if ((instructions - instructions_image) > transmission_overflow_threshold) begin
-          $error("Threshold overflow between counter syncs: instructions: %0h, instructions_image: %0h, threshold: %0h, difference: %0h",
-          instructions, instructions_image, transmission_overflow_threshold, (instructions - instructions_image));
-        end
-        if ((branch_instructions - branch_instructions_image) > transmission_overflow_threshold) begin
-          $error("Threshold overflow between counter syncs: branch_instructions: %0h, branch_instructions_image: %0h, threshold: %0h, difference: %0h",
-          branch_instructions, branch_instructions_image, transmission_overflow_threshold, (branch_instructions - branch_instructions_image));
-        end
+        cpu_cycles_overflow_bit <= cpu_cycles_overflow_bit;
+        instructions_overflow_bit <= instructions_overflow_bit;
+        branch_instructions_overflow_bit <= branch_instructions_overflow_bit;
+        counters_overflow_sync <= (cpu_cycles_overflow_bit ^ cpu_cycles[$size(cpu_cycles, 1)/2]) | (instructions_overflow_bit ^ instructions[$size(instructions, 1)/2]) | (branch_instructions_overflow_bit ^ branch_instructions[$size(branch_instructions, 1)/2]);
       end
     end
 
-    generate
-      for (genvar i=1; i < EVENT_COUNT; i++) begin : pmcounter_transmission_overflow_check
-        always @(posedge clk) begin : pmcounter_transmisison_overflow_assertion
-          if (reset) begin
-          end else begin
-            if ((pmcounter[i] - pmcounter_image[i]) > transmission_overflow_threshold) begin
-              $error("Threshold overflow between pmcounter syncs: pmcounter[%0d]: %0h, pmcounter_image[%0d]: %0h, threshold: %0h, difference: %0h",
-              i, pmcounter[i], i, pmcounter_image[i], transmission_overflow_threshold, (pmcounter[i] - pmcounter_image[i]));
-            end
-          end
-        end
-      end
-    endgenerate
+    assign overflow_sync = pmcounters_overflow_sync | counters_overflow_sync;
 
    always_comb begin
       branch_instructions = pmcounter[OP_RETIRED_DIRECT_BRANCH] + pmcounter[OP_RETIRED_RET_BRANCH] +
@@ -183,7 +169,7 @@ import rv_tester_pkg::*;
    //endgenerate
 
     //AUTOGENERATED -- NO TOUCH
-    assign pmcounterss[0].valid = !reset && perf_enabled && (terminate || (cycle_sync_en && (sync_cycles % period) == 0) || (instruction_sync_en && (((prev_sync_instructions % instructions) > nret) && ((sync_instructions % instructions) < nret))) || perf_start || perf_end);
+    assign pmcounterss[0].valid = !reset && perf_enabled && (overflow_sync ||  terminate || (cycle_sync_en && (sync_cycles % period) == 0) || (instruction_sync_en && (((prev_sync_instructions % instructions) > nret) && ((sync_instructions % instructions) < nret))) || perf_start || perf_end);
     assign pmcounterss[0].data.location = location;
     assign pmcounterss[0].data.cpu_cycles = 32'(cpu_cycles);
     assign pmcounterss[0].data.instructions = 32'(pmcounter[INSTRUCTIONS]);
