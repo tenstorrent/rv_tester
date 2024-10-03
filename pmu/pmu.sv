@@ -19,7 +19,8 @@ import rv_tester_pkg::*;
   `RV_TESTER_TRANSACTIONS_PMU_OUTPUT_PORTS
 );
 
-    parameter OVERFLOW_BIT = 32;
+    parameter OVERFLOW_BIT = $size(pmcounter, 2)/2;
+    parameter OVERFLOW_BIT_EXTRA = 3;
     parameter int unsigned location = cvm_topology_gen::get_location (topology.TOP.PLATFORM.PMCI.ID, NUM);
     longint unsigned period = 0;
     longint unsigned instructions = 0;
@@ -50,7 +51,7 @@ import rv_tester_pkg::*;
     longint unsigned prev_sync_instructions = 0;
     longint unsigned nret = {32'h0, NRET};
     longint unsigned pmcounter [EVENT_COUNT] = '{default:0};
-    bit pmcounter_overflow_bit [EVENT_COUNT];
+    bit pmcounter_overflow_bit [EVENT_COUNT + OVERFLOW_BIT_EXTRA];
     longint unsigned branch_instructions;
     bit branch_instructions_overflow_bit;
 
@@ -92,36 +93,25 @@ import rv_tester_pkg::*;
     always_ff @(posedge clk) begin : overflow_logic
         automatic logic overflow_nxt = '0;
         if (!reset) begin
-            overflow_nxt |= (cpu_cycles[OVERFLOW_BIT] ^ cpu_cycles_overflow_bit) | (instructions[OVERFLOW_BIT] ^ instructions_overflow_bit) | (branch_instructions[OVERFLOW_BIT] ^ branch_instructions_overflow_bit);
             for (int i = 0; i < EVENT_COUNT; i++) begin
                 overflow_nxt |= (pmcounter[i][OVERFLOW_BIT] ^ pmcounter_overflow_bit[i]);
             end
+            overflow_nxt |= (cpu_cycles[OVERFLOW_BIT] ^ pmcounter_overflow_bit[EVENT_COUNT]) | (instructions[OVERFLOW_BIT] ^ pmcounter_overflow_bit[EVENT_COUNT + 1]) | (branch_instructions[OVERFLOW_BIT] ^ pmcounter_overflow_bit[EVENT_COUNT + 2]);
         end
         overflow <= overflow_nxt;
     end
     
-    generate
-      for (genvar i=1; i < EVENT_COUNT; i++) begin : pmcounters_overflow_bit
-        always_ff @(posedge clk) begin
-            if (reset) begin
-                pmcounter_overflow_bit[i] <= 0;
-            end else if (pmcounterss[0].valid) begin 
+    always_ff @(posedge clk) begin : pmcounters_overflow_bit
+        if (reset) begin
+            pmcounter_overflow_bit <= '0;
+        end else if (pmcounterss[0].valid) begin 
+            for (int i=0; i < EVENT_COUNT; i++) begin
                 pmcounter_overflow_bit[i] <= pmcounter[i][OVERFLOW_BIT];
             end
+            pmcounter_overflow_bit[EVENT_COUNT] 	<= cpu_cycles[OVERFLOW_BIT];
+            pmcounter_overflow_bit[EVENT_COUNT + 1] 	<= instructions[OVERFLOW_BIT]; 
+            pmcounter_overflow_bit[EVENT_COUNT + 2] 	<= branch_instructions[OVERFLOW_BIT];
         end
-      end
-    endgenerate
-
-    always_ff @(posedge clk) begin : counters_overflow_bit
-      if (reset) begin
-        cpu_cycles_overflow_bit <= 0;
-        instructions_overflow_bit <= 0;
-        branch_instructions_overflow_bit <= 0;
-      end else if (pmcounterss[0].valid) begin 
-        cpu_cycles_overflow_bit <= cpu_cycles[OVERFLOW_BIT];
-        instructions_overflow_bit <= instructions[OVERFLOW_BIT];
-        branch_instructions_overflow_bit <= branch_instructions[OVERFLOW_BIT];
-      end
     end
 
    always_comb begin
