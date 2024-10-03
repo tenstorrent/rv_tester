@@ -1569,6 +1569,21 @@ pwrmgmt:
             assertion:
                 width: 1
 
+snoop_gen:
+    num: 1
+    m_tick:
+        domain: 2
+        num: 1
+        fields:
+            cycle:
+                width: 64
+    m_reset:
+        domain: 2
+        num: 1
+        fields:
+            cycle:
+                width: 64
+
 interrupts:
     num: ${TOP.PLATFORM.NHARTS}
     m_nmi_tick:

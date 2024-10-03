@@ -358,11 +358,11 @@ void
   } else if (addr ==(io_coh_helper_base + 0x300)) {
     cvm::log(cvm::HIGH, "[io_coh_helper] Transfer type {:#x}  \n",t_data);
     tx_type = t_data;
+
     if(tx_type==2){
       //create array of structs
       txns_vec = {};
     }
-    
   } else if(addr ==(io_coh_helper_base + 0x400)) {
     cvm::log(cvm::HIGH, "[io_coh_helper] Transfer trigger {:#x}  \n",t_data);
     
