@@ -142,7 +142,7 @@ cvm::messenger::task<void> snoop_gen_sequence::blocking_read(const transactor::r
   //ar_txn.addr = 0x60000000;
   ar_txn.addr = r.addr;
   if(FLAGS_rand_snoop_unaligned_addr_en){
-    ar_txn.addr = r.addr + (rng1 % 64);
+    ar_txn.addr = r.addr + (rng1() % 64);
   }
   ar_txn.len  = 0;
   ar_txn.size = 6;
