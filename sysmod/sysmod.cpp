@@ -661,7 +661,7 @@ void sysmod::store_inval_load(const inval_load_s& payload) {
     // No need to poke entire cacheline granularity - that will be done after CRSP
     bool valid = true;
     cvm::log(cvm::HIGH, "CBO_INVAL_MONITOR :: Whisper Poke with data:{:#x} for address:{:#x}\n",read_data,ld_addr);
-    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', ld_addr, size, read_data, valid)) {
+    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', ld_addr, size, read_data, valid) || !valid) {
       cvm::log(cvm::ERROR, "Error: store_inval_load failed to poke whisper memory\n"); 
     }
   }
