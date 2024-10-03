@@ -471,6 +471,8 @@ import rv_tester_pkg::*;
     assign pmcounterss[0].data.pfc_prefetches_sent = 33'(pmcounter[PFC_PREFETCHES_SENT]);
     assign pmcounterss[0].data.pfc_prt_l1d_evict_hit = 33'(pmcounter[PFC_PRT_L1D_EVICT_HIT]);
     assign pmcounterss[0].data.pfc_prt_reqbuf_alloc_hit = 33'(pmcounter[PFC_PRT_REQBUF_ALLOC_HIT]);
+    assign pmcounterss[0].data.ldq_missq_full_delay = 33'(pmcounter[LDQ_MISSQ_FULL_DELAY]);
+    assign pmcounterss[0].data.stq_missq_full_delay = 33'(pmcounter[STQ_MISSQ_FULL_DELAY]);
     assign pmcounterss[0].data.sc_cache_access = 33'(sc_pmci[SC_CACHE_ACCESS]);
     assign pmcounterss[0].data.sc_cache_rd = 33'(sc_pmci[SC_CACHE_RD]);
     assign pmcounterss[0].data.sc_cache_miss = 33'(sc_pmci[SC_CACHE_MISS]);
