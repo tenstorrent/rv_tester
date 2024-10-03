@@ -365,6 +365,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
     int hart_enable_mask;
     int nharts;
     bit boot_wfi;
+    bit cosim_terminate_sent;
 
     //--------------------------------------------------------------------------------------------
     // Track writes to GP,FP,VEC registers for comparison with Whisper
@@ -1144,21 +1145,25 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
 
         /* verilator lint_on BLKSEQ */
         boot_wfi <= '0;
+        cosim_terminate_sent <= '0;
       end else if(!dut_reset) begin
         if (NUM != 0 && rvfi[0].valid == '1 && rvfi[0].insn[6:0] == 7'h73 && rvfi[0].pc_rdata < 'h20000) begin // WFI
           boot_wfi <= '1;
         end
-        if (max_stall_cycle > 0 && cycles_since_retire > max_stall_cycle && !boot_wfi && NUM < nharts) begin
+        if (max_stall_cycle > 0 && cycles_since_retire > max_stall_cycle && !boot_wfi && NUM < nharts && cosim_terminate_sent == '0) begin
           $display("\nError: Hart %0d: No instruction retired for max_stall_cycle (%0d) cycles", NUM, max_stall_cycle);
           cosim_terminate();
+          cosim_terminate_sent <= '1;
         end
-        if (max_cycle > 0 && clocks > max_cycle && NUM < nharts) begin
+        if (max_cycle > 0 && clocks > max_cycle && NUM < nharts && cosim_terminate_sent == '0) begin
           $display("\nError: Hart %0d:  Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", NUM, max_cycle);
           cosim_terminate();
+          cosim_terminate_sent <= '1;
         end
-        if (rvfi[0].valid == '1 && NUM > nharts) begin
+        if (rvfi[0].valid == '1 && NUM > nharts && cosim_terminate_sent == '0) begin
           $display("\nError: Core %0d: Instruction retire seen on disabled/harvested core", NUM);
           cosim_terminate();
+          cosim_terminate_sent <= '1;
         end
       end
     end

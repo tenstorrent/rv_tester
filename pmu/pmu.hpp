@@ -867,6 +867,12 @@ public:
       NO_ALLOC_HINT_NOT_SET,
       //SC replay due to ECC errors
       SC_REPLAY_ECC,
+      //SC pipeline cancellation in TA4. It can result from b2b same-set access and other conditions
+      SC_CANCEL_PIPERESULT,
+      //Count per slice SC victims
+      SC_VICTIM,
+      //Cache line not allocated into SC due to minRRPV > 1 (min repl state in RTL > 2)
+      NO_ALLOC_SRRIP,
     COUNT
     } counter;
 
@@ -1305,6 +1311,9 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::NO_ALLOC_NO_MSHR] = pmcounters.no_alloc_no_mshr;
       tmp[counter::NO_ALLOC_HINT_NOT_SET] = pmcounters.no_alloc_hint_not_set;
       tmp[counter::SC_REPLAY_ECC] = pmcounters.sc_replay_ecc;
+      tmp[counter::SC_CANCEL_PIPERESULT] = pmcounters.sc_cancel_piperesult;
+      tmp[counter::SC_VICTIM] = pmcounters.sc_victim;
+      tmp[counter::NO_ALLOC_SRRIP] = pmcounters.no_alloc_srrip;
 
       return tmp;
     }
@@ -1740,6 +1749,9 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {NO_ALLOC_NO_MSHR,"no_alloc_no_mshr"},
       {NO_ALLOC_HINT_NOT_SET,"no_alloc_hint_not_set"},
       {SC_REPLAY_ECC,"sc_replay_ecc"},
+      {SC_CANCEL_PIPERESULT,"sc_cancel_piperesult"},
+      {SC_VICTIM,"sc_victim"},
+      {NO_ALLOC_SRRIP,"no_alloc_srrip"},
     };
 
   pmu(cvm::topology::loc_t, unsigned);

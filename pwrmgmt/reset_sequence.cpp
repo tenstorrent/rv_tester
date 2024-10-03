@@ -23,7 +23,7 @@ DEFINE_string(warm_reset_count, "0:4", "Number of warm resets in the sim if rand
 DEFINE_string(warm_reset_interval, "2000:10000", "TB cycle interval between warm resets in the sim if random mode enabled");
 DEFINE_string(warm_reset_trigger_type, "", "Send warm reset on a trigger");
 DEFINE_string(warm_reset_trigger_interval, "rand:0:100", "TB cycle interval from trigger to warm reset");
-DEFINE_string(warm_reset_sram_hold, "0:1", "Sram hold");
+DEFINE_string(warm_reset_sram_hold, "0:0", "Sram hold");
 DEFINE_string(warm_reset_debug_hold, "0:1", "Debug hold");
 DEFINE_string(warm_reset_critical_hold, "0:1", "Critical hold");
 DEFINE_bool(patch_en, false, "Enable instruction patching");
@@ -38,7 +38,7 @@ DEFINE_bool(init_smc_infilters, false, "Enable filter programming for JTAG and O
 DEFINE_bool(smc_axi_access, false, "Enable random AXI access from SMC ");
 DEFINE_string(patch_ucode_input_file_path, "", "Path to file containing patch ucode routine");
 DEFINE_string(patches, "WFI,SUB,BLT,AMOSWAP", "+patches=<instr1>,<instr2>,<instr3>,<instr4>; default will be picked if not specified ");
-DEFINE_string(disable_patches, "", "+disable_patches=<instr1>,<instr2>,<instr3>,<instr4>; default will be picked if not specified ");
+DEFINE_string(disable_patches, "AMOSWAP", "+disable_patches=<instr1>,<instr2>,<instr3>,<instr4>; default will be picked if not specified ");
 DEFINE_bool(rand_patch, false, "Randomly pick 4 instructions available in the CSV to be patched");
 
 
@@ -79,6 +79,9 @@ void reset_sequence::start(int reset_count) {
 
   if (reset_count_ > 0)
     warm_reset_sequence_thread();
+
+
+  smc_random_sequence_thread();  
 }
 
 reset_sequence::~reset_sequence() {
@@ -146,8 +149,8 @@ cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
   // Deassert force_ref_clk
   force_ref_clk(0);
 
-  // Wait for 16 clock ticks
-  for (int i=0; i<16; ++i)
+  // Wait for 32 clock ticks
+  for (int i=0; i<32; ++i)
     co_await tick();
 
   // PLL cold powerup sequence
@@ -207,8 +210,8 @@ cvm::messenger::task<void> reset_sequence::warm_reset_sequence() {
   // Deassert force_ref_clk
   force_ref_clk(0);
 
-  // Wait for 16 clock ticks
-  for (int i=0; i<16; ++i)
+  // Wait for 32 clock ticks
+  for (int i=0; i<32; ++i)
     co_await tick();
 
   co_await cpl_reset_sequence(WARM);
@@ -239,7 +242,6 @@ cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
   if (FLAGS_fuse_mmr_check)
     co_await disabled_mmr_csr_check();
 
-  smc_random_sequence_thread();  
   co_return;
 }
 
@@ -823,13 +825,13 @@ void reset_sequence::force_ref_clk(uint8_t assert) {
 cvm::messenger::task<void> reset_sequence::smc_scratchpad_default_access() {
   co_await tick();
     // Read reset values  
-    smc_read_access_check(mb_scratchpad, mb_scratchpad_rst,SZ_8B);
-    smc_read_access_check(cc_scratchpad, cc_scratchpad_rst,SZ_4B);
-    smc_read_access_check(rc_scratchpad, rc_scratchpad_rst,SZ_4B);
-    smc_read_access_check(dm_scratchpad, dm_scratchpad_rst,SZ_8B);
-    smc_read_access_check(cr_scratchpad, cr_scratchpad_rst,SZ_8B);
-    smc_read_access_check(sw_scratchpad, sw_scratchpad_rst,SZ_8B);
-    smc_read_access_check(ac_scratchpad, ac_scratchpad_rst,SZ_8B);
+    co_await smc_read_access_check(mb_scratchpad, mb_scratchpad_rst,SZ_8B);
+    co_await smc_read_access_check(cc_scratchpad, cc_scratchpad_rst,SZ_4B);
+    co_await smc_read_access_check(rc_scratchpad, rc_scratchpad_rst,SZ_4B);
+    co_await smc_read_access_check(dm_scratchpad, dm_scratchpad_rst,SZ_8B);
+    co_await smc_read_access_check(cr_scratchpad, cr_scratchpad_rst,SZ_8B);
+    co_await smc_read_access_check(sw_scratchpad, sw_scratchpad_rst,SZ_8B);
+    co_await smc_read_access_check(ac_scratchpad, ac_scratchpad_rst,SZ_8B);
   co_return;
   };
 
@@ -856,14 +858,14 @@ cvm::messenger::task<void> reset_sequence::smc_scratchpad_default_access() {
     co_await tick();
   if(FLAGS_smc_axi_access){
     // Default value check for scratch pad registers
-    smc_scratchpad_default_access(); 
+    co_await smc_scratchpad_default_access(); 
 
     data  = 0xA5A5A5A5A5A5A5A5; 
     data2 = 0xA5A5A5A5; 
     for(uint32_t i = 0; i < FLAGS_smc_max_snippets ; ++i)
     {
       // Delay between each iteration
-      delay_counters();
+      co_await delay_counters();
       for(uint32_t p = 0; p < FLAGS_smc_snippet_size ; ++p)
       {
         std::random_device rd;
@@ -881,7 +883,7 @@ cvm::messenger::task<void> reset_sequence::smc_scratchpad_default_access() {
         if((randomAddress == rc_scratchpad)|| (randomAddress == cc_scratchpad))
         {
         co_await write(randomAddress, SZ_4B, data2);
-        smc_read_access_check(randomAddress, data2,SZ_4B);
+        co_await smc_read_access_check(randomAddress, data2,SZ_4B);
         }
         else if((randomAddress == core_pwr_throttle_cfg_0)|| (randomAddress == core_pwr_throttle_cfg_1))
         {
@@ -889,12 +891,12 @@ cvm::messenger::task<void> reset_sequence::smc_scratchpad_default_access() {
         }
         else{
          co_await write(randomAddress, SZ_8B, data);
-         smc_read_access_check(randomAddress, data,SZ_8B);
+         co_await smc_read_access_check(randomAddress, data,SZ_8B);
         };
 
         // Random SRAM access
          co_await write(SRAMAddress, SZ_8B, data);
-         smc_read_access_check(SRAMAddress, data,SZ_8B);
+         co_await smc_read_access_check(SRAMAddress, data,SZ_8B);
         data = ~data;
         data2 = ~data2;
   
