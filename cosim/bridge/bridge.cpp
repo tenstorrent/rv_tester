@@ -269,7 +269,7 @@ void bridge::setsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr) {
 }
 void bridge::resetsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr) {
   bool valid;
-  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, cycle, 'c', csr, 0xffffffffffffffff, valid)|| !valid) && FLAGS_whisper_client_check)) {
+  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, cycle, 'c', csr, 0xffffffffffffffff, valid)|| !valid) && FLAGS_whisper_client_check) {
     error("Hart {}: Failed to poke timecmp csr\n", id_);
     return;
   }
