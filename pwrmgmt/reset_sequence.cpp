@@ -3,6 +3,9 @@
 #include "pmu/pmu_plusargs.h"
 #include <sstream>
 #include <unordered_map>
+#include <iostream>
+#include <fstream>
+#include <vector>
 
 REGISTRY_register(reset_sequence, PWRMGMT, cvm::registry::all);
 
@@ -12,12 +15,15 @@ DEFINE_bool(pll_dfs, false, "Enable dfs sequence during cold boot");
 DEFINE_uint32(pll_dfs_freq, 1200, "Clock freq for dfs");
 DEFINE_uint32(pll_dfs_timeout, 50, "Number of soc cycles expected for pll dfs to complete");
 DEFINE_uint32(num_thubs, 4, "Number of temprature hubs");
+DEFINE_uint32(smc_max_snippets, 2, "Maximum number of random continuous AXI access from SMC ");
+DEFINE_uint32(smc_snippet_size, 10, "Maximum number of random continuous AXI access from SMC ");
+DEFINE_uint32(smc_max_ticks, 100, "Maximum delay/ticks between SMC randomm access snippets");
 DEFINE_string(warm_reset, "off", "Enable warm resets in the sim - off/random/trigger");
 DEFINE_string(warm_reset_count, "0:4", "Number of warm resets in the sim if random mode enabled");
 DEFINE_string(warm_reset_interval, "2000:10000", "TB cycle interval between warm resets in the sim if random mode enabled");
 DEFINE_string(warm_reset_trigger_type, "", "Send warm reset on a trigger");
 DEFINE_string(warm_reset_trigger_interval, "rand:0:100", "TB cycle interval from trigger to warm reset");
-DEFINE_string(warm_reset_sram_hold, "0:1", "Sram hold");
+DEFINE_string(warm_reset_sram_hold, "0:0", "Sram hold");
 DEFINE_string(warm_reset_debug_hold, "0:1", "Debug hold");
 DEFINE_string(warm_reset_critical_hold, "0:1", "Critical hold");
 DEFINE_bool(patch_en, false, "Enable instruction patching");
@@ -26,9 +32,14 @@ DEFINE_bool(temp_throttle, false, "Program lower Temp throttle for core");
 DEFINE_bool(patch_cpl_filter_dis, false, "Disable programming of inbound and outbound filters in core");
 DEFINE_bool(patch_mmr_check, false, "Enable read write checking of patch related registers");
 DEFINE_bool(patch_ram_check, false, "Enable read write checking of patch ram region");
-DEFINE_bool(patch_cfg_lock, true, "Lock the patch mmrs while boot programming ");
+DEFINE_bool(patch_cfg_lock, false, "Lock the patch mmrs while boot programming ");
 DEFINE_bool(fuse_mmr_check, false, "Check RW and lockability of fuses ");
 DEFINE_bool(init_smc_infilters, false, "Enable filter programming for JTAG and Overlay to access SRAM ");
+DEFINE_bool(smc_axi_access, false, "Enable random AXI access from SMC ");
+DEFINE_string(patch_ucode_input_file_path, "", "Path to file containing patch ucode routine");
+DEFINE_string(patches, "WFI,SUB,BLT,AMOSWAP", "+patches=<instr1>,<instr2>,<instr3>,<instr4>; default will be picked if not specified ");
+DEFINE_string(disable_patches, "AMOSWAP", "+disable_patches=<instr1>,<instr2>,<instr3>,<instr4>; default will be picked if not specified ");
+DEFINE_bool(rand_patch, false, "Randomly pick 4 instructions available in the CSV to be patched");
 
 
 extern "C" {
@@ -68,6 +79,9 @@ void reset_sequence::start(int reset_count) {
 
   if (reset_count_ > 0)
     warm_reset_sequence_thread();
+
+
+  smc_random_sequence_thread();  
 }
 
 reset_sequence::~reset_sequence() {
@@ -90,6 +104,21 @@ void reset_sequence::warm_reset_sequence_thread() {
   cvm::registry::messenger.fork(task, this);
 };
 
+void reset_sequence::smc_random_sequence_thread() {
+  auto *task = +[] (reset_sequence* m) -> cvm::messenger::task<void> {
+    co_await m->smc_axi_random_access();
+    co_return;
+  };
+  cvm::registry::messenger.fork(task, this);
+};
+
+void reset_sequence::temp_throttle_release_thread() {
+  auto *task = +[] (reset_sequence* m) -> cvm::messenger::task<void> {
+    co_await m->temp_throttle_disable();
+    co_return;
+  };
+  cvm::registry::messenger.fork(task, this);
+};
 cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
   // Wait for 16 clock ticks
   for (int i=0; i<16; ++i)
@@ -117,6 +146,13 @@ cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
   for (int i=0; i<16; ++i)
     co_await tick();
 
+  // Deassert force_ref_clk
+  force_ref_clk(0);
+
+  // Wait for 32 clock ticks
+  for (int i=0; i<32; ++i)
+    co_await tick();
+
   // PLL cold powerup sequence
   co_await pll_startup_sequence();
 
@@ -126,9 +162,6 @@ cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
 
   // Reset controller sequence
   co_await cpl_reset_sequence(COLD);
-
-  // Deassert force_ref_clk
-  force_ref_clk(0);
 
   // Wait for next tick
   co_await tick();
@@ -174,10 +207,14 @@ cvm::messenger::task<void> reset_sequence::warm_reset_sequence() {
   for (int i=0; i<16; ++i)
     co_await tick();
 
-  co_await cpl_reset_sequence(WARM);
-
   // Deassert force_ref_clk
   force_ref_clk(0);
+
+  // Wait for 32 clock ticks
+  for (int i=0; i<32; ++i)
+    co_await tick();
+
+  co_await cpl_reset_sequence(WARM);
 
   // Wait for next tick
   co_await tick();
@@ -204,6 +241,7 @@ cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
   co_await release_cpl_nofetch();
   if (FLAGS_fuse_mmr_check)
     co_await disabled_mmr_csr_check();
+
   co_return;
 }
 
@@ -260,6 +298,12 @@ cvm::messenger::task<void> reset_sequence::pll_dfs_sequence() {
 cvm::messenger::task<void> reset_sequence::release_cpl_reset() {
   co_await tick();
   co_await write(rst_ctl_warm, SZ_4B, (1 << cpl_cl_warm_reset_n));
+
+  // Wait for 16 clock ticks
+  for (int i=0; i<16; ++i)
+  co_await tick();
+
+  co_await write(rst_ctl_warm, SZ_4B, (1 << cpl_force_ss_to_ref_clock_n | 1 << cpl_cl_warm_reset_n));
 
   co_return;
 }
@@ -463,6 +507,7 @@ uint64_t reset_sequence::fuse_val() {
 
 cvm::messenger::task<void> reset_sequence::program_patch() {
   co_await tick();
+  read_patch_csv();
   if (!FLAGS_patch_cpl_filter_dis) { 
     //CPL AXI in filter programming
     co_await write(cpl_in_filter0_addr_l ,SZ_8B , 0x4C000);
@@ -474,42 +519,64 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
     co_await write(cpl_out_filter0_config ,SZ_8B , 0x81010113);
   };  
 
+  std::string token;
+  std::vector<std::string> disable_patch_instr = {"patch_prolouge","patch_epilouge"};
+  std::istringstream ss1(FLAGS_disable_patches);
+  while (std::getline(ss1, token, ',')) {
+    disable_patch_instr.push_back(token);
+  }
+  
+  std::vector<std::string> patch_instr = {} ;
+  if (FLAGS_rand_patch) {
+    for (auto const& [key, value] : patches) 
+      if (std::find(disable_patch_instr.begin(), disable_patch_instr.end(), key) == disable_patch_instr.end())
+        patch_instr.push_back(key);
+    std::shuffle(std::begin(patch_instr), std::end(patch_instr), cvm::rand::gen);
+  } else {
+    std::istringstream ss(FLAGS_patches);
+    while (std::getline(ss, token, ',')) {
+      if (std::find(disable_patch_instr.begin(), disable_patch_instr.end(), token) == disable_patch_instr.end())
+        patch_instr.push_back(token);
+    }
+  }
+  
+
+  std::unordered_map<uint32_t, uint64_t> patch_cfg;
+  patch_cfg[core_pversion_mmr] = rand()%0xFF;
+
+
+  std::vector<uint32_t> patch_header = patches["patch_prolouge"].ucodes;
+
+  patch_header.insert(patch_header.end(), patches["patch_epilouge"].ucodes.begin(), patches["patch_epilouge"].ucodes.end()); 
+
   co_await write(cpl_patch_ram_base, SZ_8B, concatenate_uint32_to_uint64(patch_header) );
   co_await write(cpl_patch_ram_ptrig_0, SZ_8B, concatenate_uint32_to_uint64(patch_trig_0) );
   co_await write(cpl_patch_ram_ptrig_1, SZ_8B, concatenate_uint32_to_uint64(patch_trig_1) );
   co_await write(cpl_patch_ram_ptrig_2, SZ_8B, concatenate_uint32_to_uint64(patch_trig_2) );
   co_await write(cpl_patch_ram_ptrig_3, SZ_8B, concatenate_uint32_to_uint64(patch_trig_3) );
-  co_await write(cpl_patch_ram_pbody_0, SZ_8B, concatenate_uint32_to_uint64(patch_body_wfi) );
-  co_await write(cpl_patch_ram_pbody_1, SZ_8B, concatenate_uint32_to_uint64(patch_body_sub) );
-  co_await write(cpl_patch_ram_pbody_2, SZ_8B, concatenate_uint32_to_uint64(patch_body_blt_arith) );
-  co_await write(cpl_patch_ram_pbody_3, SZ_8B, concatenate_uint32_to_uint64(patch_body_amoswap) );
 
-  if (FLAGS_patch_ram_check) { 
-     populate_patch_ram(cpl_patch_ram_base, concatenate_uint32_to_uint64(patch_header) );
-     populate_patch_ram(cpl_patch_ram_ptrig_0, concatenate_uint32_to_uint64(patch_trig_0) );
-     populate_patch_ram(cpl_patch_ram_ptrig_1, concatenate_uint32_to_uint64(patch_trig_1) );
-     populate_patch_ram(cpl_patch_ram_ptrig_2, concatenate_uint32_to_uint64(patch_trig_2) );
-     populate_patch_ram(cpl_patch_ram_ptrig_3, concatenate_uint32_to_uint64(patch_trig_3) );
-     populate_patch_ram(cpl_patch_ram_pbody_0, concatenate_uint32_to_uint64(patch_body_wfi) );
-     populate_patch_ram(cpl_patch_ram_pbody_1, concatenate_uint32_to_uint64(patch_body_sub) );
-     populate_patch_ram(cpl_patch_ram_pbody_2, concatenate_uint32_to_uint64(patch_body_blt_arith) );
-     populate_patch_ram(cpl_patch_ram_pbody_3, concatenate_uint32_to_uint64(patch_body_amoswap) );
+  uint64_t pcontrol_data = 0;
+
+  for (int i = 0; i < (int)patch_instr.size(); ++i) { 
+    std::string patchTag = patch_instr[i];
+    cvm::log(cvm::MEDIUM, "[pwrmgmt] Patching instruction: {} , patchMask: 0x{:x}, Opcode: 0x{:x}, enableMask: 0x{:x}\n", patchTag, patches[patchTag].patchMask, patches[patchTag].patchInstruction, patches[patchTag].enableMask);
+    patch_cfg[core_preg0_mmr+(i*8)] = ((uint64_t)patches[patchTag].patchMask<<32 | patches[patchTag].patchInstruction); 
+    std::vector<uint32_t> ucode_body = patches[patchTag].ucodes;
+    co_await write(cpl_patch_ram_pbody_0+(i*0x400), SZ_8B, concatenate_uint32_to_uint64(ucode_body) );
+    if (FLAGS_patch_ram_check) populate_patch_ram(cpl_patch_ram_pbody_0+(i*0x400), concatenate_uint32_to_uint64(ucode_body));
+    pcontrol_data =  pcontrol_data | (((uint64_t)patches[patchTag].enableMask | 1) << i*16); // enable patch 
+    cvm::log(cvm::MEDIUM, "[pwrmgmt] pcontrol_data : 0x{:x}\n", pcontrol_data);
+    if (i == 3) break;
+  }
+  if (FLAGS_patch_ram_check) {
+    populate_patch_ram(cpl_patch_ram_base, concatenate_uint32_to_uint64(patch_header) );
+    populate_patch_ram(cpl_patch_ram_ptrig_0, concatenate_uint32_to_uint64(patch_trig_0) );
+    populate_patch_ram(cpl_patch_ram_ptrig_1, concatenate_uint32_to_uint64(patch_trig_1) );
+    populate_patch_ram(cpl_patch_ram_ptrig_2, concatenate_uint32_to_uint64(patch_trig_2) );
+    populate_patch_ram(cpl_patch_ram_ptrig_3, concatenate_uint32_to_uint64(patch_trig_3) );
     co_await patch_ram_check();
-  };
- 
+  }
 
-  std::unordered_map<uint32_t, uint64_t> patch_cfg;
-  patch_cfg[core_pversion_mmr] = rand()%0xFF;
-  patch_cfg[core_preg0_mmr] = 0xFFFFFFFF'10500073;//preg0 :wfi
-  patch_cfg[core_preg1_mmr] = 0xFE00707F'40000033;//preg1 :sub
-  patch_cfg[core_preg2_mmr] = 0x0000707F'00004063;//preg2: blt
-  patch_cfg[core_preg3_mmr] = 0xFE00707F'0800202f;//preg3 : amoswap.w
-  
-  uint64_t pcontrol_data =  0x03FE03FE03FE03FE;
-  pcontrol_data =  pcontrol_data | 0x1; // enable patch 0
-  pcontrol_data =  pcontrol_data | 0x1'0000; // enable patch 1
-  //pcontrol_data =  pcontrol_data | 0x1'0000'0000; // enable patch 2
-  //pcontrol_data =  pcontrol_data | 0x1'0000'0000'0000; // enable patch 3
   if (FLAGS_patch_cfg_lock) pcontrol_data = pcontrol_data | 0x8000800080008000;
 
 
@@ -563,23 +630,44 @@ cvm::messenger::task<void> reset_sequence::write_thub_reg(uint8_t addr, uint32_t
 
 cvm::messenger::task<void> reset_sequence::program_thub_threshold() {
   co_await tick();
-  if(FLAGS_tj_max)
-    {
+  if(FLAGS_tj_max){
     for (uint8_t i=0; i<FLAGS_num_thubs; ++i) {
-        co_await write_thub_reg(thub_threhold_param_reg,0x05400640,i+9,i);
+      co_await write_thub_reg(thub_threhold_param_reg,0x05400640,i+9,i);
     };
   };
+  // Enable MC throttling when Temprature crosses threshold
   if(FLAGS_temp_throttle)
   {
-  for(uint32_t p =0; p < FLAGS_num_harts; ++p) // Fixed for 8 core config as THUB is only in 8c
-  {
+    for(uint32_t p =0; p < FLAGS_num_harts; ++p) // Fixed for 8 core config as THUB is only in 8c
+    {
       // Write to MC power config
       co_await csr_write(p, 0x8,core_pwr_throttle_cfg_0 , 0x000078830372a211);
       co_await csr_write(p, 0x8,core_pwr_throttle_cfg_1 , 0x1041017ecb594129);
     };
+    // Disable temp throttle
+    temp_throttle_release_thread();
   };
  
 };
+
+cvm::messenger::task<void> reset_sequence::temp_throttle_disable()
+{
+
+  //Delay before temp throttle is disabled
+  for(uint32_t i =0; i< 5000; i++)
+  {
+    co_await tick();
+  };
+
+  for(uint32_t p =0; p < FLAGS_num_harts; ++p) // Fixed for 8 core config as THUB is only in 8c
+  {
+      // Write to MC power config
+      co_await csr_write(p, 0x8,core_pwr_throttle_cfg_0 , 0x000078830372a211);
+      co_await csr_write(p, 0x8,core_pwr_throttle_cfg_1 , 0x11ff017ecb594129);
+  };
+};
+ 
+
 std::vector<uint64_t> reset_sequence::concatenate_uint32_to_uint64(const std::vector<uint32_t>& input) {
       std::vector<uint64_t> result;
       int size = input.size();
@@ -732,4 +820,179 @@ void reset_sequence::force_ref_clk(uint8_t assert) {
       cvm::log(cvm::MEDIUM, "[pwrmgmt] {} force_ref_clk\n", assert ? "assert" : "deassert");
       pwrmgmt_force_ref_clk(assert);
     });
+}
+
+cvm::messenger::task<void> reset_sequence::smc_scratchpad_default_access() {
+  co_await tick();
+    // Read reset values  
+    co_await smc_read_access_check(mb_scratchpad, mb_scratchpad_rst,SZ_8B);
+    co_await smc_read_access_check(cc_scratchpad, cc_scratchpad_rst,SZ_4B);
+    co_await smc_read_access_check(rc_scratchpad, rc_scratchpad_rst,SZ_4B);
+    co_await smc_read_access_check(dm_scratchpad, dm_scratchpad_rst,SZ_8B);
+    co_await smc_read_access_check(cr_scratchpad, cr_scratchpad_rst,SZ_8B);
+    co_await smc_read_access_check(sw_scratchpad, sw_scratchpad_rst,SZ_8B);
+    co_await smc_read_access_check(ac_scratchpad, ac_scratchpad_rst,SZ_8B);
+  co_return;
+  };
+
+ cvm::messenger::task<void> reset_sequence::smc_read_access_check(uint32_t addr, uint64_t exp_data, size_t sz){
+  uint64_t actual_data;
+
+  actual_data = co_await read(addr, sz);
+  if (exp_data != actual_data)
+    cvm::log(cvm::ERROR, "[pwrmgmt] SMC Scratchpad access check ERROR : addr 0x{:x} ,  Expected :0x{:x}, Actual : 0x{:x} \n",addr , exp_data, actual_data );
+  else
+    cvm::log(cvm::NONE, "[pwrmgmt] SMC Scratchpad access check : addr 0x{:x} , data 0x{:x} \n",addr , actual_data );
+
+  co_return;
+ };    
+ 
+ cvm::messenger::task<void> reset_sequence::smc_axi_random_access()
+ {
+  uint64_t data;
+  uint32_t randomAddress;
+  uint32_t SRAMAddress;
+  uint32_t data2;
+  int randomIndex;
+
+    co_await tick();
+  if(FLAGS_smc_axi_access){
+    // Default value check for scratch pad registers
+    co_await smc_scratchpad_default_access(); 
+
+    data  = 0xA5A5A5A5A5A5A5A5; 
+    data2 = 0xA5A5A5A5; 
+    for(uint32_t i = 0; i < FLAGS_smc_max_snippets ; ++i)
+    {
+      // Delay between each iteration
+      co_await delay_counters();
+      for(uint32_t p = 0; p < FLAGS_smc_snippet_size ; ++p)
+      {
+        std::random_device rd;
+        std::mt19937 gen(rd());
+
+        // Create a uniform distribution to select random indices
+        std::uniform_int_distribution<> dist(0,smc_dest_address.size() - 1);
+        std::uniform_int_distribution<uint32_t> sram_dist(0x40000,0x4BFFF);
+
+        // Pick a random address from the pool of scratchpad registers
+        randomIndex = dist(gen);
+        randomAddress = smc_dest_address[randomIndex];
+        SRAMAddress   = sram_dist(gen) & 0xFFFF8;
+
+        if((randomAddress == rc_scratchpad)|| (randomAddress == cc_scratchpad))
+        {
+        co_await write(randomAddress, SZ_4B, data2);
+        co_await smc_read_access_check(randomAddress, data2,SZ_4B);
+        }
+        else if((randomAddress == core_pwr_throttle_cfg_0)|| (randomAddress == core_pwr_throttle_cfg_1))
+        {
+          co_await csr_read(0, 0x8,randomAddress);
+        }
+        else{
+         co_await write(randomAddress, SZ_8B, data);
+         co_await smc_read_access_check(randomAddress, data,SZ_8B);
+        };
+
+        // Random SRAM access
+         co_await write(SRAMAddress, SZ_8B, data);
+         co_await smc_read_access_check(SRAMAddress, data,SZ_8B);
+        data = ~data;
+        data2 = ~data2;
+  
+      };
+    };
+  };
+  co_return;
+};
+
+cvm::messenger::task<void> reset_sequence::delay_counters(){
+  for(uint32_t i =0; i< FLAGS_smc_max_ticks; i++)
+  {
+    co_await tick();
+  };
+
+  co_return;
+ };
+ 
+// Helper function to trim whitespace from a string
+std::string trim(const std::string& str) {
+    size_t first = str.find_first_not_of(" \t");
+    if (first == std::string::npos) {
+        return ""; 
+    }
+    size_t last = str.find_last_not_of(" \t");
+    return str.substr(first, (last - first + 1));
+}
+
+void reset_sequence::read_patch_csv() {
+    std::ifstream file(FLAGS_patch_ucode_input_file_path); //"@chips//dv/tb/patch/patch_ucode.csv"
+    cvm::log(cvm::MEDIUM, "Patch Ucode CSV : {}\n" , FLAGS_patch_ucode_input_file_path);
+
+    std::string line;
+    // Skip header row
+    std::getline(file, line); 
+    std::string currentPatchTag; 
+
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string patchTag, ucode, patchInstruction, patchMask, enableMask;
+        std::getline(ss, patchTag, ',');
+        std::getline(ss, ucode, ',');
+        std::getline(ss, patchInstruction, ',');
+        std::getline(ss, patchMask, ',');
+        std::getline(ss, enableMask, ',');
+
+        // Trim leading/trailing whitespace
+        patchTag = trim(patchTag);
+        ucode = trim(ucode);
+        patchInstruction = trim(patchInstruction);
+        patchMask = trim(patchMask);
+        enableMask = trim(enableMask);
+
+        // Convert to hexadecimal and discard "0x" prefix
+        if (ucode.substr(0, 2) == "0x") {
+            ucode = ucode.substr(2); 
+        }
+        if (patchInstruction.substr(0, 2) == "0x") {
+            patchInstruction = patchInstruction.substr(2); 
+        }
+        if (patchMask.substr(0, 2) == "0x") {
+            patchMask = patchMask.substr(2); 
+        }
+        if (enableMask.substr(0, 2) == "0x") {
+            enableMask = enableMask.substr(2); 
+        }
+
+        // If patchTag is not empty, it's a new instruction
+        if (!patchTag.empty()) {
+            currentPatchTag = patchTag;
+            patches[currentPatchTag] = {
+                patchTag, 
+                {}, 
+                static_cast<uint32_t>(std::stoul(patchInstruction, nullptr, 16)), 
+                static_cast<uint32_t>(std::stoul(patchMask, nullptr, 16)),
+                static_cast<uint32_t>(std::stoul(enableMask, nullptr, 16))
+            }; 
+        } 
+        else if (!ucode.empty()) { // If ucode is not empty and we have a current patch
+            patches[currentPatchTag].ucodes.push_back(static_cast<uint32_t>(std::stoul(ucode, nullptr, 16)));
+        } 
+    }
+
+    // Output the parsed patches, formatting hex values
+
+    for (const auto& pair : patches) {
+        cvm::log(cvm::HIGH, "Patch Tag: {} \n" ,pair.second.patchTag);
+        cvm::log(cvm::HIGH, "Patch Instruction: 0x{:x}\n",pair.second.patchInstruction);
+        cvm::log(cvm::HIGH, "Patch Mask: 0x{:x}\n", pair.second.patchMask);
+        cvm::log(cvm::HIGH, "Enable Mask: 0x{:x}\n", pair.second.enableMask);
+        cvm::log(cvm::HIGH, "Ucodes: ");
+        for (const auto& ucode : pair.second.ucodes) {
+            cvm::log(cvm::HIGH, "0x{:x}, ",ucode); 
+        }
+        cvm::log(cvm::HIGH, "\n***********************\n"); 
+
+      
+    }
 }

@@ -568,27 +568,25 @@ pmu:
                 width: 33
             stalls_pfx_full:
                 width: 33
+            nfp_early_redirect:
+                width: 33
+            nfp_late_redirect:
+                width: 33
             stalls_indirect_miss:
                 width: 33
             stalls_icache_miss:
                 width: 33
             stalls_itlb_miss:
                 width: 33
+            stalls_exception:
+                width: 33
             stalls_irb_full:
                 width: 33
             stalls_ifbuf_full:
                 width: 33
-            stalls_exception:
-                width: 33
             page_crossing_fetchblocks:
                 width: 33
-            nfp_early_redirect:
-                width: 33
-            nfp_late_redirect:
-                width: 33
             ifbuf_full_redirect:
-                width: 33
-            nonspec_resync:
                 width: 33
             fault_resync:
                 width: 33
@@ -611,12 +609,6 @@ pmu:
             total_flushes:
                 width: 33
             total_traps:
-                width: 33
-            uops_decoded:
-                width: 33
-            decode_serialize_before_cycles:
-                width: 33
-            decode_serialize_after_cycles:
                 width: 33
             l1i_read_access:
                 width: 33
@@ -647,6 +639,30 @@ pmu:
             btp_bank_conflicts:
                 width: 33
             bpu_writes:
+                width: 33
+            uops_decoded:
+                width: 33
+            decode_serialize_cycles:
+                width: 33
+            decode_idle_serialize_cycles:
+                width: 33
+            nonspec_resync:
+                width: 33
+            patch_match_exceptions:
+                width: 33
+            patch_match_ucode:
+                width: 33
+            patch_match_m_mode_exception_cycles:
+                width: 33
+            patch_match_s_mode_exception_cycles:
+                width: 33
+            patch_match_u_mode_exception_cycles:
+                width: 33
+            patch_match_vs_mode_exception_cycles:
+                width: 33
+            patch_match_vu_mode_exception_cycles:
+                width: 33
+            patch_match_ucode_cycles:
                 width: 33
             stalled_cycles_frontend:
                 width: 33
@@ -729,6 +745,10 @@ pmu:
             op_issued_pipe15:
                 width: 33
             wasted_issue_slots_via_throttling:
+                width: 33
+            op_issued_fp64:
+                width: 33
+            fp64_export_overflow:
                 width: 33
             cache_references:
                 width: 33
@@ -931,6 +951,24 @@ pmu:
             fillbuf_hit_replay_mmu:
                 width: 33
             fillbuf_hit_replay_all:
+                width: 33
+            l1d_miss_reqbuf_link_load:
+                width: 33
+            l1d_miss_reqbuf_link_store:
+                width: 33
+            l1d_miss_reqbuf_link_mmu:
+                width: 33
+            l1d_miss_reqbuf_link_all:
+                width: 33
+            l1d_miss_misc_replay_load:
+                width: 33
+            l1d_miss_misc_replay_store:
+                width: 33
+            l1d_miss_misc_replay_prefetch:
+                width: 33
+            l1d_miss_misc_replay_mmu:
+                width: 33
+            l1d_miss_misc_replay_all:
                 width: 33
             l1d_victim_fill_evict:
                 width: 33
@@ -1362,6 +1400,12 @@ pmu:
                 width: 33
             sc_replay_ecc:
                 width: 33
+            sc_cancel_piperesult:
+                width: 33
+            sc_victim:
+                width: 33
+            no_alloc_srrip:
+                width: 33
             perf_start:
                 width: 1
             perf_end:
@@ -1456,7 +1500,7 @@ aclint_checker:
         num: ${TOP.PLATFORM.COSIM.RVFI.TOTAL_NRETS}
         fields:
             hart:
-                width: 4
+                width: 14
             order:
                 width: 64
             addr:
