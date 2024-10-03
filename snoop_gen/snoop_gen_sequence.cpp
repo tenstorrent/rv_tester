@@ -3,7 +3,7 @@
 
 REGISTRY_register(snoop_gen_sequence, SNOOP_GEN, cvm::registry::all);
 
-DEFINE_bool(rand_snoop_en, true, "Enable random snoops on overlay path in the sim");
+DEFINE_bool(rand_snoop_en, false, "Enable random snoops on overlay path in the sim");
 DEFINE_bool(rand_snoop_size_en, true, "Enable random snoops of different size on overlay path in the sim");
 DEFINE_bool(rand_snoop_unaligned_addr_en, true, "Enable random snoops of unaligned on overlay path in the sim");
 DEFINE_string(max_snoop_count, "7:10", "Number of snoops to be sent if  enabled");
