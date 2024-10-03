@@ -91,6 +91,10 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
 
     jtag_driver_gen(
         name = name + "_jtag_driver",
+        packet = name  + "_transactions",
+        topology = topology,
+        harness = name + "_harness",
+        cc_attrs = cc_attrs,
     )       
 
     snoop_gen_gen(
