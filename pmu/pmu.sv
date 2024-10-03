@@ -23,7 +23,7 @@ import rv_tester_pkg::*;
     parameter int unsigned location = cvm_topology_gen::get_location (topology.TOP.PLATFORM.PMCI.ID, NUM);
     longint unsigned period = 0;
     longint unsigned instructions = 0;
-    bit instructions_overflow_bit = 0;
+    bit instructions_overflow_bit;
     bit cycle_sync_en, instruction_sync_en;
     assign cycle_sync_en = (period != '0);
     assign instruction_sync_en = (instructions != '0);
@@ -44,13 +44,13 @@ import rv_tester_pkg::*;
     end
 
     longint unsigned cpu_cycles = 0;
-    bit cpu_cycles_overflow_bit = 0;
+    bit cpu_cycles_overflow_bit;
     longint unsigned sync_cycles = 0;
     longint unsigned sync_instructions = 0;
     longint unsigned prev_sync_instructions = 0;
     longint unsigned nret = {32'h0, NRET};
     longint unsigned pmcounter [EVENT_COUNT] = '{default:0};
-    bit pmcounter_overflow_bit [EVENT_COUNT] = '{default:0};
+    bit pmcounter_overflow_bit [EVENT_COUNT];
     longint unsigned branch_instructions;
     bit branch_instructions_overflow_bit;
 
