@@ -1230,6 +1230,10 @@ pmu:
                 width: 33
             pfc_prt_reqbuf_alloc_hit:
                 width: 33
+            ldq_missq_full_delay:
+                width: 33
+            stq_missq_full_delay:
+                width: 33
             sc_cache_access:
                 width: 33
             sc_cache_rd:
@@ -1400,6 +1404,12 @@ pmu:
                 width: 33
             sc_replay_ecc:
                 width: 33
+            sc_cancel_piperesult:
+                width: 33
+            sc_victim:
+                width: 33
+            no_alloc_srrip:
+                width: 33
             perf_start:
                 width: 1
             perf_end:
@@ -1562,6 +1572,21 @@ pwrmgmt:
         fields:
             assertion:
                 width: 1
+
+snoop_gen:
+    num: 1
+    m_tick:
+        domain: 2
+        num: 1
+        fields:
+            cycle:
+                width: 64
+    m_reset:
+        domain: 2
+        num: 1
+        fields:
+            cycle:
+                width: 64
 
 interrupts:
     num: ${TOP.PLATFORM.NHARTS}
