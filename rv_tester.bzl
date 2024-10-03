@@ -6,6 +6,7 @@ load("@rv_tester//pmu:pmu.bzl", "pmu_gen")
 load("@rv_tester//dm_model:dm_model.bzl", "dm_model_gen")
 load("@rv_tester//pwrmgmt:pwrmgmt.bzl", "pwrmgmt_gen")
 load("@rv_tester//interrupts:interrupts.bzl", "interrupts_gen")
+load("@rv_tester//snoop_gen:snoop_gen.bzl", "snoop_gen_gen")
 load("@rv_tester//trace:trace.bzl", "trace_gen")
 load("@rv_tester//triggers:triggers.bzl", "triggers_gen")
 load("@rv_tester//aclint_checker:aclint_checker.bzl", "aclint_checker_gen")
@@ -87,6 +88,14 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
         cc_attrs = cc_attrs,
     )
 
+    snoop_gen_gen(
+        name = name + "_snoop_gen",
+        packet = name  + "_transactions",
+        topology = topology,
+        harness = name + "_harness",
+        cc_attrs = cc_attrs,
+    )
+
     trace_gen(
         name = name + "_trace",
         packet = name  + "_transactions",
@@ -134,6 +143,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             name + "_dm_model_sv",
             name + "_aclint_checker_sv",
             name + "_interrupts_sv",
+            name + "_snoop_gen_sv",
             name + "_trace_sv",
             name + "_triggers_sv",
             name + "_axi_sw_sv",
@@ -166,6 +176,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             name + "_dm_model_dpi",
             name + "_aclint_checker_dpi",
             name + "_interrupts_dpi",
+            name + "_snoop_gen_dpi",
             name + "_trace_dpi",
             name + "_triggers_dpi",
             name + "_axi_sw_dpi",

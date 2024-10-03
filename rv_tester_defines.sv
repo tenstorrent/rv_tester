@@ -830,6 +830,8 @@ package rv_tester_params;
         PFC_PREFETCHES_SENT,
         PFC_PRT_L1D_EVICT_HIT,
         PFC_PRT_REQBUF_ALLOC_HIT,
+        LDQ_MISSQ_FULL_DELAY,
+        STQ_MISSQ_FULL_DELAY,
         EVENT_COUNT
     } pmc_event_t;
     

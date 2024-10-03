@@ -1229,7 +1229,11 @@ pmu:
             pfc_prt_l1d_evict_hit:
                 width: 32
             pfc_prt_reqbuf_alloc_hit:
-                width: 32
+                width: 33
+            ldq_missq_full_delay:
+                width: 33
+            stq_missq_full_delay:
+                width: 33
             sc_cache_access:
                 width: 32
             sc_cache_rd:
@@ -1568,6 +1572,21 @@ pwrmgmt:
         fields:
             assertion:
                 width: 1
+
+snoop_gen:
+    num: 1
+    m_tick:
+        domain: 2
+        num: 1
+        fields:
+            cycle:
+                width: 64
+    m_reset:
+        domain: 2
+        num: 1
+        fields:
+            cycle:
+                width: 64
 
 interrupts:
     num: ${TOP.PLATFORM.NHARTS}
