@@ -728,7 +728,13 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
   if (!FLAGS_mcm)
     return;
 
-  if ((m_mcmi_read.addr >= patch_ram_lo) && (m_mcmi_read.addr < patch_ram_hi))
+  if (((m_mcmi_read.addr >= patch_ram_lo) && (m_mcmi_read.addr < patch_ram_hi))
+     ||(m_mcmi_read.addr == 0x42005000 ||
+        m_mcmi_read.addr == 0x42005040 || // do not do mcm checks for PATCH registers
+        m_mcmi_read.addr == 0x42005080 ||
+        m_mcmi_read.addr == 0x42005088 ||
+        m_mcmi_read.addr == 0x42005090 ||
+        m_mcmi_read.addr == 0x42005098 ))
     return;
 
   if (terminated_ || in_reset_)
@@ -810,7 +816,13 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
   if (!FLAGS_mcm)
     return;
 
-  if ((m_mcmi_bypass.addr >= patch_ram_lo) && (m_mcmi_bypass.addr < patch_ram_hi))
+  if (((m_mcmi_bypass.addr >= patch_ram_lo) && (m_mcmi_bypass.addr < patch_ram_hi))
+     ||(m_mcmi_bypass.addr == 0x42005000 ||
+        m_mcmi_bypass.addr == 0x42005040 || // do not do mcm checks for PATCH registers
+        m_mcmi_bypass.addr == 0x42005080 ||
+        m_mcmi_bypass.addr == 0x42005088 ||
+        m_mcmi_bypass.addr == 0x42005090 ||
+        m_mcmi_bypass.addr == 0x42005098 ))
     return;
 
   if (terminated_ || in_reset_)
@@ -947,7 +959,13 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write<>& m_mcmi_w
   if (!FLAGS_mcm)
     return;
 
-  if ((m_mcmi_write.addr >= patch_ram_lo) && (m_mcmi_write.addr < patch_ram_hi))
+  if (((m_mcmi_write.addr >= patch_ram_lo) && (m_mcmi_write.addr < patch_ram_hi))
+     ||(m_mcmi_write.addr == 0x42005000 ||
+        m_mcmi_write.addr == 0x42005040 || // do not do mcm checks for PATCH registers
+        m_mcmi_write.addr == 0x42005080 ||
+        m_mcmi_write.addr == 0x42005088 ||
+        m_mcmi_write.addr == 0x42005090 ||
+        m_mcmi_write.addr == 0x42005098 ))
     return;
 
   if (terminated_)
@@ -1011,7 +1029,13 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ievict<>& m_mcmi_
   if (!FLAGS_mcm)
     return;
 
-  if ((m_mcmi_ievict.addr >= patch_ram_lo) && (m_mcmi_ievict.addr < patch_ram_hi))
+  if (((m_mcmi_ievict.addr >= patch_ram_lo) && (m_mcmi_ievict.addr < patch_ram_hi))
+     ||(m_mcmi_ievict.addr == 0x42005000 ||
+        m_mcmi_ievict.addr == 0x42005040 || // do not do mcm checks for PATCH registers
+        m_mcmi_ievict.addr == 0x42005080 ||
+        m_mcmi_ievict.addr == 0x42005088 ||
+        m_mcmi_ievict.addr == 0x42005090 ||
+        m_mcmi_ievict.addr == 0x42005098 ))
     return;
 
   if (terminated_ || in_reset_)
