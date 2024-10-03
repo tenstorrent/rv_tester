@@ -1229,11 +1229,11 @@ pmu:
             pfc_prt_l1d_evict_hit:
                 width: 32
             pfc_prt_reqbuf_alloc_hit:
-                width: 33
+                width: 32
             ldq_missq_full_delay:
-                width: 33
+                width: 32
             stq_missq_full_delay:
-                width: 33
+                width: 32
             sc_cache_access:
                 width: 32
             sc_cache_rd:
