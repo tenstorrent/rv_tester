@@ -114,8 +114,9 @@ void external_interrupt_sequence::drive_interrupt(){
    unsigned interrupt_num  =  (rng1() % (FLAGS_imsic_intr_threshold )) ; 
    unsigned interrupt_file =  (rng1() % (3 )) ; //gen either machine supervisor or hypervisor file
    unsigned interrupt_hart =  (rng1() % (FLAGS_imsic_hart_threshold )) ; // sel rand hart
-   unsigned vs_id          =  (rng1() % (FLAGS_imsic_vs_intr_threshold )) ; //sel vs id
+   unsigned vs_id          =  (rng1() % (FLAGS_imsic_vs_id_threshold )) ; //sel vs id
    
+   if(interrupt_file == 0x02) interrupt_num %= FLAGS_imsic_vs_intr_threshold;
 
    cvm::log(cvm::LOW,"[ExtInterruptSeq] IMSIC interrupt num: {} interrupt file: {} Interrupt hart:{} hypervisor/supervisor id : {}\n", static_cast<uint32_t>(interrupt_num), interrupt_file, interrupt_hart, vs_id);
    
@@ -123,7 +124,7 @@ void external_interrupt_sequence::drive_interrupt(){
    if(interrupt_file == 0x0){
       addr = msi_m_file_addr + (interrupt_hart << 18);
    }else if(interrupt_file == 0x01){
-      addr = msi_v_file_addr + (interrupt_hart << 18);;
+      addr = msi_s_file_addr + (interrupt_hart << 18);
    }else if(interrupt_file == 0x02){
       addr = msi_vs_file_addr+ (vs_id << 12) + (interrupt_hart << 18);
    }else{

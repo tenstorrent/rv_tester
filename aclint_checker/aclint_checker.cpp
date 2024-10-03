@@ -27,9 +27,6 @@ aclint_checker::aclint_checker(cvm::topology::loc_t loc, unsigned) {
     });
 
     reset();
-    initializevqueue(cr_ac_mmr_q_, 10);
-    initializevqueue(ac_axi_mmr_q_, 10);
-    initializevhash(cr_ac_bypass_, 10);
 }
 
 void aclint_checker::process(const rv_tester_transactions::aclint_checker::cr_ac_mmrwrite < > & cr_ac_mmrwrite) {
@@ -131,20 +128,4 @@ void aclint_checker::popifpossible(uint64_t hart) {
 
     return;
 
-}
-
-void aclint_checker::initializevqueue(std::vector < std::queue < MmrWr >> & q, int size) {
-    // Clear the vector in case it already contains elements
-    q.clear();
-
-    // Initialize the vector with 'size' number of empty queues
-    q.resize(size, std::queue < MmrWr > ());
-}
-
-void aclint_checker::initializevhash(std::vector < std::unordered_map < int, MmrWr >> & q, int size) {
-    // Clear the vector in case it already contains elements
-    q.clear();
-
-    // Initialize the vector with 'size' number of empty hash
-    q.resize(size, {});
 }

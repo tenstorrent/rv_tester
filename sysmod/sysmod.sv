@@ -16,7 +16,6 @@ import rv_tester_params::*;
     //output logic jtag_quiesced,
     output rv_tester_params::bootstrap_t bootstrap,
     output rv_tester_pkg::interrupt_t interrupt [NHARTS-1:0],
-    output rv_tester_pkg::aplic_interrupt_t aplic_interrupt,
     output rv_tester_pkg::dm_write_t  dmi_write,
     input  event_trigger_intf_t event_triggers [NHARTS-1:0],
     //output rv_tester_pkg::jtag_if_t  jtag_req,
@@ -114,14 +113,6 @@ import rv_tester_params::*;
 
     function void sysmod_sw_interrupt (int unsigned hartid, int unsigned val);
       interrupt_d[hartid].msi = val[0];
-    endfunction
-
-       export "DPI-C" function sysmod_aplic_dir_interrupt;
-
-    function void sysmod_aplic_dir_interrupt (longint val[16]);
-      for(int i =0;i<16;i++)begin
-        aplic_interrupt.pins[64*i +: 64] = val[i];
-      end
     endfunction
 
     export "DPI-C" function sysmod_sw_interrupt;

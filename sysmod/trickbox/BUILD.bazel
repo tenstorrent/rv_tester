@@ -5,7 +5,6 @@ cc_library(
       "debugger.cpp",
       "evt_trigger.cpp",
       "imsic_driver.cpp",
-      "aplic_driver.cpp",
       "uc_helper.cpp",
       "io_coh_helper.cpp",
       "trickbox.cpp"
@@ -18,7 +17,6 @@ cc_library(
       "debugger.h",
       "evt_trigger.h",
       "imsic_driver.h",
-      "aplic_driver.h",
       "uc_helper.h",
       "io_coh_helper.h",
       "trickbox.h"

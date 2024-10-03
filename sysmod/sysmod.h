@@ -11,13 +11,11 @@
 #include "htif/htif.h"
 #include "trickbox/interrupter.h"
 #include "trickbox/uc_helper.h"
-#include "trickbox/aplic_driver.h"
 #include "trickbox/debugger.h"
 //#include "trickbox/jtag_driver.h"
 #include "scratchpad_xtor/scratchpad_xtor.h"
 #include "trace_cfg/trace_cfg.h"
 #include "cla_cfg/cla_cfg.h"
-#include "pm_nw_xtor/pm_nw_xtor.h"
 #include "cvm/topology.hpp"
 #include "sysmod_params.hpp"
 
@@ -107,14 +105,12 @@ class sysmod {
   protected:
     void trace_info_handler(trace_cfg::trace_info_t i);
     void cla_info_handler(cla_cfg::cla_info_t i);
-    void pm_nw_info_handler(pm_nw_xtor::pm_nw_info_t i);
     void timer_interrupt(clint::timer_t t);
     void sw_interrupt(clint::sw_t s);
     void dmi_write(debugger::dmi_data_t s);
     //void jtag_req(jtag_driver::jtag_data_t i);
     void tbox_interrupt(interrupter::interrupt_t i);
     void tboxtrig_updatemem(uint64_t addr, uint64_t data);
-    void aplic_interrupt(aplic_driver::aplic_driver_write_t i);
     void uc_helper_backdoor_write(uc_helper::uc_helper_write_t w);
     void uc_helper_backdoor_read(uc_helper::uc_helper_read_req_t w);
     void trace_cfg_read_req_router(trace_cfg::trace_cfg_read_t r);

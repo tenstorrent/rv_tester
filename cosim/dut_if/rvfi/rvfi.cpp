@@ -38,6 +38,7 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
 
   connect<
     rv_tester_transactions::cosim::m_reset<>,
+    rv_tester_transactions::cosim::m_disable_checks<>,
     rv_tester_transactions::cosim::m_rvfi<>,
     rv_tester_transactions::cosim::m_steps<>,
     rv_tester_transactions::cosim::m_gp_regs<>,
@@ -56,7 +57,7 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>,
     rv_tester_transactions::cosim::m_mcmi_ievict<>,
     rv_tester_transactions::cosim::m_debug<>,
-    bridge::error
+    bridge::error_loc
   >(loc);
 
   connect<
@@ -128,7 +129,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
 
   if (!m_rvfi.last_uop)
     return;
-  
+
   // Append accumulated uop changes for ucode instructions
   append_uop_changes_to_instr(instr); 
   enter_debug_mode(instr);
@@ -150,10 +151,14 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
     hw_csrs_.clear();
   }
 
+  // Save state
+  tag_ = instr.tag;
+
   // Clear state
   intr_ = false;
   excp_ = false;
-
+  nmi_ = false;
+  vec_excp_ = false;
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
@@ -163,18 +168,36 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
   if (loc_ != m_trap.location)
     return;
 
-  if ((m_trap.cause >> 63) & 0x1) {
-    intr_ = true;
-    excp_ = false;
-    icause_ = (m_trap.cause & 0x3f);
-  } else {
-    excp_ = true;
+  if (m_trap.id == NMI) {
+    nmi_ = true;
     intr_ = false;
-    ecause_ = (m_trap.cause & 0xff);
-    if (m_trap.cause >= 58 && FLAGS_cosim) {
-      bridge_->set_patch_mode(true);
-      patch_mode_ = true;
+    excp_ = false;
+    ncause_ = m_trap.cause & 0x3;
+  } else if (m_trap.id == INTR) {
+    nmi_ = false;
+    intr_ = true;
+    excp_ = false;    
+    icause_ = m_trap.cause & 0x3f;
+  } else if (m_trap.id == EXCP) {
+    // Patch special case
+    if (FLAGS_cosim) {
+      if (m_trap.cause == 60) {
+        cvm::log(cvm::HIGH, "enter patch via exception\n");
+        bridge_->set_patch_mode(1); // ENTER_PATCH
+        patch_mode_ = true;
+      }
     }
+    // RVTOOLS-3265: Vector special case
+    // Send instr with old tag if we encounter excp in middle of a vector instruction
+    // Potentially there could be some element stores that drained
+    if (excp_ && ecause_ == CUSTOM_VEC_CMODE) {
+      vec_excp_ = true;
+    }
+    // Set exception state
+    nmi_ = false;
+    intr_ = false;
+    excp_ = true;
+    ecause_ = m_trap.cause & 0xff;
   }
 }
 
@@ -265,12 +288,18 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.opcode = m_rvfi.insn;
   instr.disasm = whisper::disassemble(m_rvfi.insn);
   instr.uop = m_rvfi.uop;
-  instr.vec_cracked = m_rvfi.vec_cracked;
+  instr.vec_cracked = m_rvfi.vec & !m_rvfi.last_uop;
   instr.trap = m_rvfi.trap || intr_ || excp_;
+  instr.nmi = nmi_;
+  instr.ncause = ncause_;
   instr.intr = intr_;
-  instr.excp = excp_;
   instr.icause = icause_;
+  instr.excp = excp_;
   instr.ecause = ecause_;
+
+  // RVTOOLS-3265: Adjust tag for vec excp
+  if (vec_excp_)
+    instr.tag = tag_ + 1;
 
   // Renamed csr sequence
   uint64_t src = (m_rvfi.uop >> 16) & 0x3f;
@@ -293,6 +322,11 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   }
 
   // Priv mode
+  if (FLAGS_cosim && priv_ == 0x4 && !patch_mode_) { // when we enter patch mode via ucode
+    cvm::log(cvm::HIGH, "Patch mode: probably Ucode instruction\n");
+    bridge_->set_patch_mode(2); // IN_PATCH
+    patch_mode_ = true;
+  }
   instr.priv = m_rvfi.mode;
   if (instr.ucode && (m_rvfi.mode != priv_)) {
     if (instr.first_uop) {
@@ -307,7 +341,8 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
       instr.priv = priv_;
       ucode_priv_change_ = false;
       if (priv_ == 0x4 && patch_mode_) { // dret changes mode from D to M/S/U (exit from patch mode)
-        bridge_->set_patch_mode(false);
+        cvm::log(cvm::HIGH, "Exit patch\n");
+        bridge_->set_patch_mode(3); // EXIT_PATCH
         patch_mode_ = false;
       }
     }
@@ -319,9 +354,13 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   if (m_rvfi.last_uop && !patch_mode_)
     count_++;
 
-  if ((instr.priv & 0x3) == 0x3) { // Ignore V bit if M mode
+  if ((instr.priv & 0x7) == 0x3) { // Ignore V bit if M mode
     instr.priv = 0x3;
   }
+
+  // if (instr.priv == 0x7) { // Make the DP mode as well same as DE mode for Cosim Checks
+  //   instr.priv = 0x6;
+  // }
 
   // PC
   instr.pc.valid = true;
@@ -462,6 +501,9 @@ std::tuple<uint64_t, uint64_t, uint8_t> rvfi::get_mem_attributes(uint64_t addr, 
 }
 
 void rvfi::print_csr(csr_t& csr) {
+  if (!FLAGS_rvfi_log) {
+    return;
+  }
   log(cvm::NONE, "#NA {} {} {} {:016x} {:09x} c {:016x} {:016x} {:016x} (hw update)\n", csr.cycle, csr.hart, priv_to_string.at(static_cast<priv>(priv_)), 0, 0, csr.csr_addr, csr.csr_wdata, csr.csr_wmask);
 }
 
@@ -534,6 +576,9 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
 
   if (instr.mem_read.valid)
     dut_log += fmt::format(" [{:#x}:{:#x}:{}]", instr.mem_read.va, instr.mem_read.pa, mem_attr_to_string(instr.mem_read.attr));
+
+  if (instr.nmi)
+    dut_log += fmt::format(" (nmi:{})", instr.ncause);
 
   if (instr.intr)
     dut_log += fmt::format(" (interrupt:{})", instr.icause);
@@ -680,7 +725,10 @@ void rvfi::process(const rv_tester_transactions::cosim::m_csri<>& m_csri) {
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_read) {
-  if (!FLAGS_mcm || patch_mode_)
+  if (!FLAGS_mcm)
+    return;
+
+  if ((m_mcmi_read.addr >= patch_ram_lo) && (m_mcmi_read.addr < patch_ram_hi))
     return;
 
   if (terminated_ || in_reset_)
@@ -727,7 +775,16 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_insert) {
-  if (!FLAGS_mcm || patch_mode_)
+  if (!FLAGS_mcm)
+    return;
+
+  if (((m_mcmi_insert.addr >= patch_ram_lo) && (m_mcmi_insert.addr < patch_ram_hi))
+     ||(m_mcmi_insert.addr == 0x42005000 ||
+        m_mcmi_insert.addr == 0x42005040 || // do not do mcm checks for PATCH registers
+        m_mcmi_insert.addr == 0x42005080 ||
+        m_mcmi_insert.addr == 0x42005088 ||
+        m_mcmi_insert.addr == 0x42005090 ||
+        m_mcmi_insert.addr == 0x42005098 ))
     return;
 
   if (terminated_)
@@ -750,7 +807,10 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_bypass) {
-  if (!FLAGS_mcm || patch_mode_)
+  if (!FLAGS_mcm)
+    return;
+
+  if ((m_mcmi_bypass.addr >= patch_ram_lo) && (m_mcmi_bypass.addr < patch_ram_hi))
     return;
 
   if (terminated_ || in_reset_)
@@ -767,6 +827,8 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
   m.pa     = m_mcmi_bypass.addr;
   m.size   = std::popcount(m_mcmi_bypass.mask);
   m.data   = m_mcmi_bypass.data;
+  m.data_vec  = m_mcmi_bypass.data_vec;
+  m.v_ext  = m_mcmi_bypass.v_ext;
   m.amo    = m_mcmi_bypass.amo;
   m.amo_op = m_mcmi_bypass.amo_op;
 
@@ -882,7 +944,10 @@ void rvfi::amo_arithmetic(amo_op op, uint64_t& read_data, uint64_t& write_data, 
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write<>& m_mcmi_write) {
-  if (!FLAGS_mcm || patch_mode_)
+  if (!FLAGS_mcm)
+    return;
+
+  if ((m_mcmi_write.addr >= patch_ram_lo) && (m_mcmi_write.addr < patch_ram_hi))
     return;
 
   if (terminated_)
@@ -902,7 +967,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write<>& m_mcmi_w
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_req<>& m_mcmi_ifetch_req) {
-  if (!FLAGS_mcm || patch_mode_)
+  if (!FLAGS_mcm)
     return;
 
   if (terminated_ || in_reset_)
@@ -920,7 +985,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_req<>& m_m
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>& m_mcmi_ifetch_resp) {
-  if (!FLAGS_mcm || patch_mode_)
+  if (!FLAGS_mcm)
     return;
 
   if (terminated_ || in_reset_)
@@ -930,7 +995,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>& m_
     return;
 
   if (ifetch_reqs_.find(m_mcmi_ifetch_resp.order) == ifetch_reqs_.end()) {
-    cvm::log(cvm::ERROR, "Error: Ifetch resp with no matching req - [id={}]", m_mcmi_ifetch_resp.order);
+    cvm::log(cvm::ERROR, "Error: Ifetch resp with no matching req - [id={}]\n", m_mcmi_ifetch_resp.order);
   }
 
   mem_t m;
@@ -943,7 +1008,10 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>& m_
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ievict<>& m_mcmi_ievict) {
-  if (!FLAGS_mcm || patch_mode_)
+  if (!FLAGS_mcm)
+    return;
+
+  if ((m_mcmi_ievict.addr >= patch_ram_lo) && (m_mcmi_ievict.addr < patch_ram_hi))
     return;
 
   if (terminated_ || in_reset_)
@@ -966,8 +1034,13 @@ void rvfi::process(const rv_tester::terminate_called&) {
 }
 
 
-void rvfi::process(const bridge::error&) {
+void rvfi::process(const bridge::error_loc&) {
   cvm::log(cvm::HIGH, "[RVFI] cosim error, stopping further rvfi processing\n");
+  terminated_ = true;
+}
+
+void rvfi::process(const rv_tester_transactions::cosim::m_disable_checks<>&) {
+  cvm::log(cvm::HIGH, "[RVFI] disable_checks indication, stopping further rvfi processing\n");
   terminated_ = true;
 }
 

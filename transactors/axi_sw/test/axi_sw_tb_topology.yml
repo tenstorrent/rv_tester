@@ -36,40 +36,7 @@ top:
         DATA_WIDTH: 512
         STRB_WIDTH: 64
         ID_WIDTH: 4
-    aplic_mmr_axi_mst:
-      count: 1
-      type:
-        - axi
-        - platform_transactor_mst
-      attrs:
-        <<: *rv_tester_axi_sw_mst
-        ADDR_WIDTH: 64
-        DATA_WIDTH: 512
-        STRB_WIDTH: 64
-        ID_WIDTH: 4
     smc_axi_mst:
-      count: 1
-      type:
-        - axi
-        - platform_transactor_mst
-      attrs:
-        <<: *rv_tester_axi_sw_mst
-        ADDR_WIDTH: 64
-        DATA_WIDTH: 512
-        STRB_WIDTH: 64
-        ID_WIDTH: 4
-    pll_axi_mst:
-      count: 1
-      type:
-        - axi
-        - platform_transactor_mst
-      attrs:
-        <<: *rv_tester_axi_sw_mst
-        ADDR_WIDTH: 64
-        DATA_WIDTH: 512
-        STRB_WIDTH: 64
-        ID_WIDTH: 4
-    pm_nw_axi_mst:
       count: 1
       type:
         - axi

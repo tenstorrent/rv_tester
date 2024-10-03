@@ -5,6 +5,7 @@ module dmi_driver (
 
     input logic [31:0]              rand_dmi_driver_dly,
     input logic [31:0]              hart_enable_mask,
+    input logic [31:0]              dm_single_step_count,
     
     input logic                     dmi_req_ready,
     input logic                     dmi_resp_valid,
@@ -53,7 +54,7 @@ module dmi_driver (
   logic tselect_core, tselect_core_complete, core_rg_halt_sdtrig, core_haltsum_sdtrig, check_haltsum_sdtrig;
   logic check_hartsellen, check_dmstatus_disc, hart_discovery, dmcontrol_hartsel;
 
-  int file_descr, count_hart_enable_mask;
+  int file_descr, count_hart_enable_mask, dmi_command_in_step_ahead_queue_size, dmi_command_in_step_quit_queue_size, single_step_instr_cnt_plusarg;
 
   typedef struct packed {
     logic [15:0] reg_addr;
@@ -128,12 +129,15 @@ module dmi_driver (
     check_dmstatus_disc <= 0;
     hart_discovery <= 0;
     dmcontrol_hartsel <= 0;
+    dmi_command_in_step_ahead_queue_size <= 0;
+    dmi_command_in_step_quit_queue_size <= 0;
   end
 
   initial begin
     count_hart_enable_mask = $countones(hart_enable_mask);
   end
 
+  assign single_step_instr_cnt_plusarg = dm_single_step_count;
   assign misc_signals[0] = poll;
   assign dmi_status = poll;
 
@@ -750,6 +754,39 @@ module dmi_driver (
           end
           $display("[DMI Execution] Executed the command, commands left out in the queue=%h",
                    command_queue.size());
+        end
+      end
+
+      if(core_to_halt_after_ss) begin
+        for(int step_count=single_step_instr_cnt_plusarg; step_count>0; step_count--)begin
+          if (step_count != 1) begin
+            dmi_command_in_step_ahead_queue_size = single_step_ahead_command_queue.size();
+            $display("[DMI Driver] Added this command to the single step (ahead) queue, size=%h",
+                    single_step_ahead_command_queue.size());
+            while(dmi_command_in_step_ahead_queue_size > 0) begin
+              command = single_step_ahead_command_queue.pop_front();
+              drive_dmi_cmd(command);
+              is_poll_needed(command);
+              if (poll) begin
+                do_polling();
+              end
+              dmi_command_in_step_ahead_queue_size--;
+              single_step_ahead_command_queue.push_back(command);
+            end
+          end
+          else begin
+            dmi_command_in_step_quit_queue_size = single_step_quit_command_queue.size();
+            while(dmi_command_in_step_quit_queue_size > 0) begin
+              command = single_step_quit_command_queue.pop_front();
+              drive_dmi_cmd(command);
+              is_poll_needed(command);
+              if (poll) begin
+                do_polling();
+              end
+              dmi_command_in_step_quit_queue_size--;
+              single_step_quit_command_queue.push_back(command);
+            end
+          end
         end
       end
       command_trigger = 0;

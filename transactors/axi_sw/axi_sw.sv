@@ -576,6 +576,15 @@ module axi_sw_mst #(
         end
     end
 
+    logic [64-1:0] clocks;
+    always_ff @(posedge clk) begin
+        if (!reset_n) begin
+            clocks <= '0;
+        end else begin
+            clocks <= clocks + 64'(1);
+        end
+    end
+
     logic ar_queue_rptr_incremented, ar_queue_empty;
     logic [$clog2(AR_Q_MAX+1)-1:0] ar_queue_rptr;
     ar_t ar;
