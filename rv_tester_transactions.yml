@@ -1230,6 +1230,10 @@ pmu:
                 width: 33
             pfc_prt_reqbuf_alloc_hit:
                 width: 33
+            ldq_missq_full_delay:
+                width: 33
+            stq_missq_full_delay:
+                width: 33
             sc_cache_access:
                 width: 33
             sc_cache_rd:
