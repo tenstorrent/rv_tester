@@ -3,7 +3,9 @@
 
 REGISTRY_register(snoop_gen_sequence, SNOOP_GEN, cvm::registry::all);
 
-DEFINE_bool(rand_snoop_en, true, "Enable random snoops on overlay path in the sim");
+DEFINE_bool(rand_snoop_en, false, "Enable random snoops on overlay path in the sim");
+DEFINE_bool(rand_snoop_size_en, true, "Enable random snoops of different size on overlay path in the sim");
+DEFINE_bool(rand_snoop_unaligned_addr_en, true, "Enable random snoops of unaligned on overlay path in the sim");
 DEFINE_string(max_snoop_count, "7:10", "Number of snoops to be sent if  enabled");
 DEFINE_string(rand_snoop_mode, "single", "snoop req modes: burst:single:single_shuffled");
 DEFINE_int32(snoop_start_delay, 1000, "TB cycle after which snoop driving random mode enabled");
@@ -139,8 +141,14 @@ cvm::messenger::task<void> snoop_gen_sequence::blocking_read(const transactor::r
   ar_txn.id   = axi_id++;
   //ar_txn.addr = 0x60000000;
   ar_txn.addr = r.addr;
+  if(FLAGS_rand_snoop_unaligned_addr_en){
+    ar_txn.addr = r.addr + (rng1() % 64);
+  }
   ar_txn.len  = 0;
   ar_txn.size = 6;
+  if(FLAGS_rand_snoop_size_en){
+    ar_txn.size = rng1() % 7;
+  }
   ar_txn.burst = axi::burst_t(0);
   ar_txn.lock  =0;
   ar_txn.cache  =axi::cache_mem_attr_t(0);
