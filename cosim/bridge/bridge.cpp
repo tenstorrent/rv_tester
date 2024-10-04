@@ -1456,7 +1456,7 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
             update_csr(hart, src_t::dut, 0x303, 0x1444, mask, false, false);
           }
           else {
-            mask = 0xF00000;
+            mask = 0xF00400;
             update_csr(hart, src_t::dut, 0x302, 0, mask, false, false);
             mask = 0x1444;
             update_csr(hart, src_t::dut, 0x303, 0, mask, false, false);
