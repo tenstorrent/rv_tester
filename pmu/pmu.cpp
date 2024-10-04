@@ -92,6 +92,7 @@ pmu::trigger_str(const rv_tester_transactions::pmu::pmcounters<>& pmcounters)
          pmcounters.perf_end    ? "perf_end"    :
          pmcounters.terminate   ? "terminate"   :
          pmcounters.sync        ? "sync"        :
+         pmcounters.overflow    ? "overflow"    :
                                   "none";
 }
 

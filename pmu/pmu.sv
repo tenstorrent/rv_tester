@@ -19,12 +19,9 @@ import rv_tester_pkg::*;
   `RV_TESTER_TRANSACTIONS_PMU_OUTPUT_PORTS
 );
 
-    parameter OVERFLOW_BIT = $size(pmcounter, 2)/2;
-    parameter OVERFLOW_BIT_EXTRA = 3;
     parameter int unsigned location = cvm_topology_gen::get_location (topology.TOP.PLATFORM.PMCI.ID, NUM);
     longint unsigned period = 0;
     longint unsigned instructions = 0;
-    bit instructions_overflow_bit;
     bit cycle_sync_en, instruction_sync_en;
     assign cycle_sync_en = (period != '0);
     assign instruction_sync_en = (instructions != '0);
@@ -45,15 +42,15 @@ import rv_tester_pkg::*;
     end
 
     longint unsigned cpu_cycles = 0;
-    bit cpu_cycles_overflow_bit;
     longint unsigned sync_cycles = 0;
     longint unsigned sync_instructions = 0;
     longint unsigned prev_sync_instructions = 0;
     longint unsigned nret = {32'h0, NRET};
     longint unsigned pmcounter [EVENT_COUNT] = '{default:0};
-    bit pmcounter_overflow_bit [EVENT_COUNT + OVERFLOW_BIT_EXTRA];
+    parameter OVERFLOW_BIT = $size(pmcounter, 2)/2;
+    parameter OVERFLOW_BIT_EXTRA = 2;
+    logic [EVENT_COUNT + OVERFLOW_BIT_EXTRA] pmcounter_overflow_bit;
     longint unsigned branch_instructions;
-    bit branch_instructions_overflow_bit;
 
     always @(posedge clk) begin
       if (reset) begin
@@ -96,7 +93,7 @@ import rv_tester_pkg::*;
             for (int i = 0; i < EVENT_COUNT; i++) begin
                 overflow_nxt |= (pmcounter[i][OVERFLOW_BIT] ^ pmcounter_overflow_bit[i]);
             end
-            overflow_nxt |= (cpu_cycles[OVERFLOW_BIT] ^ pmcounter_overflow_bit[EVENT_COUNT]) | (instructions[OVERFLOW_BIT] ^ pmcounter_overflow_bit[EVENT_COUNT + 1]) | (branch_instructions[OVERFLOW_BIT] ^ pmcounter_overflow_bit[EVENT_COUNT + 2]);
+            overflow_nxt |= (cpu_cycles[OVERFLOW_BIT] ^ pmcounter_overflow_bit[EVENT_COUNT]) | (branch_instructions[OVERFLOW_BIT] ^ pmcounter_overflow_bit[EVENT_COUNT + 1]);
         end
         overflow <= overflow_nxt;
     end
@@ -109,8 +106,7 @@ import rv_tester_pkg::*;
                 pmcounter_overflow_bit[i] <= pmcounter[i][OVERFLOW_BIT];
             end
             pmcounter_overflow_bit[EVENT_COUNT] 	<= cpu_cycles[OVERFLOW_BIT];
-            pmcounter_overflow_bit[EVENT_COUNT + 1] 	<= instructions[OVERFLOW_BIT]; 
-            pmcounter_overflow_bit[EVENT_COUNT + 2] 	<= branch_instructions[OVERFLOW_BIT];
+            pmcounter_overflow_bit[EVENT_COUNT + 1] 	<= branch_instructions[OVERFLOW_BIT];
         end
     end
 
@@ -161,6 +157,7 @@ import rv_tester_pkg::*;
     assign pmcounterss[0].data.perf_start = perf_start;
     assign pmcounterss[0].data.perf_end = perf_end;
     assign pmcounterss[0].data.terminate = terminate;
+    assign pmcounterss[0].data.overflow = overflow;
     assign pmcounterss[0].data.sync = (cycle_sync_en && (sync_cycles % period) == 0) || (instruction_sync_en && (((prev_sync_instructions % instructions) > nret) && ((sync_instructions % instructions) < nret)));
     assign pmcounterss[0].data.m_mode_cycles = 32'(pmcounter[M_MODE_CYCLES]);
     assign pmcounterss[0].data.m_mode_instret = 32'(pmcounter[M_MODE_INSTRET]);

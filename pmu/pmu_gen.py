@@ -137,6 +137,7 @@ def create_sv_frag(events: List[Dict[Any, Any]], path="gen_events.sv", prefix=""
     assign pmcounterss[0].data.perf_start = perf_start;
     assign pmcounterss[0].data.perf_end = perf_end;
     assign pmcounterss[0].data.terminate = terminate;
+    assign pmcounterss[0].data.overflow = overflow;
     assign pmcounterss[0].data.sync = (cycle_sync_en && (sync_cycles % period) == 0) || (instruction_sync_en && (((prev_sync_instructions % instructions) > nret) && ((sync_instructions % instructions) < nret)));
 """
     if not skip_pre:
@@ -188,6 +189,8 @@ def create_yaml_frag(events: List[Dict[Any, Any]], path="gen_events.yaml", mod="
             perf_end:
                 width: 1
             terminate:
+                width: 1
+            overflow:
                 width: 1
             sync:
                 width: 1"""
