@@ -51,7 +51,7 @@ class rvfi {
     void process(const rv_tester_transactions::cosim::m_core_intr<>& m_core_intr);
     void process(const rv_tester_transactions::cosim::m_imsic_msi<>& m_imsic_msi);
     void process(const rv_tester_transactions::cosim::m_debug<>& m_debug);
-
+    std::bitset<256> stringToBitset(const std::string& hexString);
     void process(const rv_tester_transactions::cosim::m_csri<>& m_csri);
 
     // FIXME Move out to a different file?
