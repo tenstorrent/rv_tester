@@ -56,7 +56,6 @@ import rv_tester_params::*;
   logic cold_reset_d1;
 
   always @(posedge clk[TB_CLK_IDX]) begin
-    force_ref_clk_d1 <= force_ref_clk;
     if (warm_reset_tick) begin
       tb_clocks <= 0;
     end else if (warm_reset_en & (reset_count < target_reset_count) & ~core_no_fetch) begin
@@ -66,6 +65,7 @@ import rv_tester_params::*;
 
   always @(posedge clk[SOC_CLK_IDX]) begin
     cold_reset_d1 <= cold_reset;
+    force_ref_clk_d1 <= force_ref_clk;
     soc_clocks <= soc_clocks + 1;
     warm_reset_tick <= 0;
     if (warm_reset_en & (reset_count < target_reset_count) & (tb_clocks > warm_reset_interval) & ~core_no_fetch) begin
@@ -85,12 +85,19 @@ import rv_tester_params::*;
   assign m_ticks[0].data.location = location;
   assign m_ticks[0].data.cycle = tick_valid ? soc_clocks : 0;
 
-  // m_cold_reset
+  // m_cold_reset_ack
   logic cold_reset_ack_valid;
   assign cold_reset_ack_valid = (cold_reset_d1 && ~cold_reset);
   assign m_cold_reset_acks[0].valid = cold_reset_ack_valid && (location != cvm_topology::nil);
   assign m_cold_reset_acks[0].data.location = location;
   assign m_cold_reset_acks[0].data.assertion = '0;
+
+  // m_force_ref_clk_ack
+  logic force_ref_clk_ack_valid;
+  assign force_ref_clk_ack_valid = (force_ref_clk_d1 && ~force_ref_clk);
+  assign m_force_ref_clk_acks[0].valid = force_ref_clk_ack_valid && (location != cvm_topology::nil);
+  assign m_force_ref_clk_acks[0].data.location = location;
+  assign m_force_ref_clk_acks[0].data.assertion = '0;
 
   // -------------------------
   // C++->SV Callbacks
