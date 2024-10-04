@@ -23,7 +23,7 @@ import rv_tester_params::*;
 
   `RV_TESTER_TRANSACTIONS_JTAG_DRIVER_OUTPUT_PORTS
 );
-
+  parameter int unsigned location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.JTAG_DRIVER.ID, NUM);
   import "DPI-C" context function void jtag_driver_set_scope(int unsigned location);
   import "DPI-C" function bit jtag_driver_get_en(string mode);
    // -------------------------
@@ -41,7 +41,7 @@ import rv_tester_params::*;
   function void jtag_driver_jtag_socket(bit val);
   endfunction
   
-  int unsigned location = cvm_topology::nil;
+  //int unsigned location = cvm_topology::nil;
   int unsigned push_idx = 0;
   logic reset_d1;
   string jtag_driver_mode;
@@ -97,7 +97,7 @@ import rv_tester_params::*;
     end
     if (~reset & reset_d1) begin
       /* verilator lint_off BLKSEQ */
-      location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.JTAG_DRIVER.ID, NUM);
+      //location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.JTAG_DRIVER.ID, NUM);
       if (location != cvm_topology::nil) begin
         jtag_driver_set_scope(location);
         jtag_driver_mode = cvm_plusargs::get_string("jtag_driver_mode");
