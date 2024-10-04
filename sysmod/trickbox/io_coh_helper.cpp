@@ -298,8 +298,14 @@ cvm::messenger::task<void> io_coh_helper::blocking_burst_thread() {
   
   w_txn.last = 1;
   cvm::registry::messenger.signal(axi_mst_loc_l, w_txn);
-  co_await cvm::registry::messenger.wait<transactor::write_response_t>(axi_mst_loc_l);
+  //co_await cvm::registry::messenger.wait<transactor::write_response_t>(axi_mst_loc_l);
 
+  /////-----------------------------
+  uint32_t wresp_id = a_txn.id ;
+    //co_await cvm::registry::messenger.wait<read_response_t>(resp_channel_, [&id] (const read_response_t& r) { return r.id == id; });
+  co_await cvm::registry::messenger.wait<axi::b_t>(wresp_channel, [&wresp_id] (const axi::b_t& wresp) { return wresp.id == wresp_id; });
+ 
+  ////------------------------------
   //Poke same data to whisper memory
   cvm::log(cvm::HIGH, "[io_coh_helper] Backdoor whisper poke burst mode addr{:#x} poke_data {:#x} \n",txns_vec[i].addr,data_vec[0]);
   for (uint8_t i = 0; i < tx_size; ++i) {
