@@ -13,6 +13,7 @@ DEFINE_int32(jtag_delay_min, 6, "Minimum Delay between 2 consecutive debug mode 
 DEFINE_int32(jtag_max_loop_count, 50, "Number of times loop should run before flagging error");
 DEFINE_int32(jtag_delay_max, 9, "Maximum Delay between 2 consecutive debug mopde requests");
 DEFINE_int32(jtag_socket_port, 8088, "Port number for JTAG socket communication");
+DEFINE_string(jtag_socket_ip, "127.0.0.1", "Server's local IP address");
 DEFINE_int32(jtag_max_snippets, 1, "Maximum number of debug snippets to be driven");
 DEFINE_string(jtag_template_dir_path, "", "Path to file containing jtag_driver commands");
 DEFINE_string(jtag_txn_file,"","File containing jtag transaction requests");
@@ -806,7 +807,7 @@ cvm::messenger::task<void> jtag_sequence::open_socket_to_listen(){
     fcntl(server_fd, F_SETFL, flags | O_NONBLOCK);
 
     address.sin_family = AF_INET;
-    address.sin_addr.s_addr = inet_addr("127.0.0.1"); // Bind to 127.0.0.1
+    address.sin_addr.s_addr = inet_addr(FLAGS_jtag_socket_ip.c_str());
     address.sin_port = htons(PORT);
 
     // Binding the socket to the network address and port
