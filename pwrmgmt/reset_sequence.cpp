@@ -148,6 +148,7 @@ cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
 
   // Deassert force_ref_clk
   force_ref_clk(0);
+  co_await force_ref_clk_ack();
 
   // Wait for 32 clock ticks
   for (int i=0; i<32; ++i)
@@ -338,6 +339,11 @@ cvm::messenger::task<void> reset_sequence::release_cpl_nofetch() {
 
 cvm::messenger::task<void> reset_sequence::cold_reset_ack() {
   co_await cvm::registry::messenger.wait<rv_tester_transactions::pwrmgmt::m_cold_reset_ack<>>(loc_);
+  co_return;
+}
+
+cvm::messenger::task<void> reset_sequence::force_ref_clk_ack() {
+  co_await cvm::registry::messenger.wait<rv_tester_transactions::pwrmgmt::m_force_ref_clk_ack<>>(loc_);
   co_return;
 }
 
