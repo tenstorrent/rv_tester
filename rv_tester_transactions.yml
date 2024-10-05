@@ -1560,6 +1560,12 @@ pwrmgmt:
         fields:
             cycle:
                 width: 32
+    m_rand_smc_tick:
+        domain: 3
+        num: 1
+        fields:
+            assertion:
+                width: 1
     m_force_ref_clk:
         domain: 3
         num: 1

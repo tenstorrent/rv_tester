@@ -10,10 +10,12 @@ def pwrmgmt_gen(name, packet, topology, harness, visibility = None, cc_attrs = {
         srcs = [
             "@rv_tester//pwrmgmt:pwrmgmt.cpp",
             "@rv_tester//pwrmgmt:reset_sequence.cpp",
+            "@rv_tester//pwrmgmt:smc_axi_sequence.cpp",
         ],
         hdrs = [
             "@rv_tester//pwrmgmt:pwrmgmt.hpp",
             "@rv_tester//pwrmgmt:reset_sequence.hpp",
+            "@rv_tester//pwrmgmt:smc_axi_sequence.hpp",
         ],
         deps = [
             "@rv_tester//sysmod:sysmod_plusargs",
@@ -32,8 +34,11 @@ def pwrmgmt_gen(name, packet, topology, harness, visibility = None, cc_attrs = {
 
     verilog_library(
         name = pwrmgmt_sv,
-        srcs = ["@rv_tester//pwrmgmt:pwrmgmt.sv"],
+        srcs = [
+            "@rv_tester//pwrmgmt:pwrmgmt.sv",
+        ],
         deps = [
+            "@rv_tester//:rv_tester_tick_generator",
             "@cvm//:plusargs_sv",
             "@cvm//:random_sv",
             "@cvm//:topology_sv",

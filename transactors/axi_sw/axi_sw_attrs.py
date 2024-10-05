@@ -7,10 +7,10 @@ def clog2(x):
 
 if __name__ == "__main__":
     queues = {
-        "R_Q": 2,
-        "AR_Q": 2,
-        "AW_Q": 2,
-        "W_Q" : 2,
+        "R_Q": 8,
+        "AR_Q": 8,
+        "AW_Q": 8,
+        "W_Q" : 8,
     }
 
     cfg = {}
