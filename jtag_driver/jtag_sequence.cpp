@@ -448,35 +448,44 @@ void jtag_sequence::drive_csv_jtag_cmds()
      }
     
     cvm::log(cvm::LOW, "\n[JTAGDRIVER.CPP] Reversed jtag_rdata {} , reg_data_length {}\n", jtag_reversed_rdata,reg_length_data);
-     std::vector<uint64_t> convertedArray = bitsetToUint64Array(jtag_reversed_rdata);
+     std::vector<uint64_t> convertedArray = {};// bitsetToUint64Array(jtag_reversed_rdata);
       uint64_t mask = (1ULL << reg_length_data) - 1;
-      auto result = reg_length_data >= 64 ? convertedArray[0] : convertedArray[0] & mask;
-
-      if(tap_cfg_sel == 3){
-        result = result<<2;
+      //auto result = reg_length_data >= 64 ? convertedArray[0] : convertedArray[0] & mask;
+      //const size_t BITSET_SIZE = reg_length_data + 10;
+      std::bitset<1344> result = jtag_reversed_rdata;
+      if(tap_cfg_sel == 3){//ACLINT:3
+        result = result>>6;
       } 
-      if(tap_cfg_sel == 6){
-        result = result<<1;
+      if((tap_cfg_sel == 2) || (tap_cfg_sel == 1)){ //AXI:2 DTM:1 
+        result = result>>10;
       } 
-      if(tap_cfg_sel == 5){
-        result = result<<4;
+      if(tap_cfg_sel == 4){ //PMNW:4
+        result = result>>7;
+      } 
+      if(tap_cfg_sel == 6){//TRACE:6
+        result = result>>9;
+      } 
+      if(tap_cfg_sel == 5){//SMC:5
+        result = result>>6;
       }
-      if(tap_cfg_sel == 7){
-        result = result<<1;
+      if(tap_cfg_sel == 7){//CORE H2: 7
+        result = result>>9;
       }
 
-      if(tap_cfg_sel == 4){
-        result = result<<1;
+      if(tap_cfg_sel == 0){ //
+        result = result>>8;
       }
 
+      convertedArray =  bitsetToUint64Array(result);
       cvm::log(cvm::LOW, "Line no 464 [JTAGDRIVER.CPP] reg_length_data {} loop_rdata {:#x} lower_jtag_data {:#x} mask {:#x} expression {:#x}\n",reg_length_data,convertedArray[0],lower_jtag_data,mask,(1 << reg_length_data));
       
-      if(result == lower_jtag_data){
+      //if(result == lower_jtag_data){
+      if(convertedArray[0] == lower_jtag_data){
        //PASS
-       cvm::log(cvm::LOW, "[JTAGDRIVER.CPP] jtag check opcode Passed! expected {:#x} got {:#x} \n", lower_jtag_data,result);
+       cvm::log(cvm::LOW, "[JTAGDRIVER.CPP] jtag check opcode Passed! expected {:#x} got {} \n", lower_jtag_data,result);
       }else{
        //FAIL
-       cvm::log(cvm::ERROR, "\nERROR: [JTAGDRIVER.CPP] jtag check opcode failed! expected {:#x} got {:#x} \n", lower_jtag_data,result);
+       cvm::log(cvm::ERROR, "\nERROR: [JTAGDRIVER.CPP] jtag check opcode failed! expected {:#x} got {} \n", lower_jtag_data,result);
       }
       jtag_cmd_q.pop(); // pop front eleme7t
     }

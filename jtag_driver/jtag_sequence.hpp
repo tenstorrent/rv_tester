@@ -253,7 +253,8 @@ bool exitLoop() {
 template <std::size_t N>
 std::bitset<N> reverseLowerBits(const std::bitset<N>& bs, std::size_t split_length) {
     // Ensure split_length does not exceed the bitset size N
-    split_length = std::min(split_length, N);
+    int max_sib_length = 10;
+    split_length = std::min((split_length+max_sib_length), N);
     
      cvm::log(cvm::LOW, "[JTAGDRIVER.CPP] split_length {}\n",split_length);
     // Create a new bitset to store the reversed bits
