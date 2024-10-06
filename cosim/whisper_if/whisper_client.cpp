@@ -106,7 +106,6 @@ whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) {
 
   cvm::registry::messenger.procedure<whisperConnectRPC>(loc, [this] (uint16_t ncores) {return this->whisperConnect(ncores);});
   cvm::registry::messenger.procedure<whisperConnectedRPC>(loc, [this] () {return this->whisperConnected();});
-  cvm::registry::messenger.procedure<whisperDisableMcmRPC>(loc, [this] () {return this->whisperDisableMcm();});
   cvm::registry::messenger.procedure<whisperStepRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t& pc, uint32_t& instruction, unsigned& changeCount, std::string& disasm, uint32_t& privMode, uint32_t& fpFlags, bool& hasTrap, bool& hasStop, bool& isLoad) {return this->whisperStep(hart, time, instrTag, pc, instruction, changeCount, disasm, privMode, fpFlags, hasTrap, hasStop, isLoad);});
   cvm::registry::messenger.procedure<whisperSimpleStepRPC>(loc, [this] (int hart, uint64_t& pc, uint32_t& instruction, unsigned& changeCount) {return this->whisperSimpleStep(hart, pc, instruction, changeCount);});
   cvm::registry::messenger.procedure<whisperChangeRPC>(loc, [this] (int hart, uint32_t& resource, uint64_t& addr, uint64_t& value, bool& valid) {return this->whisperChange(hart, resource, addr, value, valid);});
@@ -402,15 +401,6 @@ whisperClient<URV>::whisperConnected()
 {
   return server_ != nullptr;
 }
-
-
-template <typename URV>
-void
-whisperClient<URV>::whisperDisableMcm()
-{
-  system_->enableMcm(64, false);
-}
-
 
 template <typename URV>
 bool
