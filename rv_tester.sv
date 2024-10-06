@@ -517,14 +517,10 @@ module rv_tester
         .clk(dut_clk[AXI_CLK_IDX]),
         .reset(sys_reset[AXI_CLK_IDX]),
         .trace_quiesced(trace_quiesced),
-        .jtag_quiesced(jtag_quiesced),
         .bootstrap,
         .dmi_write(trickbox_dmi_write),
         .event_triggers(event_triggers),
         .interrupt,
-        .jtag_req,
-        .jtag_tck_trst,
-        .jtag_resp,
         .terminate(sysmod_terminate),
         `RV_TESTER_TRANSACTIONS_SYSMOD_SOURCE_PORTS(2, 0, 0)
     );
@@ -704,6 +700,24 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_INTERRUPTS_SOURCE_PORTS(2,c,0)
         );
     end
+    jtag_driver #(
+          .NUM(0),
+          `TOPOLOGY_CFG,
+          `RV_TESTER_TRANSACTIONS_JTAG_DRIVER_SOURCE_PARAMS(0)
+        )jtag_driver
+        (
+            .clk(dut_clk[AXI_CLK_IDX]),
+            .reset(dut_reset[AXI_CLK_IDX]),
+            .dut_clk(dut_clk[AXI_CLK_IDX]),
+            .dut_reset(dut_reset[AXI_CLK_IDX]),
+            .no_fetch(core_no_fetch[0]),
+            .jtag_quiesced(jtag_quiesced),
+            .jtag_req,
+            .jtag_tck_trst,
+            .jtag_resp,
+          `RV_TESTER_TRANSACTIONS_JTAG_DRIVER_SOURCE_PORTS(2,0,0)
+        );
+        
 
     snoop_gen #(
             .NUM(0),
