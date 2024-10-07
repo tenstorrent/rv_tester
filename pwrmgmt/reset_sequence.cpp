@@ -851,8 +851,8 @@ cvm::messenger::task<void> reset_sequence::smc_scratchpad_default_access() {
     cvm::log(cvm::NONE, "[pwrmgmt] SMC Scratchpad access check : addr 0x{:x} , data 0x{:x} \n",addr , actual_data );
 
   co_return;
- };    
- 
+ };
+
  cvm::messenger::task<void> reset_sequence::smc_axi_random_access()
  {
   uint64_t data;
