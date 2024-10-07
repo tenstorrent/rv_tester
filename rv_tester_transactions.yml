@@ -1242,6 +1242,10 @@ pmu:
                 width: 33
             pfc_prt_reqbuf_alloc_hit:
                 width: 33
+            ldq_missq_full_delay:
+                width: 33
+            stq_missq_full_delay:
+                width: 33
             sc_cache_access:
                 width: 33
             sc_cache_rd:
@@ -1568,6 +1572,18 @@ pwrmgmt:
         fields:
             cycle:
                 width: 32
+    m_smc_axi_tick:
+        domain: 3
+        num: 1
+        fields:
+            assertion:
+                width: 1
+    m_pcontrol_tick:
+        domain: 3
+        num: 1
+        fields:
+            assertion:
+                width: 1
     m_force_ref_clk:
         domain: 3
         num: 1
@@ -1580,6 +1596,27 @@ pwrmgmt:
         fields:
             assertion:
                 width: 1
+    m_force_ref_clk_ack:
+        domain: 3
+        num: 1
+        fields:
+            assertion:
+                width: 1
+
+snoop_gen:
+    num: 1
+    m_tick:
+        domain: 2
+        num: 1
+        fields:
+            cycle:
+                width: 64
+    m_reset:
+        domain: 2
+        num: 1
+        fields:
+            cycle:
+                width: 64
 
 interrupts:
     num: ${TOP.PLATFORM.NHARTS}
@@ -1610,6 +1647,26 @@ trace:
         fields:
             cycle:
                 width: 32
+jtag_driver:
+    num: 1
+    m_jtag_driver_tick:
+        domain: 2
+        num: 1
+        fields:
+            cycle:
+                width: 32
+    jtag_tick:
+        domain: 2
+        num: 1
+        fields:
+            advance:
+                width: 64
+    jtag_rdata:
+        domain: 2
+        num: 1
+        fields:
+            rdata:
+                width: 1344
 
 triggers:
     num: ${TOP.PLATFORM.NHARTS}

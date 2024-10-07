@@ -42,12 +42,11 @@ class whisperClient {
 
     int whisperConnect(uint16_t ncores);
     bool whisperConnected();
-    void whisperDisableMcm();
     bool whisperStep(int hart, uint64_t time, uint64_t instrTag, uint64_t& pc, uint32_t& instruction, unsigned& changeCount, std::string& disasm, uint32_t& privMode, uint32_t& fpFlags, bool& hasTrap, bool& hasStop, bool& isLoad);
     bool whisperSimpleStep(int hart, uint64_t& pc, uint32_t& instruction, unsigned& changeCount);
     bool whisperChange(int hart, uint32_t& resource, uint64_t& addr, uint64_t& value, bool& valid);
-    bool whisperMcmRead(int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, bool& valid);
-    bool whisperMcmVecRead(int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, bool& valid);
+  bool whisperMcmRead(int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, unsigned elemIx, unsigned field, bool& valid);
+  bool whisperMcmVecRead(int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, unsigned elemIx, unsigned field, bool& valid);
     bool whisperMcmVecInsert(int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, bool& valid);
     bool whisperMcmInsert(int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, bool& valid);
     bool whisperMcmVecBypass(int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, bool& valid);
@@ -55,6 +54,7 @@ class whisperClient {
     bool whisperMcmWrite(int hart, uint64_t time, uint64_t addr, unsigned size, svOpenArrayHandle handle, uint64_t mask, bool& valid);
     bool whisperMcmIFetch(int hart, uint64_t time, uint64_t addr, bool& valid);
     bool whisperMcmIEvict(int hart, uint64_t time, uint64_t addr, bool& valid);
+    bool whisperMcmEnd(int hart, uint64_t time, bool& valid);
     bool whisperPoke(int hart, uint64_t time, char resource, uint64_t addr, uint64_t value, bool& valid);
     bool whisperPokeMem(int hart, uint64_t time, char resource, uint64_t addr, unsigned size, uint64_t value, bool& valid);
     bool whisperPeek(int hart, char resource, uint64_t addr, uint64_t& value, bool& valid);
@@ -99,7 +99,6 @@ class whisperClient {
 
     CVM_MESSENGER_procedure_call(whisperConnectRPC, int (uint16_t));
     CVM_MESSENGER_procedure_call(whisperConnectedRPC, bool (void));
-    CVM_MESSENGER_procedure_call(whisperDisableMcmRPC, void(void));
     CVM_MESSENGER_procedure_call(whisperStepRPC, bool(int, uint64_t, uint64_t, uint64_t&, uint32_t&, unsigned&, std::string&, uint32_t&, uint32_t&, bool&, bool&, bool&));
     CVM_MESSENGER_procedure_call(whisperSimpleStepRPC, bool (int, uint64_t&, uint32_t&, unsigned&));
     CVM_MESSENGER_procedure_call(whisperChangeRPC, bool (int, uint32_t&, uint64_t&, uint64_t&, bool&));
@@ -112,6 +111,7 @@ class whisperClient {
     CVM_MESSENGER_procedure_call(whisperMcmWriteRPC, bool (int, uint64_t, uint64_t, unsigned, svOpenArrayHandle, uint64_t, bool&));
     CVM_MESSENGER_procedure_call(whisperMcmIFetchRPC, bool (int, uint64_t, uint64_t, bool&));
     CVM_MESSENGER_procedure_call(whisperMcmIEvictRPC, bool (int, uint64_t, uint64_t, bool&));
+    CVM_MESSENGER_procedure_call(whisperMcmEndRPC, bool (int, uint64_t, bool&));
     CVM_MESSENGER_procedure_call(whisperPokeRPC, bool (int, uint64_t, char, uint64_t, uint64_t, bool&));
     CVM_MESSENGER_procedure_call(whisperPokeMemRPC, bool (int, uint64_t, char, uint64_t, unsigned, uint64_t, bool&));
     CVM_MESSENGER_procedure_call(whisperPeekRPC, bool (int, char, uint64_t, uint64_t&, bool&));

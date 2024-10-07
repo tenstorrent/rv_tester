@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <iomanip>
 #include <vector>
+#include <map>
 
 #include "cvm/topology.hpp"
 #include "bridge_base.h"
@@ -189,6 +190,39 @@ private:
   std::string get_nth_word(const std::string& s, int n);
 
 private:
+
+  std::map<uint64_t, std::string> hypervisor_csr_map_ = {
+        {0x600, "hstatus"},      // Hypervisor status register -
+        {0x602, "hedeleg"},      // Hypervisor exception delegation register -
+        {0x603, "hideleg"},      // Hypervisor interrupt delegation register -
+        {0x604, "hie"},          // Hypervisor interrupt-enable register -
+        {0x605, "htimedelta"},   // Hypervisor time delta register -
+        {0x606, "hcounteren"},   // Hypervisor counter-enable register -
+        {0x607, "hgeie"},        // Hypervisor guest external interrupt-enable register -
+        //{0x608, "hvien"}, -> hvip is defined by H extension whereas mvien and hvien are defined by Smaia/SSaia
+        {0x609, "hvictl"},
+        {0x60A, "henvcfg"},      // Hypervisor Environment Configuration regsiter -
+        {0x643, "htval"},        // Hypervisor Trap Value register -
+        {0x644, "hip"}, // -
+        {0x645, "hvip"},         // Hypervisor virtual interrupt pending -
+        {0x646, "hviprio1"},         // 
+        {0x647, "hviprio2"},         //
+        {0x680, "hgatp"},        // Hypervisor trap value register - 
+        {0x64A, "htinst"},       // Hypervisor trap instruction register -
+        {0xE12, "hgeip"},     // Hypervisor Guest Interrupt Pending -
+        {0x34B, "mtval2"},       // Machine Trap Value register -
+        {0X34A, "mtinst"},        // Machine Trap Instruction register -
+        {0x200, "vsstatus"}, // -
+        {0x204, "vsie"}, // -
+        {0x205, "vstvec"}, // -
+        {0x240, "vsscratch"}, // -
+        {0x241, "vsepc"}, // -
+        {0x242, "vscause"}, // -
+        {0x243, "vstval"}, // -
+        {0x24D, "vstimecmp"},
+        {0x244, "vsip"}, // -
+        {0x280, "vsatp"} // -
+    };
 
   cvm::file_logger bridge_log_;
   cvm::topology::loc_t loc_;
