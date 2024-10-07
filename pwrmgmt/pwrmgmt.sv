@@ -85,14 +85,21 @@ import rv_tester_params::*;
   assign m_ticks[0].data.location = location;
   assign m_ticks[0].data.cycle = tick_valid ? soc_clocks : 0;
 
-  // m_rand_smc_tick
-  logic rand_smc_tick;
-  rv_tester_tick_generator #(.NAME("smc_axi")) smc_axi_tick_generator (.clk(clk[SOC_CLK_IDX]), .reset(core_no_fetch), .tick(rand_smc_tick));
-  assign m_rand_smc_ticks[0].valid = rand_smc_tick && (location != cvm_topology::nil);
-  assign m_rand_smc_ticks[0].data.location = location;
-  assign m_rand_smc_ticks[0].data.assertion = '0;
+  // m_smc_axi_tick
+  logic smc_axi_tick;
+  rv_tester_tick_generator #(.NAME("smc_axi")) smc_axi_tick_generator (.clk(clk[SOC_CLK_IDX]), .reset(core_no_fetch), .tick(smc_axi_tick));
+  assign m_smc_axi_ticks[0].valid = smc_axi_tick && (location != cvm_topology::nil);
+  assign m_smc_axi_ticks[0].data.location = location;
+  assign m_smc_axi_ticks[0].data.assertion = '0;
 
-  // m_cold_reset_ack
+   // m_pcontrol_tick
+  logic pcontrol_tick;
+  rv_tester_tick_generator #(.NAME("pcontrol")) pcontrol_tick_generator (.clk(clk[SOC_CLK_IDX]), .reset(core_no_fetch), .tick(pcontrol_tick));
+  assign m_pcontrol_ticks[0].valid = pcontrol_tick && (location != cvm_topology::nil);
+  assign m_pcontrol_ticks[0].data.location = location;
+  assign m_pcontrol_ticks[0].data.assertion = '0;
+
+ // m_cold_reset_ack
   logic cold_reset_ack_valid;
   assign cold_reset_ack_valid = (cold_reset_d1 && ~cold_reset);
   assign m_cold_reset_acks[0].valid = cold_reset_ack_valid && (location != cvm_topology::nil);

@@ -1560,7 +1560,13 @@ pwrmgmt:
         fields:
             cycle:
                 width: 32
-    m_rand_smc_tick:
+    m_smc_axi_tick:
+        domain: 3
+        num: 1
+        fields:
+            assertion:
+                width: 1
+    m_pcontrol_tick:
         domain: 3
         num: 1
         fields:

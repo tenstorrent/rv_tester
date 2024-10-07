@@ -11,11 +11,13 @@ def pwrmgmt_gen(name, packet, topology, harness, visibility = None, cc_attrs = {
             "@rv_tester//pwrmgmt:pwrmgmt.cpp",
             "@rv_tester//pwrmgmt:reset_sequence.cpp",
             "@rv_tester//pwrmgmt:smc_axi_sequence.cpp",
+            "@rv_tester//pwrmgmt:patch_control_sequence.cpp",
         ],
         hdrs = [
             "@rv_tester//pwrmgmt:pwrmgmt.hpp",
             "@rv_tester//pwrmgmt:reset_sequence.hpp",
             "@rv_tester//pwrmgmt:smc_axi_sequence.hpp",
+            "@rv_tester//pwrmgmt:patch_control_sequence.hpp",
         ],
         deps = [
             "@rv_tester//sysmod:sysmod_plusargs",

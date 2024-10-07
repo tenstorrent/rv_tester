@@ -19,7 +19,7 @@ smc_axi_sequence::smc_axi_sequence
   if (!FLAGS_rand_smc_axi)
     return;
 
-  // smc_rand sequence thread
+  // smc axi sequence thread
   main_thread();
 }
 
@@ -78,7 +78,7 @@ cvm::messenger::task<void> smc_axi_sequence::sram_write() {
 }
 
 cvm::messenger::task<void> smc_axi_sequence::tick() {
-  co_await cvm::registry::messenger.wait<rv_tester_transactions::pwrmgmt::m_rand_smc_tick<>>(loc_);
+  co_await cvm::registry::messenger.wait<rv_tester_transactions::pwrmgmt::m_smc_axi_tick<>>(loc_);
   co_return;
 }
 
