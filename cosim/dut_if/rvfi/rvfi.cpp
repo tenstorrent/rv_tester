@@ -97,6 +97,17 @@ void rvfi::init() {
     cvm::log(cvm::MEDIUM, "Running with cosim is disabled\n");
   }
 }
+bool rvfi::patch_access (uint64_t addr) {
+  if (!patch_mode_)
+      return false;
+  if (addr >= patch_ram_lo && addr < patch_ram_hi)
+      return true;
+  if (addr == 0x42005000 || addr == 0x42005040 ||
+      addr == 0x42005080 || addr == 0x42005088 ||
+      addr == 0x42005090 || addr == 0x42005098)
+      return true;
+  return false;
+}
 
 void rvfi::process(const rv_tester_transactions::cosim::m_reset<>& m_reset) {
 
@@ -728,13 +739,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
   if (!FLAGS_mcm)
     return;
 
-  if (((m_mcmi_read.addr >= patch_ram_lo) && (m_mcmi_read.addr < patch_ram_hi))
-     ||(m_mcmi_read.addr == 0x42005000 ||
-        m_mcmi_read.addr == 0x42005040 || // do not do mcm checks for PATCH registers
-        m_mcmi_read.addr == 0x42005080 ||
-        m_mcmi_read.addr == 0x42005088 ||
-        m_mcmi_read.addr == 0x42005090 ||
-        m_mcmi_read.addr == 0x42005098 ))
+  if (patch_access(m_mcmi_read.addr))
     return;
 
   if (terminated_ || in_reset_)
@@ -856,13 +861,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
   if (!FLAGS_mcm)
     return;
 
-  if (((m_mcmi_insert.addr >= patch_ram_lo) && (m_mcmi_insert.addr < patch_ram_hi))
-     ||(m_mcmi_insert.addr == 0x42005000 ||
-        m_mcmi_insert.addr == 0x42005040 || // do not do mcm checks for PATCH registers
-        m_mcmi_insert.addr == 0x42005080 ||
-        m_mcmi_insert.addr == 0x42005088 ||
-        m_mcmi_insert.addr == 0x42005090 ||
-        m_mcmi_insert.addr == 0x42005098 ))
+  if (patch_access(m_mcmi_insert.addr))
     return;
 
   if (terminated_)
@@ -948,13 +947,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
   if (!FLAGS_mcm)
     return;
 
-  if (((m_mcmi_bypass.addr >= patch_ram_lo) && (m_mcmi_bypass.addr < patch_ram_hi))
-     ||(m_mcmi_bypass.addr == 0x42005000 ||
-        m_mcmi_bypass.addr == 0x42005040 || // do not do mcm checks for PATCH registers
-        m_mcmi_bypass.addr == 0x42005080 ||
-        m_mcmi_bypass.addr == 0x42005088 ||
-        m_mcmi_bypass.addr == 0x42005090 ||
-        m_mcmi_bypass.addr == 0x42005098 ))
+  if (patch_access(m_mcmi_bypass.addr))
     return;
 
   if (terminated_ || in_reset_)
@@ -1091,13 +1084,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write<>& m_mcmi_w
   if (!FLAGS_mcm)
     return;
 
-  if (((m_mcmi_write.addr >= patch_ram_lo) && (m_mcmi_write.addr < patch_ram_hi))
-     ||(m_mcmi_write.addr == 0x42005000 ||
-        m_mcmi_write.addr == 0x42005040 || // do not do mcm checks for PATCH registers
-        m_mcmi_write.addr == 0x42005080 ||
-        m_mcmi_write.addr == 0x42005088 ||
-        m_mcmi_write.addr == 0x42005090 ||
-        m_mcmi_write.addr == 0x42005098 ))
+  if (patch_access(m_mcmi_write.addr))
     return;
 
   if (terminated_)
@@ -1161,13 +1148,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ievict<>& m_mcmi_
   if (!FLAGS_mcm)
     return;
 
-  if (((m_mcmi_ievict.addr >= patch_ram_lo) && (m_mcmi_ievict.addr < patch_ram_hi))
-     ||(m_mcmi_ievict.addr == 0x42005000 ||
-        m_mcmi_ievict.addr == 0x42005040 || // do not do mcm checks for PATCH registers
-        m_mcmi_ievict.addr == 0x42005080 ||
-        m_mcmi_ievict.addr == 0x42005088 ||
-        m_mcmi_ievict.addr == 0x42005090 ||
-        m_mcmi_ievict.addr == 0x42005098 ))
+  if (patch_access(m_mcmi_ievict.addr))
     return;
 
   if (terminated_ || in_reset_)

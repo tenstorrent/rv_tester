@@ -85,6 +85,7 @@ class rvfi {
     void enter_debug_mode(rv_instr_t& instr);
     void exit_debug_mode(rv_instr_t& instr);
     std::string mem_attr_to_string(uint32_t mem_attr); 
+    bool patch_access (uint64_t addr);
 
   private:
 
