@@ -103,7 +103,7 @@ class rvfi {
 
     uint64_t tag_ = false;
     bool vec_excp_ = false;
-    bool ucode_ = false;
+    //bool ucode_ = false;
     bool nmi_ = false;
     bool intr_ = false;
     bool excp_ = false;
