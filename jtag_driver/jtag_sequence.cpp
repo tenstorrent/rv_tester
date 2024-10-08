@@ -234,14 +234,14 @@ void jtag_sequence::parse_jtag_from_csv()
           jtag_req.jtag_ip_data_lower = std::stoul(data_s_lower,nullptr,16);
           
         } catch (const std::invalid_argument& e) {
-            std::cerr << "[[jtag_sequence] Invalid argument for stoul csv arg 1: " << e.what() << std::endl;
+              cvm::log(cvm::ERROR, "[jtag_sequence] Invalid argument: data for stoul csv arg 1: {}\n", e.what());
         }
       
         try{
           jtag_req.jtag_ip_data_upper = std::stoul(data_s_upper,nullptr,16);
           
         } catch (const std::invalid_argument& e) {
-            std::cerr << "[jtag_sequence] Invalid argument for stoul csv arg 1: " << e.what() << std::endl;
+            cvm::log(cvm::ERROR, "[Trickbox] Invalid argument: data for stoul csv arg 1: {}\n", e.what());
         }
       }
       else {
@@ -250,7 +250,7 @@ void jtag_sequence::parse_jtag_from_csv()
            jtag_req.jtag_ip_data_upper = 0;
            
          } catch (const std::invalid_argument& e) {
-             std::cerr << "[jtag_sequence] Invalid argument for stoul csv arg 1: " << e.what() << std::endl;
+             cvm::log(cvm::ERROR, "[Trickbox] Invalid argument: data for stoul csv arg 1: {}\n", e.what());
          }
 
       }
@@ -259,7 +259,7 @@ void jtag_sequence::parse_jtag_from_csv()
           jtag_req.jtag_length_data = std::stoul(length,nullptr,10);
           
         } catch (const std::invalid_argument& e) {
-            std::cerr << "[jtag_sequence] Invalid argument for stoul csv arg 2: " << e.what() << std::endl;
+            cvm::log(cvm::ERROR, "[Trickbox] Invalid argument: data for stoul csv arg 2: {}\n", e.what());
         }
       }else{
          jtag_req.jtag_length_data = 0;
@@ -537,7 +537,7 @@ void jtag_sequence::drive_csv_jtag_cmds()
           cvm::log(cvm::HIGH, "[jtag_sequence] tap_sel {} \n", tap_cfg_sel);
           
         } catch (const std::invalid_argument& e) {
-            std::cerr << "[JTAG DRIVER] Invalid argument for stoul csv arg 2: " << e.what() << std::endl;
+            cvm::log(cvm::ERROR, "[jtag_sequence] Invalid argument: data for stoul csv arg 2: {}\n", e.what());
         }
         jtag_cmd_q.pop();
         // continue;
@@ -713,7 +713,7 @@ void jtag_sequence::drive_jtag_cmds()
           cvm::log(cvm::HIGH, "[jtag_sequence] tap_sel {} \n", tap_cfg_sel);
           
         } catch (const std::invalid_argument& e) {
-            std::cerr << "[jtag_sequence] Invalid argument for stoul csv arg 2: " << e.what() << std::endl;
+            cvm::log(cvm::ERROR, "[jtag_sequence] Invalid argument: data for stoul csv arg 2: {}\n", e.what());
         }
         jtag_cmd_q.pop();
         // continue;
@@ -804,7 +804,7 @@ cvm::messenger::task<void> jtag_sequence::open_socket_to_listen(){
     //int PORT=8088;
     int PORT=FLAGS_jtag_socket_port;
     int tick_count = 0;
-    cvm::log(cvm::HIGH,"\n [jtag_sequence] opening socket to listen ...\n");
+    cvm::log(cvm::LOW,"\n [jtag_sequence] opening socket to listen ...\n");
     // Creating socket file descriptor
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
         perror("socket failed");
@@ -831,14 +831,14 @@ cvm::messenger::task<void> jtag_sequence::open_socket_to_listen(){
         exit(EXIT_FAILURE);
     }
 
-    cvm::log(cvm::HIGH, "[jtag_sequence]Server is listening on {} PORT {} \n",inet_ntoa(address.sin_addr), PORT );
-    cvm::log(cvm::HIGH, "[jtag_sequence]Server's local IP address: {} \n", get_local_ip_address() );
+    cvm::log(cvm::LOW, "[jtag_sequence]Server is listening on {} PORT {} \n",inet_ntoa(address.sin_addr), PORT );
+    cvm::log(cvm::LOW, "[jtag_sequence]Server's local IP address: {} \n", get_local_ip_address() );
 
 
     while (true) {
        tick_count++;
        cvm::log(cvm::HIGH,"[jtag_sequence]Server is listening on  tick cnt {} \n", tick_count );
-       cvm::log(cvm::HIGH,"[jtag_sequence]Server's local IP address: {} \n", get_local_ip_address());
+       cvm::log(cvm::LOW,"[jtag_sequence]Server's local IP address: {} \n", get_local_ip_address());
        if(quit_communication){
         break;
        }
@@ -850,7 +850,7 @@ cvm::messenger::task<void> jtag_sequence::open_socket_to_listen(){
         // Accepting incoming connection (non-blocking)
         new_socket = accept(server_fd, (struct sockaddr *)&address, &addrlen);
         if (new_socket >= 0) {
-            cvm::log(cvm::HIGH, "[jtag_sequence]Connection accepted from {}:{} \n",inet_ntoa(address.sin_addr),ntohs(address.sin_port) );
+            cvm::log(cvm::LOW, "[jtag_sequence]Connection accepted from {}:{} \n",inet_ntoa(address.sin_addr),ntohs(address.sin_port) );
 
             // Process multiple requests from the same client
             while (true) {

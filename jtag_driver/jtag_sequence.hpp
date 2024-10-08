@@ -63,7 +63,7 @@ class jtag_sequence {
   virtual void jtag_tick(uint64_t advance) 
   {
     num_ticks++;
-    cvm::log(cvm::HIGH, "[jtag_sequence]: JTAG Tick {}\n",num_ticks);
+    cvm::log(cvm::DEBUG, "[jtag_sequence]: JTAG Tick {}\n",num_ticks);
     timer_ += advance;
     timer_advance = advance;
     if( num_ticks > 30) 
@@ -216,12 +216,12 @@ bool exitLoop() {
 
   void checkJtagEvents()
   {
-    cvm::log(cvm::HIGH, "Timer chk jtag evt \n");
+    cvm::log(cvm::DEBUG, "Timer chk jtag evt \n");
     if (FLAGS_random_jtag_entry)
     {
       if (timer_ >= timer_rand_debug && csv_completed )
       {
-        cvm::log(cvm::HIGH, "Timer passed random evt Value\n");
+        cvm::log(cvm::DEBUG, "Timer passed random evt Value\n");
         rnd_jtag_trigger = 1;
         csv_completed = 0;
         if (snippets_driven < (unsigned)FLAGS_jtag_max_snippets)
@@ -242,7 +242,7 @@ bool exitLoop() {
 
   void genNextJtagEvents()
   {
-    cvm::log(cvm::HIGH, "[JTAGDRIVER.cpp]Generating Next timer evt value\n");
+    cvm::log(cvm::HIGH, "[jtag_sequence]Generating Next timer evt value\n");
     if (FLAGS_random_jtag_entry)
     {
       int32_t rand_num = (rng() % (FLAGS_jtag_delay_max - FLAGS_jtag_delay_min + 1)) + FLAGS_jtag_delay_min;
@@ -256,14 +256,14 @@ std::bitset<N> reverseLowerBits(const std::bitset<N>& bs, std::size_t split_leng
     int max_sib_length = 10;
     split_length = std::min((split_length+max_sib_length), N);
     
-     cvm::log(cvm::HIGH, "[JTAGDRIVER.CPP] split_length {}\n",split_length);
+     cvm::log(cvm::FULL, "[jtag_sequence] split_length {}\n",split_length);
     // Create a new bitset to store the reversed bits
     std::bitset<N> reversed;
     
     // Reverse the lower 'split_length' bits
     for (std::size_t i = 0; i < split_length; ++i) {
         reversed[i] = bs[split_length - 1 - i];
-     cvm::log(cvm::HIGH, "[JTAGDRIVER.CPP] reversed[{}] = {}\n",i,reversed[i]);
+     cvm::log(cvm::FULL, "[jtag_sequence] reversed[{}] = {}\n",i,reversed[i]);
     }
 
     return reversed;
