@@ -202,6 +202,7 @@ bool exitLoop() {
     uint64_t jtag_ip_data_lower;
     uint64_t jtag_ip_data_upper;
     uint64_t jtag_op_data;
+    uint64_t jtag_cm_value;
     unsigned jtag_length_data;
     unsigned long ip_data_array[21];
   };
