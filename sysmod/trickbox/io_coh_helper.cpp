@@ -167,12 +167,13 @@ cvm::messenger::task<void> io_coh_helper::blocking_write(uint64_t addr) {
   for (uint8_t i = 0; i < tx_size; ++i) {
   if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0, 'm', addr+ i,1, data_vec[i], valid)|| !valid) {
     cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
-    return;
+    co_return;
   }{
 
   cvm::log(cvm::HIGH, "[io_coh_helper] backdoor whisper poke  Successful for addr{:#x} poke_data {:#x} \n",addr + i,data_vec[i]);
   }
   }
+    co_return;
 }
 
 
