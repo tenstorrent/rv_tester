@@ -94,6 +94,9 @@ import rv_tester_params::*;
     reset_d1 <= reset;
     if (reset) begin
       jtag_driver_init();
+      /* verilator lint_off BLKSEQ */
+      jtag_quiesced = 1'b0;
+      /* verilator lint_on BLKSEQ */
     end
     if (~reset & reset_d1) begin
       /* verilator lint_off BLKSEQ */

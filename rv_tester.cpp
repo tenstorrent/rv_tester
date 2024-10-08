@@ -148,9 +148,15 @@ extern "C" {
         return true;
     }
 
+    void rv_tester_cvm_error() {
+        if (!check_called) {
+            cvm::registry::check();
+        }
+    }
+
     void rv_tester_cvm_error_handler() {
         logger_instrument::set_scope(svGetScope());
-        cvm::set_logger_handler(cvm::ERROR, cvm::registry::check);
+        cvm::set_logger_handler(cvm::ERROR, rv_tester_cvm_error);
     }
 }
 
