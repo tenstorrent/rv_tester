@@ -1438,6 +1438,16 @@ pmu:
                 width: 64
             hpmcounter10:
                 width: 64
+    pmc_checker:
+        domain: 1
+        num: ${max(TOP.PLATFORM.COSIM.RVFI.NRETS)}
+        fields: 
+            terminate:
+                width: 1
+            event_csr: 
+                width: 4
+            event_id:
+                width: 56
 dm_model:
     num: 1
     dmi_status:

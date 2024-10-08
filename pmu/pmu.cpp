@@ -15,6 +15,8 @@ DEFINE_int32(ipc_tolerance_perc, 5, "IPC tolerance %");
 DEFINE_bool(l1d_read_miss_check, false, "Check L1D miss rate within a tolerance %");
 DEFINE_double(l1d_read_miss_expected, 0.0, "Expected L1D miss rate");
 DEFINE_int32(l1d_read_miss_tolerance_perc, 20, "L1D miss rate tolerance %");
+DEFINE_bool(pmc_check_with_sideband, true, "flag to toggle check with sideband counter");
+DEFINE_int32(pmc_check_threshold, 5, " pmc_check_threshold %");
 
 REGISTRY_register(pmu, PMCI, cvm::registry::all);
 
@@ -39,6 +41,8 @@ pmu::pmu(cvm::topology::loc_t loc, unsigned id)
     auto platform = cvm::topology::get_from_type("PLATFORM", 0);
 
     cvm::registry::messenger.connect<rv_tester_transactions::pmu::pmcounters<>>(loc, [this] (const auto& v) { return this->process(v); });
+    cvm::registry::messenger.connect<rv_tester_transactions::pmu::hpmcounters<>>(loc, [this] (const auto& v) { return this->process(v); });
+    cvm::registry::messenger.connect<rv_tester_transactions::pmu::pmc_checker<>>(loc, [this] (const auto& v) { return this->process(v); });
     cvm::registry::messenger.connect<rv_tester::terminate_called_fast>(platform, [this] (const auto& v) { return this->process(v); });
   }
 }
@@ -187,4 +191,45 @@ pmu::shutdown_ready()
     }
   else
     return true;
+}
+
+void
+pmu::process(const rv_tester_transactions::pmu::hpmcounters<>& hpmcounters)
+{
+  hpmcounters_array[0]  = hpmcounters.hpmcounter3;
+  hpmcounters_array[1]  = hpmcounters.hpmcounter4;
+  hpmcounters_array[2]  = hpmcounters.hpmcounter5;
+  hpmcounters_array[3]  = hpmcounters.hpmcounter6;
+  hpmcounters_array[4]  = hpmcounters.hpmcounter7;
+  hpmcounters_array[5]  = hpmcounters.hpmcounter8;
+  hpmcounters_array[6]  = hpmcounters.hpmcounter9;
+  hpmcounters_array[7]  = hpmcounters.hpmcounter10;
+}
+void
+pmu::process(const rv_tester_transactions::pmu::pmc_checker<>& pmc_checker)
+{
+  if (!FLAGS_pmc_check_with_sideband)
+    return;
+  if (pmc_checker.terminate == 0){
+    for (size_t i = 0; i < num_event_csrs; i++){
+      if(i == pmc_checker.event_csr){
+        event_csr_array[i].programmed = true;
+        event_csr_array[i].event_type = event_map.at(pmc_checker.event_id);
+        event_csr_array[i].sideband_count_eventwr  = counters[event_csr_array[i].event_type];
+      }
+    }
+  }
+  else if(pmc_checker.terminate == 1){
+    for (size_t i = 0; i < num_event_csrs; i++){
+      if(event_csr_array[i].programmed == true){
+        sideband_count_terminate_ = counters[event_csr_array[i].event_type];
+        expected_count_           = sideband_count_terminate_ - event_csr_array[i].sideband_count_eventwr;
+        actual_count_             = hpmcounters_array[i];
+        if (std::abs(static_cast<long>(expected_count_) - static_cast<long>(actual_count_)) > std::ceil(FLAGS_pmc_check_threshold * actual_count_ * 0.01) ){
+          cvm::log(cvm::ERROR, "ERROR: hart_{} PMC check against sideband counters failed for mhpmevent{} programed with event {} expected_count:{:#x} actual_count:{:#x}\n", id_, i+3, to_string.at(static_cast<counter>(event_csr_array[i].event_type)), expected_count_, actual_count_);
+        }
+      }
+      
+    }
+  }
 }
