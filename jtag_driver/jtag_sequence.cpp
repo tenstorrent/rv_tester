@@ -209,14 +209,16 @@ void jtag_sequence::parse_jtag_from_csv()
       }else if(jtag_cmd == "sr"){ //shift right
          jtag_req.jtag_cmd = 10;
       }else if(jtag_cmd == "ts"){
-         jtag_req.jtag_cmd = 11;
-        
+         jtag_req.jtag_cmd = 11;        
+      }
+      else if(jtag_cmd == "cm"){
+         jtag_req.jtag_cmd = 12;        
       }
       else{
         cvm::log(cvm::ERROR, "[jtag_sequence]Error: unknown command {} in jtag cfg file {}\n",jtag_cmd, FLAGS_jtag_input_file_path);
       }
       
-      if(jtag_req.jtag_cmd<3 || jtag_req.jtag_cmd == 4){ 
+      if(jtag_req.jtag_cmd<3 || jtag_req.jtag_cmd == 4 ||jtag_req.jtag_cmd == 12){ 
          length = row[2];  //length NA for nop 
       }
       
@@ -261,7 +263,11 @@ void jtag_sequence::parse_jtag_from_csv()
         } catch (const std::invalid_argument& e) {
             cvm::log(cvm::ERROR, "[Trickbox] Invalid argument: data for stoul csv arg 2: {}\n", e.what());
         }
-      }else{
+      }else if(jtag_req.jtag_cmd ==12){
+            jtag_req.jtag_length_data = 64;
+            jtag_req.jtag_cm_value =  std::stoul(length,nullptr,16);
+      }
+      else{
          jtag_req.jtag_length_data = 0;
       }
       
@@ -407,6 +413,7 @@ void jtag_sequence::drive_csv_jtag_cmds()
     unsigned       jtag_cmd = 0;
     unsigned long  upper_jtag_data = 0;
     unsigned long  lower_jtag_data = 0;
+    unsigned long  jtag_cm_value = 0;
     unsigned       reg_length_data = 0;
     unsigned       hart = 0;
 
@@ -415,6 +422,7 @@ void jtag_sequence::drive_csv_jtag_cmds()
     lower_jtag_data = jtag_req.jtag_ip_data_lower;
     reg_length_data = jtag_req.jtag_length_data;
     padding_length  = reg_length_data; 
+    jtag_cm_value    = jtag_req.jtag_cm_value;
     cvm::log(cvm::HIGH, "[jtag_sequence] Driving jtag cmd {}\n", jtag_cmd);
 
     if(jtag_cmd<3){
@@ -441,13 +449,13 @@ void jtag_sequence::drive_csv_jtag_cmds()
       jtag_cmd_q.pop();
     }
 
-    if(jtag_cmd == 4){  //ck expecting check on rdata
+    if(jtag_cmd == 4 || jtag_cmd == 12){  //ck expecting check on rdata
       //check last saved rdata == lower_jtag_data ??
      if(FLAGS_reverse_jtag_rdata){
       jtag_reversed_rdata = reverseLowerBits(jtag_rdata, reg_length_data);
      }
     
-    cvm::log(cvm::HIGH, "\n[jtag_sequence] Reversed jtag_rdata {} , reg_data_length {}\n", jtag_reversed_rdata,reg_length_data);
+     cvm::log(cvm::HIGH, "\n[jtag_sequence] Reversed jtag_rdata {} , reg_data_length {}\n", jtag_reversed_rdata,reg_length_data);
      std::vector<uint64_t> convertedArray = {};// bitsetToUint64Array(jtag_reversed_rdata);
       uint64_t mask = (1ULL << reg_length_data) - 1;
       //auto result = reg_length_data >= 64 ? convertedArray[0] : convertedArray[0] & mask;
@@ -479,7 +487,7 @@ void jtag_sequence::drive_csv_jtag_cmds()
       convertedArray =  bitsetToUint64Array(result);
       cvm::log(cvm::HIGH, "Line no 464 [jtag_sequence] reg_length_data {} loop_rdata {:#x} lower_jtag_data {:#x} mask {:#x} expression {:#x}\n",reg_length_data,convertedArray[0],lower_jtag_data,mask,(1 << reg_length_data));
       
-      //if(result == lower_jtag_data){
+    if(jtag_cmd == 4){
       if(convertedArray[0] == lower_jtag_data){
        //PASS
        cvm::log(cvm::HIGH, "[jtag_sequence] jtag check opcode Passed! expected {:#x} got {} \n", lower_jtag_data,result);
@@ -487,6 +495,16 @@ void jtag_sequence::drive_csv_jtag_cmds()
        //FAIL
        cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check opcode failed! expected {:#x} got {} \n", lower_jtag_data,result);
       }
+    }else if(jtag_cmd == 12){
+      cvm::log(cvm::HIGH, "\n[jtag_sequence] jtag check mask opcode: result {:#x} mask {:#x} expected {:#x} \n", convertedArray[0],lower_jtag_data,jtag_cm_value);
+      if((convertedArray[0] & lower_jtag_data) == jtag_cm_value){
+       //PASS
+       cvm::log(cvm::HIGH, "[jtag_sequence] jtag check mask opcode Passed! expected {:#x} got {} \n", jtag_cm_value,(convertedArray[0] & lower_jtag_data));
+      }else{
+       //FAIL
+       cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check mask opcode failed! expected {:#x} got {} \n", jtag_cm_value,(convertedArray[0] & lower_jtag_data));
+      }
+    }
       jtag_cmd_q.pop(); // pop front eleme7t
     }
 
