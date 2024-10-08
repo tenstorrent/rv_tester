@@ -159,7 +159,7 @@ cvm::messenger::task<void> io_coh_helper::blocking_write(uint64_t addr) {
     co_await cvm::registry::messenger.wait<axi::b_t>(wresp_channel, [&wresp_id] (const axi::b_t& wresp) { return wresp.id == wresp_id; });
     //std::get<1>(t) = false;
     write_in_flight = false;
-  }//;
+  //}//;
   //cvm::registry::messenger.fork(l, t);
 
   //Poke same data to whisper memory
