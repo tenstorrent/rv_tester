@@ -232,6 +232,9 @@ private:
   unsigned step_ahead_queue_on = 0;
   unsigned step_quit_queue_on = 0;
   unsigned step_instr_cnt = 0;
+  unsigned sdtrig_halt_queue_on = 0;
+  unsigned sdtrig_cause_queue_on = 0;
+  unsigned sdtrig_disable_queue_on = 0;
   uint64_t timer_rand_debug = 500;
   std::vector<std::vector<std::string>> content;
   std::vector<std::string> row;
