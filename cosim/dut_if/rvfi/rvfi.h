@@ -51,7 +51,7 @@ class rvfi {
     void process(const rv_tester_transactions::cosim::m_core_intr<>& m_core_intr);
     void process(const rv_tester_transactions::cosim::m_imsic_msi<>& m_imsic_msi);
     void process(const rv_tester_transactions::cosim::m_debug<>& m_debug);
-
+    std::bitset<256> stringToBitset(const std::string& hexString);
     void process(const rv_tester_transactions::cosim::m_csri<>& m_csri);
 
     // FIXME Move out to a different file?
@@ -85,6 +85,7 @@ class rvfi {
     void enter_debug_mode(rv_instr_t& instr);
     void exit_debug_mode(rv_instr_t& instr);
     std::string mem_attr_to_string(uint32_t mem_attr); 
+    bool patch_access (uint64_t addr);
 
   private:
 
@@ -103,7 +104,7 @@ class rvfi {
 
     uint64_t tag_ = false;
     bool vec_excp_ = false;
-    bool ucode_ = false;
+    //bool ucode_ = false;
     bool nmi_ = false;
     bool intr_ = false;
     bool excp_ = false;

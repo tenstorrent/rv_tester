@@ -697,6 +697,10 @@ public:
       PFC_PRT_L1D_EVICT_HIT,
       //Event for reqbuf allocation CAM hitting on one or more PRT entries
       PFC_PRT_REQBUF_ALLOC_HIT,
+      //Wasted cycles across all LDQ entries between ReqBuf full indication and load allocs or links in the ReqBuf
+      LDQ_MISSQ_FULL_DELAY,
+      //Wasted cycles across all STQ entries between ReqBuf full indication and store allocs or links in the ReqBuf
+      STQ_MISSQ_FULL_DELAY,
       //"Count each Memory-read operation or Memory-write operation that causes a cache access to SC. Each access to a cache line is counted
       SC_CACHE_ACCESS,
       //Count Memory-read operation that causes a cache access to SC.
@@ -867,12 +871,12 @@ public:
       NO_ALLOC_HINT_NOT_SET,
       //SC replay due to ECC errors
       SC_REPLAY_ECC,
-      //SC pipeline cancellation in TA4. It can result from b2b same-set access and other conditions
-      SC_CANCEL_PIPERESULT,
       //Count per slice SC victims
       SC_VICTIM,
       //Cache line not allocated into SC due to minRRPV > 1 (min repl state in RTL > 2)
       NO_ALLOC_SRRIP,
+      //SC pipeline cancellation in TA4. It can result from b2b same-set access and other conditions
+      SC_CANCEL_PIPERESULT,
     COUNT
     } counter;
 
@@ -1226,6 +1230,8 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::PFC_PREFETCHES_SENT] = pmcounters.pfc_prefetches_sent;
       tmp[counter::PFC_PRT_L1D_EVICT_HIT] = pmcounters.pfc_prt_l1d_evict_hit;
       tmp[counter::PFC_PRT_REQBUF_ALLOC_HIT] = pmcounters.pfc_prt_reqbuf_alloc_hit;
+      tmp[counter::LDQ_MISSQ_FULL_DELAY] = pmcounters.ldq_missq_full_delay;
+      tmp[counter::STQ_MISSQ_FULL_DELAY] = pmcounters.stq_missq_full_delay;
       tmp[counter::SC_CACHE_ACCESS] = pmcounters.sc_cache_access;
       tmp[counter::SC_CACHE_RD] = pmcounters.sc_cache_rd;
       tmp[counter::SC_CACHE_MISS] = pmcounters.sc_cache_miss;
@@ -1311,9 +1317,9 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       tmp[counter::NO_ALLOC_NO_MSHR] = pmcounters.no_alloc_no_mshr;
       tmp[counter::NO_ALLOC_HINT_NOT_SET] = pmcounters.no_alloc_hint_not_set;
       tmp[counter::SC_REPLAY_ECC] = pmcounters.sc_replay_ecc;
-      tmp[counter::SC_CANCEL_PIPERESULT] = pmcounters.sc_cancel_piperesult;
       tmp[counter::SC_VICTIM] = pmcounters.sc_victim;
       tmp[counter::NO_ALLOC_SRRIP] = pmcounters.no_alloc_srrip;
+      tmp[counter::SC_CANCEL_PIPERESULT] = pmcounters.sc_cancel_piperesult;
 
       return tmp;
     }
@@ -1664,6 +1670,8 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {PFC_PREFETCHES_SENT,"pfc_prefetches_sent"},
       {PFC_PRT_L1D_EVICT_HIT,"pfc_prt_l1d_evict_hit"},
       {PFC_PRT_REQBUF_ALLOC_HIT,"pfc_prt_reqbuf_alloc_hit"},
+      {LDQ_MISSQ_FULL_DELAY,"ldq_missq_full_delay"},
+      {STQ_MISSQ_FULL_DELAY,"stq_missq_full_delay"},
       {SC_CACHE_ACCESS,"sc_cache_access"},
       {SC_CACHE_RD,"sc_cache_rd"},
       {SC_CACHE_MISS,"sc_cache_miss"},
@@ -1749,9 +1757,9 @@ std::vector<uint64_t> to_vector(const rv_tester_transactions::pmu::pmcounters<>&
       {NO_ALLOC_NO_MSHR,"no_alloc_no_mshr"},
       {NO_ALLOC_HINT_NOT_SET,"no_alloc_hint_not_set"},
       {SC_REPLAY_ECC,"sc_replay_ecc"},
-      {SC_CANCEL_PIPERESULT,"sc_cancel_piperesult"},
       {SC_VICTIM,"sc_victim"},
       {NO_ALLOC_SRRIP,"no_alloc_srrip"},
+      {SC_CANCEL_PIPERESULT,"sc_cancel_piperesult"},
     };
 
   pmu(cvm::topology::loc_t, unsigned);

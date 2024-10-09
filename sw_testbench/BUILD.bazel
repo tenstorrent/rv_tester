@@ -64,6 +64,7 @@ harnesses = [ "sw_1c", "sw_2c"]
         lib  = name + "_top",
         dpi  = name + "_dpi",
         runtime_library = ["//infra/bzsim-config:runtime"],
+        run_args   = ["+nowhisper_client_check"],
         verilator_top = "sw_tb.cpp",
         bzsimconfig = "//infra/bzsim-config:bzsimconfig",
         verilator_configs = [":pulp_platform_verilator_waiver.vlt"]

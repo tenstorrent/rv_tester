@@ -517,14 +517,10 @@ module rv_tester
         .clk(dut_clk[AXI_CLK_IDX]),
         .reset(sys_reset[AXI_CLK_IDX]),
         .trace_quiesced(trace_quiesced),
-        .jtag_quiesced(jtag_quiesced),
         .bootstrap,
         .dmi_write(trickbox_dmi_write),
         .event_triggers(event_triggers),
         .interrupt,
-        .jtag_req,
-        .jtag_tck_trst,
-        .jtag_resp,
         .terminate(sysmod_terminate),
         `RV_TESTER_TRANSACTIONS_SYSMOD_SOURCE_PORTS(2, 0, 0)
     );
@@ -561,10 +557,10 @@ module rv_tester
     ) i_dm_model(
         .clk(dut_clk[AXI_CLK_IDX]),
         .reset(sys_reset[TB_CLK_IDX]),
-        .dmi_req(dmi_req),
-        .dmi_req_valid(dmi_req_valid),
-        .dmi_resp_valid(dmi_resp_valid),
-        .dmi_resp(dmi_resp),
+        .dmi_req(dmi_tx_req),
+        .dmi_req_valid(dmi_tx_req_vld),
+        .dmi_resp_valid(dmi_tx_resp_vld),
+        .dmi_resp(dmi_tx_resp),
         .terminate,
         .dm_mem_tx_vld,
         .dm_mem_tx_we,
@@ -704,7 +700,37 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_INTERRUPTS_SOURCE_PORTS(2,c,0)
         );
     end
+    jtag_driver #(
+          .NUM(0),
+          `TOPOLOGY_CFG,
+          `RV_TESTER_TRANSACTIONS_JTAG_DRIVER_SOURCE_PARAMS(0)
+        )jtag_driver
+        (
+            .clk(dut_clk[AXI_CLK_IDX]),
+            .reset(dut_reset[AXI_CLK_IDX]),
+            .dut_clk(dut_clk[AXI_CLK_IDX]),
+            .dut_reset(dut_reset[AXI_CLK_IDX]),
+            .no_fetch(core_no_fetch[0]),
+            .jtag_quiesced(jtag_quiesced),
+            .jtag_req,
+            .jtag_tck_trst,
+            .jtag_resp,
+          `RV_TESTER_TRANSACTIONS_JTAG_DRIVER_SOURCE_PORTS(2,0,0)
+        );
+        
 
+    snoop_gen #(
+            .NUM(0),
+            `TOPOLOGY_CFG,
+            `RV_TESTER_TRANSACTIONS_SNOOP_GEN_SOURCE_PARAMS(0)
+    ) snoop_gen (
+            .clk(dut_clk[AXI_CLK_IDX]),
+            .sys_reset(sys_reset[AXI_CLK_IDX]),
+            .reset(dut_reset[AXI_CLK_IDX]),
+            .clocks,
+            `RV_TESTER_TRANSACTIONS_SNOOP_GEN_SOURCE_PORTS(2,0,0)
+    );
+    
     trace #(
        .NUM(0),
        `TOPOLOGY_CFG,
@@ -921,6 +947,7 @@ module rv_tester
             .DATA_WIDTH(topology.TOP.PLATFORM.AXI_MST.DATA_WIDTH),
             .ID_WIDTH(topology.TOP.PLATFORM.AXI_MST.ID_WIDTH  ),
             .STRB_WIDTH(topology.TOP.PLATFORM.AXI_MST.STRB_WIDTH),
+            .USER_WIDTH(topology.TOP.PLATFORM.AXI_MST.USER_WIDTH),
             .AR_Q_MAX(topology.TOP.PLATFORM.AXI_MST.AR_Q_MAX),
             .AW_Q_MAX(topology.TOP.PLATFORM.AXI_MST.AW_Q_MAX),
             .W_Q_MAX(topology.TOP.PLATFORM.AXI_MST.W_Q_MAX),
@@ -990,6 +1017,7 @@ module rv_tester
             .DATA_WIDTH(topology.TOP.PLATFORM.SMC_AXI_MST.DATA_WIDTH),
             .ID_WIDTH(topology.TOP.PLATFORM.SMC_AXI_MST.ID_WIDTH  ),
             .STRB_WIDTH(topology.TOP.PLATFORM.SMC_AXI_MST.STRB_WIDTH),
+            .USER_WIDTH(topology.TOP.PLATFORM.SMC_AXI_MST.USER_WIDTH),
             .AR_Q_MAX(topology.TOP.PLATFORM.SMC_AXI_MST.AR_Q_MAX),
             .AW_Q_MAX(topology.TOP.PLATFORM.SMC_AXI_MST.AW_Q_MAX),
             .W_Q_MAX(topology.TOP.PLATFORM.SMC_AXI_MST.W_Q_MAX),

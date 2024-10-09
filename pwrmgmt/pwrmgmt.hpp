@@ -113,6 +113,7 @@ namespace {
   typedef enum : bool { COLD = true, WARM = false } rst_t;
   typedef enum : size_t { SZ_4B = 4, SZ_8B = 8 } sz_t;
   typedef enum : bool { WR = 1, RD = 0 } access_t;
+  typedef enum : bool { BLOCK = true, NO_BLOCK = false } block_t;
 
   std::vector<uint32_t> smc_dest_address = {
     dm_scratchpad,
@@ -124,6 +125,16 @@ namespace {
     mb_scratchpad,
     core_pwr_throttle_cfg_0,
     core_pwr_throttle_cfg_1,};
+
+  std::vector<uint32_t> smc_scratchpad_address = {
+    dm_scratchpad,
+    cr_scratchpad,
+    sw_scratchpad,
+    ac_scratchpad,
+    rc_scratchpad,
+    cc_scratchpad,
+    mb_scratchpad
+  };
 
   std::map<uint32_t, uint64_t> fuse_data;
 

@@ -13,6 +13,7 @@ namespace{
         uint64_t address;
         uint64_t data;
         uint8_t size;
+        bool amo;
     } inval_load_t;
 
     typedef struct inval_crsp_s{
