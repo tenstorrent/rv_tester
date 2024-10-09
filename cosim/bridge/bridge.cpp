@@ -1437,7 +1437,12 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
     uint64_t data = modify_csr_data(hart, c.csr_addr, c.csr_wdata);
     size_8_bytes_t mask = modify_csr_mask(hart, c.csr_addr, c.csr_wdata, c.csr_wmask);
     if (FLAGS_csr_rd_check) {
-      update_csr(hart, src_t::dut, c.csr_addr, data, mask);
+      uint64_t misa_data = get_csr(id_, src_t::dut, 0x301);
+      bool peekhypcsr = (misa_data & (1<<7))!=0;
+      if((hypervisor_csr_map_.find(c.csr_addr) != hypervisor_csr_map_.end()) && (!peekhypcsr)) {
+      }else{
+        update_csr(hart, src_t::dut, c.csr_addr, data, mask);
+      }
       if (patch_mode_ != NO_PATCH) {
         bool valid;
         uint64_t w_data, w_mask, w_poke_mask, w_read_mask;
