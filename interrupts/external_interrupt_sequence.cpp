@@ -113,7 +113,7 @@ void external_interrupt_sequence::drive_interrupt(){
     
    unsigned interrupt_num  =  (rng1() % (FLAGS_imsic_intr_threshold )) ; 
    unsigned interrupt_file =  (rng1() % (3 )) ; //gen either machine supervisor or hypervisor file
-   unsigned interrupt_hart =  (rng1() % (FLAGS_imsic_hart_threshold )) ; // sel rand hart
+   unsigned interrupt_hart =  id_; // select hart_id where event was triggered
    unsigned vs_id          =  (rng1() % (FLAGS_imsic_vs_id_threshold )) ; //sel vs id
    
    if(interrupt_file == 0x02) interrupt_num %= FLAGS_imsic_vs_intr_threshold;
