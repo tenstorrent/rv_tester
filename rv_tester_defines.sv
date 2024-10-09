@@ -958,6 +958,11 @@ package rv_tester_params;
     output logic [rv_tester_params::DM_AXI_DATA_WIDTH-1:0]  dm_mem_tx_wr_data,                      \
     output logic [rv_tester_params::DM_AXI_STRB_WIDTH-1:0]  dm_mem_tx_wr_data_be,                   \
                                                                                                     \
+    output logic                                            dmi_tx_req_vld,                         \
+    output logic                                            dmi_tx_resp_vld,                        \
+    output rv_tester_pkg::dmi_req_t                         dmi_tx_req,                             \
+    output rv_tester_pkg::dmi_resp_t                        dmi_tx_resp,                            \
+                                                                                                    \
     output rv_tester_params::slv_req_top     axi_req [rv_tester_params::AXI_TOTAL-1:0],             \
     input  rv_tester_params::slv_resp_top    axi_rsp [rv_tester_params::AXI_TOTAL-1:0],             \
     output rv_tester_params::ncio_slv_req_top     ncio_axi_req [rv_tester_params::NCIO_AXI_TOTAL-1:0],             \
@@ -1018,6 +1023,11 @@ package rv_tester_params;
     logic [rv_tester_params::DM_AXI_DATA_WIDTH-1:0]  dm_mem_tx_rd_data;                             \
     logic [rv_tester_params::DM_AXI_DATA_WIDTH-1:0]  dm_mem_tx_wr_data;                             \
     logic [rv_tester_params::DM_AXI_STRB_WIDTH-1:0]  dm_mem_tx_wr_data_be;                          \
+                                                                                                    \
+    logic                                            dmi_tx_req_vld;                                \
+    logic                                            dmi_tx_resp_vld;                               \
+    rv_tester_pkg::dmi_req_t                         dmi_tx_req;                                    \
+    rv_tester_pkg::dmi_resp_t                        dmi_tx_resp;                                   \
                                                                                                     \
     rv_tester_params::rvfi_t                 [rv_tester_params::TOTAL_NRETS-1:0]       rvfi;        \
     rv_tester_params::mcmi_t                 [rv_tester_params::TOTAL_NREADS-1:0]      mcmi_read;   \
