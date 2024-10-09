@@ -271,7 +271,7 @@ void debug_module_t::reset()
   memset(&dmstatus, 0, sizeof(dmstatus));
   dmstatus.impebreak = config.support_impebreak;
   dmstatus.authenticated = !config.require_authentication;
-  dmstatus.version = 2;
+  dmstatus.version = 3;
 
   memset(&abstractcs, 0, sizeof(abstractcs));
   abstractcs.datacount = sizeof(dmdata) / 4;

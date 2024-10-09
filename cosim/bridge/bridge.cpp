@@ -57,7 +57,7 @@ DEFINE_bool(memattr_check, true, "Enable cosim checks on mem attributes");
 DEFINE_bool(flags_check, true, "Enable cosim checks on fflags");
 DEFINE_uint64(max_cycle, 1000000, "Max cycle limit to terminate the sim");
 DEFINE_int32(debug_excp_mcause, 24, "MCAUSE value for debug exception");
-DEFINE_bool(whisper_client_check, false, "Removing Whisper API client checks");
+DEFINE_bool(whisper_client_check, true, "Removing Whisper API client checks");
 DEFINE_bool(translation_check, false, "Do VA-PA translation check");
 DEFINE_bool(emulate_debug_mode, true, "Emulate debug mode by forcing whisper to be in sync with DUT");
 DEFINE_bool(delay_satp_update, false, "Delay satp update till next sfence.vma");
@@ -477,7 +477,7 @@ void bridge::process_steps(hart_id_t hart, uint32_t n_retire, uint64_t cycle, ui
 void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   print(cvm::HIGH, "process_dut_instr_retire:: hart={}, d.cycle={}, d.pc={:#x}, d.tag={}, d.opcode={:#x}, d.disasm={}\n", hart,d.cycle,d.pc.pc_rdata,d.tag,d.opcode,d.disasm);
-  print(cvm::HIGH, "                        :: mip_={}, prev_sync_intr_={}, deferred_intr_={}\n", mip_,prev_sync_intr_,deferred_intr_);
+  print(cvm::HIGH, "                        :: mip_={}, prev_sync_intr_={}, deferred_intr_={} patch_mode_={}\n", mip_,prev_sync_intr_,deferred_intr_,patch_mode_);
   for (const auto& gpr : d.gpr) {
     print(cvm::HIGH, "                        :: grd_addr={}, grd_wdata={:#x}\n", gpr.rd_addr,gpr.rd_wdata);
   }
@@ -668,8 +668,11 @@ void bridge::compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w,
       if (does_instr_match_resynch_list(d, instr) ||
          does_instr_match_resynch_condition(d, instr)) {
         IF_DEBUG("found condition for resynch");
-        for (auto& csr : d.csr) {
-           csr.valid = 0;
+
+        if (!(unsupported_csr_access(instr))) {
+           for (auto& csr : d.csr) {
+              csr.valid = 0;
+           }
         }
         resynch(hart, d);
         cac_.ResetStatus(hart);
@@ -1366,6 +1369,7 @@ void bridge::print_resource(hart_id_t hart, const whisper_state_t& w) {
 }
 
 void bridge::step(hart_id_t hart, whisper_state_t& w) {
+  IF_DEBUG("function called");
   if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperStepRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, w.time, w.tag,  w.pc, w.opcode, w.change_count, w.disasm,
       w.priv_mode, w.fp_flags, w.trap, w.stop, w.is_load)) {
     error("Hart {}: Failed to step whisper\n", hart);
@@ -1858,7 +1862,7 @@ bool bridge::topei_mismatch(const std::string& instr) {
 }
 
 bool bridge::debug_mem_access(const rv_instr_t& d){
-  print(cvm::HIGH, "<{}> debug_mem_access: valid={} for pa={}]\n", d.cycle, d.mem_read.valid, d.mem_read.pa);
+
   if (d.mem_read.valid && debug_mode_ &&
       (d.mem_read.pa >= FLAGS_debug_mem_base) && (d.mem_read.pa < (FLAGS_debug_mem_base + FLAGS_debug_mem_size)))
     return true;
