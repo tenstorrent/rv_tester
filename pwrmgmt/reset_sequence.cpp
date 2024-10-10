@@ -220,7 +220,7 @@ cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
     co_await fuse_mmr_check();
   co_await program_thub_threshold();
   if(FLAGS_init_smc_infilters) {
-    init_smc_filters();
+   co_await init_smc_filters();
   }
 
   if (FLAGS_patch_en && rst_type == COLD) { 
@@ -714,9 +714,15 @@ cvm::messenger::task<void> reset_sequence::init_smc_filters() {
     //CPL AXI in filter programming
     co_await write(cpl_in_filter2_addr_l ,SZ_8B , 0x42000);
     co_await write(cpl_in_filter2_addr_h ,SZ_8B , 0x42FFF);
-    co_await write(cpl_in_filter2_config ,SZ_8B , 0x8000000000020113);      
+    co_await write(cpl_in_filter2_config ,SZ_8B , 0x8000000000020113);  
+
+    co_await write(cpl_in_filter2_addr_l+0x20 ,SZ_8B , 0x41000);
+    co_await write(cpl_in_filter2_addr_h+0x20 ,SZ_8B , 0x4EFFF);
+    co_await write(cpl_in_filter2_config+0x20 ,SZ_8B , 0x8000000000030113);   
+
   co_return;
 };
+
 cvm::messenger::task<void> reset_sequence::fuse_mmr_check() {
   co_await tick();
 

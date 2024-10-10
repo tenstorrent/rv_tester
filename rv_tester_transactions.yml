@@ -758,6 +758,8 @@ pmu:
                 width: 33
             wasted_issue_slots_via_throttling:
                 width: 33
+            store_uops_rejected_via_stq_advance:
+                width: 33
             op_issued_fp64:
                 width: 33
             fp64_export_overflow:
@@ -883,16 +885,6 @@ pmu:
             page_table_walks_mmu_prefetch:
                 width: 33
             page_table_walks_all:
-                width: 33
-            ls_replay_load:
-                width: 33
-            ls_replay_store:
-                width: 33
-            ls_replay_prefetch:
-                width: 33
-            ls_replay_mmu:
-                width: 33
-            ls_replay_all:
                 width: 33
             stlf_replay_load:
                 width: 33

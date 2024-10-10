@@ -102,10 +102,11 @@ bool rvfi::patch_access (uint64_t addr) {
       return false;
   if (addr >= patch_ram_lo && addr < patch_ram_hi)
       return true;
-  if (addr == 0x42005000 || addr == 0x42005040 ||
-      addr == 0x42005080 || addr == 0x42005088 ||
-      addr == 0x42005090 || addr == 0x42005098)
-      return true;
+
+  uint64_t pcontrol0 = 0x42005040;
+  for (int i=0; i<8; i++) // do this for all cores0-8
+      if (addr == (pcontrol0 + (i*0x10000)))
+          return true;
   return false;
 }
 
