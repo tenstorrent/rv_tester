@@ -17,6 +17,7 @@ DEFINE_double(l1d_read_miss_expected, 0.0, "Expected L1D miss rate");
 DEFINE_int32(l1d_read_miss_tolerance_perc, 20, "L1D miss rate tolerance %");
 DEFINE_bool(pmc_check_with_sideband, true, "flag to toggle check with sideband counter");
 DEFINE_int32(pmc_check_threshold, 5, " pmc_check_threshold %");
+DEFINE_bool(ignore_pmc_reprogram, false, "toggle ignore on illegal reprograming of an event reg");
 
 REGISTRY_register(pmu, PMCI, cvm::registry::all);
 
@@ -213,9 +214,22 @@ pmu::process(const rv_tester_transactions::pmu::pmc_checker<>& pmc_checker)
   if (pmc_checker.terminate == 0){
     for (size_t i = 0; i < num_event_csrs; i++){
       if(i == pmc_checker.event_csr){
-        event_csr_array[i].programmed = true;
-        event_csr_array[i].event_type = event_map.at(pmc_checker.event_id);
-        event_csr_array[i].sideband_count_eventwr  = counters[event_csr_array[i].event_type];
+        valid_event = event_map.find(pmc_checker.event_id);
+        if (valid_event == event_map.end()){
+          if(!FLAGS_ignore_pmc_reprogram){
+            cvm::log(cvm::ERROR, "ERROR: mhpmevent{} was programmed with illegal event value {:#x}\n", i+3, pmc_checker.event_id);
+          }
+          else{
+            cvm::log(cvm::NONE, "WARNING: mhpmevent{} was programmed with illegal event value {:#x}\n", i+3, pmc_checker.event_id);
+          }
+        }
+        else{
+          event_csr_array[i].programmed = true;
+          cvm::log(cvm::NONE, "mhpmevent{} was programmed with event value {:#x}\n", i+3, pmc_checker.event_id);
+          event_csr_array[i].event_type = event_map.at(pmc_checker.event_id);
+          event_csr_array[i].sideband_count_eventwr  = counters[event_csr_array[i].event_type];
+        }
+        
       }
     }
   }
@@ -229,7 +243,6 @@ pmu::process(const rv_tester_transactions::pmu::pmc_checker<>& pmc_checker)
           cvm::log(cvm::ERROR, "ERROR: hart_{} PMC check against sideband counters failed for mhpmevent{} programed with event {} expected_count:{:#x} actual_count:{:#x}\n", id_, i+3, to_string.at(static_cast<counter>(event_csr_array[i].event_type)), expected_count_, actual_count_);
         }
       }
-      
     }
   }
 }
