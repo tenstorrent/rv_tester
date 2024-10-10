@@ -213,6 +213,8 @@ public:
       OP_ISSUED_PIPE15,
       // Event for counting wasted issue slot due to issue throttling
       WASTED_ISSUE_SLOTS_VIA_THROTTLING,
+      // Event for counting stores rejected by stq tail ptr check
+      STORE_UOPS_REJECTED_VIA_STQ_ADVANCE,
       //Event (speculative) for fp64 ops issued. Multiple issues oer cycle should be precisely counted
       OP_ISSUED_FP64,
       //Event for counting cycles where we overflowed the export restriction on FP64 Ops 
@@ -339,16 +341,6 @@ public:
       PAGE_TABLE_WALKS_MMU_PREFETCH,
       //Event (speculative) for every page walk
       PAGE_TABLE_WALKS_ALL,
-      //Event (speculative) for any condition triggering replay from LS due to a demand memory-read operation
-      LS_REPLAY_LOAD,
-      //Event (speculative) for any condition triggering replay from LS due to a demand memory-write operation
-      LS_REPLAY_STORE,
-      //Event (speculative) for any condition triggering replay from LS due to a prefetch operation
-      LS_REPLAY_PREFETCH,
-      //Event (speculative) for any condition triggering replay from LS due to a MMU operation
-      LS_REPLAY_MMU,
-      //Event (speculative) for any condition triggering replay from LS
-      LS_REPLAY_ALL,
       //Event (speculative) for any demand memory-read replay caused by STLF
       STLF_REPLAY_LOAD,
       //Event (speculative) for any MMU operation replay caused by STLF
@@ -886,7 +878,7 @@ public:
 void to_vector(const rv_tester_transactions::pmu::pmcounters<>& pmcounters)
     {
 
-    const uint64_t casting_size_term = uint64_t(1) << 32;
+    const uint64_t casting_size_term = uint64_t(1) << 8;
 
             counters[counter::CPU_CYCLES] = counters[counter::CPU_CYCLES] + ((pmcounters.cpu_cycles - (counters[counter::CPU_CYCLES] % casting_size_term)) % casting_size_term);
       counters[counter::INSTRUCTIONS] = counters[counter::INSTRUCTIONS] + ((pmcounters.instructions - (counters[counter::INSTRUCTIONS] % casting_size_term)) % casting_size_term);
@@ -989,6 +981,7 @@ void to_vector(const rv_tester_transactions::pmu::pmcounters<>& pmcounters)
       counters[counter::OP_ISSUED_PIPE14] = counters[counter::OP_ISSUED_PIPE14] + ((pmcounters.op_issued_pipe14 - (counters[counter::OP_ISSUED_PIPE14] % casting_size_term)) % casting_size_term);
       counters[counter::OP_ISSUED_PIPE15] = counters[counter::OP_ISSUED_PIPE15] + ((pmcounters.op_issued_pipe15 - (counters[counter::OP_ISSUED_PIPE15] % casting_size_term)) % casting_size_term);
       counters[counter::WASTED_ISSUE_SLOTS_VIA_THROTTLING] = counters[counter::WASTED_ISSUE_SLOTS_VIA_THROTTLING] + ((pmcounters.wasted_issue_slots_via_throttling - (counters[counter::WASTED_ISSUE_SLOTS_VIA_THROTTLING] % casting_size_term)) % casting_size_term);
+      counters[counter::STORE_UOPS_REJECTED_VIA_STQ_ADVANCE] = counters[counter::STORE_UOPS_REJECTED_VIA_STQ_ADVANCE] + ((pmcounters.store_uops_rejected_via_stq_advance - (counters[counter::STORE_UOPS_REJECTED_VIA_STQ_ADVANCE] % casting_size_term)) % casting_size_term);
       counters[counter::OP_ISSUED_FP64] = counters[counter::OP_ISSUED_FP64] + ((pmcounters.op_issued_fp64 - (counters[counter::OP_ISSUED_FP64] % casting_size_term)) % casting_size_term);
       counters[counter::FP64_EXPORT_OVERFLOW] = counters[counter::FP64_EXPORT_OVERFLOW] + ((pmcounters.fp64_export_overflow - (counters[counter::FP64_EXPORT_OVERFLOW] % casting_size_term)) % casting_size_term);
       counters[counter::CACHE_REFERENCES] = counters[counter::CACHE_REFERENCES] + ((pmcounters.cache_references - (counters[counter::CACHE_REFERENCES] % casting_size_term)) % casting_size_term);
@@ -1052,11 +1045,6 @@ void to_vector(const rv_tester_transactions::pmu::pmcounters<>& pmcounters)
       counters[counter::PAGE_TABLE_WALKS_FE] = counters[counter::PAGE_TABLE_WALKS_FE] + ((pmcounters.page_table_walks_fe - (counters[counter::PAGE_TABLE_WALKS_FE] % casting_size_term)) % casting_size_term);
       counters[counter::PAGE_TABLE_WALKS_MMU_PREFETCH] = counters[counter::PAGE_TABLE_WALKS_MMU_PREFETCH] + ((pmcounters.page_table_walks_mmu_prefetch - (counters[counter::PAGE_TABLE_WALKS_MMU_PREFETCH] % casting_size_term)) % casting_size_term);
       counters[counter::PAGE_TABLE_WALKS_ALL] = counters[counter::PAGE_TABLE_WALKS_ALL] + ((pmcounters.page_table_walks_all - (counters[counter::PAGE_TABLE_WALKS_ALL] % casting_size_term)) % casting_size_term);
-      counters[counter::LS_REPLAY_LOAD] = counters[counter::LS_REPLAY_LOAD] + ((pmcounters.ls_replay_load - (counters[counter::LS_REPLAY_LOAD] % casting_size_term)) % casting_size_term);
-      counters[counter::LS_REPLAY_STORE] = counters[counter::LS_REPLAY_STORE] + ((pmcounters.ls_replay_store - (counters[counter::LS_REPLAY_STORE] % casting_size_term)) % casting_size_term);
-      counters[counter::LS_REPLAY_PREFETCH] = counters[counter::LS_REPLAY_PREFETCH] + ((pmcounters.ls_replay_prefetch - (counters[counter::LS_REPLAY_PREFETCH] % casting_size_term)) % casting_size_term);
-      counters[counter::LS_REPLAY_MMU] = counters[counter::LS_REPLAY_MMU] + ((pmcounters.ls_replay_mmu - (counters[counter::LS_REPLAY_MMU] % casting_size_term)) % casting_size_term);
-      counters[counter::LS_REPLAY_ALL] = counters[counter::LS_REPLAY_ALL] + ((pmcounters.ls_replay_all - (counters[counter::LS_REPLAY_ALL] % casting_size_term)) % casting_size_term);
       counters[counter::STLF_REPLAY_LOAD] = counters[counter::STLF_REPLAY_LOAD] + ((pmcounters.stlf_replay_load - (counters[counter::STLF_REPLAY_LOAD] % casting_size_term)) % casting_size_term);
       counters[counter::STLF_REPLAY_MMU] = counters[counter::STLF_REPLAY_MMU] + ((pmcounters.stlf_replay_mmu - (counters[counter::STLF_REPLAY_MMU] % casting_size_term)) % casting_size_term);
       counters[counter::STLF_REPLAY_ALL] = counters[counter::STLF_REPLAY_ALL] + ((pmcounters.stlf_replay_all - (counters[counter::STLF_REPLAY_ALL] % casting_size_term)) % casting_size_term);
@@ -1428,6 +1416,7 @@ void to_vector(const rv_tester_transactions::pmu::pmcounters<>& pmcounters)
       {OP_ISSUED_PIPE14,"op_issued_pipe14"},
       {OP_ISSUED_PIPE15,"op_issued_pipe15"},
       {WASTED_ISSUE_SLOTS_VIA_THROTTLING,"wasted_issue_slots_via_throttling"},
+      {STORE_UOPS_REJECTED_VIA_STQ_ADVANCE,"store_uops_rejected_via_stq_advance"},
       {OP_ISSUED_FP64,"op_issued_fp64"},
       {FP64_EXPORT_OVERFLOW,"fp64_export_overflow"},
       {CACHE_REFERENCES,"cache_references"},
@@ -1491,11 +1480,6 @@ void to_vector(const rv_tester_transactions::pmu::pmcounters<>& pmcounters)
       {PAGE_TABLE_WALKS_FE,"page_table_walks_fe"},
       {PAGE_TABLE_WALKS_MMU_PREFETCH,"page_table_walks_mmu_prefetch"},
       {PAGE_TABLE_WALKS_ALL,"page_table_walks_all"},
-      {LS_REPLAY_LOAD,"ls_replay_load"},
-      {LS_REPLAY_STORE,"ls_replay_store"},
-      {LS_REPLAY_PREFETCH,"ls_replay_prefetch"},
-      {LS_REPLAY_MMU,"ls_replay_mmu"},
-      {LS_REPLAY_ALL,"ls_replay_all"},
       {STLF_REPLAY_LOAD,"stlf_replay_load"},
       {STLF_REPLAY_MMU,"stlf_replay_mmu"},
       {STLF_REPLAY_ALL,"stlf_replay_all"},
