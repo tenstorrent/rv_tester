@@ -746,7 +746,6 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
   m.amo    = m_mcmi_read.amo;
   m.amo_op = m_mcmi_read.amo_op;
   m.v_ext  = m_mcmi_read.v_ext;
-  m.field = m_mcmi_read.field;
   m.nano_op_elem_idx = m_mcmi_read.nano_op_elem_idx;
 
   // Handle SC

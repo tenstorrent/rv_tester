@@ -149,7 +149,6 @@ typedef struct mem_s {
   uint8_t amo_op;
   bool v_ext;
   uint32_t attr;
-  uint8_t field;
   uint8_t nano_op_elem_idx;
   
   mem_s() {
