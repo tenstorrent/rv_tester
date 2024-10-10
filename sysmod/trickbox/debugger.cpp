@@ -36,7 +36,7 @@ debugger::debugger(const std::string &tag, uint64_t addr, unsigned hartCount, cv
     // fin.readline();
     std::string line;
     std::getline(myfile, line);
-    cvm::log(cvm::LOW, "Reset State in Debugger is: {}\n", line);
+    cvm::log(cvm::LOW, "Reset State in Debugger is: {} at clocks {} divisor {}\n", line,clocks,divisor);
     if (line == "Ndm-Reset") {
       ndm_reset_occured = true;
     }
@@ -49,10 +49,10 @@ debugger::~debugger()
 {
   std::ofstream myfile;
   myfile.open ("reset_state.txt", std::ios_base::app);
-  cvm::log(cvm::LOW, "Attempting to write the State in Debugger\n");
-  if (dut_reset_req){
+  cvm::log(cvm::LOW, "Debugger destructor Attempting to write the State in Debugger: dut_reset_req: {} clocks: {} divisor {} \n",dut_reset_req,clocks,divisor);
+  if (dut_reset_req || ndm_reset_occured){
     cvm::log(cvm::LOW, "State written to Debugger : Ndm-Reset\n");
-    myfile << "Ndm-Reset";
+    myfile << "Ndm-Reset\n";
   }
   myfile.close();
 

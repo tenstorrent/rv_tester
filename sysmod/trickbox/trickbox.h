@@ -72,11 +72,11 @@ public:
     }
   }
 
-  virtual void is_dut_reset_req(bool dut_reset_req) override 
+  virtual void is_dut_reset_req(bool dut_reset_req,uint64_t clocks,uint64_t divisor) override 
   {
-    cvm::log(cvm::LOW,"Value of dut_reset_req in trickbox is : {}\n",dut_reset_req);
+    cvm::log(cvm::LOW,"Value of dut_reset_req in trickbox is : {} at clocks {} \n",dut_reset_req,clocks);
     for (auto& d : subdevices_) {
-      d->is_dut_reset_req(dut_reset_req);
+      d->is_dut_reset_req(dut_reset_req,clocks,divisor);
     }
   }
   

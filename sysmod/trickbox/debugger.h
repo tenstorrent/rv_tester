@@ -90,16 +90,24 @@ public:
     drive_csv_dmi_cmds();
   }
 
-  virtual void is_dut_reset_req(bool dut_reset_req_f) override
+  virtual void is_dut_reset_req(bool dut_reset_req_f,uint64_t iclocks,uint64_t idivisor) override
   {
-    cvm::log(cvm::LOW,"Value of dut_reset_req in debugger is : {}\n",dut_reset_req);
+    cvm::log(cvm::LOW,"Value of dut_reset_req in debugger is : {} clocks: {} divisor TICKS: {}\n",dut_reset_req_f,iclocks,idivisor);
     dut_reset_req = dut_reset_req_f;
+    clocks = iclocks;
+    divisor = idivisor;
+    cvm::log(cvm::LOW,"Value of dut_reset_req in debugger  after assignment is : {} clocks: {} divisor TICKS: {}\n",dut_reset_req,iclocks,idivisor);
+    if(dut_reset_req){
+      ndm_reset_occured = true;
+    }
+
   }
 
   void reset() override
   {
     cvm::log(cvm::HIGH, "[Debugger]: Reset debugger\n");
     dbg_snippets_name = "";
+    ndm_reset_occured = 0;
     uint32_t rand_num = 0;
     if (FLAGS_random_dbg_entry)
     {
@@ -255,4 +263,5 @@ private:
   std::string dbg_snippets_name = "";
   bool dut_reset_req = false;
   bool ndm_reset_occured = false;
+  uint64_t clocks=0,divisor=0;
 };

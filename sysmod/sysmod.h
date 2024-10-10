@@ -63,7 +63,7 @@ class sysmod {
 
     void set_scope(svScope s) { scope_ = s; }
     void tick(uint64_t advance);
-    void is_dut_reset_req(bool dut_reset_req);
+    void is_dut_reset_req(bool dut_reset_req,uint64_t clocks,uint64_t divisor);
     void jtag_tick(uint64_t advance);
     void overlay_tick(uint64_t advance);
     void jtag_resp(std::bitset<70> rdata);

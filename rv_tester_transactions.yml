@@ -365,6 +365,10 @@ sysmod:
         fields:
             advance:
                 width: 64
+            clocks:
+                width: 64
+            divisor:
+                width: 64
             dut_reset_req:
                 width: 1
     jtag_tick:

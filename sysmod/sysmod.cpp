@@ -92,7 +92,7 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
       [this](const rv_tester_transactions::sysmod::tick<>& t) { return this->tick(t.advance); });
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::tick<>>(
       loc_,
-      [this](const rv_tester_transactions::sysmod::tick<>& t) { return this->is_dut_reset_req(t.dut_reset_req); });
+      [this](const rv_tester_transactions::sysmod::tick<>& t) { return this->is_dut_reset_req(t.dut_reset_req,t.clocks,t.divisor); });
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::jtag_tick<>>(
       loc_,
       [this](const rv_tester_transactions::sysmod::jtag_tick<>& t) { return this->jtag_tick(t.advance); });
@@ -1281,12 +1281,12 @@ sysmod::tick(uint64_t advance)
 }
 
 void
-sysmod::is_dut_reset_req(bool dut_reset_req)
+sysmod::is_dut_reset_req(bool dut_reset_req,uint64_t clocks,uint64_t divisor)
 { 
   cvm::log(cvm::LOW,"Value of dut_reset_req in sysmod is : {}\n",dut_reset_req);
   if (dut_reset_req) {
     for (auto& d : devices_) {
-          d->is_dut_reset_req(dut_reset_req);
+          d->is_dut_reset_req(dut_reset_req,clocks,divisor);
       } 
   }
 }

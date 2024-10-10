@@ -104,6 +104,8 @@ import rv_tester_params::*;
     assign ticks[0].valid         = ((0 == (clocks % TICKS)) || dut_reset_req) & (location != cvm_topology::nil);
     assign ticks[0].data.location = location;
     assign ticks[0].data.advance  = TICKS;
+    assign ticks[0].data.clocks   = clocks;
+    assign ticks[0].data.divisor  = TICKS;
     assign ticks[0].data.dut_reset_req = dut_reset_req;
 
     localparam longint unsigned JTAG_TICKS = LU'(SW_CLOCK_UPDATE_PERIOD_PS)/LU'(JTAG_CLOCK_PERIOD_PS);
