@@ -65,7 +65,19 @@ cosim:
                 width: 64
             hart:
                 width: 32
+            first_uop:
+                width: 1
             last_uop:
+                width: 1
+            ucode:
+                width: 1
+            priv:
+                width: 4
+            priv_change:
+                width: 1
+            set_pmode:
+                width: 1
+            clr_pmode:
                 width: 1
             last_insn:
                 width: 1
@@ -1554,6 +1566,18 @@ pwrmgmt:
         fields:
             cycle:
                 width: 32
+    m_smc_axi_tick:
+        domain: 3
+        num: 1
+        fields:
+            assertion:
+                width: 1
+    m_pcontrol_tick:
+        domain: 3
+        num: 1
+        fields:
+            assertion:
+                width: 1
     m_force_ref_clk:
         domain: 3
         num: 1
@@ -1561,6 +1585,12 @@ pwrmgmt:
             cycle:
                 width: 32
     m_cold_reset_ack:
+        domain: 3
+        num: 1
+        fields:
+            assertion:
+                width: 1
+    m_force_ref_clk_ack:
         domain: 3
         num: 1
         fields:
@@ -1611,6 +1641,26 @@ trace:
         fields:
             cycle:
                 width: 32
+jtag_driver:
+    num: 1
+    m_jtag_driver_tick:
+        domain: 2
+        num: 1
+        fields:
+            cycle:
+                width: 32
+    jtag_tick:
+        domain: 2
+        num: 1
+        fields:
+            advance:
+                width: 64
+    jtag_rdata:
+        domain: 2
+        num: 1
+        fields:
+            rdata:
+                width: 1344
 
 triggers:
     num: ${TOP.PLATFORM.NHARTS}

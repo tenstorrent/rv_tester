@@ -148,6 +148,7 @@ cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
 
   // Deassert force_ref_clk
   force_ref_clk(0);
+  co_await force_ref_clk_ack();
 
   // Wait for 32 clock ticks
   for (int i=0; i<32; ++i)
@@ -230,7 +231,7 @@ cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
     co_await fuse_mmr_check();
   co_await program_thub_threshold();
   if(FLAGS_init_smc_infilters) {
-    init_smc_filters();
+   co_await init_smc_filters();
   }
 
   if (FLAGS_patch_en && rst_type == COLD) { 
@@ -338,6 +339,11 @@ cvm::messenger::task<void> reset_sequence::release_cpl_nofetch() {
 
 cvm::messenger::task<void> reset_sequence::cold_reset_ack() {
   co_await cvm::registry::messenger.wait<rv_tester_transactions::pwrmgmt::m_cold_reset_ack<>>(loc_);
+  co_return;
+}
+
+cvm::messenger::task<void> reset_sequence::force_ref_clk_ack() {
+  co_await cvm::registry::messenger.wait<rv_tester_transactions::pwrmgmt::m_force_ref_clk_ack<>>(loc_);
   co_return;
 }
 
@@ -719,9 +725,15 @@ cvm::messenger::task<void> reset_sequence::init_smc_filters() {
     //CPL AXI in filter programming
     co_await write(cpl_in_filter2_addr_l ,SZ_8B , 0x42000);
     co_await write(cpl_in_filter2_addr_h ,SZ_8B , 0x42FFF);
-    co_await write(cpl_in_filter2_config ,SZ_8B , 0x8000000000020113);      
+    co_await write(cpl_in_filter2_config ,SZ_8B , 0x8000000000020113);  
+
+    co_await write(cpl_in_filter2_addr_l+0x20 ,SZ_8B , 0x41000);
+    co_await write(cpl_in_filter2_addr_h+0x20 ,SZ_8B , 0x4EFFF);
+    co_await write(cpl_in_filter2_config+0x20 ,SZ_8B , 0x8000000000030113);   
+
   co_return;
 };
+
 cvm::messenger::task<void> reset_sequence::fuse_mmr_check() {
   co_await tick();
 
@@ -845,8 +857,8 @@ cvm::messenger::task<void> reset_sequence::smc_scratchpad_default_access() {
     cvm::log(cvm::NONE, "[pwrmgmt] SMC Scratchpad access check : addr 0x{:x} , data 0x{:x} \n",addr , actual_data );
 
   co_return;
- };    
- 
+ };
+
  cvm::messenger::task<void> reset_sequence::smc_axi_random_access()
  {
   uint64_t data;
