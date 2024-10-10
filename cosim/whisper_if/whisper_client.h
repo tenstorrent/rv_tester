@@ -102,8 +102,8 @@ class whisperClient {
     CVM_MESSENGER_procedure_call(whisperStepRPC, bool(int, uint64_t, uint64_t, uint64_t&, uint32_t&, unsigned&, std::string&, uint32_t&, uint32_t&, bool&, bool&, bool&));
     CVM_MESSENGER_procedure_call(whisperSimpleStepRPC, bool (int, uint64_t&, uint32_t&, unsigned&));
     CVM_MESSENGER_procedure_call(whisperChangeRPC, bool (int, uint32_t&, uint64_t&, uint64_t&, bool&));
-    CVM_MESSENGER_procedure_call(whisperMcmReadRPC, bool (int, uint64_t, uint64_t, uint64_t, unsigned, unsigned, unsigned, uint64_t, bool&));
-    CVM_MESSENGER_procedure_call(whisperMcmVecReadRPC, bool (int, uint64_t, uint64_t, uint64_t, unsigned, std::vector<uint64_t>, unsigned, unsigned, bool&));
+    CVM_MESSENGER_procedure_call(whisperMcmReadRPC, bool (int, uint64_t, uint64_t, uint64_t, unsigned, uint64_t, bool&));
+    CVM_MESSENGER_procedure_call(whisperMcmVecReadRPC, bool (int, uint64_t, uint64_t, uint64_t, unsigned, std::vector<uint64_t>, bool&));
     CVM_MESSENGER_procedure_call(whisperMcmVecInsertRPC, bool (int, uint64_t, uint64_t, uint64_t, unsigned, std::vector<uint64_t>, bool&));
     CVM_MESSENGER_procedure_call(whisperMcmInsertRPC, bool (int, uint64_t, uint64_t, uint64_t, unsigned, uint64_t, bool&));
     CVM_MESSENGER_procedure_call(whisperMcmVecBypassRPC, bool (int, uint64_t, uint64_t, uint64_t, unsigned, std::vector<uint64_t>, bool&));
