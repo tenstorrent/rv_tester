@@ -133,6 +133,7 @@ void cla_cfg::push_cla_nmi_cfg() {
       cntr_data = rng()%0x2000 + 0x4000;
       cntr_data = cntr_data << 16;
       if(reenable_nmi){
+        cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_COUNTER0_CFG + addr_offset),cntr_data});
         cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + addr_offset),0x40});
         cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + addr_offset),0x60});
       }
@@ -140,7 +141,7 @@ void cla_cfg::push_cla_nmi_cfg() {
         cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + addr_offset),0x40});
         cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_COUNTER0_CFG + addr_offset),cntr_data});
         cla_wr_txn_q.push({(cla_mmr::CDBG_NODE0_EAP0_CFG + addr_offset),0x10049});
-        cla_wr_txn_q.push({(cla_mmr::CDBG_NODE1_EAP0_CFG + addr_offset),0x10130A});
+        cla_wr_txn_q.push({(cla_mmr::CDBG_NODE1_EAP0_CFG + addr_offset),0x10110A});
         cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + addr_offset),0x60});
       }
     }
