@@ -3,7 +3,8 @@
 
 REGISTRY_register(external_interrupt_sequence, INTERRUPTS, cvm::registry::all);
 
-DEFINE_bool(interrupt_trigger_en, true, "Enable event based external_interrupt_sequence in the sim");
+DEFINE_bool(patch_interrupt_trigger_en, true, "Enable patch event based external_interrupt_sequence in the sim");
+DEFINE_bool(uarch_interrupt_trigger_en, false, "Enable event based external_interrupt_sequence in the sim");
 DEFINE_string(trigger_interrupt_count, "7:10", "Number of MSI in the sim if random mode enabled");
 DEFINE_string(trigger_interrupt_weight_ratio, "6:2:2", "Ratio of Number of interrupts randomly driven  in phases after trigger event");
 DEFINE_int32(interrupt_trigger_interval,10, "Max TB cycle interval between MSI random mode enabled");
@@ -25,8 +26,12 @@ external_interrupt_sequence::external_interrupt_sequence(cvm::topology::loc_t lo
   trigger_interrupt_count_ =  cvm::rand::get<uint32_t>(FLAGS_trigger_interrupt_count);
   // trigger sequence threads`
   interrupts_driven = 0;
-  if (FLAGS_interrupt_trigger_en) {
-    trigger_mode_thread();
+  if (FLAGS_patch_interrupt_trigger_en) {
+    patch_trigger_mode_thread();
+  }
+  if (FLAGS_uarch_interrupt_trigger_en) {
+    cvm::log(cvm::NONE, "1");
+    uarch_trigger_mode_thread();
   }
 }
 
@@ -59,16 +64,25 @@ void external_interrupt_sequence::capture_trigger_info(int32_t trigger_info){
   current_trigger = trigger_info;  
 }
 
-void external_interrupt_sequence::trigger_mode_thread() {
+void external_interrupt_sequence::patch_trigger_mode_thread() {
   auto *task = +[] (external_interrupt_sequence* m) -> cvm::messenger::task<void> {
-    co_await m->trigger_mode();
+    co_await m->patch_trigger_mode();
+    co_return;
+  };
+  cvm::registry::messenger.fork(task, this);
+};
+
+void external_interrupt_sequence::uarch_trigger_mode_thread() {
+  cvm::log(cvm::NONE, "2");
+  auto *task = +[] (external_interrupt_sequence* m) -> cvm::messenger::task<void> {
+    co_await m->uarch_trigger_mode();
     co_return;
   };
   cvm::registry::messenger.fork(task, this);
 };
 
 
-cvm::messenger::task<void> external_interrupt_sequence::trigger_mode() {
+cvm::messenger::task<void> external_interrupt_sequence::patch_trigger_mode() {
   while(1){
     bool abrupt_exit = false;
     // Wait for next selected trigger
@@ -77,7 +91,6 @@ cvm::messenger::task<void> external_interrupt_sequence::trigger_mode() {
       gen_interrupt_timings();//empty as of today
       interrupts_driven = 0;
     }
-
     if(interrupts_driven < trigger_interrupt_count_){
        uint8_t num = rng1() % FLAGS_interrupt_trigger_interval ;
        //wait for num cycles before driving next MSI
@@ -97,6 +110,13 @@ cvm::messenger::task<void> external_interrupt_sequence::trigger_mode() {
   }
 }
 
+cvm::messenger::task<void> external_interrupt_sequence::uarch_trigger_mode() {
+  cvm::log(cvm::NONE, "3");
+  while(1){
+    co_await trigger();
+    drive_interrupt();
+  }
+}
 
 cvm::messenger::task<void> external_interrupt_sequence::tick() {
   co_await cvm::registry::messenger.wait<rv_tester_transactions::triggers::m_event_trigger_tick<>>(triggers_loc);
@@ -110,23 +130,35 @@ cvm::messenger::task<void> external_interrupt_sequence::trigger() {
 
   // Used to assert/deassert a interrupter interrupt (PIPI) for given hart.
 void external_interrupt_sequence::drive_interrupt(){
-    
-   unsigned interrupt_num  =  (rng1() % (FLAGS_imsic_intr_threshold )) ; 
-   unsigned interrupt_file =  (rng1() % (3 )) ; //gen either machine supervisor or hypervisor file
-   unsigned interrupt_hart =  id_; // select hart_id where event was triggered
-   unsigned vs_id          =  (rng1() % (FLAGS_imsic_vs_id_threshold )) ; //sel vs id
-   
-   if(interrupt_file == 0x02) interrupt_num %= FLAGS_imsic_vs_intr_threshold;
+  cvm::log(cvm::NONE, "3");
+  unsigned intr_num = 1;
+  unsigned intr_file = 0;
+  unsigned intr_hart = id_;
+  unsigned intr_vs_id = 0;
+	unsigned disable_flags = FLAGS_disable_m_imsic_intr |( FLAGS_disable_s_imsic_intr <<1) |( FLAGS_disable_vs_imsic_intr <<2);
+  if(disable_flags == 0x7)
+	  cvm::log(cvm::ERROR, "[ExtInterruptSeq] Cant generate IMSIC interrupts when all interrupts are disabled \n");
 
-   cvm::log(cvm::LOW,"[ExtInterruptSeq] IMSIC interrupt num: {} interrupt file: {} Interrupt hart:{} hypervisor/supervisor id : {}\n", static_cast<uint32_t>(interrupt_num), interrupt_file, interrupt_hart, vs_id);
+	do{
+    intr_file = (rng1() % (3 )) ; //gen iter between 1 to max simul instr
+	}while(((1<< intr_file)& disable_flags) != 0);
+
+  intr_num =  (rng1() % (FLAGS_imsic_intr_threshold ));
+
+	if(!FLAGS_disable_random_hart_imsic_intr)
+    intr_hart = (rng1() % (FLAGS_imsic_hart_threshold )) ; //gen iter between 1 to max simul instr
+	if(!FLAGS_disable_vs_imsic_intr)
+    intr_vs_id = (rng1() % (FLAGS_imsic_vs_id_threshold )) ; //gen iter between 1 to max simul instr
+  if(intr_file == 0x02) intr_num %= FLAGS_imsic_vs_intr_threshold;  
+  cvm::log(cvm::LOW,"[ExtInterruptSeq] IMSIC interrupt num: {} interrupt file: {} Interrupt hart:{} hypervisor/supervisor id : {}\n", static_cast<uint32_t>(intr_num), intr_file, intr_hart, intr_vs_id);
    
    uint32_t addr;
-   if(interrupt_file == 0x0){
-      addr = msi_m_file_addr + (interrupt_hart << 18);
-   }else if(interrupt_file == 0x01){
-      addr = msi_s_file_addr + (interrupt_hart << 18);
-   }else if(interrupt_file == 0x02){
-      addr = msi_vs_file_addr+ (vs_id << 12) + (interrupt_hart << 18);
+   if(intr_file == 0x0){
+      addr = msi_m_file_addr + (intr_hart << 18);
+   }else if(intr_file == 0x01){
+      addr = msi_s_file_addr + (intr_hart << 18);
+   }else if(intr_file == 0x02){
+      addr = msi_vs_file_addr+ (intr_vs_id << 12) + (intr_hart << 18);
    }else{
       cvm::log(cvm::ERROR, "[ExtInterruptSeq] Wrong IMSIC interrupt file specified\n");
    }
@@ -139,7 +171,7 @@ void external_interrupt_sequence::drive_interrupt(){
      strb.push_back(0x0);
    }  
    for (uint8_t i = 0; i < 4; ++i) {
-     uint8_t currentByte = static_cast<uint8_t>((interrupt_num >> (8 * i)) & 0xFF);
+     uint8_t currentByte = static_cast<uint8_t>((intr_num >> (8 * i)) & 0xFF);
      data[i] = currentByte;
      strb[i] = 0x1;
    }

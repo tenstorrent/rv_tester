@@ -160,16 +160,15 @@ protected:
 	do{
         intr_file = (rng() % (3 )) ; //gen iter between 1 to max simul instr
 	}while(((1<< intr_file)& disable_flags) != 0);
-        
+
+  intr_num =  (rng() % (FLAGS_imsic_intr_threshold ));
   if(!FLAGS_disable_vs_imsic_intr)
           intr_num = (rng() % (FLAGS_imsic_vs_intr_threshold )) ; //gen iter between 1 to max simul instr
-  if(!FLAGS_disable_vs_imsic_intr)
-          intr_num = (rng() % (FLAGS_imsic_vs_id_threshold )) + 1; //vsid from 1 to imsic_vs_id_threshold
 
 	if(!FLAGS_disable_random_hart_imsic_intr)
           intr_hart = (rng() % (FLAGS_imsic_hart_threshold )) ; //gen iter between 1 to max simul instr
 	if(!FLAGS_disable_vs_imsic_intr)
-          intr_vs_id = (rng() % (FLAGS_imsic_vs_intr_threshold )) ; //gen iter between 1 to max simul instr
+          intr_vs_id = (rng() % (FLAGS_imsic_vs_id_threshold )) ; //gen iter between 1 to max simul instr
        
         intr_num = intr_num |(intr_file<<12)|(intr_hart<<16)|(intr_vs_id<<28);
         cvm::log(cvm::HIGH, "[Trickbox] Driving imsic_intr {} interrupts in a cycle \n", intr_num);

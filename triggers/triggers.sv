@@ -45,33 +45,52 @@ import rv_tester_params::*;
   bit [TRIGGER_COUNT-1:0] prev_event_trigger = 0;
   bit interrupt_trigger_in_progress = 0;
   int unsigned captured_clocks = 0;
-  int unsigned trigger_start_clocks = 0;
-  bit event_based_interrupt = 0;
+  int unsigned patch_trigger_start_clocks = 0;
+  int unsigned uarch_trigger_start_clocks = 0;
+  bit patch_event_based_interrupt = 0;
+  bit uarch_event_based_interrupt = 0;
   int unsigned clocks = 0;
-  always @(posedge event_trigger[PATCH] or posedge event_trigger[UARCH_INTR] or posedge event_trigger[UARCH_RNMI]) begin
+  always @(posedge event_trigger[PATCH]) begin
       /* verilator lint_off BLKSEQ */
     if (tb_reset) begin
-      //prev_event_trigger = event_trigger;
-      event_based_interrupt = 1'b0;
+      patch_event_based_interrupt = 1'b0;
     end
     else begin 
-          event_based_interrupt = 1'b1;
-          trigger_start_clocks = clocks;
+          patch_event_based_interrupt = 1'b1;
+          patch_trigger_start_clocks = clocks;
+    end
+      /* verilator lint_on BLKSEQ */
+  end
+  always @(posedge event_trigger[UARCH_INTR]) begin
+      /* verilator lint_off BLKSEQ */
+    if (tb_reset) begin
+      uarch_event_based_interrupt = 1'b0;
+    end
+    else begin 
+          uarch_event_based_interrupt = 1'b1;
+          uarch_trigger_start_clocks = clocks;
     end
       /* verilator lint_on BLKSEQ */
 end
 
   always @(posedge clk) begin
     clocks <= clocks + 1;
-    if(trigger_start_clocks + 50 == clocks)
+    if(patch_trigger_start_clocks + 50 == clocks)
       /* verilator lint_off BLKSEQ */
-          event_based_interrupt = 1'b0;
+          patch_event_based_interrupt = 1'b0;
       /* verilator lint_on BLKSEQ */
+  end
 
+  always @(posedge clk) begin
+    clocks <= clocks + 1;
+    if(uarch_trigger_start_clocks == clocks)
+      /* verilator lint_off BLKSEQ */
+          uarch_event_based_interrupt = 1'b0;
+      /* verilator lint_on BLKSEQ */
   end
 
   // m_event_trigger_ticks
-  assign m_event_trigger_ticks[0].valid = event_based_interrupt & (location != cvm_topology::nil);
+  assign m_event_trigger_ticks[0].valid = (uarch_event_based_interrupt | patch_event_based_interrupt) & (location != cvm_topology::nil);
   assign m_event_trigger_ticks[0].data.location = location;
   /* verilator lint_off WIDTHEXPAND */
   assign m_event_trigger_ticks[0].data.event_trigger = event_trigger;
