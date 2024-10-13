@@ -64,6 +64,7 @@ class eot {
     const std::uint8_t tohost_device_syscall_ = 0;
     bool ended_ = false;
     std::chrono::time_point<std::chrono::system_clock> start, end;
-    std::chrono::duration<double> elapsed_seconds;
+    std::uint64_t recent_pc_instr_count_ = 0;
+    int recent_pc_hart_ = -1;
 };
 

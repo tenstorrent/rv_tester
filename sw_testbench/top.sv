@@ -18,24 +18,23 @@ module top
 
     localparam harness_id HARNESS = `HARNESS;
 
-    `RV_TESTER_VARS(topology_pkg::mods)
+    `RV_TESTER_VARS(cvm_topology_gen::mods)
 
     rv_tester #(
         .EXTERNAL_CLOCK(EXTERNAL_CLOCK),
-        .TOPOLOGY(topology_pkg::topology_t),
-        .topology(topology_pkg::mods)
+        .TOPOLOGY(cvm_topology_gen::topology_t),
+        .topology(cvm_topology_gen::mods)
     ) tester (
         .*
     );
 
     assign dut_clk = clk;
-    assign dut_reset[CORE_RESET_IDX] = reset[COLD_RESET_IDX];
-    assign dut_reset[AXI_RESET_IDX] = reset[COLD_RESET_IDX];
-    assign dut_reset[SOC_RESET_IDX] = reset[COLD_RESET_IDX];
-    assign dut_reset[REF_RESET_IDX] = reset[COLD_RESET_IDX];
+    /* verilator lint_off WIDTHEXPAND */
+    assign core_no_fetch = reset[COLD_RESET_IDX] || reset[WARM_RESET_IDX];
+    /* verilator lint_on WIDTHEXPAND */
 
     function automatic void write_rvfi(byte unsigned valid, int unsigned order, int unsigned hartid, int unsigned nretid, int unsigned insn, longint unsigned pc);
-        int unsigned idx = hartid * topology_pkg::mods.TOP.PLATFORM.COSIM.RVFI.NRETS_CUMSUM[hartid] + nretid;
+        int unsigned idx = hartid * cvm_topology_gen::mods.TOP.PLATFORM.COSIM.RVFI.NRETS_CUMSUM[hartid] + nretid;
         rvfi[idx].valid = (valid != '0);
         rvfi[idx].order = {32'h0, order};
         rvfi[idx].hart = hartid[HARTLEN-1:0];
@@ -57,21 +56,21 @@ module top
     assign dmi_req_ready = '0;
     assign dmi_resp_valid = '0;
 
-    for (genvar i = 0; i < topology_pkg::mods.TOP.PLATFORM.NHARTS; i++) begin
+    for (genvar i = 0; i < cvm_topology_gen::mods.TOP.PLATFORM.NHARTS; i++) begin
       assign debug_mode[i] = '0;
     end
 
-    for (genvar i = 0; i < topology_pkg::mods.TOP.PLATFORM.AXI.TOTAL; i++) begin
+    for (genvar i = 0; i < cvm_topology_gen::mods.TOP.PLATFORM.AXI.TOTAL; i++) begin
       assign axi_req[i].ar_valid = '0;
       assign axi_req[i].aw_valid = '0;
       assign axi_req[i].w_valid = '0;
     end
 
     always @(posedge clk[CORE_CLK_IDX]) begin
+        clocks <= clocks + 1;
         if (!reset[COLD_RESET_IDX]) begin
-            clocks <= clocks + 1;
+          order <= order + 1;
         end
-        order <= order + 1;
         case(HARNESS)
         SW_1C:
           get_1c_stimulus(reset[COLD_RESET_IDX], order);

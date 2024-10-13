@@ -4,7 +4,7 @@ module tb(
     `endif
 );
 
-    localparam topology_pkg::topology_t topology = topology_pkg::mods;
+    localparam cvm_topology_gen::topology_t topology = cvm_topology_gen::mods;
 
     localparam int unsigned ADDR_WIDTH = topology.TOP.PLATFORM.AXI.ADDR_WIDTH;
     localparam int unsigned DATA_WIDTH = topology.TOP.PLATFORM.AXI.DATA_WIDTH;
@@ -34,9 +34,9 @@ module tb(
     size_t            axi_mst_ar_size;
     burst_t           axi_mst_ar_burst;
     logic             axi_mst_ar_lock;
-    cache_t           axi_mst_ar_cache;  
-    prot_t            axi_mst_ar_prot;  
-    qos_t             axi_mst_ar_qos;   
+    cache_t           axi_mst_ar_cache;
+    prot_t            axi_mst_ar_prot;
+    qos_t             axi_mst_ar_qos;
     region_t          axi_mst_ar_region;
     user_t            axi_mst_ar_user;
     atop_t            axi_mst_ar_atop;
@@ -48,9 +48,9 @@ module tb(
     size_t            axi_mst_aw_size;
     burst_t           axi_mst_aw_burst;
     logic             axi_mst_aw_lock;
-    cache_t           axi_mst_aw_cache; 
-    prot_t            axi_mst_aw_prot; 
-    qos_t             axi_mst_aw_qos;  
+    cache_t           axi_mst_aw_cache;
+    prot_t            axi_mst_aw_prot;
+    qos_t             axi_mst_aw_qos;
     region_t          axi_mst_aw_region;
     atop_t            axi_mst_aw_atop;
     user_t            axi_mst_aw_user;
@@ -134,8 +134,7 @@ module tb(
             .ID_WIDTH(ID_WIDTH),
             .STRB_WIDTH(STRB_WIDTH),
             .R_Q_MAX(topology.TOP.PLATFORM.AXI.R_Q_MAX),
-            .TOPO_ID(topology.TOP.PLATFORM.AXI.ID),
-            .NUM(p),
+            .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.AXI.ID, p)),
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(0)
         ) mem (
             .*,
@@ -149,88 +148,36 @@ module tb(
             .DATA_WIDTH(topology.TOP.PLATFORM.AXI_MST.DATA_WIDTH),
             .ID_WIDTH(topology.TOP.PLATFORM.AXI_MST.ID_WIDTH  ),
             .STRB_WIDTH(topology.TOP.PLATFORM.AXI_MST.STRB_WIDTH),
+            .USER_WIDTH(topology.TOP.PLATFORM.AXI_MST.USER_WIDTH),
             .AR_Q_MAX(topology.TOP.PLATFORM.AXI_MST.AR_Q_MAX),
             .AW_Q_MAX(topology.TOP.PLATFORM.AXI_MST.AW_Q_MAX),
             .W_Q_MAX(topology.TOP.PLATFORM.AXI_MST.W_Q_MAX),
-            .TOPO_ID(topology.TOP.PLATFORM.AXI_MST.ID),
-            .NUM(p),
+            .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.AXI_MST.ID, p)),
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(0)
         ) mst (
             .reset_n('0),
             .sys_reset(sys_reset)
         );
     end
-   
-   for (genvar p = 0; p < topology.TOP.PLATFORM.AXI_MST.TOTAL; p++) begin : axi_sw_msts2
-        axi_sw_mst #(
-            .ADDR_WIDTH(topology.TOP.PLATFORM.AXI_MST.ADDR_WIDTH),
-            .DATA_WIDTH(topology.TOP.PLATFORM.AXI_MST.DATA_WIDTH),
-            .ID_WIDTH(topology.TOP.PLATFORM.AXI_MST.ID_WIDTH  ),
-            .STRB_WIDTH(topology.TOP.PLATFORM.AXI_MST.STRB_WIDTH),
-            .AR_Q_MAX(topology.TOP.PLATFORM.AXI_MST.AR_Q_MAX),
-            .AW_Q_MAX(topology.TOP.PLATFORM.AXI_MST.AW_Q_MAX),
-            .W_Q_MAX(topology.TOP.PLATFORM.AXI_MST.W_Q_MAX),
-            .TOPO_ID(topology.TOP.PLATFORM.AXI_MST.ID),
-            .NUM(p),
-            `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(0)
-        ) aplicmst (
-            .reset_n('0),
-            .sys_reset(sys_reset)
-        );
-    end 
+
     for (genvar p = 0; p < topology.TOP.PLATFORM.SMC_AXI_MST.TOTAL; p++) begin : axi_sw_msts3
         axi_sw_mst #(
             .ADDR_WIDTH(topology.TOP.PLATFORM.SMC_AXI_MST.ADDR_WIDTH),
             .DATA_WIDTH(topology.TOP.PLATFORM.SMC_AXI_MST.DATA_WIDTH),
             .ID_WIDTH(topology.TOP.PLATFORM.SMC_AXI_MST.ID_WIDTH  ),
             .STRB_WIDTH(topology.TOP.PLATFORM.SMC_AXI_MST.STRB_WIDTH),
+            .USER_WIDTH(topology.TOP.PLATFORM.SMC_AXI_MST.USER_WIDTH),
             .AR_Q_MAX(topology.TOP.PLATFORM.SMC_AXI_MST.AR_Q_MAX),
             .AW_Q_MAX(topology.TOP.PLATFORM.SMC_AXI_MST.AW_Q_MAX),
             .W_Q_MAX(topology.TOP.PLATFORM.SMC_AXI_MST.W_Q_MAX),
-            .TOPO_ID(topology.TOP.PLATFORM.SMC_AXI_MST.ID),
-            .NUM(p),
+            .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.SMC_AXI_MST.ID, p)),
             `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(0)
         ) smc_mst (
             .reset_n('0),
             .sys_reset(sys_reset)
         );
     end
-    for (genvar p = 0; p < topology.TOP.PLATFORM.PLL_AXI_MST.TOTAL; p++) begin : axi_sw_msts4
-        axi_sw_mst #(
-            .ADDR_WIDTH(topology.TOP.PLATFORM.PLL_AXI_MST.ADDR_WIDTH),
-            .DATA_WIDTH(topology.TOP.PLATFORM.PLL_AXI_MST.DATA_WIDTH),
-            .ID_WIDTH(topology.TOP.PLATFORM.PLL_AXI_MST.ID_WIDTH  ),
-            .STRB_WIDTH(topology.TOP.PLATFORM.PLL_AXI_MST.STRB_WIDTH),
-            .AR_Q_MAX(topology.TOP.PLATFORM.PLL_AXI_MST.AR_Q_MAX),
-            .AW_Q_MAX(topology.TOP.PLATFORM.PLL_AXI_MST.AW_Q_MAX),
-            .W_Q_MAX(topology.TOP.PLATFORM.PLL_AXI_MST.W_Q_MAX),
-            .TOPO_ID(topology.TOP.PLATFORM.PLL_AXI_MST.ID),
-            .NUM(p),
-            `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(0)
-        ) pllmst (
-            .reset_n('0),
-            .sys_reset(sys_reset)
-        );
-    end
-    
-    for (genvar p = 0; p < topology.TOP.PLATFORM.PLL_AXI_MST.TOTAL; p++) begin : axi_sw_msts5
-        axi_sw_mst #(
-            .ADDR_WIDTH(topology.TOP.PLATFORM.PLL_AXI_MST.ADDR_WIDTH),
-            .DATA_WIDTH(topology.TOP.PLATFORM.PLL_AXI_MST.DATA_WIDTH),
-            .ID_WIDTH(topology.TOP.PLATFORM.PLL_AXI_MST.ID_WIDTH  ),
-            .STRB_WIDTH(topology.TOP.PLATFORM.PLL_AXI_MST.STRB_WIDTH),
-            .AR_Q_MAX(topology.TOP.PLATFORM.PLL_AXI_MST.AR_Q_MAX),
-            .AW_Q_MAX(topology.TOP.PLATFORM.PLL_AXI_MST.AW_Q_MAX),
-            .W_Q_MAX(topology.TOP.PLATFORM.PLL_AXI_MST.W_Q_MAX),
-            .TOPO_ID(topology.TOP.PLATFORM.PLL_AXI_MST.ID),
-            .NUM(p),
-            `RV_TESTER_TRANSACTIONS_AXI_SW_MST_SOURCE_PARAMS(0)
-        ) pmnwmst (
-            .reset_n('0),
-            .sys_reset(sys_reset)
-        );
-    end
-    
+
     import "DPI-C" function void get_stim(
         input  int unsigned clock,
         output byte finish,

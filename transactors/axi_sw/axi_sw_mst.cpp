@@ -1,6 +1,7 @@
 #include "axi_sw_mst.h"
 #include "cvm/topology.hpp"
 #include "cvm/registry.hpp"
+#include "cvm/plusargs.hpp"
 #include "cvm/bitmanip.hpp"
 #include "cvm/logger.hpp"
 
@@ -14,26 +15,7 @@ REGISTRY_register((axi_sw_mst<rv_tester_transactions::axi_sw_mst::b<1>,
                               rv_tester_transactions::axi_sw_mst::r<1>,
                               rv_tester_transactions::axi_sw_mst::ar_q_ptr<1>,
                               rv_tester_transactions::axi_sw_mst::aw_q_ptr<1>,
-                              rv_tester_transactions::axi_sw_mst::w_q_ptr<1>>), APLIC_MMR_AXI_MST, cvm::registry::all);
-
-REGISTRY_register((axi_sw_mst<rv_tester_transactions::axi_sw_mst::b<2>,
-                              rv_tester_transactions::axi_sw_mst::r<2>,
-                              rv_tester_transactions::axi_sw_mst::ar_q_ptr<2>,
-                              rv_tester_transactions::axi_sw_mst::aw_q_ptr<2>,
-                              rv_tester_transactions::axi_sw_mst::w_q_ptr<2>>), SMC_AXI_MST, cvm::registry::all);
-
-REGISTRY_register((axi_sw_mst<rv_tester_transactions::axi_sw_mst::b<3>,
-                              rv_tester_transactions::axi_sw_mst::r<3>,
-                              rv_tester_transactions::axi_sw_mst::ar_q_ptr<3>,
-                              rv_tester_transactions::axi_sw_mst::aw_q_ptr<3>,
-                              rv_tester_transactions::axi_sw_mst::w_q_ptr<3>>), PLL_AXI_MST, cvm::registry::all);
-
-REGISTRY_register((axi_sw_mst<rv_tester_transactions::axi_sw_mst::b<4>,
-                              rv_tester_transactions::axi_sw_mst::r<4>,
-                              rv_tester_transactions::axi_sw_mst::ar_q_ptr<4>,
-                              rv_tester_transactions::axi_sw_mst::aw_q_ptr<4>,
-                              rv_tester_transactions::axi_sw_mst::w_q_ptr<4>>), PM_NW_AXI_MST, cvm::registry::all);
-
+                              rv_tester_transactions::axi_sw_mst::w_q_ptr<1>>), SMC_AXI_MST, cvm::registry::all);
 
 extern "C" {
     void axi_sw_mst_ar_reset();
@@ -47,8 +29,8 @@ extern "C" {
 }
 
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
-axi_sw_mst<B, R, ARQ, AWQ, WQ>::axi_sw_mst(cvm::topology::loc_t loc, unsigned /*id*/)
-    : scope_(nullptr), loc_(loc),
+axi_sw_mst<B, R, ARQ, AWQ, WQ>::axi_sw_mst(cvm::topology::loc_t loc, unsigned id)
+    : scope_(nullptr), loc_(loc), id_(id),
       id_width_(cvm::topology::attr(loc_, "ID_WIDTH").second),
       data_width_(cvm::topology::attr(loc_, "DATA_WIDTH").second),
       strb_width_(cvm::topology::attr(loc_, "STRB_WIDTH").second),
@@ -61,7 +43,9 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::axi_sw_mst(cvm::topology::loc_t loc, unsigned /*
       ar_q_rptr_(0), ar_q_wptr_(ar_q_max_),
       aw_q_rptr_(0), aw_q_wptr_(aw_q_max_),
       w_q_rptr_(0), w_q_wptr_(w_q_max_),
-      ids_(size_t(1) << id_width_, true)
+      ids_(size_t(1) << id_width_, true),
+      chk_rsp_err_ids_(size_t(1) << id_width_, true),
+      read_bytes_(0), write_bytes_(0)
 {
     cvm::log(cvm::FULL, "[axi_sw_mst] Constructing axi_sw_mst for loc={} \n", loc);
     // available burst sizes
@@ -90,11 +74,24 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::axi_sw_mst(cvm::topology::loc_t loc, unsigned /*
 }
 
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
+axi_sw_mst<B, R, ARQ, AWQ, WQ>::~axi_sw_mst() {
+
+    std::string name = cvm::topology::name(loc_);
+    std::transform(name.begin(), name.end(), name.begin(), [](unsigned char c){ return std::tolower(c); });
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"{}{}_read_bytes\": {}}}\n", name, id_, read_bytes_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"{}{}_write_bytes\": {}}}\n", name, id_, write_bytes_);
+}
+
+template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const B& b) {
     if (b.resp != axi::RESP_OKAY or not used_id(b.id)) {
         // could have EXOKAY if it was locked, but assume not for now
-        cvm::log(cvm::ERROR, "[axi_sw_mst] Error: bad b.response id:{} resp: {}\n", b.id, b.resp);
+        if(chk_rsp_err_ids_[b.id]){
+            cvm::log(cvm::ERROR, "[axi_sw_mst] Error: bad b.response id:{} resp: {}\n", b.id, b.resp);
+        }else{
+            cvm::log(cvm::LOW, "[axi_sw_mst] Masking bad b.response id:{} resp: {}\n", b.id, b.resp);
+        }
         return;
     }
 
@@ -115,7 +112,11 @@ template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const R& r) {
     if (r.resp != axi::RESP_OKAY or not used_id(r.id)) {
-        cvm::log(cvm::ERROR, "[axi_sw_mst] Error: bad r.response id: {} resp: {} last: {}\n", r.id, r.resp, r.last);
+        if(chk_rsp_err_ids_[r.id]){
+            cvm::log(cvm::ERROR, "[axi_sw_mst] Error: bad r.response id: {} resp: {} last: {}\n", r.id, r.resp, r.last);
+        }else{
+            cvm::log(cvm::LOW, "[axi_sw_mst] Masking bad r.response id: {} resp: {} last: {}\n", r.id, r.resp, r.last);
+        }
         return;
     }
 
@@ -178,6 +179,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const axi::a_t& a) {
         return;
     }
     alloc_id(a.id);
+    chk_rsp_err_ids_[a.id] = a.rsp_err_chk;
 
     transactions_.emplace_back(a);
     push_transactions();
@@ -231,8 +233,9 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
               bool write = arg.w;
 
               if (!write) {
-                  cvm::log(cvm::FULL, "[axi_sw_mst] ar_req: [id={}, addr={:#x},len={} size={} burst:{} lock:{}\n", arg.id, arg.addr,arg.len, arg.size, arg.burst, arg.lock);
-                  cvm::log(cvm::FULL, "[axi_sw_mst] ar_req ar_q_wptr:{} ar_q_rptr:{} ar_q_max_:{} \n", ar_q_wptr_ ,ar_q_rptr_ ,ar_q_max_);
+                  read_bytes_ = read_bytes_ + (1ull << arg.size);
+                  cvm::log(cvm::FULL, "[axi_sw_mst] ar: [id={}, addr={:#x},len={} size={} burst={} lock={}]\n", arg.id, arg.addr, arg.len, arg.size, arg.burst, arg.lock);
+                  cvm::log(cvm::FULL, "[axi_sw_mst] ar: [ar_q_wptr:{} ar_q_rptr:{} ar_q_max_:{}]\n", ar_q_wptr_, ar_q_rptr_, ar_q_max_);
                   if ((ar_q_wptr_ - ar_q_rptr_ ) < ar_q_max_) {
                       ar_q_wptr_ = (ar_q_wptr_ + 1) % ar_q_ptr_max_;
                       cvm::registry::callbacks.push(
@@ -245,8 +248,9 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
                   }
               }
               else {
-                  cvm::log(cvm::FULL, "[axi_sw_mst] aw_req: arg.id :{:#x} , arg.addr: {:#x} , arg.len: {:#x} , arg.size: {:#x} , arg.burst: {:#x} , arg.atop.transaction: {:#x} , arg.lock: {:#x} \n", arg.id, arg.addr, arg.len, arg.size, arg.burst, arg.atop.transaction, arg.lock);
-                  cvm::log(cvm::FULL, "[axi_sw_mst] aw_req aw_q_wptr:{} aw_q_rptr:{} aw_q_max_:{} \n", aw_q_wptr_ ,aw_q_rptr_ ,aw_q_max_);
+                  write_bytes_ = write_bytes_ + (1ull << arg.size);
+                  cvm::log(cvm::FULL, "[axi_sw_mst] aw: [id={}, addr={:#x}, len={}, size={}, burst={}, lock={}]\n", arg.id, arg.addr, arg.len, arg.size, arg.burst, arg.lock);
+                  cvm::log(cvm::FULL, "[axi_sw_mst] aw: [aw_q_wptr:{} aw_q_rptr:{} aw_q_max_:{}]\n", aw_q_wptr_, aw_q_rptr_, aw_q_max_);
                   if ((aw_q_wptr_ - aw_q_rptr_ ) < aw_q_max_) {
                       aw_q_wptr_ = (aw_q_wptr_ + 1) % aw_q_ptr_max_;
                       cvm::registry::callbacks.push(
@@ -276,7 +280,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
 
                   cvm::registry::callbacks.push(
                       scope_,
-                      [=]() {
+                      [=, this]() {
                           std::vector<uint8_t> strb(((arg.strb.size() - 1) >> 3) + 1, 0);
                           for (size_t i = 0; i < arg.strb.size(); i++) {
                               size_t idx = i >> 3;
@@ -319,7 +323,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const transactor::read_request_t& req) {
-    axi::a_t a{ .w = false };
+    axi::a_t a{ .w = false , .rsp_err_chk = req.rsp_err_chk};
 
      if (!a_wrapper(req.addr, req.length, a))
         return;
@@ -331,7 +335,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const transactor::read_request_t& req) {
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const transactor::write_request_t& req) {
-    axi::a_t a{ .w = true };
+    axi::a_t a{ .w = true, .rsp_err_chk = req.rsp_err_chk };
 
     if (!a_wrapper(req.addr, req.length, a))
         return;
@@ -360,7 +364,7 @@ template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::reset_ptrs() {
 
-    cvm::log(cvm::FULL, "[axi_sw_mst] reset_ptrs loc={}\n", loc_);
+    cvm::log(cvm::HIGH, "[axi_sw_mst] reset_ptrs loc={}\n", loc_);
     ar_q_wptr_ = 0;
     aw_q_wptr_ = 0;
     w_q_wptr_ = 0;
@@ -369,7 +373,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::reset_ptrs() {
 
 extern "C" {
 
-  void axi_sw_mst_set_scope(cvm::topology::loc_t loc) {
+  std::uint8_t axi_sw_mst_set_scope(cvm::topology::loc_t loc) {
     svScope scope = svGetScope();
 
     axi_sw_mst_ar_reset();
@@ -379,6 +383,8 @@ extern "C" {
     cvm::registry::messenger.signal<svScope>(
         loc,
         scope);
+
+    return 0;
   }
 
 }

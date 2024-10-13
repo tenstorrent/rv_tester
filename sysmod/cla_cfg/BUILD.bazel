@@ -1,0 +1,19 @@
+cc_library(
+    name = "cla_cfg",
+    srcs = ["cla_cfg.cpp"],
+    hdrs = ["@rv_tester//transactors/axi_sw:safe_queue.h",
+            "@rv_tester//transactors/axi_sw:axi.h",
+            "cla_cfg.h",
+            "cla_defines.h",
+            ],
+    deps = [
+        "//sysmod:device",
+        "@mem_manager//:mem_manager",
+        "@rv_tester//common:common",
+        "@cvm//:plusargs",
+        "@cvm//:registry",
+        "@cvm//:bitmanip",
+        "@cvm//:topology",
+    ],
+    visibility = ["//visibility:public"],
+)

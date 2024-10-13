@@ -4,9 +4,12 @@ load("@rv_tester//cosim:cosim.bzl", "cosim_gen")
 load("@rv_tester//sysmod:sysmod.bzl", "sysmod_gen")
 load("@rv_tester//pmu:pmu.bzl", "pmu_gen")
 load("@rv_tester//dm_model:dm_model.bzl", "dm_model_gen")
-load("@rv_tester//aplic_monitor:aplic_monitor.bzl", "aplic_monitor_gen")
 load("@rv_tester//pwrmgmt:pwrmgmt.bzl", "pwrmgmt_gen")
 load("@rv_tester//interrupts:interrupts.bzl", "interrupts_gen")
+load("@rv_tester//jtag_driver:jtag_driver.bzl", "jtag_driver_gen")
+load("@rv_tester//snoop_gen:snoop_gen.bzl", "snoop_gen_gen")
+load("@rv_tester//trace:trace.bzl", "trace_gen")
+load("@rv_tester//triggers:triggers.bzl", "triggers_gen")
 load("@rv_tester//aclint_checker:aclint_checker.bzl", "aclint_checker_gen")
 load("@rv_tester//transactors/axi_sw:axi_sw.bzl", "axi_sw_gen")
 
@@ -69,14 +72,6 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
         harness = name + "_harness",
         cc_attrs = cc_attrs,
     )
-    
-    aplic_monitor_gen(
-        name = name + "_aplic_monitor",
-        packet = name  + "_transactions",
-        topology = topology,
-        harness = name + "_harness",
-        cc_attrs = cc_attrs,
-    )
 
     pwrmgmt_gen(
         name = name + "_pwrmgmt",
@@ -88,6 +83,38 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
 
     interrupts_gen(
         name = name + "_interrupts",
+        packet = name  + "_transactions",
+        topology = topology,
+        harness = name + "_harness",
+        cc_attrs = cc_attrs,
+    )
+
+    jtag_driver_gen(
+        name = name + "_jtag_driver",
+        packet = name  + "_transactions",
+        topology = topology,
+        harness = name + "_harness",
+        cc_attrs = cc_attrs,
+    )       
+
+    snoop_gen_gen(
+        name = name + "_snoop_gen",
+        packet = name  + "_transactions",
+        topology = topology,
+        harness = name + "_harness",
+        cc_attrs = cc_attrs,
+    )
+
+    trace_gen(
+        name = name + "_trace",
+        packet = name  + "_transactions",
+        topology = topology,
+        harness = name + "_harness",
+        cc_attrs = cc_attrs,
+    )        
+    
+    triggers_gen(
+        name = name + "_triggers",
         packet = name  + "_transactions",
         topology = topology,
         harness = name + "_harness",
@@ -114,6 +141,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             "@rv_tester//:rv_tester.sv",
             "@rv_tester//:rv_tester_clkgen.sv",
             "@rv_tester//:rv_tester_mem.sv",
+            "@rv_tester//:rv_tester_lib.sv",
         ],
         deps = [
             "@cvm//:logger_sv",
@@ -122,9 +150,12 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             name + "_sysmod_sv",
             name + "_pmu_sv",
             name + "_dm_model_sv",
-            name + "_aplic_monitor_sv",
             name + "_aclint_checker_sv",
             name + "_interrupts_sv",
+            name + "_jtag_driver_sv",
+            name + "_snoop_gen_sv",
+            name + "_trace_sv",
+            name + "_triggers_sv",
             name + "_axi_sw_sv",
             "@opensrc-axi_llc//:axi_llc",
             "@opensrc-axi//:axi",
@@ -149,14 +180,16 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             "@cvm//:plusargs",
             "@cvm//:random",
             "@cvm//:registry",
-            "@aplic//:Aplic",
             name + "_transactions_cc",
             name + "_sysmod_dpi",
             name + "_pmu_dpi",
             name + "_dm_model_dpi",
-            name + "_aplic_monitor_dpi",
             name + "_aclint_checker_dpi",
             name + "_interrupts_dpi",
+            name + "_jtag_driver_dpi",
+            name + "_snoop_gen_dpi",
+            name + "_trace_dpi",
+            name + "_triggers_dpi",
             name + "_axi_sw_dpi",
             topology + "_cc",
         ] + select({

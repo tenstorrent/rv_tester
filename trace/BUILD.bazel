@@ -1,0 +1,3 @@
+exports_files(["trace.sv", "trace.cpp", "trace.hpp", "ntrace_stop_on_wrap_sequence.cpp", "ntrace_stop_on_wrap_sequence.hpp"])
+
+

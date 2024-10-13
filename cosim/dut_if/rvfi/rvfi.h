@@ -33,22 +33,25 @@ class rvfi {
 
     rvfi(cvm::topology::loc_t loc, unsigned id);
     ~rvfi();
+    void check();
 
   private:
 
     void init();
     void set_scope(svScope s) { scope_ = s; }
     void process(const rv_tester_transactions::cosim::m_reset<>& m_reset);
+    void process(const rv_tester_transactions::cosim::m_disable_checks<>& m_disable_checks);
     void process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi);
     void process(const rv_tester_transactions::cosim::m_steps<>& m_steps);
     void process(const rv_tester_transactions::cosim::m_trap<>& m_trap);
     void process(const rv_tester_transactions::cosim::m_gp_regs<>& m_gp_regs);
     void process(const rv_tester_transactions::cosim::m_fp_regs<>& m_fp_regs);
     void process(const rv_tester_transactions::cosim::m_vc_regs<>& m_vc_regs);
+    void process(const rv_tester_transactions::cosim::m_core_nmi<>& m_core_nmi);
     void process(const rv_tester_transactions::cosim::m_core_intr<>& m_core_intr);
     void process(const rv_tester_transactions::cosim::m_imsic_msi<>& m_imsic_msi);
     void process(const rv_tester_transactions::cosim::m_debug<>& m_debug);
-
+    std::bitset<256> stringToBitset(const std::string& hexString);
     void process(const rv_tester_transactions::cosim::m_csri<>& m_csri);
 
     // FIXME Move out to a different file?
@@ -61,7 +64,7 @@ class rvfi {
     void process(const rv_tester_transactions::cosim::m_mcmi_ievict<>& m_mcmi_ievict);
 
     void process(const rv_tester::terminate_called&);
-    void process(const bridge::error &);
+    void process(const bridge::error_loc &);
 
     std::tuple<uint64_t, uint64_t, uint8_t> get_mem_attributes(uint64_t addr, uint8_t mask, uint64_t data);
 
@@ -82,6 +85,7 @@ class rvfi {
     void enter_debug_mode(rv_instr_t& instr);
     void exit_debug_mode(rv_instr_t& instr);
     std::string mem_attr_to_string(uint32_t mem_attr); 
+    bool patch_access (uint64_t addr);
 
   private:
 
@@ -94,11 +98,18 @@ class rvfi {
 
     rv_instr_t prev_instr_;
 
+    bool in_reset_ = true;
+
     uint64_t count_ = 1;
 
-    bool ucode_ = false;
+    uint64_t tag_ = false;
+    bool vec_excp_ = false;
+    //bool ucode_ = false;
+    bool nmi_ = false;
     bool intr_ = false;
     bool excp_ = false;
+    bool patch_mode_ = false;
+    uint64_t ncause_ = 0;
     uint64_t icause_ = 0;
     uint64_t ecause_ = 0;
     uint8_t priv_ = 3;
@@ -116,9 +127,8 @@ class rvfi {
     std::unordered_map<uint64_t, mem_t> sc_result_;
     std::unordered_map<uint64_t, mem_t> sc_bypass_;
 
-    std::unordered_map<uint64_t, uint64_t> mem_read_data_; // new map for storing mem read data along with tag
-
     svScope scope_;
 
     bool terminated_ = false;
+    bool in_debug_mode_ = false;
 };

@@ -14,7 +14,7 @@ def rv_tester_repositories():
         #sha256 = "af87959afe497dc8dfd4c6cb66e1279cb98ccc84284619ebfec27d9c09a903de",
     )
 
-    corearchcoverage_hash="77dc0018d43c4c6ba4848b65121fecbff0ba3df1"
+    corearchcoverage_hash="88553905635a5ba8891716ca05aa1e074734082e"
     maybe(
         git_repository,
         name = "corearchcoverage",
@@ -23,11 +23,11 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv/dv/corearchcoverage.git",
     )
 
-    cvm_hash="cba3d1d24f982f5a5d0d30ef7b1a7943bd9fcafb"
+    cvm_hash="3b6b652505d35b42ac8fe0dba331fd0910c768f8"
     maybe(
         http_archive,
         name = "cvm",
-        sha256 = "7a7fceb97f852d69fc55426f9b86f39ae32b58cd06c49689b9da50c01f475581",
+        sha256 = "98b097f60979303e9eac51a49c913cfc41515285e447ef52044000d6fd22d4bd",
         strip_prefix = "cvm-{commit}".format(commit=cvm_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/{commit}/cvm-{commit}.tar.bz2".format(commit=cvm_hash),
     )
@@ -40,7 +40,7 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-nlohmann-json.git",
     )
 
-    whisper_hash="983657bf02af679168386ec30d6cffafec93e69d"
+    whisper_hash="440e8919d4de510f44e3b4012e43ba9cede72898"
     maybe(
         git_repository,
         name = "whisper",
@@ -84,19 +84,11 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-wall_clock_profiler.git",
     )
 
-    checkin_script_hash="5c840e23253789bbeae882b804f5b4bdaa4ea0ee"
+    checkin_script_hash="13533ac8ec39a13ae88595a6a3de4d1bea17b254"
     maybe(
         git_repository,
         name = "checkin-script",
         commit = checkin_script_hash,
         shallow_since = "1669784673 -0600",
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/checkin-script.git",
-    )
-
-    aplic_model_hash="b5cd6bc4f2ec2a9fff32e68a670b23d9b777f2c1"
-    git_repository(
-        name = "aplic",
-        commit = aplic_model_hash,
-        recursive_init_submodules = True,
-        remote = "git@aus-gitlab.local.tenstorrent.com:riscv/aplic.git",
     )

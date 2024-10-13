@@ -18,18 +18,8 @@
 #include "cvm/logger.hpp"
 #include "imsic_driver.h"
 #include "sysmod/trickbox/interrupter.h"
+#include "sysmod/sysmod_plusargs.h"
 
-DECLARE_int32(imsic_intr_delay_min);//, 4, "Minimum Delay between 2 consecutive interrupts");
-DECLARE_int32(imsic_intr_delay_max);//, 7, "Maximum Delay between 2 consecutive interrupts");
-DECLARE_bool(random_imsic_intr);//, false, "Drive random interrups");
-DECLARE_bool(disable_m_imsic_intr);
-DECLARE_bool(disable_s_imsic_intr);
-DECLARE_bool(disable_vs_imsic_intr);
-DECLARE_bool(disable_random_hart_imsic_intr);
-DECLARE_int32(imsic_intr_threshold);
-DECLARE_int32(imsic_vs_intr_threshold);
-DECLARE_int32(imsic_hart_threshold);
-DECLARE_int32(imsic_intr_start_delay);
 // Define a core local interruptor (imsic_driver) at the given address
 // and for the given hart count. The size will be 48k bytes.
 class imsic_driver : public subdevice
@@ -102,7 +92,7 @@ public:
     if(interrupt_file == 0x0){
        addr1 = msi_m_file_addr + (interrupt_hart << 18);
     }else if(interrupt_file == 0x01){
-       addr1 = msi_v_file_addr + (interrupt_hart << 18);;
+       addr1 = msi_s_file_addr + (interrupt_hart << 18);
     }else if(interrupt_file == 0x02){
        addr1 = msi_vs_file_addr+ (vs_id << 12) + (interrupt_hart << 18);
     }else{
@@ -167,14 +157,14 @@ protected:
         if(disable_flags == 0x7)
 	      cvm::log(cvm::ERROR, "[Trickbox] Cant generate IMSIC interrupts when all interrupts are disabled \n");
 
-        unsigned values[FLAGS_imsic_intr_threshold];
-        memset(values, 0, FLAGS_imsic_intr_threshold);
-        intr_num = (rng() % (FLAGS_imsic_intr_threshold )) ; //gen iter between 1 to max simul instr
 	do{
         intr_file = (rng() % (3 )) ; //gen iter between 1 to max simul instr
 	}while(((1<< intr_file)& disable_flags) != 0);
-	
-
+        
+  if(!FLAGS_disable_vs_imsic_intr)
+          intr_num = (rng() % (FLAGS_imsic_vs_intr_threshold )) ; //gen iter between 1 to max simul instr
+  if(!FLAGS_disable_vs_imsic_intr)
+          intr_num = (rng() % (FLAGS_imsic_vs_id_threshold )) + 1; //vsid from 1 to imsic_vs_id_threshold
 
 	if(!FLAGS_disable_random_hart_imsic_intr)
           intr_hart = (rng() % (FLAGS_imsic_hart_threshold )) ; //gen iter between 1 to max simul instr
@@ -212,7 +202,7 @@ private:
   uint64_t timer_rand_intr  = 500;
   uint64_t imsic_driver_base  = 0x9070000;
   uint32_t msi_m_file_addr  = 0x40000000;
-  uint32_t msi_v_file_addr  = 0x44000000;
+  uint32_t msi_s_file_addr  = 0x44000000;
   uint32_t msi_vs_file_addr = 0x44000000;
   //IMSIC_ADDR_TARGET_M   = 32'h0100_0000,//32'h0800_0000;
   // IMSIC_ADDR_TARGET_S   = 32'h0180_0000,//32'h0A00_0000;

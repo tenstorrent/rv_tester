@@ -50,8 +50,7 @@ module axi_sw #(
     parameter int unsigned STRB_WIDTH = DATA_WIDTH / 8,
     parameter int unsigned ID_WIDTH   = 32'd0,
 
-    parameter int unsigned TOPO_ID    =    -1,
-    parameter int NUM                 =    -1,
+    parameter int unsigned LOCATION   =     0,
     parameter string tag = "notag",
     parameter int unsigned R_Q_MAX    = 32'd0,
 
@@ -154,16 +153,15 @@ module axi_sw #(
     logic w_last_queue_full, w_last_queue_empty;
     logic r_queue_empty     ;
 
-    import "DPI-C" context function void axi_sw_set_scope(int unsigned location);
+    // dummy return value to make sure it's not zDPI
+    import "DPI-C" context function byte unsigned axi_sw_set_scope(int unsigned location);
 
-    int unsigned location = cvm_topology::nil;
     always @(posedge clk) begin
         if (sys_reset) begin
             /* verilator lint_off BLKSEQ */
                 // FIXME add a reset for the axi xtor
-            location = cvm_topology::get_location(TOPO_ID, NUM);
-            if (location != cvm_topology::nil) begin
-                axi_sw_set_scope(location);
+            if (LOCATION != cvm_topology::nil) begin
+                automatic byte unsigned _ = axi_sw_set_scope(LOCATION);
             end
             /* verilator lint_on BLKSEQ */
         end
@@ -257,8 +255,8 @@ module axi_sw #(
 
         if (reset_n) begin
             if (r_queue_rptr_incremented) begin
-                r_q_ptrs[0].valid         <= '1 & (location != cvm_topology::nil);
-                r_q_ptrs[0].data.location <= location;
+                r_q_ptrs[0].valid         <= '1 & (LOCATION != cvm_topology::nil);
+                r_q_ptrs[0].data.location <= LOCATION;
                 r_q_ptrs[0].data.r_ptr    <= r_queue_rptr;
                 r_q_ptrs[0].data.clock    <= clocks;
             end
@@ -266,15 +264,15 @@ module axi_sw #(
 
         if (reset_n) begin
             if (axi_mst_w_valid && axi_slv_w_ready) begin
-                ws[0].valid          <= '1 & (location != cvm_topology::nil);
-                ws[0].data.location  <= location;
+                ws[0].valid          <= '1 & (LOCATION != cvm_topology::nil);
+                ws[0].data.location  <= LOCATION;
                 ws[0].data.data      <= axi_mst_w_data;
                 ws[0].data.strb      <= axi_mst_w_strb;
                 ws[0].data.last      <= axi_mst_w_last;
             end
             if (axi_mst_aw_valid && axi_slv_aw_ready) begin
-                aws[0].valid          <= '1 & (location != cvm_topology::nil);
-                aws[0].data.location  <= location;
+                aws[0].valid          <= '1 & (LOCATION != cvm_topology::nil);
+                aws[0].data.location  <= LOCATION;
                 aws[0].data.id        <= axi_mst_aw_id;
                 aws[0].data.addr      <= axi_mst_aw_addr;
                 aws[0].data.len       <= axi_mst_aw_len;
@@ -292,8 +290,8 @@ module axi_sw #(
 
             end
             if (axi_mst_ar_valid && axi_slv_ar_ready) begin
-                ars[0].valid          <= '1 & (location != cvm_topology::nil);
-                ars[0].data.location  <= location;
+                ars[0].valid          <= '1 & (LOCATION != cvm_topology::nil);
+                ars[0].data.location  <= LOCATION;
                 ars[0].data.id        <= axi_mst_ar_id;
                 ars[0].data.addr      <= axi_mst_ar_addr;
                 ars[0].data.len       <= axi_mst_ar_len;
@@ -321,16 +319,15 @@ module axi_sw #(
             automatic int unsigned fixed   = cvm_plusargs::get_int("axi_sw_read_latency_fixed");
             read_latency_timeout_threshold = cvm_plusargs::get_int("axi_sw_read_latency_timeout_threshold");
             read_latency_fifo_threshold    = cvm_plusargs::get_int("axi_sw_read_latency_fifo_threshold");
-            read_latency       = max | fixed;
+            read_latency       = (fixed != 0) ? fixed : max;
             read_latency_fixed = fixed != 0;
             /* verilator lint_on BLKSEQ */
-            if (max != 0 && fixed != 0                                            ) $error("Error: +axi_sw_read_latency_max and +axi_sw_read_latency_fixed cannot both be set");
             if (read_latency     >= (32'(1)) << CW                                ) $error("Error: +axi_sw_read_latency_max/+axi_sw_read_latency_fixed (%0d) overflows counter width (%0d)", read_latency, CW);
             if (read_latency != 0 && read_latency_timeout_threshold > read_latency) $error("Error: +axi_flush_threshold (%0d) > +axi_sw_read_latency_max/+axi_sw_read_latency_fixed (%0d)", read_latency_timeout_threshold, read_latency);
         end
     end
 
-    localparam AR_HISTORY_Q_MAX = 16;
+    localparam AR_HISTORY_Q_MAX = 128;
 
     logic                   ar_history_empty;
     logic [CW         -1:0] ar_history_q;
@@ -374,7 +371,7 @@ module axi_sw #(
                 if (CW'(clocks) == ar_history_q) $error("Error: clocks wrapped around timer");
                 if (fifo_near_critical || timeout_near_critical) begin
                     automatic byte unsigned success;
-                    success = axi_sw_flush(location, clocks, 32'(r_queue_rptr));
+                    success = axi_sw_flush(LOCATION, clocks, 32'(r_queue_rptr));
                     if (success == '0 && (fifo_critical || timeout_critical)) begin
                         $error("Error: couldn't maintain requested axi read latency");
                     end
@@ -444,8 +441,9 @@ module axi_sw_mst #(
     parameter int unsigned DATA_WIDTH = 32'd0,
     parameter int unsigned STRB_WIDTH = DATA_WIDTH / 8,
     parameter int unsigned ID_WIDTH   = 32'd0,
+    parameter int unsigned USER_WIDTH = 32'd0,
 
-    parameter int unsigned TOPO_ID    =    -1,
+    parameter int unsigned LOCATION   =     0,
     parameter int NUM                 =    -1,
     parameter string tag = "notag",
     parameter int unsigned AR_Q_MAX   = 32'd0,
@@ -456,6 +454,7 @@ module axi_sw_mst #(
     parameter type data_t   = logic [DATA_WIDTH-1:0],
     parameter type id_t     = logic [ID_WIDTH  -1:0],
     parameter type strb_t   = logic [STRB_WIDTH-1:0],
+    parameter type user_t   = logic [USER_WIDTH-1:0],
 
     parameter type burst_t  = logic [1:0],
     parameter type resp_t   = logic [1:0],
@@ -466,7 +465,6 @@ module axi_sw_mst #(
     parameter type qos_t    = logic [3:0],
     parameter type region_t = logic [3:0],
     parameter type atop_t   = logic [5:0],
-    parameter type user_t   = logic [0:0],
     `RV_TESTER_TRANSACTIONS_AXI_SW_MST_OUTPUT_PARAMS
 
 )(
@@ -482,11 +480,11 @@ module axi_sw_mst #(
     output size_t            axi_mst_ar_size,
     output burst_t           axi_mst_ar_burst,
     output logic             axi_mst_ar_lock,
-    output cache_t           axi_mst_ar_cache,  
-    output prot_t            axi_mst_ar_prot,  
-    output qos_t             axi_mst_ar_qos,   
+    output cache_t           axi_mst_ar_cache,
+    output prot_t            axi_mst_ar_prot,
+    output qos_t             axi_mst_ar_qos,
     output region_t          axi_mst_ar_region,
-    output user_t            axi_mst_ar_user,  
+    output user_t            axi_mst_ar_user,
 
     output logic             axi_mst_aw_valid,
     output id_t              axi_mst_aw_id,
@@ -495,9 +493,9 @@ module axi_sw_mst #(
     output size_t            axi_mst_aw_size,
     output burst_t           axi_mst_aw_burst,
     output logic             axi_mst_aw_lock,
-    output cache_t           axi_mst_aw_cache, 
-    output prot_t            axi_mst_aw_prot, 
-    output qos_t             axi_mst_aw_qos,  
+    output cache_t           axi_mst_aw_cache,
+    output prot_t            axi_mst_aw_prot,
+    output qos_t             axi_mst_aw_qos,
     output region_t          axi_mst_aw_region,
     output atop_t            axi_mst_aw_atop,
     output user_t            axi_mst_aw_user,
@@ -536,11 +534,11 @@ module axi_sw_mst #(
         size_t            size;
         burst_t           burst;
         logic             lock;
-        cache_t           cache;  
-        prot_t            prot;  
-        qos_t             qos;   
+        cache_t           cache;
+        prot_t            prot;
+        qos_t             qos;
         region_t          region;
-        user_t            user;  
+        user_t            user;
     } ar_t;
 
     typedef struct packed {
@@ -550,12 +548,12 @@ module axi_sw_mst #(
         size_t            size;
         burst_t           burst;
         logic             lock;
-        cache_t           cache;  
-        prot_t            prot;  
-        qos_t             qos;   
+        cache_t           cache;
+        prot_t            prot;
+        qos_t             qos;
         region_t          region;
-        atop_t            atop;  
-        user_t            user;  
+        atop_t            atop;
+        user_t            user;
     } aw_t;
 
     typedef struct packed {
@@ -565,18 +563,26 @@ module axi_sw_mst #(
     } w_t;
 
 
-    import "DPI-C" context function void axi_sw_mst_set_scope(int unsigned location);
+    // dummy return value to make sure it's not zDPI
+    import "DPI-C" context function byte unsigned axi_sw_mst_set_scope(int unsigned location);
 
-    int unsigned location = cvm_topology::nil;
     always @(posedge clk) begin
         if (sys_reset) begin
             /* verilator lint_off BLKSEQ */
                 // FIXME add a reset for the axi xtor
-            location = cvm_topology::get_location(TOPO_ID, NUM);
-            if (location != cvm_topology::nil) begin
-                axi_sw_mst_set_scope(location);
+            if (LOCATION != cvm_topology::nil) begin
+                automatic byte unsigned _ = axi_sw_mst_set_scope(LOCATION);
             end
             /* verilator lint_on BLKSEQ */
+        end
+    end
+
+    logic [64-1:0] clocks;
+    always_ff @(posedge clk) begin
+        if (!reset_n) begin
+            clocks <= '0;
+        end else begin
+            clocks <= clocks + 64'(1);
         end
     end
 
@@ -601,11 +607,11 @@ module axi_sw_mst #(
         axi_mst_ar_size  = ar.size;
         axi_mst_ar_burst = ar.burst;
         axi_mst_ar_lock  = ar.lock;
-        axi_mst_ar_cache = ar.cache; 
-        axi_mst_ar_prot  = ar.prot; 
-        axi_mst_ar_qos   = ar.qos;   
+        axi_mst_ar_cache = ar.cache;
+        axi_mst_ar_prot  = ar.prot;
+        axi_mst_ar_qos   = ar.qos;
         axi_mst_ar_region = ar.region;
-        axi_mst_ar_user  = ar.user; 
+        axi_mst_ar_user  = ar.user;
     end
 
     logic aw_queue_rptr_incremented, aw_queue_empty;
@@ -629,9 +635,9 @@ module axi_sw_mst #(
         axi_mst_aw_size  = aw.size;
         axi_mst_aw_burst = aw.burst;
         axi_mst_aw_lock  = aw.lock;
-        axi_mst_aw_cache = aw.cache;  
-        axi_mst_aw_prot  = aw.prot; 
-        axi_mst_aw_qos   = aw.qos;  
+        axi_mst_aw_cache = aw.cache;
+        axi_mst_aw_prot  = aw.prot;
+        axi_mst_aw_qos   = aw.qos;
         axi_mst_aw_region= aw.region;
         axi_mst_aw_atop  = aw.atop;
         axi_mst_aw_user  = aw.user;
@@ -682,24 +688,24 @@ module axi_sw_mst #(
     always @(posedge clk) begin
         if (reset_n) begin
             ar_q_ptrs[0].valid          <= ar_queue_rptr_incremented;
-            ar_q_ptrs[0].data.location  <= location;
+            ar_q_ptrs[0].data.location  <= LOCATION;
             ar_q_ptrs[0].data.ar_ptr    <= ar_queue_rptr;
 
             aw_q_ptrs[0].valid          <= aw_queue_rptr_incremented;
-            aw_q_ptrs[0].data.location  <= location;
+            aw_q_ptrs[0].data.location  <= LOCATION;
             aw_q_ptrs[0].data.aw_ptr    <= aw_queue_rptr;
 
             w_q_ptrs[0].valid         <= w_queue_rptr_incremented;
-            w_q_ptrs[0].data.location <= location;
+            w_q_ptrs[0].data.location <= LOCATION;
             w_q_ptrs[0].data.w_ptr    <= w_queue_rptr;
 
             bs[0].valid         <= axi_slv_b_valid && axi_mst_b_ready;
-            bs[0].data.location <= location;
+            bs[0].data.location <= LOCATION;
             bs[0].data.id       <= axi_slv_b_id;
             bs[0].data.resp     <= axi_slv_b_resp;
 
             rs[0].valid         <= axi_slv_r_valid && axi_mst_r_ready;
-            rs[0].data.location <= location;
+            rs[0].data.location <= LOCATION;
             rs[0].data.id       <= axi_slv_r_id;
             rs[0].data.data     <= axi_slv_r_data;
             rs[0].data.resp     <= axi_slv_r_resp;

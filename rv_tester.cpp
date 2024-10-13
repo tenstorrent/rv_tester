@@ -28,6 +28,7 @@ DEFINE_bool(trace_en, false, "Set this while running trace test");
 DEFINE_bool(overlay_mmr_en, false, "Set this while running overlay test");
 DEFINE_bool(jtag_en, false, "Set this while running jtag test");
 DEFINE_bool(smc_sweep_test ,false, "Set this while running small core sram sweep test");
+DEFINE_int32(dmi_poll_timeout, 50000, "Debug poll timeout after to host end call");
 DEFINE_int32(trace_timeout, 50000, "trace test end timeout after to host end call");
 DEFINE_int32(freq_switch_ncycles, 20000, "Switch clk frequencies after freq_switch_ncycles");
 DEFINE_int32(clk_profile, 0, "Clk profile to drive various clocks");
@@ -35,10 +36,14 @@ DEFINE_bool(dyn_clk_switch, false, "Enable dynamic clk switching");
 DEFINE_validator(num_reruns, &validate_ge0);
 DEFINE_string(gen_clocks_verbosity, "HIGH", "verbosity at which to generate clocks with cvm::logger prints");
 DEFINE_int32(assertion_test_cycle, 0, "If non-zero, assert false on this cycle. Used for testing assertion infrastructure.");
+DEFINE_int32(rand_dmi_driver_dly, 0, "Random delay cycles, to be used while driving DMI transactions");
+DEFINE_int32(dm_single_step_count, 0, "No of times core to single step, to be used while driving DMI transactions");
+DEFINE_int32(sdtrig_multitrigger, 0, "No of trigger condigurations for sdtrig multitrigger test");
 
 extern "C" void rv_tester_terminate();
 extern "C" void rv_tester_set_address_map(std::uint32_t i, std::uint64_t start_addr, std::uint64_t end_addr, std::uint32_t device);
 
+static bool check_called;
 class logger_instrument {
 
     public:
@@ -83,15 +88,19 @@ extern "C" {
         if (env_var != nullptr && std::string(env_var) == "1") {
             cvm::plusargs::parse();
             cvm::rand::seed(FLAGS_seed);
-            cvm::log(cvm::NONE, "Initialize Offline DPI");
+            cvm::log(cvm::NONE, "Initialize Offline DPI\n");
         }
     }
 
     int rv_tester_parse_flags() {
         cvm::log(cvm::NONE, "[plusargs] Parsing...\n");
         cvm::plusargs::parse();
-        cvm::rand::seed(FLAGS_seed);
         return 0;
+    }
+
+    void rv_tester_set_seed() {
+        cvm::log(cvm::NONE, "[random] +seed={}\n", FLAGS_seed);
+        cvm::rand::seed(FLAGS_seed);
     }
 
     void rv_tester_parse_memmap(std::uint32_t no_addr_rules) {
@@ -118,12 +127,19 @@ extern "C" {
     }
 
     void rv_tester_build_registry() {
+        check_called = false;
         cvm::registry::build();
         cvm::registry::configure();
     }
 
     uint8_t rv_tester_shutdown_registry() {
-        cvm::registry::check();
+        if (!check_called) {
+            cvm::log(cvm::NONE, "[registry] check...\n");
+            cvm::registry::check();
+            check_called = true;
+        }
+
+        cvm::log(cvm::NONE, "[registry] shutdown...\n");
         return cvm::registry::shutdown();
     }
 
@@ -133,9 +149,15 @@ extern "C" {
         return true;
     }
 
+    void rv_tester_cvm_error() {
+        if (!check_called) {
+            cvm::registry::check();
+        }
+    }
+
     void rv_tester_cvm_error_handler() {
         logger_instrument::set_scope(svGetScope());
-        cvm::set_logger_handler(cvm::ERROR, cvm::registry::check);
+        cvm::set_logger_handler(cvm::ERROR, rv_tester_cvm_error);
     }
 }
 

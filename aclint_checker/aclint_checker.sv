@@ -21,7 +21,7 @@ import rv_tester_params:: * ;
         `RV_TESTER_TRANSACTIONS_ACLINT_CHECKER_OUTPUT_PORTS
 );
 
-    int unsigned location = cvm_topology::nil;
+    parameter int unsigned location = cvm_topology_gen::get_location (topology.TOP.PLATFORM.ACLINT_CHECKER.ID, 0);
     logic reset_done;
     localparam  DISABLEFUSE = 'h38fff8;
     localparam  MTIME = 'h380000;
@@ -36,7 +36,6 @@ import rv_tester_params:: * ;
     always @(posedge tb_clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */
-            location = cvm_topology::get_location(topology.TOP.PLATFORM.ACLINT_CHECKER.ID, 0);
             enable_checks = cvm_plusargs::get_bool("aclint") != '0;
             //if (enable_checks)
             //$display("SV: ACLINT_CHECKER location %d time %t\n",location,$time);
@@ -49,7 +48,8 @@ import rv_tester_params:: * ;
 
     //ACLINT force SYNC message checker
     logic forcesynccame;
-    assign forcesynccame = (AcReqPktRfClki.addr == TIMESYNC) && AcReqPktRfClki.valid && (AcReqPktRfClki.data == 'hff);
+    assign forcesynccame = (AcReqPktRfClki.addr == TIMESYNC) && AcReqPktRfClki.valid && AcReqPktRfClki.mask=='hff && (AcReqPktRfClki.data == 'hff);
+
     for (genvar n = 0; n < NHARTS; n++) begin : acsync_force
     logic lookout_for_sync;
     always @(posedge rf_clk) begin
@@ -78,12 +78,36 @@ import rv_tester_params:: * ;
     logic [8:0] mtimecmp_wr_valid;
     logic wtimecmp_wr_valid;
     logic mtime_wr_valid;
+    /* verilator lint_off WIDTH */
+    always @(posedge rf_clk) begin
+        for (int j = 0; j < 9; j++) begin
+        if (dut_reset || AcMtipi[j] || mtimecmp_wr_valid[j]) begin
+            counter[j] <= 0;
+        end else begin
+            counter[j] <= counter[j]+1;
+        end
+        if (dut_reset || AcMtipi[j] || ~enable_checks) begin
+            st[j] <= idle;
+            counter_check[j] <= 'hffffffff ;
+        end else if (mtimecmp_wr_valid[j]) begin
+            st[j] <= check;
+            counter_check[j] <= AcReqPktRfClki.data > AcMtimei ? AcReqPktRfClki.data - AcMtimei : 0;
+        end
+        end
+    end
+    genvar asserti;
+    generate
+    for ( asserti = 0; asserti < 9; asserti++) begin : mtip_check
+    always_comb
+    assert(~((counter[asserti] > counter_check[asserti]) && (st[asserti] == check) && (counter[asserti]-counter_check[asserti]) > 4)) else $error("Error: Expected MTIP, but MTIP not generated");
+    end
+    endgenerate
 
     logic [63:0] wakecore;
     always @(posedge rf_clk) begin
         if(dut_reset) begin
             wakecore <= 0;
-        end else if ((AcReqPktRfClki.addr == WAKECORE) && AcReqPktRfClki.valid) begin
+        end else if ((AcReqPktRfClki.addr == WAKECORE) && AcReqPktRfClki.valid && AcReqPktRfClki.mask=='hff) begin
             wakecore <= AcReqPktRfClki.data;
         end
     end
@@ -128,7 +152,7 @@ import rv_tester_params:: * ;
     end
     always_comb begin
         for (int j = 0; j < 9; j++) begin
-            mtimecmp_wr_valid[j] = AcReqPktRfClki.valid && (AcReqPktRfClki.addr == (MTIMECMP0 + (j<<3) ));
+            mtimecmp_wr_valid[j] = AcReqPktRfClki.valid && AcReqPktRfClki.mask=='hff && ( (AcReqPktRfClki.addr == (MTIMECMP0 + (j<<3) )) || ((AcReqPktRfClki.addr == WAKETIME ) && wakecore==j) );
         end
     end
     generate
@@ -202,7 +226,7 @@ import rv_tester_params:: * ;
 
     //ACLINT core MMR - ac_mmrwrite
     for (genvar n = 0; n < TOTAL_NRETS; n++) begin
-        assign cr_ac_mmrwrites[n].valid =  ~reset & enable_checks & rvfi[n].valid && (rvfi[n].mem_wmask != 0) && (rvfi[n].mem_paddr>= ACLINT_START && rvfi[n].mem_paddr<= ACLINT_END);
+        assign cr_ac_mmrwrites[n].valid =  ~reset & enable_checks & rvfi[n].valid && (rvfi[n].mem_wmask != 0) && (rvfi[n].mem_paddr>= ACLINT_START && rvfi[n].mem_paddr< ACLINT_END);
         assign cr_ac_mmrwrites[n].data.location = location;
         assign cr_ac_mmrwrites[n].data.hart = get_hart_ret(n);
         assign cr_ac_mmrwrites[n].data.order = rvfi[n].order;
@@ -212,7 +236,7 @@ import rv_tester_params:: * ;
     end
 
     for (genvar n = 0; n < TOTAL_NBYPASSES; n++) begin
-        assign cr_ac_mmrwr_bypasss[n].valid =   enable_checks & mcmi_bypass[n].valid && (mcmi_bypass[n].mask != 0) && (mcmi_bypass[n].addr>= ACLINT_START && mcmi_bypass[n].addr<= ACLINT_END);
+        assign cr_ac_mmrwr_bypasss[n].valid =   enable_checks & mcmi_bypass[n].valid && (mcmi_bypass[n].mask != 0) && (mcmi_bypass[n].addr>= ACLINT_START && mcmi_bypass[n].addr< ACLINT_END);
         assign cr_ac_mmrwr_bypasss[n].data.location = location;
         assign cr_ac_mmrwr_bypasss[n].data.hart = get_hart_bypass(n);
         assign cr_ac_mmrwr_bypasss[n].data.order = mcmi_bypass[n].order;
@@ -240,7 +264,7 @@ import rv_tester_params:: * ;
     end
     /* verilator lint_on WIDTH */
     return hart;
-  endfunction 
+  endfunction
 
   function automatic logic [3:0] get_hart_bypass(int n);
     logic [3:0] hart;
@@ -254,7 +278,7 @@ import rv_tester_params:: * ;
     end
     /* verilator lint_on WIDTH */
     return hart;
-  endfunction 
+  endfunction
 
 
 
