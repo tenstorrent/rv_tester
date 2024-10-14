@@ -73,8 +73,8 @@ io_coh_helper::read_dev(uint64_t addr, size_t length, data_t& data)
 
 io_coh_helper::~io_coh_helper()
 {
-   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"IO COherency helper number of writes\": \"{}\"}}\n", num_writes);
-   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"IO COherency helper number of reads\": \"{}\"}}\n", num_reads);
+   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"IO_Coh_helper_num_writes\": \"{}\"}}\n", num_writes);
+   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"IO_Coh_helper_num_reads\": \"{}\"}}\n", num_reads);
 }
 
 void
