@@ -126,7 +126,7 @@ private:
   uint64_t tx_size = 0;
   uint64_t read_counter = 0;
   uint64_t num_writes = 0;
-  uint64_t nun_reads = 0;
+  uint64_t num_reads = 0;
   uint64_t tx_data0 = 0;
   uint8_t  axi_id = 12;
   mem_manager m_;
