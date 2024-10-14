@@ -7,9 +7,9 @@ import os
 import base64
 from pathlib import Path
 
-pmcounter_width = 8
-pmci_width = 8
-casting_size_term = 8
+pmcounter_width = 32
+pmci_width = 32
+casting_size_term = 32
 
 def download_csv(url):
     with open(Path.home() / ".gitlab_key", "r") as key:
