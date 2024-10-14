@@ -5,9 +5,9 @@
 REGISTRY_register(smc_axi_sequence, PWRMGMT, cvm::registry::all);
 
 DEFINE_bool(rand_smc_axi, false, "Enable random smc axi accesses in the sim");
-DEFINE_string(smc_axi_count, "5:5", "Number of smc axi sequences in the sim");
-DEFINE_string(smc_axi_interval, "100:100", "soc cycle interval between smc axi sequences in the sim");
-DEFINE_string(smc_axi_width, "2:2", "soc cycle width of smc axi sequences in the sim");
+DEFINE_string(smc_axi_count, "5:5", "Specifies the number of sets of SMC AXI accesses in the simulation.");
+DEFINE_string(smc_axi_interval, "100:100", "Specifies the SOC cycle interval between each set of SMC AXI transactions in the simulation.");
+DEFINE_string(smc_axi_width, "2:2", "Specifies the number of SMC AXI transactions per set in the simulation.");
 
 smc_axi_sequence::smc_axi_sequence
   (cvm::topology::loc_t loc, unsigned) : 
