@@ -30,7 +30,6 @@ external_interrupt_sequence::external_interrupt_sequence(cvm::topology::loc_t lo
     patch_trigger_mode_thread();
   }
   if (FLAGS_uarch_interrupt_trigger_en) {
-    cvm::log(cvm::NONE, "1");
     uarch_trigger_mode_thread();
   }
 }
@@ -73,7 +72,6 @@ void external_interrupt_sequence::patch_trigger_mode_thread() {
 };
 
 void external_interrupt_sequence::uarch_trigger_mode_thread() {
-  cvm::log(cvm::NONE, "2");
   auto *task = +[] (external_interrupt_sequence* m) -> cvm::messenger::task<void> {
     co_await m->uarch_trigger_mode();
     co_return;
@@ -111,7 +109,6 @@ cvm::messenger::task<void> external_interrupt_sequence::patch_trigger_mode() {
 }
 
 cvm::messenger::task<void> external_interrupt_sequence::uarch_trigger_mode() {
-  cvm::log(cvm::NONE, "3");
   while(1){
     co_await trigger();
     drive_interrupt();
@@ -130,7 +127,6 @@ cvm::messenger::task<void> external_interrupt_sequence::trigger() {
 
   // Used to assert/deassert a interrupter interrupt (PIPI) for given hart.
 void external_interrupt_sequence::drive_interrupt(){
-  cvm::log(cvm::NONE, "3");
   unsigned intr_num = 1;
   unsigned intr_file = 0;
   unsigned intr_hart = id_;
