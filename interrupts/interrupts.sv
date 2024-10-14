@@ -53,11 +53,10 @@ import rv_tester_params::*;
   longint unsigned triggered_nmi_clock = -1;
   logic nmi_in_progress = 0;
   logic nmi_in_progress_d1 = 0;
-  logic triggered_nmi_in_progress, triggered_nmi_in_progress_d1;
+  logic triggered_nmi, triggered_nmi_in_progress, triggered_nmi_in_progress_d1, triggered_nmi_end;
   logic reset_d1;
   logic nmi_start;
   logic nmi_end;
-  logic triggered_nmi_end;
 
   assign nmi_start = nmi_in_progress & ~nmi_in_progress_d1;
   assign nmi_end = ~nmi_in_progress & nmi_in_progress_d1;
@@ -101,12 +100,16 @@ import rv_tester_params::*;
       triggered_nmi_in_progress_d1 <= '0;
     end else begin
       triggered_nmi_in_progress_d1 <= triggered_nmi_in_progress;
+      if(triggered_nmi) begin
+        triggered_nmi_in_progress <= 1;
+      end 
       /* verilator lint_off BLKSEQ */
       /* verilator lint_off WIDTHEXPAND */
       nmi_width = cvm_rand::get("nmi_width");
       /* verilator lint_on BLKSEQ */
       /* verilator lint_on WIDTHEXPAND */
       if(triggered_nmi_in_progress && clocks >= triggered_nmi_clock + nmi_width) begin
+        triggered_nmi = 0;
         triggered_nmi_in_progress <= '0;
       end
     end
@@ -141,7 +144,7 @@ import rv_tester_params::*;
   endfunction
 
   function void interrupts_nmi_triggered(bit val);
-      triggered_nmi_in_progress = 1;
+      triggered_nmi = 1;
       triggered_nmi_clock = clocks;
   endfunction
 
