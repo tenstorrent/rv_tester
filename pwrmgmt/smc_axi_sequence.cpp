@@ -39,7 +39,7 @@ void smc_axi_sequence::main_thread() {
 cvm::messenger::task<void> smc_axi_sequence::main() {
   uint32_t rand_indx = 0;
   std::pair<uint32_t, uint64_t> sram_transaction_info;
-  size_t smc_axi_trns_width = 2; //cvm_rand::get(FLAGS_smc_axi_width);
+  size_t smc_axi_trns_width = 2;
 
   while (true) {
     co_await tick();
