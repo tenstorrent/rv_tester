@@ -32,7 +32,7 @@ import rv_tester_params::*;
         interrupts_set_scope(location);
         nmi_mode = cvm_plusargs::get_string("nmi");
         nmi_en = interrupts_get_nmi_en(nmi_mode);
-        nmi_count = cvm_rand::get("nmi_count");
+        nmi_count = cvm_rand::get("random_nmi_count");
         /* verilator lint_off WIDTHEXPAND */
         nmi_interval = cvm_rand::get("nmi_start_interval");
         nmi_width = cvm_rand::get("nmi_width");
@@ -50,14 +50,20 @@ import rv_tester_params::*;
   // -------------------------
 
   longint unsigned nxt_nmi_clock = -1;
+  longint unsigned triggered_nmi_clock = -1;
   logic nmi_in_progress = 0;
   logic nmi_in_progress_d1 = 0;
+  logic triggered_nmi_in_progress = 0;
+  logic triggered_nmi_in_progress_d1 = 0;
   logic reset_d1;
   logic nmi_start;
   logic nmi_end;
+  logic triggered_nmi_end;
 
   assign nmi_start = nmi_in_progress & ~nmi_in_progress_d1;
   assign nmi_end = ~nmi_in_progress & nmi_in_progress_d1;
+
+  assign triggered_nmi_end = ~triggered_nmi_in_progress & triggered_nmi_in_progress_d1;
 
   always @(posedge clk) begin
     reset_d1 <= reset;
@@ -91,6 +97,20 @@ import rv_tester_params::*;
         end
       end
     end
+    if (reset | ~nmi_en) begin
+      triggered_nmi_in_progress <= '0;
+      triggered_nmi_in_progress_d1 <= '0;
+    end else begin
+      triggered_nmi_in_progress_d1 <= triggered_nmi_in_progress;
+      /* verilator lint_off BLKSEQ */
+      /* verilator lint_off WIDTHEXPAND */
+      nmi_width = cvm_rand::get("nmi_width");
+      /* verilator lint_on BLKSEQ */
+      /* verilator lint_on WIDTHEXPAND */
+      if(triggered_nmi_in_progress && clocks >= triggered_nmi_clock + nmi_width) begin
+        triggered_nmi_in_progress <= '0;
+      end
+    end
   end
 
   // m_reset
@@ -99,7 +119,7 @@ import rv_tester_params::*;
   assign m_resets[0].data.cycle = clocks;
 
   // m_nmi_tick
-  assign m_nmi_ticks[0].valid = ~reset & nmi_en & (nmi_start | nmi_end) & (location != cvm_topology::nil);
+  assign m_nmi_ticks[0].valid = ~reset & nmi_en & (nmi_start | nmi_end | triggered_nmi_end) & (location != cvm_topology::nil);
   assign m_nmi_ticks[0].data.location = location;
   assign m_nmi_ticks[0].data.cycle = (nmi_start | nmi_end) ? clocks : '0;
 
@@ -109,6 +129,7 @@ import rv_tester_params::*;
 
   export "DPI-C" function interrupts_init;
   export "DPI-C" function interrupts_nmi;
+  export "DPI-C" function interrupts_nmi_triggered;
 
   function void interrupts_init();
       /* verilator lint_off BLKSEQ */
@@ -118,6 +139,11 @@ import rv_tester_params::*;
 
   function void interrupts_nmi(bit val);
       nmi = val;
+  endfunction
+
+  function void interrupts_nmi_triggered(bit val);
+      triggered_nmi_in_progress = 1;
+      triggered_nmi_clock = clocks;
   endfunction
 
 endmodule

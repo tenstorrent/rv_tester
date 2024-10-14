@@ -24,21 +24,18 @@ import rv_tester_params::*;
     end
   endgenerate
 
-  int unsigned location = cvm_topology::nil;
+  parameter int unsigned location = cvm_topology_gen::get_location (topology.TOP.PLATFORM.SYSMOD.ID, NUM);
   
   // -------------------------
   // SV->C++ Messages/Packets
   // -------------------------
-  logic tb_reset_d1;
+  logic reset_d1;
   always @(posedge tb_clk) begin
-    tb_reset_d1 <= tb_reset;
-    if (~tb_reset & tb_reset_d1) begin
-      /* verilator lint_off BLKSEQ */
-      location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.TRIGGERS.ID, NUM);
+    reset_d1 <= reset;
+    if (~reset & reset_d1) begin
       if (location != cvm_topology::nil) begin
         triggers_set_scope(location);
       end
-      /* verilator lint_on BLKSEQ */
     end
   end
 
@@ -52,7 +49,7 @@ import rv_tester_params::*;
   int unsigned clocks = 0;
   always @(posedge event_trigger[PATCH]) begin
       /* verilator lint_off BLKSEQ */
-    if (tb_reset) begin
+    if (reset) begin
       patch_event_based_interrupt = 1'b0;
     end
     else begin 
@@ -63,7 +60,7 @@ import rv_tester_params::*;
   end
   always @(posedge event_trigger[UARCH_INTR]) begin
       /* verilator lint_off BLKSEQ */
-    if (tb_reset) begin
+    if (reset) begin
       uarch_event_based_interrupt = 1'b0;
     end
     else begin 

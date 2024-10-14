@@ -199,9 +199,9 @@ import rv_tester_params::*;
 
   // Currently we have only NHARTS C2 triggers, new triggers shall send message on event_triggerss[NHARTS+:NHARTS] and increment rv_tester_transactions.yml
   for (genvar n = 0; n < NHARTS; n++) begin: tboxtrigc2
-  assign event_triggerss[n].valid         = event_triggers[n][C2].valid;
+  assign event_triggerss[n].valid         = event_triggers[n][UARCH_INTR].valid;
   assign event_triggerss[n].data.location = location;
-  assign event_triggerss[n].data.data     = event_triggers[n][C2].data;
-  assign event_triggerss[n].data.addr     = event_triggers[n][C2].addr;
+  assign event_triggerss[n].data.data     = event_triggers[n][UARCH_INTR].data;
+  assign event_triggerss[n].data.addr     = event_triggers[n][UARCH_INTR].addr;
   end
 endmodule
