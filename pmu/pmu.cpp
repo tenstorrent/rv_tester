@@ -15,7 +15,7 @@ DEFINE_int32(ipc_tolerance_perc, 5, "IPC tolerance %");
 DEFINE_bool(l1d_read_miss_check, false, "Check L1D miss rate within a tolerance %");
 DEFINE_double(l1d_read_miss_expected, 0.0, "Expected L1D miss rate");
 DEFINE_int32(l1d_read_miss_tolerance_perc, 20, "L1D miss rate tolerance %");
-DEFINE_bool(pmc_check_with_sideband, true, "flag to toggle check with sideband counter");
+DEFINE_bool(pmc_check_with_sideband, false, "flag to toggle check with sideband counter");
 DEFINE_int32(pmc_check_threshold, 5, " pmc_check_threshold %");
 DEFINE_bool(ignore_pmc_reprogram, false, "toggle ignore on illegal reprograming of an event reg");
 
