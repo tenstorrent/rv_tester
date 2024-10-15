@@ -102,10 +102,11 @@ bool rvfi::patch_access (uint64_t addr) {
       return false;
   if (addr >= patch_ram_lo && addr < patch_ram_hi)
       return true;
-  if (addr == 0x42005000 || addr == 0x42005040 ||
-      addr == 0x42005080 || addr == 0x42005088 ||
-      addr == 0x42005090 || addr == 0x42005098)
-      return true;
+
+  uint64_t pcontrol0 = 0x42005040;
+  for (int i=0; i<8; i++) // do this for all cores0-8
+      if (addr == (pcontrol0 + (i*0x10000)))
+          return true;
   return false;
 }
 
@@ -308,6 +309,9 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.excp = excp_;
   instr.ecause = ecause_;
 
+  cvm::log(cvm::HIGH, "CLOCK={}: HW: ucode={} first_uop={} last_uop={}, priv={}, priv_change={} set_pmode={}, clr_pmode={} patch_={}\n", m_rvfi.cycle,
+                            m_rvfi.ucode, m_rvfi.first_uop, m_rvfi.last_uop, m_rvfi.priv, m_rvfi.priv_change, m_rvfi.set_pmode, m_rvfi.clr_pmode, patch_mode_);
+
   // RVTOOLS-3265: Adjust tag for vec excp
   if (vec_excp_)
     instr.tag = tag_ + 1;
@@ -321,52 +325,33 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
     dest_renamed ? renamed_csr_to_string.at(static_cast<renamed_csr_reg>(m_rvfi.rd_addr)) : "";
 
   // First/last uops for ucode sequences
-  instr.first_uop = false;
-  instr.last_uop = m_rvfi.last_uop;
-  instr.ucode = ucode_ || !m_rvfi.last_uop;
-  if (!m_rvfi.last_uop) {
-    if (!ucode_)
-      instr.first_uop = true;
-    ucode_ = true;
-  } else {
-    ucode_ = false;
-  }
 
-  // Priv mode
-  if (FLAGS_cosim && priv_ == 0x4 && !patch_mode_) { // when we enter patch mode via ucode
-    cvm::log(cvm::HIGH, "Patch mode: probably Ucode instruction\n");
+  instr.first_uop = m_rvfi.first_uop;
+  instr.last_uop  = m_rvfi.last_uop;
+  instr.ucode  = m_rvfi.ucode;
+  instr.priv  = m_rvfi.priv;
+  ucode_priv_change_ = m_rvfi.priv_change;
+
+  if (m_rvfi.set_pmode) { // when we enter patch mode via ucode
+    cvm::log(cvm::HIGH, "CLOCK={}: Patch mode turned ON",m_rvfi.cycle);
     bridge_->set_patch_mode(2); // IN_PATCH
     patch_mode_ = true;
   }
-  instr.priv = m_rvfi.mode;
-  if (instr.ucode && (m_rvfi.mode != priv_)) {
-    if (instr.first_uop) {
-      priv_ = m_rvfi.mode;
-    } else {
-      instr.priv = priv_;
-      ucode_priv_change_ = true;
-    }
-  }
-  if (m_rvfi.last_uop) {
-    if (ucode_priv_change_) {
-      instr.priv = priv_;
-      ucode_priv_change_ = false;
-      if (priv_ == 0x4 && patch_mode_) { // dret changes mode from D to M/S/U (exit from patch mode)
-        cvm::log(cvm::HIGH, "Exit patch\n");
-        bridge_->set_patch_mode(3); // EXIT_PATCH
-        patch_mode_ = false;
+  if (m_rvfi.clr_pmode) {
+      cvm::log(cvm::HIGH, "CLOCK={}: Patch mode turned OFF\n",m_rvfi.cycle);
+      if (!priv_to_string.count(static_cast<priv>(instr.priv))) {
+          cvm::log(cvm::ERROR, "Error: Invalid rvfi privilege mode: {:#x}\n", instr.priv);
       }
-    }
-    priv_ = m_rvfi.mode;
-    if (!priv_to_string.count(static_cast<priv>(instr.priv)))
-      cvm::log(cvm::ERROR, "Error: Invalid rvfi privilege mode: {:#x}\n", instr.priv);
+      bridge_->set_patch_mode(3);
+      patch_mode_ = false;
   }
 
-  if (m_rvfi.last_uop && !patch_mode_)
-    count_++;
+  if ((instr.priv & 0x7) == 0x3) {
+     instr.priv = 0x3;
+  }
 
-  if ((instr.priv & 0x7) == 0x3) { // Ignore V bit if M mode
-    instr.priv = 0x3;
+  if (m_rvfi.last_uop && !patch_mode_) {
+    count_++;
   }
 
   // if (instr.priv == 0x7) { // Make the DP mode as well same as DE mode for Cosim Checks

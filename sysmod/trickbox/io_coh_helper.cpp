@@ -12,7 +12,7 @@ io_coh_helper::io_coh_helper(const std::string& tag, uint64_t addr, unsigned, cv
   rng.seed(FLAGS_seed);
   io_coh_helper_base = addr;
   axi_mst_loc_l  = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST", 0);
-  
+  wresp_channel = cvm::registry::messenger.channel<axi::b_t>(axi_mst_loc_l);
   reset();
   checkUsage();
 }
@@ -73,6 +73,8 @@ io_coh_helper::read_dev(uint64_t addr, size_t length, data_t& data)
 
 io_coh_helper::~io_coh_helper()
 {
+   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"io_coh_helper_num_writes\": \"{}\"}}\n", num_writes);
+   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"io_coh_helper_num_reads\": \"{}\"}}\n", num_reads);
 }
 
 void
@@ -102,6 +104,16 @@ void io_coh_helper::gen_data_strb(uint64_t addr,  data_t& wdata, std::vector<boo
 
 void io_coh_helper::overlay_write(uint64_t addr) {
 
+  cvm::log(cvm::FULL, "[io_coh_helper] axi write addr= {:#X}   \n",addr);
+  uint64_t waddr = addr;
+   
+   auto* l = +[](uint64_t waddr, io_coh_helper* dev) -> cvm::messenger::task<void>{
+    
+     co_await dev->blocking_write(waddr);
+   };
+   cvm::registry::messenger.fork(l, waddr, this);
+}
+cvm::messenger::task<void> io_coh_helper::blocking_write(uint64_t addr) {
   int hart = 0;
   bool valid;
   axi::a_t aw_txn;
@@ -133,27 +145,38 @@ void io_coh_helper::overlay_write(uint64_t addr) {
     }  
   
   w_txn.last = 1;
+  uint32_t wresp_id = aw_txn.id;
   cvm::registry::messenger.signal(axi_mst_loc_l, w_txn);
-  cvm::topology::loc_t axi_mst_loc_lambda = axi_mst_loc_l;
+  //cvm::topology::loc_t axi_mst_loc_lambda = axi_mst_loc_l;
+  
     write_in_flight = true;
-    auto t = std::make_tuple(axi_mst_loc_lambda, std::ref(write_in_flight));
-    auto* l = +[](decltype(t) t) -> cvm::messenger::task<void>{
-    co_await cvm::registry::messenger.wait<transactor::write_response_t>(std::get<0>(t));
-    std::get<1>(t) = false;
-  };
-  cvm::registry::messenger.fork(l, t);
+    //auto t = std::make_tuple(axi_mst_loc_lambda, std::ref(write_in_flight));
+    //auto t = std::make_tuple(wresp_channel, std::ref(write_in_flight),wresp_id);
+    //auto* l = +[](decltype(t) t) -> cvm::messenger::task<void>{
+    //co_await cvm::registry::messenger.wait<transactor::write_response_t>(std::get<0>(t));
+    //auto response = 
+    //auto id = std::get<2>(t); 
+    //auto wresp_channel_l = std::get<0>(t);
+    //co_await cvm::registry::messenger.wait<read_response_t>(resp_channel_, [&id] (const read_response_t& r) { return r.id == id; });
+    co_await cvm::registry::messenger.wait<axi::b_t>(wresp_channel, [&wresp_id] (const axi::b_t& wresp) { return wresp.id == wresp_id; });
+    //std::get<1>(t) = false;
+    write_in_flight = false;
+  //}//;
+  //cvm::registry::messenger.fork(l, t);
 
   //Poke same data to whisper memory
   cvm::log(cvm::HIGH, "[io_coh_helper] Backdoor whisper poke addr{:#x} poke_data {:#x} \n",addr,data_vec[0]);
   for (uint8_t i = 0; i < tx_size; ++i) {
   if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0, 'm', addr+ i,1, data_vec[i], valid)|| !valid) {
     cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
-    return;
+    co_return;
   }{
 
   cvm::log(cvm::HIGH, "[io_coh_helper] backdoor whisper poke  Successful for addr{:#x} poke_data {:#x} \n",addr + i,data_vec[i]);
   }
   }
+   num_writes++;
+    co_return;
 }
 
 
@@ -215,7 +238,7 @@ cvm::messenger::task<void> io_coh_helper::blocking_read(const transactor::read_t
          cvm::log(cvm::HIGH, "[io_coh_helper] blocking read data[{}] = {}: \n",i,uint32_t(rdata_byte_vec[i]));
     }
   read_in_flight = false;
-  
+  num_reads++;
   co_return;
  
 }
@@ -261,6 +284,8 @@ cvm::messenger::task<void> io_coh_helper::blocking_burst_thread() {
          rdata_byte_vec.push_back(uint8_t(resp.data[i]));
          cvm::log(cvm::HIGH, "[io_coh_helper] blocking read data[{}] = {}: \n",i,uint32_t(rdata_byte_vec[i]));
     }
+
+  num_reads++; 
   read_in_flight = false;
 
   }else{
@@ -290,8 +315,14 @@ cvm::messenger::task<void> io_coh_helper::blocking_burst_thread() {
   
   w_txn.last = 1;
   cvm::registry::messenger.signal(axi_mst_loc_l, w_txn);
-  co_await cvm::registry::messenger.wait<transactor::write_response_t>(axi_mst_loc_l);
+  //co_await cvm::registry::messenger.wait<transactor::write_response_t>(axi_mst_loc_l);
 
+  /////-----------------------------
+  uint32_t wresp_id = a_txn.id ;
+    //co_await cvm::registry::messenger.wait<read_response_t>(resp_channel_, [&id] (const read_response_t& r) { return r.id == id; });
+  co_await cvm::registry::messenger.wait<axi::b_t>(wresp_channel, [&wresp_id] (const axi::b_t& wresp) { return wresp.id == wresp_id; });
+ 
+  ////------------------------------
   //Poke same data to whisper memory
   cvm::log(cvm::HIGH, "[io_coh_helper] Backdoor whisper poke burst mode addr{:#x} poke_data {:#x} \n",txns_vec[i].addr,data_vec[0]);
   for (uint8_t i = 0; i < tx_size; ++i) {
@@ -303,7 +334,7 @@ cvm::messenger::task<void> io_coh_helper::blocking_burst_thread() {
   cvm::log(cvm::HIGH, "[io_coh_helper] backdoor whisper poke  Successful for addr{:#x} poke_data {:#x} \n",txns_vec[i].addr + i,data_vec[i]);
   }
   }
-
+  num_writes++;
   }
 
   }
