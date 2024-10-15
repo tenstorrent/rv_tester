@@ -590,15 +590,15 @@ import rv_tester_pkg::*;
     always_ff @(posedge clk) begin : pmcounters_overflow_bit
         if (reset) begin
             pmcounter_overflow_bit <= '0;
-        end else if (pmcounterss[0].valid) begin 
+        end else if (pmcounterss[0].valid) begin
             for (int i=0; i < EVENT_COUNT; i++) begin
                 pmcounter_overflow_bit[i] <= pmcounter[i][OVERFLOW_BIT];
             end
             for (int i=EVENT_COUNT; i < EVENT_COUNT + SC_EVENT_COUNT; i++) begin
                 pmcounter_overflow_bit[i] <= sc_pmci[i - EVENT_COUNT][OVERFLOW_BIT];
             end
-            pmcounter_overflow_bit[EVENT_COUNT + SC_EVENT_COUNT] 	<= cpu_cycles[OVERFLOW_BIT];
-            pmcounter_overflow_bit[EVENT_COUNT + SC_EVENT_COUNT + 1] 	<= branch_instructions[OVERFLOW_BIT];
+            pmcounter_overflow_bit[EVENT_COUNT + SC_EVENT_COUNT]        <= cpu_cycles[OVERFLOW_BIT];
+            pmcounter_overflow_bit[EVENT_COUNT + SC_EVENT_COUNT + 1]    <= branch_instructions[OVERFLOW_BIT];
         end
     end
 
