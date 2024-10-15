@@ -73,6 +73,8 @@ io_coh_helper::read_dev(uint64_t addr, size_t length, data_t& data)
 
 io_coh_helper::~io_coh_helper()
 {
+   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"io_coh_helper_num_writes\": \"{}\"}}\n", num_writes);
+   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"io_coh_helper_num_reads\": \"{}\"}}\n", num_reads);
 }
 
 void
@@ -173,6 +175,7 @@ cvm::messenger::task<void> io_coh_helper::blocking_write(uint64_t addr) {
   cvm::log(cvm::HIGH, "[io_coh_helper] backdoor whisper poke  Successful for addr{:#x} poke_data {:#x} \n",addr + i,data_vec[i]);
   }
   }
+   num_writes++;
     co_return;
 }
 
@@ -235,7 +238,7 @@ cvm::messenger::task<void> io_coh_helper::blocking_read(const transactor::read_t
          cvm::log(cvm::HIGH, "[io_coh_helper] blocking read data[{}] = {}: \n",i,uint32_t(rdata_byte_vec[i]));
     }
   read_in_flight = false;
-  
+  num_reads++;
   co_return;
  
 }
@@ -281,6 +284,8 @@ cvm::messenger::task<void> io_coh_helper::blocking_burst_thread() {
          rdata_byte_vec.push_back(uint8_t(resp.data[i]));
          cvm::log(cvm::HIGH, "[io_coh_helper] blocking read data[{}] = {}: \n",i,uint32_t(rdata_byte_vec[i]));
     }
+
+  num_reads++; 
   read_in_flight = false;
 
   }else{
@@ -329,7 +334,7 @@ cvm::messenger::task<void> io_coh_helper::blocking_burst_thread() {
   cvm::log(cvm::HIGH, "[io_coh_helper] backdoor whisper poke  Successful for addr{:#x} poke_data {:#x} \n",txns_vec[i].addr + i,data_vec[i]);
   }
   }
-
+  num_writes++;
   }
 
   }
