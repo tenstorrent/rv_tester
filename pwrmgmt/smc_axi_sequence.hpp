@@ -23,10 +23,17 @@ class smc_axi_sequence {
     cvm::messenger::task<void> main();
     cvm::messenger::task<void> core_no_fetch();
 
-    cvm::messenger::task<void> scratchpad_write();
-    cvm::messenger::task<void> sram_write();
-
     cvm::messenger::task<void> tick();
+
+    cvm::messenger::task<uint32_t> scratchpad_write();
+
+    cvm::messenger::task<uint32_t> csr_write();
+    cvm::messenger::task<uint64_t> csr_read(uint32_t addr, size_t sz);
+
+    cvm::messenger::task<void> smc_trns_read_check(smc_dest_path_t smc_dest_path, uint32_t addr, uint64_t exp_data, size_t sz, block_t block = BLOCK);
+
+    cvm::messenger::task<std::pair<uint32_t, uint64_t>> cpl_sram_write();
+    
     cvm::messenger::task<uint64_t> read(uint64_t addr, size_t sz, block_t block = BLOCK);
     cvm::messenger::task<void> write(uint64_t addr, size_t sz, uint64_t data, block_t block = BLOCK);
 

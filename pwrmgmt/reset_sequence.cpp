@@ -15,9 +15,6 @@ DEFINE_bool(pll_dfs, false, "Enable dfs sequence during cold boot");
 DEFINE_uint32(pll_dfs_freq, 1200, "Clock freq for dfs");
 DEFINE_uint32(pll_dfs_timeout, 50, "Number of soc cycles expected for pll dfs to complete");
 DEFINE_uint32(num_thubs, 4, "Number of temprature hubs");
-DEFINE_uint32(smc_max_snippets, 2, "Maximum number of random continuous AXI access from SMC ");
-DEFINE_uint32(smc_snippet_size, 10, "Maximum number of random continuous AXI access from SMC ");
-DEFINE_uint32(smc_max_ticks, 100, "Maximum delay/ticks between SMC randomm access snippets");
 DEFINE_string(warm_reset, "off", "Enable warm resets in the sim - off/random/trigger");
 DEFINE_string(warm_reset_count, "0:4", "Number of warm resets in the sim if random mode enabled");
 DEFINE_string(warm_reset_interval, "2000:10000", "TB cycle interval between warm resets in the sim if random mode enabled");
@@ -35,12 +32,10 @@ DEFINE_bool(patch_ram_check, false, "Enable read write checking of patch ram reg
 DEFINE_bool(patch_cfg_lock, false, "Lock the patch mmrs while boot programming ");
 DEFINE_bool(fuse_mmr_check, false, "Check RW and lockability of fuses ");
 DEFINE_bool(init_smc_infilters, false, "Enable filter programming for JTAG and Overlay to access SRAM ");
-DEFINE_bool(smc_axi_access, false, "Enable random AXI access from SMC ");
 DEFINE_string(patch_ucode_input_file_path, "", "Path to file containing patch ucode routine");
 DEFINE_string(patches, "WFI,SUB,BLT,AMOSWAP", "+patches=<instr1>,<instr2>,<instr3>,<instr4>; default will be picked if not specified ");
 DEFINE_string(disable_patches, "AMOSWAP", "+disable_patches=<instr1>,<instr2>,<instr3>,<instr4>; default will be picked if not specified ");
 DEFINE_bool(rand_patch, false, "Randomly pick 4 instructions available in the CSV to be patched");
-
 
 extern "C" {
   void pwrmgmt_init();
@@ -79,9 +74,6 @@ void reset_sequence::start(int reset_count) {
 
   if (reset_count_ > 0)
     warm_reset_sequence_thread();
-
-
-  smc_random_sequence_thread();  
 }
 
 reset_sequence::~reset_sequence() {
@@ -99,14 +91,6 @@ void reset_sequence::cold_reset_sequence_thread() {
 void reset_sequence::warm_reset_sequence_thread() {
   auto *task = +[] (reset_sequence* m) -> cvm::messenger::task<void> {
     co_await m->warm_reset_sequence();
-    co_return;
-  };
-  cvm::registry::messenger.fork(task, this);
-};
-
-void reset_sequence::smc_random_sequence_thread() {
-  auto *task = +[] (reset_sequence* m) -> cvm::messenger::task<void> {
-    co_await m->smc_axi_random_access();
     co_return;
   };
   cvm::registry::messenger.fork(task, this);
@@ -834,99 +818,6 @@ void reset_sequence::force_ref_clk(uint8_t assert) {
     });
 }
 
-cvm::messenger::task<void> reset_sequence::smc_scratchpad_default_access() {
-  co_await tick();
-    // Read reset values  
-    co_await smc_read_access_check(mb_scratchpad, mb_scratchpad_rst,SZ_8B);
-    co_await smc_read_access_check(cc_scratchpad, cc_scratchpad_rst,SZ_4B);
-    co_await smc_read_access_check(rc_scratchpad, rc_scratchpad_rst,SZ_4B);
-    co_await smc_read_access_check(dm_scratchpad, dm_scratchpad_rst,SZ_8B);
-    co_await smc_read_access_check(cr_scratchpad, cr_scratchpad_rst,SZ_8B);
-    co_await smc_read_access_check(sw_scratchpad, sw_scratchpad_rst,SZ_8B);
-    co_await smc_read_access_check(ac_scratchpad, ac_scratchpad_rst,SZ_8B);
-  co_return;
-  };
-
- cvm::messenger::task<void> reset_sequence::smc_read_access_check(uint32_t addr, uint64_t exp_data, size_t sz){
-  uint64_t actual_data;
-
-  actual_data = co_await read(addr, sz);
-  if (exp_data != actual_data)
-    cvm::log(cvm::ERROR, "[pwrmgmt] SMC Scratchpad access check ERROR : addr 0x{:x} ,  Expected :0x{:x}, Actual : 0x{:x} \n",addr , exp_data, actual_data );
-  else
-    cvm::log(cvm::NONE, "[pwrmgmt] SMC Scratchpad access check : addr 0x{:x} , data 0x{:x} \n",addr , actual_data );
-
-  co_return;
- };
-
- cvm::messenger::task<void> reset_sequence::smc_axi_random_access()
- {
-  uint64_t data;
-  uint32_t randomAddress;
-  uint32_t SRAMAddress;
-  uint32_t data2;
-  int randomIndex;
-
-    co_await tick();
-  if(FLAGS_smc_axi_access){
-    // Default value check for scratch pad registers
-    co_await smc_scratchpad_default_access(); 
-
-    data  = 0xA5A5A5A5A5A5A5A5; 
-    data2 = 0xA5A5A5A5; 
-    for(uint32_t i = 0; i < FLAGS_smc_max_snippets ; ++i)
-    {
-      // Delay between each iteration
-      co_await delay_counters();
-      for(uint32_t p = 0; p < FLAGS_smc_snippet_size ; ++p)
-      {
-        std::random_device rd;
-        std::mt19937 gen(rd());
-
-        // Create a uniform distribution to select random indices
-        std::uniform_int_distribution<> dist(0,smc_dest_address.size() - 1);
-        std::uniform_int_distribution<uint32_t> sram_dist(0x40000,0x4BFFF);
-
-        // Pick a random address from the pool of scratchpad registers
-        randomIndex = dist(gen);
-        randomAddress = smc_dest_address[randomIndex];
-        SRAMAddress   = sram_dist(gen) & 0xFFFF8;
-
-        if((randomAddress == rc_scratchpad)|| (randomAddress == cc_scratchpad))
-        {
-        co_await write(randomAddress, SZ_4B, data2);
-        co_await smc_read_access_check(randomAddress, data2,SZ_4B);
-        }
-        else if((randomAddress == core_pwr_throttle_cfg_0)|| (randomAddress == core_pwr_throttle_cfg_1))
-        {
-          co_await csr_read(0, 0x8,randomAddress);
-        }
-        else{
-         co_await write(randomAddress, SZ_8B, data);
-         co_await smc_read_access_check(randomAddress, data,SZ_8B);
-        };
-
-        // Random SRAM access
-         co_await write(SRAMAddress, SZ_8B, data);
-         co_await smc_read_access_check(SRAMAddress, data,SZ_8B);
-        data = ~data;
-        data2 = ~data2;
-  
-      };
-    };
-  };
-  co_return;
-};
-
-cvm::messenger::task<void> reset_sequence::delay_counters(){
-  for(uint32_t i =0; i< FLAGS_smc_max_ticks; i++)
-  {
-    co_await tick();
-  };
-
-  co_return;
- };
- 
 // Helper function to trim whitespace from a string
 std::string trim(const std::string& str) {
     size_t first = str.find_first_not_of(" \t");
