@@ -140,6 +140,8 @@ namespace {
 
   std::map<uint32_t, uint64_t> patch_ram;
 
+  uint64_t pcontrol_mask;
+
   // Structure to represent a patch entry
   struct PatchEntry {
       std::string patchTag;
