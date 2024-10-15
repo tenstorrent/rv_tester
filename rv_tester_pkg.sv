@@ -89,6 +89,9 @@ package rv_tester_pkg;
         NO_ALLOC_NO_MSHR,
         NO_ALLOC_HINT_NOT_SET,
         SC_REPLAY_ECC,
+        SC_CANCEL_PIPERESULT,
+        SC_VICTIM,
+        NO_ALLOC_SRRIP,
         SC_EVENT_COUNT
     } sc_pmc_event_t;
 

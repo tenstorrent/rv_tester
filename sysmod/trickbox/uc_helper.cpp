@@ -50,7 +50,7 @@ uc_helper::update_mem_model(uc_helper::trickbox_mem_req_t& i) {
 
   //Poke same data to whisper memory
   cvm::log(cvm::HIGH, "[UC_HELPER] BACKDOOR whisper poke addr{:#x} poke_data {:#x} \n",uc_helper_base,poke_data);
-  if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0, 'm', uc_helper_base,8, poke_data, valid)) {
+  if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0, 'm', uc_helper_base,8, poke_data, valid)|| !valid) {
     cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
     return;
   }{

@@ -66,7 +66,7 @@ pmu::process(const rv_tester_transactions::pmu::pmcounters<>& pmcounters)
 
   cvm::log(cvm::HIGH, "[PMU] syncing counters\n");
 
-  counters = to_vector(pmcounters);
+  to_vector(pmcounters);
 
   if (pmcounters.perf_start)
     perf_region_start();
@@ -92,6 +92,7 @@ pmu::trigger_str(const rv_tester_transactions::pmu::pmcounters<>& pmcounters)
          pmcounters.perf_end    ? "perf_end"    :
          pmcounters.terminate   ? "terminate"   :
          pmcounters.sync        ? "sync"        :
+         pmcounters.overflow    ? "overflow"    :
                                   "none";
 }
 

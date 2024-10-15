@@ -28,7 +28,7 @@ top:
     axi_mst:
       count: 1
       type:
-        - axi
+        - axi_mst
         - platform_transactor_mst
       attrs:
         <<: *rv_tester_axi_sw_mst
@@ -36,10 +36,11 @@ top:
         DATA_WIDTH: 512
         STRB_WIDTH: 64
         ID_WIDTH: 4
+        USER_WIDTH: 8
     smc_axi_mst:
       count: 1
       type:
-        - axi
+        - smc_axi_mst
         - platform_transactor_mst
       attrs:
         <<: *rv_tester_axi_sw_mst
@@ -47,3 +48,4 @@ top:
         DATA_WIDTH: 512
         STRB_WIDTH: 64
         ID_WIDTH: 4
+        USER_WIDTH: 4
