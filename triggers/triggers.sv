@@ -24,7 +24,7 @@ import rv_tester_params::*;
     end
   endgenerate
 
-  parameter int unsigned location = cvm_topology_gen::get_location (topology.TOP.PLATFORM.SYSMOD.ID, NUM);
+  parameter int unsigned location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.TRIGGERS.ID, NUM);
   
   // -------------------------
   // SV->C++ Messages/Packets

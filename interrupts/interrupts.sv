@@ -53,15 +53,17 @@ import rv_tester_params::*;
   longint unsigned triggered_nmi_clock = -1;
   logic nmi_in_progress = 0;
   logic nmi_in_progress_d1 = 0;
-  logic triggered_nmi, triggered_nmi_in_progress, triggered_nmi_in_progress_d1, triggered_nmi_end;
   logic reset_d1;
   logic nmi_start;
   logic nmi_end;
+  logic triggered_nmi_in_progress;
+  logic triggered_nmi_in_progress_d1;
+  logic triggered_nmi_end;
 
   assign nmi_start = nmi_in_progress & ~nmi_in_progress_d1;
   assign nmi_end = ~nmi_in_progress & nmi_in_progress_d1;
-
   assign triggered_nmi_end = ~triggered_nmi_in_progress & triggered_nmi_in_progress_d1;
+
 
   always @(posedge clk) begin
     reset_d1 <= reset;
@@ -96,18 +98,18 @@ import rv_tester_params::*;
       end
     end
     if (reset | ~nmi_en) begin
-      triggered_nmi_in_progress <= '0;
       triggered_nmi_in_progress_d1 <= '0;
     end else begin
       triggered_nmi_in_progress_d1 <= triggered_nmi_in_progress;
       /* verilator lint_off BLKSEQ */
       /* verilator lint_off WIDTHEXPAND */
       nmi_width = cvm_rand::get("nmi_width");
+      if(triggered_nmi_in_progress & clocks >= triggered_nmi_clock + nmi_width) begin
+        triggered_nmi_in_progress = 0;
+      end
       /* verilator lint_on BLKSEQ */
       /* verilator lint_on WIDTHEXPAND */
-      if(triggered_nmi_in_progress && clocks >= triggered_nmi_clock + nmi_width) begin
-        triggered_nmi_in_progress <= '0;
-      end
+      triggered_nmi_in_progress_d1 <= triggered_nmi_in_progress;
     end
   end
 
