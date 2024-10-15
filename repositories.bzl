@@ -92,3 +92,11 @@ def rv_tester_repositories():
         shallow_since = "1669784673 -0600",
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/checkin-script.git",
     )
+
+    aegissocspec_hash="d116a4c3544f1190bed271da71ec3883b95f84bd"
+    git_repository(
+        name = "aegissocspec",
+        commit = aegissocspec_hash,
+        recursive_init_submodules = True,
+        remote = "git@aus-gitlab.local.tenstorrent.com:specifications/arch-export-controlled/aegissocspec.git",
+    )
