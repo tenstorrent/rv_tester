@@ -1,11 +1,14 @@
 `ifndef DMI_TB_WRITES_UNSUPPORTED
-module dmi_driver (
+module dmi_driver 
+import rv_tester_params:: * ;
+(
     input logic                     clk,
     input logic                     reset_n,
 
     input logic [31:0]              rand_dmi_driver_dly,
     input logic [31:0]              hart_enable_mask,
     input logic [31:0]              dm_single_step_count,
+    input logic [31:0]              sdtrig_multitrigger,
     
     input logic                     dmi_req_ready,
     input logic                     dmi_resp_valid,
@@ -19,7 +22,8 @@ module dmi_driver (
     output logic                    dmi_status,
     output logic [31:0]             dmi_commands_in_queue,
 
-    input rv_tester_pkg::dm_write_t trickbox_dmi_write
+    input rv_tester_pkg::dm_write_t trickbox_dmi_write,
+    input rv_tester_params::rvfi_t[TOTAL_NRETS-1: 0] rvfi
 );
 
   // -----------------------------
@@ -31,7 +35,7 @@ module dmi_driver (
   rv_tester_pkg::dmi_req_t  command_queue [$];
   rv_tester_pkg::dmi_resp_t response_queue[$];
 
-  rv_tester_pkg::dmi_req_t single_step_ahead_command_queue[$], single_step_quit_command_queue[$];
+  rv_tester_pkg::dmi_req_t single_step_ahead_command_queue[$], single_step_quit_command_queue[$], sdtrig_debug_mode_entry_queue[$], sdtrig_trigger_command_queue[$], sdtrig_trigger_disable_command_queue[$];
   rv_tester_pkg::dmi_req_t
       single_step_ahead_command_queue_backup[$], single_step_quit_command_queue_backup[$];
 
@@ -54,7 +58,13 @@ module dmi_driver (
   logic tselect_core, tselect_core_complete, core_rg_halt_sdtrig, core_haltsum_sdtrig, check_haltsum_sdtrig;
   logic check_hartsellen, check_dmstatus_disc, hart_discovery, dmcontrol_hartsel;
 
-  int file_descr, count_hart_enable_mask, dmi_command_in_step_ahead_queue_size, dmi_command_in_step_quit_queue_size, single_step_instr_cnt_plusarg;
+  logic rvfi_sdtrig;
+  int file_descr, count_hart_enable_mask, dmi_command_in_step_ahead_queue_size, dmi_command_in_step_quit_queue_size, single_step_instr_cnt_plusarg, multitriggers_plusarg;
+  int trigger_counter, command_in_sdtrig_entry_queue_size, command_in_sdtrig_trigger_queue_size, total_command_in_sdtrig_trigger_queue_size;
+  int tselect_value, trigger_index, trigger_hit, command_in_trigger_disable_queue_size;
+  logic check_hit_for_tselect, to_check_tselect, read_tselect, to_check_hit, check_hit_bit, read_tdata1_hit;
+
+
 
   typedef struct packed {
     logic [15:0] reg_addr;
@@ -131,18 +141,34 @@ module dmi_driver (
     dmcontrol_hartsel <= 0;
     dmi_command_in_step_ahead_queue_size <= 0;
     dmi_command_in_step_quit_queue_size <= 0;
+    rvfi_sdtrig <= 0;
+    check_hit_for_tselect <= 0;
+    to_check_tselect <= 0;
+    read_tselect <= 0;
+    to_check_hit <= 0;
+    check_hit_bit <= 0;
+    read_tdata1_hit <= 0;
   end
 
   initial begin
     count_hart_enable_mask = $countones(hart_enable_mask);
   end
-
+      
+  assign multitriggers_plusarg = sdtrig_multitrigger;
   assign single_step_instr_cnt_plusarg = dm_single_step_count;
   assign misc_signals[0] = poll;
   assign dmi_status = poll;
 
   always @(posedge clk) begin
     dmi_commands_in_queue = command_queue.size();
+  end
+
+  always @(posedge clk) begin
+    if(rvfi[0].cause[63:0] === 'h21) begin
+      rvfi_sdtrig = 1;
+    // end else begin
+    //   rvfi_sdtrig = 0;
+    end
   end
 
   always @(posedge trickbox_dmi_write.dm_wvalid) begin
@@ -170,6 +196,22 @@ module dmi_driver (
     end else if (trickbox_dmi_write.dm_wdata[63:59] === 'b00001) begin
       $display("[DMI Driver] Single steping mode enabled, getting count value");
       single_step_instr_cnt = trickbox_dmi_write.dm_wdata[31:0];
+    end else if (trickbox_dmi_write.dm_wdata[63:59] === 'b00011) begin
+      sdtrig_debug_mode_entry_queue.push_back(
+          rv_tester_pkg::dmi_req_t'(trickbox_dmi_write.dm_wdata[43:0])); //Mentioning 44 bits to be on safer side
+      $display("[DMI Driver] Added this command to the sdtrig debug entry queue, size=%h",
+               sdtrig_debug_mode_entry_queue.size());
+    end else if (trickbox_dmi_write.dm_wdata[63:59] === 'b00101) begin
+      sdtrig_trigger_command_queue.push_back(
+          rv_tester_pkg::dmi_req_t'(trickbox_dmi_write.dm_wdata[43:0])); //Mentioning 44 bits to be on safer side
+      $display("[DMI Driver] Added this command to the sdtrig trigger command queue, size=%h",
+               sdtrig_trigger_command_queue.size());
+      total_command_in_sdtrig_trigger_queue_size = sdtrig_trigger_command_queue.size();
+    end else if (trickbox_dmi_write.dm_wdata[63:59] === 'b00111) begin
+      sdtrig_trigger_disable_command_queue.push_back(
+          rv_tester_pkg::dmi_req_t'(trickbox_dmi_write.dm_wdata[43:0])); //Mentioning 44 bits to be on safer side
+      $display("[DMI Driver] Added this command to the sdtrig trigger disable command queue, size=%h",
+               sdtrig_trigger_disable_command_queue.size());
     end
   end
 
@@ -263,6 +305,9 @@ module dmi_driver (
             end else if (cmd.data[15:0] === 'h07b0) begin
               $display("[Poll] Seen the abstract command with write on dcsr");
               dcsr_abscmd = 1;
+            end else if(check_hit_for_tselect && cmd.data[15:0] === 'h07a0) begin
+              to_check_tselect = 1;
+              $display("[Poll] Setting to_check_tselect = 1");
             end else if(cmd.data[15:0] === 'h07a0)begin
               tselect_core = 1;
               $display("[sdtrig:Poll] Check which core has sdtrig configurations");
@@ -271,13 +316,12 @@ module dmi_driver (
             $display("[Poll] Seen the abstract command with read");
             abs_read = 1;
             abs_data_temp_packet.reg_addr = cmd.data[15:0];
-            // if(cmd.data[15:0] === 'h07a2) begin
-            //   sdtrig_fire = 1;
-            //   $display("[Poll] Setting sdtrig_fire = 1");
-            // end
             if(to_check_cause && cmd.data[15:0] === 'h7b0) begin
               to_check_cause = 0;
               check_cause_trigger = 1;
+            end else if(to_check_hit && cmd.data[15:0] === 'h07a1) begin
+              to_check_hit = 0;
+              check_hit_bit = 1;
             end
           end
         end
@@ -335,6 +379,9 @@ module dmi_driver (
         poll = 1;
       end else if(trigger_to_fire && cmd.addr === 'h11 && cmd.op === 'h1) begin
         $display("[Sdtrig] Core resuming after sdtrig configuration");
+        if(!rvfi_sdtrig) begin
+          @(rvfi_sdtrig);
+        end
         poll = 1;
         trigger_fired_halted = 1;
         trigger_to_fire = 0;
@@ -369,6 +416,14 @@ module dmi_driver (
         hart_discovery = 1;
         dmcontrol_hartsel = cmd.data[18:16];
         $display("hart_discovery is set, dmcontrol_hartsel:%h ", dmcontrol_hartsel);
+      end else if(to_check_tselect && cmd.addr === 'h4 && cmd.op === 'h1) begin
+        poll = 1;
+        to_check_tselect = 0;
+        read_tselect = 1;
+      end else if(check_hit_bit && cmd.addr === 'h4 && cmd.op === 'h1) begin
+        poll = 1;
+        check_hit_bit = 0;
+        read_tdata1_hit = 1;
       end
     end
   endtask : is_poll_needed
@@ -455,6 +510,12 @@ module dmi_driver (
         end else if(hart_discovery) begin
           $display("[Poll] Check dmstatus to see if the enabled hart is running");
           dmi_req <= 41'h4500000000;
+        end else if (read_tselect) begin
+          $display("[Poll] data0 to check for tselect value");
+          dmi_req <= 41'h1100000000;
+        end else if (read_tdata1_hit) begin
+          $display("[Poll] data0 to check for tselect value");
+          dmi_req <= 41'h1100000000;
         end
         wait (dmi_req_ready == 1);
         @(posedge clk) dmi_req_valid <= '0;
@@ -469,6 +530,10 @@ module dmi_driver (
           if(mcontrol6_trigger) begin
             trigger_to_fire = 1;
             mcontrol6_trigger = 0;
+            $display("[Poll] trigger_to_fire is set");
+          end
+          if(multitriggers_plusarg != 0)begin
+            trigger_to_fire = 1;
             $display("[Poll] trigger_to_fire is set");
           end
           $display("[Poll] Clear Resume Req Poll");
@@ -648,8 +713,10 @@ module dmi_driver (
           poll = 0;
         end else if(trigger_fired_halted && dmi_resp.data[9:8] === 'h3)begin
           trigger_fired_halted =0;
+          check_hit_for_tselect = 1;
           to_check_cause = 1;
           poll = 0;
+          rvfi_sdtrig = 0;
           $display("[Poll:Sdtrig] Trigger fired and core entered debug mode");
         end else if(cause_trigger && dmi_resp.data[8:6] === 'h2) begin
           cause_trigger = 0;
@@ -729,6 +796,21 @@ module dmi_driver (
             check_dmstatus_disc = 0;
             $display("Clear check_dmstatus_disc");
           end
+        end else if(read_tselect) begin
+          tselect_value = dmi_resp.data;
+          $display("tselect_value:%h", tselect_value);
+          poll = 0;
+          read_tselect = 0;
+          to_check_hit = 1;
+        end else if(read_tdata1_hit && dmi_resp.data[22]) begin
+          if(tselect_value < 2) begin
+            trigger_index = tselect_value;
+          end else begin
+            trigger_index = tselect_value-2;
+          end
+          trigger_hit[trigger_index]= 1;
+          poll = 0;
+          read_tdata1_hit = 0;
         end
       end
       $display("[Poll] Cleared poll for halt:%h resume:%h abstract:%h", halt_req, resume_req,
@@ -785,6 +867,101 @@ module dmi_driver (
               end
               dmi_command_in_step_quit_queue_size--;
               single_step_quit_command_queue.push_back(command);
+            end
+          end
+        end
+      end
+
+//sdtrig_multitrigger = 4
+      if(multitriggers_plusarg > 0) begin
+        trigger_counter = multitriggers_plusarg;
+        $display("Executing from sdtrig queues");
+        $display("trigger_counter= %h", trigger_counter);
+        for(int trigger_count=0; trigger_count<multitriggers_plusarg; trigger_count++)begin
+          command_in_sdtrig_entry_queue_size = sdtrig_debug_mode_entry_queue.size();
+          while(command_in_sdtrig_entry_queue_size > 0) begin
+            if(command_in_sdtrig_entry_queue_size==2) begin
+              for(int tselect=0; tselect<multitriggers_plusarg; tselect++)begin
+                command_in_sdtrig_trigger_queue_size = sdtrig_trigger_command_queue.size();
+                while(command_in_sdtrig_trigger_queue_size > 0) begin
+                  command = sdtrig_trigger_command_queue.pop_front();
+                  $display("Executing from sdtrig_trigger_command_queue");
+                  $display("[DMI Execution] Popped Cmd ==> addr:%h op:%h data:%h", command.addr, command.op,
+                 command.data);
+                  drive_dmi_cmd(command);
+                  is_poll_needed(command);
+                  if (poll) begin
+                    do_polling();
+                  end
+                  if(command_in_sdtrig_trigger_queue_size==total_command_in_sdtrig_trigger_queue_size) begin
+                    if(tselect == 0 )begin
+                      //modify tselect
+                      command.data = 1;
+                    end else if (tselect == 1) begin
+                      command.data = 4;
+                    end else if (tselect == 2) begin
+                      command.data = 5;
+                    end
+                  end
+                  command_in_sdtrig_trigger_queue_size--;
+                  sdtrig_trigger_command_queue.push_back(command);
+                end
+                if(trigger_hit[tselect]) begin
+                  command_in_trigger_disable_queue_size = sdtrig_trigger_disable_command_queue.size();
+                  while(command_in_trigger_disable_queue_size>0)begin
+                    command = sdtrig_trigger_disable_command_queue.pop_front();
+                    $display("Executing from sdtrig_trigger_disable_command_queue");
+                    $display("[DMI Execution] Popped Cmd ==> addr:%h op:%h data:%h", command.addr, command.op,
+                      command.data);
+                    drive_dmi_cmd(command);
+                    is_poll_needed(command);
+                    if (poll) begin
+                      do_polling();
+                    end
+                    command_in_trigger_disable_queue_size--;
+                    sdtrig_trigger_disable_command_queue.push_back(command);
+                  end
+                  trigger_counter--;
+                end
+              end
+              command = sdtrig_debug_mode_entry_queue.pop_front();
+              $display("Executing from sdtrig_debug_mode_entry_queue");
+              $display("[DMI Execution] Popped Cmd ==> addr:%h op:%h data:%h", command.addr, command.op,
+                 command.data);
+              drive_dmi_cmd(command);
+              is_poll_needed(command);
+              if (poll) begin
+                do_polling();
+              end
+              command_in_sdtrig_entry_queue_size--;
+              sdtrig_debug_mode_entry_queue.push_back(command);
+            end else if(command_in_sdtrig_entry_queue_size==1) begin
+              if(trigger_counter==0) begin
+                command = sdtrig_debug_mode_entry_queue.pop_front();
+                $display("Executing from sdtrig_debug_mode_entry_queue");
+                $display("[DMI Execution] Popped Cmd ==> addr:%h op:%h data:%h", command.addr, command.op,
+                 command.data);
+                if (command.op == 'h3) begin
+                  $display("[DMI Execution] Encountered Debug Checkopoint, Switching Control to Assembly");
+                  break;
+                end
+              end
+              command_in_sdtrig_entry_queue_size--;
+              sdtrig_debug_mode_entry_queue.push_back(command);
+            end else begin
+              command = sdtrig_debug_mode_entry_queue.pop_front();
+              $display("Executing from sdtrig_debug_mode_entry_queue");
+              $display("[DMI Execution] Popped Cmd ==> addr:%h op:%h data:%h", command.addr, command.op,
+                 command.data);
+              drive_dmi_cmd(command);
+              is_poll_needed(command);
+              if (poll) begin
+                do_polling();
+                $display("polling in progress");
+              end
+              $display("Decrementing sdtrig_debug_mode_entry_queue");
+              command_in_sdtrig_entry_queue_size--;
+              sdtrig_debug_mode_entry_queue.push_back(command);
             end
           end
         end
