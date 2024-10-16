@@ -1160,6 +1160,8 @@ void bridge::post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whis
   }
 
   num_exceptions_++;
+  if (w_.ecause == 3 && w_.disasm.find("ebreak") == std::sting::npos)
+    num_trig_breakpoint_++;
 
   // If DUT indicates retire on ucode trap handler, extra step not needed
   if (FLAGS_retire_ucode_trap) {
@@ -2725,6 +2727,7 @@ void bridge::report_metrics() {
     print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_clks_per_sec\": {}}}\n", id_, cpu_cycles*1000/test_time);
   }
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_exceptions\": {}}}\n", id_, num_exceptions_);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_trigger_breakpoint\": {}}}\n", id_, num_trig_breakpoint_);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_ipc\": {:.2f}}}\n", id_, ipc);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_instr\": \"{}\"}}\n", id_, instr);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_mode\": {}}}\n", id_, mode);
