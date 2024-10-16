@@ -101,6 +101,7 @@ cvm::messenger::task<void> external_interrupt_sequence::patch_trigger_mode() {
        }
       
        if(!abrupt_exit){
+         cvm::log(cvm::LOW,"[ExtInterruptSeq] driving external interrupt due to patch_trigger");
          drive_interrupt();
          interrupts_driven++;
        }
@@ -111,6 +112,7 @@ cvm::messenger::task<void> external_interrupt_sequence::patch_trigger_mode() {
 cvm::messenger::task<void> external_interrupt_sequence::uarch_trigger_mode() {
   while(1){
     co_await trigger();
+    cvm::log(cvm::LOW,"[ExtInterruptSeq] driving external interrupt due to uarch_trigger");
     drive_interrupt();
   }
 }

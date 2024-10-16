@@ -97,6 +97,7 @@ cvm::messenger::task<void> nmi_sequence::patch_trigger_mode() {
      for(int i=0;i<num_ticks;i++)
        co_await tick();
 
+     cvm::log(cvm::HIGH, "[interrupts][h{}] Starting event triggered nmi sequence\n", id_);
      nmi(id_, ASSERT);
 
      // Wait for next tick generated after a random width "nmi_width"
