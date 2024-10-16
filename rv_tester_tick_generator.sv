@@ -40,7 +40,7 @@ module rv_tester_tick_generator
     end else if (reset_d1 & ~reset) begin
       // On reset release, initialize random values
       /* verilator lint_off BLKSEQ */
-      en = cvm_plusargs::get_bool(EN);
+      en = cvm_plusargs::get_bool(EN) != 0;
       if (en) begin
         count = cvm_rand::get(COUNT);
         interval = cvm_rand::get(INTERVAL);
