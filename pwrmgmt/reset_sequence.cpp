@@ -569,7 +569,6 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
   co_await write(cpl_patch_ram_ptrig_2, SZ_8B, concatenate_uint32_to_uint64(patch_trig_2) );
   co_await write(cpl_patch_ram_ptrig_3, SZ_8B, concatenate_uint32_to_uint64(patch_trig_3) );
 
-  uint64_t pcontrol_data = 0;
 
   for (int i = 0; i < (int)patch_instr.size(); ++i) { 
     std::string patchTag = patch_instr[i];
@@ -579,8 +578,8 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
     co_await write(cpl_patch_ram_pbody_0+(i*0x400), SZ_8B, concatenate_uint32_to_uint64(ucode_body) );
     if (FLAGS_patch_ram_check) populate_patch_ram(cpl_patch_ram_pbody_0+(i*0x400), concatenate_uint32_to_uint64(ucode_body));
     pcontrol_data =  pcontrol_data | (((uint64_t)patches[patchTag].enableMask | 1) << i*16); // enable patch 
-    pcontrol_mask =  pcontrol_mask | 0xFFFF<<(i*16);
-    cvm::log(cvm::MEDIUM, "[pwrmgmt] pcontrol_data : 0x{:x}\n", pcontrol_data);
+    pcontrol_enable_mask =  pcontrol_enable_mask | 0x1<<(i*16);
+    cvm::log(cvm::MEDIUM, "[pwrmgmt] pcontrol_data : 0x{:x}, pcontrol_enable_mask : 0x{:x}\n", pcontrol_data, pcontrol_enable_mask);
     if (i == 3) break;
   }
   if (FLAGS_patch_ram_check) {
