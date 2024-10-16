@@ -9,7 +9,6 @@ DEFINE_string(nmi_start_interval, "1000:4000", "TB cycle interval between reset 
 DEFINE_string(nmi_interval, "1000:4000", "TB cycle interval between nmi sequences in the sim if random mode enabled");
 DEFINE_string(nmi_width, "200:500", "TB cycle width of nmi pulses in the sim if random mode enabled");
 DEFINE_int32(patch_mode_nmi_interval,10,"Number of Maximum cycles between two nmi while entering patch mode");
-DEFINE_bool(nmi_uarch_event, false, "Flag used for generation of NMI of uarch events");
 
 extern "C" {
   void interrupts_init();
