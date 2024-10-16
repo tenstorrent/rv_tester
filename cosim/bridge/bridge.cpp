@@ -1160,7 +1160,7 @@ void bridge::post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whis
   }
 
   num_exceptions_++;
-  if (w_.ecause == 3 && w_.disasm.find("ebreak") == std::sting::npos)
+  if (w_.ecause == 3 && w_.disasm.find("ebreak") == std::string::npos)
     num_trig_breakpoint_++;
 
   // If DUT indicates retire on ucode trap handler, extra step not needed
