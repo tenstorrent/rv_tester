@@ -4,28 +4,33 @@
 
 REGISTRY_register(smc_axi_sequence, PWRMGMT, cvm::registry::all);
 
-DEFINE_bool(rand_smc_axi, false, "Enable random smc axi accesses in the sim");
+DEFINE_bool(smc_axi_rand_en, false, "Enable random smc axi accesses in the sim");
 DEFINE_string(smc_axi_count, "5:5", "Specifies the number of sets of SMC AXI accesses in the simulation.");
 DEFINE_string(smc_axi_interval, "100:100", "Specifies the SOC cycle interval between each set of SMC AXI transactions in the simulation.");
 DEFINE_string(smc_axi_width, "2:2", "Specifies the number of SMC AXI transactions per set in the simulation.");
 
+extern "C" {
+  void smc_axi_blocking_sequence_tick(uint8_t val);
+}
+
 smc_axi_sequence::smc_axi_sequence
   (cvm::topology::loc_t loc, unsigned) : 
-  loc_(loc), smc_axi_read_count_(0), smc_axi_write_count_(0) {
+  loc_(loc), scope_(nullptr), smc_axi_read_count_(0), smc_axi_write_count_(0) {
 
   // Topology
   smc_axi_loc_ = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_SMC_MST", 0);
 
-  if (!FLAGS_rand_smc_axi)
-    return;
+  // Scope
+  cvm::registry::messenger.connect<svScope>(loc_, [this](svScope s) { return this->set_scope(s); });
 
   // smc axi sequence thread
-  main_thread();
+  if (FLAGS_smc_axi_rand_en)
+    main_thread();
 }
 
 smc_axi_sequence::~smc_axi_sequence() {
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"rand_smc_axi_read_count\": \"{}\"}}\n", smc_axi_read_count_);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"rand_smc_axi_write_count\": \"{}\"}}\n", smc_axi_write_count_);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"smc_axi_read_count\": \"{}\"}}\n", smc_axi_read_count_);
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"smc_axi_write_count\": \"{}\"}}\n", smc_axi_write_count_);
 }
 
 void smc_axi_sequence::main_thread() {
@@ -37,32 +42,22 @@ void smc_axi_sequence::main_thread() {
 };
 
 cvm::messenger::task<void> smc_axi_sequence::main() {
-  uint32_t rand_indx = 0;
-  std::pair<uint32_t, uint64_t> sram_transaction_info;
-  size_t smc_axi_trns_width = 2;
-
   while (true) {
     co_await tick();
 
-    for (size_t trns_indx = 0; trns_indx < smc_axi_trns_width; trns_indx++)
-    {
-      cvm::rand::uniform_dist<int> smc_trns_path_dist(0, 1);
-      switch (smc_trns_path_dist()) {
-        case 0:
-          // SMC --> MMR/PMNW path
-          rand_indx = co_await scratchpad_write();
-          co_await smc_trns_read_check(MMR_PMNW, smc_scratchpad_info[rand_indx].addr, smc_scratchpad_info[rand_indx].data, smc_scratchpad_info[rand_indx].sz);
-          break;
-        case 1: 
-          // SMC --> CSR path
-          rand_indx = co_await csr_write();
-          co_await smc_trns_read_check(CORE_CSR, smc_csr_info[rand_indx].addr, smc_csr_info[rand_indx].data, smc_csr_info[rand_indx].sz);
-          break;
-      }
-
-      // SMC --> CPL SRAM path
-      sram_transaction_info = co_await cpl_sram_write();
-      co_await smc_trns_read_check(CPL_SRAM, sram_transaction_info.first, sram_transaction_info.second, SZ_8B);
+    cvm::rand::uniform_dist<int> smc_trns_path_dist(0, 1);
+    switch (smc_trns_path_dist()) {
+      case 0:
+        // SMC --> MMR/PMNW path
+        co_await scratchpad_write();
+        break;
+      case 1:
+        // SMC --> CSR path
+        blocking_seq_tick(1);
+        co_await csr_write();
+        blocking_seq_tick(0);
+        co_await tick(); // Extra tick to account for delay in reflecting clearing of blocking tick
+        break;
     }
   }
 
@@ -82,7 +77,7 @@ cvm::messenger::task<uint32_t> smc_axi_sequence::scratchpad_write() {
   size_t sz = smc_scratchpad_info[rand_indx].sz;
 
   cvm::log(cvm::MEDIUM, "[smc-axi] Scratchpad-MMR write req - addr={:#x}, data={:#x} \n", addr, data);
-  co_await write(addr, sz, data);
+  co_await write(addr, sz, data, NO_BLOCK);
   
   cvm::log(cvm::MEDIUM, "[smc-axi] Scratchpad-MMR write done - addr={:#x}, data={:#x} \n", addr, data);
   co_return rand_indx;
@@ -238,3 +233,14 @@ std::vector<uint8_t> smc_axi_sequence::convert_to_byte_array(const std::vector<u
 //   co_await smc_read_access_check(ac_scratchpad, ac_scratchpad_rst,SZ_8B);
 //   co_return;
 // };
+
+
+void smc_axi_sequence::blocking_seq_tick(uint8_t val) {
+  cvm::registry::callbacks.push(
+    scope_,
+    [val]() {
+      cvm::log(cvm::MEDIUM, "[smc] {} blocking seq \n", val ? "start" : "end");
+      smc_axi_blocking_sequence_tick(val);
+    });
+}
+

@@ -18,6 +18,7 @@ class smc_axi_sequence {
 
   private:
 
+    void set_scope(svScope s) { scope_ = s; }
     void main_thread();
 
     cvm::messenger::task<void> main();
@@ -40,9 +41,12 @@ class smc_axi_sequence {
     std::vector<uint64_t> convert_to_dword_array(const std::vector<uint8_t>& byte_array);
     std::vector<uint8_t> convert_to_byte_array(const std::vector<uint64_t>& dword_array);
 
+    void blocking_seq_tick(uint8_t val);
+
   private:
 
     cvm::topology::loc_t loc_, smc_axi_loc_;
+    svScope scope_;
 
     int smc_axi_read_count_;
     int smc_axi_write_count_;
