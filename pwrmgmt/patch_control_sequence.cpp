@@ -46,13 +46,12 @@ cvm::messenger::task<void> patch_control_sequence::main() {
 
 cvm::messenger::task<void> patch_control_sequence::pcontrol_write() {
   uint64_t pcontrol_data;
-  uint64_t enable_mask = 0x0001000100010001;
+  uint64_t enable_mask = 0x0001000100010001 & pcontrol_mask;
 
-  pcontrol_data = co_await read(core_pcontrol_mmr, SZ_8B, NO_BLOCK);
-  pcontrol_data = ~(pcontrol_data & enable_mask) | (pcontrol_data & ~enable_mask) & pcontrol_mask;
+  pcontrol_data = co_await read(core_pcontrol_mmr, SZ_8B, BLOCK);
   for (uint32_t i=0; i< FLAGS_num_harts; i++) {
     uint32_t offset = i * core_fuse_offset;
-    co_await write(core_pcontrol_mmr + offset, SZ_8B, pcontrol_data , NO_BLOCK);
+    co_await write(core_pcontrol_mmr + offset, SZ_8B, (pcontrol_data ^ enable_mask) , NO_BLOCK);
   };
   co_return;
 }

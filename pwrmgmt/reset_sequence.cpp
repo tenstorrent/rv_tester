@@ -6,6 +6,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <format>
 
 REGISTRY_register(reset_sequence, PWRMGMT, cvm::registry::all);
 
@@ -277,8 +278,10 @@ cvm::messenger::task<void> reset_sequence::clear_pll_status() {
 }
 
 cvm::messenger::task<void> reset_sequence::pll_dfs_sequence() {
-  if (FLAGS_clk_profile !=0)
-    FLAGS_pll_dfs_freq = cvm::topology::list_attr(loc, "PROFILE{}_CLOCK_FREQ_MHZ",FLAGS_clk_profile).second[1];
+  if (FLAGS_clk_profile !=0) {
+    auto loc = cvm::topology::get_from_type("CLKI", 0);
+    FLAGS_pll_dfs_freq = cvm::topology::list_attr(loc, std::format("PROFILE{}_CLOCK_FREQ_MHZ",FLAGS_clk_profile)).second[1];
+  }
   cvm::log(cvm::MEDIUM, "[pwrmgmt] Core frequency is being changed to {} based on clk_profile {}\n", FLAGS_pll_dfs_freq, FLAGS_clk_profile);
   
   uint32_t freq_ratio = 2400 / FLAGS_pll_dfs_freq;
