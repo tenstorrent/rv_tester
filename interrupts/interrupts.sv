@@ -32,7 +32,7 @@ import rv_tester_params::*;
         interrupts_set_scope(location);
         nmi_mode = cvm_plusargs::get_string("nmi");
         nmi_en = interrupts_get_nmi_en(nmi_mode);
-        nmi_count = cvm_rand::get("random_nmi_count");
+        nmi_count = cvm_rand::get("nmi_count");
         /* verilator lint_off WIDTHEXPAND */
         nmi_interval = cvm_rand::get("nmi_start_interval");
         nmi_width = cvm_rand::get("nmi_width");
