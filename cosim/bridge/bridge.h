@@ -165,6 +165,7 @@ private:
 
   bool is_custom_excp(uint64_t cause);
   bool is_vector(const std::string& instr);
+  bool is_indirect_reg(const std::string& instr);
   bool disable_pa_check_vec(hart_id_t hart);
   bool is_compressed(const std::string& instr);
   bool is_ucode(const std::string& instr);
