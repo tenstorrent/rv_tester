@@ -309,6 +309,7 @@ private:
   std::array<std::array<int, 16>, 12> num_taken_interrupts_{};
 
   int num_exceptions_ = 0;
+  int num_trig_breakpoint_ = 0;
   int num_sp_accesses_ = 0;
 
   size_8_bytes_t dword_vec_array [vlen/64] = {0};

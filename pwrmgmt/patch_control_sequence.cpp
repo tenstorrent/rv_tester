@@ -4,7 +4,7 @@
 
 REGISTRY_register(patch_control_sequence, PWRMGMT, cvm::registry::all);
 
-DEFINE_bool(rand_pcontrol, false, "Enable random smc axi accesses in the sim");
+DEFINE_bool(pcontrol_rand_en, false, "Enable random smc axi accesses in the sim");
 DEFINE_string(pcontrol_count, "5:5", "Number of smc axi sequences in the sim");
 DEFINE_string(pcontrol_interval, "10000:10000", "soc cycle interval between smc axi sequences in the sim");
 DEFINE_string(pcontrol_width, "1:1", "soc cycle width of smc axi sequences in the sim");
@@ -16,11 +16,9 @@ patch_control_sequence::patch_control_sequence
   // Topology
   smc_axi_loc_ = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_SMC_MST", 0);
 
-  if (!FLAGS_rand_pcontrol)
-    return;
-
   // main sequence thread
-  main_thread();
+  if (FLAGS_pcontrol_rand_en)
+    main_thread();
 }
 
 patch_control_sequence::~patch_control_sequence() {

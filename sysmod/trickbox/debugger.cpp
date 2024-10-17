@@ -132,6 +132,34 @@ void debugger::parse_dmi_from_csv()
         // checkpoint
         dmi_req.op = 3;
       }
+      else if (instr_2char == "sd")
+      {
+        // checkpoint
+        if (instr == "sdtrig_halt_queue_on")
+        {
+          sdtrig_halt_queue_on = 1;
+        }
+        if (instr == "sdtrig_halt_queue_off")
+        {
+          sdtrig_halt_queue_on = 0;
+        }
+        if (instr == "sdtrig_cause_queue_on")
+        {
+          sdtrig_cause_queue_on = 1;
+        }
+        if (instr == "sdtrig_cause_queue_off")
+        {
+          sdtrig_cause_queue_on = 0;
+        }
+        if (instr == "sdtrig_disable_queue_on")
+        {
+          sdtrig_disable_queue_on = 1;
+        }
+        if (instr == "sdtrig_disable_queue_off")
+        {
+          sdtrig_disable_queue_on = 0;
+        }
+      }
       else if (instr_2char == "st")
       {
         // step ahead/back q
@@ -176,6 +204,18 @@ void debugger::parse_dmi_from_csv()
       if (step_quit_queue_on)
       {
         dmi_req.func_bits = 4;
+      }
+      if (sdtrig_halt_queue_on)
+      {
+        dmi_req.func_bits = 3;
+      }
+      if (sdtrig_cause_queue_on)
+      {
+        dmi_req.func_bits = 5;
+      }
+      if (sdtrig_disable_queue_on)
+      {
+        dmi_req.func_bits = 7;
       }
 
       if ((dmi_req.op != 3)&&(dmi_req.op != 0))

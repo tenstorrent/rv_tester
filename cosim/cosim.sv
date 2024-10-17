@@ -222,12 +222,14 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
     endfunction
 
     import "DPI-C" context function void cosim_set_scope(int unsigned location);
+    import "DPI-C" context function int is_eot_tohost();
 
 
     bit PSC_enabled;
     typedef longint unsigned LU;
     parameter int unsigned location = cvm_topology_gen::get_location (topology.TOP.PLATFORM.COSIM.ID, NUM);
-    bit rvfi_enabled;
+    bit rvfi_enabled, mcm_enabled;
+    int to_host;
     int unsigned cosim_period=0;
     int unsigned PSC_period=0;
     bit [31:0]  mcmi_poke_enable=0;
@@ -646,6 +648,8 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
         if (reset) begin
             /* verilator lint_off BLKSEQ */
             rvfi_enabled = (cvm_plusargs::get_bool("rvfi") != '0) & (location != cvm_topology::nil);
+            mcm_enabled = (cvm_plusargs::get_bool("mcm") != '0);
+            to_host = is_eot_tohost();
             if (rvfi_enabled) begin
               $display("[cosim]: reset");
               cosim_set_scope(location);
@@ -977,7 +981,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
 
     // m_mcmi_read
     for (genvar n = 0; n < NREAD; n++) begin
-        assign m_mcmi_reads[n].valid = MCMI_EN & rvfi_enabled & ~dut_reset & mcmi_read[n].valid;
+        assign m_mcmi_reads[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_reset & mcmi_read[n].valid;
         assign m_mcmi_reads[n].data.location = location;
         /* verilator lint_off WIDTH */
         assign m_mcmi_reads[n].data.cycle = mcmi_read[n].valid ? clocks : '0;
@@ -992,6 +996,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
         assign m_mcmi_reads[n].data.amo = mcmi_read[n].amo;
         assign m_mcmi_reads[n].data.amo_op = mcmi_read[n].amo_op;
         assign m_mcmi_reads[n].data.v_ext = mcmi_read[n].v_ext;
+        assign m_mcmi_reads[n].data.field = mcmi_read[n].field;
         assign m_mcmi_reads[n].data.nano_op_elem_idx = mcmi_read[n].nano_op_elem_idx;
         assign mcmi_read_pokes[n] = mcmi_read[n].valid;
     end
@@ -999,7 +1004,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
 
     // m_mcmi_insert
     for (genvar n = 0; n < NINSERT; n++) begin
-        assign m_mcmi_inserts[n].valid = MCMI_EN & rvfi_enabled & ~dut_reset & mcmi_insert[n].valid;
+        assign m_mcmi_inserts[n].valid = MCMI_EN & (mcm_enabled || (to_host == 'b1)) & rvfi_enabled & ~dut_reset & mcmi_insert[n].valid;
         assign m_mcmi_inserts[n].data.location = location;
         assign m_mcmi_inserts[n].data.cycle = mcmi_insert[n].valid ? clocks : '0;
         assign m_mcmi_inserts[n].data.hart = NUM;
@@ -1017,7 +1022,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
 
     // m_mcmi_write
     for (genvar n = 0; n < NWRITE; n++) begin
-        assign m_mcmi_writes[n].valid = MCMI_EN & rvfi_enabled & ~dut_reset & mcmi_write[n].valid;
+        assign m_mcmi_writes[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_reset & mcmi_write[n].valid;
         assign m_mcmi_writes[n].data.location = location;
         assign m_mcmi_writes[n].data.cycle = mcmi_write[n].valid ? clocks : '0;
         assign m_mcmi_writes[n].data.hart = NUM;
@@ -1038,7 +1043,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
 
     // m_mcmi_bypass
     for (genvar n = 0; n < NBYPASS; n++) begin
-        assign m_mcmi_bypasss[n].valid = MCMI_EN & rvfi_enabled & ~dut_reset & mcmi_bypass[n].valid;
+        assign m_mcmi_bypasss[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_reset & mcmi_bypass[n].valid;
         assign m_mcmi_bypasss[n].data.location = location;
         assign m_mcmi_bypasss[n].data.cycle = mcmi_bypass[n].valid ? clocks : '0;
         assign m_mcmi_bypasss[n].data.hart = NUM;
@@ -1064,7 +1069,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
 
     // m_mcmi_ifetch
     for (genvar n = 0; n < NIFETCH; n++) begin
-        assign m_mcmi_ifetch_reqs[n].valid = MCMI_EN & rvfi_enabled & ~dut_reset & mcmi_ifetch_req[n].valid;
+        assign m_mcmi_ifetch_reqs[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_reset & mcmi_ifetch_req[n].valid;
         assign m_mcmi_ifetch_reqs[n].data.location = location;
         assign m_mcmi_ifetch_reqs[n].data.cycle = mcmi_ifetch_req[n].valid ? clocks : '0;
         assign m_mcmi_ifetch_reqs[n].data.hart = NUM;
@@ -1073,7 +1078,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
     end
 
     for (genvar n = 0; n < NIFETCH; n++) begin
-        assign m_mcmi_ifetch_resps[n].valid = MCMI_EN & rvfi_enabled & ~dut_reset & mcmi_ifetch_resp[n].valid;
+        assign m_mcmi_ifetch_resps[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_reset & mcmi_ifetch_resp[n].valid;
         assign m_mcmi_ifetch_resps[n].data.location = location;
         assign m_mcmi_ifetch_resps[n].data.cycle = mcmi_ifetch_resp[n].valid ? clocks : '0;
         assign m_mcmi_ifetch_resps[n].data.hart = NUM;
@@ -1082,7 +1087,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
 
     // m_mcmi_ievict
     for (genvar n = 0; n < NIEVICT; n++) begin
-        assign m_mcmi_ievicts[n].valid = MCMI_EN & rvfi_enabled & ~dut_reset & mcmi_ievict[n].valid;
+        assign m_mcmi_ievicts[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_reset & mcmi_ievict[n].valid;
         assign m_mcmi_ievicts[n].data.location = location;
         assign m_mcmi_ievicts[n].data.cycle = mcmi_ievict[n].valid ? clocks : '0;
         assign m_mcmi_ievicts[n].data.hart = NUM;
