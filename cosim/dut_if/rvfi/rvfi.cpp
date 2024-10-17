@@ -1184,3 +1184,11 @@ extern "C" {
     cvm::registry::messenger.signal<svScope>(loc, scope);
   }
 }
+
+extern "C" {
+  int is_eot_tohost() {
+    if (FLAGS_eot == "tohost")
+      return 1;
+    return 0;
+  }
+}

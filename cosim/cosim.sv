@@ -222,12 +222,14 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
     endfunction
 
     import "DPI-C" context function void cosim_set_scope(int unsigned location);
+    import "DPI-C" context function int is_eot_tohost();
 
 
     bit PSC_enabled;
     typedef longint unsigned LU;
     parameter int unsigned location = cvm_topology_gen::get_location (topology.TOP.PLATFORM.COSIM.ID, NUM);
     bit rvfi_enabled, mcm_enabled;
+    int to_host;
     int unsigned cosim_period=0;
     int unsigned PSC_period=0;
     bit [31:0]  mcmi_poke_enable=0;
@@ -647,6 +649,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
             /* verilator lint_off BLKSEQ */
             rvfi_enabled = (cvm_plusargs::get_bool("rvfi") != '0) & (location != cvm_topology::nil);
             mcm_enabled = (cvm_plusargs::get_bool("mcm") != '0);
+            to_host = is_eot_tohost();
             if (rvfi_enabled) begin
               $display("[cosim]: reset");
               cosim_set_scope(location);
@@ -1001,7 +1004,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
 
     // m_mcmi_insert
     for (genvar n = 0; n < NINSERT; n++) begin
-        assign m_mcmi_inserts[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_reset & mcmi_insert[n].valid;
+        assign m_mcmi_inserts[n].valid = MCMI_EN & (mcm_enabled || (to_host == 'b1)) & rvfi_enabled & ~dut_reset & mcmi_insert[n].valid;
         assign m_mcmi_inserts[n].data.location = location;
         assign m_mcmi_inserts[n].data.cycle = mcmi_insert[n].valid ? clocks : '0;
         assign m_mcmi_inserts[n].data.hart = NUM;
