@@ -1146,7 +1146,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
         /* verilator lint_on BLKSEQ */
         boot_wfi <= '0;
         cosim_terminate_sent <= '0;
-      end else if(!dut_reset) begin
+      end else if(!reset) begin
         if (NUM != 0 && rvfi[0].valid == '1 && rvfi[0].insn[6:0] == 7'h73 && rvfi[0].pc_rdata < 'h20000) begin // WFI
           boot_wfi <= '1;
         end
