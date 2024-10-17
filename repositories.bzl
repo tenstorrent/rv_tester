@@ -23,11 +23,11 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv/dv/corearchcoverage.git",
     )
 
-    cvm_hash="bae84efa3d5248c1a5765c87b7520a200015f9db"
+    cvm_hash="3b6b652505d35b42ac8fe0dba331fd0910c768f8"
     maybe(
         http_archive,
         name = "cvm",
-        sha256 = "153d80c77e09de39ed91f3d60fa257df24497d008f6c63c3378091f95179ddbe",
+        sha256 = "98b097f60979303e9eac51a49c913cfc41515285e447ef52044000d6fd22d4bd",
         strip_prefix = "cvm-{commit}".format(commit=cvm_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/{commit}/cvm-{commit}.tar.bz2".format(commit=cvm_hash),
     )
@@ -40,7 +40,7 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-nlohmann-json.git",
     )
 
-    whisper_hash="638b0826c0d9aa43b5d10b99e5c22a327c9dc8c2"
+    whisper_hash="440e8919d4de510f44e3b4012e43ba9cede72898"
     maybe(
         git_repository,
         name = "whisper",
@@ -84,11 +84,19 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-wall_clock_profiler.git",
     )
 
-    checkin_script_hash="46b6f57e3c49fb612b53feabf283738b7c87fbf9"
+    checkin_script_hash="13533ac8ec39a13ae88595a6a3de4d1bea17b254"
     maybe(
         git_repository,
         name = "checkin-script",
         commit = checkin_script_hash,
         shallow_since = "1669784673 -0600",
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/checkin-script.git",
+    )
+
+    aegissocspec_hash="d116a4c3544f1190bed271da71ec3883b95f84bd"
+    git_repository(
+        name = "aegissocspec",
+        commit = aegissocspec_hash,
+        recursive_init_submodules = True,
+        remote = "git@aus-gitlab.local.tenstorrent.com:specifications/arch-export-controlled/aegissocspec.git",
     )

@@ -31,6 +31,7 @@ class reset_sequence {
     cvm::messenger::task<void> warm_reset_sequence();
 
     cvm::messenger::task<void> cold_reset_ack();
+    cvm::messenger::task<void> force_ref_clk_ack();
     cvm::messenger::task<void> tick();
     cvm::messenger::task<void> trigger();
     cvm::messenger::task<void> cpl_reset_sequence(rst_t );
@@ -51,10 +52,6 @@ class reset_sequence {
     cvm::messenger::task<void> temp_throttle_disable();
 
     cvm::messenger::task<void> init_smc_filters();
-    cvm::messenger::task<void> smc_scratchpad_default_access();
-    cvm::messenger::task<void> smc_axi_random_access();
-    cvm::messenger::task<void> delay_counters();
-    cvm::messenger::task<void> smc_read_access_check(uint32_t addr, uint64_t exp_data, uint64_t actual_data);
 
     cvm::messenger::task<uint64_t> read(uint64_t addr, size_t sz);
     cvm::messenger::task<void> write(uint64_t addr, size_t sz, uint64_t data);

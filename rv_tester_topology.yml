@@ -103,6 +103,16 @@ rv_tester: &rv_tester
       type:
         - interrupts
 
+    jtag_driver:
+      count: 1
+      type:
+        - jtag_driver
+
+    snoop_gen:
+      count: 1
+      type:
+        - snoop_gen
+
     trace:
       count: 1
       type:

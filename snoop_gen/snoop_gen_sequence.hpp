@@ -1,0 +1,57 @@
+#pragma once
+#include <iostream>
+#include <unistd.h>
+#include <sstream>
+#include "cvm/registry.hpp"
+#include "cvm/logger.hpp"
+#include "cvm/plusargs.hpp"
+#include "cvm/random.hpp"
+#include "rv_tester_transactions.hpp"
+#include "snoop_gen.hpp"
+#include "transactor.h"
+#include "svdpi.h"
+#include "sysmod/device.h"
+#include "transactor.h"
+#include "transactors/axi_sw/axi.h"
+
+class snoop_gen_sequence {
+
+  public:
+
+    snoop_gen_sequence(cvm::topology::loc_t loc, unsigned id);
+    ~snoop_gen_sequence();
+
+    void set_scope(svScope s) { scope_ = s; }
+
+  private:
+
+    void rand_mode_thread();
+
+    cvm::messenger::task<void> rand_mode();
+
+    cvm::messenger::task<void> tick();
+    cvm::messenger::task<void> trigger();
+
+    void init();
+    void push_snoop_info(uint64_t push_addr);
+    void overlay_read(uint64_t addr);
+    cvm::messenger::task<void> blocking_read(const transactor::read_t& r);
+  
+  private:
+
+    cvm::topology::loc_t loc_;
+    cvm::topology::loc_t axi_mst_loc_l;
+    cvm::topology::loc_t snoop_gen_loc;
+    unsigned id_;
+    svScope scope_;
+
+   
+   
+    cvm::rand::uniform_dist<uint32_t> rng1;
+    uint32_t max_snoop_count;
+
+    std::vector<uint64_t> snoop_addrs; 
+    bool read_in_flight = false; 
+    uint32_t snoops_driven = 0;
+    uint8_t axi_id = 30;
+};

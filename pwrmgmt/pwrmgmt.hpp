@@ -60,18 +60,19 @@ namespace {
   constexpr uint32_t core_crCsrDataPort         = 0x4200'4000;
 
 
-  constexpr uint32_t smc_local_base             = 0x0210'0000;
-  constexpr uint32_t cpl_sram_base              = smc_local_base +0x40000;
-  constexpr uint32_t cpl_patch_ram_base         = cpl_sram_base +0x0c000;
-  constexpr uint32_t cpl_patch_ram_ptrig_0     =  cpl_patch_ram_base + 0x0400;
-  constexpr uint32_t cpl_patch_ram_ptrig_1     =  cpl_patch_ram_base + 0x0440;
-  constexpr uint32_t cpl_patch_ram_ptrig_2     =  cpl_patch_ram_base + 0x0480;
-  constexpr uint32_t cpl_patch_ram_ptrig_3     =  cpl_patch_ram_base + 0x04c0;
-  constexpr uint32_t cpl_patch_ram_pbody_0     =  cpl_patch_ram_base + 0x0500;
-  constexpr uint32_t cpl_patch_ram_pbody_1     =  cpl_patch_ram_base + 0x0900;
-  constexpr uint32_t cpl_patch_ram_pbody_2     =  cpl_patch_ram_base + 0x0d00;
-  constexpr uint32_t cpl_patch_ram_pbody_3     =  cpl_patch_ram_base + 0x1100;
-  constexpr uint32_t cpl_patch_ram_pdata       =  cpl_patch_ram_base + 0x1500;
+  constexpr uint32_t smc_local_base             =  0x0210'0000;
+  constexpr uint32_t cpl_sram_base              =  smc_local_base + 0x40000;
+  constexpr uint32_t cpl_sram_limit             =  smc_local_base + 0x4BFFF;
+  constexpr uint32_t cpl_patch_ram_base         =  cpl_sram_base + 0x0c000;
+  constexpr uint32_t cpl_patch_ram_ptrig_0      =  cpl_patch_ram_base + 0x0400;
+  constexpr uint32_t cpl_patch_ram_ptrig_1      =  cpl_patch_ram_base + 0x0440;
+  constexpr uint32_t cpl_patch_ram_ptrig_2      =  cpl_patch_ram_base + 0x0480;
+  constexpr uint32_t cpl_patch_ram_ptrig_3      =  cpl_patch_ram_base + 0x04c0;
+  constexpr uint32_t cpl_patch_ram_pbody_0      =  cpl_patch_ram_base + 0x0500;
+  constexpr uint32_t cpl_patch_ram_pbody_1      =  cpl_patch_ram_base + 0x0900;
+  constexpr uint32_t cpl_patch_ram_pbody_2      =  cpl_patch_ram_base + 0x0d00;
+  constexpr uint32_t cpl_patch_ram_pbody_3      =  cpl_patch_ram_base + 0x1100;
+  constexpr uint32_t cpl_patch_ram_pdata        =  cpl_patch_ram_base + 0x1500;
   constexpr uint32_t cpl_in_filter0_addr_l      =  smc_local_base + 0x15008;
   constexpr uint32_t cpl_in_filter0_addr_h      =  smc_local_base + 0x15010;
   constexpr uint32_t cpl_in_filter0_config      =  smc_local_base + 0x15000;
@@ -93,15 +94,22 @@ namespace {
   constexpr uint8_t thub_reg_base           =  0x0;
   constexpr uint8_t thub_threhold_param_reg =  thub_reg_base + 0x50;
 
- 
+
+  typedef enum : bool { COLD = true, WARM = false } rst_t;
+  typedef enum : size_t { SZ_4B = 4, SZ_8B = 8 } sz_t;
+  typedef enum : bool { WR = 1, RD = 0 } access_t;
+  typedef enum : bool { BLOCK = true, NO_BLOCK = false } block_t;
+  typedef enum : int { CPL_SRAM = 0, CORE_CSR = 1, MMR_PMNW = 2 } smc_dest_path_t;
+  typedef struct { uint32_t addr; uint64_t data; sz_t sz; } smc_scratchpad_info_t;
+
   constexpr uint32_t dm_scratchpad      = 0x4219FFE8;
   constexpr uint32_t cr_scratchpad      = 0x42002400;
   constexpr uint32_t sw_scratchpad      = 0x421BFFF0;
   constexpr uint32_t ac_scratchpad      = 0x4218FFF0;
-  constexpr uint32_t rc_scratchpad = 0x210'2010;
-  constexpr uint32_t cc_scratchpad     = 0x210'3024;
-  constexpr uint32_t mb_scratchpad = pm_mbox_base + 0xe8;
-
+  constexpr uint32_t rc_scratchpad      = 0x210'2010;
+  constexpr uint32_t cc_scratchpad      = 0x210'3024;
+  constexpr uint32_t mb_scratchpad      = pm_mbox_base + 0xe8;
+  
   constexpr uint64_t dm_scratchpad_rst  = 0xAFAFAFAFAFAFAFAF;
   constexpr uint64_t cr_scratchpad_rst  = 0xBFBFBFBFBFBFBFBF;
   constexpr uint64_t sw_scratchpad_rst  = 0xCFCFCFCFCFCFCFCF;
@@ -109,21 +117,24 @@ namespace {
   constexpr uint32_t rc_scratchpad_rst  = 0xF4F4F4F4;
   constexpr uint32_t cc_scratchpad_rst  = 0xF5F5F5F5;
   constexpr uint64_t mb_scratchpad_rst  = 0x8F8F8F8F8F8F8F8F;
+  constexpr uint64_t core_pwr_throttle_cfg_0_rst = 0xAFAFAFAFAFAFAFAF;
+  constexpr uint64_t core_pwr_throttle_cfg_1_rst = 0xAFAFAFAFAFAFAFAF;
 
-  typedef enum : bool { COLD = true, WARM = false } rst_t;
-  typedef enum : size_t { SZ_4B = 4, SZ_8B = 8 } sz_t;
-  typedef enum : bool { WR = 1, RD = 0 } access_t;
+  std::vector<smc_scratchpad_info_t> smc_scratchpad_info = {
+    {dm_scratchpad, dm_scratchpad_rst, SZ_8B},
+    {cr_scratchpad, cr_scratchpad_rst, SZ_8B},
+    {sw_scratchpad, sw_scratchpad_rst, SZ_8B},
+    {ac_scratchpad, ac_scratchpad_rst, SZ_8B},
+    {rc_scratchpad, rc_scratchpad_rst, SZ_4B},
+    {cc_scratchpad, cc_scratchpad_rst, SZ_4B},
+    {mb_scratchpad, mb_scratchpad_rst, SZ_8B}
+  };
 
-  std::vector<uint32_t> smc_dest_address = {
-    dm_scratchpad,
-    cr_scratchpad,
-    sw_scratchpad,
-    ac_scratchpad,
-    rc_scratchpad,
-    cc_scratchpad,
-    mb_scratchpad,
-    core_pwr_throttle_cfg_0,
-    core_pwr_throttle_cfg_1,};
+  std::vector<smc_scratchpad_info_t> smc_csr_info = {
+    {core_pwr_throttle_cfg_0, core_pwr_throttle_cfg_0_rst, SZ_8B},
+    {core_pwr_throttle_cfg_1, core_pwr_throttle_cfg_1_rst, SZ_8B}
+  };
+
 
   std::map<uint32_t, uint64_t> fuse_data;
 

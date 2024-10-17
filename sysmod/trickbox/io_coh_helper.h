@@ -105,6 +105,7 @@ protected:
   void drive_burst();
   void overlay_read(uint64_t addr);
   cvm::messenger::task<void> blocking_read(const transactor::read_t& r, data_t& );
+  cvm::messenger::task<void> blocking_write(uint64_t addr) ;
   cvm::messenger::task<void> blocking_burst_thread();
   std::vector<uint8_t> wdata_vec;
   std::vector<uint8_t> wdata_byte_vec;
@@ -114,6 +115,7 @@ protected:
 
 private:
   cvm::topology::loc_t axi_mst_loc_l;
+  cvm::messenger::pool<axi::b_t>::channel_info wresp_channel;
   uint64_t io_coh_helper_base = 0x9000000;
   uint64_t tx_status = 0;
   uint64_t tx_addr = 0x90a0000;
@@ -123,6 +125,8 @@ private:
   uint64_t tx_type = 0;
   uint64_t tx_size = 0;
   uint64_t read_counter = 0;
+  uint64_t num_writes = 0;
+  uint64_t num_reads = 0;
   uint64_t tx_data0 = 0;
   uint8_t  axi_id = 12;
   mem_manager m_;
