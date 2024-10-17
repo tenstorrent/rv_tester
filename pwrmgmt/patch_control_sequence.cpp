@@ -16,11 +16,9 @@ patch_control_sequence::patch_control_sequence
   // Topology
   smc_axi_loc_ = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_SMC_MST", 0);
 
-  if (!FLAGS_rand_pcontrol)
-    return;
-
   // main sequence thread
-  main_thread();
+  if (FLAGS_pcontrol_rand_en)
+    main_thread();
 }
 
 patch_control_sequence::~patch_control_sequence() {
