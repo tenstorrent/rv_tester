@@ -29,6 +29,7 @@ class cla_cfg : public device {
 
     public:
         bool reenable_nmi, reenable_rand_trig;
+        bool nmi_event;
         uint32_t start_clk_halt_cnt=0, start_cla_nmi_cnt, start_rand_nmi_trig_cnt;
         uint32_t eap_ctrl, active_core, mask, addr_offset, cntr_data;
         uint32_t rand_disable_dly, nmi_total_cnt, trig_total_cnt, rand_disable_trig_dly;
