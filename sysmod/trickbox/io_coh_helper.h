@@ -21,6 +21,7 @@
 #include <mem_manager.h>
 #include "transactor.h"
 #include "transactors/axi_sw/axi.h"
+#include "whisper_client.h"
 
 // Define a core local interruptor (io_coh_helper) at the given address
 // and for the given hart count. The size will be 48k bytes.
@@ -87,32 +88,52 @@ public:
     return result;
 }
 
-void gen_data_strb(uint64_t addr, uint32_t value, data_t& wdata, std::vector<bool>& strb);
+void gen_data_strb(uint64_t addr, data_t& wdata, std::vector<bool>& strb);
+
+typedef struct{
+  uint64_t addr;
+  uint8_t size;
+  bool    r0_w1;
+  std::vector<uint8_t> wdata_byte_vec;
+}axi_txns;
+
 protected:
 
   //Check plusarg usage
   void checkUsage();
-  void overlay_write(uint64_t addr,uint64_t data);
+  void overlay_write(uint64_t addr);
+  void drive_burst();
   void overlay_read(uint64_t addr);
   cvm::messenger::task<void> blocking_read(const transactor::read_t& r, data_t& );
+  cvm::messenger::task<void> blocking_write(uint64_t addr) ;
+  cvm::messenger::task<void> blocking_burst_thread();
+  std::vector<uint8_t> wdata_vec;
+  std::vector<uint8_t> wdata_byte_vec;
+  std::vector<uint8_t> rdata_byte_vec;
+  std::vector<uint64_t> rdata_vec;
+  std::vector<axi_txns> txns_vec;
 
 private:
   cvm::topology::loc_t axi_mst_loc_l;
+  cvm::messenger::pool<axi::b_t>::channel_info wresp_channel;
   uint64_t io_coh_helper_base = 0x9000000;
   uint64_t tx_status = 0;
   uint64_t tx_addr = 0x90a0000;
+  uint64_t tx_addr_burst = 0x90a0000;
+  uint8_t  tx_type_size = 0;
   uint64_t backdoor_read_data = 0;
-  //uint64_t tx_size = 2;
- // uint64_t tx_trigger = 0;
   uint64_t tx_type = 0;
-  uint64_t tx_data = 0;
-  //uint64_t rx_data = 0;
-  //uint8_t  read_flag = 0;
+  uint64_t tx_size = 0;
+  uint64_t read_counter = 0;
+  uint64_t num_writes = 0;
+  uint64_t num_reads = 0;
+  uint64_t tx_data0 = 0;
+  uint8_t  axi_id = 12;
   mem_manager m_;
   bool write_in_flight = false; 
   bool read_in_flight = false; 
+  bool burst_in_flight = false; 
   pcg_extras::seed_seq_from<std::random_device> seed_source;
   pcg32 rng;
-  //unsigned hartCount;
 };
 

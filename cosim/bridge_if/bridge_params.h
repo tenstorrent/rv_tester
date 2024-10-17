@@ -12,6 +12,8 @@ namespace {
     constexpr uint64_t mmr_hi_addr = 0x421a'ffff;
     constexpr uint64_t smc_lo_addr = 0xc000'0000;
     constexpr uint64_t smc_hi_addr = 0xffff'ffff;
+    constexpr uint64_t patch_ram_lo = 0x4214C000;
+    constexpr uint64_t patch_ram_hi = 0x4214DFFF;
 
     struct csr_entry {
         std::string name;
@@ -22,7 +24,7 @@ namespace {
         uint64_t address;
     };
 
-    std::array<csr_entry, 357> csrs {{
+    std::array<csr_entry, 361> csrs {{
         {"fflags", 0x001},
         {"frm", 0x002},
         {"fcsr", 0x003},
@@ -95,6 +97,10 @@ namespace {
         {"menvcfgh", 0x31A},
         {"mseccfg", 0x747},
         {"mseccfgh", 0x757},
+        {"mnscratch", 0x740},
+        {"mnepc", 0x741},
+        {"mncause", 0x742},
+        {"mnstatus", 0x744},
         {"pmpcfg0", 0x3A0},
         {"pmpcfg1", 0x3A1},
         {"pmpcfg2", 0x3A2},
@@ -880,7 +886,8 @@ namespace {
         HS = 1,
         M = 3,
         P = 4,
-        DE = 5,
+        DE = 6,
+        DP = 7,
         VU = 8,
         VS = 9,
         VM = 11
@@ -892,6 +899,7 @@ namespace {
         {M, "M"},
         {P, "P"},
         {DE, "DE"},
+        {DP, "DP"},
         {VU, "VU"},
         {VS, "VS"},
         {VM, "M"},
@@ -915,7 +923,8 @@ namespace {
         INST_GUEST_PAGE_FAULT = 20,
         LD_GUEST_PAGE_FAULT = 21,
         VIRT_INST_FAULT = 22,
-        ST_AMO_GUEST_PAGE_FAULT = 23
+        ST_AMO_GUEST_PAGE_FAULT = 23,
+        CUSTOM_VEC_CMODE = 55
     } excp;
 
     const std::unordered_map<excp, std::string_view> excp_to_string = {
@@ -967,6 +976,16 @@ namespace {
         {MEI, "MEI"},
         {SGEI, "SGEI"},
         {LCOFI, "LCOFI"}
+    };
+
+    typedef enum : size_t {
+        EXT_NMI = 2,
+        CLA_NMI = 3
+    } nmi;
+
+    const std::unordered_map<nmi, std::string_view> nmi_to_string = {
+        {EXT_NMI, "EXT_NMI"},
+        {CLA_NMI, "CLA_NMI"}
     };
 
     typedef enum : size_t {
@@ -1024,4 +1043,9 @@ namespace {
         {VSSCRATCH, "vsscratch"}
     };
 
+    typedef enum : size_t {
+        EXCP = 0,
+        INTR = 1,
+        NMI = 2
+    } trap_t;
 }

@@ -36,18 +36,6 @@ rv_tester: &rv_tester
             - trickbox
           attrs:
               clock_divisor: 100
-      pll_xtor:
-          count: 1
-          type:
-            - pll_xtor
-          attrs:
-              clock_divisor: 100
-      pm_nw_xtor:
-          count: 1
-          type:
-            - pm_nw_xtor
-          attrs:
-              clock_divisor: 100
       smc_xtor:
           count: 1
           type:
@@ -71,15 +59,6 @@ rv_tester: &rv_tester
       attrs:
         <<: *rv_tester_ncio_axi_attrs
         <<: *rv_tester_axi_sw
-    
-    aplic_msi_axi:
-      count: *rv_tester_aplic_msi_axi_count
-      type:
-        - aplic_msi_axi
-        - platform_transactor
-      attrs:
-        <<: *rv_tester_aplic_msi_axi_attrs
-        <<: *rv_tester_axi_sw
 
     axi_mst:
       count: *rv_tester_axi_mst_count
@@ -90,15 +69,6 @@ rv_tester: &rv_tester
         <<: *rv_tester_axi_mst_attrs
         <<: *rv_tester_axi_sw_mst
 
-    aplic_mmr_axi_mst:
-      count: *rv_tester_aplic_mmr_axi_mst_count
-      type:
-        - aplic_mmr_axi_mst
-        - platform_transactor_mmr_mst
-      attrs:
-        <<: *rv_tester_aplic_mmr_axi_mst_attrs
-        <<: *rv_tester_axi_sw_mst
-    
     smc_axi_mst:
       count: *rv_tester_smc_axi_mst_count
       type:
@@ -108,24 +78,6 @@ rv_tester: &rv_tester
         <<: *rv_tester_smc_axi_mst_attrs
         <<: *rv_tester_axi_sw_mst
 
-    pll_axi_mst:
-      count: *rv_tester_pll_axi_mst_count
-      type:
-        - pll_axi_mst
-        - platform_transactor_pll_mst
-      attrs:
-        <<: *rv_tester_pll_axi_mst_attrs
-        <<: *rv_tester_axi_sw_mst
-
-    pm_nw_axi_mst:
-      count: *rv_tester_pm_nw_axi_mst_count
-      type:
-        - pm_nw_axi_mst
-        - platform_transactor_pm_nw_mst
-      attrs:
-        <<: *rv_tester_pm_nw_axi_mst_attrs
-        <<: *rv_tester_axi_sw_mst
-    
     dm_axi:
       count: *rv_tester_dm_axi_count
       type:
@@ -139,11 +91,6 @@ rv_tester: &rv_tester
       type:
         - dm_model
 
-    aplic_monitor:
-      count: 1
-      type:
-        - aplic_monitor
-
     pwrmgmt:
       count: *rv_tester_pwrmgmt_ctrl
       type:
@@ -156,6 +103,16 @@ rv_tester: &rv_tester
       type:
         - interrupts
 
+    jtag_driver:
+      count: 1
+      type:
+        - jtag_driver
+
+    snoop_gen:
+      count: 1
+      type:
+        - snoop_gen
+
     trace:
       count: 1
       type:
@@ -165,7 +122,7 @@ rv_tester: &rv_tester
       count: *rv_tester_nharts
       type:
         - triggers
-        
+
     aclint_checker:
       count: 1
       type:

@@ -36,25 +36,28 @@ debugger::debugger(const std::string &tag, uint64_t addr, unsigned hartCount, cv
     // fin.readline();
     std::string line;
     std::getline(myfile, line);
-    cvm::log(cvm::LOW, "Reset State in Debugger is: {} at clocks {} divisor {}\n", line,clocks,divisor);
+    cvm::log(cvm::LOW, "[Debugger]:Reset State in Debugger is: {} at clocks {} divisor {}\n", line,clocks,divisor);
     if (line == "Ndm-Reset") {
       ndm_reset_occured = true;
     }
     
   }
   myfile.close();
+    cvm::log(cvm::HIGH, "[Debugger]: Reset_req: {} ndm_reset_occured: {} clocks: {}\n",dut_reset_req,ndm_reset_occured,clocks);
 }
 
 debugger::~debugger()
 {
   std::ofstream myfile;
   myfile.open ("reset_state.txt", std::ios_base::app);
-  cvm::log(cvm::LOW, "Debugger destructor Attempting to write the State in Debugger: dut_reset_req: {} clocks: {} divisor {} \n",dut_reset_req,clocks,divisor);
-  if (dut_reset_req || ndm_reset_occured){
-    cvm::log(cvm::LOW, "State written to Debugger : Ndm-Reset\n");
+  cvm::log(cvm::LOW, "[Debugger]:Debugger destructor Attempting to write the State in Debugger: dut_reset_req: {} clocks: {} divisor {} \n",dut_reset_req,clocks,divisor);
+  if (dut_reset_req){
+    cvm::log(cvm::LOW, "[Debugger]:State written to Debugger : Ndm-Reset\n");
     myfile << "Ndm-Reset\n";
   }
   myfile.close();
+  
+  cvm::log(cvm::HIGH, "[Debugger]: Reset_req: {} ndm_reset_occured: {} clocks: {}\n",dut_reset_req,ndm_reset_occured,clocks);
 
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"dm_rand_snippets_mode\": \"{}\"}}\n", FLAGS_random_dbg_entry);
   if (FLAGS_random_dbg_entry) {
@@ -65,7 +68,7 @@ debugger::~debugger()
 }
 void
 debugger::update_dm_status(debugger::dmi_status_t& i) {
-  cvm::log(cvm::HIGH, "Debug module status :{:#x} cmds in queue :{:#x}\n", i.status,i.commands_in_queue);
+  cvm::log(cvm::HIGH, "[Debugger]:Debug module status :{:#x} cmds in queue :{:#x}\n", i.status,i.commands_in_queue);
   status = i.status;
   commands_in_queue = i.commands_in_queue;
 }
@@ -73,7 +76,7 @@ debugger::update_dm_status(debugger::dmi_status_t& i) {
 void debugger::get_all_csv_templates()
 {
     std::string directoryPath = FLAGS_dbg_template_dir_path;
-    cvm::log(cvm::NONE, "Debug commands directory:{}\n", directoryPath);
+    cvm::log(cvm::NONE, "[Debugger]:Debug commands directory:{}\n", directoryPath);
 
     if (!std::filesystem::exists(directoryPath) || !std::filesystem::is_directory(directoryPath))
     {
@@ -88,7 +91,7 @@ void debugger::get_all_csv_templates()
             if (filename.size() >= 4 && filename.substr(filename.size() - 4) == ".csv")
             {
                 csvFilePaths.push_back(entry.path().string());
-                cvm::log(cvm::MEDIUM, "Pushing file:{}\n", filename);
+                cvm::log(cvm::MEDIUM, "[Debugger]:Pushing file:{}\n", filename);
             }
         }
     }
@@ -110,7 +113,7 @@ void debugger::parse_dmi_from_csv()
     dbg_snippets_name.append(file_csv_name);
   }
 
-  cvm::log(cvm::NONE, "Parse DMI Commands from CSV:{}\n", file_name);
+  cvm::log(cvm::HIGH, "[Debugger]:Parse DMI Commands from CSV:{}\n", file_name);
   std::fstream file(file_name, std::ios::in);
   if (file.is_open())
   {
@@ -157,6 +160,34 @@ void debugger::parse_dmi_from_csv()
         // checkpoint
         dmi_req.op = 3;
       }
+      else if (instr_2char == "sd")
+      {
+        // checkpoint
+        if (instr == "sdtrig_halt_queue_on")
+        {
+          sdtrig_halt_queue_on = 1;
+        }
+        if (instr == "sdtrig_halt_queue_off")
+        {
+          sdtrig_halt_queue_on = 0;
+        }
+        if (instr == "sdtrig_cause_queue_on")
+        {
+          sdtrig_cause_queue_on = 1;
+        }
+        if (instr == "sdtrig_cause_queue_off")
+        {
+          sdtrig_cause_queue_on = 0;
+        }
+        if (instr == "sdtrig_disable_queue_on")
+        {
+          sdtrig_disable_queue_on = 1;
+        }
+        if (instr == "sdtrig_disable_queue_off")
+        {
+          sdtrig_disable_queue_on = 0;
+        }
+      }
       else if (instr_2char == "st")
       {
         // step ahead/back q
@@ -202,8 +233,20 @@ void debugger::parse_dmi_from_csv()
       {
         dmi_req.func_bits = 4;
       }
+      if (sdtrig_halt_queue_on)
+      {
+        dmi_req.func_bits = 3;
+      }
+      if (sdtrig_cause_queue_on)
+      {
+        dmi_req.func_bits = 5;
+      }
+      if (sdtrig_disable_queue_on)
+      {
+        dmi_req.func_bits = 7;
+      }
 
-      if (dmi_req.op != 3)
+      if ((dmi_req.op != 3)&&(dmi_req.op != 0))
       {
         // remove underscores from addr
         row[1].erase(std::remove(row[1].begin(), row[1].end(), '_'), row[1].end());
@@ -230,11 +273,12 @@ void debugger::parse_dmi_from_csv()
           cvm::log(cvm::ERROR, "[Trickbox] Invalid argument: data for stoul csv arg 2: {}\n", e.what());
         }
       }
-
-      content.push_back(row);
-      dmi_cmd_q.push(dmi_req);
-      // PRINT CSV DATA
-      cvm::log(cvm::MEDIUM, "Pushing dmi request: op {} addr {:#x} data {:#x}\n", dmi_req.op, dmi_req.addr, dmi_req.data);
+      if (dmi_req.op != 0) {
+        content.push_back(row);
+        dmi_cmd_q.push(dmi_req);
+        // PRINT CSV DATA
+        cvm::log(cvm::MEDIUM, "[Debugger]:Pushing dmi request: op {} addr {:#x} data {:#x}\n", dmi_req.op, dmi_req.addr, dmi_req.data);
+      }
     }
 
     // Add a dummy check-point to ensure all DMI commands part of the previous trigger is executed
@@ -279,7 +323,7 @@ void debugger::drive_csv_dmi_cmds()
       checkpoint_triggers_pending += 1;
       cvm::log(cvm::HIGH, "[Debugger]: Encountered checkpoint in csv parsing, Number of checkpoints pending is {}\n", checkpoint_triggers_pending);  
     } 
-    cvm::log(cvm::MEDIUM, "Popping dmi request: op {} addr {:#x} data {:#x} func bits {:#x}\n", dmi_req.op, dmi_req.addr, dmi_req.data, dmi_req.func_bits);
+    cvm::log(cvm::MEDIUM, "[Debugger]:Popping dmi request: op {} addr {:#x} data {:#x} func bits {:#x}\n", dmi_req.op, dmi_req.addr, dmi_req.data, dmi_req.func_bits);
     unsigned upper_dmi_data = 0;
     unsigned lower_dmi_data = 0;
     unsigned hart = 0;

@@ -15,8 +15,6 @@
 #include "dm/dm.h"
 #include "trace_cfg/trace_cfg.h"
 #include "cla_cfg/cla_cfg.h"
-#include "pm_nw_xtor/pm_nw_xtor.h"
-#include "aplic_mmr/aplic_mmr.h"
 #include "io_dev/io_dev.h"
 #include "null_dev/null_dev.h"
 #include "heartbeat/heartbeat.h"
@@ -56,6 +54,10 @@ DEFINE_int32(sc_dis_ways_mask, -1, "SC way enable mask. Ex: With 20 enabled ways
 DEFINE_bool(rand_sp_ways, false, "Randomize number of SC ways reserved for scratchpad");
 DEFINE_int32(num_sp_ways, -1, "Number of SC ways reserved for scratchpad");
 DEFINE_uint32(trace_enable, 1, "Trace enable fuse");
+DEFINE_int32(strobe_type,4, "strobe type need to be driven for random access");
+DEFINE_uint32(overlay_num_times,3, "Maximum number of debug snippets to be driven");
+DEFINE_int32(overlay_idle,5, "Number of idle cycles between each transfer");
+DEFINE_int32(start_overlay_access,10, "Start tick point for starting overlay access");
 DEFINE_uint32(debug_enable, 3, "Debug enable fuse");
 DEFINE_bool(hart_sync_en, true, "Enable hart sync routine in bootrom");
 DEFINE_bool(export_control_en, false, "Enable export control to reduce FP double precision");
@@ -67,8 +69,6 @@ extern "C" {
   void sysmod_sw_interrupt(unsigned hartid, unsigned val);
   void sysmod_tbox_interrupt(unsigned hartid, unsigned val, unsigned int_val);
   void sysmod_trace_info(unsigned trace_info_s);
-  void sysmod_aplic_dir_interrupt(unsigned long* i) ;
-  void sysmod_aplic_rnd_interrupt(unsigned hartid, unsigned val, unsigned int_val);
   void sysmod_dmi_write(unsigned hartid, unsigned upper_val, unsigned lower_val);
   void sysmod_jtag_req(unsigned cmd,unsigned long upper_val, unsigned long lower_val, unsigned length, unsigned quit,unsigned tap_cfg_sel);
   void sysmod_terminate();
@@ -99,9 +99,9 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::overlay_tick<>>(
       loc_,
       [this](const rv_tester_transactions::sysmod::overlay_tick<>& t) { return this->overlay_tick(t.advance); });
-  cvm::registry::messenger.connect<rv_tester_transactions::sysmod::jtag_rdata<>>(
-      loc_,
-      [this](const rv_tester_transactions::sysmod::jtag_rdata<>& t) { return this->jtag_resp(t.rdata); });
+  //cvm::registry::messenger.connect<rv_tester_transactions::sysmod::jtag_rdata<>>(
+  //    loc_,
+  //    [this](const rv_tester_transactions::sysmod::jtag_rdata<>& t) { return this->jtag_resp(t.rdata); });
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::event_triggers<>>(
       loc_,
       [this](const rv_tester_transactions::sysmod::event_triggers<>& t) { return this->tboxtrig_updatemem(t.addr,t.data); });
@@ -556,29 +556,6 @@ sysmod::cla_info_handler(cla_cfg::cla_info_t i) {
 }
 
 void
-sysmod::pm_nw_info_handler(pm_nw_xtor::pm_nw_info_t i) {
-        cvm::log(cvm::HIGH, "[SYSMOD] trace_info {} \n",i.pm_nw_quiesced);
- // cvm::registry::callbacks.push(
- //     scope(),
- //     [i]() {
- //       cvm::log(cvm::HIGH, "[SYSMOD] smc_info \n");
- //       sysmod_trace_info(i.trace_quiesced);
- //     });
-}
-void
-sysmod::aplic_interrupt(aplic_driver::aplic_driver_write_t i) {
-  cvm::registry::callbacks.push(
-      scope(),
-      [i]() {
-        unsigned long arr[16];
-        for (int j = 0; j < 16; j++) {
-        arr[j] = i.aplic_pin_values_vec[j];
-        }
-        sysmod_aplic_dir_interrupt(arr);
-      });
-}
-
-void
 sysmod::trace_cfg_read_req_router(trace_cfg::trace_cfg_read_t r) {
 
     transactor::read_t rd;
@@ -654,7 +631,7 @@ void sysmod::store_inval_crsp(const inval_crsp_s& payld) {
     for (int i=0; i<8; ++i) 
       read_data |= uint64_t(data[i]) << (i*8);
     bool valid = true;
-    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', (ld_addr + (offset*8)), 8, read_data, valid)) {
+    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', (ld_addr + (offset*8)), 8, read_data, valid) || !valid) {
       cvm::log(cvm::ERROR, "Error: store_inval_crsp failed to poke whisper memory");
     }
   }
@@ -672,12 +649,22 @@ void sysmod::store_inval_load(const inval_load_s& payload) {
   dev("memory")->backdoor_read(ld_addr, length, data);
   for (int i=0; i<size; ++i)
     read_data |= uint64_t(data[i]) << (i*8);
-  if(inval_load_.data == read_data)
+
+  if(inval_load_.amo) {
+    // For AMO MB Bypass -> We dont need to check with main memory contents
+    bool valid = true;
+    cvm::log(cvm::HIGH, "CBO_INVAL_MONITOR :: Whisper Poke with data:{:#x} for AMO MB Bypass to address:{:#x}\n",inval_load_.data,ld_addr);
+    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', ld_addr, size, inval_load_.data, valid)) {
+      cvm::log(cvm::ERROR, "Error: store_inval_load failed to poke whisper memory in AMO MB Bypass case\n"); 
+    }
+  }
+
+  if(inval_load_.data == read_data && (!inval_load_.amo)) // Check with main memory for all cases other than AMO mbbypass
   {
     // No need to poke entire cacheline granularity - that will be done after CRSP
     bool valid = true;
     cvm::log(cvm::HIGH, "CBO_INVAL_MONITOR :: Whisper Poke with data:{:#x} for address:{:#x}\n",read_data,ld_addr);
-    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', ld_addr, 8, read_data, valid)) {
+    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', ld_addr, size, read_data, valid) || !valid) {
       cvm::log(cvm::ERROR, "Error: store_inval_load failed to poke whisper memory\n"); 
     }
   }
@@ -688,9 +675,10 @@ cvm::messenger::task<uint64_t> sysmod::backdoor_write(sysmod::backdoor_write_t t
     device::data_t datax(8);
     device::strb_t strbx(8);
 
-    bool valid = true;
-    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', t.address, 8, t.data, valid)) {
-      cvm::log(cvm::ERROR, "Error: backdoor_write failed to poke whisper memory\n");
+    if (FLAGS_cosim) {
+      bool valid = true;
+      if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', t.address, 8, t.data, valid) || !valid)
+        cvm::log(cvm::ERROR, "Error: backdoor_write failed to poke whisper memory\n");
     }
       
     for (int i = 0; i < t.size; ++i, t.data >>= 8) {
@@ -746,15 +734,15 @@ sysmod::dmi_write(debugger::dmi_data_t i) {
       });
 }
 
-void
-sysmod::jtag_req(jtag_driver::jtag_data_t i) {
-  cvm::registry::callbacks.push(
-      scope(),
-      [i]() {
-        cvm::log(cvm::FULL, "[SYSMOD] trickbox jtag_driver::dmi.(upper,lower) = {:#x}, {:#x} length = {:#x}\n",i.upper_jtag_data, i.lower_jtag_data, i.jtag_length_data);
-        sysmod_jtag_req(i.jtag_cmd, i.upper_jtag_data, i.lower_jtag_data,i.jtag_length_data,i.jtag_quit,i.tap_cfg_sel);
-      });
-}
+// void
+// sysmod::jtag_req(jtag_driver::jtag_data_t i) {
+//   cvm::registry::callbacks.push(
+//       scope(),
+//       [i]() {
+//         cvm::log(cvm::FULL, "[SYSMOD] trickbox jtag_driver::dmi.(upper,lower) = {:#x}, {:#x} length = {:#x}\n",i.upper_jtag_data, i.lower_jtag_data, i.jtag_length_data);
+//         sysmod_jtag_req(i.jtag_cmd, i.upper_jtag_data, i.lower_jtag_data,i.jtag_length_data,i.jtag_quit,i.tap_cfg_sel);
+//       });
+// }
 
 void
 sysmod::terminate(htif::terminate_t t) {
@@ -795,8 +783,6 @@ sysmod::compose()
   // Load memmap
   memmap::get(memmap_);
 
-  auto mmr_master = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MMR_MST");
-  auto pm_nw_master = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_PM_NW_MST");
   auto masters = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST");
   auto platform_loc = cvm::topology::get_from_type("PLATFORM", 0);
   auto nharts = cvm::topology::attr(platform_loc, "NHARTS").second;
@@ -845,14 +831,6 @@ sysmod::compose()
         // TODO: cvm::ERROR
 
       }
-      else if (type == "pm_nw_xtor") {
-        // TODO: cvm::ERROR
-        cvm::registry::messenger.connect<pm_nw_xtor::pm_nw_info_t>(
-            loc_,
-            [&](pm_nw_xtor::pm_nw_info_t i) { return this->pm_nw_info_handler(i); });
-        assert(masters.size() > 0);
-        device = std::make_unique<pm_nw_xtor>(tag, base, size, loc_, pm_nw_master[0]);
-      }
       else if (type == "scratchpad_xtor") {
         // TODO: cvm::ERROR
         assert(masters.size() > 0);
@@ -860,11 +838,6 @@ sysmod::compose()
         cvm::registry::messenger.connect<scratchpad_xtor::scratchpad_xtor_read_t>(
             loc_,
             [&](scratchpad_xtor::scratchpad_xtor_read_t i) { return this->scratchpad_xtor_read_req_router(i); });
-      }
-      else if (type == "aplic_mmr") {
-        // TODO: cvm::ERROR
-        assert(mmr_master.size() > 0);
-        device = std::make_unique<aplic_mmr>(tag, base, size, loc_, mmr_master[0]);
       }
       else if (type == "clint") {
         device = std::make_unique<clint>(tag, base, nharts, loc_);
@@ -886,15 +859,12 @@ sysmod::compose()
         cvm::registry::messenger.connect<interrupter::interrupt_t>(
             loc_,
             [&](interrupter::interrupt_t i) { return this->tbox_interrupt(i); });
-	cvm::registry::messenger.connect<aplic_driver::aplic_driver_write_t>(
-            loc_,
-            [&](aplic_driver::aplic_driver_write_t i) { return this->aplic_interrupt(i); });
         cvm::registry::messenger.connect<debugger::dmi_data_t>(
             loc_,
             [&](debugger::dmi_data_t i) { return this->dmi_write(i); });
-        cvm::registry::messenger.connect<jtag_driver::jtag_data_t>(
-            loc_,
-            [&](jtag_driver::jtag_data_t i) { return this->jtag_req(i); });
+       // cvm::registry::messenger.connect<jtag_driver::jtag_data_t>(
+       //     loc_,
+       //     [&](jtag_driver::jtag_data_t i) { return this->jtag_req(i); });
         cvm::registry::messenger.connect<uc_helper::uc_helper_write_t>(
             loc_,
             [&](uc_helper::uc_helper_write_t i) { return this->uc_helper_backdoor_write(i); });
@@ -1113,7 +1083,7 @@ sysmod::load_csr_mmr_boot(uint64_t)
     device::data_t data(4);
     for (size_t i=0; i<4; i++) data[i] = op >> 8*i;
     dev("boot")->backdoor_write(addr, 4, data, strb);
-    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', addr, op, valid))
+    if (FLAGS_cosim && (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', addr, op, valid) || !valid))
       cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
     addr += 4;
   };
@@ -1248,18 +1218,18 @@ sysmod::store_dm_randpc()
   }
 }
 
-void sysmod::jtag_resp(std::bitset<70> rdata){
-  auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0);
-  std::vector<uint64_t> convertedArray = bitsetToUint64Array(rdata);
-  cvm::log(cvm::FULL, "[SYSMOD.CPP] In JTAG RESP converted array size = {}\n", convertedArray.size());
+// void sysmod::jtag_resp(std::bitset<70> rdata){
+//   auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0);
+//   std::vector<uint64_t> convertedArray = bitsetToUint64Array(rdata);
+//   cvm::log(cvm::FULL, "[SYSMOD.CPP] In JTAG RESP converted array size = {}\n", convertedArray.size());
   
-  for (uint64_t num : convertedArray) {
-        cvm::log(cvm::FULL, "[SYSMOD.CPP] In JTAG RESP converted array element = {}\n", num);
-  }
+//   for (uint64_t num : convertedArray) {
+//         cvm::log(cvm::FULL, "[SYSMOD.CPP] In JTAG RESP converted array element = {}\n", num);
+//   }
   
-  cvm::registry::messenger.signal(tbox_loc, jtag_driver::jtag_req_t{0, 0,0,convertedArray[0],0});
+//   cvm::registry::messenger.signal(tbox_loc, jtag_driver::jtag_req_t{0, 0,0,convertedArray[0],0});
 
-}
+// }
 void
 sysmod::tick(uint64_t advance)
 {

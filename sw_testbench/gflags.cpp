@@ -7,3 +7,4 @@ DEFINE_string(cm_name, "", "command line flag : cm_name");
 DEFINE_string(cg_coverage_control, "", "command line flag : cg_coverage_control");
 DEFINE_string(covg_disable_cg, "", "command line flag : covg_disable_cg");
 DEFINE_int64(vcd_cycle_on, 0, "vcd_cycle_on");
+DEFINE_int64(vcd_cycle_off, 0, "vcd_cycle_off");

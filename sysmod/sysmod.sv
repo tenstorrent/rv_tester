@@ -14,15 +14,14 @@ import rv_tester_params::*;
     input reset,
     input dut_reset_req,
     output logic trace_quiesced,
-    output logic jtag_quiesced,
+    //output logic jtag_quiesced,
     output rv_tester_params::bootstrap_t bootstrap,
     output rv_tester_pkg::interrupt_t interrupt [NHARTS-1:0],
-    output rv_tester_pkg::aplic_interrupt_t aplic_interrupt,
     output rv_tester_pkg::dm_write_t  dmi_write,
     input  event_trigger_intf_t event_triggers [NHARTS-1:0],
-    output rv_tester_pkg::jtag_if_t  jtag_req,
-    output rv_tester_pkg::jtag_if_tck  jtag_tck_trst,
-    input rv_tester_pkg::jtag_if_out  jtag_resp,
+    //output rv_tester_pkg::jtag_if_t  jtag_req,
+    //output rv_tester_pkg::jtag_if_tck  jtag_tck_trst,
+    //input rv_tester_pkg::jtag_if_out  jtag_resp,
     output rv_tester_pkg::terminate_t terminate,
     `RV_TESTER_TRANSACTIONS_SYSMOD_OUTPUT_PORTS
 );
@@ -43,36 +42,25 @@ import rv_tester_params::*;
     bit dmi_write_end = '0;
     bit [63:0] dm_wdata = '0;
 
-    bit [1:0]  command= '0;
-    bit [31:0]  length= '0;
-    bit        jtag_enable_begin = '0;
-    bit        jtag_enable_d = '0;
-    bit        jtag_enable_end = '0;
-    bit        read_data_valid_reg;
-    bit [JTAG_DR_WIDTH-1 :0] jtag_tx;
-    bit [JTAG_DR_WIDTH-1 :0] jtag_rx;
-    bit [31 :0] tap_sel;
-    bit        jtag_busy;
-    bit jtag_rdatas_jtag_busy;
-    /* verilator lint_on BLKANDNBLK */
+      /* verilator lint_on BLKANDNBLK */
 
 
-    jtag_xtor #(.JTAG_DR_WIDTH(JTAG_DR_WIDTH))  i_jtag_xtor(
-        .clk(clk),
-        .reset(reset),
-        .tap_sel(tap_sel),
-        .command(command),
-        .jtag_req(jtag_req),
-        .jtag_resp(jtag_resp),
-        .jtag_tck_trst(jtag_tck_trst),
-        .jtag_busy(jtag_busy),
-        .jtag_enable(jtag_enable_begin),
-        .read_data_valid_reg(read_data_valid_reg),
-        .length(length),
-        .jtag_tx(jtag_tx),
-        .jtag_rx(jtag_rx),
-        .misc_signals('0)
-    );
+    // jtag_xtor #(.JTAG_DR_WIDTH(JTAG_DR_WIDTH))  i_jtag_xtor(
+    //     .clk(clk),
+    //     .reset(reset),
+    //     .tap_sel(tap_sel),
+    //     .command(command),
+    //     .jtag_req(jtag_req),
+    //     .jtag_resp(jtag_resp),
+    //     .jtag_tck_trst(jtag_tck_trst),
+    //     .jtag_busy(jtag_busy),
+    //     .jtag_enable(jtag_enable_begin),
+    //     .read_data_valid_reg(read_data_valid_reg),
+    //     .length(length),
+    //     .jtag_tx(jtag_tx),
+    //     .jtag_rx(jtag_rx),
+    //     .misc_signals('0)
+    // );
 
     /* verilator lint_on BLKANDNBLK */
     always @(posedge clk) begin
@@ -81,7 +69,7 @@ import rv_tester_params::*;
             $display("[sysmod]: reset");
             clocks <= 0;
             /* verilator lint_off BLKSEQ */
-            jtag_quiesced = 0;
+            //jtag_quiesced = 0;
             sysmod_tick_async = cvm_plusargs::get_bool("sysmod_tick_async") != '0;
             if (location != cvm_topology::nil) begin
               sysmod_set_scope(location);
@@ -131,14 +119,6 @@ import rv_tester_params::*;
       interrupt_d[hartid].msi = val[0];
     endfunction
 
-       export "DPI-C" function sysmod_aplic_dir_interrupt;
-
-    function void sysmod_aplic_dir_interrupt (longint val[16]);
-      for(int i =0;i<16;i++)begin
-        aplic_interrupt.pins[64*i +: 64] = val[i];
-      end
-    endfunction
-
     export "DPI-C" function sysmod_sw_interrupt;
 
     function void sysmod_tbox_interrupt (int unsigned hartid, int unsigned intr_select,int unsigned intr_value);
@@ -160,22 +140,22 @@ import rv_tester_params::*;
     endfunction
     export "DPI-C"  function sysmod_dmi_write;
 
-    function sysmod_jtag_req (int unsigned jtag_cmd_ip,longint upper_value,longint lower_value,int unsigned reg_length, int unsigned jtag_quit , int unsigned tap_cfg_sel);
-      if(jtag_quit[0] === 1'b0 )begin
-        jtag_enable_begin = 1'b1;
-        command = jtag_cmd_ip[1:0];
-        jtag_tx = {upper_value[5:0],lower_value};
-        tap_sel = tap_cfg_sel;
-        length = reg_length[31:0];
-        jtag_quiesced = 1'b0;
-        $display("[SYSMOD.SV] JTAG driver %h %h %h %h %h",upper_value, lower_value,reg_length,tap_sel,tap_cfg_sel);
-      end
-      else if(jtag_quit[0] === 1'b1 )begin
-        jtag_quiesced = 1'b1;
-        $display("[SYSMOD.SV] JTAG quit was given in %0d %t",jtag_quit[0],$time);
-      end
-    endfunction
-    export "DPI-C"  function sysmod_jtag_req;
+    // function sysmod_jtag_req (int unsigned jtag_cmd_ip,longint upper_value,longint lower_value,int unsigned reg_length, int unsigned jtag_quit , int unsigned tap_cfg_sel);
+    //   if(jtag_quit[0] === 1'b0 )begin
+    //     jtag_enable_begin = 1'b1;
+    //     command = jtag_cmd_ip[1:0];
+    //     jtag_tx = {upper_value[5:0],lower_value};
+    //     tap_sel = tap_cfg_sel;
+    //     length = reg_length[31:0];
+    //     //jtag_quiesced = 1'b0;
+    //     $display("[SYSMOD.SV] JTAG driver %h %h %h %h %h",upper_value, lower_value,reg_length,tap_sel,tap_cfg_sel);
+    //   end
+    //   else if(jtag_quit[0] === 1'b1 )begin
+    //     //jtag_quiesced = 1'b1;
+    //     $display("[SYSMOD.SV] JTAG quit was given in %0d %t",jtag_quit[0],$time);
+    //   end
+    // endfunction
+    // export "DPI-C"  function sysmod_jtag_req;
 
 
     always @(posedge clk) begin
@@ -194,21 +174,14 @@ import rv_tester_params::*;
             dmi_write.dm_wdata <= dm_wdata;
             dmi_write_end <='1;
         end
-        //JTAG
-        if(jtag_enable_end)begin
-            jtag_enable_begin <= '0;
-            jtag_enable_end <= '0;
-        end
-        else if(jtag_enable_begin)begin
-            jtag_enable_end <='1;
-        end
+
 
     end
 
-  assign jtag_rdatas[0].valid         = read_data_valid_reg;
-  assign jtag_rdatas[0].data.location = location;
-  assign jtag_rdatas[0].data.rdata     = jtag_rx;//upper32 bits for future use
-  assign jtag_rdatas_jtag_busy = jtag_busy ;
+  // assign jtag_rdatas[0].valid         = read_data_valid_reg;
+  // assign jtag_rdatas[0].data.location = location;
+  // assign jtag_rdatas[0].data.rdata     = jtag_rx;//upper32 bits for future use
+  // assign jtag_rdatas_jtag_busy = jtag_busy ;
 
   // Currently we have only NHARTS C2 triggers, new triggers shall send message on event_triggerss[NHARTS+:NHARTS] and increment rv_tester_transactions.yml
   for (genvar n = 0; n < NHARTS; n++) begin: tboxtrigc2

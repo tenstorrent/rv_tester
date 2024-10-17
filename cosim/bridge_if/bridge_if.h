@@ -205,8 +205,10 @@ typedef struct rv_instr_s {
   std::string csr_renamed_name = "";
   bool trap = false;
   uint8_t priv = 3;
+  bool nmi = false;
   bool intr = false;
   bool excp = false;
+  uint64_t ncause = 0;
   uint64_t icause = 0;
   uint64_t ecause = 0;
   uint64_t mem_va = 0;
@@ -235,6 +237,7 @@ typedef struct rv_instr_s {
     comp = false;
     ucode = false;
     trap = false;
+    nmi = false;
     intr = false;
     excp = false;
     pc.clear();

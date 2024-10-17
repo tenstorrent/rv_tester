@@ -17,6 +17,7 @@ import rv_tester_params::*;
   output logic warm_reset_req,
   output logic [NHOLDS-1:0] reset_hold,
   output logic force_ref_clk,
+  input logic core_no_fetch,
   `RV_TESTER_TRANSACTIONS_PWRMGMT_OUTPUT_PORTS
 );
 
@@ -25,7 +26,7 @@ import rv_tester_params::*;
 
   parameter int unsigned location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.PWRMGMT.ID, NUM);
   int unsigned warm_reset_interval = 0;
-  int unsigned tb_clocks = 0;
+  int unsigned warm_reset_clocks = 0;
   always @(posedge clk[TB_CLK_IDX]) begin
     if (sys_reset[TB_CLK_IDX]) begin
       /* verilator lint_off BLKSEQ */
@@ -38,7 +39,7 @@ import rv_tester_params::*;
         if (warm_reset_en) begin
           warm_reset_interval = cvm_rand::get("warm_reset_interval");
           $display("[%0d] [pwrmgmt] Target warm reset count: %0d, current count: %0d, current interval: %0d TB clocks",
-            tb_clocks, target_reset_count, reset_count, warm_reset_interval);
+            warm_reset_clocks, target_reset_count, reset_count, warm_reset_interval);
         end
       end
       /* verilator lint_on BLKSEQ */
@@ -55,20 +56,20 @@ import rv_tester_params::*;
   logic cold_reset_d1;
 
   always @(posedge clk[TB_CLK_IDX]) begin
-    force_ref_clk_d1 <= force_ref_clk;
     if (warm_reset_tick) begin
-      tb_clocks <= 0;
-    end else if (warm_reset_en & (reset_count < target_reset_count) & ~force_ref_clk) begin
-      tb_clocks <= tb_clocks + 1;
+      warm_reset_clocks <= 0;
+    end else if (warm_reset_en & (reset_count < target_reset_count) & ~core_no_fetch) begin
+      warm_reset_clocks <= warm_reset_clocks + 1;
     end
   end
 
   always @(posedge clk[SOC_CLK_IDX]) begin
     cold_reset_d1 <= cold_reset;
+    force_ref_clk_d1 <= force_ref_clk;
     soc_clocks <= soc_clocks + 1;
     warm_reset_tick <= 0;
-    if (warm_reset_en & (reset_count < target_reset_count) & (tb_clocks > warm_reset_interval) & ~force_ref_clk) begin
-      $display("[%0d] [pwrmgmt] Warm reset now", tb_clocks);
+    if (warm_reset_en & (reset_count < target_reset_count) & (warm_reset_clocks > warm_reset_interval) & ~core_no_fetch) begin
+      $display("[%0d] [pwrmgmt] Warm reset now", warm_reset_clocks);
       warm_reset_tick <= 1;
     end
   end
@@ -77,19 +78,40 @@ import rv_tester_params::*;
 
   // m_tick
   // - during reset sequence till force_ref_clk is deasserted, send every clock
-  // - after rest sequence, send a tick only to start a warm reset
+  // - after reset sequence, send a tick only to start a warm reset
   logic tick_valid;
-  assign tick_valid = (force_ref_clk | warm_reset_req) & (location != cvm_topology::nil);
+  assign tick_valid = (core_no_fetch | force_ref_clk | warm_reset_req) & (location != cvm_topology::nil);
   assign m_ticks[0].valid = tick_valid;
   assign m_ticks[0].data.location = location;
   assign m_ticks[0].data.cycle = tick_valid ? soc_clocks : 0;
 
-  // m_cold_reset
+  // m_smc_axi_tick
+  logic smc_axi_tick;
+  rv_tester_tick_generator #(.NAME("smc_axi")) smc_axi_tick_generator (.clk(clk[SOC_CLK_IDX]), .reset(core_no_fetch), .tick(smc_axi_tick));
+  assign m_smc_axi_ticks[0].valid = smc_axi_tick && (location != cvm_topology::nil);
+  assign m_smc_axi_ticks[0].data.location = location;
+  assign m_smc_axi_ticks[0].data.assertion = '0;
+
+   // m_pcontrol_tick
+  logic pcontrol_tick;
+  rv_tester_tick_generator #(.NAME("pcontrol")) pcontrol_tick_generator (.clk(clk[SOC_CLK_IDX]), .reset(core_no_fetch), .tick(pcontrol_tick));
+  assign m_pcontrol_ticks[0].valid = pcontrol_tick && (location != cvm_topology::nil);
+  assign m_pcontrol_ticks[0].data.location = location;
+  assign m_pcontrol_ticks[0].data.assertion = '0;
+
+ // m_cold_reset_ack
   logic cold_reset_ack_valid;
   assign cold_reset_ack_valid = (cold_reset_d1 && ~cold_reset);
   assign m_cold_reset_acks[0].valid = cold_reset_ack_valid && (location != cvm_topology::nil);
   assign m_cold_reset_acks[0].data.location = location;
   assign m_cold_reset_acks[0].data.assertion = '0;
+
+  // m_force_ref_clk_ack
+  logic force_ref_clk_ack_valid;
+  assign force_ref_clk_ack_valid = (force_ref_clk_d1 && ~force_ref_clk);
+  assign m_force_ref_clk_acks[0].valid = force_ref_clk_ack_valid && (location != cvm_topology::nil);
+  assign m_force_ref_clk_acks[0].data.location = location;
+  assign m_force_ref_clk_acks[0].data.assertion = '0;
 
   // -------------------------
   // C++->SV Callbacks

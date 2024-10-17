@@ -89,6 +89,9 @@ package rv_tester_pkg;
         NO_ALLOC_NO_MSHR,
         NO_ALLOC_HINT_NOT_SET,
         SC_REPLAY_ECC,
+        SC_CANCEL_PIPERESULT,
+        SC_VICTIM,
+        NO_ALLOC_SRRIP,
         SC_EVENT_COUNT
     } sc_pmc_event_t;
 
@@ -115,6 +118,12 @@ package rv_tester_pkg;
     } nmi_t;
 
     typedef enum logic [1:0] {
+        EXCP   = 2'h0,
+        INTR   = 2'h1,
+        NMI    = 2'h2
+    } trap_e;
+
+    typedef enum logic [1:0] {
         DTM_NOP   = 2'h0,
         DTM_READ  = 2'h1,
         DTM_WRITE = 2'h2
@@ -124,10 +133,6 @@ package rv_tester_pkg;
         logic        dm_wvalid;
         logic [63:0] dm_wdata;
     } dm_write_t;
-
-    typedef struct packed {
-        logic [1023:0] pins;
-    } aplic_interrupt_t;
 
     typedef struct packed {
         logic [6:0]  addr;

@@ -441,6 +441,7 @@ module axi_sw_mst #(
     parameter int unsigned DATA_WIDTH = 32'd0,
     parameter int unsigned STRB_WIDTH = DATA_WIDTH / 8,
     parameter int unsigned ID_WIDTH   = 32'd0,
+    parameter int unsigned USER_WIDTH = 32'd0,
 
     parameter int unsigned LOCATION   =     0,
     parameter int NUM                 =    -1,
@@ -453,6 +454,7 @@ module axi_sw_mst #(
     parameter type data_t   = logic [DATA_WIDTH-1:0],
     parameter type id_t     = logic [ID_WIDTH  -1:0],
     parameter type strb_t   = logic [STRB_WIDTH-1:0],
+    parameter type user_t   = logic [USER_WIDTH-1:0],
 
     parameter type burst_t  = logic [1:0],
     parameter type resp_t   = logic [1:0],
@@ -463,7 +465,6 @@ module axi_sw_mst #(
     parameter type qos_t    = logic [3:0],
     parameter type region_t = logic [3:0],
     parameter type atop_t   = logic [5:0],
-    parameter type user_t   = logic [0:0],
     `RV_TESTER_TRANSACTIONS_AXI_SW_MST_OUTPUT_PARAMS
 
 )(
@@ -573,6 +574,15 @@ module axi_sw_mst #(
                 automatic byte unsigned _ = axi_sw_mst_set_scope(LOCATION);
             end
             /* verilator lint_on BLKSEQ */
+        end
+    end
+
+    logic [64-1:0] clocks;
+    always_ff @(posedge clk) begin
+        if (!reset_n) begin
+            clocks <= '0;
+        end else begin
+            clocks <= clocks + 64'(1);
         end
     end
 

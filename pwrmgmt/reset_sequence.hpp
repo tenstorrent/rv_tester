@@ -24,11 +24,14 @@ class reset_sequence {
 
     void cold_reset_sequence_thread();
     void warm_reset_sequence_thread();
+    void smc_random_sequence_thread();
+    void temp_throttle_release_thread();
 
     cvm::messenger::task<void> cold_reset_sequence();
     cvm::messenger::task<void> warm_reset_sequence();
 
     cvm::messenger::task<void> cold_reset_ack();
+    cvm::messenger::task<void> force_ref_clk_ack();
     cvm::messenger::task<void> tick();
     cvm::messenger::task<void> trigger();
     cvm::messenger::task<void> cpl_reset_sequence(rst_t );
@@ -39,18 +42,26 @@ class reset_sequence {
     cvm::messenger::task<void> release_cpl_reset();
     cvm::messenger::task<void> program_fuses();
     cvm::messenger::task<void> program_patch();
-    cvm::messenger::task<void> write_thub_reg(uint8_t addr, uint32_t data, uint8_t satellite_num, uint8_t mbox_num);
-    cvm::messenger::task<void> program_thub_threshold();
     cvm::messenger::task<void> release_cpl_nofetch();
     cvm::messenger::task<void> patch_ram_check();
     cvm::messenger::task<void> fuse_mmr_check();
     cvm::messenger::task<void> disabled_mmr_csr_check();
 
+    cvm::messenger::task<void> write_thub_reg(uint8_t addr, uint32_t data, uint8_t satellite_num, uint8_t mbox_num);
+    cvm::messenger::task<void> program_thub_threshold();
+    cvm::messenger::task<void> temp_throttle_disable();
+
+    cvm::messenger::task<void> init_smc_filters();
+    cvm::messenger::task<void> smc_scratchpad_default_access();
+    cvm::messenger::task<void> smc_axi_random_access();
+    cvm::messenger::task<void> delay_counters();
+    cvm::messenger::task<void> smc_read_access_check(uint32_t addr, uint64_t exp_data, uint64_t actual_data);
+
     cvm::messenger::task<uint64_t> read(uint64_t addr, size_t sz);
     cvm::messenger::task<void> write(uint64_t addr, size_t sz, uint64_t data);
     cvm::messenger::task<void> write(uint64_t addr, size_t sz, const std::vector<uint64_t>& data);
-    cvm::messenger::task<void>csr_write(uint32_t core_id, uint64_t addr, uint64_t data);
-    cvm::messenger::task<uint64_t>csr_read(uint32_t core_id, uint64_t addr);
+    cvm::messenger::task<void>csr_write(uint32_t core_id, uint32_t unit,uint64_t addr, uint64_t data);
+    cvm::messenger::task<uint64_t>csr_read(uint32_t core_id, uint32_t unit,uint64_t addr);
 
     std::vector<uint64_t> convert_to_dword_array(const std::vector<uint8_t>& byte_array);
     std::vector<uint8_t> convert_to_byte_array(const std::vector<uint64_t>& dword_array);
@@ -71,7 +82,8 @@ class reset_sequence {
     void reset_hold(uint8_t sram, uint8_t debug, uint8_t critical);
     void force_ref_clk(uint8_t assert);
     void populate_patch_ram(uint64_t addr, const std::vector<uint64_t>& data);
-
+    void read_patch_csv();
+    
   private:
 
     cvm::topology::loc_t loc_, smc_axi_loc_;

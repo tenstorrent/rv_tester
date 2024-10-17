@@ -17,19 +17,7 @@ class pm_common {
           uint32_t addr;
           uint32_t data;
     };
-    
-    struct pll_write_tx_t {
-          uint32_t addr;
-          uint32_t data;
-          uint32_t sideband;
-    };
 
-    struct pm_nw_write_tx_t {
-          uint32_t addr;
-          uint32_t data;
-          uint32_t sideband;
-    };
     pm_common() { };
     virtual ~pm_common() { };
-
 };
