@@ -56,7 +56,6 @@ cvm::messenger::task<void> smc_axi_sequence::main() {
         blocking_seq_tick(1);
         co_await csr_write();
         blocking_seq_tick(0);
-        co_await tick(); // Extra tick to account for delay in reflecting clearing of blocking tick
         break;
     }
   }
@@ -76,10 +75,10 @@ cvm::messenger::task<uint32_t> smc_axi_sequence::scratchpad_write() {
   uint64_t data = smc_scratchpad_info[rand_indx].data;
   size_t sz = smc_scratchpad_info[rand_indx].sz;
 
-  cvm::log(cvm::MEDIUM, "[smc-axi] Scratchpad-MMR write req - addr={:#x}, data={:#x} \n", addr, data);
+  cvm::log(cvm::FULL, "[smc_axi] Scratchpad-MMR write req - addr={:#x}, data={:#x} \n", addr, data);
   co_await write(addr, sz, data, NO_BLOCK);
   
-  cvm::log(cvm::MEDIUM, "[smc-axi] Scratchpad-MMR write done - addr={:#x}, data={:#x} \n", addr, data);
+  cvm::log(cvm::FULL, "[smc_axi] Scratchpad-MMR write done - addr={:#x}, data={:#x} \n", addr, data);
   co_return rand_indx;
 }
 
@@ -88,10 +87,10 @@ cvm::messenger::task<std::pair<uint32_t, uint64_t>> smc_axi_sequence::cpl_sram_w
   uint32_t rand_sram_addr = cpl_sram_addr_dist() & 0xFFFFFF8;
   uint64_t rand_sram_data = 0xA5A5A5A5A5A5A5A5;
 
-  cvm::log(cvm::MEDIUM, "[smc-axi] CPL-SRAM write req - addr={:#x}, data={:#x} \n", rand_sram_addr, rand_sram_data);
+  cvm::log(cvm::FULL, "[smc_axi] CPL-SRAM write req - addr={:#x}, data={:#x} \n", rand_sram_addr, rand_sram_data);
   co_await write(rand_sram_addr, SZ_8B, rand_sram_data);
 
-  cvm::log(cvm::MEDIUM, "[smc-axi] CPL-SRAM write done - addr={:#x}, data={:#x} \n", rand_sram_addr, rand_sram_data);
+  cvm::log(cvm::FULL, "[smc_axi] CPL-SRAM write done - addr={:#x}, data={:#x} \n", rand_sram_addr, rand_sram_data);
   co_return std::make_pair(rand_sram_addr, rand_sram_data);
 }
 
@@ -111,7 +110,7 @@ cvm::messenger::task<uint32_t> smc_axi_sequence::csr_write() {
   uint64_t en = 0x1;
   bool CommandPort_Busy = false;
 
-  cvm::log(cvm::MEDIUM, "[smc-axi] csr write req - core_id = {}, addr={:#x}, data={:#x} \n", core_id, addr, data);
+  cvm::log(cvm::FULL, "[smc_axi] csr write req - core_id = {}, addr={:#x}, data={:#x} \n", core_id, addr, data);
   co_await write(core_crCsrDataPort + offset, sz_CsrDataPort, data);
   cmd = en<<62 | wr<<61 | unit<<12 | addr;
   co_await write(core_crCsrCommandPort + offset, sz_CsrCommandPort, cmd);
@@ -120,7 +119,7 @@ cvm::messenger::task<uint32_t> smc_axi_sequence::csr_write() {
     CommandPort_Busy = (cmd>>63) == 1;
   } while (CommandPort_Busy);
 
-  cvm::log(cvm::MEDIUM, "[smc-axi] csr write done - core_id = {}, addr={:#x}, data={:#x} \n", core_id, addr, data);
+  cvm::log(cvm::FULL, "[smc_axi] csr write done - core_id = {}, addr={:#x}, data={:#x} \n", core_id, addr, data);
   co_return rand_indx;
 }
 
@@ -136,7 +135,7 @@ cvm::messenger::task<uint64_t> smc_axi_sequence::csr_read(uint32_t addr, size_t 
   uint64_t en = 0x1;
   bool CommandPort_Busy = false;
 
-  cvm::log(cvm::MEDIUM, "[smc-axi] csr read req - core_id = {}, addr={:#x} \n", core_id, addr);
+  cvm::log(cvm::FULL, "[smc_axi] csr read req - core_id = {}, addr={:#x} \n", core_id, addr);
   cmd = en<<62 | wr<<61 | unit<<12 | addr;
   co_await write(core_crCsrCommandPort + offset, sz_CsrCommandPort, cmd);
   do {
@@ -144,7 +143,7 @@ cvm::messenger::task<uint64_t> smc_axi_sequence::csr_read(uint32_t addr, size_t 
     CommandPort_Busy = (cmd>>63) == 1;
   } while (CommandPort_Busy);
 
-  cvm::log(cvm::MEDIUM, "[smc-axi] csr read resp - core_id = {}, addr={:#x} \n", core_id, addr);
+  cvm::log(cvm::FULL, "[smc_axi] csr read resp - core_id = {}, addr={:#x} \n", core_id, addr);
   auto data = co_await read(core_crCsrDataPort + offset, sz_CsrDataPort);
   co_return data;
 }
@@ -157,15 +156,15 @@ cvm::messenger::task<void> smc_axi_sequence::smc_trns_read_check(smc_dest_path_t
     actual_data = co_await read(addr, sz, block);
 
   if (exp_data == actual_data)
-    cvm::log(cvm::MEDIUM, "[smc-axi] {} read_data check :- PASS  : Addr = 0x{:x}, Data = 0x{:x} \n", (smc_dest_path==CPL_SRAM ? "CPL_SRAM" : (smc_dest_path==CORE_CSR ? "CSR" : "Scratchpad-MMR")), addr, actual_data);
+    cvm::log(cvm::FULL, "[smc_axi] {} read_data check :- PASS  : Addr = 0x{:x}, Data = 0x{:x} \n", (smc_dest_path==CPL_SRAM ? "CPL_SRAM" : (smc_dest_path==CORE_CSR ? "CSR" : "Scratchpad-MMR")), addr, actual_data);
   else
-    cvm::log(cvm::ERROR,  "[smc-axi] {} read_data check :- ERROR : Addr = 0x{:x}, Expected Data = 0x{:x}, Actual Data = 0x{:x} \n", (smc_dest_path==CPL_SRAM ? "CPL_SRAM" : (smc_dest_path==CORE_CSR ? "CSR" : "Scratchpad-MMR")), addr, exp_data, actual_data);
+    cvm::log(cvm::ERROR,  "[smc_axi] {} read_data check :- ERROR : Addr = 0x{:x}, Expected Data = 0x{:x}, Actual Data = 0x{:x} \n", (smc_dest_path==CPL_SRAM ? "CPL_SRAM" : (smc_dest_path==CORE_CSR ? "CSR" : "Scratchpad-MMR")), addr, exp_data, actual_data);
   co_return;
 };
 
 cvm::messenger::task<uint64_t> smc_axi_sequence::read(uint64_t addr, size_t sz, block_t block /* = BLOCK */) {
   assert(sz <= 8);
-  cvm::log(cvm::MEDIUM, "[smc-axi] read req - addr={:#x}, sz={}\n", addr, sz);
+  cvm::log(cvm::MEDIUM, "[smc_axi] read req - addr={:#x}, sz={}\n", addr, sz);
   cvm::registry::messenger.signal(smc_axi_loc_, transactor::read_request_t{addr, sz});
   smc_axi_read_count_++;
 
@@ -178,7 +177,7 @@ cvm::messenger::task<uint64_t> smc_axi_sequence::read(uint64_t addr, size_t sz, 
   uint64_t dword = (addr % 8) ? (data[0] >> 32) : data[0];
   uint64_t mask = (sz == 8) ? ~uint64_t(0) : ((uint64_t)1 << (sz*8)) - 1;
   dword &= mask;
-  cvm::log(cvm::MEDIUM, "[smc-axi] read resp - id={}, addr={:#x}, sz={}, data={:#x}, dword={:#x} mask={:#x}\n", resp.id, addr, sz, data[0], dword, mask);
+  cvm::log(cvm::MEDIUM, "[smc_axi] read resp - id={}, addr={:#x}, sz={}, data={:#x}, dword={:#x} mask={:#x}\n", resp.id, addr, sz, data[0], dword, mask);
   co_return dword;
 }
 
@@ -192,7 +191,7 @@ cvm::messenger::task<void> smc_axi_sequence::write(uint64_t addr, size_t sz, uin
   std::vector<bool> strb(8, false);
   for(int i=0; i<8; ++i)
     strb[i] = (mask & (0xFFull << (i*8))) != 0;
-  cvm::log(cvm::MEDIUM, "[smc-axi] write req - addr={:#x}, sz={}, data={:#x}, dword={:#x} mask={:#x}\n", addr, sz, data, dword, mask);
+  cvm::log(cvm::MEDIUM, "[smc_axi] write req - addr={:#x}, sz={}, data={:#x}, dword={:#x} mask={:#x}\n", addr, sz, data, dword, mask);
   cvm::registry::messenger.signal(smc_axi_loc_, transactor::write_request_t{addr, SZ_8B, byte_array, strb});
   smc_axi_write_count_++;
 
@@ -200,7 +199,7 @@ cvm::messenger::task<void> smc_axi_sequence::write(uint64_t addr, size_t sz, uin
     co_return;
 
   auto resp = co_await cvm::registry::messenger.wait<transactor::write_response_t>(smc_axi_loc_);
-  cvm::log(cvm::MEDIUM, "[smc-axi] write resp - id={}, addr={:#x}, sz={}, data={:#x}, dword={:#x} mask={:#x}\n", resp.id, addr, sz, data, dword, mask);
+  cvm::log(cvm::MEDIUM, "[smc_axi] write resp - id={}, addr={:#x}, sz={}, data={:#x}, dword={:#x} mask={:#x}\n", resp.id, addr, sz, data, dword, mask);
   co_return;
 }
 
@@ -239,7 +238,7 @@ void smc_axi_sequence::blocking_seq_tick(uint8_t val) {
   cvm::registry::callbacks.push(
     scope_,
     [val]() {
-      cvm::log(cvm::MEDIUM, "[smc] {} blocking seq \n", val ? "start" : "end");
+      cvm::log(cvm::FULL, "[smc_axi] {} blocking seq \n", val ? "start" : "end");
       smc_axi_blocking_sequence_tick(val);
     });
 }
