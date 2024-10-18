@@ -387,7 +387,7 @@ namespace {
         {"c_lscfg14", 0xBDE},
         {"c_lscfg15", 0xBDF}
     }};
-    std::array<mmr_entry, 408> mmrs {{
+    std::array<mmr_entry, 409> mmrs {{
         {"sc_ctrl",                       0x1A0000},
         {"sc_sp",                         0x1A0010},
         {"sc_cc_capabilities",            0x1A00C0},
@@ -795,7 +795,8 @@ namespace {
         {"sc_dbg_ones_count_value",       0x1AF338},
         {"sc_dbg_any_change",             0x1AF340},
         {"sc_dbg_mux_control_A",          0x1AF388},
-        {"sc_dbg_mux_control_B",          0x1AF390}
+        {"sc_dbg_mux_control_B",          0x1AF390},
+        {"sc_chicken_bits",               0x421a0040}
     }};
 
 

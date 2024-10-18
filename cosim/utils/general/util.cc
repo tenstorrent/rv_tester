@@ -96,18 +96,15 @@ std::vector<uint32_t> cosim_util::opcode_move_value_to_register(uint64_t value, 
     return opcodes;
 }
 
-std::vector<std::string> cosim_util::split_string (const std::string& input, char delimiter) {
+std::vector<std::string> cosim_util::split_string (const std::string& input, const std::string& delimiter) {
   std::vector<std::string> tokens;
-  std::string token;
-  for (char c : input) {
-    if (c != delimiter)
-      token += c;
-    else {
-      tokens.push_back(token);
-      token.clear();
+  size_t start = 0;
+  size_t end = input.find(delimiter);
+    while (end != std::string::npos) {
+        tokens.push_back(input.substr(start, end - start)); // Extract the substring
+        start = end + delimiter.length();  // Move past the delimiter
+        end = input.find(delimiter, start);  // Find the next delimiter
     }
-  }
-  tokens.push_back(token);
-  return tokens;
-};
-
+    tokens.push_back(input.substr(start));  // Add the last part of the string
+    return tokens;
+}
