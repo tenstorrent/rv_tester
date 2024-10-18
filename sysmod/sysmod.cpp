@@ -1092,11 +1092,22 @@ sysmod::load_csr_mmr_boot(uint64_t)
     for (const auto& mmr : mmrs)
       mmr_map[mmr.name] = mmr.address;
     try {
-      std::vector<std::string> mmr_vals = cosim_util::split_string(FLAGS_set_mmr, ',');
+      std::vector<std::string> mmr_vals = cosim_util::split_string(FLAGS_set_mmr, ",");
       for (const auto& entry : mmr_vals) {
-        std::vector<std::string> mmr_val = cosim_util::split_string(entry, ':');
+        std::vector<std::string> mmr_val = cosim_util::split_string(entry, ":");
+
         auto mmr = mmr_val.at(0);
-        addr = mmr_map.count(mmr)? mmr_map[mmr] : std::stoull(mmr_val.at(0), nullptr, 0);
+        if (mmr_map.count(mmr)) {
+          addr = mmr_map[mmr];
+        } else if (mmr.find("slice") != std::string::npos) {
+          std::vector<std::string> mmr_vec = cosim_util::split_string(entry, "_slice");
+          addr = mmr_map[mmr_vec.at(0)];
+          auto slice = std::stoull(mmr_vec.at(1), nullptr, 0);
+          addr = addr + slice * 0x10000;
+        } else {
+          addr = std::stoull(mmr, nullptr, 0);
+        }
+
         auto size  = std::stoull(mmr_val.at(1), nullptr, 0);
         auto value = std::stoull(mmr_val.at(2), nullptr, 0);
         if (!(size == 1 || size == 2 || size == 4 || size == 8)) {
@@ -1139,10 +1150,10 @@ sysmod::load_csr_mmr_boot(uint64_t)
       csr_map[csr.name] = csr.address;
 
     try { // parse the +set_csr and report any errors
-      char delimiter = ',';
+      std::string delimiter = ",";
       std::vector<std::string> csr_num_val = cosim_util::split_string(FLAGS_set_csr, delimiter);
       for (const auto& entry : csr_num_val) {
-        delimiter = ':';
+        delimiter = ":";
         std::vector<std::string> num_val = cosim_util::split_string(entry, delimiter);
         auto csr = num_val.at(0); // expect both csr address("0x301") as well as string("misa")
         auto value = std::stoull(num_val.at(1), nullptr, 0);

@@ -255,7 +255,7 @@ constructHart (WdRiscv::Hart<URV>* hart, bool preload = false, FILE* preload_log
     hart->setInitialStateFile(preload_log);
 
   if (FLAGS_stee_secure_region != "") {
-    std::vector<std::string> secure_region = cosim_util::split_string(FLAGS_stee_secure_region, ':');
+    std::vector<std::string> secure_region = cosim_util::split_string(FLAGS_stee_secure_region, ":");
     auto start = std::stoull(secure_region.at(0), nullptr, 0);
     auto end   = std::stoull(secure_region.at(1), nullptr, 0);
     hart->configSteeSecureRegion(start, end);
