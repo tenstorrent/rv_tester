@@ -6,7 +6,6 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
-#include <format>
 
 REGISTRY_register(reset_sequence, PWRMGMT, cvm::registry::all);
 
@@ -553,7 +552,6 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
   co_await write(cpl_patch_ram_ptrig_2, SZ_8B, concatenate_uint32_to_uint64(patch_trig_2) );
   co_await write(cpl_patch_ram_ptrig_3, SZ_8B, concatenate_uint32_to_uint64(patch_trig_3) );
 
-
   for (int i = 0; i < (int)patch_instr.size(); ++i) { 
     std::string patchTag = patch_instr[i];
     cvm::log(cvm::MEDIUM, "[pwrmgmt] Patching instruction: {} , patchMask: 0x{:x}, Opcode: 0x{:x}, enableMask: 0x{:x}\n", patchTag, patches[patchTag].patchMask, patches[patchTag].patchInstruction, patches[patchTag].enableMask);
@@ -577,7 +575,7 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
 
   if (FLAGS_patch_cfg_lock) pcontrol_data = pcontrol_data | 0x8000800080008000;
 
-
+  
   for (uint32_t i=0; i< FLAGS_num_harts; i++) {
     uint32_t offset = i * core_fuse_offset;
     for (auto j : patch_cfg)
