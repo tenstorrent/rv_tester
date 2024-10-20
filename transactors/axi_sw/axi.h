@@ -88,22 +88,56 @@ class axi : public transactor {
                 operation(atop_operation(raw & 0xf)) {}
         };
 
+        struct a_no_id_t {
+            bool              w    ;
+            addr_t            addr ;
+            sz_t              size ;
+            len_t             len = len_t(0);
+            burst_t           burst = axi::BURST_INCR;
+            bool              lock = false;
+            cache_mem_attr_t  cache = cache_mem_attr_t(0);
+            prot_t            prot = prot_t(0);
+            qos_t             qos = qos_t(0);
+            region_t          region = region_t(0);
+            atop_t            atop = atop_t(0);
+            user_t            user = user_t(0);
+            bool              rsp_err_chk = true;
+
+            a_no_id_t(const bool& w, const addr_t& addr, const sz_t& size) : w(w), addr(addr), size(size) {}
+            a_no_id_t() = default;
+            a_no_id_t(a_no_id_t&&) = default;
+            a_no_id_t& operator=(a_no_id_t&&) = default;
+            a_no_id_t(const a_no_id_t&) = default;
+            a_no_id_t& operator=(const a_no_id_t&) = default;
+        };
+
         struct a_t {
             bool              w    ;
             id_t              id   ;
             addr_t            addr ;
-            len_t             len  ;
+            len_t             len = len_t(0);
             sz_t              size ;
-            burst_t           burst;
-            bool              lock ;
-            cache_mem_attr_t  cache;
-            prot_t            prot;
-            qos_t             qos;
-            region_t          region;
+            burst_t           burst = axi::BURST_INCR;
+            bool              lock = false;
+            cache_mem_attr_t  cache = cache_mem_attr_t(0);
+            prot_t            prot = prot_t(0);
+            qos_t             qos = qos_t(0);
+            region_t          region = region_t(0);
             atop_t            atop = atop_t(0);
-            user_t            user;
+            user_t            user = user_t(0);
             bool              rsp_err_chk = true;
-            
+
+            a_t(const bool& w, const id_t& id, const addr_t& addr, const len_t& len, const sz_t& size, const burst_t& burst, const bool& lock,
+                const cache_mem_attr_t& cache, const prot_t& prot, const qos_t& qos, const region_t& region, const atop_t& atop, const user_t& user) :
+                w(w), id(id), addr(addr), len(len), size(size), burst(burst), lock(lock), cache(cache), prot(prot), qos(qos), region(region), atop(atop), user(user) {}
+            a_t(const bool& w, const addr_t& addr, const sz_t& size) : w(w), addr(addr), size(size) {}
+            a_t(const a_no_id_t& a) : w(a.w), addr(a.addr), len(a.len), size(a.size), burst(a.burst), lock(a.lock),
+              cache(a.cache), prot(a.prot), qos(a.qos), region(a.region), atop(a.atop), user(a.user), rsp_err_chk(a.rsp_err_chk) {}
+            a_t() = default;
+            a_t(a_t&&) = default;
+            a_t& operator=(a_t&&) = default;
+            a_t(const a_t&) = default;
+            a_t& operator=(const a_t&) = default;
         };
 
         struct w_t {

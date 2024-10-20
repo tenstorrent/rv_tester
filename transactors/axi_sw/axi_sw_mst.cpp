@@ -47,7 +47,6 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::axi_sw_mst(cvm::topology::loc_t loc, unsigned id
       chk_rsp_err_ids_(size_t(1) << id_width_, true),
       read_bytes_(0), write_bytes_(0)
 {
-    cvm::log(cvm::FULL, "[axi_sw_mst] Constructing axi_sw_mst for loc={} \n", loc);
     // available burst sizes
     uint32_t max_size = data_width_ >> 3;
     for (uint32_t i = 1; i <= max_size; i*=2)
@@ -71,6 +70,10 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::axi_sw_mst(cvm::topology::loc_t loc, unsigned id
         transactor::read_request_t,
         transactor::write_request_t
     >();
+
+    cvm::registry::messenger.procedure<ar_rpc>(loc, [this] (const axi::a_no_id_t& ar, axi::id_t& id) {return this->a(false, ar, id);});
+    cvm::registry::messenger.procedure<aw_rpc>(loc, [this] (const axi::a_no_id_t& aw, axi::id_t& id) {return this->a(true, aw, id);});
+    cvm::registry::messenger.procedure<w_rpc>(loc, [this] (const axi::w_t& w) {return this->w(w);});
 }
 
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
@@ -220,6 +223,30 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::a_wrapper(uint64_t req_addr, size_t req_length, 
 }
 
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
+bool
+axi_sw_mst<B, R, ARQ, AWQ, WQ>::a(const bool& aw, const axi::a_no_id_t& a_no_id, axi::id_t& id) {
+    axi::a_t a {a_no_id};
+    a.w = aw;
+
+    if (!next_id(id)) {
+        cvm::log(cvm::ERROR, "[axi_sw_mst] Error: No free id's remaining for axi master\n");
+        return false;
+    }
+    a.id = id;
+
+    transactions_.emplace_back(a);
+    push_transactions();
+    return true;
+}
+
+template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
+void
+axi_sw_mst<B, R, ARQ, AWQ, WQ>::w(const axi::w_t& w) {
+    transactions_.emplace_back(w);
+    push_transactions();
+}
+
+template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
 
@@ -323,7 +350,9 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const transactor::read_request_t& req) {
-    axi::a_t a{ .w = false , .rsp_err_chk = req.rsp_err_chk};
+    axi::a_t a;
+    a.w = false;
+    a.rsp_err_chk = req.rsp_err_chk;
 
      if (!a_wrapper(req.addr, req.length, a))
         return;
@@ -335,7 +364,9 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const transactor::read_request_t& req) {
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const transactor::write_request_t& req) {
-    axi::a_t a{ .w = true, .rsp_err_chk = req.rsp_err_chk };
+    axi::a_t a;
+    a.w = true;
+    a.rsp_err_chk = req.rsp_err_chk;
 
     if (!a_wrapper(req.addr, req.length, a))
         return;
