@@ -123,6 +123,7 @@ void cla_cfg::push_clk_halt_cfg() {
 }
 
 void cla_cfg::push_cla_nmi_cfg() {
+
   cvm::log(cvm::NONE, "[CLA_CFG] Push CLA NMI Configs start_cla_nmi_cnt {} \n", start_cla_nmi_cnt);
 
   rand_disable_dly = (rng() % 200)+ 300 + cnt_tick;  // 300 - 500 delay before disabling
@@ -134,15 +135,15 @@ void cla_cfg::push_cla_nmi_cfg() {
       cntr_data = cntr_data << 16;
       if(reenable_nmi){
         cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_COUNTER0_CFG + addr_offset),cntr_data});
-        cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + addr_offset),0x40});
-        cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + addr_offset),0x60});
+        //cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + addr_offset),(0x1B00 | 0x40)});
+        cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + addr_offset),(0x1B00 | 0x60)});
       }
       else{
-        cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + addr_offset),0x40});
+        cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + addr_offset),(0x1B00 | 0x40)});
         cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_COUNTER0_CFG + addr_offset),cntr_data});
         cla_wr_txn_q.push({(cla_mmr::CDBG_NODE0_EAP0_CFG + addr_offset),0x10049});
         cla_wr_txn_q.push({(cla_mmr::CDBG_NODE1_EAP0_CFG + addr_offset),0x10110A});
-        cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + addr_offset),0x60});
+        cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + addr_offset),(0x1B00 | 0x60)});
       }
     }
   }
@@ -159,7 +160,7 @@ void cla_cfg::push_cla_nmi_cfg_disable() {
     if((mask & (1 << i))){
       cvm::log(cvm::LOW, "[CLA_CFG] Push CLA NMI Configs for Core-{} \n",i);
       addr_offset = 0x10000 * i;
-      cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + addr_offset),0x0});
+      cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + addr_offset),(0x1B00 | 0x40)});     // Disable EAP, CLA enabled
     }
   }
   nmi_total_cnt = nmi_total_cnt - 1;
@@ -173,7 +174,7 @@ void cla_cfg::push_rand_nmi_trigg_cfg() {
   wait_on_count = (rng()% 201) + 1000;    // On Delay 1000-1200 CLK cycle
   wait_off_count = (rng()% 101) + 700;    // Off Delay 700-800 CLK cycle
   event_count = (rng()% 101) + 200;       // Event on Delay 200-300 CLK cycle
-  eap_ctrl = 12;                          // Considering 12 value as per waves
+  eap_ctrl = (12 << 7);                   // Considering 12 value as per waves
   active_core = (FLAGS_num_harts == 1) ? 0 : (rng() % FLAGS_num_harts);
   rand_disable_trig_dly = (rng() % 50)+ 500 + cnt_tick;  // 500 - 550 delay before disabling
 
@@ -186,7 +187,6 @@ void cla_cfg::push_rand_nmi_trigg_cfg() {
     else {
       cla_wr_txn_q.push({(cla_mmr::CDBG_NODE1_EAP1_CFG + (0x10000 * active_core)),0x1081D});// ALWAYS ON, TRIGGER-0,1
     }
-    cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + (0x10000 * active_core)),(eap_ctrl | 0x40)});
     cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + (0x10000 * active_core)),(eap_ctrl | 0x60)});
   }
   else {
@@ -217,7 +217,7 @@ void cla_cfg::push_rand_nmi_trigg_cfg_off() {
 
   cvm::log(cvm::NONE, "[CLA_CFG] Push NMI/Trigger Disable EAP... \n");
   start_rand_nmi_trig_cnt = (rng()%100) + 200 + cnt_tick; // 200-300 off
-  cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + (0x10000 * active_core)),(eap_ctrl & 0x3F80)});
+  cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + (0x10000 * active_core)),((eap_ctrl | 0x40) & 0x3FC0)});     // Disable EAP, CLA enabled
   reenable_rand_trig = 1;
   nmi_event = !nmi_event;
   trig_total_cnt = trig_total_cnt - 1;
