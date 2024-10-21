@@ -123,26 +123,26 @@ void cla_cfg::push_clk_halt_cfg() {
 }
 
 void cla_cfg::push_cla_nmi_cfg() {
-  cvm::log(cvm::NONE, "[CLA_CFG] Push CLA NMI Configs\n");
+
+  cvm::log(cvm::NONE, "[CLA_CFG] Push CLA NMI Configs start_cla_nmi_cnt {} \n", start_cla_nmi_cnt);
 
   rand_disable_dly = (rng() % 200)+ 300 + cnt_tick;  // 300 - 500 delay before disabling
   for(uint32_t i=0; i< 8 ; i++){
     if((mask & (1 << i))){
-      cvm::log(cvm::NONE, "[CLA_CFG] Push CLA NMI Configs for Core-{} \n",i);
+      cvm::log(cvm::LOW, "[CLA_CFG] Push CLA NMI Configs for Core-{} \n",i);
       addr_offset = 0x10000 * i;
       cntr_data = rng()%0x2000 + 0x4000;
       cntr_data = cntr_data << 16;
       if(reenable_nmi){
         cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_COUNTER0_CFG + addr_offset),cntr_data});
-        cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + addr_offset),0x40});
-        cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + addr_offset),0x60});
+        cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + addr_offset),(0x1B00 | 0x60)});
       }
       else{
-        cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + addr_offset),0x40});
+        cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + addr_offset),(0x1B00 | 0x40)});
         cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_COUNTER0_CFG + addr_offset),cntr_data});
         cla_wr_txn_q.push({(cla_mmr::CDBG_NODE0_EAP0_CFG + addr_offset),0x10049});
         cla_wr_txn_q.push({(cla_mmr::CDBG_NODE1_EAP0_CFG + addr_offset),0x10110A});
-        cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + addr_offset),0x60});
+        cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + addr_offset),(0x1B00 | 0x60)});
       }
     }
   }
@@ -157,9 +157,9 @@ void cla_cfg::push_cla_nmi_cfg_disable() {
 
   for(uint32_t i=0; i< 8 ; i++){
     if((mask & (1 << i))){
-      cvm::log(cvm::NONE, "[CLA_CFG] Push CLA NMI Configs for Core-{} \n",i);
+      cvm::log(cvm::LOW, "[CLA_CFG] Push CLA NMI Configs for Core-{} \n",i);
       addr_offset = 0x10000 * i;
-      cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + addr_offset),0x0});
+      cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + addr_offset),(0x1B00 | 0x40)});     // Disable EAP, CLA enabled
     }
   }
   nmi_total_cnt = nmi_total_cnt - 1;
@@ -169,20 +169,23 @@ void cla_cfg::push_cla_nmi_cfg_disable() {
 void cla_cfg::push_rand_nmi_trigg_cfg() {
   uint32_t wait_on_count,wait_off_count,event_count;
   uint32_t wdata;
-  bool nmi_event;
 
   wait_on_count = (rng()% 201) + 1000;    // On Delay 1000-1200 CLK cycle
   wait_off_count = (rng()% 101) + 700;    // Off Delay 700-800 CLK cycle
   event_count = (rng()% 101) + 200;       // Event on Delay 200-300 CLK cycle
-  nmi_event = 0; // rng();                // NMI = 1, Trigger = 0
-  eap_ctrl = 12;                          // Considering 12 value as per waves
+  eap_ctrl = (12 << 7);                   // Considering 12 value as per waves
   active_core = (FLAGS_num_harts == 1) ? 0 : (rng() % FLAGS_num_harts);
   rand_disable_trig_dly = (rng() % 50)+ 500 + cnt_tick;  // 500 - 550 delay before disabling
 
-  cvm::log(cvm::NONE, "[CLA_CFG] Push NMI/Trigger Configs for Core - {} nmi_event {} \n", active_core, nmi_event);
+  cvm::log(cvm::NONE, "[CLA_CFG] Push NMI/Trigger Configs for Core - {} nmi_event {} start_rand_nmi_trig_cnt {} \n", active_core, nmi_event, start_rand_nmi_trig_cnt);
 
   if(reenable_rand_trig) {
-    cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + (0x10000 * active_core)),(eap_ctrl | 0x40)});
+    if(nmi_event){
+      cla_wr_txn_q.push({(cla_mmr::CDBG_NODE1_EAP1_CFG + (0x10000 * active_core)),0x10009});// ALWAYS ON, NMI
+    }
+    else {
+      cla_wr_txn_q.push({(cla_mmr::CDBG_NODE1_EAP1_CFG + (0x10000 * active_core)),0x1081D});// ALWAYS ON, TRIGGER-0,1
+    }
     cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + (0x10000 * active_core)),(eap_ctrl | 0x60)});
   }
   else {
@@ -194,7 +197,7 @@ void cla_cfg::push_rand_nmi_trigg_cfg() {
     wdata = 0; wdata = (wait_off_count << 16);
     cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_COUNTER2_CFG + (0x10000 * active_core)),wdata}); // CNT2 - Off count
 
-    cla_wr_txn_q.push({(cla_mmr::CDBG_NODE0_EAP1_CFG + (0x10000 * active_core)),0x10048}); // ALWAYS ON, AUTOINCR0
+    cla_wr_txn_q.push({(cla_mmr::CDBG_NODE0_EAP1_CFG + (0x10000 * active_core)),0x10040}); // ALWAYS ON, AUTOINCR0
     cla_wr_txn_q.push({(cla_mmr::CDBG_NODE0_EAP0_CFG + (0x10000 * active_core)),0x101645});// TARGET MATCH-0, CLRCNT0, AUTOINCR1, DEST-1
     if(nmi_event){
       cla_wr_txn_q.push({(cla_mmr::CDBG_NODE1_EAP1_CFG + (0x10000 * active_core)),0x10009});// ALWAYS ON, NMI
@@ -213,8 +216,9 @@ void cla_cfg::push_rand_nmi_trigg_cfg_off() {
 
   cvm::log(cvm::NONE, "[CLA_CFG] Push NMI/Trigger Disable EAP... \n");
   start_rand_nmi_trig_cnt = (rng()%100) + 200 + cnt_tick; // 200-300 off
-  cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + (0x10000 * active_core)),(eap_ctrl & 0x3F80)});
+  cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + (0x10000 * active_core)),((eap_ctrl | 0x40) & 0x3FC0)});     // Disable EAP, CLA enabled
   reenable_rand_trig = 1;
+  nmi_event = !nmi_event;
   trig_total_cnt = trig_total_cnt - 1;
 }
 
@@ -223,8 +227,9 @@ void cla_cfg::overlay_tick(uint64_t) {
     if(start_clk_halt_cnt == 0) {
       reenable_nmi = 0;
       reenable_rand_trig = 0;
+      nmi_event = rng();                                      // NMI = 1, Trigger = 0
       mask = FLAGS_hart_enable_mask;
-      nmi_total_cnt = (rng() % 5) + 5;                            // NMI total enable count
+      nmi_total_cnt = (rng() % 5) + 5;                        // NMI total enable count
       trig_total_cnt = (rng() % 3) + 2;                       // Xtrigger/rand NMI total count
       start_clk_halt_cnt = (rng()% 40) + 50 ;
       start_cla_nmi_cnt = (rng()% 40) + 50 ;
@@ -236,21 +241,21 @@ void cla_cfg::overlay_tick(uint64_t) {
 
     //--------------------------------- CLK HALT--------------------------------------
     if(FLAGS_cla_clk_halt) {
-      cvm::log(cvm::NONE, "[CLA_CFG::CLK_HALT] cla_cfg timer tick advance interval {} start_clk_halt_cnt {} \n",cnt_tick,start_clk_halt_cnt);
+      cvm::log(cvm::LOW, "[CLA_CFG::CLK_HALT] cla_cfg timer tick advance interval {} start_clk_halt_cnt {} \n",cnt_tick,start_clk_halt_cnt);
       if(cnt_tick==start_clk_halt_cnt) push_clk_halt_cfg();
       if(cla_wr_txn_q.size() > 0) axi_write();
      }
 
     //--------------------------------- CLA NMI --------------------------------------
     if(FLAGS_cla_nmi) {
-      cvm::log(cvm::NONE, "[CLA_CFG::NMI] cla_cfg timer tick advance interval {} start_cla_nmi_cnt {} \n",cnt_tick,start_cla_nmi_cnt);
+      cvm::log(cvm::LOW, "[CLA_CFG::NMI] cla_cfg timer tick advance interval {} start_cla_nmi_cnt {} \n",cnt_tick,start_cla_nmi_cnt);
       if((cnt_tick==start_cla_nmi_cnt) && (nmi_total_cnt != 0)) push_cla_nmi_cfg();
       if(cnt_tick==rand_disable_dly) push_cla_nmi_cfg_disable();
       if(cla_wr_txn_q.size() > 0) axi_write();
      }
     //--------------------------------- CLA XTrigger/NMI ------------------------------
     if(FLAGS_cla_rand_nmi_trig_en) {
-      cvm::log(cvm::NONE, "[CLA_CFG::NMI/XTRIGGER] cla_cfg timer tick advance interval {} start_rand_nmi_trig_cnt {} \n",cnt_tick,start_rand_nmi_trig_cnt);
+      cvm::log(cvm::LOW, "[CLA_CFG::NMI/XTRIGGER] cla_cfg timer tick advance interval {} start_rand_nmi_trig_cnt {} \n",cnt_tick,start_rand_nmi_trig_cnt);
       if((cnt_tick==start_rand_nmi_trig_cnt) && (trig_total_cnt > 0)) push_rand_nmi_trigg_cfg();
       if(cnt_tick==(rand_disable_trig_dly)) push_rand_nmi_trigg_cfg_off();
       if(cla_wr_txn_q.size() > 0) axi_write();
