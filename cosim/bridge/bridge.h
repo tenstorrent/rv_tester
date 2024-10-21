@@ -224,6 +224,10 @@ private:
         {0x280, "vsatp"} // -
     };
 
+  // MCM order map needed for periodic cosim
+  std::map<uint64_t , int> mcm_orders_; 
+
+
   cvm::file_logger bridge_log_;
   cvm::topology::loc_t loc_;
   unsigned id_;
