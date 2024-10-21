@@ -118,7 +118,7 @@ jtag_sequence::update_jtag_status(jtag_sequence::jtag_req_t& i) {
 void jtag_sequence::get_all_csv_templates()
 {
     std::string directoryPath = FLAGS_jtag_template_dir_path;
-    cvm::log(cvm::NONE, "[jtag_sequence]Debug commands directory:{}\n", directoryPath);
+    cvm::log(cvm::MEDIUM, "[jtag_sequence]JTAG template directory:{}\n", directoryPath);
 
     if (!std::filesystem::exists(directoryPath) || !std::filesystem::is_directory(directoryPath))
     {

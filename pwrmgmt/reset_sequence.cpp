@@ -67,7 +67,7 @@ void reset_sequence::start(int reset_count) {
   reset_count_ = reset_count;
 
   cvm::log(cvm::HIGH, "[reset_sequence] count = {}\n", reset_count_);
-
+  
   // Sequence threads
   if (reset_count_ <= 0)
     cold_reset_sequence_thread();
@@ -142,7 +142,7 @@ cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
   co_await pll_startup_sequence();
 
   // PLL dfs sequence
-  if (FLAGS_pll_dfs)
+  if (FLAGS_pll_dfs| (FLAGS_clk_profile!=0))
     co_await pll_dfs_sequence();
 
   // Reset controller sequence
@@ -261,6 +261,12 @@ cvm::messenger::task<void> reset_sequence::clear_pll_status() {
 }
 
 cvm::messenger::task<void> reset_sequence::pll_dfs_sequence() {
+  if (FLAGS_clk_profile !=0) {
+    auto loc = cvm::topology::get_from_type("CLKI", 0);
+    FLAGS_pll_dfs_freq = cvm::topology::list_attr(loc, std::format("PROFILE{}_CLOCK_FREQ_MHZ",FLAGS_clk_profile)).second[1];
+  }
+  cvm::log(cvm::MEDIUM, "[pwrmgmt] Core frequency is being changed to {} based on clk_profile {}\n", FLAGS_pll_dfs_freq, FLAGS_clk_profile);
+  
   uint32_t freq_ratio = 2400 / FLAGS_pll_dfs_freq;
   co_await write(pll_parameters0, SZ_4B, (1 << scalar_div_idx | 52 << main_divider_div_idx | freq_ratio << pre_divider_div_idx));
   co_await write(pll_control, SZ_4B, (1 << dfs_req_idx));
@@ -303,10 +309,11 @@ cvm::messenger::task<void> reset_sequence::program_fuses() {
   for (uint32_t i = 0; i < FLAGS_num_harts; ++i)
     co_await write(core_fuse_mmr + i * core_fuse_offset,   SZ_8B, fuse);
   
-  //co_await write(trace_fuse_mmr+4,  SZ_4B, (fuse>>32) & 0xFFFFFFFF);
-  //co_await write(trace_fuse_mmr, SZ_4B, fuse & 0xFFFFFFFF ); //FIXME: Enable 8B transaction after RVDE-17674 is fixed 
-  co_await write(trace_fuse_mmr, SZ_8B, fuse & 0xFFFFFFFFFFF7FFF ); //FIXME: Enable 8B transaction after RVDE-17674 is fixed 
-  co_await write(trace_fuse_mmr, SZ_8B, fuse );  
+  if (FLAGS_trace_enable) {
+    cvm::log(cvm::MEDIUM, "[pwrmgmt] writing trace fuse\n", trace_fuse_mmr);
+    co_await write(trace_fuse_mmr, SZ_8B, fuse & 0xFFFFFFFFFFF7FFF );//Workaround defined in RVDE-17674 
+    co_await write(trace_fuse_mmr, SZ_8B, fuse );
+  }
   co_await write(aclint_fuse_mmr, SZ_8B, fuse);
   co_await write(dm_fuse_mmr,     SZ_8B, fuse);
   co_await write(sc_fuse_mmr,     SZ_8B, fuse);
@@ -545,8 +552,6 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
   co_await write(cpl_patch_ram_ptrig_2, SZ_8B, concatenate_uint32_to_uint64(patch_trig_2) );
   co_await write(cpl_patch_ram_ptrig_3, SZ_8B, concatenate_uint32_to_uint64(patch_trig_3) );
 
-  uint64_t pcontrol_data = 0;
-
   for (int i = 0; i < (int)patch_instr.size(); ++i) { 
     std::string patchTag = patch_instr[i];
     cvm::log(cvm::MEDIUM, "[pwrmgmt] Patching instruction: {} , patchMask: 0x{:x}, Opcode: 0x{:x}, enableMask: 0x{:x}\n", patchTag, patches[patchTag].patchMask, patches[patchTag].patchInstruction, patches[patchTag].enableMask);
@@ -555,7 +560,6 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
     co_await write(cpl_patch_ram_pbody_0+(i*0x400), SZ_8B, concatenate_uint32_to_uint64(ucode_body) );
     if (FLAGS_patch_ram_check) populate_patch_ram(cpl_patch_ram_pbody_0+(i*0x400), concatenate_uint32_to_uint64(ucode_body));
     pcontrol_data =  pcontrol_data | (((uint64_t)patches[patchTag].enableMask | 1) << i*16); // enable patch 
-    cvm::log(cvm::MEDIUM, "[pwrmgmt] pcontrol_data : 0x{:x}\n", pcontrol_data);
     if (i == 3) break;
   }
   if (FLAGS_patch_ram_check) {
@@ -569,7 +573,7 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
 
   if (FLAGS_patch_cfg_lock) pcontrol_data = pcontrol_data | 0x8000800080008000;
 
-
+  
   for (uint32_t i=0; i< FLAGS_num_harts; i++) {
     uint32_t offset = i * core_fuse_offset;
     for (auto j : patch_cfg)
@@ -724,12 +728,13 @@ cvm::messenger::task<void> reset_sequence::fuse_mmr_check() {
   uint64_t fuse = fuse_val();
   std::vector<uint64_t> fuse_registers = { 
     sw_fuse_mmr,
-    trace_fuse_mmr,
     aclint_fuse_mmr,
     dm_fuse_mmr,
     sc_fuse_mmr
   };
-  
+
+  if (FLAGS_trace_enable) 
+      fuse_registers.push_back(trace_fuse_mmr);
   for (uint32_t i=0; i<FLAGS_num_harts; ++i)
     fuse_registers.push_back(core_fuse_mmr + i * core_fuse_offset);
   uint64_t actual_data;

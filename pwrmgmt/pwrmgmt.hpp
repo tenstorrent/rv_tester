@@ -139,6 +139,9 @@ namespace {
   std::map<uint32_t, uint64_t> fuse_data;
 
   std::map<uint32_t, uint64_t> patch_ram;
+  uint64_t pcontrol_enable_mask;
+  uint64_t pcontrol_data;
+
 
   // Structure to represent a patch entry
   struct PatchEntry {
