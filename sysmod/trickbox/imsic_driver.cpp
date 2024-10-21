@@ -5,7 +5,7 @@
 
  DEFINE_bool(random_imsic_intr, false, "Drive random interrups");
  DEFINE_bool(disable_m_imsic_intr, false, "Drive random imsic  interrups to M file");
- DEFINE_bool(disable_s_imsic_intr, true, "Drive random imsic  interrups to S file");
+ DEFINE_bool(disable_s_imsic_intr, false, "Drive random imsic  interrups to S file");
  DEFINE_bool(disable_vs_imsic_intr, true, "Drive random imsic  interrups to VS file");
  DEFINE_bool(disable_random_hart_imsic_intr, false, "Drive random imsic  interrups to random harts");
  DEFINE_int32(imsic_intr_delay_min, 3, "Minimum Delay between 2 consecutive interrupts");

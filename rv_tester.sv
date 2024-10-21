@@ -274,8 +274,10 @@ module rv_tester
 
             $display("[RVTESTER]: new test");
             _ = rv_tester_parse_flags();
-            if (num_resets < 0)
+            if (num_resets < 0) begin
                 rv_tester_set_seed();
+                clocks <= 0;
+            end
             rv_tester_cvm_error_handler();
             rv_tester_parse_memmap(NoAddrRules);
 
