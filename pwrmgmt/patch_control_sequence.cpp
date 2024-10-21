@@ -48,7 +48,7 @@ cvm::messenger::task<void> patch_control_sequence::main() {
 }
 
 cvm::messenger::task<void> patch_control_sequence::pcontrol_write() {
-  cvm::log(cvm::NONE, "pcontrol_data = 0x{:x}, pcontrol_enable_mask = 0x{:x}\n", pcontrol_data, pcontrol_enable_mask);
+  cvm::log(cvm::MEDIUM, "pcontrol_data = 0x{:x}, pcontrol_enable_mask = 0x{:x}\n", pcontrol_data, pcontrol_enable_mask);
   pcontrol_data = (pcontrol_data ^ pcontrol_enable_mask);
   for (uint32_t i=0; i< FLAGS_num_harts; i++) {
     uint32_t offset = i * core_fuse_offset;

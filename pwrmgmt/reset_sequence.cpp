@@ -560,8 +560,6 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
     co_await write(cpl_patch_ram_pbody_0+(i*0x400), SZ_8B, concatenate_uint32_to_uint64(ucode_body) );
     if (FLAGS_patch_ram_check) populate_patch_ram(cpl_patch_ram_pbody_0+(i*0x400), concatenate_uint32_to_uint64(ucode_body));
     pcontrol_data =  pcontrol_data | (((uint64_t)patches[patchTag].enableMask | 1) << i*16); // enable patch 
-    pcontrol_enable_mask =  pcontrol_enable_mask | 0x1<<(i*16);
-    cvm::log(cvm::NONE, "[pwrmgmt] pcontrol_data : 0x{:x}, pcontrol_enable_mask : 0x{:x}\n", pcontrol_data, pcontrol_enable_mask);
     if (i == 3) break;
   }
   if (FLAGS_patch_ram_check) {
