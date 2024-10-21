@@ -71,9 +71,9 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::axi_sw_mst(cvm::topology::loc_t loc, unsigned id
         transactor::write_request_t
     >();
 
-    cvm::registry::messenger.procedure<ar_rpc>(loc, [this] (const axi::a_no_id_t& ar, axi::id_t& id) {return this->a(false, ar, id);});
-    cvm::registry::messenger.procedure<aw_rpc>(loc, [this] (const axi::a_no_id_t& aw, axi::id_t& id) {return this->a(true, aw, id);});
-    cvm::registry::messenger.procedure<w_rpc>(loc, [this] (const axi::w_t& w) {return this->w(w);});
+    cvm::registry::messenger.procedure<push_ar_no_id_rpc>(loc, [this] (const axi::a_no_id_t& ar, axi::id_t& id) {return this->push_a_no_id(false, ar, id);});
+    cvm::registry::messenger.procedure<push_aw_no_id_rpc>(loc, [this] (const axi::a_no_id_t& aw, axi::id_t& id) {return this->push_a_no_id(true, aw, id);});
+    cvm::registry::messenger.procedure<push_w_rpc>(loc, [this] (const axi::w_t& w) {return this->push_w(w);});
 }
 
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
@@ -224,7 +224,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::a_wrapper(uint64_t req_addr, size_t req_length, 
 
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 bool
-axi_sw_mst<B, R, ARQ, AWQ, WQ>::a(const bool& aw, const axi::a_no_id_t& a_no_id, axi::id_t& id) {
+axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_a_no_id(const bool& aw, const axi::a_no_id_t& a_no_id, axi::id_t& id) {
     axi::a_t a {a_no_id};
     a.w = aw;
 
@@ -241,7 +241,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::a(const bool& aw, const axi::a_no_id_t& a_no_id,
 
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
-axi_sw_mst<B, R, ARQ, AWQ, WQ>::w(const axi::w_t& w) {
+axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_w(const axi::w_t& w) {
     transactions_.emplace_back(w);
     push_transactions();
 }

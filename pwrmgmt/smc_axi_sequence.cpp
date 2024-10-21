@@ -227,7 +227,7 @@ cvm::messenger::task<void> smc_axi_sequence::smc_trns_read_check(smc_dest_path_t
 cvm::messenger::task<uint64_t> smc_axi_sequence::read(unsigned& id, uint64_t addr, size_t sz, block_t block /* = BLOCK */) {
   assert(sz <= 8);
 
-  if (!cvm::registry::messenger.call<smc_axi_mst_t::ar_rpc>(smc_axi_loc_, axi::a_no_id_t{false, addr, log2(sz)}, id))
+  if (!cvm::registry::messenger.call<smc_axi_mst_t::push_ar_no_id_rpc>(smc_axi_loc_, axi::a_no_id_t{addr, log2(sz)}, id))
     co_return 0;
   smc_axi_read_count_++;
   cvm::log(cvm::MEDIUM, "[smc_axi] read req - id={}, addr={:#x}, sz={}\n", id, addr, sz);
@@ -256,9 +256,9 @@ cvm::messenger::task<void> smc_axi_sequence::write(unsigned& id, uint64_t addr, 
   for(int i=0; i<8; ++i)
     strb[i] = (mask & (0xFFull << (i*8))) != 0;
 
-  if (!cvm::registry::messenger.call<smc_axi_mst_t::aw_rpc>(smc_axi_loc_, axi::a_no_id_t{true, addr, 3}, id)) //FIXME size
+  if (!cvm::registry::messenger.call<smc_axi_mst_t::push_aw_no_id_rpc>(smc_axi_loc_, axi::a_no_id_t{addr, 3}, id)) //FIXME size
     co_return;
-  cvm::registry::messenger.call<smc_axi_mst_t::w_rpc>(smc_axi_loc_, axi::w_t{byte_array, strb, 1});
+  cvm::registry::messenger.call<smc_axi_mst_t::push_w_rpc>(smc_axi_loc_, axi::w_t{byte_array, strb, 1});
   smc_axi_write_count_++;
   cvm::log(cvm::MEDIUM, "[smc_axi] write req - id={}, addr={:#x}, sz={}, data={:#x}, dword={:#x} mask={:#x}\n", id, addr, sz, data, dword, mask);
 
