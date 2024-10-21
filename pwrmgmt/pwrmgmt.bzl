@@ -20,6 +20,7 @@ def pwrmgmt_gen(name, packet, topology, harness, visibility = None, cc_attrs = {
             "@rv_tester//pwrmgmt:patch_control_sequence.hpp",
         ],
         deps = [
+            "@rv_tester//transactors/axi_sw:axi_sw_mst",
             "@rv_tester//sysmod:sysmod_plusargs",
             "@rv_tester//pmu:pmu_plusargs",
             "@rv_tester//common:transactor",

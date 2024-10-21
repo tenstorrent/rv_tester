@@ -1578,36 +1578,24 @@ pwrmgmt:
         fields:
             cycle:
                 width: 32
-    m_smc_axi_tick:
+    m_smc_axi_sp_tick:
         domain: 3
         num: 1
-        fields:
-            assertion:
-                width: 1
+    m_smc_axi_csr_tick:
+        domain: 3
+        num: 1
     m_pcontrol_tick:
         domain: 3
         num: 1
-        fields:
-            assertion:
-                width: 1
     m_force_ref_clk:
         domain: 3
         num: 1
-        fields:
-            cycle:
-                width: 32
     m_cold_reset_ack:
         domain: 3
         num: 1
-        fields:
-            assertion:
-                width: 1
     m_force_ref_clk_ack:
         domain: 3
         num: 1
-        fields:
-            assertion:
-                width: 1
 
 snoop_gen:
     num: 1
