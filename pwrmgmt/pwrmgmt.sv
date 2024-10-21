@@ -33,6 +33,7 @@ import rv_tester_params::*;
       if (location != cvm_topology::nil) begin
         pwrmgmt_set_scope(location);
         pwrmgmt_set_reset_count(location, reset_count);
+        smc_axi_blocking_sequence_tick(0);
         if (reset_count <= 0)
           //FIXME pwrmgmt_force_ref_clk(1);
           pwrmgmt_init();
@@ -85,16 +86,17 @@ import rv_tester_params::*;
   assign m_ticks[0].data.location = location;
   assign m_ticks[0].data.cycle = tick_valid ? soc_clocks : 0;
 
-  // m_smc_axi_tick
-  logic smc_axi_tick;
-  rv_tester_tick_generator #(.NAME("smc_axi")) smc_axi_tick_generator (.clk(clk[SOC_CLK_IDX]), .reset(core_no_fetch), .tick(smc_axi_tick));
-  assign m_smc_axi_ticks[0].valid = smc_axi_tick && (location != cvm_topology::nil);
+  // m_smc_axi_rand_tick
+  logic smc_axi_rand_tick;
+  logic smc_axi_blocking_seq_tick;
+  rv_tester_tick_generator #(.NAME("smc_axi")) smc_axi_rand_tick_generator (.clk(clk[SOC_CLK_IDX]), .reset(core_no_fetch), .inhibit(smc_axi_blocking_seq_tick), .tick(smc_axi_rand_tick));
+  assign m_smc_axi_ticks[0].valid = (smc_axi_rand_tick || smc_axi_blocking_seq_tick) && (location != cvm_topology::nil);
   assign m_smc_axi_ticks[0].data.location = location;
   assign m_smc_axi_ticks[0].data.assertion = '0;
 
    // m_pcontrol_tick
   logic pcontrol_tick;
-  rv_tester_tick_generator #(.NAME("pcontrol")) pcontrol_tick_generator (.clk(clk[SOC_CLK_IDX]), .reset(core_no_fetch), .tick(pcontrol_tick));
+  rv_tester_tick_generator #(.NAME("pcontrol")) pcontrol_tick_generator (.clk(clk[SOC_CLK_IDX]), .reset(core_no_fetch), .inhibit('0), .tick(pcontrol_tick));
   assign m_pcontrol_ticks[0].valid = pcontrol_tick && (location != cvm_topology::nil);
   assign m_pcontrol_ticks[0].data.location = location;
   assign m_pcontrol_ticks[0].data.assertion = '0;
@@ -149,6 +151,14 @@ import rv_tester_params::*;
   function void pwrmgmt_force_ref_clk(bit val);
       /* verilator lint_off BLKSEQ */
       force_ref_clk = val;
+      /* verilator lint_on BLKSEQ */
+  endfunction
+
+  export "DPI-C" function smc_axi_blocking_sequence_tick;
+
+  function void smc_axi_blocking_sequence_tick(bit val);
+      /* verilator lint_off BLKSEQ */
+      smc_axi_blocking_seq_tick = val;
       /* verilator lint_on BLKSEQ */
   endfunction
 

@@ -22,9 +22,11 @@ class external_interrupt_sequence {
 
   private:
 
-    void trigger_mode_thread();
+    void patch_trigger_mode_thread();
+    void uarch_trigger_mode_thread();
 
-    cvm::messenger::task<void> trigger_mode();
+    cvm::messenger::task<void> patch_trigger_mode();
+    cvm::messenger::task<void> uarch_trigger_mode();
 
     cvm::messenger::task<void> tick();
     cvm::messenger::task<void> trigger();

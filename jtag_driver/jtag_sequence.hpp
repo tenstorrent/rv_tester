@@ -63,7 +63,7 @@ class jtag_sequence {
   virtual void jtag_tick(uint64_t advance) 
   {
     num_ticks++;
-    cvm::log(cvm::LOW, "[jtag_sequence]: JTAG Tick {}\n",num_ticks);
+    cvm::log(cvm::DEBUG, "[jtag_sequence]: JTAG Tick {}\n",num_ticks);
     timer_ += advance;
     timer_advance = advance;
     if( num_ticks > 30) 
@@ -72,11 +72,11 @@ class jtag_sequence {
 
     if(executing_nop){
       nop_count--;
-      cvm::log(cvm::LOW, "[jtag_sequence]: Executing Nop ,Nop count {}\n",nop_count);
+      cvm::log(cvm::HIGH, "[jtag_sequence]: Executing Nop ,Nop count {}\n",nop_count);
       if(nop_count==0)
         executing_nop = false;
     }else if(executing_loop){
-      cvm::log(cvm::LOW, "[jtag_sequence]: Executing loop \n");
+      cvm::log(cvm::HIGH, "[jtag_sequence]: Executing loop \n");
       Run_cmd_loop();
     }else{
     drive_csv_jtag_cmds();
@@ -95,13 +95,13 @@ class jtag_sequence {
 
 bool exitLoop() {
     if(loop_check_bit_type>0){
-      cvm::log(cvm::LOW, "[jtag_driver_CHECK]: loop_rdata {:#x},loop_check_bit_num {},loop_execution_cnt {}\n",loop_rdata,loop_check_bit_num,loop_execution_cnt);
+      cvm::log(cvm::HIGH, "[jtag_sequence]: loop_rdata {:#x},loop_check_bit_num {},loop_execution_cnt {}\n",loop_rdata,loop_check_bit_num,loop_execution_cnt);
       return isNthBitSet(loop_rdata,loop_check_bit_num);
     }else if(loop_check_bit_type == 0){
-      cvm::log(cvm::LOW, "[jtag_driver_CHECK]: loop_rdata {:#x},loop_check_bit_num {},loop_execution_cnt {}\n",loop_rdata,loop_check_bit_num,loop_execution_cnt);
+      cvm::log(cvm::HIGH, "[jtag_sequence]: loop_rdata {:#x},loop_check_bit_num {},loop_execution_cnt {}\n",loop_rdata,loop_check_bit_num,loop_execution_cnt);
       return isNthBitClear(loop_rdata,loop_check_bit_num);
     }else{
-     cvm::log(cvm::LOW, "[jtag_driver]: Wrong Exit loop condition detected \n");
+     cvm::log(cvm::HIGH, "[jtag_driver]: Wrong Exit loop condition detected \n");
      return false;
     }
     
@@ -134,7 +134,7 @@ bool exitLoop() {
     lower_jtag_data = jtag_req.jtag_ip_data_lower;
     reg_length_data = jtag_req.jtag_length_data;
     
-    cvm::log(cvm::LOW, "[jtag_driver]: JTAG loop command {}\n",jtag_cmd);
+    cvm::log(cvm::HIGH, "[jtag_sequence]: JTAG loop command {}\n",jtag_cmd);
     
     if(jtag_cmd<3){
       hart = 0; // hart bits position TBD, till TBD it is always zero
@@ -146,22 +146,22 @@ bool exitLoop() {
         loop_idx = 0;
         loop_execution_cnt++;
         if(loop_execution_cnt > max_num_loops){
-          cvm::log(cvm::ERROR, "[jtag_driver]: Maximum number of polling attempts reached {}\n",loop_execution_cnt);
+          cvm::log(cvm::ERROR, "[jtag_sequence]: Maximum number of polling attempts reached {}\n",loop_execution_cnt);
         }
       }
     }else{
-      cvm::log(cvm::ERROR, "[jtag_driver]: Unsupported keyword in jtag csv loop {}\n",jtag_cmd);
+      cvm::log(cvm::ERROR, "[jtag_sequence]: Unsupported keyword in jtag csv loop {}\n",jtag_cmd);
     }
 
     
   } 
   void reset() 
   {
-    cvm::log(cvm::LOW, "[jtag_driver]: Reset jtag_driver\n");
+    cvm::log(cvm::HIGH, "[jtag_sequence]: Reset jtag_sequence\n");
     uint32_t rand_num = 0;
     if (FLAGS_random_jtag_entry)
     {
-      cvm::log(cvm::LOW, "[jtag_driver]: Enable random injection of debug mode :: {}\n", FLAGS_random_jtag_entry);
+      cvm::log(cvm::HIGH, "[jtag_sequence]: Enable random injection of debug mode :: {}\n", FLAGS_random_jtag_entry);
       get_all_csv_templates();
       if (FLAGS_jtag_delay_min)
       {
@@ -170,7 +170,7 @@ bool exitLoop() {
       timer_ = 0;
       file_idx = rng() % csvFilePaths.size();
       timer_rand_debug = timer_ + FLAGS_random_jtag_start_delay + (rand_num * timer_advance);
-      cvm::log(cvm::LOW, "Random Debug Injection of CSV file ID:{} Timer delay:{}\n", file_idx, timer_rand_debug);
+      cvm::log(cvm::HIGH, "Random Debug Injection of CSV file ID:{} Timer delay:{}\n", file_idx, timer_rand_debug);
     }
   }
   void parse_jtag_from_csv();
@@ -202,6 +202,7 @@ bool exitLoop() {
     uint64_t jtag_ip_data_lower;
     uint64_t jtag_ip_data_upper;
     uint64_t jtag_op_data;
+    uint64_t jtag_cm_value;
     unsigned jtag_length_data;
     unsigned long ip_data_array[21];
   };
@@ -216,12 +217,12 @@ bool exitLoop() {
 
   void checkJtagEvents()
   {
-    cvm::log(cvm::LOW, "Timer chk jtag evt \n");
+    cvm::log(cvm::DEBUG, "Timer chk jtag evt \n");
     if (FLAGS_random_jtag_entry)
     {
       if (timer_ >= timer_rand_debug && csv_completed )
       {
-        cvm::log(cvm::LOW, "Timer passed random evt Value\n");
+        cvm::log(cvm::DEBUG, "Timer passed random evt Value\n");
         rnd_jtag_trigger = 1;
         csv_completed = 0;
         if (snippets_driven < (unsigned)FLAGS_jtag_max_snippets)
@@ -230,9 +231,9 @@ bool exitLoop() {
           genNextJtagEvents();
           snippets_driven++;
         }else{
-          cvm::log(cvm::LOW, "[JTAGDRIVER] ******************* \n");
-          cvm::log(cvm::LOW, "[JTAGDRIVER] Sending Quit signal \n");
-          cvm::log(cvm::LOW, "[JTAGDRIVER] ******************* \n");
+          cvm::log(cvm::HIGH, "[JTAGDRIVER] ******************* \n");
+          cvm::log(cvm::HIGH, "[JTAGDRIVER] Sending Quit signal \n");
+          cvm::log(cvm::HIGH, "[JTAGDRIVER] ******************* \n");
           trickboxJtagWrite(0, 7, 0, 0,0,1,tap_cfg_sel);
           //arg1 hart = 0, arg2 jtag_cmd = 7(qt)
         }
@@ -242,7 +243,7 @@ bool exitLoop() {
 
   void genNextJtagEvents()
   {
-    cvm::log(cvm::LOW, "[JTAGDRIVER.cpp]Generating Next timer evt value\n");
+    cvm::log(cvm::HIGH, "[jtag_sequence]Generating Next timer evt value\n");
     if (FLAGS_random_jtag_entry)
     {
       int32_t rand_num = (rng() % (FLAGS_jtag_delay_max - FLAGS_jtag_delay_min + 1)) + FLAGS_jtag_delay_min;
@@ -256,14 +257,14 @@ std::bitset<N> reverseLowerBits(const std::bitset<N>& bs, std::size_t split_leng
     int max_sib_length = 10;
     split_length = std::min((split_length+max_sib_length), N);
     
-     cvm::log(cvm::LOW, "[JTAGDRIVER.CPP] split_length {}\n",split_length);
+     cvm::log(cvm::FULL, "[jtag_sequence] split_length {}\n",split_length);
     // Create a new bitset to store the reversed bits
     std::bitset<N> reversed;
     
     // Reverse the lower 'split_length' bits
     for (std::size_t i = 0; i < split_length; ++i) {
         reversed[i] = bs[split_length - 1 - i];
-     cvm::log(cvm::LOW, "[JTAGDRIVER.CPP] reversed[{}] = {}\n",i,reversed[i]);
+     cvm::log(cvm::FULL, "[jtag_sequence] reversed[{}] = {}\n",i,reversed[i]);
     }
 
     return reversed;

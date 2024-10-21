@@ -102,10 +102,11 @@ bool rvfi::patch_access (uint64_t addr) {
       return false;
   if (addr >= patch_ram_lo && addr < patch_ram_hi)
       return true;
-  if (addr == 0x42005000 || addr == 0x42005040 ||
-      addr == 0x42005080 || addr == 0x42005088 ||
-      addr == 0x42005090 || addr == 0x42005098)
-      return true;
+
+  uint64_t pcontrol0 = 0x42005040;
+  for (int i=0; i<8; i++) // do this for all cores0-8
+      if (addr == (pcontrol0 + (i*0x10000)))
+          return true;
   return false;
 }
 
@@ -745,6 +746,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
   m.amo    = m_mcmi_read.amo;
   m.amo_op = m_mcmi_read.amo_op;
   m.v_ext  = m_mcmi_read.v_ext;
+  m.field = m_mcmi_read.field;
   m.nano_op_elem_idx = m_mcmi_read.nano_op_elem_idx;
 
   // Handle SC
@@ -832,8 +834,11 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
 // Helper function to convert a hex string into a bitset
 std::bitset<256> rvfi::stringToBitset(const std::string& hexString) {
     std::bitset<256> bits;
-    for (size_t i = 0; i < hexString.length(); ++i) {
-        int hexDigit = (hexString[i] >= '0' && hexString[i] <= '9') ? hexString[i] - '0' : hexString[i] - 'a' + 10;
+    size_t len = hexString.length();
+    for (size_t i = 0; i < len; ++i) {
+        int hexDigit = (hexString[len - 1 - i] >= '0' && hexString[len - 1 - i] <= '9') 
+                       ? hexString[len - 1 - i] - '0' 
+                       : hexString[len - 1 - i] - 'a' + 10;
         for (int j = 3; j >= 0; --j) {
             bits[(i * 4) + j] = (hexDigit >> j) & 1;
         }
@@ -898,7 +903,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
       for (size_t i = 1; i < addresses.size(); ++i) {
           if (addresses[i] == addresses[i - 1] + 1) {
               ++size;
-              dataAccumulated += fmt::format("{:02x}", datas[i]);
+              dataAccumulated = fmt::format("{:02x}", datas[i]) + dataAccumulated;
           } else {
               mem_t m;
               m.valid = true;
@@ -1177,5 +1182,13 @@ extern "C" {
   void cosim_set_scope(cvm::topology::loc_t loc) {
     svScope scope = svGetScope();
     cvm::registry::messenger.signal<svScope>(loc, scope);
+  }
+}
+
+extern "C" {
+  int is_eot_tohost() {
+    if (FLAGS_eot == "tohost")
+      return 1;
+    return 0;
   }
 }

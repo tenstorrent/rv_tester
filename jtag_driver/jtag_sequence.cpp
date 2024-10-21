@@ -88,7 +88,7 @@ void jtag_sequence::jtag_socket(unsigned hart, uint8_t assert) {
   cvm::registry::callbacks.push(
     scope_,
     [assert, hart]() {
-      cvm::log(cvm::LOW, "[JTAGDRIVER.CPP][h{}] {} jtag_socket\n", hart, assert ? "assert" : "deassert");
+      cvm::log(cvm::HIGH, "[jtag_sequence][h{}] {} jtag_socket\n", hart, assert ? "assert" : "deassert");
       jtag_driver_jtag_socket(assert);
     });
 }
@@ -111,14 +111,14 @@ cvm::messenger::task<void> jtag_sequence::trigger() {
 
 void
 jtag_sequence::update_jtag_status(jtag_sequence::jtag_req_t& i) {
-  cvm::log(cvm::LOW, "\n[JTAGDRIVER.CPP] GOT RESP FROM JTAG TDO  {:#x}", i.jtag_op_data);
+  cvm::log(cvm::HIGH, "\n[jtag_sequence] GOT RESP FROM JTAG TDO  {:#x}", i.jtag_op_data);
   loop_rdata = i.jtag_op_data;
 }
 
 void jtag_sequence::get_all_csv_templates()
 {
     std::string directoryPath = FLAGS_jtag_template_dir_path;
-    cvm::log(cvm::NONE, "[JTAGDRIVER.CPP]Debug commands directory:{}\n", directoryPath);
+    cvm::log(cvm::MEDIUM, "[jtag_sequence]JTAG template directory:{}\n", directoryPath);
 
     if (!std::filesystem::exists(directoryPath) || !std::filesystem::is_directory(directoryPath))
     {
@@ -133,7 +133,7 @@ void jtag_sequence::get_all_csv_templates()
             if (filename.size() >= 4 && filename.substr(filename.size() - 4) == ".csv")
             {
                 csvFilePaths.push_back(entry.path().string());
-                cvm::log(cvm::NONE, "[JTAGDRIVER.CPP]Pushing file:{}\n", filename);
+                cvm::log(cvm::NONE, "[jtag_sequence]Pushing file:{}\n", filename);
             }
         }
     }
@@ -149,7 +149,7 @@ void jtag_sequence::parse_jtag_from_csv()
   else
     file_name = FLAGS_jtag_input_file_path;
 
-  cvm::log(cvm::NONE, "[JTAGDRIVER.CPP]Parse JTAG Commands from CSV:{}\n", file_name);
+  cvm::log(cvm::NONE, "[jtag_sequence]Parse JTAG Commands from CSV:{}\n", file_name);
   // std::fstream file (FLAGS_jtag_input_file_path, std::ios::in);
   std::fstream file(file_name, std::ios::in);
   if (file.is_open())
@@ -209,21 +209,23 @@ void jtag_sequence::parse_jtag_from_csv()
       }else if(jtag_cmd == "sr"){ //shift right
          jtag_req.jtag_cmd = 10;
       }else if(jtag_cmd == "ts"){
-         jtag_req.jtag_cmd = 11;
-        
+         jtag_req.jtag_cmd = 11;        
+      }
+      else if(jtag_cmd == "cm"){
+         jtag_req.jtag_cmd = 12;        
       }
       else{
-        cvm::log(cvm::ERROR, "[JTAGDRIVER.CPP]Error: unknown command {} in jtag cfg file {}\n",jtag_cmd, FLAGS_jtag_input_file_path);
+        cvm::log(cvm::ERROR, "[jtag_sequence]Error: unknown command {} in jtag cfg file {}\n",jtag_cmd, FLAGS_jtag_input_file_path);
       }
       
-      if(jtag_req.jtag_cmd<3 || jtag_req.jtag_cmd == 4){ 
+      if(jtag_req.jtag_cmd<3 || jtag_req.jtag_cmd == 4 ||jtag_req.jtag_cmd == 12){ 
          length = row[2];  //length NA for nop 
       }
       
       data_s.erase(std::remove_if(data_s.begin(), data_s.end(), ::isspace), data_s.end());
       // convert string to lowercase for uniformity
       std::transform(data_s.begin(), data_s.end(), data_s.begin(), ::tolower);
-      // cvm::log(cvm::LOW, "[jtag_sequence] length {:#x}\n",length);
+      // cvm::log(cvm::HIGH, "[jtag_sequence] length {:#x}\n",length);
       //check data length
       unsigned data_len = data_s.length();
       if(data_len>16){
@@ -234,14 +236,14 @@ void jtag_sequence::parse_jtag_from_csv()
           jtag_req.jtag_ip_data_lower = std::stoul(data_s_lower,nullptr,16);
           
         } catch (const std::invalid_argument& e) {
-            std::cerr << "[[JTAGDRIVER.CPP] Invalid argument for stoul csv arg 1: " << e.what() << std::endl;
+              cvm::log(cvm::ERROR, "[jtag_sequence] Invalid argument: data for stoul csv arg 1: {}\n", e.what());
         }
       
         try{
           jtag_req.jtag_ip_data_upper = std::stoul(data_s_upper,nullptr,16);
           
         } catch (const std::invalid_argument& e) {
-            std::cerr << "[JTAGDRIVER.CPP] Invalid argument for stoul csv arg 1: " << e.what() << std::endl;
+            cvm::log(cvm::ERROR, "[Trickbox] Invalid argument: data for stoul csv arg 1: {}\n", e.what());
         }
       }
       else {
@@ -250,7 +252,7 @@ void jtag_sequence::parse_jtag_from_csv()
            jtag_req.jtag_ip_data_upper = 0;
            
          } catch (const std::invalid_argument& e) {
-             std::cerr << "[JTAGDRIVER.CPP] Invalid argument for stoul csv arg 1: " << e.what() << std::endl;
+             cvm::log(cvm::ERROR, "[Trickbox] Invalid argument: data for stoul csv arg 1: {}\n", e.what());
          }
 
       }
@@ -259,9 +261,13 @@ void jtag_sequence::parse_jtag_from_csv()
           jtag_req.jtag_length_data = std::stoul(length,nullptr,10);
           
         } catch (const std::invalid_argument& e) {
-            std::cerr << "[JTAGDRIVER.CPP] Invalid argument for stoul csv arg 2: " << e.what() << std::endl;
+            cvm::log(cvm::ERROR, "[Trickbox] Invalid argument: data for stoul csv arg 2: {}\n", e.what());
         }
-      }else{
+      }else if(jtag_req.jtag_cmd ==12){
+            jtag_req.jtag_length_data = 64;
+            jtag_req.jtag_cm_value =  std::stoul(length,nullptr,16);
+      }
+      else{
          jtag_req.jtag_length_data = 0;
       }
       
@@ -273,7 +279,7 @@ void jtag_sequence::parse_jtag_from_csv()
   }
   else
   {
-    cvm::log(cvm::ERROR, "[JTAGDRIVER.CPP]Error: Could not open jtag cfg file {}\n", FLAGS_jtag_input_file_path);
+    cvm::log(cvm::ERROR, "[jtag_sequence]Error: Could not open jtag cfg file {}\n", FLAGS_jtag_input_file_path);
   }
 
   jtag_file_mode = 1; // Clean up later
@@ -284,14 +290,14 @@ void jtag_sequence::process_input_string(std::string line)
 {
 
 
-  cvm::log(cvm::LOW, "[JTAGDRIVER.CPP] PROCESS INPUT STRING :{}\n", line);
+  cvm::log(cvm::HIGH, "[jtag_sequence] PROCESS INPUT STRING :{}\n", line);
   std::string word;
       row.clear();
  
-  cvm::log(cvm::LOW, "[[JTAGDRIVER.CPP] REMOVE WHITESPACES :{}\n", line);
+  cvm::log(cvm::HIGH, "[[jtag_sequence] REMOVE WHITESPACES :{}\n", line);
       line.erase(std::remove_if(line.begin(), line.end(), ::isspace), line.end());
       std::transform(line.begin(), line.end(), line.begin(), ::tolower);
-  cvm::log(cvm::LOW, "[[JTAGDRIVER.CPP] REMOVE WHITESPACES DONE :{}\n", line);
+  cvm::log(cvm::HIGH, "[[jtag_sequence] REMOVE WHITESPACES DONE :{}\n", line);
       std::stringstream str(line);
       if(line == "qt"){
         execute_qt = true;
@@ -348,7 +354,7 @@ void jtag_sequence::process_input_string(std::string line)
         
       }
       else{
-        cvm::log(cvm::ERROR, "[JTAGDRIVER.cpp]Error: unknown command {} in jtag cfg file {}\n",jtag_cmd, FLAGS_jtag_input_file_path);
+        cvm::log(cvm::ERROR, "[jtag_sequence]Error: unknown command {} in jtag cfg file {}\n",jtag_cmd, FLAGS_jtag_input_file_path);
       }
       
       if(jtag_req.jtag_cmd<3 || jtag_req.jtag_cmd == 4){ 
@@ -358,20 +364,20 @@ void jtag_sequence::process_input_string(std::string line)
       data_s.erase(std::remove_if(data_s.begin(), data_s.end(), ::isspace), data_s.end());
       // convert string to lowercase for uniformity
       std::transform(data_s.begin(), data_s.end(), data_s.begin(), ::tolower);
-      // cvm::log(cvm::LOW, "[jtag_sequence] length {:#x}\n",length);
+      // cvm::log(cvm::HIGH, "[jtag_sequence] length {:#x}\n",length);
       //check data length
       unsigned data_len = data_s.length();
       if (data_s.substr(0, 2) == "0x" || data_s.substr(0, 2) == "0X") {
         data_s = data_s.substr(2);
        }
-      cvm::log(cvm::LOW, "[JTAGDRIVER.CPP][JTAG DRIVER SOCKET]: input data length: {} \n",data_len);
-      cvm::log(cvm::LOW, "[[JTAGDRIVER.CPP]JTAG DRIVER SOCKET]: input data string: {} \n",data_s);
+      cvm::log(cvm::HIGH, "[jtag_sequence][JTAG DRIVER SOCKET]: input data length: {} \n",data_len);
+      cvm::log(cvm::HIGH, "[[jtag_sequence]JTAG DRIVER SOCKET]: input data string: {} \n",data_s);
       std::bitset<1344> input_shift_data = hexStringToBitset(data_s);
       std::vector<uint64_t> input_shift_data_vec = bitsetToUint64Array(input_shift_data);
       for (size_t i = 0; i < input_shift_data_vec.size(); ++i) {
-        cvm::log(cvm::LOW, "[JTAGDRIVER.CPP][JTAG DRIVER SOCKET]: input_shift_data_vec[{}] = {:#x} \n",i,input_shift_data_vec[i]);
+        cvm::log(cvm::HIGH, "[jtag_sequence][JTAG DRIVER SOCKET]: input_shift_data_vec[{}] = {:#x} \n",i,input_shift_data_vec[i]);
         jtag_req.ip_data_array[i] = static_cast<unsigned long>(input_shift_data_vec[i]); // Type cast if necessary
-        cvm::log(cvm::LOW, "[JTAGDRIVER.CPP][JTAG DRIVER SOCKET]: jtag_req.ip_data_array[{}] = {:#x} \n",i,jtag_req.ip_data_array[i]);
+        cvm::log(cvm::HIGH, "[jtag_sequence][JTAG DRIVER SOCKET]: jtag_req.ip_data_array[{}] = {:#x} \n",i,jtag_req.ip_data_array[i]);
       }
 
       if((jtag_req.jtag_cmd<3) || (jtag_req.jtag_cmd ==6) || (jtag_req.jtag_cmd ==4)){
@@ -407,6 +413,7 @@ void jtag_sequence::drive_csv_jtag_cmds()
     unsigned       jtag_cmd = 0;
     unsigned long  upper_jtag_data = 0;
     unsigned long  lower_jtag_data = 0;
+    unsigned long  jtag_cm_value = 0;
     unsigned       reg_length_data = 0;
     unsigned       hart = 0;
 
@@ -415,7 +422,8 @@ void jtag_sequence::drive_csv_jtag_cmds()
     lower_jtag_data = jtag_req.jtag_ip_data_lower;
     reg_length_data = jtag_req.jtag_length_data;
     padding_length  = reg_length_data; 
-    cvm::log(cvm::LOW, "[JTAGDRIVER.CPP] Driving jtag cmd {}\n", jtag_cmd);
+    jtag_cm_value    = jtag_req.jtag_cm_value;
+    cvm::log(cvm::HIGH, "[jtag_sequence] Driving jtag cmd {}\n", jtag_cmd);
 
     if(jtag_cmd<3){
       hart = 0; // hart bits position TBD, till TBD it is always zero
@@ -426,14 +434,14 @@ void jtag_sequence::drive_csv_jtag_cmds()
     if(jtag_cmd == 3){ //nop
       executing_nop = true;
       nop_count = lower_jtag_data;
-      cvm::log(cvm::LOW, "[JTAGDRIVER.CPP] Pushing jtag nops for {} ticks\n", nop_count);
+      cvm::log(cvm::HIGH, "[jtag_sequence] Pushing jtag nops for {} ticks\n", nop_count);
       jtag_cmd_q.pop(); // pop front eleme7t
     }
     if(jtag_cmd == 7 && !FLAGS_random_jtag_entry){  //JTAG quit, signal to end simulation once csv ends
  
-     cvm::log(cvm::LOW, "[JTAGDRIVER.CPP] ******************* \n");
-     cvm::log(cvm::LOW, "[JTAGDRIVER.CPP] Sending Quit signal \n");
-     cvm::log(cvm::LOW, "[JTAGDRIVER.CPP] ******************* \n");
+     cvm::log(cvm::HIGH, "[jtag_sequence] ******************* \n");
+     cvm::log(cvm::HIGH, "[jtag_sequence] Sending Quit signal \n");
+     cvm::log(cvm::HIGH, "[jtag_sequence] ******************* \n");
      trickboxJtagWrite(hart, jtag_cmd, 0, 0,0,1,tap_cfg_sel);
     
     }else if(jtag_cmd == 7){
@@ -441,13 +449,13 @@ void jtag_sequence::drive_csv_jtag_cmds()
       jtag_cmd_q.pop();
     }
 
-    if(jtag_cmd == 4){  //ck expecting check on rdata
+    if(jtag_cmd == 4 || jtag_cmd == 12){  //ck expecting check on rdata
       //check last saved rdata == lower_jtag_data ??
      if(FLAGS_reverse_jtag_rdata){
       jtag_reversed_rdata = reverseLowerBits(jtag_rdata, reg_length_data);
      }
     
-    cvm::log(cvm::LOW, "\n[JTAGDRIVER.CPP] Reversed jtag_rdata {} , reg_data_length {}\n", jtag_reversed_rdata,reg_length_data);
+     cvm::log(cvm::HIGH, "\n[jtag_sequence] Reversed jtag_rdata {} , reg_data_length {}\n", jtag_reversed_rdata,reg_length_data);
      std::vector<uint64_t> convertedArray = {};// bitsetToUint64Array(jtag_reversed_rdata);
       uint64_t mask = (1ULL << reg_length_data) - 1;
       //auto result = reg_length_data >= 64 ? convertedArray[0] : convertedArray[0] & mask;
@@ -477,16 +485,26 @@ void jtag_sequence::drive_csv_jtag_cmds()
       }
 
       convertedArray =  bitsetToUint64Array(result);
-      cvm::log(cvm::LOW, "Line no 464 [JTAGDRIVER.CPP] reg_length_data {} loop_rdata {:#x} lower_jtag_data {:#x} mask {:#x} expression {:#x}\n",reg_length_data,convertedArray[0],lower_jtag_data,mask,(1 << reg_length_data));
+      cvm::log(cvm::HIGH, "Line no 464 [jtag_sequence] reg_length_data {} loop_rdata {:#x} lower_jtag_data {:#x} mask {:#x} expression {:#x}\n",reg_length_data,convertedArray[0],lower_jtag_data,mask,(1 << reg_length_data));
       
-      //if(result == lower_jtag_data){
+    if(jtag_cmd == 4){
       if(convertedArray[0] == lower_jtag_data){
        //PASS
-       cvm::log(cvm::LOW, "[JTAGDRIVER.CPP] jtag check opcode Passed! expected {:#x} got {} \n", lower_jtag_data,result);
+       cvm::log(cvm::HIGH, "[jtag_sequence] jtag check opcode Passed! expected {:#x} got {} \n", lower_jtag_data,result);
       }else{
        //FAIL
-       cvm::log(cvm::ERROR, "\nERROR: [JTAGDRIVER.CPP] jtag check opcode failed! expected {:#x} got {} \n", lower_jtag_data,result);
+       cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check opcode failed! expected {:#x} got {} \n", lower_jtag_data,result);
       }
+    }else if(jtag_cmd == 12){
+      cvm::log(cvm::HIGH, "\n[jtag_sequence] jtag check mask opcode: result {:#x} mask {:#x} expected {:#x} \n", convertedArray[0],lower_jtag_data,jtag_cm_value);
+      if((convertedArray[0] & lower_jtag_data) == jtag_cm_value){
+       //PASS
+       cvm::log(cvm::HIGH, "[jtag_sequence] jtag check mask opcode Passed! expected {:#x} got {} \n", jtag_cm_value,(convertedArray[0] & lower_jtag_data));
+      }else{
+       //FAIL
+       cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check mask opcode failed! expected {:#x} got {} \n", jtag_cm_value,(convertedArray[0] & lower_jtag_data));
+      }
+    }
       jtag_cmd_q.pop(); // pop front eleme7t
     }
 
@@ -534,10 +552,10 @@ void jtag_sequence::drive_csv_jtag_cmds()
         
         try{
           tap_cfg_sel = lower_jtag_data; 
-          cvm::log(cvm::LOW, "[JTAGDRIVER.CPP] tap_sel {} \n", tap_cfg_sel);
+          cvm::log(cvm::HIGH, "[jtag_sequence] tap_sel {} \n", tap_cfg_sel);
           
         } catch (const std::invalid_argument& e) {
-            std::cerr << "[JTAG DRIVER] Invalid argument for stoul csv arg 2: " << e.what() << std::endl;
+            cvm::log(cvm::ERROR, "[jtag_sequence] Invalid argument: data for stoul csv arg 2: {}\n", e.what());
         }
         jtag_cmd_q.pop();
         // continue;
@@ -579,7 +597,7 @@ void jtag_sequence::drive_csv_jtag_cmds()
     }
     
     if(jtag_cmd == 6){ //le loop end, checkbitNum, CheckbitValue
-       cvm::log(cvm::ERROR, "ERROR: [JTAGDRIVER.CPP] jtag loop end detected without loop start \n");
+       cvm::log(cvm::ERROR, "ERROR: [jtag_sequence] jtag loop end detected without loop start \n");
     }
 
 
@@ -617,10 +635,10 @@ void jtag_sequence::drive_jtag_cmds()
     padding_length  =  reg_length_data;
     //input_shift_data_array = jtag_req.ip_data_array;
     std::copy(std::begin(jtag_req.ip_data_array), std::end(jtag_req.ip_data_array), std::begin(input_shift_data_array));
-    cvm::log(cvm::LOW, "[JTAGDRIVER.CPP] Socket Driving jtag cmd {}\n", jtag_cmd);
+    cvm::log(cvm::HIGH, "[jtag_sequence] Socket Driving jtag cmd {}\n", jtag_cmd);
       // Verify copy
     for (size_t i = 0; i < 21; ++i) {
-        cvm::log(cvm::LOW, "[JTAGDRIVER.CPP] input_shift_data_array[{}] ={:#x} \n",i,input_shift_data_array[i] );
+        cvm::log(cvm::HIGH, "[jtag_sequence] input_shift_data_array[{}] ={:#x} \n",i,input_shift_data_array[i] );
     }
 
     if(jtag_cmd<3){
@@ -633,14 +651,14 @@ void jtag_sequence::drive_jtag_cmds()
     if(jtag_cmd == 3){ //nop
       executing_nop = true;
       nop_count = lower_jtag_data;
-      cvm::log(cvm::LOW, "[JTAGDRIVER.CPP] Pushing jtag nops for {} ticks\n", nop_count);
+      cvm::log(cvm::HIGH, "[jtag_sequence] Pushing jtag nops for {} ticks\n", nop_count);
       jtag_cmd_q.pop(); // pop front eleme7t
     }
     if(jtag_cmd == 7 && !FLAGS_random_jtag_entry){  //JTAG quit, signal to end simulation once csv ends
  
-     //HACK  cvm::log(cvm::LOW, "[JTAGDRIVER.CPP] ******************* \n");
-     //HACK  cvm::log(cvm::LOW, "[JTAGDRIVER.CPP] Sending Quit signal \n");
-     //HACK  cvm::log(cvm::LOW, "[JTAGDRIVER.CPP] ******************* \n");
+     //HACK  cvm::log(cvm::HIGH, "[jtag_sequence] ******************* \n");
+     //HACK  cvm::log(cvm::HIGH, "[jtag_sequence] Sending Quit signal \n");
+     //HACK  cvm::log(cvm::HIGH, "[jtag_sequence] ******************* \n");
      //HACK  trickboxJtagWrite(hart, jtag_cmd, 0, 0,0,1,tap_cfg_sel);
     
     }else if(jtag_cmd == 7){
@@ -654,14 +672,14 @@ void jtag_sequence::drive_jtag_cmds()
       uint64_t mask = (1ULL << reg_length_data) - 1;
       auto result = reg_length_data = 64 ? loop_rdata : loop_rdata & mask;
    
-     cvm::log(cvm::LOW, "JTAG_COMMAND 638  [JTAGDRIVER.CPP] reg_length_data {} loop_rdata {:#x} lower_jtag_data {:#x} mask {:#x} expression {:#x}\n",reg_length_data,loop_rdata,lower_jtag_data,mask,(1 << reg_length_data));
+     cvm::log(cvm::HIGH, "JTAG_COMMAND 638  [jtag_sequence] reg_length_data {} loop_rdata {:#x} lower_jtag_data {:#x} mask {:#x} expression {:#x}\n",reg_length_data,loop_rdata,lower_jtag_data,mask,(1 << reg_length_data));
       
       if(result == lower_jtag_data){
        //PASS
-       cvm::log(cvm::LOW, "[JTAGDRIVER.CPP] jtag check opcode Passed! expected {:#x} got {:#x} \n", lower_jtag_data,result);
+       cvm::log(cvm::HIGH, "[jtag_sequence] jtag check opcode Passed! expected {:#x} got {:#x} \n", lower_jtag_data,result);
       }else{
        //FAIL
-       cvm::log(cvm::ERROR, "\nERROR: [JTAGDRIVER.CPP] jtag check opcode failed! expected {:#x} got {:#x} \n", lower_jtag_data,result);
+       cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check opcode failed! expected {:#x} got {:#x} \n", lower_jtag_data,result);
       }
       jtag_cmd_q.pop(); // pop front eleme7t
     }
@@ -710,10 +728,10 @@ void jtag_sequence::drive_jtag_cmds()
         
         try{
           tap_cfg_sel = lower_jtag_data; 
-          cvm::log(cvm::LOW, "[JTAGDRIVER.cpp] tap_sel {} \n", tap_cfg_sel);
+          cvm::log(cvm::HIGH, "[jtag_sequence] tap_sel {} \n", tap_cfg_sel);
           
         } catch (const std::invalid_argument& e) {
-            std::cerr << "[JTAGDRIVER.cpp] Invalid argument for stoul csv arg 2: " << e.what() << std::endl;
+            cvm::log(cvm::ERROR, "[jtag_sequence] Invalid argument: data for stoul csv arg 2: {}\n", e.what());
         }
         jtag_cmd_q.pop();
         // continue;
@@ -755,7 +773,7 @@ void jtag_sequence::drive_jtag_cmds()
     }
     
     if(jtag_cmd == 6){ //le loop end, checkbitNum, CheckbitValue
-       cvm::log(cvm::ERROR, "ERROR: [JTAGDRIVER.CPP] jtag loop end detected without loop start \n");
+       cvm::log(cvm::ERROR, "ERROR: [jtag_sequence] jtag loop end detected without loop start \n");
     }
 
 
@@ -804,7 +822,7 @@ cvm::messenger::task<void> jtag_sequence::open_socket_to_listen(){
     //int PORT=8088;
     int PORT=FLAGS_jtag_socket_port;
     int tick_count = 0;
-    cvm::log(cvm::LOW,"\n [JTAGDRIVER.CPP] opening socket to listen ...\n");
+    cvm::log(cvm::LOW,"\n [jtag_sequence] opening socket to listen ...\n");
     // Creating socket file descriptor
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
         perror("socket failed");
@@ -831,14 +849,14 @@ cvm::messenger::task<void> jtag_sequence::open_socket_to_listen(){
         exit(EXIT_FAILURE);
     }
 
-    cvm::log(cvm::LOW, "[JTAGDRIVER.CPP]Server is listening on {} PORT {} \n",inet_ntoa(address.sin_addr), PORT );
-    cvm::log(cvm::LOW, "[JTAGDRIVER.CPP]Server's local IP address: {} \n", get_local_ip_address() );
+    cvm::log(cvm::LOW, "[jtag_sequence]Server is listening on {} PORT {} \n",inet_ntoa(address.sin_addr), PORT );
+    cvm::log(cvm::LOW, "[jtag_sequence]Server's local IP address: {} \n", get_local_ip_address() );
 
 
     while (true) {
        tick_count++;
-       cvm::log(cvm::LOW,"[JTAGDRIVER.cpp]Server is listening on  tick cnt {} \n", tick_count );
-       cvm::log(cvm::LOW,"[JTAGDRIVER.cpp]Server's local IP address: {} \n", get_local_ip_address());
+       cvm::log(cvm::HIGH,"[jtag_sequence]Server is listening on  tick cnt {} \n", tick_count );
+       cvm::log(cvm::LOW,"[jtag_sequence]Server's local IP address: {} \n", get_local_ip_address());
        if(quit_communication){
         break;
        }
@@ -850,17 +868,17 @@ cvm::messenger::task<void> jtag_sequence::open_socket_to_listen(){
         // Accepting incoming connection (non-blocking)
         new_socket = accept(server_fd, (struct sockaddr *)&address, &addrlen);
         if (new_socket >= 0) {
-            cvm::log(cvm::LOW, "[JTAGDRIVER.cpp]Connection accepted from {}:{} \n",inet_ntoa(address.sin_addr),ntohs(address.sin_port) );
+            cvm::log(cvm::LOW, "[jtag_sequence]Connection accepted from {}:{} \n",inet_ntoa(address.sin_addr),ntohs(address.sin_port) );
 
             // Process multiple requests from the same client
             while (true) {
                 int valread = ::read(new_socket, buffer, 1024);
                 if (valread > 0) {
-                    cvm::log(cvm::LOW,"[JTAGDRIVER.cpp]Received: {} \n", buffer );
+                    cvm::log(cvm::HIGH,"[jtag_sequence]Received: {} \n", buffer );
                     // Got buffer from client
                     //convert char buffer to string
                     std::string input_line(buffer);
-                    cvm::log(cvm::LOW, "[JTAGDRIVER.cpp]Received input line: {} \n", input_line );
+                    cvm::log(cvm::HIGH, "[jtag_sequence]Received input line: {} \n", input_line );
                     process_input_string(input_line);
                     drive_jtag_cmds();
                     
@@ -878,8 +896,8 @@ cvm::messenger::task<void> jtag_sequence::open_socket_to_listen(){
                     //std::string padded_str = formatHexWithPadding(loop_rdata,padding_length);
                     std::string padded_str = bitset_to_hex(jtag_rdata, padding_length);
                     //std::string str = ss.str();
-                    //std::cout << "\n[JTAGDRIVER.cpp] Hexadecimal string for jtag Rdata: " << str << std::endl;
-                    cvm::log(cvm::LOW, "\n[JTAGDRIVER.cpp] Hexadecimal padded string for jtag Rdata: {} \n ",padded_str );
+                    //std::cout << "\n[jtag_sequence] Hexadecimal string for jtag Rdata: " << str << std::endl;
+                    cvm::log(cvm::HIGH, "\n[jtag_sequence] Hexadecimal padded string for jtag Rdata: {} \n ",padded_str );
                     std::string response;
                     if(execute_qt){
                       response = "ACK,0x00000000000000000";
@@ -889,10 +907,10 @@ cvm::messenger::task<void> jtag_sequence::open_socket_to_listen(){
                      response = "ACK,0x" + padded_str;
                     }
                     send(new_socket, response.c_str(), response.length(), 0);
-                    cvm::log(cvm::LOW,"[JTAGDRIVER.cpp] Response sent: {} \n", response );
+                    cvm::log(cvm::HIGH,"[jtag_sequence] Response sent: {} \n", response );
                     co_await tick();
                 } else if (valread == 0) {
-                    cvm::log(cvm::LOW, "[JTAGDRIVER.cpp]Client disconnected \n" );
+                    cvm::log(cvm::HIGH, "[jtag_sequence]Client disconnected \n" );
                     quit_communication = true;
                     break; // Client disconnected
                 } else if (valread < 0 && errno != EWOULDBLOCK) {
@@ -915,7 +933,7 @@ cvm::messenger::task<void> jtag_sequence::open_socket_to_listen(){
   // virtual void trickboxjtagWrite(unsigned hart, unsigned upper_jtag_data, unsigned lower_jtag_data, cbs_t& cbs)
   void jtag_sequence::trickboxJtagWrite(unsigned hart,unsigned jtag_cmd, unsigned long upper_jtag_data, unsigned long lower_jtag_data,unsigned reg_length_data,unsigned jtag_quit, unsigned tap_cfg_sel)
   {
-    cvm::log(cvm::LOW, "[JTAGDRIVER.cpp]TrickBox jtag Write to hart:{}, upper jtag data:{:#x}, lower jtag data:{:#x}, reg length data:{:#x}", hart, upper_jtag_data, lower_jtag_data,reg_length_data);
+    cvm::log(cvm::HIGH, "[jtag_sequence]TrickBox jtag Write to hart:{}, upper jtag data:{:#x}, lower jtag data:{:#x}, reg length data:{:#x}", hart, upper_jtag_data, lower_jtag_data,reg_length_data);
     // cbs.push_back(cb_t{Callback::TRICKBOX_jtag_WR, hart, upper_jtag_data, lower_jtag_data, 0});
     //cvm::registry::messenger.signal(12, jtag_data_t{hart,jtag_cmd, upper_jtag_data, lower_jtag_data,reg_length_data,jtag_quit,tap_cfg_sel});
     // cvm::messenger::send(jtag_t, jtag_pkt);
@@ -931,14 +949,14 @@ cvm::messenger::task<void> jtag_sequence::open_socket_to_listen(){
   // virtual void trickboxjtagWrite(unsigned hart, unsigned upper_jtag_data, unsigned lower_jtag_data, cbs_t& cbs)
   void jtag_sequence::trickboxJtagWriteSocket(unsigned hart,unsigned jtag_cmd, unsigned long* lower_jtag_data,unsigned reg_length_data,unsigned jtag_quit, unsigned tap_cfg_sel)
   {
-    cvm::log(cvm::LOW, "[JTAGDRIVER.cpp]TrickBox socket jtag Write to hart:{},  reg length data:{:#x}", hart, reg_length_data);
+    cvm::log(cvm::HIGH, "[jtag_sequence]TrickBox socket jtag Write to hart:{},  reg length data:{:#x}", hart, reg_length_data);
     // cbs.push_back(cb_t{Callback::TRICKBOX_jtag_WR, hart, upper_jtag_data, lower_jtag_data, 0});
     //cvm::registry::messenger.signal(12, jtag_data_t{hart,jtag_cmd, upper_jtag_data, lower_jtag_data,reg_length_data,jtag_quit,tap_cfg_sel});
     // cvm::messenger::send(jtag_t, jtag_pkt);
     unsigned long jtag_ip_array[21];
      for (size_t i = 0; i < 21; ++i) {
             jtag_ip_array[i] = lower_jtag_data[i]; 
-            cvm::log(cvm::LOW," trickboxJtagWriteSocket JTAGDRIVER Socket Data[{}]:{:#x} \n",i, lower_jtag_data[i]);
+            cvm::log(cvm::HIGH," trickboxJtagWriteSocket JTAGDRIVER Socket Data[{}]:{:#x} \n",i, lower_jtag_data[i]);
     }
     cvm::registry::callbacks.push(
     scope_,
@@ -1014,11 +1032,11 @@ std::string jtag_sequence::formatHexWithPadding(uint64_t hexNumber, int n) {
   
   std::vector<uint64_t> convertedArray = bitsetToUint64Array(rdata);
   jtag_rdata = rdata;
-  cvm::log(cvm::LOW, "[JTAG_DRIVER.CPP] In JTAG RESP converted array size = {}\n", convertedArray.size());
+  cvm::log(cvm::HIGH, "[jtag_sequence] In JTAG RESP converted array size = {}\n", convertedArray.size());
   for (uint64_t num : convertedArray) {
-        cvm::log(cvm::LOW, "[JTAG_DRIVER.CPP] In JTAG RESP converted array element = {:#x}\n", num);
+        cvm::log(cvm::HIGH, "[jtag_sequence] In JTAG RESP converted array element = {:#x}\n", num);
         rdata_Array.push_back(num);
-        cvm::log(cvm::LOW, "[JTAG_DRIVER.CPP] In JTAG RESP pushed array element = {:#x}\n", num);
+        cvm::log(cvm::HIGH, "[jtag_sequence] In JTAG RESP pushed array element = {:#x}\n", num);
   }
   loop_rdata = convertedArray[0]; 
 

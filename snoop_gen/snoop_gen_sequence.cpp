@@ -36,17 +36,18 @@ snoop_gen_sequence::snoop_gen_sequence(cvm::topology::loc_t loc, unsigned id) : 
 }
 
 snoop_gen_sequence::~snoop_gen_sequence() {
-   // cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_snoop_gens_count\": \"{}\"}}\n", id_, ext_snoop_count_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"snoopgen_num_rand_snoops\": \"{}\"}}\n", snoops_driven);
 }
 
 
 void snoop_gen_sequence::push_snoop_info(uint64_t push_addr){
-  if(push_addr != 0xffffffffffff0){
-  snoop_addrs.push_back(push_addr);
+  if(FLAGS_rand_snoop_en){
+    if(push_addr != 0xffffffffffff0){
+      snoop_addrs.push_back(push_addr);
+    }
+    //snoop_addrs.erase(std::remove(snoop_addrs.begin(), snoop_addrs.end(), 0xffffffffffff0), snoop_addrs.end());
+    cvm::log(cvm::HIGH, "[SNOOP_GEN_SEQUENCE] push addr {:#x}  \n",push_addr);
   }
-  //snoop_addrs.erase(std::remove(snoop_addrs.begin(), snoop_addrs.end(), 0xffffffffffff0), snoop_addrs.end());
-  cvm::log(cvm::HIGH, "[SNOOP_GEN_SEQUENCE] push addr {:#x}  \n",push_addr);
-  std::cout<<"\n PPRRTT push addr from sc_rv_tester "<<push_addr<<"\n";
 }
 
 

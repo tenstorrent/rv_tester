@@ -156,6 +156,7 @@ module rv_tester
 
     int hart_enable_mask = 0;
     int rand_dmi_driver_dly = 0;
+    int sdtrig_multitrigger = 0;
     int dm_single_step_count = 0;
     int dmi_poll_counter = 0;
     int dmi_poll_timeout = 50000;
@@ -292,6 +293,7 @@ module rv_tester
             perf                 <= cvm_plusargs::get_bool("perf") != '0;
             flag_force_ref_clk   <= cvm_plusargs::get_bool("force_ref_clk") != '0;
             rand_dmi_driver_dly  <= cvm_plusargs::get_int("rand_dmi_driver_dly");
+            sdtrig_multitrigger  <= cvm_plusargs::get_int("sdtrig_multitrigger");
             dm_single_step_count <= cvm_plusargs::get_int("dm_single_step_count");
             cb_poll              <= cvm_plusargs::get_bool("cb_async") == '0;
             quiesce_timeout      <= cvm_plusargs::get_int("quiesce_timeout");
@@ -535,6 +537,7 @@ module rv_tester
         .rand_dmi_driver_dly,
         .hart_enable_mask,
         .dm_single_step_count,
+        .sdtrig_multitrigger,
 
         .dmi_req_ready,
         .dmi_resp_valid,
@@ -547,7 +550,8 @@ module rv_tester
         .dmi_commands_in_queue,
         .misc_signals,
 
-        .trickbox_dmi_write(trickbox_dmi_write)
+        .trickbox_dmi_write(trickbox_dmi_write),
+        .rvfi(rvfi)
     );
 
     dm_model #(
@@ -557,10 +561,10 @@ module rv_tester
     ) i_dm_model(
         .clk(dut_clk[AXI_CLK_IDX]),
         .reset(sys_reset[TB_CLK_IDX]),
-        .dmi_req(dmi_req),
-        .dmi_req_valid(dmi_req_valid),
-        .dmi_resp_valid(dmi_resp_valid),
-        .dmi_resp(dmi_resp),
+        .dmi_req(dmi_tx_req),
+        .dmi_req_valid(dmi_tx_req_vld),
+        .dmi_resp_valid(dmi_tx_resp_vld),
+        .dmi_resp(dmi_tx_resp),
         .terminate,
         .dm_mem_tx_vld,
         .dm_mem_tx_we,
@@ -799,6 +803,7 @@ module rv_tester
           .reset(dut_reset[CORE_CLK_IDX]),
           .clocks,
           .pmci(pmci[p]),
+          .hpmi(hpmi[p]),
           .sc_pmci(sc_pmci),
           .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
           .terminate,
@@ -947,6 +952,7 @@ module rv_tester
             .DATA_WIDTH(topology.TOP.PLATFORM.AXI_MST.DATA_WIDTH),
             .ID_WIDTH(topology.TOP.PLATFORM.AXI_MST.ID_WIDTH  ),
             .STRB_WIDTH(topology.TOP.PLATFORM.AXI_MST.STRB_WIDTH),
+            .USER_WIDTH(topology.TOP.PLATFORM.AXI_MST.USER_WIDTH),
             .AR_Q_MAX(topology.TOP.PLATFORM.AXI_MST.AR_Q_MAX),
             .AW_Q_MAX(topology.TOP.PLATFORM.AXI_MST.AW_Q_MAX),
             .W_Q_MAX(topology.TOP.PLATFORM.AXI_MST.W_Q_MAX),
@@ -1016,6 +1022,7 @@ module rv_tester
             .DATA_WIDTH(topology.TOP.PLATFORM.SMC_AXI_MST.DATA_WIDTH),
             .ID_WIDTH(topology.TOP.PLATFORM.SMC_AXI_MST.ID_WIDTH  ),
             .STRB_WIDTH(topology.TOP.PLATFORM.SMC_AXI_MST.STRB_WIDTH),
+            .USER_WIDTH(topology.TOP.PLATFORM.SMC_AXI_MST.USER_WIDTH),
             .AR_Q_MAX(topology.TOP.PLATFORM.SMC_AXI_MST.AR_Q_MAX),
             .AW_Q_MAX(topology.TOP.PLATFORM.SMC_AXI_MST.AW_Q_MAX),
             .W_Q_MAX(topology.TOP.PLATFORM.SMC_AXI_MST.W_Q_MAX),

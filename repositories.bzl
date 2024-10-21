@@ -14,7 +14,7 @@ def rv_tester_repositories():
         #sha256 = "af87959afe497dc8dfd4c6cb66e1279cb98ccc84284619ebfec27d9c09a903de",
     )
 
-    corearchcoverage_hash="88553905635a5ba8891716ca05aa1e074734082e"
+    corearchcoverage_hash="787c79a5864b602f4875541fb6fa1c11fee3039f"
     maybe(
         git_repository,
         name = "corearchcoverage",
@@ -84,11 +84,19 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-wall_clock_profiler.git",
     )
 
-    checkin_script_hash="46b6f57e3c49fb612b53feabf283738b7c87fbf9"
+    checkin_script_hash="13533ac8ec39a13ae88595a6a3de4d1bea17b254"
     maybe(
         git_repository,
         name = "checkin-script",
         commit = checkin_script_hash,
         shallow_since = "1669784673 -0600",
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/checkin-script.git",
+    )
+
+    aegissocspec_hash="d116a4c3544f1190bed271da71ec3883b95f84bd"
+    git_repository(
+        name = "aegissocspec",
+        commit = aegissocspec_hash,
+        recursive_init_submodules = True,
+        remote = "git@aus-gitlab.local.tenstorrent.com:specifications/arch-export-controlled/aegissocspec.git",
     )
