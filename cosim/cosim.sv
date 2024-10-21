@@ -325,7 +325,6 @@ localparam CAM_IHBIT = CAM_IBITS;
     parameter int unsigned location = cvm_topology_gen::get_location (topology.TOP.PLATFORM.COSIM.ID, NUM);
     bit rvfi_enabled,mcm_enabled;
     int mcm_value;
-    bit mcm_enabled;
     longint unsigned psc_off_low  = 0;
     longint unsigned psc_off_high = 0;
     int to_host;
