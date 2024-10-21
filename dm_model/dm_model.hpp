@@ -12,6 +12,7 @@
 #include "cvm/topology.hpp"
 #include "rv_tester_transactions.hpp"
 #include "sysmod/trickbox/debugger.h"
+#include "sysmod/sysmod_plusargs.h"
 #include "processor.h"
 #include "debug_defines.h"
 #include "opcodes.h"
@@ -161,6 +162,7 @@ public:
 
 private:
   // cvm::file_logger log;
+  // uint32_t num_harts_enabled;
   uint32_t sent_count = 0, resp_count =0;
 
   static const unsigned datasize = 12; //Number of data registers
