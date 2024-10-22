@@ -803,6 +803,7 @@ module rv_tester
           .reset(dut_reset[CORE_CLK_IDX]),
           .clocks,
           .pmci(pmci[p]),
+          .hpmi(hpmi[p]),
           .sc_pmci(sc_pmci),
           .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
           .terminate,

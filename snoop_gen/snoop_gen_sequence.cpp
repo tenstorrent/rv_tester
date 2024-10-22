@@ -36,7 +36,7 @@ snoop_gen_sequence::snoop_gen_sequence(cvm::topology::loc_t loc, unsigned id) : 
 }
 
 snoop_gen_sequence::~snoop_gen_sequence() {
-   // cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_snoop_gens_count\": \"{}\"}}\n", id_, ext_snoop_count_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"snoopgen_num_rand_snoops\": \"{}\"}}\n", snoops_driven);
 }
 
 

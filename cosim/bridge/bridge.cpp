@@ -998,8 +998,8 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
       prev_sync_intr_ = true; // This will waive cases when after execution of mret there exists a csr operation which needs to be interrupted.
     }
 
-    if (w.disasm.find("vsstimecmp") != std::string::npos)  {
-      IF_DEBUG("VSSTIMECMP instruction");
+    if (w.disasm.find("vstimecmp") != std::string::npos)  {
+      IF_DEBUG("VSTIMECMP instruction");
       if (!vstimecmppoked_) resetsstc_poke(hart,d.cycle, 0x24d); else setsstc_poke(hart,d.cycle, 0x24d);
     } else if (w.disasm.find("stimecmp") != std::string::npos) {
       IF_DEBUG("STIMECMP instruction");
@@ -1160,6 +1160,8 @@ void bridge::post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whis
   }
 
   num_exceptions_++;
+  if (w_.ecause == 3 && w_.disasm.find("ebreak") == std::string::npos)
+    num_trig_breakpoint_++;
 
   // If DUT indicates retire on ucode trap handler, extra step not needed
   if (FLAGS_retire_ucode_trap) {
@@ -1368,6 +1370,13 @@ void bridge::print_resource(hart_id_t hart, const whisper_state_t& w) {
     w.time, step_, hart, w.priv_mode, w.tag, (char)w.resource, w.address, w.value);
 }
 
+bool bridge::is_indirect_reg(const std::string& instr) {
+  if ((instr.find("csrr") != std::string::npos) && (instr.find("ireg") != std::string::npos)) {
+    return true;
+  }
+  return false;
+}
+
 void bridge::step(hart_id_t hart, whisper_state_t& w) {
   IF_DEBUG("function called");
   if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperStepRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, w.time, w.tag,  w.pc, w.opcode, w.change_count, w.disasm,
@@ -1375,7 +1384,6 @@ void bridge::step(hart_id_t hart, whisper_state_t& w) {
     error("Hart {}: Failed to step whisper\n", hart);
     return;
   }
-
   // Print instruction
   if (FLAGS_bridge_log) {
     print_instr(hart, w);
@@ -1545,23 +1553,25 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_
       break;
     case 'c':
       if (FLAGS_csr_rd_check){
-        // Check if PMP entry is locked
-        if (w.address >= 0x3B0 && w.address < 0x3C0) {
-          bool valid = false;
-          uint64_t pmpcfg, mask, reset, read_mask;
-          uint64_t i, pmp_cfg_reg, pmp_cfg_index;
-          // For PMP addresses, which bits of the pmpcfgs to look for
-          i = w.address - 0x3B0;
-          pmp_cfg_reg = ((i*8) / 64) * 2;
-          pmp_cfg_index = (i*8) % 64;
-          if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0x3A0 + pmp_cfg_reg, pmpcfg, mask, reset, read_mask, valid)|| !valid) && FLAGS_whisper_client_check) {
-           error("Hart {}: Failed to peek CSR : 0x3A0\n", hart);
+        if (!is_indirect_reg(w.disasm)){
+          // Check if PMP entry is locked
+          if (w.address >= 0x3B0 && w.address < 0x3C0) {
+            bool valid = false;
+            uint64_t pmpcfg, mask, reset, read_mask;
+            uint64_t i, pmp_cfg_reg, pmp_cfg_index;
+            // For PMP addresses, which bits of the pmpcfgs to look for
+            i = w.address - 0x3B0;
+            pmp_cfg_reg = ((i*8) / 64) * 2;
+            pmp_cfg_index = (i*8) % 64;
+            if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0x3A0 + pmp_cfg_reg, pmpcfg, mask, reset, read_mask, valid)|| !valid) && FLAGS_whisper_client_check) {
+            error("Hart {}: Failed to peek CSR : 0x3A0\n", hart);
+            }
+            if((pmpcfg >> (pmp_cfg_index + 7)) & 0x1) {
+              break;
+            }
           }
-          if((pmpcfg >> (pmp_cfg_index + 7)) & 0x1) {
-            break;
-          }
+          update_csr(hart, src_t::iss, w.address & 0xfff, w.value);
         }
-        update_csr(hart, src_t::iss, w.address & 0xfff, w.value);
       }
 
       if (w.address == 0x344) {
@@ -1895,6 +1905,7 @@ bool bridge::hpm_counter_read(const std::string& instr) {
       (instr.find("instret") != std::string::npos) ||
       (instr.find("time") != std::string::npos) ||
       (instr.find("stimecmp") != std::string::npos) ||
+      (instr.find("vstimecmp") != std::string::npos) ||
       (instr.find("hpmevent") != std::string::npos) || //FIXME: poke events to whisper
       (instr.find("scountovf") != std::string::npos) ||//FIXME: poke events to whisper
       (instr.find("cycle") != std::string::npos))
@@ -2082,12 +2093,12 @@ void bridge::process_dut_mcm_read(hart_id_t hart, mem_t& m) {
   }
   if (m.v_ext){
     std::vector<bridge::size_8_bytes_t> data_vec = create_dword_vec(m.data_vec);
-    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmVecReadRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, data_vec, valid)|| !valid) && FLAGS_whisper_client_check) {
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmVecReadRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, data_vec, m.nano_op_elem_idx, m.field, valid)|| !valid) && FLAGS_whisper_client_check) {
       error("Hart {}: Failed mcm vec load\n", hart);
       return;
     }
   } else {
-    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmReadRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, m.data, valid)|| !valid) && FLAGS_whisper_client_check) {
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmReadRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, m.data, m.nano_op_elem_idx, m.field, valid)|| !valid) && FLAGS_whisper_client_check) {
       error("Hart {}: Failed mcm load\n", hart);
       return;
     }
@@ -2725,6 +2736,7 @@ void bridge::report_metrics() {
     print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_clks_per_sec\": {}}}\n", id_, cpu_cycles*1000/test_time);
   }
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_exceptions\": {}}}\n", id_, num_exceptions_);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_trigger_breakpoint\": {}}}\n", id_, num_trig_breakpoint_);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_ipc\": {:.2f}}}\n", id_, ipc);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_instr\": \"{}\"}}\n", id_, instr);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_mode\": {}}}\n", id_, mode);

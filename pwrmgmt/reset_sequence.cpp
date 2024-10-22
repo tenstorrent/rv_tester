@@ -15,9 +15,6 @@ DEFINE_bool(pll_dfs, false, "Enable dfs sequence during cold boot");
 DEFINE_uint32(pll_dfs_freq, 1200, "Clock freq for dfs");
 DEFINE_uint32(pll_dfs_timeout, 50, "Number of soc cycles expected for pll dfs to complete");
 DEFINE_uint32(num_thubs, 4, "Number of temprature hubs");
-DEFINE_uint32(smc_max_snippets, 2, "Maximum number of random continuous AXI access from SMC ");
-DEFINE_uint32(smc_snippet_size, 10, "Maximum number of random continuous AXI access from SMC ");
-DEFINE_uint32(smc_max_ticks, 100, "Maximum delay/ticks between SMC randomm access snippets");
 DEFINE_string(warm_reset, "off", "Enable warm resets in the sim - off/random/trigger");
 DEFINE_string(warm_reset_count, "0:4", "Number of warm resets in the sim if random mode enabled");
 DEFINE_string(warm_reset_interval, "2000:10000", "TB cycle interval between warm resets in the sim if random mode enabled");
@@ -35,12 +32,10 @@ DEFINE_bool(patch_ram_check, false, "Enable read write checking of patch ram reg
 DEFINE_bool(patch_cfg_lock, false, "Lock the patch mmrs while boot programming ");
 DEFINE_bool(fuse_mmr_check, false, "Check RW and lockability of fuses ");
 DEFINE_bool(init_smc_infilters, false, "Enable filter programming for JTAG and Overlay to access SRAM ");
-DEFINE_bool(smc_axi_access, false, "Enable random AXI access from SMC ");
 DEFINE_string(patch_ucode_input_file_path, "", "Path to file containing patch ucode routine");
 DEFINE_string(patches, "WFI,SUB,BLT,AMOSWAP", "+patches=<instr1>,<instr2>,<instr3>,<instr4>; default will be picked if not specified ");
 DEFINE_string(disable_patches, "AMOSWAP", "+disable_patches=<instr1>,<instr2>,<instr3>,<instr4>; default will be picked if not specified ");
 DEFINE_bool(rand_patch, false, "Randomly pick 4 instructions available in the CSV to be patched");
-
 
 extern "C" {
   void pwrmgmt_init();
@@ -72,16 +67,13 @@ void reset_sequence::start(int reset_count) {
   reset_count_ = reset_count;
 
   cvm::log(cvm::HIGH, "[reset_sequence] count = {}\n", reset_count_);
-
+  
   // Sequence threads
   if (reset_count_ <= 0)
     cold_reset_sequence_thread();
 
   if (reset_count_ > 0)
     warm_reset_sequence_thread();
-
-
-  smc_random_sequence_thread();  
 }
 
 reset_sequence::~reset_sequence() {
@@ -99,14 +91,6 @@ void reset_sequence::cold_reset_sequence_thread() {
 void reset_sequence::warm_reset_sequence_thread() {
   auto *task = +[] (reset_sequence* m) -> cvm::messenger::task<void> {
     co_await m->warm_reset_sequence();
-    co_return;
-  };
-  cvm::registry::messenger.fork(task, this);
-};
-
-void reset_sequence::smc_random_sequence_thread() {
-  auto *task = +[] (reset_sequence* m) -> cvm::messenger::task<void> {
-    co_await m->smc_axi_random_access();
     co_return;
   };
   cvm::registry::messenger.fork(task, this);
@@ -158,7 +142,7 @@ cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
   co_await pll_startup_sequence();
 
   // PLL dfs sequence
-  if (FLAGS_pll_dfs)
+  if (FLAGS_pll_dfs| (FLAGS_clk_profile!=0))
     co_await pll_dfs_sequence();
 
   // Reset controller sequence
@@ -277,6 +261,12 @@ cvm::messenger::task<void> reset_sequence::clear_pll_status() {
 }
 
 cvm::messenger::task<void> reset_sequence::pll_dfs_sequence() {
+  if (FLAGS_clk_profile !=0) {
+    auto loc = cvm::topology::get_from_type("CLKI", 0);
+    FLAGS_pll_dfs_freq = cvm::topology::list_attr(loc, std::format("PROFILE{}_CLOCK_FREQ_MHZ",FLAGS_clk_profile)).second[1];
+  }
+  cvm::log(cvm::MEDIUM, "[pwrmgmt] Core frequency is being changed to {} based on clk_profile {}\n", FLAGS_pll_dfs_freq, FLAGS_clk_profile);
+  
   uint32_t freq_ratio = 2400 / FLAGS_pll_dfs_freq;
   co_await write(pll_parameters0, SZ_4B, (1 << scalar_div_idx | 52 << main_divider_div_idx | freq_ratio << pre_divider_div_idx));
   co_await write(pll_control, SZ_4B, (1 << dfs_req_idx));
@@ -319,10 +309,11 @@ cvm::messenger::task<void> reset_sequence::program_fuses() {
   for (uint32_t i = 0; i < FLAGS_num_harts; ++i)
     co_await write(core_fuse_mmr + i * core_fuse_offset,   SZ_8B, fuse);
   
-  //co_await write(trace_fuse_mmr+4,  SZ_4B, (fuse>>32) & 0xFFFFFFFF);
-  //co_await write(trace_fuse_mmr, SZ_4B, fuse & 0xFFFFFFFF ); //FIXME: Enable 8B transaction after RVDE-17674 is fixed 
-  co_await write(trace_fuse_mmr, SZ_8B, fuse & 0xFFFFFFFFFFF7FFF ); //FIXME: Enable 8B transaction after RVDE-17674 is fixed 
-  co_await write(trace_fuse_mmr, SZ_8B, fuse );  
+  if (FLAGS_trace_enable) {
+    cvm::log(cvm::MEDIUM, "[pwrmgmt] writing trace fuse\n", trace_fuse_mmr);
+    co_await write(trace_fuse_mmr, SZ_8B, fuse & 0xFFFFFFFFFFF7FFF );//Workaround defined in RVDE-17674 
+    co_await write(trace_fuse_mmr, SZ_8B, fuse );
+  }
   co_await write(aclint_fuse_mmr, SZ_8B, fuse);
   co_await write(dm_fuse_mmr,     SZ_8B, fuse);
   co_await write(sc_fuse_mmr,     SZ_8B, fuse);
@@ -561,8 +552,6 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
   co_await write(cpl_patch_ram_ptrig_2, SZ_8B, concatenate_uint32_to_uint64(patch_trig_2) );
   co_await write(cpl_patch_ram_ptrig_3, SZ_8B, concatenate_uint32_to_uint64(patch_trig_3) );
 
-  uint64_t pcontrol_data = 0;
-
   for (int i = 0; i < (int)patch_instr.size(); ++i) { 
     std::string patchTag = patch_instr[i];
     cvm::log(cvm::MEDIUM, "[pwrmgmt] Patching instruction: {} , patchMask: 0x{:x}, Opcode: 0x{:x}, enableMask: 0x{:x}\n", patchTag, patches[patchTag].patchMask, patches[patchTag].patchInstruction, patches[patchTag].enableMask);
@@ -571,7 +560,6 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
     co_await write(cpl_patch_ram_pbody_0+(i*0x400), SZ_8B, concatenate_uint32_to_uint64(ucode_body) );
     if (FLAGS_patch_ram_check) populate_patch_ram(cpl_patch_ram_pbody_0+(i*0x400), concatenate_uint32_to_uint64(ucode_body));
     pcontrol_data =  pcontrol_data | (((uint64_t)patches[patchTag].enableMask | 1) << i*16); // enable patch 
-    cvm::log(cvm::MEDIUM, "[pwrmgmt] pcontrol_data : 0x{:x}\n", pcontrol_data);
     if (i == 3) break;
   }
   if (FLAGS_patch_ram_check) {
@@ -585,7 +573,7 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
 
   if (FLAGS_patch_cfg_lock) pcontrol_data = pcontrol_data | 0x8000800080008000;
 
-
+  
   for (uint32_t i=0; i< FLAGS_num_harts; i++) {
     uint32_t offset = i * core_fuse_offset;
     for (auto j : patch_cfg)
@@ -740,12 +728,13 @@ cvm::messenger::task<void> reset_sequence::fuse_mmr_check() {
   uint64_t fuse = fuse_val();
   std::vector<uint64_t> fuse_registers = { 
     sw_fuse_mmr,
-    trace_fuse_mmr,
     aclint_fuse_mmr,
     dm_fuse_mmr,
     sc_fuse_mmr
   };
-  
+
+  if (FLAGS_trace_enable) 
+      fuse_registers.push_back(trace_fuse_mmr);
   for (uint32_t i=0; i<FLAGS_num_harts; ++i)
     fuse_registers.push_back(core_fuse_mmr + i * core_fuse_offset);
   uint64_t actual_data;
@@ -834,99 +823,6 @@ void reset_sequence::force_ref_clk(uint8_t assert) {
     });
 }
 
-cvm::messenger::task<void> reset_sequence::smc_scratchpad_default_access() {
-  co_await tick();
-    // Read reset values  
-    co_await smc_read_access_check(mb_scratchpad, mb_scratchpad_rst,SZ_8B);
-    co_await smc_read_access_check(cc_scratchpad, cc_scratchpad_rst,SZ_4B);
-    co_await smc_read_access_check(rc_scratchpad, rc_scratchpad_rst,SZ_4B);
-    co_await smc_read_access_check(dm_scratchpad, dm_scratchpad_rst,SZ_8B);
-    co_await smc_read_access_check(cr_scratchpad, cr_scratchpad_rst,SZ_8B);
-    co_await smc_read_access_check(sw_scratchpad, sw_scratchpad_rst,SZ_8B);
-    co_await smc_read_access_check(ac_scratchpad, ac_scratchpad_rst,SZ_8B);
-  co_return;
-  };
-
- cvm::messenger::task<void> reset_sequence::smc_read_access_check(uint32_t addr, uint64_t exp_data, size_t sz){
-  uint64_t actual_data;
-
-  actual_data = co_await read(addr, sz);
-  if (exp_data != actual_data)
-    cvm::log(cvm::ERROR, "[pwrmgmt] SMC Scratchpad access check ERROR : addr 0x{:x} ,  Expected :0x{:x}, Actual : 0x{:x} \n",addr , exp_data, actual_data );
-  else
-    cvm::log(cvm::NONE, "[pwrmgmt] SMC Scratchpad access check : addr 0x{:x} , data 0x{:x} \n",addr , actual_data );
-
-  co_return;
- };
-
- cvm::messenger::task<void> reset_sequence::smc_axi_random_access()
- {
-  uint64_t data;
-  uint32_t randomAddress;
-  uint32_t SRAMAddress;
-  uint32_t data2;
-  int randomIndex;
-
-    co_await tick();
-  if(FLAGS_smc_axi_access){
-    // Default value check for scratch pad registers
-    co_await smc_scratchpad_default_access(); 
-
-    data  = 0xA5A5A5A5A5A5A5A5; 
-    data2 = 0xA5A5A5A5; 
-    for(uint32_t i = 0; i < FLAGS_smc_max_snippets ; ++i)
-    {
-      // Delay between each iteration
-      co_await delay_counters();
-      for(uint32_t p = 0; p < FLAGS_smc_snippet_size ; ++p)
-      {
-        std::random_device rd;
-        std::mt19937 gen(rd());
-
-        // Create a uniform distribution to select random indices
-        std::uniform_int_distribution<> dist(0,smc_dest_address.size() - 1);
-        std::uniform_int_distribution<uint32_t> sram_dist(0x40000,0x4BFFF);
-
-        // Pick a random address from the pool of scratchpad registers
-        randomIndex = dist(gen);
-        randomAddress = smc_dest_address[randomIndex];
-        SRAMAddress   = sram_dist(gen) & 0xFFFF8;
-
-        if((randomAddress == rc_scratchpad)|| (randomAddress == cc_scratchpad))
-        {
-        co_await write(randomAddress, SZ_4B, data2);
-        co_await smc_read_access_check(randomAddress, data2,SZ_4B);
-        }
-        else if((randomAddress == core_pwr_throttle_cfg_0)|| (randomAddress == core_pwr_throttle_cfg_1))
-        {
-          co_await csr_read(0, 0x8,randomAddress);
-        }
-        else{
-         co_await write(randomAddress, SZ_8B, data);
-         co_await smc_read_access_check(randomAddress, data,SZ_8B);
-        };
-
-        // Random SRAM access
-         co_await write(SRAMAddress, SZ_8B, data);
-         co_await smc_read_access_check(SRAMAddress, data,SZ_8B);
-        data = ~data;
-        data2 = ~data2;
-  
-      };
-    };
-  };
-  co_return;
-};
-
-cvm::messenger::task<void> reset_sequence::delay_counters(){
-  for(uint32_t i =0; i< FLAGS_smc_max_ticks; i++)
-  {
-    co_await tick();
-  };
-
-  co_return;
- };
- 
 // Helper function to trim whitespace from a string
 std::string trim(const std::string& str) {
     size_t first = str.find_first_not_of(" \t");

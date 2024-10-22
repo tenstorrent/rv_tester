@@ -15,10 +15,16 @@ import rv_tester_params::*;
 );
 
   import "DPI-C" context function void trace_set_scope(int unsigned location);
+  import "DPI-C" function bit get_ntrace_en();
 
   parameter int unsigned location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.TRACE.ID, NUM);
+  bit ntrace_en = '0;
+
   always @(posedge tb_clk) begin
     if (tb_reset) begin
+      /* verilator lint_off BLKSEQ */
+      ntrace_en = get_ntrace_en();
+      /* verilator lint_on BLKSEQ */
       if (location != cvm_topology::nil) begin
         trace_set_scope(location);
       end
@@ -47,8 +53,7 @@ import rv_tester_params::*;
   assign m_core_no_fetchs[0].data.val = core_no_fetch;
 
   // m_tick
-  //assign m_ticks[0].valid =  ~|core_no_fetch & (tb_clocks % 100 == 0) & (location != cvm_topology::nil);
-  assign m_ticks[0].valid =  ~|core_no_fetch & (location != cvm_topology::nil);
+  assign m_ticks[0].valid = ntrace_en & ~|core_no_fetch & (location != cvm_topology::nil);
   assign m_ticks[0].data.location = location;
   assign m_ticks[0].data.cycle = tb_clocks;
 

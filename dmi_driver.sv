@@ -163,7 +163,7 @@ import rv_tester_params:: * ;
     dmi_commands_in_queue = command_queue.size();
   end
 
-  always @(posedge clk) begin
+  always @(posedge clk or negedge clk) begin
     if(rvfi[0].cause[63:0] === 'h21) begin
       rvfi_sdtrig = 1;
     // end else begin
