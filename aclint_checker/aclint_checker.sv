@@ -73,8 +73,9 @@ import rv_tester_params:: * ;
     end
 
     //ACLINT MTIP generation checker
-    /* verilator lint_off WIDTH */
-    logic [8:0] [63:0] counter,counter_next, mtimecmpval;
+    typedef enum bit {idle,check} checker_state;
+    checker_state [8:0] st;
+    logic [8:0] [63:0] counter,counter_check,counter_next, mtimecmpval;;
     logic [8:0] mtimecmp_wr_valid;
     logic wtimecmp_wr_valid;
     logic mtime_wr_valid;
@@ -95,11 +96,11 @@ import rv_tester_params:: * ;
         end
         end
     end
-    genvar asserti;
+    genvar asserti1;
     generate
-    for ( asserti = 0; asserti < 9; asserti++) begin : mtip_check
+    for ( asserti1 = 0; asserti1 < 9; asserti1++) begin : mtip_check1
     always_comb
-    assert(~((counter[asserti] > counter_check[asserti]) && (st[asserti] == check) && (counter[asserti]-counter_check[asserti]) > 4)) else $error("Error: Expected MTIP, but MTIP not generated");
+    assert(~((counter[asserti1] > counter_check[asserti1]) && (st[asserti1] == check) && (counter[asserti1]-counter_check[asserti1]) > 4)) else $error("Error: Expected MTIP, but MTIP not generated");
     end
     endgenerate
 
@@ -150,11 +151,50 @@ import rv_tester_params:: * ;
             end
         end
     end
+    logic [8:0] disablefuse;
+    logic disablelocked;
+    logic [3:0] vid [8:0];
+    always @(posedge rf_clk) begin
+        if(dut_reset) begin
+            disablefuse <= '0;
+            disablelocked <= '0;
+            vid[0] <= '0;
+            vid[1] <= '0;
+            vid[2] <= '0;
+            vid[3] <= '0;
+            vid[4] <= '0;
+            vid[5] <= '0;
+            vid[6] <= '0;
+            vid[7] <= '0;
+            vid[8] <= 'd8;
+        end else if ((AcReqPktRfClki.addr == DISABLEFUSE) && AcReqPktRfClki.valid) begin
+            if(!disablelocked) begin
+            disablelocked <= AcReqPktRfClki.data[15];
+            disablefuse[0] <= ~AcReqPktRfClki.data[16];
+            vid[0] <= AcReqPktRfClki.data[19:17];
+            disablefuse[1] <= ~AcReqPktRfClki.data[20];
+            vid[1] <= AcReqPktRfClki.data[23:21];
+            disablefuse[2] <= ~AcReqPktRfClki.data[24];
+            vid[2] <= AcReqPktRfClki.data[27:25];
+            disablefuse[3] <= ~AcReqPktRfClki.data[28];
+            vid[3] <= AcReqPktRfClki.data[31:29];
+            disablefuse[4] <= ~AcReqPktRfClki.data[32];
+            vid[4] <= AcReqPktRfClki.data[35:33];
+            disablefuse[5] <= ~AcReqPktRfClki.data[36];
+            vid[5] <= AcReqPktRfClki.data[39:37];
+            disablefuse[6] <= ~AcReqPktRfClki.data[40];
+            vid[6] <= AcReqPktRfClki.data[43:41];
+            disablefuse[7] <= ~AcReqPktRfClki.data[44];
+            vid[7] <= AcReqPktRfClki.data[47:45];
+            end
+        end
+    end
     always_comb begin
         for (int j = 0; j < 9; j++) begin
             mtimecmp_wr_valid[j] = AcReqPktRfClki.valid && AcReqPktRfClki.mask=='hff && ( (AcReqPktRfClki.addr == (MTIMECMP0 + (j<<3) )) || ((AcReqPktRfClki.addr == WAKETIME ) && wakecore==j) );
         end
     end
+
     generate
     genvar k;
     for ( k = 0; k < 9; k++) begin : mtip_counters
@@ -222,7 +262,6 @@ import rv_tester_params:: * ;
     always_comb assert(~(cycles_in_fail_mtishouldbeON > 4)) else $error("Error: Expected MTIP, but MTIP %d not generated", asserti);
     end
     endgenerate
-
 
     //ACLINT core MMR - ac_mmrwrite
     for (genvar n = 0; n < TOTAL_NRETS; n++) begin
