@@ -12,13 +12,6 @@ module rv_tester
     byte    eot_status;
     byte    eot_syscall;
 
-    export "DPI-C" function cosim_set_eot;
-    function void cosim_set_eot(input longint unsigned addr, input byte status, input byte syscall);
-       eot_addr    = addr;
-       eot_status  = status;
-       eot_syscall = syscall;
-    endfunction
-
     typedef longint unsigned LU;
 
     localparam int unsigned NoAddrRules = 20;
@@ -89,6 +82,7 @@ module rv_tester
     import "DPI-C" function byte unsigned rv_tester_shutdown_registry();
     import "DPI-C" context function bit rv_tester_flush_callbacks();
     import "DPI-C" function bit pwrmgmt_get_warm_reset_en(string mode);
+    import "DPI-C" function longint eot_get_addr();
 
     localparam int unsigned AxiIdWidthMstRv    = topology.TOP.PLATFORM.AXI.ID_WIDTH + $clog2(topology.TOP.PLATFORM.AXI.TOTAL) + 1;
 
@@ -281,6 +275,9 @@ module rv_tester
 
             /* verilator lint_off BLKSEQ */
             // zebu bug doesn't allow nested function calls, so create intermediate variables
+            eot_addr                    = eot_get_addr();
+            eot_status                  = 1;
+            eot_syscall                 = 0;
             cvm_verbosity_string        = cvm_plusargs::get_string("cvm_verbosity");
             gen_clocks_verbosity_string = cvm_plusargs::get_string("gen_clocks_verbosity");
             cvm_verbosity               = cvm_logger::get_verbosity(cvm_verbosity_string);
