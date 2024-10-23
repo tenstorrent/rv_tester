@@ -184,8 +184,6 @@ eot::~eot() {
 
 extern "C" {
   std::uint64_t eot_get_addr() {
-    //return eot::get_tohost_addr();
-    //return cvm::registry::messenger.call<eot::get_tohost_addr>();
     return cvm::registry::messenger.call<eot::get_tohost_addr_RPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0));
   }
 }

@@ -273,6 +273,9 @@ module rv_tester
             rv_tester_cvm_error_handler();
             rv_tester_parse_memmap(NoAddrRules);
 
+            $display("[RVTESTER]: reconstructing registry");
+            rv_tester_build_registry();
+
             /* verilator lint_off BLKSEQ */
             // zebu bug doesn't allow nested function calls, so create intermediate variables
             eot_addr                    = eot_get_addr();
@@ -311,9 +314,6 @@ module rv_tester
             jtag_en              <= cvm_plusargs::get_bool("jtag_en") != '0;
             rand_dmi_driver_dly  <= cvm_plusargs::get_int("rand_dmi_driver_dly");
             hart_enable_mask     <= cvm_plusargs::get_int("hart_enable_mask");
-
-            $display("[RVTESTER]: reconstructing registry");
-            rv_tester_build_registry();
 
         end
         clock_mode      <= clk_profile[2:0];
