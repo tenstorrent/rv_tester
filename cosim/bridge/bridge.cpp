@@ -998,8 +998,8 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
       prev_sync_intr_ = true; // This will waive cases when after execution of mret there exists a csr operation which needs to be interrupted.
     }
 
-    if (w.disasm.find("vsstimecmp") != std::string::npos)  {
-      IF_DEBUG("VSSTIMECMP instruction");
+    if (w.disasm.find("vstimecmp") != std::string::npos)  {
+      IF_DEBUG("VSTIMECMP instruction");
       if (!vstimecmppoked_) resetsstc_poke(hart,d.cycle, 0x24d); else setsstc_poke(hart,d.cycle, 0x24d);
     } else if (w.disasm.find("stimecmp") != std::string::npos) {
       IF_DEBUG("STIMECMP instruction");
@@ -1905,6 +1905,7 @@ bool bridge::hpm_counter_read(const std::string& instr) {
       (instr.find("instret") != std::string::npos) ||
       (instr.find("time") != std::string::npos) ||
       (instr.find("stimecmp") != std::string::npos) ||
+      (instr.find("vstimecmp") != std::string::npos) ||
       (instr.find("hpmevent") != std::string::npos) || //FIXME: poke events to whisper
       (instr.find("scountovf") != std::string::npos) ||//FIXME: poke events to whisper
       (instr.find("cycle") != std::string::npos))
