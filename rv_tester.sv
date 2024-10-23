@@ -154,6 +154,8 @@ module rv_tester
     int flush_timeout = 25000;
     bit print_terminate_message = '1;
 
+    int debug_enable = 0;
+    bit dmi_driver_dbg_enable;
     int hart_enable_mask = 0;
     int rand_dmi_driver_dly = 0;
     int sdtrig_multitrigger = 0;
@@ -186,6 +188,8 @@ module rv_tester
     assign terminate_now       = (terminate_1T && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue <= 'h1) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced )) || dut_terminate_any || warm_reset_now;
 
     assign rerun_now           = terminated && !terminated_1T && ((num_reruns > 0) || (warm_reset_en && (num_resets <= target_num_resets)) || dut_reset_req);
+
+    assign dmi_driver_dbg_enable = ((debug_enable == 'h1) || (debug_enable == 'h3));
 
   `ifndef CLK_MUX_UNSUPPORTED
     always @(posedge dut_clk[TB_CLK_IDX])begin
@@ -313,6 +317,7 @@ module rv_tester
             bypass_cache         <= cvm_plusargs::get_bool("bypass_cache") != '0;
             assertion_test_cycle <= cvm_plusargs::get_int("assertion_test_cycle");
 
+            debug_enable         <= cvm_plusargs::get_int("debug_enable"); 
             trace_en             <= cvm_plusargs::get_bool("trace_en") != '0;
             overlay_mmr_en       <= cvm_plusargs::get_bool("overlay_mmr_en") != '0;
             jtag_en              <= cvm_plusargs::get_bool("jtag_en") != '0;
@@ -538,6 +543,7 @@ module rv_tester
     dmi_driver i_dmi_driver(
         .clk(dut_clk[AXI_CLK_IDX]),
         .reset_n(~reset[WARM_RESET_IDX] || reset_hold[DEBUG_HOLD_IDX]),
+        .dmi_driver_dbg_enable,
         .rand_dmi_driver_dly,
         .hart_enable_mask,
         .dm_single_step_count,

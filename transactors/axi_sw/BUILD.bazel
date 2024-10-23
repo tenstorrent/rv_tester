@@ -30,4 +30,24 @@ cc_library(
     visibility = ["//visibility:public"],
 )
 
+cc_library(
+    name = "axi_sw_mst",
+    #srcs = [ "axi_sw_mst.cpp" ],
+    hdrs = [ "axi_sw_mst.h", "axi.h", "safe_queue.h" ],
+    deps = [
+        "@rv_tester//common:transactor",
+        "@cvm//:plusargs",
+        "@cvm//:topology",
+        "@cvm//:logger",
+        "@cvm//:registry",
+        "@cvm//:bitmanip",
+        "@cvm//:messenger",
+        "@fmt//:fmt"
+    ],
+    #alwayslink = True,
+    #linkstatic = True,
+    strip_include_prefix = ".",
+    visibility = ["//visibility:public"],
+)
+
 exports_files(["safe_queue.h"] + glob(["axi_sw.*", "axi.*", "axi_sw_mst.*"]))
