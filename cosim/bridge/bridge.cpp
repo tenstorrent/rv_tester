@@ -1378,9 +1378,10 @@ bool bridge::is_indirect_reg(const std::string& instr) {
 }
 
 void bridge::step(hart_id_t hart, whisper_state_t& w) {
+  bool valid;
   IF_DEBUG("function called");
-  if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperStepRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, w.time, w.tag,  w.pc, w.opcode, w.change_count, w.disasm,
-      w.priv_mode, w.fp_flags, w.trap, w.stop, w.is_load)) {
+  if (((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperStepRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, w.time, w.tag,  w.pc, w.opcode, w.change_count, w.disasm,
+      w.priv_mode, w.fp_flags, w.trap, w.stop, w.is_load, valid)) || !valid) && FLAGS_whisper_client_check) {
     error("Hart {}: Failed to step whisper\n", hart);
     return;
   }
@@ -2170,7 +2171,7 @@ void bridge::process_dut_mcm_write(hart_id_t hart, mem_cl_t& m) {
 void bridge::process_dut_mcm_ifetch(hart_id_t hart, mem_t& m) {
   bool valid = false;
 
-  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmIFetchRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.pa, valid)|| !valid) && FLAGS_whisper_client_check) {
+  if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmIFetchRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.pa, valid)) {
     error("Hart {}: Failed mcm ifetch\n", hart);
     return;
   }
