@@ -130,7 +130,7 @@ def create_cpp_frag(core_events: List[Dict[Any, Any]],sc_events: List[Dict[Any, 
     filtered_csv = []
     filter_event_dict = {}
     for event in core_events:
-        if event["multi_hot_encoding"] == "Yes":
+        if (event["multi_hot_encoding"] == "Yes" and event["unit"] != "LS"):
             filtered_csv.append({
                 'event_31_16': event["event_id"][0:6],
                 'event_15_0': event["event_id"][6:10],
