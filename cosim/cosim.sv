@@ -247,7 +247,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     typedef longint unsigned LU;
     parameter int unsigned location = cvm_topology_gen::get_location (topology.TOP.PLATFORM.COSIM.ID, NUM);
     bit rvfi_enabled,mcm_enabled;
-    int mcm_value;
+    //int mcm_value;
     longint unsigned psc_off_low  = 0;
     longint unsigned psc_off_high = 0;
     int to_host;
@@ -1320,7 +1320,7 @@ localparam CAM_IHBIT = CAM_IBITS;
         hart_enable_mask = cvm_plusargs::get_int("hart_enable_mask");
         debug_entry_pc_arg = cvm_plusargs::get_ulongint("debug_entry_pc");
         debug_exit_pc_arg  = cvm_plusargs::get_ulongint("debug_exit_pc");
-        mcm_value  = cvm_plusargs::get_int("mcm");
+        //mcm_value  = cvm_plusargs::get_int("mcm");
         psc_off_low  = cvm_plusargs::get_ulongint("psc_off_low");
         psc_off_high = cvm_plusargs::get_ulongint("psc_off_high");
 
