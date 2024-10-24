@@ -5,6 +5,7 @@ import rv_tester_params:: * ;
     input logic                     clk,
     input logic                     reset_n,
 
+    input logic                     dmi_driver_dbg_enable,
     input logic [31:0]              rand_dmi_driver_dly,
     input logic [31:0]              hart_enable_mask,
     input logic [31:0]              dm_single_step_count,
@@ -255,175 +256,177 @@ import rv_tester_params:: * ;
 
   task is_poll_needed(input rv_tester_pkg::dmi_req_t cmd);
     begin
-      //decode request type
-      if (cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[31] === '1 && cmd.data[1] === '1) begin
-        $display("[Poll] Seen Halt Req and poll_p2, Doing Poll for halt req after ndmreset");
-        ndmreset_halt_req = 1;
-        poll = 1;
-      end else if(cmd.addr === 'h10 && cmd.op === 'h2 && sdtrig_fire === 'h1) begin
-        $display("[Poll] Check if the core is halted through sdtrig");
-        sdtrig_fire = 0;
-        halted_sdtrig = 1;
-        poll = 1;
-        $display("[Poll] Clearing sdtrig_fire = 0");
-        $display("[Poll] Setting halted_sdtrig = 1");
-      end else if (cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[31] === '1 && cmd.data[1] === '0) begin
-        core_hg_check = cmd.data[25:16];
-        if(~core_in_halt_group[core_hg_check]) begin
-          $display("[Poll] Seen Halt Req, Doing Poll");
-          halt_req = 1;
+      if (dmi_driver_dbg_enable) begin
+        //decode request type
+        if (cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[31] === '1 && cmd.data[1] === '1) begin
+          $display("[Poll] Seen Halt Req and poll_p2, Doing Poll for halt req after ndmreset");
+          ndmreset_halt_req = 1;
           poll = 1;
-        end else begin
-          $display("[Poll] Core in halt group gets a haltreq, Doing Poll");
-          core_haltg_hreq = 1;
+        end else if(cmd.addr === 'h10 && cmd.op === 'h2 && sdtrig_fire === 'h1) begin
+          $display("[Poll] Check if the core is halted through sdtrig");
+          sdtrig_fire = 0;
+          halted_sdtrig = 1;
           poll = 1;
-        end
-      end else if (cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[30] === '1) begin
-        core_rg_check = cmd.data[25:16];
-        if(~core_in_resume_grp[core_rg_check]) begin
-          $display("[Poll] Seen Resume Req, Doing Poll");
-          resume_req = 1;
+          $display("[Poll] Clearing sdtrig_fire = 0");
+          $display("[Poll] Setting halted_sdtrig = 1");
+        end else if (cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[31] === '1 && cmd.data[1] === '0) begin
+          core_hg_check = cmd.data[25:16];
+          if(~core_in_halt_group[core_hg_check]) begin
+            $display("[Poll] Seen Halt Req, Doing Poll");
+            halt_req = 1;
+            poll = 1;
+          end else begin
+            $display("[Poll] Core in halt group gets a haltreq, Doing Poll");
+            core_haltg_hreq = 1;
+            poll = 1;
+          end
+        end else if (cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[30] === '1) begin
+          core_rg_check = cmd.data[25:16];
+          if(~core_in_resume_grp[core_rg_check]) begin
+            $display("[Poll] Seen Resume Req, Doing Poll");
+            resume_req = 1;
+            poll = 1;
+          end else begin
+            $display("[Poll] Core in resume group gets a resumereq, Doing Poll");
+            core_resumeg_rreq = 1;
+            poll = 1;
+          end
+        end else if (cmd.addr === 'h17 && cmd.op === 'h2) begin
+          $display("[Poll] Seen Abstract Command Req, Doing Poll");
+          abstr_cmd_req = 1;
           poll = 1;
-        end else begin
-          $display("[Poll] Core in resume group gets a resumereq, Doing Poll");
-          core_resumeg_rreq = 1;
-          poll = 1;
-        end
-      end else if (cmd.addr === 'h17 && cmd.op === 'h2) begin
-        $display("[Poll] Seen Abstract Command Req, Doing Poll");
-        abstr_cmd_req = 1;
-        poll = 1;
-        if (cmd.data[31:24] === 'h0 && cmd.data[17] === 'h1) begin
-          //Seen an abstract reg command with rd/write
-          $display("[Poll] Seen an abstract command with rd/write");
-          if (cmd.data[16] === 'h1) begin
-            $display("[Poll] Seen the abstract command with write");
-            abs_write = 1;
-            if(cmd.data[15:0] === 'h07a1) begin
-              $display("[sdtrig:Poll] Seen an abstract command write on tdata1");
-              tdata1_write = 1;
-            end else if (cmd.data[15:0] === 'h07b0) begin
-              $display("[Poll] Seen the abstract command with write on dcsr");
-              dcsr_abscmd = 1;
-            end else if(check_hit_for_tselect && cmd.data[15:0] === 'h07a0) begin
-              to_check_tselect = 1;
-              $display("[Poll] Setting to_check_tselect = 1");
-            end else if(cmd.data[15:0] === 'h07a0)begin
-              tselect_core = 1;
-              $display("[sdtrig:Poll] Check which core has sdtrig configurations");
-            end
-          end else if (cmd.data[16] === 'h0) begin
-            $display("[Poll] Seen the abstract command with read");
-            abs_read = 1;
-            abs_data_temp_packet.reg_addr = cmd.data[15:0];
-            if(to_check_cause && cmd.data[15:0] === 'h7b0) begin
-              to_check_cause = 0;
-              check_cause_trigger = 1;
-            end else if(to_check_hit && cmd.data[15:0] === 'h07a1) begin
-              to_check_hit = 0;
-              check_hit_bit = 1;
+          if (cmd.data[31:24] === 'h0 && cmd.data[17] === 'h1) begin
+            //Seen an abstract reg command with rd/write
+            $display("[Poll] Seen an abstract command with rd/write");
+            if (cmd.data[16] === 'h1) begin
+              $display("[Poll] Seen the abstract command with write");
+              abs_write = 1;
+              if(cmd.data[15:0] === 'h07a1) begin
+                $display("[sdtrig:Poll] Seen an abstract command write on tdata1");
+                tdata1_write = 1;
+              end else if (cmd.data[15:0] === 'h07b0) begin
+                $display("[Poll] Seen the abstract command with write on dcsr");
+                dcsr_abscmd = 1;
+              end else if(check_hit_for_tselect && cmd.data[15:0] === 'h07a0) begin
+                to_check_tselect = 1;
+                $display("[Poll] Setting to_check_tselect = 1");
+              end else if(cmd.data[15:0] === 'h07a0)begin
+                tselect_core = 1;
+                $display("[sdtrig:Poll] Check which core has sdtrig configurations");
+              end
+            end else if (cmd.data[16] === 'h0) begin
+              $display("[Poll] Seen the abstract command with read");
+              abs_read = 1;
+              abs_data_temp_packet.reg_addr = cmd.data[15:0];
+              if(to_check_cause && cmd.data[15:0] === 'h7b0) begin
+                to_check_cause = 0;
+                check_cause_trigger = 1;
+              end else if(to_check_hit && cmd.data[15:0] === 'h07a1) begin
+                to_check_hit = 0;
+                check_hit_bit = 1;
+              end
             end
           end
-        end
-      end else if (cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[1] === 'h1 ) begin
-        $display("[Poll] Making NdmReset = 1, Doing Poll");
-        ndm_reset_init = 1;
-        ndm_reset_assert_done = 1;
-        poll = 1;
-        if(ss_step_bit) begin
+        end else if (cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[1] === 'h1 ) begin
+          $display("[Poll] Making NdmReset = 1, Doing Poll");
+          ndm_reset_init = 1;
+          ndm_reset_assert_done = 1;
+          poll = 1;
+          if(ss_step_bit) begin
+            ss_step_bit = 0;
+            $display("[Poll] Step field gets cleared with ndmreset");
+          end
+        end else if (ndm_reset_assert_done === 'h1 && cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[1] === 'h0 ) begin
+          $display("[Poll] Making NdmReset = 0, Doing Poll");
+          ndm_reset_assert_done = 0;
+          ndm_reset_ack = 1;
+          poll = 1;
+        end else if (cmd.addr === 'h32 && cmd.op === 'h2 && ~cmd.data[11] && cmd.data[2:1] === 'h3 ) begin
+          $display("Core entering halt group");
+          cores_in_halt_group = 1;
+          poll = 1;
+        end else if (cmd.addr === 'h32 && cmd.op === 'h2 && ~cmd.data[11] && cmd.data[2:1] === 'h1) begin
+          $display("Removing core from haltgroup");
+          remove_core_from_haltg = 1;
+          poll = 1;
+        end else if(cmd.addr === 'h32 && cmd.op === 'h2 && cmd.data[11] && cmd.data[6:2] === 'h1 && cmd.data[1]) begin
+          $display("Core entering resume group");
+          cores_in_resume_grp = 1;
+          poll = 1;
+        end else if(cmd.addr === 'h32 && cmd.op === 'h2 && cmd.data[11] && cmd.data[6:2] === 'h0) begin
+          $display("Removing core from resume group");
+          remove_core_from_resumeg = 1;
+          poll = 1;
+        end else if(cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[28]) begin
+          $display("[Poll] Acknowledge havereset");
+          ack_havereset = 1;
+          poll = 1;
+        end else if(dcsr_abscmd && cmd.addr === 'h16 && cmd.op === 'h1) begin
+          $display("[Single step] step bit configured in dcsr");
+          dcsr_abscmd = 0;
+          dcsr_write = 1;
+          poll = 1;
+        end else if(core_to_halt_after_ss && cmd.addr === 'h11 && cmd.op === 'h1 && ~trigger_to_fire) begin
+          $display("[Single step] Core resuming after step configuration");
+          poll = 1;
+        end else if(cmd.addr === 'h16 && cmd.op === 'h1 && tdata1_write) begin
+          $display("trigger type is configured in tdata1");
+          tdata1_write = 0;
+          check_trigger_type = 1;
+          poll = 1;
+        end else if(cmd.addr === 'h16 && cmd.op === 'h1 && tselect_core) begin
+          $display("trigger type is configured in tdata1");
+          tselect_core = 0;
+          tselect_core_complete = 1;
+          poll = 1;
+        end else if(trigger_to_fire && cmd.addr === 'h11 && cmd.op === 'h1) begin
+          $display("[Sdtrig] Core resuming after sdtrig configuration");
+          if(!rvfi_sdtrig) begin
+            @(rvfi_sdtrig);
+          end
+          poll = 1;
+          trigger_fired_halted = 1;
+          trigger_to_fire = 0;
+          if(core_to_halt_after_ss) begin
+            core_to_halt_after_ss = 0;
+            $display("[Sdtrig] Sdtrig takes priority over single stepping");
+          end
+        end else if(check_cause_trigger && cmd.addr === 'h4 && cmd.op === 'h1) begin
+          poll = 1;
+          check_cause_trigger = 0;
+          cause_trigger = 1;
+        end else if(ss_step_bit && cmd.addr === 'h10 && cmd.op === 'h1) begin
+          poll = 1;
+          check_step_core = 1;
           ss_step_bit = 0;
-          $display("[Poll] Step field gets cleared with ndmreset");
+          $display("[ss_hg] check_step_core set, check which core to single step");
+        end else if(core_haltsum_ss && cmd.addr === 'h11 && cmd.op === 'h1) begin
+          poll = 1;
+          core_haltsum_ss = 0;
+          core_check_haltsum_ss = 1;
+          $display("[ss_hg] core_check_haltsum_ss is set");
+        end else if(core_haltsum_sdtrig && cmd.addr === 'h11 && cmd.op === 'h1) begin
+          poll = 1;
+          check_haltsum_sdtrig = 1;
+          core_haltsum_sdtrig = 0;
+        end else if(cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[23:16] === 'hff) begin
+          poll = 1;
+          check_hartsellen = 1;
+          $display("check_hartsellen is set");
+        end else if(check_dmstatus_disc && cmd.addr === 'h10 && cmd.op === 'h2) begin
+          poll = 1;
+          hart_discovery = 1;
+          dmcontrol_hartsel = cmd.data[18:16];
+          $display("hart_discovery is set, dmcontrol_hartsel:%h ", dmcontrol_hartsel);
+        end else if(to_check_tselect && cmd.addr === 'h4 && cmd.op === 'h1) begin
+          poll = 1;
+          to_check_tselect = 0;
+          read_tselect = 1;
+        end else if(check_hit_bit && cmd.addr === 'h4 && cmd.op === 'h1) begin
+          poll = 1;
+          check_hit_bit = 0;
+          read_tdata1_hit = 1;
         end
-      end else if (ndm_reset_assert_done === 'h1 && cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[1] === 'h0 ) begin
-        $display("[Poll] Making NdmReset = 0, Doing Poll");
-        ndm_reset_assert_done = 0;
-        ndm_reset_ack = 1;
-        poll = 1;
-      end else if (cmd.addr === 'h32 && cmd.op === 'h2 && ~cmd.data[11] && cmd.data[2:1] === 'h3 ) begin
-        $display("Core entering halt group");
-        cores_in_halt_group = 1;
-        poll = 1;
-      end else if (cmd.addr === 'h32 && cmd.op === 'h2 && ~cmd.data[11] && cmd.data[2:1] === 'h1) begin
-        $display("Removing core from haltgroup");
-        remove_core_from_haltg = 1;
-        poll = 1;
-      end else if(cmd.addr === 'h32 && cmd.op === 'h2 && cmd.data[11] && cmd.data[6:2] === 'h1 && cmd.data[1]) begin
-        $display("Core entering resume group");
-        cores_in_resume_grp = 1;
-        poll = 1;
-      end else if(cmd.addr === 'h32 && cmd.op === 'h2 && cmd.data[11] && cmd.data[6:2] === 'h0) begin
-        $display("Removing core from resume group");
-        remove_core_from_resumeg = 1;
-        poll = 1;
-      end else if(cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[28]) begin
-        $display("[Poll] Acknowledge havereset");
-        ack_havereset = 1;
-        poll = 1;
-      end else if(dcsr_abscmd && cmd.addr === 'h16 && cmd.op === 'h1) begin
-        $display("[Single step] step bit configured in dcsr");
-        dcsr_abscmd = 0;
-        dcsr_write = 1;
-        poll = 1;
-      end else if(core_to_halt_after_ss && cmd.addr === 'h11 && cmd.op === 'h1 && ~trigger_to_fire) begin
-        $display("[Single step] Core resuming after step configuration");
-        poll = 1;
-      end else if(cmd.addr === 'h16 && cmd.op === 'h1 && tdata1_write) begin
-        $display("trigger type is configured in tdata1");
-        tdata1_write = 0;
-        check_trigger_type = 1;
-        poll = 1;
-      end else if(cmd.addr === 'h16 && cmd.op === 'h1 && tselect_core) begin
-        $display("trigger type is configured in tdata1");
-        tselect_core = 0;
-        tselect_core_complete = 1;
-        poll = 1;
-      end else if(trigger_to_fire && cmd.addr === 'h11 && cmd.op === 'h1) begin
-        $display("[Sdtrig] Core resuming after sdtrig configuration");
-        if(!rvfi_sdtrig) begin
-          @(rvfi_sdtrig);
-        end
-        poll = 1;
-        trigger_fired_halted = 1;
-        trigger_to_fire = 0;
-        if(core_to_halt_after_ss) begin
-          core_to_halt_after_ss = 0;
-          $display("[Sdtrig] Sdtrig takes priority over single stepping");
-        end
-      end else if(check_cause_trigger && cmd.addr === 'h4 && cmd.op === 'h1) begin
-        poll = 1;
-        check_cause_trigger = 0;
-        cause_trigger = 1;
-      end else if(ss_step_bit && cmd.addr === 'h10 && cmd.op === 'h1) begin
-        poll = 1;
-        check_step_core = 1;
-        ss_step_bit = 0;
-        $display("[ss_hg] check_step_core set, check which core to single step");
-      end else if(core_haltsum_ss && cmd.addr === 'h11 && cmd.op === 'h1) begin
-        poll = 1;
-        core_haltsum_ss = 0;
-        core_check_haltsum_ss = 1;
-        $display("[ss_hg] core_check_haltsum_ss is set");
-      end else if(core_haltsum_sdtrig && cmd.addr === 'h11 && cmd.op === 'h1) begin
-        poll = 1;
-        check_haltsum_sdtrig = 1;
-        core_haltsum_sdtrig = 0;
-      end else if(cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[23:16] === 'hff) begin
-        poll = 1;
-        check_hartsellen = 1;
-        $display("check_hartsellen is set");
-      end else if(check_dmstatus_disc && cmd.addr === 'h10 && cmd.op === 'h2) begin
-        poll = 1;
-        hart_discovery = 1;
-        dmcontrol_hartsel = cmd.data[18:16];
-        $display("hart_discovery is set, dmcontrol_hartsel:%h ", dmcontrol_hartsel);
-      end else if(to_check_tselect && cmd.addr === 'h4 && cmd.op === 'h1) begin
-        poll = 1;
-        to_check_tselect = 0;
-        read_tselect = 1;
-      end else if(check_hit_bit && cmd.addr === 'h4 && cmd.op === 'h1) begin
-        poll = 1;
-        check_hit_bit = 0;
-        read_tdata1_hit = 1;
       end
     end
   endtask : is_poll_needed

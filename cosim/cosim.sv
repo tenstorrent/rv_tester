@@ -1086,7 +1086,7 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     // m_mcmi_bypass
     for (genvar n = 0; n < NBYPASS; n++) begin
-        assign m_mcmi_bypasss[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_reset & mcmi_bypass[n].valid;
+        assign m_mcmi_bypasss[n].valid = MCMI_EN & (mcm_enabled || (to_host == 'b1)) & rvfi_enabled & ~dut_reset & mcmi_bypass[n].valid;
         assign m_mcmi_bypasss[n].data.location = location;
         assign m_mcmi_bypasss[n].data.cycle = mcmi_bypass[n].valid ? clocks : '0;
         assign m_mcmi_bypasss[n].data.hart = NUM;
