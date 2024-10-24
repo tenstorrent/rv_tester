@@ -231,6 +231,10 @@ module rv_tester
             flush_counter   <= '0;
             instructions    <= '0;
             dmi_poll_timeout_terminate <= '0;
+            if (num_resets < 0) begin
+                clocks <= '0;
+            end
+
         end
 
         if (terminate && terminated) begin
