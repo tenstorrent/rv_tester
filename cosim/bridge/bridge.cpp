@@ -540,9 +540,9 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   // Handle pre-step condition - Debug
   if (debug_mode_) {
-    if (FLAGS_cosim_period != 0) {
-      error("COSIM periodic-state-check mode enabled with test utilizing debug_mode\n");
-    }
+    //if (FLAGS_cosim_period != 0) {
+    //  error("COSIM periodic-state-check mode enabled with test utilizing debug_mode\n");
+    //}
     if (FLAGS_emulate_debug_mode) {
       pre_step_debug_poke(hart, d);
     } else {

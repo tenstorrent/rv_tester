@@ -309,8 +309,8 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.excp = excp_;
   instr.ecause = ecause_;
 
-  cvm::log(cvm::HIGH, "CLOCK={}: HW: ucode={} first_uop={} last_uop={}, priv={}, priv_change={} set_pmode={}, clr_pmode={} patch_={}\n", m_rvfi.cycle,
-                            m_rvfi.ucode, m_rvfi.first_uop, m_rvfi.last_uop, m_rvfi.priv, m_rvfi.priv_change, m_rvfi.set_pmode, m_rvfi.clr_pmode, patch_mode_);
+  cvm::log(cvm::HIGH, "CLOCK={}: HW: ucode={} first_uop={} last_uop={}, mode={} priv={}, priv_change={} set_pmode={}, clr_pmode={} patch_={}\n", m_rvfi.cycle,
+                            m_rvfi.ucode, m_rvfi.first_uop, m_rvfi.last_uop, m_rvfi.mode, m_rvfi.priv, m_rvfi.priv_change, m_rvfi.set_pmode, m_rvfi.clr_pmode, patch_mode_);
 
   // RVTOOLS-3265: Adjust tag for vec excp
   if (vec_excp_)
@@ -324,6 +324,9 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.csr_renamed_name = src_renamed ? renamed_csr_to_string.at(static_cast<renamed_csr_reg>(src)) :
     dest_renamed ? renamed_csr_to_string.at(static_cast<renamed_csr_reg>(m_rvfi.rd_addr)) : "";
 
+
+
+#ifndef USE_OLD_CODE
   // First/last uops for ucode sequences
 
   instr.first_uop = m_rvfi.first_uop;
@@ -349,6 +352,51 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   if ((instr.priv & 0x7) == 0x3) {
      instr.priv = 0x3;
   }
+
+#else
+
+// First/last uops for ucode sequences
+  instr.first_uop = false;
+  instr.last_uop = m_rvfi.last_uop;
+  instr.ucode = ucode_ || !m_rvfi.last_uop;
+  if (!m_rvfi.last_uop) {
+    if (!ucode_)
+      instr.first_uop = true;
+    ucode_ = true;
+  } else {
+    ucode_ = false;
+  }
+
+  // Priv mode
+  if (FLAGS_cosim && priv_ == 0x4 && !patch_mode_) { // when we enter patch mode via ucode
+    cvm::log(cvm::HIGH, "Patch mode: turned ON with Ucode instruction={} time={}\n",m_rvfi.insn,m_rvfi.cycle);
+    bridge_->set_patch_mode(2); // IN_PATCH
+    patch_mode_ = true;
+  }
+  instr.priv = m_rvfi.mode;
+  if (instr.ucode && (m_rvfi.mode != priv_)) {
+    if (instr.first_uop) {
+      priv_ = m_rvfi.mode;
+    } else {
+      instr.priv = priv_;
+      ucode_priv_change_ = true;
+    }
+  }
+  if (m_rvfi.last_uop) {
+    if (ucode_priv_change_) {
+      instr.priv = priv_;
+      ucode_priv_change_ = false;
+      if (priv_ == 0x4 && patch_mode_) { // dret changes mode from D to M/S/U (exit from patch mode)
+        cvm::log(cvm::HIGH, "Patch mode: turned OFF with Ucode instruction={} time={}\n",m_rvfi.insn,m_rvfi.cycle);
+        bridge_->set_patch_mode(3); // EXIT_PATCH
+        patch_mode_ = false;
+      }
+    }
+    priv_ = m_rvfi.mode;
+    if (!priv_to_string.count(static_cast<priv>(instr.priv)))
+      cvm::log(cvm::ERROR, "Error: Invalid rvfi privilege mode: {:#x}\n", instr.priv);
+  }
+#endif
 
   if (m_rvfi.last_uop && !patch_mode_) {
     count_++;

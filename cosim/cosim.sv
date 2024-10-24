@@ -169,83 +169,6 @@ localparam CAM_IBITS = $clog2(CAM_DEPTH);
 localparam CAM_ILBIT = 0;
 localparam CAM_IHBIT = CAM_IBITS;
 
-`define MCM_ORDERS(CLK,RESET,NAME,N_MCM,POKE_EVENT)  \
-  assign POKE_EVENT = 1'b0;
-
-`define MCM_ORDERS_CAM(CLK,RESET,NAME,N_MCM,POKE_EVENT) \
-    bit [CAM_DEPTH-1:0][CAM_WIDTH-1:0]      cam_reg_``NAME; \
-    bit [CAM_DEPTH-1:0][CAM_WIDTH-1:0]      cam_reg_next_``NAME; \
-    bit [CAM_DEPTH:0]                       cam_val_``NAME; \
-    bit [CAM_DEPTH:0]                       cam_clrv_``NAME; \
-    bit [CAM_DEPTH:0]                       cam_setv_``NAME; \
-    bit [CAM_IHBIT:0]                       cam_vcnt_``NAME; \
-    \
-    always_comb begin \
-       cam_vcnt_``NAME = '0; \
-       cam_setv_``NAME = '0; \
-       cam_clrv_``NAME = '0; \
-       cam_reg_next_``NAME = cam_reg_``NAME; \
-       for(int ii = 0; ii < CAM_DEPTH; ii++) begin \
-          for(int jj = 0; jj < N_MCM; jj++) begin \
-             if (NAME[jj].valid) begin \
-                if (cam_val_``NAME[ii] == 1'b0) begin \
-                   if (cam_vcnt_``NAME == jj) begin \
-                      cam_reg_next_``NAME[ii] = NAME[jj].order[CAM_WIDTH-1:0]; \
-                      cam_setv_``NAME[ii] = 1'b1; \
-                   end \
-                   cam_vcnt_``NAME = cam_vcnt_``NAME + 1; \
-                end \
-             end \
-          end \
-       end \
-       POKE_EVENT      = 1'b0; \
-       for(int jj = 0; jj < NRET; jj++) begin \
-          for(int ii = 0; ii < CAM_DEPTH; ii++) begin \
-             if (rvfi[jj].valid & cam_val_``NAME[ii] & (rvfi[jj].order[CAM_WIDTH-1:0] == cam_reg_``NAME[ii][CAM_WIDTH-1:0])) begin \
-                POKE_EVENT = 1'b1; \
-                if (rvfi[jj].last_uop) begin \
-                   cam_clrv_``NAME[ii] = 1'b1; \
-                end \
-            end \
-         end \
-       end \
-    end \
-    \
-    always @(posedge CLK) begin \
-       if (RESET) begin \
-          cam_reg_``NAME <= '0; \
-          cam_val_``NAME <= '0; \
-       end \
-       else begin \
-          cam_reg_``NAME <= cam_reg_next_``NAME; \
-          cam_val_``NAME <= (cam_val_``NAME | cam_setv_``NAME ) & ~cam_clrv_``NAME;  \
-       end \
-    end \
-
-`define MCM_ORDERS2(CLK,RESET,NAME,N_MCM,POKE_EVENT) \
-    bit [CTBITS:0]                       ctag_``NAME[N_MCM-1:0][NRET-1:0][CDEPTH-1:0]; \
-    bit [N_MCM-1:0][NRET-1:0][CTBITS:0]  ctrd_``NAME; \
-    bit [N_MCM-1:0][NRET-1:0]            ccmp_``NAME; \
-    always @(negedge CLK) begin \
-       for(int ii = 0;ii < N_MCM; ii++) begin\
-          if (``NAME[ii].valid) begin \
-             for(int jj = 0;jj < N_NRET; jj++) begin\
-                ctag_``NAME[ii][jj][NAME[ii].order[CIBITS-1:0]] <= {1'b1,NAME[ii].order[63:CIBITS]}; \
-             end \
-          end \
-       end \
-       for(int ii = 0;ii < N_MCM; ii++) begin\
-          for(int jj = 0;jj < NRET; jj++) begin\
-             ctrd_``NAME[ii][jj] <= ctag_``NAME[ii][jj][rvfi[jj].order[CIBITS-1:0]]; \
-          end \
-       end \
-    end \
-    for( i = 0; i < N_MCM; i++) begin \
-       for( j = 0; j < NRET; j++) begin \
-          assign ccmp_``NAME[i][j] = (rvfi[j].valid & (ctrd_``NAME[i][j] == {1'b1,rvfi[j].order[63:CIBITS]})) ? 1'b1 : 1'b0; \
-       end \
-    end \
-    assign POKE_EVENT = (ccmp_``NAME != '0) ? 1'b1 : 1'b0; \
 
     //----------------------------------------------------------------------------
     // function retsel compresses CSR_COUNT down into MAXCSR+1 DPI calls
@@ -330,7 +253,6 @@ localparam CAM_IHBIT = CAM_IBITS;
     int to_host;
     int unsigned cosim_period=0;
     int unsigned PSC_period=0;
-    bit [31:0]  mcmi_poke_enable=32'hff;
 
     bit get_cosim_compare_values = 1;
     bit reset_d1 = 1;
@@ -352,22 +274,11 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     bit               poke_debug_event;
     bit [NWRITE-1:0]  mcmi_write_pokes;
-    bit               mcmi_write_poke;
     bit [NBYPASS-1:0] mcmi_bypass_pokes;
-    bit               mcmi_bypass_poke;
     bit [NREAD-1:0]   mcmi_read_pokes;
-    bit               mcmi_read_poke;
     bit [NINSERT-1:0] mcmi_insert_pokes;
-    bit               mcmi_insert_poke;
     bit [NIEVICT-1:0] mcmi_ievict_pokes;
-    bit               mcmi_ifetch_req_poke;
-    bit               mcmi_ifetch_resp_poke;
 
-    bit               mcmi_poke_write_en;     //mcmi_pokes[0];
-    bit               mcmi_poke_bypass_en;    //mcmi_pokes[1];
-    bit               mcmi_poke_read_en;      //mcmi_pokes[2];
-    bit               mcmi_poke_insert_en;    //mcmi_pokes[3];
-    bit               mcmi_poke_ievict_en;    //mcmi_pokes[4];
 
     bit csrrw_valid;
     bit scrw_valid ;
@@ -386,7 +297,6 @@ localparam CAM_IHBIT = CAM_IBITS;
     longint unsigned       mrvfi_cnt;
     longint unsigned       mcm_cnt;
 
-    bit               mcmi_poke;
     bit               force_compare;
 
 
@@ -444,6 +354,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     bit                    imsic_valid;                     // event when m_trap senns an interrupt/exception
     bit [NRET-1:0]         mtrap;                           // trap state when m_trap sends a trap and rvfi accepts it 
     bit                    rvfi_debug_mode;
+    bit                    rvfi_debug_mode_s;
     bit [NRET-1:0][63:0]      rvfi_last_uop_orders;        // Tracks orders from previus cycle that "poked" but had last_uop=0
     bit [NRET-1:0][NRET-1:0]  rvfi_last_uop_events;           // matchs current order to previous last_poke_orders that last_uop=1 now
     bit                    poke_last_uop_event;
@@ -591,7 +502,12 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign msret[n]        = rvfi[n].valid & (rvfi[n].insn[31:30] == 2'b00) & (rvfi[n].insn[28:0] == 29'h10200073);    // mret or sret
         assign fence[n]        = rvfi[n].valid & ((rvfi[n].insn[31:0] & 32'hF000607F) == 32'h0000000F);
         assign intr_memw[n]    = rvfi[n].valid & (rvfi[n].mem_wmask != 0) & (rvfi[n].mem_wmask[1:0]==2'b11) & (rvfi[n].mem_paddr[PA_WIDTH-1:32] == '0) & ((rvfi[n].mem_paddr[31:25]==7'h20) | (rvfi[n].mem_paddr[31:25]==7'h22));
-        assign enter_dbg[n]    = rvfi[n].valid & (rvfi[n].pc_rdata == 64'(debug_entry_pc));
+        //assign enter_dbg[n]    = rvfi[n].valid & (rvfi[n].pc_rdata == 64'(debug_entry_pc));
+        assign enter_dbg[n]    = m_traps[n].valid & (
+                                    (m_traps[n].data.id==rv_tester_pkg::INTR) |
+                                    (m_traps[n].data.id==rv_tester_pkg::EXCP) & (m_traps[n].data.cause[7:0] ==33)
+                                   );
+
         assign exit_dbg[n]     = rvfi[n].valid & (rvfi[n].pc_rdata == 64'(debug_exit_pc));
         assign device_read[n]  = rvfi[n].valid & (rvfi[n].mem_rmask != '0) & memmap_decode(addr_map, rvfi[n].mem_paddr);
 
@@ -606,8 +522,8 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign fp_waddr5[n]    = rvfp_valids[n] & frd_addr[n][5];                 // Writing to a FP register above 31...poke
         assign vc_waddr5[n]    = rvvc_valids[n] & vrd_addr[n][5];                 // Writing to a VC register above 31...poke
 
-        assign poke_events[n]  = sc_rw[n] | csr_rw[n] | intr_memw[n] | gp_waddr5[n] | poke_interrupt |  vec_crack[n] | 
-                                 enter_dbg[n] | exit_dbg[n] | device_read[n] | poke_patch_mode |  mem_write[n] | mem_read[n];
+        assign poke_events[n]  = sc_rw[n] | csr_rw[n] | intr_memw[n] | gp_waddr5[n] | poke_interrupt |  vec_crack[n] |
+                                 device_read[n] | poke_patch_mode |  mem_write[n] | mem_read[n];
 
         //assign poke_events[n]  = sc_rw[n] | csr_rw[n] | intr_memw[n] | msret[n] | gp_waddr5[n] | mintr | mflags[n] |
         //                         enter_dbg[n] | exit_dbg[n] | debug_read[n] | device_read[n] | fence[n] ;
@@ -666,16 +582,18 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     end
 
+    assign rvfi_debug_mode = rvfi_debug_mode_s | (enter_dbg != '0);
+
     always @(posedge clk)
     begin
         if (reset) 
-           rvfi_debug_mode <= 1'b0;
+           rvfi_debug_mode_s <= 1'b0;
         else
         if (enter_dbg != '0) 
-           rvfi_debug_mode <= 1'b1;
+           rvfi_debug_mode_s <= 1'b1;
         else
         if (exit_dbg != '0) 
-           rvfi_debug_mode <= 1'b0;
+           rvfi_debug_mode_s <= 1'b0;
 
         //---------------------------------------------------------------
         // monitor interrupt valids for poke events
@@ -711,13 +629,12 @@ localparam CAM_IHBIT = CAM_IBITS;
                   mintr <= 1'b0;
               end
            end
-           if ( mintr & ~csrrw_valid & ~scrw_valid & ~devrd_valid & ~mflag_valid & ~gpwa5_valid & ~mcmi_poke) mintr_cnt <= mintr_cnt + 1; 
-           if (~mintr &  csrrw_valid & ~scrw_valid & ~devrd_valid & ~mflag_valid & ~gpwa5_valid & ~mcmi_poke) csrrw_cnt <= csrrw_cnt + 1; 
-           if (~mintr & ~csrrw_valid &  scrw_valid & ~devrd_valid & ~mflag_valid & ~gpwa5_valid & ~mcmi_poke) scrw_cnt  <= scrw_cnt + 1; 
-           if (~mintr & ~csrrw_valid & ~scrw_valid &  devrd_valid & ~mflag_valid & ~gpwa5_valid & ~mcmi_poke) devrd_cnt <= devrd_cnt + 1; 
-           if (~mintr & ~csrrw_valid & ~scrw_valid & ~devrd_valid &  mflag_valid & ~gpwa5_valid & ~mcmi_poke) mflag_cnt <= mflag_cnt + 1; 
-           if (~mintr & ~csrrw_valid & ~scrw_valid & ~devrd_valid & ~mflag_valid &  gpwa5_valid & ~mcmi_poke) gpwa5_cnt <= gpwa5_cnt + 1; 
-           if (~mintr & ~csrrw_valid & ~scrw_valid & ~devrd_valid & ~mflag_valid & ~gpwa5_valid &  mcmi_poke) mcm_cnt   <= mcm_cnt + 1; 
+           if ( mintr & ~csrrw_valid & ~scrw_valid & ~devrd_valid & ~mflag_valid & ~gpwa5_valid ) mintr_cnt <= mintr_cnt + 1; 
+           if (~mintr &  csrrw_valid & ~scrw_valid & ~devrd_valid & ~mflag_valid & ~gpwa5_valid ) csrrw_cnt <= csrrw_cnt + 1; 
+           if (~mintr & ~csrrw_valid &  scrw_valid & ~devrd_valid & ~mflag_valid & ~gpwa5_valid ) scrw_cnt  <= scrw_cnt + 1; 
+           if (~mintr & ~csrrw_valid & ~scrw_valid &  devrd_valid & ~mflag_valid & ~gpwa5_valid ) devrd_cnt <= devrd_cnt + 1; 
+           if (~mintr & ~csrrw_valid & ~scrw_valid & ~devrd_valid &  mflag_valid & ~gpwa5_valid ) mflag_cnt <= mflag_cnt + 1; 
+           if (~mintr & ~csrrw_valid & ~scrw_valid & ~devrd_valid & ~mflag_valid &  gpwa5_valid ) gpwa5_cnt <= gpwa5_cnt + 1; 
 
            if (rvfi_valid) rvfi_cnt <= rvfi_cnt + 1; 
            if (m_rvfis[0].valid) mrvfi_cnt <= mrvfi_cnt + 1; 
@@ -746,18 +663,6 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     assign send_rvfi =  poke_event_out | ~PSC_enabled;
 
-    assign mcmi_poke_write_en  = mcmi_poke_enable[0];
-    assign mcmi_poke_bypass_en = mcmi_poke_enable[1];
-    assign mcmi_poke_read_en   = mcmi_poke_enable[2];
-    assign mcmi_poke_insert_en = mcmi_poke_enable[3];
-    assign mcmi_poke_ievict_en = mcmi_poke_enable[4];
-
-    assign mcmi_poke = (mcmi_poke_write_en  & mcmi_write_poke)  |
-                       (mcmi_poke_bypass_en & mcmi_bypass_poke) |
-                       (mcmi_poke_read_en   & mcmi_read_poke)   |
-                       (mcmi_poke_insert_en & mcmi_insert_poke) ;
-
-    
     assign m_gp_regss[0].valid      = send_regs;
     assign m_gp_regss[0].data.hart  = NUM;
     assign m_gp_regss[0].data.cycle = clocks; 
@@ -900,7 +805,6 @@ localparam CAM_IHBIT = CAM_IBITS;
         //------------------------------------------------------------------------------------------------------------------------------------//
 
         assign rvfi_mode[n]                = rvfi[n].mode;
-        assign rvfi_instr_priv[n]          = (~rvfi_instr_ucode[n] | rvfi_first_uop[n]) ? rvfi_mode[n] : rvfi_priv[n];
 
         if (n==0) begin
            assign rvfi_ucode[n]               = (rvfi[n].valid) ? ~rvfi[n].last_uop : rvfi_ucode_S;
@@ -910,11 +814,11 @@ localparam CAM_IHBIT = CAM_IBITS;
            assign rvfi_priv_change[n]         = (rvfi[n].valid==1'b0) ?  rvfi_priv_change_S :(
                                                    (rvfi_last_uop[n]==1'b1) ? 1'b0 : ( 
                                                    (~rvfi_first_uop[n] & rvfi_instr_ucode[n] & (rvfi_mode[n] != rvfi_priv_S)) ? 1'b1 : rvfi_priv_change_S));
-           assign rvfi_priv[n]                = (rvfi[n].valid & rvfi_first_uop[n] & rvfi_instr_ucode[n]) ? rvfi_mode[n] : rvfi_priv_S;  
-           assign rvfi_set_patch[n]           = (rvfi[n].valid & rvfi_instr_ucode[n] & ~rvfi_first_uop[n] & (rvfi_priv_S == 4'h4) & ~rvfi_patch_mode_S) ? 1'b1 : 1'b0; 
-           assign rvfi_clr_patch[n]           = (rvfi[n].valid & rvfi_last_uop[n] & rvfi_priv_change_S & (rvfi_priv[n] == 4'h4) & rvfi_patch_mode_S) ? 1'b1 : 1'b0; 
-           assign rvfi_patch_mode[n]          = (rvfi[n].valid==1'b0) ? rvfi_patch_mode_S : (
-                                                   rvfi_set_patch[n] ? 1'b1 : (rvfi_clr_patch[n] ? 1'b0 : rvfi_patch_mode_S)); 
+           assign rvfi_priv[n]                = (rvfi[n].valid==1'b0) ? rvfi_priv_S : ((rvfi_last_uop[n] | (rvfi_first_uop[n] & rvfi_instr_ucode[n])) ? rvfi_mode[n] : rvfi_priv_S);  
+           assign rvfi_instr_priv[n]          = (~rvfi_instr_ucode[n] | rvfi_first_uop[n]) ? rvfi_mode[n] : rvfi_priv_S;
+           assign rvfi_set_patch[n]           = (rvfi[n].valid & (rvfi_priv_S == 4'h4) & ~rvfi_patch_mode_S) ? 1'b1 : 1'b0; 
+           assign rvfi_clr_patch[n]           = (rvfi[n].valid & rvfi_instr_ucode[n] & ~rvfi_first_uop[n] & (rvfi_priv_S == 4'h4) & (rvfi_mode[n] != rvfi_priv_S) & rvfi_patch_mode_S) ? 1'b1 : 1'b0; 
+           assign rvfi_patch_mode[n]          = (rvfi[n].valid==1'b0) ? rvfi_patch_mode_S : (rvfi_clr_patch[n] ? 1'b0 : (rvfi_set_patch[n] ? 1'b1 : rvfi_patch_mode_S)); 
         end
         else begin
            assign rvfi_ucode[n]               = (rvfi[n].valid) ? ~rvfi[n].last_uop : rvfi_ucode[n-1];
@@ -923,12 +827,12 @@ localparam CAM_IHBIT = CAM_IBITS;
            assign rvfi_first_uop[n]           = (rvfi[n].valid) ? ((~rvfi[n].last_uop) & rvfi_last_uop[n-1]) : 1'b0 ;
            assign rvfi_priv_change[n]         = (rvfi[n].valid==1'b0) ?  rvfi_priv_change[n-1] :(
                                                    (rvfi_last_uop[n]==1'b1) ? 1'b0 : ( 
-                                                   (~rvfi_first_uop[n] & rvfi_instr_ucode[n] & (rvfi_mode[n] != rvfi_priv[n-1])) ? 1'b1 : rvfi_priv_change_S));
-           assign rvfi_priv[n]                = (rvfi[n].valid & rvfi_first_uop[n] & rvfi_instr_ucode[n]) ? rvfi_mode[n] : rvfi_priv[n-1];  
-           assign rvfi_set_patch[n]           = (rvfi[n].valid & rvfi_instr_ucode[n] & ~rvfi_first_uop[n] & (rvfi_priv[n-1] == 4'h4) & ~rvfi_patch_mode[n-1]) ? 1'b1 : 1'b0; 
-           assign rvfi_clr_patch[n]           = (rvfi[n].valid & rvfi_last_uop[n] & rvfi_priv_change[n-1] & (rvfi_priv[n-1] == 4'h4) & rvfi_patch_mode[n-1]) ? 1'b1 : 1'b0; 
-           assign rvfi_patch_mode[n]          = (rvfi[n].valid==1'b0) ? rvfi_patch_mode[n-1] : (
-                                                   rvfi_set_patch[n] ? 1'b1 : (rvfi_clr_patch[n] ? 1'b0 : rvfi_patch_mode[n-1])); 
+                                                   (~rvfi_first_uop[n] & rvfi_instr_ucode[n] & (rvfi_mode[n] != rvfi_priv[n-1])) ? 1'b1 : rvfi_priv_change[n-1]));
+           assign rvfi_priv[n]                = (rvfi[n].valid==1'b0) ? rvfi_priv[n-1] : ((rvfi_last_uop[n] | (rvfi_first_uop[n] & rvfi_instr_ucode[n])) ? rvfi_mode[n] : rvfi_priv[n-1]);  
+           assign rvfi_instr_priv[n]          = (~rvfi_instr_ucode[n] | rvfi_first_uop[n]) ? rvfi_mode[n] : rvfi_priv[n-1];
+           assign rvfi_set_patch[n]           = (rvfi[n].valid & (rvfi_priv[n-1] == 4'h4) & ~rvfi_patch_mode[n-1]) ? 1'b1 : 1'b0; 
+           assign rvfi_clr_patch[n]           = (rvfi[n].valid & rvfi_instr_ucode[n] & ~rvfi_first_uop[n] & (rvfi_priv[n-1] == 4'h4) & (rvfi_mode[n] != rvfi_priv[n-1]) & rvfi_patch_mode[n-1]) ? 1'b1 : 1'b0; 
+           assign rvfi_patch_mode[n]          = (rvfi[n].valid==1'b0) ? rvfi_patch_mode[n-1] : (rvfi_clr_patch[n] ? 1'b0 : (rvfi_set_patch[n] ? 1'b1 : rvfi_patch_mode[n-1])); 
         end
     end   // for loop n
 
@@ -960,7 +864,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     end
 
 
-    assign poke_patch_mode = (rvfi_trap_patch != '0) | rvfi_trap_pmode | (rvfi_set_patch != '0) | (rvfi_patch_mode != '0); 
+    assign poke_patch_mode = (rvfi_trap_patch != '0) | rvfi_trap_pmode | (rvfi_set_patch != '0) | (rvfi_clr_patch != '0) | (rvfi_patch_mode != '0); 
 
 
     //---------------------------------------------------------------
@@ -1069,8 +973,7 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     //assign send_regs = ((rvfi_valid & (rvfi_scheck_cnt >= cosim_period) & (rvfi_val_luops == 0)) | eot_found | reg_waddr5_event) & PSC_enabled & RVFI_EN & rvfi_enabled & ~dut_reset;
 
-    assign send_regs = ((rvfi_valid & (rvfi_scheck_cnt >= cosim_period) & (rvfi_val_luops == 0) & ~rvfi_dbg_excp & ~rvfi_trap_pmode) | eot_found) & 
-                        PSC_enabled & RVFI_EN & rvfi_enabled & ~dut_reset & ~poke_debug_event;
+    assign send_regs = ((rvfi_valid & (rvfi_scheck_cnt >= cosim_period) & (rvfi_val_luops == 0) & ~rvfi_debug_mode & ~rvfi_trap_pmode) | eot_found) & PSC_enabled & RVFI_EN & rvfi_enabled & ~dut_reset; 
  
     //assign send_regs_i = ((~rvfi_valid & (rvfi_scheck_cnt >= cosim_period))  | eot_found) & PSC_enabled & RVFI_EN & rvfi_enabled & ~dut_reset;
 
@@ -1142,7 +1045,6 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     end
 
-    `MCM_ORDERS(clk,dut_reset,mcmi_read,NREAD,mcmi_read_poke)
 
 
     // m_mcmi_insert
@@ -1161,7 +1063,6 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign eot_insert_found[n] = ((eot_addr != '0) &  mcmi_insert[n].valid & (mcmi_insert[n].addr == $bits(mcmi_insert[n].addr)'(eot_addr)) & ( mcmi_insert[n].data[0] == 1'b1) & (mcmi_insert[n].data[63:56] == 0)) ? 1'b1 : 1'b0;
     end
 
-    `MCM_ORDERS(clk,dut_reset,mcmi_insert,NINSERT,mcmi_insert_poke)
 
     // m_mcmi_write
     for (genvar n = 0; n < NWRITE; n++) begin
@@ -1182,7 +1083,6 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign eot_writes_found[n] = ((eot_addr != '0) &  mcmi_write[n].valid & (mcmi_write[n].addr == $bits(mcmi_write[n].addr)'(eot_addr)) & ( mcmi_write[n].data[0] == 1'b1) & (mcmi_write[n].data[63:56] == 0)) ? 1'b1 : 1'b0;
     end
 
-    `MCM_ORDERS(clk,dut_reset,mcmi_write,NWRITE,mcmi_write_poke)
 
     // m_mcmi_bypass
     for (genvar n = 0; n < NBYPASS; n++) begin
@@ -1206,7 +1106,6 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign mcmi_bypass_pokes[n] = mcmi_bypass[n].valid;
     end
 
-    `MCM_ORDERS(clk,dut_reset,mcmi_bypass,NBYPASS,mcmi_bypass_poke)
 
     assign eot_found = ~dut_reset & ((eot_writes_found != 0) | (eot_bypass_found != 0) | (eot_insert_found != '0) | eot_max_instr) ? 1'b1 : 1'b0; 
 
@@ -1219,7 +1118,6 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign m_mcmi_ifetch_reqs[n].data.order = mcmi_ifetch_req[n].order;
         assign m_mcmi_ifetch_reqs[n].data.addr = mcmi_ifetch_req[n].addr;
     end
-    `MCM_ORDERS(clk,dut_reset,mcmi_ifetch_req,NIFETCH,mcmi_ifetch_req_poke)
 
     for (genvar n = 0; n < NIFETCH; n++) begin
         assign m_mcmi_ifetch_resps[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_reset & mcmi_ifetch_resp[n].valid;
@@ -1228,7 +1126,6 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign m_mcmi_ifetch_resps[n].data.hart = NUM;
         assign m_mcmi_ifetch_resps[n].data.order = mcmi_ifetch_resp[n].order;
     end
-    `MCM_ORDERS(clk,dut_reset,mcmi_ifetch_resp,NIFETCH,mcmi_ifetch_resp_poke)
 
     // m_mcmi_ievict
     for (genvar n = 0; n < NIEVICT; n++) begin
@@ -1411,7 +1308,6 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign debug_entry_pc = (debug_entry_pc_arg != '0) ? PA_WIDTH'(debug_entry_pc_arg) : debug_entry_pc_const;
     assign debug_exit_pc  = (debug_exit_pc_arg != '0)  ? PA_WIDTH'(debug_exit_pc_arg) : debug_exit_pc_const; 
 
-    assign mcm_enabled = (mcm_value > 0) ? 1'b1 : 1'b0;
 
     always @(posedge tb_clk) begin
       if (reset) begin
@@ -1419,7 +1315,6 @@ localparam CAM_IHBIT = CAM_IBITS;
         max_cycle = cvm_plusargs::get_ulongint("max_cycle");
         max_stall_cycle = cvm_plusargs::get_int("max_stall_cycle");
         cosim_period = cvm_plusargs::get_int("cosim_period");
-        //mcmi_poke_enable = cvm_plusargs::get_int("mcmi_poke_enables");
         max_instructions = cvm_plusargs::get_ulongint("max_instr");
         nharts = cvm_plusargs::get_int("num_harts");
         hart_enable_mask = cvm_plusargs::get_int("hart_enable_mask");

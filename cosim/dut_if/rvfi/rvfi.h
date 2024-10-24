@@ -105,7 +105,14 @@ class rvfi {
 
     uint64_t tag_ = false;
     bool vec_excp_ = false;
-    //bool ucode_ = false;
+    //---------------------------------------------------------------------------------------------------------
+    // USE_OLD_CODE selects C code for priv_, first_uop,ucode_ generation instead of SV code (for debug ONLY)
+    //   - eventually we will remove this
+    //---------------------------------------------------------------------------------------------------------
+    //#define USE_OLD_CODE 1
+    #ifdef USE_OLD_CODE
+    bool ucode_ = false;
+    #endif
     bool nmi_ = false;
     bool intr_ = false;
     bool excp_ = false;
