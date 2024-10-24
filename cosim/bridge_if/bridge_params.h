@@ -837,6 +837,8 @@ namespace {
         {"mcause", 0x342},
         {"mtval", 0x343},
         {"mip", 0x344},
+        {"mtopei", 0x35C},
+        {"stopei", 0x15C},
         {"c_fecfg", 0xBC0},
         {"c_fecfg1", 0xBC1},
         {"c_fecfg2", 0xBC2},
