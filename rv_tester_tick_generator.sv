@@ -9,7 +9,8 @@ module rv_tester_tick_generator
   input logic clk,
   input logic reset,
   input logic inhibit,
-  output logic tick
+  output logic tick,
+  output logic last
 );
 
   // Internal variables
@@ -81,5 +82,6 @@ module rv_tester_tick_generator
   end
 
   assign tick = nxt_tick;
+  assign last = !en || (tick_count > (count - 1));
 
 endmodule
