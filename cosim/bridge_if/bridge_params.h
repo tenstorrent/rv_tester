@@ -818,7 +818,7 @@ namespace {
         {"c_wfitimer", 0xBC8}
     }};
 
-    std::array<csr_entry, 44> metrics_csrs {{
+    std::array<csr_entry, 46> metrics_csrs {{
         {"fcsr", 0x003},
         {"sstatus", 0x100},
         {"sie", 0x104},
