@@ -12,13 +12,6 @@ module rv_tester
     byte    eot_status;
     byte    eot_syscall;
 
-    export "DPI-C" function cosim_set_eot;
-    function void cosim_set_eot(input longint unsigned addr, input byte status, input byte syscall);
-       eot_addr    = addr;
-       eot_status  = status;
-       eot_syscall = syscall;
-    endfunction
-
     typedef longint unsigned LU;
 
     localparam int unsigned NoAddrRules = 20;
@@ -89,6 +82,7 @@ module rv_tester
     import "DPI-C" function byte unsigned rv_tester_shutdown_registry();
     import "DPI-C" context function bit rv_tester_flush_callbacks();
     import "DPI-C" function bit pwrmgmt_get_warm_reset_en(string mode);
+    import "DPI-C" function longint unsigned eot_get_addr();
 
     localparam int unsigned AxiIdWidthMstRv    = topology.TOP.PLATFORM.AXI.ID_WIDTH + $clog2(topology.TOP.PLATFORM.AXI.TOTAL) + 1;
 
@@ -287,6 +281,9 @@ module rv_tester
             rv_tester_cvm_error_handler();
             rv_tester_parse_memmap(NoAddrRules);
 
+            $display("[RVTESTER]: reconstructing registry");
+            rv_tester_build_registry();
+
             /* verilator lint_off BLKSEQ */
             // zebu bug doesn't allow nested function calls, so create intermediate variables
             cvm_verbosity_string        = cvm_plusargs::get_string("cvm_verbosity");
@@ -298,6 +295,9 @@ module rv_tester
             rv_tester_error_terminate.terminate = '0;
             /* verilator lint_on BLKSEQ */
 
+            eot_addr             <= eot_get_addr();
+            eot_status           <= 1;
+            eot_syscall          <= 0;
             perf                 <= cvm_plusargs::get_bool("perf") != '0;
             flag_force_ref_clk   <= cvm_plusargs::get_bool("force_ref_clk") != '0;
             rand_dmi_driver_dly  <= cvm_plusargs::get_int("rand_dmi_driver_dly");
@@ -323,9 +323,6 @@ module rv_tester
             jtag_en              <= cvm_plusargs::get_bool("jtag_en") != '0;
             rand_dmi_driver_dly  <= cvm_plusargs::get_int("rand_dmi_driver_dly");
             hart_enable_mask     <= cvm_plusargs::get_int("hart_enable_mask");
-
-            $display("[RVTESTER]: reconstructing registry");
-            rv_tester_build_registry();
 
         end
         clock_mode      <= clk_profile[2:0];
