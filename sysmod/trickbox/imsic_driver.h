@@ -113,7 +113,9 @@ public:
       data1[i] = currentByte;
       strb1[i] = 0x1;
     }
-    cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length1, data1, strb1});
+    int hart_enable_mask = cvm_plusargs::get_int("hart_enable_mask")
+    bool rsp_err_chk = hart_enable_mask[interrupt_hart];
+    cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length1, data1, strb1, rsp_err_chk});
  
   }
 
