@@ -26,10 +26,10 @@ class eot {
 
     // End-of-test (eot) options:
     // eot=tohost -- Look for mem store to 'tohost' address = success/fail
-    eot(cvm::topology::loc_t loc, unsigned id) {
+    eot(cvm::topology::loc_t , unsigned id) {
       // Read tohost symbol address from elf
       id_ = id;
-      init_tohost_addr();
+      get_tohost_addr();
       for (uint32_t i = 0; i < num_harts_; i++) {
         instr_count_.push_back(0);
         connect<
@@ -39,18 +39,13 @@ class eot {
           rv_tester_transactions::cosim::m_mcmi_bypass<>
         >(cvm::topology::get_from_type("COSIM", i));
       }
-
-      cvm::registry::messenger.procedure<get_tohost_addr_RPC>(loc, [this] () {return this->get_tohost_addr();});
     }
     eot(cvm::topology::loc_t loc): eot(loc, 1){}
     ~eot();
 
-    std::uint64_t get_tohost_addr();
-    CVM_MESSENGER_procedure_call(get_tohost_addr_RPC, std::uint64_t ());
-
   private:
 
-    void init_tohost_addr();
+    void get_tohost_addr();
     void process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi);
     void process(const rv_tester_transactions::cosim::m_steps<>& m_steps);
     void process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_insert);
