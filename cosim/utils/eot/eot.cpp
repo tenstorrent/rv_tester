@@ -17,13 +17,17 @@ DEFINE_uint64(recent_pc_instr, 100000, "+recent_pc should have been seen within 
 
 REGISTRY_register(eot, TOP.PLATFORM, cvm::registry::all);
 
-void eot::init_tohost_addr() {
+extern "C" void cosim_set_eot(std::uint64_t addr, std::uint8_t status, std::uint8_t syscall);
+
+void eot::get_tohost_addr() {
 
   // Get tohost address from
   // 1. plusarg if provided
   if (FLAGS_tohost != 0x0) {
     tohost_addr_ = FLAGS_tohost;
     cvm::log(cvm::NONE, "[eot] tohost from plusarg:: addr=[{:#x}]\n", tohost_addr_);
+
+    cosim_set_eot(tohost_addr_,1,0);
     return;
   }
 
@@ -45,6 +49,7 @@ void eot::init_tohost_addr() {
       }
     }
     cvm::log(cvm::NONE, "[eot] tohost from elf:: cmd=[{}] addr_str=[{}] addr=[{:#x}]\n", cmd, addr_str, tohost_addr_);
+    cosim_set_eot(tohost_addr_,1,0);
   }
   if (tohost_in_elf)
     return;
@@ -58,10 +63,7 @@ void eot::init_tohost_addr() {
   } else {
     cvm::log(cvm::ERROR, "[eot] tohost from memmap:: htif not found in memmap\n", tohost_addr_);
   }
-}
-
-std::uint64_t eot::get_tohost_addr() {
-   return tohost_addr_;
+  cosim_set_eot(tohost_addr_,1,0);
 }
 
 void eot::process(const rv_tester_transactions::cosim::m_steps<>& m_steps) {
@@ -181,10 +183,3 @@ eot::~eot() {
         }
     }
 }
-
-extern "C" {
-  std::uint64_t eot_get_addr() {
-    return cvm::registry::messenger.call<eot::get_tohost_addr_RPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0));
-  }
-}
-
