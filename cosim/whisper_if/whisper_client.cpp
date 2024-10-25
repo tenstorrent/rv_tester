@@ -393,7 +393,9 @@ template <typename URV>
 bool
 whisperClient<URV>::whisperCommand(const WhisperMessage& req, WhisperMessage& reply)
 {
-  server_->interact(req, reply, traceFile_, commandLog_);
+  if(FLAGS_cosim && (server_ != nullptr)) {
+    server_->interact(req, reply, traceFile_, commandLog_);
+  }
   return true;
 }
 

@@ -6,6 +6,7 @@
 #include "cvm/callbacks.hpp"
 #include "cvm/registry.hpp"
 #include "sysmod/sysmod_plusargs.h"
+#include "cosim/bridge/bridge_plusargs.h"
 
 #include <iostream>
 #include <chrono>
@@ -124,6 +125,8 @@ void rvfi::process(const rv_tester_transactions::cosim::m_reset<>& m_reset) {
   if (FLAGS_cosim) {
     bridge_->reset();
   }
+  else
+    FLAGS_whisper_client_check = false;
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
