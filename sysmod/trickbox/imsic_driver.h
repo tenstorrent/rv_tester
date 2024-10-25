@@ -85,6 +85,7 @@ public:
     unsigned interrupt_file = (t_data>>12) & 0xf;
     unsigned interrupt_hart = (t_data>>16) & 0xfff;
     unsigned vs_id = (t_data>>28) & 0xfff;
+    bool rsp_err_chk = FLAGS_hart_enable_mask[interrupt_hart];
 
     cvm::log(cvm::HIGH,"[Trickbox] IMSIC interrupt num: {} interrupt file: {} Interrupt hart:{} hypervisor/supervisor id : {}\n", static_cast<uint32_t>(interrupt_num), interrupt_file, interrupt_hart, vs_id);
     
@@ -113,8 +114,6 @@ public:
       data1[i] = currentByte;
       strb1[i] = 0x1;
     }
-    int hart_enable_mask = cvm_plusargs::get_int("hart_enable_mask")
-    bool rsp_err_chk = hart_enable_mask[interrupt_hart];
     cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length1, data1, strb1, rsp_err_chk});
  
   }
