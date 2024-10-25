@@ -14,7 +14,6 @@ DECLARE_uint32(num_harts);
 DECLARE_uint32(hart_enable_mask);
 DECLARE_bool(hart_sync_en);
 DECLARE_string(hart_enable_id);
-DECLARE_string(hart_enable_mask);
 DECLARE_int32(num_sc_dis_ways);
 DECLARE_int32(sc_dis_ways_mask);
 DECLARE_uint32(trace_enable);
