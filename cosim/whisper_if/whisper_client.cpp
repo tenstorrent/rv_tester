@@ -396,8 +396,6 @@ whisperClient<URV>::whisperCommand(const WhisperMessage& req, WhisperMessage& re
   if(FLAGS_cosim && (server_ != nullptr)) {
     server_->interact(req, reply, traceFile_, commandLog_);
   }
-  else
-    FLAGS_whisper_client_check = false;
   return true;
 }
 
