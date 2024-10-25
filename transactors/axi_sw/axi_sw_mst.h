@@ -71,6 +71,7 @@ class axi_sw_mst {
 
         std::optional<unsigned> read(transactor::read_request_t r);
 
+        std::string name_;
         svScope scope_;
         cvm::topology::loc_t loc_;
         unsigned id_;
