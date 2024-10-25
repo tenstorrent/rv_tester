@@ -90,19 +90,19 @@ import rv_tester_params::*;
 
   // m_smc_axi_sp_tick
   logic smc_axi_sp_tick;
-  rv_tester_tick_generator #(.NAME("smc_axi_sp")) smc_axi_sp_tick_generator (.clk(clk[SOC_CLK_IDX]), .reset(core_no_fetch), .inhibit('0), .tick(smc_axi_sp_tick));
+  rv_tester_tick_generator #(.NAME("smc_axi_sp")) smc_axi_sp_tick_generator (.clk(clk[SOC_CLK_IDX]), .reset(core_no_fetch), .inhibit('0), .tick(smc_axi_sp_tick), .last());
   assign m_smc_axi_sp_ticks[0].valid = smc_axi_sp_tick && (location != cvm_topology::nil);
   assign m_smc_axi_sp_ticks[0].data.location = location;
 
   // m_smc_axi_csr_tick
   logic smc_axi_csr_tick;
-  rv_tester_tick_generator #(.NAME("smc_axi_csr")) smc_axi_csr_tick_generator (.clk(clk[SOC_CLK_IDX]), .reset(core_no_fetch), .inhibit(smc_axi_blocking_seq_tick), .tick(smc_axi_csr_tick));
+  rv_tester_tick_generator #(.NAME("smc_axi_csr")) smc_axi_csr_tick_generator (.clk(clk[SOC_CLK_IDX]), .reset(core_no_fetch), .inhibit(smc_axi_blocking_seq_tick), .tick(smc_axi_csr_tick), .last());
   assign m_smc_axi_csr_ticks[0].valid = smc_axi_csr_tick && (location != cvm_topology::nil);
   assign m_smc_axi_csr_ticks[0].data.location = location;
 
    // m_pcontrol_tick
   logic pcontrol_tick;
-  rv_tester_tick_generator #(.NAME("pcontrol")) pcontrol_tick_generator (.clk(clk[SOC_CLK_IDX]), .reset(core_no_fetch), .inhibit('0), .tick(pcontrol_tick));
+  rv_tester_tick_generator #(.NAME("pcontrol")) pcontrol_tick_generator (.clk(clk[SOC_CLK_IDX]), .reset(core_no_fetch), .inhibit('0), .tick(pcontrol_tick), .last());
   assign m_pcontrol_ticks[0].valid = pcontrol_tick && (location != cvm_topology::nil);
   assign m_pcontrol_ticks[0].data.location = location;
 
