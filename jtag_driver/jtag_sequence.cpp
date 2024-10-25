@@ -52,7 +52,7 @@ jtag_sequence::jtag_sequence(cvm::topology::loc_t loc, unsigned id) : loc_(loc),
 }
 
 void jtag_sequence::csv_mode_thread() {
-  if(FLAGS_jtag_input_file_path != "")
+  if(FLAGS_jtag_input_file_path != "" || FLAGS_jtag_template_dir_path != "")
      parse_jtag_from_csv();
   auto *task = +[] (jtag_sequence* m) -> cvm::messenger::task<void> {
     co_await m->random_mode();
@@ -144,9 +144,11 @@ void jtag_sequence::parse_jtag_from_csv()
 
 
   std::string file_name;
-  if (FLAGS_random_jtag_entry)
+  if (FLAGS_random_jtag_entry) {
+    get_all_csv_templates();
     file_name = csvFilePaths[file_idx];
-  else
+  }
+  else 
     file_name = FLAGS_jtag_input_file_path;
 
   cvm::log(cvm::NONE, "[jtag_sequence]Parse JTAG Commands from CSV:{}\n", file_name);
