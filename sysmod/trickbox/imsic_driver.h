@@ -85,7 +85,7 @@ public:
     unsigned interrupt_file = (t_data>>12) & 0xf;
     unsigned interrupt_hart = (t_data>>16) & 0xfff;
     unsigned vs_id = (t_data>>28) & 0xfff;
-    bool rsp_err_chk = (interrupt_hart >= FLAGS_num_harts);
+    bool rsp_err_chk = (interrupt_hart < FLAGS_num_harts)? true: false;
 
     cvm::log(cvm::HIGH,"[Trickbox] IMSIC interrupt num: {} interrupt file: {} Interrupt hart:{} hypervisor/supervisor id : {}\n", static_cast<uint32_t>(interrupt_num), interrupt_file, interrupt_hart, vs_id);
     
