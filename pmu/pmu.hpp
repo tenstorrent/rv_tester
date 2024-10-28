@@ -879,7 +879,7 @@ public:
 void to_vector(const rv_tester_transactions::pmu::pmcounters<>& pmcounters)
     {
 
-    const uint64_t casting_size_term = uint64_t(1) << 32;
+    const uint64_t casting_size_term = uint64_t(1) << 24;
 
             counters[counter::CPU_CYCLES] = counters[counter::CPU_CYCLES] + ((pmcounters.cpu_cycles - (counters[counter::CPU_CYCLES] % casting_size_term)) % casting_size_term);
       counters[counter::INSTRUCTIONS] = counters[counter::INSTRUCTIONS] + ((pmcounters.instructions - (counters[counter::INSTRUCTIONS] % casting_size_term)) % casting_size_term);
