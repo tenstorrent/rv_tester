@@ -11,6 +11,7 @@
 #include <iostream>
 #include <chrono>
 #include <cmath>
+#include <regex>
 
 DEFINE_bool(rvfi, true, "Enable rvfi");
 // TODO(mboisvert): See if we can combine the rvfi flags. The reason why the
@@ -26,6 +27,8 @@ DEFINE_uint64(debug_entry_pc, 0x42190800, "Debug Mode entry PC");
 DEFINE_uint64(debug_exit_pc, 0x421908cc, "Debug Mode exit PC");
 DEFINE_uint64(debug_mem_base, 0x42190000, "Debug Memory Base Address");
 DEFINE_uint64(debug_mem_size, 0x1000, "Debug Memory Size");
+
+bool get_csr_name_instr(const std::string& input, std::string& modified_string);
 
 REGISTRY_register(rvfi, COSIM, cvm::registry::all);
 
@@ -559,8 +562,17 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
 
   dut_log += fmt::format(" {}", resource_str);
 
-  if (!instr.ucode || instr.csr_renamed || cracked_gpr_.valid)
-    dut_log += fmt::format(" {}", whisper::disassemble(instr.opcode));
+  if (!instr.ucode || instr.csr_renamed || cracked_gpr_.valid) {
+    std::string instr_dis = whisper::disassemble(instr.opcode);
+    std::string csr_replaced_instr = instr_dis;
+    uint32_t csr_opcode = instr.opcode & 0x7F;
+    uint32_t csr_funct = (instr.opcode >> 12) & 0x7;
+    // Check if the instruction is a CSR instruction and try to replace it
+    if ((csr_opcode == 0x73) && (csr_funct != 0 && csr_funct != 4) && get_csr_name_instr(instr_dis, csr_replaced_instr))
+      dut_log += fmt::format(" {}", csr_replaced_instr);
+    else
+      dut_log += fmt::format(" {}", instr_dis);
+  }
   else
     dut_log += fmt::format(" {} (microcode)", cosim_util::get_nth_word(instr.disasm, 1));
 
@@ -579,9 +591,24 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
   if (instr.nmi)
     dut_log += fmt::format(" (nmi:{})", instr.ncause);
 
-  if (instr.intr)
-    dut_log += fmt::format(" (interrupt:{})", instr.icause);
-
+  if (instr.intr) {
+    // Also print the values of xtopei if instr.icause is 9 or 11
+    uint64_t intr_cause = instr.icause;
+    
+    if ((intr_cause == 9 || intr_cause == 11)) {
+      if (!(!instr.ucode || instr.csr_renamed || cracked_gpr_.valid) && !instr.first_uop) {
+        // If microcode sequence AND not a first uop; then only print the interrupt cause
+        dut_log += fmt::format(" (interrupt:{})", intr_cause);
+      }
+      else {
+        uint64_t mtopei_data = bridge_->get_csr_p(instr.hart, cac::src_t::dut, 0x35C);
+        uint64_t stopei_data = bridge_->get_csr_p(instr.hart, cac::src_t::dut, 0x15C);
+        dut_log += fmt::format(" (interrupt:{}, [{}:{:#x}, {}:{:#x}])", intr_cause, "mtopei", mtopei_data, "stopei", stopei_data);
+      }
+    }
+    else
+      dut_log += fmt::format(" (interrupt:{})", intr_cause);
+  }
   if (instr.excp)
     dut_log += fmt::format(" (exception:{})", instr.ecause);
 
@@ -1194,4 +1221,28 @@ extern "C" {
       return 1;
     return 0;
   }
+}
+
+bool get_csr_name_instr(const std::string& input, std::string& modified_string) {
+    // Define the regex pattern to find 'c' followed by digits
+    std::regex pattern(R"(c(\d+))");
+    std::smatch match;
+
+    // Search for the first match in the input string
+    if (std::regex_search(input, match, pattern)) {
+        try {
+            // Extract the numeric part and convert to uint64_t
+            uint64_t search_addr = std::stoull(match[1].str());
+            // Find the entry with the matching address
+            auto it = std::find_if(csrs.begin(), csrs.end(),
+                                   [search_addr](const csr_entry& e) { return e.address == search_addr; });
+            if (it != csrs.end()) {
+                modified_string = std::regex_replace(input, pattern, it->name);
+                return true;
+            }
+        } catch (...) {
+            return false;  // Handle any exception and return false
+        }
+    }
+    return false;  // No valid match found or entry not found
 }
