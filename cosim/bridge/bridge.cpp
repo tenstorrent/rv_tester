@@ -123,9 +123,9 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
       if (FLAGS_cosim_resynch_instr != "") {
         error("COSIM periodic-state-check mode enabled with cosim_resynch_instr being used\n");
       }
-      if (FLAGS_mcm == 1) {
+      //if (FLAGS_mcm == 1) {
         //error("COSIM periodic-state-check mode enabled with mcm=1 .. not yet validated\n");
-      }
+      //}
     }
 
     cosim_resynch_csr_defaults = {
