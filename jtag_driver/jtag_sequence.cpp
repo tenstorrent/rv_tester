@@ -13,7 +13,7 @@ DEFINE_int32(jtag_delay_min, 6, "Minimum Delay between 2 consecutive debug mode 
 DEFINE_int32(jtag_max_loop_count, 50, "Number of times loop should run before flagging error");
 DEFINE_int32(jtag_delay_max, 9, "Maximum Delay between 2 consecutive debug mopde requests");
 DEFINE_int32(jtag_socket_port, 8088, "Port number for JTAG socket communication");
-DEFINE_string(jtag_socket_ip, "127.0.0.1", "Server's local IP address");
+DEFINE_string(jtag_socket_ip, "", "Server's local IP address");
 DEFINE_int32(jtag_max_snippets, 1, "Maximum number of debug snippets to be driven");
 DEFINE_string(jtag_template_dir_path, "", "Path to file containing jtag_driver commands");
 DEFINE_string(jtag_txn_file,"","File containing jtag transaction requests");
@@ -52,7 +52,7 @@ jtag_sequence::jtag_sequence(cvm::topology::loc_t loc, unsigned id) : loc_(loc),
 }
 
 void jtag_sequence::csv_mode_thread() {
-  if(FLAGS_jtag_input_file_path != "")
+  if(FLAGS_jtag_input_file_path != "" || FLAGS_jtag_template_dir_path != "")
      parse_jtag_from_csv();
   auto *task = +[] (jtag_sequence* m) -> cvm::messenger::task<void> {
     co_await m->random_mode();
@@ -144,8 +144,10 @@ void jtag_sequence::parse_jtag_from_csv()
 
 
   std::string file_name;
-  if (FLAGS_random_jtag_entry)
+  if (FLAGS_random_jtag_entry) {
+    get_all_csv_templates();
     file_name = csvFilePaths[file_idx];
+  }
   else
     file_name = FLAGS_jtag_input_file_path;
 
@@ -834,7 +836,11 @@ cvm::messenger::task<void> jtag_sequence::open_socket_to_listen(){
     fcntl(server_fd, F_SETFL, flags | O_NONBLOCK);
 
     address.sin_family = AF_INET;
-    address.sin_addr.s_addr = inet_addr(FLAGS_jtag_socket_ip.c_str());
+    std::string jtag_socket_ip_addr = FLAGS_jtag_socket_ip;
+    if (jtag_socket_ip_addr == "") {
+        jtag_socket_ip_addr = get_local_ip_address();
+    }
+    address.sin_addr.s_addr = inet_addr(jtag_socket_ip_addr.c_str());
     address.sin_port = htons(PORT);
 
     // Binding the socket to the network address and port
@@ -850,13 +856,13 @@ cvm::messenger::task<void> jtag_sequence::open_socket_to_listen(){
     }
 
     cvm::log(cvm::LOW, "[jtag_sequence]Server is listening on {} PORT {} \n",inet_ntoa(address.sin_addr), PORT );
-    cvm::log(cvm::LOW, "[jtag_sequence]Server's local IP address: {} \n", get_local_ip_address() );
+    cvm::log(cvm::LOW, "[jtag_sequence]Server's local IP address: {} \n", jtag_socket_ip_addr);
 
 
     while (true) {
        tick_count++;
        cvm::log(cvm::HIGH,"[jtag_sequence]Server is listening on  tick cnt {} \n", tick_count );
-       cvm::log(cvm::LOW,"[jtag_sequence]Server's local IP address: {} \n", get_local_ip_address());
+       cvm::log(cvm::LOW,"[jtag_sequence]Server's local IP address: {} \n", jtag_socket_ip_addr);
        if(quit_communication){
         break;
        }

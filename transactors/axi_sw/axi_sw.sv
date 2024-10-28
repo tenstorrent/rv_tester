@@ -686,6 +686,12 @@ module axi_sw_mst #(
     assign axi_mst_r_ready = '1;
 
     always @(posedge clk) begin
+        ar_q_ptrs[0].valid  <= '0;
+        aw_q_ptrs[0].valid  <= '0;
+        w_q_ptrs[0].valid   <= '0;
+        bs[0].valid         <= '0;
+        rs[0].valid         <= '0;
+
         if (reset_n) begin
             ar_q_ptrs[0].valid          <= ar_queue_rptr_incremented;
             ar_q_ptrs[0].data.location  <= LOCATION;

@@ -38,7 +38,7 @@ DEFINE_string(cosim_resynch_prev_instr, "", "List of instruction mnemonics to re
 DEFINE_string(cosim_resynch_csr, "", "List of csr mnemonics to resynch whisper with dut state");
 DEFINE_string(cosim_error_excp, "", "List of exception codes on which we should terminate with an error");
 DEFINE_bool(mip_resynch, true, "Resynch whisper with dut state on mip mismatch condition");
-DEFINE_uint64(mip_resynch_threshold, 32, "Resynch whisper with dut state on mip mismatch if within threshold number of instructions");
+DEFINE_uint64(mip_resynch_threshold, 64, "Resynch whisper with dut state on mip mismatch if within threshold number of instructions");
 DEFINE_bool(topi_resynch, true, "Resynch whisper with dut state on topi mismatch condition");
 DEFINE_bool(topei_resynch, true, "Resynch whisper with dut state on topei mismatch condition");
 DEFINE_bool(intr_defer_spcl, true, "Defer all interrupts in special cases");
@@ -537,7 +537,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   // Step whisper
   w_.clear();
 
-  if (patch_mode_ == NO_PATCH || patch_mode_ == ENTER_PATCH) {
+  if (patch_mode_ == NO_PATCH || patch_mode_ == EXIT_PATCH) {
     auto stime = std::chrono::high_resolution_clock::now();
     step(hart, w);
     step_++;
@@ -546,7 +546,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   }
   // Update cac with whisper state
   if (!psc_stepping_) {
-    if (patch_mode_ == NO_PATCH || patch_mode_ == ENTER_PATCH) {
+    if (patch_mode_ == NO_PATCH || patch_mode_ == EXIT_PATCH) {
       IF_DEBUG("updating whisper state");
       update_whisper_state(hart, w);
     }
@@ -585,7 +585,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   IF_DEBUG("no excp in debug mode...keep going");
 
   // Save whisper state
-  if (patch_mode_ == NO_PATCH || patch_mode_ == ENTER_PATCH) {
+  if (patch_mode_ == NO_PATCH || patch_mode_ == EXIT_PATCH) {
     ppw_ = pw_;
     pw_ = w;
     pd_ = d;
@@ -1378,9 +1378,10 @@ bool bridge::is_indirect_reg(const std::string& instr) {
 }
 
 void bridge::step(hart_id_t hart, whisper_state_t& w) {
+  bool valid;
   IF_DEBUG("function called");
-  if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperStepRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, w.time, w.tag,  w.pc, w.opcode, w.change_count, w.disasm,
-      w.priv_mode, w.fp_flags, w.trap, w.stop, w.is_load)) {
+  if (((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperStepRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, w.time, w.tag,  w.pc, w.opcode, w.change_count, w.disasm,
+      w.priv_mode, w.fp_flags, w.trap, w.stop, w.is_load, valid)) || !valid) && FLAGS_whisper_client_check) {
     error("Hart {}: Failed to step whisper\n", hart);
     return;
   }
@@ -2170,7 +2171,7 @@ void bridge::process_dut_mcm_write(hart_id_t hart, mem_cl_t& m) {
 void bridge::process_dut_mcm_ifetch(hart_id_t hart, mem_t& m) {
   bool valid = false;
 
-  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmIFetchRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.pa, valid)|| !valid) && FLAGS_whisper_client_check) {
+  if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmIFetchRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.pa, valid)) {
     error("Hart {}: Failed mcm ifetch\n", hart);
     return;
   }
