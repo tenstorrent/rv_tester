@@ -226,7 +226,7 @@ private:
     };
 
   // MCM order map needed for periodic cosim
-  std::map<uint64_t , int> mcm_orders_; 
+  std::unordered_map<uint64_t , int> mcm_orders_; 
 
 
   cvm::file_logger bridge_log_;
