@@ -4,6 +4,7 @@ import rv_tester_pkg::*;
 #(
   parameter int NUM = -1,
   parameter int NRET = 1,
+  parameter int SC_PMCI_ENABLED =  -1,
   `TOPOLOGY,
   `RV_TESTER_TRANSACTIONS_PMU_OUTPUT_PARAMS
 )(
@@ -16,7 +17,8 @@ import rv_tester_pkg::*;
   input sc_pmci_t sc_pmci,
   input rvfi_t [NRET-1:0] rvfi,
   input bit terminate,
-  `RV_TESTER_TRANSACTIONS_PMU_OUTPUT_PORTS
+  `RV_TESTER_TRANSACTIONS_CORE_PMU_OUTPUT_PORTS,
+  `RV_TESTER_TRANSACTIONS_SC_PMU_OUTPUT_PORTS
 );
 
     parameter int unsigned location = cvm_topology_gen::get_location (topology.TOP.PLATFORM.PMCI.ID, NUM);
@@ -144,7 +146,7 @@ import rv_tester_pkg::*;
     parameter OVERFLOW_BIT = 32 - 2;
     parameter OVERFLOW_BIT_EXTRA = 2;
     logic overflow;
-    logic [EVENT_COUNT + SC_EVENT_COUNT + OVERFLOW_BIT_EXTRA -1 : 0] pmcounter_overflow_bit;
+    logic [EVENT_COUNT + OVERFLOW_BIT_EXTRA + SC_EVENT_COUNT -1 : 0] pmcounter_overflow_bit;
     assign pmcounterss[0].valid = !reset && perf_enabled && (overflow || (|mhpm_write) || terminate || (cycle_sync_en && (sync_cycles % period) == 0) || (instruction_sync_en && (((prev_sync_instructions % instructions) > nret) && ((sync_instructions % instructions) < nret))) || perf_start || perf_end);
     assign pmcounterss[0].data.location = location;
     assign pmcounterss[0].data.cpu_cycles = 32'(cpu_cycles);
@@ -493,95 +495,98 @@ import rv_tester_pkg::*;
     assign pmcounterss[0].data.pfc_prt_reqbuf_alloc_hit = 32'(pmcounter[PFC_PRT_REQBUF_ALLOC_HIT]);
     assign pmcounterss[0].data.ldq_missq_full_delay = 32'(pmcounter[LDQ_MISSQ_FULL_DELAY]);
     assign pmcounterss[0].data.stq_missq_full_delay = 32'(pmcounter[STQ_MISSQ_FULL_DELAY]);
-    assign pmcounterss[0].data.sc_cache_access = 32'(sc_pmci[SC_CACHE_ACCESS]);
-    assign pmcounterss[0].data.sc_cache_rd = 32'(sc_pmci[SC_CACHE_RD]);
-    assign pmcounterss[0].data.sc_cache_miss = 32'(sc_pmci[SC_CACHE_MISS]);
-    assign pmcounterss[0].data.sc_cache_miss_rd = 32'(sc_pmci[SC_CACHE_MISS_RD]);
-    assign pmcounterss[0].data.sc_cache_refill = 32'(sc_pmci[SC_CACHE_REFILL]);
-    assign pmcounterss[0].data.sc_cache_allocate = 32'(sc_pmci[SC_CACHE_ALLOCATE]);
-    assign pmcounterss[0].data.sc_cache_wb_dirty = 32'(sc_pmci[SC_CACHE_WB_DIRTY]);
-    assign pmcounterss[0].data.sc_cache_wb_clean = 32'(sc_pmci[SC_CACHE_WB_CLEAN]);
-    assign pmcounterss[0].data.sc_cache_inval = 32'(sc_pmci[SC_CACHE_INVAL]);
-    assign pmcounterss[0].data.sc_snoop = 32'(sc_pmci[SC_SNOOP]);
-    assign pmcounterss[0].data.sc_scratchpad_rd = 32'(sc_pmci[SC_SCRATCHPAD_RD]);
-    assign pmcounterss[0].data.sc_scratchpad_wr = 32'(sc_pmci[SC_SCRATCHPAD_WR]);
-    assign pmcounterss[0].data.f2sc_rd = 32'(sc_pmci[F2SC_RD]);
-    assign pmcounterss[0].data.f2sc_wr = 32'(sc_pmci[F2SC_WR]);
-    assign pmcounterss[0].data.mshr_lifetime = 32'(sc_pmci[MSHR_LIFETIME]);
-    assign pmcounterss[0].data.mshr_allocations = 32'(sc_pmci[MSHR_ALLOCATIONS]);
-    assign pmcounterss[0].data.sc2f_rd_u = 32'(sc_pmci[SC2F_RD_U]);
-    assign pmcounterss[0].data.sc2f_rd_c = 32'(sc_pmci[SC2F_RD_C]);
-    assign pmcounterss[0].data.sc2f_rd_o = 32'(sc_pmci[SC2F_RD_O]);
-    assign pmcounterss[0].data.sc2f_wr = 32'(sc_pmci[SC2F_WR]);
-    assign pmcounterss[0].data.c2sc_rd_i = 32'(sc_pmci[C2SC_RD_I]);
-    assign pmcounterss[0].data.c2sc_rd_d = 32'(sc_pmci[C2SC_RD_D]);
-    assign pmcounterss[0].data.c2sc_wb_full = 32'(sc_pmci[C2SC_WB_FULL]);
-    assign pmcounterss[0].data.c2sc_evict = 32'(sc_pmci[C2SC_EVICT]);
-    assign pmcounterss[0].data.c2sc_snp_wb_full = 32'(sc_pmci[C2SC_SNP_WB_FULL]);
-    assign pmcounterss[0].data.c2sc_wrnosnpptl = 32'(sc_pmci[C2SC_WRNOSNPPTL]);
-    assign pmcounterss[0].data.c2sc_snp = 32'(sc_pmci[C2SC_SNP]);
-    assign pmcounterss[0].data.c2sc_req_stall = 32'(sc_pmci[C2SC_REQ_STALL]);
-    assign pmcounterss[0].data.c2sc_wdat_stall = 32'(sc_pmci[C2SC_WDAT_STALL]);
-    assign pmcounterss[0].data.c2sc_srsp_stall = 32'(sc_pmci[C2SC_SRSP_STALL]);
-    assign pmcounterss[0].data.c2sc_rdat_stall = 32'(sc_pmci[C2SC_RDAT_STALL]);
-    assign pmcounterss[0].data.c2sc_snp_stall = 32'(sc_pmci[C2SC_SNP_STALL]);
-    assign pmcounterss[0].data.c2sc_crsp_stall = 32'(sc_pmci[C2SC_CRSP_STALL]);
-    assign pmcounterss[0].data.sc2f_evict = 32'(sc_pmci[SC2F_EVICT]);
-    assign pmcounterss[0].data.sc2f_wrbackfull = 32'(sc_pmci[SC2F_WRBACKFULL]);
-    assign pmcounterss[0].data.sc2f_wdat = 32'(sc_pmci[SC2F_WDAT]);
-    assign pmcounterss[0].data.sc2f_snoop = 32'(sc_pmci[SC2F_SNOOP]);
-    assign pmcounterss[0].data.sc2f_rdat = 32'(sc_pmci[SC2F_RDAT]);
-    assign pmcounterss[0].data.sc2f_req_stall = 32'(sc_pmci[SC2F_REQ_STALL]);
-    assign pmcounterss[0].data.sc2f_wdat_stall = 32'(sc_pmci[SC2F_WDAT_STALL]);
-    assign pmcounterss[0].data.sc2f_srsp_stall = 32'(sc_pmci[SC2F_SRSP_STALL]);
-    assign pmcounterss[0].data.sc2f_rdat_stall = 32'(sc_pmci[SC2F_RDAT_STALL]);
-    assign pmcounterss[0].data.sc2f_snoop_stall = 32'(sc_pmci[SC2F_SNOOP_STALL]);
-    assign pmcounterss[0].data.sc2f_crsp_stall = 32'(sc_pmci[SC2F_CRSP_STALL]);
-    assign pmcounterss[0].data.f2sc_wdat = 32'(sc_pmci[F2SC_WDAT]);
-    assign pmcounterss[0].data.f2sc_rdat = 32'(sc_pmci[F2SC_RDAT]);
-    assign pmcounterss[0].data.f2sc_wrnosnpptl = 32'(sc_pmci[F2SC_WRNOSNPPTL]);
-    assign pmcounterss[0].data.f2sc_req_stall = 32'(sc_pmci[F2SC_REQ_STALL]);
-    assign pmcounterss[0].data.f2sc_wdat_stall = 32'(sc_pmci[F2SC_WDAT_STALL]);
-    assign pmcounterss[0].data.f2sc_rdat_stall = 32'(sc_pmci[F2SC_RDAT_STALL]);
-    assign pmcounterss[0].data.f2sc_crsp_stall = 32'(sc_pmci[F2SC_CRSP_STALL]);
-    assign pmcounterss[0].data.sc_tag_lookup = 32'(sc_pmci[SC_TAG_LOOKUP]);
-    assign pmcounterss[0].data.sc_tag_write = 32'(sc_pmci[SC_TAG_WRITE]);
-    assign pmcounterss[0].data.sc_state_write = 32'(sc_pmci[SC_STATE_WRITE]);
-    assign pmcounterss[0].data.sc_repl_write = 32'(sc_pmci[SC_REPL_WRITE]);
-    assign pmcounterss[0].data.sc_tag_hit = 32'(sc_pmci[SC_TAG_HIT]);
-    assign pmcounterss[0].data.sc_data_read = 32'(sc_pmci[SC_DATA_READ]);
-    assign pmcounterss[0].data.sc_data_write = 32'(sc_pmci[SC_DATA_WRITE]);
-    assign pmcounterss[0].data.sc_state_i2e = 32'(sc_pmci[SC_STATE_I2E]);
-    assign pmcounterss[0].data.sc_state_i2m = 32'(sc_pmci[SC_STATE_I2M]);
-    assign pmcounterss[0].data.sc_state_i2s = 32'(sc_pmci[SC_STATE_I2S]);
-    assign pmcounterss[0].data.sc_state_s2i = 32'(sc_pmci[SC_STATE_S2I]);
-    assign pmcounterss[0].data.sc_state_s2m = 32'(sc_pmci[SC_STATE_S2M]);
-    assign pmcounterss[0].data.sc_state_s2e = 32'(sc_pmci[SC_STATE_S2E]);
-    assign pmcounterss[0].data.sc_state_m2i = 32'(sc_pmci[SC_STATE_M2I]);
-    assign pmcounterss[0].data.sc_state_m2s = 32'(sc_pmci[SC_STATE_M2S]);
-    assign pmcounterss[0].data.sc_state_m2e = 32'(sc_pmci[SC_STATE_M2E]);
-    assign pmcounterss[0].data.sc_state_e2i = 32'(sc_pmci[SC_STATE_E2I]);
-    assign pmcounterss[0].data.sc_state_e2s = 32'(sc_pmci[SC_STATE_E2S]);
-    assign pmcounterss[0].data.sc_state_e2m = 32'(sc_pmci[SC_STATE_E2M]);
-    assign pmcounterss[0].data.sft_lookup = 32'(sc_pmci[SFT_LOOKUP]);
-    assign pmcounterss[0].data.sft_hit = 32'(sc_pmci[SFT_HIT]);
-    assign pmcounterss[0].data.sft_write = 32'(sc_pmci[SFT_WRITE]);
-    assign pmcounterss[0].data.sft_eviction = 32'(sc_pmci[SFT_EVICTION]);
-    assign pmcounterss[0].data.sft_snp_single_icache = 32'(sc_pmci[SFT_SNP_SINGLE_ICACHE]);
-    assign pmcounterss[0].data.sft_snp_single_dcache = 32'(sc_pmci[SFT_SNP_SINGLE_DCACHE]);
-    assign pmcounterss[0].data.sft_snp_multi_cores = 32'(sc_pmci[SFT_SNP_MULTI_CORES]);
-    assign pmcounterss[0].data.sft_eviction_replay = 32'(sc_pmci[SFT_EVICTION_REPLAY]);
-    assign pmcounterss[0].data.mshr_occupancy = 32'(sc_pmci[MSHR_OCCUPANCY]);
-    assign pmcounterss[0].data.mshr_full = 32'(sc_pmci[MSHR_FULL]);
-    assign pmcounterss[0].data.mshr_saq_alloc = 32'(sc_pmci[MSHR_SAQ_ALLOC]);
-    assign pmcounterss[0].data.mshr_saq_full = 32'(sc_pmci[MSHR_SAQ_FULL]);
-    assign pmcounterss[0].data.no_alloc_no_mshr = 32'(sc_pmci[NO_ALLOC_NO_MSHR]);
-    assign pmcounterss[0].data.no_alloc_hint_not_set = 32'(sc_pmci[NO_ALLOC_HINT_NOT_SET]);
-    assign pmcounterss[0].data.sc_replay_ecc = 32'(sc_pmci[SC_REPLAY_ECC]);
-    assign pmcounterss[0].data.sc_victim = 32'(sc_pmci[SC_VICTIM]);
-    assign pmcounterss[0].data.no_alloc_srrip = 32'(sc_pmci[NO_ALLOC_SRRIP]);
-    assign pmcounterss[0].data.sc_cancel_piperesult = 32'(sc_pmci[SC_CANCEL_PIPERESULT]);
-
+    generate
+        if (SC_PMCI_ENABLE == 1) begin
+            assign pmcounterss[0].data.sc_cache_access = 32'(sc_pmci[SC_CACHE_ACCESS]);
+             assign pmcounterss[0].data.sc_cache_rd = 32'(sc_pmci[SC_CACHE_RD]);
+             assign pmcounterss[0].data.sc_cache_miss = 32'(sc_pmci[SC_CACHE_MISS]);
+             assign pmcounterss[0].data.sc_cache_miss_rd = 32'(sc_pmci[SC_CACHE_MISS_RD]);
+             assign pmcounterss[0].data.sc_cache_refill = 32'(sc_pmci[SC_CACHE_REFILL]);
+             assign pmcounterss[0].data.sc_cache_allocate = 32'(sc_pmci[SC_CACHE_ALLOCATE]);
+             assign pmcounterss[0].data.sc_cache_wb_dirty = 32'(sc_pmci[SC_CACHE_WB_DIRTY]);
+             assign pmcounterss[0].data.sc_cache_wb_clean = 32'(sc_pmci[SC_CACHE_WB_CLEAN]);
+             assign pmcounterss[0].data.sc_cache_inval = 32'(sc_pmci[SC_CACHE_INVAL]);
+             assign pmcounterss[0].data.sc_snoop = 32'(sc_pmci[SC_SNOOP]);
+             assign pmcounterss[0].data.sc_scratchpad_rd = 32'(sc_pmci[SC_SCRATCHPAD_RD]);
+             assign pmcounterss[0].data.sc_scratchpad_wr = 32'(sc_pmci[SC_SCRATCHPAD_WR]);
+             assign pmcounterss[0].data.f2sc_rd = 32'(sc_pmci[F2SC_RD]);
+             assign pmcounterss[0].data.f2sc_wr = 32'(sc_pmci[F2SC_WR]);
+             assign pmcounterss[0].data.mshr_lifetime = 32'(sc_pmci[MSHR_LIFETIME]);
+             assign pmcounterss[0].data.mshr_allocations = 32'(sc_pmci[MSHR_ALLOCATIONS]);
+             assign pmcounterss[0].data.sc2f_rd_u = 32'(sc_pmci[SC2F_RD_U]);
+             assign pmcounterss[0].data.sc2f_rd_c = 32'(sc_pmci[SC2F_RD_C]);
+             assign pmcounterss[0].data.sc2f_rd_o = 32'(sc_pmci[SC2F_RD_O]);
+             assign pmcounterss[0].data.sc2f_wr = 32'(sc_pmci[SC2F_WR]);
+             assign pmcounterss[0].data.c2sc_rd_i = 32'(sc_pmci[C2SC_RD_I]);
+             assign pmcounterss[0].data.c2sc_rd_d = 32'(sc_pmci[C2SC_RD_D]);
+             assign pmcounterss[0].data.c2sc_wb_full = 32'(sc_pmci[C2SC_WB_FULL]);
+             assign pmcounterss[0].data.c2sc_evict = 32'(sc_pmci[C2SC_EVICT]);
+             assign pmcounterss[0].data.c2sc_snp_wb_full = 32'(sc_pmci[C2SC_SNP_WB_FULL]);
+             assign pmcounterss[0].data.c2sc_wrnosnpptl = 32'(sc_pmci[C2SC_WRNOSNPPTL]);
+             assign pmcounterss[0].data.c2sc_snp = 32'(sc_pmci[C2SC_SNP]);
+             assign pmcounterss[0].data.c2sc_req_stall = 32'(sc_pmci[C2SC_REQ_STALL]);
+             assign pmcounterss[0].data.c2sc_wdat_stall = 32'(sc_pmci[C2SC_WDAT_STALL]);
+             assign pmcounterss[0].data.c2sc_srsp_stall = 32'(sc_pmci[C2SC_SRSP_STALL]);
+             assign pmcounterss[0].data.c2sc_rdat_stall = 32'(sc_pmci[C2SC_RDAT_STALL]);
+             assign pmcounterss[0].data.c2sc_snp_stall = 32'(sc_pmci[C2SC_SNP_STALL]);
+             assign pmcounterss[0].data.c2sc_crsp_stall = 32'(sc_pmci[C2SC_CRSP_STALL]);
+             assign pmcounterss[0].data.sc2f_evict = 32'(sc_pmci[SC2F_EVICT]);
+             assign pmcounterss[0].data.sc2f_wrbackfull = 32'(sc_pmci[SC2F_WRBACKFULL]);
+             assign pmcounterss[0].data.sc2f_wdat = 32'(sc_pmci[SC2F_WDAT]);
+             assign pmcounterss[0].data.sc2f_snoop = 32'(sc_pmci[SC2F_SNOOP]);
+             assign pmcounterss[0].data.sc2f_rdat = 32'(sc_pmci[SC2F_RDAT]);
+             assign pmcounterss[0].data.sc2f_req_stall = 32'(sc_pmci[SC2F_REQ_STALL]);
+             assign pmcounterss[0].data.sc2f_wdat_stall = 32'(sc_pmci[SC2F_WDAT_STALL]);
+             assign pmcounterss[0].data.sc2f_srsp_stall = 32'(sc_pmci[SC2F_SRSP_STALL]);
+             assign pmcounterss[0].data.sc2f_rdat_stall = 32'(sc_pmci[SC2F_RDAT_STALL]);
+             assign pmcounterss[0].data.sc2f_snoop_stall = 32'(sc_pmci[SC2F_SNOOP_STALL]);
+             assign pmcounterss[0].data.sc2f_crsp_stall = 32'(sc_pmci[SC2F_CRSP_STALL]);
+             assign pmcounterss[0].data.f2sc_wdat = 32'(sc_pmci[F2SC_WDAT]);
+             assign pmcounterss[0].data.f2sc_rdat = 32'(sc_pmci[F2SC_RDAT]);
+             assign pmcounterss[0].data.f2sc_wrnosnpptl = 32'(sc_pmci[F2SC_WRNOSNPPTL]);
+             assign pmcounterss[0].data.f2sc_req_stall = 32'(sc_pmci[F2SC_REQ_STALL]);
+             assign pmcounterss[0].data.f2sc_wdat_stall = 32'(sc_pmci[F2SC_WDAT_STALL]);
+             assign pmcounterss[0].data.f2sc_rdat_stall = 32'(sc_pmci[F2SC_RDAT_STALL]);
+             assign pmcounterss[0].data.f2sc_crsp_stall = 32'(sc_pmci[F2SC_CRSP_STALL]);
+             assign pmcounterss[0].data.sc_tag_lookup = 32'(sc_pmci[SC_TAG_LOOKUP]);
+             assign pmcounterss[0].data.sc_tag_write = 32'(sc_pmci[SC_TAG_WRITE]);
+             assign pmcounterss[0].data.sc_state_write = 32'(sc_pmci[SC_STATE_WRITE]);
+             assign pmcounterss[0].data.sc_repl_write = 32'(sc_pmci[SC_REPL_WRITE]);
+             assign pmcounterss[0].data.sc_tag_hit = 32'(sc_pmci[SC_TAG_HIT]);
+             assign pmcounterss[0].data.sc_data_read = 32'(sc_pmci[SC_DATA_READ]);
+             assign pmcounterss[0].data.sc_data_write = 32'(sc_pmci[SC_DATA_WRITE]);
+             assign pmcounterss[0].data.sc_state_i2e = 32'(sc_pmci[SC_STATE_I2E]);
+             assign pmcounterss[0].data.sc_state_i2m = 32'(sc_pmci[SC_STATE_I2M]);
+             assign pmcounterss[0].data.sc_state_i2s = 32'(sc_pmci[SC_STATE_I2S]);
+             assign pmcounterss[0].data.sc_state_s2i = 32'(sc_pmci[SC_STATE_S2I]);
+             assign pmcounterss[0].data.sc_state_s2m = 32'(sc_pmci[SC_STATE_S2M]);
+             assign pmcounterss[0].data.sc_state_s2e = 32'(sc_pmci[SC_STATE_S2E]);
+             assign pmcounterss[0].data.sc_state_m2i = 32'(sc_pmci[SC_STATE_M2I]);
+             assign pmcounterss[0].data.sc_state_m2s = 32'(sc_pmci[SC_STATE_M2S]);
+             assign pmcounterss[0].data.sc_state_m2e = 32'(sc_pmci[SC_STATE_M2E]);
+             assign pmcounterss[0].data.sc_state_e2i = 32'(sc_pmci[SC_STATE_E2I]);
+             assign pmcounterss[0].data.sc_state_e2s = 32'(sc_pmci[SC_STATE_E2S]);
+             assign pmcounterss[0].data.sc_state_e2m = 32'(sc_pmci[SC_STATE_E2M]);
+             assign pmcounterss[0].data.sft_lookup = 32'(sc_pmci[SFT_LOOKUP]);
+             assign pmcounterss[0].data.sft_hit = 32'(sc_pmci[SFT_HIT]);
+             assign pmcounterss[0].data.sft_write = 32'(sc_pmci[SFT_WRITE]);
+             assign pmcounterss[0].data.sft_eviction = 32'(sc_pmci[SFT_EVICTION]);
+             assign pmcounterss[0].data.sft_snp_single_icache = 32'(sc_pmci[SFT_SNP_SINGLE_ICACHE]);
+             assign pmcounterss[0].data.sft_snp_single_dcache = 32'(sc_pmci[SFT_SNP_SINGLE_DCACHE]);
+             assign pmcounterss[0].data.sft_snp_multi_cores = 32'(sc_pmci[SFT_SNP_MULTI_CORES]);
+             assign pmcounterss[0].data.sft_eviction_replay = 32'(sc_pmci[SFT_EVICTION_REPLAY]);
+             assign pmcounterss[0].data.mshr_occupancy = 32'(sc_pmci[MSHR_OCCUPANCY]);
+             assign pmcounterss[0].data.mshr_full = 32'(sc_pmci[MSHR_FULL]);
+             assign pmcounterss[0].data.mshr_saq_alloc = 32'(sc_pmci[MSHR_SAQ_ALLOC]);
+             assign pmcounterss[0].data.mshr_saq_full = 32'(sc_pmci[MSHR_SAQ_FULL]);
+             assign pmcounterss[0].data.no_alloc_no_mshr = 32'(sc_pmci[NO_ALLOC_NO_MSHR]);
+             assign pmcounterss[0].data.no_alloc_hint_not_set = 32'(sc_pmci[NO_ALLOC_HINT_NOT_SET]);
+             assign pmcounterss[0].data.sc_replay_ecc = 32'(sc_pmci[SC_REPLAY_ECC]);
+             assign pmcounterss[0].data.sc_victim = 32'(sc_pmci[SC_VICTIM]);
+             assign pmcounterss[0].data.no_alloc_srrip = 32'(sc_pmci[NO_ALLOC_SRRIP]);
+             assign pmcounterss[0].data.sc_cancel_piperesult = 32'(sc_pmci[SC_CANCEL_PIPERESULT]);
+        end
+    endgenerate
     // AUTOGENERATED -- off
     assign hpmcounterss[0].valid            = !reset  && ((|mhpm_write) || (terminate^terminate_1T));
     assign hpmcounterss[0].data.location    = location;
@@ -597,13 +602,20 @@ import rv_tester_pkg::*;
     always_ff @(posedge clk) begin : overflow_logic
         automatic logic overflow_nxt = '0;
         if (!reset) begin
-            for (int i = 0; i < EVENT_COUNT; i++) begin
-                overflow_nxt |= pmcounter[i][OVERFLOW_BIT] ^ pmcounter_overflow_bit[i];
+            if (SC_PMCI_ENABLED == 1) begin
+                for (int i = 0; i < EVENT_COUNT; i++) begin
+                    overflow_nxt |= pmcounter[i][OVERFLOW_BIT] ^ pmcounter_overflow_bit[i];
+                end
+                overflow_nxt |= (cpu_cycles[OVERFLOW_BIT] ^ pmcounter_overflow_bit[EVENT_COUNT]) | (branch_instructions[OVERFLOW_BIT] ^ pmcounter_overflow_bit[EVENT_COUNT + OVERFLOW_BIT_EXTRA - 1]);
+                for (int i = EVENT_COUNT + OVERFLOW_BIT_EXTRA; i < EVENT_COUNT + OVERFLOW_BIT_EXTRA + SC_EVENT_COUNT; i++) begin
+                    overflow_nxt |= sc_pmci[i - (EVENT_COUNT + OVERFLOW_BIT_EXTRA)][OVERFLOW_BIT] ^ pmcounter_overflow_bit[i];
+                end
+            end else begin
+                for (int i = 0; i < EVENT_COUNT; i++) begin
+                    overflow_nxt |= pmcounter[i][OVERFLOW_BIT] ^ pmcounter_overflow_bit[i];
+                end
+                overflow_nxt |= (cpu_cycles[OVERFLOW_BIT] ^ pmcounter_overflow_bit[EVENT_COUNT]) | (branch_instructions[OVERFLOW_BIT] ^ pmcounter_overflow_bit[EVENT_COUNT + OVERFLOW_BIT_EXTRA - 1]);
             end
-            for (int i = EVENT_COUNT; i < EVENT_COUNT + SC_EVENT_COUNT; i++) begin
-                overflow_nxt |= sc_pmci[i - EVENT_COUNT][OVERFLOW_BIT] ^ pmcounter_overflow_bit[i];
-            end
-            overflow_nxt |= (cpu_cycles[OVERFLOW_BIT] ^ pmcounter_overflow_bit[EVENT_COUNT + SC_EVENT_COUNT]) | (branch_instructions[OVERFLOW_BIT] ^ pmcounter_overflow_bit[EVENT_COUNT + SC_EVENT_COUNT + 1]);
         end
         overflow <= overflow_nxt;
     end
@@ -611,15 +623,23 @@ import rv_tester_pkg::*;
     always_ff @(posedge clk) begin : pmcounters_overflow_bit
         if (reset) begin
             pmcounter_overflow_bit <= '0;
-        end else if (pmcounterss[0].valid) begin
-            for (int i=0; i < EVENT_COUNT; i++) begin
-                pmcounter_overflow_bit[i] <= pmcounter[i][OVERFLOW_BIT];
+        end else if (core_pmcounterss[0].valid) begin
+            if (SC_PMCI_ENABLED == 1) begin
+                for (int i = 0; i < EVENT_COUNT; i++) begin
+                    pmcounter_overflow_bit[i] <= pmcounter[i][OVERFLOW_BIT];
+                end
+                pmcounter_overflow_bit[EVENT_COUNT]        <= cpu_cycles[OVERFLOW_BIT];
+                pmcounter_overflow_bit[EVENT_COUNT + OVERFLOW_BIT_EXTRA - 1]    <= branch_instructions[OVERFLOW_BIT];
+                for (int i = EVENT_COUNT + OVERFLOW_BIT_EXTRA; i < EVENT_COUNT + OVERFLOW_BIT_EXTRA + SC_EVENT_COUNT; i++) begin
+                    pmcounter_overflow_bit[i] <= sc_pmci[i - (EVENT_COUNT + OVERFLOW_BIT_EXTRA)][OVERFLOW_BIT];
+                end
+            end else begin
+                for (int i = 0; i < EVENT_COUNT; i++) begin
+                    pmcounter_overflow_bit[i] <= pmcounter[i][OVERFLOW_BIT];
+                end
+                pmcounter_overflow_bit[EVENT_COUNT]        <= cpu_cycles[OVERFLOW_BIT];
+                pmcounter_overflow_bit[EVENT_COUNT + OVERFLOW_BIT_EXTRA - 1]    <= branch_instructions[OVERFLOW_BIT];
             end
-            for (int i=EVENT_COUNT; i < EVENT_COUNT + SC_EVENT_COUNT; i++) begin
-                pmcounter_overflow_bit[i] <= sc_pmci[i - EVENT_COUNT][OVERFLOW_BIT];
-            end
-            pmcounter_overflow_bit[EVENT_COUNT + SC_EVENT_COUNT]        <= cpu_cycles[OVERFLOW_BIT];
-            pmcounter_overflow_bit[EVENT_COUNT + SC_EVENT_COUNT + 1]    <= branch_instructions[OVERFLOW_BIT];
         end
     end
 
