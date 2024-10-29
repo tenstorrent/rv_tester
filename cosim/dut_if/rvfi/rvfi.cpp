@@ -145,6 +145,8 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   make_instr(m_rvfi, instr);
   print_instr(instr);
 
+  uop_tag_ = instr.tag;
+
   if (!m_rvfi.last_uop)
     return;
 
@@ -170,13 +172,13 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   }
 
   // Save state
-  tag_ = instr.tag;
+  instr_tag_ = instr.tag;
 
   // Clear state
   intr_ = false;
   excp_ = false;
   nmi_ = false;
-  vec_excp_ = false;
+  vec_excp_after_cmode_ = false;
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
@@ -205,11 +207,9 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
         patch_mode_ = true;
       }
     }
-    // RVTOOLS-3265: Vector special case
-    // Send instr with old tag if we encounter excp in middle of a vector instruction
-    // Potentially there could be some element stores that drained
     if (excp_ && ecause_ == CUSTOM_VEC_CMODE) {
-      vec_excp_ = true;
+      vec_excp_after_cmode_ = true;
+      vec_cmode_tag_ = uop_tag_;
     }
     // Set exception state
     nmi_ = false;
@@ -318,9 +318,13 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   cvm::log(cvm::HIGH, "CLOCK={}: HW: ucode={} first_uop={} last_uop={}, priv={}, priv_change={} set_pmode={}, clr_pmode={} patch_={}\n", m_rvfi.cycle,
                             m_rvfi.ucode, m_rvfi.first_uop, m_rvfi.last_uop, m_rvfi.priv, m_rvfi.priv_change, m_rvfi.set_pmode, m_rvfi.clr_pmode, patch_mode_);
 
-  // RVTOOLS-3265: Adjust tag for vec excp
-  if (vec_excp_)
-    instr.tag = tag_ + 1;
+  // RVTOOLS-3265, RVTOOLS-3479: Adjust tag for conservative mode vec instr that takes an exception
+  if (vec_excp_after_cmode_) {
+    if (vec_cmode_tag_ == mread_tag_)
+      instr.tag = vec_cmode_tag_;
+    else
+      instr.tag = instr_tag_ + 1;
+  }
 
   // Renamed csr sequence
   uint64_t src = (m_rvfi.uop >> 16) & 0x3f;
@@ -779,6 +783,8 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
   m.field = m_mcmi_read.field;
   m.nano_op_elem_idx = m_mcmi_read.nano_op_elem_idx;
 
+  mread_tag_ = m_mcmi_read.order;
+
   // Handle SC
   // If read before bypass, store pass/fail result
   // If bypass before read, check pass/fail result and send/don't send bypass
@@ -896,6 +902,8 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
   uint64_t leadingZeros = std::countr_zero(mask);  // Find the number of trailing zeros
   mask >>= leadingZeros;
   uint64_t consecutiveOnes = std::countr_zero(~mask);  // Count ones until the first zero
+
+  minsert_tag_ = m_mcmi_insert.order;
 
   if (numones == consecutiveOnes) {
       mem_t m;
