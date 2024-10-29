@@ -11,7 +11,7 @@ namespace {
     constexpr uint64_t mmr_lo_addr = 0x4200'0000;
     constexpr uint64_t mmr_hi_addr = 0x421b'ffff;
     constexpr uint64_t smc_lo_addr = 0xc000'0000;
-    constexpr uint64_t smc_hi_addr = 0xc000'ffff;
+    constexpr uint64_t smc_hi_addr = 0xc214'ffff;
     constexpr uint64_t patch_ram_lo = 0x4214C000;
     constexpr uint64_t patch_ram_hi = 0x4214DFFF;
 
