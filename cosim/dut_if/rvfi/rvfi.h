@@ -103,8 +103,12 @@ class rvfi {
 
     uint64_t count_ = 1;
 
-    uint64_t tag_ = false;
-    bool vec_excp_ = false;
+    uint64_t mread_tag_ = 0;
+    uint64_t minsert_tag_ = 0;
+    uint64_t instr_tag_ = 0;
+    uint64_t uop_tag_ = 0;
+    bool vec_excp_after_cmode_ = false;
+    uint64_t vec_cmode_tag_ = 0;
     //bool ucode_ = false;
     bool nmi_ = false;
     bool intr_ = false;
