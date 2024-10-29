@@ -108,8 +108,7 @@ class rvfi {
     uint64_t instr_tag_ = 0;
     bool     vec_excp_after_cmode_ = false;
     uint64_t vec_cmode_tag_ = 0;
-    uint64_t tag_ = false;
-    bool vec_excp_ = false;
+    uint64_t uop_tag_ = 0;
     //---------------------------------------------------------------------------------------------------------
     // USE_OLD_CODE selects C code for priv_, first_uop,ucode_ generation instead of SV code (for debug ONLY)
     //   - eventually we will remove this
