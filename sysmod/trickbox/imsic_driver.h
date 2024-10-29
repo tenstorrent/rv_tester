@@ -85,6 +85,7 @@ public:
     unsigned interrupt_file = (t_data>>12) & 0xf;
     unsigned interrupt_hart = (t_data>>16) & 0xfff;
     unsigned vs_id = (t_data>>28) & 0xfff;
+    bool rsp_err_chk = (interrupt_hart < FLAGS_num_harts)? true: false;
 
     cvm::log(cvm::HIGH,"[Trickbox] IMSIC interrupt num: {} interrupt file: {} Interrupt hart:{} hypervisor/supervisor id : {}\n", static_cast<uint32_t>(interrupt_num), interrupt_file, interrupt_hart, vs_id);
     
@@ -113,7 +114,7 @@ public:
       data1[i] = currentByte;
       strb1[i] = 0x1;
     }
-    cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length1, data1, strb1});
+    cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length1, data1, strb1, rsp_err_chk});
  
   }
 
@@ -160,16 +161,15 @@ protected:
 	do{
         intr_file = (rng() % (3 )) ; //gen iter between 1 to max simul instr
 	}while(((1<< intr_file)& disable_flags) != 0);
-        
+
+  intr_num =  (rng() % (FLAGS_imsic_intr_threshold ));
   if(!FLAGS_disable_vs_imsic_intr)
           intr_num = (rng() % (FLAGS_imsic_vs_intr_threshold )) ; //gen iter between 1 to max simul instr
-  if(!FLAGS_disable_vs_imsic_intr)
-          intr_num = (rng() % (FLAGS_imsic_vs_id_threshold )) + 1; //vsid from 1 to imsic_vs_id_threshold
 
 	if(!FLAGS_disable_random_hart_imsic_intr)
           intr_hart = (rng() % (FLAGS_imsic_hart_threshold )) ; //gen iter between 1 to max simul instr
 	if(!FLAGS_disable_vs_imsic_intr)
-          intr_vs_id = (rng() % (FLAGS_imsic_vs_intr_threshold )) ; //gen iter between 1 to max simul instr
+          intr_vs_id = (rng() % (FLAGS_imsic_vs_id_threshold )) ; //gen iter between 1 to max simul instr
        
         intr_num = intr_num |(intr_file<<12)|(intr_hart<<16)|(intr_vs_id<<28);
         cvm::log(cvm::HIGH, "[Trickbox] Driving imsic_intr {} interrupts in a cycle \n", intr_num);

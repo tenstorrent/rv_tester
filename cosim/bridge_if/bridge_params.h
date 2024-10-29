@@ -9,7 +9,7 @@ namespace {
     constexpr int vlen = 256;
     constexpr int va_hi = 56;
     constexpr uint64_t mmr_lo_addr = 0x4200'0000;
-    constexpr uint64_t mmr_hi_addr = 0x421a'ffff;
+    constexpr uint64_t mmr_hi_addr = 0x421b'ffff;
     constexpr uint64_t smc_lo_addr = 0xc000'0000;
     constexpr uint64_t smc_hi_addr = 0xffff'ffff;
     constexpr uint64_t patch_ram_lo = 0x4214C000;
@@ -387,7 +387,7 @@ namespace {
         {"c_lscfg14", 0xBDE},
         {"c_lscfg15", 0xBDF}
     }};
-    std::array<mmr_entry, 408> mmrs {{
+    std::array<mmr_entry, 409> mmrs {{
         {"sc_ctrl",                       0x1A0000},
         {"sc_sp",                         0x1A0010},
         {"sc_cc_capabilities",            0x1A00C0},
@@ -795,7 +795,8 @@ namespace {
         {"sc_dbg_ones_count_value",       0x1AF338},
         {"sc_dbg_any_change",             0x1AF340},
         {"sc_dbg_mux_control_A",          0x1AF388},
-        {"sc_dbg_mux_control_B",          0x1AF390}
+        {"sc_dbg_mux_control_B",          0x1AF390},
+        {"sc_chicken_bits",               0x421a0040}
     }};
 
 
@@ -817,7 +818,7 @@ namespace {
         {"c_wfitimer", 0xBC8}
     }};
 
-    std::array<csr_entry, 44> metrics_csrs {{
+    std::array<csr_entry, 46> metrics_csrs {{
         {"fcsr", 0x003},
         {"sstatus", 0x100},
         {"sie", 0x104},
@@ -836,6 +837,8 @@ namespace {
         {"mcause", 0x342},
         {"mtval", 0x343},
         {"mip", 0x344},
+        {"mtopei", 0x35C},
+        {"stopei", 0x15C},
         {"c_fecfg", 0xBC0},
         {"c_fecfg1", 0xBC1},
         {"c_fecfg2", 0xBC2},

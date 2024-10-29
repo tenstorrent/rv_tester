@@ -346,6 +346,7 @@ package rv_tester_params;
         logic [4:0]                 amo_op;
         logic                       v_ext;
         logic [36-1:0]              opcode;
+        logic [7:0]                 field;
         logic [7:0]                 nano_op_elem_idx;
     } mcmi_t;
 
@@ -366,7 +367,7 @@ package rv_tester_params;
     // --------------------------------------
     // C2 
     // --------------------------------------
-    typedef enum {C2,PATCH,TRIGGER_COUNT} event_trigger_type_t;
+    typedef enum {C2,PATCH,UARCH_INTR,TRIGGER_COUNT} event_trigger_type_t;
     typedef struct packed {
         logic [63:0] data;
         logic [63:0] addr;

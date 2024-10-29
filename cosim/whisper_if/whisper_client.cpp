@@ -44,6 +44,7 @@ DEFINE_string(whisper_json_path, "", "Path to whisper json config");
 DEFINE_uint64(nmi_vec, 0, "NMI handler PC");
 DEFINE_uint64(nme_vec, 0, "NMI exception handler PC");
 DEFINE_bool(ppo, true, "Enable ppo checks");
+DEFINE_bool(traceptw, true, "Enable page table walk tracing");
 
 REGISTRY_register(whisperClient<uint64_t>, TOP.PLATFORM.WHISPER_CLIENT, 0);
 
@@ -106,24 +107,11 @@ whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) {
 
   cvm::registry::messenger.procedure<whisperConnectRPC>(loc, [this] (uint16_t ncores) {return this->whisperConnect(ncores);});
   cvm::registry::messenger.procedure<whisperConnectedRPC>(loc, [this] () {return this->whisperConnected();});
-  cvm::registry::messenger.procedure<whisperStepRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t& pc, uint32_t& instruction, unsigned& changeCount, std::string& disasm, uint32_t& privMode, uint32_t& fpFlags, bool& hasTrap, bool& hasStop, bool& isLoad) {return this->whisperStep(hart, time, instrTag, pc, instruction, changeCount, disasm, privMode, fpFlags, hasTrap, hasStop, isLoad);});
+  cvm::registry::messenger.procedure<whisperStepRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t& pc, uint32_t& instruction, unsigned& changeCount, std::string& disasm, uint32_t& privMode, uint32_t& fpFlags, bool& hasTrap, bool& hasStop, bool& isLoad, bool& valid) {return this->whisperStep(hart, time, instrTag, pc, instruction, changeCount, disasm, privMode, fpFlags, hasTrap, hasStop, isLoad, valid);});
   cvm::registry::messenger.procedure<whisperSimpleStepRPC>(loc, [this] (int hart, uint64_t& pc, uint32_t& instruction, unsigned& changeCount) {return this->whisperSimpleStep(hart, pc, instruction, changeCount);});
   cvm::registry::messenger.procedure<whisperChangeRPC>(loc, [this] (int hart, uint32_t& resource, uint64_t& addr, uint64_t& value, bool& valid) {return this->whisperChange(hart, resource, addr, value, valid);});
-
-  // Mansoor, please fix. Enable second interface and delte first one when ready.
-#if 1
-  cvm::registry::messenger.procedure<whisperMcmReadRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, bool& valid) {return this->whisperMcmRead(hart, time, instrTag, addr, size, value, 0 /*elemIx*/, 0 /*field*/, valid);});
-#else
   cvm::registry::messenger.procedure<whisperMcmReadRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, unsigned elemIx, unsigned field, bool& valid) {return this->whisperMcmRead(hart, time, instrTag, addr, size, value, elemIx, field, valid);});
-#endif
-
-  // Mansoor, please fix. Enable second interface and delete first one when ready.
-#if 1
-  cvm::registry::messenger.procedure<whisperMcmVecReadRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, bool& valid) {return this->whisperMcmVecRead(hart, time, instrTag, addr, size, value, 0 /*elemIx*/, 0 /*field*/, valid);});
-#else
-  cvm::registry::messenger.procedure<whisperMcmVecReadRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, unsigned elemIx, unsigned field, bool& valid) {return this->whisperMcmVecRead(hart, time, instrTag, addr, size, value, elemIx, field, valid);});
-#endif
-  
+  cvm::registry::messenger.procedure<whisperMcmVecReadRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, unsigned elemIx, unsigned field, bool& valid) {return this->whisperMcmVecRead(hart, time, instrTag, addr, size, value, elemIx, field, valid);});  
   cvm::registry::messenger.procedure<whisperMcmVecInsertRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, bool& valid) {return this->whisperMcmVecInsert(hart, time, instrTag, addr, size, value, valid);});
   cvm::registry::messenger.procedure<whisperMcmInsertRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, bool& valid) {return this->whisperMcmInsert(hart, time, instrTag, addr, size, value, valid);});
   cvm::registry::messenger.procedure<whisperMcmVecBypassRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, bool& valid) {return this->whisperMcmVecBypass(hart, time, instrTag, addr, size, value, valid);});
@@ -226,7 +214,7 @@ constructSystem(uint16_t ncores, bool standalone, bool firmware) {
     // raw mode
     hart.enableNewlib(false);
     hart.enableLinux(false);
-    hart.tracePtw(true);
+    hart.tracePtw(FLAGS_traceptw);
     if (firmware) hart.defineResetPc(FLAGS_resetpcfw);
     else          hart.defineResetPc(FLAGS_resetpc);
     hart.defineNmiPc(getNmiPc());
@@ -268,7 +256,7 @@ constructHart (WdRiscv::Hart<URV>* hart, bool preload = false, FILE* preload_log
     hart->setInitialStateFile(preload_log);
 
   if (FLAGS_stee_secure_region != "") {
-    std::vector<std::string> secure_region = cosim_util::split_string(FLAGS_stee_secure_region, ':');
+    std::vector<std::string> secure_region = cosim_util::split_string(FLAGS_stee_secure_region, ":");
     auto start = std::stoull(secure_region.at(0), nullptr, 0);
     auto end   = std::stoull(secure_region.at(1), nullptr, 0);
     hart->configSteeSecureRegion(start, end);
@@ -406,7 +394,9 @@ template <typename URV>
 bool
 whisperClient<URV>::whisperCommand(const WhisperMessage& req, WhisperMessage& reply)
 {
-  server_->interact(req, reply, traceFile_, commandLog_);
+  if(FLAGS_cosim && (server_ != nullptr)) {
+    server_->interact(req, reply, traceFile_, commandLog_);
+  }
   return true;
 }
 
@@ -569,7 +559,7 @@ bool
 whisperClient<URV>::whisperStep(int hart, uint64_t time, uint64_t instrTag, uint64_t& pc,
 	    uint32_t& instruction, unsigned& changeCount,
 	    std::string& disasm, uint32_t& privMode,
-	    uint32_t& fpFlags, bool& hasTrap, bool& hasStop, bool& isLoad)
+	    uint32_t& fpFlags, bool& hasTrap, bool& hasStop, bool& isLoad, bool& valid)
 {
   req.hart = hart;
   req.type = WhisperMessageType::Step;
@@ -603,6 +593,7 @@ whisperClient<URV>::whisperStep(int hart, uint64_t time, uint64_t instrTag, uint
   reply.buffer[reply.buffer.size() - 1] = '\0';
   disasm = reply.buffer.data();
 
+  valid = reply.type != WhisperMessageType::Invalid;
   return true;
 }
 

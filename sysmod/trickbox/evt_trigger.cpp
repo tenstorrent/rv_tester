@@ -2,7 +2,7 @@
 #include "cvm/logger.hpp"
 #include "evt_trigger.h"
 #include "sysmod/sysmod_plusargs.h"
-
+#include "cosim/bridge/bridge_plusargs.h"
 
 
 evt_trigger::evt_trigger(const std::string& tag, uint64_t addr, unsigned, cvm::topology::loc_t loc)
@@ -34,7 +34,8 @@ void
   if (offset < 1024) {
     tboxmem_[offset] = t_data;
     bool valid;
-    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', addr, 8, t_data, valid)|| !valid) {
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', addr, 8, t_data, valid)|| !valid) && FLAGS_whisper_client_check) {
+      cvm::log(cvm::MEDIUM, "Whisper client check : {}\n",FLAGS_whisper_client_check);
       cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
       return;
     }

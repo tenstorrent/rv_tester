@@ -1,16 +1,20 @@
 module rv_tester_tick_generator
 #(
   parameter string NAME = "noname",
+  parameter string EN = {NAME, "_rand_en"},
   parameter string COUNT = {NAME, "_count"},
   parameter string INTERVAL = {NAME, "_interval"},
   parameter string WIDTH = {NAME, "_width"}
 ) (
   input logic clk,
   input logic reset,
-  output logic tick
+  input logic inhibit,
+  output logic tick,
+  output logic last
 );
 
   // Internal variables
+  bit en;
   int unsigned count;
   int unsigned interval;
   int unsigned width;
@@ -23,7 +27,11 @@ module rv_tester_tick_generator
   logic generating_tick;     // Signal to indicate if we are generating a tick
 
   always @(posedge clk) begin
-    clocks <= clocks + 1;
+    if (!inhibit)
+      clocks <= clocks + 1;
+  end
+
+  always @(posedge clk) begin
     reset_d1 <= reset;
     if (reset) begin
       // Reset all internal variables
@@ -33,17 +41,20 @@ module rv_tester_tick_generator
     end else if (reset_d1 & ~reset) begin
       // On reset release, initialize random values
       /* verilator lint_off BLKSEQ */
-      count = cvm_rand::get(COUNT);
-      interval = cvm_rand::get(INTERVAL);
-      width = cvm_rand::get(WIDTH);
-      $display("[%s] rand: count=%0d", NAME, count);
-      $display("[%s] rand: interval=%0d, width=%0d", NAME, interval, width);
+      en = cvm_plusargs::get_bool(EN) != 0;
+      if (en) begin
+        count = cvm_rand::get(COUNT);
+        interval = cvm_rand::get(INTERVAL);
+        width = cvm_rand::get(WIDTH);
+        $display("[%s] rand: count=%0d", NAME, count);
+        $display("[%s] rand: interval=%0d, width=%0d", NAME, interval, width);
+        tick_count <= 0;
+        nxt_clock <= clocks + interval;
+      end
       /* verilator lint_on BLKSEQ */
-      tick_count <= 0;
-      nxt_clock <= clocks + interval;
     end else begin
       // Handle tick generation
-      if (tick_count < count) begin
+      if (en && (tick_count < count)) begin
         if (clocks >= nxt_clock && clocks < nxt_clock + width) begin
           nxt_tick <= 1'b1;  // Generate tick
           generating_tick <= 1'b1;
@@ -71,5 +82,6 @@ module rv_tester_tick_generator
   end
 
   assign tick = nxt_tick;
+  assign last = !en || (tick_count > (count - 1));
 
 endmodule

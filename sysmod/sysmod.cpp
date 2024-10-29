@@ -28,6 +28,7 @@
 #include "pmu/pmu_plusargs.h"
 #include "cosim/utils/general/util.h"
 #include "sysmod_params.hpp"
+#include "cosim/bridge/bridge_plusargs.h"
 
 // internal flags
 DEFINE_string(hex, "", "hex file (program) to load into memory");
@@ -628,7 +629,7 @@ void sysmod::store_inval_crsp(const inval_crsp_s& payld) {
     for (int i=0; i<8; ++i) 
       read_data |= uint64_t(data[i]) << (i*8);
     bool valid = true;
-    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', (ld_addr + (offset*8)), 8, read_data, valid) || !valid) {
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', (ld_addr + (offset*8)), 8, read_data, valid) || !valid) && FLAGS_whisper_client_check) {
       cvm::log(cvm::ERROR, "Error: store_inval_crsp failed to poke whisper memory");
     }
   }
@@ -651,7 +652,7 @@ void sysmod::store_inval_load(const inval_load_s& payload) {
     // For AMO MB Bypass -> We dont need to check with main memory contents
     bool valid = true;
     cvm::log(cvm::HIGH, "CBO_INVAL_MONITOR :: Whisper Poke with data:{:#x} for AMO MB Bypass to address:{:#x}\n",inval_load_.data,ld_addr);
-    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', ld_addr, size, inval_load_.data, valid)) {
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', ld_addr, size, inval_load_.data, valid)) && FLAGS_whisper_client_check) {
       cvm::log(cvm::ERROR, "Error: store_inval_load failed to poke whisper memory in AMO MB Bypass case\n"); 
     }
   }
@@ -661,7 +662,7 @@ void sysmod::store_inval_load(const inval_load_s& payload) {
     // No need to poke entire cacheline granularity - that will be done after CRSP
     bool valid = true;
     cvm::log(cvm::HIGH, "CBO_INVAL_MONITOR :: Whisper Poke with data:{:#x} for address:{:#x}\n",read_data,ld_addr);
-    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', ld_addr, size, read_data, valid) || !valid) {
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', ld_addr, size, read_data, valid) || !valid) && FLAGS_whisper_client_check) {
       cvm::log(cvm::ERROR, "Error: store_inval_load failed to poke whisper memory\n"); 
     }
   }
@@ -674,7 +675,7 @@ cvm::messenger::task<uint64_t> sysmod::backdoor_write(sysmod::backdoor_write_t t
 
     if (FLAGS_cosim) {
       bool valid = true;
-      if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', t.address, 8, t.data, valid) || !valid)
+      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', t.address, 8, t.data, valid) || !valid) && FLAGS_whisper_client_check)
         cvm::log(cvm::ERROR, "Error: backdoor_write failed to poke whisper memory\n");
     }
       
@@ -1080,7 +1081,7 @@ sysmod::load_csr_mmr_boot(uint64_t)
     device::data_t data(4);
     for (size_t i=0; i<4; i++) data[i] = op >> 8*i;
     dev("boot")->backdoor_write(addr, 4, data, strb);
-    if (FLAGS_cosim && (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', addr, op, valid) || !valid))
+    if (FLAGS_cosim && (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', addr, op, valid) || !valid) && FLAGS_whisper_client_check)
       cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
     addr += 4;
   };
@@ -1092,11 +1093,22 @@ sysmod::load_csr_mmr_boot(uint64_t)
     for (const auto& mmr : mmrs)
       mmr_map[mmr.name] = mmr.address;
     try {
-      std::vector<std::string> mmr_vals = cosim_util::split_string(FLAGS_set_mmr, ',');
+      std::vector<std::string> mmr_vals = cosim_util::split_string(FLAGS_set_mmr, ",");
       for (const auto& entry : mmr_vals) {
-        std::vector<std::string> mmr_val = cosim_util::split_string(entry, ':');
+        std::vector<std::string> mmr_val = cosim_util::split_string(entry, ":");
+
         auto mmr = mmr_val.at(0);
-        addr = mmr_map.count(mmr)? mmr_map[mmr] : std::stoull(mmr_val.at(0), nullptr, 0);
+        if (mmr_map.count(mmr)) {
+          addr = mmr_map[mmr];
+        } else if (mmr.find("slice") != std::string::npos) {
+          std::vector<std::string> mmr_vec = cosim_util::split_string(entry, "_slice");
+          addr = mmr_map[mmr_vec.at(0)];
+          auto slice = std::stoull(mmr_vec.at(1), nullptr, 0);
+          addr = addr + slice * 0x10000;
+        } else {
+          addr = std::stoull(mmr, nullptr, 0);
+        }
+
         auto size  = std::stoull(mmr_val.at(1), nullptr, 0);
         auto value = std::stoull(mmr_val.at(2), nullptr, 0);
         if (!(size == 1 || size == 2 || size == 4 || size == 8)) {
@@ -1139,10 +1151,10 @@ sysmod::load_csr_mmr_boot(uint64_t)
       csr_map[csr.name] = csr.address;
 
     try { // parse the +set_csr and report any errors
-      char delimiter = ',';
+      std::string delimiter = ",";
       std::vector<std::string> csr_num_val = cosim_util::split_string(FLAGS_set_csr, delimiter);
       for (const auto& entry : csr_num_val) {
-        delimiter = ':';
+        delimiter = ":";
         std::vector<std::string> num_val = cosim_util::split_string(entry, delimiter);
         auto csr = num_val.at(0); // expect both csr address("0x301") as well as string("misa")
         auto value = std::stoull(num_val.at(1), nullptr, 0);
