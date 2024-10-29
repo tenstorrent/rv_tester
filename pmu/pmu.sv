@@ -6,7 +6,8 @@ import rv_tester_pkg::*;
   parameter int NRET = 1,
   parameter int SC_PMCI_ENABLED =  -1,
   `TOPOLOGY,
-  `RV_TESTER_TRANSACTIONS_PMU_OUTPUT_PARAMS
+  `RV_TESTER_TRANSACTIONS_PMU_CORE_OUTPUT_PARAMS,
+  `RV_TESTER_TRANSACTIONS_PMU_SC_OUTPUT_PARAMS
 )(
   input clk,
   input reset,
@@ -17,8 +18,8 @@ import rv_tester_pkg::*;
   input sc_pmci_t sc_pmci,
   input rvfi_t [NRET-1:0] rvfi,
   input bit terminate,
-  `RV_TESTER_TRANSACTIONS_CORE_PMU_OUTPUT_PORTS,
-  `RV_TESTER_TRANSACTIONS_SC_PMU_OUTPUT_PORTS
+  `RV_TESTER_TRANSACTIONS_PMU_CORE_OUTPUT_PORTS,
+  `RV_TESTER_TRANSACTIONS_PMU_SC_OUTPUT_PORTS
 );
 
     parameter int unsigned location = cvm_topology_gen::get_location (topology.TOP.PLATFORM.PMCI.ID, NUM);
@@ -496,8 +497,14 @@ import rv_tester_pkg::*;
     assign pmcounterss[0].data.ldq_missq_full_delay = 32'(pmcounter[LDQ_MISSQ_FULL_DELAY]);
     assign pmcounterss[0].data.stq_missq_full_delay = 32'(pmcounter[STQ_MISSQ_FULL_DELAY]);
     generate
-        if (SC_PMCI_ENABLE == 1) begin
-            assign pmcounterss[0].data.sc_cache_access = 32'(sc_pmci[SC_CACHE_ACCESS]);
+        if (SC_PMCI_ENABLED == 1) begin
+             assign pmcounterss[0].data.location_sc = pmcounterss[0].data.location;
+             assign pmcounterss[0].data.perf_start_sc = pmcounterss[0].data.perf_start;
+             assign pmcounterss[0].data.perf_end_sc = pmcounterss[0].data.perf_end;
+             assign pmcounterss[0].data.terminate_sc = pmcounterss[0].data.terminate;
+             assign pmcounterss[0].data.overflow_sc = pmcounterss[0].data.overflow;
+             assign pmcounterss[0].data.sync_sc = pmcounterss[0].data.sync;
+             assign pmcounterss[0].data.sc_cache_access = 32'(sc_pmci[SC_CACHE_ACCESS]);
              assign pmcounterss[0].data.sc_cache_rd = 32'(sc_pmci[SC_CACHE_RD]);
              assign pmcounterss[0].data.sc_cache_miss = 32'(sc_pmci[SC_CACHE_MISS]);
              assign pmcounterss[0].data.sc_cache_miss_rd = 32'(sc_pmci[SC_CACHE_MISS_RD]);

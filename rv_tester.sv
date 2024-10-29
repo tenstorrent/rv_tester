@@ -798,7 +798,8 @@ module rv_tester
               .NRET(NRETS[p]),
               .SC_PMCI_ENABLED(p == 0),
               `TOPOLOGY_CFG,
-              `RV_TESTER_TRANSACTIONS_PMU_SOURCE_PARAMS(0)
+	      `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PARAMS(0),
+              `RV_TESTER_TRANSACTIONS_PMU_SC_SOURCE_PARAMS(0)
           ) pmu (
               .clk(dut_clk[CORE_CLK_IDX]),
               .sys_reset(sys_reset[CORE_CLK_IDX]),
@@ -809,8 +810,8 @@ module rv_tester
               .sc_pmci(sc_pmci),
               .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
               .terminate,
-              `RV_TESTER_TRANSACTIONS_CORE_PMU_SOURCE_PORTS(1, p, 0)
-              `RV_TESTER_TRANSACTIONS_SC_PMU_SOURCE_PORTS(1, p, 0)
+              `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PORTS(1, p, 0),
+              `RV_TESTER_TRANSACTIONS_PMU_SC_SOURCE_PORTS(1, p, 0)
           );
         end else begin
           pmu #(
@@ -818,7 +819,8 @@ module rv_tester
               .NRET(NRETS[p]),
               .SC_PMCI_ENABLED(p == 0),
               `TOPOLOGY_CFG,
-              `RV_TESTER_TRANSACTIONS_PMU_SOURCE_PARAMS(0)
+	      `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PARAMS(0),
+              `RV_TESTER_TRANSACTIONS_PMU_SC_SOURCE_PARAMS(0)
           ) pmu (
               .clk(dut_clk[CORE_CLK_IDX]),
               .sys_reset(sys_reset[CORE_CLK_IDX]),
@@ -829,7 +831,8 @@ module rv_tester
               .sc_pmci(),
               .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
               .terminate,
-              `RV_TESTER_TRANSACTIONS_CORE_PMU_SOURCE_PORTS(1, p, 0)
+              `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PORTS(1, p, 0),
+              `RV_TESTER_TRANSACTIONS_PMU_SC_SOURCE_PORTS(1, p, 0)
           );
         end
     end

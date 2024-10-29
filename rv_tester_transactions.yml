@@ -734,6 +734,16 @@ pmu_sc:
                 width: 32
             sc_cancel_piperesult:
                 width: 32
+            perf_start_sc:
+                width: 1
+            perf_end_sc:
+                width: 1
+            terminate_sc:
+                width: 1
+            overflow_sc:
+                width: 1
+            sync_sc:
+                width: 1
 pmu_core:
     num: ${TOP.PLATFORM.NHARTS}
     pmcounters:

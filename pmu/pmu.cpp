@@ -24,37 +24,39 @@ REGISTRY_register(pmu, PMCI, cvm::registry::all);
 pmu::pmu(cvm::topology::loc_t loc, unsigned id)
   : log("h" + std::to_string(id) + "_pmcounters.log"), loc_(loc), id_(id)
 {
-  if (id == 0) {
-    counter_size = static_cast<int>(counter_core::COUNT_CORE) + static_cast<int>(counter_sc::COUNT_SC);
-    to_string = concatenate_maps(core_to_string, sc_to_string);
-  } else {
-    counter_size = counter_core::COUNT_CORE;
-    to_string = core_to_string;
-  }
-
   if (FLAGS_perf) {
-    perf_region.resize(counter_size, 0);
-    counters.resize(counter_size, 0);
+    perf_region_core.resize(counter_core::COUNT_CORE, 0);
+    counters_core.resize(counter_core::COUNT_CORE, 0);
+    if (id == 0) {
+      perf_region_sc.resize(counter_sc::COUNT_SC, 0);
+      counters_sc.resize(counter_sc::COUNT_SC, 0);
+    }
 
     if (FLAGS_pmcounters_log != 0) {
       std::string log_str;
-      assert(to_string.size() == counter_size);
+      assert(core_to_string.size() == counter_core::COUNT_CORE);
       log_str += fmt::format("trigger");
-      for (size_t i = 0; i < counter_size; i++) {
-        log_str += fmt::format(",{}", to_string.at(static_cast<counter>(i)));
+      for (size_t i = 0; i < counter_core::COUNT_CORE; i++) {
+        log_str += fmt::format(",{}", core_to_string.at(static_cast<counter_core>(i)));
       }
+      if (id == 0) {
+        assert(sc_to_string.size() == counter_sc::COUNT_SC);
+        for (size_t i = 0; i < counter_sc::COUNT_SC; i++) {
+          log_str += fmt::format(",{}", sc_to_string.at(static_cast<counter_sc>(i)));
+        }
+      }  
       log_str += fmt::format("\n");
       log(cvm::NONE, fmt::to_string(log_str));
     }
 
     auto platform = cvm::topology::get_from_type("PLATFORM", 0);
 
-    cvm::registry::messenger.connect<rv_tester_transactions::pmu_core::pmcounters<>>(loc, [this] (const auto& v) { return this->process(v); });
+    cvm::registry::messenger.connect<rv_tester_transactions::pmu_core::pmcounters<>>(loc, [this] (const auto& v) { return this->process_core(v); });
     if (id == 0) {
-      cvm::registry::messenger.connect<rv_tester_transactions::pmu_sc::pmcounters<>>(loc, [this] (const auto& v) { return this->process(v); });
+      cvm::registry::messenger.connect<rv_tester_transactions::pmu_sc::pmcounters<>>(loc, [this] (const auto& v) { return this->process_sc(v); });
     }
-    cvm::registry::messenger.connect<rv_tester_transactions::pmu_core::hpmcounters<>>(loc, [this] (const auto& v) { return this->process(v); });
-    cvm::registry::messenger.connect<rv_tester_transactions::pmu_core::pmc_checker<>>(loc, [this] (const auto& v) { return this->process(v); });
+    cvm::registry::messenger.connect<rv_tester_transactions::pmu_core::hpmcounters<>>(loc, [this] (const auto& v) { return this->process_core(v); });
+    cvm::registry::messenger.connect<rv_tester_transactions::pmu_core::pmc_checker<>>(loc, [this] (const auto& v) { return this->process_core(v); });
     cvm::registry::messenger.connect<rv_tester::terminate_called_fast>(platform, [this] (const auto& v) { return this->process(v); });
   }
 }
@@ -70,40 +72,63 @@ pmu::~pmu()
 }
 
 void
-pmu::process(const rv_tester_transactions::pmu_core::pmcounters<>& pmcounters_core,
-                  const rv_tester_transactions::pmu_sc::pmcounters<>& pmcounters_sc)
+pmu::process_core(const rv_tester_transactions::pmu_core::pmcounters<>& pmcounters)
 {
-  if (id_ == 0) {
-    if ((loc_ != pmcounters_core.location) && (loc_ != pmcounters_sc.location))
+  if (loc_ != pmcounters.location)
       return;
-  } else {
-    if (loc_ != pmcounters_core.location)
-      return;
-  }
 
   if (terminated_ and not sync_terminate_)
     return;
   else if (terminated_)
-    sync_terminate_ = not pmcounters_core.terminate; // we need to wait until the last PMU packet
+    sync_terminate_ = not pmcounters.terminate; // we need to wait until the last PMU packet
 
-  cvm::log(cvm::HIGH, "[PMU] syncing counters\n");
+  cvm::log(cvm::HIGH, "[PMU] syncing core counters\n");
 
-  core_to_vector(pmcounters_core);
-  if (id_ == 0) {
-    sc_to_vector(pmcounters_sc);
-  }
+  core_to_vector(pmcounters);
 
-  if (pmcounters_core.perf_start)
+  if (pmcounters.perf_start)
     perf_region_start();
 
-  if (pmcounters_core.perf_end)
+  if (pmcounters.perf_end)
     perf_region_end();
 
   if (FLAGS_pmcounters_log != 0) {
     std::string log_str;
-    log_str += fmt::format("{}", trigger_str(pmcounters_core));
-    for (size_t i = 0; i < counters.size(); i++) {
-      log_str += fmt::format(",{}", counters[i]);
+    log_str += fmt::format("{}", trigger_str_core(pmcounters));
+    for (size_t i = 0; i < counters_core.size(); i++) {
+      log_str += fmt::format(",{}", counters_core[i]);
+    }
+    log_str += fmt::format("\n");
+    log(cvm::NONE, fmt::to_string(log_str));
+  }
+}
+
+void
+pmu::process_sc(const rv_tester_transactions::pmu_sc::pmcounters<>& pmcounters)
+{
+  if (loc_ != pmcounters.location)
+      return;
+
+  if (terminated_ and not sync_terminate_)
+    return;
+  else if (terminated_)
+    sync_terminate_ = not pmcounters.terminate_sc; // we need to wait until the last PMU packet
+
+  cvm::log(cvm::HIGH, "[PMU] syncing sc counters\n");
+
+  sc_to_vector(pmcounters);
+
+  if (pmcounters.perf_start_sc)
+    perf_region_start();
+
+  if (pmcounters.perf_end_sc)
+    perf_region_end();
+
+  if (FLAGS_pmcounters_log != 0) {
+    std::string log_str;
+    log_str += fmt::format("{}", trigger_str_sc(pmcounters));
+    for (size_t i = 0; i < counters_sc.size(); i++) {
+      log_str += fmt::format(",{}", counters_sc[i]);
     }
     log_str += fmt::format("\n");
     log(cvm::NONE, fmt::to_string(log_str));
@@ -111,13 +136,24 @@ pmu::process(const rv_tester_transactions::pmu_core::pmcounters<>& pmcounters_co
 }
 
 std::string
-pmu::trigger_str(const rv_tester_transactions::pmu_core::pmcounters<>& pmcounters)
+pmu::trigger_str_core(const rv_tester_transactions::pmu_core::pmcounters<>& pmcounters)
 {
   return pmcounters.perf_start  ? "perf_start"  :
          pmcounters.perf_end    ? "perf_end"    :
          pmcounters.terminate   ? "terminate"   :
          pmcounters.sync        ? "sync"        :
          pmcounters.overflow    ? "overflow"    :
+                                  "none";
+}
+
+std::string
+pmu::trigger_str_sc(const rv_tester_transactions::pmu_sc::pmcounters<>& pmcounters)
+{
+  return pmcounters.perf_start_sc  ? "perf_start"  :
+         pmcounters.perf_end_sc    ? "perf_end"    :
+         pmcounters.terminate_sc   ? "terminate"   :
+         pmcounters.sync_sc        ? "sync"        :
+         pmcounters.overflow_sc    ? "overflow"    :
                                   "none";
 }
 
@@ -134,8 +170,13 @@ pmu::process(const rv_tester::terminate_called_fast&)
   if (FLAGS_pmcounters_log != 0) {
     std::string log_str;
     log_str += fmt::format("fast_terminate");
-    for (size_t i = 0; i < counters.size(); i++) {
-      log_str += fmt::format(",{}", counters[i]);
+    for (size_t i = 0; i < counters_core.size(); i++) {
+      log_str += fmt::format(",{}", counters_core[i]);
+    }
+    if (id_ == 0) {
+      for (size_t i = 0; i < counters_sc.size(); i++) {
+        log_str += fmt::format(",{}", counters_sc[i]);
+      }
     }
     log_str += fmt::format("\n");
     log(cvm::NONE, fmt::to_string(log_str));
@@ -145,10 +186,17 @@ pmu::process(const rv_tester::terminate_called_fast&)
 void
 pmu::report()
 {
-  for (size_t i = 0; i < counter_size; i++) {
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_{}\": \"{}\"}}\n", id_, to_string.at(static_cast<counter>(i)), counters[i]);
+  for (size_t i = 0; i < counter_core::COUNT_CORE; i++) {
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_{}\": \"{}\"}}\n", id_, core_to_string.at(static_cast<counter_core>(i)), counters_core[i]);
     if (perf_start_cycle and perf_end_cycle)
-      cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_perf_{}\": \"{}\"}}\n", id_, to_string.at(static_cast<counter>(i)), perf_region[i]);
+      cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_perf_{}\": \"{}\"}}\n", id_, core_to_string.at(static_cast<counter_core>(i)), perf_region_core[i]);
+  }
+  if (id_ == 0) {
+    for (size_t i = 0; i < counter_sc::COUNT_SC; i++) {
+      cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_{}\": \"{}\"}}\n", id_, sc_to_string.at(static_cast<counter_sc>(i)), counters_sc[i]);
+      if (perf_start_cycle and perf_end_cycle)
+        cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_perf_{}\": \"{}\"}}\n", id_, sc_to_string.at(static_cast<counter_sc>(i)), perf_region_sc[i]);
+    }
   }
 
   if (perf_start_cycle and perf_end_cycle) {
@@ -173,7 +221,7 @@ pmu::is_within_range(double actual, double expected, int tolerance_perc, bool hi
 void
 pmu::ipc_check()
 {
-  const auto& used = (perf_start_cycle and perf_end_cycle)? perf_region : counters;
+  const auto& used = (perf_start_cycle and perf_end_cycle)? perf_region_core : counters_core;
   double ipc_actual = used[CPU_CYCLES] ? static_cast<double>(used[INSTRUCTIONS]) / static_cast<double>(used[CPU_CYCLES]) : 0.0;
 
   if (!is_within_range(ipc_actual, FLAGS_ipc_expected, FLAGS_ipc_tolerance_perc, true)) {
@@ -187,7 +235,7 @@ pmu::ipc_check()
 void
 pmu::l1d_read_miss_check()
 {
-  const auto& used = (perf_start_cycle and perf_end_cycle)? perf_region : counters;
+  const auto& used = (perf_start_cycle and perf_end_cycle)? perf_region_core : counters_core;
   double l1d_read_miss_actual = used[L1D_READ_ACCESS_ALL] ? static_cast<double>(used[L1D_READ_MISS]) / static_cast<double>(used[L1D_READ_ACCESS_ALL]) * 100.0 : 0.0;
 
   if (!is_within_range(l1d_read_miss_actual, FLAGS_l1d_read_miss_expected, FLAGS_l1d_read_miss_tolerance_perc, false)) {
@@ -216,7 +264,7 @@ pmu::shutdown_ready()
 }
 
 void
-pmu::process(const rv_tester_transactions::pmu_core::hpmcounters<>& hpmcounters)
+pmu::process_core(const rv_tester_transactions::pmu_core::hpmcounters<>& hpmcounters)
 {
   hpmcounters_array[0]  = hpmcounters.hpmcounter3;
   hpmcounters_array[1]  = hpmcounters.hpmcounter4;
@@ -228,7 +276,7 @@ pmu::process(const rv_tester_transactions::pmu_core::hpmcounters<>& hpmcounters)
   hpmcounters_array[7]  = hpmcounters.hpmcounter10;
 }
 void
-pmu::process(const rv_tester_transactions::pmu_core::pmc_checker<>& pmc_checker)
+pmu::process_core(const rv_tester_transactions::pmu_core::pmc_checker<>& pmc_checker)
 {
   if (!FLAGS_pmc_sideband_check)
     return;
@@ -247,7 +295,7 @@ pmu::process(const rv_tester_transactions::pmu_core::pmc_checker<>& pmc_checker)
         else{
           event_csr_array[i].programmed = true;
           event_csr_array[i].event_type = event_map.at(pmc_checker.event_id);
-          event_csr_array[i].sideband_count_eventwr  = counters[event_csr_array[i].event_type];
+          event_csr_array[i].sideband_count_eventwr  = counters_core[event_csr_array[i].event_type];
           cvm::log(cvm::HIGH, "Hart {}: mhpmevent{} was programmed with event value {:#x}\n", id_, i+3, pmc_checker.event_id);
         }
         
@@ -257,11 +305,11 @@ pmu::process(const rv_tester_transactions::pmu_core::pmc_checker<>& pmc_checker)
   else if(pmc_checker.terminate == 1){
     for (size_t i = 0; i < num_event_csrs; i++){
       if(event_csr_array[i].programmed == true){
-        sideband_count_terminate_ = counters[event_csr_array[i].event_type];
+        sideband_count_terminate_ = counters_core[event_csr_array[i].event_type];
         expected_count_           = sideband_count_terminate_ - event_csr_array[i].sideband_count_eventwr;
         actual_count_             = hpmcounters_array[i];
         if (std::abs(static_cast<long>(expected_count_) - static_cast<long>(actual_count_)) > std::ceil(FLAGS_pmc_check_threshold * actual_count_ * 0.01) ){
-          cvm::log(cvm::ERROR, "ERROR: Hart {}:  PMC hpmcount{} vs sideband mismatch for {} : expected_count:{} actual_count:{}\n", id_, i+3, to_string.at(static_cast<counter>(event_csr_array[i].event_type)), expected_count_, actual_count_);
+          cvm::log(cvm::ERROR, "ERROR: Hart {}:  PMC hpmcount{} vs sideband mismatch for {} : expected_count:{} actual_count:{}\n", id_, i+3, core_to_string.at(static_cast<counter_core>(event_csr_array[i].event_type)), expected_count_, actual_count_);
         }
       }
     }
