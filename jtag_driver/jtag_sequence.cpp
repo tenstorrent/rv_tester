@@ -182,6 +182,7 @@ void jtag_sequence::parse_jtag_from_csv()
       }
       data_s = row[1];
       length = row[2]; //TODO
+            cvm::log(cvm::HIGH, "[Trickbox] Jtag_sequence : data_length_1: {}\n",data_s);
       
       // remove empty spaces from string
       instr.erase(std::remove_if(instr.begin(), instr.end(), ::isspace), instr.end());
@@ -221,21 +222,30 @@ void jtag_sequence::parse_jtag_from_csv()
       }
       
       if(jtag_req.jtag_cmd<3 || jtag_req.jtag_cmd == 4 ||jtag_req.jtag_cmd == 12){ 
+            cvm::log(cvm::HIGH, "[Trickbox] Jtag_sequence :jtag_req.jtag_cmd {}\n",jtag_req.jtag_cmd);
          length = row[2];  //length NA for nop 
       }
+            cvm::log(cvm::HIGH, "[Trickbox] Jtag_sequence : data_length_2: {}\n",data_s);
       
       data_s.erase(std::remove_if(data_s.begin(), data_s.end(), ::isspace), data_s.end());
+            cvm::log(cvm::HIGH, "[Trickbox] Jtag_sequence : data_length_3: {}\n",data_s);
       // convert string to lowercase for uniformity
       std::transform(data_s.begin(), data_s.end(), data_s.begin(), ::tolower);
+            cvm::log(cvm::HIGH, "[Trickbox] Jtag_sequence : data_length_4: {}\n",data_s);
       // cvm::log(cvm::HIGH, "[jtag_sequence] length {:#x}\n",length);
       //check data length
+      if (data_s.substr(0, 2) == "0x" || data_s.substr(0, 2) == "0x") {
+        data_s = data_s.substr(2);
+        }
       unsigned data_len = data_s.length();
+            cvm::log(cvm::HIGH, "[Trickbox] Jtag_sequence : data_length: {}\n",data_s);
       if(data_len>16){
         std::string data_s_upper = data_s.substr(0, data_len-16);
         std::string data_s_lower = data_s.substr(data_len-16, data_len);
       
         try{
           jtag_req.jtag_ip_data_lower = std::stoul(data_s_lower,nullptr,16);
+            cvm::log(cvm::HIGH, "[Trickbox] Jtag_sequence : jtag_req.jtag_ip_data_lower: {}\n",jtag_req.jtag_ip_data_lower);
           
         } catch (const std::invalid_argument& e) {
               cvm::log(cvm::ERROR, "[jtag_sequence] Invalid argument: data for stoul csv arg 1: {}\n", e.what());
@@ -243,6 +253,7 @@ void jtag_sequence::parse_jtag_from_csv()
       
         try{
           jtag_req.jtag_ip_data_upper = std::stoul(data_s_upper,nullptr,16);
+            cvm::log(cvm::HIGH, "[Trickbox] Jtag_sequence : jtag_req.jtag_ip_data_upper: {}\n",jtag_req.jtag_ip_data_upper);
           
         } catch (const std::invalid_argument& e) {
             cvm::log(cvm::ERROR, "[Trickbox] Invalid argument: data for stoul csv arg 1: {}\n", e.what());
@@ -268,6 +279,8 @@ void jtag_sequence::parse_jtag_from_csv()
       }else if(jtag_req.jtag_cmd ==12){
             jtag_req.jtag_length_data = 64;
             jtag_req.jtag_cm_value =  std::stoul(length,nullptr,16);
+            cvm::log(cvm::HIGH, "[Trickbox] Jtag_sequence : jtag_req.jtag_length_data: {}\n",jtag_req.jtag_length_data);
+            cvm::log(cvm::HIGH, "[Trickbox] Jtag_sequence : jtag_req.jtag_cm_value  {}\n", jtag_req.jtag_cm_value);
       }
       else{
          jtag_req.jtag_length_data = 0;
@@ -426,6 +439,12 @@ void jtag_sequence::drive_csv_jtag_cmds()
     padding_length  = reg_length_data; 
     jtag_cm_value    = jtag_req.jtag_cm_value;
     cvm::log(cvm::HIGH, "[jtag_sequence] Driving jtag cmd {}\n", jtag_cmd);
+    cvm::log(cvm::HIGH, "[jtag_sequence] Driving jtag cmd {}\n", jtag_cmd);
+    cvm::log(cvm::HIGH, "[jtag_sequence] Driving jtag upper_jtag_data {}\n", upper_jtag_data);
+    cvm::log(cvm::HIGH, "[jtag_sequence] Driving jtag lower_jtag_data {}\n", lower_jtag_data);
+    cvm::log(cvm::HIGH, "[jtag_sequence] Driving jtag reg_length_data {}\n", reg_length_data);
+    cvm::log(cvm::HIGH, "[jtag_sequence] Driving jtag padding_length  {}\n", padding_length);
+    cvm::log(cvm::HIGH, "[jtag_sequence] Driving jtag jtag_cm_value   {}\n", jtag_cm_value);
 
     if(jtag_cmd<3){
       hart = 0; // hart bits position TBD, till TBD it is always zero
@@ -492,19 +511,19 @@ void jtag_sequence::drive_csv_jtag_cmds()
     if(jtag_cmd == 4){
       if(convertedArray[0] == lower_jtag_data){
        //PASS
-       cvm::log(cvm::HIGH, "[jtag_sequence] jtag check opcode Passed! expected {:#x} got {} \n", lower_jtag_data,result);
+       cvm::log(cvm::HIGH, "[jtag_sequence] jtag check opcode Passed! expected {:#x} got {:#x} \n", lower_jtag_data,result);
       }else{
        //FAIL
-       cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check opcode failed! expected {:#x} got {} \n", lower_jtag_data,result);
+       cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check opcode failed! expected {:#x} got {:#x} \n", lower_jtag_data,result);
       }
     }else if(jtag_cmd == 12){
       cvm::log(cvm::HIGH, "\n[jtag_sequence] jtag check mask opcode: result {:#x} mask {:#x} expected {:#x} \n", convertedArray[0],lower_jtag_data,jtag_cm_value);
       if((convertedArray[0] & lower_jtag_data) == jtag_cm_value){
        //PASS
-       cvm::log(cvm::HIGH, "[jtag_sequence] jtag check mask opcode Passed! expected {:#x} got {} \n", jtag_cm_value,(convertedArray[0] & lower_jtag_data));
+       cvm::log(cvm::HIGH, "[jtag_sequence] jtag check mask opcode Passed! expected {:#x} got {:#x} \n", jtag_cm_value,(convertedArray[0] & lower_jtag_data));
       }else{
        //FAIL
-       cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check mask opcode failed! expected {:#x} got {} \n", jtag_cm_value,(convertedArray[0] & lower_jtag_data));
+       cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check mask opcode failed! expected {:#x} got {:#x} \n", jtag_cm_value,(convertedArray[0] & lower_jtag_data));
       }
     }
       jtag_cmd_q.pop(); // pop front eleme7t
