@@ -44,6 +44,7 @@ DEFINE_string(whisper_json_path, "", "Path to whisper json config");
 DEFINE_uint64(nmi_vec, 0, "NMI handler PC");
 DEFINE_uint64(nme_vec, 0, "NMI exception handler PC");
 DEFINE_bool(ppo, true, "Enable ppo checks");
+DEFINE_bool(traceptw, true, "Enable page table walk tracing");
 
 REGISTRY_register(whisperClient<uint64_t>, TOP.PLATFORM.WHISPER_CLIENT, 0);
 
@@ -213,7 +214,7 @@ constructSystem(uint16_t ncores, bool standalone, bool firmware) {
     // raw mode
     hart.enableNewlib(false);
     hart.enableLinux(false);
-    hart.tracePtw(true);
+    hart.tracePtw(FLAGS_traceptw);
     if (firmware) hart.defineResetPc(FLAGS_resetpcfw);
     else          hart.defineResetPc(FLAGS_resetpc);
     hart.defineNmiPc(getNmiPc());
@@ -393,7 +394,9 @@ template <typename URV>
 bool
 whisperClient<URV>::whisperCommand(const WhisperMessage& req, WhisperMessage& reply)
 {
-  server_->interact(req, reply, traceFile_, commandLog_);
+  if(FLAGS_cosim && (server_ != nullptr)) {
+    server_->interact(req, reply, traceFile_, commandLog_);
+  }
   return true;
 }
 

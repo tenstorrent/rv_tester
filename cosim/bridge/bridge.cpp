@@ -560,7 +560,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   // Step whisper
   w_.clear();
 
-  if (patch_mode_ == NO_PATCH || patch_mode_ == ENTER_PATCH) {
+  if (patch_mode_ == NO_PATCH || patch_mode_ == EXIT_PATCH) {
     auto stime = std::chrono::high_resolution_clock::now();
     step(hart, w);
     step_++;
@@ -569,7 +569,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   }
   // Update cac with whisper state
   if (!psc_stepping_) {
-    if (patch_mode_ == NO_PATCH || patch_mode_ == ENTER_PATCH) {
+    if (patch_mode_ == NO_PATCH || patch_mode_ == EXIT_PATCH) {
       IF_DEBUG("updating whisper state");
       update_whisper_state(hart, w);
     }
@@ -608,7 +608,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   IF_DEBUG("no excp in debug mode...keep going");
 
   // Save whisper state
-  if (patch_mode_ == NO_PATCH || patch_mode_ == ENTER_PATCH) {
+  if (patch_mode_ == NO_PATCH || patch_mode_ == EXIT_PATCH) {
     ppw_ = pw_;
     pw_ = w;
     pd_ = d;
@@ -1024,10 +1024,10 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
       prev_sync_intr_ = true; // This will waive cases when after execution of mret there exists a csr operation which needs to be interrupted.
     }
 
-    if (w.disasm.find("vstimecmp") != std::string::npos)  {
+    if (w.disasm.find("vstimecmp") != std::string::npos && !w_.excp)  {
       IF_DEBUG("VSTIMECMP instruction");
       if (!vstimecmppoked_) resetsstc_poke(hart,d.cycle, 0x24d); else setsstc_poke(hart,d.cycle, 0x24d);
-    } else if (w.disasm.find("stimecmp") != std::string::npos) {
+    } else if (w.disasm.find("stimecmp") != std::string::npos && !w_.excp) {
       IF_DEBUG("STIMECMP instruction");
       if (w.priv_mode == 9) {if (!vstimecmppoked_) resetsstc_poke(hart,d.cycle, 0x24d); else setsstc_poke(hart,d.cycle, 0x24d);}
       else if (!stimecmppoked_)  resetsstc_poke(hart,d.cycle, 0x14d); else setsstc_poke(hart,d.cycle, 0x14d);

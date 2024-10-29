@@ -231,7 +231,15 @@ module rv_tester
             flush_counter   <= '0;
             instructions    <= '0;
             dmi_poll_timeout_terminate <= '0;
+            if (num_resets < 0) begin
+                clocks <= '0;
+            end
         end
+
+        num_resets <= num_resets + int'(warm_reset_now);
+        if (warm_reset_en && (num_resets < 0)) begin
+            num_resets          <= 0;
+        end 
 
         if (terminate && terminated) begin
             num_resets      <= -1;
@@ -330,9 +338,7 @@ module rv_tester
             num_reruns  <= cvm_plusargs::get_int("num_reruns");
         end
 
-        num_resets <= num_resets + int'(warm_reset_now);
         if (warm_reset_en && (num_resets < 0)) begin
-            num_resets          <= 0;
             target_num_resets   <= cvm_rand::get("warm_reset_count");
         end
     end
