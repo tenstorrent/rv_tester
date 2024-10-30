@@ -266,6 +266,7 @@ void bridge::csr_init() {
     error("Hart {}: Failed to peek csr : 0xBC2\n", id_);
   }
   csr_rename_en_ = !((data & 0x200) >> 9);
+  csr_rd_opt_ = !((data & 0x4) >> 2);
 }
 
 void bridge::setsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr) {
@@ -1703,20 +1704,28 @@ return false;
 void bridge::arch_state(whisper_state_t& w) {
 
   if (w.resource == 'c') {
-      if(w.address == 0x300) {
-          if(((w.value) & 0x20000) != 0) {
-              mprv_ = 1;
-              mpp_ = ((w.value) & 0x1800) >> 11;
-              mpv_ = ((w.value) & 0x8000000000) >> 39;
-            }
-            else
-              mprv_ = 0;
-        }
+    if(w.address == 0x300) {
+      if(((w.value) & 0x20000) != 0) {
+        mprv_ = 1;
+        mpp_ = ((w.value) & 0x1800) >> 11;
+        mpv_ = ((w.value) & 0x8000000000) >> 39;
       }
-      if (w.address == 0xBC2) {
-        csr_rename_en_ = !((w.value & 0x200) >> 9);
+      else {
+        mprv_ = 0;
       }
+    }
+    if (w.address == 0xBC2) {
+      csr_rename_en_ = !((w.value & 0x200) >> 9);
+      csr_rd_opt_ = !((w.value & 0x4) >> 2);
+    }
   }
+
+  if (!prev_csr_rd_opt_ && csr_rd_opt_) {
+    FLAGS_mip_resynch_threshold = FLAGS_mip_resynch_threshold * 4;
+  }
+
+  prev_csr_rd_opt_ = csr_rd_opt_;
+}
 
 
 bool bridge::is_vector(const std::string& instr) {
