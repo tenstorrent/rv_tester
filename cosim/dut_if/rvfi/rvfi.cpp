@@ -273,9 +273,11 @@ void rvfi::process(const rv_tester_transactions::cosim::m_imsic_msi<>& m_imsic_m
     return;
 
   mem_t mem;
+  mem.valid = true;
   mem.cycle = m_imsic_msi.cycle;
   mem.pa = m_imsic_msi.addr;
   mem.data = m_imsic_msi.data.to_ullong();
+  mem.size = 4;
 
   bridge_->process_dut_imsic_msi(id_, mem);
   if (FLAGS_rvfi_log) {
