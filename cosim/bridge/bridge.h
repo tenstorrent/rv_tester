@@ -181,7 +181,6 @@ private:
   bool debug_mem_access(const rv_instr_t& d);
   bool unsupported_mmr_access(const rv_instr_t& d);
   bool unsupported_csr_access(const std::string& instr);
-  bool cpl_smc_access(const rv_instr_t& d);
   bool htif_read(const rv_instr_t& d);
   bool hpm_counter_read(const std::string& instr);
   bool mip_mismatch(const std::string& instr);

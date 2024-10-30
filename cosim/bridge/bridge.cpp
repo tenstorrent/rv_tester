@@ -1813,11 +1813,6 @@ bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const std::
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[unsupported_csr_access]\n", d.cycle);
     return true;
   }
-  // Case #12
-  if (cpl_smc_access(d)) {
-    bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[cpl_smc_access]\n", d.cycle);
-    return true;
-  }
   return false;
 }
 
@@ -1920,14 +1915,6 @@ bool bridge::unsupported_csr_access(const std::string& instr) {
     IF_DEBUG("CSR instruction") ;
     return true;
   }
-  return false;
-}
-
-bool bridge::cpl_smc_access(const rv_instr_t& d){
-  if (d.mem_read.valid &&
-      d.mem_read.pa >= smc_lo_addr &&
-      d.mem_read.pa < smc_hi_addr)
-    return true;
   return false;
 }
 
