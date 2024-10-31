@@ -347,18 +347,20 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.priv  = m_rvfi.priv;
   ucode_priv_change_ = m_rvfi.priv_change;
 
+  if (!priv_to_string.count(static_cast<priv>(instr.priv))) {
+    cvm::log(cvm::ERROR, "Error: Invalid rvfi privilege mode: {:#x}\n", instr.priv);
+    return;
+  }
+
   if (m_rvfi.set_pmode) { // when we enter patch mode via ucode
     cvm::log(cvm::HIGH, "CLOCK={}: Patch mode turned ON",m_rvfi.cycle);
     bridge_->set_patch_mode(2); // IN_PATCH
     patch_mode_ = true;
   }
   if (m_rvfi.clr_pmode) {
-      cvm::log(cvm::HIGH, "CLOCK={}: Patch mode turned OFF\n",m_rvfi.cycle);
-      if (!priv_to_string.count(static_cast<priv>(instr.priv))) {
-          cvm::log(cvm::ERROR, "Error: Invalid rvfi privilege mode: {:#x}\n", instr.priv);
-      }
-      bridge_->set_patch_mode(3);
-      patch_mode_ = false;
+    cvm::log(cvm::HIGH, "CLOCK={}: Patch mode turned OFF\n",m_rvfi.cycle);
+    bridge_->set_patch_mode(3);
+    patch_mode_ = false;
   }
 
   if ((instr.priv & 0x7) == 0x3) {
@@ -405,8 +407,10 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
       }
     }
     priv_ = m_rvfi.mode;
-    if (!priv_to_string.count(static_cast<priv>(instr.priv)))
+    if (!priv_to_string.count(static_cast<priv>(instr.priv))) {
       cvm::log(cvm::ERROR, "Error: Invalid rvfi privilege mode: {:#x}\n", instr.priv);
+      return;
+    }
   }
 #endif
 
