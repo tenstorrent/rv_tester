@@ -45,7 +45,7 @@ pmu::pmu(cvm::topology::loc_t loc, unsigned id)
       log_core(cvm::NONE, fmt::to_string(log_str_core));
 
       assert(sc_to_string.size() == counter_sc::COUNT_SC);
-      std::string log_str_sc = generate_log_str(sc_to_string, counter_sc::COUNT_S
+      std::string log_str_sc = generate_log_str(sc_to_string, counter_sc::COUNT_SC);
       log_sc(cvm::NONE, fmt::to_string(log_str_sc));
     }
 
