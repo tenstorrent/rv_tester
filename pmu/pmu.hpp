@@ -2160,13 +2160,13 @@ private:
   cvm::topology::loc_t loc_;
   unsigned id_;
 
-  std::vector<uint64_t> counters_core;
-  std::vector<uint64_t> counters_sc;
+  std::array<std::uint64_t, counter_core::COUNT_CORE> counters_core;
+  std::array<std::uint64_t, counter_sc::COUNT_SC> counters_sc;
 
   uint64_t perf_start_cycle = 0;
   uint64_t perf_end_cycle = 0;
-  std::vector<uint64_t> perf_region_core;
-  std::vector<uint64_t> perf_region_sc;
+  std::array<std::uint64_t, counter_core::COUNT_CORE> perf_region_core;
+  std::array<std::uint64_t, counter_sc::COUNT_SC> perf_region_sc;
 
   std::atomic<bool> terminated_ = false;
   std::atomic<bool> sync_terminate_ = false;

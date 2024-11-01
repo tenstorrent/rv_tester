@@ -21,39 +21,32 @@ DEFINE_bool(ignore_pmc_reprogram, false, "toggle ignore on illegal reprograming 
 
 REGISTRY_register(pmu, PMCI, cvm::registry::all);
 
+template <typename T, size_t N>
+std::string pmu::generate_log_str(const std::array<std::string, N>& to_string, const T& counter_enum) {
+  std::string log_str;
+  log_str += fmt::format("trigger");
+  for (size_t i = 0; i < N; i++) {
+    log_str += fmt::format(",{}", to_string.at(static_cast<T>(i)));
+  }
+  log_str += fmt::format("\n");
+  return log_str;
+}
+
 pmu::pmu(cvm::topology::loc_t loc, unsigned id)
   : log_core("h" + std::to_string(id) + "_pmcounters_core.log"), 
     log_sc("h" + std::to_string(id) + "_pmcounters_sc.log"), 
-    loc_(loc), id_(id)
+    loc_(loc), id_(id),
+    counters_core{}, counters_sc{}, perf_region_core{}, perf_region_sc{}
 {
   if (FLAGS_perf) {
-    perf_region_core.resize(counter_core::COUNT_CORE, 0);
-    counters_core.resize(counter_core::COUNT_CORE, 0);
-    if (id_ == 0) {
-      perf_region_sc.resize(counter_sc::COUNT_SC, 0);
-      counters_sc.resize(counter_sc::COUNT_SC, 0);
-    }
-
     if (FLAGS_pmcounters_log != 0) {
-      std::string log_str_core;
       assert(core_to_string.size() == counter_core::COUNT_CORE);
-      log_str_core += fmt::format("trigger");
-      for (size_t i = 0; i < counter_core::COUNT_CORE; i++) {
-        log_str_core += fmt::format(",{}", core_to_string.at(static_cast<counter_core>(i)));
-      }
-      log_str_core += fmt::format("\n");
+      std::string log_str_core = generate_log_str(core_to_string, counter_core::COUNT_CORE);
       log_core(cvm::NONE, fmt::to_string(log_str_core));
 
-      if (id_ == 0) {
-        std::string log_str_sc;
-        assert(sc_to_string.size() == counter_sc::COUNT_SC);
-        log_str_core += fmt::format("trigger");
-        for (size_t i = 0; i < counter_sc::COUNT_SC; i++) {
-          log_str_sc += fmt::format(",{}", sc_to_string.at(static_cast<counter_sc>(i)));
-        }
-        log_str_sc += fmt::format("\n");
-        log_sc(cvm::NONE, fmt::to_string(log_str_sc));
-      }  
+      assert(sc_to_string.size() == counter_sc::COUNT_SC);
+      std::string log_str_sc = generate_log_str(sc_to_string, counter_sc::COUNT_S
+      log_sc(cvm::NONE, fmt::to_string(log_str_sc));
     }
 
     auto platform = cvm::topology::get_from_type("PLATFORM", 0);
@@ -159,7 +152,7 @@ pmu::trigger_str_sc(const rv_tester_transactions::pmu_sc::pmcounters_sc<>& pmcou
          pmcounters.terminate_sc   ? "terminate"   :
          pmcounters.sync_sc        ? "sync"        :
          pmcounters.overflow_sc    ? "overflow"    :
-                                  "none";
+                                     "none";
 }
 
 void
