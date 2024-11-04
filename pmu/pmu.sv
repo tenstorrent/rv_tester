@@ -4,7 +4,7 @@ import rv_tester_pkg::*;
 #(
   parameter int NUM = -1,
   parameter int NRET = 1,
-  parameter int SC_PMCI_ENABLED =  -1,
+  parameter logic SC_PMCI_ENABLED =  0,
   `TOPOLOGY,
   `RV_TESTER_TRANSACTIONS_PMU_CORE_OUTPUT_PARAMS,
   `RV_TESTER_TRANSACTIONS_PMU_SC_OUTPUT_PARAMS
