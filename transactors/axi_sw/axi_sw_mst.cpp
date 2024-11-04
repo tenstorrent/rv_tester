@@ -17,6 +17,8 @@ REGISTRY_register((axi_sw_mst<rv_tester_transactions::axi_sw_mst::b<1>,
                               rv_tester_transactions::axi_sw_mst::aw_q_ptr<1>,
                               rv_tester_transactions::axi_sw_mst::w_q_ptr<1>>), SMC_AXI_MST, cvm::registry::all);
 
+DEFINE_bool(axi_allow_err_resp, false, "Allow error responses on axi_mst transactions");
+
 extern "C" {
     void axi_sw_mst_ar_reset();
     void axi_sw_mst_aw_reset();
@@ -47,6 +49,9 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::axi_sw_mst(cvm::topology::loc_t loc, unsigned id
       chk_rsp_err_ids_(size_t(1) << id_width_, true),
       read_bytes_(0), write_bytes_(0)
 {
+    name_ = cvm::topology::name(loc_);
+    std::transform(name_.begin(), name_.end(), name_.begin(), [](unsigned char c){ return std::tolower(c); });
+
     // available burst sizes
     uint32_t max_size = data_width_ >> 3;
     for (uint32_t i = 1; i <= max_size; i*=2)
@@ -79,10 +84,8 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::axi_sw_mst(cvm::topology::loc_t loc, unsigned id
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::~axi_sw_mst() {
 
-    std::string name = cvm::topology::name(loc_);
-    std::transform(name.begin(), name.end(), name.begin(), [](unsigned char c){ return std::tolower(c); });
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"{}{}_read_bytes\": {}}}\n", name, id_, read_bytes_);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"{}{}_write_bytes\": {}}}\n", name, id_, write_bytes_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"{}{}_read_bytes\": {}}}\n", name_, id_, read_bytes_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"{}{}_write_bytes\": {}}}\n", name_, id_, write_bytes_);
 }
 
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
@@ -90,10 +93,10 @@ void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const B& b) {
     if (b.resp != axi::RESP_OKAY or not used_id(b.id)) {
         // could have EXOKAY if it was locked, but assume not for now
-        if(chk_rsp_err_ids_[b.id]){
-            cvm::log(cvm::ERROR, "[axi_sw_mst] Error: bad b.response id:{} resp: {}\n", b.id, b.resp);
-        }else{
-            cvm::log(cvm::LOW, "[axi_sw_mst] Masking bad b.response id:{} resp: {}\n", b.id, b.resp);
+        if(!FLAGS_axi_allow_err_resp && chk_rsp_err_ids_[b.id]){
+            cvm::log(cvm::ERROR, "[{}] Error: bad b.response id:{} resp: {}\n", name_, b.id, b.resp);
+        } else {
+            cvm::log(cvm::HIGH, "[{}] Allowing error b.response id:{} resp: {}\n", name_, b.id, b.resp);
         }
         return;
     }
@@ -115,10 +118,10 @@ template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const R& r) {
     if (r.resp != axi::RESP_OKAY or not used_id(r.id)) {
-        if(chk_rsp_err_ids_[r.id]){
-            cvm::log(cvm::ERROR, "[axi_sw_mst] Error: bad r.response id: {} resp: {} last: {}\n", r.id, r.resp, r.last);
-        }else{
-            cvm::log(cvm::LOW, "[axi_sw_mst] Masking bad r.response id: {} resp: {} last: {}\n", r.id, r.resp, r.last);
+        if(!FLAGS_axi_allow_err_resp && chk_rsp_err_ids_[r.id]){
+            cvm::log(cvm::ERROR, "[{}] Error: bad r.response id: {} resp: {} last: {}\n", name_, r.id, r.resp, r.last);
+        } else {
+            cvm::log(cvm::HIGH, "[{}] Allowing error r.response id: {} resp: {} last: {}\n", name_, r.id, r.resp, r.last);
         }
         return;
     }
@@ -178,7 +181,7 @@ void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const axi::a_t& a) {
     //id check
     if (used_id(a.id)) {
-        cvm::log(cvm::ERROR, "[axi_sw_mst] Error: bad request id: {}, pass unused id for transaction \n", a.id);
+        cvm::log(cvm::ERROR, "[{}] Error: bad request id: {}, pass unused id for transaction \n", name_, a.id);
         return;
     }
     alloc_id(a.id);
@@ -204,12 +207,12 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::a_wrapper(uint64_t req_addr, size_t req_length, 
 
 
     if (!next_id(a.id)) {
-        cvm::log(cvm::ERROR, "[axi_sw_mst] Error: No free id's remaining for axi master\n");
+        cvm::log(cvm::ERROR, "[{}] Error: No free id's remaining for axi master\n", name_);
         return false;
     }
 
     if ((a.addr & axi::addr_t(~0xFFF)) != ((a.addr + req_length - 1) & axi::addr_t(~0xFFF))) {
-        cvm::log(cvm::ERROR, "[axi_sw_mst] Error: Request crosses 4k boundary, addr: {}, length: {}\n", req_addr, req_length);
+        cvm::log(cvm::ERROR, "[{}] Error: Request crosses 4k boundary, addr: {}, length: {}\n", name_, req_addr, req_length);
         return false;
     }
 
@@ -229,7 +232,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_a_no_id(const bool& aw, const axi::a_no_id_
     a.w = aw;
 
     if (!next_id(id)) {
-        cvm::log(cvm::ERROR, "[axi_sw_mst] Error: No free id's remaining for axi master\n");
+        cvm::log(cvm::ERROR, "[{}] Error: No free id's remaining for axi master\n", name_);
         return false;
     }
     a.id = id;
@@ -296,12 +299,12 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
                   w_q_wptr_ = (w_q_wptr_ + 1) % w_q_ptr_max_;
 
                   if (arg.strb.size() == 0) {
-                      cvm::log(cvm::ERROR, "[axi_sw_mst] Error: strb size is 0\n");
+                      cvm::log(cvm::ERROR, "[{}] Error: strb size is 0\n", name_);
                       return 1;
                   }
 
                   if (arg.strb.size() != arg.data.size()) {
-                      cvm::log(cvm::ERROR, "[axi_sw_mst] Error: strb size != data size\n");
+                      cvm::log(cvm::ERROR, "[{}] Error: strb size != data size\n", name_);
                       return 1;
                   }
 
@@ -322,7 +325,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
                           else if (data_width_ == 512)
                               axi_sw_mst_w_64(arg.data.data(), strb.data(), arg.last);
                           else
-                              cvm::log(cvm::ERROR, "[axi_sw_mst] Error: unsupported data width for axi_sw_mst");
+                              cvm::log(cvm::ERROR, "[{}] Error: unsupported data width {}", name_, data_width_);
                       });
               } else {
                   cvm::log(cvm::FULL, "[axi_sw_mst] skipping wdata\n");
@@ -330,7 +333,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
               }
           }
           else {
-              cvm::log(cvm::ERROR, "[axi_sw_mst] Error: unhandled axi_mst transaction type\n");
+              cvm::log(cvm::ERROR, "[{}] Error: unhandled axi_mst transaction type\n", name_);
               return 1;
           }
 
@@ -356,7 +359,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const transactor::read_request_t& req) {
 
      if (!a_wrapper(req.addr, req.length, a))
         return;
-
+    chk_rsp_err_ids_[a.id] = a.rsp_err_chk;
     transactions_.emplace_back(a);
     push_transactions();
 }
@@ -370,7 +373,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const transactor::write_request_t& req) 
 
     if (!a_wrapper(req.addr, req.length, a))
         return;
-
+    chk_rsp_err_ids_[a.id] = a.rsp_err_chk;
     transactions_.emplace_back(a);
 
     size_t pow2size = size_t(1) << a.size;

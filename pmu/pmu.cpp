@@ -284,6 +284,42 @@ pmu::process_core(const rv_tester_transactions::pmu_core::hpmcounters_core<>& hp
   hpmcounters_array[6]  = hpmcounters.hpmcounter9;
   hpmcounters_array[7]  = hpmcounters.hpmcounter10;
 }
+
+void 
+pmu::get_filter_events_and_sum(uint64_t event_id,
+                              std::vector<size_t>& filtering_events, 
+                              size_t& sum_filtered_event) {
+  const auto& filtering_map     = filtered_event_map.at((event_id & 0xffff0000)>>16);
+  const auto& fitered_event_id  = event_id & 0xffff;
+  sum_filtered_event = 0;
+  for (const auto& pair : filtering_map) {
+      if (pair.first & fitered_event_id) {
+          filtering_events.push_back(pair.second);
+          sum_filtered_event += counters_core[pair.second];
+      }
+  }
+}
+
+size_t
+pmu::sum_event_vector(std::vector<size_t>& filtering_events){
+  size_t sum_filtered_event = 0;
+  for (const auto& event : filtering_events) {
+    sum_filtered_event += counters_core[event];
+  }
+
+  return sum_filtered_event;
+}
+
+std::string
+pmu::name_event_vector(std::vector<size_t>& filtering_events){
+  std::string name_filtered_event = "";
+  for (const auto& event : filtering_events) {
+    name_filtered_event += core_to_string.at(static_cast<counter_core>(event));
+  }
+
+  return name_filtered_event;
+}
+
 void
 pmu::process_core(const rv_tester_transactions::pmu_core::pmc_checker<>& pmc_checker)
 {
@@ -292,8 +328,9 @@ pmu::process_core(const rv_tester_transactions::pmu_core::pmc_checker<>& pmc_che
   if (pmc_checker.terminate == 0){
     for (size_t i = 0; i < num_event_csrs; i++){
       if(i == pmc_checker.event_csr){
-        valid_event = event_map.find(pmc_checker.event_id);
-        if (valid_event == event_map.end()){
+        pmc_event = event_map.find(pmc_checker.event_id);
+        filtered_pmc_event = filtered_event_map.find((pmc_checker.event_id & 0xffff0000)>>16);
+        if (pmc_event == event_map.end() && filtered_pmc_event == filtered_event_map.end()){
           if(!FLAGS_ignore_pmc_reprogram){
             cvm::log(cvm::ERROR, "ERROR: Hart {}: mhpmevent{} was programmed with illegal event value {:#x}\n", id_, i+3, pmc_checker.event_id);
           }
@@ -302,23 +339,28 @@ pmu::process_core(const rv_tester_transactions::pmu_core::pmc_checker<>& pmc_che
           }
         }
         else{
-          event_csr_array[i].programmed = true;
-          event_csr_array[i].event_type = event_map.at(pmc_checker.event_id);
-          event_csr_array[i].sideband_count_eventwr  = counters_core[event_csr_array[i].event_type];
-          cvm::log(cvm::HIGH, "Hart {}: mhpmevent{} was programmed with event value {:#x}\n", id_, i+3, pmc_checker.event_id);
+          if(pmc_event != event_map.end()){
+            event_csr_array[i].programmed = true;
+            event_csr_array[i].event_type.push_back(event_map.at(pmc_checker.event_id));
+            event_csr_array[i].sideband_count_eventwr  = counters_core[event_map.at(pmc_checker.event_id)];
+          }
+          else if (filtered_pmc_event != filtered_event_map.end()){
+            event_csr_array[i].programmed = true;
+            get_filter_events_and_sum(pmc_checker.event_id, event_csr_array[i].event_type, event_csr_array[i].sideband_count_eventwr);
+          }
         }
-        
       }
     }
   }
   else if(pmc_checker.terminate == 1){
     for (size_t i = 0; i < num_event_csrs; i++){
       if(event_csr_array[i].programmed == true){
-        sideband_count_terminate_ = counters_core[event_csr_array[i].event_type];
+        sideband_count_terminate_ = sum_event_vector(event_csr_array[i].event_type);
         expected_count_           = sideband_count_terminate_ - event_csr_array[i].sideband_count_eventwr;
         actual_count_             = hpmcounters_array[i];
+        event_name_               = name_event_vector(event_csr_array[i].event_type);
         if (std::abs(static_cast<long>(expected_count_) - static_cast<long>(actual_count_)) > std::ceil(FLAGS_pmc_check_threshold * actual_count_ * 0.01) ){
-          cvm::log(cvm::ERROR, "ERROR: Hart {}:  PMC hpmcount{} vs sideband mismatch for {} : expected_count:{} actual_count:{}\n", id_, i+3, core_to_string.at(static_cast<counter_core>(event_csr_array[i].event_type)), expected_count_, actual_count_);
+          cvm::log(cvm::ERROR, "ERROR: Hart {}:  PMC hpmcount{} vs sideband mismatch for {} : expected_count:{} actual_count:{}\n", id_, i+3, event_name_, expected_count_, actual_count_);
         }
       }
     }

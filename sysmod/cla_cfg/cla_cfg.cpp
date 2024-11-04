@@ -173,7 +173,7 @@ void cla_cfg::push_rand_nmi_trigg_cfg() {
   wait_on_count = (rng()% 201) + 1000;    // On Delay 1000-1200 CLK cycle
   wait_off_count = (rng()% 101) + 700;    // Off Delay 700-800 CLK cycle
   event_count = (rng()% 101) + 200;       // Event on Delay 200-300 CLK cycle
-  eap_ctrl = (12 << 7);                   // Considering 12 value as per waves
+  eap_ctrl = (15 << 7);                   // Considering 15 value as per waves
   active_core = (FLAGS_num_harts == 1) ? 0 : (rng() % FLAGS_num_harts);
   rand_disable_trig_dly = (rng() % 50)+ 500 + cnt_tick;  // 500 - 550 delay before disabling
 
@@ -218,7 +218,7 @@ void cla_cfg::push_rand_nmi_trigg_cfg_off() {
   start_rand_nmi_trig_cnt = (rng()%100) + 200 + cnt_tick; // 200-300 off
   cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + (0x10000 * active_core)),((eap_ctrl | 0x40) & 0x3FC0)});     // Disable EAP, CLA enabled
   reenable_rand_trig = 1;
-  //TODO FIX nmi_event = !nmi_event;
+  nmi_event = !nmi_event;
   trig_total_cnt = trig_total_cnt - 1;
 }
 
@@ -227,7 +227,7 @@ void cla_cfg::overlay_tick(uint64_t) {
     if(start_clk_halt_cnt == 0) {
       reenable_nmi = 0;
       reenable_rand_trig = 0;
-      nmi_event = 0; // TODO FIX rng();                                      // NMI = 1, Trigger = 0
+      nmi_event = rng();                                      // NMI = 1, Trigger = 0
       mask = FLAGS_hart_enable_mask;
       nmi_total_cnt = (rng() % 5) + 5;                        // NMI total enable count
       trig_total_cnt = (rng() % 3) + 2;                       // Xtrigger/rand NMI total count

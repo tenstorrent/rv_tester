@@ -14,20 +14,18 @@ DEFINE_uint64(max_instr, 100000, "Max instruction limit to terminate the sim");
 DEFINE_uint64(min_instr,      0, "min instruction limit to pass the sim");
 DEFINE_uint64(recent_pc, recent_pc_default, "The PC that must be in the last +recent_pc_instr instructions before the test ended");
 DEFINE_uint64(recent_pc_instr, 100000, "+recent_pc should have been seen within this many instructions of end of test");
+DEFINE_uint64(psc_off_high, 0, "Turn Period-Cosim mode BACK ON when clocks > psc_off_high");
+DEFINE_uint64(psc_off_low,  0, "Turn Period-Cosim mode OFF     when clocks > psc_off_low");
 
 REGISTRY_register(eot, TOP.PLATFORM, cvm::registry::all);
 
-extern "C" void cosim_set_eot(std::uint64_t addr, std::uint8_t status, std::uint8_t syscall);
-
-void eot::get_tohost_addr() {
+void eot::init_tohost_addr() {
 
   // Get tohost address from
   // 1. plusarg if provided
   if (FLAGS_tohost != 0x0) {
     tohost_addr_ = FLAGS_tohost;
     cvm::log(cvm::NONE, "[eot] tohost from plusarg:: addr=[{:#x}]\n", tohost_addr_);
-
-    cosim_set_eot(tohost_addr_,1,0);
     return;
   }
 
@@ -49,7 +47,6 @@ void eot::get_tohost_addr() {
       }
     }
     cvm::log(cvm::NONE, "[eot] tohost from elf:: cmd=[{}] addr_str=[{}] addr=[{:#x}]\n", cmd, addr_str, tohost_addr_);
-    cosim_set_eot(tohost_addr_,1,0);
   }
   if (tohost_in_elf)
     return;
@@ -63,7 +60,10 @@ void eot::get_tohost_addr() {
   } else {
     cvm::log(cvm::ERROR, "[eot] tohost from memmap:: htif not found in memmap\n", tohost_addr_);
   }
-  cosim_set_eot(tohost_addr_,1,0);
+}
+
+std::uint64_t eot::get_tohost_addr() {
+   return tohost_addr_;
 }
 
 void eot::process(const rv_tester_transactions::cosim::m_steps<>& m_steps) {
@@ -183,3 +183,10 @@ eot::~eot() {
         }
     }
 }
+
+extern "C" {
+  std::uint64_t eot_get_addr() {
+    return cvm::registry::messenger.call<eot::get_tohost_addr_RPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0));
+  }
+}
+

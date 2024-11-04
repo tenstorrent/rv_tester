@@ -93,6 +93,7 @@ public:
   void report_metrics();
   void process(const rv_tester::terminate_called &);
   void set_patch_mode(int patch) { patch_mode_ = static_cast<patch_mode> (patch); }
+  uint64_t get_csr_p(hart_id_t hart, src_t src, uint64_t addr) { return get_csr(hart, src, addr); }
 
 private:
 
@@ -225,6 +226,10 @@ private:
         {0x280, "vsatp"} // -
     };
 
+  // MCM order map needed for periodic cosim
+  std::unordered_map<uint64_t , int> mcm_orders_; 
+
+
   cvm::file_logger bridge_log_;
   cvm::topology::loc_t loc_;
   unsigned id_;
@@ -266,6 +271,8 @@ private:
   uint16_t mpp_ = 0;
   uint16_t mpv_ = 0;
   bool csr_rename_en_ = false;
+  bool csr_rd_opt_ = false;
+  bool prev_csr_rd_opt_ = false;
 
   uint64_t dummy_data_ = 0;
   hart_id_t dummy_hart_ = 0;
