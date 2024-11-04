@@ -502,7 +502,7 @@ import rv_tester_pkg::*;
              assign pmcounters_scs[0].data.location = pmcounters_cores[0].data.location;
              assign pmcounters_scs[0].data.perf_start_sc = pmcounters_cores[0].data.perf_start;
              assign pmcounters_scs[0].data.perf_end_sc = pmcounters_cores[0].data.perf_end;
-             assign pmcounters_scs[0].data.terminate_sc = pmcounters_cores[0].data.terminate;
+             assign pmcounters_scs[0].data.terminate_sc = terminate;
              assign pmcounters_scs[0].data.overflow_sc = pmcounters_cores[0].data.overflow;
              assign pmcounters_scs[0].data.sync_sc = pmcounters_cores[0].data.sync;
              assign pmcounters_scs[0].data.sc_cache_access = 32'(sc_pmci[SC_CACHE_ACCESS]);

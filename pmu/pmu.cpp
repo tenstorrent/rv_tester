@@ -21,12 +21,12 @@ DEFINE_bool(ignore_pmc_reprogram, false, "toggle ignore on illegal reprograming 
 
 REGISTRY_register(pmu, PMCI, cvm::registry::all);
 
-template <typename T, size_t N>
-std::string pmu::generate_log_str(const std::array<std::string, N>& to_string, const T& counter_enum) {
+template <typename T>
+std::string pmu::generate_log_str(const std::unordered_map<T, std::string_view>& to_string) {
   std::string log_str;
   log_str += fmt::format("trigger");
-  for (size_t i = 0; i < N; i++) {
-    log_str += fmt::format(",{}", to_string.at(static_cast<T>(i)));
+  for (const auto& [key, value] : to_string) {
+    log_str += fmt::format(",{}", value);
   }
   log_str += fmt::format("\n");
   return log_str;
@@ -41,12 +41,14 @@ pmu::pmu(cvm::topology::loc_t loc, unsigned id)
   if (FLAGS_perf) {
     if (FLAGS_pmcounters_log != 0) {
       assert(core_to_string.size() == counter_core::COUNT_CORE);
-      std::string log_str_core = generate_log_str(core_to_string, counter_core::COUNT_CORE);
+      std::string log_str_core = generate_log_str(core_to_string);
       log_core(cvm::NONE, fmt::to_string(log_str_core));
 
-      assert(sc_to_string.size() == counter_sc::COUNT_SC);
-      std::string log_str_sc = generate_log_str(sc_to_string, counter_sc::COUNT_SC);
-      log_sc(cvm::NONE, fmt::to_string(log_str_sc));
+      if (id == 0) {
+        assert(sc_to_string.size() == counter_sc::COUNT_SC);
+        std::string log_str_sc = generate_log_str(sc_to_string);
+        log_sc(cvm::NONE, fmt::to_string(log_str_sc));
+      }
     }
 
     auto platform = cvm::topology::get_from_type("PLATFORM", 0);
@@ -107,10 +109,10 @@ pmu::process_sc(const rv_tester_transactions::pmu_sc::pmcounters_sc<>& pmcounter
   if (loc_ != pmcounters.location) 
       return;
 
-  if (terminated_ and not sync_terminate_) 
+  if (sc_terminated_ and not sc_sync_terminate_) 
     return;
-  else if (terminated_) 
-    sync_terminate_ = not pmcounters.terminate_sc; // we need to wait until the last PMU packet
+  else if (sc_terminated_) 
+    sc_sync_terminate_ = not pmcounters.terminate_sc; // we need to wait until the last PMU packet
   
   cvm::log(cvm::HIGH, "[PMU] syncing sc counters\n");
 
@@ -158,12 +160,15 @@ pmu::trigger_str_sc(const rv_tester_transactions::pmu_sc::pmcounters_sc<>& pmcou
 void
 pmu::process(const rv_tester::terminate_called_fast&)
 {
-  if (terminated_)
+  if (terminated_ or sc_terminated_)
     return;
 
   cvm::log(cvm::HIGH, "[PMU] termination signaled, stopping further counting\n");
   terminated_ = true;
   sync_terminate_ = true;
+  sc_terminated_ = true;
+  sc_sync_terminate_ = true;
+
 
   if (FLAGS_pmcounters_log != 0) {
     std::string log_str_core;

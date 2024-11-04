@@ -2170,12 +2170,17 @@ private:
 
   std::atomic<bool> terminated_ = false;
   std::atomic<bool> sync_terminate_ = false;
+  std::atomic<bool> sc_terminated_ = false;
+  std::atomic<bool> sc_sync_terminate_ = false;
 
   struct event_csr_details{
     bool programmed = false;
     size_t event_type;
     size_t sideband_count_eventwr;
   };
+
+  template <typename T>
+  std::string generate_log_str(const std::unordered_map<T, std::string_view>& to_string);
 
   static constexpr size_t num_event_csrs = 8;
   event_csr_details event_csr_array[num_event_csrs];
