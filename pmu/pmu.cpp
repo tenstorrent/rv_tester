@@ -77,9 +77,7 @@ pmu::process_core(const rv_tester_transactions::pmu_core::pmcounters_core<>& pmc
   if (loc_ != pmcounters.location)
       return;
 
-  if (terminated_ and not sync_terminate_)
-    return;
-  else if (terminated_)
+  if (terminated_ and sync_terminate_)
     sync_terminate_ = not pmcounters.terminate; // we need to wait until the last PMU packet
 
   cvm::log(cvm::HIGH, "[PMU] syncing core counters\n");
@@ -285,9 +283,9 @@ pmu::process_core(const rv_tester_transactions::pmu_core::hpmcounters_core<>& hp
   hpmcounters_array[7]  = hpmcounters.hpmcounter10;
 }
 
-void 
+void
 pmu::get_filter_events_and_sum(uint64_t event_id,
-                              std::vector<size_t>& filtering_events, 
+                              std::vector<size_t>& filtering_events,
                               size_t& sum_filtered_event) {
   const auto& filtering_map     = filtered_event_map.at((event_id & 0xffff0000)>>16);
   const auto& fitered_event_id  = event_id & 0xffff;

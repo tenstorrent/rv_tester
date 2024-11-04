@@ -2223,6 +2223,7 @@ private:
   std::array<std::uint64_t, counter_sc::COUNT_SC> perf_region_sc;
 
   std::atomic<bool> terminated_ = false;
+  // When true, this means we need to sync until the last packet.
   std::atomic<bool> sync_terminate_ = false;
   std::atomic<bool> sc_terminated_ = false;
   std::atomic<bool> sc_sync_terminate_ = false;
