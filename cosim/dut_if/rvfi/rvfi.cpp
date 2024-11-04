@@ -27,6 +27,7 @@ DEFINE_uint64(debug_entry_pc, 0x42190800, "Debug Mode entry PC");
 DEFINE_uint64(debug_exit_pc, 0x421908cc, "Debug Mode exit PC");
 DEFINE_uint64(debug_mem_base, 0x42190000, "Debug Memory Base Address");
 DEFINE_uint64(debug_mem_size, 0x1000, "Debug Memory Size");
+DEFINE_bool(use_sw_priv, false, "Enable use of SW generation of priv/patch_mode values instead of hw");
 
 bool get_csr_name_instr(const std::string& input, std::string& modified_string);
 
@@ -336,77 +337,80 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
 
 
 
-#ifndef USE_OLD_CODE
-  // First/last uops for ucode sequences
-
-  instr.first_uop = m_rvfi.first_uop;
-  instr.last_uop  = m_rvfi.last_uop;
-  instr.ucode  = m_rvfi.ucode;
-  instr.priv  = m_rvfi.priv;
-  ucode_priv_change_ = m_rvfi.priv_change;
-
-  if (m_rvfi.set_pmode) { // when we enter patch mode via ucode
-    cvm::log(cvm::HIGH, "CLOCK={}: Patch mode turned ON",m_rvfi.cycle);
-    bridge_->set_patch_mode(2); // IN_PATCH
-    patch_mode_ = true;
-  }
-  if (m_rvfi.clr_pmode) {
-      cvm::log(cvm::HIGH, "CLOCK={}: Patch mode turned OFF\n",m_rvfi.cycle);
-      if (!priv_to_string.count(static_cast<priv>(instr.priv))) {
-          cvm::log(cvm::ERROR, "Error: Invalid rvfi privilege mode: {:#x}\n", instr.priv);
-      }
-      bridge_->set_patch_mode(3);
-      patch_mode_ = false;
-  }
-
-  if ((instr.priv & 0x7) == 0x3) {
-     instr.priv = 0x3;
-  }
-
-#else
-
-// First/last uops for ucode sequences
-  instr.first_uop = false;
-  instr.last_uop = m_rvfi.last_uop;
-  instr.ucode = ucode_ || !m_rvfi.last_uop;
-  if (!m_rvfi.last_uop) {
-    if (!ucode_)
-      instr.first_uop = true;
-    ucode_ = true;
-  } else {
-    ucode_ = false;
-  }
-
-  // Priv mode
-  if (FLAGS_cosim && priv_ == 0x4 && !patch_mode_) { // when we enter patch mode via ucode
-    cvm::log(cvm::HIGH, "Patch mode: turned ON with Ucode instruction={} time={}\n",m_rvfi.insn,m_rvfi.cycle);
-    bridge_->set_patch_mode(2); // IN_PATCH
-    patch_mode_ = true;
-  }
-  instr.priv = m_rvfi.mode;
-  if (instr.ucode && (m_rvfi.mode != priv_)) {
-    if (instr.first_uop) {
-      priv_ = m_rvfi.mode;
-    } else {
-      instr.priv = priv_;
-      ucode_priv_change_ = true;
+  if (!(FLAGS_use_sw_priv)) { 
+    // First/last uops for ucode sequences
+  
+    instr.first_uop = m_rvfi.first_uop;
+    instr.last_uop  = m_rvfi.last_uop;
+    instr.ucode  = m_rvfi.ucode;
+    instr.priv  = m_rvfi.priv;
+    ucode_priv_change_ = m_rvfi.priv_change;
+  
+    if (m_rvfi.set_pmode) { // when we enter patch mode via ucode
+      cvm::log(cvm::HIGH, "CLOCK={}: Patch mode turned ON",m_rvfi.cycle);
+      bridge_->set_patch_mode(2); // IN_PATCH
+      patch_mode_ = true;
     }
-  }
-  if (m_rvfi.last_uop) {
-    if (ucode_priv_change_) {
-      instr.priv = priv_;
-      ucode_priv_change_ = false;
-      if (priv_ == 0x4 && patch_mode_) { // dret changes mode from D to M/S/U (exit from patch mode)
-        cvm::log(cvm::HIGH, "Patch mode: turned OFF with Ucode instruction={} time={}\n",m_rvfi.insn,m_rvfi.cycle);
-        bridge_->set_patch_mode(3); // EXIT_PATCH
+    if (m_rvfi.clr_pmode) {
+        cvm::log(cvm::HIGH, "CLOCK={}: Patch mode turned OFF\n",m_rvfi.cycle);
+        if (!priv_to_string.count(static_cast<priv>(instr.priv))) {
+            cvm::log(cvm::ERROR, "Error: Invalid rvfi privilege mode: {:#x}\n", instr.priv);
+        }
+        bridge_->set_patch_mode(3);
         patch_mode_ = false;
+    }
+  
+    if ((instr.priv & 0x7) == 0x3) {
+       instr.priv = 0x3;
+    }
+  } 
+  else { 
+  
+  // First/last uops for ucode sequences
+    instr.first_uop = false;
+    instr.last_uop = m_rvfi.last_uop;
+    instr.ucode = ucode_ || !m_rvfi.last_uop;
+    if (!m_rvfi.last_uop) {
+      if (!ucode_)
+        instr.first_uop = true;
+      ucode_ = true;
+    } else {
+      ucode_ = false;
+    }
+  
+    // Priv mode
+    if (FLAGS_cosim && priv_ == 0x4 && !patch_mode_) { // when we enter patch mode via ucode
+      cvm::log(cvm::HIGH, "Patch mode: turned ON with Ucode instruction={} time={}\n",m_rvfi.insn,m_rvfi.cycle);
+      bridge_->set_patch_mode(2); // IN_PATCH
+      patch_mode_ = true;
+    }
+    instr.priv = m_rvfi.mode;
+    if (instr.ucode && (m_rvfi.mode != priv_)) {
+      if (instr.first_uop) {
+        priv_ = m_rvfi.mode;
+      } else {
+        instr.priv = priv_;
+        ucode_priv_change_ = true;
       }
     }
-    priv_ = m_rvfi.mode;
-    if (!priv_to_string.count(static_cast<priv>(instr.priv)))
-      cvm::log(cvm::ERROR, "Error: Invalid rvfi privilege mode: {:#x}\n", instr.priv);
-  }
-#endif
+    if (m_rvfi.last_uop) {
+      if (ucode_priv_change_) {
+        instr.priv = priv_;
+        ucode_priv_change_ = false;
+        if (priv_ == 0x4 && patch_mode_) { // dret changes mode from D to M/S/U (exit from patch mode)
+          cvm::log(cvm::HIGH, "Patch mode: turned OFF with Ucode instruction={} time={}\n",m_rvfi.insn,m_rvfi.cycle);
+          bridge_->set_patch_mode(3); // EXIT_PATCH
+          patch_mode_ = false;
+        }
+      }
+      priv_ = m_rvfi.mode;
+      if (!priv_to_string.count(static_cast<priv>(instr.priv)))
+        cvm::log(cvm::ERROR, "Error: Invalid rvfi privilege mode: {:#x}\n", instr.priv);
+    }
+    if ((instr.priv & 0x7) == 0x3) {
+       instr.priv = 0x3;
+    }
+  } 
 
   if (m_rvfi.last_uop && !patch_mode_) {
     count_++;
