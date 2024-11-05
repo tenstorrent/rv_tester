@@ -790,7 +790,7 @@ void bridge::pre_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
   bool valid;
   uint32_t opcode;
   if (instr.pc.pc_rdata == FLAGS_debug_exit_pc) {
-    if (!cvm::registry::messenger.call<whisperClient<unit64_t>::whisperExitDebugRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart)) {
+    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperExitDebugRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart)) {
       error("Hart {}: Failed to exit debug mode\n", id_);
       return;
     }
