@@ -514,7 +514,7 @@ void jtag_sequence::drive_csv_jtag_cmds()
        cvm::log(cvm::HIGH, "[jtag_sequence] jtag check opcode Passed! expected {:#x} got {:#x} \n", lower_jtag_data,result);
       }else{
        //FAIL
-       cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check opcode failed! expected {:#x} got {:#x} \n", lower_jtag_data,result);
+       cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check opcode failed! expected {} got {} \n", lower_jtag_data,result);
       }
     }else if(jtag_cmd == 12){
       cvm::log(cvm::HIGH, "\n[jtag_sequence] jtag check mask opcode: result {:#x} mask {:#x} expected {:#x} \n", convertedArray[0],lower_jtag_data,jtag_cm_value);
