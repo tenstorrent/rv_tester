@@ -1795,11 +1795,6 @@ bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const std::
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[clint_read]\n", d.cycle);
     return true;
   }
-  if (tbox_read(d)) {
-    IF_DEBUG("tbox_read condition");
-    bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[tbox_read]\n", d.cycle);
-    return true;
-  }
   // Case #2
   if (htif_read(d)) {
     IF_DEBUG("htif_read condition");
@@ -1864,6 +1859,18 @@ bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const std::
   if (cpl_smc_access(d)) {
     IF_DEBUG("smc condition");
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[cpl_smc_access]\n", d.cycle);
+    return true;
+  }
+  // Case #13
+  if (tbox_read(d)) {
+    IF_DEBUG("tbox_read condition");
+    bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[tbox_read]\n", d.cycle);
+    return true;
+  }
+  // Case #14
+  if (uart_access(d)) {
+    IF_DEBUG("uart_access condition");
+    bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[uart_access]\n", d.cycle);
     return true;
   }
   return false;
@@ -1975,6 +1982,14 @@ bool bridge::cpl_smc_access(const rv_instr_t& d){
   if (d.mem_read.valid &&
       d.mem_read.pa >= smc_lo_addr &&
       d.mem_read.pa < smc_hi_addr)
+    return true;
+  return false;
+}
+
+bool bridge::uart_access(const rv_instr_t& d) {
+  if (d.mem_read.valid &&
+      d.mem_read.pa >= (memmap_.at("uart0").base) &&
+      d.mem_read.pa < (memmap_.at("uart0").end))
     return true;
   return false;
 }
