@@ -132,7 +132,7 @@ import rv_tester_params::*;
   // m_jtag_driver_tick
   assign m_jtag_driver_ticks[0].valid = ~dut_reset & ((dut_clocks % 200) == 0);
   assign m_jtag_driver_ticks[0].data.location = location;
-  assign m_jtag_driver_ticks[0].data.cycle = (jtag_socket_start | jtag_socket_end) ? dut_clocks : '0;
+  assign m_jtag_driver_ticks[0].data.cycle = jtag_socket_en?((jtag_socket_start | jtag_socket_end) ? dut_clocks : '0):200;
   
   assign jtag_rdatas[0].valid         = read_data_valid_reg;
   assign jtag_rdatas[0].data.location = location;
