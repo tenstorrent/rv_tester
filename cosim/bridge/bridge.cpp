@@ -1820,66 +1820,68 @@ bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const std::
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[debug mem access]\n", d.cycle);
     return true;
   }
+  // Case #5
+  // Using below exit_debug API instead of Dret to be complaint with whisper.
   if (d.pc.pc_rdata == FLAGS_debug_exit_pc) {
     IF_DEBUG("debug exit condition");
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[debug exit]\n", d.cycle);
     return true;
   }
-  // Case #5
+  // Case #6
   if (boot_read(d)) {
     IF_DEBUG("boot_read condition");
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[boot_read]\n", d.cycle);
     return true;
   }
-  // Case #6
+  // Case #7
   if (FLAGS_mip_resynch && mip_mismatch(instr)) {
     IF_DEBUG("mip condition");
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[mip_mismatch]\n", d.cycle);
     return true;
   }
-  // Case #7
+  // Case #8
   if (FLAGS_topi_resynch && topi_mismatch(instr)) {
     IF_DEBUG("topi condition");
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[topi_mismatch]\n", d.cycle);
     return true;
   }
-  // Case #8
+  // Case #9
   if (FLAGS_topei_resynch && topei_mismatch(instr)) {
     IF_DEBUG("topei condition");
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[topei_mismatch]\n", d.cycle);
     return true;
   }
-  // Case #9
+  // Case #10
   if (unsupported_mmr_access(d)) {
     IF_DEBUG("unsupport_mmr_access condition");
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[mmr_access]\n", d.cycle);
     return true;
   }
-  // Case #10
+  // Case #11
   if (d.intr && (d.icause == 0)){
     IF_DEBUG("intr condition");
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[Debug Mode Interrupt]\n", d.cycle);
    return true;
   }
-  // Case #11
+  // Case #12
   if (unsupported_csr_access(instr)) {
     IF_DEBUG("csr condition");
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[unsupported_csr_access]\n", d.cycle);
     return true;
   }
-  // Case #12
+  // Case #13
   if (cpl_smc_access(d)) {
     IF_DEBUG("smc condition");
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[cpl_smc_access]\n", d.cycle);
     return true;
   }
-  // Case #13
+  // Case #14
   if (tbox_read(d)) {
     IF_DEBUG("tbox_read condition");
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[tbox_read]\n", d.cycle);
     return true;
   }
-  // Case #14
+  // Case #15
   if (uart_access(d)) {
     IF_DEBUG("uart_access condition");
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[uart_access]\n", d.cycle);
