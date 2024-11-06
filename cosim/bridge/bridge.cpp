@@ -797,7 +797,7 @@ void bridge::pre_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
   bool valid;
   uint32_t opcode;
   if (instr.pc.pc_rdata == FLAGS_debug_exit_pc) {
-    opcode = 0x13; //E-break opcode
+    opcode = 0x13; //Nop
   }
   else if(instr.excp) {
     opcode = 0x00100073; //E-break opcode
