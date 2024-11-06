@@ -11,6 +11,7 @@
 #include <iostream>
 #include <chrono>
 #include <cmath>
+#include <regex>
 
 DEFINE_bool(rvfi, true, "Enable rvfi");
 // TODO(mboisvert): See if we can combine the rvfi flags. The reason why the
@@ -26,6 +27,8 @@ DEFINE_uint64(debug_entry_pc, 0x42190800, "Debug Mode entry PC");
 DEFINE_uint64(debug_exit_pc, 0x421908cc, "Debug Mode exit PC");
 DEFINE_uint64(debug_mem_base, 0x42190000, "Debug Memory Base Address");
 DEFINE_uint64(debug_mem_size, 0x1000, "Debug Memory Size");
+
+bool get_csr_name_instr(const std::string& input, std::string& modified_string);
 
 REGISTRY_register(rvfi, COSIM, cvm::registry::all);
 
@@ -142,6 +145,8 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   make_instr(m_rvfi, instr);
   print_instr(instr);
 
+  uop_tag_ = instr.tag;
+
   if (!m_rvfi.last_uop)
     return;
 
@@ -167,13 +172,13 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   }
 
   // Save state
-  tag_ = instr.tag;
+  instr_tag_ = instr.tag;
 
   // Clear state
   intr_ = false;
   excp_ = false;
   nmi_ = false;
-  vec_excp_ = false;
+  vec_excp_after_cmode_ = false;
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
@@ -202,11 +207,9 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
         patch_mode_ = true;
       }
     }
-    // RVTOOLS-3265: Vector special case
-    // Send instr with old tag if we encounter excp in middle of a vector instruction
-    // Potentially there could be some element stores that drained
     if (excp_ && ecause_ == CUSTOM_VEC_CMODE) {
-      vec_excp_ = true;
+      vec_excp_after_cmode_ = true;
+      vec_cmode_tag_ = uop_tag_;
     }
     // Set exception state
     nmi_ = false;
@@ -270,9 +273,11 @@ void rvfi::process(const rv_tester_transactions::cosim::m_imsic_msi<>& m_imsic_m
     return;
 
   mem_t mem;
+  mem.valid = true;
   mem.cycle = m_imsic_msi.cycle;
   mem.pa = m_imsic_msi.addr;
   mem.data = m_imsic_msi.data.to_ullong();
+  mem.size = 4;
 
   bridge_->process_dut_imsic_msi(id_, mem);
   if (FLAGS_rvfi_log) {
@@ -312,12 +317,16 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.excp = excp_;
   instr.ecause = ecause_;
 
-  cvm::log(cvm::HIGH, "CLOCK={}: HW: ucode={} first_uop={} last_uop={}, priv={}, priv_change={} set_pmode={}, clr_pmode={} patch_={}\n", m_rvfi.cycle,
-                            m_rvfi.ucode, m_rvfi.first_uop, m_rvfi.last_uop, m_rvfi.priv, m_rvfi.priv_change, m_rvfi.set_pmode, m_rvfi.clr_pmode, patch_mode_);
+  cvm::log(cvm::HIGH, "CLOCK={}: HW: ucode={} first_uop={} last_uop={}, mode={} priv={}, priv_change={} set_pmode={}, clr_pmode={} patch_={}\n", m_rvfi.cycle,
+                            m_rvfi.ucode, m_rvfi.first_uop, m_rvfi.last_uop, m_rvfi.mode, m_rvfi.priv, m_rvfi.priv_change, m_rvfi.set_pmode, m_rvfi.clr_pmode, patch_mode_);
 
-  // RVTOOLS-3265: Adjust tag for vec excp
-  if (vec_excp_)
-    instr.tag = tag_ + 1;
+  // RVTOOLS-3265, RVTOOLS-3479: Adjust tag for conservative mode vec instr that takes an exception
+  if (vec_excp_after_cmode_) {
+    if (vec_cmode_tag_ == mread_tag_)
+      instr.tag = vec_cmode_tag_;
+    else
+      instr.tag = instr_tag_ + 1;
+  }
 
   // Renamed csr sequence
   uint64_t src = (m_rvfi.uop >> 16) & 0x3f;
@@ -327,6 +336,9 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.csr_renamed_name = src_renamed ? renamed_csr_to_string.at(static_cast<renamed_csr_reg>(src)) :
     dest_renamed ? renamed_csr_to_string.at(static_cast<renamed_csr_reg>(m_rvfi.rd_addr)) : "";
 
+
+
+#ifndef USE_OLD_CODE
   // First/last uops for ucode sequences
 
   instr.first_uop = m_rvfi.first_uop;
@@ -335,23 +347,72 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.priv  = m_rvfi.priv;
   ucode_priv_change_ = m_rvfi.priv_change;
 
+  if (!priv_to_string.count(static_cast<priv>(instr.priv))) {
+    cvm::log(cvm::ERROR, "Error: Invalid rvfi privilege mode: {:#x}\n", instr.priv);
+    return;
+  }
+
   if (m_rvfi.set_pmode) { // when we enter patch mode via ucode
     cvm::log(cvm::HIGH, "CLOCK={}: Patch mode turned ON",m_rvfi.cycle);
     bridge_->set_patch_mode(2); // IN_PATCH
     patch_mode_ = true;
   }
   if (m_rvfi.clr_pmode) {
-      cvm::log(cvm::HIGH, "CLOCK={}: Patch mode turned OFF\n",m_rvfi.cycle);
-      if (!priv_to_string.count(static_cast<priv>(instr.priv))) {
-          cvm::log(cvm::ERROR, "Error: Invalid rvfi privilege mode: {:#x}\n", instr.priv);
-      }
-      bridge_->set_patch_mode(3);
-      patch_mode_ = false;
+    cvm::log(cvm::HIGH, "CLOCK={}: Patch mode turned OFF\n",m_rvfi.cycle);
+    bridge_->set_patch_mode(3);
+    patch_mode_ = false;
   }
 
   if ((instr.priv & 0x7) == 0x3) {
      instr.priv = 0x3;
   }
+
+#else
+
+// First/last uops for ucode sequences
+  instr.first_uop = false;
+  instr.last_uop = m_rvfi.last_uop;
+  instr.ucode = ucode_ || !m_rvfi.last_uop;
+  if (!m_rvfi.last_uop) {
+    if (!ucode_)
+      instr.first_uop = true;
+    ucode_ = true;
+  } else {
+    ucode_ = false;
+  }
+
+  // Priv mode
+  if (FLAGS_cosim && priv_ == 0x4 && !patch_mode_) { // when we enter patch mode via ucode
+    cvm::log(cvm::HIGH, "Patch mode: turned ON with Ucode instruction={} time={}\n",m_rvfi.insn,m_rvfi.cycle);
+    bridge_->set_patch_mode(2); // IN_PATCH
+    patch_mode_ = true;
+  }
+  instr.priv = m_rvfi.mode;
+  if (instr.ucode && (m_rvfi.mode != priv_)) {
+    if (instr.first_uop) {
+      priv_ = m_rvfi.mode;
+    } else {
+      instr.priv = priv_;
+      ucode_priv_change_ = true;
+    }
+  }
+  if (m_rvfi.last_uop) {
+    if (ucode_priv_change_) {
+      instr.priv = priv_;
+      ucode_priv_change_ = false;
+      if (priv_ == 0x4 && patch_mode_) { // dret changes mode from D to M/S/U (exit from patch mode)
+        cvm::log(cvm::HIGH, "Patch mode: turned OFF with Ucode instruction={} time={}\n",m_rvfi.insn,m_rvfi.cycle);
+        bridge_->set_patch_mode(3); // EXIT_PATCH
+        patch_mode_ = false;
+      }
+    }
+    priv_ = m_rvfi.mode;
+    if (!priv_to_string.count(static_cast<priv>(instr.priv))) {
+      cvm::log(cvm::ERROR, "Error: Invalid rvfi privilege mode: {:#x}\n", instr.priv);
+      return;
+    }
+  }
+#endif
 
   if (m_rvfi.last_uop && !patch_mode_) {
     count_++;
@@ -559,8 +620,17 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
 
   dut_log += fmt::format(" {}", resource_str);
 
-  if (!instr.ucode || instr.csr_renamed || cracked_gpr_.valid)
-    dut_log += fmt::format(" {}", whisper::disassemble(instr.opcode));
+  if (!instr.ucode || instr.csr_renamed || cracked_gpr_.valid) {
+    std::string instr_dis = whisper::disassemble(instr.opcode);
+    std::string csr_replaced_instr = instr_dis;
+    uint32_t csr_opcode = instr.opcode & 0x7F;
+    uint32_t csr_funct = (instr.opcode >> 12) & 0x7;
+    // Check if the instruction is a CSR instruction and try to replace it
+    if ((csr_opcode == 0x73) && (csr_funct != 0 && csr_funct != 4) && get_csr_name_instr(instr_dis, csr_replaced_instr))
+      dut_log += fmt::format(" {}", csr_replaced_instr);
+    else
+      dut_log += fmt::format(" {}", instr_dis);
+  }
   else
     dut_log += fmt::format(" {} (microcode)", cosim_util::get_nth_word(instr.disasm, 1));
 
@@ -580,7 +650,7 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
     dut_log += fmt::format(" (nmi:{})", instr.ncause);
 
   if (instr.intr)
-    dut_log += fmt::format(" (interrupt:{})", instr.icause);
+    dut_log += fmt::format(" (interrupt:{})", instr.intr);
 
   if (instr.excp)
     dut_log += fmt::format(" (exception:{})", instr.ecause);
@@ -752,6 +822,8 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
   m.field = m_mcmi_read.field;
   m.nano_op_elem_idx = m_mcmi_read.nano_op_elem_idx;
 
+  mread_tag_ = m_mcmi_read.order;
+
   // Handle SC
   // If read before bypass, store pass/fail result
   // If bypass before read, check pass/fail result and send/don't send bypass
@@ -869,6 +941,8 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
   uint64_t leadingZeros = std::countr_zero(mask);  // Find the number of trailing zeros
   mask >>= leadingZeros;
   uint64_t consecutiveOnes = std::countr_zero(~mask);  // Count ones until the first zero
+
+  minsert_tag_ = m_mcmi_insert.order;
 
   if (numones == consecutiveOnes) {
       mem_t m;
@@ -1194,4 +1268,28 @@ extern "C" {
       return 1;
     return 0;
   }
+}
+
+bool get_csr_name_instr(const std::string& input, std::string& modified_string) {
+    // Define the regex pattern to find 'c' followed by digits
+    std::regex pattern(R"(c(\d+))");
+    std::smatch match;
+
+    // Search for the first match in the input string
+    if (std::regex_search(input, match, pattern)) {
+        try {
+            // Extract the numeric part and convert to uint64_t
+            uint64_t search_addr = std::stoull(match[1].str());
+            // Find the entry with the matching address
+            auto it = std::find_if(csrs.begin(), csrs.end(),
+                                   [search_addr](const csr_entry& e) { return e.address == search_addr; });
+            if (it != csrs.end()) {
+                modified_string = std::regex_replace(input, pattern, it->name);
+                return true;
+            }
+        } catch (...) {
+            return false;  // Handle any exception and return false
+        }
+    }
+    return false;  // No valid match found or entry not found
 }

@@ -93,7 +93,7 @@ void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const B& b) {
     if (b.resp != axi::RESP_OKAY or not used_id(b.id)) {
         // could have EXOKAY if it was locked, but assume not for now
-        if(!FLAGS_axi_allow_err_resp || chk_rsp_err_ids_[b.id]){
+        if(!FLAGS_axi_allow_err_resp && chk_rsp_err_ids_[b.id]){
             cvm::log(cvm::ERROR, "[{}] Error: bad b.response id:{} resp: {}\n", name_, b.id, b.resp);
         } else {
             cvm::log(cvm::HIGH, "[{}] Allowing error b.response id:{} resp: {}\n", name_, b.id, b.resp);
@@ -118,7 +118,7 @@ template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const R& r) {
     if (r.resp != axi::RESP_OKAY or not used_id(r.id)) {
-        if(!FLAGS_axi_allow_err_resp || chk_rsp_err_ids_[r.id]){
+        if(!FLAGS_axi_allow_err_resp && chk_rsp_err_ids_[r.id]){
             cvm::log(cvm::ERROR, "[{}] Error: bad r.response id: {} resp: {} last: {}\n", name_, r.id, r.resp, r.last);
         } else {
             cvm::log(cvm::HIGH, "[{}] Allowing error r.response id: {} resp: {} last: {}\n", name_, r.id, r.resp, r.last);
@@ -360,7 +360,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const transactor::read_request_t& req) {
 
      if (!a_wrapper(req.addr, req.length, a))
         return;
-
+    chk_rsp_err_ids_[a.id] = a.rsp_err_chk;
     transactions_.emplace_back(a);
     push_transactions();
 }
@@ -374,7 +374,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const transactor::write_request_t& req) 
 
     if (!a_wrapper(req.addr, req.length, a))
         return;
-
+    chk_rsp_err_ids_[a.id] = a.rsp_err_chk;
     transactions_.emplace_back(a);
 
     size_t pow2size = size_t(1) << a.size;
