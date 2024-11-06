@@ -105,7 +105,7 @@ whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) {
   cvm::registry::messenger.procedure<set_dm_randpc_addr_RPC>(loc, [this] (uint64_t dm_randpc_addr) {return this->set_dm_randpc_addr(dm_randpc_addr);});
   cvm::registry::messenger.procedure<get_dm_randpc_addr_RPC>(loc, [this] () {return this->get_dm_randpc_addr();});
 
-  cvm::registry::messenger.procedure<whisperConnectRPC>(loc, [this] (uint16_t ncores) {return this->whisperConnect(ncores);});
+  cvm::registry::messenger.procedure<whisperConnectRPC>(loc, [this] () {return this->whisperConnect();});
   cvm::registry::messenger.procedure<whisperConnectedRPC>(loc, [this] () {return this->whisperConnected();});
   cvm::registry::messenger.procedure<whisperStepRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t& pc, uint32_t& instruction, unsigned& changeCount, std::string& disasm, uint32_t& privMode, uint32_t& fpFlags, bool& hasTrap, bool& hasStop, bool& isLoad, bool& valid) {return this->whisperStep(hart, time, instrTag, pc, instruction, changeCount, disasm, privMode, fpFlags, hasTrap, hasStop, isLoad, valid);});
   cvm::registry::messenger.procedure<whisperSimpleStepRPC>(loc, [this] (int hart, uint64_t& pc, uint32_t& instruction, unsigned& changeCount) {return this->whisperSimpleStep(hart, pc, instruction, changeCount);});
@@ -328,12 +328,12 @@ whisperClient<URV>::whisperStandalone()
 
 template <typename URV>
 int
-whisperClient<URV>::whisperConnect(uint16_t ncores)
+whisperClient<URV>::whisperConnect()
 {
   // Construct and run whisper standalone
   // This can be useful to compare with the cosim run
   if (FLAGS_standalone) {
-    system_ = constructSystem<URV>(ncores, true);
+    system_ = constructSystem<URV>(FLAGS_num_harts, true);
     if (system_ == nullptr) {
       std::cerr << "Error: could not construct system\n";
       return -1;
@@ -343,7 +343,7 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
   }
 
   // Construct whisper for cosim
-   system_ = constructSystem<URV>(ncores, false);
+   system_ = constructSystem<URV>(FLAGS_num_harts, false);
   if (system_ == nullptr) {
     std::cerr << "Error: could not construct system\n";
     return -1;

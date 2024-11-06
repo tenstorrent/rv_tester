@@ -182,7 +182,7 @@ void bridge::reset() {
   cac_.Reset();
   assert(cac_.SetVlen(vlen_));
 
-  if (cvm::registry::messenger.call<whisperClient<uint64_t>::whisperConnectRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), num_harts_) != 0) {
+  if (id_ == 0 && cvm::registry::messenger.call<whisperClient<uint64_t>::whisperConnectRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0)) != 0) {
     error("Hart {}: Failed whisper_connect\n", id_);
     return;
   }
