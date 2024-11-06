@@ -649,24 +649,9 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
   if (instr.nmi)
     dut_log += fmt::format(" (nmi:{})", instr.ncause);
 
-  if (instr.intr) {
-    // Also print the values of xtopei if instr.icause is 9 or 11
-    uint64_t intr_cause = instr.icause;
-    
-    if ((intr_cause == 9 || intr_cause == 11)) {
-      if (!(!instr.ucode || instr.csr_renamed || cracked_gpr_.valid) && !instr.first_uop) {
-        // If microcode sequence AND not a first uop; then only print the interrupt cause
-        dut_log += fmt::format(" (interrupt:{})", intr_cause);
-      }
-      else {
-        uint64_t mtopei_data = bridge_->get_csr_p(instr.hart, cac::src_t::dut, 0x35C);
-        uint64_t stopei_data = bridge_->get_csr_p(instr.hart, cac::src_t::dut, 0x15C);
-        dut_log += fmt::format(" (interrupt:{}, [{}:{:#x}, {}:{:#x}])", intr_cause, "mtopei", mtopei_data, "stopei", stopei_data);
-      }
-    }
-    else
-      dut_log += fmt::format(" (interrupt:{})", intr_cause);
-  }
+  if (instr.intr)
+    dut_log += fmt::format(" (interrupt:{})", instr.intr);
+
   if (instr.excp)
     dut_log += fmt::format(" (exception:{})", instr.ecause);
 
