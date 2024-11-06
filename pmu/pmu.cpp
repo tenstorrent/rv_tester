@@ -64,7 +64,9 @@ pmu::process(const rv_tester_transactions::pmu::pmcounters<>& pmcounters)
   if (loc_ != pmcounters.location)
     return;
 
-  if (terminated_ and sync_terminate_)
+  if (terminated_ and not sync_terminate_)
+    return;
+  else if (terminated_)
     sync_terminate_ = not pmcounters.terminate; // we need to wait until the last PMU packet
 
   cvm::log(cvm::HIGH, "[PMU] syncing counters\n");
