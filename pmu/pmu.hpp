@@ -2193,6 +2193,7 @@ private:
   std::vector<uint64_t> perf_region;
 
   std::atomic<bool> terminated_ = false;
+  // When true, this means we need to sync until the last packet.
   std::atomic<bool> sync_terminate_ = false;
 
   struct event_csr_details{
