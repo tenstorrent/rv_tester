@@ -595,6 +595,13 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   }
 
   // Handle post-step conditions
+  if (d.pc.pc_rdata == FLAGS_debug_exit_pc) {
+    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperExitDebugRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart)) {
+      error("Hart {}: Failed to exit debug mode\n", id_);
+      return;
+    }
+  }
+
   post_step_nmi_check(hart, d, w);
   post_step_interrupt_check(hart, d, w);
   post_step_exception_check(hart, d, w);
@@ -790,10 +797,12 @@ void bridge::pre_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
   bool valid;
   uint32_t opcode;
   if (instr.pc.pc_rdata == FLAGS_debug_exit_pc) {
-    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperExitDebugRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart)) {
-      error("Hart {}: Failed to exit debug mode\n", id_);
-      return;
-    }
+    opcode = 0x13; //E-break opcode
+
+    // if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperExitDebugRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart)) {
+    //   error("Hart {}: Failed to exit debug mode\n", id_);
+    //   return;
+    // }
   }
   else if(instr.excp) {
     opcode = 0x00100073; //E-break opcode
@@ -1814,6 +1823,11 @@ bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const std::
   if (debug_mem_access(d)) {
     IF_DEBUG("debug_mem_access condition");
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[debug mem access]\n", d.cycle);
+    return true;
+  }
+  if (d.pc.pc_rdata == FLAGS_debug_exit_pc) {
+    IF_DEBUG("debug exit condition");
+    bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[debug exit]\n", d.cycle);
     return true;
   }
   // Case #5
