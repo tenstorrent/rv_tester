@@ -186,6 +186,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const axi::a_t& a) {
     }
     alloc_id(a.id);
     chk_rsp_err_ids_[a.id] = a.rsp_err_chk;
+    cvm::log(cvm::LOW, "[{}] chk_rsp_err_ids_[a.id] : {}, a.rsp_err_chk : {}, a.id : {} \n", chk_rsp_err_ids_[a.id], a.rsp_err_chk, a.id);
 
     transactions_.emplace_back(a);
     push_transactions();
