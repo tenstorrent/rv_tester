@@ -37,6 +37,7 @@ DEFINE_string(load_lz4, "", "lz4 compressed file (program) to load into memory. 
 DEFINE_bool(bootrom, true, "Load bootrom before test");
 DEFINE_bool(enable_sp_init, false, "Enable sharedcache scratchpad initilization from bootrom");
 DEFINE_string(bootrom_path, "", "Path to bootrom object file");
+DEFINE_bool(cplfw, false, "Load cpl firmware before test");
 DEFINE_string(cplfw_path, "", "Path to cpl firmware object file");
 DEFINE_string(load_io, "", "load specified io dev with content from memory");
 DEFINE_bool(sysmod_tick_async, true, "Asynchronous sysmod_tick calls");
@@ -1197,7 +1198,7 @@ sysmod::load_csr_mmr_boot(uint64_t)
 void
 sysmod::load_cplfw(const std::string& cplfw)
 {
-  if (cplfw != "") {
+  if (FLAGS_cplfw && cplfw != "") {
     cvm::log(cvm::MEDIUM, "Loading {}\n", cplfw);
     if (cplfw.substr(cplfw.length() - 3) == "elf") {
       if (not dev("memory") or not dynamic_cast<sysmod_mem&>(*dev("memory")).init_elf(cplfw)) {

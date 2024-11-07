@@ -182,7 +182,7 @@ void bridge::reset() {
   cac_.Reset();
   assert(cac_.SetVlen(vlen_));
 
-  if (cvm::registry::messenger.call<whisperClient<uint64_t>::whisperConnectRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), num_harts_) != 0) {
+  if (id_ == 0 && cvm::registry::messenger.call<whisperClient<uint64_t>::whisperConnectRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0)) != 0) {
     error("Hart {}: Failed whisper_connect\n", id_);
     return;
   }
@@ -1869,19 +1869,13 @@ bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const std::
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[unsupported_csr_access]\n", d.cycle);
     return true;
   }
-  // Case #13
-  if (cpl_smc_access(d)) {
-    IF_DEBUG("smc condition");
-    bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[cpl_smc_access]\n", d.cycle);
-    return true;
-  }
-  // Case #14
+  // Case #12
   if (tbox_read(d)) {
     IF_DEBUG("tbox_read condition");
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[tbox_read]\n", d.cycle);
     return true;
   }
-  // Case #15
+  // Case #13
   if (uart_access(d)) {
     IF_DEBUG("uart_access condition");
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[uart_access]\n", d.cycle);
@@ -1989,14 +1983,6 @@ bool bridge::unsupported_csr_access(const std::string& instr) {
     IF_DEBUG("CSR instruction") ;
     return true;
   }
-  return false;
-}
-
-bool bridge::cpl_smc_access(const rv_instr_t& d){
-  if (d.mem_read.valid &&
-      d.mem_read.pa >= smc_lo_addr &&
-      d.mem_read.pa < smc_hi_addr)
-    return true;
   return false;
 }
 
