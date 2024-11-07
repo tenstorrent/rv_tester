@@ -190,23 +190,27 @@ void cla_cfg::push_rand_nmi_trigg_cfg() {
   }
   else {
     cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + (0x10000 * active_core)),(eap_ctrl | 0x40)});
-    wdata = 0; wdata = (wait_on_count << 16);
-    cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_COUNTER0_CFG + (0x10000 * active_core)),wdata}); // CNT0 - On count
-    wdata = 0; wdata = (event_count << 16);
-    cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_COUNTER1_CFG + (0x10000 * active_core)),wdata}); // CNT1 - event count
-    wdata = 0; wdata = (wait_off_count << 16);
-    cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_COUNTER2_CFG + (0x10000 * active_core)),wdata}); // CNT2 - Off count
 
-    cla_wr_txn_q.push({(cla_mmr::CDBG_NODE0_EAP1_CFG + (0x10000 * active_core)),0x10040}); // ALWAYS ON, AUTOINCR0
-    cla_wr_txn_q.push({(cla_mmr::CDBG_NODE0_EAP0_CFG + (0x10000 * active_core)),0x101645});// TARGET MATCH-0, CLRCNT0, AUTOINCR1, DEST-1
-    if(nmi_event){
-      cla_wr_txn_q.push({(cla_mmr::CDBG_NODE1_EAP1_CFG + (0x10000 * active_core)),0x10009});// ALWAYS ON, NMI
+    for(uint32_t core_num = 0; core_num < FLAGS_num_harts; core_num++) {
+      wdata = 0; wdata = (wait_on_count << 16);
+      cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_COUNTER0_CFG + (0x10000 * core_num)),wdata}); // CNT0 - On count
+      wdata = 0; wdata = (event_count << 16);
+      cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_COUNTER1_CFG + (0x10000 * core_num)),wdata}); // CNT1 - event count
+      wdata = 0; wdata = (wait_off_count << 16);
+      cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_COUNTER2_CFG + (0x10000 * core_num)),wdata}); // CNT2 - Off count
+
+      cla_wr_txn_q.push({(cla_mmr::CDBG_NODE0_EAP1_CFG + (0x10000 * core_num)),0x10040}); // ALWAYS ON, AUTOINCR0
+      cla_wr_txn_q.push({(cla_mmr::CDBG_NODE0_EAP0_CFG + (0x10000 * core_num)),0x101645});// TARGET MATCH-0, CLRCNT0, AUTOINCR1, DEST-1
+      if(nmi_event){
+        cla_wr_txn_q.push({(cla_mmr::CDBG_NODE1_EAP1_CFG + (0x10000 * core_num)),0x10009});// ALWAYS ON, NMI
+      }
+      else {
+        cla_wr_txn_q.push({(cla_mmr::CDBG_NODE1_EAP1_CFG + (0x10000 * core_num)),0x1081D});// ALWAYS ON, TRIGGER-0,1
+      }
+      cla_wr_txn_q.push({(cla_mmr::CDBG_NODE1_EAP0_CFG + (0x10000 * core_num)),0x131A56});// TRAGET MATCH-1. CLRCNT1, AUTOINCR2, DEST-2
+      cla_wr_txn_q.push({(cla_mmr::CDBG_NODE2_EAP0_CFG + (0x10000 * core_num)),0x161900});// TRAGET MATCH-2. CLRCNT2, DEST-0
     }
-    else {
-      cla_wr_txn_q.push({(cla_mmr::CDBG_NODE1_EAP1_CFG + (0x10000 * active_core)),0x1081D});// ALWAYS ON, TRIGGER-0,1
-    }
-    cla_wr_txn_q.push({(cla_mmr::CDBG_NODE1_EAP0_CFG + (0x10000 * active_core)),0x131A56});// TRAGET MATCH-1. CLRCNT1, AUTOINCR2, DEST-2
-    cla_wr_txn_q.push({(cla_mmr::CDBG_NODE2_EAP0_CFG + (0x10000 * active_core)),0x161900});// TRAGET MATCH-2. CLRCNT2, DEST-0
+
     cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + (0x10000 * active_core)),(eap_ctrl | 0x60)});
   }
 
