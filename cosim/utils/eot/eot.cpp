@@ -14,6 +14,8 @@ DEFINE_uint64(max_instr, 100000, "Max instruction limit to terminate the sim");
 DEFINE_uint64(min_instr,      0, "min instruction limit to pass the sim");
 DEFINE_uint64(recent_pc, recent_pc_default, "The PC that must be in the last +recent_pc_instr instructions before the test ended");
 DEFINE_uint64(recent_pc_instr, 100000, "+recent_pc should have been seen within this many instructions of end of test");
+DEFINE_uint64(psc_off_high, 0, "Turn Period-Cosim mode BACK ON when clocks > psc_off_high");
+DEFINE_uint64(psc_off_low,  0, "Turn Period-Cosim mode OFF     when clocks > psc_off_low");
 
 REGISTRY_register(eot, TOP.PLATFORM, cvm::registry::all);
 
@@ -68,7 +70,7 @@ void eot::process(const rv_tester_transactions::cosim::m_steps<>& m_steps) {
 
   // When using periodic state check method add the missing step counts (only the first m_steps packet does this)
   if (m_steps.steps > 0) {
-      instr_count_[m_steps.hart] = instr_count_[m_steps.hart] + m_steps.steps + m_steps.final_steps + m_steps.skips;
+      instr_count_[m_steps.hart] = instr_count_[m_steps.hart] + m_steps.steps + m_steps.final_steps;
       previous_cycle_ = m_steps.cycle;
   }
 }
@@ -184,8 +186,6 @@ eot::~eot() {
 
 extern "C" {
   std::uint64_t eot_get_addr() {
-    //return eot::get_tohost_addr();
-    //return cvm::registry::messenger.call<eot::get_tohost_addr>();
     return cvm::registry::messenger.call<eot::get_tohost_addr_RPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0));
   }
 }

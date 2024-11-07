@@ -36,6 +36,7 @@ debug_module_t::debug_module_t(cvm::topology::loc_t loc, unsigned) : program_buf
                                                                      debug_progbuf_start(debug_data_start - program_buffer_bytes),
                                                                      debug_abstract_start(debug_progbuf_start - debug_abstract_size * 4),
                                                                     //  custom_base(0),
+                                                                    //  FLAGS_num_harts(FLAGS_num_harts),
                                                                      hart_state(1 << field_width(max_hartid + 1)),
                                                                      hart_array_mask(max_hartid + 1)
 //  rti_remaining(0)
@@ -85,7 +86,10 @@ debug_module_t::debug_module_t(cvm::topology::loc_t loc, unsigned) : program_buf
   // Keeping everything available, but will get it from fuse map
   for (unsigned i = 0; i < max_hartid; i++)
   {
-    hart_available_state[i] = true;
+    if (i < FLAGS_num_harts) 
+      hart_available_state[i] = true;
+    else 
+      hart_available_state[i] = false; 
   }
 
   reset();
@@ -127,11 +131,17 @@ void debug_module_t::process(const rv_tester_transactions::dm_model::dmi_req<> &
 
 void debug_module_t::process(const rv_tester_transactions::dm_model::dmi_resp<> &dmi_resp)
 { 
-  cvm::log(cvm::NONE, "DMI Monitor :: dmi response with data: {:#x}\n", dmi_resp.data);
+  cvm::log(cvm::NONE, "DMI Monitor :: dmi response code: {:#x} and with data: {:#x}\n", dmi_resp.resp, dmi_resp.data);
   uint32_t actual_data = dmi_resp.data;
   uint32_t masked_actual_data;
   uint32_t masked_req_expect;
 
+  if (FLAGS_debug_enable == 0x2 || FLAGS_debug_enable == 0x0) { //TODO: Add flags when AXI traffic is enabled via DTM
+    if (dmi_resp.resp != 0x2)
+      cvm::log(!FLAGS_dm_model_check_bypass?cvm::ERROR:cvm::NONE, "[Mismatch] Expected an Error response as debug is disabled via DTM, but got a response of {:#x}}\n", dmi_resp.resp);
+    return;
+  }  
+  
   if (req_resp_check)
   {
     if ((actual_data != req_expect) && !dmstatus.ndmresetpending)
@@ -520,7 +530,7 @@ bool debug_module_t::hart_selected(unsigned hartid) const
 
 bool debug_module_t::hart_available(unsigned hart_id) const
 {
-  if (hart_id < max_hartid)
+  if (hart_id < FLAGS_num_harts) //FIXME
     return hart_available_state[hart_id];
   return true;
 }
@@ -722,8 +732,7 @@ bool debug_module_t::perform_abstract_command()
   cvm::log(cvm::HIGH, "[Abstract Cmd] Performing an abstract command\n");
   hart_abscmd = dmcontrol.hartsel;
   cvm::log(cvm::HIGH, "[Display] hart_abscmd :{:#x}] \n", hart_abscmd);
-  if (abstractcs.cmderr != CMDERR_NONE)
-    return true;
+
   if (abstractcs.busy)
   {
     abstractcs.cmderr = CMDERR_BUSY;

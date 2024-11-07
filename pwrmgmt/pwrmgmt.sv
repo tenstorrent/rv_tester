@@ -86,34 +86,37 @@ import rv_tester_params::*;
   assign m_ticks[0].data.location = location;
   assign m_ticks[0].data.cycle = tick_valid ? soc_clocks : 0;
 
-  // m_smc_axi_rand_tick
-  logic smc_axi_rand_tick;
   logic smc_axi_blocking_seq_tick;
-  rv_tester_tick_generator #(.NAME("smc_axi")) smc_axi_rand_tick_generator (.clk(clk[SOC_CLK_IDX]), .reset(core_no_fetch), .inhibit(smc_axi_blocking_seq_tick), .tick(smc_axi_rand_tick));
-  assign m_smc_axi_ticks[0].valid = (smc_axi_rand_tick || smc_axi_blocking_seq_tick) && (location != cvm_topology::nil);
-  assign m_smc_axi_ticks[0].data.location = location;
-  assign m_smc_axi_ticks[0].data.assertion = '0;
+
+  // m_smc_axi_sp_tick
+  logic smc_axi_sp_tick;
+  rv_tester_tick_generator #(.NAME("smc_axi_sp")) smc_axi_sp_tick_generator (.clk(clk[SOC_CLK_IDX]), .reset(core_no_fetch), .inhibit('0), .tick(smc_axi_sp_tick), .last());
+  assign m_smc_axi_sp_ticks[0].valid = smc_axi_sp_tick && (location != cvm_topology::nil);
+  assign m_smc_axi_sp_ticks[0].data.location = location;
+
+  // m_smc_axi_csr_tick
+  logic smc_axi_csr_tick;
+  rv_tester_tick_generator #(.NAME("smc_axi_csr")) smc_axi_csr_tick_generator (.clk(clk[SOC_CLK_IDX]), .reset(core_no_fetch), .inhibit(smc_axi_blocking_seq_tick), .tick(smc_axi_csr_tick), .last());
+  assign m_smc_axi_csr_ticks[0].valid = smc_axi_csr_tick && (location != cvm_topology::nil);
+  assign m_smc_axi_csr_ticks[0].data.location = location;
 
    // m_pcontrol_tick
   logic pcontrol_tick;
-  rv_tester_tick_generator #(.NAME("pcontrol")) pcontrol_tick_generator (.clk(clk[SOC_CLK_IDX]), .reset(core_no_fetch), .inhibit('0), .tick(pcontrol_tick));
+  rv_tester_tick_generator #(.NAME("pcontrol")) pcontrol_tick_generator (.clk(clk[SOC_CLK_IDX]), .reset(core_no_fetch), .inhibit('0), .tick(pcontrol_tick), .last());
   assign m_pcontrol_ticks[0].valid = pcontrol_tick && (location != cvm_topology::nil);
   assign m_pcontrol_ticks[0].data.location = location;
-  assign m_pcontrol_ticks[0].data.assertion = '0;
 
  // m_cold_reset_ack
   logic cold_reset_ack_valid;
   assign cold_reset_ack_valid = (cold_reset_d1 && ~cold_reset);
   assign m_cold_reset_acks[0].valid = cold_reset_ack_valid && (location != cvm_topology::nil);
   assign m_cold_reset_acks[0].data.location = location;
-  assign m_cold_reset_acks[0].data.assertion = '0;
 
   // m_force_ref_clk_ack
   logic force_ref_clk_ack_valid;
   assign force_ref_clk_ack_valid = (force_ref_clk_d1 && ~force_ref_clk);
   assign m_force_ref_clk_acks[0].valid = force_ref_clk_ack_valid && (location != cvm_topology::nil);
   assign m_force_ref_clk_acks[0].data.location = location;
-  assign m_force_ref_clk_acks[0].data.assertion = '0;
 
   // -------------------------
   // C++->SV Callbacks

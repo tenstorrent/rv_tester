@@ -82,7 +82,7 @@ module rv_tester
     import "DPI-C" function byte unsigned rv_tester_shutdown_registry();
     import "DPI-C" context function bit rv_tester_flush_callbacks();
     import "DPI-C" function bit pwrmgmt_get_warm_reset_en(string mode);
-    import "DPI-C" function longint eot_get_addr();
+    import "DPI-C" function longint unsigned eot_get_addr();
 
     localparam int unsigned AxiIdWidthMstRv    = topology.TOP.PLATFORM.AXI.ID_WIDTH + $clog2(topology.TOP.PLATFORM.AXI.TOTAL) + 1;
 
@@ -148,6 +148,8 @@ module rv_tester
     int flush_timeout = 25000;
     bit print_terminate_message = '1;
 
+    int debug_enable = 0;
+    bit dmi_driver_dbg_enable;
     int hart_enable_mask = 0;
     int rand_dmi_driver_dly = 0;
     int sdtrig_multitrigger = 0;
@@ -180,6 +182,8 @@ module rv_tester
     assign terminate_now       = (terminate_1T && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue <= 'h1) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced )) || dut_terminate_any || warm_reset_now;
 
     assign rerun_now           = terminated && !terminated_1T && ((num_reruns > 0) || (warm_reset_en && (num_resets <= target_num_resets)) || dut_reset_req);
+
+    assign dmi_driver_dbg_enable = ((debug_enable == 'h1) || (debug_enable == 'h3));
 
   `ifndef CLK_MUX_UNSUPPORTED
     always @(posedge dut_clk[TB_CLK_IDX])begin
@@ -221,7 +225,15 @@ module rv_tester
             flush_counter   <= '0;
             instructions    <= '0;
             dmi_poll_timeout_terminate <= '0;
+            if (num_resets < 0) begin
+                clocks <= '0;
+            end
         end
+
+        num_resets <= num_resets + int'(warm_reset_now);
+        if (warm_reset_en && (num_resets < 0)) begin
+            num_resets          <= 0;
+        end 
 
         if (terminate && terminated) begin
             num_resets      <= -1;
@@ -273,11 +285,11 @@ module rv_tester
             rv_tester_cvm_error_handler();
             rv_tester_parse_memmap(NoAddrRules);
 
+            $display("[RVTESTER]: reconstructing registry");
+            rv_tester_build_registry();
+
             /* verilator lint_off BLKSEQ */
             // zebu bug doesn't allow nested function calls, so create intermediate variables
-            eot_addr                    = eot_get_addr();
-            eot_status                  = 1;
-            eot_syscall                 = 0;
             cvm_verbosity_string        = cvm_plusargs::get_string("cvm_verbosity");
             gen_clocks_verbosity_string = cvm_plusargs::get_string("gen_clocks_verbosity");
             cvm_verbosity               = cvm_logger::get_verbosity(cvm_verbosity_string);
@@ -287,6 +299,9 @@ module rv_tester
             rv_tester_error_terminate.terminate = '0;
             /* verilator lint_on BLKSEQ */
 
+            eot_addr             <= eot_get_addr();
+            eot_status           <= 1;
+            eot_syscall          <= 0;
             perf                 <= cvm_plusargs::get_bool("perf") != '0;
             flag_force_ref_clk   <= cvm_plusargs::get_bool("force_ref_clk") != '0;
             rand_dmi_driver_dly  <= cvm_plusargs::get_int("rand_dmi_driver_dly");
@@ -306,14 +321,12 @@ module rv_tester
             bypass_cache         <= cvm_plusargs::get_bool("bypass_cache") != '0;
             assertion_test_cycle <= cvm_plusargs::get_int("assertion_test_cycle");
 
+            debug_enable         <= cvm_plusargs::get_int("debug_enable"); 
             trace_en             <= cvm_plusargs::get_bool("trace_en") != '0;
             overlay_mmr_en       <= cvm_plusargs::get_bool("overlay_mmr_en") != '0;
             jtag_en              <= cvm_plusargs::get_bool("jtag_en") != '0;
             rand_dmi_driver_dly  <= cvm_plusargs::get_int("rand_dmi_driver_dly");
             hart_enable_mask     <= cvm_plusargs::get_int("hart_enable_mask");
-
-            $display("[RVTESTER]: reconstructing registry");
-            rv_tester_build_registry();
 
         end
         clock_mode      <= clk_profile[2:0];
@@ -322,9 +335,7 @@ module rv_tester
             num_reruns  <= cvm_plusargs::get_int("num_reruns");
         end
 
-        num_resets <= num_resets + int'(warm_reset_now);
         if (warm_reset_en && (num_resets < 0)) begin
-            num_resets          <= 0;
             target_num_resets   <= cvm_rand::get("warm_reset_count");
         end
     end
@@ -531,6 +542,7 @@ module rv_tester
     dmi_driver i_dmi_driver(
         .clk(dut_clk[AXI_CLK_IDX]),
         .reset_n(~reset[WARM_RESET_IDX] || reset_hold[DEBUG_HOLD_IDX]),
+        .dmi_driver_dbg_enable,
         .rand_dmi_driver_dly,
         .hart_enable_mask,
         .dm_single_step_count,

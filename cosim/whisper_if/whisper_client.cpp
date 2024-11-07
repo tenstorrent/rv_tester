@@ -44,6 +44,7 @@ DEFINE_string(whisper_json_path, "", "Path to whisper json config");
 DEFINE_uint64(nmi_vec, 0, "NMI handler PC");
 DEFINE_uint64(nme_vec, 0, "NMI exception handler PC");
 DEFINE_bool(ppo, true, "Enable ppo checks");
+DEFINE_bool(traceptw, true, "Enable page table walk tracing");
 
 REGISTRY_register(whisperClient<uint64_t>, TOP.PLATFORM.WHISPER_CLIENT, 0);
 
@@ -93,6 +94,7 @@ template <typename URV>
 whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) {
   cvm::log(cvm::MEDIUM, "[whisperClient] initializing whisperClient\n");
 
+  ncores_ = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
   std::string traceFile  = (FLAGS_whisper_log || FLAGS_whisper_cosim_log) ? "iss_cosim.log" : "";
   std::string commandLog = (FLAGS_whisper_log || FLAGS_whisper_cmd_log  ) ? "iss_cmd.log" : "";
 
@@ -104,9 +106,9 @@ whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) {
   cvm::registry::messenger.procedure<set_dm_randpc_addr_RPC>(loc, [this] (uint64_t dm_randpc_addr) {return this->set_dm_randpc_addr(dm_randpc_addr);});
   cvm::registry::messenger.procedure<get_dm_randpc_addr_RPC>(loc, [this] () {return this->get_dm_randpc_addr();});
 
-  cvm::registry::messenger.procedure<whisperConnectRPC>(loc, [this] (uint16_t ncores) {return this->whisperConnect(ncores);});
+  cvm::registry::messenger.procedure<whisperConnectRPC>(loc, [this] () {return this->whisperConnect();});
   cvm::registry::messenger.procedure<whisperConnectedRPC>(loc, [this] () {return this->whisperConnected();});
-  cvm::registry::messenger.procedure<whisperStepRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t& pc, uint32_t& instruction, unsigned& changeCount, std::string& disasm, uint32_t& privMode, uint32_t& fpFlags, bool& hasTrap, bool& hasStop, bool& isLoad) {return this->whisperStep(hart, time, instrTag, pc, instruction, changeCount, disasm, privMode, fpFlags, hasTrap, hasStop, isLoad);});
+  cvm::registry::messenger.procedure<whisperStepRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t& pc, uint32_t& instruction, unsigned& changeCount, std::string& disasm, uint32_t& privMode, uint32_t& fpFlags, bool& hasTrap, bool& hasStop, bool& isLoad, bool& valid) {return this->whisperStep(hart, time, instrTag, pc, instruction, changeCount, disasm, privMode, fpFlags, hasTrap, hasStop, isLoad, valid);});
   cvm::registry::messenger.procedure<whisperSimpleStepRPC>(loc, [this] (int hart, uint64_t& pc, uint32_t& instruction, unsigned& changeCount) {return this->whisperSimpleStep(hart, pc, instruction, changeCount);});
   cvm::registry::messenger.procedure<whisperChangeRPC>(loc, [this] (int hart, uint32_t& resource, uint64_t& addr, uint64_t& value, bool& valid) {return this->whisperChange(hart, resource, addr, value, valid);});
   cvm::registry::messenger.procedure<whisperMcmReadRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, unsigned elemIx, unsigned field, bool& valid) {return this->whisperMcmRead(hart, time, instrTag, addr, size, value, elemIx, field, valid);});
@@ -143,7 +145,7 @@ whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) {
 
 template <typename URV>
 static std::shared_ptr<WdRiscv::System<URV>>
-constructSystem(uint16_t ncores, bool standalone, bool firmware) {
+constructSystem(uint16_t ncores, bool standalone) {
 
   WdRiscv::HartConfig config;
   if (not config.loadConfigFile(FLAGS_whisper_json_path.c_str()))
@@ -161,12 +163,6 @@ constructSystem(uint16_t ncores, bool standalone, bool firmware) {
   config.getIsa(isa);
 
   std::shared_ptr<WdRiscv::System<URV>> system = std::make_shared<WdRiscv::System<URV>>(coreCount, hartsPerCore, hartIdOffset, memorySize, pageSize);
-
-  if (FLAGS_mcm && !standalone) {
-    bool checkAll = false;
-    config.getMcmCheckAll(checkAll);
-    system->enableMcm(64, checkAll, FLAGS_ppo);
-  }
 
   if (FLAGS_load_lz4 != "") {
     std::string file = FLAGS_load_lz4;
@@ -189,15 +185,12 @@ constructSystem(uint16_t ncores, bool standalone, bool firmware) {
 
   if (FLAGS_bootrom_path != "" || FLAGS_load != "" || FLAGS_cplfw_path != "") {
     std::vector<std::string> targets {};
-    if (!firmware) {
-      if (FLAGS_load != "")
-        targets.push_back(FLAGS_load);
-      if (FLAGS_bootrom && FLAGS_bootrom_path != "")
-        targets.push_back(FLAGS_bootrom_path);
-    } else {
-      if (FLAGS_cplfw_path != "")
-        targets.push_back(FLAGS_cplfw_path);
-    }
+    if (FLAGS_load != "")
+      targets.push_back(FLAGS_load);
+    if (FLAGS_bootrom && FLAGS_bootrom_path != "")
+      targets.push_back(FLAGS_bootrom_path);
+    if (FLAGS_cplfw && FLAGS_cplfw_path != "")
+      targets.push_back(FLAGS_cplfw_path);
     if (not system->loadElfFiles(targets, false, false))
       return nullptr;
   }
@@ -208,14 +201,22 @@ constructSystem(uint16_t ncores, bool standalone, bool firmware) {
   if (not config.configMemory(*system, false))
     return nullptr;
 
+  if (FLAGS_mcm && !standalone) {
+    bool checkAll = false;
+    config.getMcmCheckAll(checkAll);
+    system->enableMcm(64, checkAll, FLAGS_ppo);
+  }
+
   for (unsigned i = 0; i < system->hartCount(); ++i) {
     auto& hart = *(system->ithHart(i));
     // raw mode
     hart.enableNewlib(false);
     hart.enableLinux(false);
-    hart.tracePtw(true);
-    if (firmware) hart.defineResetPc(FLAGS_resetpcfw);
-    else          hart.defineResetPc(FLAGS_resetpc);
+    hart.tracePtw(FLAGS_traceptw);
+    if (FLAGS_cplfw)
+      hart.defineResetPc(FLAGS_resetpcfw);
+    else
+      hart.defineResetPc(FLAGS_resetpc);
     hart.defineNmiPc(getNmiPc());
     hart.defineNmiExceptionPc(getNmiExceptionPc());
     hart.enableCsvLog(FLAGS_whisper_csv_log);
@@ -255,7 +256,7 @@ constructHart (WdRiscv::Hart<URV>* hart, bool preload = false, FILE* preload_log
     hart->setInitialStateFile(preload_log);
 
   if (FLAGS_stee_secure_region != "") {
-    std::vector<std::string> secure_region = cosim_util::split_string(FLAGS_stee_secure_region, ':');
+    std::vector<std::string> secure_region = cosim_util::split_string(FLAGS_stee_secure_region, ":");
     auto start = std::stoull(secure_region.at(0), nullptr, 0);
     auto end   = std::stoull(secure_region.at(1), nullptr, 0);
     hart->configSteeSecureRegion(start, end);
@@ -265,7 +266,7 @@ constructHart (WdRiscv::Hart<URV>* hart, bool preload = false, FILE* preload_log
 
 template <typename URV>
 int
-whisperClient<URV>::whisperConnect(uint16_t ncores)
+whisperClient<URV>::whisperStandalone()
 {
   std::atomic<bool> result       = true;
   std::atomic<bool> max_instr    = false;
@@ -278,82 +279,79 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
                       finished++;
                     };
 
-  if(FLAGS_preload) {
-    system_ = constructSystem<URV>(FLAGS_num_harts, false, true);
-    if (system_ == nullptr) {
-      std::cerr << "Error: could not construct system\n";
-      return -1;
-    }
-
-    std::vector<std::thread> threadVec;
-
-    FILE* preload_log[system_->hartCount()];
-    whisper_log = fopen("iss_standalone.log", "w");
-    for (unsigned i = 0; i < system_->hartCount(); ++i) {
-      WdRiscv::Hart<URV>* hart = system_->ithHart(i).get();
+  std::vector<std::thread> threadVec;
+  FILE* preload_log[system_->hartCount()];
+  whisper_log = fopen("iss_standalone.log", "w");
+  for (unsigned i=0; i<system_->hartCount(); ++i) {
+    if (FLAGS_preload)
       preload_log[i] = fopen(("preload_" + std::to_string(i) + ".csv").c_str(), "w");
-      constructHart(hart, true, preload_log[i]);
-      threadVec.emplace_back(std::thread(threadFunc, hart));
-    }
-
-    for (auto& t : threadVec)
-      t.join();
-
-    fclose(whisper_log);
-
-    for (unsigned i = 0; i < system_->hartCount(); ++i)
-      fclose(preload_log[i]);
+    WdRiscv::Hart<URV>* hart = system_->ithHart(i).get();
+    constructHart(hart, FLAGS_preload, preload_log[i]);
+    threadVec.emplace_back(std::thread(threadFunc, hart));
   }
 
-  // run once before starting cosim
-  if (FLAGS_standalone && ((FLAGS_num_harts <= 1) || (FLAGS_hart_enable_mask <= 1))) {
-    system_ = constructSystem<URV>(FLAGS_num_harts, true, false);
+  for (auto& t : threadVec)
+    t.join();
+
+  fclose(whisper_log);
+  for (unsigned i = 0; i < system_->hartCount(); ++i)
+    if (FLAGS_preload)
+      fclose(preload_log[i]);
+
+  if (!FLAGS_nostop_standalone) {
+    if (!result) {
+      std::cerr << "Error: Test failed on Standalone Whisper, stopping simulation\n";
+      return -1;
+    } else if (max_instr && (FLAGS_max_instr != 0)) {
+      std::cerr << "Error: Test reached max instr on standalone Whisper, stopping simulation\n";
+      return -1;
+    }
+  }
+
+  if (FLAGS_dm_randpc && result) {
+    WdRiscv::Hart<URV>* hart = system_->ithHart(0).get();
+    uint64_t total_ = hart->getInstructionCount();
+
+    std::shared_ptr<WdRiscv::System<URV>> system_new = constructSystem<URV>(1, true);
+    WdRiscv::Hart<URV>* hart_new = system_new->ithHart(0).get();
+    constructHart(hart_new, 0);
+    cvm::rand::uniform_dist<int> rng1;
+    int percent = (rng1() % 20) + 60; // random pc betwen 60-80% of code
+    uint64_t randinstr = uint64_t((total_ * percent) / 100);
+    hart_new->setInstructionCountLimit(randinstr);
+    hart_new->run();
+    dm_randpc = hart_new->pc();
+    dm_randpc_addr = FLAGS_dm_randpc_addr;;
+  }
+
+  return 0;
+}
+
+template <typename URV>
+int
+whisperClient<URV>::whisperConnect()
+{
+  // Construct and run whisper standalone
+  // This can be useful to compare with the cosim run
+  if (FLAGS_standalone && (ncores_ == 1)) {
+    system_ = constructSystem<URV>(ncores_, true);
     if (system_ == nullptr) {
       std::cerr << "Error: could not construct system\n";
       return -1;
     }
 
-    result = true, max_instr = false, finished = 0;
-    whisper_log = fopen("iss_standalone.log", "w");
-    std::vector<std::thread> threadVec;
-    for (unsigned i=0; i<system_->hartCount(); ++i) {
-      WdRiscv::Hart<URV>* hart = system_->ithHart(i).get();
-      constructHart(hart);
-      threadVec.emplace_back(std::thread(threadFunc, hart));
-    }
-
-    for (auto& t : threadVec)
-      t.join();
-
-    fclose(whisper_log);
-
-    if (!FLAGS_nostop_standalone) {
-      if (!result) {
-        std::cerr << "Error: Test failed on Standalone Whisper, stopping simulation\n";
-        return -1;
-      } else if (max_instr && (FLAGS_max_instr != 0)) {
-        std::cerr << "Error: Test reached max instr on standalone Whisper, stopping simulation\n";
-        return -1;
-      }
-    }
-
-    if (FLAGS_dm_randpc && result) {
-      WdRiscv::Hart<URV>* hart = system_->ithHart(0).get();
-      uint64_t total_ = hart->getInstructionCount();
-
-      std::shared_ptr<WdRiscv::System<URV>> system_new = constructSystem<URV>(1, true, false);
-      WdRiscv::Hart<URV>* hart_new = system_new->ithHart(0).get();
-      constructHart(hart_new, 0);
-      cvm::rand::uniform_dist<int> rng1;
-      int percent = (rng1() % 20) + 60; // random pc betwen 60-80% of code
-      uint64_t randinstr = uint64_t((total_ * percent) / 100);
-      hart_new->setInstructionCountLimit(randinstr);
-      hart_new->run();
-      dm_randpc = hart_new->pc();
-      dm_randpc_addr = FLAGS_dm_randpc_addr;;
-    }
+    whisperStandalone();
   }
 
+  // Construct whisper for cosim
+   system_ = constructSystem<URV>(ncores_, false);
+  if (system_ == nullptr) {
+    std::cerr << "Error: could not construct system\n";
+    return -1;
+  }
+  server_ = std::make_unique<WdRiscv::Server<URV>>(*system_);
+
+  // Coverage setup
   if (FLAGS_cov) {
     auto soPtr = dlopen(FLAGS_archsample_lib_path.c_str(), RTLD_NOW);
     if (not soPtr) {
@@ -371,13 +369,6 @@ whisperClient<URV>::whisperConnect(uint16_t ncores)
     }
   }
 
-  system_ = constructSystem<URV>(ncores, false, false);
-  if (system_ == nullptr) {
-    std::cerr << "Error: could not construct system\n";
-    return -1;
-  }
-
-  server_ = std::make_unique<WdRiscv::Server<URV>>(*system_);
   return 0;
 }
 
@@ -393,7 +384,9 @@ template <typename URV>
 bool
 whisperClient<URV>::whisperCommand(const WhisperMessage& req, WhisperMessage& reply)
 {
-  server_->interact(req, reply, traceFile_, commandLog_);
+  if(FLAGS_cosim && (server_ != nullptr)) {
+    server_->interact(req, reply, traceFile_, commandLog_);
+  }
   return true;
 }
 
@@ -556,7 +549,7 @@ bool
 whisperClient<URV>::whisperStep(int hart, uint64_t time, uint64_t instrTag, uint64_t& pc,
 	    uint32_t& instruction, unsigned& changeCount,
 	    std::string& disasm, uint32_t& privMode,
-	    uint32_t& fpFlags, bool& hasTrap, bool& hasStop, bool& isLoad)
+	    uint32_t& fpFlags, bool& hasTrap, bool& hasStop, bool& isLoad, bool& valid)
 {
   req.hart = hart;
   req.type = WhisperMessageType::Step;
@@ -590,6 +583,7 @@ whisperClient<URV>::whisperStep(int hart, uint64_t time, uint64_t instrTag, uint
   reply.buffer[reply.buffer.size() - 1] = '\0';
   disasm = reply.buffer.data();
 
+  valid = reply.type != WhisperMessageType::Invalid;
   return true;
 }
 

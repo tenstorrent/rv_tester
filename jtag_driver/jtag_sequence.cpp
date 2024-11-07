@@ -13,7 +13,7 @@ DEFINE_int32(jtag_delay_min, 6, "Minimum Delay between 2 consecutive debug mode 
 DEFINE_int32(jtag_max_loop_count, 50, "Number of times loop should run before flagging error");
 DEFINE_int32(jtag_delay_max, 9, "Maximum Delay between 2 consecutive debug mopde requests");
 DEFINE_int32(jtag_socket_port, 8088, "Port number for JTAG socket communication");
-DEFINE_string(jtag_socket_ip, "127.0.0.1", "Server's local IP address");
+DEFINE_string(jtag_socket_ip, "", "Server's local IP address");
 DEFINE_int32(jtag_max_snippets, 1, "Maximum number of debug snippets to be driven");
 DEFINE_string(jtag_template_dir_path, "", "Path to file containing jtag_driver commands");
 DEFINE_string(jtag_txn_file,"","File containing jtag transaction requests");
@@ -52,7 +52,7 @@ jtag_sequence::jtag_sequence(cvm::topology::loc_t loc, unsigned id) : loc_(loc),
 }
 
 void jtag_sequence::csv_mode_thread() {
-  if(FLAGS_jtag_input_file_path != "")
+  if(FLAGS_jtag_input_file_path != "" || FLAGS_jtag_template_dir_path != "")
      parse_jtag_from_csv();
   auto *task = +[] (jtag_sequence* m) -> cvm::messenger::task<void> {
     co_await m->random_mode();
@@ -118,7 +118,7 @@ jtag_sequence::update_jtag_status(jtag_sequence::jtag_req_t& i) {
 void jtag_sequence::get_all_csv_templates()
 {
     std::string directoryPath = FLAGS_jtag_template_dir_path;
-    cvm::log(cvm::NONE, "[jtag_sequence]Debug commands directory:{}\n", directoryPath);
+    cvm::log(cvm::MEDIUM, "[jtag_sequence]JTAG template directory:{}\n", directoryPath);
 
     if (!std::filesystem::exists(directoryPath) || !std::filesystem::is_directory(directoryPath))
     {
@@ -144,8 +144,10 @@ void jtag_sequence::parse_jtag_from_csv()
 
 
   std::string file_name;
-  if (FLAGS_random_jtag_entry)
+  if (FLAGS_random_jtag_entry) {
+    get_all_csv_templates();
     file_name = csvFilePaths[file_idx];
+  }
   else
     file_name = FLAGS_jtag_input_file_path;
 
@@ -180,6 +182,7 @@ void jtag_sequence::parse_jtag_from_csv()
       }
       data_s = row[1];
       length = row[2]; //TODO
+            cvm::log(cvm::HIGH, "[Trickbox] Jtag_sequence : data_length_1: {}\n",data_s);
       
       // remove empty spaces from string
       instr.erase(std::remove_if(instr.begin(), instr.end(), ::isspace), instr.end());
@@ -219,21 +222,30 @@ void jtag_sequence::parse_jtag_from_csv()
       }
       
       if(jtag_req.jtag_cmd<3 || jtag_req.jtag_cmd == 4 ||jtag_req.jtag_cmd == 12){ 
+            cvm::log(cvm::HIGH, "[Trickbox] Jtag_sequence :jtag_req.jtag_cmd {}\n",jtag_req.jtag_cmd);
          length = row[2];  //length NA for nop 
       }
+            cvm::log(cvm::HIGH, "[Trickbox] Jtag_sequence : data_length_2: {}\n",data_s);
       
       data_s.erase(std::remove_if(data_s.begin(), data_s.end(), ::isspace), data_s.end());
+            cvm::log(cvm::HIGH, "[Trickbox] Jtag_sequence : data_length_3: {}\n",data_s);
       // convert string to lowercase for uniformity
       std::transform(data_s.begin(), data_s.end(), data_s.begin(), ::tolower);
+            cvm::log(cvm::HIGH, "[Trickbox] Jtag_sequence : data_length_4: {}\n",data_s);
       // cvm::log(cvm::HIGH, "[jtag_sequence] length {:#x}\n",length);
       //check data length
+      if (data_s.substr(0, 2) == "0x" || data_s.substr(0, 2) == "0x") {
+        data_s = data_s.substr(2);
+        }
       unsigned data_len = data_s.length();
+            cvm::log(cvm::HIGH, "[Trickbox] Jtag_sequence : data_length: {}\n",data_s);
       if(data_len>16){
         std::string data_s_upper = data_s.substr(0, data_len-16);
         std::string data_s_lower = data_s.substr(data_len-16, data_len);
       
         try{
           jtag_req.jtag_ip_data_lower = std::stoul(data_s_lower,nullptr,16);
+            cvm::log(cvm::HIGH, "[Trickbox] Jtag_sequence : jtag_req.jtag_ip_data_lower: {}\n",jtag_req.jtag_ip_data_lower);
           
         } catch (const std::invalid_argument& e) {
               cvm::log(cvm::ERROR, "[jtag_sequence] Invalid argument: data for stoul csv arg 1: {}\n", e.what());
@@ -241,6 +253,7 @@ void jtag_sequence::parse_jtag_from_csv()
       
         try{
           jtag_req.jtag_ip_data_upper = std::stoul(data_s_upper,nullptr,16);
+            cvm::log(cvm::HIGH, "[Trickbox] Jtag_sequence : jtag_req.jtag_ip_data_upper: {}\n",jtag_req.jtag_ip_data_upper);
           
         } catch (const std::invalid_argument& e) {
             cvm::log(cvm::ERROR, "[Trickbox] Invalid argument: data for stoul csv arg 1: {}\n", e.what());
@@ -266,6 +279,8 @@ void jtag_sequence::parse_jtag_from_csv()
       }else if(jtag_req.jtag_cmd ==12){
             jtag_req.jtag_length_data = 64;
             jtag_req.jtag_cm_value =  std::stoul(length,nullptr,16);
+            cvm::log(cvm::HIGH, "[Trickbox] Jtag_sequence : jtag_req.jtag_length_data: {}\n",jtag_req.jtag_length_data);
+            cvm::log(cvm::HIGH, "[Trickbox] Jtag_sequence : jtag_req.jtag_cm_value  {}\n", jtag_req.jtag_cm_value);
       }
       else{
          jtag_req.jtag_length_data = 0;
@@ -424,6 +439,12 @@ void jtag_sequence::drive_csv_jtag_cmds()
     padding_length  = reg_length_data; 
     jtag_cm_value    = jtag_req.jtag_cm_value;
     cvm::log(cvm::HIGH, "[jtag_sequence] Driving jtag cmd {}\n", jtag_cmd);
+    cvm::log(cvm::HIGH, "[jtag_sequence] Driving jtag cmd {}\n", jtag_cmd);
+    cvm::log(cvm::HIGH, "[jtag_sequence] Driving jtag upper_jtag_data {}\n", upper_jtag_data);
+    cvm::log(cvm::HIGH, "[jtag_sequence] Driving jtag lower_jtag_data {}\n", lower_jtag_data);
+    cvm::log(cvm::HIGH, "[jtag_sequence] Driving jtag reg_length_data {}\n", reg_length_data);
+    cvm::log(cvm::HIGH, "[jtag_sequence] Driving jtag padding_length  {}\n", padding_length);
+    cvm::log(cvm::HIGH, "[jtag_sequence] Driving jtag jtag_cm_value   {}\n", jtag_cm_value);
 
     if(jtag_cmd<3){
       hart = 0; // hart bits position TBD, till TBD it is always zero
@@ -490,19 +511,19 @@ void jtag_sequence::drive_csv_jtag_cmds()
     if(jtag_cmd == 4){
       if(convertedArray[0] == lower_jtag_data){
        //PASS
-       cvm::log(cvm::HIGH, "[jtag_sequence] jtag check opcode Passed! expected {:#x} got {} \n", lower_jtag_data,result);
+       cvm::log(cvm::HIGH, "[jtag_sequence] jtag check opcode Passed! expected {:#x} got {:#x} \n", lower_jtag_data,result);
       }else{
        //FAIL
-       cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check opcode failed! expected {:#x} got {} \n", lower_jtag_data,result);
+       cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check opcode failed! expected {:#x} got {:#x} \n", lower_jtag_data,result);
       }
     }else if(jtag_cmd == 12){
       cvm::log(cvm::HIGH, "\n[jtag_sequence] jtag check mask opcode: result {:#x} mask {:#x} expected {:#x} \n", convertedArray[0],lower_jtag_data,jtag_cm_value);
       if((convertedArray[0] & lower_jtag_data) == jtag_cm_value){
        //PASS
-       cvm::log(cvm::HIGH, "[jtag_sequence] jtag check mask opcode Passed! expected {:#x} got {} \n", jtag_cm_value,(convertedArray[0] & lower_jtag_data));
+       cvm::log(cvm::HIGH, "[jtag_sequence] jtag check mask opcode Passed! expected {:#x} got {:#x} \n", jtag_cm_value,(convertedArray[0] & lower_jtag_data));
       }else{
        //FAIL
-       cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check mask opcode failed! expected {:#x} got {} \n", jtag_cm_value,(convertedArray[0] & lower_jtag_data));
+       cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check mask opcode failed! expected {:#x} got {:#x} \n", jtag_cm_value,(convertedArray[0] & lower_jtag_data));
       }
     }
       jtag_cmd_q.pop(); // pop front eleme7t
@@ -834,7 +855,11 @@ cvm::messenger::task<void> jtag_sequence::open_socket_to_listen(){
     fcntl(server_fd, F_SETFL, flags | O_NONBLOCK);
 
     address.sin_family = AF_INET;
-    address.sin_addr.s_addr = inet_addr(FLAGS_jtag_socket_ip.c_str());
+    std::string jtag_socket_ip_addr = FLAGS_jtag_socket_ip;
+    if (jtag_socket_ip_addr == "") {
+        jtag_socket_ip_addr = get_local_ip_address();
+    }
+    address.sin_addr.s_addr = inet_addr(jtag_socket_ip_addr.c_str());
     address.sin_port = htons(PORT);
 
     // Binding the socket to the network address and port
@@ -850,13 +875,13 @@ cvm::messenger::task<void> jtag_sequence::open_socket_to_listen(){
     }
 
     cvm::log(cvm::LOW, "[jtag_sequence]Server is listening on {} PORT {} \n",inet_ntoa(address.sin_addr), PORT );
-    cvm::log(cvm::LOW, "[jtag_sequence]Server's local IP address: {} \n", get_local_ip_address() );
+    cvm::log(cvm::LOW, "[jtag_sequence]Server's local IP address: {} \n", jtag_socket_ip_addr);
 
 
     while (true) {
        tick_count++;
        cvm::log(cvm::HIGH,"[jtag_sequence]Server is listening on  tick cnt {} \n", tick_count );
-       cvm::log(cvm::LOW,"[jtag_sequence]Server's local IP address: {} \n", get_local_ip_address());
+       cvm::log(cvm::LOW,"[jtag_sequence]Server's local IP address: {} \n", jtag_socket_ip_addr);
        if(quit_communication){
         break;
        }

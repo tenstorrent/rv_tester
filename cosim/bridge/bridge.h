@@ -180,7 +180,7 @@ private:
   bool debug_mem_access(const rv_instr_t& d);
   bool unsupported_mmr_access(const rv_instr_t& d);
   bool unsupported_csr_access(const std::string& instr);
-  bool cpl_smc_access(const rv_instr_t& d);
+  bool uart_access(const rv_instr_t& d);
   bool htif_read(const rv_instr_t& d);
   bool hpm_counter_read(const std::string& instr);
   bool mip_mismatch(const std::string& instr);
@@ -225,6 +225,10 @@ private:
         {0x280, "vsatp"} // -
     };
 
+  // MCM order map needed for periodic cosim
+  std::unordered_map<uint64_t , int> mcm_orders_; 
+
+
   cvm::file_logger bridge_log_;
   cvm::topology::loc_t loc_;
   unsigned id_;
@@ -266,6 +270,8 @@ private:
   uint16_t mpp_ = 0;
   uint16_t mpv_ = 0;
   bool csr_rename_en_ = false;
+  bool csr_rd_opt_ = false;
+  bool prev_csr_rd_opt_ = false;
 
   uint64_t dummy_data_ = 0;
   hart_id_t dummy_hart_ = 0;
