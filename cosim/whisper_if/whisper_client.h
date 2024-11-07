@@ -89,6 +89,7 @@ class whisperClient {
     WhisperMessage req {};
     WhisperMessage reply {};
 
+    uint32_t ncores_ = 0;
     uint64_t dm_randpc = 0;
     uint64_t dm_randpc_addr = 0;
 

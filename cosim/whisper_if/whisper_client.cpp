@@ -94,6 +94,7 @@ template <typename URV>
 whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) {
   cvm::log(cvm::MEDIUM, "[whisperClient] initializing whisperClient\n");
 
+  ncores_ = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
   std::string traceFile  = (FLAGS_whisper_log || FLAGS_whisper_cosim_log) ? "iss_cosim.log" : "";
   std::string commandLog = (FLAGS_whisper_log || FLAGS_whisper_cmd_log  ) ? "iss_cmd.log" : "";
 
@@ -332,8 +333,8 @@ whisperClient<URV>::whisperConnect()
 {
   // Construct and run whisper standalone
   // This can be useful to compare with the cosim run
-  if (FLAGS_standalone && (FLAGS_num_harts <= 1)) {
-    system_ = constructSystem<URV>(FLAGS_num_harts, true);
+  if (FLAGS_standalone && (ncores_ == 1)) {
+    system_ = constructSystem<URV>(ncores_, true);
     if (system_ == nullptr) {
       std::cerr << "Error: could not construct system\n";
       return -1;
@@ -343,7 +344,7 @@ whisperClient<URV>::whisperConnect()
   }
 
   // Construct whisper for cosim
-   system_ = constructSystem<URV>(FLAGS_num_harts, false);
+   system_ = constructSystem<URV>(ncores_, false);
   if (system_ == nullptr) {
     std::cerr << "Error: could not construct system\n";
     return -1;
