@@ -732,8 +732,8 @@ bool debug_module_t::perform_abstract_command()
   cvm::log(cvm::HIGH, "[Abstract Cmd] Performing an abstract command\n");
   hart_abscmd = dmcontrol.hartsel;
   cvm::log(cvm::HIGH, "[Display] hart_abscmd :{:#x}] \n", hart_abscmd);
-  if (abstractcs.cmderr != CMDERR_NONE)
-    return true;
+  //if (abstractcs.cmderr != CMDERR_NONE)
+  //  return true;
   if (abstractcs.busy)
   {
     abstractcs.cmderr = CMDERR_BUSY;
