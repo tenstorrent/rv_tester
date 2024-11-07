@@ -59,7 +59,6 @@ import rv_tester_params::*;
    bit [JTAG_DR_WIDTH-1:0] jtag_tx;
    bit [63:0] misc_signals; 
    bit [JTAG_DR_WIDTH-1:0] jtag_rx;
-   bit jtag_driver_en;
   
    bit        jtag_enable_begin;
    bit        jtag_enable_begin_cpp;
@@ -69,7 +68,6 @@ import rv_tester_params::*;
 
    initial begin
      jtag_driver_mode = cvm_plusargs::get_string("jtag_driver_mode");
-     jtag_driver_en   = cvm_plusargs::get_bool("jtag_en") != '0;
      jtag_enable_end = 0;
      jtag_enable_begin_cpp = 0;
      jtag_enable_begin_sv = 0;
@@ -132,9 +130,9 @@ import rv_tester_params::*;
   end
 
   // m_jtag_driver_tick
-  assign m_jtag_driver_ticks[0].valid = jtag_driver_en & ~dut_reset & ((dut_clocks % 200) == 0);
+  assign m_jtag_driver_ticks[0].valid = ~dut_reset & ((dut_clocks % 200) == 0);
   assign m_jtag_driver_ticks[0].data.location = location;
-  assign m_jtag_driver_ticks[0].data.cycle = jtag_socket_en?((jtag_socket_start | jtag_socket_end) ? dut_clocks : '0):200;
+  assign m_jtag_driver_ticks[0].data.cycle = (jtag_socket_start | jtag_socket_end) ? dut_clocks : '0;
   
   assign jtag_rdatas[0].valid         = read_data_valid_reg;
   assign jtag_rdatas[0].data.location = location;
