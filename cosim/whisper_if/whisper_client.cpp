@@ -332,7 +332,7 @@ whisperClient<URV>::whisperConnect()
 {
   // Construct and run whisper standalone
   // This can be useful to compare with the cosim run
-  if (FLAGS_standalone) {
+  if (FLAGS_standalone && (FLAGS_num_harts <= 1)) {
     system_ = constructSystem<URV>(FLAGS_num_harts, true);
     if (system_ == nullptr) {
       std::cerr << "Error: could not construct system\n";
@@ -348,7 +348,6 @@ whisperClient<URV>::whisperConnect()
     std::cerr << "Error: could not construct system\n";
     return -1;
   }
-
   server_ = std::make_unique<WdRiscv::Server<URV>>(*system_);
 
   // Coverage setup
