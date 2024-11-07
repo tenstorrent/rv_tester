@@ -69,7 +69,7 @@ import rv_tester_params:: * ;
         end
     end
     assign violation_forcesync =  (count >  'd4) && enable_checks ;
-    always_comb assert (~violation_forcesync) else $error("Error: Not recieved aclint force sync");
+    `RV_ASSERT(forcesync_not_recieved, rf_clk, dut_reset, 1, ~violation_forcesync, "Error: Not recieved aclint force sync");
     end
 
     //ACLINT MTIP generation checker
@@ -99,8 +99,7 @@ import rv_tester_params:: * ;
     genvar asserti1;
     generate
     for ( asserti1 = 0; asserti1 < 9; asserti1++) begin : mtip_check1
-    always_comb
-    assert(~((counter[asserti1] > counter_check[asserti1]) && (st[asserti1] == check) && (counter[asserti1]-counter_check[asserti1]) > 4)) else $error("Error: Expected MTIP, but MTIP not generated");
+        `RV_ASSERT(mtip_not_generated, rf_clk, dut_reset, 1, (~((counter[asserti1] > counter_check[asserti1]) && (st[asserti1] == check) && (counter[asserti1]-counter_check[asserti1]) > 4)), "Error: Expected MTIP, but MTIP not generated");
     end
     endgenerate
 
@@ -220,8 +219,8 @@ import rv_tester_params:: * ;
     else if(fail_mtishouldbeOFF) cycles_in_fail_mtishouldbeOFF <= cycles_in_fail_mtishouldbeOFF + 1;
     end
 
-    always_comb assert(~(cycles_in_fail_mtishouldbeOFF > 4)) else $error("Error: Did not expect MTIP, but MTIP %d generated", asserti);
-    always_comb assert(~(cycles_in_fail_mtishouldbeON > 4)) else $error("Error: Expected MTIP, but MTIP %d not generated", asserti);
+    `RV_ASSERT(incorrect_mtip_not_generated, rf_clk, dut_reset, 1, (~(cycles_in_fail_mtishouldbeOFF > 4)), "Error: Did not expect MTIP, but MTIP generated");
+    `RV_ASSERT(mtip_not_generated, rf_clk, dut_reset, 1, (~(cycles_in_fail_mtishouldbeON > 4)), "Error: Expected MTIP, but MTIP not generated");
     end
     endgenerate
 
