@@ -1022,30 +1022,91 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
   if (!FLAGS_cosim)
     return;
 
-  mem_t m;
-  m.valid  = true;
-  m.hart   = m_mcmi_bypass.hart;
-  m.cycle  = m_mcmi_bypass.cycle;
-  m.tag    = m_mcmi_bypass.order;
-  m.pa     = m_mcmi_bypass.addr;
-  m.size   = std::popcount(m_mcmi_bypass.mask);
-  m.data   = m_mcmi_bypass.data;
-  m.data_vec  = m_mcmi_bypass.data_vec;
-  m.v_ext  = m_mcmi_bypass.v_ext;
-  m.amo    = m_mcmi_bypass.amo;
-  m.amo_op = m_mcmi_bypass.amo_op;
+  uint64_t mask = m_mcmi_bypass.mask;
+  uint64_t numones = std::popcount(mask);
 
-  if (m.amo && m.amo_op != SC && FLAGS_emulate_amo_arithmetic) {
-    amo_writes_.emplace(m.tag, m);
-    return;
+  // Find the number of consecutive ones starting from the first set bit
+  uint64_t leadingZeros = std::countr_zero(mask);  // Find the number of trailing zeros
+  mask >>= leadingZeros;
+  uint64_t consecutiveOnes = std::countr_zero(~mask);  // Count ones until the first zero
+  
+  if (numones == consecutiveOnes) {
+      mem_t m;
+      m.valid  = true;
+      m.hart   = m_mcmi_bypass.hart;
+      m.cycle  = m_mcmi_bypass.cycle;
+      m.tag    = m_mcmi_bypass.order;
+      m.pa     = m_mcmi_bypass.addr;
+      m.size   = std::popcount(m_mcmi_bypass.mask);
+      m.data   = m_mcmi_bypass.data;
+      m.data_vec  = m_mcmi_bypass.data_vec;
+      m.v_ext  = m_mcmi_bypass.v_ext;
+      m.amo    = m_mcmi_bypass.amo;
+      m.amo_op = m_mcmi_bypass.amo_op;
+
+      if (m.amo && m.amo_op != SC && FLAGS_emulate_amo_arithmetic) {
+        amo_writes_.emplace(m.tag, m);
+        return;
+      }
+
+      if (m.amo && m.amo_op == SC && sc_failed(m)) {
+        sc_bypass_.emplace(m.tag, m);
+        return;
+      }
+
+      bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m);
+  } else {
+      std::bitset<32> mask = m_mcmi_bypass.mask;
+      std::vector<uint64_t> addresses;
+      std::vector<uint8_t> datas;
+
+      for (int i = 0; i < 32; i++) {
+          if (mask[i]) {
+              addresses.push_back(m_mcmi_bypass.addr + i);
+              uint8_t byte = 0;
+              for (int bit = i*8; bit < 8*(i+1); ++bit) {
+                  if (m_mcmi_bypass.data_vec[bit]) {
+                      byte |= (1 << (bit - (i*8)));  // Set the corresponding bit in first_byte
+                  }
+              }
+              datas.push_back(byte);
+          }
+      }
+
+      uint64_t start = addresses[0];
+      size_t size = 1;
+      std::string dataAccumulated = fmt::format("{:02x}", datas[0]);  
+
+      for (size_t i = 1; i < addresses.size(); ++i) {
+          if (addresses[i] == addresses[i - 1] + 1) {
+              ++size;
+              dataAccumulated = fmt::format("{:02x}", datas[i]) + dataAccumulated;
+          } else {
+              mem_t m;
+              m.valid = true;
+              m.cycle = m_mcmi_bypass.cycle;
+              m.tag = m_mcmi_bypass.order;
+              m.pa = start;
+              m.size = size;
+              std::bitset<256> value = stringToBitset(dataAccumulated);  // Use a helper to convert the accumulated string
+              m.data_vec = value;
+              m.v_ext = m_mcmi_bypass.v_ext;
+              bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m);
+              start = addresses[i];
+              size = 1;
+              dataAccumulated = fmt::format("{:02x}", datas[i]);
+          }
+      }
+      mem_t m;
+      m.valid = true;
+      m.cycle = m_mcmi_bypass.cycle;
+      m.tag = m_mcmi_bypass.order;
+      m.pa = start;
+      m.size = size;
+      m.data_vec = stringToBitset(dataAccumulated);  // Final range processing
+      m.v_ext = m_mcmi_bypass.v_ext;
+      bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m);
   }
-
-  if (m.amo && m.amo_op == SC && sc_failed(m)) {
-    sc_bypass_.emplace(m.tag, m);
-    return;
-  }
-
-  bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m);
 }
 
 bool rvfi::sc_failed(mem_t& write) {
