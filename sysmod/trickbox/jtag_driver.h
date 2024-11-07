@@ -20,6 +20,22 @@
 #include <dirent.h>
 #include <cstdlib>
 #include <ctime>
+
+#include <iostream>
+#include <string>
+#include <cstring>
+#include <algorithm>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#include <ifaddrs.h>
+#include <netdb.h>
+#include "cvm/logger.hpp"
+#include "cvm/random.hpp"
+// #include "rv_tester_transactions.hpp"
+#include "transactor.h"
+#include "svdpi.h"
+
 #include "pcg_random.hpp"
 #include "cvm/plusargs.hpp"
 #include "cvm/topology.hpp"
@@ -32,6 +48,7 @@
 DECLARE_string(jtag_input_file_path);
 DECLARE_bool(random_jtag_entry);
 DECLARE_int32(random_jtag_start_delay);
+DECLARE_bool(jtag_remote_debugger_mode);
 DECLARE_int32(jtag_delay_min);
 DECLARE_int32(jtag_delay_max);
 DECLARE_int32(jtag_max_snippets);
@@ -77,9 +94,8 @@ public:
   virtual void write(uint64_t addr, size_t length, const data_t &data,
                      const strb_t &strb) override;
 
-  virtual void tick(uint64_t advance) override
+  virtual void tick(uint64_t ) override
   {
-     cvm::log(cvm::FULL, "[jtag_driver]: Tick {}\n",advance);
   }
   virtual void jtag_tick(uint64_t advance) override
   {
@@ -87,6 +103,17 @@ public:
     cvm::log(cvm::FULL, "[jtag_driver]: JTAG Tick {}\n",num_ticks);
     timer_ += advance;
     timer_advance = advance;
+    if(num_ticks == 31){
+        if(FLAGS_jtag_remote_debugger_mode){
+          int PORT = 8088;
+    
+          auto* l = +[](int PORT, jtag_driver* dev) -> cvm::messenger::task<void>{
+          co_await dev->open_socket_to_listen(PORT);
+        };
+     cvm::registry::messenger.fork(l,PORT, this);
+   // open_socket_to_listen();
+      }
+    }
     if( num_ticks > 30) 
     {
     checkJtagEvents();
@@ -197,7 +224,11 @@ bool exitLoop() {
   void parse_jtag_from_csv();
   void drive_csv_jtag_cmds();
   void get_all_csv_templates();
-
+  void setNonBlocking(int socket);
+  std::string process_string(const std::string& input);
+  cvm::messenger::task<void> open_socket_to_listen(int port);
+  // std::string getLocalIPAddress();
+  
   struct jtag_data_t
   {
     unsigned hart;
@@ -233,6 +264,7 @@ bool exitLoop() {
   }
 
   void update_jtag_status(jtag_req_t& i);
+  cvm::messenger::task<void> jtag_tick();
 
   void checkJtagEvents()
   {

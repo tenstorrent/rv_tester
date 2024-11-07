@@ -17,21 +17,13 @@ DEFINE_uint64(recent_pc_instr, 100000, "+recent_pc should have been seen within 
 
 REGISTRY_register(eot, TOP.PLATFORM, cvm::registry::all);
 
-extern "C" void cosim_set_eot(std::uint64_t addr, std::uint8_t status, std::uint8_t syscall);
-
-void eot::get_tohost_addr() {
-  char *env_var = std::getenv("ZEBU_OFFLINE_DPI");
-  bool is_zebu_offline = (env_var != nullptr && std::string(env_var) == "1");
+void eot::init_tohost_addr() {
 
   // Get tohost address from
   // 1. plusarg if provided
   if (FLAGS_tohost != 0x0) {
     tohost_addr_ = FLAGS_tohost;
     cvm::log(cvm::NONE, "[eot] tohost from plusarg:: addr=[{:#x}]\n", tohost_addr_);
-
-    if (!is_zebu_offline) {
-      cosim_set_eot(tohost_addr_,1,0);
-    }
     return;
   }
 
@@ -53,9 +45,6 @@ void eot::get_tohost_addr() {
       }
     }
     cvm::log(cvm::NONE, "[eot] tohost from elf:: cmd=[{}] addr_str=[{}] addr=[{:#x}]\n", cmd, addr_str, tohost_addr_);
-    if (!is_zebu_offline) {
-      cosim_set_eot(tohost_addr_,1,0);
-    }
   }
   if (tohost_in_elf)
     return;
@@ -69,16 +58,17 @@ void eot::get_tohost_addr() {
   } else {
     cvm::log(cvm::ERROR, "[eot] tohost from memmap:: htif not found in memmap\n", tohost_addr_);
   }
-  if (!is_zebu_offline) {
-    cosim_set_eot(tohost_addr_,1,0);
-  }
+}
+
+std::uint64_t eot::get_tohost_addr() {
+   return tohost_addr_;
 }
 
 void eot::process(const rv_tester_transactions::cosim::m_steps<>& m_steps) {
 
   // When using periodic state check method add the missing step counts (only the first m_steps packet does this)
   if (m_steps.steps > 0) {
-      instr_count_[m_steps.hart] = instr_count_[m_steps.hart] + m_steps.steps;
+      instr_count_[m_steps.hart] = instr_count_[m_steps.hart] + m_steps.steps + m_steps.final_steps + m_steps.skips;
       previous_cycle_ = m_steps.cycle;
   }
 }
@@ -91,6 +81,10 @@ void eot::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   if (instr_count_[m_rvfi.hart] == 0) {
      start = std::chrono::system_clock::now();
   }
+
+  // We don't want to increment instr_count and check for EOT if this is not the last uop
+  if (!m_rvfi.last_uop)
+      return;
 
   instr_count_[m_rvfi.hart]++;
 
@@ -149,7 +143,7 @@ void eot::process_tohost(uint64_t hartid, uint64_t cycle, uint64_t address, uint
         cvm::log(cvm::NONE, "<{}> Hart:<{}> Pass condition detected - tohost[0]=1, tohost[47:1]=0\n", cycle, hartid);
         cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
       }
-      if (FLAGS_eot != "tohost_all" || (terminated_harts_.size() >= num_harts_)) {
+      if (FLAGS_eot != "tohost_all" || (terminated_harts_.size() >= FLAGS_num_harts)) {
         ended_ = true;
         cvm::registry::messenger.signal<htif::terminate_t>( cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0),
         htif::terminate_t{.low_priority_based = true});
@@ -187,3 +181,12 @@ eot::~eot() {
         }
     }
 }
+
+extern "C" {
+  std::uint64_t eot_get_addr() {
+    //return eot::get_tohost_addr();
+    //return cvm::registry::messenger.call<eot::get_tohost_addr>();
+    return cvm::registry::messenger.call<eot::get_tohost_addr_RPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0));
+  }
+}
+

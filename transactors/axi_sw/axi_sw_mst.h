@@ -51,15 +51,25 @@ class axi_sw_mst {
         void process(const axi::w_t& w);
         void process(const transactor::read_request_t& req);
         void process(const transactor::write_request_t& req);
-
         bool a_wrapper(uint64_t req_addr, size_t req_length, axi::a_t& a);
         void push_transactions();
-
         void reset_ptrs();
-
         void set_scope(svScope scope);
+
+        // If an id is available, claim it and return the value.
+        // Otherwise, indicate no ID's are available.
+        std::optional<unsigned> claim_id() {
+          unsigned id;
+          if (next_id(id)) {
+            return id;
+          }
+          else
+            return std::nullopt;
+        }
+
         svScope scope_;
         cvm::topology::loc_t loc_;
+        unsigned id_;
         size_t id_width_;
         size_t data_width_;
         size_t strb_width_;
@@ -73,11 +83,18 @@ class axi_sw_mst {
         uint32_t w_q_rptr_, w_q_wptr_;
 
         std::vector<bool> ids_;
+        std::vector<bool> chk_rsp_err_ids_;
         std::vector<size_t> sizes_;
         std::unordered_map<size_t, std::vector<uint8_t>> read_data_;
         std::deque<std::variant<axi::a_t, axi::w_t>> transactions_;
 
+        uint64_t read_bytes_;
+        uint64_t write_bytes_;
+
     public:
 
         axi_sw_mst(cvm::topology::loc_t loc, unsigned id);
+        ~axi_sw_mst();
+
+        CVM_MESSENGER_procedure_call(claim_id, std::optional<unsigned> ());
 };

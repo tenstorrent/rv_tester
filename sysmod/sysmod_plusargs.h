@@ -18,8 +18,7 @@ DECLARE_int32(num_sc_dis_ways);
 DECLARE_int32(sc_dis_ways_mask);
 DECLARE_uint32(trace_enable);
 DECLARE_uint32(debug_enable);
-
-
+DECLARE_int32(num_sp_ways);
 DECLARE_int32(imsic_intr_delay_min);//, 4, "Minimum Delay between 2 consecutive interrupts");
 DECLARE_int32(imsic_intr_delay_max);//, 7, "Maximum Delay between 2 consecutive interrupts");
 DECLARE_bool(random_imsic_intr);//, false, "Drive random interrups");
@@ -29,5 +28,7 @@ DECLARE_bool(disable_vs_imsic_intr);
 DECLARE_bool(disable_random_hart_imsic_intr);
 DECLARE_int32(imsic_intr_threshold);
 DECLARE_int32(imsic_vs_intr_threshold);
+DECLARE_int32(imsic_vs_id_threshold);
 DECLARE_int32(imsic_hart_threshold);
 DECLARE_int32(imsic_intr_start_delay);
+DECLARE_bool(export_control_en);

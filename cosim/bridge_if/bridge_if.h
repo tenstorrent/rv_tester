@@ -138,15 +138,20 @@ typedef struct mem_s {
   bool valid;
   uint32_t hart;
   uint64_t cycle;
+  uint64_t opcode;
   uint64_t tag;
   uint64_t va;
   uint64_t pa;
   uint8_t size;
   uint64_t data;
+  std::bitset<256> data_vec;
   bool amo;
   uint8_t amo_op;
+  bool v_ext;
   uint32_t attr;
-
+  uint8_t field;
+  uint8_t nano_op_elem_idx;
+  
   mem_s() {
     clear();
   }
@@ -201,8 +206,10 @@ typedef struct rv_instr_s {
   std::string csr_renamed_name = "";
   bool trap = false;
   uint8_t priv = 3;
+  bool nmi = false;
   bool intr = false;
   bool excp = false;
+  uint64_t ncause = 0;
   uint64_t icause = 0;
   uint64_t ecause = 0;
   uint64_t mem_va = 0;
@@ -231,6 +238,7 @@ typedef struct rv_instr_s {
     comp = false;
     ucode = false;
     trap = false;
+    nmi = false;
     intr = false;
     excp = false;
     pc.clear();
@@ -271,3 +279,9 @@ typedef struct rv_intr_s {
   uint64_t mip_mask;
   uint64_t mip_assert;
 } rv_intr_t;  
+
+typedef struct rv_nmi_s {
+  uint64_t cycle;
+  bool valid;
+  uint64_t cause;
+} rv_nmi_t;

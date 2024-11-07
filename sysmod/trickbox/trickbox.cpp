@@ -10,26 +10,23 @@ trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned, cvm::topolog
   if (FLAGS_load != "") {
     init_elf(FLAGS_load);
   }
-  
+
   subdevice* sub = nullptr;
   interrupter_base = addr;
   sub = new interrupter("interrupter", interrupter_base, 1, loc);
   subdevices_.emplace_back(sub);
   sub = new debugger("debugger", addr + 0x50000, 1, loc);
   subdevices_.emplace_back(sub);
-  sub = new jtag_driver("jtag_driver", addr + 0xa0000, 1, loc);
-  subdevices_.emplace_back(sub);
+  //sub = new jtag_driver("jtag_driver", addr + 0xa0000, 1, loc);
+  //subdevices_.emplace_back(sub);
   sub = new imsic_driver("imsic_driver", addr + 0x70000, 1, loc, axi_mst_loc_l);
   subdevices_.emplace_back(sub);
   sub = new evt_trigger("evt_trigger", addr + 0x78000, 1, loc);
   subdevices_.emplace_back(sub);
   sub = new uc_helper("uc_helper", addr + 0x80000, 1, loc, m_);
   subdevices_.emplace_back(sub);
-  sub = new aplic_driver("aplic_driver", addr + 0x90000, 1, loc);
+  sub = new io_coh_helper("io_coh_helper", addr + 0x89000, 1, loc, m_);
   subdevices_.emplace_back(sub);
-  // sub = new scratchpad_xtor("scratchpad_xtor", addr + 0xa0000, 1, loc, axi_mst_loc_l);
-  // subdevices_.emplace_back(sub);
-  
 }
 
 

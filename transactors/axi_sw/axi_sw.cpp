@@ -35,12 +35,13 @@ extern "C" {
 
 template <typename W, typename AW, typename AR, typename RQ>
 axi_sw<W,AW,AR,RQ>::axi_sw(cvm::topology::loc_t loc, unsigned id)
-  : scope_(nullptr), loc_(loc),
+  : scope_(nullptr), loc_(loc), id_(id),
     id_width_(cvm::topology::attr(loc_, "ID_WIDTH").second),
     data_width_(cvm::topology::attr(loc_, "DATA_WIDTH").second),
     strb_width_(cvm::topology::attr(loc_, "STRB_WIDTH").second),
     r_q_max_(cvm::topology::attr(loc, "R_Q_MAX").second), r_q_ptr_max_(cvm::topology::attr(loc, "R_Q_PTR_MAX").second),
-    r_q_rptr_(0), r_q_wptr_(r_q_max_), r_q_rptr_update_time_(0)
+    r_q_rptr_(0), r_q_wptr_(r_q_max_), r_q_rptr_update_time_(0),
+    read_bytes_(0), write_bytes_(0)
     {
     cvm::log(cvm::FULL, "[axi_sw] Constructing axi_sw for loc={} id={}\n", loc,id);
 
@@ -62,6 +63,12 @@ axi_sw<W,AW,AR,RQ>::axi_sw(cvm::topology::loc_t loc, unsigned id)
 
 template <typename W, typename AW, typename AR, typename RQ>
 axi_sw<W,AW,AR,RQ>::~axi_sw() {
+
+    std::string name = cvm::topology::name(loc_);
+    std::transform(name.begin(), name.end(), name.begin(), [](unsigned char c){ return std::tolower(c); });
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"{}{}_read_bytes\": {}}}\n", name, id_, read_bytes_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"{}{}_write_bytes\": {}}}\n", name, id_, write_bytes_);
+
     if (axi_) {
         delete axi_;
         axi_ = nullptr;
@@ -72,6 +79,7 @@ axi_sw<W,AW,AR,RQ>::~axi_sw() {
 template <typename W, typename AW, typename AR, typename RQ>
 cvm::messenger::task<void> axi_sw<W,AW,AR,RQ>::process(const AW& aw) {
     cvm::log(cvm::FULL, "[axi_sw] aw: [id={}, addr={:#x}, size={}]\n", aw.id, aw.addr, aw.size);
+    write_bytes_ = write_bytes_ + (1ull << aw.size);
     co_await a(axi::a_t{true, aw.id, aw.addr, aw.len, aw.size, axi::burst_t(aw.burst), aw.lock != 0,axi::cache_mem_attr_t(aw.cache),aw.prot,aw.qos,aw.region, aw.atop,aw.user});
     r_resp();
     co_return;
@@ -80,6 +88,7 @@ cvm::messenger::task<void> axi_sw<W,AW,AR,RQ>::process(const AW& aw) {
 template <typename W, typename AW, typename AR, typename RQ>
 cvm::messenger::task<void> axi_sw<W,AW,AR,RQ>::process(const AR& ar) {
     cvm::log(cvm::FULL, "[axi_sw] ar: [id={}, addr={:#x}, size={}]\n", ar.id, ar.addr, ar.size);
+    read_bytes_ = read_bytes_ + (1ull << ar.size);
     co_await a(axi::a_t{false, ar.id, ar.addr, ar.len, ar.size, axi::burst_t(ar.burst), ar.lock != 0,axi::cache_mem_attr_t(ar.cache),ar.prot,ar.qos,ar.region, 0,ar.user});
     r_resp();
     co_return;
@@ -198,6 +207,7 @@ void axi_sw<W,AW,AR,RQ>::r_resp() {
 
 template <typename W, typename AW, typename AR, typename RQ>
 void axi_sw<W,AW,AR,RQ>::reset_ptrs() {
+    cvm::log(cvm::HIGH, "[axi_sw] reset_ptrs loc={}\n", loc_);
     r_q_rptr_ = 0;
     r_q_wptr_ = 0;
     r_q_rptr_update_time_ = 0;

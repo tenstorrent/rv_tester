@@ -29,10 +29,9 @@ module top
     );
 
     assign dut_clk = clk;
-    assign dut_reset[CORE_RESET_IDX] = reset[COLD_RESET_IDX];
-    assign dut_reset[AXI_RESET_IDX] = reset[COLD_RESET_IDX];
-    assign dut_reset[SOC_RESET_IDX] = reset[COLD_RESET_IDX];
-    assign dut_reset[REF_RESET_IDX] = reset[COLD_RESET_IDX];
+    /* verilator lint_off WIDTHEXPAND */
+    assign core_no_fetch = reset[COLD_RESET_IDX] || reset[WARM_RESET_IDX];
+    /* verilator lint_on WIDTHEXPAND */
 
     function automatic void write_rvfi(byte unsigned valid, int unsigned order, int unsigned hartid, int unsigned nretid, int unsigned insn, longint unsigned pc);
         int unsigned idx = hartid * cvm_topology_gen::mods.TOP.PLATFORM.COSIM.RVFI.NRETS_CUMSUM[hartid] + nretid;
@@ -68,10 +67,10 @@ module top
     end
 
     always @(posedge clk[CORE_CLK_IDX]) begin
+        clocks <= clocks + 1;
         if (!reset[COLD_RESET_IDX]) begin
-            clocks <= clocks + 1;
+          order <= order + 1;
         end
-        order <= order + 1;
         case(HARNESS)
         SW_1C:
           get_1c_stimulus(reset[COLD_RESET_IDX], order);

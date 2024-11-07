@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <iomanip>
 #include <vector>
+#include <map>
 
 #include "cvm/topology.hpp"
 #include "bridge_base.h"
@@ -18,6 +19,14 @@
 #include "whisper_client.h"
 #include "rv_tester/rv_tester_structs.h"
 #include "cvm/registry.hpp"
+#include <fmt/format.h>
+
+enum patch_mode {
+    NO_PATCH = 0,  //--> Not in PATCH mode
+    ENTER_PATCH,   //--> Entered patch, helpful to identify the instruction and step whisper (just) once, No CaC
+    IN_PATCH,      //--> Inside patch mode, record the DUT changes, do not step whisper, no CaC
+    EXIT_PATCH     //--> Exiting patch, helpful to identify the instruction and do the CaC checks.
+};
 
 class bridge : public bridge_base {
 
@@ -33,7 +42,7 @@ public:
   // Usec by some functions in bridge.cpp
   using size_8_bytes_t = uint64_t;
 
-  struct error {};
+  struct error_loc {};
 
   bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsigned id);
   ~bridge();
@@ -69,6 +78,7 @@ public:
   virtual void process_dut_mcm_ievict(hart_id_t hart, mem_t& m) override;
 
   // Interrupts
+  virtual void process_dut_nmi(hart_id_t hart, rv_nmi_t& n) override;
   virtual void process_dut_interrupt(hart_id_t hart, rv_intr_t& i) override;
   virtual void process_dut_imsic_msi(hart_id_t hart, mem_t& m) override;
 
@@ -82,7 +92,7 @@ public:
   void final_phase();
   void report_metrics();
   void process(const rv_tester::terminate_called &);
-  void set_patch_mode(bool patch_mode) { patch_mode_ = int(patch_mode); }
+  void set_patch_mode(int patch) { patch_mode_ = static_cast<patch_mode> (patch); }
 
 private:
 
@@ -128,9 +138,11 @@ private:
   // Process pre/post-step
   void pre_step_lrsc_poke(       hart_id_t hart, const rv_instr_t& d);
   void pre_step_debug_poke(      hart_id_t hart, const rv_instr_t& d);
+  void pre_step_nmi_poke(  hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
   void pre_step_interrupt_poke(  hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
-  void post_step_interrupt_poke( hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
-  void post_step_exception_poke( hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
+  void post_step_nmi_check( hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
+  void post_step_interrupt_check( hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
+  void post_step_exception_check( hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
   void post_step_satp_write_poke(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
 
   void process_imsic_msi(hart_id_t hart, const mem_t& m);
@@ -141,6 +153,8 @@ private:
   void defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
   void resetsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr);
   void setsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr);
+  void poke_nmi(hart_id_t hart, uint64_t time, uint64_t cause);
+  void clear_nmi(hart_id_t hart, uint64_t time);
   void poke_mip(hart_id_t hart, uint64_t time, uint64_t mip);
   void peek_mip(hart_id_t hart, uint64_t time, uint64_t& mip);
   void peek_seip(hart_id_t hart, uint64_t time, uint64_t& val);
@@ -151,10 +165,13 @@ private:
 
   bool is_custom_excp(uint64_t cause);
   bool is_vector(const std::string& instr);
+  bool is_indirect_reg(const std::string& instr);
   bool disable_pa_check_vec(hart_id_t hart);
   bool is_compressed(const std::string& instr);
   bool is_ucode(const std::string& instr);
   bool is_renamed_csr(const std::string& instr);
+  bool does_excp_match_error_list(const std::string& instr);
+  bool does_instr_match_error_list(const std::string& instr);
   bool does_instr_match_resynch_list(const rv_instr_t& d, const std::string& instr);
   bool does_instr_match_resynch_condition(const rv_instr_t& d, const std::string& instr);
   bool clint_read(const rv_instr_t& d);
@@ -175,6 +192,39 @@ private:
 
 private:
 
+  std::map<uint64_t, std::string> hypervisor_csr_map_ = {
+        {0x600, "hstatus"},      // Hypervisor status register -
+        {0x602, "hedeleg"},      // Hypervisor exception delegation register -
+        {0x603, "hideleg"},      // Hypervisor interrupt delegation register -
+        {0x604, "hie"},          // Hypervisor interrupt-enable register -
+        {0x605, "htimedelta"},   // Hypervisor time delta register -
+        {0x606, "hcounteren"},   // Hypervisor counter-enable register -
+        {0x607, "hgeie"},        // Hypervisor guest external interrupt-enable register -
+        //{0x608, "hvien"}, -> hvip is defined by H extension whereas mvien and hvien are defined by Smaia/SSaia
+        {0x609, "hvictl"},
+        {0x60A, "henvcfg"},      // Hypervisor Environment Configuration regsiter -
+        {0x643, "htval"},        // Hypervisor Trap Value register -
+        {0x644, "hip"}, // -
+        {0x645, "hvip"},         // Hypervisor virtual interrupt pending -
+        {0x646, "hviprio1"},         // 
+        {0x647, "hviprio2"},         //
+        {0x680, "hgatp"},        // Hypervisor trap value register - 
+        {0x64A, "htinst"},       // Hypervisor trap instruction register -
+        {0xE12, "hgeip"},     // Hypervisor Guest Interrupt Pending -
+        {0x34B, "mtval2"},       // Machine Trap Value register -
+        {0X34A, "mtinst"},        // Machine Trap Instruction register -
+        {0x200, "vsstatus"}, // -
+        {0x204, "vsie"}, // -
+        {0x205, "vstvec"}, // -
+        {0x240, "vsscratch"}, // -
+        {0x241, "vsepc"}, // -
+        {0x242, "vscause"}, // -
+        {0x243, "vstval"}, // -
+        {0x24D, "vstimecmp"},
+        {0x244, "vsip"}, // -
+        {0x280, "vsatp"} // -
+    };
+
   cvm::file_logger bridge_log_;
   cvm::topology::loc_t loc_;
   unsigned id_;
@@ -184,7 +234,6 @@ private:
   int vlen_ = 0;
   CacCore cac_;
   CacCore csr_cac_;
-  bool first_reset_ = true;
 
   uint64_t order_ = 0;
 
@@ -228,11 +277,16 @@ private:
   bool vstimecmppoked_ = false;
   bool stimecmppoked_ = false;
   uint64_t intrtopriv_ = 3;
-  std::vector<mem_t> mem_poke_{};
+  std::vector<mem_t> msi_{};
+  rv_nmi_t nmi_ {};
+  rv_nmi_t prev_nmi_ {};
+  bool nmi_poke_pending_ = false;
   uint64_t mip_ = 0;
   uint64_t prev_mip_ = 0;
+  uint64_t mip_age_ = 0;
   uint64_t e_mip_ = 0;
   uint64_t prev_e_mip_ = 0;
+  uint64_t e_mip_age_ = 0;
   uint64_t deferred_mip_ = 0;
   bool prev_sync_intr_ = 0;
   bool all_interrupts_defer_= 0;
@@ -243,6 +297,8 @@ private:
   bool post_undeferred_intr_;
   std::array<uint32_t, max_intr> intr_age_{};
   uint32_t max_pend_intr_age_ = 0;
+  uint32_t nmi_age_ = 0;
+  uint32_t nmi_taken_count_ = 0;
   std::chrono::high_resolution_clock::time_point end_time_;
   std::chrono::high_resolution_clock::time_point start_of_test_;
   bool first_call_ = true;
@@ -254,6 +310,7 @@ private:
   std::array<std::array<int, 16>, 12> num_taken_interrupts_{};
 
   int num_exceptions_ = 0;
+  int num_trig_breakpoint_ = 0;
   int num_sp_accesses_ = 0;
 
   size_8_bytes_t dword_vec_array [vlen/64] = {0};
@@ -261,14 +318,20 @@ private:
   std::vector<std::string> cosim_resynch_csr_defaults;
 
   bool terminated_ = false;
-  int patch_mode_  = 0; // 0:not in patch mode, 1: entered patch mode, step whisper, >2: inside patch mode, dont step whisper
+  enum patch_mode patch_mode_ = NO_PATCH;
 
   template <typename... Args>
       void print(cvm::verbosity_level v, Args&&... args) {
           cvm::log(v, std::forward<Args>(args)...);
           if (v <= cvm::verbosity_level::ERROR) {
-              cvm::registry::messenger.signal<error>(loc_, {});
+              cvm::registry::messenger.signal<error_loc>(loc_, {});
           }
       }
-
+  template <typename... Args>
+      void error(Args&&... args) {
+          std::string prefix = "Error: ";
+          if (patch_mode_) { prefix += "PATCH ";}
+          std::string out = prefix + fmt::format(std::forward<Args>(args)...) + "\n"; // for those who forget newline
+          print(cvm::ERROR, out);
+      }
 };

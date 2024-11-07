@@ -319,16 +319,15 @@ module axi_sw #(
             automatic int unsigned fixed   = cvm_plusargs::get_int("axi_sw_read_latency_fixed");
             read_latency_timeout_threshold = cvm_plusargs::get_int("axi_sw_read_latency_timeout_threshold");
             read_latency_fifo_threshold    = cvm_plusargs::get_int("axi_sw_read_latency_fifo_threshold");
-            read_latency       = max | fixed;
+            read_latency       = (fixed != 0) ? fixed : max;
             read_latency_fixed = fixed != 0;
             /* verilator lint_on BLKSEQ */
-            if (max != 0 && fixed != 0                                            ) $error("Error: +axi_sw_read_latency_max and +axi_sw_read_latency_fixed cannot both be set");
             if (read_latency     >= (32'(1)) << CW                                ) $error("Error: +axi_sw_read_latency_max/+axi_sw_read_latency_fixed (%0d) overflows counter width (%0d)", read_latency, CW);
             if (read_latency != 0 && read_latency_timeout_threshold > read_latency) $error("Error: +axi_flush_threshold (%0d) > +axi_sw_read_latency_max/+axi_sw_read_latency_fixed (%0d)", read_latency_timeout_threshold, read_latency);
         end
     end
 
-    localparam AR_HISTORY_Q_MAX = 16;
+    localparam AR_HISTORY_Q_MAX = 128;
 
     logic                   ar_history_empty;
     logic [CW         -1:0] ar_history_q;
@@ -442,6 +441,7 @@ module axi_sw_mst #(
     parameter int unsigned DATA_WIDTH = 32'd0,
     parameter int unsigned STRB_WIDTH = DATA_WIDTH / 8,
     parameter int unsigned ID_WIDTH   = 32'd0,
+    parameter int unsigned USER_WIDTH = 32'd0,
 
     parameter int unsigned LOCATION   =     0,
     parameter int NUM                 =    -1,
@@ -454,6 +454,7 @@ module axi_sw_mst #(
     parameter type data_t   = logic [DATA_WIDTH-1:0],
     parameter type id_t     = logic [ID_WIDTH  -1:0],
     parameter type strb_t   = logic [STRB_WIDTH-1:0],
+    parameter type user_t   = logic [USER_WIDTH-1:0],
 
     parameter type burst_t  = logic [1:0],
     parameter type resp_t   = logic [1:0],
@@ -464,7 +465,6 @@ module axi_sw_mst #(
     parameter type qos_t    = logic [3:0],
     parameter type region_t = logic [3:0],
     parameter type atop_t   = logic [5:0],
-    parameter type user_t   = logic [0:0],
     `RV_TESTER_TRANSACTIONS_AXI_SW_MST_OUTPUT_PARAMS
 
 )(
@@ -574,6 +574,15 @@ module axi_sw_mst #(
                 automatic byte unsigned _ = axi_sw_mst_set_scope(LOCATION);
             end
             /* verilator lint_on BLKSEQ */
+        end
+    end
+
+    logic [64-1:0] clocks;
+    always_ff @(posedge clk) begin
+        if (!reset_n) begin
+            clocks <= '0;
+        end else begin
+            clocks <= clocks + 64'(1);
         end
     end
 

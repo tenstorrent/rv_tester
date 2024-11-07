@@ -19,7 +19,6 @@ def aclint_checker_gen(name, packet, topology, harness, visibility = None, cc_at
 		"@cvm//:logger",
 		"@cvm//:registry",
 		"@cvm//:bitmanip",
-		"@aplic//:Aplic",
 		],
 		alwayslink = True,
 		visibility = visibility,

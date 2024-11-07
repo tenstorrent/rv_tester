@@ -31,6 +31,12 @@ debugger::debugger(const std::string &tag, uint64_t addr, unsigned hartCount, cv
 
 debugger::~debugger()
 {
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"dm_rand_snippets_mode\": \"{}\"}}\n", FLAGS_random_dbg_entry);
+  if (FLAGS_random_dbg_entry) {
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"dm_rand_snippets_max_count\": \"{}\"}}\n", FLAGS_dbg_max_snippets);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"dm_rand_snippets_delay\": \"{}_{}\"}}\n", FLAGS_dbg_delay_min, FLAGS_dbg_delay_max);
+  }
+  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"dm_rand_snippets_name\": \"{}\"}}\n", dbg_snippets_name);
 }
 void
 debugger::update_dm_status(debugger::dmi_status_t& i) {
@@ -67,11 +73,17 @@ void debugger::get_all_csv_templates()
 void debugger::parse_dmi_from_csv()
 {
 
-  std::string file_name;
-  if (FLAGS_random_dbg_entry)
+  std::string file_name, file_csv_name;
+  if (FLAGS_random_dbg_entry) {
     file_name = csvFilePaths[file_idx];
-  else
+    file_csv_name = file_name.substr(file_name.find_last_of('/') + 1, file_name.size() - file_name.find_last_of('/') - 5);
+    dbg_snippets_name.append(file_csv_name); 
+  }
+  else {
     file_name = FLAGS_dbg_input_file_path;
+    file_csv_name = file_name.substr(file_name.find_last_of('/') + 1, file_name.size() - file_name.find_last_of('/') - 5);
+    dbg_snippets_name.append(file_csv_name);
+  }
 
   cvm::log(cvm::NONE, "Parse DMI Commands from CSV:{}\n", file_name);
   std::fstream file(file_name, std::ios::in);
@@ -120,6 +132,34 @@ void debugger::parse_dmi_from_csv()
         // checkpoint
         dmi_req.op = 3;
       }
+      else if (instr_2char == "sd")
+      {
+        // checkpoint
+        if (instr == "sdtrig_halt_queue_on")
+        {
+          sdtrig_halt_queue_on = 1;
+        }
+        if (instr == "sdtrig_halt_queue_off")
+        {
+          sdtrig_halt_queue_on = 0;
+        }
+        if (instr == "sdtrig_cause_queue_on")
+        {
+          sdtrig_cause_queue_on = 1;
+        }
+        if (instr == "sdtrig_cause_queue_off")
+        {
+          sdtrig_cause_queue_on = 0;
+        }
+        if (instr == "sdtrig_disable_queue_on")
+        {
+          sdtrig_disable_queue_on = 1;
+        }
+        if (instr == "sdtrig_disable_queue_off")
+        {
+          sdtrig_disable_queue_on = 0;
+        }
+      }
       else if (instr_2char == "st")
       {
         // step ahead/back q
@@ -165,8 +205,20 @@ void debugger::parse_dmi_from_csv()
       {
         dmi_req.func_bits = 4;
       }
+      if (sdtrig_halt_queue_on)
+      {
+        dmi_req.func_bits = 3;
+      }
+      if (sdtrig_cause_queue_on)
+      {
+        dmi_req.func_bits = 5;
+      }
+      if (sdtrig_disable_queue_on)
+      {
+        dmi_req.func_bits = 7;
+      }
 
-      if (dmi_req.op != 3)
+      if ((dmi_req.op != 3)&&(dmi_req.op != 0))
       {
         // remove underscores from addr
         row[1].erase(std::remove(row[1].begin(), row[1].end(), '_'), row[1].end());
@@ -193,11 +245,12 @@ void debugger::parse_dmi_from_csv()
           cvm::log(cvm::ERROR, "[Trickbox] Invalid argument: data for stoul csv arg 2: {}\n", e.what());
         }
       }
-
-      content.push_back(row);
-      dmi_cmd_q.push(dmi_req);
-      // PRINT CSV DATA
-      cvm::log(cvm::MEDIUM, "Pushing dmi request: op {} addr {:#x} data {:#x}\n", dmi_req.op, dmi_req.addr, dmi_req.data);
+      if (dmi_req.op != 0) {
+        content.push_back(row);
+        dmi_cmd_q.push(dmi_req);
+        // PRINT CSV DATA
+        cvm::log(cvm::MEDIUM, "Pushing dmi request: op {} addr {:#x} data {:#x}\n", dmi_req.op, dmi_req.addr, dmi_req.data);
+      }
     }
 
     // Add a dummy check-point to ensure all DMI commands part of the previous trigger is executed

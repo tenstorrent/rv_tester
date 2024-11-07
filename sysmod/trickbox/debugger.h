@@ -92,6 +92,7 @@ public:
   void reset() override
   {
     cvm::log(cvm::HIGH, "[Debugger]: Reset debugger\n");
+    dbg_snippets_name = "";
     uint32_t rand_num = 0;
     if (FLAGS_random_dbg_entry)
     {
@@ -231,6 +232,9 @@ private:
   unsigned step_ahead_queue_on = 0;
   unsigned step_quit_queue_on = 0;
   unsigned step_instr_cnt = 0;
+  unsigned sdtrig_halt_queue_on = 0;
+  unsigned sdtrig_cause_queue_on = 0;
+  unsigned sdtrig_disable_queue_on = 0;
   uint64_t timer_rand_debug = 500;
   std::vector<std::vector<std::string>> content;
   std::vector<std::string> row;
@@ -244,4 +248,5 @@ private:
   unsigned snippets_driven = 0;
   bool file_parsing_in_progress = false;
   bool cmd_trigger_in_progress = false;
+  std::string dbg_snippets_name = "";
 };

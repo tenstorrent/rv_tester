@@ -1,9 +1,10 @@
 cc_library(
-    name = "aplic_mmr",
-    srcs = ["aplic_mmr.cpp"],
+    name = "cla_cfg",
+    srcs = ["cla_cfg.cpp"],
     hdrs = ["@rv_tester//transactors/axi_sw:safe_queue.h",
             "@rv_tester//transactors/axi_sw:axi.h",
-            "aplic_mmr.h",
+            "cla_cfg.h",
+            "cla_defines.h",
             ],
     deps = [
         "//sysmod:device",

@@ -22,9 +22,11 @@ class external_interrupt_sequence {
 
   private:
 
-    void trigger_mode_thread();
+    void patch_trigger_mode_thread();
+    void uarch_trigger_mode_thread();
 
-    cvm::messenger::task<void> trigger_mode();
+    cvm::messenger::task<void> patch_trigger_mode();
+    cvm::messenger::task<void> uarch_trigger_mode();
 
     cvm::messenger::task<void> tick();
     cvm::messenger::task<void> trigger();
@@ -44,7 +46,7 @@ class external_interrupt_sequence {
 
    
    
-    cvm::rand::uniform_dist<int64_t> rng1;
+    cvm::rand::uniform_dist<uint32_t> rng1;
     uint32_t trigger_interrupt_count_;
 
     
@@ -52,7 +54,7 @@ class external_interrupt_sequence {
     uint32_t ext_interrupt_count_ = 0;
     uint32_t ext_trig_interrupt_count_ = 0;
     uint32_t msi_m_file_addr  = 0x40000000;
-    uint32_t msi_v_file_addr  = 0x44000000;
+    uint32_t msi_s_file_addr  = 0x44000000;
     uint32_t msi_vs_file_addr = 0x44000000;
     int32_t  last_trigger     = 0;
     int32_t  current_trigger  = 0;

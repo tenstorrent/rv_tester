@@ -15,8 +15,11 @@
 
 DECLARE_bool(trace_en);
 DECLARE_bool(overlay_mmr_en);
-DECLARE_bool(cla_clk_halt);
-DECLARE_bool(cla_nmi);
+DECLARE_int32(strobe_type);
+DECLARE_uint32(overlay_num_times);
+DECLARE_int32(overlay_idle);
+DECLARE_int32(start_overlay_access);
+
 
 class trace_cfg : public device {
 
@@ -36,8 +39,10 @@ class trace_cfg : public device {
 
     public:
         bool is_smem_mode;
-        uint32_t start_clk_halt_cnt=0,trace_stop_cnt;
-        uint32_t trace_start_cnt=0,n,id_val,read_ram=0,axi_ids = 0;
+        bool write_in_flight = false;
+        bool read_in_flight = false;
+        uint32_t trace_stop_cnt;
+        uint32_t trace_start_cnt=0,n,id_val,id_val1 = 0,write_id=0,start_wr_access =0 ,overlay_exec_cntr =0,start_rd_access =0,read_ram=0,overlay_in_progress =0 ,start_default =1,axi_ids = 0;
         uint32_t cnt_tick=0;
         uint64_t axi_read_resp=0;
         std::unordered_map<std::string, uint32_t> macros;
@@ -48,7 +53,8 @@ class trace_cfg : public device {
         struct trace_cfg_read_t {
           uint64_t addr;
           size_t length;
-          uint32_t id;
+          uint64_t exp_data;
+          uint32_t id=0;
         };
         struct trace_info_t{
             uint32_t trace_quiesced;
@@ -60,10 +66,12 @@ class trace_cfg : public device {
           uint32_t id;
           std::vector<uint8_t> data;
           std::vector<bool> strb;
+          uint64_t exp_data;
         };
         std::queue<trace_cfg_read_req_t>  trace_read_resp_q;
         std::queue<trace_wr_t>            trace_wr_txn_q;
-        std::queue<std::pair<uint64_t,size_t>> trace_misc_rd_txn_q;
+        std::queue<uint64_t>           	  exp_read_data_q;
+        std::queue<trace_cfg_read_t> trace_misc_rd_txn_q;
         random_list randomElements;
         virtual void axi_write();
         virtual void axi_read(uint64_t addr, size_t length, uint32_t id);
@@ -71,8 +79,6 @@ class trace_cfg : public device {
         void overlay_tick(uint64_t) override;
 
         void gen_data_strb(uint64_t addr, uint32_t value, data_t& wdata, std::vector<bool>& strb);
-        void push_clk_halt_cfg();
-        void push_cla_nmi_cfg();
         void push_axi_mmr_seq();
         void push_read_axi_mmr_seq();
         void read_axi_pointers();
@@ -84,6 +90,14 @@ class trace_cfg : public device {
         void check_dst_ram_empty();
         void read_pointers();
         void read_sram();
+        void push_default_rd_seq();
+        void push_rd_scratchpad_seq();
+        void push_wr_scratchpad_seq();
+        void axi_write_mmr_granular();
+       // void push_wr_rd_scratchpad_seq();
+        std::vector<uint8_t> convert_to_byte_array(const std::vector<uint64_t>& dword_array);
+        //cvm::messenger::task<void> write_blocking(uint64_t addr, size_t sz, uint64_t data);
+        cvm::messenger::task<void>axi_write_blocking();
 
         virtual void write_axi_mst(uint64_t addr, size_t length, const data_t& data, const strb_t& strb);
         virtual void read_axi_mst(uint64_t addr, size_t length, data_t& data);

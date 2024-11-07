@@ -14,7 +14,7 @@ def rv_tester_repositories():
         #sha256 = "af87959afe497dc8dfd4c6cb66e1279cb98ccc84284619ebfec27d9c09a903de",
     )
 
-    corearchcoverage_hash="d271143ede5b1d178a16cb6e1550c42afcd96403"
+    corearchcoverage_hash="787c79a5864b602f4875541fb6fa1c11fee3039f"
     maybe(
         git_repository,
         name = "corearchcoverage",
@@ -23,11 +23,11 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv/dv/corearchcoverage.git",
     )
 
-    cvm_hash="e8e3f14105e2620fe422aaca17cd5ccc4877f24a"
+    cvm_hash="3b6b652505d35b42ac8fe0dba331fd0910c768f8"
     maybe(
         http_archive,
         name = "cvm",
-        sha256 = "f96854c8252d8ead47ea53a9987215949feb647b0f590ddab8dafff71efc1b01",
+        sha256 = "98b097f60979303e9eac51a49c913cfc41515285e447ef52044000d6fd22d4bd",
         strip_prefix = "cvm-{commit}".format(commit=cvm_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/{commit}/cvm-{commit}.tar.bz2".format(commit=cvm_hash),
     )
@@ -40,7 +40,7 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-nlohmann-json.git",
     )
 
-    whisper_hash="740a250e3852b9fbcd36b95413b82c5cbd584124"
+    whisper_hash="440e8919d4de510f44e3b4012e43ba9cede72898"
     maybe(
         git_repository,
         name = "whisper",
@@ -84,7 +84,7 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-wall_clock_profiler.git",
     )
 
-    checkin_script_hash="5c840e23253789bbeae882b804f5b4bdaa4ea0ee"
+    checkin_script_hash="13533ac8ec39a13ae88595a6a3de4d1bea17b254"
     maybe(
         git_repository,
         name = "checkin-script",
@@ -93,10 +93,10 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/checkin-script.git",
     )
 
-    aplic_model_hash="b5cd6bc4f2ec2a9fff32e68a670b23d9b777f2c1"
+    aegissocspec_hash="d116a4c3544f1190bed271da71ec3883b95f84bd"
     git_repository(
-        name = "aplic",
-        commit = aplic_model_hash,
+        name = "aegissocspec",
+        commit = aegissocspec_hash,
         recursive_init_submodules = True,
-        remote = "git@aus-gitlab.local.tenstorrent.com:riscv/aplic.git",
+        remote = "git@aus-gitlab.local.tenstorrent.com:specifications/arch-export-controlled/aegissocspec.git",
     )

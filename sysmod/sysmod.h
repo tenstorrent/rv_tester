@@ -11,14 +11,13 @@
 #include "htif/htif.h"
 #include "trickbox/interrupter.h"
 #include "trickbox/uc_helper.h"
-#include "trickbox/aplic_driver.h"
 #include "trickbox/debugger.h"
-#include "trickbox/jtag_driver.h"
+//#include "trickbox/jtag_driver.h"
 #include "scratchpad_xtor/scratchpad_xtor.h"
 #include "trace_cfg/trace_cfg.h"
-#include "pll_xtor/pll_xtor.h"
-#include "pm_nw_xtor/pm_nw_xtor.h"
+#include "cla_cfg/cla_cfg.h"
 #include "cvm/topology.hpp"
+#include "sysmod_params.hpp"
 
 #include <string>
 
@@ -64,7 +63,7 @@ class sysmod {
     void tick(uint64_t advance);
     void jtag_tick(uint64_t advance);
     void overlay_tick(uint64_t advance);
-    void jtag_resp(std::bitset<70> rdata);
+    //void jtag_resp(std::bitset<70> rdata);
     void compose();
     void load_boot(const std::string& boot);
     void load_cplfw(const std::string& cplfw);
@@ -81,41 +80,37 @@ class sysmod {
   //      }
   //     return result;
   //  }
-   std::vector<uint64_t> bitsetToUint64Array(const std::bitset<70>& bitset) {
-    const size_t bitsetSize = 64;//70;
-    const size_t ulongSize = sizeof(uint64_t) * 8;
-    const size_t arraySize = (bitsetSize + ulongSize - 1) / ulongSize;
+    std::vector<uint64_t> bitsetToUint64Array(const std::bitset<70>& bitset) {
+      const size_t bitsetSize = 64;//70;
+      const size_t ulongSize = sizeof(uint64_t) * 8;
+      const size_t arraySize = (bitsetSize + ulongSize - 1) / ulongSize;
 
-    std::bitset<70> bitset_shifted = bitset>>2;
+      std::bitset<70> bitset_shifted = bitset>>2;
 
-    //jtag rx -> jtag.op_Data , we are shifting only by 2 since from jtag_xtor for each tap point we shift accordingly but all of them are shifted by 2
-    //std::cout<<"[JTAG RESP] original = " <<bitset<<" shifted = "<<bitset_shifted<<"\n";
-    std::vector<uint64_t> ulongArray(arraySize);
+      //jtag rx -> jtag.op_Data , we are shifting only by 2 since from jtag_xtor for each tap point we shift accordingly but all of them are shifted by 2
+      //std::cout<<"[JTAG RESP] original = " <<bitset<<" shifted = "<<bitset_shifted<<"\n";
+      std::vector<uint64_t> ulongArray(arraySize);
 
-    for (size_t i = 0; i < bitsetSize; i += ulongSize) {
+      for (size_t i = 0; i < bitsetSize; i += ulongSize) {
         size_t ulongIndex = i / ulongSize;
         uint64_t value = 0;
-
-        for (size_t j = 0; j < ulongSize && (i + j) < bitsetSize; ++j) {
-            value |= (bitset_shifted[i + j] ? 1UL : 0UL) << j;
-        }
+        for (size_t j = 0; j < ulongSize && (i + j) < bitsetSize; ++j)
+          value |= (bitset_shifted[i + j] ? 1UL : 0UL) << j;
 
         ulongArray[ulongIndex] = value;
+      }
+      return ulongArray;
     }
-
-    return ulongArray;
-}
+    void store_dm_randpc();
   protected:
     void trace_info_handler(trace_cfg::trace_info_t i);
-    void pll_info_handler(pll_xtor::pll_info_t i);
-    void pm_nw_info_handler(pm_nw_xtor::pm_nw_info_t i);
+    void cla_info_handler(cla_cfg::cla_info_t i);
     void timer_interrupt(clint::timer_t t);
     void sw_interrupt(clint::sw_t s);
     void dmi_write(debugger::dmi_data_t s);
-    void jtag_req(jtag_driver::jtag_data_t i);
+    //void jtag_req(jtag_driver::jtag_data_t i);
     void tbox_interrupt(interrupter::interrupt_t i);
     void tboxtrig_updatemem(uint64_t addr, uint64_t data);
-    void aplic_interrupt(aplic_driver::aplic_driver_write_t i);
     void uc_helper_backdoor_write(uc_helper::uc_helper_write_t w);
     void uc_helper_backdoor_read(uc_helper::uc_helper_read_req_t w);
     void trace_cfg_read_req_router(trace_cfg::trace_cfg_read_t r);
@@ -129,6 +124,8 @@ class sysmod {
     void reset();
 
     void process(const rv_tester_transactions::sysmod::tick<>& tick);
+    void store_inval_load(const inval_load_s& payload);
+    void store_inval_crsp(const inval_crsp_s& payld);
 
     svScope scope() { return scope_; }
     unsigned id() { return id_; }
@@ -143,6 +140,9 @@ class sysmod {
     memmap::memmap_t memmap_;
     std::string hostname = "localhost";
     int port = 50001;
+
+    inval_load_s inval_load_;
+    inval_crsp_s inval_crsp_;
 
     std::uint64_t ticks_ = 0;
     std::uint64_t jtag_ticks_ = 0;

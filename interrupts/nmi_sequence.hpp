@@ -21,17 +21,20 @@ class nmi_sequence {
   private:
 
     void random_mode_thread();
-    void trigger_mode_thread();
+    void patch_trigger_mode_thread();
+    void uarch_trigger_mode_thread();
 
     cvm::messenger::task<void> random_mode();
-    cvm::messenger::task<void> trigger_mode();
+    cvm::messenger::task<void> patch_trigger_mode();
+    cvm::messenger::task<void> uarch_trigger_mode();
 
     cvm::messenger::task<void> tick();
     cvm::messenger::task<void> trigger();
-    cvm::messenger::task<void> core_no_fetch();
+    cvm::messenger::task<void> reset();
 
     void init();
     void nmi(unsigned hart, uint8_t assert);
+    void nmi_triggered(unsigned hart);
     
     cvm::rand::uniform_dist<int64_t> rng1;
 
