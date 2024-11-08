@@ -1675,4 +1675,7 @@ __domains:
     2:
         always_block_header: "(* ZEBU_NATIVE_DPI_PROC *)" # this makes DPI imports that have no outputs be scheduled immediately
         priority: highest_priority
+    3:
+        always_block_header: "(* ZEBU_NATIVE_DPI_PROC *)" # this makes DPI imports that have no outputs be scheduled immediately
+        priority: highest_priority
 __max_byte_transfer: 896
