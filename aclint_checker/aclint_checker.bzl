@@ -1,5 +1,4 @@
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
-load("//infra/bazel:verilog.bzl", "verilog_unit")
 
 def aclint_checker_gen(name, packet, topology, harness, visibility = None, cc_attrs = {}, **kwargs):
         
@@ -37,9 +36,3 @@ def aclint_checker_gen(name, packet, topology, harness, visibility = None, cc_at
 		],
 		visibility = visibility,
 	)
-
-    verilog_library(
-        name = "assertion_macros",
-        srcs = ["assertion_macros.vh", "sva_macros.vh"],
-        visibility = ["//visibility:public"],
-    )
