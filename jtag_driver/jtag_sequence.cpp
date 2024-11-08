@@ -52,7 +52,7 @@ jtag_sequence::jtag_sequence(cvm::topology::loc_t loc, unsigned id) : loc_(loc),
 }
 
 void jtag_sequence::csv_mode_thread() {
-  if(FLAGS_jtag_input_file_path != "" || FLAGS_jtag_template_dir_path != "")
+  if(FLAGS_jtag_input_file_path != "")
      parse_jtag_from_csv();
   auto *task = +[] (jtag_sequence* m) -> cvm::messenger::task<void> {
     co_await m->random_mode();
@@ -145,7 +145,6 @@ void jtag_sequence::parse_jtag_from_csv()
 
   std::string file_name;
   if (FLAGS_random_jtag_entry) {
-    get_all_csv_templates();
     file_name = csvFilePaths[file_idx];
   }
   else
@@ -439,12 +438,12 @@ void jtag_sequence::drive_csv_jtag_cmds()
     padding_length  = reg_length_data; 
     jtag_cm_value    = jtag_req.jtag_cm_value;
     cvm::log(cvm::HIGH, "[jtag_sequence] Driving jtag cmd {}\n", jtag_cmd);
-    cvm::log(cvm::HIGH, "[jtag_sequence] Driving jtag cmd {}\n", jtag_cmd);
     cvm::log(cvm::HIGH, "[jtag_sequence] Driving jtag upper_jtag_data {}\n", upper_jtag_data);
     cvm::log(cvm::HIGH, "[jtag_sequence] Driving jtag lower_jtag_data {}\n", lower_jtag_data);
     cvm::log(cvm::HIGH, "[jtag_sequence] Driving jtag reg_length_data {}\n", reg_length_data);
     cvm::log(cvm::HIGH, "[jtag_sequence] Driving jtag padding_length  {}\n", padding_length);
     cvm::log(cvm::HIGH, "[jtag_sequence] Driving jtag jtag_cm_value   {}\n", jtag_cm_value);
+    cvm::log(cvm::HIGH, "[jtag_sequence] Length of jtag_cmd queue     {}\n", jtag_cmd_q.size());
 
     if(jtag_cmd<3){
       hart = 0; // hart bits position TBD, till TBD it is always zero
@@ -467,6 +466,7 @@ void jtag_sequence::drive_csv_jtag_cmds()
     
     }else if(jtag_cmd == 7){
       csv_completed = 1;
+      cvm::log(cvm::HIGH, "[jtag_sequence] Random CSV injected\n");
       jtag_cmd_q.pop();
     }
 
@@ -514,7 +514,7 @@ void jtag_sequence::drive_csv_jtag_cmds()
        cvm::log(cvm::HIGH, "[jtag_sequence] jtag check opcode Passed! expected {:#x} got {:#x} \n", lower_jtag_data,result);
       }else{
        //FAIL
-       cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check opcode failed! expected {:#x} got {:#x} \n", lower_jtag_data,result);
+       cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check opcode failed! expected {} got {} \n", lower_jtag_data,result);
       }
     }else if(jtag_cmd == 12){
       cvm::log(cvm::HIGH, "\n[jtag_sequence] jtag check mask opcode: result {:#x} mask {:#x} expected {:#x} \n", convertedArray[0],lower_jtag_data,jtag_cm_value);
