@@ -36,9 +36,9 @@ import rv_tester_params:: * ;
     always @(posedge tb_clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */
-            enable_checks = 0; //cvm_plusargs::get_bool("aclint") != '0;
-            //if (enable_checks)
-            //$display("SV: ACLINT_CHECKER location %d time %t\n",location,$time);
+            enable_checks = cvm_plusargs::get_bool("aclint") != '0;
+            if (enable_checks)
+            $display("SV: ACLINT_CHECKER location %d time %t\n",location,$time);
             /* verilator lint_on BLKSEQ */
             /* verilator lint_off BLKSEQ */
             reset_done = 1'b1;
