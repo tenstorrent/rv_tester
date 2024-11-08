@@ -698,191 +698,10 @@ public:
     COUNT_CORE
     } counter_core;
 
-    typedef enum : size_t {
-      //"Count each Memory-read operation or Memory-write operation that causes a cache access to SC. Each access to a cache line is counted
-      SC_CACHE_ACCESS,
-      //Count Memory-read operation that causes a cache access to SC.
-      SC_CACHE_RD,
-      //Count each Memory-read operation or Memory-write operation that causes a cache access to SC but is not completed by SC.
-      SC_CACHE_MISS,
-      //Count Memory-read operation that causes a cache access to SC but is not completed by SC.
-      SC_CACHE_MISS_RD,
-      //Counts each access counted by SC_CACHE_ACCESS that causes a refill of the SC from outside of SC.
-      SC_CACHE_REFILL,
-      //Counts each Memory-write operation that writes an entire line into SC without fetching data from outside SC.
-      SC_CACHE_ALLOCATE,
-      //Counts each write-back of dirty cache lines from SC to outside of SC.
-      SC_CACHE_WB_DIRTY,
-      //Counts each write-back of clean cache lines from SC to outside of SC.
-      SC_CACHE_WB_CLEAN,
-      //"Counts each invalidation of a cache line in SC
-      SC_CACHE_INVAL,
-      //Count external snoops received by SC.
-      SC_SNOOP,
-      //Count Memory-read operation to ScratchPad Memory.
-      SC_SCRATCHPAD_RD,
-      //Count Memory-write operation to ScratchPad Memory.
-      SC_SCRATCHPAD_WR,
-      //Read requests from fabric
-      F2SC_RD,
-      //Write requests from fabric
-      F2SC_WR,
-      //Cummulative cycles between MSHR allocation and release
-      MSHR_LIFETIME,
-      //Number of MSHR allocations
-      MSHR_ALLOCATIONS,
-      //ReadUnique requests to fabric
-      SC2F_RD_U,
-      //ReadClean requests to fabric
-      SC2F_RD_C,
-      //ReadOnce requests to fabric
-      SC2F_RD_O,
-      //Write requests to fabric
-      SC2F_WR,
-      //Read requests from instruction fetch
-      C2SC_RD_I,
-      //Read requests from data cache
-      C2SC_RD_D,
-      //Write requests from cores
-      C2SC_WB_FULL,
-      //Clean evictions from cores
-      C2SC_EVICT,
-      //Snoop writeback full from cores
-      C2SC_SNP_WB_FULL,
-      //
-      C2SC_WRNOSNPPTL,
-      //Snoop to cores
-      C2SC_SNP,
-      //Number of cycles that REQ channel is stalled
-      C2SC_REQ_STALL,
-      //Number of cycles that WDAT channel is stalled
-      C2SC_WDAT_STALL,
-      //Number of cycles that SRSP channel is stalled
-      C2SC_SRSP_STALL,
-      //Number of cycles that RDAT channel is stalled
-      C2SC_RDAT_STALL,
-      //Number of cycles that SNP channel is stalled
-      C2SC_SNP_STALL,
-      //Number of cycles that CRSP channel is stalled
-      C2SC_CRSP_STALL,
-      //Clean evictions to fabric
-      SC2F_EVICT,
-      //Dirty evictions to fabric
-      SC2F_WRBACKFULL,
-      //WDAT 32B beats to fabric
-      SC2F_WDAT,
-      //Snoop from fabric
-      SC2F_SNOOP,
-      //RDAT 32B beats from fabric
-      SC2F_RDAT,
-      //Number of cycles that REQ channel is stalled
-      SC2F_REQ_STALL,
-      //Number of cycles that WDAT channel is stalled
-      SC2F_WDAT_STALL,
-      //Number of cycles that SRSP channel is stalled
-      SC2F_SRSP_STALL,
-      //Number of cycles that RDAT channel is stalled
-      SC2F_RDAT_STALL,
-      //Number of cycles that SNP channel is stalled
-      SC2F_SNOOP_STALL,
-      //Number of cycles that CRSP channel is stalled
-      SC2F_CRSP_STALL,
-      //WDAT 32B beats to fabric
-      F2SC_WDAT,
-      //RDAT 32B beats from fabric
-      F2SC_RDAT,
-      //
-      F2SC_WRNOSNPPTL,
-      //Number of cycles that REQ channel is stalled
-      F2SC_REQ_STALL,
-      //Number of cycles that WDAT channel is stalled
-      F2SC_WDAT_STALL,
-      //Number of cycles that RDAT channel is stalled
-      F2SC_RDAT_STALL,
-      //Number of cycles that CRSP channel is stalled
-      F2SC_CRSP_STALL,
-      //SC tag array lookup
-      SC_TAG_LOOKUP,
-      //SC tag array write
-      SC_TAG_WRITE,
-      //SC state array write
-      SC_STATE_WRITE,
-      //SC repl array write
-      SC_REPL_WRITE,
-      //SC tag hit
-      SC_TAG_HIT,
-      //SC data array read
-      SC_DATA_READ,
-      //SC data array write
-      SC_DATA_WRITE,
-      //Cache line state from Invalid to Exclusive
-      SC_STATE_I2E,
-      //Cache line state from Invalid to Modified
-      SC_STATE_I2M,
-      //Cache line state from Invalid to Shared
-      SC_STATE_I2S,
-      //Cache line state from Shared to Invalid
-      SC_STATE_S2I,
-      //Cache line state from Shared to Modified
-      SC_STATE_S2M,
-      //Cache line state from Shared to Exclusive
-      SC_STATE_S2E,
-      //Cache line state from Modified to Invalid
-      SC_STATE_M2I,
-      //Cache line state from Modified to Shared
-      SC_STATE_M2S,
-      //Cache line state from Modified to Exclusive
-      SC_STATE_M2E,
-      //Cache line state from Exclusive to Invalid
-      SC_STATE_E2I,
-      //Cache line state from Exclusive to Shared
-      SC_STATE_E2S,
-      //Cache line state from Exclusive to Modified
-      SC_STATE_E2M,
-      //Snoop filter lookup
-      SFT_LOOKUP,
-      //Snoop filter hit
-      SFT_HIT,
-      //Snoop filter write
-      SFT_WRITE,
-      //Snoop filter eviciton
-      SFT_EVICTION,
-      //Snoop filter sends snoop to single I-cache
-      SFT_SNP_SINGLE_ICACHE,
-      //Snoop filter sends snoop to single D-cache
-      SFT_SNP_SINGLE_DCACHE,
-      //Snoop filter sends snoop to multiple cores
-      SFT_SNP_MULTI_CORES,
-      //Snoop filter replay due to no MSHR for evictions
-      SFT_EVICTION_REPLAY,
-      //Cummulative number of MSHRs used
-      MSHR_OCCUPANCY,
-      //SC not accept new requests due to no MSHR available
-      MSHR_FULL,
-      //MSHR same address queue entry allocated
-      MSHR_SAQ_ALLOC,
-      //MSHR same address queue is full
-      MSHR_SAQ_FULL,
-      //Cache line not allocated into SC due to no MSHR avaiable
-      NO_ALLOC_NO_MSHR,
-      //Cache line not allocated into SC due to allocation hint is not set
-      NO_ALLOC_HINT_NOT_SET,
-      //SC replay due to ECC errors
-      SC_REPLAY_ECC,
-      //Count per slice SC victims
-      SC_VICTIM,
-      //Cache line not allocated into SC due to minRRPV > 1 (min repl state in RTL > 2)
-      NO_ALLOC_SRRIP,
-      //SC pipeline cancellation in TA4. It can result from b2b same-set access and other conditions
-      SC_CANCEL_PIPERESULT,
-    COUNT_SC
-    } counter_sc;
 
-
-    void core_to_vector(const rv_tester_transactions::pmu_core::pmcounters_core<>& pmcounters)
-    {
-
-    const uint64_t casting_size_term = uint64_t(1) << 24;
+    void core_to_vector(const rv_tester_transactions::pmu_core::pmcounters_core<>& pmcounters){
+    
+      const uint64_t casting_size_term = uint64_t(1) << 24;
 
       counters_core[counter_core::CPU_CYCLES] = counters_core[counter_core::CPU_CYCLES] + ((pmcounters.cpu_cycles - (counters_core[counter_core::CPU_CYCLES] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::INSTRUCTIONS] = counters_core[counter_core::INSTRUCTIONS] + ((pmcounters.instructions - (counters_core[counter_core::INSTRUCTIONS] % casting_size_term)) % casting_size_term);
@@ -1225,102 +1044,10 @@ public:
       counters_core[counter_core::LDQ_MISSQ_FULL_DELAY] = counters_core[counter_core::LDQ_MISSQ_FULL_DELAY] + ((pmcounters.ldq_missq_full_delay - (counters_core[counter_core::LDQ_MISSQ_FULL_DELAY] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::STQ_MISSQ_FULL_DELAY] = counters_core[counter_core::STQ_MISSQ_FULL_DELAY] + ((pmcounters.stq_missq_full_delay - (counters_core[counter_core::STQ_MISSQ_FULL_DELAY] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::BRANCH_INSTRUCTIONS] = counters_core[counter_core::BRANCH_INSTRUCTIONS] + ((pmcounters.branch_instructions - (counters_core[counter_core::BRANCH_INSTRUCTIONS] % casting_size_term)) % casting_size_term);
+
     }
 
-    void sc_to_vector(const rv_tester_transactions::pmu_sc::pmcounters_sc<>& pmcounters)
-    {
-
-    const uint64_t casting_size_term = uint64_t(1) << 24;
-      counters_sc[counter_sc::SC_CACHE_ACCESS] = counters_sc[counter_sc::SC_CACHE_ACCESS] + ((pmcounters.sc_cache_access - (counters_sc[counter_sc::SC_CACHE_ACCESS] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC_CACHE_RD] = counters_sc[counter_sc::SC_CACHE_RD] + ((pmcounters.sc_cache_rd - (counters_sc[counter_sc::SC_CACHE_RD] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC_CACHE_MISS] = counters_sc[counter_sc::SC_CACHE_MISS] + ((pmcounters.sc_cache_miss - (counters_sc[counter_sc::SC_CACHE_MISS] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC_CACHE_MISS_RD] = counters_sc[counter_sc::SC_CACHE_MISS_RD] + ((pmcounters.sc_cache_miss_rd - (counters_sc[counter_sc::SC_CACHE_MISS_RD] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC_CACHE_REFILL] = counters_sc[counter_sc::SC_CACHE_REFILL] + ((pmcounters.sc_cache_refill - (counters_sc[counter_sc::SC_CACHE_REFILL] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC_CACHE_ALLOCATE] = counters_sc[counter_sc::SC_CACHE_ALLOCATE] + ((pmcounters.sc_cache_allocate - (counters_sc[counter_sc::SC_CACHE_ALLOCATE] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC_CACHE_WB_DIRTY] = counters_sc[counter_sc::SC_CACHE_WB_DIRTY] + ((pmcounters.sc_cache_wb_dirty - (counters_sc[counter_sc::SC_CACHE_WB_DIRTY] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC_CACHE_WB_CLEAN] = counters_sc[counter_sc::SC_CACHE_WB_CLEAN] + ((pmcounters.sc_cache_wb_clean - (counters_sc[counter_sc::SC_CACHE_WB_CLEAN] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC_CACHE_INVAL] = counters_sc[counter_sc::SC_CACHE_INVAL] + ((pmcounters.sc_cache_inval - (counters_sc[counter_sc::SC_CACHE_INVAL] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC_SNOOP] = counters_sc[counter_sc::SC_SNOOP] + ((pmcounters.sc_snoop - (counters_sc[counter_sc::SC_SNOOP] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC_SCRATCHPAD_RD] = counters_sc[counter_sc::SC_SCRATCHPAD_RD] + ((pmcounters.sc_scratchpad_rd - (counters_sc[counter_sc::SC_SCRATCHPAD_RD] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC_SCRATCHPAD_WR] = counters_sc[counter_sc::SC_SCRATCHPAD_WR] + ((pmcounters.sc_scratchpad_wr - (counters_sc[counter_sc::SC_SCRATCHPAD_WR] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::F2SC_RD] = counters_sc[counter_sc::F2SC_RD] + ((pmcounters.f2sc_rd - (counters_sc[counter_sc::F2SC_RD] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::F2SC_WR] = counters_sc[counter_sc::F2SC_WR] + ((pmcounters.f2sc_wr - (counters_sc[counter_sc::F2SC_WR] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::MSHR_LIFETIME] = counters_sc[counter_sc::MSHR_LIFETIME] + ((pmcounters.mshr_lifetime - (counters_sc[counter_sc::MSHR_LIFETIME] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::MSHR_ALLOCATIONS] = counters_sc[counter_sc::MSHR_ALLOCATIONS] + ((pmcounters.mshr_allocations - (counters_sc[counter_sc::MSHR_ALLOCATIONS] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC2F_RD_U] = counters_sc[counter_sc::SC2F_RD_U] + ((pmcounters.sc2f_rd_u - (counters_sc[counter_sc::SC2F_RD_U] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC2F_RD_C] = counters_sc[counter_sc::SC2F_RD_C] + ((pmcounters.sc2f_rd_c - (counters_sc[counter_sc::SC2F_RD_C] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC2F_RD_O] = counters_sc[counter_sc::SC2F_RD_O] + ((pmcounters.sc2f_rd_o - (counters_sc[counter_sc::SC2F_RD_O] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC2F_WR] = counters_sc[counter_sc::SC2F_WR] + ((pmcounters.sc2f_wr - (counters_sc[counter_sc::SC2F_WR] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::C2SC_RD_I] = counters_sc[counter_sc::C2SC_RD_I] + ((pmcounters.c2sc_rd_i - (counters_sc[counter_sc::C2SC_RD_I] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::C2SC_RD_D] = counters_sc[counter_sc::C2SC_RD_D] + ((pmcounters.c2sc_rd_d - (counters_sc[counter_sc::C2SC_RD_D] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::C2SC_WB_FULL] = counters_sc[counter_sc::C2SC_WB_FULL] + ((pmcounters.c2sc_wb_full - (counters_sc[counter_sc::C2SC_WB_FULL] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::C2SC_EVICT] = counters_sc[counter_sc::C2SC_EVICT] + ((pmcounters.c2sc_evict - (counters_sc[counter_sc::C2SC_EVICT] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::C2SC_SNP_WB_FULL] = counters_sc[counter_sc::C2SC_SNP_WB_FULL] + ((pmcounters.c2sc_snp_wb_full - (counters_sc[counter_sc::C2SC_SNP_WB_FULL] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::C2SC_WRNOSNPPTL] = counters_sc[counter_sc::C2SC_WRNOSNPPTL] + ((pmcounters.c2sc_wrnosnpptl - (counters_sc[counter_sc::C2SC_WRNOSNPPTL] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::C2SC_SNP] = counters_sc[counter_sc::C2SC_SNP] + ((pmcounters.c2sc_snp - (counters_sc[counter_sc::C2SC_SNP] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::C2SC_REQ_STALL] = counters_sc[counter_sc::C2SC_REQ_STALL] + ((pmcounters.c2sc_req_stall - (counters_sc[counter_sc::C2SC_REQ_STALL] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::C2SC_WDAT_STALL] = counters_sc[counter_sc::C2SC_WDAT_STALL] + ((pmcounters.c2sc_wdat_stall - (counters_sc[counter_sc::C2SC_WDAT_STALL] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::C2SC_SRSP_STALL] = counters_sc[counter_sc::C2SC_SRSP_STALL] + ((pmcounters.c2sc_srsp_stall - (counters_sc[counter_sc::C2SC_SRSP_STALL] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::C2SC_RDAT_STALL] = counters_sc[counter_sc::C2SC_RDAT_STALL] + ((pmcounters.c2sc_rdat_stall - (counters_sc[counter_sc::C2SC_RDAT_STALL] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::C2SC_SNP_STALL] = counters_sc[counter_sc::C2SC_SNP_STALL] + ((pmcounters.c2sc_snp_stall - (counters_sc[counter_sc::C2SC_SNP_STALL] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::C2SC_CRSP_STALL] = counters_sc[counter_sc::C2SC_CRSP_STALL] + ((pmcounters.c2sc_crsp_stall - (counters_sc[counter_sc::C2SC_CRSP_STALL] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC2F_EVICT] = counters_sc[counter_sc::SC2F_EVICT] + ((pmcounters.sc2f_evict - (counters_sc[counter_sc::SC2F_EVICT] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC2F_WRBACKFULL] = counters_sc[counter_sc::SC2F_WRBACKFULL] + ((pmcounters.sc2f_wrbackfull - (counters_sc[counter_sc::SC2F_WRBACKFULL] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC2F_WDAT] = counters_sc[counter_sc::SC2F_WDAT] + ((pmcounters.sc2f_wdat - (counters_sc[counter_sc::SC2F_WDAT] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC2F_SNOOP] = counters_sc[counter_sc::SC2F_SNOOP] + ((pmcounters.sc2f_snoop - (counters_sc[counter_sc::SC2F_SNOOP] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC2F_RDAT] = counters_sc[counter_sc::SC2F_RDAT] + ((pmcounters.sc2f_rdat - (counters_sc[counter_sc::SC2F_RDAT] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC2F_REQ_STALL] = counters_sc[counter_sc::SC2F_REQ_STALL] + ((pmcounters.sc2f_req_stall - (counters_sc[counter_sc::SC2F_REQ_STALL] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC2F_WDAT_STALL] = counters_sc[counter_sc::SC2F_WDAT_STALL] + ((pmcounters.sc2f_wdat_stall - (counters_sc[counter_sc::SC2F_WDAT_STALL] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC2F_SRSP_STALL] = counters_sc[counter_sc::SC2F_SRSP_STALL] + ((pmcounters.sc2f_srsp_stall - (counters_sc[counter_sc::SC2F_SRSP_STALL] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC2F_RDAT_STALL] = counters_sc[counter_sc::SC2F_RDAT_STALL] + ((pmcounters.sc2f_rdat_stall - (counters_sc[counter_sc::SC2F_RDAT_STALL] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC2F_SNOOP_STALL] = counters_sc[counter_sc::SC2F_SNOOP_STALL] + ((pmcounters.sc2f_snoop_stall - (counters_sc[counter_sc::SC2F_SNOOP_STALL] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC2F_CRSP_STALL] = counters_sc[counter_sc::SC2F_CRSP_STALL] + ((pmcounters.sc2f_crsp_stall - (counters_sc[counter_sc::SC2F_CRSP_STALL] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::F2SC_WDAT] = counters_sc[counter_sc::F2SC_WDAT] + ((pmcounters.f2sc_wdat - (counters_sc[counter_sc::F2SC_WDAT] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::F2SC_RDAT] = counters_sc[counter_sc::F2SC_RDAT] + ((pmcounters.f2sc_rdat - (counters_sc[counter_sc::F2SC_RDAT] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::F2SC_WRNOSNPPTL] = counters_sc[counter_sc::F2SC_WRNOSNPPTL] + ((pmcounters.f2sc_wrnosnpptl - (counters_sc[counter_sc::F2SC_WRNOSNPPTL] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::F2SC_REQ_STALL] = counters_sc[counter_sc::F2SC_REQ_STALL] + ((pmcounters.f2sc_req_stall - (counters_sc[counter_sc::F2SC_REQ_STALL] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::F2SC_WDAT_STALL] = counters_sc[counter_sc::F2SC_WDAT_STALL] + ((pmcounters.f2sc_wdat_stall - (counters_sc[counter_sc::F2SC_WDAT_STALL] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::F2SC_RDAT_STALL] = counters_sc[counter_sc::F2SC_RDAT_STALL] + ((pmcounters.f2sc_rdat_stall - (counters_sc[counter_sc::F2SC_RDAT_STALL] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::F2SC_CRSP_STALL] = counters_sc[counter_sc::F2SC_CRSP_STALL] + ((pmcounters.f2sc_crsp_stall - (counters_sc[counter_sc::F2SC_CRSP_STALL] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC_TAG_LOOKUP] = counters_sc[counter_sc::SC_TAG_LOOKUP] + ((pmcounters.sc_tag_lookup - (counters_sc[counter_sc::SC_TAG_LOOKUP] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC_TAG_WRITE] = counters_sc[counter_sc::SC_TAG_WRITE] + ((pmcounters.sc_tag_write - (counters_sc[counter_sc::SC_TAG_WRITE] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC_STATE_WRITE] = counters_sc[counter_sc::SC_STATE_WRITE] + ((pmcounters.sc_state_write - (counters_sc[counter_sc::SC_STATE_WRITE] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC_REPL_WRITE] = counters_sc[counter_sc::SC_REPL_WRITE] + ((pmcounters.sc_repl_write - (counters_sc[counter_sc::SC_REPL_WRITE] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC_TAG_HIT] = counters_sc[counter_sc::SC_TAG_HIT] + ((pmcounters.sc_tag_hit - (counters_sc[counter_sc::SC_TAG_HIT] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC_DATA_READ] = counters_sc[counter_sc::SC_DATA_READ] + ((pmcounters.sc_data_read - (counters_sc[counter_sc::SC_DATA_READ] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC_DATA_WRITE] = counters_sc[counter_sc::SC_DATA_WRITE] + ((pmcounters.sc_data_write - (counters_sc[counter_sc::SC_DATA_WRITE] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC_STATE_I2E] = counters_sc[counter_sc::SC_STATE_I2E] + ((pmcounters.sc_state_i2e - (counters_sc[counter_sc::SC_STATE_I2E] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC_STATE_I2M] = counters_sc[counter_sc::SC_STATE_I2M] + ((pmcounters.sc_state_i2m - (counters_sc[counter_sc::SC_STATE_I2M] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC_STATE_I2S] = counters_sc[counter_sc::SC_STATE_I2S] + ((pmcounters.sc_state_i2s - (counters_sc[counter_sc::SC_STATE_I2S] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC_STATE_S2I] = counters_sc[counter_sc::SC_STATE_S2I] + ((pmcounters.sc_state_s2i - (counters_sc[counter_sc::SC_STATE_S2I] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC_STATE_S2M] = counters_sc[counter_sc::SC_STATE_S2M] + ((pmcounters.sc_state_s2m - (counters_sc[counter_sc::SC_STATE_S2M] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC_STATE_S2E] = counters_sc[counter_sc::SC_STATE_S2E] + ((pmcounters.sc_state_s2e - (counters_sc[counter_sc::SC_STATE_S2E] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC_STATE_M2I] = counters_sc[counter_sc::SC_STATE_M2I] + ((pmcounters.sc_state_m2i - (counters_sc[counter_sc::SC_STATE_M2I] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC_STATE_M2S] = counters_sc[counter_sc::SC_STATE_M2S] + ((pmcounters.sc_state_m2s - (counters_sc[counter_sc::SC_STATE_M2S] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC_STATE_M2E] = counters_sc[counter_sc::SC_STATE_M2E] + ((pmcounters.sc_state_m2e - (counters_sc[counter_sc::SC_STATE_M2E] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC_STATE_E2I] = counters_sc[counter_sc::SC_STATE_E2I] + ((pmcounters.sc_state_e2i - (counters_sc[counter_sc::SC_STATE_E2I] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC_STATE_E2S] = counters_sc[counter_sc::SC_STATE_E2S] + ((pmcounters.sc_state_e2s - (counters_sc[counter_sc::SC_STATE_E2S] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC_STATE_E2M] = counters_sc[counter_sc::SC_STATE_E2M] + ((pmcounters.sc_state_e2m - (counters_sc[counter_sc::SC_STATE_E2M] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SFT_LOOKUP] = counters_sc[counter_sc::SFT_LOOKUP] + ((pmcounters.sft_lookup - (counters_sc[counter_sc::SFT_LOOKUP] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SFT_HIT] = counters_sc[counter_sc::SFT_HIT] + ((pmcounters.sft_hit - (counters_sc[counter_sc::SFT_HIT] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SFT_WRITE] = counters_sc[counter_sc::SFT_WRITE] + ((pmcounters.sft_write - (counters_sc[counter_sc::SFT_WRITE] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SFT_EVICTION] = counters_sc[counter_sc::SFT_EVICTION] + ((pmcounters.sft_eviction - (counters_sc[counter_sc::SFT_EVICTION] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SFT_SNP_SINGLE_ICACHE] = counters_sc[counter_sc::SFT_SNP_SINGLE_ICACHE] + ((pmcounters.sft_snp_single_icache - (counters_sc[counter_sc::SFT_SNP_SINGLE_ICACHE] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SFT_SNP_SINGLE_DCACHE] = counters_sc[counter_sc::SFT_SNP_SINGLE_DCACHE] + ((pmcounters.sft_snp_single_dcache - (counters_sc[counter_sc::SFT_SNP_SINGLE_DCACHE] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SFT_SNP_MULTI_CORES] = counters_sc[counter_sc::SFT_SNP_MULTI_CORES] + ((pmcounters.sft_snp_multi_cores - (counters_sc[counter_sc::SFT_SNP_MULTI_CORES] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SFT_EVICTION_REPLAY] = counters_sc[counter_sc::SFT_EVICTION_REPLAY] + ((pmcounters.sft_eviction_replay - (counters_sc[counter_sc::SFT_EVICTION_REPLAY] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::MSHR_OCCUPANCY] = counters_sc[counter_sc::MSHR_OCCUPANCY] + ((pmcounters.mshr_occupancy - (counters_sc[counter_sc::MSHR_OCCUPANCY] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::MSHR_FULL] = counters_sc[counter_sc::MSHR_FULL] + ((pmcounters.mshr_full - (counters_sc[counter_sc::MSHR_FULL] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::MSHR_SAQ_ALLOC] = counters_sc[counter_sc::MSHR_SAQ_ALLOC] + ((pmcounters.mshr_saq_alloc - (counters_sc[counter_sc::MSHR_SAQ_ALLOC] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::MSHR_SAQ_FULL] = counters_sc[counter_sc::MSHR_SAQ_FULL] + ((pmcounters.mshr_saq_full - (counters_sc[counter_sc::MSHR_SAQ_FULL] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::NO_ALLOC_NO_MSHR] = counters_sc[counter_sc::NO_ALLOC_NO_MSHR] + ((pmcounters.no_alloc_no_mshr - (counters_sc[counter_sc::NO_ALLOC_NO_MSHR] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::NO_ALLOC_HINT_NOT_SET] = counters_sc[counter_sc::NO_ALLOC_HINT_NOT_SET] + ((pmcounters.no_alloc_hint_not_set - (counters_sc[counter_sc::NO_ALLOC_HINT_NOT_SET] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC_REPLAY_ECC] = counters_sc[counter_sc::SC_REPLAY_ECC] + ((pmcounters.sc_replay_ecc - (counters_sc[counter_sc::SC_REPLAY_ECC] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC_VICTIM] = counters_sc[counter_sc::SC_VICTIM] + ((pmcounters.sc_victim - (counters_sc[counter_sc::SC_VICTIM] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::NO_ALLOC_SRRIP] = counters_sc[counter_sc::NO_ALLOC_SRRIP] + ((pmcounters.no_alloc_srrip - (counters_sc[counter_sc::NO_ALLOC_SRRIP] % casting_size_term)) % casting_size_term);
-      counters_sc[counter_sc::SC_CANCEL_PIPERESULT] = counters_sc[counter_sc::SC_CANCEL_PIPERESULT] + ((pmcounters.sc_cancel_piperesult - (counters_sc[counter_sc::SC_CANCEL_PIPERESULT] % casting_size_term)) % casting_size_term);
-    }
-
+    
     const std::unordered_map<counter_core, std::string_view> core_to_string = {
       {CPU_CYCLES,"cpu_cycles"},
       {INSTRUCTIONS,"instructions"},
@@ -1665,6 +1392,286 @@ public:
       {BRANCH_INSTRUCTIONS,"branch_instructions"},
     };
 
+
+//AUTOGENERATED -- NO TOUCH
+
+    typedef enum : size_t {
+      //"Count each Memory-read operation or Memory-write operation that causes a cache access to SC. Each access to a cache line is counted
+      SC_CACHE_ACCESS,
+      //Count Memory-read operation that causes a cache access to SC.
+      SC_CACHE_RD,
+      //Count each Memory-read operation or Memory-write operation that causes a cache access to SC but is not completed by SC.
+      SC_CACHE_MISS,
+      //Count Memory-read operation that causes a cache access to SC but is not completed by SC.
+      SC_CACHE_MISS_RD,
+      //Counts each access counted by SC_CACHE_ACCESS that causes a refill of the SC from outside of SC.
+      SC_CACHE_REFILL,
+      //Counts each Memory-write operation that writes an entire line into SC without fetching data from outside SC.
+      SC_CACHE_ALLOCATE,
+      //Counts each write-back of dirty cache lines from SC to outside of SC.
+      SC_CACHE_WB_DIRTY,
+      //Counts each write-back of clean cache lines from SC to outside of SC.
+      SC_CACHE_WB_CLEAN,
+      //"Counts each invalidation of a cache line in SC
+      SC_CACHE_INVAL,
+      //Count external snoops received by SC.
+      SC_SNOOP,
+      //Count Memory-read operation to ScratchPad Memory.
+      SC_SCRATCHPAD_RD,
+      //Count Memory-write operation to ScratchPad Memory.
+      SC_SCRATCHPAD_WR,
+      //Read requests from fabric
+      F2SC_RD,
+      //Write requests from fabric
+      F2SC_WR,
+      //Cummulative cycles between MSHR allocation and release
+      MSHR_LIFETIME,
+      //Number of MSHR allocations
+      MSHR_ALLOCATIONS,
+      //ReadUnique requests to fabric
+      SC2F_RD_U,
+      //ReadClean requests to fabric
+      SC2F_RD_C,
+      //ReadOnce requests to fabric
+      SC2F_RD_O,
+      //Write requests to fabric
+      SC2F_WR,
+      //Read requests from instruction fetch
+      C2SC_RD_I,
+      //Read requests from data cache
+      C2SC_RD_D,
+      //Write requests from cores
+      C2SC_WB_FULL,
+      //Clean evictions from cores
+      C2SC_EVICT,
+      //Snoop writeback full from cores
+      C2SC_SNP_WB_FULL,
+      //
+      C2SC_WRNOSNPPTL,
+      //Snoop to cores
+      C2SC_SNP,
+      //Number of cycles that REQ channel is stalled
+      C2SC_REQ_STALL,
+      //Number of cycles that WDAT channel is stalled
+      C2SC_WDAT_STALL,
+      //Number of cycles that SRSP channel is stalled
+      C2SC_SRSP_STALL,
+      //Number of cycles that RDAT channel is stalled
+      C2SC_RDAT_STALL,
+      //Number of cycles that SNP channel is stalled
+      C2SC_SNP_STALL,
+      //Number of cycles that CRSP channel is stalled
+      C2SC_CRSP_STALL,
+      //Clean evictions to fabric
+      SC2F_EVICT,
+      //Dirty evictions to fabric
+      SC2F_WRBACKFULL,
+      //WDAT 32B beats to fabric
+      SC2F_WDAT,
+      //Snoop from fabric
+      SC2F_SNOOP,
+      //RDAT 32B beats from fabric
+      SC2F_RDAT,
+      //Number of cycles that REQ channel is stalled
+      SC2F_REQ_STALL,
+      //Number of cycles that WDAT channel is stalled
+      SC2F_WDAT_STALL,
+      //Number of cycles that SRSP channel is stalled
+      SC2F_SRSP_STALL,
+      //Number of cycles that RDAT channel is stalled
+      SC2F_RDAT_STALL,
+      //Number of cycles that SNP channel is stalled
+      SC2F_SNOOP_STALL,
+      //Number of cycles that CRSP channel is stalled
+      SC2F_CRSP_STALL,
+      //WDAT 32B beats to fabric
+      F2SC_WDAT,
+      //RDAT 32B beats from fabric
+      F2SC_RDAT,
+      //
+      F2SC_WRNOSNPPTL,
+      //Number of cycles that REQ channel is stalled
+      F2SC_REQ_STALL,
+      //Number of cycles that WDAT channel is stalled
+      F2SC_WDAT_STALL,
+      //Number of cycles that RDAT channel is stalled
+      F2SC_RDAT_STALL,
+      //Number of cycles that CRSP channel is stalled
+      F2SC_CRSP_STALL,
+      //SC tag array lookup
+      SC_TAG_LOOKUP,
+      //SC tag array write
+      SC_TAG_WRITE,
+      //SC state array write
+      SC_STATE_WRITE,
+      //SC repl array write
+      SC_REPL_WRITE,
+      //SC tag hit
+      SC_TAG_HIT,
+      //SC data array read
+      SC_DATA_READ,
+      //SC data array write
+      SC_DATA_WRITE,
+      //Cache line state from Invalid to Exclusive
+      SC_STATE_I2E,
+      //Cache line state from Invalid to Modified
+      SC_STATE_I2M,
+      //Cache line state from Invalid to Shared
+      SC_STATE_I2S,
+      //Cache line state from Shared to Invalid
+      SC_STATE_S2I,
+      //Cache line state from Shared to Modified
+      SC_STATE_S2M,
+      //Cache line state from Shared to Exclusive
+      SC_STATE_S2E,
+      //Cache line state from Modified to Invalid
+      SC_STATE_M2I,
+      //Cache line state from Modified to Shared
+      SC_STATE_M2S,
+      //Cache line state from Modified to Exclusive
+      SC_STATE_M2E,
+      //Cache line state from Exclusive to Invalid
+      SC_STATE_E2I,
+      //Cache line state from Exclusive to Shared
+      SC_STATE_E2S,
+      //Cache line state from Exclusive to Modified
+      SC_STATE_E2M,
+      //Snoop filter lookup
+      SFT_LOOKUP,
+      //Snoop filter hit
+      SFT_HIT,
+      //Snoop filter write
+      SFT_WRITE,
+      //Snoop filter eviciton
+      SFT_EVICTION,
+      //Snoop filter sends snoop to single I-cache
+      SFT_SNP_SINGLE_ICACHE,
+      //Snoop filter sends snoop to single D-cache
+      SFT_SNP_SINGLE_DCACHE,
+      //Snoop filter sends snoop to multiple cores
+      SFT_SNP_MULTI_CORES,
+      //Snoop filter replay due to no MSHR for evictions
+      SFT_EVICTION_REPLAY,
+      //Cummulative number of MSHRs used
+      MSHR_OCCUPANCY,
+      //SC not accept new requests due to no MSHR available
+      MSHR_FULL,
+      //MSHR same address queue entry allocated
+      MSHR_SAQ_ALLOC,
+      //MSHR same address queue is full
+      MSHR_SAQ_FULL,
+      //Cache line not allocated into SC due to no MSHR avaiable
+      NO_ALLOC_NO_MSHR,
+      //Cache line not allocated into SC due to allocation hint is not set
+      NO_ALLOC_HINT_NOT_SET,
+      //SC replay due to ECC errors
+      SC_REPLAY_ECC,
+      //Count per slice SC victims
+      SC_VICTIM,
+      //Cache line not allocated into SC due to minRRPV > 1 (min repl state in RTL > 2)
+      NO_ALLOC_SRRIP,
+      //SC pipeline cancellation in TA4. It can result from b2b same-set access and other conditions
+      SC_CANCEL_PIPERESULT,
+    COUNT_SC
+    } counter_sc;
+
+
+    void sc_to_vector(const rv_tester_transactions::pmu_sc::pmcounters_sc<>& pmcounters){
+    
+      const uint64_t casting_size_term = uint64_t(1) << 24;
+
+      counters_sc[counter_sc::SC_CACHE_ACCESS] = counters_sc[counter_sc::SC_CACHE_ACCESS] + ((pmcounters.sc_cache_access - (counters_sc[counter_sc::SC_CACHE_ACCESS] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC_CACHE_RD] = counters_sc[counter_sc::SC_CACHE_RD] + ((pmcounters.sc_cache_rd - (counters_sc[counter_sc::SC_CACHE_RD] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC_CACHE_MISS] = counters_sc[counter_sc::SC_CACHE_MISS] + ((pmcounters.sc_cache_miss - (counters_sc[counter_sc::SC_CACHE_MISS] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC_CACHE_MISS_RD] = counters_sc[counter_sc::SC_CACHE_MISS_RD] + ((pmcounters.sc_cache_miss_rd - (counters_sc[counter_sc::SC_CACHE_MISS_RD] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC_CACHE_REFILL] = counters_sc[counter_sc::SC_CACHE_REFILL] + ((pmcounters.sc_cache_refill - (counters_sc[counter_sc::SC_CACHE_REFILL] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC_CACHE_ALLOCATE] = counters_sc[counter_sc::SC_CACHE_ALLOCATE] + ((pmcounters.sc_cache_allocate - (counters_sc[counter_sc::SC_CACHE_ALLOCATE] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC_CACHE_WB_DIRTY] = counters_sc[counter_sc::SC_CACHE_WB_DIRTY] + ((pmcounters.sc_cache_wb_dirty - (counters_sc[counter_sc::SC_CACHE_WB_DIRTY] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC_CACHE_WB_CLEAN] = counters_sc[counter_sc::SC_CACHE_WB_CLEAN] + ((pmcounters.sc_cache_wb_clean - (counters_sc[counter_sc::SC_CACHE_WB_CLEAN] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC_CACHE_INVAL] = counters_sc[counter_sc::SC_CACHE_INVAL] + ((pmcounters.sc_cache_inval - (counters_sc[counter_sc::SC_CACHE_INVAL] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC_SNOOP] = counters_sc[counter_sc::SC_SNOOP] + ((pmcounters.sc_snoop - (counters_sc[counter_sc::SC_SNOOP] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC_SCRATCHPAD_RD] = counters_sc[counter_sc::SC_SCRATCHPAD_RD] + ((pmcounters.sc_scratchpad_rd - (counters_sc[counter_sc::SC_SCRATCHPAD_RD] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC_SCRATCHPAD_WR] = counters_sc[counter_sc::SC_SCRATCHPAD_WR] + ((pmcounters.sc_scratchpad_wr - (counters_sc[counter_sc::SC_SCRATCHPAD_WR] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::F2SC_RD] = counters_sc[counter_sc::F2SC_RD] + ((pmcounters.f2sc_rd - (counters_sc[counter_sc::F2SC_RD] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::F2SC_WR] = counters_sc[counter_sc::F2SC_WR] + ((pmcounters.f2sc_wr - (counters_sc[counter_sc::F2SC_WR] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::MSHR_LIFETIME] = counters_sc[counter_sc::MSHR_LIFETIME] + ((pmcounters.mshr_lifetime - (counters_sc[counter_sc::MSHR_LIFETIME] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::MSHR_ALLOCATIONS] = counters_sc[counter_sc::MSHR_ALLOCATIONS] + ((pmcounters.mshr_allocations - (counters_sc[counter_sc::MSHR_ALLOCATIONS] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC2F_RD_U] = counters_sc[counter_sc::SC2F_RD_U] + ((pmcounters.sc2f_rd_u - (counters_sc[counter_sc::SC2F_RD_U] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC2F_RD_C] = counters_sc[counter_sc::SC2F_RD_C] + ((pmcounters.sc2f_rd_c - (counters_sc[counter_sc::SC2F_RD_C] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC2F_RD_O] = counters_sc[counter_sc::SC2F_RD_O] + ((pmcounters.sc2f_rd_o - (counters_sc[counter_sc::SC2F_RD_O] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC2F_WR] = counters_sc[counter_sc::SC2F_WR] + ((pmcounters.sc2f_wr - (counters_sc[counter_sc::SC2F_WR] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::C2SC_RD_I] = counters_sc[counter_sc::C2SC_RD_I] + ((pmcounters.c2sc_rd_i - (counters_sc[counter_sc::C2SC_RD_I] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::C2SC_RD_D] = counters_sc[counter_sc::C2SC_RD_D] + ((pmcounters.c2sc_rd_d - (counters_sc[counter_sc::C2SC_RD_D] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::C2SC_WB_FULL] = counters_sc[counter_sc::C2SC_WB_FULL] + ((pmcounters.c2sc_wb_full - (counters_sc[counter_sc::C2SC_WB_FULL] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::C2SC_EVICT] = counters_sc[counter_sc::C2SC_EVICT] + ((pmcounters.c2sc_evict - (counters_sc[counter_sc::C2SC_EVICT] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::C2SC_SNP_WB_FULL] = counters_sc[counter_sc::C2SC_SNP_WB_FULL] + ((pmcounters.c2sc_snp_wb_full - (counters_sc[counter_sc::C2SC_SNP_WB_FULL] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::C2SC_WRNOSNPPTL] = counters_sc[counter_sc::C2SC_WRNOSNPPTL] + ((pmcounters.c2sc_wrnosnpptl - (counters_sc[counter_sc::C2SC_WRNOSNPPTL] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::C2SC_SNP] = counters_sc[counter_sc::C2SC_SNP] + ((pmcounters.c2sc_snp - (counters_sc[counter_sc::C2SC_SNP] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::C2SC_REQ_STALL] = counters_sc[counter_sc::C2SC_REQ_STALL] + ((pmcounters.c2sc_req_stall - (counters_sc[counter_sc::C2SC_REQ_STALL] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::C2SC_WDAT_STALL] = counters_sc[counter_sc::C2SC_WDAT_STALL] + ((pmcounters.c2sc_wdat_stall - (counters_sc[counter_sc::C2SC_WDAT_STALL] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::C2SC_SRSP_STALL] = counters_sc[counter_sc::C2SC_SRSP_STALL] + ((pmcounters.c2sc_srsp_stall - (counters_sc[counter_sc::C2SC_SRSP_STALL] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::C2SC_RDAT_STALL] = counters_sc[counter_sc::C2SC_RDAT_STALL] + ((pmcounters.c2sc_rdat_stall - (counters_sc[counter_sc::C2SC_RDAT_STALL] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::C2SC_SNP_STALL] = counters_sc[counter_sc::C2SC_SNP_STALL] + ((pmcounters.c2sc_snp_stall - (counters_sc[counter_sc::C2SC_SNP_STALL] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::C2SC_CRSP_STALL] = counters_sc[counter_sc::C2SC_CRSP_STALL] + ((pmcounters.c2sc_crsp_stall - (counters_sc[counter_sc::C2SC_CRSP_STALL] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC2F_EVICT] = counters_sc[counter_sc::SC2F_EVICT] + ((pmcounters.sc2f_evict - (counters_sc[counter_sc::SC2F_EVICT] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC2F_WRBACKFULL] = counters_sc[counter_sc::SC2F_WRBACKFULL] + ((pmcounters.sc2f_wrbackfull - (counters_sc[counter_sc::SC2F_WRBACKFULL] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC2F_WDAT] = counters_sc[counter_sc::SC2F_WDAT] + ((pmcounters.sc2f_wdat - (counters_sc[counter_sc::SC2F_WDAT] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC2F_SNOOP] = counters_sc[counter_sc::SC2F_SNOOP] + ((pmcounters.sc2f_snoop - (counters_sc[counter_sc::SC2F_SNOOP] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC2F_RDAT] = counters_sc[counter_sc::SC2F_RDAT] + ((pmcounters.sc2f_rdat - (counters_sc[counter_sc::SC2F_RDAT] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC2F_REQ_STALL] = counters_sc[counter_sc::SC2F_REQ_STALL] + ((pmcounters.sc2f_req_stall - (counters_sc[counter_sc::SC2F_REQ_STALL] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC2F_WDAT_STALL] = counters_sc[counter_sc::SC2F_WDAT_STALL] + ((pmcounters.sc2f_wdat_stall - (counters_sc[counter_sc::SC2F_WDAT_STALL] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC2F_SRSP_STALL] = counters_sc[counter_sc::SC2F_SRSP_STALL] + ((pmcounters.sc2f_srsp_stall - (counters_sc[counter_sc::SC2F_SRSP_STALL] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC2F_RDAT_STALL] = counters_sc[counter_sc::SC2F_RDAT_STALL] + ((pmcounters.sc2f_rdat_stall - (counters_sc[counter_sc::SC2F_RDAT_STALL] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC2F_SNOOP_STALL] = counters_sc[counter_sc::SC2F_SNOOP_STALL] + ((pmcounters.sc2f_snoop_stall - (counters_sc[counter_sc::SC2F_SNOOP_STALL] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC2F_CRSP_STALL] = counters_sc[counter_sc::SC2F_CRSP_STALL] + ((pmcounters.sc2f_crsp_stall - (counters_sc[counter_sc::SC2F_CRSP_STALL] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::F2SC_WDAT] = counters_sc[counter_sc::F2SC_WDAT] + ((pmcounters.f2sc_wdat - (counters_sc[counter_sc::F2SC_WDAT] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::F2SC_RDAT] = counters_sc[counter_sc::F2SC_RDAT] + ((pmcounters.f2sc_rdat - (counters_sc[counter_sc::F2SC_RDAT] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::F2SC_WRNOSNPPTL] = counters_sc[counter_sc::F2SC_WRNOSNPPTL] + ((pmcounters.f2sc_wrnosnpptl - (counters_sc[counter_sc::F2SC_WRNOSNPPTL] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::F2SC_REQ_STALL] = counters_sc[counter_sc::F2SC_REQ_STALL] + ((pmcounters.f2sc_req_stall - (counters_sc[counter_sc::F2SC_REQ_STALL] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::F2SC_WDAT_STALL] = counters_sc[counter_sc::F2SC_WDAT_STALL] + ((pmcounters.f2sc_wdat_stall - (counters_sc[counter_sc::F2SC_WDAT_STALL] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::F2SC_RDAT_STALL] = counters_sc[counter_sc::F2SC_RDAT_STALL] + ((pmcounters.f2sc_rdat_stall - (counters_sc[counter_sc::F2SC_RDAT_STALL] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::F2SC_CRSP_STALL] = counters_sc[counter_sc::F2SC_CRSP_STALL] + ((pmcounters.f2sc_crsp_stall - (counters_sc[counter_sc::F2SC_CRSP_STALL] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC_TAG_LOOKUP] = counters_sc[counter_sc::SC_TAG_LOOKUP] + ((pmcounters.sc_tag_lookup - (counters_sc[counter_sc::SC_TAG_LOOKUP] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC_TAG_WRITE] = counters_sc[counter_sc::SC_TAG_WRITE] + ((pmcounters.sc_tag_write - (counters_sc[counter_sc::SC_TAG_WRITE] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC_STATE_WRITE] = counters_sc[counter_sc::SC_STATE_WRITE] + ((pmcounters.sc_state_write - (counters_sc[counter_sc::SC_STATE_WRITE] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC_REPL_WRITE] = counters_sc[counter_sc::SC_REPL_WRITE] + ((pmcounters.sc_repl_write - (counters_sc[counter_sc::SC_REPL_WRITE] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC_TAG_HIT] = counters_sc[counter_sc::SC_TAG_HIT] + ((pmcounters.sc_tag_hit - (counters_sc[counter_sc::SC_TAG_HIT] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC_DATA_READ] = counters_sc[counter_sc::SC_DATA_READ] + ((pmcounters.sc_data_read - (counters_sc[counter_sc::SC_DATA_READ] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC_DATA_WRITE] = counters_sc[counter_sc::SC_DATA_WRITE] + ((pmcounters.sc_data_write - (counters_sc[counter_sc::SC_DATA_WRITE] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC_STATE_I2E] = counters_sc[counter_sc::SC_STATE_I2E] + ((pmcounters.sc_state_i2e - (counters_sc[counter_sc::SC_STATE_I2E] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC_STATE_I2M] = counters_sc[counter_sc::SC_STATE_I2M] + ((pmcounters.sc_state_i2m - (counters_sc[counter_sc::SC_STATE_I2M] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC_STATE_I2S] = counters_sc[counter_sc::SC_STATE_I2S] + ((pmcounters.sc_state_i2s - (counters_sc[counter_sc::SC_STATE_I2S] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC_STATE_S2I] = counters_sc[counter_sc::SC_STATE_S2I] + ((pmcounters.sc_state_s2i - (counters_sc[counter_sc::SC_STATE_S2I] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC_STATE_S2M] = counters_sc[counter_sc::SC_STATE_S2M] + ((pmcounters.sc_state_s2m - (counters_sc[counter_sc::SC_STATE_S2M] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC_STATE_S2E] = counters_sc[counter_sc::SC_STATE_S2E] + ((pmcounters.sc_state_s2e - (counters_sc[counter_sc::SC_STATE_S2E] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC_STATE_M2I] = counters_sc[counter_sc::SC_STATE_M2I] + ((pmcounters.sc_state_m2i - (counters_sc[counter_sc::SC_STATE_M2I] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC_STATE_M2S] = counters_sc[counter_sc::SC_STATE_M2S] + ((pmcounters.sc_state_m2s - (counters_sc[counter_sc::SC_STATE_M2S] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC_STATE_M2E] = counters_sc[counter_sc::SC_STATE_M2E] + ((pmcounters.sc_state_m2e - (counters_sc[counter_sc::SC_STATE_M2E] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC_STATE_E2I] = counters_sc[counter_sc::SC_STATE_E2I] + ((pmcounters.sc_state_e2i - (counters_sc[counter_sc::SC_STATE_E2I] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC_STATE_E2S] = counters_sc[counter_sc::SC_STATE_E2S] + ((pmcounters.sc_state_e2s - (counters_sc[counter_sc::SC_STATE_E2S] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC_STATE_E2M] = counters_sc[counter_sc::SC_STATE_E2M] + ((pmcounters.sc_state_e2m - (counters_sc[counter_sc::SC_STATE_E2M] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SFT_LOOKUP] = counters_sc[counter_sc::SFT_LOOKUP] + ((pmcounters.sft_lookup - (counters_sc[counter_sc::SFT_LOOKUP] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SFT_HIT] = counters_sc[counter_sc::SFT_HIT] + ((pmcounters.sft_hit - (counters_sc[counter_sc::SFT_HIT] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SFT_WRITE] = counters_sc[counter_sc::SFT_WRITE] + ((pmcounters.sft_write - (counters_sc[counter_sc::SFT_WRITE] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SFT_EVICTION] = counters_sc[counter_sc::SFT_EVICTION] + ((pmcounters.sft_eviction - (counters_sc[counter_sc::SFT_EVICTION] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SFT_SNP_SINGLE_ICACHE] = counters_sc[counter_sc::SFT_SNP_SINGLE_ICACHE] + ((pmcounters.sft_snp_single_icache - (counters_sc[counter_sc::SFT_SNP_SINGLE_ICACHE] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SFT_SNP_SINGLE_DCACHE] = counters_sc[counter_sc::SFT_SNP_SINGLE_DCACHE] + ((pmcounters.sft_snp_single_dcache - (counters_sc[counter_sc::SFT_SNP_SINGLE_DCACHE] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SFT_SNP_MULTI_CORES] = counters_sc[counter_sc::SFT_SNP_MULTI_CORES] + ((pmcounters.sft_snp_multi_cores - (counters_sc[counter_sc::SFT_SNP_MULTI_CORES] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SFT_EVICTION_REPLAY] = counters_sc[counter_sc::SFT_EVICTION_REPLAY] + ((pmcounters.sft_eviction_replay - (counters_sc[counter_sc::SFT_EVICTION_REPLAY] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::MSHR_OCCUPANCY] = counters_sc[counter_sc::MSHR_OCCUPANCY] + ((pmcounters.mshr_occupancy - (counters_sc[counter_sc::MSHR_OCCUPANCY] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::MSHR_FULL] = counters_sc[counter_sc::MSHR_FULL] + ((pmcounters.mshr_full - (counters_sc[counter_sc::MSHR_FULL] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::MSHR_SAQ_ALLOC] = counters_sc[counter_sc::MSHR_SAQ_ALLOC] + ((pmcounters.mshr_saq_alloc - (counters_sc[counter_sc::MSHR_SAQ_ALLOC] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::MSHR_SAQ_FULL] = counters_sc[counter_sc::MSHR_SAQ_FULL] + ((pmcounters.mshr_saq_full - (counters_sc[counter_sc::MSHR_SAQ_FULL] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::NO_ALLOC_NO_MSHR] = counters_sc[counter_sc::NO_ALLOC_NO_MSHR] + ((pmcounters.no_alloc_no_mshr - (counters_sc[counter_sc::NO_ALLOC_NO_MSHR] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::NO_ALLOC_HINT_NOT_SET] = counters_sc[counter_sc::NO_ALLOC_HINT_NOT_SET] + ((pmcounters.no_alloc_hint_not_set - (counters_sc[counter_sc::NO_ALLOC_HINT_NOT_SET] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC_REPLAY_ECC] = counters_sc[counter_sc::SC_REPLAY_ECC] + ((pmcounters.sc_replay_ecc - (counters_sc[counter_sc::SC_REPLAY_ECC] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC_VICTIM] = counters_sc[counter_sc::SC_VICTIM] + ((pmcounters.sc_victim - (counters_sc[counter_sc::SC_VICTIM] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::NO_ALLOC_SRRIP] = counters_sc[counter_sc::NO_ALLOC_SRRIP] + ((pmcounters.no_alloc_srrip - (counters_sc[counter_sc::NO_ALLOC_SRRIP] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC_CANCEL_PIPERESULT] = counters_sc[counter_sc::SC_CANCEL_PIPERESULT] + ((pmcounters.sc_cancel_piperesult - (counters_sc[counter_sc::SC_CANCEL_PIPERESULT] % casting_size_term)) % casting_size_term);
+
+    }
+
+    
     const std::unordered_map<counter_sc, std::string_view> sc_to_string = {
       {SC_CACHE_ACCESS,"sc_cache_access"},
       {SC_CACHE_RD,"sc_cache_rd"},

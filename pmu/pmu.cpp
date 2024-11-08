@@ -109,7 +109,7 @@ pmu::process_sc(const rv_tester_transactions::pmu_sc::pmcounters_sc<>& pmcounter
   if (loc_ != pmcounters.location) 
       return;
 
-  if (sc_terminated_ and not sc_sync_terminate_) 
+  if (sc_terminated_ and not sc_sync_terminate_)
     return;
   else if (sc_terminated_) 
     sc_sync_terminate_ = not pmcounters.terminate_sc; // we need to wait until the last PMU packet
