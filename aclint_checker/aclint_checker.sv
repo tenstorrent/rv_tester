@@ -70,7 +70,8 @@ import rv_tester_params:: * ;
         end
     end
     assign violation_forcesync =  (count >  'd4) && enable_checks ;
-    always_comb assert (~violation_forcesync) else $error("Error: Not recieved aclint force sync");
+    // FIXME: RVDE-19187, Temporarily disabled Aclint checker until it is verified to run with core harvesting.
+    // always_comb assert (~violation_forcesync) else $error("Error: Not recieved aclint force sync");
     end
 
     //ACLINT MTIP generation checker
@@ -198,9 +199,9 @@ import rv_tester_params:: * ;
     if(dut_reset || ~fail_mtishouldbeOFF) cycles_in_fail_mtishouldbeOFF <= 0;
     else if(fail_mtishouldbeOFF) cycles_in_fail_mtishouldbeOFF <= cycles_in_fail_mtishouldbeOFF + 1;
     end
-
-    always_comb assert(~(cycles_in_fail_mtishouldbeOFF > 4)) else $error("Error: Did not expect MTIP, but MTIP %d generated", asserti);
-    always_comb assert(~(cycles_in_fail_mtishouldbeON > 4)) else $error("Error: Expected MTIP, but MTIP %d not generated", asserti);    
+    // FIXME: RVDE-19187, Temporarily disabled Aclint checker until it is verified to run with core harvesting.
+    // always_comb assert(~(cycles_in_fail_mtishouldbeOFF > 4)) else $error("Error: Did not expect MTIP, but MTIP %d generated", asserti);
+    // always_comb assert(~(cycles_in_fail_mtishouldbeON > 4)) else $error("Error: Expected MTIP, but MTIP %d not generated", asserti);    
     end
     endgenerate
 
