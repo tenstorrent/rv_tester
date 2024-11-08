@@ -25,7 +25,8 @@ enum patch_mode {
     NO_PATCH = 0,  //--> Not in PATCH mode
     ENTER_PATCH,   //--> Entered patch, helpful to identify the instruction and step whisper (just) once, No CaC
     IN_PATCH,      //--> Inside patch mode, record the DUT changes, do not step whisper, no CaC
-    EXIT_PATCH     //--> Exiting patch, helpful to identify the instruction and do the CaC checks.
+    EXIT_PATCH,    //--> Exiting patch, helpful to identify the instruction and do the CaC checks.
+    EXIT_TRAP_PATCH    //--> Exiting patch, helpful to identify the instruction and do the CaC checks.
 };
 
 class bridge : public bridge_base {

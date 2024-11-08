@@ -494,7 +494,7 @@ void bridge::process_steps(hart_id_t hart, uint32_t n_retire, uint64_t cycle, ui
 void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   print(cvm::HIGH, "process_dut_instr_retire:: hart={}, d.cycle={}, d.pc={:#x}, d.tag={}, d.opcode={:#x}, d.disasm={}\n", hart,d.cycle,d.pc.pc_rdata,d.tag,d.opcode,d.disasm);
-  print(cvm::HIGH, "                        :: mip_={}, prev_sync_intr_={}, deferred_intr_={} patch_mode_={}\n", mip_,prev_sync_intr_,deferred_intr_,patch_mode_);
+  print(cvm::HIGH, "                        :: mip_={}, prev_sync_intr_={}, deferred_intr_={} patch_mode_={} trap={}\n", mip_,prev_sync_intr_,deferred_intr_,patch_mode_,d.trap);
   for (const auto& gpr : d.gpr) {
     print(cvm::HIGH, "                        :: grd_addr={}, grd_wdata={:#x}\n", gpr.rd_addr,gpr.rd_wdata);
   }
@@ -560,8 +560,9 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   // Step whisper
   w_.clear();
 
-  if (patch_mode_ == NO_PATCH || patch_mode_ == EXIT_PATCH) {
+  if (patch_mode_ == NO_PATCH || ((patch_mode_ == EXIT_PATCH) )) {
     auto stime = std::chrono::high_resolution_clock::now();
+    IF_DEBUG("STEP now:  either no-patch or exit-patch");
     step(hart, w);
     step_++;
     auto etime = std::chrono::high_resolution_clock::now();
@@ -636,6 +637,9 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
     patch_mode_ = IN_PATCH;
 
   if (patch_mode_ == EXIT_PATCH)
+    patch_mode_ = NO_PATCH;
+
+  if (patch_mode_ == EXIT_TRAP_PATCH)
     patch_mode_ = NO_PATCH;
 }
 

@@ -178,6 +178,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   // Clear state
   intr_ = false;
   excp_ = false;
+
   nmi_ = false;
   vec_excp_after_cmode_ = false;
 }
@@ -316,8 +317,8 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.excp = excp_;
   instr.ecause = ecause_;
 
-  cvm::log(cvm::HIGH, "CLOCK={}: HW: ucode={} first_uop={} last_uop={}, mode={} priv={}, priv_change={} set_pmode={}, clr_pmode={} patch_={}\n", m_rvfi.cycle,
-                            m_rvfi.ucode, m_rvfi.first_uop, m_rvfi.last_uop, m_rvfi.mode, m_rvfi.priv, m_rvfi.priv_change, m_rvfi.set_pmode, m_rvfi.clr_pmode, patch_mode_);
+  cvm::log(cvm::HIGH, "CLOCK={}: HW: ucode={} first_uop={} last_uop={} rvfi.mode={} instr.priv={} priv_change={} set_pmode={}, clr_pmode={} patch_={} disasm={}\n", m_rvfi.cycle,
+                            m_rvfi.ucode, m_rvfi.first_uop, m_rvfi.last_uop, m_rvfi.mode, m_rvfi.priv, m_rvfi.priv_change, m_rvfi.set_pmode, m_rvfi.clr_pmode, patch_mode_,instr.disasm);
 
   // RVTOOLS-3265, RVTOOLS-3479: Adjust tag for conservative mode vec instr that takes an exception
   if (vec_excp_after_cmode_) {
@@ -393,6 +394,8 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
         ucode_priv_change_ = true;
       }
     }
+    int uchange = 0;
+    if (ucode_priv_change_)  { uchange = 1; }
     if (m_rvfi.last_uop) {
       if (ucode_priv_change_) {
         instr.priv = priv_;
@@ -410,6 +413,16 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
     if ((instr.priv & 0x7) == 0x3) {
        instr.priv = 0x3;
     }
+
+    int ucode   = 0;
+    int  fuop   = 0;
+    int  luop   = 0;
+    if (instr.ucode) { ucode = 1; }
+    if (instr.first_uop) { fuop = 1; }
+    if (instr.last_uop)  { luop = 1; }
+    cvm::log(cvm::HIGH, "CLOCK={}: SW: ucode={} first_uop={} last_uop={} rvfi.mode={} instr.priv={} priv_change_={} patch_mode_={} excp_={} disasm={}\n", m_rvfi.cycle,
+                                       ucode, fuop, luop, m_rvfi.mode,instr.priv, uchange, patch_mode_,excp_,instr.disasm);
+
   } 
 
   if (m_rvfi.last_uop && !patch_mode_) {
