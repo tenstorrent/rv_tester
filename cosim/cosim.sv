@@ -382,6 +382,8 @@ localparam CAM_IHBIT = CAM_IBITS;
     bit [NRET-1:0]      rvfi_priv_change;
     bit [NRET-1:0][3:0] rvfi_priv;
     bit [NRET-1:0]      rvfi_patch_mode;
+    bit [NRET-1:0]      rvfi_set_patch;
+    bit [NRET-1:0]      rvfi_clr_patch;
     /* verilator lint_on UNOPTFLAT */
     bit                 rvfi_ucode_S;
     bit                 rvfi_last_uop_S;
@@ -390,8 +392,6 @@ localparam CAM_IHBIT = CAM_IBITS;
     bit                 rvfi_patch_mode_S;
     bit [NRET-1:0]      rvfi_instr_ucode;
     bit [NRET-1:0]      rvfi_first_uop;
-    bit [NRET-1:0]      rvfi_set_patch;
-    bit [NRET-1:0]      rvfi_clr_patch;
     bit [NRET-1:0][3:0] rvfi_instr_priv;
     bit [NRET-1:0][3:0] rvfi_mode;
     bit [NRET-1:0]      rvfi_trap_patch;
