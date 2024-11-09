@@ -352,12 +352,12 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
     return;
   }
 
-  if (m_rvfi.set_pmode && !patch_mode_) { // when we enter patch mode via ucode
+  if (m_rvfi.set_pmode) { // when we enter patch mode via ucode
     cvm::log(cvm::HIGH, "CLOCK={}: Patch mode turned ON\n",m_rvfi.cycle);
     bridge_->set_patch_mode(1); // IN_PATCH
     patch_mode_ = true;
   }
-  if (m_rvfi.clr_pmode && patch_mode_) {
+  if (m_rvfi.clr_pmode) {
     cvm::log(cvm::HIGH, "CLOCK={}: Patch mode turned OFF\n",m_rvfi.cycle);
     bridge_->set_patch_mode(3);
     patch_mode_ = false;
