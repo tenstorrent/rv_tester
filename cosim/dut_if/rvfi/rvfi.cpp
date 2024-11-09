@@ -352,20 +352,19 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
     return;
   }
 
-  if (m_rvfi.set_pmode) { // when we enter patch mode via ucode
-    cvm::log(cvm::HIGH, "CLOCK={}: Patch mode turned ON",m_rvfi.cycle);
-    bridge_->set_patch_mode(2); // IN_PATCH
+  if (m_rvfi.set_pmode && !patch_mode_) { // when we enter patch mode via ucode
+    cvm::log(cvm::HIGH, "CLOCK={}: Patch mode turned ON\n",m_rvfi.cycle);
+    bridge_->set_patch_mode(1); // IN_PATCH
     patch_mode_ = true;
   }
-  if (m_rvfi.clr_pmode) {
+  if (m_rvfi.clr_pmode && patch_mode_) {
     cvm::log(cvm::HIGH, "CLOCK={}: Patch mode turned OFF\n",m_rvfi.cycle);
     bridge_->set_patch_mode(3);
     patch_mode_ = false;
   }
 
-  if ((instr.priv & 0x7) == 0x3) {
+  if ((instr.priv & 0x7) == 0x3)
      instr.priv = 0x3;
-  }
 
 #else
 
@@ -383,8 +382,8 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
 
   // Priv mode
   if (FLAGS_cosim && priv_ == 0x4 && !patch_mode_) { // when we enter patch mode via ucode
-    cvm::log(cvm::HIGH, "Patch mode: turned ON with Ucode instruction={} time={}\n",m_rvfi.insn,m_rvfi.cycle);
-    bridge_->set_patch_mode(2); // IN_PATCH
+    cvm::log(cvm::HIGH, "Patch mode: turned ON with Ucode instruction={} time={}\n", m_rvfi.insn, m_rvfi.cycle);
+    bridge_->set_patch_mode(1); // IN_PATCH
     patch_mode_ = true;
   }
   instr.priv = m_rvfi.mode;
@@ -400,11 +399,11 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
     if (ucode_priv_change_) {
       instr.priv = priv_;
       ucode_priv_change_ = false;
-      if (priv_ == 0x4 && patch_mode_) { // dret changes mode from D to M/S/U (exit from patch mode)
-        cvm::log(cvm::HIGH, "Patch mode: turned OFF with Ucode instruction={} time={}\n",m_rvfi.insn,m_rvfi.cycle);
-        bridge_->set_patch_mode(3); // EXIT_PATCH
-        patch_mode_ = false;
-      }
+    }
+    if (m_rvfi.mode == 0x4 && patch_mode_) { // dret changes mode from D to M/S/U (exit from patch mode)
+      cvm::log(cvm::HIGH, "Patch mode: turned OFF with Ucode instruction={} time={}\n",m_rvfi.insn,m_rvfi.cycle);
+      bridge_->set_patch_mode(3); // EXIT_PATCH
+      patch_mode_ = false;
     }
     priv_ = m_rvfi.mode;
     if (!priv_to_string.count(static_cast<priv>(instr.priv))) {
