@@ -85,6 +85,8 @@ cosim:
                 width: 1
             order:
                 width: 64
+            branch_tag:
+                width: 64
             insn:
                 width: ${TOP.PLATFORM.ILEN}
             uop:
@@ -305,6 +307,8 @@ cosim:
                 width: 64
             addr:
                 width: ${TOP.PLATFORM.PALEN}
+            attr:
+                width: 32
 
     m_mcmi_ifetch_resp:
         domain: 1

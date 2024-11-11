@@ -67,8 +67,7 @@ class rvfi {
     void process(const rv_tester::terminate_called&);
     void process(const bridge::error_loc &);
 
-    std::tuple<uint64_t, uint64_t, uint8_t> get_mem_attributes(uint64_t addr, uint8_t mask, uint64_t data);
-
+    void process_ncio_fetches(const rv_instr_t& instr);
     void process_amo(mem_t& read);
     bool sc_failed(mem_t& write);
     void amo_modify_write_data(amo_op op, uint64_t& read_data, uint64_t& write_data, uint8_t size);
@@ -85,8 +84,9 @@ class rvfi {
     void send_instr_group(hart_id_t hart, rv_instr_group_t& group);
     void enter_debug_mode(rv_instr_t& instr);
     void exit_debug_mode(rv_instr_t& instr);
-    std::string mem_attr_to_string(uint32_t mem_attr); 
     bool patch_access (uint64_t addr);
+    std::string mem_attr_to_string(uint32_t mem_attr);
+    bool is_ncio(uint32_t mem_attr);
 
   private:
 
@@ -105,10 +105,15 @@ class rvfi {
 
     uint64_t mread_tag_ = 0;
     uint64_t minsert_tag_ = 0;
-    uint64_t instr_tag_ = 0;
+    uint64_t prev_instr_tag_ = 0;
+    uint64_t prev_branch_tag_ = 0;
     bool     vec_excp_after_cmode_ = false;
     uint64_t vec_cmode_tag_ = 0;
     uint64_t uop_tag_ = 0;
+
+    bool ncio_mem_transition_ = false;
+    std::vector<mem_t> ncio_fetches_;
+    std::vector<mem_t> active_ncio_fetches_;
     //---------------------------------------------------------------------------------------------------------
     // USE_OLD_CODE selects C code for priv_, first_uop,ucode_ generation instead of SV code (for debug ONLY)
     //   - eventually we will remove this

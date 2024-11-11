@@ -172,7 +172,8 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   }
 
   // Save state
-  instr_tag_ = instr.tag;
+  prev_instr_tag_ = instr.tag;
+  prev_branch_tag_ = instr.branch_tag;
 
   // Clear state
   intr_ = false;
@@ -305,6 +306,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.id = count_;
   instr.comp = m_rvfi.comp;
   instr.tag = m_rvfi.order;
+  instr.branch_tag = m_rvfi.branch_tag;
   instr.opcode = m_rvfi.insn;
   instr.disasm = whisper::disassemble(m_rvfi.insn);
   instr.uop = m_rvfi.uop;
@@ -320,12 +322,23 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   cvm::log(cvm::HIGH, "CLOCK={}: HW: ucode={} first_uop={} last_uop={}, mode={} priv={}, priv_change={} set_pmode={}, clr_pmode={} patch_={}\n", m_rvfi.cycle,
                             m_rvfi.ucode, m_rvfi.first_uop, m_rvfi.last_uop, m_rvfi.mode, m_rvfi.priv, m_rvfi.priv_change, m_rvfi.set_pmode, m_rvfi.clr_pmode, patch_mode_);
 
+  // RVDE-17736: Manage fetch/evict signaling for ncio region
+  // Using branch tag as a marker for when the previous fetch stops supplying instruction bytes
+  // and we need a new fetch performed non-speculatively
+  if (((ncio_fetches_.size() != 0) || ncio_mem_transition_) &&  m_rvfi.last_uop) {
+    if (m_rvfi.branch_tag != prev_branch_tag_) {
+      process_ncio_fetches(instr);
+    }
+    active_ncio_fetches_.clear();
+    ncio_mem_transition_ = false;
+  }
+
   // RVTOOLS-3265, RVTOOLS-3479: Adjust tag for conservative mode vec instr that takes an exception
   if (vec_excp_after_cmode_) {
     if (vec_cmode_tag_ == mread_tag_)
       instr.tag = vec_cmode_tag_;
     else
-      instr.tag = instr_tag_ + 1;
+      instr.tag = prev_instr_tag_ + 1;
   }
 
   // Renamed csr sequence
@@ -534,32 +547,6 @@ void rvfi::append_uop_changes_to_instr(rv_instr_t& instr) {
   }
 }
 
-std::tuple<uint64_t, uint64_t, uint8_t> rvfi::get_mem_attributes(uint64_t addr, uint8_t mask, uint64_t data) {
-  uint64_t aligned_addr = 0;
-  uint64_t aligned_data = 0;
-  uint8_t size = 0;
-
-  uint8_t offset = 0;
-  if (mask != 0)
-    while ((mask & 1) == 0) {
-      offset++;
-      mask >>= 1;
-    }
-
-  aligned_data = data >> (offset * 8);
-  aligned_addr = addr | offset;
-
-  if (mask != 0)
-    while (mask != 0) {
-      size++;
-      mask >>= 1;
-    }
-
-  aligned_data &= cvm::bitmanip::mask<decltype(aligned_data)>(8*size);
-
-  return std::make_tuple(aligned_addr, aligned_data, size);
-}
-
 void rvfi::print_csr(csr_t& csr) {
   if (!FLAGS_rvfi_log) {
     return;
@@ -618,7 +605,7 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
   else
     dut_log += fmt::format(" {:08x}", instr.opcode);
 
-  dut_log += fmt::format(" {}", resource_str);
+  dut_log += fmt::format("{}", resource_str);
 
   if (!instr.ucode || instr.csr_renamed || cracked_gpr_.valid) {
     std::string instr_dis = whisper::disassemble(instr.opcode);
@@ -794,16 +781,13 @@ void rvfi::process(const rv_tester_transactions::cosim::m_csri<>& m_csri) {
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_read) {
-  if (!FLAGS_mcm)
-    return;
-
-  if (patch_access(m_mcmi_read.addr))
+  if (!FLAGS_cosim || !FLAGS_mcm)
     return;
 
   if (terminated_ || in_reset_)
     return;
 
-  if (!FLAGS_cosim)
+  if (patch_access(m_mcmi_read.addr))
     return;
 
   mem_t m;
@@ -922,16 +906,13 @@ std::bitset<256> rvfi::stringToBitset(const std::string& hexString) {
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_insert) {
-  if (!FLAGS_mcm)
+  if (!FLAGS_cosim || !FLAGS_mcm)
+    return;
+
+  if (terminated_ || in_reset_)
     return;
 
   if (patch_access(m_mcmi_insert.addr))
-    return;
-
-  if (terminated_)
-    return;
-
-  if (!FLAGS_cosim)
     return;
 
   uint64_t mask = m_mcmi_insert.mask;
@@ -1010,16 +991,13 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_bypass) {
-  if (!FLAGS_mcm)
-    return;
-
-  if (patch_access(m_mcmi_bypass.addr))
+  if (!FLAGS_cosim || !FLAGS_mcm)
     return;
 
   if (terminated_ || in_reset_)
     return;
 
-  if (!FLAGS_cosim)
+  if (patch_access(m_mcmi_bypass.addr))
     return;
 
   uint64_t mask = m_mcmi_bypass.mask;
@@ -1208,16 +1186,13 @@ void rvfi::amo_arithmetic(amo_op op, uint64_t& read_data, uint64_t& write_data, 
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write<>& m_mcmi_write) {
-  if (!FLAGS_mcm)
+  if (!FLAGS_cosim || !FLAGS_mcm)
+    return;
+
+  if (terminated_ || in_reset_)
     return;
 
   if (patch_access(m_mcmi_write.addr))
-    return;
-
-  if (terminated_)
-    return;
-
-  if (!FLAGS_cosim)
     return;
 
   mem_cl_t m;
@@ -1231,31 +1206,26 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write<>& m_mcmi_w
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_req<>& m_mcmi_ifetch_req) {
-  if (!FLAGS_mcm)
+  if (!FLAGS_cosim || !FLAGS_mcm)
     return;
 
   if (terminated_ || in_reset_)
-    return;
-
-  if (!FLAGS_cosim)
     return;
 
   mem_t m;
   m.valid = true;
   m.tag = m_mcmi_ifetch_req.order;
   m.pa = m_mcmi_ifetch_req.addr;
+  m.attr = m_mcmi_ifetch_req.attr;
 
   ifetch_reqs_.emplace(m.tag, m);
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>& m_mcmi_ifetch_resp) {
-  if (!FLAGS_mcm)
+  if (!FLAGS_cosim || !FLAGS_mcm)
     return;
 
   if (terminated_ || in_reset_)
-    return;
-
-  if (!FLAGS_cosim)
     return;
 
   if (ifetch_reqs_.find(m_mcmi_ifetch_resp.order) == ifetch_reqs_.end()) {
@@ -1266,22 +1236,33 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>& m_
   m = ifetch_reqs_.at(m_mcmi_ifetch_resp.order);
   m.cycle = m_mcmi_ifetch_resp.cycle;
 
-  bridge_->process_dut_mcm_ifetch(m_mcmi_ifetch_resp.hart, m);
+  // RVDE-17736: Manage fetch/evict signaling for ncio region
+  if (is_ncio(m.attr)) {
+    auto it = std::find_if(ncio_fetches_.begin(), ncio_fetches_.end(), [&](const mem_t& fetch) { return fetch.pa == m.pa; });
+    if (it == ncio_fetches_.end()) {
+      bridge_->process_dut_mcm_ifetch(m_mcmi_ifetch_resp.hart, m);
+      ncio_fetches_.emplace_back(m);
+    }
+    active_ncio_fetches_.emplace_back(m);
+  } else {
+    bridge_->process_dut_mcm_ifetch(m_mcmi_ifetch_resp.hart, m);
+    if (!ncio_fetches_.empty()) {
+      ncio_mem_transition_ = true;
+    }
+  }
 
   ifetch_reqs_.erase(m_mcmi_ifetch_resp.order);
+
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ievict<>& m_mcmi_ievict) {
-  if (!FLAGS_mcm)
-    return;
-
-  if (patch_access(m_mcmi_ievict.addr))
+  if (!FLAGS_cosim || !FLAGS_mcm)
     return;
 
   if (terminated_ || in_reset_)
     return;
 
-  if (!FLAGS_cosim)
+  if (patch_access(m_mcmi_ievict.addr))
     return;
 
   mem_t m;
@@ -1291,6 +1272,35 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ievict<>& m_mcmi_
 
   bridge_->process_dut_mcm_ievict(m_mcmi_ievict.hart, m);
 }
+
+void rvfi::process_ncio_fetches(const rv_instr_t& instr) {
+  if (!FLAGS_cosim || !FLAGS_mcm)
+    return;
+
+  if (terminated_ || in_reset_)
+    return;
+
+  ncio_fetches_.erase(
+    std::remove_if(ncio_fetches_.begin(), ncio_fetches_.end(), [&](const mem_t& fetch) {
+      bool evict = std::find(active_ncio_fetches_.begin(), active_ncio_fetches_.end(), fetch) == active_ncio_fetches_.end();
+      if (evict)
+        process(rv_tester_transactions::cosim::m_mcmi_ievict<>(loc_, instr.cycle, instr.hart, fetch.pa));
+      return evict;
+    }),
+    ncio_fetches_.end());
+}
+
+bool rvfi::is_ncio(uint32_t mem_attr) {
+  return ((mem_attr & 0x800) != 0) || ((mem_attr & 0x1000) == 0);
+}
+
+std::string rvfi::mem_attr_to_string(uint32_t mem_attr) {
+    std::string result;
+    result += (mem_attr & 0x800) ? "io," : "mem,";
+    result += (mem_attr & 0x1000) ? "c"   : "nc";
+
+    return result;
+};
 
 void rvfi::process(const rv_tester::terminate_called&) {
   cvm::log(cvm::HIGH, "[RVFI] termination signaled, stopping further rvfi processing\n");
@@ -1307,14 +1317,6 @@ void rvfi::process(const rv_tester_transactions::cosim::m_disable_checks<>&) {
   cvm::log(cvm::HIGH, "[RVFI] disable_checks indication, stopping further rvfi processing\n");
   terminated_ = true;
 }
-
-std::string rvfi::mem_attr_to_string(uint32_t mem_attr) {
-    std::string result;
-    result += (mem_attr & 0x800) ? "io," : "mem,";
-    result += (mem_attr & 0x1000) ? "c"   : "nc";
-
-    return result;
-};
 
 extern "C" {
   void cosim_set_scope(cvm::topology::loc_t loc) {
