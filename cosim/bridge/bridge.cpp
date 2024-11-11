@@ -539,6 +539,12 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
     return;
   }
 
+  IF_DEBUG("check dut single step");
+  if (d.excp && (d.ecause == 31)){
+    IF_DEBUG("dut single step excp cause=31");
+    return;
+  }
+
   // Handle pre-step condition - Debug
   if (debug_mode_) {
     //if (FLAGS_cosim_period != 0) {
@@ -1940,8 +1946,10 @@ bool bridge::topei_mismatch(const std::string& instr) {
   return false;
 }
 
-bool bridge::debug_mem_access(const rv_instr_t& d){
 
+bool bridge::debug_mem_access(const rv_instr_t& d){
+  print(cvm::HIGH, "mem_access_print [d.mem_read.valid={}, debug_mode_={}, d.mem_read.pa={:#x}, FLAGS_debug_mem_base={}, FLAGS_debug_mem_size={}]\n",
+  d.mem_read.valid, debug_mode_, d.mem_read.pa, FLAGS_debug_mem_base, FLAGS_debug_mem_size);
   if (d.mem_read.valid && debug_mode_ &&
       (d.mem_read.pa >= FLAGS_debug_mem_base) && (d.mem_read.pa < (FLAGS_debug_mem_base + FLAGS_debug_mem_size)))
     return true;
