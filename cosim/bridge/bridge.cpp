@@ -2215,12 +2215,12 @@ void bridge::process_dut_mcm_bypass(hart_id_t hart, mem_t& m) {
   if (m.v_ext){
     std::vector<bridge::size_8_bytes_t> data_vec = create_dword_vec(m.data_vec);
     if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmVecBypassRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, data_vec, valid)|| !valid) && FLAGS_whisper_client_check) {
-      error("Error: Hart {}: Failed mcm store bypass\n", hart);
+      error("Hart {}: Failed mcm store bypass\n", hart);
       return;
     }
   } else {
     if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmBypassRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, m.data, valid)|| !valid) && FLAGS_whisper_client_check) {
-      error("Error: Hart {}: Failed mcm store bypass\n", hart);
+      error("Hart {}: Failed mcm store bypass\n", hart);
       return;
     }
   }
