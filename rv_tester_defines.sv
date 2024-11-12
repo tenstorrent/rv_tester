@@ -348,8 +348,8 @@ package rv_tester_params;
         logic [4:0]                 amo_op;
         logic                       v_ext;
         logic [36-1:0]              opcode;
-        logic [7:0]                 nano_op_field_idx;
-        logic [7:0]                 nano_op_elem_idx;
+        logic [7:0]                 field;
+        logic [7:0]                 elem_idx;
     } mcmi_t;
 
     // --------------------------------------

@@ -802,8 +802,8 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
   m.amo    = m_mcmi_read.amo;
   m.amo_op = m_mcmi_read.amo_op;
   m.v_ext  = m_mcmi_read.v_ext;
-  m.nano_op_field_idx = m_mcmi_read.nano_op_field_idx;
-  m.nano_op_elem_idx = m_mcmi_read.nano_op_elem_idx;
+  m.field = m_mcmi_read.field;
+  m.elemIdx = m_mcmi_read.elem_idx;
 
   mread_tag_ = m_mcmi_read.order;
 

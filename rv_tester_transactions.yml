@@ -227,9 +227,9 @@ cosim:
                 width: 1
             amo_op:
                 width: 5
-            nano_op_field_idx:
+            field:
                 width: 8
-            nano_op_elem_idx:
+            elem_idx:
                 width: 8
 
     m_mcmi_insert:
