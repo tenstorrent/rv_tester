@@ -2178,7 +2178,7 @@ void bridge::process_dut_mcm_read(hart_id_t hart, mem_t& m) {
       return;
     }
   } else {
-    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmReadRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, m.data, m.nano_op_elem_idx, m.field, valid)|| !valid) && FLAGS_whisper_client_check) {
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmReadRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, m.data, m.nano_op_elem_idx, m.nano_op_field_idx, valid)|| !valid) && FLAGS_whisper_client_check) {
       error("Hart {}: Failed mcm load\n", hart);
       return;
     }
