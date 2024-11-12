@@ -15,6 +15,7 @@
 #include "sysmod/trickbox/imsic_driver.h"
 #include "cosim/dut_if/rvfi/rvfi_plusargs.h"
 #include "sysmod/sysmod_plusargs.h"
+#include "sysmod/sysmod_params.hpp"
 #include "cosim/utils/eot/eot_plusargs.h"
 #include "whisper_client.h"
 
@@ -1277,8 +1278,17 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
   w_.pc.pc_rdata = w.pc;
 
   zicbom_ = false;
-  if(((w.opcode & 0x7fff) == 0x200f) && (((w.opcode>>20)==0)||((w.opcode>>20)==1)||((w.opcode>>20)==2))) // cbo - inval, clean , flush
+  if(((w.opcode & 0x7fff) == 0x200f) && (((w.opcode>>20) & 0xfff) <= 2)){ // cbo - inval, clean , flush
     zicbom_ = true;
+    if (!FLAGS_mcm && (w.opcode>>20 == 0)) { // cbo.inval and no mcm RVDE-18801
+      uint64_t addr;
+      if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekGprRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, (w.opcode>>15) & 0x1f, addr)) {
+          error("Hart {}: Failed to peek GPR {}\n", hart, (w.opcode>>15)&0x1f);
+      }
+    IF_DEBUG("cbo.inval");
+    cvm::registry::messenger.signal<cbo_inval_nomcm_s>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0), cbo_inval_nomcm_s(addr));
+    }
+  }
 
   if (FLAGS_pc_check)
     update_pc(hart, src_t::iss, w.pc);
