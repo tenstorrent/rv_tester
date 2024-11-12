@@ -2173,7 +2173,7 @@ void bridge::process_dut_mcm_read(hart_id_t hart, mem_t& m) {
   }
   if (m.v_ext){
     std::vector<bridge::size_8_bytes_t> data_vec = create_dword_vec(m.data_vec);
-    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmVecReadRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, data_vec, m.nano_op_elem_idx, m.field, valid)|| !valid) && FLAGS_whisper_client_check) {
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmVecReadRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, data_vec, m.nano_op_elem_idx, m.nano_op_field_idx, valid)|| !valid) && FLAGS_whisper_client_check) {
       error("Hart {}: Failed mcm vec load\n", hart);
       return;
     }

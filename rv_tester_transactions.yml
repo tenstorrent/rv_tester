@@ -227,7 +227,7 @@ cosim:
                 width: 1
             amo_op:
                 width: 5
-            field:
+            nano_op_field_idx:
                 width: 8
             nano_op_elem_idx:
                 width: 8
