@@ -125,7 +125,7 @@ class sysmod {
 
     void process(const rv_tester_transactions::sysmod::tick<>& tick);
     void store_inval_load(const inval_load_s& payload);
-    void store_inval_crsp(const inval_crsp_s& payld);
+    void store_inval_crsp(const inval_crsp_s& payld, bool);
 
     svScope scope() { return scope_; }
     unsigned id() { return id_; }

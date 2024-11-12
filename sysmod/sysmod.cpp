@@ -29,6 +29,7 @@
 #include "cosim/utils/general/util.h"
 #include "sysmod_params.hpp"
 #include "cosim/bridge/bridge_plusargs.h"
+#include "rv_tester_transactions.hpp"
 
 // internal flags
 DEFINE_string(hex, "", "hex file (program) to load into memory");
@@ -121,9 +122,14 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
   for(uint32_t i = 0 ; i < num_harts ; i++) {
     int unsigned location = cvm::topology::get_from_type("CORE", i);
     cvm::registry::messenger.connect<inval_load_s>(location , [this] (const auto& payload) { return this->store_inval_load(payload); });
-    cvm::registry::messenger.connect<inval_crsp_s>(location , [this] (const auto& payld) { return this->store_inval_crsp(payld); });
+    cvm::registry::messenger.connect<inval_crsp_s>(location , [this] (const auto& payld) { return this->store_inval_crsp(payld, 1 /*mcm*/); });
   }
 
+  cvm::registry::messenger.connect<cbo_inval_nomcm_s>(loc_, [this] (const auto& cbo_inval_nomcm) {
+    inval_crsp_s payload;
+    payload.address = cbo_inval_nomcm.address;
+    return this->store_inval_crsp(payload, 0/*nomcm*/);
+  });
   cvm::registry::messenger.connect<sysmod::backdoor_write_t>(
       loc_,
       [this](sysmod::backdoor_write_t t) { 
@@ -617,7 +623,10 @@ sysmod::uc_helper_backdoor_write(uc_helper::uc_helper_write_t w) {
 
 }
 // FIXME: Use Remote Procedure calls to make code generic
-void sysmod::store_inval_crsp(const inval_crsp_s& payld) {
+void sysmod::store_inval_crsp(const inval_crsp_s& payld, bool mcm) {
+  cvm::log(cvm::HIGH, "CBO_INVAL_MONITOR::MCM={} FLAGS_MCM={}\n", mcm, FLAGS_mcm );
+  if ( mcm and !FLAGS_mcm) return;
+  if (!mcm and  FLAGS_mcm) return;
   inval_crsp_ = payld;
   // Compulsive Backdoor write
   device::data_t data(8);

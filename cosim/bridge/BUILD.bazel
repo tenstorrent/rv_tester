@@ -21,6 +21,7 @@ cc_library(
                 "//cosim/dut_if/rvfi:rvfi_plusargs",
                 "//cosim/utils/eot:eot_plusargs",
                 "//sysmod:sysmod_plusargs",
+                "//sysmod:sysmod_params",
                 "//sysmod/trickbox:trickbox",
                ],
     data     = [
