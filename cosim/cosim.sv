@@ -1042,8 +1042,8 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign m_mcmi_reads[n].data.amo = mcmi_read[n].amo;
         assign m_mcmi_reads[n].data.amo_op = mcmi_read[n].amo_op;
         assign m_mcmi_reads[n].data.v_ext = mcmi_read[n].v_ext;
-        assign m_mcmi_reads[n].data.elem_idx = mcmi_read[n].elem_idx;
         assign m_mcmi_reads[n].data.field = mcmi_read[n].field;
+        assign m_mcmi_reads[n].data.nano_op_elem_idx = mcmi_read[n].nano_op_elem_idx;
         assign mcmi_read_pokes[n] = mcmi_read[n].valid;
 
     end
