@@ -744,6 +744,7 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign m_rvfis[n].data.last_insn   = rvfi[n].last_insn;
         assign m_rvfis[n].data.comp        = rvfi[n].comp;
         assign m_rvfis[n].data.order       = rvfi[n].order;
+        assign m_rvfis[n].data.branch_tag  = rvfi[n].branch_tag;
         assign m_rvfis[n].data.insn        = rvfi[n].insn;
         assign m_rvfis[n].data.uop         = rvfi[n].uop;
         assign m_rvfis[n].data.trap        = rvfi[n].trap;
@@ -1119,6 +1120,7 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign m_mcmi_ifetch_reqs[n].data.hart = NUM;
         assign m_mcmi_ifetch_reqs[n].data.order = mcmi_ifetch_req[n].order;
         assign m_mcmi_ifetch_reqs[n].data.addr = mcmi_ifetch_req[n].addr;
+        assign m_mcmi_ifetch_reqs[n].data.attr = mcmi_ifetch_req[n].attr;
     end
 
     for (genvar n = 0; n < NIFETCH; n++) begin

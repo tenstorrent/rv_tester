@@ -15,6 +15,7 @@
 #include "sysmod/trickbox/imsic_driver.h"
 #include "cosim/dut_if/rvfi/rvfi_plusargs.h"
 #include "sysmod/sysmod_plusargs.h"
+#include "sysmod/sysmod_params.hpp"
 #include "cosim/utils/eot/eot_plusargs.h"
 #include "whisper_client.h"
 
@@ -1281,8 +1282,17 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
   w_.pc.pc_rdata = w.pc;
 
   zicbom_ = false;
-  if(((w.opcode & 0x7fff) == 0x200f) && (((w.opcode>>20)==0)||((w.opcode>>20)==1)||((w.opcode>>20)==2))) // cbo - inval, clean , flush
+  if(((w.opcode & 0x7fff) == 0x200f) && (((w.opcode>>20) & 0xfff) <= 2)){ // cbo - inval, clean , flush
     zicbom_ = true;
+    if (!FLAGS_mcm && (w.opcode>>20 == 0)) { // cbo.inval and no mcm RVDE-18801
+      uint64_t addr;
+      if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekGprRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, (w.opcode>>15) & 0x1f, addr)) {
+          error("Hart {}: Failed to peek GPR {}\n", hart, (w.opcode>>15)&0x1f);
+      }
+    IF_DEBUG("cbo.inval");
+    cvm::registry::messenger.signal<cbo_inval_nomcm_s>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0), cbo_inval_nomcm_s(addr));
+    }
+  }
 
   if (FLAGS_pc_check)
     update_pc(hart, src_t::iss, w.pc);
@@ -1515,8 +1525,6 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
       else if (c.csr_addr == 0x301){ // On misa.H update, update mideleg
         if ((c.csr_wmask >> 7) & 0x1) {
           if ((c.csr_wdata >> 7) & 0x1) {
-            mask = 0xF00400;
-            update_csr(hart, src_t::dut, 0x302, 0xF00400, mask, false, false);
             mask = 0x1444;
             update_csr(hart, src_t::dut, 0x303, 0x1444, mask, false, false);
           }
@@ -2221,12 +2229,12 @@ void bridge::process_dut_mcm_bypass(hart_id_t hart, mem_t& m) {
   if (m.v_ext){
     std::vector<bridge::size_8_bytes_t> data_vec = create_dword_vec(m.data_vec);
     if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmVecBypassRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, data_vec, valid)|| !valid) && FLAGS_whisper_client_check) {
-      error("Error: Hart {}: Failed mcm store bypass\n", hart);
+      error("Hart {}: Failed mcm store bypass\n", hart);
       return;
     }
   } else {
     if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmBypassRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, m.data, valid)|| !valid) && FLAGS_whisper_client_check) {
-      error("Error: Hart {}: Failed mcm store bypass\n", hart);
+      error("Hart {}: Failed mcm store bypass\n", hart);
       return;
     }
   }
