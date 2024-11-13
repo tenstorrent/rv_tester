@@ -150,7 +150,7 @@ typedef struct mem_s {
   bool v_ext;
   uint32_t attr;
   uint8_t field;
-  uint8_t elemIdx;
+  uint8_t nano_op_elem_idx;
 
   mem_s() {
     clear();
