@@ -37,6 +37,7 @@ DEFINE_string(load_lz4, "", "lz4 compressed file (program) to load into memory. 
 DEFINE_bool(bootrom, true, "Load bootrom before test");
 DEFINE_bool(enable_sp_init, false, "Enable sharedcache scratchpad initilization from bootrom");
 DEFINE_string(bootrom_path, "", "Path to bootrom object file");
+DEFINE_bool(cplfw, false, "Load cpl firmware before test");
 DEFINE_string(cplfw_path, "", "Path to cpl firmware object file");
 DEFINE_string(load_io, "", "load specified io dev with content from memory");
 DEFINE_bool(sysmod_tick_async, true, "Asynchronous sysmod_tick calls");
@@ -85,7 +86,7 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
       loc_,
       [this](const uint64_t& t) {  // FIXME: using signal to send data from whisper client to sysmod
       if (t == 0)
-        return this->load_csr_mmr_boot(t);
+        return this->load_csr_mmr_boot(0);
       return this->store_dm_randpc();
       });
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::tick<>>(
@@ -767,8 +768,7 @@ sysmod::reset() {
   load_prog(FLAGS_hex, FLAGS_load, FLAGS_load_lz4);
   load_io(FLAGS_load_io);
   load_boot(FLAGS_bootrom_path);
-  if (!FLAGS_cosim)
-    load_csr_mmr_boot(0);
+  load_csr_mmr_boot(1);
   load_cplfw(FLAGS_cplfw_path);
 }
 
@@ -1066,23 +1066,27 @@ sysmod::load_boot(const std::string& boot)
 }
 
 void
-sysmod::load_csr_mmr_boot(uint64_t)
+sysmod::load_csr_mmr_boot(uint64_t dut)
 {
   if (!FLAGS_bootrom)
       return;
   if (FLAGS_set_csr == "" && FLAGS_set_mmr == "")
       return;
   int addr;
-  auto add_to_mem = [&addr, this] (const uint32_t op) {
-    device::strb_t strb(4);
-    for (size_t i = 0; i<4; i++) strb[i] = true;
-    cvm::log(cvm::HIGH, "Address: {:#x} OPCODE: {:#x}\n",addr, op);
-    bool valid = true;
-    device::data_t data(4);
-    for (size_t i=0; i<4; i++) data[i] = op >> 8*i;
-    dev("boot")->backdoor_write(addr, 4, data, strb);
-    if (FLAGS_cosim && (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', addr, op, valid) || !valid) && FLAGS_whisper_client_check)
-      cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
+  auto add_to_mem = [&addr, &dut, this] (const uint32_t op) {
+    if (dut) {
+      device::strb_t strb(4);
+      for (size_t i = 0; i<4; i++) strb[i] = true;
+      cvm::log(cvm::HIGH, "Address: {:#x} OPCODE: {:#x}\n",addr, op);
+      device::data_t data(4);
+      for (size_t i=0; i<4; i++) data[i] = op >> 8*i;
+      dev("boot")->backdoor_write(addr, 4, data, strb);
+    }
+    else {
+      bool valid = true;
+      if (FLAGS_cosim && (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', addr, op, valid) || !valid) && FLAGS_whisper_client_check)
+        cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
+    }
     addr += 4;
   };
 
@@ -1197,7 +1201,7 @@ sysmod::load_csr_mmr_boot(uint64_t)
 void
 sysmod::load_cplfw(const std::string& cplfw)
 {
-  if (cplfw != "") {
+  if (FLAGS_cplfw && cplfw != "") {
     cvm::log(cvm::MEDIUM, "Loading {}\n", cplfw);
     if (cplfw.substr(cplfw.length() - 3) == "elf") {
       if (not dev("memory") or not dynamic_cast<sysmod_mem&>(*dev("memory")).init_elf(cplfw)) {

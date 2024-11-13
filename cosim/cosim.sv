@@ -382,6 +382,8 @@ localparam CAM_IHBIT = CAM_IBITS;
     bit [NRET-1:0]      rvfi_priv_change;
     bit [NRET-1:0][3:0] rvfi_priv;
     bit [NRET-1:0]      rvfi_patch_mode;
+    bit [NRET-1:0]      rvfi_set_patch;
+    bit [NRET-1:0]      rvfi_clr_patch;
     /* verilator lint_on UNOPTFLAT */
     bit                 rvfi_ucode_S;
     bit                 rvfi_last_uop_S;
@@ -390,8 +392,6 @@ localparam CAM_IHBIT = CAM_IBITS;
     bit                 rvfi_patch_mode_S;
     bit [NRET-1:0]      rvfi_instr_ucode;
     bit [NRET-1:0]      rvfi_first_uop;
-    bit [NRET-1:0]      rvfi_set_patch;
-    bit [NRET-1:0]      rvfi_clr_patch;
     bit [NRET-1:0][3:0] rvfi_instr_priv;
     bit [NRET-1:0][3:0] rvfi_mode;
     bit [NRET-1:0]      rvfi_trap_patch;
@@ -800,8 +800,8 @@ localparam CAM_IHBIT = CAM_IBITS;
         // rvfi_priv:        mode bits loaded into latch on first ucode op (used for comparison needed for patch mode)                        // 
         // rvfi_instr_priv:  non-ucode gets mode bits, ucode sequence it gets latched mode bits on first_uop                                  // 
         // rvfi_priv_change: if priv mode bits change during a microcode sequence then this bit is SET, CLEAREd on last_uop=1                 // 
-        // rvfi_set_patch:   if priviledge level changes and the ucode priv starts at 4 then set patch_mode=1                                 // 
-        // rvfi_clr_patch:   if priviledge level changes and the ucode priv starts at 4 then set patch_mode=0 on last_uop=1                   // 
+        // rvfi_set_patch:   if last uop and mode is  4 (patch) then set patch_mode=1                                                         // 
+        // rvfi_clr_patch:   if last uop and mode is !4 (but previously was) 4 then set patch_mode=0                                          // 
         //------------------------------------------------------------------------------------------------------------------------------------//
 
         assign rvfi_mode[n]                = rvfi[n].mode;
@@ -816,8 +816,8 @@ localparam CAM_IHBIT = CAM_IBITS;
                                                    (~rvfi_first_uop[n] & rvfi_instr_ucode[n] & (rvfi_mode[n] != rvfi_priv_S)) ? 1'b1 : rvfi_priv_change_S));
            assign rvfi_priv[n]                = (rvfi[n].valid==1'b0) ? rvfi_priv_S : ((rvfi_last_uop[n] | (rvfi_first_uop[n] & rvfi_instr_ucode[n])) ? rvfi_mode[n] : rvfi_priv_S);  
            assign rvfi_instr_priv[n]          = (~rvfi_instr_ucode[n] | rvfi_first_uop[n]) ? rvfi_mode[n] : rvfi_priv_S;
-           assign rvfi_set_patch[n]           = (rvfi[n].valid & (rvfi_priv_S == 4'h4) & ~rvfi_patch_mode_S) ? 1'b1 : 1'b0; 
-           assign rvfi_clr_patch[n]           = (rvfi[n].valid & rvfi_instr_ucode[n] & ~rvfi_first_uop[n] & (rvfi_priv_S == 4'h4) & (rvfi_mode[n] != rvfi_priv_S) & rvfi_patch_mode_S) ? 1'b1 : 1'b0; 
+           assign rvfi_set_patch[n]           = (rvfi[n].valid & rvfi_last_uop[n] & (rvfi_mode[n] == 4'h4) & ~rvfi_patch_mode_S) ? 1'b1 : 1'b0; 
+           assign rvfi_clr_patch[n]           = (rvfi[n].valid & rvfi_last_uop[n] & (rvfi_mode[n] != 4'h4) &  rvfi_patch_mode_S) ? 1'b1 : 1'b0;
            assign rvfi_patch_mode[n]          = (rvfi[n].valid==1'b0) ? rvfi_patch_mode_S : (rvfi_clr_patch[n] ? 1'b0 : (rvfi_set_patch[n] ? 1'b1 : rvfi_patch_mode_S)); 
         end
         else begin
@@ -830,8 +830,8 @@ localparam CAM_IHBIT = CAM_IBITS;
                                                    (~rvfi_first_uop[n] & rvfi_instr_ucode[n] & (rvfi_mode[n] != rvfi_priv[n-1])) ? 1'b1 : rvfi_priv_change[n-1]));
            assign rvfi_priv[n]                = (rvfi[n].valid==1'b0) ? rvfi_priv[n-1] : ((rvfi_last_uop[n] | (rvfi_first_uop[n] & rvfi_instr_ucode[n])) ? rvfi_mode[n] : rvfi_priv[n-1]);  
            assign rvfi_instr_priv[n]          = (~rvfi_instr_ucode[n] | rvfi_first_uop[n]) ? rvfi_mode[n] : rvfi_priv[n-1];
-           assign rvfi_set_patch[n]           = (rvfi[n].valid & (rvfi_priv[n-1] == 4'h4) & ~rvfi_patch_mode[n-1]) ? 1'b1 : 1'b0; 
-           assign rvfi_clr_patch[n]           = (rvfi[n].valid & rvfi_instr_ucode[n] & ~rvfi_first_uop[n] & (rvfi_priv[n-1] == 4'h4) & (rvfi_mode[n] != rvfi_priv[n-1]) & rvfi_patch_mode[n-1]) ? 1'b1 : 1'b0; 
+           assign rvfi_set_patch[n]           = (rvfi[n].valid & rvfi_last_uop[n] & (rvfi_mode[n] == 4'h4) & ~rvfi_patch_mode_S & ~rvfi_set_patch[n-1]) ? 1'b1 : 1'b0; 
+           assign rvfi_clr_patch[n]           = (rvfi[n].valid & rvfi_last_uop[n] & (rvfi_mode[n] != 4'h4) & rvfi_patch_mode_S & ~rvfi_clr_patch[n-1]) ? 1'b1 : 1'b0;
            assign rvfi_patch_mode[n]          = (rvfi[n].valid==1'b0) ? rvfi_patch_mode[n-1] : (rvfi_clr_patch[n] ? 1'b0 : (rvfi_set_patch[n] ? 1'b1 : rvfi_patch_mode[n-1])); 
         end
     end   // for loop n
@@ -850,15 +850,17 @@ localparam CAM_IHBIT = CAM_IBITS;
            rvfi_last_uop_S        <= rvfi_last_uop[NRET-1];
            rvfi_priv_S            <= rvfi_priv[NRET-1];
            rvfi_priv_change_S     <= rvfi_priv_change[NRET-1];
-           rvfi_patch_mode_S      <= rvfi_patch_mode[NRET-1];
 
            if (rvfi_trap_patch != '0) begin
                rvfi_trap_pmode <= 1'b1;
            end
            else begin
                if (rvfi_clr_patch != '0) begin
-                  rvfi_trap_pmode <= 1'b0;
+                  rvfi_trap_pmode     <= 1'b0;
+                  rvfi_patch_mode_S   <= 1'b0;
                end
+               if (rvfi_set_patch != '0)
+                   rvfi_patch_mode_S <= 1'b1;
            end
         end
     end

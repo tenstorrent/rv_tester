@@ -182,7 +182,7 @@ void bridge::reset() {
   cac_.Reset();
   assert(cac_.SetVlen(vlen_));
 
-  if (cvm::registry::messenger.call<whisperClient<uint64_t>::whisperConnectRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), num_harts_) != 0) {
+  if (id_ == 0 && cvm::registry::messenger.call<whisperClient<uint64_t>::whisperConnectRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0)) != 0) {
     error("Hart {}: Failed whisper_connect\n", id_);
     return;
   }
@@ -267,6 +267,7 @@ void bridge::csr_init() {
     error("Hart {}: Failed to peek csr : 0xBC2\n", id_);
   }
   csr_rename_en_ = !((data & 0x200) >> 9);
+  csr_rd_opt_ = !((data & 0x4) >> 2);
 }
 
 void bridge::setsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr) {
@@ -506,7 +507,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   }
 
   if ((FLAGS_mcm) & (FLAGS_cosim_period > 0)) {
-     //if (mcm_orders_.find(d.tag) != mcm_orders.end()) {
+     //if (mcm_orders_.find(d.tag) != mcm_orders_.end()) {
         mcm_orders_.erase(d.tag);
      //}
   }
@@ -595,6 +596,13 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   }
 
   // Handle post-step conditions
+  if (d.pc.pc_rdata == FLAGS_debug_exit_pc) {
+    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperExitDebugRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart)) {
+      error("Hart {}: Failed to exit debug mode\n", id_);
+      return;
+    }
+  }
+
   post_step_nmi_check(hart, d, w);
   post_step_interrupt_check(hart, d, w);
   post_step_exception_check(hart, d, w);
@@ -762,15 +770,15 @@ void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d)
 }
 
 void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
-  if (FLAGS_pc_check && !(patch_mode_ == IN_PATCH || patch_mode_ == EXIT_PATCH)) {
+  if (FLAGS_pc_check && (patch_mode_ == NO_PATCH || patch_mode_ == ENTER_PATCH)) {
     update_pc(hart, src_t::dut, d.pc.pc_rdata);
   }
-  if (FLAGS_priv_check && !(patch_mode_ == IN_PATCH || patch_mode_ == EXIT_PATCH)) {
+  if (FLAGS_priv_check && (patch_mode_ == NO_PATCH || patch_mode_ == ENTER_PATCH)) {
     if (d.priv == 0x7) // Update DEBUG_PROGBUF Mode to be DEBUG_ROM Mode for Cosim checks
       d.priv = 0x6;
     update_priv(hart, src_t::dut, d.priv);
   }
-  if (FLAGS_insn_check && !d.comp && !d.ucode && !is_vector(d.disasm) && !(d.disasm.substr(0,7)=="illegal") && !d.csr_renamed && !(patch_mode_ == IN_PATCH || patch_mode_ == EXIT_PATCH)) {
+  if (FLAGS_insn_check && !d.comp && !d.ucode && !is_vector(d.disasm) && !(d.disasm.substr(0,7)=="illegal") && !d.csr_renamed && (patch_mode_ == NO_PATCH  || patch_mode_ == ENTER_PATCH)) {
     update_insn(hart, src_t::dut, d.opcode);
   }
   if (FLAGS_flags_check && (d.flags != 0)) {
@@ -779,7 +787,7 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
   if (!d.gpr.empty() || !d.fpr.empty() || !d.vr.empty() || !d.csr.empty()) {
     update_regs(hart, d);
   }
-  if (FLAGS_memattr_check && d.mem_read.valid && (!is_vector(d.disasm)) && !lrsc_fail_ && patch_mode_ == NO_PATCH) {
+  if (FLAGS_memattr_check && d.mem_read.valid &&  (!is_vector(d.disasm)) && !lrsc_fail_ && patch_mode_ == NO_PATCH) {
       update_mem_attr(hart, src_t::dut, d.mem_read.attr);
   }
   if (FLAGS_memattr_check && d.mem_write.valid && (!is_vector(d.disasm)) && !lrsc_fail_ && patch_mode_ == NO_PATCH) {
@@ -793,7 +801,7 @@ void bridge::pre_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
   bool valid;
   uint32_t opcode;
   if (instr.pc.pc_rdata == FLAGS_debug_exit_pc) {
-    opcode = 0x7b200073; // Dret instruction opcode
+    opcode = 0x13; //Nop
   }
   else if(instr.excp) {
     opcode = 0x00100073; //E-break opcode
@@ -1284,7 +1292,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
 
   // FIXME Instruction byte checking disabled for vectors till we find a way to
   // differentiate cracked instructions
-  if (FLAGS_insn_check && !w_.comp && !w_.ucode && !is_vector(w.disasm) && !(w.disasm.substr(0,7)=="illegal") && !is_renamed_csr(w.disasm) && patch_mode_ == NO_PATCH)
+  if (FLAGS_insn_check && !w_.comp && !w_.ucode && !is_vector(w.disasm) && !(w.disasm.substr(0,7)=="illegal") && !is_renamed_csr(w.disasm) && (patch_mode_ == NO_PATCH))
     update_insn(hart, src_t::iss, w.opcode);
 
   if (FLAGS_flags_check && (w.fp_flags != 0))
@@ -1733,20 +1741,28 @@ return false;
 void bridge::arch_state(whisper_state_t& w) {
 
   if (w.resource == 'c') {
-      if(w.address == 0x300) {
-          if(((w.value) & 0x20000) != 0) {
-              mprv_ = 1;
-              mpp_ = ((w.value) & 0x1800) >> 11;
-              mpv_ = ((w.value) & 0x8000000000) >> 39;
-            }
-            else
-              mprv_ = 0;
-        }
+    if(w.address == 0x300) {
+      if(((w.value) & 0x20000) != 0) {
+        mprv_ = 1;
+        mpp_ = ((w.value) & 0x1800) >> 11;
+        mpv_ = ((w.value) & 0x8000000000) >> 39;
       }
-      if (w.address == 0xBC2) {
-        csr_rename_en_ = !((w.value & 0x200) >> 9);
+      else {
+        mprv_ = 0;
       }
+    }
+    if (w.address == 0xBC2) {
+      csr_rename_en_ = !((w.value & 0x200) >> 9);
+      csr_rd_opt_ = !((w.value & 0x4) >> 2);
+    }
   }
+
+  if (!prev_csr_rd_opt_ && csr_rd_opt_) {
+    FLAGS_mip_resynch_threshold = FLAGS_mip_resynch_threshold * 4;
+  }
+
+  prev_csr_rd_opt_ = csr_rd_opt_;
+}
 
 
 bool bridge::is_vector(const std::string& instr) {
@@ -1790,11 +1806,6 @@ bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const std::
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[clint_read]\n", d.cycle);
     return true;
   }
-  if (tbox_read(d)) {
-    IF_DEBUG("tbox_read condition");
-    bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[tbox_read]\n", d.cycle);
-    return true;
-  }
   // Case #2
   if (htif_read(d)) {
     IF_DEBUG("htif_read condition");
@@ -1814,51 +1825,64 @@ bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const std::
     return true;
   }
   // Case #5
+  // Using below exit_debug API instead of Dret to be complaint with whisper.
+  if (d.pc.pc_rdata == FLAGS_debug_exit_pc) {
+    IF_DEBUG("debug exit condition");
+    bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[debug exit]\n", d.cycle);
+    return true;
+  }
+  // Case #6
   if (boot_read(d)) {
     IF_DEBUG("boot_read condition");
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[boot_read]\n", d.cycle);
     return true;
   }
-  // Case #6
+  // Case #7
   if (FLAGS_mip_resynch && mip_mismatch(instr)) {
     IF_DEBUG("mip condition");
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[mip_mismatch]\n", d.cycle);
     return true;
   }
-  // Case #7
+  // Case #8
   if (FLAGS_topi_resynch && topi_mismatch(instr)) {
     IF_DEBUG("topi condition");
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[topi_mismatch]\n", d.cycle);
     return true;
   }
-  // Case #8
+  // Case #9
   if (FLAGS_topei_resynch && topei_mismatch(instr)) {
     IF_DEBUG("topei condition");
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[topei_mismatch]\n", d.cycle);
     return true;
   }
-  // Case #9
+  // Case #10
   if (unsupported_mmr_access(d)) {
     IF_DEBUG("unsupport_mmr_access condition");
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[mmr_access]\n", d.cycle);
     return true;
   }
-  // Case #10
+  // Case #11
   if (d.intr && (d.icause == 0)){
     IF_DEBUG("intr condition");
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[Debug Mode Interrupt]\n", d.cycle);
    return true;
   }
-  // Case #11
+  // Case #12
   if (unsupported_csr_access(instr)) {
     IF_DEBUG("csr condition");
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[unsupported_csr_access]\n", d.cycle);
     return true;
   }
   // Case #12
-  if (cpl_smc_access(d)) {
-    IF_DEBUG("smc condition");
-    bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[cpl_smc_access]\n", d.cycle);
+  if (tbox_read(d)) {
+    IF_DEBUG("tbox_read condition");
+    bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[tbox_read]\n", d.cycle);
+    return true;
+  }
+  // Case #13
+  if (uart_access(d)) {
+    IF_DEBUG("uart_access condition");
+    bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[uart_access]\n", d.cycle);
     return true;
   }
   return false;
@@ -1966,11 +1990,13 @@ bool bridge::unsupported_csr_access(const std::string& instr) {
   return false;
 }
 
-bool bridge::cpl_smc_access(const rv_instr_t& d){
-  if (d.mem_read.valid &&
-      d.mem_read.pa >= smc_lo_addr &&
-      d.mem_read.pa < smc_hi_addr)
+bool bridge::uart_access(const rv_instr_t& d) {
+  if (memmap_.find("uart0") != memmap_.end()) {
+     if (d.mem_read.valid &&
+         d.mem_read.pa >= (memmap_.at("uart0").base) &&
+         d.mem_read.pa < (memmap_.at("uart0").end))
     return true;
+  } 
   return false;
 }
 
@@ -2531,6 +2557,7 @@ void bridge::enter_debug_mode(rv_debug_t& d) {
   };
   bridge_log_(cvm::NONE, "<{}> Enter debug mode\n", d.cycle);
   if (!debug_mode_) {
+    IF_DEBUG("Sending message to whisper to enable debug mode");
     if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperEnterDebugRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), d.hart)) {
       error("Hart {}: Failed to enter debug mode\n", id_);
       return;

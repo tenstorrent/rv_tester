@@ -16,6 +16,7 @@
 #include "rv_tester/rv_tester_structs.h"
 #include "cosim/utils/eot/eot_plusargs.h"
 
+
 class rvfi {
 
   template<typename T, typename... Args> void connect(cvm::topology::loc_t loc) {

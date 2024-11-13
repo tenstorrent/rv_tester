@@ -275,9 +275,11 @@ void rvfi::process(const rv_tester_transactions::cosim::m_imsic_msi<>& m_imsic_m
     return;
 
   mem_t mem;
+  mem.valid = true;
   mem.cycle = m_imsic_msi.cycle;
   mem.pa = m_imsic_msi.addr;
   mem.data = m_imsic_msi.data.to_ullong();
+  mem.size = 4;
 
   bridge_->process_dut_imsic_msi(id_, mem);
   if (FLAGS_rvfi_log) {
@@ -317,8 +319,8 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.excp = excp_;
   instr.ecause = ecause_;
 
-  cvm::log(cvm::HIGH, "CLOCK={}: HW: ucode={} first_uop={} last_uop={} rvfi.mode={} instr.priv={} priv_change={} set_pmode={}, clr_pmode={} patch_={} disasm={}\n", m_rvfi.cycle,
-                            m_rvfi.ucode, m_rvfi.first_uop, m_rvfi.last_uop, m_rvfi.mode, m_rvfi.priv, m_rvfi.priv_change, m_rvfi.set_pmode, m_rvfi.clr_pmode, patch_mode_,instr.disasm);
+  cvm::log(cvm::HIGH, "CLOCK={}: HW: ucode={} first_uop={} last_uop={} rvfi.mode={} instr.priv={} priv_change={} set_pmode={} clr_pmode={} patch_={} disasm={}\n", m_rvfi.cycle,
+                            m_rvfi.ucode, m_rvfi.first_uop, m_rvfi.last_uop, m_rvfi.mode, m_rvfi.priv, m_rvfi.priv_change, m_rvfi.set_pmode, m_rvfi.clr_pmode, static_cast<int>(patch_mode_),instr.disasm);
 
   // RVTOOLS-3265, RVTOOLS-3479: Adjust tag for conservative mode vec instr that takes an exception
   if (vec_excp_after_cmode_) {
@@ -338,92 +340,83 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
 
 
 
-  if (!(FLAGS_use_sw_priv)) { 
-    // First/last uops for ucode sequences
-  
-    instr.first_uop = m_rvfi.first_uop;
-    instr.last_uop  = m_rvfi.last_uop;
-    instr.ucode  = m_rvfi.ucode;
-    instr.priv  = m_rvfi.priv;
-    ucode_priv_change_ = m_rvfi.priv_change;
-  
-    if (m_rvfi.set_pmode) { // when we enter patch mode via ucode
-      cvm::log(cvm::HIGH, "CLOCK={}: Patch mode turned ON",m_rvfi.cycle);
-      bridge_->set_patch_mode(2); // IN_PATCH
-      patch_mode_ = true;
-    }
-    if (m_rvfi.clr_pmode) {
-        cvm::log(cvm::HIGH, "CLOCK={}: Patch mode turned OFF\n",m_rvfi.cycle);
-        if (!priv_to_string.count(static_cast<priv>(instr.priv))) {
-            cvm::log(cvm::ERROR, "Error: Invalid rvfi privilege mode: {:#x}\n", instr.priv);
-        }
-        bridge_->set_patch_mode(3);
-        patch_mode_ = false;
-    }
-  
-    if ((instr.priv & 0x7) == 0x3) {
-       instr.priv = 0x3;
-    }
-  } 
-  else { 
-  
+  if (FLAGS_use_sw_priv == false) {
   // First/last uops for ucode sequences
-    instr.first_uop = false;
-    instr.last_uop = m_rvfi.last_uop;
-    instr.ucode = ucode_ || !m_rvfi.last_uop;
-    if (!m_rvfi.last_uop) {
-      if (!ucode_)
-        instr.first_uop = true;
-      ucode_ = true;
-    } else {
-      ucode_ = false;
-    }
-  
-    // Priv mode
-    if (FLAGS_cosim && priv_ == 0x4 && !patch_mode_) { // when we enter patch mode via ucode
-      cvm::log(cvm::HIGH, "Patch mode: turned ON with Ucode instruction={} time={}\n",m_rvfi.insn,m_rvfi.cycle);
-      bridge_->set_patch_mode(2); // IN_PATCH
-      patch_mode_ = true;
-    }
-    instr.priv = m_rvfi.mode;
-    if (instr.ucode && (m_rvfi.mode != priv_)) {
-      if (instr.first_uop) {
-        priv_ = m_rvfi.mode;
-      } else {
-        instr.priv = priv_;
-        ucode_priv_change_ = true;
-      }
-    }
-    int uchange = 0;
-    if (ucode_priv_change_)  { uchange = 1; }
-    if (m_rvfi.last_uop) {
-      if (ucode_priv_change_) {
-        instr.priv = priv_;
-        ucode_priv_change_ = false;
-        if (priv_ == 0x4 && patch_mode_) { // dret changes mode from D to M/S/U (exit from patch mode)
-          cvm::log(cvm::HIGH, "Patch mode: turned OFF with Ucode instruction={} time={}\n",m_rvfi.insn,m_rvfi.cycle);
-          bridge_->set_patch_mode(3); // EXIT_PATCH
-          patch_mode_ = false;
-        }
-      }
+
+  instr.first_uop = m_rvfi.first_uop;
+  instr.last_uop  = m_rvfi.last_uop;
+  instr.ucode  = m_rvfi.ucode;
+  instr.priv  = m_rvfi.priv;
+  ucode_priv_change_ = m_rvfi.priv_change;
+
+  if (!priv_to_string.count(static_cast<priv>(instr.priv))) {
+    cvm::log(cvm::ERROR, "Error: Invalid rvfi privilege mode: {:#x}\n", instr.priv);
+    return;
+  }
+
+  if (m_rvfi.set_pmode) { // when we enter patch mode via ucode
+    cvm::log(cvm::HIGH, "CLOCK={}: Patch mode turned ON\n",m_rvfi.cycle);
+    bridge_->set_patch_mode(1); // IN_PATCH
+    patch_mode_ = true;
+  }
+  if (m_rvfi.clr_pmode) {
+    cvm::log(cvm::HIGH, "CLOCK={}: Patch mode turned OFF\n",m_rvfi.cycle);
+    bridge_->set_patch_mode(3);
+    patch_mode_ = false;
+  }
+
+  if ((instr.priv & 0x7) == 0x3)
+     instr.priv = 0x3;
+
+  }
+  else {
+
+// First/last uops for ucode sequences
+  instr.first_uop = false;
+  instr.last_uop = m_rvfi.last_uop;
+  instr.ucode = ucode_ || !m_rvfi.last_uop;
+  if (!m_rvfi.last_uop) {
+    if (!ucode_)
+      instr.first_uop = true;
+    ucode_ = true;
+  } else {
+    ucode_ = false;
+  }
+
+  // Priv mode
+  if (FLAGS_cosim && priv_ == 0x4 && !patch_mode_) { // when we enter patch mode via ucode
+    cvm::log(cvm::HIGH, "Patch mode: turned ON with Ucode instruction={} time={}\n", m_rvfi.insn, m_rvfi.cycle);
+    bridge_->set_patch_mode(1); // IN_PATCH
+    patch_mode_ = true;
+  }
+  instr.priv = m_rvfi.mode;
+  if (instr.ucode && (m_rvfi.mode != priv_)) {
+    if (instr.first_uop) {
       priv_ = m_rvfi.mode;
-      if (!priv_to_string.count(static_cast<priv>(instr.priv)))
-        cvm::log(cvm::ERROR, "Error: Invalid rvfi privilege mode: {:#x}\n", instr.priv);
+    } else {
+      instr.priv = priv_;
+      ucode_priv_change_ = true;
     }
-    if ((instr.priv & 0x7) == 0x3) {
-       instr.priv = 0x3;
+  }
+  if (m_rvfi.last_uop) {
+    if (ucode_priv_change_) {
+      instr.priv = priv_;
+      ucode_priv_change_ = false;
     }
-
-    int ucode   = 0;
-    int  fuop   = 0;
-    int  luop   = 0;
-    if (instr.ucode) { ucode = 1; }
-    if (instr.first_uop) { fuop = 1; }
-    if (instr.last_uop)  { luop = 1; }
-    cvm::log(cvm::HIGH, "CLOCK={}: SW: ucode={} first_uop={} last_uop={} rvfi.mode={} instr.priv={} priv_change_={} patch_mode_={} excp_={} disasm={}\n", m_rvfi.cycle,
-                                       ucode, fuop, luop, m_rvfi.mode,instr.priv, uchange, patch_mode_,excp_,instr.disasm);
-
-  } 
+    if (m_rvfi.mode == 0x4 && patch_mode_) { // dret changes mode from D to M/S/U (exit from patch mode)
+      cvm::log(cvm::HIGH, "Patch mode: turned OFF with Ucode instruction={} time={}\n",m_rvfi.insn,m_rvfi.cycle);
+      bridge_->set_patch_mode(3); // EXIT_PATCH
+      patch_mode_ = false;
+    }
+    priv_ = m_rvfi.mode;
+    if (!priv_to_string.count(static_cast<priv>(instr.priv))) {
+      cvm::log(cvm::ERROR, "Error: Invalid rvfi privilege mode: {:#x}\n", instr.priv);
+      return;
+    }
+  }
+  cvm::log(cvm::HIGH, "CLOCK={}: SW: ucode={} first_uop={} last_uop={} rvfi.mode={} instr.priv={} priv_change={} set_pmode={} clr_pmode={} patch_={} disasm={}\n", m_rvfi.cycle,
+                                      static_cast<int>(ucode_), static_cast<int>(instr.first_uop), static_cast<int>(instr.last_uop), m_rvfi.mode, instr.priv, static_cast<int>(ucode_priv_change_), m_rvfi.set_pmode,m_rvfi.clr_pmode, static_cast<int>(patch_mode_), instr.disasm);
+  }
 
   if (m_rvfi.last_uop && !patch_mode_) {
     count_++;
@@ -660,24 +653,9 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
   if (instr.nmi)
     dut_log += fmt::format(" (nmi:{})", instr.ncause);
 
-  if (instr.intr) {
-    // Also print the values of xtopei if instr.icause is 9 or 11
-    uint64_t intr_cause = instr.icause;
-    
-    if ((intr_cause == 9 || intr_cause == 11)) {
-      if (!(!instr.ucode || instr.csr_renamed || cracked_gpr_.valid) && !instr.first_uop) {
-        // If microcode sequence AND not a first uop; then only print the interrupt cause
-        dut_log += fmt::format(" (interrupt:{})", intr_cause);
-      }
-      else {
-        uint64_t mtopei_data = bridge_->get_csr_p(instr.hart, cac::src_t::dut, 0x35C);
-        uint64_t stopei_data = bridge_->get_csr_p(instr.hart, cac::src_t::dut, 0x15C);
-        dut_log += fmt::format(" (interrupt:{}, [{}:{:#x}, {}:{:#x}])", intr_cause, "mtopei", mtopei_data, "stopei", stopei_data);
-      }
-    }
-    else
-      dut_log += fmt::format(" (interrupt:{})", intr_cause);
-  }
+  if (instr.intr)
+    dut_log += fmt::format(" (interrupt:{})", instr.intr);
+
   if (instr.excp)
     dut_log += fmt::format(" (exception:{})", instr.ecause);
 
@@ -1048,30 +1026,91 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
   if (!FLAGS_cosim)
     return;
 
-  mem_t m;
-  m.valid  = true;
-  m.hart   = m_mcmi_bypass.hart;
-  m.cycle  = m_mcmi_bypass.cycle;
-  m.tag    = m_mcmi_bypass.order;
-  m.pa     = m_mcmi_bypass.addr;
-  m.size   = std::popcount(m_mcmi_bypass.mask);
-  m.data   = m_mcmi_bypass.data;
-  m.data_vec  = m_mcmi_bypass.data_vec;
-  m.v_ext  = m_mcmi_bypass.v_ext;
-  m.amo    = m_mcmi_bypass.amo;
-  m.amo_op = m_mcmi_bypass.amo_op;
+  uint64_t mask = m_mcmi_bypass.mask;
+  uint64_t numones = std::popcount(mask);
 
-  if (m.amo && m.amo_op != SC && FLAGS_emulate_amo_arithmetic) {
-    amo_writes_.emplace(m.tag, m);
-    return;
+  // Find the number of consecutive ones starting from the first set bit
+  uint64_t leadingZeros = std::countr_zero(mask);  // Find the number of trailing zeros
+  mask >>= leadingZeros;
+  uint64_t consecutiveOnes = std::countr_zero(~mask);  // Count ones until the first zero
+  
+  if (numones == consecutiveOnes) {
+      mem_t m;
+      m.valid  = true;
+      m.hart   = m_mcmi_bypass.hart;
+      m.cycle  = m_mcmi_bypass.cycle;
+      m.tag    = m_mcmi_bypass.order;
+      m.pa     = m_mcmi_bypass.addr;
+      m.size   = std::popcount(m_mcmi_bypass.mask);
+      m.data   = m_mcmi_bypass.data;
+      m.data_vec  = m_mcmi_bypass.data_vec;
+      m.v_ext  = m_mcmi_bypass.v_ext;
+      m.amo    = m_mcmi_bypass.amo;
+      m.amo_op = m_mcmi_bypass.amo_op;
+
+      if (m.amo && m.amo_op != SC && FLAGS_emulate_amo_arithmetic) {
+        amo_writes_.emplace(m.tag, m);
+        return;
+      }
+
+      if (m.amo && m.amo_op == SC && sc_failed(m)) {
+        sc_bypass_.emplace(m.tag, m);
+        return;
+      }
+
+      bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m);
+  } else {
+      std::bitset<32> mask = m_mcmi_bypass.mask;
+      std::vector<uint64_t> addresses;
+      std::vector<uint8_t> datas;
+
+      for (int i = 0; i < 32; i++) {
+          if (mask[i]) {
+              addresses.push_back(m_mcmi_bypass.addr + i);
+              uint8_t byte = 0;
+              for (int bit = i*8; bit < 8*(i+1); ++bit) {
+                  if (m_mcmi_bypass.data_vec[bit]) {
+                      byte |= (1 << (bit - (i*8)));  // Set the corresponding bit in first_byte
+                  }
+              }
+              datas.push_back(byte);
+          }
+      }
+
+      uint64_t start = addresses[0];
+      size_t size = 1;
+      std::string dataAccumulated = fmt::format("{:02x}", datas[0]);  
+
+      for (size_t i = 1; i < addresses.size(); ++i) {
+          if (addresses[i] == addresses[i - 1] + 1) {
+              ++size;
+              dataAccumulated = fmt::format("{:02x}", datas[i]) + dataAccumulated;
+          } else {
+              mem_t m;
+              m.valid = true;
+              m.cycle = m_mcmi_bypass.cycle;
+              m.tag = m_mcmi_bypass.order;
+              m.pa = start;
+              m.size = size;
+              std::bitset<256> value = stringToBitset(dataAccumulated);  // Use a helper to convert the accumulated string
+              m.data_vec = value;
+              m.v_ext = m_mcmi_bypass.v_ext;
+              bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m);
+              start = addresses[i];
+              size = 1;
+              dataAccumulated = fmt::format("{:02x}", datas[i]);
+          }
+      }
+      mem_t m;
+      m.valid = true;
+      m.cycle = m_mcmi_bypass.cycle;
+      m.tag = m_mcmi_bypass.order;
+      m.pa = start;
+      m.size = size;
+      m.data_vec = stringToBitset(dataAccumulated);  // Final range processing
+      m.v_ext = m_mcmi_bypass.v_ext;
+      bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m);
   }
-
-  if (m.amo && m.amo_op == SC && sc_failed(m)) {
-    sc_bypass_.emplace(m.tag, m);
-    return;
-  }
-
-  bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m);
 }
 
 bool rvfi::sc_failed(mem_t& write) {
