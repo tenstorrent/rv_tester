@@ -979,6 +979,13 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
     return;
   }
 
+  // Undefer all interrupts
+  if (deferred_intr_) {
+    IF_DEBUG("deferred intr == 1");
+    defer_interrupt(hart, w.time, 0);
+    deferred_intr_ = false;
+  }
+
   // 2. DUT took older interrupt but a newer one asserted before retire
   if (d.icause != w_cause) {
     IF_DEBUG("dut cause != whisper cause");
@@ -991,12 +998,7 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
     return;
   }
 
-  // Undefer all interrupts
-  if (deferred_intr_) {
-    IF_DEBUG("deferred intr == 1");
-    defer_interrupt(hart, w.time, 0);
-    deferred_intr_ = false;
-  }
+
 
   if (FLAGS_retire_ucode_trap) {
     IF_DEBUG("FLAG retire_ucode_trap == 1 ... return");
