@@ -229,7 +229,7 @@ cosim:
                 width: 5
             field:
                 width: 8
-            nano_op_elem_idx:
+            elem_idx:
                 width: 8
 
     m_mcmi_insert:
