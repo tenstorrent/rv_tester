@@ -506,24 +506,24 @@ void jtag_sequence::drive_csv_jtag_cmds()
       }
 
       convertedArray =  bitsetToUint64Array(result);
-      cvm::log(cvm::HIGH, "Line no 464 [jtag_sequence] reg_length_data {} loop_rdata {:#x} lower_jtag_data {:#x} mask {:#x} expression {:#x}\n",reg_length_data,convertedArray[0],lower_jtag_data,mask,(1 << reg_length_data));
+      cvm::log(cvm::HIGH, "Line no 464 [jtag_sequence] reg_length_data {} loop_rdata {} lower_jtag_data {} mask {} expression {}\n",reg_length_data,convertedArray[0],lower_jtag_data,mask,(1 << reg_length_data));
       
     if(jtag_cmd == 4){
       if(convertedArray[0] == lower_jtag_data){
        //PASS
-       cvm::log(cvm::HIGH, "[jtag_sequence] jtag check opcode Passed! expected {:#x} got {:#x} \n", lower_jtag_data,result);
+       cvm::log(cvm::HIGH, "[jtag_sequence] jtag check opcode Passed! expected {} got {} \n", lower_jtag_data,result);
       }else{
        //FAIL
        cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check opcode failed! expected {} got {} \n", lower_jtag_data,result);
       }
     }else if(jtag_cmd == 12){
-      cvm::log(cvm::HIGH, "\n[jtag_sequence] jtag check mask opcode: result {:#x} mask {:#x} expected {:#x} \n", convertedArray[0],lower_jtag_data,jtag_cm_value);
+      cvm::log(cvm::HIGH, "\n[jtag_sequence] jtag check mask opcode: result {:#x} mask {} expected {} \n", convertedArray[0],lower_jtag_data,jtag_cm_value);
       if((convertedArray[0] & lower_jtag_data) == jtag_cm_value){
        //PASS
-       cvm::log(cvm::HIGH, "[jtag_sequence] jtag check mask opcode Passed! expected {:#x} got {:#x} \n", jtag_cm_value,(convertedArray[0] & lower_jtag_data));
+       cvm::log(cvm::HIGH, "[jtag_sequence] jtag check mask opcode Passed! expected {} got {} \n", jtag_cm_value,(convertedArray[0] & lower_jtag_data));
       }else{
        //FAIL
-       cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check mask opcode failed! expected {:#x} got {:#x} \n", jtag_cm_value,(convertedArray[0] & lower_jtag_data));
+       cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check mask opcode failed! expected {} got {} \n", jtag_cm_value,(convertedArray[0] & lower_jtag_data));
       }
     }
       jtag_cmd_q.pop(); // pop front eleme7t
@@ -693,14 +693,14 @@ void jtag_sequence::drive_jtag_cmds()
       uint64_t mask = (1ULL << reg_length_data) - 1;
       auto result = reg_length_data = 64 ? loop_rdata : loop_rdata & mask;
    
-     cvm::log(cvm::HIGH, "JTAG_COMMAND 638  [jtag_sequence] reg_length_data {} loop_rdata {:#x} lower_jtag_data {:#x} mask {:#x} expression {:#x}\n",reg_length_data,loop_rdata,lower_jtag_data,mask,(1 << reg_length_data));
+     cvm::log(cvm::HIGH, "JTAG_COMMAND 638  [jtag_sequence] reg_length_data {} loop_rdata {} lower_jtag_data {} mask {} expression {}\n",reg_length_data,loop_rdata,lower_jtag_data,mask,(1 << reg_length_data));
       
       if(result == lower_jtag_data){
        //PASS
-       cvm::log(cvm::HIGH, "[jtag_sequence] jtag check opcode Passed! expected {:#x} got {:#x} \n", lower_jtag_data,result);
+       cvm::log(cvm::HIGH, "[jtag_sequence] jtag check opcode Passed! expected {} got {} \n", lower_jtag_data,result);
       }else{
        //FAIL
-       cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check opcode failed! expected {:#x} got {:#x} \n", lower_jtag_data,result);
+       cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check opcode failed! expected {} got {} \n", lower_jtag_data,result);
       }
       jtag_cmd_q.pop(); // pop front eleme7t
     }
