@@ -16,6 +16,7 @@
 #include "rv_tester/rv_tester_structs.h"
 #include "cosim/utils/eot/eot_plusargs.h"
 
+
 class rvfi {
 
   template<typename T, typename... Args> void connect(cvm::topology::loc_t loc) {
@@ -119,9 +120,7 @@ class rvfi {
     //   - eventually we will remove this
     //---------------------------------------------------------------------------------------------------------
     //#define USE_OLD_CODE 1
-    #ifdef USE_OLD_CODE
     bool ucode_ = false;
-    #endif
     bool nmi_ = false;
     bool intr_ = false;
     bool excp_ = false;
