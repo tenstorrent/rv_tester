@@ -1,3 +1,4 @@
+#include <map>
 #include "cvm/logger.hpp"
 #include "cvm/topology.hpp"
 #include "rv_tester_transactions.hpp"
@@ -1048,7 +1049,7 @@ public:
     }
 
     
-    const std::unordered_map<counter_core, std::string_view> core_to_string = {
+    const std::map<counter_core, std::string_view> core_to_string = {
       {CPU_CYCLES,"cpu_cycles"},
       {INSTRUCTIONS,"instructions"},
       {M_MODE_CYCLES,"m_mode_cycles"},
@@ -1672,7 +1673,7 @@ public:
     }
 
     
-    const std::unordered_map<counter_sc, std::string_view> sc_to_string = {
+    const std::map<counter_sc, std::string_view> sc_to_string = {
       {SC_CACHE_ACCESS,"sc_cache_access"},
       {SC_CACHE_RD,"sc_cache_rd"},
       {SC_CACHE_MISS,"sc_cache_miss"},
@@ -2242,7 +2243,7 @@ private:
   };
 
   template <typename T>
-  std::string generate_log_str(const std::unordered_map<T, std::string_view>& to_string);
+  std::string generate_log_str(const std::map<T, std::string_view>& to_string);
 
   static constexpr size_t num_event_csrs = 8;
   event_csr_details event_csr_array[num_event_csrs];

@@ -22,7 +22,7 @@ DEFINE_bool(ignore_pmc_reprogram, false, "toggle ignore on illegal reprograming 
 REGISTRY_register(pmu, PMCI, cvm::registry::all);
 
 template <typename T>
-std::string pmu::generate_log_str(const std::unordered_map<T, std::string_view>& to_string) {
+std::string pmu::generate_log_str(const std::map<T, std::string_view>& to_string) {
   std::string log_str;
   log_str += fmt::format("trigger");
   for (const auto& [key, value] : to_string) {
