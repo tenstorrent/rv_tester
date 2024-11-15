@@ -311,10 +311,10 @@ sysmod::sc_harvest_plusargs()
 
         FLAGS_sc_dis_ways_mask = get_rand_ways_mask(FLAGS_num_sc_dis_ways, nways);
       }
-      if (FLAGS_perf || !FLAGS_rand_sp_ways) {
-        FLAGS_num_sp_ways = 0;
-      } else {
+      if (FLAGS_rand_sp_ways || !FLAGS_perf) {
         FLAGS_num_sp_ways = get_rand_sp_ways(nways - FLAGS_num_sc_dis_ways);
+      } else {
+        FLAGS_num_sp_ways = 0;
       }
       break;
     case 1: // +num_sp_ways
