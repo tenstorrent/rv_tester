@@ -648,8 +648,6 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   if (patch_mode_ == EXIT_PATCH)
     patch_mode_ = NO_PATCH;
 
-  if (patch_mode_ == EXIT_TRAP_PATCH)
-    patch_mode_ = NO_PATCH;
 }
 
 void bridge::compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w, rv_instr_t& d) {
