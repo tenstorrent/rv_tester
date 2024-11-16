@@ -104,13 +104,12 @@ class rvfi {
 
     uint64_t count_ = 1;
 
-    uint64_t mread_tag_ = 0;
-    uint64_t minsert_tag_ = 0;
     uint64_t prev_instr_tag_ = 0;
+    uint64_t prev_uop_tag_ = 0;
     uint64_t prev_branch_tag_ = 0;
-    bool     vec_excp_after_cmode_ = false;
-    uint64_t vec_cmode_tag_ = 0;
-    uint64_t uop_tag_ = 0;
+    bool     vec_cmode_ = false;
+    uint64_t vec_cmode_first_tag_ = 0;
+    std::unordered_set<uint64_t> vec_cmode_tags_;
 
     bool ncio_mem_transition_ = false;
     std::vector<mem_t> ncio_fetches_;
