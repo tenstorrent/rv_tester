@@ -1587,6 +1587,9 @@ pwrmgmt:
     m_pcontrol_tick:
         domain: 3
         num: 1
+    m_thub_tick:
+        domain: 3
+        num: 1
     m_force_ref_clk:
         domain: 3
         num: 1

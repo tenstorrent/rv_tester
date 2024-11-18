@@ -25,7 +25,6 @@ DEFINE_string(warm_reset_debug_hold, "0:1", "Debug hold");
 DEFINE_string(warm_reset_critical_hold, "0:1", "Critical hold");
 DEFINE_bool(patch_en, false, "Enable instruction patching");
 DEFINE_bool(tj_max, false, "Program lower TJ Max Threshold");
-DEFINE_bool(temp_throttle, false, "Program lower Temp throttle for core");
 DEFINE_bool(patch_cpl_filter_dis, false, "Disable programming of inbound and outbound filters in core");
 DEFINE_bool(patch_mmr_check, false, "Enable read write checking of patch related registers");
 DEFINE_bool(patch_ram_check, false, "Enable read write checking of patch ram region");
@@ -96,13 +95,6 @@ void reset_sequence::warm_reset_sequence_thread() {
   cvm::registry::messenger.fork(task, this);
 };
 
-void reset_sequence::temp_throttle_release_thread() {
-  auto *task = +[] (reset_sequence* m) -> cvm::messenger::task<void> {
-    co_await m->temp_throttle_disable();
-    co_return;
-  };
-  cvm::registry::messenger.fork(task, this);
-};
 cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
   // Wait for 16 clock ticks
   for (int i=0; i<16; ++i)
@@ -629,38 +621,9 @@ cvm::messenger::task<void> reset_sequence::program_thub_threshold() {
       co_await write_thub_reg(thub_threhold_param_reg,0x05400640,i+9,i);
     };
   };
-  // Enable MC throttling when Temprature crosses threshold
-  if(FLAGS_temp_throttle)
-  {
-    for(uint32_t p =0; p < FLAGS_num_harts; ++p) // Fixed for 8 core config as THUB is only in 8c
-    {
-      // Write to MC power config
-      co_await csr_write(p, 0x8,core_pwr_throttle_cfg_0 , 0x000078830372a211);
-      co_await csr_write(p, 0x8,core_pwr_throttle_cfg_1 , 0x1041017ecb594129);
-    };
-    // Disable temp throttle
-    temp_throttle_release_thread();
-  };
+
  
 };
-
-cvm::messenger::task<void> reset_sequence::temp_throttle_disable()
-{
-
-  //Delay before temp throttle is disabled
-  for(uint32_t i =0; i< 5000; i++)
-  {
-    co_await tick();
-  };
-
-  for(uint32_t p =0; p < FLAGS_num_harts; ++p) // Fixed for 8 core config as THUB is only in 8c
-  {
-      // Write to MC power config
-      co_await csr_write(p, 0x8,core_pwr_throttle_cfg_0 , 0x000078830372a211);
-      co_await csr_write(p, 0x8,core_pwr_throttle_cfg_1 , 0x11ff017ecb594129);
-  };
-};
- 
 
 std::vector<uint64_t> reset_sequence::concatenate_uint32_to_uint64(const std::vector<uint32_t>& input) {
       std::vector<uint64_t> result;
