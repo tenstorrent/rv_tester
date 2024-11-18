@@ -1893,6 +1893,11 @@ bool bridge::does_instr_match_resynch_condition(const rv_instr_t& d, const std::
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[uart_access]\n", d.cycle);
     return true;
   }
+  if (sc_slice_status(d)) {
+    IF_DEBUG("sc slice status condition");
+    bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[sc slice status]\n", d.cycle);
+    return true;
+  }
   return false;
 }
 
@@ -2005,6 +2010,11 @@ bool bridge::uart_access(const rv_instr_t& d) {
          d.mem_read.pa < (memmap_.at("uart0").end))
     return true;
   } 
+  return false;
+}
+bool bridge::sc_slice_status(const rv_instr_t& d) {
+   if (d.mem_read.valid && ((d.mem_read.pa & 0xffffffffffff0fff) == sc_slice_base_))
+    return true;
   return false;
 }
 
