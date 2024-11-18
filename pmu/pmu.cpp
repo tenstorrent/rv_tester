@@ -64,10 +64,10 @@ pmu::process(const rv_tester_transactions::pmu::pmcounters<>& pmcounters)
   if (loc_ != pmcounters.location)
     return;
 
-  if (terminated_ and not sync_terminate_)
+  if (sm_ == SM::READY_TO_TERMINATE)
     return;
-  else if (terminated_)
-    sync_terminate_ = not pmcounters.terminate; // we need to wait until the last PMU packet
+  else if (sm_ == SM::SYNC_UNTIL_TERMINATE and pmcounters.terminate)
+    sm_ = READY_TO_TERMINATE;
 
   cvm::log(cvm::HIGH, "[PMU] syncing counters\n");
 
@@ -104,12 +104,11 @@ pmu::trigger_str(const rv_tester_transactions::pmu::pmcounters<>& pmcounters)
 void
 pmu::process(const rv_tester::terminate_called_fast&)
 {
-  if (terminated_)
+  if (sm_ != SM::SYNCING)
     return;
 
   cvm::log(cvm::HIGH, "[PMU] termination signaled, stopping further counting\n");
-  terminated_ = true;
-  sync_terminate_ = true;
+  sm_ = SM::SYNC_UNTIL_TERMINATE;
 
   if (FLAGS_pmcounters_log != 0) {
     std::string log_str;
@@ -183,13 +182,13 @@ pmu::shutdown_ready()
 {
   if (FLAGS_perf)
     {
-      if (not terminated_)
+      if (sm_ == SM::SYNCING)
         {
           cvm::log(cvm::NONE, "Warning: [PMU] asking for shutdown without termination.\n");
           // something went wrong, just allow terminate
           return true;
         }
-      return terminated_ and not sync_terminate_;
+      return sm_ == SM::READY_TO_TERMINATE;
     }
   else
     return true;
@@ -208,9 +207,9 @@ pmu::process(const rv_tester_transactions::pmu::hpmcounters<>& hpmcounters)
   hpmcounters_array[7]  = hpmcounters.hpmcounter10;
 }
 
-void 
+void
 pmu::get_filter_events_and_sum(uint64_t event_id,
-                              std::vector<size_t>& filtering_events, 
+                              std::vector<size_t>& filtering_events,
                               size_t& sum_filtered_event) {
   const auto& filtering_map     = filtered_event_map.at((event_id & 0xffff0000)>>16);
   const auto& fitered_event_id  = event_id & 0xffff;

@@ -85,6 +85,8 @@ cosim:
                 width: 1
             order:
                 width: 64
+            branch_tag:
+                width: 64
             insn:
                 width: ${TOP.PLATFORM.ILEN}
             uop:
@@ -227,7 +229,7 @@ cosim:
                 width: 5
             field:
                 width: 8
-            nano_op_elem_idx:
+            elem_idx:
                 width: 8
 
     m_mcmi_insert:
@@ -305,6 +307,8 @@ cosim:
                 width: 64
             addr:
                 width: ${TOP.PLATFORM.PALEN}
+            attr:
+                width: 32
 
     m_mcmi_ifetch_resp:
         domain: 1
@@ -330,7 +334,7 @@ cosim:
 
     m_trap:
         domain: 1
-        num: ${max(TOP.PLATFORM.COSIM.RVFI.NRETS)}
+        num: 1
         fields:
             cycle:
                 width: 64
@@ -1676,6 +1680,9 @@ triggers:
 
 __domains:
     2:
+        always_block_header: "(* ZEBU_NATIVE_DPI_PROC *)" # this makes DPI imports that have no outputs be scheduled immediately
+        priority: highest_priority
+    3:
         always_block_header: "(* ZEBU_NATIVE_DPI_PROC *)" # this makes DPI imports that have no outputs be scheduled immediately
         priority: highest_priority
 __max_byte_transfer: 896

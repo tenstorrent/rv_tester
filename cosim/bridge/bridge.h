@@ -93,7 +93,6 @@ public:
   void report_metrics();
   void process(const rv_tester::terminate_called &);
   void set_patch_mode(int patch) { patch_mode_ = static_cast<patch_mode> (patch); }
-  uint64_t get_csr_p(hart_id_t hart, src_t src, uint64_t addr) { return get_csr(hart, src, addr); }
 
 private:
 
@@ -181,7 +180,8 @@ private:
   bool debug_mem_access(const rv_instr_t& d);
   bool unsupported_mmr_access(const rv_instr_t& d);
   bool unsupported_csr_access(const std::string& instr);
-  bool cpl_smc_access(const rv_instr_t& d);
+  bool uart_access(const rv_instr_t& d);
+  bool sc_slice_status(const rv_instr_t& d);
   bool htif_read(const rv_instr_t& d);
   bool hpm_counter_read(const std::string& instr);
   bool mip_mismatch(const std::string& instr);
@@ -192,7 +192,8 @@ private:
   std::string get_nth_word(const std::string& s, int n);
 
 private:
-
+  
+  const uint64_t sc_slice_base_ = 0x421A0008;
   std::map<uint64_t, std::string> hypervisor_csr_map_ = {
         {0x600, "hstatus"},      // Hypervisor status register -
         {0x602, "hedeleg"},      // Hypervisor exception delegation register -

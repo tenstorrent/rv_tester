@@ -2182,6 +2182,15 @@ public:
   std::string name_event_vector(std::vector<size_t>& filtering_events);
 
 private:
+
+  enum SM : uint32_t {
+    SYNCING,
+    SYNC_UNTIL_TERMINATE,
+    READY_TO_TERMINATE
+  };
+
+  std::atomic<SM> sm_;
+
   cvm::file_logger log;
   cvm::topology::loc_t loc_;
   unsigned id_;
@@ -2191,9 +2200,6 @@ private:
   uint64_t perf_start_cycle = 0;
   uint64_t perf_end_cycle = 0;
   std::vector<uint64_t> perf_region;
-
-  std::atomic<bool> terminated_ = false;
-  std::atomic<bool> sync_terminate_ = false;
 
   struct event_csr_details{
     bool programmed = false;

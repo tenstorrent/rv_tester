@@ -22,11 +22,13 @@ DEFINE_bool(rvfi_log_36b_uop, true, "rvfi log - print 36b uop instead of default
 DEFINE_bool(mcm, true, "Enable mcm");
 DEFINE_bool(cosim, true, "Enable cosim checking");
 DEFINE_bool(emulate_amo_arithmetic, true, "Emulate amo arithmetic if dut harness does not provide amo outputs");
+DEFINE_bool(vec_cmode_tag_override, true, "If vector instruction enters conservative mode, override subsequent rvfi/mcmi tags with original instruction tag");
 
 DEFINE_uint64(debug_entry_pc, 0x42190800, "Debug Mode entry PC");
 DEFINE_uint64(debug_exit_pc, 0x421908cc, "Debug Mode exit PC");
 DEFINE_uint64(debug_mem_base, 0x42190000, "Debug Memory Base Address");
 DEFINE_uint64(debug_mem_size, 0x1000, "Debug Memory Size");
+DEFINE_bool(use_sw_priv, false, "Enable use of SW generation of priv/patch_mode values instead of hw");
 
 bool get_csr_name_instr(const std::string& input, std::string& modified_string);
 
@@ -145,7 +147,9 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   make_instr(m_rvfi, instr);
   print_instr(instr);
 
-  uop_tag_ = instr.tag;
+  prev_uop_tag_ = m_rvfi.order;
+  if (vec_cmode_)
+    vec_cmode_tags_.emplace(m_rvfi.order);
 
   if (!m_rvfi.last_uop)
     return;
@@ -172,13 +176,15 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   }
 
   // Save state
-  instr_tag_ = instr.tag;
+  prev_instr_tag_ = m_rvfi.order;
+  prev_branch_tag_ = instr.branch_tag;
 
   // Clear state
   intr_ = false;
   excp_ = false;
+
   nmi_ = false;
-  vec_excp_after_cmode_ = false;
+  vec_cmode_ = false;
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
@@ -196,7 +202,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
   } else if (m_trap.id == INTR) {
     nmi_ = false;
     intr_ = true;
-    excp_ = false;    
+    excp_ = false;
     icause_ = m_trap.cause & 0x3f;
   } else if (m_trap.id == EXCP) {
     // Patch special case
@@ -207,15 +213,19 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
         patch_mode_ = true;
       }
     }
-    if (excp_ && ecause_ == CUSTOM_VEC_CMODE) {
-      vec_excp_after_cmode_ = true;
-      vec_cmode_tag_ = uop_tag_;
-    }
     // Set exception state
     nmi_ = false;
     intr_ = false;
     excp_ = true;
     ecause_ = m_trap.cause & 0xff;
+    // RVTOOLS-3265, RVTOOLS-3479: Adjust tag for conservative mode vector instructions
+    // Capture the tag and use it for all activity related to
+    // the vector instruction
+    if (FLAGS_vec_cmode_tag_override && (ecause_ == CUSTOM_VEC_CMODE)) {
+      vec_cmode_ = true;
+      vec_cmode_first_tag_ = prev_uop_tag_ + 1;
+      vec_cmode_tags_.clear();
+    }
   }
 }
 
@@ -304,7 +314,8 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.cycle = m_rvfi.cycle;
   instr.id = count_;
   instr.comp = m_rvfi.comp;
-  instr.tag = m_rvfi.order;
+  instr.tag = vec_cmode_ ? vec_cmode_first_tag_ : m_rvfi.order;
+  instr.branch_tag = m_rvfi.branch_tag;
   instr.opcode = m_rvfi.insn;
   instr.disasm = whisper::disassemble(m_rvfi.insn);
   instr.uop = m_rvfi.uop;
@@ -317,15 +328,18 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.excp = excp_;
   instr.ecause = ecause_;
 
-  cvm::log(cvm::HIGH, "CLOCK={}: HW: ucode={} first_uop={} last_uop={}, mode={} priv={}, priv_change={} set_pmode={}, clr_pmode={} patch_={}\n", m_rvfi.cycle,
-                            m_rvfi.ucode, m_rvfi.first_uop, m_rvfi.last_uop, m_rvfi.mode, m_rvfi.priv, m_rvfi.priv_change, m_rvfi.set_pmode, m_rvfi.clr_pmode, patch_mode_);
+  cvm::log(cvm::HIGH, "CLOCK={}: HW: ucode={} first_uop={} last_uop={} rvfi.mode={} instr.priv={} priv_change={} set_pmode={} clr_pmode={} patch_={} disasm={}\n", m_rvfi.cycle,
+                            m_rvfi.ucode, m_rvfi.first_uop, m_rvfi.last_uop, m_rvfi.mode, m_rvfi.priv, m_rvfi.priv_change, m_rvfi.set_pmode, m_rvfi.clr_pmode, static_cast<int>(patch_mode_),instr.disasm);
 
-  // RVTOOLS-3265, RVTOOLS-3479: Adjust tag for conservative mode vec instr that takes an exception
-  if (vec_excp_after_cmode_) {
-    if (vec_cmode_tag_ == mread_tag_)
-      instr.tag = vec_cmode_tag_;
-    else
-      instr.tag = instr_tag_ + 1;
+  // RVDE-17736: Manage fetch/evict signaling for ncio region
+  // Using branch tag as a marker for when the previous fetch stops supplying instruction bytes
+  // and we need a new fetch performed non-speculatively
+  if (((ncio_fetches_.size() != 0) || ncio_mem_transition_) &&  m_rvfi.last_uop) {
+    if (m_rvfi.branch_tag != prev_branch_tag_) {
+      process_ncio_fetches(instr);
+    }
+    active_ncio_fetches_.clear();
+    ncio_mem_transition_ = false;
   }
 
   // Renamed csr sequence
@@ -338,7 +352,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
 
 
 
-#ifndef USE_OLD_CODE
+  if (FLAGS_use_sw_priv == false) {
   // First/last uops for ucode sequences
 
   instr.first_uop = m_rvfi.first_uop;
@@ -353,8 +367,8 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   }
 
   if (m_rvfi.set_pmode) { // when we enter patch mode via ucode
-    cvm::log(cvm::HIGH, "CLOCK={}: Patch mode turned ON",m_rvfi.cycle);
-    bridge_->set_patch_mode(2); // IN_PATCH
+    cvm::log(cvm::HIGH, "CLOCK={}: Patch mode turned ON\n",m_rvfi.cycle);
+    bridge_->set_patch_mode(1); // IN_PATCH
     patch_mode_ = true;
   }
   if (m_rvfi.clr_pmode) {
@@ -363,11 +377,11 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
     patch_mode_ = false;
   }
 
-  if ((instr.priv & 0x7) == 0x3) {
+  if ((instr.priv & 0x7) == 0x3)
      instr.priv = 0x3;
-  }
 
-#else
+  }
+  else {
 
 // First/last uops for ucode sequences
   instr.first_uop = false;
@@ -383,8 +397,8 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
 
   // Priv mode
   if (FLAGS_cosim && priv_ == 0x4 && !patch_mode_) { // when we enter patch mode via ucode
-    cvm::log(cvm::HIGH, "Patch mode: turned ON with Ucode instruction={} time={}\n",m_rvfi.insn,m_rvfi.cycle);
-    bridge_->set_patch_mode(2); // IN_PATCH
+    cvm::log(cvm::HIGH, "Patch mode: turned ON with Ucode instruction={} time={}\n", m_rvfi.insn, m_rvfi.cycle);
+    bridge_->set_patch_mode(1); // IN_PATCH
     patch_mode_ = true;
   }
   instr.priv = m_rvfi.mode;
@@ -400,11 +414,11 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
     if (ucode_priv_change_) {
       instr.priv = priv_;
       ucode_priv_change_ = false;
-      if (priv_ == 0x4 && patch_mode_) { // dret changes mode from D to M/S/U (exit from patch mode)
-        cvm::log(cvm::HIGH, "Patch mode: turned OFF with Ucode instruction={} time={}\n",m_rvfi.insn,m_rvfi.cycle);
-        bridge_->set_patch_mode(3); // EXIT_PATCH
-        patch_mode_ = false;
-      }
+    }
+    if (m_rvfi.mode == 0x4 && patch_mode_) { // dret changes mode from D to M/S/U (exit from patch mode)
+      cvm::log(cvm::HIGH, "Patch mode: turned OFF with Ucode instruction={} time={}\n",m_rvfi.insn,m_rvfi.cycle);
+      bridge_->set_patch_mode(3); // EXIT_PATCH
+      patch_mode_ = false;
     }
     priv_ = m_rvfi.mode;
     if (!priv_to_string.count(static_cast<priv>(instr.priv))) {
@@ -412,7 +426,9 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
       return;
     }
   }
-#endif
+  cvm::log(cvm::HIGH, "CLOCK={}: SW: ucode={} first_uop={} last_uop={} rvfi.mode={} instr.priv={} priv_change={} set_pmode={} clr_pmode={} patch_={} disasm={}\n", m_rvfi.cycle,
+                                      static_cast<int>(ucode_), static_cast<int>(instr.first_uop), static_cast<int>(instr.last_uop), m_rvfi.mode, instr.priv, static_cast<int>(ucode_priv_change_), m_rvfi.set_pmode,m_rvfi.clr_pmode, static_cast<int>(patch_mode_), instr.disasm);
+  }
 
   if (m_rvfi.last_uop && !patch_mode_) {
     count_++;
@@ -534,32 +550,6 @@ void rvfi::append_uop_changes_to_instr(rv_instr_t& instr) {
   }
 }
 
-std::tuple<uint64_t, uint64_t, uint8_t> rvfi::get_mem_attributes(uint64_t addr, uint8_t mask, uint64_t data) {
-  uint64_t aligned_addr = 0;
-  uint64_t aligned_data = 0;
-  uint8_t size = 0;
-
-  uint8_t offset = 0;
-  if (mask != 0)
-    while ((mask & 1) == 0) {
-      offset++;
-      mask >>= 1;
-    }
-
-  aligned_data = data >> (offset * 8);
-  aligned_addr = addr | offset;
-
-  if (mask != 0)
-    while (mask != 0) {
-      size++;
-      mask >>= 1;
-    }
-
-  aligned_data &= cvm::bitmanip::mask<decltype(aligned_data)>(8*size);
-
-  return std::make_tuple(aligned_addr, aligned_data, size);
-}
-
 void rvfi::print_csr(csr_t& csr) {
   if (!FLAGS_rvfi_log) {
     return;
@@ -618,7 +608,7 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
   else
     dut_log += fmt::format(" {:08x}", instr.opcode);
 
-  dut_log += fmt::format(" {}", resource_str);
+  dut_log += fmt::format("{}", resource_str);
 
   if (!instr.ucode || instr.csr_renamed || cracked_gpr_.valid) {
     std::string instr_dis = whisper::disassemble(instr.opcode);
@@ -649,24 +639,9 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
   if (instr.nmi)
     dut_log += fmt::format(" (nmi:{})", instr.ncause);
 
-  if (instr.intr) {
-    // Also print the values of xtopei if instr.icause is 9 or 11
-    uint64_t intr_cause = instr.icause;
-    
-    if ((intr_cause == 9 || intr_cause == 11)) {
-      if (!(!instr.ucode || instr.csr_renamed || cracked_gpr_.valid) && !instr.first_uop) {
-        // If microcode sequence AND not a first uop; then only print the interrupt cause
-        dut_log += fmt::format(" (interrupt:{})", intr_cause);
-      }
-      else {
-        uint64_t mtopei_data = bridge_->get_csr_p(instr.hart, cac::src_t::dut, 0x35C);
-        uint64_t stopei_data = bridge_->get_csr_p(instr.hart, cac::src_t::dut, 0x15C);
-        dut_log += fmt::format(" (interrupt:{}, [{}:{:#x}, {}:{:#x}])", intr_cause, "mtopei", mtopei_data, "stopei", stopei_data);
-      }
-    }
-    else
-      dut_log += fmt::format(" (interrupt:{})", intr_cause);
-  }
+  if (instr.intr)
+    dut_log += fmt::format(" (interrupt:{})", instr.intr);
+
   if (instr.excp)
     dut_log += fmt::format(" (exception:{})", instr.ecause);
 
@@ -809,16 +784,13 @@ void rvfi::process(const rv_tester_transactions::cosim::m_csri<>& m_csri) {
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_read) {
-  if (!FLAGS_mcm)
-    return;
-
-  if (patch_access(m_mcmi_read.addr))
+  if (!FLAGS_cosim || !FLAGS_mcm)
     return;
 
   if (terminated_ || in_reset_)
     return;
 
-  if (!FLAGS_cosim)
+  if (patch_access(m_mcmi_read.addr))
     return;
 
   mem_t m;
@@ -826,7 +798,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
   m.hart   = m_mcmi_read.hart;
   m.cycle  = m_mcmi_read.cycle;
   m.opcode  = m_mcmi_read.opcode;
-  m.tag    = m_mcmi_read.order;
+  m.tag    = (vec_cmode_ || vec_cmode_tags_.contains(m_mcmi_read.order)) ? vec_cmode_first_tag_ : m_mcmi_read.order;
   m.pa     = m_mcmi_read.addr;
   m.size   = std::popcount(m_mcmi_read.mask);
   m.data   = m_mcmi_read.data;
@@ -835,9 +807,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
   m.amo_op = m_mcmi_read.amo_op;
   m.v_ext  = m_mcmi_read.v_ext;
   m.field = m_mcmi_read.field;
-  m.nano_op_elem_idx = m_mcmi_read.nano_op_elem_idx;
-
-  mread_tag_ = m_mcmi_read.order;
+  m.elem_idx = m_mcmi_read.elem_idx;
 
   // Handle SC
   // If read before bypass, store pass/fail result
@@ -894,7 +864,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
               mem_t m;
               m.valid = true;
               m.cycle = m_mcmi_read.cycle;
-              m.tag = m_mcmi_read.order;
+              m.tag = (vec_cmode_ || vec_cmode_tags_.contains(m_mcmi_read.order)) ? vec_cmode_first_tag_ : m_mcmi_read.order;
               m.pa = start;
               m.size = size;
               std::bitset<256> value = stringToBitset(dataAccumulated);  // Use a helper to convert the accumulated string
@@ -909,7 +879,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
       mem_t m;
       m.valid = true;
       m.cycle = m_mcmi_read.cycle;
-      m.tag = m_mcmi_read.order;
+      m.tag = (vec_cmode_ || vec_cmode_tags_.contains(m_mcmi_read.order)) ? vec_cmode_first_tag_ : m_mcmi_read.order;
       m.pa = start;
       m.size = size;
       m.data_vec = stringToBitset(dataAccumulated);  // Final range processing
@@ -937,16 +907,13 @@ std::bitset<256> rvfi::stringToBitset(const std::string& hexString) {
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_insert) {
-  if (!FLAGS_mcm)
+  if (!FLAGS_cosim || !FLAGS_mcm)
+    return;
+
+  if (terminated_ || in_reset_)
     return;
 
   if (patch_access(m_mcmi_insert.addr))
-    return;
-
-  if (terminated_)
-    return;
-
-  if (!FLAGS_cosim)
     return;
 
   uint64_t mask = m_mcmi_insert.mask;
@@ -957,13 +924,11 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
   mask >>= leadingZeros;
   uint64_t consecutiveOnes = std::countr_zero(~mask);  // Count ones until the first zero
 
-  minsert_tag_ = m_mcmi_insert.order;
-
   if (numones == consecutiveOnes) {
       mem_t m;
       m.valid = true;
       m.cycle = m_mcmi_insert.cycle;
-      m.tag = m_mcmi_insert.order;
+      m.tag = (vec_cmode_ || vec_cmode_tags_.contains(m_mcmi_insert.order)) ? vec_cmode_first_tag_ :  m_mcmi_insert.order;
       m.pa = m_mcmi_insert.addr;
       m.size = numones;
       m.data = m_mcmi_insert.data;
@@ -1000,7 +965,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
               mem_t m;
               m.valid = true;
               m.cycle = m_mcmi_insert.cycle;
-              m.tag = m_mcmi_insert.order;
+              m.tag = (vec_cmode_ || vec_cmode_tags_.contains(m_mcmi_insert.order)) ? vec_cmode_first_tag_ : m_mcmi_insert.order;
               m.pa = start;
               m.size = size;
               std::bitset<256> value = stringToBitset(dataAccumulated);  // Use a helper to convert the accumulated string
@@ -1015,7 +980,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
       mem_t m;
       m.valid = true;
       m.cycle = m_mcmi_insert.cycle;
-      m.tag = m_mcmi_insert.order;
+      m.tag = (vec_cmode_ || vec_cmode_tags_.contains(m_mcmi_insert.order)) ? vec_cmode_first_tag_ : m_mcmi_insert.order;
       m.pa = start;
       m.size = size;
       m.data_vec = stringToBitset(dataAccumulated);  // Final range processing
@@ -1025,42 +990,100 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_bypass) {
-  if (!FLAGS_mcm)
-    return;
-
-  if (patch_access(m_mcmi_bypass.addr))
+  if (!FLAGS_cosim || !FLAGS_mcm)
     return;
 
   if (terminated_ || in_reset_)
     return;
 
-  if (!FLAGS_cosim)
+  if (patch_access(m_mcmi_bypass.addr))
     return;
 
-  mem_t m;
-  m.valid  = true;
-  m.hart   = m_mcmi_bypass.hart;
-  m.cycle  = m_mcmi_bypass.cycle;
-  m.tag    = m_mcmi_bypass.order;
-  m.pa     = m_mcmi_bypass.addr;
-  m.size   = std::popcount(m_mcmi_bypass.mask);
-  m.data   = m_mcmi_bypass.data;
-  m.data_vec  = m_mcmi_bypass.data_vec;
-  m.v_ext  = m_mcmi_bypass.v_ext;
-  m.amo    = m_mcmi_bypass.amo;
-  m.amo_op = m_mcmi_bypass.amo_op;
+  uint64_t mask = m_mcmi_bypass.mask;
+  uint64_t numones = std::popcount(mask);
 
-  if (m.amo && m.amo_op != SC && FLAGS_emulate_amo_arithmetic) {
-    amo_writes_.emplace(m.tag, m);
-    return;
+  // Find the number of consecutive ones starting from the first set bit
+  uint64_t leadingZeros = std::countr_zero(mask);  // Find the number of trailing zeros
+  mask >>= leadingZeros;
+  uint64_t consecutiveOnes = std::countr_zero(~mask);  // Count ones until the first zero
+  
+  if (numones == consecutiveOnes) {
+      mem_t m;
+      m.valid  = true;
+      m.hart   = m_mcmi_bypass.hart;
+      m.cycle  = m_mcmi_bypass.cycle;
+      m.tag    = (vec_cmode_ || vec_cmode_tags_.contains(m_mcmi_bypass.order)) ? vec_cmode_first_tag_ : m_mcmi_bypass.order;
+      m.pa     = m_mcmi_bypass.addr;
+      m.size   = std::popcount(m_mcmi_bypass.mask);
+      m.data   = m_mcmi_bypass.data;
+      m.data_vec  = m_mcmi_bypass.data_vec;
+      m.v_ext  = m_mcmi_bypass.v_ext;
+      m.amo    = m_mcmi_bypass.amo;
+      m.amo_op = m_mcmi_bypass.amo_op;
+
+      if (m.amo && m.amo_op != SC && FLAGS_emulate_amo_arithmetic) {
+        amo_writes_.emplace(m.tag, m);
+        return;
+      }
+
+      if (m.amo && m.amo_op == SC && sc_failed(m)) {
+        sc_bypass_.emplace(m.tag, m);
+        return;
+      }
+
+      bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m);
+  } else {
+      std::bitset<32> mask = m_mcmi_bypass.mask;
+      std::vector<uint64_t> addresses;
+      std::vector<uint8_t> datas;
+
+      for (int i = 0; i < 32; i++) {
+          if (mask[i]) {
+              addresses.push_back(m_mcmi_bypass.addr + i);
+              uint8_t byte = 0;
+              for (int bit = i*8; bit < 8*(i+1); ++bit) {
+                  if (m_mcmi_bypass.data_vec[bit]) {
+                      byte |= (1 << (bit - (i*8)));  // Set the corresponding bit in first_byte
+                  }
+              }
+              datas.push_back(byte);
+          }
+      }
+
+      uint64_t start = addresses[0];
+      size_t size = 1;
+      std::string dataAccumulated = fmt::format("{:02x}", datas[0]);  
+
+      for (size_t i = 1; i < addresses.size(); ++i) {
+          if (addresses[i] == addresses[i - 1] + 1) {
+              ++size;
+              dataAccumulated = fmt::format("{:02x}", datas[i]) + dataAccumulated;
+          } else {
+              mem_t m;
+              m.valid = true;
+              m.cycle = m_mcmi_bypass.cycle;
+              m.tag = vec_cmode_tags_.contains(m_mcmi_bypass.order) ? vec_cmode_first_tag_ : m_mcmi_bypass.order;
+              m.pa = start;
+              m.size = size;
+              std::bitset<256> value = stringToBitset(dataAccumulated);  // Use a helper to convert the accumulated string
+              m.data_vec = value;
+              m.v_ext = m_mcmi_bypass.v_ext;
+              bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m);
+              start = addresses[i];
+              size = 1;
+              dataAccumulated = fmt::format("{:02x}", datas[i]);
+          }
+      }
+      mem_t m;
+      m.valid = true;
+      m.cycle = m_mcmi_bypass.cycle;
+      m.tag = (vec_cmode_ || vec_cmode_tags_.contains(m_mcmi_bypass.order)) ? vec_cmode_first_tag_ : m_mcmi_bypass.order;
+      m.pa = start;
+      m.size = size;
+      m.data_vec = stringToBitset(dataAccumulated);  // Final range processing
+      m.v_ext = m_mcmi_bypass.v_ext;
+      bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m);
   }
-
-  if (m.amo && m.amo_op == SC && sc_failed(m)) {
-    sc_bypass_.emplace(m.tag, m);
-    return;
-  }
-
-  bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m);
 }
 
 bool rvfi::sc_failed(mem_t& write) {
@@ -1162,16 +1185,13 @@ void rvfi::amo_arithmetic(amo_op op, uint64_t& read_data, uint64_t& write_data, 
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write<>& m_mcmi_write) {
-  if (!FLAGS_mcm)
+  if (!FLAGS_cosim || !FLAGS_mcm)
+    return;
+
+  if (terminated_ || in_reset_)
     return;
 
   if (patch_access(m_mcmi_write.addr))
-    return;
-
-  if (terminated_)
-    return;
-
-  if (!FLAGS_cosim)
     return;
 
   mem_cl_t m;
@@ -1185,31 +1205,26 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write<>& m_mcmi_w
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_req<>& m_mcmi_ifetch_req) {
-  if (!FLAGS_mcm)
+  if (!FLAGS_cosim || !FLAGS_mcm)
     return;
 
   if (terminated_ || in_reset_)
-    return;
-
-  if (!FLAGS_cosim)
     return;
 
   mem_t m;
   m.valid = true;
   m.tag = m_mcmi_ifetch_req.order;
   m.pa = m_mcmi_ifetch_req.addr;
+  m.attr = m_mcmi_ifetch_req.attr;
 
   ifetch_reqs_.emplace(m.tag, m);
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>& m_mcmi_ifetch_resp) {
-  if (!FLAGS_mcm)
+  if (!FLAGS_cosim || !FLAGS_mcm)
     return;
 
   if (terminated_ || in_reset_)
-    return;
-
-  if (!FLAGS_cosim)
     return;
 
   if (ifetch_reqs_.find(m_mcmi_ifetch_resp.order) == ifetch_reqs_.end()) {
@@ -1220,22 +1235,33 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>& m_
   m = ifetch_reqs_.at(m_mcmi_ifetch_resp.order);
   m.cycle = m_mcmi_ifetch_resp.cycle;
 
-  bridge_->process_dut_mcm_ifetch(m_mcmi_ifetch_resp.hart, m);
+  // RVDE-17736: Manage fetch/evict signaling for ncio region
+  if (is_ncio(m.attr)) {
+    auto it = std::find_if(ncio_fetches_.begin(), ncio_fetches_.end(), [&](const mem_t& fetch) { return fetch.pa == m.pa; });
+    if (it == ncio_fetches_.end()) {
+      bridge_->process_dut_mcm_ifetch(m_mcmi_ifetch_resp.hart, m);
+      ncio_fetches_.emplace_back(m);
+    }
+    active_ncio_fetches_.emplace_back(m);
+  } else {
+    bridge_->process_dut_mcm_ifetch(m_mcmi_ifetch_resp.hart, m);
+    if (!ncio_fetches_.empty()) {
+      ncio_mem_transition_ = true;
+    }
+  }
 
   ifetch_reqs_.erase(m_mcmi_ifetch_resp.order);
+
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ievict<>& m_mcmi_ievict) {
-  if (!FLAGS_mcm)
-    return;
-
-  if (patch_access(m_mcmi_ievict.addr))
+  if (!FLAGS_cosim || !FLAGS_mcm)
     return;
 
   if (terminated_ || in_reset_)
     return;
 
-  if (!FLAGS_cosim)
+  if (patch_access(m_mcmi_ievict.addr))
     return;
 
   mem_t m;
@@ -1245,6 +1271,35 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ievict<>& m_mcmi_
 
   bridge_->process_dut_mcm_ievict(m_mcmi_ievict.hart, m);
 }
+
+void rvfi::process_ncio_fetches(const rv_instr_t& instr) {
+  if (!FLAGS_cosim || !FLAGS_mcm)
+    return;
+
+  if (terminated_ || in_reset_)
+    return;
+
+  ncio_fetches_.erase(
+    std::remove_if(ncio_fetches_.begin(), ncio_fetches_.end(), [&](const mem_t& fetch) {
+      bool evict = std::find(active_ncio_fetches_.begin(), active_ncio_fetches_.end(), fetch) == active_ncio_fetches_.end();
+      if (evict)
+        process(rv_tester_transactions::cosim::m_mcmi_ievict<>(loc_, instr.cycle, instr.hart, fetch.pa));
+      return evict;
+    }),
+    ncio_fetches_.end());
+}
+
+bool rvfi::is_ncio(uint32_t mem_attr) {
+  return ((mem_attr & 0x800) != 0) || ((mem_attr & 0x1000) == 0);
+}
+
+std::string rvfi::mem_attr_to_string(uint32_t mem_attr) {
+    std::string result;
+    result += (mem_attr & 0x800) ? "io," : "mem,";
+    result += (mem_attr & 0x1000) ? "c"   : "nc";
+
+    return result;
+};
 
 void rvfi::process(const rv_tester::terminate_called&) {
   cvm::log(cvm::HIGH, "[RVFI] termination signaled, stopping further rvfi processing\n");
@@ -1261,14 +1316,6 @@ void rvfi::process(const rv_tester_transactions::cosim::m_disable_checks<>&) {
   cvm::log(cvm::HIGH, "[RVFI] disable_checks indication, stopping further rvfi processing\n");
   terminated_ = true;
 }
-
-std::string rvfi::mem_attr_to_string(uint32_t mem_attr) {
-    std::string result;
-    result += (mem_attr & 0x800) ? "io," : "mem,";
-    result += (mem_attr & 0x1000) ? "c"   : "nc";
-
-    return result;
-};
 
 extern "C" {
   void cosim_set_scope(cvm::topology::loc_t loc) {

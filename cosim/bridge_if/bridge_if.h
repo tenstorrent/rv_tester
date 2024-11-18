@@ -150,14 +150,18 @@ typedef struct mem_s {
   bool v_ext;
   uint32_t attr;
   uint8_t field;
-  uint8_t nano_op_elem_idx;
-  
+  uint8_t elem_idx;
+
   mem_s() {
     clear();
   }
 
   void clear() {
     valid = false;
+  }
+
+  bool operator==(const mem_s& other) const {
+    return pa == other.pa;
   }
 } mem_t;
 
@@ -198,6 +202,7 @@ typedef struct rv_instr_s {
   uint64_t id = 0;
   uint64_t cycle = 0;
   uint64_t tag = 0;
+  uint64_t branch_tag = 0;
   uint32_t opcode = 0;
   std::string disasm = std::string(128, ' ');
   uint64_t uop = 0;

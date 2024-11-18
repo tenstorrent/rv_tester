@@ -33,13 +33,6 @@ void
   cvm::log(cvm::HIGH, "[evt_trigger] offset {:#x} \n",offset);
   if (offset < 1024) {
     tboxmem_[offset] = t_data;
-    bool valid;
-    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', addr, 8, t_data, valid)|| !valid) && FLAGS_whisper_client_check) {
-      cvm::log(cvm::MEDIUM, "Whisper client check : {}\n",FLAGS_whisper_client_check);
-      cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
-      return;
-    }
-   cvm::log(cvm::HIGH, "[evt_trigger] write whisper addr {:#x} data {:#x} \n",addr, t_data);
   }  
  }
 void

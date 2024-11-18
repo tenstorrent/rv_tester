@@ -25,4 +25,8 @@ namespace{
         uint64_t key;
         uint16_t txn_key;
     } inval_map_clean_t;
+
+    struct cbo_inval_nomcm_s {
+        uint64_t address;
+    };
 }
