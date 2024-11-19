@@ -334,7 +334,7 @@ cosim:
 
     m_trap:
         domain: 1
-        num: 1
+        num: ${max(TOP.PLATFORM.COSIM.RVFI.NRETS)}
         fields:
             cycle:
                 width: 64

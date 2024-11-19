@@ -349,8 +349,10 @@ localparam CAM_IHBIT = CAM_IBITS;
     bit [NRET-1:0]         poke_no_uop;                     // events that should cause a Poke in Whisper 
     bit                    mintr;                           // event when m_trap senns an interrupt/exception
     bit                    poke_interrupt;                  // event when m_trap senns an interrupt/exception
+    bit [NRET-1:0]         mtrap_valids;                    // event when m_trap senns an interrupt/exception
     bit                    mtrap_valid;                     // event when m_trap senns an interrupt/exception
     bit                    imsic_valid;                     // event when m_trap senns an interrupt/exception
+    bit [NRET-1:0]         mtrap;                           // trap state when m_trap sends a trap and rvfi accepts it 
     bit                    rvfi_debug_mode;
     bit                    rvfi_debug_mode_s;
     bit [NRET-1:0][63:0]      rvfi_last_uop_orders;        // Tracks orders from previus cycle that "poked" but had last_uop=0
@@ -392,7 +394,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     bit [NRET-1:0]      rvfi_first_uop;
     bit [NRET-1:0][3:0] rvfi_instr_priv;
     bit [NRET-1:0][3:0] rvfi_mode;
-    bit                 rvfi_trap_patch;
+    bit [NRET-1:0]      rvfi_trap_patch;
     bit                 rvfi_trap_pmode;
     bit                 poke_patch_mode;
 
@@ -501,14 +503,15 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign fence[n]        = rvfi[n].valid & ((rvfi[n].insn[31:0] & 32'hF000607F) == 32'h0000000F);
         assign intr_memw[n]    = rvfi[n].valid & (rvfi[n].mem_wmask != 0) & (rvfi[n].mem_wmask[1:0]==2'b11) & (rvfi[n].mem_paddr[PA_WIDTH-1:32] == '0) & ((rvfi[n].mem_paddr[31:25]==7'h20) | (rvfi[n].mem_paddr[31:25]==7'h22));
         //assign enter_dbg[n]    = rvfi[n].valid & (rvfi[n].pc_rdata == 64'(debug_entry_pc));
-        assign enter_dbg[n]    = m_traps[0].valid & (
-                                    (m_traps[0].data.id==rv_tester_pkg::INTR) |
-                                    (m_traps[0].data.id==rv_tester_pkg::EXCP) & (m_traps[0].data.cause[7:0] ==33)
+        assign enter_dbg[n]    = m_traps[n].valid & (
+                                    (m_traps[n].data.id==rv_tester_pkg::INTR) |
+                                    (m_traps[n].data.id==rv_tester_pkg::EXCP) & (m_traps[n].data.cause[7:0] ==33)
                                    );
 
         assign exit_dbg[n]     = rvfi[n].valid & (rvfi[n].pc_rdata == 64'(debug_exit_pc));
         assign device_read[n]  = rvfi[n].valid & (rvfi[n].mem_rmask != '0) & memmap_decode(addr_map, rvfi[n].mem_paddr);
 
+        assign mtrap_valids[n] = m_traps[n].valid;  
         assign mflags[n]       = rvfi[n].flags_valid; 
         assign rvfi_excps[n]   = ~rvfi[n].cause[63] & (rvfi[n].cause != '0); 
         assign vec_crack[n]   = rvfi[n].valid & rvfi[n].vec & !rvfi[n].last_uop;
@@ -539,7 +542,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign reg_waddr5_event = ((gp_waddr5 != '0) | (fp_waddr5 != '0) | (vc_waddr5 != '0)) ? 1'b1 : 1'b0;
 
     assign imsic_valid = m_imsic_msis[2].valid | m_imsic_msis[1].valid | m_imsic_msis[0].valid;
-    assign mtrap_valid = m_traps[0].valid;
+    assign mtrap_valid = (mtrap_valids != '0); 
     assign csrrw_valid = (csr_rw != '0); 
     assign scrw_valid  = (sc_rw != '0); 
     assign gpwa5_valid = (gp_waddr5 != '0); 
@@ -1139,18 +1142,15 @@ localparam CAM_IHBIT = CAM_IBITS;
     end
 
     // m_trap
-    logic [63:0] cause_d1, cause_d2, cause_d3;
-    always @(posedge clk) begin
-      cause_d1 <= rvfi[0].cause;
-      cause_d2 <= cause_d1;
-      cause_d3 <= cause_d2;
+    for (genvar n = 0; n < NRET; n++) begin
+        assign m_traps[n].valid = RVFI_EN & rvfi_enabled & ~dut_reset & (rvfi[n].cause != 0);
+        assign m_traps[n].data.location = location;
+        assign m_traps[n].data.cycle = clocks;
+        assign m_traps[n].data.id = get_trap_id(rvfi[n].cause);
+        assign m_traps[n].data.cause = rvfi[n].cause;
+        assign rvfi_trap_patch[n] =  RVFI_EN & rvfi_enabled & ~dut_reset & (rvfi[n].cause != 0) & (rvfi[n].cause >= 58) & ~rvfi[n].cause[63];
+
     end
-    assign m_traps[0].valid = RVFI_EN & rvfi_enabled & ~dut_reset & (cause_d3 != 0);
-    assign m_traps[0].data.location = location;
-    assign m_traps[0].data.cycle = clocks;
-    assign m_traps[0].data.id = get_trap_id(cause_d3);
-    assign m_traps[0].data.cause = cause_d3;
-    assign rvfi_trap_patch =  RVFI_EN & rvfi_enabled & ~dut_reset & (cause_d3 != 0) & (cause_d3 >= 58) & ~cause_d3[63];
    
     
 
