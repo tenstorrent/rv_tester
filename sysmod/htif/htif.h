@@ -3,6 +3,7 @@
 
 #include "sysmod/device.h"
 #include "cvm/topology.hpp"
+#include "cvm/logger.hpp"
 
 /// Model an htif (host target interface) device
 class htif : public device
@@ -50,6 +51,7 @@ private:
 
   uint64_t to_ = 0;
   uint64_t from_ = 0;
+  cvm::file_logger htif_log_;
 
   class pty {
     private:
