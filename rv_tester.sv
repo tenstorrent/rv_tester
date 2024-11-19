@@ -50,29 +50,33 @@ module rv_tester
             `ifdef CLK_MUX_UNSUPPORTED
              rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(clk[c]));
             `else
-             rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(def_clk[c]));
-             rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE1_CLOCK_FREQ_MHZ[c])) profile1_clkgen(.clk(profile1_clk[c]));
-             rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE2_CLOCK_FREQ_MHZ[c])) profile2_clkgen(.clk(profile2_clk[c]));
-             rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE3_CLOCK_FREQ_MHZ[c])) profile3_clkgen(.clk(profile3_clk[c]));
-             rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE4_CLOCK_FREQ_MHZ[c])) profile4_clkgen(.clk(profile4_clk[c]));
-             rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE5_CLOCK_FREQ_MHZ[c])) profile5_clkgen(.clk(profile5_clk[c]));
-             rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE6_CLOCK_FREQ_MHZ[c])) profile6_clkgen(.clk(profile6_clk[c]));
+             if(c != REF_CLK_IDX) begin
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(def_clk[c]));
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE1_CLOCK_FREQ_MHZ[c])) profile1_clkgen(.clk(profile1_clk[c]));
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE2_CLOCK_FREQ_MHZ[c])) profile2_clkgen(.clk(profile2_clk[c]));
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE3_CLOCK_FREQ_MHZ[c])) profile3_clkgen(.clk(profile3_clk[c]));
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE4_CLOCK_FREQ_MHZ[c])) profile4_clkgen(.clk(profile4_clk[c]));
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE5_CLOCK_FREQ_MHZ[c])) profile5_clkgen(.clk(profile5_clk[c]));
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE6_CLOCK_FREQ_MHZ[c])) profile6_clkgen(.clk(profile6_clk[c]));
 
-            clk_mux_glitch_free #(
-                .NUM_INPUTS(7),
-                .CLOCK_DURING_RESET(1)
-            ) i_clk_mux (
-                .clks_i         ({profile6_clk[c], profile5_clk[c], profile4_clk[c], profile3_clk[c],profile2_clk[c], profile1_clk[c], def_clk[c]}),
-                .test_clk_i     (1'b0),             // FIXME:Add test clock
-                .test_en_i      (1'b0),             // FIXME:Add test enable
-                .async_rstn_i   (~rv_tester_reset),
-                .async_sel_i    (clock_mode),
-                .clk_o          (clk[c])
-            );
+                clk_mux_glitch_free #(
+                    .NUM_INPUTS(7),
+                    .CLOCK_DURING_RESET(1)
+                ) i_clk_mux (
+                    .clks_i         ({profile6_clk[c], profile5_clk[c], profile4_clk[c], profile3_clk[c],profile2_clk[c], profile1_clk[c], def_clk[c]}),
+                    .test_clk_i     (1'b0),             // FIXME:Add test clock
+                    .test_en_i      (1'b0),             // FIXME:Add test enable
+                    .async_rstn_i   (~rv_tester_reset),
+                    .async_sel_i    (clock_mode),
+                    .clk_o          (clk[c])
+                );
+             end
             `endif
          end
-         rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[REF_CLK_IDX])) clkgen(.clk(def_clk[REF_CLK_IDX]));
-         assign clk[REF_CLK_IDX] = def_clk[REF_CLK_IDX];
+        `ifndef CLK_MUX_UNSUPPORTED
+            rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[REF_CLK_IDX])) clkgen(.clk(def_clk[REF_CLK_IDX]));
+            assign clk[REF_CLK_IDX] = def_clk[REF_CLK_IDX];
+         `endif
      end
 
     import "DPI-C" function void rv_tester_streaming_dpi_init();
