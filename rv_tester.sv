@@ -46,7 +46,7 @@ module rv_tester
             assign clk[c] = force_ref_clk_d2 ? clk_ext[REF_CLK_IDX] : clk_ext[c];
         end
     end else begin
-        for (genvar c = 0; c < NCLKS; c++) begin
+        for (genvar c = 0; c < (NCLKS -1); c++) begin
             `ifdef CLK_MUX_UNSUPPORTED
              rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(clk[c]));
             `else
@@ -71,6 +71,8 @@ module rv_tester
             );
             `endif
          end
+         rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[REF_CLK_IDX])) clkgen(.clk(def_clk[REF_CLK_IDX]));
+         assign clk[REF_CLK_IDX] = def_clk[REF_CLK_IDX];
      end
 
     import "DPI-C" function void rv_tester_streaming_dpi_init();
