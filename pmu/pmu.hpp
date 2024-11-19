@@ -2217,6 +2217,16 @@ public:
   std::string name_event_vector(std::vector<size_t>& filtering_events);
 
 private:
+
+  enum SM : uint32_t {
+    SYNCING,
+    SYNC_UNTIL_TERMINATE,
+    READY_TO_TERMINATE
+  };
+
+  std::atomic<SM> core_sm_;
+  std::atomic<SM> sc_sm_;
+
   cvm::file_logger log_core;
   cvm::file_logger log_sc;
   cvm::topology::loc_t loc_;
@@ -2229,12 +2239,6 @@ private:
   uint64_t perf_end_cycle = 0;
   std::array<std::uint64_t, counter_core::COUNT_CORE> perf_region_core;
   std::array<std::uint64_t, counter_sc::COUNT_SC> perf_region_sc;
-
-  std::atomic<bool> terminated_ = false;
-  // When true, this means we need to sync until the last packet.
-  std::atomic<bool> sync_terminate_ = false;
-  std::atomic<bool> sc_terminated_ = false;
-  std::atomic<bool> sc_sync_terminate_ = false;
 
   struct event_csr_details{
     bool programmed = false;

@@ -77,10 +77,10 @@ pmu::process_core(const rv_tester_transactions::pmu_core::pmcounters_core<>& pmc
   if (loc_ != pmcounters.location)
       return;
 
-  if (terminated_ and not sync_terminate_)
+  if (core_sm_ == SM::READY_TO_TERMINATE)
     return;
-  else if (terminated_)
-    sync_terminate_ = not pmcounters.terminate; // we need to wait until the last PMU packet
+  else if (core_sm_ == SM::SYNC_UNTIL_TERMINATE and pmcounters.terminate)
+    core_sm_ = READY_TO_TERMINATE;
 
   cvm::log(cvm::HIGH, "[PMU] syncing core counters\n");
 
@@ -109,10 +109,10 @@ pmu::process_sc(const rv_tester_transactions::pmu_sc::pmcounters_sc<>& pmcounter
   if (loc_ != pmcounters.location) 
       return;
 
-  if (sc_terminated_ and not sc_sync_terminate_)
+  if (sc_sm_ == SM::READY_TO_TERMINATE)
     return;
-  else if (sc_terminated_) 
-    sc_sync_terminate_ = not pmcounters.terminate_sc; // we need to wait until the last PMU packet
+  else if (sc_sm_ == SM::SYNC_UNTIL_TERMINATE and pmcounters.terminate_sc)
+    sc_sm_ = READY_TO_TERMINATE;
   
   cvm::log(cvm::HIGH, "[PMU] syncing sc counters\n");
 
@@ -160,15 +160,12 @@ pmu::trigger_str_sc(const rv_tester_transactions::pmu_sc::pmcounters_sc<>& pmcou
 void
 pmu::process(const rv_tester::terminate_called_fast&)
 {
-  if (terminated_ or sc_terminated_)
+  if ((core_sm_ != SM::SYNCING) or (sc_sm_ != SM::SYNCING))
     return;
 
   cvm::log(cvm::HIGH, "[PMU] termination signaled, stopping further counting\n");
-  terminated_ = true;
-  sync_terminate_ = true;
-  sc_terminated_ = true;
-  sc_sync_terminate_ = true;
-
+  core_sm_ = SM::SYNC_UNTIL_TERMINATE;
+  sc_sm_ = SM::SYNC_UNTIL_TERMINATE;
 
   if (FLAGS_pmcounters_log != 0) {
     std::string log_str_core;
@@ -260,13 +257,13 @@ pmu::shutdown_ready()
 {
   if (FLAGS_perf)
     {
-      if (not terminated_)
+      if (core_sm_ == SM::SYNCING)
         {
           cvm::log(cvm::NONE, "Warning: [PMU] asking for shutdown without termination.\n");
           // something went wrong, just allow terminate
           return true;
         }
-      return terminated_ and not sync_terminate_;
+      return core_sm_ == SM::READY_TO_TERMINATE;
     }
   else
     return true;
