@@ -12,6 +12,7 @@
 #include "cosim/utils/eot/eot_plusargs.h"
 
 DEFINE_bool(htif_flip, false, "Reverse the htif tohost/fromhost address order");
+DEFINE_bool(htif_log, true, "tee htif characters to htif.log");
 DEFINE_bool(pty, false, "Use a pseudo-terminal for the HTIF console");
 
 // https://stackoverflow.com/a/45675259
@@ -80,7 +81,7 @@ int htif::pty::read() {
 }
 
 htif::htif(const std::string& tag, uint64_t addr, cvm::topology::loc_t loc)
-  : device(tag, addr, 16 /* size */, loc, &htif::write, &htif::read, this), to_(0), from_(0)
+  : device(tag, addr, 16 /* size */, loc, &htif::write, &htif::read, this), to_(0), from_(0), htif_log_("htif.log")
 {
 }
 
@@ -197,41 +198,34 @@ htif::write(const transactor::write_t& w)
   unsigned cmd = (dword >> 48) & 0xff;
   unsigned dev = (dword >> 56) & 0xff;
 
-  if (dev == 1)
-    {
-      if (cmd == 1)
-	{
-	  char c = payload;
-	  if (c)
-	    {
-	      pty_.write(c);
-	      putchar(c);
-	      fflush(stdout);
-	    }
-	}
-      else if (cmd == 0)
-	{
-	  if (!FLAGS_pty) {
-	    int ch;
-	    ch = pty_.read();
-	    if (ch < 0)
-	      ch = readCharNonBlocking(fileno(stdin));
-	    if (ch > 0)
-	      from_ = ((payload >> 48) << 48) | uint64_t(ch);
-	   }
-	}
+  if (dev == 1 && cmd == 1) {
+    char c = payload;
+    if (c) {
+      if (FLAGS_htif_log) {
+        std::string s(1, c);
+        htif_log_.log(cvm::NONE, s);
+      } else {
+	    pty_.write(c);
+	    putchar(c);
+	    fflush(stdout);
+      }
     }
-  else if (dev == 0 and cmd == 0)
-    {
-      if (payload & 1)
-	{
-	  cvm::log(cvm::NONE, "Pass condition detected - tohost[0] = 1\n");
+  } else if (dev == 1 && cmd == 0) {
+	if (!FLAGS_pty) {
+	  int ch;
+	  ch = pty_.read();
+	  if (ch < 0)
+	    ch = readCharNonBlocking(fileno(stdin));
+	  if (ch > 0)
+	    from_ = ((payload >> 48) << 48) | uint64_t(ch);
+	}
+  } else if (dev == 0 and cmd == 0) {
+    if (payload & 1) {
+      cvm::log(cvm::NONE, "Pass condition detected - tohost[0] = 1\n");
       if (FLAGS_eot != "tohost_all")
-          cvm::registry::messenger.signal<terminate_t>(loc(), terminate_t{.low_priority_based = true});
+        cvm::registry::messenger.signal<terminate_t>(loc(), terminate_t{.low_priority_based = true});
 	}
-    }
-  else
-    {
+  } else {
       assert(0);
-    }
+  }
 }
