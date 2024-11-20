@@ -178,10 +178,13 @@ bool exitLoop() {
   std::string process_string(const std::string& input);
   cvm::messenger::task<void> open_socket_to_listen();
 
+std::string tapToString(unsigned tap);
+
   std::string get_local_ip_address();
 
   // std::string getLocalIPAddress();
-  
+
+
   struct jtag_data_t
   {
     unsigned hart;

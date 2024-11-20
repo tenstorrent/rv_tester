@@ -137,6 +137,7 @@ void jtag_sequence::get_all_csv_templates()
             }
         }
     }
+    std::sort(csvFilePaths.begin(), csvFilePaths.end());
 }
 
 void jtag_sequence::parse_jtag_from_csv()
@@ -410,7 +411,19 @@ void jtag_sequence::process_input_string(std::string line)
       // PRINT CSV DATA
       //cvm::log(cvm::MEDIUM, "Pushing jtag request: op {} addr {:#x} data {:#x}\n", jtag_req.op, jtag_req.addr, jtag_req.data);
     
+}
 
+std::string jtag_sequence::tapToString(unsigned tap) {
+    switch(tap) {
+        case 2:   return "AXI_TAP";
+        case 6:   return "TRACE_TAP";
+        case 3:   return "ACLINT_TAP";
+        case 4:   return "PMNW_TAP";
+        case 5:   return "SMC_TAP";
+        case 1:   return "DTM_TAP";
+        case 7:   return "CORE_TAP";
+        default:  return "Unknown_tap";  
+    }
 }
 
 
@@ -511,19 +524,19 @@ void jtag_sequence::drive_csv_jtag_cmds()
     if(jtag_cmd == 4){
       if(convertedArray[0] == lower_jtag_data){
        //PASS
-       cvm::log(cvm::HIGH, "[jtag_sequence] jtag check opcode Passed! expected {} got {} \n", lower_jtag_data,result);
+       cvm::log(cvm::HIGH, "[jtag_sequence] jtag check opcode Passed! expected {} got {} tap_select is {} \n", lower_jtag_data,result,tapToString(tap_cfg_sel));
       }else{
        //FAIL
-       cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check opcode failed! expected {} got {} \n", lower_jtag_data,result);
+       cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check opcode failed! expected {} got {} tap_select is {} \n", lower_jtag_data,result,tapToString(tap_cfg_sel));
       }
     }else if(jtag_cmd == 12){
-      cvm::log(cvm::HIGH, "\n[jtag_sequence] jtag check mask opcode: result {:#x} mask {} expected {} \n", convertedArray[0],lower_jtag_data,jtag_cm_value);
+      cvm::log(cvm::HIGH, "\n[jtag_sequence] jtag check mask opcode: result {:#x} mask {} expected {} tap_select is {} \n", convertedArray[0],lower_jtag_data,jtag_cm_value,tapToString(tap_cfg_sel));
       if((convertedArray[0] & lower_jtag_data) == jtag_cm_value){
        //PASS
-       cvm::log(cvm::HIGH, "[jtag_sequence] jtag check mask opcode Passed! expected {} got {} \n", jtag_cm_value,(convertedArray[0] & lower_jtag_data));
+       cvm::log(cvm::HIGH, "[jtag_sequence] jtag check mask opcode Passed! expected {} got {} tap_select is {} \n", jtag_cm_value,(convertedArray[0] & lower_jtag_data),tapToString(tap_cfg_sel));
       }else{
        //FAIL
-       cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check mask opcode failed! expected {} got {} \n", jtag_cm_value,(convertedArray[0] & lower_jtag_data));
+       cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check mask opcode failed! expected {} got {} tap_select is {} \n", jtag_cm_value,(convertedArray[0] & lower_jtag_data),tapToString(tap_cfg_sel));
       }
     }
       jtag_cmd_q.pop(); // pop front eleme7t
@@ -697,10 +710,10 @@ void jtag_sequence::drive_jtag_cmds()
       
       if(result == lower_jtag_data){
        //PASS
-       cvm::log(cvm::HIGH, "[jtag_sequence] jtag check opcode Passed! expected {} got {} \n", lower_jtag_data,result);
+       cvm::log(cvm::HIGH, "[jtag_sequence] jtag check opcode Passed! expected {} got {} tap_sel is {}\n", lower_jtag_data,result,tapToString(tap_cfg_sel));
       }else{
        //FAIL
-       cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check opcode failed! expected {} got {} \n", lower_jtag_data,result);
+       cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check opcode failed! expected {} got {} tap_sel{} \n", lower_jtag_data,result,tapToString(tap_cfg_sel));
       }
       jtag_cmd_q.pop(); // pop front eleme7t
     }
