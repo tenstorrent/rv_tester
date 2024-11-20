@@ -14,6 +14,11 @@ namespace {
     constexpr uint64_t smc_hi_addr = 0xc214'ffff;
     constexpr uint64_t patch_ram_lo = 0x4214C000;
     constexpr uint64_t patch_ram_hi = 0x4214DFFF;
+    constexpr uint16_t hgatp_valid_modes[] = {0, 8, 9, 10};
+    constexpr uint16_t pmm_legal_values[] = {0, 2};
+    constexpr uint64_t pmm_hstatus_mask_lo = 48;
+    constexpr uint64_t pmm_cfgs_mask_lo = 32;
+    constexpr uint64_t pmm_mask_size = 2;
 
     struct csr_entry {
         std::string name;

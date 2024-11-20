@@ -2664,16 +2664,60 @@ bridge::size_8_bytes_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, ui
   }
   if (addr == 0x680) {
     uint16_t mode = (data & mask) >> 60;
-    constexpr uint16_t valid_modes[] = {0, 8, 9, 10};
     bool valid_mode = false;
-    for (uint16_t valid_mode_value : valid_modes) {
-      if (mode == valid_mode_value) {
+    for (uint16_t hgatp_valid_mode : hgatp_valid_modes) {
+      if (mode == hgatp_valid_mode) {
           valid_mode = true;
           break;
       }
     }
     if (!valid_mode) {
       result = result & 0xfffffffffffffffULL;
+    }
+  }
+
+  // Handle PMM legal values during write, valid PMM values are 2'b00 and 2'b10, rvde-19017
+  if ((addr == 0x747) || (addr == 0x30A) || (addr == 0x60A) || (addr == 0x10A) || (addr == 0x600)) {
+    bool pmm_legal = false;
+    if (addr == 0x600) {
+      uint16_t pmm = (((data & result) >> pmm_hstatus_mask_lo) & ((1 << pmm_mask_size) - 1));
+      for (uint16_t pmm_legal_value : pmm_legal_values) {
+        if (pmm == pmm_legal_value) {
+          pmm_legal = true;
+          break;
+        }
+      }
+      if (!pmm_legal){
+        uint64_t bitmask = ((1ULL << pmm_mask_size) - 1) << pmm_hstatus_mask_lo; // Create a mask for bits to clear
+        result = result & ~bitmask;
+      }
+    } else {
+      uint16_t pmm = (((data & result) >> pmm_cfgs_mask_lo) & ((1 << pmm_mask_size) - 1));
+      for (uint16_t pmm_legal_value : pmm_legal_values) {
+        if (pmm == pmm_legal_value) {
+          pmm_legal = true;
+          break;
+        }
+      }
+      if (!pmm_legal){
+        uint64_t bitmask = ((1ULL << pmm_mask_size) - 1) << pmm_cfgs_mask_lo; // Create a mask for bits to clear
+        result = result & ~bitmask;
+      }
+    }
+  }
+
+  // Handle PMM legal values during write, valid PMM values are 2'b00 and 2'b10
+  if ((addr == 0x747) || (addr == 0x30A) || (addr == 0x60A) || (addr == 0x10A) || (addr == 0x600)) {
+    if (addr == 0x600) {
+      uint16_t pmm = (((data & result) >> 48) & 0x3);
+      if (!(pmm == 0 || pmm == 2)){
+        result = result & 0xfffcffffffffffffULL;
+      }
+    } else {
+      uint16_t pmm = (((data & result) >> 32) & 0x3);
+      if (!(pmm == 0 || pmm == 2)){
+        result = result & 0xfffffffcffffffffULL;
+      }
     }
   }
   return result;
