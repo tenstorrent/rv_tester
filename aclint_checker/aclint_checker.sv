@@ -36,8 +36,7 @@ import rv_tester_params:: * ;
     always @(posedge tb_clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */
-            // FIXME: RVDE-19187, Temporarily disabled Aclint checker until it is verified to run with core harvesting.
-            enable_checks = 0; // cvm_plusargs::get_bool("aclint") != '0;
+            enable_checks = cvm_plusargs::get_bool("aclint") != '0;
             if (enable_checks)
             $display("SV: ACLINT_CHECKER location %d time %t\n",location,$time);
             /* verilator lint_on BLKSEQ */
@@ -70,8 +69,7 @@ import rv_tester_params:: * ;
         end
     end
     assign violation_forcesync =  (count >  'd4) && enable_checks ;
-    // FIXME: RVDE-19187, Temporarily disabled Aclint checker until it is verified to run with core harvesting.
-    // always_comb assert (~violation_forcesync) else $error("Error: Not recieved aclint force sync");
+    always_comb assert (~violation_forcesync) else $error("Error: Not recieved aclint force sync");
     end
 
     //ACLINT MTIP generation checker
@@ -199,9 +197,8 @@ import rv_tester_params:: * ;
     if(dut_reset || ~fail_mtishouldbeOFF) cycles_in_fail_mtishouldbeOFF <= 0;
     else if(fail_mtishouldbeOFF) cycles_in_fail_mtishouldbeOFF <= cycles_in_fail_mtishouldbeOFF + 1;
     end
-    // FIXME: RVDE-19187, Temporarily disabled Aclint checker until it is verified to run with core harvesting.
-    // always_comb assert(~(cycles_in_fail_mtishouldbeOFF > 4)) else $error("Error: Did not expect MTIP, but MTIP %d generated", asserti);
-    // always_comb assert(~(cycles_in_fail_mtishouldbeON > 4)) else $error("Error: Expected MTIP, but MTIP %d not generated", asserti);    
+    always_comb assert(~(cycles_in_fail_mtishouldbeOFF > 4)) else $error("Error: Did not expect MTIP, but MTIP %d generated", asserti);
+    always_comb assert(~(cycles_in_fail_mtishouldbeON > 4)) else $error("Error: Expected MTIP, but MTIP %d not generated", asserti);    
     end
     endgenerate
 
@@ -209,7 +206,7 @@ import rv_tester_params:: * ;
     for (genvar n = 0; n < TOTAL_NRETS; n++) begin
         assign cr_ac_mmrwrites[n].valid =  ~reset & enable_checks & rvfi[n].valid && (rvfi[n].mem_wmask != 0) && (rvfi[n].mem_paddr>= ACLINT_START && rvfi[n].mem_paddr< ACLINT_END);
         assign cr_ac_mmrwrites[n].data.location = location;
-        assign cr_ac_mmrwrites[n].data.hart = get_hart_ret(n);
+        assign cr_ac_mmrwrites[n].data.hart = vid[get_hart_ret(n)];
         assign cr_ac_mmrwrites[n].data.order = rvfi[n].order;
         assign cr_ac_mmrwrites[n].data.addr = rvfi[n].mem_paddr;
         assign cr_ac_mmrwrites[n].data.mask = rvfi[n].mem_wmask;
