@@ -50,25 +50,29 @@ module rv_tester
             `ifdef CLK_MUX_UNSUPPORTED
              rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(clk[c]));
             `else
-             rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(def_clk[c]));
-             rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE1_CLOCK_FREQ_MHZ[c])) profile1_clkgen(.clk(profile1_clk[c]));
-             rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE2_CLOCK_FREQ_MHZ[c])) profile2_clkgen(.clk(profile2_clk[c]));
-             rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE3_CLOCK_FREQ_MHZ[c])) profile3_clkgen(.clk(profile3_clk[c]));
-             rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE4_CLOCK_FREQ_MHZ[c])) profile4_clkgen(.clk(profile4_clk[c]));
-             rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE5_CLOCK_FREQ_MHZ[c])) profile5_clkgen(.clk(profile5_clk[c]));
-             rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE6_CLOCK_FREQ_MHZ[c])) profile6_clkgen(.clk(profile6_clk[c]));
+             if(c != REF_CLK_IDX) begin
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(def_clk[c]));
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE1_CLOCK_FREQ_MHZ[c])) profile1_clkgen(.clk(profile1_clk[c]));
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE2_CLOCK_FREQ_MHZ[c])) profile2_clkgen(.clk(profile2_clk[c]));
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE3_CLOCK_FREQ_MHZ[c])) profile3_clkgen(.clk(profile3_clk[c]));
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE4_CLOCK_FREQ_MHZ[c])) profile4_clkgen(.clk(profile4_clk[c]));
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE5_CLOCK_FREQ_MHZ[c])) profile5_clkgen(.clk(profile5_clk[c]));
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE6_CLOCK_FREQ_MHZ[c])) profile6_clkgen(.clk(profile6_clk[c]));
 
-            clk_mux_glitch_free #(
-                .NUM_INPUTS(7),
-                .CLOCK_DURING_RESET(1)
-            ) i_clk_mux (
-                .clks_i         ({profile6_clk[c], profile5_clk[c], profile4_clk[c], profile3_clk[c],profile2_clk[c], profile1_clk[c], def_clk[c]}),
-                .test_clk_i     (1'b0),             // FIXME:Add test clock
-                .test_en_i      (1'b0),             // FIXME:Add test enable
-                .async_rstn_i   (~rv_tester_reset),
-                .async_sel_i    (clock_mode),
-                .clk_o          (clk[c])
-            );
+                clk_mux_glitch_free #(
+                    .NUM_INPUTS(7),
+                    .CLOCK_DURING_RESET(1)
+                ) i_clk_mux (
+                    .clks_i         ({profile6_clk[c], profile5_clk[c], profile4_clk[c], profile3_clk[c],profile2_clk[c], profile1_clk[c], def_clk[c]}),
+                    .test_clk_i     (1'b0),             // FIXME:Add test clock
+                    .test_en_i      (1'b0),             // FIXME:Add test enable
+                    .async_rstn_i   (~rv_tester_reset),
+                    .async_sel_i    (clock_mode),
+                    .clk_o          (clk[c])
+                );
+            end else begin
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[REF_CLK_IDX])) clkgen(.clk(clk[REF_CLK_IDX]));
+            end
             `endif
          end
      end
@@ -1138,7 +1142,7 @@ module rv_tester
         .AxiDataWidth           ( topology.TOP.PLATFORM.AXI.DATA_WIDTH ),
         .AxiAddrWidth           ( topology.TOP.PLATFORM.AXI.ADDR_WIDTH ),
         .AxiStrbWidth           ( topology.TOP.PLATFORM.AXI.STRB_WIDTH ),
-        .AxiUserWidth		( AXI_USER_ID_WIDTH ),
+        .AxiUserWidth           ( AXI_USER_ID_WIDTH ),
         .NumLines_LLC           ( 128 ),
         .NumBlocks_LLC          ( 4 ),
         .SetAssociativity_LLC   ( 4 ),
@@ -1146,21 +1150,21 @@ module rv_tester
         .slv_resp_t             ( slv_resp_rv ),
         .mst_req_t              ( mst_req_rv  ),
         .mst_resp_t             ( mst_resp_rv ),
-	.rule_t			( xbar_rule_t ),
-	.NoAddrRules		( NoAddrRules ),
-	.NumMastersMem		( NoOfMasters )
-    ) rv_tester_mem(
+        .rule_t                 ( xbar_rule_t ),
+        .NoAddrRules            ( NoAddrRules ),
+        .NumMastersMem          ( NoOfMasters )
+        ) rv_tester_mem(
         .clk                    ( dut_clk[AXI_CLK_IDX] ),
         .rst_n                  ( ~dut_reset[AXI_CLK_IDX] ),
         .axi_req_up             ( axi_req ),
         .axi_resp_up            ( axi_rsp ),
         .axi_req_mst_up         ( axi_req_llc ),
         .axi_resp_mst_up        ( axi_rsp_llc ),
-	.addr_map		( addr_map_final ),
-        .bypass_mem		( bypass_mem ),
-	.flush_cache		( quiesced ),
-	.flush_complete		( flush_complete ),
-	.bist_status_done	()
+        .addr_map               ( addr_map_final ),
+        .bypass_mem             ( bypass_mem ),
+        .flush_cache            ( quiesced ),
+        .flush_complete         ( flush_complete ),
+        .bist_status_done       ()
     );
 
     always @(posedge dut_clk[TB_CLK_IDX]) begin
