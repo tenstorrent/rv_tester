@@ -149,7 +149,8 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
 
   prev_uop_tag_ = m_rvfi.order;
   if (vec_cmode_)
-    vec_cmode_tags_.emplace(m_rvfi.order);
+    if (vec_cmode_tags_.find(m_rvfi.order) == vec_cmode_tags_.end())
+      vec_cmode_tags_.emplace(m_rvfi.order, vec_cmode_first_tag_);
 
   if (!m_rvfi.last_uop)
     return;
@@ -223,8 +224,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
     // the vector instruction
     if (FLAGS_vec_cmode_tag_override && (ecause_ == CUSTOM_VEC_CMODE)) {
       vec_cmode_ = true;
-      vec_cmode_first_tag_ = prev_uop_tag_ + 1;
-      vec_cmode_tags_.clear();
+      vec_cmode_first_tag_ = (prev_instr_tag_ != prev_uop_tag_) ? prev_uop_tag_ : prev_instr_tag_ + 1;
     }
   }
 }
@@ -643,7 +643,7 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
     dut_log += fmt::format(" (nmi:{})", instr.ncause);
 
   if (instr.intr)
-    dut_log += fmt::format(" (interrupt:{})", instr.intr);
+    dut_log += fmt::format(" (interrupt:{})", instr.icause);
 
   if (instr.excp)
     dut_log += fmt::format(" (exception:{})", instr.ecause);
@@ -801,7 +801,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
   m.hart   = m_mcmi_read.hart;
   m.cycle  = m_mcmi_read.cycle;
   m.opcode  = m_mcmi_read.opcode;
-  m.tag    = (vec_cmode_ || vec_cmode_tags_.contains(m_mcmi_read.order)) ? vec_cmode_first_tag_ : m_mcmi_read.order;
+  m.tag    = vec_cmode_tags_.contains(m_mcmi_read.order) ? vec_cmode_tags_[m_mcmi_read.order] : m_mcmi_read.order;
   m.pa     = m_mcmi_read.addr;
   m.size   = std::popcount(m_mcmi_read.mask);
   m.data   = m_mcmi_read.data;
@@ -867,7 +867,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
               mem_t m;
               m.valid = true;
               m.cycle = m_mcmi_read.cycle;
-              m.tag = (vec_cmode_ || vec_cmode_tags_.contains(m_mcmi_read.order)) ? vec_cmode_first_tag_ : m_mcmi_read.order;
+              m.tag = vec_cmode_tags_.contains(m_mcmi_read.order) ? vec_cmode_tags_[m_mcmi_read.order] : m_mcmi_read.order;
               m.pa = start;
               m.size = size;
               std::bitset<256> value = stringToBitset(dataAccumulated);  // Use a helper to convert the accumulated string
@@ -882,7 +882,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
       mem_t m;
       m.valid = true;
       m.cycle = m_mcmi_read.cycle;
-      m.tag = (vec_cmode_ || vec_cmode_tags_.contains(m_mcmi_read.order)) ? vec_cmode_first_tag_ : m_mcmi_read.order;
+      m.tag = vec_cmode_tags_.contains(m_mcmi_read.order) ? vec_cmode_tags_[m_mcmi_read.order] : m_mcmi_read.order;
       m.pa = start;
       m.size = size;
       m.data_vec = stringToBitset(dataAccumulated);  // Final range processing
@@ -931,7 +931,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
       mem_t m;
       m.valid = true;
       m.cycle = m_mcmi_insert.cycle;
-      m.tag = (vec_cmode_ || vec_cmode_tags_.contains(m_mcmi_insert.order)) ? vec_cmode_first_tag_ :  m_mcmi_insert.order;
+      m.tag = vec_cmode_tags_.contains(m_mcmi_insert.order) ? vec_cmode_tags_[m_mcmi_insert.order] :  m_mcmi_insert.order;
       m.pa = m_mcmi_insert.addr;
       m.size = numones;
       m.data = m_mcmi_insert.data;
@@ -968,7 +968,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
               mem_t m;
               m.valid = true;
               m.cycle = m_mcmi_insert.cycle;
-              m.tag = (vec_cmode_ || vec_cmode_tags_.contains(m_mcmi_insert.order)) ? vec_cmode_first_tag_ : m_mcmi_insert.order;
+              m.tag = vec_cmode_tags_.contains(m_mcmi_insert.order) ? vec_cmode_tags_[m_mcmi_insert.order] : m_mcmi_insert.order;
               m.pa = start;
               m.size = size;
               std::bitset<256> value = stringToBitset(dataAccumulated);  // Use a helper to convert the accumulated string
@@ -983,7 +983,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
       mem_t m;
       m.valid = true;
       m.cycle = m_mcmi_insert.cycle;
-      m.tag = (vec_cmode_ || vec_cmode_tags_.contains(m_mcmi_insert.order)) ? vec_cmode_first_tag_ : m_mcmi_insert.order;
+      m.tag = vec_cmode_tags_.contains(m_mcmi_insert.order) ? vec_cmode_tags_[m_mcmi_insert.order] : m_mcmi_insert.order;
       m.pa = start;
       m.size = size;
       m.data_vec = stringToBitset(dataAccumulated);  // Final range processing
@@ -1015,7 +1015,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
       m.valid  = true;
       m.hart   = m_mcmi_bypass.hart;
       m.cycle  = m_mcmi_bypass.cycle;
-      m.tag    = (vec_cmode_ || vec_cmode_tags_.contains(m_mcmi_bypass.order)) ? vec_cmode_first_tag_ : m_mcmi_bypass.order;
+      m.tag    = vec_cmode_tags_.contains(m_mcmi_bypass.order) ? vec_cmode_tags_[m_mcmi_bypass.order] : m_mcmi_bypass.order;
       m.pa     = m_mcmi_bypass.addr;
       m.size   = std::popcount(m_mcmi_bypass.mask);
       m.data   = m_mcmi_bypass.data;
@@ -1065,7 +1065,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
               mem_t m;
               m.valid = true;
               m.cycle = m_mcmi_bypass.cycle;
-              m.tag = vec_cmode_tags_.contains(m_mcmi_bypass.order) ? vec_cmode_first_tag_ : m_mcmi_bypass.order;
+              m.tag = vec_cmode_tags_.contains(m_mcmi_bypass.order) ? vec_cmode_tags_[m_mcmi_bypass.order] : m_mcmi_bypass.order;
               m.pa = start;
               m.size = size;
               std::bitset<256> value = stringToBitset(dataAccumulated);  // Use a helper to convert the accumulated string
@@ -1080,7 +1080,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
       mem_t m;
       m.valid = true;
       m.cycle = m_mcmi_bypass.cycle;
-      m.tag = (vec_cmode_ || vec_cmode_tags_.contains(m_mcmi_bypass.order)) ? vec_cmode_first_tag_ : m_mcmi_bypass.order;
+      m.tag = vec_cmode_tags_.contains(m_mcmi_bypass.order) ? vec_cmode_tags_[m_mcmi_bypass.order] : m_mcmi_bypass.order;
       m.pa = start;
       m.size = size;
       m.data_vec = stringToBitset(dataAccumulated);  // Final range processing
