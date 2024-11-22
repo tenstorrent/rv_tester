@@ -32,30 +32,33 @@
 #include "rv_tester_transactions.hpp"
 
 // internal flags
+DEFINE_uint64(seed, 1, "Simulation seed passed down for randomization");
 DEFINE_string(hex, "", "hex file (program) to load into memory");
 DEFINE_string(load, "", "elf file (program) to load into memory");
 DEFINE_string(load_lz4, "", "lz4 compressed file (program) to load into memory. If there's a colon, the number after the colon is interpreted as the offset to load the image into memory");
 DEFINE_bool(bootrom, true, "Load bootrom before test");
-DEFINE_bool(enable_sp_init, false, "Enable sharedcache scratchpad initilization from bootrom");
 DEFINE_string(bootrom_path, "", "Path to bootrom object file");
 DEFINE_bool(cplfw, false, "Load cpl firmware before test");
 DEFINE_string(cplfw_path, "", "Path to cpl firmware object file");
 DEFINE_string(load_io, "", "load specified io dev with content from memory");
 DEFINE_bool(sysmod_tick_async, true, "Asynchronous sysmod_tick calls");
 DEFINE_uint64(sysmod_tick_update_threshold, 1, "Slow down tick update frequency by this factor. The tick is still eventually advanced the same cumulative amount, just not as often. Useful for emulation where the clock counts much faster but tests setup interrupts to happen very soon for simulation. They git hit by an interrupt storm and are stuck in the interrupt handler forever.");
-DEFINE_uint64(sp_ways_num, 0x1, "Number of sharedcache ways to be alloted as Scratchpad");
 DEFINE_string(set_csr, "", "+set_csr=<csr_num>:<value>,<num2>:<val2> ");
 DEFINE_string(set_mmr, "", "+set_mmr=<addr>:<size>:<value>,<addr2>:<size>:<val2>");
-DEFINE_uint64(seed, 1, "Simulation seed passed down for randomization");
+//core harvesting
 DEFINE_bool(rand_core_harvest, false, "Randomize core harvest options");
 DEFINE_uint32(num_harts, 0, "Number of enabled harts - upto 8");
 DEFINE_uint32(hart_enable_mask, 0, "Hart enable mask. Ex: With 2 enabled harts in a 8-hart system, could be 0x18. Should match num_harts.");
 DEFINE_string(hart_enable_id, "", "Hart id sequence corresponding to physical cores. Ex: With 2 enabled harts in a 8-hart system, could be 4,3 i.e. hart0=core4, hart1=core3.");
+// SC harvesting
 DEFINE_bool(rand_sc_harvest, false, "Randomize sc harvest options");
 DEFINE_int32(num_sc_dis_ways, -1, "Number of disabled SC ways - upto 24 in multiples of 4");
 DEFINE_int32(sc_dis_ways_mask, -1, "SC way enable mask. Ex: With 20 enabled ways out of 24, could be 0xF0_FFFF.");
+// scratchpad 
+DEFINE_bool(enable_sp_init, false, "Enable sharedcache scratchpad initilization from bootrom");
 DEFINE_bool(rand_sp_ways, false, "Randomize number of SC ways reserved for scratchpad");
 DEFINE_int32(num_sp_ways, -1, "Number of SC ways reserved for scratchpad");
+
 DEFINE_uint32(trace_enable, 1, "Trace enable fuse");
 DEFINE_int32(strobe_type,4, "strobe type need to be driven for random access");
 DEFINE_uint32(overlay_num_times,3, "Maximum number of debug snippets to be driven");
@@ -270,10 +273,8 @@ sysmod::core_harvest_plusargs()
 void
 sysmod::sc_harvest_plusargs()
 {
-  if (FLAGS_enable_sp_init) {
-    FLAGS_rand_sp_ways = true;
-  }
 
+  FLAGS_rand_sp_ways = FLAGS_rand_sp_ways || FLAGS_enable_sp_init;
   // Plusargs: num_sc_dis_ways, sc_dis_ways_mask, num_sp_ways
   int32_t nways = cvm::topology::attr(cvm::topology::get_from_type("CORE", 0), "SC_NUM_WAYS").second;
   int32_t dis_ways = FLAGS_num_sc_dis_ways;
@@ -301,66 +302,61 @@ sysmod::sc_harvest_plusargs()
   uint8_t expr = ((dis_ways != -1) << 2) | ((mask != -1) << 1) | (sp_ways != -1);
   switch (expr) {
     case 0:
-      if (FLAGS_perf || !FLAGS_rand_sc_harvest) {
-        FLAGS_num_sc_dis_ways = 0;
-        FLAGS_sc_dis_ways_mask = 0;
-      } else {
-
+      FLAGS_num_sc_dis_ways = 0;
+      FLAGS_sc_dis_ways_mask = 0;
+      if (FLAGS_rand_sc_harvest || !FLAGS_perf) {
         FLAGS_num_sc_dis_ways = get_rand_dis_ways(nways);
-        cvm::log(cvm::MEDIUM, " Randomizing sc ways : {}, num_sc_dis_ways = {}\n", nways, FLAGS_num_sc_dis_ways );
-
         FLAGS_sc_dis_ways_mask = get_rand_ways_mask(FLAGS_num_sc_dis_ways, nways);
+        cvm::log(cvm::MEDIUM, " Randomizing sc ways : {}, num_sc_dis_ways = {}\n", nways, FLAGS_num_sc_dis_ways );
       }
-      if (FLAGS_rand_sp_ways || !FLAGS_perf) {
+      FLAGS_num_sp_ways = 0;
+      if (FLAGS_rand_sp_ways || !FLAGS_perf)
         FLAGS_num_sp_ways = get_rand_sp_ways(nways - FLAGS_num_sc_dis_ways);
-      } else {
-        FLAGS_num_sp_ways = 0;
-      }
       break;
+
     case 1: // +num_sp_ways
-      if (!FLAGS_rand_sc_harvest) {
-        FLAGS_num_sc_dis_ways = 0;
-        FLAGS_sc_dis_ways_mask = 0;
-      } else {
+      FLAGS_num_sc_dis_ways = 0;
+      FLAGS_sc_dis_ways_mask = 0;
+      if (FLAGS_rand_sc_harvest) {
         FLAGS_num_sc_dis_ways = get_rand_dis_ways(nways - sp_ways);
         FLAGS_sc_dis_ways_mask = get_rand_ways_mask(FLAGS_num_sc_dis_ways, nways);
       }
       break;
+
     case 2: // +sc_dis_ways_mask
+      FLAGS_num_sp_ways = 0;
       FLAGS_num_sc_dis_ways = mask_dis_ways;
-      if (!FLAGS_rand_sp_ways) {
-        FLAGS_num_sp_ways = 0;
-      } else {
+      if (FLAGS_rand_sp_ways)
         FLAGS_num_sp_ways = get_rand_sp_ways(nways - FLAGS_num_sc_dis_ways);
-      }
       break;
+
     case 3: // +num_sp_ways, +sc_dis_ways_mask
       if (((mask_dis_ways + sp_ways) < 0) || ((mask_dis_ways + sp_ways) > 24))
         cvm::log(cvm::ERROR, "Error: Incompatible plusargs: count(+sc_dis_ways_mask {}) + +num_sp_ways {}, should be between [0,{}]\n", mask_dis_ways, sp_ways, nways);
       FLAGS_num_sc_dis_ways = mask_dis_ways;
       break;
+
     case 4: // +num_sc_dis_ways
       FLAGS_sc_dis_ways_mask = get_rand_ways_mask(FLAGS_num_sc_dis_ways, nways);
-      if (!FLAGS_rand_sp_ways) {
-        FLAGS_num_sp_ways = 0;
-      } else {
+      FLAGS_num_sp_ways = 0;
+      if (FLAGS_rand_sp_ways)
         FLAGS_num_sp_ways = get_rand_sp_ways(nways - FLAGS_num_sc_dis_ways);
-      }
       break;
+
     case 5: // +num_sc_dis_ways, +num_sp_ways
       if (((dis_ways + sp_ways) < 0) || ((dis_ways + sp_ways) > 24))
         cvm::log(cvm::ERROR, "Error: Incompatible plusargs: +num_sc_dis_ways {} + +num_sp_ways {}, should be between [0,{}]\n", dis_ways, sp_ways, nways);
       FLAGS_sc_dis_ways_mask = get_rand_ways_mask(dis_ways, nways);
       break;
+
     case 6: // +num_sc_dis_ways, +sc_dis_ways_mask
       if (dis_ways != mask_dis_ways)
         cvm::log(cvm::ERROR, "Error: Incompatible plusargs: +num_sc_dis_ways {} != count(+num_dis_ways_mask {})\n", dis_ways, mask_dis_ways);
-      if (!FLAGS_rand_sp_ways) {
-        FLAGS_num_sp_ways = 0;
-      } else {
+      FLAGS_num_sp_ways = 0;
+      if (FLAGS_rand_sp_ways)
         FLAGS_num_sp_ways = get_rand_sp_ways(nways - FLAGS_num_sc_dis_ways);
-      }
       break;
+
     case 7: // +num_sc_dis_ways, +sc_dis_ways_mask, +num_sp_ways
       if (dis_ways != mask_dis_ways)
         cvm::log(cvm::ERROR, "Error: Incompatible plusargs: +num_sc_dis_ways {} != count(+num_dis_ways_mask {})\n", dis_ways, mask_dis_ways);
