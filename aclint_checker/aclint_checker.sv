@@ -206,7 +206,7 @@ import rv_tester_params:: * ;
     for (genvar n = 0; n < TOTAL_NRETS; n++) begin
         assign cr_ac_mmrwrites[n].valid =  ~reset & enable_checks & rvfi[n].valid && (rvfi[n].mem_wmask != 0) && (rvfi[n].mem_paddr>= ACLINT_START && rvfi[n].mem_paddr< ACLINT_END);
         assign cr_ac_mmrwrites[n].data.location = location;
-        assign cr_ac_mmrwrites[n].data.hart = vid[get_hart_ret(n)];
+        assign cr_ac_mmrwrites[n].data.hart = get_hart_ret(n);
         assign cr_ac_mmrwrites[n].data.order = rvfi[n].order;
         assign cr_ac_mmrwrites[n].data.addr = rvfi[n].mem_paddr;
         assign cr_ac_mmrwrites[n].data.mask = rvfi[n].mem_wmask;
@@ -224,7 +224,7 @@ import rv_tester_params:: * ;
 
         assign ac_axi_writes[0].valid =   enable_checks & AcReqPkti.valid;
         assign ac_axi_writes[0].data.location = location;
-        assign ac_axi_writes[0].data.hart = AcReqPkti.srcid;
+        assign ac_axi_writes[0].data.hart = vid[AcReqPkti.srcid];
         assign ac_axi_writes[0].data.addr = topology.TOP.PLATFORM.PALEN'(AcReqPkti.addr);
         assign ac_axi_writes[0].data.data = topology.TOP.PLATFORM.XLEN'(AcReqPkti.data);
         assign ac_axi_writes[0].data.mask = AcReqPkti.mask;
