@@ -1600,7 +1600,7 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_
       break;
     case 'c':
       if (FLAGS_csr_rd_check){
-        if (!is_indirect_reg(w.disasm)){
+        if (!is_indirect_reg(w.disasm) || nmi_.valid){
           // Check if PMP entry is locked
           if (w.address >= 0x3B0 && w.address < 0x3C0) {
             bool valid = false;
