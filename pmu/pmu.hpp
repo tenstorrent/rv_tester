@@ -2189,9 +2189,11 @@ private:
     READY_TO_TERMINATE
   };
 
-  std::atomic<SM> sm_;
+  std::atomic<SM> core_sm_;
+  std::atomic<SM> sc_sm_;
 
-  cvm::file_logger log;
+  cvm::file_logger log_core;
+  cvm::file_logger log_sc;
   cvm::topology::loc_t loc_;
   unsigned id_;
 

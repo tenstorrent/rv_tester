@@ -64,10 +64,10 @@ pmu::process(const rv_tester_transactions::pmu::pmcounters<>& pmcounters)
   if (loc_ != pmcounters.location)
     return;
 
-  if (sm_ == SM::READY_TO_TERMINATE)
+  if (core_sm_ == SM::READY_TO_TERMINATE)
     return;
-  else if (sm_ == SM::SYNC_UNTIL_TERMINATE and pmcounters.terminate)
-    sm_ = READY_TO_TERMINATE;
+  else if (core_sm_ == SM::SYNC_UNTIL_TERMINATE and pmcounters.terminate)
+    core_sm_ = READY_TO_TERMINATE;
 
   cvm::log(cvm::HIGH, "[PMU] syncing counters\n");
 
@@ -86,7 +86,33 @@ pmu::process(const rv_tester_transactions::pmu::pmcounters<>& pmcounters)
       log_str += fmt::format(",{}", counters[i]);
     }
     log_str += fmt::format("\n");
-    log(cvm::NONE, fmt::to_string(log_str));
+    log_core(cvm::NONE, fmt::to_string(log_str));
+  }
+}
+
+void
+pmu::process_sc(const rv_tester_transactions::pmu_sc::pmcounters_sc<>& pmcounters)
+{
+  if (loc_ != pmcounters.location) 
+    return;
+
+  if (sc_sm_ == SM::READY_TO_TERMINATE)
+    return;
+  else if (sc_sm_ == SM::SYNC_UNTIL_TERMINATE and pmcounters.terminate_sc)
+    sc_sm_ = READY_TO_TERMINATE;
+
+  cvm::log(cvm::HIGH, "[PMU] syncing sc counters\n");
+
+  sc_to_vector(pmcounters);
+
+  if (FLAGS_pmcounters_log != 0) {
+    std::string log_str;
+    log_str += fmt::format("{}", trigger_str_sc(pmcounters));
+    for (size_t i = 0; i < counters_sc.size(); i++) {
+      log_str += fmt::format(",{}", counters_sc[i]);
+    }
+    log_str += fmt::format("\n");
+    log_sc(cvm::NONE, fmt::to_string(log_str));
   }
 }
 
@@ -104,11 +130,12 @@ pmu::trigger_str(const rv_tester_transactions::pmu::pmcounters<>& pmcounters)
 void
 pmu::process(const rv_tester::terminate_called_fast&)
 {
-  if (sm_ != SM::SYNCING)
+  if ((core_sm_ != SM::SYNCING) or (sc_sm_ != SM::SYNCING))
     return;
 
   cvm::log(cvm::HIGH, "[PMU] termination signaled, stopping further counting\n");
-  sm_ = SM::SYNC_UNTIL_TERMINATE;
+  core_sm_ = SM::SYNC_UNTIL_TERMINATE;
+  sc_sm_ = SM::SYNC_UNTIL_TERMINATE;
 
   if (FLAGS_pmcounters_log != 0) {
     std::string log_str;
@@ -182,13 +209,13 @@ pmu::shutdown_ready()
 {
   if (FLAGS_perf)
     {
-      if (sm_ == SM::SYNCING)
+      if (core_sm_ == SM::SYNCING)
         {
           cvm::log(cvm::NONE, "Warning: [PMU] asking for shutdown without termination.\n");
           // something went wrong, just allow terminate
           return true;
         }
-      return sm_ == SM::READY_TO_TERMINATE;
+      return core_sm_ == SM::READY_TO_TERMINATE;
     }
   else
     return true;
