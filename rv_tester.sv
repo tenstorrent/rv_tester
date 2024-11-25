@@ -805,23 +805,47 @@ module rv_tester
     end
 
     for (genvar p = 0; p < NHARTS; p++) begin: pmu_inst
-      pmu #(
-          .NUM(p),
-          .NRET(NRETS[p]),
-          `TOPOLOGY_CFG,
-          `RV_TESTER_TRANSACTIONS_PMU_SOURCE_PARAMS(0)
-      ) pmu (
-          .clk(dut_clk[CORE_CLK_IDX]),
-          .sys_reset(sys_reset[CORE_CLK_IDX]),
-          .reset(dut_reset[CORE_CLK_IDX]),
-          .clocks,
-          .pmci(pmci[p]),
-          .hpmi(hpmi[p]),
-          .sc_pmci(sc_pmci),
-          .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
-          .terminate,
-          `RV_TESTER_TRANSACTIONS_PMU_SOURCE_PORTS(1, p, 0)
-      );
+      if (p == 0) begin : pmu_c0
+        pmu #(
+            .NUM(p),
+            .NRET(NRETS[p]),
+            .SC_PMCI_ENABLED(p == 0),
+            `TOPOLOGY_CFG,
+            `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PARAMS(0),
+            `RV_TESTER_TRANSACTIONS_PMU_SC_SOURCE_PARAMS(0)
+        ) pmu (
+            .clk(dut_clk[CORE_CLK_IDX]),
+            .sys_reset(sys_reset[CORE_CLK_IDX]),
+            .reset(dut_reset[CORE_CLK_IDX]),
+            .clocks,
+            .pmci(pmci[p]),
+            .hpmi(hpmi[p]),
+            .sc_pmci(sc_pmci),
+            .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
+            .terminate,
+            `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PORTS(1, p, 0),
+            `RV_TESTER_TRANSACTIONS_PMU_SC_SOURCE_PORTS(1, p, 0)
+        );
+      end else begin : pmu_cX 
+        pmu #(
+            .NUM(p),
+            .NRET(NRETS[p]),
+            .SC_PMCI_ENABLED(p == 0),
+            `TOPOLOGY_CFG,
+            `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PARAMS(0)
+        ) pmu (
+            .clk(dut_clk[CORE_CLK_IDX]),
+            .sys_reset(sys_reset[CORE_CLK_IDX]),
+            .reset(dut_reset[CORE_CLK_IDX]),
+            .clocks,
+            .pmci(pmci[p]),
+            .hpmi(hpmi[p]),
+            .sc_pmci(),
+            .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
+            .terminate,
+            `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PORTS(1, p, 0)
+        );
+      end
     end
 
     assign tx_dom_1.logger_cycle_0s[0][0].valid = gen_clocks;
