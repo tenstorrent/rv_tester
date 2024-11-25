@@ -949,6 +949,26 @@ sysmod::load_io(const std::string& io)
   }
 }
 
+bool
+sysmod::lz4_load(const std::string load)
+{
+  uint64_t offset = 0;
+  std::string file = load;
+
+  cvm::log(cvm::MEDIUM, "Loading {}\n", load);
+  if (std::size_t pos = load.find(':'); pos != std::string::npos) {
+    file = load.substr(0, pos);
+    std::string offset_str = load.substr(pos + 1);
+    offset = std::stoull(offset_str, nullptr, 0);
+  }
+  if (not dev("memory") or not dynamic_cast<sysmod_mem&>(*dev("memory")).init_lz4(file, offset)) {
+    cvm::log(cvm::ERROR, "No memory defined");
+    return false;
+  }
+
+  return true;
+}
+
 void
 sysmod::load_prog(const std::string& hex, const std::string& load, const std::string& lz4)
 {
@@ -977,28 +997,29 @@ sysmod::load_prog(const std::string& hex, const std::string& load, const std::st
     }
 
     if (lz4 != "") {
-      cvm::log(cvm::MEDIUM, "Loading {}\n", lz4);
+      std::stringstream ss;
+
+      cvm::log(cvm::MEDIUM, "Parsing {}\n", lz4);
       // split string by colon into file path and offset
       // if no colon is found, assume offset is 0
-      std::string file = FLAGS_load_lz4;
-      uint64_t offset = 0;
-      if(std::size_t pos = FLAGS_load_lz4.find(':'); pos != std::string::npos) {
-        file = FLAGS_load_lz4.substr(0, pos);
-        std::string offset_str = FLAGS_load_lz4.substr(pos + 1);
-        offset = std::stoull(offset_str, nullptr, 0);
+
+      ss << FLAGS_load_lz4;
+      while (ss.good())
+      {
+        std::string substr;
+
+        getline(ss, substr, ',');
+        if (not lz4_load(substr))
+          return;
       }
-      if (not dev("memory") or not dynamic_cast<sysmod_mem&>(*dev("memory")).init_lz4(file, offset)) {
-        cvm::log(cvm::ERROR, "No memory defined");
-        return;
-      }
-      cvm::log(cvm::MEDIUM, "Loading {} complete\n", lz4);
+      cvm::log(cvm::MEDIUM, "Parsing {} complete\n", lz4);
     }
 
     // all memories share the same backing mem manaager
     return;
   }
 
-  cvm::log(cvm::ERROR, "No memory found");
+  cvm::log(cvm::ERROR, "No memory found\n");
 }
 
 void
