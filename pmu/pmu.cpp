@@ -32,6 +32,20 @@ std::string pmu::generate_log_str(const std::map<T, std::string_view>& to_string
   return log_str;
 }
 
+template <typename CounterType, typename StringType, typename ContainerType, typename CycleType>
+void log_metrics(unsigned id, const StringType& to_string, const ContainerType& counters, const ContainerType& perf_region, const CycleType& perf_start_cycle, const CycleType& perf_end_cycle, const std::string& pmu_suffix) {
+  for (size_t i = 0; i < CounterType::COUNT; ++i) {
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}{}\": \"{}\"}}\n", id, to_string.at(static_cast<CounterType>(i)), counters[i]);
+    if (perf_start_cycle and perf_end_cycle) {
+      cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}perf{}\": \"{}\"}}\n", id, to_string.at(static_cast<CounterType>(i)), perf_region[i]);
+    }
+    if (perf_start_cycle and perf_end_cycle) {
+      cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_start_cycle{}\": \"{}\"}}\n", id, pmu_suffix, start_cycle);
+      cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_end_cycle{}\": \"{}\"}}\n", id, pmu_suffix, end_cycle);
+    }
+  }
+}
+
 pmu::pmu(cvm::topology::loc_t loc, unsigned id)
   : log_core("h" + std::to_string(id) + "_pmcounters_core.log"),
     log_sc("h" + std::to_string(id) + "_pmcounters_sc.log"),
@@ -40,12 +54,12 @@ pmu::pmu(cvm::topology::loc_t loc, unsigned id)
 {
   if (FLAGS_perf) {
     if (FLAGS_pmcounters_log != 0) {
-      assert(core_to_string.size() == counter_core::COUNT_CORE);
+      assert(core_to_string.size() == counter_core::COUNT);
       std::string log_str_core = generate_log_str(core_to_string);
       log_core(cvm::NONE, fmt::to_string(log_str_core));
       
       if (id == 0) {
-        assert(sc_to_string.size() == counter_sc::COUNT_SC);
+        assert(sc_to_string.size() == counter_sc::COUNT);
         std::string log_str_sc = generate_log_str(sc_to_string);
         log_sc(cvm::NONE, fmt::to_string(log_str_sc));
       }
@@ -118,6 +132,12 @@ pmu::process_sc(const rv_tester_transactions::pmu_sc::pmcounters_sc<>& pmcounter
 
   sc_to_vector(pmcounters);
 
+  if (pmcounters.perf_start_sc)
+    perf_region_start();
+
+  if (pmcounters.perf_end_sc)
+    perf_region_end();
+
   if (FLAGS_pmcounters_log != 0) {
     std::string log_str;
     log_str += fmt::format("{}", trigger_str_sc(pmcounters));
@@ -185,23 +205,11 @@ pmu::process(const rv_tester::terminate_called_fast&)
 void
 pmu::report()
 {
-  for (size_t i = 0; i < counter_core::COUNT_CORE; i++) {
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_{}\": \"{}\"}}\n", id_, core_to_string.at(static_cast<counter_core>(i)), counters_core[i]);
-    if (perf_start_cycle and perf_end_cycle)
-      cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_perf_{}\": \"{}\"}}\n", id_, core_to_string.at(static_cast<counter_core>(i)), perf_region_core[i]);
-  }
-  if (id_ == 0) {
-    for (size_t i = 0; i < counter_sc::COUNT_SC; i++) {
-      cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_{}\": \"{}\"}}\n", id_, sc_to_string.at(static_cast<counter_sc>(i)), counters_sc[i]);
-      if (perf_start_cycle and perf_end_cycle) {
-        cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_perf_{}\": \"{}\"}}\n", id_, sc_to_string.at(static_cast<counter_sc>(i)), perf_region_sc[i]);
-        }
-    }
-  }
 
-  if (perf_start_cycle and perf_end_cycle) {
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_perf_start_cycle\": \"{}\"}}\n", id_, perf_start_cycle);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_perf_end_cycle\": \"{}\"}}\n", id_, perf_end_cycle);
+  log_metrics<counter_core>(id_, core_to_string, counters_core, perf_region_core, perf_start_cycle, perf_end_cycle, "");
+
+  if (id_ == 0) {
+    log_metrics<counter_sc>(id_, sc_to_string, counters_sc, perf_region_sc, perf_start_cycle_sc, perf_end_cycle_sc, "_sc");
   }
 }
 

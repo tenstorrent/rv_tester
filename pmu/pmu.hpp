@@ -696,7 +696,7 @@ public:
       STQ_MISSQ_FULL_DELAY,
       //Sum of retired branches
       BRANCH_INSTRUCTIONS,
-    COUNT_CORE
+    COUNT
     } counter_core;
 
 
@@ -1572,7 +1572,7 @@ public:
       NO_ALLOC_SRRIP,
       //SC pipeline cancellation in TA4. It can result from b2b same-set access and other conditions
       SC_CANCEL_PIPERESULT,
-    COUNT_SC
+    COUNT
     } counter_sc;
 
 
@@ -2169,36 +2169,20 @@ public:
   void l1d_read_miss_check();
 
   // snapshot current counter values, to be used in perf region
-  void perf_region_start() {
-    assert(perf_region_core.size() == counters_core.size());
-
-    for (size_t i = 0; i < perf_region_core.size(); i++)
-      perf_region_core[i] = counters_core[i];
-    
-    if (id_ == 0) { 
-      assert(perf_region_sc.size() == counters_sc.size());
-    
-      for (size_t i = 0; i < perf_region_sc.size(); i++) 
-        perf_region_sc[i] = counters_sc[i];
+  void perf_region_start(std::string perf_choice) {
+    if (perf_choice == "") {
+      perf_region_start_temp(perf_region_core, counters_core, perf_start_cycle);
+    } else if ((perf_choice == "sc") && (id_ == 0)) {
+      perf_region_start_temp(perf_region_sc, counters_sc, perf_start_cycle_sc);
     }
-    perf_start_cycle = counters_core[CPU_CYCLES];
   }
 
-  void perf_region_end() {
-    assert(perf_region_core.size() == counters_core.size());
-
-    for (size_t i = 0; i < perf_region_core.size(); i++) {
-      perf_region_core[i] = counters_core[i] - perf_region_core[i];
+  void perf_region_end(std::string perf_choice) {
+    if (perf_choice == "") {
+      perf_region_end_temp(perf_region_core, counters_core, perf_end_cycle);
+    } else if ((perf_choice == "sc") && (id_ == 0)) {
+      perf_region_end_temp(perf_region_sc, counters_sc, perf_end_cycle_sc);
     }
-
-    if (id_ == 0) {
-      assert(perf_region_sc.size() == counters_sc.size());
-      
-      for (size_t i = 0; i < perf_region_sc.size(); i++) {
-        perf_region_sc[i] = counters_sc[i] - perf_region_sc[i];
-      }
-    }
-    perf_end_cycle = counters_core[CPU_CYCLES];
   }
 
   bool is_within_range(double, double, int, bool);
@@ -2231,13 +2215,13 @@ private:
   cvm::topology::loc_t loc_;
   unsigned id_;
 
-  std::array<std::uint64_t, counter_core::COUNT_CORE> counters_core;
-  std::array<std::uint64_t, counter_sc::COUNT_SC> counters_sc;
+  std::array<std::uint64_t, counter_core::COUNT> counters_core;
+  std::array<std::uint64_t, counter_sc::COUNT> counters_sc;
 
   uint64_t perf_start_cycle = 0;
   uint64_t perf_end_cycle = 0;
-  std::array<std::uint64_t, counter_core::COUNT_CORE> perf_region_core;
-  std::array<std::uint64_t, counter_sc::COUNT_SC> perf_region_sc;
+  std::array<std::uint64_t, counter_core::COUNT> perf_region_core;
+  std::array<std::uint64_t, counter_sc::COUNT> perf_region_sc;
 
   struct event_csr_details{
     bool programmed = false;
@@ -2259,3 +2243,23 @@ private:
   std::unordered_map<uint64_t, size_t>::const_iterator pmc_event;
   std::unordered_map<uint64_t, std::unordered_map<uint16_t, size_t>>::const_iterator filtered_pmc_event;
 };
+
+template <typename ContainerType, typename CycleType>
+void perf_region_start_temp(ContainerType& perf_region, const ContainerType& counters, const CycleType& perf_start_cycle) {
+  assert(perf_region.size() == counters.size());
+
+  for (size_t i = 0; i < perf_region.size(); i++) {
+    perf_region[i] = counters[i];
+  }
+  perf_start_cycle = counters_core[CPU_CYCLES];
+}
+
+template <typename ContainerType, typename CycleType>
+void perf_region_end_temp(ContainerType& perf_region, const ContainerType& counters, const CycleType& perf_end_cycle) {
+  assert(perf_region.size() == counters.size());
+
+  for (size_t i = 0; i < perf_region.size(); i++) {
+    perf_region[i] = counters[i] - perf_region[i];
+  }
+  perf_end_cycle = counters_core[CPU_CYCLES];
+}
