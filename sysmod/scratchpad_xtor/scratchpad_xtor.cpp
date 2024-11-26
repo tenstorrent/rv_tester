@@ -84,7 +84,7 @@ void scratchpad_xtor::axi_write_data_granular() {
     return;
   }{
 
-  cvm::log(cvm::HIGH, "[scratchpad_xtor] backdoor whisper poke  Successful for addr{:#x} poke_data {:#x} \n",scratchpad_addr_in_flight,w_txn.data[0]);
+  cvm::log(cvm::HIGH, "[scratchpad_xtor] backdoor whisper poke  Successful for addr{:#x} poke_data {:#x} \n",scratchpad_addr_in_flight+i,w_txn.data[i]);
   }
   }
 
