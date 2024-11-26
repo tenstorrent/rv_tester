@@ -165,15 +165,17 @@ constructSystem(uint16_t ncores, bool standalone) {
   std::shared_ptr<WdRiscv::System<URV>> system = std::make_shared<WdRiscv::System<URV>>(coreCount, hartsPerCore, hartIdOffset, memorySize, pageSize);
 
   if (FLAGS_load_lz4 != "") {
-    std::string file = FLAGS_load_lz4;
-    uint64_t offset = 0;
-    if(std::size_t pos = FLAGS_load_lz4.find(':'); pos != std::string::npos) {
-      file = FLAGS_load_lz4.substr(0, pos);
-      std::string offset_str = FLAGS_load_lz4.substr(pos + 1);
-      offset = std::stoull(offset_str, nullptr, 0);
+    std::stringstream ss;
+    std::vector<std::string> targets;
+
+    ss << FLAGS_load_lz4;
+    while (ss.good()) {
+      std::string substr;
+
+      getline(ss, substr, ',');
+      targets.push_back(substr);
     }
-    std::vector<std::string> targets = {file};
-    if (not system->loadLz4Files(targets, offset, false))
+    if (not system->loadLz4Files(targets, 0, false))
       return nullptr;
   }
 
