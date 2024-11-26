@@ -11,6 +11,7 @@
 #include "transactor.h"
 #include "transactors/axi_sw/axi.h"
 #include "sysmod/sysmod_plusargs.h"
+#include "whisper_client.h"
 
 DECLARE_bool(sp_xtor_en);
 DECLARE_bool(sp_xtor_mmr_prog_en);
@@ -36,6 +37,7 @@ class scratchpad_xtor : public device {
         data_t ref_data;
         strb_t ref_data_strb;
         uint64_t scratchpad_xtor_base  = 0x9070000;
+        uint64_t scratchpad_addr_in_flight  = 0x60000000;
         bool read_in_flight = false;
     public:
         uint32_t start_scratchpad_cnt,read_ram;
