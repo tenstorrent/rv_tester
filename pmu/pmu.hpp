@@ -696,7 +696,7 @@ public:
       STQ_MISSQ_FULL_DELAY,
       //Sum of retired branches
       BRANCH_INSTRUCTIONS,
-    COUNT
+    COUNT_CORE
     } counter_core;
 
 
@@ -1572,7 +1572,7 @@ public:
       NO_ALLOC_SRRIP,
       //SC pipeline cancellation in TA4. It can result from b2b same-set access and other conditions
       SC_CANCEL_PIPERESULT,
-    COUNT
+    COUNT_SC
     } counter_sc;
 
 
@@ -2168,6 +2168,26 @@ public:
   void ipc_check();
   void l1d_read_miss_check();
 
+  template <typename ContainerType, typename CycleType>
+  void perf_region_start_temp(ContainerType& perf_region, const ContainerType& counters, CycleType& perf_start_cycle) {
+    assert(perf_region.size() == counters.size());
+  
+    for (size_t i = 0; i < perf_region.size(); i++) {
+      perf_region[i] = counters[i];
+    }
+    perf_start_cycle = counters_core[CPU_CYCLES];
+  }
+  
+  template <typename ContainerType, typename CycleType>
+  void perf_region_end_temp(ContainerType& perf_region, const ContainerType& counters, CycleType& perf_end_cycle) {
+    assert(perf_region.size() == counters.size());
+  
+    for (size_t i = 0; i < perf_region.size(); i++) {
+      perf_region[i] = counters[i] - perf_region[i];
+    }
+    perf_end_cycle = counters_core[CPU_CYCLES];
+  }
+
   // snapshot current counter values, to be used in perf region
   void perf_region_start(std::string perf_choice) {
     if (perf_choice == "") {
@@ -2215,13 +2235,15 @@ private:
   cvm::topology::loc_t loc_;
   unsigned id_;
 
-  std::array<std::uint64_t, counter_core::COUNT> counters_core;
-  std::array<std::uint64_t, counter_sc::COUNT> counters_sc;
+  std::array<std::uint64_t, counter_core::COUNT_CORE> counters_core;
+  std::array<std::uint64_t, counter_sc::COUNT_SC> counters_sc;
 
   uint64_t perf_start_cycle = 0;
   uint64_t perf_end_cycle = 0;
-  std::array<std::uint64_t, counter_core::COUNT> perf_region_core;
-  std::array<std::uint64_t, counter_sc::COUNT> perf_region_sc;
+  uint64_t perf_start_cycle_sc = 0;
+  uint64_t perf_end_cycle_sc = 0;
+  std::array<std::uint64_t, counter_core::COUNT_CORE> perf_region_core;
+  std::array<std::uint64_t, counter_sc::COUNT_SC> perf_region_sc;
 
   struct event_csr_details{
     bool programmed = false;
@@ -2244,22 +2266,3 @@ private:
   std::unordered_map<uint64_t, std::unordered_map<uint16_t, size_t>>::const_iterator filtered_pmc_event;
 };
 
-template <typename ContainerType, typename CycleType>
-void perf_region_start_temp(ContainerType& perf_region, const ContainerType& counters, const CycleType& perf_start_cycle) {
-  assert(perf_region.size() == counters.size());
-
-  for (size_t i = 0; i < perf_region.size(); i++) {
-    perf_region[i] = counters[i];
-  }
-  perf_start_cycle = counters_core[CPU_CYCLES];
-}
-
-template <typename ContainerType, typename CycleType>
-void perf_region_end_temp(ContainerType& perf_region, const ContainerType& counters, const CycleType& perf_end_cycle) {
-  assert(perf_region.size() == counters.size());
-
-  for (size_t i = 0; i < perf_region.size(); i++) {
-    perf_region[i] = counters[i] - perf_region[i];
-  }
-  perf_end_cycle = counters_core[CPU_CYCLES];
-}

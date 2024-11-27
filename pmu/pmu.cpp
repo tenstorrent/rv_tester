@@ -22,6 +22,19 @@ DEFINE_bool(ignore_pmc_reprogram, false, "toggle ignore on illegal reprograming 
 REGISTRY_register(pmu, PMCI, cvm::registry::all);
 
 template <typename T>
+struct CounterTraits;
+
+template <>
+struct CounterTraits<pmu::counter_core> {
+  static constexpr size_t COUNT = pmu::counter_core::COUNT_CORE;
+};
+
+template <>
+struct CounterTraits<pmu::counter_sc> {
+  static constexpr size_t COUNT = pmu::counter_sc::COUNT_SC;
+};
+
+template <typename T>
 std::string pmu::generate_log_str(const std::map<T, std::string_view>& to_string) {
   std::string log_str;
   log_str += fmt::format("trigger");
@@ -33,16 +46,17 @@ std::string pmu::generate_log_str(const std::map<T, std::string_view>& to_string
 }
 
 template <typename CounterType, typename StringType, typename ContainerType, typename CycleType>
-void log_metrics(unsigned id, const StringType& to_string, const ContainerType& counters, const ContainerType& perf_region, const CycleType& perf_start_cycle, const CycleType& perf_end_cycle, const std::string& pmu_suffix) {
-  for (size_t i = 0; i < CounterType::COUNT; ++i) {
+void log_metrics(unsigned id, const StringType& to_string, const ContainerType& counters, const ContainerType& perf_region, const CycleType& start_cycle, const CycleType& end_cycle, const std::string& pmu_suffix) {
+  constexpr size_t COUNT = CounterTraits<CounterType>::COUNT;
+  for (size_t i = 0; i < COUNT; ++i) {
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}{}\": \"{}\"}}\n", id, to_string.at(static_cast<CounterType>(i)), counters[i]);
-    if (perf_start_cycle and perf_end_cycle) {
+    if (start_cycle and end_cycle) {
       cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}perf{}\": \"{}\"}}\n", id, to_string.at(static_cast<CounterType>(i)), perf_region[i]);
     }
-    if (perf_start_cycle and perf_end_cycle) {
-      cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_start_cycle{}\": \"{}\"}}\n", id, pmu_suffix, start_cycle);
-      cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_end_cycle{}\": \"{}\"}}\n", id, pmu_suffix, end_cycle);
-    }
+  }
+  if (start_cycle and end_cycle) {
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_start_cycle{}\": \"{}\"}}\n", id, pmu_suffix, start_cycle);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_end_cycle{}\": \"{}\"}}\n", id, pmu_suffix, end_cycle);
   }
 }
 
@@ -54,12 +68,12 @@ pmu::pmu(cvm::topology::loc_t loc, unsigned id)
 {
   if (FLAGS_perf) {
     if (FLAGS_pmcounters_log != 0) {
-      assert(core_to_string.size() == counter_core::COUNT);
+      assert(core_to_string.size() == counter_core::COUNT_CORE);
       std::string log_str_core = generate_log_str(core_to_string);
       log_core(cvm::NONE, fmt::to_string(log_str_core));
       
       if (id == 0) {
-        assert(sc_to_string.size() == counter_sc::COUNT);
+        assert(sc_to_string.size() == counter_sc::COUNT_SC);
         std::string log_str_sc = generate_log_str(sc_to_string);
         log_sc(cvm::NONE, fmt::to_string(log_str_sc));
       }
@@ -101,10 +115,10 @@ pmu::process_core(const rv_tester_transactions::pmu_core::pmcounters_core<>& pmc
   core_to_vector(pmcounters);
 
   if (pmcounters.perf_start)
-    perf_region_start();
+    perf_region_start("");
 
   if (pmcounters.perf_end)
-    perf_region_end();
+    perf_region_end("");
 
   if (FLAGS_pmcounters_log != 0) {
     std::string log_str;
@@ -133,10 +147,10 @@ pmu::process_sc(const rv_tester_transactions::pmu_sc::pmcounters_sc<>& pmcounter
   sc_to_vector(pmcounters);
 
   if (pmcounters.perf_start_sc)
-    perf_region_start();
+    perf_region_start("sc");
 
   if (pmcounters.perf_end_sc)
-    perf_region_end();
+    perf_region_end("sc");
 
   if (FLAGS_pmcounters_log != 0) {
     std::string log_str;
