@@ -1013,6 +1013,8 @@ whisperClient<URV>::whisperCheckInterrupt(int hart, uint64_t mip, bool& interrup
   req.hart = hart;
   req.type = WhisperMessageType::CheckInterrupt;
   req.address = mip;
+  req.value = 0;
+  req.instrTag = 0;
 
   WhisperMessage reply;
 
