@@ -74,21 +74,6 @@ void scratchpad_xtor::axi_write_data_granular() {
   ref_data_strb = w_txn.strb;
   w_txn.last = 1;
   cvm::registry::messenger.signal(axi_mst_loc_l, w_txn);
-  /// Poke data to SP mem
-  int hart = 0;
-  bool valid;
-  cvm::log(cvm::HIGH, "[scratchpad_xtor] Backdoor whisper poke addr{:#x} poke_data {:#x} \n",scratchpad_addr_in_flight,w_txn.data[0]);
-  for (uint8_t i = 0; i < 64; ++i) {
-  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0, 'm', scratchpad_addr_in_flight+ i,1, w_txn.data[i], valid)|| !valid)) {
-    cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
-    return;
-  }{
-
-  cvm::log(cvm::HIGH, "[scratchpad_xtor] backdoor whisper poke  Successful for addr{:#x} poke_data {:#x} \n",scratchpad_addr_in_flight+i,w_txn.data[i]);
-  }
-  }
-
-
 }
 //void scratchpad_xtor::axi_write_granular() {
 void scratchpad_xtor::axi_write_granular(uint64_t addr) {
@@ -98,7 +83,6 @@ void scratchpad_xtor::axi_write_granular(uint64_t addr) {
   aw_txn.id   = 1;
   //aw_txn.addr = 0x60000000;
   aw_txn.addr = addr;
-  scratchpad_addr_in_flight = addr;
   aw_txn.len  = 0;
   aw_txn.size = 6;
   aw_txn.burst = axi::burst_t(0);

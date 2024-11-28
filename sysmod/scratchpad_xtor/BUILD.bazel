@@ -7,7 +7,6 @@ cc_library(
             ],
     deps = [
         "//sysmod:device",
-        "//cosim/whisper_if:whisper_if",
         "@mem_manager//:mem_manager",
         "@rv_tester//common:common",
         "@cvm//:plusargs",
