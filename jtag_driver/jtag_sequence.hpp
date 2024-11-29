@@ -62,8 +62,10 @@ class jtag_sequence {
 
   virtual void jtag_tick(uint64_t advance) 
   {
+    if (num_ticks == 0)
+      reset();
     num_ticks++;
-    cvm::log(cvm::DEBUG, "[jtag_sequence]: JTAG Tick {}\n",num_ticks);
+    cvm::log(cvm::FULL, "[jtag_sequence]: JTAG Tick {}, advance interval: {}\n",num_ticks, advance);
     timer_ += advance;
     timer_advance = advance;
     if( num_ticks > 30) 
@@ -158,18 +160,14 @@ bool exitLoop() {
   void reset() 
   {
     cvm::log(cvm::HIGH, "[jtag_sequence]: Reset jtag_sequence\n");
-    uint32_t rand_num = 0;
+    
     if (FLAGS_random_jtag_entry)
     {
       cvm::log(cvm::HIGH, "[jtag_sequence]: Enable random injection of debug mode :: {}\n", FLAGS_random_jtag_entry);
       get_all_csv_templates();
-      if (FLAGS_jtag_delay_min)
-      {
-        rand_num = (rng() % (FLAGS_jtag_delay_max - FLAGS_jtag_delay_min + 1)) + FLAGS_jtag_delay_min;
-      }
       timer_ = 0;
       file_idx = rng() % csvFilePaths.size();
-      timer_rand_debug = timer_ + FLAGS_random_jtag_start_delay + (rand_num * timer_advance);
+      timer_rand_debug = timer_ + FLAGS_random_jtag_start_delay * timer_advance;
       cvm::log(cvm::HIGH, "Random Debug Injection of CSV file ID:{} Timer delay:{}\n", file_idx, timer_rand_debug);
     }
   }
@@ -180,10 +178,13 @@ bool exitLoop() {
   std::string process_string(const std::string& input);
   cvm::messenger::task<void> open_socket_to_listen();
 
+std::string tapToString(unsigned tap);
+
   std::string get_local_ip_address();
 
   // std::string getLocalIPAddress();
-  
+
+
   struct jtag_data_t
   {
     unsigned hart;
@@ -248,6 +249,7 @@ bool exitLoop() {
     {
       int32_t rand_num = (rng() % (FLAGS_jtag_delay_max - FLAGS_jtag_delay_min + 1)) + FLAGS_jtag_delay_min;
       timer_rand_debug = timer_ + (rand_num * timer_advance);
+      cvm::log(cvm::FULL, "[jtag_sequence] Next JTAG CSV injection at {}\n", timer_rand_debug);
       file_idx = rng() % csvFilePaths.size();
     }
   }

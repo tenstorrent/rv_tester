@@ -25,7 +25,6 @@ class reset_sequence {
     void cold_reset_sequence_thread();
     void warm_reset_sequence_thread();
     void smc_random_sequence_thread();
-    void temp_throttle_release_thread();
 
     cvm::messenger::task<void> cold_reset_sequence();
     cvm::messenger::task<void> warm_reset_sequence();
@@ -49,13 +48,8 @@ class reset_sequence {
 
     cvm::messenger::task<void> write_thub_reg(uint8_t addr, uint32_t data, uint8_t satellite_num, uint8_t mbox_num);
     cvm::messenger::task<void> program_thub_threshold();
-    cvm::messenger::task<void> temp_throttle_disable();
 
     cvm::messenger::task<void> init_smc_filters();
-    cvm::messenger::task<void> smc_scratchpad_default_access();
-    cvm::messenger::task<void> smc_axi_random_access();
-    cvm::messenger::task<void> delay_counters();
-    cvm::messenger::task<void> smc_read_access_check(uint32_t addr, uint64_t exp_data, uint64_t actual_data);
 
     cvm::messenger::task<uint64_t> read(uint64_t addr, size_t sz);
     cvm::messenger::task<void> write(uint64_t addr, size_t sz, uint64_t data);

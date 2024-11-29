@@ -33,6 +33,8 @@ import rv_tester_params::*;
       if (location != cvm_topology::nil) begin
         pwrmgmt_set_scope(location);
         pwrmgmt_set_reset_count(location, reset_count);
+        smc_axi_blocking_sequence_tick(0);
+        thub_blocking_sequence_tick(0);
         if (reset_count <= 0)
           //FIXME pwrmgmt_force_ref_clk(1);
           pwrmgmt_init();
@@ -85,33 +87,44 @@ import rv_tester_params::*;
   assign m_ticks[0].data.location = location;
   assign m_ticks[0].data.cycle = tick_valid ? soc_clocks : 0;
 
-  // m_smc_axi_tick
-  logic smc_axi_tick;
-  rv_tester_tick_generator #(.NAME("smc_axi")) smc_axi_tick_generator (.clk(clk[SOC_CLK_IDX]), .reset(core_no_fetch), .tick(smc_axi_tick));
-  assign m_smc_axi_ticks[0].valid = smc_axi_tick && (location != cvm_topology::nil);
-  assign m_smc_axi_ticks[0].data.location = location;
-  assign m_smc_axi_ticks[0].data.assertion = '0;
+  logic smc_axi_blocking_seq_tick;
+  logic thub_blocking_seq_tick;
+
+  // m_smc_axi_sp_tick
+  logic smc_axi_sp_tick;
+  rv_tester_tick_generator #(.NAME("smc_axi_sp")) smc_axi_sp_tick_generator (.clk(clk[SOC_CLK_IDX]), .reset(core_no_fetch), .inhibit('0), .tick(smc_axi_sp_tick), .last());
+  assign m_smc_axi_sp_ticks[0].valid = smc_axi_sp_tick && (location != cvm_topology::nil);
+  assign m_smc_axi_sp_ticks[0].data.location = location;
+
+  // m_smc_axi_csr_tick
+  logic smc_axi_csr_tick;
+  rv_tester_tick_generator #(.NAME("smc_axi_csr")) smc_axi_csr_tick_generator (.clk(clk[SOC_CLK_IDX]), .reset(core_no_fetch), .inhibit(smc_axi_blocking_seq_tick), .tick(smc_axi_csr_tick), .last());
+  assign m_smc_axi_csr_ticks[0].valid = smc_axi_csr_tick && (location != cvm_topology::nil);
+  assign m_smc_axi_csr_ticks[0].data.location = location;
 
    // m_pcontrol_tick
   logic pcontrol_tick;
-  rv_tester_tick_generator #(.NAME("pcontrol")) pcontrol_tick_generator (.clk(clk[SOC_CLK_IDX]), .reset(core_no_fetch), .tick(pcontrol_tick));
+  rv_tester_tick_generator #(.NAME("pcontrol")) pcontrol_tick_generator (.clk(clk[SOC_CLK_IDX]), .reset(core_no_fetch), .inhibit('0), .tick(pcontrol_tick), .last());
   assign m_pcontrol_ticks[0].valid = pcontrol_tick && (location != cvm_topology::nil);
   assign m_pcontrol_ticks[0].data.location = location;
-  assign m_pcontrol_ticks[0].data.assertion = '0;
+
+   // m_thub_tick
+  logic thub_tick;
+  rv_tester_tick_generator #(.NAME("thub")) thub_tick_generator (.clk(clk[SOC_CLK_IDX]), .reset(core_no_fetch), .inhibit(thub_blocking_seq_tick), .tick(thub_tick), .last());
+  assign m_thub_ticks[0].valid = thub_tick && (location != cvm_topology::nil);
+  assign m_thub_ticks[0].data.location = location;
 
  // m_cold_reset_ack
   logic cold_reset_ack_valid;
   assign cold_reset_ack_valid = (cold_reset_d1 && ~cold_reset);
   assign m_cold_reset_acks[0].valid = cold_reset_ack_valid && (location != cvm_topology::nil);
   assign m_cold_reset_acks[0].data.location = location;
-  assign m_cold_reset_acks[0].data.assertion = '0;
 
   // m_force_ref_clk_ack
   logic force_ref_clk_ack_valid;
   assign force_ref_clk_ack_valid = (force_ref_clk_d1 && ~force_ref_clk);
   assign m_force_ref_clk_acks[0].valid = force_ref_clk_ack_valid && (location != cvm_topology::nil);
   assign m_force_ref_clk_acks[0].data.location = location;
-  assign m_force_ref_clk_acks[0].data.assertion = '0;
 
   // -------------------------
   // C++->SV Callbacks
@@ -149,6 +162,21 @@ import rv_tester_params::*;
   function void pwrmgmt_force_ref_clk(bit val);
       /* verilator lint_off BLKSEQ */
       force_ref_clk = val;
+      /* verilator lint_on BLKSEQ */
+  endfunction
+
+  export "DPI-C" function smc_axi_blocking_sequence_tick;
+  export "DPI-C" function thub_blocking_sequence_tick;
+
+  function void smc_axi_blocking_sequence_tick(bit val);
+      /* verilator lint_off BLKSEQ */
+      smc_axi_blocking_seq_tick = val;
+      /* verilator lint_on BLKSEQ */
+  endfunction
+
+  function void thub_blocking_sequence_tick(bit val);
+      /* verilator lint_off BLKSEQ */
+      thub_blocking_seq_tick = val;
       /* verilator lint_on BLKSEQ */
   endfunction
 

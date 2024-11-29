@@ -274,6 +274,7 @@ package rv_tester_params;
         logic                       valid    ;
         logic [HARTLEN-1:0]         hart     ;
         logic [64-1:0]              order    ;
+        logic [64-1:0]              branch_tag;
         logic [ILEN-1:0]            insn     ;
         logic                       trap     ;
         logic [XLEN-1:0]            cause    ;
@@ -342,11 +343,13 @@ package rv_tester_params;
         logic [PALEN-1:0]           addr ;
         logic [(CLLEN/8)-1:0]       mask ;
         logic [CLLEN-1:0]           data ;
-        logic                       amo;
+        logic [31:0]                attr ;
+        logic                       amo  ;
         logic [4:0]                 amo_op;
         logic                       v_ext;
         logic [36-1:0]              opcode;
-        logic [7:0]                 nano_op_elem_idx;
+        logic [7:0]                 field;
+        logic [7:0]                 elem_idx;
     } mcmi_t;
 
     // --------------------------------------
@@ -366,7 +369,7 @@ package rv_tester_params;
     // --------------------------------------
     // C2 
     // --------------------------------------
-    typedef enum {C2,PATCH,TRIGGER_COUNT} event_trigger_type_t;
+    typedef enum {C2,PATCH,UARCH_INTR,TRIGGER_COUNT} event_trigger_type_t;
     typedef struct packed {
         logic [63:0] data;
         logic [63:0] addr;

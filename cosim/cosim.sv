@@ -6,6 +6,10 @@
 //
 //      ENABLING:
 //          - +cosim_period=<n>  where <n> > 0
+//          - +debug_cycle=<n>   where <n> > 0   -- turns ON extra C++ messages to aid in debug
+//          - +debug_high=<n>    where <n> > 0   -- DISABLES PSC mode when clock count >= debug_low and <= debug_high and debug_high>0 
+//          - +debug_low=<n>     where <n> > 0   -- See debug_high (this is useful in debugging why whisper is miscomparing) 
+//
 //      USAGE
 //          - sends RVFI packets only when necessary to keep COSIM model in-sync.
 //                - packets that require COSIM to be updated are refered to as 'pokes'
@@ -152,6 +156,20 @@ bit [PA_WIDTH-1:0] debug_exit_pc_const='h0a110860;
 bit [PA_WIDTH-1:0] mmr_hi_addr_const='h42a1FFFF;
 bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
 
+genvar gi,gj;
+
+localparam CDEPTH = 64;
+localparam CWIDTH = 16;
+localparam CIBITS = $clog2(CDEPTH);
+localparam CTBITS = 64-CIBITS;
+
+localparam CAM_DEPTH = 64;
+localparam CAM_WIDTH = 16;
+localparam CAM_IBITS = $clog2(CAM_DEPTH);
+localparam CAM_ILBIT = 0;
+localparam CAM_IHBIT = CAM_IBITS;
+
+
     //----------------------------------------------------------------------------
     // function retsel compresses CSR_COUNT down into MAXCSR+1 DPI calls
     //   we make the retsel function have MAXCSR+1 values to catch if we have too
@@ -222,15 +240,19 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
     endfunction
 
     import "DPI-C" context function void cosim_set_scope(int unsigned location);
+    import "DPI-C" context function int is_eot_tohost();
 
 
     bit PSC_enabled;
     typedef longint unsigned LU;
     parameter int unsigned location = cvm_topology_gen::get_location (topology.TOP.PLATFORM.COSIM.ID, NUM);
-    bit rvfi_enabled;
+    bit rvfi_enabled,mcm_enabled;
+    //int mcm_value;
+    longint unsigned psc_off_low  = 0;
+    longint unsigned psc_off_high = 0;
+    int to_host;
     int unsigned cosim_period=0;
     int unsigned PSC_period=0;
-    bit [31:0]  mcmi_poke_enable=0;
 
     bit get_cosim_compare_values = 1;
     bit reset_d1 = 1;
@@ -250,22 +272,13 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
     bit                 fp_reg_written;
     bit                 vc_reg_written;
 
+    bit               poke_debug_event;
     bit [NWRITE-1:0]  mcmi_write_pokes;
-    bit               mcmi_write_poke;
     bit [NBYPASS-1:0] mcmi_bypass_pokes;
-    bit               mcmi_bypass_poke;
     bit [NREAD-1:0]   mcmi_read_pokes;
-    bit               mcmi_read_poke;
     bit [NINSERT-1:0] mcmi_insert_pokes;
-    bit               mcmi_insert_poke;
     bit [NIEVICT-1:0] mcmi_ievict_pokes;
-    bit               mcmi_ievict_poke;
 
-    bit               mcmi_poke_write_en;     //mcmi_pokes[0];
-    bit               mcmi_poke_bypass_en;    //mcmi_pokes[1];
-    bit               mcmi_poke_read_en;      //mcmi_pokes[2];
-    bit               mcmi_poke_insert_en;    //mcmi_pokes[3];
-    bit               mcmi_poke_ievict_en;    //mcmi_pokes[4];
 
     bit csrrw_valid;
     bit scrw_valid ;
@@ -273,6 +286,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
     bit mflag_valid;
     bit gpwa5_valid;
 
+    int unsigned           cpu_id;
     longint unsigned       mintr_cnt;
     longint unsigned       csrrw_cnt;
     longint unsigned       scrw_cnt ;
@@ -281,8 +295,8 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
     longint unsigned       gpwa5_cnt;
     longint unsigned       rvfi_cnt;
     longint unsigned       mrvfi_cnt;
+    longint unsigned       mcm_cnt;
 
-    bit               mcmi_poke;
     bit               force_compare;
 
 
@@ -316,6 +330,8 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
     bit [NRET-1:0]         fence;
     bit [NRET-1:0]         rvfi_excps;
     bit [NRET-1:0]         vec_crack;                       // cracked vector operation
+    bit [NRET-1:0]         mem_write;                       // poke all memory writes IF mcm enabled 
+    bit [NRET-1:0]         mem_read;                        // poke all memory read IF  mcm enabled
     bit [NRET-1:0]         intr_memw;
     bit [NRET-1:0]         cmp_memw;
     bit [NRET-1:0]         gp_waddr5;
@@ -333,20 +349,23 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
     bit [NRET-1:0]         poke_no_uop;                     // events that should cause a Poke in Whisper 
     bit                    mintr;                           // event when m_trap senns an interrupt/exception
     bit                    poke_interrupt;                  // event when m_trap senns an interrupt/exception
-    bit [NRET-1:0]         mtrap_valids;                    // event when m_trap senns an interrupt/exception
     bit                    mtrap_valid;                     // event when m_trap senns an interrupt/exception
     bit                    imsic_valid;                     // event when m_trap senns an interrupt/exception
-    bit [NRET-1:0]         mtrap;                           // trap state when m_trap sends a trap and rvfi accepts it 
     bit                    rvfi_debug_mode;
-    bit [NRET-1:0][63:0]      rvfi_last_poke_orders;        // Tracks orders from previus cycle that "poked" but had last_uop=0
-    bit [NRET-1:0][NRET-1:0]  rvfi_no_uop_events;           // matchs current order to previous last_poke_orders that last_uop=1 now
-    bit                    poke_no_uop_event;
+    bit                    rvfi_debug_mode_s;
+    bit [NRET-1:0][63:0]      rvfi_last_uop_orders;        // Tracks orders from previus cycle that "poked" but had last_uop=0
+    bit [NRET-1:0][NRET-1:0]  rvfi_last_uop_events;           // matchs current order to previous last_poke_orders that last_uop=1 now
+    bit                    poke_last_uop_event;
+    bit [NRET-1:0][63:0]      rvfi_last_insn_orders;        // Tracks orders from previus cycle that "poked" but had last_uop=0
+    bit [NRET-1:0][NRET-1:0]  rvfi_last_insn_events;           // matchs current order to previous last_poke_orders that last_uop=1 now
+    bit                    poke_last_insn_event;
     bit [NWRITE-1:0]       eot_writes_found;                // end-of-test event found in mcmi_writes ifc
     bit [NBYPASS-1:0]      eot_bypass_found;                // end-of-test event found in mcmi_bypass ifc
     bit [NINSERT-1:0]      eot_insert_found;                // end-of-test event found in mcmi_insert ifc
     bit [$clog2(NRET+1)-1:0] valid_cnt;                     // number of rvfi_valids == 1 in 1 clock
 
     bit                    eot_found;                       // end-of-test event found
+    bit                    eot_found_d1;                       // end-of-test event found
     bit                    eot_max_instr;                   // max # instructions end-of-test event found
     bit                    rvfi_valid;
     bit                    send_rvfi;
@@ -361,6 +380,8 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
     bit [NRET-1:0]      rvfi_priv_change;
     bit [NRET-1:0][3:0] rvfi_priv;
     bit [NRET-1:0]      rvfi_patch_mode;
+    bit [NRET-1:0]      rvfi_set_patch;
+    bit [NRET-1:0]      rvfi_clr_patch;
     /* verilator lint_on UNOPTFLAT */
     bit                 rvfi_ucode_S;
     bit                 rvfi_last_uop_S;
@@ -369,11 +390,9 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
     bit                 rvfi_patch_mode_S;
     bit [NRET-1:0]      rvfi_instr_ucode;
     bit [NRET-1:0]      rvfi_first_uop;
-    bit [NRET-1:0]      rvfi_set_patch;
-    bit [NRET-1:0]      rvfi_clr_patch;
     bit [NRET-1:0][3:0] rvfi_instr_priv;
     bit [NRET-1:0][3:0] rvfi_mode;
-    bit [NRET-1:0]      rvfi_trap_patch;
+    bit                 rvfi_trap_patch;
     bit                 rvfi_trap_pmode;
     bit                 poke_patch_mode;
 
@@ -391,6 +410,8 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
     int nharts;
     bit boot_wfi;
     bit cosim_terminate_sent;
+
+    assign cpu_id = NUM;
 
     //--------------------------------------------------------------------------------------------
     // Track writes to GP,FP,VEC registers for comparison with Whisper
@@ -479,20 +500,28 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
         assign msret[n]        = rvfi[n].valid & (rvfi[n].insn[31:30] == 2'b00) & (rvfi[n].insn[28:0] == 29'h10200073);    // mret or sret
         assign fence[n]        = rvfi[n].valid & ((rvfi[n].insn[31:0] & 32'hF000607F) == 32'h0000000F);
         assign intr_memw[n]    = rvfi[n].valid & (rvfi[n].mem_wmask != 0) & (rvfi[n].mem_wmask[1:0]==2'b11) & (rvfi[n].mem_paddr[PA_WIDTH-1:32] == '0) & ((rvfi[n].mem_paddr[31:25]==7'h20) | (rvfi[n].mem_paddr[31:25]==7'h22));
-        assign enter_dbg[n]    = rvfi[n].valid & (rvfi[n].pc_rdata == 64'(debug_entry_pc));
+        //assign enter_dbg[n]    = rvfi[n].valid & (rvfi[n].pc_rdata == 64'(debug_entry_pc));
+        assign enter_dbg[n]    = m_traps[0].valid & (
+                                    (m_traps[0].data.id==rv_tester_pkg::INTR) |
+                                    (m_traps[0].data.id==rv_tester_pkg::EXCP) & (m_traps[0].data.cause[7:0] ==33)
+                                   );
+
         assign exit_dbg[n]     = rvfi[n].valid & (rvfi[n].pc_rdata == 64'(debug_exit_pc));
         assign device_read[n]  = rvfi[n].valid & (rvfi[n].mem_rmask != '0) & memmap_decode(addr_map, rvfi[n].mem_paddr);
 
-        assign mtrap_valids[n] = m_traps[n].valid;  
         assign mflags[n]       = rvfi[n].flags_valid; 
         assign rvfi_excps[n]   = ~rvfi[n].cause[63] & (rvfi[n].cause != '0); 
         assign vec_crack[n]   = rvfi[n].valid & rvfi[n].vec & !rvfi[n].last_uop;
+        assign mem_write[n]   = rvfi[n].valid & (rvfi[n].mem_wmask !=0) & mcm_enabled;
+        assign mem_read[n]    = rvfi[n].valid & (rvfi[n].mem_rmask !=0) & mcm_enabled;
 
         assign gp_waddr5[n]    = rvgp_valids[n] & rd_addr[n][5];                  // Writing to a GP register above 31...poke
         assign fp_waddr5[n]    = rvfp_valids[n] & frd_addr[n][5];                 // Writing to a FP register above 31...poke
         assign vc_waddr5[n]    = rvvc_valids[n] & vrd_addr[n][5];                 // Writing to a VC register above 31...poke
 
-        assign poke_events[n]  = sc_rw[n] | csr_rw[n] | intr_memw[n] | gp_waddr5[n] | poke_interrupt |  vec_crack[n] | enter_dbg[n] | exit_dbg[n] | device_read[n] | poke_patch_mode;
+        assign poke_events[n]  = sc_rw[n] | csr_rw[n] | intr_memw[n] | gp_waddr5[n] | poke_interrupt |  vec_crack[n] |
+                                 device_read[n] | poke_patch_mode |  mem_write[n] | mem_read[n];
+
         //assign poke_events[n]  = sc_rw[n] | csr_rw[n] | intr_memw[n] | msret[n] | gp_waddr5[n] | mintr | mflags[n] |
         //                         enter_dbg[n] | exit_dbg[n] | debug_read[n] | device_read[n] | fence[n] ;
     end
@@ -510,7 +539,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
     assign reg_waddr5_event = ((gp_waddr5 != '0) | (fp_waddr5 != '0) | (vc_waddr5 != '0)) ? 1'b1 : 1'b0;
 
     assign imsic_valid = m_imsic_msis[2].valid | m_imsic_msis[1].valid | m_imsic_msis[0].valid;
-    assign mtrap_valid = (mtrap_valids != '0); 
+    assign mtrap_valid = m_traps[0].valid;
     assign csrrw_valid = (csr_rw != '0); 
     assign scrw_valid  = (sc_rw != '0); 
     assign gpwa5_valid = (gp_waddr5 != '0); 
@@ -521,11 +550,19 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
         always @(posedge clk)
         begin
             if (reset | (rvfi[n].last_uop & rvfi[n].valid)) begin
-               rvfi_last_poke_orders[n] <= '0;
+               rvfi_last_uop_orders[n] <= '0;
             end
             else begin  
                if (rvfi[n].valid & ~rvfi[n].last_uop & poke_event_out)
-                  rvfi_last_poke_orders[n] <= rvfi[n].order;
+                  rvfi_last_uop_orders[n] <= rvfi[n].order;
+            end
+
+            if (reset | (rvfi[n].last_insn & rvfi[n].valid)) begin
+               rvfi_last_insn_orders[n] <= '0;
+            end
+            else begin  
+               if (rvfi[n].valid & ~rvfi[n].last_insn & poke_event_out)
+                  rvfi_last_insn_orders[n] <= rvfi[n].order;
             end
         end
  
@@ -535,22 +572,25 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
         // Match current order with last clocks rvfi orders that had a "poke" but last_uop=0 .. now last_up==1
         //----------------------------------------------------------------------------------------------------------
         for(genvar m=0;m<NRET;m=m+1) begin
-            //assign rvfi_no_uop_events[n][m] = rvfi[n].valid & (rvfi[n].order == rvfi_last_poke_orders[m]);
-            assign rvfi_no_uop_events[n][m] = rvfi[n].valid & (rvfi[n].order == rvfi_last_poke_orders[m]) & rvfi[n].last_uop ;  // TRY THIS
+            //assign rvfi_last_uop_events[n][m] = rvfi[n].valid & (rvfi[n].order == rvfi_last_uop_orders[m]);
+            assign rvfi_last_uop_events[n][m] = rvfi[n].valid & (rvfi[n].order == rvfi_last_uop_orders[m]) & rvfi[n].last_uop ;  
+            assign rvfi_last_insn_events[n][m] = rvfi[n].valid & (rvfi[n].order == rvfi_last_insn_orders[m]) & rvfi[n].last_insn;  
         end
 
     end
 
+    assign rvfi_debug_mode = rvfi_debug_mode_s | (enter_dbg != '0);
+
     always @(posedge clk)
     begin
         if (reset) 
-           rvfi_debug_mode <= 1'b0;
+           rvfi_debug_mode_s <= 1'b0;
         else
         if (enter_dbg != '0) 
-           rvfi_debug_mode <= 1'b1;
+           rvfi_debug_mode_s <= 1'b1;
         else
         if (exit_dbg != '0) 
-           rvfi_debug_mode <= 1'b0;
+           rvfi_debug_mode_s <= 1'b0;
 
         //---------------------------------------------------------------
         // monitor interrupt valids for poke events
@@ -566,6 +606,8 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
            gpwa5_cnt <= '0;
            rvfi_cnt  <= '0;
            mrvfi_cnt <= '0;
+           mcm_cnt   <= '0;
+           eot_found_d1 <= 1'b0;
         end
         else begin
            if (rvfi_excps != '0) begin
@@ -584,39 +626,40 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
                   mintr <= 1'b0;
               end
            end
-           if ( mintr & ~csrrw_valid & ~scrw_valid & ~devrd_valid & ~mflag_valid & ~gpwa5_valid) mintr_cnt <= mintr_cnt + 1; 
-           if (~mintr &  csrrw_valid & ~scrw_valid & ~devrd_valid & ~mflag_valid & ~gpwa5_valid) csrrw_cnt <= csrrw_cnt + 1; 
-           if (~mintr & ~csrrw_valid &  scrw_valid & ~devrd_valid & ~mflag_valid & ~gpwa5_valid) scrw_cnt  <= scrw_cnt + 1; 
-           if (~mintr & ~csrrw_valid & ~scrw_valid &  devrd_valid & ~mflag_valid & ~gpwa5_valid) devrd_cnt <= devrd_cnt + 1; 
-           if (~mintr & ~csrrw_valid & ~scrw_valid & ~devrd_valid &  mflag_valid & ~gpwa5_valid) mflag_cnt <= mflag_cnt + 1; 
-           if (~mintr & ~csrrw_valid & ~scrw_valid & ~devrd_valid & ~mflag_valid &  gpwa5_valid) gpwa5_cnt <= gpwa5_cnt + 1; 
+           if ( mintr & ~csrrw_valid & ~scrw_valid & ~devrd_valid & ~mflag_valid & ~gpwa5_valid ) mintr_cnt <= mintr_cnt + 1; 
+           if (~mintr &  csrrw_valid & ~scrw_valid & ~devrd_valid & ~mflag_valid & ~gpwa5_valid ) csrrw_cnt <= csrrw_cnt + 1; 
+           if (~mintr & ~csrrw_valid &  scrw_valid & ~devrd_valid & ~mflag_valid & ~gpwa5_valid ) scrw_cnt  <= scrw_cnt + 1; 
+           if (~mintr & ~csrrw_valid & ~scrw_valid &  devrd_valid & ~mflag_valid & ~gpwa5_valid ) devrd_cnt <= devrd_cnt + 1; 
+           if (~mintr & ~csrrw_valid & ~scrw_valid & ~devrd_valid &  mflag_valid & ~gpwa5_valid ) mflag_cnt <= mflag_cnt + 1; 
+           if (~mintr & ~csrrw_valid & ~scrw_valid & ~devrd_valid & ~mflag_valid &  gpwa5_valid ) gpwa5_cnt <= gpwa5_cnt + 1; 
+
            if (rvfi_valid) rvfi_cnt <= rvfi_cnt + 1; 
            if (m_rvfis[0].valid) mrvfi_cnt <= mrvfi_cnt + 1; 
+
+           eot_found_d1 <= eot_found;
+
+           if (eot_found & ~eot_found_d1) begin
+               $display("EOT stats: hart=%0d : rvfi_cnt   : %0d", cpu_id, rvfi_cnt);
+               $display("EOT stats: hart=%0d : m_rvfi_cnt : %0d", cpu_id, mrvfi_cnt);
+               $display("EOT stats: hart=%0d : devrd_cnt  : %0d", cpu_id, devrd_cnt);
+               $display("EOT stats: hart=%0d : csrrw_cnt  : %0d", cpu_id, csrrw_cnt);
+               $display("EOT stats: hart=%0d : mintr_cnt  : %0d", cpu_id, mintr_cnt);
+               $display("EOT stats: hart=%0d : mcm_cnt    : %0d", cpu_id, mcm_cnt);
+           end
         end
     end
 
     assign poke_interrupt = mintr | mtrap_valid | m_core_intrs[0].valid | imsic_valid;
 
-    //assign poke_no_uop_event = ((rvfi_no_uop_events != '0) | (rvfi_val_luops != '0)) ? 1'b1 : 1'b0;
-    assign poke_no_uop_event = ((rvfi_no_uop_events != '0)) ? 1'b1 : 1'b0;
+    //assign poke_last_uop_event = ((rvfi_last_uop_events != '0) | (rvfi_val_luops != '0)) ? 1'b1 : 1'b0;
+    assign poke_last_uop_event = ((rvfi_last_uop_events != '0)) ? 1'b1 : 1'b0;
+    assign poke_last_insn_event= ((rvfi_last_insn_events != '0)) ? 1'b1 : 1'b0;
+    assign poke_debug_event=  ((psc_off_high !=0) & (clocks >= psc_off_low) & (clocks <= psc_off_high)) ? 1'b1 : 1'b0;
 
-    assign poke_event_out = (poke_events != '0) | send_regs | poke_no_uop_event | rvfi_debug_mode; 
+    assign poke_event_out = (poke_events != '0) | send_regs | poke_last_uop_event | poke_last_insn_event | rvfi_debug_mode | poke_debug_event; 
 
     assign send_rvfi =  poke_event_out | ~PSC_enabled;
 
-    assign mcmi_poke_write_en  = mcmi_poke_enable[0];
-    assign mcmi_poke_bypass_en = mcmi_poke_enable[1];
-    assign mcmi_poke_read_en   = mcmi_poke_enable[2];
-    assign mcmi_poke_insert_en = mcmi_poke_enable[3];
-    assign mcmi_poke_ievict_en = mcmi_poke_enable[4];
-
-    assign mcmi_poke = (mcmi_poke_write_en  & mcmi_write_poke)  |
-                       (mcmi_poke_bypass_en & mcmi_bypass_poke) |
-                       (mcmi_poke_read_en   & mcmi_read_poke)   |
-                       (mcmi_poke_insert_en & mcmi_insert_poke) |
-                       (mcmi_poke_ievict_en & mcmi_ievict_poke) ;
-
-    
     assign m_gp_regss[0].valid      = send_regs;
     assign m_gp_regss[0].data.hart  = NUM;
     assign m_gp_regss[0].data.cycle = clocks; 
@@ -646,6 +689,8 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
         if (reset) begin
             /* verilator lint_off BLKSEQ */
             rvfi_enabled = (cvm_plusargs::get_bool("rvfi") != '0) & (location != cvm_topology::nil);
+            mcm_enabled = (cvm_plusargs::get_bool("mcm") != '0);
+            to_host = is_eot_tohost();
             if (rvfi_enabled) begin
               $display("[cosim]: reset");
               cosim_set_scope(location);
@@ -682,7 +727,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
 
     // m_rvfi
     for (genvar n = 0; n < NRET; n++) begin
-        assign m_rvfis[n].valid            = RVFI_EN & rvfi_enabled & ~dut_reset & rvfi[n].valid & send_rvfi;
+        assign m_rvfis[n].valid            = (RVFI_EN & rvfi_enabled & ~dut_reset & rvfi[n].valid & send_rvfi);
         assign m_rvfis[n].data.location    = location;
         assign m_rvfis[n].data.cycle       = clocks;
         assign m_rvfis[n].data.hart        = NUM;
@@ -696,6 +741,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
         assign m_rvfis[n].data.last_insn   = rvfi[n].last_insn;
         assign m_rvfis[n].data.comp        = rvfi[n].comp;
         assign m_rvfis[n].data.order       = rvfi[n].order;
+        assign m_rvfis[n].data.branch_tag  = rvfi[n].branch_tag;
         assign m_rvfis[n].data.insn        = rvfi[n].insn;
         assign m_rvfis[n].data.uop         = rvfi[n].uop;
         assign m_rvfis[n].data.trap        = rvfi[n].trap;
@@ -752,12 +798,11 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
         // rvfi_priv:        mode bits loaded into latch on first ucode op (used for comparison needed for patch mode)                        // 
         // rvfi_instr_priv:  non-ucode gets mode bits, ucode sequence it gets latched mode bits on first_uop                                  // 
         // rvfi_priv_change: if priv mode bits change during a microcode sequence then this bit is SET, CLEAREd on last_uop=1                 // 
-        // rvfi_set_patch:   if priviledge level changes and the ucode priv starts at 4 then set patch_mode=1                                 // 
-        // rvfi_clr_patch:   if priviledge level changes and the ucode priv starts at 4 then set patch_mode=0 on last_uop=1                   // 
+        // rvfi_set_patch:   if last uop and mode is  4 (patch) then set patch_mode=1                                                         // 
+        // rvfi_clr_patch:   if last uop and mode is !4 (but previously was) 4 then set patch_mode=0                                          // 
         //------------------------------------------------------------------------------------------------------------------------------------//
 
         assign rvfi_mode[n]                = rvfi[n].mode;
-        assign rvfi_instr_priv[n]          = (~rvfi_instr_ucode[n] | rvfi_first_uop[n]) ? rvfi_mode[n] : rvfi_priv[n];
 
         if (n==0) begin
            assign rvfi_ucode[n]               = (rvfi[n].valid) ? ~rvfi[n].last_uop : rvfi_ucode_S;
@@ -767,11 +812,11 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
            assign rvfi_priv_change[n]         = (rvfi[n].valid==1'b0) ?  rvfi_priv_change_S :(
                                                    (rvfi_last_uop[n]==1'b1) ? 1'b0 : ( 
                                                    (~rvfi_first_uop[n] & rvfi_instr_ucode[n] & (rvfi_mode[n] != rvfi_priv_S)) ? 1'b1 : rvfi_priv_change_S));
-           assign rvfi_priv[n]                = (rvfi[n].valid & rvfi_first_uop[n] & rvfi_instr_ucode[n]) ? rvfi_mode[n] : rvfi_priv_S;  
-           assign rvfi_set_patch[n]           = (rvfi[n].valid & rvfi_instr_ucode[n] & ~rvfi_first_uop[n] & (rvfi_priv_S == 4'h4) & ~rvfi_patch_mode_S) ? 1'b1 : 1'b0; 
-           assign rvfi_clr_patch[n]           = (rvfi[n].valid & rvfi_last_uop[n] & rvfi_priv_change_S & (rvfi_priv[n] == 4'h4) & rvfi_patch_mode_S) ? 1'b1 : 1'b0; 
-           assign rvfi_patch_mode[n]          = (rvfi[n].valid==1'b0) ? rvfi_patch_mode_S : (
-                                                   rvfi_set_patch[n] ? 1'b1 : (rvfi_clr_patch[n] ? 1'b0 : rvfi_patch_mode_S)); 
+           assign rvfi_priv[n]                = (rvfi[n].valid==1'b0) ? rvfi_priv_S : ((rvfi_last_uop[n] | (rvfi_first_uop[n] & rvfi_instr_ucode[n])) ? rvfi_mode[n] : rvfi_priv_S);  
+           assign rvfi_instr_priv[n]          = (~rvfi_instr_ucode[n] | rvfi_first_uop[n]) ? rvfi_mode[n] : rvfi_priv_S;
+           assign rvfi_set_patch[n]           = (rvfi[n].valid & rvfi_last_uop[n] & (rvfi_mode[n] == 4'h4) & ~rvfi_patch_mode_S) ? 1'b1 : 1'b0; 
+           assign rvfi_clr_patch[n]           = (rvfi[n].valid & rvfi_last_uop[n] & (rvfi_mode[n] != 4'h4) &  rvfi_patch_mode_S) ? 1'b1 : 1'b0;
+           assign rvfi_patch_mode[n]          = (rvfi[n].valid==1'b0) ? rvfi_patch_mode_S : (rvfi_clr_patch[n] ? 1'b0 : (rvfi_set_patch[n] ? 1'b1 : rvfi_patch_mode_S)); 
         end
         else begin
            assign rvfi_ucode[n]               = (rvfi[n].valid) ? ~rvfi[n].last_uop : rvfi_ucode[n-1];
@@ -780,12 +825,12 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
            assign rvfi_first_uop[n]           = (rvfi[n].valid) ? ((~rvfi[n].last_uop) & rvfi_last_uop[n-1]) : 1'b0 ;
            assign rvfi_priv_change[n]         = (rvfi[n].valid==1'b0) ?  rvfi_priv_change[n-1] :(
                                                    (rvfi_last_uop[n]==1'b1) ? 1'b0 : ( 
-                                                   (~rvfi_first_uop[n] & rvfi_instr_ucode[n] & (rvfi_mode[n] != rvfi_priv[n-1])) ? 1'b1 : rvfi_priv_change_S));
-           assign rvfi_priv[n]                = (rvfi[n].valid & rvfi_first_uop[n] & rvfi_instr_ucode[n]) ? rvfi_mode[n] : rvfi_priv[n-1];  
-           assign rvfi_set_patch[n]           = (rvfi[n].valid & rvfi_instr_ucode[n] & ~rvfi_first_uop[n] & (rvfi_priv[n-1] == 4'h4) & ~rvfi_patch_mode[n-1]) ? 1'b1 : 1'b0; 
-           assign rvfi_clr_patch[n]           = (rvfi[n].valid & rvfi_last_uop[n] & rvfi_priv_change[n-1] & (rvfi_priv[n-1] == 4'h4) & rvfi_patch_mode[n-1]) ? 1'b1 : 1'b0; 
-           assign rvfi_patch_mode[n]          = (rvfi[n].valid==1'b0) ? rvfi_patch_mode[n-1] : (
-                                                   rvfi_set_patch[n] ? 1'b1 : (rvfi_clr_patch[n] ? 1'b0 : rvfi_patch_mode[n-1])); 
+                                                   (~rvfi_first_uop[n] & rvfi_instr_ucode[n] & (rvfi_mode[n] != rvfi_priv[n-1])) ? 1'b1 : rvfi_priv_change[n-1]));
+           assign rvfi_priv[n]                = (rvfi[n].valid==1'b0) ? rvfi_priv[n-1] : ((rvfi_last_uop[n] | (rvfi_first_uop[n] & rvfi_instr_ucode[n])) ? rvfi_mode[n] : rvfi_priv[n-1]);  
+           assign rvfi_instr_priv[n]          = (~rvfi_instr_ucode[n] | rvfi_first_uop[n]) ? rvfi_mode[n] : rvfi_priv[n-1];
+           assign rvfi_set_patch[n]           = (rvfi[n].valid & rvfi_last_uop[n] & (rvfi_mode[n] == 4'h4) & ~rvfi_patch_mode_S & ~rvfi_set_patch[n-1]) ? 1'b1 : 1'b0; 
+           assign rvfi_clr_patch[n]           = (rvfi[n].valid & rvfi_last_uop[n] & (rvfi_mode[n] != 4'h4) & rvfi_patch_mode_S & ~rvfi_clr_patch[n-1]) ? 1'b1 : 1'b0;
+           assign rvfi_patch_mode[n]          = (rvfi[n].valid==1'b0) ? rvfi_patch_mode[n-1] : (rvfi_clr_patch[n] ? 1'b0 : (rvfi_set_patch[n] ? 1'b1 : rvfi_patch_mode[n-1])); 
         end
     end   // for loop n
 
@@ -803,21 +848,23 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
            rvfi_last_uop_S        <= rvfi_last_uop[NRET-1];
            rvfi_priv_S            <= rvfi_priv[NRET-1];
            rvfi_priv_change_S     <= rvfi_priv_change[NRET-1];
-           rvfi_patch_mode_S      <= rvfi_patch_mode[NRET-1];
 
            if (rvfi_trap_patch != '0) begin
                rvfi_trap_pmode <= 1'b1;
            end
            else begin
                if (rvfi_clr_patch != '0) begin
-                  rvfi_trap_pmode <= 1'b0;
+                  rvfi_trap_pmode     <= 1'b0;
+                  rvfi_patch_mode_S   <= 1'b0;
                end
+               if (rvfi_set_patch != '0)
+                   rvfi_patch_mode_S <= 1'b1;
            end
         end
     end
 
 
-    assign poke_patch_mode = (rvfi_trap_patch != '0) | rvfi_trap_pmode | (rvfi_set_patch != '0) | (rvfi_patch_mode != '0); 
+    assign poke_patch_mode = (rvfi_trap_patch != '0) | rvfi_trap_pmode | (rvfi_set_patch != '0) | (rvfi_clr_patch != '0) | (rvfi_patch_mode != '0); 
 
 
     //---------------------------------------------------------------
@@ -836,7 +883,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
     // order skip is when either order[0] does not equal expected-order  OR
     // when the orders in current RVFI packets is not sequential
     //----------------------------------------------------------------------
-    //assign order_skip  = ((rvfi_valids != '0) & (rvfi_skips != '0) & ~rvfi_first_valid) ? 1'b1 : 1'b0; 
+    //assign order_skip  = (mcm_enabled & ((rvfi_valids != '0) & (rvfi_skips != '0) & ~rvfi_first_valid)) ? 1'b1 : 1'b0; 
     assign order_skip  = 1'b0; 
 
     assign val0_order   = rvfi_orders[0]; 
@@ -926,7 +973,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
 
     //assign send_regs = ((rvfi_valid & (rvfi_scheck_cnt >= cosim_period) & (rvfi_val_luops == 0)) | eot_found | reg_waddr5_event) & PSC_enabled & RVFI_EN & rvfi_enabled & ~dut_reset;
 
-    assign send_regs = ((rvfi_valid & (rvfi_scheck_cnt >= cosim_period) & (rvfi_val_luops == 0) & ~rvfi_dbg_excp & ~rvfi_trap_pmode) | eot_found) & PSC_enabled & RVFI_EN & rvfi_enabled & ~dut_reset;
+    assign send_regs = ((rvfi_valid & (rvfi_scheck_cnt >= cosim_period) & (rvfi_val_luops == 0) & ~rvfi_debug_mode & ~rvfi_trap_pmode) | eot_found) & PSC_enabled & RVFI_EN & rvfi_enabled & ~dut_reset; 
  
     //assign send_regs_i = ((~rvfi_valid & (rvfi_scheck_cnt >= cosim_period))  | eot_found) & PSC_enabled & RVFI_EN & rvfi_enabled & ~dut_reset;
 
@@ -977,7 +1024,7 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
 
     // m_mcmi_read
     for (genvar n = 0; n < NREAD; n++) begin
-        assign m_mcmi_reads[n].valid = MCMI_EN & rvfi_enabled & ~dut_reset & mcmi_read[n].valid;
+        assign m_mcmi_reads[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_reset & mcmi_read[n].valid;
         assign m_mcmi_reads[n].data.location = location;
         /* verilator lint_off WIDTH */
         assign m_mcmi_reads[n].data.cycle = mcmi_read[n].valid ? clocks : '0;
@@ -992,14 +1039,17 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
         assign m_mcmi_reads[n].data.amo = mcmi_read[n].amo;
         assign m_mcmi_reads[n].data.amo_op = mcmi_read[n].amo_op;
         assign m_mcmi_reads[n].data.v_ext = mcmi_read[n].v_ext;
-        assign m_mcmi_reads[n].data.nano_op_elem_idx = mcmi_read[n].nano_op_elem_idx;
+        assign m_mcmi_reads[n].data.elem_idx = mcmi_read[n].elem_idx;
+        assign m_mcmi_reads[n].data.field = mcmi_read[n].field;
         assign mcmi_read_pokes[n] = mcmi_read[n].valid;
+
     end
-    assign mcmi_read_poke = (mcmi_read_pokes != '0);
+
+
 
     // m_mcmi_insert
     for (genvar n = 0; n < NINSERT; n++) begin
-        assign m_mcmi_inserts[n].valid = MCMI_EN & rvfi_enabled & ~dut_reset & mcmi_insert[n].valid;
+        assign m_mcmi_inserts[n].valid = MCMI_EN & (mcm_enabled || (to_host == 'b1)) & rvfi_enabled & ~dut_reset & mcmi_insert[n].valid;
         assign m_mcmi_inserts[n].data.location = location;
         assign m_mcmi_inserts[n].data.cycle = mcmi_insert[n].valid ? clocks : '0;
         assign m_mcmi_inserts[n].data.hart = NUM;
@@ -1013,11 +1063,10 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
         assign eot_insert_found[n] = ((eot_addr != '0) &  mcmi_insert[n].valid & (mcmi_insert[n].addr == $bits(mcmi_insert[n].addr)'(eot_addr)) & ( mcmi_insert[n].data[0] == 1'b1) & (mcmi_insert[n].data[63:56] == 0)) ? 1'b1 : 1'b0;
     end
 
-    assign mcmi_insert_poke = (mcmi_read_pokes != '0);
 
     // m_mcmi_write
     for (genvar n = 0; n < NWRITE; n++) begin
-        assign m_mcmi_writes[n].valid = MCMI_EN & rvfi_enabled & ~dut_reset & mcmi_write[n].valid;
+        assign m_mcmi_writes[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_reset & mcmi_write[n].valid;
         assign m_mcmi_writes[n].data.location = location;
         assign m_mcmi_writes[n].data.cycle = mcmi_write[n].valid ? clocks : '0;
         assign m_mcmi_writes[n].data.hart = NUM;
@@ -1034,11 +1083,10 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
         assign eot_writes_found[n] = ((eot_addr != '0) &  mcmi_write[n].valid & (mcmi_write[n].addr == $bits(mcmi_write[n].addr)'(eot_addr)) & ( mcmi_write[n].data[0] == 1'b1) & (mcmi_write[n].data[63:56] == 0)) ? 1'b1 : 1'b0;
     end
 
-    assign mcmi_write_poke = (mcmi_write_pokes != '0);
 
     // m_mcmi_bypass
     for (genvar n = 0; n < NBYPASS; n++) begin
-        assign m_mcmi_bypasss[n].valid = MCMI_EN & rvfi_enabled & ~dut_reset & mcmi_bypass[n].valid;
+        assign m_mcmi_bypasss[n].valid = MCMI_EN & (mcm_enabled || (to_host == 'b1)) & rvfi_enabled & ~dut_reset & mcmi_bypass[n].valid;
         assign m_mcmi_bypasss[n].data.location = location;
         assign m_mcmi_bypasss[n].data.cycle = mcmi_bypass[n].valid ? clocks : '0;
         assign m_mcmi_bypasss[n].data.hart = NUM;
@@ -1058,22 +1106,22 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
         assign mcmi_bypass_pokes[n] = mcmi_bypass[n].valid;
     end
 
-    assign mcmi_bypass_poke = (mcmi_bypass_pokes != '0);
 
     assign eot_found = ~dut_reset & ((eot_writes_found != 0) | (eot_bypass_found != 0) | (eot_insert_found != '0) | eot_max_instr) ? 1'b1 : 1'b0; 
 
     // m_mcmi_ifetch
     for (genvar n = 0; n < NIFETCH; n++) begin
-        assign m_mcmi_ifetch_reqs[n].valid = MCMI_EN & rvfi_enabled & ~dut_reset & mcmi_ifetch_req[n].valid;
+        assign m_mcmi_ifetch_reqs[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_reset & mcmi_ifetch_req[n].valid;
         assign m_mcmi_ifetch_reqs[n].data.location = location;
         assign m_mcmi_ifetch_reqs[n].data.cycle = mcmi_ifetch_req[n].valid ? clocks : '0;
         assign m_mcmi_ifetch_reqs[n].data.hart = NUM;
         assign m_mcmi_ifetch_reqs[n].data.order = mcmi_ifetch_req[n].order;
         assign m_mcmi_ifetch_reqs[n].data.addr = mcmi_ifetch_req[n].addr;
+        assign m_mcmi_ifetch_reqs[n].data.attr = mcmi_ifetch_req[n].attr;
     end
 
     for (genvar n = 0; n < NIFETCH; n++) begin
-        assign m_mcmi_ifetch_resps[n].valid = MCMI_EN & rvfi_enabled & ~dut_reset & mcmi_ifetch_resp[n].valid;
+        assign m_mcmi_ifetch_resps[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_reset & mcmi_ifetch_resp[n].valid;
         assign m_mcmi_ifetch_resps[n].data.location = location;
         assign m_mcmi_ifetch_resps[n].data.cycle = mcmi_ifetch_resp[n].valid ? clocks : '0;
         assign m_mcmi_ifetch_resps[n].data.hart = NUM;
@@ -1082,25 +1130,27 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
 
     // m_mcmi_ievict
     for (genvar n = 0; n < NIEVICT; n++) begin
-        assign m_mcmi_ievicts[n].valid = MCMI_EN & rvfi_enabled & ~dut_reset & mcmi_ievict[n].valid;
+        assign m_mcmi_ievicts[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_reset & mcmi_ievict[n].valid;
         assign m_mcmi_ievicts[n].data.location = location;
         assign m_mcmi_ievicts[n].data.cycle = mcmi_ievict[n].valid ? clocks : '0;
         assign m_mcmi_ievicts[n].data.hart = NUM;
         assign m_mcmi_ievicts[n].data.addr = mcmi_ievict[n].addr;
         assign mcmi_ievict_pokes[n] = mcmi_ievict[n].valid;
     end
-    assign mcmi_ievict_poke = (mcmi_ievict_pokes != '0);
 
     // m_trap
-    for (genvar n = 0; n < NRET; n++) begin
-        assign m_traps[n].valid = RVFI_EN & rvfi_enabled & ~dut_reset & (rvfi[n].cause != 0);
-        assign m_traps[n].data.location = location;
-        assign m_traps[n].data.cycle = clocks;
-        assign m_traps[n].data.id = get_trap_id(rvfi[n].cause);
-        assign m_traps[n].data.cause = rvfi[n].cause;
-        assign rvfi_trap_patch[n] =  RVFI_EN & rvfi_enabled & ~dut_reset & (rvfi[n].cause != 0) & (rvfi[n].cause >= 58) & ~rvfi[n].cause[63];
-
+    logic [63:0] cause_d1, cause_d2, cause_d3;
+    always @(posedge clk) begin
+      cause_d1 <= rvfi[0].cause;
+      cause_d2 <= cause_d1;
+      cause_d3 <= cause_d2;
     end
+    assign m_traps[0].valid = RVFI_EN & rvfi_enabled & ~dut_reset & (cause_d3 != 0);
+    assign m_traps[0].data.location = location;
+    assign m_traps[0].data.cycle = clocks;
+    assign m_traps[0].data.id = get_trap_id(cause_d3);
+    assign m_traps[0].data.cause = cause_d3;
+    assign rvfi_trap_patch =  RVFI_EN & rvfi_enabled & ~dut_reset & (cause_d3 != 0) & (cause_d3 >= 58) & ~cause_d3[63];
    
     
 
@@ -1262,23 +1312,26 @@ bit [PA_WIDTH-1:0] mmr_lo_addr_const='h42000000;
     assign debug_entry_pc = (debug_entry_pc_arg != '0) ? PA_WIDTH'(debug_entry_pc_arg) : debug_entry_pc_const;
     assign debug_exit_pc  = (debug_exit_pc_arg != '0)  ? PA_WIDTH'(debug_exit_pc_arg) : debug_exit_pc_const; 
 
+
     always @(posedge tb_clk) begin
       if (reset) begin
         /* verilator lint_off BLKSEQ */
         max_cycle = cvm_plusargs::get_ulongint("max_cycle");
         max_stall_cycle = cvm_plusargs::get_int("max_stall_cycle");
         cosim_period = cvm_plusargs::get_int("cosim_period");
-        mcmi_poke_enable = cvm_plusargs::get_int("mcmi_poke_enables");
         max_instructions = cvm_plusargs::get_ulongint("max_instr");
         nharts = cvm_plusargs::get_int("num_harts");
         hart_enable_mask = cvm_plusargs::get_int("hart_enable_mask");
         debug_entry_pc_arg = cvm_plusargs::get_ulongint("debug_entry_pc");
         debug_exit_pc_arg  = cvm_plusargs::get_ulongint("debug_exit_pc");
+        //mcm_value  = cvm_plusargs::get_int("mcm");
+        psc_off_low  = cvm_plusargs::get_ulongint("psc_off_low");
+        psc_off_high = cvm_plusargs::get_ulongint("psc_off_high");
 
         /* verilator lint_on BLKSEQ */
         boot_wfi <= '0;
         cosim_terminate_sent <= '0;
-      end else if(!dut_reset) begin
+      end else if(!reset) begin
         if (NUM != 0 && rvfi[0].valid == '1 && rvfi[0].insn[6:0] == 7'h73 && rvfi[0].pc_rdata < 'h20000) begin // WFI
           boot_wfi <= '1;
         end

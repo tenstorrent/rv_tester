@@ -4,8 +4,8 @@
 
 REGISTRY_register(patch_control_sequence, PWRMGMT, cvm::registry::all);
 
-DEFINE_bool(rand_pcontrol, false, "Enable random smc axi accesses in the sim");
-DEFINE_string(pcontrol_count, "5:5", "Number of smc axi sequences in the sim");
+DEFINE_bool(pcontrol_rand_en, false, "Enable random smc axi accesses in the sim");
+DEFINE_string(pcontrol_count, "200:250", "Number of smc axi sequences in the sim");
 DEFINE_string(pcontrol_interval, "10000:10000", "soc cycle interval between smc axi sequences in the sim");
 DEFINE_string(pcontrol_width, "1:1", "soc cycle width of smc axi sequences in the sim");
 
@@ -15,12 +15,12 @@ patch_control_sequence::patch_control_sequence
 
   // Topology
   smc_axi_loc_ = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_SMC_MST", 0);
-
-  if (!FLAGS_rand_pcontrol)
-    return;
+  
+  FLAGS_pcontrol_width = fmt::format("{}:{}",FLAGS_num_harts, FLAGS_num_harts);
 
   // main sequence thread
-  main_thread();
+  if (FLAGS_pcontrol_rand_en)
+    main_thread();
 }
 
 patch_control_sequence::~patch_control_sequence() {
@@ -37,15 +37,23 @@ void patch_control_sequence::main_thread() {
 };
 
 cvm::messenger::task<void> patch_control_sequence::main() {
+  co_await tick();
+  pcontrol_data = co_await read(core_pcontrol_mmr , SZ_8B, BLOCK);
+  pcontrol_enable_mask = pcontrol_data & 0x1000100010001;
   while (true) {
-    co_await tick();
     co_await pcontrol_write();
+    co_await tick();
   }
   co_return;
 }
 
 cvm::messenger::task<void> patch_control_sequence::pcontrol_write() {
-  // FIXME co_await write(core_pcontrol_mmr, SZ_8B, data, NO_BLOCK);
+  cvm::log(cvm::MEDIUM, "pcontrol_data = 0x{:x}, pcontrol_enable_mask = 0x{:x}\n", pcontrol_data, pcontrol_enable_mask);
+  pcontrol_data = (pcontrol_data ^ pcontrol_enable_mask);
+  for (uint32_t i=0; i< FLAGS_num_harts; i++) {
+    uint32_t offset = i * core_fuse_offset;
+    co_await write(core_pcontrol_mmr + offset, SZ_8B, pcontrol_data , NO_BLOCK);
+  };
   co_return;
 }
 

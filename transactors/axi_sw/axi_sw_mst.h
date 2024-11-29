@@ -52,6 +52,8 @@ class axi_sw_mst {
         void process(const transactor::read_request_t& req);
         void process(const transactor::write_request_t& req);
         bool a_wrapper(uint64_t req_addr, size_t req_length, axi::a_t& a);
+        bool push_a_no_id(const bool& aw, const axi::a_no_id_t& a_no_id, id_t& id);
+        void push_w(const axi::w_t& w);
         void push_transactions();
         void reset_ptrs();
         void set_scope(svScope scope);
@@ -67,6 +69,9 @@ class axi_sw_mst {
             return std::nullopt;
         }
 
+        std::optional<unsigned> read(transactor::read_request_t r);
+
+        std::string name_;
         svScope scope_;
         cvm::topology::loc_t loc_;
         unsigned id_;
@@ -96,5 +101,7 @@ class axi_sw_mst {
         axi_sw_mst(cvm::topology::loc_t loc, unsigned id);
         ~axi_sw_mst();
 
-        CVM_MESSENGER_procedure_call(claim_id, std::optional<unsigned> ());
+        CVM_MESSENGER_procedure_call(push_ar_no_id_rpc, bool (const axi::a_no_id_t& ar, axi::id_t& id));
+        CVM_MESSENGER_procedure_call(push_aw_no_id_rpc, bool (const axi::a_no_id_t& aw, axi::id_t& id));
+        CVM_MESSENGER_procedure_call(push_w_rpc, void (const axi::w_t& w));
 };

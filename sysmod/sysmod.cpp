@@ -28,31 +28,37 @@
 #include "pmu/pmu_plusargs.h"
 #include "cosim/utils/general/util.h"
 #include "sysmod_params.hpp"
+#include "cosim/bridge/bridge_plusargs.h"
+#include "rv_tester_transactions.hpp"
 
 // internal flags
+DEFINE_uint64(seed, 1, "Simulation seed passed down for randomization");
 DEFINE_string(hex, "", "hex file (program) to load into memory");
 DEFINE_string(load, "", "elf file (program) to load into memory");
 DEFINE_string(load_lz4, "", "lz4 compressed file (program) to load into memory. If there's a colon, the number after the colon is interpreted as the offset to load the image into memory");
 DEFINE_bool(bootrom, true, "Load bootrom before test");
-DEFINE_bool(enable_sp_init, false, "Enable sharedcache scratchpad initilization from bootrom");
 DEFINE_string(bootrom_path, "", "Path to bootrom object file");
+DEFINE_bool(cplfw, false, "Load cpl firmware before test");
 DEFINE_string(cplfw_path, "", "Path to cpl firmware object file");
 DEFINE_string(load_io, "", "load specified io dev with content from memory");
 DEFINE_bool(sysmod_tick_async, true, "Asynchronous sysmod_tick calls");
 DEFINE_uint64(sysmod_tick_update_threshold, 1, "Slow down tick update frequency by this factor. The tick is still eventually advanced the same cumulative amount, just not as often. Useful for emulation where the clock counts much faster but tests setup interrupts to happen very soon for simulation. They git hit by an interrupt storm and are stuck in the interrupt handler forever.");
-DEFINE_uint64(sp_ways_num, 0x1, "Number of sharedcache ways to be alloted as Scratchpad");
 DEFINE_string(set_csr, "", "+set_csr=<csr_num>:<value>,<num2>:<val2> ");
 DEFINE_string(set_mmr, "", "+set_mmr=<addr>:<size>:<value>,<addr2>:<size>:<val2>");
-DEFINE_uint64(seed, 1, "Simulation seed passed down for randomization");
+//core harvesting
 DEFINE_bool(rand_core_harvest, false, "Randomize core harvest options");
 DEFINE_uint32(num_harts, 0, "Number of enabled harts - upto 8");
 DEFINE_uint32(hart_enable_mask, 0, "Hart enable mask. Ex: With 2 enabled harts in a 8-hart system, could be 0x18. Should match num_harts.");
 DEFINE_string(hart_enable_id, "", "Hart id sequence corresponding to physical cores. Ex: With 2 enabled harts in a 8-hart system, could be 4,3 i.e. hart0=core4, hart1=core3.");
+// SC harvesting
 DEFINE_bool(rand_sc_harvest, false, "Randomize sc harvest options");
 DEFINE_int32(num_sc_dis_ways, -1, "Number of disabled SC ways - upto 24 in multiples of 4");
 DEFINE_int32(sc_dis_ways_mask, -1, "SC way enable mask. Ex: With 20 enabled ways out of 24, could be 0xF0_FFFF.");
+// scratchpad 
+DEFINE_bool(enable_sp_init, false, "Enable sharedcache scratchpad initilization from bootrom");
 DEFINE_bool(rand_sp_ways, false, "Randomize number of SC ways reserved for scratchpad");
 DEFINE_int32(num_sp_ways, -1, "Number of SC ways reserved for scratchpad");
+
 DEFINE_uint32(trace_enable, 1, "Trace enable fuse");
 DEFINE_int32(strobe_type,4, "strobe type need to be driven for random access");
 DEFINE_uint32(overlay_num_times,3, "Maximum number of debug snippets to be driven");
@@ -84,7 +90,7 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
       loc_,
       [this](const uint64_t& t) {  // FIXME: using signal to send data from whisper client to sysmod
       if (t == 0)
-        return this->load_csr_mmr_boot(t);
+        return this->load_csr_mmr_boot(0);
       return this->store_dm_randpc();
       });
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::tick<>>(
@@ -122,9 +128,14 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
   for(uint32_t i = 0 ; i < num_harts ; i++) {
     int unsigned location = cvm::topology::get_from_type("CORE", i);
     cvm::registry::messenger.connect<inval_load_s>(location , [this] (const auto& payload) { return this->store_inval_load(payload); });
-    cvm::registry::messenger.connect<inval_crsp_s>(location , [this] (const auto& payld) { return this->store_inval_crsp(payld); });
+    cvm::registry::messenger.connect<inval_crsp_s>(location , [this] (const auto& payld) { return this->store_inval_crsp(payld, 1 /*mcm*/); });
   }
 
+  cvm::registry::messenger.connect<cbo_inval_nomcm_s>(loc_, [this] (const auto& cbo_inval_nomcm) {
+    inval_crsp_s payload;
+    payload.address = cbo_inval_nomcm.address;
+    return this->store_inval_crsp(payload, 0/*nomcm*/);
+  });
   cvm::registry::messenger.connect<sysmod::backdoor_write_t>(
       loc_,
       [this](sysmod::backdoor_write_t t) { 
@@ -265,10 +276,8 @@ sysmod::core_harvest_plusargs()
 void
 sysmod::sc_harvest_plusargs()
 {
-  if (FLAGS_enable_sp_init) {
-    FLAGS_rand_sp_ways = true;
-  }
 
+  FLAGS_rand_sp_ways = FLAGS_rand_sp_ways || FLAGS_enable_sp_init;
   // Plusargs: num_sc_dis_ways, sc_dis_ways_mask, num_sp_ways
   int32_t nways = cvm::topology::attr(cvm::topology::get_from_type("CORE", 0), "SC_NUM_WAYS").second;
   int32_t dis_ways = FLAGS_num_sc_dis_ways;
@@ -296,66 +305,61 @@ sysmod::sc_harvest_plusargs()
   uint8_t expr = ((dis_ways != -1) << 2) | ((mask != -1) << 1) | (sp_ways != -1);
   switch (expr) {
     case 0:
-      if (FLAGS_perf || !FLAGS_rand_sc_harvest) {
-        FLAGS_num_sc_dis_ways = 0;
-        FLAGS_sc_dis_ways_mask = 0;
-      } else {
-
+      FLAGS_num_sc_dis_ways = 0;
+      FLAGS_sc_dis_ways_mask = 0;
+      if (FLAGS_rand_sc_harvest) {
         FLAGS_num_sc_dis_ways = get_rand_dis_ways(nways);
-        cvm::log(cvm::MEDIUM, " Randomizing sc ways : {}, num_sc_dis_ways = {}\n", nways, FLAGS_num_sc_dis_ways );
-
         FLAGS_sc_dis_ways_mask = get_rand_ways_mask(FLAGS_num_sc_dis_ways, nways);
+        cvm::log(cvm::MEDIUM, " Randomizing sc ways : {}, num_sc_dis_ways = {}\n", nways, FLAGS_num_sc_dis_ways );
       }
-      if (FLAGS_perf || !FLAGS_rand_sp_ways) {
-        FLAGS_num_sp_ways = 0;
-      } else {
+      FLAGS_num_sp_ways = 0;
+      if (FLAGS_rand_sp_ways)
         FLAGS_num_sp_ways = get_rand_sp_ways(nways - FLAGS_num_sc_dis_ways);
-      }
       break;
+
     case 1: // +num_sp_ways
-      if (!FLAGS_rand_sc_harvest) {
-        FLAGS_num_sc_dis_ways = 0;
-        FLAGS_sc_dis_ways_mask = 0;
-      } else {
+      FLAGS_num_sc_dis_ways = 0;
+      FLAGS_sc_dis_ways_mask = 0;
+      if (FLAGS_rand_sc_harvest) {
         FLAGS_num_sc_dis_ways = get_rand_dis_ways(nways - sp_ways);
         FLAGS_sc_dis_ways_mask = get_rand_ways_mask(FLAGS_num_sc_dis_ways, nways);
       }
       break;
+
     case 2: // +sc_dis_ways_mask
+      FLAGS_num_sp_ways = 0;
       FLAGS_num_sc_dis_ways = mask_dis_ways;
-      if (!FLAGS_rand_sp_ways) {
-        FLAGS_num_sp_ways = 0;
-      } else {
+      if (FLAGS_rand_sp_ways)
         FLAGS_num_sp_ways = get_rand_sp_ways(nways - FLAGS_num_sc_dis_ways);
-      }
       break;
+
     case 3: // +num_sp_ways, +sc_dis_ways_mask
       if (((mask_dis_ways + sp_ways) < 0) || ((mask_dis_ways + sp_ways) > 24))
         cvm::log(cvm::ERROR, "Error: Incompatible plusargs: count(+sc_dis_ways_mask {}) + +num_sp_ways {}, should be between [0,{}]\n", mask_dis_ways, sp_ways, nways);
       FLAGS_num_sc_dis_ways = mask_dis_ways;
       break;
+
     case 4: // +num_sc_dis_ways
       FLAGS_sc_dis_ways_mask = get_rand_ways_mask(FLAGS_num_sc_dis_ways, nways);
-      if (!FLAGS_rand_sp_ways) {
-        FLAGS_num_sp_ways = 0;
-      } else {
+      FLAGS_num_sp_ways = 0;
+      if (FLAGS_rand_sp_ways)
         FLAGS_num_sp_ways = get_rand_sp_ways(nways - FLAGS_num_sc_dis_ways);
-      }
       break;
+
     case 5: // +num_sc_dis_ways, +num_sp_ways
       if (((dis_ways + sp_ways) < 0) || ((dis_ways + sp_ways) > 24))
         cvm::log(cvm::ERROR, "Error: Incompatible plusargs: +num_sc_dis_ways {} + +num_sp_ways {}, should be between [0,{}]\n", dis_ways, sp_ways, nways);
       FLAGS_sc_dis_ways_mask = get_rand_ways_mask(dis_ways, nways);
       break;
+
     case 6: // +num_sc_dis_ways, +sc_dis_ways_mask
       if (dis_ways != mask_dis_ways)
         cvm::log(cvm::ERROR, "Error: Incompatible plusargs: +num_sc_dis_ways {} != count(+num_dis_ways_mask {})\n", dis_ways, mask_dis_ways);
-      if (!FLAGS_rand_sp_ways) {
-        FLAGS_num_sp_ways = 0;
-      } else {
+      FLAGS_num_sp_ways = 0;
+      if (FLAGS_rand_sp_ways)
         FLAGS_num_sp_ways = get_rand_sp_ways(nways - FLAGS_num_sc_dis_ways);
-      }
       break;
+
     case 7: // +num_sc_dis_ways, +sc_dis_ways_mask, +num_sp_ways
       if (dis_ways != mask_dis_ways)
         cvm::log(cvm::ERROR, "Error: Incompatible plusargs: +num_sc_dis_ways {} != count(+num_dis_ways_mask {})\n", dis_ways, mask_dis_ways);
@@ -618,7 +622,10 @@ sysmod::uc_helper_backdoor_write(uc_helper::uc_helper_write_t w) {
 
 }
 // FIXME: Use Remote Procedure calls to make code generic
-void sysmod::store_inval_crsp(const inval_crsp_s& payld) {
+void sysmod::store_inval_crsp(const inval_crsp_s& payld, bool mcm) {
+  cvm::log(cvm::HIGH, "CBO_INVAL_MONITOR::MCM={} FLAGS_MCM={}\n", mcm, FLAGS_mcm );
+  if ( mcm and !FLAGS_mcm) return;
+  if (!mcm and  FLAGS_mcm) return;
   inval_crsp_ = payld;
   // Compulsive Backdoor write
   device::data_t data(8);
@@ -631,7 +638,7 @@ void sysmod::store_inval_crsp(const inval_crsp_s& payld) {
     for (int i=0; i<8; ++i) 
       read_data |= uint64_t(data[i]) << (i*8);
     bool valid = true;
-    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', (ld_addr + (offset*8)), 8, read_data, valid) || !valid) {
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', (ld_addr + (offset*8)), 8, read_data, valid) || !valid) && FLAGS_whisper_client_check) {
       cvm::log(cvm::ERROR, "Error: store_inval_crsp failed to poke whisper memory");
     }
   }
@@ -654,7 +661,7 @@ void sysmod::store_inval_load(const inval_load_s& payload) {
     // For AMO MB Bypass -> We dont need to check with main memory contents
     bool valid = true;
     cvm::log(cvm::HIGH, "CBO_INVAL_MONITOR :: Whisper Poke with data:{:#x} for AMO MB Bypass to address:{:#x}\n",inval_load_.data,ld_addr);
-    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', ld_addr, size, inval_load_.data, valid)) {
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', ld_addr, size, inval_load_.data, valid)) && FLAGS_whisper_client_check) {
       cvm::log(cvm::ERROR, "Error: store_inval_load failed to poke whisper memory in AMO MB Bypass case\n"); 
     }
   }
@@ -664,7 +671,7 @@ void sysmod::store_inval_load(const inval_load_s& payload) {
     // No need to poke entire cacheline granularity - that will be done after CRSP
     bool valid = true;
     cvm::log(cvm::HIGH, "CBO_INVAL_MONITOR :: Whisper Poke with data:{:#x} for address:{:#x}\n",read_data,ld_addr);
-    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', ld_addr, size, read_data, valid) || !valid) {
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', ld_addr, size, read_data, valid) || !valid) && FLAGS_whisper_client_check) {
       cvm::log(cvm::ERROR, "Error: store_inval_load failed to poke whisper memory\n"); 
     }
   }
@@ -677,7 +684,7 @@ cvm::messenger::task<uint64_t> sysmod::backdoor_write(sysmod::backdoor_write_t t
 
     if (FLAGS_cosim) {
       bool valid = true;
-      if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', t.address, 8, t.data, valid) || !valid)
+      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', t.address, 8, t.data, valid) || !valid) && FLAGS_whisper_client_check)
         cvm::log(cvm::ERROR, "Error: backdoor_write failed to poke whisper memory\n");
     }
       
@@ -769,8 +776,7 @@ sysmod::reset() {
   load_prog(FLAGS_hex, FLAGS_load, FLAGS_load_lz4);
   load_io(FLAGS_load_io);
   load_boot(FLAGS_bootrom_path);
-  if (!FLAGS_cosim)
-    load_csr_mmr_boot(0);
+  load_csr_mmr_boot(1);
   load_cplfw(FLAGS_cplfw_path);
 }
 
@@ -1068,23 +1074,27 @@ sysmod::load_boot(const std::string& boot)
 }
 
 void
-sysmod::load_csr_mmr_boot(uint64_t)
+sysmod::load_csr_mmr_boot(uint64_t dut)
 {
   if (!FLAGS_bootrom)
       return;
   if (FLAGS_set_csr == "" && FLAGS_set_mmr == "")
       return;
   int addr;
-  auto add_to_mem = [&addr, this] (const uint32_t op) {
-    device::strb_t strb(4);
-    for (size_t i = 0; i<4; i++) strb[i] = true;
-    cvm::log(cvm::HIGH, "Address: {:#x} OPCODE: {:#x}\n",addr, op);
-    bool valid = true;
-    device::data_t data(4);
-    for (size_t i=0; i<4; i++) data[i] = op >> 8*i;
-    dev("boot")->backdoor_write(addr, 4, data, strb);
-    if (FLAGS_cosim && (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', addr, op, valid) || !valid))
-      cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
+  auto add_to_mem = [&addr, &dut, this] (const uint32_t op) {
+    if (dut) {
+      device::strb_t strb(4);
+      for (size_t i = 0; i<4; i++) strb[i] = true;
+      cvm::log(cvm::HIGH, "Address: {:#x} OPCODE: {:#x}\n",addr, op);
+      device::data_t data(4);
+      for (size_t i=0; i<4; i++) data[i] = op >> 8*i;
+      dev("boot")->backdoor_write(addr, 4, data, strb);
+    }
+    else {
+      bool valid = true;
+      if (FLAGS_cosim && (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', addr, op, valid) || !valid) && FLAGS_whisper_client_check)
+        cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
+    }
     addr += 4;
   };
 
@@ -1095,11 +1105,22 @@ sysmod::load_csr_mmr_boot(uint64_t)
     for (const auto& mmr : mmrs)
       mmr_map[mmr.name] = mmr.address;
     try {
-      std::vector<std::string> mmr_vals = cosim_util::split_string(FLAGS_set_mmr, ',');
+      std::vector<std::string> mmr_vals = cosim_util::split_string(FLAGS_set_mmr, ",");
       for (const auto& entry : mmr_vals) {
-        std::vector<std::string> mmr_val = cosim_util::split_string(entry, ':');
+        std::vector<std::string> mmr_val = cosim_util::split_string(entry, ":");
+
         auto mmr = mmr_val.at(0);
-        addr = mmr_map.count(mmr)? mmr_map[mmr] : std::stoull(mmr_val.at(0), nullptr, 0);
+        if (mmr_map.count(mmr)) {
+          addr = mmr_map[mmr];
+        } else if (mmr.find("slice") != std::string::npos) {
+          std::vector<std::string> mmr_vec = cosim_util::split_string(entry, "_slice");
+          addr = mmr_map[mmr_vec.at(0)];
+          auto slice = std::stoull(mmr_vec.at(1), nullptr, 0);
+          addr = addr + slice * 0x10000;
+        } else {
+          addr = std::stoull(mmr, nullptr, 0);
+        }
+
         auto size  = std::stoull(mmr_val.at(1), nullptr, 0);
         auto value = std::stoull(mmr_val.at(2), nullptr, 0);
         if (!(size == 1 || size == 2 || size == 4 || size == 8)) {
@@ -1142,10 +1163,10 @@ sysmod::load_csr_mmr_boot(uint64_t)
       csr_map[csr.name] = csr.address;
 
     try { // parse the +set_csr and report any errors
-      char delimiter = ',';
+      std::string delimiter = ",";
       std::vector<std::string> csr_num_val = cosim_util::split_string(FLAGS_set_csr, delimiter);
       for (const auto& entry : csr_num_val) {
-        delimiter = ':';
+        delimiter = ":";
         std::vector<std::string> num_val = cosim_util::split_string(entry, delimiter);
         auto csr = num_val.at(0); // expect both csr address("0x301") as well as string("misa")
         auto value = std::stoull(num_val.at(1), nullptr, 0);
@@ -1188,7 +1209,7 @@ sysmod::load_csr_mmr_boot(uint64_t)
 void
 sysmod::load_cplfw(const std::string& cplfw)
 {
-  if (cplfw != "") {
+  if (FLAGS_cplfw && cplfw != "") {
     cvm::log(cvm::MEDIUM, "Loading {}\n", cplfw);
     if (cplfw.substr(cplfw.length() - 3) == "elf") {
       if (not dev("memory") or not dynamic_cast<sysmod_mem&>(*dev("memory")).init_elf(cplfw)) {

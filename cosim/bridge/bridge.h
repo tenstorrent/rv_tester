@@ -165,6 +165,7 @@ private:
 
   bool is_custom_excp(uint64_t cause);
   bool is_vector(const std::string& instr);
+  bool is_indirect_reg(const std::string& instr);
   bool disable_pa_check_vec(hart_id_t hart);
   bool is_compressed(const std::string& instr);
   bool is_ucode(const std::string& instr);
@@ -179,7 +180,8 @@ private:
   bool debug_mem_access(const rv_instr_t& d);
   bool unsupported_mmr_access(const rv_instr_t& d);
   bool unsupported_csr_access(const std::string& instr);
-  bool cpl_smc_access(const rv_instr_t& d);
+  bool uart_access(const rv_instr_t& d);
+  bool sc_slice_status(const rv_instr_t& d);
   bool htif_read(const rv_instr_t& d);
   bool hpm_counter_read(const std::string& instr);
   bool mip_mismatch(const std::string& instr);
@@ -190,7 +192,8 @@ private:
   std::string get_nth_word(const std::string& s, int n);
 
 private:
-
+  
+  const uint64_t sc_slice_base_ = 0x421A0008;
   std::map<uint64_t, std::string> hypervisor_csr_map_ = {
         {0x600, "hstatus"},      // Hypervisor status register -
         {0x602, "hedeleg"},      // Hypervisor exception delegation register -
@@ -223,6 +226,10 @@ private:
         {0x244, "vsip"}, // -
         {0x280, "vsatp"} // -
     };
+
+  // MCM order map needed for periodic cosim
+  std::unordered_map<uint64_t , int> mcm_orders_; 
+
 
   cvm::file_logger bridge_log_;
   cvm::topology::loc_t loc_;
@@ -265,6 +272,8 @@ private:
   uint16_t mpp_ = 0;
   uint16_t mpv_ = 0;
   bool csr_rename_en_ = false;
+  bool csr_rd_opt_ = false;
+  bool prev_csr_rd_opt_ = false;
 
   uint64_t dummy_data_ = 0;
   hart_id_t dummy_hart_ = 0;
@@ -309,6 +318,7 @@ private:
   std::array<std::array<int, 16>, 12> num_taken_interrupts_{};
 
   int num_exceptions_ = 0;
+  int num_trig_breakpoint_ = 0;
   int num_sp_accesses_ = 0;
 
   size_8_bytes_t dword_vec_array [vlen/64] = {0};

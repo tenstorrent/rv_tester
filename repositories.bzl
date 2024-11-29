@@ -14,7 +14,7 @@ def rv_tester_repositories():
         #sha256 = "af87959afe497dc8dfd4c6cb66e1279cb98ccc84284619ebfec27d9c09a903de",
     )
 
-    corearchcoverage_hash="88553905635a5ba8891716ca05aa1e074734082e"
+    corearchcoverage_hash="28b76a3ac19a99272f57a7bc7055832cbec57333"
     maybe(
         git_repository,
         name = "corearchcoverage",
@@ -23,11 +23,11 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv/dv/corearchcoverage.git",
     )
 
-    cvm_hash="3b6b652505d35b42ac8fe0dba331fd0910c768f8"
+    cvm_hash="8598527bc3222da26c712ee35f8df79345b2905b"
     maybe(
         http_archive,
         name = "cvm",
-        sha256 = "98b097f60979303e9eac51a49c913cfc41515285e447ef52044000d6fd22d4bd",
+        sha256 = "497170df2817a5608dd2c926ec68759c4f9a9e35600932172396a481bb805e9c",
         strip_prefix = "cvm-{commit}".format(commit=cvm_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/{commit}/cvm-{commit}.tar.bz2".format(commit=cvm_hash),
     )
@@ -91,4 +91,12 @@ def rv_tester_repositories():
         commit = checkin_script_hash,
         shallow_since = "1669784673 -0600",
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv_global/checkin-script.git",
+    )
+
+    aegissocspec_hash="d116a4c3544f1190bed271da71ec3883b95f84bd"
+    git_repository(
+        name = "aegissocspec",
+        commit = aegissocspec_hash,
+        recursive_init_submodules = True,
+        remote = "git@aus-gitlab.local.tenstorrent.com:specifications/arch-export-controlled/aegissocspec.git",
     )

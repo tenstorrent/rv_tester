@@ -15,6 +15,9 @@ DEFINE_int32(ipc_tolerance_perc, 5, "IPC tolerance %");
 DEFINE_bool(l1d_read_miss_check, false, "Check L1D miss rate within a tolerance %");
 DEFINE_double(l1d_read_miss_expected, 0.0, "Expected L1D miss rate");
 DEFINE_int32(l1d_read_miss_tolerance_perc, 20, "L1D miss rate tolerance %");
+DEFINE_bool(pmc_sideband_check, false, "flag to toggle check with sideband counter");
+DEFINE_int32(pmc_check_threshold, 5, " pmc_check_threshold %");
+DEFINE_bool(ignore_pmc_reprogram, false, "toggle ignore on illegal reprograming of an event reg");
 
 REGISTRY_register(pmu, PMCI, cvm::registry::all);
 
@@ -39,6 +42,8 @@ pmu::pmu(cvm::topology::loc_t loc, unsigned id)
     auto platform = cvm::topology::get_from_type("PLATFORM", 0);
 
     cvm::registry::messenger.connect<rv_tester_transactions::pmu::pmcounters<>>(loc, [this] (const auto& v) { return this->process(v); });
+    cvm::registry::messenger.connect<rv_tester_transactions::pmu::hpmcounters<>>(loc, [this] (const auto& v) { return this->process(v); });
+    cvm::registry::messenger.connect<rv_tester_transactions::pmu::pmc_checker<>>(loc, [this] (const auto& v) { return this->process(v); });
     cvm::registry::messenger.connect<rv_tester::terminate_called_fast>(platform, [this] (const auto& v) { return this->process(v); });
   }
 }
@@ -59,14 +64,14 @@ pmu::process(const rv_tester_transactions::pmu::pmcounters<>& pmcounters)
   if (loc_ != pmcounters.location)
     return;
 
-  if (terminated_ and not sync_terminate_)
+  if (sm_ == SM::READY_TO_TERMINATE)
     return;
-  else if (terminated_)
-    sync_terminate_ = not pmcounters.terminate; // we need to wait until the last PMU packet
+  else if (sm_ == SM::SYNC_UNTIL_TERMINATE and pmcounters.terminate)
+    sm_ = READY_TO_TERMINATE;
 
   cvm::log(cvm::HIGH, "[PMU] syncing counters\n");
 
-  counters = to_vector(pmcounters);
+  to_vector(pmcounters);
 
   if (pmcounters.perf_start)
     perf_region_start();
@@ -92,18 +97,18 @@ pmu::trigger_str(const rv_tester_transactions::pmu::pmcounters<>& pmcounters)
          pmcounters.perf_end    ? "perf_end"    :
          pmcounters.terminate   ? "terminate"   :
          pmcounters.sync        ? "sync"        :
+         pmcounters.overflow    ? "overflow"    :
                                   "none";
 }
 
 void
 pmu::process(const rv_tester::terminate_called_fast&)
 {
-  if (terminated_)
+  if (sm_ != SM::SYNCING)
     return;
 
   cvm::log(cvm::HIGH, "[PMU] termination signaled, stopping further counting\n");
-  terminated_ = true;
-  sync_terminate_ = true;
+  sm_ = SM::SYNC_UNTIL_TERMINATE;
 
   if (FLAGS_pmcounters_log != 0) {
     std::string log_str;
@@ -177,14 +182,109 @@ pmu::shutdown_ready()
 {
   if (FLAGS_perf)
     {
-      if (not terminated_)
+      if (sm_ == SM::SYNCING)
         {
           cvm::log(cvm::NONE, "Warning: [PMU] asking for shutdown without termination.\n");
           // something went wrong, just allow terminate
           return true;
         }
-      return terminated_ and not sync_terminate_;
+      return sm_ == SM::READY_TO_TERMINATE;
     }
   else
     return true;
+}
+
+void
+pmu::process(const rv_tester_transactions::pmu::hpmcounters<>& hpmcounters)
+{
+  hpmcounters_array[0]  = hpmcounters.hpmcounter3;
+  hpmcounters_array[1]  = hpmcounters.hpmcounter4;
+  hpmcounters_array[2]  = hpmcounters.hpmcounter5;
+  hpmcounters_array[3]  = hpmcounters.hpmcounter6;
+  hpmcounters_array[4]  = hpmcounters.hpmcounter7;
+  hpmcounters_array[5]  = hpmcounters.hpmcounter8;
+  hpmcounters_array[6]  = hpmcounters.hpmcounter9;
+  hpmcounters_array[7]  = hpmcounters.hpmcounter10;
+}
+
+void
+pmu::get_filter_events_and_sum(uint64_t event_id,
+                              std::vector<size_t>& filtering_events,
+                              size_t& sum_filtered_event) {
+  const auto& filtering_map     = filtered_event_map.at((event_id & 0xffff0000)>>16);
+  const auto& fitered_event_id  = event_id & 0xffff;
+  sum_filtered_event = 0;
+  for (const auto& pair : filtering_map) {
+      if (pair.first & fitered_event_id) {
+          filtering_events.push_back(pair.second);
+          sum_filtered_event += counters[pair.second];
+      }
+  }
+}
+
+size_t
+pmu::sum_event_vector(std::vector<size_t>& filtering_events){
+  size_t sum_filtered_event = 0;
+  for (const auto& event : filtering_events) {
+    sum_filtered_event += counters[event];
+  }
+
+  return sum_filtered_event;
+}
+
+std::string
+pmu::name_event_vector(std::vector<size_t>& filtering_events){
+  std::string name_filtered_event = "";
+  for (const auto& event : filtering_events) {
+    name_filtered_event += to_string.at(static_cast<counter>(event));
+  }
+
+  return name_filtered_event;
+}
+
+void
+pmu::process(const rv_tester_transactions::pmu::pmc_checker<>& pmc_checker)
+{
+  if (!FLAGS_pmc_sideband_check)
+    return;
+  if (pmc_checker.terminate == 0){
+    for (size_t i = 0; i < num_event_csrs; i++){
+      if(i == pmc_checker.event_csr){
+        pmc_event = event_map.find(pmc_checker.event_id);
+        filtered_pmc_event = filtered_event_map.find((pmc_checker.event_id & 0xffff0000)>>16);
+        if (pmc_event == event_map.end() && filtered_pmc_event == filtered_event_map.end()){
+          if(!FLAGS_ignore_pmc_reprogram){
+            cvm::log(cvm::ERROR, "ERROR: Hart {}: mhpmevent{} was programmed with illegal event value {:#x}\n", id_, i+3, pmc_checker.event_id);
+          }
+          else{
+            cvm::log(cvm::NONE, "WARNING: Hart {}: mhpmevent{} was programmed with illegal event value {:#x}\n", id_, i+3, pmc_checker.event_id);
+          }
+        }
+        else{
+          if(pmc_event != event_map.end()){
+            event_csr_array[i].programmed = true;
+            event_csr_array[i].event_type.push_back(event_map.at(pmc_checker.event_id));
+            event_csr_array[i].sideband_count_eventwr  = counters[event_map.at(pmc_checker.event_id)];
+          }
+          else if (filtered_pmc_event != filtered_event_map.end()){
+            event_csr_array[i].programmed = true;
+            get_filter_events_and_sum(pmc_checker.event_id, event_csr_array[i].event_type, event_csr_array[i].sideband_count_eventwr);
+          }
+        }
+      }
+    }
+  }
+  else if(pmc_checker.terminate == 1){
+    for (size_t i = 0; i < num_event_csrs; i++){
+      if(event_csr_array[i].programmed == true){
+        sideband_count_terminate_ = sum_event_vector(event_csr_array[i].event_type);
+        expected_count_           = sideband_count_terminate_ - event_csr_array[i].sideband_count_eventwr;
+        actual_count_             = hpmcounters_array[i];
+        event_name_               = name_event_vector(event_csr_array[i].event_type);
+        if (std::abs(static_cast<long>(expected_count_) - static_cast<long>(actual_count_)) > std::ceil(FLAGS_pmc_check_threshold * actual_count_ * 0.01) ){
+          cvm::log(cvm::ERROR, "ERROR: Hart {}:  PMC hpmcount{} vs sideband mismatch for {} : expected_count:{} actual_count:{}\n", id_, i+3, event_name_, expected_count_, actual_count_);
+        }
+      }
+    }
+  }
 }
