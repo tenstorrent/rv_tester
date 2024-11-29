@@ -101,7 +101,7 @@ class sysmod {
       }
       return ulongArray;
     }
-    void store_dm_randpc();
+    void store_dm_rand();
   protected:
     void trace_info_handler(trace_cfg::trace_info_t i);
     void cla_info_handler(cla_cfg::cla_info_t i);

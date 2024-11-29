@@ -35,10 +35,9 @@ class whisperClient {
     // 4. Call the function with cvm::registry::messenger.call<whisper...RPC>() 
 
     // getter and setter to access class variable through procedure calls
-    void set_dm_randpc(uint64_t _dm_randpc) {dm_randpc = _dm_randpc;}
-    uint64_t get_dm_randpc(void) {return dm_randpc;}
-    void set_dm_randpc_addr(uint64_t _dm_randpc_addr) {dm_randpc_addr = _dm_randpc_addr;}
-    uint64_t get_dm_randpc_addr(void) {return dm_randpc_addr;}
+    // 
+    std::vector<uint64_t> get_dm_rand_val(void)  { return dm_rand_val_; }
+    uint64_t              get_dm_rand_addr(void) { return dm_rand_addr_;}
 
     int whisperConnect();
     bool whisperConnected();
@@ -46,8 +45,8 @@ class whisperClient {
     bool whisperStep(int hart, uint64_t time, uint64_t instrTag, uint64_t& pc, uint32_t& instruction, unsigned& changeCount, std::string& disasm, uint32_t& privMode, uint32_t& fpFlags, bool& hasTrap, bool& hasStop, bool& isLoad, bool& valid);
     bool whisperSimpleStep(int hart, uint64_t& pc, uint32_t& instruction, unsigned& changeCount);
     bool whisperChange(int hart, uint32_t& resource, uint64_t& addr, uint64_t& value, bool& valid);
-  bool whisperMcmRead(int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, unsigned elemIx, unsigned field, bool& valid);
-  bool whisperMcmVecRead(int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, unsigned elemIx, unsigned field, bool& valid);
+    bool whisperMcmRead(int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, unsigned elemIx, unsigned field, bool& valid);
+    bool whisperMcmVecRead(int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, unsigned elemIx, unsigned field, bool& valid);
     bool whisperMcmVecInsert(int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, bool& valid);
     bool whisperMcmInsert(int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, bool& valid);
     bool whisperMcmVecBypass(int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, bool& valid);
@@ -90,14 +89,12 @@ class whisperClient {
     WhisperMessage reply {};
 
     uint32_t ncores_ = 0;
-    uint64_t dm_randpc = 0;
-    uint64_t dm_randpc_addr = 0;
+    uint64_t dm_rand_addr_ = 0;
+    std::vector<uint64_t> dm_rand_val_;
 
   public:
-    CVM_MESSENGER_procedure_call(set_dm_randpc_RPC, void (uint64_t)); 
-    CVM_MESSENGER_procedure_call(get_dm_randpc_RPC, uint64_t (void)); 
-    CVM_MESSENGER_procedure_call(set_dm_randpc_addr_RPC, void (uint64_t)); 
-    CVM_MESSENGER_procedure_call(get_dm_randpc_addr_RPC, uint64_t (void)); 
+    CVM_MESSENGER_procedure_call(get_dm_rand_addr_RPC, uint64_t (void));
+    CVM_MESSENGER_procedure_call(get_dm_rand_val_RPC, std::vector<uint64_t> (void));
 
     CVM_MESSENGER_procedure_call(whisperConnectRPC, int (void));
     CVM_MESSENGER_procedure_call(whisperConnectedRPC, bool (void));
