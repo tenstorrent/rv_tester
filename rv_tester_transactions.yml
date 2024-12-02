@@ -1621,18 +1621,9 @@ snoop_gen:
 
 interrupts:
     num: ${TOP.PLATFORM.NHARTS}
-    m_nmi_tick:
+    m_nmi_assert_tick:
         domain: 2
         num: 1
-        fields:
-            cycle:
-                width: 64
-    m_reset:
-        domain: 2
-        num: 1
-        fields:
-            cycle:
-                width: 64
 
 trace:
     num: 1

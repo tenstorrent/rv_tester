@@ -12,7 +12,6 @@
 #include "whisper_decoder.h"
 #include "rv_tester/rv_tester_plusargs.h"
 #include "sysmod/trickbox/interrupter.h"
-#include "sysmod/trickbox/imsic_driver.h"
 #include "cosim/dut_if/rvfi/rvfi_plusargs.h"
 #include "sysmod/sysmod_plusargs.h"
 #include "sysmod/sysmod_params.hpp"
@@ -154,7 +153,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
     previous_cycle_ = 0;
     auto platform = cvm::topology::get_from_type("PLATFORM", 0);
     cvm::registry::messenger.connect<rv_tester::terminate_called>(platform, [this] (const auto& v) { return this->process(v); });
-    if(FLAGS_random_intr | FLAGS_random_imsic_intr){
+    if(FLAGS_random_imsic_intr){
        FLAGS_max_cycle = 2*FLAGS_max_cycle;
        print(cvm::LOW, "Doubling max_cycles for sim run to {}\n",FLAGS_max_cycle );
     }
