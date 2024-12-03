@@ -213,7 +213,7 @@ typedef enum logic [1:0] {
   assign pos_tdo_en= ~jtag_resp.tdo_en;
 
   assign jtag_tck_trst.tck = clk;
-  assign jtag_tck_trst.trst = reset & ~((dut_clocks > 100) && (dut_clocks <110));
+  assign jtag_tck_trst.trst = reset & ~((dut_clocks > 30) && (dut_clocks <40));
 
 assign jtag_enable_begin = jtag_enable_begin_cpp ^ jtag_enable_begin_sv;
 

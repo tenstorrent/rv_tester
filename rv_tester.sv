@@ -466,9 +466,9 @@ module rv_tester
     assign reset[COLD_RESET_IDX] = cold_reset || cold_reset_pullup;
     assign reset[WARM_RESET_IDX] = warm_reset;
 
-    assign dut_reset[TB_CLK_IDX] = reset[COLD_RESET_IDX] || reset[WARM_RESET_IDX];
-    assign dut_reset[CORE_CLK_IDX] = &core_no_fetch || reset[WARM_RESET_IDX] || warm_reset_pullup;
-    assign dut_reset[AXI_CLK_IDX] = &core_no_fetch || reset[WARM_RESET_IDX] || warm_reset_pullup;
+    assign dut_reset[TB_CLK_IDX] =  reset[COLD_RESET_IDX] || reset[WARM_RESET_IDX];
+    assign dut_reset[CORE_CLK_IDX] =&core_no_fetch || reset[WARM_RESET_IDX] || warm_reset_pullup;
+    assign dut_reset[AXI_CLK_IDX] = reset_window || reset[WARM_RESET_IDX] || warm_reset_pullup;
     assign dut_reset[SOC_CLK_IDX] = reset[COLD_RESET_IDX];
     assign dut_reset[REF_CLK_IDX] = reset_window;
 
@@ -632,7 +632,7 @@ module rv_tester
       ) cosim (
           .tb_clk(dut_clk[TB_CLK_IDX]),
           .clk(dut_clk[CORE_CLK_IDX]),
-          .reset(sys_reset[TB_CLK_IDX]),
+          .reset(sys_reset[TB_CLK_IDX] | reset_window),
           .dut_reset(dut_reset[CORE_CLK_IDX]),
           .clocks,
           .rvfi(rvfi[NRETS_CUMSUM[c] +: NRETS[c]]),
@@ -745,6 +745,7 @@ module rv_tester
             .sys_reset(sys_reset[AXI_CLK_IDX]),
             .reset(dut_reset[AXI_CLK_IDX]),
             .clocks,
+            .core_no_fetch(core_no_fetch),
             `RV_TESTER_TRANSACTIONS_SNOOP_GEN_SOURCE_PORTS(2,0,0)
     );
     
