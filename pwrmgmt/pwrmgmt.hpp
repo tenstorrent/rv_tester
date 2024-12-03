@@ -37,6 +37,7 @@ namespace {
   constexpr uint32_t sw_fuse_mmr            = 0x421B'FFF8;
   constexpr uint32_t core_fuse_offset       = 0x0001'0000;
   constexpr uint32_t core_physical_id_mmr   = 0x4200'2FF8;
+  constexpr uint32_t sw_fuse_default_val    = 0x4200'2FF8;
 
   constexpr uint32_t core_fuse_idx          = 16;
   constexpr uint32_t exp_ctrl_fuse_idx      = 11;
@@ -100,6 +101,7 @@ namespace {
   typedef enum : bool { WR = 1, RD = 0 } access_t;
   typedef enum : bool { BLOCK = true, NO_BLOCK = false } block_t;
   typedef enum : int { CPL_SRAM = 0, CORE_CSR = 1, MMR_PMNW = 2 } smc_dest_path_t;
+  typedef enum : int { SMC = 0, OVERLAY = 1 } interface_t;
   typedef struct { uint32_t addr; uint64_t data; sz_t sz; } smc_scratchpad_info_t;
 
   constexpr uint32_t dm_scratchpad      = 0x4219FFE8;
@@ -109,6 +111,7 @@ namespace {
   constexpr uint32_t rc_scratchpad      = 0x210'2010;
   constexpr uint32_t cc_scratchpad      = 0x210'3024;
   constexpr uint32_t mb_scratchpad      = pm_mbox_base + 0xe8;
+  constexpr uint32_t tr_scratchpad      = 0x4208'FFE8;
   
   constexpr uint64_t dm_scratchpad_rst  = 0xAFAFAFAFAFAFAFAF;
   constexpr uint64_t cr_scratchpad_rst  = 0xBFBFBFBFBFBFBFBF;
