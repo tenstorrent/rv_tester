@@ -745,6 +745,7 @@ module rv_tester
             .sys_reset(sys_reset[AXI_CLK_IDX]),
             .reset(dut_reset[AXI_CLK_IDX]),
             .clocks,
+            .core_no_fetch(core_no_fetch),
             `RV_TESTER_TRANSACTIONS_SNOOP_GEN_SOURCE_PORTS(2,0,0)
     );
     
