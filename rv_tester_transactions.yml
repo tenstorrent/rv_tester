@@ -1609,15 +1609,6 @@ snoop_gen:
     m_tick:
         domain: 2
         num: 1
-        fields:
-            cycle:
-                width: 64
-    m_reset:
-        domain: 2
-        num: 1
-        fields:
-            cycle:
-                width: 64
 
 interrupts:
     num: ${TOP.PLATFORM.NHARTS}
