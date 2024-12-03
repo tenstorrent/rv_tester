@@ -20,7 +20,7 @@
  DEFINE_int32(max_intr_count, 0, "Maximum interrupts that can be driven per test");
 
 interrupter::interrupter(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc,cvm::topology::loc_t axi_mst_loc)
-  : subdevice(tag, addr, 0x4000 /* size */, loc), axi_mst_loc_l(axi_mst_loc),
+  : subdevice(tag, addr, 0x50000 /* size */, loc), axi_mst_loc_l(axi_mst_loc),
     timeCompare_(6),IntrHart_(6),delayedRandomIntValid_(6),IntrValue_(6), timerIntPrev_(hartCount), timer_(0) 
 {
   rng.seed(FLAGS_seed);
