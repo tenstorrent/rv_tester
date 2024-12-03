@@ -25,7 +25,7 @@ nmi_sequence::nmi_sequence(cvm::topology::loc_t loc, unsigned id) : loc_(loc), i
   cvm::registry::messenger.connect<uint8_t>(loc_, [this](uint8_t assert) { return this->nmi(assert); });
 
   // nmi sequence threads
-  if (FLAGS_nmi == "random") {
+  if (FLAGS_nmi_rand_en || (FLAGS_nmi == "random")) {
     random_mode_thread();
   } else if (FLAGS_nmi == "patch_trigger") {
     patch_trigger_mode_thread();

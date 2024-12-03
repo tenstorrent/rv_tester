@@ -3,6 +3,7 @@
 #include "interrupter.h"
 #include "sysmod/sysmod_plusargs.h"
 
+ DEFINE_bool(injectintr, false, "Drive interrups at uarch events based on harness code");
  DEFINE_bool(random_imsic_intr, false, "Drive random interrups");
  DEFINE_bool(disable_m_imsic_intr, false, "Drive random imsic  interrups to M file");
  DEFINE_bool(disable_s_imsic_intr, false, "Drive random imsic  interrups to S file");
