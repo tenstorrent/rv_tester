@@ -107,6 +107,9 @@ class rvfi {
     uint64_t prev_instr_tag_ = 0;
     uint64_t prev_uop_tag_ = 0;
     uint64_t prev_branch_tag_ = 0;
+    bool     vec_cmode_ = false;
+    uint64_t vec_cmode_first_tag_ = 0;
+    std::unordered_map<uint64_t, uint64_t> vec_cmode_tags_;
 
     bool ncio_mem_transition_ = false;
     std::vector<mem_t> ncio_fetches_;

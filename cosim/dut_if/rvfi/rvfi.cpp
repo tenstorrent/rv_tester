@@ -22,6 +22,7 @@ DEFINE_bool(rvfi_log_36b_uop, true, "rvfi log - print 36b uop instead of default
 DEFINE_bool(mcm, true, "Enable mcm");
 DEFINE_bool(cosim, true, "Enable cosim checking");
 DEFINE_bool(emulate_amo_arithmetic, true, "Emulate amo arithmetic if dut harness does not provide amo outputs");
+DEFINE_bool(vec_cmode_tag_override, true, "If vector instruction enters conservative mode, override subsequent rvfi/mcmi tags with original instruction tag");
 
 DEFINE_uint64(debug_entry_pc, 0x42190800, "Debug Mode entry PC");
 DEFINE_uint64(debug_exit_pc, 0x421908cc, "Debug Mode exit PC");
@@ -147,6 +148,9 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   print_instr(instr);
 
   prev_uop_tag_ = m_rvfi.order;
+  if (vec_cmode_)
+    if (vec_cmode_tags_.find(m_rvfi.order) == vec_cmode_tags_.end())
+      vec_cmode_tags_.emplace(m_rvfi.order, vec_cmode_first_tag_);
 
   if (!m_rvfi.last_uop)
     return;
@@ -181,6 +185,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   excp_ = false;
 
   nmi_ = false;
+  vec_cmode_ = false;
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
@@ -214,6 +219,13 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
     intr_ = false;
     excp_ = true;
     ecause_ = m_trap.cause & 0xff;
+    // RVTOOLS-3265, RVTOOLS-3479: Adjust tag for conservative mode vector instructions
+    // Capture the tag and use it for all activity related to
+    // the vector instruction
+    if (FLAGS_vec_cmode_tag_override && (ecause_ == CUSTOM_VEC_CMODE)) {
+      vec_cmode_ = true;
+      vec_cmode_first_tag_ = (prev_instr_tag_ != prev_uop_tag_) ? prev_uop_tag_ : prev_instr_tag_ + 1;
+    }
   }
 }
 
@@ -302,7 +314,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.cycle = m_rvfi.cycle;
   instr.id = count_;
   instr.comp = m_rvfi.comp;
-  instr.tag = m_rvfi.order;
+  instr.tag = vec_cmode_ ? vec_cmode_first_tag_ : m_rvfi.order;
   instr.branch_tag = m_rvfi.branch_tag;
   instr.opcode = m_rvfi.insn;
   instr.disasm = whisper::disassemble(m_rvfi.insn);
@@ -789,7 +801,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
   m.hart   = m_mcmi_read.hart;
   m.cycle  = m_mcmi_read.cycle;
   m.opcode  = m_mcmi_read.opcode;
-  m.tag    = m_mcmi_read.order;
+  m.tag    = vec_cmode_tags_.contains(m_mcmi_read.order) ? vec_cmode_tags_[m_mcmi_read.order] : m_mcmi_read.order;
   m.pa     = m_mcmi_read.addr;
   m.size   = std::popcount(m_mcmi_read.mask);
   m.data   = m_mcmi_read.data;
@@ -855,7 +867,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
               mem_t m;
               m.valid = true;
               m.cycle = m_mcmi_read.cycle;
-              m.tag = m_mcmi_read.order;
+              m.tag = vec_cmode_tags_.contains(m_mcmi_read.order) ? vec_cmode_tags_[m_mcmi_read.order] : m_mcmi_read.order;
               m.pa = start;
               m.size = size;
               std::bitset<256> value = stringToBitset(dataAccumulated);  // Use a helper to convert the accumulated string
@@ -870,7 +882,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
       mem_t m;
       m.valid = true;
       m.cycle = m_mcmi_read.cycle;
-      m.tag = m_mcmi_read.order;
+      m.tag = vec_cmode_tags_.contains(m_mcmi_read.order) ? vec_cmode_tags_[m_mcmi_read.order] : m_mcmi_read.order;
       m.pa = start;
       m.size = size;
       m.data_vec = stringToBitset(dataAccumulated);  // Final range processing
@@ -919,7 +931,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
       mem_t m;
       m.valid = true;
       m.cycle = m_mcmi_insert.cycle;
-      m.tag =  m_mcmi_insert.order;
+      m.tag = vec_cmode_tags_.contains(m_mcmi_insert.order) ? vec_cmode_tags_[m_mcmi_insert.order] :  m_mcmi_insert.order;
       m.pa = m_mcmi_insert.addr;
       m.size = numones;
       m.data = m_mcmi_insert.data;
@@ -956,7 +968,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
               mem_t m;
               m.valid = true;
               m.cycle = m_mcmi_insert.cycle;
-              m.tag = m_mcmi_insert.order;
+              m.tag = vec_cmode_tags_.contains(m_mcmi_insert.order) ? vec_cmode_tags_[m_mcmi_insert.order] : m_mcmi_insert.order;
               m.pa = start;
               m.size = size;
               std::bitset<256> value = stringToBitset(dataAccumulated);  // Use a helper to convert the accumulated string
@@ -971,7 +983,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
       mem_t m;
       m.valid = true;
       m.cycle = m_mcmi_insert.cycle;
-      m.tag = m_mcmi_insert.order;
+      m.tag = vec_cmode_tags_.contains(m_mcmi_insert.order) ? vec_cmode_tags_[m_mcmi_insert.order] : m_mcmi_insert.order;
       m.pa = start;
       m.size = size;
       m.data_vec = stringToBitset(dataAccumulated);  // Final range processing
@@ -1003,7 +1015,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
       m.valid  = true;
       m.hart   = m_mcmi_bypass.hart;
       m.cycle  = m_mcmi_bypass.cycle;
-      m.tag    = m_mcmi_bypass.order;
+      m.tag    = vec_cmode_tags_.contains(m_mcmi_bypass.order) ? vec_cmode_tags_[m_mcmi_bypass.order] : m_mcmi_bypass.order;
       m.pa     = m_mcmi_bypass.addr;
       m.size   = std::popcount(m_mcmi_bypass.mask);
       m.data   = m_mcmi_bypass.data;
@@ -1053,7 +1065,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
               mem_t m;
               m.valid = true;
               m.cycle = m_mcmi_bypass.cycle;
-              m.tag = m_mcmi_bypass.order;
+              m.tag = vec_cmode_tags_.contains(m_mcmi_bypass.order) ? vec_cmode_tags_[m_mcmi_bypass.order] : m_mcmi_bypass.order;
               m.pa = start;
               m.size = size;
               std::bitset<256> value = stringToBitset(dataAccumulated);  // Use a helper to convert the accumulated string
@@ -1068,7 +1080,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
       mem_t m;
       m.valid = true;
       m.cycle = m_mcmi_bypass.cycle;
-      m.tag = m_mcmi_bypass.order;
+      m.tag = vec_cmode_tags_.contains(m_mcmi_bypass.order) ? vec_cmode_tags_[m_mcmi_bypass.order] : m_mcmi_bypass.order;
       m.pa = start;
       m.size = size;
       m.data_vec = stringToBitset(dataAccumulated);  // Final range processing
