@@ -994,6 +994,7 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
       bridge_log_(cvm::MEDIUM, "<{}> cause: [{}] (Timing sensitive mismatch: Resynch and keep going)\n",
         w.time, d.icause);
       defer_interrupt(hart, w.time, mip_ & ~((uint64_t)1 << d.icause));
+      timing_case2 = 1;
     }
     return;
   }
@@ -1102,6 +1103,11 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
   }
 
   num_taken_interrupts_[intrtopriv_][w_.icause]++;
+
+  if(timing_case2){
+    defer_interrupt(hart, w.time, 0);
+    timing_case2 = 0;
+  }
 }
 
 void bridge::post_step_nmi_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
