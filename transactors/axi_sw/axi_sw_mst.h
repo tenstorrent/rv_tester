@@ -1,5 +1,5 @@
 #pragma once
-#include <deque>
+#include <vector>
 #include <variant>
 #include "axi.h"
 
@@ -91,7 +91,7 @@ class axi_sw_mst {
         std::vector<bool> chk_rsp_err_ids_;
         std::vector<size_t> sizes_;
         std::unordered_map<size_t, std::vector<uint8_t>> read_data_;
-        std::deque<std::variant<axi::a_t, axi::w_t>> transactions_;
+        std::vector<std::variant<axi::a_t, axi::w_t>> transactions_;
 
         uint64_t read_bytes_;
         uint64_t write_bytes_;
