@@ -101,6 +101,12 @@ public:
     cvm::log(cvm::LOW,"[Debugger]:Value of dut_reset_req in debugger  after assignment is : {} clocks: {} divisor TICKS: {}\n",dut_reset_req,iclocks,idivisor);
     if(dut_reset_req){
       ndm_reset_occured = true;
+      std::ofstream myfile;
+      myfile.open ("reset_state.txt", std::ios_base::app);
+      cvm::log(cvm::LOW, "[Debugger]:Debugger is_dut_reset_req Attempting to write the State in Debugger: dut_reset_req: {} clocks: {} divisor {} \n",dut_reset_req,clocks,divisor);
+      cvm::log(cvm::LOW, "[Debugger]:State written to Debugger : Ndm-Reset\n");
+      myfile << "Ndm-Reset\n";
+      myfile.close();
     }
     cvm::log(cvm::HIGH, "[Debugger]: Reset_req: {} ndm_reset_occured: {} clocks: {}\n",dut_reset_req,ndm_reset_occured,clocks);
 
