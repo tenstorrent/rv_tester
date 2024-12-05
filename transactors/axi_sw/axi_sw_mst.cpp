@@ -98,7 +98,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const B& b) {
         } else {
             cvm::log(cvm::HIGH, "[{}] Allowing error b.response id:{} resp: {}\n", name_, b.id, b.resp);
         }
-        return;
+        //return;
     }
 
     cvm::registry::messenger.signal<axi::b_t>(
@@ -123,7 +123,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const R& r) {
         } else {
             cvm::log(cvm::HIGH, "[{}] Allowing error r.response id: {} resp: {} last: {}\n", name_, r.id, r.resp, r.last);
         }
-        return;
+        //return;
     }
 
     cvm::log(cvm::FULL, "[axi_sw_mst]  r.response id: {} resp: {} last: {}\n", r.id, r.resp, r.last);

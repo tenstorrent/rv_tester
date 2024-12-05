@@ -3,6 +3,7 @@
 #include "cvm/logger.hpp"
 #include "debugger.h"
 #include "sysmod/sysmod_plusargs.h"
+#include <fstream>
 
 DEFINE_string(dbg_input_file_path, "", "Path to file containing debugger commands");
 DEFINE_bool(random_dbg_entry, false, "Enter debug mode randomly after random intervals");
@@ -23,24 +24,43 @@ debugger::debugger(const std::string &tag, uint64_t addr, unsigned hartCount, cv
   dmi_driver_num_cmds_addr = addr + 0x600;
   reset();
 
-  auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0); 
+  auto tbox_loc = cvm::topology::get_from_type("TRICKBOX", 0);
   cvm::registry::messenger.connect<debugger::dmi_status_t>(
             tbox_loc,
             [&](debugger::dmi_status_t i) { return this->update_dm_status(i); });
+
+  std::ifstream myfile;
+  cvm::log(cvm::HIGH, "[Debugger]:Constructor: read  reset state in Debugger at clocks {} divisor {}\n", clocks,divisor);
+  myfile.open ("reset_state.txt");
+  if(myfile.is_open()) {
+    // fin.seekg(-1,ios_base::end);                // go to one spot before the EOF
+    // fin.readline();
+    std::string line;
+    std::getline(myfile, line);
+    cvm::log(cvm::HIGH, "[Debugger]:Reset State in Debugger is: {} at clocks {} divisor {}\n", line,clocks,divisor);
+    if (line == "Ndm-Reset") {
+      ndm_reset_occured = true;
+    }
+    
+  }
+  myfile.close();
+    cvm::log(cvm::HIGH, "[Debugger]: Reset_req: {} ndm_reset_occured: {} clocks: {}\n",dut_reset_req,ndm_reset_occured,clocks);
 }
 
 debugger::~debugger()
 {
+
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"dm_rand_snippets_mode\": \"{}\"}}\n", FLAGS_random_dbg_entry);
   if (FLAGS_random_dbg_entry) {
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"dm_rand_snippets_max_count\": \"{}\"}}\n", FLAGS_dbg_max_snippets);
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"dm_rand_snippets_delay\": \"{}_{}\"}}\n", FLAGS_dbg_delay_min, FLAGS_dbg_delay_max);
   }
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"dm_rand_snippets_name\": \"{}\"}}\n", dbg_snippets_name);
+
 }
 void
 debugger::update_dm_status(debugger::dmi_status_t& i) {
-  cvm::log(cvm::HIGH, "Debug module status :{:#x} cmds in queue :{:#x}\n", i.status,i.commands_in_queue);
+  cvm::log(cvm::HIGH, "[Debugger]:Debug module status :{:#x} cmds in queue :{:#x}\n", i.status,i.commands_in_queue);
   status = i.status;
   commands_in_queue = i.commands_in_queue;
 }
@@ -48,7 +68,7 @@ debugger::update_dm_status(debugger::dmi_status_t& i) {
 void debugger::get_all_csv_templates()
 {
     std::string directoryPath = FLAGS_dbg_template_dir_path;
-    cvm::log(cvm::NONE, "Debug commands directory:{}\n", directoryPath);
+    cvm::log(cvm::NONE, "[Debugger]:Debug commands directory:{}\n", directoryPath);
 
     if (!std::filesystem::exists(directoryPath) || !std::filesystem::is_directory(directoryPath))
     {
@@ -63,7 +83,7 @@ void debugger::get_all_csv_templates()
             if (filename.size() >= 4 && filename.substr(filename.size() - 4) == ".csv")
             {
                 csvFilePaths.push_back(entry.path().string());
-                cvm::log(cvm::MEDIUM, "Pushing file:{}\n", filename);
+                cvm::log(cvm::MEDIUM, "[Debugger]:Pushing file:{}\n", filename);
             }
         }
     }
@@ -85,7 +105,7 @@ void debugger::parse_dmi_from_csv()
     dbg_snippets_name.append(file_csv_name);
   }
 
-  cvm::log(cvm::NONE, "Parse DMI Commands from CSV:{}\n", file_name);
+  cvm::log(cvm::HIGH, "[Debugger]:Parse DMI Commands from CSV:{}\n", file_name);
   std::fstream file(file_name, std::ios::in);
   if (file.is_open())
   {
@@ -249,7 +269,7 @@ void debugger::parse_dmi_from_csv()
         content.push_back(row);
         dmi_cmd_q.push(dmi_req);
         // PRINT CSV DATA
-        cvm::log(cvm::MEDIUM, "Pushing dmi request: op {} addr {:#x} data {:#x}\n", dmi_req.op, dmi_req.addr, dmi_req.data);
+        cvm::log(cvm::MEDIUM, "[Debugger]:Pushing dmi request: op {} addr {:#x} data {:#x}\n", dmi_req.op, dmi_req.addr, dmi_req.data);
       }
     }
 
@@ -295,7 +315,7 @@ void debugger::drive_csv_dmi_cmds()
       checkpoint_triggers_pending += 1;
       cvm::log(cvm::HIGH, "[Debugger]: Encountered checkpoint in csv parsing, Number of checkpoints pending is {}\n", checkpoint_triggers_pending);  
     } 
-    cvm::log(cvm::MEDIUM, "Popping dmi request: op {} addr {:#x} data {:#x} func bits {:#x}\n", dmi_req.op, dmi_req.addr, dmi_req.data, dmi_req.func_bits);
+    cvm::log(cvm::MEDIUM, "[Debugger]:Popping dmi request: op {} addr {:#x} data {:#x} func bits {:#x}\n", dmi_req.op, dmi_req.addr, dmi_req.data, dmi_req.func_bits);
     unsigned upper_dmi_data = 0;
     unsigned lower_dmi_data = 0;
     unsigned hart = 0;
@@ -363,7 +383,7 @@ void debugger::write(uint64_t addr, size_t, const data_t &data,
     trickboxDmiWrite(hart, upper_dmi_data, lower_dmi_data); // Commented until DMI PORT is not in master
   }
 
-  if (addr == debugger_file_load_trigger && !FLAGS_random_dbg_entry && !file_loading_done)
+  if (addr == debugger_file_load_trigger && !FLAGS_random_dbg_entry && !file_loading_done && !ndm_reset_occured)
   {
     file_loading_done = true;
     cvm::log(cvm::NONE, "[Trickbox] Debugger file loading trigger\n");

@@ -36,9 +36,11 @@ DEFINE_string(stee_secure_region, "", "colon separated pair of numbers (same as 
 DEFINE_bool(whisper_log, true, "Enable whisper logging to iss_cosim.log and iss_cmd.log");
 DEFINE_bool(whisper_cosim_log, false, "Enable whisper logging to iss_cosim.log");
 DEFINE_bool(whisper_cmd_log, false, "Enable whisper logging to iss_cmd.log");
-DEFINE_bool(dm_randpc, false, "Random PC to DM via trickbox"); // this should be in whisper_client.cpp
-DEFINE_uint64(dm_randpc_addr, 0x9080500, "Random PC to DM address");
-DEFINE_bool(whisper_stdin_null, false, "Redirect whisoer stdin to null");
+DEFINE_bool(whisper_stdin_null, false, "Redirect whisper stdin to null");
+DEFINE_uint32(num_dm_randpc,    0, "Number of Random PCs to DM");
+DEFINE_uint32(num_dm_randload,  0, "Number of Random loads to DM");
+DEFINE_uint32(num_dm_randstore, 0, "Number of Random stores to DM");
+DEFINE_uint64(dm_rand_addr, 0x9080500, "(Trickbox) Random address for DM: PC/Load/Store");;
 DEFINE_bool(whisper_stdout_null, false, "Redirect whisoer stdout to null");
 DEFINE_string(whisper_json_path, "", "Path to whisper json config");
 DEFINE_uint64(nmi_vec, 0, "NMI handler PC");
@@ -100,11 +102,8 @@ whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) {
 
   traceFile_ = traceFile.empty() ? nullptr : fopen(traceFile.c_str(), "w");
   commandLog_ = commandLog.empty() ? nullptr : fopen(commandLog.c_str(), "w");
-
-  cvm::registry::messenger.procedure<set_dm_randpc_RPC>(loc, [this] (uint64_t dm_randpc) {return this->set_dm_randpc(dm_randpc);});
-  cvm::registry::messenger.procedure<get_dm_randpc_RPC>(loc, [this] () {return this->get_dm_randpc();});
-  cvm::registry::messenger.procedure<set_dm_randpc_addr_RPC>(loc, [this] (uint64_t dm_randpc_addr) {return this->set_dm_randpc_addr(dm_randpc_addr);});
-  cvm::registry::messenger.procedure<get_dm_randpc_addr_RPC>(loc, [this] () {return this->get_dm_randpc_addr();});
+  cvm::registry::messenger.procedure<get_dm_rand_addr_RPC>(loc, [this] () { return this->get_dm_rand_addr();});
+  cvm::registry::messenger.procedure<get_dm_rand_val_RPC>(loc, [this] ()  { return this->get_dm_rand_val();});
 
   cvm::registry::messenger.procedure<whisperConnectRPC>(loc, [this] () {return this->whisperConnect();});
   cvm::registry::messenger.procedure<whisperConnectedRPC>(loc, [this] () {return this->whisperConnected();});
@@ -308,22 +307,58 @@ whisperClient<URV>::whisperStandalone()
     }
   }
 
-  if (FLAGS_dm_randpc && result) {
+  if (result && (FLAGS_num_dm_randpc || FLAGS_num_dm_randload || FLAGS_num_dm_randstore)){
     WdRiscv::Hart<URV>* hart = system_->ithHart(0).get();
-    uint64_t total_ = hart->getInstructionCount();
 
     std::shared_ptr<WdRiscv::System<URV>> system_new = constructSystem<URV>(1, true);
     WdRiscv::Hart<URV>* hart_new = system_new->ithHart(0).get();
     constructHart(hart_new, 0);
     cvm::rand::uniform_dist<int> rng1;
     int percent = (rng1() % 20) + 60; // random pc betwen 60-80% of code
-    uint64_t randinstr = uint64_t((total_ * percent) / 100);
-    hart_new->setInstructionCountLimit(randinstr);
-    hart_new->run();
-    dm_randpc = hart_new->pc();
-    dm_randpc_addr = FLAGS_dm_randpc_addr;;
+    uint64_t total_instr = hart->getInstructionCount();
+    uint64_t num_instr = uint64_t((total_instr * percent) / 100);
+    bool stop;
+    hart_new->runSteps(num_instr, stop);
+    dm_rand_addr_ = FLAGS_dm_rand_addr;
+    int instructions = 0;
+    std::vector<uint64_t> pcs, loads, stores;
+    while ((num_instr <= total_instr) && (instructions<200)) {
+      hart_new->singleStep();
+      num_instr++; instructions++;
+      uint64_t virt_addr, phys_addr, value;
+      uint64_t pc = hart_new->lastPc();
+      if (hart_new->lastInstructionTrapped())
+        pcs.push_back(pc);
+      else if (hart_new->lastLdStAddress(virt_addr, phys_addr)) {
+        if (hart_new->lastStore(phys_addr, value))
+          stores.push_back(virt_addr);
+        else
+          loads.push_back(virt_addr);
+      } else
+          pcs.push_back(pc);
+    }
+    uint32_t num_dm = FLAGS_num_dm_randpc;
+    while (num_dm && pcs.size()) {
+      int rand_idx = rng1() % pcs.size();
+      dm_rand_val_.push_back(pcs[rand_idx]);
+      pcs.erase(pcs.begin() + rand_idx);
+      num_dm--;
+    }
+    num_dm = FLAGS_num_dm_randload;
+    while (num_dm && loads.size()) {
+      int rand_idx = rng1() % loads.size();
+      dm_rand_val_.push_back(loads[rand_idx]);
+      loads.erase(loads.begin() + rand_idx);
+      num_dm--;
+    }
+    num_dm = FLAGS_num_dm_randstore;
+    while (num_dm && stores.size()) {
+      int rand_idx = rng1() % stores.size();
+      dm_rand_val_.push_back(stores[rand_idx]);
+      stores.erase(stores.begin() + rand_idx);
+      num_dm--;
+    }
   }
-
   return 0;
 }
 
@@ -1013,6 +1048,8 @@ whisperClient<URV>::whisperCheckInterrupt(int hart, uint64_t mip, bool& interrup
   req.hart = hart;
   req.type = WhisperMessageType::CheckInterrupt;
   req.address = mip;
+  req.value = mip;
+  req.instrTag = mip;
 
   WhisperMessage reply;
 

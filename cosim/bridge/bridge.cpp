@@ -540,6 +540,12 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
     return;
   }
 
+  IF_DEBUG("check dut single step");
+  if (d.excp && (d.ecause == 31)){
+    IF_DEBUG("dut single step excp cause=31");
+    return;
+  }
+
   // Handle pre-step condition - Debug
   if (debug_mode_) {
     //if (FLAGS_cosim_period != 0) {
@@ -898,7 +904,7 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
   if (prev_e_mip_ != e_mip_)
     e_mip_age_ = 0;
 
-  if (!mip_ && !prev_mip_) {
+  if (!mip_ && !prev_mip_ && !d.intr) {
     IF_DEBUG("mip_==0  and prev_mip_==0 ... return");
     return;
   }
@@ -919,14 +925,14 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
 
     // Check that interrupt age is not beyond threshold
     if ((intr_age_[w_cause] > FLAGS_max_pend_intr_age) && !FLAGS_cosim_resynch && !FLAGS_intr_timeout_resynch) {
-      error("Hart {}: Whisper wants to take interrupt, DUT does not. cause: [{}], timeout: [{}] retires\n",
+      error("Hart {}: Whisper wants to take interrupt, DUT does not. wcause: [{}], timeout: [{}] retires\n",
         hart, w_cause, FLAGS_max_pend_intr_age);
     }
     return;
   }
 
   if (FLAGS_bridge_log) {
-    bridge_log_(cvm::MEDIUM, "<{}> Interrupt taken by DUT. dcause:[{}] wcause:[{}]\n", w.time, d.icause, w_cause);
+    bridge_log_(cvm::MEDIUM, "<{}> Interrupt taken by DUT. dcause:[{}] wcause:[{}], d_intr:[{}] w_intr:[{}]\n", w.time, d.icause, w_cause, d.intr, w_intr);
   }
 
   // Currently for interrupts taken to VS mode, w_cause and d.icause differ by 1
@@ -963,9 +969,10 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
   // 1. DUT took older interrupt that deasserted before retire
   if (d.intr && !w_intr && !FLAGS_cosim_resynch) {
     IF_DEBUG("dut intr==1 and whisper intr==0");
+    bridge_log_(cvm::MEDIUM, "<{}> DUT took interrupt, Whisper did not. dcause:[{}]\n", w.time, d.icause);
     check_interrupt(hart, prev_mip_, w_intr, w_cause);
     if (w_intr && (w_cause == d.icause)) {
-      bridge_log_(cvm::MEDIUM, "<{}> DUT took interrupt, Whisper did not. cause:[{}] (Timing sensitive mismatch: Resynch and keep going)\n", w.time, d.icause);
+      bridge_log_(cvm::MEDIUM, "<{}> cause:[{}] (Timing sensitive mismatch: Resynch and keep going)\n", w.time, d.icause);
       poke_mip(hart, w.time, (uint64_t)1 << d.icause);
       resynch_icause_ = d.icause;
       // Undefer all interrupts
@@ -977,26 +984,27 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
     return;
   }
 
+  // 2. DUT took older interrupt but a newer one asserted before retire
+  if (d.icause != w_cause) {
+    IF_DEBUG("dut cause != whisper cause");
+    bridge_log_(cvm::MEDIUM, "<{}> DUT vs Whisper interrupt cause mismatch [{},{}] age [{},{}] \n",
+        w.time, d.icause, w_cause, intr_age_[d.icause], intr_age_[w_cause]);
+    check_interrupt(hart, prev_mip_, w_intr, w_cause);
+    if (w_intr && (w_cause == d.icause)) {
+      bridge_log_(cvm::MEDIUM, "<{}> cause: [{}] (Timing sensitive mismatch: Resynch and keep going)\n",
+        w.time, d.icause);
+      defer_interrupt(hart, w.time, mip_ & ~((uint64_t)1 << d.icause));
+      timing_case2 = 1;
+    }
+    return;
+  }
+
   // Undefer all interrupts
   if (deferred_intr_) {
     IF_DEBUG("deferred intr == 1");
     defer_interrupt(hart, w.time, 0);
     deferred_intr_ = false;
   }
-
-  // 2. DUT took older interrupt but a newer one asserted before retire
-  if (d.icause != w_cause) {
-    IF_DEBUG("dut cause != whisper cause");
-    check_interrupt(hart, prev_mip_, w_intr, w_cause);
-    if (w_intr && (w_cause == d.icause)) {
-      bridge_log_(cvm::MEDIUM, "<{}> DUT vs Whisper interrupt cause mismatch [{},{}] age [{},{}] (Timing sensitive mismatch: Resynch and keep going)\n",
-        w.time, d.icause, w_cause, intr_age_[d.icause], intr_age_[w_cause]);
-      defer_interrupt(hart, w.time, mip_ & ~((uint64_t)1 << d.icause));
-    }
-    return;
-  }
-
-
 
   if (FLAGS_retire_ucode_trap) {
     IF_DEBUG("FLAG retire_ucode_trap == 1 ... return");
@@ -1062,7 +1070,7 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
   // DUT is expected to take at retire boundary if whisper takes the undeferred interrupt
   if (w_.intr && !d.intr && !FLAGS_cosim_resynch) {
     print_instr_stdout(hart, w);
-    error("Hart {}: Whisper took interrupt, DUT did not. cause:[{}]\n", hart, w_.icause);
+    error("Hart {}: Whisper took interrupt, DUT did not. wcause:[{}]\n", hart, w_.icause);
     return;
   }
 
@@ -1073,14 +1081,14 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
       return;
 
     print_instr_stdout(hart, w);
-    error("Hart {}: DUT took interrupt, Whisper did not. cause:[{}]\n", hart, d.icause);
+    error("Hart {}: DUT took interrupt, Whisper did not. dcause:[{}]\n", hart, d.icause);
     return;
   }
 
   // DUT cause should match whisper cause
   if ((d.icause != w_.icause) && !FLAGS_cosim_resynch) {
     print_instr_stdout(hart, w);
-    error("Hart {}: DUT vs Whisper interrupt cause mismatch [dut:{},whisper:{}]\n", hart, d.icause, w_.icause);
+    error("Hart {}: DUT vs Whisper interrupt cause mismatch. dcause:[{}] wcause:[{}]\n", hart, d.icause, w_.icause);
     return;
   }
   if (resynch_icause_) {
@@ -1095,6 +1103,11 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
   }
 
   num_taken_interrupts_[intrtopriv_][w_.icause]++;
+
+  if(timing_case2){
+    defer_interrupt(hart, w.time, 0);
+    timing_case2 = 0;
+  }
 }
 
 void bridge::post_step_nmi_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
@@ -1600,7 +1613,7 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_
       break;
     case 'c':
       if (FLAGS_csr_rd_check){
-        if (!is_indirect_reg(w.disasm)){
+        if (!is_indirect_reg(w.disasm) || nmi_.valid){
           // Check if PMP entry is locked
           if (w.address >= 0x3B0 && w.address < 0x3C0) {
             bool valid = false;
@@ -1957,8 +1970,10 @@ bool bridge::topei_mismatch(const std::string& instr) {
   return false;
 }
 
-bool bridge::debug_mem_access(const rv_instr_t& d){
 
+bool bridge::debug_mem_access(const rv_instr_t& d){
+  print(cvm::HIGH, "mem_access_print [d.mem_read.valid={}, debug_mode_={}, d.mem_read.pa={:#x}, FLAGS_debug_mem_base={}, FLAGS_debug_mem_size={}]\n",
+  d.mem_read.valid, debug_mode_, d.mem_read.pa, FLAGS_debug_mem_base, FLAGS_debug_mem_size);
   if (d.mem_read.valid && debug_mode_ &&
       (d.mem_read.pa >= FLAGS_debug_mem_base) && (d.mem_read.pa < (FLAGS_debug_mem_base + FLAGS_debug_mem_size)))
     return true;

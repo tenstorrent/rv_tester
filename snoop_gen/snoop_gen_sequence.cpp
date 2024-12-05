@@ -13,13 +13,17 @@ DEFINE_int32(snoop_trigger_threshold, 5, "Number of snoops to populate in queue 
 DEFINE_int32(snoop_max_burst_size, 2, "Number of b2b snoop request");
 
 
+extern "C" {
+  uint8_t get_rand_snoop_en() {
+    return FLAGS_rand_snoop_en;
+  }
+}
+
 snoop_gen_sequence::snoop_gen_sequence(cvm::topology::loc_t loc, unsigned id) : loc_(loc), id_(id), scope_(nullptr) {
 
   // Scope
   cvm::registry::messenger.connect<svScope>(loc_, [this](svScope s) { return this->set_scope(s); });
 
-  
- 
   axi_mst_loc_l = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST", 0);
   
   snoop_gen_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.SNOOP_GEN", 0);
@@ -113,14 +117,12 @@ cvm::messenger::task<void> snoop_gen_sequence::rand_mode() {
 
 
 cvm::messenger::task<void> snoop_gen_sequence::tick() {
-  auto trace_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.TRACE", 0);
-  co_await cvm::registry::messenger.wait<rv_tester_transactions::trace::m_tick<>>(trace_loc);
+  co_await cvm::registry::messenger.wait<rv_tester_transactions::snoop_gen::m_tick<>>(loc_);
   co_return;
 }
 
 cvm::messenger::task<void> snoop_gen_sequence::trigger() {
-  auto trace_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.TRACE", 0);
-  co_await cvm::registry::messenger.wait<rv_tester_transactions::trace::m_tick<>>(trace_loc);
+  co_await cvm::registry::messenger.wait<rv_tester_transactions::snoop_gen::m_tick<>>(loc_);
   co_return;
 }
 

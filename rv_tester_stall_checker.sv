@@ -31,7 +31,7 @@ import rv_tester_params::*;
   logic failed = '0;
 
   assign read_req = axi_req.ar_valid & axi_rsp.ar_ready;
-  assign write_req = axi_req.aw_valid & axi_rsp.aw_ready & axi_req.w_valid & axi_rsp.w_ready;
+  assign write_req = axi_req.aw_valid & axi_rsp.aw_ready;
   assign write_rsp = axi_rsp.b_valid & axi_req.b_ready;
   assign read_rsp = axi_rsp.r_valid & axi_req.r_ready & axi_rsp.r.last;
 

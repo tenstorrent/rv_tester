@@ -91,11 +91,14 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
       [this](const uint64_t& t) {  // FIXME: using signal to send data from whisper client to sysmod
       if (t == 0)
         return this->load_csr_mmr_boot(0);
-      return this->store_dm_randpc();
+      return this->store_dm_rand();
       });
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::tick<>>(
       loc_,
       [this](const rv_tester_transactions::sysmod::tick<>& t) { return this->tick(t.advance); });
+  cvm::registry::messenger.connect<rv_tester_transactions::sysmod::tick<>>(
+      loc_,
+      [this](const rv_tester_transactions::sysmod::tick<>& t) { return this->is_dut_reset_req(t.dut_reset_req,t.clocks,t.divisor); });
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::jtag_tick<>>(
       loc_,
       [this](const rv_tester_transactions::sysmod::jtag_tick<>& t) { return this->jtag_tick(t.advance); });
@@ -1222,17 +1225,22 @@ sysmod::load_cplfw(const std::string& cplfw)
     }
   }
 }
+
 void
-sysmod::store_dm_randpc()
+sysmod::store_dm_rand()
 {
-  if (cvm::registry::messenger.call<whisperClient<uint64_t>::get_dm_randpc_RPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0)) != 0) {
-    device::data_t dataw(8);
-    device::strb_t strb(8);
+  std::string whisper_client = "TOP.PLATFORM.WHISPER_CLIENT";
+  uint64_t addr = cvm::registry::messenger.call<whisperClient<uint64_t>::get_dm_rand_addr_RPC>(cvm::topology::get_from_hierarchy(whisper_client, 0));
+  auto dm_rand_values = cvm::registry::messenger.call<whisperClient<uint64_t>::get_dm_rand_val_RPC>(cvm::topology::get_from_hierarchy(whisper_client, 0));
+  device::data_t dataw(8);
+  device::strb_t strb(8);
+  for (const auto &val:dm_rand_values) {
     for (size_t i=0; i<8; i++) {
-      dataw[i] = (cvm::registry::messenger.call<whisperClient<uint64_t>::get_dm_randpc_RPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0)) >> 8*i) & 0xff;
+      dataw[i] = (val >> 8*i) & 0xff;
       strb[i]  = true;
     }
-    dev("trickbox")->backdoor_write(cvm::registry::messenger.call<whisperClient<uint64_t>::get_dm_randpc_addr_RPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0)), 8, dataw, strb); //write to trickbox location
+    dev("trickbox")->backdoor_write(addr, 8, dataw, strb);
+    addr += 8;
   }
 }
 
@@ -1265,6 +1273,17 @@ sysmod::tick(uint64_t advance)
       for (auto& d : devices_) {
           d->tick(advance);
       }
+  }
+}
+
+void
+sysmod::is_dut_reset_req(bool dut_reset_req,uint64_t clocks,uint64_t divisor)
+{ 
+  cvm::log(cvm::HIGH,"Value of dut_reset_req in sysmod is : {}\n",dut_reset_req);
+  if (dut_reset_req) {
+    for (auto& d : devices_) {
+          d->is_dut_reset_req(dut_reset_req,clocks,divisor);
+      } 
   }
 }
 

@@ -342,6 +342,8 @@ cosim:
                 width: 2
             cause:
                 width: 64
+            order:
+                width: 64
 
     m_core_intr:
         domain: 1
@@ -397,6 +399,12 @@ sysmod:
         fields:
             advance:
                 width: 64
+            clocks:
+                width: 64
+            divisor:
+                width: 64
+            dut_reset_req:
+                width: 1
     jtag_tick:
         domain: 2
         num: 1
@@ -1629,15 +1637,6 @@ snoop_gen:
     m_tick:
         domain: 2
         num: 1
-        fields:
-            cycle:
-                width: 64
-    m_reset:
-        domain: 2
-        num: 1
-        fields:
-            cycle:
-                width: 64
 
 interrupts:
     num: ${TOP.PLATFORM.NHARTS}
