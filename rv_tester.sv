@@ -182,8 +182,8 @@ module rv_tester
     assign dut_terminate_any = dut_terminate;
 
 
-    assign terminate           = (dut_terminate_any || rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sys_reset_any) || quiesce_counter > 0) && !rv_tester_reset;
-    assign terminate_now       = (terminate_1T && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue <= 'h1) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced )) || dut_terminate_any || warm_reset_now;
+    assign terminate           = (dut_terminate_any || rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sys_reset_any) || quiesce_counter > 0) && !rv_tester_reset && !warm_reset;
+    assign terminate_now       = (terminate_1T && (quiesced || ((quiesce_counter >= quiesce_timeout) && !warm_reset)) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue <= 'h1) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced )) || dut_terminate_any || warm_reset_now;
 
     assign rerun_now           = terminated && !terminated_1T && ((num_reruns > 0) || (warm_reset_en && (num_resets <= target_num_resets)) || dut_reset_req);
 
@@ -575,7 +575,8 @@ module rv_tester
     ) i_dm_model(
         .clk(dut_clk[AXI_CLK_IDX]),
 
-        .reset(sys_reset[TB_CLK_IDX]),
+        //.reset(sys_reset[TB_CLK_IDX]),
+        .reset(~reset[WARM_RESET_IDX] || reset_hold[DEBUG_HOLD_IDX]),
         .dmi_req(dmi_tx_req),
         .dmi_req_valid(dmi_tx_req_vld),
         .dmi_resp_valid(dmi_tx_resp_vld),
