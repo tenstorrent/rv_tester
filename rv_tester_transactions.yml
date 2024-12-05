@@ -636,6 +636,10 @@ pmu:
                 width: 24
             total_traps:
                 width: 24
+            bst_full_on_ex_redirect:
+                width: 24
+            pfx_full_on_ex_redirect:
+                width: 24
             l1i_read_access:
                 width: 24
             l1i_read_miss:
