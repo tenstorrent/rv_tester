@@ -224,7 +224,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
     // the vector instruction
     if (FLAGS_vec_cmode_tag_override && (ecause_ == CUSTOM_VEC_CMODE)) {
       vec_cmode_ = true;
-      vec_cmode_first_tag_ = (prev_instr_tag_ != prev_uop_tag_) ? prev_uop_tag_ : prev_instr_tag_ + 1;
+      vec_cmode_first_tag_ = m_trap.order;
     }
   }
 }
