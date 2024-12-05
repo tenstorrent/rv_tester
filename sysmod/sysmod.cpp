@@ -1279,7 +1279,7 @@ sysmod::tick(uint64_t advance)
 void
 sysmod::is_dut_reset_req(bool dut_reset_req,uint64_t clocks,uint64_t divisor)
 { 
-  cvm::log(cvm::LOW,"Value of dut_reset_req in sysmod is : {}\n",dut_reset_req);
+  cvm::log(cvm::HIGH,"Value of dut_reset_req in sysmod is : {}\n",dut_reset_req);
   if (dut_reset_req) {
     for (auto& d : devices_) {
           d->is_dut_reset_req(dut_reset_req,clocks,divisor);
