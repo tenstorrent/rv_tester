@@ -342,6 +342,8 @@ cosim:
                 width: 2
             cause:
                 width: 64
+            order:
+                width: 64
 
     m_core_intr:
         domain: 1
