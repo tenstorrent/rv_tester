@@ -56,16 +56,6 @@ debugger::~debugger()
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"dm_rand_snippets_delay\": \"{}_{}\"}}\n", FLAGS_dbg_delay_min, FLAGS_dbg_delay_max);
   }
   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"dm_rand_snippets_name\": \"{}\"}}\n", dbg_snippets_name);
-  // std::ofstream myfile;
-  // myfile.open ("reset_state.txt", std::ios_base::app);
-  // cvm::log(cvm::LOW, "[Debugger]:Debugger destructor Attempting to write the State in Debugger: dut_reset_req: {} clocks: {} divisor {} \n",dut_reset_req,clocks,divisor);
-  // if (dut_reset_req){
-  //   cvm::log(cvm::LOW, "[Debugger]:State written to Debugger : Ndm-Reset\n");
-  //   myfile << "Ndm-Reset\n";
-  // }
-  // myfile.close();
-  
-  // cvm::log(cvm::LOW, "[Debugger]: Reset_req: {} ndm_reset_occured: {} clocks: {}\n",dut_reset_req,ndm_reset_occured,clocks);
 
 }
 void

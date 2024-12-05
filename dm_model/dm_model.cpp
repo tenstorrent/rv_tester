@@ -41,7 +41,6 @@ debug_module_t::debug_module_t(cvm::topology::loc_t loc, unsigned) : program_buf
                                                                      hart_array_mask(max_hartid + 1)
 //  rti_remaining(0)
 {
-  cvm::log(cvm::LOW, "Debug Module Model Constructor being called here!!\n");
 
   cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dmi_req<>>(loc, [this](const auto &v)
                                                                               { return this->process(v); });
