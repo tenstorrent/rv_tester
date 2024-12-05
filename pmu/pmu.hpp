@@ -877,7 +877,7 @@ public:
 
     void to_vector(const rv_tester_transactions::pmu::pmcounters<>& pmcounters){
     
-    const uint64_t casting_size_term = uint64_t(1) << 24;
+      const uint64_t casting_size_term = uint64_t(1) << 24;
 
       counters[counter::CPU_CYCLES] = counters[counter::CPU_CYCLES] + ((pmcounters.cpu_cycles - (counters[counter::CPU_CYCLES] % casting_size_term)) % casting_size_term);
       counters[counter::INSTRUCTIONS] = counters[counter::INSTRUCTIONS] + ((pmcounters.instructions - (counters[counter::INSTRUCTIONS] % casting_size_term)) % casting_size_term);
@@ -2136,6 +2136,116 @@ public:
             {0x2000,counter::OP_ISSUED_PIPE13},
             {0x4000,counter::OP_ISSUED_PIPE14},
             {0x8000,counter::OP_ISSUED_PIPE15},
+            }
+      },
+      {0x2180,{
+            {0x0001,counter::LEAF_TLB_ACCESS_LS},
+            {0x0002,counter::LEAF_TLB_ACCESS_FE},
+            {0x0004,counter::LEAF_TLB_ACCESS_MMU_PREFETCH},
+            }
+      },
+      {0x2181,{
+            {0x0001,counter::LEAF_TLB_MISS_LS},
+            {0x0002,counter::LEAF_TLB_MISS_FE},
+            {0x0004,counter::LEAF_TLB_MISS_MMU_PREFETCH},
+            }
+      },
+      {0x2182,{
+            {0x0001,counter::NONLEAF_TLB_ACCESS_LS},
+            {0x0002,counter::NONLEAF_TLB_ACCESS_FE},
+            {0x0004,counter::NONLEAF_TLB_ACCESS_MMU_PREFETCH},
+            }
+      },
+      {0x2183,{
+            {0x0001,counter::NONLEAF_TLB_MISS_LS},
+            {0x0002,counter::NONLEAF_TLB_MISS_FE},
+            {0x0004,counter::NONLEAF_TLB_MISS_MMU_PREFETCH},
+            }
+      },
+      {0x2184,{
+            {0x0001,counter::PAGE_TABLE_WALKS_LS},
+            {0x0002,counter::PAGE_TABLE_WALKS_FE},
+            {0x0004,counter::PAGE_TABLE_WALKS_MMU_PREFETCH},
+            }
+      },
+      {0x24c9,{
+            {0x0001,counter::L1D_CACHE_INVALIDATE_SNOOP},
+            {0x0002,counter::L1D_CACHE_INVALIDATE_CMO},
+            {0x0004,counter::L1D_CACHE_INVALIDATE_RAS},
+            }
+      },
+      {0x2740,{
+            {0x0001,counter::LSU_RESYNCS_RAR_STPIPE},
+            {0x0002,counter::LSU_RESYNCS_RAR_LDPIPE},
+            }
+      },
+      {0xabc3,{
+            {0x0001,counter::PFC_PREFETCHES_LATE_L1PEND},
+            {0x0002,counter::PFC_PREFETCHES_LATE_REQBUF},
+            {0x0004,counter::PFC_PREFETCHES_LATE_WASTED},
+            }
+      },
+      {0xa201,{
+            {0x0001,counter::LS_CHILLOUT_REQUESTS_LDC},
+            {0x0002,counter::LS_CHILLOUT_REQUESTS_STC},
+            {0x0004,counter::LS_CHILLOUT_REQUESTS_MMU},
+            {0x0008,counter::LS_CHILLOUT_REQUESTS_CIF},
+            }
+      },
+      {0xa202,{
+            {0x0001,counter::LS_CHILLOUT_ENTRANCES_LDC},
+            {0x0002,counter::LS_CHILLOUT_ENTRANCES_STC},
+            {0x0004,counter::LS_CHILLOUT_ENTRANCES_MMU},
+            {0x0008,counter::LS_CHILLOUT_ENTRANCES_CIF},
+            }
+      },
+      {0xa405,{
+            {0x0001,counter::UTLB_HIT_LOAD},
+            {0x0002,counter::UTLB_HIT_STORE},
+            }
+      },
+      {0xa406,{
+            {0x0001,counter::UTLB_MISS_LOAD},
+            {0x0002,counter::UTLB_MISS_STORE},
+            }
+      },
+      {0xa480,{
+            {0x0001,counter::DFP_ACCESS_LOAD},
+            {0x0002,counter::DFP_ACCESS_STORE},
+            {0x0008,counter::DFP_ACCESS_MMU},
+            {0x0010,counter::DFP_ACCESS_EVICT},
+            {0x0020,counter::DFP_ACCESS_FILL},
+            {0x0040,counter::DFP_ACCESS_SNOOP},
+            }
+      },
+      {0xa4c0,{
+            {0x0001,counter::TAP_ACCESS_LOAD},
+            {0x0002,counter::TAP_ACCESS_STORE},
+            {0x0004,counter::TAP_ACCESS_PREFETCH},
+            {0x0008,counter::TAP_ACCESS_MMU},
+            {0x0010,counter::TAP_ACCESS_EVICT},
+            {0x0020,counter::TAP_ACCESS_FILL},
+            {0x0040,counter::TAP_ACCESS_SNOOP},
+            }
+      },
+      {0xa4c1,{
+            {0x0001,counter::UWP_ACCESS_AGP},
+            {0x0002,counter::UWP_ACCESS_ARB},
+            }
+      },
+      {0xa4c2,{
+            {0x0001,counter::UWP_MISS_AGP},
+            {0x0002,counter::UWP_MISS_TAP_DFP},
+            }
+      },
+      {0xa4c3,{
+            {0x0001,counter::UWP_TRUE_HIT_AGP},
+            {0x0002,counter::UWP_TRUE_HIT_ARB},
+            }
+      },
+      {0xa4ca,{
+            {0x0001,counter::UWP_INVALIDATE_AGP},
+            {0x0002,counter::UWP_INVALIDATE_TAP_DFP},
             }
       },
     };

@@ -48,8 +48,8 @@ for event in core_events:
         continue
     if event:
         desc = event.split(',')
-        core_data_dict.append({"name": desc[1], "description": desc[2], "event_id": desc[0], "unit": desc[4], "multi_hot_encoding":desc[11]})
-core_data_dict.append({"name": "branch_instructions", "description": "Sum of retired branches", "event_id": -1, "unit": "FE", "multi_hot_encoding":"No"})
+        core_data_dict.append({"name": desc[1], "description": desc[2], "event_id": desc[0], "unit": desc[4], "multi_hot_encoding":desc[11], "multi_D_filter":desc[12]})
+core_data_dict.append({"name": "branch_instructions", "description": "Sum of retired branches", "event_id": -1, "unit": "FE", "multi_hot_encoding":"No", "multi_D_filter":"No"})
 
 sc_skip_header = True
 for event in sc_events:
@@ -130,7 +130,7 @@ def create_cpp_frag(core_events: List[Dict[Any, Any]],sc_events: List[Dict[Any, 
     filtered_csv = []
     filter_event_dict = {}
     for event in core_events:
-        if (event["multi_hot_encoding"] == "Yes" and event["unit"] != "LS"):
+        if (event["multi_hot_encoding"] == "Yes" and event["multi_D_filter"] == "No"):
             filtered_csv.append({
                 'event_31_16': event["event_id"][0:6],
                 'event_15_0': event["event_id"][6:10],
