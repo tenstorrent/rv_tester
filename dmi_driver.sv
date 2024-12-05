@@ -65,8 +65,7 @@ import rv_tester_params:: * ;
   int tselect_value, trigger_index, trigger_hit, command_in_trigger_disable_queue_size;
   logic check_hit_for_tselect, to_check_tselect, read_tselect, to_check_hit, check_hit_bit, read_tdata1_hit;
 
-  logic mmr_write_32bits, mmr_write_64bits, check_data0, check_data1, get_data1, mmr_read_32bits, mmr_read_64bits, mmr_access_rd, read_data1, read_data0_comp, read_data1_comp;
-  int data0_value, data1_value;
+
 
   typedef struct packed {
     logic [15:0] reg_addr;
@@ -150,17 +149,6 @@ import rv_tester_params:: * ;
     to_check_hit <= 0;
     check_hit_bit <= 0;
     read_tdata1_hit <= 0;
-    mmr_write_32bits <= 0;
-    mmr_write_64bits <= 0;
-    check_data0 <= 0;
-    check_data1 <= 0;
-    get_data1 <= 0;
-    mmr_read_32bits <= 0;
-    mmr_read_64bits <= 0;
-    mmr_access_rd <= 0;
-    read_data1 <= 0;
-    read_data0_comp <= 0;
-    read_data1_comp <= 0;
   end
 
   initial begin
@@ -307,17 +295,6 @@ import rv_tester_params:: * ;
           $display("[Poll] Seen Abstract Command Req, Doing Poll");
           abstr_cmd_req = 1;
           poll = 1;
-          $display("[Poll] #310 cmd.addr = :%h, cmd.op = :%h, cmd.data[31:0]= :%h", cmd.addr, cmd.op, cmd.data[31:0]);
-          if(cmd.data[31:0] === 'h2b10000)begin
-            mmr_write_64bits = 1;
-            $display("[Poll] MMR Access - 64 bits Write");
-          end else if(cmd.data[31:0] === 'h2a10000)begin
-            mmr_write_32bits = 1;
-            $display("[Poll] MMR Access - 32 bits Write");
-          end else if(((cmd.data[31:0] === 'h2b00000) && mmr_read_64bits) || ((cmd.data[15:0] === 'h2a00000) && mmr_read_32bits)) begin
-            mmr_access_rd = 1;
-            $display("[Poll] mmr_access_rd is set");
-          end
           if (cmd.data[31:24] === 'h0 && cmd.data[17] === 'h1) begin
             //Seen an abstract reg command with rd/write
             $display("[Poll] Seen an abstract command with rd/write");
@@ -402,11 +379,6 @@ import rv_tester_params:: * ;
           tselect_core = 0;
           tselect_core_complete = 1;
           poll = 1;
-        end else if(cmd.addr === 'h16 && cmd.op === 'h1 && (mmr_write_32bits || mmr_write_64bits))begin
-          mmr_write_32bits = 0;
-          check_data0 = 1;
-          poll = 1;
-          $display("Check data0 write value");
         end else if(trigger_to_fire && cmd.addr === 'h11 && cmd.op === 'h1) begin
           $display("[Sdtrig] Core resuming after sdtrig configuration");
           if(!rvfi_sdtrig) begin
@@ -454,21 +426,6 @@ import rv_tester_params:: * ;
           poll = 1;
           check_hit_bit = 0;
           read_tdata1_hit = 1;
-        end else if(check_data1 && cmd.addr === 'h4 && cmd.op === 'h2) begin
-          poll = 1;
-          get_data1 = 1;
-          check_data1 = 0;
-          $display("get_data1:%h to compare", get_data1);
-        end else if(mmr_access_rd && cmd.addr === 'h4 && cmd.op === 'h1) begin
-          poll = 1;
-          read_data0_comp = 1;
-          mmr_access_rd = 0;
-          $display("Read data0 to compare 32bit read");
-        end else if(read_data1 && cmd.addr === 'h5 && cmd.op === 'h1) begin
-          poll = 1;
-          read_data1 = 0;
-          read_data1_comp = 1;
-          $display("Read data1 to compare 64bit read");          
         end
       end
     end
@@ -562,18 +519,6 @@ import rv_tester_params:: * ;
         end else if (read_tdata1_hit) begin
           $display("[Poll] data0 to check for tselect value");
           dmi_req <= 41'h1100000000;
-        end else if (check_data0) begin
-          $display("[Poll] data0 write value for mem access");
-          dmi_req <= 41'h1100000000;
-        end else if(get_data1) begin
-          $display("[Poll] data1 write value for mem access with size:64");
-          dmi_req <= 41'h1500000000;
-        end else if(read_data0_comp) begin
-          $display("[Poll] data0 read value for mem access");
-          dmi_req <= 41'h1100000000;
-        end else if(read_data1_comp)begin
-          $display("[Poll] data1 read value for mem access with size:64");
-          dmi_req <= 41'h1500000000;
         end
         wait (dmi_req_ready == 1);
         @(posedge clk) dmi_req_valid <= '0;
@@ -869,47 +814,6 @@ import rv_tester_params:: * ;
           trigger_hit[trigger_index]= 1;
           poll = 0;
           read_tdata1_hit = 0;
-        end else if(check_data0) begin
-          data0_value = dmi_resp.data;
-          $display("data0_value:%h", data0_value);
-          if(mmr_write_64bits) begin
-            check_data1 = 1;
-            mmr_write_64bits = 0;
-            mmr_read_64bits = 1;
-            $display("Check data1 as it's a 64 bit write");
-          end else begin
-            mmr_read_32bits = 1;
-          end
-            check_data0 = 0;
-            poll = 0;
-        end else if(get_data1) begin
-          data1_value = dmi_resp.data;
-          $display("data1_value:%h", data1_value);
-          poll = 0;
-          get_data1 = 0;
-        end else if(read_data0_comp) begin
-          $display("line #889 data0_value:%h, dmi_resp.data:%h", data0_value, dmi_resp.data);
-          if(data0_value === dmi_resp.data) begin
-            $display("data0_value:%h, dmi_resp.data:%h", data0_value, dmi_resp.data);
-            poll = 0;
-            read_data0_comp = 0;
-            mmr_read_32bits = 0;
-            if(mmr_read_64bits) begin
-              read_data1 = 1;
-              mmr_read_64bits = 0;
-              $display("read_data1 is set");
-            end
-          end else begin
-            $display("Error: Mismatch scratchpad_mmr_write_data0_value:%h, scratchpad_mmr_read_data0_value:%h", data0_value, dmi_resp.data);
-          end
-        end else if(read_data1_comp) begin
-          if(data1_value === dmi_resp.data) begin
-            $display("data1_value:%h, dmi_resp.data:%h", data1_value, dmi_resp.data);
-            poll = 0;
-            read_data1_comp = 0;
-          end else begin
-            $display("Error: Mismatch scratchpad_mmr_write_data1_value:%h, scratchpad_mmr_read_data1_value:%h", data1_value, dmi_resp.data);
-          end
         end
       end
       $display("[Poll] Cleared poll for halt:%h resume:%h abstract:%h", halt_req, resume_req,
