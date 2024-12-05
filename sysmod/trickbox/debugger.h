@@ -94,17 +94,17 @@ public:
 
   virtual void is_dut_reset_req(bool dut_reset_req_f,uint64_t iclocks,uint64_t idivisor) override
   {
-    cvm::log(cvm::LOW,"[Debugger]:Value of dut_reset_req in debugger is : {} clocks: {} divisor TICKS: {}\n",dut_reset_req_f,iclocks,idivisor);
+    cvm::log(cvm::HIGH,"[Debugger]:Value of dut_reset_req in debugger is : {} clocks: {} divisor TICKS: {}\n",dut_reset_req_f,iclocks,idivisor);
     dut_reset_req = dut_reset_req_f;
     clocks = iclocks;
     divisor = idivisor;
-    cvm::log(cvm::LOW,"[Debugger]:Value of dut_reset_req in debugger  after assignment is : {} clocks: {} divisor TICKS: {}\n",dut_reset_req,iclocks,idivisor);
+    cvm::log(cvm::HIGH,"[Debugger]:Value of dut_reset_req in debugger  after assignment is : {} clocks: {} divisor TICKS: {}\n",dut_reset_req,iclocks,idivisor);
     if(dut_reset_req){
       ndm_reset_occured = true;
       std::ofstream myfile;
       myfile.open ("reset_state.txt", std::ios_base::app);
-      cvm::log(cvm::LOW, "[Debugger]:Debugger is_dut_reset_req Attempting to write the State in Debugger: dut_reset_req: {} clocks: {} divisor {} \n",dut_reset_req,clocks,divisor);
-      cvm::log(cvm::LOW, "[Debugger]:State written to Debugger : Ndm-Reset\n");
+      cvm::log(cvm::HIGH, "[Debugger]:Debugger is_dut_reset_req Attempting to write the State in Debugger: dut_reset_req: {} clocks: {} divisor {} \n",dut_reset_req,clocks,divisor);
+      cvm::log(cvm::HIGH, "[Debugger]:State written to Debugger : Ndm-Reset\n");
       myfile << "Ndm-Reset\n";
       myfile.flush();
       myfile.close();
@@ -115,14 +115,14 @@ public:
 
   void reset() override
   {
-    cvm::log(cvm::LOW, "[Debugger]: Reset debugger\n");
-    cvm::log(cvm::LOW, "[Debugger]: Reset_req: {} ndm_reset_occured: {} clocks: {}\n",dut_reset_req,ndm_reset_occured,clocks);
+    cvm::log(cvm::HIGH, "[Debugger]: Reset debugger\n");
+    cvm::log(cvm::HIGH, "[Debugger]: Reset_req: {} ndm_reset_occured: {} clocks: {}\n",dut_reset_req,ndm_reset_occured,clocks);
 
     std::ofstream myfile;
     myfile.open ("reset_state.txt", std::ios_base::app);
-    cvm::log(cvm::LOW, "[Debugger]:Debugger destructor Attempting to write the State in Debugger: dut_reset_req: {} clocks: {} divisor {} \n",dut_reset_req,clocks,divisor);
+    cvm::log(cvm::HIGH, "[Debugger]:Debugger destructor Attempting to write the State in Debugger: dut_reset_req: {} clocks: {} divisor {} \n",dut_reset_req,clocks,divisor);
     if (dut_reset_req){
-      cvm::log(cvm::LOW, "[Debugger]:State written to Debugger : Ndm-Reset\n");
+      cvm::log(cvm::HIGH, "[Debugger]:State written to Debugger : Ndm-Reset\n");
       myfile << "Ndm-Reset\n";
     }
     myfile.flush();
@@ -135,7 +135,7 @@ public:
       // fin.readline();
       std::string line;
       std::getline(myfile1, line);
-      cvm::log(cvm::LOW, "[Debugger]:Reset State in Debugger is: {} at clocks {} divisor {}\n", line,clocks,divisor);
+      cvm::log(cvm::HIGH, "[Debugger]:Reset State in Debugger is: {} at clocks {} divisor {}\n", line,clocks,divisor);
       if (line == "Ndm-Reset") {
         ndm_reset_occured = true;
       }
