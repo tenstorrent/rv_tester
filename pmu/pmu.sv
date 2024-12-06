@@ -187,6 +187,8 @@ import rv_tester_pkg::*;
     assign pmcounterss[0].data.spec_lsu_resyncs = 24'(pmcounter[SPEC_LSU_RESYNCS]);
     assign pmcounterss[0].data.total_flushes = 24'(pmcounter[TOTAL_FLUSHES]);
     assign pmcounterss[0].data.total_traps = 24'(pmcounter[TOTAL_TRAPS]);
+    assign pmcounterss[0].data.bst_full_on_ex_redirect = 24'(pmcounter[BST_FULL_ON_EX_REDIRECT]);
+    assign pmcounterss[0].data.pfx_full_on_ex_redirect = 24'(pmcounter[PFX_FULL_ON_EX_REDIRECT]);
     assign pmcounterss[0].data.l1i_read_access = 24'(pmcounter[L1I_READ_ACCESS]);
     assign pmcounterss[0].data.l1i_read_miss = 24'(pmcounter[L1I_READ_MISS]);
     assign pmcounterss[0].data.l1i_prefetch_access = 24'(pmcounter[L1I_PREFETCH_ACCESS]);

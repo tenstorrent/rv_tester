@@ -526,6 +526,8 @@ package rv_tester_params;
         SPEC_LSU_RESYNCS,
         TOTAL_FLUSHES,
         TOTAL_TRAPS,
+        BST_FULL_ON_EX_REDIRECT,
+        PFX_FULL_ON_EX_REDIRECT,
         L1I_READ_ACCESS,
         L1I_READ_MISS,
         L1I_PREFETCH_ACCESS,

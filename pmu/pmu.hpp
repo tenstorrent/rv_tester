@@ -77,6 +77,10 @@ public:
       TOTAL_FLUSHES,
       //Event for every trap emitted from midcore
       TOTAL_TRAPS,
+      //Event (speculative) when EX redirect needs extra latency due to BST full
+      BST_FULL_ON_EX_REDIRECT,
+      //Event (speculative) when EX redirect needs extra latency due to PFX full
+      PFX_FULL_ON_EX_REDIRECT,
       //Event (speculative) for an L1I cache access. Only demand accesses are counted. Accesses in the shadow of a demand miss are not counted. Count once for every fetchgroup access
       L1I_READ_ACCESS,
       //Event (speculative) for an L1I cache miss.Misses in the shadow of a demand miss are not counted
@@ -911,6 +915,8 @@ public:
       counters[counter::SPEC_LSU_RESYNCS] = counters[counter::SPEC_LSU_RESYNCS] + ((pmcounters.spec_lsu_resyncs - (counters[counter::SPEC_LSU_RESYNCS] % casting_size_term)) % casting_size_term);
       counters[counter::TOTAL_FLUSHES] = counters[counter::TOTAL_FLUSHES] + ((pmcounters.total_flushes - (counters[counter::TOTAL_FLUSHES] % casting_size_term)) % casting_size_term);
       counters[counter::TOTAL_TRAPS] = counters[counter::TOTAL_TRAPS] + ((pmcounters.total_traps - (counters[counter::TOTAL_TRAPS] % casting_size_term)) % casting_size_term);
+      counters[counter::BST_FULL_ON_EX_REDIRECT] = counters[counter::BST_FULL_ON_EX_REDIRECT] + ((pmcounters.bst_full_on_ex_redirect - (counters[counter::BST_FULL_ON_EX_REDIRECT] % casting_size_term)) % casting_size_term);
+      counters[counter::PFX_FULL_ON_EX_REDIRECT] = counters[counter::PFX_FULL_ON_EX_REDIRECT] + ((pmcounters.pfx_full_on_ex_redirect - (counters[counter::PFX_FULL_ON_EX_REDIRECT] % casting_size_term)) % casting_size_term);
       counters[counter::L1I_READ_ACCESS] = counters[counter::L1I_READ_ACCESS] + ((pmcounters.l1i_read_access - (counters[counter::L1I_READ_ACCESS] % casting_size_term)) % casting_size_term);
       counters[counter::L1I_READ_MISS] = counters[counter::L1I_READ_MISS] + ((pmcounters.l1i_read_miss - (counters[counter::L1I_READ_MISS] % casting_size_term)) % casting_size_term);
       counters[counter::L1I_PREFETCH_ACCESS] = counters[counter::L1I_PREFETCH_ACCESS] + ((pmcounters.l1i_prefetch_access - (counters[counter::L1I_PREFETCH_ACCESS] % casting_size_term)) % casting_size_term);
@@ -1345,6 +1351,8 @@ public:
       {SPEC_LSU_RESYNCS,"spec_lsu_resyncs"},
       {TOTAL_FLUSHES,"total_flushes"},
       {TOTAL_TRAPS,"total_traps"},
+      {BST_FULL_ON_EX_REDIRECT,"bst_full_on_ex_redirect"},
+      {PFX_FULL_ON_EX_REDIRECT,"pfx_full_on_ex_redirect"},
       {L1I_READ_ACCESS,"l1i_read_access"},
       {L1I_READ_MISS,"l1i_read_miss"},
       {L1I_PREFETCH_ACCESS,"l1i_prefetch_access"},
@@ -1777,6 +1785,8 @@ public:
       {0x5,counter::SPEC_LSU_RESYNCS},
       {0x6,counter::TOTAL_FLUSHES},
       {0x7,counter::TOTAL_TRAPS},
+      {-1,counter::BST_FULL_ON_EX_REDIRECT},
+      {-1,counter::PFX_FULL_ON_EX_REDIRECT},
       {0x200003,counter::L1I_READ_ACCESS},
       {0x200004,counter::L1I_READ_MISS},
       {0x200005,counter::L1I_PREFETCH_ACCESS},
