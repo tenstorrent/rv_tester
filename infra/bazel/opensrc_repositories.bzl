@@ -6,7 +6,7 @@ load("@bazel_tools//tools/build_defs/repo:utils.bzl", "maybe")
 
 def opensrc_repositories():
 
-    opensrc_common_verification_hash="3a0ef66d18442c25ba1138e8514c296421762843"
+    opensrc_common_verification_hash="6ce78351835a392ab06ffb0fabacb7fb5263de0a"
     maybe(
         git_repository,
         name = "opensrc-common_verification",
