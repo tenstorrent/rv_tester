@@ -10,6 +10,7 @@ import rv_tester_params::*;
   input logic sys_reset,
   input logic reset,
   input longint unsigned clocks,
+  input logic boot_done,
   output logic nmi,
   `RV_TESTER_TRANSACTIONS_INTERRUPTS_OUTPUT_PORTS
 );
@@ -48,7 +49,7 @@ import rv_tester_params::*;
 
   // m_nmi_assert_tick
   logic nmi_assert_tick;
-  rv_tester_tick_generator #(.NAME("nmi")) nmi_assert_tick_generator (.clk(clk), .reset(reset), .inhibit(nmi_asserted), .tick(nmi_assert_tick), .last());
+  rv_tester_tick_generator #(.NAME("nmi")) nmi_assert_tick_generator (.clk(clk), .reset(reset || !boot_done), .inhibit(nmi_asserted), .tick(nmi_assert_tick), .last());
   assign m_nmi_assert_ticks[0].valid = nmi_assert_tick & (location != cvm_topology::nil);
   assign m_nmi_assert_ticks[0].data.location = location;
 
