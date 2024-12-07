@@ -2327,6 +2327,7 @@ public:
 
   bool shutdown_ready();
   void get_filter_events_and_sum(uint64_t, std::vector<size_t>& , size_t&);
+  size_t extract_granularity(uint64_t);
   size_t sum_event_vector(std::vector<size_t>& filtering_events);
   std::string name_event_vector(std::vector<size_t>& filtering_events);
 
@@ -2354,6 +2355,7 @@ private:
     bool programmed = false;
     std::vector<size_t> event_type;
     size_t sideband_count_eventwr;
+    long int event_granularity;
   };
 
   static constexpr size_t num_event_csrs = 8;
