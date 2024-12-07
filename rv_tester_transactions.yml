@@ -678,7 +678,15 @@ pmu:
                 width: 24
             nonspec_resync:
                 width: 24
-            patch_match_exceptions:
+            patch_match_m_mode_exception:
+                width: 24
+            patch_match_s_mode_exception:
+                width: 24
+            patch_match_u_mode_exception:
+                width: 24
+            patch_match_vs_mode_exception:
+                width: 24
+            patch_match_vu_mode_exception:
                 width: 24
             patch_match_ucode:
                 width: 24
