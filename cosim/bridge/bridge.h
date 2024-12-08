@@ -290,6 +290,7 @@ private:
   rv_nmi_t prev_nmi_ {};
   bool nmi_poke_pending_ = false;
   uint64_t mip_ = 0;
+  uint64_t timing_case2 = 0;
   uint64_t prev_mip_ = 0;
   uint64_t mip_age_ = 0;
   uint64_t e_mip_ = 0;

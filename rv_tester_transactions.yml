@@ -342,6 +342,8 @@ cosim:
                 width: 2
             cause:
                 width: 64
+            order:
+                width: 64
 
     m_core_intr:
         domain: 1
@@ -397,6 +399,12 @@ sysmod:
         fields:
             advance:
                 width: 64
+            clocks:
+                width: 64
+            divisor:
+                width: 64
+            dut_reset_req:
+                width: 1
     jtag_tick:
         domain: 2
         num: 1
@@ -628,6 +636,10 @@ pmu:
                 width: 24
             total_traps:
                 width: 24
+            bst_full_on_ex_redirect:
+                width: 24
+            pfx_full_on_ex_redirect:
+                width: 24
             l1i_read_access:
                 width: 24
             l1i_read_miss:
@@ -666,7 +678,15 @@ pmu:
                 width: 24
             nonspec_resync:
                 width: 24
-            patch_match_exceptions:
+            patch_match_m_mode_exception:
+                width: 24
+            patch_match_s_mode_exception:
+                width: 24
+            patch_match_u_mode_exception:
+                width: 24
+            patch_match_vs_mode_exception:
+                width: 24
+            patch_match_vu_mode_exception:
                 width: 24
             patch_match_ucode:
                 width: 24
