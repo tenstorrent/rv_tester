@@ -152,6 +152,7 @@ void debug_module_t::process(const rv_tester_transactions::dm_model::dmi_resp<> 
       masked_actual_data = actual_data & 0xFFFFF0FF;
       masked_req_expect = req_expect & 0xFFFFF0FF;
       cvm::log(cvm::HIGH, "Ndmresetpending is 1 masking dmstatus[11:8]\n");
+
         if ((masked_actual_data != masked_req_expect))
           cvm::log(!FLAGS_dm_model_check_bypass?cvm::ERROR:cvm::NONE, "[Mismatch] Seen a DMI Response Mismatch for Addr:{:#x} ~~~ Actual:{:#x} vs Expected:{:#x}\n", reg_addr_to_check, masked_actual_data, masked_req_expect);
         else
@@ -219,6 +220,7 @@ void debug_module_t::process(const rv_tester_transactions::dm_model::dm_load_dat
       // }
       else {
         reflow_flags = false;
+
         cvm::log(!FLAGS_dm_model_check_bypass?cvm::ERROR:cvm::NONE, "[Mismatch] The load data's are mismatching for Addr:{:#x} with Length:{:#x} ~~~ Actual:{:#x} vs Expected:{:#x}\n",load_req_addr,load_req_length,actual_load_data_to_check,expected_load_data_to_check);
       }
     }

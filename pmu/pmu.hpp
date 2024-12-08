@@ -77,6 +77,10 @@ public:
       TOTAL_FLUSHES,
       //Event for every trap emitted from midcore
       TOTAL_TRAPS,
+      //Event (speculative) when EX redirect needs extra latency due to BST full
+      BST_FULL_ON_EX_REDIRECT,
+      //Event (speculative) when EX redirect needs extra latency due to PFX full
+      PFX_FULL_ON_EX_REDIRECT,
       //Event (speculative) for an L1I cache access. Only demand accesses are counted. Accesses in the shadow of a demand miss are not counted. Count once for every fetchgroup access
       L1I_READ_ACCESS,
       //Event (speculative) for an L1I cache miss.Misses in the shadow of a demand miss are not counted
@@ -115,8 +119,16 @@ public:
       DECODE_IDLE_SERIALIZE_CYCLES,
       //Event for every instance of resync due to CSR access
       NONSPEC_RESYNC,
-      //Event for every Patch RAM exception happens in regular execution (M/S/U/VS/VU can be chosen via SSCOFPMF extension)
-      PATCH_MATCH_EXCEPTIONS,
+      //Event for every Patch RAM exception happens in regular M mode execution
+      PATCH_MATCH_M_MODE_EXCEPTION,
+      //Event for every Patch RAM exception happens in regular S mode executio
+      PATCH_MATCH_S_MODE_EXCEPTION,
+      //Event for every Patch RAM exception happens in regular U mode execution
+      PATCH_MATCH_U_MODE_EXCEPTION,
+      //Event for every Patch RAM exception happens in regular VS mode execution
+      PATCH_MATCH_VS_MODE_EXCEPTION,
+      //Event for every Patch RAM exception happens in regular VU mode execution
+      PATCH_MATCH_VU_MODE_EXCEPTION,
       //Event for every Patch RAM exception happens in micocode sequence
       PATCH_MATCH_UCODE,
       //Event for every cycle from when Patch RAM exception is dispatched in M mode to last uop of patch sequence (DRET) is dispatched which finishes the patch
@@ -877,7 +889,7 @@ public:
 
     void to_vector(const rv_tester_transactions::pmu::pmcounters<>& pmcounters){
     
-    const uint64_t casting_size_term = uint64_t(1) << 24;
+      const uint64_t casting_size_term = uint64_t(1) << 24;
 
       counters[counter::CPU_CYCLES] = counters[counter::CPU_CYCLES] + ((pmcounters.cpu_cycles - (counters[counter::CPU_CYCLES] % casting_size_term)) % casting_size_term);
       counters[counter::INSTRUCTIONS] = counters[counter::INSTRUCTIONS] + ((pmcounters.instructions - (counters[counter::INSTRUCTIONS] % casting_size_term)) % casting_size_term);
@@ -911,6 +923,8 @@ public:
       counters[counter::SPEC_LSU_RESYNCS] = counters[counter::SPEC_LSU_RESYNCS] + ((pmcounters.spec_lsu_resyncs - (counters[counter::SPEC_LSU_RESYNCS] % casting_size_term)) % casting_size_term);
       counters[counter::TOTAL_FLUSHES] = counters[counter::TOTAL_FLUSHES] + ((pmcounters.total_flushes - (counters[counter::TOTAL_FLUSHES] % casting_size_term)) % casting_size_term);
       counters[counter::TOTAL_TRAPS] = counters[counter::TOTAL_TRAPS] + ((pmcounters.total_traps - (counters[counter::TOTAL_TRAPS] % casting_size_term)) % casting_size_term);
+      counters[counter::BST_FULL_ON_EX_REDIRECT] = counters[counter::BST_FULL_ON_EX_REDIRECT] + ((pmcounters.bst_full_on_ex_redirect - (counters[counter::BST_FULL_ON_EX_REDIRECT] % casting_size_term)) % casting_size_term);
+      counters[counter::PFX_FULL_ON_EX_REDIRECT] = counters[counter::PFX_FULL_ON_EX_REDIRECT] + ((pmcounters.pfx_full_on_ex_redirect - (counters[counter::PFX_FULL_ON_EX_REDIRECT] % casting_size_term)) % casting_size_term);
       counters[counter::L1I_READ_ACCESS] = counters[counter::L1I_READ_ACCESS] + ((pmcounters.l1i_read_access - (counters[counter::L1I_READ_ACCESS] % casting_size_term)) % casting_size_term);
       counters[counter::L1I_READ_MISS] = counters[counter::L1I_READ_MISS] + ((pmcounters.l1i_read_miss - (counters[counter::L1I_READ_MISS] % casting_size_term)) % casting_size_term);
       counters[counter::L1I_PREFETCH_ACCESS] = counters[counter::L1I_PREFETCH_ACCESS] + ((pmcounters.l1i_prefetch_access - (counters[counter::L1I_PREFETCH_ACCESS] % casting_size_term)) % casting_size_term);
@@ -930,7 +944,11 @@ public:
       counters[counter::DECODE_SERIALIZE_CYCLES] = counters[counter::DECODE_SERIALIZE_CYCLES] + ((pmcounters.decode_serialize_cycles - (counters[counter::DECODE_SERIALIZE_CYCLES] % casting_size_term)) % casting_size_term);
       counters[counter::DECODE_IDLE_SERIALIZE_CYCLES] = counters[counter::DECODE_IDLE_SERIALIZE_CYCLES] + ((pmcounters.decode_idle_serialize_cycles - (counters[counter::DECODE_IDLE_SERIALIZE_CYCLES] % casting_size_term)) % casting_size_term);
       counters[counter::NONSPEC_RESYNC] = counters[counter::NONSPEC_RESYNC] + ((pmcounters.nonspec_resync - (counters[counter::NONSPEC_RESYNC] % casting_size_term)) % casting_size_term);
-      counters[counter::PATCH_MATCH_EXCEPTIONS] = counters[counter::PATCH_MATCH_EXCEPTIONS] + ((pmcounters.patch_match_exceptions - (counters[counter::PATCH_MATCH_EXCEPTIONS] % casting_size_term)) % casting_size_term);
+      counters[counter::PATCH_MATCH_M_MODE_EXCEPTION] = counters[counter::PATCH_MATCH_M_MODE_EXCEPTION] + ((pmcounters.patch_match_m_mode_exception - (counters[counter::PATCH_MATCH_M_MODE_EXCEPTION] % casting_size_term)) % casting_size_term);
+      counters[counter::PATCH_MATCH_S_MODE_EXCEPTION] = counters[counter::PATCH_MATCH_S_MODE_EXCEPTION] + ((pmcounters.patch_match_s_mode_exception - (counters[counter::PATCH_MATCH_S_MODE_EXCEPTION] % casting_size_term)) % casting_size_term);
+      counters[counter::PATCH_MATCH_U_MODE_EXCEPTION] = counters[counter::PATCH_MATCH_U_MODE_EXCEPTION] + ((pmcounters.patch_match_u_mode_exception - (counters[counter::PATCH_MATCH_U_MODE_EXCEPTION] % casting_size_term)) % casting_size_term);
+      counters[counter::PATCH_MATCH_VS_MODE_EXCEPTION] = counters[counter::PATCH_MATCH_VS_MODE_EXCEPTION] + ((pmcounters.patch_match_vs_mode_exception - (counters[counter::PATCH_MATCH_VS_MODE_EXCEPTION] % casting_size_term)) % casting_size_term);
+      counters[counter::PATCH_MATCH_VU_MODE_EXCEPTION] = counters[counter::PATCH_MATCH_VU_MODE_EXCEPTION] + ((pmcounters.patch_match_vu_mode_exception - (counters[counter::PATCH_MATCH_VU_MODE_EXCEPTION] % casting_size_term)) % casting_size_term);
       counters[counter::PATCH_MATCH_UCODE] = counters[counter::PATCH_MATCH_UCODE] + ((pmcounters.patch_match_ucode - (counters[counter::PATCH_MATCH_UCODE] % casting_size_term)) % casting_size_term);
       counters[counter::PATCH_MATCH_M_MODE_EXCEPTION_CYCLES] = counters[counter::PATCH_MATCH_M_MODE_EXCEPTION_CYCLES] + ((pmcounters.patch_match_m_mode_exception_cycles - (counters[counter::PATCH_MATCH_M_MODE_EXCEPTION_CYCLES] % casting_size_term)) % casting_size_term);
       counters[counter::PATCH_MATCH_S_MODE_EXCEPTION_CYCLES] = counters[counter::PATCH_MATCH_S_MODE_EXCEPTION_CYCLES] + ((pmcounters.patch_match_s_mode_exception_cycles - (counters[counter::PATCH_MATCH_S_MODE_EXCEPTION_CYCLES] % casting_size_term)) % casting_size_term);
@@ -1345,6 +1363,8 @@ public:
       {SPEC_LSU_RESYNCS,"spec_lsu_resyncs"},
       {TOTAL_FLUSHES,"total_flushes"},
       {TOTAL_TRAPS,"total_traps"},
+      {BST_FULL_ON_EX_REDIRECT,"bst_full_on_ex_redirect"},
+      {PFX_FULL_ON_EX_REDIRECT,"pfx_full_on_ex_redirect"},
       {L1I_READ_ACCESS,"l1i_read_access"},
       {L1I_READ_MISS,"l1i_read_miss"},
       {L1I_PREFETCH_ACCESS,"l1i_prefetch_access"},
@@ -1364,7 +1384,11 @@ public:
       {DECODE_SERIALIZE_CYCLES,"decode_serialize_cycles"},
       {DECODE_IDLE_SERIALIZE_CYCLES,"decode_idle_serialize_cycles"},
       {NONSPEC_RESYNC,"nonspec_resync"},
-      {PATCH_MATCH_EXCEPTIONS,"patch_match_exceptions"},
+      {PATCH_MATCH_M_MODE_EXCEPTION,"patch_match_m_mode_exception"},
+      {PATCH_MATCH_S_MODE_EXCEPTION,"patch_match_s_mode_exception"},
+      {PATCH_MATCH_U_MODE_EXCEPTION,"patch_match_u_mode_exception"},
+      {PATCH_MATCH_VS_MODE_EXCEPTION,"patch_match_vs_mode_exception"},
+      {PATCH_MATCH_VU_MODE_EXCEPTION,"patch_match_vu_mode_exception"},
       {PATCH_MATCH_UCODE,"patch_match_ucode"},
       {PATCH_MATCH_M_MODE_EXCEPTION_CYCLES,"patch_match_m_mode_exception_cycles"},
       {PATCH_MATCH_S_MODE_EXCEPTION_CYCLES,"patch_match_s_mode_exception_cycles"},
@@ -1777,6 +1801,8 @@ public:
       {0x5,counter::SPEC_LSU_RESYNCS},
       {0x6,counter::TOTAL_FLUSHES},
       {0x7,counter::TOTAL_TRAPS},
+      {-1,counter::BST_FULL_ON_EX_REDIRECT},
+      {-1,counter::PFX_FULL_ON_EX_REDIRECT},
       {0x200003,counter::L1I_READ_ACCESS},
       {0x200004,counter::L1I_READ_MISS},
       {0x200005,counter::L1I_PREFETCH_ACCESS},
@@ -1796,14 +1822,18 @@ public:
       {0x4400001,counter::DECODE_SERIALIZE_CYCLES},
       {0x4400002,counter::DECODE_IDLE_SERIALIZE_CYCLES},
       {0x80400000,counter::NONSPEC_RESYNC},
-      {0x80400001,counter::PATCH_MATCH_EXCEPTIONS},
-      {0x80400002,counter::PATCH_MATCH_UCODE},
-      {0x84410001,counter::PATCH_MATCH_M_MODE_EXCEPTION_CYCLES},
-      {0x84410002,counter::PATCH_MATCH_S_MODE_EXCEPTION_CYCLES},
-      {0x84410004,counter::PATCH_MATCH_U_MODE_EXCEPTION_CYCLES},
-      {0x84410008,counter::PATCH_MATCH_VS_MODE_EXCEPTION_CYCLES},
-      {0x84410010,counter::PATCH_MATCH_VU_MODE_EXCEPTION_CYCLES},
-      {0x84410020,counter::PATCH_MATCH_UCODE_CYCLES},
+      {0x80410001,counter::PATCH_MATCH_M_MODE_EXCEPTION},
+      {0x80410002,counter::PATCH_MATCH_S_MODE_EXCEPTION},
+      {0x80410004,counter::PATCH_MATCH_U_MODE_EXCEPTION},
+      {0x80410008,counter::PATCH_MATCH_VS_MODE_EXCEPTION},
+      {0x80410010,counter::PATCH_MATCH_VU_MODE_EXCEPTION},
+      {0x80410020,counter::PATCH_MATCH_UCODE},
+      {0x84420001,counter::PATCH_MATCH_M_MODE_EXCEPTION_CYCLES},
+      {0x84420002,counter::PATCH_MATCH_S_MODE_EXCEPTION_CYCLES},
+      {0x84420004,counter::PATCH_MATCH_U_MODE_EXCEPTION_CYCLES},
+      {0x84420008,counter::PATCH_MATCH_VS_MODE_EXCEPTION_CYCLES},
+      {0x84420010,counter::PATCH_MATCH_VU_MODE_EXCEPTION_CYCLES},
+      {0x84420020,counter::PATCH_MATCH_UCODE_CYCLES},
       {0x10000000,counter::STALLED_CYCLES_FRONTEND},
       {0x10000001,counter::STALLED_CYCLES_BACKEND},
       {0x90200000,counter::CYCLES_NO_INT_PRN},
@@ -2089,7 +2119,16 @@ public:
     };
 
     const std::unordered_map<uint64_t, std::unordered_map<uint16_t, size_t>> filtered_event_map = {
-      {0x8441,{
+      {0x8041,{
+            {0x0001,counter::PATCH_MATCH_M_MODE_EXCEPTION},
+            {0x0002,counter::PATCH_MATCH_S_MODE_EXCEPTION},
+            {0x0004,counter::PATCH_MATCH_U_MODE_EXCEPTION},
+            {0x0008,counter::PATCH_MATCH_VS_MODE_EXCEPTION},
+            {0x0010,counter::PATCH_MATCH_VU_MODE_EXCEPTION},
+            {0x0020,counter::PATCH_MATCH_UCODE},
+            }
+      },
+      {0x8442,{
             {0x0001,counter::PATCH_MATCH_M_MODE_EXCEPTION_CYCLES},
             {0x0002,counter::PATCH_MATCH_S_MODE_EXCEPTION_CYCLES},
             {0x0004,counter::PATCH_MATCH_U_MODE_EXCEPTION_CYCLES},
@@ -2138,6 +2177,116 @@ public:
             {0x8000,counter::OP_ISSUED_PIPE15},
             }
       },
+      {0x2180,{
+            {0x0001,counter::LEAF_TLB_ACCESS_LS},
+            {0x0002,counter::LEAF_TLB_ACCESS_FE},
+            {0x0004,counter::LEAF_TLB_ACCESS_MMU_PREFETCH},
+            }
+      },
+      {0x2181,{
+            {0x0001,counter::LEAF_TLB_MISS_LS},
+            {0x0002,counter::LEAF_TLB_MISS_FE},
+            {0x0004,counter::LEAF_TLB_MISS_MMU_PREFETCH},
+            }
+      },
+      {0x2182,{
+            {0x0001,counter::NONLEAF_TLB_ACCESS_LS},
+            {0x0002,counter::NONLEAF_TLB_ACCESS_FE},
+            {0x0004,counter::NONLEAF_TLB_ACCESS_MMU_PREFETCH},
+            }
+      },
+      {0x2183,{
+            {0x0001,counter::NONLEAF_TLB_MISS_LS},
+            {0x0002,counter::NONLEAF_TLB_MISS_FE},
+            {0x0004,counter::NONLEAF_TLB_MISS_MMU_PREFETCH},
+            }
+      },
+      {0x2184,{
+            {0x0001,counter::PAGE_TABLE_WALKS_LS},
+            {0x0002,counter::PAGE_TABLE_WALKS_FE},
+            {0x0004,counter::PAGE_TABLE_WALKS_MMU_PREFETCH},
+            }
+      },
+      {0x24c9,{
+            {0x0001,counter::L1D_CACHE_INVALIDATE_SNOOP},
+            {0x0002,counter::L1D_CACHE_INVALIDATE_CMO},
+            {0x0004,counter::L1D_CACHE_INVALIDATE_RAS},
+            }
+      },
+      {0x2740,{
+            {0x0001,counter::LSU_RESYNCS_RAR_STPIPE},
+            {0x0002,counter::LSU_RESYNCS_RAR_LDPIPE},
+            }
+      },
+      {0xabc3,{
+            {0x0001,counter::PFC_PREFETCHES_LATE_L1PEND},
+            {0x0002,counter::PFC_PREFETCHES_LATE_REQBUF},
+            {0x0004,counter::PFC_PREFETCHES_LATE_WASTED},
+            }
+      },
+      {0xa201,{
+            {0x0001,counter::LS_CHILLOUT_REQUESTS_LDC},
+            {0x0002,counter::LS_CHILLOUT_REQUESTS_STC},
+            {0x0004,counter::LS_CHILLOUT_REQUESTS_MMU},
+            {0x0008,counter::LS_CHILLOUT_REQUESTS_CIF},
+            }
+      },
+      {0xa202,{
+            {0x0001,counter::LS_CHILLOUT_ENTRANCES_LDC},
+            {0x0002,counter::LS_CHILLOUT_ENTRANCES_STC},
+            {0x0004,counter::LS_CHILLOUT_ENTRANCES_MMU},
+            {0x0008,counter::LS_CHILLOUT_ENTRANCES_CIF},
+            }
+      },
+      {0xa405,{
+            {0x0001,counter::UTLB_HIT_LOAD},
+            {0x0002,counter::UTLB_HIT_STORE},
+            }
+      },
+      {0xa406,{
+            {0x0001,counter::UTLB_MISS_LOAD},
+            {0x0002,counter::UTLB_MISS_STORE},
+            }
+      },
+      {0xa480,{
+            {0x0001,counter::DFP_ACCESS_LOAD},
+            {0x0002,counter::DFP_ACCESS_STORE},
+            {0x0008,counter::DFP_ACCESS_MMU},
+            {0x0010,counter::DFP_ACCESS_EVICT},
+            {0x0020,counter::DFP_ACCESS_FILL},
+            {0x0040,counter::DFP_ACCESS_SNOOP},
+            }
+      },
+      {0xa4c0,{
+            {0x0001,counter::TAP_ACCESS_LOAD},
+            {0x0002,counter::TAP_ACCESS_STORE},
+            {0x0004,counter::TAP_ACCESS_PREFETCH},
+            {0x0008,counter::TAP_ACCESS_MMU},
+            {0x0010,counter::TAP_ACCESS_EVICT},
+            {0x0020,counter::TAP_ACCESS_FILL},
+            {0x0040,counter::TAP_ACCESS_SNOOP},
+            }
+      },
+      {0xa4c1,{
+            {0x0001,counter::UWP_ACCESS_AGP},
+            {0x0002,counter::UWP_ACCESS_ARB},
+            }
+      },
+      {0xa4c2,{
+            {0x0001,counter::UWP_MISS_AGP},
+            {0x0002,counter::UWP_MISS_TAP_DFP},
+            }
+      },
+      {0xa4c3,{
+            {0x0001,counter::UWP_TRUE_HIT_AGP},
+            {0x0002,counter::UWP_TRUE_HIT_ARB},
+            }
+      },
+      {0xa4ca,{
+            {0x0001,counter::UWP_INVALIDATE_AGP},
+            {0x0002,counter::UWP_INVALIDATE_TAP_DFP},
+            }
+      },
     };
 
 //AUTOGENERATED -- END
@@ -2178,6 +2327,7 @@ public:
 
   bool shutdown_ready();
   void get_filter_events_and_sum(uint64_t, std::vector<size_t>& , size_t&);
+  size_t extract_granularity(uint64_t);
   size_t sum_event_vector(std::vector<size_t>& filtering_events);
   std::string name_event_vector(std::vector<size_t>& filtering_events);
 
@@ -2205,6 +2355,7 @@ private:
     bool programmed = false;
     std::vector<size_t> event_type;
     size_t sideband_count_eventwr;
+    long int event_granularity;
   };
 
   static constexpr size_t num_event_csrs = 8;
