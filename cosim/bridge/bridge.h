@@ -314,7 +314,7 @@ private:
   bool debug_on_ = false;
 
   // Memmap
-  memmap::memmap_t memmap_;
+  std::map<std::string, memmap_entry_t> memmap_;
 
   std::array<std::array<int, 16>, 12> num_taken_interrupts_{};
 

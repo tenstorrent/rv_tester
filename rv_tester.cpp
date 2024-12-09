@@ -96,11 +96,9 @@ extern "C" {
 
     void rv_tester_parse_memmap(std::uint32_t no_addr_rules) {
 
-        memmap::parse();
-
-        memmap::memmap_t m;
-        memmap::get(m);
-
+        std::map<std::string, memmap_entry_t> m;
+        if (!cvm::registry::messenger.call<memmap::getRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.MEMMAP", 0), m))
+            return;
         if (m.size() > no_addr_rules) {
             cvm::log(cvm::ERROR, "Test specifying more address rules ({}) than in sv ({})", m.size(), no_addr_rules);
             return;
@@ -156,7 +154,6 @@ extern "C" {
         if (env_var != nullptr && std::string(env_var) == "1") {
             rv_tester_parse_flags();
             rv_tester_cvm_error_handler();
-            memmap::parse();
             rv_tester_build_registry();
             cvm::log(cvm::NONE, "Initialize Offline DPI\n");
         }
