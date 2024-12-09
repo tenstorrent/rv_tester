@@ -287,10 +287,10 @@ module rv_tester
             if (num_resets < 0)
                 rv_tester_set_seed();
             rv_tester_cvm_error_handler();
-            rv_tester_parse_memmap(NoAddrRules);
 
             $display("[RVTESTER]: reconstructing registry");
             rv_tester_build_registry();
+            rv_tester_parse_memmap(NoAddrRules);
 
             /* verilator lint_off BLKSEQ */
             // zebu bug doesn't allow nested function calls, so create intermediate variables
