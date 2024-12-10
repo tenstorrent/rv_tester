@@ -216,6 +216,10 @@ cosim:
                 width: ${TOP.PLATFORM.PALEN}
             mask:
                 width: 64
+            amo:
+                width: 1
+            amo_op:
+                width: 5
             data:
                 width: ${TOP.PLATFORM.XLEN}
             v_ext:
@@ -223,13 +227,11 @@ cosim:
             data_vec:
                 qualify: v_ext
                 width: ${TOP.PLATFORM.VLEN}
-            amo:
-                width: 1
-            amo_op:
-                width: 5
             field:
+                qualify: v_ext
                 width: 8
             elem_idx:
+                qualify: v_ext
                 width: 8
 
     m_mcmi_insert:
@@ -274,6 +276,8 @@ cosim:
                 width: 1
             amo_op:
                 width: 5
+            cbo:
+                width: 1
             v_ext:
                 width: 1
             data_vec:
