@@ -179,6 +179,14 @@ void debugger::parse_dmi_from_csv()
         {
           sdtrig_disable_queue_on = 0;
         }
+        if (instr == "sdtrig_progbuf_queue_on")
+        {
+          sdtrig_progbuf_queue_on = 1;
+        }
+        if (instr == "sdtrig_progbuf_queue_off")
+        {
+          sdtrig_progbuf_queue_on = 0;
+        }
       }
       else if (instr_2char == "st")
       {
@@ -236,6 +244,10 @@ void debugger::parse_dmi_from_csv()
       if (sdtrig_disable_queue_on)
       {
         dmi_req.func_bits = 7;
+      }
+      if (sdtrig_progbuf_queue_on)
+      {
+        dmi_req.func_bits = 6;
       }
 
       if ((dmi_req.op != 3)&&(dmi_req.op != 0))
