@@ -39,6 +39,8 @@ DEFINE_int32(assertion_test_cycle, 0, "If non-zero, assert false on this cycle. 
 DEFINE_int32(rand_dmi_driver_dly, 0, "Random delay cycles, to be used while driving DMI transactions");
 DEFINE_int32(dm_single_step_count, 0, "No of times core to single step, to be used while driving DMI transactions");
 DEFINE_int32(sdtrig_multitrigger, 0, "No of trigger condigurations for sdtrig multitrigger test");
+DEFINE_int32(trigger_config, 0, "No of store addr configurations for sdtrig test");
+
 
 extern "C" void rv_tester_terminate();
 extern "C" void rv_tester_set_address_map(std::uint32_t i, std::uint64_t start_addr, std::uint64_t end_addr, std::uint32_t device);
@@ -96,11 +98,9 @@ extern "C" {
 
     void rv_tester_parse_memmap(std::uint32_t no_addr_rules) {
 
-        memmap::parse();
-
-        memmap::memmap_t m;
-        memmap::get(m);
-
+        std::map<std::string, memmap_entry_t> m;
+        if (!cvm::registry::messenger.call<memmap::getRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.MEMMAP", 0), m))
+            return;
         if (m.size() > no_addr_rules) {
             cvm::log(cvm::ERROR, "Test specifying more address rules ({}) than in sv ({})", m.size(), no_addr_rules);
             return;
@@ -156,7 +156,6 @@ extern "C" {
         if (env_var != nullptr && std::string(env_var) == "1") {
             rv_tester_parse_flags();
             rv_tester_cvm_error_handler();
-            memmap::parse();
             rv_tester_build_registry();
             cvm::log(cvm::NONE, "Initialize Offline DPI\n");
         }

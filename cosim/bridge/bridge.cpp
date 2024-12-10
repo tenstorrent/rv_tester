@@ -177,8 +177,11 @@ bridge::~bridge() {}
 
 void bridge::reset() {
 
-  memmap::get(memmap_);
+  if (!cvm::registry::messenger.call<memmap::getRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.MEMMAP", 0), memmap_)) {
+    error("Getting Memmap failed");
+    return;
 
+  }
   cac_.Reset();
   assert(cac_.SetVlen(vlen_));
 

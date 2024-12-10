@@ -40,7 +40,7 @@ void aclint_checker::process(const rv_tester_transactions::aclint_checker::cr_ac
     cr_ac_mmr_q_[hart].push(m);
     popifpossible(hart);
     // FIXME: RVDE-19723
-    // if (cr_ac_mmr_q_[hart].size() > 5)  cvm::log(cvm::ERROR, "More than 4 outstanding AC MMR writes\n"); 
+    if (cr_ac_mmr_q_[hart].size() > 5)  cvm::log(cvm::ERROR, "More than 4 outstanding AC MMR writes\n"); 
     cvm::log(cvm::HIGH, "[ACLINT CHECKER] AC MMR WRITES: location {} hart {} order {} addr {:#x} data {:#x} mask {:#x} \n", cr_ac_mmrwrite.location, cr_ac_mmrwrite.hart, cr_ac_mmrwrite.order, cr_ac_mmrwrite.addr, cr_ac_mmrwrite.data, cr_ac_mmrwrite.mask);
 }
 
