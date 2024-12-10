@@ -692,7 +692,6 @@ localparam CAM_IHBIT = CAM_IBITS;
             mcm_enabled = (cvm_plusargs::get_bool("mcm") != '0);
             to_host = is_eot_tohost();
             if (rvfi_enabled) begin
-              $display("[cosim]: reset");
               cosim_set_scope(location);
             end
             terminate.terminate = '0;
