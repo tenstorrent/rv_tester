@@ -157,6 +157,10 @@ module rv_tester
     int hart_enable_mask = 0;
     int rand_dmi_driver_dly = 0;
     int sdtrig_multitrigger = 0;
+    int num_dm_randpc = 0;
+    int num_dm_randload = 0;
+    int num_dm_randstore = 0;
+    int trigger_config = 0;
     int dm_single_step_count = 0;
     int dmi_poll_counter = 0;
     int dmi_poll_timeout = 50000;
@@ -309,6 +313,10 @@ module rv_tester
             perf                 <= cvm_plusargs::get_bool("perf") != '0;
             flag_force_ref_clk   <= cvm_plusargs::get_bool("force_ref_clk") != '0;
             rand_dmi_driver_dly  <= cvm_plusargs::get_int("rand_dmi_driver_dly");
+            num_dm_randpc        <= cvm_plusargs::get_int("num_dm_randpc");
+            num_dm_randload      <= cvm_plusargs::get_int("num_dm_randload");
+            num_dm_randstore     <= cvm_plusargs::get_int("num_dm_randstore");
+            trigger_config       <= cvm_plusargs::get_int("trigger_config");
             sdtrig_multitrigger  <= cvm_plusargs::get_int("sdtrig_multitrigger");
             dm_single_step_count <= cvm_plusargs::get_int("dm_single_step_count");
             cb_poll              <= cvm_plusargs::get_bool("cb_async") == '0;
@@ -552,6 +560,10 @@ module rv_tester
         .hart_enable_mask,
         .dm_single_step_count,
         .sdtrig_multitrigger,
+        .num_dm_randpc,
+        .num_dm_randload,
+        .num_dm_randstore,
+        .trigger_config,
 
         .dmi_req_ready,
         .dmi_resp_valid,
