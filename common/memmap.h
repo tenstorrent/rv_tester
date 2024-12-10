@@ -3,23 +3,31 @@
 #include <map>
 #include <string>
 #include <cstdint>
+#include "cvm/messenger.hpp"
 
-namespace memmap {
+struct memmap_entry_t {
+    std::string base_str;
+    uint64_t base;
+    uint64_t size;
+    std::string   type;
+    std::string   tag ;
+    uint64_t end ;
+};
 
-  struct memmap_entry_t {
-      std::string base_str;
-      uint64_t base;
-      uint64_t size;
-      std::string   type;
-      std::string   tag ;
-      uint64_t end ;
-  };
-
-  // ordered so when we iterate to fill SV and create devices it will be deterministic
-  using memmap_t = std::map<std::string, memmap_entry_t>;
-
-  extern memmap_t m;
-
-  void get(memmap_t& memmap);
-  void parse();
-}
+class memmap {
+  public:
+    memmap(cvm::topology::loc_t loc, unsigned);
+    bool get(std::map<std::string, memmap_entry_t>& m) {
+      if (parsed_ || parse())
+          m = memmap_;
+      return parse_status_;
+    };
+    bool parse();
+    void add_entry(std::string base_str, std::string type, std::string tag, uint64_t base, uint64_t size);
+    CVM_MESSENGER_procedure_call(parseRPC, bool (void));
+    CVM_MESSENGER_procedure_call(getRPC,   bool (std::map<std::string, memmap_entry_t>&));
+  private:
+    std::map<std::string, memmap_entry_t> memmap_;
+    bool parsed_ = false; // cache parsing
+    bool parse_status_ = false;
+};

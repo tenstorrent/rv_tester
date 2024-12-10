@@ -159,30 +159,25 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
                     cvm::log(cvm::HIGH, "[sysmod] write: src={} addr={:#x}\n", source, w.addr);
                     cvm::registry::messenger.signal<device::write_t>(this->loc_, {w});
                 }
-            });
+        });
         cvm::registry::messenger.connect<transactor::read_t>(
             source,
             [this, source](const auto& r) {
                 if (this->dev(r.addr)){
                     cvm::log(cvm::HIGH, "[sysmod] read: src={} id={}, addr={:#x}, len={}\n", source, r.id, r.addr, r.length);
                     cvm::registry::messenger.signal<device::read_t>(this->loc_, {r, source});
-		}
-
-            });
+                }
+        });
   }
-
-  // Flags configuration
-  configure_plusargs();
-
-  // Reset configuration
-  reset();
 }
 
-void
-sysmod::configure_plusargs()
+void sysmod::configure()
 {
+  // Flags configuration
   core_harvest_plusargs();
   sc_harvest_plusargs();
+  // Reset configuration
+  reset();
 }
 
 void
@@ -787,7 +782,8 @@ sysmod::compose()
   devices_.clear();
 
   // Load memmap
-  memmap::get(memmap_);
+  if(!cvm::registry::messenger.call<memmap::getRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.MEMMAP", 0), memmap_))
+      return;
 
   auto masters = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST");
   auto platform_loc = cvm::topology::get_from_type("PLATFORM", 0);
@@ -1279,7 +1275,7 @@ sysmod::tick(uint64_t advance)
 void
 sysmod::is_dut_reset_req(bool dut_reset_req,uint64_t clocks,uint64_t divisor)
 { 
-  cvm::log(cvm::LOW,"Value of dut_reset_req in sysmod is : {}\n",dut_reset_req);
+  cvm::log(cvm::HIGH,"Value of dut_reset_req in sysmod is : {}\n",dut_reset_req);
   if (dut_reset_req) {
     for (auto& d : devices_) {
           d->is_dut_reset_req(dut_reset_req,clocks,divisor);

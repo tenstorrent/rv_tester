@@ -43,7 +43,7 @@ class sysmod {
 
     ~sysmod();
 
-    void configure_plusargs();
+    void configure();
     void core_harvest_plusargs();
     void sc_harvest_plusargs();
     uint32_t get_rand_mask(uint32_t n, uint32_t max);
@@ -138,7 +138,7 @@ class sysmod {
     std::vector<std::unique_ptr<device> > devices_;
 
     // Memmap
-    memmap::memmap_t memmap_;
+    std::map<std::string, memmap_entry_t> memmap_;
     std::string hostname = "localhost";
     int port = 50001;
 

@@ -30,21 +30,21 @@ debugger::debugger(const std::string &tag, uint64_t addr, unsigned hartCount, cv
             [&](debugger::dmi_status_t i) { return this->update_dm_status(i); });
 
   std::ifstream myfile;
-  cvm::log(cvm::LOW, "[Debugger]:Constructor: read  reset state in Debugger at clocks {} divisor {}\n", clocks,divisor);
+  cvm::log(cvm::HIGH, "[Debugger]:Constructor: read  reset state in Debugger at clocks {} divisor {}\n", clocks,divisor);
   myfile.open ("reset_state.txt");
   if(myfile.is_open()) {
     // fin.seekg(-1,ios_base::end);                // go to one spot before the EOF
     // fin.readline();
     std::string line;
     std::getline(myfile, line);
-    cvm::log(cvm::LOW, "[Debugger]:Reset State in Debugger is: {} at clocks {} divisor {}\n", line,clocks,divisor);
+    cvm::log(cvm::HIGH, "[Debugger]:Reset State in Debugger is: {} at clocks {} divisor {}\n", line,clocks,divisor);
     if (line == "Ndm-Reset") {
       ndm_reset_occured = true;
     }
     
   }
   myfile.close();
-    cvm::log(cvm::LOW, "[Debugger]: Reset_req: {} ndm_reset_occured: {} clocks: {}\n",dut_reset_req,ndm_reset_occured,clocks);
+    cvm::log(cvm::HIGH, "[Debugger]: Reset_req: {} ndm_reset_occured: {} clocks: {}\n",dut_reset_req,ndm_reset_occured,clocks);
 }
 
 debugger::~debugger()
