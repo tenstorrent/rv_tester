@@ -328,7 +328,7 @@ import rv_tester_params:: * ;
           end else if(cmd.data[31:0] === 'h2a10000)begin
             mmr_write_32bits = 1;
             $display("[Poll] MMR Access - 32 bits Write");
-          end else if(((cmd.data[31:0] === 'h2b00000) && mmr_read_64bits) || ((cmd.data[15:0] === 'h2a00000) && mmr_read_32bits)) begin
+          end else if(((cmd.data[31:0] === 'h2b00000) && mmr_read_64bits) || ((cmd.data[31:0] === 'h2a00000) && mmr_read_32bits)) begin
             mmr_access_rd = 1;
             $display("[Poll] mmr_access_rd is set");
           end
@@ -892,6 +892,7 @@ import rv_tester_params:: * ;
             $display("Check data1 as it's a 64 bit write");
           end else begin
             mmr_read_32bits = 1;
+            $display("mmr_read_32bits is set");
           end
             check_data0 = 0;
             poll = 0;
