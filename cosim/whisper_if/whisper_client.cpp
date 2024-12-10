@@ -327,35 +327,52 @@ whisperClient<URV>::whisperStandalone()
       num_instr++; instructions++;
       uint64_t virt_addr, phys_addr, value;
       uint64_t pc = hart_new->lastPc();
-      if (hart_new->lastInstructionTrapped())
+      uint32_t inst;
+      hart_new->readInst(pc, inst);
+      if (   (inst & 0x10500073) // WFI
+          || (inst & 0x30200073) // MRET
+          || (((inst & 0x7fff) == 0x200f) && (inst>>20 <= 4))) // CBOs
+      {
+        pcs.push_back(pc); // giving more weightage
         pcs.push_back(pc);
-      else if (hart_new->lastLdStAddress(virt_addr, phys_addr)) {
-        if (hart_new->lastStore(phys_addr, value))
+        pcs.push_back(pc);
+
+      } else if (hart_new->lastInstructionTrapped()) {
+        pcs.push_back(pc);                 // Handler PC
+        pcs.push_back(pc);
+        uint64_t curr_pc = hart_new->pc(); // Exception PC
+        pcs.push_back(curr_pc);
+        pcs.push_back(curr_pc);
+
+      } else if (hart_new->lastLdStAddress(virt_addr, phys_addr)) {
+        if (hart_new->lastStore(phys_addr, value)) {
           stores.push_back(virt_addr);
-        else
+        } else {
           loads.push_back(virt_addr);
-      } else
-          pcs.push_back(pc);
+        }
+      } else {
+        pcs.push_back(pc);
+      }
     }
     uint32_t num_dm = FLAGS_num_dm_randpc;
     while (num_dm && pcs.size()) {
       int rand_idx = rng1() % pcs.size();
       dm_rand_val_.push_back(pcs[rand_idx]);
-      pcs.erase(pcs.begin() + rand_idx);
+      pcs.erase(std::remove(pcs.begin(), pcs.end(), pcs[rand_idx]), pcs.end()); // prevent duplicates
       num_dm--;
     }
     num_dm = FLAGS_num_dm_randload;
     while (num_dm && loads.size()) {
       int rand_idx = rng1() % loads.size();
       dm_rand_val_.push_back(loads[rand_idx]);
-      loads.erase(loads.begin() + rand_idx);
+      loads.erase(std::remove(loads.begin(), loads.end(), loads[rand_idx]), loads.end());
       num_dm--;
     }
     num_dm = FLAGS_num_dm_randstore;
     while (num_dm && stores.size()) {
       int rand_idx = rng1() % stores.size();
       dm_rand_val_.push_back(stores[rand_idx]);
-      stores.erase(stores.begin() + rand_idx);
+      stores.erase(std::remove(stores.begin(), stores.end(), stores[rand_idx]), stores.end());
       num_dm--;
     }
   }
