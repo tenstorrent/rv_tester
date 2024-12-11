@@ -136,17 +136,17 @@ import rv_tester_params:: * ;
         end
     end
 
-    logic [63:0] data_mask;
-    assign data_mask = (AcReqPktRfClki.mask == 'hF) ? {32'b0, {32{1'b1}}} : {64{1'b1}};
 
     logic [63: 0] AcMtimei_delay;
     always @(posedge rf_clk) AcMtimei_delay <= AcMtimei;
-
+    logic [63:0] mtimecmp_data, mtime_data;
     generate
     genvar k;
     for ( k = 0; k < 9; k++) begin : mtip_counters
-    assign counter_next[k] = mtimecmp_wr_valid[k] ? ((AcReqPktRfClki.data & data_mask) > AcMtimei ? 64'((AcReqPktRfClki.data & data_mask) - AcMtimei) : 64'b0)
-                        : mtime_wr_valid ? (mtimecmpval[k] > (AcReqPktRfClki.data & data_mask) ? 64'(mtimecmpval[k] - (AcReqPktRfClki.data & data_mask)) : 64'b0)
+    assign mtimecmp_data = mtimecmp_wr_valid[k] ? ((AcReqPktRfClki.mask == 'hf) ? {mtimecmpval[k][63:32], AcReqPktRfClki.data[31:0]} : AcReqPktRfClki.data) : mtimecmpval[k];
+    assign mtime_data = mtime_wr_valid ? ((AcReqPktRfClki.mask == 'hf) ? {AcMtimei[63:32], AcReqPktRfClki.data[31:0]} : AcReqPktRfClki.data) : AcMtimei;
+    assign counter_next[k] = mtimecmp_wr_valid[k] ? (mtimecmp_data > AcMtimei ? 64'(mtimecmp_data - AcMtimei) : 64'b0)
+                        : mtime_wr_valid ? (mtimecmpval[k] > mtime_data ? 64'(mtimecmpval[k] - mtime_data) : 64'b0)
                         : (AcMtimei < AcMtimei_delay) ? (mtimecmpval[k] > AcMtimei ? 64'(mtimecmpval[k] - AcMtimei) : 64'b0)
                         : (counter[k] < 'd10 ? 64'b0 : 64'(counter[k] - 'd10));
     always @(posedge rf_clk) begin
@@ -155,7 +155,7 @@ import rv_tester_params:: * ;
     end
     always @(posedge rf_clk) begin
     if (dut_reset) mtimecmpval[k] <= 'hffffffff;
-    else if(mtimecmp_wr_valid[k]) mtimecmpval[k] <= (AcReqPktRfClki.data & data_mask);
+    else if(mtimecmp_wr_valid[k]) mtimecmpval[k] <= (AcReqPktRfClki.mask == 'hf) ? {mtimecmpval[k][63:32], AcReqPktRfClki.data[31:0]} : AcReqPktRfClki.data;
     end
 
     end
@@ -166,7 +166,7 @@ import rv_tester_params:: * ;
 
 
     logic [63:0] wcount, wcount_next;
-    assign wcount_next = wtimecmp_wr_valid ? ((AcReqPktRfClki.data & data_mask) > AcMtimei ? 64'((AcReqPktRfClki.data & data_mask) - AcMtimei) : 64'b0)
+    assign wcount_next = wtimecmp_wr_valid ? (AcReqPktRfClki.data > AcMtimei ? 64'(AcReqPktRfClki.data - AcMtimei) : 64'b0)
                         : (wcount == 0 ? 64'b0 : 64'(wcount -10));
     always @(posedge rf_clk) begin
     if (dut_reset) wcount <= 'hffffffff;
