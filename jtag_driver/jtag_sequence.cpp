@@ -544,22 +544,7 @@ void jtag_sequence::drive_csv_jtag_cmds()
 
     if(jtag_cmd == 8){  //Reverse
 
-      uint64_t temp_rev = 0;
- 
-      // traversing bits of 'n' from the right
-      while (loop_rdata > 0) {
-          // bitwise left shift
-          // 'rev' by 1
-          temp_rev <<= 1;
-  
-          // if current bit is '1'
-          if ((loop_rdata & 1) == 1)
-              temp_rev ^= 1;
-  
-          // bitwise right shift
-          // 'n' by 1
-          loop_rdata >>= 1;
-      }
+      uint64_t temp_rev = reverseBits(loop_rdata, reg_length_data );
       loop_rdata  = temp_rev ;
 
       jtag_cmd_q.pop(); // pop front element
@@ -971,7 +956,7 @@ cvm::messenger::task<void> jtag_sequence::open_socket_to_listen(){
   // virtual void trickboxjtagWrite(unsigned hart, unsigned upper_jtag_data, unsigned lower_jtag_data, cbs_t& cbs)
   void jtag_sequence::trickboxJtagWrite(unsigned hart,unsigned jtag_cmd, unsigned long upper_jtag_data, unsigned long lower_jtag_data,unsigned reg_length_data,unsigned jtag_quit, unsigned tap_cfg_sel)
   {
-    cvm::log(cvm::HIGH, "[jtag_sequence]TrickBox jtag Write to hart:{}, upper jtag data:{:#x}, lower jtag data:{:#x}, reg length data:{:#x}", hart, upper_jtag_data, lower_jtag_data,reg_length_data);
+    cvm::log(cvm::HIGH, "[jtag_sequence]TrickBox jtag Write to hart:{}, upper jtag data:{:#x}, lower jtag data:{:#x}, reg length data:{:#x}\n", hart, upper_jtag_data, lower_jtag_data,reg_length_data);
     // cbs.push_back(cb_t{Callback::TRICKBOX_jtag_WR, hart, upper_jtag_data, lower_jtag_data, 0});
     //cvm::registry::messenger.signal(12, jtag_data_t{hart,jtag_cmd, upper_jtag_data, lower_jtag_data,reg_length_data,jtag_quit,tap_cfg_sel});
     // cvm::messenger::send(jtag_t, jtag_pkt);
