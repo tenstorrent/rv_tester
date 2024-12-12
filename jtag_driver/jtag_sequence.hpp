@@ -51,6 +51,7 @@
  DECLARE_int32(jtag_delay_min);
  DECLARE_int32(jtag_delay_max);
  DECLARE_int32(jtag_max_snippets);
+ DECLARE_bool(reverse_jtag_rdata);
 class jtag_sequence {
 
   public:
@@ -110,8 +111,19 @@ bool exitLoop() {
  }
  void Run_cmd_loop()
   {
-    if(loop_idx == 0 && loop_execution_cnt>0 && exitLoop()){
-      //Check for status bit in rdata
+    bool exit = false;
+    if (loop_idx == (loop_size-1)){
+      if (FLAGS_reverse_jtag_rdata) {
+        cvm::log(cvm::HIGH, "[jtag_sequence]: In loop, JTAG rdata before  . loop_rdata = {:#x}\n",loop_rdata);
+        loop_rdata = reverseBits(loop_rdata,jtag_length_data_in_loop );
+        cvm::log(cvm::HIGH, "[jtag_sequence]: In loop, JTAG rdata reversed . loop_rdata = {:#x}, reversed bit size = {}\n",loop_rdata, jtag_length_data_in_loop);
+      }
+    exit = exitLoop();
+    }
+    cvm::log(cvm::HIGH, "[jtag_driver]: Run_cmd_loop() , loop_execution_cnt = {}, loop condition met = {}\n", loop_execution_cnt, exit);
+    cvm::log(cvm::HIGH, "[jtag_driver]: Run_cmd_loop() , loop_idx = {}, loop_size = {}\n", loop_idx, loop_size);
+    if(loop_idx == 0 && loop_execution_cnt>0 && exit){
+        //Check for status bit in rdata
         loop_execution_cnt = 0;
         executing_loop = false;
         jtag_loop_q.clear();
@@ -135,6 +147,8 @@ bool exitLoop() {
     upper_jtag_data = jtag_req.jtag_ip_data_upper;
     lower_jtag_data = jtag_req.jtag_ip_data_lower;
     reg_length_data = jtag_req.jtag_length_data;
+    if(jtag_req.jtag_cmd==1)
+      jtag_length_data_in_loop = jtag_req.jtag_length_data;
     
     cvm::log(cvm::HIGH, "[jtag_sequence]: JTAG loop command {}\n",jtag_cmd);
     
@@ -148,7 +162,7 @@ bool exitLoop() {
         loop_idx = 0;
         loop_execution_cnt++;
         if(loop_execution_cnt > max_num_loops){
-          cvm::log(cvm::ERROR, "[jtag_sequence]: Maximum number of polling attempts reached {}\n",loop_execution_cnt);
+          cvm::log(cvm::ERROR, "[jtag_sequence]: ERROR: Maximum number of polling attempts reached {}\n",loop_execution_cnt);
         }
       }
     }else{
@@ -177,6 +191,20 @@ bool exitLoop() {
   void setNonBlocking(int socket);
   std::string process_string(const std::string& input);
   cvm::messenger::task<void> open_socket_to_listen();
+
+uint64_t reverseBits(uint64_t data, int N) {
+  if (N <= 1 || N > 64) {
+    return data; // Nothing to reverse or invalid input
+  }
+
+  uint64_t result = 0;
+  for (int i = 0; i < N; ++i) {
+    if (data & (1ULL << i)) {
+      result |= 1ULL << (N - 1 - i);
+    }
+  }
+  return result;
+}
 
 std::string tapToString(unsigned tap);
 
@@ -382,4 +410,5 @@ std::bitset<N> reverseLowerBits(const std::bitset<N>& bs, std::size_t split_leng
   unsigned snippets_driven = 0;
   unsigned num_ticks= 0;
   unsigned tap_cfg_sel= 0;
+  unsigned jtag_length_data_in_loop = 0;
 };
