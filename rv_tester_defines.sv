@@ -362,7 +362,7 @@ package rv_tester_params;
     } ac_cr_sync;
     typedef struct packed {
         logic [23:0] addr;
-        logic [64:0] data;
+        logic [63:0] data;
         logic [7:0] mask;
         logic [3:0] srcid;
         logic valid;
