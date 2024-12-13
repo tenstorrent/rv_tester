@@ -1266,6 +1266,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     /* verilator lint_off WIDTH */
     assign m_imsic_msis[0].data.addr = imsic_interrupt_delayed.aw.addr;
     assign m_imsic_msis[0].data.data = imsic_interrupt_delayed.w.data;
+    assign m_imsic_msis[0].data.size = imsic_interrupt_delayed.aw.size;
     /* verilator lint_on WIDTH */
 
     assign m_imsic_msis[1].valid = ~dut_reset && imsic_msi_delayed.aw_valid && imsic_msi_delayed.w_valid && rvfi_enabled;
@@ -1274,6 +1275,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     /* verilator lint_off WIDTH */
     assign m_imsic_msis[1].data.addr = imsic_msi_delayed.aw.addr;
     assign m_imsic_msis[1].data.data = imsic_msi_delayed.w.data;
+    assign m_imsic_msis[1].data.size = imsic_msi_delayed.aw.size;
     /* verilator lint_on WIDTH */
 
     assign m_imsic_msis[2].valid = ~dut_reset && imsic_ipi_delayed.aw_valid && imsic_ipi_delayed.w_valid && rvfi_enabled;
@@ -1282,6 +1284,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     /* verilator lint_off WIDTH */
     assign m_imsic_msis[2].data.addr = imsic_ipi_delayed.aw.addr;
     assign m_imsic_msis[2].data.data = imsic_ipi_delayed.w.data;
+    assign m_imsic_msis[2].data.size = imsic_ipi_delayed.aw.size;
     /* verilator lint_on WIDTH */
 
     function automatic bit [63:0] get_mip_mask(rv_tester_pkg::interrupt_t intr, rv_tester_pkg::interrupt_t intr_d1);
