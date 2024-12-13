@@ -110,6 +110,9 @@ class rvfi {
     bool     vec_cmode_ = false;
     uint64_t vec_cmode_first_tag_ = 0;
     std::unordered_map<uint64_t, uint64_t> vec_cmode_tags_;
+    bool patch_mode_ = false;
+    uint64_t patch_mode_first_tag_ = 0;
+    std::unordered_map<uint64_t, uint64_t> patch_mode_tags_;
 
     bool ncio_mem_transition_ = false;
     std::vector<mem_t> ncio_fetches_;
@@ -123,7 +126,6 @@ class rvfi {
     bool nmi_ = false;
     bool intr_ = false;
     bool excp_ = false;
-    bool patch_mode_ = false;
     uint64_t ncause_ = 0;
     uint64_t icause_ = 0;
     uint64_t ecause_ = 0;
