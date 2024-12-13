@@ -143,8 +143,6 @@ void external_interrupt_sequence::drive_interrupt(){
 
   intr_num =  (rng1() % (FLAGS_imsic_intr_threshold ));
 
-	if(!FLAGS_disable_random_hart_imsic_intr)
-    intr_hart = (rng1() % (FLAGS_imsic_hart_threshold )) ; //gen iter between 1 to max simul instr
 	if(!FLAGS_disable_vs_imsic_intr)
     intr_vs_id = (rng1() % (FLAGS_imsic_vs_id_threshold )) ; //gen iter between 1 to max simul instr
   if(intr_file == 0x02) intr_num %= FLAGS_imsic_vs_intr_threshold;  
