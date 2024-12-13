@@ -383,6 +383,8 @@ cosim:
                 width: 64
             data:
                 width: 512
+            size:
+                width: 8
 
     m_debug:
         domain: 1
