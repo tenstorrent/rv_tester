@@ -810,7 +810,6 @@ module rv_tester
         .mcmi_bypass(mcmi_bypass),
         .AcMtimei(AcMtimei),
         .AcMtipi(AcMtipi),
-        .SmcMtipi(SmcMtipi),
         `RV_TESTER_TRANSACTIONS_ACLINT_CHECKER_SOURCE_PORTS(1,0,0)
     );
 
