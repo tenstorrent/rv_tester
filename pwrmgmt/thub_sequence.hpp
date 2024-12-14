@@ -10,6 +10,7 @@
 #include "svdpi.h"
 
 namespace {
+  constexpr uint32_t core_mcountinhibit         = 0x0000'0320;
   constexpr uint32_t core_mhpmevent10           = 0x0000'032A;
   constexpr uint32_t core_mhpmcounter10         = 0x0000'0B0A;
 }
