@@ -4,13 +4,13 @@
 #include <memory>
 #include <vector>
 #include <algorithm>
-
+#include <cmath> 
 #include "cvm/plusargs.hpp"
 #include "cvm/registry.hpp"
 #include "cvm/bitmanip.hpp"
 #include "dm_model.hpp"
 
-
+DEFINE_bool(dm_hart_enum_chk, false, "Check DM hartenumaration wrt VID/PID mapping");
 // Return the number of bits wide that a field has to be to encode up to n
 // different values.
 // 1->0, 2->1, 3->2, 4->2
@@ -55,6 +55,8 @@ debug_module_t::debug_module_t(cvm::topology::loc_t loc, unsigned) : program_buf
                                                                                { return this->process(v); });
   cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dmi_status<>>(loc, [this](const auto &v)
                                                                               { return this->process(v); });
+  cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dm_req<>>(loc, [this](const auto &v)
+                                                                               { return this->process(v); });
 
   // Define a processor array (for the number of harts)
   for (size_t i = 0; i < max_hartid; i++)
@@ -91,6 +93,10 @@ debug_module_t::debug_module_t(cvm::topology::loc_t loc, unsigned) : program_buf
     else 
       hart_available_state[i] = false; 
   }
+  ///PRT
+
+
+  //PRT
 
   reset();
 }
@@ -255,6 +261,34 @@ void debug_module_t::process(const rv_tester_transactions::dm_model::dm_store<> 
   debug_module_t::store(dm_store.addr, 4, store_data);
 }
 
+void debug_module_t::process(const rv_tester_transactions::dm_model::dm_req<> &dm_req)
+{
+
+  std::istringstream ss(FLAGS_hart_enable_id);
+  std::string token;
+  while (std::getline(ss, token, ',')) {
+    if (token != "") {
+      uint32_t t = std::stoull(token);
+      hart_pid.push_back(t);
+      hart_pid_mask |= (1 << t);
+    }
+  }
+  num_pid_harts = std::bitset<32>(hart_pid_mask).count();
+  cvm::log(cvm::NONE, "DMI Monitor :: DM req for the Physical Hart ID :{:#x} dmcontrol.hartsel: {} num_pid_harts : {}\n", dm_req.dm_ms_req, dmcontrol.hartsel,num_pid_harts);
+  if(FLAGS_dm_hart_enum_chk){
+  for (size_t i = 0; i < hart_pid.size(); i++) {
+        cvm::log(cvm::HIGH, "DMI Monitor :: Hart VID: {}  PID : {} \n",i, hart_pid[i]);
+  }
+  //check if access went to correct PID
+  //the hartsel will index by VID
+  if(hart_pid[dmcontrol.hartsel] == std::log2(dm_req.dm_ms_req)){
+    cvm::log(cvm::NONE, "DM VID/PID CHECKER  :: Correct DM req for the Physical Hart ID :{:#x} dmcontrol.hartsel: {} hart_pid[dmcontrol.hartsel]: {}  std::log2(dm_store.dm_ms_req) : {}\n", dm_req.dm_ms_req, dmcontrol.hartsel,hart_pid[dmcontrol.hartsel],std::log2(dm_req.dm_ms_req));
+  }else{
+    cvm::log(cvm::ERROR, "ERROR: DM VID/PID CHECKER  :: Incorrect DM req for the Physical Hart ID :{:#x} dmcontrol.hartsel: {} hart_pid[dmcontrol.hartsel]: {} std::log2(dm_store.dm_ms_req): {}\n", dm_req.dm_ms_req, dmcontrol.hartsel,hart_pid[dmcontrol.hartsel],std::log2(dm_req.dm_ms_req));
+
+  }
+  }
+}
 void debug_module_t::init_debug_abstract_buffer(){
   unsigned i = 0;
   debug_module_t::write32(debug_abstract,i++, ZERO);    // 0 (low)

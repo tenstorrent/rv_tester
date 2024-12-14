@@ -575,6 +575,7 @@ module rv_tester
         .dmi_status,
         .dmi_commands_in_queue,
         .misc_signals,
+        .DM_MS_DebugReqVld_XXX(DM_MS_DebugReqVld_XXX),
 
         .trickbox_dmi_write(trickbox_dmi_write),
         .rvfi(rvfi)
@@ -588,7 +589,7 @@ module rv_tester
         .clk(dut_clk[AXI_CLK_IDX]),
 
         //.reset(sys_reset[TB_CLK_IDX]),
-        .reset(~reset[WARM_RESET_IDX] || reset_hold[DEBUG_HOLD_IDX]),
+        .reset(~(~reset[WARM_RESET_IDX] || reset_hold[DEBUG_HOLD_IDX])),
         .dmi_req(dmi_tx_req),
         .dmi_req_valid(dmi_tx_req_vld),
         .dmi_resp_valid(dmi_tx_resp_vld),
@@ -603,6 +604,7 @@ module rv_tester
         .dmi_status,
         .dmi_commands_in_queue,
         .misc_signals,
+        .DM_MS_DebugReqVld_XXX(DM_MS_DebugReqVld_XXX),
         `RV_TESTER_TRANSACTIONS_DM_MODEL_SOURCE_PORTS(2,0,0)
     );
 
