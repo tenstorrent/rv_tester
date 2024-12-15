@@ -26,7 +26,7 @@ module dm_model #(
     parameter int unsigned location = cvm_topology_gen::get_location (topology.TOP.PLATFORM.DM_MODEL.ID, 0);
 
     logic dm_mem_tx_rd_data_resp_vld;
-    logic [7:0] DM_MS_DebugReqVld_XXX_q;
+    logic [7:0] DM_DebugReq_Valids_q;
 
     // assign dmi_statuss[0].valid = !reset;
     // assign dmi_statuss[0].status = dmi_status;
@@ -74,8 +74,8 @@ module dm_model #(
     
     always @(posedge clk) begin
       if (reset)
-        DM_MS_DebugReqVld_XXX_q <= 0;
+        DM_DebugReq_Valids_q <= 0;
       else
-        DM_MS_DebugReqVld_XXX_q <= DM_MS_DebugReqVld_XXX;
+        DM_DebugReq_Valids_q <= DM_DebugReq_Valids;
     end
 endmodule
