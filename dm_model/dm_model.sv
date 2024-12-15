@@ -61,9 +61,9 @@ module dm_model #(
     assign dm_stores[0].data.addr = dm_mem_tx_addr[11:0];
     assign dm_stores[0].data.len = $bits(dm_stores[0].data.len)'($clog2(dm_mem_tx_wr_data_be + 1'b1));
 
-    assign dm_reqs[0].valid = !reset && (DM_MS_DebugReqVld_XXX_q != DM_MS_DebugReqVld_XXX);
+    assign dm_reqs[0].valid = !reset && (DM_DebugReq_Valids_q != DM_DebugReq_Valids);
     assign dm_reqs[0].data.location = location;
-    assign dm_reqs[0].data.dm_ms_req =  DM_MS_DebugReqVld_XXX;
+    assign dm_reqs[0].data.dm_ms_req =  DM_DebugReq_Valids;
 
     always @(posedge clk) begin
       if (reset)
