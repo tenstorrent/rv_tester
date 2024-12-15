@@ -941,7 +941,7 @@ package rv_tester_params;
     input                                    dmi_req_valid,                                         \
     input  rv_tester_pkg::dmi_req_t          dmi_req,                                               \
     input                                    dmi_resp_ready,                                        \
-                                                                                                    \
+    output [7:0]    DM_MS_DebugReqVld_XXX,                                  \
     output rv_tester_params::rvfi_t          [rv_tester_params::TOTAL_NRETS-1:0]      rvfi,         \
     output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NREADS-1:0]     mcmi_read,    \
     output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NINSERTS-1:0]   mcmi_insert,  \
@@ -1022,6 +1022,7 @@ package rv_tester_params;
     logic                                    dmi_req_valid;                                         \
     rv_tester_pkg::dmi_req_t                 dmi_req;                                               \
     logic                                    dmi_resp_ready;                                        \
+    logic [7:0]     DM_MS_DebugReqVld_XXX;                                  \
                                                                                                     \
     logic                                            dm_mem_tx_vld;                                 \
     logic                                            dm_mem_tx_we;                                  \

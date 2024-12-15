@@ -28,6 +28,7 @@ import rv_tester_params:: * ;
     output logic                    dmi_status,
     output logic [31:0]             dmi_commands_in_queue,
 
+    input  logic [7:0]               DM_MS_DebugReqVld_XXX,
     input rv_tester_pkg::dm_write_t trickbox_dmi_write,
     input rv_tester_params::rvfi_t[TOTAL_NRETS-1: 0] rvfi
 );
@@ -72,7 +73,7 @@ import rv_tester_params:: * ;
 
   logic mmr_write_32bits, mmr_write_64bits, check_data0, check_data1, get_data1, mmr_read_32bits, mmr_read_64bits, mmr_access_rd, read_data1, read_data0_comp, read_data1_comp;
   int data0_value, data1_value;
-
+  logic [7:0] DM_MS_DebugReqVld_XXX_q;
   typedef struct packed {
     logic [15:0] reg_addr;
     logic [63:0] reg_data;
@@ -191,6 +192,13 @@ import rv_tester_params:: * ;
     // end else begin
     //   rvfi_sdtrig = 0;
     end
+  end
+
+  always @(posedge clk) begin
+      if (!reset_n)
+        DM_MS_DebugReqVld_XXX_q <= 0;
+      else
+        DM_MS_DebugReqVld_XXX_q <= DM_MS_DebugReqVld_XXX;
   end
 
   always @(posedge trickbox_dmi_write.dm_wvalid) begin
