@@ -575,7 +575,7 @@ module rv_tester
         .dmi_status,
         .dmi_commands_in_queue,
         .misc_signals,
-        .DM_MS_DebugReqVld_XXX(DM_MS_DebugReqVld_XXX),
+        .DM_DebugReq_Valids(DM_DebugReq_Valids),
 
         .trickbox_dmi_write(trickbox_dmi_write),
         .rvfi(rvfi)
@@ -604,7 +604,7 @@ module rv_tester
         .dmi_status,
         .dmi_commands_in_queue,
         .misc_signals,
-        .DM_MS_DebugReqVld_XXX(DM_MS_DebugReqVld_XXX),
+        .DM_DebugReq_Valids(DM_DebugReq_Valids),
         `RV_TESTER_TRANSACTIONS_DM_MODEL_SOURCE_PORTS(2,0,0)
     );
 

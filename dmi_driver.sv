@@ -28,7 +28,7 @@ import rv_tester_params:: * ;
     output logic                    dmi_status,
     output logic [31:0]             dmi_commands_in_queue,
 
-    input  logic [7:0]               DM_MS_DebugReqVld_XXX,
+    input  logic [7:0]               DM_DebugReq_Valids,
     input rv_tester_pkg::dm_write_t trickbox_dmi_write,
     input rv_tester_params::rvfi_t[TOTAL_NRETS-1: 0] rvfi
 );

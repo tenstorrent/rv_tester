@@ -17,7 +17,7 @@ module dm_model #(
   input logic [rv_tester_params::DM_AXI_DATA_WIDTH-1:0]  dm_mem_tx_wr_data,
   input logic [rv_tester_params::DM_AXI_STRB_WIDTH-1:0]  dm_mem_tx_wr_data_be,
   input logic [7:0] misc_signals,
-  input logic [7:0] DM_MS_DebugReqVld_XXX,
+  input logic [7:0] DM_DebugReq_Valids,
   input logic                                            dmi_status,
   input logic [31:0]                                     dmi_commands_in_queue,
   `RV_TESTER_TRANSACTIONS_DM_MODEL_OUTPUT_PORTS
