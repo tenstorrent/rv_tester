@@ -941,7 +941,7 @@ package rv_tester_params;
     input                                    dmi_req_valid,                                         \
     input  rv_tester_pkg::dmi_req_t          dmi_req,                                               \
     input                                    dmi_resp_ready,                                        \
-                                                                                                    \
+    output [7:0]                             DM_DebugReq_Valids,                                  \
     output rv_tester_params::rvfi_t          [rv_tester_params::TOTAL_NRETS-1:0]      rvfi,         \
     output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NREADS-1:0]     mcmi_read,    \
     output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NINSERTS-1:0]   mcmi_insert,  \
@@ -982,7 +982,6 @@ package rv_tester_params;
     output rv_tester_params::cr_ac_axi_pkt AcReqPktRfClki, \
     output logic [63:0] AcMtimei, \
     output logic [8:0]  AcMtipi, \
-    output logic SmcMtipi, \
     output rv_tester_params::event_trigger_intf_t event_triggers  [rv_tester_params::NHARTS-1:0]
 
 `define _RV_TESTER_STALL_CHECKER_PORTS(input,output)                                                \
@@ -1023,6 +1022,7 @@ package rv_tester_params;
     logic                                    dmi_req_valid;                                         \
     rv_tester_pkg::dmi_req_t                 dmi_req;                                               \
     logic                                    dmi_resp_ready;                                        \
+    logic [7:0]     DM_DebugReq_Valids;                                  \
                                                                                                     \
     logic                                            dm_mem_tx_vld;                                 \
     logic                                            dm_mem_tx_we;                                  \
@@ -1064,7 +1064,6 @@ package rv_tester_params;
     rv_tester_params::cr_ac_axi_pkt AcReqPktRfClki; \
     logic [63:0] AcMtimei; \
     logic [8:0]  AcMtipi;  \
-    logic SmcMtipi; \
     rv_tester_params::event_trigger_intf_t event_triggers [rv_tester_params::NHARTS-1:0];
 
 `define RV_TESTER_PORTS `_RV_TESTER_PORTS(input,output)
