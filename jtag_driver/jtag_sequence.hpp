@@ -52,6 +52,8 @@
  DECLARE_int32(jtag_delay_max);
  DECLARE_int32(jtag_max_snippets);
  DECLARE_bool(reverse_jtag_rdata);
+ DECLARE_bool(continue_on_jtag_err);
+ 
 class jtag_sequence {
 
   public:
