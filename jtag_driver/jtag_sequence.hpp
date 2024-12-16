@@ -162,7 +162,16 @@ bool exitLoop() {
         loop_idx = 0;
         loop_execution_cnt++;
         if(loop_execution_cnt > max_num_loops){
-          cvm::log(cvm::ERROR, "[jtag_sequence]: ERROR: Maximum number of polling attempts reached {}\n",loop_execution_cnt);
+          executing_loop = false;
+          if(FLAGS_continue_on_jtag_err){
+            cvm::log(cvm::LOW, "[jtag_sequence]: Ignoring jtag Maximum number of polling attempts reached {}\n",loop_execution_cnt);
+          }else {
+               cvm::log(cvm::ERROR, "[jtag_sequence]: ERROR: Maximum number of polling attempts reached {}\n",loop_execution_cnt);
+               cvm::log(cvm::HIGH, "[JTAGDRIVER] ******************* \n");
+               cvm::log(cvm::HIGH, "[JTAGDRIVER] Sending Quit signal \n");
+               cvm::log(cvm::HIGH, "[JTAGDRIVER] ******************* \n");
+               trickboxJtagWrite(0, 7, 0, 0,0,1,tap_cfg_sel);
+          }
         }
       }
     }else{

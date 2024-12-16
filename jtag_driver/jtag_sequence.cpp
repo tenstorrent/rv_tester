@@ -7,6 +7,8 @@ DEFINE_string(jtag_driver_mode, "off", "Enable jtag_sequence in the sim - off/cs
 DEFINE_string(jtag_input_file_path, "", "Path to file containing jtag_driver commands");
 DEFINE_bool(random_jtag_entry, false, "Enter debug mode randomly after random intervals");
 DEFINE_bool(reverse_jtag_rdata, false, "Reverse data recived on JTAG tdo");
+DEFINE_bool(continue_on_jtag_err, false, "Continue executing JTAG snippet even after error");
+DEFINE_bool(quit_on_jtag_err, false, "Quit executing JTAG snippet after error");
 DEFINE_bool(jtag_remote_debugger_mode, false, "Accept JTAG transactions over scoket");
 DEFINE_int32(random_jtag_start_delay, 300, "delay after which random interrupts should start");
 DEFINE_int32(jtag_delay_min, 6, "Minimum Delay between 2 consecutive debug mode requests");
