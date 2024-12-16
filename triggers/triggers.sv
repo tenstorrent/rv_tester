@@ -19,7 +19,7 @@ import rv_tester_params::*;
   logic [TRIGGER_COUNT-1:0] hart_specific_event_trigger;
   logic [NHARTS-1:0] event_trigger_vlds;
   
-  genvar i, j;
+  genvar i;
   generate
     for (i = 0; i < TRIGGER_COUNT; i = i + 1) begin
       assign hart_specific_event_trigger[i] = event_trigger_vec[NUM][i].valid;
@@ -27,10 +27,10 @@ import rv_tester_params::*;
   endgenerate
 
   always_comb begin
-    for (int i = 0; i < NHARTS; i++) begin
-      event_trigger_vlds[i] = 0;
-      for (int j = 0; j < TRIGGER_COUNT; j++) begin
-        event_trigger_vlds[i] |= event_trigger_vec[i][j].valid;
+    for (int hart_num = 0; hart_num < NHARTS; hart_num++) begin
+      event_trigger_vlds[hart_num] = 0;
+      for (int trigger_num = 0; trigger_num < TRIGGER_COUNT; trigger_num++) begin
+        event_trigger_vlds[hart_num] |= event_trigger_vec[hart_num][trigger_num].valid;
       end
     end
   end
