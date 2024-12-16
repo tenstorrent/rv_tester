@@ -16,7 +16,7 @@ external_interrupt_sequence::external_interrupt_sequence(cvm::topology::loc_t lo
   cvm::registry::messenger.connect<svScope>(loc_, [this](svScope s) { return this->set_scope(s); });
   cvm::registry::messenger.connect<rv_tester_transactions::triggers::m_event_trigger_tick<>>(
       loc_,
-      [this](const rv_tester_transactions::triggers::m_event_trigger_tick<>& t) { return this->capture_trigger_info(t.event_trigger); }); 
+      [this](const rv_tester_transactions::triggers::m_event_trigger_tick<>& t) { return this->capture_trigger_info(t.event_trigger, t.per_core_evt_vector); }); 
   
  
   axi_mst_loc_l = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST", 0);
@@ -58,9 +58,10 @@ void external_interrupt_sequence::gen_interrupt_timings(){
 
 }
 
-void external_interrupt_sequence::capture_trigger_info(int32_t trigger_info){
+void external_interrupt_sequence::capture_trigger_info(int32_t trigger_info, int32_t per_core_trigger_vlds){
   last_trigger = current_trigger;  
-  current_trigger = trigger_info;  
+  current_trigger = trigger_info; 
+  drive_msi_in_curr_hart = (per_core_trigger_vlds == (1 << id_));
 }
 
 void external_interrupt_sequence::patch_trigger_mode_thread() {
@@ -100,7 +101,7 @@ cvm::messenger::task<void> external_interrupt_sequence::patch_trigger_mode() {
          }  
        }
       
-       if(!abrupt_exit){
+       if(!abrupt_exit & drive_msi_in_curr_hart){
          cvm::log(cvm::LOW,"[ExtInterruptSeq] driving external interrupt due to patch_trigger");
          drive_interrupt();
          interrupts_driven++;
@@ -112,8 +113,10 @@ cvm::messenger::task<void> external_interrupt_sequence::patch_trigger_mode() {
 cvm::messenger::task<void> external_interrupt_sequence::uarch_trigger_mode() {
   while(1){
     co_await trigger();
-    cvm::log(cvm::LOW,"[ExtInterruptSeq] driving external interrupt due to uarch_trigger");
-    drive_interrupt();
+    if(drive_msi_in_curr_hart){
+      cvm::log(cvm::LOW,"[ExtInterruptSeq] driving external interrupt due to uarch_trigger");
+      drive_interrupt();
+    }
   }
 }
 
