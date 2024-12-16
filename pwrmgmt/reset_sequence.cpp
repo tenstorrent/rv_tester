@@ -534,7 +534,7 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
     //CPL AXI in filter programming
     co_await write(cpl_in_filter0_addr_l ,SZ_8B , 0x4C000);
     co_await write(cpl_in_filter0_addr_h ,SZ_8B , 0x4EFFF);
-    co_await write(cpl_in_filter0_config ,SZ_8B , 0x81010113);      
+    co_await write(cpl_in_filter0_config ,SZ_8B , 0x81010113);
     //CPL AXI out filter programming
     co_await write(cpl_out_filter0_addr_l ,SZ_8B , 0x4C000);
     co_await write(cpl_out_filter0_addr_h ,SZ_8B , 0x4EFFF);
@@ -700,20 +700,29 @@ cvm::messenger::task<void> reset_sequence::patch_ram_check() {
 };
 
 cvm::messenger::task<void> reset_sequence::init_smc_filters() {
-  
-  co_await tick();
-    //CPL AXI in filter programming
-    co_await write(cpl_in_filter1_addr_l ,SZ_8B , 0x41000, boot_interface);
-    co_await write(cpl_in_filter1_addr_h ,SZ_8B , 0x41FFF, boot_interface);
-    co_await write(cpl_in_filter1_config ,SZ_8B , 0x8000000000010113, boot_interface);      
-    //CPL AXI in filter programming
-    co_await write(cpl_in_filter2_addr_l ,SZ_8B , 0x42000, boot_interface);
-    co_await write(cpl_in_filter2_addr_h ,SZ_8B , 0x42FFF, boot_interface);
-    co_await write(cpl_in_filter2_config ,SZ_8B , 0x8000000000020113, boot_interface);  
 
-    co_await write(cpl_in_filter2_addr_l+0x20 ,SZ_8B , 0x41000, boot_interface);
-    co_await write(cpl_in_filter2_addr_h+0x20 ,SZ_8B , 0x4EFFF, boot_interface);
-    co_await write(cpl_in_filter2_config+0x20 ,SZ_8B , 0x8000000000030113, boot_interface);   
+  co_await tick();
+
+  //CPL AXI in filter programming
+  co_await write(cpl_in_filter1_addr_l ,SZ_8B , 0x41000, boot_interface);
+  co_await write(cpl_in_filter1_addr_h ,SZ_8B , 0x41FFF, boot_interface);
+  co_await write(cpl_in_filter1_config ,SZ_8B , 0x8000000000010113, boot_interface);
+  co_await write(cpl_in_filter2_addr_l ,SZ_8B , 0x42000, boot_interface);
+  co_await write(cpl_in_filter2_addr_h ,SZ_8B , 0x42FFF, boot_interface);
+  co_await write(cpl_in_filter2_config ,SZ_8B , 0x8000000000020113, boot_interface);
+  co_await write(cpl_in_filter3_addr_l ,SZ_8B , 0x41000, boot_interface);
+  co_await write(cpl_in_filter3_addr_h ,SZ_8B , 0x4EFFF, boot_interface);
+  co_await write(cpl_in_filter3_config ,SZ_8B , 0x8000000000030113, boot_interface);
+
+  // CPL SRAM infilter (SRC-ID) programming for Overlay transactions
+  // CPL AXI in filter programming:- With SRC-ID = MMODE_ID (0xC)
+  co_await write(cpl_in_filter4_addr_l, SZ_8B, 0x40000, boot_interface);
+  co_await write(cpl_in_filter4_addr_h, SZ_8B, 0x4FFFF, boot_interface);
+  co_await write(cpl_in_filter4_config, SZ_8B, 0x80000000000C0113, boot_interface);
+  // CPL AXI in filter programming:- With SRC-ID = SEP_ID (0xF)
+  co_await write(cpl_in_filter5_addr_l, SZ_8B, 0x40000, boot_interface);
+  co_await write(cpl_in_filter5_addr_h, SZ_8B, 0x4FFFF, boot_interface);
+  co_await write(cpl_in_filter5_config, SZ_8B, 0x80000000000F0113, boot_interface);
 
   co_return;
 };

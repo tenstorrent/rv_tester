@@ -28,6 +28,7 @@ import rv_tester_params:: * ;
     output logic                    dmi_status,
     output logic [31:0]             dmi_commands_in_queue,
 
+    input  logic [7:0]               DM_DebugReq_Valids,
     input rv_tester_pkg::dm_write_t trickbox_dmi_write,
     input rv_tester_params::rvfi_t[TOTAL_NRETS-1: 0] rvfi
 );
@@ -72,7 +73,7 @@ import rv_tester_params:: * ;
 
   logic mmr_write_32bits, mmr_write_64bits, check_data0, check_data1, get_data1, mmr_read_32bits, mmr_read_64bits, mmr_access_rd, read_data1, read_data0_comp, read_data1_comp;
   int data0_value, data1_value;
-
+  logic [7:0] DM_DebugReq_Valids_q;
   typedef struct packed {
     logic [15:0] reg_addr;
     logic [63:0] reg_data;
@@ -191,6 +192,13 @@ import rv_tester_params:: * ;
     // end else begin
     //   rvfi_sdtrig = 0;
     end
+  end
+
+  always @(posedge clk) begin
+      if (!reset_n)
+        DM_DebugReq_Valids_q <= 0;
+      else
+        DM_DebugReq_Valids_q <= DM_DebugReq_Valids;
   end
 
   always @(posedge trickbox_dmi_write.dm_wvalid) begin
@@ -328,7 +336,7 @@ import rv_tester_params:: * ;
           end else if(cmd.data[31:0] === 'h2a10000)begin
             mmr_write_32bits = 1;
             $display("[Poll] MMR Access - 32 bits Write");
-          end else if(((cmd.data[31:0] === 'h2b00000) && mmr_read_64bits) || ((cmd.data[15:0] === 'h2a00000) && mmr_read_32bits)) begin
+          end else if(((cmd.data[31:0] === 'h2b00000) && mmr_read_64bits) || ((cmd.data[31:0] === 'h2a00000) && mmr_read_32bits)) begin
             mmr_access_rd = 1;
             $display("[Poll] mmr_access_rd is set");
           end
@@ -892,6 +900,7 @@ import rv_tester_params:: * ;
             $display("Check data1 as it's a 64 bit write");
           end else begin
             mmr_read_32bits = 1;
+            $display("mmr_read_32bits is set");
           end
             check_data0 = 0;
             poll = 0;

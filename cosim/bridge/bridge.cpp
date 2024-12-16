@@ -995,6 +995,7 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
     if (w_intr && (w_cause == d.icause)) {
       bridge_log_(cvm::MEDIUM, "<{}> cause: [{}] (Timing sensitive mismatch: Resynch and keep going)\n",
         w.time, d.icause);
+      poke_mip(hart, w.time, (uint64_t)1 << d.icause);
       defer_interrupt(hart, w.time, mip_ & ~((uint64_t)1 << d.icause));
       timing_case2 = 1;
     }
