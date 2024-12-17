@@ -190,6 +190,8 @@ private:
   void resynch(hart_id_t hart, const rv_instr_group_t& d);
   void resynch(hart_id_t hart, const rv_instr_t& d);
   std::string get_nth_word(const std::string& s, int n);
+  void peek_resource(hart_id_t hart, char resource, uint64_t addr, uint64_t& data);
+  void poke_resource(hart_id_t hart, uint64_t cycle, char resource, uint64_t addr, uint64_t data);
 
 private:
   
