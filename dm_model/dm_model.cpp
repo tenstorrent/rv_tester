@@ -85,19 +85,17 @@ debug_module_t::debug_module_t(cvm::topology::loc_t loc, unsigned) : program_buf
 
   memset(debug_abstract, 0, sizeof(debug_abstract));
 
-  // Keeping everything available, but will get it from fuse map
-  for (unsigned i = 0; i < max_hartid; i++)
-  {
-    if (i < FLAGS_num_harts) 
-      hart_available_state[i] = true;
-    else 
-      hart_available_state[i] = false; 
-  }
-  ///PRT
+  // // Keeping everything available, but will get it from fuse map
+  // for (unsigned i = 0; i < max_hartid; i++)
+  // {
+  //   if (i < FLAGS_num_harts) 
+  //     hart_available_state[i] = true;
+  //   else 
+  //     hart_available_state[i] = false; 
 
-
-  //PRT
-
+  //   cvm::log(cvm::NONE,"hart_available_state[{:#x}] = {:#x}\n",i, hart_available_state[i]);
+  // }
+  
   reset();
 }
 
@@ -307,6 +305,17 @@ void debug_module_t::reset()
 {
   cvm::log(cvm::HIGH, "[Reset Harts]\n"); //Fixed value as per the implementation
 
+  // Keeping everything available, but will get it from fuse map
+  for (unsigned i = 0; i < max_hartid; i++)
+  {
+    if (i < FLAGS_num_harts) 
+      hart_available_state[i] = true;
+    else 
+      hart_available_state[i] = false; 
+
+    cvm::log(cvm::HIGH,"hart_available_state[{:#x}] = {:#x}\n",i, hart_available_state[i]);
+  }
+  
   for (const auto &[hart_id, hart] : harts)
   { // harts
     hart->halt_request = hart->HR_NONE;
@@ -561,14 +570,17 @@ uint32_t debug_module_t::read32(uint8_t *memory, unsigned int index)
 
 bool debug_module_t::hart_selected(unsigned hartid) const
 {
-  return hartid == selected_hart_id() || (dmcontrol.hasel && hart_array_mask[hartid]);
+  return hartid == selected_hart_id() && (hartid < FLAGS_num_harts); // || (dmcontrol.hasel && hart_array_mask[hartid]);
 }
 
 bool debug_module_t::hart_available(unsigned hart_id) const
 {
-  if (hart_id < FLAGS_num_harts) //FIXME
+  if (hart_id < FLAGS_num_harts) { //FIXME
+    cvm::log(cvm::HIGH, "Hart_available comparison func, hart_id = {:#x}, NUM_HARTS = {:#x}, state = {:#x}\n", hart_id, FLAGS_num_harts, hart_available_state[hart_id]);
     return hart_available_state[hart_id];
-  return true;
+  }
+  else 
+    return false;
 }
 
 bool debug_module_t::dmi_read(unsigned address, uint32_t *value)
@@ -642,9 +654,11 @@ bool debug_module_t::dmi_read(unsigned address, uint32_t *value)
       {
         if (hart_selected(hart_id))
         {
+          cvm::log(cvm::HIGH, "Inside the dmstatus read, Loop for hart_id = {:#x}\n", hart_id);
           dmstatus.allnonexistant = false;
           if (hart_state[hart_id].resumeack)
           {
+            cvm::log(cvm::FULL, "Inside the resumeack state (dmstatus read), for hart_id = {:#x}\n", hart_id); 
             dmstatus.anyresumeack = true;
           }
           else
@@ -654,12 +668,14 @@ bool debug_module_t::dmi_read(unsigned address, uint32_t *value)
           // auto hart = harts.at(hart_id);
           if (hart_state[hart_id].halted)
           {
+            cvm::log(cvm::FULL, "Inside the halted state (dmstatus read), for hart_id = {:#x}\n", hart_id); 
             dmstatus.allrunning = false;
             dmstatus.anyhalted = true;
             dmstatus.allunavail = false;
           }
           else if (!hart_available(hart_id))
           {
+            cvm::log(cvm::FULL, "Inside the not available state (dmstatus read), for hart_id = {:#x}\n", hart_id); 
             dmstatus.allrunning = false;
             dmstatus.allhalted = false;
             dmstatus.anyunavail = true;
@@ -1173,7 +1189,7 @@ bool debug_module_t::dmi_write(unsigned address, uint32_t value)
 
       for (const auto &[hart_id, hart] : harts)
       {
-        cvm::log(cvm::HIGH, "Inside for loop\n");
+        cvm::log(cvm::HIGH, "Inside for loop for hart_idx = {:#x}\n", hart_id);
         if (hart_selected(hart_id))
         {
           cvm::log(cvm::HIGH, "Inside the DMCONTROL Write Event - 002\n");
