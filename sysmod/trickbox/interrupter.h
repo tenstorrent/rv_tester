@@ -199,7 +199,7 @@ private:
   uint64_t timer_           = 0;
   uint64_t timer_advance    = 200;
   uint64_t timer_rand_intr  = 500;
-  uint64_t interrupter_base  = 0x9070000;
+  uint64_t interrupter_base  = 0x9000000;
   uint32_t msi_m_file_addr  = 0x40000000;
   uint32_t msi_s_file_addr  = 0x44000000;
   uint32_t msi_vs_file_addr = 0x44000000;
