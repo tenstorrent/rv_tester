@@ -811,8 +811,11 @@ void bridge::pre_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
   if (instr.pc.pc_rdata == FLAGS_debug_exit_pc) {
     opcode = 0x13; //Nop
   }
-  else if(instr.excp) {
-    opcode = 0x00100073; //E-break opcode
+  else if(instr.excp && (instr.ecause == 3)) { // This is to exit the abstract cmd routine to Park loop at the end of abstract command completion
+    opcode = 0x00100073; //E-break opcode 
+  }
+  else if (instr.excp) { // In case of other exceptions since RVFI only get's u-op codes, can't poke whisper valid opcode to hit exception. Thus we poke illegal opcode to mimic an exception.
+    opcode = 0x0; //Illegal opcode
   }
   else {
     opcode = instr.opcode;
