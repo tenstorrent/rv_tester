@@ -1,6 +1,7 @@
 #include "reset_sequence.hpp"
 #include "sysmod/sysmod_plusargs.h"
 #include "pmu/pmu_plusargs.h"
+#include "cosim/bridge/bridge_plusargs.h"
 #include <sstream>
 #include <unordered_map>
 #include <iostream>
@@ -248,6 +249,13 @@ cvm::messenger::task<void> reset_sequence::check_pll_status() {
     if (count > FLAGS_pll_pwrup_timeout)
       cvm::log(cvm::ERROR, "Error: PLL cold power up not done after {} soc clocks\n", FLAGS_pll_pwrup_timeout);
   }
+
+  co_return;
+}
+
+cvm::messenger::task<void> reset_sequence::program_fe_resetvector() {
+  co_await tick();
+  co_await write(core_resetvector_mmr, 8, FLAGS_resetpc );
 
   co_return;
 }

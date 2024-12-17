@@ -52,6 +52,7 @@ namespace {
   constexpr uint32_t core_preg1_mmr             = 0x4200'5088;
   constexpr uint32_t core_preg2_mmr             = 0x4200'5090;
   constexpr uint32_t core_preg3_mmr             = 0x4200'5098;
+  constexpr uint32_t core_resetvector_mmr       = 0x4200'5300;
   
   constexpr uint32_t core_ptvec_csr             = 0x0000'07CA;
   constexpr uint32_t core_pwr_throttle_cfg_0    = 0x0000'0BC6;
