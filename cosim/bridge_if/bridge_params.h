@@ -19,6 +19,8 @@ namespace {
     constexpr uint64_t pmm_hstatus_mask_lo = 48;
     constexpr uint64_t pmm_cfgs_mask_lo = 32;
     constexpr uint64_t pmm_mask_size = 2;
+    constexpr uint64_t mtime_mmr = 0x42180000;
+    constexpr uint64_t time_csr = 0xC01;
 
     struct csr_entry {
         std::string name;
@@ -1055,5 +1057,15 @@ namespace {
         EXCP = 0,
         INTR = 1,
         NMI = 2
-    } trap_t;
+    } trap;
+
+    typedef enum : size_t {
+        M_ITF = 0,
+        S_ITF = 2,
+    } itf;
+
+    const std::unordered_map<itf, std::string_view> itf_to_string = {
+        {M_ITF, "M"},
+        {S_ITF, "S"},
+    };
 }

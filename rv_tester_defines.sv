@@ -354,6 +354,17 @@ package rv_tester_params;
     } mcmi_t;
 
     // --------------------------------------
+    // AIA - IMSIC message signaled interrupt
+    // --------------------------------------
+    typedef struct packed {
+        logic                       valid;
+        logic [15:0]                hart ;
+        logic [63:0]                cycle;
+        logic [63:0]                addr ;
+        logic [31:0]                data ;
+    } msi_t;
+
+    // --------------------------------------
     // ACLINT - Advanced Core Interrupt
     // --------------------------------------
     typedef struct packed {
@@ -923,9 +934,12 @@ package rv_tester_params;
     input  rv_tester_pkg::nmi_t              nmi                [rv_tester_params::NHARTS-1:0],     \
     output rv_tester_pkg::nmi_t              nmi_pend           [rv_tester_params::NHARTS-1:0],     \
     input  rv_tester_pkg::interrupt_t        interrupt          [rv_tester_params::NHARTS-1:0],     \
-    output rv_tester_pkg::interrupt_t        interrupt_pend     [rv_tester_params::NHARTS-1:0],     \
+    output logic [63:0]                      interrupt_pend     [rv_tester_params::NHARTS-1:0],     \
+    output rv_tester_params::msi_t           imsic_msi          [rv_tester_params::NHARTS-1:0],     \
+    output logic [63:0]                      time_csr           [rv_tester_params::NHARTS-1:0],     \
+    output logic [63:0]                      mtime_mmr,                                             \
     output                                   debug_mode         [rv_tester_params::NHARTS-1:0],     \
-    output                                   disable_checks,                                            \
+    output                                   disable_checks,                                        \
     output                                   dut_terminate,                                         \
     input                                    terminate,                                             \
     input  logic                             terminated,                                            \
@@ -954,9 +968,6 @@ package rv_tester_params;
     output rv_tester_params::pmci_t          pmci         [rv_tester_params::NHARTS-1:0],           \
     output rv_tester_params::hpmi_t          hpmi         [rv_tester_params::NHARTS-1:0],           \
     output rv_tester_pkg::sc_pmci_t          sc_pmci,                                               \
-    output rv_tester_params::mst_req_top     axi_msi,                                               \
-    output rv_tester_params::mst_req_top     [rv_tester_params::NHARTS-1:0] axi_msi_packets ,        \
-    output rv_tester_params::mst_req_top     [rv_tester_params::NHARTS-1:0] axi_ipi_packets ,        \
     output logic                                            dm_mem_tx_vld,                          \
     output logic                                            dm_mem_tx_we,                           \
     output logic [rv_tester_params::DM_AXI_ADDR_WIDTH-1:0]  dm_mem_tx_addr,                         \
@@ -1005,9 +1016,12 @@ package rv_tester_params;
     rv_tester_pkg::nmi_t                     nmi             [rv_tester_params::NHARTS-1:0];        \
     rv_tester_pkg::nmi_t                     nmi_pend        [rv_tester_params::NHARTS-1:0];        \
     rv_tester_pkg::interrupt_t               interrupt       [rv_tester_params::NHARTS-1:0];        \
-    rv_tester_pkg::interrupt_t               interrupt_pend  [rv_tester_params::NHARTS-1:0];        \
+    logic [63:0]                             interrupt_pend  [rv_tester_params::NHARTS-1:0];        \
+    rv_tester_params::msi_t                  imsic_msi       [rv_tester_params::NHARTS-1:0];        \
+    logic [63:0]                             time_csr        [rv_tester_params::NHARTS-1:0];        \
+    logic [63:0]                             mtime_mmr;                                             \
     logic                                    debug_mode      [rv_tester_params::NHARTS-1:0];        \
-    logic                                    disable_checks;                                            \
+    logic                                    disable_checks;                                        \
     logic                                    dut_terminate;                                         \
     logic                                    terminate;                                             \
     logic                                    terminated;                                            \
