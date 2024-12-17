@@ -792,7 +792,7 @@ module rv_tester
             .tb_reset(sys_reset[TB_CLK_IDX]),
             .clk(dut_clk[AXI_CLK_IDX]),
             .reset(dut_reset[AXI_CLK_IDX]),
-            .event_trigger_vec(event_triggers[c]),
+            .event_trigger_vec(event_triggers),
             `RV_TESTER_TRANSACTIONS_TRIGGERS_SOURCE_PORTS(2,c,0)
         );
     end
