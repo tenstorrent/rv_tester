@@ -225,9 +225,18 @@ pmu::get_filter_events_and_sum(uint64_t event_id,
 size_t
 pmu::extract_granularity (uint64_t event_id) {
   size_t granularity_bits = (event_id >> 26) & 0b11;
-  long int granularity = (1 << granularity_bits) * (granularity_bits == 0 ? 1 : 8);
-
-  return granularity;
+  switch (granularity_bits) {
+    case 0b0:
+      return 1;
+    case 0b1:
+      return 8;
+    case 0b10:
+      return 16;
+    case 0b11:
+      return 32;
+    default:
+      return 1;
+    }
 }
 
 size_t
