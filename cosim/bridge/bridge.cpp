@@ -1043,6 +1043,15 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
       all_interrupts_defer_ = false;
     }
 
+    if ((w.disasm.find("mret") != std::string::npos) || (w.disasm.find("sret") != std::string::npos)) {
+      IF_DEBUG("MRET instruction.. set flag prev_sync_intr=1 ");
+      if(prev_mip_ != mip_) {
+        IF_DEBUG("prev_mip != mip_ .. check and defer");
+        check_and_defer_interrupt(hart, d.cycle, ~prev_mip_ & mip_);
+      }
+      prev_sync_intr_ = true; // This will waive cases when after execution of mret there exists a csr operation which needs to be interrupted.
+    }
+
     if (w.disasm.find("vstimecmp") != std::string::npos && !w_.excp)  {
       IF_DEBUG("VSTIMECMP instruction");
       if (!vstimecmppoked_) resetsstc_poke(hart,d.cycle, 0x24d); else setsstc_poke(hart,d.cycle, 0x24d);
