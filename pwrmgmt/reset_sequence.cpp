@@ -226,7 +226,7 @@ cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
   } else if (FLAGS_patch_ram_check) {
     co_await patch_ram_check();
   };
-  co_await program_fe_resetvector();
+  //co_await program_fe_resetvector();
   co_await release_cpl_nofetch();
   co_return;
 }
