@@ -7,6 +7,8 @@ DEFINE_string(jtag_driver_mode, "off", "Enable jtag_sequence in the sim - off/cs
 DEFINE_string(jtag_input_file_path, "", "Path to file containing jtag_driver commands");
 DEFINE_bool(random_jtag_entry, false, "Enter debug mode randomly after random intervals");
 DEFINE_bool(reverse_jtag_rdata, false, "Reverse data recived on JTAG tdo");
+DEFINE_bool(continue_on_jtag_err, false, "Continue executing JTAG snippet even after error");
+//DEFINE_bool(quit_on_jtag_err, false, "Quit executing JTAG snippet after error");
 DEFINE_bool(jtag_remote_debugger_mode, false, "Accept JTAG transactions over scoket");
 DEFINE_int32(random_jtag_start_delay, 300, "delay after which random interrupts should start");
 DEFINE_int32(jtag_delay_min, 6, "Minimum Delay between 2 consecutive debug mode requests");
@@ -544,22 +546,7 @@ void jtag_sequence::drive_csv_jtag_cmds()
 
     if(jtag_cmd == 8){  //Reverse
 
-      uint64_t temp_rev = 0;
- 
-      // traversing bits of 'n' from the right
-      while (loop_rdata > 0) {
-          // bitwise left shift
-          // 'rev' by 1
-          temp_rev <<= 1;
-  
-          // if current bit is '1'
-          if ((loop_rdata & 1) == 1)
-              temp_rev ^= 1;
-  
-          // bitwise right shift
-          // 'n' by 1
-          loop_rdata >>= 1;
-      }
+      uint64_t temp_rev = reverseBits(loop_rdata, reg_length_data );
       loop_rdata  = temp_rev ;
 
       jtag_cmd_q.pop(); // pop front element
@@ -971,7 +958,7 @@ cvm::messenger::task<void> jtag_sequence::open_socket_to_listen(){
   // virtual void trickboxjtagWrite(unsigned hart, unsigned upper_jtag_data, unsigned lower_jtag_data, cbs_t& cbs)
   void jtag_sequence::trickboxJtagWrite(unsigned hart,unsigned jtag_cmd, unsigned long upper_jtag_data, unsigned long lower_jtag_data,unsigned reg_length_data,unsigned jtag_quit, unsigned tap_cfg_sel)
   {
-    cvm::log(cvm::HIGH, "[jtag_sequence]TrickBox jtag Write to hart:{}, upper jtag data:{:#x}, lower jtag data:{:#x}, reg length data:{:#x}", hart, upper_jtag_data, lower_jtag_data,reg_length_data);
+    cvm::log(cvm::HIGH, "[jtag_sequence]TrickBox jtag Write to hart:{}, upper jtag data:{:#x}, lower jtag data:{:#x}, reg length data:{:#x}\n", hart, upper_jtag_data, lower_jtag_data,reg_length_data);
     // cbs.push_back(cb_t{Callback::TRICKBOX_jtag_WR, hart, upper_jtag_data, lower_jtag_data, 0});
     //cvm::registry::messenger.signal(12, jtag_data_t{hart,jtag_cmd, upper_jtag_data, lower_jtag_data,reg_length_data,jtag_quit,tap_cfg_sel});
     // cvm::messenger::send(jtag_t, jtag_pkt);

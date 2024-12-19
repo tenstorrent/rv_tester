@@ -52,8 +52,10 @@ void eot::init_tohost_addr() {
     return;
 
   // 3. htif address from memmap
-  memmap::memmap_t m;
-  memmap::get(m);
+  std::map<std::string, memmap_entry_t> m;
+  if(!cvm::registry::messenger.call<memmap::getRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.MEMMAP", 0), m))
+      cvm::log(cvm::ERROR, "Unable to get memmap\n");
+
   if (m.count("htif") > 0) {
     tohost_addr_ = m.at("htif").base;
     cvm::log(cvm::NONE, "[eot] tohost from memmap:: addr=[{:#x}]\n", tohost_addr_);

@@ -104,7 +104,11 @@ void debugger::parse_dmi_from_csv()
     file_csv_name = file_name.substr(file_name.find_last_of('/') + 1, file_name.size() - file_name.find_last_of('/') - 5);
     dbg_snippets_name.append(file_csv_name);
   }
-
+  std::string word = "ndm";
+  if (file_name.find(word) != std::string::npos) {
+        cvm::log(cvm::LOW,  "Thecsv file name contains the word 'ndm' hence disabling random dbg entry.\n");
+        FLAGS_random_dbg_entry = false;
+  }
   cvm::log(cvm::HIGH, "[Debugger]:Parse DMI Commands from CSV:{}\n", file_name);
   std::fstream file(file_name, std::ios::in);
   if (file.is_open())
@@ -179,6 +183,14 @@ void debugger::parse_dmi_from_csv()
         {
           sdtrig_disable_queue_on = 0;
         }
+        if (instr == "sdtrig_progbuf_queue_on")
+        {
+          sdtrig_progbuf_queue_on = 1;
+        }
+        if (instr == "sdtrig_progbuf_queue_off")
+        {
+          sdtrig_progbuf_queue_on = 0;
+        }
       }
       else if (instr_2char == "st")
       {
@@ -236,6 +248,10 @@ void debugger::parse_dmi_from_csv()
       if (sdtrig_disable_queue_on)
       {
         dmi_req.func_bits = 7;
+      }
+      if (sdtrig_progbuf_queue_on)
+      {
+        dmi_req.func_bits = 6;
       }
 
       if ((dmi_req.op != 3)&&(dmi_req.op != 0))

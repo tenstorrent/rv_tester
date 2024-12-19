@@ -120,8 +120,16 @@ public:
       DECODE_IDLE_SERIALIZE_CYCLES,
       //Event for every instance of resync due to CSR access
       NONSPEC_RESYNC,
-      //Event for every Patch RAM exception happens in regular execution (M/S/U/VS/VU can be chosen via SSCOFPMF extension)
-      PATCH_MATCH_EXCEPTIONS,
+      //Event for every Patch RAM exception happens in regular M mode execution
+      PATCH_MATCH_M_MODE_EXCEPTION,
+      //Event for every Patch RAM exception happens in regular S mode executio
+      PATCH_MATCH_S_MODE_EXCEPTION,
+      //Event for every Patch RAM exception happens in regular U mode execution
+      PATCH_MATCH_U_MODE_EXCEPTION,
+      //Event for every Patch RAM exception happens in regular VS mode execution
+      PATCH_MATCH_VS_MODE_EXCEPTION,
+      //Event for every Patch RAM exception happens in regular VU mode execution
+      PATCH_MATCH_VU_MODE_EXCEPTION,
       //Event for every Patch RAM exception happens in micocode sequence
       PATCH_MATCH_UCODE,
       //Event for every cycle from when Patch RAM exception is dispatched in M mode to last uop of patch sequence (DRET) is dispatched which finishes the patch
@@ -761,7 +769,11 @@ public:
       counters_core[counter_core::DECODE_SERIALIZE_CYCLES] = counters_core[counter_core::DECODE_SERIALIZE_CYCLES] + ((pmcounters.decode_serialize_cycles - (counters_core[counter_core::DECODE_SERIALIZE_CYCLES] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::DECODE_IDLE_SERIALIZE_CYCLES] = counters_core[counter_core::DECODE_IDLE_SERIALIZE_CYCLES] + ((pmcounters.decode_idle_serialize_cycles - (counters_core[counter_core::DECODE_IDLE_SERIALIZE_CYCLES] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::NONSPEC_RESYNC] = counters_core[counter_core::NONSPEC_RESYNC] + ((pmcounters.nonspec_resync - (counters_core[counter_core::NONSPEC_RESYNC] % casting_size_term)) % casting_size_term);
-      counters_core[counter_core::PATCH_MATCH_EXCEPTIONS] = counters_core[counter_core::PATCH_MATCH_EXCEPTIONS] + ((pmcounters.patch_match_exceptions - (counters_core[counter_core::PATCH_MATCH_EXCEPTIONS] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::PATCH_MATCH_M_MODE_EXCEPTION] = counters_core[counter_core::PATCH_MATCH_M_MODE_EXCEPTION] + ((pmcounters.patch_match_m_mode_exception - (counters_core[counter_core::PATCH_MATCH_M_MODE_EXCEPTION] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::PATCH_MATCH_S_MODE_EXCEPTION] = counters_core[counter_core::PATCH_MATCH_S_MODE_EXCEPTION] + ((pmcounters.patch_match_s_mode_exception - (counters_core[counter_core::PATCH_MATCH_S_MODE_EXCEPTION] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::PATCH_MATCH_U_MODE_EXCEPTION] = counters_core[counter_core::PATCH_MATCH_U_MODE_EXCEPTION] + ((pmcounters.patch_match_u_mode_exception - (counters_core[counter_core::PATCH_MATCH_U_MODE_EXCEPTION] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::PATCH_MATCH_VS_MODE_EXCEPTION] = counters_core[counter_core::PATCH_MATCH_VS_MODE_EXCEPTION] + ((pmcounters.patch_match_vs_mode_exception - (counters_core[counter_core::PATCH_MATCH_VS_MODE_EXCEPTION] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::PATCH_MATCH_VU_MODE_EXCEPTION] = counters_core[counter_core::PATCH_MATCH_VU_MODE_EXCEPTION] + ((pmcounters.patch_match_vu_mode_exception - (counters_core[counter_core::PATCH_MATCH_VU_MODE_EXCEPTION] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::PATCH_MATCH_UCODE] = counters_core[counter_core::PATCH_MATCH_UCODE] + ((pmcounters.patch_match_ucode - (counters_core[counter_core::PATCH_MATCH_UCODE] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::PATCH_MATCH_M_MODE_EXCEPTION_CYCLES] = counters_core[counter_core::PATCH_MATCH_M_MODE_EXCEPTION_CYCLES] + ((pmcounters.patch_match_m_mode_exception_cycles - (counters_core[counter_core::PATCH_MATCH_M_MODE_EXCEPTION_CYCLES] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::PATCH_MATCH_S_MODE_EXCEPTION_CYCLES] = counters_core[counter_core::PATCH_MATCH_S_MODE_EXCEPTION_CYCLES] + ((pmcounters.patch_match_s_mode_exception_cycles - (counters_core[counter_core::PATCH_MATCH_S_MODE_EXCEPTION_CYCLES] % casting_size_term)) % casting_size_term);
@@ -1109,7 +1121,11 @@ public:
       {DECODE_SERIALIZE_CYCLES,"decode_serialize_cycles"},
       {DECODE_IDLE_SERIALIZE_CYCLES,"decode_idle_serialize_cycles"},
       {NONSPEC_RESYNC,"nonspec_resync"},
-      {PATCH_MATCH_EXCEPTIONS,"patch_match_exceptions"},
+      {PATCH_MATCH_M_MODE_EXCEPTION,"patch_match_m_mode_exception"},
+      {PATCH_MATCH_S_MODE_EXCEPTION,"patch_match_s_mode_exception"},
+      {PATCH_MATCH_U_MODE_EXCEPTION,"patch_match_u_mode_exception"},
+      {PATCH_MATCH_VS_MODE_EXCEPTION,"patch_match_vs_mode_exception"},
+      {PATCH_MATCH_VU_MODE_EXCEPTION,"patch_match_vu_mode_exception"},
       {PATCH_MATCH_UCODE,"patch_match_ucode"},
       {PATCH_MATCH_M_MODE_EXCEPTION_CYCLES,"patch_match_m_mode_exception_cycles"},
       {PATCH_MATCH_S_MODE_EXCEPTION_CYCLES,"patch_match_s_mode_exception_cycles"},
@@ -1825,14 +1841,18 @@ public:
       {0x4400001,counter_core::DECODE_SERIALIZE_CYCLES},
       {0x4400002,counter_core::DECODE_IDLE_SERIALIZE_CYCLES},
       {0x80400000,counter_core::NONSPEC_RESYNC},
-      {0x80400001,counter_core::PATCH_MATCH_EXCEPTIONS},
-      {0x80400002,counter_core::PATCH_MATCH_UCODE},
-      {0x84410001,counter_core::PATCH_MATCH_M_MODE_EXCEPTION_CYCLES},
-      {0x84410002,counter_core::PATCH_MATCH_S_MODE_EXCEPTION_CYCLES},
-      {0x84410004,counter_core::PATCH_MATCH_U_MODE_EXCEPTION_CYCLES},
-      {0x84410008,counter_core::PATCH_MATCH_VS_MODE_EXCEPTION_CYCLES},
-      {0x84410010,counter_core::PATCH_MATCH_VU_MODE_EXCEPTION_CYCLES},
-      {0x84410020,counter_core::PATCH_MATCH_UCODE_CYCLES},
+      {0x80410001,counter_core::PATCH_MATCH_M_MODE_EXCEPTION},
+      {0x80410002,counter_core::PATCH_MATCH_S_MODE_EXCEPTION},
+      {0x80410004,counter_core::PATCH_MATCH_U_MODE_EXCEPTION},
+      {0x80410008,counter_core::PATCH_MATCH_VS_MODE_EXCEPTION},
+      {0x80410010,counter_core::PATCH_MATCH_VU_MODE_EXCEPTION},
+      {0x80410020,counter_core::PATCH_MATCH_UCODE},
+      {0x84420001,counter_core::PATCH_MATCH_M_MODE_EXCEPTION_CYCLES},
+      {0x84420002,counter_core::PATCH_MATCH_S_MODE_EXCEPTION_CYCLES},
+      {0x84420004,counter_core::PATCH_MATCH_U_MODE_EXCEPTION_CYCLES},
+      {0x84420008,counter_core::PATCH_MATCH_VS_MODE_EXCEPTION_CYCLES},
+      {0x84420010,counter_core::PATCH_MATCH_VU_MODE_EXCEPTION_CYCLES},
+      {0x84420020,counter_core::PATCH_MATCH_UCODE_CYCLES},
       {0x10000000,counter_core::STALLED_CYCLES_FRONTEND},
       {0x10000001,counter_core::STALLED_CYCLES_BACKEND},
       {0x90200000,counter_core::CYCLES_NO_INT_PRN},
@@ -2118,7 +2138,16 @@ public:
     };
 
     const std::unordered_map<uint64_t, std::unordered_map<uint16_t, size_t>> filtered_event_map = {
-      {0x8441,{
+      {0x8041,{
+            {0x0001,counter_core::PATCH_MATCH_M_MODE_EXCEPTION},
+            {0x0002,counter_core::PATCH_MATCH_S_MODE_EXCEPTION},
+            {0x0004,counter_core::PATCH_MATCH_U_MODE_EXCEPTION},
+            {0x0008,counter_core::PATCH_MATCH_VS_MODE_EXCEPTION},
+            {0x0010,counter_core::PATCH_MATCH_VU_MODE_EXCEPTION},
+            {0x0020,counter_core::PATCH_MATCH_UCODE},
+            }
+      },
+      {0x8442,{
             {0x0001,counter_core::PATCH_MATCH_M_MODE_EXCEPTION_CYCLES},
             {0x0002,counter_core::PATCH_MATCH_S_MODE_EXCEPTION_CYCLES},
             {0x0004,counter_core::PATCH_MATCH_U_MODE_EXCEPTION_CYCLES},
@@ -2336,6 +2365,7 @@ public:
 
   bool shutdown_ready();
   void get_filter_events_and_sum(uint64_t, std::vector<size_t>& , size_t&);
+  size_t extract_granularity(uint64_t);
   size_t sum_event_vector(std::vector<size_t>& filtering_events);
   std::string name_event_vector(std::vector<size_t>& filtering_events);
 
@@ -2369,6 +2399,7 @@ private:
     bool programmed = false;
     std::vector<size_t> event_type;
     size_t sideband_count_eventwr;
+    long int event_granularity;
   };
 
   template <typename T>

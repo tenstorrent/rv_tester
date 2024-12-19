@@ -35,3 +35,4 @@ DECLARE_int32(imsic_intr_start_delay);
 DECLARE_bool(export_control_en);
 DECLARE_int32(clk_profile);
 DECLARE_bool(rand_core_harvest);
+DECLARE_int32(max_intr_count);

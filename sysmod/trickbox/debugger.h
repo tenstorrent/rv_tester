@@ -287,6 +287,8 @@ private:
   unsigned sdtrig_halt_queue_on = 0;
   unsigned sdtrig_cause_queue_on = 0;
   unsigned sdtrig_disable_queue_on = 0;
+  unsigned sdtrig_progbuf_queue_on = 0;
+
   uint64_t timer_rand_debug = 500;
   std::vector<std::vector<std::string>> content;
   std::vector<std::string> row;

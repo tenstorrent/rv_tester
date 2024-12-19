@@ -53,7 +53,6 @@ class rvfi {
     void process(const rv_tester_transactions::cosim::m_core_intr<>& m_core_intr);
     void process(const rv_tester_transactions::cosim::m_imsic_msi<>& m_imsic_msi);
     void process(const rv_tester_transactions::cosim::m_debug<>& m_debug);
-    std::bitset<256> stringToBitset(const std::string& hexString);
     void process(const rv_tester_transactions::cosim::m_csri<>& m_csri);
 
     // FIXME Move out to a different file?
@@ -72,6 +71,7 @@ class rvfi {
     void process_amo(mem_t& read);
     bool sc_failed(mem_t& write);
     void amo_modify_write_data(amo_op op, uint64_t& read_data, uint64_t& write_data, uint8_t size);
+
     template <typename T>
     void amo_arithmetic(amo_op op, uint64_t& read_data, uint64_t& write_data, uint8_t size);
 
@@ -86,11 +86,12 @@ class rvfi {
     void enter_debug_mode(rv_instr_t& instr);
     void exit_debug_mode(rv_instr_t& instr);
     bool patch_access (uint64_t addr);
-    std::string mem_attr_to_string(uint32_t mem_attr);
     bool is_ncio(uint32_t mem_attr);
 
   private:
 
+    std::string mem_attr_to_string(uint32_t mem_attr);
+    std::bitset<256> stringToBitset(const std::string& hexString);
     cvm::file_logger log;
     cvm::topology::loc_t loc_;
     unsigned id_;
@@ -101,19 +102,24 @@ class rvfi {
     rv_instr_t prev_instr_;
 
     bool in_reset_ = true;
-
     uint64_t count_ = 1;
 
     uint64_t prev_instr_tag_ = 0;
     uint64_t prev_uop_tag_ = 0;
     uint64_t prev_branch_tag_ = 0;
+
     bool     vec_cmode_ = false;
     uint64_t vec_cmode_first_tag_ = 0;
     std::unordered_map<uint64_t, uint64_t> vec_cmode_tags_;
 
+    bool patch_mode_ = false;
+    uint64_t patch_mode_first_tag_ = 0;
+    std::unordered_map<uint64_t, uint64_t> patch_mode_tags_;
+
     bool ncio_mem_transition_ = false;
     std::vector<mem_t> ncio_fetches_;
     std::vector<mem_t> active_ncio_fetches_;
+
     //---------------------------------------------------------------------------------------------------------
     // USE_OLD_CODE selects C code for priv_, first_uop,ucode_ generation instead of SV code (for debug ONLY)
     //   - eventually we will remove this
@@ -123,7 +129,6 @@ class rvfi {
     bool nmi_ = false;
     bool intr_ = false;
     bool excp_ = false;
-    bool patch_mode_ = false;
     uint64_t ncause_ = 0;
     uint64_t icause_ = 0;
     uint64_t ecause_ = 0;

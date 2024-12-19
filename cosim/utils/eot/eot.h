@@ -29,7 +29,6 @@ class eot {
     eot(cvm::topology::loc_t loc, unsigned id) {
       // Read tohost symbol address from elf
       id_ = id;
-      init_tohost_addr();
       for (uint32_t i = 0; i < num_harts_; i++) {
         instr_count_.push_back(0);
         connect<
@@ -41,6 +40,9 @@ class eot {
       }
 
       cvm::registry::messenger.procedure<get_tohost_addr_RPC>(loc, [this] () {return this->get_tohost_addr();});
+    }
+    void configure() {
+      init_tohost_addr();
     }
     eot(cvm::topology::loc_t loc): eot(loc, 1){}
     ~eot();

@@ -1,6 +1,7 @@
 #include "reset_sequence.hpp"
 #include "sysmod/sysmod_plusargs.h"
 #include "pmu/pmu_plusargs.h"
+#include "cosim/bridge/bridge_plusargs.h"
 #include <sstream>
 #include <unordered_map>
 #include <iostream>
@@ -36,7 +37,6 @@ DEFINE_string(patch_ucode_input_file_path, "", "Path to file containing patch uc
 DEFINE_string(patches, "WFI,SUB,BLT,AMOSWAP", "+patches=<instr1>,<instr2>,<instr3>,<instr4>; default will be picked if not specified ");
 DEFINE_string(disable_patches, "AMOSWAP", "+disable_patches=<instr1>,<instr2>,<instr3>,<instr4>; default will be picked if not specified ");
 DEFINE_bool(rand_patch, false, "Randomly pick 4 instructions available in the CSV to be patched");
-DEFINE_bool(sw_fuse_program_enable, true, "Program the AXI switch fuse during boot");
 
 extern "C" {
   void pwrmgmt_init();
@@ -226,6 +226,7 @@ cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
   } else if (FLAGS_patch_ram_check) {
     co_await patch_ram_check();
   };
+  //co_await program_fe_resetvector();
   co_await release_cpl_nofetch();
   co_return;
 }
@@ -250,6 +251,13 @@ cvm::messenger::task<void> reset_sequence::check_pll_status() {
       cvm::log(cvm::ERROR, "Error: PLL cold power up not done after {} soc clocks\n", FLAGS_pll_pwrup_timeout);
   }
 
+  co_return;
+}
+
+cvm::messenger::task<void> reset_sequence::program_fe_resetvector() {
+  co_await tick();
+  co_await write(core_resetvector_mmr, 8, FLAGS_resetpc );
+  co_await tick();
   co_return;
 }
 
@@ -304,20 +312,20 @@ cvm::messenger::task<void> reset_sequence::program_fuses() {
 
   uint64_t fuse = fuse_val();
 
-  uint32_t ncores = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
+  co_await write(sw_fuse_mmr,     SZ_8B, fuse, boot_interface);
 
-  for (uint32_t i = 0; i < ncores; ++i)
-    co_await write(core_fuse_mmr + i * core_fuse_offset,   SZ_8B, fuse);
+  for (uint32_t i = 0; i < FLAGS_num_harts; ++i)
+    co_await write(core_fuse_mmr + i * core_fuse_offset,   SZ_8B, fuse, boot_interface);
   
-  cvm::log(cvm::MEDIUM, "[pwrmgmt] writing trace fuse\n", trace_fuse_mmr);
-  co_await write(trace_fuse_mmr, SZ_8B, fuse & 0xFFFFFFFFFFF7FFF );//Workaround defined in RVDE-17674 
-  co_await write(trace_fuse_mmr, SZ_8B, fuse );
-  co_await write(aclint_fuse_mmr, SZ_8B, fuse);
-  co_await write(dm_fuse_mmr,     SZ_8B, fuse);
-  co_await write(sc_fuse_mmr,     SZ_8B, fuse);
-  
-  if (FLAGS_rand_core_harvest || FLAGS_sw_fuse_program_enable)
-    co_await write(sw_fuse_mmr,     SZ_8B, fuse);
+  if (FLAGS_trace_enable) {
+    cvm::log(cvm::MEDIUM, "[pwrmgmt] writing trace fuse\n", trace_fuse_mmr);
+    co_await write(trace_fuse_mmr, SZ_8B, fuse & 0xFFFFFFFFFFF7FFF , boot_interface);//Workaround defined in RVDE-17674 
+    co_await write(trace_fuse_mmr, SZ_8B, fuse, boot_interface );
+  }
+  co_await write(aclint_fuse_mmr, SZ_8B, fuse, boot_interface);
+  co_await write(dm_fuse_mmr,     SZ_8B, fuse, boot_interface);
+  co_await write(sc_fuse_mmr,     SZ_8B, fuse, boot_interface);
+
 
 
   co_return;
@@ -535,7 +543,7 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
     //CPL AXI in filter programming
     co_await write(cpl_in_filter0_addr_l ,SZ_8B , 0x4C000);
     co_await write(cpl_in_filter0_addr_h ,SZ_8B , 0x4EFFF);
-    co_await write(cpl_in_filter0_config ,SZ_8B , 0x81010113);      
+    co_await write(cpl_in_filter0_config ,SZ_8B , 0x81010113);
     //CPL AXI out filter programming
     co_await write(cpl_out_filter0_addr_l ,SZ_8B , 0x4C000);
     co_await write(cpl_out_filter0_addr_h ,SZ_8B , 0x4EFFF);
@@ -701,20 +709,29 @@ cvm::messenger::task<void> reset_sequence::patch_ram_check() {
 };
 
 cvm::messenger::task<void> reset_sequence::init_smc_filters() {
-  
-  co_await tick();
-    //CPL AXI in filter programming
-    co_await write(cpl_in_filter1_addr_l ,SZ_8B , 0x41000, boot_interface);
-    co_await write(cpl_in_filter1_addr_h ,SZ_8B , 0x41FFF, boot_interface);
-    co_await write(cpl_in_filter1_config ,SZ_8B , 0x8000000000010113, boot_interface);      
-    //CPL AXI in filter programming
-    co_await write(cpl_in_filter2_addr_l ,SZ_8B , 0x42000, boot_interface);
-    co_await write(cpl_in_filter2_addr_h ,SZ_8B , 0x42FFF, boot_interface);
-    co_await write(cpl_in_filter2_config ,SZ_8B , 0x8000000000020113, boot_interface);  
 
-    co_await write(cpl_in_filter2_addr_l+0x20 ,SZ_8B , 0x41000, boot_interface);
-    co_await write(cpl_in_filter2_addr_h+0x20 ,SZ_8B , 0x4EFFF, boot_interface);
-    co_await write(cpl_in_filter2_config+0x20 ,SZ_8B , 0x8000000000030113, boot_interface);   
+  co_await tick();
+
+  //CPL AXI in filter programming
+  co_await write(cpl_in_filter1_addr_l ,SZ_8B , 0x41000, boot_interface);
+  co_await write(cpl_in_filter1_addr_h ,SZ_8B , 0x41FFF, boot_interface);
+  co_await write(cpl_in_filter1_config ,SZ_8B , 0x8000000000010113, boot_interface);
+  co_await write(cpl_in_filter2_addr_l ,SZ_8B , 0x42000, boot_interface);
+  co_await write(cpl_in_filter2_addr_h ,SZ_8B , 0x42FFF, boot_interface);
+  co_await write(cpl_in_filter2_config ,SZ_8B , 0x8000000000020113, boot_interface);
+  co_await write(cpl_in_filter3_addr_l ,SZ_8B , 0x41000, boot_interface);
+  co_await write(cpl_in_filter3_addr_h ,SZ_8B , 0x4EFFF, boot_interface);
+  co_await write(cpl_in_filter3_config ,SZ_8B , 0x8000000000030113, boot_interface);
+
+  // CPL SRAM infilter (SRC-ID) programming for Overlay transactions
+  // CPL AXI in filter programming:- With SRC-ID = MMODE_ID (0xC)
+  co_await write(cpl_in_filter4_addr_l, SZ_8B, 0x40000, boot_interface);
+  co_await write(cpl_in_filter4_addr_h, SZ_8B, 0x4FFFF, boot_interface);
+  co_await write(cpl_in_filter4_config, SZ_8B, 0x80000000000C0113, boot_interface);
+  // CPL AXI in filter programming:- With SRC-ID = SEP_ID (0xF)
+  co_await write(cpl_in_filter5_addr_l, SZ_8B, 0x40000, boot_interface);
+  co_await write(cpl_in_filter5_addr_h, SZ_8B, 0x4FFFF, boot_interface);
+  co_await write(cpl_in_filter5_config, SZ_8B, 0x80000000000F0113, boot_interface);
 
   co_return;
 };
