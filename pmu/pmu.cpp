@@ -115,10 +115,10 @@ pmu::process_core(const rv_tester_transactions::pmu_core::pmcounters_core<>& pmc
   core_to_vector(pmcounters);
 
   if (pmcounters.perf_start)
-    perf_region_start("");
+    perf_region_start(pmu::CORE);
 
   if (pmcounters.perf_end)
-    perf_region_end("");
+    perf_region_end(pmu::CORE);
 
   if (FLAGS_pmcounters_log != 0) {
     std::string log_str;
@@ -147,10 +147,10 @@ pmu::process_sc(const rv_tester_transactions::pmu_sc::pmcounters_sc<>& pmcounter
   sc_to_vector(pmcounters);
 
   if (pmcounters.perf_start_sc)
-    perf_region_start("sc");
+    perf_region_start(pmu::SC);
 
   if (pmcounters.perf_end_sc)
-    perf_region_end("sc");
+    perf_region_end(pmu::SC);
 
   if (FLAGS_pmcounters_log != 0) {
     std::string log_str;

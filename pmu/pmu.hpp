@@ -2317,6 +2317,12 @@ public:
   void ipc_check();
   void l1d_read_miss_check();
 
+  // Define the enum type
+  enum PerfChoice : uint32_t {
+    CORE,
+    SC
+  };
+
   template <typename ContainerType, typename CycleType>
   void perf_region_start_temp(ContainerType& perf_region, const ContainerType& counters, CycleType& perf_start_cycle) {
     assert(perf_region.size() == counters.size());
@@ -2338,18 +2344,18 @@ public:
   }
 
   // snapshot current counter values, to be used in perf region
-  void perf_region_start(std::string perf_choice) {
-    if (perf_choice == "") {
+  void perf_region_start(PerfChoice perf_choice) {
+    if (perf_choice == CORE) {
       perf_region_start_temp(perf_region_core, counters_core, perf_start_cycle);
-    } else if ((perf_choice == "sc") && (id_ == 0)) {
+    } else if ((perf_choice == SC) && (id_ == 0)) {
       perf_region_start_temp(perf_region_sc, counters_sc, perf_start_cycle_sc);
     }
   }
 
-  void perf_region_end(std::string perf_choice) {
-    if (perf_choice == "") {
+  void perf_region_end(PerfChoice perf_choice) {
+    if (perf_choice == CORE) {
       perf_region_end_temp(perf_region_core, counters_core, perf_end_cycle);
-    } else if ((perf_choice == "sc") && (id_ == 0)) {
+    } else if ((perf_choice == SC) && (id_ == 0)) {
       perf_region_end_temp(perf_region_sc, counters_sc, perf_end_cycle_sc);
     }
   }
