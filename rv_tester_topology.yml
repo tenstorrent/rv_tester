@@ -128,6 +128,11 @@ rv_tester: &rv_tester
       type:
         - aclint_checker
 
+    memmap:
+      count: 1
+      type:
+        - memmap 
+
     whisper_client:
       count: 1
       type:

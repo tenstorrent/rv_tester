@@ -692,7 +692,6 @@ localparam CAM_IHBIT = CAM_IBITS;
             mcm_enabled = (cvm_plusargs::get_bool("mcm") != '0);
             to_host = is_eot_tohost();
             if (rvfi_enabled) begin
-              $display("[cosim]: reset");
               cosim_set_scope(location);
             end
             terminate.terminate = '0;
@@ -1150,6 +1149,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign m_traps[0].data.cycle = clocks;
     assign m_traps[0].data.id = get_trap_id(cause_d3);
     assign m_traps[0].data.cause = cause_d3;
+    assign m_traps[0].data.order = rvfi[0].order;
     assign rvfi_trap_patch =  RVFI_EN & rvfi_enabled & ~dut_reset & (cause_d3 != 0) & (cause_d3 >= 58) & ~cause_d3[63];
    
     
@@ -1180,13 +1180,21 @@ localparam CAM_IHBIT = CAM_IBITS;
     // m_nmi_pend
     rv_tester_pkg::nmi_t nmi_pend_d1;
     always @(posedge clk) begin
-      nmi_pend_d1 <= nmi_pend;
+      if(dut_reset) begin
+        nmi_pend_d1 <= nmi_pend;
+      end
+      if(~nmi_pend_d1.nmi) begin
+        nmi_pend_d1.clai <= nmi_pend.clai;
+      end
+      if(~nmi_pend_d1.clai) begin
+        nmi_pend_d1.nmi <= nmi_pend.nmi;
+      end
     end
-    assign m_core_nmis[0].valid = ~dut_reset & |(nmi_pend & ~nmi_pend_d1) | |(~nmi_pend & nmi_pend_d1) & rvfi_enabled;
+    assign m_core_nmis[0].valid = ~dut_reset & ((nmi_pend.nmi & ~nmi_pend_d1.nmi) || (nmi_pend.clai & ~nmi_pend_d1.clai) || (~nmi_pend.nmi & nmi_pend_d1.nmi) || (~nmi_pend.clai & nmi_pend_d1.clai)) & rvfi_enabled;
     assign m_core_nmis[0].data.location = location;
     assign m_core_nmis[0].data.cycle = clocks;
-    assign m_core_nmis[0].data.nmi_assert = |(nmi_pend & ~nmi_pend_d1);
-    assign m_core_nmis[0].data.nmi_cause = |(nmi_pend & ~nmi_pend_d1) ? get_nmi_cause(nmi_pend) : '0;
+    assign m_core_nmis[0].data.nmi_assert = (nmi_pend.nmi & ~nmi_pend_d1.nmi & ~nmi_pend.clai) || (nmi_pend.clai & ~nmi_pend_d1.clai & ~nmi_pend.nmi);
+    assign m_core_nmis[0].data.nmi_cause = (nmi_pend.nmi & ~nmi_pend_d1.nmi & ~nmi_pend.clai) ? 2 : ((nmi_pend.clai & ~nmi_pend_d1.clai & ~nmi_pend.nmi) ? 3 : 0);
 
     function automatic bit [63:0] get_nmi_cause(rv_tester_pkg::nmi_t n);
       bit [63:0] cause = '0;
@@ -1258,6 +1266,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     /* verilator lint_off WIDTH */
     assign m_imsic_msis[0].data.addr = imsic_interrupt_delayed.aw.addr;
     assign m_imsic_msis[0].data.data = imsic_interrupt_delayed.w.data;
+    assign m_imsic_msis[0].data.size = imsic_interrupt_delayed.aw.size;
     /* verilator lint_on WIDTH */
 
     assign m_imsic_msis[1].valid = ~dut_reset && imsic_msi_delayed.aw_valid && imsic_msi_delayed.w_valid && rvfi_enabled;
@@ -1266,6 +1275,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     /* verilator lint_off WIDTH */
     assign m_imsic_msis[1].data.addr = imsic_msi_delayed.aw.addr;
     assign m_imsic_msis[1].data.data = imsic_msi_delayed.w.data;
+    assign m_imsic_msis[1].data.size = imsic_msi_delayed.aw.size;
     /* verilator lint_on WIDTH */
 
     assign m_imsic_msis[2].valid = ~dut_reset && imsic_ipi_delayed.aw_valid && imsic_ipi_delayed.w_valid && rvfi_enabled;
@@ -1274,6 +1284,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     /* verilator lint_off WIDTH */
     assign m_imsic_msis[2].data.addr = imsic_ipi_delayed.aw.addr;
     assign m_imsic_msis[2].data.data = imsic_ipi_delayed.w.data;
+    assign m_imsic_msis[2].data.size = imsic_ipi_delayed.aw.size;
     /* verilator lint_on WIDTH */
 
     function automatic bit [63:0] get_mip_mask(rv_tester_pkg::interrupt_t intr, rv_tester_pkg::interrupt_t intr_d1);

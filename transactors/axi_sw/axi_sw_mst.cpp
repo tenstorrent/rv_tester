@@ -4,6 +4,7 @@
 #include "cvm/plusargs.hpp"
 #include "cvm/bitmanip.hpp"
 #include "cvm/logger.hpp"
+#include <typeinfo>
 
 REGISTRY_register((axi_sw_mst<rv_tester_transactions::axi_sw_mst::b<>,
                               rv_tester_transactions::axi_sw_mst::r<>,
@@ -18,6 +19,7 @@ REGISTRY_register((axi_sw_mst<rv_tester_transactions::axi_sw_mst::b<1>,
                               rv_tester_transactions::axi_sw_mst::w_q_ptr<1>>), SMC_AXI_MST, cvm::registry::all);
 
 DEFINE_bool(axi_allow_err_resp, false, "Allow error responses on axi_mst transactions");
+DEFINE_bool(axi_sw_mst_greedy_queue, false, "Enables greedy behavior for transaction queue. This prevents HOL blocking on C++ side.");
 
 extern "C" {
     void axi_sw_mst_ar_reset();
@@ -98,7 +100,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const B& b) {
         } else {
             cvm::log(cvm::HIGH, "[{}] Allowing error b.response id:{} resp: {}\n", name_, b.id, b.resp);
         }
-        return;
+        //return;
     }
 
     cvm::registry::messenger.signal<axi::b_t>(
@@ -123,7 +125,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const R& r) {
         } else {
             cvm::log(cvm::HIGH, "[{}] Allowing error r.response id: {} resp: {} last: {}\n", name_, r.id, r.resp, r.last);
         }
-        return;
+        //return;
     }
 
     cvm::log(cvm::FULL, "[axi_sw_mst]  r.response id: {} resp: {} last: {}\n", r.id, r.resp, r.last);
@@ -253,97 +255,104 @@ template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_transactions() {
 
- cvm::log(cvm::FULL, "Calling Push transactions\n");
-  while (!transactions_.empty()) {
-      auto& req = transactions_.front();
-      int r = std::visit([this](auto&& arg) {
-          using T = std::decay_t<decltype(arg)>;
+  cvm::log(cvm::FULL, "Calling Push transactions\n");
 
-          if constexpr (std::is_same_v<T, axi::a_t>) {
-              bool write = arg.w;
+  auto push = [this](auto&& arg) -> bool {
+      using T = std::decay_t<decltype(arg)>;
 
-              if (!write) {
-                  read_bytes_ = read_bytes_ + (1ull << arg.size);
-                  cvm::log(cvm::FULL, "[axi_sw_mst] ar: [id={}, addr={:#x},len={} size={} burst={} lock={}]\n", arg.id, arg.addr, arg.len, arg.size, arg.burst, arg.lock);
-                  cvm::log(cvm::FULL, "[axi_sw_mst] ar: [ar_q_wptr:{} ar_q_rptr:{} ar_q_max_:{}]\n", ar_q_wptr_, ar_q_rptr_, ar_q_max_);
-                  if ((ar_q_wptr_ - ar_q_rptr_ ) < ar_q_max_) {
-                      ar_q_wptr_ = (ar_q_wptr_ + 1) % ar_q_ptr_max_;
-                      cvm::registry::callbacks.push(
-                        scope_,
-                        [=]() { axi_sw_mst_ar(arg.id, arg.addr, arg.len, arg.size, arg.burst, arg.lock, arg.cache, arg.prot, arg.qos, arg.region, arg.user); });
-                  }
-                  else {
-                      cvm::log(cvm::FULL, "[axi_sw_mst] skipping ar_req\n");
-                      return 1;
-                  }
+      if constexpr (std::is_same_v<T, axi::a_t>) {
+          bool write = arg.w;
+
+          if (!write) {
+              read_bytes_ = read_bytes_ + (1ull << arg.size);
+              cvm::log(cvm::FULL, "[axi_sw_mst] ar: [id={}, addr={:#x},len={} size={} burst={} lock={}]\n", arg.id, arg.addr, arg.len, arg.size, arg.burst, arg.lock);
+              cvm::log(cvm::FULL, "[axi_sw_mst] ar: [ar_q_wptr:{} ar_q_rptr:{} ar_q_max_:{}]\n", ar_q_wptr_, ar_q_rptr_, ar_q_max_);
+              if ((ar_q_wptr_ - ar_q_rptr_ ) < ar_q_max_) {
+                  ar_q_wptr_ = (ar_q_wptr_ + 1) % ar_q_ptr_max_;
+                  cvm::registry::callbacks.push(
+                    scope_,
+                    [=]() { axi_sw_mst_ar(arg.id, arg.addr, arg.len, arg.size, arg.burst, arg.lock, arg.cache, arg.prot, arg.qos, arg.region, arg.user); });
               }
               else {
-                  write_bytes_ = write_bytes_ + (1ull << arg.size);
-                  cvm::log(cvm::FULL, "[axi_sw_mst] aw: [id={}, addr={:#x}, len={}, size={}, burst={}, lock={}]\n", arg.id, arg.addr, arg.len, arg.size, arg.burst, arg.lock);
-                  cvm::log(cvm::FULL, "[axi_sw_mst] aw: [aw_q_wptr:{} aw_q_rptr:{} aw_q_max_:{}]\n", aw_q_wptr_, aw_q_rptr_, aw_q_max_);
-                  if ((aw_q_wptr_ - aw_q_rptr_ ) < aw_q_max_) {
-                      aw_q_wptr_ = (aw_q_wptr_ + 1) % aw_q_ptr_max_;
-                      cvm::registry::callbacks.push(
-                        scope_,
-                        [=]() { axi_sw_mst_aw(arg.id, arg.addr, arg.len, arg.size, arg.burst, arg.lock, arg.cache, arg.prot, arg.qos, arg.region, arg.atop.transaction, arg.user); });
-                  }
-                  else {
-                      cvm::log(cvm::FULL, "[axi_sw_mst] skipping aw_req\n");
-                      return 1;
-                  }
-              }
-          }
-          else if constexpr (std::is_same_v<T, axi::w_t>) {
-            cvm::log(cvm::FULL, "[axi_sw_mst] wdata w_q_wptr:{} w_q_rptr:{} w_q_max_:{} \n", w_q_wptr_ ,w_q_rptr_ ,w_q_max_);
-              if ((w_q_wptr_ - w_q_rptr_ ) < w_q_max_) {
-                  w_q_wptr_ = (w_q_wptr_ + 1) % w_q_ptr_max_;
-
-                  if (arg.strb.size() == 0) {
-                      cvm::log(cvm::ERROR, "[{}] Error: strb size is 0\n", name_);
-                      return 1;
-                  }
-
-                  if (arg.strb.size() != arg.data.size()) {
-                      cvm::log(cvm::ERROR, "[{}] Error: strb size != data size\n", name_);
-                      return 1;
-                  }
-
-                  cvm::registry::callbacks.push(
-                      scope_,
-                      [=, this]() {
-                          std::vector<uint8_t> strb(((arg.strb.size() - 1) >> 3) + 1, 0);
-                          for (size_t i = 0; i < arg.strb.size(); i++) {
-                              size_t idx = i >> 3;
-                              strb[idx] |= arg.strb[i] << i%8;
-                          }
-                          std::string d;
-                          for (int i=0; i<int(data_width_/8); i++)
-                            d += fmt::format("{:02x}", arg.data[i]);
-                          cvm::log(cvm::FULL, "[axi_sw_mst] axi_sw_w_{}: data={}\n", data_width_/8, d);
-                          if (data_width_ == 64)
-                              axi_sw_mst_w_8(arg.data.data(), strb.data(), arg.last);
-                          else if (data_width_ == 512)
-                              axi_sw_mst_w_64(arg.data.data(), strb.data(), arg.last);
-                          else
-                              cvm::log(cvm::ERROR, "[{}] Error: unsupported data width {}", name_, data_width_);
-                      });
-              } else {
-                  cvm::log(cvm::FULL, "[axi_sw_mst] skipping wdata\n");
-                  return 1;
+                  cvm::log(cvm::FULL, "[axi_sw_mst] skipping ar_req\n");
+                  return false;
               }
           }
           else {
-              cvm::log(cvm::ERROR, "[{}] Error: unhandled axi_mst transaction type\n", name_);
-              return 1;
+              write_bytes_ = write_bytes_ + (1ull << arg.size);
+              cvm::log(cvm::FULL, "[axi_sw_mst] aw: [id={}, addr={:#x}, len={}, size={}, burst={}, lock={}]\n", arg.id, arg.addr, arg.len, arg.size, arg.burst, arg.lock);
+              cvm::log(cvm::FULL, "[axi_sw_mst] aw: [aw_q_wptr:{} aw_q_rptr:{} aw_q_max_:{}]\n", aw_q_wptr_, aw_q_rptr_, aw_q_max_);
+              if ((aw_q_wptr_ - aw_q_rptr_ ) < aw_q_max_) {
+                  aw_q_wptr_ = (aw_q_wptr_ + 1) % aw_q_ptr_max_;
+                  cvm::registry::callbacks.push(
+                    scope_,
+                    [=]() { axi_sw_mst_aw(arg.id, arg.addr, arg.len, arg.size, arg.burst, arg.lock, arg.cache, arg.prot, arg.qos, arg.region, arg.atop.transaction, arg.user); });
+              }
+              else {
+                  cvm::log(cvm::FULL, "[axi_sw_mst] skipping aw_req\n");
+                  return false;
+              }
           }
+      }
+      else if constexpr (std::is_same_v<T, axi::w_t>) {
+        cvm::log(cvm::FULL, "[axi_sw_mst] wdata w_q_wptr:{} w_q_rptr:{} w_q_max_:{} \n", w_q_wptr_ ,w_q_rptr_ ,w_q_max_);
+          if ((w_q_wptr_ - w_q_rptr_ ) < w_q_max_) {
+              w_q_wptr_ = (w_q_wptr_ + 1) % w_q_ptr_max_;
 
-          return 0;
-      }, req);
+              if (arg.strb.size() == 0) {
+                  cvm::log(cvm::ERROR, "[{}] Error: strb size is 0\n", name_);
+                  return false;
+              }
 
+              if (arg.strb.size() != arg.data.size()) {
+                  cvm::log(cvm::ERROR, "[{}] Error: strb size != data size\n", name_);
+                  return false;
+              }
+
+              cvm::registry::callbacks.push(
+                  scope_,
+                  [=, this]() {
+                      std::vector<uint8_t> strb(((arg.strb.size() - 1) >> 3) + 1, 0);
+                      for (size_t i = 0; i < arg.strb.size(); i++) {
+                          size_t idx = i >> 3;
+                          strb[idx] |= arg.strb[i] << i%8;
+                      }
+                      std::string d;
+                      for (int i=0; i<int(data_width_/8); i++)
+                        d += fmt::format("{:02x}", arg.data[i]);
+                      cvm::log(cvm::FULL, "[axi_sw_mst] axi_sw_w_{}: data={}\n", data_width_/8, d);
+                      if (data_width_ == 64)
+                          axi_sw_mst_w_8(arg.data.data(), strb.data(), arg.last);
+                      else if (data_width_ == 512)
+                          axi_sw_mst_w_64(arg.data.data(), strb.data(), arg.last);
+                      else
+                          cvm::log(cvm::ERROR, "[{}] Error: unsupported data width {}", name_, data_width_);
+                  });
+          } else {
+              cvm::log(cvm::FULL, "[axi_sw_mst] skipping wdata\n");
+              return false;
+          }
+      }
+      else {
+          cvm::log(cvm::ERROR, "[{}] Error: unhandled axi_mst transaction type {}\n");
+          return false;
+      }
+      return true;
+  };
+
+  auto head = transactions_.begin();
+  while (head != transactions_.end()) {
+      int r = std::visit(push, *head);
       cvm::log(cvm::FULL, "[axi_sw_mst] visit returned {}\n", r);
-      if (r) break;
-
-      transactions_.pop_front();
+      if (!r) {
+        if (!FLAGS_axi_sw_mst_greedy_queue)
+          break;
+        else {
+          head++;
+          continue;
+        }
+      }
+      head = transactions_.erase(head);
   }
 
   cvm::log(cvm::FULL, "[axi_sw_mst] transactions left {}\n", transactions_.size());

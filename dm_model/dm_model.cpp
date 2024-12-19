@@ -4,13 +4,13 @@
 #include <memory>
 #include <vector>
 #include <algorithm>
-
+#include <cmath> 
 #include "cvm/plusargs.hpp"
 #include "cvm/registry.hpp"
 #include "cvm/bitmanip.hpp"
 #include "dm_model.hpp"
 
-
+DEFINE_bool(dm_hart_enum_chk, true, "Check DM hartenumaration wrt VID/PID mapping");
 // Return the number of bits wide that a field has to be to encode up to n
 // different values.
 // 1->0, 2->1, 3->2, 4->2
@@ -55,6 +55,8 @@ debug_module_t::debug_module_t(cvm::topology::loc_t loc, unsigned) : program_buf
                                                                                { return this->process(v); });
   cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dmi_status<>>(loc, [this](const auto &v)
                                                                               { return this->process(v); });
+  cvm::registry::messenger.connect<rv_tester_transactions::dm_model::dm_req<>>(loc, [this](const auto &v)
+                                                                               { return this->process(v); });
 
   // Define a processor array (for the number of harts)
   for (size_t i = 0; i < max_hartid; i++)
@@ -83,15 +85,17 @@ debug_module_t::debug_module_t(cvm::topology::loc_t loc, unsigned) : program_buf
 
   memset(debug_abstract, 0, sizeof(debug_abstract));
 
-  // Keeping everything available, but will get it from fuse map
-  for (unsigned i = 0; i < max_hartid; i++)
-  {
-    if (i < FLAGS_num_harts) 
-      hart_available_state[i] = true;
-    else 
-      hart_available_state[i] = false; 
-  }
+  // // Keeping everything available, but will get it from fuse map
+  // for (unsigned i = 0; i < max_hartid; i++)
+  // {
+  //   if (i < FLAGS_num_harts) 
+  //     hart_available_state[i] = true;
+  //   else 
+  //     hart_available_state[i] = false; 
 
+  //   cvm::log(cvm::NONE,"hart_available_state[{:#x}] = {:#x}\n",i, hart_available_state[i]);
+  // }
+  
   reset();
 }
 
@@ -152,6 +156,7 @@ void debug_module_t::process(const rv_tester_transactions::dm_model::dmi_resp<> 
       masked_actual_data = actual_data & 0xFFFFF0FF;
       masked_req_expect = req_expect & 0xFFFFF0FF;
       cvm::log(cvm::HIGH, "Ndmresetpending is 1 masking dmstatus[11:8]\n");
+
         if ((masked_actual_data != masked_req_expect))
           cvm::log(!FLAGS_dm_model_check_bypass?cvm::ERROR:cvm::NONE, "[Mismatch] Seen a DMI Response Mismatch for Addr:{:#x} ~~~ Actual:{:#x} vs Expected:{:#x}\n", reg_addr_to_check, masked_actual_data, masked_req_expect);
         else
@@ -219,6 +224,7 @@ void debug_module_t::process(const rv_tester_transactions::dm_model::dm_load_dat
       // }
       else {
         reflow_flags = false;
+
         cvm::log(!FLAGS_dm_model_check_bypass?cvm::ERROR:cvm::NONE, "[Mismatch] The load data's are mismatching for Addr:{:#x} with Length:{:#x} ~~~ Actual:{:#x} vs Expected:{:#x}\n",load_req_addr,load_req_length,actual_load_data_to_check,expected_load_data_to_check);
       }
     }
@@ -253,6 +259,34 @@ void debug_module_t::process(const rv_tester_transactions::dm_model::dm_store<> 
   debug_module_t::store(dm_store.addr, 4, store_data);
 }
 
+void debug_module_t::process(const rv_tester_transactions::dm_model::dm_req<> &dm_req)
+{
+
+  std::istringstream ss(FLAGS_hart_enable_id);
+  std::string token;
+  while (std::getline(ss, token, ',')) {
+    if (token != "") {
+      uint32_t t = std::stoull(token);
+      hart_pid.push_back(t);
+      hart_pid_mask |= (1 << t);
+    }
+  }
+  num_pid_harts = std::bitset<32>(hart_pid_mask).count();
+  cvm::log(cvm::NONE, "DMI Monitor :: DM req for the Physical Hart ID :{:#x} dmcontrol.hartsel: {} num_pid_harts : {}\n", dm_req.dm_ms_req, dmcontrol.hartsel,num_pid_harts);
+  if(FLAGS_dm_hart_enum_chk){
+  for (size_t i = 0; i < hart_pid.size(); i++) {
+        cvm::log(cvm::HIGH, "DMI Monitor :: Hart VID: {}  PID : {} \n",i, hart_pid[i]);
+  }
+  //check if access went to correct PID
+  //the hartsel will index by VID
+  if(hart_pid[dmcontrol.hartsel] == std::log2(dm_req.dm_ms_req)){
+    cvm::log(cvm::NONE, "DM VID/PID CHECKER  :: Correct DM req for the Physical Hart ID :{:#x} dmcontrol.hartsel: {} hart_pid[dmcontrol.hartsel]: {}  std::log2(dm_store.dm_ms_req) : {}\n", dm_req.dm_ms_req, dmcontrol.hartsel,hart_pid[dmcontrol.hartsel],std::log2(dm_req.dm_ms_req));
+  }else{
+    cvm::log(cvm::ERROR, "ERROR: DM VID/PID CHECKER  :: Incorrect DM req for the Physical Hart ID :{:#x} dmcontrol.hartsel: {} hart_pid[dmcontrol.hartsel]: {} std::log2(dm_store.dm_ms_req): {}\n", dm_req.dm_ms_req, dmcontrol.hartsel,hart_pid[dmcontrol.hartsel],std::log2(dm_req.dm_ms_req));
+
+  }
+  }
+}
 void debug_module_t::init_debug_abstract_buffer(){
   unsigned i = 0;
   debug_module_t::write32(debug_abstract,i++, ZERO);    // 0 (low)
@@ -271,6 +305,17 @@ void debug_module_t::reset()
 {
   cvm::log(cvm::HIGH, "[Reset Harts]\n"); //Fixed value as per the implementation
 
+  // Keeping everything available, but will get it from fuse map
+  for (unsigned i = 0; i < max_hartid; i++)
+  {
+    if (i < FLAGS_num_harts) 
+      hart_available_state[i] = true;
+    else 
+      hart_available_state[i] = false; 
+
+    cvm::log(cvm::HIGH,"hart_available_state[{:#x}] = {:#x}\n",i, hart_available_state[i]);
+  }
+  
   for (const auto &[hart_id, hart] : harts)
   { // harts
     hart->halt_request = hart->HR_NONE;
@@ -492,8 +537,10 @@ bool debug_module_t::store(reg_t addr, size_t len, const uint8_t *bytes)
 
   if (addr == DEBUG_ROM_EXCEPTION)
   {
+    cvm::log(cvm::HIGH, "In the DEBUG_ROM Exception State\n");
     if (abstractcs.cmderr == CMDERR_NONE)
     {
+      cvm::log(cvm::HIGH, "Cmderr was set to Exception\n");
       abstractcs.cmderr = CMDERR_EXCEPTION;
     }
     return true;
@@ -525,14 +572,17 @@ uint32_t debug_module_t::read32(uint8_t *memory, unsigned int index)
 
 bool debug_module_t::hart_selected(unsigned hartid) const
 {
-  return hartid == selected_hart_id() || (dmcontrol.hasel && hart_array_mask[hartid]);
+  return hartid == selected_hart_id() && (hartid < FLAGS_num_harts); // || (dmcontrol.hasel && hart_array_mask[hartid]);
 }
 
 bool debug_module_t::hart_available(unsigned hart_id) const
 {
-  if (hart_id < FLAGS_num_harts) //FIXME
+  if (hart_id < FLAGS_num_harts) { //FIXME
+    cvm::log(cvm::HIGH, "Hart_available comparison func, hart_id = {:#x}, NUM_HARTS = {:#x}, state = {:#x}\n", hart_id, FLAGS_num_harts, hart_available_state[hart_id]);
     return hart_available_state[hart_id];
-  return true;
+  }
+  else 
+    return false;
 }
 
 bool debug_module_t::dmi_read(unsigned address, uint32_t *value)
@@ -551,6 +601,7 @@ bool debug_module_t::dmi_read(unsigned address, uint32_t *value)
 
     if (abstractcs.busy && abstractcs.cmderr == CMDERR_NONE)
     {
+      cvm::log(cvm::HIGH,"Setting cmderr to Busy in the DMI_Read func\n");
       abstractcs.cmderr = CMDERR_BUSY;
     }
 
@@ -606,9 +657,11 @@ bool debug_module_t::dmi_read(unsigned address, uint32_t *value)
       {
         if (hart_selected(hart_id))
         {
+          cvm::log(cvm::HIGH, "Inside the dmstatus read, Loop for hart_id = {:#x}\n", hart_id);
           dmstatus.allnonexistant = false;
           if (hart_state[hart_id].resumeack)
           {
+            cvm::log(cvm::FULL, "Inside the resumeack state (dmstatus read), for hart_id = {:#x}\n", hart_id); 
             dmstatus.anyresumeack = true;
           }
           else
@@ -618,12 +671,14 @@ bool debug_module_t::dmi_read(unsigned address, uint32_t *value)
           // auto hart = harts.at(hart_id);
           if (hart_state[hart_id].halted)
           {
+            cvm::log(cvm::FULL, "Inside the halted state (dmstatus read), for hart_id = {:#x}\n", hart_id); 
             dmstatus.allrunning = false;
             dmstatus.anyhalted = true;
             dmstatus.allunavail = false;
           }
           else if (!hart_available(hart_id))
           {
+            cvm::log(cvm::FULL, "Inside the not available state (dmstatus read), for hart_id = {:#x}\n", hart_id); 
             dmstatus.allrunning = false;
             dmstatus.allhalted = false;
             dmstatus.anyunavail = true;
@@ -729,12 +784,15 @@ bool debug_module_t::perform_abstract_command()
 {
   init_debug_abstract_buffer();
 
+  // abstractcs.cmderr = CMDERR_NONE; 
+
   cvm::log(cvm::HIGH, "[Abstract Cmd] Performing an abstract command\n");
   hart_abscmd = dmcontrol.hartsel;
   cvm::log(cvm::HIGH, "[Display] hart_abscmd :{:#x}] \n", hart_abscmd);
 
   if (abstractcs.busy)
   {
+    cvm::log(cvm::HIGH,"Setting cmderr to Busy in the perform abstract func\n");
     abstractcs.cmderr = CMDERR_BUSY;
     return true;
   }
@@ -751,6 +809,7 @@ bool debug_module_t::perform_abstract_command()
     bool csr_access = false;
     bool fpr_access = false;
     if (size > 3){
+      cvm::log(cvm::HIGH,"Setting cmderr to Notsup in the perform abs func\n");
       abstractcs.cmderr = CMDERR_NOTSUP;
       unsupported_command = true;
       return true;
@@ -758,12 +817,14 @@ bool debug_module_t::perform_abstract_command()
 
     if (postexec==0 && transfer==0) // Implementation does not support this config and marks it as unsupported
     {
+      cvm::log(cvm::HIGH,"Setting cmderr to Notsup in the perform abs func\n");
       abstractcs.cmderr = CMDERR_NOTSUP;
       unsupported_command = true;
       return true;
     }
     if (get_field(command, AC_ACCESS_REGISTER_AARPOSTINCREMENT)){
       //write32(debug_abstract, 0, ebreak());
+      cvm::log(cvm::HIGH,"Setting cmderr to Notsup in the perform abs func\n");
       abstractcs.cmderr = CMDERR_NOTSUP;
       unsupported_command = true;
       return true;
@@ -771,6 +832,8 @@ bool debug_module_t::perform_abstract_command()
 
     if (cvm::bitmanip::slice<uint64_t>(regno, 15, 14) != 0){
       //write32(debug_abstract, 0, ebreak()); // Command not supported
+      cvm::log(cvm::HIGH,"Setting cmderr to Notsup in the perform abs func\n");
+      abstractcs.cmderr = CMDERR_NOTSUP;
       unsupported_command = true;
       return true;
     }
@@ -940,8 +1003,10 @@ bool debug_module_t::perform_abstract_command()
       abstractcs.busy = false;
       return true;
     }
-    else 
+    else { 
+      cvm::log(cvm::HIGH,"Set abstractcs.busy in the perform abstract cmd\n");
       abstractcs.busy = true; 
+    }
   }
   else if ((command >> 24) == 2)
   {
@@ -953,18 +1018,21 @@ bool debug_module_t::perform_abstract_command()
     
     if (size > 3) //Access size > 128 bits
     {
+      cvm::log(cvm::HIGH,"Setting cmderr to Notsup in the perform abs func\n");
       abstractcs.cmderr = CMDERR_NOTSUP;
       return true;
     }
 
     if (!aamvirtual)//Since we rely on core MMU, no physical access
     {
+      cvm::log(cvm::HIGH,"Setting cmderr to Notsup in the perform abs func\n");
       abstractcs.cmderr = CMDERR_NOTSUP;
       return true;
     }
     
     if (aampostincrement)//Feature unsupported
     {
+      cvm::log(cvm::HIGH,"Setting cmderr to Notsup in the perform abs func\n");
       abstractcs.cmderr = CMDERR_NOTSUP;
       return true;
     }
@@ -1057,6 +1125,7 @@ bool debug_module_t::perform_abstract_command()
   }
   else
   {
+    cvm::log(cvm::HIGH,"Setting cmderr to Notsup in the perform abs func not matching opcode\n");
     abstractcs.cmderr = CMDERR_NOTSUP;
   }
 
@@ -1087,6 +1156,7 @@ bool debug_module_t::dmi_write(unsigned address, uint32_t value)
 
     if (abstractcs.busy && abstractcs.cmderr == CMDERR_NONE)
     {
+      cvm::log(cvm::HIGH, "Setting the Cmderr to Busy when DMI write to dataregs happen\n");
       abstractcs.cmderr = CMDERR_BUSY;
     }
 
@@ -1137,7 +1207,7 @@ bool debug_module_t::dmi_write(unsigned address, uint32_t value)
 
       for (const auto &[hart_id, hart] : harts)
       {
-        cvm::log(cvm::HIGH, "Inside for loop\n");
+        cvm::log(cvm::HIGH, "Inside for loop for hart_idx = {:#x}\n", hart_id);
         if (hart_selected(hart_id))
         {
           cvm::log(cvm::HIGH, "Inside the DMCONTROL Write Event - 002\n");
@@ -1297,7 +1367,11 @@ bool debug_module_t::dmi_write(unsigned address, uint32_t value)
         return true;
 
     case DM_ABSTRACTCS:
+      cvm::log(cvm::HIGH, "Write to Abstract cmderr with val of {:#x}\n", (uint32_t)(get_field(value, DM_ABSTRACTCS_CMDERR)));
+      cvm::log(cvm::HIGH, "[Check] cmderr before the write is {:#x}\n", (uint32_t)(abstractcs.cmderr));
+      cvm::log(cvm::HIGH, "[Weirdness here] neg_field val = {:#x}, calc cal = {:#x}\n",(~(uint32_t)(get_field(value, DM_ABSTRACTCS_CMDERR))), (((uint32_t)(abstractcs.cmderr)) & (~(uint32_t)(get_field(value, DM_ABSTRACTCS_CMDERR)))));
       abstractcs.cmderr = (cmderr_t)(((uint32_t)(abstractcs.cmderr)) & (~(uint32_t)(get_field(value, DM_ABSTRACTCS_CMDERR))));
+      cvm::log(cvm::HIGH, "[Check] cmderr after the write is {:#x}\n", (uint32_t)(abstractcs.cmderr));
       return true;
 
     case DM_ABSTRACTAUTO:

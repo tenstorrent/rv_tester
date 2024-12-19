@@ -3,7 +3,7 @@
 
 REGISTRY_register(external_interrupt_sequence, INTERRUPTS, cvm::registry::all);
 
-DEFINE_bool(patch_interrupt_trigger_en, true, "Enable patch event based external_interrupt_sequence in the sim");
+DEFINE_bool(patch_interrupt_trigger_en, false, "Enable patch event based external_interrupt_sequence in the sim");
 DEFINE_bool(uarch_interrupt_trigger_en, false, "Enable event based external_interrupt_sequence in the sim");
 DEFINE_string(trigger_interrupt_count, "7:10", "Number of MSI in the sim if random mode enabled");
 DEFINE_string(trigger_interrupt_weight_ratio, "6:2:2", "Ratio of Number of interrupts randomly driven  in phases after trigger event");
@@ -16,7 +16,7 @@ external_interrupt_sequence::external_interrupt_sequence(cvm::topology::loc_t lo
   cvm::registry::messenger.connect<svScope>(loc_, [this](svScope s) { return this->set_scope(s); });
   cvm::registry::messenger.connect<rv_tester_transactions::triggers::m_event_trigger_tick<>>(
       loc_,
-      [this](const rv_tester_transactions::triggers::m_event_trigger_tick<>& t) { return this->capture_trigger_info(t.event_trigger); }); 
+      [this](const rv_tester_transactions::triggers::m_event_trigger_tick<>& t) { return this->capture_trigger_info(t.event_trigger, t.per_core_evt_vector); }); 
   
  
   axi_mst_loc_l = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST", 0);
@@ -58,9 +58,10 @@ void external_interrupt_sequence::gen_interrupt_timings(){
 
 }
 
-void external_interrupt_sequence::capture_trigger_info(int32_t trigger_info){
+void external_interrupt_sequence::capture_trigger_info(int32_t trigger_info, int32_t per_core_trigger_vlds){
   last_trigger = current_trigger;  
-  current_trigger = trigger_info;  
+  current_trigger = trigger_info; 
+  drive_msi_in_curr_hart = (per_core_trigger_vlds == (1 << id_));
 }
 
 void external_interrupt_sequence::patch_trigger_mode_thread() {
@@ -100,7 +101,7 @@ cvm::messenger::task<void> external_interrupt_sequence::patch_trigger_mode() {
          }  
        }
       
-       if(!abrupt_exit){
+       if(!abrupt_exit & drive_msi_in_curr_hart){
          cvm::log(cvm::LOW,"[ExtInterruptSeq] driving external interrupt due to patch_trigger");
          drive_interrupt();
          interrupts_driven++;
@@ -112,8 +113,10 @@ cvm::messenger::task<void> external_interrupt_sequence::patch_trigger_mode() {
 cvm::messenger::task<void> external_interrupt_sequence::uarch_trigger_mode() {
   while(1){
     co_await trigger();
-    cvm::log(cvm::LOW,"[ExtInterruptSeq] driving external interrupt due to uarch_trigger");
-    drive_interrupt();
+    if(drive_msi_in_curr_hart){
+      cvm::log(cvm::LOW,"[ExtInterruptSeq] driving external interrupt due to uarch_trigger");
+      drive_interrupt();
+    }
   }
 }
 
@@ -143,8 +146,6 @@ void external_interrupt_sequence::drive_interrupt(){
 
   intr_num =  (rng1() % (FLAGS_imsic_intr_threshold ));
 
-	if(!FLAGS_disable_random_hart_imsic_intr)
-    intr_hart = (rng1() % (FLAGS_imsic_hart_threshold )) ; //gen iter between 1 to max simul instr
 	if(!FLAGS_disable_vs_imsic_intr)
     intr_vs_id = (rng1() % (FLAGS_imsic_vs_id_threshold )) ; //gen iter between 1 to max simul instr
   if(intr_file == 0x02) intr_num %= FLAGS_imsic_vs_intr_threshold;  
