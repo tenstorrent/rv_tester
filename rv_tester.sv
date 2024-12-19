@@ -631,6 +631,7 @@ module rv_tester
 
     assign poke_event_in = (poke_event_out != '0) ? 1'b1 : 1'b0;
 
+    logic [NHARTS-1:0] boot_done;
 `ifndef NO_COSIM
     for (genvar c = 0; c < NHARTS; c++) begin: cosim_inst
       cosim #(
@@ -673,6 +674,7 @@ module rv_tester
           .poke_event_out(poke_event_out[c]),
           .poke_event_in(poke_event_in),
           .disable_checks(disable_checks),
+          .boot_done(boot_done[c]),
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PORTS(1, c, 0)
       );
     end
@@ -730,6 +732,7 @@ module rv_tester
             .sys_reset(sys_reset[AXI_CLK_IDX]),
             .reset(dut_reset[AXI_CLK_IDX]),
             .clocks,
+            .boot_done(boot_done[c]),
             .nmi(nmi[c].nmi),
             `RV_TESTER_TRANSACTIONS_INTERRUPTS_SOURCE_PORTS(2,c,0)
         );
