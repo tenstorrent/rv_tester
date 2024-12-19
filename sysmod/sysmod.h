@@ -103,6 +103,9 @@ class sysmod {
     cvm::messenger::task<uint64_t> backdoor_write(backdoor_write_t);
 
   private:
+
+    bool lz4_load(const std::string load);
+
     std::string hostname = "localhost";
     int port = 50001;
     svScope scope_;
