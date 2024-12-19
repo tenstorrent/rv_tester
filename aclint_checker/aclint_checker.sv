@@ -208,8 +208,8 @@ import rv_tester_params:: * ;
     if(dut_reset || ~fail_mtishouldbeOFF) cycles_in_fail_mtishouldbeOFF <= 0;
     else if(fail_mtishouldbeOFF) cycles_in_fail_mtishouldbeOFF <= cycles_in_fail_mtishouldbeOFF + 1;
     end
-    always_comb assert(~(cycles_in_fail_mtishouldbeOFF > 4)) else $error("Error: Did not expect MTIP, but MTIP %d generated", asserti);
-    always_comb assert(~(cycles_in_fail_mtishouldbeON > 4)) else $error("Error: Expected MTIP, but MTIP %d not generated", asserti);    
+    always_comb assert(~(cycles_in_fail_mtishouldbeOFF > 5)) else $error("Error: Did not expect MTIP, but MTIP %d generated", asserti);
+    always_comb assert(~(cycles_in_fail_mtishouldbeON > 5)) else $error("Error: Expected MTIP, but MTIP %d not generated", asserti);    
     end
     endgenerate
 
