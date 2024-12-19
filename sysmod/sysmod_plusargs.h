@@ -37,3 +37,5 @@ DECLARE_int32(clk_profile);
 DECLARE_string(warm_reset_sram_hold);
 DECLARE_string(warm_reset_debug_hold);
 DECLARE_string(warm_reset_critical_hold);
+DECLARE_bool(rand_core_harvest);
+DECLARE_int32(max_intr_count);

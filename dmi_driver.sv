@@ -1000,27 +1000,26 @@ import rv_tester_params:: * ;
         $display("Executing from sdtrig prog buff queues");
         for(int trigger_count=0; trigger_count<8; trigger_count++)begin
           command_in_sdtrig_progbuf_queue_size = sdtrig_progbuf_queue.size();
-          if(tselect_conf_plusarg[trigger_count] === 1) begin
-            while(command_in_sdtrig_progbuf_queue_size > 0) begin
-              $display("Executing the while from sdtrig prog buff queues");
-              command = sdtrig_progbuf_queue.pop_front();
-              if(command_in_sdtrig_progbuf_queue_size === (total_command_in_sdtrig_progbuf_queue_size-1)) begin
-                command.data[23:20] = trigger_count;
-              end
-              //Resume only after iterating program buffer for all tselect to configure Action, type & dmode
-              if(command_in_sdtrig_progbuf_queue_size>1 || trigger_count === 7)begin
-                $display("Executing from sdtrig_trigger_progbuf_queue");
-                $display("[DMI Execution] Popped Cmd ==> addr:%h op:%h data:%h", command.addr, command.op,
-                    command.data);
-                drive_dmi_cmd(command);
-                is_poll_needed(command);
-                if (poll) begin
-                  do_polling();
-                end
-              end
-              sdtrig_progbuf_queue.push_back(command);
-              command_in_sdtrig_progbuf_queue_size --;
+          $display("Itrerating through for trigger_count:%h", trigger_count);
+          while(command_in_sdtrig_progbuf_queue_size > 0) begin
+            $display("Executing the while from sdtrig prog buff queues");
+            command = sdtrig_progbuf_queue.pop_front();
+            if(command_in_sdtrig_progbuf_queue_size === (total_command_in_sdtrig_progbuf_queue_size-1)) begin
+              command.data[23:20] = trigger_count;
             end
+            //Resume only after iterating program buffer for all tselect to configure Action, type & dmode
+            if((tselect_conf_plusarg[trigger_count] === 1 && (command_in_sdtrig_progbuf_queue_size>1 || trigger_count === 7)) || (tselect_conf_plusarg[trigger_count] === 0 && trigger_count === 7 && command_in_sdtrig_progbuf_queue_size===1))begin
+              $display("Executing from sdtrig_trigger_progbuf_queue");
+              $display("[DMI Execution] Popped Cmd ==> addr:%h op:%h data:%h", command.addr, command.op,
+                  command.data);
+              drive_dmi_cmd(command);
+              is_poll_needed(command);
+              if (poll) begin
+                do_polling();
+              end
+            end
+            sdtrig_progbuf_queue.push_back(command);
+            command_in_sdtrig_progbuf_queue_size --;
           end
         end
         trigger_to_fire = 1;
