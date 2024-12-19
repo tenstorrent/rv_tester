@@ -12,6 +12,7 @@ DEFINE_int32(dbg_delay_min, 6, "Minimum Delay between 2 consecutive debug mode r
 DEFINE_int32(dbg_delay_max, 9, "Maximum Delay between 2 consecutive debug mopde requests");
 DEFINE_int32(dbg_max_snippets, 1, "Maximum number of debug snippets to be driven");
 DEFINE_string(dbg_template_dir_path, "", "Path to file containing debugger commands");
+DEFINE_bool(enable_cross, false, "Are cross features are enabled");
 
 debugger::debugger(const std::string &tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc)
     : subdevice(tag, addr, 0x20000 /* size */, loc), soft_(hartCount),
@@ -82,8 +83,13 @@ void debugger::get_all_csv_templates()
             std::string filename = entry.path().filename().string();
             if (filename.size() >= 4 && filename.substr(filename.size() - 4) == ".csv")
             {
+              if (FLAGS_enable_cross && (filename.size() > 14) && filename.substr(filename.size() - 14) == "scratchpad.csv") {
+                cvm::log(cvm::NONE, "[Debugger]:Skipping Scratchpad file in cross:{}\n", filename); 
+              }
+              else {
                 csvFilePaths.push_back(entry.path().string());
                 cvm::log(cvm::MEDIUM, "[Debugger]:Pushing file:{}\n", filename);
+              }
             }
         }
     }
