@@ -38,10 +38,14 @@ interrupter::~interrupter()
 {
 }
 
-void
-interrupter::read_dev(uint64_t addr, size_t , data_t& )
-{
-  cvm::log(cvm::HIGH, "[Trickbox] IMSIC read addr={:#x} \n", addr);
+uint64_t mnscratch_array[2];
+void interrupter::read_dev(uint64_t addr, size_t length,  data_t& data){
+  if(addr==(interrupter_base + 0x2000)){
+    serializeInt(mnscratch_array[0], length, data);
+  }
+  else if(addr==(interrupter_base + 0x2008)){
+    serializeInt(mnscratch_array[1], length, data);
+  }
   return;
 }
 
@@ -76,6 +80,12 @@ interrupter::write(uint64_t addr, size_t, const data_t& data,
   }
   else if ((addr > interrupter_base) && (addr < (interrupter_base + 0x1000))) {
      cvm::log(cvm::HIGH, "[Trickbox] IMSIC write delayed - addr={:#x} data={:#x}\n", addr, t_data);
+  }
+  else if(addr==(interrupter_base + 0x2000)){
+    mnscratch_array[0] = t_data;
+  }
+  else if(addr==(interrupter_base + 0x2008)){
+    mnscratch_array[1] = t_data;
   }
   else if (addr == (interrupter_base + 0x4000)) { // FIXME missing functionality
      cvm::log(cvm::HIGH, "[Trickbox] IMSIC write - no match - addr={:#x} data={:#x}\n", addr, t_data);
