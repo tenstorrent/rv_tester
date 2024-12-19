@@ -195,11 +195,11 @@ void bridge::reset() {
 
   // Write num_harts to boot mem
   bool valid;
-  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, 0, 'm', memmap_.at("boot").base + 0x9000, FLAGS_num_harts, valid) || !valid) && FLAGS_whisper_client_check) {
+  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, 0, 'm', memmap_.at("boot").base + boot_num_harts_offset, FLAGS_num_harts, valid) || !valid) && FLAGS_whisper_client_check) {
     error("Hart {}: Failed to poke boot memory\n", id_);
     return;
   }
-  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, 0, 'm', memmap_.at("boot").base + 0x9018, FLAGS_hart_sync_en, valid)|| !valid) && FLAGS_whisper_client_check) {
+  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, 0, 'm', memmap_.at("boot").base + boot_hart_sync_en_offset, FLAGS_hart_sync_en, valid)|| !valid) && FLAGS_whisper_client_check) {
     error("Hart {}: Failed to poke boot memory\n", id_);
     return;
   }
@@ -208,12 +208,12 @@ void bridge::reset() {
 
   if(FLAGS_enable_sp_init){ //only poke num ways when sp_init is required
     uint64_t poke_data = uint64_t(FLAGS_enable_sp_init);
-    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', memmap_.at("boot").base + 0x9008, 8, poke_data, valid)|| !valid) && FLAGS_whisper_client_check){
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', memmap_.at("boot").base + boot_sp_init_offset, 8, poke_data, valid)|| !valid) && FLAGS_whisper_client_check){
       error("Hart {}: Failed to poke boot memory\n", id_);
       return;
     }
     poke_data = uint64_t(FLAGS_num_sp_ways);
-    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', memmap_.at("boot").base + 0x9010, 8, poke_data, valid)|| !valid) && FLAGS_whisper_client_check){
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', memmap_.at("boot").base + boot_sp_ways_offset, 8, poke_data, valid)|| !valid) && FLAGS_whisper_client_check){
        error("Hart {}: Failed to poke boot memory\n", id_);
        return;
     }
@@ -221,8 +221,8 @@ void bridge::reset() {
 
   cvm::registry::messenger.signal<uint64_t>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0), uint64_t(0)); // sysmod needs whisper client
   cvm::registry::messenger.signal<uint64_t>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0), uint64_t(1));
-  resetsstc_poke(id_,0,0x14d);
-  resetsstc_poke(id_,0,0x24d);
+  resetsstc_poke(id_,0,STIMECMP);
+  resetsstc_poke(id_,0,VSTIMECMP);
 }
 
 void bridge::get_gp_reg(uint32_t reg, uint64_t& data)
@@ -248,26 +248,21 @@ void bridge::get_vec_reg(uint32_t reg, std::array<std::uint8_t, 32>& data)
 void bridge::csr_init() {
   bool valid;
   uint64_t data, mask, poke_mask, read_mask;
-  for (const auto& csr: nonzero_reset_csrs) {
-    uint64_t misa_data = get_csr(id_, src_t::dut, 0x301);
-    //print(cvm::MEDIUM , "MISA data : {:#x}\n",misa_data);
-    bool peekhypcsr = (misa_data & (1<<7))!=0;
-    if((hypervisor_csr_map_.find(csr.address) != hypervisor_csr_map_.end()) && (!peekhypcsr)) {
-    }
-    else {
-      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, csr.address, data, mask, poke_mask, read_mask, valid)|| !valid) && FLAGS_whisper_client_check) {
-        error("Hart {}: Failed to peek csr : {:#x} in csr_int()\n", id_ ,csr.address);
-      }
+  for (const auto& csr_: csrs) {
+    auto csr = csr_.second;
+    if (csr.nonzero_reset) {
+      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, csr.addr, data, mask, poke_mask, read_mask, valid)|| !valid) && FLAGS_whisper_client_check)
+        error("Hart {}: Failed to peek csr : {:#x} in csr_int()\n", id_ ,csr.addr);
       size_8_bytes_t cac_mask = 0xffffffffffffffff;
-      update_csr(id_, src_t::dut, csr.address, data, cac_mask);
-      update_csr(id_, src_t::iss, csr.address, data, cac_mask);
+      update_csr(id_, src_t::dut, csr.addr, data, cac_mask);
+      update_csr(id_, src_t::iss, csr.addr, data, cac_mask);
       csr_cac_.Step(id_, false);
     }
   }
 
   // CSR rename
-  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, 0xBC2, data, mask, poke_mask, read_mask, valid)|| !valid) && FLAGS_whisper_client_check) {
-    error("Hart {}: Failed to peek csr : 0xBC2\n", id_);
+  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, C_FECFG2, data, mask, poke_mask, read_mask, valid)|| !valid) && FLAGS_whisper_client_check) {
+    error("Hart {}: Failed to peek csr : C_FECFG2\n", id_);
   }
   csr_rename_en_ = !((data & 0x200) >> 9);
   csr_rd_opt_ = !((data & 0x4) >> 2);
@@ -728,8 +723,7 @@ void bridge::compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w,
 }
 
 void bridge::process_dut_csr_hw_update(hart_id_t hart, csr_t& c) {
-  // MIP updates handled in process_dut_interrupt
-  if (c.csr_addr == 0x344)
+  if (c.csr_addr == MIP)
     return;
 
   size_8_bytes_t mask = c.csr_wmask & static_cast<size_8_bytes_t>(get_csr_poke_mask(hart, c.csr_addr));
@@ -781,8 +775,8 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
     update_pc(hart, src_t::dut, d.pc.pc_rdata);
   }
   if (FLAGS_priv_check && (patch_mode_ == NO_PATCH || patch_mode_ == ENTER_PATCH)) {
-    if (d.priv == 0x7) // Update DEBUG_PROGBUF Mode to be DEBUG_ROM Mode for Cosim checks
-      d.priv = 0x6;
+    if (d.priv == DP)
+      d.priv = DE;
     update_priv(hart, src_t::dut, d.priv);
   }
   if (FLAGS_insn_check && !d.comp && !d.ucode && !is_vector(d.disasm) && !(d.disasm.substr(0,7)=="illegal") && !d.csr_renamed && (patch_mode_ == NO_PATCH  || patch_mode_ == ENTER_PATCH)) {
@@ -808,10 +802,10 @@ void bridge::pre_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
   bool valid;
   uint32_t opcode;
   if (instr.pc.pc_rdata == FLAGS_debug_exit_pc) {
-    opcode = 0x13; //Nop
+    opcode = opcode_nop;
   }
   else if(instr.excp && (instr.ecause == 3)) { // This is to exit the abstract cmd routine to Park loop at the end of abstract command completion
-    opcode = 0x00100073; //E-break opcode 
+    opcode = opcode_ebreak; //E-break opcode 
   }
   else if (instr.excp) { // In case of other exceptions since RVFI only get's u-op codes, can't poke whisper valid opcode to hit exception. Thus we poke illegal opcode to mimic an exception.
     opcode = 0x0; //Illegal opcode
@@ -945,16 +939,14 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
 
   bool valid;
   uint64_t hideleg = 0, mideleg;
-  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 'c', 0x303, mideleg, valid)|| !valid) && FLAGS_whisper_client_check) {
+  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 'c', MIDELEG, mideleg, valid)|| !valid) && FLAGS_whisper_client_check) {
     error("Hart {}: Failed to peek mip\n", hart);
     return;
   }
-  uint64_t misa_data = get_csr(id_, src_t::dut, 0x301);
-  //print(cvm::MEDIUM , "MISA data : {:#x}\n",misa_data);
+  uint64_t misa_data = get_csr(id_, src_t::dut, MISA);
   bool peekhypcsr = (misa_data & (1<<7))!=0;
-  //print(cvm::MEDIUM, "peekmtval2:{}\n",peekmtval2);
   if(peekhypcsr) { 
-    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 'c', 0x603, hideleg, valid) || !valid) && FLAGS_whisper_client_check) {
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 'c', HIDELEG, hideleg, valid) || !valid) && FLAGS_whisper_client_check) {
       print(cvm::MEDIUM,"Trying to peek hideleg\n");
       error("Hart {}: Failed to peek mip\n", hart);
       return;
@@ -962,11 +954,11 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
   }
   bool hdel = hideleg & (1ull << w_cause);
   bool mdel = mideleg & (1ull << w_cause);
-  if(d.priv == 3) {intrtopriv_ = 3;}                                                 // M mode
-  else if (d.priv == 1 || d.priv == 0) { intrtopriv_ = mdel ? 1 : 3;}                // HS or U mode
-  else if (d.priv == 9 || d.priv == 8) { intrtopriv_ = mdel ? (hdel ? 9 : 1) : 3;}   // VS or VU mode
+  if (d.priv == M) { intrtopriv_ = M;}
+  else if (d.priv == HS || d.priv == U)  { intrtopriv_ = mdel ? HS : M;}
+  else if (d.priv == VS || d.priv == VU) { intrtopriv_ = mdel ? (hdel ? VS : HS) : M;}
 
-  if (intrtopriv_ == 9 || intrtopriv_ == 8) {w_cause--;}
+  if (intrtopriv_ == VS || intrtopriv_ == VU) {w_cause--;}
 
   bridge_log_(cvm::MEDIUM, "<{}> Interrupt to privilege {} \n", w.time, intrtopriv_);
 
@@ -1053,11 +1045,11 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
 
     if (w.disasm.find("vstimecmp") != std::string::npos && !w_.excp)  {
       IF_DEBUG("VSTIMECMP instruction");
-      if (!vstimecmppoked_) resetsstc_poke(hart,d.cycle, 0x24d); else setsstc_poke(hart,d.cycle, 0x24d);
+      if (!vstimecmppoked_) resetsstc_poke(hart,d.cycle, VSTIMECMP); else setsstc_poke(hart,d.cycle, VSTIMECMP);
     } else if (w.disasm.find("stimecmp") != std::string::npos && !w_.excp) {
       IF_DEBUG("STIMECMP instruction");
-      if (w.priv_mode == 9) {if (!vstimecmppoked_) resetsstc_poke(hart,d.cycle, 0x24d); else setsstc_poke(hart,d.cycle, 0x24d);}
-      else if (!stimecmppoked_)  resetsstc_poke(hart,d.cycle, 0x14d); else setsstc_poke(hart,d.cycle, 0x14d);
+      if (w.priv_mode == VS) {if (!vstimecmppoked_) resetsstc_poke(hart,d.cycle, VSTIMECMP); else setsstc_poke(hart,d.cycle, VSTIMECMP);}
+      else if (!stimecmppoked_)  resetsstc_poke(hart,d.cycle, STIMECMP); else setsstc_poke(hart,d.cycle, STIMECMP);
     }
   }
 
@@ -1246,7 +1238,7 @@ void bridge::post_step_satp_write_poke(hart_id_t hart, const rv_instr_t& d, cons
   // Save satp updates and apply only when sfence.vma is seen
   if (w.disasm.find("satp") != std::string::npos) {
     for (auto& c : w_.csr) {
-      if (c.csr_addr == 0x180) {
+      if (c.csr_addr == SATP) {
         new_satp_ = c.csr_wdata;
 
         uint16_t new_mode_asid = (new_satp_ >> 44) & 0xffff;
@@ -1260,7 +1252,7 @@ void bridge::post_step_satp_write_poke(hart_id_t hart, const rv_instr_t& d, cons
           bridge_log_(cvm::MEDIUM, "<{}> Whisper Step #{}: SATP write, don't apply till sfence.vma\n", w.time, step_);
         }
         bool valid = false;
-        if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, d.cycle, 'c', 0x180, satp_, valid) || !valid) && FLAGS_whisper_client_check) {
+        if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, d.cycle, 'c', SATP, satp_, valid) || !valid) && FLAGS_whisper_client_check) {
           error("Hart {}: Failed to poke SATP\n", hart);
           return;
         }
@@ -1278,7 +1270,7 @@ void bridge::post_step_satp_write_poke(hart_id_t hart, const rv_instr_t& d, cons
       bridge_log_(cvm::MEDIUM, "<{}> Whisper Step #{}: sfence.vma, apply SATP write\n", w.time, step_);
     }
     bool valid = false;
-    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, w.time, 'c', 0x180, new_satp_, valid)|| !valid) && FLAGS_whisper_client_check) {
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, w.time, 'c', SATP, new_satp_, valid)|| !valid) && FLAGS_whisper_client_check) {
       error("Hart {}: Failed to poke new SATP\n", hart);
       return;
     }
@@ -1301,12 +1293,12 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
   w_.pc.pc_rdata = w.pc;
 
   zicbom_ = false;
-  if(((w.opcode & 0x7fff) == 0x200f) && (((w.opcode>>20) & 0xfff) <= 2)){ // cbo - inval, clean , flush
+  if (((w.opcode & 0x7fff) == 0x200f) && (((w.opcode>>20) & 0xfff) <= 2)){ // cbo - inval, clean , flush
     zicbom_ = true;
     if (!FLAGS_mcm && (w.opcode>>20 == 0)) { // cbo.inval and no mcm RVDE-18801
       uint64_t addr;
       if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekGprRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, (w.opcode>>15) & 0x1f, addr)) {
-          error("Hart {}: Failed to peek GPR {}\n", hart, (w.opcode>>15)&0x1f);
+          error("Hart {}: Failed to peek GPR {}\n", hart, (w.opcode>>15) & 0x1f);
       }
     IF_DEBUG("cbo.inval");
     cvm::registry::messenger.signal<cbo_inval_nomcm_s>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0), cbo_inval_nomcm_s(addr));
@@ -1363,12 +1355,9 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
       w_.mem_write.valid = true;
       w_.mem_write.va = w.address;
       w_.mem_write.data = w.value;
-      if((w.address<0x64000000) && (w.address>=0x60000000) && FLAGS_enable_sp_init){
+      if ((w.address<0x64000000) && (w.address>=0x60000000) && FLAGS_enable_sp_init)
            num_sp_accesses_++;
-      }
-
     }
-
   }
 
   // Mem attributes
@@ -1390,11 +1379,11 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
     uint64_t cause = 0;
     uint64_t ncause = 0;
     for (auto& c : w_.csr) {
-      if (c.csr_addr == 0x742) {
+      if (c.csr_addr == MNCAUSE) {
         cause_valid = true;
         ncause = c.csr_wdata;
       }
-      if ((c.csr_addr == 0x342) || (c.csr_addr == 0x142) || (((w.priv_mode == 0x8) || (w.priv_mode == 0x9)) && (c.csr_addr == 0x242))) {
+      if ((c.csr_addr == MCAUSE) || (c.csr_addr == SCAUSE) || (((w.priv_mode == VU) || (w.priv_mode == VS)) && (c.csr_addr == VSCAUSE))) {
         cause_valid = true;
         cause = c.csr_wdata;
       }
@@ -1513,7 +1502,7 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
     uint64_t data = modify_csr_data(hart, c.csr_addr, c.csr_wdata);
     size_8_bytes_t mask = modify_csr_mask(hart, c.csr_addr, c.csr_wdata, c.csr_wmask);
     if (FLAGS_csr_rd_check) {
-      uint64_t misa_data = get_csr(id_, src_t::dut, 0x301);
+      uint64_t misa_data = get_csr(id_, src_t::dut, MISA);
       bool peekhypcsr = (misa_data & (1<<7))!=0;
       if((hypervisor_csr_map_.find(c.csr_addr) != hypervisor_csr_map_.end()) && (!peekhypcsr)) {
       }else{
@@ -1527,31 +1516,30 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
         }
         update_csr(hart, src_t::iss, c.csr_addr, data, mask);
       }
-      if (c.csr_addr == 0x001) update_csr(hart, src_t::dut, 0x003, data, mask); // On fflags update, update fcsr
-      else if (c.csr_addr == 0x002) { // On frm update, update fcsr
+      if (c.csr_addr == FFLAGS)
+        update_csr(hart, src_t::dut, FCSR, data, mask);
+      else if (c.csr_addr == FRM) {
         data = data << 5;
         mask = mask << 5;
-        update_csr(hart, src_t::dut, 0x003, data, mask, false, false);
-      }
-      else if (c.csr_addr == 0x003){ // On fcsr update, update fflags,frm
-          bridge::size_8_bytes_t mask_fcsr = mask;
+        update_csr(hart, src_t::dut, FCSR, data, mask, false, false);
+      } else if (c.csr_addr == FCSR) {
+        bridge::size_8_bytes_t mask_fcsr = mask;
         mask = mask_fcsr & 0x1f;
-        update_csr(hart, src_t::dut, 0x001, data, mask, false, false);
+        update_csr(hart, src_t::dut, FFLAGS, data, mask, false, false);
         data = data >> 5;
         mask = (mask_fcsr >> 5) & 0x7;
-        update_csr(hart, src_t::dut, 0x002, data, mask, false, false);
+        update_csr(hart, src_t::dut, FRM, data, mask, false, false);
       }
-      else if (c.csr_addr == 0x301){ // On misa.H update, update mideleg
-        if ((c.csr_wmask >> 7) & 0x1) {
-          if ((c.csr_wdata >> 7) & 0x1) {
+      else if (c.csr_addr == MISA) {  // On misa.H update, update mideleg
+        if (c.csr_wmask & 0x80) {
+          if (c.csr_wdata & 0x80) {
             mask = 0x1444;
-            update_csr(hart, src_t::dut, 0x303, 0x1444, mask, false, false);
-          }
-          else {
+            update_csr(hart, src_t::dut, MIDELEG, 0x1444, mask, false, false);
+          } else {
             mask = 0xF00400;
-            update_csr(hart, src_t::dut, 0x302, 0, mask, false, false);
+            update_csr(hart, src_t::dut, MEDELEG, 0, mask, false, false);
             mask = 0x1444;
-            update_csr(hart, src_t::dut, 0x303, 0, mask, false, false);
+            update_csr(hart, src_t::dut, MIDELEG, 0, mask, false, false);
           }
         }
       }
@@ -1593,7 +1581,7 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_
   // Register changes - r, f, v,
   // size_8_bytes_t dword_vec_array [vlen/64] = {0};
   uint32_t vec_slices = vlen/64;
-  std::vector<uint64_t> csrsupdatingmip = {0x144, 0x351, 0x251, 0x151, 0x35c, 0x25c, 0x15c, 0x30a};
+  std::vector<csr> csrsupdatingmip = {SIP, SIREG, MIREG, VSIREG, MTOPEI, VSTOPEI, STOPEI, MENVCFG};
 
   switch(w.resource) {
     case 'r':
@@ -1621,16 +1609,16 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_
       if (FLAGS_csr_rd_check){
         if (!is_indirect_reg(w.disasm) || nmi_.valid){
           // Check if PMP entry is locked
-          if (w.address >= 0x3B0 && w.address < 0x3C0) {
+          if (w.address >= PMPADDR0 && w.address < PMPADDR16) {
             bool valid = false;
             uint64_t pmpcfg, mask, reset, read_mask;
             uint64_t i, pmp_cfg_reg, pmp_cfg_index;
             // For PMP addresses, which bits of the pmpcfgs to look for
-            i = w.address - 0x3B0;
+            i = w.address - PMPADDR0;
             pmp_cfg_reg = ((i*8) / 64) * 2;
             pmp_cfg_index = (i*8) % 64;
-            if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0x3A0 + pmp_cfg_reg, pmpcfg, mask, reset, read_mask, valid)|| !valid) && FLAGS_whisper_client_check) {
-            error("Hart {}: Failed to peek CSR : 0x3A0\n", hart);
+            if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, PMACFG0 + pmp_cfg_reg, pmpcfg, mask, reset, read_mask, valid)|| !valid) && FLAGS_whisper_client_check) {
+            error("Hart {}: Failed to peek CSR : PMACFG0\n", hart);
             }
             if((pmpcfg >> (pmp_cfg_index + 7)) & 0x1) {
               break;
@@ -1640,7 +1628,7 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_
         }
       }
 
-      if (w.address == 0x344) {
+      if (w.address == MIP) {
         uint64_t w_seip;
         peek_seip(hart, w.time, w_seip);
         mip_ = w.value | w_seip << 9;
@@ -1726,7 +1714,7 @@ bool bridge::disable_pa_check_vec(hart_id_t hart) {
   uint64_t vtype ;
   uint64_t vlmax = 0;
 
-  if((cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart,0xc21, data, mask, poke_mask, read_mask, valid)|| !valid) && FLAGS_whisper_client_check) {
+  if((cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, VTYPE, data, mask, poke_mask, read_mask, valid)|| !valid) && FLAGS_whisper_client_check) {
 
   vtype = data & mask; // getting the vtype csr
   int sew_enc = (vtype & 0x38) >> 3; // encoded sew
@@ -1756,7 +1744,7 @@ bool bridge::disable_pa_check_vec(hart_id_t hart) {
 
 }
 
-if((cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart,0xc20, data, mask, poke_mask, read_mask, valid)|| !valid) && FLAGS_whisper_client_check)
+if((cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, VL, data, mask, poke_mask, read_mask, valid)|| !valid) && FLAGS_whisper_client_check)
   vl = data & mask;
 
 if(vl < vlmax)
@@ -1768,8 +1756,8 @@ return false;
 void bridge::arch_state(whisper_state_t& w) {
 
   if (w.resource == 'c') {
-    if(w.address == 0x300) {
-      if(((w.value) & 0x20000) != 0) {
+    if (w.address == MSTATUS) {
+      if (w.value & 0x20000) {
         mprv_ = 1;
         mpp_ = ((w.value) & 0x1800) >> 11;
         mpv_ = ((w.value) & 0x8000000000) >> 39;
@@ -1778,7 +1766,7 @@ void bridge::arch_state(whisper_state_t& w) {
         mprv_ = 0;
       }
     }
-    if (w.address == 0xBC2) {
+    if (w.address == C_FECFG2) {
       csr_rename_en_ = !((w.value & 0x200) >> 9);
       csr_rd_opt_ = !((w.value & 0x4) >> 2);
     }
@@ -1787,7 +1775,6 @@ void bridge::arch_state(whisper_state_t& w) {
   if (!prev_csr_rd_opt_ && csr_rd_opt_) {
     FLAGS_mip_resynch_threshold = FLAGS_mip_resynch_threshold * 4;
   }
-
   prev_csr_rd_opt_ = csr_rd_opt_;
 }
 
@@ -2147,8 +2134,8 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
     if (csr.valid) {
       resynch_csr_ = true;
       // Resynch msi poke for topi/topei cases
-      if (csr.csr_addr==0x15c || csr.csr_addr==0x25c || csr.csr_addr==0x35c ||
-          csr.csr_addr==0xdb0 || csr.csr_addr==0xfb0) {
+      if (csr.csr_addr == STOPEI || csr.csr_addr == VSTOPEI || csr.csr_addr == MTOPEI ||
+          csr.csr_addr == STOPI  || csr.csr_addr == MTOPI) {
         bridge_log_(cvm::MEDIUM, "<{}> topi/topei resynch\n", d.cycle);
         for (const auto &m : msi_) {
           if (FLAGS_bridge_log) {
@@ -2318,22 +2305,22 @@ void bridge::process_dut_mcm_ievict(hart_id_t hart, mem_t& m) {
 uint64_t bridge::translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t memclass) {
   uint64_t pa = va;
 
-  if (priv == 0x3)
+  if (priv == M)
     return pa;
 
   bool valid = false;
   bool r = (memclass == memclass_t::read);
   bool w = (memclass == memclass_t::write);
   bool x = (memclass == memclass_t::fetch);
-  bool sup = ((priv & 0x11) == 0x1); // made a change here
+  bool sup = (priv == HS);
 
-if(twoStage_ == true)
-  sup = false;
+  if (twoStage_ == true)
+    sup = false;
 
-if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperTranslateRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, va, r, w, x, twoStage_, sup, pa, valid)|| !valid) && FLAGS_whisper_client_check) {
+  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperTranslateRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, va, r, w, x, twoStage_, sup, pa, valid)|| !valid) && FLAGS_whisper_client_check) {
     error("Hart {}: Failed VA translation\n", hart);
+    return -1;
   }
-
   return pa;
 }
 
@@ -2354,48 +2341,35 @@ void bridge::translation_check(hart_id_t hart, const rv_instr_t& d, whisper_stat
 
   // Conditions for two stage translation
   // When V = 1
-  if((w.priv_mode & 0x8) != 0)
-  {
+  if (w.priv_mode == VU)
     twoStage_ = true;
-  }
-  // 2.) All flavours of Hypervisor Loads and Stores
+
+  //  All flavours of Hypervisor Loads and Stores
   if((w.opcode & 0x7f) == 0x73)
   {
     // lower 7 bit opcode , upper 4 bits of funct7 and funct3 to differentiate from HFENCE and HINVAL
     if(((w.opcode & 0xf0000000) == 0x60000000) && ((w.opcode & 0x7000) == 0x4000))
-    {
       twoStage_ = true;
-    }
   }
+
   // 3.) When MPRV = 1 and MPV = 1 (Table 9.5 in Hypervisor spec)
   if(mprv_ == 1 & mpv_ == 1)
-  {
     twoStage_ = true;
-  }
-
 
   if((mprv_ == 1) && w.priv_mode == 3)
-  {
     pa = translate(hart, va, mpp_, memclass_t::read);
-  }
   else
     pa = translate(hart, va, w.priv_mode, memclass_t::read);
 
-  if (pa != d.mem_pa){
+  if (pa != d.mem_pa) {
     print(cvm::NONE, "<{}> Whisper Step #{}: [Hart={}, Mode={}, Tag={}, PC={:#x}, VA={:#x}, RTL-PA={:#x}, ISS-PA={:#x}]\n", w.time, step_-1, hart, w.priv_mode, w.tag, w.pc, d.mem_va, d.mem_pa, pa);
-      //error("Hart {}: PA MISMATCH !! :\n", hart);
-    if(is_vector(d.disasm) && disable_pa_check_vec(hart));
-
-    else {
-    error("Hart {}: PA MISMATCH !! :\n", hart);
-    }
-
-    return;
-  }
-  else {
+    if (!(is_vector(d.disasm) && disable_pa_check_vec(hart))) {
+      error("Hart {}: PA MISMATCH !! :\n", hart);
+      return;
+    };
+  } else {
     bridge_log_(cvm::MEDIUM, "<{}> Whisper Step #{}: [Hart={}, Mode={}, Tag={}, PC={:#x}, VA={:#x}, PA={:#x}]\n", w.time, step_-1, hart, w.priv_mode, w.tag, w.pc, d.mem_va, pa);
   }
-
 }
 
 // Interrupts
@@ -2430,13 +2404,13 @@ void bridge::process_external_interrupt(hart_id_t hart, rv_intr_t& i) {
 void bridge::process_local_interrupt(hart_id_t hart, rv_intr_t& i) {
   bridge_log_(cvm::MEDIUM, "<{}> Timer/Sw interrupt: mip {:#x} mask {:#x} assert {:#x}\n", i.cycle, i.mip, i.mip_mask, i.mip_assert);
 
-  // POKE 0x14d 0x24d
-  if(i.mip & i.mip_assert & 0x20) { setsstc_poke(hart, i.cycle, 0x14d); stimecmppoked_ = true; }
-  if(i.mip & i.mip_assert & 0x40) { setsstc_poke(hart, i.cycle, 0x24d); vstimecmppoked_ = true;}
+  // POKE STIMECMP VSTIMECMP
+  if(i.mip & i.mip_assert & 0x20) { setsstc_poke(hart, i.cycle, STIMECMP); stimecmppoked_ = true; }
+  if(i.mip & i.mip_assert & 0x40) { setsstc_poke(hart, i.cycle, VSTIMECMP); vstimecmppoked_ = true;}
 
-  // POKE 0x14d 0x24d
-  if( ~i.mip_assert & i.mip_mask & 0x20) { resetsstc_poke(hart, i.cycle, 0x14d); stimecmppoked_ = false; }
-  if( ~i.mip_assert & i.mip_mask & 0x40) { resetsstc_poke(hart, i.cycle, 0x24d); vstimecmppoked_ = false; }
+  // POKE STIMECMP VSTIMECMP
+  if( ~i.mip_assert & i.mip_mask & 0x20) { resetsstc_poke(hart, i.cycle, STIMECMP); stimecmppoked_ = false; }
+  if( ~i.mip_assert & i.mip_mask & 0x40) { resetsstc_poke(hart, i.cycle, VSTIMECMP); vstimecmppoked_ = false; }
 
   // Ideally, would have liked to poke mip with a mask
   // Since we can't, doing a rmw instead
@@ -2540,7 +2514,7 @@ void bridge::clear_nmi(hart_id_t hart, uint64_t time) {
 
 void bridge::poke_mip(hart_id_t hart, uint64_t time, uint64_t mip) {
   bool valid;
-  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, time, 'c', 0x344, mip, valid)|| !valid) && FLAGS_whisper_client_check) {
+  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, time, 'c', MIP, mip, valid)|| !valid) && FLAGS_whisper_client_check) {
     error("Hart {}: Failed to poke mip csr\n", hart);
     return;
   }
@@ -2549,7 +2523,7 @@ void bridge::poke_mip(hart_id_t hart, uint64_t time, uint64_t mip) {
 
 void bridge::peek_mip(hart_id_t hart, uint64_t time, uint64_t& mip) {
   bool valid;
-  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 'c', 0x344, mip, valid)|| !valid) && FLAGS_whisper_client_check) {
+  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 'c', MIP, mip, valid)|| !valid) && FLAGS_whisper_client_check) {
     error("Hart {}: Failed to peek mip\n", hart);
     return;
   }
@@ -2624,16 +2598,16 @@ uint64_t bridge::modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data) {
   uint64_t result = data;
   // pmpaddr
   // Spec section...
-  if (addr >= 0x3B0 && addr < 0x3C0) {
+  if (addr >= PMPADDR0 && addr < PMPADDR16) {
     bool valid;
     uint64_t pmpcfg, mask, reset, read_mask;
     uint64_t i, pmp_cfg_reg, pmp_cfg_index;
     // For PMP addresses, which bits of the pmpcfgs to look for
-    i = addr - 0x3B0;
+    i = addr - PMPADDR0;
     pmp_cfg_reg = ((i*8) / 64) * 2;
     pmp_cfg_index = (i*8) % 64;
-    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0x3A0 + pmp_cfg_reg, pmpcfg, mask, reset, read_mask, valid)|| !valid) && FLAGS_whisper_client_check) {
-      error("Hart {}: Failed to peek CSR : {:#x} in modify_csr_data()\n", hart, (0x3A0 + pmp_cfg_reg));
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, PMACFG0 + pmp_cfg_reg, pmpcfg, mask, reset, read_mask, valid)|| !valid) && FLAGS_whisper_client_check) {
+      error("Hart {}: Failed to peek CSR : {:#x} in modify_csr_data()\n", hart, (PMPADDR0 + pmp_cfg_reg));
     };
     if((pmpcfg >> (pmp_cfg_index + 4)) & 0x1) {
       result = data | 0x1ff;
@@ -2641,11 +2615,11 @@ uint64_t bridge::modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data) {
       result = data & 0xfffffffffffffc00;
     }
   }
-  if ((addr == 0x60C) || (addr == 0x10C)) {
+  if ((addr == HSTATEEN0) || (addr == SSTATEEN0)) {
     bool valid;
     uint64_t mstateen, mask_iss, reset, read_mask;
-    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0x30C, mstateen, mask_iss, reset, read_mask, valid) || !valid) && FLAGS_whisper_client_check) {
-      error("Hart {}: Failed to peek CSR : 0x30C\n", hart);
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, MSTATEEN0, mstateen, mask_iss, reset, read_mask, valid) || !valid) && FLAGS_whisper_client_check) {
+      error("Hart {}: Failed to peek CSR : MSTATEEN0\n", hart);
     }
     result = result & mstateen;
   }
@@ -2654,28 +2628,25 @@ uint64_t bridge::modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data) {
 
 bridge::size_8_bytes_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, uint64_t data, size_8_bytes_t mask) {
   size_8_bytes_t result = mask;
-  uint64_t misa_data = get_csr(id_, src_t::dut, 0x301);
-  //print(cvm::MEDIUM , "MISA data : {:#x}\n",misa_data);
+  uint64_t misa_data = get_csr(id_, src_t::dut, MISA);
   bool peekmtval2 = (misa_data & (1<<7))!=0;
-  //print(cvm::MEDIUM, "peekmtval2:{}\n",peekmtval2);
   // pmpaddr
-  // Spec section...
-  if (addr == 0xC20) result = mask;
+  if (addr == VL) result = mask;
   else if((hypervisor_csr_map_.find(addr) != hypervisor_csr_map_.end()) && (!peekmtval2)) { 
     // Do not peek Hypervisor CSRs when MISA.H = 0
   }
   else
     result = mask & get_csr_mask(hart, addr);
-  if (addr >= 0x3B0 && addr < 0x3C0) {
+  if (addr >= PMPADDR0 && addr < PMPADDR16) {
     bool valid;
     uint64_t pmpcfg, mask_iss, reset, read_mask;
     uint64_t i, pmp_cfg_reg, pmp_cfg_index;
     // For PMP addresses, which bits of the pmpcfgs to look for
-    i = addr - 0x3B0;
+    i = addr - PMPADDR0;
     pmp_cfg_reg = ((i*8) / 64) * 2;
     pmp_cfg_index = (i*8) % 64;
-    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0x3A0 + pmp_cfg_reg, pmpcfg, mask_iss, reset, read_mask, valid)|| !valid) && FLAGS_whisper_client_check) {
-      error("Hart {}: Failed to peek CSR : {:#x} in modify_csr_mask()\n", hart, (0x3A0 + pmp_cfg_reg));
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, PMPADDR0 + pmp_cfg_reg, pmpcfg, mask_iss, reset, read_mask, valid)|| !valid) && FLAGS_whisper_client_check) {
+      error("Hart {}: Failed to peek CSR : {:#x} in modify_csr_mask()\n", hart, (PMACFG0 + pmp_cfg_reg));
     }
     if((pmpcfg >> (pmp_cfg_index + 4)) & 0x1) {
       result = result | 0x1ff;
@@ -2683,7 +2654,7 @@ bridge::size_8_bytes_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, ui
       result = result | 0x3ff;
     }
   }
-  if (addr == 0x680) {
+  if (addr == HGATP) {
     uint16_t mode = (data & mask) >> 60;
     bool valid_mode = false;
     for (uint16_t hgatp_valid_mode : hgatp_valid_modes) {
@@ -2698,9 +2669,9 @@ bridge::size_8_bytes_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, ui
   }
 
   // Handle PMM legal values during write, valid PMM values are 2'b00 and 2'b10, rvde-19017
-  if ((addr == 0x747) || (addr == 0x30A) || (addr == 0x60A) || (addr == 0x10A) || (addr == 0x600)) {
+  if ((addr == MSECCFG) || (addr == MENVCFG) || (addr == HENVCFG) || (addr == SENVCFG) || (addr == HSTATUS)) {
     bool pmm_legal = false;
-    if (addr == 0x600) {
+    if (addr == HSTATUS) {
       uint16_t pmm = (((data & result) >> pmm_hstatus_mask_lo) & ((1 << pmm_mask_size) - 1));
       for (uint16_t pmm_legal_value : pmm_legal_values) {
         if (pmm == pmm_legal_value) {
@@ -2728,8 +2699,8 @@ bridge::size_8_bytes_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, ui
   }
 
   // Handle PMM legal values during write, valid PMM values are 2'b00 and 2'b10
-  if ((addr == 0x747) || (addr == 0x30A) || (addr == 0x60A) || (addr == 0x10A) || (addr == 0x600)) {
-    if (addr == 0x600) {
+  if ((addr == MSECCFG) || (addr == MENVCFG) || (addr == HENVCFG) || (addr == SENVCFG) || (addr == HSTATUS)) {
+    if (addr == HSTATUS) {
       uint16_t pmm = (((data & result) >> 48) & 0x3);
       if (!(pmm == 0 || pmm == 2)){
         result = result & 0xfffcffffffffffffULL;
@@ -2755,11 +2726,11 @@ bool bridge::is_custom_csr(uint64_t addr) {
 }
 
 bool bridge::is_pmacfg_csr(uint64_t addr) {
-  return (addr >= 0x7E0 && addr <= 0x7EF);
+  return (addr >= PMACFG0 && addr <= PMACFG15);
 }
 
 bool bridge::is_chicken_bit_csr(uint64_t addr) {
-  return (addr >= 0xBC0 && addr <= 0xBDF);
+  return (addr >= C_FECFG && addr <= C_LSCFG15);
 }
 
 void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data, cac::optional_const_ref<size_8_bytes_t> mask_ref, bool shadow_csr, bool check_en) {
@@ -2787,32 +2758,30 @@ void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data,
   }
 
   // Also update shadow csr if applicable ex: mstatus/sstatus
-  if (!shadow_csr && shadow_csrs.count(addr)) {
-    auto range = shadow_csrs.equal_range(addr);
-    for (auto shadow_csr = range.first; shadow_csr != range.second; ++shadow_csr) {
-        size_8_bytes_t alias_mask;
-      if (src == src_t::dut){
-        if (mask_ref)
-          alias_mask = mask_ref.value() & get_csr_poke_mask(hart, shadow_csr->second);
-        else
-          alias_mask = get_csr_poke_mask(hart, shadow_csr->second);
+  if (!shadow_csr && csrs[addr].shadow_csr) {
+    shadow_csr = csrs[csrs[addr].shadow_csr].addr;
+    size_8_bytes_t alias_mask;
+    if (src == src_t::dut) {
+      if (mask_ref)
+        alias_mask = mask_ref.value() & get_csr_poke_mask(hart, shadow_csr);
+      else
+        alias_mask = get_csr_poke_mask(hart, shadow_csr);
+
+    } else {
+      uint64_t mask, poke_mask, read_mask;
+      bool valid;
+      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, shadow_csr, data, mask, poke_mask, read_mask, valid)|| !valid) && FLAGS_whisper_client_check) {
+        error("Hart {}: Failed to peek csr : {:#x} in update_csr()\n", hart, shadow_csr);
       }
-      else {
-        uint64_t mask, poke_mask, read_mask;
-        bool valid;
-        if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, shadow_csr->second, data, mask, poke_mask, read_mask, valid)|| !valid) && FLAGS_whisper_client_check) {
-          error("Hart {}: Failed to peek csr : {:#x} in update_csr()\n", hart, shadow_csr->second);
-        }
-        alias_mask = get_csr_poke_mask(hart, shadow_csr->second);
-      }
-      update_csr(hart, src, shadow_csr->second, data, alias_mask, true);
+      alias_mask = get_csr_poke_mask(hart, shadow_csr);
     }
+    update_csr(hart, src, shadow_csr, data, alias_mask, true);
   }
 }
 
 uint64_t bridge::get_csr(hart_id_t hart, src_t src, uint64_t addr) {
-  // Special handling for mip
-  if (addr == 0x344)
+
+  if (addr == MIP)
     return mip_;
 
   std::vector<bool> bool_vec;
@@ -2832,7 +2801,7 @@ uint64_t bridge::get_csr_mask(hart_id_t hart, uint64_t addr) {
   if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, addr, data, mask, poke_mask, read_mask, valid)|| !valid) && FLAGS_whisper_client_check) {
     error("Hart {}: Failed to peek csr : {:#x} in get_csr()\n", hart, addr);
   }
-  if (debug_mode_ && addr == 0x7b0) //TODO: this list may need to be extended for all CSRs accessible only via Debug mode
+  if (debug_mode_ && addr == DCSR)
     return poke_mask;
   return mask & read_mask;
 }
@@ -2854,13 +2823,7 @@ std::string bridge::get_csr_name(const std::string& csr_addr) {
   catch (...) {
     return csr_addr;
   }
-
-  for (const auto& csr : csrs) {
-    if (csr.address == addr) {
-        return csr.name;
-    }
-  }
-  return csr_addr;
+  return csrs[addr].name;
 }
 
 void bridge::final_phase() {
@@ -2927,24 +2890,30 @@ void bridge::report_metrics() {
 
   // Whisper csr values
   bool valid;
-  for (auto& csr : metrics_csrs) {
+  for (auto& csr_ : csrs) {
+    auto csr = csr_.second;
+    if (!csr.metric)
+      continue;
     uint64_t csr_data;
-    uint64_t misa_data = get_csr(id_, src_t::dut, 0x301);
+    uint64_t misa_data = get_csr(id_, src_t::dut, MISA);
     //print(cvm::MEDIUM , "MISA data : {:#x}\n",misa_data);
     bool peekhypcsr = (misa_data & (1<<7))!=0;
-    if((hypervisor_csr_map_.find(csr.address) != hypervisor_csr_map_.end()) && (!peekhypcsr)) {
+    if((hypervisor_csr_map_.find(csr.addr) != hypervisor_csr_map_.end()) && (!peekhypcsr)) {
     }
     else {
-      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, 'c', csr.address, csr_data, valid)|| !valid) && FLAGS_whisper_client_check) {
-        error("Hart {}: Failed to peek CSR values : {:#x} in report_metrics()\n", id_, csr.address);
+      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, 'c', csr.addr, csr_data, valid)|| !valid) && FLAGS_whisper_client_check) {
+        error("Hart {}: Failed to peek CSR values : {:#x} in report_metrics()\n", id_, csr.addr);
       }
     print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_iss_csr_{}\": \"0x{:x}\"}}\n", id_, csr.name, csr_data);
     }
   }
 
   // DUT csr values
-  for (auto& csr : metrics_csrs) {
-    uint64_t csr_data = get_csr(id_, src_t::dut, csr.address);
+  for (auto& csr_ : csrs) {
+    auto csr = csr_.second;
+    if (!csr.metric)
+      continue;
+    uint64_t csr_data = get_csr(id_, src_t::dut, csr.addr);
     print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dut_csr_{}\": \"0x{:x}\"}}\n", id_, csr.name, csr_data);
   }
 

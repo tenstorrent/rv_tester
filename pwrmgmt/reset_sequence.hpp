@@ -45,6 +45,7 @@ class reset_sequence {
     cvm::messenger::task<void> patch_ram_check();
     cvm::messenger::task<void> fuse_mmr_check( rst_t rst_type = WARM);
     cvm::messenger::task<void> disabled_mmr_csr_check();
+    cvm::messenger::task<void> program_fe_resetvector();
     cvm::messenger::task<void> mmr_read_write_check(uint64_t addr, interface_t interface, bool rsp_err_chk );
 
     cvm::messenger::task<void> write_thub_reg(uint8_t addr, uint32_t data, uint8_t satellite_num, uint8_t mbox_num);
