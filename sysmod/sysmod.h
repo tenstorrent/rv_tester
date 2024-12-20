@@ -120,6 +120,7 @@ class sysmod {
     uint64_t ticks_ = 0;
     uint64_t jtag_ticks_ = 0;
     uint64_t overlay_ticks_ = 0;
+    bool cosim_init_ = 0;
 
     inval_load_s inval_load_;
     inval_crsp_s inval_crsp_;
