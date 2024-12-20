@@ -90,8 +90,12 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
       loc_,
       [this](const uint64_t& t) {  // FIXME: using signal to send data from whisper client to sysmod
       if (t == 0)
-        return this->load_csr_mmr_boot(0);
-      return this->store_dm_rand();
+        this->load_csr_mmr_boot(0);
+      else if (t == 1)
+        this->store_dm_rand();
+      else if (t == 2)
+        cosim_init_ = true; // this comes from bridge
+      return;
       });
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::tick<>>(
       loc_,
@@ -173,6 +177,8 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
 
 void sysmod::configure()
 {
+  if (FLAGS_cosim)
+    cosim_init_ = false; // this will be set once bridge is init
   // Flags configuration
   core_harvest_plusargs();
   sc_harvest_plusargs();
@@ -1239,8 +1245,11 @@ sysmod::tick(uint64_t advance) {
       ticks_   = rem;
   }
   if (advance)
-    for (auto& d : devices_)
+    for (auto& d : devices_) {
+     if (!cosim_init_ && d->tag() == "trickbox")
+         continue; // when in cosim mode, do not initialize ticks of trickbox until Whisper client is set.
       d->tick(advance);
+    }
 }
 
 void
