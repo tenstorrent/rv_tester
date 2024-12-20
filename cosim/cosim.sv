@@ -137,6 +137,7 @@ import rv_tester_params::*;
     output bit poke_event_out,
     output rv_tester_pkg::terminate_t terminate,
     input logic disable_checks,
+    output logic boot_done,
     `RV_TESTER_TRANSACTIONS_COSIM_OUTPUT_PORTS
 );
 
@@ -1324,6 +1325,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign debug_exit_pc  = (debug_exit_pc_arg != '0)  ? PA_WIDTH'(debug_exit_pc_arg) : debug_exit_pc_const; 
 
 
+    localparam bit [63:0] DRAM_BASE = 64'h8000_0000;
     always @(posedge tb_clk) begin
       if (reset) begin
         /* verilator lint_off BLKSEQ */
@@ -1342,9 +1344,13 @@ localparam CAM_IHBIT = CAM_IBITS;
         /* verilator lint_on BLKSEQ */
         boot_wfi <= '0;
         cosim_terminate_sent <= '0;
+        boot_done <= '0;
       end else if(!reset) begin
         if (NUM != 0 && rvfi[0].valid == '1 && rvfi[0].insn[6:0] == 7'h73 && rvfi[0].pc_rdata < 'h20000) begin // WFI
           boot_wfi <= '1;
+        end
+        if (rvfi[0].valid == '1 && rvfi[0].pc_rdata == DRAM_BASE) begin
+          boot_done <= '1;
         end
         if (max_stall_cycle > 0 && cycles_since_retire > max_stall_cycle && !boot_wfi && NUM < nharts && cosim_terminate_sent == '0) begin
           $display("\nError: Hart %0d: No instruction retired for max_stall_cycle (%0d) cycles", NUM, max_stall_cycle);

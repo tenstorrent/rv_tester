@@ -13,13 +13,9 @@ trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned, cvm::topolog
 
   subdevice* sub = nullptr;
   interrupter_base = addr;
-  sub = new interrupter("interrupter", interrupter_base, 1, loc);
+  sub = new interrupter("interrupter", interrupter_base, 1, loc, axi_mst_loc_l);
   subdevices_.emplace_back(sub);
   sub = new debugger("debugger", addr + 0x50000, 1, loc);
-  subdevices_.emplace_back(sub);
-  //sub = new jtag_driver("jtag_driver", addr + 0xa0000, 1, loc);
-  //subdevices_.emplace_back(sub);
-  sub = new imsic_driver("imsic_driver", addr + 0x70000, 1, loc, axi_mst_loc_l);
   subdevices_.emplace_back(sub);
   sub = new evt_trigger("evt_trigger", addr + 0x78000, 1, loc);
   subdevices_.emplace_back(sub);

@@ -10,7 +10,7 @@
 #include "cvm/bitmanip.hpp"
 #include "dm_model.hpp"
 
-DEFINE_bool(dm_hart_enum_chk, false, "Check DM hartenumaration wrt VID/PID mapping");
+DEFINE_bool(dm_hart_enum_chk, true, "Check DM hartenumaration wrt VID/PID mapping");
 // Return the number of bits wide that a field has to be to encode up to n
 // different values.
 // 1->0, 2->1, 3->2, 4->2
@@ -537,8 +537,10 @@ bool debug_module_t::store(reg_t addr, size_t len, const uint8_t *bytes)
 
   if (addr == DEBUG_ROM_EXCEPTION)
   {
+    cvm::log(cvm::HIGH, "In the DEBUG_ROM Exception State\n");
     if (abstractcs.cmderr == CMDERR_NONE)
     {
+      cvm::log(cvm::HIGH, "Cmderr was set to Exception\n");
       abstractcs.cmderr = CMDERR_EXCEPTION;
     }
     return true;
@@ -599,6 +601,7 @@ bool debug_module_t::dmi_read(unsigned address, uint32_t *value)
 
     if (abstractcs.busy && abstractcs.cmderr == CMDERR_NONE)
     {
+      cvm::log(cvm::HIGH,"Setting cmderr to Busy in the DMI_Read func\n");
       abstractcs.cmderr = CMDERR_BUSY;
     }
 
@@ -781,12 +784,15 @@ bool debug_module_t::perform_abstract_command()
 {
   init_debug_abstract_buffer();
 
+  // abstractcs.cmderr = CMDERR_NONE; 
+
   cvm::log(cvm::HIGH, "[Abstract Cmd] Performing an abstract command\n");
   hart_abscmd = dmcontrol.hartsel;
   cvm::log(cvm::HIGH, "[Display] hart_abscmd :{:#x}] \n", hart_abscmd);
 
   if (abstractcs.busy)
   {
+    cvm::log(cvm::HIGH,"Setting cmderr to Busy in the perform abstract func\n");
     abstractcs.cmderr = CMDERR_BUSY;
     return true;
   }
@@ -803,6 +809,7 @@ bool debug_module_t::perform_abstract_command()
     bool csr_access = false;
     bool fpr_access = false;
     if (size > 3){
+      cvm::log(cvm::HIGH,"Setting cmderr to Notsup in the perform abs func\n");
       abstractcs.cmderr = CMDERR_NOTSUP;
       unsupported_command = true;
       return true;
@@ -810,12 +817,14 @@ bool debug_module_t::perform_abstract_command()
 
     if (postexec==0 && transfer==0) // Implementation does not support this config and marks it as unsupported
     {
+      cvm::log(cvm::HIGH,"Setting cmderr to Notsup in the perform abs func\n");
       abstractcs.cmderr = CMDERR_NOTSUP;
       unsupported_command = true;
       return true;
     }
     if (get_field(command, AC_ACCESS_REGISTER_AARPOSTINCREMENT)){
       //write32(debug_abstract, 0, ebreak());
+      cvm::log(cvm::HIGH,"Setting cmderr to Notsup in the perform abs func\n");
       abstractcs.cmderr = CMDERR_NOTSUP;
       unsupported_command = true;
       return true;
@@ -823,6 +832,8 @@ bool debug_module_t::perform_abstract_command()
 
     if (cvm::bitmanip::slice<uint64_t>(regno, 15, 14) != 0){
       //write32(debug_abstract, 0, ebreak()); // Command not supported
+      cvm::log(cvm::HIGH,"Setting cmderr to Notsup in the perform abs func\n");
+      abstractcs.cmderr = CMDERR_NOTSUP;
       unsupported_command = true;
       return true;
     }
@@ -992,8 +1003,10 @@ bool debug_module_t::perform_abstract_command()
       abstractcs.busy = false;
       return true;
     }
-    else 
+    else { 
+      cvm::log(cvm::HIGH,"Set abstractcs.busy in the perform abstract cmd\n");
       abstractcs.busy = true; 
+    }
   }
   else if ((command >> 24) == 2)
   {
@@ -1005,18 +1018,21 @@ bool debug_module_t::perform_abstract_command()
     
     if (size > 3) //Access size > 128 bits
     {
+      cvm::log(cvm::HIGH,"Setting cmderr to Notsup in the perform abs func\n");
       abstractcs.cmderr = CMDERR_NOTSUP;
       return true;
     }
 
     if (!aamvirtual)//Since we rely on core MMU, no physical access
     {
+      cvm::log(cvm::HIGH,"Setting cmderr to Notsup in the perform abs func\n");
       abstractcs.cmderr = CMDERR_NOTSUP;
       return true;
     }
     
     if (aampostincrement)//Feature unsupported
     {
+      cvm::log(cvm::HIGH,"Setting cmderr to Notsup in the perform abs func\n");
       abstractcs.cmderr = CMDERR_NOTSUP;
       return true;
     }
@@ -1109,6 +1125,7 @@ bool debug_module_t::perform_abstract_command()
   }
   else
   {
+    cvm::log(cvm::HIGH,"Setting cmderr to Notsup in the perform abs func not matching opcode\n");
     abstractcs.cmderr = CMDERR_NOTSUP;
   }
 
@@ -1139,6 +1156,7 @@ bool debug_module_t::dmi_write(unsigned address, uint32_t value)
 
     if (abstractcs.busy && abstractcs.cmderr == CMDERR_NONE)
     {
+      cvm::log(cvm::HIGH, "Setting the Cmderr to Busy when DMI write to dataregs happen\n");
       abstractcs.cmderr = CMDERR_BUSY;
     }
 
@@ -1349,7 +1367,11 @@ bool debug_module_t::dmi_write(unsigned address, uint32_t value)
         return true;
 
     case DM_ABSTRACTCS:
+      cvm::log(cvm::HIGH, "Write to Abstract cmderr with val of {:#x}\n", (uint32_t)(get_field(value, DM_ABSTRACTCS_CMDERR)));
+      cvm::log(cvm::HIGH, "[Check] cmderr before the write is {:#x}\n", (uint32_t)(abstractcs.cmderr));
+      cvm::log(cvm::HIGH, "[Weirdness here] neg_field val = {:#x}, calc cal = {:#x}\n",(~(uint32_t)(get_field(value, DM_ABSTRACTCS_CMDERR))), (((uint32_t)(abstractcs.cmderr)) & (~(uint32_t)(get_field(value, DM_ABSTRACTCS_CMDERR)))));
       abstractcs.cmderr = (cmderr_t)(((uint32_t)(abstractcs.cmderr)) & (~(uint32_t)(get_field(value, DM_ABSTRACTCS_CMDERR))));
+      cvm::log(cvm::HIGH, "[Check] cmderr after the write is {:#x}\n", (uint32_t)(abstractcs.cmderr));
       return true;
 
     case DM_ABSTRACTAUTO:

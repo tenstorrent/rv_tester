@@ -33,7 +33,7 @@ class external_interrupt_sequence {
 
     void init();
     void drive_interrupt();
-    void capture_trigger_info(int32_t a);
+    void capture_trigger_info(int32_t a, int32_t b);
     void gen_interrupt_timings();
 
   private:
@@ -58,4 +58,5 @@ class external_interrupt_sequence {
     uint32_t msi_vs_file_addr = 0x44000000;
     int32_t  last_trigger     = 0;
     int32_t  current_trigger  = 0;
+    bool     drive_msi_in_curr_hart;
 };

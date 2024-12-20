@@ -12,6 +12,7 @@ DEFINE_int32(dbg_delay_min, 6, "Minimum Delay between 2 consecutive debug mode r
 DEFINE_int32(dbg_delay_max, 9, "Maximum Delay between 2 consecutive debug mopde requests");
 DEFINE_int32(dbg_max_snippets, 1, "Maximum number of debug snippets to be driven");
 DEFINE_string(dbg_template_dir_path, "", "Path to file containing debugger commands");
+DEFINE_bool(enable_cross, false, "Are cross features are enabled");
 
 debugger::debugger(const std::string &tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc)
     : subdevice(tag, addr, 0x20000 /* size */, loc), soft_(hartCount),
@@ -82,8 +83,13 @@ void debugger::get_all_csv_templates()
             std::string filename = entry.path().filename().string();
             if (filename.size() >= 4 && filename.substr(filename.size() - 4) == ".csv")
             {
+              if (FLAGS_enable_cross && (filename.size() > 14) && filename.substr(filename.size() - 14) == "scratchpad.csv") {
+                cvm::log(cvm::NONE, "[Debugger]:Skipping Scratchpad file in cross:{}\n", filename); 
+              }
+              else {
                 csvFilePaths.push_back(entry.path().string());
                 cvm::log(cvm::MEDIUM, "[Debugger]:Pushing file:{}\n", filename);
+              }
             }
         }
     }
@@ -106,8 +112,10 @@ void debugger::parse_dmi_from_csv()
   }
   std::string word = "ndm";
   if (file_name.find(word) != std::string::npos) {
-        cvm::log(cvm::LOW,  "Thecsv file name contains the word 'ndm' hence disabling random dbg entry.\n");
-        FLAGS_random_dbg_entry = false;
+        cvm::log(cvm::LOW,  "The csv file name contains the word 'ndm' hence disabling random dbg entry.\n");
+        // FLAGS_random_dbg_entry = false;
+        snippets_driven = FLAGS_dbg_max_snippets; //Make snippets_driven as max_snippets to not pick any more
+        FLAGS_warm_reset_debug_hold = "1:1"; //Pass the warm_reset_debug_hold to 1
   }
   cvm::log(cvm::HIGH, "[Debugger]:Parse DMI Commands from CSV:{}\n", file_name);
   std::fstream file(file_name, std::ios::in);

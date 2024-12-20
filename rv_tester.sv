@@ -631,6 +631,7 @@ module rv_tester
 
     assign poke_event_in = (poke_event_out != '0) ? 1'b1 : 1'b0;
 
+    logic [NHARTS-1:0] boot_done;
 `ifndef NO_COSIM
     for (genvar c = 0; c < NHARTS; c++) begin: cosim_inst
       cosim #(
@@ -673,6 +674,7 @@ module rv_tester
           .poke_event_out(poke_event_out[c]),
           .poke_event_in(poke_event_in),
           .disable_checks(disable_checks),
+          .boot_done(boot_done[c]),
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PORTS(1, c, 0)
       );
     end
@@ -730,6 +732,7 @@ module rv_tester
             .sys_reset(sys_reset[AXI_CLK_IDX]),
             .reset(dut_reset[AXI_CLK_IDX]),
             .clocks,
+            .boot_done(boot_done[c]),
             .nmi(nmi[c].nmi),
             `RV_TESTER_TRANSACTIONS_INTERRUPTS_SOURCE_PORTS(2,c,0)
         );
@@ -789,7 +792,7 @@ module rv_tester
             .tb_reset(sys_reset[TB_CLK_IDX]),
             .clk(dut_clk[AXI_CLK_IDX]),
             .reset(dut_reset[AXI_CLK_IDX]),
-            .event_trigger_vec(event_triggers[c]),
+            .event_trigger_vec(event_triggers),
             `RV_TESTER_TRANSACTIONS_TRIGGERS_SOURCE_PORTS(2,c,0)
         );
     end
@@ -824,23 +827,47 @@ module rv_tester
     end
 
     for (genvar p = 0; p < NHARTS; p++) begin: pmu_inst
-      pmu #(
-          .NUM(p),
-          .NRET(NRETS[p]),
-          `TOPOLOGY_CFG,
-          `RV_TESTER_TRANSACTIONS_PMU_SOURCE_PARAMS(0)
-      ) pmu (
-          .clk(dut_clk[CORE_CLK_IDX]),
-          .sys_reset(sys_reset[CORE_CLK_IDX]),
-          .reset(dut_reset[CORE_CLK_IDX]),
-          .clocks,
-          .pmci(pmci[p]),
-          .hpmi(hpmi[p]),
-          .sc_pmci(sc_pmci),
-          .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
-          .terminate,
-          `RV_TESTER_TRANSACTIONS_PMU_SOURCE_PORTS(1, p, 0)
-      );
+      if (p == 0) begin : pmu_c0
+        pmu #(
+            .NUM(p),
+            .NRET(NRETS[p]),
+            .SC_PMCI_ENABLED(p == 0),
+            `TOPOLOGY_CFG,
+            `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PARAMS(0),
+            `RV_TESTER_TRANSACTIONS_PMU_SC_SOURCE_PARAMS(0)
+        ) pmu (
+            .clk(dut_clk[CORE_CLK_IDX]),
+            .sys_reset(sys_reset[CORE_CLK_IDX]),
+            .reset(dut_reset[CORE_CLK_IDX]),
+            .clocks,
+            .pmci(pmci[p]),
+            .hpmi(hpmi[p]),
+            .sc_pmci(sc_pmci),
+            .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
+            .terminate,
+            `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PORTS(1, p, 0),
+            `RV_TESTER_TRANSACTIONS_PMU_SC_SOURCE_PORTS(1, p, 0)
+        );
+      end else begin : pmu_cX 
+        pmu #(
+            .NUM(p),
+            .NRET(NRETS[p]),
+            .SC_PMCI_ENABLED(p == 0),
+            `TOPOLOGY_CFG,
+            `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PARAMS(0)
+        ) pmu (
+            .clk(dut_clk[CORE_CLK_IDX]),
+            .sys_reset(sys_reset[CORE_CLK_IDX]),
+            .reset(dut_reset[CORE_CLK_IDX]),
+            .clocks,
+            .pmci(pmci[p]),
+            .hpmi(hpmi[p]),
+            .sc_pmci(),
+            .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
+            .terminate,
+            `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PORTS(1, p, 0)
+        );
+      end
     end
 
     assign tx_dom_1.logger_cycle_0s[0][0].valid = gen_clocks;
