@@ -1272,7 +1272,6 @@ sysmod::jtag_tick(uint64_t advance) {
 
 void sysmod::tboxtrig_updatemem(uint64_t addr, uint64_t data) {
 
-    cvm::log(cvm::NONE, "[SYSMOD.CPP] Got C2 entry\n");
     device::data_t dataw(8);
     device::strb_t strb(8);
     for (size_t i = 0; i < 8; i++) strb[i] = true;
