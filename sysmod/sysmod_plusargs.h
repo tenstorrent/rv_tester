@@ -39,3 +39,4 @@ DECLARE_string(warm_reset_debug_hold);
 DECLARE_string(warm_reset_critical_hold);
 DECLARE_bool(rand_core_harvest);
 DECLARE_int32(max_intr_count);
+DECLARE_bool(dm_model_check_bypass);
