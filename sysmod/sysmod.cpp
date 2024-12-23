@@ -1103,7 +1103,7 @@ sysmod::load_csr_mmr_boot(uint64_t dut) {
           std::vector<std::string> mmr_vec = cosim_util::split_string(entry, "_slice");
           addr = mmr_map[mmr_vec.at(0)];
           auto slice = std::stoull(mmr_vec.at(1), nullptr, 0);
-          addr = addr + slice * 0x10000;
+          addr = addr + slice * 0x1000;
 
         } else {
           addr = std::stoull(mmr, nullptr, 0);
