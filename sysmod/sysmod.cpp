@@ -1103,7 +1103,7 @@ sysmod::load_csr_mmr_boot(uint64_t dut) {
           std::vector<std::string> mmr_vec = cosim_util::split_string(entry, "_slice");
           addr = mmr_map[mmr_vec.at(0)];
           auto slice = std::stoull(mmr_vec.at(1), nullptr, 0);
-          addr = addr + slice * 0x10000;
+          addr = addr + slice * 0x1000;
 
         } else {
           addr = std::stoull(mmr, nullptr, 0);
@@ -1272,7 +1272,6 @@ sysmod::jtag_tick(uint64_t advance) {
 
 void sysmod::tboxtrig_updatemem(uint64_t addr, uint64_t data) {
 
-    cvm::log(cvm::NONE, "[SYSMOD.CPP] Got C2 entry\n");
     device::data_t dataw(8);
     device::strb_t strb(8);
     for (size_t i = 0; i < 8; i++) strb[i] = true;
