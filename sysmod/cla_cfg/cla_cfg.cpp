@@ -219,7 +219,7 @@ void cla_cfg::push_rand_nmi_trigg_cfg() {
 void cla_cfg::push_rand_nmi_trigg_cfg_off() {
 
   cvm::log(cvm::NONE, "[CLA_CFG] Push NMI/Trigger Disable EAP... \n");
-  start_rand_nmi_trig_cnt = (rng()%100) + 50 + cnt_tick; // 100-150 off
+  start_rand_nmi_trig_cnt = (rng()%51) + 100 + cnt_tick; // 100-150 off
   cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + (0x10000 * active_core)),((eap_ctrl | 0x40) & 0x3FC0)});     // Disable EAP, CLA enabled
   reenable_rand_trig = 1;
   nmi_event = !nmi_event;
