@@ -494,7 +494,7 @@ void bridge::process_steps(hart_id_t hart, uint32_t n_retire, uint64_t cycle, ui
 void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   print(cvm::HIGH, "process_dut_instr_retire:: hart={}, d.cycle={}, d.pc={:#x}, d.tag={}, d.opcode={:#x}, d.disasm={}\n", hart,d.cycle,d.pc.pc_rdata,d.tag,d.opcode,d.disasm);
-  print(cvm::HIGH, "                        :: mip_={}, prev_sync_intr_={}, deferred_intr_={} patch_mode_={} trap={}\n", mip_,prev_sync_intr_,deferred_intr_,patch_mode_,d.trap);
+  print(cvm::HIGH, "                        :: mip_={}, deferred_intr_={} patch_mode_={} trap={}\n", mip_,deferred_intr_,patch_mode_,d.trap);
   for (const auto& gpr : d.gpr) {
     print(cvm::HIGH, "                        :: grd_addr={}, grd_wdata={:#x}\n", gpr.rd_addr,gpr.rd_wdata);
   }
@@ -874,31 +874,6 @@ void bridge::pre_step_nmi_poke(hart_id_t hart, const rv_instr_t& d, whisper_stat
 }
 
 void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
-// FIXME We are deferring all interrupts, if new interrupt was made possible due to execution of a csr op previously
-  if (FLAGS_intr_defer_spcl) {
-    IF_DEBUG("FLAGS_intr_defer_spcl==1");
-    if (d.disasm.find("csr") != std::string::npos) {
-      IF_DEBUG("CSR instruction");
-      bool valid;
-      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 's', WhisperSpecialResource::DeferredInterrupts, deferred_mip_, valid)|| !valid) && FLAGS_whisper_client_check) {
-        error("Hart {}: Failed whisper API call - whisperGetDeferredInterrupts\n", hart);
-        return;
-      }
-      if (prev_sync_intr_) {
-        IF_DEBUG("prev_sync_intr==1");
-        bridge_log_(cvm::MEDIUM, "<{}> All interrupts Defer\n", d.cycle);
-        all_interrupts_defer_ = true;
-        pre_csr_defermip_ = deferred_mip_;
-        deferred_intr_ = true;
-        defer_interrupt(hart, d.cycle, mip_);
-      }
-      prev_sync_intr_ = 0;
-      uint64_t undeferred_mip = mip_ & ~ deferred_mip_;
-      uint64_t undeferred_w_cause;
-      check_interrupt(hart, undeferred_mip, pre_undeferred_intr_, undeferred_w_cause);
-    }
-  }
-
   if (prev_mip_ != mip_)
     mip_age_ = 0;
   if (prev_e_mip_ != e_mip_)
@@ -1021,29 +996,6 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
 
   if (FLAGS_intr_defer_spcl) {
     IF_DEBUG("FLAG intr_defer_spcl==1");
-    if (d.disasm.find("csr") != std::string::npos) {
-       IF_DEBUG("CSR instruction");
-       uint64_t undeferred_mip = mip_ & ~ deferred_mip_;
-       uint64_t undeferred_w_cause;
-       check_interrupt(hart, undeferred_mip, post_undeferred_intr_, undeferred_w_cause);
-       prev_sync_intr_ = post_undeferred_intr_ && !pre_undeferred_intr_;
-    }
-
-    if (all_interrupts_defer_) {
-      IF_DEBUG("all_interrupts_defer==1 .. defer and clear this flag");
-      defer_interrupt(hart, d.cycle, pre_csr_defermip_);
-      all_interrupts_defer_ = false;
-    }
-
-    if ((w.disasm.find("mret") != std::string::npos) || (w.disasm.find("sret") != std::string::npos)) {
-      IF_DEBUG("MRET instruction.. set flag prev_sync_intr=1 ");
-      if(prev_mip_ != mip_) {
-        IF_DEBUG("prev_mip != mip_ .. check and defer");
-        check_and_defer_interrupt(hart, d.cycle, ~prev_mip_ & mip_);
-      }
-      prev_sync_intr_ = true; // This will waive cases when after execution of mret there exists a csr operation which needs to be interrupted.
-    }
-
     if (w.disasm.find("vstimecmp") != std::string::npos && !w_.excp)  {
       IF_DEBUG("VSTIMECMP instruction");
       if (!vstimecmppoked_) resetsstc_poke(hart,d.cycle, VSTIMECMP); else setsstc_poke(hart,d.cycle, VSTIMECMP);
