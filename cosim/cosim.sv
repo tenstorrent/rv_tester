@@ -1237,7 +1237,7 @@ localparam CAM_IHBIT = CAM_IBITS;
       return mip;
     endfunction
 
-    localparam imsic_whisper_delays = 5;
+    localparam imsic_whisper_delays = 7;
     rv_tester_params::mst_req_top [imsic_whisper_delays-1:0] imsic_interrupt_delays, imsic_msi_delays, imsic_ipi_delays;
     rv_tester_params::mst_req_top imsic_interrupt_delayed, imsic_msi_delayed, imsic_ipi_delayed;
     always @(posedge clk) begin
