@@ -2,6 +2,8 @@
 #include "sysmod/sysmod_plusargs.h"
 #include "pmu/pmu_plusargs.h"
 #include "cosim/bridge/bridge_plusargs.h"
+#include "cosim/bridge_if/bridge_params.h"
+#include "cosim/utils/general/util.h"
 #include <sstream>
 #include <unordered_map>
 #include <iostream>
@@ -37,6 +39,8 @@ DEFINE_string(patch_ucode_input_file_path, "", "Path to file containing patch uc
 DEFINE_string(patches, "WFI,SUB,BLT,AMOSWAP", "+patches=<instr1>,<instr2>,<instr3>,<instr4>; default will be picked if not specified ");
 DEFINE_string(disable_patches, "AMOSWAP", "+disable_patches=<instr1>,<instr2>,<instr3>,<instr4>; default will be picked if not specified ");
 DEFINE_bool(rand_patch, false, "Randomly pick 4 instructions available in the CSV to be patched");
+DEFINE_string(init_csr_resetseq, "", "+init_csr_resetseq=<unit(mc=8,ms=4,fe=2,ls=1)>:<csr_num>:<val>,... ");
+DEFINE_string(init_mmr_resetseq, "", "+init_mmr_resetseq=<mmr_addr>:<size(8|4)>:<val>,... ");
 
 extern "C" {
   void pwrmgmt_init();
@@ -226,6 +230,8 @@ cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
   } else if (FLAGS_patch_ram_check) {
     co_await patch_ram_check();
   };
+  co_await init_csr();
+  co_await init_mmr();
   //co_await program_fe_resetvector();
   co_await release_cpl_nofetch();
   co_return;
@@ -972,4 +978,80 @@ void reset_sequence::read_patch_csv() {
 
       
     }
+}
+
+cvm::messenger::task<void> reset_sequence::init_mmr()
+{
+  if (FLAGS_init_mmr_resetseq == "")
+      co_return;
+
+  cvm::log(cvm::HIGH, "Backdoor writes to MMRs\n");
+  try { // parse and process the +init_mmr_resetseq and report any errors
+    std::string delimiter = ",";
+    std::vector<std::string> mmr_num_val = cosim_util::split_string(FLAGS_init_mmr_resetseq, delimiter);
+    for (const auto& entry : mmr_num_val) {
+      delimiter = ":";
+      std::vector<std::string> num_val = cosim_util::split_string(entry, delimiter);
+      auto mmr_addr = std::stoull(num_val.at(0), nullptr, 0);
+      size_t size = (size_t)std::stoull(num_val.at(1), nullptr, 0);
+      auto mmr_value = std::stoull(num_val.at(2), nullptr, 0);
+      cvm::log(cvm::HIGH, "MMR addr {} = {} ({} bytes)\n", mmr_addr, mmr_value, size);
+      for (uint32_t i = 0; i < FLAGS_num_harts; i++) {
+        co_await write(mmr_addr, size, mmr_value);
+      }
+    }
+  }
+  catch (...) {
+    cvm::log(cvm::ERROR, "Error: unable to parse +init_mmr_resetseq={}\n", FLAGS_init_mmr_resetseq);
+    co_return;
+  }
+
+  co_return;
+}
+
+cvm::messenger::task<void> reset_sequence::init_csr()
+{
+  if (FLAGS_init_csr_resetseq == "")
+      co_return;
+
+  std::map<std::string, uint64_t> csr_name_to_addr_map;
+  for (const auto& csr : csrs) {
+    csr_name_to_addr_map[csr.second.name] = csr.second.addr;
+  }
+
+  cvm::log(cvm::HIGH, "Backdoor writes to CSRs\n");
+  try { // parse and process the +init_csr_resetseq and report any errors
+    std::string delimiter = ",";
+    std::vector<std::string> csr_num_val = cosim_util::split_string(FLAGS_init_csr_resetseq, delimiter);
+    for (const auto& entry : csr_num_val) {
+      delimiter = ":";
+      std::vector<std::string> num_val = cosim_util::split_string(entry, delimiter);
+      auto unit = std::stoull(num_val.at(0), nullptr, 0);
+      auto csr_value = std::stoull(num_val.at(2), nullptr, 0);
+      uint64_t csr_addr;
+      auto csr = num_val.at(1); // expect both csr address("0x301") as well as string("misa")
+      if (csr_name_to_addr_map.count(csr)) {
+        csr_addr = csr_name_to_addr_map[csr];
+      } else {
+        char* p;
+        uint64_t csrn = std::strtoul(csr.c_str(), &p, 0);
+        if (*p == 0)
+          csr_addr = csrn;
+        else {
+          cvm::log(cvm::ERROR, "Error: csr_name:{} undefined see +init_csr_resetseq switch\n", csr);
+          co_return;
+        }
+      }
+      cvm::log(cvm::HIGH, "Unit = {}: CSR addr {} = {}\n", unit, csr_addr, csr_value);
+      for (uint32_t i = 0; i < FLAGS_num_harts; i++) {
+        co_await csr_write(0, (uint32_t)unit, csr_addr, csr_value);
+      }
+    }
+  }
+  catch (...) {
+    cvm::log(cvm::ERROR, "Error: unable to parse +init_csr_resetseq={}\n", FLAGS_init_csr_resetseq);
+    co_return;
+  }
+
+  co_return;
 }
