@@ -227,30 +227,24 @@ import rv_tester_params:: * ;
     for (genvar n = 0; n < TOTAL_NRETS; n++) begin
         assign cr_ac_mmrwrites[n].valid =  ~reset & enable_checks & rvfi[n].valid && (rvfi[n].mem_wmask != 0) && (rvfi[n].mem_paddr >= ACLINT_START && rvfi[n].mem_paddr < ACLINT_END);
         assign cr_ac_mmrwrites[n].data.location = location;
-        assign cr_ac_mmrwrites[n].data.hart = get_hart_ret(n);
+        assign cr_ac_mmrwrites[n].data.srcid = get_hart_ret(n);
         assign cr_ac_mmrwrites[n].data.order = rvfi[n].order;
         assign cr_ac_mmrwrites[n].data.addr = rvfi[n].mem_paddr;
         assign cr_ac_mmrwrites[n].data.mask = rvfi[n].mem_wmask;
         assign cr_ac_mmrwrites[n].data.data = rvfi[n].mem_wdata[63:0];
     end
 
-    for (genvar n = 0; n < TOTAL_NBYPASSES; n++) begin
-        assign cr_ac_mmrwr_bypasss[n].valid =   enable_checks & mcmi_bypass[n].valid && (mcmi_bypass[n].mask != 0) && (mcmi_bypass[n].addr>= ACLINT_START && mcmi_bypass[n].addr< ACLINT_END);
-        assign cr_ac_mmrwr_bypasss[n].data.location = location;
-        assign cr_ac_mmrwr_bypasss[n].data.hart = get_hart_bypass(n);
-        assign cr_ac_mmrwr_bypasss[n].data.order = mcmi_bypass[n].order;
-        assign cr_ac_mmrwr_bypasss[n].data.mask = mcmi_bypass[n].mask;
-        assign cr_ac_mmrwr_bypasss[n].data.data = mcmi_bypass[n].data[63:0];
-    end
-
-        assign ac_axi_writes[0].valid =   enable_checks & AcReqPkti.valid;
-        assign ac_axi_writes[0].data.location = location;
-        assign ac_axi_writes[0].data.hart = vid[AcReqPkti.srcid];
-        assign ac_axi_writes[0].data.addr = topology.TOP.PLATFORM.PALEN'(AcReqPkti.addr);
-        assign ac_axi_writes[0].data.data = topology.TOP.PLATFORM.XLEN'(AcReqPkti.data);
-        assign ac_axi_writes[0].data.mask = AcReqPkti.mask;
+        assign axi_ac_writes[0].valid =   enable_checks & AcReqPkti.valid;
+        assign axi_ac_writes[0].data.location = location;
+        assign axi_ac_writes[0].data.srcid = AcReqPkti.srcid;
+        assign axi_ac_writes[0].data.addr = topology.TOP.PLATFORM.PALEN'(AcReqPkti.addr);
+        assign axi_ac_writes[0].data.data = topology.TOP.PLATFORM.XLEN'(AcReqPkti.data);
+        assign axi_ac_writes[0].data.mask = AcReqPkti.mask;
     /* verilator lint_on WIDTH */
 
+    import "DPI-C" function void check_outstanding_transactions(int unsigned location);
+    final check_outstanding_transactions(location);
+    
   function automatic logic [3:0] get_hart_ret(int n);
     logic [3:0] hart;
     /* verilator lint_off WIDTH */
