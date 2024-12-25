@@ -14,9 +14,9 @@ scratchpad_random_sequence::scratchpad_random_sequence(cvm::topology::loc_t loc,
   // Scope
   cvm::registry::messenger.connect<svScope>(loc_, [this](svScope s) { return this->set_scope(s); });
   tick_loc_ = cvm::topology::get_from_hierarchy("TOP.PLATFORM.OVERLAY_DRIVER", 0);
-  channel = cvm::registry::messenger.channel<axi::r_t>(tick_loc_);
 
   axi_mst_loc_l = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST",0);
+  channel = cvm::registry::messenger.channel<axi::r_t>(axi_mst_loc_l);
   //axi_mst_loc = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST");
   // Deassert signal comes from trickbox
   //cvm::registry::messenger.connect<uint8_t>(loc_, [this](uint8_t assert) { return this->nmi(assert); });

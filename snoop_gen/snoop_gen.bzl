@@ -20,6 +20,7 @@ def snoop_gen_gen(name, packet, topology, harness, visibility = None, cc_attrs =
         ],
         deps = [
             "@rv_tester//sysmod:sysmod_plusargs",
+            "@rv_tester//transactors/axi_sw:axi_sw_mst",
             "@rv_tester//common:transactor",
             "@rv_tester//:structs",
             packet + "_cc",
