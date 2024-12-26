@@ -971,7 +971,7 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
       peek_mip(hart, w.time, timing_case_w_mip);
       peek_seip(hart, w.time, timing_case_w_seip);
       timing_case_w_mip |= (timing_case_w_seip) << 9;
-      poke_mip(hart, w.time, timing_case_w_mip | (uint64_t)1 << d.icause); // for combination of timing sensitive case 1 and case 2.
+      poke_mip(hart, w.time, timing_case_w_mip | (uint64_t)1 << d.icause); // Combination of case 1 and 2 where whisper is not seeing the interrupt currently being serviced by DUT and there is another interrupt also pending in both DUT and whisper. 
       defer_interrupt(hart, w.time, mip_ & ~((uint64_t)1 << d.icause));
       timing_case2 = 1;
     }
