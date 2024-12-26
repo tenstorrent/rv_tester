@@ -300,13 +300,10 @@ whisperClient<URV>::whisperStandalone()
       fclose(preload_log[i]);
 
   if (!FLAGS_nostop_standalone) {
-    if (!result) {
-      std::cerr << "Error: Test failed on Standalone Whisper, stopping simulation\n";
-      return -1;
-    } else if (max_instr && (FLAGS_max_instr != 0)) {
-      std::cerr << "Error: Test reached max instr on standalone Whisper, stopping simulation\n";
-      return -1;
-    }
+    if (!result)
+      cvm::log(cvm::ERROR, "Error: Test failed on Standalone Whisper, stopping simulation\n");
+    else if (max_instr && (FLAGS_max_instr != 0))
+      cvm::log(cvm::ERROR, "Error: Test reached max instr on standalone Whisper, stopping simulation\n");
   }
 
   if (result && (FLAGS_num_dm_randpc || FLAGS_num_dm_randload || FLAGS_num_dm_randstore)){
@@ -389,38 +386,30 @@ whisperClient<URV>::whisperConnect()
   // This can be useful to compare with the cosim run
   if (FLAGS_standalone && (ncores_ == 1)) {
     system_ = constructSystem<URV>(ncores_, true);
-    if (system_ == nullptr) {
-      std::cerr << "Error: could not construct system\n";
-      return -1;
-    }
-
+    if (system_ == nullptr)
+      cvm::log(cvm::ERROR, "Error: could not construct system\n");
     whisperStandalone();
   }
 
   // Construct whisper for cosim
    system_ = constructSystem<URV>(ncores_, false);
   if (system_ == nullptr) {
-    std::cerr << "Error: could not construct system\n";
-    return -1;
+    cvm::log(cvm::ERROR, "Error: could not construct system\n");
   }
   server_ = std::make_unique<WdRiscv::Server<URV>>(*system_);
 
   // Coverage setup
   if (FLAGS_cov) {
     auto soPtr = dlopen(FLAGS_archsample_lib_path.c_str(), RTLD_NOW);
-    if (not soPtr) {
-      std::cerr << "Error: Failed to load shared libarary " << dlerror() << '\n';
-      return -1;
-    }
+    if (not soPtr)
+      cvm::log(cvm::ERROR, "Error: Failed to load shared library {}\n", dlerror());
 
     std::string entry("tracerExtension");
     entry += sizeof(URV) == 4 ? "32" : "64";
 
     __tracerExtension = reinterpret_cast<void (*)(void*)>(dlsym(soPtr, entry.c_str()));
-    if (not __tracerExtension) {
-      std::cerr << "Error: Could not find symbol tracerExtension in " << std::string(FLAGS_archsample_lib_path) << '\n';
-      return -1;
-    }
+    if (not __tracerExtension)
+      cvm::log(cvm::ERROR, "Error: Could not find symbol tracerExtension in {} \n", std::string(FLAGS_archsample_lib_path));
   }
 
   return 0;
@@ -895,7 +884,7 @@ whisperClient<URV>::whisperMcmWrite(int hart, uint64_t time, uint64_t addr,
     req.tag[i] = (uint8_t)((mask >> (i*8)) & 0xff);
 
   if (req.size > req.buffer.size()) {
-    std::cerr << "whisperMcmWrite: write size too large: " << req.size << '\n';
+    std::cerr << "whisperMcmWrite: write size too large: " << req.size << '\n'; // #FIXME: if it doesn't error, should it be cvm::medium?
     valid = false;
     return true;
   }
