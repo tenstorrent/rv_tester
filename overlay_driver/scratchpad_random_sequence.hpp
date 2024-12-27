@@ -32,12 +32,10 @@ class scratchpad_random_sequence {
   private:
 
     void random_mode_thread();
-    // void patch_trigger_mode_thread();
-    // void uarch_trigger_mode_thread();
+
 
     cvm::messenger::task<void> random_mode();
-    // cvm::messenger::task<void> patch_trigger_mode();
-    // cvm::messenger::task<void> uarch_trigger_mode();
+
 
     cvm::messenger::task<void> tick();
     cvm::messenger::task<void> trigger();
@@ -50,9 +48,6 @@ class scratchpad_random_sequence {
     cvm::messenger::task<void> sp_mmr_prog();
     cvm::messenger::task<void> axi_read_granular(const transactor::read_t& r );
     cvm::messenger::task<void> axi_read(uint64_t addr, size_t length, uint32_t id);
-    //void init();
-    // void nmi(uint8_t assert);
-    // void nmi_triggered(unsigned hart);
 
 
     using overlay_mst_t = axi_sw_mst<
