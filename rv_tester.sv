@@ -756,6 +756,20 @@ module rv_tester
         );
         
 
+    overlay_driver #(
+          .NUM(0),
+          `TOPOLOGY_CFG,
+          `RV_TESTER_TRANSACTIONS_OVERLAY_DRIVER_SOURCE_PARAMS(0)
+        )overlay_driver
+        (
+            .clk(dut_clk[AXI_CLK_IDX]),
+            .reset(dut_reset[AXI_CLK_IDX]),
+            .dut_clk(dut_clk[AXI_CLK_IDX]),
+            .dut_reset(dut_reset[AXI_CLK_IDX]),
+            .no_fetch(core_no_fetch[0]),
+          `RV_TESTER_TRANSACTIONS_OVERLAY_DRIVER_SOURCE_PORTS(2,0,0)
+        );
+        
     snoop_gen #(
             .NUM(0),
             `TOPOLOGY_CFG,

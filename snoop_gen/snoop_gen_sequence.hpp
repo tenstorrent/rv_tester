@@ -12,7 +12,8 @@
 #include "svdpi.h"
 #include "sysmod/device.h"
 #include "transactor.h"
-#include "transactors/axi_sw/axi.h"
+//#include "transactors/axi_sw/axi.h"
+#include "axi_sw_mst.h"
 
 class snoop_gen_sequence {
 
@@ -22,7 +23,16 @@ class snoop_gen_sequence {
     ~snoop_gen_sequence();
 
     void set_scope(svScope s) { scope_ = s; }
+    
 
+    using overlay_mst_t = axi_sw_mst<
+        rv_tester_transactions::axi_sw_mst::b<>,
+        rv_tester_transactions::axi_sw_mst::r<>,
+        rv_tester_transactions::axi_sw_mst::ar_q_ptr<>,
+        rv_tester_transactions::axi_sw_mst::aw_q_ptr<>,
+        rv_tester_transactions::axi_sw_mst::w_q_ptr<>
+    >;
+    
   private:
 
     void rand_mode_thread();
@@ -41,6 +51,7 @@ class snoop_gen_sequence {
 
     cvm::topology::loc_t loc_;
     cvm::topology::loc_t axi_mst_loc_l;
+    cvm::messenger::pool<axi::r_t>::channel_info channel;
     cvm::topology::loc_t snoop_gen_loc;
     unsigned id_;
     svScope scope_;

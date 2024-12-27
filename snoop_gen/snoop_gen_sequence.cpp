@@ -25,6 +25,7 @@ snoop_gen_sequence::snoop_gen_sequence(cvm::topology::loc_t loc, unsigned id) : 
   cvm::registry::messenger.connect<svScope>(loc_, [this](svScope s) { return this->set_scope(s); });
 
   axi_mst_loc_l = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST", 0);
+  channel = cvm::registry::messenger.channel<axi::r_t>(axi_mst_loc_l);
   
   snoop_gen_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.SNOOP_GEN", 0);
   cvm::registry::messenger.connect<uint64_t>(
@@ -139,9 +140,10 @@ void snoop_gen_sequence::overlay_read(uint64_t addr) {
 }
 cvm::messenger::task<void> snoop_gen_sequence::blocking_read(const transactor::read_t& r ) {
 
-  axi::a_t ar_txn;
+  axi::a_no_id_t ar_txn;
+  unsigned id;
   ar_txn.w    = false;
-  ar_txn.id   = axi_id++;
+  //ar_txn.id   = axi_id++;
   //ar_txn.addr = 0x60000000;
   ar_txn.addr = r.addr;
   if(FLAGS_rand_snoop_unaligned_addr_en){
@@ -164,9 +166,12 @@ cvm::messenger::task<void> snoop_gen_sequence::blocking_read(const transactor::r
   cvm::log(cvm::HIGH, "[snoop_gen_sequence] blocking read data begin: \n");
 
   read_in_flight = true;
-  cvm::registry::messenger.signal(axi_mst_loc_l, ar_txn);
+  //cvm::registry::messenger.signal(axi_mst_loc_l, ar_txn);
+  if (!cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_mst_loc_l, ar_txn , id))
+    co_return;
 
-  auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(axi_mst_loc_l);
+  //auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(axi_mst_loc_l);
+  auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(channel, [&id](const auto& r) { return r.id == id; });
 
   read_in_flight = false;
 

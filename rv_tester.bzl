@@ -7,6 +7,7 @@ load("@rv_tester//dm_model:dm_model.bzl", "dm_model_gen")
 load("@rv_tester//pwrmgmt:pwrmgmt.bzl", "pwrmgmt_gen")
 load("@rv_tester//interrupts:interrupts.bzl", "interrupts_gen")
 load("@rv_tester//jtag_driver:jtag_driver.bzl", "jtag_driver_gen")
+load("@rv_tester//overlay_driver:overlay_driver.bzl", "overlay_driver_gen")
 load("@rv_tester//snoop_gen:snoop_gen.bzl", "snoop_gen_gen")
 load("@rv_tester//trace:trace.bzl", "trace_gen")
 load("@rv_tester//triggers:triggers.bzl", "triggers_gen")
@@ -97,6 +98,14 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
         cc_attrs = cc_attrs,
     )       
 
+    overlay_driver_gen(
+        name = name + "_overlay_driver",
+        packet = name  + "_transactions",
+        topology = topology,
+        harness = name + "_harness",
+        cc_attrs = cc_attrs,
+    )       
+
     snoop_gen_gen(
         name = name + "_snoop_gen",
         packet = name  + "_transactions",
@@ -153,6 +162,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             name + "_aclint_checker_sv",
             name + "_interrupts_sv",
             name + "_jtag_driver_sv",
+            name + "_overlay_driver_sv",
             name + "_snoop_gen_sv",
             name + "_trace_sv",
             name + "_triggers_sv",
@@ -187,6 +197,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             name + "_aclint_checker_dpi",
             name + "_interrupts_dpi",
             name + "_jtag_driver_dpi",
+            name + "_overlay_driver_dpi",
             name + "_snoop_gen_dpi",
             name + "_trace_dpi",
             name + "_triggers_dpi",

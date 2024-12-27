@@ -12,7 +12,6 @@
 #include "trickbox/interrupter.h"
 #include "trickbox/uc_helper.h"
 #include "trickbox/debugger.h"
-#include "scratchpad_xtor/scratchpad_xtor.h"
 #include "trace_cfg/trace_cfg.h"
 #include "cla_cfg/cla_cfg.h"
 #include "cvm/topology.hpp"
@@ -97,7 +96,6 @@ class sysmod {
     void uc_helper_backdoor_write(uc_helper::uc_helper_write_t w);
     void uc_helper_backdoor_read(uc_helper::uc_helper_read_req_t w);
     void trace_cfg_read_req_router(trace_cfg::trace_cfg_read_t r);
-    void scratchpad_xtor_read_req_router(scratchpad_xtor::scratchpad_xtor_read_t r);
     void terminate(htif::terminate_t t);
     cvm::messenger::task<uint64_t> backdoor_read(uint64_t address);
     cvm::messenger::task<uint64_t> backdoor_write(backdoor_write_t);
