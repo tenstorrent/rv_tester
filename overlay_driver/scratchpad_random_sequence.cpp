@@ -17,10 +17,7 @@ scratchpad_random_sequence::scratchpad_random_sequence(cvm::topology::loc_t loc,
 
   axi_mst_loc_l = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST",0);
   channel = cvm::registry::messenger.channel<axi::r_t>(axi_mst_loc_l);
-  //axi_mst_loc = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST");
-  // Deassert signal comes from trickbox
-  //cvm::registry::messenger.connect<uint8_t>(loc_, [this](uint8_t assert) { return this->nmi(assert); });
-  cvm::log(cvm::NONE, "PPPPPRRRTTT INFO_PAS\n");
+
   
   // nmi sequence threads
   if (FLAGS_sp_xtor_rand_en) {
@@ -29,7 +26,7 @@ scratchpad_random_sequence::scratchpad_random_sequence(cvm::topology::loc_t loc,
 }
 
 scratchpad_random_sequence::~scratchpad_random_sequence() {
-    //cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_nmi_toggled_count\": \"{}\"}}\n", id_, nmi_count_);
+
 }
 
 void scratchpad_random_sequence::random_mode_thread() {
@@ -40,21 +37,7 @@ void scratchpad_random_sequence::random_mode_thread() {
   cvm::registry::messenger.fork(task, this);
 };
 
-// void scratchpad_random_sequence::patch_trigger_mode_thread() {
-//   auto *task = +[] (scratchpad_random_sequence* m) -> cvm::messenger::task<void> {
-//     co_await m->patch_trigger_mode();
-//     co_return;
-//   };
-//   cvm::registry::messenger.fork(task, this);
-// };
 
-// void scratchpad_random_sequence::uarch_trigger_mode_thread() {
-//   auto *task = +[] (scratchpad_random_sequence* m) -> cvm::messenger::task<void> {
-//     co_await m->uarch_trigger_mode();
-//     co_return;
-//   };
-//   cvm::registry::messenger.fork(task, this);
-// };
 cvm::messenger::task<void> scratchpad_random_sequence::axi_read_granular(const transactor::read_t& r ) {
 
   axi::a_no_id_t ar_txn;
@@ -110,19 +93,12 @@ cvm::messenger::task<void> scratchpad_random_sequence::axi_read(uint64_t addr, s
 
 }
 cvm::messenger::task<void> scratchpad_random_sequence::random_mode() {
-  cvm::log(cvm::NONE, "PPPPPRRRTTT START RANDOM THREAD .....\n");
 
   while (FLAGS_sp_xtor_en) {
     // Wait for next tick generated after a random interval "nmi_interval"
     co_await tick();
 
-    // nmi_count_++;
-    // cvm::log(cvm::HIGH, "[interrupts][h{}] Starting nmi sequence - count = {}\n", id_, nmi_count_);
-
-    // nmi(ASSERT);
-
-  ///////////
-if(FLAGS_sp_xtor_rnd_traffic_en){
+    if(FLAGS_sp_xtor_rnd_traffic_en){
                 
              if(cnt_tick == rnd_traffic_cnt_tick){
                uint64_t offset = rng() % 500;
@@ -297,38 +273,7 @@ cvm::messenger::task<void> scratchpad_random_sequence::axi_write_mmr_granular() 
   co_return;
  
 }
-// cvm::messenger::task<void> scratchpad_random_sequence::patch_trigger_mode() {
-//   while(1){
-//      // Wait for next selected trigger
-//      co_await trigger();
 
-//      // Wait for random ticks after trigger
-//      int num_ticks = rng1() %FLAGS_patch_mode_nmi_interval;  
-//      for(int i=0;i<num_ticks;i++)
-//        co_await assert_tick();
-
-//      cvm::log(cvm::HIGH, "[interrupts][h{}] Starting event triggered nmi sequence\n", id_);
-//      nmi(ASSERT);
-//   }
-// }
-
-// cvm::messenger::task<void> scratchpad_random_sequence::uarch_trigger_mode() {
-//   while(1){
-//      // Wait for next selected trigger
-//      co_await trigger();
-
-//      nmi(ASSERT);
-//   }
-// }
-
-// void scratchpad_random_sequence::nmi(uint8_t assert) {
-//   cvm::registry::callbacks.push(
-//     scope_,
-//     [assert, this]() {
-//       cvm::log(cvm::HIGH, "[interrupts][h{}] {} nmi\n", id_, assert ? "assert" : "deassert");
-//       drive_nmi(assert);
-//     });
-// }
 
 cvm::messenger::task<void> scratchpad_random_sequence::tick() {
   co_await cvm::registry::messenger.wait<rv_tester_transactions::overlay_driver::m_overlay_driver_tick<>>(tick_loc_);
