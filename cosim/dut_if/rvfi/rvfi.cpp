@@ -833,6 +833,8 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
   m.v_ext  = m_mcmi_read.v_ext;
   m.field = m_mcmi_read.field;
   m.elem_idx = m_mcmi_read.elem_idx;
+  m.splat = m_mcmi_read.splat;
+  uint8_t elemsize = m_mcmi_read.elem_size;
 
   // Handle SC
   // If read before bypass, store pass/fail result
@@ -884,19 +886,33 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
       for (size_t i = 1; i < addresses.size(); ++i) {
           if (addresses[i] == addresses[i - 1] + 1) {
               ++size;
-              dataAccumulated += fmt::format("{:02x}", datas[i]);
+              dataAccumulated = fmt::format("{:02x}", datas[i]) + dataAccumulated;
           } else {
               mem_t m;
               m.valid = true;
               m.cycle = m_mcmi_read.cycle;
               m.tag = vec_cmode_tags_.contains(m_mcmi_read.order) ? vec_cmode_tags_[m_mcmi_read.order] :
                         patch_mode_tags_.contains(m_mcmi_read.order)? patch_mode_tags_[m_mcmi_read.order] : m_mcmi_read.order;
-              m.pa = start;
-              m.size = size;
-              std::bitset<256> value = stringToBitset(dataAccumulated);  // Use a helper to convert the accumulated string
-              m.data_vec = value;
               m.v_ext = m_mcmi_read.v_ext;
-              bridge_->process_dut_mcm_read(m_mcmi_read.hart, m);
+              m.field = m_mcmi_read.field;
+              if (m_mcmi_read.splat){
+                uint16_t total_elements = m.size / elemsize;
+                m.pa = m_mcmi_read.addr;
+                std::bitset<256> value = stringToBitset(dataAccumulated.substr(0, elemsize * 2));
+                m.size = elemsize;
+                m.data_vec = value;
+                for (int i=0; i<total_elements; i++){
+                  m.elem_idx = ((start - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx + i;
+                  bridge_->process_dut_mcm_read(m_mcmi_read.hart, m);
+                }
+              } else{
+                m.pa = start;
+                m.size = size;
+                std::bitset<256> value = stringToBitset(dataAccumulated);  // Use a helper to convert the accumulated string
+                m.data_vec = value;
+                m.elem_idx = ((start - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx;
+                bridge_->process_dut_mcm_read(m_mcmi_read.hart, m);
+              }
               start = addresses[i];
               size = 1;
               dataAccumulated = fmt::format("{:02x}", datas[i]);
@@ -907,10 +923,26 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
       m.cycle = m_mcmi_read.cycle;
       m.tag = vec_cmode_tags_.contains(m_mcmi_read.order) ? vec_cmode_tags_[m_mcmi_read.order] :
                 patch_mode_tags_.contains(m_mcmi_read.order)? patch_mode_tags_[m_mcmi_read.order] : m_mcmi_read.order;
-      m.pa = start;
-      m.size = size;
-      m.data_vec = stringToBitset(dataAccumulated);  // Final range processing
       m.v_ext = m_mcmi_read.v_ext;
+      m.field = m_mcmi_read.field;
+      if (m_mcmi_read.splat){
+        uint16_t total_elements = m.size / elemsize;
+        m.pa = m_mcmi_read.addr;
+        std::bitset<256> value = stringToBitset(dataAccumulated.substr(0, elemsize * 2));
+        m.size = elemsize;
+        m.data_vec = value;
+        for (int i=0; i<total_elements; i++){
+          m.elem_idx = ((start - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx + i;
+          bridge_->process_dut_mcm_read(m_mcmi_read.hart, m);
+        }
+      } else{
+        m.pa = start;
+        m.size = size;
+        std::bitset<256> value = stringToBitset(dataAccumulated);  // Use a helper to convert the accumulated string
+        m.data_vec = value;
+        m.elem_idx = ((start - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx;
+        bridge_->process_dut_mcm_read(m_mcmi_read.hart, m);
+      }
       bridge_->process_dut_mcm_read(m_mcmi_read.hart, m);
   }
   if (m.amo && m.amo_op != LR && FLAGS_emulate_amo_arithmetic) {
@@ -962,6 +994,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
       m.data = m_mcmi_insert.data;
       m.data_vec = m_mcmi_insert.data_vec;
       m.v_ext = m_mcmi_insert.v_ext;
+      m.elem_idx = m_mcmi_insert.elem_idx;
       bridge_->process_dut_mcm_insert(m_mcmi_insert.hart, m);
   } else {
       std::bitset<32> mask = m_mcmi_insert.mask;
@@ -1000,6 +1033,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
               std::bitset<256> value = stringToBitset(dataAccumulated);  // Use a helper to convert the accumulated string
               m.data_vec = value;
               m.v_ext = m_mcmi_insert.v_ext;
+              m.elem_idx = m_mcmi_insert.elem_idx;
               bridge_->process_dut_mcm_insert(m_mcmi_insert.hart, m);
               start = addresses[i];
               size = 1;
@@ -1015,6 +1049,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
       m.size = size;
       m.data_vec = stringToBitset(dataAccumulated);  // Final range processing
       m.v_ext = m_mcmi_insert.v_ext;
+      m.elem_idx = m_mcmi_insert.elem_idx;
       bridge_->process_dut_mcm_insert(m_mcmi_insert.hart, m);
   }
 }
@@ -1051,6 +1086,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
       m.v_ext  = m_mcmi_bypass.v_ext;
       m.amo    = m_mcmi_bypass.amo;
       m.amo_op = m_mcmi_bypass.amo_op;
+      m.elem_idx = m_mcmi_bypass.elem_idx;
 
       if (m.amo && m.amo_op != SC && FLAGS_emulate_amo_arithmetic) {
         amo_writes_.emplace(m.tag, m);
@@ -1100,6 +1136,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
               std::bitset<256> value = stringToBitset(dataAccumulated);  // Use a helper to convert the accumulated string
               m.data_vec = value;
               m.v_ext = m_mcmi_bypass.v_ext;
+              m.elem_idx = m_mcmi_bypass.elem_idx;
               bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m);
               start = addresses[i];
               size = 1;
@@ -1115,6 +1152,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
       m.size = size;
       m.data_vec = stringToBitset(dataAccumulated);  // Final range processing
       m.v_ext = m_mcmi_bypass.v_ext;
+      m.elem_idx = m_mcmi_bypass.elem_idx;
       bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m);
   }
 }
