@@ -351,6 +351,8 @@ package rv_tester_params;
         logic [36-1:0]              opcode;
         logic [7:0]                 field;
         logic [7:0]                 elem_idx;
+        logic                       splat;
+        logic [7:0]                 elem_size;
     } mcmi_t;
 
     // --------------------------------------

@@ -233,6 +233,12 @@ cosim:
             elem_idx:
                 qualify: v_ext
                 width: 8
+            splat:
+                qualify: v_ext
+                width: 1
+            elem_size:
+                qualify: v_ext
+                width: 8
 
     m_mcmi_insert:
         domain: 1
@@ -255,6 +261,9 @@ cosim:
             data_vec:
                 qualify: v_ext
                 width: ${TOP.PLATFORM.VLEN}
+            elem_idx:
+                qualify: v_ext
+                width: 8
 
     m_mcmi_bypass:
         domain: 1
@@ -283,6 +292,9 @@ cosim:
             data_vec:
                 qualify: v_ext
                 width: ${TOP.PLATFORM.VLEN}
+            elem_idx:
+                qualify: v_ext
+                width: 8
 
     m_mcmi_write:
         domain: 1

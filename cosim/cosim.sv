@@ -1041,6 +1041,8 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign m_mcmi_reads[n].data.v_ext = mcmi_read[n].v_ext;
         assign m_mcmi_reads[n].data.elem_idx = mcmi_read[n].elem_idx;
         assign m_mcmi_reads[n].data.field = mcmi_read[n].field;
+        assign m_mcmi_reads[n].data.splat = mcmi_read[n].splat;
+        assign m_mcmi_reads[n].data.elem_size = mcmi_read[n].elem_size;
         assign mcmi_read_pokes[n] = mcmi_read[n].valid;
 
     end
@@ -1059,6 +1061,7 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign m_mcmi_inserts[n].data.data = mcmi_insert[n].data[63:0];
         assign m_mcmi_inserts[n].data.data_vec = mcmi_insert[n].data[255:0];
         assign m_mcmi_inserts[n].data.v_ext = mcmi_insert[n].v_ext;
+        assign m_mcmi_inserts[n].data.elem_idx = mcmi_insert[n].elem_idx;
         assign mcmi_insert_pokes[n] = mcmi_insert[n].valid;
         assign eot_insert_found[n] = ((eot_addr != '0) &  mcmi_insert[n].valid & (mcmi_insert[n].addr == $bits(mcmi_insert[n].addr)'(eot_addr)) & ( mcmi_insert[n].data[0] == 1'b1) & (mcmi_insert[n].data[63:56] == 0)) ? 1'b1 : 1'b0;
     end
@@ -1096,6 +1099,7 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign m_mcmi_bypasss[n].data.data = mcmi_bypass[n].data[63:0];
         assign m_mcmi_bypasss[n].data.data_vec = mcmi_bypass[n].data[255:0];
         assign m_mcmi_bypasss[n].data.v_ext = mcmi_bypass[n].v_ext;
+        assign m_mcmi_bypasss[n].data.elem_idx = mcmi_bypass[n].elem_idx;
         assign m_mcmi_bypasss[n].data.amo = mcmi_bypass[n].amo;
         assign m_mcmi_bypasss[n].data.amo_op = mcmi_bypass[n].amo_op;
         //-------------------------------------------------------------------------------------------

@@ -151,7 +151,9 @@ typedef struct mem_s {
   uint32_t attr;
   uint8_t field;
   uint8_t elem_idx;
-
+  bool splat;
+  uint8_t elem_size;
+  
   mem_s() {
     clear();
   }
