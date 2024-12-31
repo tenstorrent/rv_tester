@@ -71,7 +71,7 @@ def rv_tester_repositories():
     maybe(
         http_archive,
         name = "mem_manager",
-        sha256 = "6bfefda857cf12650432e379246778f4411d13b2015ae1b4ec3aa3a2c9003395",
+        sha256 = "bec42044107330608fe0a6e05a735e1ffcdb16bf942381b69ad0b261253bfcdb",
         strip_prefix = "mem-manager-{commit}".format(commit=mem_manager_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/mem-manager/-/archive/{commit}/mem-manager-{commit}.tar.bz2".format(commit=mem_manager_hash),
     )
