@@ -10,6 +10,8 @@
 #include "svdpi.h"
 #include "axi_sw_mst.h"
 
+DECLARE_bool(axi_allow_err_resp); // Allow error responses on axi_mst transactions
+
 class reset_sequence {
 
   public:

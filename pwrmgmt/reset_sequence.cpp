@@ -41,7 +41,6 @@ DEFINE_string(disable_patches, "AMOSWAP", "+disable_patches=<instr1>,<instr2>,<i
 DEFINE_bool(rand_patch, false, "Randomly pick 4 instructions available in the CSV to be patched");
 DEFINE_string(init_csr_resetseq, "", "+init_csr_resetseq=<unit(mc=8,ms=4,fe=2,ls=1)>:<csr_num>:<val>,... ");
 DEFINE_string(init_mmr_resetseq, "", "+init_mmr_resetseq=<mmr_addr>:<size(8|4)>:<val>,... ");
-DECLARE_bool(axi_allow_err_resp); // Allow error responses on axi_mst transactions
 
 extern "C" {
   void pwrmgmt_init();
