@@ -41,6 +41,7 @@ DEFINE_string(disable_patches, "AMOSWAP", "+disable_patches=<instr1>,<instr2>,<i
 DEFINE_bool(rand_patch, false, "Randomly pick 4 instructions available in the CSV to be patched");
 DEFINE_string(init_csr_resetseq, "", "+init_csr_resetseq=<unit(mc=8,ms=4,fe=2,ls=1)>:<csr_num>:<val>,... ");
 DEFINE_string(init_mmr_resetseq, "", "+init_mmr_resetseq=<mmr_addr>:<size(8|4)>:<val>,... ");
+DECLARE_bool(axi_allow_err_resp); // Allow error responses on axi_mst transactions
 
 extern "C" {
   void pwrmgmt_init();
@@ -268,7 +269,7 @@ cvm::messenger::task<void> reset_sequence::check_pll_status() {
 
 cvm::messenger::task<void> reset_sequence::program_fe_resetvector() {
   co_await tick();
-  co_await write(core_resetvector_mmr, 8, FLAGS_resetpc );
+  co_await write(core_resetvector_mmr, SZ_8B, FLAGS_resetpc);
   co_await tick();
   co_return;
 }
@@ -324,10 +325,10 @@ cvm::messenger::task<void> reset_sequence::program_fuses() {
 
   uint64_t fuse = fuse_val();
 
-  co_await write(sw_fuse_mmr,     SZ_8B, fuse, boot_interface);
+  co_await write(sw_fuse_mmr, SZ_8B, fuse, boot_interface);
 
   for (uint32_t i = 0; i < FLAGS_num_harts; ++i)
-    co_await write(core_fuse_mmr + i * core_fuse_offset,   SZ_8B, fuse, boot_interface);
+    co_await write(core_fuse_mmr + i * core_fuse_offset, SZ_8B, fuse, boot_interface);
   
   if (FLAGS_trace_enable) {
     cvm::log(cvm::MEDIUM, "[pwrmgmt] writing trace fuse\n", trace_fuse_mmr);
@@ -335,10 +336,8 @@ cvm::messenger::task<void> reset_sequence::program_fuses() {
     co_await write(trace_fuse_mmr, SZ_8B, fuse, boot_interface );
   }
   co_await write(aclint_fuse_mmr, SZ_8B, fuse, boot_interface);
-  co_await write(dm_fuse_mmr,     SZ_8B, fuse, boot_interface);
-  co_await write(sc_fuse_mmr,     SZ_8B, fuse, boot_interface);
-
-
+  co_await write(dm_fuse_mmr, SZ_8B, fuse, boot_interface);
+  co_await write(sc_fuse_mmr, SZ_8B, fuse, boot_interface);
 
   co_return;
 }
@@ -369,7 +368,7 @@ cvm::messenger::task<void> reset_sequence::trigger() {
   co_return;
 }
 
-cvm::messenger::task<uint64_t> reset_sequence::read(uint64_t addr, size_t sz, interface_t interface, bool rsp_err_chk) {
+cvm::messenger::task<uint64_t> reset_sequence::read(uint64_t addr, size_t sz, interface_t interface) {
   assert(sz <= 8);
   cvm::log(cvm::MEDIUM, "[pwrmgmt] {} : read req - addr={:#x}, sz={}, location={}\n", get_intf_name(interface), addr, sz, axi_loc_[interface]);  
 
@@ -397,7 +396,7 @@ cvm::messenger::task<uint64_t> reset_sequence::read(uint64_t addr, size_t sz, in
   co_return dword;
 }
 
-cvm::messenger::task<void> reset_sequence::write(uint64_t addr, size_t sz, uint64_t data, interface_t interface, bool rsp_err_chk) {
+cvm::messenger::task<void> reset_sequence::write(uint64_t addr, size_t sz, uint64_t data, interface_t interface) {
   assert(sz <= 8);
 
   uint64_t dword = (addr % 8) ? (data << 32) : data;
@@ -458,6 +457,7 @@ cvm::messenger::task<void> reset_sequence::write(uint64_t addr, size_t sz, const
     strb[i] = (mask & (0xFFull << (i*8))) != 0;
 
   unsigned id;
+  std::vector<unsigned> ids;
   int size = data.size();
   for(int i=0; i < size; i++){
     uint64_t addr_n = addr + i*sz;
@@ -468,9 +468,12 @@ cvm::messenger::task<void> reset_sequence::write(uint64_t addr, size_t sz, const
     if (!cvm::registry::messenger.call<smc_mst_t::push_aw_no_id_rpc>(axi_loc_[SMC], axi::a_no_id_t{addr_n, log2(sz)}, id))
       co_return;
     cvm::registry::messenger.call<smc_mst_t::push_w_rpc>(axi_loc_[SMC], axi::w_t{byte_array, strb, 1});
+    ids.push_back(id);
   };
+
   // Note - simultaneous burst write calls might result in interleaved resposes
   for(int i=0; i < size; i++){
+    id = ids[i];
     uint64_t addr_n = addr + i*sz;
     uint64_t dword = (addr_n % 8) ? (data[i] << 32) : data[i];
     auto resp = co_await cvm::registry::messenger.wait<axi::b_t>(b_channel_[SMC], [&id](const auto& b) { return b.id == id; });
@@ -510,6 +513,7 @@ cvm::messenger::task<uint64_t> reset_sequence::csr_read(uint32_t core_id, uint32
   auto data = co_await read(core_crCsrDataPort + offset, SZ_8B);
   co_return data;
 }
+
 std::vector<uint64_t> reset_sequence::convert_to_dword_array(const std::vector<uint8_t>& byte_array) {
   std::vector<uint64_t> result(byte_array.size() / sizeof(uint64_t));
   std::copy(reinterpret_cast<const uint64_t*>(byte_array.data()),
@@ -583,13 +587,13 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
   read_patch_csv();
   if (!FLAGS_patch_cpl_filter_dis) { 
     //CPL AXI in filter programming
-    co_await write(cpl_in_filter0_addr_l ,SZ_8B , 0x4C000);
-    co_await write(cpl_in_filter0_addr_h ,SZ_8B , 0x4EFFF);
-    co_await write(cpl_in_filter0_config ,SZ_8B , 0x81010113);
+    co_await write(cpl_in_filter0_addr_l, SZ_8B, 0x4C000);
+    co_await write(cpl_in_filter0_addr_h, SZ_8B, 0x4EFFF);
+    co_await write(cpl_in_filter0_config, SZ_8B, 0x8000000001010113);
     //CPL AXI out filter programming
-    co_await write(cpl_out_filter0_addr_l ,SZ_8B , 0x4C000);
-    co_await write(cpl_out_filter0_addr_h ,SZ_8B , 0x4EFFF);
-    co_await write(cpl_out_filter0_config ,SZ_8B , 0x81010113);
+    co_await write(cpl_out_filter0_addr_l, SZ_8B, 0x4C000);
+    co_await write(cpl_out_filter0_addr_h, SZ_8B, 0x4EFFF);
+    co_await write(cpl_out_filter0_config, SZ_8B, 0x8000000001010113);
   };  
 
   std::string token;
@@ -826,7 +830,7 @@ cvm::messenger::task<void> reset_sequence::fuse_mmr_check(rst_t rst_type) {
   std::vector<interface_t> interfaces = {SMC, OVERLAY};
   for ( auto interface : interfaces) {
     for (uint32_t i=0; i<FLAGS_num_harts; ++i) { 
-        physical_id = co_await read(core_physical_id_mmr + i * core_fuse_offset, SZ_8B, interface, 1 );
+        physical_id = co_await read(core_physical_id_mmr + i * core_fuse_offset, SZ_8B, interface);
         if (id[i] != (physical_id & 0x7))
           cvm::log(cvm::ERROR, "[pwrmgmt] Core ID to Virtual ID mapping ERROR : Virtual id 0x{:x} ,  Expected Core ID :0x{:x}, Actual Core ID : 0x{:x} \n", i, id[i], (physical_id & 0x7) );
         else
@@ -844,38 +848,38 @@ cvm::messenger::task<void> reset_sequence::disabled_mmr_csr_check() {
   std::vector<interface_t> interfaces = {SMC, OVERLAY};
   for ( auto interface : interfaces) {
     cvm::log(cvm::MEDIUM, "[pwrmgmt]  Disabled MMR check from {} interface  \n", get_intf_name(interface) );
-    bool rsp_err_chk = 1;
     for (uint32_t i = 0; i < ncores; ++i) {
-      rsp_err_chk = (i < FLAGS_num_harts) ? 1: 0;
-      mmr_read_write_check(cr_scratchpad + i * core_fuse_offset, interface, rsp_err_chk );
-      rsp_err_chk = (interface==SMC) ? rsp_err_chk : 0;
-      co_await read(core_fuse_mmr + i * core_fuse_offset,   SZ_8B, interface, rsp_err_chk);
+      FLAGS_axi_allow_err_resp = (i >= FLAGS_num_harts);
+      mmr_read_write_check(cr_scratchpad + i * core_fuse_offset, interface);
+      FLAGS_axi_allow_err_resp = (interface==SMC) ? FLAGS_axi_allow_err_resp : 1;
+      co_await read(core_fuse_mmr + i * core_fuse_offset,   SZ_8B, interface);
     }
     
-    rsp_err_chk = FLAGS_trace_enable ? 1: 0;
-    mmr_read_write_check(tr_scratchpad, interface, rsp_err_chk );
-    rsp_err_chk = (interface==SMC) ? rsp_err_chk : 0;
-    co_await read(trace_fuse_mmr, SZ_8B, interface, rsp_err_chk);
+    FLAGS_axi_allow_err_resp = !FLAGS_trace_enable;
+    mmr_read_write_check(tr_scratchpad, interface);
+    FLAGS_axi_allow_err_resp = (interface==SMC) ? FLAGS_axi_allow_err_resp : 1;
+    co_await read(trace_fuse_mmr, SZ_8B, interface);
 
-    rsp_err_chk = (FLAGS_debug_enable >1) ? 1: 0;
-    mmr_read_write_check(dm_scratchpad, interface, rsp_err_chk );
-    rsp_err_chk = (interface==SMC) ? rsp_err_chk : 0;
-    co_await read(dm_fuse_mmr, SZ_8B, interface, rsp_err_chk);
+    FLAGS_axi_allow_err_resp = FLAGS_debug_enable <= 1;
+    mmr_read_write_check(dm_scratchpad, interface);
+    FLAGS_axi_allow_err_resp = (interface==SMC) ? FLAGS_axi_allow_err_resp : 1;
+    co_await read(dm_fuse_mmr, SZ_8B, interface);
   }
+  FLAGS_axi_allow_err_resp = 0;
 
   co_return;
 };
 
-cvm::messenger::task<void> reset_sequence::mmr_read_write_check(uint64_t addr, interface_t interface, bool rsp_err_chk) {
+cvm::messenger::task<void> reset_sequence::mmr_read_write_check(uint64_t addr, interface_t interface) {
   uint64_t data, wr_data;
-  data = co_await read(addr, SZ_8B, interface, rsp_err_chk);
+  data = co_await read(addr, SZ_8B, interface);
   wr_data = (data & 0xFFFF'FFFF'FFFF'FF00) | rand()%0xFF;
-  co_await write(addr, SZ_8B, wr_data, interface, rsp_err_chk);
-  data = co_await read(addr, SZ_8B, interface, rsp_err_chk);
-  if ((wr_data!=data) & rsp_err_chk )
-      cvm::log(cvm::ERROR, "[pwrmgmt] ERROR: MMR read to addr 0x{:x} failed.  Expected :0x{:x}, Actual : 0x{:x} \n", addr, wr_data, data );
+  co_await write(addr, SZ_8B, wr_data, interface);
+  data = co_await read(addr, SZ_8B, interface);
+  if ((wr_data!=data) & !FLAGS_axi_allow_err_resp)
+    cvm::log(cvm::ERROR, "[pwrmgmt] ERROR: MMR read to addr 0x{:x} failed.  Expected :0x{:x}, Actual : 0x{:x} \n", addr, wr_data, data );
   else
-      cvm::log(cvm::NONE, "[pwrmgmt]  MMR read to addr 0x{:x}, data 0x{:x}\n", addr, data );
+    cvm::log(cvm::NONE, "[pwrmgmt]  MMR read to addr 0x{:x}, data 0x{:x}\n", addr, data );
 };
 
 //-----------------------------------------------------------------------------------------------
