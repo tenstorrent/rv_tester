@@ -8,6 +8,7 @@
 #include "pwrmgmt.hpp"
 #include "transactor.h"
 #include "svdpi.h"
+#include "axi_sw_mst.h"
 
 class reset_sequence {
 
@@ -16,8 +17,25 @@ class reset_sequence {
     reset_sequence(cvm::topology::loc_t loc, unsigned id);
     ~reset_sequence();
 
+     using overlay_mst_t = axi_sw_mst<
+        rv_tester_transactions::axi_sw_mst::b<>,
+        rv_tester_transactions::axi_sw_mst::r<>,
+        rv_tester_transactions::axi_sw_mst::ar_q_ptr<>,
+        rv_tester_transactions::axi_sw_mst::aw_q_ptr<>,
+        rv_tester_transactions::axi_sw_mst::w_q_ptr<>
+    >;
+    using smc_mst_t = axi_sw_mst<
+        rv_tester_transactions::axi_sw_mst::b<1>,
+        rv_tester_transactions::axi_sw_mst::r<1>,
+        rv_tester_transactions::axi_sw_mst::ar_q_ptr<1>,
+        rv_tester_transactions::axi_sw_mst::aw_q_ptr<1>,
+        rv_tester_transactions::axi_sw_mst::w_q_ptr<1>
+    >;
 
   private:
+
+    std::array<cvm::messenger::pool<axi::b_t>::channel_info, INTF_COUNT> b_channel_;
+    std::array<cvm::messenger::pool<axi::r_t>::channel_info, INTF_COUNT> r_channel_;
 
     void set_scope(svScope s) { scope_ = s; }
     void start(int reset_count);
@@ -82,10 +100,12 @@ class reset_sequence {
     void populate_patch_ram(uint64_t addr, const std::vector<uint64_t>& data);
     void read_patch_csv();
     std::string get_intf_name(interface_t value);
-    
+
   private:
 
-    cvm::topology::loc_t loc_, smc_axi_loc_, overlay_axi_loc_, axi_loc_;
+    cvm::topology::loc_t loc_;
+    std::array<cvm::topology::loc_t, INTF_COUNT> axi_loc_;
+
     svScope scope_;
 
     int reset_count_ = 0;
