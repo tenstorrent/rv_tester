@@ -865,7 +865,6 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
       std::bitset<32> mask = m_mcmi_read.mask;
       std::vector<uint64_t> addresses;
       std::vector<uint8_t> datas;
-
       for (int i = 0; i < 32; i++) {
           if (mask[i]) {
               addresses.push_back(m_mcmi_read.addr + i);
@@ -895,6 +894,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
                         patch_mode_tags_.contains(m_mcmi_read.order)? patch_mode_tags_[m_mcmi_read.order] : m_mcmi_read.order;
               m.v_ext = m_mcmi_read.v_ext;
               m.field = m_mcmi_read.field;
+              m.size   = std::popcount(m_mcmi_read.mask);
               if (m_mcmi_read.splat){
                 uint16_t total_elements = m.size / elemsize;
                 m.pa = m_mcmi_read.addr;
@@ -924,6 +924,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
       m.tag = vec_cmode_tags_.contains(m_mcmi_read.order) ? vec_cmode_tags_[m_mcmi_read.order] :
                 patch_mode_tags_.contains(m_mcmi_read.order)? patch_mode_tags_[m_mcmi_read.order] : m_mcmi_read.order;
       m.v_ext = m_mcmi_read.v_ext;
+      m.size   = std::popcount(m_mcmi_read.mask);
       m.field = m_mcmi_read.field;
       if (m_mcmi_read.splat){
         uint16_t total_elements = m.size / elemsize;
@@ -943,7 +944,6 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
         m.elem_idx = ((start - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx;
         bridge_->process_dut_mcm_read(m_mcmi_read.hart, m);
       }
-      bridge_->process_dut_mcm_read(m_mcmi_read.hart, m);
   }
   if (m.amo && m.amo_op != LR && FLAGS_emulate_amo_arithmetic) {
     process_amo(m);
