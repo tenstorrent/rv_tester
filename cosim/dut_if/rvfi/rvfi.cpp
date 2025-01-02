@@ -894,9 +894,8 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
                         patch_mode_tags_.contains(m_mcmi_read.order)? patch_mode_tags_[m_mcmi_read.order] : m_mcmi_read.order;
               m.v_ext = m_mcmi_read.v_ext;
               m.field = m_mcmi_read.field;
-              m.size   = std::popcount(m_mcmi_read.mask);
               if (m_mcmi_read.splat){
-                uint16_t total_elements = m.size / elemsize;
+                uint16_t total_elements = size / elemsize;
                 m.pa = m_mcmi_read.addr;
                 std::bitset<256> value = stringToBitset(dataAccumulated.substr(0, elemsize * 2));
                 m.size = elemsize;
@@ -927,7 +926,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
       m.size   = std::popcount(m_mcmi_read.mask);
       m.field = m_mcmi_read.field;
       if (m_mcmi_read.splat){
-        uint16_t total_elements = m.size / elemsize;
+        uint16_t total_elements = size / elemsize;
         m.pa = m_mcmi_read.addr;
         std::bitset<256> value = stringToBitset(dataAccumulated.substr(0, elemsize * 2));
         m.size = elemsize;
