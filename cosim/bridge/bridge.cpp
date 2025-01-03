@@ -877,7 +877,7 @@ void bridge::pre_step_nmi_poke(hart_id_t hart, const rv_instr_t& d, whisper_stat
 void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
   if (prev_mip_ != mip_)
     mip_age_ = 0;
-  if (prev_e_mip_ != e_mip_)
+  if (prev_e_mip_ != e_mip_ || msi_.size() != 0)
     e_mip_age_ = 0;
 
   if (!mip_ && !prev_mip_ && !d.intr) {
@@ -1916,7 +1916,7 @@ bool bridge::topi_mismatch(const std::string& instr) {
 
 bool bridge::topei_mismatch(const std::string& instr) {
   if ((instr.find("topei") != std::string::npos) &&
-      (e_mip_age_ < FLAGS_mip_resynch_threshold || msi_.size() != 0))
+      (e_mip_age_ < FLAGS_mip_resynch_threshold))
     return true;
   return false;
 }
