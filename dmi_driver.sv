@@ -72,7 +72,9 @@ import rv_tester_params:: * ;
   logic check_hit_for_tselect, to_check_tselect, read_tselect, to_check_hit, check_hit_bit, read_tdata1_hit;
 
   logic mmr_write_32bits, mmr_write_64bits, check_data0, check_data1, get_data1, mmr_read_32bits, mmr_read_64bits, mmr_access_rd, read_data1, read_data0_comp, read_data1_comp;
-  int data0_value, data1_value, hart_enable_mask_value;
+
+  logic read_data2, read_data3, get_data2, get_data3;
+  int data0_value, data1_value, hart_enable_mask_value, data2_value, data3_value;
   logic [7:0] DM_DebugReq_Valids_q;
   typedef struct packed {
     logic [15:0] reg_addr;
@@ -170,6 +172,8 @@ import rv_tester_params:: * ;
     dm_hartsel <= 0;
     core_disabled <= 0;
     hart_enable_mask_value <= 1;
+    read_data2 <= 0;
+    read_data3 <= 0;
   end
       
   assign multitriggers_plusarg = sdtrig_multitrigger;
@@ -482,11 +486,13 @@ import rv_tester_params:: * ;
           poll = 1;
           get_data1 = 1;
           check_data1 = 0;
+          //check_data2 = 1;
           $display("get_data1:%h to compare", get_data1);
         end else if(mmr_access_rd && cmd.addr === 'h4 && cmd.op === 'h1) begin
           poll = 1;
-          read_data0_comp = 1;
+          //read_data0_comp = 1;
           mmr_access_rd = 0;
+          read_data2 = 1;
           $display("Read data0 to compare 32bit read");
         end else if(read_data1 && cmd.addr === 'h5 && cmd.op === 'h1) begin
           poll = 1;
@@ -601,6 +607,12 @@ import rv_tester_params:: * ;
         end else if(read_data1_comp)begin
           $display("[Poll] data1 read value for mem access with size:64");
           dmi_req <= 41'h1500000000;
+        end else if(get_data2 || read_data2) begin
+          $display("[Poll] store/read the address from data2 to compare ");
+          dmi_req <= 41'h1900000000;
+        end else if(get_data3 || read_data3) begin
+          $display("[Poll] store/read the address from data3 to compare ");
+          dmi_req <= 41'h1d00000000;
         end
         wait (dmi_req_ready == 1);
         @(posedge clk) dmi_req_valid <= '0;
@@ -953,12 +965,44 @@ import rv_tester_params:: * ;
             $display("mmr_read_32bits is set");
           end
             check_data0 = 0;
+          get_data2 = 1;
+        end else if(get_data2)begin
+          data2_value = dmi_resp.data;
+          $display("data2_value:%h", data2_value);
+          get_data2 = 0;
+          get_data3 = 1;
+        end else if(get_data3)begin
+          data3_value = dmi_resp.data;
+          $display("data3_value:%h", data3_value);
+          get_data3 = 0;
             poll = 0;
         end else if(get_data1) begin
           data1_value = dmi_resp.data;
           $display("data1_value:%h", data1_value);
           poll = 0;
           get_data1 = 0;
+        end else if(read_data2) begin
+          $display("data2_stored_value:%h data2_read_value:%h", data2_value, dmi_resp.data);
+          if(data2_value === dmi_resp.data) begin
+            read_data2 = 0;
+            read_data3 = 1;
+            $display("read_data3 is set");
+          end else begin
+            poll = 0;
+            read_data2 = 0;
+            $display("read_data2: read is not happening for the written addr");
+          end
+        end else if(read_data3) begin
+          $display("data3_stored_value:%h data3_read_value:%h", data3_value, dmi_resp.data);
+          if(data3_value === dmi_resp.data) begin
+            read_data3 = 0;
+            read_data0_comp = 1;
+            $display("read_data0_comp is set");
+          end else begin
+            poll = 0;
+            read_data3 = 0;
+            $display("read_data3: read is not happening for the written addr");
+          end
         end else if(read_data0_comp) begin
           $display("line #889 data0_value:%h, dmi_resp.data:%h", data0_value, dmi_resp.data);
           if(data0_value === dmi_resp.data) begin
