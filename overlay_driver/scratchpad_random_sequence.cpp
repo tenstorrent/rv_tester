@@ -3,7 +3,7 @@
 
 REGISTRY_register(scratchpad_random_sequence, OVERLAY_DRIVER, cvm::registry::all);
 
-DEFINE_bool(sp_xtor_rand_en, false, "Enable scratchpad_random_sequence tick");
+DEFINE_bool(sp_xtor_rand_en, true, "Enable scratchpad_random_sequence tick");
 DEFINE_bool(sp_xtor_en, false, "Enable scratchpad_random_sequence tick");
 DEFINE_bool(sp_xtor_mmr_prog_en, false, "Enable scratchpad transactor acceses ");
 DEFINE_bool(sp_xtor_rnd_traffic_en, false, "Enable programming of SP mmr from Scraptchpad transactor ");
@@ -178,9 +178,9 @@ cvm::messenger::task<void> scratchpad_random_sequence::axi_write_data_granular()
 
   cvm::log(cvm::HIGH, "[scratchpad_xtor] backdoor whisper poke  Successful for addr{:#x} poke_data {:#x} \n",scratchpad_addr_in_flight+i,w_txn.data[i]);
   }
-    co_return;
   }
 
+    co_return;
 
 }
 cvm::messenger::task<void> scratchpad_random_sequence::sp_rand_traffic(){
