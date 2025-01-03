@@ -114,13 +114,13 @@ bool exitLoop() {
  void Run_cmd_loop()
   {
     bool exit = false;
-    if (loop_idx == (loop_size-1)){
-      if (FLAGS_reverse_jtag_rdata) {
-        cvm::log(cvm::HIGH, "[jtag_sequence]: In loop, JTAG rdata before  . loop_rdata = {:#x}\n",loop_rdata);
-        loop_rdata = reverseBits(loop_rdata,jtag_length_data_in_loop );
-        cvm::log(cvm::HIGH, "[jtag_sequence]: In loop, JTAG rdata reversed . loop_rdata = {:#x}, reversed bit size = {}\n",loop_rdata, jtag_length_data_in_loop);
-      }
-    exit = exitLoop();
+    if (loop_idx == (loop_size-1) && loop_execution_cnt > 0 ){
+      std::vector<uint64_t> convertedArray = {};
+      cvm::log(cvm::HIGH, "[jtag_sequence]: In loop, JTAG rdata before  . jtag_rdata = 0b{}\n",jtag_rdata);
+      convertedArray = reverseJtagAndStripSIB(jtag_rdata, jtag_length_data_in_loop);
+      loop_rdata = convertedArray[0];
+      cvm::log(cvm::HIGH, "[jtag_sequence]: In loop, JTAG rdata reversed and stripped . loop_rdata = {:x}, reversed bit size = {}\n",loop_rdata, jtag_length_data_in_loop);
+      exit = exitLoop();
     }
     cvm::log(cvm::HIGH, "[jtag_driver]: Run_cmd_loop() , loop_execution_cnt = {}, loop condition met = {}\n", loop_execution_cnt, exit);
     cvm::log(cvm::HIGH, "[jtag_driver]: Run_cmd_loop() , loop_idx = {}, loop_size = {}\n", loop_idx, loop_size);
@@ -149,13 +149,12 @@ bool exitLoop() {
     upper_jtag_data = jtag_req.jtag_ip_data_upper;
     lower_jtag_data = jtag_req.jtag_ip_data_lower;
     reg_length_data = jtag_req.jtag_length_data;
-    if(jtag_req.jtag_cmd==1)
-      jtag_length_data_in_loop = jtag_req.jtag_length_data;
     
     cvm::log(cvm::HIGH, "[jtag_sequence]: JTAG loop command {}\n",jtag_cmd);
     
     if(jtag_cmd<3){
       hart = 0; // hart bits position TBD, till TBD it is always zero
+      jtag_length_data_in_loop = jtag_req.jtag_length_data;
       trickboxJtagWrite(hart, jtag_cmd, upper_jtag_data, lower_jtag_data,reg_length_data,0,tap_cfg_sel);
       if(loop_idx<loop_size){
         loop_idx++;
@@ -202,6 +201,7 @@ bool exitLoop() {
   void setNonBlocking(int socket);
   std::string process_string(const std::string& input);
   cvm::messenger::task<void> open_socket_to_listen();
+
 
 uint64_t reverseBits(uint64_t data, int N) {
   if (N <= 1 || N > 64) {
@@ -295,8 +295,7 @@ std::string tapToString(unsigned tap);
 template <std::size_t N>
 std::bitset<N> reverseLowerBits(const std::bitset<N>& bs, std::size_t split_length) {
     // Ensure split_length does not exceed the bitset size N
-    int max_sib_length = 10;
-    split_length = std::min((split_length+max_sib_length), N);
+    split_length = std::min((split_length), N);
     
      cvm::log(cvm::FULL, "[jtag_sequence] split_length {}\n",split_length);
     // Create a new bitset to store the reversed bits
@@ -334,8 +333,62 @@ std::bitset<N> reverseLowerBits(const std::bitset<N>& bs, std::size_t split_leng
     }
 
     return ulongArray;
-}
+ }
+ 
+  std::vector<uint64_t> reverseJtagAndStripSIB(const std::bitset<1344>& jtag_rdata, unsigned  ){
+    
+    // Use a hexadecimal number as a mask
+    std::bitset<1344> mask_64(0xFFFFFFFFFFFFFFFF); 
+    std::bitset<1344> mask_32(0xFFFFFFFF); 
+    std::bitset<1344> mask_40(0xFFFFFFFFFF); 
 
+    std::bitset<1344> jtag_rdata_shifted(0);
+    unsigned reg_length_data_local = 64;
+
+    if (tap_cfg_sel == 1){ //DTM:1 
+      jtag_rdata_shifted = jtag_rdata & mask_40;
+      reg_length_data_local = 40;
+    } 
+    else if(tap_cfg_sel == 2){ //AXI:2 
+      jtag_rdata_shifted = jtag_rdata & mask_64;
+    } 
+    else if(tap_cfg_sel == 3){//ACLINT:3
+      jtag_rdata_shifted = jtag_rdata >> 4; 
+      jtag_rdata_shifted = jtag_rdata_shifted & mask_64;
+    } 
+    else if(tap_cfg_sel == 4){ //PMNW:4
+      jtag_rdata_shifted = jtag_rdata>>3;
+      jtag_rdata_shifted = jtag_rdata_shifted & mask_64;
+    } 
+    else if(tap_cfg_sel == 5){//SMC:5
+      jtag_rdata_shifted = jtag_rdata>>2;
+      jtag_rdata_shifted = jtag_rdata_shifted & mask_32;
+      reg_length_data_local = 32;
+    }
+    else if(tap_cfg_sel == 6){//TRACE:6
+      jtag_rdata_shifted = jtag_rdata>>1;
+      jtag_rdata_shifted = jtag_rdata_shifted & mask_64;
+    } 
+    else if(tap_cfg_sel == 7){//CORE H2: 7
+      jtag_rdata_shifted = jtag_rdata>>1;
+      jtag_rdata_shifted = jtag_rdata_shifted & mask_64;
+    }
+    else { //
+      cvm::log(cvm::ERROR, "\n[jtag_sequence] Data check not allowed for tap {}\n", tap_cfg_sel);
+    }
+
+    if(FLAGS_reverse_jtag_rdata){
+        cvm::log(cvm::HIGH, "\n[jtag_sequence] jtag_rdata after shifting {} , reg_data_length {}\n", jtag_rdata_shifted,reg_length_data_local);
+        jtag_reversed_rdata = reverseLowerBits(jtag_rdata_shifted, reg_length_data_local);
+        cvm::log(cvm::HIGH, "\n[jtag_sequence] Reversed jtag_rdata {} , reg_data_length {}\n", jtag_reversed_rdata,reg_length_data_local);
+      }
+
+    std::vector<uint64_t> convertedArray = {};
+    std::bitset<1344> result = jtag_reversed_rdata;
+    convertedArray =  bitsetToUint64Array(result);
+    cvm::log(cvm::HIGH, "\n[jtag_sequence] Stripped SIB for tap sel {} , jtag_rdata = 0x{:x}\n", tap_cfg_sel, convertedArray[0]);
+    return convertedArray;
+  }
   private:
 
     void csv_mode_thread();
