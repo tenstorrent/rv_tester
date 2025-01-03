@@ -1211,20 +1211,21 @@ localparam CAM_IHBIT = CAM_IBITS;
     endfunction
 
     // m_core_intr
-    rv_tester_pkg::interrupt_t wired_interrupt_d1;
+    localparam wired_interrupt_delays = 5;
+    rv_tester_pkg::interrupt_t [wired_interrupt_delays-1:0] wired_interrupt_delayed;
     always @(posedge clk) begin
       if (dut_reset) begin
-        wired_interrupt_d1 <= 0;
+        wired_interrupt_delayed <= '{default:0};
       end else begin
-        wired_interrupt_d1 <= wired_interrupt;
+        wired_interrupt_delayed <= {wired_interrupt_delayed[wired_interrupt_delays-2:0],wired_interrupt};
       end
     end
-    assign m_core_intrs[0].valid = ~dut_reset & (|(wired_interrupt & ~wired_interrupt_d1) | |(~wired_interrupt & wired_interrupt_d1)) & rvfi_enabled;
+    assign m_core_intrs[0].valid = ~dut_reset & (|(wired_interrupt_delayed[wired_interrupt_delays-2] & ~wired_interrupt_delayed[wired_interrupt_delays-1]) | |(~wired_interrupt_delayed[wired_interrupt_delays-2]& wired_interrupt_delayed[wired_interrupt_delays-1])) & rvfi_enabled;
     assign m_core_intrs[0].data.location = location;
     assign m_core_intrs[0].data.cycle = clocks;
-    assign m_core_intrs[0].data.mip = get_mip(wired_interrupt);
-    assign m_core_intrs[0].data.mip_mask = get_mip_mask(wired_interrupt, wired_interrupt_d1);
-    assign m_core_intrs[0].data.mip_assert = get_mip_assert(wired_interrupt, wired_interrupt_d1);
+    assign m_core_intrs[0].data.mip = get_mip(wired_interrupt_delayed[wired_interrupt_delays-2]);
+    assign m_core_intrs[0].data.mip_mask = get_mip_mask(wired_interrupt_delayed[wired_interrupt_delays-2], wired_interrupt_delayed[wired_interrupt_delays-1]);
+    assign m_core_intrs[0].data.mip_assert = get_mip_assert(wired_interrupt_delayed[wired_interrupt_delays-2], wired_interrupt_delayed[wired_interrupt_delays-1]);
 
     function automatic bit [63:0] get_mip(rv_tester_pkg::interrupt_t intr);
       bit [63:0] mip = 'h0;
