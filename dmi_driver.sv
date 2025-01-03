@@ -174,6 +174,8 @@ import rv_tester_params:: * ;
     hart_enable_mask_value <= 1;
     read_data2 <= 0;
     read_data3 <= 0;
+    get_data2 <= 0;
+    get_data3 <= 0;
   end
       
   assign multitriggers_plusarg = sdtrig_multitrigger;
