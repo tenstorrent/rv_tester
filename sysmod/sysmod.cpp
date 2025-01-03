@@ -67,6 +67,7 @@ DEFINE_int32(start_overlay_access,10, "Start tick point for starting overlay acc
 DEFINE_uint32(debug_enable, 3, "Debug enable fuse");
 DEFINE_bool(hart_sync_en, true, "Enable hart sync routine in bootrom");
 DEFINE_bool(export_control_en, false, "Enable export control to reduce FP double precision");
+DEFINE_uint32(mem_manager_page_size, 4096, "Mem manager internal page size");
 
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 
@@ -781,7 +782,7 @@ sysmod::compose() {
   auto platform_loc = cvm::topology::get_from_type("PLATFORM", 0);
   auto nharts = cvm::topology::attr(platform_loc, "NHARTS").second;
 
-  std::shared_ptr<mem_manager> mm = std::make_shared<mem_manager>();
+  std::shared_ptr<mem_manager> mm = std::make_shared<mem_manager>(mem_manager::opts{.page_size = FLAGS_mem_manager_page_size});
 
   try {
     for (const auto& d : memmap_) {
