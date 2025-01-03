@@ -55,8 +55,8 @@ import rv_tester_params:: * ;
   logic single_step_started, single_step_quit;
   logic abs_read, abs_write, abs_read_data, sdtrig_fire, halted_sdtrig;
   logic cores_in_halt_group, core_haltg_hreq, cores_in_resume_grp, core_resumeg_rreq, ack_havereset, remove_core_from_haltg, remove_core_from_resumeg;
-  logic [7:0] core_in_halt_group, core_in_resume_grp, core_halted, core_resumed, core_ignore_hreq, core_ignore_rreq;
-  logic [9:0] core_hg_check, core_rg_check;
+  logic [7:0] core_in_halt_group, core_in_resume_grp, core_halted, core_resumed, core_ignore_hreq, core_ignore_rreq, core_disabled;
+  logic [9:0] dm_hartsel, core_rg_check;
   logic [2:0] core_halt_index, core_resume_index;
   logic tdata1_write, check_trigger_type, mcontrol6_trigger, trigger_to_fire, trigger_fired_halted, check_cause_trigger, cause_trigger, to_check_cause;
   logic dcsr_abscmd, dcsr_write, ss_step_bit, core_to_halt_after_ss, core_halted_after_ss;
@@ -72,7 +72,9 @@ import rv_tester_params:: * ;
   logic check_hit_for_tselect, to_check_tselect, read_tselect, to_check_hit, check_hit_bit, read_tdata1_hit;
 
   logic mmr_write_32bits, mmr_write_64bits, check_data0, check_data1, get_data1, mmr_read_32bits, mmr_read_64bits, mmr_access_rd, read_data1, read_data0_comp, read_data1_comp;
-  int data0_value, data1_value;
+
+  logic read_data2, read_data3, get_data2, get_data3;
+  int data0_value, data1_value, hart_enable_mask_value, data2_value, data3_value;
   logic [7:0] DM_DebugReq_Valids_q;
   typedef struct packed {
     logic [15:0] reg_addr;
@@ -167,10 +169,13 @@ import rv_tester_params:: * ;
     read_data1 <= 0;
     read_data0_comp <= 0;
     read_data1_comp <= 0;
-  end
-
-  initial begin
-    count_hart_enable_mask = $countones(hart_enable_mask);
+    dm_hartsel <= 0;
+    core_disabled <= 0;
+    hart_enable_mask_value <= 1;
+    read_data2 <= 0;
+    read_data3 <= 0;
+    get_data2 <= 0;
+    get_data3 <= 0;
   end
       
   assign multitriggers_plusarg = sdtrig_multitrigger;
@@ -181,6 +186,7 @@ import rv_tester_params:: * ;
   assign num_dm_randload_plsg = num_dm_randload;
   assign num_dm_randstore_plsg = num_dm_randstore;
   assign tselect_conf_plusarg = trigger_config;
+  assign count_hart_enable_mask = $countones(hart_enable_mask);
 
   always @(posedge clk) begin
     dmi_commands_in_queue = command_queue.size();
@@ -304,8 +310,8 @@ import rv_tester_params:: * ;
           $display("[Poll] Clearing sdtrig_fire = 0");
           $display("[Poll] Setting halted_sdtrig = 1");
         end else if (cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[31] === '1 && cmd.data[1] === '0) begin
-          core_hg_check = cmd.data[25:16];
-          if(~core_in_halt_group[core_hg_check]) begin
+          dm_hartsel = cmd.data[25:16];
+          if(~core_in_halt_group[dm_hartsel]) begin
             $display("[Poll] Seen Halt Req, Doing Poll");
             halt_req = 1;
             poll = 1;
@@ -482,11 +488,13 @@ import rv_tester_params:: * ;
           poll = 1;
           get_data1 = 1;
           check_data1 = 0;
+          //check_data2 = 1;
           $display("get_data1:%h to compare", get_data1);
         end else if(mmr_access_rd && cmd.addr === 'h4 && cmd.op === 'h1) begin
           poll = 1;
-          read_data0_comp = 1;
+          //read_data0_comp = 1;
           mmr_access_rd = 0;
+          read_data2 = 1;
           $display("Read data0 to compare 32bit read");
         end else if(read_data1 && cmd.addr === 'h5 && cmd.op === 'h1) begin
           poll = 1;
@@ -502,6 +510,9 @@ import rv_tester_params:: * ;
     begin
       $display("[Poll] Starting poll for halt:%h resume:%h abstract:%h", halt_req, resume_req,
                abstr_cmd_req);
+      for(int i=0; i<count_hart_enable_mask; i++) begin
+        hart_enable_mask_value = hart_enable_mask_value | (1 << i);
+      end
       while (poll) begin
         //READ DMSTATUS
         @(posedge clk) dmi_req_valid <= '1;
@@ -598,6 +609,12 @@ import rv_tester_params:: * ;
         end else if(read_data1_comp)begin
           $display("[Poll] data1 read value for mem access with size:64");
           dmi_req <= 41'h1500000000;
+        end else if(get_data2 || read_data2) begin
+          $display("[Poll] store/read the address from data2 to compare ");
+          dmi_req <= 41'h1900000000;
+        end else if(get_data3 || read_data3) begin
+          $display("[Poll] store/read the address from data3 to compare ");
+          dmi_req <= 41'h1d00000000;
         end
         wait (dmi_req_ready == 1);
         @(posedge clk) dmi_req_valid <= '0;
@@ -606,36 +623,71 @@ import rv_tester_params:: * ;
         @(posedge clk) dmi_resp_ready <= 0;
         //check dmstatus
         // $display("\ndmi resp %h\n",dmi_resp.data);
-        if (resume_req && dmi_resp.data[17:16] === 2'b11) begin
-          resume_req = 0;
-          poll = 0;
-          if(mcontrol6_trigger) begin
-            trigger_to_fire = 1;
-            mcontrol6_trigger = 0;
-            $display("[Poll] trigger_to_fire is set");
-          end
-          $display("[Poll] Clear Resume Req Poll");
-          do_file_writes();
-          if(ss_step_bit) begin
-            core_to_halt_after_ss = 1;
-            $display("core_to_halt_after_ss is set");
-          end
-          if(core_halted_after_ss) begin
-            core_halted_after_ss = 0;
-            $display("core_halted_after_ss is cleared");
-          end
-        end else if (halt_req && dmi_resp.data[9:8] === 2'b11) begin
-          halt_req = 0;
-          poll = 0;
-          $display("[Poll] Clear Halt Req Poll");
-        end else if (abstr_cmd_req && dmi_resp.data[12] === 1'b0) begin
-          abstr_cmd_req = 0;
-          $display("[Poll] Clear Abstract Command Req Poll");
-          $display("[Poll] Reading the data output of the abstract command");
-          if (abs_read === 'h1) begin
-            abs_read_data = 1;
+        if (resume_req) begin
+          if(hart_enable_mask_value[dm_hartsel]) begin
+            if(dmi_resp.data[17:16] === 2'b11) begin
+              resume_req = 0;
+              poll = 0;
+              if(mcontrol6_trigger) begin
+                trigger_to_fire = 1;
+                mcontrol6_trigger = 0;
+                $display("[Poll] trigger_to_fire is set");
+              end
+              $display("[Poll] Clear Resume Req Poll");
+              do_file_writes();
+              if(ss_step_bit) begin
+                core_to_halt_after_ss = 1;
+                $display("core_to_halt_after_ss is set");
+              end
+              if(core_halted_after_ss) begin
+                core_halted_after_ss = 0;
+                $display("core_halted_after_ss is cleared");
+              end
+            end
           end else begin
             poll = 0;
+            resume_req = 0;
+            $display("[Poll] Core disabled - Not polling for resume req");
+          end
+        end else if (halt_req)begin
+          if(hart_enable_mask_value[dm_hartsel]) begin
+            $display("[Poll] Selected hart:%h is enabled and expected to halt", dm_hartsel);
+            if(dmi_resp.data[9:8] === 2'b11) begin
+              $display("[Poll] Selected hart:%h is enabled and halted", dm_hartsel);
+              halt_req = 0;
+              poll = 0;
+              $display("[Poll] Clear Halt Req Poll");
+            end
+          end else if (!hart_enable_mask_value[dm_hartsel]) begin
+            $display("[Poll] Selected hart:%h is disabled and should be unavailable", dm_hartsel);
+            if(dmi_resp.data[13:12] === 2'b11) begin
+              $display("[Poll] Selected hart:%h is disabled and is unavailable", dm_hartsel);
+              halt_req = 0;
+              poll = 0;
+              $display("[Poll] Clear Halt Req Poll");
+            end
+          end
+        end else if (abstr_cmd_req) begin
+          if(hart_enable_mask_value[dm_hartsel]) begin
+            $display("[Poll] Selected hart is enabled and busy should be cleared");
+            if(dmi_resp.data[12] === 1'b0) begin
+              $display("[Poll] Selected hart is enabled and busy is cleared");
+              abstr_cmd_req = 0;
+              $display("[Poll] Clear Abstract Command Req Poll");
+              $display("[Poll] Reading the data output of the abstract command");
+              if (abs_read === 'h1) begin
+                abs_read_data = 1;
+              end else begin
+                poll = 0;
+              end
+            end
+          end else if (!hart_enable_mask_value[dm_hartsel]) begin
+            $display("[Poll] Selected hart:%h is disabled and expect cmderr=4", dm_hartsel);
+            if(dmi_resp.data[10] === 1'b1) begin
+              abstr_cmd_req = 0;
+              $display("[Poll] Selected hart:%h is disabled and cmderr=4", dm_hartsel);
+              poll = 0;
+            end
           end
         end else if (abs_read_data) begin
           abs_data_temp_packet.reg_data = dmi_resp.data;
@@ -676,17 +728,23 @@ import rv_tester_params:: * ;
           $display("[Poll] Adding core%0d to halt group", core_halt_index);
         end else if(core_haltg_hreq) begin
           for(int ii=0; ii<8; ii++)begin
-            if(core_in_halt_group[ii] && dmi_resp.data[ii])begin
-              core_halted[ii] = 1;
-              $display("[Poll] core%0d in halt group is halted", ii);
+            //if(core_in_halt_group[ii] && dmi_resp.data[ii])begin
+            if(core_in_halt_group[ii]) begin
+              if(dmi_resp.data[ii] && hart_enable_mask_value[ii])begin
+                core_halted[ii] = 1;
+                $display("[Poll] core%0d in halt group is halted", ii);
+              end else if((dmi_resp.data[ii] || hart_enable_mask_value[ii]) === 0) begin
+                core_disabled[ii] = 1;
+                $display("[Poll] core%0d is disabled", ii);
+              end
             end else if(!core_in_halt_group[ii]) begin
               core_ignore_hreq[ii] = 1;
               $display("[Poll] core%0d is ignored as it's not part of halt group", ii);
             end
           end
-          if((core_halted[0] || core_ignore_hreq[0]) && (core_halted[1] || core_ignore_hreq[1]) &&
-          (core_halted[2] || core_ignore_hreq[2]) && (core_halted[3] || core_ignore_hreq[3]) && (core_halted[4] || core_ignore_hreq[4]) &&
-          (core_halted[5] || core_ignore_hreq[5]) && (core_halted[6] || core_ignore_hreq[6]) && (core_halted[7] || core_ignore_hreq[7])) begin
+          if((core_halted[0] || core_ignore_hreq[0] || core_disabled[0]) && (core_halted[1] || core_ignore_hreq[1]|| core_disabled[1]) &&
+          (core_halted[2] || core_ignore_hreq[2] || core_disabled[2]) && (core_halted[3] || core_ignore_hreq[3] || core_disabled[3]) && (core_halted[4] || core_ignore_hreq[4] || core_disabled[4]) &&
+          (core_halted[5] || core_ignore_hreq[5] || core_disabled[5]) && (core_halted[6] || core_ignore_hreq[6] || core_disabled[6]) && (core_halted[7] || core_ignore_hreq[7] || core_disabled[7])) begin
             poll = 0;
             core_haltg_hreq = 0;
             core_halted = 0;
@@ -709,17 +767,23 @@ import rv_tester_params:: * ;
           $display("[Poll] Adding core%0d to resume group", core_resume_index);
         end else if(core_resumeg_rreq) begin
           for(int ii=0; ii<8; ii++) begin
-            if(core_in_resume_grp[ii] && ~dmi_resp.data[ii])begin
-              core_resumed[ii] = 1;
-              $display("[Poll] core%0d in resume group is resumed", ii);
+            //if(core_in_resume_grp[ii] && ~dmi_resp.data[ii])begin
+            if(core_in_resume_grp[ii])begin
+              if(hart_enable_mask_value[ii] && ~dmi_resp.data[ii])begin
+                core_resumed[ii] = 1;
+                $display("[Poll] core%0d in resume group is resumed", ii);
+              end else if ((hart_enable_mask_value[ii] || dmi_resp.data[ii]) == 0) begin
+                core_disabled[ii] = 1;
+                $display("[Poll] core%0d is disabled", ii);
+              end
             end else if(!core_in_resume_grp[ii]) begin
               core_ignore_rreq[ii] = 1;
               $display("[Poll] core%0d is ignored as it's not part of resume group", ii);
             end
           end
-          if((core_resumed[0] || core_ignore_rreq[0]) && (core_resumed[1] || core_ignore_rreq[1]) &&
-          (core_resumed[2] || core_ignore_rreq[2]) && (core_resumed[3] || core_ignore_rreq[3]) && (core_resumed[4] || core_ignore_rreq[4]) &&
-          (core_resumed[5] || core_ignore_rreq[5]) && (core_resumed[6] || core_ignore_rreq[6]) && (core_resumed[7] || core_ignore_rreq[7])) begin
+          if((core_resumed[0] || core_ignore_rreq[0] || core_disabled[0]) && (core_resumed[1] || core_ignore_rreq[1] || core_disabled[1]) &&
+          (core_resumed[2] || core_ignore_rreq[2] || core_disabled[2]) && (core_resumed[3] || core_ignore_rreq[3] || core_disabled[3]) && (core_resumed[4] || core_ignore_rreq[4] || core_disabled[4]) &&
+          (core_resumed[5] || core_ignore_rreq[5] || core_disabled[5]) && (core_resumed[6] || core_ignore_rreq[6] || core_disabled[6]) && (core_resumed[7] || core_ignore_rreq[7] || core_disabled[7])) begin
             poll = 0;
             core_resumeg_rreq = 0;
             core_resumed = 0;
@@ -859,12 +923,12 @@ import rv_tester_params:: * ;
           end
         end else if(hart_discovery) begin
           $display("Chcking Hartsel in dmcontrol, hart_enable_mask[dmcontrol_hartsel]:%h, dmcontrol_hartsel:%h, dmi_resp.data[11:10]:%h", hart_enable_mask[dmcontrol_hartsel], dmcontrol_hartsel, dmi_resp.data[11:10]);
-          if(hart_enable_mask[dmcontrol_hartsel] === 1 && dmi_resp.data[11:10] === 3)  begin
+          if(hart_enable_mask_value[dmcontrol_hartsel] === 1 && dmi_resp.data[11:10] === 3)  begin
             hart_discovery = 0;
             poll = 0;
             dmcontrol_hartsel = 0;
             $display("Selected hart is running as it's enabled");
-          end else if(hart_enable_mask[dmcontrol_hartsel] === 0 && dmi_resp.data[13:12] === 3 && dmi_resp.data[11:10] === 0) begin
+          end else if(hart_enable_mask_value[dmcontrol_hartsel] === 0 && dmi_resp.data[13:12] === 3 && dmi_resp.data[11:10] === 0) begin
             hart_discovery = 0;
             poll = 0;
             dmcontrol_hartsel = 0;
@@ -903,12 +967,44 @@ import rv_tester_params:: * ;
             $display("mmr_read_32bits is set");
           end
             check_data0 = 0;
+          get_data2 = 1;
+        end else if(get_data2)begin
+          data2_value = dmi_resp.data;
+          $display("data2_value:%h", data2_value);
+          get_data2 = 0;
+          get_data3 = 1;
+        end else if(get_data3)begin
+          data3_value = dmi_resp.data;
+          $display("data3_value:%h", data3_value);
+          get_data3 = 0;
             poll = 0;
         end else if(get_data1) begin
           data1_value = dmi_resp.data;
           $display("data1_value:%h", data1_value);
           poll = 0;
           get_data1 = 0;
+        end else if(read_data2) begin
+          $display("data2_stored_value:%h data2_read_value:%h", data2_value, dmi_resp.data);
+          if(data2_value === dmi_resp.data) begin
+            read_data2 = 0;
+            read_data3 = 1;
+            $display("read_data3 is set");
+          end else begin
+            poll = 0;
+            read_data2 = 0;
+            $display("read_data2: read is not happening for the written addr");
+          end
+        end else if(read_data3) begin
+          $display("data3_stored_value:%h data3_read_value:%h", data3_value, dmi_resp.data);
+          if(data3_value === dmi_resp.data) begin
+            read_data3 = 0;
+            read_data0_comp = 1;
+            $display("read_data0_comp is set");
+          end else begin
+            poll = 0;
+            read_data3 = 0;
+            $display("read_data3: read is not happening for the written addr");
+          end
         end else if(read_data0_comp) begin
           $display("line #889 data0_value:%h, dmi_resp.data:%h", data0_value, dmi_resp.data);
           if(data0_value === dmi_resp.data) begin

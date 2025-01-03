@@ -112,8 +112,9 @@ namespace {
   typedef enum : bool { WR = 1, RD = 0 } access_t;
   typedef enum : bool { BLOCK = true, NO_BLOCK = false } block_t;
   typedef enum : int { CPL_SRAM = 0, CORE_CSR = 1, MMR_PMNW = 2 } smc_dest_path_t;
-  typedef enum : int { SMC = 0, OVERLAY = 1 } interface_t;
   typedef struct { uint32_t addr; uint64_t data; sz_t sz; } smc_scratchpad_info_t;
+  typedef enum : int { SMC, OVERLAY, INTF_COUNT } interface_t;
+  const std::unordered_map<interface_t, std::string_view> port_to_string = {{OVERLAY, "OVERLAY"}, {SMC, "SMC"}};
 
   constexpr uint32_t dm_scratchpad      = 0x4219FFE8;
   constexpr uint32_t cr_scratchpad      = 0x42002400;

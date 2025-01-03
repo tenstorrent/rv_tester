@@ -245,7 +245,7 @@ void debug_module_t::process(const rv_tester_transactions::dm_model::dm_load_dat
         cvm::log(cvm::HIGH, "[Test] masked_expected_data:{:#x} hart_select:{:#x} \n", masked_expected_data, hart_select);
         if ((masked_actual_data != masked_expected_data) && (masked_actual_data != 0x2))
         {
-        cvm::log(!FLAGS_dm_model_check_bypass?cvm::ERROR:cvm::NONE, "[Mismatch] The load data's are mismatching for Addr:{:#x} with Length:{:#x} ~~~ Shifted_Masked_Actual:{:#x} vs Masked_Expected:{:#x}\n", load_req_addr, load_req_length, masked_actual_data, masked_expected_data);
+        cvm::log(!FLAGS_dm_model_check_bypass?cvm::HIGH:cvm::NONE, "[Mismatch] The load data's are mismatching for Addr:{:#x} with Length:{:#x} ~~~ Shifted_Masked_Actual:{:#x} vs Masked_Expected:{:#x}\n", load_req_addr, load_req_length, masked_actual_data, masked_expected_data);
               }
     }
   }
@@ -572,7 +572,8 @@ uint32_t debug_module_t::read32(uint8_t *memory, unsigned int index)
 
 bool debug_module_t::hart_selected(unsigned hartid) const
 {
-  return hartid == selected_hart_id() && (hartid < FLAGS_num_harts); // || (dmcontrol.hasel && hart_array_mask[hartid]);
+  return hartid == selected_hart_id() && (hartid < max_hartid); // || (dmcontrol.hasel && hart_array_mask[hartid]);
+  cvm::log(cvm::HIGH, "Hart_selected func, hartid = {:#x}", hartid);
 }
 
 bool debug_module_t::hart_available(unsigned hart_id) const

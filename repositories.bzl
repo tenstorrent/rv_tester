@@ -14,7 +14,7 @@ def rv_tester_repositories():
         #sha256 = "af87959afe497dc8dfd4c6cb66e1279cb98ccc84284619ebfec27d9c09a903de",
     )
 
-    corearchcoverage_hash="a7147eff515037f34843c0b581efd7501c565cd0"
+    corearchcoverage_hash="5c94dfe49cc2f333cc57abf0bb8d64f1bdab50fd"
     maybe(
         git_repository,
         name = "corearchcoverage",
@@ -67,11 +67,11 @@ def rv_tester_repositories():
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/forks/rules_python/-/archive/{VERSION}/rules_python-{VERSION}.tar.bz2".format(VERSION=rules_python_version)
     )
 
-    mem_manager_hash="937feeda4906c3ac6947bb4deb2dd2df75cf765e"
+    mem_manager_hash="f8f81930a8b3a2d4151f971a05302b56bcea7c2a"
     maybe(
         http_archive,
         name = "mem_manager",
-        sha256 = "6bfefda857cf12650432e379246778f4411d13b2015ae1b4ec3aa3a2c9003395",
+        sha256 = "bec42044107330608fe0a6e05a735e1ffcdb16bf942381b69ad0b261253bfcdb",
         strip_prefix = "mem-manager-{commit}".format(commit=mem_manager_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/mem-manager/-/archive/{commit}/mem-manager-{commit}.tar.bz2".format(commit=mem_manager_hash),
     )
