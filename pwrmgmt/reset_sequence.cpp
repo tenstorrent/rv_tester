@@ -845,6 +845,7 @@ cvm::messenger::task<void> reset_sequence::disabled_mmr_csr_check() {
   co_await tick();
   uint32_t ncores = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
   std::vector<interface_t> interfaces = {SMC, OVERLAY};
+  bool FLAGS_axi_allow_err_resp_tmp = FLAGS_axi_allow_err_resp;
   for ( auto interface : interfaces) {
     cvm::log(cvm::MEDIUM, "[pwrmgmt]  Disabled MMR check from {} interface  \n", get_intf_name(interface) );
     for (uint32_t i = 0; i < ncores; ++i) {
@@ -853,7 +854,7 @@ cvm::messenger::task<void> reset_sequence::disabled_mmr_csr_check() {
       FLAGS_axi_allow_err_resp = (interface==SMC) ? FLAGS_axi_allow_err_resp : 1;
       co_await read(core_fuse_mmr + i * core_fuse_offset,   SZ_8B, interface);
     }
-    
+
     FLAGS_axi_allow_err_resp = !FLAGS_trace_enable;
     mmr_read_write_check(tr_scratchpad, interface);
     FLAGS_axi_allow_err_resp = (interface==SMC) ? FLAGS_axi_allow_err_resp : 1;
@@ -864,7 +865,7 @@ cvm::messenger::task<void> reset_sequence::disabled_mmr_csr_check() {
     FLAGS_axi_allow_err_resp = (interface==SMC) ? FLAGS_axi_allow_err_resp : 1;
     co_await read(dm_fuse_mmr, SZ_8B, interface);
   }
-  FLAGS_axi_allow_err_resp = 0;
+  FLAGS_axi_allow_err_resp = FLAGS_axi_allow_err_resp_tmp;
 
   co_return;
 };
