@@ -3,7 +3,7 @@
 
 REGISTRY_register(scratchpad_random_sequence, OVERLAY_DRIVER, cvm::registry::all);
 
-DEFINE_bool(sp_xtor_rand_en, true, "Enable scratchpad_random_sequence tick");
+DEFINE_bool(sp_xtor_rand_en, false, "Enable scratchpad_random_sequence tick");
 DEFINE_bool(sp_xtor_en, false, "Enable scratchpad_random_sequence tick");
 DEFINE_bool(sp_xtor_mmr_prog_en, false, "Enable scratchpad transactor acceses ");
 DEFINE_bool(sp_xtor_rnd_traffic_en, false, "Enable programming of SP mmr from Scraptchpad transactor ");
