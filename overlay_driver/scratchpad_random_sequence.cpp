@@ -58,7 +58,7 @@ cvm::messenger::task<void> scratchpad_random_sequence::axi_read_granular(const t
   ar_txn.user  =0;
   
   sp_xtor_num_accesses++;
-  cvm::log(cvm::LOW, "[Trickbox] SP_XTOR AXI READ GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", ar_txn.addr);
+  cvm::log(cvm::LOW, "[scratchpad_random_sequence] SP_XTOR AXI READ GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", ar_txn.addr);
 
   //cvm::registry::messenger.signal(axi_mst_loc_l, ar_txn);
   if (!cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_mst_loc_l, ar_txn , id))
@@ -112,25 +112,25 @@ cvm::messenger::task<void> scratchpad_random_sequence::random_mode() {
                 co_await axi_read(sp_addr,4,4);
                 rnd_traffic_cnt_tick = cnt_tick + 5 + rng()% 60; //5 cycle min buffer
              }
-            }else if(FLAGS_sp_xtor_test_cwfr){
+    }else if(FLAGS_sp_xtor_test_cwfr){
               if(cnt_tick == 60){
-                cvm::log(cvm::HIGH, " **** SCRATCHPAD_XTOR CORE Write Fabric Read Test **** \n");
+                cvm::log(cvm::HIGH, " **** [scratchpad_random_sequence] CORE Write Fabric Read Test **** \n");
                 co_await axi_read(0x60000000,4,4); 
               }
-            }else if(FLAGS_sp_xtor_test_fwcr){
+    }else if(FLAGS_sp_xtor_test_fwcr){
               if(cnt_tick == 34){
-                cvm::log(cvm::HIGH, " **** SCRATCHPAD_XTOR Fabric Write Core Read Test **** \n");
+                cvm::log(cvm::HIGH, " **** [scratchpad_random_sequence] Fabric Write Core Read Test **** \n");
                 uint64_t addr = 0x60000000;
                 co_await axi_write_granular(addr);
               }
               if(cnt_tick == 34){
                 co_await axi_write_data_granular();
               }
-            }
-            else{
-            cvm::log(cvm::HIGH, " SCRATCHPAD_XTOR tick {}\n",cnt_tick);
+    }
+    else{
+            cvm::log(cvm::HIGH, " [scratchpad_random_sequence] tick {}\n",cnt_tick);
             if(cnt_tick == 60){
-            cvm::log(cvm::HIGH, " SCRATCHPAD_XTOR trigger flag set \n");
+            cvm::log(cvm::HIGH, " [scratchpad_random_sequence] trigger flag set \n");
             uint64_t addr = 0x60000000;
             co_await axi_write_granular(addr);
             }
@@ -139,19 +139,20 @@ cvm::messenger::task<void> scratchpad_random_sequence::random_mode() {
             }
             if(cnt_tick == 62){
                //axi_read_granular();
-               cvm::log(cvm::HIGH, " SCRATCHPAD_XTOR READ SP DATA \n");
+               cvm::log(cvm::HIGH, " [scratchpad_random_sequence] READ SP DATA \n");
                co_await axi_read(0x60000000,4,4);
             }
-            }
+      }
+
 	    if(FLAGS_sp_xtor_mmr_prog_en){
 	       if(cnt_tick == 24){
-               cvm::log(cvm::HIGH, " SCRATCHPAD_XTOR trigger flag set \n");
+               cvm::log(cvm::HIGH, " [scratchpad_random_sequence] Programming SP MMR \n");
                co_await axi_write_mmr_granular();
                }
                if(cnt_tick == 24){
                co_await axi_write_mmr_data_granular();
                }
-            }
+      }
         
 
   //////////
@@ -219,7 +220,7 @@ cvm::messenger::task<void> scratchpad_random_sequence::axi_write_granular(uint64
   aw_txn.user  =0;
   
   sp_xtor_num_accesses++;
-  cvm::log(cvm::LOW, "[Trickbox] SP_XTOR AXI WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
+  cvm::log(cvm::LOW, "[scratchpad_random_sequence] SP_XTOR AXI WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
 
   //cvm::registry::messenger.signal(axi_mst_loc_l, aw_txn);
   if (!cvm::registry::messenger.call<overlay_mst_t::push_aw_no_id_rpc>(axi_mst_loc_l, aw_txn, id))
@@ -229,7 +230,7 @@ cvm::messenger::task<void> scratchpad_random_sequence::axi_write_granular(uint64
 }
 cvm::messenger::task<void> scratchpad_random_sequence::sp_mmr_prog(){
 	if(FLAGS_sp_xtor_mmr_prog_en){
-     cvm::log(cvm::HIGH, " SCRATCHPAD_XTOR trigger flag set \n");
+     cvm::log(cvm::HIGH, " [scratchpad_random_sequence] trigger flag set \n");
      co_await axi_write_mmr_granular();
      co_await axi_write_mmr_data_granular();
   }
