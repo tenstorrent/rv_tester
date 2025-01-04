@@ -63,7 +63,7 @@ class scratchpad_random_sequence {
 
     uint32_t cnt_tick=0;
     uint32_t start_scratchpad_cnt,read_ram;
-    uint32_t rnd_traffic_cnt_tick=20;
+    uint32_t rnd_traffic_cnt_tick=32;
     uint64_t sp_base = 0x60000000;
     uint64_t sp_addr = 0x60000000;
     uint64_t scratchpad_addr_in_flight;
