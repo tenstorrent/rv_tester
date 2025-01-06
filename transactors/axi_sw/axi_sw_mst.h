@@ -6,7 +6,7 @@
 #include "cvm/random.hpp"
 #include "rv_tester_transactions.hpp"
 
-DECLARE_bool(axi_rand_id_alloc)
+DECLARE_bool(axi_rand_id_alloc);
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 class axi_sw_mst {
 
