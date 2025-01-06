@@ -12,7 +12,6 @@
 #include <unordered_map>
 
 REGISTRY_register(aclint_checker, TOP.PLATFORM.ACLINT_CHECKER, 0);
-DEFINE_bool(aclint, false, "Enable aclint checks");
 
 extern "C" {
     uint64_t get_mtime_value();
