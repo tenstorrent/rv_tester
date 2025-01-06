@@ -42,7 +42,8 @@ class axi_sw_mst {
 
             //id = it - ids_.begin();
             id = it;
-            *it = false;
+            ids_[id] = false;
+            //*it = false;
             return true;
         }
 
