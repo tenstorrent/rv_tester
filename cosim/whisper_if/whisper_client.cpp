@@ -164,15 +164,17 @@ constructSystem(uint16_t ncores, bool standalone) {
   std::shared_ptr<WdRiscv::System<URV>> system = std::make_shared<WdRiscv::System<URV>>(coreCount, hartsPerCore, hartIdOffset, memorySize, pageSize);
 
   if (FLAGS_load_lz4 != "") {
-    std::string file = FLAGS_load_lz4;
-    uint64_t offset = 0;
-    if(std::size_t pos = FLAGS_load_lz4.find(':'); pos != std::string::npos) {
-      file = FLAGS_load_lz4.substr(0, pos);
-      std::string offset_str = FLAGS_load_lz4.substr(pos + 1);
-      offset = std::stoull(offset_str, nullptr, 0);
+    std::stringstream ss;
+    std::vector<std::string> targets;
+
+    ss << FLAGS_load_lz4;
+    while (ss.good()) {
+      std::string substr;
+
+      getline(ss, substr, ',');
+      targets.push_back(substr);
     }
-    std::vector<std::string> targets = {file};
-    if (not system->loadLz4Files(targets, offset, false))
+    if (not system->loadLz4Files(targets, 0, false))
       return nullptr;
   }
 
@@ -298,13 +300,10 @@ whisperClient<URV>::whisperStandalone()
       fclose(preload_log[i]);
 
   if (!FLAGS_nostop_standalone) {
-    if (!result) {
-      std::cerr << "Error: Test failed on Standalone Whisper, stopping simulation\n";
-      return -1;
-    } else if (max_instr && (FLAGS_max_instr != 0)) {
-      std::cerr << "Error: Test reached max instr on standalone Whisper, stopping simulation\n";
-      return -1;
-    }
+    if (!result)
+      cvm::log(cvm::ERROR, "Error: Test failed on Standalone Whisper, stopping simulation\n");
+    else if (max_instr && (FLAGS_max_instr != 0))
+      cvm::log(cvm::ERROR, "Error: Test reached max instr on standalone Whisper, stopping simulation\n");
   }
 
   if (result && (FLAGS_num_dm_randpc || FLAGS_num_dm_randload || FLAGS_num_dm_randstore)){
@@ -327,35 +326,52 @@ whisperClient<URV>::whisperStandalone()
       num_instr++; instructions++;
       uint64_t virt_addr, phys_addr, value;
       uint64_t pc = hart_new->lastPc();
-      if (hart_new->lastInstructionTrapped())
+      uint32_t inst;
+      hart_new->readInst(pc, inst);
+      if (   (inst & 0x10500073) // WFI
+          || (inst & 0x30200073) // MRET
+          || (((inst & 0x7fff) == 0x200f) && (inst>>20 <= 4))) // CBOs
+      {
+        pcs.push_back(pc); // giving more weightage
         pcs.push_back(pc);
-      else if (hart_new->lastLdStAddress(virt_addr, phys_addr)) {
-        if (hart_new->lastStore(phys_addr, value))
+        pcs.push_back(pc);
+
+      } else if (hart_new->lastInstructionTrapped()) {
+        pcs.push_back(pc);                 // Handler PC
+        pcs.push_back(pc);
+        uint64_t curr_pc = hart_new->pc(); // Exception PC
+        pcs.push_back(curr_pc);
+        pcs.push_back(curr_pc);
+
+      } else if (hart_new->lastLdStAddress(virt_addr, phys_addr)) {
+        if (hart_new->lastStore(phys_addr, value)) {
           stores.push_back(virt_addr);
-        else
+        } else {
           loads.push_back(virt_addr);
-      } else
-          pcs.push_back(pc);
+        }
+      } else {
+        pcs.push_back(pc);
+      }
     }
     uint32_t num_dm = FLAGS_num_dm_randpc;
     while (num_dm && pcs.size()) {
       int rand_idx = rng1() % pcs.size();
       dm_rand_val_.push_back(pcs[rand_idx]);
-      pcs.erase(pcs.begin() + rand_idx);
+      pcs.erase(std::remove(pcs.begin(), pcs.end(), pcs[rand_idx]), pcs.end()); // prevent duplicates
       num_dm--;
     }
     num_dm = FLAGS_num_dm_randload;
     while (num_dm && loads.size()) {
       int rand_idx = rng1() % loads.size();
       dm_rand_val_.push_back(loads[rand_idx]);
-      loads.erase(loads.begin() + rand_idx);
+      loads.erase(std::remove(loads.begin(), loads.end(), loads[rand_idx]), loads.end());
       num_dm--;
     }
     num_dm = FLAGS_num_dm_randstore;
     while (num_dm && stores.size()) {
       int rand_idx = rng1() % stores.size();
       dm_rand_val_.push_back(stores[rand_idx]);
-      stores.erase(stores.begin() + rand_idx);
+      stores.erase(std::remove(stores.begin(), stores.end(), stores[rand_idx]), stores.end());
       num_dm--;
     }
   }
@@ -370,38 +386,30 @@ whisperClient<URV>::whisperConnect()
   // This can be useful to compare with the cosim run
   if (FLAGS_standalone && (ncores_ == 1)) {
     system_ = constructSystem<URV>(ncores_, true);
-    if (system_ == nullptr) {
-      std::cerr << "Error: could not construct system\n";
-      return -1;
-    }
-
+    if (system_ == nullptr)
+      cvm::log(cvm::ERROR, "Error: could not construct system\n");
     whisperStandalone();
   }
 
   // Construct whisper for cosim
    system_ = constructSystem<URV>(ncores_, false);
   if (system_ == nullptr) {
-    std::cerr << "Error: could not construct system\n";
-    return -1;
+    cvm::log(cvm::ERROR, "Error: could not construct system\n");
   }
   server_ = std::make_unique<WdRiscv::Server<URV>>(*system_);
 
   // Coverage setup
   if (FLAGS_cov) {
     auto soPtr = dlopen(FLAGS_archsample_lib_path.c_str(), RTLD_NOW);
-    if (not soPtr) {
-      std::cerr << "Error: Failed to load shared libarary " << dlerror() << '\n';
-      return -1;
-    }
+    if (not soPtr)
+      cvm::log(cvm::ERROR, "Error: Failed to load shared library {}\n", dlerror());
 
     std::string entry("tracerExtension");
     entry += sizeof(URV) == 4 ? "32" : "64";
 
     __tracerExtension = reinterpret_cast<void (*)(void*)>(dlsym(soPtr, entry.c_str()));
-    if (not __tracerExtension) {
-      std::cerr << "Error: Could not find symbol tracerExtension in " << std::string(FLAGS_archsample_lib_path) << '\n';
-      return -1;
-    }
+    if (not __tracerExtension)
+      cvm::log(cvm::ERROR, "Error: Could not find symbol tracerExtension in {} \n", std::string(FLAGS_archsample_lib_path));
   }
 
   return 0;
@@ -876,7 +884,7 @@ whisperClient<URV>::whisperMcmWrite(int hart, uint64_t time, uint64_t addr,
     req.tag[i] = (uint8_t)((mask >> (i*8)) & 0xff);
 
   if (req.size > req.buffer.size()) {
-    std::cerr << "whisperMcmWrite: write size too large: " << req.size << '\n';
+    std::cerr << "whisperMcmWrite: write size too large: " << req.size << '\n'; // #FIXME: if it doesn't error, should it be cvm::medium?
     valid = false;
     return true;
   }

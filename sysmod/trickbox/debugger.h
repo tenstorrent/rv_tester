@@ -26,6 +26,7 @@
 #include "cvm/registry.hpp"
 #include "subdevice.h"
 #include "vpi_user.h"
+// #include "rv_tester_transactions.hpp"
 //#include "dm_model/dm_model.hpp"
 
 // DEFINE_string(dbg_input_file_path, "", "Path to file containing debugger commands");
@@ -36,6 +37,7 @@ DECLARE_int32(dbg_delay_min);
 DECLARE_int32(dbg_delay_max);
 DECLARE_int32(dbg_max_snippets);
 DECLARE_string(dbg_template_dir_path);
+DECLARE_bool(enable_cross);
 // Define a core local  (debugger) at the given address
 // and for the given hart count. The size will be 48k bytes.
 class debugger : public subdevice
@@ -83,16 +85,67 @@ public:
     std::lock_guard<std::mutex> lock(mutex_);
     timer_ += advance;
     timer_advance = advance;
-    cvm::log(cvm::FULL, "[Debugger]: Tick, timer:{}\n",timer_);
+    cvm::log(cvm::HIGH, "[Debugger]: Tick, timer:{} advance:{}\n",timer_,advance);
+    if(timer_ > (5*advance)){ 
     checkDebugEvents();
 
     drive_csv_dmi_cmds();
+    }
+  }
+
+  virtual void is_dut_reset_req(bool dut_reset_req_f,uint64_t iclocks,uint64_t idivisor) override
+  {
+    cvm::log(cvm::HIGH,"[Debugger]:Value of dut_reset_req in debugger is : {} clocks: {} divisor TICKS: {}\n",dut_reset_req_f,iclocks,idivisor);
+    dut_reset_req = dut_reset_req_f;
+    clocks = iclocks;
+    divisor = idivisor;
+    cvm::log(cvm::HIGH,"[Debugger]:Value of dut_reset_req in debugger  after assignment is : {} clocks: {} divisor TICKS: {}\n",dut_reset_req,iclocks,idivisor);
+    if(dut_reset_req){
+      ndm_reset_occured = true;
+      std::ofstream myfile;
+      myfile.open ("reset_state.txt", std::ios_base::app);
+      cvm::log(cvm::HIGH, "[Debugger]:Debugger is_dut_reset_req Attempting to write the State in Debugger: dut_reset_req: {} clocks: {} divisor {} \n",dut_reset_req,clocks,divisor);
+      cvm::log(cvm::HIGH, "[Debugger]:State written to Debugger : Ndm-Reset\n");
+      myfile << "Ndm-Reset\n";
+      myfile.flush();
+      myfile.close();
+    }
+    cvm::log(cvm::HIGH, "[Debugger]: Reset_req: {} ndm_reset_occured: {} clocks: {}\n",dut_reset_req,ndm_reset_occured,clocks);
+
   }
 
   void reset() override
   {
     cvm::log(cvm::HIGH, "[Debugger]: Reset debugger\n");
+    cvm::log(cvm::HIGH, "[Debugger]: Reset_req: {} ndm_reset_occured: {} clocks: {}\n",dut_reset_req,ndm_reset_occured,clocks);
+
+    std::ofstream myfile;
+    myfile.open ("reset_state.txt", std::ios_base::app);
+    cvm::log(cvm::HIGH, "[Debugger]:Debugger destructor Attempting to write the State in Debugger: dut_reset_req: {} clocks: {} divisor {} \n",dut_reset_req,clocks,divisor);
+    if (dut_reset_req){
+      cvm::log(cvm::HIGH, "[Debugger]:State written to Debugger : Ndm-Reset\n");
+      myfile << "Ndm-Reset\n";
+    }
+    myfile.flush();
+    myfile.close();
+
+    std::ifstream myfile1;
+    myfile1.open ("reset_state.txt");
+    if(myfile1.is_open()) {
+      // fin.seekg(-1,ios_base::end);                // go to one spot before the EOF
+      // fin.readline();
+      std::string line;
+      std::getline(myfile1, line);
+      cvm::log(cvm::HIGH, "[Debugger]:Reset State in Debugger is: {} at clocks {} divisor {}\n", line,clocks,divisor);
+      if (line == "Ndm-Reset") {
+        ndm_reset_occured = true;
+      }
+      
+    }
+    myfile1.close();
+
     dbg_snippets_name = "";
+    ndm_reset_occured = 0;
     uint32_t rand_num = 0;
     if (FLAGS_random_dbg_entry)
     {
@@ -106,7 +159,7 @@ public:
       file_idx = rng() % csvFilePaths.size();
       timer_rand_debug = timer_ + FLAGS_random_dbg_start_delay + (rand_num * timer_advance);
       // cmd_trigger_rand_debug = timer_ + 50*FLAGS_random_dbg_start_delay + (rand_num * timer_advance); 
-      cvm::log(cvm::HIGH, "Random Debug Injection of CSV file ID:{} Timer delay:{}\n", file_idx, timer_rand_debug);
+      cvm::log(cvm::HIGH, "[Debugger]:Random Debug Injection of CSV file ID:{} Timer delay:{}\n", file_idx, timer_rand_debug);
       // cvm::log(cvm::HIGH, "Command Execution Trigger Timer delay:{}\n", cmd_trigger_rand_debug);
     }
   }
@@ -146,21 +199,21 @@ public:
 
   void checkDebugEvents()
   {
-    cvm::log(cvm::FULL, "Timer chk dbg evt \n");
+    cvm::log(cvm::HIGH, "[debugger] checkDebugEvents: Timer chk dbg evt \n");
     if (FLAGS_random_dbg_entry)
     {
       if ((timer_ >= timer_rand_debug) & (checkpoint_triggers_pending == 0) & (cmd_trigger_in_progress == false) & (file_parsing_in_progress == false))
       { 
         if (snippets_driven < (unsigned)FLAGS_dbg_max_snippets)
         {
-          cvm::log(cvm::HIGH, "Rand Debug Timer passed, parsing the CSV snippet\n");
+          cvm::log(cvm::HIGH, "[Debugger]:Rand Debug Timer passed, parsing the CSV snippet\n");
           parse_dmi_from_csv();
           snippets_driven++;
           file_parsing_in_progress = true;
         }
 
         if (file_parsing_done & file_parsing_in_progress){
-          cvm::log(cvm::HIGH, "CSV snippet parsing done, generating CmdTrigger event\n");
+          cvm::log(cvm::HIGH, "[Debugger]:CSV snippet parsing done, generating CmdTrigger event\n");
           genNextCmdTriggerEvents();
           file_parsing_in_progress = false;
           cmd_trigger_in_progress = true;
@@ -174,7 +227,7 @@ public:
         
         else {
           rand_dbg_entry_cmd_trigger = 1;
-          cvm::log(cvm::HIGH, "Timer passed random evt Value to provide cmd trigger\n");
+          cvm::log(cvm::HIGH, "[Debugger]:Timer passed random evt Value to provide cmd trigger\n");
           checkpoint_triggers_pending -= 1;
           if (checkpoint_triggers_pending>0)
             genNextCmdTriggerEvents();
@@ -188,7 +241,7 @@ public:
   {
     int32_t rand_num = (rng() % (FLAGS_dbg_delay_max - FLAGS_dbg_delay_min + 1)) + 5*FLAGS_dbg_delay_min;
     cmd_trigger_rand_debug = timer_ + (rand_num * timer_advance);
-    cvm::log(cvm::HIGH, "Next Command Execution Trigger Timer delay:{}\n", cmd_trigger_rand_debug);
+    cvm::log(cvm::HIGH, "[Debugger]:Next Command Execution Trigger Timer delay:{}\n", cmd_trigger_rand_debug);
   }
 
   void genNextDebugEvents()
@@ -198,7 +251,7 @@ public:
       int32_t rand_num = (rng() % (FLAGS_dbg_delay_max - FLAGS_dbg_delay_min + 1)) + FLAGS_dbg_delay_min;
       timer_rand_debug = timer_ + (rand_num * timer_advance);
       file_idx = rng() % csvFilePaths.size();
-      cvm::log(cvm::HIGH, "Next Random Debug Injection of CSV file ID:{} Timer delay:{}\n", file_idx, timer_rand_debug);
+      cvm::log(cvm::HIGH, "[Debugger]:Next Random Debug Injection of CSV file ID:{} Timer delay:{}\n", file_idx, timer_rand_debug);
 
       cmd_trigger_in_progress = false;
     }
@@ -235,6 +288,8 @@ private:
   unsigned sdtrig_halt_queue_on = 0;
   unsigned sdtrig_cause_queue_on = 0;
   unsigned sdtrig_disable_queue_on = 0;
+  unsigned sdtrig_progbuf_queue_on = 0;
+
   uint64_t timer_rand_debug = 500;
   std::vector<std::vector<std::string>> content;
   std::vector<std::string> row;
@@ -249,4 +304,7 @@ private:
   bool file_parsing_in_progress = false;
   bool cmd_trigger_in_progress = false;
   std::string dbg_snippets_name = "";
+  bool dut_reset_req = false;
+  bool ndm_reset_occured = false;
+  uint64_t clocks=0,divisor=0;
 };

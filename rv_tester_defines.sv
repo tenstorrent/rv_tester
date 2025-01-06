@@ -344,12 +344,15 @@ package rv_tester_params;
         logic [(CLLEN/8)-1:0]       mask ;
         logic [CLLEN-1:0]           data ;
         logic [31:0]                attr ;
+        logic                       cbo  ;
         logic                       amo  ;
         logic [4:0]                 amo_op;
         logic                       v_ext;
         logic [36-1:0]              opcode;
         logic [7:0]                 field;
         logic [7:0]                 elem_idx;
+        logic                       splat;
+        logic [7:0]                 elem_size;
     } mcmi_t;
 
     // --------------------------------------
@@ -361,7 +364,7 @@ package rv_tester_params;
     } ac_cr_sync;
     typedef struct packed {
         logic [23:0] addr;
-        logic [64:0] data;
+        logic [63:0] data;
         logic [7:0] mask;
         logic [3:0] srcid;
         logic valid;
@@ -526,6 +529,8 @@ package rv_tester_params;
         SPEC_LSU_RESYNCS,
         TOTAL_FLUSHES,
         TOTAL_TRAPS,
+        BST_FULL_ON_EX_REDIRECT,
+        PFX_FULL_ON_EX_REDIRECT,
         L1I_READ_ACCESS,
         L1I_READ_MISS,
         L1I_PREFETCH_ACCESS,
@@ -545,7 +550,11 @@ package rv_tester_params;
         DECODE_SERIALIZE_CYCLES,
         DECODE_IDLE_SERIALIZE_CYCLES,
         NONSPEC_RESYNC,
-        PATCH_MATCH_EXCEPTIONS,
+        PATCH_MATCH_M_MODE_EXCEPTION,
+        PATCH_MATCH_S_MODE_EXCEPTION,
+        PATCH_MATCH_U_MODE_EXCEPTION,
+        PATCH_MATCH_VS_MODE_EXCEPTION,
+        PATCH_MATCH_VU_MODE_EXCEPTION,
         PATCH_MATCH_UCODE,
         PATCH_MATCH_M_MODE_EXCEPTION_CYCLES,
         PATCH_MATCH_S_MODE_EXCEPTION_CYCLES,
@@ -934,7 +943,7 @@ package rv_tester_params;
     input                                    dmi_req_valid,                                         \
     input  rv_tester_pkg::dmi_req_t          dmi_req,                                               \
     input                                    dmi_resp_ready,                                        \
-                                                                                                    \
+    output [7:0]                             DM_DebugReq_Valids,                                  \
     output rv_tester_params::rvfi_t          [rv_tester_params::TOTAL_NRETS-1:0]      rvfi,         \
     output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NREADS-1:0]     mcmi_read,    \
     output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NINSERTS-1:0]   mcmi_insert,  \
@@ -975,6 +984,7 @@ package rv_tester_params;
     output rv_tester_params::cr_ac_axi_pkt AcReqPktRfClki, \
     output logic [63:0] AcMtimei, \
     output logic [8:0]  AcMtipi, \
+    output logic SmcMtipi, \
     output rv_tester_params::event_trigger_intf_t event_triggers  [rv_tester_params::NHARTS-1:0]
 
 `define _RV_TESTER_STALL_CHECKER_PORTS(input,output)                                                \
@@ -1015,6 +1025,7 @@ package rv_tester_params;
     logic                                    dmi_req_valid;                                         \
     rv_tester_pkg::dmi_req_t                 dmi_req;                                               \
     logic                                    dmi_resp_ready;                                        \
+    logic [7:0]     DM_DebugReq_Valids;                                  \
                                                                                                     \
     logic                                            dm_mem_tx_vld;                                 \
     logic                                            dm_mem_tx_we;                                  \
@@ -1056,6 +1067,7 @@ package rv_tester_params;
     rv_tester_params::cr_ac_axi_pkt AcReqPktRfClki; \
     logic [63:0] AcMtimei; \
     logic [8:0]  AcMtipi;  \
+    logic SmcMtipi; \
     rv_tester_params::event_trigger_intf_t event_triggers [rv_tester_params::NHARTS-1:0];
 
 `define RV_TESTER_PORTS `_RV_TESTER_PORTS(input,output)

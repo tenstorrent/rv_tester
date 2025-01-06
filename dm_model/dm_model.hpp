@@ -159,6 +159,7 @@ public:
   void process(const rv_tester_transactions::dm_model::dm_load_cmd<> &dm_load_cmd);
   void process(const rv_tester_transactions::dm_model::dm_load_data<> &dm_load_data);
   void process(const rv_tester_transactions::dm_model::dm_store<> &dm_store);
+  void process(const rv_tester_transactions::dm_model::dm_req<> &dm_req);
 
 private:
   // cvm::file_logger log;
@@ -227,6 +228,10 @@ private:
   uint8_t load_base_address = 10; //GPR to store DM base addr
   bool reflow_flags = false;
 
+  //hart enum
+  std::vector<uint32_t> hart_pid{};
+  uint32_t hart_pid_mask = 0;
+  uint32_t num_pid_harts =0;
   // bool abstract_command_completed;
   // unsigned rti_remaining;
 

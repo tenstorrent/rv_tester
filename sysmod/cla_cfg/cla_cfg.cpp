@@ -171,11 +171,11 @@ void cla_cfg::push_rand_nmi_trigg_cfg() {
   uint32_t wdata;
 
   wait_on_count = (rng()% 201) + 1000;    // On Delay 1000-1200 CLK cycle
-  wait_off_count = (rng()% 101) + 700;    // Off Delay 700-800 CLK cycle
-  event_count = (rng()% 101) + 200;       // Event on Delay 200-300 CLK cycle
+  wait_off_count = (rng()% 101) + 300;    // Off Delay 300-400 CLK cycle
+  event_count = (rng()% 71) + 200;       // Event on Delay 200-270 CLK cycle
   eap_ctrl = (15 << 7);                   // Considering 15 value as per waves
   active_core = (FLAGS_num_harts == 1) ? 0 : (rng() % FLAGS_num_harts);
-  rand_disable_trig_dly = (rng() % 50)+ 500 + cnt_tick;  // 500 - 550 delay before disabling
+  rand_disable_trig_dly = (rng() % 50)+ 200 + cnt_tick;  // 200 - 250 delay before disabling
 
   cvm::log(cvm::NONE, "[CLA_CFG] Push NMI/Trigger Configs for Core - {} nmi_event {} start_rand_nmi_trig_cnt {} \n", active_core, nmi_event, start_rand_nmi_trig_cnt);
 
@@ -219,7 +219,7 @@ void cla_cfg::push_rand_nmi_trigg_cfg() {
 void cla_cfg::push_rand_nmi_trigg_cfg_off() {
 
   cvm::log(cvm::NONE, "[CLA_CFG] Push NMI/Trigger Disable EAP... \n");
-  start_rand_nmi_trig_cnt = (rng()%100) + 200 + cnt_tick; // 200-300 off
+  start_rand_nmi_trig_cnt = (rng()%51) + 100 + cnt_tick; // 100-150 off
   cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + (0x10000 * active_core)),((eap_ctrl | 0x40) & 0x3FC0)});     // Disable EAP, CLA enabled
   reenable_rand_trig = 1;
   nmi_event = !nmi_event;
@@ -233,8 +233,8 @@ void cla_cfg::overlay_tick(uint64_t) {
       reenable_rand_trig = 0;
       nmi_event = rng();                                      // NMI = 1, Trigger = 0
       mask = FLAGS_hart_enable_mask;
-      nmi_total_cnt = (rng() % 5) + 5;                        // NMI total enable count
-      trig_total_cnt = (rng() % 3) + 2;                       // Xtrigger/rand NMI total count
+      nmi_total_cnt = (rng() % 40) + 10;                        // NMI total enable count
+      trig_total_cnt = (rng() % 40) + 10;                     // Xtrigger/rand NMI total count
       start_clk_halt_cnt = (rng()% 40) + 50 ;
       start_cla_nmi_cnt = (rng()% 40) + 50 ;
       start_rand_nmi_trig_cnt = (rng()% 40) + 50 ;

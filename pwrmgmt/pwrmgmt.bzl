@@ -24,8 +24,11 @@ def pwrmgmt_gen(name, packet, topology, harness, visibility = None, cc_attrs = {
         deps = [
             "@rv_tester//transactors/axi_sw:axi_sw_mst",
             "@rv_tester//sysmod:sysmod_plusargs",
+            "@rv_tester//cosim/bridge:bridge_plusargs",
             "@rv_tester//pmu:pmu_plusargs",
             "@rv_tester//common:transactor",
+            "@rv_tester//cosim/bridge_if:bridge_if",
+            "@rv_tester//cosim/utils/general:util",
             "@rv_tester//:structs",
             packet + "_cc",
             "@cvm//:plusargs",

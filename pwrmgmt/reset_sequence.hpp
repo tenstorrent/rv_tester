@@ -8,6 +8,9 @@
 #include "pwrmgmt.hpp"
 #include "transactor.h"
 #include "svdpi.h"
+#include "axi_sw_mst.h"
+
+DECLARE_bool(axi_allow_err_resp); // Allow error responses on axi_mst transactions
 
 class reset_sequence {
 
@@ -16,8 +19,25 @@ class reset_sequence {
     reset_sequence(cvm::topology::loc_t loc, unsigned id);
     ~reset_sequence();
 
+     using overlay_mst_t = axi_sw_mst<
+        rv_tester_transactions::axi_sw_mst::b<>,
+        rv_tester_transactions::axi_sw_mst::r<>,
+        rv_tester_transactions::axi_sw_mst::ar_q_ptr<>,
+        rv_tester_transactions::axi_sw_mst::aw_q_ptr<>,
+        rv_tester_transactions::axi_sw_mst::w_q_ptr<>
+    >;
+    using smc_mst_t = axi_sw_mst<
+        rv_tester_transactions::axi_sw_mst::b<1>,
+        rv_tester_transactions::axi_sw_mst::r<1>,
+        rv_tester_transactions::axi_sw_mst::ar_q_ptr<1>,
+        rv_tester_transactions::axi_sw_mst::aw_q_ptr<1>,
+        rv_tester_transactions::axi_sw_mst::w_q_ptr<1>
+    >;
 
   private:
+
+    std::array<cvm::messenger::pool<axi::b_t>::channel_info, INTF_COUNT> b_channel_;
+    std::array<cvm::messenger::pool<axi::r_t>::channel_info, INTF_COUNT> r_channel_;
 
     void set_scope(svScope s) { scope_ = s; }
     void start(int reset_count);
@@ -45,18 +65,21 @@ class reset_sequence {
     cvm::messenger::task<void> patch_ram_check();
     cvm::messenger::task<void> fuse_mmr_check( rst_t rst_type = WARM);
     cvm::messenger::task<void> disabled_mmr_csr_check();
-    cvm::messenger::task<void> mmr_read_write_check(uint64_t addr, interface_t interface, bool rsp_err_chk );
+    cvm::messenger::task<void> program_fe_resetvector();
+    cvm::messenger::task<void> mmr_read_write_check(uint64_t addr, interface_t interface);
 
     cvm::messenger::task<void> write_thub_reg(uint8_t addr, uint32_t data, uint8_t satellite_num, uint8_t mbox_num);
     cvm::messenger::task<void> program_thub_threshold();
 
     cvm::messenger::task<void> init_smc_filters();
 
-    cvm::messenger::task<uint64_t> read(uint64_t addr, size_t sz, interface_t interface = SMC, bool rsp_err_chk = 1);
-    cvm::messenger::task<void> write(uint64_t addr, size_t sz, uint64_t data, interface_t interface = SMC, bool rsp_err_chk = 1);
+    cvm::messenger::task<uint64_t> read(uint64_t addr, size_t sz, interface_t interface = SMC);
+    cvm::messenger::task<void> write(uint64_t addr, size_t sz, uint64_t data, interface_t interface = SMC);
     cvm::messenger::task<void> write(uint64_t addr, size_t sz, const std::vector<uint64_t>& data);
     cvm::messenger::task<void>csr_write(uint32_t core_id, uint32_t unit,uint64_t addr, uint64_t data);
     cvm::messenger::task<uint64_t>csr_read(uint32_t core_id, uint32_t unit,uint64_t addr);
+    cvm::messenger::task<void>init_csr();
+    cvm::messenger::task<void>init_mmr();
 
     std::vector<uint64_t> convert_to_dword_array(const std::vector<uint8_t>& byte_array);
     std::vector<uint8_t> convert_to_byte_array(const std::vector<uint64_t>& dword_array);
@@ -79,10 +102,12 @@ class reset_sequence {
     void populate_patch_ram(uint64_t addr, const std::vector<uint64_t>& data);
     void read_patch_csv();
     std::string get_intf_name(interface_t value);
-    
+
   private:
 
-    cvm::topology::loc_t loc_, smc_axi_loc_, overlay_axi_loc_, axi_loc_;
+    cvm::topology::loc_t loc_;
+    std::array<cvm::topology::loc_t, INTF_COUNT> axi_loc_;
+
     svScope scope_;
 
     int reset_count_ = 0;

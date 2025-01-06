@@ -21,12 +21,6 @@
 #include "cvm/registry.hpp"
 #include <fmt/format.h>
 
-enum patch_mode {
-    NO_PATCH = 0,  //--> Not in PATCH mode
-    ENTER_PATCH,   //--> Entered patch, helpful to identify the instruction and step whisper (just) once, No CaC
-    IN_PATCH,      //--> Inside patch mode, record the DUT changes, do not step whisper, no CaC
-    EXIT_PATCH     //--> Exiting patch, helpful to identify the instruction and do the CaC checks.
-};
 
 class bridge : public bridge_base {
 
@@ -190,6 +184,8 @@ private:
   void resynch(hart_id_t hart, const rv_instr_group_t& d);
   void resynch(hart_id_t hart, const rv_instr_t& d);
   std::string get_nth_word(const std::string& s, int n);
+  void peek_resource(hart_id_t hart, char resource, uint64_t addr, uint64_t& data);
+  void poke_resource(hart_id_t hart, uint64_t cycle, char resource, uint64_t addr, uint64_t data);
 
 private:
   
@@ -290,14 +286,13 @@ private:
   rv_nmi_t prev_nmi_ {};
   bool nmi_poke_pending_ = false;
   uint64_t mip_ = 0;
+  uint64_t timing_case2 = 0;
   uint64_t prev_mip_ = 0;
   uint64_t mip_age_ = 0;
   uint64_t e_mip_ = 0;
   uint64_t prev_e_mip_ = 0;
   uint64_t e_mip_age_ = 0;
   uint64_t deferred_mip_ = 0;
-  bool prev_sync_intr_ = 0;
-  bool all_interrupts_defer_= 0;
   bool prev_resync_excp_defer_intr_ = 0;
   uint64_t pre_csr_defermip_ = 0;
   uint64_t resynch_icause_ = 0;
@@ -313,7 +308,7 @@ private:
   bool debug_on_ = false;
 
   // Memmap
-  memmap::memmap_t memmap_;
+  std::map<std::string, memmap_entry_t> memmap_;
 
   std::array<std::array<int, 16>, 12> num_taken_interrupts_{};
 

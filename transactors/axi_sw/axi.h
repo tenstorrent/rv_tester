@@ -25,6 +25,8 @@ class axi : public transactor {
         typedef enum : std::uint8_t {
             RESP_OKAY  ,
             RESP_EXOKAY,
+            RESP_SLVERR,
+            RESP_DECERR,
         } resp_t;
         typedef std::uint8_t  datum_t ;
         typedef std::uint8_t  strbum_t;
@@ -106,6 +108,8 @@ class axi : public transactor {
             a_no_id_t(const bool& w, const addr_t& addr, const sz_t& size) : w(w), addr(addr), size(size) {}
             a_no_id_t(const addr_t& addr, const sz_t& size) : addr(addr), size(size) {}
             a_no_id_t(const addr_t& addr, const sz_t& size, const bool& rsp_err_chk) : addr(addr), size(size), rsp_err_chk(rsp_err_chk) {}
+            a_no_id_t(const addr_t& addr, const sz_t& size, const user_t& user) : addr(addr), size(size), user(user) {}
+            a_no_id_t(const addr_t& addr, const sz_t& size, const user_t& user, const bool& rsp_err_chk) : addr(addr), size(size), user(user), rsp_err_chk(rsp_err_chk) {}
             a_no_id_t() = default;
             a_no_id_t(a_no_id_t&&) = default;
             a_no_id_t& operator=(a_no_id_t&&) = default;
@@ -174,7 +178,6 @@ class axi : public transactor {
             resp_t resp;
             b_t(const id_t& id, const resp_t& resp) : id(id), resp(resp) {}
         };
-
 
     private:
 

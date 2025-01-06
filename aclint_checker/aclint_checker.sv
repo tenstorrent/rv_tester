@@ -18,6 +18,7 @@ import rv_tester_params:: * ;
         input cr_ac_axi_pkt AcReqPktRfClki,
         input logic[63: 0] AcMtimei,
         input logic[8: 0] AcMtipi,
+        input logic SmcMtipi,
         `RV_TESTER_TRANSACTIONS_ACLINT_CHECKER_OUTPUT_PORTS
 );
 
@@ -48,7 +49,7 @@ import rv_tester_params:: * ;
 
     //ACLINT force SYNC message checker
     logic forcesynccame;
-    assign forcesynccame = (AcReqPktRfClki.addr == TIMESYNC) && AcReqPktRfClki.valid && AcReqPktRfClki.mask=='hff && (AcReqPktRfClki.data == 'hff);
+    assign forcesynccame = (AcReqPktRfClki.addr == TIMESYNC) && AcReqPktRfClki.valid && (AcReqPktRfClki.mask=='hff || AcReqPktRfClki.mask=='hf) && (AcReqPktRfClki.data == 'hff);
 
     for (genvar n = 0; n < NHARTS; n++) begin : acsync_force
     logic lookout_for_sync;
@@ -85,7 +86,7 @@ import rv_tester_params:: * ;
     always @(posedge rf_clk) begin
         if(dut_reset) begin
             wakecore <= 0;
-        end else if ((AcReqPktRfClki.addr == WAKECORE) && AcReqPktRfClki.valid && AcReqPktRfClki.mask=='hff) begin
+        end else if ((AcReqPktRfClki.addr == WAKECORE) && AcReqPktRfClki.valid && (AcReqPktRfClki.mask=='hff || AcReqPktRfClki.mask=='hf)) begin
             wakecore <= AcReqPktRfClki.data;
         end
     end
@@ -131,23 +132,33 @@ import rv_tester_params:: * ;
     end
     always_comb begin
         for (int j = 0; j < 9; j++) begin
-            mtimecmp_wr_valid[j] = AcReqPktRfClki.valid && AcReqPktRfClki.mask=='hff && ( (AcReqPktRfClki.addr == (MTIMECMP0 + (j<<3) )) || ((AcReqPktRfClki.addr == WAKETIME ) && wakecore==j) );
+            mtimecmp_wr_valid[j] = AcReqPktRfClki.valid && (AcReqPktRfClki.mask=='hff || AcReqPktRfClki.mask=='hf) && ( (AcReqPktRfClki.addr == (MTIMECMP0 + (j<<3) )) || ((AcReqPktRfClki.addr == WAKETIME ) && wakecore==j) );
         end
     end
 
+    logic [63:0] data_mask;
+    assign data_mask = (AcReqPktRfClki.mask == 'hF) ? {32'b0, {32{1'b1}}} : {64{1'b1}};
+
+    logic [63: 0] AcMtimei_delay;
+    always @(posedge rf_clk) AcMtimei_delay <= AcMtimei;
+    logic [8:0] [63:0] mtimecmp_data;
+    logic [63:0] mtime_data;
+    assign mtime_data = mtime_wr_valid ? ((AcReqPktRfClki.mask == 'hf) ? {AcMtimei[63:32], AcReqPktRfClki.data[31:0]} : AcReqPktRfClki.data) : AcMtimei;
     generate
     genvar k;
     for ( k = 0; k < 9; k++) begin : mtip_counters
-    assign counter_next[k] = mtimecmp_wr_valid[k] ? (AcReqPktRfClki.data > AcMtimei ? 64'(AcReqPktRfClki.data - AcMtimei) : 64'b0)
-                        : mtime_wr_valid ? (mtimecmpval[k] > AcReqPktRfClki.data ? 64'(mtimecmpval[k] - AcReqPktRfClki.data) : 64'b0) 
-                        : (counter[k] < 'd10 ? 64'b0 : 64'(counter[k] -'d10));
+    assign mtimecmp_data[k] = mtimecmp_wr_valid[k] ? ((AcReqPktRfClki.mask == 'hf) ? {mtimecmpval[k][63:32], AcReqPktRfClki.data[31:0]} : AcReqPktRfClki.data) : mtimecmpval[k];
+    assign counter_next[k] = mtimecmp_wr_valid[k] ? (mtimecmp_data[k] > AcMtimei ? 64'(mtimecmp_data[k] - AcMtimei) : 64'b0)
+                        : mtime_wr_valid ? (mtimecmpval[k] > mtime_data ? 64'(mtimecmpval[k] - mtime_data) : 64'b0)
+                        : (AcMtimei < AcMtimei_delay) ? (mtimecmpval[k] > AcMtimei ? 64'(mtimecmpval[k] - AcMtimei) : 64'b0)
+                        : (counter[k] < 'd10 ? 64'b0 : 64'(counter[k] - 'd10));
     always @(posedge rf_clk) begin
     if (dut_reset) counter[k] <= 'hffffffff;
     else counter[k] <= counter_next[k];
     end
     always @(posedge rf_clk) begin
     if (dut_reset) mtimecmpval[k] <= 'hffffffff;
-    else if(mtimecmp_wr_valid[k]) mtimecmpval[k] <= AcReqPktRfClki.data;
+    else if(mtimecmp_wr_valid[k]) mtimecmpval[k] <= (AcReqPktRfClki.data & data_mask);
     end
 
     end
@@ -158,7 +169,7 @@ import rv_tester_params:: * ;
 
 
     logic [63:0] wcount, wcount_next;
-    assign wcount_next = wtimecmp_wr_valid ? (AcReqPktRfClki.data > AcMtimei ? 64'(AcReqPktRfClki.data - AcMtimei) : 64'b0)
+    assign wcount_next = wtimecmp_wr_valid ? ((AcReqPktRfClki.data & data_mask) > AcMtimei ? 64'((AcReqPktRfClki.data & data_mask) - AcMtimei) : 64'b0)
                         : (wcount == 0 ? 64'b0 : 64'(wcount -10));
     always @(posedge rf_clk) begin
     if (dut_reset) wcount <= 'hffffffff;
@@ -197,14 +208,24 @@ import rv_tester_params:: * ;
     if(dut_reset || ~fail_mtishouldbeOFF) cycles_in_fail_mtishouldbeOFF <= 0;
     else if(fail_mtishouldbeOFF) cycles_in_fail_mtishouldbeOFF <= cycles_in_fail_mtishouldbeOFF + 1;
     end
-    always_comb assert(~(cycles_in_fail_mtishouldbeOFF > 4)) else $error("Error: Did not expect MTIP, but MTIP %d generated", asserti);
-    always_comb assert(~(cycles_in_fail_mtishouldbeON > 4)) else $error("Error: Expected MTIP, but MTIP %d not generated", asserti);    
+    always_comb assert(~(cycles_in_fail_mtishouldbeOFF > 5)) else $error("Error: Did not expect MTIP, but MTIP %d generated", asserti);
+    always_comb assert(~(cycles_in_fail_mtishouldbeON > 5)) else $error("Error: Expected MTIP, but MTIP %d not generated", asserti);    
     end
     endgenerate
 
+    int max_mtip8_delay = 5;
+    int mtip8_delay_counter;
+
+    always @(posedge rf_clk) begin
+        if (dut_reset) mtip8_delay_counter <= 0;
+        else if(AcMtipi[8] & ~SmcMtipi) mtip8_delay_counter <= mtip8_delay_counter + 1;
+        else mtip8_delay_counter <= 0;
+    end
+    always_comb assert (mtip8_delay_counter < max_mtip8_delay) else $error("Error: MTIP[8] generated by Aclint but not seen at SMC port");
+
     //ACLINT core MMR - ac_mmrwrite
     for (genvar n = 0; n < TOTAL_NRETS; n++) begin
-        assign cr_ac_mmrwrites[n].valid =  ~reset & enable_checks & rvfi[n].valid && (rvfi[n].mem_wmask != 0) && (rvfi[n].mem_paddr>= ACLINT_START && rvfi[n].mem_paddr< ACLINT_END);
+        assign cr_ac_mmrwrites[n].valid =  ~reset & enable_checks & rvfi[n].valid && (rvfi[n].mem_wmask != 0) && (rvfi[n].mem_paddr >= ACLINT_START && rvfi[n].mem_paddr < ACLINT_END);
         assign cr_ac_mmrwrites[n].data.location = location;
         assign cr_ac_mmrwrites[n].data.hart = get_hart_ret(n);
         assign cr_ac_mmrwrites[n].data.order = rvfi[n].order;

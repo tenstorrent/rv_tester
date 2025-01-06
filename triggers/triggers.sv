@@ -10,20 +10,30 @@ import rv_tester_params::*;
   input logic tb_reset,
   input logic clk,
   input logic reset,
-  input event_trigger_intf_t event_trigger_vec,
+  input event_trigger_intf_t event_trigger_vec [NHARTS-1:0],
   `RV_TESTER_TRANSACTIONS_TRIGGERS_OUTPUT_PORTS
 );
 
   import "DPI-C" context function void triggers_set_scope(int unsigned location);
 
-  logic [TRIGGER_COUNT-1:0] event_trigger;
+  logic [TRIGGER_COUNT-1:0] hart_specific_event_trigger;
+  logic [NHARTS-1:0] event_trigger_vlds;
+  
   genvar i;
   generate
     for (i = 0; i < TRIGGER_COUNT; i = i + 1) begin
-      assign event_trigger[i] = event_trigger_vec[i].valid;
+      assign hart_specific_event_trigger[i] = event_trigger_vec[NUM][i].valid;
     end
   endgenerate
 
+  always_comb begin
+    for (int hart_num = 0; hart_num < NHARTS; hart_num++) begin
+      event_trigger_vlds[hart_num] = 0;
+      for (int trigger_num = 0; trigger_num < TRIGGER_COUNT; trigger_num++) begin
+        event_trigger_vlds[hart_num] |= event_trigger_vec[hart_num][trigger_num].valid;
+      end
+    end
+  end
   parameter int unsigned location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.TRIGGERS.ID, NUM);
   
   // -------------------------
@@ -47,7 +57,7 @@ import rv_tester_params::*;
   bit patch_event_based_interrupt = 0;
   bit uarch_event_based_interrupt = 0;
   int unsigned clocks = 0;
-  always @(posedge event_trigger[PATCH]) begin
+  always @(posedge hart_specific_event_trigger[PATCH]) begin
       /* verilator lint_off BLKSEQ */
     if (reset) begin
       patch_event_based_interrupt = 1'b0;
@@ -58,7 +68,7 @@ import rv_tester_params::*;
     end
       /* verilator lint_on BLKSEQ */
   end
-  always @(posedge event_trigger[UARCH_INTR]) begin
+  always @(posedge hart_specific_event_trigger[UARCH_INTR]) begin
       /* verilator lint_off BLKSEQ */
     if (reset) begin
       uarch_event_based_interrupt = 1'b0;
@@ -89,8 +99,9 @@ end
   // m_event_trigger_ticks
   assign m_event_trigger_ticks[0].valid = (uarch_event_based_interrupt | patch_event_based_interrupt) & (location != cvm_topology::nil);
   assign m_event_trigger_ticks[0].data.location = location;
+  assign m_event_trigger_ticks[0].data.per_core_evt_vector = {{(32 - NHARTS){1'b0}}, event_trigger_vlds};
   /* verilator lint_off WIDTHEXPAND */
-  assign m_event_trigger_ticks[0].data.event_trigger = event_trigger;
+  assign m_event_trigger_ticks[0].data.event_trigger = hart_specific_event_trigger;
   /* verilator lint_on WIDTHEXPAND */
 
 

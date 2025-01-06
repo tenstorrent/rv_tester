@@ -159,6 +159,10 @@ module rv_tester
     int ntrace_stop_on_wrap = 0;
     int rand_dmi_driver_dly = 0;
     int sdtrig_multitrigger = 0;
+    int num_dm_randpc = 0;
+    int num_dm_randload = 0;
+    int num_dm_randstore = 0;
+    int trigger_config = 0;
     int dm_single_step_count = 0;
     int dmi_poll_counter = 0;
     int dmi_poll_timeout = 50000;
@@ -184,8 +188,8 @@ module rv_tester
     assign dut_terminate_any = dut_terminate;
 
     assign ntrace_terminate    = (terminate_ntrace_test & ntrace_stop_on_wrap) || !ntrace_stop_on_wrap;
-    assign terminate           = (dut_terminate_any || rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sys_reset_any) || quiesce_counter > 0) && !rv_tester_reset && ntrace_terminate;
-    assign terminate_now       = (terminate_1T && (quiesced || quiesce_counter >= quiesce_timeout) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue <= 'h1) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced )) || dut_terminate_any || warm_reset_now;
+    assign terminate           = (dut_terminate_any || rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sys_reset_any) || quiesce_counter > 0) && !rv_tester_reset && !warm_reset && ntrace_terminate;
+    assign terminate_now       = (terminate_1T && (quiesced || ((quiesce_counter >= quiesce_timeout) && !warm_reset)) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue <= 'h1) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced )) || dut_terminate_any || warm_reset_now;
 
     assign rerun_now           = terminated && !terminated_1T && ((num_reruns > 0) || (warm_reset_en && (num_resets <= target_num_resets)) || dut_reset_req);
 
@@ -289,10 +293,10 @@ module rv_tester
             if (num_resets < 0)
                 rv_tester_set_seed();
             rv_tester_cvm_error_handler();
-            rv_tester_parse_memmap(NoAddrRules);
 
             $display("[RVTESTER]: reconstructing registry");
             rv_tester_build_registry();
+            rv_tester_parse_memmap(NoAddrRules);
 
             /* verilator lint_off BLKSEQ */
             // zebu bug doesn't allow nested function calls, so create intermediate variables
@@ -311,6 +315,10 @@ module rv_tester
             perf                 <= cvm_plusargs::get_bool("perf") != '0;
             flag_force_ref_clk   <= cvm_plusargs::get_bool("force_ref_clk") != '0;
             rand_dmi_driver_dly  <= cvm_plusargs::get_int("rand_dmi_driver_dly");
+            num_dm_randpc        <= cvm_plusargs::get_int("num_dm_randpc");
+            num_dm_randload      <= cvm_plusargs::get_int("num_dm_randload");
+            num_dm_randstore     <= cvm_plusargs::get_int("num_dm_randstore");
+            trigger_config       <= cvm_plusargs::get_int("trigger_config");
             sdtrig_multitrigger  <= cvm_plusargs::get_int("sdtrig_multitrigger");
             dm_single_step_count <= cvm_plusargs::get_int("dm_single_step_count");
             cb_poll              <= cvm_plusargs::get_bool("cb_async") == '0;
@@ -533,6 +541,7 @@ module rv_tester
     ) sysmod (
         .clk(dut_clk[AXI_CLK_IDX]),
         .reset(sys_reset[AXI_CLK_IDX]),
+        .dut_reset_req,
         .trace_quiesced(trace_quiesced),
         .bootstrap,
         .dmi_write(trickbox_dmi_write),
@@ -554,6 +563,10 @@ module rv_tester
         .hart_enable_mask,
         .dm_single_step_count,
         .sdtrig_multitrigger,
+        .num_dm_randpc,
+        .num_dm_randload,
+        .num_dm_randstore,
+        .trigger_config,
 
         .dmi_req_ready,
         .dmi_resp_valid,
@@ -565,6 +578,7 @@ module rv_tester
         .dmi_status,
         .dmi_commands_in_queue,
         .misc_signals,
+        .DM_DebugReq_Valids(DM_DebugReq_Valids),
 
         .trickbox_dmi_write(trickbox_dmi_write),
         .rvfi(rvfi)
@@ -576,7 +590,9 @@ module rv_tester
         `RV_TESTER_TRANSACTIONS_DM_MODEL_SOURCE_PARAMS(0)
     ) i_dm_model(
         .clk(dut_clk[AXI_CLK_IDX]),
-        .reset(sys_reset[TB_CLK_IDX]),
+
+        //.reset(sys_reset[TB_CLK_IDX]),
+        .reset(~(~reset[WARM_RESET_IDX] || reset_hold[DEBUG_HOLD_IDX])),
         .dmi_req(dmi_tx_req),
         .dmi_req_valid(dmi_tx_req_vld),
         .dmi_resp_valid(dmi_tx_resp_vld),
@@ -591,6 +607,7 @@ module rv_tester
         .dmi_status,
         .dmi_commands_in_queue,
         .misc_signals,
+        .DM_DebugReq_Valids(DM_DebugReq_Valids),
         `RV_TESTER_TRANSACTIONS_DM_MODEL_SOURCE_PORTS(2,0,0)
     );
 
@@ -617,6 +634,7 @@ module rv_tester
 
     assign poke_event_in = (poke_event_out != '0) ? 1'b1 : 1'b0;
 
+    logic [NHARTS-1:0] boot_done;
 `ifndef NO_COSIM
     for (genvar c = 0; c < NHARTS; c++) begin: cosim_inst
       cosim #(
@@ -659,6 +677,7 @@ module rv_tester
           .poke_event_out(poke_event_out[c]),
           .poke_event_in(poke_event_in),
           .disable_checks(disable_checks),
+          .boot_done(boot_done[c]),
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PORTS(1, c, 0)
       );
     end
@@ -716,6 +735,7 @@ module rv_tester
             .sys_reset(sys_reset[AXI_CLK_IDX]),
             .reset(dut_reset[AXI_CLK_IDX]),
             .clocks,
+            .boot_done(boot_done[c]),
             .nmi(nmi[c].nmi),
             `RV_TESTER_TRANSACTIONS_INTERRUPTS_SOURCE_PORTS(2,c,0)
         );
@@ -739,6 +759,20 @@ module rv_tester
         );
         
 
+    overlay_driver #(
+          .NUM(0),
+          `TOPOLOGY_CFG,
+          `RV_TESTER_TRANSACTIONS_OVERLAY_DRIVER_SOURCE_PARAMS(0)
+        )overlay_driver
+        (
+            .clk(dut_clk[AXI_CLK_IDX]),
+            .reset(dut_reset[AXI_CLK_IDX]),
+            .dut_clk(dut_clk[AXI_CLK_IDX]),
+            .dut_reset(dut_reset[AXI_CLK_IDX]),
+            .no_fetch(core_no_fetch[0]),
+          `RV_TESTER_TRANSACTIONS_OVERLAY_DRIVER_SOURCE_PORTS(2,0,0)
+        );
+        
     snoop_gen #(
             .NUM(0),
             `TOPOLOGY_CFG,
@@ -776,7 +810,7 @@ module rv_tester
             .tb_reset(sys_reset[TB_CLK_IDX]),
             .clk(dut_clk[AXI_CLK_IDX]),
             .reset(dut_reset[AXI_CLK_IDX]),
-            .event_trigger_vec(event_triggers[c]),
+            .event_trigger_vec(event_triggers),
             `RV_TESTER_TRANSACTIONS_TRIGGERS_SOURCE_PORTS(2,c,0)
         );
     end
@@ -799,6 +833,7 @@ module rv_tester
         .mcmi_bypass(mcmi_bypass),
         .AcMtimei(AcMtimei),
         .AcMtipi(AcMtipi),
+        .SmcMtipi(SmcMtipi),
         `RV_TESTER_TRANSACTIONS_ACLINT_CHECKER_SOURCE_PORTS(1,0,0)
     );
 
@@ -810,23 +845,47 @@ module rv_tester
     end
 
     for (genvar p = 0; p < NHARTS; p++) begin: pmu_inst
-      pmu #(
-          .NUM(p),
-          .NRET(NRETS[p]),
-          `TOPOLOGY_CFG,
-          `RV_TESTER_TRANSACTIONS_PMU_SOURCE_PARAMS(0)
-      ) pmu (
-          .clk(dut_clk[CORE_CLK_IDX]),
-          .sys_reset(sys_reset[CORE_CLK_IDX]),
-          .reset(dut_reset[CORE_CLK_IDX]),
-          .clocks,
-          .pmci(pmci[p]),
-          .hpmi(hpmi[p]),
-          .sc_pmci(sc_pmci),
-          .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
-          .terminate,
-          `RV_TESTER_TRANSACTIONS_PMU_SOURCE_PORTS(1, p, 0)
-      );
+      if (p == 0) begin : pmu_c0
+        pmu #(
+            .NUM(p),
+            .NRET(NRETS[p]),
+            .SC_PMCI_ENABLED(p == 0),
+            `TOPOLOGY_CFG,
+            `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PARAMS(0),
+            `RV_TESTER_TRANSACTIONS_PMU_SC_SOURCE_PARAMS(0)
+        ) pmu (
+            .clk(dut_clk[CORE_CLK_IDX]),
+            .sys_reset(sys_reset[CORE_CLK_IDX]),
+            .reset(dut_reset[CORE_CLK_IDX]),
+            .clocks,
+            .pmci(pmci[p]),
+            .hpmi(hpmi[p]),
+            .sc_pmci(sc_pmci),
+            .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
+            .terminate,
+            `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PORTS(1, p, 0),
+            `RV_TESTER_TRANSACTIONS_PMU_SC_SOURCE_PORTS(1, p, 0)
+        );
+      end else begin : pmu_cX 
+        pmu #(
+            .NUM(p),
+            .NRET(NRETS[p]),
+            .SC_PMCI_ENABLED(p == 0),
+            `TOPOLOGY_CFG,
+            `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PARAMS(0)
+        ) pmu (
+            .clk(dut_clk[CORE_CLK_IDX]),
+            .sys_reset(sys_reset[CORE_CLK_IDX]),
+            .reset(dut_reset[CORE_CLK_IDX]),
+            .clocks,
+            .pmci(pmci[p]),
+            .hpmi(hpmi[p]),
+            .sc_pmci(),
+            .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
+            .terminate,
+            `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PORTS(1, p, 0)
+        );
+      end
     end
 
     assign tx_dom_1.logger_cycle_0s[0][0].valid = gen_clocks;

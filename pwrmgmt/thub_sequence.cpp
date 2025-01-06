@@ -83,6 +83,14 @@ cvm::messenger::task<void> thub_sequence::temp_throttle_enable()
 {
     uint64_t cntr_data;
 
+    // Make sure MCsrInhibit for Counter10 is 0
+    cntr_data = co_await csr_read(core_throttle, 0x4, core_mcountinhibit); // MS inhibit
+    cntr_data = cntr_data & 0xFFFFFFFFFFFFFBFF;
+    co_await csr_write(core_throttle, 0x4, core_mcountinhibit , cntr_data); // MS Event
+    cntr_data = co_await csr_read(core_throttle, 0x8, core_mcountinhibit); // MC inhibit
+    cntr_data = cntr_data & 0xFFFFFFFFFFFFFBFF;
+    co_await csr_write(core_throttle, 0x8, core_mcountinhibit , cntr_data); // MC Event
+
     // Configure HPMEVENT10/HPMCOUNTER10 to monitor throttle
     co_await csr_write(core_throttle, 0x4, core_mhpmevent10 , 0x94400000); // MS Event
     co_await csr_write(core_throttle, 0x8, core_mhpmevent10 , 0x94400000); // MC Event
