@@ -117,7 +117,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const B& b) {
     free_id(b.id);
     push_transactions();
 }
-template <typename B, typename R, typename ARQ, typename AWQ, typename WQ> int find_id(const std::vector<bool>& vec) {
+template <typename B, typename R, typename ARQ, typename AWQ, typename WQ> uint32_t find_id(const std::vector<bool>& vec) {
             if(FLAGS_axi_rand_id_alloc){
             // Step 1: Generate a list of indices
             std::vector<size_t> indices(vec.size());
@@ -134,7 +134,7 @@ template <typename B, typename R, typename ARQ, typename AWQ, typename WQ> int f
              // Step 3: Search for the first true value in the randomized order
             for (size_t idx : indices) {
              if (vec[idx]) {
-                return static_cast<int>(idx); // Return the index of the first true value
+                return static_cast<uint32_t>(idx); // Return the index of the first true value
                 }
             }
 

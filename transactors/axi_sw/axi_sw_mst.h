@@ -58,7 +58,7 @@ class axi_sw_mst {
         void process(const transactor::write_request_t& req);
         bool a_wrapper(uint64_t req_addr, size_t req_length, axi::a_t& a);
         bool push_a_no_id(const bool& aw, const axi::a_no_id_t& a_no_id, id_t& id);
-        int find_id(const std::vector<bool>& vec);
+        uint32_t find_id(const std::vector<bool>& vec);
         void push_w(const axi::w_t& w);
         void push_transactions();
         void reset_ptrs();
