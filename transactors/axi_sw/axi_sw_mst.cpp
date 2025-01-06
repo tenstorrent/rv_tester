@@ -117,7 +117,9 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const B& b) {
     free_id(b.id);
     push_transactions();
 }
-template <typename B, typename R, typename ARQ, typename AWQ, typename WQ> uint32_t find_id(const std::vector<bool>& vec) {
+template <typename B, typename R, typename ARQ, typename AWQ, typename WQ> 
+uint32_t
+axi_sw_mst<B, R, ARQ, AWQ, WQ>::find_id(const std::vector<bool>& vec) {
             if(FLAGS_axi_rand_id_alloc){
             // Step 1: Generate a list of indices
             std::vector<size_t> indices(vec.size());
