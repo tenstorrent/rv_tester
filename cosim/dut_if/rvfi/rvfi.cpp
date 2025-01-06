@@ -1394,14 +1394,6 @@ extern "C" {
   }
 }
 
-extern "C" {
-  int is_eot_tohost() {
-    if (FLAGS_eot == "tohost")
-      return 1;
-    return 0;
-  }
-}
-
 bool get_csr_name_instr(const std::string& input, std::string& modified_string) {
     // Define the regex pattern to find 'c' followed by digits
     std::regex pattern(R"(c(\d+))");
