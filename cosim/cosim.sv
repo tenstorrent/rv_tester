@@ -1206,7 +1206,7 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     // When using periodic whisper updates... check for eot if max instruction method is used
     assign instr_count = instruction_cnt + 64'(valid_cnt);
-    assign eot_max_instr = ((cosim_period > 0) & (max_instructions > 0) &  (instr_count > max_instructions)) ? 1'b1: 1'b0;
+    assign eot_max_instr = ((max_instructions > 0) &  (instr_count > max_instructions)) ? 1'b1: 1'b0;
 
     // m_debug
     logic debug_mode_d1;
