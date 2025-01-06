@@ -117,35 +117,55 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const B& b) {
     free_id(b.id);
     push_transactions();
 }
-template <typename B, typename R, typename ARQ, typename AWQ, typename WQ> 
-uint32_t
-axi_sw_mst<B, R, ARQ, AWQ, WQ>::find_id(const std::vector<bool>& vec) {
-            if(FLAGS_axi_rand_id_alloc){
+// template <typename B, typename R, typename ARQ, typename AWQ, typename WQ> 
+// uint32_t
+// axi_sw_mst<B, R, ARQ, AWQ, WQ>::find_id(const std::vector<bool>& vec) {
+//             if(FLAGS_axi_rand_id_alloc){
             // Step 1: Generate a list of indices
-            std::vector<size_t> indices(vec.size());
-            for (size_t i = 0; i < vec.size(); ++i) {
-                indices[i] = i;
-            }
+            // std::vector<size_t> indices(vec.size());
+            // for (size_t i = 0; i < vec.size(); ++i) {
+            //     indices[i] = i;
+            // }
 
-            // Step 2: Shuffle the indices
-            // std::random_device rd;
-            // std::mt19937 gen(rd());
-            // unsigned idx = rng1() % snoop_addrs.size(); 
-            std::shuffle(indices.begin(), indices.end(), rng);
+            // // Step 2: Shuffle the indices
+            // // std::random_device rd;
+            // // std::mt19937 gen(rd());
+            // // unsigned idx = rng1() % snoop_addrs.size(); 
+            // std::shuffle(indices.begin(), indices.end(), rng);
  
-             // Step 3: Search for the first true value in the randomized order
-            for (size_t idx : indices) {
-             if (vec[idx]) {
-                return static_cast<uint32_t>(idx); // Return the index of the first true value
-                }
-            }
+            //  // Step 3: Search for the first true value in the randomized order
+            // for (size_t idx : indices) {
+            //  if (vec[idx]) {
+            //     return static_cast<uint32_t>(idx); // Return the index of the first true value
+//                 }
+//             }
 
-            return -1; // Return -1 if no true value is found
-            }else{
-                 auto it = std::find(ids_.begin(), ids_.end(), true);
-                 return it;
-            }
-}
+//             return -1; // Return -1 if no true value is found
+//             }else{
+//                  auto it = std::find(ids_.begin(), ids_.end(), true);
+//                  return it;
+//             }
+
+//     // Collect all valid indices where ids_[i] == true
+//     std::vector<size_t> valid_indices;
+//     for (size_t i = 0; i < ids_.size(); ++i) {
+//         if (ids_[i]) {
+//             valid_indices.push_back(i);
+//         }
+//     }
+
+//     if (valid_indices.empty())
+//         return false;
+
+//     // Randomly select one of the valid indices
+//     //std::uniform_int_distribution<size_t> dis(0, valid_indices.size() - 1);
+//     size_t random_index = valid_indices[rng() % valid_indices.size()];
+
+//     id = valid_indices[random_index];
+//     ids_[id] = false; // Mark as used
+//     return true;
+// }
+
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const R& r) {

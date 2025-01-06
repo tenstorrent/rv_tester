@@ -35,15 +35,33 @@ class axi_sw_mst {
 
         bool next_id(uint32_t& id) {
            // auto it = std::find(ids_.begin(), ids_.end(), true);
-            auto it = find_id(ids_);
+            // auto it = find_id(ids_);
            
-            if (it == ids_.end())
-              return false;
+            // if (it == ids_.end())
+            //   return false;
 
-            //id = it - ids_.begin();
-            id = it;
-            ids_[id] = false;
-            //*it = false;
+            // //id = it - ids_.begin();
+            // id = it;
+            // ids_[id] = false;
+            // //*it = false;
+            // return true;
+                // Collect all valid indices where ids_[i] == true
+            std::vector<size_t> valid_indices;
+            for (size_t i = 0; i < ids_.size(); ++i) {
+                if (ids_[i]) {
+                    valid_indices.push_back(i);
+                }
+            }
+
+            if (valid_indices.empty())
+                return false;
+
+            // Randomly select one of the valid indices
+            //std::uniform_int_distribution<size_t> dis(0, valid_indices.size() - 1);
+            size_t random_index = valid_indices[rng() % valid_indices.size()];
+
+            id = valid_indices[random_index];
+            ids_[id] = false; // Mark as used
             return true;
         }
 
@@ -58,7 +76,7 @@ class axi_sw_mst {
         void process(const transactor::write_request_t& req);
         bool a_wrapper(uint64_t req_addr, size_t req_length, axi::a_t& a);
         bool push_a_no_id(const bool& aw, const axi::a_no_id_t& a_no_id, id_t& id);
-        uint32_t find_id(const std::vector<bool>& vec);
+        //uint32_t find_id(const std::vector<bool>& vec);
         void push_w(const axi::w_t& w);
         void push_transactions();
         void reset_ptrs();
