@@ -156,7 +156,7 @@ module rv_tester
     int debug_enable = 0;
     bit dmi_driver_dbg_enable;
     int hart_enable_mask = 0;
-    int ntrace_stop_on_wrap = 0;
+    bit ntrace_stop_on_wrap = 0;
     int rand_dmi_driver_dly = 0;
     int sdtrig_multitrigger = 0;
     int num_dm_randpc = 0;
@@ -183,6 +183,7 @@ module rv_tester
     string cvm_verbosity_string, gen_clocks_verbosity_string;
     int unsigned cvm_verbosity, gen_clocks_verbosity;
     logic dut_terminate_any;
+    logic ntrace_terminate;
 
 
     assign dut_terminate_any = dut_terminate;
@@ -341,7 +342,7 @@ module rv_tester
             jtag_en              <= cvm_plusargs::get_bool("jtag_en") != '0;
             rand_dmi_driver_dly  <= cvm_plusargs::get_int("rand_dmi_driver_dly");
             hart_enable_mask     <= cvm_plusargs::get_int("hart_enable_mask");
-            ntrace_stop_on_wrap  <= cvm_plusargs::get_bool("ntrace_stop_on_wrap_seq_en");
+            ntrace_stop_on_wrap  <= cvm_plusargs::get_bool("ntrace_stop_on_wrap_seq_en") != '0;
 
         end
         clock_mode      <= clk_profile[2:0];
