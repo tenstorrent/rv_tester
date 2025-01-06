@@ -117,7 +117,33 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const B& b) {
     free_id(b.id);
     push_transactions();
 }
+template <typename B, typename R, typename ARQ, typename AWQ, typename WQ> int find_id(const std::vector<bool>& vec) {
+            if(FLAGS_axi_rand_id_alloc){
+            // Step 1: Generate a list of indices
+            std::vector<size_t> indices(vec.size());
+            for (size_t i = 0; i < vec.size(); ++i) {
+                indices[i] = i;
+            }
 
+            // Step 2: Shuffle the indices
+            // std::random_device rd;
+            // std::mt19937 gen(rd());
+            // unsigned idx = rng1() % snoop_addrs.size(); 
+            std::shuffle(indices.begin(), indices.end(), rng);
+ 
+             // Step 3: Search for the first true value in the randomized order
+            for (size_t idx : indices) {
+             if (vec[idx]) {
+                return static_cast<int>(idx); // Return the index of the first true value
+                }
+            }
+
+            return -1; // Return -1 if no true value is found
+            }else{
+                 auto it = std::find(ids_.begin(), ids_.end(), true);
+                 return it;
+            }
+}
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const R& r) {
