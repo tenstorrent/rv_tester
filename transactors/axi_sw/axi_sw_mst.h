@@ -59,10 +59,11 @@ class axi_sw_mst {
 
             // Randomly select one of the valid indices
             //std::uniform_int_distribution<size_t> dis(0, valid_indices.size() - 1);
+            size_t random_index;
             if(FLAGS_axi_rand_id_alloc)
-            size_t random_index = valid_indices[rng() % valid_indices.size()];
+             random_index = valid_indices[rng() % valid_indices.size()];
             else
-            size_t random_index = valid_indices[0];
+             random_index = valid_indices[0];
 
             id = valid_indices[random_index];
             ids_[id] = false; // Mark as used
