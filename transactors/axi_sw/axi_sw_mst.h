@@ -3,6 +3,7 @@
 #include <variant>
 #include "axi.h"
 
+#include "cvm/random.hpp"
 #include "rv_tester_transactions.hpp"
 
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
@@ -30,14 +31,43 @@ class axi_sw_mst {
         inline void free_id(uint32_t id) {
             ids_[id] = true;
         }
+        int find_id(const std::vector<bool>& vec) {
+            if(FLAGS_axi_rand_id_alloc){
+            // Step 1: Generate a list of indices
+            std::vector<size_t> indices(vec.size());
+            for (size_t i = 0; i < vec.size(); ++i) {
+                indices[i] = i;
+            }
+
+            // Step 2: Shuffle the indices
+            // std::random_device rd;
+            // std::mt19937 gen(rd());
+            // unsigned idx = rng1() % snoop_addrs.size(); 
+            std::shuffle(indices.begin(), indices.end(), rng);
+ 
+             // Step 3: Search for the first true value in the randomized order
+            for (size_t idx : indices) {
+             if (vec[idx]) {
+                return static_cast<int>(idx); // Return the index of the first true value
+                }
+            }
+
+            return -1; // Return -1 if no true value is found
+            }else{
+                 auto it = std::find(ids_.begin(), ids_.end(), true);
+                 return it;
+            }
+        }
 
         bool next_id(uint32_t& id) {
-            auto it = std::find(ids_.begin(), ids_.end(), true);
-
+           // auto it = std::find(ids_.begin(), ids_.end(), true);
+            auto it = find_id(ids_);
+           
             if (it == ids_.end())
               return false;
 
-            id = it - ids_.begin();
+            //id = it - ids_.begin();
+            id = it;
             *it = false;
             return true;
         }
@@ -95,6 +125,8 @@ class axi_sw_mst {
 
         uint64_t read_bytes_;
         uint64_t write_bytes_;
+
+        cvm::rand::uniform_dist<uint32_t> rng;
 
     public:
 

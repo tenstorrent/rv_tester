@@ -4,6 +4,7 @@
 #include "cvm/plusargs.hpp"
 #include "cvm/bitmanip.hpp"
 #include "cvm/logger.hpp"
+
 #include <typeinfo>
 
 REGISTRY_register((axi_sw_mst<rv_tester_transactions::axi_sw_mst::b<>,
@@ -19,6 +20,7 @@ REGISTRY_register((axi_sw_mst<rv_tester_transactions::axi_sw_mst::b<1>,
                               rv_tester_transactions::axi_sw_mst::w_q_ptr<1>>), SMC_AXI_MST, cvm::registry::all);
 
 DEFINE_bool(axi_allow_err_resp, false, "Allow error responses on axi_mst transactions");
+DEFINE_bool(axi_rand_id_alloc, false, "Allow random ID allocation for axi_mst transactions");
 DEFINE_bool(axi_sw_mst_greedy_queue, false, "Enables greedy behavior for transaction queue. This prevents HOL blocking on C++ side.");
 
 extern "C" {
