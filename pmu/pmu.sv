@@ -12,7 +12,6 @@ import rv_tester_pkg::*;
   input clk,
   input reset,
   input sys_reset,
-  input longint unsigned clocks,
   input pmci_t pmci,
   input hpmi_t hpmi,
   input sc_pmci_t sc_pmci,

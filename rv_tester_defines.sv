@@ -912,6 +912,7 @@ package rv_tester_params;
     // rv_tester ports
     // --------------------------------------
 `define _RV_TESTER_PORTS(input,output)                                                              \
+    input  logic [63:0]                      clocks,                                                \
     input                                    clk                [rv_tester_params::NCLKS-1:0],      \
     output                                   dut_clk            [rv_tester_params::NCLKS-1:0],      \
     input                                    dut_reset          [rv_tester_params::NCLKS-1:0],      \
@@ -994,6 +995,7 @@ package rv_tester_params;
     input rv_tester_params::slv_resp_top    axi_rsp
 
 `define RV_TESTER_VARS(topology)                                                                    \
+    logic [63:0]                             clocks;                                                \
     logic                                    clk             [rv_tester_params::NCLKS-1:0];         \
     logic                                    dut_clk         [rv_tester_params::NCLKS-1:0];         \
     logic                                    dut_reset       [rv_tester_params::NCLKS-1:0];         \

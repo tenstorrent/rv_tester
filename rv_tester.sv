@@ -107,7 +107,7 @@ module rv_tester
     logic reset_window;
     logic cold_reset;
     logic warm_reset;
-    LU clocks = 0;
+    //LU clocks = 0;
     LU axi_clocks;
     bit cb_poll = '0;
     bit dyn_clk_switch = '0;
@@ -853,7 +853,6 @@ module rv_tester
             .clk(dut_clk[CORE_CLK_IDX]),
             .sys_reset(sys_reset[CORE_CLK_IDX]),
             .reset(dut_reset[CORE_CLK_IDX]),
-            .clocks,
             .pmci(pmci[p]),
             .hpmi(hpmi[p]),
             .sc_pmci(sc_pmci),
@@ -873,7 +872,6 @@ module rv_tester
             .clk(dut_clk[CORE_CLK_IDX]),
             .sys_reset(sys_reset[CORE_CLK_IDX]),
             .reset(dut_reset[CORE_CLK_IDX]),
-            .clocks,
             .pmci(pmci[p]),
             .hpmi(hpmi[p]),
             .sc_pmci(),
@@ -1228,7 +1226,7 @@ module rv_tester
     );
 
     always @(posedge dut_clk[TB_CLK_IDX]) begin
-        assert(assertion_test_cycle == '0 || clocks != LU'(assertion_test_cycle)) else $error("assertion test");
+        assert(assertion_test_cycle == '0 || clocks != 64'(assertion_test_cycle)) else $error("assertion test");
     end
 
 endmodule

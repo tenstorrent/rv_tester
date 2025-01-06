@@ -115,7 +115,7 @@ import rv_tester_params::*;
     input clk,
     input reset,
     input dut_reset,
-    input longint unsigned clocks,
+    input logic [63:0] clocks,
     input rule_t [NoAddrRules-1:0] addr_map,
     input rvfi_t [NRET-1:0] rvfi,
     input csri_t csri,

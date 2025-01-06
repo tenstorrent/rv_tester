@@ -9,8 +9,8 @@ import rv_tester_params::*;
   input logic clk,
   input logic sys_reset,
   input logic reset,
-  input longint unsigned clocks,
   input logic boot_done,
+  input logic [63:0] clocks,
   output logic nmi,
   `RV_TESTER_TRANSACTIONS_INTERRUPTS_OUTPUT_PORTS
 );
