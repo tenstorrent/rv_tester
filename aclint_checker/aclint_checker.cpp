@@ -17,6 +17,7 @@ DEFINE_bool(aclint, false, "Enable aclint checks");
 extern "C" {
     uint64_t get_mtime_value();
     uint64_t get_ctime_value();
+    void update_ctime_value(uint64_t value);
 }
 
 aclint_checker::aclint_checker(cvm::topology::loc_t loc, unsigned) {
@@ -107,6 +108,11 @@ void aclint_checker::process(const smc_write_pkt & w) {
         smc_ac_mmr_v_.push_back(m);
         popifpossible(m);
     }
+    else {
+        svSetScope(aclint_checker_scope_);
+        aclint_mmrs[mmr_addr].write(w.data, w.size);
+        update_ctime_value(aclint_mmrs[mmr_addr].read());
+    }
 }
 
 void aclint_checker::process(const smc_req_pkt & read_req) {
@@ -153,7 +159,7 @@ void aclint_checker::process(const smc_read_pkt & r) {
             (mtime_actual >= (mtime_expected - 50))){
             cvm::log(cvm::MEDIUM, "[SMC-AC] ACLINT MMR match - Name = MTIME, Address = {:#x} - Actual: {:#x} Expected: {:#x}\n", aclint_mmrs[mmr_addr].address, mtime_actual, mtime_expected);
         } else {
-            cvm::log(cvm::ERROR, "Error: [SMC-AC] ACLINT MMR match - Address = {:#x} - Actual: {:#x} Expected: {:#x}\n", aclint_mmrs[mmr_addr].address, mtime_actual, mtime_expected);
+            cvm::log(cvm::ERROR, "Error: [SMC-AC] Mismatch:- ACLINT MMR mismatch - Address = {:#x} - Actual: {:#x} Expected: {:#x}\n", aclint_mmrs[mmr_addr].address, mtime_actual, mtime_expected);
         }
     } 
     else if (mmr_addr == aclint_addr::CR_CTIME){
@@ -164,7 +170,7 @@ void aclint_checker::process(const smc_read_pkt & r) {
         if (ctime_actual == ctime_expect){
             cvm::log(cvm::MEDIUM, "[SMC-AC] ACLINT MMR match - Name = CTIME, Address = {:#x} - Actual: {:#x} Expected: {:#x}\n", aclint_mmrs[mmr_addr].address, ctime_actual, ctime_expect);
         } else {
-            cvm::log(cvm::ERROR, "Error: [SMC-AC] ACLINT MMR match - Address = {:#x} - Actual: {:#x} Expected: {:#x}\n", aclint_mmrs[mmr_addr].address, ctime_actual, ctime_expect);
+            cvm::log(cvm::ERROR, "Error: [SMC-AC] Mismatch:- ACLINT MMR mismatch - Address = {:#x} - Actual: {:#x} Expected: {:#x}\n", aclint_mmrs[mmr_addr].address, ctime_actual, ctime_expect);
         }
         
     }
