@@ -356,7 +356,7 @@ cvm::messenger::task<void> trace_stop_on_wrap_sequence::disable_dst_trace() {
   co_await write(cdbg_cla_ctrl_status,SZ_8B,data);
 
   data = co_await read(tr_dst_control, SZ_4B);
-  data = data & 0xFFFF'FFFD;
+  data = data & 0xFFFF'FFF9;
   co_await write(tr_dst_control,SZ_4B,data);
 
   while(1){
@@ -428,7 +428,7 @@ cvm::messenger::task<void> trace_stop_on_wrap_sequence::enable_dst_trace() {
   
   // Enable DST Packetizer
   auto dst_cntrl = co_await read(tr_dst_control, SZ_4B);
-  dst_cntrl = dst_cntrl | 0x2;
+  dst_cntrl = dst_cntrl | 0x7;
   co_await write(tr_dst_control,SZ_4B,dst_cntrl);
 
   // Enable CLA EAP
