@@ -61,16 +61,16 @@ struct mmr {
     // Write new data to the mmr
     void write(uint64_t new_data) {
         data = new_data;
-        cvm::log(cvm::HIGH, "[cluster] mmr write: [{} = {:#x}]\n", name, data);
+        cvm::log(cvm::HIGH, "[ACLINT CHECKER] MMR write: [{} = {:#x}]\n", name, data);
     }
 
     // Write new data to the mmr
     void write(uint64_t new_data, size_t sz) {
         uint64_t sz_mask = (sz == 3) ? ~uint64_t(0) : ((uint64_t)1 << ((1<<sz)*8)) - 1;
-            if (sz == 2 || sz == 3) { // update modeled data only for 4B and 8B writes
+        if (sz == 2 || sz == 3) { // update modeled data only for 4B and 8B writes
             data = (data & ~sz_mask) | (new_data & sz_mask);
+            cvm::log(cvm::HIGH, "ACLINT MMR write: [{} = {:#x}(size = {})]\n", name, data, sz);
         }
-        cvm::log(cvm::MEDIUM, "ACLINT MMR write: [{} = {:#x}(size = {})]\n", name, data, sz);
     }
 
     // Read the current value of the mmr
@@ -98,19 +98,35 @@ typedef enum : uint64_t {
 } aclint_addr;
 
 std::unordered_map<aclint_addr, mmr> aclint_mmrs = {
-    {AC_MTIMECMP0,  {"aclintmmr_mtimecmp0", 0x4218'8000, 8, 0xffffffff}},
-    {AC_MTIMECMP1,  {"aclintmmr_mtimecmp1", 0x4218'8008, 8, 0xffffffff}},
-    {AC_MTIMECMP2,  {"aclintmmr_mtimecmp2", 0x4218'8010, 8, 0xffffffff}},
-    {AC_MTIMECMP3,  {"aclintmmr_mtimecmp3", 0x4218'8018, 8, 0xffffffff}},
-    {AC_MTIMECMP4,  {"aclintmmr_mtimecmp4", 0x4218'8020, 8, 0xffffffff}},
-    {AC_MTIMECMP5,  {"aclintmmr_mtimecmp5", 0x4218'8028, 8, 0xffffffff}},
-    {AC_MTIMECMP6,  {"aclintmmr_mtimecmp6", 0x4218'8030, 8, 0xffffffff}},
-    {AC_MTIMECMP7,  {"aclintmmr_mtimecmp7", 0x4218'8038, 8, 0xffffffff}},
-    {AC_MTIMECMP8,  {"aclintmmr_mtimecmp8", 0x4218'8040, 8, 0xffffffff}},
-    {AC_MTIME,      {"aclintmmr_mtime", 0x4218'0000, 8, 0x0, 0x0, 0x0}},
-    {AC_TIMESYNC,   {"aclintmmr_timesync", 0x4218'0018, 8, 0x0, 0xffffffffffffffff, 0x0}}, 
-    {CR_WTIME,      {"aclintmmr_wtime", 0x4200'0000, 8, 0xffffffff, 0x0, 0x0}},
-    {CR_CTIME,      {"aclintmmr_ctime", 0x4200'0008, 8, 0x0, 0x0, 0x0}}
+    {AC_MTIMECMP0,  {"AC_MTIMECMP0", 0x4218'8000, 8, 0xffffffff}},
+    {AC_MTIMECMP1,  {"AC_MTIMECMP1", 0x4218'8008, 8, 0xffffffff}},
+    {AC_MTIMECMP2,  {"AC_MTIMECMP2", 0x4218'8010, 8, 0xffffffff}},
+    {AC_MTIMECMP3,  {"AC_MTIMECMP3", 0x4218'8018, 8, 0xffffffff}},
+    {AC_MTIMECMP4,  {"AC_MTIMECMP4", 0x4218'8020, 8, 0xffffffff}},
+    {AC_MTIMECMP5,  {"AC_MTIMECMP5", 0x4218'8028, 8, 0xffffffff}},
+    {AC_MTIMECMP6,  {"AC_MTIMECMP6", 0x4218'8030, 8, 0xffffffff}},
+    {AC_MTIMECMP7,  {"AC_MTIMECMP7", 0x4218'8038, 8, 0xffffffff}},
+    {AC_MTIMECMP8,  {"AC_MTIMECMP8", 0x4218'8040, 8, 0xffffffff}},
+    {AC_MTIME,      {"AC_MTIME", 0x4218'0000, 8, 0x0, 0x0, 0xffffffffffffffff}},
+    {AC_TIMESYNC,   {"AC_TIMESYNC", 0x4218'0018, 8, 0x0, 0xffffffffffffffff, 0x0}}, 
+    {CR_WTIME,      {"CR_WTIME", 0x4200'0000, 8, 0xffffffff, 0x0, 0x0}},
+    {CR_CTIME,      {"CR_CTIME", 0x4200'0008, 8, 0x0, 0x0, 0xffffffffffffffff}}
+};
+
+std::unordered_map<aclint_addr, std::pair<bool, bool>> mmrReadReqFlag = {
+    {AC_MTIMECMP0, {false, false}},
+    {AC_MTIMECMP1, {false, false}},
+    {AC_MTIMECMP2, {false, false}},
+    {AC_MTIMECMP3, {false, false}},
+    {AC_MTIMECMP4, {false, false}},
+    {AC_MTIMECMP5, {false, false}},
+    {AC_MTIMECMP6, {false, false}},
+    {AC_MTIMECMP7, {false, false}},
+    {AC_MTIMECMP8, {false, false}},
+    {AC_MTIME    , {false, false}},
+    {AC_TIMESYNC , {false, false}},
+    {CR_WTIME    , {false, false}},
+    {CR_CTIME    , {false, false}}
 };
 
 
@@ -127,23 +143,26 @@ class aclint_checker {
     void process(const rv_tester_transactions::aclint_checker::axi_ac_write < > & axi_ac_write);
     void process(const smc_write_pkt & w);
     void process(const smc_read_pkt & r);
+    void process(const smc_req_pkt & read_req);
     
-    void popifpossible(uint64_t hart);
+    void popifpossible(uint64_t srcid);
+    void popifpossible(const MmrWr& m);
     void initializevqueue(std::vector < std::queue < MmrWr >> & q, int size);
     void initializevhash(std::vector < std::unordered_map < int, MmrWr >> & q, int size);
     void check_outstanding_transactions(uint64_t signal);
-    
+    void set_scope(svScope scope);
     private:
         // cvm::file_logger log;
         void reset();
 
     std::unordered_map < int, std::queue < MmrWr >> cr_ac_mmr_q_;
     std::unordered_map < int, std::queue < MmrWr >> axi_ac_mmr_q_;
-    std::queue < MmrWr > smc_ac_mmr_q_;
+    std::vector < MmrWr > smc_ac_mmr_v_;
     const uint64_t cluster_id_end_ = 25;
     const uint64_t cluster_id_start_ = 21;
     const uint64_t mmr_base_start_ = 27;
     int unsigned smc_monitor_loc = cvm::topology::get_from_type("PLATFORM", 0);
+    svScope aclint_checker_scope_;
 };
 
 #endif

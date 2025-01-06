@@ -886,7 +886,6 @@ module rv_tester
         .AcReqPkti(AcReqPkti),
         .AcReqPktRfClki(AcReqPktRfClki),
         .rvfi(rvfi),
-        .mcmi_bypass(mcmi_bypass),
         .AcMtimei(AcMtimei),
         .AcMtipi(AcMtipi),
         .SmcMtipi(SmcMtipi),

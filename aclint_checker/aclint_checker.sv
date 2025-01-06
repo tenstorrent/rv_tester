@@ -13,7 +13,6 @@ import rv_tester_params:: * ;
         input bit terminate,
         input ac_cr_sync AcCrSynci[NHARTS - 1: 0],
         input rvfi_t[TOTAL_NRETS - 1: 0] rvfi,
-        input mcmi_t[TOTAL_NBYPASSES - 1: 0] mcmi_bypass,
         input cr_ac_axi_pkt AcReqPkti,
         input cr_ac_axi_pkt AcReqPktRfClki,
         input logic[63: 0] AcMtimei,
@@ -34,12 +33,15 @@ import rv_tester_params:: * ;
     localparam  ACLINT_END = 'h4218ffff;
     logic enable_checks;
 
+    import "DPI-C" context function void aclint_checker_scope(int unsigned location);
+
     always @(posedge tb_clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */
             enable_checks = cvm_plusargs::get_bool("aclint") != '0;
             if (enable_checks)
             $display("SV: ACLINT_CHECKER location %d time %t\n",location,$time);
+            aclint_checker_scope(location);
             /* verilator lint_on BLKSEQ */
             /* verilator lint_off BLKSEQ */
             reset_done = 1'b1;
@@ -165,8 +167,22 @@ import rv_tester_params:: * ;
     endgenerate
 
     assign wtimecmp_wr_valid = AcReqPktRfClki.valid && AcReqPktRfClki.addr == WAKETIME;
-    assign mtime_wr_valid = AcReqPktRfClki.valid && AcReqPktRfClki.addr == MTIME;
+    assign mtime_wr_valid = AcReqPktRfClki.valid && AcReqPktRfClki.addr == MTIME && (AcReqPktRfClki.mask=='hff || AcReqPktRfClki.mask=='hf);
 
+    logic [63:0] AcChkMtime;
+    always @(posedge rf_clk) begin
+        if (dut_reset) AcChkMtime <= 0;
+        else if (mtime_wr_valid) AcChkMtime <= ((AcReqPktRfClki.mask == 'hf) ? {AcChkMtime[63:32], AcReqPktRfClki.data[31:0]} : AcReqPktRfClki.data);
+        else AcChkMtime <= AcChkMtime + 'h10;
+    end
+
+    logic [63:0] AcChkCtime;
+    always @(posedge rf_clk) begin
+        if (dut_reset) AcChkCtime <= 0;
+        else if (mtime_wr_valid) AcChkCtime <= ((AcReqPktRfClki.mask == 'hf) ? {AcChkMtime[63:32], AcReqPktRfClki.data[31:0]} : AcReqPktRfClki.data);    // Sample the updated MTIME to CTIME
+        else if (forcesynccame) AcChkCtime <= AcChkMtime; // Sample the local copy of MTIME to CTIME for timesync
+        else AcChkCtime <= AcChkCtime;
+    end
 
     logic [63:0] wcount, wcount_next;
     assign wcount_next = wtimecmp_wr_valid ? ((AcReqPktRfClki.data & data_mask) > AcMtimei ? 64'((AcReqPktRfClki.data & data_mask) - AcMtimei) : 64'b0)
@@ -242,9 +258,21 @@ import rv_tester_params:: * ;
         assign axi_ac_writes[0].data.mask = AcReqPkti.mask;
     /* verilator lint_on WIDTH */
 
+    function longint unsigned get_mtime_value();
+        return AcChkMtime;
+    endfunction
+    export "DPI-C" function get_mtime_value;
+
+    function longint unsigned get_ctime_value();
+        return AcChkCtime;
+    endfunction
+    export "DPI-C" function get_ctime_value;
+
     import "DPI-C" function void check_outstanding_transactions(int unsigned location);
-    final check_outstanding_transactions(location);
-    
+    always @(posedge terminate) begin
+        if (!reset) check_outstanding_transactions(location);
+    end
+
   function automatic logic [3:0] get_hart_ret(int n);
     logic [3:0] hart;
     /* verilator lint_off WIDTH */
