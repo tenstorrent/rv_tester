@@ -108,9 +108,11 @@ void aclint_checker::process(const smc_write_pkt & w) {
         popifpossible(m);
     }
     else {
-        svSetScope(aclint_checker_scope_);
         aclint_mmrs[mmr_addr].write(w.data, w.size);
-        update_ctime_value(aclint_mmrs[mmr_addr].read());
+        if (w.addr == aclint_addr::CR_CTIME){
+            svSetScope(aclint_checker_scope_);
+            update_ctime_value(aclint_mmrs[mmr_addr].read());   
+        }
     }
 }
 
@@ -152,7 +154,7 @@ void aclint_checker::process(const smc_read_pkt & r) {
     uint64_t expected = aclint_mmrs[mmr_addr].read();
 
     if (mmr_addr == aclint_addr::AC_MTIME) {
-        uint64_t mtime_expected = get_mtime_value();
+        uint64_t mtime_expected = get_mtime_value() & sz_mask & aclint_mmrs[mmr_addr].read_mask;
         uint64_t mtime_actual = (actual & aclint_mmrs[mmr_addr].read_mask);
         if ((mtime_actual < (mtime_expected + 50)) &&
             (mtime_actual >= (mtime_expected - 50))){
@@ -163,7 +165,7 @@ void aclint_checker::process(const smc_read_pkt & r) {
     } 
     else if (mmr_addr == aclint_addr::CR_CTIME){
         // Get modelled copy of CTIME from aclint_checker.sv using DPI-C
-        uint64_t ctime_expect = get_ctime_value();
+        uint64_t ctime_expect = get_ctime_value() & sz_mask & aclint_mmrs[mmr_addr].read_mask;
         uint64_t ctime_actual = (actual & aclint_mmrs[mmr_addr].read_mask);
         
         if (ctime_actual == ctime_expect){
