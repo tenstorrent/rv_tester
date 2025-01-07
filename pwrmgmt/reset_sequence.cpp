@@ -80,13 +80,13 @@ void reset_sequence::start(int reset_count) {
 
   reset_count_ = reset_count;
 
-  cvm::log(cvm::HIGH, "[reset_sequence] count = {}\n", reset_count_);
+  cvm::log(cvm::NONE, "[reset_sequence] count = {}\n", reset_count_);
   
   // Sequence threads
-  if (reset_count_ <= 0)
+  if (reset_count_ < 0)
     cold_reset_sequence_thread();
 
-  if (reset_count_ > 0)
+  if (reset_count_ >= 0)
     warm_reset_sequence_thread();
 }
 
