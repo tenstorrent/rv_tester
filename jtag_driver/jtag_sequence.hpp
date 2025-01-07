@@ -340,15 +340,16 @@ std::bitset<N> reverseLowerBits(const std::bitset<N>& bs, std::size_t split_leng
     // Use a hexadecimal number as a mask
     std::bitset<1344> mask_64(0xFFFFFFFFFFFFFFFF); 
     std::bitset<1344> mask_32(0xFFFFFFFF); 
-    std::bitset<1344> mask_40(0xFFFFFFFFFF); 
+    std::bitset<1344> mask_41(0x1FFFFFFFFFF); 
 
     std::bitset<1344> jtag_rdata_shifted(0);
     unsigned reg_length_data_local = 64;
 
     if (tap_cfg_sel == 1){ //DTM:1 
-      jtag_rdata_shifted = jtag_rdata & mask_40;
-      reg_length_data_local = 40;
-    } 
+      jtag_rdata_shifted = jtag_rdata >> 1;
+      jtag_rdata_shifted = jtag_rdata_shifted & mask_41;
+      reg_length_data_local = 41;
+    }
     else if(tap_cfg_sel == 2){ //AXI:2 
       jtag_rdata_shifted = jtag_rdata & mask_64;
     } 
