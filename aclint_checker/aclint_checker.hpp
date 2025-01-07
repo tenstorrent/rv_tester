@@ -109,7 +109,7 @@ std::unordered_map<aclint_addr, mmr> aclint_mmrs = {
     {AC_MTIMECMP8,  {"AC_MTIMECMP8", 0x4218'8040, 8, 0xffffffff}},
     {AC_MTIME,      {"AC_MTIME", 0x4218'0000, 8, 0x0, 0x0, 0xffffffffffffffff}},
     {AC_TIMESYNC,   {"AC_TIMESYNC", 0x4218'0018, 8, 0x0, 0xffffffffffffffff, 0x0}}, 
-    {CR_WTIME,      {"CR_WTIME", 0x4200'0000, 8, 0xffffffff, 0x0, 0x0}},
+    {CR_WTIME,      {"CR_WTIME", 0x4200'0000, 8, 0xffffffff, 0x0, 0xffffffffffffffff}},
     {CR_CTIME,      {"CR_CTIME", 0x4200'0008, 8, 0x0, 0x0, 0xffffffffffffffff}}
 };
 

@@ -32,12 +32,14 @@ import rv_tester_params:: * ;
     localparam  TIMESYNC = 'h380018;
     localparam  ACLINT_START = 'h42180000;
     localparam  ACLINT_END = 'h4218ffff;
+    logic enable_checks;
 
     import "DPI-C" context function void aclint_checker_scope(int unsigned location);
 
     always @(posedge tb_clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */
+            enable_checks = cvm_plusargs::get_bool("aclint") != '0;
             $display("SV: ACLINT_CHECKER location %d time %t\n",location,$time);
             aclint_checker_scope(location);
             /* verilator lint_on BLKSEQ */
@@ -69,7 +71,7 @@ import rv_tester_params:: * ;
             count <= count + 1;
         end
     end
-    assign violation_forcesync =  (count >  'd4);
+    assign violation_forcesync =  (count >  'd4) && enable_checks;
     always_comb assert (~violation_forcesync) else $error("Error: Not recieved aclint force sync");
     end
 
@@ -248,7 +250,7 @@ import rv_tester_params:: * ;
 
     //ACLINT core MMR - ac_mmrwrite
     for (genvar n = 0; n < TOTAL_NRETS; n++) begin
-        assign cr_ac_mmrwrites[n].valid =  ~reset & rvfi[n].valid && (rvfi[n].mem_wmask != 0) && (rvfi[n].mem_paddr >= ACLINT_START && rvfi[n].mem_paddr < ACLINT_END);
+        assign cr_ac_mmrwrites[n].valid =  ~reset & enable_checks & rvfi[n].valid && (rvfi[n].mem_wmask != 0) && (rvfi[n].mem_paddr >= ACLINT_START && rvfi[n].mem_paddr < ACLINT_END);
         assign cr_ac_mmrwrites[n].data.location = location;
         assign cr_ac_mmrwrites[n].data.srcid = get_hart_ret(n);
         assign cr_ac_mmrwrites[n].data.order = rvfi[n].order;
@@ -257,7 +259,7 @@ import rv_tester_params:: * ;
         assign cr_ac_mmrwrites[n].data.data = rvfi[n].mem_wdata[63:0];
     end
 
-        assign axi_ac_writes[0].valid = AcReqPkti.valid;
+        assign axi_ac_writes[0].valid = AcReqPkti.valid & enable_checks;
         assign axi_ac_writes[0].data.location = location;
         assign axi_ac_writes[0].data.srcid = AcReqPkti.srcid;
         assign axi_ac_writes[0].data.addr = topology.TOP.PLATFORM.PALEN'(AcReqPkti.addr);

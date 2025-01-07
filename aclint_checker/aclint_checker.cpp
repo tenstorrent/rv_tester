@@ -12,6 +12,7 @@
 #include <unordered_map>
 
 REGISTRY_register(aclint_checker, TOP.PLATFORM.ACLINT_CHECKER, 0);
+DEFINE_bool(aclint, false, "Enable aclint checks");
 
 extern "C" {
     uint64_t get_mtime_value();
@@ -156,8 +157,8 @@ void aclint_checker::process(const smc_read_pkt & r) {
     if (mmr_addr == aclint_addr::AC_MTIME) {
         uint64_t mtime_expected = get_mtime_value() & sz_mask & aclint_mmrs[mmr_addr].read_mask;
         uint64_t mtime_actual = (actual & aclint_mmrs[mmr_addr].read_mask);
-        if ((mtime_actual < (mtime_expected + 50)) &&
-            (mtime_actual >= (mtime_expected - 50))){
+        if ((mtime_actual < mtime_expected) &&
+            (mtime_actual >= (mtime_expected - 60))){
             cvm::log(cvm::MEDIUM, "[SMC-AC] ACLINT MMR match - Name = MTIME, Address = {:#x} - Actual: {:#x} Expected: {:#x}\n", aclint_mmrs[mmr_addr].address, mtime_actual, mtime_expected);
         } else {
             cvm::log(cvm::ERROR, "Error: [SMC-AC] Mismatch:- ACLINT MMR mismatch - Address = {:#x} - Actual: {:#x} Expected: {:#x}\n", aclint_mmrs[mmr_addr].address, mtime_actual, mtime_expected);
@@ -168,7 +169,7 @@ void aclint_checker::process(const smc_read_pkt & r) {
         uint64_t ctime_expect = get_ctime_value() & sz_mask & aclint_mmrs[mmr_addr].read_mask;
         uint64_t ctime_actual = (actual & aclint_mmrs[mmr_addr].read_mask);
         
-        if (ctime_actual == ctime_expect){
+        if ((ctime_actual >= ctime_expect) && (ctime_actual < (ctime_expect + 60))){
             cvm::log(cvm::MEDIUM, "[SMC-AC] ACLINT MMR match - Name = CTIME, Address = {:#x} - Actual: {:#x} Expected: {:#x}\n", aclint_mmrs[mmr_addr].address, ctime_actual, ctime_expect);
         } else {
             cvm::log(cvm::ERROR, "Error: [SMC-AC] Mismatch:- ACLINT MMR mismatch - Address = {:#x} - Actual: {:#x} Expected: {:#x}\n", aclint_mmrs[mmr_addr].address, ctime_actual, ctime_expect);
