@@ -82,7 +82,7 @@ end
 
   always @(posedge clk) begin
     clocks <= clocks + 1;
-    if(patch_trigger_start_clocks + 3 == clocks)
+    if(patch_trigger_start_clocks + 50 == clocks)
       /* verilator lint_off BLKSEQ */
           patch_event_based_interrupt = 1'b0;
       /* verilator lint_on BLKSEQ */
