@@ -858,14 +858,34 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
 
   uint64_t mask = m_mcmi_read.mask;
   uint64_t numones = std::popcount(mask);
+  std::bitset<256> data_vec = m.data_vec;
 
   // Find the number of consecutive ones starting from the first set bit
   uint64_t leadingZeros = std::countr_zero(mask);  // Find the number of trailing zeros
   mask >>= leadingZeros;
   uint64_t consecutiveOnes = std::countr_zero(~mask);  // Count ones until the first zero
-
   if (numones == consecutiveOnes) {
-      bridge_->process_dut_mcm_read(m_mcmi_read.hart, m);
+      if (m_mcmi_read.splat){
+        uint16_t total_elements = numones / elemsize;
+        m.size = elemsize;
+        for (int i=0; i<total_elements; i++){
+          uint64_t value = 0;
+          // Extract the bits for the current element
+          for (size_t j = 0; j < elemsize*8; ++j) {
+              size_t bit_index = i * elemsize*8 + j;
+              if (bit_index >= data_vec.size()) break; // Avoid overflow
+              if (data_vec[bit_index]) {
+                  value |= (1ULL << j);
+              }
+          }
+          m.data_vec = value;
+          m.elem_idx = m_mcmi_read.elem_idx + i;
+          bridge_->process_dut_mcm_read(m_mcmi_read.hart, m);
+        }
+      }
+      else {
+        bridge_->process_dut_mcm_read(m_mcmi_read.hart, m);
+      }
   } else {
       std::bitset<32> mask = m_mcmi_read.mask;
       std::vector<uint64_t> addresses;
@@ -902,10 +922,10 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
               if (m_mcmi_read.splat){
                 uint16_t total_elements = size / elemsize;
                 m.pa = m_mcmi_read.addr;
-                std::bitset<256> value = stringToBitset(dataAccumulated.substr(0, elemsize * 2));
                 m.size = elemsize;
-                m.data_vec = value;
                 for (int i=0; i<total_elements; i++){
+                  std::bitset<256> value = stringToBitset(dataAccumulated.substr(i*2*elemsize, (i+1)*2*elemsize));
+                  m.data_vec = value;
                   m.elem_idx = ((start - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx + i;
                   bridge_->process_dut_mcm_read(m_mcmi_read.hart, m);
                 }
@@ -933,10 +953,10 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
       if (m_mcmi_read.splat){
         uint16_t total_elements = size / elemsize;
         m.pa = m_mcmi_read.addr;
-        std::bitset<256> value = stringToBitset(dataAccumulated.substr(0, elemsize * 2));
         m.size = elemsize;
-        m.data_vec = value;
         for (int i=0; i<total_elements; i++){
+          std::bitset<256> value = stringToBitset(dataAccumulated.substr(i*2*elemsize, (i+1)*2*elemsize));
+          m.data_vec = value;
           m.elem_idx = ((start - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx + i;
           bridge_->process_dut_mcm_read(m_mcmi_read.hart, m);
         }
