@@ -150,9 +150,11 @@ import rv_tester_pkg::*;
     parameter OVERFLOW_BIT_EXTRA = 2;
     logic overflow;
     logic [EVENT_COUNT + SC_EVENT_COUNT + OVERFLOW_BIT_EXTRA -1 : 0] pmcounter_overflow_bit;
+    localparam RVFI_RE1_OFFSET = 3;
 
     assign pmcounters_cores[0].valid = !reset && perf_enabled && (overflow || (|mhpm_write) || terminate || (cycle_sync_en && (sync_cycles % period) == 0) || (instruction_sync_en && (((prev_sync_instructions % instructions) > nret) && ((sync_instructions % instructions) < nret))) || perf_start || perf_end);
     assign pmcounters_cores[0].data.location = location;
+    assign pmcounters_cores[0].data.tb_cycles = 24'(clocks - RVFI_RE1_OFFSET);
     assign pmcounters_cores[0].data.cpu_cycles = 24'(cpu_cycles);
     assign pmcounters_cores[0].data.instructions = 24'(pmcounter[INSTRUCTIONS]);
     assign pmcounters_cores[0].data.branch_instructions = 24'(branch_instructions);
