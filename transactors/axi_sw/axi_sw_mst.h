@@ -24,6 +24,7 @@ class axi_sw_mst {
         }
         inline void alloc_id(uint32_t id) {
             ids_[id] = false;
+            std::cout<<"\nPRT ALLOC ID :"<<id<<"\n";
         }
         inline bool used_id(uint32_t id) {
             return !ids_[id];
@@ -31,6 +32,7 @@ class axi_sw_mst {
 
         inline void free_id(uint32_t id) {
             ids_[id] = true;
+            std::cout<<"\nPRT FREE ID :"<<id<<"\n";
         }
 
 
@@ -54,8 +56,11 @@ class axi_sw_mst {
                 }
             }
 
-            if (valid_indices.empty())
+            if (valid_indices.empty()){
+             
+                std::cout<<"\nPRT NO VALID IDX\n";
                 return false;
+            }
 
             // Randomly select one of the valid indices
             //std::uniform_int_distribution<size_t> dis(0, valid_indices.size() - 1);
@@ -65,8 +70,10 @@ class axi_sw_mst {
             else
              random_index = valid_indices[0];
 
+            std::cout<<"\nPRT RANDOM IDX  :"<<random_index<<"\n";
             id = valid_indices[random_index];
             ids_[id] = false; // Mark as used
+            std::cout<<"\nPRT ALLOC ID :"<<id<<"\n";
             return true;
         }
 

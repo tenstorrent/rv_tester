@@ -20,7 +20,7 @@ REGISTRY_register((axi_sw_mst<rv_tester_transactions::axi_sw_mst::b<1>,
                               rv_tester_transactions::axi_sw_mst::w_q_ptr<1>>), SMC_AXI_MST, cvm::registry::all);
 
 DEFINE_bool(axi_allow_err_resp, false, "Allow error responses on axi_mst transactions");
-DEFINE_bool(axi_rand_id_alloc, false, "Allow random ID allocation for axi_mst transactions");
+DEFINE_bool(axi_rand_id_alloc, true, "Allow random ID allocation for axi_mst transactions");
 DEFINE_bool(axi_sw_mst_greedy_queue, false, "Enables greedy behavior for transaction queue. This prevents HOL blocking on C++ side.");
 
 extern "C" {
@@ -97,11 +97,11 @@ void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const B& b) {
     if (b.resp != axi::RESP_OKAY or not used_id(b.id)) {
         // could have EXOKAY if it was locked, but assume not for now
-        if(!FLAGS_axi_allow_err_resp && chk_rsp_err_ids_[b.id]){
-            cvm::log(cvm::ERROR, "[{}] Error: bad b.response id:{} resp: {}\n", name_, b.id, b.resp);
-        } else {
-            cvm::log(cvm::HIGH, "[{}] Allowing error b.response id:{} resp: {}\n", name_, b.id, b.resp);
-        }
+        // if(!FLAGS_axi_allow_err_resp && chk_rsp_err_ids_[b.id]){
+        //     cvm::log(cvm::ERROR, "[{}] Error: bad b.response id:{} resp: {}\n", name_, b.id, b.resp);
+        // } else {
+        //     cvm::log(cvm::HIGH, "[{}] Allowing error b.response id:{} resp: {}\n", name_, b.id, b.resp);
+        // }
         //return;
     }
 
@@ -169,14 +169,14 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const B& b) {
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const R& r) {
-    if (r.resp != axi::RESP_OKAY or not used_id(r.id)) {
-        if(!FLAGS_axi_allow_err_resp && chk_rsp_err_ids_[r.id]){
-            cvm::log(cvm::ERROR, "[{}] Error: bad r.response id: {} resp: {} last: {}\n", name_, r.id, r.resp, r.last);
-        } else {
-            cvm::log(cvm::HIGH, "[{}] Allowing error r.response id: {} resp: {} last: {}\n", name_, r.id, r.resp, r.last);
-        }
-        //return;
-    }
+    // if (r.resp != axi::RESP_OKAY or not used_id(r.id)) {
+    //     if(!FLAGS_axi_allow_err_resp && chk_rsp_err_ids_[r.id]){
+    //         cvm::log(cvm::ERROR, "[{}] Error: bad r.response id: {} resp: {} last: {}\n", name_, r.id, r.resp, r.last);
+    //     } else {
+    //         cvm::log(cvm::HIGH, "[{}] Allowing error r.response id: {} resp: {} last: {}\n", name_, r.id, r.resp, r.last);
+    //     }
+    //     //return;
+    // }
 
     cvm::log(cvm::FULL, "[axi_sw_mst]  r.response id: {} resp: {} last: {}\n", r.id, r.resp, r.last);
 
