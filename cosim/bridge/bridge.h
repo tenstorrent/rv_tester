@@ -142,14 +142,14 @@ private:
   void process_imsic_msi(hart_id_t hart, const mem_t& m);
   void process_local_interrupt(hart_id_t hart, rv_intr_t& i);
   void process_external_interrupt(hart_id_t hart, rv_intr_t& i);
-  void check_and_defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
-  void check_interrupt(hart_id_t hart, uint64_t mip, bool& taken, uint64_t& cause);
-  void defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
+  void check_and_defer_interrupt(int line, hart_id_t hart, uint64_t time, uint64_t mip);
+  void check_interrupt(int line, hart_id_t hart, uint64_t mip, bool& taken, uint64_t& cause);
+  void defer_interrupt(int line, hart_id_t hart, uint64_t time, uint64_t mip);
   void resetsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr);
   void setsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr);
   void poke_nmi(hart_id_t hart, uint64_t time, uint64_t cause);
   void clear_nmi(hart_id_t hart, uint64_t time);
-  void poke_mip(hart_id_t hart, uint64_t time, uint64_t mip);
+  void poke_mip(int line, hart_id_t hart, uint64_t time, uint64_t mip);
   void peek_mip(hart_id_t hart, uint64_t time, uint64_t& mip);
   void peek_seip(hart_id_t hart, uint64_t time, uint64_t& val);
   void get_gp_reg(uint32_t reg, uint64_t& data);
