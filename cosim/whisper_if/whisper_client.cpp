@@ -30,7 +30,7 @@ DEFINE_bool(nostop_standalone,false, "Do not stop if standalone whisper fails");
 DEFINE_string(whisper_instr_lines, "", "Write instr cache line addresses used in test to a file");
 DEFINE_string(whisper_data_lines, "", "Write data cache line addresses used in test to a file");
 DEFINE_bool(whisper_csv_log, false, "Make whisper use a csv trace.");
-DEFINE_uint32(whisper_tlb_size, 0, "Specify whisper tlb size");
+DEFINE_int32(whisper_tlb_size, -1, "Specify whisper tlb size");
 DEFINE_string(isa, "", "Override isa spec");
 DEFINE_string(stee_secure_region, "", "colon separated pair of numbers (same as whisper's --steesr)");
 DEFINE_bool(whisper_log, true, "Enable whisper logging to iss_cosim.log and iss_cmd.log");
@@ -221,7 +221,8 @@ constructSystem(uint16_t ncores, bool standalone) {
     hart.defineNmiPc(getNmiPc());
     hart.defineNmiExceptionPc(getNmiExceptionPc());
     hart.enableCsvLog(FLAGS_whisper_csv_log);
-    hart.setTlbSize(FLAGS_whisper_tlb_size);
+    if (FLAGS_whisper_tlb_size >= 0)
+      hart.setTlbSize(FLAGS_whisper_tlb_size);
     if (FLAGS_whisper_stdout_null) hart.redirectOutputDescriptor(STDOUT_FILENO, "/dev/null");
     if (FLAGS_whisper_stdin_null)  hart.redirectOutputDescriptor(STDIN_FILENO,  "/dev/null");
     if (! isa.empty()) {
