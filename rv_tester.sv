@@ -118,7 +118,7 @@ module rv_tester
     bit cb_success = '1;
     logic call_finish;
     int num_reruns = -1;
-    int dm_build_count = 0;
+    int dm_build_count = -1;
 
     string warm_reset_string;
     logic warm_reset_en = 0;
