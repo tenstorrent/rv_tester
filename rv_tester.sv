@@ -28,6 +28,7 @@ module rv_tester
     logic bypass_mem = 1;
     logic bypass_cache = 1;
     logic rv_tester_reset = '1;
+    logic dm_model_bypass = 1;
 
     /* verilator lint_off UNOPTFLAT */
     logic [2:0] clock_mode = 3'b000;
@@ -335,7 +336,8 @@ module rv_tester
             bypass_mem           <= cvm_plusargs::get_bool("bypass_mem") != '0;
             bypass_cache         <= cvm_plusargs::get_bool("bypass_cache") != '0;
             assertion_test_cycle <= cvm_plusargs::get_int("assertion_test_cycle");
-
+            
+            dm_model_bypass      <= cvm_plusargs::get_bool("dm_model_check_bypass") != '0;
             debug_enable         <= cvm_plusargs::get_int("debug_enable"); 
             trace_en             <= cvm_plusargs::get_bool("trace_en") != '0;
             overlay_mmr_en       <= cvm_plusargs::get_bool("overlay_mmr_en") != '0;
@@ -622,7 +624,7 @@ module rv_tester
                 $display("\n<%0d> [RVTESTER]: Error: Debug poll timeout limit reached.", clocks);
                 dmi_poll_timeout_terminate <= 1;
             end
-            else if ((dmi_poll_counter >= 'h1) && terminate) begin
+            else if ((dmi_poll_counter >= 'h1) && terminate && !dm_model_bypass) begin
                $display("<%0d> [RVTESTER]: Debug poll stopped as terminate condition detected", clocks);
             end
         end
