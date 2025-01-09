@@ -85,6 +85,8 @@ module rv_tester
     import "DPI-C" context function void rv_tester_parse_memmap(int unsigned no_addr_rules);
     import "DPI-C" context function void rv_tester_build_registry();
     import "DPI-C" function byte unsigned rv_tester_shutdown_registry();
+    import "DPI-C" context function void rv_tester_dm_build_registry();
+    import "DPI-C" function byte unsigned rv_tester_dm_shutdown_registry();
     import "DPI-C" context function bit rv_tester_flush_callbacks();
     import "DPI-C" function bit pwrmgmt_get_warm_reset_en(string mode);
     import "DPI-C" function longint unsigned eot_get_addr();
@@ -116,6 +118,7 @@ module rv_tester
     bit cb_success = '1;
     logic call_finish;
     int num_reruns = -1;
+    int dm_build_count = 0;
 
     string warm_reset_string;
     logic warm_reset_en = 0;
@@ -153,6 +156,7 @@ module rv_tester
     int flush_counter = 0;
     int flush_timeout = 25000;
     bit print_terminate_message = '1;
+    bit dm_registery_terminate_message = '1;
 
     int debug_enable = 0;
     bit dmi_driver_dbg_enable;
@@ -287,7 +291,11 @@ module rv_tester
     always @(posedge dut_clk[TB_CLK_IDX]) begin
 
         automatic int _;
-
+        if(cold_reset && (dm_build_count < 1)) begin //cold_reset
+            $display("[RVTESTER]: reconstructing DM registry");
+            rv_tester_dm_build_registry();
+            dm_build_count++;
+        end
         if (rv_tester_reset) begin
 
             $display("[RVTESTER]: new test");
@@ -368,11 +376,14 @@ module rv_tester
     always @(posedge dut_clk[TB_CLK_IDX]) begin
 
         automatic logic shutdowned = '0;
+        automatic logic dm_shutdowned = '0;
 
         if (rv_tester_reset) begin
             print_terminate_message <= '1;
         end
-
+        if(cold_reset) begin //
+          dm_registery_terminate_message <= '1; 
+        end
         if (terminate_now && !terminated) begin
 
             if (print_terminate_message) begin
@@ -391,7 +402,9 @@ module rv_tester
             end
 
             shutdowned = rv_tester_shutdown_registry() != '0;
-
+            if(num_resets > target_num_resets)begin
+            dm_shutdowned = rv_tester_dm_shutdown_registry() != '0;
+            end
             if (!shutdowned) begin
                 if (print_terminate_message) begin
                     $display("<%0d> [RVTESTER]: Could not shutdown, trying again until timeout", clocks);
