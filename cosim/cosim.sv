@@ -366,12 +366,12 @@ localparam CAM_IHBIT = CAM_IBITS;
     bit [NWRITE-1:0]       eot_write_found;                // end-of-test event found in mcmi_writes ifc
     bit [NBYPASS-1:0]      eot_bypass_found;                // end-of-test event found in mcmi_bypass ifc
     bit [NINSERT-1:0]      eot_insert_found;                // end-of-test event found in mcmi_insert ifc
-    longint unsigned       eot_write_addr[NWRITE-1:0]; 
-    longint unsigned       eot_write_data[NWRITE-1:0];  
-    longint unsigned       eot_insert_addr[NINSERT-1:0];  
-    longint unsigned       eot_insert_data[NINSERT-1:0];   
-    longint unsigned       eot_bypass_addr[NBYPASS-1:0];    
-    longint unsigned       eot_bypass_data[NBYPASS-1:0];     
+    longint unsigned       mcmi_write_addr[NWRITE-1:0]; 
+    longint unsigned       mcmi_write_data[NWRITE-1:0];  
+    longint unsigned       mcmi_insert_addr[NINSERT-1:0];  
+    longint unsigned       mci_insert_data[NINSERT-1:0];   
+    longint unsigned       mcmi_bypass_addr[NBYPASS-1:0];    
+    longint unsigned       mcmi_bypass_data[NBYPASS-1:0];     
     bit [46:0]             eot_write_fail;                 // end-of-test code mcm_writes
     bit [46:0]             eot_insert_fail;                // end-of-test code mcm_inserts
     bit [46:0]             eot_bypass_fail;                 // end-of-test code mcm_byapss
@@ -1085,9 +1085,9 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign eot_insert_found[n] = ((to_host == 1) & (eot_addr != '0) &  
                                       mcmi_insert[n].valid & (mcmi_insert[n].addr == $bits(mcmi_insert[n].addr)'(eot_addr)) & 
                                       mcmi_insert[n].data[0] & (mcmi_insert[n].data[63:56] == '0)) ? 1'b1 : 1'b0;
-        assign eot_insert_data[n] = mcmi_insert[n].data[63:0]; 
+        assign mci_insert_data[n] = mcmi_insert[n].data[63:0]; 
 /* verilator lint_off WIDTHEXPAND */
-        assign eot_insert_addr[n] = mcmi_insert[n].addr;
+        assign mcmi_insert_addr[n] = mcmi_insert[n].addr;
 /* verilator lint_on WIDTHEXPAND */
     end
 
@@ -1111,9 +1111,9 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign eot_write_found[n] = ((to_host == 1) & (eot_addr != '0) &  
                                       mcmi_write[n].valid & (mcmi_write[n].addr == $bits(mcmi_write[n].addr)'(eot_addr)) & 
                                       mcmi_write[n].data[0] & (mcmi_write[n].data[63:56] == '0)) ? 1'b1 : 1'b0;
-        assign eot_write_data[n] = mcmi_write[n].data[63:0]; 
+        assign mcmi_write_data[n] = mcmi_write[n].data[63:0]; 
 /* verilator lint_off WIDTHEXPAND */
-        assign eot_write_addr[n] = mcmi_write[n].addr; 
+        assign mcmi_write_addr[n] = mcmi_write[n].addr; 
 /* verilator lint_on WIDTHEXPAND */
     end
 
@@ -1140,9 +1140,9 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign eot_bypass_found[n] = ((to_host == 1) & (eot_addr != '0) &  
                                       mcmi_bypass[n].valid & (mcmi_bypass[n].addr == $bits(mcmi_bypass[n].addr)'(eot_addr)) & 
                                       mcmi_bypass[n].data[0] & (mcmi_bypass[n].data[63:56] == '0)) ? 1'b1 : 1'b0;
-        assign eot_bypass_data[n] = mcmi_bypass[n].data[63:0]; 
+        assign mcmi_bypass_data[n] = mcmi_bypass[n].data[63:0]; 
 /* verilator lint_off WIDTHEXPAND */
-        assign eot_bypass_addr[n] = mcmi_bypass[n].addr;
+        assign mcmi_bypass_addr[n] = mcmi_bypass[n].addr;
 /* verilator lint_on WIDTHEXPAND */
         assign mcmi_bypass_pokes[n] = mcmi_bypass[n].valid;
     end
@@ -1401,13 +1401,13 @@ localparam CAM_IHBIT = CAM_IBITS;
           if (eot_found) begin
             for(int i=0; i < NWRITE; i++) 
               if (eot_write_found[i]) 
-                 eot_hw_process(hart, clocks, eot_write_addr[i], eot_write_data[i]); 
+                 eot_hw_process(hart, clocks, mcmi_write_addr[i], mcmi_write_data[i]); 
             for(int i=0; i < NBYPASS; i++) 
               if (eot_bypass_found[i]) 
-                 eot_hw_process(hart, clocks, eot_bypass_addr[i], eot_bypass_data[i]); 
+                 eot_hw_process(hart, clocks, mcmi_bypass_addr[i], mcmi_bypass_data[i]); 
             for(int i=0; i < NINSERT; i++) 
               if (eot_insert_found[i]) 
-                 eot_hw_process(hart, clocks, eot_insert_addr[i], eot_insert_data[i]); 
+                 eot_hw_process(hart, clocks, mcmi_insert_addr[i], mci_insert_data[i]); 
           end
           if (eot_max_instr) begin
             call_check_max_instr(clocks,instr_count);
