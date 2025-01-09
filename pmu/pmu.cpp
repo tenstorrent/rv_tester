@@ -7,6 +7,7 @@ DEFINE_bool(perf, false, "Enable core performance metrics");
 // TODO: control which are dumped? might not be useful
 DEFINE_uint64(sync_pmcounters_period, 0, "Sync pmcounters every X cycles. A value of 0 means no sync, only update on terminate.");
 DEFINE_uint64(sync_pmcounters_instructions, 0, "Sync pmcounters every X instructions. A value of 0 means no sync, only update on terminate.");
+DEFINE_uint64(perf_tb_cycles_rvfi_offset, 2, "Offset rvfi retire cycle from pmu retire cycle");
 DEFINE_bool(pmcounters_log, false, "Dump pmcounters in log");
 DEFINE_bool(force_ref_clk, true, "Run with ref clk till reset completion");
 DEFINE_bool(ipc_check, false, "Check IPC within a tolerance %");
