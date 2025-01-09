@@ -89,13 +89,10 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
       [this](svScope s) { return this->set_scope(s); });
   cvm::registry::messenger.connect<uint64_t>(
       loc_,
-      [this](const uint64_t& t) {  // FIXME: using signal to send data from whisper client to sysmod
-      if (t == 0)
-        this->load_csr_mmr_boot(0);
-      else if (t == 1)
-        this->store_dm_rand();
-      else if (t == 2)
-        cosim_init_ = true; // this comes from bridge
+      [this](const uint64_t&) {
+      this->load_csr_mmr_boot(0);
+      this->store_dm_rand();
+      cosim_init_ = true;
       return;
       });
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::tick<>>(
