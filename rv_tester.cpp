@@ -126,7 +126,7 @@ extern "C" {
     }
     
     void rv_tester_dm_build_registry() {
-
+        auto dm_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.DM_MODEL", 0);
         cvm::log(cvm::NONE, "[registry] build dm components ...\n");
         cvm::registry::build(dm_loc);//pass dm location
         //cvm::registry::configure();//pass dm location
