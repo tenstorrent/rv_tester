@@ -294,7 +294,7 @@ module rv_tester
         if(cold_reset && (dm_build_count < 1)) begin //cold_reset
             $display("[RVTESTER]: reconstructing DM registry");
             rv_tester_dm_build_registry();
-            dm_build_count++;
+            dm_build_count <= dm_build_count + 1;
         end
         if (rv_tester_reset) begin
 
