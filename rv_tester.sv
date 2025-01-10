@@ -84,6 +84,7 @@ module rv_tester
     import "DPI-C" context function void rv_tester_cvm_error_handler();
     import "DPI-C" context function void rv_tester_parse_memmap(int unsigned no_addr_rules);
     import "DPI-C" context function void rv_tester_build_registry();
+    import "DPI-C" context function void rv_tester_no_dm_build_registry();
     import "DPI-C" function byte unsigned rv_tester_shutdown_registry();
     import "DPI-C" context function void rv_tester_dm_build_registry();
     import "DPI-C" function byte unsigned rv_tester_dm_shutdown_registry();
@@ -126,6 +127,7 @@ module rv_tester
     logic warm_reset_req_d1;
     logic warm_reset_now = 0;
     int num_resets = -1;
+    int num_builds = -1;
     int target_num_resets = 0;
 
     bit trace_en = 0;
@@ -291,11 +293,7 @@ module rv_tester
     always @(posedge dut_clk[TB_CLK_IDX]) begin
 
         automatic int _;
-        if(cold_reset && (dm_build_count < 1)) begin //cold_reset
-            $display("[RVTESTER]: reconstructing DM registry");
-            rv_tester_dm_build_registry();
-            dm_build_count <= dm_build_count + 1;
-        end
+
         if (rv_tester_reset) begin
 
             $display("[RVTESTER]: new test");
@@ -304,8 +302,15 @@ module rv_tester
                 rv_tester_set_seed();
             rv_tester_cvm_error_handler();
 
-            $display("[RVTESTER]: reconstructing registry");
-            rv_tester_build_registry();
+            if(num_builds < 0) begin 
+               $display("[RVTESTER]: constructing Full registry");
+               rv_tester_build_registry();
+               num_builds <= 0;
+            end 
+            else begin
+               $display("[RVTESTER]: constructing registry without DM Model");
+               rv_tester_no_dm_build_registry();
+            end
             rv_tester_parse_memmap(NoAddrRules);
 
             /* verilator lint_off BLKSEQ */

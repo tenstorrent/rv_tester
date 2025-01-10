@@ -118,13 +118,17 @@ extern "C" {
     }
 
     void rv_tester_build_registry() {
-        auto dm_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.DM_MODEL", 0);
         check_called = false;
-        //cvm::registry::build();
-        cvm::registry::build_all_except(dm_loc);
+        cvm::registry::build();
         cvm::registry::configure();
     }
-    
+   
+    void rv_tester_no_dm_build_registry() {
+        auto dm_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.DM_MODEL", 0);
+        check_called = false;
+        cvm::registry::build_all_except(dm_loc);
+        cvm::registry::configure();
+    } 
     void rv_tester_dm_build_registry() {
         auto dm_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.DM_MODEL", 0);
         cvm::log(cvm::NONE, "[registry] build dm components ...\n");
