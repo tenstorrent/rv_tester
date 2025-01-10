@@ -96,6 +96,7 @@ debug_module_t::debug_module_t(cvm::topology::loc_t loc, unsigned) : program_buf
   //   cvm::log(cvm::NONE,"hart_available_state[{:#x}] = {:#x}\n",i, hart_available_state[i]);
   // }
   
+  cvm::log(cvm::NONE,"\nConstructing DM Model.. \n");
   reset();
 }
 
@@ -319,6 +320,7 @@ void debug_module_t::init_debug_abstract_buffer(){
 
 void debug_module_t::reset()
 {
+  cvm::log(cvm::NONE,"\nReset DM Model.. \n");
   cvm::log(cvm::HIGH, "[Reset Harts]\n"); //Fixed value as per the implementation
 
   // Keeping everything available, but will get it from fuse map

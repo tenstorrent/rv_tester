@@ -92,12 +92,12 @@ import rv_tester_params::*;
     export "DPI-C" function sysmod_terminate;
 
     localparam longint unsigned TICKS = LU'(SW_CLOCK_UPDATE_PERIOD_PS)/LU'(CLOCK_PERIOD_PS);
-    assign ticks[0].valid         = ((0 == (clocks % TICKS)) || dut_reset_req) & (location != cvm_topology::nil);
+    assign ticks[0].valid         = ((0 == (clocks % TICKS)) || dut_reset_req) & (clocks > TICKS )& (location != cvm_topology::nil);
     assign ticks[0].data.location = location;
     assign ticks[0].data.advance  = TICKS;
     assign ticks[0].data.clocks   = clocks;
     assign ticks[0].data.divisor  = TICKS;
-    assign ticks[0].data.dut_reset_req = dut_reset_req;
+    assign ticks[0].data.dut_reset_req = dut_reset_req & (clocks > 100);
 
     localparam longint unsigned JTAG_TICKS = LU'(SW_CLOCK_UPDATE_PERIOD_PS)/LU'(JTAG_CLOCK_PERIOD_PS);
     assign jtag_ticks[0].valid         = (0 == (clocks % JTAG_TICKS)) & (location != cvm_topology::nil);

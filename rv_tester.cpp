@@ -195,8 +195,22 @@ extern "C" {
         cvm::registry::build();
         cvm::registry::configure();
     }
+   
+    void rv_tester_no_dm_build_registry() {
+        auto dm_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.DM_MODEL", 0);
+        check_called = false;
+        cvm::registry::build_all_except(dm_loc);
+        cvm::registry::configure();
+    } 
+    void rv_tester_dm_build_registry() {
+        auto dm_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.DM_MODEL", 0);
+        cvm::log(cvm::NONE, "[registry] build dm components ...\n");
+        cvm::registry::build(dm_loc);//pass dm location
+        //cvm::registry::configure();//pass dm location
+    }
 
     uint8_t rv_tester_shutdown_registry() {
+        auto dm_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.DM_MODEL", 0);
         if (!check_called) {
             cvm::log(cvm::NONE, "[registry] check...\n");
             cvm::registry::check();
@@ -204,7 +218,17 @@ extern "C" {
         }
 
         cvm::log(cvm::NONE, "[registry] shutdown...\n");
-        return cvm::registry::shutdown();
+        //return cvm::registry::shutdown();
+        return cvm::registry::shutdown_all_except(dm_loc);
+    }
+    
+    uint8_t rv_tester_dm_shutdown_registry() {
+        auto dm_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.DM_MODEL", 0);
+        cvm::log(cvm::NONE, "[registry] dm shutdown check...\n");
+ 
+
+        cvm::log(cvm::NONE, "[registry] dm shutdown...\n");
+        return cvm::registry::shutdown(dm_loc);//dm location
     }
 
     uint8_t rv_tester_flush_callbacks() {
