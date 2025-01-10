@@ -28,6 +28,7 @@ module rv_tester
     logic bypass_mem = 1;
     logic bypass_cache = 1;
     logic rv_tester_reset = '1;
+    logic dm_model_bypass = 1;
 
     /* verilator lint_off UNOPTFLAT */
     logic [2:0] clock_mode = 3'b000;
@@ -87,6 +88,7 @@ module rv_tester
     import "DPI-C" context function bit rv_tester_flush_callbacks();
     import "DPI-C" function bit pwrmgmt_get_warm_reset_en(string mode);
     import "DPI-C" function longint unsigned eot_get_addr();
+    import "DPI-C" context function bit rv_tester_perf_calc(int init, int reset_done, int term, LU clocks);
 
     localparam int unsigned AxiIdWidthMstRv    = topology.TOP.PLATFORM.AXI.ID_WIDTH + $clog2(topology.TOP.PLATFORM.AXI.TOTAL) + 1;
 
@@ -110,6 +112,11 @@ module rv_tester
     logic warm_reset;
     LU clocks = 0;
     LU axi_clocks;
+    bit perf_init_done = 1'b0;       // init done
+    bit perf_reset_done = 1'b0;       // reset done
+    bit perf_retn  = 1'b0;
+    int perf_count  = 0;
+    int perf_period = 0;
     bit cb_poll = '0;
     bit dyn_clk_switch = '0;
     bit cb_success = '1;
@@ -278,6 +285,50 @@ module rv_tester
             rv_tester_streaming_dpi_init();
         end
     end
+    /*
+    * 2-way DPI call used to periodically calculate the model performance 
+    *   - perf_period: controls how often performance measurement it made.
+    *       perf_period >  0 : measurement occurs periodically AND at the end of the test (termination)
+    *       perf_period <= 0 : measurement only occurs at the end of the test (termination)
+    */
+    always @(posedge dut_clk[TB_CLK_IDX]) begin
+        if (perf_init_done == 1'b0) begin
+            if (rv_tester_reset) begin
+                perf_count <= perf_period - 32'h1; 
+                perf_retn  <= rv_tester_perf_calc(1,0,0, clocks);
+                perf_init_done <= 1'b1;
+                perf_reset_done <= 1'b0;
+            end
+        end
+        else begin
+            if (rv_tester_reset == 1'b0) begin
+                if (perf_reset_done == 1'b0) begin
+                   perf_retn  <= rv_tester_perf_calc(0,1,0, clocks);
+                   perf_reset_done <= 1'b1;
+                   perf_count <= perf_period - 32'h1;
+                end
+            end
+            else 
+            if (perf_reset_done == 1'b1) begin
+                perf_init_done <= 1'b0;
+            end
+
+            if (terminate) begin
+                perf_retn  <= rv_tester_perf_calc(0,0,1, clocks);
+                perf_init_done <= 1'b0;
+            end
+            else begin
+                if (((perf_count == '0) & (perf_period > '0))) begin
+                    perf_count <= perf_period - 32'h1; 
+                    perf_retn  <= rv_tester_perf_calc(0,0,0, clocks);
+                end
+                else begin
+                   perf_count <= perf_count - 32'h1;
+                end
+            end
+        end
+    end
+
 
     /*
     * Group all zebu zemi3 DPIs here
@@ -310,6 +361,7 @@ module rv_tester
             warm_reset_string           = cvm_plusargs::get_string("warm_reset");
             warm_reset_en               = pwrmgmt_get_warm_reset_en(warm_reset_string);
             rv_tester_error_terminate.terminate = '0;
+            perf_period                 = cvm_plusargs::get_int("perf_period");
             /* verilator lint_on BLKSEQ */
 
             eot_addr             <= eot_get_addr();
@@ -337,7 +389,8 @@ module rv_tester
             bypass_mem           <= cvm_plusargs::get_bool("bypass_mem") != '0;
             bypass_cache         <= cvm_plusargs::get_bool("bypass_cache") != '0;
             assertion_test_cycle <= cvm_plusargs::get_int("assertion_test_cycle");
-
+            
+            dm_model_bypass      <= cvm_plusargs::get_bool("dm_model_check_bypass") != '0;
             debug_enable         <= cvm_plusargs::get_int("debug_enable"); 
             trace_en             <= cvm_plusargs::get_bool("trace_en") != '0;
             cla_nmi_en           <= (cvm_plusargs::get_bool("cla_rand_nmi_trig_en") != '0 ||  cvm_plusargs::get_bool("cla_nmi") != '0);
@@ -345,6 +398,7 @@ module rv_tester
             jtag_en              <= cvm_plusargs::get_bool("jtag_en") != '0;
             rand_dmi_driver_dly  <= cvm_plusargs::get_int("rand_dmi_driver_dly");
             hart_enable_mask     <= cvm_plusargs::get_int("hart_enable_mask");
+            perf_count           <= '0;
             ntrace_stop_on_wrap  <= cvm_plusargs::get_bool("ntrace_stop_on_wrap_seq_en") != '0;
 
         end
@@ -357,6 +411,7 @@ module rv_tester
         if (warm_reset_en && (num_resets < 0)) begin
             target_num_resets   <= cvm_rand::get("warm_reset_count");
         end
+        
     end
 
     /*
@@ -626,7 +681,7 @@ module rv_tester
                 $display("\n<%0d> [RVTESTER]: Error: Debug poll timeout limit reached.", clocks);
                 dmi_poll_timeout_terminate <= 1;
             end
-            else if ((dmi_poll_counter >= 'h1) && terminate) begin
+            else if ((dmi_poll_counter >= 'h1) && terminate && !dm_model_bypass) begin
                $display("<%0d> [RVTESTER]: Debug poll stopped as terminate condition detected", clocks);
             end
         end

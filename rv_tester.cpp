@@ -1,5 +1,6 @@
 #include <cstdlib>
 #include <string_view>
+#include <chrono>
 
 #include "cvm/plusargs.hpp"
 #include "cvm/registry.hpp"
@@ -10,6 +11,8 @@
 #include "rv_tester_transactions.hpp"
 #include "rv_tester/rv_tester_structs.h"
 #include "sysmod/sysmod_plusargs.h"
+#include <fmt/format.h>
+
 static bool validate_ge0(const char* flagname, const int value) {
     if (value < 0) {
         cvm::log(cvm::NONE, "Invalid value for +{}={}, must be >= 0\n", flagname, value);
@@ -18,6 +21,7 @@ static bool validate_ge0(const char* flagname, const int value) {
     return true;
 }
 
+DEFINE_int32(perf_period, 0, "cycles to wait to report clock performance");
 DEFINE_int32(quiesce_timeout, 500, "cycles to wait after eot condition before calling $finish");
 DEFINE_int32(flush_timeout, 25000, "cycles to wait after flush is initiated before calling $finish");
 DEFINE_bool(terminate_call_finish, true, "Call $finish on sim termination");
@@ -84,6 +88,75 @@ class logger_instrument {
 };
 
 extern "C" {
+
+    int rv_tester_perf_calc(int init, int reset_done, int terminate, std::uint64_t clocks) {
+        //cvm::log(cvm::NONE, "rv_tester_perf_calc(init={} terminate={}  clocks={})\n", init,terminate,clocks);
+        static std::chrono::time_point<std::chrono::high_resolution_clock> zero_time;
+        static std::chrono::time_point<std::chrono::high_resolution_clock> start_time;
+        static std::chrono::time_point<std::chrono::high_resolution_clock> end_time;
+        static std::chrono::time_point<std::chrono::high_resolution_clock> rstdone_time;
+        int pcps,tcps,period;
+        static std::uint64_t first_clk, rdone_clk;
+        static std::uint64_t last_clk;
+
+        end_time = std::chrono::high_resolution_clock::now();
+
+        if (init==1) {
+            first_clk = clocks;
+            last_clk  = clocks;
+            zero_time = end_time; 
+            start_time = end_time;
+            return(1);
+        }
+
+
+        if (reset_done==1) {
+           auto rduration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - zero_time).count();
+           pcps = 0;
+           period = clocks - first_clk;
+           rstdone_time = end_time;
+           rdone_clk  = clocks;
+           if (rduration > 0) {
+              pcps = (int)(period/rduration);
+           }
+           cvm::log(cvm::NONE, "time={}  reset_performance_khz\": {}\n", clocks,pcps);
+           start_time = end_time; 
+           last_clk = clocks;
+           return(1);
+        }
+
+        if (terminate==1) {
+           auto tduration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - rstdone_time).count();
+           period = clocks - rdone_clk;
+           if (tduration > 0) {
+              tcps = (int)(clocks/tduration);
+           }
+           cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"exec_performance_khz\": {}}}\n", tcps);
+
+           tduration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - zero_time).count();
+           tcps = 0;
+           period = clocks - first_clk;
+           if (tduration > 0) {
+              tcps = (int)(clocks/tduration);
+           }
+           cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"test_performance_khz\": {}}}\n", tcps);
+           last_clk = clocks;
+           start_time = end_time; 
+           return(1);
+        }
+
+        auto pduration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+        pcps = 0;
+        if (pduration > 0) { 
+           period = clocks - last_clk;
+           pcps = (int)(period/pduration);
+        }
+        cvm::log(cvm::NONE, "time:{}  period_performance_khz\": {}\n", clocks,pcps);
+        start_time = end_time; 
+        last_clk = clocks;
+        return(1);
+
+    }
 
     int rv_tester_parse_flags() {
         cvm::log(cvm::NONE, "[plusargs] Parsing...\n");

@@ -40,7 +40,14 @@ class eot {
       }
 
       cvm::registry::messenger.procedure<get_tohost_addr_RPC>(loc, [this] () {return this->get_tohost_addr();});
+      cvm::registry::messenger.procedure<process_tohost_RPC>(loc, [this] 
+            (std::uint64_t hart, std::uint64_t cycle, std::uint64_t addr, std::uint64_t data) {this->process_tohost(hart,cycle,addr,data);});
+      cvm::registry::messenger.procedure<check_max_instr_RPC>(loc, [this] 
+            (std::uint64_t cycle, std::uint64_t count) {this->check_max_instr(cycle,count);});
     }
+    CVM_MESSENGER_procedure_call(process_tohost_RPC, void (std::uint64_t hart, std::uint64_t cycle, std::uint64_t addr, std::uint64_t data));
+    CVM_MESSENGER_procedure_call(check_max_instr_RPC, void (std::uint64_t cycle, std::uint64_t count));
+
     void configure() {
       init_tohost_addr();
     }
@@ -58,6 +65,7 @@ class eot {
     void process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_insert);
     void process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_bypass);
     void process_tohost(uint64_t hartid, uint64_t cycle, uint64_t address, uint64_t data);
+    void check_max_instr(uint64_t cycle, uint64_t count);
 
   private:
 

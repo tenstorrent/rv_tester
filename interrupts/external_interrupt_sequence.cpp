@@ -113,9 +113,10 @@ cvm::messenger::task<void> external_interrupt_sequence::patch_trigger_mode() {
 cvm::messenger::task<void> external_interrupt_sequence::uarch_trigger_mode() {
   while(1){
     co_await trigger();
-    if(drive_msi_in_curr_hart){
+    if((interrupts_driven < trigger_interrupt_count_) && (drive_msi_in_curr_hart)){
       cvm::log(cvm::LOW,"[ExtInterruptSeq] driving external interrupt due to uarch_trigger");
       drive_interrupt();
+      interrupts_driven++;
     }
   }
 }

@@ -114,6 +114,7 @@ void debugger::parse_dmi_from_csv()
   if (file_name.find(word) != std::string::npos) {
         cvm::log(cvm::LOW,  "The csv file name contains the word 'ndm' hence disabling random dbg entry.\n");
         FLAGS_dm_model_check_bypass = true;
+        FLAGS_warm_reset = "trigger"; //Set the Warm reset mode as Trigger
         snippets_driven = FLAGS_dbg_max_snippets; //Make snippets_driven as max_snippets to not pick any more
         FLAGS_warm_reset_debug_hold = "1:1"; //Pass the warm_reset_debug_hold to 1
   }

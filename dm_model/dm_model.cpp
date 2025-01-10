@@ -259,7 +259,7 @@ void debug_module_t::process(const rv_tester_transactions::dm_model::dm_load_dat
         cvm::log(cvm::HIGH, "[Test] masked_expected_data:{:#x} hart_select:{:#x} \n", masked_expected_data, hart_select);
         if ((masked_actual_data != masked_expected_data) && (masked_actual_data != 0x2)) {
           if (!FLAGS_dm_model_check_bypass) 
-            cvm::log(cvm::ERROR, "[Error] The load data's are mismatching for Addr:{:#x} with Length:{:#x} ~~~ Shifted_Masked_Actual:{:#x} vs Masked_Expected:{:#x}\n", load_req_addr, load_req_length, masked_actual_data, masked_expected_data);
+            cvm::log(cvm::HIGH, "[Error] The load data's are mismatching for Addr:{:#x} with Length:{:#x} ~~~ Shifted_Masked_Actual:{:#x} vs Masked_Expected:{:#x}\n", load_req_addr, load_req_length, masked_actual_data, masked_expected_data);
           else
             cvm::log(cvm::NONE, "[Mismatch] The load data's are mismatching for Addr:{:#x} with Length:{:#x} ~~~ Shifted_Masked_Actual:{:#x} vs Masked_Expected:{:#x}\n", load_req_addr, load_req_length, masked_actual_data, masked_expected_data);
         }
