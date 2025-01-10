@@ -8,6 +8,7 @@
 #include <mem_manager.h>
 #include "pcg_random.hpp"
 #include "cvm/registry.hpp"
+#include "sysmod/htif/htif.h"
 #include "cla_defines.h"
 #include "transactor.h"
 #include "transactors/axi_sw/axi.h"
@@ -26,10 +27,14 @@ class cla_cfg : public device {
         cvm::messenger::pool<axi::r_t>::channel_info channel;
         pcg_extras::seed_seq_from<std::random_device> seed_source;
         pcg32 rng;
+        void terminate_from_cla()
+        {
+           cvm::registry::messenger.signal(loc(), cla_info_t{1,0});
+        }
 
     public:
         bool reenable_nmi, reenable_rand_trig;
-        bool nmi_event;
+        bool nmi_event, elf_completed;
         uint32_t start_clk_halt_cnt=0, start_cla_nmi_cnt, start_rand_nmi_trig_cnt;
         uint32_t eap_ctrl, active_core, mask, addr_offset, cntr_data;
         uint32_t rand_disable_dly, nmi_total_cnt, trig_total_cnt, rand_disable_trig_dly;
@@ -38,7 +43,7 @@ class cla_cfg : public device {
         std::unordered_map<std::string, uint32_t> macros;
         struct cla_wr_t {
           uint32_t addr;
-          uint32_t data;
+          uint64_t data;
         };
         struct cla_cfg_read_t {
           uint64_t addr;
@@ -63,13 +68,14 @@ class cla_cfg : public device {
         void write(const transactor::write_t& );
         void overlay_tick(uint64_t) override;
 
-        void gen_data_strb(uint64_t addr, uint32_t value, data_t& wdata, std::vector<bool>& strb);
+        void gen_data_strb(uint64_t addr, uint64_t value, data_t& wdata, std::vector<bool>& strb);
         void push_clk_halt_cfg();
         void push_cla_nmi_cfg();
         void push_cla_nmi_cfg_disable();
         void push_rand_nmi_trigg_cfg();
         void push_rand_nmi_trigg_cfg_off();
 
+        void clear_pend_nmi_on_terminate(htif::terminate_t t);
         virtual void write_axi_mst(uint64_t addr, size_t length, const data_t& data, const strb_t& strb);
         virtual void read_axi_mst(uint64_t addr, size_t length, data_t& data);
 

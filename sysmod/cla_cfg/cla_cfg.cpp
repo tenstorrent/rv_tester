@@ -25,7 +25,9 @@ cla_cfg::cla_cfg(const std::string& tag, uint64_t addr, size_t size, cvm::topolo
   if (FLAGS_load != "") {
     init_elf(FLAGS_load);
   }
- 
+  cvm::registry::messenger.connect<htif::terminate_t>(
+            loc,
+            [&](htif::terminate_t t) { return this->clear_pend_nmi_on_terminate(t); }); 
   channel = cvm::registry::messenger.channel<axi::r_t>(axi_mst_loc_l);
 }
 
@@ -90,14 +92,14 @@ void cla_cfg::read_axi_mst(uint64_t addr, size_t, data_t&) {
   return;
 }
 
-void cla_cfg::gen_data_strb(uint64_t addr, uint32_t value, data_t& wdata, std::vector<bool>& strb) {
+void cla_cfg::gen_data_strb(uint64_t addr, uint64_t value, data_t& wdata, std::vector<bool>& strb) {
     uint8_t b_index =  static_cast<uint8_t>(addr & 0x3F);
 
     for (uint8_t i = 0; i < 64; ++i) {
           wdata.push_back(0x0);
           strb.push_back(0x0);
     }  
-    for (uint8_t i = 0; i < 4; ++i) {
+    for (uint8_t i = 0; i < 8; ++i) {
           uint8_t currentByte = static_cast<uint8_t>((value >> (8 * i)) & 0xFF);
           wdata[i+b_index] = currentByte;
           strb[i+b_index] = 0x1;
@@ -253,6 +255,9 @@ void cla_cfg::overlay_tick(uint64_t) {
     //--------------------------------- CLA NMI --------------------------------------
     if(FLAGS_cla_nmi) {
       cvm::log(cvm::LOW, "[CLA_CFG::NMI] cla_cfg timer tick advance interval {} start_cla_nmi_cnt {} \n",cnt_tick,start_cla_nmi_cnt);
+      if(elf_completed && (cla_wr_txn_q.size() == 0)) {
+        terminate_from_cla();
+      }
       if((cnt_tick==start_cla_nmi_cnt) && (nmi_total_cnt != 0)) push_cla_nmi_cfg();
       if(cnt_tick==rand_disable_dly) push_cla_nmi_cfg_disable();
       if(cla_wr_txn_q.size() > 0) axi_write();
@@ -260,11 +265,32 @@ void cla_cfg::overlay_tick(uint64_t) {
     //--------------------------------- CLA XTrigger/NMI ------------------------------
     if(FLAGS_cla_rand_nmi_trig_en) {
       cvm::log(cvm::LOW, "[CLA_CFG::NMI/XTRIGGER] cla_cfg timer tick advance interval {} start_rand_nmi_trig_cnt {} \n",cnt_tick,start_rand_nmi_trig_cnt);
+      if(elf_completed && (cla_wr_txn_q.size() == 0)) {
+        terminate_from_cla();
+      }
       if((cnt_tick==start_rand_nmi_trig_cnt) && (trig_total_cnt > 0)) push_rand_nmi_trigg_cfg();
       if(cnt_tick==(rand_disable_trig_dly)) push_rand_nmi_trigg_cfg_off();
       if(cla_wr_txn_q.size() > 0) axi_write();
      }     
     cnt_tick ++;
+}
+
+void cla_cfg::clear_pend_nmi_on_terminate(htif::terminate_t t) {
+    if (t.low_priority_based){
+      //std::cout<<"\nterminate in cla\n";
+    }
+    cvm::log(cvm::NONE, "[CLA_CFG] Terminate condition detected \n");
+    if(FLAGS_cla_nmi || FLAGS_cla_rand_nmi_trig_en) {
+      for(uint32_t i=0; i< 8 ; i++){
+        if((mask & (1 << i))){
+          cvm::log(cvm::NONE, "[CLA_CFG] Clearing Any pending NMI for Core {} \n",i);
+          addr_offset = 0x10000 * i;
+          cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_DBG_EAP_STS + addr_offset),0xFFFF'FFFF'0000'0000});
+          cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_CTRL_STS_CFG + addr_offset),0x0});
+        }
+      }
+      elf_completed = 1;
+    }
 }
 
 bool cla_cfg::init_elf(const std::string& path) {

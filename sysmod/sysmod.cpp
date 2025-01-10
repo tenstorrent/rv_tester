@@ -76,6 +76,7 @@ extern "C" {
   void sysmod_sw_interrupt(unsigned hartid, unsigned val);
   void sysmod_tbox_interrupt(unsigned hartid, unsigned val, unsigned int_val);
   void sysmod_trace_info(unsigned trace_info_s);
+  void sysmod_cla_terminate(unsigned cla_info);
   void sysmod_dmi_write(unsigned hartid, unsigned upper_val, unsigned lower_val);
   void sysmod_jtag_req(unsigned cmd,unsigned long upper_val, unsigned long lower_val, unsigned length, unsigned quit,unsigned tap_cfg_sel);
   void sysmod_terminate();
@@ -548,13 +549,12 @@ sysmod::trace_info_handler(trace_cfg::trace_info_t i) {
 
 void
 sysmod::cla_info_handler(cla_cfg::cla_info_t i) {
-        cvm::log(cvm::HIGH, "[SYSMOD] cla_info {} \n",i.cla_quiesced);
- // cvm::registry::callbacks.push(
- //     scope(),
- //     [i]() {
- //       cvm::log(cvm::HIGH, "[SYSMOD] smc_info \n");
- //       sysmod_trace_info(i.trace_quiesced);
- //     });
+  cvm::log(cvm::NONE, "[SYSMOD] cla_info_handler \n");
+  cvm::registry::callbacks.push(
+      scope(),
+      [i]() {
+        sysmod_cla_terminate(i.cla_quiesced);
+      });
 }
 
 void
@@ -878,7 +878,6 @@ sysmod::compose() {
         loc_,
         [&](cla_cfg::cla_info_t i) { return this->cla_info_handler(i); });
     devices_.emplace_back(std::move(device));
-
     devices_.emplace_back(std::make_unique<heartbeat>("heartbeat", 0, 0, loc_));
 
     assert(masters.size() > 0);
