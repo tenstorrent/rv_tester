@@ -385,6 +385,7 @@ import rv_tester_params:: * ;
           ndm_reset_init = 1;
           ndm_reset_assert_done = 1;
           poll = 1;
+          trigger_to_fire = 0;
           if(ss_step_bit) begin
             ss_step_bit = 0;
             $display("[Poll] Step field gets cleared with ndmreset");
