@@ -125,12 +125,14 @@ module rv_tester
     int target_num_resets = 0;
 
     bit trace_en = 0;
+    bit cla_nmi_en = 0;
 
     bit [NHARTS-1:0] poke_event_out;
     bit poke_event_in;
     bit jtag_en = 0;
     bit overlay_mmr_en = 0;
     logic trace_quiesced;
+    logic cla_quiesced;
     logic jtag_quiesced;
 
 
@@ -190,7 +192,7 @@ module rv_tester
 
     assign ntrace_terminate    = (terminate_ntrace_test & ntrace_stop_on_wrap) || !ntrace_stop_on_wrap;
     assign terminate           = (dut_terminate_any || rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sys_reset_any) || quiesce_counter > 0) && !rv_tester_reset && !warm_reset && ntrace_terminate;
-    assign terminate_now       = (terminate_1T && (quiesced || ((quiesce_counter >= quiesce_timeout) && !warm_reset)) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue <= 'h1) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!jtag_en || jtag_quiesced )) || dut_terminate_any || warm_reset_now;
+    assign terminate_now       = (terminate_1T && (quiesced || ((quiesce_counter >= quiesce_timeout) && !warm_reset)) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue <= 'h1) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!cla_nmi_en || (cla_quiesced && quiesced))  && (!jtag_en || jtag_quiesced )) || dut_terminate_any || warm_reset_now;
 
     assign rerun_now           = terminated && !terminated_1T && ((num_reruns > 0) || (warm_reset_en && (num_resets <= target_num_resets)) || dut_reset_req);
 
@@ -338,6 +340,7 @@ module rv_tester
 
             debug_enable         <= cvm_plusargs::get_int("debug_enable"); 
             trace_en             <= cvm_plusargs::get_bool("trace_en") != '0;
+            cla_nmi_en           <= (cvm_plusargs::get_bool("cla_rand_nmi_trig_en") != '0 ||  cvm_plusargs::get_bool("cla_nmi") != '0);
             overlay_mmr_en       <= cvm_plusargs::get_bool("overlay_mmr_en") != '0;
             jtag_en              <= cvm_plusargs::get_bool("jtag_en") != '0;
             rand_dmi_driver_dly  <= cvm_plusargs::get_int("rand_dmi_driver_dly");
@@ -544,6 +547,7 @@ module rv_tester
         .reset(sys_reset[AXI_CLK_IDX]),
         .dut_reset_req,
         .trace_quiesced(trace_quiesced),
+        .cla_quiesced(cla_quiesced),
         .bootstrap,
         .dmi_write(trickbox_dmi_write),
         .event_triggers(event_triggers),
