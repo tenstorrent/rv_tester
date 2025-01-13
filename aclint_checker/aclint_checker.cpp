@@ -60,6 +60,10 @@ void aclint_checker::process(const rv_tester_transactions::aclint_checker::cr_ac
     if (aclint_mmrs.find(mmr_addr) != aclint_mmrs.end())
         cr_ac_mmr_q_[srcid].push(m);
 
+    auto mmr_addr = static_cast<aclint_addr>(cr_ac_mmrwrite.addr);
+    if (aclint_mmrs.find(mmr_addr) != aclint_mmrs.end())
+        cr_ac_mmr_q_[srcid].push(m);
+
     cvm::log(cvm::MEDIUM, "[ACLINT CHECKER] AC MMR WRITES: location {} srcid {} order {} addr {:#x} data {:#x} mask {:#x} \n", cr_ac_mmrwrite.location, cr_ac_mmrwrite.srcid, cr_ac_mmrwrite.order, cr_ac_mmrwrite.addr, cr_ac_mmrwrite.data, cr_ac_mmrwrite.mask);
 }
 
@@ -172,7 +176,7 @@ void aclint_checker::process(const smc_read_pkt & r) {
         uint64_t ctime_expect = get_ctime_value() & sz_mask & aclint_mmrs[mmr_addr].read_mask;
         uint64_t ctime_actual = (actual & aclint_mmrs[mmr_addr].read_mask);
         
-        if (((ctime_actual < ctime_expect) && (ctime_actual >= (ctime_expect - 200))) || (ctime_actual == ctime_expect)){
+        if ((ctime_actual < ctime_expect) && (ctime_actual >= (ctime_expect - 200)) || (ctime_actual == ctime_expect)){
             cvm::log(cvm::MEDIUM, "[SMC-AC] ACLINT MMR match - Name = CTIME, Address = {:#x} - Actual: {:#x} Expected: {:#x}\n", aclint_mmrs[mmr_addr].address, ctime_actual, ctime_expect);
         } else {
             cvm::log(cvm::ERROR, "Error: [SMC-AC] Mismatch:- ACLINT MMR mismatch - Address = {:#x} - Actual: {:#x} Expected: {:#x}\n", aclint_mmrs[mmr_addr].address, ctime_actual, ctime_expect);
