@@ -82,15 +82,6 @@ import rv_tester_params:: * ;
     logic mtime_wr_valid;
     /* verilator lint_off WIDTH */
 
-    logic [63:0] wakecore;
-    always @(posedge rf_clk) begin
-        if(dut_reset) begin
-            wakecore <= 0;
-        end else if ((AcReqPktRfClki.addr == WAKECORE) && AcReqPktRfClki.valid && (AcReqPktRfClki.mask=='hff || AcReqPktRfClki.mask=='hf)) begin
-            wakecore <= AcReqPktRfClki.data;
-        end
-    end
-
     //ACLINT MTIP generation checker
     logic [8:0] disablefuse;
     logic disablelocked;
@@ -132,7 +123,7 @@ import rv_tester_params:: * ;
     end
     always_comb begin
         for (int j = 0; j < 9; j++) begin
-            mtimecmp_wr_valid[j] = AcReqPktRfClki.valid && (AcReqPktRfClki.mask=='hff || AcReqPktRfClki.mask=='hf) && ( (AcReqPktRfClki.addr == (MTIMECMP0 + (j<<3) ));
+            mtimecmp_wr_valid[j] = AcReqPktRfClki.valid && (AcReqPktRfClki.mask=='hff || AcReqPktRfClki.mask=='hf) && AcReqPktRfClki.addr == (MTIMECMP0 + (j<<3));
         end
     end
 
