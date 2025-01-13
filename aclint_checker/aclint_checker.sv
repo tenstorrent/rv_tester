@@ -26,8 +26,6 @@ import rv_tester_params:: * ;
     logic reset_done;
     localparam  DISABLEFUSE = 'h38fff8;
     localparam  MTIME = 'h380000;
-    localparam  WAKECORE = 'h380010;
-    localparam  WAKETIME = 'h380008;
     localparam  MTIMECMP0 = 'h388000;
     localparam  TIMESYNC = 'h380018;
     localparam  ACLINT_START = 'h42180000;
@@ -84,15 +82,6 @@ import rv_tester_params:: * ;
     logic mtime_wr_valid;
     /* verilator lint_off WIDTH */
 
-    logic [63:0] wakecore;
-    always @(posedge rf_clk) begin
-        if(dut_reset) begin
-            wakecore <= 0;
-        end else if ((AcReqPktRfClki.addr == WAKECORE) && AcReqPktRfClki.valid && (AcReqPktRfClki.mask=='hff || AcReqPktRfClki.mask=='hf)) begin
-            wakecore <= AcReqPktRfClki.data;
-        end
-    end
-
     //ACLINT MTIP generation checker
     logic [8:0] disablefuse;
     logic disablelocked;
@@ -134,7 +123,7 @@ import rv_tester_params:: * ;
     end
     always_comb begin
         for (int j = 0; j < 9; j++) begin
-            mtimecmp_wr_valid[j] = AcReqPktRfClki.valid && (AcReqPktRfClki.mask=='hff || AcReqPktRfClki.mask=='hf) && ( (AcReqPktRfClki.addr == (MTIMECMP0 + (j<<3) )) || ((AcReqPktRfClki.addr == WAKETIME ) && wakecore==j) );
+            mtimecmp_wr_valid[j] = AcReqPktRfClki.valid && (AcReqPktRfClki.mask=='hff || AcReqPktRfClki.mask=='hf) && AcReqPktRfClki.addr == (MTIMECMP0 + (j<<3));
         end
     end
 
@@ -166,7 +155,6 @@ import rv_tester_params:: * ;
     end
     endgenerate
 
-    assign wtimecmp_wr_valid = AcReqPktRfClki.valid && AcReqPktRfClki.addr == WAKETIME;
     assign mtime_wr_valid = AcReqPktRfClki.valid && AcReqPktRfClki.addr == MTIME && (AcReqPktRfClki.mask=='hff || AcReqPktRfClki.mask=='hf);
 
     logic [63:0] AcChkMtime;
@@ -193,13 +181,6 @@ import rv_tester_params:: * ;
         /* verilator lint_on BLKSEQ */
     end
 
-    logic [63:0] wcount, wcount_next;
-    assign wcount_next = wtimecmp_wr_valid ? ((AcReqPktRfClki.data & data_mask) > AcMtimei ? 64'((AcReqPktRfClki.data & data_mask) - AcMtimei) : 64'b0)
-                        : (wcount == 0 ? 64'b0 : 64'(wcount -10));
-    always @(posedge rf_clk) begin
-    if (dut_reset) wcount <= 'hffffffff;
-    else wcount <= wcount_next;
-    end
     logic [8:0] disablef;
     logic [7:0] mapped;
     always_comb begin
@@ -221,8 +202,8 @@ import rv_tester_params:: * ;
     assign coredisabled = disablef[asserti];
     assign coreid = vid[asserti];
     logic fail_mtishouldbeON, fail_mtishouldbeOFF;
-    assign fail_mtishouldbeON = (AcMtipi[asserti] === '0) && ( ((counter[coreid] == 0) || (wcount == 0 && wakecore==coreid)) && ~coredisabled);
-    assign fail_mtishouldbeOFF =(AcMtipi[asserti] === '1) && ~( ((counter[coreid] == 0) || (wcount == 0 && wakecore==coreid)) && ~coredisabled);
+    assign fail_mtishouldbeON = (AcMtipi[asserti] === '0) &&  (counter[coreid] == 0 && ~coredisabled);
+    assign fail_mtishouldbeOFF =(AcMtipi[asserti] === '1) && ~(counter[coreid] == 0 && ~coredisabled);
 
     logic [4:0] cycles_in_fail_mtishouldbeON, cycles_in_fail_mtishouldbeOFF;
     always @(posedge rf_clk) begin
