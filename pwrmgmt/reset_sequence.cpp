@@ -39,8 +39,10 @@ DEFINE_string(patch_ucode_input_file_path, "", "Path to file containing patch uc
 DEFINE_string(patches, "WFI,SUB,BLT,AMOSWAP", "+patches=<instr1>,<instr2>,<instr3>,<instr4>; default will be picked if not specified ");
 DEFINE_string(disable_patches, "AMOSWAP", "+disable_patches=<instr1>,<instr2>,<instr3>,<instr4>; default will be picked if not specified ");
 DEFINE_bool(rand_patch, false, "Randomly pick 4 instructions available in the CSV to be patched");
+DEFINE_bool(sw_fuse_program_enable, true, "Program the AXI switch fuse during boot");
 DEFINE_string(init_csr_resetseq, "", "+init_csr_resetseq=<unit(mc=8,ms=4,fe=2,ls=1)>:<csr_num>:<val>,... ");
 DEFINE_string(init_mmr_resetseq, "", "+init_mmr_resetseq=<mmr_addr>:<size(8|4)>:<val>,... ");
+DEFINE_bool(trace_fuse_4B_access, true, "Enable filter programming for JTAG and Overlay to access SRAM ");
 
 extern "C" {
   void pwrmgmt_init();
@@ -324,19 +326,27 @@ cvm::messenger::task<void> reset_sequence::program_fuses() {
 
   uint64_t fuse = fuse_val();
 
-  co_await write(sw_fuse_mmr, SZ_8B, fuse, boot_interface);
+  uint32_t ncores = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
 
-  for (uint32_t i = 0; i < FLAGS_num_harts; ++i)
-    co_await write(core_fuse_mmr + i * core_fuse_offset, SZ_8B, fuse, boot_interface);
+  cvm::log(cvm::HIGH, "[pwrmgmt] Programming fuse MMRs\n", trace_fuse_mmr);
+
+  for (uint32_t i = 0; i < ncores; ++i)
+    co_await write(core_fuse_mmr + i * core_fuse_offset,   SZ_8B, fuse);
   
-  if (FLAGS_trace_enable) {
-    cvm::log(cvm::MEDIUM, "[pwrmgmt] writing trace fuse\n", trace_fuse_mmr);
+  if (FLAGS_trace_fuse_4B_access) {
+    co_await write(trace_fuse_mmr+4, SZ_4B, (fuse >> 32) & 0xFFFFFFFF, boot_interface );
+    co_await write(trace_fuse_mmr, SZ_4B, fuse & 0xFFFFFFFF, boot_interface );
+  } else {
     co_await write(trace_fuse_mmr, SZ_8B, fuse & 0xFFFFFFFFFFF7FFF , boot_interface);//Workaround defined in RVDE-17674 
     co_await write(trace_fuse_mmr, SZ_8B, fuse, boot_interface );
   }
-  co_await write(aclint_fuse_mmr, SZ_8B, fuse, boot_interface);
-  co_await write(dm_fuse_mmr, SZ_8B, fuse, boot_interface);
-  co_await write(sc_fuse_mmr, SZ_8B, fuse, boot_interface);
+  co_await write(aclint_fuse_mmr, SZ_8B, fuse);
+  co_await write(dm_fuse_mmr,     SZ_8B, fuse);
+  co_await write(sc_fuse_mmr,     SZ_8B, fuse);
+  
+  if (FLAGS_rand_core_harvest || FLAGS_sw_fuse_program_enable)
+    co_await write(sw_fuse_mmr,     SZ_8B, fuse);
+
 
   co_return;
 }
