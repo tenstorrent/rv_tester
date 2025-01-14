@@ -183,8 +183,7 @@ import rv_tester_params:: * ;
     always @(posedge rf_clk) begin
         /* verilator lint_off BLKSEQ */
         if (dut_reset) AcChkCtime <= 0;
-        else if (mtime_wr_valid) AcChkCtime <= ((AcReqPktRfClki.mask == 'hf) ? {AcChkMtime[63:32], AcReqPktRfClki.data[31:0]} : AcReqPktRfClki.data);    // Sample the updated MTIME to CTIME
-        else if (forcesynccame) AcChkCtime <= AcChkMtime; // Sample the local copy of MTIME to CTIME for timesync
+        else if (AcCrSynci[0].valid) AcChkCtime <= AcChkMtime;
         else if (AcChkCtime_write) begin
             AcChkCtime <= AcChkCtime_updated;
             AcChkCtime_write = 0;
