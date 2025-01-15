@@ -1869,7 +1869,7 @@ bool bridge::resynch_on_instr(const std::string& instr, const uint64_t& cycle) {
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[unsupported_csr_access]\n", cycle);
     return true;
   }
-  if (FLAGS_cosim_resynch_instr == "") {
+  if (FLAGS_cosim_resynch_instr != "") {
     std::stringstream ss(FLAGS_cosim_resynch_instr);
     while(ss.good()) {
       std::string s;
