@@ -916,7 +916,7 @@ void reset_sequence::reset_hold(uint8_t sram, uint8_t debug, uint8_t critical) {
   cvm::registry::callbacks.push(
     scope_,
     [sram,debug,critical]() {
-      cvm::log(cvm::MEDIUM, "[pwrmgmt] reset holds [sram={}, debug={}, critical={}]\n", sram, debug, critical);
+      cvm::log(cvm::NONE, "[pwrmgmt] reset holds [sram={}, debug={}, critical={}]\n", sram, debug, critical);
       pwrmgmt_reset_hold(sram, debug, critical);
     });
 }

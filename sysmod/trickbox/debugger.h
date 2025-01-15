@@ -136,18 +136,19 @@ public:
       // fin.readline();
       std::string line;
       std::getline(myfile1, line);
-      cvm::log(cvm::HIGH, "[Debugger]:Reset State in Debugger is: {} at clocks {} divisor {}\n", line,clocks,divisor);
+      cvm::log(cvm::LOW, "[Debugger]:Reset State in Debugger is: {} at clocks {} divisor {}\n", line,clocks,divisor);
       if (line == "Ndm-Reset") {
+        snippets_driven = FLAGS_dbg_max_snippets;
         ndm_reset_occured = true;
       }
       
     }
     myfile1.close();
 
-    dbg_snippets_name = "";
-    ndm_reset_occured = 0;
+    // dbg_snippets_name = "";
+    // ndm_reset_occured = 0;
     uint32_t rand_num = 0;
-    if (FLAGS_random_dbg_entry)
+    if (FLAGS_random_dbg_entry & !ndm_reset_occured)
     {
       cvm::log(cvm::HIGH, "[Debugger]: Enable random injection of debug mode :: {}\n", FLAGS_random_dbg_entry);
       get_all_csv_templates();
