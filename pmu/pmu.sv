@@ -24,6 +24,7 @@ import rv_tester_pkg::*;
     parameter int unsigned location = cvm_topology_gen::get_location (topology.TOP.PLATFORM.PMCI.ID, NUM);
     longint unsigned period = 0;
     longint unsigned instructions = 0;
+    longint unsigned tb_cycles_offset = 0;
     bit cycle_sync_en, instruction_sync_en;
     assign cycle_sync_en = (period != '0);
     assign instruction_sync_en = (instructions != '0);
@@ -38,6 +39,7 @@ import rv_tester_pkg::*;
             perf_enabled = (cvm_plusargs::get_bool("perf") != '0) & (location != cvm_topology::nil);
             period = cvm_plusargs::get_ulongint("sync_pmcounters_period");
             instructions = cvm_plusargs::get_ulongint("sync_pmcounters_instructions");
+            tb_cycles_offset = cvm_plusargs::get_ulongint("perf_tb_cycles_rvfi_offset");
             /* verilator lint_on BLKSEQ */
         end
     end
@@ -152,6 +154,7 @@ import rv_tester_pkg::*;
 
     assign pmcounters_cores[0].valid = !reset && perf_enabled && (overflow || (|mhpm_write) || terminate || (cycle_sync_en && (sync_cycles % period) == 0) || (instruction_sync_en && (((prev_sync_instructions % instructions) > nret) && ((sync_instructions % instructions) < nret))) || perf_start || perf_end);
     assign pmcounters_cores[0].data.location = location;
+    assign pmcounters_cores[0].data.tb_cycles = 24'(clocks - tb_cycles_offset);
     assign pmcounters_cores[0].data.cpu_cycles = 24'(cpu_cycles);
     assign pmcounters_cores[0].data.instructions = 24'(pmcounter[INSTRUCTIONS]);
     assign pmcounters_cores[0].data.branch_instructions = 24'(branch_instructions);

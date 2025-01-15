@@ -9,11 +9,11 @@ def trace_gen(name, packet, topology, harness, visibility = None, cc_attrs = {},
         name = trace_dpi,
         srcs = [
             "@rv_tester//trace:trace.cpp",
-            "@rv_tester//trace:ntrace_stop_on_wrap_sequence.cpp",
+            "@rv_tester//trace:trace_stop_on_wrap_sequence.cpp",
         ],
         hdrs = [
             "@rv_tester//trace:trace.hpp",
-            "@rv_tester//trace:ntrace_stop_on_wrap_sequence.hpp",
+            "@rv_tester//trace:trace_stop_on_wrap_sequence.hpp",
         ],
         deps = [
             "@rv_tester//sysmod:sysmod_plusargs",

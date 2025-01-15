@@ -101,8 +101,10 @@ cvm::messenger::task<void> scratchpad_random_sequence::random_mode() {
     if(FLAGS_sp_xtor_rnd_traffic_en){
                 
              if(cnt_tick == rnd_traffic_cnt_tick){
-               uint64_t offset = rng() % 500;
+               uint64_t offset = rng() & 0x1ff;
                sp_addr = sp_base + (offset <<6);
+
+                cvm::log(cvm::HIGH, " [scratchpad_random_sequence] sp_addr : {:#x} sp_base: {:#x} offset : {:#x} \n",sp_addr,sp_base,offset);
                 co_await axi_write_granular(sp_addr);
              }
              if(cnt_tick == rnd_traffic_cnt_tick+ 2){

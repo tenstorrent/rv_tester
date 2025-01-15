@@ -242,16 +242,19 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     import "DPI-C" context function void cosim_set_scope(int unsigned location);
     import "DPI-C" context function int is_eot_tohost();
+    import "DPI-C" context function void eot_hw_process(longint unsigned hart, longint unsigned cycles, longint unsigned addr, longint unsigned data);
+    import "DPI-C" context function void call_check_max_instr(longint unsigned cycles, longint unsigned instr_count);
 
 
     bit PSC_enabled;
     typedef longint unsigned LU;
     parameter int unsigned location = cvm_topology_gen::get_location (topology.TOP.PLATFORM.COSIM.ID, NUM);
-    bit rvfi_enabled,mcm_enabled;
+    bit rvfi_enabled,mcm_enabled,hw_eot_enabled;
+
     //int mcm_value;
     longint unsigned psc_off_low  = 0;
     longint unsigned psc_off_high = 0;
-    int to_host;
+    bit to_host;
     int unsigned cosim_period=0;
     int unsigned PSC_period=0;
 
@@ -360,9 +363,23 @@ localparam CAM_IHBIT = CAM_IBITS;
     bit [NRET-1:0][63:0]      rvfi_last_insn_orders;        // Tracks orders from previus cycle that "poked" but had last_uop=0
     bit [NRET-1:0][NRET-1:0]  rvfi_last_insn_events;           // matchs current order to previous last_poke_orders that last_uop=1 now
     bit                    poke_last_insn_event;
-    bit [NWRITE-1:0]       eot_writes_found;                // end-of-test event found in mcmi_writes ifc
+    bit [NWRITE-1:0]       eot_write_found;                // end-of-test event found in mcmi_writes ifc
     bit [NBYPASS-1:0]      eot_bypass_found;                // end-of-test event found in mcmi_bypass ifc
     bit [NINSERT-1:0]      eot_insert_found;                // end-of-test event found in mcmi_insert ifc
+    longint unsigned       mcmi_write_addr[NWRITE-1:0]; 
+    longint unsigned       mcmi_write_data[NWRITE-1:0];  
+    longint unsigned       mcmi_insert_addr[NINSERT-1:0];  
+    longint unsigned       mci_insert_data[NINSERT-1:0];   
+    longint unsigned       mcmi_bypass_addr[NBYPASS-1:0];    
+    longint unsigned       mcmi_bypass_data[NBYPASS-1:0];     
+    bit [46:0]             eot_write_fail;                 // end-of-test code mcm_writes
+    bit [46:0]             eot_insert_fail;                // end-of-test code mcm_inserts
+    bit [46:0]             eot_bypass_fail;                 // end-of-test code mcm_byapss
+    bit                    eot_write_pass;                 // end-of-test code mcm_writes
+    bit                    eot_insert_pass;                // end-of-test code mcm_inserts
+    bit                    eot_bypass_pass;                 // end-of-test code mcm_byapss
+    bit                    eot_exit_pass;                  
+    bit [46:0]             eot_exit_fail;                  
     bit [$clog2(NRET+1)-1:0] valid_cnt;                     // number of rvfi_valids == 1 in 1 clock
 
     bit                    eot_found;                       // end-of-test event found
@@ -402,6 +419,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     longint unsigned max_cycle;
     longint unsigned max_instructions;
     longint unsigned instruction_cnt;
+    longint unsigned instr_count;
     bit [PA_WIDTH-1:0] debug_entry_pc;
     bit [PA_WIDTH-1:0] debug_exit_pc;
     longint unsigned debug_entry_pc_arg;
@@ -409,6 +427,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     int cycles_since_retire;
     int hart_enable_mask;
     int nharts;
+    longint unsigned hart;
     bit boot_wfi;
     bit cosim_terminate_sent;
 
@@ -691,7 +710,7 @@ localparam CAM_IHBIT = CAM_IBITS;
             /* verilator lint_off BLKSEQ */
             rvfi_enabled = (cvm_plusargs::get_bool("rvfi") != '0) & (location != cvm_topology::nil);
             mcm_enabled = (cvm_plusargs::get_bool("mcm") != '0);
-            to_host = is_eot_tohost();
+            to_host = ((is_eot_tohost() == 1) | (eot_addr != '0));
             if (rvfi_enabled) begin
               cosim_set_scope(location);
             end
@@ -1063,7 +1082,13 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign m_mcmi_inserts[n].data.v_ext = mcmi_insert[n].v_ext;
         assign m_mcmi_inserts[n].data.elem_idx = mcmi_insert[n].elem_idx;
         assign mcmi_insert_pokes[n] = mcmi_insert[n].valid;
-        assign eot_insert_found[n] = ((eot_addr != '0) &  mcmi_insert[n].valid & (mcmi_insert[n].addr == $bits(mcmi_insert[n].addr)'(eot_addr)) & ( mcmi_insert[n].data[0] == 1'b1) & (mcmi_insert[n].data[63:56] == 0)) ? 1'b1 : 1'b0;
+        assign eot_insert_found[n] = ((to_host == 1) & (eot_addr != '0) &  
+                                      mcmi_insert[n].valid & (mcmi_insert[n].addr == $bits(mcmi_insert[n].addr)'(eot_addr)) & 
+                                      mcmi_insert[n].data[0] & (mcmi_insert[n].data[63:56] == '0)) ? 1'b1 : 1'b0;
+        assign mci_insert_data[n] = mcmi_insert[n].data[63:0]; 
+/* verilator lint_off WIDTHEXPAND */
+        assign mcmi_insert_addr[n] = mcmi_insert[n].addr;
+/* verilator lint_on WIDTHEXPAND */
     end
 
 
@@ -1083,7 +1108,13 @@ localparam CAM_IHBIT = CAM_IBITS;
         // End-Of-Test logic:  memory write to designated address
         //    - will cause a save-state event (force-steps=1 if NO instrs being retired currently
         //-------------------------------------------------------------------------------------------
-        assign eot_writes_found[n] = ((eot_addr != '0) &  mcmi_write[n].valid & (mcmi_write[n].addr == $bits(mcmi_write[n].addr)'(eot_addr)) & ( mcmi_write[n].data[0] == 1'b1) & (mcmi_write[n].data[63:56] == 0)) ? 1'b1 : 1'b0;
+        assign eot_write_found[n] = ((to_host == 1) & (eot_addr != '0) &  
+                                      mcmi_write[n].valid & (mcmi_write[n].addr == $bits(mcmi_write[n].addr)'(eot_addr)) & 
+                                      mcmi_write[n].data[0] & (mcmi_write[n].data[63:56] == '0)) ? 1'b1 : 1'b0;
+        assign mcmi_write_data[n] = mcmi_write[n].data[63:0]; 
+/* verilator lint_off WIDTHEXPAND */
+        assign mcmi_write_addr[n] = mcmi_write[n].addr; 
+/* verilator lint_on WIDTHEXPAND */
     end
 
 
@@ -1106,12 +1137,17 @@ localparam CAM_IHBIT = CAM_IBITS;
         // End-Of-Test logic:  memory write to designated address
         //    - will cause a save-state event (force-steps=1 if NO instrs being retired currently
         //-------------------------------------------------------------------------------------------
-        assign eot_bypass_found[n] = ((eot_addr != '0) &  mcmi_bypass[n].valid & (mcmi_bypass[n].addr == $bits(mcmi_bypass[n].addr)'(eot_addr)) & ( mcmi_bypass[n].data[0] == 1'b1) & (mcmi_bypass[n].data[63:56] == 0)) ? 1'b1 : 1'b0;
+        assign eot_bypass_found[n] = ((to_host == 1) & (eot_addr != '0) &  
+                                      mcmi_bypass[n].valid & (mcmi_bypass[n].addr == $bits(mcmi_bypass[n].addr)'(eot_addr)) & 
+                                      mcmi_bypass[n].data[0] & (mcmi_bypass[n].data[63:56] == '0)) ? 1'b1 : 1'b0;
+        assign mcmi_bypass_data[n] = mcmi_bypass[n].data[63:0]; 
+/* verilator lint_off WIDTHEXPAND */
+        assign mcmi_bypass_addr[n] = mcmi_bypass[n].addr;
+/* verilator lint_on WIDTHEXPAND */
         assign mcmi_bypass_pokes[n] = mcmi_bypass[n].valid;
     end
 
-
-    assign eot_found = ~dut_reset & ((eot_writes_found != 0) | (eot_bypass_found != 0) | (eot_insert_found != '0) | eot_max_instr) ? 1'b1 : 1'b0; 
+    assign eot_found      = ~dut_reset & ((eot_write_found != 0) | (eot_bypass_found != 0) | (eot_insert_found != '0) | eot_max_instr) ? 1'b1 : 1'b0; 
 
     // m_mcmi_ifetch
     for (genvar n = 0; n < NIFETCH; n++) begin
@@ -1169,7 +1205,8 @@ localparam CAM_IHBIT = CAM_IBITS;
     endfunction
 
     // When using periodic whisper updates... check for eot if max instruction method is used
-    assign eot_max_instr = ((cosim_period > 0) & (max_instructions > 0) &  ((instruction_cnt+64'(valid_cnt)) >= (max_instructions))) ? 1'b1: 1'b0;
+    assign instr_count = instruction_cnt + 64'(valid_cnt);
+    assign eot_max_instr = ((max_instructions > 0) &  (instr_count > max_instructions)) ? 1'b1: 1'b0;
 
     // m_debug
     logic debug_mode_d1;
@@ -1211,20 +1248,21 @@ localparam CAM_IHBIT = CAM_IBITS;
     endfunction
 
     // m_core_intr
-    rv_tester_pkg::interrupt_t wired_interrupt_d1;
+    localparam wired_interrupt_delays = 5;
+    rv_tester_pkg::interrupt_t [wired_interrupt_delays-1:0] wired_interrupt_delayed;
     always @(posedge clk) begin
       if (dut_reset) begin
-        wired_interrupt_d1 <= 0;
+        wired_interrupt_delayed <= '{default:0};
       end else begin
-        wired_interrupt_d1 <= wired_interrupt;
+        wired_interrupt_delayed <= {wired_interrupt_delayed[wired_interrupt_delays-2:0],wired_interrupt};
       end
     end
-    assign m_core_intrs[0].valid = ~dut_reset & (|(wired_interrupt & ~wired_interrupt_d1) | |(~wired_interrupt & wired_interrupt_d1)) & rvfi_enabled;
+    assign m_core_intrs[0].valid = ~dut_reset & (|(wired_interrupt_delayed[wired_interrupt_delays-2] & ~wired_interrupt_delayed[wired_interrupt_delays-1]) | |(~wired_interrupt_delayed[wired_interrupt_delays-2]& wired_interrupt_delayed[wired_interrupt_delays-1])) & rvfi_enabled;
     assign m_core_intrs[0].data.location = location;
     assign m_core_intrs[0].data.cycle = clocks;
-    assign m_core_intrs[0].data.mip = get_mip(wired_interrupt);
-    assign m_core_intrs[0].data.mip_mask = get_mip_mask(wired_interrupt, wired_interrupt_d1);
-    assign m_core_intrs[0].data.mip_assert = get_mip_assert(wired_interrupt, wired_interrupt_d1);
+    assign m_core_intrs[0].data.mip = get_mip(wired_interrupt_delayed[wired_interrupt_delays-2]);
+    assign m_core_intrs[0].data.mip_mask = get_mip_mask(wired_interrupt_delayed[wired_interrupt_delays-2], wired_interrupt_delayed[wired_interrupt_delays-1]);
+    assign m_core_intrs[0].data.mip_assert = get_mip_assert(wired_interrupt_delayed[wired_interrupt_delays-2], wired_interrupt_delayed[wired_interrupt_delays-1]);
 
     function automatic bit [63:0] get_mip(rv_tester_pkg::interrupt_t intr);
       bit [63:0] mip = 'h0;
@@ -1241,7 +1279,7 @@ localparam CAM_IHBIT = CAM_IBITS;
       return mip;
     endfunction
 
-    localparam imsic_whisper_delays = 7;
+    localparam imsic_whisper_delays = 11; // 7 (for RgCr -> CuRtPending) + 4 (for rvfi packets)
     rv_tester_params::mst_req_top [imsic_whisper_delays-1:0] imsic_interrupt_delays, imsic_msi_delays, imsic_ipi_delays;
     rv_tester_params::mst_req_top imsic_interrupt_delayed, imsic_msi_delayed, imsic_ipi_delayed;
     always @(posedge clk) begin
@@ -1328,6 +1366,9 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign debug_entry_pc = (debug_entry_pc_arg != '0) ? PA_WIDTH'(debug_entry_pc_arg) : debug_entry_pc_const;
     assign debug_exit_pc  = (debug_exit_pc_arg != '0)  ? PA_WIDTH'(debug_exit_pc_arg) : debug_exit_pc_const; 
 
+/* verilator lint_off WIDTHEXPAND */
+    assign hart = NUM;
+/* verilator lint_on WIDTHEXPAND */
 
     localparam bit [63:0] DRAM_BASE = 64'h8000_0000;
     always @(posedge tb_clk) begin
@@ -1344,6 +1385,7 @@ localparam CAM_IHBIT = CAM_IBITS;
         //mcm_value  = cvm_plusargs::get_int("mcm");
         psc_off_low  = cvm_plusargs::get_ulongint("psc_off_low");
         psc_off_high = cvm_plusargs::get_ulongint("psc_off_high");
+        hw_eot_enabled= (cvm_plusargs::get_bool("hw_eot_enable") != '0) ? 1'b1 : 1'b0; 
 
         /* verilator lint_on BLKSEQ */
         boot_wfi <= '0;
@@ -1355,6 +1397,22 @@ localparam CAM_IHBIT = CAM_IBITS;
         end
         if (rvfi[0].valid == '1 && rvfi[0].pc_rdata == DRAM_BASE) begin
           boot_done <= '1;
+        end
+        if (hw_eot_enabled) begin
+          if (eot_found) begin
+            for(int i=0; i < NWRITE; i++) 
+              if (eot_write_found[i]) 
+                 eot_hw_process(hart, clocks, mcmi_write_addr[i], mcmi_write_data[i]); 
+            for(int i=0; i < NBYPASS; i++) 
+              if (eot_bypass_found[i]) 
+                 eot_hw_process(hart, clocks, mcmi_bypass_addr[i], mcmi_bypass_data[i]); 
+            for(int i=0; i < NINSERT; i++) 
+              if (eot_insert_found[i]) 
+                 eot_hw_process(hart, clocks, mcmi_insert_addr[i], mci_insert_data[i]); 
+          end
+          if (eot_max_instr) begin
+            call_check_max_instr(clocks,instr_count);
+          end
         end
         if (max_stall_cycle > 0 && cycles_since_retire > max_stall_cycle && !boot_wfi && NUM < nharts && cosim_terminate_sent == '0) begin
           $display("\nError: Hart %0d: No instruction retired for max_stall_cycle (%0d) cycles", NUM, max_stall_cycle);
