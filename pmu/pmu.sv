@@ -11,6 +11,7 @@ import rv_tester_pkg::*;
 )(
   input clk,
   input reset,
+  input logic [63:0] clocks,
   input sys_reset,
   input pmci_t pmci,
   input hpmi_t hpmi,
