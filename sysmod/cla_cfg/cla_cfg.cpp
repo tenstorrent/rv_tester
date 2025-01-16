@@ -133,7 +133,7 @@ void cla_cfg::push_cla_nmi_cfg() {
     if((mask & (1 << i))){
       cvm::log(cvm::LOW, "[CLA_CFG] Push CLA NMI Configs for Core-{} \n",i);
       addr_offset = 0x10000 * i;
-      cntr_data = rng()%0x2000 + 0x4000;
+      cntr_data = rng()%0x2000 + 0x2000;
       cntr_data = cntr_data << 16;
       if(reenable_nmi){
         cla_wr_txn_q.push({(cla_mmr::CDBG_CLA_COUNTER0_CFG + addr_offset),cntr_data});
@@ -235,8 +235,8 @@ void cla_cfg::overlay_tick(uint64_t) {
       reenable_rand_trig = 0;
       nmi_event = rng();                                      // NMI = 1, Trigger = 0
       mask = FLAGS_hart_enable_mask;
-      nmi_total_cnt = (rng() % 40) + 10;                        // NMI total enable count
-      trig_total_cnt = (rng() % 40) + 10;                     // Xtrigger/rand NMI total count
+      nmi_total_cnt = (rng() % 400) + 100;                        // NMI total enable count
+      trig_total_cnt = (rng() % 400) + 100;                     // Xtrigger/rand NMI total count
       start_clk_halt_cnt = (rng()% 40) + 50 ;
       start_cla_nmi_cnt = (rng()% 40) + 50 ;
       start_rand_nmi_trig_cnt = (rng()% 40) + 50 ;
