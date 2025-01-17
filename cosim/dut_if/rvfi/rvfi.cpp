@@ -865,7 +865,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
   mask >>= leadingZeros;
   uint64_t consecutiveOnes = std::countr_zero(~mask);  // Count ones until the first zero
   if (numones == consecutiveOnes) {
-      if (m_mcmi_read.splat){
+      if (m_mcmi_read.v_ext & m_mcmi_read.splat){
         uint16_t total_elements = numones / elemsize;
         m.size = elemsize;
         for (int i=0; i<total_elements; i++){
@@ -919,7 +919,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
                         patch_mode_tags_.contains(m_mcmi_read.order)? patch_mode_tags_[m_mcmi_read.order] : m_mcmi_read.order;
               m.v_ext = m_mcmi_read.v_ext;
               m.field = m_mcmi_read.field;
-              if (m_mcmi_read.splat){
+              if (m_mcmi_read.v_ext & m_mcmi_read.splat){
                 uint16_t total_elements = size / elemsize;
                 m.pa = m_mcmi_read.addr;
                 m.size = elemsize;
@@ -952,7 +952,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
       m.v_ext = m_mcmi_read.v_ext;
       m.size   = std::popcount(m_mcmi_read.mask);
       m.field = m_mcmi_read.field;
-      if (m_mcmi_read.splat){
+      if (m_mcmi_read.v_ext & m_mcmi_read.splat){
         uint16_t total_elements = size / elemsize;
         m.pa = m_mcmi_read.addr;
         m.size = elemsize;
@@ -1419,14 +1419,6 @@ extern "C" {
   void cosim_set_scope(cvm::topology::loc_t loc) {
     svScope scope = svGetScope();
     cvm::registry::messenger.signal<svScope>(loc, scope);
-  }
-}
-
-extern "C" {
-  int is_eot_tohost() {
-    if (FLAGS_eot == "tohost")
-      return 1;
-    return 0;
   }
 }
 
