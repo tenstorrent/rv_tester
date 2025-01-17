@@ -1,3 +1,1 @@
-exports_files(["trace.sv", "trace.cpp", "trace.hpp", "trace_stop_on_wrap_sequence.cpp", "trace_stop_on_wrap_sequence.hpp"])
-
-
+exports_files(["trace.sv", "trace.cpp", "trace.hpp", "trace_stop_on_wrap_sequence.cpp", "trace_stop_on_wrap_sequence.hpp",  "dst_trace_seq.cpp", "dst_trace_seq.hpp"])
