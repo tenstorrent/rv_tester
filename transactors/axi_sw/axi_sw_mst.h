@@ -23,6 +23,8 @@ class axi_sw_mst {
               release();
             };
 
+            constexpr explicit operator bool() const { return lock_ && *lock_; };
+
             void release() {
               if (lock_)
                 *lock_ = false;
@@ -95,11 +97,9 @@ class axi_sw_mst {
             return std::nullopt;
         }
 
-        std::optional<lock_t> try_lock() {
-          if (locked_)
-            return std::nullopt;
+        lock_t try_lock() {
           locked_ = true;
-          return std::make_optional<lock_t>(&locked_);
+          return lock_t{locked_? nullptr : &locked_};
         }
 
         std::optional<unsigned> read(transactor::read_request_t r);
@@ -139,5 +139,5 @@ class axi_sw_mst {
         CVM_MESSENGER_procedure_call(push_ar_no_id_rpc, bool (const axi::a_no_id_t& ar, axi::id_t& id));
         CVM_MESSENGER_procedure_call(push_aw_no_id_rpc, bool (const axi::a_no_id_t& aw, axi::id_t& id));
         CVM_MESSENGER_procedure_call(push_w_rpc, void (const axi::w_t& w));
-        CVM_MESSENGER_procedure_call(try_lock_rpc, std::optional<lock_t> ());
+        CVM_MESSENGER_procedure_call(try_lock_rpc, lock_t ());
 };
