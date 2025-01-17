@@ -8,6 +8,29 @@
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 class axi_sw_mst {
 
+    public:
+
+        struct lock_t {
+
+          public:
+
+            lock_t() = delete;
+            lock_t(bool* ptr) : lock_(ptr) {};
+
+            ~lock_t() {
+              release();
+            };
+
+            void release() {
+              if (lock_)
+                *lock_ = false;
+            }
+
+          private:
+
+            bool* lock_ = nullptr;
+        };
+
     private:
 
         template<typename T, typename... Args> void connect() {
@@ -20,6 +43,7 @@ class axi_sw_mst {
           if constexpr (sizeof...(Args))
             connect<Args...>();
         }
+
         inline void alloc_id(uint32_t id) {
             ids_[id] = false;
         }
@@ -69,6 +93,13 @@ class axi_sw_mst {
             return std::nullopt;
         }
 
+        std::optional<lock_t> try_lock() {
+          if (locked_)
+            return std::nullopt;
+          locked_ = true;
+          return lock_t{&locked_};
+        }
+
         std::optional<unsigned> read(transactor::read_request_t r);
 
         std::string name_;
@@ -96,6 +127,8 @@ class axi_sw_mst {
         uint64_t read_bytes_;
         uint64_t write_bytes_;
 
+        bool locked_ = false;
+
     public:
 
         axi_sw_mst(cvm::topology::loc_t loc, unsigned id);
@@ -104,4 +137,5 @@ class axi_sw_mst {
         CVM_MESSENGER_procedure_call(push_ar_no_id_rpc, bool (const axi::a_no_id_t& ar, axi::id_t& id));
         CVM_MESSENGER_procedure_call(push_aw_no_id_rpc, bool (const axi::a_no_id_t& aw, axi::id_t& id));
         CVM_MESSENGER_procedure_call(push_w_rpc, void (const axi::w_t& w));
+        CVM_MESSENGER_procedure_call(try_lock_rpc, std::optional<lock_t> ());
 };
