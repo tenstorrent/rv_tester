@@ -13,7 +13,6 @@
 #include "trace_defines.h"
 #include <unistd.h>
 
-DECLARE_bool(trace_en);
 DECLARE_bool(overlay_mmr_en);
 DECLARE_int32(strobe_type);
 DECLARE_uint32(overlay_num_times);
