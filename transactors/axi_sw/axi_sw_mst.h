@@ -15,6 +15,8 @@ class axi_sw_mst {
           public:
 
             lock_t() = delete;
+            lock_t(const lock_t&) = delete;
+            lock_t& operator= (const lock_t&) = delete;
             lock_t(bool* ptr) : lock_(ptr) {};
 
             ~lock_t() {
@@ -97,7 +99,7 @@ class axi_sw_mst {
           if (locked_)
             return std::nullopt;
           locked_ = true;
-          return lock_t{&locked_};
+          return std::make_optional<lock_t>(&locked_);
         }
 
         std::optional<unsigned> read(transactor::read_request_t r);
