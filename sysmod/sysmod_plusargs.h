@@ -34,6 +34,8 @@ DECLARE_int32(imsic_hart_threshold);
 DECLARE_int32(imsic_intr_start_delay);
 DECLARE_bool(export_control_en);
 DECLARE_int32(clk_profile);
+DECLARE_string(warm_reset);
+DECLARE_string(warm_reset_count);
 DECLARE_string(warm_reset_sram_hold);
 DECLARE_string(warm_reset_debug_hold);
 DECLARE_string(warm_reset_critical_hold);

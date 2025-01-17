@@ -14,6 +14,7 @@ import rv_tester_params::*;
     input reset,
     input dut_reset_req,
     output logic trace_quiesced,
+    output logic cla_quiesced,
     //output logic jtag_quiesced,
     output rv_tester_params::bootstrap_t bootstrap,
     output rv_tester_pkg::interrupt_t interrupt [NHARTS-1:0],
@@ -34,6 +35,7 @@ import rv_tester_params::*;
 
     /* verilator lint_off UNOPTFLAT */
     logic trace_quiesced_q = 0;
+    logic cla_quiesced_q = 0;
     /* verilator lint_on UNOPTFLAT */
 
     /* verilator lint_off BLKANDNBLK */
@@ -80,6 +82,7 @@ import rv_tester_params::*;
     end
 
     assign trace_quiesced = trace_quiesced_q;
+    assign cla_quiesced = cla_quiesced_q;
     assign bootstrap.boot_addr = 1 << 31;
 
     function void sysmod_terminate ();
@@ -89,12 +92,12 @@ import rv_tester_params::*;
     export "DPI-C" function sysmod_terminate;
 
     localparam longint unsigned TICKS = LU'(SW_CLOCK_UPDATE_PERIOD_PS)/LU'(CLOCK_PERIOD_PS);
-    assign ticks[0].valid         = ((0 == (clocks % TICKS)) || dut_reset_req) & (location != cvm_topology::nil);
+    assign ticks[0].valid         = ((0 == (clocks % TICKS)) || dut_reset_req) & (clocks > TICKS )& (location != cvm_topology::nil);
     assign ticks[0].data.location = location;
     assign ticks[0].data.advance  = TICKS;
     assign ticks[0].data.clocks   = clocks;
     assign ticks[0].data.divisor  = TICKS;
-    assign ticks[0].data.dut_reset_req = dut_reset_req;
+    assign ticks[0].data.dut_reset_req = dut_reset_req & (clocks > 100);
 
     localparam longint unsigned JTAG_TICKS = LU'(SW_CLOCK_UPDATE_PERIOD_PS)/LU'(JTAG_CLOCK_PERIOD_PS);
     assign jtag_ticks[0].valid         = (0 == (clocks % JTAG_TICKS)) & (location != cvm_topology::nil);
@@ -133,6 +136,11 @@ import rv_tester_params::*;
       trace_quiesced_q = trace_info_s[0];
     endfunction
     export "DPI-C" function sysmod_trace_info;
+
+    function void sysmod_cla_terminate (int unsigned cla_info);
+      cla_quiesced_q = cla_info[0];
+    endfunction
+    export "DPI-C" function sysmod_cla_terminate;
 
     function sysmod_dmi_write (int unsigned hartid, int unsigned upper_value,int unsigned lower_value);
       dmi_write_begin = '1;
