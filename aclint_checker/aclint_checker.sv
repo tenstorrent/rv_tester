@@ -82,15 +82,6 @@ import rv_tester_params:: * ;
     logic mtime_wr_valid;
     /* verilator lint_off WIDTH */
 
-    logic [63:0] wakecore;
-    always @(posedge rf_clk) begin
-        if(dut_reset) begin
-            wakecore <= 0;
-        end else if ((AcReqPktRfClki.addr == WAKECORE) && AcReqPktRfClki.valid && (AcReqPktRfClki.mask=='hff || AcReqPktRfClki.mask=='hf)) begin
-            wakecore <= AcReqPktRfClki.data;
-        end
-    end
-
     //ACLINT MTIP generation checker
     logic [8:0] disablefuse;
     logic disablelocked;
@@ -132,7 +123,7 @@ import rv_tester_params:: * ;
     end
     always_comb begin
         for (int j = 0; j < 9; j++) begin
-            mtimecmp_wr_valid[j] = AcReqPktRfClki.valid && (AcReqPktRfClki.mask=='hff || AcReqPktRfClki.mask=='hf) && ( (AcReqPktRfClki.addr == (MTIMECMP0 + (j<<3) ));
+            mtimecmp_wr_valid[j] = AcReqPktRfClki.valid && (AcReqPktRfClki.mask=='hff || AcReqPktRfClki.mask=='hf) && AcReqPktRfClki.addr == (MTIMECMP0 + (j<<3));
         end
     end
 
@@ -158,7 +149,7 @@ import rv_tester_params:: * ;
     end
     always @(posedge rf_clk) begin
     if (dut_reset) mtimecmpval[k] <= 'hffffffff;
-    else if(mtimecmp_wr_valid[k]) mtimecmpval[k] <= (AcReqPktRfClki.data & data_mask);
+    else if(mtimecmp_wr_valid[k]) mtimecmpval[k] <= ((AcReqPktRfClki.mask == 'hf) ? {mtimecmpval[k][63:32], AcReqPktRfClki.data[31:0]} : AcReqPktRfClki.data);
     end
 
     end
@@ -180,9 +171,8 @@ import rv_tester_params:: * ;
     always @(posedge rf_clk) begin
         /* verilator lint_off BLKSEQ */
         if (dut_reset) AcChkCtime <= 0;
-        else if (mtime_wr_valid) AcChkCtime <= ((AcReqPktRfClki.mask == 'hf) ? {AcChkMtime[63:32], AcReqPktRfClki.data[31:0]} : AcReqPktRfClki.data);    // Sample the updated MTIME to CTIME
-        else if (forcesynccame) AcChkCtime <= AcChkMtime; // Sample the local copy of MTIME to CTIME for timesync
-        else if (AcChkCtime_write) begin
+        else if (!AcChkCtime_write && AcCrSynci[0].valid) AcChkCtime <= AcChkMtime;
+        else if (AcChkCtime_write && AcCrSynci[0].valid) begin
             AcChkCtime <= AcChkCtime_updated;
             AcChkCtime_write = 0;
         end
@@ -275,7 +265,7 @@ import rv_tester_params:: * ;
 
     import "DPI-C" function void check_outstanding_transactions(int unsigned location);
     always @(posedge terminate) begin
-        if (!reset) check_outstanding_transactions(location);
+        if (!reset && enable_checks) check_outstanding_transactions(location);
     end
 
   function automatic logic [3:0] get_hart_ret(int n);

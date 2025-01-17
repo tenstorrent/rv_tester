@@ -284,6 +284,7 @@ private:
   rv_nmi_t nmi_ {};
   rv_nmi_t prev_nmi_ {};
   bool nmi_poke_pending_ = false;
+  bool nmi_poke_in_debug_mode_ = false;
   uint64_t mip_ = 0;
   uint64_t timing_case2 = 0;
   uint64_t prev_mip_ = 0;

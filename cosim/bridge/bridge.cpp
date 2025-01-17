@@ -594,10 +594,12 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
   // Handle post-step conditions
   if (d.pc.pc_rdata == FLAGS_debug_exit_pc) {
-    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperExitDebugRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart)) {
-      error("Hart {}: Failed to exit debug mode\n", id_);
-      return;
+    if (nmi_poke_pending_ && nmi_poke_in_debug_mode_) {
+      clear_nmi(hart, d.cycle); // it will be later poked when DUT takes NMI
+      nmi_poke_in_debug_mode_ = false;
     }
+    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperExitDebugRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart))
+      error("Hart {}: Failed to exit debug mode\n", id_);
   }
 
   post_step_nmi_check(hart, d, w);
@@ -1869,7 +1871,7 @@ bool bridge::resynch_on_instr(const std::string& instr, const uint64_t& cycle) {
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[unsupported_csr_access]\n", cycle);
     return true;
   }
-  if (FLAGS_cosim_resynch_instr == "") {
+  if (FLAGS_cosim_resynch_instr != "") {
     std::stringstream ss(FLAGS_cosim_resynch_instr);
     while(ss.good()) {
       std::string s;
@@ -2323,6 +2325,10 @@ void bridge::process_dut_nmi(hart_id_t hart, rv_nmi_t& n) {
 
   if (n.valid) {
     nmi_poke_pending_ = true;
+    if (debug_mode_) {
+      poke_nmi(hart, nmi_.cycle, nmi_.cause);
+      nmi_poke_in_debug_mode_ = true;
+    }
   } else {
     clear_nmi(hart, nmi_.cycle);
     nmi_poke_pending_ = false;
