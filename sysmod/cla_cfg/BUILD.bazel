@@ -8,6 +8,7 @@ cc_library(
             ],
     deps = [
         "//sysmod:device",
+        "@rv_tester//sysmod/htif:htif",
         "@mem_manager//:mem_manager",
         "@rv_tester//common:common",
         "@cvm//:plusargs",

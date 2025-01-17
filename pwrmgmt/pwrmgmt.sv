@@ -35,7 +35,7 @@ import rv_tester_params::*;
         pwrmgmt_set_reset_count(location, reset_count);
         smc_axi_blocking_sequence_tick(0);
         thub_blocking_sequence_tick(0);
-        if (reset_count <= 0)
+        if (reset_count < 0)
           //FIXME pwrmgmt_force_ref_clk(1);
           pwrmgmt_init();
         if (warm_reset_en) begin

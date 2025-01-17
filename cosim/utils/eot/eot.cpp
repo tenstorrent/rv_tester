@@ -16,6 +16,7 @@ DEFINE_uint64(recent_pc, recent_pc_default, "The PC that must be in the last +re
 DEFINE_uint64(recent_pc_instr, 100000, "+recent_pc should have been seen within this many instructions of end of test");
 DEFINE_uint64(psc_off_high, 0, "Turn Period-Cosim mode BACK ON when clocks > psc_off_high");
 DEFINE_uint64(psc_off_low,  0, "Turn Period-Cosim mode OFF     when clocks > psc_off_low");
+DEFINE_bool(hw_eot_enable,  false, "Enable hardware termination of the EOT (useful for offline DPI testing when rvfi is not sent to cosim)");
 
 REGISTRY_register(eot, TOP.PLATFORM, cvm::registry::all);
 
@@ -68,6 +69,7 @@ std::uint64_t eot::get_tohost_addr() {
    return tohost_addr_;
 }
 
+
 void eot::process(const rv_tester_transactions::cosim::m_steps<>& m_steps) {
 
   // When using periodic state check method add the missing step counts (only the first m_steps packet does this)
@@ -96,29 +98,37 @@ void eot::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
       recent_pc_instr_count_ = instr_count_[m_rvfi.hart];
       recent_pc_hart_        = m_rvfi.hart;
   }
+  if (!FLAGS_hw_eot_enable) {
+    for (uint32_t i = 0; i < num_harts_; i++) {
+      check_max_instr(m_rvfi.cycle,instr_count_[i]);
+    }
+  }
+}
 
+void eot::check_max_instr(std::uint64_t cycle, std::uint64_t instr_count)
+{
+  if (ended_)
+     return;
   // End test on max_instr
-  for (uint32_t i = 0; i < num_harts_; i++) {
-    if (FLAGS_max_instr > 0 && instr_count_[i] > FLAGS_max_instr) {
-      ended_ = true;
-      end = std::chrono::system_clock::now();
-      if (FLAGS_eot == "max_instr") {
-        cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", m_rvfi.cycle);
-        cvm::log(cvm::NONE, "<{}> Pass condition detected: +eot=max_instr +max_instr={}\n", m_rvfi.cycle, FLAGS_max_instr);
-        cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", m_rvfi.cycle);
-        auto location = cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0);
-        cvm::registry::messenger.signal<htif::terminate_t>(location, htif::terminate_t{.low_priority_based = true});
-        auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-        cvm::log(cvm::HIGH, "end time: {}\n", std::ctime(&now));
-        return;
-      } else {
-        cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", m_rvfi.cycle);
-        cvm::log(cvm::ERROR, "<{}> Error: max_instr limit reached: {}\n", m_rvfi.cycle, FLAGS_max_instr);
-        cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", m_rvfi.cycle);
-        cvm::registry::messenger.signal<htif::terminate_t>( cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0),
-        htif::terminate_t{.low_priority_based = true});
-        return;
-      }
+  if (FLAGS_max_instr > 0 && instr_count > FLAGS_max_instr) {
+    ended_ = true;
+    end = std::chrono::system_clock::now();
+    if (FLAGS_eot == "max_instr") {
+      cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
+      cvm::log(cvm::NONE, "<{}> Pass condition detected: +eot=max_instr +max_instr={}\n", cycle, FLAGS_max_instr);
+      cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
+      auto location = cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0);
+      cvm::registry::messenger.signal<htif::terminate_t>(location, htif::terminate_t{.low_priority_based = true});
+      auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+      cvm::log(cvm::HIGH, "end time: {}\n", std::ctime(&now));
+      return;
+    } else {
+      cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
+      cvm::log(cvm::ERROR, "<{}> Error: max_instr limit reached: {}\n", cycle, FLAGS_max_instr);
+      cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n",cycle);
+      cvm::registry::messenger.signal<htif::terminate_t>( cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0),
+      htif::terminate_t{.low_priority_based = true});
+      return;
     }
   }
 }
@@ -164,11 +174,15 @@ void eot::process_tohost(uint64_t hartid, uint64_t cycle, uint64_t address, uint
 }
 
 void eot::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_insert) {
-   process_tohost(m_mcmi_insert.hart, m_mcmi_insert.cycle, m_mcmi_insert.addr, m_mcmi_insert.data);
+   if (!FLAGS_hw_eot_enable) {
+     process_tohost(m_mcmi_insert.hart, m_mcmi_insert.cycle, m_mcmi_insert.addr, m_mcmi_insert.data);
+   }
 }
 
 void eot::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_bypass) {
-   process_tohost(m_mcmi_bypass.hart, m_mcmi_bypass.cycle, m_mcmi_bypass.addr, m_mcmi_bypass.data);
+   if (!FLAGS_hw_eot_enable) {
+     process_tohost(m_mcmi_bypass.hart, m_mcmi_bypass.cycle, m_mcmi_bypass.addr, m_mcmi_bypass.data);
+   }
 }
 
 eot::~eot() {
@@ -189,6 +203,20 @@ eot::~eot() {
 extern "C" {
   std::uint64_t eot_get_addr() {
     return cvm::registry::messenger.call<eot::get_tohost_addr_RPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0));
+  }
+  void eot_hw_process(std::uint64_t hart, std::uint64_t cycle, std::uint64_t addr, std::uint64_t data) {
+     cvm::registry::messenger.call<eot::process_tohost_RPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0),hart, cycle, addr, data);
+  }
+  void call_check_max_instr(std::uint64_t cycle, std::uint64_t count) {
+    if (FLAGS_eot == "max_instr")
+     cvm::registry::messenger.call<eot::check_max_instr_RPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0),cycle, count);
+  }
+  int is_eot_tohost() {
+    if (FLAGS_eot == "tohost")
+      return 1;
+    if (FLAGS_eot == "tohost_all")
+      return 1;
+    return 0;
   }
 }
 
