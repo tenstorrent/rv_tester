@@ -386,98 +386,10 @@ void trace_cfg::push_random_axi_write(const random_list& elements){
   cvm::log(cvm::HIGH, "[overlay axi] overlay write axi seq completed with queue size {}\n",trace_wr_txn_q.size());
 }
 
-void trace_cfg::push_trace_enable_seq() {
-  uint32_t ram_control;
-  cvm::log(cvm::LOW, "[Trace_cfg] trace_cfg inside enable trace seq\n");
-  // Funnel-RAM config
-  trace_wr_txn_q.push({trace_mmr::TR_DST_RAM_START_LOW,0x40});
-  trace_wr_txn_q.push({trace_mmr::TR_DST_RAM_LIMIT_LOW,0x8000});
-  trace_wr_txn_q.push({trace_mmr::TR_DST_RAM_WP_LOW,0x40});
-  trace_wr_txn_q.push({trace_mmr::TR_DST_RAM_RP_LOW,0x40});
-  ram_control = (0x3 | (is_smem_mode << 4));
-  trace_wr_txn_q.push({trace_mmr::TR_DST_RAM_CONTROL,ram_control});
-  trace_wr_txn_q.push({trace_mmr::TR_FUNNEL_CONTROL,0x3});
-
-  // CLA/Paketizer config
-  trace_wr_txn_q.push({trace_mmr::CDBG_CLA_CTRL_STS_CFG,0x40});
-  trace_wr_txn_q.push({trace_mmr::TR_DST_CONTROL,0x3000003});
-  trace_wr_txn_q.push({trace_mmr::CDBG_MUX_SEL_CFG,0x1});
-  trace_wr_txn_q.push({trace_mmr::CDBG_MUX_SEL_CFG,0x5});
-  trace_wr_txn_q.push({trace_mmr::CDBG_MUX_SEL_CFG,0x9});
-  ram_control = 0x10000000 + (is_smem_mode * 0x40000000);
-  trace_wr_txn_q.push({trace_mmr::CDBG_CLA_COUNTER0_CFG,ram_control});
-  trace_wr_txn_q.push({trace_mmr::CDBG_NODE0_EAP0_CFG,0x11211});
-  trace_wr_txn_q.push({trace_mmr::CDBG_NODE1_EAP0_CFG,0x101316});
-  trace_wr_txn_q.push({trace_mmr::CDBG_NODE0_EAP1_CFG,0x1001D});
-  trace_wr_txn_q.push({trace_mmr::CDBG_NODE1_EAP1_CFG,0x100022});
-  trace_wr_txn_q.push({trace_mmr::TR_DST_INSTFEATURES,0x40000000});
-  // RTL FIX Needed for this MMR access
-  // trace_wr_txn_q.push({TR_DST_IMPL,0x1000000});
-  trace_wr_txn_q.push({trace_mmr::CDBG_CLA_CTRL_STS_CFG,0x60});
-  cvm::log(cvm::LOW, "[Trace_cfg] trace_cfg completed enable trace seq\n");
-}
-
-void trace_cfg::push_trace_disable_seq() {
-  cvm::log(cvm::LOW, "[Trace_cfg] trace_cfg inside disable trace seq\n");
-  trace_wr_txn_q.push({trace_mmr::CDBG_CLA_CTRL_STS_CFG,0x40});
-  trace_wr_txn_q.push({trace_mmr::TR_DST_CONTROL,0x0});
-  trace_wr_txn_q.push({trace_mmr::CDBG_CLA_CTRL_STS_CFG,0x0});
-  if(!is_smem_mode){
-    trace_wr_txn_q.push({trace_mmr::TR_FUNNEL_CONTROL,0x1});
-    trace_wr_txn_q.push({trace_mmr::TR_DST_RAM_CONTROL,0x1});
-  }
-  cvm::log(cvm::LOW, "[Trace_cfg] trace_cfg completed disable trace seq\n");
-}
-
-void trace_cfg::check_dst_ram_empty() {
-  trace_cfg_read_req_t rdata;
-  uint32_t empty_val;
-
-  cvm::log(cvm::LOW, "[Trace_cfg] trace_cfg inside check DST ram empty\n");
-    rdata = trace_read_resp_q.front();
-    trace_read_resp_q.pop();
-    deserializeInt(rdata.data,empty_val,trace_mmr::TR_DST_RAM_CONTROL);
-    if(empty_val & (1 << 3)) {
-      cvm::log(cvm::LOW, "[Trace_cfg] checking empty val %x \n",empty_val);
-      trace_wr_txn_q.push({trace_mmr::TR_FUNNEL_CONTROL,0x0});
-      trace_wr_txn_q.push({trace_mmr::TR_DST_RAM_CONTROL,0x0});
-      end_test = 1;
-    }
-    else{
-      trace_misc_rd_txn_q.push({trace_mmr::TR_DST_RAM_CONTROL,4,0});
-    }
-  cvm::log(cvm::LOW, "[Trace_cfg] trace_cfg completed disable trace seq\n");
-}
-
-void trace_cfg::read_pointers(){
-  cvm::log(cvm::LOW, "[Trace_cfg] trace_cfg reading WRITE/READ pointers\n");
-  trace_misc_rd_txn_q.push({trace_mmr::TR_DST_RAM_WP_LOW,4,0});
-  trace_misc_rd_txn_q.push({trace_mmr::TR_DST_RAM_RP_LOW,4,0});
-}
-
-void trace_cfg::read_sram() {
-  uint32_t wp=0,rp=0;
-  trace_cfg_read_req_t rdata;
-
-   rdata = trace_read_resp_q.front();
-   trace_read_resp_q.pop();
-   if(rdata.addr == trace_mmr::TR_DST_RAM_WP_LOW) deserializeInt_wp(rdata.data,wp);
-   wp = wp & 0xFFFFFFFC;
-   cvm::log(cvm::LOW, "[Trace_cfg] trace_cfg reading write pointer {:#X}\n",wp);
-
-   rdata = trace_read_resp_q.front();
-   trace_read_resp_q.pop();
-   if(rdata.addr == trace_mmr::TR_DST_RAM_RP_LOW) deserializeInt_rp(rdata.data,rp);
-   cvm::log(cvm::LOW, "[Trace_cfg] trace_cfg reading read pointer {:#X}\n",rp);
-
-   read_ram = (wp - rp)/4;
-}        
-
 void trace_cfg::overlay_tick(uint64_t) {
 
     if(trace_start_cnt == 0) {
       trace_start_cnt = (rng()% 5) + 20;
-      trace_stop_cnt = trace_start_cnt + (rng()% 20) + 100;
       n = (rng()% 5) + 3;
       id_val = 0;
       id_val1 = 0;
@@ -486,41 +398,14 @@ void trace_cfg::overlay_tick(uint64_t) {
       start_wr_access = FLAGS_start_overlay_access + 30;
       start_rd_access = FLAGS_start_overlay_access + 100;
    
-      cvm::log(cvm::NONE, "[Trace_cfg] trace_cfg IS_SMEM {} trace_start_cnt  {} trace_stop_cnt {} \n",is_smem_mode,trace_start_cnt,trace_stop_cnt);
+      cvm::log(cvm::NONE, "[Trace_cfg] trace_cfg IS_SMEM {} trace_start_cnt  {} \n",is_smem_mode,trace_start_cnt);
     }
       
     if(cnt_tick== 30) {
         start_default = 0;
     }
-    if(FLAGS_trace_en && !FLAGS_overlay_mmr_en) {
-      cvm::log(cvm::HIGH, "[Trace_cfg] trace_cfg timer tick advance interval {} trace_start_cnt {} \n",cnt_tick,trace_start_cnt);
-      if(end_test && (trace_wr_txn_q.size() == 0)) complete_trace_test();
-      if(cnt_tick==trace_start_cnt) push_trace_enable_seq();
-      if(cnt_tick==trace_stop_cnt) push_trace_disable_seq();
-      if((trace_wr_txn_q.size() > 0) && !write_in_flight) axi_write();
-      if((trace_read_resp_q.size() > 0) && is_smem_mode) check_dst_ram_empty();
-      if((cnt_tick==(trace_stop_cnt+10)) && (!is_smem_mode)) read_pointers();
-      if((cnt_tick==(trace_stop_cnt+10)) && is_smem_mode) {
-        trace_misc_rd_txn_q.push({trace_mmr::TR_DST_RAM_CONTROL,4,0});
-      }
-      if((trace_misc_rd_txn_q.size() > 0) && !read_in_flight){
-        trace_cfg_read_t read_req;
-        read_req = trace_misc_rd_txn_q.front();
-        trace_misc_rd_txn_q.pop();
-        axi_ids = id_val++;
-        axi_read(read_req.addr,read_req.length,axi_ids);
-      }
-      if((trace_read_resp_q.size() == 2) && (read_ram == 0) && (!end_test) && (!is_smem_mode)) {
-        read_sram();
-      }
-      if(read_ram > 0) {
-        cvm::log(cvm::HIGH, "[Trace_cfg] read RAM {} \n",read_ram);
-        axi_read(trace_mmr::TR_DST_RAM_DATA,4,400+id_val);
-        id_val++;
-        read_ram = read_ram - 1;
-        if(read_ram == 0) end_test = 1;
-      }
-    }else if(FLAGS_overlay_mmr_en && FLAGS_trace_en && FLAGS_overlay_num_times >= overlay_exec_cntr){
+
+    if(FLAGS_overlay_mmr_en && FLAGS_overlay_num_times >= overlay_exec_cntr){
         
         if(end_test==1) complete_trace_test();
         if(cnt_tick==trace_start_cnt){

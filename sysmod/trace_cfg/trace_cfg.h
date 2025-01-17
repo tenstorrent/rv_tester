@@ -41,8 +41,7 @@ class trace_cfg : public device {
         bool is_smem_mode;
         bool write_in_flight = false;
         bool read_in_flight = false;
-        uint32_t trace_stop_cnt;
-        uint32_t trace_start_cnt=0,n,id_val,id_val1 = 0,write_id=0,start_wr_access =0 ,overlay_exec_cntr =0,start_rd_access =0,read_ram=0,overlay_in_progress =0 ,start_default =1,axi_ids = 0;
+        uint32_t trace_start_cnt=0,n,id_val,id_val1 = 0,write_id=0,start_wr_access =0 ,overlay_exec_cntr =0,start_rd_access =0,overlay_in_progress =0 ,start_default =1,axi_ids = 0;
         uint32_t cnt_tick=0;
         uint64_t axi_read_resp=0;
         std::unordered_map<std::string, uint32_t> macros;
@@ -85,11 +84,6 @@ class trace_cfg : public device {
         void push_random_axi_read(const random_list&  elements);
         void push_random_axi_write(const random_list& elements);
         void print_read_request(const trace_cfg_read_req_t  &request,int read);
-        void push_trace_enable_seq();
-        void push_trace_disable_seq();
-        void check_dst_ram_empty();
-        void read_pointers();
-        void read_sram();
         void push_default_rd_seq();
         void push_rd_scratchpad_seq();
         void push_wr_scratchpad_seq();
