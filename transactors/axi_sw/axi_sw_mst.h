@@ -98,8 +98,9 @@ class axi_sw_mst {
         }
 
         lock_t try_lock() {
+          bool locked = locked_;
           locked_ = true;
-          return lock_t{locked_? nullptr : &locked_};
+          return lock_t{locked? nullptr : &locked_};
         }
 
         std::optional<unsigned> read(transactor::read_request_t r);
