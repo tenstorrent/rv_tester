@@ -149,7 +149,7 @@ import rv_tester_params:: * ;
     end
     always @(posedge rf_clk) begin
     if (dut_reset) mtimecmpval[k] <= 'hffffffff;
-    else if(mtimecmp_wr_valid[k]) mtimecmpval[k] <= (AcReqPktRfClki.data & data_mask);
+    else if(mtimecmp_wr_valid[k]) mtimecmpval[k] <= ((AcReqPktRfClki.mask == 'hf) ? {mtimecmpval[k][63:32], AcReqPktRfClki.data[31:0]} : AcReqPktRfClki.data);
     end
 
     end
@@ -171,8 +171,8 @@ import rv_tester_params:: * ;
     always @(posedge rf_clk) begin
         /* verilator lint_off BLKSEQ */
         if (dut_reset) AcChkCtime <= 0;
-        else if (AcCrSynci[0].valid) AcChkCtime <= AcChkMtime;
-        else if (AcChkCtime_write) begin
+        else if (!AcChkCtime_write && AcCrSynci[0].valid) AcChkCtime <= AcChkMtime;
+        else if (AcChkCtime_write && AcCrSynci[0].valid) begin
             AcChkCtime <= AcChkCtime_updated;
             AcChkCtime_write = 0;
         end
