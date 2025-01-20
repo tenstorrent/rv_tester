@@ -2075,15 +2075,12 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
 
         // First, replay the csr operation to claim the same old MSI IID as DUT
         uint64_t data = 0;
-        uint64_t count = 0, loop_count = 0;
-        while ((!d.gpr.empty() && (data != (d.gpr[0].rd_wdata & 0xff))) || (count < FLAGS_topei_claim_threshold)) {
+        uint64_t count = 0;
+        while ((!d.gpr.empty() && (data != (d.gpr[0].rd_wdata))) && (count < FLAGS_topei_claim_threshold)) {
           peek_resource(hart, 'c', csr.csr_addr, data);
           poke_resource(hart, d.cycle, 'c', csr.csr_addr, data);
           count++;
-          bridge_log_(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: topei claim [{:#x}]={:#x}\n", d.cycle, step_, csr.csr_addr, data);
-          loop_count++;
-          if (loop_count>256) // FIXME: better way to get out of this loop
-            error("Unable to resynch TOPEI");
+          bridge_log_(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: topei claim csr:{:#x} w.data={:#x} d.data={:#x}\n", d.cycle, step_, csr.csr_addr, data, d.gpr[0].rd_wdata);
         }
 
         // Then, inject the in-flight new MSI IIDs to get the state identical to DUT
