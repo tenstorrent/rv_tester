@@ -682,8 +682,88 @@ module axi_sw_mst #(
         axi_mst_w_last  = w.last;
     end
 
-    assign axi_mst_b_ready = '1;
-    assign axi_mst_r_ready = '1;
+    //assign axi_mst_b_ready = '1;
+    //assign axi_mst_r_ready = '1;
+    
+    int unsigned brdy_hi ;  
+    int unsigned brdy_low;  
+    int unsigned rrdy_hi ;  
+    int unsigned rrdy_low;  
+    always @(posedge clk) begin
+        if (sys_reset) begin
+            /* verilator lint_off BLKSEQ */
+             brdy_hi      = cvm_plusargs::get_int("axi_mst_brdy_high");
+             brdy_low     = cvm_plusargs::get_int("axi_mst_brdy_low");
+             rrdy_hi      = cvm_plusargs::get_int("axi_mst_rrdy_high");
+             rrdy_low     = cvm_plusargs::get_int("axi_mst_rrdy_high");
+            /* verilator lint_on BLKSEQ */
+        end
+        else begin
+           
+        end
+    end
+
+    // Internal counters
+    logic [31:0] brdy_counter;
+    logic brdy_state; // 0 for low, 1 for high
+
+    // Sequential logic for counter and state
+    always_ff @(posedge clk or negedge reset_n) begin
+        if (!reset_n) begin
+            brdy_counter <= 0;
+            brdy_state   <= 0;
+        end else begin
+            if (brdy_state) begin // High state
+                if (brdy_counter < brdy_hi) begin
+                    brdy_counter <= brdy_counter + 1;
+                end else begin
+                    brdy_counter <= 0;
+                    brdy_state   <= 0; // Switch to low state
+                end
+            end else begin // Low state
+                if (brdy_counter < brdy_low) begin
+                    brdy_counter <= brdy_counter + 1;
+                end else begin
+                    brdy_counter <= 0;
+                    brdy_state   <= 1; // Switch to high state
+                end
+            end
+        end
+    end
+
+    // Assign output based on state
+    assign axi_mst_b_ready = brdy_state;
+    
+     // Internal counters
+    logic [31:0] rrdy_counter;
+    logic rrdy_state; // 0 for low, 1 for high
+
+    // Sequential logic for counter and state
+    always_ff @(posedge clk or negedge reset_n) begin
+        if (!reset_n) begin
+            rrdy_counter <= 0;
+            rrdy_state   <= 0;
+        end else begin
+            if (rrdy_state) begin // High state
+                if (rrdy_counter < rrdy_hi) begin
+                    rrdy_counter <= rrdy_counter + 1;
+                end else begin
+                    rrdy_counter <= 0;
+                    rrdy_state   <= 0; // Switch to low state
+                end
+            end else begin // Low state
+                if (rrdy_counter < rrdy_low) begin
+                    rrdy_counter <= rrdy_counter + 1;
+                end else begin
+                    rrdy_counter <= 0;
+                    rrdy_state   <= 1; // Switch to high state
+                end
+            end
+        end
+    end
+
+    // Assign output based on state
+    assign axi_mst_r_ready = rrdy_state;
 
     always @(posedge clk) begin
         ar_q_ptrs[0].valid  <= '0;
