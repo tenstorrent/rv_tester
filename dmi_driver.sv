@@ -59,7 +59,7 @@ import rv_tester_params:: * ;
   logic [9:0] dm_hartsel, core_rg_check;
   logic [2:0] core_halt_index, core_resume_index;
   logic tdata1_write, check_trigger_type, mcontrol6_trigger, trigger_to_fire, trigger_fired_halted, check_cause_trigger, cause_trigger, to_check_cause;
-  logic dcsr_abscmd, dcsr_write, ss_step_bit, core_to_halt_after_ss, core_halted_after_ss;
+  logic dcsr_abscmd, dcsr_read, ss_step_bit, core_to_halt_after_ss, core_halted_after_ss;
   logic check_step_core, core_hg_resumed_ss, core_haltsum_ss, core_check_haltsum_ss;
   logic [2:0] core_ss_index, core_halted_ss, core_halted_sdtrig;
   logic tselect_core, tselect_core_complete, core_rg_halt_sdtrig, core_haltsum_sdtrig, check_haltsum_sdtrig;
@@ -130,7 +130,7 @@ import rv_tester_params:: * ;
       cause_trigger <=0;
       to_check_cause <= 0;
       dcsr_abscmd <= 0;
-      dcsr_write <= 0;
+      dcsr_read <= 0;
       ss_step_bit <= 0;
       core_to_halt_after_ss <= 0;
       core_halted_after_ss <= 0;
@@ -378,9 +378,6 @@ import rv_tester_params:: * ;
               if(cmd.data[15:0] === 'h07a1) begin
                 $display("[sdtrig:Poll] Seen an abstract command write on tdata1");
                 tdata1_write = 1;
-              end else if (cmd.data[15:0] === 'h07b0) begin
-                $display("[Poll] Seen the abstract command with write on dcsr");
-                dcsr_abscmd = 1;
               end else if(check_hit_for_tselect && cmd.data[15:0] === 'h07a0) begin
                 to_check_tselect = 1;
                 $display("[Poll] Setting to_check_tselect = 1");
@@ -400,6 +397,9 @@ import rv_tester_params:: * ;
                 to_check_hit = 0;
                 check_hit_bit = 1;
                 $display("[Poll] check_hit_bit is set");
+              end else if (cmd.data[15:0] === 'h07b0) begin
+                $display("[Poll] Seen the abstract command read on dcsr");
+                dcsr_abscmd = 1;
               end
             end
           end
@@ -441,7 +441,7 @@ import rv_tester_params:: * ;
         end else if(dcsr_abscmd && cmd.addr === 'h16 && cmd.op === 'h1) begin
           $display("[Single step] step bit configured in dcsr");
           dcsr_abscmd = 0;
-          dcsr_write = 1;
+          dcsr_read = 1;
           poll = 1;
         end else if(core_to_halt_after_ss && cmd.addr === 'h11 && cmd.op === 'h1 && ~trigger_to_fire) begin
           $display("[Single step] Core resuming after step configuration");
@@ -582,7 +582,7 @@ import rv_tester_params:: * ;
         end else if (halted_sdtrig) begin
           $display("[Poll] dmstatus to check if the core is getting halted through sdtrig");
           dmi_req <= 41'h4500000000;
-        end else if (dcsr_write) begin
+        end else if (dcsr_read) begin
           $display("[Poll] data0 to check if the step bit is set");
           dmi_req <= 41'h1100000000;
         end else if (core_to_halt_after_ss) begin
@@ -855,7 +855,7 @@ import rv_tester_params:: * ;
           halted_sdtrig = 0;
           poll = 0;
           $display("[Poll] Clearing halted_sdtrig = 0");
-        end else if(dcsr_write) begin
+        end else if(dcsr_read) begin
           if(dmi_resp.data[2] === 'h1) begin
             ss_step_bit = 1;
             $display("[Poll] step bit is set in dcsr");
@@ -864,8 +864,8 @@ import rv_tester_params:: * ;
             $display("[Poll] step bit is cleared in dcsr");
           end
           poll = 0;
-          dcsr_write = 0;
-          $display("[Poll] dcsr_write polling completed");
+          dcsr_read = 0;
+          $display("[Poll] dcsr_read polling completed");
         end else if(core_to_halt_after_ss && dmi_resp.data[9:8] === 2'b11) begin
           core_to_halt_after_ss = 0;
           core_halted_after_ss = 1;

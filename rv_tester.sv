@@ -110,6 +110,7 @@ module rv_tester
     int unsigned soc_clocks = 0;
     logic pwrmgmt_force_ref_clk;
     logic terminate_ntrace_test;
+    logic terminate_dst_trace_seq;
     logic reset_window;
     logic cold_reset;
     logic warm_reset;
@@ -205,7 +206,7 @@ module rv_tester
 
     assign ntrace_terminate    = (terminate_ntrace_test & ntrace_stop_on_wrap) || !ntrace_stop_on_wrap;
     assign terminate           = (dut_terminate_any || rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sys_reset_any) || quiesce_counter > 0) && !rv_tester_reset && !warm_reset && ntrace_terminate;
-    assign terminate_now       = (terminate_1T && (quiesced || ((quiesce_counter >= quiesce_timeout) && !warm_reset)) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue <= 'h1) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || trace_counter >= trace_timeout) && (!cla_nmi_en || (cla_quiesced && quiesced))  && (!jtag_en || jtag_quiesced )) || dut_terminate_any || warm_reset_now;
+    assign terminate_now       = (terminate_1T && (quiesced || ((quiesce_counter >= quiesce_timeout) && !warm_reset)) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue <= 'h1) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || (terminate_dst_trace_seq && quiesced)) && (!cla_nmi_en || (cla_quiesced && quiesced))  && (!jtag_en || jtag_quiesced )) || dut_terminate_any || warm_reset_now;
 
     assign rerun_now           = terminated && !terminated_1T && ((num_reruns > 0) || (warm_reset_en && (num_resets <= target_num_resets)) || dut_reset_req);
 
@@ -875,6 +876,7 @@ module rv_tester
         .reset(dut_reset[AXI_CLK_IDX]),
         .core_no_fetch(core_no_fetch),
         .terminate_ntrace_test(terminate_ntrace_test),
+        .terminate_dst_trace_seq(terminate_dst_trace_seq),
         `RV_TESTER_TRANSACTIONS_TRACE_SOURCE_PORTS(2,0,0)
     );
 
