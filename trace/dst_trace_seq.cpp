@@ -54,14 +54,18 @@ cvm::messenger::task<void> dst_trace_seq::core_no_fetch()
 
 cvm::messenger::task<void> dst_trace_seq::dst_main() {
 
+  cvm::rand::uniform_dist<uint32_t> smc_mmr_index_dist(0, FLAGS_num_harts);
+  
+  if(FLAGS_num_harts > 1) enabled_core = 1; //smc_mmr_index_dist();
+  core_offset = 0x10000 * enabled_core;
   // Wait for no fetch
   co_await core_no_fetch();
 
-  cvm::log(cvm::NONE, "[dst_trace] Starting DST Trace sequence\n");
+  cvm::log(cvm::NONE, "[dst_trace] Starting DST Trace sequence on Core - {:#x}\n",enabled_core);
 
   //while (true) {
 
-    smem_mode = 0;
+    smem_mode = 1;
     //for(int cnt_loop=0;cnt_loop < 100;cnt_loop ++){
     //  co_await tick();
     //}
@@ -91,7 +95,7 @@ cvm::messenger::task<void> dst_trace_seq::configure_dst_ram_funnel() {
   cvm::log(cvm::MEDIUM, "[trace] Trace Funnel Configuration Started....\n");
   if(smem_mode){
     ram_start_addr = 0; // Replace with any random value
-    ram_limit_addr = ram_start_addr + 100; // Replace with any random value
+    ram_limit_addr = 0x8000'0000; // Replace with any random value
     dst_ram_control = 0x13;
   }
   else {
@@ -115,20 +119,20 @@ cvm::messenger::task<void> dst_trace_seq::configure_cla() {
   uint64_t on_time;
 
   cvm::log(cvm::MEDIUM, "[trace] CLA Configuration Started....\n");
-  co_await write(cdbg_cla_ctrl_status, SZ_8B, 0x40);
-  co_await write(tr_dst_inst_feature, SZ_4B, 0x40000000);
-  co_await write(tr_dst_control, SZ_4B, 0x3000007);
+  co_await write((cdbg_cla_ctrl_status + core_offset), SZ_8B, 0x40);
+  co_await write((tr_dst_inst_feature + core_offset), SZ_4B, (0x40000000 | (enabled_core  << 16)));
+  co_await write((tr_dst_control + core_offset), SZ_4B, 0x3000007);
   co_await configure_fe_dbm();
-  co_await write(cdbg_dbg_mux_sel_cfg, SZ_8B, 0x1);
-  co_await write(cdbg_dbg_mux_sel_cfg, SZ_8B, 0x5);
-  co_await write(cdbg_dbg_mux_sel_cfg, SZ_8B, 0x9);
-  on_time = 0x10000000 + (smem_mode * 0x40000000);
-  co_await write(cdbg_cla_counter0, SZ_8B, on_time);
-  co_await write(cdbg_node0_eap0_cfg, SZ_8B, 0x11211);
-  co_await write(cdbg_node1_eap0_cfg, SZ_8B, 0x101316);
-  co_await write(cdbg_node0_eap1_cfg, SZ_8B, 0x1001D);
-  co_await write(cdbg_node1_eap1_cfg, SZ_8B, 0x100022);
-  co_await write(cdbg_cla_ctrl_status, SZ_8B, 0x60);
+  co_await write((cdbg_dbg_mux_sel_cfg + core_offset), SZ_8B, 0x1);
+  co_await write((cdbg_dbg_mux_sel_cfg + core_offset), SZ_8B, 0x5);
+  co_await write((cdbg_dbg_mux_sel_cfg + core_offset), SZ_8B, 0x9);
+  on_time = 0x10000000 + (smem_mode * 0x80000000);
+  co_await write((cdbg_cla_counter0 + core_offset), SZ_8B, on_time);
+  co_await write((cdbg_node0_eap0_cfg + core_offset), SZ_8B, 0x11211);
+  co_await write((cdbg_node1_eap0_cfg + core_offset), SZ_8B, 0x101316);
+  co_await write((cdbg_node0_eap1_cfg + core_offset), SZ_8B, 0x1001D);
+  co_await write((cdbg_node1_eap1_cfg + core_offset), SZ_8B, 0x100022);
+  co_await write((cdbg_cla_ctrl_status + core_offset), SZ_8B, 0x60);
 
   cvm::log(cvm::MEDIUM, "[trace] CLA Configuration Completed....\n");
 
@@ -138,19 +142,19 @@ cvm::messenger::task<void> dst_trace_seq::configure_cla() {
 cvm::messenger::task<void> dst_trace_seq::configure_fe_dbm() {
 
   cvm::log(cvm::MEDIUM, "[trace] FE DBM Configuration Started....\n");
-  co_await csr_write(0x0, 0x2, fe_dbg_mux_sel, 0x1);
-  co_await csr_write(0x0, 0x2, fe_dbg_mux_sel, 0x5);
-  co_await csr_write(0x0, 0x2, fe_dbg_mux_sel, 0x9);
-  co_await csr_write(0x0, 0x2, fe_dbg_mux_sel, 0xd);
-  co_await csr_write(0x0, 0x2, fe_dbg_mux_sel, 0x11);
-  co_await csr_write(0x0, 0x2, fe_dbg_mux_sel, 0x15);
-  co_await csr_write(0x0, 0x2, fe_dbg_mux_sel, 0x19);
-  co_await csr_write(0x0, 0x2, fe_dbg_mux_sel, 0x1d);
-  co_await csr_write(0x0, 0x2, fe_dbg_mux_sel, 0x21);
-  co_await csr_write(0x0, 0x2, fe_dbg_mux_sel, 0x25);
-  co_await csr_write(0x0, 0x2, fe_dbg_mux_sel, 0x29);
-  co_await csr_write(0x0, 0x2, fe_dbg_mux_sel, 0x35);
-  co_await csr_write(0x0, 0x2, fe_dbg_mux_sel, 0x39);
+  co_await csr_write(enabled_core, 0x2, fe_dbg_mux_sel, 0x1);
+  co_await csr_write(enabled_core, 0x2, fe_dbg_mux_sel, 0x5);
+  co_await csr_write(enabled_core, 0x2, fe_dbg_mux_sel, 0x9);
+  co_await csr_write(enabled_core, 0x2, fe_dbg_mux_sel, 0xd);
+  co_await csr_write(enabled_core, 0x2, fe_dbg_mux_sel, 0x11);
+  co_await csr_write(enabled_core, 0x2, fe_dbg_mux_sel, 0x15);
+  co_await csr_write(enabled_core, 0x2, fe_dbg_mux_sel, 0x19);
+  co_await csr_write(enabled_core, 0x2, fe_dbg_mux_sel, 0x1d);
+  co_await csr_write(enabled_core, 0x2, fe_dbg_mux_sel, 0x21);
+  co_await csr_write(enabled_core, 0x2, fe_dbg_mux_sel, 0x25);
+  co_await csr_write(enabled_core, 0x2, fe_dbg_mux_sel, 0x29);
+  co_await csr_write(enabled_core, 0x2, fe_dbg_mux_sel, 0x35);
+  co_await csr_write(enabled_core, 0x2, fe_dbg_mux_sel, 0x39);
   cvm::log(cvm::MEDIUM, "[trace] FE DBM Configuration Completed....\n");
   co_return;
 }
@@ -164,9 +168,15 @@ cvm::messenger::task<void> dst_trace_seq::disable_trace_funnel() {
 }
 
 cvm::messenger::task<void> dst_trace_seq::enable_trace_funnel() {
+  uint32_t dis_input;
+  uint8_t dst_core_dis;
+
+  dst_core_dis = 1 << enabled_core;
+  dst_core_dis = ~dst_core_dis;
+  dis_input = dst_core_dis << 8;
 
   // Configure Funnel disable inputs
-  co_await write(tr_funnel_disinput, SZ_4B, 0xFEFF);
+  co_await write(tr_funnel_disinput, SZ_4B, dis_input);
   cvm::log(cvm::MEDIUM, "[trace] enabling Trace Funnel....\n");  
   co_await write(tr_funnel_control, SZ_4B, 0x3);
   cvm::log(cvm::MEDIUM, "[trace] enabled Trace Funnel....\n");
@@ -193,7 +203,7 @@ cvm::messenger::task<void> dst_trace_seq::check_dst_counter_value() {
     for(int cnt_loop=0;cnt_loop < 50;cnt_loop ++){
       co_await tick();
     }
-    auto data = co_await read(cdbg_cla_counter0, SZ_8B);
+    auto data = co_await read(cdbg_cla_counter0 + core_offset, SZ_8B);
     value_cnt = 0xFFFF & data;
     target_cnt = (0xFFFF0000 & data) >> 16;
     cvm::log(cvm::NONE, "[trace] counter 0 target value {:#x} counter value{:#x} data {:#x} \n", target_cnt, value_cnt, data);
@@ -228,16 +238,16 @@ cvm::messenger::task<void> dst_trace_seq::disable_dst_trace() {
 
   cvm::log(cvm::NONE, "[trace] Disabling DST Trace Generation....\n");
 
-  auto data = co_await read(cdbg_cla_ctrl_status, SZ_8B);
+  auto data = co_await read(cdbg_cla_ctrl_status + core_offset, SZ_8B);
   data = data & 0xFFFF'FF9F;
-  co_await write(cdbg_cla_ctrl_status,SZ_8B,data);
+  co_await write(cdbg_cla_ctrl_status + core_offset,SZ_8B,data);
 
-  data = co_await read(tr_dst_control, SZ_4B);
+  data = co_await read(tr_dst_control + core_offset, SZ_4B);
   data = data & 0xFFFF'FFF9;
-  co_await write(tr_dst_control,SZ_4B,data);
+  co_await write(tr_dst_control + core_offset,SZ_4B,data);
 
   while(1){
-    auto data = co_await read(tr_dst_control, SZ_4B);
+    auto data = co_await read(tr_dst_control + core_offset, SZ_4B);
     if (data & (1 << tr_dst_control_empty_idx)){
       cvm::log(cvm::NONE, "[trace] DST Packetizer flush observed... \n");
       break;

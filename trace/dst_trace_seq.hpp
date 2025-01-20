@@ -32,6 +32,7 @@ class dst_trace_seq {
   private:
 
     bool smem_mode;
+    uint32_t enabled_core = 0, core_offset;
     void dst_main_thread();
 
     cvm::messenger::task<void> tick();
