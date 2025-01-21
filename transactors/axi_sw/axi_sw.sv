@@ -689,6 +689,7 @@ module axi_sw_mst #(
     int unsigned brdy_low;  
     int unsigned rrdy_hi ;  
     int unsigned rrdy_low;  
+    int unsigned axi_sw_rsp_toggle_start;
     bit axi_sw_rsp_toggle_en;
     //bit [63:0] clocks;
     always @(posedge clk) begin
