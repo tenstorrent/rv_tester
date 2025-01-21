@@ -689,6 +689,8 @@ module axi_sw_mst #(
     int unsigned brdy_low;  
     int unsigned rrdy_hi ;  
     int unsigned rrdy_low;  
+    bit axi_sw_rsp_toggle_en;
+    bit [63:0] clocks;
     always @(posedge clk) begin
         if (sys_reset) begin
             /* verilator lint_off BLKSEQ */
@@ -696,10 +698,13 @@ module axi_sw_mst #(
              brdy_low     = cvm_plusargs::get_int("axi_mst_brdy_low");
              rrdy_hi      = cvm_plusargs::get_int("axi_mst_rrdy_high");
              rrdy_low     = cvm_plusargs::get_int("axi_mst_rrdy_high");
+             axi_sw_rsp_toggle_en = cvm_plusargs::get_bool("axi_mst_rrdy_high");
+             axi_sw_rsp_toggle_start = cvm_plusargs::get_int("axi_sw_rsp_toggle_start");
+             clocks = 0;
             /* verilator lint_on BLKSEQ */
         end
         else begin
-           
+           clocks = clocks + 1;
         end
     end
 
@@ -732,8 +737,10 @@ module axi_sw_mst #(
     end
 
     // Assign output based on state
-    assign axi_mst_b_ready = brdy_state;
-    
+    //assign axi_mst_b_ready = axi_sw_rsp_toggle_en ? (axi_sw_rsp_toggle_start < clocks )? brdy_state: 1 : 1;
+    assign axi_mst_b_ready = axi_sw_rsp_toggle_en ? 
+                         ((axi_sw_rsp_toggle_start < clocks) ? brdy_state : 1'b1) : 
+                         1'b1;
      // Internal counters
     logic [31:0] rrdy_counter;
     logic rrdy_state; // 0 for low, 1 for high
@@ -763,7 +770,9 @@ module axi_sw_mst #(
     end
 
     // Assign output based on state
-    assign axi_mst_r_ready = rrdy_state;
+    //assign axi_mst_r_ready = rrdy_state;
+    assign axi_mst_r_ready = axi_sw_rsp_toggle_en ? 
+                         ((axi_sw_rsp_toggle_start < clocks) ? rrdy_state : 1'b1) : 
 
     always @(posedge clk) begin
         ar_q_ptrs[0].valid  <= '0;
