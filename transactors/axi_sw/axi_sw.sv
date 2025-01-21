@@ -690,7 +690,7 @@ module axi_sw_mst #(
     int unsigned rrdy_hi ;  
     int unsigned rrdy_low;  
     bit axi_sw_rsp_toggle_en;
-    bit [63:0] clocks;
+    //bit [63:0] clocks;
     always @(posedge clk) begin
         if (sys_reset) begin
             /* verilator lint_off BLKSEQ */
@@ -700,11 +700,11 @@ module axi_sw_mst #(
              rrdy_low     = cvm_plusargs::get_int("axi_mst_rrdy_high");
              axi_sw_rsp_toggle_en = cvm_plusargs::get_bool("axi_sw_rsp_toggle_en");
              axi_sw_rsp_toggle_start = cvm_plusargs::get_int("axi_sw_rsp_toggle_start");
-             clocks = 0;
+             //clocks = 0;
             /* verilator lint_on BLKSEQ */
         end
         else begin
-           clocks = clocks + 1;
+           //clocks = clocks + 1;
         end
     end
 
