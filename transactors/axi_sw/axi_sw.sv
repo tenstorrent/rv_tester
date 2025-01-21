@@ -772,7 +772,7 @@ module axi_sw_mst #(
     // Assign output based on state
     //assign axi_mst_r_ready = rrdy_state;
     assign axi_mst_r_ready = axi_sw_rsp_toggle_en ? 
-                         ((axi_sw_rsp_toggle_start < clocks) ? rrdy_state : 1'b1) : 
+                         ((axi_sw_rsp_toggle_start < clocks) ? rrdy_state : 1'b1) : 1'b1;
 
     always @(posedge clk) begin
         ar_q_ptrs[0].valid  <= '0;
