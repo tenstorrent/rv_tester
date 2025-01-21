@@ -689,7 +689,7 @@ module axi_sw_mst #(
     int unsigned brdy_low;  
     int unsigned rrdy_hi ;  
     int unsigned rrdy_low;  
-    int unsigned axi_sw_rsp_toggle_start;
+    longint unsigned  axi_sw_rsp_toggle_start;
     bit axi_sw_rsp_toggle_en;
     //bit [63:0] clocks;
     always @(posedge clk) begin
@@ -699,8 +699,10 @@ module axi_sw_mst #(
              brdy_low     = cvm_plusargs::get_int("axi_mst_brdy_low");
              rrdy_hi      = cvm_plusargs::get_int("axi_mst_rrdy_high");
              rrdy_low     = cvm_plusargs::get_int("axi_mst_rrdy_high");
+             /* verilator lint_off WIDTHTRUNC */
              axi_sw_rsp_toggle_en = cvm_plusargs::get_bool("axi_sw_rsp_toggle_en");
-             axi_sw_rsp_toggle_start = cvm_plusargs::get_int("axi_sw_rsp_toggle_start");
+             /* verilator lint_on WIDTHTRUNC */
+             axi_sw_rsp_toggle_start = cvm_plusargs::get_ulongint("axi_sw_rsp_toggle_start");
              //clocks = 0;
             /* verilator lint_on BLKSEQ */
         end
