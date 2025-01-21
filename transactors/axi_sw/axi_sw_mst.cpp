@@ -24,6 +24,10 @@ DEFINE_int32(axi_mst_brdy_high, 4, "Maximum cycles of axi bready assertion");
 DEFINE_int32(axi_mst_brdy_low, 4, "Maximum  cycles of axi bready de-assertion");
 DEFINE_int32(axi_mst_rrdy_high, 4, "Maximum  cycles of axi rready assertion");
 DEFINE_int32(axi_mst_rrdy_low, 4, "Maximum  cycles of axi rready de-assertion");
+DEFINE_int32(axi_sw_rsp_toggle_start, 1000, "cycles of axi clock for axi_sw_rsp_toggle_start ");
+DEFINE_bool(axi_sw_rsp_toggle_en, false, "Allow axi_sw_rsp_toggle_en responses on axi_mst transactions");
+
+
 
 extern "C" {
     void axi_sw_mst_ar_reset();

@@ -698,7 +698,7 @@ module axi_sw_mst #(
              brdy_low     = cvm_plusargs::get_int("axi_mst_brdy_low");
              rrdy_hi      = cvm_plusargs::get_int("axi_mst_rrdy_high");
              rrdy_low     = cvm_plusargs::get_int("axi_mst_rrdy_high");
-             axi_sw_rsp_toggle_en = cvm_plusargs::get_bool("axi_mst_rrdy_high");
+             axi_sw_rsp_toggle_en = cvm_plusargs::get_bool("axi_sw_rsp_toggle_en");
              axi_sw_rsp_toggle_start = cvm_plusargs::get_int("axi_sw_rsp_toggle_start");
              clocks = 0;
             /* verilator lint_on BLKSEQ */
