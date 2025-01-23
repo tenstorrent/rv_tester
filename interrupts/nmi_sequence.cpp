@@ -1,5 +1,6 @@
 #include "nmi_sequence.hpp"
 #include "sysmod/sysmod_plusargs.h"
+#include "cosim/bridge/bridge_plusargs.h"
 
 REGISTRY_register(nmi_sequence, INTERRUPTS, cvm::registry::all);
 
@@ -35,6 +36,7 @@ nmi_sequence::nmi_sequence(cvm::topology::loc_t loc, unsigned id) : loc_(loc), i
 }
 
 nmi_sequence::~nmi_sequence() {
+  if (FLAGS_metrics)
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_nmi_toggled_count\": \"{}\"}}\n", id_, nmi_count_);
 }
 
