@@ -14,7 +14,6 @@
 #include "aclint/aclint.h"
 #include "dm/dm.h"
 #include "trace_cfg/trace_cfg.h"
-#include "cla_cfg/cla_cfg.h"
 #include "io_dev/io_dev.h"
 #include "null_dev/null_dev.h"
 #include "heartbeat/heartbeat.h"
@@ -76,7 +75,6 @@ extern "C" {
   void sysmod_sw_interrupt(unsigned hartid, unsigned val);
   void sysmod_tbox_interrupt(unsigned hartid, unsigned val, unsigned int_val);
   void sysmod_trace_info(unsigned trace_info_s);
-  void sysmod_cla_terminate(unsigned cla_info);
   void sysmod_dmi_write(unsigned hartid, unsigned upper_val, unsigned lower_val);
   void sysmod_jtag_req(unsigned cmd,unsigned long upper_val, unsigned long lower_val, unsigned length, unsigned quit,unsigned tap_cfg_sel);
   void sysmod_terminate();
@@ -548,16 +546,6 @@ sysmod::trace_info_handler(trace_cfg::trace_info_t i) {
 }
 
 void
-sysmod::cla_info_handler(cla_cfg::cla_info_t i) {
-  cvm::log(cvm::NONE, "[SYSMOD] cla_info_handler \n");
-  cvm::registry::callbacks.push(
-      scope(),
-      [i]() {
-        sysmod_cla_terminate(i.cla_quiesced);
-      });
-}
-
-void
 sysmod::trace_cfg_read_req_router(trace_cfg::trace_cfg_read_t r) {
 
     transactor::read_t rd;
@@ -872,12 +860,6 @@ sysmod::compose() {
       devices_.emplace_back(std::move(device));
     }
 
-    std::unique_ptr<device> device;
-    device = std::make_unique<cla_cfg>("cla_cfg", mmr_lo_addr + 0x100, nharts, loc_, masters[0]);
-    cvm::registry::messenger.connect<cla_cfg::cla_info_t>(
-        loc_,
-        [&](cla_cfg::cla_info_t i) { return this->cla_info_handler(i); });
-    devices_.emplace_back(std::move(device));
     devices_.emplace_back(std::make_unique<heartbeat>("heartbeat", 0, 0, loc_));
 
     assert(masters.size() > 0);

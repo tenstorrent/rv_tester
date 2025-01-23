@@ -1685,6 +1685,20 @@ trace:
         fields:
             cycle:
                 width: 32
+cla:
+    num: 1
+    m_core_no_fetch:
+        domain: 2
+        num: 1
+        fields:
+            val:
+                width: ${TOP.PLATFORM.NHARTS}
+    m_tick:
+        domain: 2
+        num: 1
+        fields:
+            cycle:
+                width: 32
 
 overlay_driver:
     num: 1
