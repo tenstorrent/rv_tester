@@ -16,7 +16,7 @@ extern "C" {
     return (FLAGS_cla_nmi || FLAGS_cla_rand_nmi_trig_en || FLAGS_cla_clk_halt);
   }
   void cla_send_elf_terminate() {
-    cvm::log(cvm::NONE, "[cla] Terminate Called from RV_TESTER \n");
+    cvm::log(cvm::HIGH, "[cla] Terminate Called from RV_TESTER \n");
     elf_completed = 1;
   }
 }
@@ -301,14 +301,10 @@ cvm::messenger::task<void> cla_cfg_seq::write(uint64_t addr, size_t sz, uint64_t
           strb[offset + i] = 1;
       }
   }
-  // do{
-  //   auto lock = cvm::registry::messenger.call<overlay_mst_t::try_lock_rpc>(axi_mst_loc_);
-  //   cvm::log(cvm::NONE, "[cla] write req INSIDE LOCK... \n");
-  // } while(!lock);
-  //while(!(auto lock = cvm::registry::messenger.call<overlay_mst_t::try_lock_rpc>(axi_mst_loc_))) co_await tick(); 
+
+  // Check for AXI transactor lock before driving
   while(1) {
     auto lock = cvm::registry::messenger.call<overlay_mst_t::try_lock_rpc>(axi_mst_loc_);
-    cvm::log(cvm::NONE, "[cla] write req INSIDE LOCK... \n");
     if(lock) { break; }
     co_await tick();
   }

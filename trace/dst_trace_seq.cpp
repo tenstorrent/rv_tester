@@ -63,7 +63,6 @@ cvm::messenger::task<void> dst_trace_seq::dst_main() {
   if(FLAGS_num_harts > 1) {
     while(1){
       enabled_core = rand_core_num();
-      cvm::log(cvm::NONE, "[dst_trace] INSIDE WHILE - {:#x} mask {}, result {} \n",enabled_core, mask, (mask & static_cast<uint32_t>(1 << enabled_core)));
       if(mask & static_cast<uint32_t>(1 << enabled_core)) break;
     }
   }
@@ -213,9 +212,7 @@ cvm::messenger::task<void> dst_trace_seq::check_dst_counter_value() {
     auto data = co_await read(cdbg_cla_counter0 + core_offset, SZ_8B);
     value_cnt = 0xFFFF & data;
     target_cnt = (0xFFFF0000 & data) >> 16;
-    cvm::log(cvm::NONE, "[trace] counter 0 target value {:#x} counter value{:#x} data {:#x} \n", target_cnt, value_cnt, data);
     if (value_cnt > target_cnt) {
-      cvm::log(cvm::NONE, "[trace] counter 0 exceeded configured target counter value{:#x}\n", data);
       break;
     }
   }
@@ -347,6 +344,13 @@ cvm::messenger::task<void> dst_trace_seq::write(uint64_t addr, size_t sz, uint64
           cvm::log(cvm::MEDIUM, "[trace] write strb index={:#x}\n", (offset + i));
           strb[offset + i] = 1;
       }
+  }
+
+  // Check for AXI transactor lock before driving
+  while(1) {
+    auto lock = cvm::registry::messenger.call<overlay_mst_t::try_lock_rpc>(axi_mst_loc_);
+    if(lock) { break; }
+    co_await tick();
   }
 
   cvm::log(cvm::MEDIUM, "[trace] write req - addr={:#x}, sz={}, data={:#x}, mask={:#x}\n", aligned_addr, sz, data, mask);
