@@ -248,6 +248,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_a_no_id(const bool& aw, const axi::a_no_id_
         return false;
     }
     a.id = id;
+    chk_rsp_err_ids_[a.id] = a.rsp_err_chk;
 
     transactions_.emplace_back(a);
     push_transactions();
