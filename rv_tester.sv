@@ -244,7 +244,7 @@ module rv_tester
         flush_counter   <= flush_counter + int'(quiesced);
 
         for (int i=0; i<NHARTS; i++) begin
-          instructions  <= instructions + int'(pmci[i][INSTRUCTIONS]);
+          instructions  <= instructions + LU'(pmci[i][INSTRUCTIONS]);
         end
 
         if (rv_tester_reset) begin
