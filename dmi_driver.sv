@@ -59,7 +59,7 @@ import rv_tester_params:: * ;
   logic [9:0] dm_hartsel, core_rg_check;
   logic [2:0] core_halt_index, core_resume_index;
   logic tdata1_write, check_trigger_type, mcontrol6_trigger, trigger_to_fire, trigger_fired_halted, check_cause_trigger, cause_trigger, to_check_cause;
-  logic dcsr_abscmd, dcsr_write, ss_step_bit, core_to_halt_after_ss, core_halted_after_ss;
+  logic dcsr_abscmd, dcsr_read, ss_step_bit, core_to_halt_after_ss, core_halted_after_ss;
   logic check_step_core, core_hg_resumed_ss, core_haltsum_ss, core_check_haltsum_ss;
   logic [2:0] core_ss_index, core_halted_ss, core_halted_sdtrig;
   logic tselect_core, tselect_core_complete, core_rg_halt_sdtrig, core_haltsum_sdtrig, check_haltsum_sdtrig;
@@ -83,100 +83,115 @@ import rv_tester_params:: * ;
 
   abs_reg_out abs_data_temp_packet, abs_reg_out_queue[$];
 
-  initial begin
-    dmi_req_valid <= 'h0;
-    dmi_resp_ready <= 'h0;
-    command_trigger <= 'h0;
-    clk_cnt <= 'h0;
-    halt_req <= 0;
-    resume_req <= 0;
-    abstr_cmd_req <= 0;
-    poll <= 0;
-    poll_p2 <= 0;
-    poll_reset_completion <= 0;
-    ndm_reset_init <= 0;
-    ndm_reset_ack <= 0;
-    ext_trig_delay <= 0;
-    single_step_executed_cnt <= 0;
-    single_step_started <= 0;
-    single_step_quit <= 0;
-    abs_read <= 0;
-    abs_write <= 0;
-    abs_read_data <= 0;
-    ndm_reset_priority <= 0;
-    ndmreset_halt_req <= 0;
-    cores_in_halt_group <= 0;
-    core_haltg_hreq <= 0;
-    cores_in_resume_grp <= 0;
-    core_resumeg_rreq <= 0;
-    core_in_halt_group <= 0;
-    core_in_resume_grp <= 0;
-    core_halted <= 0;
-    core_resumed <= 0;
-    core_ignore_hreq <= 0;
-    core_ignore_rreq <= 0;
-    remove_core_from_haltg <= 0;
-    remove_core_from_resumeg <= 0;
-    ack_havereset <= 0;
-    sdtrig_fire <= 0;
-    halted_sdtrig <= 0;
-    tdata1_write <= 0;
-    check_trigger_type <= 0;
-    mcontrol6_trigger <= 0;
-    trigger_to_fire <= 0;
-    trigger_fired_halted <= 0;
-    check_cause_trigger <= 0;
-    cause_trigger <=0;
-    to_check_cause <= 0;
-    dcsr_abscmd <= 0;
-    dcsr_write <= 0;
-    ss_step_bit <= 0;
-    core_to_halt_after_ss <= 0;
-    core_halted_after_ss <= 0;
-    check_step_core <= 0;
-    core_ss_index <= 0;
-    core_hg_resumed_ss <= 0;
-    core_haltsum_ss <= 0;
-    core_check_haltsum_ss <= 0;
-    core_halted_ss <= 0;
-    tselect_core <= 0;
-    tselect_core_complete <= 0;
-    core_rg_halt_sdtrig <= 0;
-    core_haltsum_sdtrig <= 0;
-    check_haltsum_sdtrig <= 0;
-    core_halted_sdtrig <= 0;
-    check_hartsellen <= 0;
-    check_dmstatus_disc <= 0;
-    hart_discovery <= 0;
-    dmcontrol_hartsel <= 0;
-    dmi_command_in_step_ahead_queue_size <= 0;
-    dmi_command_in_step_quit_queue_size <= 0;
-    rvfi_sdtrig <= 0;
-    check_hit_for_tselect <= 0;
-    to_check_tselect <= 0;
-    read_tselect <= 0;
-    to_check_hit <= 0;
-    check_hit_bit <= 0;
-    read_tdata1_hit <= 0;
-    mmr_write_32bits <= 0;
-    mmr_write_64bits <= 0;
-    check_data0 <= 0;
-    check_data1 <= 0;
-    get_data1 <= 0;
-    mmr_read_32bits <= 0;
-    mmr_read_64bits <= 0;
-    mmr_access_rd <= 0;
-    read_data1 <= 0;
-    read_data0_comp <= 0;
-    read_data1_comp <= 0;
-    dm_hartsel <= 0;
-    core_disabled <= 0;
-    hart_enable_mask_value <= 1;
-    read_data2 <= 0;
-    read_data3 <= 0;
-    get_data2 <= 0;
-    get_data3 <= 0;
-  end
+  task reset_cleanup(); 
+    begin
+      dmi_req_valid <= 'h0;
+      dmi_resp_ready <= 'h0;
+      command_trigger <= 'h0;
+      clk_cnt <= 'h0;
+      halt_req <= 0;
+      resume_req <= 0;
+      abstr_cmd_req <= 0;
+      poll <= 0;
+      poll_p2 <= 0;
+      poll_reset_completion <= 0;
+      ndm_reset_init <= 0;
+      ndm_reset_ack <= 0;
+      ext_trig_delay <= 0;
+      single_step_executed_cnt <= 0;
+      single_step_started <= 0;
+      single_step_quit <= 0;
+      abs_read <= 0;
+      abs_write <= 0;
+      abs_read_data <= 0;
+      ndm_reset_priority <= 0;
+      ndmreset_halt_req <= 0;
+      cores_in_halt_group <= 0;
+      core_haltg_hreq <= 0;
+      cores_in_resume_grp <= 0;
+      core_resumeg_rreq <= 0;
+      core_in_halt_group <= 0;
+      core_in_resume_grp <= 0;
+      core_halted <= 0;
+      core_resumed <= 0;
+      core_ignore_hreq <= 0;
+      core_ignore_rreq <= 0;
+      remove_core_from_haltg <= 0;
+      remove_core_from_resumeg <= 0;
+      ack_havereset <= 0;
+      sdtrig_fire <= 0;
+      halted_sdtrig <= 0;
+      tdata1_write <= 0;
+      check_trigger_type <= 0;
+      mcontrol6_trigger <= 0;
+      trigger_to_fire <= 0;
+      trigger_fired_halted <= 0;
+      check_cause_trigger <= 0;
+      cause_trigger <=0;
+      to_check_cause <= 0;
+      dcsr_abscmd <= 0;
+      dcsr_read <= 0;
+      ss_step_bit <= 0;
+      core_to_halt_after_ss <= 0;
+      core_halted_after_ss <= 0;
+      check_step_core <= 0;
+      core_ss_index <= 0;
+      core_hg_resumed_ss <= 0;
+      core_haltsum_ss <= 0;
+      core_check_haltsum_ss <= 0;
+      core_halted_ss <= 0;
+      tselect_core <= 0;
+      tselect_core_complete <= 0;
+      core_rg_halt_sdtrig <= 0;
+      core_haltsum_sdtrig <= 0;
+      check_haltsum_sdtrig <= 0;
+      core_halted_sdtrig <= 0;
+      check_hartsellen <= 0;
+      check_dmstatus_disc <= 0;
+      hart_discovery <= 0;
+      dmcontrol_hartsel <= 0;
+      dmi_command_in_step_ahead_queue_size <= 0;
+      dmi_command_in_step_quit_queue_size <= 0;
+      rvfi_sdtrig <= 0;
+      check_hit_for_tselect <= 0;
+      to_check_tselect <= 0;
+      read_tselect <= 0;
+      to_check_hit <= 0;
+      check_hit_bit <= 0;
+      read_tdata1_hit <= 0;
+      mmr_write_32bits <= 0;
+      mmr_write_64bits <= 0;
+      check_data0 <= 0;
+      check_data1 <= 0;
+      get_data1 <= 0;
+      mmr_read_32bits <= 0;
+      mmr_read_64bits <= 0;
+      mmr_access_rd <= 0;
+      read_data1 <= 0;
+      read_data0_comp <= 0;
+      read_data1_comp <= 0;
+      dm_hartsel <= 0;
+      core_disabled <= 0;
+      hart_enable_mask_value <= 1;
+      read_data2 <= 0;
+      read_data3 <= 0;
+      get_data2 <= 0;
+      get_data3 <= 0;
+
+      command_queue.delete();
+      response_queue.delete();
+      single_step_ahead_command_queue.delete();
+      single_step_quit_command_queue.delete();
+      sdtrig_debug_mode_entry_queue.delete();
+      sdtrig_trigger_command_queue.delete();
+      sdtrig_trigger_disable_command_queue.delete();
+      sdtrig_progbuf_queue.delete();
+      single_step_ahead_command_queue_backup.delete();
+      single_step_quit_command_queue_backup .delete();
+
+      $display("[DMI Driver] Reset State Cleaned-up \n");
+    end
+  endtask : reset_cleanup 
       
   assign multitriggers_plusarg = sdtrig_multitrigger;
   assign single_step_instr_cnt_plusarg = dm_single_step_count;
@@ -188,8 +203,16 @@ import rv_tester_params:: * ;
   assign tselect_conf_plusarg = trigger_config;
   assign count_hart_enable_mask = $countones(hart_enable_mask);
 
+  initial begin
+    reset_cleanup();
+  end
+
   always @(posedge clk) begin
     dmi_commands_in_queue = command_queue.size();
+
+    if (~reset_n) begin
+      reset_cleanup();
+    end
   end
 
   always @(posedge clk or negedge clk) begin
@@ -355,9 +378,6 @@ import rv_tester_params:: * ;
               if(cmd.data[15:0] === 'h07a1) begin
                 $display("[sdtrig:Poll] Seen an abstract command write on tdata1");
                 tdata1_write = 1;
-              end else if (cmd.data[15:0] === 'h07b0) begin
-                $display("[Poll] Seen the abstract command with write on dcsr");
-                dcsr_abscmd = 1;
               end else if(check_hit_for_tselect && cmd.data[15:0] === 'h07a0) begin
                 to_check_tselect = 1;
                 $display("[Poll] Setting to_check_tselect = 1");
@@ -377,6 +397,9 @@ import rv_tester_params:: * ;
                 to_check_hit = 0;
                 check_hit_bit = 1;
                 $display("[Poll] check_hit_bit is set");
+              end else if (cmd.data[15:0] === 'h07b0) begin
+                $display("[Poll] Seen the abstract command read on dcsr");
+                dcsr_abscmd = 1;
               end
             end
           end
@@ -385,6 +408,7 @@ import rv_tester_params:: * ;
           ndm_reset_init = 1;
           ndm_reset_assert_done = 1;
           poll = 1;
+          trigger_to_fire = 0;
           if(ss_step_bit) begin
             ss_step_bit = 0;
             $display("[Poll] Step field gets cleared with ndmreset");
@@ -417,7 +441,7 @@ import rv_tester_params:: * ;
         end else if(dcsr_abscmd && cmd.addr === 'h16 && cmd.op === 'h1) begin
           $display("[Single step] step bit configured in dcsr");
           dcsr_abscmd = 0;
-          dcsr_write = 1;
+          dcsr_read = 1;
           poll = 1;
         end else if(core_to_halt_after_ss && cmd.addr === 'h11 && cmd.op === 'h1 && ~trigger_to_fire) begin
           $display("[Single step] Core resuming after step configuration");
@@ -558,7 +582,7 @@ import rv_tester_params:: * ;
         end else if (halted_sdtrig) begin
           $display("[Poll] dmstatus to check if the core is getting halted through sdtrig");
           dmi_req <= 41'h4500000000;
-        end else if (dcsr_write) begin
+        end else if (dcsr_read) begin
           $display("[Poll] data0 to check if the step bit is set");
           dmi_req <= 41'h1100000000;
         end else if (core_to_halt_after_ss) begin
@@ -831,7 +855,7 @@ import rv_tester_params:: * ;
           halted_sdtrig = 0;
           poll = 0;
           $display("[Poll] Clearing halted_sdtrig = 0");
-        end else if(dcsr_write) begin
+        end else if(dcsr_read) begin
           if(dmi_resp.data[2] === 'h1) begin
             ss_step_bit = 1;
             $display("[Poll] step bit is set in dcsr");
@@ -840,8 +864,8 @@ import rv_tester_params:: * ;
             $display("[Poll] step bit is cleared in dcsr");
           end
           poll = 0;
-          dcsr_write = 0;
-          $display("[Poll] dcsr_write polling completed");
+          dcsr_read = 0;
+          $display("[Poll] dcsr_read polling completed");
         end else if(core_to_halt_after_ss && dmi_resp.data[9:8] === 2'b11) begin
           core_to_halt_after_ss = 0;
           core_halted_after_ss = 1;

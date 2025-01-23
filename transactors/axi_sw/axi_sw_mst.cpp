@@ -20,6 +20,15 @@ REGISTRY_register((axi_sw_mst<rv_tester_transactions::axi_sw_mst::b<1>,
 
 DEFINE_bool(axi_allow_err_resp, false, "Allow error responses on axi_mst transactions");
 DEFINE_bool(axi_sw_mst_greedy_queue, false, "Enables greedy behavior for transaction queue. This prevents HOL blocking on C++ side.");
+DEFINE_bool(axi_sw_rsp_toggle_en, false, "Allow axi_sw_rsp_toggle_en responses on axi_mst transactions");
+DEFINE_int32(axi_mst_brdy_high, 4, "Maximum cycles of axi bready assertion");
+DEFINE_int32(axi_mst_brdy_low, 4, "Maximum  cycles of axi bready de-assertion");
+DEFINE_int32(axi_mst_rrdy_high, 4, "Maximum  cycles of axi rready assertion");
+DEFINE_int32(axi_mst_rrdy_low, 4, "Maximum  cycles of axi rready de-assertion");
+DEFINE_int64(axi_sw_rsp_toggle_start, 1000, "cycles of axi clock for axi_sw_rsp_toggle_start ");
+
+
+
 
 extern "C" {
     void axi_sw_mst_ar_reset();
@@ -78,9 +87,10 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::axi_sw_mst(cvm::topology::loc_t loc, unsigned id
         transactor::write_request_t
     >();
 
-    cvm::registry::messenger.procedure<push_ar_no_id_rpc>(loc, [this] (const axi::a_no_id_t& ar, axi::id_t& id) {return this->push_a_no_id(false, ar, id);});
-    cvm::registry::messenger.procedure<push_aw_no_id_rpc>(loc, [this] (const axi::a_no_id_t& aw, axi::id_t& id) {return this->push_a_no_id(true, aw, id);});
-    cvm::registry::messenger.procedure<push_w_rpc>(loc, [this] (const axi::w_t& w) {return this->push_w(w);});
+    cvm::registry::messenger.procedure<push_ar_no_id_rpc>(loc, [this] (const axi::a_no_id_t& ar, axi::id_t& id) { return this->push_a_no_id(false, ar, id); });
+    cvm::registry::messenger.procedure<push_aw_no_id_rpc>(loc, [this] (const axi::a_no_id_t& aw, axi::id_t& id) { return this->push_a_no_id(true, aw, id); });
+    cvm::registry::messenger.procedure<push_w_rpc>(loc, [this] (const axi::w_t& w) { return this->push_w(w); });
+    cvm::registry::messenger.procedure<try_lock_rpc>(loc, [this] () { return this->try_lock(); });
 }
 
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>

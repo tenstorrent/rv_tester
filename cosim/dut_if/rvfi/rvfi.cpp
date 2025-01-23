@@ -865,7 +865,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
   mask >>= leadingZeros;
   uint64_t consecutiveOnes = std::countr_zero(~mask);  // Count ones until the first zero
   if (numones == consecutiveOnes) {
-      if (m_mcmi_read.splat){
+      if (m_mcmi_read.v_ext & m_mcmi_read.splat){
         uint16_t total_elements = numones / elemsize;
         m.size = elemsize;
         for (int i=0; i<total_elements; i++){
@@ -903,7 +903,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
           }
       }
 
-      uint64_t start = addresses[0];
+      uint64_t start_addr = addresses[0];
       size_t size = 1;
       std::string dataAccumulated = fmt::format("{:02x}", datas[0]);  
 
@@ -919,25 +919,27 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
                         patch_mode_tags_.contains(m_mcmi_read.order)? patch_mode_tags_[m_mcmi_read.order] : m_mcmi_read.order;
               m.v_ext = m_mcmi_read.v_ext;
               m.field = m_mcmi_read.field;
-              if (m_mcmi_read.splat){
+              if (m_mcmi_read.v_ext & m_mcmi_read.splat){
                 uint16_t total_elements = size / elemsize;
                 m.pa = m_mcmi_read.addr;
                 m.size = elemsize;
                 for (int i=0; i<total_elements; i++){
-                  std::bitset<256> value = stringToBitset(dataAccumulated.substr(i*2*elemsize, (i+1)*2*elemsize));
+                  size_t start = dataAccumulated.size() - (i + 1) * 2 * elemsize;
+                  size_t end = dataAccumulated.size() - i * 2 * elemsize;
+                  std::bitset<256> value = stringToBitset(dataAccumulated.substr(start, end - start));
                   m.data_vec = value;
-                  m.elem_idx = ((start - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx + i;
+                  m.elem_idx = ((start_addr - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx + i;
                   bridge_->process_dut_mcm_read(m_mcmi_read.hart, m);
                 }
               } else{
-                m.pa = start;
+                m.pa = start_addr;
                 m.size = size;
                 std::bitset<256> value = stringToBitset(dataAccumulated);  // Use a helper to convert the accumulated string
                 m.data_vec = value;
-                m.elem_idx = ((start - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx;
+                m.elem_idx = ((start_addr - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx;
                 bridge_->process_dut_mcm_read(m_mcmi_read.hart, m);
               }
-              start = addresses[i];
+              start_addr = addresses[i];
               size = 1;
               dataAccumulated = fmt::format("{:02x}", datas[i]);
           }
@@ -950,22 +952,23 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
       m.v_ext = m_mcmi_read.v_ext;
       m.size   = std::popcount(m_mcmi_read.mask);
       m.field = m_mcmi_read.field;
-      if (m_mcmi_read.splat){
+      if (m_mcmi_read.v_ext & m_mcmi_read.splat){
         uint16_t total_elements = size / elemsize;
         m.pa = m_mcmi_read.addr;
         m.size = elemsize;
         for (int i=0; i<total_elements; i++){
-          std::bitset<256> value = stringToBitset(dataAccumulated.substr(i*2*elemsize, (i+1)*2*elemsize));
-          m.data_vec = value;
-          m.elem_idx = ((start - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx + i;
+          size_t start = dataAccumulated.size() - (i + 1) * 2 * elemsize;
+          size_t end = dataAccumulated.size() - i * 2 * elemsize;
+          std::bitset<256> value = stringToBitset(dataAccumulated.substr(start, end - start));          m.data_vec = value;
+          m.elem_idx = ((start_addr - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx + i;
           bridge_->process_dut_mcm_read(m_mcmi_read.hart, m);
         }
       } else{
-        m.pa = start;
+        m.pa = start_addr;
         m.size = size;
         std::bitset<256> value = stringToBitset(dataAccumulated);  // Use a helper to convert the accumulated string
         m.data_vec = value;
-        m.elem_idx = ((start - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx;
+        m.elem_idx = ((start_addr - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx;
         bridge_->process_dut_mcm_read(m_mcmi_read.hart, m);
       }
   }
@@ -1038,7 +1041,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
           }
       }
 
-      uint64_t start = addresses[0];
+      uint64_t start_addr = addresses[0];
       size_t size = 1;
       std::string dataAccumulated = fmt::format("{:02x}", datas[0]);  
 
@@ -1052,14 +1055,14 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
               m.cycle = m_mcmi_insert.cycle;
               m.tag = vec_cmode_tags_.contains(m_mcmi_insert.order) ? vec_cmode_tags_[m_mcmi_insert.order] :
                         patch_mode_tags_.contains(m_mcmi_insert.order)? patch_mode_tags_[m_mcmi_insert.order] : m_mcmi_insert.order;
-              m.pa = start;
+              m.pa = start_addr;
               m.size = size;
               std::bitset<256> value = stringToBitset(dataAccumulated);  // Use a helper to convert the accumulated string
               m.data_vec = value;
               m.v_ext = m_mcmi_insert.v_ext;
               m.elem_idx = m_mcmi_insert.elem_idx;
               bridge_->process_dut_mcm_insert(m_mcmi_insert.hart, m);
-              start = addresses[i];
+              start_addr = addresses[i];
               size = 1;
               dataAccumulated = fmt::format("{:02x}", datas[i]);
           }
@@ -1069,7 +1072,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
       m.cycle = m_mcmi_insert.cycle;
       m.tag = vec_cmode_tags_.contains(m_mcmi_insert.order) ? vec_cmode_tags_[m_mcmi_insert.order] :
                 patch_mode_tags_.contains(m_mcmi_insert.order)? patch_mode_tags_[m_mcmi_insert.order] : m_mcmi_insert.order;
-      m.pa = start;
+      m.pa = start_addr;
       m.size = size;
       m.data_vec = stringToBitset(dataAccumulated);  // Final range processing
       m.v_ext = m_mcmi_insert.v_ext;
@@ -1141,7 +1144,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
           }
       }
 
-      uint64_t start = addresses[0];
+      uint64_t start_addr = addresses[0];
       size_t size = 1;
       std::string dataAccumulated = fmt::format("{:02x}", datas[0]);  
 
@@ -1155,14 +1158,14 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
               m.cycle = m_mcmi_bypass.cycle;
               m.tag = vec_cmode_tags_.contains(m_mcmi_bypass.order) ? vec_cmode_tags_[m_mcmi_bypass.order] :
                         patch_mode_tags_.contains(m_mcmi_bypass.order)? patch_mode_tags_[m_mcmi_bypass.order] : m_mcmi_bypass.order;
-              m.pa = start;
+              m.pa = start_addr;
               m.size = size;
               std::bitset<256> value = stringToBitset(dataAccumulated);  // Use a helper to convert the accumulated string
               m.data_vec = value;
               m.v_ext = m_mcmi_bypass.v_ext;
               m.elem_idx = m_mcmi_bypass.elem_idx;
               bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m);
-              start = addresses[i];
+              start_addr = addresses[i];
               size = 1;
               dataAccumulated = fmt::format("{:02x}", datas[i]);
           }
@@ -1172,7 +1175,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
       m.cycle = m_mcmi_bypass.cycle;
       m.tag = vec_cmode_tags_.contains(m_mcmi_bypass.order) ? vec_cmode_tags_[m_mcmi_bypass.order] :
                 patch_mode_tags_.contains(m_mcmi_bypass.order)? patch_mode_tags_[m_mcmi_bypass.order] : m_mcmi_bypass.order;
-      m.pa = start;
+      m.pa = start_addr;
       m.size = size;
       m.data_vec = stringToBitset(dataAccumulated);  // Final range processing
       m.v_ext = m_mcmi_bypass.v_ext;
@@ -1416,14 +1419,6 @@ extern "C" {
   void cosim_set_scope(cvm::topology::loc_t loc) {
     svScope scope = svGetScope();
     cvm::registry::messenger.signal<svScope>(loc, scope);
-  }
-}
-
-extern "C" {
-  int is_eot_tohost() {
-    if (FLAGS_eot == "tohost")
-      return 1;
-    return 0;
   }
 }
 

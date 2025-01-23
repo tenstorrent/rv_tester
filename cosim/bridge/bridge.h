@@ -33,9 +33,6 @@ private:
 
 
 public:
-  // Usec by some functions in bridge.cpp
-  using size_8_bytes_t = uint64_t;
-
   struct error_loc {};
 
   bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsigned id);
@@ -97,7 +94,7 @@ private:
   } memclass_t;
 
 private:
-  
+
   void update_dut_state(hart_id_t hart, rv_instr_t& d);
   void arch_state(whisper_state_t& w);
   void update_whisper_state(hart_id_t hart, whisper_state_t& w);
@@ -113,11 +110,11 @@ private:
   void update_flags(hart_id_t hart, src_t src, uint32_t data);
   void update_regs(hart_id_t hart, const rv_instr_t& d);
   void update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_slice_index = 0);
-  void update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, const std::vector<size_8_bytes_t>&& dword_vec);
+  void update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, const std::vector<uint64_t>&& dword_vec);
   void update_mem_attr(hart_id_t hart, src_t src, uint32_t data);
-  void update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data, cac::optional_const_ref<size_8_bytes_t> mask_ref = std::nullopt, bool shadow_csr = false, bool check_en = true);
+  void update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data, cac::optional_const_ref<uint64_t> mask_ref = std::nullopt, bool shadow_csr = false, bool check_en = true);
   uint64_t modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data);
-  size_8_bytes_t modify_csr_mask(hart_id_t hart, uint64_t addr, uint64_t data, size_8_bytes_t mask);
+  uint64_t modify_csr_mask(hart_id_t hart, uint64_t addr, uint64_t data, uint64_t mask);
   uint64_t get_csr(hart_id_t hart, src_t src, uint64_t addr);
   uint64_t get_csr_mask(hart_id_t hart, uint64_t addr);
   uint64_t get_csr_poke_mask(hart_id_t hart, uint64_t addr);
@@ -156,7 +153,6 @@ private:
   void get_fp_reg(uint32_t reg, uint64_t& data);
   void get_vec_reg(uint32_t reg, std::array<std::uint8_t, 32>& data);
 
-
   bool is_custom_excp(uint64_t cause);
   bool is_vector(const std::string& instr);
   bool is_indirect_reg(const std::string& instr);
@@ -166,17 +162,19 @@ private:
   bool is_renamed_csr(const std::string& instr);
   bool does_excp_match_error_list(const std::string& instr);
   bool does_instr_match_error_list(const std::string& instr);
-  bool does_instr_match_resynch_list(const rv_instr_t& d, const std::string& instr);
-  bool does_instr_match_resynch_condition(const rv_instr_t& d, const std::string& instr);
-  bool clint_read(const rv_instr_t& d);
-  bool tbox_read(const rv_instr_t& d);
-  bool boot_read(const rv_instr_t& d);
-  bool debug_mem_access(const rv_instr_t& d);
-  bool unsupported_mmr_access(const rv_instr_t& d);
+  bool resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const std::string& instr, const whisper_state_t& w);
+  bool resynch_on_pa(const uint64_t& pa, const uint64_t& cycle=0);
+  bool resynch_on_instr(const std::string& instr, const uint64_t& cycle=0);
+  void resynch_whisper_on_patch(hart_id_t hart, rv_instr_t& d, const std::string& instr, const whisper_state_t& w);
+  bool clint_read(const uint64_t& pa);
+  bool tbox_read(const uint64_t& pa);
+  bool boot_read(const uint64_t& pa);
+  bool debug_mem_access(const uint64_t& pa);
+  bool uart_access(const uint64_t& pa);
+  bool sc_slice_status(const uint64_t& pa);
+  bool htif_read(const uint64_t& pa);
+  bool unsupported_mmr_access(const uint64_t& pa);
   bool unsupported_csr_access(const std::string& instr);
-  bool uart_access(const rv_instr_t& d);
-  bool sc_slice_status(const rv_instr_t& d);
-  bool htif_read(const rv_instr_t& d);
   bool hpm_counter_read(const std::string& instr);
   bool mip_mismatch(const std::string& instr);
   bool topi_mismatch(const std::string& instr);
@@ -186,9 +184,10 @@ private:
   std::string get_nth_word(const std::string& s, int n);
   void peek_resource(hart_id_t hart, char resource, uint64_t addr, uint64_t& data);
   void poke_resource(hart_id_t hart, uint64_t cycle, char resource, uint64_t addr, uint64_t data);
+  bool hyp_enabled() { return  (get_csr(id_, src_t::dut, MISA) & 0x80) == 0x80; }
 
 private:
-  
+
   const uint64_t sc_slice_base_ = 0x421A0008;
   std::map<uint64_t, std::string> hypervisor_csr_map_ = {
         {0x600, "hstatus"},      // Hypervisor status register -
@@ -204,13 +203,13 @@ private:
         {0x643, "htval"},        // Hypervisor Trap Value register -
         {0x644, "hip"}, // -
         {0x645, "hvip"},         // Hypervisor virtual interrupt pending -
-        {0x646, "hviprio1"},         // 
+        {0x646, "hviprio1"},         //
         {0x647, "hviprio2"},         //
-        {0x680, "hgatp"},        // Hypervisor trap value register - 
+        {0x680, "hgatp"},        // Hypervisor trap value register -
         {0x64A, "htinst"},       // Hypervisor trap instruction register -
         {0xE12, "hgeip"},     // Hypervisor Guest Interrupt Pending -
         {0x34B, "mtval2"},       // Machine Trap Value register -
-        {0X34A, "mtinst"},        // Machine Trap Instruction register -
+        {0x34A, "mtinst"},        // Machine Trap Instruction register -
         {0x200, "vsstatus"}, // -
         {0x204, "vsie"}, // -
         {0x205, "vstvec"}, // -
@@ -224,7 +223,7 @@ private:
     };
 
   // MCM order map needed for periodic cosim
-  std::unordered_map<uint64_t , int> mcm_orders_; 
+  std::unordered_map<uint64_t , int> mcm_orders_;
 
 
   cvm::file_logger bridge_log_;
@@ -285,6 +284,7 @@ private:
   rv_nmi_t nmi_ {};
   rv_nmi_t prev_nmi_ {};
   bool nmi_poke_pending_ = false;
+  bool nmi_poke_in_debug_mode_ = false;
   uint64_t mip_ = 0;
   uint64_t timing_case2 = 0;
   uint64_t prev_mip_ = 0;
@@ -316,7 +316,7 @@ private:
   int num_trig_breakpoint_ = 0;
   int num_sp_accesses_ = 0;
 
-  size_8_bytes_t dword_vec_array [vlen/64] = {0};
+  uint64_t dword_vec_array [vlen/64] = {0};
   int unmask_bits_instr, unmask_bits_uop = 0;
   std::vector<std::string> cosim_resynch_csr_defaults;
 

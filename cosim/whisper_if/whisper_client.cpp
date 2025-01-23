@@ -30,7 +30,7 @@ DEFINE_bool(nostop_standalone,false, "Do not stop if standalone whisper fails");
 DEFINE_string(whisper_instr_lines, "", "Write instr cache line addresses used in test to a file");
 DEFINE_string(whisper_data_lines, "", "Write data cache line addresses used in test to a file");
 DEFINE_bool(whisper_csv_log, false, "Make whisper use a csv trace.");
-DEFINE_uint32(whisper_tlb_size, 0, "Specify whisper tlb size");
+DEFINE_int32(whisper_tlb_size, -1, "Specify whisper tlb size");
 DEFINE_string(isa, "", "Override isa spec");
 DEFINE_string(stee_secure_region, "", "colon separated pair of numbers (same as whisper's --steesr)");
 DEFINE_bool(whisper_log, true, "Enable whisper logging to iss_cosim.log and iss_cmd.log");
@@ -137,14 +137,16 @@ whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) {
   cvm::registry::messenger.procedure<whisperPeekGprRPC>(loc, [this] (int hart, uint64_t addr, uint64_t& value) {return this->whisperPeekGpr(hart, addr, value);});
   cvm::registry::messenger.procedure<whisperPeekFprRPC>(loc, [this] (int hart, uint64_t addr, uint64_t& value) {return this->whisperPeekFpr(hart, addr, value);});
   cvm::registry::messenger.procedure<whisperPeekVprRPC>(loc, [this] (int hart, uint64_t addr, std::array<std::uint8_t, 32>&  value) {return this->whisperPeekVpr(hart, addr, value);});
+  cvm::registry::messenger.procedure<whisperGetLastLdStAddressRPC>(loc, [this] (int hart, uint64_t& pa) {return this->whisperGetLastLdStAddress(hart, pa);});
   cvm::registry::messenger.procedure<whisperNmiRPC>(loc, [this] (int hart, uint64_t time, uint64_t cause) {return this->whisperNmi(hart, time, cause);});
   cvm::registry::messenger.procedure<whisperClearNmiRPC>(loc, [this] (int hart, uint64_t time) {return this->whisperClearNmi(hart, time);});
+  cvm::registry::messenger.procedure<whisperMcmSkipReadDataCheckRPC>(loc, [this] (uint64_t addr, unsigned size, bool enable) {return this->whisperMcmSkipReadDataCheck(addr,size,enable);});
 
 }
 
 template <typename URV>
 static std::shared_ptr<WdRiscv::System<URV>>
-constructSystem(uint16_t ncores, bool standalone) {
+constructSystem(uint16_t ncores, bool standalone) {;
 
   WdRiscv::HartConfig config;
   if (not config.loadConfigFile(FLAGS_whisper_json_path.c_str()))
@@ -221,7 +223,8 @@ constructSystem(uint16_t ncores, bool standalone) {
     hart.defineNmiPc(getNmiPc());
     hart.defineNmiExceptionPc(getNmiExceptionPc());
     hart.enableCsvLog(FLAGS_whisper_csv_log);
-    hart.setTlbSize(FLAGS_whisper_tlb_size);
+    if (FLAGS_whisper_tlb_size >= 0)
+      hart.setTlbSize(FLAGS_whisper_tlb_size);
     if (FLAGS_whisper_stdout_null) hart.redirectOutputDescriptor(STDOUT_FILENO, "/dev/null");
     if (FLAGS_whisper_stdin_null)  hart.redirectOutputDescriptor(STDIN_FILENO,  "/dev/null");
     if (! isa.empty()) {
@@ -669,6 +672,23 @@ whisperClient<URV>::whisperChange(int hart, uint32_t& resource, uint64_t& addr, 
   return true;
 }
 
+template <typename URV>
+bool
+whisperClient<URV>::whisperGetLastLdStAddress(int hart, uint64_t& value)
+{
+  req.hart = hart;
+  req.type = WhisperMessageType::Peek;
+  req.resource = 's';
+  req.address = WhisperSpecialResource::LastLdStAddress;
+  req.tag[0] = 0;
+
+  WhisperMessage reply;
+  if (not whisperCommand(req, reply))
+    return false;
+  value = reply.value;
+  return true;
+}
+
 std::vector<uint8_t> convert_to_byte_array(const std::vector<uint64_t>& dword_array) {
   const uint8_t* begin = reinterpret_cast<const uint8_t*>(dword_array.data());
   const uint8_t* end = begin + dword_array.size() * sizeof(uint64_t);
@@ -915,6 +935,22 @@ whisperClient<URV>::whisperMcmIFetch(int hart, uint64_t time, uint64_t addr, boo
   valid = reply.type != WhisperMessageType::Invalid;
   return true;
 }
+
+template <typename URV>
+bool
+whisperClient<URV>::whisperMcmSkipReadDataCheck(uint64_t addr, unsigned size, bool enable)
+{
+  req.value = enable;
+  req.type = WhisperMessageType::McmSkipReadChk;
+  req.size = size;
+  req.address = addr;
+
+  if (not whisperCommand(req, reply))
+    return false;
+  
+  return true;
+}
+// Creating a Remote Procedural Call for skip Read Data check
 
 template <typename URV>
 bool
