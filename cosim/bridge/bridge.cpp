@@ -2811,12 +2811,23 @@ void bridge::process(const rv_tester::terminate_called&) {
 }
 
 void bridge::report_metrics() {
-  if (!FLAGS_metrics || !cvm::registry::messenger.call<whisperClient<uint64_t>::whisperConnectedRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0)))
-  // if (!FLAGS_metrics)
+  if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperConnectedRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0)))
     return;
 
+  whisper_state_t w;
+  if (FLAGS_mcm) {
+    bool valid;
+    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmEndRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, pw_.time, valid) || !valid) {
+      error("Hart {}: Failed to disable MCM\n", id_);
+    }
+    w = { .tag = pw_.tag+1, .time = pw_.time+1 };
+  }
+  else {
+    w = { .tag = step_+1, .time = pw_.time+1 };
+  }
+  if (!FLAGS_metrics)
+    return;
   print(cvm::NONE, "[COSIM] Report metrics...\n");
-
   const auto& prev_whisp_state = pw_;
   const auto& prev_prev_whisp_state = ppw_;
   const int instructions = cac_.GetStep(id_);
@@ -2901,30 +2912,12 @@ void bridge::report_metrics() {
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_nmi_taken_count\": \"{}\"}}\n", id_, nmi_taken_count_);
 
   // Step one final time to collect metrics for next instruction
-  whisper_state_t w;
-  if (FLAGS_mcm) {
-    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmEndRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, prev_whisp_state.time, valid) || !valid) {
-      error("Hart {}: Failed to disable MCM\n", id_);
-    }
-    w = { .tag = prev_whisp_state.tag+1, .time = prev_whisp_state.time+1 };
-  }
-  else {
-    w = { .tag = step_+1, .time = prev_whisp_state.time+1 };
-  }
   step(id_, w);
-  const auto& next_instr = w.disasm;
-  const auto& next_mode = w.priv_mode;
-  const auto& next_trap = w.trap;
-  const auto& next_num_dest = w.change_count;
-
-  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_instr\": \"{}\"}}\n", id_, next_instr);
-  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_mode\": {}}}\n", id_, next_mode);
-  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_trap\": {}}}\n", id_, next_trap);
-  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_num_dest\": {}}}\n", id_, next_num_dest);
-
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_instr\": \"{}\"}}\n", id_, w.disasm);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_mode\": {}}}\n", id_, w.priv_mode);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_trap\": {}}}\n", id_, w.trap);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_num_dest\": {}}}\n", id_, w.change_count);
   // Regression level metrics from hart 0
-  if (id_ == 0) {
-    // Average ipc
-    print(cvm::NONE, "INFO_PASS_REGR_METRIC:{{\"name\": \"ipc\", \"value\": {:.2f}, \"type\": \"d\", \"action\": \"avg\"}}\n", ipc);
-  }
+  if (id_ == 0) 
+    print(cvm::NONE, "INFO_PASS_REGR_METRIC:{{\"name\": \"ipc\", \"value\": {:.2f}, \"type\": \"d\", \"action\": \"avg\"}}\n", ipc); // Average ipc
 }
