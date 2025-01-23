@@ -67,7 +67,7 @@ cvm::messenger::task<void> dst_trace_seq::dst_main() {
     }
   }
   core_offset = 0x10000 * enabled_core;
-  cvm::log(cvm::NONE, "[dst_trace] Starting DST Trace sequence on Core - {:#x}\n",enabled_core);
+  cvm::log(cvm::NONE, "[dst_trace_seq] Starting DST Trace sequence on Core - {:#x}\n",enabled_core);
 
   //while (true) {
 
@@ -98,7 +98,7 @@ cvm::messenger::task<void> dst_trace_seq::configure_dst_ram_funnel() {
   uint64_t ram_start_addr, ram_limit_addr;
   uint32_t dst_ram_control;
 
-  cvm::log(cvm::MEDIUM, "[trace] Trace Funnel Configuration Started....\n");
+  cvm::log(cvm::MEDIUM, "[dst_trace_seq] Trace Funnel Configuration Started....\n");
   if(smem_mode){
     ram_start_addr = 0; // Replace with any random value
     ram_limit_addr = 0x8000'0000; // Replace with any random value
@@ -116,7 +116,7 @@ cvm::messenger::task<void> dst_trace_seq::configure_dst_ram_funnel() {
   co_await enable_trace_funnel();
   co_await write(tr_funnel_control, SZ_4B, 0x3);
 
-  cvm::log(cvm::MEDIUM, "[trace] Trace Funnel Configuration Completed....\n");
+  cvm::log(cvm::MEDIUM, "[dst_trace_seq] Trace Funnel Configuration Completed....\n");
 
   co_return;
 }
@@ -124,7 +124,7 @@ cvm::messenger::task<void> dst_trace_seq::configure_dst_ram_funnel() {
 cvm::messenger::task<void> dst_trace_seq::configure_cla() {
   uint64_t on_time;
 
-  cvm::log(cvm::MEDIUM, "[trace] CLA Configuration Started....\n");
+  cvm::log(cvm::MEDIUM, "[dst_trace_seq] CLA Configuration Started....\n");
   co_await write((cdbg_cla_ctrl_status + core_offset), SZ_8B, 0x40);
   co_await write((tr_dst_inst_feature + core_offset), SZ_4B, (0x40000000 | (enabled_core  << 16)));
   co_await write((tr_dst_control + core_offset), SZ_4B, 0x3000007);
@@ -140,14 +140,14 @@ cvm::messenger::task<void> dst_trace_seq::configure_cla() {
   co_await write((cdbg_node1_eap1_cfg + core_offset), SZ_8B, 0x100022);
   co_await write((cdbg_cla_ctrl_status + core_offset), SZ_8B, 0x60);
 
-  cvm::log(cvm::MEDIUM, "[trace] CLA Configuration Completed....\n");
+  cvm::log(cvm::MEDIUM, "[dst_trace_seq] CLA Configuration Completed....\n");
 
   co_return;
 }
 
 cvm::messenger::task<void> dst_trace_seq::configure_fe_dbm() {
 
-  cvm::log(cvm::MEDIUM, "[trace] FE DBM Configuration Started....\n");
+  cvm::log(cvm::MEDIUM, "[dst_trace_seq] FE DBM Configuration Started....\n");
   co_await csr_write(enabled_core, 0x2, fe_dbg_mux_sel, 0x1);
   co_await csr_write(enabled_core, 0x2, fe_dbg_mux_sel, 0x5);
   co_await csr_write(enabled_core, 0x2, fe_dbg_mux_sel, 0x9);
@@ -161,15 +161,15 @@ cvm::messenger::task<void> dst_trace_seq::configure_fe_dbm() {
   co_await csr_write(enabled_core, 0x2, fe_dbg_mux_sel, 0x29);
   co_await csr_write(enabled_core, 0x2, fe_dbg_mux_sel, 0x35);
   co_await csr_write(enabled_core, 0x2, fe_dbg_mux_sel, 0x39);
-  cvm::log(cvm::MEDIUM, "[trace] FE DBM Configuration Completed....\n");
+  cvm::log(cvm::MEDIUM, "[dst_trace_seq] FE DBM Configuration Completed....\n");
   co_return;
 }
 
 cvm::messenger::task<void> dst_trace_seq::disable_trace_funnel() {
 
-  cvm::log(cvm::MEDIUM, "[trace] Disabling Trace Funnel....\n");
+  cvm::log(cvm::MEDIUM, "[dst_trace_seq] Disabling Trace Funnel....\n");
   co_await write(tr_funnel_control, SZ_4B, 0x1);
-  cvm::log(cvm::MEDIUM, "[trace] Disabled Trace Funnel....\n");
+  cvm::log(cvm::MEDIUM, "[dst_trace_seq] Disabled Trace Funnel....\n");
   co_return;
 }
 
@@ -183,9 +183,9 @@ cvm::messenger::task<void> dst_trace_seq::enable_trace_funnel() {
 
   // Configure Funnel disable inputs
   co_await write(tr_funnel_disinput, SZ_4B, dis_input);
-  cvm::log(cvm::MEDIUM, "[trace] enabling Trace Funnel....\n");  
+  cvm::log(cvm::MEDIUM, "[dst_trace_seq] enabling Trace Funnel....\n");  
   co_await write(tr_funnel_control, SZ_4B, 0x3);
-  cvm::log(cvm::MEDIUM, "[trace] enabled Trace Funnel....\n");
+  cvm::log(cvm::MEDIUM, "[dst_trace_seq] enabled Trace Funnel....\n");
 
   co_return;
 }
@@ -193,9 +193,9 @@ cvm::messenger::task<void> dst_trace_seq::enable_trace_funnel() {
 
 cvm::messenger::task<void> dst_trace_seq::reset_trace_funnel() {
 
-  cvm::log(cvm::MEDIUM, "[trace] Resetting Trace Funnel....\n");
+  cvm::log(cvm::MEDIUM, "[dst_trace_seq] Resetting Trace Funnel....\n");
   co_await write(tr_funnel_control, SZ_4B, 0x0);  
-  cvm::log(cvm::MEDIUM, "[trace] Resetting Trace Funnel Completed....\n");
+  cvm::log(cvm::MEDIUM, "[dst_trace_seq] Resetting Trace Funnel Completed....\n");
   
   co_return;
 }
@@ -204,7 +204,7 @@ cvm::messenger::task<void> dst_trace_seq::reset_trace_funnel() {
 cvm::messenger::task<void> dst_trace_seq::check_dst_counter_value() {
   uint32_t target_cnt, value_cnt;
 
-  cvm::log(cvm::NONE, "[trace] Check DST Counter0 Values \n");
+  cvm::log(cvm::NONE, "[dst_trace_seq] Check DST Counter0 Values \n");
   while (true) {
     for(int cnt_loop=0;cnt_loop < 50;cnt_loop ++){
       co_await tick();
@@ -222,7 +222,7 @@ cvm::messenger::task<void> dst_trace_seq::check_dst_counter_value() {
 
 cvm::messenger::task<void> dst_trace_seq::poll_dst_ram_empty() {
 
-  cvm::log(cvm::NONE, "[trace] Poll DST Trace RAM Empty....\n");
+  cvm::log(cvm::NONE, "[dst_trace_seq] Poll DST Trace RAM Empty....\n");
   while (true) {
 
     for(int cnt_loop=0;cnt_loop < 50;cnt_loop ++){
@@ -231,7 +231,7 @@ cvm::messenger::task<void> dst_trace_seq::poll_dst_ram_empty() {
 
     auto data = co_await read(tr_dst_ram_control, SZ_4B);
     if ((data & (1 << tr_ram_empty_idx))){
-      cvm::log(cvm::NONE, "[trace] Observed DST Trace RAM Empty ....\n");
+      cvm::log(cvm::NONE, "[dst_trace_seq] Observed DST Trace RAM Empty ....\n");
       break;
     }
   }
@@ -240,7 +240,7 @@ cvm::messenger::task<void> dst_trace_seq::poll_dst_ram_empty() {
 }
 cvm::messenger::task<void> dst_trace_seq::disable_dst_trace() {
 
-  cvm::log(cvm::NONE, "[trace] Disabling DST Trace Generation....\n");
+  cvm::log(cvm::NONE, "[dst_trace_seq] Disabling DST Trace Generation....\n");
 
   auto data = co_await read(cdbg_cla_ctrl_status + core_offset, SZ_8B);
   data = data & 0xFFFF'FF9F;
@@ -253,49 +253,49 @@ cvm::messenger::task<void> dst_trace_seq::disable_dst_trace() {
   while(1){
     auto data = co_await read(tr_dst_control + core_offset, SZ_4B);
     if (data & (1 << tr_dst_control_empty_idx)){
-      cvm::log(cvm::NONE, "[trace] DST Packetizer flush observed... \n");
+      cvm::log(cvm::NONE, "[dst_trace_seq] DST Packetizer flush observed... \n");
       break;
     }
   }
 
-  cvm::log(cvm::NONE, "[trace] Disabling DST Trace Generation Completed....\n");
+  cvm::log(cvm::NONE, "[dst_trace_seq] Disabling DST Trace Generation Completed....\n");
   co_return;
 }
 
 cvm::messenger::task<void> dst_trace_seq::disable_dst_trace_ram() {
 
-  cvm::log(cvm::NONE, "[trace] Disabling DST Trace RAM....\n");
+  cvm::log(cvm::NONE, "[dst_trace_seq] Disabling DST Trace RAM....\n");
   auto data = co_await read(tr_dst_ram_control, SZ_4B);
   data = data & 0xFFFF'FFFD;
   co_await write(tr_dst_ram_control,SZ_4B,data);
 
-  cvm::log(cvm::NONE, "[trace] Disabling DST Trace RAM Completed....\n");
+  cvm::log(cvm::NONE, "[dst_trace_seq] Disabling DST Trace RAM Completed....\n");
   co_return;
 }
 
 cvm::messenger::task<void> dst_trace_seq::read_dst_trace_ram() {
 
-  cvm::log(cvm::NONE, "[trace] Starting DST SRAM Reading... \n");
+  cvm::log(cvm::NONE, "[dst_trace_seq] Starting DST SRAM Reading... \n");
 
   auto WritePointer = co_await read(tr_dst_ram_wp_low, SZ_4B);
-  cvm::log(cvm::NONE, "[trace] DST SRAM WritePointer data: {:#x}\n", WritePointer);
+  cvm::log(cvm::FULL, "[dst_trace_seq] DST SRAM WritePointer data: {:#x}\n", WritePointer);
 
   auto ReadPointer = co_await read(tr_dst_ram_rp_low, SZ_4B);
-  cvm::log(cvm::NONE, "[trace] DST SRAM ReadPointer data: {:#x}\n", ReadPointer);
+  cvm::log(cvm::FULL, "[dst_trace_seq] DST SRAM ReadPointer data: {:#x}\n", ReadPointer);
 
   ReadPointer = (WritePointer - ReadPointer)/4;
-  cvm::log(cvm::NONE, "[trace] DST SRAM Number of DWs to read: {:#x}\n", ReadPointer);
+  cvm::log(cvm::NONE, "[dst_trace_seq] DST SRAM Number of DWs to read: {:#x}\n", ReadPointer);
 
   for(uint32_t i=0; i< uint32_t(ReadPointer) ; i++){
     WritePointer = co_await read(tr_dst_ram_data, SZ_4B);
   }
 
-  cvm::log(cvm::NONE, "[trace] Completed DST SRAM Reading... \n");
+  cvm::log(cvm::NONE, "[dst_trace_seq] Completed DST SRAM Reading... \n");
   co_return;
 }
 
 cvm::messenger::task<void> dst_trace_seq::enable_dst_trace_ram() {
-  cvm::log(cvm::NONE, "[trace] Re-enabling DST Trace RAM....\n");
+  cvm::log(cvm::NONE, "[dst_trace_seq] Re-enabling DST Trace RAM....\n");
 
   //co_await write(tr_dst_ram_limit_low,SZ_4B,0x1000);
   //co_await write(tr_dst_ram_rp_low,SZ_4B,0x0);
@@ -303,7 +303,7 @@ cvm::messenger::task<void> dst_trace_seq::enable_dst_trace_ram() {
   data = data | 0x3;
   co_await write(tr_dst_ram_control,SZ_4B,data);
 
-  cvm::log(cvm::NONE, "[trace] Re-enabling DST Trace RAM Completed....\n");
+  cvm::log(cvm::NONE, "[dst_trace_seq] Re-enabling DST Trace RAM Completed....\n");
   co_return;
 }
 
@@ -314,7 +314,7 @@ cvm::messenger::task<uint64_t> dst_trace_seq::read(uint64_t addr, size_t sz, blo
   uint64_t rdata = 0;
   uint8_t offset = static_cast<uint8_t>(addr & 0x3f);
   
-  cvm::log(cvm::MEDIUM, "[trace] read req - addr={:#x}, sz={}\n", addr, sz);
+  cvm::log(cvm::MEDIUM, "[dst_trace_seq] read req - addr={:#x}, sz={}\n", addr, sz);
   cvm::registry::messenger.signal(axi_mst_loc_, transactor::read_request_t{addr, sz});
 
   if (!block)
@@ -323,7 +323,7 @@ cvm::messenger::task<uint64_t> dst_trace_seq::read(uint64_t addr, size_t sz, blo
   auto resp = co_await cvm::registry::messenger.wait<transactor::read_response_t>(axi_mst_loc_);
   rdata = convert_to_dword_array(resp.data,offset,sz);
   
-  cvm::log(cvm::MEDIUM, "[trace] read resp - id={}, addr={:#x}, sz={}, data={:#x}\n", resp.id, addr, sz, rdata);
+  cvm::log(cvm::MEDIUM, "[dst_trace_seq] read resp - id={}, addr={:#x}, sz={}, data={:#x}\n", resp.id, addr, sz, rdata);
 
   co_return rdata;
 }
@@ -341,7 +341,6 @@ cvm::messenger::task<void> dst_trace_seq::write(uint64_t addr, size_t sz, uint64
   std::vector<bool> strb(64, false);
   for (int i = 0; i < static_cast<int>(sz); ++i) {
       if (offset + i < 64) {
-          cvm::log(cvm::MEDIUM, "[trace] write strb index={:#x}\n", (offset + i));
           strb[offset + i] = 1;
       }
   }
@@ -353,14 +352,14 @@ cvm::messenger::task<void> dst_trace_seq::write(uint64_t addr, size_t sz, uint64
     co_await tick();
   }
 
-  cvm::log(cvm::MEDIUM, "[trace] write req - addr={:#x}, sz={}, data={:#x}, mask={:#x}\n", aligned_addr, sz, data, mask);
+  cvm::log(cvm::MEDIUM, "[dst_trace_seq] write req - addr={:#x}, sz={}, data={:#x}, mask={:#x}\n", aligned_addr, sz, data, mask);
   cvm::registry::messenger.signal(axi_mst_loc_, transactor::write_request_t{aligned_addr, 64, byte_array, strb});
 
   if (!block)
     co_return;
 
   auto resp = co_await cvm::registry::messenger.wait<transactor::write_response_t>(axi_mst_loc_);
-  cvm::log(cvm::MEDIUM, "[trace] write resp - id={}, addr={:#x}, sz={}, data={:#x}, mask={:#x}\n", resp.id, aligned_addr, sz, data, mask);
+  cvm::log(cvm::MEDIUM, "[dst_trace_seq] write resp - id={}, addr={:#x}, sz={}, data={:#x}, mask={:#x}\n", resp.id, aligned_addr, sz, data, mask);
 
   co_return;
 }
@@ -370,7 +369,7 @@ cvm::messenger::task<void> dst_trace_seq::csr_write(uint32_t core_id, uint32_t u
   transactor::read_t read_req ;
   uint64_t cmd = 0;
   uint32_t offset = core_id * core_fuse_offset;
-  cvm::log(cvm::MEDIUM, "[trace] csr write req - core_id = {}, addr={:#x}, data={:#x} \n", core_id, addr, data );
+  cvm::log(cvm::MEDIUM, "[dst_trace_seq] csr write req - core_id = {}, addr={:#x}, data={:#x} \n", core_id, addr, data );
   uint64_t wr = 0x1;
   uint64_t en = 0x1;
   cmd = en<<62 | wr << 61 | unit<<12 | addr;
@@ -409,7 +408,7 @@ cvm::messenger::task<void> dst_trace_seq::axi_write_mmr_granular(uint64_t addr) 
   aw_txn.atop  =0;
   aw_txn.user  =3;
   
-  cvm::log(cvm::LOW, "[trace] dst_trace_seq WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
+  cvm::log(cvm::MEDIUM, "[dst_trace_seq] dst_trace_seq WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
 
   if (!cvm::registry::messenger.call<overlay_mst_t::push_aw_no_id_rpc>(axi_mst_loc_, aw_txn, id))
     co_return;
@@ -426,14 +425,13 @@ cvm::messenger::task<void> dst_trace_seq::axi_write_mmr_data_granular(uint64_t a
 
   for (int i = 0; i < 8; ++i) {
       if (offset + i < 64) {
-          cvm::log(cvm::LOW, "[trace] write strb index={:#x}\n", (offset + i));
           strb[offset + i] = 1;
       }
   } 
   w_txn.strb = strb;
   w_txn.last = 1;
   
-  cvm::log(cvm::LOW, "[trace] dst_trace_seq WRITE DATA GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", addr);
+  cvm::log(cvm::MEDIUM, "[dst_trace_seq] dst_trace_seq WRITE DATA GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", addr);
   cvm::registry::messenger.call<overlay_mst_t::push_w_rpc>(axi_mst_loc_, w_txn);
 
   co_return;
@@ -458,7 +456,7 @@ cvm::messenger::task<uint64_t> dst_trace_seq::axi_read_mmr_granular(const transa
   ar_txn.atop  =0;
   ar_txn.user  =3;
   
-  cvm::log(cvm::LOW, "[trace] dst_trace_seq AXI READ GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", ar_txn.addr);
+  cvm::log(cvm::MEDIUM, "[dst_trace_seq] dst_trace_seq AXI READ GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", ar_txn.addr);
 
    if (!cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_mst_loc_, ar_txn , id))
      co_return rdata;
@@ -467,7 +465,7 @@ cvm::messenger::task<uint64_t> dst_trace_seq::axi_read_mmr_granular(const transa
 
   rdata = convert_to_dword_array(resp.data,offset,SZ_8B);
 
-  cvm::log(cvm::FULL, "[trace] dst_trace_seq AXI READ GRANULAR read addr {:#X} completed\n",ar_txn.addr);
+  cvm::log(cvm::MEDIUM, "[dst_trace_seq] dst_trace_seq AXI READ GRANULAR read addr {:#X} completed\n",ar_txn.addr);
   co_return rdata;
 }
 
@@ -498,7 +496,7 @@ void dst_trace_seq::terminate_test(uint8_t terminate_test)
   cvm::registry::callbacks.push(
     scope_,
     [terminate_test]() {
-      cvm::log(cvm::NONE, "[trace] Test {} \n", terminate_test ? " terminated" : "not terminated");
+      cvm::log(cvm::NONE, "[dst_trace_seq] Test {} \n", terminate_test ? " terminated" : "not terminated");
       terminate_dst_trace_seq_func(terminate_test);
     });
 }
