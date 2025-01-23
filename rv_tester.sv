@@ -159,7 +159,7 @@ module rv_tester
     /* verilator lint_off UNOPTFLAT */
     rv_tester_pkg::terminate_t cosim_terminate [NHARTS-1:0];
     logic cosim_terminate_any;
-    int instructions = 0;
+    longint unsigned instructions = 0;
 
     int quiesce_counter = 0;
     int trace_counter = 5000;
@@ -244,7 +244,7 @@ module rv_tester
         flush_counter   <= flush_counter + int'(quiesced);
 
         for (int i=0; i<NHARTS; i++) begin
-          instructions  <= instructions + int'(pmci[i][INSTRUCTIONS]);
+          instructions  <= instructions + LU'(pmci[i][INSTRUCTIONS]);
         end
 
         if (rv_tester_reset) begin
