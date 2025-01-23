@@ -5,19 +5,21 @@
 #include "cvm/plusargs.hpp"
 #include "cvm/random.hpp"
 #include "rv_tester_transactions.hpp"
-#include "trace.hpp"
+#include "cla.hpp"
 #include "transactor.h"
 #include "axi_sw_mst.h"
 #include "svdpi.h"
 
-DECLARE_bool(trace_en);
+DECLARE_bool(cla_clk_halt);
+DECLARE_bool(cla_nmi);
+DECLARE_bool(cla_rand_nmi_trig_en);
 
-class dst_trace_seq {
+class cla_cfg_seq {
 
   public:
 
-    dst_trace_seq(cvm::topology::loc_t loc, unsigned id);
-    ~dst_trace_seq();
+    cla_cfg_seq(cvm::topology::loc_t loc, unsigned id);
+    ~cla_cfg_seq();
 
     using overlay_mst_t = axi_sw_mst<
         rv_tester_transactions::axi_sw_mst::b<>,
@@ -31,29 +33,28 @@ class dst_trace_seq {
 
   private:
 
-    bool smem_mode;
-    uint32_t enabled_core = 0, core_offset, mask;
-    void dst_main_thread();
+    pcg32 rng;
+    bool nmi_event, reenable_nmi, reenable_rand_trig;
+    uint32_t core_offset;
+    uint32_t eap_ctrl, active_core, mask, cntr_data, cnt_loop_max;
+    uint32_t nmi_total_cnt, trig_total_cnt;
+    void cla_main_thread();
 
     cvm::messenger::task<void> tick();
     cvm::messenger::task<void> core_no_fetch();
 
-    cvm::messenger::task<void> dst_main();
+    cvm::messenger::task<void> cla_main();
     
-    cvm::messenger::task<void> configure_dst_ram_funnel();
     cvm::messenger::task<void> configure_cla();
-    cvm::messenger::task<void> configure_fe_dbm();
-    cvm::messenger::task<void> check_dst_counter_value();
-    cvm::messenger::task<void> disable_dst_trace();
-    cvm::messenger::task<void> disable_trace_funnel();
-    cvm::messenger::task<void> disable_dst_trace_ram();
-    cvm::messenger::task<void> poll_dst_ram_empty();
-    cvm::messenger::task<void> read_dst_trace_ram();
-    cvm::messenger::task<void> enable_dst_trace_ram();
+    cvm::messenger::task<void> disable_cla();
+    cvm::messenger::task<void> configure_cla_clk_halt();
+    cvm::messenger::task<void> configure_cla_nmi();
+    cvm::messenger::task<void> configure_cla_rand_nmi_trig_en();
+    cvm::messenger::task<void> disable_cla_nmi();
+    cvm::messenger::task<void> disable_cla_rand_nmi_trig_en();
+    cvm::messenger::task<void> clear_pend_nmi_on_terminate();
+    cvm::messenger::task<void> wait_for_clocks(uint32_t max);
     
-    cvm::messenger::task<void> enable_trace_funnel();
-    cvm::messenger::task<void> reset_trace_funnel();
-        
     cvm::messenger::task<uint64_t> read(uint64_t addr, size_t sz, block_t block = BLOCK);
     cvm::messenger::task<void> write(uint64_t addr, size_t sz, uint64_t data, block_t block = BLOCK);
     cvm::messenger::task<void> csr_write(uint32_t core_id, uint32_t unit,uint64_t addr, uint64_t data);

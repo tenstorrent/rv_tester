@@ -14,7 +14,6 @@ import rv_tester_params::*;
     input reset,
     input dut_reset_req,
     output logic trace_quiesced,
-    output logic cla_quiesced,
     //output logic jtag_quiesced,
     output rv_tester_params::bootstrap_t bootstrap,
     output rv_tester_pkg::interrupt_t interrupt [NHARTS-1:0],
@@ -35,7 +34,6 @@ import rv_tester_params::*;
 
     /* verilator lint_off UNOPTFLAT */
     logic trace_quiesced_q = 0;
-    logic cla_quiesced_q = 0;
     /* verilator lint_on UNOPTFLAT */
 
     /* verilator lint_off BLKANDNBLK */
@@ -82,7 +80,6 @@ import rv_tester_params::*;
     end
 
     assign trace_quiesced = trace_quiesced_q;
-    assign cla_quiesced = cla_quiesced_q;
     assign bootstrap.boot_addr = 1 << 31;
 
     function void sysmod_terminate ();
@@ -136,11 +133,6 @@ import rv_tester_params::*;
       trace_quiesced_q = trace_info_s[0];
     endfunction
     export "DPI-C" function sysmod_trace_info;
-
-    function void sysmod_cla_terminate (int unsigned cla_info);
-      cla_quiesced_q = cla_info[0];
-    endfunction
-    export "DPI-C" function sysmod_cla_terminate;
 
     function sysmod_dmi_write (int unsigned hartid, int unsigned upper_value,int unsigned lower_value);
       dmi_write_begin = '1;

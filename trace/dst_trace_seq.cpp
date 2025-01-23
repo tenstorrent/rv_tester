@@ -54,13 +54,20 @@ cvm::messenger::task<void> dst_trace_seq::core_no_fetch()
 
 cvm::messenger::task<void> dst_trace_seq::dst_main() {
 
-  cvm::rand::uniform_dist<uint32_t> smc_mmr_index_dist(0, FLAGS_num_harts);
+  cvm::rand::uniform_dist<uint32_t> rand_core_num(0, FLAGS_num_harts-1);
   
-  if(FLAGS_num_harts > 1) enabled_core = 1; //smc_mmr_index_dist();
-  core_offset = 0x10000 * enabled_core;
   // Wait for no fetch
   co_await core_no_fetch();
-
+  
+  mask = FLAGS_hart_enable_mask;
+  if(FLAGS_num_harts > 1) {
+    while(1){
+      enabled_core = rand_core_num();
+      cvm::log(cvm::NONE, "[dst_trace] INSIDE WHILE - {:#x} mask {}, result {} \n",enabled_core, mask, (mask & static_cast<uint32_t>(1 << enabled_core)));
+      if(mask & static_cast<uint32_t>(1 << enabled_core)) break;
+    }
+  }
+  core_offset = 0x10000 * enabled_core;
   cvm::log(cvm::NONE, "[dst_trace] Starting DST Trace sequence on Core - {:#x}\n",enabled_core);
 
   //while (true) {

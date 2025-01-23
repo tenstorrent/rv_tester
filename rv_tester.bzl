@@ -10,6 +10,7 @@ load("@rv_tester//jtag_driver:jtag_driver.bzl", "jtag_driver_gen")
 load("@rv_tester//overlay_driver:overlay_driver.bzl", "overlay_driver_gen")
 load("@rv_tester//snoop_gen:snoop_gen.bzl", "snoop_gen_gen")
 load("@rv_tester//trace:trace.bzl", "trace_gen")
+load("@rv_tester//cla:cla.bzl", "cla_gen")
 load("@rv_tester//triggers:triggers.bzl", "triggers_gen")
 load("@rv_tester//aclint_checker:aclint_checker.bzl", "aclint_checker_gen")
 load("@rv_tester//transactors/axi_sw:axi_sw.bzl", "axi_sw_gen")
@@ -121,7 +122,15 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
         harness = name + "_harness",
         cc_attrs = cc_attrs,
     )        
-    
+
+    cla_gen(
+        name = name + "_cla",
+        packet = name  + "_transactions",
+        topology = topology,
+        harness = name + "_harness",
+        cc_attrs = cc_attrs,
+    )      
+
     triggers_gen(
         name = name + "_triggers",
         packet = name  + "_transactions",
@@ -165,6 +174,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             name + "_overlay_driver_sv",
             name + "_snoop_gen_sv",
             name + "_trace_sv",
+            name + "_cla_sv",
             name + "_triggers_sv",
             name + "_axi_sw_sv",
             "@opensrc-axi_llc//:axi_llc",
@@ -200,6 +210,7 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             name + "_overlay_driver_dpi",
             name + "_snoop_gen_dpi",
             name + "_trace_dpi",
+            name + "_cla_dpi",
             name + "_triggers_dpi",
             name + "_axi_sw_dpi",
             topology + "_cc",
