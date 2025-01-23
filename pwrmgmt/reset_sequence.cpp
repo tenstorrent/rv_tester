@@ -93,7 +93,8 @@ void reset_sequence::start(int reset_count) {
 }
 
 reset_sequence::~reset_sequence() {
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"pwrmgmt_warm_reset_count\": \"{}\"}}\n", reset_count_);
+   if (FLAGS_metrics)
+     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"pwrmgmt_warm_reset_count\": \"{}\"}}\n", reset_count_);
 }
 
 void reset_sequence::cold_reset_sequence_thread() {
