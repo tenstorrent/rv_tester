@@ -1,5 +1,6 @@
 #include "patch_control_sequence.hpp"
 #include "sysmod/sysmod_plusargs.h"
+#include "cosim/bridge/bridge_plusargs.h"
 #include "fmt/ranges.h"
 
 REGISTRY_register(patch_control_sequence, PWRMGMT, cvm::registry::all);
@@ -24,8 +25,11 @@ patch_control_sequence::patch_control_sequence
 }
 
 patch_control_sequence::~patch_control_sequence() {
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"rand_pcontrol_read_count\": \"{}\"}}\n", pcontrol_read_count_);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"rand_pcontrol_write_count\": \"{}\"}}\n", pcontrol_write_count_);
+  if (FLAGS_metrics) {
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"rand_pcontrol_read_count\": \"{}\"}}\n", pcontrol_read_count_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"rand_pcontrol_write_count\": \"{}\"}}\n", pcontrol_write_count_);
+  }
+
 }
 
 void patch_control_sequence::main_thread() {

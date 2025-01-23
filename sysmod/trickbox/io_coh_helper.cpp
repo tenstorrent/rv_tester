@@ -74,8 +74,10 @@ io_coh_helper::read_dev(uint64_t addr, size_t length, data_t& data)
 
 io_coh_helper::~io_coh_helper()
 {
-   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"io_coh_helper_num_writes\": \"{}\"}}\n", num_writes);
-   cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"io_coh_helper_num_reads\": \"{}\"}}\n", num_reads);
+  if (FLAGS_metrics) {
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"io_coh_helper_num_writes\": \"{}\"}}\n", num_writes);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"io_coh_helper_num_reads\": \"{}\"}}\n", num_reads);
+  }
 }
 
 void
