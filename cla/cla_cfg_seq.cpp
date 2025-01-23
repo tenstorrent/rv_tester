@@ -16,7 +16,6 @@ extern "C" {
     return (FLAGS_cla_nmi || FLAGS_cla_rand_nmi_trig_en || FLAGS_cla_clk_halt);
   }
   void cla_send_elf_terminate() {
-    cvm::log(cvm::HIGH, "[cla] Terminate Called from RV_TESTER \n");
     elf_completed = 1;
   }
 }
@@ -155,7 +154,7 @@ cvm::messenger::task<void> cla_cfg_seq::configure_cla_nmi() {
 
   for(uint32_t i=0; i< 8 ; i++){
     if((mask & (1 << i))){
-      cvm::log(cvm::LOW, "[cla] CLA NMI Configs for Core-{} \n",i);
+      cvm::log(cvm::NONE, "[cla] CLA NMI Configs for Core-{} \n",i);
       core_offset = 0x10000 * i;
       cntr_data = rng()%0x2000 + 0x2000;
       cntr_data = cntr_data << 16;
@@ -297,7 +296,6 @@ cvm::messenger::task<void> cla_cfg_seq::write(uint64_t addr, size_t sz, uint64_t
   std::vector<bool> strb(64, false);
   for (int i = 0; i < static_cast<int>(sz); ++i) {
       if (offset + i < 64) {
-          cvm::log(cvm::MEDIUM, "[cla] write strb index={:#x}\n", (offset + i));
           strb[offset + i] = 1;
       }
   }
@@ -363,7 +361,7 @@ cvm::messenger::task<void> cla_cfg_seq::axi_write_mmr_granular(uint64_t addr) {
   aw_txn.atop  =0;
   aw_txn.user  =3;
   
-  cvm::log(cvm::LOW, "[cla] cla_cfg_seq WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
+  cvm::log(cvm::MEDIUM, "[cla] cla_cfg_seq WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
 
   if (!cvm::registry::messenger.call<overlay_mst_t::push_aw_no_id_rpc>(axi_mst_loc_, aw_txn, id))
     co_return;
@@ -380,14 +378,13 @@ cvm::messenger::task<void> cla_cfg_seq::axi_write_mmr_data_granular(uint64_t add
 
   for (int i = 0; i < 8; ++i) {
       if (offset + i < 64) {
-          cvm::log(cvm::LOW, "[cla] write strb index={:#x}\n", (offset + i));
           strb[offset + i] = 1;
       }
   } 
   w_txn.strb = strb;
   w_txn.last = 1;
   
-  cvm::log(cvm::LOW, "[cla] cla_cfg_seq WRITE DATA GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", addr);
+  cvm::log(cvm::MEDIUM, "[cla] cla_cfg_seq WRITE DATA GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", addr);
   cvm::registry::messenger.call<overlay_mst_t::push_w_rpc>(axi_mst_loc_, w_txn);
 
   co_return;
@@ -412,7 +409,7 @@ cvm::messenger::task<uint64_t> cla_cfg_seq::axi_read_mmr_granular(const transact
   ar_txn.atop  =0;
   ar_txn.user  =3;
   
-  cvm::log(cvm::LOW, "[cla] cla_cfg_seq AXI READ GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", ar_txn.addr);
+  cvm::log(cvm::FULL, "[cla] cla_cfg_seq AXI READ GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", ar_txn.addr);
 
    if (!cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_mst_loc_, ar_txn , id))
      co_return rdata;
