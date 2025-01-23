@@ -101,8 +101,10 @@ cvm::messenger::task<void> scratchpad_random_sequence::random_mode() {
     if(FLAGS_sp_xtor_rnd_traffic_en){
                 
              if(cnt_tick == rnd_traffic_cnt_tick){
-               uint64_t offset = rng() % 500;
+               uint64_t offset = rng() & 0x1ff;
                sp_addr = sp_base + (offset <<6);
+
+                cvm::log(cvm::HIGH, " [scratchpad_random_sequence] sp_addr : {:#x} sp_base: {:#x} offset : {:#x} \n",sp_addr,sp_base,offset);
                 co_await axi_write_granular(sp_addr);
              }
              if(cnt_tick == rnd_traffic_cnt_tick+ 2){
@@ -221,6 +223,12 @@ cvm::messenger::task<void> scratchpad_random_sequence::axi_write_granular(uint64
   
   sp_xtor_num_accesses++;
   cvm::log(cvm::LOW, "[scratchpad_random_sequence] SP_XTOR AXI WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
+
+  while(1) {
+    auto lock = cvm::registry::messenger.call<overlay_mst_t::try_lock_rpc>(axi_mst_loc_l);
+    if(lock) { break; }
+    co_await tick();
+  }
 
   //cvm::registry::messenger.signal(axi_mst_loc_l, aw_txn);
   if (!cvm::registry::messenger.call<overlay_mst_t::push_aw_no_id_rpc>(axi_mst_loc_l, aw_txn, id))

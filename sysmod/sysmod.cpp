@@ -14,7 +14,6 @@
 #include "aclint/aclint.h"
 #include "dm/dm.h"
 #include "trace_cfg/trace_cfg.h"
-#include "cla_cfg/cla_cfg.h"
 #include "io_dev/io_dev.h"
 #include "null_dev/null_dev.h"
 #include "heartbeat/heartbeat.h"
@@ -89,13 +88,10 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
       [this](svScope s) { return this->set_scope(s); });
   cvm::registry::messenger.connect<uint64_t>(
       loc_,
-      [this](const uint64_t& t) {  // FIXME: using signal to send data from whisper client to sysmod
-      if (t == 0)
-        this->load_csr_mmr_boot(0);
-      else if (t == 1)
-        this->store_dm_rand();
-      else if (t == 2)
-        cosim_init_ = true; // this comes from bridge
+      [this](const uint64_t&) {
+      this->load_csr_mmr_boot(0);
+      this->store_dm_rand();
+      cosim_init_ = true;
       return;
       });
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::tick<>>(
@@ -550,17 +546,6 @@ sysmod::trace_info_handler(trace_cfg::trace_info_t i) {
 }
 
 void
-sysmod::cla_info_handler(cla_cfg::cla_info_t i) {
-        cvm::log(cvm::HIGH, "[SYSMOD] cla_info {} \n",i.cla_quiesced);
- // cvm::registry::callbacks.push(
- //     scope(),
- //     [i]() {
- //       cvm::log(cvm::HIGH, "[SYSMOD] smc_info \n");
- //       sysmod_trace_info(i.trace_quiesced);
- //     });
-}
-
-void
 sysmod::trace_cfg_read_req_router(trace_cfg::trace_cfg_read_t r) {
 
     transactor::read_t rd;
@@ -874,13 +859,6 @@ sysmod::compose() {
 
       devices_.emplace_back(std::move(device));
     }
-
-    std::unique_ptr<device> device;
-    device = std::make_unique<cla_cfg>("cla_cfg", mmr_lo_addr + 0x100, nharts, loc_, masters[0]);
-    cvm::registry::messenger.connect<cla_cfg::cla_info_t>(
-        loc_,
-        [&](cla_cfg::cla_info_t i) { return this->cla_info_handler(i); });
-    devices_.emplace_back(std::move(device));
 
     devices_.emplace_back(std::make_unique<heartbeat>("heartbeat", 0, 0, loc_));
 

@@ -3,6 +3,7 @@
 #include "cvm/logger.hpp"
 #include "debugger.h"
 #include "sysmod/sysmod_plusargs.h"
+#include "cosim/bridge/bridge_plusargs.h"
 #include <fstream>
 
 DEFINE_string(dbg_input_file_path, "", "Path to file containing debugger commands");
@@ -38,9 +39,11 @@ debugger::debugger(const std::string &tag, uint64_t addr, unsigned hartCount, cv
     // fin.readline();
     std::string line;
     std::getline(myfile, line);
-    cvm::log(cvm::HIGH, "[Debugger]:Reset State in Debugger is: {} at clocks {} divisor {}\n", line,clocks,divisor);
+    cvm::log(cvm::MEDIUM, "[Debugger]:Reset State in Debugger is: {} at clocks {} divisor {}\n", line,clocks,divisor);
     if (line == "Ndm-Reset") {
+      snippets_driven = FLAGS_dbg_max_snippets; 
       ndm_reset_occured = true;
+      FLAGS_warm_reset_debug_hold = "1:1";
     }
     
   }
@@ -50,14 +53,14 @@ debugger::debugger(const std::string &tag, uint64_t addr, unsigned hartCount, cv
 
 debugger::~debugger()
 {
-
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"dm_rand_snippets_mode\": \"{}\"}}\n", FLAGS_random_dbg_entry);
-  if (FLAGS_random_dbg_entry) {
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"dm_rand_snippets_max_count\": \"{}\"}}\n", FLAGS_dbg_max_snippets);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"dm_rand_snippets_delay\": \"{}_{}\"}}\n", FLAGS_dbg_delay_min, FLAGS_dbg_delay_max);
+  if (FLAGS_metrics) {
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"dm_rand_snippets_mode\": \"{}\"}}\n", FLAGS_random_dbg_entry);
+    if (FLAGS_random_dbg_entry) {
+      cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"dm_rand_snippets_max_count\": \"{}\"}}\n", FLAGS_dbg_max_snippets);
+      cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"dm_rand_snippets_delay\": \"{}_{}\"}}\n", FLAGS_dbg_delay_min, FLAGS_dbg_delay_max);
+    }
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"dm_rand_snippets_name\": \"{}\"}}\n", dbg_snippets_name);
   }
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"dm_rand_snippets_name\": \"{}\"}}\n", dbg_snippets_name);
-
 }
 void
 debugger::update_dm_status(debugger::dmi_status_t& i) {
@@ -114,10 +117,12 @@ void debugger::parse_dmi_from_csv()
   if (file_name.find(word) != std::string::npos) {
         cvm::log(cvm::LOW,  "The csv file name contains the word 'ndm' hence disabling random dbg entry.\n");
         FLAGS_dm_model_check_bypass = true;
+        FLAGS_warm_reset = "trigger"; //Set the Warm reset mode as Trigger
         snippets_driven = FLAGS_dbg_max_snippets; //Make snippets_driven as max_snippets to not pick any more
         FLAGS_warm_reset_debug_hold = "1:1"; //Pass the warm_reset_debug_hold to 1
+        cvm::log(cvm::LOW,  "The FLAGS_warm_reset_debug_hold 'ndm' hence disabling random dbg entry. is {}\n", FLAGS_warm_reset_debug_hold);
   }
-  cvm::log(cvm::HIGH, "[Debugger]:Parse DMI Commands from CSV:{}\n", file_name);
+  cvm::log(cvm::NONE, "[Debugger]:Parse DMI Commands from CSV:{}\n", file_name);
   std::fstream file(file_name, std::ios::in);
   if (file.is_open())
   {

@@ -22,6 +22,15 @@ REGISTRY_register((axi_sw_mst<rv_tester_transactions::axi_sw_mst::b<1>,
 DEFINE_bool(axi_allow_err_resp, false, "Allow error responses on axi_mst transactions");
 DEFINE_bool(axi_rand_id_alloc, true, "Allow random ID allocation for axi_mst transactions");
 DEFINE_bool(axi_sw_mst_greedy_queue, false, "Enables greedy behavior for transaction queue. This prevents HOL blocking on C++ side.");
+DEFINE_bool(axi_sw_rsp_toggle_en, false, "Allow axi_sw_rsp_toggle_en responses on axi_mst transactions");
+DEFINE_int32(axi_mst_brdy_high, 4, "Maximum cycles of axi bready assertion");
+DEFINE_int32(axi_mst_brdy_low, 4, "Maximum  cycles of axi bready de-assertion");
+DEFINE_int32(axi_mst_rrdy_high, 4, "Maximum  cycles of axi rready assertion");
+DEFINE_int32(axi_mst_rrdy_low, 4, "Maximum  cycles of axi rready de-assertion");
+DEFINE_int64(axi_sw_rsp_toggle_start, 1000, "cycles of axi clock for axi_sw_rsp_toggle_start ");
+
+
+
 
 extern "C" {
     void axi_sw_mst_ar_reset();
@@ -80,9 +89,10 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::axi_sw_mst(cvm::topology::loc_t loc, unsigned id
         transactor::write_request_t
     >();
 
-    cvm::registry::messenger.procedure<push_ar_no_id_rpc>(loc, [this] (const axi::a_no_id_t& ar, axi::id_t& id) {return this->push_a_no_id(false, ar, id);});
-    cvm::registry::messenger.procedure<push_aw_no_id_rpc>(loc, [this] (const axi::a_no_id_t& aw, axi::id_t& id) {return this->push_a_no_id(true, aw, id);});
-    cvm::registry::messenger.procedure<push_w_rpc>(loc, [this] (const axi::w_t& w) {return this->push_w(w);});
+    cvm::registry::messenger.procedure<push_ar_no_id_rpc>(loc, [this] (const axi::a_no_id_t& ar, axi::id_t& id) { return this->push_a_no_id(false, ar, id); });
+    cvm::registry::messenger.procedure<push_aw_no_id_rpc>(loc, [this] (const axi::a_no_id_t& aw, axi::id_t& id) { return this->push_a_no_id(true, aw, id); });
+    cvm::registry::messenger.procedure<push_w_rpc>(loc, [this] (const axi::w_t& w) { return this->push_w(w); });
+    cvm::registry::messenger.procedure<try_lock_rpc>(loc, [this] () { return this->try_lock(); });
 }
 
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
@@ -96,13 +106,13 @@ template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const B& b) {
     if (b.resp != axi::RESP_OKAY or not used_id(b.id)) {
-        // could have EXOKAY if it was locked, but assume not for now
-        // if(!FLAGS_axi_allow_err_resp && chk_rsp_err_ids_[b.id]){
-        //     cvm::log(cvm::ERROR, "[{}] Error: bad b.response id:{} resp: {}\n", name_, b.id, b.resp);
-        // } else {
-        //     cvm::log(cvm::HIGH, "[{}] Allowing error b.response id:{} resp: {}\n", name_, b.id, b.resp);
-        // }
-        //return;
+         //could have EXOKAY if it was locked, but assume not for now
+         if(!FLAGS_axi_allow_err_resp && chk_rsp_err_ids_[b.id]){
+             cvm::log(cvm::ERROR, "[{}] Error: bad b.response id:{} resp: {}\n", name_, b.id, b.resp);
+             return;
+         } else {
+             cvm::log(cvm::HIGH, "[{}] Allowing error b.response id:{} resp: {}\n", name_, b.id, b.resp);
+         }
     }
 
     cvm::registry::messenger.signal<axi::b_t>(
@@ -117,66 +127,18 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const B& b) {
     free_id(b.id);
     push_transactions();
 }
-// template <typename B, typename R, typename ARQ, typename AWQ, typename WQ> 
-// uint32_t
-// axi_sw_mst<B, R, ARQ, AWQ, WQ>::find_id(const std::vector<bool>& vec) {
-//             if(FLAGS_axi_rand_id_alloc){
-            // Step 1: Generate a list of indices
-            // std::vector<size_t> indices(vec.size());
-            // for (size_t i = 0; i < vec.size(); ++i) {
-            //     indices[i] = i;
-            // }
-
-            // // Step 2: Shuffle the indices
-            // // std::random_device rd;
-            // // std::mt19937 gen(rd());
-            // // unsigned idx = rng1() % snoop_addrs.size(); 
-            // std::shuffle(indices.begin(), indices.end(), rng);
- 
-            //  // Step 3: Search for the first true value in the randomized order
-            // for (size_t idx : indices) {
-            //  if (vec[idx]) {
-            //     return static_cast<uint32_t>(idx); // Return the index of the first true value
-//                 }
-//             }
-
-//             return -1; // Return -1 if no true value is found
-//             }else{
-//                  auto it = std::find(ids_.begin(), ids_.end(), true);
-//                  return it;
-//             }
-
-//     // Collect all valid indices where ids_[i] == true
-//     std::vector<size_t> valid_indices;
-//     for (size_t i = 0; i < ids_.size(); ++i) {
-//         if (ids_[i]) {
-//             valid_indices.push_back(i);
-//         }
-//     }
-
-//     if (valid_indices.empty())
-//         return false;
-
-//     // Randomly select one of the valid indices
-//     //std::uniform_int_distribution<size_t> dis(0, valid_indices.size() - 1);
-//     size_t random_index = valid_indices[rng() % valid_indices.size()];
-
-//     id = valid_indices[random_index];
-//     ids_[id] = false; // Mark as used
-//     return true;
-// }
 
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const R& r) {
-    // if (r.resp != axi::RESP_OKAY or not used_id(r.id)) {
-    //     if(!FLAGS_axi_allow_err_resp && chk_rsp_err_ids_[r.id]){
-    //         cvm::log(cvm::ERROR, "[{}] Error: bad r.response id: {} resp: {} last: {}\n", name_, r.id, r.resp, r.last);
-    //     } else {
-    //         cvm::log(cvm::HIGH, "[{}] Allowing error r.response id: {} resp: {} last: {}\n", name_, r.id, r.resp, r.last);
-    //     }
-    //     //return;
-    // }
+     if (r.resp != axi::RESP_OKAY or not used_id(r.id)) {
+         if(!FLAGS_axi_allow_err_resp && chk_rsp_err_ids_[r.id]){
+             cvm::log(cvm::ERROR, "[{}] Error: bad r.response id: {} resp: {} last: {}\n", name_, r.id, r.resp, r.last);
+             return;
+         } else {
+             cvm::log(cvm::HIGH, "[{}] Allowing error r.response id: {} resp: {} last: {}\n", name_, r.id, r.resp, r.last);
+         }
+     }
 
     cvm::log(cvm::FULL, "[axi_sw_mst]  r.response id: {} resp: {} last: {}\n", r.id, r.resp, r.last);
 
@@ -288,6 +250,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_a_no_id(const bool& aw, const axi::a_no_id_
         return false;
     }
     a.id = id;
+    chk_rsp_err_ids_[a.id] = a.rsp_err_chk;
 
     transactions_.emplace_back(a);
     push_transactions();

@@ -1,5 +1,6 @@
 #include "smc_axi_sequence.hpp"
 #include "sysmod/sysmod_plusargs.h"
+#include "cosim/bridge/bridge_plusargs.h"
 #include "fmt/ranges.h"
 
 REGISTRY_register(smc_axi_sequence, PWRMGMT, cvm::registry::all);
@@ -44,8 +45,10 @@ smc_axi_sequence::smc_axi_sequence
 }
 
 smc_axi_sequence::~smc_axi_sequence() {
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"smc_axi_read_count\": \"{}\"}}\n", smc_axi_read_count_);
-  cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"smc_axi_write_count\": \"{}\"}}\n", smc_axi_write_count_);
+  if (FLAGS_metrics) {
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"smc_axi_read_count\": \"{}\"}}\n", smc_axi_read_count_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"smc_axi_write_count\": \"{}\"}}\n", smc_axi_write_count_);
+  }
 }
 
 void smc_axi_sequence::scratchpad_write_thread() {

@@ -1592,7 +1592,7 @@ aclint_checker:
         domain: 1
         num: ${TOP.PLATFORM.COSIM.RVFI.TOTAL_NRETS}
         fields:
-            hart:
+            srcid:
                 width: 14
             order:
                 width: 64
@@ -1605,23 +1605,11 @@ aclint_checker:
             data:
                 qualify: "{data}.mask != '0"
                 width: ${TOP.PLATFORM.RDLEN}
-    cr_ac_mmrwr_bypass:
-        domain: 1
-        num: ${TOP.PLATFORM.COSIM.MCMI.TOTAL_NBYPASSES}
-        fields:
-            hart:
-                width: 4
-            order:
-                width: 64
-            mask:
-                width: 64
-            data:
-                width: ${TOP.PLATFORM.XLEN}
-    ac_axi_write:
+    axi_ac_write:
         domain: 1
         num: 1
         fields:
-            hart:
+            srcid:
                 width: 4
             order:
                 width: 64
@@ -1684,6 +1672,20 @@ interrupts:
         num: 1
 
 trace:
+    num: 1
+    m_core_no_fetch:
+        domain: 2
+        num: 1
+        fields:
+            val:
+                width: ${TOP.PLATFORM.NHARTS}
+    m_tick:
+        domain: 2
+        num: 1
+        fields:
+            cycle:
+                width: 32
+cla:
     num: 1
     m_core_no_fetch:
         domain: 2

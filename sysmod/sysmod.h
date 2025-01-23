@@ -13,7 +13,6 @@
 #include "trickbox/uc_helper.h"
 #include "trickbox/debugger.h"
 #include "trace_cfg/trace_cfg.h"
-#include "cla_cfg/cla_cfg.h"
 #include "cvm/topology.hpp"
 #include "sysmod_params.hpp"
 #include <string>
@@ -87,7 +86,6 @@ class sysmod {
 
   protected:
     void trace_info_handler(trace_cfg::trace_info_t i);
-    void cla_info_handler(cla_cfg::cla_info_t i);
     void timer_interrupt(clint::timer_t t);
     void sw_interrupt(clint::sw_t s);
     void dmi_write(debugger::dmi_data_t s);

@@ -10,6 +10,33 @@ DECLARE_bool(axi_rand_id_alloc);
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 class axi_sw_mst {
 
+    public:
+
+        struct lock_t {
+
+          public:
+
+            lock_t() = delete;
+            lock_t(const lock_t&) = delete;
+            lock_t& operator= (const lock_t&) = delete;
+            lock_t(bool* ptr) : lock_(ptr) {};
+
+            ~lock_t() {
+              release();
+            };
+
+            constexpr explicit operator bool() const { return lock_ && *lock_; };
+
+            void release() {
+              if (lock_)
+                *lock_ = false;
+            }
+
+          private:
+
+            bool* lock_ = nullptr;
+        };
+
     private:
 
         template<typename T, typename... Args> void connect() {
@@ -22,6 +49,7 @@ class axi_sw_mst {
           if constexpr (sizeof...(Args))
             connect<Args...>();
         }
+
         inline void alloc_id(uint32_t id) {
             ids_[id] = false;
             std::cout<<"\nPRT ALLOC ID :"<<id<<"\n";
@@ -105,6 +133,12 @@ class axi_sw_mst {
             return std::nullopt;
         }
 
+        lock_t try_lock() {
+          bool locked = locked_;
+          locked_ = true;
+          return lock_t{locked? nullptr : &locked_};
+        }
+
         std::optional<unsigned> read(transactor::read_request_t r);
 
         std::string name_;
@@ -133,6 +167,7 @@ class axi_sw_mst {
         uint64_t write_bytes_;
 
         cvm::rand::uniform_dist<uint32_t> rng;
+        bool locked_ = false;
 
     public:
 
@@ -142,4 +177,5 @@ class axi_sw_mst {
         CVM_MESSENGER_procedure_call(push_ar_no_id_rpc, bool (const axi::a_no_id_t& ar, axi::id_t& id));
         CVM_MESSENGER_procedure_call(push_aw_no_id_rpc, bool (const axi::a_no_id_t& aw, axi::id_t& id));
         CVM_MESSENGER_procedure_call(push_w_rpc, void (const axi::w_t& w));
+        CVM_MESSENGER_procedure_call(try_lock_rpc, lock_t ());
 };
