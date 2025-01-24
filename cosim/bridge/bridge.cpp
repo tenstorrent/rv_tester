@@ -45,6 +45,7 @@ DEFINE_uint64(topei_claim_threshold, 1, "Replay claim process N times on topei m
 DEFINE_bool(intr_defer_spcl, true, "Defer all interrupts in special cases");
 DEFINE_bool(intr_timeout_resynch, true, "Ignore whisper timeout error condition");
 DEFINE_bool(fcvt_cracked, false, "Break fcvt instruction into uops");
+DEFINE_bool(scalar_fp64_er, false, "Break scalar FP64 instructions into two uops");
 DEFINE_bool(retire_ucode_trap, true, "DUT indicates retire on a trap after executing the ucode trap handler");
 DEFINE_bool(pc_check, true, "Enable cosim checks on pc");
 DEFINE_bool(priv_check, true, "Enable cosim checks on priv mode");
@@ -1762,7 +1763,29 @@ bool bridge::is_ucode(const std::string& instr) {
       (instr.find("ecall") != std::string::npos) ||
       (instr.find("ebreak") != std::string::npos) ||
       (FLAGS_fcvt_cracked && ((instr.find("fcvt.d.l") != std::string::npos) ||
-      (instr.find("fcvt.d.w") != std::string::npos))))
+      (instr.find("fcvt.d.w") != std::string::npos))) ||
+      (FLAGS_scalar_fp64_er && 
+      ((instr.find("fnmadd.d") != std::string::npos) ||
+      (instr.find("fmadd.d") != std::string::npos) ||
+      (instr.find("fmsub.d") != std::string::npos) ||
+      (instr.find("fnmsub.d") != std::string::npos) ||
+      (instr.find("fadd.d") != std::string::npos) ||
+      (instr.find("fsub.d") != std::string::npos) ||
+      (instr.find("fmul.d") != std::string::npos) ||
+      (instr.find("fdiv.d") != std::string::npos) ||
+      (instr.find("fsqrt.d") != std::string::npos) ||
+      (instr.find("fsgnj.d") != std::string::npos) ||
+      (instr.find("fsgnjn.d") != std::string::npos) ||
+      (instr.find("fsgnjx.d") != std::string::npos) ||
+      (instr.find("fmin.d") != std::string::npos) ||
+      (instr.find("fmax.d") != std::string::npos) ||
+      (instr.find("fcvt.d.s") != std::string::npos) ||
+      (instr.find("fli.d") != std::string::npos) ||
+      (instr.find("fminm.d") != std::string::npos) ||
+      (instr.find("fmaxm.d") != std::string::npos) ||
+      (instr.find("fround.d") != std::string::npos) ||
+      (instr.find("froundnx.d") != std::string::npos)
+      )))
     return true;
   return false;
 }
