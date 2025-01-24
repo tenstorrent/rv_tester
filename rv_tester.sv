@@ -1202,7 +1202,7 @@ module rv_tester
         ) smc_sw_mst (
             .clk(dut_clk[SOC_CLK_IDX]),
             .sys_reset(sys_reset[SOC_CLK_IDX]),
-            .reset_n(~dut_reset[SOC_CLK_IDX]),
+            .reset_n(~(dut_reset[SOC_CLK_IDX] | warm_reset_pullup)),
             .axi_mst_ar_valid(smc_axi_req_mst[p].ar_valid),
             .axi_mst_ar_id   (smc_axi_req_mst[p].ar.id),
             .axi_mst_ar_addr (smc_axi_req_mst[p].ar.addr),
