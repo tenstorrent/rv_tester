@@ -86,7 +86,7 @@ rvfi::~rvfi() {
 }
 
 void rvfi::check() {
-  bridge_->report_metrics();
+  // bridge_->report_metrics();
 }
 
 void rvfi::init() {
