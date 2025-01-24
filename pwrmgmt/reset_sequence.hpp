@@ -10,7 +10,6 @@
 #include "svdpi.h"
 #include "axi_sw_mst.h"
 
-DECLARE_bool(axi_allow_err_resp); // Allow error responses on axi_mst transactions
 
 class reset_sequence {
 
@@ -66,16 +65,16 @@ class reset_sequence {
     cvm::messenger::task<void> fuse_mmr_check( rst_t rst_type = WARM);
     cvm::messenger::task<void> disabled_mmr_csr_check();
     cvm::messenger::task<void> program_fe_resetvector();
-    cvm::messenger::task<void> mmr_read_write_check(uint64_t addr, interface_t interface);
+    cvm::messenger::task<void> mmr_read_write_check(uint64_t addr, interface_t interface, bool rsp_err_chk = true);
 
     cvm::messenger::task<void> write_thub_reg(uint8_t addr, uint32_t data, uint8_t satellite_num, uint8_t mbox_num);
     cvm::messenger::task<void> program_thub_threshold();
 
     cvm::messenger::task<void> init_smc_filters();
 
-    cvm::messenger::task<uint64_t> read(uint64_t addr, size_t sz, interface_t interface = SMC);
-    cvm::messenger::task<void> write(uint64_t addr, size_t sz, uint64_t data, interface_t interface = SMC);
-    cvm::messenger::task<void> write(uint64_t addr, size_t sz, const std::vector<uint64_t>& data);
+    cvm::messenger::task<uint64_t> read(uint64_t addr, size_t sz, interface_t interface = SMC, bool rsp_err_chk = true);
+    cvm::messenger::task<void> write(uint64_t addr, size_t sz, uint64_t data, interface_t interface = SMC, bool rsp_err_chk = true);
+    cvm::messenger::task<void> write(uint64_t addr, size_t sz, const std::vector<uint64_t>& data, bool rsp_err_chk = true);
     cvm::messenger::task<void>csr_write(uint32_t core_id, uint32_t unit,uint64_t addr, uint64_t data);
     cvm::messenger::task<uint64_t>csr_read(uint32_t core_id, uint32_t unit,uint64_t addr);
     cvm::messenger::task<void>init_csr();
