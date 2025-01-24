@@ -14,6 +14,8 @@ DEFINE_int32(dbg_delay_max, 9, "Maximum Delay between 2 consecutive debug mopde 
 DEFINE_int32(dbg_max_snippets, 1, "Maximum number of debug snippets to be driven");
 DEFINE_string(dbg_template_dir_path, "", "Path to file containing debugger commands");
 DEFINE_bool(enable_cross, false, "Are cross features are enabled");
+DEFINE_bool(dbg_rand_core, false, "To randomize the core-id to which the core the DM snippet is targetted to");
+DEFINE_int32(dbg_rand_core_idx, 0, "Random Core idx to which the DM commands are targetted");
 
 debugger::debugger(const std::string &tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc)
     : subdevice(tag, addr, 0x20000 /* size */, loc), soft_(hartCount),
@@ -123,6 +125,8 @@ void debugger::parse_dmi_from_csv()
         cvm::log(cvm::LOW,  "The FLAGS_warm_reset_debug_hold 'ndm' hence disabling random dbg entry. is {}\n", FLAGS_warm_reset_debug_hold);
   }
   cvm::log(cvm::NONE, "[Debugger]:Parse DMI Commands from CSV:{}\n", file_name);
+  FLAGS_dbg_rand_core_idx = rng() % FLAGS_num_harts; //FIXME
+  cvm::log(cvm::NONE, "[Debugger]:DMI Requests core randomization state: {}, Num-harts:{:#x}, Core-ID:{:#x}\n", FLAGS_dbg_rand_core, FLAGS_num_harts, FLAGS_dbg_rand_core?FLAGS_dbg_rand_core_idx:0);
   std::fstream file(file_name, std::ios::in);
   if (file.is_open())
   {
@@ -283,11 +287,18 @@ void debugger::parse_dmi_from_csv()
 
       if (dmi_req.op == 2)
       {
+        cvm::log(cvm::NONE, "[Debugger]: Write op for addr : {:#x}\n", dmi_req.addr);
         // remove underscores from data
         row[2].erase(std::remove(row[2].begin(), row[2].end(), '_'), row[2].end());
         try
         {
           dmi_req.data = std::stoul(row[2], nullptr, 16);
+          if (FLAGS_dbg_rand_core) {
+            if (dmi_req.addr == 0x10){
+              cvm::log(cvm::NONE, "[Debugger]: Randomizing the core ID to be : {:#x}\n", FLAGS_dbg_rand_core_idx);
+              dmi_req.data = dmi_req.data + (FLAGS_dbg_rand_core_idx << 16);
+            }
+          }
         }
         catch (const std::invalid_argument &e)
         {

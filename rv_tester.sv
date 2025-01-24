@@ -824,8 +824,8 @@ module rv_tester
           `RV_TESTER_TRANSACTIONS_JTAG_DRIVER_SOURCE_PARAMS(0)
         )jtag_driver
         (
-            .clk(dut_clk[REF_CLK_IDX]),
-            .reset(dut_reset[REF_CLK_IDX]),
+            .clk(dut_clk[AXI_CLK_IDX]),
+            .reset(dut_reset[AXI_CLK_IDX]),
             .dut_clk(dut_clk[AXI_CLK_IDX]),
             .dut_reset(dut_reset[AXI_CLK_IDX]),
             .no_fetch(core_no_fetch[0]),
@@ -1202,7 +1202,7 @@ module rv_tester
         ) smc_sw_mst (
             .clk(dut_clk[SOC_CLK_IDX]),
             .sys_reset(sys_reset[SOC_CLK_IDX]),
-            .reset_n(~dut_reset[SOC_CLK_IDX]),
+            .reset_n(~(dut_reset[SOC_CLK_IDX] | warm_reset_pullup)),
             .axi_mst_ar_valid(smc_axi_req_mst[p].ar_valid),
             .axi_mst_ar_id   (smc_axi_req_mst[p].ar.id),
             .axi_mst_ar_addr (smc_axi_req_mst[p].ar.addr),
