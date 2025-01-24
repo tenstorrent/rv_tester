@@ -52,7 +52,6 @@ class axi_sw_mst {
 
         inline void alloc_id(uint32_t id) {
             ids_[id] = false;
-            std::cout<<"\nPRT DIRECT ALLOC ID  :"<<id<<"\n";
         }
         inline bool used_id(uint32_t id) {
             return !ids_[id];
@@ -60,7 +59,6 @@ class axi_sw_mst {
 
         inline void free_id(uint32_t id) {
             ids_[id] = true;
-            std::cout<<"\nPRT FREE ID :"<<id<<"\n";
         }
 
 
