@@ -71,7 +71,7 @@ class jtag_sequence {
     cvm::log(cvm::FULL, "[jtag_sequence]: JTAG Tick {}, advance interval: {}\n",num_ticks, advance);
     timer_ += advance;
     timer_advance = advance;
-    if( num_ticks > 2) 
+    if( num_ticks > 30) 
     {
     checkJtagEvents();
 
