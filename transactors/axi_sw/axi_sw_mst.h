@@ -52,7 +52,7 @@ class axi_sw_mst {
 
         inline void alloc_id(uint32_t id) {
             ids_[id] = false;
-            std::cout<<"\nPRT ALLOC ID :"<<id<<"\n";
+            std::cout<<"\nPRT DIRECT ALLOC ID  :"<<id<<"\n";
         }
         inline bool used_id(uint32_t id) {
             return !ids_[id];
@@ -77,8 +77,10 @@ class axi_sw_mst {
             // //*it = false;
             // return true;
                 // Collect all valid indices where ids_[i] == true
+            std::cout<<"\nPRT NEXT ID START X\n";
             std::vector<size_t> valid_indices;
             for (size_t i = 0; i < ids_.size(); ++i) {
+                std::cout<<"\nPRT CHK VALID IDs "<<i<<" value: "<<ids_[i]<<"\n";
                 if (ids_[i]) {
                     valid_indices.push_back(i);
                 }
@@ -93,15 +95,22 @@ class axi_sw_mst {
             // Randomly select one of the valid indices
             //std::uniform_int_distribution<size_t> dis(0, valid_indices.size() - 1);
             size_t random_index;
-            if(FLAGS_axi_rand_id_alloc)
-             random_index = valid_indices[rng() % valid_indices.size()];
+            if(FLAGS_axi_rand_id_alloc){
+              uint32_t idx =  (rng() % valid_indices.size()) & 0xffffff;
+	      //random_index = valid_indices[rng() % valid_indices.size()];
+	      random_index = valid_indices[idx];
+	     
+	    }
             else
              random_index = valid_indices[0];
 
             std::cout<<"\nPRT RANDOM IDX  :"<<random_index<<"\n";
-            id = valid_indices[random_index];
-            ids_[id] = false; // Mark as used
+            //id = valid_indices[random_index];
+            //ids_[id] = false; // Mark as used
+	    id = random_index;
+            ids_[random_index] = false; // Mark as used
             std::cout<<"\nPRT ALLOC ID :"<<id<<"\n";
+            std::cout<<"\nPRT NEXT ID END X\n";
             return true;
         }
 
