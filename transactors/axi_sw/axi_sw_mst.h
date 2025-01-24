@@ -3,8 +3,10 @@
 #include <variant>
 #include "axi.h"
 
+#include "cvm/random.hpp"
 #include "rv_tester_transactions.hpp"
 
+DECLARE_bool(axi_rand_id_alloc);
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 class axi_sw_mst {
 
@@ -59,14 +61,32 @@ class axi_sw_mst {
             ids_[id] = true;
         }
 
+
         bool next_id(uint32_t& id) {
-            auto it = std::find(ids_.begin(), ids_.end(), true);
+            std::vector<size_t> valid_indices;
+            for (size_t i = 0; i < ids_.size(); ++i) {
+                if (ids_[i]) {
+                    valid_indices.push_back(i);
+                }
+            }
 
-            if (it == ids_.end())
-              return false;
+            if (valid_indices.empty()){
+                return false;
+            }
 
-            id = it - ids_.begin();
-            *it = false;
+            // Randomly select one of the valid indices
+            //std::uniform_int_distribution<size_t> dis(0, valid_indices.size() - 1);
+            size_t random_index;
+            if(FLAGS_axi_rand_id_alloc){
+              uint32_t idx =  (rng() % valid_indices.size()) & 0xffffff;
+	      random_index = valid_indices[idx];
+	     
+	    }
+            else
+             random_index = valid_indices[0];
+
+	    id = random_index;
+            ids_[random_index] = false; // Mark as used
             return true;
         }
 
@@ -81,6 +101,7 @@ class axi_sw_mst {
         void process(const transactor::write_request_t& req);
         bool a_wrapper(uint64_t req_addr, size_t req_length, axi::a_t& a);
         bool push_a_no_id(const bool& aw, const axi::a_no_id_t& a_no_id, id_t& id);
+        //uint32_t find_id(const std::vector<bool>& vec);
         void push_w(const axi::w_t& w);
         void push_transactions();
         void reset_ptrs();
@@ -130,6 +151,7 @@ class axi_sw_mst {
         uint64_t read_bytes_;
         uint64_t write_bytes_;
 
+        cvm::rand::uniform_dist<uint32_t> rng;
         bool locked_ = false;
 
     public:
