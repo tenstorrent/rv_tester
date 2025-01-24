@@ -824,8 +824,8 @@ module rv_tester
           `RV_TESTER_TRANSACTIONS_JTAG_DRIVER_SOURCE_PARAMS(0)
         )jtag_driver
         (
-            .clk(dut_clk[AXI_CLK_IDX]),
-            .reset(dut_reset[AXI_CLK_IDX]),
+            .clk(dut_clk[REF_CLK_IDX]),
+            .reset(dut_reset[REF_CLK_IDX]),
             .dut_clk(dut_clk[AXI_CLK_IDX]),
             .dut_reset(dut_reset[AXI_CLK_IDX]),
             .no_fetch(core_no_fetch[0]),
