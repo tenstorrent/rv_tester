@@ -176,6 +176,8 @@ void sysmod::configure()
 {
   if (FLAGS_cosim)
     cosim_init_ = false; // this will be set once bridge is init
+  else
+    cosim_init_ = true;
   // Flags configuration
   core_harvest_plusargs();
   sc_harvest_plusargs();

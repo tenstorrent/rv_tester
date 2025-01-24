@@ -2807,6 +2807,9 @@ void bridge::final_phase() {
 }
 
 void bridge::process(const rv_tester::terminate_called&) {
+  if (terminated_)
+    return;
+  report_metrics();
   terminated_ = true;
 }
 
