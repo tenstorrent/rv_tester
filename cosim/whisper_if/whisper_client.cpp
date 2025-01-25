@@ -32,7 +32,6 @@ DEFINE_string(whisper_data_lines, "", "Write data cache line addresses used in t
 DEFINE_bool(whisper_csv_log, false, "Make whisper use a csv trace.");
 DEFINE_int32(whisper_tlb_size, -1, "Specify whisper tlb size");
 DEFINE_string(isa, "", "Override isa spec");
-DEFINE_string(stee_secure_region, "", "colon separated pair of numbers (same as whisper's --steesr)");
 DEFINE_bool(whisper_log, true, "Enable whisper logging to iss_cosim.log and iss_cmd.log");
 DEFINE_bool(whisper_cosim_log, false, "Enable whisper logging to iss_cosim.log");
 DEFINE_bool(whisper_cmd_log, false, "Enable whisper logging to iss_cmd.log");
@@ -141,12 +140,13 @@ whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) {
   cvm::registry::messenger.procedure<whisperNmiRPC>(loc, [this] (int hart, uint64_t time, uint64_t cause) {return this->whisperNmi(hart, time, cause);});
   cvm::registry::messenger.procedure<whisperClearNmiRPC>(loc, [this] (int hart, uint64_t time) {return this->whisperClearNmi(hart, time);});
   cvm::registry::messenger.procedure<whisperMcmSkipReadDataCheckRPC>(loc, [this] (uint64_t addr, unsigned size, bool enable) {return this->whisperMcmSkipReadDataCheck(addr,size,enable);});
+  cvm::registry::messenger.procedure<secureRegionRPC> (loc, [this] (uint64_t start, uint64_t end) { this->secure_region_start_=start; this->secure_region_end_=end; });
 
 }
 
 template <typename URV>
 static std::shared_ptr<WdRiscv::System<URV>>
-constructSystem(uint16_t ncores, bool standalone) {;
+constructSystem(uint16_t ncores, bool standalone, uint64_t secure_region_start=0, uint64_t secure_region_end=0) {
 
   WdRiscv::HartConfig config;
   if (not config.loadConfigFile(FLAGS_whisper_json_path.c_str()))
@@ -235,6 +235,10 @@ constructSystem(uint16_t ncores, bool standalone) {;
         return nullptr;
       }
     }
+    if (secure_region_start || secure_region_end) {
+      hart.configSteeSecureRegion(secure_region_start, secure_region_end);
+      hart.enableStee(true);
+    }
     hart.reset();
   }
   if (not config.applyImsicConfig(*system))
@@ -258,13 +262,6 @@ constructHart (WdRiscv::Hart<URV>* hart, bool preload = false, FILE* preload_log
 
   if (preload)
     hart->setInitialStateFile(preload_log);
-
-  if (FLAGS_stee_secure_region != "") {
-    std::vector<std::string> secure_region = cosim_util::split_string(FLAGS_stee_secure_region, ":");
-    auto start = std::stoull(secure_region.at(0), nullptr, 0);
-    auto end   = std::stoull(secure_region.at(1), nullptr, 0);
-    hart->configSteeSecureRegion(start, end);
-  }
 };
 
 
@@ -312,9 +309,9 @@ whisperClient<URV>::whisperStandalone()
   if (result && (FLAGS_num_dm_randpc || FLAGS_num_dm_randload || FLAGS_num_dm_randstore)){
     WdRiscv::Hart<URV>* hart = system_->ithHart(0).get();
 
-    std::shared_ptr<WdRiscv::System<URV>> system_new = constructSystem<URV>(1, true);
+    std::shared_ptr<WdRiscv::System<URV>> system_new = constructSystem<URV>(1, true, secure_region_start_, secure_region_end_);
     WdRiscv::Hart<URV>* hart_new = system_new->ithHart(0).get();
-    constructHart(hart_new, 0);
+    constructHart(hart_new, 0, nullptr);
     cvm::rand::uniform_dist<int> rng1;
     int percent = (rng1() % 20) + 60; // random pc betwen 60-80% of code
     uint64_t total_instr = hart->getInstructionCount();
@@ -388,14 +385,14 @@ whisperClient<URV>::whisperConnect()
   // Construct and run whisper standalone
   // This can be useful to compare with the cosim run
   if (FLAGS_standalone && (ncores_ == 1)) {
-    system_ = constructSystem<URV>(ncores_, true);
+    system_ = constructSystem<URV>(ncores_, true, secure_region_start_, secure_region_end_);
     if (system_ == nullptr)
       cvm::log(cvm::ERROR, "Error: could not construct system\n");
     whisperStandalone();
   }
 
   // Construct whisper for cosim
-   system_ = constructSystem<URV>(ncores_, false);
+   system_ = constructSystem<URV>(ncores_, false, secure_region_start_, secure_region_end_);
   if (system_ == nullptr) {
     cvm::log(cvm::ERROR, "Error: could not construct system\n");
   }

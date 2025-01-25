@@ -67,7 +67,8 @@ DEFINE_uint32(debug_enable, 3, "Debug enable fuse");
 DEFINE_bool(hart_sync_en, true, "Enable hart sync routine in bootrom");
 DEFINE_bool(export_control_en, false, "Enable export control to reduce FP double precision");
 DEFINE_uint32(mem_manager_page_size, 4096, "Mem manager internal page size");
-
+// STEE
+DEFINE_string(stee_secure_region, "", "colon separated pair of number (same as whisper's --steesr)");
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 
 extern "C" {
@@ -755,6 +756,17 @@ sysmod::reset() {
   load_boot(FLAGS_bootrom_path);
   load_csr_mmr_boot(1);
   load_cplfw(FLAGS_cplfw_path);
+  set_secure_region(FLAGS_stee_secure_region);
+}
+void
+sysmod::set_secure_region(std::string region) {
+  if (region == "")
+    return;
+  stee = true;
+  std::vector<std::string> secure_region = cosim_util::split_string(region, ":");
+  secure_region_start_ = std::stoull(secure_region.at(0), nullptr, 0);
+  secure_region_end_   = std::stoull(secure_region.at(1), nullptr, 0);
+  cvm::registry::messenger.call<whisperClient<uint64_t>::secureRegionRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), secure_region_start_, secure_region_end_);
 }
 
 void
@@ -873,7 +885,11 @@ sysmod::compose() {
 
 device*
 sysmod::dev(uint64_t addr) {
-
+  if (stee) {
+    uint64_t pa_mask = 0x0080000000000000;
+    if (addr & pa_mask)
+      addr = addr & ~pa_mask;
+  }
   for (auto& d : devices_) {
     if (d->has_addr(addr))
       return d.get();

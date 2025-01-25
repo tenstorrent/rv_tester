@@ -93,6 +93,7 @@ class whisperClient {
     uint32_t ncores_ = 0;
     uint64_t dm_rand_addr_ = 0;
     std::vector<uint64_t> dm_rand_val_;
+    uint64_t secure_region_start_=0, secure_region_end_=0;
 
   public:
     CVM_MESSENGER_procedure_call(get_dm_rand_addr_RPC, uint64_t (void));
@@ -134,6 +135,7 @@ class whisperClient {
     CVM_MESSENGER_procedure_call(whisperNmiRPC, bool (int, uint64_t, uint64_t));
     CVM_MESSENGER_procedure_call(whisperClearNmiRPC, bool (int, uint64_t));
     CVM_MESSENGER_procedure_call(whisperMcmSkipReadDataCheckRPC, bool (uint64_t, unsigned, bool));
+    CVM_MESSENGER_procedure_call(secureRegionRPC, void (uint64_t, uint64_t));
 };
 
 
