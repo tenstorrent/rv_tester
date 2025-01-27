@@ -14,7 +14,6 @@
 #include "aclint/aclint.h"
 #include "dm/dm.h"
 #include "trace_cfg/trace_cfg.h"
-#include "cla_cfg/cla_cfg.h"
 #include "io_dev/io_dev.h"
 #include "null_dev/null_dev.h"
 #include "heartbeat/heartbeat.h"
@@ -68,7 +67,8 @@ DEFINE_uint32(debug_enable, 3, "Debug enable fuse");
 DEFINE_bool(hart_sync_en, true, "Enable hart sync routine in bootrom");
 DEFINE_bool(export_control_en, false, "Enable export control to reduce FP double precision");
 DEFINE_uint32(mem_manager_page_size, 4096, "Mem manager internal page size");
-
+// STEE
+DEFINE_string(stee_secure_region, "", "colon separated pair of number (same as whisper's --steesr)");
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 
 extern "C" {
@@ -76,7 +76,6 @@ extern "C" {
   void sysmod_sw_interrupt(unsigned hartid, unsigned val);
   void sysmod_tbox_interrupt(unsigned hartid, unsigned val, unsigned int_val);
   void sysmod_trace_info(unsigned trace_info_s);
-  void sysmod_cla_terminate(unsigned cla_info);
   void sysmod_dmi_write(unsigned hartid, unsigned upper_val, unsigned lower_val);
   void sysmod_jtag_req(unsigned cmd,unsigned long upper_val, unsigned long lower_val, unsigned length, unsigned quit,unsigned tap_cfg_sel);
   void sysmod_terminate();
@@ -178,6 +177,8 @@ void sysmod::configure()
 {
   if (FLAGS_cosim)
     cosim_init_ = false; // this will be set once bridge is init
+  else
+    cosim_init_ = true;
   // Flags configuration
   core_harvest_plusargs();
   sc_harvest_plusargs();
@@ -548,16 +549,6 @@ sysmod::trace_info_handler(trace_cfg::trace_info_t i) {
 }
 
 void
-sysmod::cla_info_handler(cla_cfg::cla_info_t i) {
-  cvm::log(cvm::NONE, "[SYSMOD] cla_info_handler \n");
-  cvm::registry::callbacks.push(
-      scope(),
-      [i]() {
-        sysmod_cla_terminate(i.cla_quiesced);
-      });
-}
-
-void
 sysmod::trace_cfg_read_req_router(trace_cfg::trace_cfg_read_t r) {
 
     transactor::read_t rd;
@@ -765,6 +756,17 @@ sysmod::reset() {
   load_boot(FLAGS_bootrom_path);
   load_csr_mmr_boot(1);
   load_cplfw(FLAGS_cplfw_path);
+  set_secure_region(FLAGS_stee_secure_region);
+}
+void
+sysmod::set_secure_region(std::string region) {
+  if (region == "")
+    return;
+  stee = true;
+  std::vector<std::string> secure_region = cosim_util::split_string(region, ":");
+  secure_region_start_ = std::stoull(secure_region.at(0), nullptr, 0);
+  secure_region_end_   = std::stoull(secure_region.at(1), nullptr, 0);
+  cvm::registry::messenger.call<whisperClient<uint64_t>::secureRegionRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), secure_region_start_, secure_region_end_);
 }
 
 void
@@ -872,12 +874,6 @@ sysmod::compose() {
       devices_.emplace_back(std::move(device));
     }
 
-    std::unique_ptr<device> device;
-    device = std::make_unique<cla_cfg>("cla_cfg", mmr_lo_addr + 0x100, nharts, loc_, masters[0]);
-    cvm::registry::messenger.connect<cla_cfg::cla_info_t>(
-        loc_,
-        [&](cla_cfg::cla_info_t i) { return this->cla_info_handler(i); });
-    devices_.emplace_back(std::move(device));
     devices_.emplace_back(std::make_unique<heartbeat>("heartbeat", 0, 0, loc_));
 
     assert(masters.size() > 0);
@@ -889,7 +885,11 @@ sysmod::compose() {
 
 device*
 sysmod::dev(uint64_t addr) {
-
+  if (stee) {
+    uint64_t pa_mask = 0x0080000000000000;
+    if (addr & pa_mask)
+      addr = addr & ~pa_mask;
+  }
   for (auto& d : devices_) {
     if (d->has_addr(addr))
       return d.get();

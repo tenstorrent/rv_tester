@@ -1,5 +1,6 @@
 #include "external_interrupt_sequence.hpp"
 #include "sysmod/sysmod_plusargs.h"
+#include "cosim/bridge/bridge_plusargs.h"
 
 REGISTRY_register(external_interrupt_sequence, INTERRUPTS, cvm::registry::all);
 
@@ -35,6 +36,7 @@ external_interrupt_sequence::external_interrupt_sequence(cvm::topology::loc_t lo
 }
 
 external_interrupt_sequence::~external_interrupt_sequence() {
+  if (FLAGS_metrics)
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_external_interrupts_count\": \"{}\"}}\n", id_, ext_interrupt_count_);
 }
 

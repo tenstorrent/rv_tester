@@ -224,6 +224,12 @@ cvm::messenger::task<void> scratchpad_random_sequence::axi_write_granular(uint64
   sp_xtor_num_accesses++;
   cvm::log(cvm::LOW, "[scratchpad_random_sequence] SP_XTOR AXI WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
 
+  while(1) {
+    auto lock = cvm::registry::messenger.call<overlay_mst_t::try_lock_rpc>(axi_mst_loc_l);
+    if(lock) { break; }
+    co_await tick();
+  }
+
   //cvm::registry::messenger.signal(axi_mst_loc_l, aw_txn);
   if (!cvm::registry::messenger.call<overlay_mst_t::push_aw_no_id_rpc>(axi_mst_loc_l, aw_txn, id))
     co_return;

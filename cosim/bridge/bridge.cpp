@@ -45,6 +45,7 @@ DEFINE_uint64(topei_claim_threshold, 1, "Replay claim process N times on topei m
 DEFINE_bool(intr_defer_spcl, true, "Defer all interrupts in special cases");
 DEFINE_bool(intr_timeout_resynch, true, "Ignore whisper timeout error condition");
 DEFINE_bool(fcvt_cracked, false, "Break fcvt instruction into uops");
+DEFINE_bool(scalar_fp64_er, false, "Break scalar FP64 instructions into two uops");
 DEFINE_bool(retire_ucode_trap, true, "DUT indicates retire on a trap after executing the ucode trap handler");
 DEFINE_bool(pc_check, true, "Enable cosim checks on pc");
 DEFINE_bool(priv_check, true, "Enable cosim checks on priv mode");
@@ -1762,7 +1763,29 @@ bool bridge::is_ucode(const std::string& instr) {
       (instr.find("ecall") != std::string::npos) ||
       (instr.find("ebreak") != std::string::npos) ||
       (FLAGS_fcvt_cracked && ((instr.find("fcvt.d.l") != std::string::npos) ||
-      (instr.find("fcvt.d.w") != std::string::npos))))
+      (instr.find("fcvt.d.w") != std::string::npos))) ||
+      (FLAGS_scalar_fp64_er && 
+      ((instr.find("fnmadd.d") != std::string::npos) ||
+      (instr.find("fmadd.d") != std::string::npos) ||
+      (instr.find("fmsub.d") != std::string::npos) ||
+      (instr.find("fnmsub.d") != std::string::npos) ||
+      (instr.find("fadd.d") != std::string::npos) ||
+      (instr.find("fsub.d") != std::string::npos) ||
+      (instr.find("fmul.d") != std::string::npos) ||
+      (instr.find("fdiv.d") != std::string::npos) ||
+      (instr.find("fsqrt.d") != std::string::npos) ||
+      (instr.find("fsgnj.d") != std::string::npos) ||
+      (instr.find("fsgnjn.d") != std::string::npos) ||
+      (instr.find("fsgnjx.d") != std::string::npos) ||
+      (instr.find("fmin.d") != std::string::npos) ||
+      (instr.find("fmax.d") != std::string::npos) ||
+      (instr.find("fcvt.d.s") != std::string::npos) ||
+      (instr.find("fli.d") != std::string::npos) ||
+      (instr.find("fminm.d") != std::string::npos) ||
+      (instr.find("fmaxm.d") != std::string::npos) ||
+      (instr.find("fround.d") != std::string::npos) ||
+      (instr.find("froundnx.d") != std::string::npos)
+      )))
     return true;
   return false;
 }
@@ -2075,15 +2098,12 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
 
         // First, replay the csr operation to claim the same old MSI IID as DUT
         uint64_t data = 0;
-        uint64_t count = 0, loop_count = 0;
-        while ((!d.gpr.empty() && (data != (d.gpr[0].rd_wdata & 0xff))) || (count < FLAGS_topei_claim_threshold)) {
+        uint64_t count = 0;
+        while ((!d.gpr.empty() && (data != (d.gpr[0].rd_wdata))) && (count < FLAGS_topei_claim_threshold)) {
           peek_resource(hart, 'c', csr.csr_addr, data);
           poke_resource(hart, d.cycle, 'c', csr.csr_addr, data);
           count++;
-          bridge_log_(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: topei claim [{:#x}]={:#x}\n", d.cycle, step_, csr.csr_addr, data);
-          loop_count++;
-          if (loop_count>256) // FIXME: better way to get out of this loop
-            error("Unable to resynch TOPEI");
+          bridge_log_(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: topei claim csr:{:#x} w.data={:#x} d.data={:#x}\n", d.cycle, step_, csr.csr_addr, data, d.gpr[0].rd_wdata);
         }
 
         // Then, inject the in-flight new MSI IIDs to get the state identical to DUT
@@ -2810,16 +2830,30 @@ void bridge::final_phase() {
 }
 
 void bridge::process(const rv_tester::terminate_called&) {
+  if (terminated_)
+    return;
+  report_metrics();
   terminated_ = true;
 }
 
 void bridge::report_metrics() {
-  if (!FLAGS_metrics || !cvm::registry::messenger.call<whisperClient<uint64_t>::whisperConnectedRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0)))
-  // if (!FLAGS_metrics)
+  if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperConnectedRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0)))
     return;
 
+  whisper_state_t w;
+  if (FLAGS_mcm) {
+    bool valid;
+    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmEndRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, pw_.time, valid) || !valid) {
+      error("Hart {}: Failed to disable MCM\n", id_);
+    }
+    w = { .tag = pw_.tag+1, .time = pw_.time+1 };
+  }
+  else {
+    w = { .tag = step_+1, .time = pw_.time+1 };
+  }
+  if (!FLAGS_metrics)
+    return;
   print(cvm::NONE, "[COSIM] Report metrics...\n");
-
   const auto& prev_whisp_state = pw_;
   const auto& prev_prev_whisp_state = ppw_;
   const int instructions = cac_.GetStep(id_);
@@ -2904,30 +2938,12 @@ void bridge::report_metrics() {
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_nmi_taken_count\": \"{}\"}}\n", id_, nmi_taken_count_);
 
   // Step one final time to collect metrics for next instruction
-  whisper_state_t w;
-  if (FLAGS_mcm) {
-    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmEndRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, prev_whisp_state.time, valid) || !valid) {
-      error("Hart {}: Failed to disable MCM\n", id_);
-    }
-    w = { .tag = prev_whisp_state.tag+1, .time = prev_whisp_state.time+1 };
-  }
-  else {
-    w = { .tag = step_+1, .time = prev_whisp_state.time+1 };
-  }
   step(id_, w);
-  const auto& next_instr = w.disasm;
-  const auto& next_mode = w.priv_mode;
-  const auto& next_trap = w.trap;
-  const auto& next_num_dest = w.change_count;
-
-  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_instr\": \"{}\"}}\n", id_, next_instr);
-  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_mode\": {}}}\n", id_, next_mode);
-  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_trap\": {}}}\n", id_, next_trap);
-  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_num_dest\": {}}}\n", id_, next_num_dest);
-
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_instr\": \"{}\"}}\n", id_, w.disasm);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_mode\": {}}}\n", id_, w.priv_mode);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_trap\": {}}}\n", id_, w.trap);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_next_num_dest\": {}}}\n", id_, w.change_count);
   // Regression level metrics from hart 0
-  if (id_ == 0) {
-    // Average ipc
-    print(cvm::NONE, "INFO_PASS_REGR_METRIC:{{\"name\": \"ipc\", \"value\": {:.2f}, \"type\": \"d\", \"action\": \"avg\"}}\n", ipc);
-  }
+  if (id_ == 0) 
+    print(cvm::NONE, "INFO_PASS_REGR_METRIC:{{\"name\": \"ipc\", \"value\": {:.2f}, \"type\": \"d\", \"action\": \"avg\"}}\n", ipc); // Average ipc
 }

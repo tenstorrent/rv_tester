@@ -1,26 +1,25 @@
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
 
-def interrupts_gen(name, packet, topology, harness, visibility = None, cc_attrs = {}, **kwargs):
+def cla_gen(name, packet, topology, harness, visibility = None, cc_attrs = {}, **kwargs):
 
-    interrupts_dpi = name + "_dpi"
-    interrupts_sv = name + "_sv"
+    cla_dpi = name + "_dpi"
+    cla_sv = name + "_sv"
 
     native.cc_library(
-        name = interrupts_dpi,
+        name = cla_dpi,
         srcs = [
-            "@rv_tester//interrupts:interrupts.cpp",
-            "@rv_tester//interrupts:nmi_sequence.cpp",
-            "@rv_tester//interrupts:external_interrupt_sequence.cpp",
+            "@rv_tester//cla:cla.cpp",
+            "@rv_tester//cla:cla_cfg_seq.cpp",
         ],
         hdrs = [
-            "@rv_tester//interrupts:interrupts.hpp",
-            "@rv_tester//interrupts:nmi_sequence.hpp",
-            "@rv_tester//interrupts:external_interrupt_sequence.hpp",
+            "@rv_tester//cla:cla.hpp",
+            "@rv_tester//cla:cla_cfg_seq.hpp",
         ],
         deps = [
             "@rv_tester//sysmod:sysmod_plusargs",
-            "@rv_tester//cosim/bridge:bridge_plusargs",
+            "@rv_tester//transactors/axi_sw:axi_sw_mst",
             "@rv_tester//common:transactor",
+            "@rv_tester//common:common",
             "@rv_tester//:structs",
             packet + "_cc",
             "@cvm//:plusargs",
@@ -33,8 +32,8 @@ def interrupts_gen(name, packet, topology, harness, visibility = None, cc_attrs 
     )
 
     verilog_library(
-        name = interrupts_sv,
-        srcs = ["@rv_tester//interrupts:interrupts.sv"],
+        name = cla_sv,
+        srcs = ["@rv_tester//cla:cla.sv"],
         deps = [
             "@cvm//:plusargs_sv",
             "@cvm//:random_sv",

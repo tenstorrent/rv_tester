@@ -13,7 +13,6 @@
 #include "trickbox/uc_helper.h"
 #include "trickbox/debugger.h"
 #include "trace_cfg/trace_cfg.h"
-#include "cla_cfg/cla_cfg.h"
 #include "cvm/topology.hpp"
 #include "sysmod_params.hpp"
 #include <string>
@@ -87,7 +86,6 @@ class sysmod {
 
   protected:
     void trace_info_handler(trace_cfg::trace_info_t i);
-    void cla_info_handler(cla_cfg::cla_info_t i);
     void timer_interrupt(clint::timer_t t);
     void sw_interrupt(clint::sw_t s);
     void dmi_write(debugger::dmi_data_t s);
@@ -119,6 +117,8 @@ class sysmod {
     uint64_t jtag_ticks_ = 0;
     uint64_t overlay_ticks_ = 0;
     bool cosim_init_ = 0;
+    bool stee = false;
+    uint64_t secure_region_start_, secure_region_end_;
 
     inval_load_s inval_load_;
     inval_crsp_s inval_crsp_;
@@ -127,4 +127,5 @@ class sysmod {
     void process(const rv_tester_transactions::sysmod::tick<>& tick);
     void store_inval_load(const inval_load_s& payload);
     void store_inval_crsp(const inval_crsp_s& payld, bool);
+    void set_secure_region(std::string region);
 };
