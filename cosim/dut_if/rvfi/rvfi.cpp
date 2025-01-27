@@ -335,7 +335,6 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.opcode = m_rvfi.insn;
   instr.disasm = whisper::disassemble(m_rvfi.insn);
   instr.uop = m_rvfi.uop;
-  instr.vec_cracked = m_rvfi.vec & !m_rvfi.last_uop;
   instr.cracked = !m_rvfi.last_uop;
   instr.trap = m_rvfi.trap || intr_ || excp_;
   instr.nmi = nmi_;
@@ -501,7 +500,6 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
     cracked_flags_ |= m_rvfi.flags;
   }
   // Accumulate vec_cracked bool across cracked uops
-  vec_cracked_ |= instr.vec_cracked;
   cracked_ |= instr.cracked;
 
   // CSR
@@ -561,7 +559,6 @@ void rvfi::append_uop_changes_to_instr(rv_instr_t& instr) {
 
   // Flags
   if (cracked_) instr.flags |= cracked_flags_;
-  vec_cracked_ = 0;
   cracked_ = 0;
   cracked_flags_ = 0;
 
