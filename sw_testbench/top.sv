@@ -50,7 +50,6 @@ module top
     import "DPI-C" context function void get_1c_stimulus(logic reset, int unsigned order);
     import "DPI-C" context function void get_2c_stimulus(logic reset, int unsigned order);
 
-    longint unsigned clocks = '0;
     int unsigned order = '0;
     assign quiesced = '1;
     assign dmi_req_ready = '0;
@@ -67,7 +66,6 @@ module top
     end
 
     always @(posedge clk[CORE_CLK_IDX]) begin
-        clocks <= clocks + 1;
         if (!reset[COLD_RESET_IDX]) begin
           order <= order + 1;
         end

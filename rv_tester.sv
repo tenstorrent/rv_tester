@@ -115,7 +115,7 @@ module rv_tester
     logic reset_window;
     logic cold_reset;
     logic warm_reset;
-    LU clocks = 0;
+    //LU clocks = 0;
     LU axi_clocks;
     bit perf_init_done = 1'b0;       // init done
     bit perf_reset_done = 1'b0;       // reset done
@@ -1325,7 +1325,7 @@ module rv_tester
     );
 
     always @(posedge dut_clk[TB_CLK_IDX]) begin
-        assert(assertion_test_cycle == '0 || clocks != LU'(assertion_test_cycle)) else $error("assertion test");
+        assert(assertion_test_cycle == '0 || clocks != 64'(assertion_test_cycle)) else $error("assertion test");
     end
 
 endmodule

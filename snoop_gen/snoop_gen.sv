@@ -9,7 +9,7 @@ import rv_tester_params::*;
   input logic clk,
   input logic sys_reset,
   input logic reset,
-  input longint unsigned clocks,
+  input logic [63:0] clocks,
   input logic [NHARTS-1:0] core_no_fetch,
   `RV_TESTER_TRANSACTIONS_SNOOP_GEN_OUTPUT_PORTS
 );
