@@ -1547,7 +1547,7 @@ void bridge::update_regs(hart_id_t hart, const whisper_state_t& w, uint32_t vec_
   // Register changes - r, f, v,
   // uint64_t dword_vec_array [vlen/64] = {0};
   uint32_t vec_slices = vlen/64;
-  std::vector<csr> csrsupdatingmip = {SIP, SIREG, MIREG, VSIREG, MTOPEI, VSTOPEI, STOPEI, MENVCFG};
+  std::vector<csr> csrsupdatingmip = {SIP, SIREG, MIREG, VSIREG, MTOPEI, VSTOPEI, STOPEI, MENVCFG, STIMECMP, VSTIMECMP};
 
   switch(w.resource) {
     case 'r':
