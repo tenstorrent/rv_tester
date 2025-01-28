@@ -55,7 +55,7 @@ class whisperClient {
     bool whisperMcmIFetch(int hart, uint64_t time, uint64_t addr, bool& valid);
     bool whisperMcmIEvict(int hart, uint64_t time, uint64_t addr, bool& valid);
     bool whisperMcmEnd(int hart, uint64_t time, bool& valid);
-    bool whisperInjectException(int hart, bool, uint64_t code, unsigned elemIx, bool& valid);
+    bool whisperInjectException(int hart, bool isLoad, uint64_t code, unsigned elemIx, bool& valid);
     bool whisperPoke(int hart, uint64_t time, char resource, uint64_t addr, uint64_t value, bool& valid);
     bool whisperPokeMem(int hart, uint64_t time, char resource, uint64_t addr, unsigned size, uint64_t value, bool& valid);
     bool whisperPeek(int hart, char resource, uint64_t addr, uint64_t& value, bool& valid);

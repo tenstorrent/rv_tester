@@ -548,12 +548,12 @@ whisperClient<URV>::whisperPeekVpr(int hart, uint64_t addr, std::array<std::uint
 // are invalid.
 template <typename URV>
 bool
-whisperClient<URV>::whisperInjectException(int hart, bool, uint64_t code, unsigned elemIx,
+whisperClient<URV>::whisperInjectException(int hart, bool isLoad, uint64_t code, unsigned elemIx,
 	    bool& valid)
 {
   req.hart = hart;
   req.type = WhisperMessageType::InjectException;
-  // FIXME req.type = isLoad;
+  req.flags = isLoad;
   req.address = code;
   req.resource = elemIx;
 
