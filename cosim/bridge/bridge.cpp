@@ -36,6 +36,7 @@ DEFINE_string(cosim_resynch_instr, "", "List of instruction mnemonics to resynch
 DEFINE_string(cosim_error_instr, "", "List of instruction mnemonics on which we should terminate with an error");
 DEFINE_string(cosim_resynch_prev_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
 DEFINE_string(cosim_resynch_csr, "", "List of csr mnemonics to resynch whisper with dut state");
+DEFINE_string(cosim_resynch_excp, "", "List of exception codes on which we should resynch whisper with dut state");
 DEFINE_string(cosim_error_excp, "", "List of exception codes on which we should terminate with an error");
 DEFINE_bool(mip_resynch, true, "Resynch whisper with dut state on mip mismatch condition");
 DEFINE_uint64(mip_resynch_threshold, 256, "Resynch whisper with dut state on mip mismatch if within threshold number of instructions");
@@ -548,6 +549,9 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
     }
   }
 
+  // Handle pre-step condition - Exceptions
+  pre_step_exception_poke(hart, d);
+
   // Handle pre-step condition - Interrupts
   pre_step_nmi_poke(hart, d, w);
   pre_step_interrupt_poke(hart, d, w);
@@ -584,7 +588,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   // Fail right away if unexpected instruction as per plusarg
   // Don't fail on instruction page faults
   std::string instr = cosim_util::get_nth_word(w.disasm, 1);
-  if (does_instr_match_error_list(instr)) {
+  if (found_in_list(instr, FLAGS_cosim_error_instr)) {
     if (instr == "illegal" && d.excp && d.ecause == INSN_PAGE_FAULT) {
       // Skip the error
     } else {
@@ -833,6 +837,23 @@ void bridge::pre_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
     return;
   }
   return;
+}
+
+void bridge::pre_step_exception_poke(hart_id_t hart, const rv_instr_t& d) {
+  if (!d.excp) {
+    IF_DEBUG("d.excp==0");
+    return;
+  }
+
+  if (found_in_list(std::to_string(d.ecause), FLAGS_cosim_resynch_excp)) {
+    bool valid;
+    bridge_log_(cvm::MEDIUM, "<{}> Inject Exception with code {}\n", d.cycle, d.ecause);
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperInjectExceptionRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0),
+      hart, d.mem_read.valid, d.ecause, 0, valid) || !valid) && FLAGS_whisper_client_check) {
+      error("Hart {}: Failed whisper API InjectException\n", hart);
+    }
+    return;
+  }
 }
 
 void bridge::pre_step_lrsc_poke(hart_id_t hart, const rv_instr_t& d) {
@@ -1127,7 +1148,7 @@ void bridge::post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whis
     return;
   }
 
-  if (d.excp && does_excp_match_error_list(std::to_string(d.ecause))) {
+  if (d.excp && found_in_list(std::to_string(d.ecause), FLAGS_cosim_error_excp)) {
     error("Hart {}: Unexpected exception: +cosim_error_excp {} ({})\n", hart, d.ecause,
       excp_to_string.count(static_cast<excp>(d.ecause)) ? excp_to_string.at(static_cast<excp>(d.ecause)) : std::to_string(d.ecause));
     return;
@@ -2005,34 +2026,17 @@ bool bridge::sc_slice_status(const uint64_t& pa) {
   return false;
 }
 
-bool bridge::does_excp_match_error_list(const std::string& excp) {
-  if (FLAGS_cosim_error_excp == "")
+bool bridge::found_in_list(const std::string& num, const std::string& list) {
+  if (list == "")
     return false;
 
-  std::stringstream ss(FLAGS_cosim_error_excp);
+  std::stringstream ss(list);
 
   while(ss.good()) {
     std::string s;
     std::getline(ss, s, ',' );
 
-    if (excp.find(s) != std::string::npos) {
-      return true;
-    }
-  }
-  return false;
-}
-
-bool bridge::does_instr_match_error_list(const std::string& instr) {
-  if (FLAGS_cosim_error_instr == "")
-    return false;
-
-  std::stringstream ss(FLAGS_cosim_error_instr);
-
-  while(ss.good()) {
-    std::string s;
-    std::getline(ss, s, ',' );
-
-    if (instr.find(s) != std::string::npos) {
+    if (num.find(s) != std::string::npos) {
       return true;
     }
   }
