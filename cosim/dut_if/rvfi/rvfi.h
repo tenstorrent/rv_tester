@@ -139,7 +139,7 @@ class rvfi {
     std::vector<vr_t> cracked_vrs_;
     std::vector<csr_t> hw_csrs_, ucode_csrs_;
     uint32_t cracked_flags_ = 0;
-    bool vec_cracked_ = false;
+    bool cracked_ = false;
     gpr_s cracked_gpr_;
 
     std::unordered_map<uint64_t, mem_t> ifetch_reqs_;
