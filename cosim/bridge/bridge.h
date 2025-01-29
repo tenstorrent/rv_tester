@@ -127,6 +127,7 @@ private:
   uint64_t translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t memclass);
 
   // Process pre/post-step
+  void pre_step_exception_poke(hart_id_t hart, const rv_instr_t& d);
   void pre_step_lrsc_poke(       hart_id_t hart, const rv_instr_t& d);
   void pre_step_debug_poke(      hart_id_t hart, const rv_instr_t& d);
   void pre_step_nmi_poke(  hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
@@ -160,8 +161,7 @@ private:
   bool is_compressed(const std::string& instr);
   bool is_ucode(const std::string& instr);
   bool is_renamed_csr(const std::string& instr);
-  bool does_excp_match_error_list(const std::string& instr);
-  bool does_instr_match_error_list(const std::string& instr);
+  bool found_in_list(const std::string& num, const std::string& list);
   bool resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const std::string& instr, const whisper_state_t& w);
   bool resynch_on_pa(const uint64_t& pa, const uint64_t& cycle=0);
   bool resynch_on_instr(const std::string& instr, const uint64_t& cycle=0);
