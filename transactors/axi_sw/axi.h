@@ -181,6 +181,8 @@ class axi : public transactor {
 
     private:
 
+        std::vector<std::pair<uint64_t, uint64_t>> slverr_addr_;
+        std::vector<std::pair<uint64_t, uint64_t>> decerr_addr_;
         const data_width_t  data_width_ ;
 
         // to/from RTL
@@ -190,15 +192,11 @@ class axi : public transactor {
 
         cvm::messenger::task<void> operator()();
         void atop_modify_write_data(const atop_t& atop, const data_t& read_data, data_t& write_data, const len_t& len);
+        std::vector<std::pair<uint64_t, uint64_t>> parse_hex_ranges(const std::string& input);
 
     public:
 
-        axi(const data_width_t& data_width, const cvm::topology::loc_t loc, const std::string& tag)
-          : transactor(loc, tag), data_width_(data_width)
-        { 
-            cvm::log(cvm::MEDIUM, "[axi] Constructing axi for loc={} id={}\n", loc, tag);
-        }
-
+        axi(const data_width_t& data_width, const cvm::topology::loc_t loc, const std::string& tag);
         axi(axi&&) = delete;
         axi& operator=(axi&&) = delete;
         axi(const axi&) = delete;

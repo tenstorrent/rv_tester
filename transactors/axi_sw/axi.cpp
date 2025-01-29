@@ -1,8 +1,15 @@
 #include <thread>
 #include <cassert>
 #include <algorithm>
+#include <vector>
+#include <string>
+#include <sstream>
+#include <regex>
 #include "axi.h"
 #include "cvm/logger.hpp"
+
+DEFINE_string(axi_resp_slverr_addr, "", "List of addresses that need slverr response, can be a single value or a range. Ex: 0x1000,0x2000-0x3000");
+DEFINE_string(axi_resp_decerr_addr, "", "List of addresses that need decerr response, can be a single value or a range. Ex: 0x1000,0x2000-0x3000");
 
 template <typename T> void atop_arithmetic(const axi::data_t& read_data, axi::data_t& write_data, const axi::atop_operation operation, const axi::len_t& len) {
 
@@ -28,6 +35,34 @@ template <typename T> void atop_arithmetic(const axi::data_t& read_data, axi::da
     for (axi::len_t i = 0; i < len; i++) {
         write_data[i] = (result >> (8*i)) & 0xff;
     }
+}
+
+axi::axi(const data_width_t& data_width, const cvm::topology::loc_t loc, const std::string& tag)
+  : transactor(loc, tag), data_width_(data_width)
+{
+    cvm::log(cvm::MEDIUM, "[axi] Constructing axi for loc={} id={}\n", loc, tag);
+    slverr_addr_ = parse_hex_ranges(FLAGS_axi_resp_slverr_addr);
+    decerr_addr_ = parse_hex_ranges(FLAGS_axi_resp_decerr_addr);
+}
+
+// Function to parse a string containing hexadecimal numbers and ranges
+std::vector<std::pair<uint64_t, uint64_t>> axi::parse_hex_ranges(const std::string& input) {
+    std::vector<std::pair<uint64_t, uint64_t>> result;
+    std::regex hex_range_regex(R"((0x[0-9a-fA-F]+)(?:-(0x[0-9a-fA-F]+))?)");
+    std::smatch match;
+    auto search_start = input.cbegin();
+
+    // Loop through all matches found in the input string
+    while (regex_search(search_start, input.cend(), match, hex_range_regex)) {
+        uint64_t min = stoull(match[1].str(), nullptr, 16);
+        uint64_t max = match[2].matched ? stoull(match[2].str(), nullptr, 16) : min;
+
+        result.emplace_back(min, max);
+        // Move search start to remaining part of the string
+        search_start = match.suffix().first;
+    }
+
+    return result;
 }
 
 void axi::atop_modify_write_data(const atop_t& atop, const data_t& read_data, data_t& write_data, const len_t& len) {
@@ -161,6 +196,7 @@ cvm::messenger::task<void> axi::operator()() {
                 std::string d;
                 std::string s;
                 axi::data_t read_data;
+                axi::resp_t read_resp;
                 if (!a.w || a.atop.transaction != NON_ATOMIC) {
                     cvm::log(cvm::FULL, "[axi] ar: id={}, addr={:#x}, len={}, size={}. tr: len={}\n", a.id, start, a.len, a.size, len);
                     read_data = co_await transactor::read(id, start, len);
@@ -209,8 +245,20 @@ cvm::messenger::task<void> axi::operator()() {
                             std::next(std::begin(read_data), data_bus_bytes - lower_byte_lane),
                             std::end(read_data)
                             );
-                  
-                    r_q_.enqueue(r_t(a.id, a.lock ? RESP_EXOKAY : RESP_OKAY, read_data, last));
+
+                    read_resp = a.lock ? RESP_EXOKAY : RESP_OKAY;
+                    for (const auto& [min, max] : slverr_addr_) {
+                        if (addr >= min && addr <= max) {
+                            read_resp = RESP_SLVERR;
+                        }
+                    }
+                    for (const auto& [min, max] : decerr_addr_) {
+                        if (addr >= min && addr <= max) {
+                            read_resp = RESP_DECERR;
+                        }
+                    }
+
+                    r_q_.enqueue(r_t(a.id, read_resp, read_data, last));
                 }
             }
 
