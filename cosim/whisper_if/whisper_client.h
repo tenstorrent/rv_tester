@@ -73,6 +73,7 @@ class whisperClient {
     bool whisperPeekFpr(int hart, uint64_t addr, uint64_t& value);
     bool whisperPeekVpr(int hart, uint64_t addr, std::array<std::uint8_t, 32>&  value);
     bool whisperGetLastLdStAddress(int hart, uint64_t& value);
+    bool whisperMcmSkipReadDataCheck(uint64_t addr, unsigned size, bool enable);
 
     // Deliver a non-maskable interrupt to whisper.
     bool whisperNmi(int hart, uint64_t time, uint64_t cause);
@@ -132,6 +133,7 @@ class whisperClient {
     CVM_MESSENGER_procedure_call(whisperGetLastLdStAddressRPC, bool (int, uint64_t&));
     CVM_MESSENGER_procedure_call(whisperNmiRPC, bool (int, uint64_t, uint64_t));
     CVM_MESSENGER_procedure_call(whisperClearNmiRPC, bool (int, uint64_t));
+    CVM_MESSENGER_procedure_call(whisperMcmSkipReadDataCheckRPC, bool (uint64_t, unsigned, bool));
 };
 
 

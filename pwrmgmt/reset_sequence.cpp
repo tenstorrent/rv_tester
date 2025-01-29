@@ -240,7 +240,7 @@ cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
   };
   co_await init_csr();
   co_await init_mmr();
-  //co_await program_fe_resetvector();
+  co_await program_fe_resetvector();
   co_await release_cpl_nofetch();
   co_return;
 }
@@ -926,7 +926,7 @@ void reset_sequence::reset_hold(uint8_t sram, uint8_t debug, uint8_t critical) {
   cvm::registry::callbacks.push(
     scope_,
     [sram,debug,critical]() {
-      cvm::log(cvm::MEDIUM, "[pwrmgmt] reset holds [sram={}, debug={}, critical={}]\n", sram, debug, critical);
+      cvm::log(cvm::NONE, "[pwrmgmt] reset holds [sram={}, debug={}, critical={}]\n", sram, debug, critical);
       pwrmgmt_reset_hold(sram, debug, critical);
     });
 }
