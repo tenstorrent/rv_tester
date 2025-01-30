@@ -112,7 +112,7 @@ cvm::messenger::task<void> scratchpad_random_sequence::random_mode() {
              }
              if(cnt_tick == rnd_traffic_cnt_tick+ 8){
                 co_await axi_read(sp_addr,4,4);
-                rnd_traffic_cnt_tick = cnt_tick + 5 + rng()% 60; //5 cycle min buffer
+                rnd_traffic_cnt_tick = cnt_tick + 5 + std::abs(rng()% 60); //5 cycle min buffer
              }
     }else if(FLAGS_sp_xtor_test_cwfr){
               if(cnt_tick == 60){
@@ -188,7 +188,7 @@ cvm::messenger::task<void> scratchpad_random_sequence::axi_write_data_granular()
 }
 cvm::messenger::task<void> scratchpad_random_sequence::sp_rand_traffic(){
    if(cnt_tick == rnd_traffic_cnt_tick){
-     uint64_t offset = rng() % 500;
+     uint64_t offset = std::abs(rng()% 500);
      sp_addr = sp_base + (offset <<6);
      co_await axi_write_granular(sp_addr);
    }
@@ -197,7 +197,7 @@ cvm::messenger::task<void> scratchpad_random_sequence::sp_rand_traffic(){
    }
    if(cnt_tick == rnd_traffic_cnt_tick+ 8){
       //axi_read(sp_addr,4,4);
-      rnd_traffic_cnt_tick = cnt_tick + 5 + rng()% 60; //5 cycle min buffer
+      rnd_traffic_cnt_tick = cnt_tick + 5 +std::abs(rng()% 60); //5 cycle min buffer
    }
   co_return;
 }
