@@ -82,7 +82,7 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
 
 rvfi::~rvfi() {
   uint32_t ncores = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
-  if (FLAGS_rvfi && ncores == 1 && (count_ == 1) && FLAGS_offline_cosim)
+  if (FLAGS_rvfi && ncores == 1 && (count_ == 1) && (FLAGS_offline_cosim == false))
     cvm::log(cvm::ERROR, "Error: rvfi termination without processing any instructions\n");
 }
 
