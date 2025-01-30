@@ -1619,6 +1619,8 @@ aclint_checker:
                 width: 64
             data:
                 width: ${TOP.PLATFORM.XLEN}
+            user:
+                width: 8
 
 reset_driver:
     num: 1

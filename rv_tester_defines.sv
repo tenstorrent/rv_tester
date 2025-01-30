@@ -367,6 +367,7 @@ package rv_tester_params;
         logic [63:0] data;
         logic [7:0] mask;
         logic [3:0] srcid;
+        logic [7:0] user;
         logic valid;
     } cr_ac_axi_pkt;
     // --------------------------------------
