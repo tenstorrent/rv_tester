@@ -127,14 +127,19 @@ import rv_tester_params::*;
   end
 
   int unsigned dut_clocks = 0;
+  int unsigned cycles = 0;
   always @(posedge dut_clk) begin
     dut_clocks <= dut_clocks + 1;
+    if (m_jtag_driver_ticks[0].valid)
+      cycles <= 0;
+    else
+      cycles <= cycles+1;
   end
 
   // m_jtag_driver_tick
-  assign m_jtag_driver_ticks[0].valid = ~dut_reset & ((dut_clocks % 200) == 0);
+  assign m_jtag_driver_ticks[0].valid = ~dut_reset & ((dut_clocks % 200) == 0) & ~jtag_busy;
   assign m_jtag_driver_ticks[0].data.location = location;
-  assign m_jtag_driver_ticks[0].data.cycle = jtag_socket_en?((jtag_socket_start | jtag_socket_end) ? dut_clocks : '0):200;
+  assign m_jtag_driver_ticks[0].data.cycle = jtag_socket_en?((jtag_socket_start | jtag_socket_end) ? dut_clocks : '0):cycles;
   
   assign jtag_rdatas[0].valid         = read_data_valid_reg;
   assign jtag_rdatas[0].data.location = location;
@@ -213,7 +218,7 @@ typedef enum logic [1:0] {
   assign pos_tdo_en= ~jtag_resp.tdo_en;
 
   assign jtag_tck_trst.tck = clk;
-  assign jtag_tck_trst.trst = reset & ~((dut_clocks > 30) && (dut_clocks <40));
+  assign jtag_tck_trst.trst = reset & ~((dut_clocks > 30) && (dut_clocks <100));
 
 assign jtag_enable_begin = jtag_enable_begin_cpp ^ jtag_enable_begin_sv;
 
