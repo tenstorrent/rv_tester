@@ -69,6 +69,7 @@ DEFINE_bool(export_control_en, false, "Enable export control to reduce FP double
 DEFINE_uint32(mem_manager_page_size, 4096, "Mem manager internal page size");
 // STEE
 DEFINE_string(stee_secure_region, "", "colon separated pair of number (same as whisper's --steesr)");
+DEFINE_uint64(pa_mask, 0x0080000000000000, "address bit(s) that act as STEE distinction");
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 
 extern "C" {
@@ -167,7 +168,7 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
             [this, source](const auto& r) {
                 if (this->dev(r.addr)){
                     cvm::log(cvm::HIGH, "[sysmod] read: src={} id={}, addr={:#x}, len={}\n", source, r.id, r.addr, r.length);
-                    cvm::registry::messenger.signal<device::read_t>(this->loc_, {r, source});
+                    cvm::registry::messenger.signal<device::read_t>(this->loc_, {{r.id, r.addr & ~FLAGS_pa_mask, r.length}, source});
                 }
         });
   }
@@ -886,9 +887,8 @@ sysmod::compose() {
 device*
 sysmod::dev(uint64_t addr) {
   if (stee) {
-    uint64_t pa_mask = 0x0080000000000000;
-    if (addr & pa_mask)
-      addr = addr & ~pa_mask;
+    if (addr & FLAGS_pa_mask)
+      addr = addr & ~FLAGS_pa_mask;
   }
   for (auto& d : devices_) {
     if (d->has_addr(addr))
