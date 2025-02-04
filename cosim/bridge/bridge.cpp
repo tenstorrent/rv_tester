@@ -494,7 +494,7 @@ void bridge::process_steps(hart_id_t hart, uint32_t n_retire, uint64_t cycle, ui
 // DUT interface callback: Instruction Retire
 void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
 
-  print(cvm::HIGH, "process_dut_instr_retire:: hart={}, d.cycle={}, d.pc={:#x}, d.tag={}, d.opcode={:#x}, d.disasm={}\n", hart,d.cycle,d.pc.pc_rdata,d.tag,d.opcode,d.disasm);
+  print(cvm::HIGH, "process_dut_instr_retire:: hart={}, d.cycle={}, d.pc={:#x}, d.tag={}, d.excp={}, d.ecause={}, d.opcode={:#x}, d.disasm={}\n", hart,d.cycle,d.pc.pc_rdata,d.tag,d.excp,d.ecause,d.opcode,d.disasm);
   print(cvm::HIGH, "                        :: mip_={}, deferred_intr_={} patch_mode_={} trap={}\n", mip_,deferred_intr_,patch_mode_,d.trap);
   for (const auto& gpr : d.gpr) {
     print(cvm::HIGH, "                        :: grd_addr={}, grd_wdata={:#x}\n", gpr.rd_addr,gpr.rd_wdata);
@@ -590,6 +590,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   std::string instr = cosim_util::get_nth_word(w.disasm, 1);
   if (found_in_list(instr, FLAGS_cosim_error_instr)) {
     if (instr == "illegal" && d.excp && d.ecause == INSN_PAGE_FAULT) {
+      IF_DEBUG("skipping illegal instruction error");
       // Skip the error
     } else {
       error("Hart {}: Unexpected instruction: +cosim_error_instr {}\n", hart, instr);
@@ -676,7 +677,7 @@ void bridge::compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w,
 
   // error on mismatch
   if (!cac_.GetStatus(hart)) {
-    IF_DEBUG("CaC compare failed...");
+    IF_DEBUG("CaC compare failed...here");
     cac_.ResetStatus(hart);
     if (FLAGS_cosim_resynch) {
       if (FLAGS_bridge_log) {
@@ -696,7 +697,7 @@ void bridge::compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w,
         resynch_whisper_on_patch(hart, d, instr, w);
 
       } else if (resynch_needed(hart, d, instr, w)) {
-        IF_DEBUG("matched condition for a resynch");
+        IF_DEBUG("matched condition for a resynch here");
         resynch(hart, d);
         cac_.ResetStatus(hart);
       } else {
@@ -1155,11 +1156,14 @@ void bridge::post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whis
   }
 
   if (d.excp && is_custom_excp(d.ecause)) {
+    IF_DEBUG("Exception found");
     bridge_log_(cvm::MEDIUM, "<{}> Custom exception detected: {}  {:#x}\n", d.cycle, d.ecause, d.pc.pc_rdata);
     // Vector conservative mode
     if (d.ecause == 55) {
+      IF_DEBUG("resynch because excp 55");
       resynch(hart, d);
     } else if (d.ecause == 33) { // custom debug mode enter exception
+      IF_DEBUG("Exception caused debug mode entry");
       rv_debug_t debug;
       debug.cycle = d.cycle;
       debug.enter = true;
@@ -1824,11 +1828,15 @@ bool bridge::is_renamed_csr(const std::string& instr) {
 
 bool bridge::resynch_needed(const hart_id_t&, const rv_instr_t& d, const std::string& instr, const whisper_state_t&) {
 
-  if (d.mem_read.valid && resynch_on_pa(d.mem_read.pa, d.cycle))
+  if (d.mem_read.valid && resynch_on_pa(d.mem_read.pa, d.cycle)) {
+    IF_DEBUG("resynch on pa match");
     return true;
+  }
 
-  if (resynch_on_instr(instr, d.cycle))
+  if (resynch_on_instr(instr, d.cycle) && (instr != "illegal")) {
+    IF_DEBUG1("resynch on instr match ",instr);
     return true;
+  }
 
   if (d.intr && d.icause==0) {
     IF_DEBUG("intr condition");
@@ -1917,12 +1925,14 @@ bool bridge::resynch_on_instr(const std::string& instr, const uint64_t& cycle) {
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[unsupported_csr_access]\n", cycle);
     return true;
   }
-  if (FLAGS_cosim_resynch_instr != "") {
+  if (FLAGS_cosim_resynch_instr == "") {
+    IF_DEBUG("checking cosim resynch instr condition");
     std::stringstream ss(FLAGS_cosim_resynch_instr);
     while(ss.good()) {
       std::string s;
       std::getline(ss, s, ',' );
-      if (instr.find(s) != std::string::npos) {
+      if ((instr.find(s) != std::string::npos) && (s != "")) {
+        IF_DEBUG1("found resynch instr condition",s);
         bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[+cosim_resynch_instr={} for instr={}]\n", cycle, FLAGS_cosim_resynch_instr, instr);
         return true;
       }
