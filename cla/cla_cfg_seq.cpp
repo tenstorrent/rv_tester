@@ -75,6 +75,7 @@ cvm::messenger::task<void> cla_cfg_seq::cla_main() {
   // Wait for no fetch
   co_await core_no_fetch();
   mask = FLAGS_hart_enable_mask;
+  nmi_event = false;
 
   cvm::log(cvm::NONE, "[cla] Starting CLA CFG sequence nmi_cnt {} trig_cnt {} \n",nmi_total_cnt, trig_total_cnt);
 
@@ -99,6 +100,7 @@ cvm::messenger::task<void> cla_cfg_seq::wait_for_clocks(uint32_t max) {
     if(elf_completed && (FLAGS_cla_nmi || FLAGS_cla_rand_nmi_trig_en)) {
       co_await clear_pend_nmi_on_terminate();
       terminate_test(1);
+      elf_completed = 0;
     }
     co_await tick();
   }
