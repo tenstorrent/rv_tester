@@ -75,6 +75,7 @@ cvm::messenger::task<void> cla_cfg_seq::cla_main() {
   // Wait for no fetch
   co_await core_no_fetch();
   mask = FLAGS_hart_enable_mask;
+  nmi_event = false;
 
   cvm::log(cvm::NONE, "[cla] Starting CLA CFG sequence nmi_cnt {} trig_cnt {} \n",nmi_total_cnt, trig_total_cnt);
 
@@ -99,6 +100,7 @@ cvm::messenger::task<void> cla_cfg_seq::wait_for_clocks(uint32_t max) {
     if(elf_completed && (FLAGS_cla_nmi || FLAGS_cla_rand_nmi_trig_en)) {
       co_await clear_pend_nmi_on_terminate();
       terminate_test(1);
+      elf_completed = 0;
     }
     co_await tick();
   }
@@ -244,7 +246,9 @@ cvm::messenger::task<void> cla_cfg_seq::disable_cla_rand_nmi_trig_en() {
   core_offset = (0x10000 * active_core);
   co_await write((cdbg_cla_ctrl_status + core_offset), SZ_8B, ((eap_ctrl | 0x40) & 0x3FC0));  // Disable EAP, CLA enabled
   reenable_rand_trig = 1;
+  cvm::log(cvm::NONE, "[cla] before NMI/Trigger Disable {}..... \n",nmi_event);
   nmi_event = !nmi_event;
+  cvm::log(cvm::NONE, "[cla] after NMI/Trigger Disable {}..... \n",nmi_event);
   trig_total_cnt = trig_total_cnt - 1;
   co_return;
 }

@@ -33,6 +33,9 @@ import rv_tester_params::*;
         cla_set_scope(location);
       end
     end
+    else begin
+      if(terminate_cla_seq) terminate_cla_seq <= 0;
+    end
 
     if(terminate_from_rv_tester) begin
       cla_send_elf_terminate();
