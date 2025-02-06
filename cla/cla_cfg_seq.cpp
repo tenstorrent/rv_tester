@@ -246,9 +246,7 @@ cvm::messenger::task<void> cla_cfg_seq::disable_cla_rand_nmi_trig_en() {
   core_offset = (0x10000 * active_core);
   co_await write((cdbg_cla_ctrl_status + core_offset), SZ_8B, ((eap_ctrl | 0x40) & 0x3FC0));  // Disable EAP, CLA enabled
   reenable_rand_trig = 1;
-  cvm::log(cvm::NONE, "[cla] before NMI/Trigger Disable {}..... \n",nmi_event);
   nmi_event = !nmi_event;
-  cvm::log(cvm::NONE, "[cla] after NMI/Trigger Disable {}..... \n",nmi_event);
   trig_total_cnt = trig_total_cnt - 1;
   co_return;
 }
