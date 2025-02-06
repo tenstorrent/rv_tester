@@ -34,7 +34,9 @@ import rv_tester_params::*;
       end
     end
     else begin
-      if(terminate_cla_seq) terminate_cla_seq <= 0;
+      /* verilator lint_off BLKSEQ */
+      if(terminate_cla_seq) terminate_cla_seq = 0;
+      /* verilator lint_on BLKSEQ */
     end
 
     if(terminate_from_rv_tester) begin
