@@ -1266,6 +1266,7 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     function automatic bit [63:0] get_mip(rv_tester_pkg::interrupt_t intr);
       bit [63:0] mip = 'h0;
+      mip[23] = intr.derr;
       mip[13] = intr.lcofi;
       mip[12] = intr.sgei;
       mip[11] = intr.mei;
@@ -1332,6 +1333,7 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     function automatic bit [63:0] get_mip_mask(rv_tester_pkg::interrupt_t intr, rv_tester_pkg::interrupt_t intr_d1);
       bit [63:0] mask = 'h0;
+      mask[23] = (intr.derr & ~intr_d1.derr);
       mask[13] = (intr.lcofi & ~intr_d1.lcofi);
       mask[12] = (intr.sgei & ~intr_d1.sgei) | (~intr.sgei & intr_d1.sgei);
       mask[11] = (intr.mei & ~intr_d1.mei) | (~intr.mei & intr_d1.mei);
@@ -1347,6 +1349,7 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     function automatic bit [63:0] get_mip_assert(rv_tester_pkg::interrupt_t intr, rv_tester_pkg::interrupt_t intr_d1);
       bit [63:0] mask = 'h0;
+      mask[23] = (intr.derr & ~intr_d1.derr);
       mask[13] = (intr.lcofi & ~intr_d1.lcofi);
       mask[12] = (intr.sgei & ~intr_d1.sgei);
       mask[11] = (intr.mei & ~intr_d1.mei);
