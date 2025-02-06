@@ -848,9 +848,10 @@ void bridge::pre_step_exception_poke(hart_id_t hart, const rv_instr_t& d) {
 
   if (found_in_list(std::to_string(d.ecause), FLAGS_cosim_resynch_excp)) {
     bool valid;
-    bridge_log_(cvm::MEDIUM, "<{}> Inject Exception with code {}\n", d.cycle, d.ecause);
+    bool is_load = (d.ecause == LD_ACCESS_FAULT);
+    bridge_log_(cvm::MEDIUM, "<{}> Inject Exception with code:{} is_load: {}\n", d.cycle, d.ecause, is_load);
     if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperInjectExceptionRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0),
-      hart, d.mem_read.valid, d.ecause, 0, valid) || !valid) && FLAGS_whisper_client_check) {
+      hart, is_load, d.ecause, 0, valid) || !valid) && FLAGS_whisper_client_check) {
       error("Hart {}: Failed whisper API InjectException\n", hart);
     }
     return;

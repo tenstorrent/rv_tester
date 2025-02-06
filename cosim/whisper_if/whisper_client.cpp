@@ -553,7 +553,7 @@ whisperClient<URV>::whisperInjectException(int hart, bool isLoad, uint64_t code,
 {
   req.hart = hart;
   req.type = WhisperMessageType::InjectException;
-  req.flags = isLoad;
+  req.flags = isLoad ? 1 : 0;
   req.address = code;
   req.resource = elemIx;
 
