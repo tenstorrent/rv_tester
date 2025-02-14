@@ -1132,7 +1132,7 @@ cvm::messenger::task<void> reset_sequence::init_csr()
       }
       cvm::log(cvm::HIGH, "Unit = {}: CSR addr {} = {}\n", unit, csr_addr, csr_value);
       for (uint32_t i = 0; i < FLAGS_num_harts; i++) {
-        co_await csr_write(0, (uint32_t)unit, csr_addr, csr_value);
+        co_await csr_write(i, (uint32_t)unit, csr_addr, csr_value);
       }
     }
   }
