@@ -67,7 +67,7 @@ class whisperClient {
     bool whisperTranslate(int hart, uint64_t vaddr, bool r, bool w, bool x, bool twoStage, bool supervisor, uint64_t& paddr, bool& valid);
     bool whisperEnterDebug(int hart);
     bool whisperExitDebug(int hart);
-    bool whisperCheckInterrupt(int hart, uint64_t mip, bool& interrupt, uint64_t& cause);
+    bool whisperCheckInterrupt(int hart, uint64_t, bool& interrupt, uint64_t& cause);
     bool whisperGetSeiPin(int hart, uint64_t& value);
     bool whisperCancelLr(int hart, bool& valid);
     bool whisperPeekGpr(int hart, uint64_t addr, uint64_t& value);

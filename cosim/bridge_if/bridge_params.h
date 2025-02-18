@@ -864,6 +864,7 @@ namespace {
         {"sc_dbg_mux_control_B",          0x1AF390},
         {"sc_chicken_bits",               0x421a0040}
     }};
+
     enum patch_mode {
         NO_PATCH = 0,
         ENTER_PATCH,

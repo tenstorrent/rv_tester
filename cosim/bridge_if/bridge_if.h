@@ -286,7 +286,6 @@ typedef struct rv_intr_s {
   std::bitset<64> set;
   std::bitset<64> clr;
   uint64_t time;
-  uint64_t mtime;
 } rv_intr_t;
 
 typedef struct rv_nmi_s {

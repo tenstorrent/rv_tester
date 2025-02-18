@@ -259,10 +259,9 @@ void rvfi::process(const rv_tester_transactions::cosim::m_interrupt_pend<>& m_in
   intr.set = std::bitset<64>(m_interrupt_pend.set);
   intr.clr = std::bitset<64>(m_interrupt_pend.clr);
   intr.time = m_interrupt_pend.time_csr;
-  intr.mtime = m_interrupt_pend.mtime_mmr;
 
   std::string dut_log;
-  dut_log += fmt::format("#NA {} {} (mip={:#x}: ", intr.cycle, id_, intr.val.to_ullong());
+  dut_log += fmt::format("#NA {} {} (mip={:#x} : ", intr.cycle, id_, intr.val.to_ullong());
   for (const auto& [k,v] : intr_to_string) {
     if (k == DEBUG)
       continue;
@@ -273,7 +272,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_interrupt_pend<>& m_in
     else if (intr.val[k])
       dut_log += fmt::format("{},", v);
   }
-  dut_log += fmt::format(" mtime={:#x}, time={:#x})\n", intr.mtime, intr.time);
+  dut_log += fmt::format(" time={:#x})\n", intr.time);
 
   if (FLAGS_rvfi_log)
     log(cvm::NONE, fmt::to_string(dut_log));

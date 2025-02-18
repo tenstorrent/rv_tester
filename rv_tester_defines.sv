@@ -258,6 +258,15 @@ package rv_tester_params;
     } bootstrap_t;
 
     // --------------------------------------
+    // Interrupts
+    // --------------------------------------
+    typedef struct packed {
+        logic                      valid;
+        logic [XLEN-1:0]           mip;
+        logic                      seip;
+    } interrupt_pend_t;
+
+    // --------------------------------------
     // RVFI
     // --------------------------------------
     parameter bit RVFI_EN = mods.TOP.PLATFORM.COSIM.RVFI.ENABLE == 1;
@@ -937,10 +946,9 @@ package rv_tester_params;
     input  rv_tester_pkg::nmi_t              nmi                [rv_tester_params::NHARTS-1:0],     \
     output rv_tester_pkg::nmi_t              nmi_pend           [rv_tester_params::NHARTS-1:0],     \
     input  rv_tester_pkg::interrupt_t        interrupt          [rv_tester_params::NHARTS-1:0],     \
-    output logic [63:0]                      interrupt_pend     [rv_tester_params::NHARTS-1:0],     \
+    output rv_tester_params::interrupt_pend_t interrupt_pend    [rv_tester_params::NHARTS-1:0],     \
     output rv_tester_params::msi_t           imsic_msi          [rv_tester_params::NHARTS-1:0],     \
     output logic [63:0]                      time_csr           [rv_tester_params::NHARTS-1:0],     \
-    output logic [63:0]                      mtime_mmr,                                             \
     output                                   debug_mode         [rv_tester_params::NHARTS-1:0],     \
     output                                   disable_checks,                                        \
     output                                   dut_terminate,                                         \
@@ -1021,10 +1029,9 @@ package rv_tester_params;
     rv_tester_pkg::nmi_t                     nmi             [rv_tester_params::NHARTS-1:0];        \
     rv_tester_pkg::nmi_t                     nmi_pend        [rv_tester_params::NHARTS-1:0];        \
     rv_tester_pkg::interrupt_t               interrupt       [rv_tester_params::NHARTS-1:0];        \
-    logic [63:0]                             interrupt_pend  [rv_tester_params::NHARTS-1:0];        \
+    rv_tester_params::interrupt_pend_t       interrupt_pend  [rv_tester_params::NHARTS-1:0];        \
     rv_tester_params::msi_t                  imsic_msi       [rv_tester_params::NHARTS-1:0];        \
     logic [63:0]                             time_csr        [rv_tester_params::NHARTS-1:0];        \
-    logic [63:0]                             mtime_mmr;                                             \
     logic                                    debug_mode      [rv_tester_params::NHARTS-1:0];        \
     logic                                    disable_checks;                                        \
     logic                                    dut_terminate;                                         \

@@ -375,8 +375,6 @@ cosim:
                 width: 64
             time_csr:
                 width: 64
-            mtime_mmr:
-                width: 64
 
     m_core_nmi:
         domain: 1
