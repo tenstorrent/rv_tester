@@ -206,9 +206,9 @@ module axi_sw #(
     assign axi_slv_aw_ready = !b_queue_full;
     assign axi_slv_ar_ready = !ar_history_full;
     assign axi_slv_w_ready  = !axi_mst_w_last || !w_last_queue_full;
-    assign axi_slv_b_valid  = !b_queue_empty && !w_last_queue_empty;
+    assign axi_slv_b_valid  = reset_n ? (!b_queue_empty && !w_last_queue_empty) : '0;
     assign axi_slv_b_resp   = b_queue_aw_lock ? RESP_EXOKAY : RESP_OKAY;
-    assign axi_slv_r_valid  = !r_queue_empty && read_latency_requirement_met;
+    assign axi_slv_r_valid  = reset_n ? (!r_queue_empty && read_latency_requirement_met) : '0;
 
     axi_sw_fifo #(
         .D         (1),
@@ -600,7 +600,7 @@ module axi_sw_mst #(
     export "DPI-C" function axi_sw_mst_ar;
 
     always_comb begin
-        axi_mst_ar_valid = !ar_queue_empty;
+        axi_mst_ar_valid = reset_n ? !ar_queue_empty : '0;
         axi_mst_ar_id    = ar.id;
         axi_mst_ar_addr  = ar.addr;
         axi_mst_ar_len   = ar.len;
@@ -628,7 +628,7 @@ module axi_sw_mst #(
     export "DPI-C" function axi_sw_mst_aw;
 
     always_comb begin
-        axi_mst_aw_valid = !aw_queue_empty;
+        axi_mst_aw_valid = reset_n ? !aw_queue_empty : '0;
         axi_mst_aw_id    = aw.id;
         axi_mst_aw_addr  = aw.addr;
         axi_mst_aw_len   = aw.len;
@@ -676,7 +676,7 @@ module axi_sw_mst #(
     export "DPI-C" function axi_sw_mst_w_8;
 
     always_comb begin
-        axi_mst_w_valid = !w_queue_empty;
+        axi_mst_w_valid = reset_n ? !w_queue_empty : '0;
         axi_mst_w_data  = w.data;
         axi_mst_w_strb  = w.strb;
         axi_mst_w_last  = w.last;
