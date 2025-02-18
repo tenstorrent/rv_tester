@@ -282,10 +282,12 @@ typedef struct rv_debug_s {
 
 typedef struct rv_intr_s {
   uint64_t cycle;
-  uint64_t mip;
-  uint64_t mip_mask;
-  uint64_t mip_assert;
-} rv_intr_t;  
+  std::bitset<64> val;
+  std::bitset<64> set;
+  std::bitset<64> clr;
+  uint64_t time;
+  uint64_t mtime;
+} rv_intr_t;
 
 typedef struct rv_nmi_s {
   uint64_t cycle;

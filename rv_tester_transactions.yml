@@ -361,17 +361,21 @@ cosim:
             order:
                 width: 64
 
-    m_core_intr:
+    m_interrupt_pend:
         domain: 1
         num: 1
         fields:
             cycle:
                 width: 64
-            mip:
+            val:
                 width: 64
-            mip_mask:
+            set:
                 width: 64
-            mip_assert:
+            clr:
+                width: 64
+            time_csr:
+                width: 64
+            mtime_mmr:
                 width: 64
 
     m_core_nmi:
@@ -387,16 +391,14 @@ cosim:
 
     m_imsic_msi:
         domain: 1
-        num: 3
+        num: 1
         fields:
             cycle:
                 width: 64
             addr:
                 width: 64
             data:
-                width: 512
-            size:
-                width: 8
+                width: 32
 
     m_debug:
         domain: 1

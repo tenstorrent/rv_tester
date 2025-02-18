@@ -52,7 +52,7 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     rv_tester_transactions::cosim::m_csri<>,
     rv_tester_transactions::cosim::m_trap<>,
     rv_tester_transactions::cosim::m_core_nmi<>,
-    rv_tester_transactions::cosim::m_core_intr<>,
+    rv_tester_transactions::cosim::m_interrupt_pend<>,
     rv_tester_transactions::cosim::m_imsic_msi<>,
     rv_tester_transactions::cosim::m_mcmi_read<>,
     rv_tester_transactions::cosim::m_mcmi_insert<>,
@@ -246,21 +246,37 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
   }
 }
 
-void rvfi::process(const rv_tester_transactions::cosim::m_core_intr<>& m_core_intr) {
+void rvfi::process(const rv_tester_transactions::cosim::m_interrupt_pend<>& m_interrupt_pend) {
   if (terminated_ || in_reset_)
     return;
 
-  if (loc_ != m_core_intr.location)
+  if (loc_ != m_interrupt_pend.location)
     return;
 
   rv_intr_t intr;
-  intr.cycle = m_core_intr.cycle;
-  intr.mip = m_core_intr.mip;
-  intr.mip_mask = m_core_intr.mip_mask;
-  intr.mip_assert = m_core_intr.mip_assert;
+  intr.cycle = m_interrupt_pend.cycle;
+  intr.val = std::bitset<64>(m_interrupt_pend.val);
+  intr.set = std::bitset<64>(m_interrupt_pend.set);
+  intr.clr = std::bitset<64>(m_interrupt_pend.clr);
+  intr.time = m_interrupt_pend.time_csr;
+  intr.mtime = m_interrupt_pend.mtime_mmr;
+
+  std::string dut_log;
+  dut_log += fmt::format("#NA {} {} (mip={:#x}: ", intr.cycle, id_, intr.val.to_ullong());
+  for (const auto& [k,v] : intr_to_string) {
+    if (k == DEBUG)
+      continue;
+    if (intr.set[k])
+      dut_log += fmt::format("{}+,", v);
+    else if (intr.clr[k])
+      dut_log += fmt::format("{}-,", v);
+    else if (intr.val[k])
+      dut_log += fmt::format("{},", v);
+  }
+  dut_log += fmt::format(" mtime={:#x}, time={:#x})\n", intr.mtime, intr.time);
 
   if (FLAGS_rvfi_log)
-    log(cvm::NONE, "#{} {} 0 (mip:{:#x} mask:{:#x} assert:{:#x})\n", count_, intr.cycle, intr.mip, intr.mip_mask, intr.mip_assert);
+    log(cvm::NONE, fmt::to_string(dut_log));
 
   if (!FLAGS_cosim)
     return;
@@ -296,20 +312,20 @@ void rvfi::process(const rv_tester_transactions::cosim::m_imsic_msi<>& m_imsic_m
   if (loc_ != m_imsic_msi.location)
     return;
 
-  if (!FLAGS_cosim)
-    return;
-
   mem_t mem;
   mem.valid = true;
   mem.cycle = m_imsic_msi.cycle;
   mem.pa = m_imsic_msi.addr;
-  mem.data = m_imsic_msi.data.to_ullong();
+  mem.data = m_imsic_msi.data;
   mem.size = 4;
 
-  bridge_->process_dut_imsic_msi(id_, mem);
-  if (FLAGS_rvfi_log) {
+  if (FLAGS_rvfi_log)
     log(cvm::NONE, "#{} {} {} (imsic: [addr={:#x} data={:#x}])\n", count_, mem.cycle, id_, mem.pa, mem.data);
-  }
+
+  if (!FLAGS_cosim)
+    return;
+
+  bridge_->process_dut_imsic_msi(id_, mem);
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_debug<>&) {
@@ -573,10 +589,9 @@ void rvfi::append_uop_changes_to_instr(rv_instr_t& instr) {
 }
 
 void rvfi::print_csr(csr_t& csr) {
-  if (!FLAGS_rvfi_log) {
-    return;
-  }
-  log(cvm::NONE, "#NA {} {} {} {:016x} {:09x} c {:016x} {:016x} {:016x} (hw update)\n", csr.cycle, csr.hart, priv_to_string.at(static_cast<priv>(priv_)), 0, 0, csr.csr_addr, csr.csr_wdata, csr.csr_wmask);
+  if (!FLAGS_rvfi_log)
+    log(cvm::NONE, "#NA {} {} {} {:016x} {:09x} c {:016x} {:016x} {:016x} (hw update)\n",
+      csr.cycle, csr.hart, priv_to_string.at(static_cast<priv>(priv_)), 0, 0, csr.csr_addr, csr.csr_wdata, csr.csr_wmask);
 }
 
 void rvfi::print_instr(const rv_instr_t& instr) {
@@ -674,7 +689,9 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
     dut_log += fmt::format(" (patch)");
 
   dut_log += fmt::format("\n");
-  log(cvm::NONE, fmt::to_string(dut_log));
+
+  if (FLAGS_rvfi_log)
+    log(cvm::NONE, fmt::to_string(dut_log));
 }
 void rvfi::process(const rv_tester_transactions::cosim::m_steps<>& m_steps) {
   if (terminated_ || in_reset_)
