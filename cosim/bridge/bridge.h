@@ -143,7 +143,7 @@ private:
   void process_imsic_msi(hart_id_t hart, const mem_t& m);
   void poke_timer(hart_id_t hart, uint64_t cycle, std::bitset<64> t_mip, uint64_t time);
   void poke_local_interrupt(hart_id_t hart, uint64_t cycle, std::bitset<64> l_mip);
-  void check_and_defer_interrupt(int line, hart_id_t hart, uint64_t time, std::bitset<64> mip);
+  void check_and_defer_interrupt(hart_id_t hart, uint64_t time, std::bitset<64> mip);
   void check_interrupt(int line, hart_id_t hart, uint64_t cycle, uint64_t mip, bool& taken, uint64_t& cause);
   void defer_interrupt(int line, hart_id_t hart, uint64_t time, uint64_t mip);
   void poke_nmi(hart_id_t hart, uint64_t time, uint64_t cause);
@@ -183,8 +183,6 @@ private:
   void resynch(hart_id_t hart, const rv_instr_group_t& d);
   void resynch(hart_id_t hart, const rv_instr_t& d);
   std::string get_nth_word(const std::string& s, int n);
-  void peek_resource(hart_id_t hart, char resource, uint64_t addr, uint64_t& data);
-  void poke_resource(hart_id_t hart, uint64_t cycle, char resource, uint64_t addr, uint64_t data);
   bool hyp_enabled() { return  (get_csr(id_, src_t::dut, MISA) & 0x80) == 0x80; }
 
 private:
