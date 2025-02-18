@@ -625,6 +625,7 @@ sysmod::store_inval_crsp(const inval_crsp_s& payld, bool mcm) {
     for (int i=0; i<8; ++i) 
       read_data |= uint64_t(data[i]) << (i*8);
      bool valid = true;
+     cvm::log(cvm::FULL, "[CBO_INVAL_MONITOR - CRSP POKE] Whisper Poke to Address : {:#x}, with data : {:#x}\n",(ld_addr + (offset*8)),read_data);
      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', (ld_addr + (offset*8)), 8, read_data, valid) || !valid) && FLAGS_whisper_client_check) {
        cvm::log(cvm::ERROR, "Error: store_inval_crsp failed to poke whisper memory");
     }
