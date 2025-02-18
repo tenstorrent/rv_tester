@@ -129,7 +129,6 @@ import rv_tester_params::*;
     input rv_tester_pkg::nmi_t nmi_pend,
     input rv_tester_params::interrupt_pend_t interrupt_pend,
     input rv_tester_params::msi_t imsic_msi,
-    input logic [63:0] time_csr,
     input debug_mode,
     input longint eot_addr,
     input bit poke_event_in,
@@ -1257,7 +1256,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign m_interrupt_pends[0].data.val = interrupt_pend.mip;
     assign m_interrupt_pends[0].data.set = interrupt_pend.mip & ~mip_d1;
     assign m_interrupt_pends[0].data.clr = ~interrupt_pend.mip & mip_d1;
-    assign m_interrupt_pends[0].data.time_csr = time_csr;
+    assign m_interrupt_pends[0].data.time_csr = interrupt_pend.time_csr;
 
     // m_imsic_msi
     assign m_imsic_msis[0].valid = ~dut_reset && imsic_msi.valid && rvfi_enabled;

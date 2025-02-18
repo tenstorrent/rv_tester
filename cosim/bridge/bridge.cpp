@@ -2397,7 +2397,7 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
   // Timer
   if (i.set[MTI] || i.set[STI] || i.set[VSTI]) {
     if (FLAGS_bridge_log)
-      bridge_log_(cvm::MEDIUM, "<{}> Timer interrupt set/cleared: mip={} time={:#x}\n", i.cycle, to_string(i), i.time);
+      bridge_log_(cvm::MEDIUM, "<{}> Timer interrupt set: mip={} time={:#x}\n", i.cycle, to_string(i), i.time);
 
     std::bitset<64> t_mip = i.set[MTI] << MTI | i.set[STI] << STI | i.set[VSTI] << VSTI;
     poke_timer(hart, i.cycle, t_mip, i.time);
@@ -2415,6 +2415,7 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
 
 void bridge::poke_timer(hart_id_t hart, uint64_t cycle, std::bitset<64> t_mip, uint64_t time) {
   poke_resource(hart, cycle, 'c', time_csr, time);
+  poke_resource(hart, cycle, 'm', mtime_mmr, time);
 
   check_and_defer_interrupt(hart, cycle, t_mip);
 }

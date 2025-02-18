@@ -746,7 +746,6 @@ module rv_tester
           .nmi_pend(nmi_pend[c]),
           .interrupt_pend(interrupt_pend[c]),
           .imsic_msi(imsic_msi[c]),
-          .time_csr(time_csr[c]),
           .debug_mode(debug_mode[c]),
           .terminate(cosim_terminate[c]),
           .eot_addr(eot_addr),
