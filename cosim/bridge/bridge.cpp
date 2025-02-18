@@ -207,8 +207,6 @@ void bridge::reset() {
     return;
   }
 
-
-
   if(FLAGS_enable_sp_init){ //only poke num ways when sp_init is required
     uint64_t poke_data = uint64_t(FLAGS_enable_sp_init);
     if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', memmap_.at("boot").base + boot_sp_init_offset, 8, poke_data, valid)|| !valid) && FLAGS_whisper_client_check){
@@ -220,6 +218,13 @@ void bridge::reset() {
        error("Hart {}: Failed to poke boot memory\n", id_);
        return;
     }
+  }
+  if (FLAGS_matp_swid) {
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', memmap_.at("boot").base + boot_matp_swid_offset, 8, uint64_t(FLAGS_matp_swid), valid)|| !valid) && FLAGS_whisper_client_check){
+      error("Hart {}: Failed to poke boot memory to write matp\n", id_);
+      return;
+    }
+
   }
 
   cvm::registry::messenger.signal<uint64_t>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0), uint64_t(0));
