@@ -161,6 +161,12 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
        print(cvm::LOW, "Doubling max_cycles for sim run to {}\n",FLAGS_max_cycle );
     }
     int32_t nharts = cvm::topology::attr(platform, "NHARTS").second;
+
+    for(int32_t i = 0 ; i < nharts ; i++) {
+      int unsigned location = cvm::topology::get_from_type("CORE", i);
+      cvm::registry::messenger.connect<uint64_t>(location , [this] (const auto& payload) { return this->store_cbo_inv_addr(payload); });
+    }
+
     if((FLAGS_max_stall_cycle < (20000 + (nharts-1)*2000)) && (FLAGS_max_stall_cycle != 0)){
         FLAGS_max_stall_cycle = (20000 + (nharts-1)*2000);
         print(cvm::LOW, "Overwriting max_stall_cycle to {} cycles\n",FLAGS_max_stall_cycle );
@@ -230,6 +236,11 @@ void bridge::reset() {
   cvm::registry::messenger.signal<uint64_t>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0), uint64_t(0));
   resetsstc_poke(id_,0,STIMECMP);
   resetsstc_poke(id_,0,VSTIMECMP);
+}
+
+void bridge::store_cbo_inv_addr(const uint64_t& payload) {
+  curr_cbo_inv_addr_ = payload;
+  print(cvm::FULL, "CBO INVAL ADDRESS from CBO_inval_monitor : {:#x}\n",curr_cbo_inv_addr_);
 }
 
 void bridge::get_gp_reg(uint32_t reg, uint64_t& data)
@@ -1886,6 +1897,10 @@ bool bridge::resynch_on_pa(const uint64_t& pa, const uint64_t& cycle) {
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[tbox_read]\n", cycle);
     return true;
   }
+  if(cbo_inv_access(pa)) {
+    print(cvm::FULL, "CBO Inval address detected in bridge -> RESYNCH\n");
+    return true;
+  }
   if (uart_access(pa)) {
     IF_DEBUG("uart_access condition");
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[uart_access]\n", cycle);
@@ -2027,6 +2042,12 @@ bool bridge::unsupported_csr_access(const std::string& instr) {
     IF_DEBUG("CSR instruction") ;
     return true;
   }
+  return false;
+}
+
+bool bridge::cbo_inv_access(const uint64_t& pa) {
+  if((pa >> 6) == (curr_cbo_inv_addr_ >> 6))
+    return true;
   return false;
 }
 
