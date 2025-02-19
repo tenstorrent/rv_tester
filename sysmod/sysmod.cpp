@@ -745,10 +745,13 @@ sysmod::terminate(htif::terminate_t t) {
   else
     cvm::registry::messenger.signal_async<rv_tester::terminate_called>(cvm::topology::get_from_type("PLATFORM", 0), rv_tester::terminate_called{}, prio);
 
-  cvm::registry::callbacks.push(
-      scope(),
-      sysmod_terminate
-  );
+  char *env_var = std::getenv("ZEBU_OFFLINE_DPI");
+  if (!(env_var != nullptr && std::string(env_var) == "1")) {
+      cvm::registry::callbacks.push(
+          scope(),
+          sysmod_terminate
+      );
+  }
 }
 
 void
