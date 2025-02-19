@@ -27,7 +27,7 @@ namespace {
     constexpr uint64_t boot_rand_mmr_offset = 0x7000;
     constexpr uint64_t boot_rand_csr_offset = 0x8000;
     constexpr uint64_t time_csr = 0xC01;
-    constexpr uint64_t mtime_mmr = 0x4218'0000;
+    constexpr uint64_t mtimecmp_mmr = 0x4218'8000;
 
     constexpr uint32_t opcode_nop    = 0x13;
     constexpr uint32_t opcode_ret    = 0x8067;

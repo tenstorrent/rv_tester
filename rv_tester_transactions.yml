@@ -367,8 +367,10 @@ cosim:
         fields:
             cycle:
                 width: 64
-            val:
+            mip:
                 width: 64
+            seip:
+                width: 1
             set:
                 width: 64
             clr:

@@ -122,6 +122,7 @@ private:
   bool is_custom_csr(uint64_t addr);
   bool is_pmacfg_csr(uint64_t addr);
   bool is_chicken_bit_csr(uint64_t addr);
+  bool is_mtimecmp_mmr(uint64_t addr);
   void peek_resource(hart_id_t hart, char resource, uint64_t addr, uint64_t& data);
   void poke_resource(hart_id_t hart, uint64_t cycle, char resource, uint64_t addr, uint64_t data);
 

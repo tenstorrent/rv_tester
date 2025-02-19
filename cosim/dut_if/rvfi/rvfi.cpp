@@ -255,13 +255,14 @@ void rvfi::process(const rv_tester_transactions::cosim::m_interrupt_pend<>& m_in
 
   rv_intr_t intr;
   intr.cycle = m_interrupt_pend.cycle;
-  intr.val = std::bitset<64>(m_interrupt_pend.val);
+  intr.mip = std::bitset<64>(m_interrupt_pend.mip);
+  intr.seip = m_interrupt_pend.seip;
   intr.set = std::bitset<64>(m_interrupt_pend.set);
   intr.clr = std::bitset<64>(m_interrupt_pend.clr);
   intr.time = m_interrupt_pend.time_csr;
 
   std::string dut_log;
-  dut_log += fmt::format("#NA {} {} (mip={:#x} : ", intr.cycle, id_, intr.val.to_ullong());
+  dut_log += fmt::format("#NA {} {} (mip={:#x} : ", intr.cycle, id_, intr.mip.to_ullong());
   for (const auto& [k,v] : intr_to_string) {
     if (k == DEBUG)
       continue;
@@ -269,10 +270,11 @@ void rvfi::process(const rv_tester_transactions::cosim::m_interrupt_pend<>& m_in
       dut_log += fmt::format("{}+,", v);
     else if (intr.clr[k])
       dut_log += fmt::format("{}-,", v);
-    else if (intr.val[k])
+    else if (intr.mip[k])
       dut_log += fmt::format("{},", v);
   }
-  dut_log += fmt::format(" time={:#x})\n", intr.time);
+  dut_log += fmt::format(" : seip={})", intr.seip);
+  dut_log += fmt::format(" : time={:#x})\n", intr.time);
 
   if (FLAGS_rvfi_log)
     log(cvm::NONE, fmt::to_string(dut_log));

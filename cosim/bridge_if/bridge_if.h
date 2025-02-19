@@ -282,7 +282,8 @@ typedef struct rv_debug_s {
 
 typedef struct rv_intr_s {
   uint64_t cycle;
-  std::bitset<64> val;
+  std::bitset<64> mip;
+  bool seip;
   std::bitset<64> set;
   std::bitset<64> clr;
   uint64_t time;

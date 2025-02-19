@@ -967,8 +967,7 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
     IF_DEBUG("dut intr==1 and whisper intr==0");
     if (FLAGS_bridge_log)
       bridge_log_(cvm::MEDIUM, "<{}> DUT took interrupt, Whisper did not. dcause:[{}]\n", w.time, d.icause);
-    check_interrupt(__LINE__, hart, d.cycle, prev_mip_.to_ullong(), w_intr, w_cause);
-    if (w_intr && (w_cause == d.icause)) {
+    if ((mip_age_ == 0) && prev_mip_[d.icause]) {
       bridge_log_(cvm::MEDIUM, "<{}> cause:[{}] (Timing sensitive mismatch: Resynch and keep going)\n", w.time, d.icause);
       if(d.icause != 9)
         poke_mip(__LINE__, hart, w.time, (uint64_t)1 << d.icause);
@@ -988,8 +987,7 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
     if (FLAGS_bridge_log)
       bridge_log_(cvm::MEDIUM, "<{}> DUT vs Whisper interrupt cause mismatch [{},{}] age [{},{}] \n",
         w.time, d.icause, w_cause, intr_age_[d.icause], intr_age_[w_cause]);
-    check_interrupt(__LINE__, hart, d.cycle, prev_mip_.to_ullong(), w_intr, w_cause);
-    if (w_intr && (w_cause == d.icause)) {
+    if ((mip_age_ == 0) & prev_mip_[d.icause]) {
       std::bitset<64> timing_case_w_mip;
       bridge_log_(cvm::MEDIUM, "<{}> cause: [{}] (Timing sensitive mismatch: Resynch and keep going)\n",
         w.time, d.icause);
@@ -2212,6 +2210,11 @@ void bridge::process_dut_mcm_bypass(hart_id_t hart, mem_t& m) {
      }
   }
 
+  // FIXME Workaround whisper bug: poke mtimecmp in addition to bypass
+  if (is_mtimecmp_mmr(m.pa)) {
+    poke_resource(hart, m.cycle, 'm', m.pa, m.data);
+  }
+
   if (m.v_ext){
     std::vector<uint64_t> data_vec = create_dword_vec(m.data_vec);
     if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmVecBypassRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, data_vec, valid)|| !valid) && FLAGS_whisper_client_check) {
@@ -2376,7 +2379,7 @@ std::string bridge::to_string(rv_intr_t& i) {
       mip_str += fmt::format("{}+,", v);
     else if (i.clr[k])
       mip_str += fmt::format("{}-,", v);
-    else if (i.val[k])
+    else if (i.mip[k])
       mip_str += fmt::format("{},", v);
   }
   return mip_str;
@@ -2384,7 +2387,8 @@ std::string bridge::to_string(rv_intr_t& i) {
 
 void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
   // Store for tracking
-  mip_ = i.val;
+  mip_ = i.mip;
+  e_mip_ = (i.mip[MEI] << MEI) | ((i.mip[SEI] | i.seip) << SEI);
 
   // Handle each interrupt category
   // External
@@ -2403,6 +2407,13 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
     poke_timer(hart, i.cycle, t_mip, i.time);
   }
 
+  // FIXME RVTOOLS-3856: Workaround to poke timer mip bits
+  if (i.clr[MTI] || i.clr[STI] || i.clr[VSTI]) {
+    if (FLAGS_bridge_log)
+      bridge_log_(cvm::MEDIUM, "<{}> Timer interrupt cleared: mip={} time={:#x}\n", i.cycle, to_string(i), i.time);
+    poke_mip(__LINE__, hart, i.cycle, mip_);
+  }
+
   // Local
   if (i.set[LCOFI]) {
     if (FLAGS_bridge_log)
@@ -2415,7 +2426,9 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
 
 void bridge::poke_timer(hart_id_t hart, uint64_t cycle, std::bitset<64> t_mip, uint64_t time) {
   poke_resource(hart, cycle, 'c', time_csr, time);
-  poke_resource(hart, cycle, 'm', mtime_mmr, time);
+
+  // FIXME RVTOOLS-3856: Workaround to poke timer mip bits
+  poke_mip(__LINE__, hart, cycle, mip_);
 
   check_and_defer_interrupt(hart, cycle, t_mip);
 }
@@ -2470,7 +2483,8 @@ void bridge::check_and_defer_interrupt(hart_id_t hart, uint64_t time, std::bitse
     error("Hart {}: Failed whisper API call - whisperGetDeferredInterrupts\n", hart);
     return;
   }
-  defer_interrupt(__LINE__, hart, time, mip.to_ullong() | w_defer_mip);
+
+   defer_interrupt(__LINE__, hart, time, mip.to_ullong() | w_defer_mip);
 }
 
 void bridge::defer_interrupt(int line, hart_id_t hart, uint64_t cycle, uint64_t mip) {
@@ -2746,6 +2760,10 @@ bool bridge::is_pmacfg_csr(uint64_t addr) {
 
 bool bridge::is_chicken_bit_csr(uint64_t addr) {
   return (addr >= C_FECFG && addr <= C_LSCFG15);
+}
+
+bool bridge::is_mtimecmp_mmr(uint64_t addr) {
+  return (addr == (mtimecmp_mmr + (id_ * 8)));
 }
 
 void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data, cac::optional_const_ref<uint64_t> mask_ref, bool shadow_csr, bool check_en) {
