@@ -101,6 +101,7 @@ class sysmod {
   private:
 
     bool lz4_load(const std::string load);
+    std::shared_ptr<TT_APLIC::Aplic> create_aplic() const;
 
     std::string hostname = "localhost";
     int port = 50001;

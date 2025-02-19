@@ -18,6 +18,7 @@
 #include "null_dev/null_dev.h"
 #include "heartbeat/heartbeat.h"
 #include "htif/htif.h"
+#include "aplic/aplic_device.h"
 #include "uart8250/uart8250.h"
 #include "trickbox/trickbox.h"
 #include "rv_tester/rv_tester_structs.h"
@@ -72,6 +73,8 @@ DEFINE_string(stee_secure_region, "", "colon separated pair of number (same as w
 DEFINE_uint32(matp_swid, 0, "MATP.SWID");
 DEFINE_uint64(pa_mask, 0x0080000000000000, "address bit(s) that act as STEE distinction");
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
+// APLIC
+DEFINE_uint32(aplic_sources, 33, "Number of APLIC interrupt sources");
 
 extern "C" {
   void sysmod_timer_interrupt(unsigned hartid, unsigned val);
@@ -772,6 +775,75 @@ sysmod::set_secure_region(std::string region) {
   cvm::registry::messenger.call<whisperClient<uint64_t>::secureRegionRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), secure_region_start_, secure_region_end_);
 }
 
+std::shared_ptr<TT_APLIC::Aplic>
+sysmod::create_aplic() const {
+  auto masters = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST");
+  auto platform_loc = cvm::topology::get_from_type("PLATFORM", 0);
+  auto nharts = cvm::topology::attr(platform_loc, "NHARTS").second;
+
+  std::vector<TT_APLIC::DomainParams> domains;
+
+  // Aplic is handled specially because we must look through all the aplic
+  // domains before constructing it.
+  for (const auto &d : memmap_) {
+    const auto type = d.second.type;
+
+    if (type != "aplic_domain")
+      continue;
+
+    const auto base = d.second.base;
+    const auto size = d.second.size;
+    const auto tag  = d.second.tag;
+    const auto attributes = d.second.attributes;
+
+    if (attributes.is_null()) {
+      throw std::runtime_error("Domain " + tag + " does not have attributes");
+    }
+
+    const auto parent_json = attributes.at("parent");
+    const std::optional<std::string> parent = parent_json.is_null() ?
+      static_cast<std::optional<std::string>>(std::nullopt) :
+      parent_json.template get<std::string>();
+    const size_t child_index = attributes.at("child_index");
+    const auto privilege = attributes.at("is_machine") ?
+      TT_APLIC::Privilege::Machine :
+      TT_APLIC::Privilege::Supervisor;
+    const std::vector<unsigned> hart_indices = attributes.at("hart_indices");
+
+
+    domains.emplace_back(tag, parent, child_index, base, size, privilege,
+        hart_indices);
+  }
+
+  if (domains.empty()) {
+    return nullptr;
+  }
+
+  std::shared_ptr<TT_APLIC::Aplic> aplic =
+    std::make_shared<TT_APLIC::Aplic>(nharts, FLAGS_aplic_sources, domains);
+
+  auto axi_mst_loc = masters[0];
+  auto msiCallback = [axi_mst_loc] (uint64_t addr, uint32_t data) {
+    cvm::log(cvm::DEBUG, "Aplic sent IMSIC interrupt {:#x} (@ {:#x})\n", data, addr);
+
+    std::vector<uint8_t> data_vec(64, 0);
+    std::vector<bool> strb(64, false);
+    for (int i = 0; i < 4; i++) {
+      data_vec[i] = data & 0xff;
+      strb[i] = true;
+      data >>= 8;
+    }
+
+    cvm::registry::messenger.signal(axi_mst_loc,
+        transactor::write_request_t{addr, 64, data_vec, strb, true });
+    return true;
+  };
+  aplic->setMsiCallback(msiCallback);
+
+  return aplic;
+}
+
+
 void
 sysmod::compose() {
 
@@ -787,6 +859,8 @@ sysmod::compose() {
   std::shared_ptr<mem_manager> mm = std::make_shared<mem_manager>(mem_manager::opts{.page_size = FLAGS_mem_manager_page_size});
 
   try {
+    std::shared_ptr<TT_APLIC::Aplic> aplic = create_aplic();
+
     for (const auto& d : memmap_) {
       const auto base = d.second.base;
       const auto size = d.second.size;
@@ -870,6 +944,8 @@ sysmod::compose() {
             loc_,
             [&](trace_cfg::trace_cfg_read_t i) { return this->trace_cfg_read_req_router(i); });
 
+      } else if (type == "aplic_domain") {
+        device = std::make_unique<aplic_device>(tag, base, size, loc_, aplic);
       } else {
         cvm::log(cvm::ERROR, "Error: unknown sysmod type {} \n", type);
       }

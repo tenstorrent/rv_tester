@@ -20,9 +20,9 @@ memmap::memmap(cvm::topology::loc_t loc, unsigned) {
  cvm::registry::messenger.procedure<getRPC>  (loc, [this] (std::map<std::string, memmap_entry_t>& m) { return this->get(m);});
 }
 
-void memmap::add_entry(std::string base_str, std::string type, std::string tag, uint64_t base, uint64_t size) {
+void memmap::add_entry(std::string base_str, std::string type, std::string tag, uint64_t base, uint64_t size, nlohmann::json attributes) {
   uint64_t end = base + size - 1;
-  memmap_entry_t memory(base_str, base, size, type, tag, end);
+  memmap_entry_t memory(base_str, base, size, type, tag, end, attributes);
   memmap_[tag] = memory;
 }
 
@@ -58,7 +58,11 @@ bool memmap::parse() {
     std::string tag      = el.at("tag");
     uint64_t base = std::stoull((std::string)el.at("base"), nullptr, 16);
     uint64_t size = std::stoull((std::string)el.at("size"), nullptr, 16);
-    add_entry(base_str, type, tag, base, size);
+    nlohmann::json attributes = el.contains("attributes")
+      ? el.at("attributes")
+      : nlohmann::json();
+
+    add_entry(base_str, type, tag, base, size, attributes);
   }
   //check legality + overlaps
   std::vector<std::pair<std::string, memmap_entry_t>> vec_m(memmap_.begin(), memmap_.end());
