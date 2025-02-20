@@ -71,7 +71,7 @@ DEFINE_uint32(mem_manager_page_size, 4096, "Mem manager internal page size");
 DEFINE_string(stee_secure_region, "", "colon separated pair of number (same as whisper's --steesr)");
 DEFINE_uint32(matp_swid, 0, "MATP.SWID");
 DEFINE_uint64(pa_mask, 0x0080000000000000, "address bit(s) that act as STEE distinction");
-DEFINE_bool(zebu_offline_dpi_mode, false, "FLAG for running in offline moode.  Set to true if env var ZEBU_OFFLINE_DPI == 1");
+DEFINE_bool(sysmod_terminate, true, "Set to false for offline DPI mode");
 
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 
@@ -747,7 +747,7 @@ sysmod::terminate(htif::terminate_t t) {
   else
     cvm::registry::messenger.signal_async<rv_tester::terminate_called>(cvm::topology::get_from_type("PLATFORM", 0), rv_tester::terminate_called{}, prio);
 
-  if (!FLAGS_zebu_offline_dpi_mode) {
+  if (FLAGS_sysmod_terminate) {
       cvm::registry::callbacks.push(
           scope(),
           sysmod_terminate
