@@ -37,6 +37,7 @@ namespace {
       bool metric         = false;
       bool nonzero_reset  = false;
       unsigned shadow_csr = 0;
+      bool allowlist_custom_csr = false; // perform core arch checks for these allowlisted custom CSRs
     };
 
     struct mmr_reg {
@@ -437,6 +438,7 @@ namespace {
       CSR(HSTATEEN3H,       0x61F, "hstateen3h")                               \
       CSR(STIMECMP,         0x14D, "stimecmp")                                 \
       CSR(VSTIMECMP,        0x24D, "vstimecmp")                                \
+      CSR(C_MATP,           0x7C7, "c_matp", true, true, 0, true)                 \
 
     enum csr : unsigned {
 #define CSR(name, value, ...) \
@@ -492,6 +494,7 @@ namespace {
         INSN_PAGE_FAULT         = 12,
         LD_PAGE_FAULT           = 13,
         ST_AMO_PAGE_FAULT       = 15,
+        HARDWARE_ERROR          = 19,
         INST_GUEST_PAGE_FAULT   = 20,
         LD_GUEST_PAGE_FAULT     = 21,
         VIRT_INST_FAULT         = 22,
@@ -514,6 +517,7 @@ namespace {
         {INSN_PAGE_FAULT         , "INSN_PAGE_FAULT"}      ,
         {LD_PAGE_FAULT           , "LD_PAGE_FAULT"}        ,
         {ST_AMO_PAGE_FAULT       , "ST_AMO_PAGE_FAULT"}    ,
+        {HARDWARE_ERROR          , "HARDWARE_ERROR"}    ,
         {INST_GUEST_PAGE_FAULT   , "INST_GUEST_PAGE_FAULT"},
         {LD_GUEST_PAGE_FAULT     , "LD_GUEST_PAGE_FAULT"}  ,
         {VIRT_INST_FAULT         , "VIRT_INST_FAULT"}      ,
