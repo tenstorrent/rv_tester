@@ -186,6 +186,7 @@ cvm::messenger::task<void> cla_cfg_seq::configure_cla_rand_nmi_trig_en() {
   event_count = (rng()% 71) + 200;       // Event on Delay 200-270 CLK cycle
   eap_ctrl = (15 << 7);                   // Considering 15 value as per waves
   active_core = (FLAGS_num_harts == 1) ? 0 : (rng() % FLAGS_num_harts);
+  reenable_rand_trig = 0;
   core_offset = (0x10000 * active_core);
 
   cvm::log(cvm::NONE, "[cla] NMI/Trigger Configs for Core - {} nmi_event {} \n", active_core, nmi_event);
@@ -201,27 +202,23 @@ cvm::messenger::task<void> cla_cfg_seq::configure_cla_rand_nmi_trig_en() {
   }
   else {
     co_await write((cdbg_cla_ctrl_status + core_offset), SZ_8B, (eap_ctrl | 0x40));
+    wdata = 0; wdata = (wait_on_count << 16);
+    co_await write((cdbg_cla_counter0 + core_offset), SZ_8B, wdata); // CNT0 - On count
+    wdata = 0; wdata = (event_count << 16);
+    co_await write((cdbg_cla_counter1 + core_offset), SZ_8B, wdata); // CNT1 - event count
+    wdata = 0; wdata = (wait_off_count << 16);
+    co_await write((cdbg_cla_counter2 + core_offset), SZ_8B, wdata); // CNT2 - Off count
 
-    for(uint32_t core_num = 0; core_num < FLAGS_num_harts; core_num++) {
-      wdata = 0; wdata = (wait_on_count << 16);
-      co_await write((cdbg_cla_counter0 + core_offset), SZ_8B, wdata); // CNT0 - On count
-      wdata = 0; wdata = (event_count << 16);
-      co_await write((cdbg_cla_counter1 + core_offset), SZ_8B, wdata); // CNT1 - event count
-      wdata = 0; wdata = (wait_off_count << 16);
-      co_await write((cdbg_cla_counter2 + core_offset), SZ_8B, wdata); // CNT2 - Off count
-
-      co_await write((cdbg_node0_eap1_cfg + core_offset), SZ_8B, 0x10040); // ALWAYS ON, AUTOINCR0
-      co_await write((cdbg_node0_eap0_cfg + core_offset), SZ_8B, 0x101645); // TARGET MATCH-0, CLRCNT0, AUTOINCR1, DEST-1
-      if(nmi_event){
-        co_await write((cdbg_node1_eap1_cfg + core_offset), SZ_8B, 0x10009); // ALWAYS ON, NMI
-      }
-      else {
-        co_await write((cdbg_node1_eap1_cfg + core_offset), SZ_8B, 0x1081D); // ALWAYS ON, TRIGGER-0,1
-      }
-      co_await write((cdbg_node1_eap0_cfg + core_offset), SZ_8B, 0x131A56); // TRAGET MATCH-1. CLRCNT1, AUTOINCR2, DEST-2
-      co_await write((cdbg_node2_eap0_cfg + core_offset), SZ_8B, 0x161900); // TRAGET MATCH-2. CLRCNT2, DEST-0
+    co_await write((cdbg_node0_eap1_cfg + core_offset), SZ_8B, 0x10040); // ALWAYS ON, AUTOINCR0
+    co_await write((cdbg_node0_eap0_cfg + core_offset), SZ_8B, 0x101645); // TARGET MATCH-0, CLRCNT0, AUTOINCR1, DEST-1
+    if(nmi_event){
+      co_await write((cdbg_node1_eap1_cfg + core_offset), SZ_8B, 0x10009); // ALWAYS ON, NMI
     }
-
+    else {
+      co_await write((cdbg_node1_eap1_cfg + core_offset), SZ_8B, 0x1081D); // ALWAYS ON, TRIGGER-0,1
+    }
+    co_await write((cdbg_node1_eap0_cfg + core_offset), SZ_8B, 0x131A56); // TRAGET MATCH-1. CLRCNT1, AUTOINCR2, DEST-2
+    co_await write((cdbg_node2_eap0_cfg + core_offset), SZ_8B, 0x161900); // TRAGET MATCH-2. CLRCNT2, DEST-0
     co_await write((cdbg_cla_ctrl_status + core_offset), SZ_8B, (eap_ctrl | 0x60));
   }
   co_return;
