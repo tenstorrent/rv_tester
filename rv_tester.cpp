@@ -44,6 +44,7 @@ DEFINE_int32(rand_dmi_driver_dly, 0, "Random delay cycles, to be used while driv
 DEFINE_int32(dm_single_step_count, 0, "No of times core to single step, to be used while driving DMI transactions");
 DEFINE_int32(sdtrig_multitrigger, 0, "No of trigger condigurations for sdtrig multitrigger test");
 DEFINE_int32(trigger_config, 0, "No of store addr configurations for sdtrig test");
+DECLARE_bool(zebu_offline_dpi_mode);
 
 
 extern "C" void rv_tester_terminate();
@@ -70,8 +71,7 @@ class logger_instrument {
             // we want this to be low prio and async so it goes behind existing rvfi transactions in the queue
             // because of QoS this could have been seen before all rvfi transactions up to this instruction were processed
             cvm::registry::messenger.signal_async<rv_tester::terminate_called>(loc, rv_tester::terminate_called{}, cvm::messenger::lowest_priority);
-            char *env_var = std::getenv("ZEBU_OFFLINE_DPI");
-            if (!(env_var != nullptr && std::string(env_var) == "1")) {
+            if (!(FLAGS_zebu_offline_dpi_mode)) {
                 cvm::registry::messenger.signal_async<rv_tester::terminate_called>(loc, rv_tester::terminate_called{}, cvm::messenger::lowest_priority);
                 cvm::registry::callbacks.push(
                     scope,
@@ -254,7 +254,11 @@ extern "C" {
 
     void rv_tester_streaming_dpi_init() {
         char *env_var = std::getenv("ZEBU_OFFLINE_DPI");
-        if (env_var != nullptr && std::string(env_var) == "1") {
+        if ((env_var != nullptr && std::string(env_var) == "1")) {
+           FLAGS_zebu_offline_dpi_mode = true;
+        }
+
+        if (FLAGS_zebu_offline_dpi_mode) {
             rv_tester_parse_flags();
             rv_tester_cvm_error_handler();
             rv_tester_build_registry();

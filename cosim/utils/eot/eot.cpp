@@ -199,20 +199,19 @@ eot::~eot() {
 }
 
 extern "C" {
-  bool terminated = false;
+  static bool hw_eot_terminated = false;
   std::uint64_t eot_get_addr() {
-    terminated = false;
+    hw_eot_terminated = false;
     return cvm::registry::messenger.call<eot::get_tohost_addr_RPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0));
   }
   void eot_hw_process(std::uint64_t hart, std::uint64_t cycle, std::uint64_t addr, std::uint64_t data) {
      cvm::registry::messenger.call<eot::process_tohost_RPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0),hart, cycle, addr, data);
   }
   void call_check_max_instr(std::uint64_t cycle, std::uint64_t count) {
-    if ((FLAGS_eot == "max_instr") && !terminated) {
+    if ((FLAGS_eot == "max_instr") && !hw_eot_terminated) {
       if (FLAGS_max_instr > 0 && count > FLAGS_max_instr) {
-        terminated = true;
         cvm::registry::messenger.call<eot::check_max_instr_RPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0),cycle, count);
-        terminated = true;
+        hw_eot_terminated = true;
       }
     }
   }
