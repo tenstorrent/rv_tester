@@ -186,6 +186,7 @@ cvm::messenger::task<void> cla_cfg_seq::configure_cla_rand_nmi_trig_en() {
   event_count = (rng()% 71) + 200;       // Event on Delay 200-270 CLK cycle
   eap_ctrl = (15 << 7);                   // Considering 15 value as per waves
   active_core = (FLAGS_num_harts == 1) ? 0 : (rng() % FLAGS_num_harts);
+  reenable_rand_trig = 0;
   core_offset = (0x10000 * active_core);
 
   cvm::log(cvm::NONE, "[cla] NMI/Trigger Configs for Core - {} nmi_event {} \n", active_core, nmi_event);
