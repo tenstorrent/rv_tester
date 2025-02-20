@@ -885,6 +885,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
         }
       }
       else {
+        m.data_vec = extract_bits_as_bitset(m.data_vec, m.size*8, 0);
         bridge_->process_dut_mcm_read(m_mcmi_read.hart, m);
       }
   } else {
@@ -1110,7 +1111,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
       m.pa     = m_mcmi_bypass.addr;
       m.size   = std::popcount(m_mcmi_bypass.mask);
       m.data   = m_mcmi_bypass.data;
-      m.data_vec  = m_mcmi_bypass.data_vec;
+      m.data_vec = extract_bits_as_bitset(m_mcmi_bypass.data_vec, m.size*8, 0);
       m.v_ext  = m_mcmi_bypass.v_ext;
       m.amo    = m_mcmi_bypass.amo;
       m.amo_op = m_mcmi_bypass.amo_op;
@@ -1399,6 +1400,17 @@ std::string rvfi::mem_attr_to_string(uint32_t mem_attr) {
 
     return result;
 };
+
+std::bitset<256> rvfi::extract_bits_as_bitset(const std::bitset<256>& bitset, size_t msb, size_t lsb) {
+    std::bitset<256> result;
+
+    size_t width = msb - lsb;
+    for (size_t i = 0; i < width; ++i) {
+        result[i] = bitset[lsb + i];
+    }
+
+    return result;
+}
 
 void rvfi::process(const rv_tester::terminate_called&) {
   cvm::log(cvm::HIGH, "[RVFI] termination signaled, stopping further rvfi processing\n");
