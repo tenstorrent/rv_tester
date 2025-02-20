@@ -37,6 +37,7 @@ namespace {
       bool metric         = false;
       bool nonzero_reset  = false;
       unsigned shadow_csr = 0;
+      bool allowlist_custom_csr = false; // perform core arch checks for these allowlisted custom CSRs
     };
 
     struct mmr_reg {
@@ -437,6 +438,7 @@ namespace {
       CSR(HSTATEEN3H,       0x61F, "hstateen3h")                               \
       CSR(STIMECMP,         0x14D, "stimecmp")                                 \
       CSR(VSTIMECMP,        0x24D, "vstimecmp")                                \
+      CSR(C_MATP,           0x7C7, "c_matp", true, true, 0, true)                 \
 
     enum csr : unsigned {
 #define CSR(name, value, ...) \
