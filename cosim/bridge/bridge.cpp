@@ -2038,7 +2038,7 @@ bool bridge::hpm_counter_read(const std::string& instr) {
 
 bool bridge::unsupported_csr_access(const std::string& instr) {
   if ((instr.find("fe_dbg_mux_sel") != std::string::npos) ||
-      (instr.find("c_") != std::string::npos)) {
+      ((instr.find("c_") != std::string::npos) && !(is_csr_allowlist(instr)))) {
     IF_DEBUG("CSR instruction") ;
     return true;
   }
@@ -2755,6 +2755,19 @@ bool bridge::is_pmacfg_csr(uint64_t addr) {
   return (addr >= PMACFG0 && addr <= PMACFG15);
 }
 
+bool bridge::is_csr_allowlist(uint64_t addr) {
+  return csrs[addr].allowlist_custom_csr; // perform core arch checks for these allowlisted custom CSRs
+}
+
+bool bridge::is_csr_allowlist(const std::string& csr_name) {
+    for (const auto& [addr, csr] : csrs) {
+        if (csr_name.find(csr.name) != std::string::npos) {
+            return csr.allowlist_custom_csr;
+        }
+    }
+    throw std::invalid_argument("Invalid CSR name: " + csr_name);
+}
+
 bool bridge::is_chicken_bit_csr(uint64_t addr) {
   return (addr >= C_FECFG && addr <= C_LSCFG15);
 }
@@ -2762,11 +2775,12 @@ bool bridge::is_chicken_bit_csr(uint64_t addr) {
 void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data, cac::optional_const_ref<uint64_t> mask_ref, bool shadow_csr, bool check_en) {
   if (is_custom_csr(addr) &&
       !is_pmacfg_csr(addr) &&
+      !is_csr_allowlist(addr) &&
       !is_chicken_bit_csr(addr))
     return;
 
   bool check = true;
-  if (is_chicken_bit_csr(addr))
+  if (is_chicken_bit_csr(addr) && !is_csr_allowlist(addr))
     check = false; // FIXME: Reset values in json
   else
     check = check_en;

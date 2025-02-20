@@ -121,6 +121,8 @@ private:
   std::string get_csr_name(const std::string& addr);
   bool is_custom_csr(uint64_t addr);
   bool is_pmacfg_csr(uint64_t addr);
+  bool is_csr_allowlist(uint64_t addr);
+  bool is_csr_allowlist(const std::string& csr_name);
   bool is_chicken_bit_csr(uint64_t addr);
 
   void translation_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
