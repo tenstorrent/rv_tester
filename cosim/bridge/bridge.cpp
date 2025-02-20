@@ -2073,9 +2073,8 @@ bool bridge::found_in_list(const std::string& num, const std::string& list) {
     std::string s;
     std::getline(ss, s, ',' );
 
-    if (num.find(s) != std::string::npos) {
+    if (num == s)
       return true;
-    }
   }
   return false;
 }
