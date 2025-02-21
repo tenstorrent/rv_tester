@@ -811,11 +811,8 @@ sysmod::create_aplic() const {
     const auto privilege = attributes.at("is_machine") ?
       TT_APLIC::Privilege::Machine :
       TT_APLIC::Privilege::Supervisor;
-    const std::vector<unsigned> hart_indices = attributes.at("hart_indices");
 
-
-    domains.emplace_back(tag, parent, child_index, base, size, privilege,
-        hart_indices);
+    domains.emplace_back(tag, parent, child_index, base, size, privilege);
   }
 
   if (domains.empty()) {
