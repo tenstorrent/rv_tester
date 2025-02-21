@@ -79,6 +79,8 @@ class reset_sequence {
     cvm::messenger::task<uint64_t>csr_read(uint32_t core_id, uint32_t unit,uint64_t addr);
     cvm::messenger::task<void>init_csr();
     cvm::messenger::task<void>init_mmr();
+    cvm::messenger::task<void>rmw_csr();
+    cvm::messenger::task<void>rmw_mmr();
 
     std::vector<uint64_t> convert_to_dword_array(const std::vector<uint8_t>& byte_array);
     std::vector<uint8_t> convert_to_byte_array(const std::vector<uint64_t>& dword_array);
