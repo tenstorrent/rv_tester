@@ -2,6 +2,7 @@ cc_library(
     name = "device",
     srcs = ["@rv_tester//sysmod:device.cpp"],
     hdrs = ["@rv_tester//sysmod:device.h",
+            "@rv_tester//sysmod:io_device.h",
             "@rv_tester//sysmod:pm_common.h"],
     deps = [
         "@cvm//:topology",

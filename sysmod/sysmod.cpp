@@ -19,7 +19,8 @@
 #include "heartbeat/heartbeat.h"
 #include "htif/htif.h"
 #include "aplic/aplic_device.h"
-#include "uart8250/uart8250.h"
+#include "Uart8250.hpp"
+#include "io_device.h"
 #include "trickbox/trickbox.h"
 #include "rv_tester/rv_tester_structs.h"
 #include "rv_tester/rv_tester_plusargs.h"
@@ -75,6 +76,8 @@ DEFINE_uint64(pa_mask, 0x0080000000000000, "address bit(s) that act as STEE dist
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 // APLIC
 DEFINE_uint32(aplic_sources, 33, "Number of APLIC interrupt sources");
+// Uart8250
+DEFINE_uint32(uart8250_iid, 1, "Interrupt identity of the uart8250 device");
 
 extern "C" {
   void sysmod_timer_interrupt(unsigned hartid, unsigned val);
@@ -885,8 +888,9 @@ sysmod::compose() {
             [&](htif::terminate_t t) { return this->terminate(t); });
 
       } else if (type == "uart8250") {
-        device = std::make_unique<uart8250>(tag, base, loc_);
-
+        device = std::make_unique<io_device<WdRiscv::Uart8250>>(tag, loc_,
+            base, 32, aplic, FLAGS_uart8250_iid,
+            std::make_unique<WdRiscv::PTYChannel>());
       } else if (type == "dm") {
         // TODO: cvm::ERROR
        // assert(masters.size() > 0);
