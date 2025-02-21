@@ -53,6 +53,7 @@
  DECLARE_int32(jtag_max_snippets);
  DECLARE_bool(reverse_jtag_rdata);
  DECLARE_bool(continue_on_jtag_err);
+ DECLARE_bool(en_jtag_driver_logs);
  
 class jtag_sequence {
 
