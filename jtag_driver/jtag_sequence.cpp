@@ -320,16 +320,16 @@ void jtag_sequence::parse_jtag_from_csv()
 void jtag_sequence::process_input_string(std::string line)
 {
 
-if(FLAGS_en_jtag_driver_logs)
-  cvm::log(cvm::HIGH, "[jtag_sequence] PROCESS INPUT STRING :{}\n", line);
+  if(FLAGS_en_jtag_driver_logs)
+    cvm::log(cvm::HIGH, "[jtag_sequence] PROCESS INPUT STRING :{}\n", line);
   std::string word;
       row.clear();
- if(FLAGS_en_jtag_driver_logs)
-  cvm::log(cvm::HIGH, "[[jtag_sequence] REMOVE WHITESPACES :{}\n", line);
+  if(FLAGS_en_jtag_driver_logs)
+    cvm::log(cvm::HIGH, "[[jtag_sequence] REMOVE WHITESPACES :{}\n", line);
       line.erase(std::remove_if(line.begin(), line.end(), ::isspace), line.end());
       std::transform(line.begin(), line.end(), line.begin(), ::tolower);
   if(FLAGS_en_jtag_driver_logs)
-  cvm::log(cvm::HIGH, "[[jtag_sequence] REMOVE WHITESPACES DONE :{}\n", line);
+    cvm::log(cvm::HIGH, "[[jtag_sequence] REMOVE WHITESPACES DONE :{}\n", line);
       std::stringstream str(line);
       if(line == "qt"){
         execute_qt = true;
@@ -898,13 +898,13 @@ cvm::messenger::task<void> jtag_sequence::open_socket_to_listen(){
             while (true) {
                 int valread = ::read(new_socket, buffer, 1024);
                 if (valread > 0) {
-                   if(FLAGS_en_jtag_driver_logs)
-                    cvm::log(cvm::HIGH,"[jtag_sequence]Received: {} \n", buffer );
+                    if(FLAGS_en_jtag_driver_logs)
+                      cvm::log(cvm::HIGH,"[jtag_sequence]Received: {} \n", buffer );
                     // Got buffer from client
                     //convert char buffer to string
                     std::string input_line(buffer);
                     if(FLAGS_en_jtag_driver_logs)
-                    cvm::log(cvm::HIGH, "[jtag_sequence]Received input line: {} \n", input_line );
+                      cvm::log(cvm::HIGH, "[jtag_sequence]Received input line: {} \n", input_line );
                     process_input_string(input_line);
                     drive_jtag_cmds();
                     
@@ -1067,11 +1067,11 @@ std::string jtag_sequence::formatHexWithPadding(uint64_t hexNumber, int n) {
   if(FLAGS_en_jtag_driver_logs)
   cvm::log(cvm::HIGH, "[jtag_sequence] In JTAG RESP converted array size = {}\n", convertedArray.size());
   for (uint64_t num : convertedArray) {
-     if(FLAGS_en_jtag_driver_logs)
-        cvm::log(cvm::HIGH, "[jtag_sequence] In JTAG RESP converted array element = {:#x}\n", num);
+        if(FLAGS_en_jtag_driver_logs)
+           cvm::log(cvm::HIGH, "[jtag_sequence] In JTAG RESP converted array element = {:#x}\n", num);
         rdata_Array.push_back(num);
-     if(FLAGS_en_jtag_driver_logs)
-        cvm::log(cvm::HIGH, "[jtag_sequence] In JTAG RESP pushed array element = {:#x}\n", num);
+        if(FLAGS_en_jtag_driver_logs)
+           cvm::log(cvm::HIGH, "[jtag_sequence] In JTAG RESP pushed array element = {:#x}\n", num);
   }
   loop_rdata = convertedArray[0]; 
 

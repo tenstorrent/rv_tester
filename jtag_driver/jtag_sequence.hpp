@@ -396,11 +396,11 @@ std::bitset<N> reverseLowerBits(const std::bitset<N>& bs, std::size_t split_leng
     }
 
     if(FLAGS_reverse_jtag_rdata){
-       if(FLAGS_en_jtag_driver_logs)
-        cvm::log(cvm::HIGH, "\n[jtag_sequence] jtag_rdata after shifting {} , reg_data_length {}\n", jtag_rdata_shifted,reg_length_data_local);
+        if(FLAGS_en_jtag_driver_logs)
+          cvm::log(cvm::HIGH, "\n[jtag_sequence] jtag_rdata after shifting {} , reg_data_length {}\n", jtag_rdata_shifted,reg_length_data_local);
         jtag_reversed_rdata = reverseLowerBits(jtag_rdata_shifted, reg_length_data_local);
-       if(FLAGS_en_jtag_driver_logs)
-        cvm::log(cvm::HIGH, "\n[jtag_sequence] Reversed jtag_rdata {} , reg_data_length {}\n", jtag_reversed_rdata,reg_length_data_local);
+        if(FLAGS_en_jtag_driver_logs)
+          cvm::log(cvm::HIGH, "\n[jtag_sequence] Reversed jtag_rdata {} , reg_data_length {}\n", jtag_reversed_rdata,reg_length_data_local);
       }
 
     std::vector<uint64_t> convertedArray = {};
