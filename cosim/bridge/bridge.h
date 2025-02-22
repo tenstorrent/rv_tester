@@ -123,6 +123,7 @@ private:
   bool is_pmacfg_csr(uint64_t addr);
   bool is_chicken_bit_csr(uint64_t addr);
   bool is_mtimecmp_mmr(uint64_t addr);
+  bool is_mtime_mmr(uint64_t addr);
   void peek_resource(hart_id_t hart, char resource, uint64_t addr, uint64_t& data);
   void poke_resource(hart_id_t hart, uint64_t cycle, char resource, uint64_t addr, uint64_t data);
 
@@ -181,6 +182,7 @@ private:
   bool mip_mismatch(const std::string& instr);
   bool topi_mismatch(const std::string& instr);
   bool topei_mismatch(const std::string& instr);
+  void topei_resynch(hart_id_t hart, const rv_instr_t& d, const csr_t& csr);
   void resynch(hart_id_t hart, const rv_instr_group_t& d);
   void resynch(hart_id_t hart, const rv_instr_t& d);
   std::string get_nth_word(const std::string& s, int n);

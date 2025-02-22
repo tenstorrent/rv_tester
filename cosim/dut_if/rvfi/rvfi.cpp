@@ -273,7 +273,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_interrupt_pend<>& m_in
     else if (intr.mip[k])
       dut_log += fmt::format("{},", v);
   }
-  dut_log += fmt::format(" : seip={})", intr.seip);
+  dut_log += fmt::format(" : seip={}", intr.seip);
   dut_log += fmt::format(" : time={:#x})\n", intr.time);
 
   if (FLAGS_rvfi_log)

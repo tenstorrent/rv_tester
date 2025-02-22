@@ -2047,8 +2047,7 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
   for (const auto& gpr : d.gpr) {
     if (gpr.valid) {
       if (FLAGS_bridge_log)
-        bridge_log_(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: X{}={:#x}\n", d.cycle, step_, gpr.rd_addr,
-          gpr.rd_wdata);
+        bridge_log_(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: X{}={:#x}\n", d.cycle, step_, gpr.rd_addr, gpr.rd_wdata);
 
       if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, d.cycle, 'r', gpr.rd_addr, gpr.rd_wdata, valid)|| !valid) && FLAGS_whisper_client_check) {
         error("Hart {}: Failed to resynch GPR\n", hart);
@@ -2060,8 +2059,7 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
   for (const auto& fpr : d.fpr) {
     if (fpr.valid) {
       if (FLAGS_bridge_log)
-        bridge_log_(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: F{}={:#x}\n", d.cycle, step_, fpr.frd_addr,
-          fpr.frd_wdata);
+        bridge_log_(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: F{}={:#x}\n", d.cycle, step_, fpr.frd_addr, fpr.frd_wdata);
 
       if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, d.cycle, 'f', fpr.frd_addr, fpr.frd_wdata, valid)|| !valid) && FLAGS_whisper_client_check) {
         error("Hart {}: Failed to resynch FP\n", hart);
@@ -2073,8 +2071,7 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
   if (d.mem_write.valid) {
     uint64_t pa = translate(hart, d.mem_write.va, w_.priv, memclass_t::write);
     if (FLAGS_bridge_log)
-      bridge_log_(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: M[{:#x}]={:#x}\n", d.cycle, step_, pa,
-        d.mem_write.data);
+      bridge_log_(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: M[{:#x}]={:#x}\n", d.cycle, step_, pa, d.mem_write.data);
 
     if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, d.cycle, 'm', pa, d.mem_write.size, d.mem_write.data, valid)|| !valid) && FLAGS_whisper_client_check) {
       error("Hart {}: Failed to resynch memory\n", hart);
@@ -2082,45 +2079,62 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
     }
   }
 
+  if (d.mem_read.valid) {
+    // Special case: Resynch mtime
+    if (is_mtime_mmr(d.mem_read.pa)) {
+      if (FLAGS_bridge_log)
+        bridge_log_(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: M[{:#x}]={:#x}\n", d.cycle, step_, d.mem_read.pa, d.mem_read.data);
+
+      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, d.cycle, 'm', d.mem_read.pa, d.mem_read.size, d.mem_read.data, valid)|| !valid) && FLAGS_whisper_client_check) {
+        error("Hart {}: Failed to resynch memory\n", hart);
+        return;
+      }
+    }
+  }
+
   for (auto& csr : d.csr) {
     if (csr.valid) {
       resynch_csr_ = true;
-      // Resynch msi poke for topei cases
+      // Special case: Resynch for topei cases
       if (csr.csr_addr == STOPEI || csr.csr_addr == VSTOPEI || csr.csr_addr == MTOPEI) {
-        bridge_log_(cvm::MEDIUM, "<{}> topei resynch\n", d.cycle);
-
-        // First, replay the csr operation to claim the same old MSI IID as DUT
-        uint64_t data = 0;
-        uint64_t count = 0;
-        while ((!d.gpr.empty() && (data != (d.gpr[0].rd_wdata))) && (count < FLAGS_topei_claim_threshold)) {
-          peek_resource(hart, 'c', csr.csr_addr, data);
-          poke_resource(hart, d.cycle, 'c', csr.csr_addr, data);
-          count++;
-          bridge_log_(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: topei claim csr:{:#x} w.data={:#x} d.data={:#x}\n", d.cycle, step_, csr.csr_addr, data, d.gpr[0].rd_wdata);
-        }
-
-        // Then, inject the in-flight new MSI IIDs to get the state identical to DUT
-        for (const auto &m : msi_) {
-          if (FLAGS_bridge_log)
-            bridge_log_(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: Mpoke[{:#x}]={:#x}\n", d.cycle, step_, m.pa, m.data);
-
-          if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, d.cycle, 'm', m.pa, m.size, m.data, valid)|| !valid) && FLAGS_whisper_client_check) {
-            error("Hart {}: Failed to resynch memory\n", hart);
-            return;
-          }
-          process_imsic_msi(hart, m);
-        }
+        topei_resynch(hart, d, csr);
         continue;
       }
       if (FLAGS_bridge_log)
-        bridge_log_(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: C[{:#x}]={:#x}\n", d.cycle, step_, csr.csr_addr,
-          get_csr(hart, src_t::dut, csr.csr_addr));
+        bridge_log_(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: C[{:#x}]={:#x}\n", d.cycle, step_, csr.csr_addr, get_csr(hart, src_t::dut, csr.csr_addr));
 
       if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, d.cycle, 'c', csr.csr_addr, get_csr(hart, src_t::dut, csr.csr_addr), valid)|| !valid) && FLAGS_whisper_client_check) {
         error("Hart {}: Failed to resynch CSRs\n", hart);
         return;
       }
     }
+  }
+}
+
+void bridge::topei_resynch(hart_id_t hart, const rv_instr_t& d, const csr_t& csr) {
+  bridge_log_(cvm::MEDIUM, "<{}> topei resynch\n", d.cycle);
+
+  // First, replay the csr operation to claim the same old MSI IID as DUT
+  uint64_t data = 0;
+  uint64_t count = 0;
+  while ((!d.gpr.empty() && (data != (d.gpr[0].rd_wdata))) && (count < FLAGS_topei_claim_threshold)) {
+    peek_resource(hart, 'c', csr.csr_addr, data);
+    poke_resource(hart, d.cycle, 'c', csr.csr_addr, data);
+    count++;
+    bridge_log_(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: topei claim csr:{:#x} w.data={:#x} d.data={:#x}\n", d.cycle, step_, csr.csr_addr, data, d.gpr[0].rd_wdata);
+  }
+
+  // Then, inject the in-flight new MSI IIDs to get the state identical to DUT
+  for (const auto &m : msi_) {
+    if (FLAGS_bridge_log)
+      bridge_log_(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: Mpoke[{:#x}]={:#x}\n", d.cycle, step_, m.pa, m.data);
+
+    bool valid;
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, d.cycle, 'm', m.pa, m.size, m.data, valid)|| !valid) && FLAGS_whisper_client_check) {
+      error("Hart {}: Failed to resynch memory\n", hart);
+      return;
+    }
+    process_imsic_msi(hart, m);
   }
 }
 
@@ -2208,11 +2222,6 @@ void bridge::process_dut_mcm_bypass(hart_id_t hart, mem_t& m) {
         print(cvm::HIGH, "process_dut_mcm_bypass: [Hart={} adding tag={} to mcm_orders\n",hart,m.tag);
         mcm_orders_.insert( std::pair<uint64_t,int>(m.tag,1) );
      }
-  }
-
-  // FIXME Workaround whisper bug: poke mtimecmp in addition to bypass
-  if (is_mtimecmp_mmr(m.pa)) {
-    poke_resource(hart, m.cycle, 'm', m.pa, m.data);
   }
 
   if (m.v_ext){
@@ -2408,11 +2417,11 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
   }
 
   // FIXME RVTOOLS-3856: Workaround to poke timer mip bits
-  if (i.clr[MTI] || i.clr[STI] || i.clr[VSTI]) {
-    if (FLAGS_bridge_log)
-      bridge_log_(cvm::MEDIUM, "<{}> Timer interrupt cleared: mip={} time={:#x}\n", i.cycle, to_string(i), i.time);
-    poke_mip(__LINE__, hart, i.cycle, mip_);
-  }
+  // if (i.clr[MTI] || i.clr[STI] || i.clr[VSTI]) {
+  //   if (FLAGS_bridge_log)
+  //     bridge_log_(cvm::MEDIUM, "<{}> Timer interrupt cleared: mip={} time={:#x}\n", i.cycle, to_string(i), i.time);
+  //   poke_mip(__LINE__, hart, i.cycle, mip_);
+  // }
 
   // Local
   if (i.set[LCOFI]) {
@@ -2428,7 +2437,7 @@ void bridge::poke_timer(hart_id_t hart, uint64_t cycle, std::bitset<64> t_mip, u
   poke_resource(hart, cycle, 'c', time_csr, time);
 
   // FIXME RVTOOLS-3856: Workaround to poke timer mip bits
-  poke_mip(__LINE__, hart, cycle, mip_);
+  // poke_mip(__LINE__, hart, cycle, mip_);
 
   check_and_defer_interrupt(hart, cycle, t_mip);
 }
@@ -2764,6 +2773,10 @@ bool bridge::is_chicken_bit_csr(uint64_t addr) {
 
 bool bridge::is_mtimecmp_mmr(uint64_t addr) {
   return (addr == (mtimecmp_mmr + (id_ * 8)));
+}
+
+bool bridge::is_mtime_mmr(uint64_t addr) {
+  return (addr == mtime_mmr);
 }
 
 void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data, cac::optional_const_ref<uint64_t> mask_ref, bool shadow_csr, bool check_en) {
