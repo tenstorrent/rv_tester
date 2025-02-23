@@ -20,15 +20,16 @@ namespace {
     constexpr uint64_t pmm_hstatus_mask_lo = 48;
     constexpr uint64_t pmm_cfgs_mask_lo = 32;
     constexpr uint64_t pmm_mask_size = 2;
-    constexpr uint64_t boot_num_harts_offset = 0x9000;
-    constexpr uint64_t boot_hart_sync_en_offset = 0x9018;
-    constexpr uint64_t boot_sp_init_offset = 0x9008;
-    constexpr uint64_t boot_sp_ways_offset = 0x9010;
     constexpr uint64_t boot_rand_mmr_offset = 0x7000;
     constexpr uint64_t boot_rand_csr_offset = 0x8000;
     constexpr uint64_t time_csr = 0xC01;
     constexpr uint64_t mtime_mmr = 0x4218'0000;
     constexpr uint64_t mtimecmp_mmr = 0x4218'8000;
+    constexpr uint64_t boot_num_harts_offset = 0x9000;
+    constexpr uint64_t boot_sp_init_offset = 0x9008;
+    constexpr uint64_t boot_sp_ways_offset = 0x9010;
+    constexpr uint64_t boot_hart_sync_en_offset = 0x9018;
+    constexpr uint64_t boot_matp_swid_offset = 0x9020;
 
     constexpr uint32_t opcode_nop    = 0x13;
     constexpr uint32_t opcode_ret    = 0x8067;
@@ -39,6 +40,7 @@ namespace {
       bool metric         = false;
       bool nonzero_reset  = false;
       unsigned shadow_csr = 0;
+      bool allowlist_custom_csr = false; // perform core arch checks for these allowlisted custom CSRs
     };
 
     struct mmr_reg {
@@ -439,6 +441,7 @@ namespace {
       CSR(HSTATEEN3H,       0x61F, "hstateen3h")                               \
       CSR(STIMECMP,         0x14D, "stimecmp")                                 \
       CSR(VSTIMECMP,        0x24D, "vstimecmp")                                \
+      CSR(C_MATP,           0x7C7, "c_matp", true, true, 0, true)                 \
 
     enum csr : unsigned {
 #define CSR(name, value, ...) \
@@ -913,6 +916,7 @@ namespace {
         INSN_PAGE_FAULT         = 12,
         LD_PAGE_FAULT           = 13,
         ST_AMO_PAGE_FAULT       = 15,
+        HARDWARE_ERROR          = 19,
         INST_GUEST_PAGE_FAULT   = 20,
         LD_GUEST_PAGE_FAULT     = 21,
         VIRT_INST_FAULT         = 22,
@@ -935,6 +939,7 @@ namespace {
         {INSN_PAGE_FAULT         , "INSN_PAGE_FAULT"}      ,
         {LD_PAGE_FAULT           , "LD_PAGE_FAULT"}        ,
         {ST_AMO_PAGE_FAULT       , "ST_AMO_PAGE_FAULT"}    ,
+        {HARDWARE_ERROR          , "HARDWARE_ERROR"}    ,
         {INST_GUEST_PAGE_FAULT   , "INST_GUEST_PAGE_FAULT"},
         {LD_GUEST_PAGE_FAULT     , "LD_GUEST_PAGE_FAULT"}  ,
         {VIRT_INST_FAULT         , "VIRT_INST_FAULT"}      ,

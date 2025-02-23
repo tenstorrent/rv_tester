@@ -121,6 +121,8 @@ private:
   std::string get_csr_name(const std::string& addr);
   bool is_custom_csr(uint64_t addr);
   bool is_pmacfg_csr(uint64_t addr);
+  bool is_csr_allowlist(uint64_t addr);
+  bool is_csr_allowlist(const std::string& csr_name);
   bool is_chicken_bit_csr(uint64_t addr);
   bool is_mtimecmp_mmr(uint64_t addr);
   bool is_mtime_mmr(uint64_t addr);
@@ -156,6 +158,7 @@ private:
   void get_gp_reg(uint32_t reg, uint64_t& data);
   void get_fp_reg(uint32_t reg, uint64_t& data);
   void get_vec_reg(uint32_t reg, std::array<std::uint8_t, 32>& data);
+  void store_cbo_inv_addr(const uint64_t& payload);
 
   bool is_custom_excp(uint64_t cause);
   bool is_vector(const std::string& instr);
@@ -173,6 +176,7 @@ private:
   bool tbox_read(const uint64_t& pa);
   bool boot_read(const uint64_t& pa);
   bool debug_mem_access(const uint64_t& pa);
+  bool cbo_inv_access(const uint64_t& pa);
   bool uart_access(const uint64_t& pa);
   bool sc_slice_status(const uint64_t& pa);
   bool htif_read(const uint64_t& pa);
@@ -264,6 +268,7 @@ private:
 
   uint64_t satp_ = 0;
   uint64_t new_satp_ = 0;
+  uint64_t curr_cbo_inv_addr_=0;
 
   uint16_t mprv_ = 0;
   uint16_t mpp_ = 0;

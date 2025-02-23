@@ -92,6 +92,7 @@ class rvfi {
 
     std::string mem_attr_to_string(uint32_t mem_attr);
     std::bitset<256> stringToBitset(const std::string& hexString);
+    std::bitset<256> extract_bits_as_bitset(const std::bitset<256>& bitset, size_t msb, size_t lsb);
     cvm::file_logger log;
     cvm::topology::loc_t loc_;
     unsigned id_;

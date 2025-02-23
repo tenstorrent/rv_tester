@@ -166,6 +166,12 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
        print(cvm::LOW, "Doubling max_cycles for sim run to {}\n",FLAGS_max_cycle );
     }
     int32_t nharts = cvm::topology::attr(platform, "NHARTS").second;
+
+    for(int32_t i = 0 ; i < nharts ; i++) {
+      int unsigned location = cvm::topology::get_from_type("CORE", i);
+      cvm::registry::messenger.connect<uint64_t>(location , [this] (const auto& payload) { return this->store_cbo_inv_addr(payload); });
+    }
+
     if((FLAGS_max_stall_cycle < (20000 + (nharts-1)*2000)) && (FLAGS_max_stall_cycle != 0)){
         FLAGS_max_stall_cycle = (20000 + (nharts-1)*2000);
         print(cvm::LOW, "Overwriting max_stall_cycle to {} cycles\n",FLAGS_max_stall_cycle );
@@ -212,8 +218,6 @@ void bridge::reset() {
     return;
   }
 
-
-
   if(FLAGS_enable_sp_init){ //only poke num ways when sp_init is required
     uint64_t poke_data = uint64_t(FLAGS_enable_sp_init);
     if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', memmap_.at("boot").base + boot_sp_init_offset, 8, poke_data, valid)|| !valid) && FLAGS_whisper_client_check){
@@ -226,8 +230,20 @@ void bridge::reset() {
        return;
     }
   }
+  if (FLAGS_matp_swid) {
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', memmap_.at("boot").base + boot_matp_swid_offset, 8, uint64_t(FLAGS_matp_swid), valid)|| !valid) && FLAGS_whisper_client_check){
+      error("Hart {}: Failed to poke boot memory to write matp\n", id_);
+      return;
+    }
+
+  }
 
   cvm::registry::messenger.signal<uint64_t>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0), uint64_t(0));
+}
+
+void bridge::store_cbo_inv_addr(const uint64_t& payload) {
+  curr_cbo_inv_addr_ = payload;
+  print(cvm::FULL, "CBO INVAL ADDRESS from CBO_inval_monitor : {:#x}\n",curr_cbo_inv_addr_);
 }
 
 void bridge::get_gp_reg(uint32_t reg, uint64_t& data)
@@ -834,7 +850,7 @@ void bridge::pre_step_exception_poke(hart_id_t hart, const rv_instr_t& d) {
 
   if (found_in_list(std::to_string(d.ecause), FLAGS_cosim_resynch_excp)) {
     bool valid;
-    bool is_load = (d.ecause == LD_ACCESS_FAULT);
+    bool is_load = (d.ecause == LD_ACCESS_FAULT) || (d.ecause == HARDWARE_ERROR);
     bridge_log_(cvm::MEDIUM, "<{}> Inject Exception with code:{} is_load: {}\n", d.cycle, d.ecause, is_load);
     if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperInjectExceptionRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0),
       hart, is_load, d.ecause, 0, valid) || !valid) && FLAGS_whisper_client_check) {
@@ -1856,6 +1872,10 @@ bool bridge::resynch_on_pa(const uint64_t& pa, const uint64_t& cycle) {
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[tbox_read]\n", cycle);
     return true;
   }
+  if(cbo_inv_access(pa)) {
+    print(cvm::FULL, "CBO Inval address detected in bridge -> RESYNCH\n");
+    return true;
+  }
   if (uart_access(pa)) {
     IF_DEBUG("uart_access condition");
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[uart_access]\n", cycle);
@@ -1901,7 +1921,7 @@ bool bridge::resynch_on_instr(const std::string& instr, const uint64_t& cycle) {
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[unsupported_csr_access]\n", cycle);
     return true;
   }
-  if (FLAGS_cosim_resynch_instr == "") {
+  if (FLAGS_cosim_resynch_instr != "") {
     IF_DEBUG("checking cosim resynch instr condition");
     std::stringstream ss(FLAGS_cosim_resynch_instr);
     while(ss.good()) {
@@ -1993,10 +2013,16 @@ bool bridge::hpm_counter_read(const std::string& instr) {
 
 bool bridge::unsupported_csr_access(const std::string& instr) {
   if ((instr.find("fe_dbg_mux_sel") != std::string::npos) ||
-      (instr.find("c_") != std::string::npos)) {
+      ((instr.find("c_") != std::string::npos) && !(is_csr_allowlist(instr)))) {
     IF_DEBUG("CSR instruction") ;
     return true;
   }
+  return false;
+}
+
+bool bridge::cbo_inv_access(const uint64_t& pa) {
+  if((pa >> 6) == (curr_cbo_inv_addr_ >> 6))
+    return true;
   return false;
 }
 
@@ -2022,9 +2048,8 @@ bool bridge::found_in_list(const std::string& num, const std::string& list) {
     std::string s;
     std::getline(ss, s, ',' );
 
-    if (num.find(s) != std::string::npos) {
+    if (num == s)
       return true;
-    }
   }
   return false;
 }
@@ -2779,6 +2804,19 @@ bool bridge::is_pmacfg_csr(uint64_t addr) {
   return (addr >= PMACFG0 && addr <= PMACFG15);
 }
 
+bool bridge::is_csr_allowlist(uint64_t addr) {
+  return csrs[addr].allowlist_custom_csr; // perform core arch checks for these allowlisted custom CSRs
+}
+
+bool bridge::is_csr_allowlist(const std::string& csr_name) {
+    for (const auto& [addr, csr] : csrs) {
+        if (csr_name.find(csr.name) != std::string::npos) {
+            return csr.allowlist_custom_csr;
+        }
+    }
+    throw std::invalid_argument("Invalid CSR name: " + csr_name);
+}
+
 bool bridge::is_chicken_bit_csr(uint64_t addr) {
   return (addr >= C_FECFG && addr <= C_LSCFG15);
 }
@@ -2794,11 +2832,12 @@ bool bridge::is_mtime_mmr(uint64_t addr) {
 void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data, cac::optional_const_ref<uint64_t> mask_ref, bool shadow_csr, bool check_en) {
   if (is_custom_csr(addr) &&
       !is_pmacfg_csr(addr) &&
+      !is_csr_allowlist(addr) &&
       !is_chicken_bit_csr(addr))
     return;
 
   bool check = true;
-  if (is_chicken_bit_csr(addr))
+  if (is_chicken_bit_csr(addr) && !is_csr_allowlist(addr))
     check = false; // FIXME: Reset values in json
   else
     check = check_en;

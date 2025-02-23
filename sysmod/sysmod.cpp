@@ -69,6 +69,7 @@ DEFINE_bool(export_control_en, false, "Enable export control to reduce FP double
 DEFINE_uint32(mem_manager_page_size, 4096, "Mem manager internal page size");
 // STEE
 DEFINE_string(stee_secure_region, "", "colon separated pair of number (same as whisper's --steesr)");
+DEFINE_uint32(matp_swid, 0, "MATP.SWID");
 DEFINE_uint64(pa_mask, 0x0080000000000000, "address bit(s) that act as STEE distinction");
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 
@@ -625,6 +626,7 @@ sysmod::store_inval_crsp(const inval_crsp_s& payld, bool mcm) {
     for (int i=0; i<8; ++i) 
       read_data |= uint64_t(data[i]) << (i*8);
      bool valid = true;
+     cvm::log(cvm::FULL, "[CBO_INVAL_MONITOR - CRSP POKE] Whisper Poke to Address : {:#x}, with data : {:#x}\n",(ld_addr + (offset*8)),read_data);
      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', (ld_addr + (offset*8)), 8, read_data, valid) || !valid) && FLAGS_whisper_client_check) {
        cvm::log(cvm::ERROR, "Error: store_inval_crsp failed to poke whisper memory");
     }
@@ -1034,6 +1036,7 @@ sysmod::load_boot(const std::string& boot) {
     // Write hart_sync_en for bootrom to access
     // Write SP init
     // Write SP ways
+    // Write STEE swid
     device::data_t data(8);
     device::strb_t strb(8);
     for (size_t i = 0; i < 8; i++) data[i] = 0;
@@ -1055,6 +1058,9 @@ sysmod::load_boot(const std::string& boot) {
     }
     data[0] = uint8_t(FLAGS_num_sp_ways);
     dev("boot")->backdoor_write(dev("boot")->addr() + boot_sp_ways_offset, 8, data, strb);
+
+    data[0] = FLAGS_matp_swid;
+    dev("boot")->backdoor_write(dev("boot")->addr() + boot_matp_swid_offset, 8, data, strb);
   }
 }
 
