@@ -110,6 +110,7 @@ package rv_tester_pkg;
         logic sti;
         logic msi;
         logic ssi;
+        logic [63:0] mtime;
     } interrupt_t;
 
     typedef struct packed {

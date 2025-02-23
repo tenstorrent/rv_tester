@@ -745,6 +745,7 @@ module rv_tester
           .mcmi_ievict(mcmi_ievict[NIEVICTS_CUMSUM[c] +: NIEVICTS[c]]),
           .nmi_pend(nmi_pend[c]),
           .interrupt_pend(interrupt_pend[c]),
+          .mtime(mtime),
           .imsic_msi(imsic_msi[c]),
           .debug_mode(debug_mode[c]),
           .terminate(cosim_terminate[c]),

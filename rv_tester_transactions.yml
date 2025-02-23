@@ -367,15 +367,21 @@ cosim:
         fields:
             cycle:
                 width: 64
+            hw:
+                width: 1
             mip:
+                width: 64
+            mip_set:
+                width: 64
+            mip_clr:
                 width: 64
             seip:
                 width: 1
-            set:
-                width: 64
-            clr:
-                width: 64
-            time_csr:
+            seip_set:
+                width: 1
+            seip_clr:
+                width: 1
+            mtime:
                 width: 64
 
     m_core_nmi:

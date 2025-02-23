@@ -262,9 +262,9 @@ package rv_tester_params;
     // --------------------------------------
     typedef struct packed {
         logic                      valid;
+        logic                      hw;
         logic [XLEN-1:0]           mip;
         logic                      seip;
-        logic [XLEN-1:0]           time_csr;
     } interrupt_pend_t;
 
     // --------------------------------------
@@ -948,6 +948,7 @@ package rv_tester_params;
     output rv_tester_pkg::nmi_t              nmi_pend           [rv_tester_params::NHARTS-1:0],     \
     input  rv_tester_pkg::interrupt_t        interrupt          [rv_tester_params::NHARTS-1:0],     \
     output rv_tester_params::interrupt_pend_t interrupt_pend    [rv_tester_params::NHARTS-1:0],     \
+    output logic [63:0]                      mtime,                                                 \
     output rv_tester_params::msi_t           imsic_msi          [rv_tester_params::NHARTS-1:0],     \
     output                                   debug_mode         [rv_tester_params::NHARTS-1:0],     \
     output                                   disable_checks,                                        \
@@ -1030,6 +1031,7 @@ package rv_tester_params;
     rv_tester_pkg::nmi_t                     nmi_pend        [rv_tester_params::NHARTS-1:0];        \
     rv_tester_pkg::interrupt_t               interrupt       [rv_tester_params::NHARTS-1:0];        \
     rv_tester_params::interrupt_pend_t       interrupt_pend  [rv_tester_params::NHARTS-1:0];        \
+    logic [63:0]                             mtime;                                                 \
     rv_tester_params::msi_t                  imsic_msi       [rv_tester_params::NHARTS-1:0];        \
     logic                                    debug_mode      [rv_tester_params::NHARTS-1:0];        \
     logic                                    disable_checks;                                        \

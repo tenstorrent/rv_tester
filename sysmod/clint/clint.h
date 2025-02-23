@@ -65,6 +65,7 @@ public:
   struct timer_t {
     unsigned hart;
     unsigned flag;
+    uint64_t mtime;
   };
 
   struct sw_t {
@@ -90,7 +91,7 @@ protected:
   // Used to assert/deassert a timer interrupt for given hart.
   virtual void timerInterrupt(unsigned hart, bool flag)
   {
-    cvm::registry::messenger.signal<timer_t>(loc(), timer_t{hart, flag});
+    cvm::registry::messenger.signal<timer_t>(loc(), timer_t{hart, flag, timer_});
   }
 
   // Used to assert/deassert a software interrupt (IPI) for given hart.

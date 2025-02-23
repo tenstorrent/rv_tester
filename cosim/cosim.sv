@@ -128,6 +128,7 @@ import rv_tester_params::*;
     input mcmi_t [NIEVICT-1:0] mcmi_ievict,
     input rv_tester_pkg::nmi_t nmi_pend,
     input rv_tester_params::interrupt_pend_t interrupt_pend,
+    input logic [63:0] mtime,
     input rv_tester_params::msi_t imsic_msi,
     input debug_mode,
     input longint eot_addr,
@@ -1247,17 +1248,22 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     // m_interrupt_pend
     logic [63:0] mip_d1;
+    logic seip_d1;
     always @(posedge clk) begin
       mip_d1 <= interrupt_pend.mip;
+      seip_d1 <= interrupt_pend.seip;
     end
     assign m_interrupt_pends[0].valid = ~dut_reset & interrupt_pend.valid & rvfi_enabled;
     assign m_interrupt_pends[0].data.location = location;
     assign m_interrupt_pends[0].data.cycle = clocks;
+    assign m_interrupt_pends[0].data.hw = interrupt_pend.hw;
     assign m_interrupt_pends[0].data.mip = interrupt_pend.mip;
+    assign m_interrupt_pends[0].data.mip_set = interrupt_pend.mip & ~mip_d1;
+    assign m_interrupt_pends[0].data.mip_clr = ~interrupt_pend.mip & mip_d1;
     assign m_interrupt_pends[0].data.seip = interrupt_pend.seip;
-    assign m_interrupt_pends[0].data.set = interrupt_pend.mip & ~mip_d1;
-    assign m_interrupt_pends[0].data.clr = ~interrupt_pend.mip & mip_d1;
-    assign m_interrupt_pends[0].data.time_csr = interrupt_pend.time_csr;
+    assign m_interrupt_pends[0].data.seip_set = interrupt_pend.seip & ~seip_d1;
+    assign m_interrupt_pends[0].data.seip_clr = ~interrupt_pend.seip & seip_d1;
+    assign m_interrupt_pends[0].data.mtime = mtime;
 
     // m_imsic_msi
     assign m_imsic_msis[0].valid = ~dut_reset && imsic_msi.valid && rvfi_enabled;

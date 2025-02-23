@@ -83,7 +83,7 @@ protected:
   // Used to assert/deassert a timer interrupt for given hart.
   virtual void timerInterrupt(unsigned hart, bool flag)
   {
-    cvm::registry::messenger.signal<clint::timer_t>(loc(), clint::timer_t{hart, flag});
+    cvm::registry::messenger.signal<clint::timer_t>(loc(), clint::timer_t{hart, flag, timer_});
   }
 
 

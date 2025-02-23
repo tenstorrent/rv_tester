@@ -143,7 +143,7 @@ private:
 
   std::string to_string(rv_intr_t& i);
   void process_imsic_msi(hart_id_t hart, const mem_t& m);
-  void poke_timer(hart_id_t hart, uint64_t cycle, std::bitset<64> t_mip, uint64_t time);
+  void poke_timer(hart_id_t hart, uint64_t cycle, std::bitset<64> t_mip, uint64_t mtime);
   void poke_local_interrupt(hart_id_t hart, uint64_t cycle, std::bitset<64> l_mip);
   void check_and_defer_interrupt(hart_id_t hart, uint64_t time, std::bitset<64> mip);
   void check_interrupt(int line, hart_id_t hart, uint64_t cycle, uint64_t mip, bool& taken, uint64_t& cause);
@@ -288,11 +288,12 @@ private:
   bool nmi_poke_pending_ = false;
   bool nmi_poke_in_debug_mode_ = false;
   std::bitset<64> mip_ = 0;
+  std::bitset<64> hw_mip_ = 0;
   std::bitset<64> e_mip_ = 0;
-  std::bitset<64> prev_mip_ = 0;
+  std::bitset<64> prev_hw_mip_ = 0;
   std::bitset<64> prev_e_mip_ = 0;
   uint64_t timing_case2 = 0;
-  uint64_t mip_age_ = 0;
+  uint64_t hw_mip_age_ = 0;
   uint64_t e_mip_age_ = 0;
   uint64_t deferred_mip_ = 0;
   bool prev_resync_excp_defer_intr_ = 0;

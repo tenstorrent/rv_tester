@@ -282,11 +282,14 @@ typedef struct rv_debug_s {
 
 typedef struct rv_intr_s {
   uint64_t cycle;
+  bool hw;
   std::bitset<64> mip;
+  std::bitset<64> mip_set;
+  std::bitset<64> mip_clr;
   bool seip;
-  std::bitset<64> set;
-  std::bitset<64> clr;
-  uint64_t time;
+  bool seip_set;
+  bool seip_clr;
+  uint64_t mtime;
 } rv_intr_t;
 
 typedef struct rv_nmi_s {
