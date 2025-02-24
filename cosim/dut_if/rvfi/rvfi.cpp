@@ -364,6 +364,8 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.icause = icause_;
   instr.excp = excp_;
   instr.ecause = ecause_;
+  instr.mtime_valid = m_rvfi.mtime_valid;
+  instr.mtime = m_rvfi.mtime;
 
   cvm::log(cvm::HIGH, "CLOCK={}: HW: ucode={} first_uop={} last_uop={} rvfi.mode={} instr.priv={} priv_change={} set_pmode={} clr_pmode={} patch_={} disasm={}\n", m_rvfi.cycle,
                             m_rvfi.ucode, m_rvfi.first_uop, m_rvfi.last_uop, m_rvfi.mode, m_rvfi.priv, m_rvfi.priv_change, m_rvfi.set_pmode, m_rvfi.clr_pmode, static_cast<int>(patch_mode_),instr.disasm);

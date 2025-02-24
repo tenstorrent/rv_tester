@@ -913,11 +913,19 @@ void bridge::pre_step_nmi_poke(hart_id_t hart, const rv_instr_t& d, whisper_stat
 }
 
 void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
+  // Set mip ages for resynch cases
   if (prev_hw_mip_ != hw_mip_)
     hw_mip_age_ = 0;
   if (prev_e_mip_ != e_mip_)
     e_mip_age_ = 0;
 
+  // Special case for timer interrupt handling
+  // Poke time on timecmp update
+  if (d.mtime_valid) {
+    poke_resource(hart, d.cycle, 'c', time_csr, d.mtime);
+  }
+
+  // Proceed only if DUT takes interrupt
   if (hw_mip_ == 0 && prev_hw_mip_ == 0 && !d.intr) {
     IF_DEBUG("hw_mip_==0  and prev_hw_mip_==0 ... return");
     return;

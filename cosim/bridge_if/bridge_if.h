@@ -234,6 +234,10 @@ typedef struct rv_instr_s {
   mem_t mem_read;
   mem_t mem_write;
 
+  // Special values
+  bool mtime_valid;
+  uint64_t mtime;
+
   rv_instr_s() {
     clear();
   }
@@ -248,6 +252,7 @@ typedef struct rv_instr_s {
     nmi = false;
     intr = false;
     excp = false;
+    mtime_valid = false;
     pc.clear();
     gpr.clear();
     fpr.clear();

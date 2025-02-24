@@ -791,6 +791,14 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign m_rvfis[n].data.mem_wmask   = rvfi[n].mem_wmask;
         assign m_rvfis[n].data.mem_wdata   = rvfi[n].mem_wdata;
         assign m_rvfis[n].data.mem_attr    = rvfi[n].mem_attr;
+        assign m_rvfis[n].data.mtime_valid = is_timecmp(rvfi[n].csr_valid, rvfi[n].csr_addr);
+        assign m_rvfis[n].data.mtime       = mtime;
+
+        localparam logic [CSRLEN-1:0] STIMECMP  = 'h14D;
+        localparam logic [CSRLEN-1:0] VSTIMECMP = 'h24D;
+        function automatic bit is_timecmp(logic csr_valid, logic [CSRLEN-1:0] csr_addr);
+          return csr_valid && ((csr_addr == STIMECMP) || (csr_addr == VSTIMECMP));
+        endfunction
 
         //--------------------------------------------------------------------------------------------------------------------------------------
         // Logic to generate first_uop, ucode, priv[3:0] and priv_change signals (formerly generated in C++ 
