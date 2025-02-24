@@ -245,6 +245,7 @@ import rv_tester_params:: * ;
         assign axi_ac_writes[0].data.addr = topology.TOP.PLATFORM.PALEN'(AcReqPkti.addr);
         assign axi_ac_writes[0].data.data = topology.TOP.PLATFORM.XLEN'(AcReqPkti.data);
         assign axi_ac_writes[0].data.mask = AcReqPkti.mask;
+        assign axi_ac_writes[0].data.user = AcReqPkti.user;
     /* verilator lint_on WIDTH */
 
     function longint unsigned get_mtime_value();
