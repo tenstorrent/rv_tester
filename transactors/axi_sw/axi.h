@@ -183,6 +183,7 @@ class axi : public transactor {
 
         std::vector<std::pair<uint64_t, uint64_t>> slverr_addr_;
         std::vector<std::pair<uint64_t, uint64_t>> decerr_addr_;
+        std::vector<std::pair<uint64_t, uint64_t>> hang_addr_;
         const data_width_t  data_width_ ;
 
         // to/from RTL
