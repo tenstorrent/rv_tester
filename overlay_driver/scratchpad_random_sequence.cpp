@@ -103,11 +103,9 @@ cvm::messenger::task<void> scratchpad_random_sequence::random_mode() {
              if(cnt_tick == rnd_traffic_cnt_tick){
                uint64_t offset = rng() & 0x1ff;
                sp_addr = sp_base + (offset <<6);
-
-                cvm::log(cvm::HIGH, " [scratchpad_random_sequence] sp_addr : {:#x} sp_base: {:#x} offset : {:#x} \n",sp_addr,sp_base,offset);
-                co_await axi_write_granular(sp_addr);
-             }
-             if(cnt_tick == rnd_traffic_cnt_tick+ 2){
+               
+               cvm::log(cvm::HIGH, " [scratchpad_random_sequence] sp_addr : {:#x} sp_base: {:#x} offset : {:#x} \n",sp_addr,sp_base,offset);
+               co_await axi_write_granular(sp_addr);
                co_await axi_write_data_granular();
              }
              if(cnt_tick == rnd_traffic_cnt_tick+ 8){
@@ -124,37 +122,31 @@ cvm::messenger::task<void> scratchpad_random_sequence::random_mode() {
                 cvm::log(cvm::HIGH, " **** [scratchpad_random_sequence] Fabric Write Core Read Test **** \n");
                 uint64_t addr = 0x60000000;
                 co_await axi_write_granular(addr);
-              }
-              if(cnt_tick == 34){
                 co_await axi_write_data_granular();
               }
     }
     else{
             cvm::log(cvm::HIGH, " [scratchpad_random_sequence] tick {}\n",cnt_tick);
             if(cnt_tick == 60){
-            cvm::log(cvm::HIGH, " [scratchpad_random_sequence] trigger flag set \n");
-            uint64_t addr = 0x60000000;
-            co_await axi_write_granular(addr);
-            }
-            if(cnt_tick == 60){
-            co_await axi_write_data_granular();
+              cvm::log(cvm::HIGH, " [scratchpad_random_sequence] trigger flag set \n");
+              uint64_t addr = 0x60000000;
+              co_await axi_write_granular(addr);
+              co_await axi_write_data_granular();
             }
             if(cnt_tick == 62){
                //axi_read_granular();
                cvm::log(cvm::HIGH, " [scratchpad_random_sequence] READ SP DATA \n");
                co_await axi_read(0x60000000,4,4);
             }
-      }
+    }
 
-	    if(FLAGS_sp_xtor_mmr_prog_en){
-	       if(cnt_tick == 24){
-               cvm::log(cvm::HIGH, " [scratchpad_random_sequence] Programming SP MMR \n");
-               co_await axi_write_mmr_granular();
-               }
-               if(cnt_tick == 24){
-               co_await axi_write_mmr_data_granular();
-               }
+	  if(FLAGS_sp_xtor_mmr_prog_en){
+	    if(cnt_tick == 24){
+         cvm::log(cvm::HIGH, " [scratchpad_random_sequence] Programming SP MMR \n");
+         co_await axi_write_mmr_granular();
+         co_await axi_write_mmr_data_granular();
       }
+    }
         
 
   //////////
