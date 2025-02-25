@@ -782,6 +782,9 @@ bool debug_module_t::dmi_read(unsigned address, uint32_t *value)
     case DM_DMCS2:
       result = set_field(result, DM_DMCS2_GROUP, selected_hart_state().haltgroup);
       break;
+    case DM_NEXTDM:
+      result = 0;
+      break;
     default:
       result = 0;
 
