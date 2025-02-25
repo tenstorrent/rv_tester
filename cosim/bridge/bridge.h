@@ -311,6 +311,7 @@ private:
   std::chrono::high_resolution_clock::time_point start_of_test_;
   bool first_call_ = true;
   bool debug_on_ = false;
+  bool cvm_debug_ = false;
 
   // Memmap
   std::map<std::string, memmap_entry_t> memmap_;

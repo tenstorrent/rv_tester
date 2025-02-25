@@ -45,3 +45,4 @@ DECLARE_bool(dm_model_check_bypass);
 DECLARE_bool(dbg_rand_core);
 DECLARE_int32(dbg_rand_core_idx);
 DECLARE_uint32(matp_swid);
+DECLARE_bool(sysmod_terminate);

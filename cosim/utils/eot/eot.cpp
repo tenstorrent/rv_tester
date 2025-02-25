@@ -119,8 +119,6 @@ void eot::check_max_instr(std::uint64_t cycle, std::uint64_t instr_count)
       cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
       auto location = cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0);
       cvm::registry::messenger.signal<htif::terminate_t>(location, htif::terminate_t{.low_priority_based = true});
-      auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-      cvm::log(cvm::HIGH, "end time: {}\n", std::ctime(&now));
       return;
     } else {
       cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
@@ -201,15 +199,21 @@ eot::~eot() {
 }
 
 extern "C" {
+  static bool hw_eot_terminated = false;
   std::uint64_t eot_get_addr() {
+    hw_eot_terminated = false;
     return cvm::registry::messenger.call<eot::get_tohost_addr_RPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0));
   }
   void eot_hw_process(std::uint64_t hart, std::uint64_t cycle, std::uint64_t addr, std::uint64_t data) {
      cvm::registry::messenger.call<eot::process_tohost_RPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0),hart, cycle, addr, data);
   }
   void call_check_max_instr(std::uint64_t cycle, std::uint64_t count) {
-    if (FLAGS_eot == "max_instr")
-     cvm::registry::messenger.call<eot::check_max_instr_RPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0),cycle, count);
+    if ((FLAGS_eot == "max_instr") && !hw_eot_terminated) {
+      if (FLAGS_max_instr > 0 && count > FLAGS_max_instr) {
+        cvm::registry::messenger.call<eot::check_max_instr_RPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0),cycle, count);
+        hw_eot_terminated = true;
+      }
+    }
   }
   int is_eot_tohost() {
     if (FLAGS_eot == "tohost")
