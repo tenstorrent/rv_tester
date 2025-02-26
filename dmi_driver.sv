@@ -65,7 +65,7 @@ import rv_tester_params:: * ;
   logic tselect_core, tselect_core_complete, core_rg_halt_sdtrig, core_haltsum_sdtrig, check_haltsum_sdtrig;
   logic check_hartsellen, check_dmstatus_disc, hart_discovery, dmcontrol_hartsel;
 
-  logic rvfi_sdtrig;
+  logic rvfi_sdtrig, disable_mem_access_checker;
   int file_descr, count_hart_enable_mask, dmi_command_in_step_ahead_queue_size, dmi_command_in_step_quit_queue_size, single_step_instr_cnt_plusarg, total_triggers_plusarg,num_dm_randpc_plsg, num_dm_randload_plsg, num_dm_randstore_plsg, tselect_conf_plusarg, multitriggers_plusarg;
   int trigger_counter, command_in_sdtrig_entry_queue_size, command_in_sdtrig_trigger_queue_size, total_command_in_sdtrig_trigger_queue_size, command_in_sdtrig_progbuf_queue_size;
   int tselect_value, trigger_index, trigger_hit, command_in_trigger_disable_queue_size, total_command_in_sdtrig_progbuf_queue_size;
@@ -177,6 +177,7 @@ import rv_tester_params:: * ;
       read_data3 <= 0;
       get_data2 <= 0;
       get_data3 <= 0;
+      disable_mem_access_checker <= 0;
 
       command_queue.delete();
       response_queue.delete();
@@ -705,6 +706,10 @@ import rv_tester_params:: * ;
                 poll = 0;
               end
             end
+            if(dmi_resp.data[10:8] === 2'b11) begin
+              disable_mem_access_checker = 1;
+              $display("[Poll] Setting disable_mem_access_checker");
+            end
           end else if (!hart_enable_mask_value[dm_hartsel]) begin
             $display("[Poll] Selected hart:%h is disabled and expect cmderr=4", dm_hartsel);
             if(dmi_resp.data[10] === 1'b1) begin
@@ -1031,19 +1036,27 @@ import rv_tester_params:: * ;
           end
         end else if(read_data0_comp) begin
           $display("line #889 data0_value:%h, dmi_resp.data:%h", data0_value, dmi_resp.data);
-          if(data0_value === dmi_resp.data) begin
-            $display("data0_value:%h, dmi_resp.data:%h", data0_value, dmi_resp.data);
+          if(!disable_mem_access_checker) begin
+            if(data0_value === dmi_resp.data) begin
+              $display("data0_value:%h, dmi_resp.data:%h", data0_value, dmi_resp.data);
+              poll = 0;
+              read_data0_comp = 0;
+              mmr_read_32bits = 0;
+              if(mmr_read_64bits) begin
+                read_data1 = 1;
+                mmr_read_64bits = 0;
+                $display("read_data1 is set");
+              end
+            end else begin
+              $display("Error: Mismatch scratchpad_mmr_write_data0_value:%h, scratchpad_mmr_read_data0_value:%h", data0_value, dmi_resp.data);
+            end
+          end else begin
+            $display("Mem Access checker is disabled");
             poll = 0;
             read_data0_comp = 0;
             mmr_read_32bits = 0;
-            if(mmr_read_64bits) begin
-              read_data1 = 1;
-              mmr_read_64bits = 0;
-              $display("read_data1 is set");
-            end
-          end else begin
-            $display("Error: Mismatch scratchpad_mmr_write_data0_value:%h, scratchpad_mmr_read_data0_value:%h", data0_value, dmi_resp.data);
           end
+          disable_mem_access_checker = 0;
         end else if(read_data1_comp) begin
           if(data1_value === dmi_resp.data) begin
             $display("data1_value:%h, dmi_resp.data:%h", data1_value, dmi_resp.data);

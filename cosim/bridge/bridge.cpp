@@ -75,8 +75,9 @@ DEFINE_bool(preload, false, "Whisper preload");
 
 DEFINE_int32(mcmi_poke_enables, 0, "MCM interface poke enables");
 DEFINE_bool(psc_compare_only, true, "Peridoic COSIM will only compare current register states preload");
-DEFINE_uint64(debug_cycle, 0, "enabled debug");
+DEFINE_uint64(bridge_debug_cycle, 0, "enabled C debug messages at clock=<n>");
 DEFINE_uint64(cosim_period, 0, "COSIM periodic mode enable");
+DEFINE_uint64(bridge_cvm_debug_cycle, 0, "Turn on CVM debug at clock=<n>");
 
 #define IF_DEBUG(str) if (debug_on_)  print(cvm::NONE, "DEBUG::line={: <5}::{: <30} ::{}\n",__LINE__,__FUNCTION__,str);
 #define IF_DEBUG1(str,arg1) if (debug_on_)  print(cvm::NONE, "DEBUG::line={: <5}::{: <30} ::{}  arg={}\n",__LINE__,__FUNCTION__,str,arg1);
@@ -148,7 +149,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
       "vtype", // Permanent: Vector vtype will not be implemented
       "mip", "mvip", "hip","hgeip","vsip","hvip","sip","mireg","sireg","vsireg","mtopei","stopei","vstopei", // Permanent: Interrupts
       "mtopi", "stopi", "vstopi", // RVTOOLS-3189
-      "hpmcounter","hpmevent","scountovf","mcycle","minstret","minstreth", // Permanent: PMC events
+      "hpmcounter","mcycle","minstret","minstreth", // Permanent: PMC events
       "dcsr","dpc","dscratch0", "dscratch1" // Permanent: Debug events
 
     };
@@ -505,10 +506,14 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
     print(cvm::HIGH, "                        :: grd_addr={}, grd_wdata={:#x}\n", gpr.rd_addr,gpr.rd_wdata);
   }
 
-  if ((d.cycle >= FLAGS_debug_cycle) & (FLAGS_debug_cycle > 0) & !debug_on_) {
+  if ((d.cycle >= FLAGS_bridge_debug_cycle) & (FLAGS_bridge_debug_cycle > 0) & !debug_on_) {
      print(cvm::MEDIUM,"Setting debug_on_ = true\n");
-     cvm::logger::set_verbosity(cvm::HIGH);
      debug_on_ = true;
+  }
+  if ((d.cycle >= FLAGS_bridge_cvm_debug_cycle) & (FLAGS_bridge_cvm_debug_cycle > 0) & !cvm_debug_) {
+     print(cvm::MEDIUM,"Setting CVM verbosity to DEBUG\n");
+     cvm::logger::set_verbosity(cvm::DEBUG);
+     cvm_debug_ = true;
   }
 
   if (FLAGS_mcm & (FLAGS_cosim_period > 0))
