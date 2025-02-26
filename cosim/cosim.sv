@@ -656,7 +656,7 @@ localparam CAM_IHBIT = CAM_IBITS;
            if (rvfi_valid) rvfi_cnt <= rvfi_cnt + 1; 
            if (m_rvfis[0].valid) mrvfi_cnt <= mrvfi_cnt + 1; 
 
-           eot_found_d1 <= eot_found;
+           eot_found_d1 <= (eot_found | eot_found_d1);
 
            if (eot_found & ~eot_found_d1) begin
                $display("EOT stats: hart=%0d : rvfi_cnt   : %0d", cpu_id, rvfi_cnt);
