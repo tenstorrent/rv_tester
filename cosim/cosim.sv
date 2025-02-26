@@ -1285,7 +1285,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     localparam logic [PA_WIDTH-1:0] MTIMECMP_C0  = 'h42188000;
     localparam logic [PA_WIDTH-1:0] MTIMECMP_C7  = 'h42188038;
     function automatic bit is_mtimecmp(logic mem_valid, logic [PA_WIDTH-1:0] mem_addr);
-      return mem_valid && ((mem_addr >= MTIMECMP_C0) && (mem_addr <= (MTIMECMP_C7));
+      return mem_valid && ((mem_addr >= MTIMECMP_C0) && (mem_addr <= MTIMECMP_C7));
     endfunction
 
     //--------------------------------------------------------------------
