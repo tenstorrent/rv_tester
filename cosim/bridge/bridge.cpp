@@ -2111,19 +2111,6 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
     }
   }
 
-  if (d.mem_read.valid) {
-    // Special case: Resynch mtime
-    if (is_mtime_mmr(d.mem_read.pa)) {
-      if (FLAGS_bridge_log)
-        bridge_log_(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: M[{:#x}]={:#x}\n", d.cycle, step_, d.mem_read.pa, d.mem_read.data);
-
-      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, d.cycle, 'm', d.mem_read.pa, d.mem_read.size, d.mem_read.data, valid)|| !valid) && FLAGS_whisper_client_check) {
-        error("Hart {}: Failed to resynch memory\n", hart);
-        return;
-      }
-    }
-  }
-
   for (auto& csr : d.csr) {
     if (csr.valid) {
       resynch_csr_ = true;
@@ -2267,6 +2254,12 @@ void bridge::process_dut_mcm_bypass(hart_id_t hart, mem_t& m) {
       error("Hart {}: Failed mcm store bypass\n", hart);
       return;
     }
+  }
+
+  // Special case for timer interrupt handling
+  // Poke time on timecmp update
+  if (m.mtime_valid) {
+    poke_resource(hart, m.cycle, 'c', time_csr, m.mtime);
   }
 
   if (FLAGS_bridge_log)

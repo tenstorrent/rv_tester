@@ -153,6 +153,8 @@ typedef struct mem_s {
   uint8_t elem_idx;
   bool splat;
   uint8_t elem_size;
+  bool mtime_valid;
+  uint64_t mtime;
   
   mem_s() {
     clear();

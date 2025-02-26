@@ -794,12 +794,6 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign m_rvfis[n].data.mtime_valid = is_timecmp(rvfi[n].csr_valid, rvfi[n].csr_addr);
         assign m_rvfis[n].data.mtime       = mtime;
 
-        localparam logic [CSRLEN-1:0] STIMECMP  = 'h14D;
-        localparam logic [CSRLEN-1:0] VSTIMECMP = 'h24D;
-        function automatic bit is_timecmp(logic csr_valid, logic [CSRLEN-1:0] csr_addr);
-          return csr_valid && ((csr_addr == STIMECMP) || (csr_addr == VSTIMECMP));
-        endfunction
-
         //--------------------------------------------------------------------------------------------------------------------------------------
         // Logic to generate first_uop, ucode, priv[3:0] and priv_change signals (formerly generated in C++ 
         //--------------------------------------------------------------------------------------------------------------------------------------
@@ -1140,6 +1134,8 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign m_mcmi_bypasss[n].data.elem_idx = mcmi_bypass[n].elem_idx;
         assign m_mcmi_bypasss[n].data.amo = mcmi_bypass[n].amo;
         assign m_mcmi_bypasss[n].data.amo_op = mcmi_bypass[n].amo_op;
+        assign m_mcmi_bypasss[n].data.mtime_valid = is_mtimecmp(mcmi_bypass[n].valid, mcmi_bypass[n].addr);
+        assign m_mcmi_bypasss[n].data.mtime = mtime;
         //-------------------------------------------------------------------------------------------
         // End-Of-Test logic:  memory write to designated address
         //    - will cause a save-state event (force-steps=1 if NO instrs being retired currently
@@ -1279,6 +1275,18 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign m_imsic_msis[0].data.cycle = clocks;
     assign m_imsic_msis[0].data.addr = imsic_msi.addr;
     assign m_imsic_msis[0].data.data = imsic_msi.data;
+
+    localparam logic [CSRLEN-1:0] STIMECMP  = 'h14D;
+    localparam logic [CSRLEN-1:0] VSTIMECMP = 'h24D;
+    function automatic bit is_timecmp(logic csr_valid, logic [CSRLEN-1:0] csr_addr);
+      return csr_valid && ((csr_addr == STIMECMP) || (csr_addr == VSTIMECMP));
+    endfunction
+
+    localparam logic [PA_WIDTH-1:0] MTIMECMP_C0  = 'h42188000;
+    localparam logic [PA_WIDTH-1:0] MTIMECMP_C7  = 'h42188038;
+    function automatic bit is_mtimecmp(logic mem_valid, logic [PA_WIDTH-1:0] mem_addr);
+      return mem_valid && ((mem_addr >= MTIMECMP_C0) && (mem_addr <= (MTIMECMP_C7));
+    endfunction
 
     //--------------------------------------------------------------------
     // set debug entry/exit values to defaults it NOT specificed by user
