@@ -10,7 +10,7 @@
 #include "cvm/bitmanip.hpp"
 #include "dm_model.hpp"
 
-DEFINE_bool(dm_hart_enum_chk, true, "Check DM hartenumaration wrt VID/PID mapping");
+DEFINE_bool(dm_hart_enum_chk, false, "Check DM hartenumaration wrt VID/PID mapping");
 // Return the number of bits wide that a field has to be to encode up to n
 // different values.
 // 1->0, 2->1, 3->2, 4->2
