@@ -12,6 +12,7 @@
 #include "rv_tester/rv_tester_structs.h"
 #include "sysmod/sysmod_plusargs.h"
 #include <fmt/format.h>
+#include "cosim/utils/eot/eot_plusargs.h"
 
 static bool validate_ge0(const char* flagname, const int value) {
     if (value < 0) {
@@ -255,12 +256,21 @@ extern "C" {
     void rv_tester_streaming_dpi_init() {
         char *env_var = std::getenv("ZEBU_OFFLINE_DPI");
         if ((env_var != nullptr && std::string(env_var) == "1")) {
-            rv_tester_parse_flags();
-            rv_tester_cvm_error_handler();
-            rv_tester_build_registry();
             cvm::log(cvm::NONE, "Initialize Offline DPI\n");
+            rv_tester_parse_flags();
+
+            // override flags in offline mode
             FLAGS_sysmod_terminate = false;
             FLAGS_rv_tester_terminate = false;
+            FLAGS_signal_async = false;
+            FLAGS_hw_eot_enable = false;
+
+            rv_tester_cvm_error_handler();
+            rv_tester_build_registry();
+            std::atexit([] () {
+                while(!rv_tester_shutdown_registry());
+                rv_tester_dm_shutdown_registry();
+            });
         }
     }
 }
