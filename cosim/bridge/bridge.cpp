@@ -926,7 +926,7 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
 
   // Special case for timer interrupt handling
   // Poke time on timecmp update
-  if (d.mtime_valid) {
+  if (!FLAGS_poke_mip_timer && d.mtime_valid) {
     poke_resource(hart, d.cycle, 'c', time_csr, d.mtime);
   }
 
@@ -2263,7 +2263,7 @@ void bridge::process_dut_mcm_bypass(hart_id_t hart, mem_t& m) {
 
   // Special case for timer interrupt handling
   // Poke time on timecmp update
-  if (m.mtime_valid) {
+  if (!FLAGS_poke_mip_timer && m.mtime_valid) {
     poke_resource(hart, m.cycle, 'c', time_csr, m.mtime);
   }
 
@@ -2448,7 +2448,7 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
       bridge_log_(cvm::MEDIUM, "<{}> Timer interrupt set: mip={} time={:#x}\n", i.cycle, to_string(i), i.mtime);
 
     std::bitset<64> t_mip = i.mip_set[MTI] << MTI | i.mip_set[STI] << STI | i.mip_set[VSTI] << VSTI;
-    poke_timer(hart, i.cycle, t_mip, i.mtime);
+    poke_timer(hart, i.cycle, t_mip, i.mtime + 16); // FIXME: Workaround to get mtime over the line. Investigate why it's needed.
   }
 
   // Default behavior is to poke the time csr to handle timer interrupts

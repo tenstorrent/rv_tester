@@ -46,6 +46,7 @@ DEFINE_uint64(nmi_vec, 0, "NMI handler PC");
 DEFINE_uint64(nme_vec, 0, "NMI exception handler PC");
 DEFINE_bool(ppo, true, "Enable ppo checks");
 DEFINE_bool(traceptw, true, "Enable page table walk tracing");
+DEFINE_bool(whisper_auto_increment_timer, false, "Enable whisper auto_increment_timer");
 
 REGISTRY_register(whisperClient<uint64_t>, TOP.PLATFORM.WHISPER_CLIENT, 0);
 
@@ -228,6 +229,7 @@ constructSystem(uint16_t ncores, bool standalone, uint64_t secure_region_start=0
       hart.setTlbSize(FLAGS_whisper_tlb_size);
     if (FLAGS_whisper_stdout_null) hart.redirectOutputDescriptor(STDOUT_FILENO, "/dev/null");
     if (FLAGS_whisper_stdin_null)  hart.redirectOutputDescriptor(STDIN_FILENO,  "/dev/null");
+    hart.autoIncrementTimer(FLAGS_whisper_auto_increment_timer);
     if (! isa.empty()) {
       if (FLAGS_isa != "") {
         if (not hart.configIsa(FLAGS_isa, false))
