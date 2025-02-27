@@ -104,11 +104,7 @@ protected:
 
 private:
   uint64_t ras_helper_base = 0x9000000;
-  uint64_t tx_status = 0;
-  uint64_t tx_addr = 0x90a0000;
-  uint64_t tx_size = 2;
-  uint64_t tx_trigger = 0;
-  uint8_t  read_flag = 0;
+
   mem_manager m_;
   
   pcg_extras::seed_seq_from<std::random_device> seed_source;
