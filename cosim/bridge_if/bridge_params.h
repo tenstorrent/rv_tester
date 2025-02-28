@@ -83,6 +83,10 @@ namespace {
       CSR(HCONTEXT,         0x6A8, "hcontext")                                 \
       CSR(HTIMEDELTA,       0x605, "htimedelta")                               \
       CSR(HTIMEDELTAH,      0x615, "htimedeltah")                              \
+      CSR(HVIEN,            0x608, "hvien")                                    \
+      CSR(HVICTL,           0x609, "hvictl")                                   \
+      CSR(HVIPRIO1,         0x646, "hviprio1")                                 \
+      CSR(HVIPRIO2,         0x647, "hviprio2")                                 \
       CSR(VSSTATUS,         0x200, "vsstatus"      ,false, true)               \
       CSR(VSIE,             0x204, "vsie")                                     \
       CSR(VSTVEC,           0x205, "vstvec")                                   \
@@ -116,7 +120,7 @@ namespace {
       CSR(VCSR,             0x00F, "vcsr")                                     \
       CSR(VL,               0xc20, "vl")                                       \
       CSR(VTYPE,            0xc21, "vtype")                                    \
-      CSR(VLENB,            0x0C2, "vlenb")                                    \
+      CSR(VLENB,            0xC22, "vlenb")                                    \
       CSR(MTINST,           0x34A, "mtinst")                                   \
       CSR(MTVAL2,           0x34B, "mtval2")                                   \
       CSR(MENVCFG,          0x30A, "menvcfg")                                  \
@@ -364,6 +368,7 @@ namespace {
       CSR(MHPMEVENT29,      0x33D, "mhpmevent29")                              \
       CSR(MHPMEVENT30,      0x33E, "mhpmevent30")                              \
       CSR(MHPMEVENT31,      0x33F, "mhpmevent31")                              \
+      CSR(SCOUNTOVF,        0xDA0, "scountovf")                                \
       CSR(TSELECT,          0x7A0, "tselect")                                  \
       CSR(TDATA1,           0x7A1, "tdata1")                                   \
       CSR(TDATA2,           0x7A2, "tdata2")                                   \
