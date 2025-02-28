@@ -318,7 +318,9 @@ size_t
 pmu::extract_granularity (uint64_t event_id) {
   uint64_t filter_id = event_id & 0xFFFF0000;
   uint64_t child_id = event_id & 0xFFFF;
-  if (filter_id == 0x14620000 && !((child_id & (child_id - 1)) == 0))
+  if (filter_id == 0x14620000 && !((child_id & (child_id - 1)) == 0))//op_complete filtered event granularity: 16
+    return 16;
+  if (filter_id == 0x14400000 && !((child_id & (child_id - 1)) == 0))//op_issued filtered event granularity: 16
     return 16;
   size_t granularity_bits = (event_id >> 26) & 0b11;
   if (granularity_bits == 0b1)

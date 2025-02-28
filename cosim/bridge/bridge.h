@@ -319,7 +319,7 @@ private:
   // Memmap
   std::map<std::string, memmap_entry_t> memmap_;
 
-  std::array<std::array<int, 16>, 12> num_taken_interrupts_{};
+  std::array<std::array<int, 16>, 64> num_taken_interrupts_{};
 
   int num_exceptions_ = 0;
   int num_trig_breakpoint_ = 0;

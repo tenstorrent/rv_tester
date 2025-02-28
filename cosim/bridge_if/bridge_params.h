@@ -305,37 +305,38 @@ namespace {
       CSR(MHPMCOUNTER29,    0xB1D, "mhpmcounter29")                            \
       CSR(MHPMCOUNTER30,    0xB1E, "mhpmcounter30")                            \
       CSR(MHPMCOUNTER31,    0xB1F, "mhpmcounter31")                            \
-      CSR(MCYCLEH,          0xB80, "mcycleh")                                  \
-      CSR(MINSTRETH,        0xB82, "minstreth")                                \
-      CSR(MHPMCOUNTER3H,    0xB83, "mhpmcounter3h")                            \
-      CSR(MHPMCOUNTER4H,    0xB84, "mhpmcounter4h")                            \
-      CSR(MHPMCOUNTER5H,    0xB85, "mhpmcounter5h")                            \
-      CSR(MHPMCOUNTER6H,    0xB86, "mhpmcounter6h")                            \
-      CSR(MHPMCOUNTER7H,    0xB87, "mhpmcounter7h")                            \
-      CSR(MHPMCOUNTER8H,    0xB88, "mhpmcounter8h")                            \
-      CSR(MHPMCOUNTER9H,    0xB89, "mhpmcounter9h")                            \
-      CSR(MHPMCOUNTER10H,   0xB8A, "mhpmcounter10h")                           \
-      CSR(MHPMCOUNTER11H,   0xB8B, "mhpmcounter11h")                           \
-      CSR(MHPMCOUNTER12H,   0xB8C, "mhpmcounter12h")                           \
-      CSR(MHPMCOUNTER13H,   0xB8D, "mhpmcounter13h")                           \
-      CSR(MHPMCOUNTER14H,   0xB8E, "mhpmcounter14h")                           \
-      CSR(MHPMCOUNTER15H,   0xB8F, "mhpmcounter15h")                           \
-      CSR(MHPMCOUNTER16H,   0xB90, "mhpmcounter16h")                           \
-      CSR(MHPMCOUNTER17H,   0xB91, "mhpmcounter17h")                           \
-      CSR(MHPMCOUNTER18H,   0xB92, "mhpmcounter18h")                           \
-      CSR(MHPMCOUNTER19H,   0xB93, "mhpmcounter19h")                           \
-      CSR(MHPMCOUNTER20H,   0xB94, "mhpmcounter20h")                           \
-      CSR(MHPMCOUNTER21H,   0xB95, "mhpmcounter21h")                           \
-      CSR(MHPMCOUNTER22H,   0xB96, "mhpmcounter22h")                           \
-      CSR(MHPMCOUNTER23H,   0xB97, "mhpmcounter23h")                           \
-      CSR(MHPMCOUNTER24H,   0xB98, "mhpmcounter24h")                           \
-      CSR(MHPMCOUNTER25H,   0xB99, "mhpmcounter25h")                           \
-      CSR(MHPMCOUNTER26H,   0xB9A, "mhpmcounter26h")                           \
-      CSR(MHPMCOUNTER27H,   0xB9B, "mhpmcounter27h")                           \
-      CSR(MHPMCOUNTER28H,   0xB9C, "mhpmcounter28h")                           \
-      CSR(MHPMCOUNTER29H,   0xB9D, "mhpmcounter29h")                           \
-      CSR(MHPMCOUNTER30H,   0xB9E, "mhpmcounter30h")                           \
-      CSR(MHPMCOUNTER31H,   0xB9F, "mhpmcounter31h")                           \
+      CSR(CYCLE,            0xC00, "cycle")                                    \
+      CSR(TIME,             0xC01, "time")                                     \
+      CSR(INSTRET,          0xC02, "instret")                                  \
+      CSR(HPMCOUNTER3,      0xC03, "hpmcounter3")                              \
+      CSR(HPMCOUNTER4,      0xC04, "hpmcounter4")                              \
+      CSR(HPMCOUNTER5,      0xC05, "hpmcounter5")                              \
+      CSR(HPMCOUNTER6,      0xC06, "hpmcounter6")                              \
+      CSR(HPMCOUNTER7,      0xC07, "hpmcounter7")                              \
+      CSR(HPMCOUNTER8,      0xC08, "hpmcounter8")                              \
+      CSR(HPMCOUNTER9,      0xC09, "hpmcounter9")                              \
+      CSR(HPMCOUNTER10,     0xC0A, "hpmcounter10")                             \
+      CSR(HPMCOUNTER11,     0xC0B, "hpmcounter11")                             \
+      CSR(HPMCOUNTER12,     0xC0C, "hpmcounter12")                             \
+      CSR(HPMCOUNTER13,     0xC0D, "hpmcounter13")                             \
+      CSR(HPMCOUNTER14,     0xC0E, "hpmcounter14")                             \
+      CSR(HPMCOUNTER15,     0xC0F, "hpmcounter15")                             \
+      CSR(HPMCOUNTER16,     0xC10, "hpmcounter16")                             \
+      CSR(HPMCOUNTER17,     0xC11, "hpmcounter17")                             \
+      CSR(HPMCOUNTER18,     0xC12, "hpmcounter18")                             \
+      CSR(HPMCOUNTER19,     0xC13, "hpmcounter19")                             \
+      CSR(HPMCOUNTER20,     0xC14, "hpmcounter20")                             \
+      CSR(HPMCOUNTER21,     0xC15, "hpmcounter21")                             \
+      CSR(HPMCOUNTER22,     0xC16, "hpmcounter22")                             \
+      CSR(HPMCOUNTER23,     0xC17, "hpmcounter23")                             \
+      CSR(HPMCOUNTER24,     0xC18, "hpmcounter24")                             \
+      CSR(HPMCOUNTER25,     0xC19, "hpmcounter25")                             \
+      CSR(HPMCOUNTER26,     0xC1A, "hpmcounter26")                             \
+      CSR(HPMCOUNTER27,     0xC1B, "hpmcounter27")                             \
+      CSR(HPMCOUNTER28,     0xC1C, "hpmcounter28")                             \
+      CSR(HPMCOUNTER29,     0xC1D, "hpmcounter29")                             \
+      CSR(HPMCOUNTER30,     0xC1E, "hpmcounter30")                             \
+      CSR(HPMCOUNTER31,     0xC1F, "hpmcounter31")                             \
       CSR(MCOUNTINHIBIT,    0x320, "mcountinhibit")                            \
       CSR(MHPMEVENT3,       0x323, "mhpmevent3")                               \
       CSR(MHPMEVENT4,       0x324, "mhpmevent4")                               \

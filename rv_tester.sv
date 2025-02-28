@@ -168,6 +168,7 @@ module rv_tester
     int flush_timeout = 25000;
     bit print_terminate_message = '1;
     bit dm_registery_terminate_message = '1;
+    int ndmreset_ack_delay = 0;
 
     int debug_enable = 0;
     bit dmi_driver_dbg_enable;
@@ -393,6 +394,7 @@ module rv_tester
             cb_poll              <= cvm_plusargs::get_bool("cb_async") == '0;
             quiesce_timeout      <= cvm_plusargs::get_int("quiesce_timeout");
             dmi_poll_timeout     <= cvm_plusargs::get_int("dmi_poll_timeout");
+            ndmreset_ack_delay   <= cvm_plusargs::get_int("ndmreset_ack_delay");
             trace_timeout        <= cvm_plusargs::get_int("trace_timeout");
             flush_timeout        <= cvm_plusargs::get_int("flush_timeout");
             freq_switch_ncycles  <= cvm_plusargs::get_int("freq_switch_ncycles");
@@ -580,6 +582,33 @@ module rv_tester
         dut_reset_req_d1 <= dut_reset_req;
     end
     assign dut_reset_req_active = dut_reset_req && warm_reset_pullup;
+
+    //ndmreset ack delay logic
+    LU ndmreset_ack_clocks;
+    logic ndmreset_ack_clocks_latched = 1'b0;
+    always@(posedge dut_clk[TB_CLK_IDX]) begin
+         /* verilator lint_off BLKSEQ */
+        if(!dut_reset_req)begin
+            ndmreset_ack_clocks_latched = 1'b0;
+             /* verilator lint_off ASSIGNIN */
+            ndmreset_ack = 1'b0;
+             /* verilator lint_on ASSIGNIN */
+        end
+          /* verilator lint_off WIDTH */
+        if(dut_reset_req & !ndmreset_ack_clocks_latched )begin
+           ndmreset_ack_clocks = clocks;
+           ndmreset_ack_clocks_latched = 1'b1;
+        end
+
+        if(clocks >= (ndmreset_ack_clocks + ndmreset_ack_delay))begin
+           /* verilator lint_off ASSIGNIN */
+           ndmreset_ack = 1'b1;
+            /* verilator lint_on ASSIGNIN */
+        end
+          /* verilator lint_on WIDTH */
+           /* verilator lint_on BLKSEQ */
+    
+    end
 
 `ifdef NEGEDGE_UNSUPPORTED
     always@(posedge dut_clk[TB_CLK_IDX]) begin

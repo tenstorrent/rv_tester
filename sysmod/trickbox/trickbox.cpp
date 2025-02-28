@@ -23,6 +23,8 @@ trickbox::trickbox(const std::string& tag, uint64_t addr, unsigned, cvm::topolog
   subdevices_.emplace_back(sub);
   sub = new io_coh_helper("io_coh_helper", addr + 0x89000, 1, loc, m_);
   subdevices_.emplace_back(sub);
+  sub = new ras_helper("ras_helper", addr + 0x89800, 1, loc, m_);
+  subdevices_.emplace_back(sub);
 }
 
 
