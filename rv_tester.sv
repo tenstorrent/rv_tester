@@ -600,7 +600,7 @@ module rv_tester
            ndmreset_ack_clocks_latched = 1'b1;
         end
 
-        if(clocks > (ndmreset_ack_clocks + ndmreset_ack_delay))begin
+        if(clocks >= (ndmreset_ack_clocks + ndmreset_ack_delay))begin
            /* verilator lint_off ASSIGNIN */
            ndmreset_ack = 1'b1;
             /* verilator lint_on ASSIGNIN */
