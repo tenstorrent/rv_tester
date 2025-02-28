@@ -301,11 +301,6 @@ cosim:
             elem_idx:
                 qualify: v_ext
                 width: 8
-            mtime_valid:
-                width: 1
-            mtime:
-                qualify: mtime_valid
-                width: ${TOP.PLATFORM.XLEN}
 
     m_mcmi_write:
         domain: 1

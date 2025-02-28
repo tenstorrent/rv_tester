@@ -1139,8 +1139,6 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
       m.amo    = m_mcmi_bypass.amo;
       m.amo_op = m_mcmi_bypass.amo_op;
       m.elem_idx = m_mcmi_bypass.elem_idx;
-      m.mtime_valid = m_mcmi_bypass.mtime_valid;
-      m.mtime = m_mcmi_bypass.mtime;
 
       if (m.amo && m.amo_op != SC && FLAGS_emulate_amo_arithmetic) {
         amo_writes_.emplace(m.tag, m);
@@ -1191,8 +1189,6 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
               m.data_vec = value;
               m.v_ext = m_mcmi_bypass.v_ext;
               m.elem_idx = m_mcmi_bypass.elem_idx;
-              m.mtime_valid = m_mcmi_bypass.mtime_valid;
-              m.mtime = m_mcmi_bypass.mtime;
               bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m);
               start_addr = addresses[i];
               size = 1;
@@ -1209,8 +1205,6 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
       m.data_vec = stringToBitset(dataAccumulated);  // Final range processing
       m.v_ext = m_mcmi_bypass.v_ext;
       m.elem_idx = m_mcmi_bypass.elem_idx;
-      m.mtime_valid = m_mcmi_bypass.mtime_valid;
-      m.mtime = m_mcmi_bypass.mtime;
       bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m);
   }
 }

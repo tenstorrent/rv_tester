@@ -2261,12 +2261,6 @@ void bridge::process_dut_mcm_bypass(hart_id_t hart, mem_t& m) {
     }
   }
 
-  // Special case for timer interrupt handling
-  // Poke time on timecmp update
-  if (!FLAGS_poke_mip_timer && m.mtime_valid) {
-    poke_resource(hart, m.cycle, 'c', time_csr, m.mtime);
-  }
-
   if (FLAGS_bridge_log)
     bridge_log_(cvm::HIGH, "<{}> mcm_bypass [valid={}, tag={}, vec={}, addr={:#x}, size={}, data={:#x}]\n",
       m.cycle, valid, m.tag, m.v_ext, m.pa, m.size, m.data);
