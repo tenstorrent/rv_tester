@@ -918,7 +918,7 @@ package rv_tester_params;
     output                                   dut_clk            [rv_tester_params::NCLKS-1:0],      \
     input                                    dut_reset          [rv_tester_params::NCLKS-1:0],      \
     output                                   dut_reset_req,                                         \
-    input                                    ndmreset_ack,                                          \
+    input   logic                            ndmreset_ack,                                          \
     input                                    dut_reset_req_active,                                  \
     input                                    force_ref_clk,                                         \
     output [rv_tester_params::NHARTS-1:0]    core_no_fetch,                                         \
