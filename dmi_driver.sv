@@ -74,7 +74,7 @@ import rv_tester_params:: * ;
 
   logic mmr_write_32bits, mmr_write_64bits, check_data0, check_data1, get_data1, mmr_read_32bits, mmr_read_64bits, mmr_access_rd, read_data1, read_data0_comp, read_data1_comp;
 
-  logic read_data2, read_data3, get_data2, get_data3;
+  logic read_data2, read_data3, get_data2, get_data3, end_of_test_cleanup;
   int data0_value, data1_value, hart_enable_mask_value, data2_value, data3_value;
   logic [7:0] DM_DebugReq_Valids_q;
   typedef struct packed {
@@ -184,6 +184,7 @@ import rv_tester_params:: * ;
       check_cmisa_sdtrig <= 0;
       cmisa_sdtrig_disabled <= 0;
       disable_mem_access_checker <= 0;
+      end_of_test_cleanup <= 0;
 
       command_queue.delete();
       response_queue.delete();
@@ -217,8 +218,9 @@ import rv_tester_params:: * ;
   always @(posedge clk) begin
     dmi_commands_in_queue = command_queue.size();
 
-    if (~reset_n) begin
+    if (~reset_n || end_of_test_cleanup) begin
       reset_cleanup();
+      $display("[DMI Driver] end_of_cleanup ");
     end
   end
 
@@ -1292,6 +1294,11 @@ import rv_tester_params:: * ;
       end
       command_trigger = 0;
       $display("[DMI Execution] Clear the Execution Trigger\n");
+
+      if(command_queue.size() === 0) begin
+        end_of_test_cleanup = 1;
+        $display("[DMI Execution] End of test Cleanup \n");
+      end
       @(posedge clk);
     end
   end
