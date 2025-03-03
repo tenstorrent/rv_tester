@@ -97,7 +97,7 @@ private:
 
   void update_dut_state(hart_id_t hart, rv_instr_t& d);
   void arch_state(whisper_state_t& w);
-  void update_whisper_state(hart_id_t hart, whisper_state_t& w);
+  void update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_is_compressed=false);
   void step(hart_id_t hart, whisper_state_t& w);
   void compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w, rv_instr_t& d);
   void print_instr(hart_id_t hart, const whisper_state_t& w);
@@ -132,6 +132,7 @@ private:
   void pre_step_exception_poke(hart_id_t hart, const rv_instr_t& d);
   void pre_step_lrsc_poke(       hart_id_t hart, const rv_instr_t& d);
   void pre_step_debug_poke(      hart_id_t hart, const rv_instr_t& d);
+  void post_step_debug_poke(      hart_id_t hart, const rv_instr_t& d);
   void pre_step_nmi_poke(  hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
   void pre_step_interrupt_poke(  hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
   void post_step_nmi_check( hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
