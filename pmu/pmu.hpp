@@ -1070,7 +1070,7 @@ public:
     }
 
 
-    const std::unordered_map<counter_core, std::string_view> core_to_string = {
+    const std::map<counter_core, std::string_view> core_to_string = {
       {CPU_CYCLES,"cpu_cycles"},
       {INSTRUCTIONS,"instructions"},
       {M_MODE_CYCLES,"m_mode_cycles"},
@@ -2219,7 +2219,7 @@ public:
 
     }
 
-    const std::unordered_map<counter_sc, std::string_view> sc_to_string = {
+    const std::map<counter_sc, std::string_view> sc_to_string = {
       {SC_CACHE_ACCESS,"sc_cache_access"},
       {SC_CACHE_RD,"sc_cache_rd"},
       {SC_CACHE_MISS,"sc_cache_miss"},

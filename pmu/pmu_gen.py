@@ -123,7 +123,7 @@ def create_cpp_frag(core_events: List[Dict[Any, Any]],sc_events: List[Dict[Any, 
       f.write(to_vec_post)
       
       reflection_pre = f"""
-    const std::unordered_map<{rv_tester_transaction_config}, std::string_view> {to_string} = {{
+    const std::map<{rv_tester_transaction_config}, std::string_view> {to_string} = {{
 """
       f.write(reflection_pre)
       for event in events:
