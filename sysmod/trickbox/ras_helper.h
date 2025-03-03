@@ -12,10 +12,13 @@
 #include <random>
 #include <cmath>
 #include "pcg_random.hpp"
+#include "common_defs.hpp"
 #include "cvm/plusargs.hpp"
 #include "cvm/topology.hpp"
 #include "cvm/registry.hpp"
 #include "cvm/logger.hpp"
+#include "cvm/callbacks.hpp"
+#include "cvm/messenger.hpp"
 #include <mem_manager.h>
 
 #include "whisper_client.h"
@@ -106,9 +109,16 @@ private:
   uint64_t ras_helper_base = 0x9000000;
 
   mem_manager m_;
+  uint64_t localStorage[100];
   
   pcg_extras::seed_seq_from<std::random_device> seed_source;
   pcg32 rng;
   //unsigned hartCount;
+public:
+     uint64_t ras_helper_backdoor_read(uint64_t addr);
+     bool ras_helper_backdoor_write(uint64_t addr,uint64_t data);
+     CVM_MESSENGER_procedure_call(ras_helper_backdoor_read_RPC, uint64_t (uint64_t));
+     CVM_MESSENGER_procedure_call(ras_helper_backdoor_write_RPC, bool (uint64_t, uint64_t));
+
 };
 

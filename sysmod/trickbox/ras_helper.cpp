@@ -14,6 +14,11 @@ ras_helper::ras_helper(const std::string& tag, uint64_t addr, unsigned, cvm::top
   ras_helper_base = addr;
   reset();
   checkUsage();
+
+  cvm::registry::messenger.procedure<ras_helper_backdoor_read_RPC>(loc, [this] (std::uint64_t addr) {return this->ras_helper_backdoor_read(addr);});
+  cvm::registry::messenger.procedure<ras_helper_backdoor_write_RPC>(loc, [this] (std::uint64_t addr, std::uint64_t data) {return this->ras_helper_backdoor_write(addr,data);});
+
+
 }
 
 
@@ -59,7 +64,25 @@ ras_helper::checkUsage()
  //For Future FLAG usage
 }
 
+std::uint64_t ras_helper::ras_helper_backdoor_read(uint64_t addr){
+ 
+  cvm::log(cvm::HIGH, "[ras_helper]  Backdoor Read addr {:#x}  \n",addr);
+   if (not has_addr(addr)){
+    cvm::log(cvm::HIGH, "[ras_helper] Descarding read request at ras_helper since tag {} is not matching \n",tag());
+   return -1;
+  }
+  return localStorage[addr - ras_helper_base];
+}
 
+bool ras_helper::ras_helper_backdoor_write(uint64_t addr,uint64_t data){
+  cvm::log(cvm::HIGH, "[ras_helper] backdoor write addr {:#x} and Data {:#x}  \n",addr,data);
+   if (not has_addr(addr)){
+    cvm::log(cvm::HIGH, "[ras_helper] Descarding read request at ras_helper since tag {} is not matching \n",tag());
+   return false;
+  }
+  localStorage[addr - ras_helper_base] = data;
+  return true;
+}
 void
  ras_helper::write(uint64_t addr, size_t , const data_t& data,
  		 const strb_t&)
@@ -72,6 +95,6 @@ void
   cvm::log(cvm::HIGH, "[ras_helper] write data {:#x} \n",t_data);
 
   if (addr == ras_helper_base) {
-      
+     localStorage[0] = t_data; 
   } 
 }
