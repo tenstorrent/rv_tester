@@ -220,7 +220,7 @@ import rv_tester_params:: * ;
 
     if (~reset_n || end_of_test_cleanup) begin
       reset_cleanup();
-      $display("[DMI Driver] end_of_cleanup ");
+      $display("[DMI Driver] Initializing driver variables");
     end
   end
 
@@ -1294,11 +1294,7 @@ import rv_tester_params:: * ;
       end
       command_trigger = 0;
       $display("[DMI Execution] Clear the Execution Trigger\n");
-
-      if(command_queue.size() === 0) begin
-        end_of_test_cleanup = 1;
-        $display("[DMI Execution] End of test Cleanup \n");
-      end
+      end_of_test_cleanup = 1;
       @(posedge clk);
     end
   end
