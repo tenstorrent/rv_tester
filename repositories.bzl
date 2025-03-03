@@ -101,10 +101,11 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:specifications/arch-export-controlled/aegissocspec.git",
     )
 
-    risc_v_cpu_spec_hash="0bf743758fc033d90ebb3ead75089894dd2405bf"
-    git_repository(
-        name = "risc_v_cpu_spec",
+    risc_v_cpu_spec_hash="3a0cd65fab8dd55c77d482323c91fbe35f069edd"
+    maybe(
+        git_repository,
+        name = "risc-v-cpu-spec",
         commit = risc_v_cpu_spec_hash,
-        recursive_init_submodules = True,
-        remote = "git@aus-gitlab.local.tenstorrent.com:specifications/arch-export-controlled/risc_v_cpu_spec.git",
+        shallow_since = "1664916258 -0500",
+        remote = "git@aus-gitlab.local.tenstorrent.com:specifications/arch-export-controlled/risc-v-cpu-spec.git",
     )
