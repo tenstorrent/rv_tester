@@ -127,10 +127,9 @@ import rv_tester_params::*;
     input mcmi_t [NIFETCH-1:0] mcmi_ifetch_resp,
     input mcmi_t [NIEVICT-1:0] mcmi_ievict,
     input rv_tester_pkg::nmi_t nmi_pend,
-    input rv_tester_pkg::interrupt_t wired_interrupt,
-    input rv_tester_params::mst_req_top imsic_interrupt,
-    input rv_tester_params::mst_req_top imsic_msi,
-    input rv_tester_params::mst_req_top imsic_ipi,
+    input rv_tester_params::interrupt_pend_t interrupt_pend,
+    input logic [63:0] mtime,
+    input rv_tester_params::msi_t imsic_msi,
     input debug_mode,
     input longint eot_addr,
     input bit poke_event_in,
@@ -558,7 +557,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     //---------------------------------------------------------------------------------------------------------
     assign reg_waddr5_event = ((gp_waddr5 != '0) | (fp_waddr5 != '0) | (vc_waddr5 != '0)) ? 1'b1 : 1'b0;
 
-    assign imsic_valid = m_imsic_msis[2].valid | m_imsic_msis[1].valid | m_imsic_msis[0].valid;
+    assign imsic_valid = m_imsic_msis[0].valid;
     assign mtrap_valid = m_traps[0].valid;
     assign csrrw_valid = (csr_rw != '0); 
     assign scrw_valid  = (sc_rw != '0); 
@@ -638,7 +637,7 @@ localparam CAM_IHBIT = CAM_IBITS;
                  rvfi_excp_ip <=  1'b0; 
               end
            end
-           if (mtrap_valid | (m_core_intrs[0].valid) | imsic_valid) begin
+           if (mtrap_valid | (m_interrupt_pends[0].valid) | imsic_valid) begin
               mintr <= 1'b1;
            end
            else begin
@@ -669,7 +668,7 @@ localparam CAM_IHBIT = CAM_IBITS;
         end
     end
 
-    assign poke_interrupt = mintr | mtrap_valid | m_core_intrs[0].valid | imsic_valid;
+    assign poke_interrupt = mintr | mtrap_valid | m_interrupt_pends[0].valid | imsic_valid;
 
     //assign poke_last_uop_event = ((rvfi_last_uop_events != '0) | (rvfi_val_luops != '0)) ? 1'b1 : 1'b0;
     assign poke_last_uop_event = ((rvfi_last_uop_events != '0)) ? 1'b1 : 1'b0;
@@ -1247,121 +1246,69 @@ localparam CAM_IHBIT = CAM_IBITS;
       return cause;
     endfunction
 
-    // m_core_intr
-    localparam wired_interrupt_delays = 5;
-    rv_tester_pkg::interrupt_t [wired_interrupt_delays-1:0] wired_interrupt_delayed;
+    // m_interrupt_pend
+    logic [63:0] mip_d1;
+    logic seip_d1;
     always @(posedge clk) begin
-      if (dut_reset) begin
-        wired_interrupt_delayed <= '{default:0};
-      end else begin
-        wired_interrupt_delayed <= {wired_interrupt_delayed[wired_interrupt_delays-2:0],wired_interrupt};
-      end
+      mip_d1 <= interrupt_pend.mip;
+      seip_d1 <= interrupt_pend.seip;
     end
-    assign m_core_intrs[0].valid = ~dut_reset & (|(wired_interrupt_delayed[wired_interrupt_delays-2] & ~wired_interrupt_delayed[wired_interrupt_delays-1]) | |(~wired_interrupt_delayed[wired_interrupt_delays-2]& wired_interrupt_delayed[wired_interrupt_delays-1])) & rvfi_enabled;
-    assign m_core_intrs[0].data.location = location;
-    assign m_core_intrs[0].data.cycle = clocks;
-    assign m_core_intrs[0].data.mip = get_mip(wired_interrupt_delayed[wired_interrupt_delays-2]);
-    assign m_core_intrs[0].data.mip_mask = get_mip_mask(wired_interrupt_delayed[wired_interrupt_delays-2], wired_interrupt_delayed[wired_interrupt_delays-1]);
-    assign m_core_intrs[0].data.mip_assert = get_mip_assert(wired_interrupt_delayed[wired_interrupt_delays-2], wired_interrupt_delayed[wired_interrupt_delays-1]);
-
-    function automatic bit [63:0] get_mip(rv_tester_pkg::interrupt_t intr);
-      bit [63:0] mip = 'h0;
-      mip[23] = intr.derr;
-      mip[13] = intr.lcofi;
-      mip[12] = intr.sgei;
-      mip[11] = intr.mei;
-      mip[10] = intr.vsei;
-      mip[9]  = intr.sei;
-      mip[7]  = intr.mti;
-      mip[6]  = intr.vsti;
-      mip[5]  = intr.sti;
-      mip[3]  = intr.msi;
-      mip[1]  = intr.ssi;
-      return mip;
-    endfunction
-
-    localparam imsic_whisper_delays = 11; // 7 (for RgCr -> CuRtPending) + 4 (for rvfi packets)
-    rv_tester_params::mst_req_top [imsic_whisper_delays-1:0] imsic_interrupt_delays, imsic_msi_delays, imsic_ipi_delays;
-    rv_tester_params::mst_req_top imsic_interrupt_delayed, imsic_msi_delayed, imsic_ipi_delayed;
-    always @(posedge clk) begin
-      imsic_interrupt_delays <= {imsic_interrupt_delays[imsic_whisper_delays-2:0], imsic_interrupt};
-      imsic_msi_delays <= {imsic_msi_delays[imsic_whisper_delays-2:0], imsic_msi};
-      imsic_ipi_delays <= {imsic_ipi_delays[imsic_whisper_delays-2:0], imsic_ipi};
-    end
-   assign imsic_interrupt_delayed = imsic_interrupt_delays[imsic_whisper_delays-1];
-   assign imsic_msi_delayed = imsic_msi_delays[imsic_whisper_delays-1];
-   assign imsic_ipi_delayed = imsic_ipi_delays[imsic_whisper_delays-1];
+    assign m_interrupt_pends[0].valid = ~dut_reset & interrupt_pend.valid & rvfi_enabled;
+    assign m_interrupt_pends[0].data.location = location;
+    assign m_interrupt_pends[0].data.cycle = clocks;
+    assign m_interrupt_pends[0].data.hw = interrupt_pend.hw;
+    assign m_interrupt_pends[0].data.mip = interrupt_pend.mip;
+    assign m_interrupt_pends[0].data.mip_set = interrupt_pend.mip & ~mip_d1;
+    assign m_interrupt_pends[0].data.mip_clr = ~interrupt_pend.mip & mip_d1;
+    assign m_interrupt_pends[0].data.seip = interrupt_pend.seip;
+    assign m_interrupt_pends[0].data.seip_set = interrupt_pend.seip & ~seip_d1;
+    assign m_interrupt_pends[0].data.seip_clr = ~interrupt_pend.seip & seip_d1;
+    assign m_interrupt_pends[0].data.mtime = mtime;
 
     // m_imsic_msi
-    enum logic {idle, aw} msi_slave_state,msi_slave_state_d;
-    logic msi_addr_in_imsic_range;
-    always @(posedge clk) begin
-       if (dut_reset) begin
-        msi_slave_state <= idle;
-       end else begin
-        msi_slave_state <= msi_slave_state_d;
-       end
-    end
-    assign msi_slave_state_d = imsic_interrupt_delayed.w_valid ? idle : imsic_interrupt_delayed.aw_valid ? aw : msi_slave_state;
-    assign msi_addr_in_imsic_range = (imsic_interrupt_delayed.aw.addr[31:0] >= 32'h40000000 &&  imsic_interrupt_delayed.aw.addr[31:0] < 32'h42000000) || (imsic_interrupt_delayed.aw.addr[31:0] >= 32'h44000000 &&  imsic_interrupt_delayed.aw.addr[31:0] < 32'h46000000);
-    assign m_imsic_msis[0].valid = ~dut_reset & ( (msi_slave_state==aw | imsic_interrupt_delayed.aw_valid) & imsic_interrupt_delayed.w_valid & imsic_interrupt_delayed.w.strb=='hf & msi_addr_in_imsic_range) & rvfi_enabled;
+    assign m_imsic_msis[0].valid = ~dut_reset && imsic_msi.valid && rvfi_enabled;
     assign m_imsic_msis[0].data.location = location;
     assign m_imsic_msis[0].data.cycle = clocks;
-    /* verilator lint_off WIDTH */
-    assign m_imsic_msis[0].data.addr = imsic_interrupt_delayed.aw.addr;
-    assign m_imsic_msis[0].data.data = imsic_interrupt_delayed.w.data;
-    assign m_imsic_msis[0].data.size = imsic_interrupt_delayed.aw.size;
-    /* verilator lint_on WIDTH */
+    assign m_imsic_msis[0].data.addr = imsic_msi.addr;
+    assign m_imsic_msis[0].data.data = imsic_msi.data;
 
-    assign m_imsic_msis[1].valid = ~dut_reset && imsic_msi_delayed.aw_valid && imsic_msi_delayed.w_valid && rvfi_enabled;
-    assign m_imsic_msis[1].data.location = location;
-    assign m_imsic_msis[1].data.cycle = clocks;
-    /* verilator lint_off WIDTH */
-    assign m_imsic_msis[1].data.addr = imsic_msi_delayed.aw.addr;
-    assign m_imsic_msis[1].data.data = imsic_msi_delayed.w.data;
-    assign m_imsic_msis[1].data.size = imsic_msi_delayed.aw.size;
-    /* verilator lint_on WIDTH */
+    // m_mtime
+    logic mtimecmp_valid, stimecmp_valid, vstimecmp_valid;;
+    logic [XLEN-1:0] mtimecmp, stimecmp, vstimecmp;
 
-    assign m_imsic_msis[2].valid = ~dut_reset && imsic_ipi_delayed.aw_valid && imsic_ipi_delayed.w_valid && rvfi_enabled;
-    assign m_imsic_msis[2].data.location = location;
-    assign m_imsic_msis[2].data.cycle = clocks;
-    /* verilator lint_off WIDTH */
-    assign m_imsic_msis[2].data.addr = imsic_ipi_delayed.aw.addr;
-    assign m_imsic_msis[2].data.data = imsic_ipi_delayed.w.data;
-    assign m_imsic_msis[2].data.size = imsic_ipi_delayed.aw.size;
-    /* verilator lint_on WIDTH */
+    assign m_mtimes[0].valid = ~dut_reset && rvfi_enabled && (stimecmp_valid || vstimecmp_valid || (mtimecmp_valid && mcm_enabled));
+    assign m_mtimes[0].data.location = location;
+    assign m_mtimes[0].data.cycle = clocks;
+    assign m_mtimes[0].data.mtime = mtime;
+    assign m_mtimes[0].data.timecmp = mtimecmp_valid ? mtimecmp : stimecmp_valid ? stimecmp :  vstimecmp_valid ? vstimecmp : '0;
+    assign m_mtimes[0].data.mip = (64'(stimecmp_valid) << 5) | (64'(vstimecmp_valid) << 6) | (64'(mtimecmp_valid) << 7);
 
-    function automatic bit [63:0] get_mip_mask(rv_tester_pkg::interrupt_t intr, rv_tester_pkg::interrupt_t intr_d1);
-      bit [63:0] mask = 'h0;
-      mask[23] = (intr.derr & ~intr_d1.derr);
-      mask[13] = (intr.lcofi & ~intr_d1.lcofi);
-      mask[12] = (intr.sgei & ~intr_d1.sgei) | (~intr.sgei & intr_d1.sgei);
-      mask[11] = (intr.mei & ~intr_d1.mei) | (~intr.mei & intr_d1.mei);
-      mask[10] = (intr.vsei & ~intr_d1.vsei) | (~intr.vsei & intr_d1.vsei);
-      mask[9]  = (intr.sei & ~intr_d1.sei) | (~intr.sei & intr_d1.sei);
-      mask[7]  = (intr.mti & ~intr_d1.mti) | (~intr.mti & intr_d1.mti);
-      mask[6]  = (intr.vsti & ~intr_d1.vsti) | (~intr.vsti & intr_d1.vsti);
-      mask[5]  = (intr.sti & ~intr_d1.sti) | (~intr.sti & intr_d1.sti);
-      mask[3]  = (intr.msi & ~intr_d1.msi) | (~intr.msi & intr_d1.msi);
-      mask[1]  = (intr.ssi & ~intr_d1.ssi) | (~intr.ssi & intr_d1.ssi);
-      return mask;
-    endfunction
+    localparam logic [CSRLEN-1:0] STIMECMP  = 'h14D;
+    localparam logic [CSRLEN-1:0] VSTIMECMP = 'h24D;
+    localparam logic [PA_WIDTH-1:0] MTIMECMP_C0  = 'h42188000;
+    localparam logic [PA_WIDTH-1:0] MTIMECMP_C7  = 'h42188038;
 
-    function automatic bit [63:0] get_mip_assert(rv_tester_pkg::interrupt_t intr, rv_tester_pkg::interrupt_t intr_d1);
-      bit [63:0] mask = 'h0;
-      mask[23] = (intr.derr & ~intr_d1.derr);
-      mask[13] = (intr.lcofi & ~intr_d1.lcofi);
-      mask[12] = (intr.sgei & ~intr_d1.sgei);
-      mask[11] = (intr.mei & ~intr_d1.mei);
-      mask[10] = (intr.vsei & ~intr_d1.vsei);
-      mask[9]  = (intr.sei & ~intr_d1.sei);
-      mask[7]  = (intr.mti & ~intr_d1.mti);
-      mask[6]  = (intr.vsti & ~intr_d1.vsti);
-      mask[5]  = (intr.sti & ~intr_d1.sti);
-      mask[3]  = (intr.msi & ~intr_d1.msi);
-      mask[1]  = (intr.ssi & ~intr_d1.ssi);
-      return mask;
-    endfunction
+    always @(posedge clk) begin
+      if (reset) begin
+        stimecmp_valid <= '0;
+        vstimecmp_valid <= '0;
+        mtimecmp_valid <= '0;
+        stimecmp <= '0;
+        vstimecmp <= '0;
+        mtimecmp <= '0;
+      end else begin
+        for (int n = 0; n < NRET; n++) begin
+          stimecmp_valid <= rvfi[n].valid && rvfi[n].csr_valid && (rvfi[n].csr_addr == STIMECMP);
+          vstimecmp_valid <= rvfi[n].valid && rvfi[n].csr_valid && (rvfi[n].csr_addr == VSTIMECMP);
+          stimecmp <= rvfi[n].csr_wdata;
+          vstimecmp <= rvfi[n].csr_wdata;
+        end
+        for (int b = 0; b < NBYPASS; b++) begin
+          mtimecmp_valid <= mcmi_bypass[b].valid && ((mcmi_bypass[b].addr >= MTIMECMP_C0) && (mcmi_bypass[b].addr <= MTIMECMP_C7));
+          mtimecmp <= mcmi_bypass[b].data[63:0];
+        end
+      end
+    end
 
     //--------------------------------------------------------------------
     // set debug entry/exit values to defaults it NOT specificed by user

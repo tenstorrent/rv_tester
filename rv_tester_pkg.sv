@@ -99,7 +99,6 @@ package rv_tester_pkg;
     typedef sc_pmc_counter_t [SC_EVENT_COUNT-1:0] sc_pmci_t;
 
     typedef struct packed {
-        // FIXME: need per hart interrupt
         logic derr;
         logic lcofi;
         logic sgei;
@@ -111,6 +110,7 @@ package rv_tester_pkg;
         logic sti;
         logic msi;
         logic ssi;
+        logic [63:0] mtime;
     } interrupt_t;
 
     typedef struct packed {

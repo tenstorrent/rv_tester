@@ -46,6 +46,7 @@ DEFINE_uint64(nmi_vec, 0, "NMI handler PC");
 DEFINE_uint64(nme_vec, 0, "NMI exception handler PC");
 DEFINE_bool(ppo, true, "Enable ppo checks");
 DEFINE_bool(traceptw, true, "Enable page table walk tracing");
+DEFINE_bool(whisper_auto_increment_timer, false, "Enable whisper auto_increment_timer");
 
 REGISTRY_register(whisperClient<uint64_t>, TOP.PLATFORM.WHISPER_CLIENT, 0);
 
@@ -131,7 +132,7 @@ whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) {
   cvm::registry::messenger.procedure<whisperTranslateRPC>(loc, [this] (int hart, uint64_t vaddr, bool r, bool w, bool x, bool twoStage, bool supervisor, uint64_t& paddr, bool& valid) {return this->whisperTranslate(hart, vaddr, r, w, x, twoStage, supervisor, paddr, valid);});
   cvm::registry::messenger.procedure<whisperEnterDebugRPC>(loc, [this] (int hart) {return this->whisperEnterDebug(hart);});
   cvm::registry::messenger.procedure<whisperExitDebugRPC>(loc, [this] (int hart) {return this->whisperExitDebug(hart);});
-  cvm::registry::messenger.procedure<whisperCheckInterruptRPC>(loc, [this] (int hart, uint64_t mip, bool& interrupt, uint64_t& cause) {return this->whisperCheckInterrupt(hart, mip, interrupt, cause);});
+  cvm::registry::messenger.procedure<whisperCheckInterruptRPC>(loc, [this] (int hart, bool& interrupt, uint64_t& cause) {return this->whisperCheckInterrupt(hart, interrupt, cause);});
   cvm::registry::messenger.procedure<whisperGetSeiPinRPC>(loc, [this] (int hart, uint64_t& value) {return this->whisperGetSeiPin(hart, value);});
   cvm::registry::messenger.procedure<whisperCancelLrRPC>(loc, [this] (int hart, bool& valid) {return this->whisperCancelLr(hart, valid);});
   cvm::registry::messenger.procedure<whisperPeekGprRPC>(loc, [this] (int hart, uint64_t addr, uint64_t& value) {return this->whisperPeekGpr(hart, addr, value);});
@@ -228,6 +229,7 @@ constructSystem(uint16_t ncores, bool standalone, uint64_t secure_region_start=0
       hart.setTlbSize(FLAGS_whisper_tlb_size);
     if (FLAGS_whisper_stdout_null) hart.redirectOutputDescriptor(STDOUT_FILENO, "/dev/null");
     if (FLAGS_whisper_stdin_null)  hart.redirectOutputDescriptor(STDIN_FILENO,  "/dev/null");
+    hart.autoIncrementTimer(FLAGS_whisper_auto_increment_timer);
     if (! isa.empty()) {
       if (FLAGS_isa != "") {
         if (not hart.configIsa(FLAGS_isa, false))
@@ -1108,13 +1110,10 @@ whisperClient<URV>::whisperExitDebug(int hart)
 // possible assuming the MIP CSR has the given mip value.
 template <typename URV>
 bool
-whisperClient<URV>::whisperCheckInterrupt(int hart, uint64_t mip, bool& interrupt, uint64_t& cause)
+whisperClient<URV>::whisperCheckInterrupt(int hart, bool& interrupt, uint64_t& cause)
 {
   req.hart = hart;
   req.type = WhisperMessageType::CheckInterrupt;
-  req.address = mip;
-  req.value = mip;
-  req.instrTag = mip;
 
   WhisperMessage reply;
 

@@ -76,7 +76,7 @@ DEFINE_bool(sysmod_terminate, true, "Set to false for offline DPI mode");
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 
 extern "C" {
-  void sysmod_timer_interrupt(unsigned hartid, unsigned val);
+  void sysmod_timer_interrupt(unsigned hartid, unsigned val, unsigned long mtime_val);
   void sysmod_sw_interrupt(unsigned hartid, unsigned val);
   void sysmod_tbox_interrupt(unsigned hartid, unsigned val, unsigned int_val);
   void sysmod_trace_info(unsigned trace_info_s);
@@ -517,8 +517,8 @@ sysmod::timer_interrupt(clint::timer_t t) {
       cvm::registry::callbacks.push(
         scope(),
         [t]() {
-          cvm::log(cvm::FULL, "[SYSMOD] timer_interrupt [hart={}, mti={}]\n", t.hart, t.flag);
-          sysmod_timer_interrupt(t.hart, t.flag);
+          cvm::log(cvm::FULL, "[SYSMOD] timer_interrupt [hart={}, mti={} mtime={:#x}]\n", t.hart, t.flag, t.mtime);
+          sysmod_timer_interrupt(t.hart, t.flag, t.mtime);
         });
 }
 

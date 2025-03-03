@@ -773,10 +773,9 @@ module rv_tester
           .mcmi_ifetch_resp(mcmi_ifetch_resp[NIFETCHES_CUMSUM[c] +: NIFETCHES[c]]),
           .mcmi_ievict(mcmi_ievict[NIEVICTS_CUMSUM[c] +: NIEVICTS[c]]),
           .nmi_pend(nmi_pend[c]),
-          .wired_interrupt(interrupt_pend[c]),
-          .imsic_interrupt(axi_msi), //FIXME
-          .imsic_msi(axi_msi_packets[c]), //FIXME
-          .imsic_ipi(axi_ipi_packets[c]), //FIXME
+          .interrupt_pend(interrupt_pend[c]),
+          .mtime(mtime),
+          .imsic_msi(imsic_msi[c]),
           .debug_mode(debug_mode[c]),
           .terminate(cosim_terminate[c]),
           .eot_addr(eot_addr),

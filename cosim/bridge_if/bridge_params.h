@@ -22,6 +22,9 @@ namespace {
     constexpr uint64_t pmm_mask_size = 2;
     constexpr uint64_t boot_rand_mmr_offset = 0x7000;
     constexpr uint64_t boot_rand_csr_offset = 0x8000;
+    constexpr uint64_t time_csr = 0xC01;
+    constexpr uint64_t mtime_mmr = 0x4218'0000;
+    constexpr uint64_t mtimecmp_mmr = 0x4218'8000;
     constexpr uint64_t boot_num_harts_offset = 0x9000;
     constexpr uint64_t boot_sp_init_offset = 0x9008;
     constexpr uint64_t boot_sp_ways_offset = 0x9010;
@@ -461,156 +464,6 @@ namespace {
     };
 #undef CSRS
 
-    typedef enum : size_t {
-        U  = 0,
-        HS = 1,
-        M  = 3,
-        P  = 4,
-        DE = 6,
-        DP = 7,
-        VU = 8,
-        VS = 9,
-        VM = 11
-    } priv;
-
-    const std::unordered_map<priv, std::string_view> priv_to_string = {
-        {U , "U"} ,
-        {HS, "HS"},
-        {M , "M"} ,
-        {P , "P"} ,
-        {DE, "DE"},
-        {DP, "DP"},
-        {VU, "VU"},
-        {VS, "VS"},
-        {VM, "M"} ,
-    };
-
-    typedef enum : size_t {
-        INSN_ADDR_MISALGN       = 0,
-        INSN_ACCESS_FAULT       = 1,
-        ILLEGAL_INSN            = 2,
-        BREAKPOINT              = 3,
-        LD_ADDR_MISALGN         = 4,
-        LD_ACCESS_FAULT         = 5,
-        ST_AMO_ADDR_MISALGN     = 6,
-        ST_AMO_ACCESS_FAULT     = 7,
-        ECALL_U                 = 8,
-        ECALL_S                 = 9,
-        ECALL_M                 = 11,
-        INSN_PAGE_FAULT         = 12,
-        LD_PAGE_FAULT           = 13,
-        ST_AMO_PAGE_FAULT       = 15,
-        HARDWARE_ERROR          = 19,
-        INST_GUEST_PAGE_FAULT   = 20,
-        LD_GUEST_PAGE_FAULT     = 21,
-        VIRT_INST_FAULT         = 22,
-        ST_AMO_GUEST_PAGE_FAULT = 23,
-        CUSTOM_VEC_CMODE        = 55
-    } excp;
-
-    const std::unordered_map<excp, std::string_view> excp_to_string = {
-        {INSN_ADDR_MISALGN       , "INSN_ADDR_MISALGN"}    ,
-        {INSN_ACCESS_FAULT       , "INSN_ACCESS_FAULT"}    ,
-        {ILLEGAL_INSN            , "ILLEGAL_INSN"}         ,
-        {BREAKPOINT              , "BREAKPOINT"}           ,
-        {LD_ADDR_MISALGN         , "LD_ADDR_MISALGN"}      ,
-        {LD_ACCESS_FAULT         , "LD_ACCESS_FAULT"}      ,
-        {ST_AMO_ADDR_MISALGN     , "ST_AMO_ADDR_MISALGN"}  ,
-        {ST_AMO_ACCESS_FAULT     , "ST_AMO_ACCESS_FAULT"}  ,
-        {ECALL_U                 , "ECALL_U"}              ,
-        {ECALL_S                 , "ECALL_S"}              ,
-        {ECALL_M                 , "ECALL_M"}              ,
-        {INSN_PAGE_FAULT         , "INSN_PAGE_FAULT"}      ,
-        {LD_PAGE_FAULT           , "LD_PAGE_FAULT"}        ,
-        {ST_AMO_PAGE_FAULT       , "ST_AMO_PAGE_FAULT"}    ,
-        {HARDWARE_ERROR          , "HARDWARE_ERROR"}    ,
-        {INST_GUEST_PAGE_FAULT   , "INST_GUEST_PAGE_FAULT"},
-        {LD_GUEST_PAGE_FAULT     , "LD_GUEST_PAGE_FAULT"}  ,
-        {VIRT_INST_FAULT         , "VIRT_INST_FAULT"}      ,
-        {ST_AMO_GUEST_PAGE_FAULT , "ST_AMO_GUEST_PAGE_FAULT"}
-    };
-
-    typedef enum : size_t {
-        DEBUG = 0,
-        SSI   = 1,
-        VSSI  = 2,
-        MSI   = 3,
-        STI   = 5,
-        VSTI  = 6,
-        MTI   = 7,
-        SEI   = 9,
-        VSEI  = 10,
-        MEI   = 11,
-        SGEI  = 12,
-        LCOFI = 13
-    } intr;
-
-    const std::unordered_map<intr, std::string_view> intr_to_string = {
-        {DEBUG, "DEBUG"},
-        {SSI  , "SSI"}  ,
-        {VSSI , "VSSI"} ,
-        {MSI  , "MSI"}  ,
-        {STI  , "STI"}  ,
-        {VSTI , "VSTI"} ,
-        {MTI  , "MTI"}  ,
-        {SEI  , "SEI"}  ,
-        {VSEI , "VSEI"} ,
-        {MEI  , "MEI"}  ,
-        {SGEI , "SGEI"} ,
-        {LCOFI, "LCOFI"}
-    };
-
-    typedef enum : size_t {
-        EXT_NMI = 2,
-        CLA_NMI = 3
-    } nmi;
-
-    const std::unordered_map<nmi, std::string_view> nmi_to_string = {
-        {EXT_NMI, "EXT_NMI"},
-        {CLA_NMI, "CLA_NMI"}
-    };
-
-    typedef enum : size_t {
-        LR = 2,
-        SC = 3,
-        AMOSWAP = 1,
-        AMOADD = 0,
-        AMOXOR = 4,
-        AMOAND = 12,
-        AMOOR = 8,
-        AMOMIN = 16,
-        AMOMAX = 20,
-        AMOMINU = 24,
-        AMOMAXU = 28
-    } amo_op;
-
-    const std::unordered_map<amo_op, std::string_view> amo_op_to_string = {
-        {LR, "LR"},
-        {SC, "SC"},
-        {AMOSWAP, "AMOSWAP"},
-        {AMOADD , "AMOADD"} ,
-        {AMOXOR , "AMOXOR"} ,
-        {AMOAND , "AMOAND"} ,
-        {AMOOR  , "AMOOR"}  ,
-        {AMOMIN , "AMOMIN"} ,
-        {AMOMAX , "AMOMAX"} ,
-        {AMOMINU, "AMOMINU"},
-        {AMOMAXU, "AMOMAXU"}
-    };
-
-    typedef enum : size_t {
-        EXCP = 0,
-        INTR = 1,
-        NMI  = 2
-    } trap_t;
-
-    enum patch_mode {
-        NO_PATCH = 0,
-        ENTER_PATCH,
-        IN_PATCH,
-        EXIT_PATCH
-    };
-
     std::array<mmr_entry, 409> mmrs {{
         {"sc_ctrl",                       0x1A0000},
         {"sc_sp",                         0x1A0010},
@@ -1023,6 +876,156 @@ namespace {
         {"sc_chicken_bits",               0x421a0040}
     }};
 
+    enum patch_mode {
+        NO_PATCH = 0,
+        ENTER_PATCH,
+        IN_PATCH,
+        EXIT_PATCH
+    };
+
+    typedef enum : size_t {
+        U  = 0,
+        HS = 1,
+        M  = 3,
+        P  = 4,
+        DE = 6,
+        DP = 7,
+        VU = 8,
+        VS = 9,
+        VM = 11
+    } priv;
+
+    const std::unordered_map<priv, std::string_view> priv_to_string = {
+        {U , "U"} ,
+        {HS, "HS"},
+        {M , "M"} ,
+        {P , "P"} ,
+        {DE, "DE"},
+        {DP, "DP"},
+        {VU, "VU"},
+        {VS, "VS"},
+        {VM, "M"} ,
+    };
+
+    typedef enum : size_t {
+        INSN_ADDR_MISALGN       = 0,
+        INSN_ACCESS_FAULT       = 1,
+        ILLEGAL_INSN            = 2,
+        BREAKPOINT              = 3,
+        LD_ADDR_MISALGN         = 4,
+        LD_ACCESS_FAULT         = 5,
+        ST_AMO_ADDR_MISALGN     = 6,
+        ST_AMO_ACCESS_FAULT     = 7,
+        ECALL_U                 = 8,
+        ECALL_S                 = 9,
+        ECALL_M                 = 11,
+        INSN_PAGE_FAULT         = 12,
+        LD_PAGE_FAULT           = 13,
+        ST_AMO_PAGE_FAULT       = 15,
+        HARDWARE_ERROR          = 19,
+        INST_GUEST_PAGE_FAULT   = 20,
+        LD_GUEST_PAGE_FAULT     = 21,
+        VIRT_INST_FAULT         = 22,
+        ST_AMO_GUEST_PAGE_FAULT = 23,
+        CUSTOM_VEC_CMODE        = 55
+    } excp;
+
+    const std::unordered_map<excp, std::string_view> excp_to_string = {
+        {INSN_ADDR_MISALGN       , "INSN_ADDR_MISALGN"}    ,
+        {INSN_ACCESS_FAULT       , "INSN_ACCESS_FAULT"}    ,
+        {ILLEGAL_INSN            , "ILLEGAL_INSN"}         ,
+        {BREAKPOINT              , "BREAKPOINT"}           ,
+        {LD_ADDR_MISALGN         , "LD_ADDR_MISALGN"}      ,
+        {LD_ACCESS_FAULT         , "LD_ACCESS_FAULT"}      ,
+        {ST_AMO_ADDR_MISALGN     , "ST_AMO_ADDR_MISALGN"}  ,
+        {ST_AMO_ACCESS_FAULT     , "ST_AMO_ACCESS_FAULT"}  ,
+        {ECALL_U                 , "ECALL_U"}              ,
+        {ECALL_S                 , "ECALL_S"}              ,
+        {ECALL_M                 , "ECALL_M"}              ,
+        {INSN_PAGE_FAULT         , "INSN_PAGE_FAULT"}      ,
+        {LD_PAGE_FAULT           , "LD_PAGE_FAULT"}        ,
+        {ST_AMO_PAGE_FAULT       , "ST_AMO_PAGE_FAULT"}    ,
+        {HARDWARE_ERROR          , "HARDWARE_ERROR"}    ,
+        {INST_GUEST_PAGE_FAULT   , "INST_GUEST_PAGE_FAULT"},
+        {LD_GUEST_PAGE_FAULT     , "LD_GUEST_PAGE_FAULT"}  ,
+        {VIRT_INST_FAULT         , "VIRT_INST_FAULT"}      ,
+        {ST_AMO_GUEST_PAGE_FAULT , "ST_AMO_GUEST_PAGE_FAULT"}
+    };
+
+    typedef enum : size_t {
+        DEBUG = 0,
+        SSI   = 1,
+        VSSI  = 2,
+        MSI   = 3,
+        STI   = 5,
+        VSTI  = 6,
+        MTI   = 7,
+        SEI   = 9,
+        VSEI  = 10,
+        MEI   = 11,
+        SGEI  = 12,
+        LCOFI = 13,
+        DERRI = 23,
+        HWAI  = 24,
+        RASI  = 43
+    } intr;
+
+    const std::unordered_map<intr, std::string_view> intr_to_string = {
+        {DEBUG, "DEBUG"},
+        {SSI  , "SSI"}  ,
+        {VSSI , "VSSI"} ,
+        {MSI  , "MSI"}  ,
+        {STI  , "STI"}  ,
+        {VSTI , "VSTI"} ,
+        {MTI  , "MTI"}  ,
+        {SEI  , "SEI"}  ,
+        {VSEI , "VSEI"} ,
+        {MEI  , "MEI"}  ,
+        {SGEI , "SGEI"} ,
+        {LCOFI, "LCOFI"},
+        {DERRI, "DERRI"},
+        {HWAI , "HWAI"} ,
+        {RASI , "RASI"}
+    };
+
+    typedef enum : size_t {
+        EXT_NMI = 2,
+        CLA_NMI = 3
+    } nmi;
+
+    const std::unordered_map<nmi, std::string_view> nmi_to_string = {
+        {EXT_NMI, "EXT_NMI"},
+        {CLA_NMI, "CLA_NMI"}
+    };
+
+    typedef enum : size_t {
+        LR = 2,
+        SC = 3,
+        AMOSWAP = 1,
+        AMOADD = 0,
+        AMOXOR = 4,
+        AMOAND = 12,
+        AMOOR = 8,
+        AMOMIN = 16,
+        AMOMAX = 20,
+        AMOMINU = 24,
+        AMOMAXU = 28
+    } amo_op;
+
+    const std::unordered_map<amo_op, std::string_view> amo_op_to_string = {
+        {LR, "LR"},
+        {SC, "SC"},
+        {AMOSWAP, "AMOSWAP"},
+        {AMOADD , "AMOADD"} ,
+        {AMOXOR , "AMOXOR"} ,
+        {AMOAND , "AMOAND"} ,
+        {AMOOR  , "AMOOR"}  ,
+        {AMOMIN , "AMOMIN"} ,
+        {AMOMAX , "AMOMAX"} ,
+        {AMOMINU, "AMOMINU"},
+        {AMOMAXU, "AMOMAXU"}
+    };
+
     const std::unordered_map<uint64_t, uint32_t> renamed_csr = {
         {32, MEPC},
         {33, SEPC},
@@ -1031,4 +1034,21 @@ namespace {
         {36, SSCRATCH},
         {37, VSSCRATCH}
     };
+
+    typedef enum : size_t {
+        EXCP = 0,
+        INTR = 1,
+        NMI = 2
+    } trap;
+
+    typedef enum : size_t {
+        M_ITF = 0,
+        S_ITF = 2,
+    } itf;
+
+    const std::unordered_map<itf, std::string_view> itf_to_string = {
+        {M_ITF, "M"},
+        {S_ITF, "S"},
+    };
+
 }
