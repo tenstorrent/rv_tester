@@ -585,7 +585,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   if (!psc_stepping_) {
     if (patch_mode_ == NO_PATCH || patch_mode_ == EXIT_PATCH) {
       IF_DEBUG("updating whisper state");
-      update_whisper_state(hart, w);
+      update_whisper_state(hart, w, d.comp);
     }
 
     // Update cac with dut state
@@ -618,6 +618,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
       error("Hart {}: Failed to exit debug mode\n", id_);
   }
 
+  post_step_debug_poke(hart, d);
   post_step_nmi_check(hart, d, w);
   post_step_interrupt_check(hart, d, w);
   post_step_exception_check(hart, d, w);
@@ -822,6 +823,22 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
   }
 }
 
+
+void bridge::post_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
+  if (instr.comp && !w_.comp) { // few cases RTL auto expands a compressed OP to 4-byte
+    auto client = cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0);
+    uint64_t pc;
+    bool valid;
+    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekPcRPC>(client, hart, pc) && FLAGS_whisper_client_check) {
+      error("Hart {}: Failed to peek PC in debug mode\n", hart);
+      return;
+    }
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(client, hart, instr.cycle, 'p', 0/*addr*/,  pc-2, valid)|| !valid) && FLAGS_whisper_client_check) {
+      error("Hart {}: Failed to poke PC in debug mode\n", hart);
+      return;
+    }
+  }
+}
 
 void bridge::pre_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
   print(cvm::MEDIUM, "Debug pre step poking instruction in Debug mode\n", hart);
@@ -1233,7 +1250,7 @@ void bridge::post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whis
   step(hart, w);
   if (FLAGS_bridge_log)
     bridge_log_(cvm::MEDIUM, "<{}> Whisper Step #{}: Extra step due to exception\n", w.time, step_);
-  update_whisper_state(hart,w);
+  update_whisper_state(hart,w, d.comp);
 }
 
 bool bridge::is_custom_excp(uint64_t cause) {
@@ -1286,7 +1303,7 @@ void bridge::post_step_satp_write_poke(hart_id_t hart, const rv_instr_t& d, cons
   }
 }
 
-void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
+void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_is_compressed) {
 
   IF_DEBUG("function called");
   w_.valid = true;
@@ -1322,7 +1339,7 @@ void bridge::update_whisper_state(hart_id_t hart, whisper_state_t& w) {
 
   // FIXME Instruction byte checking disabled for vectors till we find a way to
   // differentiate cracked instructions
-  if (FLAGS_insn_check && !w_.comp && !w_.ucode && !is_vector(w.disasm) && !(w.disasm.substr(0,7)=="illegal") && !is_renamed_csr(w.disasm) && (patch_mode_ == NO_PATCH))
+  if (FLAGS_insn_check && !(w_.comp||dut_is_compressed) && !w_.ucode && !is_vector(w.disasm) && !(w.disasm.substr(0,7)=="illegal") && !is_renamed_csr(w.disasm) && (patch_mode_ == NO_PATCH))
     update_insn(hart, src_t::iss, w.opcode);
 
   if (FLAGS_flags_check && (w.fp_flags != 0))
