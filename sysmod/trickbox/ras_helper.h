@@ -12,7 +12,6 @@
 #include <random>
 #include <cmath>
 #include "pcg_random.hpp"
-#include "common_defs.hpp"
 #include "cvm/plusargs.hpp"
 #include "cvm/topology.hpp"
 #include "cvm/registry.hpp"
