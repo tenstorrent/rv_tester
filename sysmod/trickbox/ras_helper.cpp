@@ -5,7 +5,6 @@
 #include "cosim/bridge/bridge_plusargs.h"
 
 
-DEFINE_bool(debug_ras_helper, false, "Enable internal uc helper debug logging");
 
 ras_helper::ras_helper(const std::string& tag, uint64_t addr, unsigned, cvm::topology::loc_t loc, mem_manager &m_)
   : subdevice(tag, addr, 0x200, loc),m_(m_)
@@ -71,7 +70,7 @@ std::uint64_t ras_helper::ras_helper_backdoor_read(uint64_t addr){
     cvm::log(cvm::HIGH, "[ras_helper] Descarding read request at ras_helper since tag {} is not matching \n",tag());
    return -1;
   }
-  return localStorage[addr - ras_helper_base];
+  return local64BStorage[addr - ras_helper_base];
 }
 
 bool ras_helper::ras_helper_backdoor_write(uint64_t addr,uint64_t data){
@@ -80,21 +79,33 @@ bool ras_helper::ras_helper_backdoor_write(uint64_t addr,uint64_t data){
     cvm::log(cvm::HIGH, "[ras_helper] Descarding read request at ras_helper since tag {} is not matching \n",tag());
    return false;
   }
-  localStorage[addr - ras_helper_base] = data;
+  data_t local_data;
+  serializeInt(data,8, local_data);
+  for (int j=0; j<8; j++) {
+      mem::datum_t m_data_p = (mem::datum_t) local_data[j];
+      m_.write(addr+j, 1, &m_data_p);
+  }
+  local64BStorage[addr - ras_helper_base] = data;
   return true;
 }
+
 void
  ras_helper::write(uint64_t addr, size_t , const data_t& data,
  		 const strb_t&)
 {
   cvm::log(cvm::HIGH, "[ras_helper] write addr {:#x}  \n",addr);
+  
   if (not has_addr(addr))
     return;
   uint64_t t_data = 0;
   deserializeInt(data, t_data);
+  
   cvm::log(cvm::HIGH, "[ras_helper] write data {:#x} \n",t_data);
-
-  if (addr == ras_helper_base) {
-     localStorage[0] = t_data; 
-  } 
+  
+  for (int j=0; j<8; j++) {
+      mem::datum_t m_data_p = (mem::datum_t) data[j];
+      m_.write(addr+j, 1, &m_data_p);
+  }
+  
+  local64BStorage[addr - ras_helper_base ] = t_data; 
 }
