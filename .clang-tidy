@@ -1,0 +1,2 @@
+Checks: '-clang-analyzer-*, -clang-diagnostic-macro-redefined, bugprone-terminating-continue'
+WarningsAsErrors: '*'
