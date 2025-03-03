@@ -100,3 +100,11 @@ def rv_tester_repositories():
         recursive_init_submodules = True,
         remote = "git@aus-gitlab.local.tenstorrent.com:specifications/arch-export-controlled/aegissocspec.git",
     )
+
+    risc_v_cpu_spec_hash="0bf743758fc033d90ebb3ead75089894dd2405bf"
+    git_repository(
+        name = "risc_v_cpu_spec",
+        commit = risc_v_cpu_spec_hash,
+        recursive_init_submodules = True,
+        remote = "git@aus-gitlab.local.tenstorrent.com:specifications/arch-export-controlled/risc_v_cpu_spec.git",
+    )
