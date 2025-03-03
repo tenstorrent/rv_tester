@@ -791,8 +791,6 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign m_rvfis[n].data.mem_wmask   = rvfi[n].mem_wmask;
         assign m_rvfis[n].data.mem_wdata   = rvfi[n].mem_wdata;
         assign m_rvfis[n].data.mem_attr    = rvfi[n].mem_attr;
-        assign m_rvfis[n].data.mtime_valid = is_timecmp(rvfi[n].csr_valid, rvfi[n].csr_addr);
-        assign m_rvfis[n].data.mtime       = mtime;
 
         //--------------------------------------------------------------------------------------------------------------------------------------
         // Logic to generate first_uop, ucode, priv[3:0] and priv_change signals (formerly generated in C++ 
@@ -1274,14 +1272,43 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign m_imsic_msis[0].data.addr = imsic_msi.addr;
     assign m_imsic_msis[0].data.data = imsic_msi.data;
 
+    // m_mtime
+    logic mtimecmp_valid, stimecmp_valid, vstimecmp_valid;;
+    logic [XLEN-1:0] mtimecmp, stimecmp, vstimecmp;
+
+    assign m_mtimes[0].valid = ~dut_reset && rvfi_enabled && (stimecmp_valid || vstimecmp_valid || (mtimecmp_valid && mcm_enabled));
+    assign m_mtimes[0].data.location = location;
+    assign m_mtimes[0].data.cycle = clocks;
+    assign m_mtimes[0].data.mtime = mtime;
+    assign m_mtimes[0].data.timecmp = mtimecmp_valid ? mtimecmp : stimecmp_valid ? stimecmp :  vstimecmp_valid ? vstimecmp : '0;
+    assign m_mtimes[0].data.mip = (64'(stimecmp_valid) << 5) | (64'(vstimecmp_valid) << 6) | (64'(mtimecmp_valid) << 7);
+
     localparam logic [CSRLEN-1:0] STIMECMP  = 'h14D;
     localparam logic [CSRLEN-1:0] VSTIMECMP = 'h24D;
-    function automatic bit is_timecmp(logic csr_valid, logic [CSRLEN-1:0] csr_addr);
-      return csr_valid && ((csr_addr == STIMECMP) || (csr_addr == VSTIMECMP));
-    endfunction
-
     localparam logic [PA_WIDTH-1:0] MTIMECMP_C0  = 'h42188000;
     localparam logic [PA_WIDTH-1:0] MTIMECMP_C7  = 'h42188038;
+
+    always @(posedge clk) begin
+      if (reset) begin
+        stimecmp_valid <= '0;
+        vstimecmp_valid <= '0;
+        mtimecmp_valid <= '0;
+        stimecmp <= '0;
+        vstimecmp <= '0;
+        mtimecmp <= '0;
+      end else begin
+        for (int n = 0; n < NRET; n++) begin
+          stimecmp_valid <= rvfi[n].valid && rvfi[n].csr_valid && (rvfi[n].csr_addr == STIMECMP);
+          vstimecmp_valid <= rvfi[n].valid && rvfi[n].csr_valid && (rvfi[n].csr_addr == VSTIMECMP);
+          stimecmp <= rvfi[n].csr_wdata;
+          vstimecmp <= rvfi[n].csr_wdata;
+        end
+        for (int b = 0; b < NBYPASS; b++) begin
+          mtimecmp_valid <= mcmi_bypass[b].valid && ((mcmi_bypass[b].addr >= MTIMECMP_C0) && (mcmi_bypass[b].addr <= MTIMECMP_C7));
+          mtimecmp <= mcmi_bypass[b].data[63:0];
+        end
+      end
+    end
 
     //--------------------------------------------------------------------
     // set debug entry/exit values to defaults it NOT specificed by user

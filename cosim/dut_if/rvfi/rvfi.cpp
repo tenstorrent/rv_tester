@@ -53,6 +53,7 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     rv_tester_transactions::cosim::m_trap<>,
     rv_tester_transactions::cosim::m_core_nmi<>,
     rv_tester_transactions::cosim::m_interrupt_pend<>,
+    rv_tester_transactions::cosim::m_mtime<>,
     rv_tester_transactions::cosim::m_imsic_msi<>,
     rv_tester_transactions::cosim::m_mcmi_read<>,
     rv_tester_transactions::cosim::m_mcmi_insert<>,
@@ -288,6 +289,28 @@ void rvfi::process(const rv_tester_transactions::cosim::m_interrupt_pend<>& m_in
   bridge_->process_dut_interrupt(id_, intr);
 }
 
+void rvfi::process(const rv_tester_transactions::cosim::m_mtime<>& m_mtime) {
+  if (terminated_ || in_reset_)
+    return;
+
+  if (loc_ != m_mtime.location)
+    return;
+
+  rv_intr_t intr;
+  intr.cycle = m_mtime.cycle;
+  intr.mip = std::bitset<64>(m_mtime.mip);
+  intr.mtime = m_mtime.mtime;
+
+  if (FLAGS_rvfi_log)
+    log(cvm::NONE, "#NA {} {} ({}timecmp={:#x} : mtime={:#x})\n", intr.cycle, id_,
+      intr.mip[MTI] ? "m" : intr.mip[STI] ? "s" : intr.mip[VSTI] ? "vs" : "x", m_mtime.timecmp, intr.mtime);
+
+  if (!FLAGS_cosim)
+    return;
+
+  bridge_->process_dut_timer(id_, intr);
+}
+
 void rvfi::process(const rv_tester_transactions::cosim::m_core_nmi<>& m_core_nmi) {
   if (terminated_ || in_reset_)
     return;
@@ -364,8 +387,6 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.icause = icause_;
   instr.excp = excp_;
   instr.ecause = ecause_;
-  instr.mtime_valid = m_rvfi.mtime_valid;
-  instr.mtime = m_rvfi.mtime;
 
   cvm::log(cvm::HIGH, "CLOCK={}: HW: ucode={} first_uop={} last_uop={} rvfi.mode={} instr.priv={} priv_change={} set_pmode={} clr_pmode={} patch_={} disasm={}\n", m_rvfi.cycle,
                             m_rvfi.ucode, m_rvfi.first_uop, m_rvfi.last_uop, m_rvfi.mode, m_rvfi.priv, m_rvfi.priv_change, m_rvfi.set_pmode, m_rvfi.clr_pmode, static_cast<int>(patch_mode_),instr.disasm);

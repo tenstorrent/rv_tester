@@ -924,12 +924,6 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
   if (prev_e_mip_ != e_mip_)
     e_mip_age_ = 0;
 
-  // Special case for timer interrupt handling
-  // Poke time on timecmp update
-  if (!FLAGS_poke_mip_timer && d.mtime_valid) {
-    poke_resource(hart, d.cycle, 'c', time_csr, d.mtime);
-  }
-
   // Proceed only if DUT takes interrupt
   if (hw_mip_ == 0 && prev_hw_mip_ == 0 && !d.intr) {
     IF_DEBUG("hw_mip_==0  and prev_hw_mip_==0 ... return");
@@ -994,8 +988,8 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
   if (d.intr && !w_intr && !FLAGS_cosim_resynch) {
     IF_DEBUG("dut intr==1 and whisper intr==0");
     if (FLAGS_bridge_log)
-      bridge_log_(cvm::MEDIUM, "<{}> DUT took interrupt, Whisper did not. dcause:[{}]\n", w.time, d.icause);
-    if ((hw_mip_age_ == 0) && prev_hw_mip_[d.icause]) {
+      bridge_log_(cvm::MEDIUM, "<{}> DUT took interrupt, Whisper did not. dcause:[{}] prev_mip:{}\n", w.time, d.icause, prev_hw_mip_[d.icause]);
+    if (prev_hw_mip_[d.icause]) {
       bridge_log_(cvm::MEDIUM, "<{}> cause:[{}] (Timing sensitive mismatch: Resynch and keep going)\n", w.time, d.icause);
       if(d.icause != 9)
         poke_mip(hart, w.time, (uint64_t)1 << d.icause);
@@ -1015,7 +1009,7 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
     if (FLAGS_bridge_log)
       bridge_log_(cvm::MEDIUM, "<{}> DUT vs Whisper interrupt cause mismatch [{},{}] age [{},{}] \n",
         w.time, d.icause, w_cause, intr_age_[d.icause], intr_age_[w_cause]);
-    if ((hw_mip_age_ == 0) & prev_hw_mip_[d.icause]) {
+    if (prev_hw_mip_[d.icause]) {
       std::bitset<64> timing_case_w_mip;
       bridge_log_(cvm::MEDIUM, "<{}> cause: [{}] (Timing sensitive mismatch: Resynch and keep going)\n",
         w.time, d.icause);
@@ -2461,6 +2455,10 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
     std::bitset<64> l_mip = i.mip_set[LCOFI] << LCOFI;
     poke_local_interrupt(hart, i.cycle, l_mip);
   }
+}
+
+void bridge::process_dut_timer(hart_id_t hart, rv_intr_t& i) {
+  poke_timer(hart, i.cycle, i.mip, i.mtime);
 }
 
 void bridge::poke_timer(hart_id_t hart, uint64_t cycle, std::bitset<64> t_mip, uint64_t mtime) {

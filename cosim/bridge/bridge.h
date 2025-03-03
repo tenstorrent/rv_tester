@@ -71,6 +71,7 @@ public:
   // Interrupts
   virtual void process_dut_nmi(hart_id_t hart, rv_nmi_t& n) override;
   virtual void process_dut_interrupt(hart_id_t hart, rv_intr_t& i) override;
+  virtual void process_dut_timer(hart_id_t hart, rv_intr_t& i) override;
   virtual void process_dut_imsic_msi(hart_id_t hart, mem_t& m) override;
 
   // Debug mode

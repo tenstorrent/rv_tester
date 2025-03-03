@@ -166,12 +166,6 @@ cosim:
             mem_attr:
                 qualify: "{data}.mem_rmask != '0 || {data}.mem_wmask != '0"
                 width: 32
-            mtime_valid:
-                qualify: mtime_valid
-                width: 1
-            mtime:
-                qualify: mtime_valid
-                width: ${TOP.PLATFORM.XLEN}
 
     m_gp_regs:
         domain: 1
@@ -389,6 +383,19 @@ cosim:
                 width: 1
             mtime:
                 width: 64
+
+    m_mtime:
+        domain: 1
+        num: 1
+        fields:
+            cycle:
+                width: 64
+            mip:
+                width: 64
+            mtime:
+                width: ${TOP.PLATFORM.XLEN}
+            timecmp:
+                width: ${TOP.PLATFORM.XLEN}
 
     m_core_nmi:
         domain: 1
