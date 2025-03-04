@@ -296,11 +296,12 @@ void debug_module_t::process(const rv_tester_transactions::dm_model::dm_req<> &d
   }
   //check if access went to correct PID
   //the hartsel will index by VID
-  if(hart_pid[dmcontrol.hartsel] == std::log2(dm_req.dm_ms_req)){
-    cvm::log(cvm::NONE, "DM VID/PID CHECKER  :: Correct DM req for the Physical Hart ID :{:#x} dmcontrol.hartsel: {} hart_pid[dmcontrol.hartsel]: {}  std::log2(dm_store.dm_ms_req) : {}\n", dm_req.dm_ms_req, dmcontrol.hartsel,hart_pid[dmcontrol.hartsel],std::log2(dm_req.dm_ms_req));
-  }else{
-    cvm::log(cvm::ERROR, "ERROR: DM VID/PID CHECKER  :: Incorrect DM req for the Physical Hart ID :{:#x} dmcontrol.hartsel: {} hart_pid[dmcontrol.hartsel]: {} std::log2(dm_store.dm_ms_req): {}\n", dm_req.dm_ms_req, dmcontrol.hartsel,hart_pid[dmcontrol.hartsel],std::log2(dm_req.dm_ms_req));
-
+  if (dm_req.dm_ms_req){
+    if(hart_pid[dmcontrol.hartsel] == std::log2(dm_req.dm_ms_req)){
+      cvm::log(cvm::NONE, "DM VID/PID CHECKER  :: Correct DM req for the Physical Hart ID :{:#x} dmcontrol.hartsel: {} hart_pid[dmcontrol.hartsel]: {}  std::log2(dm_store.dm_ms_req) : {}\n", dm_req.dm_ms_req, dmcontrol.hartsel,hart_pid[dmcontrol.hartsel],std::log2(dm_req.dm_ms_req));
+    }else{
+      cvm::log(cvm::ERROR, "ERROR: DM VID/PID CHECKER  :: Incorrect DM req for the Physical Hart ID :{:#x} dmcontrol.hartsel: {} hart_pid[dmcontrol.hartsel]: {} std::log2(dm_store.dm_ms_req): {}\n", dm_req.dm_ms_req, dmcontrol.hartsel,hart_pid[dmcontrol.hartsel],std::log2(dm_req.dm_ms_req));
+    }
   }
   }
 }

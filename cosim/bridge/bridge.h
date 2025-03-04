@@ -77,6 +77,7 @@ public:
   // Debug mode
   virtual void enter_debug_mode(rv_debug_t& d) override;
   virtual void exit_debug_mode(rv_debug_t& d) override;
+  virtual void process_debug_haltreq(bool haltreq) override;
 
   void reset();
   void csr_init();
@@ -262,7 +263,9 @@ private:
 
   // State variables
   bool ecall_ = false;
+  bool is_priv_debug_mode_ = false;
   bool debug_mode_ = false;
+  bool debug_haltreq_asserted = false;
   bool excp_in_debug_mode = false;
   bool lrsc_fail_ = false;
   bool twoStage_ = false;

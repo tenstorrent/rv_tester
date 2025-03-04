@@ -355,8 +355,14 @@ void rvfi::process(const rv_tester_transactions::cosim::m_imsic_msi<>& m_imsic_m
   bridge_->process_dut_imsic_msi(id_, mem);
 }
 
-void rvfi::process(const rv_tester_transactions::cosim::m_debug<>&) {
+void rvfi::process(const rv_tester_transactions::cosim::m_debug<>& m_debug) {
+  if (terminated_ || in_reset_)
+    return;
 
+  if (!FLAGS_cosim)
+    return;
+
+  bridge_->process_debug_haltreq(m_debug.haltreq); 
 }
 
 void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_instr_t& instr) {

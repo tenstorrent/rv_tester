@@ -46,3 +46,7 @@ DECLARE_bool(dbg_rand_core);
 DECLARE_int32(dbg_rand_core_idx);
 DECLARE_uint32(matp_swid);
 DECLARE_bool(sysmod_terminate);
+DECLARE_bool(dbg_rnmi_ebreak_trigger); 
+DECLARE_bool(dbg_rnmi_priority_trigger); 
+DECLARE_bool(dbg_rnmi_priv_de_trigger); 
+DECLARE_bool(dbg_rnmi_priv_dp_trigger); 
