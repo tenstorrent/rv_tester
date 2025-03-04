@@ -67,3 +67,13 @@ bool sysmod_mem::init_lz4(const std::string& path, uint64_t offset) {
     }
     return true;
 }
+
+bool sysmod_mem::init_bin(const std::string& path, uint64_t offset) {
+    try {
+        m_->load_bin(path, offset);
+    } catch(const std::exception& e) {
+        std::cerr << e.what() << "\n";
+        return false;
+    }
+    return true;
+}

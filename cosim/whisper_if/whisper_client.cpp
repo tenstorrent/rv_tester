@@ -167,19 +167,32 @@ constructSystem(uint16_t ncores, bool standalone, uint64_t secure_region_start=0
 
   std::shared_ptr<WdRiscv::System<URV>> system = std::make_shared<WdRiscv::System<URV>>(coreCount, hartsPerCore, hartIdOffset, memorySize, pageSize);
 
-  if (FLAGS_load_lz4 != "") {
+  auto parse = [&system](const std::string& flag, bool lz4_compressed) {
     std::stringstream ss;
     std::vector<std::string> targets;
 
-    ss << FLAGS_load_lz4;
+    ss << flag;
     while (ss.good()) {
       std::string substr;
 
       getline(ss, substr, ',');
       targets.push_back(substr);
     }
-    if (not system->loadLz4Files(targets, 0, false))
+
+    return lz4_compressed ? system->loadLz4Files(targets, 0, false) : system->loadBinaryFiles(targets, 0, false);
+
+  };
+
+  if (FLAGS_load_lz4 != "") {
+    if (not parse(FLAGS_load_lz4, true)) {
       return nullptr;
+    }
+  }
+
+  if (FLAGS_load_bin != "") {
+    if (not parse(FLAGS_load_bin, false)) {
+      return nullptr;
+    }
   }
 
   if (FLAGS_hex != "") {

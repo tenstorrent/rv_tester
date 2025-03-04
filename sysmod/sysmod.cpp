@@ -35,6 +35,7 @@ DEFINE_uint64(seed, 1, "Simulation seed passed down for randomization");
 DEFINE_string(hex, "", "hex file (program) to load into memory");
 DEFINE_string(load, "", "elf file (program) to load into memory");
 DEFINE_string(load_lz4, "", "lz4 compressed file (program) to load into memory. If there's a colon, the number after the colon is interpreted as the offset to load the image into memory");
+DEFINE_string(load_bin, "", "Binary file (program) to load into memory. If there's a colon, the number after the colon is interpreted as the offset to load the image into memory");
 DEFINE_bool(bootrom, true, "Load bootrom before test");
 DEFINE_string(bootrom_path, "", "Path to bootrom object file");
 DEFINE_bool(cplfw, false, "Load cpl firmware before test");
@@ -758,7 +759,7 @@ sysmod::terminate(htif::terminate_t t) {
 void
 sysmod::reset() {
   compose();
-  load_prog(FLAGS_hex, FLAGS_load, FLAGS_load_lz4);
+  load_prog(FLAGS_hex, FLAGS_load, FLAGS_load_lz4, FLAGS_load_bin);
   load_io(FLAGS_load_io);
   load_boot(FLAGS_bootrom_path);
   load_csr_mmr_boot(1);
@@ -946,7 +947,7 @@ sysmod::load_io(const std::string& io) {
 }
 
 bool
-sysmod::lz4_load(const std::string load)
+sysmod::bin_load(const std::string load, bool lz4_compressed)
 {
   uint64_t offset = 0;
   std::string file = load;
@@ -957,7 +958,11 @@ sysmod::lz4_load(const std::string load)
     std::string offset_str = load.substr(pos + 1);
     offset = std::stoull(offset_str, nullptr, 0);
   }
-  if (not dev("memory") or not dynamic_cast<sysmod_mem&>(*dev("memory")).init_lz4(file, offset)) {
+  if (not dev("memory") or not
+          (lz4_compressed ? dynamic_cast<sysmod_mem&>(*dev("memory")).init_lz4(file, offset) :
+                            dynamic_cast<sysmod_mem&>(*dev("memory")).init_bin(file, offset)
+          )
+     ) {
     cvm::log(cvm::ERROR, "No memory defined");
     return false;
   }
@@ -966,7 +971,7 @@ sysmod::lz4_load(const std::string load)
 }
 
 void
-sysmod::load_prog(const std::string& hex, const std::string& load, const std::string& lz4) {
+sysmod::load_prog(const std::string& hex, const std::string& load, const std::string& lz4, const std::string& bin) {
 
   for (const auto& d : memmap_) {
     const auto type = d.second.type;
@@ -992,24 +997,27 @@ sysmod::load_prog(const std::string& hex, const std::string& load, const std::st
       cvm::log(cvm::MEDIUM, "Loading {} complete\n", hex);
     }
 
-    if (lz4 != "") {
+    auto parse_bin = [this](const std::string& flag, bool lz4_compressed) {
       std::stringstream ss;
 
-      cvm::log(cvm::MEDIUM, "Parsing {}\n", lz4);
+      cvm::log(cvm::MEDIUM, "Parsing {}\n", flag);
       // split string by colon into file path and offset
       // if no colon is found, assume offset is 0
 
-      ss << FLAGS_load_lz4;
+      ss << flag;
       while (ss.good())
       {
         std::string substr;
 
         getline(ss, substr, ',');
-        if (not lz4_load(substr))
+        if (not bin_load(substr, lz4_compressed))
           return;
       }
-      cvm::log(cvm::MEDIUM, "Parsing {} complete\n", lz4);
-    }
+      cvm::log(cvm::MEDIUM, "Parsing {} complete\n", flag);
+    };
+
+    if (lz4 != "") parse_bin(lz4, true);
+    if (bin != "") parse_bin(bin, false);
 
     // all memories share the same backing mem manaager
     return;
