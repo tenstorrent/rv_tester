@@ -67,7 +67,7 @@ class whisperClient {
     bool whisperTranslate(int hart, uint64_t vaddr, bool r, bool w, bool x, bool twoStage, bool supervisor, uint64_t& paddr, bool& valid);
     bool whisperEnterDebug(int hart);
     bool whisperExitDebug(int hart);
-    bool whisperCheckInterrupt(int hart, uint64_t mip, bool& interrupt, uint64_t& cause);
+    bool whisperCheckInterrupt(int hart, bool& interrupt, uint64_t& cause);
     bool whisperGetSeiPin(int hart, uint64_t& value);
     bool whisperCancelLr(int hart, bool& valid);
     bool whisperPeekGpr(int hart, uint64_t addr, uint64_t& value);
@@ -127,7 +127,7 @@ class whisperClient {
     CVM_MESSENGER_procedure_call(whisperTranslateRPC, bool (int, uint64_t, bool, bool, bool, bool, bool, uint64_t&, bool&));
     CVM_MESSENGER_procedure_call(whisperEnterDebugRPC, bool (int));
     CVM_MESSENGER_procedure_call(whisperExitDebugRPC, bool (int));
-    CVM_MESSENGER_procedure_call(whisperCheckInterruptRPC, bool (int, uint64_t, bool&, uint64_t&));
+    CVM_MESSENGER_procedure_call(whisperCheckInterruptRPC, bool (int, bool&, uint64_t&));
     CVM_MESSENGER_procedure_call(whisperGetSeiPinRPC, bool (int, uint64_t&));
     CVM_MESSENGER_procedure_call(whisperCancelLrRPC, bool (int, bool&));
     CVM_MESSENGER_procedure_call(whisperPeekGprRPC, bool (int, uint64_t, uint64_t&));

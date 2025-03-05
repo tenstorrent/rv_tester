@@ -22,6 +22,9 @@ namespace {
     constexpr uint64_t pmm_mask_size = 2;
     constexpr uint64_t boot_rand_mmr_offset = 0x7000;
     constexpr uint64_t boot_rand_csr_offset = 0x8000;
+    constexpr uint64_t time_csr = 0xC01;
+    constexpr uint64_t mtime_mmr = 0x4218'0000;
+    constexpr uint64_t mtimecmp_mmr = 0x4218'8000;
     constexpr uint64_t boot_num_harts_offset = 0x9000;
     constexpr uint64_t boot_sp_init_offset = 0x9008;
     constexpr uint64_t boot_sp_ways_offset = 0x9010;
@@ -37,6 +40,7 @@ namespace {
       bool metric         = false;
       bool nonzero_reset  = false;
       unsigned shadow_csr = 0;
+      bool allowlist_custom_csr = false; // perform core arch checks for these allowlisted custom CSRs
     };
 
     struct mmr_reg {
@@ -82,6 +86,10 @@ namespace {
       CSR(HCONTEXT,         0x6A8, "hcontext")                                 \
       CSR(HTIMEDELTA,       0x605, "htimedelta")                               \
       CSR(HTIMEDELTAH,      0x615, "htimedeltah")                              \
+      CSR(HVIEN,            0x608, "hvien")                                    \
+      CSR(HVICTL,           0x609, "hvictl")                                   \
+      CSR(HVIPRIO1,         0x646, "hviprio1")                                 \
+      CSR(HVIPRIO2,         0x647, "hviprio2")                                 \
       CSR(VSSTATUS,         0x200, "vsstatus"      ,false, true)               \
       CSR(VSIE,             0x204, "vsie")                                     \
       CSR(VSTVEC,           0x205, "vstvec")                                   \
@@ -115,7 +123,7 @@ namespace {
       CSR(VCSR,             0x00F, "vcsr")                                     \
       CSR(VL,               0xc20, "vl")                                       \
       CSR(VTYPE,            0xc21, "vtype")                                    \
-      CSR(VLENB,            0x0C2, "vlenb")                                    \
+      CSR(VLENB,            0xC22, "vlenb")                                    \
       CSR(MTINST,           0x34A, "mtinst")                                   \
       CSR(MTVAL2,           0x34B, "mtval2")                                   \
       CSR(MENVCFG,          0x30A, "menvcfg")                                  \
@@ -301,37 +309,38 @@ namespace {
       CSR(MHPMCOUNTER29,    0xB1D, "mhpmcounter29")                            \
       CSR(MHPMCOUNTER30,    0xB1E, "mhpmcounter30")                            \
       CSR(MHPMCOUNTER31,    0xB1F, "mhpmcounter31")                            \
-      CSR(MCYCLEH,          0xB80, "mcycleh")                                  \
-      CSR(MINSTRETH,        0xB82, "minstreth")                                \
-      CSR(MHPMCOUNTER3H,    0xB83, "mhpmcounter3h")                            \
-      CSR(MHPMCOUNTER4H,    0xB84, "mhpmcounter4h")                            \
-      CSR(MHPMCOUNTER5H,    0xB85, "mhpmcounter5h")                            \
-      CSR(MHPMCOUNTER6H,    0xB86, "mhpmcounter6h")                            \
-      CSR(MHPMCOUNTER7H,    0xB87, "mhpmcounter7h")                            \
-      CSR(MHPMCOUNTER8H,    0xB88, "mhpmcounter8h")                            \
-      CSR(MHPMCOUNTER9H,    0xB89, "mhpmcounter9h")                            \
-      CSR(MHPMCOUNTER10H,   0xB8A, "mhpmcounter10h")                           \
-      CSR(MHPMCOUNTER11H,   0xB8B, "mhpmcounter11h")                           \
-      CSR(MHPMCOUNTER12H,   0xB8C, "mhpmcounter12h")                           \
-      CSR(MHPMCOUNTER13H,   0xB8D, "mhpmcounter13h")                           \
-      CSR(MHPMCOUNTER14H,   0xB8E, "mhpmcounter14h")                           \
-      CSR(MHPMCOUNTER15H,   0xB8F, "mhpmcounter15h")                           \
-      CSR(MHPMCOUNTER16H,   0xB90, "mhpmcounter16h")                           \
-      CSR(MHPMCOUNTER17H,   0xB91, "mhpmcounter17h")                           \
-      CSR(MHPMCOUNTER18H,   0xB92, "mhpmcounter18h")                           \
-      CSR(MHPMCOUNTER19H,   0xB93, "mhpmcounter19h")                           \
-      CSR(MHPMCOUNTER20H,   0xB94, "mhpmcounter20h")                           \
-      CSR(MHPMCOUNTER21H,   0xB95, "mhpmcounter21h")                           \
-      CSR(MHPMCOUNTER22H,   0xB96, "mhpmcounter22h")                           \
-      CSR(MHPMCOUNTER23H,   0xB97, "mhpmcounter23h")                           \
-      CSR(MHPMCOUNTER24H,   0xB98, "mhpmcounter24h")                           \
-      CSR(MHPMCOUNTER25H,   0xB99, "mhpmcounter25h")                           \
-      CSR(MHPMCOUNTER26H,   0xB9A, "mhpmcounter26h")                           \
-      CSR(MHPMCOUNTER27H,   0xB9B, "mhpmcounter27h")                           \
-      CSR(MHPMCOUNTER28H,   0xB9C, "mhpmcounter28h")                           \
-      CSR(MHPMCOUNTER29H,   0xB9D, "mhpmcounter29h")                           \
-      CSR(MHPMCOUNTER30H,   0xB9E, "mhpmcounter30h")                           \
-      CSR(MHPMCOUNTER31H,   0xB9F, "mhpmcounter31h")                           \
+      CSR(CYCLE,            0xC00, "cycle")                                    \
+      CSR(TIME,             0xC01, "time")                                     \
+      CSR(INSTRET,          0xC02, "instret")                                  \
+      CSR(HPMCOUNTER3,      0xC03, "hpmcounter3")                              \
+      CSR(HPMCOUNTER4,      0xC04, "hpmcounter4")                              \
+      CSR(HPMCOUNTER5,      0xC05, "hpmcounter5")                              \
+      CSR(HPMCOUNTER6,      0xC06, "hpmcounter6")                              \
+      CSR(HPMCOUNTER7,      0xC07, "hpmcounter7")                              \
+      CSR(HPMCOUNTER8,      0xC08, "hpmcounter8")                              \
+      CSR(HPMCOUNTER9,      0xC09, "hpmcounter9")                              \
+      CSR(HPMCOUNTER10,     0xC0A, "hpmcounter10")                             \
+      CSR(HPMCOUNTER11,     0xC0B, "hpmcounter11")                             \
+      CSR(HPMCOUNTER12,     0xC0C, "hpmcounter12")                             \
+      CSR(HPMCOUNTER13,     0xC0D, "hpmcounter13")                             \
+      CSR(HPMCOUNTER14,     0xC0E, "hpmcounter14")                             \
+      CSR(HPMCOUNTER15,     0xC0F, "hpmcounter15")                             \
+      CSR(HPMCOUNTER16,     0xC10, "hpmcounter16")                             \
+      CSR(HPMCOUNTER17,     0xC11, "hpmcounter17")                             \
+      CSR(HPMCOUNTER18,     0xC12, "hpmcounter18")                             \
+      CSR(HPMCOUNTER19,     0xC13, "hpmcounter19")                             \
+      CSR(HPMCOUNTER20,     0xC14, "hpmcounter20")                             \
+      CSR(HPMCOUNTER21,     0xC15, "hpmcounter21")                             \
+      CSR(HPMCOUNTER22,     0xC16, "hpmcounter22")                             \
+      CSR(HPMCOUNTER23,     0xC17, "hpmcounter23")                             \
+      CSR(HPMCOUNTER24,     0xC18, "hpmcounter24")                             \
+      CSR(HPMCOUNTER25,     0xC19, "hpmcounter25")                             \
+      CSR(HPMCOUNTER26,     0xC1A, "hpmcounter26")                             \
+      CSR(HPMCOUNTER27,     0xC1B, "hpmcounter27")                             \
+      CSR(HPMCOUNTER28,     0xC1C, "hpmcounter28")                             \
+      CSR(HPMCOUNTER29,     0xC1D, "hpmcounter29")                             \
+      CSR(HPMCOUNTER30,     0xC1E, "hpmcounter30")                             \
+      CSR(HPMCOUNTER31,     0xC1F, "hpmcounter31")                             \
       CSR(MCOUNTINHIBIT,    0x320, "mcountinhibit")                            \
       CSR(MHPMEVENT3,       0x323, "mhpmevent3")                               \
       CSR(MHPMEVENT4,       0x324, "mhpmevent4")                               \
@@ -362,6 +371,7 @@ namespace {
       CSR(MHPMEVENT29,      0x33D, "mhpmevent29")                              \
       CSR(MHPMEVENT30,      0x33E, "mhpmevent30")                              \
       CSR(MHPMEVENT31,      0x33F, "mhpmevent31")                              \
+      CSR(SCOUNTOVF,        0xDA0, "scountovf")                                \
       CSR(TSELECT,          0x7A0, "tselect")                                  \
       CSR(TDATA1,           0x7A1, "tdata1")                                   \
       CSR(TDATA2,           0x7A2, "tdata2")                                   \
@@ -437,6 +447,7 @@ namespace {
       CSR(HSTATEEN3H,       0x61F, "hstateen3h")                               \
       CSR(STIMECMP,         0x14D, "stimecmp")                                 \
       CSR(VSTIMECMP,        0x24D, "vstimecmp")                                \
+      CSR(C_MATP,           0x7C7, "c_matp", true, true, 0, true)                 \
 
     enum csr : unsigned {
 #define CSR(name, value, ...) \
@@ -452,154 +463,6 @@ namespace {
 #undef CSR
     };
 #undef CSRS
-
-    typedef enum : size_t {
-        U  = 0,
-        HS = 1,
-        M  = 3,
-        P  = 4,
-        DE = 6,
-        DP = 7,
-        VU = 8,
-        VS = 9,
-        VM = 11
-    } priv;
-
-    const std::unordered_map<priv, std::string_view> priv_to_string = {
-        {U , "U"} ,
-        {HS, "HS"},
-        {M , "M"} ,
-        {P , "P"} ,
-        {DE, "DE"},
-        {DP, "DP"},
-        {VU, "VU"},
-        {VS, "VS"},
-        {VM, "M"} ,
-    };
-
-    typedef enum : size_t {
-        INSN_ADDR_MISALGN       = 0,
-        INSN_ACCESS_FAULT       = 1,
-        ILLEGAL_INSN            = 2,
-        BREAKPOINT              = 3,
-        LD_ADDR_MISALGN         = 4,
-        LD_ACCESS_FAULT         = 5,
-        ST_AMO_ADDR_MISALGN     = 6,
-        ST_AMO_ACCESS_FAULT     = 7,
-        ECALL_U                 = 8,
-        ECALL_S                 = 9,
-        ECALL_M                 = 11,
-        INSN_PAGE_FAULT         = 12,
-        LD_PAGE_FAULT           = 13,
-        ST_AMO_PAGE_FAULT       = 15,
-        INST_GUEST_PAGE_FAULT   = 20,
-        LD_GUEST_PAGE_FAULT     = 21,
-        VIRT_INST_FAULT         = 22,
-        ST_AMO_GUEST_PAGE_FAULT = 23,
-        CUSTOM_VEC_CMODE        = 55
-    } excp;
-
-    const std::unordered_map<excp, std::string_view> excp_to_string = {
-        {INSN_ADDR_MISALGN       , "INSN_ADDR_MISALGN"}    ,
-        {INSN_ACCESS_FAULT       , "INSN_ACCESS_FAULT"}    ,
-        {ILLEGAL_INSN            , "ILLEGAL_INSN"}         ,
-        {BREAKPOINT              , "BREAKPOINT"}           ,
-        {LD_ADDR_MISALGN         , "LD_ADDR_MISALGN"}      ,
-        {LD_ACCESS_FAULT         , "LD_ACCESS_FAULT"}      ,
-        {ST_AMO_ADDR_MISALGN     , "ST_AMO_ADDR_MISALGN"}  ,
-        {ST_AMO_ACCESS_FAULT     , "ST_AMO_ACCESS_FAULT"}  ,
-        {ECALL_U                 , "ECALL_U"}              ,
-        {ECALL_S                 , "ECALL_S"}              ,
-        {ECALL_M                 , "ECALL_M"}              ,
-        {INSN_PAGE_FAULT         , "INSN_PAGE_FAULT"}      ,
-        {LD_PAGE_FAULT           , "LD_PAGE_FAULT"}        ,
-        {ST_AMO_PAGE_FAULT       , "ST_AMO_PAGE_FAULT"}    ,
-        {INST_GUEST_PAGE_FAULT   , "INST_GUEST_PAGE_FAULT"},
-        {LD_GUEST_PAGE_FAULT     , "LD_GUEST_PAGE_FAULT"}  ,
-        {VIRT_INST_FAULT         , "VIRT_INST_FAULT"}      ,
-        {ST_AMO_GUEST_PAGE_FAULT , "ST_AMO_GUEST_PAGE_FAULT"}
-    };
-
-    typedef enum : size_t {
-        DEBUG = 0,
-        SSI   = 1,
-        VSSI  = 2,
-        MSI   = 3,
-        STI   = 5,
-        VSTI  = 6,
-        MTI   = 7,
-        SEI   = 9,
-        VSEI  = 10,
-        MEI   = 11,
-        SGEI  = 12,
-        LCOFI = 13
-    } intr;
-
-    const std::unordered_map<intr, std::string_view> intr_to_string = {
-        {DEBUG, "DEBUG"},
-        {SSI  , "SSI"}  ,
-        {VSSI , "VSSI"} ,
-        {MSI  , "MSI"}  ,
-        {STI  , "STI"}  ,
-        {VSTI , "VSTI"} ,
-        {MTI  , "MTI"}  ,
-        {SEI  , "SEI"}  ,
-        {VSEI , "VSEI"} ,
-        {MEI  , "MEI"}  ,
-        {SGEI , "SGEI"} ,
-        {LCOFI, "LCOFI"}
-    };
-
-    typedef enum : size_t {
-        EXT_NMI = 2,
-        CLA_NMI = 3
-    } nmi;
-
-    const std::unordered_map<nmi, std::string_view> nmi_to_string = {
-        {EXT_NMI, "EXT_NMI"},
-        {CLA_NMI, "CLA_NMI"}
-    };
-
-    typedef enum : size_t {
-        LR = 2,
-        SC = 3,
-        AMOSWAP = 1,
-        AMOADD = 0,
-        AMOXOR = 4,
-        AMOAND = 12,
-        AMOOR = 8,
-        AMOMIN = 16,
-        AMOMAX = 20,
-        AMOMINU = 24,
-        AMOMAXU = 28
-    } amo_op;
-
-    const std::unordered_map<amo_op, std::string_view> amo_op_to_string = {
-        {LR, "LR"},
-        {SC, "SC"},
-        {AMOSWAP, "AMOSWAP"},
-        {AMOADD , "AMOADD"} ,
-        {AMOXOR , "AMOXOR"} ,
-        {AMOAND , "AMOAND"} ,
-        {AMOOR  , "AMOOR"}  ,
-        {AMOMIN , "AMOMIN"} ,
-        {AMOMAX , "AMOMAX"} ,
-        {AMOMINU, "AMOMINU"},
-        {AMOMAXU, "AMOMAXU"}
-    };
-
-    typedef enum : size_t {
-        EXCP = 0,
-        INTR = 1,
-        NMI  = 2
-    } trap_t;
-
-    enum patch_mode {
-        NO_PATCH = 0,
-        ENTER_PATCH,
-        IN_PATCH,
-        EXIT_PATCH
-    };
 
     std::array<mmr_entry, 409> mmrs {{
         {"sc_ctrl",                       0x1A0000},
@@ -1013,6 +876,156 @@ namespace {
         {"sc_chicken_bits",               0x421a0040}
     }};
 
+    enum patch_mode {
+        NO_PATCH = 0,
+        ENTER_PATCH,
+        IN_PATCH,
+        EXIT_PATCH
+    };
+
+    typedef enum : size_t {
+        U  = 0,
+        HS = 1,
+        M  = 3,
+        P  = 4,
+        DE = 6,
+        DP = 7,
+        VU = 8,
+        VS = 9,
+        VM = 11
+    } priv;
+
+    const std::unordered_map<priv, std::string_view> priv_to_string = {
+        {U , "U"} ,
+        {HS, "HS"},
+        {M , "M"} ,
+        {P , "P"} ,
+        {DE, "DE"},
+        {DP, "DP"},
+        {VU, "VU"},
+        {VS, "VS"},
+        {VM, "M"} ,
+    };
+
+    typedef enum : size_t {
+        INSN_ADDR_MISALGN       = 0,
+        INSN_ACCESS_FAULT       = 1,
+        ILLEGAL_INSN            = 2,
+        BREAKPOINT              = 3,
+        LD_ADDR_MISALGN         = 4,
+        LD_ACCESS_FAULT         = 5,
+        ST_AMO_ADDR_MISALGN     = 6,
+        ST_AMO_ACCESS_FAULT     = 7,
+        ECALL_U                 = 8,
+        ECALL_S                 = 9,
+        ECALL_M                 = 11,
+        INSN_PAGE_FAULT         = 12,
+        LD_PAGE_FAULT           = 13,
+        ST_AMO_PAGE_FAULT       = 15,
+        HARDWARE_ERROR          = 19,
+        INST_GUEST_PAGE_FAULT   = 20,
+        LD_GUEST_PAGE_FAULT     = 21,
+        VIRT_INST_FAULT         = 22,
+        ST_AMO_GUEST_PAGE_FAULT = 23,
+        CUSTOM_VEC_CMODE        = 55
+    } excp;
+
+    const std::unordered_map<excp, std::string_view> excp_to_string = {
+        {INSN_ADDR_MISALGN       , "INSN_ADDR_MISALGN"}    ,
+        {INSN_ACCESS_FAULT       , "INSN_ACCESS_FAULT"}    ,
+        {ILLEGAL_INSN            , "ILLEGAL_INSN"}         ,
+        {BREAKPOINT              , "BREAKPOINT"}           ,
+        {LD_ADDR_MISALGN         , "LD_ADDR_MISALGN"}      ,
+        {LD_ACCESS_FAULT         , "LD_ACCESS_FAULT"}      ,
+        {ST_AMO_ADDR_MISALGN     , "ST_AMO_ADDR_MISALGN"}  ,
+        {ST_AMO_ACCESS_FAULT     , "ST_AMO_ACCESS_FAULT"}  ,
+        {ECALL_U                 , "ECALL_U"}              ,
+        {ECALL_S                 , "ECALL_S"}              ,
+        {ECALL_M                 , "ECALL_M"}              ,
+        {INSN_PAGE_FAULT         , "INSN_PAGE_FAULT"}      ,
+        {LD_PAGE_FAULT           , "LD_PAGE_FAULT"}        ,
+        {ST_AMO_PAGE_FAULT       , "ST_AMO_PAGE_FAULT"}    ,
+        {HARDWARE_ERROR          , "HARDWARE_ERROR"}    ,
+        {INST_GUEST_PAGE_FAULT   , "INST_GUEST_PAGE_FAULT"},
+        {LD_GUEST_PAGE_FAULT     , "LD_GUEST_PAGE_FAULT"}  ,
+        {VIRT_INST_FAULT         , "VIRT_INST_FAULT"}      ,
+        {ST_AMO_GUEST_PAGE_FAULT , "ST_AMO_GUEST_PAGE_FAULT"}
+    };
+
+    typedef enum : size_t {
+        DEBUG = 0,
+        SSI   = 1,
+        VSSI  = 2,
+        MSI   = 3,
+        STI   = 5,
+        VSTI  = 6,
+        MTI   = 7,
+        SEI   = 9,
+        VSEI  = 10,
+        MEI   = 11,
+        SGEI  = 12,
+        LCOFI = 13,
+        DERRI = 23,
+        HWAI  = 24,
+        RASI  = 43
+    } intr;
+
+    const std::unordered_map<intr, std::string_view> intr_to_string = {
+        {DEBUG, "DEBUG"},
+        {SSI  , "SSI"}  ,
+        {VSSI , "VSSI"} ,
+        {MSI  , "MSI"}  ,
+        {STI  , "STI"}  ,
+        {VSTI , "VSTI"} ,
+        {MTI  , "MTI"}  ,
+        {SEI  , "SEI"}  ,
+        {VSEI , "VSEI"} ,
+        {MEI  , "MEI"}  ,
+        {SGEI , "SGEI"} ,
+        {LCOFI, "LCOFI"},
+        {DERRI, "DERRI"},
+        {HWAI , "HWAI"} ,
+        {RASI , "RASI"}
+    };
+
+    typedef enum : size_t {
+        EXT_NMI = 2,
+        CLA_NMI = 3
+    } nmi;
+
+    const std::unordered_map<nmi, std::string_view> nmi_to_string = {
+        {EXT_NMI, "EXT_NMI"},
+        {CLA_NMI, "CLA_NMI"}
+    };
+
+    typedef enum : size_t {
+        LR = 2,
+        SC = 3,
+        AMOSWAP = 1,
+        AMOADD = 0,
+        AMOXOR = 4,
+        AMOAND = 12,
+        AMOOR = 8,
+        AMOMIN = 16,
+        AMOMAX = 20,
+        AMOMINU = 24,
+        AMOMAXU = 28
+    } amo_op;
+
+    const std::unordered_map<amo_op, std::string_view> amo_op_to_string = {
+        {LR, "LR"},
+        {SC, "SC"},
+        {AMOSWAP, "AMOSWAP"},
+        {AMOADD , "AMOADD"} ,
+        {AMOXOR , "AMOXOR"} ,
+        {AMOAND , "AMOAND"} ,
+        {AMOOR  , "AMOOR"}  ,
+        {AMOMIN , "AMOMIN"} ,
+        {AMOMAX , "AMOMAX"} ,
+        {AMOMINU, "AMOMINU"},
+        {AMOMAXU, "AMOMAXU"}
+    };
+
     const std::unordered_map<uint64_t, uint32_t> renamed_csr = {
         {32, MEPC},
         {33, SEPC},
@@ -1021,4 +1034,21 @@ namespace {
         {36, SSCRATCH},
         {37, VSSCRATCH}
     };
+
+    typedef enum : size_t {
+        EXCP = 0,
+        INTR = 1,
+        NMI = 2
+    } trap;
+
+    typedef enum : size_t {
+        M_ITF = 0,
+        S_ITF = 2,
+    } itf;
+
+    const std::unordered_map<itf, std::string_view> itf_to_string = {
+        {M_ITF, "M"},
+        {S_ITF, "S"},
+    };
+
 }

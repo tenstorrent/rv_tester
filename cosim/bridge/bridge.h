@@ -71,11 +71,13 @@ public:
   // Interrupts
   virtual void process_dut_nmi(hart_id_t hart, rv_nmi_t& n) override;
   virtual void process_dut_interrupt(hart_id_t hart, rv_intr_t& i) override;
+  virtual void process_dut_timer(hart_id_t hart, rv_intr_t& i) override;
   virtual void process_dut_imsic_msi(hart_id_t hart, mem_t& m) override;
 
   // Debug mode
   virtual void enter_debug_mode(rv_debug_t& d) override;
   virtual void exit_debug_mode(rv_debug_t& d) override;
+  virtual void process_debug_haltreq(bool haltreq) override;
 
   void reset();
   void csr_init();
@@ -97,7 +99,7 @@ private:
 
   void update_dut_state(hart_id_t hart, rv_instr_t& d);
   void arch_state(whisper_state_t& w);
-  void update_whisper_state(hart_id_t hart, whisper_state_t& w);
+  void update_whisper_state(hart_id_t hart, whisper_state_t& w, bool dut_is_compressed=false);
   void step(hart_id_t hart, whisper_state_t& w);
   void compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w, rv_instr_t& d);
   void print_instr(hart_id_t hart, const whisper_state_t& w);
@@ -121,7 +123,13 @@ private:
   std::string get_csr_name(const std::string& addr);
   bool is_custom_csr(uint64_t addr);
   bool is_pmacfg_csr(uint64_t addr);
+  bool is_csr_allowlist(uint64_t addr);
+  bool is_csr_allowlist(const std::string& csr_name);
   bool is_chicken_bit_csr(uint64_t addr);
+  bool is_mtimecmp_mmr(uint64_t addr);
+  bool is_mtime_mmr(uint64_t addr);
+  void peek_resource(hart_id_t hart, char resource, uint64_t addr, uint64_t& data);
+  void poke_resource(hart_id_t hart, uint64_t cycle, char resource, uint64_t addr, uint64_t data);
 
   void translation_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   uint64_t translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t memclass);
@@ -130,6 +138,7 @@ private:
   void pre_step_exception_poke(hart_id_t hart, const rv_instr_t& d);
   void pre_step_lrsc_poke(       hart_id_t hart, const rv_instr_t& d);
   void pre_step_debug_poke(      hart_id_t hart, const rv_instr_t& d);
+  void post_step_debug_poke(      hart_id_t hart, const rv_instr_t& d);
   void pre_step_nmi_poke(  hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
   void pre_step_interrupt_poke(  hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
   void post_step_nmi_check( hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
@@ -137,19 +146,18 @@ private:
   void post_step_exception_check( hart_id_t hart, const rv_instr_t& d,       whisper_state_t& w);
   void post_step_satp_write_poke(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w);
 
+  std::string to_string(rv_intr_t& i);
   void process_imsic_msi(hart_id_t hart, const mem_t& m);
-  void process_local_interrupt(hart_id_t hart, rv_intr_t& i);
-  void process_external_interrupt(hart_id_t hart, rv_intr_t& i);
-  void check_and_defer_interrupt(int line, hart_id_t hart, uint64_t time, uint64_t mip);
-  void check_interrupt(int line, hart_id_t hart, uint64_t mip, bool& taken, uint64_t& cause);
-  void defer_interrupt(int line, hart_id_t hart, uint64_t time, uint64_t mip);
-  void resetsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr);
-  void setsstc_poke(hart_id_t hart, uint64_t cycle, uint64_t csr);
+  void poke_timer(hart_id_t hart, uint64_t cycle, std::bitset<64> t_mip, uint64_t mtime);
+  void poke_local_interrupt(hart_id_t hart, uint64_t cycle, std::bitset<64> l_mip);
+  void check_and_defer_interrupt(hart_id_t hart, uint64_t time, std::bitset<64> mip);
+  void check_interrupt(hart_id_t hart, uint64_t cycle, bool& taken, uint64_t& cause);
+  void defer_interrupt(hart_id_t hart, uint64_t time, uint64_t mip);
   void poke_nmi(hart_id_t hart, uint64_t time, uint64_t cause);
   void clear_nmi(hart_id_t hart, uint64_t time);
-  void poke_mip(int line, hart_id_t hart, uint64_t time, uint64_t mip);
-  void peek_mip(hart_id_t hart, uint64_t time, uint64_t& mip);
-  void peek_seip(hart_id_t hart, uint64_t time, uint64_t& val);
+  void poke_mip(hart_id_t hart, uint64_t time, std::bitset<64> mip);
+  void peek_mip(hart_id_t hart, uint64_t time, std::bitset<64>& mip);
+  void peek_seip(hart_id_t hart, uint64_t time, bool& seip);
   void get_gp_reg(uint32_t reg, uint64_t& data);
   void get_fp_reg(uint32_t reg, uint64_t& data);
   void get_vec_reg(uint32_t reg, std::array<std::uint8_t, 32>& data);
@@ -181,11 +189,10 @@ private:
   bool mip_mismatch(const std::string& instr);
   bool topi_mismatch(const std::string& instr);
   bool topei_mismatch(const std::string& instr);
+  void topei_resynch(hart_id_t hart, const rv_instr_t& d, const csr_t& csr);
   void resynch(hart_id_t hart, const rv_instr_group_t& d);
   void resynch(hart_id_t hart, const rv_instr_t& d);
   std::string get_nth_word(const std::string& s, int n);
-  void peek_resource(hart_id_t hart, char resource, uint64_t addr, uint64_t& data);
-  void poke_resource(hart_id_t hart, uint64_t cycle, char resource, uint64_t addr, uint64_t data);
   bool hyp_enabled() { return  (get_csr(id_, src_t::dut, MISA) & 0x80) == 0x80; }
 
 private:
@@ -256,7 +263,9 @@ private:
 
   // State variables
   bool ecall_ = false;
+  bool is_priv_debug_mode_ = false;
   bool debug_mode_ = false;
+  bool debug_haltreq_asserted = false;
   bool excp_in_debug_mode = false;
   bool lrsc_fail_ = false;
   bool twoStage_ = false;
@@ -288,12 +297,13 @@ private:
   rv_nmi_t prev_nmi_ {};
   bool nmi_poke_pending_ = false;
   bool nmi_poke_in_debug_mode_ = false;
-  uint64_t mip_ = 0;
+  std::bitset<64> mip_ = 0;
+  std::bitset<64> hw_mip_ = 0;
+  std::bitset<64> e_mip_ = 0;
+  std::bitset<64> prev_hw_mip_ = 0;
+  std::bitset<64> prev_e_mip_ = 0;
   uint64_t timing_case2 = 0;
-  uint64_t prev_mip_ = 0;
-  uint64_t mip_age_ = 0;
-  uint64_t e_mip_ = 0;
-  uint64_t prev_e_mip_ = 0;
+  uint64_t hw_mip_age_ = 0;
   uint64_t e_mip_age_ = 0;
   uint64_t deferred_mip_ = 0;
   bool prev_resync_excp_defer_intr_ = 0;
@@ -309,11 +319,12 @@ private:
   std::chrono::high_resolution_clock::time_point start_of_test_;
   bool first_call_ = true;
   bool debug_on_ = false;
+  bool cvm_debug_ = false;
 
   // Memmap
   std::map<std::string, memmap_entry_t> memmap_;
 
-  std::array<std::array<int, 16>, 12> num_taken_interrupts_{};
+  std::array<std::array<int, 16>, 64> num_taken_interrupts_{};
 
   int num_exceptions_ = 0;
   int num_trig_breakpoint_ = 0;

@@ -153,6 +153,8 @@ typedef struct mem_s {
   uint8_t elem_idx;
   bool splat;
   uint8_t elem_size;
+  bool mtime_valid;
+  uint64_t mtime;
   
   mem_s() {
     clear();
@@ -234,6 +236,10 @@ typedef struct rv_instr_s {
   mem_t mem_read;
   mem_t mem_write;
 
+  // Special values
+  bool mtime_valid;
+  uint64_t mtime;
+
   rv_instr_s() {
     clear();
   }
@@ -248,6 +254,7 @@ typedef struct rv_instr_s {
     nmi = false;
     intr = false;
     excp = false;
+    mtime_valid = false;
     pc.clear();
     gpr.clear();
     fpr.clear();
@@ -282,10 +289,15 @@ typedef struct rv_debug_s {
 
 typedef struct rv_intr_s {
   uint64_t cycle;
-  uint64_t mip;
-  uint64_t mip_mask;
-  uint64_t mip_assert;
-} rv_intr_t;  
+  bool hw;
+  std::bitset<64> mip;
+  std::bitset<64> mip_set;
+  std::bitset<64> mip_clr;
+  bool seip;
+  bool seip_set;
+  bool seip_clr;
+  uint64_t mtime;
+} rv_intr_t;
 
 typedef struct rv_nmi_s {
   uint64_t cycle;

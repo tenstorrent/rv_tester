@@ -12,6 +12,7 @@
 #include "rv_tester/rv_tester_structs.h"
 #include "sysmod/sysmod_plusargs.h"
 #include <fmt/format.h>
+#include "cosim/utils/eot/eot_plusargs.h"
 
 static bool validate_ge0(const char* flagname, const int value) {
     if (value < 0) {
@@ -33,6 +34,7 @@ DEFINE_bool(overlay_mmr_en, false, "Set this while running overlay test");
 DEFINE_bool(jtag_en, false, "Set this while running jtag test");
 DEFINE_bool(smc_sweep_test ,false, "Set this while running small core sram sweep test");
 DEFINE_int32(dmi_poll_timeout, 50000, "Debug poll timeout after to host end call");
+DEFINE_int32(ndmreset_ack_delay, 0, "Delay after which ndmreset ack is asserted");
 DEFINE_int32(trace_timeout, 50000, "trace test end timeout after to host end call");
 DEFINE_int32(freq_switch_ncycles, 20000, "Switch clk frequencies after freq_switch_ncycles");
 DEFINE_int32(clk_profile, 0, "Clk profile to drive various clocks");
@@ -44,6 +46,7 @@ DEFINE_int32(rand_dmi_driver_dly, 0, "Random delay cycles, to be used while driv
 DEFINE_int32(dm_single_step_count, 0, "No of times core to single step, to be used while driving DMI transactions");
 DEFINE_int32(sdtrig_multitrigger, 0, "No of trigger condigurations for sdtrig multitrigger test");
 DEFINE_int32(trigger_config, 0, "No of store addr configurations for sdtrig test");
+DEFINE_bool(rv_tester_terminate, true, "Set to false for offline DPI mode");
 
 
 extern "C" void rv_tester_terminate();
@@ -70,11 +73,14 @@ class logger_instrument {
             // we want this to be low prio and async so it goes behind existing rvfi transactions in the queue
             // because of QoS this could have been seen before all rvfi transactions up to this instruction were processed
             cvm::registry::messenger.signal_async<rv_tester::terminate_called>(loc, rv_tester::terminate_called{}, cvm::messenger::lowest_priority);
-            cvm::registry::callbacks.push(
-                scope,
-                []() {
-                    return rv_tester_terminate();
-                });
+            if (FLAGS_rv_tester_terminate) {
+                cvm::registry::messenger.signal_async<rv_tester::terminate_called>(loc, rv_tester::terminate_called{}, cvm::messenger::lowest_priority);
+                cvm::registry::callbacks.push(
+                    scope,
+                    []() {
+                        return rv_tester_terminate();
+                    });
+            }
         }
 
         static void set_scope(svScope s) { scope = s; };
@@ -250,11 +256,22 @@ extern "C" {
 
     void rv_tester_streaming_dpi_init() {
         char *env_var = std::getenv("ZEBU_OFFLINE_DPI");
-        if (env_var != nullptr && std::string(env_var) == "1") {
+        if ((env_var != nullptr && std::string(env_var) == "1")) {
+            cvm::log(cvm::NONE, "Initialize Offline DPI\n");
             rv_tester_parse_flags();
+
+            // override flags in offline mode
+            FLAGS_sysmod_terminate = false;
+            FLAGS_rv_tester_terminate = false;
+            FLAGS_signal_async = false;
+            FLAGS_hw_eot_enable = false;
+
             rv_tester_cvm_error_handler();
             rv_tester_build_registry();
-            cvm::log(cvm::NONE, "Initialize Offline DPI\n");
+            std::atexit([] () {
+                while(!rv_tester_shutdown_registry());
+                rv_tester_dm_shutdown_registry();
+            });
         }
     }
 }

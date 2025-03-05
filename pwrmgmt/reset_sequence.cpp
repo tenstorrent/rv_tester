@@ -42,6 +42,8 @@ DEFINE_bool(rand_patch, false, "Randomly pick 4 instructions available in the CS
 DEFINE_bool(sw_fuse_program_enable, true, "Program the AXI switch fuse during boot");
 DEFINE_string(init_csr_resetseq, "", "+init_csr_resetseq=<unit(mc=8,ms=4,fe=2,ls=1)>:<csr_num>:<val>,... ");
 DEFINE_string(init_mmr_resetseq, "", "+init_mmr_resetseq=<mmr_addr>:<size(8|4)>:<val>,... ");
+DEFINE_string(rmw_csr_resetseq, "", "+rmw_csr_resetseq=<unit(mc=8,ms=4,fe=2,ls=1)>:<csr_num>:<val>:<mask>,... ");
+DEFINE_string(rmw_mmr_resetseq, "", "+rmw_mmr_resetseq=<mmr_addr>:<size(8|4)>:<val>:<mask>,... ");
 DEFINE_bool(trace_fuse_4B_access, true, "Enable filter programming for JTAG and Overlay to access SRAM ");
 
 extern "C" {
@@ -240,7 +242,9 @@ cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
     co_await patch_ram_check();
   };
   co_await init_csr();
+  co_await rmw_csr();
   co_await init_mmr();
+  co_await rmw_mmr();
   co_await program_fe_resetvector();
   co_await release_cpl_nofetch();
   co_return;
@@ -1061,6 +1065,38 @@ cvm::messenger::task<void> reset_sequence::init_mmr()
   co_return;
 }
 
+cvm::messenger::task<void> reset_sequence::rmw_mmr()
+{
+  if (FLAGS_rmw_mmr_resetseq == "")
+      co_return;
+
+  cvm::log(cvm::HIGH, "Backdoor RMW to MMRs\n");
+
+  try { // parse and process the +rmw_mmr_resetseq and report any errors
+    std::string delimiter = ",";
+    std::vector<std::string> mmr_num_val = cosim_util::split_string(FLAGS_rmw_mmr_resetseq, delimiter);
+    for (const auto& entry : mmr_num_val) {
+      delimiter = ":";
+      std::vector<std::string> num_val = cosim_util::split_string(entry, delimiter);
+      auto mmr_addr = std::stoull(num_val.at(0), nullptr, 0);
+      size_t size = (size_t)std::stoull(num_val.at(1), nullptr, 0);
+      auto mmr_value = std::stoull(num_val.at(2), nullptr, 0);
+      auto mmr_mask = std::stoull(num_val.at(3), nullptr, 0);
+      cvm::log(cvm::HIGH, "MMR addr {} = {}:{} ({} bytes)\n", mmr_addr, mmr_value, mmr_mask, size);
+      for (uint32_t i = 0; i < FLAGS_num_harts; i++) {
+        auto v = (co_await read(mmr_addr, size) & ~mmr_mask) | mmr_value;
+        co_await write(mmr_addr, size, v);
+      }
+    }
+  }
+  catch (...) {
+    cvm::log(cvm::ERROR, "Error: unable to parse +rmw_mmr_resetseq={}\n", FLAGS_rmw_mmr_resetseq);
+    co_return;
+  }
+
+  co_return;
+}
+
 cvm::messenger::task<void> reset_sequence::init_csr()
 {
   if (FLAGS_init_csr_resetseq == "")
@@ -1096,12 +1132,61 @@ cvm::messenger::task<void> reset_sequence::init_csr()
       }
       cvm::log(cvm::HIGH, "Unit = {}: CSR addr {} = {}\n", unit, csr_addr, csr_value);
       for (uint32_t i = 0; i < FLAGS_num_harts; i++) {
-        co_await csr_write(0, (uint32_t)unit, csr_addr, csr_value);
+        co_await csr_write(i, (uint32_t)unit, csr_addr, csr_value);
       }
     }
   }
   catch (...) {
     cvm::log(cvm::ERROR, "Error: unable to parse +init_csr_resetseq={}\n", FLAGS_init_csr_resetseq);
+    co_return;
+  }
+
+  co_return;
+}
+
+cvm::messenger::task<void> reset_sequence::rmw_csr()
+{
+  if (FLAGS_rmw_csr_resetseq == "")
+      co_return;
+
+  std::map<std::string, uint64_t> csr_name_to_addr_map;
+  for (const auto& csr : csrs) {
+    csr_name_to_addr_map[csr.second.name] = csr.second.addr;
+  }
+
+  cvm::log(cvm::HIGH, "Backdoor RMW to CSRs\n");
+  try { // parse and process the +rmw_csr_resetseq and report any errors
+    std::string delimiter = ",";
+    std::vector<std::string> csr_num_val = cosim_util::split_string(FLAGS_rmw_csr_resetseq, delimiter);
+    for (const auto& entry : csr_num_val) {
+      delimiter = ":";
+      std::vector<std::string> num_val = cosim_util::split_string(entry, delimiter);
+      auto unit = std::stoull(num_val.at(0), nullptr, 0);
+      auto csr_value = std::stoull(num_val.at(2), nullptr, 0);
+      auto csr_mask = std::stoull(num_val.at(3), nullptr, 0);
+      uint64_t csr_addr;
+      auto csr = num_val.at(1); // expect both csr address("0x301") as well as string("misa")
+      if (csr_name_to_addr_map.count(csr)) {
+        csr_addr = csr_name_to_addr_map[csr];
+      } else {
+        char* p;
+        uint64_t csrn = std::strtoul(csr.c_str(), &p, 0);
+        if (*p == 0)
+          csr_addr = csrn;
+        else {
+          cvm::log(cvm::ERROR, "Error: csr_name:{} undefined see +rmw_csr_resetseq switch\n", csr);
+          co_return;
+        }
+      }
+      cvm::log(cvm::HIGH, "Unit = {}: CSR addr {} = {}:{}\n", unit, csr_addr, csr_value, csr_mask);
+      for (uint32_t i = 0; i < FLAGS_num_harts; i++) {
+        auto v = (co_await csr_read(i, (uint32_t)unit, csr_addr) & ~csr_mask) | csr_value;
+        co_await csr_write(i, (uint32_t)unit, csr_addr, v);
+      }
+    }
+  }
+  catch (...) {
+    cvm::log(cvm::ERROR, "Error: unable to parse +rmw_csr_resetseq={}\n", FLAGS_rmw_csr_resetseq);
     co_return;
   }
 

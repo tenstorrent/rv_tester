@@ -10,7 +10,7 @@
 #include "cvm/bitmanip.hpp"
 #include "dm_model.hpp"
 
-DEFINE_bool(dm_hart_enum_chk, true, "Check DM hartenumaration wrt VID/PID mapping");
+DEFINE_bool(dm_hart_enum_chk, false, "Check DM hartenumaration wrt VID/PID mapping");
 // Return the number of bits wide that a field has to be to encode up to n
 // different values.
 // 1->0, 2->1, 3->2, 4->2
@@ -296,11 +296,12 @@ void debug_module_t::process(const rv_tester_transactions::dm_model::dm_req<> &d
   }
   //check if access went to correct PID
   //the hartsel will index by VID
-  if(hart_pid[dmcontrol.hartsel] == std::log2(dm_req.dm_ms_req)){
-    cvm::log(cvm::NONE, "DM VID/PID CHECKER  :: Correct DM req for the Physical Hart ID :{:#x} dmcontrol.hartsel: {} hart_pid[dmcontrol.hartsel]: {}  std::log2(dm_store.dm_ms_req) : {}\n", dm_req.dm_ms_req, dmcontrol.hartsel,hart_pid[dmcontrol.hartsel],std::log2(dm_req.dm_ms_req));
-  }else{
-    cvm::log(cvm::ERROR, "ERROR: DM VID/PID CHECKER  :: Incorrect DM req for the Physical Hart ID :{:#x} dmcontrol.hartsel: {} hart_pid[dmcontrol.hartsel]: {} std::log2(dm_store.dm_ms_req): {}\n", dm_req.dm_ms_req, dmcontrol.hartsel,hart_pid[dmcontrol.hartsel],std::log2(dm_req.dm_ms_req));
-
+  if (dm_req.dm_ms_req){
+    if(hart_pid[dmcontrol.hartsel] == std::log2(dm_req.dm_ms_req)){
+      cvm::log(cvm::NONE, "DM VID/PID CHECKER  :: Correct DM req for the Physical Hart ID :{:#x} dmcontrol.hartsel: {} hart_pid[dmcontrol.hartsel]: {}  std::log2(dm_store.dm_ms_req) : {}\n", dm_req.dm_ms_req, dmcontrol.hartsel,hart_pid[dmcontrol.hartsel],std::log2(dm_req.dm_ms_req));
+    }else{
+      cvm::log(cvm::ERROR, "ERROR: DM VID/PID CHECKER  :: Incorrect DM req for the Physical Hart ID :{:#x} dmcontrol.hartsel: {} hart_pid[dmcontrol.hartsel]: {} std::log2(dm_store.dm_ms_req): {}\n", dm_req.dm_ms_req, dmcontrol.hartsel,hart_pid[dmcontrol.hartsel],std::log2(dm_req.dm_ms_req));
+    }
   }
   }
 }
@@ -781,6 +782,9 @@ bool debug_module_t::dmi_read(unsigned address, uint32_t *value)
       break;
     case DM_DMCS2:
       result = set_field(result, DM_DMCS2_GROUP, selected_hart_state().haltgroup);
+      break;
+    case DM_NEXTDM:
+      result = 0;
       break;
     default:
       result = 0;

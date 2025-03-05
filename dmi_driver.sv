@@ -64,8 +64,9 @@ import rv_tester_params:: * ;
   logic [2:0] core_ss_index, core_halted_ss, core_halted_sdtrig;
   logic tselect_core, tselect_core_complete, core_rg_halt_sdtrig, core_haltsum_sdtrig, check_haltsum_sdtrig;
   logic check_hartsellen, check_dmstatus_disc, hart_discovery, dmcontrol_hartsel;
+  logic expect_cmd_err_excp, exception_illegal, read_cmisa_sdtrig, check_cmisa_sdtrig, cmisa_sdtrig_disabled;
 
-  logic rvfi_sdtrig;
+  logic rvfi_sdtrig, disable_mem_access_checker;
   int file_descr, count_hart_enable_mask, dmi_command_in_step_ahead_queue_size, dmi_command_in_step_quit_queue_size, single_step_instr_cnt_plusarg, total_triggers_plusarg,num_dm_randpc_plsg, num_dm_randload_plsg, num_dm_randstore_plsg, tselect_conf_plusarg, multitriggers_plusarg;
   int trigger_counter, command_in_sdtrig_entry_queue_size, command_in_sdtrig_trigger_queue_size, total_command_in_sdtrig_trigger_queue_size, command_in_sdtrig_progbuf_queue_size;
   int tselect_value, trigger_index, trigger_hit, command_in_trigger_disable_queue_size, total_command_in_sdtrig_progbuf_queue_size;
@@ -177,6 +178,12 @@ import rv_tester_params:: * ;
       read_data3 <= 0;
       get_data2 <= 0;
       get_data3 <= 0;
+      expect_cmd_err_excp <= 0;
+      exception_illegal <= 0;
+      read_cmisa_sdtrig <= 0;
+      check_cmisa_sdtrig <= 0;
+      cmisa_sdtrig_disabled <= 0;
+      disable_mem_access_checker <= 0;
 
       command_queue.delete();
       response_queue.delete();
@@ -220,6 +227,12 @@ import rv_tester_params:: * ;
       rvfi_sdtrig = 1;
     // end else begin
     //   rvfi_sdtrig = 0;
+    end else if(rvfi[0].cause[63:0] === 'h2) begin
+      exception_illegal = 1;
+      $display("exception:2 is seen and setting exception_illegal");
+    end else if(exception_illegal) begin
+      exception_illegal = 0;
+      $display("exception != 2 hence clearing exception_illegal");
     end
   end
 
@@ -280,7 +293,7 @@ import rv_tester_params:: * ;
   end
 
   always @(negedge clk) begin
-    if (reset_n)
+    if (~reset_n)
       clk_cnt = 0;
     else
       clk_cnt = clk_cnt + 1;
@@ -400,6 +413,12 @@ import rv_tester_params:: * ;
               end else if (cmd.data[15:0] === 'h07b0) begin
                 $display("[Poll] Seen the abstract command read on dcsr");
                 dcsr_abscmd = 1;
+              end else if(cmd.data[15:0] === 'h0bcc) begin
+                check_cmisa_sdtrig = 1;
+                $display("[Poll] check_cmisa_sdtrig is set in #412");
+              end else if(cmisa_sdtrig_disabled && (cmd.data[15:3] === 'h0f4)) begin
+                expect_cmd_err_excp = 1;
+                $display("[Poll] expect_cmd_err_excp is set in #415");
               end
             end
           end
@@ -525,6 +544,10 @@ import rv_tester_params:: * ;
           read_data1 = 0;
           read_data1_comp = 1;
           $display("Read data1 to compare 64bit read");          
+        end else if(check_cmisa_sdtrig && cmd.addr === 'h4 && cmd.op === 'h1) begin
+          poll = 1;
+          check_cmisa_sdtrig = 0;
+          read_cmisa_sdtrig = 1;
         end
       end
     end
@@ -639,6 +662,9 @@ import rv_tester_params:: * ;
         end else if(get_data3 || read_data3) begin
           $display("[Poll] store/read the address from data3 to compare ");
           dmi_req <= 41'h1d00000000;
+        end else if(read_cmisa_sdtrig) begin
+          $display("[Poll] data0 read value to check sdtrig field in cmisa csr");
+          dmi_req <= 41'h1100000000;
         end
         wait (dmi_req_ready == 1);
         @(posedge clk) dmi_req_valid <= '0;
@@ -704,6 +730,16 @@ import rv_tester_params:: * ;
               end else begin
                 poll = 0;
               end
+            end
+            if(expect_cmd_err_excp)begin
+              $display("[Poll] wait for Illegal exception");
+              @(exception_illegal);
+              $display("[Poll] Illegal exception is seen");
+              expect_cmd_err_excp = 0;
+            end
+            if(dmi_resp.data[10:8] === 2'b11) begin
+              disable_mem_access_checker = 1;
+              $display("[Poll] Setting disable_mem_access_checker");
             end
           end else if (!hart_enable_mask_value[dm_hartsel]) begin
             $display("[Poll] Selected hart:%h is disabled and expect cmderr=4", dm_hartsel);
@@ -1031,19 +1067,27 @@ import rv_tester_params:: * ;
           end
         end else if(read_data0_comp) begin
           $display("line #889 data0_value:%h, dmi_resp.data:%h", data0_value, dmi_resp.data);
-          if(data0_value === dmi_resp.data) begin
-            $display("data0_value:%h, dmi_resp.data:%h", data0_value, dmi_resp.data);
+          if(!disable_mem_access_checker) begin
+            if(data0_value === dmi_resp.data) begin
+              $display("data0_value:%h, dmi_resp.data:%h", data0_value, dmi_resp.data);
+              poll = 0;
+              read_data0_comp = 0;
+              mmr_read_32bits = 0;
+              if(mmr_read_64bits) begin
+                read_data1 = 1;
+                mmr_read_64bits = 0;
+                $display("read_data1 is set");
+              end
+            end else begin
+              $display("Error: Mismatch scratchpad_mmr_write_data0_value:%h, scratchpad_mmr_read_data0_value:%h", data0_value, dmi_resp.data);
+            end
+          end else begin
+            $display("Mem Access checker is disabled");
             poll = 0;
             read_data0_comp = 0;
             mmr_read_32bits = 0;
-            if(mmr_read_64bits) begin
-              read_data1 = 1;
-              mmr_read_64bits = 0;
-              $display("read_data1 is set");
-            end
-          end else begin
-            $display("Error: Mismatch scratchpad_mmr_write_data0_value:%h, scratchpad_mmr_read_data0_value:%h", data0_value, dmi_resp.data);
           end
+          disable_mem_access_checker = 0;
         end else if(read_data1_comp) begin
           if(data1_value === dmi_resp.data) begin
             $display("data1_value:%h, dmi_resp.data:%h", data1_value, dmi_resp.data);
@@ -1052,6 +1096,13 @@ import rv_tester_params:: * ;
           end else begin
             $display("Error: Mismatch scratchpad_mmr_write_data1_value:%h, scratchpad_mmr_read_data1_value:%h", data1_value, dmi_resp.data);
           end
+        end else if(read_cmisa_sdtrig) begin
+          if(dmi_resp.data[23] === 0) begin
+            cmisa_sdtrig_disabled = 1;
+            $display("cmisa_sdtrig_disabled is set");
+          end
+          poll = 0;
+          read_cmisa_sdtrig = 0;
         end
       end
       $display("[Poll] Cleared poll for halt:%h resume:%h abstract:%h", halt_req, resume_req,

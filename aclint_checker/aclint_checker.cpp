@@ -59,6 +59,7 @@ void aclint_checker::process(const rv_tester_transactions::aclint_checker::cr_ac
     cvm::log(cvm::HIGH, "[ACLINT CHECKER] AC MMR WRITES: location {} srcid {} order {} addr {:#x} data {:#x} mask {:#x} \n", cr_ac_mmrwrite.location, cr_ac_mmrwrite.srcid, cr_ac_mmrwrite.order, cr_ac_mmrwrite.addr, cr_ac_mmrwrite.data, cr_ac_mmrwrite.mask);
 
     auto mmr_addr = static_cast<aclint_addr>(cr_ac_mmrwrite.addr);
+    if (mmr_addr == aclint_addr::AC_TIMESYNC) return;
     if (aclint_mmrs.find(mmr_addr) != aclint_mmrs.end()) {
         cr_ac_mmr_q_[srcid].push(m);
     }
@@ -75,10 +76,18 @@ void aclint_checker::process(const rv_tester_transactions::aclint_checker::axi_a
     m.order = 0;
     m.datavalid = true;
     uint64_t srcid = axi_ac_write.srcid;
-    cvm::log(cvm::HIGH, "[ACLINT CHECKER] AC AXI WRITES: location {} srcid {} addr {:#x} ({:#x}) data {:#x} mask {:#x} \n", axi_ac_write.location, axi_ac_write.srcid, axi_ac_write.addr, cluster_mmr_addr, axi_ac_write.data, axi_ac_write.mask);
+    uint8_t user = axi_ac_write.user;
+    cvm::log(cvm::HIGH, "[ACLINT CHECKER] AC AXI WRITES: location {} srcid {} addr {:#x} ({:#x}) data {:#x} mask {:#x} user {} \n", axi_ac_write.location, axi_ac_write.srcid, axi_ac_write.addr, cluster_mmr_addr, axi_ac_write.data, axi_ac_write.mask, user);
 
     
     auto mmr_addr = static_cast<aclint_addr>(cluster_mmr_addr);
+    if ((mmr_addr == aclint_addr::AC_TIMESYNC || 
+         mmr_addr == aclint_addr::AC_CLUSTERFUSE) && 
+         user != 3) {
+        // Checking for only src
+        cvm::log(cvm::HIGH, "[ACLINT CHECKER] Writes to {} are srcid protected\n", aclint_mmrs[mmr_addr].name);
+        return;
+    }
     if (aclint_mmrs.find(mmr_addr) != aclint_mmrs.end()) {
         size_t sz = (axi_ac_write.mask == 0xFF) ?  3 :
                     (axi_ac_write.mask == 0x0F) ?  2 :
@@ -142,6 +151,7 @@ void aclint_checker::process(const smc_read_pkt & r) {
         cvm::log(cvm::HIGH, "[ACLINT CHECKER] Ignore SMC-AC READ: addr {:#x} data {:#x}, Data overwritten\n", r.addr, r.data);
         return;
     }
+    mmrReadReqFlag[mmr_addr].first = false;     // Read carried without in between writes hence deasserting guard
     cvm::log(cvm::HIGH, "[ACLINT CHECKER] SMC-AC READ: addr {:#x} data {:#x} size {:#x}B resp {}\n", r.addr, r.data, (1 << r.size), r.resp);
     if (r.size == 1 || r.size == 0) {
         if (r.data == 0 && r.resp == 3) return;
@@ -170,12 +180,15 @@ void aclint_checker::process(const smc_read_pkt & r) {
         }
     } 
     else if (mmr_addr == aclint_addr::CR_CTIME && FLAGS_aclint){
-        return; // FIXME: Enable read checks for CR_CTIME
         // Get modelled copy of CTIME from aclint_checker.sv using DPI-C
-        uint64_t ctime_expect = get_ctime_value() & sz_mask & aclint_mmrs[mmr_addr].read_mask;
+        uint64_t ctime_model = get_ctime_value();
+        uint64_t ctime_range_lower = (ctime_model < (ctime_model - 100)) ? 0 : (ctime_model - 100);             // Overflow on lower limit
+        uint64_t ctime_range_upper = (ctime_model > (ctime_model + 100)) ? (-1) : (ctime_model + 100);          // Overflow of upper limit
+        
+        uint64_t ctime_expect = ctime_model & sz_mask & aclint_mmrs[mmr_addr].read_mask;
         uint64_t ctime_actual = (actual & aclint_mmrs[mmr_addr].read_mask);
-        uint64_t ctime_range_lower = (ctime_expect < (ctime_expect - 200)) ? 0 : (ctime_expect - 200);
-        if ((ctime_actual <= ctime_expect) && (ctime_actual >= ctime_range_lower)) {
+        
+        if ((r.data <= ctime_range_upper) && (r.data >= ctime_range_lower)) {
             cvm::log(cvm::HIGH, "[SMC-AC] ACLINT MMR match - Name = CTIME, Address = {:#x} - Actual: {:#x} Expected: {:#x}\n", aclint_mmrs[mmr_addr].address, ctime_actual, ctime_expect);
         } else {
             cvm::log(cvm::ERROR, "Error: [SMC-AC] Mismatch:- ACLINT MMR mismatch - Address = {:#x} - Actual: {:#x} Expected: {:#x}\n", aclint_mmrs[mmr_addr].address, ctime_actual, ctime_expect);
@@ -265,17 +278,17 @@ void aclint_checker::check_outstanding_transactions(uint64_t signal) {
     if (!signal) return;
     for (const auto& [key, queue] : cr_ac_mmr_q_) {
         if (!queue.empty()) {
-            cvm::log(cvm::ERROR, "Error: {} Outstanding AC MMR writes for srcid {}\n", queue.size(), key);
+            cvm::log(cvm::ERROR, "Error: {} Outstanding CORE-ACLINT MMR writes for srcid {}\n", queue.size(), key);
             return; 
         }
     }
-    cvm::log(cvm::HIGH, "[ACLINT CHECKER] No outstanding CR-AC MMR writes\n");
+    cvm::log(cvm::MEDIUM, "[ACLINT CHECKER] No outstanding CORE-ACLINT MMR writes\n");
     
     if (!smc_ac_mmr_v_.empty()) {
-        cvm::log(cvm::ERROR, "Error: {} Outstanding SMC-AC MMR writes\n", smc_ac_mmr_v_.size());
+        cvm::log(cvm::ERROR, "Error: {} Outstanding SMC-ACLINT MMR writes\n", smc_ac_mmr_v_.size());
         return; 
     }
-    cvm::log(cvm::HIGH, "[ACLINT CHECKER] No outstanding SMC-AC MMR writes\n");
+    cvm::log(cvm::MEDIUM, "[ACLINT CHECKER] No outstanding SMC-ACLINT MMR writes\n");
 }
 
 extern "C" void check_outstanding_transactions(cvm::topology::loc_t loc) {

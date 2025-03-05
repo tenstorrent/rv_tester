@@ -5,6 +5,7 @@
 DECLARE_string(load);
 DECLARE_string(hex);
 DECLARE_string(load_lz4);
+DECLARE_string(load_bin);
 DECLARE_bool(bootrom);
 DECLARE_string(bootrom_path);
 DECLARE_bool(cplfw);
@@ -45,3 +46,8 @@ DECLARE_bool(dm_model_check_bypass);
 DECLARE_bool(dbg_rand_core);
 DECLARE_int32(dbg_rand_core_idx);
 DECLARE_uint32(matp_swid);
+DECLARE_bool(sysmod_terminate);
+DECLARE_bool(dbg_rnmi_ebreak_trigger); 
+DECLARE_bool(dbg_rnmi_priority_trigger); 
+DECLARE_bool(dbg_rnmi_priv_de_trigger); 
+DECLARE_bool(dbg_rnmi_priv_dp_trigger); 

@@ -110,8 +110,9 @@ import rv_tester_params::*;
     rv_tester_pkg::interrupt_t interrupt_q [NHARTS-1:0];
     assign interrupt = interrupt_q;
 
-    function void sysmod_timer_interrupt (int unsigned hartid, int unsigned val);
+    function void sysmod_timer_interrupt (int unsigned hartid, int unsigned val, longint unsigned mtime_val);
       interrupt_d[hartid].mti = val[0];
+      interrupt_d[hartid].mtime = mtime_val;
     endfunction
     export "DPI-C" function sysmod_timer_interrupt;
 

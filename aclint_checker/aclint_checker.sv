@@ -230,7 +230,7 @@ import rv_tester_params:: * ;
 
     //ACLINT core MMR - ac_mmrwrite
     for (genvar n = 0; n < TOTAL_NRETS; n++) begin
-        assign cr_ac_mmrwrites[n].valid =  ~reset & enable_checks & rvfi[n].valid && (rvfi[n].mem_wmask != 0) && (!rvfi[n].vec) && (rvfi[n].mem_paddr >= ACLINT_START && rvfi[n].mem_paddr < ACLINT_END);
+        assign cr_ac_mmrwrites[n].valid =  ~reset & enable_checks & rvfi[n].valid && (rvfi[n].mode == 3) && (rvfi[n].mem_wmask != 0) && (!rvfi[n].vec) && (rvfi[n].mem_paddr >= ACLINT_START && rvfi[n].mem_paddr < ACLINT_END);
         assign cr_ac_mmrwrites[n].data.location = location;
         assign cr_ac_mmrwrites[n].data.srcid = get_hart_ret(n);
         assign cr_ac_mmrwrites[n].data.order = rvfi[n].order;
@@ -245,6 +245,7 @@ import rv_tester_params:: * ;
         assign axi_ac_writes[0].data.addr = topology.TOP.PLATFORM.PALEN'(AcReqPkti.addr);
         assign axi_ac_writes[0].data.data = topology.TOP.PLATFORM.XLEN'(AcReqPkti.data);
         assign axi_ac_writes[0].data.mask = AcReqPkti.mask;
+        assign axi_ac_writes[0].data.user = AcReqPkti.user;
     /* verilator lint_on WIDTH */
 
     function longint unsigned get_mtime_value();

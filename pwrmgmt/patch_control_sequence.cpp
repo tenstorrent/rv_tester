@@ -17,7 +17,8 @@ patch_control_sequence::patch_control_sequence
   // Topology
   smc_axi_loc_ = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_SMC_MST", 0);
   
-  FLAGS_pcontrol_width = fmt::format("{}:{}",FLAGS_num_harts, FLAGS_num_harts);
+  uint32_t num_harts = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
+  FLAGS_pcontrol_width = fmt::format("{}:{}",num_harts, num_harts);
 
   // main sequence thread
   if (FLAGS_pcontrol_rand_en)

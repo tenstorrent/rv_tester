@@ -50,7 +50,8 @@ class rvfi {
     void process(const rv_tester_transactions::cosim::m_fp_regs<>& m_fp_regs);
     void process(const rv_tester_transactions::cosim::m_vc_regs<>& m_vc_regs);
     void process(const rv_tester_transactions::cosim::m_core_nmi<>& m_core_nmi);
-    void process(const rv_tester_transactions::cosim::m_core_intr<>& m_core_intr);
+    void process(const rv_tester_transactions::cosim::m_interrupt_pend<>& m_interrupt_pend);
+    void process(const rv_tester_transactions::cosim::m_mtime<>& m_mtime);
     void process(const rv_tester_transactions::cosim::m_imsic_msi<>& m_imsic_msi);
     void process(const rv_tester_transactions::cosim::m_debug<>& m_debug);
     void process(const rv_tester_transactions::cosim::m_csri<>& m_csri);
@@ -92,6 +93,7 @@ class rvfi {
 
     std::string mem_attr_to_string(uint32_t mem_attr);
     std::bitset<256> stringToBitset(const std::string& hexString);
+    std::bitset<256> extract_bits_as_bitset(const std::bitset<256>& bitset, size_t msb, size_t lsb);
     cvm::file_logger log;
     cvm::topology::loc_t loc_;
     unsigned id_;
