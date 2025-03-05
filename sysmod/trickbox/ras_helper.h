@@ -114,7 +114,7 @@ private:
   pcg32 rng;
   //unsigned hartCount;
 public:
-     uint64_t ras_helper_backdoor_read(uint64_t addr);
+     bool ras_helper_backdoor_read(uint64_t addr, uint64_t& data);
      bool ras_helper_backdoor_write(uint64_t addr,uint64_t data);
      CVM_MESSENGER_procedure_call(ras_helper_backdoor_read_RPC, bool  (uint64_t,uint64_t&));
      CVM_MESSENGER_procedure_call(ras_helper_backdoor_write_RPC, bool (uint64_t, uint64_t));
