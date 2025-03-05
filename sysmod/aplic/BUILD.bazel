@@ -1,0 +1,10 @@
+cc_library(
+    name = "aplic_device",
+    hdrs = glob(["aplic_device.h"]),
+    srcs = glob(["aplic_device.cpp"]),
+    deps = [
+        "//sysmod:device",
+        "@whisper//aplic:aplic"
+    ],
+    visibility = ["//visibility:public"],
+)
