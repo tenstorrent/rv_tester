@@ -131,6 +131,7 @@ import rv_tester_params::*;
     input logic [63:0] mtime,
     input rv_tester_params::msi_t imsic_msi,
     input debug_mode,
+    input haltreq,
     input longint eot_addr,
     input bit poke_event_in,
     output bit poke_event_out,
@@ -1209,14 +1210,17 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     // m_debug
     logic debug_mode_d1;
+    logic haltreq_d1;
     always @(posedge clk) begin
       debug_mode_d1 <= debug_mode;
+      haltreq_d1 <= haltreq;
     end
-    assign m_debugs[0].valid = ~dut_reset & ((debug_mode & ~debug_mode_d1) | (~debug_mode & debug_mode_d1)) & rvfi_enabled;
+    assign m_debugs[0].valid = ~dut_reset & ((debug_mode & ~debug_mode_d1) | (~debug_mode & debug_mode_d1) | (haltreq & ~haltreq_d1) | (~haltreq & haltreq_d1)) & rvfi_enabled;
     assign m_debugs[0].data.location = location;
     assign m_debugs[0].data.cycle = clocks;
     assign m_debugs[0].data.enter = debug_mode;
     assign m_debugs[0].data.exit = ~debug_mode;
+    assign m_debugs[0].data.haltreq = haltreq;
 
     // m_nmi_pend
     rv_tester_pkg::nmi_t nmi_pend_d1;

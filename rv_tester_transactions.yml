@@ -429,6 +429,8 @@ cosim:
                 width: 1
             exit:
                 width: 1
+            haltreq:
+                width: 1
 
 sysmod:
     num: 1

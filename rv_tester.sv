@@ -664,7 +664,7 @@ module rv_tester
 
     dmi_driver i_dmi_driver(
         .clk(dut_clk[AXI_CLK_IDX]),
-        .reset_n(~reset[WARM_RESET_IDX] || reset_hold[DEBUG_HOLD_IDX]),
+        .reset_n(~(reset[WARM_RESET_IDX] || reset[COLD_RESET_IDX]) || reset_hold[DEBUG_HOLD_IDX]),
         .dmi_driver_dbg_enable,
         .rand_dmi_driver_dly,
         .hart_enable_mask,
@@ -777,6 +777,7 @@ module rv_tester
           .mtime(mtime),
           .imsic_msi(imsic_msi[c]),
           .debug_mode(debug_mode[c]),
+          .haltreq(DM_DebugReq_Valids[c]),
           .terminate(cosim_terminate[c]),
           .eot_addr(eot_addr),
           .addr_map(addr_map),

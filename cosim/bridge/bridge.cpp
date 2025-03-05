@@ -516,6 +516,8 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
      cvm_debug_ = true;
   }
 
+  is_priv_debug_mode_ = ((d.priv == 6) || (d.priv ==7));
+
   if (FLAGS_mcm & (FLAGS_cosim_period > 0))
     mcm_orders_.erase(d.tag);
 
@@ -2403,7 +2405,8 @@ void bridge::process_dut_nmi(hart_id_t hart, rv_nmi_t& n) {
 
   if (n.valid) {
     nmi_poke_pending_ = true;
-    if (debug_mode_) {
+    bridge_log_(cvm::HIGH, "Valud of is_priv_debug_mode_ is {}", is_priv_debug_mode_);
+    if (debug_mode_ || is_priv_debug_mode_ || debug_haltreq_asserted) {
       poke_nmi(hart, nmi_.cycle, nmi_.cause);
       nmi_poke_in_debug_mode_ = true;
     }
@@ -2627,6 +2630,10 @@ void bridge::peek_seip(hart_id_t hart, uint64_t time, bool& seip) {
     bridge_log_(cvm::MEDIUM, "<{}> Whisper peek: seip: {}\n", time, w_seip);
 
   seip = w_seip ? true : false;
+}
+
+void bridge::process_debug_haltreq(bool haltreq) {
+  debug_haltreq_asserted = haltreq;
 }
 
 // Debug Mode

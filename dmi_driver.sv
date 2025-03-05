@@ -293,7 +293,7 @@ import rv_tester_params:: * ;
   end
 
   always @(negedge clk) begin
-    if (reset_n)
+    if (~reset_n)
       clk_cnt = 0;
     else
       clk_cnt = clk_cnt + 1;
