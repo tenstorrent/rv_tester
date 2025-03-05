@@ -14,7 +14,7 @@ ras_helper::ras_helper(const std::string& tag, uint64_t addr, unsigned, cvm::top
   reset();
   checkUsage();
 
-  cvm::registry::messenger.procedure<ras_helper_backdoor_read_RPC>(loc, [this] (std::uint64_t addr) {return this->ras_helper_backdoor_read(addr);});
+  cvm::registry::messenger.procedure<ras_helper_backdoor_read_RPC>(loc, [this] (std::uint64_t addr), std::uint64_t& data {return this->ras_helper_backdoor_read(addr,data);});
   cvm::registry::messenger.procedure<ras_helper_backdoor_write_RPC>(loc, [this] (std::uint64_t addr, std::uint64_t data) {return this->ras_helper_backdoor_write(addr,data);});
 
 
@@ -63,14 +63,15 @@ ras_helper::checkUsage()
  //For Future FLAG usage
 }
 
-std::uint64_t ras_helper::ras_helper_backdoor_read(uint64_t addr){
+bool ras_helper::ras_helper_backdoor_read(uint64_t addr,uint64_t& data){
  
   cvm::log(cvm::HIGH, "[ras_helper]  Backdoor Read addr {:#x}  \n",addr);
    if (not has_addr(addr)){
     cvm::log(cvm::HIGH, "[ras_helper] Descarding read request at ras_helper since tag {} is not matching \n",tag());
-   return -1;
+   return false;
   }
-  return local64BStorage[addr - ras_helper_base];
+   data = local64BStorage[addr - ras_helper_base];
+   return true;
 }
 
 bool ras_helper::ras_helper_backdoor_write(uint64_t addr,uint64_t data){
