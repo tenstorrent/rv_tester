@@ -71,6 +71,7 @@ bool ras_helper::ras_helper_backdoor_read(uint64_t addr,uint64_t& data){
    return false;
   }
    data = local64BStorage[addr - ras_helper_base];
+   cvm::log(cvm::HIGH, "[ras_helper]  Backdoor Read addr {:#x}  resp Data {:#x} \n",addr,data);
    return true;
 }
 
