@@ -1088,7 +1088,8 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
   // DUT is expected to take at retire boundary if whisper takes the undeferred interrupt
   if (w_.intr && !d.intr && !FLAGS_cosim_resynch) {
     print_instr_stdout(hart, w);
-    error("Hart {}: Whisper took interrupt, DUT did not. wcause:[{}]\n", hart, w_.icause);
+    error("Hart {}: Whisper took interrupt, DUT did not. wcause:[{}]\n", hart, 
+      intr_to_string.count(static_cast<intr>(w_.icause)) ? intr_to_string.at(static_cast<intr>(w_.icause)) : std::to_string(w_.icause));
     return;
   }
 
@@ -1099,14 +1100,17 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
       return;
 
     print_instr_stdout(hart, w);
-    error("Hart {}: DUT took interrupt, Whisper did not. dcause:[{}]\n", hart, d.icause);
+    error("Hart {}: DUT took interrupt, Whisper did not. dcause:[{}]\n", hart,
+      intr_to_string.count(static_cast<intr>(d.icause)) ? intr_to_string.at(static_cast<intr>(d.icause)) : std::to_string(d.icause));
     return;
   }
 
   // DUT cause should match whisper cause
   if ((d.icause != w_.icause) && !FLAGS_cosim_resynch) {
     print_instr_stdout(hart, w);
-    error("Hart {}: DUT vs Whisper interrupt cause mismatch. dcause:[{}] wcause:[{}]\n", hart, d.icause, w_.icause);
+    error("Hart {}: DUT vs Whisper interrupt cause mismatch. dcause:[{}] wcause:[{}]\n", hart, 
+      intr_to_string.count(static_cast<intr>(d.icause)) ? intr_to_string.at(static_cast<intr>(d.icause)) : std::to_string(d.icause),
+      intr_to_string.count(static_cast<intr>(w_.icause)) ? intr_to_string.at(static_cast<intr>(w_.icause)) : std::to_string(w_.icause));
     return;
   }
 
