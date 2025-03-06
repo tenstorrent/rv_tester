@@ -145,7 +145,7 @@ import rv_tester_params:: * ;
                         : (counter[k] < 'd10 ? 64'b0 : 64'(counter[k] - 'd10));
     always @(posedge rf_clk) begin
     if (dut_reset) counter[k] <= 'hffffffff;
-    else counter[k] <= counter_next[k];
+    else counter[k] <= (k == 8) ? min(counter_next) : counter_next[k];
     end
     always @(posedge rf_clk) begin
     if (dut_reset) mtimecmpval[k] <= 'hffffffff;
