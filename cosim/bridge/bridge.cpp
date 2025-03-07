@@ -2733,6 +2733,7 @@ uint64_t bridge::modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data, u
         }
         result &= hstateen;
       }
+      break;
     }
   }
   return result;
