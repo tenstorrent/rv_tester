@@ -96,6 +96,13 @@ void aclint_checker::process(const rv_tester_transactions::aclint_checker::axi_a
         aclint_mmrs[mmr_addr].write(axi_ac_write.data, sz);
         axi_ac_mmr_q_[srcid].push(m);
         popifpossible(srcid);
+
+        if (mmr_addr == aclint_addr::AC_CLUSTERFUSE && (aclint_mmrs[mmr_addr].lock_bit == 0) &&
+            (((aclint_mmrs[mmr_addr].data >> 15) & 1) == 1)){
+            // Lock bit set hence write_mask is zero
+            aclint_mmrs[mmr_addr].lock_bit = 1;
+            cvm::log(cvm::HIGH, "[ACLINT CHECKER] AC_CLUSTERFUSE Locked.\n");
+        }
     }    
 }
 
@@ -199,7 +206,7 @@ void aclint_checker::process(const smc_read_pkt & r) {
         if ((actual & aclint_mmrs[mmr_addr].read_mask) != (expected & sz_mask & aclint_mmrs[mmr_addr].read_mask)) {
             cvm::log(cvm::ERROR, "Error: [SMC-AC] Mismatch:- ACLINT MMR mismatch - Address = {:#x} - Actual: {:#x} Expected: {:#x}\n", aclint_mmrs[mmr_addr].address, actual & aclint_mmrs[mmr_addr].write_mask, expected & sz_mask & aclint_mmrs[mmr_addr].write_mask);
         } else {
-            cvm::log(cvm::HIGH, "[SMC-AC] ACLINT MMR match - Name = {}, Address = {:#x} - Actual: {:#x} Expected: {:#x}\n", aclint_mmrs[mmr_addr].name, aclint_mmrs[mmr_addr].address, actual & aclint_mmrs[mmr_addr].write_mask, expected & sz_mask & aclint_mmrs[mmr_addr].write_mask);
+            cvm::log(cvm::HIGH, "[ACLINT CHECKER] ACLINT MMR match - Name = {}, Address = {:#x} - Actual: {:#x} Expected: {:#x}\n", aclint_mmrs[mmr_addr].name, aclint_mmrs[mmr_addr].address, actual & aclint_mmrs[mmr_addr].read_mask, expected & sz_mask & aclint_mmrs[mmr_addr].read_mask);
         }
     }
 }
