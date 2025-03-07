@@ -47,6 +47,7 @@ DEFINE_uint64(nme_vec, 0, "NMI exception handler PC");
 DEFINE_bool(ppo, true, "Enable ppo checks");
 DEFINE_bool(traceptw, true, "Enable page table walk tracing");
 DEFINE_bool(whisper_auto_increment_timer, false, "Enable whisper auto_increment_timer");
+DEFINE_uint64(whisper_aclint_time_adjust, 0, "Set aclint adjust time compare offset");
 
 REGISTRY_register(whisperClient<uint64_t>, TOP.PLATFORM.WHISPER_CLIENT, 0);
 
@@ -243,6 +244,7 @@ constructSystem(uint16_t ncores, bool standalone, uint64_t secure_region_start=0
     if (FLAGS_whisper_stdout_null) hart.redirectOutputDescriptor(STDOUT_FILENO, "/dev/null");
     if (FLAGS_whisper_stdin_null)  hart.redirectOutputDescriptor(STDIN_FILENO,  "/dev/null");
     hart.autoIncrementTimer(FLAGS_whisper_auto_increment_timer);
+    hart.setAclintAdjustTimeCompare(FLAGS_whisper_aclint_time_adjust);
     if (! isa.empty()) {
       if (FLAGS_isa != "") {
         if (not hart.configIsa(FLAGS_isa, false))
@@ -258,6 +260,12 @@ constructSystem(uint16_t ncores, bool standalone, uint64_t secure_region_start=0
     hart.reset();
   }
   if (not config.applyImsicConfig(*system))
+    return nullptr;
+  if (standalone && (not config.applyAplicConfig(*system)))
+    // We don't configure the APLIC in cosim because Whipser will take the
+    // interrupt immediately when triggered and it will not be deferred because
+    // the bridge considers it a Zicsr write interrupt. When an IMSIC interrupt
+    // is triggered by the APLIC the bridge will poke it into whisper.
     return nullptr;
 
   if (FLAGS_whisper_data_lines != "")

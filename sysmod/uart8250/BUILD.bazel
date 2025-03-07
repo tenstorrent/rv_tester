@@ -1,9 +1,0 @@
-cc_library(
-  name = "uart8250",
-  srcs = ["uart8250.cpp"],
-  hdrs = ["uart8250.h"],
-  deps = [
-      "//sysmod:device",
-  ],
-  visibility = ["//visibility:public"],
-)

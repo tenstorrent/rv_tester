@@ -103,6 +103,7 @@ module rv_tester
     logic sys_reset [NCLKS-1:0];
     /* verilator lint_on MULTIDRIVEN */
     logic sys_reset_any;
+    logic shifted_dut_reset_req, shifted_dut_reset_req_d1;
     logic dut_reset_req_d1;
     logic init_pulse;
     logic warm_reset_pulse;
@@ -202,6 +203,18 @@ module rv_tester
     logic dut_terminate_any;
     logic ntrace_terminate;
 
+    reg [9:0] dut_reset_req_shift_reg;
+    
+    always @(posedge dut_clk[AXI_CLK_IDX] or posedge cold_reset) begin
+        /* verilator lint_off SYNCASYNCNET */
+        if (cold_reset) 
+            dut_reset_req_shift_reg <= {10{1'b0}};
+        else 
+            dut_reset_req_shift_reg <= {dut_reset_req_shift_reg[8:0], dut_reset_req};
+            /* verilator lint_on SYNCASYNCNET */
+    end
+
+    assign shifted_dut_reset_req = dut_reset_req_shift_reg[9];
 
     assign dut_terminate_any = dut_terminate;
 
@@ -209,7 +222,7 @@ module rv_tester
     assign terminate           = (dut_terminate_any || rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sys_reset_any) || quiesce_counter > 0) && !rv_tester_reset && !warm_reset && ntrace_terminate;
     assign terminate_now       = (terminate_1T && (quiesced || ((quiesce_counter >= quiesce_timeout) && !warm_reset)) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue <= 'h1) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || (terminate_dst_trace_seq && quiesced)) && (!cla_en || (terminate_cla_seq && quiesced))  && (!jtag_en || jtag_quiesced )) || dut_terminate_any || warm_reset_now;
 
-    assign rerun_now           = terminated && !terminated_1T && ((num_reruns > 0) || (warm_reset_en && (num_resets <= target_num_resets)) || dut_reset_req);
+    assign rerun_now           = terminated && !terminated_1T && ((num_reruns > 0) || (warm_reset_en && (num_resets <= target_num_resets)) || shifted_dut_reset_req);
 
     assign dmi_driver_dbg_enable = ((debug_enable == 'h1) || (debug_enable == 'h3));
 
@@ -475,7 +488,7 @@ module rv_tester
                 end
             end
 
-            if (shutdowned && num_reruns == '0 && !warm_reset_req && !dut_reset_req) begin
+            if (shutdowned && num_reruns == '0 && !warm_reset_req && !shifted_dut_reset_req) begin
                 $display("INFO_PASS_METRIC:{\"axi_clocks\": %0d}", axi_clocks);
                 $display("INFO_PASS:{\"clocks\": %0d}", clocks);
                 $display("INFO_PASS_METRIC:{\"instruction_count\": %0d}", instructions);
@@ -499,7 +512,7 @@ module rv_tester
         end
 
         warm_reset_req_d1 <= warm_reset_req;
-        warm_reset_now <= (warm_reset_req & ~warm_reset_req_d1) || (dut_reset_req & ~dut_reset_req_d1);
+        warm_reset_now <= (warm_reset_req & ~warm_reset_req_d1) || (shifted_dut_reset_req & ~shifted_dut_reset_req_d1);
     end
 
     // sys_reset per clock domain
@@ -565,7 +578,7 @@ module rv_tester
 
     always@(posedge dut_clk[TB_CLK_IDX]) begin
         if (reset_pullup)
-            if (!warm_reset_req && !dut_reset_req)
+            if (!warm_reset_req && !(dut_reset_req || shifted_dut_reset_req))
                 cold_reset_pullup <= '1;
             else
                 warm_reset_pullup <= '1;
@@ -580,8 +593,9 @@ module rv_tester
     // posedge on dut_reset_req should trigger a warm reset
     always @(posedge dut_clk[AXI_CLK_IDX]) begin
         dut_reset_req_d1 <= dut_reset_req;
+        shifted_dut_reset_req_d1 <= shifted_dut_reset_req;
     end
-    assign dut_reset_req_active = dut_reset_req && warm_reset_pullup;
+    assign dut_reset_req_active = shifted_dut_reset_req && warm_reset_pullup;
 
     //ndmreset ack delay logic
     LU ndmreset_ack_clocks;

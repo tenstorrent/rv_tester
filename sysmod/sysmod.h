@@ -102,6 +102,8 @@ class sysmod {
 
     bool bin_load(const std::string load, bool lz4_compressed);
 
+    std::shared_ptr<TT_APLIC::Aplic> create_aplic() const;
+
     std::string hostname = "localhost";
     int port = 50001;
     svScope scope_;

@@ -256,9 +256,10 @@ always @(posedge clk) begin
           delay_counter <= delay_counter + 32'b1;
           jtag_busy <= 1'b1;
         end
-        if (jtag_req_begin && delay_counter >= 32'd10) begin 
+        else if (jtag_req_begin && delay_counter >= 32'd10) begin 
           // Interpret command and data, set state accordingly
           jtag_req_begin_d <= 1'b1;
+          delay_counter <= 0;
           case (command_l)
             2'b10: begin
                     state <= IDLE;
