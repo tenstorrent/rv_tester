@@ -115,7 +115,7 @@ private:
   void update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, const std::vector<uint64_t>&& dword_vec);
   void update_mem_attr(hart_id_t hart, src_t src, uint32_t data);
   void update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data, cac::optional_const_ref<uint64_t> mask_ref = std::nullopt, bool shadow_csr = false, bool check_en = true);
-  uint64_t modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data);
+  uint64_t modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data, uint8_t priv);
   uint64_t modify_csr_mask(hart_id_t hart, uint64_t addr, uint64_t data, uint64_t mask);
   uint64_t get_csr(hart_id_t hart, src_t src, uint64_t addr);
   uint64_t get_csr_mask(hart_id_t hart, uint64_t addr);

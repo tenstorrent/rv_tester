@@ -1533,7 +1533,7 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
 
   // CSR
   for (auto & c : d.csr) {
-    uint64_t data = modify_csr_data(hart, c.csr_addr, c.csr_wdata);
+    uint64_t data = modify_csr_data(hart, c.csr_addr, c.csr_wdata, d.priv);
     uint64_t mask = modify_csr_mask(hart, c.csr_addr, c.csr_wdata, c.csr_wmask);
     if (FLAGS_csr_rd_check) {
       if ((hypervisor_csr_map_.find(c.csr_addr) != hypervisor_csr_map_.end()) && (!hyp_enabled())) {
@@ -2698,7 +2698,7 @@ void bridge::exit_debug_mode(rv_debug_t& d) {
   debug_mode_ = false;
 }
 
-uint64_t bridge::modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data) {
+uint64_t bridge::modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data, uint8_t priv) {
   uint64_t result = data;
   if (addr >= PMPADDR0 && addr < PMPADDR16) {
     bool valid;
@@ -2717,13 +2717,23 @@ uint64_t bridge::modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data) {
       result = data & 0xfffffffffffffc00;
     }
   }
-  if ((addr == HSTATEEN0) || (addr == SSTATEEN0)) {
-    bool valid;
-    uint64_t mstateen, mask_iss, reset, read_mask;
-    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, MSTATEEN0, mstateen, mask_iss, reset, read_mask, valid) || !valid) && FLAGS_whisper_client_check) {
-      error("Hart {}: Failed to peek CSR : MSTATEEN0\n", hart);
+  for (size_t i = 0; i < 4; i++) {
+    if ((addr == HSTATEEN0 + i) || (addr == SSTATEEN0 + i)) {
+      bool valid;
+      uint64_t mstateen, mask_iss, reset, read_mask;
+      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, MSTATEEN0 + i, mstateen, mask_iss, reset, read_mask, valid) || !valid) && FLAGS_whisper_client_check) {
+        error("Hart {}: Failed to peek CSR : {:#x}\n", hart, MSTATEEN0 + i);
+      }
+      result &= mstateen;
+      if ((addr == SSTATEEN0 + i) && priv == VS) {
+        bool valid;
+        uint64_t hstateen, mask_iss, reset, read_mask;
+        if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, HSTATEEN0 + i, hstateen, mask_iss, reset, read_mask, valid) || !valid) && FLAGS_whisper_client_check) {
+          error("Hart {}: Failed to peek CSR : {:#x}\n", hart, HSTATEEN0 + i);
+        }
+        result &= hstateen;
+      }
     }
-    result = result & mstateen;
   }
   return result;
 }
