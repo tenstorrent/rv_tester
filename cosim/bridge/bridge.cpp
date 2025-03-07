@@ -1129,6 +1129,11 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
     defer_interrupt(hart, w.time, 0);
     timing_case2 = 0;
   }
+
+  // print metrics 
+  if (d.icause == 23){
+      num_intr_id_23_++;
+  }
 }
 
 void bridge::post_step_nmi_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
@@ -1237,6 +1242,17 @@ void bridge::post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whis
       excp_to_string.count(static_cast<excp>(w_.ecause)) ? excp_to_string.at(static_cast<excp>(w_.ecause)) : std::to_string(w_.ecause));
     return;
   }
+
+  if (d.excp && !w_.excp && d.ecause == 1)
+    num_inst_access_fault_err_resp_++;
+  else if (d.excp && !w_.excp && d.ecause == 5)
+    num_ld_access_fault_err_resp_++;
+  else if (d.excp && !w_.excp && d.ecause == 7)
+    num_st_access_fault_err_resp_++;
+  else if (d.excp && !w_.excp && d.ecause == 19)
+    num_hw_error_++;
+
+
 
   num_exceptions_++;
   if (w_.ecause == 3 && w_.disasm.find("ebreak") == std::string::npos)
@@ -3021,6 +3037,11 @@ void bridge::report_metrics() {
     print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_clks_per_sec\": {}}}\n", id_, cpu_cycles*1000/test_time);
   }
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_exceptions\": {}}}\n", id_, num_exceptions_);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_nderr_derr_hw_error\": {}}}\n", id_, num_hw_error_);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_nderr_derr_ld_access_flt\": {}}}\n", id_, num_ld_access_fault_err_resp_);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_nderr_derr_st_access_flt\": {}}}\n", id_, num_st_access_fault_err_resp_);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_nderr_derr_inst_access_flt\": {}}}\n", id_, num_inst_access_fault_err_resp_);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_nderr_derr_intr_23\": {}}}\n", id_, num_intr_id_23_);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_trigger_breakpoint\": {}}}\n", id_, num_trig_breakpoint_);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_ipc\": {:.2f}}}\n", id_, ipc);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_instr\": \"{}\"}}\n", id_, instr);

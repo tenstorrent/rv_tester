@@ -195,6 +195,10 @@ class axi : public transactor {
         void atop_modify_write_data(const atop_t& atop, const data_t& read_data, data_t& write_data, const len_t& len);
         std::vector<std::pair<uint64_t, uint64_t>> parse_hex_ranges(const std::string& input);
 
+        // for metrics
+        int num_slv_err_resp_;
+        int num_dec_err_resp_;
+
     public:
 
         axi(const data_width_t& data_width, const cvm::topology::loc_t loc, const std::string& tag);
@@ -202,6 +206,7 @@ class axi : public transactor {
         axi& operator=(axi&&) = delete;
         axi(const axi&) = delete;
         axi& operator=(const axi&) = delete;
+        ~axi();
 
         data_width_t   data_width()   const { return data_width_   ; }
         strobe_width_t strobe_width() const { return data_width()/8; }

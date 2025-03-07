@@ -329,6 +329,11 @@ private:
   int num_exceptions_ = 0;
   int num_trig_breakpoint_ = 0;
   int num_sp_accesses_ = 0;
+  int num_hw_error_ = 0;
+  int num_inst_access_fault_err_resp_ = 0;
+  int num_ld_access_fault_err_resp_ = 0;
+  int num_st_access_fault_err_resp_ = 0;
+  int num_intr_id_23_ = 0; 
 
   uint64_t dword_vec_array [vlen/64] = {0};
   int unmask_bits_instr, unmask_bits_uop = 0;
