@@ -46,6 +46,7 @@ struct mmr {
     uint64_t data;         // Current data stored in the mmr
     uint64_t write_mask = -1;   // Mask for mmr write checks
     uint64_t read_mask = -1;    // Mask for mmr read checks
+    uint64_t lock_bit = 0;
 
     // Default constructor
     mmr() : name(""), address(0), size(0), reset_value(0), data(0) {}
@@ -67,9 +68,9 @@ struct mmr {
     // Write new data to the mmr
     void write(uint64_t new_data, size_t sz) {
         uint64_t sz_mask = (sz == 3) ? ~uint64_t(0) : ((uint64_t)1 << ((1<<sz)*8)) - 1;
-        if (sz == 2 || sz == 3) { // update modeled data only for 4B and 8B writes
+        if ((sz == 2 || sz == 3) && (lock_bit == 0)) { // update modeled data only for 4B and 8B writes
             data = (data & ~sz_mask) | (new_data & sz_mask);
-            cvm::log(cvm::HIGH, "ACLINT MMR write: [{} = {:#x}(size = {})]\n", name, data, sz);
+            cvm::log(cvm::HIGH, "[ACLINT CHECKER] ACLINT MMR write: [{} = {:#x}(size = {})]\n", name, data, sz);
         }
     }
 
@@ -109,7 +110,7 @@ std::unordered_map<aclint_addr, mmr> aclint_mmrs = {
     {AC_MTIMECMP7,   {"AC_MTIMECMP7", 0x4218'8038, 8, 0xffffffff}},
     {AC_MTIMECMP8,   {"AC_MTIMECMP8", 0x4218'8040, 8, 0xffffffff}},
     {AC_MTIME,       {"AC_MTIME", 0x4218'0000, 8, 0x0, 0x0, 0xffffffffffffffff}},
-    {AC_CLUSTERFUSE, {"AC_CLUSTERFUSE", 0x4218'FFF8, 8, 0x0, 0x0, 0xffffffffffffffff}},
+    {AC_CLUSTERFUSE, {"AC_CLUSTERFUSE", 0x4218'FFF8, 8, 0x0, 0xffffffffffffffff, 0xffffffffffffffff}},
     {AC_TIMESYNC,    {"AC_TIMESYNC", 0x4218'0018, 8, 0x0, 0xffffffffffffffff, 0x0}}, 
     {CR_WTIME,       {"CR_WTIME", 0x4200'0000, 8, 0xffffffff, 0x0, 0xffffffffffffffff}},
     {CR_CTIME,       {"CR_CTIME", 0x4200'0008, 8, 0x0, 0x0, 0xffffffffffffffff}}
