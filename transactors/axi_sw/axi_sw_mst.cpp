@@ -99,10 +99,8 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::axi_sw_mst(cvm::topology::loc_t loc, unsigned id
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::~axi_sw_mst() {
 
-    if (FLAGS_metrics) {
-        cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"{}{}_read_bytes\": {}}}\n", name_, id_, read_bytes_);
-        cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"{}{}_write_bytes\": {}}}\n", name_, id_, write_bytes_);
-    }
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"{}{}_read_bytes\": {}}}\n", name_, id_, read_bytes_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"{}{}_write_bytes\": {}}}\n", name_, id_, write_bytes_);
 }
 
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
