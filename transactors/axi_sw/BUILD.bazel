@@ -16,6 +16,7 @@ cc_library(
     hdrs = [ "axi.h", "safe_queue.h" ],
     deps = [
         "@rv_tester//common:transactor",
+        "@rv_tester//:plusargs",
         "@cvm//:plusargs",
         "@cvm//:topology",
         "@cvm//:logger",
@@ -36,6 +37,7 @@ cc_library(
     hdrs = [ "axi_sw_mst.h", "axi.h", "safe_queue.h" ],
     deps = [
         "@rv_tester//common:transactor",
+        "@rv_tester//:plusargs",
         "@cvm//:plusargs",
         "@cvm//:topology",
         "@cvm//:logger",

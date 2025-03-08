@@ -7,6 +7,7 @@
 #include <regex>
 #include "axi.h"
 #include "cvm/logger.hpp"
+#include "rv_tester/rv_tester_plusargs.h"
 
 DEFINE_string(axi_resp_slverr_addr, "", "List of addresses that need slverr response, can be a single value or a range. Ex: 0x1000,0x2000-0x3000");
 DEFINE_string(axi_resp_decerr_addr, "", "List of addresses that need decerr response, can be a single value or a range. Ex: 0x1000,0x2000-0x3000");
@@ -39,16 +40,19 @@ template <typename T> void atop_arithmetic(const axi::data_t& read_data, axi::da
 }
 
 axi::axi(const data_width_t& data_width, const cvm::topology::loc_t loc, const std::string& tag)
-  : transactor(loc, tag), data_width_(data_width), num_slv_err_resp_(0), num_dec_err_resp_(0)
+  : transactor(loc, tag), data_width_(data_width), num_slverr_resp_(0), num_decerr_resp_(0)
 {
     cvm::log(cvm::MEDIUM, "[axi] Constructing axi for loc={} id={}\n", loc, tag);
     slverr_addr_ = parse_hex_ranges(FLAGS_axi_resp_slverr_addr);
     hang_addr_   = parse_hex_ranges(FLAGS_axi_resp_hang_addr);
     decerr_addr_ = parse_hex_ranges(FLAGS_axi_resp_decerr_addr);
 }
+
 axi::~axi() {
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"axi_resp_slverr_count\": \"{}\"}}\n", num_slv_err_resp_);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"axi_resp_decerr_count\": \"{}\"}}\n", num_dec_err_resp_);
+    if (FLAGS_metrics) {
+        cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"axi_resp_slverr_count\": \"{}\"}}\n", num_slverr_resp_);
+        cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"axi_resp_decerr_count\": \"{}\"}}\n", num_decerr_resp_);
+    }
 }
 
 // Function to parse a string containing hexadecimal numbers and ranges
@@ -257,13 +261,13 @@ cvm::messenger::task<void> axi::operator()() {
                     for (const auto& [min, max] : slverr_addr_) {
                         if (addr >= min && addr <= max) {
                             read_resp = RESP_SLVERR;
-                            num_slv_err_resp_++;
+                            num_slverr_resp_++;
                         }
                     }
                     for (const auto& [min, max] : decerr_addr_) {
                         if (addr >= min && addr <= max) {
                             read_resp = RESP_DECERR;
-                            num_dec_err_resp_++;
+                            num_decerr_resp_++;
                         }
                     }
                     for (const auto& [min, max] : hang_addr_) {

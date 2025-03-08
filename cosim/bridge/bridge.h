@@ -324,16 +324,10 @@ private:
   // Memmap
   std::map<std::string, memmap_entry_t> memmap_;
 
-  std::array<std::array<int, 16>, 64> num_taken_interrupts_{};
-
-  int num_exceptions_ = 0;
+  std::unordered_map<priv, std::unordered_map<intr, int>> num_taken_interrupts_{};
+  std::unordered_map<excp, int> num_exceptions_{};
   int num_trig_breakpoint_ = 0;
   int num_sp_accesses_ = 0;
-  int num_hw_error_ = 0;
-  int num_inst_access_fault_err_resp_ = 0;
-  int num_ld_access_fault_err_resp_ = 0;
-  int num_st_access_fault_err_resp_ = 0;
-  int num_intr_id_23_ = 0; 
 
   uint64_t dword_vec_array [vlen/64] = {0};
   int unmask_bits_instr, unmask_bits_uop = 0;

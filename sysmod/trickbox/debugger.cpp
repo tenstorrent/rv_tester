@@ -3,7 +3,7 @@
 #include "cvm/logger.hpp"
 #include "debugger.h"
 #include "sysmod/sysmod_plusargs.h"
-#include "cosim/bridge/bridge_plusargs.h"
+#include "rv_tester/rv_tester_plusargs.h"
 #include <fstream>
 
 DEFINE_string(dbg_input_file_path, "", "Path to file containing debugger commands");

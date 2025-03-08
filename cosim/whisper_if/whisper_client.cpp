@@ -25,8 +25,9 @@
 #include "cvm/registry.hpp"
 
 
+DEFINE_uint64(resetpc, 0x80000000, "Reset PC");
+DEFINE_uint64(resetpcfw, 0xC0040000, "Reset firmware PC");
 DEFINE_bool(nostop_standalone,false, "Do not stop if standalone whisper fails");
-
 DEFINE_string(whisper_instr_lines, "", "Write instr cache line addresses used in test to a file");
 DEFINE_string(whisper_data_lines, "", "Write data cache line addresses used in test to a file");
 DEFINE_bool(whisper_csv_log, false, "Make whisper use a csv trace.");

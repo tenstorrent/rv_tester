@@ -4,6 +4,7 @@
 #include "cvm/registry.hpp"
 #include "cvm/bitmanip.hpp"
 #include "cvm/logger.hpp"
+#include "rv_tester/rv_tester_plusargs.h"
 
 REGISTRY_register((axi_sw<rv_tester_transactions::axi_sw::w<>,
                          rv_tester_transactions::axi_sw::aw<>,
@@ -64,10 +65,12 @@ axi_sw<W,AW,AR,RQ>::axi_sw(cvm::topology::loc_t loc, unsigned id)
 template <typename W, typename AW, typename AR, typename RQ>
 axi_sw<W,AW,AR,RQ>::~axi_sw() {
 
-    std::string name = cvm::topology::name(loc_);
-    std::transform(name.begin(), name.end(), name.begin(), [](unsigned char c){ return std::tolower(c); });
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"{}{}_read_bytes\": {}}}\n", name, id_, read_bytes_);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"{}{}_write_bytes\": {}}}\n", name, id_, write_bytes_);
+    if (FLAGS_metrics) {
+        std::string name = cvm::topology::name(loc_);
+        std::transform(name.begin(), name.end(), name.begin(), [](unsigned char c){ return std::tolower(c); });
+        cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"{}{}_read_bytes\": {}}}\n", name, id_, read_bytes_);
+        cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"{}{}_write_bytes\": {}}}\n", name, id_, write_bytes_);
+    }
 
     if (axi_) {
         delete axi_;

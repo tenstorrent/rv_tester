@@ -27,6 +27,7 @@ def snoop_gen_gen(name, packet, topology, harness, visibility = None, cc_attrs =
             "@rv_tester//common:common",
             "@rv_tester//sysmod:device",
             "@mem_manager//:mem_manager",
+            "@rv_tester//:plusargs",
             "@cvm//:plusargs",
             "@cvm//:random",
             "@cvm//:logger",
