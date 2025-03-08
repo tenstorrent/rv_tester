@@ -27,8 +27,6 @@
 #include <fmt/format.h>
 #include <random>
 
-DEFINE_uint64(resetpc, 0x80000000, "Reset PC");
-DEFINE_uint64(resetpcfw, 0xC0040000, "Reset firmware PC");
 DEFINE_bool(whisper_exec, true, "Enable rvfi instr processing...disable useful for measuring rvfi DPI performance");
 DEFINE_bool(bridge_log, true, "Enable bridge logging");
 DEFINE_bool(cosim_resynch, false, "Resynch whisper with dut state on every instruction");
@@ -1061,19 +1059,6 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
 
 void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w) {
 
-  // FIXME if (FLAGS_intr_defer_spcl) {
-  // FIXME   IF_DEBUG("FLAG intr_defer_spcl==1");
-  // FIXME   if (w.disasm.find("vstimecmp") != std::string::npos && !w_.excp)  {
-  // FIXME     IF_DEBUG("VSTIMECMP instruction");
-  // FIXME     if (!vstimecmppoked_) resetsstc_poke(hart,d.cycle, VSTIMECMP); else setsstc_poke(hart,d.cycle, VSTIMECMP);
-  // FIXME   } else if (w.disasm.find("stimecmp") != std::string::npos && !w_.excp) {
-  // FIXME     IF_DEBUG("STIMECMP instruction");
-  // FIXME     if (w.priv_mode == VS) {if (!vstimecmppoked_) resetsstc_poke(hart,d.cycle, VSTIMECMP); else setsstc_poke(hart,d.cycle, VSTIMECMP);}
-  // FIXME     else if (!stimecmppoked_)  resetsstc_poke(hart,d.cycle, STIMECMP); else setsstc_poke(hart,d.cycle, STIMECMP);
-  // FIXME   }
-  // FIXME }
-
-
   if (!d.intr && !w_.intr) {
     IF_DEBUG("d.intr==0 and w.intr==0  .. return");
     return;
@@ -1114,7 +1099,7 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
     return;
   }
 
-  num_taken_interrupts_[intrtopriv_][w_.icause]++;
+  num_taken_interrupts_[static_cast<priv>(intrtopriv_)][static_cast<intr>(w_.icause)]++;
 
   // Timing sensitive mismatch cases
   if (resynch_icause_) {
@@ -1242,7 +1227,7 @@ void bridge::post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whis
     return;
   }
 
-  num_exceptions_++;
+  num_exceptions_[static_cast<excp>(d.ecause)]++;
   if (w_.ecause == 3 && w_.disasm.find("ebreak") == std::string::npos)
     num_trig_breakpoint_++;
 
@@ -2472,14 +2457,15 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
   }
 
   // Local
-  if (i.mip_set[LCOFI]) {
+  if (i.mip_set[LCOFI] || i.mip_set[BUS_ERRI] || i.mip_set[C_HWAI] || i.mip_set[LO_PRI_RASI] || i.mip_set[HI_PRI_RASI]) {
     if (FLAGS_bridge_log)
       bridge_log_(cvm::MEDIUM, "<{}> Local interrupt set: mip={}\n", i.cycle, to_string(i));
 
-    std::bitset<64> l_mip = i.mip_set[LCOFI] << LCOFI;
+    std::bitset<64> l_mip = i.mip_set[LCOFI] << LCOFI | i.mip_set[BUS_ERRI] << BUS_ERRI | i.mip_set[C_HWAI] << C_HWAI |
+      static_cast<uint64_t>(i.mip_set[LO_PRI_RASI]) << LO_PRI_RASI | static_cast<uint64_t>(i.mip_set[HI_PRI_RASI]) << HI_PRI_RASI;
     poke_local_interrupt(hart, i.cycle, l_mip);
   }
-}
+ }
 
 void bridge::process_dut_timer(hart_id_t hart, rv_intr_t& i) {
   poke_timer(hart, i.cycle, i.mip, i.mtime);
@@ -2973,14 +2959,16 @@ void bridge::final_phase() {
 void bridge::process(const rv_tester::terminate_called&) {
   if (terminated_)
     return;
-  report_metrics();
+
   terminated_ = true;
+  report_metrics();
 }
 
 void bridge::report_metrics() {
   if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperConnectedRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0)))
     return;
 
+  // Need to end mcm before manipulating whisper state for metrics
   whisper_state_t w;
   if (FLAGS_mcm) {
     bool valid;
@@ -2992,8 +2980,10 @@ void bridge::report_metrics() {
   else {
     w = { .tag = step_+1, .time = pw_.time+1 };
   }
+
   if (!FLAGS_metrics)
     return;
+
   print(cvm::NONE, "[COSIM] Report metrics...\n");
   const auto& prev_whisp_state = pw_;
   const auto& prev_prev_whisp_state = ppw_;
@@ -3024,8 +3014,6 @@ void bridge::report_metrics() {
     print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_inst_per_sec\": {}}}\n", id_, instructions*1000/test_time);
     print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_clks_per_sec\": {}}}\n", id_, cpu_cycles*1000/test_time);
   }
-  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_exceptions\": {}}}\n", id_, num_exceptions_);
-  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_trigger_breakpoint\": {}}}\n", id_, num_trig_breakpoint_);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_ipc\": {:.2f}}}\n", id_, ipc);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_instr\": \"{}\"}}\n", id_, instr);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_mode\": {}}}\n", id_, mode);
@@ -3041,6 +3029,7 @@ void bridge::report_metrics() {
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_prev_num_dest\": {}}}\n", id_, prev_num_dest);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_max_pend_intr_age\": {}}}\n", id_, max_pend_intr_age_);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_scratchpad_accesses\": {}}}\n", id_, num_sp_accesses_);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_trigger_breakpoint\": {}}}\n", id_, num_trig_breakpoint_);
 
   // Whisper csr values
   bool valid;
@@ -3068,12 +3057,23 @@ void bridge::report_metrics() {
     print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_dut_csr_{}\": \"0x{:x}\"}}\n", id_, csr.name, csr_data);
   }
 
-  // Interrupts taken count
-  for (size_t i = 0; i < num_taken_interrupts_.size(); i++) {
-    for (size_t j = 0; j < num_taken_interrupts_[i].size(); j++) {
-        if (num_taken_interrupts_[i][j] != 0) {
-            print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_taken_interrupt_count_{}_{}\": {}}}\n", id_, intr_to_string.at(static_cast<intr>(j)), priv_to_string.at(static_cast<priv>(i)), num_taken_interrupts_[i][j]);
-        }
+  // Exceptions and interrupts
+  for (const auto& [e,es] : excp_to_string) {
+    if (num_exceptions_[e] != 0) {
+      std::string es_lower = std::string(es);
+      std::transform(es_lower.begin(), es_lower.end(), es_lower.begin(), [](unsigned char c){ return std::tolower(c); });
+      print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_{}\": {}}}\n", id_, es_lower, num_exceptions_[e]);
+    }
+  }
+  for (const auto& [p,ps] : priv_to_string) {
+    for (const auto& [i,is] : intr_to_string) {
+      if (num_taken_interrupts_[p][i] != 0) {
+        std::string ps_lower = std::string(ps);
+        std::string is_lower = std::string(is);
+        std::transform(ps_lower.begin(), ps_lower.end(), ps_lower.begin(), [](unsigned char c){ return std::tolower(c); });
+        std::transform(is_lower.begin(), is_lower.end(), is_lower.begin(), [](unsigned char c){ return std::tolower(c); });
+        print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_taken_interrupts_{}_{}\": {}}}\n", id_, is_lower, ps_lower, num_taken_interrupts_[p][i]);
+      }
     }
   }
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_nmi_taken_count\": \"{}\"}}\n", id_, nmi_taken_count_);

@@ -1,6 +1,6 @@
 #include "nmi_sequence.hpp"
 #include "sysmod/sysmod_plusargs.h"
-#include "cosim/bridge/bridge_plusargs.h"
+#include "rv_tester/rv_tester_plusargs.h"
 
 REGISTRY_register(nmi_sequence, INTERRUPTS, cvm::registry::all);
 

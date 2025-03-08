@@ -953,39 +953,41 @@ namespace {
     };
 
     typedef enum : size_t {
-        DEBUG = 0,
-        SSI   = 1,
-        VSSI  = 2,
-        MSI   = 3,
-        STI   = 5,
-        VSTI  = 6,
-        MTI   = 7,
-        SEI   = 9,
-        VSEI  = 10,
-        MEI   = 11,
-        SGEI  = 12,
-        LCOFI = 13,
-        DERRI = 23,
-        HWAI  = 24,
-        RASI  = 43
+        DEBUG       = 0,
+        SSI         = 1,
+        VSSI        = 2,
+        MSI         = 3,
+        STI         = 5,
+        VSTI        = 6,
+        MTI         = 7,
+        SEI         = 9,
+        VSEI        = 10,
+        MEI         = 11,
+        SGEI        = 12,
+        LCOFI       = 13,
+        BUS_ERRI    = 23,
+        C_HWAI      = 24,
+        LO_PRI_RASI = 35,
+        HI_PRI_RASI = 43
     } intr;
 
     const std::unordered_map<intr, std::string_view> intr_to_string = {
-        {DEBUG, "DEBUG"},
-        {SSI  , "SSI"}  ,
-        {VSSI , "VSSI"} ,
-        {MSI  , "MSI"}  ,
-        {STI  , "STI"}  ,
-        {VSTI , "VSTI"} ,
-        {MTI  , "MTI"}  ,
-        {SEI  , "SEI"}  ,
-        {VSEI , "VSEI"} ,
-        {MEI  , "MEI"}  ,
-        {SGEI , "SGEI"} ,
-        {LCOFI, "LCOFI"},
-        {DERRI, "DERRI"},
-        {HWAI , "HWAI"} ,
-        {RASI , "RASI"}
+        {DEBUG          , "DEBUG"},
+        {SSI            , "SSI"}  ,
+        {VSSI           , "VSSI"} ,
+        {MSI            , "MSI"}  ,
+        {STI            , "STI"}  ,
+        {VSTI           , "VSTI"} ,
+        {MTI            , "MTI"}  ,
+        {SEI            , "SEI"}  ,
+        {VSEI           , "VSEI"} ,
+        {MEI            , "MEI"}  ,
+        {SGEI           , "SGEI"} ,
+        {LCOFI          , "LCOFI"},
+        {BUS_ERRI       , "BUS_ERRI"},
+        {C_HWAI         , "C_HWAI"} ,
+        {LO_PRI_RASI    , "LO_PRI_RASI"},
+        {HI_PRI_RASI    , "HI_PRI_RASI"}
     };
 
     typedef enum : size_t {

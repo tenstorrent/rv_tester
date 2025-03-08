@@ -489,8 +489,8 @@ module rv_tester
             end
 
             if (shutdowned && num_reruns == '0 && !warm_reset_req && !shifted_dut_reset_req) begin
-                $display("INFO_PASS_METRIC:{\"axi_clocks\": %0d}", axi_clocks);
                 $display("INFO_PASS:{\"clocks\": %0d}", clocks);
+                $display("INFO_PASS_METRIC:{\"axi_clocks\": %0d}", axi_clocks);
                 $display("INFO_PASS_METRIC:{\"instruction_count\": %0d}", instructions);
                 $display("INFO_PASS_REGR_METRIC:{\"name\": \"instructions\", \"value\":%0d, \"type\": \"i\", \"action\": \"sum\"}", instructions);
 

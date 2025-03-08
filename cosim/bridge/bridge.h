@@ -324,9 +324,8 @@ private:
   // Memmap
   std::map<std::string, memmap_entry_t> memmap_;
 
-  std::array<std::array<int, 16>, 64> num_taken_interrupts_{};
-
-  int num_exceptions_ = 0;
+  std::unordered_map<priv, std::unordered_map<intr, int>> num_taken_interrupts_{};
+  std::unordered_map<excp, int> num_exceptions_{};
   int num_trig_breakpoint_ = 0;
   int num_sp_accesses_ = 0;
 

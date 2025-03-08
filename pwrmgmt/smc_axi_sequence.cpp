@@ -1,6 +1,6 @@
 #include "smc_axi_sequence.hpp"
 #include "sysmod/sysmod_plusargs.h"
-#include "cosim/bridge/bridge_plusargs.h"
+#include "rv_tester/rv_tester_plusargs.h"
 #include "fmt/ranges.h"
 
 REGISTRY_register(smc_axi_sequence, PWRMGMT, cvm::registry::all);

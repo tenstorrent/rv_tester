@@ -1,6 +1,6 @@
 #include "external_interrupt_sequence.hpp"
 #include "sysmod/sysmod_plusargs.h"
-#include "cosim/bridge/bridge_plusargs.h"
+#include "rv_tester/rv_tester_plusargs.h"
 
 REGISTRY_register(external_interrupt_sequence, INTERRUPTS, cvm::registry::all);
 
