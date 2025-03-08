@@ -49,10 +49,8 @@ axi::axi(const data_width_t& data_width, const cvm::topology::loc_t loc, const s
 }
 
 axi::~axi() {
-    if (FLAGS_metrics) {
-        cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"axi_resp_slverr_count\": \"{}\"}}\n", num_slverr_resp_);
-        cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"axi_resp_decerr_count\": \"{}\"}}\n", num_decerr_resp_);
-    }
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"axi_resp_slverr_count\": \"{}\"}}\n", num_slverr_resp_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"axi_resp_decerr_count\": \"{}\"}}\n", num_decerr_resp_);
 }
 
 // Function to parse a string containing hexadecimal numbers and ranges
