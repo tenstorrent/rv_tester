@@ -115,7 +115,7 @@ private:
   void update_regs(hart_id_t hart, src_t src, resource_t resource, uint64_t addr, const std::vector<uint64_t>&& dword_vec);
   void update_mem_attr(hart_id_t hart, src_t src, uint32_t data);
   void update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data, cac::optional_const_ref<uint64_t> mask_ref = std::nullopt, bool shadow_csr = false, bool check_en = true);
-  uint64_t modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data);
+  uint64_t modify_csr_data(hart_id_t hart, uint64_t addr, uint64_t data, uint8_t priv);
   uint64_t modify_csr_mask(hart_id_t hart, uint64_t addr, uint64_t data, uint64_t mask);
   uint64_t get_csr(hart_id_t hart, src_t src, uint64_t addr);
   uint64_t get_csr_mask(hart_id_t hart, uint64_t addr);
@@ -324,9 +324,8 @@ private:
   // Memmap
   std::map<std::string, memmap_entry_t> memmap_;
 
-  std::array<std::array<int, 16>, 64> num_taken_interrupts_{};
-
-  int num_exceptions_ = 0;
+  std::unordered_map<priv, std::unordered_map<intr, int>> num_taken_interrupts_{};
+  std::unordered_map<excp, int> num_exceptions_{};
   int num_trig_breakpoint_ = 0;
   int num_sp_accesses_ = 0;
 

@@ -4,6 +4,7 @@
 #include "cvm/registry.hpp"
 #include "cvm/bitmanip.hpp"
 #include "cvm/logger.hpp"
+#include "rv_tester/rv_tester_plusargs.h"
 
 REGISTRY_register((axi_sw<rv_tester_transactions::axi_sw::w<>,
                          rv_tester_transactions::axi_sw::aw<>,

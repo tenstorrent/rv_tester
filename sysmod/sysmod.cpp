@@ -182,6 +182,9 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
                 }
         });
   }
+ cvm::registry::messenger.connect<htif::terminate_t>(
+     cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0),
+     [this] (htif::terminate_t t) { return this->terminate(t); });
 }
 
 void sysmod::configure()
@@ -885,9 +888,6 @@ sysmod::compose() {
 
       } else if (type == "htif") {
         device = std::make_unique<htif>(tag, base, loc_);
-        cvm::registry::messenger.connect<htif::terminate_t>(
-            loc_,
-            [&](htif::terminate_t t) { return this->terminate(t); });
 
       } else if (type == "uart8250") {
         device = std::make_unique<io_device<WdRiscv::Uart8250>>(tag, loc_,

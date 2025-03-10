@@ -3,6 +3,7 @@
 #include "io_coh_helper.h"
 #include "sysmod/sysmod_plusargs.h"
 #include "cosim/bridge/bridge_plusargs.h"
+#include "rv_tester/rv_tester_plusargs.h"
 
 
 DEFINE_bool(debug_io_coh_helper, false, "Enable internal uc helper debug logging");

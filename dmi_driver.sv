@@ -14,6 +14,7 @@ import rv_tester_params:: * ;
     input logic [31:0]              num_dm_randload,
     input logic [31:0]              num_dm_randstore,
     input logic [31:0]              trigger_config,
+    input logic                     priority_singlestep,
 
     
     input logic                     dmi_req_ready,
@@ -74,7 +75,7 @@ import rv_tester_params:: * ;
 
   logic mmr_write_32bits, mmr_write_64bits, check_data0, check_data1, get_data1, mmr_read_32bits, mmr_read_64bits, mmr_access_rd, read_data1, read_data0_comp, read_data1_comp;
   logic ss_ndmreset;
-  logic read_data2, read_data3, get_data2, get_data3;
+  logic read_data2, read_data3, get_data2, get_data3, end_of_test_cleanup;
   int data0_value, data1_value, hart_enable_mask_value, data2_value, data3_value;
   logic [7:0] DM_DebugReq_Valids_q;
   typedef struct packed {
@@ -185,6 +186,7 @@ import rv_tester_params:: * ;
       cmisa_sdtrig_disabled <= 0;
       disable_mem_access_checker <= 0;
       ss_ndmreset <= 0;
+      end_of_test_cleanup <= 0;
 
       command_queue.delete();
       response_queue.delete();
@@ -218,7 +220,7 @@ import rv_tester_params:: * ;
   always @(posedge clk) begin
     dmi_commands_in_queue = command_queue.size();
 
-    if (~reset_n) begin
+    if (~reset_n || end_of_test_cleanup) begin
       reset_cleanup();
     end
   end
@@ -470,6 +472,10 @@ import rv_tester_params:: * ;
         end else if(core_to_halt_after_ss && cmd.addr === 'h11 && cmd.op === 'h1 && ~trigger_to_fire) begin
           $display("[Single step] Core resuming after step configuration");
           poll = 1;
+        end else if(core_to_halt_after_ss && cmd.addr === 'h11 && cmd.op === 'h1 && trigger_to_fire && priority_singlestep) begin
+          $display("[Single step] Core resuming single step x sdtrig, single step takes priority");
+          trigger_to_fire = 0;
+          poll = 1;          
         end else if(cmd.addr === 'h16 && cmd.op === 'h1 && tdata1_write) begin
           $display("trigger type is configured in tdata1");
           tdata1_write = 0;
@@ -485,7 +491,7 @@ import rv_tester_params:: * ;
           check_data0 = 1;
           poll = 1;
           $display("Check data0 write value");
-        end else if(trigger_to_fire && cmd.addr === 'h11 && cmd.op === 'h1) begin
+        end else if(trigger_to_fire && cmd.addr === 'h11 && cmd.op === 'h1 && ~priority_singlestep) begin
           $display("[Sdtrig] Core resuming after sdtrig configuration");
           if(!rvfi_sdtrig) begin
             @(rvfi_sdtrig);
@@ -1304,6 +1310,10 @@ import rv_tester_params:: * ;
       end
       command_trigger = 0;
       $display("[DMI Execution] Clear the Execution Trigger\n");
+      if((command_queue.size() | single_step_quit_command_queue.size()) == 0) begin
+        end_of_test_cleanup = 1;
+        $display("[DMI Driver] Initializing driver variables at End of Test");
+      end
       @(posedge clk);
     end
   end

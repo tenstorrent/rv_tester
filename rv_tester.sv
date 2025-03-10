@@ -181,6 +181,7 @@ module rv_tester
     int num_dm_randload = 0;
     int num_dm_randstore = 0;
     int trigger_config = 0;
+    bit priority_singlestep = 0;
     int dm_single_step_count = 0;
     int dmi_poll_counter = 0;
     int dmi_poll_timeout = 50000;
@@ -402,6 +403,7 @@ module rv_tester
             num_dm_randload      <= cvm_plusargs::get_int("num_dm_randload");
             num_dm_randstore     <= cvm_plusargs::get_int("num_dm_randstore");
             trigger_config       <= cvm_plusargs::get_int("trigger_config");
+            priority_singlestep  <= cvm_plusargs::get_bool("priority_singlestep") != '0;
             sdtrig_multitrigger  <= cvm_plusargs::get_int("sdtrig_multitrigger");
             dm_single_step_count <= cvm_plusargs::get_int("dm_single_step_count");
             cb_poll              <= cvm_plusargs::get_bool("cb_async") == '0;
@@ -489,8 +491,8 @@ module rv_tester
             end
 
             if (shutdowned && num_reruns == '0 && !warm_reset_req && !shifted_dut_reset_req) begin
-                $display("INFO_PASS_METRIC:{\"axi_clocks\": %0d}", axi_clocks);
                 $display("INFO_PASS:{\"clocks\": %0d}", clocks);
+                $display("INFO_PASS_METRIC:{\"axi_clocks\": %0d}", axi_clocks);
                 $display("INFO_PASS_METRIC:{\"instruction_count\": %0d}", instructions);
                 $display("INFO_PASS_REGR_METRIC:{\"name\": \"instructions\", \"value\":%0d, \"type\": \"i\", \"action\": \"sum\"}", instructions);
 
@@ -688,6 +690,7 @@ module rv_tester
         .num_dm_randload,
         .num_dm_randstore,
         .trigger_config,
+        .priority_singlestep,
 
         .dmi_req_ready,
         .dmi_resp_valid,

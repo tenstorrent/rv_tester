@@ -41,6 +41,7 @@ def axi_sw_gen(name, packet, visibility = None, cc_attrs = {}, **kwargs):
         ],
         deps = [
           "@rv_tester//common:common",
+          "@rv_tester//:plusargs",
           "@cvm//:plusargs",
           "@cvm//:topology",
           "@cvm//:registry",
