@@ -81,7 +81,7 @@ bool ras_helper::ras_helper_backdoor_write(uint64_t addr,uint64_t data){
     cvm::log(cvm::HIGH, "[ras_helper] Descarding read request at ras_helper since tag {} is not matching \n",tag());
    return false;
   }
-  data_t local_data;
+  data_t local_data = {0, 0, 0, 0, 0, 0, 0, 0};
   serializeInt(data,8, local_data);
   for (int j=0; j<8; j++) {
       mem::datum_t m_data_p = (mem::datum_t) local_data[j];
