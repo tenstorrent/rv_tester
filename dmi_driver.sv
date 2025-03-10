@@ -14,6 +14,7 @@ import rv_tester_params:: * ;
     input logic [31:0]              num_dm_randload,
     input logic [31:0]              num_dm_randstore,
     input logic [31:0]              trigger_config,
+    input logic                     priority_singlestep,
 
     
     input logic                     dmi_req_ready,
@@ -465,6 +466,10 @@ import rv_tester_params:: * ;
         end else if(core_to_halt_after_ss && cmd.addr === 'h11 && cmd.op === 'h1 && ~trigger_to_fire) begin
           $display("[Single step] Core resuming after step configuration");
           poll = 1;
+        end else if(core_to_halt_after_ss && cmd.addr === 'h11 && cmd.op === 'h1 && trigger_to_fire && priority_singlestep) begin
+          $display("[Single step] Core resuming single step x sdtrig, single step takes priority");
+          trigger_to_fire = 0;
+          poll = 1;          
         end else if(cmd.addr === 'h16 && cmd.op === 'h1 && tdata1_write) begin
           $display("trigger type is configured in tdata1");
           tdata1_write = 0;
@@ -480,7 +485,7 @@ import rv_tester_params:: * ;
           check_data0 = 1;
           poll = 1;
           $display("Check data0 write value");
-        end else if(trigger_to_fire && cmd.addr === 'h11 && cmd.op === 'h1) begin
+        end else if(trigger_to_fire && cmd.addr === 'h11 && cmd.op === 'h1 && ~priority_singlestep) begin
           $display("[Sdtrig] Core resuming after sdtrig configuration");
           if(!rvfi_sdtrig) begin
             @(rvfi_sdtrig);
