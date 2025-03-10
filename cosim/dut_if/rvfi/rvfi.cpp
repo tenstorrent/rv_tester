@@ -149,6 +149,11 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   make_instr(m_rvfi, instr);
   print_instr(instr);
 
+  if (m_rvfi.trap) {
+    trap_insn_ = m_rvfi.insn;
+    return;
+  }
+
   prev_uop_tag_ = m_rvfi.order;
 
   if (vec_cmode_)
@@ -191,7 +196,6 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   // Clear state
   intr_ = false;
   excp_ = false;
-
   nmi_ = false;
   vec_cmode_ = false;
 }
@@ -386,7 +390,9 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.disasm = whisper::disassemble(m_rvfi.insn);
   instr.uop = m_rvfi.uop;
   instr.cracked = !m_rvfi.last_uop;
-  instr.trap = m_rvfi.trap || intr_ || excp_;
+  instr.trap = intr_ || excp_;
+  instr.trap_valid = m_rvfi.trap;
+  instr.trap_opcode = trap_insn_;
   instr.nmi = nmi_;
   instr.ncause = ncause_;
   instr.intr = intr_;
@@ -706,14 +712,17 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
   if (instr.mem_read.valid)
     dut_log += fmt::format(" [{:#x}:{:#x}:{}]", instr.mem_read.va, instr.mem_read.pa, mem_attr_to_string(instr.mem_read.attr));
 
+  if (instr.trap_valid)
+    dut_log += fmt::format(" (trap)");
+
   if (instr.nmi)
-    dut_log += fmt::format(" (nmi:{})", instr.ncause);
+    dut_log += fmt::format(" (nmi: {})", nmi_to_string.count(static_cast<nmi>(instr.ncause)) ? nmi_to_string.at(static_cast<nmi>(instr.ncause)) : std::to_string(instr.ncause));
 
   if (instr.intr)
-    dut_log += fmt::format(" (interrupt:{})", instr.icause);
+    dut_log += fmt::format(" (interrupt: {})", intr_to_string.count(static_cast<intr>(instr.icause)) ? intr_to_string.at(static_cast<intr>(instr.icause)) : std::to_string(instr.icause));
 
   if (instr.excp)
-    dut_log += fmt::format(" (exception:{})", instr.ecause);
+    dut_log += fmt::format(" (exception: {})", excp_to_string.count(static_cast<excp>(instr.ecause)) ? excp_to_string.at(static_cast<excp>(instr.ecause)) : std::to_string(instr.ecause));
 
   if (instr.comp)
     dut_log += fmt::format(" (compressed)");

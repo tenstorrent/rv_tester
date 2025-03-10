@@ -136,6 +136,7 @@ class rvfi {
     uint64_t ecause_ = 0;
     uint8_t priv_ = 3;
     bool ucode_priv_change_ = false;
+    uint32_t trap_insn_ = 0;
 
     std::vector<rv_instr_t> instrs_;
     std::vector<vr_t> cracked_vrs_;

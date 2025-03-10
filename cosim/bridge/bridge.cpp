@@ -873,7 +873,7 @@ void bridge::pre_step_exception_poke(hart_id_t hart, const rv_instr_t& d) {
 
   if (found_in_list(std::to_string(d.ecause), FLAGS_cosim_resynch_excp)) {
     bool valid;
-    bool is_load = (d.ecause == LD_ACCESS_FAULT) || (d.ecause == HARDWARE_ERROR);
+    bool is_load = (d.trap_opcode != 0);
     bridge_log_(cvm::MEDIUM, "<{}> Inject Exception with code:{} is_load: {}\n", d.cycle, d.ecause, is_load);
     if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperInjectExceptionRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0),
       hart, is_load, d.ecause, 0, valid) || !valid) && FLAGS_whisper_client_check) {
