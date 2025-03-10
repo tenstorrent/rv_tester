@@ -403,7 +403,7 @@ module rv_tester
             num_dm_randload      <= cvm_plusargs::get_int("num_dm_randload");
             num_dm_randstore     <= cvm_plusargs::get_int("num_dm_randstore");
             trigger_config       <= cvm_plusargs::get_int("trigger_config");
-            priority_singlestep  <= cvm_plusargs::get_bool("priority_singlestep");
+            priority_singlestep  <= cvm_plusargs::get_bool("priority_singlestep") != '0;
             sdtrig_multitrigger  <= cvm_plusargs::get_int("sdtrig_multitrigger");
             dm_single_step_count <= cvm_plusargs::get_int("dm_single_step_count");
             cb_poll              <= cvm_plusargs::get_bool("cb_async") == '0;
