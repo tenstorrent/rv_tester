@@ -76,7 +76,7 @@ import rv_tester_params:: * ;
     //ACLINT MTIP generation checker
     typedef enum bit {idle,check} checker_state;
     checker_state [8:0] st;
-    logic [8:0] [63:0] counter,counter_check,counter_next, mtimecmpval;;
+    logic [8:0] [63:0] counter,counter_check,counter_next, mtimecmpval;
     logic [8:0] mtimecmp_wr_valid;
     logic wtimecmp_wr_valid;
     logic mtime_wr_valid;
@@ -297,7 +297,9 @@ import rv_tester_params:: * ;
     return hart;
   endfunction
 
-
-
+  function automatic logic [63:0] min(logic [8:0] [63:0] arr);
+    min = arr[0];
+    for (int i = 1; i < 9; i++) min = (arr[i] < min) ? arr[i] : min;
+  endfunction 
 
 endmodule
