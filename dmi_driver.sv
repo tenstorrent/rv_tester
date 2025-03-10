@@ -73,7 +73,7 @@ import rv_tester_params:: * ;
   logic check_hit_for_tselect, to_check_tselect, read_tselect, to_check_hit, check_hit_bit, read_tdata1_hit;
 
   logic mmr_write_32bits, mmr_write_64bits, check_data0, check_data1, get_data1, mmr_read_32bits, mmr_read_64bits, mmr_access_rd, read_data1, read_data0_comp, read_data1_comp;
-
+  logic ss_ndmreset;
   logic read_data2, read_data3, get_data2, get_data3;
   int data0_value, data1_value, hart_enable_mask_value, data2_value, data3_value;
   logic [7:0] DM_DebugReq_Valids_q;
@@ -184,6 +184,7 @@ import rv_tester_params:: * ;
       check_cmisa_sdtrig <= 0;
       cmisa_sdtrig_disabled <= 0;
       disable_mem_access_checker <= 0;
+      ss_ndmreset <= 0;
 
       command_queue.delete();
       response_queue.delete();
@@ -366,6 +367,10 @@ import rv_tester_params:: * ;
             $display("[Poll] Core in resume group gets a resumereq, Doing Poll");
             core_resumeg_rreq = 1;
             poll = 1;
+          end
+          if(cmd.data[1] === 'h1) begin
+            ss_ndmreset = 1;
+            $display("[Poll] SS_Ndmreset is set");
           end
         end else if (cmd.addr === 'h17 && cmd.op === 'h2) begin
           $display("[Poll] Seen Abstract Command Req, Doing Poll");
@@ -675,7 +680,7 @@ import rv_tester_params:: * ;
         // $display("\ndmi resp %h\n",dmi_resp.data);
         if (resume_req) begin
           if(hart_enable_mask_value[dm_hartsel]) begin
-            if(dmi_resp.data[17:16] === 2'b11) begin
+            if(dmi_resp.data[17:16] === 2'b11 && ~ss_ndmreset) begin
               resume_req = 0;
               poll = 0;
               if(mcontrol6_trigger) begin
@@ -685,7 +690,7 @@ import rv_tester_params:: * ;
               end
               $display("[Poll] Clear Resume Req Poll");
               do_file_writes();
-              if(ss_step_bit) begin
+              if(ss_step_bit && ~ss_ndmreset) begin
                 core_to_halt_after_ss = 1;
                 $display("core_to_halt_after_ss is set");
               end
@@ -693,6 +698,13 @@ import rv_tester_params:: * ;
                 core_halted_after_ss = 0;
                 $display("core_halted_after_ss is cleared");
               end
+            end
+            if(ss_ndmreset && dmi_resp.data[19:18] === 2'b11) begin
+              ss_ndmreset = 0;
+              resume_req = 0;
+              ndm_reset_init =1;
+              ndm_reset_assert_done = 1;
+              $display("core is reset upon ndmreset assertion along with resumereq");
             end
           end else begin
             poll = 0;
