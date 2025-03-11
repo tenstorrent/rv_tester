@@ -845,10 +845,18 @@ void bridge::pre_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
   print(cvm::MEDIUM, "Debug pre step poking instruction in Debug mode\n", hart);
   bool valid;
   uint32_t opcode;
+  bool dtvec_update = false;
+  for (auto& csr : instr.csr) {
+    if (csr.csr_addr == c_dtvec_spec_csr) {
+      dtvec_update = true;
+      break;
+    }
+  }
+
   if (instr.pc.pc_rdata == FLAGS_debug_exit_pc) {
     opcode = opcode_nop;
   }
-  else if(instr.excp && (instr.ecause == 3)) { // This is to exit the abstract cmd routine to Park loop at the end of abstract command completion
+  else if ((instr.excp && (instr.ecause == 3)) || dtvec_update) { // This is to exit the abstract cmd routine to Park loop at the end of abstract command completion
     opcode = opcode_ebreak; //E-break opcode
   }
   else if (instr.excp) { // In case of other exceptions since RVFI only get's u-op codes, can't poke whisper valid opcode to hit exception. Thus we poke illegal opcode to mimic an exception.
