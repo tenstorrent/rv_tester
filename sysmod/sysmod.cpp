@@ -138,10 +138,13 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
       );
 
   uint32_t num_harts = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
-  for(uint32_t i = 0 ; i < num_harts ; i++) {
-    int unsigned location = cvm::topology::get_from_type("CORE", i);
-    cvm::registry::messenger.connect<inval_load_s>(location , [this] (const auto& payload) { return this->store_inval_load(payload); });
-    cvm::registry::messenger.connect<inval_crsp_s>(location , [this] (const auto& payld) { return this->store_inval_crsp(payld, 1 /*mcm*/); });
+
+  if (FLAGS_cosim) {
+    for(uint32_t i = 0 ; i < num_harts ; i++) {
+      int unsigned location = cvm::topology::get_from_type("CORE", i);
+      cvm::registry::messenger.connect<inval_load_s>(location , [this] (const auto& payload) { return this->store_inval_load(payload); });
+      cvm::registry::messenger.connect<inval_crsp_s>(location , [this] (const auto& payld) { return this->store_inval_crsp(payld, 1 /*mcm*/); });
+    }
   }
 
   cvm::registry::messenger.connect<cbo_inval_nomcm_s>(loc_, [this] (const auto& cbo_inval_nomcm) {
@@ -149,6 +152,7 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
     payload.address = cbo_inval_nomcm.address;
     return this->store_inval_crsp(payload, 0/*nomcm*/);
   });
+
   cvm::registry::messenger.connect<sysmod::backdoor_write_t>(
       loc_,
       [this](sysmod::backdoor_write_t t) { 
