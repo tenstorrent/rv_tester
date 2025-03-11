@@ -128,6 +128,15 @@ typedef struct
 
 typedef struct
 {
+  bool grouptype;
+  unsigned dmexttrigger;
+  unsigned group;
+  bool hgwrite;
+  bool hgselect;
+} dmcs2_t;
+
+typedef struct
+{
   bool halted;
   bool resumeack;
   bool havereset;
@@ -184,7 +193,7 @@ private:
   // functionality.
   // unsigned custom_base;
 
-  std::unordered_set<uint8_t> dm_regs_to_check = {0x11, 0x16, 0x04, 0x10, 0x17};
+  std::unordered_set<uint8_t> dm_regs_to_check = {0x11, 0x16, 0x04, 0x10, 0x17, 0x32};
   uint8_t reg_addr_to_check;
   uint32_t req_expect;
   bool req_resp_check = false;
@@ -211,6 +220,7 @@ private:
 
   dmcontrol_t dmcontrol;
   dmstatus_t dmstatus;
+  dmcs2_t dmcs2;
   abstractcs_t abstractcs;
   abstractauto_t abstractauto;
   uint32_t command;
