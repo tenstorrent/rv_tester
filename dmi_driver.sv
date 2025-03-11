@@ -230,15 +230,15 @@ import rv_tester_params:: * ;
       rvfi_sdtrig = 1;
     // end else begin
     //   rvfi_sdtrig = 0;
-    end else if(rvfi[0].cause[63:0] === 'h2) begin
+    end else if(abstr_cmd_req && rvfi[0].cause[63:0] === 'h2) begin
       exception_illegal = 1;
-      $display("exception:2 is seen and setting exception_illegal");
+      $display("[DMI Driver] Exception:2 is seen while executing an abs_cmd, hence setting exception_illegal");
     end else if(exception_illegal) begin
       exception_illegal = 0;
-      $display("exception != 2 hence clearing exception_illegal");
+      $display("[DMI Driver] Exception != 2 during abs_cmd execution, hence clearing exception_illegal");
     end
   end
-
+ 
   always @(posedge clk) begin
       if (!reset_n)
         DM_DebugReq_Valids_q <= 0;
