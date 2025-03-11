@@ -746,7 +746,7 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     // m_rvfi
     for (genvar n = 0; n < NRET; n++) begin
-        assign m_rvfis[n].valid            = (RVFI_EN & rvfi_enabled & ~dut_reset & rvfi[n].valid & send_rvfi);
+        assign m_rvfis[n].valid            = (RVFI_EN & rvfi_enabled & ~dut_reset & (rvfi[n].valid | rvfi[n].trap) & send_rvfi);
         assign m_rvfis[n].data.location    = location;
         assign m_rvfis[n].data.cycle       = clocks;
         assign m_rvfis[n].data.hart        = NUM;
