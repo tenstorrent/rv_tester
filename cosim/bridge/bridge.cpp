@@ -2840,7 +2840,7 @@ bool bridge::is_csr_allowlist(const std::string& csr_name) {
             return csr.allowlist_custom_csr;
         }
     }
-    throw std::invalid_argument("Invalid CSR name: " + csr_name);
+    return false;
 }
 
 bool bridge::is_chicken_bit_csr(uint64_t addr) {
