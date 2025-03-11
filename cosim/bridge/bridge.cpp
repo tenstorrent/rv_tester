@@ -2828,7 +2828,10 @@ bool bridge::is_pmacfg_csr(uint64_t addr) {
 }
 
 bool bridge::is_csr_allowlist(uint64_t addr) {
-  return csrs[addr].allowlist_custom_csr; // perform core arch checks for these allowlisted custom CSRs
+  if (auto it = csrs.find(addr); it != csrs.end()) {
+    return it->second.allowlist_custom_csr; // perform core arch checks for these allowlisted custom CSRs
+  }
+  return false;
 }
 
 bool bridge::is_csr_allowlist(const std::string& csr_name) {
@@ -2878,24 +2881,31 @@ void bridge::update_csr(hart_id_t hart, src_t src, uint64_t addr, uint64_t data,
   }
 
   // Also update shadow csr if applicable ex: mstatus/sstatus
-  if (!shadow_csr && csrs[addr].shadow_csr) {
-    shadow_csr = csrs[csrs[addr].shadow_csr].addr;
-    uint64_t alias_mask;
-    if (src == src_t::dut) {
-      if (mask_ref)
-        alias_mask = mask_ref.value() & get_csr_poke_mask(hart, shadow_csr);
-      else
-        alias_mask = get_csr_poke_mask(hart, shadow_csr);
-
-    } else {
-      uint64_t mask, poke_mask, read_mask;
-      bool valid;
-      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, shadow_csr, data, mask, poke_mask, read_mask, valid)|| !valid) && FLAGS_whisper_client_check) {
-        error("Hart {}: Failed to peek csr : {:#x} in update_csr()\n", hart, shadow_csr);
+  if (!shadow_csr) {
+    if (auto it = csrs.find(addr); it != csrs.end() && it->second.shadow_csr) {
+      if (auto shadow_it = csrs.find(it->second.shadow_csr); shadow_it != csrs.end()) {
+        shadow_csr = shadow_it->second.addr;
+      } else {
+        error("Hart {}: Misconfigured shadow csr address {:#x}\n", hart, it->second.shadow_csr);
+        shadow_csr = 0;
       }
-      alias_mask = get_csr_poke_mask(hart, shadow_csr);
+      uint64_t alias_mask;
+      if (src == src_t::dut) {
+        if (mask_ref)
+          alias_mask = mask_ref.value() & get_csr_poke_mask(hart, shadow_csr);
+        else
+          alias_mask = get_csr_poke_mask(hart, shadow_csr);
+
+      } else {
+        uint64_t mask, poke_mask, read_mask;
+        bool valid;
+        if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, shadow_csr, data, mask, poke_mask, read_mask, valid)|| !valid) && FLAGS_whisper_client_check) {
+          error("Hart {}: Failed to peek csr : {:#x} in update_csr()\n", hart, shadow_csr);
+        }
+        alias_mask = get_csr_poke_mask(hart, shadow_csr);
+      }
+      update_csr(hart, src, shadow_csr, data, alias_mask, true);
     }
-    update_csr(hart, src, shadow_csr, data, alias_mask, true);
   }
 }
 
@@ -2960,7 +2970,8 @@ std::string bridge::get_csr_name(const std::string& csr_addr) {
   catch (...) {
     return csr_addr;
   }
-  return csrs[addr].name;
+  auto it = csrs.find(addr);
+  return it != csrs.end() ? it->second.name : csr_addr;
 }
 
 void bridge::final_phase() {

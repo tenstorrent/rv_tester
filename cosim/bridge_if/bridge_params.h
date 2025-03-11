@@ -456,7 +456,7 @@ namespace {
 #undef CSR
     };
 
-    std::unordered_map<unsigned, csr_reg> csrs = {
+    const std::unordered_map<unsigned, csr_reg> csrs = {
 #define CSR(name, value, ...) \
         {  name,  csr_reg{value, ##__VA_ARGS__}},
         CSRS
@@ -464,7 +464,7 @@ namespace {
     };
 #undef CSRS
 
-    std::array<mmr_entry, 409> mmrs {{
+    const std::array<mmr_entry, 409> mmrs {{
         {"sc_ctrl",                       0x1A0000},
         {"sc_sp",                         0x1A0010},
         {"sc_cc_capabilities",            0x1A00C0},
