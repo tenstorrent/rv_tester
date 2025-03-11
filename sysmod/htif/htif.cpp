@@ -222,13 +222,21 @@ htif::write(const transactor::write_t& w)
   } 
   else if (dev == 0 and cmd == 0) {
     if ((payload & 1) && ((payload >> 1) == uint64_t(0))) {
-      cvm::log(cvm::NONE, "Pass condition detected - tohost[0] = 1, , tohost[47:1] = 0\n");
-      if (FLAGS_eot != "tohost_all")
-        cvm::registry::messenger.signal<terminate_t>(loc(), terminate_t{.low_priority_based = true, .passed=true});
-	  }
-    else
+      if (passed_ == 0) {
+        cvm::log(cvm::NONE, "Pass condition detected - tohost[0] = 1, tohost[47:1] = 0\n");
+        if (FLAGS_eot != "tohost_all") {
+          cvm::registry::messenger.signal<terminate_t>(loc(), terminate_t{.low_priority_based = true, .passed=true});
+        }
+      }
+      else if(passed_ == 1) {
+        cvm::log(cvm::NONE, "Pass condition detected - tohost[0] = 1, tohost[47:1] = 0 again, no longer going to log successive writes\n");
+      }
+      passed_++;
+    }
+    else {
       cvm::log(cvm::ERROR, "Fail condition detected - tohost[0]={:#x}, tohost[47:1]={:#x}",(payload & 1), (payload >> 1));
-  } 
+    } 
+  }
   else {
     assert(0);
   }

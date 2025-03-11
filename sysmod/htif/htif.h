@@ -65,4 +65,6 @@ private:
       int write(char c);
   };
   pty pty_;
+
+  int passed_ = 0;
 };
