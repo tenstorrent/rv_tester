@@ -926,7 +926,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
   uint64_t consecutiveOnes = std::countr_zero(~mask);  // Count ones until the first zero
   if (numones == consecutiveOnes) {
       if (m_mcmi_read.v_ext & m_mcmi_read.splat){
-        uint16_t total_elements = numones / elemsize;
+        uint16_t total_elements = (numones / elemsize) ? (numones / elemsize) : 1;
         m.size = elemsize;
         for (int i=0; i<total_elements; i++){
           uint64_t value = 0;
@@ -981,7 +981,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
               m.v_ext = m_mcmi_read.v_ext;
               m.field = m_mcmi_read.field;
               if (m_mcmi_read.v_ext & m_mcmi_read.splat){
-                uint16_t total_elements = size / elemsize;
+                uint16_t total_elements = (size / elemsize) ? (size / elemsize) : 1;
                 m.pa = m_mcmi_read.addr;
                 m.size = elemsize;
                 for (int i=0; i<total_elements; i++){
@@ -1014,7 +1014,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
       m.size   = std::popcount(m_mcmi_read.mask);
       m.field = m_mcmi_read.field;
       if (m_mcmi_read.v_ext & m_mcmi_read.splat){
-        uint16_t total_elements = size / elemsize;
+        uint16_t total_elements = (size / elemsize) ? (size / elemsize) : 1;
         m.pa = m_mcmi_read.addr;
         m.size = elemsize;
         for (int i=0; i<total_elements; i++){
