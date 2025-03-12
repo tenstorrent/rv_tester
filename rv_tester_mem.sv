@@ -55,7 +55,8 @@ module rv_tester_mem #(
     input   logic 	bypass_mem	,
     input   logic       flush_cache	,
     output  logic	flush_complete  ,
-    output  logic       bist_status_done
+    output  logic       bist_status_done,
+    input   string      preload_file
 );
 
 ///////////////unpacked to packed////////////////////
@@ -121,6 +122,9 @@ module rv_tester_mem #(
     localparam CachedRegionStart  = {AxiAddrWidthCache{1'b0}}; 
     localparam CachedRegionEnd    = {1'b0,{AxiAddrWidth{1'b1}}} + {{AxiAddrWidth{1'b0}}, 1'b1};
     localparam SpmRegionStart     = CachedRegionEnd;
+    localparam int data_words = 8;
+    localparam int tag_words  = 2;
+
 
     always@(negedge clk) begin
         enable_flop <= ~bypass_mem;
@@ -193,6 +197,32 @@ module rv_tester_mem #(
 
     axi_llc_cfg_regs_d_t     reg_cfg_hw_to_reg;
     axi_llc_cfg_regs_q_t     reg_cfg_reg_to_hw;
+
+    logic rst_n_1T;
+    // always@(posedge clk_gated) begin
+	// rst_n_1T <= rst_n;
+    //     if(rst_n && !rst_n_1T) begin
+	//     if (preload_file != "") begin
+	// 	    $readmem(preload_file, "some_array");
+	// 	end
+    //     end
+    // end
+
+    for (genvar i = 0; i < SetAssociativity_LLC; i++) begin
+        always @(posedge clk_gated) begin
+            rst_n_1T <= rst_n;
+            if (rst_n && !rst_n_1T) begin
+                if (preload_file != "") begin
+                    $display("Preloading LLC way %0d with file: %s", i, preload_file);
+                    // $readmemh(preload_file, llc.i_hit_miss_unit.i_tag_store.gen_tag_macros[i].i_tag_store.sram, 0,data_words - 1);
+                    // $readmemh(preload_file, llc.i_llc_ways.gen_data_ways[i].i_data_way.i_data_sram.sram, data_words, data_words + tag_words - 1);
+                    $readmemh(preload_file, llc.i_hit_miss_unit.i_tag_store.gen_tag_macros[i].i_tag_store.sram, data_words, data_words + tag_words - 1);
+                    $readmemh(preload_file, llc.i_llc_ways.gen_data_ways[i].i_data_way.i_data_sram.sram, 0, data_words - 1);
+
+                end
+            end
+        end
+    end
 
     always@(posedge clk_gated) begin
         if(!rst_n) begin

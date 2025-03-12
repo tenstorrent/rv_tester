@@ -1271,9 +1271,9 @@ module rv_tester
     mst_req_rv axi_req_llc [NoOfMasters-1:0];
     mst_resp_rv axi_rsp_llc [NoOfMasters-1:0];
 
+    string rv_tester_mem_preload_file = "";
 
-
-    function automatic void rv_tester_set_address_map(int unsigned i, longint unsigned start_addr, longint unsigned end_addr, int unsigned device);
+    function automatic void rv_tester_set_address_map_and_preload_file(int unsigned i, longint unsigned start_addr, longint unsigned end_addr, int unsigned device, string preload_file);
         localparam int unsigned AW = topology.TOP.PLATFORM.AXI.ADDR_WIDTH;
         addr_map[i] = '{
             idx       : device         ,
@@ -1287,11 +1287,13 @@ module rv_tester
             end_addr  : AW'(end_addr  )
         };
 
+	rv_tester_mem_preload_file = preload_file;
+
     endfunction
 
     assign addr_map_final = (bypass_cache == 0)?addr_map:addr_map_idx1;
 
-    export "DPI-C" function rv_tester_set_address_map;
+    export "DPI-C" function rv_tester_set_address_map_and_preload_file;
 
     rv_tester_mem #(
         .NumMasters             ( topology.TOP.PLATFORM.AXI.TOTAL ),
@@ -1321,7 +1323,8 @@ module rv_tester
         .bypass_mem             ( bypass_mem ),
         .flush_cache            ( quiesced ),
         .flush_complete         ( flush_complete ),
-        .bist_status_done       ()
+        .bist_status_done       (),
+        .preload_file           ( rv_tester_mem_preload_file )
     );
 
     always @(posedge dut_clk[TB_CLK_IDX]) begin

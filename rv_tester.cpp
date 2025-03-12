@@ -45,10 +45,11 @@ DEFINE_int32(dm_single_step_count, 0, "No of times core to single step, to be us
 DEFINE_int32(sdtrig_multitrigger, 0, "No of trigger condigurations for sdtrig multitrigger test");
 DEFINE_int32(trigger_config, 0, "No of store addr configurations for sdtrig test");
 DEFINE_bool(rv_tester_terminate, true, "Set to false for offline DPI mode");
+DEFINE_string(preload_file, "", "Preload file for LLC");
 
 
 extern "C" void rv_tester_terminate();
-extern "C" void rv_tester_set_address_map(std::uint32_t i, std::uint64_t start_addr, std::uint64_t end_addr, std::uint32_t device);
+extern "C" void rv_tester_set_address_map_and_preload_file(std::uint32_t i, std::uint64_t start_addr, std::uint64_t end_addr, std::uint32_t device, const char* preload_file);
 
 static bool check_called;
 class logger_instrument {
@@ -182,15 +183,14 @@ extern "C" {
             cvm::log(cvm::ERROR, "Test specifying more address rules ({}) than in sv ({})", m.size(), no_addr_rules);
             return;
         }
-
         std::uint32_t i = 0;
         for (const auto& it : m) {
             const auto& e = it.second;
-            rv_tester_set_address_map(i, e.base, e.end, e.type != "memory");
+            rv_tester_set_address_map_and_preload_file(i, e.base, e.end, e.type != "memory", FLAGS_preload_file.c_str());
             i++;
         }
         for(; i < no_addr_rules; i++) {
-            rv_tester_set_address_map(i, 1, 1, 1);
+            rv_tester_set_address_map_and_preload_file(i, 1, 1, 1, FLAGS_preload_file.c_str());
         }
     }
 
