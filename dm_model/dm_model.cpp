@@ -342,7 +342,7 @@ void debug_module_t::reset()
   }
 
   memset(&dmcontrol, 0, sizeof(dmcontrol));
-
+  memset(&dmcs2, 0, sizeof(dmcs2));
   memset(&dmstatus, 0, sizeof(dmstatus));
   dmstatus.impebreak = config.support_impebreak;
   dmstatus.authenticated = !config.require_authentication;
@@ -781,7 +781,12 @@ bool debug_module_t::dmi_read(unsigned address, uint32_t *value)
       }
       break;
     case DM_DMCS2:
-      result = set_field(result, DM_DMCS2_GROUP, selected_hart_state().haltgroup);
+      dmcs2.hgwrite = 0;
+      result = set_field(result, DM_DMCS2_GROUPTYPE, dmcs2.grouptype);
+      result = set_field(result, DM_DMCS2_DMEXTTRIGGER, dmcs2.dmexttrigger);
+      result = set_field(result, DM_DMCS2_GROUP, dmcs2.grouptype?selected_hart_state().resumegroup:selected_hart_state().haltgroup);
+      result = set_field(result, DM_DMCS2_HGWRITE, dmcs2.hgwrite);
+      result = set_field(result, DM_DMCS2_HGSELECT, dmcs2.hgselect);
       break;
     case DM_NEXTDM:
       result = 0;
@@ -1428,13 +1433,20 @@ bool debug_module_t::dmi_write(unsigned address, uint32_t value)
       //   return true;
 
       case DM_DMCS2:
-        if (config.support_haltgroups && get_field(value, DM_DMCS2_HGWRITE)) {
+      dmcs2.grouptype = get_field(value, DM_DMCS2_GROUPTYPE);
+      dmcs2.dmexttrigger = 0; //get_field(value, DM_DMCS2_DMEXTTRIGGER);
+      dmcs2.hgwrite = get_field(value, DM_DMCS2_HGWRITE);
+      dmcs2.hgselect = 0; //get_field(value, DM_DMCS2_HGSELECT);
+        if (config.support_haltgroups && dmcs2.hgwrite) {
+          cvm::log(cvm::HIGH, "[DM Model] Updating group for halt/resume. hgwrite is :{:#x}\n", dmcs2.hgwrite);
           if (get_field(value, DM_DMCS2_GROUPTYPE) == 0) {
-            selected_hart_state().haltgroup = get_field(value, DM_DMCS2_GROUP);
+            selected_hart_state().haltgroup = get_field(value, DM_DMCS2_GROUP) & 0x1;
+            dmcs2.group = get_field(value, DM_DMCS2_GROUP) & 0x1;
             cvm::log(cvm::HIGH, "dmcs2 programming haltgrp set hart id :{:#x}, :{:#x}\n", selected_hart_id(), selected_hart_state().haltgroup);
           }
           else if (get_field(value, DM_DMCS2_GROUPTYPE) == 1){
-            selected_hart_state().resumegroup = get_field(value, DM_DMCS2_GROUP);
+            selected_hart_state().resumegroup = get_field(value, DM_DMCS2_GROUP) & 0x1;
+            dmcs2.group = get_field(value, DM_DMCS2_GROUP) & 0x1;
             cvm::log(cvm::HIGH, "dmcs2 programming resumegrp set hart id :{:#x}, :{:#x}\n", selected_hart_id(), selected_hart_state().resumegroup);
           }
       }
