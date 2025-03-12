@@ -214,8 +214,6 @@ module rv_tester_mem #(
             if (rst_n && !rst_n_1T) begin
                 if (preload_file != "") begin
                     $display("Preloading LLC way %0d with file: %s", i, preload_file);
-                    // $readmemh(preload_file, llc.i_hit_miss_unit.i_tag_store.gen_tag_macros[i].i_tag_store.sram, 0,data_words - 1);
-                    // $readmemh(preload_file, llc.i_llc_ways.gen_data_ways[i].i_data_way.i_data_sram.sram, data_words, data_words + tag_words - 1);
                     $readmemh(preload_file, llc.i_hit_miss_unit.i_tag_store.gen_tag_macros[i].i_tag_store.sram, data_words, data_words + tag_words - 1);
                     $readmemh(preload_file, llc.i_llc_ways.gen_data_ways[i].i_data_way.i_data_sram.sram, 0, data_words - 1);
 
