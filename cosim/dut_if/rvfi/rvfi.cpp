@@ -419,8 +419,14 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   bool src_renamed = (src >= 35) && (src <= 37);
   bool dest_renamed = (m_rvfi.rd_addr >= 35) && (m_rvfi.rd_addr <= 37);
   instr.csr_renamed = src_renamed || dest_renamed;
-  instr.csr_renamed_name = src_renamed  ? csrs[renamed_csr.at(src)].name :
-                           dest_renamed ? csrs[renamed_csr.at(m_rvfi.rd_addr)].name : "";
+  instr.csr_renamed_name = "";
+  if (instr.csr_renamed) {
+    auto renamed_addr = src_renamed  ? renamed_csr.at(src) :
+                                       renamed_csr.at(m_rvfi.rd_addr);
+    if (auto it = csrs.find(renamed_addr); it != csrs.end()) {
+        instr.csr_renamed_name = it->second.name;
+    }
+  }
 
   if (FLAGS_use_sw_priv == false) {
   // First/last uops for ucode sequences
@@ -570,7 +576,12 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
 
   // CSR renaming
   if (renamed_csr.count(m_rvfi.rd_addr)) {
-    csr_t c {true, m_rvfi.hart, m_rvfi.cycle, csrs[renamed_csr.at(m_rvfi.rd_addr)].addr, std::numeric_limits<uint64_t>::max(), m_rvfi.rd_wdata};
+    const auto& new_name = renamed_csr.at(m_rvfi.rd_addr);
+    uint32_t addr = 0;
+    if (auto it = csrs.find(new_name); it != csrs.end()) {
+        addr = it->second.addr;
+    }
+    csr_t c {true, m_rvfi.hart, m_rvfi.cycle, addr, std::numeric_limits<uint64_t>::max(), m_rvfi.rd_wdata};
     instr.csr.push_back(c);
       // This is for print in the rvfi log
     instr.gpr.emplace_back(false, m_rvfi.rd_addr, m_rvfi.rd_wdata);
@@ -1505,9 +1516,8 @@ bool get_csr_name_instr(const std::string& input, std::string& modified_string) 
         // Extract the numeric part and convert to uint64_t
         uint64_t search_addr = std::stoull(match[1].str());
         // Find the entry with the matching address
-        auto str = csrs[search_addr].name;
-        if (str != "") {
-            modified_string = std::regex_replace(input, pattern, str);
+        if (auto it = csrs.find(search_addr); it != csrs.end()) {
+            modified_string = std::regex_replace(input, pattern, it->second.name);
             return true;
         }
       } catch (...) {
