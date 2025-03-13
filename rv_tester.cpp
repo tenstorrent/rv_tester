@@ -49,9 +49,9 @@ static void convert_csv_to_hex(const std::string& csv_path, const std::string& h
         std::getline(iss, data_str, ',');
         std::getline(iss, cacheable_str, ',');
         data_lines.push_back(data_str);
-        // For a physically tagged cache, use the physical address (pa) to compute the tag.
-        //    index_bits = 3 (for 8 lines)
-        //    block_offset_bits = 8 (for 4 blocks of 8 bytes = 32 bytes per cache line)
+        // Use the physical address to compute the tag.
+        //    index_bits = 3 (for 8 lines)  
+        //    block_offset_bits = 8 (256 blocks)
         const int index_bits = 3;
         const int block_offset_bits = 8;
         std::uint64_t pa;
