@@ -1,6 +1,13 @@
 #include <cstdlib>
 #include <string_view>
 #include <chrono>
+#include <fstream>
+#include <sstream>
+#include <vector>
+#include <iostream>
+#include <iomanip>
+#include <cstdint>
+#include <string>
 
 #include "cvm/plusargs.hpp"
 #include "cvm/registry.hpp"
@@ -20,6 +27,58 @@ static bool validate_ge0(const char* flagname, const int value) {
     }
     return true;
 }
+
+static void convert_csv_to_hex(const std::string& csv_path, const std::string& hex_path) {
+    std::ifstream csv(csv_path);
+    if (!csv.is_open()) {
+        std::cerr << "Error: could not open CSV file: " << csv_path << std::endl;
+        return;
+    }
+    std::vector<std::string> data_lines;
+    std::vector<std::string> tag_lines;
+    std::string line;
+    while (std::getline(csv, line)) {
+        if (line.empty())
+            continue;
+        std::istringstream iss(line);
+        std::string type, va_str, pa_str, data_str, cacheable_str;
+        std::getline(iss, type, ',');
+        std::getline(iss, va_str, ',');
+        std::getline(iss, pa_str, ',');
+        std::getline(iss, data_str, ',');
+        std::getline(iss, cacheable_str, ',');
+        data_lines.push_back(data_str);
+        // For a physically tagged cache, use the physical address (pa) to compute the tag.
+        //    index_bits = 3 (for 8 lines)
+        //    block_offset_bits = 8 (for 4 blocks of 8 bytes = 32 bytes per cache line)
+        const int index_bits = 3;
+        const int block_offset_bits = 8;
+        std::uint64_t pa;
+        std::istringstream(pa_str) >> std::hex >> pa;
+        std::uint64_t tag = pa >> (index_bits + block_offset_bits);
+        std::stringstream tag_ss;
+        tag_ss << std::setw(8) << std::setfill('0') << std::hex << tag;
+        tag_lines.push_back(tag_ss.str());
+    }
+    csv.close();
+    
+    std::ofstream hex(hex_path);
+    if (!hex.is_open()) {
+        std::cerr << "Error: could not open HEX file for writing: " << hex_path << std::endl;
+        return;
+    }
+    // Write data section: each data field on its own line.
+    for (const auto &d : data_lines) {
+        hex << d << "\n";
+    }
+    // Write tag section: each computed tag on its own line.
+    for (const auto &t : tag_lines) {
+        hex << t << "\n";
+    }
+    hex.close();
+    std::cout << "Converted CSV " << csv_path << " to HEX file " << hex_path << std::endl;
+}
+
 
 DEFINE_int32(perf_period, 0, "cycles to wait to report clock performance");
 DEFINE_int32(quiesce_timeout, 500, "cycles to wait after eot condition before calling $finish");
@@ -183,14 +242,24 @@ extern "C" {
             cvm::log(cvm::ERROR, "Test specifying more address rules ({}) than in sv ({})", m.size(), no_addr_rules);
             return;
         }
+
+        std::string preloadStr = FLAGS_preload_file;
+        // If the file ends with ".csv", convert it to a HEX file (e.g., tests/preload.hex)
+        if (!preloadStr.empty() && preloadStr.substr(preloadStr.size()-4) == ".csv") {
+            std::string hexPath = "tests/preload.hex";
+            convert_csv_to_hex(preloadStr, hexPath);
+            preloadStr = hexPath;
+        }
+        const char* preload_file = preloadStr.c_str();
+
         std::uint32_t i = 0;
         for (const auto& it : m) {
             const auto& e = it.second;
-            rv_tester_set_address_map_and_preload_file(i, e.base, e.end, e.type != "memory", FLAGS_preload_file.c_str());
+            rv_tester_set_address_map_and_preload_file(i, e.base, e.end, e.type != "memory", preload_file);
             i++;
         }
         for(; i < no_addr_rules; i++) {
-            rv_tester_set_address_map_and_preload_file(i, 1, 1, 1, FLAGS_preload_file.c_str());
+            rv_tester_set_address_map_and_preload_file(i, 1, 1, 1, preload_file);
         }
     }
 
