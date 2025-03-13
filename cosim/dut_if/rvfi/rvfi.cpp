@@ -52,7 +52,8 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     rv_tester_transactions::cosim::m_csri<>,
     rv_tester_transactions::cosim::m_trap<>,
     rv_tester_transactions::cosim::m_core_nmi<>,
-    rv_tester_transactions::cosim::m_core_intr<>,
+    rv_tester_transactions::cosim::m_interrupt_pend<>,
+    rv_tester_transactions::cosim::m_mtime<>,
     rv_tester_transactions::cosim::m_imsic_msi<>,
     rv_tester_transactions::cosim::m_mcmi_read<>,
     rv_tester_transactions::cosim::m_mcmi_insert<>,
@@ -148,6 +149,11 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   make_instr(m_rvfi, instr);
   print_instr(instr);
 
+  if (m_rvfi.trap) {
+    trap_insn_ = m_rvfi.insn;
+    return;
+  }
+
   prev_uop_tag_ = m_rvfi.order;
 
   if (vec_cmode_)
@@ -190,7 +196,6 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   // Clear state
   intr_ = false;
   excp_ = false;
-
   nmi_ = false;
   vec_cmode_ = false;
 }
@@ -246,26 +251,68 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
   }
 }
 
-void rvfi::process(const rv_tester_transactions::cosim::m_core_intr<>& m_core_intr) {
+void rvfi::process(const rv_tester_transactions::cosim::m_interrupt_pend<>& m_interrupt_pend) {
   if (terminated_ || in_reset_)
     return;
 
-  if (loc_ != m_core_intr.location)
+  if (loc_ != m_interrupt_pend.location)
     return;
 
   rv_intr_t intr;
-  intr.cycle = m_core_intr.cycle;
-  intr.mip = m_core_intr.mip;
-  intr.mip_mask = m_core_intr.mip_mask;
-  intr.mip_assert = m_core_intr.mip_assert;
+  intr.cycle = m_interrupt_pend.cycle;
+  intr.hw = m_interrupt_pend.hw;
+  intr.mip = std::bitset<64>(m_interrupt_pend.mip);
+  intr.mip_set = std::bitset<64>(m_interrupt_pend.mip_set);
+  intr.mip_clr = std::bitset<64>(m_interrupt_pend.mip_clr);
+  intr.seip = m_interrupt_pend.seip;
+  intr.seip_set = m_interrupt_pend.seip_set;
+  intr.seip_clr = m_interrupt_pend.seip_clr;
+  intr.mtime = m_interrupt_pend.mtime;
+
+  std::string dut_log;
+  dut_log += fmt::format("#NA {} {} ({} : mip={:#x} : ", intr.cycle, id_, intr.hw ? "hw" : "sw", intr.mip.to_ullong());
+  for (const auto& [k,v] : intr_to_string) {
+    if (k == DEBUG)
+      continue;
+    if (intr.mip_set[k])
+      dut_log += fmt::format("{}+,", v);
+    else if (intr.mip_clr[k])
+      dut_log += fmt::format("{}-,", v);
+    else if (intr.mip[k])
+      dut_log += fmt::format("{},", v);
+  }
+  dut_log += fmt::format(" : seip={}{}", intr.seip ? 1 : 0, intr.seip_set ? " : SEIpin+" : intr.seip_clr ? " : SEIpin-" : "");
+  dut_log += fmt::format(" : mtime={:#x})\n", intr.mtime);
 
   if (FLAGS_rvfi_log)
-    log(cvm::NONE, "#{} {} 0 (mip:{:#x} mask:{:#x} assert:{:#x})\n", count_, intr.cycle, intr.mip, intr.mip_mask, intr.mip_assert);
+    log(cvm::NONE, fmt::to_string(dut_log));
 
   if (!FLAGS_cosim)
     return;
 
   bridge_->process_dut_interrupt(id_, intr);
+}
+
+void rvfi::process(const rv_tester_transactions::cosim::m_mtime<>& m_mtime) {
+  if (terminated_ || in_reset_)
+    return;
+
+  if (loc_ != m_mtime.location)
+    return;
+
+  rv_intr_t intr;
+  intr.cycle = m_mtime.cycle;
+  intr.mip = std::bitset<64>(m_mtime.mip);
+  intr.mtime = m_mtime.mtime;
+
+  if (FLAGS_rvfi_log)
+    log(cvm::NONE, "#NA {} {} ({}timecmp={:#x} : mtime={:#x})\n", intr.cycle, id_,
+      intr.mip[MTI] ? "m" : intr.mip[STI] ? "s" : intr.mip[VSTI] ? "vs" : "x", m_mtime.timecmp, intr.mtime);
+
+  if (!FLAGS_cosim)
+    return;
+
+  bridge_->process_dut_timer(id_, intr);
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_core_nmi<>& m_core_nmi) {
@@ -296,24 +343,30 @@ void rvfi::process(const rv_tester_transactions::cosim::m_imsic_msi<>& m_imsic_m
   if (loc_ != m_imsic_msi.location)
     return;
 
-  if (!FLAGS_cosim)
-    return;
-
   mem_t mem;
   mem.valid = true;
   mem.cycle = m_imsic_msi.cycle;
   mem.pa = m_imsic_msi.addr;
-  mem.data = m_imsic_msi.data.to_ullong();
+  mem.data = m_imsic_msi.data;
   mem.size = 4;
 
-  bridge_->process_dut_imsic_msi(id_, mem);
-  if (FLAGS_rvfi_log) {
+  if (FLAGS_rvfi_log && (mem.data != 0))
     log(cvm::NONE, "#{} {} {} (imsic: [addr={:#x} data={:#x}])\n", count_, mem.cycle, id_, mem.pa, mem.data);
-  }
+
+  if (!FLAGS_cosim)
+    return;
+
+  bridge_->process_dut_imsic_msi(id_, mem);
 }
 
-void rvfi::process(const rv_tester_transactions::cosim::m_debug<>&) {
+void rvfi::process(const rv_tester_transactions::cosim::m_debug<>& m_debug) {
+  if (terminated_ || in_reset_)
+    return;
 
+  if (!FLAGS_cosim)
+    return;
+
+  bridge_->process_debug_haltreq(m_debug.haltreq); 
 }
 
 void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_instr_t& instr) {
@@ -337,7 +390,9 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.disasm = whisper::disassemble(m_rvfi.insn);
   instr.uop = m_rvfi.uop;
   instr.cracked = !m_rvfi.last_uop;
-  instr.trap = m_rvfi.trap || intr_ || excp_;
+  instr.trap = intr_ || excp_;
+  instr.trap_valid = m_rvfi.trap;
+  instr.trap_opcode = trap_insn_;
   instr.nmi = nmi_;
   instr.ncause = ncause_;
   instr.intr = intr_;
@@ -364,8 +419,14 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   bool src_renamed = (src >= 35) && (src <= 37);
   bool dest_renamed = (m_rvfi.rd_addr >= 35) && (m_rvfi.rd_addr <= 37);
   instr.csr_renamed = src_renamed || dest_renamed;
-  instr.csr_renamed_name = src_renamed  ? csrs[renamed_csr.at(src)].name :
-                           dest_renamed ? csrs[renamed_csr.at(m_rvfi.rd_addr)].name : "";
+  instr.csr_renamed_name = "";
+  if (instr.csr_renamed) {
+    auto renamed_addr = src_renamed  ? renamed_csr.at(src) :
+                                       renamed_csr.at(m_rvfi.rd_addr);
+    if (auto it = csrs.find(renamed_addr); it != csrs.end()) {
+        instr.csr_renamed_name = it->second.name;
+    }
+  }
 
   if (FLAGS_use_sw_priv == false) {
   // First/last uops for ucode sequences
@@ -515,7 +576,12 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
 
   // CSR renaming
   if (renamed_csr.count(m_rvfi.rd_addr)) {
-    csr_t c {true, m_rvfi.hart, m_rvfi.cycle, csrs[renamed_csr.at(m_rvfi.rd_addr)].addr, std::numeric_limits<uint64_t>::max(), m_rvfi.rd_wdata};
+    const auto& new_name = renamed_csr.at(m_rvfi.rd_addr);
+    uint32_t addr = 0;
+    if (auto it = csrs.find(new_name); it != csrs.end()) {
+        addr = it->second.addr;
+    }
+    csr_t c {true, m_rvfi.hart, m_rvfi.cycle, addr, std::numeric_limits<uint64_t>::max(), m_rvfi.rd_wdata};
     instr.csr.push_back(c);
       // This is for print in the rvfi log
     instr.gpr.emplace_back(false, m_rvfi.rd_addr, m_rvfi.rd_wdata);
@@ -573,10 +639,9 @@ void rvfi::append_uop_changes_to_instr(rv_instr_t& instr) {
 }
 
 void rvfi::print_csr(csr_t& csr) {
-  if (!FLAGS_rvfi_log) {
-    return;
-  }
-  log(cvm::NONE, "#NA {} {} {} {:016x} {:09x} c {:016x} {:016x} {:016x} (hw update)\n", csr.cycle, csr.hart, priv_to_string.at(static_cast<priv>(priv_)), 0, 0, csr.csr_addr, csr.csr_wdata, csr.csr_wmask);
+  if (!FLAGS_rvfi_log)
+    log(cvm::NONE, "#NA {} {} {} {:016x} {:09x} c {:016x} {:016x} {:016x} (hw update)\n",
+      csr.cycle, csr.hart, priv_to_string.at(static_cast<priv>(priv_)), 0, 0, csr.csr_addr, csr.csr_wdata, csr.csr_wmask);
 }
 
 void rvfi::print_instr(const rv_instr_t& instr) {
@@ -658,14 +723,17 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
   if (instr.mem_read.valid)
     dut_log += fmt::format(" [{:#x}:{:#x}:{}]", instr.mem_read.va, instr.mem_read.pa, mem_attr_to_string(instr.mem_read.attr));
 
+  if (instr.trap_valid)
+    dut_log += fmt::format(" (trap)");
+
   if (instr.nmi)
-    dut_log += fmt::format(" (nmi:{})", instr.ncause);
+    dut_log += fmt::format(" (nmi: {})", nmi_to_string.count(static_cast<nmi>(instr.ncause)) ? nmi_to_string.at(static_cast<nmi>(instr.ncause)) : std::to_string(instr.ncause));
 
   if (instr.intr)
-    dut_log += fmt::format(" (interrupt:{})", instr.icause);
+    dut_log += fmt::format(" (interrupt: {})", intr_to_string.count(static_cast<intr>(instr.icause)) ? intr_to_string.at(static_cast<intr>(instr.icause)) : std::to_string(instr.icause));
 
   if (instr.excp)
-    dut_log += fmt::format(" (exception:{})", instr.ecause);
+    dut_log += fmt::format(" (exception: {})", excp_to_string.count(static_cast<excp>(instr.ecause)) ? excp_to_string.at(static_cast<excp>(instr.ecause)) : std::to_string(instr.ecause));
 
   if (instr.comp)
     dut_log += fmt::format(" (compressed)");
@@ -674,7 +742,9 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
     dut_log += fmt::format(" (patch)");
 
   dut_log += fmt::format("\n");
-  log(cvm::NONE, fmt::to_string(dut_log));
+
+  if (FLAGS_rvfi_log)
+    log(cvm::NONE, fmt::to_string(dut_log));
 }
 void rvfi::process(const rv_tester_transactions::cosim::m_steps<>& m_steps) {
   if (terminated_ || in_reset_)
@@ -867,7 +937,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
   uint64_t consecutiveOnes = std::countr_zero(~mask);  // Count ones until the first zero
   if (numones == consecutiveOnes) {
       if (m_mcmi_read.v_ext & m_mcmi_read.splat){
-        uint16_t total_elements = numones / elemsize;
+        uint16_t total_elements = (numones / elemsize) ? (numones / elemsize) : 1;
         m.size = elemsize;
         for (int i=0; i<total_elements; i++){
           uint64_t value = 0;
@@ -922,7 +992,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
               m.v_ext = m_mcmi_read.v_ext;
               m.field = m_mcmi_read.field;
               if (m_mcmi_read.v_ext & m_mcmi_read.splat){
-                uint16_t total_elements = size / elemsize;
+                uint16_t total_elements = (size / elemsize) ? (size / elemsize) : 1;
                 m.pa = m_mcmi_read.addr;
                 m.size = elemsize;
                 for (int i=0; i<total_elements; i++){
@@ -955,7 +1025,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
       m.size   = std::popcount(m_mcmi_read.mask);
       m.field = m_mcmi_read.field;
       if (m_mcmi_read.v_ext & m_mcmi_read.splat){
-        uint16_t total_elements = size / elemsize;
+        uint16_t total_elements = (size / elemsize) ? (size / elemsize) : 1;
         m.pa = m_mcmi_read.addr;
         m.size = elemsize;
         for (int i=0; i<total_elements; i++){
@@ -1446,9 +1516,8 @@ bool get_csr_name_instr(const std::string& input, std::string& modified_string) 
         // Extract the numeric part and convert to uint64_t
         uint64_t search_addr = std::stoull(match[1].str());
         // Find the entry with the matching address
-        auto str = csrs[search_addr].name;
-        if (str != "") {
-            modified_string = std::regex_replace(input, pattern, str);
+        if (auto it = csrs.find(search_addr); it != csrs.end()) {
+            modified_string = std::regex_replace(input, pattern, it->second.name);
             return true;
         }
       } catch (...) {

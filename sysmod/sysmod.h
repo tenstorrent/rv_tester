@@ -48,7 +48,7 @@ class sysmod {
     void compose();
     void load_boot(const std::string& boot);
     void load_cplfw(const std::string& cplfw);
-    void load_prog(const std::string& hex, const std::string& load, const std::string& lz4);
+    void load_prog(const std::string& hex, const std::string& load, const std::string& lz4, const std::string& bin);
     void load_csr_mmr_boot(uint64_t dut);
     void load_io(const std::string& io);
     void store_dm_rand();
@@ -100,7 +100,9 @@ class sysmod {
 
   private:
 
-    bool lz4_load(const std::string load);
+    bool bin_load(const std::string load, bool lz4_compressed);
+
+    std::shared_ptr<TT_APLIC::Aplic> create_aplic() const;
 
     std::string hostname = "localhost";
     int port = 50001;

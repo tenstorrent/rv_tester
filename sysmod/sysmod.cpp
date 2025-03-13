@@ -18,7 +18,9 @@
 #include "null_dev/null_dev.h"
 #include "heartbeat/heartbeat.h"
 #include "htif/htif.h"
-#include "uart8250/uart8250.h"
+#include "aplic/aplic_device.h"
+#include "Uart8250.hpp"
+#include "io_device.h"
 #include "trickbox/trickbox.h"
 #include "rv_tester/rv_tester_structs.h"
 #include "rv_tester/rv_tester_plusargs.h"
@@ -35,6 +37,7 @@ DEFINE_uint64(seed, 1, "Simulation seed passed down for randomization");
 DEFINE_string(hex, "", "hex file (program) to load into memory");
 DEFINE_string(load, "", "elf file (program) to load into memory");
 DEFINE_string(load_lz4, "", "lz4 compressed file (program) to load into memory. If there's a colon, the number after the colon is interpreted as the offset to load the image into memory");
+DEFINE_string(load_bin, "", "Binary file (program) to load into memory. If there's a colon, the number after the colon is interpreted as the offset to load the image into memory");
 DEFINE_bool(bootrom, true, "Load bootrom before test");
 DEFINE_string(bootrom_path, "", "Path to bootrom object file");
 DEFINE_bool(cplfw, false, "Load cpl firmware before test");
@@ -74,9 +77,13 @@ DEFINE_uint64(pa_mask, 0x0080000000000000, "address bit(s) that act as STEE dist
 DEFINE_bool(sysmod_terminate, true, "Set to false for offline DPI mode");
 
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
+// APLIC
+DEFINE_uint32(aplic_sources, 33, "Number of APLIC interrupt sources");
+// Uart8250
+DEFINE_uint32(uart8250_iid, 1, "Interrupt identity of the uart8250 device");
 
 extern "C" {
-  void sysmod_timer_interrupt(unsigned hartid, unsigned val);
+  void sysmod_timer_interrupt(unsigned hartid, unsigned val, unsigned long mtime_val);
   void sysmod_sw_interrupt(unsigned hartid, unsigned val);
   void sysmod_tbox_interrupt(unsigned hartid, unsigned val, unsigned int_val);
   void sysmod_trace_info(unsigned trace_info_s);
@@ -131,10 +138,13 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
       );
 
   uint32_t num_harts = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
-  for(uint32_t i = 0 ; i < num_harts ; i++) {
-    int unsigned location = cvm::topology::get_from_type("CORE", i);
-    cvm::registry::messenger.connect<inval_load_s>(location , [this] (const auto& payload) { return this->store_inval_load(payload); });
-    cvm::registry::messenger.connect<inval_crsp_s>(location , [this] (const auto& payld) { return this->store_inval_crsp(payld, 1 /*mcm*/); });
+
+  if (FLAGS_cosim) {
+    for(uint32_t i = 0 ; i < num_harts ; i++) {
+      int unsigned location = cvm::topology::get_from_type("CORE", i);
+      cvm::registry::messenger.connect<inval_load_s>(location , [this] (const auto& payload) { return this->store_inval_load(payload); });
+      cvm::registry::messenger.connect<inval_crsp_s>(location , [this] (const auto& payld) { return this->store_inval_crsp(payld, 1 /*mcm*/); });
+    }
   }
 
   cvm::registry::messenger.connect<cbo_inval_nomcm_s>(loc_, [this] (const auto& cbo_inval_nomcm) {
@@ -142,6 +152,7 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
     payload.address = cbo_inval_nomcm.address;
     return this->store_inval_crsp(payload, 0/*nomcm*/);
   });
+
   cvm::registry::messenger.connect<sysmod::backdoor_write_t>(
       loc_,
       [this](sysmod::backdoor_write_t t) { 
@@ -175,6 +186,9 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
                 }
         });
   }
+ cvm::registry::messenger.connect<htif::terminate_t>(
+     cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0),
+     [this] (htif::terminate_t t) { return this->terminate(t); });
 }
 
 void sysmod::configure()
@@ -517,8 +531,8 @@ sysmod::timer_interrupt(clint::timer_t t) {
       cvm::registry::callbacks.push(
         scope(),
         [t]() {
-          cvm::log(cvm::FULL, "[SYSMOD] timer_interrupt [hart={}, mti={}]\n", t.hart, t.flag);
-          sysmod_timer_interrupt(t.hart, t.flag);
+          cvm::log(cvm::FULL, "[SYSMOD] timer_interrupt [hart={}, mti={} mtime={:#x}]\n", t.hart, t.flag, t.mtime);
+          sysmod_timer_interrupt(t.hart, t.flag, t.mtime);
         });
 }
 
@@ -758,7 +772,7 @@ sysmod::terminate(htif::terminate_t t) {
 void
 sysmod::reset() {
   compose();
-  load_prog(FLAGS_hex, FLAGS_load, FLAGS_load_lz4);
+  load_prog(FLAGS_hex, FLAGS_load, FLAGS_load_lz4, FLAGS_load_bin);
   load_io(FLAGS_load_io);
   load_boot(FLAGS_bootrom_path);
   load_csr_mmr_boot(1);
@@ -776,6 +790,72 @@ sysmod::set_secure_region(std::string region) {
   cvm::registry::messenger.call<whisperClient<uint64_t>::secureRegionRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), secure_region_start_, secure_region_end_);
 }
 
+std::shared_ptr<TT_APLIC::Aplic>
+sysmod::create_aplic() const {
+  auto masters = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST");
+  auto platform_loc = cvm::topology::get_from_type("PLATFORM", 0);
+  auto nharts = cvm::topology::attr(platform_loc, "NHARTS").second;
+
+  std::vector<TT_APLIC::DomainParams> domains;
+
+  // Aplic is handled specially because we must look through all the aplic
+  // domains before constructing it.
+  for (const auto &d : memmap_) {
+    const auto type = d.second.type;
+
+    if (type != "aplic_domain")
+      continue;
+
+    const auto base = d.second.base;
+    const auto size = d.second.size;
+    const auto tag  = d.second.tag;
+    const auto attributes = d.second.attributes;
+
+    if (attributes.is_null()) {
+      throw std::runtime_error("Domain " + tag + " does not have attributes");
+    }
+
+    const auto parent_json = attributes.at("parent");
+    const std::optional<std::string> parent = parent_json.is_null() ?
+      static_cast<std::optional<std::string>>(std::nullopt) :
+      parent_json.template get<std::string>();
+    const size_t child_index = attributes.at("child_index");
+    const auto privilege = attributes.at("is_machine") ?
+      TT_APLIC::Privilege::Machine :
+      TT_APLIC::Privilege::Supervisor;
+
+    domains.emplace_back(tag, parent, child_index, base, size, privilege);
+  }
+
+  if (domains.empty()) {
+    return nullptr;
+  }
+
+  std::shared_ptr<TT_APLIC::Aplic> aplic =
+    std::make_shared<TT_APLIC::Aplic>(nharts, FLAGS_aplic_sources, domains);
+
+  auto axi_mst_loc = masters[0];
+  auto msiCallback = [axi_mst_loc] (uint64_t addr, uint32_t data) {
+    cvm::log(cvm::DEBUG, "Aplic sent IMSIC interrupt {:#x} (@ {:#x})\n", data, addr);
+
+    std::vector<uint8_t> data_vec(64, 0);
+    std::vector<bool> strb(64, false);
+    for (int i = 0; i < 4; i++) {
+      data_vec[i] = data & 0xff;
+      strb[i] = true;
+      data >>= 8;
+    }
+
+    cvm::registry::messenger.signal(axi_mst_loc,
+        transactor::write_request_t{addr, 64, data_vec, strb, true });
+    return true;
+  };
+  aplic->setMsiCallback(msiCallback);
+
+  return aplic;
+}
+
+
 void
 sysmod::compose() {
 
@@ -791,6 +871,8 @@ sysmod::compose() {
   std::shared_ptr<mem_manager> mm = std::make_shared<mem_manager>(mem_manager::opts{.page_size = FLAGS_mem_manager_page_size});
 
   try {
+    std::shared_ptr<TT_APLIC::Aplic> aplic = create_aplic();
+
     for (const auto& d : memmap_) {
       const auto base = d.second.base;
       const auto size = d.second.size;
@@ -810,13 +892,11 @@ sysmod::compose() {
 
       } else if (type == "htif") {
         device = std::make_unique<htif>(tag, base, loc_);
-        cvm::registry::messenger.connect<htif::terminate_t>(
-            loc_,
-            [&](htif::terminate_t t) { return this->terminate(t); });
 
       } else if (type == "uart8250") {
-        device = std::make_unique<uart8250>(tag, base, loc_);
-
+        device = std::make_unique<io_device<WdRiscv::Uart8250>>(tag, loc_,
+            base, 32, aplic, FLAGS_uart8250_iid,
+            std::make_unique<WdRiscv::PTYChannel>());
       } else if (type == "dm") {
         // TODO: cvm::ERROR
        // assert(masters.size() > 0);
@@ -874,6 +954,8 @@ sysmod::compose() {
             loc_,
             [&](trace_cfg::trace_cfg_read_t i) { return this->trace_cfg_read_req_router(i); });
 
+      } else if (type == "aplic_domain") {
+        device = std::make_unique<aplic_device>(tag, base, size, loc_, aplic);
       } else {
         cvm::log(cvm::ERROR, "Error: unknown sysmod type {} \n", type);
       }
@@ -946,7 +1028,7 @@ sysmod::load_io(const std::string& io) {
 }
 
 bool
-sysmod::lz4_load(const std::string load)
+sysmod::bin_load(const std::string load, bool lz4_compressed)
 {
   uint64_t offset = 0;
   std::string file = load;
@@ -957,7 +1039,11 @@ sysmod::lz4_load(const std::string load)
     std::string offset_str = load.substr(pos + 1);
     offset = std::stoull(offset_str, nullptr, 0);
   }
-  if (not dev("memory") or not dynamic_cast<sysmod_mem&>(*dev("memory")).init_lz4(file, offset)) {
+  if (not dev("memory") or not
+          (lz4_compressed ? dynamic_cast<sysmod_mem&>(*dev("memory")).init_lz4(file, offset) :
+                            dynamic_cast<sysmod_mem&>(*dev("memory")).init_bin(file, offset)
+          )
+     ) {
     cvm::log(cvm::ERROR, "No memory defined");
     return false;
   }
@@ -966,7 +1052,7 @@ sysmod::lz4_load(const std::string load)
 }
 
 void
-sysmod::load_prog(const std::string& hex, const std::string& load, const std::string& lz4) {
+sysmod::load_prog(const std::string& hex, const std::string& load, const std::string& lz4, const std::string& bin) {
 
   for (const auto& d : memmap_) {
     const auto type = d.second.type;
@@ -992,24 +1078,27 @@ sysmod::load_prog(const std::string& hex, const std::string& load, const std::st
       cvm::log(cvm::MEDIUM, "Loading {} complete\n", hex);
     }
 
-    if (lz4 != "") {
+    auto parse_bin = [this](const std::string& flag, bool lz4_compressed) {
       std::stringstream ss;
 
-      cvm::log(cvm::MEDIUM, "Parsing {}\n", lz4);
+      cvm::log(cvm::MEDIUM, "Parsing {}\n", flag);
       // split string by colon into file path and offset
       // if no colon is found, assume offset is 0
 
-      ss << FLAGS_load_lz4;
+      ss << flag;
       while (ss.good())
       {
         std::string substr;
 
         getline(ss, substr, ',');
-        if (not lz4_load(substr))
+        if (not bin_load(substr, lz4_compressed))
           return;
       }
-      cvm::log(cvm::MEDIUM, "Parsing {} complete\n", lz4);
-    }
+      cvm::log(cvm::MEDIUM, "Parsing {} complete\n", flag);
+    };
+
+    if (lz4 != "") parse_bin(lz4, true);
+    if (bin != "") parse_bin(bin, false);
 
     // all memories share the same backing mem manaager
     return;

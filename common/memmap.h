@@ -3,6 +3,7 @@
 #include <map>
 #include <string>
 #include <cstdint>
+#include "nlohmann/json.hpp"
 #include "cvm/messenger.hpp"
 
 struct memmap_entry_t {
@@ -12,6 +13,7 @@ struct memmap_entry_t {
     std::string   type;
     std::string   tag ;
     uint64_t end ;
+    nlohmann::json attributes;
 };
 
 class memmap {
@@ -23,7 +25,7 @@ class memmap {
       return parse_status_;
     };
     bool parse();
-    void add_entry(std::string base_str, std::string type, std::string tag, uint64_t base, uint64_t size);
+    void add_entry(std::string base_str, std::string type, std::string tag, uint64_t base, uint64_t size, nlohmann::json attributes);
     CVM_MESSENGER_procedure_call(parseRPC, bool (void));
     CVM_MESSENGER_procedure_call(getRPC,   bool (std::map<std::string, memmap_entry_t>&));
   private:

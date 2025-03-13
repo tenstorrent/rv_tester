@@ -3,7 +3,7 @@
 #include "cvm/logger.hpp"
 #include "debugger.h"
 #include "sysmod/sysmod_plusargs.h"
-#include "cosim/bridge/bridge_plusargs.h"
+#include "rv_tester/rv_tester_plusargs.h"
 #include <fstream>
 
 DEFINE_string(dbg_input_file_path, "", "Path to file containing debugger commands");
@@ -173,6 +173,11 @@ void debugger::parse_dmi_from_csv()
         // checkpoint
         dmi_req.op = 3;
       }
+      else if (instr_2char == "cs")
+      {
+        //custom op's
+        dmi_req.op = 4;
+      }
       else if (instr_2char == "sd")
       {
         // checkpoint
@@ -271,7 +276,7 @@ void debugger::parse_dmi_from_csv()
         dmi_req.func_bits = 6;
       }
 
-      if ((dmi_req.op != 3)&&(dmi_req.op != 0))
+      if ((dmi_req.op != 4)&&(dmi_req.op != 3)&&(dmi_req.op != 0))
       {
         // remove underscores from addr
         row[1].erase(std::remove(row[1].begin(), row[1].end(), '_'), row[1].end());
@@ -305,6 +310,25 @@ void debugger::parse_dmi_from_csv()
           cvm::log(cvm::ERROR, "[Trickbox] Invalid argument: data for stoul csv arg 2: {}\n", e.what());
         }
       }
+      
+      if (dmi_req.op == 4)
+      {
+        if (instr == "cs_csr_rand_read")
+        {
+          // Select a random address from the combined list
+          std::vector<int> addresses =  { 
+            0xF11, 0xF12, 0xF13, 0xF14, // Machine Information Registers
+            0x300, 0x301, 0x302, 0x303, 0x304, 0x305, 0x306, 0x310, 0x312 // Machine Trap Setup
+            }; // FIXME: add all csr's from core to be randomized
+          int rand_address = addresses[rng() % addresses.size()];
+
+          dmi_req.op = 2;
+          dmi_req.addr = 0x17;
+          dmi_req.data = 0x00320000 + rand_address;
+          cvm::log(cvm::NONE, "[Debugger]: Read core_csr address : {:#x}\n", rand_address);
+        }
+      }
+      
       if (dmi_req.op != 0) {
         content.push_back(row);
         dmi_cmd_q.push(dmi_req);

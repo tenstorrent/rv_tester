@@ -7,6 +7,7 @@
 #include "rv_tester_transactions.hpp"
 
 #include "util.h"
+#include "sysmod/htif/htif.h"
 
 class eot {
 
@@ -38,7 +39,9 @@ class eot {
           rv_tester_transactions::cosim::m_mcmi_bypass<>
         >(cvm::topology::get_from_type("COSIM", i));
       }
-
+      loc_ = loc;
+      auto sysmod_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0);
+      cvm::registry::messenger.connect<htif::terminate_t>(sysmod_loc, [this] (htif::terminate_t t) {this->eot_terminate(t.passed);});
       cvm::registry::messenger.procedure<get_tohost_addr_RPC>(loc, [this] () {return this->get_tohost_addr();});
       cvm::registry::messenger.procedure<process_tohost_RPC>(loc, [this] 
             (std::uint64_t hart, std::uint64_t cycle, std::uint64_t addr, std::uint64_t data) {this->process_tohost(hart,cycle,addr,data);});
@@ -66,10 +69,12 @@ class eot {
     void process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_bypass);
     void process_tohost(uint64_t hartid, uint64_t cycle, uint64_t address, uint64_t data);
     void check_max_instr(uint64_t cycle, uint64_t count);
+    void eot_terminate(bool passed);
 
   private:
 
     unsigned id_;
+    cvm::topology::loc_t loc_;
     uint32_t previous_cycle_ = 0;
     uint32_t num_harts_ = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
     std::vector<uint32_t> instr_count_;

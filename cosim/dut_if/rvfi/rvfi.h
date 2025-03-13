@@ -50,7 +50,8 @@ class rvfi {
     void process(const rv_tester_transactions::cosim::m_fp_regs<>& m_fp_regs);
     void process(const rv_tester_transactions::cosim::m_vc_regs<>& m_vc_regs);
     void process(const rv_tester_transactions::cosim::m_core_nmi<>& m_core_nmi);
-    void process(const rv_tester_transactions::cosim::m_core_intr<>& m_core_intr);
+    void process(const rv_tester_transactions::cosim::m_interrupt_pend<>& m_interrupt_pend);
+    void process(const rv_tester_transactions::cosim::m_mtime<>& m_mtime);
     void process(const rv_tester_transactions::cosim::m_imsic_msi<>& m_imsic_msi);
     void process(const rv_tester_transactions::cosim::m_debug<>& m_debug);
     void process(const rv_tester_transactions::cosim::m_csri<>& m_csri);
@@ -135,6 +136,7 @@ class rvfi {
     uint64_t ecause_ = 0;
     uint8_t priv_ = 3;
     bool ucode_priv_change_ = false;
+    uint32_t trap_insn_ = 0;
 
     std::vector<rv_instr_t> instrs_;
     std::vector<vr_t> cracked_vrs_;

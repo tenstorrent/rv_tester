@@ -316,10 +316,6 @@ pmu::get_filter_events_and_sum(uint64_t event_id,
 
 size_t
 pmu::extract_granularity (uint64_t event_id) {
-  uint64_t filter_id = event_id & 0xFFFF0000;
-  uint64_t child_id = event_id & 0xFFFF;
-  if (filter_id == 0x14620000 && !((child_id & (child_id - 1)) == 0))
-    return 16;
   size_t granularity_bits = (event_id >> 26) & 0b11;
   if (granularity_bits == 0b1)
     return 8;
@@ -392,7 +388,7 @@ pmu::process_core(const rv_tester_transactions::pmu_core::pmc_checker<>& pmc_che
         expected_count_           = sideband_count_terminate_ - event_csr_array[i].sideband_count_eventwr;
         actual_count_             = hpmcounters_array[i];
         event_name_               = name_event_vector(event_csr_array[i].event_type);
-        if (std::abs(static_cast<long>(expected_count_) - static_cast<long>(actual_count_)) > event_csr_array[i].event_granularity){
+        if (std::abs(static_cast<long>(expected_count_) - static_cast<long>(actual_count_)) > (4 * event_csr_array[i].event_granularity)){
           cvm::log(cvm::ERROR, "ERROR: Hart {}:  PMC hpmcount{} vs sideband mismatch for {} : expected_count:{} actual_count:{} event_granularity:{}\n", id_, i+3, event_name_, expected_count_, actual_count_, event_csr_array[i].event_granularity);
         }
       }

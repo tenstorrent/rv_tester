@@ -45,6 +45,7 @@ public:
 
   struct terminate_t {
       bool low_priority_based = false;
+      bool passed = false;
   };
 
 private:
@@ -64,4 +65,6 @@ private:
       int write(char c);
   };
   pty pty_;
+
+  int passed_ = 0;
 };

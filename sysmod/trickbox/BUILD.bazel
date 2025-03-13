@@ -1,4 +1,40 @@
 cc_library(
+    name = "ras_helper_cc",
+    srcs = [
+      "ras_helper.h",
+    ],
+    hdrs = [
+      "subdevice.h",
+      "interrupter.h",
+      "debugger.h",
+      "evt_trigger.h",
+      "uc_helper.h",
+      "io_coh_helper.h",
+      "ras_helper.h",
+      "trickbox.h",
+    ],
+    deps = [
+             "//common:common",
+             "//sysmod:device",
+             "//cosim/whisper_if:whisper_if",
+             "@rv_tester//sysmod:sysmod_plusargs",
+             "@rv_tester//cosim/bridge:bridge_plusargs",
+             "@rv_tester//common:transactor",
+             "@rv_tester//:structs",
+             "@rv_tester//:plusargs",
+             "@cvm//:plusargs",
+             "@cvm//:random",
+             "@cvm//:logger",
+             "@cvm//:registry",
+             "@mem_manager//:mem_manager",
+             "@cvm//:bitmanip",
+             "@cvm//:topology",
+           ],
+    strip_include_prefix = ".",
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
     name = "trickbox",
     srcs = [
       "interrupter.cpp",
@@ -6,6 +42,7 @@ cc_library(
       "evt_trigger.cpp",
       "uc_helper.cpp",
       "io_coh_helper.cpp",
+      "ras_helper.cpp",
       "trickbox.cpp"
     ],
     hdrs = [
@@ -17,6 +54,7 @@ cc_library(
       "evt_trigger.h",
       "uc_helper.h",
       "io_coh_helper.h",
+      "ras_helper.h",
       "trickbox.h"
     ],
     deps = [
@@ -39,3 +77,7 @@ cc_library(
     #strip_include_prefix = ".",
     visibility = ["//visibility:public"],
 )
+
+ 
+exports_files(["ras_helper.h"])
+

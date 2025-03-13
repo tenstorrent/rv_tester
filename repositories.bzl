@@ -23,11 +23,11 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv/dv/corearchcoverage.git",
     )
 
-    cvm_hash="47e4e03a3ddc953917def7a329df4a672b71de13"
+    cvm_hash="75299a1215fa2f63c7b9509c5cf0c82acb14150a"
     maybe(
         http_archive,
         name = "cvm",
-        sha256 = "e8c2d19408aebaf05ea37515fbcd0e7e255d079af801bb566f8a37dbeee30f12",
+        sha256 = "6c9f4d945ae7c3f0f0dc2540babf1a181add5ba40c66867cafb69c27e8db2c70",
         strip_prefix = "cvm-{commit}".format(commit=cvm_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/cvm/-/archive/{commit}/cvm-{commit}.tar.bz2".format(commit=cvm_hash),
     )
@@ -40,7 +40,7 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-nlohmann-json.git",
     )
 
-    whisper_hash="5773186678767ed643dbb5a7331b6d1c78d2fc24"
+    whisper_hash="aa5aea86399190ced53fe9624b409c9cb4ef190d"
     maybe(
         git_repository,
         name = "whisper",
@@ -67,11 +67,11 @@ def rv_tester_repositories():
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/forks/rules_python/-/archive/{VERSION}/rules_python-{VERSION}.tar.bz2".format(VERSION=rules_python_version)
     )
 
-    mem_manager_hash="f8f81930a8b3a2d4151f971a05302b56bcea7c2a"
+    mem_manager_hash="585efffd1a79f43388339c193cdae420f32acad4"
     maybe(
         http_archive,
         name = "mem_manager",
-        sha256 = "bec42044107330608fe0a6e05a735e1ffcdb16bf942381b69ad0b261253bfcdb",
+        sha256 = "fc1d138f26405bac05f039a945fb004fc081ea49c16aa7553d9e1b0b49a4d338",
         strip_prefix = "mem-manager-{commit}".format(commit=mem_manager_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/mem-manager/-/archive/{commit}/mem-manager-{commit}.tar.bz2".format(commit=mem_manager_hash),
     )
@@ -99,4 +99,13 @@ def rv_tester_repositories():
         commit = aegissocspec_hash,
         recursive_init_submodules = True,
         remote = "git@aus-gitlab.local.tenstorrent.com:specifications/arch-export-controlled/aegissocspec.git",
+    )
+
+    risc_v_cpu_spec_hash="3a0cd65fab8dd55c77d482323c91fbe35f069edd"
+    maybe(
+        git_repository,
+        name = "risc-v-cpu-spec",
+        commit = risc_v_cpu_spec_hash,
+        shallow_since = "1664916258 -0500",
+        remote = "git@aus-gitlab.local.tenstorrent.com:specifications/arch-export-controlled/risc-v-cpu-spec.git",
     )

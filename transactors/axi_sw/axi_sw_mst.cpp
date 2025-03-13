@@ -4,6 +4,7 @@
 #include "cvm/plusargs.hpp"
 #include "cvm/bitmanip.hpp"
 #include "cvm/logger.hpp"
+#include "rv_tester/rv_tester_plusargs.h"
 
 #include <typeinfo>
 

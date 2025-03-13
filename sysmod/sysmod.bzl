@@ -4,23 +4,12 @@ def sysmod_gen(name, packet, topology, visibility = None, cc_attrs = {}, **kwarg
 
     sysmod_dpi = name + "_dpi"
     sysmod_sv = name + "_sv"
-    name_jtag_xtor_sv = name + "jtag_xtor_sv"
 
-    verilog_library(
-		    name = name_jtag_xtor_sv,
-		    srcs = ["@rv_tester//sysmod/jtag_xtor:jtag_xtor.sv"],
-		    deps = [
-		    "@cvm//:plusargs_sv",
-		    "@cvm//:topology_sv",
-		    ],
-		    visibility = ["//visibility:public"],
-	  )
 
     verilog_library(
         name = sysmod_sv,
         srcs = ["@rv_tester//sysmod:sysmod.sv"],
         deps = [
-            name_jtag_xtor_sv,
             "@cvm//:plusargs_sv",
             "@cvm//:topology_sv",
             packet + "_sv",
@@ -48,7 +37,7 @@ def sysmod_gen(name, packet, topology, visibility = None, cc_attrs = {}, **kwarg
           "@rv_tester//sysmod/trace_cfg:trace_cfg",
           "@rv_tester//sysmod/trickbox:trickbox",
           "@rv_tester//sysmod/htif:htif",
-          "@rv_tester//sysmod/uart8250:uart8250",
+          "@rv_tester//sysmod/aplic:aplic_device",
           "@rv_tester//sysmod/mem:mem",
           "@rv_tester//sysmod/dm:dm",
           "@rv_tester//sysmod/io_dev:io_dev",

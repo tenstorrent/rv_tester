@@ -65,7 +65,7 @@ import rv_tester_params::*;
   end
 
   // m_overlay_driver_tick
-  assign m_overlay_driver_ticks[0].valid = ~dut_reset & ((dut_clocks % 200) == 0);
+  assign m_overlay_driver_ticks[0].valid = ~dut_reset & ~no_fetch & ((dut_clocks % 200) == 0);
   assign m_overlay_driver_ticks[0].data.location = location;
   assign m_overlay_driver_ticks[0].data.cycle =  dut_clocks;
 

@@ -3,7 +3,6 @@
 #include <chrono>
 #include <iostream>
 #include "common/memmap.h"
-#include "sysmod/htif/htif.h"
 #include "sysmod/sysmod_plusargs.h"
 
 constexpr std::uint64_t recent_pc_default = std::numeric_limits<std::uint64_t>::max();
@@ -117,15 +116,13 @@ void eot::check_max_instr(std::uint64_t cycle, std::uint64_t instr_count)
       cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
       cvm::log(cvm::NONE, "<{}> Pass condition detected: +eot=max_instr +max_instr={}\n", cycle, FLAGS_max_instr);
       cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
-      auto location = cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0);
-      cvm::registry::messenger.signal<htif::terminate_t>(location, htif::terminate_t{.low_priority_based = true});
+      eot_terminate(true);
       return;
     } else {
       cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
       cvm::log(cvm::ERROR, "<{}> Error: max_instr limit reached: {}\n", cycle, FLAGS_max_instr);
       cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n",cycle);
-      cvm::registry::messenger.signal<htif::terminate_t>( cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0),
-      htif::terminate_t{.low_priority_based = true});
+      eot_terminate(true);
       return;
     }
   }
@@ -157,8 +154,7 @@ void eot::process_tohost(uint64_t hartid, uint64_t cycle, uint64_t address, uint
       }
       if (FLAGS_eot != "tohost_all" || (terminated_harts_.size() >= FLAGS_num_harts)) {
         ended_ = true;
-        cvm::registry::messenger.signal<htif::terminate_t>( cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0),
-        htif::terminate_t{.low_priority_based = true});
+        eot_terminate(true);
       }
   } else {
     ended_ = true;
@@ -166,8 +162,7 @@ void eot::process_tohost(uint64_t hartid, uint64_t cycle, uint64_t address, uint
     cvm::log(cvm::ERROR, "<{}> Hart:<{}>Error: Fail condition detected - tohost[0]=1, tohost[47:1]={:#x}\n", cycle,
       hartid, exit_code);
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
-    cvm::registry::messenger.signal<htif::terminate_t>( cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0),
-    htif::terminate_t{.low_priority_based = true});
+    eot_terminate(false);
   }
 }
 
@@ -181,6 +176,10 @@ void eot::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_b
    if (!FLAGS_hw_eot_enable) {
      process_tohost(m_mcmi_bypass.hart, m_mcmi_bypass.cycle, m_mcmi_bypass.addr, m_mcmi_bypass.data);
    }
+}
+
+void eot::eot_terminate(bool) {
+  cvm::registry::messenger.signal<htif::terminate_t>(loc_, htif::terminate_t{.low_priority_based = true});
 }
 
 eot::~eot() {

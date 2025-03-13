@@ -1,5 +1,6 @@
 #include "snoop_gen_sequence.hpp"
 #include "sysmod/sysmod_plusargs.h"
+#include "rv_tester/rv_tester_plusargs.h"
 
 REGISTRY_register(snoop_gen_sequence, SNOOP_GEN, cvm::registry::all);
 
@@ -11,7 +12,6 @@ DEFINE_string(rand_snoop_mode, "single", "snoop req modes: burst:single:single_s
 DEFINE_int32(snoop_start_delay, 1000, "TB cycle after which snoop driving random mode enabled");
 DEFINE_int32(snoop_trigger_threshold, 5, "Number of snoops to populate in queue before triggering snoop request");
 DEFINE_int32(snoop_max_burst_size, 2, "Number of b2b snoop request");
-
 
 extern "C" {
   uint8_t get_rand_snoop_en() {
@@ -41,7 +41,9 @@ snoop_gen_sequence::snoop_gen_sequence(cvm::topology::loc_t loc, unsigned id) : 
 }
 
 snoop_gen_sequence::~snoop_gen_sequence() {
+  if (FLAGS_metrics) {
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"snoopgen_num_rand_snoops\": \"{}\"}}\n", snoops_driven);
+  }
 }
 
 

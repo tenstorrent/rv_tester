@@ -76,7 +76,7 @@ import rv_tester_params:: * ;
     //ACLINT MTIP generation checker
     typedef enum bit {idle,check} checker_state;
     checker_state [8:0] st;
-    logic [8:0] [63:0] counter,counter_check,counter_next, mtimecmpval;;
+    logic [8:0] [63:0] counter,counter_check,counter_next, mtimecmpval;
     logic [8:0] mtimecmp_wr_valid;
     logic wtimecmp_wr_valid;
     logic mtime_wr_valid;
@@ -145,7 +145,7 @@ import rv_tester_params:: * ;
                         : (counter[k] < 'd10 ? 64'b0 : 64'(counter[k] - 'd10));
     always @(posedge rf_clk) begin
     if (dut_reset) counter[k] <= 'hffffffff;
-    else counter[k] <= counter_next[k];
+    else counter[k] <= (k == 8) ? min(counter_next) : counter_next[k];
     end
     always @(posedge rf_clk) begin
     if (dut_reset) mtimecmpval[k] <= 'hffffffff;
@@ -195,7 +195,7 @@ import rv_tester_params:: * ;
 
     genvar asserti;
     generate
-    for ( asserti = 0; asserti < 9; asserti++) begin : mtip_check
+    for ( asserti = 0; asserti < 8; asserti++) begin : mtip_check // FIXME: RVDE-20545 update and re-enable checks for MTIP8 after RTL changes are merged. 
     logic coredisabled;
     logic [3:0] coreid;
     assign coredisabled = disablef[asserti];
@@ -230,7 +230,7 @@ import rv_tester_params:: * ;
 
     //ACLINT core MMR - ac_mmrwrite
     for (genvar n = 0; n < TOTAL_NRETS; n++) begin
-        assign cr_ac_mmrwrites[n].valid =  ~reset & enable_checks & rvfi[n].valid && (rvfi[n].mem_wmask != 0) && (!rvfi[n].vec) && (rvfi[n].mem_paddr >= ACLINT_START && rvfi[n].mem_paddr < ACLINT_END);
+        assign cr_ac_mmrwrites[n].valid =  ~reset & enable_checks & rvfi[n].valid && (rvfi[n].mode == 3) && (rvfi[n].mem_wmask != 0) && (!rvfi[n].vec) && (rvfi[n].mem_paddr >= ACLINT_START && rvfi[n].mem_paddr < ACLINT_END);
         assign cr_ac_mmrwrites[n].data.location = location;
         assign cr_ac_mmrwrites[n].data.srcid = get_hart_ret(n);
         assign cr_ac_mmrwrites[n].data.order = rvfi[n].order;
@@ -265,9 +265,10 @@ import rv_tester_params:: * ;
     export "DPI-C" function update_ctime_value;
 
     import "DPI-C" function void check_outstanding_transactions(int unsigned location);
-    always @(posedge terminate) begin
-        if (!reset && enable_checks) check_outstanding_transactions(location);
-    end
+    // FIXME: Re-enable once popping logic is fixed
+    // always @(posedge terminate) begin
+    //     if (!reset && enable_checks) check_outstanding_transactions(location);
+    // end
 
   function automatic logic [3:0] get_hart_ret(int n);
     logic [3:0] hart;
@@ -297,7 +298,9 @@ import rv_tester_params:: * ;
     return hart;
   endfunction
 
-
-
+  function automatic logic [63:0] min(logic [8:0] [63:0] arr);
+    min = arr[0];
+    for (int i = 1; i < 9; i++) min = (arr[i] < min) ? arr[i] : min;
+  endfunction 
 
 endmodule

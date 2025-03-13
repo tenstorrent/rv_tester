@@ -81,9 +81,11 @@ void aclint_checker::process(const rv_tester_transactions::aclint_checker::axi_a
 
     
     auto mmr_addr = static_cast<aclint_addr>(cluster_mmr_addr);
-    if (mmr_addr == aclint_addr::AC_TIMESYNC && user != 3) {
+    if ((mmr_addr == aclint_addr::AC_TIMESYNC || 
+         mmr_addr == aclint_addr::AC_CLUSTERFUSE) && 
+         user != 3) {
         // Checking for only src
-        cvm::log(cvm::HIGH, "[ACLINT CHECKER] Writes to AC_TIMESYNC are srcid protected\n");
+        cvm::log(cvm::HIGH, "[ACLINT CHECKER] Writes to {} are srcid protected\n", aclint_mmrs[mmr_addr].name);
         return;
     }
     if (aclint_mmrs.find(mmr_addr) != aclint_mmrs.end()) {
@@ -94,6 +96,13 @@ void aclint_checker::process(const rv_tester_transactions::aclint_checker::axi_a
         aclint_mmrs[mmr_addr].write(axi_ac_write.data, sz);
         axi_ac_mmr_q_[srcid].push(m);
         popifpossible(srcid);
+
+        if (mmr_addr == aclint_addr::AC_CLUSTERFUSE && (aclint_mmrs[mmr_addr].lock_bit == 0) &&
+            (((aclint_mmrs[mmr_addr].data >> 15) & 1) == 1)){
+            // Lock bit set hence write_mask is zero
+            aclint_mmrs[mmr_addr].lock_bit = 1;
+            cvm::log(cvm::HIGH, "[ACLINT CHECKER] AC_CLUSTERFUSE Locked.\n");
+        }
     }    
 }
 
@@ -149,6 +158,7 @@ void aclint_checker::process(const smc_read_pkt & r) {
         cvm::log(cvm::HIGH, "[ACLINT CHECKER] Ignore SMC-AC READ: addr {:#x} data {:#x}, Data overwritten\n", r.addr, r.data);
         return;
     }
+    mmrReadReqFlag[mmr_addr].first = false;     // Read carried without in between writes hence deasserting guard
     cvm::log(cvm::HIGH, "[ACLINT CHECKER] SMC-AC READ: addr {:#x} data {:#x} size {:#x}B resp {}\n", r.addr, r.data, (1 << r.size), r.resp);
     if (r.size == 1 || r.size == 0) {
         if (r.data == 0 && r.resp == 3) return;
@@ -177,12 +187,15 @@ void aclint_checker::process(const smc_read_pkt & r) {
         }
     } 
     else if (mmr_addr == aclint_addr::CR_CTIME && FLAGS_aclint){
-        return; // FIXME: Enable read checks for CR_CTIME
         // Get modelled copy of CTIME from aclint_checker.sv using DPI-C
-        uint64_t ctime_expect = get_ctime_value() & sz_mask & aclint_mmrs[mmr_addr].read_mask;
+        uint64_t ctime_model = get_ctime_value();
+        uint64_t ctime_range_lower = (ctime_model < (ctime_model - 100)) ? 0 : (ctime_model - 100);             // Overflow on lower limit
+        uint64_t ctime_range_upper = (ctime_model > (ctime_model + 100)) ? (-1) : (ctime_model + 100);          // Overflow of upper limit
+        
+        uint64_t ctime_expect = ctime_model & sz_mask & aclint_mmrs[mmr_addr].read_mask;
         uint64_t ctime_actual = (actual & aclint_mmrs[mmr_addr].read_mask);
-        uint64_t ctime_range_lower = (ctime_expect < (ctime_expect - 200)) ? 0 : (ctime_expect - 200);
-        if ((ctime_actual <= ctime_expect) && (ctime_actual >= ctime_range_lower)) {
+        
+        if ((r.data <= ctime_range_upper) && (r.data >= ctime_range_lower)) {
             cvm::log(cvm::HIGH, "[SMC-AC] ACLINT MMR match - Name = CTIME, Address = {:#x} - Actual: {:#x} Expected: {:#x}\n", aclint_mmrs[mmr_addr].address, ctime_actual, ctime_expect);
         } else {
             cvm::log(cvm::ERROR, "Error: [SMC-AC] Mismatch:- ACLINT MMR mismatch - Address = {:#x} - Actual: {:#x} Expected: {:#x}\n", aclint_mmrs[mmr_addr].address, ctime_actual, ctime_expect);
@@ -193,7 +206,7 @@ void aclint_checker::process(const smc_read_pkt & r) {
         if ((actual & aclint_mmrs[mmr_addr].read_mask) != (expected & sz_mask & aclint_mmrs[mmr_addr].read_mask)) {
             cvm::log(cvm::ERROR, "Error: [SMC-AC] Mismatch:- ACLINT MMR mismatch - Address = {:#x} - Actual: {:#x} Expected: {:#x}\n", aclint_mmrs[mmr_addr].address, actual & aclint_mmrs[mmr_addr].write_mask, expected & sz_mask & aclint_mmrs[mmr_addr].write_mask);
         } else {
-            cvm::log(cvm::HIGH, "[SMC-AC] ACLINT MMR match - Name = {}, Address = {:#x} - Actual: {:#x} Expected: {:#x}\n", aclint_mmrs[mmr_addr].name, aclint_mmrs[mmr_addr].address, actual & aclint_mmrs[mmr_addr].write_mask, expected & sz_mask & aclint_mmrs[mmr_addr].write_mask);
+            cvm::log(cvm::HIGH, "[ACLINT CHECKER] ACLINT MMR match - Name = {}, Address = {:#x} - Actual: {:#x} Expected: {:#x}\n", aclint_mmrs[mmr_addr].name, aclint_mmrs[mmr_addr].address, actual & aclint_mmrs[mmr_addr].read_mask, expected & sz_mask & aclint_mmrs[mmr_addr].read_mask);
         }
     }
 }
@@ -272,17 +285,17 @@ void aclint_checker::check_outstanding_transactions(uint64_t signal) {
     if (!signal) return;
     for (const auto& [key, queue] : cr_ac_mmr_q_) {
         if (!queue.empty()) {
-            cvm::log(cvm::ERROR, "Error: {} Outstanding AC MMR writes for srcid {}\n", queue.size(), key);
+            cvm::log(cvm::ERROR, "Error: {} Outstanding CORE-ACLINT MMR writes for srcid {}\n", queue.size(), key);
             return; 
         }
     }
-    cvm::log(cvm::MEDIUM, "[ACLINT CHECKER] No outstanding CR-AC MMR writes\n");
+    cvm::log(cvm::MEDIUM, "[ACLINT CHECKER] No outstanding CORE-ACLINT MMR writes\n");
     
     if (!smc_ac_mmr_v_.empty()) {
-        cvm::log(cvm::ERROR, "Error: {} Outstanding SMC-AC MMR writes\n", smc_ac_mmr_v_.size());
+        cvm::log(cvm::ERROR, "Error: {} Outstanding SMC-ACLINT MMR writes\n", smc_ac_mmr_v_.size());
         return; 
     }
-    cvm::log(cvm::MEDIUM, "[ACLINT CHECKER] No outstanding SMC-AC MMR writes\n");
+    cvm::log(cvm::MEDIUM, "[ACLINT CHECKER] No outstanding SMC-ACLINT MMR writes\n");
 }
 
 extern "C" void check_outstanding_transactions(cvm::topology::loc_t loc) {
