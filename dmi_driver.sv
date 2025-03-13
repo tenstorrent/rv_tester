@@ -337,11 +337,7 @@ import rv_tester_params:: * ;
     begin
       if (dmi_driver_dbg_enable) begin
         //decode request type
-        if (cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[31] === '1 && cmd.data[1] === '1) begin
-          $display("[Poll] Seen Halt Req and poll_p2, Doing Poll for halt req after ndmreset");
-          ndmreset_halt_req = 1;
-          poll = 1;
-        end else if(cmd.addr === 'h10 && cmd.op === 'h2 && sdtrig_fire === 'h1) begin
+        if (cmd.addr === 'h10 && cmd.op === 'h2 && sdtrig_fire === 'h1) begin
           $display("[Poll] Check if the core is halted through sdtrig");
           sdtrig_fire = 0;
           halted_sdtrig = 1;
