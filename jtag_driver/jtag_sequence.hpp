@@ -257,6 +257,8 @@ std::string tapToString(unsigned tap);
     uint64_t jtag_cm_value;
     unsigned jtag_length_data;
     unsigned long ip_data_array[21];
+    std::string   snippet;
+    std::string   csv_row;
   };
   typedef struct{ 
         unsigned status;
