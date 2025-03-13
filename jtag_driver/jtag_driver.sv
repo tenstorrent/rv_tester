@@ -137,7 +137,7 @@ import rv_tester_params::*;
   end
 
   // m_jtag_driver_tick
-  assign m_jtag_driver_ticks[0].valid = ~dut_reset & ((dut_clocks % 200) == 0) & ~jtag_busy;
+  assign m_jtag_driver_ticks[0].valid = ~dut_reset & ((dut_clocks % 200) == 0) & ~(jtag_busy | jtag_enable_begin);
   assign m_jtag_driver_ticks[0].data.location = location;
   assign m_jtag_driver_ticks[0].data.cycle = jtag_socket_en?((jtag_socket_start | jtag_socket_end) ? dut_clocks : '0):cycles;
   
@@ -165,7 +165,7 @@ typedef enum logic [1:0] {
   bit jtag_req_begin_d = '0;
   bit[1:0]  command_l = '0;
 
-  bit [1:0]  state= 2'b10;
+  fsm_state_t  state = IDLE;
   bit [31:0] shiftCount= '0;
   bit ir ='0;
   bit dr ='0;
@@ -239,6 +239,7 @@ always @(posedge clk) begin
     else if(jtag_enable_begin)begin
       jtag_req_begin <= 1'b1;
       command_l <= command;
+      jtag_busy <= 1'b1;
     end
     case (state)
       IDLE: begin
@@ -254,7 +255,6 @@ always @(posedge clk) begin
         end 
         if(delay_counter < 32'd10) begin
           delay_counter <= delay_counter + 32'b1;
-          jtag_busy <= 1'b1;
         end
         else if (jtag_req_begin && delay_counter >= 32'd10) begin 
           // Interpret command and data, set state accordingly
@@ -342,8 +342,6 @@ always @(posedge clk) begin
           jtag_req.tms <= 1'b0;
           state <= IDLE;
           shiftCount <= 0;
-          jtag_busy <= 1'b0;
-        
         end
         
         read_data_valid <= 1'b0;
@@ -384,4 +382,8 @@ always @(posedge clk) begin
     end
   end
 end
+
+jtag_tx_stable_when_not_in_idle: assert property(@(posedge clk) disable iff (!reset || state == IDLE) $stable(jtag_tx))
+        else $error("jtag tx data got modified while the data is being shited out");
+
 endmodule
