@@ -244,8 +244,10 @@ constructSystem(uint16_t ncores, bool standalone, uint64_t secure_region_start=0
       hart.setTlbSize(FLAGS_whisper_tlb_size);
     if (FLAGS_whisper_stdout_null) hart.redirectOutputDescriptor(STDOUT_FILENO, "/dev/null");
     if (FLAGS_whisper_stdin_null)  hart.redirectOutputDescriptor(STDIN_FILENO,  "/dev/null");
-    hart.autoIncrementTimer(FLAGS_whisper_auto_increment_timer);
-    hart.setAclintAdjustTimeCompare(FLAGS_whisper_aclint_time_adjust);
+    if (!standalone) {
+      hart.autoIncrementTimer(FLAGS_whisper_auto_increment_timer);
+      hart.setAclintAdjustTimeCompare(FLAGS_whisper_aclint_time_adjust);
+    }
     if (! isa.empty()) {
       if (FLAGS_isa != "") {
         if (not hart.configIsa(FLAGS_isa, false))
