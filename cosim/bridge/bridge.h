@@ -246,7 +246,7 @@ private:
 
   std::string to_string(rv_intr_t& i);
   void process_imsic_msi(hart_id_t hart, const mem_t& m);
-  void poke_timer(hart_id_t hart, uint64_t cycle, std::bitset<64> t_mip, uint64_t mtime);
+  void poke_timer(uint64_t cycle, std::bitset<64> t_mip, uint64_t mtime);
   void poke_local_interrupt(hart_id_t hart, uint64_t cycle, std::bitset<64> l_mip);
   void check_and_defer_interrupt(hart_id_t hart, uint64_t time, std::bitset<64> mip);
   void check_interrupt(hart_id_t hart, uint64_t cycle, bool& taken, uint64_t& cause);
