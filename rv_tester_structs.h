@@ -8,4 +8,7 @@ namespace rv_tester{
 
     // for handlers which want to terminate immediately
     struct terminate_called_fast {};
+
+    // used to signal when whisper is ready for cosim calls
+    struct whisper_connected {};
 }
