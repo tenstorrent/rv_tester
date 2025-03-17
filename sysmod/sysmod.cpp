@@ -658,7 +658,7 @@ sysmod::store_inval_load(const inval_load_s& payload) {
   uint64_t ld_addr = inval_load_.address; 
   size_t length;
   length = inval_load_.size;
-  int size = length;
+  int size = (1 << length)/8;
   dev("memory")->backdoor_read(ld_addr, length, data);
   for (int i=0; i<size; ++i)
     read_data |= uint64_t(data[i]) << (i*8);
