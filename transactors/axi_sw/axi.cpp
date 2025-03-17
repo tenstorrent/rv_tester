@@ -49,12 +49,13 @@ axi::axi(const data_width_t& data_width, const cvm::topology::loc_t loc, const s
 {
     cvm::log(cvm::MEDIUM, "[axi] Constructing axi for loc={} id={}\n", loc, tag);
 
-    wc_loc_ = cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0);
-    cvm::registry::messenger.connect<rv_tester::whisper_connected>(wc_loc_, [this](const auto&) { this->configure_err_resp(); });
-
     hang_addr_   = parse_hex_ranges(FLAGS_axi_resp_hang_addr);
     slverr_addr_ = parse_hex_ranges(FLAGS_axi_resp_slverr_addr);
     decerr_addr_ = parse_hex_ranges(FLAGS_axi_resp_decerr_addr);
+
+    wc_loc_ = cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0);
+    if (wc_loc_ != cvm::topology::null)
+        cvm::registry::messenger.connect<rv_tester::whisper_connected>(wc_loc_, [this](const auto&) { this->configure_err_resp(); });
 }
 
 // FIXME Clean up configuration of error resp based on rand addresses selected from iss standalone run
