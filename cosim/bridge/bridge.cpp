@@ -193,22 +193,25 @@ bridge::~bridge() {}
 
 void bridge::reset() {
 
+  // Get memmap instance
   if (!cvm::registry::messenger.call<memmap::getRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.MEMMAP", 0), memmap_)) {
     error("Getting Memmap failed");
     return;
-
   }
-  cac_.Reset();
-  assert(cac_.SetVlen(vlen_));
 
+  // Construct whisper for cosim API calls
+  // API called "connect" due to legacy usage of whisper client/server connection made using sockets
   if (id_ == 0 && cvm::registry::messenger.call<whisperClient<uint64_t>::whisperConnectRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0)) != 0) {
     error("Hart {}: Failed whisper_connect\n", id_);
     return;
   }
 
-  // Init csr reset values in cac
+  // Configure CAC with sane defaults
+  cac_.Reset();
+  assert(cac_.SetVlen(vlen_));
   csr_init();
 
+  // FIXME: Boot programming needs to move out of here
   // Write num_harts to boot mem
   bool valid;
   if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, 0, 'm', memmap_.at("boot").base + boot_num_harts_offset, FLAGS_num_harts, valid) || !valid) && FLAGS_whisper_client_check) {
@@ -240,19 +243,11 @@ void bridge::reset() {
 
   }
 
-  cvm::registry::messenger.signal<uint64_t>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0), uint64_t(0));
-
   // Parse plusargs and store in containers
   cosim_resynch_excp_addr_  = parse_input(FLAGS_cosim_resynch_excp_addr , type_tag<key_hex_map>{});
   cosim_resynch_excp_       = parse_input(FLAGS_cosim_resynch_excp      , type_tag<std::vector<int>>{});
   cosim_error_excp_         = parse_input(FLAGS_cosim_error_excp        , type_tag<std::vector<int>>{});
   cosim_error_instr_        = parse_input(FLAGS_cosim_error_instr       , type_tag<std::vector<std::string>>{});
-
-  print(cvm::MEDIUM, "[bridge] parse cosim plusargs\n");
-
-  //auto it = cosim_resynch_excp_addr_.find(key);
-  //for (const auto& range: it->second) {
-  //bridge_log_(cvm::MEDIUM, "{}", cac_.GetStatusStr(hart));
 }
 
 // Parses a string containing key-to-hex-range mappings with a strict format (no whitespace).
