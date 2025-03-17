@@ -8,6 +8,7 @@
 #include <iomanip>
 #include <vector>
 #include <map>
+#include <regex>
 
 #include "cvm/topology.hpp"
 #include "bridge_base.h"
@@ -29,7 +30,6 @@ private:
   using resource_t = cac::resource_t;
   using resource_id_t = cac::resource_id_t;
   using CacCore = cac::CacCore;
-  uint64_t previous_cycle_;
 
 
 public:
@@ -94,6 +94,104 @@ private:
     write,
     fetch
   } memclass_t;
+
+  using hex_range = std::pair<uint64_t, uint64_t>;
+  using key_hex_map = std::unordered_map<int, std::vector<hex_range>>;
+
+  // A simple type_tag used to select the proper overload.
+  template <typename T>
+  struct type_tag {};
+
+  // Helper for static_assert false in dependent contexts.
+  template<typename T>
+  struct dependent_false : std::false_type {};
+
+  // Generic function to parse a comma-separated list using a converter callable.
+  template <typename T, typename Converter>
+  std::vector<T> parse_comma_separated(const std::string &input, Converter converter) {
+      std::vector<T> result;
+      std::istringstream stream(input);
+      std::string token;
+      while (std::getline(stream, token, ',')) {
+          result.push_back(converter(token));
+      }
+      return result;
+  }
+
+  // Overload for key_hex_map (i.e. key:hex_range pairs).
+  key_hex_map parse_key_with_hex_ranges(const std::string &input);
+
+  // Overload for parse_input for key_hex_map.
+  inline key_hex_map parse_input(const std::string &input, type_tag<key_hex_map>) {
+      return parse_key_with_hex_ranges(input);
+  }
+
+  // Overload for comma-separated lists returned as std::vector<T>.
+  // Supports T = int and T = std::string.
+  template <typename T>
+  std::vector<T> parse_input(const std::string &input, type_tag<std::vector<T>>) {
+      if constexpr (std::is_same_v<T, int>) {
+          auto converter = [](const std::string &token) -> int {
+              return std::stoi(token);
+          };
+          return parse_comma_separated<int>(input, converter);
+      } else if constexpr (std::is_same_v<T, std::string>) {
+          auto converter = [](const std::string &token) -> std::string {
+              return token;
+          };
+          return parse_comma_separated<std::string>(input, converter);
+      } else {
+          static_assert(dependent_false<T>::value, "Unsupported type for parse_input");
+      }
+  }
+
+  // Generic version for containers (other than vector<string> or key_hex_map) using strict equality.
+  template <typename Container, typename T>
+  bool find(const Container &container, const T &value) {
+      if (container.empty()) return false;
+      return std::find(container.begin(), container.end(), value) != container.end();
+  }
+
+  // Overload for vector<string> that allows regex matching.
+  // The provided pattern is compiled to a std::regex and used to match each element.
+  inline bool find(const std::vector<std::string>& container, const std::string &pattern) {
+      if (container.empty()) return false;
+      std::regex re(pattern);
+      for (const auto &str : container) {
+          if (std::regex_match(str, re)) {
+              return true;
+          }
+      }
+      return false;
+  }
+
+  // Overload for key_hex_map: looks for a given key and numeric value (value must fall within one of the ranges).
+  inline bool find(const key_hex_map &m, int key, uint64_t value) {
+      if (m.empty()) return false;
+      auto it = m.find(key);
+      if (it == m.end()) return false;
+      for (const auto &range : it->second) {
+          if (value >= range.first && value <= range.second) {
+              return true;
+          }
+      }
+      return false;
+  }
+
+  template <typename... Args>
+      void print(cvm::verbosity_level v, Args&&... args) {
+          cvm::log(v, std::forward<Args>(args)...);
+          if (v <= cvm::verbosity_level::ERROR) {
+              cvm::registry::messenger.signal<error_loc>(loc_, {});
+          }
+      }
+  template <typename... Args>
+      void error(Args&&... args) {
+          std::string prefix = "Error: ";
+          if (patch_mode_) { prefix += "PATCH ";}
+          std::string out = prefix + fmt::format(std::forward<Args>(args)...) + "\n"; // for those who forget newline
+          print(cvm::ERROR, out);
+      }
 
 private:
 
@@ -320,6 +418,7 @@ private:
   bool first_call_ = true;
   bool debug_on_ = false;
   bool cvm_debug_ = false;
+  uint64_t previous_cycle_;
 
   // Memmap
   std::map<std::string, memmap_entry_t> memmap_;
@@ -336,18 +435,9 @@ private:
   bool terminated_ = false;
   enum patch_mode patch_mode_ = NO_PATCH;
 
-  template <typename... Args>
-      void print(cvm::verbosity_level v, Args&&... args) {
-          cvm::log(v, std::forward<Args>(args)...);
-          if (v <= cvm::verbosity_level::ERROR) {
-              cvm::registry::messenger.signal<error_loc>(loc_, {});
-          }
-      }
-  template <typename... Args>
-      void error(Args&&... args) {
-          std::string prefix = "Error: ";
-          if (patch_mode_) { prefix += "PATCH ";}
-          std::string out = prefix + fmt::format(std::forward<Args>(args)...) + "\n"; // for those who forget newline
-          print(cvm::ERROR, out);
-      }
+  // Containers for storing result of parsing plusargs
+  key_hex_map cosim_resynch_excp_addr_{};
+  std::vector<int> cosim_resynch_excp_{};
+  std::vector<int> cosim_error_excp_{};
+  std::vector<std::string> cosim_error_instr_{};
 };

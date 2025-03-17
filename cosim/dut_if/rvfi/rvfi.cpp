@@ -151,6 +151,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
 
   if (m_rvfi.trap) {
     trap_insn_ = m_rvfi.insn;
+    trap_addr_ = (m_rvfi.insn == 0) ? m_rvfi.pc_rdata : ((m_rvfi.mem_rmask != 0) || (m_rvfi.mem_wmask != 0)) ? m_rvfi.mem_addr : 0x0;
     return;
   }
 
@@ -393,6 +394,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.trap = intr_ || excp_;
   instr.trap_valid = m_rvfi.trap;
   instr.trap_opcode = trap_insn_;
+  instr.trap_addr = trap_addr_;
   instr.nmi = nmi_;
   instr.ncause = ncause_;
   instr.intr = intr_;
