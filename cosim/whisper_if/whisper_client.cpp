@@ -417,6 +417,8 @@ whisperClient<URV>::whisperConnect()
     if (system_ == nullptr)
       cvm::log(cvm::ERROR, "Error: could not construct system\n");
     whisperStandalone();
+  } else if (FLAGS_preload) {
+    cvm::log(cvm::ERROR, "Error: Preloading works only on single core runs and +standalone plusarg enabled\n");
   }
 
   // Construct whisper for cosim
