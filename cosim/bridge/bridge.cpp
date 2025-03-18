@@ -2071,7 +2071,6 @@ bool bridge::hpm_counter_read(const std::string& instr) {
       (instr.find("time") != std::string::npos) ||
       (instr.find("stimecmp") != std::string::npos) ||
       (instr.find("vstimecmp") != std::string::npos) ||
-      (instr.find("hpmevent") != std::string::npos) || //FIXME: poke events to whisper
       (instr.find("scountovf") != std::string::npos) ||//FIXME: poke events to whisper
       (instr.find("cycle") != std::string::npos))
     return true;
@@ -2165,7 +2164,9 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
       if (FLAGS_bridge_log)
         bridge_log_(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: C[{:#x}]={:#x}\n", d.cycle, step_, csr.csr_addr, get_csr(hart, src_t::dut, csr.csr_addr));
 
-      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, d.cycle, 'c', csr.csr_addr, get_csr(hart, src_t::dut, csr.csr_addr), valid)|| !valid) && FLAGS_whisper_client_check) {
+      if((hypervisor_csr_map_.find(csr.csr_addr) != hypervisor_csr_map_.end()) && (!hyp_enabled())) {
+        continue;
+      }else if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, d.cycle, 'c', csr.csr_addr, get_csr(hart, src_t::dut, csr.csr_addr), valid)|| !valid) && FLAGS_whisper_client_check) {
         error("Hart {}: Failed to resynch CSRs\n", hart);
         return;
       }
