@@ -15,7 +15,6 @@ cc_library(
         "//cosim/utils/eot:eot_plusargs",
         "//cosim/utils/general:util",
         "//:plusargs",
-        "//:structs",
         "@cvm//:registry",
         "@cvm//:messenger",
     ],
