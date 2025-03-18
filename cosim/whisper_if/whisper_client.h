@@ -91,6 +91,7 @@ class whisperClient {
     WhisperMessage req {};
     WhisperMessage reply {};
 
+    cvm::topology::loc_t loc_;
     uint32_t ncores_ = 0;
     uint64_t dm_rand_addr_ = 0;
     std::vector<uint64_t> dm_rand_val_;

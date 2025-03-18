@@ -337,11 +337,7 @@ import rv_tester_params:: * ;
     begin
       if (dmi_driver_dbg_enable) begin
         //decode request type
-        if (cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[31] === '1 && cmd.data[1] === '1) begin
-          $display("[Poll] Seen Halt Req and poll_p2, Doing Poll for halt req after ndmreset");
-          ndmreset_halt_req = 1;
-          poll = 1;
-        end else if(cmd.addr === 'h10 && cmd.op === 'h2 && sdtrig_fire === 'h1) begin
+        if (cmd.addr === 'h10 && cmd.op === 'h2 && sdtrig_fire === 'h1) begin
           $display("[Poll] Check if the core is halted through sdtrig");
           sdtrig_fire = 0;
           halted_sdtrig = 1;
@@ -1097,7 +1093,7 @@ import rv_tester_params:: * ;
                 $display("read_data1 is set");
               end
             end else begin
-              $display("Error: Mismatch scratchpad_mmr_write_data0_value:%h, scratchpad_mmr_read_data0_value:%h", data0_value, dmi_resp.data);
+              $display("Error: Mismatch scratchpad_mmr_write_data0_value: %h, scratchpad_mmr_read_data0_value: %h", data0_value, dmi_resp.data);
             end
           end else begin
             $display("Mem Access checker is disabled");
@@ -1112,7 +1108,7 @@ import rv_tester_params:: * ;
             poll = 0;
             read_data1_comp = 0;
           end else begin
-            $display("Error: Mismatch scratchpad_mmr_write_data1_value:%h, scratchpad_mmr_read_data1_value:%h", data1_value, dmi_resp.data);
+            $display("Error: Mismatch scratchpad_mmr_write_data1_value: %h, scratchpad_mmr_read_data1_value: %h", data1_value, dmi_resp.data);
           end
         end else if(read_cmisa_sdtrig) begin
           if(dmi_resp.data[23] === 0) begin

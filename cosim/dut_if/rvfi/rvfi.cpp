@@ -151,6 +151,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
 
   if (m_rvfi.trap) {
     trap_insn_ = m_rvfi.insn;
+    trap_addr_ = (m_rvfi.insn == 0) ? m_rvfi.pc_rdata : ((m_rvfi.mem_rmask != 0) || (m_rvfi.mem_wmask != 0)) ? m_rvfi.mem_addr : 0x0;
     return;
   }
 
@@ -393,6 +394,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.trap = intr_ || excp_;
   instr.trap_valid = m_rvfi.trap;
   instr.trap_opcode = trap_insn_;
+  instr.trap_addr = trap_addr_;
   instr.nmi = nmi_;
   instr.ncause = ncause_;
   instr.intr = intr_;
@@ -530,10 +532,12 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
     if (instr.last_uop) {
       instr.gpr.emplace_back(true, m_rvfi.rd_addr, m_rvfi.rd_wdata);
     } else {
-      // Collect gpr write from a cracked uop
-      cracked_gpr_.valid = true;
-      cracked_gpr_.rd_addr = m_rvfi.rd_addr;
-      cracked_gpr_.rd_wdata = m_rvfi.rd_wdata;
+      if (!m_rvfi.trap) {
+        // Collect gpr write from a cracked uop
+        cracked_gpr_.valid = true;
+        cracked_gpr_.rd_addr = m_rvfi.rd_addr;
+        cracked_gpr_.rd_wdata = m_rvfi.rd_wdata;
+      }
       // This is for print in the rvfi log
       instr.gpr.emplace_back(false, m_rvfi.rd_addr, m_rvfi.rd_wdata);
     }
@@ -549,27 +553,29 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
     vr_t vr {true, m_rvfi.vrd_addr, m_rvfi.vrd_wdata};
     instr.vr.push_back(vr);
     // Accumulate vr writes across cracked uops
-    if (m_rvfi.vrd_addr < 32) {
+    if ((m_rvfi.vrd_addr < 32) && !m_rvfi.trap) {
       cracked_vrs_.push_back(vr);
     }
   }
 
   // Flags
   instr.flags = 0;
-  if (m_rvfi.flags_valid) {
+  if (m_rvfi.flags_valid && !m_rvfi.trap) {
     instr.flags = m_rvfi.flags;
     // Accumulate flags writes across cracked uops
     cracked_flags_ |= m_rvfi.flags;
   }
-  // Accumulate vec_cracked bool across cracked uops
-  cracked_ |= instr.cracked;
+  if (!m_rvfi.trap) {
+    // Accumulate vec_cracked bool across cracked uops
+    cracked_ |= instr.cracked;
+  }
 
   // CSR
   if (m_rvfi.csr_valid) {
     csr_t c {true, m_rvfi.hart, m_rvfi.cycle, m_rvfi.csr_addr, m_rvfi.csr_wmask, m_rvfi.csr_wdata};
     instr.csr.push_back(c);
     // Accumulate ucode csr writes
-    if (!m_rvfi.last_uop) {
+    if (!m_rvfi.last_uop && !m_rvfi.trap) {
       ucode_csrs_.push_back(c);
     }
   }

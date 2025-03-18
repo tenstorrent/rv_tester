@@ -216,6 +216,7 @@ typedef struct rv_instr_s {
   bool trap = false;
   bool trap_valid = false;
   uint32_t trap_opcode = 0;
+  uint64_t trap_addr = 0;
   uint8_t priv = 3;
   bool nmi = false;
   bool intr = false;

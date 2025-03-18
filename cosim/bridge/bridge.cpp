@@ -26,6 +26,7 @@
 #include <vector>
 #include <fmt/format.h>
 #include <random>
+#include <regex>
 
 DEFINE_bool(whisper_exec, true, "Enable rvfi instr processing...disable useful for measuring rvfi DPI performance");
 DEFINE_bool(bridge_log, true, "Enable bridge logging");
@@ -35,6 +36,7 @@ DEFINE_string(cosim_error_instr, "", "List of instruction mnemonics on which we 
 DEFINE_string(cosim_resynch_prev_instr, "", "List of instruction mnemonics to resynch whisper with dut state");
 DEFINE_string(cosim_resynch_csr, "", "List of csr mnemonics to resynch whisper with dut state");
 DEFINE_string(cosim_resynch_excp, "", "List of exception codes on which we should resynch whisper with dut state");
+DEFINE_string(cosim_resynch_excp_addr, "", "List of exception codes on which we should resynch whisper with dut state only if address matches provided list. Format: 5:0x1000,9:0x2000-0x3000");
 DEFINE_string(cosim_error_excp, "", "List of exception codes on which we should terminate with an error");
 DEFINE_bool(poke_mip_timer, false, "Poke mip timer bits to handle timer interrupts instead of poking time csr");
 DEFINE_bool(mip_resynch, true, "Resynch whisper with dut state on mip mismatch condition");
@@ -191,22 +193,25 @@ bridge::~bridge() {}
 
 void bridge::reset() {
 
+  // Get memmap instance
   if (!cvm::registry::messenger.call<memmap::getRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.MEMMAP", 0), memmap_)) {
     error("Getting Memmap failed");
     return;
-
   }
-  cac_.Reset();
-  assert(cac_.SetVlen(vlen_));
 
+  // Construct whisper for cosim API calls
+  // API called "connect" due to legacy usage of whisper client/server connection made using sockets
   if (id_ == 0 && cvm::registry::messenger.call<whisperClient<uint64_t>::whisperConnectRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0)) != 0) {
     error("Hart {}: Failed whisper_connect\n", id_);
     return;
   }
 
-  // Init csr reset values in cac
+  // Configure CAC with sane defaults
+  cac_.Reset();
+  assert(cac_.SetVlen(vlen_));
   csr_init();
 
+  // FIXME: Boot programming needs to move out of here
   // Write num_harts to boot mem
   bool valid;
   if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, 0, 'm', memmap_.at("boot").base + boot_num_harts_offset, FLAGS_num_harts, valid) || !valid) && FLAGS_whisper_client_check) {
@@ -238,7 +243,45 @@ void bridge::reset() {
 
   }
 
-  cvm::registry::messenger.signal<uint64_t>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0), uint64_t(0));
+  // Parse plusargs and store in containers
+  cosim_resynch_excp_addr_  = parse_input(FLAGS_cosim_resynch_excp_addr , type_tag<key_hex_map>{});
+  cosim_resynch_excp_       = parse_input(FLAGS_cosim_resynch_excp      , type_tag<std::vector<int>>{});
+  cosim_error_excp_         = parse_input(FLAGS_cosim_error_excp        , type_tag<std::vector<int>>{});
+  cosim_error_instr_        = parse_input(FLAGS_cosim_error_instr       , type_tag<std::vector<std::string>>{});
+}
+
+// Parses a string containing key-to-hex-range mappings with a strict format (no whitespace).
+// Format examples:
+//   "5:0x1000"         -> key 5 with a single hexadecimal value (0x1000)
+//   "6:0x2000-0x3000"   -> key 6 with a range from 0x2000 to 0x3000
+bridge::key_hex_map bridge::parse_key_with_hex_ranges(const std::string &input) {
+    key_hex_map mapping;
+
+    if (input.empty())
+        return mapping;
+
+    // Regex breakdown:
+    //   (\d+)             - key: one or more digits (capture group 1)
+    //   :                 - a colon
+    //   (0x[0-9a-fA-F]+)  - a hexadecimal number (capture group 2)
+    //   (?:-(0x[0-9a-fA-F]+))? - an optional dash and another hexadecimal number (capture group 3)
+    //   (?:,|$)           - either a comma or the end-of-string
+    std::regex entry_regex(R"((\d+):(0x[0-9a-fA-F]+)(?:-(0x[0-9a-fA-F]+))?(?:,|$))");
+
+    auto begin = std::sregex_iterator(input.begin(), input.end(), entry_regex);
+    auto end = std::sregex_iterator();
+
+    for (auto it = begin; it != end; ++it) {
+        std::smatch match = *it;
+        int key = std::stoi(match[1].str());
+        uint64_t start_val = std::stoull(match[2].str(), nullptr, 0);
+        uint64_t end_val = start_val;  // If no range is provided, the range is just a single value.
+        if (match[3].matched) {
+            end_val = std::stoull(match[3].str(), nullptr, 0);
+        }
+        mapping[key].push_back({start_val, end_val});
+    }
+    return mapping;
 }
 
 void bridge::store_cbo_inv_addr(const uint64_t& payload) {
@@ -599,7 +642,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   // Fail right away if unexpected instruction as per plusarg
   // Don't fail on instruction page faults
   std::string instr = cosim_util::get_nth_word(w.disasm, 1);
-  if (found_in_list(instr, FLAGS_cosim_error_instr)) {
+  if (find(cosim_error_instr_, instr)) {
     if (instr == "illegal" && d.excp && d.ecause == INSN_PAGE_FAULT) {
       IF_DEBUG("skipping illegal instruction error");
       // Skip the error
@@ -878,15 +921,16 @@ void bridge::pre_step_exception_poke(hart_id_t hart, const rv_instr_t& d) {
     return;
   }
 
-  if (found_in_list(std::to_string(d.ecause), FLAGS_cosim_resynch_excp)) {
-    bool valid;
-    bool is_load = (d.trap_opcode != 0);
-    bridge_log_(cvm::MEDIUM, "<{}> Inject Exception with code:{} is_load: {}\n", d.cycle, d.ecause, is_load);
-    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperInjectExceptionRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0),
-      hart, is_load, d.ecause, 0, valid) || !valid) && FLAGS_whisper_client_check) {
-      error("Hart {}: Failed whisper API InjectException\n", hart);
-    }
+  if (!find(cosim_resynch_excp_addr_, d.ecause, d.trap_addr) &&
+      !find(cosim_resynch_excp_, d.ecause))
     return;
+
+  bool valid;
+  bool is_load = (d.trap_opcode != 0);
+  bridge_log_(cvm::MEDIUM, "<{}> Inject Exception with code:{} is_load: {}\n", d.cycle, d.ecause, is_load);
+  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperInjectExceptionRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0),
+    hart, is_load, d.ecause, 0, valid) || !valid) && FLAGS_whisper_client_check) {
+    error("Hart {}: Failed whisper API InjectException\n", hart);
   }
 }
 
@@ -1180,7 +1224,7 @@ void bridge::post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whis
     return;
   }
 
-  if (d.excp && found_in_list(std::to_string(d.ecause), FLAGS_cosim_error_excp)) {
+  if (d.excp && find(cosim_error_excp_, d.ecause)) {
     error("Hart {}: Unexpected exception: +cosim_error_excp {} ({})\n", hart, d.ecause,
       excp_to_string.count(static_cast<excp>(d.ecause)) ? excp_to_string.at(static_cast<excp>(d.ecause)) : std::to_string(d.ecause));
     return;
@@ -2027,7 +2071,6 @@ bool bridge::hpm_counter_read(const std::string& instr) {
       (instr.find("time") != std::string::npos) ||
       (instr.find("stimecmp") != std::string::npos) ||
       (instr.find("vstimecmp") != std::string::npos) ||
-      (instr.find("hpmevent") != std::string::npos) || //FIXME: poke events to whisper
       (instr.find("scountovf") != std::string::npos) ||//FIXME: poke events to whisper
       (instr.find("cycle") != std::string::npos))
     return true;
@@ -2058,22 +2101,6 @@ bool bridge::uart_access(const uint64_t& pa) {
 bool bridge::sc_slice_status(const uint64_t& pa) {
    if ((pa & 0xffffffffffff0fff) == sc_slice_base_)
     return true;
-  return false;
-}
-
-bool bridge::found_in_list(const std::string& num, const std::string& list) {
-  if (list == "")
-    return false;
-
-  std::stringstream ss(list);
-
-  while(ss.good()) {
-    std::string s;
-    std::getline(ss, s, ',' );
-
-    if (num == s)
-      return true;
-  }
   return false;
 }
 
@@ -2137,7 +2164,9 @@ void bridge::resynch(hart_id_t hart, const rv_instr_t& d) {
       if (FLAGS_bridge_log)
         bridge_log_(cvm::MEDIUM, "<{}> Whisper Step #{}: Resynch: C[{:#x}]={:#x}\n", d.cycle, step_, csr.csr_addr, get_csr(hart, src_t::dut, csr.csr_addr));
 
-      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, d.cycle, 'c', csr.csr_addr, get_csr(hart, src_t::dut, csr.csr_addr), valid)|| !valid) && FLAGS_whisper_client_check) {
+      if((hypervisor_csr_map_.find(csr.csr_addr) != hypervisor_csr_map_.end()) && (!hyp_enabled())) {
+        continue;
+      }else if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, d.cycle, 'c', csr.csr_addr, get_csr(hart, src_t::dut, csr.csr_addr), valid)|| !valid) && FLAGS_whisper_client_check) {
         error("Hart {}: Failed to resynch CSRs\n", hart);
         return;
       }
@@ -2453,7 +2482,7 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
       bridge_log_(cvm::MEDIUM, "<{}> Timer interrupt set: mip={} time={:#x}\n", i.cycle, to_string(i), i.mtime);
 
     std::bitset<64> t_mip = i.mip_set[MTI] << MTI | i.mip_set[STI] << STI | i.mip_set[VSTI] << VSTI;
-    poke_timer(hart, i.cycle, t_mip, i.mtime + 16); // FIXME: Workaround to get mtime over the line. Investigate why it's needed.
+    poke_timer(i.cycle, t_mip, i.mtime + 16); // FIXME: Workaround to get mtime over the line. Investigate why it's needed.
   }
 
   // Default behavior is to poke the time csr to handle timer interrupts
@@ -2475,20 +2504,22 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
   }
  }
 
-void bridge::process_dut_timer(hart_id_t hart, rv_intr_t& i) {
-  poke_timer(hart, i.cycle, i.mip, i.mtime);
+void bridge::process_dut_timer(hart_id_t , rv_intr_t& i) {
+  poke_timer(i.cycle, i.mip, i.mtime);
 }
 
-void bridge::poke_timer(hart_id_t hart, uint64_t cycle, std::bitset<64> t_mip, uint64_t mtime) {
-  // Default behavior is to poke the time csr to handle timer interrupts
-  // But +poke_mip_timer can override to poke mip bits instead
-  if (FLAGS_poke_mip_timer) {
-    poke_mip(hart, cycle, mip_);
-  } else {
-    poke_resource(hart, cycle, 'c', time_csr, mtime);
-  }
+void bridge::poke_timer(uint64_t cycle, std::bitset<64> t_mip, uint64_t mtime) {
+  for (hart_id_t hart = 0; hart < FLAGS_num_harts; hart++) {
+    // Default behavior is to poke the time csr to handle timer interrupts
+    // But +poke_mip_timer can override to poke mip bits instead
+    if (FLAGS_poke_mip_timer) {
+      poke_mip(hart, cycle, mip_);
+    } else {
+      poke_resource(hart, cycle, 'c', time_csr, mtime);
+    }
 
-  check_and_defer_interrupt(hart, cycle, t_mip);
+    check_and_defer_interrupt(hart, cycle, t_mip);
+  }
 }
 
 void bridge::poke_local_interrupt(hart_id_t hart, uint64_t cycle, std::bitset<64> l_mip) {

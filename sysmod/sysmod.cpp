@@ -75,12 +75,12 @@ DEFINE_string(stee_secure_region, "", "colon separated pair of number (same as w
 DEFINE_uint32(matp_swid, 0, "MATP.SWID");
 DEFINE_uint64(pa_mask, 0x0080000000000000, "address bit(s) that act as STEE distinction");
 DEFINE_bool(sysmod_terminate, true, "Set to false for offline DPI mode");
-
-REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 // APLIC
 DEFINE_uint32(aplic_sources, 33, "Number of APLIC interrupt sources");
 // Uart8250
 DEFINE_uint32(uart8250_iid, 1, "Interrupt identity of the uart8250 device");
+
+REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 
 extern "C" {
   void sysmod_timer_interrupt(unsigned hartid, unsigned val, unsigned long mtime_val);
@@ -95,12 +95,15 @@ extern "C" {
 sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
   : scope_(nullptr), loc_(loc), id_(id)
 {
+  // Whisper client location
+  wc_loc_ = cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0);
+
   cvm::registry::messenger.connect<svScope>(
       loc_,
       [this](svScope s) { return this->set_scope(s); });
-  cvm::registry::messenger.connect<uint64_t>(
-      loc_,
-      [this](const uint64_t&) {
+  cvm::registry::messenger.connect<rv_tester::whisper_connected>(
+      wc_loc_,
+      [this](const auto&) {
       this->load_csr_mmr_boot(0);
       this->store_dm_rand();
       cosim_init_ = true;
@@ -643,7 +646,7 @@ sysmod::store_inval_crsp(const inval_crsp_s& payld, bool mcm) {
       read_data |= uint64_t(data[i]) << (i*8);
      bool valid = true;
      cvm::log(cvm::FULL, "[CBO_INVAL_MONITOR - CRSP POKE] Whisper Poke to Address : {:#x}, with data : {:#x}\n",(ld_addr + (offset*8)),read_data);
-     if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', (ld_addr + (offset*8)), 8, read_data, valid) || !valid) && FLAGS_whisper_client_check) {
+     if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(wc_loc_, 0, 0, 'm', (ld_addr + (offset*8)), 8, read_data, valid) || !valid) && FLAGS_whisper_client_check) {
        cvm::log(cvm::ERROR, "Error: store_inval_crsp failed to poke whisper memory");
     }
   }
@@ -658,7 +661,7 @@ sysmod::store_inval_load(const inval_load_s& payload) {
   uint64_t ld_addr = inval_load_.address; 
   size_t length;
   length = inval_load_.size;
-  int size = length;
+  int size = (1 << length)/8;
   dev("memory")->backdoor_read(ld_addr, length, data);
   for (int i=0; i<size; ++i)
     read_data |= uint64_t(data[i]) << (i*8);
@@ -667,7 +670,7 @@ sysmod::store_inval_load(const inval_load_s& payload) {
     // For AMO MB Bypass -> We dont need to check with main memory contents
     bool valid = true;
     cvm::log(cvm::HIGH, "CBO_INVAL_MONITOR :: Whisper Poke with data:{:#x} for AMO MB Bypass to address:{:#x}\n", inval_load_.data, ld_addr);
-    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', ld_addr, size, inval_load_.data, valid)) && FLAGS_whisper_client_check) {
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(wc_loc_, 0, 0, 'm', ld_addr, size, inval_load_.data, valid)) && FLAGS_whisper_client_check) {
       cvm::log(cvm::ERROR, "Error: store_inval_load failed to poke whisper memory in AMO MB Bypass case\n"); 
     }
   }
@@ -677,7 +680,7 @@ sysmod::store_inval_load(const inval_load_s& payload) {
     // No need to poke entire cacheline granularity - that will be done after CRSP
     bool valid = true;
     cvm::log(cvm::HIGH, "CBO_INVAL_MONITOR :: Whisper Poke with data:{:#x} for address:{:#x}\n", read_data,ld_addr);
-    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', ld_addr, size, read_data, valid) || !valid) && FLAGS_whisper_client_check) {
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(wc_loc_, 0, 0, 'm', ld_addr, size, read_data, valid) || !valid) && FLAGS_whisper_client_check) {
       cvm::log(cvm::ERROR, "Error: store_inval_load failed to poke whisper memory\n"); 
     }
   }
@@ -692,7 +695,7 @@ sysmod::backdoor_write(sysmod::backdoor_write_t t) {
 
   if (FLAGS_cosim) {
     bool valid = true;
-    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', t.address, 8, t.data, valid) || !valid) && FLAGS_whisper_client_check)
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(wc_loc_, 0, 0, 'm', t.address, 8, t.data, valid) || !valid) && FLAGS_whisper_client_check)
       cvm::log(cvm::ERROR, "Error: backdoor_write failed to poke whisper memory\n");
   }
     
@@ -787,7 +790,7 @@ sysmod::set_secure_region(std::string region) {
   std::vector<std::string> secure_region = cosim_util::split_string(region, ":");
   secure_region_start_ = std::stoull(secure_region.at(0), nullptr, 0);
   secure_region_end_   = std::stoull(secure_region.at(1), nullptr, 0);
-  cvm::registry::messenger.call<whisperClient<uint64_t>::secureRegionRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), secure_region_start_, secure_region_end_);
+  cvm::registry::messenger.call<whisperClient<uint64_t>::secureRegionRPC>(wc_loc_, secure_region_start_, secure_region_end_);
 }
 
 std::shared_ptr<TT_APLIC::Aplic>
@@ -1174,7 +1177,7 @@ sysmod::load_csr_mmr_boot(uint64_t dut) {
 
     } else {
       bool valid = true;
-      if (FLAGS_cosim && (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', addr, op, valid) || !valid) && FLAGS_whisper_client_check)
+      if (FLAGS_cosim && (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(wc_loc_, 0, 0, 'm', addr, op, valid) || !valid) && FLAGS_whisper_client_check)
         cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
     }
     addr += 4;
@@ -1315,9 +1318,8 @@ sysmod::load_cplfw(const std::string& cplfw) {
 void
 sysmod::store_dm_rand() {
 
-  std::string whisper_client = "TOP.PLATFORM.WHISPER_CLIENT";
-  uint64_t addr = cvm::registry::messenger.call<whisperClient<uint64_t>::get_dm_rand_addr_RPC>(cvm::topology::get_from_hierarchy(whisper_client, 0));
-  auto dm_rand_values = cvm::registry::messenger.call<whisperClient<uint64_t>::get_dm_rand_val_RPC>(cvm::topology::get_from_hierarchy(whisper_client, 0));
+  uint64_t addr = cvm::registry::messenger.call<whisperClient<uint64_t>::get_dm_rand_addr_RPC>(wc_loc_);
+  auto dm_rand_values = cvm::registry::messenger.call<whisperClient<uint64_t>::get_dm_rand_val_RPC>(wc_loc_);
   device::data_t dataw(8);
   device::strb_t strb(8);
   for (const auto &val:dm_rand_values) {
