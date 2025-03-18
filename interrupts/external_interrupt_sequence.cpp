@@ -15,15 +15,15 @@ external_interrupt_sequence::external_interrupt_sequence(cvm::topology::loc_t lo
 
   // Scope
   cvm::registry::messenger.connect<svScope>(loc_, [this](svScope s) { return this->set_scope(s); });
-  cvm::registry::messenger.connect<rv_tester_transactions::triggers::m_event_trigger_tick<>>(
-      loc_,
-      [this](const rv_tester_transactions::triggers::m_event_trigger_tick<>& t) { return this->capture_trigger_info(t.event_trigger, t.per_core_evt_vector); }); 
-  
  
   axi_mst_loc_l = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST", 0);
-  
   triggers_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.TRIGGERS", 0);
+  sysmod_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0);
 
+  cvm::registry::messenger.connect<rv_tester_transactions::triggers::m_event_trigger_tick<>>(
+      triggers_loc,
+      [this](const rv_tester_transactions::triggers::m_event_trigger_tick<>& t) { return this->capture_trigger_info(t.event_trigger, t.per_core_evt_vector); }); 
+  
   trigger_interrupt_count_ =  cvm::rand::get<uint32_t>(FLAGS_trigger_interrupt_count);
   // trigger sequence threads`
   interrupts_driven = 0;
@@ -115,6 +115,7 @@ cvm::messenger::task<void> external_interrupt_sequence::patch_trigger_mode() {
 cvm::messenger::task<void> external_interrupt_sequence::uarch_trigger_mode() {
   while(1){
     co_await trigger();
+    co_await tick();    // As trigger and capture_info on same event, adding a delay of a tick
     if((interrupts_driven < trigger_interrupt_count_) && (drive_msi_in_curr_hart)){
       cvm::log(cvm::LOW,"[ExtInterruptSeq] driving external interrupt due to uarch_trigger");
       drive_interrupt();
@@ -124,7 +125,7 @@ cvm::messenger::task<void> external_interrupt_sequence::uarch_trigger_mode() {
 }
 
 cvm::messenger::task<void> external_interrupt_sequence::tick() {
-  co_await cvm::registry::messenger.wait<rv_tester_transactions::triggers::m_event_trigger_tick<>>(triggers_loc);
+  co_await cvm::registry::messenger.wait<rv_tester_transactions::sysmod::overlay_tick<>>(sysmod_loc);
   co_return;
 }
 

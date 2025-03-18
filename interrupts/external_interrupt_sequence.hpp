@@ -41,6 +41,7 @@ class external_interrupt_sequence {
     cvm::topology::loc_t loc_;
     cvm::topology::loc_t axi_mst_loc_l;
     cvm::topology::loc_t triggers_loc;
+    cvm::topology::loc_t sysmod_loc;
     unsigned id_;
     svScope scope_;
 
