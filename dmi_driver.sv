@@ -1093,7 +1093,7 @@ import rv_tester_params:: * ;
                 $display("read_data1 is set");
               end
             end else begin
-              $display("Error: Mismatch scratchpad_mmr_write_data0_value:%h, scratchpad_mmr_read_data0_value:%h", data0_value, dmi_resp.data);
+              $display("Error: Mismatch scratchpad_mmr_write_data0_value: %h, scratchpad_mmr_read_data0_value: %h", data0_value, dmi_resp.data);
             end
           end else begin
             $display("Mem Access checker is disabled");
@@ -1108,7 +1108,7 @@ import rv_tester_params:: * ;
             poll = 0;
             read_data1_comp = 0;
           end else begin
-            $display("Error: Mismatch scratchpad_mmr_write_data1_value:%h, scratchpad_mmr_read_data1_value:%h", data1_value, dmi_resp.data);
+            $display("Error: Mismatch scratchpad_mmr_write_data1_value: %h, scratchpad_mmr_read_data1_value: %h", data1_value, dmi_resp.data);
           end
         end else if(read_cmisa_sdtrig) begin
           if(dmi_resp.data[23] === 0) begin
