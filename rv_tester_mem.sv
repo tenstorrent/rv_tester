@@ -56,7 +56,9 @@ module rv_tester_mem #(
     input   logic       flush_cache	,
     output  logic	flush_complete  ,
     output  logic       bist_status_done,
-    input   string      preload_file
+    input   string      preload_file,
+    input   string      preload_file_data,
+    input  string preload_file_data_arr [0:4-1]
 );
 
 ///////////////unpacked to packed////////////////////
@@ -122,8 +124,29 @@ module rv_tester_mem #(
     localparam CachedRegionStart  = {AxiAddrWidthCache{1'b0}}; 
     localparam CachedRegionEnd    = {1'b0,{AxiAddrWidth{1'b1}}} + {{AxiAddrWidth{1'b0}}, 1'b1};
     localparam SpmRegionStart     = CachedRegionEnd;
-    localparam int data_words = 512;
+    // string preload_data_file_arr [0:SetAssociativity_LLC-1];
+    localparam int data_words = 8;
     localparam int tag_words  = 128;
+
+    int preload_data_words = 32; 
+    int preload_tag_words  = 1;   
+
+    string preload_data_file;
+    string preload_tag_file;
+    // import "DPI-C" function void set_preload_data_file(int unsigned way, string file);
+
+    // function void set_preload_data_file(string file);
+    //     preload_data_file = file;
+    //     $display("Preload data file set to: %s", preload_data_file);
+    // endfunction
+    // export "DPI-C" function set_preload_data_file;
+
+    // function void set_preload_tag_file(string file);
+    //     preload_tag_file = file;
+    //     $display("Preload tag file set to: %s", preload_tag_file);
+    // endfunction
+    // export "DPI-C" function set_preload_tag_file;
+
 
 
     always@(negedge clk) begin
@@ -208,18 +231,59 @@ module rv_tester_mem #(
     //     end
     // end
 
+
+
+    // ARRAY PRELOAD FILE
     for (genvar i = 0; i < SetAssociativity_LLC; i++) begin
         always @(posedge clk_gated) begin
             rst_n_1T <= rst_n;
             if (rst_n && !rst_n_1T) begin
-                if (preload_file != "") begin
-                    $display("Preloading LLC way %0d with file: %s", i, preload_file);
-                    $readmemh(preload_file, llc.i_hit_miss_unit.i_tag_store.gen_tag_macros[i].i_tag_store.sram, data_words, data_words + tag_words - 1);
-                    $readmemh(preload_file, llc.i_llc_ways.gen_data_ways[i].i_data_way.i_data_sram.sram, 0, data_words - 1);
+                if (preload_file_data_arr[i] != "") begin
+                    $display("Preloading data SRAM for LLC way %0d with file: %s", i, preload_file_data_arr[i]);
+                    $readmemh(preload_file_data_arr[i],
+                            llc.i_llc_ways.gen_data_ways[i].i_data_way.i_data_sram.sram,
+                            0, data_words - 1);
                 end
             end
         end
     end
+
+
+    for (genvar i = 0; i < SetAssociativity_LLC; i++) begin
+        always @(posedge clk_gated) begin
+            rst_n_1T <= rst_n;
+            if (rst_n && !rst_n_1T) begin
+                if (preload_file != "" && preload_file_data != "") begin
+                    $display("Preloading LLC way %0d with file: %s", i, preload_file);
+                    $readmemh(preload_file, llc.i_hit_miss_unit.i_tag_store.gen_tag_macros[i].i_tag_store.sram, data_words, data_words + tag_words - 1);
+                    $readmemh(preload_file_data, llc.i_llc_ways.gen_data_ways[i].i_data_way.i_data_sram.sram, i * data_words, (i+1)*data_words - 1);
+                end
+            end
+        end
+    end
+
+    // for (genvar i = 0; i < SetAssociativity_LLC; i++) begin
+    //     always @(posedge clk_gated) begin
+    //         rst_n_1T <= rst_n;
+    //         if (rst_n && !rst_n_1T) begin
+    //             if (preload_data_file != "") begin
+    //                 $display("Preloading data SRAM for LLC way %0d with file: %s", i, preload_data_file);
+    //                 // Load the data section: from index 0 to preload_data_words-1.
+    //                 $readmemh(preload_data_file, 
+    //                         llc.i_llc_ways.gen_data_ways[i].i_data_way.i_data_sram.sram,
+    //                         0, preload_data_words - 1);
+    //             end
+    //             if (preload_tag_file != "") begin
+    //                 $display("Preloading tag SRAM for LLC way %0d with file: %s", i, preload_tag_file);
+    //                 // Load the tag section: adjust the index range as needed.
+    //                 $readmemh(preload_tag_file, 
+    //                         llc.i_hit_miss_unit.i_tag_store.gen_tag_macros[i].i_tag_store.sram,
+    //                         0, preload_tag_words - 1);
+    //             end
+    //         end
+    //     end
+    // end
+
 
     always@(posedge clk_gated) begin
         if(!rst_n) begin

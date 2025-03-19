@@ -1318,6 +1318,8 @@ module rv_tester
     mst_resp_rv axi_rsp_llc [NoOfMasters-1:0];
 
     string rv_tester_mem_preload_file = "";
+    string rv_tester_mem_preload_file_data = "";
+    string preload_data_file_arr [0:3]; // Declare an array for the data preload file names
 
     function automatic void rv_tester_set_address_map_and_preload_file(int unsigned i, longint unsigned start_addr, longint unsigned end_addr, int unsigned device, string preload_file);
         localparam int unsigned AW = topology.TOP.PLATFORM.AXI.ADDR_WIDTH;
@@ -1340,6 +1342,27 @@ module rv_tester
     assign addr_map_final = (bypass_cache == 0)?addr_map:addr_map_idx1;
 
     export "DPI-C" function rv_tester_set_address_map_and_preload_file;
+
+
+    function automatic void rv_tester_preload_file(string preload_file);
+	    rv_tester_mem_preload_file_data = preload_file;
+    endfunction
+
+    export "DPI-C" function rv_tester_preload_file;
+
+
+    // DPI function to set the file name for a given way:
+    function void set_preload_data_file(int unsigned way, string file);
+    if (way < 4) begin
+        preload_data_file_arr[way] = file;
+        $display("Preload data file for way %0d set to: %s", way, file);
+    end else begin
+        $display("Warning: Attempted to set preload file for invalid way %0d", way);
+    end
+    endfunction
+    export "DPI-C" function set_preload_data_file;
+
+    
 
     rv_tester_mem #(
         .NumMasters             ( topology.TOP.PLATFORM.AXI.TOTAL ),
@@ -1370,7 +1393,9 @@ module rv_tester
         .flush_cache            ( quiesced ),
         .flush_complete         ( flush_complete ),
         .bist_status_done       (),
-        .preload_file           ( rv_tester_mem_preload_file )
+        .preload_file           ( rv_tester_mem_preload_file ),
+        .preload_file_data      ( rv_tester_mem_preload_file_data ),
+        .preload_file_data_arr  ( preload_data_file_arr )
     );
 
     always @(posedge dut_clk[TB_CLK_IDX]) begin
