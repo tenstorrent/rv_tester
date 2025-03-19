@@ -181,8 +181,6 @@ class axi : public transactor {
 
     private:
 
-        cvm::topology::loc_t wc_loc_;
-
         std::vector<std::pair<uint64_t, uint64_t>> slverr_addr_;
         std::vector<std::pair<uint64_t, uint64_t>> decerr_addr_;
         std::vector<std::pair<uint64_t, uint64_t>> hang_addr_;
@@ -196,7 +194,6 @@ class axi : public transactor {
         cvm::messenger::task<void> operator()();
         void atop_modify_write_data(const atop_t& atop, const data_t& read_data, data_t& write_data, const len_t& len);
         std::vector<std::pair<uint64_t, uint64_t>> parse_hex_ranges(const std::string& input);
-        void configure_err_resp();
 
         // for metrics
         int num_slverr_resp_;
