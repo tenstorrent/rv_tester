@@ -132,21 +132,6 @@ module rv_tester_mem #(
 
     string preload_data_file;
     string preload_tag_file;
-    // import "DPI-C" function void set_preload_data_file(int unsigned way, string file);
-
-    // function void set_preload_data_file(string file);
-    //     preload_data_file = file;
-    //     $display("Preload data file set to: %s", preload_data_file);
-    // endfunction
-    // export "DPI-C" function set_preload_data_file;
-
-    // function void set_preload_tag_file(string file);
-    //     preload_tag_file = file;
-    //     $display("Preload tag file set to: %s", preload_tag_file);
-    // endfunction
-    // export "DPI-C" function set_preload_tag_file;
-
-
 
     always@(negedge clk) begin
         enable_flop <= ~bypass_mem;
@@ -221,16 +206,6 @@ module rv_tester_mem #(
     axi_llc_cfg_regs_q_t     reg_cfg_reg_to_hw;
 
     logic rst_n_1T;
-    // always@(posedge clk_gated) begin
-	// rst_n_1T <= rst_n;
-    //     if(rst_n && !rst_n_1T) begin
-	//     if (preload_file != "") begin
-	// 	    $readmem(preload_file, "some_array");
-	// 	end
-    //     end
-    // end
-
-
 
     // ARRAY PRELOAD FILE
     for (genvar i = 0; i < SetAssociativity_LLC; i++) begin
