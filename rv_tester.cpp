@@ -82,54 +82,82 @@ static bool validate_ge0(const char* flagname, const int value) {
 // }
 
 // ARRAY OF FILES
-std::vector<std::string> convert_csv_to_preload_files_per_way(const std::string& csv_path, unsigned numWays) {
+struct PreloadFiles {
+    std::vector<std::string> dataFiles;
+    std::vector<std::string> tagFiles;
+};
+
+PreloadFiles convert_csv_to_preload_files_per_way(const std::string& csv_path, unsigned numWays) {
     std::ifstream csv(csv_path);
     if (!csv.is_open()) {
         std::cerr << "Error: could not open CSV file: " << csv_path << std::endl;
-        return {};
+        return PreloadFiles{};
     }
     
-    // Vector to hold the "data" field from each CSV row.
-    std::vector<std::string> dataRows;
+    std::vector<std::string> dataLines;
+    std::vector<std::string> tagLines;
     std::string line;
     while (std::getline(csv, line)) {
         if (line.empty()) continue;
         std::istringstream iss(line);
         std::string type, va, pa, data, cacheable;
-        // Read five comma-separated fields.
         std::getline(iss, type, ',');
         std::getline(iss, va, ',');
         std::getline(iss, pa, ',');
         std::getline(iss, data, ',');
         std::getline(iss, cacheable, ',');
-        dataRows.push_back(data);
+        dataLines.push_back(data);
+        const int index_bits = 3;
+        const int block_offset_bits = 8;
+        std::uint64_t pa_val = 0;
+        std::istringstream iss_pa(pa);
+        iss_pa >> std::hex >> pa_val;
+        std::uint64_t tag = pa_val >> (index_bits + block_offset_bits);
+        std::stringstream tag_ss;
+        tag_ss << std::setw(8) << std::setfill('0') << std::hex << tag;
+        tagLines.push_back(tag_ss.str());
     }
     csv.close();
     
-    // Prepare per-way vectors. We'll distribute the rows round-robin.
-    std::vector<std::vector<std::string>> perWay(numWays);
-    for (size_t i = 0; i < dataRows.size(); i++) {
+    // Create per-way vectors and distribute rows round-robin.
+    std::vector<std::vector<std::string>> perWayData(numWays);
+    std::vector<std::vector<std::string>> perWayTag(numWays);
+    for (size_t i = 0; i < dataLines.size(); i++) {
         unsigned way = i % numWays;
-        perWay[way].push_back(dataRows[i]);
+        perWayData[way].push_back(dataLines[i]);
+        perWayTag[way].push_back(tagLines[i]);
     }
     
-    // Write out each way's data to a separate file.
-    std::vector<std::string> fileNames;
+    // Write out each way's data and tag files.
+    PreloadFiles pf;
     for (unsigned w = 0; w < numWays; w++) {
-        std::string filename = "preload_data_way" + std::to_string(w) + ".hex";
-        std::ofstream out(filename);
-        if (!out.is_open()) {
-            std::cerr << "Error: could not open output file " << filename << std::endl;
+        std::string dataFilename = "preload_data_way" + std::to_string(w) + ".hex";
+        std::ofstream dataFile(dataFilename);
+        if (!dataFile.is_open()) {
+            std::cerr << "Error: could not open output file " << dataFilename << std::endl;
             continue;
         }
-        for (const auto& row : perWay[w]) {
-            out << row << "\n";
+        for (const auto& row : perWayData[w]) {
+            dataFile << row << "\n";
         }
-        out.close();
-        fileNames.push_back(filename);
-        std::cout << "Created preload file for way " << w << ": " << filename << std::endl;
+        dataFile.close();
+        pf.dataFiles.push_back(dataFilename);
+        std::cout << "Created preload data file for way " << w << ": " << dataFilename << std::endl;
+        
+        std::string tagFilename = "preload_tag_way" + std::to_string(w) + ".hex";
+        std::ofstream tagFile(tagFilename);
+        if (!tagFile.is_open()) {
+            std::cerr << "Error: could not open output file " << tagFilename << std::endl;
+            continue;
+        }
+        for (const auto& row : perWayTag[w]) {
+            tagFile << row << "\n";
+        }
+        tagFile.close();
+        pf.tagFiles.push_back(tagFilename);
+        std::cout << "Created preload tag file for way " << w << ": " << tagFilename << std::endl;
     }
-    return fileNames;
+    return pf;
 }
 
 DEFINE_int32(perf_period, 0, "cycles to wait to report clock performance");
@@ -164,7 +192,7 @@ extern "C" void rv_tester_terminate();
 extern "C" void rv_tester_set_address_map_and_preload_file(std::uint32_t i, std::uint64_t start_addr, std::uint64_t end_addr, std::uint32_t device, const char* preload_file);
 extern "C" void rv_tester_preload_file(const char* preload_file);
 extern "C" void set_preload_data_file(std::uint32_t way, const char* file);
-
+extern "C" void set_preload_tag_file(std::uint32_t way, const char* file);
 
 static bool check_called;
 class logger_instrument {
@@ -300,33 +328,21 @@ extern "C" {
         }
 
         std::string preloadStr = FLAGS_preload_file;
-        // If the file ends with ".csv", convert it to a HEX file (e.g., tests/preload.hex)
-        // if (!preloadStr.empty() && preloadStr.substr(preloadStr.size()-4) == ".csv") {
-        //     std::string hexPath = "tests/preload.hex";
-        //     convert_csv_to_hex(preloadStr, hexPath);
-        //     preloadStr = hexPath;
-        //     // std::string dataHex = "tests/preload_data.hex";
-        //     // std::string tagHex  = "tests/preload_tag.hex";
-        //     // convert_csv_to_preload_files(preloadStr, dataHex, tagHex);
-        //     // set_preload_data_file(dataHex.c_str());
-        //     // set_preload_tag_file(tagHex.c_str());
-        // }
-        // // const char* preload_file = preloadStr.c_str();
-
         // Get the preload file string from plusargs.
         // std::string preloadStr = FLAGS_preload_file;
         // If the preload file ends with ".csv", convert it into per-way HEX files.
-        if (!preloadStr.empty() && preloadStr.substr(preloadStr.size() - 4) == ".csv") {
+        if (!preloadStr.empty() && preloadStr.substr(preloadStr.size()-4) == ".csv") {
             unsigned numWays = 4;
-            std::vector<std::string> dataFiles = convert_csv_to_preload_files_per_way(preloadStr, numWays);
-            if (dataFiles.empty()) {
-                cvm::log(cvm::ERROR, "Conversion of CSV to per-way preload files failed.");
+            PreloadFiles pf = convert_csv_to_preload_files_per_way(preloadStr, numWays);
+            if (pf.dataFiles.empty() || pf.tagFiles.empty()) {
+                cvm::log(cvm::ERROR, "CSV conversion failed; no preload files generated.");
                 return;
             }
-            for (unsigned w = 0; w < dataFiles.size(); w++) {
-                set_preload_data_file(w, dataFiles[w].c_str());
+            for (unsigned w = 0; w < numWays; w++) {
+                set_preload_data_file(w, pf.dataFiles[w].c_str());
+                set_preload_tag_file(w, pf.tagFiles[w].c_str());
             }
-            preloadStr = dataFiles[0];
+            preloadStr = pf.dataFiles[0];
         }
 
         std::uint32_t i = 0;
