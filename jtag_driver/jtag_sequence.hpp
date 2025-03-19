@@ -67,12 +67,13 @@ class jtag_sequence {
   virtual void jtag_ack(bool) 
   {
     csv_jtag_txn_pending = false;
+    stall_jtag_xtor = false;
   }
   virtual void jtag_tick(uint64_t advance) 
   {
-    if(csv_jtag_txn_pending)
-      return;
-    csv_jtag_txn_pending = true;
+    //if(csv_jtag_txn_pending)
+    //  return;
+    //csv_jtag_txn_pending = true;
     if (num_ticks == 0)
       reset();
     num_ticks++;
@@ -171,6 +172,13 @@ bool exitLoop() {
     cvm::log(cvm::HIGH, "[jtag_sequence]: JTAG loop command {}\n",jtag_cmd);
     
     if(jtag_cmd<3){
+      if(!stall_jtag_xtor){
+         stall_jtag_xtor = true;
+      }else{
+        cvm::log(cvm::LOW, "[jtag_sequence] Stall Observed in Loop Not: Driving jtag cmd {}\n", jtag_cmd);
+        cvm::log(cvm::LOW, "[jtag_sequence] Stall Observed in Loop! Length of jtag_loop_idx  {}\n", loop_idx);
+        return;
+      }
       hart = 0; // hart bits position TBD, till TBD it is always zero
       jtag_length_data_in_loop = jtag_req.jtag_length_data;
       trickboxJtagWrite(hart, jtag_cmd, upper_jtag_data, lower_jtag_data,reg_length_data,0,tap_cfg_sel);
@@ -446,8 +454,9 @@ std::bitset<N> reverseLowerBits(const std::bitset<N>& bs, std::size_t split_leng
     cvm::topology::loc_t loc_;
     unsigned id_;
     svScope scope_;
-    bool csv_jtag_txn_pending = false;
-    std::vector<uint32_t> soft_;              // Software interrupt: one per hart.
+  bool csv_jtag_txn_pending = false;
+  bool stall_jtag_xtor = false;
+  std::vector<uint32_t> soft_;              // Software interrupt: one per hart.
   std::vector<uint64_t> timeCompare_;       // One per interrupt type.
   std::vector<uint32_t> IntrHart_;          // Hart to be interrupted.
   std::vector<bool> delayedRandomIntValid_; // Valid bit for interrupt

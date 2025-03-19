@@ -502,6 +502,13 @@ void jtag_sequence::drive_csv_jtag_cmds()
     cvm::log(cvm::HIGH, "[jtag_sequence] Snippet     {}\n", jtag_req.snippet);
     }
     if(jtag_cmd<3){
+      if(!stall_jtag_xtor){
+         stall_jtag_xtor = true;
+      }else{
+        cvm::log(cvm::LOW, "[jtag_sequence] Stall Observed Not: Driving jtag cmd {}\n", jtag_cmd);
+        cvm::log(cvm::LOW, "[jtag_sequence] Stall Observed! Length of jtag_cmd queue     {}\n", jtag_cmd_q.size());
+        return;
+      }
       hart = 0; // hart bits position TBD, till TBD it is always zero
       jtag_cmd_q.pop(); // pop front element
       cvm::log(cvm::MEDIUM, "[jtag_sequence] Driving cmd [{}] from {}\n", jtag_req.csv_row, jtag_req.snippet);
