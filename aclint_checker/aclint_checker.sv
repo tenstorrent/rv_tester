@@ -171,12 +171,15 @@ import rv_tester_params:: * ;
     always @(posedge rf_clk) begin
         /* verilator lint_off BLKSEQ */
         if (dut_reset) AcChkCtime <= 0;
-        else if (!AcChkCtime_write && AcCrSynci[0].valid) AcChkCtime <= AcChkMtime;
-        else if (AcChkCtime_write && AcCrSynci[0].valid) begin
-            AcChkCtime <= AcChkCtime_updated;
-            AcChkCtime_write = 0;
-        end
+        else if ((AcCrSynci[0].data !== AcChkCtime_updated) && AcCrSynci[0].valid) AcChkCtime <= AcChkMtime;
+        else if (AcChkCtime_write) AcChkCtime <= AcChkCtime_updated;
         else AcChkCtime <= AcChkCtime;
+        /* verilator lint_on BLKSEQ */
+    end
+
+    always @(posedge rf_clk) begin
+        /* verilator lint_off BLKSEQ */
+        if (AcChkCtime == AcChkCtime_updated) AcChkCtime_write = 0;
         /* verilator lint_on BLKSEQ */
     end
 

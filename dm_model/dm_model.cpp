@@ -791,6 +791,16 @@ bool debug_module_t::dmi_read(unsigned address, uint32_t *value)
     case DM_NEXTDM:
       result = 0;
       break;
+    case DM_HALTSUM0:
+      {
+        result = 0;
+        for (unsigned id = 0; id < FLAGS_num_harts; id++) {
+          if (hart_state[id].halted) {
+            result |= 1 << id;
+          }
+        }
+      }
+      break;
     default:
       result = 0;
 
@@ -1450,7 +1460,10 @@ bool debug_module_t::dmi_write(unsigned address, uint32_t value)
             cvm::log(cvm::HIGH, "dmcs2 programming resumegrp set hart id :{:#x}, :{:#x}\n", selected_hart_id(), selected_hart_state().resumegroup);
           }
       }
-      return true;      
+      return true;   
+      
+      case DM_HALTSUM0:
+      return true;   
   }
   return false;
 }

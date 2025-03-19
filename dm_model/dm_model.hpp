@@ -193,7 +193,7 @@ private:
   // functionality.
   // unsigned custom_base;
 
-  std::unordered_set<uint8_t> dm_regs_to_check = {0x11, 0x16, 0x04, 0x10, 0x17, 0x32};
+  std::unordered_set<uint8_t> dm_regs_to_check = {0x11, 0x16, 0x04, 0x10, 0x17, 0x32, 0x40};
   uint8_t reg_addr_to_check;
   uint32_t req_expect;
   bool req_resp_check = false;
