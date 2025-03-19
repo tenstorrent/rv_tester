@@ -1317,12 +1317,10 @@ module rv_tester
     mst_req_rv axi_req_llc [NoOfMasters-1:0];
     mst_resp_rv axi_rsp_llc [NoOfMasters-1:0];
 
-    string rv_tester_mem_preload_file = "";
-    string rv_tester_mem_preload_file_data = "";
     string preload_data_file_arr [0:3]; // Declare an array for the preload data file names
     string preload_tag_file_arr [0:3]; // Declare an array for the preload tag file names
 
-    function automatic void rv_tester_set_address_map_and_preload_file(int unsigned i, longint unsigned start_addr, longint unsigned end_addr, int unsigned device, string preload_file);
+    function automatic void rv_tester_set_address_map(int unsigned i, longint unsigned start_addr, longint unsigned end_addr, int unsigned device);
         localparam int unsigned AW = topology.TOP.PLATFORM.AXI.ADDR_WIDTH;
         addr_map[i] = '{
             idx       : device         ,
@@ -1336,23 +1334,14 @@ module rv_tester
             end_addr  : AW'(end_addr  )
         };
 
-	rv_tester_mem_preload_file = preload_file;
-
     endfunction
 
     assign addr_map_final = (bypass_cache == 0)?addr_map:addr_map_idx1;
 
-    export "DPI-C" function rv_tester_set_address_map_and_preload_file;
+    export "DPI-C" function rv_tester_set_address_map;
 
 
-    function automatic void rv_tester_preload_file(string preload_file);
-	    rv_tester_mem_preload_file_data = preload_file;
-    endfunction
-
-    export "DPI-C" function rv_tester_preload_file;
-
-
-    // DPI function to set the file name for a given way:
+    // Function to set the file name for a given way:
     function void set_preload_data_file(int unsigned way, string file);
     if (way < 4) begin
         preload_data_file_arr[way] = file;
@@ -1404,8 +1393,6 @@ module rv_tester
         .flush_cache            ( quiesced ),
         .flush_complete         ( flush_complete ),
         .bist_status_done       (),
-        .preload_file           ( rv_tester_mem_preload_file ),
-        .preload_file_data      ( rv_tester_mem_preload_file_data ),
         .preload_file_data_arr  ( preload_data_file_arr ),
         .preload_file_tag_arr   ( preload_tag_file_arr )
     );

@@ -189,8 +189,7 @@ DEFINE_bool(rv_tester_terminate, true, "Set to false for offline DPI mode");
 DEFINE_string(preload_file, "", "Preload file for LLC");
 
 extern "C" void rv_tester_terminate();
-extern "C" void rv_tester_set_address_map_and_preload_file(std::uint32_t i, std::uint64_t start_addr, std::uint64_t end_addr, std::uint32_t device, const char* preload_file);
-extern "C" void rv_tester_preload_file(const char* preload_file);
+extern "C" void rv_tester_set_address_map(std::uint32_t i, std::uint64_t start_addr, std::uint64_t end_addr, std::uint32_t device);
 extern "C" void set_preload_data_file(std::uint32_t way, const char* file);
 extern "C" void set_preload_tag_file(std::uint32_t way, const char* file);
 
@@ -348,13 +347,11 @@ extern "C" {
         std::uint32_t i = 0;
         for (const auto& it : m) {
             const auto& e = it.second;
-            rv_tester_set_address_map_and_preload_file(i, e.base, e.end, e.type != "memory", preloadStr.c_str());
-            rv_tester_preload_file(preloadStr.c_str());
+            rv_tester_set_address_map(i, e.base, e.end, e.type != "memory");
             i++;
         }
         for(; i < no_addr_rules; i++) {
-            rv_tester_set_address_map_and_preload_file(i, 1, 1, 1, preloadStr.c_str());
-            rv_tester_preload_file(preloadStr.c_str());
+            rv_tester_set_address_map(i, 1, 1, 1);
         }
     }
 
