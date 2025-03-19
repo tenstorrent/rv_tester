@@ -1766,6 +1766,14 @@ triggers:
                 width: 32
             event_trigger:
                 width: 32
+    m_event_trigger_delayed_tick:
+        domain: 2
+        num: 1
+        fields:
+            per_core_evt_vector:
+                width: 32
+            event_trigger:
+                width: 32
 
 __domains:
     2:

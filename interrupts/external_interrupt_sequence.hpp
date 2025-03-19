@@ -28,8 +28,7 @@ class external_interrupt_sequence {
     cvm::messenger::task<void> patch_trigger_mode();
     cvm::messenger::task<void> uarch_trigger_mode();
 
-    cvm::messenger::task<void> tick();
-    cvm::messenger::task<void> trigger();
+    cvm::messenger::task<void> trigger_delayed();
 
     void init();
     void drive_interrupt();
@@ -41,7 +40,6 @@ class external_interrupt_sequence {
     cvm::topology::loc_t loc_;
     cvm::topology::loc_t axi_mst_loc_l;
     cvm::topology::loc_t triggers_loc;
-    cvm::topology::loc_t sysmod_loc;
     unsigned id_;
     svScope scope_;
 
