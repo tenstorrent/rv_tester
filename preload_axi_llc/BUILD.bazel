@@ -1,0 +1,7 @@
+
+cc_library(
+    name = "preload_axi_llc",
+    srcs = ["preload_axi_llc.cpp"],
+    hdrs = ["preload_axi_llc.hpp"],
+    visibility = ["//visibility:public"],
+)
