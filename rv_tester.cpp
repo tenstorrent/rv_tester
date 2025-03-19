@@ -20,6 +20,11 @@
 #include "sysmod/sysmod_plusargs.h"
 #include <fmt/format.h>
 #include "cosim/utils/eot/eot_plusargs.h"
+// #include "preload_axi_llc.hpp"
+
+#ifndef DEFAULT_NUM_WAYS
+#define DEFAULT_NUM_WAYS 4
+#endif
 
 static bool validate_ge0(const char* flagname, const int value) {
     if (value < 0) {
@@ -182,6 +187,25 @@ class logger_instrument {
         cvm::topology::loc_t loc;
 };
 
+std::string process_preload_file() {
+    std::string preloadStr = FLAGS_preload_file;
+    if (!preloadStr.empty() && preloadStr.substr(preloadStr.size() - 4) == ".csv") {
+        unsigned numWays = DEFAULT_NUM_WAYS;
+        PreloadFiles pf = convert_csv_to_preload_files_per_way(preloadStr, numWays);
+        if (pf.dataFiles.empty() || pf.tagFiles.empty()) {
+            cvm::log(cvm::ERROR, "CSV conversion failed; no preload files generated.");
+            return "";
+        }
+        for (unsigned w = 0; w < numWays; w++) {
+            set_preload_data_file(w, pf.dataFiles[w].c_str());
+            set_preload_tag_file(w, pf.tagFiles[w].c_str());
+        }
+        preloadStr = pf.dataFiles[0];
+    }
+    return preloadStr;
+}
+
+
 extern "C" {
 
     int rv_tester_perf_calc(int init, int reset_done, int terminate, std::uint64_t clocks) {
@@ -274,23 +298,7 @@ extern "C" {
             return;
         }
 
-        std::string preloadStr = FLAGS_preload_file;
-        // Get the preload file string from plusargs.
-        // std::string preloadStr = FLAGS_preload_file;
-        // If the preload file ends with ".csv", convert it into per-way HEX files.
-        if (!preloadStr.empty() && preloadStr.substr(preloadStr.size()-4) == ".csv") {
-            unsigned numWays = 4;
-            PreloadFiles pf = convert_csv_to_preload_files_per_way(preloadStr, numWays);
-            if (pf.dataFiles.empty() || pf.tagFiles.empty()) {
-                cvm::log(cvm::ERROR, "CSV conversion failed; no preload files generated.");
-                return;
-            }
-            for (unsigned w = 0; w < numWays; w++) {
-                set_preload_data_file(w, pf.dataFiles[w].c_str());
-                set_preload_tag_file(w, pf.tagFiles[w].c_str());
-            }
-            preloadStr = pf.dataFiles[0];
-        }
+        std::string preloadStr = process_preload_file();
 
         std::uint32_t i = 0;
         for (const auto& it : m) {
