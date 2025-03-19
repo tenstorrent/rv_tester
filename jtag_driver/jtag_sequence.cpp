@@ -42,7 +42,9 @@ jtag_sequence::jtag_sequence(cvm::topology::loc_t loc, unsigned id) : loc_(loc),
   cvm::registry::messenger.connect<rv_tester_transactions::jtag_driver::m_jtag_driver_tick<>>(
       loc_,
       [this](const rv_tester_transactions::jtag_driver::m_jtag_driver_tick<>& t) { return this->jtag_tick(t.cycle); }); 
-
+  cvm::registry::messenger.connect<rv_tester_transactions::jtag_driver::jtag_pkt_ack<>>(
+      loc_,
+      [this](const rv_tester_transactions::jtag_driver::jtag_pkt_ack<>& t) { return this->jtag_ack(t.complete); }); 
   // jtag_socket sequence threads
   if (FLAGS_jtag_driver_mode == "csv") {
     csv_mode_thread();
@@ -977,6 +979,7 @@ cvm::messenger::task<void> jtag_sequence::open_socket_to_listen(){
   // virtual void trickboxjtagWrite(unsigned hart, unsigned upper_jtag_data, unsigned lower_jtag_data, cbs_t& cbs)
   void jtag_sequence::trickboxJtagWrite(unsigned hart,unsigned jtag_cmd, unsigned long upper_jtag_data, unsigned long lower_jtag_data,unsigned reg_length_data,unsigned jtag_quit, unsigned tap_cfg_sel)
   {
+    csv_jtag_txn_pending = true;
     if(FLAGS_en_jtag_driver_logs)
     cvm::log(cvm::HIGH, "[jtag_sequence]TrickBox jtag Write to hart:{}, upper jtag data:{:#x}, lower jtag data:{:#x}, reg length data:{:#x}\n", hart, upper_jtag_data, lower_jtag_data,reg_length_data);
     // cbs.push_back(cb_t{Callback::TRICKBOX_jtag_WR, hart, upper_jtag_data, lower_jtag_data, 0});

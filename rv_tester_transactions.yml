@@ -1749,6 +1749,12 @@ jtag_driver:
         fields:
             advance:
                 width: 64
+    jtag_pkt_ack:
+        domain: 2
+        num: 1
+        fields:
+            complete:
+                width: 1
     jtag_rdata:
         domain: 2
         num: 1

@@ -147,7 +147,8 @@ import rv_tester_params::*;
   assign jtag_rdatas[0].data.location = location;
   /* verilator lint_off WIDTHEXPAND */
   assign jtag_rdatas[0].data.rdata     = jtag_rx;//upper32 bits for future use
-  /* verilator lint_on WIDTHEXPAND */
+
+
   assign jtag_rdatas_jtag_busy = jtag_busy ;
  // jtag xtor
 
@@ -174,8 +175,15 @@ typedef enum logic [1:0] {
   
   bit pos_tdo_en;
 
+  assign jtag_pkt_acks[0].valid         = (state == UPDATE);
+  assign jtag_pkt_acks[0].data.location = location;
+  /* verilator lint_off WIDTHEXPAND */
+  assign jtag_pkt_acks[0].data.complete     = (state == UPDATE);//upper32 bits for future use
+
+  /* verilator lint_on WIDTHEXPAND */
+
   function drive_jtag_req(int unsigned jtag_cmd_ip,longint upper_value,longint lower_value,int unsigned reg_length, int unsigned jtag_quit , int unsigned tap_cfg_sel);
-    jtag_tx_in_progress_l = 1;
+
     if(jtag_quit[0] === 1'b0 )begin
       jtag_enable_begin_cpp = (jtag_enable_begin_cpp ^ 1'b1);
       command = jtag_cmd_ip[1:0];

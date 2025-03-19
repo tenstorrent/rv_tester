@@ -64,8 +64,15 @@ class jtag_sequence {
 
     void set_scope(svScope s) { scope_ = s; }
 
+  virtual void jtag_ack(bool) 
+  {
+    csv_jtag_txn_pending = false;
+  }
   virtual void jtag_tick(uint64_t advance) 
   {
+    if(csv_jtag_txn_pending)
+      return;
+    csv_jtag_txn_pending = true;
     if (num_ticks == 0)
       reset();
     num_ticks++;
@@ -439,7 +446,7 @@ std::bitset<N> reverseLowerBits(const std::bitset<N>& bs, std::size_t split_leng
     cvm::topology::loc_t loc_;
     unsigned id_;
     svScope scope_;
-
+    bool csv_jtag_txn_pending = false;
     std::vector<uint32_t> soft_;              // Software interrupt: one per hart.
   std::vector<uint64_t> timeCompare_;       // One per interrupt type.
   std::vector<uint32_t> IntrHart_;          // Hart to be interrupted.
