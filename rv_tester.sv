@@ -182,6 +182,7 @@ module rv_tester
     int num_dm_randstore = 0;
     int trigger_config = 0;
     bit priority_singlestep = 0;
+    bit disable_haltpoll = 0;
     int dm_single_step_count = 0;
     int dmi_poll_counter = 0;
     int dmi_poll_timeout = 50000;
@@ -404,6 +405,7 @@ module rv_tester
             num_dm_randstore     <= cvm_plusargs::get_int("num_dm_randstore");
             trigger_config       <= cvm_plusargs::get_int("trigger_config");
             priority_singlestep  <= cvm_plusargs::get_bool("priority_singlestep") != '0;
+            disable_haltpoll     <= cvm_plusargs::get_bool("disable_haltpoll") != '0;
             sdtrig_multitrigger  <= cvm_plusargs::get_int("sdtrig_multitrigger");
             dm_single_step_count <= cvm_plusargs::get_int("dm_single_step_count");
             cb_poll              <= cvm_plusargs::get_bool("cb_async") == '0;
@@ -691,6 +693,7 @@ module rv_tester
         .num_dm_randstore,
         .trigger_config,
         .priority_singlestep,
+        .disable_haltpoll,
 
         .dmi_req_ready,
         .dmi_resp_valid,
