@@ -105,6 +105,8 @@ import rv_tester_params::*;
   bit jtag_socket_start = 0;
   bit jtag_socket_end = 0;
   bit jtag_socket_in_progress = 0;
+//  bit jtag_tx_in_progress;
+  bit jtag_tx_in_progress_l;
   always @(posedge clk) begin
     if (reset) begin
       jtag_enable_begin_sv <= jtag_enable_begin_cpp;
@@ -145,7 +147,8 @@ import rv_tester_params::*;
   assign jtag_rdatas[0].data.location = location;
   /* verilator lint_off WIDTHEXPAND */
   assign jtag_rdatas[0].data.rdata     = jtag_rx;//upper32 bits for future use
-  /* verilator lint_on WIDTHEXPAND */
+
+
   assign jtag_rdatas_jtag_busy = jtag_busy ;
  // jtag xtor
 
@@ -172,7 +175,15 @@ typedef enum logic [1:0] {
   
   bit pos_tdo_en;
 
+  assign jtag_pkt_acks[0].valid         = (state == UPDATE);
+  assign jtag_pkt_acks[0].data.location = location;
+  /* verilator lint_off WIDTHEXPAND */
+  assign jtag_pkt_acks[0].data.complete     = (state == UPDATE);//upper32 bits for future use
+
+  /* verilator lint_on WIDTHEXPAND */
+
   function drive_jtag_req(int unsigned jtag_cmd_ip,longint upper_value,longint lower_value,int unsigned reg_length, int unsigned jtag_quit , int unsigned tap_cfg_sel);
+
     if(jtag_quit[0] === 1'b0 )begin
       jtag_enable_begin_cpp = (jtag_enable_begin_cpp ^ 1'b1);
       command = jtag_cmd_ip[1:0];
@@ -231,6 +242,7 @@ always @(posedge clk) begin
     jtag_req.tms <= 1'b0;
     jtag_req.tdi <= 1'b0;
   end else begin
+    
     /* verilator lint_off CASEINCOMPLETE */
     if(jtag_req_begin_d)begin
       jtag_req_begin <= 1'b0;
@@ -345,6 +357,9 @@ always @(posedge clk) begin
         end
         
         read_data_valid <= 1'b0;
+        /* verilator lint_off BLKSEQ */
+        //jtag_tx_in_progress = 0; 
+        /* verilator lint_on BLKSEQ */
       end
       default: state <= IDLE;
     endcase
