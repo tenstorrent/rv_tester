@@ -15,6 +15,7 @@ import rv_tester_params:: * ;
     input logic [31:0]              num_dm_randstore,
     input logic [31:0]              trigger_config,
     input logic                     priority_singlestep,
+    input logic                     disable_haltpoll,
 
     
     input logic                     dmi_req_ready,
@@ -57,7 +58,7 @@ import rv_tester_params:: * ;
   logic abs_read, abs_write, abs_read_data, sdtrig_fire, halted_sdtrig;
   logic cores_in_halt_group, core_haltg_hreq, cores_in_resume_grp, core_resumeg_rreq, ack_havereset, remove_core_from_haltg, remove_core_from_resumeg;
   logic [7:0] core_in_halt_group, core_in_resume_grp, core_halted, core_resumed, core_ignore_hreq, core_ignore_rreq, core_disabled;
-  logic [9:0] dm_hartsel, core_rg_check;
+  logic [9:0] dm_hartsel, core_rg_check, core_ignore_resumepoll;
   logic [2:0] core_halt_index, core_resume_index;
   logic tdata1_write, check_trigger_type, mcontrol6_trigger, trigger_to_fire, trigger_fired_halted, check_cause_trigger, cause_trigger, to_check_cause;
   logic dcsr_abscmd, dcsr_read, ss_step_bit, core_to_halt_after_ss, core_halted_after_ss;
@@ -187,6 +188,7 @@ import rv_tester_params:: * ;
       disable_mem_access_checker <= 0;
       ss_ndmreset <= 0;
       end_of_test_cleanup <= 0;
+      core_ignore_resumepoll <= 0;
 
       command_queue.delete();
       response_queue.delete();
@@ -348,8 +350,14 @@ import rv_tester_params:: * ;
           dm_hartsel = cmd.data[25:16];
           if(~core_in_halt_group[dm_hartsel]) begin
             $display("[Poll] Seen Halt Req, Doing Poll");
-            halt_req = 1;
-            poll = 1;
+            if(~disable_haltpoll) begin
+              halt_req = 1;
+              poll = 1;
+            end else begin
+              core_ignore_resumepoll = dm_hartsel;
+              $display("[DMI Driver] core_ignore_resumepoll=%h , dm_hartsel=%h", core_ignore_resumepoll, dm_hartsel);
+              $display("[DMI Driver] disable_haltpoll is set and ignore haltreq poll");
+            end
           end else begin
             $display("[Poll] Core in halt group gets a haltreq, Doing Poll");
             core_haltg_hreq = 1;
@@ -843,12 +851,19 @@ import rv_tester_params:: * ;
           for(int ii=0; ii<8; ii++) begin
             //if(core_in_resume_grp[ii] && ~dmi_resp.data[ii])begin
             if(core_in_resume_grp[ii])begin
-              if(hart_enable_mask_value[ii] && ~dmi_resp.data[ii])begin
+              //ii==0 to satisfy the condition for core0, since core_ignore_resumepoll is 0 by defaulf.
+              if(hart_enable_mask_value[ii] && ~dmi_resp.data[ii] && ((core_ignore_resumepoll != ii) | ii==0))begin
                 core_resumed[ii] = 1;
                 $display("[Poll] core%0d in resume group is resumed", ii);
               end else if ((hart_enable_mask_value[ii] || dmi_resp.data[ii]) == 0) begin
                 core_disabled[ii] = 1;
                 $display("[Poll] core%0d is disabled", ii);
+              end
+              // As core_ignore_resumepoll would be 0 by default, ii!=0 is added to gaurd it from executing for all hartgroup tests.
+              // should only satisfy when core_ignore_resumepoll == 2, a non zero value
+              if((core_ignore_resumepoll == ii) & ii!=0) begin
+                core_ignore_rreq[ii] = 1;
+                $display("[Poll] core%0d is ignored as it receives resumereq while halting", ii);
               end
             end else if(!core_in_resume_grp[ii]) begin
               core_ignore_rreq[ii] = 1;

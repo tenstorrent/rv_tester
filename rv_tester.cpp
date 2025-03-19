@@ -48,7 +48,7 @@ DEFINE_int32(sdtrig_multitrigger, 0, "No of trigger condigurations for sdtrig mu
 DEFINE_int32(trigger_config, 0, "No of store addr configurations for sdtrig test");
 DEFINE_bool(priority_singlestep, false, "Prioritize single step over sdtrig in cross feature verification test");
 DEFINE_bool(rv_tester_terminate, true, "Set to false for offline DPI mode");
-
+DEFINE_bool(disable_haltpoll, false, "Disable poll for halting core, provide resumereq while halting");
 
 extern "C" void rv_tester_terminate();
 extern "C" void rv_tester_set_address_map(std::uint32_t i, std::uint64_t start_addr, std::uint64_t end_addr, std::uint32_t device);
