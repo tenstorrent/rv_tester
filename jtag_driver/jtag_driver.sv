@@ -105,7 +105,7 @@ import rv_tester_params::*;
   bit jtag_socket_start = 0;
   bit jtag_socket_end = 0;
   bit jtag_socket_in_progress = 0;
-  bit jtag_tx_in_progress;
+//  bit jtag_tx_in_progress;
   bit jtag_tx_in_progress_l;
   always @(posedge clk) begin
     if (reset) begin
@@ -139,7 +139,7 @@ import rv_tester_params::*;
   end
 
   // m_jtag_driver_tick
-  assign m_jtag_driver_ticks[0].valid = ~dut_reset & ((dut_clocks % 200) == 0) & ~(jtag_busy | jtag_enable_begin) & ~jtag_tx_in_progress;
+  assign m_jtag_driver_ticks[0].valid = ~dut_reset & ((dut_clocks % 200) == 0) & ~(jtag_busy | jtag_enable_begin);
   assign m_jtag_driver_ticks[0].data.location = location;
   assign m_jtag_driver_ticks[0].data.cycle = jtag_socket_en?((jtag_socket_start | jtag_socket_end) ? dut_clocks : '0):cycles;
   
@@ -358,7 +358,7 @@ always @(posedge clk) begin
         
         read_data_valid <= 1'b0;
         /* verilator lint_off BLKSEQ */
-        jtag_tx_in_progress = 0; 
+        //jtag_tx_in_progress = 0; 
         /* verilator lint_on BLKSEQ */
       end
       default: state <= IDLE;

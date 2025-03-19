@@ -66,7 +66,7 @@ class jtag_sequence {
 
   virtual void jtag_ack(bool) 
   {
-    csv_jtag_txn_pending = false;
+    //csv_jtag_txn_pending = false;
     stall_jtag_xtor = false;
   }
   virtual void jtag_tick(uint64_t advance) 
@@ -454,7 +454,7 @@ std::bitset<N> reverseLowerBits(const std::bitset<N>& bs, std::size_t split_leng
     cvm::topology::loc_t loc_;
     unsigned id_;
     svScope scope_;
-  bool csv_jtag_txn_pending = false;
+  //bool csv_jtag_txn_pending = false;
   bool stall_jtag_xtor = false;
   std::vector<uint32_t> soft_;              // Software interrupt: one per hart.
   std::vector<uint64_t> timeCompare_;       // One per interrupt type.
