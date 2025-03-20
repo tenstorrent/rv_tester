@@ -1320,12 +1320,12 @@ module rv_tester
     mst_req_rv axi_req_llc [NoOfMasters-1:0];
     mst_resp_rv axi_rsp_llc [NoOfMasters-1:0];
 
-    localparam int SetAssociativity = 32'd4;
-    localparam int NumLines = 32'd128;
-    localparam int NumBlocks = 32'd4;
+    localparam int AxiLLC_SetAssociativity = 32'd4;
+    localparam int AxiLLC_NumLines = 32'd128;
+    localparam int AxiLLC_NumBlocks = 32'd4;
 
-    string preload_data_file_arr [0:SetAssociativity - 1]; // Declare an array for the preload data file names
-    string preload_tag_file_arr [0:SetAssociativity - 1]; // Declare an array for the preload tag file names
+    string preload_data_file_arr [0:AxiLLC_SetAssociativity - 1]; // Declare an array for the preload data file names
+    string preload_tag_file_arr [0:AxiLLC_SetAssociativity - 1]; // Declare an array for the preload tag file names
 
     function automatic void rv_tester_set_address_map(int unsigned i, longint unsigned start_addr, longint unsigned end_addr, int unsigned device);
         localparam int unsigned AW = topology.TOP.PLATFORM.AXI.ADDR_WIDTH;
@@ -1349,7 +1349,7 @@ module rv_tester
 
 
     function void set_preload_data_file(int unsigned way, string file);
-    if (way < SetAssociativity) begin
+    if (way < AxiLLC_SetAssociativity) begin
         preload_data_file_arr[way] = file;
         $display("Preload data file for way %0d set to: %s", way, file);
     end else begin
@@ -1359,7 +1359,7 @@ module rv_tester
     export "DPI-C" function set_preload_data_file;
 
     function void set_preload_tag_file(int unsigned way, string file);
-    if (way < SetAssociativity) begin
+    if (way < AxiLLC_SetAssociativity) begin
         preload_tag_file_arr[way] = file;
         $display("Preload data file for way %0d set to: %s", way, file);
     end else begin
@@ -1368,20 +1368,27 @@ module rv_tester
     endfunction
     export "DPI-C" function set_preload_tag_file;
     
-    function int get_index_bits();
-        return $clog2(NumLines); 
-    endfunction
-    export "DPI-C" function get_index_bits;
+    // function int get_index_bits();
+    //     return $clog2(NumLines); 
+    // endfunction
+    // export "DPI-C" function get_index_bits;
 
-    function int get_block_offset_bits();
-        return $clog2(NumBlocks * 8); 
-    endfunction
-    export "DPI-C" function get_block_offset_bits;
+    // function int get_block_offset_bits();
+    //     return $clog2(NumBlocks * 8); 
+    // endfunction
+    // export "DPI-C" function get_block_offset_bits;
 
-    function int get_set_associativity();
-        return SetAssociativity;
+    // function int get_set_associativity();
+    //     return SetAssociativity;
+    // endfunction
+    // export "DPI-C" function get_set_associativity;
+
+    function void get_preload_params(output int numWays, output int index_bits, output int block_offset_bits);
+        numWays = AxiLLC_SetAssociativity;        
+        index_bits = $clog2(AxiLLC_NumLines);         
+        block_offset_bits = $clog2(AxiLLC_NumBlocks * 8); 
     endfunction
-    export "DPI-C" function get_set_associativity;
+    export "DPI-C" function get_preload_params;
     
     rv_tester_mem #(
         .NumMasters             ( topology.TOP.PLATFORM.AXI.TOTAL ),
@@ -1390,9 +1397,9 @@ module rv_tester
         .AxiAddrWidth           ( topology.TOP.PLATFORM.AXI.ADDR_WIDTH ),
         .AxiStrbWidth           ( topology.TOP.PLATFORM.AXI.STRB_WIDTH ),
         .AxiUserWidth           ( AXI_USER_ID_WIDTH ),
-        .NumLines_LLC           ( NumLines ),
-        .NumBlocks_LLC          ( NumBlocks ),
-        .SetAssociativity_LLC   ( SetAssociativity ),
+        .NumLines_LLC           ( AxiLLC_NumLines ),
+        .NumBlocks_LLC          ( AxiLLC_NumBlocks ),
+        .SetAssociativity_LLC   ( AxiLLC_SetAssociativity ),
         .slv_req_t              ( slv_req_rv  ),
         .slv_resp_t             ( slv_resp_rv ),
         .mst_req_t              ( mst_req_rv  ),
@@ -1412,8 +1419,10 @@ module rv_tester
         .flush_cache            ( quiesced ),
         .flush_complete         ( flush_complete ),
         .bist_status_done       (),
-        .preload_file_data_arr  ( preload_data_file_arr ),
-        .preload_file_tag_arr   ( preload_tag_file_arr )
+        `ifndef NO_PRELOAD
+            .preload_file_data_arr  ( preload_data_file_arr ),
+            .preload_file_tag_arr   ( preload_tag_file_arr )
+        `endif
     );
 
     always @(posedge dut_clk[TB_CLK_IDX]) begin

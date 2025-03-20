@@ -56,8 +56,10 @@ module rv_tester_mem #(
     input   logic       flush_cache	,
     output  logic	flush_complete  ,
     output  logic       bist_status_done,
-    input   string preload_file_data_arr [0:SetAssociativity_LLC - 1],
-    input   string preload_file_tag_arr[0:SetAssociativity_LLC - 1]
+    `ifndef NO_PRELOAD
+        input   string preload_file_data_arr [0:SetAssociativity_LLC - 1],
+        input   string preload_file_tag_arr[0:SetAssociativity_LLC - 1]
+    `endif
 );
 
 ///////////////unpacked to packed////////////////////

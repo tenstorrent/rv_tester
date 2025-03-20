@@ -7,7 +7,7 @@
 #include <cstdint>
 #include "cvm/logger.hpp"
 
-PreloadFiles preload_axi_llc::convert_csv_to_preload_files_per_way(const std::string& csv_path, int index_bits, int offset_bits, int numWays) {
+preload_axi_llc::PreloadFiles preload_axi_llc::convert_csv_to_preload_files_per_way(const std::string& csv_path, int index_bits, int offset_bits, int numWays) {
     PreloadFiles pf;
     pf.dataFiles.resize(numWays);
     pf.tagFiles.resize(numWays);
