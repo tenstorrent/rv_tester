@@ -86,7 +86,7 @@ cvm::messenger::task<void> external_interrupt_sequence::patch_trigger_mode() {
   while(1){
     bool abrupt_exit = false;
     // Wait for next selected trigger
-    co_await trigger_delayed();
+    co_await delayed_trigger();
     if(last_trigger != current_trigger){ //trigger transition detected
       gen_interrupt_timings();//empty as of today
       interrupts_driven = 0;
@@ -95,7 +95,7 @@ cvm::messenger::task<void> external_interrupt_sequence::patch_trigger_mode() {
        uint8_t num = rng1() % FLAGS_interrupt_trigger_interval ;
        //wait for num cycles before driving next MSI
        for(int i =0; i< num;i++){
-         co_await trigger_delayed();
+         co_await delayed_trigger();
          if(last_trigger != current_trigger){
            abrupt_exit = true;
            break;
@@ -113,7 +113,7 @@ cvm::messenger::task<void> external_interrupt_sequence::patch_trigger_mode() {
 
 cvm::messenger::task<void> external_interrupt_sequence::uarch_trigger_mode() {
   while(1){
-    co_await trigger_delayed(); // As trigger and capture_info on same event, using a delayed trigger to drive interrupt
+    co_await delayed_trigger(); // As trigger and capture_info on same event, using a delayed trigger to drive interrupt
     if(drive_msi_in_curr_hart){
       cvm::log(cvm::LOW,"[ExtInterruptSeq] driving external interrupt due to uarch_trigger");
       drive_interrupt();
@@ -122,7 +122,7 @@ cvm::messenger::task<void> external_interrupt_sequence::uarch_trigger_mode() {
   }
 }
 
-cvm::messenger::task<void> external_interrupt_sequence::trigger_delayed() {
+cvm::messenger::task<void> external_interrupt_sequence::delayed_trigger() {
   co_await cvm::registry::messenger.wait<rv_tester_transactions::triggers::m_event_trigger_delayed_tick<>>(triggers_loc);
   co_return;
 }
