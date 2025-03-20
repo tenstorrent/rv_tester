@@ -56,6 +56,8 @@ import rv_tester_params::*;
   int unsigned uarch_trigger_start_clocks = 0;
   bit patch_event_based_interrupt = 0;
   bit uarch_event_based_interrupt = 0;
+  bit patch_event_based_interrupt_delayed = 0;
+  bit uarch_event_based_interrupt_delayed = 0;
   int unsigned clocks = 0;
   always @(posedge hart_specific_event_trigger[PATCH]) begin
       /* verilator lint_off BLKSEQ */
@@ -82,6 +84,7 @@ end
 
   always @(posedge clk) begin
     clocks <= clocks + 1;
+    patch_event_based_interrupt_delayed <= patch_event_based_interrupt;
     if(patch_trigger_start_clocks == clocks)
       /* verilator lint_off BLKSEQ */
           patch_event_based_interrupt = 1'b0;
@@ -90,6 +93,7 @@ end
 
   always @(posedge clk) begin
     clocks <= clocks + 1;
+    uarch_event_based_interrupt_delayed <= uarch_event_based_interrupt;
     if(uarch_trigger_start_clocks == clocks)
       /* verilator lint_off BLKSEQ */
           uarch_event_based_interrupt = 1'b0;
@@ -103,8 +107,7 @@ end
   /* verilator lint_off WIDTHEXPAND */
   assign m_event_trigger_ticks[0].data.event_trigger = hart_specific_event_trigger;
   /* verilator lint_on WIDTHEXPAND */
-
-
-
+  assign m_event_trigger_delayed_ticks[0].valid = (uarch_event_based_interrupt_delayed | patch_event_based_interrupt_delayed) & (location != cvm_topology::nil);
+  assign m_event_trigger_delayed_ticks[0].data.location = location;
 
 endmodule
