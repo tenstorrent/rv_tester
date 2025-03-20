@@ -802,40 +802,47 @@ cvm::messenger::task<void> reset_sequence::fuse_mmr_check(rst_t rst_type) {
   cvm::log(cvm::MEDIUM, "[pwrmgmt]  Fuse MMR check at {} reset\n", rst_type );
 
   uint64_t fuse =  fuse_val();
+  uint32_t ncores = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
   //if (rst_type == COLD)
   //  fuse = fuse_val();
   //else
   //  fuse = co_await read(dm_fuse_mmr, SZ_8B, boot_interface);
   std::vector<uint64_t> fuse_registers = { 
     sw_fuse_mmr,
+    trace_fuse_mmr,
     aclint_fuse_mmr,
     dm_fuse_mmr,
     sc_fuse_mmr
   };
 
-
-  if (FLAGS_trace_enable) 
-      fuse_registers.push_back(trace_fuse_mmr);
-  for (uint32_t i=0; i<FLAGS_num_harts; ++i)
+  for (uint32_t i=0; i<ncores; ++i)
     fuse_registers.push_back(core_fuse_mmr + i * core_fuse_offset);
   uint64_t actual_data, exp_data;
-
+  bool rsp_err_chk = true;
   for (auto addr : fuse_registers) {
-    actual_data = co_await read(addr, SZ_8B, boot_interface);
-    exp_data = (addr == sw_fuse_mmr)? ((rst_type == COLD) ? sw_fuse_default_val: fuse): fuse;
-    if (exp_data != actual_data)
-      cvm::log(cvm::ERROR, "[pwrmgmt] Fuse reg read check ERROR : addr 0x{:x} ,  Expected :0x{:x}, Actual : 0x{:x} \n", addr, exp_data, actual_data );
-    else
-      cvm::log(cvm::NONE, "[pwrmgmt]  Fuse reg read check : addr 0x{:x} , data 0x{:x} \n", addr, actual_data );
-  };
+    rsp_err_chk = (addr == trace_fuse_mmr)? FLAGS_trace_enable : true ;
+    rsp_err_chk =  addr > (core_fuse_mmr + (FLAGS_num_harts-1) * core_fuse_offset) ? false : rsp_err_chk;
+    actual_data = co_await read(addr, SZ_8B, boot_interface, rsp_err_chk);
+    if (rsp_err_chk) {
+      exp_data = (addr == sw_fuse_mmr)? ((rst_type == COLD) ? sw_fuse_default_val: fuse): fuse;
+      if ((exp_data != actual_data))
+        cvm::log(cvm::ERROR, "[pwrmgmt] Fuse reg read check ERROR : addr 0x{:x} ,  Expected :0x{:x}, Actual : 0x{:x} \n", addr, exp_data, actual_data );
+      else
+        cvm::log(cvm::NONE, "[pwrmgmt]  Fuse reg read check : addr 0x{:x} , data 0x{:x} \n", addr, actual_data );
+      }
+    };
   for (auto addr : fuse_registers) {
-    co_await write(addr, SZ_8B, rand()%0xFFFF'FFFF'FFFF'FFFF, boot_interface);
-    actual_data = co_await read(addr, SZ_8B, boot_interface);
-    exp_data = (addr == sw_fuse_mmr)? ((rst_type == COLD) ? sw_fuse_default_val: fuse): fuse;
-    if (exp_data != actual_data)
-      cvm::log(cvm::ERROR, "[pwrmgmt] Fuse reg lock check ERROR : addr 0x{:x} ,  Expected :0x{:x}, Actual : 0x{:x} \n", addr, exp_data, actual_data );
-    else
-      cvm::log(cvm::MEDIUM, "[pwrmgmt]  Fuse reg lock check : addr 0x{:x} , data 0x{:x} \n", addr, actual_data );
+    rsp_err_chk = (addr == trace_fuse_mmr)? FLAGS_trace_enable : true ;
+    rsp_err_chk =  addr > (core_fuse_mmr + (FLAGS_num_harts-1) * core_fuse_offset) ? false : rsp_err_chk;
+    co_await write(addr, SZ_8B, rand()%0xFFFF'FFFF'FFFF'FFFF, boot_interface, rsp_err_chk);
+    if (rsp_err_chk) {
+      actual_data = co_await read(addr, SZ_8B, boot_interface);
+      exp_data = (addr == sw_fuse_mmr)? ((rst_type == COLD) ? sw_fuse_default_val: fuse): fuse;
+      if (exp_data != actual_data)
+        cvm::log(cvm::ERROR, "[pwrmgmt] Fuse reg lock check ERROR : addr 0x{:x} ,  Expected :0x{:x}, Actual : 0x{:x} \n", addr, exp_data, actual_data );
+      else
+        cvm::log(cvm::MEDIUM, "[pwrmgmt]  Fuse reg lock check : addr 0x{:x} , data 0x{:x} \n", addr, actual_data );
+    } 
   };
   if (rst_type == COLD)
     co_return;
