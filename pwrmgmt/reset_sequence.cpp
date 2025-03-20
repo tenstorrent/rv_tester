@@ -211,6 +211,13 @@ cvm::messenger::task<void> reset_sequence::warm_reset_sequence() {
   for (int i=0; i<32; ++i)
     co_await tick();
 
+  // PLL cold powerup sequence
+  co_await pll_startup_sequence();
+
+  // PLL dfs sequence
+  if (FLAGS_pll_dfs| (FLAGS_clk_profile!=0))
+    co_await pll_dfs_sequence();
+
   co_await cpl_reset_sequence(WARM);
 
   // Wait for next tick
@@ -251,6 +258,7 @@ cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
 }
 
 cvm::messenger::task<void> reset_sequence::pll_startup_sequence() {
+  co_await write(pll_control, SZ_4B, (1 << wakeup_req_idx), boot_interface);
   co_await check_pll_status();
   co_await clear_pll_status();
 
@@ -283,6 +291,8 @@ cvm::messenger::task<void> reset_sequence::program_fe_resetvector() {
 cvm::messenger::task<void> reset_sequence::clear_pll_status() {
   co_await tick();
   co_await write(pll_interrupts, SZ_4B, (1 << cold_powerup_idx), boot_interface);
+  co_await write(pll_interrupts, SZ_4B, (1 << wakeup_done_idx), boot_interface);
+  co_await write(pll_control, SZ_4B, (0 << wakeup_req_idx), boot_interface);
 
   co_return;
 }
