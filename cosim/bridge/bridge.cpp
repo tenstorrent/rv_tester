@@ -152,7 +152,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
       "hpmcounter","mcycle","minstret","minstreth", // Permanent: PMC events
       "dcsr","dpc","dscratch0", "dscratch1", // Permanent: Debug events
       "sstateen0", "sstateen1", "sstateen2", "sstateen3","hstateen0", "hstateen1", "hstateen2", "hstateen3" // Smstateen CSRs
-
+      "seed"
     };
 
     std::istringstream iss(FLAGS_cosim_resynch_csr);
