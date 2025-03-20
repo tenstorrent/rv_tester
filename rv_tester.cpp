@@ -22,9 +22,6 @@
 #include "cosim/utils/eot/eot_plusargs.h"
 #include "preload_axi_llc/preload_axi_llc.hpp"
 
-#ifndef DEFAULT_NUM_WAYS
-#define DEFAULT_NUM_WAYS 4
-#endif
 
 static bool validate_ge0(const char* flagname, const int value) {
     if (value < 0) {
@@ -66,6 +63,7 @@ extern "C" void rv_tester_terminate();
 extern "C" void rv_tester_set_address_map(std::uint32_t i, std::uint64_t start_addr, std::uint64_t end_addr, std::uint32_t device);
 extern "C" void set_preload_data_file(std::uint32_t way, const char* file);
 extern "C" void set_preload_tag_file(std::uint32_t way, const char* file);
+extern "C" void set_preload_words(int data_words, int tag_words);
 
 static bool check_called;
 class logger_instrument {
@@ -112,6 +110,7 @@ std::string process_preload_file() {
     std::string preloadStr = FLAGS_preload_file;
     if (!preloadStr.empty() && preloadStr.substr(preloadStr.size() - 4) == ".csv") {
         unsigned numWays = DEFAULT_NUM_WAYS;
+        set_preload_words(DEFAULT_DATA_WORDS, DEFAULT_TAG_WORDS);
         PreloadFiles pf = preload_axi_llc::convert_csv_to_preload_files_per_way(preloadStr, numWays);
         if (pf.dataFiles.empty() || pf.tagFiles.empty()) {
             cvm::log(cvm::ERROR, "CSV conversion failed; no preload files generated.");
@@ -218,7 +217,6 @@ extern "C" {
             cvm::log(cvm::ERROR, "Test specifying more address rules ({}) than in sv ({})", m.size(), no_addr_rules);
             return;
         }
-
         std::string preloadStr = process_preload_file();
 
         std::uint32_t i = 0;

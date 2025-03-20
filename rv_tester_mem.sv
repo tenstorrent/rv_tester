@@ -57,7 +57,9 @@ module rv_tester_mem #(
     output  logic	flush_complete  ,
     output  logic       bist_status_done,
     input   string preload_file_data_arr [0:SetAssociativity_LLC - 1],
-    input   string preload_file_tag_arr[0:SetAssociativity_LLC - 1]
+    input   string preload_file_tag_arr[0:SetAssociativity_LLC - 1],
+    input   int         data_words,
+    input   int         tag_words
 );
 
 ///////////////unpacked to packed////////////////////
@@ -123,15 +125,6 @@ module rv_tester_mem #(
     localparam CachedRegionStart  = {AxiAddrWidthCache{1'b0}}; 
     localparam CachedRegionEnd    = {1'b0,{AxiAddrWidth{1'b1}}} + {{AxiAddrWidth{1'b0}}, 1'b1};
     localparam SpmRegionStart     = CachedRegionEnd;
-    // string preload_data_file_arr [0:SetAssociativity_LLC-1];
-    localparam int data_words = 8;
-    localparam int tag_words  = 128;
-
-    int preload_data_words = 32; 
-    int preload_tag_words  = 1;   
-
-    string preload_data_file;
-    string preload_tag_file;
 
     always@(negedge clk) begin
         enable_flop <= ~bypass_mem;

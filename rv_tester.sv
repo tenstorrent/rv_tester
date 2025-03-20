@@ -1322,6 +1322,8 @@ module rv_tester
 
     string preload_data_file_arr [0:3]; // Declare an array for the preload data file names
     string preload_tag_file_arr [0:3]; // Declare an array for the preload tag file names
+    int DataWords;          
+    int TagWords; 
 
     function automatic void rv_tester_set_address_map(int unsigned i, longint unsigned start_addr, longint unsigned end_addr, int unsigned device);
         localparam int unsigned AW = topology.TOP.PLATFORM.AXI.ADDR_WIDTH;
@@ -1364,8 +1366,14 @@ module rv_tester
     end
     endfunction
     export "DPI-C" function set_preload_tag_file;
-
     
+    function void set_preload_words(int data_words, int tag_words);
+        DataWords = data_words;
+        TagWords  = tag_words;
+        $display("Preload data words set to: %0d, preload tag words set to: %0d", DataWords, TagWords);
+    endfunction
+    export "DPI-C" function set_preload_words;
+
 
     rv_tester_mem #(
         .NumMasters             ( topology.TOP.PLATFORM.AXI.TOTAL ),
@@ -1397,7 +1405,9 @@ module rv_tester
         .flush_complete         ( flush_complete ),
         .bist_status_done       (),
         .preload_file_data_arr  ( preload_data_file_arr ),
-        .preload_file_tag_arr   ( preload_tag_file_arr )
+        .preload_file_tag_arr   ( preload_tag_file_arr ),
+        .data_words             ( DataWords ),
+        .tag_words              ( TagWords )
     );
 
     always @(posedge dut_clk[TB_CLK_IDX]) begin

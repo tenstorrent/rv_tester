@@ -4,10 +4,12 @@
 #include <string>
 #include <vector>
 
-// Set the default number of cache ways to split the preload file into.
-#ifndef DEFAULT_NUM_WAYS
+// Set the cache configs
 #define DEFAULT_NUM_WAYS 4
-#endif
+#define DEFAULT_INDEX_BITS 3
+#define DEFAULT_BLOCK_OFFSET_BITS 8
+#define DEFAULT_TAG_WORDS 8
+#define DEFAULT_DATA_WORDS 8
 
 struct PreloadFiles {
     std::vector<std::string> dataFiles;

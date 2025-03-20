@@ -28,13 +28,11 @@ PreloadFiles convert_csv_to_preload_files_per_way(const std::string& csv_path, u
         std::getline(iss, data, ',');
         std::getline(iss, cacheable, ',');
         dataLines.push_back(data);
-        // For tag computation, assume index_bits = 3 and block_offset_bits = 8.
-        const int index_bits = 3;
-        const int block_offset_bits = 8;
+
         std::uint64_t pa_val = 0;
         std::istringstream iss_pa(pa);
         iss_pa >> std::hex >> pa_val;
-        std::uint64_t tag = pa_val >> (index_bits + block_offset_bits);
+        std::uint64_t tag = pa_val >> (DEFAULT_INDEX_BITS + DEFAULT_BLOCK_OFFSET_BITS);
         std::stringstream tag_ss;
         tag_ss << std::setw(8) << std::setfill('0') << std::hex << tag;
         tagLines.push_back(tag_ss.str());
