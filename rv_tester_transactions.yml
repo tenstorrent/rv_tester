@@ -1075,6 +1075,16 @@ pmu_core:
                 width: 24
             pfc_prefetches_late_all:
                 width: 24
+            pfc_agt_evict_chaining:
+                width: 24
+            pfc_pht_chain_lookup:
+                width: 24
+            pfc_pht_chain_hit:
+                width: 24
+            pfc_pht_rtf_tap_filtered:
+                width: 24
+            pfc_pht_rtf_chain_filtered:
+                width: 24
             ls_chillout_cycles_relaxed:
                 width: 24
             ls_chillout_cycles_medium:
@@ -1298,6 +1308,18 @@ pmu_core:
             pfc_prt_l1d_evict_hit:
                 width: 24
             pfc_prt_reqbuf_alloc_hit:
+                width: 24
+            sc_hit_read:
+                width: 24
+            sc_hit_write:
+                width: 24
+            sc_hit_prefetch:
+                width: 24
+            sc_miss_read:
+                width: 24
+            sc_miss_write:
+                width: 24
+            sc_miss_prefetch:
                 width: 24
             ldq_missq_full_delay:
                 width: 24
