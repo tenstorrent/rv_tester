@@ -1324,6 +1324,9 @@ module rv_tester
     string preload_tag_file_arr [0:3]; // Declare an array for the preload tag file names
     int DataWords;          
     int TagWords; 
+    localparam int SetAssociativity = 32'd4;
+    localparam int NumLines = 128;
+    localparam int NumBlocks = 4;
 
     function automatic void rv_tester_set_address_map(int unsigned i, longint unsigned start_addr, longint unsigned end_addr, int unsigned device);
         localparam int unsigned AW = topology.TOP.PLATFORM.AXI.ADDR_WIDTH;
@@ -1367,14 +1370,30 @@ module rv_tester
     endfunction
     export "DPI-C" function set_preload_tag_file;
     
-    function void set_preload_words(int data_words, int tag_words);
-        DataWords = data_words;
-        TagWords  = tag_words;
-        $display("Preload data words set to: %0d, preload tag words set to: %0d", DataWords, TagWords);
+    // function void set_preload_words(int data_words, int tag_words);
+    //     DataWords = data_words;
+    //     TagWords  = tag_words;
+    //     $display("Preload data words set to: %0d, preload tag words set to: %0d", DataWords, TagWords);
+    // endfunction
+    // export "DPI-C" function set_preload_words;
+
+    
+    function int get_index_bits();
+        return $clog2(NumLines); // Assuming NumLines_LLC defines the number of cache lines.
     endfunction
-    export "DPI-C" function set_preload_words;
+    export "DPI-C" function get_index_bits;
 
+    function int get_block_offset_bits();
+        // For a line size of (NumBlocks_LLC * bytes_per_block):
+        return $clog2(NumBlocks * 8); 
+    endfunction
+    export "DPI-C" function get_block_offset_bits;
 
+    function int get_set_associativity();
+        return SetAssociativity;
+    endfunction
+    export "DPI-C" function get_set_associativity;
+    
     rv_tester_mem #(
         .NumMasters             ( topology.TOP.PLATFORM.AXI.TOTAL ),
         .AxiIdWidth             ( topology.TOP.PLATFORM.AXI.ID_WIDTH ),
@@ -1382,9 +1401,9 @@ module rv_tester
         .AxiAddrWidth           ( topology.TOP.PLATFORM.AXI.ADDR_WIDTH ),
         .AxiStrbWidth           ( topology.TOP.PLATFORM.AXI.STRB_WIDTH ),
         .AxiUserWidth           ( AXI_USER_ID_WIDTH ),
-        .NumLines_LLC           ( 128 ),
-        .NumBlocks_LLC          ( 4 ),
-        .SetAssociativity_LLC   ( 4 ),
+        .NumLines_LLC           ( NumLines ),
+        .NumBlocks_LLC          ( NumBlocks ),
+        .SetAssociativity_LLC   ( SetAssociativity ),
         .slv_req_t              ( slv_req_rv  ),
         .slv_resp_t             ( slv_resp_rv ),
         .mst_req_t              ( mst_req_rv  ),
@@ -1405,9 +1424,7 @@ module rv_tester
         .flush_complete         ( flush_complete ),
         .bist_status_done       (),
         .preload_file_data_arr  ( preload_data_file_arr ),
-        .preload_file_tag_arr   ( preload_tag_file_arr ),
-        .data_words             ( DataWords ),
-        .tag_words              ( TagWords )
+        .preload_file_tag_arr   ( preload_tag_file_arr )
     );
 
     always @(posedge dut_clk[TB_CLK_IDX]) begin

@@ -3,5 +3,9 @@ cc_library(
     name = "preload_axi_llc",
     srcs = ["preload_axi_llc.cpp"],
     hdrs = ["preload_axi_llc.hpp"],
+    deps = [
+        "@cvm//:plusargs",
+        "@cvm//:logger",
+    ],
     visibility = ["//visibility:public"],
 )

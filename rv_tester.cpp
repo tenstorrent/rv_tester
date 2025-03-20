@@ -1,13 +1,6 @@
 #include <cstdlib>
 #include <string_view>
 #include <chrono>
-#include <fstream>
-#include <sstream>
-#include <vector>
-#include <iostream>
-#include <iomanip>
-#include <cstdint>
-#include <string>
 
 #include "cvm/plusargs.hpp"
 #include "cvm/registry.hpp"
@@ -65,6 +58,9 @@ extern "C" void rv_tester_set_address_map(std::uint32_t i, std::uint64_t start_a
 extern "C" void set_preload_data_file(std::uint32_t way, const char* file);
 extern "C" void set_preload_tag_file(std::uint32_t way, const char* file);
 extern "C" void set_preload_words(int data_words, int tag_words);
+extern "C" int get_index_bits();
+extern "C" int get_block_offset_bits();
+extern "C" int get_set_associativity();
 
 static bool check_called;
 class logger_instrument {
@@ -110,14 +106,15 @@ class logger_instrument {
 std::string process_preload_file() {
     std::string preloadStr = FLAGS_preload_file;
     if (!preloadStr.empty() && preloadStr.substr(preloadStr.size() - 4) == ".csv") {
-        unsigned numWays = DEFAULT_NUM_WAYS;
-        set_preload_words(DEFAULT_DATA_WORDS, DEFAULT_TAG_WORDS);
-        PreloadFiles pf = preload_axi_llc::convert_csv_to_preload_files_per_way(preloadStr, numWays);
+        int numWays = get_set_associativity();
+        int index_bits = get_index_bits();
+        int block_offset_bits = get_block_offset_bits();
+        PreloadFiles pf = preload_axi_llc::convert_csv_to_preload_files_per_way(preloadStr, index_bits, block_offset_bits, numWays);
         if (pf.dataFiles.empty() || pf.tagFiles.empty()) {
             cvm::log(cvm::ERROR, "CSV conversion failed; no preload files generated.");
             return "";
         }
-        for (unsigned w = 0; w < numWays; w++) {
+        for (int w = 0; w < numWays; w++) {
             set_preload_data_file(w, pf.dataFiles[w].c_str());
             set_preload_tag_file(w, pf.tagFiles[w].c_str());
         }
