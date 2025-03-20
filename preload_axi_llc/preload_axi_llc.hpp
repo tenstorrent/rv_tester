@@ -3,6 +3,11 @@
 
 #include <string>
 #include <vector>
+#include <fstream>
+#include <sstream>
+#include <iostream>
+#include <iomanip>
+#include <cstdint>
 
 // Set the cache configs
 #define DEFAULT_NUM_WAYS 4
