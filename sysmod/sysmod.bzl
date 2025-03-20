@@ -36,6 +36,7 @@ def sysmod_gen(name, packet, topology, visibility = None, cc_attrs = {}, **kwarg
           "@rv_tester//sysmod/aclint:aclint",
           "@rv_tester//sysmod/trace_cfg:trace_cfg",
           "@rv_tester//sysmod/trickbox:trickbox",
+          "@rv_tester//sysmod/sep_entropy_fifo:sep_entropy_fifo",
           "@rv_tester//sysmod/htif:htif",
           "@rv_tester//sysmod/aplic:aplic_device",
           "@rv_tester//sysmod/mem:mem",
