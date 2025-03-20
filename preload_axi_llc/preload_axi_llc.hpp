@@ -4,12 +4,13 @@
 #include <string>
 #include <vector>
 
-struct PreloadFiles {
-    std::vector<std::string> dataFiles;
-    std::vector<std::string> tagFiles;
-};
 
 namespace preload_axi_llc {
+    
+    struct PreloadFiles {
+        std::vector<std::string> dataFiles;
+        std::vector<std::string> tagFiles;
+    };
 
     // Converts a CSV file (each row: type,va,pa,data,cacheable)
     // into two vectors of file names (one for data and one for tags),

@@ -71,7 +71,5 @@ PreloadFiles preload_axi_llc::convert_csv_to_preload_files_per_way(const std::st
         dataOut[i].close();
         tagOut[i].close();
     }
-    std::cout << "CSV conversion complete. " << lineCount
-              << " lines distributed among " << numWays << " ways." << std::endl;
     return pf;
 }

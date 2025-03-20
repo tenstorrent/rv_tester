@@ -1320,12 +1320,12 @@ module rv_tester
     mst_req_rv axi_req_llc [NoOfMasters-1:0];
     mst_resp_rv axi_rsp_llc [NoOfMasters-1:0];
 
-    string preload_data_file_arr [0:3]; // Declare an array for the preload data file names
-    string preload_tag_file_arr [0:3]; // Declare an array for the preload tag file names
-
     localparam int SetAssociativity = 32'd4;
     localparam int NumLines = 32'd128;
     localparam int NumBlocks = 32'd4;
+
+    string preload_data_file_arr [0:SetAssociativity - 1]; // Declare an array for the preload data file names
+    string preload_tag_file_arr [0:SetAssociativity - 1]; // Declare an array for the preload tag file names
 
     function automatic void rv_tester_set_address_map(int unsigned i, longint unsigned start_addr, longint unsigned end_addr, int unsigned device);
         localparam int unsigned AW = topology.TOP.PLATFORM.AXI.ADDR_WIDTH;
