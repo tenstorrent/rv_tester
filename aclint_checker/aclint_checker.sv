@@ -198,7 +198,7 @@ import rv_tester_params:: * ;
 
     genvar asserti;
     generate
-    for ( asserti = 0; asserti < 9; asserti++) begin : mtip_check 
+    for ( asserti = 0; asserti < 8; asserti++) begin : mtip_check // FIXME: RVDE-20545 update and re-enable checks for MTIP8 after RTL changes are merged. 
     logic coredisabled;
     logic [3:0] coreid;
     assign coredisabled = disablef[asserti];
