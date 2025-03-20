@@ -200,8 +200,10 @@ module rv_tester
 
 
     bit gen_clocks = '0;
-    string cvm_verbosity_string, gen_clocks_verbosity_string;
-    int unsigned cvm_verbosity, gen_clocks_verbosity;
+    bit gen_timestamp = '0;
+    logic [63:0] current_time;
+    string cvm_verbosity_string, gen_clocks_verbosity_string, gen_timestamp_verbosity_string;
+    int unsigned cvm_verbosity, gen_clocks_verbosity, gen_timestamp_verbosity;
     logic dut_terminate_any;
     logic ntrace_terminate;
 
@@ -240,8 +242,8 @@ module rv_tester
         clock_mode <= clock_mode + 1'b1;
         if(clock_mode == 3'b111)
           clock_mode <= '0;
-      end
-       /* verilator lint_on WIDTH */
+      end 
+      /* verilator lint_on WIDTH */
     end
     `endif
 
@@ -255,6 +257,12 @@ module rv_tester
 
         rv_tester_reset <= rerun_now;
         clocks          <= clocks + 1;
+
+        `ifndef NO_TIMESTAMP
+            /* verilator lint_off BLKSEQ */
+            current_time = $time;
+            /* verilator lint_on BLKSEQ */
+        `endif
 
         quiesce_counter <= quiesce_counter + int'(terminate);
         flush_counter   <= flush_counter + int'(quiesced);
@@ -386,8 +394,10 @@ module rv_tester
             // zebu bug doesn't allow nested function calls, so create intermediate variables
             cvm_verbosity_string        = cvm_plusargs::get_string("cvm_verbosity");
             gen_clocks_verbosity_string = cvm_plusargs::get_string("gen_clocks_verbosity");
+            gen_timestamp_verbosity_string  = cvm_plusargs::get_string("gen_timestamp_verbosity");
             cvm_verbosity               = cvm_logger::get_verbosity(cvm_verbosity_string);
             gen_clocks_verbosity        = cvm_logger::get_verbosity(gen_clocks_verbosity_string);
+            gen_timestamp_verbosity         = cvm_logger::get_verbosity(gen_timestamp_verbosity_string);
             warm_reset_string           = cvm_plusargs::get_string("warm_reset");
             warm_reset_en               = pwrmgmt_get_warm_reset_en(warm_reset_string);
             rv_tester_error_terminate.terminate = '0;
@@ -419,6 +429,7 @@ module rv_tester
             dyn_clk_switch       <= cvm_plusargs::get_bool("dyn_clk_switch") != '0;
             call_finish          <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
             gen_clocks           <= cvm_verbosity >= gen_clocks_verbosity;
+            gen_timestamp            <= cvm_verbosity >= gen_timestamp_verbosity;
             bypass_mem           <= cvm_plusargs::get_bool("bypass_mem") != '0;
             bypass_cache         <= cvm_plusargs::get_bool("bypass_cache") != '0;
             assertion_test_cycle <= cvm_plusargs::get_int("assertion_test_cycle");
@@ -1033,6 +1044,10 @@ module rv_tester
     assign tx_dom_1.logger_cycle_0s[0][0].valid = gen_clocks;
     assign tx_dom_1.logger_cycle_0s[0][0].data.location = location;
     assign tx_dom_1.logger_cycle_0s[0][0].data.clock = clocks;
+
+    assign tx_dom_1.logger_timestamp_0s[0][0].valid = gen_timestamp;
+    assign tx_dom_1.logger_timestamp_0s[0][0].data.location = location;
+    assign tx_dom_1.logger_timestamp_0s[0][0].data.timeval = current_time;
 
     localparam NoOfMasters = ( topology.TOP.PLATFORM.AXI.TOTAL < 2 ) ? 2 : topology.TOP.PLATFORM.AXI.TOTAL ;
     for (genvar p = 0; p < NoOfMasters; p++) begin : axi_sw_slvs

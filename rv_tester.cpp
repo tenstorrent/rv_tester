@@ -41,6 +41,7 @@ DEFINE_int32(clk_profile, 0, "Clk profile to drive various clocks");
 DEFINE_bool(dyn_clk_switch, false, "Enable dynamic clk switching");
 DEFINE_validator(num_reruns, &validate_ge0);
 DEFINE_string(gen_clocks_verbosity, "HIGH", "verbosity at which to generate clocks with cvm::logger prints");
+DEFINE_string(gen_timestamp_verbosity, "HIGH", "verbosity at which to generate timestamps with cvm::logger prints");
 DEFINE_int32(assertion_test_cycle, 0, "If non-zero, assert false on this cycle. Used for testing assertion infrastructure.");
 DEFINE_int32(rand_dmi_driver_dly, 0, "Random delay cycles, to be used while driving DMI transactions");
 DEFINE_int32(dm_single_step_count, 0, "No of times core to single step, to be used while driving DMI transactions");
@@ -61,13 +62,17 @@ class logger_instrument {
 
         void configure() {
             clock = 0;
+            timestamp = 0;
 
             cvm::set_logger_prefix([]() -> std::string_view {
                 prefix = (clock)? "[" + std::to_string(clock) + "] " : "";
+                prefix += (timestamp)? "[" + std::to_string(timestamp) + "]" : "";
                 return prefix;
             });
 
             cvm::registry::messenger.connect<rv_tester_transactions::logger::cycle<>>(loc, [] (const auto& c) { clock = c.clock; });
+            cvm::registry::messenger.connect<rv_tester_transactions::logger::timestamp<>>(loc, [] (const auto& t) { timestamp = t.timeval; });
+
         }
 
         void check() {
@@ -91,6 +96,7 @@ class logger_instrument {
         static svScope scope;
         static std::string prefix;
         static uint64_t clock;
+        static uint64_t timestamp;
         cvm::topology::loc_t loc;
 };
 
@@ -280,5 +286,6 @@ extern "C" {
 svScope logger_instrument::scope;
 std::string logger_instrument::prefix;
 uint64_t logger_instrument::clock;
+uint64_t logger_instrument::timestamp;
 
 REGISTRY_register(logger_instrument, TOP.PLATFORM, 0);
