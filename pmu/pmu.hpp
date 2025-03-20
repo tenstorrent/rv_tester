@@ -234,7 +234,7 @@ public:
       FP64_EXPORT_OVERFLOW,
       //The count will represent all the requests made to L1 I and D caches. Includes accesses made by speculatively executed instructions and hardware prefetchers but does not include non-cacheable requests
       CACHE_REFERENCES,
-      //Event for a request made to cache subsystem that misses in L1 I and D caches. Includes accesses made by speculatively executed instructions and hardware prefetchers.  but does not include non-cacheable requests
+      //Event for a request made to cache subsystem that misses in L1 I and D caches. Includes accesses made by speculatively executed instructions and hardware prefetchers but does not include IO or non-cacheable requests. Counts a single read miss per refill of a cacheline not in the L1 D
       CACHE_MISSES,
       //Event (speculative) for a l1d_cache access caused by a non cacheline crossing demand memory-read operation. Does not include accesses to IO or noncacheable regions
       L1D_READ_ACCESS_NON_CLC,
@@ -478,6 +478,16 @@ public:
       PFC_PREFETCHES_LATE_WASTED,
       //Event (speculative) for every instance a prefetch request is too late to satisfy a demand memory operation's ability to hit out of the L1D cache
       PFC_PREFETCHES_LATE_ALL,
+      //Event for every instance of Active Generation Table entry evicted to Pattern History Table with valid chaining metadata
+      PFC_AGT_EVICT_CHAINING,
+      //Event for every instance of chaining lookup to Pattern History Table
+      PFC_PHT_CHAIN_LOOKUP,
+      //Event for every instance of chaining hit to Pattern History Table
+      PFC_PHT_CHAIN_HIT,
+      //Event for every instance of speculative tap access to PHT getting filtered out by Recent Trigger Filtering
+      PFC_PHT_RTF_TAP_FILTERED,
+      //Event for every instance of speculative chaining access to PHT getting filtered out by Recent Trigger Filtering
+      PFC_PHT_RTF_CHAIN_FILTERED,
       //Event to count chillout cycles in relaxed mode
       LS_CHILLOUT_CYCLES_RELAXED,
       //Event to count chillout cycles in medium mode
@@ -702,6 +712,18 @@ public:
       PFC_PRT_L1D_EVICT_HIT,
       //Event for reqbuf allocation CAM hitting on one or more PRT entries
       PFC_PRT_REQBUF_ALLOC_HIT,
+      //Event for every instance of a Shared Cache hit by a demand read request
+      SC_HIT_READ,
+      //Event for every instance of a Shared Cache hit by a write request
+      SC_HIT_WRITE,
+      //Event for every instance of a Shared Cache hit by a prefetch read request
+      SC_HIT_PREFETCH,
+      //Event for every instance of a Shared Cache miss by a demand read request
+      SC_MISS_READ,
+      //Event for every instance of a Shared Cache miss by a write request
+      SC_MISS_WRITE,
+      //Event for every instance of a Shared Cache miss by a prefetch read request
+      SC_MISS_PREFETCH,
       //Wasted cycles across all LDQ entries between ReqBuf full indication and load allocs or links in the ReqBuf
       LDQ_MISSQ_FULL_DELAY,
       //Wasted cycles across all STQ entries between ReqBuf full indication and store allocs or links in the ReqBuf
@@ -715,7 +737,7 @@ public:
 
 
     void core_to_vector(const rv_tester_transactions::pmu_core::pmcounters_core<>& pmcounters){
-
+  
       const uint64_t casting_size_term = uint64_t(1) << 24;
 
       counters_core[counter_core::CPU_CYCLES] = counters_core[counter_core::CPU_CYCLES] + ((pmcounters.cpu_cycles - (counters_core[counter_core::CPU_CYCLES] % casting_size_term)) % casting_size_term);
@@ -950,6 +972,11 @@ public:
       counters_core[counter_core::PFC_PREFETCHES_LATE_REQBUF] = counters_core[counter_core::PFC_PREFETCHES_LATE_REQBUF] + ((pmcounters.pfc_prefetches_late_reqbuf - (counters_core[counter_core::PFC_PREFETCHES_LATE_REQBUF] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::PFC_PREFETCHES_LATE_WASTED] = counters_core[counter_core::PFC_PREFETCHES_LATE_WASTED] + ((pmcounters.pfc_prefetches_late_wasted - (counters_core[counter_core::PFC_PREFETCHES_LATE_WASTED] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::PFC_PREFETCHES_LATE_ALL] = counters_core[counter_core::PFC_PREFETCHES_LATE_ALL] + ((pmcounters.pfc_prefetches_late_all - (counters_core[counter_core::PFC_PREFETCHES_LATE_ALL] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::PFC_AGT_EVICT_CHAINING] = counters_core[counter_core::PFC_AGT_EVICT_CHAINING] + ((pmcounters.pfc_agt_evict_chaining - (counters_core[counter_core::PFC_AGT_EVICT_CHAINING] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::PFC_PHT_CHAIN_LOOKUP] = counters_core[counter_core::PFC_PHT_CHAIN_LOOKUP] + ((pmcounters.pfc_pht_chain_lookup - (counters_core[counter_core::PFC_PHT_CHAIN_LOOKUP] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::PFC_PHT_CHAIN_HIT] = counters_core[counter_core::PFC_PHT_CHAIN_HIT] + ((pmcounters.pfc_pht_chain_hit - (counters_core[counter_core::PFC_PHT_CHAIN_HIT] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::PFC_PHT_RTF_TAP_FILTERED] = counters_core[counter_core::PFC_PHT_RTF_TAP_FILTERED] + ((pmcounters.pfc_pht_rtf_tap_filtered - (counters_core[counter_core::PFC_PHT_RTF_TAP_FILTERED] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::PFC_PHT_RTF_CHAIN_FILTERED] = counters_core[counter_core::PFC_PHT_RTF_CHAIN_FILTERED] + ((pmcounters.pfc_pht_rtf_chain_filtered - (counters_core[counter_core::PFC_PHT_RTF_CHAIN_FILTERED] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::LS_CHILLOUT_CYCLES_RELAXED] = counters_core[counter_core::LS_CHILLOUT_CYCLES_RELAXED] + ((pmcounters.ls_chillout_cycles_relaxed - (counters_core[counter_core::LS_CHILLOUT_CYCLES_RELAXED] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::LS_CHILLOUT_CYCLES_MEDIUM] = counters_core[counter_core::LS_CHILLOUT_CYCLES_MEDIUM] + ((pmcounters.ls_chillout_cycles_medium - (counters_core[counter_core::LS_CHILLOUT_CYCLES_MEDIUM] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::LS_CHILLOUT_CYCLES_HEAVY] = counters_core[counter_core::LS_CHILLOUT_CYCLES_HEAVY] + ((pmcounters.ls_chillout_cycles_heavy - (counters_core[counter_core::LS_CHILLOUT_CYCLES_HEAVY] % casting_size_term)) % casting_size_term);
@@ -1062,6 +1089,12 @@ public:
       counters_core[counter_core::PFC_PREFETCHES_SENT] = counters_core[counter_core::PFC_PREFETCHES_SENT] + ((pmcounters.pfc_prefetches_sent - (counters_core[counter_core::PFC_PREFETCHES_SENT] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::PFC_PRT_L1D_EVICT_HIT] = counters_core[counter_core::PFC_PRT_L1D_EVICT_HIT] + ((pmcounters.pfc_prt_l1d_evict_hit - (counters_core[counter_core::PFC_PRT_L1D_EVICT_HIT] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::PFC_PRT_REQBUF_ALLOC_HIT] = counters_core[counter_core::PFC_PRT_REQBUF_ALLOC_HIT] + ((pmcounters.pfc_prt_reqbuf_alloc_hit - (counters_core[counter_core::PFC_PRT_REQBUF_ALLOC_HIT] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::SC_HIT_READ] = counters_core[counter_core::SC_HIT_READ] + ((pmcounters.sc_hit_read - (counters_core[counter_core::SC_HIT_READ] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::SC_HIT_WRITE] = counters_core[counter_core::SC_HIT_WRITE] + ((pmcounters.sc_hit_write - (counters_core[counter_core::SC_HIT_WRITE] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::SC_HIT_PREFETCH] = counters_core[counter_core::SC_HIT_PREFETCH] + ((pmcounters.sc_hit_prefetch - (counters_core[counter_core::SC_HIT_PREFETCH] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::SC_MISS_READ] = counters_core[counter_core::SC_MISS_READ] + ((pmcounters.sc_miss_read - (counters_core[counter_core::SC_MISS_READ] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::SC_MISS_WRITE] = counters_core[counter_core::SC_MISS_WRITE] + ((pmcounters.sc_miss_write - (counters_core[counter_core::SC_MISS_WRITE] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::SC_MISS_PREFETCH] = counters_core[counter_core::SC_MISS_PREFETCH] + ((pmcounters.sc_miss_prefetch - (counters_core[counter_core::SC_MISS_PREFETCH] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::LDQ_MISSQ_FULL_DELAY] = counters_core[counter_core::LDQ_MISSQ_FULL_DELAY] + ((pmcounters.ldq_missq_full_delay - (counters_core[counter_core::LDQ_MISSQ_FULL_DELAY] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::STQ_MISSQ_FULL_DELAY] = counters_core[counter_core::STQ_MISSQ_FULL_DELAY] + ((pmcounters.stq_missq_full_delay - (counters_core[counter_core::STQ_MISSQ_FULL_DELAY] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::BRANCH_INSTRUCTIONS] = counters_core[counter_core::BRANCH_INSTRUCTIONS] + ((pmcounters.branch_instructions - (counters_core[counter_core::BRANCH_INSTRUCTIONS] % casting_size_term)) % casting_size_term);
@@ -1069,7 +1102,7 @@ public:
 
     }
 
-
+  
     const std::map<counter_core, std::string_view> core_to_string = {
       {CPU_CYCLES,"cpu_cycles"},
       {INSTRUCTIONS,"instructions"},
@@ -1303,6 +1336,11 @@ public:
       {PFC_PREFETCHES_LATE_REQBUF,"pfc_prefetches_late_reqbuf"},
       {PFC_PREFETCHES_LATE_WASTED,"pfc_prefetches_late_wasted"},
       {PFC_PREFETCHES_LATE_ALL,"pfc_prefetches_late_all"},
+      {PFC_AGT_EVICT_CHAINING,"pfc_agt_evict_chaining"},
+      {PFC_PHT_CHAIN_LOOKUP,"pfc_pht_chain_lookup"},
+      {PFC_PHT_CHAIN_HIT,"pfc_pht_chain_hit"},
+      {PFC_PHT_RTF_TAP_FILTERED,"pfc_pht_rtf_tap_filtered"},
+      {PFC_PHT_RTF_CHAIN_FILTERED,"pfc_pht_rtf_chain_filtered"},
       {LS_CHILLOUT_CYCLES_RELAXED,"ls_chillout_cycles_relaxed"},
       {LS_CHILLOUT_CYCLES_MEDIUM,"ls_chillout_cycles_medium"},
       {LS_CHILLOUT_CYCLES_HEAVY,"ls_chillout_cycles_heavy"},
@@ -1415,6 +1453,12 @@ public:
       {PFC_PREFETCHES_SENT,"pfc_prefetches_sent"},
       {PFC_PRT_L1D_EVICT_HIT,"pfc_prt_l1d_evict_hit"},
       {PFC_PRT_REQBUF_ALLOC_HIT,"pfc_prt_reqbuf_alloc_hit"},
+      {SC_HIT_READ,"sc_hit_read"},
+      {SC_HIT_WRITE,"sc_hit_write"},
+      {SC_HIT_PREFETCH,"sc_hit_prefetch"},
+      {SC_MISS_READ,"sc_miss_read"},
+      {SC_MISS_WRITE,"sc_miss_write"},
+      {SC_MISS_PREFETCH,"sc_miss_prefetch"},
       {LDQ_MISSQ_FULL_DELAY,"ldq_missq_full_delay"},
       {STQ_MISSQ_FULL_DELAY,"stq_missq_full_delay"},
       {BRANCH_INSTRUCTIONS,"branch_instructions"},
@@ -1636,8 +1680,8 @@ public:
       {0x25400084,counter_core::L1D_MISS_MISC_REPLAY_PREFETCH},
       {0x25400088,counter_core::L1D_MISS_MISC_REPLAY_MMU},
       {0x2540008f,counter_core::L1D_MISS_MISC_REPLAY_ALL},
-      {0xa4cb003c,counter_core::L1D_VICTIM_FILL_EVICT},
-      {0xa4cb003d,counter_core::L1D_VICTIM_EARLY_EVICT},
+      {0xa4cb003d,counter_core::L1D_VICTIM_FILL_EVICT},
+      {0xa4cb003e,counter_core::L1D_VICTIM_EARLY_EVICT},
       {0xa4cb0037,counter_core::L1D_VICTIM_DEMAND_REQ},
       {0xa4cb003b,counter_core::L1D_VICTIM_PREFETCH_REQ},
       {0xa4cb001f,counter_core::L1D_VICTIM_MRU_ALLOC},
@@ -1654,6 +1698,11 @@ public:
       {0xabc30002,counter_core::PFC_PREFETCHES_LATE_REQBUF},
       {0xabc30004,counter_core::PFC_PREFETCHES_LATE_WASTED},
       {0xabc30007,counter_core::PFC_PREFETCHES_LATE_ALL},
+      {0xa1d00000,counter_core::PFC_AGT_EVICT_CHAINING},
+      {0xa1d10000,counter_core::PFC_PHT_CHAIN_LOOKUP},
+      {0xa1d20000,counter_core::PFC_PHT_CHAIN_HIT},
+      {0xa1d30000,counter_core::PFC_PHT_RTF_TAP_FILTERED},
+      {0xa1d40000,counter_core::PFC_PHT_RTF_CHAIN_FILTERED},
       {0xa2000079,counter_core::LS_CHILLOUT_CYCLES_RELAXED},
       {0xa200007a,counter_core::LS_CHILLOUT_CYCLES_MEDIUM},
       {0xa200007c,counter_core::LS_CHILLOUT_CYCLES_HEAVY},
@@ -1766,6 +1815,12 @@ public:
       {0x25cb0000,counter_core::PFC_PREFETCHES_SENT},
       {0xa1ce0000,counter_core::PFC_PRT_L1D_EVICT_HIT},
       {0xa1cf0000,counter_core::PFC_PRT_REQBUF_ALLOC_HIT},
+      {0x25420011,counter_core::SC_HIT_READ},
+      {0x25420012,counter_core::SC_HIT_WRITE},
+      {0x25420014,counter_core::SC_HIT_PREFETCH},
+      {0x25420021,counter_core::SC_MISS_READ},
+      {0x25420022,counter_core::SC_MISS_WRITE},
+      {0x25420024,counter_core::SC_MISS_PREFETCH},
       {-1,counter_core::LDQ_MISSQ_FULL_DELAY},
       {-1,counter_core::STQ_MISSQ_FULL_DELAY},
       {-1,counter_core::BRANCH_INSTRUCTIONS},
@@ -1914,6 +1969,15 @@ public:
             {0x0002,counter_core::UWP_INVALIDATE_TAP_DFP},
             }
       },
+      {0x2542,{
+            {0x0011,counter_core::SC_HIT_READ},
+            {0x0012,counter_core::SC_HIT_WRITE},
+            {0x0014,counter_core::SC_HIT_PREFETCH},
+            {0x0021,counter_core::SC_MISS_READ},
+            {0x0022,counter_core::SC_MISS_WRITE},
+            {0x0024,counter_core::SC_MISS_PREFETCH},
+            }
+      },
       {0x1862,{
             {0x0001,counter_core::OP_COMPLETE_LD},
             {0x0002,counter_core::OP_COMPLETE_ST},
@@ -1942,6 +2006,8 @@ public:
             }
       },
     };
+
+//AUTOGENERATED -- END
 
 
     typedef enum : size_t {
