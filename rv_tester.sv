@@ -1322,11 +1322,10 @@ module rv_tester
 
     string preload_data_file_arr [0:3]; // Declare an array for the preload data file names
     string preload_tag_file_arr [0:3]; // Declare an array for the preload tag file names
-    int DataWords;          
-    int TagWords; 
+
     localparam int SetAssociativity = 32'd4;
-    localparam int NumLines = 128;
-    localparam int NumBlocks = 4;
+    localparam int NumLines = 32'd128;
+    localparam int NumBlocks = 32'd4;
 
     function automatic void rv_tester_set_address_map(int unsigned i, longint unsigned start_addr, longint unsigned end_addr, int unsigned device);
         localparam int unsigned AW = topology.TOP.PLATFORM.AXI.ADDR_WIDTH;
@@ -1349,9 +1348,8 @@ module rv_tester
     export "DPI-C" function rv_tester_set_address_map;
 
 
-    // Function to set the file name for a given way:
     function void set_preload_data_file(int unsigned way, string file);
-    if (way < 4) begin
+    if (way < SetAssociativity) begin
         preload_data_file_arr[way] = file;
         $display("Preload data file for way %0d set to: %s", way, file);
     end else begin
@@ -1361,7 +1359,7 @@ module rv_tester
     export "DPI-C" function set_preload_data_file;
 
     function void set_preload_tag_file(int unsigned way, string file);
-    if (way < 4) begin
+    if (way < SetAssociativity) begin
         preload_tag_file_arr[way] = file;
         $display("Preload data file for way %0d set to: %s", way, file);
     end else begin
@@ -1370,21 +1368,12 @@ module rv_tester
     endfunction
     export "DPI-C" function set_preload_tag_file;
     
-    // function void set_preload_words(int data_words, int tag_words);
-    //     DataWords = data_words;
-    //     TagWords  = tag_words;
-    //     $display("Preload data words set to: %0d, preload tag words set to: %0d", DataWords, TagWords);
-    // endfunction
-    // export "DPI-C" function set_preload_words;
-
-    
     function int get_index_bits();
-        return $clog2(NumLines); // Assuming NumLines_LLC defines the number of cache lines.
+        return $clog2(NumLines); 
     endfunction
     export "DPI-C" function get_index_bits;
 
     function int get_block_offset_bits();
-        // For a line size of (NumBlocks_LLC * bytes_per_block):
         return $clog2(NumBlocks * 8); 
     endfunction
     export "DPI-C" function get_block_offset_bits;

@@ -124,8 +124,8 @@ module rv_tester_mem #(
     localparam CachedRegionEnd    = {1'b0,{AxiAddrWidth{1'b1}}} + {{AxiAddrWidth{1'b0}}, 1'b1};
     localparam SpmRegionStart     = CachedRegionEnd;
 
-    localparam int DataWords = 8;
-    localparam int TagWords = 8;
+    localparam int DataWords = NumLines_LLC * NumBlocks_LLC;
+    localparam int TagWords = NumLines_LLC;
 
     always@(negedge clk) begin
         enable_flop <= ~bypass_mem;
