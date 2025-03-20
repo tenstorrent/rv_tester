@@ -1367,21 +1367,6 @@ module rv_tester
     end
     endfunction
     export "DPI-C" function set_preload_tag_file;
-    
-    // function int get_index_bits();
-    //     return $clog2(NumLines); 
-    // endfunction
-    // export "DPI-C" function get_index_bits;
-
-    // function int get_block_offset_bits();
-    //     return $clog2(NumBlocks * 8); 
-    // endfunction
-    // export "DPI-C" function get_block_offset_bits;
-
-    // function int get_set_associativity();
-    //     return SetAssociativity;
-    // endfunction
-    // export "DPI-C" function get_set_associativity;
 
     function void get_preload_params(output int numWays, output int index_bits, output int block_offset_bits);
         numWays = AxiLLC_SetAssociativity;        

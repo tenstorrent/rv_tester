@@ -58,9 +58,6 @@ extern "C" void rv_tester_set_address_map(std::uint32_t i, std::uint64_t start_a
 extern "C" void set_preload_data_file(std::uint32_t way, const char* file);
 extern "C" void set_preload_tag_file(std::uint32_t way, const char* file);
 extern "C" void set_preload_words(int data_words, int tag_words);
-// extern "C" int get_index_bits();
-// extern "C" int get_block_offset_bits();
-// extern "C" int get_set_associativity();
 extern "C" void get_preload_params(int* numWays, int* index_bits, int* block_offset_bits);
 
 static bool check_called;
@@ -107,9 +104,6 @@ class logger_instrument {
 static std::string process_preload_file() {
     std::string preloadStr = FLAGS_preload_file;
     if (!preloadStr.empty() && preloadStr.substr(preloadStr.size() - 4) == ".csv") {
-        // int numWays = get_set_associativity();
-        // int index_bits = get_index_bits();
-        // int block_offset_bits = get_block_offset_bits();
         int numWays, index_bits, block_offset_bits;
         get_preload_params(&numWays, &index_bits, &block_offset_bits);
         preload_axi_llc::PreloadFiles pf = preload_axi_llc::convert_csv_to_preload_files_per_way(preloadStr, index_bits, block_offset_bits, numWays);
