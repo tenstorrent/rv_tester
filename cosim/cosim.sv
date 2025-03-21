@@ -1293,8 +1293,7 @@ localparam CAM_IHBIT = CAM_IBITS;
       if (reset) begin
         stimecmp_valid <= '0;
         vstimecmp_valid <= '0;
-        stimecmp <= '0;
-        vstimecmp <= '0;
+        htimedelta_valid <= '0;
       end else begin
         for (int n = 0; n < NRET; n++) begin
           stimecmp_valid[n] <= rvfi[n].valid && rvfi[n].csr_valid && (rvfi[n].csr_addr == STIMECMP);
