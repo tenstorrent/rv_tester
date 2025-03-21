@@ -100,7 +100,7 @@ class logger_instrument {
 };
 
 static std::string process_preload_file(int numWays, int index_bits, int block_offset_bits) {
-    std::string preloadStr = FLAGS_preload_file;
+    std::string preloadStr = FLAGS_rv_tester_mem_preload_file;
     if (!preloadStr.empty() && preloadStr.substr(preloadStr.size() - 4) == ".csv") {
         preload_axi_llc::PreloadFiles pf = preload_axi_llc::convert_csv_to_preload_files_per_way(preloadStr, index_bits, block_offset_bits, numWays);
         if (pf.dataFiles.empty() || pf.tagFiles.empty()) {
