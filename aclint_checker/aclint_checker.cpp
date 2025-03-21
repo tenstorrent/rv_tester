@@ -307,13 +307,13 @@ void aclint_checker::check_outstanding_transactions(uint64_t signal) {
     
     std::string error_str = "";
     if (!cr_ac_mmr_v_.empty()) {
-        error_str += std::format("Error: {} Outstanding CORE-ACLINT MMR writes\n", cr_ac_mmr_v_.size());
+        error_str += fmt::format("Error: {} Outstanding CORE-ACLINT MMR writes\n", cr_ac_mmr_v_.size());
     } else {
         cvm::log(cvm::MEDIUM, "[ACLINT CHECKER] No outstanding CORE-ACLINT MMR writes\n");
     }
 
     if (!smc_ac_mmr_v_.empty()) {
-        error_str += std::format("Error: {} Outstanding SMC-ACLINT MMR writes\n", smc_ac_mmr_v_.size());
+        error_str += fmt::format("Error: {} Outstanding SMC-ACLINT MMR writes\n", smc_ac_mmr_v_.size());
     } else {
         cvm::log(cvm::MEDIUM, "[ACLINT CHECKER] No outstanding SMC-ACLINT MMR writes\n");
     }
