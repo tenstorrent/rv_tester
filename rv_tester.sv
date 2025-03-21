@@ -1347,22 +1347,30 @@ module rv_tester
 
 
     function void set_preload_data_file(int unsigned way, string file);
-    if (way < AxiLLC_SetAssociativity) begin
-        preload_data_file_arr[way] = file;
-        $display("Preload data file for way %0d set to: %s", way, file);
-    end else begin
-        $display("Error: Attempted to set preload file for invalid way %0d", way);
-    end
+    `ifndef NO_PRELOAD
+        if (way < AxiLLC_SetAssociativity) begin
+            preload_data_file_arr[way] = file;
+            $display("Preload data file for way %0d set to: %s", way, file);
+        end else begin
+            $display("Error: Attempted to set preload file for invalid way %0d", way);
+        end
+    `else
+        $display("Error: Compiled with NO_PRELOAD defined");
+    `endif
     endfunction
     export "DPI-C" function set_preload_data_file;
 
     function void set_preload_tag_file(int unsigned way, string file);
+    `ifndef NO_PRELOAD
     if (way < AxiLLC_SetAssociativity) begin
         preload_tag_file_arr[way] = file;
         $display("Preload data file for way %0d set to: %s", way, file);
     end else begin
         $display("Error: Attempted to set preload file for invalid way %0d", way);
     end
+    `else
+        $display("Error: Compiled with NO_PRELOAD defined");
+    `endif
     endfunction
     export "DPI-C" function set_preload_tag_file;
 
@@ -1394,10 +1402,10 @@ module rv_tester
         .bypass_mem             ( bypass_mem ),
         .flush_cache            ( quiesced ),
         .flush_complete         ( flush_complete ),
-        .bist_status_done       (),
+        .bist_status_done       ()
         `ifndef NO_PRELOAD
-            .preload_file_data_arr  ( preload_data_file_arr ),
-            .preload_file_tag_arr   ( preload_tag_file_arr )
+            , .preload_file_data_arr  ( preload_data_file_arr )
+            , .preload_file_tag_arr   ( preload_tag_file_arr )
         `endif
     );
 
