@@ -82,7 +82,7 @@ module rv_tester
     import "DPI-C" function int rv_tester_parse_flags(); // dummy return value so that this gets called immediately. need this to happen before any other DPIs are called.
     import "DPI-C" function void rv_tester_set_seed();
     import "DPI-C" context function void rv_tester_cvm_error_handler();
-    import "DPI-C" context function void rv_tester_parse_memmap(int unsigned no_addr_rules);
+    import "DPI-C" context function void rv_tester_parse_memmap(int unsigned no_addr_rules, int numWays, int index_bits, int block_offset_bits);
     import "DPI-C" context function void rv_tester_build_registry();
     import "DPI-C" context function void rv_tester_no_dm_build_registry();
     import "DPI-C" function byte unsigned rv_tester_shutdown_registry();
@@ -196,7 +196,10 @@ module rv_tester
     int assertion_test_cycle = 0;
 
     parameter int unsigned location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.ID, 0);
-
+    
+    localparam int AxiLLC_SetAssociativity = 32'd4;
+    localparam int AxiLLC_NumLines = 32'd128;
+    localparam int AxiLLC_NumBlocks = 32'd4;
 
 
     bit gen_clocks = '0;
@@ -352,7 +355,6 @@ module rv_tester
         end
     end
 
-
     /*
     * Group all zebu zemi3 DPIs here
     * These are run on a separate thread than the faster zDPI, so make sure
@@ -380,7 +382,7 @@ module rv_tester
                $display("[RVTESTER]: constructing registry without DM Model");
                rv_tester_no_dm_build_registry();
             end
-            rv_tester_parse_memmap(NoAddrRules);
+            rv_tester_parse_memmap(NoAddrRules, AxiLLC_SetAssociativity, $clog2(AxiLLC_NumLines), $clog2(AxiLLC_NumBlocks * 8));
 
             /* verilator lint_off BLKSEQ */
             // zebu bug doesn't allow nested function calls, so create intermediate variables
@@ -1320,10 +1322,6 @@ module rv_tester
     mst_req_rv axi_req_llc [NoOfMasters-1:0];
     mst_resp_rv axi_rsp_llc [NoOfMasters-1:0];
 
-    localparam int AxiLLC_SetAssociativity = 32'd4;
-    localparam int AxiLLC_NumLines = 32'd128;
-    localparam int AxiLLC_NumBlocks = 32'd4;
-
     string preload_data_file_arr [0:AxiLLC_SetAssociativity - 1]; // Declare an array for the preload data file names
     string preload_tag_file_arr [0:AxiLLC_SetAssociativity - 1]; // Declare an array for the preload tag file names
 
@@ -1353,7 +1351,7 @@ module rv_tester
         preload_data_file_arr[way] = file;
         $display("Preload data file for way %0d set to: %s", way, file);
     end else begin
-        $display("Warning: Attempted to set preload file for invalid way %0d", way);
+        $display("Error: Attempted to set preload file for invalid way %0d", way);
     end
     endfunction
     export "DPI-C" function set_preload_data_file;
@@ -1363,18 +1361,11 @@ module rv_tester
         preload_tag_file_arr[way] = file;
         $display("Preload data file for way %0d set to: %s", way, file);
     end else begin
-        $display("Warning: Attempted to set preload file for invalid way %0d", way);
+        $display("Error: Attempted to set preload file for invalid way %0d", way);
     end
     endfunction
     export "DPI-C" function set_preload_tag_file;
 
-    function void get_preload_params(output int numWays, output int index_bits, output int block_offset_bits);
-        numWays = AxiLLC_SetAssociativity;        
-        index_bits = $clog2(AxiLLC_NumLines);         
-        block_offset_bits = $clog2(AxiLLC_NumBlocks * 8); 
-    endfunction
-    export "DPI-C" function get_preload_params;
-    
     rv_tester_mem #(
         .NumMasters             ( topology.TOP.PLATFORM.AXI.TOTAL ),
         .AxiIdWidth             ( topology.TOP.PLATFORM.AXI.ID_WIDTH ),

@@ -58,7 +58,6 @@ extern "C" void rv_tester_set_address_map(std::uint32_t i, std::uint64_t start_a
 extern "C" void set_preload_data_file(std::uint32_t way, const char* file);
 extern "C" void set_preload_tag_file(std::uint32_t way, const char* file);
 extern "C" void set_preload_words(int data_words, int tag_words);
-extern "C" void get_preload_params(int* numWays, int* index_bits, int* block_offset_bits);
 
 static bool check_called;
 class logger_instrument {
@@ -101,11 +100,9 @@ class logger_instrument {
         cvm::topology::loc_t loc;
 };
 
-static std::string process_preload_file() {
+static std::string process_preload_file(int numWays, int index_bits, int block_offset_bits) {
     std::string preloadStr = FLAGS_preload_file;
     if (!preloadStr.empty() && preloadStr.substr(preloadStr.size() - 4) == ".csv") {
-        int numWays, index_bits, block_offset_bits;
-        get_preload_params(&numWays, &index_bits, &block_offset_bits);
         preload_axi_llc::PreloadFiles pf = preload_axi_llc::convert_csv_to_preload_files_per_way(preloadStr, index_bits, block_offset_bits, numWays);
         if (pf.dataFiles.empty() || pf.tagFiles.empty()) {
             cvm::log(cvm::ERROR, "CSV conversion failed; no preload files generated.");
@@ -202,7 +199,7 @@ extern "C" {
         cvm::rand::seed(FLAGS_seed);
     }
 
-    void rv_tester_parse_memmap(std::uint32_t no_addr_rules) {
+    void rv_tester_parse_memmap(std::uint32_t no_addr_rules, int numWays, int index_bits, int block_offset_bits) {
 
         std::map<std::string, memmap_entry_t> m;
         if (!cvm::registry::messenger.call<memmap::getRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.MEMMAP", 0), m))
@@ -211,7 +208,7 @@ extern "C" {
             cvm::log(cvm::ERROR, "Test specifying more address rules ({}) than in sv ({})", m.size(), no_addr_rules);
             return;
         }
-        std::string preloadStr = process_preload_file();
+        std::string preloadStr = process_preload_file(numWays, index_bits, block_offset_bits);
 
         std::uint32_t i = 0;
         for (const auto& it : m) {
