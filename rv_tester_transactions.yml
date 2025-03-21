@@ -1637,10 +1637,6 @@ aclint_checker:
         domain: 1
         num: ${TOP.PLATFORM.COSIM.RVFI.TOTAL_NRETS}
         fields:
-            srcid:
-                width: 14
-            order:
-                width: 64
             addr:
                 qualify: "{data}.mask != '0"
                 width: ${TOP.PLATFORM.PALEN}
