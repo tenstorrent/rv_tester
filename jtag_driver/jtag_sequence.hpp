@@ -71,9 +71,11 @@ class jtag_sequence {
   }
   virtual void jtag_tick(uint64_t advance) 
   {
-    //if(csv_jtag_txn_pending)
-    //  return;
-    //csv_jtag_txn_pending = true;
+    if(stall_jtag_xtor){ 
+      cvm::log(cvm::LOW, "[jtag_sequence] Stall Observed! Not Driving jtag cmd \n");
+      return;
+    }
+   
     if (num_ticks == 0)
       reset();
     num_ticks++;
@@ -172,13 +174,6 @@ bool exitLoop() {
     cvm::log(cvm::HIGH, "[jtag_sequence]: JTAG loop command {}\n",jtag_cmd);
     
     if(jtag_cmd<3){
-      if(!stall_jtag_xtor){
-         stall_jtag_xtor = true;
-      }else{
-        cvm::log(cvm::LOW, "[jtag_sequence] Stall Observed in Loop Not: Driving jtag cmd {}\n", jtag_cmd);
-        cvm::log(cvm::LOW, "[jtag_sequence] Stall Observed in Loop! Length of jtag_loop_idx  {}\n", loop_idx);
-        return;
-      }
       hart = 0; // hart bits position TBD, till TBD it is always zero
       jtag_length_data_in_loop = jtag_req.jtag_length_data;
       trickboxJtagWrite(hart, jtag_cmd, upper_jtag_data, lower_jtag_data,reg_length_data,0,tap_cfg_sel);
