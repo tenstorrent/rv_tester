@@ -22,6 +22,7 @@
 #include "cosim/utils/eot/eot_plusargs.h"
 #include "cosim/utils/general/util.h"
 #include "rv_tester_plusargs.h"
+#include "rv_tester_structs.h"
 #include "cvm/registry.hpp"
 
 
@@ -98,7 +99,7 @@ getNmiExceptionPc() {
 }
 
 template <typename URV>
-whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) {
+whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) : loc_(loc) {
   cvm::log(cvm::MEDIUM, "[whisperClient] initializing whisperClient\n");
 
   ncores_ = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
@@ -447,6 +448,8 @@ whisperClient<URV>::whisperConnect()
       cvm::log(cvm::ERROR, "Error: Could not find symbol tracerExtension in {} \n", std::string(FLAGS_archsample_lib_path));
   }
 
+  // Signal to subscribers that whisper is ready to receive cosim calls
+  cvm::registry::messenger.signal<rv_tester::whisper_connected>(loc_, rv_tester::whisper_connected{});
   return 0;
 }
 

@@ -46,10 +46,11 @@ verilog_library(
 
 verilog_dpi_library(
     name = name + "_dpi",
-    srcs = ["tb.cpp"],
+    srcs = ["tb.cpp", "gflags.cpp"],
     deps = [
         name + "_axi_sw_dpi",
         topology + "_cc",
+        "@rv_tester//:plusargs",
     ],
 )
 
