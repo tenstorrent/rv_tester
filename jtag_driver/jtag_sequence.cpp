@@ -502,13 +502,13 @@ void jtag_sequence::drive_csv_jtag_cmds()
     cvm::log(cvm::HIGH, "[jtag_sequence] Snippet     {}\n", jtag_req.snippet);
     }
     if(jtag_cmd<3){
-      if(!stall_jtag_xtor){
-         stall_jtag_xtor = true;
-      }else{
-        cvm::log(cvm::LOW, "[jtag_sequence] Stall Observed Not: Driving jtag cmd {}\n", jtag_cmd);
-        cvm::log(cvm::LOW, "[jtag_sequence] Stall Observed! Length of jtag_cmd queue     {}\n", jtag_cmd_q.size());
-        return;
-      }
+      //if(!stall_jtag_xtor){
+      //   stall_jtag_xtor = true;
+      //}else{
+      //cvm::log(cvm::LOW, "[jtag_sequence] Stall Observed Not: Driving jtag cmd {}\n", jtag_cmd);
+      //cvm::log(cvm::LOW, "[jtag_sequence] Stall Observed! Length of jtag_cmd queue     {}\n", jtag_cmd_q.size());
+      //return;
+      //}
       hart = 0; // hart bits position TBD, till TBD it is always zero
       jtag_cmd_q.pop(); // pop front element
       cvm::log(cvm::MEDIUM, "[jtag_sequence] Driving cmd [{}] from {}\n", jtag_req.csv_row, jtag_req.snippet);
@@ -986,7 +986,7 @@ cvm::messenger::task<void> jtag_sequence::open_socket_to_listen(){
   // virtual void trickboxjtagWrite(unsigned hart, unsigned upper_jtag_data, unsigned lower_jtag_data, cbs_t& cbs)
   void jtag_sequence::trickboxJtagWrite(unsigned hart,unsigned jtag_cmd, unsigned long upper_jtag_data, unsigned long lower_jtag_data,unsigned reg_length_data,unsigned jtag_quit, unsigned tap_cfg_sel)
   {
-    //csv_jtag_txn_pending = true;
+    stall_jtag_xtor = true;
     if(FLAGS_en_jtag_driver_logs)
     cvm::log(cvm::HIGH, "[jtag_sequence]TrickBox jtag Write to hart:{}, upper jtag data:{:#x}, lower jtag data:{:#x}, reg length data:{:#x}\n", hart, upper_jtag_data, lower_jtag_data,reg_length_data);
     // cbs.push_back(cb_t{Callback::TRICKBOX_jtag_WR, hart, upper_jtag_data, lower_jtag_data, 0});
