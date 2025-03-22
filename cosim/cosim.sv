@@ -250,6 +250,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     typedef longint unsigned LU;
     parameter int unsigned location = cvm_topology_gen::get_location (topology.TOP.PLATFORM.COSIM.ID, NUM);
     bit rvfi_enabled,mcm_enabled,hw_eot_enabled;
+    bit poke_mip_timer;
 
     //int mcm_value;
     longint unsigned psc_off_low  = 0;
@@ -711,6 +712,7 @@ localparam CAM_IHBIT = CAM_IBITS;
             rvfi_enabled = (cvm_plusargs::get_bool("rvfi") != '0) & (location != cvm_topology::nil);
             mcm_enabled = (cvm_plusargs::get_bool("mcm") != '0);
             to_host = ((is_eot_tohost() == 1) | (eot_addr != '0));
+            poke_mip_timer = (cvm_plusargs::get_bool("poke_mip_timer") != '0);
             if (rvfi_enabled) begin
               cosim_set_scope(location);
             end
@@ -1279,7 +1281,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     // m_mtime
     logic [NRET-1:0] stimecmp_valid, vstimecmp_valid, htimedelta_valid;
 
-    assign m_mtimes[0].valid = ~dut_reset && rvfi_enabled && (|stimecmp_valid || |vstimecmp_valid || |htimedelta_valid);
+    assign m_mtimes[0].valid = ~dut_reset && rvfi_enabled && !poke_mip_timer && (|stimecmp_valid || |vstimecmp_valid || |htimedelta_valid);
     assign m_mtimes[0].data.location = location;
     assign m_mtimes[0].data.cycle = clocks;
     assign m_mtimes[0].data.mtime = mtime;
