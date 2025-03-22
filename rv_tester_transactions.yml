@@ -394,8 +394,6 @@ cosim:
                 width: 64
             mtime:
                 width: ${TOP.PLATFORM.XLEN}
-            timecmp:
-                width: ${TOP.PLATFORM.XLEN}
 
     m_core_nmi:
         domain: 1

@@ -307,8 +307,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mtime<>& m_mtime) {
   intr.mtime = m_mtime.mtime;
 
   if (FLAGS_rvfi_log)
-    log(cvm::NONE, "#NA {} {} ({}timecmp={:#x} : mtime={:#x})\n", intr.cycle, id_,
-      intr.mip[MTI] ? "m" : intr.mip[STI] ? "s" : intr.mip[VSTI] ? "vs" : "x", m_mtime.timecmp, intr.mtime);
+    log(cvm::NONE, "#NA {} {} (mtime={:#x})\n", intr.cycle, id_, intr.mtime);
 
   if (!FLAGS_cosim)
     return;
