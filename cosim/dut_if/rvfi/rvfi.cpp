@@ -1001,8 +1001,14 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
                 m.pa = m_mcmi_read.addr;
                 m.size = elemsize;
                 for (int i=0; i<total_elements; i++){
-                  size_t start = dataAccumulated.size() - (i + 1) * 2 * elemsize;
-                  size_t end = dataAccumulated.size() - i * 2 * elemsize;
+                  size_t start, end;
+                  if (size / elemsize) {
+                    start = dataAccumulated.size() - (i + 1) * 2 * elemsize;
+                    end = dataAccumulated.size() - i * 2 * elemsize;
+                  } else {
+                    start = 0;
+                    end = dataAccumulated.size();
+                  }
                   std::bitset<256> value = stringToBitset(dataAccumulated.substr(start, end - start));
                   m.data_vec = value;
                   m.elem_idx = ((start_addr - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx + i;
@@ -1034,8 +1040,14 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
         m.pa = m_mcmi_read.addr;
         m.size = elemsize;
         for (int i=0; i<total_elements; i++){
-          size_t start = dataAccumulated.size() - (i + 1) * 2 * elemsize;
-          size_t end = dataAccumulated.size() - i * 2 * elemsize;
+          size_t start, end;
+          if (size / elemsize) {
+            start = dataAccumulated.size() - (i + 1) * 2 * elemsize;
+            end = dataAccumulated.size() - i * 2 * elemsize;
+          } else {
+            start = 0;
+            end = dataAccumulated.size();
+          }
           std::bitset<256> value = stringToBitset(dataAccumulated.substr(start, end - start));          m.data_vec = value;
           m.elem_idx = ((start_addr - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx + i;
           bridge_->process_dut_mcm_read(m_mcmi_read.hart, m);
@@ -1056,17 +1068,17 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
 
 // Helper function to convert a hex string into a bitset
 std::bitset<256> rvfi::stringToBitset(const std::string& hexString) {
-    std::bitset<256> bits;
-    size_t len = hexString.length();
-    for (size_t i = 0; i < len; ++i) {
-        int hexDigit = (hexString[len - 1 - i] >= '0' && hexString[len - 1 - i] <= '9') 
-                       ? hexString[len - 1 - i] - '0' 
-                       : hexString[len - 1 - i] - 'a' + 10;
-        for (int j = 3; j >= 0; --j) {
-            bits[(i * 4) + j] = (hexDigit >> j) & 1;
-        }
-    }
-    return bits;
+  std::bitset<256> bits;
+  size_t len = hexString.length();
+  for (size_t i = 0; i < len; ++i) {
+      int hexDigit = (hexString[len - 1 - i] >= '0' && hexString[len - 1 - i] <= '9') 
+                     ? hexString[len - 1 - i] - '0' 
+                     : hexString[len - 1 - i] - 'a' + 10;
+      for (int j = 3; j >= 0; --j) {
+          bits[(i * 4) + j] = (hexDigit >> j) & 1;
+      }
+  }
+  return bits;
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_insert) {
