@@ -197,7 +197,6 @@ def rv_tester_gen(name, topology, visibility = None, cc_attrs = {}, **kwargs):
             "@rv_tester//sysmod:sysmod_plusargs",
             "@rv_tester//:structs",
             "@rv_tester//common:common",
-            "@rv_tester//preload_axi_llc:preload_axi_llc",
             "@cvm//:plusargs",
             "@cvm//:random",
             "@cvm//:registry",
