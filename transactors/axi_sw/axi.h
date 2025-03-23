@@ -181,9 +181,11 @@ class axi : public transactor {
 
     private:
 
+        std::vector<std::pair<uint64_t, uint64_t>> hang_addr_;
         std::vector<std::pair<uint64_t, uint64_t>> slverr_addr_;
         std::vector<std::pair<uint64_t, uint64_t>> decerr_addr_;
-        std::vector<std::pair<uint64_t, uint64_t>> hang_addr_;
+        std::vector<int> slverr_count_;
+        std::vector<int> decerr_count_;
         const data_width_t  data_width_ ;
 
         // to/from RTL
@@ -195,7 +197,7 @@ class axi : public transactor {
         void atop_modify_write_data(const atop_t& atop, const data_t& read_data, data_t& write_data, const len_t& len);
         std::vector<std::pair<uint64_t, uint64_t>> parse_hex_ranges(const std::string& input);
 
-        // for metrics
+        // Metric counts
         int num_slverr_resp_;
         int num_decerr_resp_;
 
