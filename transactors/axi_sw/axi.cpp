@@ -6,14 +6,9 @@
 #include <sstream>
 #include <regex>
 #include "axi.h"
-#include "whisper_client.h"
 #include "cvm/logger.hpp"
-#include "rv_tester/rv_tester_plusargs.h"
-#include "rv_tester/rv_tester_structs.h"
 
 // Error responses
-DEFINE_bool(rand_slverr, false, "Enable random slverr responses");
-DEFINE_bool(rand_decerr, false, "Enable random decerr responses");
 DEFINE_string(axi_resp_slverr_addr, "", "List of addresses that need slverr response, can be a single value or a range. Ex: 0x1000,0x2000-0x3000");
 DEFINE_string(axi_resp_decerr_addr, "", "List of addresses that need decerr response, can be a single value or a range. Ex: 0x1000,0x2000-0x3000");
 DEFINE_string(axi_resp_hang_addr, "", "List of addresses that give no response causing core hang, can be a single value or a range. Ex: 0x1000,0x2000-0x3000");
@@ -49,76 +44,20 @@ axi::axi(const data_width_t& data_width, const cvm::topology::loc_t loc, const s
 {
     cvm::log(cvm::MEDIUM, "[axi] Constructing axi for loc={} id={}\n", loc, tag);
 
+    // RPC to allow external components to configure responses
+    cvm::registry::messenger.procedure<configure_resp_rpc>(loc, [this] () { return this->configure_resp(); });
+
     hang_addr_   = parse_hex_ranges(FLAGS_axi_resp_hang_addr);
     slverr_addr_ = parse_hex_ranges(FLAGS_axi_resp_slverr_addr);
     decerr_addr_ = parse_hex_ranges(FLAGS_axi_resp_decerr_addr);
 
-    wc_loc_ = cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0);
-    if (wc_loc_ != cvm::topology::null)
-        cvm::registry::messenger.connect<rv_tester::whisper_connected>(wc_loc_, [this](const auto&) { this->configure_err_resp(); });
 }
 
-// FIXME Clean up configuration of error resp based on rand addresses selected from iss standalone run
-// See RVDE-22198
-void axi::configure_err_resp() {
-  if (!FLAGS_rand_slverr && !FLAGS_rand_decerr)
-    return;
-
-  // First instance to reach populates the plusarg(s), others just have to parse and store in containers
-  if ((FLAGS_axi_resp_slverr_addr != "") || (FLAGS_axi_resp_decerr_addr != "")) {
+void axi::configure_resp() {
     slverr_addr_ = parse_hex_ranges(FLAGS_axi_resp_slverr_addr);
     decerr_addr_ = parse_hex_ranges(FLAGS_axi_resp_decerr_addr);
-    return;
-  }
-
-  auto vec = cvm::registry::messenger.call<whisperClient<uint64_t>::get_dm_rand_val_RPC>(wc_loc_);
-
-  std::ostringstream oss, oss_slverr, oss_decerr;
-  bool first = true, first_slverr = true, first_decerr = true;
-  bool split = FLAGS_rand_slverr && FLAGS_rand_decerr;
-
-  if (split) {
-    // Randomly distribute elements between oss_slverr and oss_decerr.
-    cvm::rand::uniform_dist<int> dist(0,1);
-    for (auto& value : vec) {
-      value &= 0xffff'ffff'ffff'ffc0;
-      if (dist() == 0) {
-        if (!first_slverr) {
-          oss_slverr << ",";
-        }
-        oss_slverr << "0x" << std::hex << value << "-0x" << std::hex << (value + 0x3f);
-        first_slverr = false;
-      } else {
-        if (!first_decerr) {
-          oss_decerr << ",";
-        }
-        oss_decerr << "0x" << std::hex << value << "-0x" << std::hex << (value + 0x3f);
-        first_decerr = false;
-      }
-    }
-    FLAGS_axi_resp_slverr_addr += oss_slverr.str();
-    FLAGS_axi_resp_decerr_addr += oss_decerr.str();
-  } else {
-    // Produce a single comma-separated string.
-    for (auto& value : vec) {
-      value &= 0xffff'ffff'ffff'ffc0;
-      if (!first) {
-        oss << ",";
-      }
-      oss << "0x" << std::hex << value;
-      first = false;
-    }
-    if (FLAGS_rand_slverr)
-      FLAGS_axi_resp_slverr_addr += oss.str();
-    if (FLAGS_rand_decerr)
-      FLAGS_axi_resp_decerr_addr += oss.str();
-  }
-
-  slverr_addr_ = parse_hex_ranges(FLAGS_axi_resp_slverr_addr);
-  decerr_addr_ = parse_hex_ranges(FLAGS_axi_resp_decerr_addr);
-
-  cvm::log(cvm::MEDIUM, "[axi] configure rand err resp: slverr={}\n", FLAGS_axi_resp_slverr_addr);
-  cvm::log(cvm::MEDIUM, "[axi] configure rand err resp: decerr={}\n", FLAGS_axi_resp_decerr_addr);
+    cvm::log(cvm::HIGH, "[axi] configure axi err resp: slverr={}\n", FLAGS_axi_resp_slverr_addr);
+    cvm::log(cvm::HIGH, "[axi] configure axi err resp: decerr={}\n", FLAGS_axi_resp_decerr_addr);
 }
 
 axi::~axi() {

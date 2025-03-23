@@ -52,7 +52,6 @@ class sysmod {
     void load_csr_mmr_boot(uint64_t dut);
     void load_io(const std::string& io);
     void store_dm_rand();
-    void bus_err_resp();
 
     uint32_t get_rand_mask(uint32_t n, uint32_t max);
     int32_t  get_rand_ways_mask(int32_t n, int32_t max);
