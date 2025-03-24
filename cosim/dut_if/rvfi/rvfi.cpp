@@ -948,7 +948,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
           m.size = elemsize;
         } else {
           total_elements = 1;
-          m.size = numoes;
+          m.size = numones;
         }
         for (int i=0; i<total_elements; i++){
           uint64_t value = 0;
