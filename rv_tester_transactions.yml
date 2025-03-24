@@ -25,6 +25,17 @@ cosim:
             cycle:
                 width: 64
 
+    m_mtime:
+        domain: 1
+        num: ${max(TOP.PLATFORM.COSIM.RVFI.NRETS)}
+        fields:
+            cycle:
+                width: 64
+            mip:
+                width: 64
+            mtime:
+                width: ${TOP.PLATFORM.XLEN}
+
     m_csri:
         domain: 1
         num: ${max(TOP.PLATFORM.COSIM.RVFI.NRETS) + TOP.PLATFORM.MAX_CSR_AFTER_NRET}
@@ -383,17 +394,6 @@ cosim:
                 width: 1
             mtime:
                 width: 64
-
-    m_mtime:
-        domain: 1
-        num: 1
-        fields:
-            cycle:
-                width: 64
-            mip:
-                width: 64
-            mtime:
-                width: ${TOP.PLATFORM.XLEN}
 
     m_core_nmi:
         domain: 1

@@ -1059,7 +1059,7 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
     if (FLAGS_bridge_log)
       bridge_log_(cvm::MEDIUM, "<{}> DUT took interrupt, Whisper did not. dcause:[{}] prev_mip:{}\n", w.time, d.icause, prev_hw_mip_[d.icause]);
     if (prev_hw_mip_[d.icause]) {
-      bridge_log_(cvm::MEDIUM, "<{}> cause:[{}] (Timing sensitive mismatch: Resynch and keep going)\n", w.time, d.icause);
+      bridge_log_(cvm::MEDIUM, "<{}> Timing sensitive mismatch: Resynch and keep going. cause: {})\n", w.time, d.icause);
       if(d.icause != 9)
         poke_mip(hart, w.time, (uint64_t)1 << d.icause);
       resynch_icause_ = d.icause;
@@ -1067,6 +1067,7 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
       if (deferred_intr_) {
         defer_interrupt(hart, w.time, 0);
         deferred_intr_ = false;
+        bridge_log_(cvm::MEDIUM, "<{}> Timing sensitive mismatch. Undefer all interrupts.\n", w.time);
       }
     }
     return;
@@ -1096,6 +1097,7 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
     IF_DEBUG("deferred intr == 1");
     defer_interrupt(hart, w.time, 0);
     deferred_intr_ = false;
+    bridge_log_(cvm::MEDIUM, "<{}> Undefer all interrupts\n", w.time);
   }
 
   if (FLAGS_retire_ucode_trap) {
@@ -2606,7 +2608,7 @@ void bridge::check_and_defer_interrupt(hart_id_t hart, uint64_t time, std::bitse
 
 void bridge::defer_interrupt(hart_id_t hart, uint64_t cycle, uint64_t mip) {
   if (FLAGS_bridge_log)
-    bridge_log_(cvm::MEDIUM, "<{}> Whisper defer_interrupt: mip={:#x}\n", cycle, mip);
+    bridge_log_(cvm::MEDIUM, "<{}> Defer interrupt: mip={:#x}\n", cycle, mip);
 
   bool valid;
   if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, cycle, 's', WhisperSpecialResource::DeferredInterrupts, mip, valid)|| !valid) && FLAGS_whisper_client_check) {

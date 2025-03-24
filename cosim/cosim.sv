@@ -476,7 +476,7 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign rvfi_orders[n] = rvfi[n].order ;
         assign rvfi_luops[n]  = rvfi[n].last_uop;
         assign rvfi_val_luops[n]  = rvfi[n].valid & ~rvfi[n].last_uop;
-        assign rvfi_csr_addr[n] = (rvfi[n].csr_valid==1'b1) ? rvfi[n].csr_addr[11:0] : 12'h000;
+        assign rvfi_csr_addr[n] = |rvfi[n].csr_wmask ? rvfi[n].csr_addr[11:0] : 12'h000;
         assign rd_addr[n]     = rvfi[n].rd_addr[5:0];
         assign frd_addr[n]    = rvfi[n].frd_addr[5:0];
         assign vrd_addr[n]    = rvfi[n].vrd_addr[5:0];
@@ -517,7 +517,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     //---------------------------------------------------------------------------------
     for(genvar n=0;n<NRET;n=n+1) begin
         assign sc_rw[n]        = rvfi[n].valid & ((rvfi[n].insn[6:0] == 7'b0101111) & (rvfi[n].insn[14:13] == 2'b01)  & (rvfi[n].insn[31:27] == 5'b00011));
-        assign csr_rw[n]       = rvfi[n].valid & (((rvfi[n].insn[6:0] == 7'b1110011) & (rvfi[n].insn[14:12] != 3'b000)) | rvfi[n].csr_valid);
+        assign csr_rw[n]       = rvfi[n].valid & (((rvfi[n].insn[6:0] == 7'b1110011) & (rvfi[n].insn[14:12] != 3'b000)) | |rvfi[n].csr_wmask);
         assign msret[n]        = rvfi[n].valid & (rvfi[n].insn[31:30] == 2'b00) & (rvfi[n].insn[28:0] == 29'h10200073);    // mret or sret
         assign fence[n]        = rvfi[n].valid & ((rvfi[n].insn[31:0] & 32'hF000607F) == 32'h0000000F);
         assign intr_memw[n]    = rvfi[n].valid & (rvfi[n].mem_wmask != 0) & (rvfi[n].mem_wmask[1:0]==2'b11) & (rvfi[n].mem_paddr[PA_WIDTH-1:32] == '0) & ((rvfi[n].mem_paddr[31:25]==7'h20) | (rvfi[n].mem_paddr[31:25]==7'h22));
@@ -781,7 +781,7 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign m_rvfis[n].data.vrd_valid   = rvfi[n].vrd_valid;
         assign m_rvfis[n].data.vrd_addr    = rvfi[n].vrd_addr;
         assign m_rvfis[n].data.vrd_wdata   = rvfi[n].vrd_wdata;
-        assign m_rvfis[n].data.csr_valid   = rvfi[n].csr_valid;
+        assign m_rvfis[n].data.csr_valid   = |rvfi[n].csr_wmask;
         assign m_rvfis[n].data.csr_addr    = rvfi[n].csr_addr;
         assign m_rvfis[n].data.csr_wdata   = rvfi[n].csr_wdata;
         assign m_rvfis[n].data.csr_wmask   = rvfi[n].csr_wmask;
@@ -1279,30 +1279,25 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign m_imsic_msis[0].data.data = imsic_msi.data;
 
     // m_mtime
-    logic [NRET-1:0] stimecmp_valid, vstimecmp_valid, htimedelta_valid;
+    localparam logic [CSRLEN-1:0] C_TIME       = 'hC01;
+    localparam logic [CSRLEN-1:0] C_STIMECMP   = 'h14D;
+    localparam logic [CSRLEN-1:0] C_VSTIMECMP  = 'h24D;
+    localparam logic [CSRLEN-1:0] C_HTIMEDELTA = 'h605;
+    localparam logic [CSRLEN-1:0] C_MIP        = 'h344;
+    localparam logic [CSRLEN-1:0] C_SIP        = 'h144;
+    localparam logic [CSRLEN-1:0] C_VSIP       = 'h244;
+    localparam logic [CSRLEN-1:0] C_MTOPI      = 'hFB0;
+    localparam logic [CSRLEN-1:0] C_STOPI      = 'hDB0;
+    localparam logic [CSRLEN-1:0] C_VSTOPI     = 'hEB0;
 
-    assign m_mtimes[0].valid = ~dut_reset && rvfi_enabled && !poke_mip_timer && (|stimecmp_valid || |vstimecmp_valid || |htimedelta_valid);
-    assign m_mtimes[0].data.location = location;
-    assign m_mtimes[0].data.cycle = clocks;
-    assign m_mtimes[0].data.mtime = mtime;
-    assign m_mtimes[0].data.mip = (64'(|stimecmp_valid) << 5) | (64'(|vstimecmp_valid) << 6) | (64'(|htimedelta_valid) << 6);
-
-    localparam logic [CSRLEN-1:0] STIMECMP   = 'h14D;
-    localparam logic [CSRLEN-1:0] VSTIMECMP  = 'h24D;
-    localparam logic [CSRLEN-1:0] HTIMEDELTA = 'h605;
-
-    always @(posedge clk) begin
-      if (reset) begin
-        stimecmp_valid <= '0;
-        vstimecmp_valid <= '0;
-        htimedelta_valid <= '0;
-      end else begin
-        for (int n = 0; n < NRET; n++) begin
-          stimecmp_valid[n] <= rvfi[n].valid && rvfi[n].csr_valid && (rvfi[n].csr_addr == STIMECMP);
-          vstimecmp_valid[n] <= rvfi[n].valid && rvfi[n].csr_valid && (rvfi[n].csr_addr == VSTIMECMP);
-          htimedelta_valid[n] <= rvfi[n].valid && rvfi[n].csr_valid && (rvfi[n].csr_addr == HTIMEDELTA);
-        end
-      end
+    for (genvar n = 0; n < NRET; n++) begin
+      assign m_mtimes[n].valid = ~dut_reset && rvfi_enabled && !poke_mip_timer && (rvfi[n].valid &&
+        ((|rvfi[n].csr_wmask && (rvfi[n].csr_addr inside {C_STIMECMP, C_VSTIMECMP, C_HTIMEDELTA})) ||
+         (|rvfi[n].csr_rmask && (rvfi[n].csr_addr inside {C_TIME, C_MIP, C_MTOPI, C_SIP, C_STOPI, C_VSIP, C_VSTOPI}))));
+      assign m_mtimes[n].data.location = location;
+      assign m_mtimes[n].data.cycle = clocks;
+      assign m_mtimes[n].data.mtime = mtime;
+      assign m_mtimes[n].data.mip = ((64'(rvfi[n].csr_addr inside {C_STIMECMP})) << 5) | (64'((rvfi[n].csr_addr inside {C_VSTIMECMP, C_HTIMEDELTA})) << 6);
     end
 
     //--------------------------------------------------------------------
