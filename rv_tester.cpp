@@ -65,8 +65,8 @@ class logger_instrument {
             timestamp = 0;
 
             cvm::set_logger_prefix([]() -> std::string_view {
-                prefix = (clock)? "[" + std::to_string(clock) + "] " : "";
-                prefix += (timestamp)? "[" + std::to_string(timestamp) + "]" : "";
+                prefix = (timestamp)? "[" + std::to_string(timestamp) + "ps]" : "";
+                prefix += (clock)? "[" + std::to_string(clock) + "] " : "";
                 return prefix;
             });
 
