@@ -992,6 +992,8 @@ cvm::messenger::task<void> jtag_sequence::open_socket_to_listen(){
     // cbs.push_back(cb_t{Callback::TRICKBOX_jtag_WR, hart, upper_jtag_data, lower_jtag_data, 0});
     //cvm::registry::messenger.signal(12, jtag_data_t{hart,jtag_cmd, upper_jtag_data, lower_jtag_data,reg_length_data,jtag_quit,tap_cfg_sel});
     // cvm::messenger::send(jtag_t, jtag_pkt);
+    if(jtag_quit!=0)
+       stall_jtag_xtor = false;
     cvm::registry::callbacks.push(
     scope_,
     [jtag_cmd,upper_jtag_data, lower_jtag_data,reg_length_data,jtag_quit,tap_cfg_sel]() {
