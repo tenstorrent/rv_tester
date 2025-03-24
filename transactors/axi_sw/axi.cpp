@@ -278,18 +278,18 @@ cvm::messenger::task<void> axi::operator()() {
                     // Error responses
                     int idx = 0;
                     for (const auto& [min, max] : slverr_addr_) {
-                        slverr_count_[idx]++;
                         if (addr >= min && addr <= max && slverr_count_[idx] <= FLAGS_axi_resp_slverr_threshold) {
                             read_resp = RESP_SLVERR;
+                            slverr_count_[idx]++;
                             num_slverr_resp_++;
                         }
                         idx++;
                     }
                     idx = 0;
                     for (const auto& [min, max] : decerr_addr_) {
-                        decerr_count_[idx]++;
                         if (addr >= min && addr <= max && decerr_count_[idx] <= FLAGS_axi_resp_decerr_threshold) {
                             read_resp = RESP_DECERR;
+                            decerr_count_[idx]++;
                             num_decerr_resp_++;
                         }
                         idx++;
