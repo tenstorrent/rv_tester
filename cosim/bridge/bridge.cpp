@@ -152,7 +152,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
       "hpmcounter","mcycle","minstret","minstreth", // Permanent: PMC events
       "dcsr","dpc","dscratch0", "dscratch1", // Permanent: Debug events
       "sstateen0", "sstateen1", "sstateen2", "sstateen3","hstateen0", "hstateen1", "hstateen2", "hstateen3" // Smstateen CSRs
-
+      "seed"
     };
 
     std::istringstream iss(FLAGS_cosim_resynch_csr);
@@ -1604,12 +1604,32 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
         mask = (mask_fcsr >> 5) & 0x7;
         update_csr(hart, src_t::dut, FRM, data, mask, false, false);
       }
-      else if (c.csr_addr == MISA) {  // On misa.H update, update mideleg
+      else if (c.csr_addr == MISA) {  // misa.H update changes
         if (c.csr_wmask & 0x80) {
           if (c.csr_wdata & 0x80) {
+            if (!misa_h_) {
+              // Restore CSR values from the temporary map when misa.H becomes one, rvde-20315
+              for (const auto& [addr, value] : hypervisor_masked_csrs_) {
+                mask = 0xffffffffffffffffULL;
+                update_csr(hart, src_t::iss, addr, value, mask, false, false);
+                bool valid = false;
+                if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, d.cycle, 'c', addr, value, valid) || !valid) && FLAGS_whisper_client_check) {
+                  error("Hart {}: Failed to poke CSR addr: {:#x}\n", hart, addr);
+                  return;
+                }
+              }
+            }
+            misa_h_ = 1;
             mask = 0x1444;
             update_csr(hart, src_t::dut, MIDELEG, 0x1444, mask, false, false);
           } else {
+            if (misa_h_) {
+              // Save CSR values to the temporary map when misa.H becomes zero, rvde-20315
+              for (const auto& [addr, value] : hypervisor_masked_csr_map_) {
+                hypervisor_masked_csrs_[addr] = get_csr(id_, src_t::dut, addr);
+              }
+            }
+            misa_h_ = 0;
             mask = 0xF00400;
             update_csr(hart, src_t::dut, MEDELEG, 0, mask, false, false);
             mask = 0x1444;
@@ -1617,6 +1637,9 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
           }
         }
       }
+      if ((hypervisor_masked_csr_map_.find(c.csr_addr) != hypervisor_masked_csr_map_.end())) {
+        hypervisor_masked_csrs_[c.csr_addr] = hypervisor_masked_csrs_[c.csr_addr] & ~modify_csr_mask(hart, c.csr_addr, c.csr_wdata, c.csr_wmask);
+      }   
     }
   }
 }
@@ -2853,6 +2876,13 @@ uint64_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, uint64_t data, u
       if (!(pmm == 0 || pmm == 2)){
         result = result & 0xfffffffcffffffffULL;
       }
+    }
+  }
+
+  if(addr == SRMCFG){
+    result = 0xfff0fff;
+    if(!(((data & result)&0xFFF) <= 0xF) || (!(((data & result)&0xFFF0000) == 0x0))){
+      result = 0x0;
     }
   }
   return result;

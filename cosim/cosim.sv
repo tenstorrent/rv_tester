@@ -250,6 +250,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     typedef longint unsigned LU;
     parameter int unsigned location = cvm_topology_gen::get_location (topology.TOP.PLATFORM.COSIM.ID, NUM);
     bit rvfi_enabled,mcm_enabled,hw_eot_enabled;
+    bit poke_mip_timer;
 
     //int mcm_value;
     longint unsigned psc_off_low  = 0;
@@ -711,6 +712,7 @@ localparam CAM_IHBIT = CAM_IBITS;
             rvfi_enabled = (cvm_plusargs::get_bool("rvfi") != '0) & (location != cvm_topology::nil);
             mcm_enabled = (cvm_plusargs::get_bool("mcm") != '0);
             to_host = ((is_eot_tohost() == 1) | (eot_addr != '0));
+            poke_mip_timer = (cvm_plusargs::get_bool("poke_mip_timer") != '0);
             if (rvfi_enabled) begin
               cosim_set_scope(location);
             end
@@ -1277,39 +1279,28 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign m_imsic_msis[0].data.data = imsic_msi.data;
 
     // m_mtime
-    logic mtimecmp_valid, stimecmp_valid, vstimecmp_valid;;
-    logic [XLEN-1:0] mtimecmp, stimecmp, vstimecmp;
+    logic [NRET-1:0] stimecmp_valid, vstimecmp_valid, htimedelta_valid;
 
-    assign m_mtimes[0].valid = ~dut_reset && rvfi_enabled && (stimecmp_valid || vstimecmp_valid || (mtimecmp_valid && mcm_enabled));
+    assign m_mtimes[0].valid = ~dut_reset && rvfi_enabled && !poke_mip_timer && (|stimecmp_valid || |vstimecmp_valid || |htimedelta_valid);
     assign m_mtimes[0].data.location = location;
     assign m_mtimes[0].data.cycle = clocks;
     assign m_mtimes[0].data.mtime = mtime;
-    assign m_mtimes[0].data.timecmp = mtimecmp_valid ? mtimecmp : stimecmp_valid ? stimecmp :  vstimecmp_valid ? vstimecmp : '0;
-    assign m_mtimes[0].data.mip = (64'(stimecmp_valid) << 5) | (64'(vstimecmp_valid) << 6) | (64'(mtimecmp_valid) << 7);
+    assign m_mtimes[0].data.mip = (64'(|stimecmp_valid) << 5) | (64'(|vstimecmp_valid) << 6) | (64'(|htimedelta_valid) << 6);
 
-    localparam logic [CSRLEN-1:0] STIMECMP  = 'h14D;
-    localparam logic [CSRLEN-1:0] VSTIMECMP = 'h24D;
-    localparam logic [PA_WIDTH-1:0] MTIMECMP_C0  = 'h42188000;
-    localparam logic [PA_WIDTH-1:0] MTIMECMP_C7  = 'h42188038;
+    localparam logic [CSRLEN-1:0] STIMECMP   = 'h14D;
+    localparam logic [CSRLEN-1:0] VSTIMECMP  = 'h24D;
+    localparam logic [CSRLEN-1:0] HTIMEDELTA = 'h605;
 
     always @(posedge clk) begin
       if (reset) begin
         stimecmp_valid <= '0;
         vstimecmp_valid <= '0;
-        mtimecmp_valid <= '0;
-        stimecmp <= '0;
-        vstimecmp <= '0;
-        mtimecmp <= '0;
+        htimedelta_valid <= '0;
       end else begin
         for (int n = 0; n < NRET; n++) begin
-          stimecmp_valid <= rvfi[n].valid && rvfi[n].csr_valid && (rvfi[n].csr_addr == STIMECMP);
-          vstimecmp_valid <= rvfi[n].valid && rvfi[n].csr_valid && (rvfi[n].csr_addr == VSTIMECMP);
-          stimecmp <= rvfi[n].csr_wdata;
-          vstimecmp <= rvfi[n].csr_wdata;
-        end
-        for (int b = 0; b < NBYPASS; b++) begin
-          mtimecmp_valid <= mcmi_bypass[b].valid && ((mcmi_bypass[b].addr >= MTIMECMP_C0) && (mcmi_bypass[b].addr <= MTIMECMP_C7));
-          mtimecmp <= mcmi_bypass[b].data[63:0];
+          stimecmp_valid[n] <= rvfi[n].valid && rvfi[n].csr_valid && (rvfi[n].csr_addr == STIMECMP);
+          vstimecmp_valid[n] <= rvfi[n].valid && rvfi[n].csr_valid && (rvfi[n].csr_addr == VSTIMECMP);
+          htimedelta_valid[n] <= rvfi[n].valid && rvfi[n].csr_valid && (rvfi[n].csr_addr == HTIMEDELTA);
         end
       end
     end

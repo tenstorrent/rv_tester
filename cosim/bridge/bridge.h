@@ -296,6 +296,22 @@ private:
 private:
 
   const uint64_t sc_slice_base_ = 0x421A0008;
+
+  // CSRs where some bits are masked by misa.H
+  std::map<uint64_t, std::string> hypervisor_masked_csr_map_ = {
+    {0x300, "mstatus"},     
+    {0x302, "medeleg"}, 
+    {0x303, "mideleg"}, 
+    {0x344, "mip"}, 
+    {0x304, "mie"}, 
+    {0x244, "sip"}, 
+    // {0x60A, "henvcfg"},  // henvcfg will be disabled when misa.H is zero
+    // {0x244, "vsip"},     // vsip will be disabled when misa.H is zero
+    {0x30C, "mstateen0"},    
+    {0x60C, "hstateen0"},    
+    {0x10C, "sstateen0"}
+  };
+
   std::map<uint64_t, std::string> hypervisor_csr_map_ = {
         {0x600, "hstatus"},      // Hypervisor status register -
         {0x602, "hedeleg"},      // Hypervisor exception delegation register -
@@ -440,4 +456,7 @@ private:
   std::vector<int> cosim_resynch_excp_{};
   std::vector<int> cosim_error_excp_{};
   std::vector<std::string> cosim_error_instr_{};
+
+  std::map<uint64_t, uint64_t> hypervisor_masked_csrs_;
+  bool misa_h_ = true;
 };
