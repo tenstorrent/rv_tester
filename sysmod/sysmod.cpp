@@ -76,8 +76,9 @@ DEFINE_uint32(matp_swid, 0, "MATP.SWID");
 DEFINE_uint64(pa_mask, 0x0080000000000000, "address bit(s) that act as STEE distinction");
 DEFINE_bool(sysmod_terminate, true, "Set to false for offline DPI mode");
 // APLIC
-DEFINE_uint32(aplic_sources, 33, "Number of APLIC interrupt sources");
+DEFINE_uint32(aplic_sources, 127, "Number of APLIC interrupt sources");
 // Uart8250
+DEFINE_bool(uart8250, false, "Whether to enable uart8250 devices found in the memory map");
 DEFINE_uint32(uart8250_iid, 1, "Interrupt identity of the uart8250 device");
 
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
@@ -897,9 +898,10 @@ sysmod::compose() {
         device = std::make_unique<htif>(tag, base, loc_);
 
       } else if (type == "uart8250") {
-        device = std::make_unique<io_device<WdRiscv::Uart8250>>(tag, loc_,
-            base, 32, aplic, FLAGS_uart8250_iid,
-            std::make_unique<WdRiscv::PTYChannel>());
+        if (FLAGS_uart8250)
+          device = std::make_unique<io_device<WdRiscv::Uart8250>>(tag, loc_,
+              base, 32, aplic, FLAGS_uart8250_iid,
+              std::make_unique<WdRiscv::PTYChannel>());
       } else if (type == "dm") {
         // TODO: cvm::ERROR
        // assert(masters.size() > 0);
@@ -963,7 +965,8 @@ sysmod::compose() {
         cvm::log(cvm::ERROR, "Error: unknown sysmod type {} \n", type);
       }
 
-      devices_.emplace_back(std::move(device));
+      if (device)
+        devices_.emplace_back(std::move(device));
     }
 
     devices_.emplace_back(std::make_unique<heartbeat>("heartbeat", 0, 0, loc_));
