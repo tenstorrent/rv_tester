@@ -109,7 +109,7 @@ class sysmod {
     svScope scope_;
     svScope scope() { return scope_; }
 
-    cvm::topology::loc_t loc_;
+    cvm::topology::loc_t loc_, wc_loc_;
     unsigned id_;
     unsigned id()   { return id_; }
     std::vector<std::unique_ptr<device> > devices_;

@@ -7,11 +7,13 @@
 #include <regex>
 #include "axi.h"
 #include "cvm/logger.hpp"
-#include "rv_tester/rv_tester_plusargs.h"
 
+// Error responses
 DEFINE_string(axi_resp_slverr_addr, "", "List of addresses that need slverr response, can be a single value or a range. Ex: 0x1000,0x2000-0x3000");
 DEFINE_string(axi_resp_decerr_addr, "", "List of addresses that need decerr response, can be a single value or a range. Ex: 0x1000,0x2000-0x3000");
 DEFINE_string(axi_resp_hang_addr, "", "List of addresses that give no response causing core hang, can be a single value or a range. Ex: 0x1000,0x2000-0x3000");
+DEFINE_int32(axi_resp_slverr_threshold, 2, "Threshold upto which  slverr injection happens for a particular address");
+DEFINE_int32(axi_resp_decerr_threshold, 2, "Threshold upto which decerr injection happens for a particular address");
 
 template <typename T> void atop_arithmetic(const axi::data_t& read_data, axi::data_t& write_data, const axi::atop_operation operation, const axi::len_t& len) {
 
@@ -43,9 +45,27 @@ axi::axi(const data_width_t& data_width, const cvm::topology::loc_t loc, const s
   : transactor(loc, tag), data_width_(data_width), num_slverr_resp_(0), num_decerr_resp_(0)
 {
     cvm::log(cvm::MEDIUM, "[axi] Constructing axi for loc={} id={}\n", loc, tag);
-    slverr_addr_ = parse_hex_ranges(FLAGS_axi_resp_slverr_addr);
+
+    // RPC to allow external components to configure responses
+    cvm::registry::messenger.procedure<configure_resp_rpc>(loc, [this] () { return this->configure_resp(); });
+
     hang_addr_   = parse_hex_ranges(FLAGS_axi_resp_hang_addr);
+    slverr_addr_ = parse_hex_ranges(FLAGS_axi_resp_slverr_addr);
     decerr_addr_ = parse_hex_ranges(FLAGS_axi_resp_decerr_addr);
+    // Resize the counter vector to match the number of address ranges
+    slverr_count_.resize(slverr_addr_.size(), 0);
+    decerr_count_.resize(decerr_addr_.size(), 0);
+}
+
+void axi::configure_resp() {
+    cvm::log(cvm::HIGH, "[axi] configure axi err resp: slverr={}\n", FLAGS_axi_resp_slverr_addr);
+    cvm::log(cvm::HIGH, "[axi] configure axi err resp: decerr={}\n", FLAGS_axi_resp_decerr_addr);
+
+    slverr_addr_ = parse_hex_ranges(FLAGS_axi_resp_slverr_addr);
+    decerr_addr_ = parse_hex_ranges(FLAGS_axi_resp_decerr_addr);
+    // Resize the counter vector to match the number of address ranges
+    slverr_count_.resize(slverr_addr_.size(), 0);
+    decerr_count_.resize(decerr_addr_.size(), 0);
 }
 
 axi::~axi() {
@@ -255,19 +275,29 @@ cvm::messenger::task<void> axi::operator()() {
                             );
 
                     read_resp = a.lock ? RESP_EXOKAY : RESP_OKAY;
-                    bool drop_resp = false;
+                    // Error responses
+                    int idx = 0;
                     for (const auto& [min, max] : slverr_addr_) {
-                        if (addr >= min && addr <= max) {
+                        if (addr >= min && addr <= max && slverr_count_[idx] <= FLAGS_axi_resp_slverr_threshold) {
                             read_resp = RESP_SLVERR;
+                            slverr_count_[idx]++;
                             num_slverr_resp_++;
+                            cvm::log(cvm::HIGH, "[axi] slverr resp addr={:#x} count={}\n", addr, slverr_count_[idx]);
                         }
+                        idx++;
                     }
+                    idx = 0;
                     for (const auto& [min, max] : decerr_addr_) {
-                        if (addr >= min && addr <= max) {
+                        if (addr >= min && addr <= max && decerr_count_[idx] <= FLAGS_axi_resp_decerr_threshold) {
                             read_resp = RESP_DECERR;
+                            decerr_count_[idx]++;
                             num_decerr_resp_++;
+                            cvm::log(cvm::HIGH, "[axi] decerr resp addr={:#x} count={}\n", addr, decerr_count_[idx]);
                         }
+                        idx++;
                     }
+                    // Drop responses (artificial hang scenario)
+                    bool drop_resp = false;
                     for (const auto& [min, max] : hang_addr_) {
                         if (addr >= min && addr <= max) {
                             drop_resp = true;
