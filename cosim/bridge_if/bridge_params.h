@@ -69,6 +69,7 @@ namespace {
       CSR(STVAL,            0x143, "stval"         ,true)                      \
       CSR(SIP,              0x144, "sip"           ,true)                      \
       CSR(SATP,             0x180, "satp")                                     \
+      CSR(SRMCFG,           0x181, "srmcfg")                                   \
       CSR(SCONTEXT,         0x5A8, "scontext")                                 \
       CSR(HSTATUS,          0x600, "hstatus"       ,false, true)               \
       CSR(HEDELEG,          0x602, "hedeleg")                                  \

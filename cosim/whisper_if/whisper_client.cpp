@@ -40,6 +40,8 @@ DEFINE_bool(whisper_stdin_null, false, "Redirect whisper stdin to null");
 DEFINE_uint32(num_dm_randpc,    0, "Number of Random PCs to DM");
 DEFINE_uint32(num_dm_randload,  0, "Number of Random loads to DM");
 DEFINE_uint32(num_dm_randstore, 0, "Number of Random stores to DM");
+DEFINE_bool(randpc_phy, false, "Random PCs selected are phys address ");
+DEFINE_bool(randldst_phy, false, "Random Ld/St addresses selected are phys address");
 DEFINE_uint64(dm_rand_addr, 0x9080500, "(Trickbox) Random address for DM: PC/Load/Store");;
 DEFINE_bool(whisper_stdout_null, false, "Redirect whisoer stdout to null");
 DEFINE_string(whisper_json_path, "", "Path to whisper json config");
@@ -48,6 +50,7 @@ DEFINE_uint64(nme_vec, 0, "NMI exception handler PC");
 DEFINE_bool(ppo, true, "Enable ppo checks");
 DEFINE_bool(traceptw, true, "Enable page table walk tracing");
 DEFINE_bool(whisper_auto_increment_timer, false, "Enable whisper auto_increment_timer");
+DEFINE_bool(whisper_aclint_deliver_interrupts, true, "Enable whisper aclint deliver_interrupts");
 DEFINE_uint64(whisper_aclint_time_adjust, 0, "Set aclint adjust time compare offset");
 
 REGISTRY_register(whisperClient<uint64_t>, TOP.PLATFORM.WHISPER_CLIENT, 0);
@@ -244,8 +247,11 @@ constructSystem(uint16_t ncores, bool standalone, uint64_t secure_region_start=0
       hart.setTlbSize(FLAGS_whisper_tlb_size);
     if (FLAGS_whisper_stdout_null) hart.redirectOutputDescriptor(STDOUT_FILENO, "/dev/null");
     if (FLAGS_whisper_stdin_null)  hart.redirectOutputDescriptor(STDIN_FILENO,  "/dev/null");
-    hart.autoIncrementTimer(FLAGS_whisper_auto_increment_timer);
-    hart.setAclintAdjustTimeCompare(FLAGS_whisper_aclint_time_adjust);
+    if (!standalone) {
+      hart.setAclintDeliverInterrupts(FLAGS_whisper_aclint_deliver_interrupts);
+      hart.autoIncrementTimer(FLAGS_whisper_auto_increment_timer);
+      hart.setAclintAdjustTimeCompare(FLAGS_whisper_aclint_time_adjust);
+    }
     if (! isa.empty()) {
       if (FLAGS_isa != "") {
         if (not hart.configIsa(FLAGS_isa, false))
@@ -349,10 +355,11 @@ whisperClient<URV>::whisperStandalone()
     while ((num_instr <= total_instr) && (instructions<200)) {
       hart_new->singleStep();
       num_instr++; instructions++;
-      uint64_t virt_addr, phys_addr, value;
+      uint64_t virt_addr, phys_addr, value, phys_pc;
       uint64_t pc = hart_new->lastPc();
       uint32_t inst;
-      hart_new->readInst(pc, inst);
+      hart_new->readInst(pc, phys_pc, inst);
+      if (FLAGS_randpc_phy) pc = phys_pc;
       if (   (inst & 0x10500073) // WFI
           || (inst & 0x30200073) // MRET
           || (((inst & 0x7fff) == 0x200f) && (inst>>20 <= 4))) // CBOs
@@ -369,6 +376,7 @@ whisperClient<URV>::whisperStandalone()
         pcs.push_back(curr_pc);
 
       } else if (hart_new->lastLdStAddress(virt_addr, phys_addr)) {
+        if (FLAGS_randldst_phy) virt_addr = phys_addr;
         if (hart_new->lastStore(phys_addr, value)) {
           stores.push_back(virt_addr);
         } else {
@@ -414,6 +422,8 @@ whisperClient<URV>::whisperConnect()
     if (system_ == nullptr)
       cvm::log(cvm::ERROR, "Error: could not construct system\n");
     whisperStandalone();
+  } else if (FLAGS_preload) {
+    cvm::log(cvm::ERROR, "Error: Preloading works only on single core runs and +standalone plusarg enabled\n");
   }
 
   // Construct whisper for cosim

@@ -64,8 +64,18 @@ class jtag_sequence {
 
     void set_scope(svScope s) { scope_ = s; }
 
+  virtual void jtag_ack(bool) 
+  {
+    //csv_jtag_txn_pending = false;
+    stall_jtag_xtor = false;
+  }
   virtual void jtag_tick(uint64_t advance) 
   {
+    if(stall_jtag_xtor){ 
+      cvm::log(cvm::LOW, "[jtag_sequence] Stall Observed! Not Driving jtag cmd \n");
+      return;
+    }
+   
     if (num_ticks == 0)
       reset();
     num_ticks++;
@@ -257,6 +267,8 @@ std::string tapToString(unsigned tap);
     uint64_t jtag_cm_value;
     unsigned jtag_length_data;
     unsigned long ip_data_array[21];
+    std::string   snippet;
+    std::string   csv_row;
   };
   typedef struct{ 
         unsigned status;
@@ -437,8 +449,9 @@ std::bitset<N> reverseLowerBits(const std::bitset<N>& bs, std::size_t split_leng
     cvm::topology::loc_t loc_;
     unsigned id_;
     svScope scope_;
-
-    std::vector<uint32_t> soft_;              // Software interrupt: one per hart.
+  //bool csv_jtag_txn_pending = false;
+  bool stall_jtag_xtor = false;
+  std::vector<uint32_t> soft_;              // Software interrupt: one per hart.
   std::vector<uint64_t> timeCompare_;       // One per interrupt type.
   std::vector<uint32_t> IntrHart_;          // Hart to be interrupted.
   std::vector<bool> delayedRandomIntValid_; // Valid bit for interrupt

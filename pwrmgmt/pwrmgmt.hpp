@@ -15,6 +15,8 @@ namespace {
   constexpr uint32_t cold_powerup_idx       = 4;
   constexpr uint32_t dfs_done_idx           = 0;
   constexpr uint32_t dfs_req_idx            = 0;
+  constexpr uint32_t wakeup_done_idx        = 2;
+  constexpr uint32_t wakeup_req_idx         = 2;
   constexpr uint32_t scalar_div_idx         = 16;
   constexpr uint32_t main_divider_div_idx   = 6;
   constexpr uint32_t pre_divider_div_idx    = 0;

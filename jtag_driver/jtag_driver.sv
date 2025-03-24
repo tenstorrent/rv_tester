@@ -105,6 +105,8 @@ import rv_tester_params::*;
   bit jtag_socket_start = 0;
   bit jtag_socket_end = 0;
   bit jtag_socket_in_progress = 0;
+//  bit jtag_tx_in_progress;
+  bit jtag_tx_in_progress_l;
   always @(posedge clk) begin
     if (reset) begin
       jtag_enable_begin_sv <= jtag_enable_begin_cpp;
@@ -137,7 +139,7 @@ import rv_tester_params::*;
   end
 
   // m_jtag_driver_tick
-  assign m_jtag_driver_ticks[0].valid = ~dut_reset & ((dut_clocks % 200) == 0) & ~jtag_busy;
+  assign m_jtag_driver_ticks[0].valid = ~dut_reset & ((dut_clocks % 200) == 0) & ~(jtag_busy | jtag_enable_begin);
   assign m_jtag_driver_ticks[0].data.location = location;
   assign m_jtag_driver_ticks[0].data.cycle = jtag_socket_en?((jtag_socket_start | jtag_socket_end) ? dut_clocks : '0):cycles;
   
@@ -145,7 +147,8 @@ import rv_tester_params::*;
   assign jtag_rdatas[0].data.location = location;
   /* verilator lint_off WIDTHEXPAND */
   assign jtag_rdatas[0].data.rdata     = jtag_rx;//upper32 bits for future use
-  /* verilator lint_on WIDTHEXPAND */
+
+
   assign jtag_rdatas_jtag_busy = jtag_busy ;
  // jtag xtor
 
@@ -165,14 +168,22 @@ typedef enum logic [1:0] {
   bit jtag_req_begin_d = '0;
   bit[1:0]  command_l = '0;
 
-  bit [1:0]  state= 2'b10;
+  fsm_state_t  state = IDLE;
   bit [31:0] shiftCount= '0;
   bit ir ='0;
   bit dr ='0;
   
   bit pos_tdo_en;
 
+  assign jtag_pkt_acks[0].valid         = (state == UPDATE);
+  assign jtag_pkt_acks[0].data.location = location;
+  /* verilator lint_off WIDTHEXPAND */
+  assign jtag_pkt_acks[0].data.complete     = (state == UPDATE);//upper32 bits for future use
+
+  /* verilator lint_on WIDTHEXPAND */
+
   function drive_jtag_req(int unsigned jtag_cmd_ip,longint upper_value,longint lower_value,int unsigned reg_length, int unsigned jtag_quit , int unsigned tap_cfg_sel);
+
     if(jtag_quit[0] === 1'b0 )begin
       jtag_enable_begin_cpp = (jtag_enable_begin_cpp ^ 1'b1);
       command = jtag_cmd_ip[1:0];
@@ -231,6 +242,7 @@ always @(posedge clk) begin
     jtag_req.tms <= 1'b0;
     jtag_req.tdi <= 1'b0;
   end else begin
+    
     /* verilator lint_off CASEINCOMPLETE */
     if(jtag_req_begin_d)begin
       jtag_req_begin <= 1'b0;
@@ -239,6 +251,7 @@ always @(posedge clk) begin
     else if(jtag_enable_begin)begin
       jtag_req_begin <= 1'b1;
       command_l <= command;
+      jtag_busy <= 1'b1;
     end
     case (state)
       IDLE: begin
@@ -254,7 +267,6 @@ always @(posedge clk) begin
         end 
         if(delay_counter < 32'd10) begin
           delay_counter <= delay_counter + 32'b1;
-          jtag_busy <= 1'b1;
         end
         else if (jtag_req_begin && delay_counter >= 32'd10) begin 
           // Interpret command and data, set state accordingly
@@ -342,11 +354,12 @@ always @(posedge clk) begin
           jtag_req.tms <= 1'b0;
           state <= IDLE;
           shiftCount <= 0;
-          jtag_busy <= 1'b0;
-        
         end
         
         read_data_valid <= 1'b0;
+        /* verilator lint_off BLKSEQ */
+        //jtag_tx_in_progress = 0; 
+        /* verilator lint_on BLKSEQ */
       end
       default: state <= IDLE;
     endcase
@@ -384,4 +397,8 @@ always @(posedge clk) begin
     end
   end
 end
+
+jtag_tx_stable_when_not_in_idle: assert property(@(posedge clk) disable iff (!reset || state == IDLE) $stable(jtag_tx))
+        else $error("jtag tx data got modified while the data is being shited out");
+
 endmodule
