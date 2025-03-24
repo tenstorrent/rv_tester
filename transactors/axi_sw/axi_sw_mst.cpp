@@ -247,7 +247,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_a_no_id(const bool& aw, const axi::a_no_id_
     a.w = aw;
 
     if (!next_id(id)) {
-        cvm::log(cvm::ERROR, "[{}] Error: No free id's remaining for axi master\n", name_);
+        cvm::log(cvm::NONE, "[{}] Error: No free id's remaining for axi master\n", name_);
         return false;
     }
     a.id = id;
