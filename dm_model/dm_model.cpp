@@ -804,12 +804,16 @@ bool debug_module_t::dmi_read(unsigned address, uint32_t *value)
     default:
       result = 0;
 
-      if (!FLAGS_dm_model_check_bypass)
+      if (!FLAGS_dm_model_check_bypass & !FLAGS_dry_space_access)
         cvm::log(cvm::ERROR, "Unexpected Register [Maybe not part of this implementation]. Returning Error.\n");
       else 
         cvm::log(cvm::NONE, "Unexpected Register [Maybe not part of this implementation] \n");
-      
-      return false;
+
+      if (FLAGS_dry_space_access)
+        return true;
+      else
+        return false;
+
     }
   }
   cvm::log(cvm::HIGH, "{:#x}", result);
