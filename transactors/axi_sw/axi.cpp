@@ -282,6 +282,7 @@ cvm::messenger::task<void> axi::operator()() {
                             read_resp = RESP_SLVERR;
                             slverr_count_[idx]++;
                             num_slverr_resp_++;
+                            cvm::log(cvm::HIGH, "[axi] slverr resp addr={:#x} count={}\n", addr, slverr_count_[idx]);
                         }
                         idx++;
                     }
@@ -291,6 +292,7 @@ cvm::messenger::task<void> axi::operator()() {
                             read_resp = RESP_DECERR;
                             decerr_count_[idx]++;
                             num_decerr_resp_++;
+                            cvm::log(cvm::HIGH, "[axi] decerr resp addr={:#x} count={}\n", addr, decerr_count_[idx]);
                         }
                         idx++;
                     }
