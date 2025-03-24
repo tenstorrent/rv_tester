@@ -259,9 +259,9 @@ module rv_tester
         clocks          <= clocks + 1;
 
         `ifndef NO_TIMESTAMP
-            /* verilator lint_off BLKSEQ */
-            current_time = $time;
-            /* verilator lint_on BLKSEQ */
+            current_time <= $time;    
+        `else
+            current_time <= '0;
         `endif
 
         quiesce_counter <= quiesce_counter + int'(terminate);
@@ -1045,7 +1045,7 @@ module rv_tester
     assign tx_dom_1.logger_cycle_0s[0][0].data.location = location;
     assign tx_dom_1.logger_cycle_0s[0][0].data.clock = clocks;
 
-    assign tx_dom_1.logger_timestamp_0s[0][0].valid = gen_timestamp;
+    assign tx_dom_1.logger_timestamp_0s[0][0].valid = gen_timestamp && (current_time != 0);
     assign tx_dom_1.logger_timestamp_0s[0][0].data.location = location;
     assign tx_dom_1.logger_timestamp_0s[0][0].data.timeval = current_time;
 
