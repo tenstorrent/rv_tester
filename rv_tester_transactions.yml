@@ -595,11 +595,19 @@ axi_sw_mst:
 
 logger:
     num: 1
+
     cycle:
         domain: 1
         num: 1
         fields:
             clock:
+                width: 64
+
+    timestamp:
+        domain: 1
+        num: 1
+        fields:
+            timeval:
                 width: 64
 
 pmu_core:
