@@ -76,6 +76,7 @@ DEFINE_uint32(matp_swid, 0, "MATP.SWID");
 DEFINE_uint64(pa_mask, 0x0080000000000000, "address bit(s) that act as STEE distinction");
 DEFINE_bool(sysmod_terminate, true, "Set to false for offline DPI mode");
 // APLIC
+DEFINE_bool(aplic_is_memory, true, "Disable APLICs and treat them as regular memory");
 DEFINE_uint32(aplic_sources, 127, "Number of APLIC interrupt sources");
 // Uart8250
 DEFINE_bool(uart8250, false, "Whether to enable uart8250 devices found in the memory map");
@@ -885,7 +886,7 @@ sysmod::compose() {
 
       std::unique_ptr<device> device;
 
-      if (type == "memory") {
+      if (type == "memory" || (type == "aplic_domain" && FLAGS_aplic_is_memory)) {
         device = std::make_unique<sysmod_mem>(tag, base, size, loc_, mm);
 
       } else if (type == "io_dev") {
@@ -959,7 +960,7 @@ sysmod::compose() {
             loc_,
             [&](trace_cfg::trace_cfg_read_t i) { return this->trace_cfg_read_req_router(i); });
 
-      } else if (type == "aplic_domain") {
+      } else if (type == "aplic_domain" && !FLAGS_aplic_is_memory) {
         device = std::make_unique<aplic_device>(tag, base, size, loc_, aplic);
       } else {
         cvm::log(cvm::ERROR, "Error: unknown sysmod type {} \n", type);
