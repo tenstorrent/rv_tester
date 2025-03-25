@@ -269,11 +269,13 @@ constructSystem(uint16_t ncores, bool standalone, uint64_t secure_region_start=0
   }
   if (not config.applyImsicConfig(*system))
     return nullptr;
-  if (standalone && (not config.applyAplicConfig(*system)))
+  if ((standalone || FLAGS_aplic_is_memory) && (not config.applyAplicConfig(*system)))
     // We don't configure the APLIC in cosim because Whipser will take the
     // interrupt immediately when triggered and it will not be deferred because
     // the bridge considers it a Zicsr write interrupt. When an IMSIC interrupt
-    // is triggered by the APLIC the bridge will poke it into whisper.
+    // is triggered by the APLIC the bridge will poke it into whisper. We also
+    // don't configure the APLIC when aplic_is_memory is true so that the
+    // standalone run doesn't use the APLIC.
     return nullptr;
 
   if (FLAGS_whisper_data_lines != "")
