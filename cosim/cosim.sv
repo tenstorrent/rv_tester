@@ -1253,9 +1253,11 @@ localparam CAM_IHBIT = CAM_IBITS;
     endfunction
 
     // m_interrupt_pend
-    logic [63:0] mip_d1;
+    logic [63:0] mip_d1, mip_timer, mip_timer_d1;
     logic seip_d1;
+    assign mip_timer = interrupt_pend.mip & 'he0;
     always @(posedge clk) begin
+      mip_timer_d1 <= mip_timer;
       mip_d1 <= interrupt_pend.mip;
       seip_d1 <= interrupt_pend.seip;
     end
@@ -1269,7 +1271,6 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign m_interrupt_pends[0].data.seip = interrupt_pend.seip;
     assign m_interrupt_pends[0].data.seip_set = interrupt_pend.seip & ~seip_d1;
     assign m_interrupt_pends[0].data.seip_clr = ~interrupt_pend.seip & seip_d1;
-    assign m_interrupt_pends[0].data.mtime = mtime;
 
     // m_imsic_msi
     assign m_imsic_msis[0].valid = ~dut_reset && imsic_msi.valid && rvfi_enabled;
@@ -1290,15 +1291,23 @@ localparam CAM_IHBIT = CAM_IBITS;
     localparam logic [CSRLEN-1:0] C_STOPI      = 'hDB0;
     localparam logic [CSRLEN-1:0] C_VSTOPI     = 'hEB0;
 
+    // mtime packets from csr reads/writes
     for (genvar n = 0; n < NRET; n++) begin
       assign m_mtimes[n].valid = ~dut_reset && rvfi_enabled && !poke_mip_timer && (rvfi[n].valid &&
-        ((|rvfi[n].csr_wmask && (rvfi[n].csr_addr inside {C_STIMECMP, C_VSTIMECMP, C_HTIMEDELTA})) ||
-         (|rvfi[n].csr_rmask && (rvfi[n].csr_addr inside {C_TIME, C_MIP, C_MTOPI, C_SIP, C_STOPI, C_VSIP, C_VSTOPI}))));
+         (|rvfi[n].csr_wmask && (rvfi[n].csr_addr inside {C_STIMECMP, C_VSTIMECMP, C_HTIMEDELTA})) ||
+         (|rvfi[n].csr_rmask && (rvfi[n].csr_addr inside {C_TIME, C_MIP, C_MTOPI, C_SIP, C_STOPI, C_VSIP, C_VSTOPI})));
       assign m_mtimes[n].data.location = location;
       assign m_mtimes[n].data.cycle = clocks;
       assign m_mtimes[n].data.mtime = mtime;
       assign m_mtimes[n].data.mip = ((64'(rvfi[n].csr_addr inside {C_STIMECMP})) << 5) | (64'((rvfi[n].csr_addr inside {C_VSTIMECMP, C_HTIMEDELTA})) << 6);
     end
+
+    // mtime packets from mip bits
+      assign m_mtimes[NRET].valid = ~dut_reset && rvfi_enabled && |(mip_timer & ~mip_timer_d1);
+      assign m_mtimes[NRET].data.location = location;
+      assign m_mtimes[NRET].data.cycle = clocks;
+      assign m_mtimes[NRET].data.mtime = mtime;
+      assign m_mtimes[NRET].data.mip = mip_timer;
 
     //--------------------------------------------------------------------
     // set debug entry/exit values to defaults it NOT specificed by user

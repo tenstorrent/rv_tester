@@ -27,7 +27,7 @@ cosim:
 
     m_mtime:
         domain: 1
-        num: ${max(TOP.PLATFORM.COSIM.RVFI.NRETS)}
+        num: ${max(TOP.PLATFORM.COSIM.RVFI.NRETS) + 1}
         fields:
             cycle:
                 width: 64
@@ -392,8 +392,6 @@ cosim:
                 width: 1
             seip_clr:
                 width: 1
-            mtime:
-                width: 64
 
     m_core_nmi:
         domain: 1
