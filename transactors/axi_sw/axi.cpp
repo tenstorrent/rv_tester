@@ -189,7 +189,6 @@ cvm::messenger::task<void> axi::operator()() {
 
         a_q_.dequeue();
 
-        id_t id                     = a.id;
         addr_t num_bytes            = 1 << a.size;
         addr_t aligned_addr         = a.addr / num_bytes * num_bytes;
         data_width_t data_bus_bytes = data_width()/8;
@@ -220,14 +219,14 @@ cvm::messenger::task<void> axi::operator()() {
             if (1) {
                 addr_t start  = (addr / strobe_width()) * strobe_width() + lower_byte_lane;
                 addr_t len    = upper_byte_lane - lower_byte_lane + 1;
-                
+
                 std::string d;
                 std::string s;
                 axi::data_t read_data;
                 axi::resp_t read_resp;
                 if (!a.w || a.atop.transaction != NON_ATOMIC) {
                     cvm::log(cvm::FULL, "[axi] ar: id={}, addr={:#x}, len={}, size={}. tr: len={}\n", a.id, start, a.len, a.size, len);
-                    read_data = co_await transactor::read(id, start, len);
+                    read_data = co_await transactor::read(start, len);
                     if (cvm::logger::check_verbosity(cvm::FULL))
                       for (int i=read_data.size()-1; i>=0; i--)
                         d += fmt::format("{:02x}", read_data[i]);

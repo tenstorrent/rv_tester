@@ -16,7 +16,7 @@ class axi : public transactor {
         typedef std::uint64_t addr_t      ;
         typedef std::uint8_t  len_t       ;
         typedef std::uint8_t  sz_t        ;
-        
+
         typedef enum : std::uint8_t {
             BURST_FIXED,
             BURST_INCR ,
@@ -56,7 +56,7 @@ class axi : public transactor {
             ATOP_UMIN,
             ATOP_INVALID,
         } atop_operation;
-        
+
         typedef enum {
            DEV_NBUF,
            DEV_BUF,
