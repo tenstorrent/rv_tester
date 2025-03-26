@@ -53,7 +53,6 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     rv_tester_transactions::cosim::m_trap<>,
     rv_tester_transactions::cosim::m_core_nmi<>,
     rv_tester_transactions::cosim::m_interrupt_pend<>,
-    rv_tester_transactions::cosim::m_mtime<>,
     rv_tester_transactions::cosim::m_imsic_msi<>,
     rv_tester_transactions::cosim::m_mcmi_read<>,
     rv_tester_transactions::cosim::m_mcmi_insert<>,
@@ -65,6 +64,11 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     rv_tester_transactions::cosim::m_debug<>,
     bridge::error_loc
   >(loc);
+
+  // Special case: Subscribe to mtime packets from all cores
+  for (const auto& cosim_loc : cvm::topology::get_from_type("COSIM")) {
+    connect< rv_tester_transactions::cosim::m_mtime<> >(cosim_loc);
+  }
 
   connect<
     rv_tester::terminate_called
@@ -268,7 +272,6 @@ void rvfi::process(const rv_tester_transactions::cosim::m_interrupt_pend<>& m_in
   intr.seip = m_interrupt_pend.seip;
   intr.seip_set = m_interrupt_pend.seip_set;
   intr.seip_clr = m_interrupt_pend.seip_clr;
-  intr.mtime = m_interrupt_pend.mtime;
 
   std::string dut_log;
   dut_log += fmt::format("#NA {} {} ({} : mip={:#x} : ", intr.cycle, id_, intr.hw ? "hw" : "sw", intr.mip.to_ullong());
@@ -283,7 +286,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_interrupt_pend<>& m_in
       dut_log += fmt::format("{},", v);
   }
   dut_log += fmt::format(" : seip={}{}", intr.seip ? 1 : 0, intr.seip_set ? " : SEIpin+" : intr.seip_clr ? " : SEIpin-" : "");
-  dut_log += fmt::format(" : mtime={:#x})\n", intr.mtime);
+  dut_log += fmt::format(")\n");
 
   if (FLAGS_rvfi_log)
     log(cvm::NONE, fmt::to_string(dut_log));
@@ -296,9 +299,6 @@ void rvfi::process(const rv_tester_transactions::cosim::m_interrupt_pend<>& m_in
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mtime<>& m_mtime) {
   if (terminated_ || in_reset_)
-    return;
-
-  if (loc_ != m_mtime.location)
     return;
 
   rv_intr_t intr;

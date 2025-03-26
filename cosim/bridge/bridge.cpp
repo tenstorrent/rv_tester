@@ -2506,10 +2506,8 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
   // Timer
   if (i.mip_set[MTI] || i.mip_set[STI] || i.mip_set[VSTI]) {
     if (FLAGS_bridge_log)
-      bridge_log_(cvm::MEDIUM, "<{}> Timer interrupt set: mip={} time={:#x}\n", i.cycle, to_string(i), i.mtime);
-
-    std::bitset<64> t_mip = i.mip_set[MTI] << MTI | i.mip_set[STI] << STI | i.mip_set[VSTI] << VSTI;
-    poke_timer(i.cycle, t_mip, i.mtime + 16); // FIXME: Workaround to get mtime over the line. Investigate why it's needed.
+      bridge_log_(cvm::MEDIUM, "<{}> Timer interrupt set: mip={}\n", i.cycle, to_string(i));
+    // Nothing to do here since the timer interrupt was visible to whisper in process_dut_timer
   }
 
   // Default behavior is to poke the time csr to handle timer interrupts
@@ -2531,22 +2529,16 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
   }
  }
 
-void bridge::process_dut_timer(hart_id_t , rv_intr_t& i) {
-  poke_timer(i.cycle, i.mip, i.mtime);
-}
-
-void bridge::poke_timer(uint64_t cycle, std::bitset<64> t_mip, uint64_t mtime) {
-  for (hart_id_t hart = 0; hart < FLAGS_num_harts; hart++) {
-    // Default behavior is to poke the time csr to handle timer interrupts
-    // But +poke_mip_timer can override to poke mip bits instead
-    if (FLAGS_poke_mip_timer) {
-      poke_mip(hart, cycle, mip_);
-    } else {
-      poke_resource(hart, cycle, 'c', time_csr, mtime);
-    }
-
-    check_and_defer_interrupt(hart, cycle, t_mip);
+void bridge::process_dut_timer(hart_id_t hart, rv_intr_t& i) {
+  // Default behavior is to poke the time csr to handle timer interrupts
+  // But +poke_mip_timer can override to poke mip bits instead
+  if (FLAGS_poke_mip_timer) {
+    poke_mip(hart, i.cycle, mip_);
+  } else {
+    poke_resource(hart, i.cycle, 'c', time_csr, i.mtime);
   }
+
+  check_and_defer_interrupt(hart, i.cycle, i.mip);
 }
 
 void bridge::poke_local_interrupt(hart_id_t hart, uint64_t cycle, std::bitset<64> l_mip) {
