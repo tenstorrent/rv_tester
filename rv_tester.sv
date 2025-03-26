@@ -604,29 +604,22 @@ module rv_tester
     //ndmreset ack delay logic
     LU ndmreset_ack_clocks;
     logic ndmreset_ack_clocks_latched = 1'b0;
-    always@(posedge dut_clk[TB_CLK_IDX]) begin
-         /* verilator lint_off BLKSEQ */
-        if(!dut_reset_req)begin
-            ndmreset_ack_clocks_latched = 1'b0;
-             /* verilator lint_off ASSIGNIN */
-            ndmreset_ack = 1'b0;
-             /* verilator lint_on ASSIGNIN */
-        end
-          /* verilator lint_off WIDTH */
-        if(dut_reset_req & !ndmreset_ack_clocks_latched )begin
-           ndmreset_ack_clocks = clocks;
-           ndmreset_ack_clocks_latched = 1'b1;
-        end
 
-        if(clocks >= (ndmreset_ack_clocks + ndmreset_ack_delay))begin
-           /* verilator lint_off ASSIGNIN */
-           ndmreset_ack = 1'b1;
-            /* verilator lint_on ASSIGNIN */
+    always @(posedge dut_clk[TB_CLK_IDX]) begin
+        if (!dut_reset_req) begin
+            ndmreset_ack_clocks_latched <= 1'b0;
+            ndmreset_ack <= 1'b0;
+        end else if (dut_reset_req && !ndmreset_ack_clocks_latched) begin
+            ndmreset_ack_clocks <= clocks;
+            ndmreset_ack_clocks_latched <= 1'b1;
         end
-          /* verilator lint_on WIDTH */
-           /* verilator lint_on BLKSEQ */
-    
+     /* verilator lint_off WIDTHEXPAND */
+        if (clocks >= (ndmreset_ack_clocks + ndmreset_ack_delay)) begin
+        /* verilator lint_on WIDTHEXPAND */
+            ndmreset_ack <= 1'b1;
+        end
     end
+
 
 `ifdef NEGEDGE_UNSUPPORTED
     always@(posedge dut_clk[TB_CLK_IDX]) begin
