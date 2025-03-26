@@ -25,6 +25,7 @@ cc_library(
         "@cvm//:registry",
         "@cvm//:bitmanip",
         "@cvm//:messenger",
+        "@cvm//:random",
         "@fmt//:fmt"
     ],
     #alwayslink = True,
