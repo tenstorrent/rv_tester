@@ -1294,8 +1294,8 @@ localparam CAM_IHBIT = CAM_IBITS;
     // mtime packets from csr reads/writes
     for (genvar n = 0; n < NRET; n++) begin
       assign m_mtimes[n].valid = ~dut_reset && rvfi_enabled && !poke_mip_timer && (rvfi[n].valid &&
-         (|rvfi[n].csr_wmask && (rvfi[n].csr_addr inside {C_STIMECMP, C_VSTIMECMP, C_HTIMEDELTA})) ||
-         (|rvfi[n].csr_rmask && (rvfi[n].csr_addr inside {C_TIME, C_MIP, C_MTOPI, C_SIP, C_STOPI, C_VSIP, C_VSTOPI})));
+         ((|rvfi[n].csr_wmask && (rvfi[n].csr_addr inside {C_STIMECMP, C_VSTIMECMP, C_HTIMEDELTA})) ||
+          (|rvfi[n].csr_rmask && (rvfi[n].csr_addr inside {C_TIME, C_MIP, C_MTOPI, C_SIP, C_STOPI, C_VSIP, C_VSTOPI}))));
       assign m_mtimes[n].data.location = location;
       assign m_mtimes[n].data.cycle = clocks;
       assign m_mtimes[n].data.mtime = mtime;
