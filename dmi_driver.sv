@@ -16,6 +16,7 @@ import rv_tester_params:: * ;
     input logic [31:0]              trigger_config,
     input logic                     priority_singlestep,
     input logic                     disable_haltpoll,
+    input logic                     disable_abscmdpoll,
 
     
     input logic                     dmi_req_ready,
@@ -378,7 +379,7 @@ import rv_tester_params:: * ;
             ss_ndmreset = 1;
             $display("[Poll] SS_Ndmreset is set");
           end
-        end else if (cmd.addr === 'h17 && cmd.op === 'h2) begin
+        end else if (cmd.addr === 'h17 && cmd.op === 'h2 && ~disable_abscmdpoll) begin
           $display("[Poll] Seen Abstract Command Req, Doing Poll");
           abstr_cmd_req = 1;
           poll = 1;
