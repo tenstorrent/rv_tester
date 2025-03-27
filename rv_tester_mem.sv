@@ -201,13 +201,13 @@ module rv_tester_mem #(
     axi_llc_cfg_regs_d_t     reg_cfg_hw_to_reg;
     axi_llc_cfg_regs_q_t     reg_cfg_reg_to_hw;
 
-    logic rst_n_1T;
+    logic bist_status_done_1T;
 
     `ifndef NO_PRELOAD
         for (genvar i = 0; i < SetAssociativity_LLC; i++) begin
             always @(posedge clk_gated) begin
-                rst_n_1T <= rst_n;
-                if (rst_n && !rst_n_1T) begin
+                bist_status_done_1T <= bist_status_done;
+                if (bist_status_done && !bist_status_done_1T && rst_n) begin
                     if (preload_file_data_arr[i] != "") begin
                         $display("Preloading data SRAM for LLC way %0d with file: %s", i, preload_file_data_arr[i]);
                         $readmemh(preload_file_data_arr[i],
