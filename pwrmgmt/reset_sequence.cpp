@@ -45,6 +45,10 @@ DEFINE_string(init_mmr_resetseq, "", "+init_mmr_resetseq=<mmr_addr>:<size(8|4)>:
 DEFINE_string(rmw_csr_resetseq, "", "+rmw_csr_resetseq=<unit(mc=8,ms=4,fe=2,ls=1)>:<csr_num>:<val>:<mask>,... ");
 DEFINE_string(rmw_mmr_resetseq, "", "+rmw_mmr_resetseq=<mmr_addr>:<size(8|4)>:<val>:<mask>,... ");
 DEFINE_bool(trace_fuse_4B_access, true, "Enable filter programming for JTAG and Overlay to access SRAM ");
+DEFINE_bool(dst_enable, true, "Enable DST");
+DEFINE_bool(cla_enable, true, "Enable CLA");
+DEFINE_bool(jtag_to_axi_enable, true, "Enable AXI access through JTAG");
+DEFINE_bool(io_coherency_enable, true, "Enable snoops(io coherency)");
 
 extern "C" {
   void pwrmgmt_init();
@@ -590,6 +594,22 @@ uint64_t reset_sequence::export_control_fuse_val() {
   return static_cast<uint64_t>(FLAGS_export_control_en << exp_ctrl_fuse_idx);
 }
 
+uint64_t reset_sequence::cla_fuse_val() {
+  return static_cast<uint64_t>(FLAGS_cla_enable << cla_fuse_idx);
+}
+
+uint64_t reset_sequence::io_coherency_fuse_val() {
+  return static_cast<uint64_t>(FLAGS_io_coherency_enable << io_cohr_fuse_idx);
+}
+
+uint64_t reset_sequence::dst_fuse_val() {
+  return static_cast<uint64_t>(FLAGS_dst_enable << dst_fuse_idx);
+}
+
+uint64_t reset_sequence::jtag_to_axi_fuse_val() {
+  return static_cast<uint64_t>(FLAGS_jtag_to_axi_enable << jtag_axi_fuse_idx);
+}
+
 uint64_t reset_sequence::sc_fuse_val() {
   uint64_t sc_fuse = 0;
 
@@ -603,7 +623,7 @@ uint64_t reset_sequence::sc_fuse_val() {
 }
 
 uint64_t reset_sequence::fuse_val() {
-  return core_fuse_val() | trace_fuse_val() | dm_fuse_val() | sc_fuse_val() | export_control_fuse_val() | (1ull << lock_idx);
+  return core_fuse_val() | trace_fuse_val() | dm_fuse_val() | sc_fuse_val() | export_control_fuse_val() |  cla_fuse_val() | io_coherency_fuse_val() | dst_fuse_val() | jtag_to_axi_fuse_val() | (1ull << lock_idx);
 }
 
 

@@ -92,6 +92,10 @@ class reset_sequence {
     uint64_t dm_fuse_val();
     uint64_t sc_fuse_val();
     uint64_t export_control_fuse_val();
+    uint64_t cla_fuse_val();
+    uint64_t io_coherency_fuse_val();
+    uint64_t dst_fuse_val();
+    uint64_t jtag_to_axi_fuse_val();
     uint64_t core_en(uint32_t c);
     std::vector<uint64_t> mhartid();
 

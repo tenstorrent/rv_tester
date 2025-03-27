@@ -41,12 +41,17 @@ namespace {
   constexpr uint32_t core_physical_id_mmr   = 0x4200'2FF8;
   constexpr uint32_t sw_fuse_default_val    = 0x4200'2FF8;
 
+  constexpr uint32_t lock_idx               = 63;
+  constexpr uint32_t jtag_axi_fuse_idx      = 53;
+  constexpr uint32_t dst_fuse_idx           = 52;
+  constexpr uint32_t trace_fuse_idx         = 51;
+  constexpr uint32_t cla_fuse_idx           = 50;
+  constexpr uint32_t dm_axi_fuse_idx        = 49;
+  constexpr uint32_t dm_fuse_idx            = 48;
   constexpr uint32_t core_fuse_idx          = 16;
-  constexpr uint32_t exp_ctrl_fuse_idx      = 11;
-  constexpr uint32_t trace_fuse_idx         = 8;
-  constexpr uint32_t dm_fuse_idx            = 9;
+  constexpr uint32_t io_cohr_fuse_idx       = 11;
+  constexpr uint32_t exp_ctrl_fuse_idx      = 10;
   constexpr uint32_t sc_fuse_idx            = 0;
-  constexpr uint32_t lock_idx               = 15;
 
   constexpr uint32_t core_pversion_mmr          = 0x4200'5000;
   constexpr uint32_t core_pcontrol_mmr          = 0x4200'5040;
