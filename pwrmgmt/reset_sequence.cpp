@@ -583,31 +583,31 @@ std::vector<uint64_t> reset_sequence::mhartid() {
 }
 
 uint64_t reset_sequence::trace_fuse_val() {
-  return static_cast<uint64_t>(FLAGS_trace_enable << trace_fuse_idx);
+  return static_cast<uint64_t>(FLAGS_trace_enable) << trace_fuse_idx;
 }
 
 uint64_t reset_sequence::dm_fuse_val() {
-  return static_cast<uint64_t>(FLAGS_debug_enable << dm_fuse_idx);
+  return static_cast<uint64_t>(FLAGS_debug_enable) << dm_fuse_idx;
 }
 
 uint64_t reset_sequence::export_control_fuse_val() {
-  return static_cast<uint64_t>(FLAGS_export_control_en << exp_ctrl_fuse_idx);
+  return static_cast<uint64_t>(FLAGS_export_control_en) << exp_ctrl_fuse_idx;
 }
 
 uint64_t reset_sequence::cla_fuse_val() {
-  return static_cast<uint64_t>(FLAGS_cla_enable << cla_fuse_idx);
+  return static_cast<uint64_t>(FLAGS_cla_enable) << cla_fuse_idx;
 }
 
 uint64_t reset_sequence::io_coherency_fuse_val() {
-  return static_cast<uint64_t>(FLAGS_io_coherency_enable << io_cohr_fuse_idx);
+  return static_cast<uint64_t>(FLAGS_io_coherency_enable) << io_cohr_fuse_idx;
 }
 
 uint64_t reset_sequence::dst_fuse_val() {
-  return static_cast<uint64_t>(FLAGS_dst_enable << dst_fuse_idx);
+  return static_cast<uint64_t>(FLAGS_dst_enable) << dst_fuse_idx;
 }
 
 uint64_t reset_sequence::jtag_to_axi_fuse_val() {
-  return static_cast<uint64_t>(FLAGS_jtag_to_axi_enable << jtag_axi_fuse_idx);
+  return static_cast<uint64_t>(FLAGS_jtag_to_axi_enable) << jtag_axi_fuse_idx;
 }
 
 uint64_t reset_sequence::sc_fuse_val() {
