@@ -635,7 +635,7 @@ sysmod::store_inval_load(const inval_load_s& payload) {
   device::data_t data(8);
   uint64_t read_data = 0;
   uint64_t ld_addr = inval_load_.address; 
-   uint8_t byte_mask = inval_load_.size;
+  uint8_t byte_mask = inval_load_.size;
   // length = inval_load_.size;
   // int size = (1 << length)/8;
   dev("memory")->backdoor_read(ld_addr, 8, data);
