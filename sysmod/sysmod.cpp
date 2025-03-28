@@ -13,7 +13,6 @@
 #include "clint/clint.h"
 #include "aclint/aclint.h"
 #include "dm/dm.h"
-#include "trace_cfg/trace_cfg.h"
 #include "io_dev/io_dev.h"
 #include "null_dev/null_dev.h"
 #include "heartbeat/heartbeat.h"
@@ -561,31 +560,6 @@ sysmod::tbox_interrupt(interrupter::interrupt_t i) {
       });
 }
 
-void
-sysmod::trace_info_handler(trace_cfg::trace_info_t i) {
-  cvm::registry::callbacks.push(
-      scope(),
-      [i]() {
-        cvm::log(cvm::HIGH, "[SYSMOD] trace_info \n");
-        sysmod_trace_info(i.trace_quiesced);
-      });
-}
-
-void
-sysmod::trace_cfg_read_req_router(trace_cfg::trace_cfg_read_t r) {
-
-    transactor::read_t rd;
-    rd.addr = r.addr;
-    rd.length = r.length;
-    rd.id =  r.id;
-
-    auto sources = cvm::topology::get_from_type("PLATFORM_TRANSACTOR");
-
-    if (this->dev(r.addr)){
-        cvm::registry::messenger.signal<device::read_t>(this->loc_, {rd, sources[0]});
-    }
-
-}
 
 //void
 // sysmod::scratchpad_xtor_read_req_router(scratchpad_xtor::scratchpad_xtor_read_t r) {
@@ -907,15 +881,7 @@ sysmod::compose() {
         // TODO: cvm::ERROR
        // assert(masters.size() > 0);
        // device = std::make_unique<dm>(tag, base, size, loc_, masters[0]);
-      } else if (type == "trace_cfg") {
-        // TODO: cvm::ERROR
-        cvm::registry::messenger.connect<trace_cfg::trace_info_t>(
-            loc_,
-            [&](trace_cfg::trace_info_t i) { return this->trace_info_handler(i); });
-        assert(masters.size() > 0);
-        device = std::make_unique<trace_cfg>(tag, base, size, loc_, masters[0]);
-        // TODO: cvm::ERROR
-
+       
       // } else if (type == "scratchpad_xtor") {
       //   // TODO: cvm::ERROR
       //   assert(masters.size() > 0);
@@ -956,9 +922,6 @@ sysmod::compose() {
         cvm::registry::messenger.connect<uc_helper::uc_helper_read_req_t>(
             loc_,
             [&](uc_helper::uc_helper_read_req_t i) { return this->uc_helper_backdoor_read(i); });
-        cvm::registry::messenger.connect<trace_cfg::trace_cfg_read_t>(
-            loc_,
-            [&](trace_cfg::trace_cfg_read_t i) { return this->trace_cfg_read_req_router(i); });
 
       } else if (type == "aplic_domain" && !FLAGS_aplic_is_memory) {
         device = std::make_unique<aplic_device>(tag, base, size, loc_, aplic);
