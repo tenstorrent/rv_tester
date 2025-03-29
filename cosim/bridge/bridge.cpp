@@ -3145,11 +3145,9 @@ void bridge::report_metrics() {
 
   // Exceptions and interrupts
   for (const auto& [e,es] : excp_to_string) {
-    if (num_exceptions_[e] != 0) {
-      std::string es_lower = std::string(es);
-      std::transform(es_lower.begin(), es_lower.end(), es_lower.begin(), [](unsigned char c){ return std::tolower(c); });
-      print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_{}\": {}}}\n", id_, es_lower, num_exceptions_[e]);
-    }
+    std::string es_lower = std::string(es);
+    std::transform(es_lower.begin(), es_lower.end(), es_lower.begin(), [](unsigned char c){ return std::tolower(c); });
+    print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_{}\": {}}}\n", id_, es_lower, num_exceptions_[e]);
   }
   for (const auto& [p,ps] : priv_to_string) {
     for (const auto& [i,is] : intr_to_string) {
