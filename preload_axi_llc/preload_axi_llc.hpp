@@ -1,5 +1,4 @@
-#ifndef PRELOAD_AXI_LLC_HPP
-#define PRELOAD_AXI_LLC_HPP
+#pragma once
 
 #include <string>
 #include <vector>
@@ -12,8 +11,6 @@ namespace preload_axi_llc {
         std::vector<std::string> tagFiles;
     };
 
-    PreloadFiles convert_csv_to_preload_files_per_way(const std::string& csv_path, int index_bits, int offset_bits, int numWays);
+    PreloadFiles convert_csv_to_preload_files_per_way(const std::string& csv_path, int num_sets, int num_blocks, int num_ways, int addr_width, int data_width);
 
 } // namespace preload_axi_llc
-
-#endif // PRELOAD_AXI_LLC_HPP

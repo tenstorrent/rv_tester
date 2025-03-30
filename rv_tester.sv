@@ -82,7 +82,7 @@ module rv_tester
     import "DPI-C" function int rv_tester_parse_flags(); // dummy return value so that this gets called immediately. need this to happen before any other DPIs are called.
     import "DPI-C" function void rv_tester_set_seed();
     import "DPI-C" context function void rv_tester_cvm_error_handler();
-    import "DPI-C" context function void rv_tester_parse_memmap(int unsigned no_addr_rules, int numWays, int index_bits, int block_offset_bits);
+    import "DPI-C" context function void rv_tester_parse_memmap(int unsigned no_addr_rules, int num_ways, int num_sets, int num_blocks, int addr_width, int data_width);
     import "DPI-C" context function void rv_tester_build_registry();
     import "DPI-C" context function void rv_tester_no_dm_build_registry();
     import "DPI-C" function byte unsigned rv_tester_shutdown_registry();
@@ -200,7 +200,11 @@ module rv_tester
     
     localparam int AxiLLC_SetAssociativity = 32'd4;
     localparam int AxiLLC_NumLines = 32'd128;
-    localparam int AxiLLC_NumBlocks = 32'd4;
+    localparam int blocks_in_cacheline = 512/topology.TOP.PLATFORM.AXI.DATA_WIDTH;
+    localparam int AxiLLC_NumBlocks = blocks_in_cacheline < 2 ? 2 : blocks_in_cacheline;
+    if (topology.TOP.PLATFORM.AXI.DATA_WIDTH > 512 || (512 % topology.TOP.PLATFORM.AXI.DATA_WIDTH) != 0) begin
+        $error("axi data width %0d larger than 64 byts or not divisible into 64 bytes", topology.TOP.PLATFORM.AXI.DATA_WIDTH);
+    end
 
 
     bit gen_clocks = '0;
@@ -391,7 +395,7 @@ module rv_tester
                $display("[RVTESTER]: constructing registry without DM Model");
                rv_tester_no_dm_build_registry();
             end
-            rv_tester_parse_memmap(NoAddrRules, AxiLLC_SetAssociativity, $clog2(AxiLLC_NumLines), $clog2(AxiLLC_NumBlocks * 8));
+            rv_tester_parse_memmap(NoAddrRules, AxiLLC_SetAssociativity, AxiLLC_NumLines, AxiLLC_NumBlocks, topology.TOP.PLATFORM.AXI.ADDR_WIDTH + 1 /* cache has one more bit */, topology.TOP.PLATFORM.AXI.DATA_WIDTH);
 
             /* verilator lint_off BLKSEQ */
             // zebu bug doesn't allow nested function calls, so create intermediate variables
@@ -1368,7 +1372,7 @@ module rv_tester
     `ifndef NO_PRELOAD
         if (way < AxiLLC_SetAssociativity) begin
             preload_data_file_arr[way] = file;
-            $display("Preload data file for way %0d set to: %s", way, file);
+            $display("%0t Preload data file for way %0d set to: %s", $time, way, file);
         end else begin
             $display("Error: Attempted to set preload file for invalid way %0d", way);
         end
@@ -1418,7 +1422,7 @@ module rv_tester
         .axi_resp_mst_up        ( axi_rsp_llc ),
         .addr_map               ( addr_map_final ),
         .bypass_mem             ( bypass_mem ),
-        .flush_cache            ( quiesced ),
+        .flush_cache            ( terminate && quiesced ),
         .flush_complete         ( flush_complete ),
         .bist_status_done       ()
         `ifndef NO_PRELOAD
