@@ -106,15 +106,15 @@ class logger_instrument {
         cvm::topology::loc_t loc;
 };
 
-static std::string process_preload_file(int numWays, int index_bits, int block_offset_bits) {
+static std::string process_preload_file(int num_ways, int num_sets, int num_blocks, int addr_width, int data_width) {
     std::string preloadStr = FLAGS_rv_tester_mem_preload_file;
     if (!preloadStr.empty() && preloadStr.substr(preloadStr.size() - 4) == ".csv") {
-        preload_axi_llc::PreloadFiles pf = preload_axi_llc::convert_csv_to_preload_files_per_way(preloadStr, index_bits, block_offset_bits, numWays);
+        preload_axi_llc::PreloadFiles pf = preload_axi_llc::convert_csv_to_preload_files_per_way(preloadStr, num_sets, num_blocks, num_ways, addr_width, data_width);
         if (pf.dataFiles.empty() || pf.tagFiles.empty()) {
             cvm::log(cvm::ERROR, "CSV conversion failed; no preload files generated.");
             return "";
         }
-        for (int w = 0; w < numWays; w++) {
+        for (int w = 0; w < num_ways; w++) {
             set_preload_data_file(w, pf.dataFiles[w].c_str());
             set_preload_tag_file(w, pf.tagFiles[w].c_str());
         }
@@ -205,7 +205,7 @@ extern "C" {
         cvm::rand::seed(FLAGS_seed);
     }
 
-    void rv_tester_parse_memmap(std::uint32_t no_addr_rules, int numWays, int index_bits, int block_offset_bits) {
+    void rv_tester_parse_memmap(std::uint32_t no_addr_rules, int num_ways, int num_sets, int num_blocks, int addr_width, int data_width) {
 
         std::map<std::string, memmap_entry_t> m;
         if (!cvm::registry::messenger.call<memmap::getRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.MEMMAP", 0), m))
@@ -214,7 +214,7 @@ extern "C" {
             cvm::log(cvm::ERROR, "Test specifying more address rules ({}) than in sv ({})", m.size(), no_addr_rules);
             return;
         }
-        std::string preloadStr = process_preload_file(numWays, index_bits, block_offset_bits);
+        std::string preloadStr = process_preload_file(num_ways, num_sets, num_blocks, addr_width, data_width);
 
         std::uint32_t i = 0;
         for (const auto& it : m) {
