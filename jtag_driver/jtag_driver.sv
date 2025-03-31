@@ -213,12 +213,14 @@ typedef enum logic [1:0] {
       tap_sel = tap_cfg_sel;
       length = reg_length[31:0];
       jtag_quiesced = 1'b0;
-      $display("[JTAG_DRIVER.SV] JTAG driver socket  %h %h %h %h\n", lower_value[0],reg_length,tap_sel,tap_cfg_sel);
+      $display("[JTAG_DRIVER.SV] JTAG driver socket  %h %h %h %h at time = %t\n", lower_value[0],reg_length,tap_sel,tap_cfg_sel, $time);
 
+      /*
       $display("[JTAG_DRIVER.SV] JTAG DRIVER socket jtag_tx %h \n",jtag_tx);
       for(int i=0;i<21;i++)begin
       $display("[JTAG_DRIVER.SV] JTAG DRIVER socket input data [%d]=%h \n",i,lower_value[i]);
       end
+      */
 
     end
     else if(jtag_quit[0] === 1'b1 )begin
