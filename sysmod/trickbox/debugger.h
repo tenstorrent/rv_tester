@@ -87,7 +87,7 @@ public:
     std::lock_guard<std::mutex> lock(mutex_);
     timer_ += advance;
     timer_advance = advance;
-    cvm::log(cvm::FULL, "[Debugger]: Tick, timer:{} advance:{}\n",timer_,advance);
+    cvm::log(cvm::HIGH, "[Debugger]: Tick, timer:{} advance:{}\n",timer_,advance);
     if(timer_ > (5*advance)){ 
     checkDebugEvents();
 
@@ -97,10 +97,11 @@ public:
 
   virtual void is_dut_reset_req(bool dut_reset_req_f,uint64_t iclocks,uint64_t idivisor) override
   {
-    cvm::log(cvm::FULL,"[Debugger]:Value of dut_reset_req in debugger is : {} clocks: {} divisor TICKS: {}\n",dut_reset_req_f,iclocks,idivisor);
+    cvm::log(cvm::HIGH,"[Debugger]:Value of dut_reset_req in debugger is : {} clocks: {} divisor TICKS: {}\n",dut_reset_req_f,iclocks,idivisor);
     dut_reset_req = dut_reset_req_f;
     clocks = iclocks;
     divisor = idivisor;
+    cvm::log(cvm::HIGH,"[Debugger]:Value of dut_reset_req in debugger  after assignment is : {} clocks: {} divisor TICKS: {}\n",dut_reset_req,iclocks,idivisor);
     if(dut_reset_req){
       ndm_reset_occured = true;
       std::ofstream myfile;
@@ -201,7 +202,7 @@ public:
 
   void checkDebugEvents()
   {
-    cvm::log(cvm::FULL, "[debugger] checkDebugEvents: Timer chk dbg evt \n");
+    cvm::log(cvm::HIGH, "[debugger] checkDebugEvents: Timer chk dbg evt \n");
     if (FLAGS_random_dbg_entry)
     {
       if ((timer_ >= timer_rand_debug) & (checkpoint_triggers_pending == 0) & (cmd_trigger_in_progress == false) & (file_parsing_in_progress == false))
