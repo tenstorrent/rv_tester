@@ -1058,39 +1058,16 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
   if (d.intr && !w_intr && !FLAGS_cosim_resynch) {
     IF_DEBUG("dut intr==1 and whisper intr==0");
     if (FLAGS_bridge_log)
-      bridge_log_(cvm::MEDIUM, "<{}> DUT took interrupt, Whisper did not. dcause:[{}] prev_mip:{}\n", w.time, d.icause, prev_hw_mip_[d.icause]);
-    if (prev_hw_mip_[d.icause]) {
-      bridge_log_(cvm::MEDIUM, "<{}> Timing sensitive mismatch: Resynch and keep going. cause: {})\n", w.time, d.icause);
-      if(d.icause != 9)
-        poke_mip(hart, w.time, (uint64_t)1 << d.icause);
-      resynch_icause_ = d.icause;
-      // Undefer all interrupts
-      if (deferred_intr_) {
-        defer_interrupt(hart, w.time, 0);
-        deferred_intr_ = false;
-        bridge_log_(cvm::MEDIUM, "<{}> Timing sensitive mismatch. Undefer all interrupts.\n", w.time);
-      }
-    }
-    return;
+      bridge_log_(cvm::MEDIUM, "<{}> Warning: DUT took interrupt, Whisper did not. dcause:[{}] age:[{}]\n",
+        w.time, d.icause, intr_age_[d.icause]);
   }
 
   // 2. DUT took older interrupt but a newer one asserted before retire
   if (d.icause != w_cause) {
     IF_DEBUG("dut cause != whisper cause");
     if (FLAGS_bridge_log)
-      bridge_log_(cvm::MEDIUM, "<{}> DUT vs Whisper interrupt cause mismatch [{},{}] age [{},{}] \n",
+      bridge_log_(cvm::MEDIUM, "<{}> Warning: DUT vs Whisper interrupt cause mismatch [{},{}] age [{},{}] \n",
         w.time, d.icause, w_cause, intr_age_[d.icause], intr_age_[w_cause]);
-    if (prev_hw_mip_[d.icause]) {
-      std::bitset<64> timing_case_w_mip;
-      bridge_log_(cvm::MEDIUM, "<{}> cause: [{}] (Timing sensitive mismatch: Resynch and keep going)\n",
-        w.time, d.icause);
-      peek_mip(hart, w.time, timing_case_w_mip);
-      if(d.icause != 9)
-        poke_mip(hart, w.time, timing_case_w_mip.to_ullong() | (uint64_t)1 << d.icause); // Combination of case 1 and 2 where whisper is not seeing the interrupt currently being serviced by DUT and there is another interrupt also pending in both DUT and whisper.
-      defer_interrupt(hart, w.time, mip_.to_ullong() & ~((uint64_t)1 << d.icause));
-      timing_case2 = 1;
-    }
-    return;
   }
 
   // Undefer all interrupts
@@ -1155,24 +1132,6 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
   }
 
   num_taken_interrupts_[static_cast<priv>(intrtopriv_)][static_cast<intr>(w_.icause)]++;
-
-  // Timing sensitive mismatch cases
-  if (resynch_icause_) {
-    IF_DEBUG("resynch_icause_==1");
-    std::bitset<64> resynch_mip_mask, resynch_mip;
-    resynch_mip_mask = (1 << resynch_icause_);
-    resynch_icause_ = 0;
-    peek_mip(hart, d.cycle, resynch_mip);
-    resynch_mip &= ~resynch_mip_mask;
-    if (FLAGS_bridge_log)
-      bridge_log_(cvm::MEDIUM, "<{}> Poking mip de assertion due to resynch in previous step {} \n", d.cycle, resynch_mip.to_ullong());
-    poke_mip(hart, d.cycle, resynch_mip);
-  }
-
-  if(timing_case2){
-    defer_interrupt(hart, w.time, 0);
-    timing_case2 = 0;
-  }
 }
 
 void bridge::post_step_nmi_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {

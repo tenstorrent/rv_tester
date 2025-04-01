@@ -415,7 +415,6 @@ private:
   std::bitset<64> e_mip_ = 0;
   std::bitset<64> prev_hw_mip_ = 0;
   std::bitset<64> prev_e_mip_ = 0;
-  uint64_t timing_case2 = 0;
   uint64_t hw_mip_age_ = 0;
   uint64_t e_mip_age_ = 0;
   uint64_t deferred_mip_ = 0;
