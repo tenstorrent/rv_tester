@@ -152,7 +152,6 @@ module rv_tester
 
     logic terminate_1T = '0;
     logic terminated_1T = '0;
-    logic terminate_now;
     logic rerun_now;
     /* verilator lint_off UNOPTFLAT */
     rv_tester_pkg::terminate_t rv_tester_error_terminate;

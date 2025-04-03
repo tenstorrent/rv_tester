@@ -84,7 +84,7 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-wall_clock_profiler.git",
     )
 
-    checkin_script_hash="78ba9db1f5c677b5d5a026ae2f33927ac3a2da79"
+    checkin_script_hash="507de7332197a087137ea05ac68b5603f9829d17"
     maybe(
         git_repository,
         name = "checkin-script",

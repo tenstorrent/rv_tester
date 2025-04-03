@@ -352,9 +352,11 @@ void
  io_coh_helper::write(uint64_t addr, size_t , const data_t& data,
  		 const strb_t&)
 {
-  cvm::log(cvm::HIGH, "[io_coh_helper] write addr {:#x}  \n",addr);
-  if (not has_addr(addr))
+  if (not has_addr(addr)){
+    cvm::log(cvm::HIGH, "[io_coh_helper] Descarding write request at io_coh_helper since tag {} is not matching \n",tag());
     return;
+  }
+  cvm::log(cvm::HIGH, "[io_coh_helper] write addr {:#x}  \n",addr);
   uint64_t t_data = 0;
   deserializeInt(data, t_data);
   cvm::log(cvm::HIGH, "[io_coh_helper] write data {:#x} \n",t_data);
