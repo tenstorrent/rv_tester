@@ -379,7 +379,7 @@ private:
   bool ecall_ = false;
   bool is_priv_debug_mode_ = false;
   bool debug_mode_ = false;
-  bool dtvec_ebreak = false;
+  bool dtvec_ebreak_ = false;
   bool debug_haltreq_asserted = false;
   bool excp_in_debug_mode = false;
   bool lrsc_fail_ = false;
