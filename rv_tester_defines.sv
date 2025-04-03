@@ -971,6 +971,7 @@ package rv_tester_params;
     output                                   dut_terminate,                                         \
     input                                    terminate,                                             \
     input  logic                             terminated,                                            \
+    input  logic                             terminate_now,                                            \
     output                                   quiesced,                                              \
     input logic [64-1:0]                     cosim_eot_addr,                                        \
     input  rv_tester_pkg::dm_write_t         dmi_write,                                             \
@@ -1055,6 +1056,7 @@ package rv_tester_params;
     logic                                    dut_terminate;                                         \
     logic                                    terminate;                                             \
     logic                                    terminated;                                            \
+    logic                                    terminate_now;                                            \
     logic                                    quiesced;                                              \
     logic [64-1:0]                           cosim_eot_addr;                                        \
     rv_tester_pkg::dm_write_t                dmi_write;                                             \
