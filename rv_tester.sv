@@ -222,7 +222,7 @@ module rv_tester
 
     assign ntrace_terminate    = (terminate_ntrace_test & ntrace_stop_on_wrap) || !ntrace_stop_on_wrap;
     assign terminate           = (dut_terminate_any || rv_tester_error_terminate.terminate || ((sysmod_terminate.terminate || cosim_terminate_any || dmi_poll_timeout_terminate) && !sys_reset_any) || quiesce_counter > 0) && !rv_tester_reset && !warm_reset && ntrace_terminate;
-    assign terminate_now       = (terminate_1T && (quiesced || ((quiesce_counter >= quiesce_timeout) && !warm_reset)) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue <= 'h1) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || (terminate_dst_trace_seq && quiesced)) && (!cla_en || (terminate_cla_seq && quiesced))  && (!jtag_en || jtag_quiesced )) || dut_terminate_any || warm_reset_now;
+    assign terminate_now       = (terminate_1T && (quiesced || ((quiesce_counter >= quiesce_timeout) && !warm_reset)) && (flush_complete || flush_counter >= flush_timeout) && ((dmi_commands_in_queue <= 'h1) | (dmi_poll_counter > 'h1)) && (!trace_en || trace_quiesced || (terminate_dst_trace_seq && quiesced)) && (!cla_en || (terminate_cla_seq && quiesced))  && (!jtag_en || jtag_quiesced )) || warm_reset_now;
 
     assign rerun_now           = terminated && !terminated_1T && ((num_reruns > 0) || (warm_reset_en && (num_resets <= target_num_resets)) || shifted_dut_reset_req);
 
@@ -606,17 +606,27 @@ module rv_tester
     logic ndmreset_ack_clocks_latched = 1'b0;
 
     always @(posedge dut_clk[TB_CLK_IDX]) begin
+        if(cold_reset === 1'b0)begin
         if (!dut_reset_req) begin
             ndmreset_ack_clocks_latched <= 1'b0;
             ndmreset_ack <= 1'b0;
         end else if (dut_reset_req && !ndmreset_ack_clocks_latched) begin
             ndmreset_ack_clocks <= clocks;
             ndmreset_ack_clocks_latched <= 1'b1;
-        end
+        end 
+        //else begin
+        //    ndmreset_ack_clocks_latched <= 1'b0;
+        //    ndmreset_ack <= 1'b0;
+        //end
      /* verilator lint_off WIDTHEXPAND */
-        if (clocks >= (ndmreset_ack_clocks + ndmreset_ack_delay)) begin
+        if (ndmreset_ack_clocks_latched && (clocks >= (ndmreset_ack_clocks + ndmreset_ack_delay))) begin
         /* verilator lint_on WIDTHEXPAND */
             ndmreset_ack <= 1'b1;
+        end
+        end
+        else begin
+            ndmreset_ack_clocks_latched <= 1'b0;
+            ndmreset_ack <= 1'b0;
         end
     end
 
