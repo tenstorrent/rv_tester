@@ -594,6 +594,8 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
     IF_DEBUG("dut single step excp cause=31");
     return;
   }
+  
+  check_debug_mode_entry_via_ebreak(d);
 
   // Handle pre-step condition - Debug
   if (debug_mode_) {
@@ -885,21 +887,25 @@ void bridge::post_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
   }
 }
 
+void bridge::check_debug_mode_entry_via_ebreak(const rv_instr_t& instr) {
+  dtvec_ebreak_ = false;
+  for (auto& csr : instr.csr) {
+    if (csr.csr_addr == c_dtvec_spec_csr && (csr.csr_wdata & 0x10)==0) {
+      dtvec_ebreak_ = true;
+      debug_mode_ = true;
+      break;
+    }
+  }
+}
+
 void bridge::pre_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
   print(cvm::MEDIUM, "Debug pre step poking instruction in Debug mode\n", hart);
   bool valid;
   uint32_t opcode;
-  bool dtvec_ebreak = false;
-  for (auto& csr : instr.csr) {
-    if (csr.csr_addr == c_dtvec_spec_csr && (csr.csr_wdata & 0x10)==0) {
-      dtvec_ebreak = true;
-      break;
-    }
-  }
   if (instr.pc.pc_rdata == FLAGS_debug_exit_pc) {
     opcode = opcode_nop;
   }
-  else if ((instr.excp && (instr.ecause == 3)) || dtvec_ebreak) { // This is to exit the abstract cmd routine to Park loop at the end of abstract command completion
+  else if ((instr.excp && (instr.ecause == 3)) || dtvec_ebreak_) { // This is to exit the abstract cmd routine to Park loop at the end of abstract command completion
     opcode = opcode_ebreak; //E-break opcode
   }
   else if (instr.excp) { // In case of other exceptions since RVFI only get's u-op codes, can't poke whisper valid opcode to hit exception. Thus we poke illegal opcode to mimic an exception.
