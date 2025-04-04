@@ -1048,7 +1048,7 @@ sysmod::load_prog(const std::string& hex, const std::string& load, const std::st
     if (load != "") {
       cvm::log(cvm::MEDIUM, "Loading {}\n", load);
       if (not dev(tag) or not dynamic_cast<sysmod_mem&>(*dev(tag)).init_elf(load)) {
-        cvm::log(cvm::ERROR, "Failed to load program");
+        cvm::log(cvm::ERROR, "Error: Failed to load program\n");
         return;
       }
       cvm::log(cvm::MEDIUM, "Loading {} complete\n", load);
