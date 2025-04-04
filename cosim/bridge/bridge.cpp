@@ -2578,8 +2578,11 @@ void bridge::process_imsic_msi(hart_id_t hart, const mem_t& m) {
 
 void bridge::check_and_defer_interrupt(hart_id_t hart, uint64_t time, std::bitset<64> mip) {
   bool w_intr;
-  uint64_t w_cause;
+  uint64_t w_cause, w_cause_mip = 0;
   check_interrupt(hart, time, w_intr, w_cause);
+  // We reach here with mip = 0 only for timer poke cases initiated due to csr reads
+  if (mip == 0)
+    w_cause_mip = 1 << w_cause;
 
   if (!w_intr)
     return;
@@ -2591,7 +2594,7 @@ void bridge::check_and_defer_interrupt(hart_id_t hart, uint64_t time, std::bitse
     return;
   }
 
-   defer_interrupt(hart, time, mip.to_ullong() | w_defer_mip);
+   defer_interrupt(hart, time, mip.to_ullong() | w_cause_mip | w_defer_mip);
 }
 
 void bridge::defer_interrupt(hart_id_t hart, uint64_t cycle, uint64_t mip) {
