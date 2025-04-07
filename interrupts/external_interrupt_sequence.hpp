@@ -29,6 +29,7 @@ class external_interrupt_sequence {
     cvm::messenger::task<void> uarch_trigger_mode();
 
     cvm::messenger::task<void> delayed_trigger();
+    cvm::messenger::task<void> trigger_tick();
 
     void init();
     void drive_interrupt();

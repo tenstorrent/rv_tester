@@ -1802,6 +1802,12 @@ triggers:
                 width: 32
             event_trigger:
                 width: 32
+    m_tick:
+        domain: 2
+        num: 1
+        fields:
+            cycle:
+                width: 32
 
 __domains:
     2:
