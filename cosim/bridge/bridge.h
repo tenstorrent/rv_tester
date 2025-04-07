@@ -267,6 +267,7 @@ private:
   bool is_compressed(const std::string& instr);
   bool is_ucode(const std::string& instr);
   bool is_renamed_csr(const std::string& instr);
+  bool is_cracked_csr(const std::string& instr);
   bool found_in_list(const std::string& num, const std::string& list);
   bool resynch_needed(const hart_id_t& hart, const rv_instr_t& d, const std::string& instr, const whisper_state_t& w);
   bool resynch_on_pa(const uint64_t& pa, const uint64_t& cycle=0);
