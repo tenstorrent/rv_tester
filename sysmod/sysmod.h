@@ -12,7 +12,6 @@
 #include "trickbox/interrupter.h"
 #include "trickbox/uc_helper.h"
 #include "trickbox/debugger.h"
-#include "trace_cfg/trace_cfg.h"
 #include "cvm/topology.hpp"
 #include "sysmod_params.hpp"
 #include <string>
@@ -85,7 +84,6 @@ class sysmod {
     }
 
   protected:
-    void trace_info_handler(trace_cfg::trace_info_t i);
     void timer_interrupt(clint::timer_t t);
     void sw_interrupt(clint::sw_t s);
     void dmi_write(debugger::dmi_data_t s);
@@ -93,7 +91,6 @@ class sysmod {
     void tboxtrig_updatemem(uint64_t addr, uint64_t data);
     void uc_helper_backdoor_write(uc_helper::uc_helper_write_t w);
     void uc_helper_backdoor_read(uc_helper::uc_helper_read_req_t w);
-    void trace_cfg_read_req_router(trace_cfg::trace_cfg_read_t r);
     void terminate(htif::terminate_t t);
     cvm::messenger::task<uint64_t> backdoor_read(uint64_t address);
     cvm::messenger::task<uint64_t> backdoor_write(backdoor_write_t);
@@ -109,7 +106,7 @@ class sysmod {
     svScope scope_;
     svScope scope() { return scope_; }
 
-    cvm::topology::loc_t loc_;
+    cvm::topology::loc_t loc_, wc_loc_;
     unsigned id_;
     unsigned id()   { return id_; }
     std::vector<std::unique_ptr<device> > devices_;

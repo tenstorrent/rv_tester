@@ -5,7 +5,7 @@
 
 namespace {
 
-    constexpr int max_intr = 16;
+    constexpr int max_intr = 64;
     constexpr int xlen = 64;
     constexpr int vlen = 256;
     constexpr int va_hi = 56;
@@ -248,38 +248,38 @@ namespace {
       CSR(PMACFG29,         0x7FD, "pmacfg29")                                 \
       CSR(PMACFG30,         0x7FE, "pmacfg30")                                 \
       CSR(PMACFG31,         0x7FF, "pmacfg31")                                 \
-      CSR(PMACFG32,         0xBE0, "pmacfg32")                                 \
-      CSR(PMACFG33,         0xBE1, "pmacfg33")                                 \
-      CSR(PMACFG34,         0xBE2, "pmacfg34")                                 \
-      CSR(PMACFG35,         0xBE3, "pmacfg35")                                 \
-      CSR(PMACFG36,         0xBE4, "pmacfg36")                                 \
-      CSR(PMACFG37,         0xBE5, "pmacfg37")                                 \
-      CSR(PMACFG38,         0xBE6, "pmacfg38")                                 \
-      CSR(PMACFG39,         0xBE7, "pmacfg39")                                 \
-      CSR(PMACFG40,         0xBE8, "pmacfg40")                                 \
-      CSR(PMACFG41,         0xBE9, "pmacfg41")                                 \
-      CSR(PMACFG42,         0xBEA, "pmacfg42")                                 \
-      CSR(PMACFG43,         0xBEB, "pmacfg43")                                 \
-      CSR(PMACFG44,         0xBEC, "pmacfg44")                                 \
-      CSR(PMACFG45,         0xBED, "pmacfg45")                                 \
-      CSR(PMACFG46,         0xBEE, "pmacfg46")                                 \
-      CSR(PMACFG47,         0xBEF, "pmacfg47")                                 \
-      CSR(PMACFG48,         0xBF0, "pmacfg48")                                 \
-      CSR(PMACFG49,         0xBF1, "pmacfg49")                                 \
-      CSR(PMACFG50,         0xBF2, "pmacfg50")                                 \
-      CSR(PMACFG51,         0xBF3, "pmacfg51")                                 \
-      CSR(PMACFG52,         0xBF4, "pmacfg52")                                 \
-      CSR(PMACFG53,         0xBF5, "pmacfg53")                                 \
-      CSR(PMACFG54,         0xBF6, "pmacfg54")                                 \
-      CSR(PMACFG55,         0xBF7, "pmacfg55")                                 \
-      CSR(PMACFG56,         0xBF8, "pmacfg56")                                 \
-      CSR(PMACFG57,         0xBF9, "pmacfg57")                                 \
-      CSR(PMACFG58,         0xBFA, "pmacfg58")                                 \
-      CSR(PMACFG59,         0xBFB, "pmacfg59")                                 \
-      CSR(PMACFG60,         0xBFC, "pmacfg60")                                 \
-      CSR(PMACFG61,         0xBFD, "pmacfg61")                                 \
-      CSR(PMACFG62,         0xBFE, "pmacfg62")                                 \
-      CSR(PMACFG63,         0xBFF, "pmacfg63")                                 \
+      CSR(PMACFG32,         0xFE0, "pmacfg32")                                 \
+      CSR(PMACFG33,         0xFE1, "pmacfg33")                                 \
+      CSR(PMACFG34,         0xFE2, "pmacfg34")                                 \
+      CSR(PMACFG35,         0xFE3, "pmacfg35")                                 \
+      CSR(PMACFG36,         0xFE4, "pmacfg36")                                 \
+      CSR(PMACFG37,         0xFE5, "pmacfg37")                                 \
+      CSR(PMACFG38,         0xFE6, "pmacfg38")                                 \
+      CSR(PMACFG39,         0xFE7, "pmacfg39")                                 \
+      CSR(PMACFG40,         0xFE8, "pmacfg40")                                 \
+      CSR(PMACFG41,         0xFE9, "pmacfg41")                                 \
+      CSR(PMACFG42,         0xFEA, "pmacfg42")                                 \
+      CSR(PMACFG43,         0xFEB, "pmacfg43")                                 \
+      CSR(PMACFG44,         0xFEC, "pmacfg44")                                 \
+      CSR(PMACFG45,         0xFED, "pmacfg45")                                 \
+      CSR(PMACFG46,         0xFEE, "pmacfg46")                                 \
+      CSR(PMACFG47,         0xFEF, "pmacfg47")                                 \
+      CSR(PMACFG48,         0xFF0, "pmacfg48")                                 \
+      CSR(PMACFG49,         0xFF1, "pmacfg49")                                 \
+      CSR(PMACFG50,         0xFF2, "pmacfg50")                                 \
+      CSR(PMACFG51,         0xFF3, "pmacfg51")                                 \
+      CSR(PMACFG52,         0xFF4, "pmacfg52")                                 \
+      CSR(PMACFG53,         0xFF5, "pmacfg53")                                 \
+      CSR(PMACFG54,         0xFF6, "pmacfg54")                                 \
+      CSR(PMACFG55,         0xFF7, "pmacfg55")                                 \
+      CSR(PMACFG56,         0xFF8, "pmacfg56")                                 \
+      CSR(PMACFG57,         0xFF9, "pmacfg57")                                 \
+      CSR(PMACFG58,         0xFFA, "pmacfg58")                                 \
+      CSR(PMACFG59,         0xFFB, "pmacfg59")                                 \
+      CSR(PMACFG60,         0xFFC, "pmacfg60")                                 \
+      CSR(PMACFG61,         0xFFD, "pmacfg61")                                 \
+      CSR(PMACFG62,         0xFFE, "pmacfg62")                                 \
+      CSR(PMACFG63,         0xFFF, "pmacfg63")                                 \
       CSR(MCYCLE,           0xB00, "mcycle")                                   \
       CSR(MINSTRET,         0xB02, "minstret")                                 \
       CSR(MHPMCOUNTER3,     0xB03, "mhpmcounter3")                             \
@@ -423,10 +423,11 @@ namespace {
       CSR(C_LSCFG13,        0xBDD, "c_lscfg13"   ,  true)                      \
       CSR(C_LSCFG14,        0xBDE, "c_lscfg14"   ,  true)                      \
       CSR(C_LSCFG15,        0xBDF, "c_lscfg15"   ,  true)                      \
+      CSR(C_ASYNCINTSTATUS, 0xBF2, "c_asyncintstatus")                         \
       CSR(MSTATEEN0,        0x30C, "mstateen0")                                \
       CSR(MSTATEEN1,        0x30D, "mstateen1")                                \
       CSR(MSTATEEN2,        0x30E, "mstateen2")                                \
-      CSR(MSTATEEN3,        0x30F, "mstateen3")                                \
+      CSR(MSTATEEN3,        0x30F, "mstateen")                                 \
       CSR(MSTATEEN0H,       0x31C, "mstateen0h")                               \
       CSR(MSTATEEN1H,       0x31D, "mstateen1h")                               \
       CSR(MSTATEEN2H,       0x31E, "mstateen2h")                               \
@@ -449,7 +450,7 @@ namespace {
       CSR(HSTATEEN3H,       0x61F, "hstateen3h")                               \
       CSR(STIMECMP,         0x14D, "stimecmp")                                 \
       CSR(VSTIMECMP,        0x24D, "vstimecmp")                                \
-      CSR(C_MATP,           0x7C7, "c_matp", true, true, 0, true)                 \
+      CSR(C_MATP,           0x7C7, "c_matp", true, true, 0, true)              \
 
     enum csr : unsigned {
 #define CSR(name, value, ...) \

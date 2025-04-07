@@ -14,7 +14,7 @@ module rv_tester
 
     typedef longint unsigned LU;
 
-    localparam int unsigned NoAddrRules = 20;
+    localparam int unsigned NoAddrRules = 25;
 
     typedef struct packed {
         int unsigned idx;
@@ -82,7 +82,7 @@ module rv_tester
     import "DPI-C" function int rv_tester_parse_flags(); // dummy return value so that this gets called immediately. need this to happen before any other DPIs are called.
     import "DPI-C" function void rv_tester_set_seed();
     import "DPI-C" context function void rv_tester_cvm_error_handler();
-    import "DPI-C" context function void rv_tester_parse_memmap(int unsigned no_addr_rules);
+    import "DPI-C" context function void rv_tester_parse_memmap(int unsigned no_addr_rules, int num_ways, int num_sets, int num_blocks, int addr_width, int data_width);
     import "DPI-C" context function void rv_tester_build_registry();
     import "DPI-C" context function void rv_tester_no_dm_build_registry();
     import "DPI-C" function byte unsigned rv_tester_shutdown_registry();
@@ -152,7 +152,6 @@ module rv_tester
 
     logic terminate_1T = '0;
     logic terminated_1T = '0;
-    logic terminate_now;
     logic rerun_now;
     /* verilator lint_off UNOPTFLAT */
     rv_tester_pkg::terminate_t rv_tester_error_terminate;
@@ -183,6 +182,8 @@ module rv_tester
     int trigger_config = 0;
     bit priority_singlestep = 0;
     bit disable_haltpoll = 0;
+    bit disable_abscmdpoll = 0;
+    bit disable_triggerpoll = 0;
     int dm_single_step_count = 0;
     int dmi_poll_counter = 0;
     int dmi_poll_timeout = 50000;
@@ -196,12 +197,21 @@ module rv_tester
     int assertion_test_cycle = 0;
 
     parameter int unsigned location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.ID, 0);
-
+    
+    localparam int AxiLLC_SetAssociativity = 32'd4;
+    localparam int AxiLLC_NumLines = 32'd128;
+    localparam int blocks_in_cacheline = 512/topology.TOP.PLATFORM.AXI.DATA_WIDTH;
+    localparam int AxiLLC_NumBlocks = blocks_in_cacheline < 2 ? 2 : blocks_in_cacheline;
+    if (topology.TOP.PLATFORM.AXI.DATA_WIDTH > 512 || (512 % topology.TOP.PLATFORM.AXI.DATA_WIDTH) != 0) begin
+        $error("axi data width %0d larger than 64 byts or not divisible into 64 bytes", topology.TOP.PLATFORM.AXI.DATA_WIDTH);
+    end
 
 
     bit gen_clocks = '0;
-    string cvm_verbosity_string, gen_clocks_verbosity_string;
-    int unsigned cvm_verbosity, gen_clocks_verbosity;
+    bit gen_timestamp = '0;
+    logic [63:0] current_time;
+    string cvm_verbosity_string, gen_clocks_verbosity_string, gen_timestamp_verbosity_string;
+    int unsigned cvm_verbosity, gen_clocks_verbosity, gen_timestamp_verbosity;
     logic dut_terminate_any;
     logic ntrace_terminate;
 
@@ -240,8 +250,8 @@ module rv_tester
         clock_mode <= clock_mode + 1'b1;
         if(clock_mode == 3'b111)
           clock_mode <= '0;
-      end
-       /* verilator lint_on WIDTH */
+      end 
+      /* verilator lint_on WIDTH */
     end
     `endif
 
@@ -255,6 +265,12 @@ module rv_tester
 
         rv_tester_reset <= rerun_now;
         clocks          <= clocks + 1;
+
+        `ifndef NO_TIMESTAMP
+            current_time <= $time;    
+        `else
+            current_time <= '0;
+        `endif
 
         quiesce_counter <= quiesce_counter + int'(terminate);
         flush_counter   <= flush_counter + int'(quiesced);
@@ -352,7 +368,6 @@ module rv_tester
         end
     end
 
-
     /*
     * Group all zebu zemi3 DPIs here
     * These are run on a separate thread than the faster zDPI, so make sure
@@ -380,14 +395,16 @@ module rv_tester
                $display("[RVTESTER]: constructing registry without DM Model");
                rv_tester_no_dm_build_registry();
             end
-            rv_tester_parse_memmap(NoAddrRules);
+            rv_tester_parse_memmap(NoAddrRules, AxiLLC_SetAssociativity, AxiLLC_NumLines, AxiLLC_NumBlocks, topology.TOP.PLATFORM.AXI.ADDR_WIDTH + 1 /* cache has one more bit */, topology.TOP.PLATFORM.AXI.DATA_WIDTH);
 
             /* verilator lint_off BLKSEQ */
             // zebu bug doesn't allow nested function calls, so create intermediate variables
             cvm_verbosity_string        = cvm_plusargs::get_string("cvm_verbosity");
             gen_clocks_verbosity_string = cvm_plusargs::get_string("gen_clocks_verbosity");
+            gen_timestamp_verbosity_string  = cvm_plusargs::get_string("gen_timestamp_verbosity");
             cvm_verbosity               = cvm_logger::get_verbosity(cvm_verbosity_string);
             gen_clocks_verbosity        = cvm_logger::get_verbosity(gen_clocks_verbosity_string);
+            gen_timestamp_verbosity         = cvm_logger::get_verbosity(gen_timestamp_verbosity_string);
             warm_reset_string           = cvm_plusargs::get_string("warm_reset");
             warm_reset_en               = pwrmgmt_get_warm_reset_en(warm_reset_string);
             rv_tester_error_terminate.terminate = '0;
@@ -406,6 +423,8 @@ module rv_tester
             trigger_config       <= cvm_plusargs::get_int("trigger_config");
             priority_singlestep  <= cvm_plusargs::get_bool("priority_singlestep") != '0;
             disable_haltpoll     <= cvm_plusargs::get_bool("disable_haltpoll") != '0;
+            disable_abscmdpoll   <= cvm_plusargs::get_bool("disable_abscmdpoll") != '0;
+            disable_triggerpoll  <= cvm_plusargs::get_bool("disable_triggerpoll") != '0;
             sdtrig_multitrigger  <= cvm_plusargs::get_int("sdtrig_multitrigger");
             dm_single_step_count <= cvm_plusargs::get_int("dm_single_step_count");
             cb_poll              <= cvm_plusargs::get_bool("cb_async") == '0;
@@ -419,6 +438,7 @@ module rv_tester
             dyn_clk_switch       <= cvm_plusargs::get_bool("dyn_clk_switch") != '0;
             call_finish          <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
             gen_clocks           <= cvm_verbosity >= gen_clocks_verbosity;
+            gen_timestamp            <= cvm_verbosity >= gen_timestamp_verbosity;
             bypass_mem           <= cvm_plusargs::get_bool("bypass_mem") != '0;
             bypass_cache         <= cvm_plusargs::get_bool("bypass_cache") != '0;
             assertion_test_cycle <= cvm_plusargs::get_int("assertion_test_cycle");
@@ -604,29 +624,32 @@ module rv_tester
     //ndmreset ack delay logic
     LU ndmreset_ack_clocks;
     logic ndmreset_ack_clocks_latched = 1'b0;
-    always@(posedge dut_clk[TB_CLK_IDX]) begin
-         /* verilator lint_off BLKSEQ */
-        if(!dut_reset_req)begin
-            ndmreset_ack_clocks_latched = 1'b0;
-             /* verilator lint_off ASSIGNIN */
-            ndmreset_ack = 1'b0;
-             /* verilator lint_on ASSIGNIN */
-        end
-          /* verilator lint_off WIDTH */
-        if(dut_reset_req & !ndmreset_ack_clocks_latched )begin
-           ndmreset_ack_clocks = clocks;
-           ndmreset_ack_clocks_latched = 1'b1;
-        end
 
-        if(clocks >= (ndmreset_ack_clocks + ndmreset_ack_delay))begin
-           /* verilator lint_off ASSIGNIN */
-           ndmreset_ack = 1'b1;
-            /* verilator lint_on ASSIGNIN */
+    always @(posedge dut_clk[TB_CLK_IDX]) begin
+        if(cold_reset === 1'b0)begin
+        if (!dut_reset_req) begin
+            ndmreset_ack_clocks_latched <= 1'b0;
+            ndmreset_ack <= 1'b0;
+        end else if (dut_reset_req && !ndmreset_ack_clocks_latched) begin
+            ndmreset_ack_clocks <= clocks;
+            ndmreset_ack_clocks_latched <= 1'b1;
+        end 
+        //else begin
+        //    ndmreset_ack_clocks_latched <= 1'b0;
+        //    ndmreset_ack <= 1'b0;
+        //end
+     /* verilator lint_off WIDTHEXPAND */
+        if (ndmreset_ack_clocks_latched && (clocks >= (ndmreset_ack_clocks + ndmreset_ack_delay))) begin
+        /* verilator lint_on WIDTHEXPAND */
+            ndmreset_ack <= 1'b1;
         end
-          /* verilator lint_on WIDTH */
-           /* verilator lint_on BLKSEQ */
-    
+        end
+        else begin
+            ndmreset_ack_clocks_latched <= 1'b0;
+            ndmreset_ack <= 1'b0;
+        end
     end
+
 
 `ifdef NEGEDGE_UNSUPPORTED
     always@(posedge dut_clk[TB_CLK_IDX]) begin
@@ -694,6 +717,8 @@ module rv_tester
         .trigger_config,
         .priority_singlestep,
         .disable_haltpoll,
+        .disable_abscmdpoll,
+        .disable_triggerpoll,
 
         .dmi_req_ready,
         .dmi_resp_valid,
@@ -1034,6 +1059,10 @@ module rv_tester
     assign tx_dom_1.logger_cycle_0s[0][0].data.location = location;
     assign tx_dom_1.logger_cycle_0s[0][0].data.clock = clocks;
 
+    assign tx_dom_1.logger_timestamp_0s[0][0].valid = gen_timestamp && (current_time != 0);
+    assign tx_dom_1.logger_timestamp_0s[0][0].data.location = location;
+    assign tx_dom_1.logger_timestamp_0s[0][0].data.timeval = current_time;
+
     localparam NoOfMasters = ( topology.TOP.PLATFORM.AXI.TOTAL < 2 ) ? 2 : topology.TOP.PLATFORM.AXI.TOTAL ;
     for (genvar p = 0; p < NoOfMasters; p++) begin : axi_sw_slvs
         localparam string tag = $sformatf("coh_slv%0d", p);
@@ -1320,7 +1349,8 @@ module rv_tester
     mst_req_rv axi_req_llc [NoOfMasters-1:0];
     mst_resp_rv axi_rsp_llc [NoOfMasters-1:0];
 
-
+    string preload_data_file_arr [0:AxiLLC_SetAssociativity - 1]; // Declare an array for the preload data file names
+    string preload_tag_file_arr [0:AxiLLC_SetAssociativity - 1]; // Declare an array for the preload tag file names
 
     function automatic void rv_tester_set_address_map(int unsigned i, longint unsigned start_addr, longint unsigned end_addr, int unsigned device);
         localparam int unsigned AW = topology.TOP.PLATFORM.AXI.ADDR_WIDTH;
@@ -1342,6 +1372,35 @@ module rv_tester
 
     export "DPI-C" function rv_tester_set_address_map;
 
+
+    function void set_preload_data_file(int unsigned way, string file);
+    `ifndef NO_PRELOAD
+        if (way < AxiLLC_SetAssociativity) begin
+            preload_data_file_arr[way] = file;
+            $display("%0t Preload data file for way %0d set to: %s", $time, way, file);
+        end else begin
+            $display("Error: Attempted to set preload file for invalid way %0d", way);
+        end
+    `else
+        $display("Error: Compiled with NO_PRELOAD defined");
+    `endif
+    endfunction
+    export "DPI-C" function set_preload_data_file;
+
+    function void set_preload_tag_file(int unsigned way, string file);
+    `ifndef NO_PRELOAD
+    if (way < AxiLLC_SetAssociativity) begin
+        preload_tag_file_arr[way] = file;
+        $display("Preload data file for way %0d set to: %s", way, file);
+    end else begin
+        $display("Error: Attempted to set preload file for invalid way %0d", way);
+    end
+    `else
+        $display("Error: Compiled with NO_PRELOAD defined");
+    `endif
+    endfunction
+    export "DPI-C" function set_preload_tag_file;
+
     rv_tester_mem #(
         .NumMasters             ( topology.TOP.PLATFORM.AXI.TOTAL ),
         .AxiIdWidth             ( topology.TOP.PLATFORM.AXI.ID_WIDTH ),
@@ -1349,9 +1408,9 @@ module rv_tester
         .AxiAddrWidth           ( topology.TOP.PLATFORM.AXI.ADDR_WIDTH ),
         .AxiStrbWidth           ( topology.TOP.PLATFORM.AXI.STRB_WIDTH ),
         .AxiUserWidth           ( AXI_USER_ID_WIDTH ),
-        .NumLines_LLC           ( 128 ),
-        .NumBlocks_LLC          ( 4 ),
-        .SetAssociativity_LLC   ( 4 ),
+        .NumLines_LLC           ( AxiLLC_NumLines ),
+        .NumBlocks_LLC          ( AxiLLC_NumBlocks ),
+        .SetAssociativity_LLC   ( AxiLLC_SetAssociativity ),
         .slv_req_t              ( slv_req_rv  ),
         .slv_resp_t             ( slv_resp_rv ),
         .mst_req_t              ( mst_req_rv  ),
@@ -1368,9 +1427,13 @@ module rv_tester
         .axi_resp_mst_up        ( axi_rsp_llc ),
         .addr_map               ( addr_map_final ),
         .bypass_mem             ( bypass_mem ),
-        .flush_cache            ( quiesced ),
+        .flush_cache            ( terminate && quiesced ),
         .flush_complete         ( flush_complete ),
         .bist_status_done       ()
+        `ifndef NO_PRELOAD
+            , .preload_file_data_arr  ( preload_data_file_arr )
+            , .preload_file_tag_arr   ( preload_tag_file_arr )
+        `endif
     );
 
     always @(posedge dut_clk[TB_CLK_IDX]) begin

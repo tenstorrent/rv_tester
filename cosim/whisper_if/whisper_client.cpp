@@ -22,6 +22,7 @@
 #include "cosim/utils/eot/eot_plusargs.h"
 #include "cosim/utils/general/util.h"
 #include "rv_tester_plusargs.h"
+#include "rv_tester_structs.h"
 #include "cvm/registry.hpp"
 
 
@@ -40,6 +41,8 @@ DEFINE_bool(whisper_stdin_null, false, "Redirect whisper stdin to null");
 DEFINE_uint32(num_dm_randpc,    0, "Number of Random PCs to DM");
 DEFINE_uint32(num_dm_randload,  0, "Number of Random loads to DM");
 DEFINE_uint32(num_dm_randstore, 0, "Number of Random stores to DM");
+DEFINE_bool(randpc_phy, false, "Random PCs selected are phys address ");
+DEFINE_bool(randldst_phy, false, "Random Ld/St addresses selected are phys address");
 DEFINE_uint64(dm_rand_addr, 0x9080500, "(Trickbox) Random address for DM: PC/Load/Store");;
 DEFINE_bool(whisper_stdout_null, false, "Redirect whisoer stdout to null");
 DEFINE_string(whisper_json_path, "", "Path to whisper json config");
@@ -96,7 +99,7 @@ getNmiExceptionPc() {
 }
 
 template <typename URV>
-whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) {
+whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) : loc_(loc) {
   cvm::log(cvm::MEDIUM, "[whisperClient] initializing whisperClient\n");
 
   ncores_ = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
@@ -266,11 +269,13 @@ constructSystem(uint16_t ncores, bool standalone, uint64_t secure_region_start=0
   }
   if (not config.applyImsicConfig(*system))
     return nullptr;
-  if (standalone && (not config.applyAplicConfig(*system)))
+  if ((standalone || FLAGS_aplic_is_memory) && (not config.applyAplicConfig(*system)))
     // We don't configure the APLIC in cosim because Whipser will take the
     // interrupt immediately when triggered and it will not be deferred because
     // the bridge considers it a Zicsr write interrupt. When an IMSIC interrupt
-    // is triggered by the APLIC the bridge will poke it into whisper.
+    // is triggered by the APLIC the bridge will poke it into whisper. We also
+    // don't configure the APLIC when aplic_is_memory is true so that the
+    // standalone run doesn't use the APLIC.
     return nullptr;
 
   if (FLAGS_whisper_data_lines != "")
@@ -353,10 +358,11 @@ whisperClient<URV>::whisperStandalone()
     while ((num_instr <= total_instr) && (instructions<200)) {
       hart_new->singleStep();
       num_instr++; instructions++;
-      uint64_t virt_addr, phys_addr, value;
+      uint64_t virt_addr, phys_addr, value, phys_pc;
       uint64_t pc = hart_new->lastPc();
       uint32_t inst;
-      hart_new->readInst(pc, inst);
+      hart_new->readInst(pc, phys_pc, inst);
+      if (FLAGS_randpc_phy) pc = phys_pc;
       if (   (inst & 0x10500073) // WFI
           || (inst & 0x30200073) // MRET
           || (((inst & 0x7fff) == 0x200f) && (inst>>20 <= 4))) // CBOs
@@ -373,6 +379,7 @@ whisperClient<URV>::whisperStandalone()
         pcs.push_back(curr_pc);
 
       } else if (hart_new->lastLdStAddress(virt_addr, phys_addr)) {
+        if (FLAGS_randldst_phy) virt_addr = phys_addr;
         if (hart_new->lastStore(phys_addr, value)) {
           stores.push_back(virt_addr);
         } else {
@@ -443,6 +450,8 @@ whisperClient<URV>::whisperConnect()
       cvm::log(cvm::ERROR, "Error: Could not find symbol tracerExtension in {} \n", std::string(FLAGS_archsample_lib_path));
   }
 
+  // Signal to subscribers that whisper is ready to receive cosim calls
+  cvm::registry::messenger.signal<rv_tester::whisper_connected>(loc_, rv_tester::whisper_connected{});
   return 0;
 }
 

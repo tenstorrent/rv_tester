@@ -1,0 +1,22 @@
+
+cc_library(
+    name = "preload_axi_llc",
+    srcs = ["preload_axi_llc.cpp"],
+    hdrs = ["preload_axi_llc.hpp"],
+    deps = [
+        "@cvm//:logger",
+        "@cvm//:bitmanip",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+cc_binary(
+    name = "preload_axi_llc_bin",
+    srcs = ["preload_axi_llc.cpp" ,
+            "preload_axi_llc.hpp"],
+    deps = [
+        "@cvm//:logger",
+        "@cvm//:bitmanip",
+    ],
+    local_defines = ["PRELOAD_AXI_LLC_MAIN"],
+)

@@ -37,7 +37,7 @@ class transactor {
     struct write_response_t {
         uint32_t id;
     };
- 
+
     struct write_request_t {
         uint64_t addr;
         size_t length;
@@ -59,8 +59,10 @@ class transactor {
         write_t{addr, length, data, strb});
     }
 
-    cvm::messenger::task<std::vector<uint8_t>> read(uint32_t id, uint64_t addr, size_t length /*, bool block = false */)
+    cvm::messenger::task<std::vector<uint8_t>> read(uint64_t addr, size_t length /*, bool block = false */)
     {
+      uint32_t id = ++id_;
+
       cvm::registry::messenger.signal<read_t>(
           loc_,
           read_t{id, addr, length});
@@ -80,4 +82,5 @@ class transactor {
     const cvm::topology::loc_t loc_;
     const std::string tag_;
     cvm::messenger::pool<read_response_t>::channel_info resp_channel_;
+    uint32_t id_ = 0;
 };

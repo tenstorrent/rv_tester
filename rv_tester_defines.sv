@@ -303,10 +303,11 @@ package rv_tester_params;
         logic                       vec      ;
         logic                       flags_valid;
         logic [5-1:0]               flags    ;
-        logic                       csr_valid;
         logic [CSRLEN-1:0]          csr_addr ;
         logic [XLEN-1:0]            csr_wdata;
         logic [XLEN-1:0]            csr_wmask;
+        logic [XLEN-1:0]            csr_rdata;
+        logic [XLEN-1:0]            csr_rmask;
         logic [VALEN-1:0]           pc_rdata ;
         logic [VALEN-1:0]           pc_wdata ;
         logic [VALEN-1:0]           mem_addr ;
@@ -970,6 +971,7 @@ package rv_tester_params;
     output                                   dut_terminate,                                         \
     input                                    terminate,                                             \
     input  logic                             terminated,                                            \
+    input  logic                             terminate_now,                                            \
     output                                   quiesced,                                              \
     input logic [64-1:0]                     cosim_eot_addr,                                        \
     input  rv_tester_pkg::dm_write_t         dmi_write,                                             \
@@ -1054,6 +1056,7 @@ package rv_tester_params;
     logic                                    dut_terminate;                                         \
     logic                                    terminate;                                             \
     logic                                    terminated;                                            \
+    logic                                    terminate_now;                                            \
     logic                                    quiesced;                                              \
     logic [64-1:0]                           cosim_eot_addr;                                        \
     rv_tester_pkg::dm_write_t                dmi_write;                                             \

@@ -235,8 +235,6 @@ import rv_tester_params:: * ;
     for (genvar n = 0; n < TOTAL_NRETS; n++) begin
         assign cr_ac_mmrwrites[n].valid =  ~reset & enable_checks & rvfi[n].valid && (rvfi[n].mode == 3) && (rvfi[n].mem_wmask != 0) && (!rvfi[n].vec) && (rvfi[n].mem_paddr >= ACLINT_START && rvfi[n].mem_paddr < ACLINT_END);
         assign cr_ac_mmrwrites[n].data.location = location;
-        assign cr_ac_mmrwrites[n].data.srcid = get_hart_ret(n);
-        assign cr_ac_mmrwrites[n].data.order = rvfi[n].order;
         assign cr_ac_mmrwrites[n].data.addr = rvfi[n].mem_paddr;
         assign cr_ac_mmrwrites[n].data.mask = rvfi[n].mem_wmask;
         assign cr_ac_mmrwrites[n].data.data = rvfi[n].mem_wdata[63:0];
@@ -269,9 +267,9 @@ import rv_tester_params:: * ;
 
     import "DPI-C" function void check_outstanding_transactions(int unsigned location);
     // FIXME: Re-enable once popping logic is fixed
-    // always @(posedge terminate) begin
-    //     if (!reset && enable_checks) check_outstanding_transactions(location);
-    // end
+    always @(posedge terminate) begin
+        if (!reset && enable_checks) check_outstanding_transactions(location);
+    end
 
   function automatic logic [3:0] get_hart_ret(int n);
     logic [3:0] hart;

@@ -13,7 +13,6 @@
 #include "clint/clint.h"
 #include "aclint/aclint.h"
 #include "dm/dm.h"
-#include "trace_cfg/trace_cfg.h"
 #include "io_dev/io_dev.h"
 #include "null_dev/null_dev.h"
 #include "heartbeat/heartbeat.h"
@@ -75,12 +74,14 @@ DEFINE_string(stee_secure_region, "", "colon separated pair of number (same as w
 DEFINE_uint32(matp_swid, 0, "MATP.SWID");
 DEFINE_uint64(pa_mask, 0x0080000000000000, "address bit(s) that act as STEE distinction");
 DEFINE_bool(sysmod_terminate, true, "Set to false for offline DPI mode");
+// APLIC
+DEFINE_bool(aplic_is_memory, true, "Disable APLICs and treat them as regular memory");
+DEFINE_uint32(aplic_sources, 127, "Number of APLIC interrupt sources");
+// Uart8250
+DEFINE_bool(uart8250, false, "Whether to enable uart8250 devices found in the memory map");
+DEFINE_uint32(uart8250_iid, 1, "Interrupt identity of the uart8250 device");
 
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
-// APLIC
-DEFINE_uint32(aplic_sources, 33, "Number of APLIC interrupt sources");
-// Uart8250
-DEFINE_uint32(uart8250_iid, 1, "Interrupt identity of the uart8250 device");
 
 extern "C" {
   void sysmod_timer_interrupt(unsigned hartid, unsigned val, unsigned long mtime_val);
@@ -95,12 +96,15 @@ extern "C" {
 sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
   : scope_(nullptr), loc_(loc), id_(id)
 {
+  // Whisper client location
+  wc_loc_ = cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0);
+
   cvm::registry::messenger.connect<svScope>(
       loc_,
       [this](svScope s) { return this->set_scope(s); });
-  cvm::registry::messenger.connect<uint64_t>(
-      loc_,
-      [this](const uint64_t&) {
+  cvm::registry::messenger.connect<rv_tester::whisper_connected>(
+      wc_loc_,
+      [this](const auto&) {
       this->load_csr_mmr_boot(0);
       this->store_dm_rand();
       cosim_init_ = true;
@@ -556,31 +560,6 @@ sysmod::tbox_interrupt(interrupter::interrupt_t i) {
       });
 }
 
-void
-sysmod::trace_info_handler(trace_cfg::trace_info_t i) {
-  cvm::registry::callbacks.push(
-      scope(),
-      [i]() {
-        cvm::log(cvm::HIGH, "[SYSMOD] trace_info \n");
-        sysmod_trace_info(i.trace_quiesced);
-      });
-}
-
-void
-sysmod::trace_cfg_read_req_router(trace_cfg::trace_cfg_read_t r) {
-
-    transactor::read_t rd;
-    rd.addr = r.addr;
-    rd.length = r.length;
-    rd.id =  r.id;
-
-    auto sources = cvm::topology::get_from_type("PLATFORM_TRANSACTOR");
-
-    if (this->dev(r.addr)){
-        cvm::registry::messenger.signal<device::read_t>(this->loc_, {rd, sources[0]});
-    }
-
-}
 
 //void
 // sysmod::scratchpad_xtor_read_req_router(scratchpad_xtor::scratchpad_xtor_read_t r) {
@@ -643,7 +622,7 @@ sysmod::store_inval_crsp(const inval_crsp_s& payld, bool mcm) {
       read_data |= uint64_t(data[i]) << (i*8);
      bool valid = true;
      cvm::log(cvm::FULL, "[CBO_INVAL_MONITOR - CRSP POKE] Whisper Poke to Address : {:#x}, with data : {:#x}\n",(ld_addr + (offset*8)),read_data);
-     if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', (ld_addr + (offset*8)), 8, read_data, valid) || !valid) && FLAGS_whisper_client_check) {
+     if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(wc_loc_, 0, 0, 'm', (ld_addr + (offset*8)), 8, read_data, valid) || !valid) && FLAGS_whisper_client_check) {
        cvm::log(cvm::ERROR, "Error: store_inval_crsp failed to poke whisper memory");
     }
   }
@@ -656,29 +635,44 @@ sysmod::store_inval_load(const inval_load_s& payload) {
   device::data_t data(8);
   uint64_t read_data = 0;
   uint64_t ld_addr = inval_load_.address; 
-  size_t length;
-  length = inval_load_.size;
-  int size = (1 << length)/8;
-  dev("memory")->backdoor_read(ld_addr, length, data);
-  for (int i=0; i<size; ++i)
+  uint8_t byte_mask = inval_load_.size;
+  // length = inval_load_.size;
+  // int size = (1 << length)/8;
+  dev("memory")->backdoor_read(ld_addr, 8, data);
+  for (int i=0; i<8; ++i)
     read_data |= uint64_t(data[i]) << (i*8);
 
+  // read_data is a 64 bit payload
   if(inval_load_.amo) {
     // For AMO MB Bypass -> We dont need to check with main memory contents
     bool valid = true;
     cvm::log(cvm::HIGH, "CBO_INVAL_MONITOR :: Whisper Poke with data:{:#x} for AMO MB Bypass to address:{:#x}\n", inval_load_.data, ld_addr);
-    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', ld_addr, size, inval_load_.data, valid)) && FLAGS_whisper_client_check) {
-      cvm::log(cvm::ERROR, "Error: store_inval_load failed to poke whisper memory in AMO MB Bypass case\n"); 
+    for (int i = 0; i < 8; i++) {
+      if (byte_mask & (1 << i)) {
+        if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', (ld_addr + i), 1, ((inval_load_.data >> (i*8)) & 0xff), valid)) && FLAGS_whisper_client_check) {
+          cvm::log(cvm::ERROR, "Error: store_inval_load failed to poke whisper memory in AMO MB Bypass case\n"); 
+        }
+      }
+    }
+  }
+  uint64_t read_bit_mask=0;
+  for (int i = 0; i < 8; i++) {
+    if (byte_mask & (1 << i)) {
+      read_bit_mask |= (0xFFULL << (i * 8));
     }
   }
 
-  if(inval_load_.data == read_data && (!inval_load_.amo)) // Check with main memory for all cases other than AMO mbbypass
+  if(((inval_load_.data & read_bit_mask) == (read_data & read_bit_mask)) && (!inval_load_.amo)) // Check with main memory for all cases other than AMO mbbypass
   {
     // No need to poke entire cacheline granularity - that will be done after CRSP
     bool valid = true;
-    cvm::log(cvm::HIGH, "CBO_INVAL_MONITOR :: Whisper Poke with data:{:#x} for address:{:#x}\n", read_data,ld_addr);
-    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', ld_addr, size, read_data, valid) || !valid) && FLAGS_whisper_client_check) {
-      cvm::log(cvm::ERROR, "Error: store_inval_load failed to poke whisper memory\n"); 
+    cvm::log(cvm::HIGH, "CBO_INVAL_MONITOR :: Whisper Poke with data:{:#x} for address:{:#x} with read-mask : {:#x}\n", read_data,ld_addr,byte_mask);
+    for (int i = 0; i < 8; i++) {
+      if (byte_mask & (1 << i)) {
+        if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', (ld_addr + i), 1, (read_data >> (i*8)), valid) || !valid) && FLAGS_whisper_client_check) {
+          cvm::log(cvm::ERROR, "Error: store_inval_load failed to poke whisper memory\n"); 
+        }
+      }
     }
   }
 }
@@ -692,7 +686,7 @@ sysmod::backdoor_write(sysmod::backdoor_write_t t) {
 
   if (FLAGS_cosim) {
     bool valid = true;
-    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', t.address, 8, t.data, valid) || !valid) && FLAGS_whisper_client_check)
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(wc_loc_, 0, 0, 'm', t.address, 8, t.data, valid) || !valid) && FLAGS_whisper_client_check)
       cvm::log(cvm::ERROR, "Error: backdoor_write failed to poke whisper memory\n");
   }
     
@@ -787,7 +781,7 @@ sysmod::set_secure_region(std::string region) {
   std::vector<std::string> secure_region = cosim_util::split_string(region, ":");
   secure_region_start_ = std::stoull(secure_region.at(0), nullptr, 0);
   secure_region_end_   = std::stoull(secure_region.at(1), nullptr, 0);
-  cvm::registry::messenger.call<whisperClient<uint64_t>::secureRegionRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), secure_region_start_, secure_region_end_);
+  cvm::registry::messenger.call<whisperClient<uint64_t>::secureRegionRPC>(wc_loc_, secure_region_start_, secure_region_end_);
 }
 
 std::shared_ptr<TT_APLIC::Aplic>
@@ -881,7 +875,7 @@ sysmod::compose() {
 
       std::unique_ptr<device> device;
 
-      if (type == "memory") {
+      if (type == "memory" || (type == "aplic_domain" && FLAGS_aplic_is_memory)) {
         device = std::make_unique<sysmod_mem>(tag, base, size, loc_, mm);
 
       } else if (type == "io_dev") {
@@ -894,22 +888,15 @@ sysmod::compose() {
         device = std::make_unique<htif>(tag, base, loc_);
 
       } else if (type == "uart8250") {
-        device = std::make_unique<io_device<WdRiscv::Uart8250>>(tag, loc_,
-            base, 32, aplic, FLAGS_uart8250_iid,
-            std::make_unique<WdRiscv::PTYChannel>());
+        if (FLAGS_uart8250)
+          device = std::make_unique<io_device<WdRiscv::Uart8250>>(tag, loc_,
+              base, 32, aplic, FLAGS_uart8250_iid,
+              std::make_unique<WdRiscv::PTYChannel>());
       } else if (type == "dm") {
         // TODO: cvm::ERROR
        // assert(masters.size() > 0);
        // device = std::make_unique<dm>(tag, base, size, loc_, masters[0]);
-      } else if (type == "trace_cfg") {
-        // TODO: cvm::ERROR
-        cvm::registry::messenger.connect<trace_cfg::trace_info_t>(
-            loc_,
-            [&](trace_cfg::trace_info_t i) { return this->trace_info_handler(i); });
-        assert(masters.size() > 0);
-        device = std::make_unique<trace_cfg>(tag, base, size, loc_, masters[0]);
-        // TODO: cvm::ERROR
-
+       
       // } else if (type == "scratchpad_xtor") {
       //   // TODO: cvm::ERROR
       //   assert(masters.size() > 0);
@@ -950,17 +937,15 @@ sysmod::compose() {
         cvm::registry::messenger.connect<uc_helper::uc_helper_read_req_t>(
             loc_,
             [&](uc_helper::uc_helper_read_req_t i) { return this->uc_helper_backdoor_read(i); });
-        cvm::registry::messenger.connect<trace_cfg::trace_cfg_read_t>(
-            loc_,
-            [&](trace_cfg::trace_cfg_read_t i) { return this->trace_cfg_read_req_router(i); });
 
-      } else if (type == "aplic_domain") {
+      } else if (type == "aplic_domain" && !FLAGS_aplic_is_memory) {
         device = std::make_unique<aplic_device>(tag, base, size, loc_, aplic);
       } else {
         cvm::log(cvm::ERROR, "Error: unknown sysmod type {} \n", type);
       }
 
-      devices_.emplace_back(std::move(device));
+      if (device)
+        devices_.emplace_back(std::move(device));
     }
 
     devices_.emplace_back(std::make_unique<heartbeat>("heartbeat", 0, 0, loc_));
@@ -1063,7 +1048,7 @@ sysmod::load_prog(const std::string& hex, const std::string& load, const std::st
     if (load != "") {
       cvm::log(cvm::MEDIUM, "Loading {}\n", load);
       if (not dev(tag) or not dynamic_cast<sysmod_mem&>(*dev(tag)).init_elf(load)) {
-        cvm::log(cvm::ERROR, "Failed to load program");
+        cvm::log(cvm::ERROR, "Error: Failed to load program\n");
         return;
       }
       cvm::log(cvm::MEDIUM, "Loading {} complete\n", load);
@@ -1174,7 +1159,7 @@ sysmod::load_csr_mmr_boot(uint64_t dut) {
 
     } else {
       bool valid = true;
-      if (FLAGS_cosim && (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', addr, op, valid) || !valid) && FLAGS_whisper_client_check)
+      if (FLAGS_cosim && (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(wc_loc_, 0, 0, 'm', addr, op, valid) || !valid) && FLAGS_whisper_client_check)
         cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
     }
     addr += 4;
@@ -1315,9 +1300,8 @@ sysmod::load_cplfw(const std::string& cplfw) {
 void
 sysmod::store_dm_rand() {
 
-  std::string whisper_client = "TOP.PLATFORM.WHISPER_CLIENT";
-  uint64_t addr = cvm::registry::messenger.call<whisperClient<uint64_t>::get_dm_rand_addr_RPC>(cvm::topology::get_from_hierarchy(whisper_client, 0));
-  auto dm_rand_values = cvm::registry::messenger.call<whisperClient<uint64_t>::get_dm_rand_val_RPC>(cvm::topology::get_from_hierarchy(whisper_client, 0));
+  uint64_t addr = cvm::registry::messenger.call<whisperClient<uint64_t>::get_dm_rand_addr_RPC>(wc_loc_);
+  auto dm_rand_values = cvm::registry::messenger.call<whisperClient<uint64_t>::get_dm_rand_val_RPC>(wc_loc_);
   device::data_t dataw(8);
   device::strb_t strb(8);
   for (const auto &val:dm_rand_values) {

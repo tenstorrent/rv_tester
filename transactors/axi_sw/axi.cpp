@@ -7,11 +7,13 @@
 #include <regex>
 #include "axi.h"
 #include "cvm/logger.hpp"
-#include "rv_tester/rv_tester_plusargs.h"
 
+// Error responses
 DEFINE_string(axi_resp_slverr_addr, "", "List of addresses that need slverr response, can be a single value or a range. Ex: 0x1000,0x2000-0x3000");
 DEFINE_string(axi_resp_decerr_addr, "", "List of addresses that need decerr response, can be a single value or a range. Ex: 0x1000,0x2000-0x3000");
 DEFINE_string(axi_resp_hang_addr, "", "List of addresses that give no response causing core hang, can be a single value or a range. Ex: 0x1000,0x2000-0x3000");
+DEFINE_int32(axi_resp_slverr_threshold, 2, "Threshold upto which  slverr injection happens for a particular address");
+DEFINE_int32(axi_resp_decerr_threshold, 2, "Threshold upto which decerr injection happens for a particular address");
 
 template <typename T> void atop_arithmetic(const axi::data_t& read_data, axi::data_t& write_data, const axi::atop_operation operation, const axi::len_t& len) {
 
@@ -43,9 +45,27 @@ axi::axi(const data_width_t& data_width, const cvm::topology::loc_t loc, const s
   : transactor(loc, tag), data_width_(data_width), num_slverr_resp_(0), num_decerr_resp_(0)
 {
     cvm::log(cvm::MEDIUM, "[axi] Constructing axi for loc={} id={}\n", loc, tag);
-    slverr_addr_ = parse_hex_ranges(FLAGS_axi_resp_slverr_addr);
+
+    // RPC to allow external components to configure responses
+    cvm::registry::messenger.procedure<configure_resp_rpc>(loc, [this] () { return this->configure_resp(); });
+
     hang_addr_   = parse_hex_ranges(FLAGS_axi_resp_hang_addr);
+    slverr_addr_ = parse_hex_ranges(FLAGS_axi_resp_slverr_addr);
     decerr_addr_ = parse_hex_ranges(FLAGS_axi_resp_decerr_addr);
+    // Resize the counter vector to match the number of address ranges
+    slverr_count_.resize(slverr_addr_.size(), 0);
+    decerr_count_.resize(decerr_addr_.size(), 0);
+}
+
+void axi::configure_resp() {
+    cvm::log(cvm::HIGH, "[axi] configure axi err resp: slverr={}\n", FLAGS_axi_resp_slverr_addr);
+    cvm::log(cvm::HIGH, "[axi] configure axi err resp: decerr={}\n", FLAGS_axi_resp_decerr_addr);
+
+    slverr_addr_ = parse_hex_ranges(FLAGS_axi_resp_slverr_addr);
+    decerr_addr_ = parse_hex_ranges(FLAGS_axi_resp_decerr_addr);
+    // Resize the counter vector to match the number of address ranges
+    slverr_count_.resize(slverr_addr_.size(), 0);
+    decerr_count_.resize(decerr_addr_.size(), 0);
 }
 
 axi::~axi() {
@@ -169,7 +189,6 @@ cvm::messenger::task<void> axi::operator()() {
 
         a_q_.dequeue();
 
-        id_t id                     = a.id;
         addr_t num_bytes            = 1 << a.size;
         addr_t aligned_addr         = a.addr / num_bytes * num_bytes;
         data_width_t data_bus_bytes = data_width()/8;
@@ -200,14 +219,14 @@ cvm::messenger::task<void> axi::operator()() {
             if (1) {
                 addr_t start  = (addr / strobe_width()) * strobe_width() + lower_byte_lane;
                 addr_t len    = upper_byte_lane - lower_byte_lane + 1;
-                
+
                 std::string d;
                 std::string s;
                 axi::data_t read_data;
                 axi::resp_t read_resp;
                 if (!a.w || a.atop.transaction != NON_ATOMIC) {
                     cvm::log(cvm::FULL, "[axi] ar: id={}, addr={:#x}, len={}, size={}. tr: len={}\n", a.id, start, a.len, a.size, len);
-                    read_data = co_await transactor::read(id, start, len);
+                    read_data = co_await transactor::read(start, len);
                     if (cvm::logger::check_verbosity(cvm::FULL))
                       for (int i=read_data.size()-1; i>=0; i--)
                         d += fmt::format("{:02x}", read_data[i]);
@@ -255,19 +274,29 @@ cvm::messenger::task<void> axi::operator()() {
                             );
 
                     read_resp = a.lock ? RESP_EXOKAY : RESP_OKAY;
-                    bool drop_resp = false;
+                    // Error responses
+                    int idx = 0;
                     for (const auto& [min, max] : slverr_addr_) {
-                        if (addr >= min && addr <= max) {
+                        if (addr >= min && addr <= max && slverr_count_[idx] <= FLAGS_axi_resp_slverr_threshold) {
                             read_resp = RESP_SLVERR;
+                            slverr_count_[idx]++;
                             num_slverr_resp_++;
+                            cvm::log(cvm::HIGH, "[axi] slverr resp addr={:#x} count={}\n", addr, slverr_count_[idx]);
                         }
+                        idx++;
                     }
+                    idx = 0;
                     for (const auto& [min, max] : decerr_addr_) {
-                        if (addr >= min && addr <= max) {
+                        if (addr >= min && addr <= max && decerr_count_[idx] <= FLAGS_axi_resp_decerr_threshold) {
                             read_resp = RESP_DECERR;
+                            decerr_count_[idx]++;
                             num_decerr_resp_++;
+                            cvm::log(cvm::HIGH, "[axi] decerr resp addr={:#x} count={}\n", addr, decerr_count_[idx]);
                         }
+                        idx++;
                     }
+                    // Drop responses (artificial hang scenario)
+                    bool drop_resp = false;
                     for (const auto& [min, max] : hang_addr_) {
                         if (addr >= min && addr <= max) {
                             drop_resp = true;

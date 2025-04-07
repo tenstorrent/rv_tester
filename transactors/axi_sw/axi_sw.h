@@ -84,7 +84,7 @@ class axi_sw {
         std::uint64_t r_q_rptr_update_time_;
         int r_q_rptr_blocking_update_consecutive_spurious_calls_ = 0;
 
-        std::deque<axi::r_t> r_q_;
+        std::vector<axi::r_t> r_q_;
         std::mutex r_q_mutex_;
         std::mutex r_dpi_mutex_;
         bool r_dpi();

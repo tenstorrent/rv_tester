@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include <stdint.h>
+#include <format>
 #include <set>
 #include <vector>
 #include <cassert>
@@ -142,6 +143,12 @@ class aclint_checker {
 
     // Called when one of the attached harts was reset.
     //void proc_reset(unsigned id);
+    typedef enum : uint64_t {
+        AXI_CR_AC  = 1,
+        AXI_SMC_AC = 2,
+        CR_AC      = 3,
+        SMC_AC     = 4
+    } txn_src;
 
     void process(const rv_tester_transactions::aclint_checker::cr_ac_mmrwrite < > & cr_ac_mmrwrite);
     void process(const rv_tester_transactions::aclint_checker::axi_ac_write < > & axi_ac_write);
@@ -149,8 +156,7 @@ class aclint_checker {
     void process(const smc_read_pkt & r);
     void process(const smc_req_pkt & read_req);
     
-    void popifpossible(uint64_t srcid);
-    void popifpossible(const MmrWr& m);
+    void popifpossible(txn_src v_type);
     void initializevqueue(std::vector < std::queue < MmrWr >> & q, int size);
     void initializevhash(std::vector < std::unordered_map < int, MmrWr >> & q, int size);
     void check_outstanding_transactions(uint64_t signal);
@@ -159,8 +165,9 @@ class aclint_checker {
         // cvm::file_logger log;
         void reset();
 
-    std::unordered_map < int, std::queue < MmrWr >> cr_ac_mmr_q_;
-    std::unordered_map < int, std::queue < MmrWr >> axi_ac_mmr_q_;
+    std::vector < MmrWr > cr_ac_mmr_v_;
+    std::vector < MmrWr > axi_ac_cr_mmr_v_;
+    std::vector < MmrWr > axi_ac_smc_mmr_v_;
     std::vector < MmrWr > smc_ac_mmr_v_;
     const uint64_t cluster_id_end_ = 25;
     const uint64_t cluster_id_start_ = 21;

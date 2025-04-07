@@ -4,6 +4,7 @@
 #include "cvm/registry.hpp"
 #include "cvm/bitmanip.hpp"
 #include "cvm/logger.hpp"
+#include "cvm/random.hpp"
 #include "rv_tester/rv_tester_plusargs.h"
 
 REGISTRY_register((axi_sw<rv_tester_transactions::axi_sw::w<>,
@@ -22,6 +23,7 @@ DEFINE_int32(axi_sw_read_latency_fifo_threshold, 1, "How many remaining fifo ent
 DEFINE_int32(axi_sw_read_latency_fixed, 0, "Fixed latency of axi reads");
 DEFINE_bool(axi_sw_read_no_callbacks, false, "Plusarg to test synchronous read flushes are working by turning off asynchronous callbacks. Must use with +axi_sw_read_latenxy_*");
 DEFINE_int32(axi_sw_read_consecutive_spurious_calls_allowed, -1, "Ignore N spurious call after a non-spurious call. Set to -1 to ignore all spurious calls. Spurious calls should not break function but slow down emulation.");
+DEFINE_bool(axi_sw_reorder_r, false, "Will randomly sample read response queue, when generating read response.");
 
 namespace {
     bool destroyed = false;
@@ -162,8 +164,15 @@ bool axi_sw<W,AW,AR,RQ>::r_dpi() {
     {
         std::lock_guard<std::mutex> l(r_q_mutex_);
         if (r_q_.empty()) return false;
-        r = r_q_.front();
-        r_q_.pop_front();
+        unsigned position = FLAGS_axi_sw_reorder_r? cvm::rand::lcg::generate(r_q_.size()) : 0;
+        axi::id_t id = r_q_[position].id;
+
+        // Same IDs must be in-order, but this means our probability distribution will be biased towards IDs which repeat
+        auto it = std::find_if(r_q_.begin(), r_q_.end(), [id](const auto& p) {
+              return p.id == id;
+            });
+        r = *it;
+        r_q_.erase(it);
     }
 
     std::string d;

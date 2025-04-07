@@ -38,6 +38,8 @@ DECLARE_int32(dbg_delay_max);
 DECLARE_int32(dbg_max_snippets);
 DECLARE_string(dbg_template_dir_path);
 DECLARE_bool(enable_cross);
+DECLARE_bool(dry_space_access);
+
 // Define a core local  (debugger) at the given address
 // and for the given hart count. The size will be 48k bytes.
 class debugger : public subdevice

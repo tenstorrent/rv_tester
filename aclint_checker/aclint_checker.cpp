@@ -52,16 +52,15 @@ void aclint_checker::process(const rv_tester_transactions::aclint_checker::cr_ac
     m.addr = cr_ac_mmrwrite.addr;
     m.data = cr_ac_mmrwrite.data;
     m.mask = cr_ac_mmrwrite.mask;
-    m.order = cr_ac_mmrwrite.order;
     m.datavalid = false;
-    uint64_t srcid = cr_ac_mmrwrite.srcid;
 
-    cvm::log(cvm::HIGH, "[ACLINT CHECKER] AC MMR WRITES: location {} srcid {} order {} addr {:#x} data {:#x} mask {:#x} \n", cr_ac_mmrwrite.location, cr_ac_mmrwrite.srcid, cr_ac_mmrwrite.order, cr_ac_mmrwrite.addr, cr_ac_mmrwrite.data, cr_ac_mmrwrite.mask);
+    cvm::log(cvm::HIGH, "[ACLINT CHECKER] AC MMR WRITES: location {} addr {:#x} data {:#x} mask {:#x} \n", cr_ac_mmrwrite.location, cr_ac_mmrwrite.addr, cr_ac_mmrwrite.data, cr_ac_mmrwrite.mask);
 
     auto mmr_addr = static_cast<aclint_addr>(cr_ac_mmrwrite.addr);
-    if (mmr_addr == aclint_addr::AC_TIMESYNC) return;
+    if (mmr_addr == aclint_addr::AC_TIMESYNC || mmr_addr == aclint_addr::AC_CLUSTERFUSE) return;
     if (aclint_mmrs.find(mmr_addr) != aclint_mmrs.end()) {
-        cr_ac_mmr_q_[srcid].push(m);
+        cr_ac_mmr_v_.insert(cr_ac_mmr_v_.begin(), m);
+        popifpossible(txn_src::CR_AC);
     }
 }
 
@@ -94,8 +93,17 @@ void aclint_checker::process(const rv_tester_transactions::aclint_checker::axi_a
                     (axi_ac_write.mask == 0x03) ?  1 : 0;
         if (mmrReadReqFlag[mmr_addr].first) mmrReadReqFlag[mmr_addr].second = true;
         aclint_mmrs[mmr_addr].write(axi_ac_write.data, sz);
-        axi_ac_mmr_q_[srcid].push(m);
-        popifpossible(srcid);
+        
+        if (user == 3) {
+            // Transaction from SMC
+            axi_ac_smc_mmr_v_.insert(axi_ac_smc_mmr_v_.begin(), m);
+            popifpossible(txn_src::AXI_SMC_AC);
+        }
+        else if (srcid == 0b0001) {
+            // Transaction from SCB (i.e. Core)
+            axi_ac_cr_mmr_v_.insert(axi_ac_cr_mmr_v_.begin(), m);
+            popifpossible(txn_src::AXI_CR_AC);
+        }
 
         if (mmr_addr == aclint_addr::AC_CLUSTERFUSE && (aclint_mmrs[mmr_addr].lock_bit == 0) &&
             (((aclint_mmrs[mmr_addr].data >> 15) & 1) == 1)){
@@ -125,8 +133,8 @@ void aclint_checker::process(const smc_write_pkt & w) {
     
     cvm::log(cvm::HIGH, "[ACLINT CHECKER] SMC-AC WRITE: addr {:#x} data {:#x} size {:#x} mask {:#x}\n", w.addr, w.data, w.size, sz_mask);
     if (!(w.addr == aclint_addr::CR_CTIME || w.addr == aclint_addr::CR_WTIME)) {
-        smc_ac_mmr_v_.push_back(m);
-        popifpossible(m);
+        smc_ac_mmr_v_.insert(smc_ac_mmr_v_.begin(), m);
+        popifpossible(txn_src::SMC_AC);
     }
     else {
         aclint_mmrs[mmr_addr].write(w.data, w.size);
@@ -215,48 +223,61 @@ void aclint_checker::reset() {
     cvm::log(cvm::HIGH, "[ACLINT CHECKER] Reset \n");
 }
 
-void aclint_checker::popifpossible(uint64_t srcid) {
-    cvm::log(cvm::HIGH, "[ACLINT CHECKER] Came in popifpossible srcid: {} \n", srcid);
-
-    MmrWr & axi_ac_q_front = axi_ac_mmr_q_[srcid].front();
-    cvm::log(cvm::HIGH, "[ACLINT CHECKER] Pop if possible: AC_AXI srcid {} addr {:#x} data {:#x} mask {:#x} \n", srcid, axi_ac_q_front.addr, axi_ac_q_front.data, axi_ac_q_front.mask);
-
-    if (!cr_ac_mmr_q_[srcid].empty()) {
-        MmrWr & cr_ac_q_front = cr_ac_mmr_q_[srcid].front();
-        cvm::log(cvm::HIGH, "[ACLINT CHECKER] Pop if possible: CR_AC_MMR srcid {} addr {:#x} data {:#x} mask {:#x} \n", srcid, cr_ac_q_front.addr, cr_ac_q_front.data, cr_ac_q_front.mask);
+void aclint_checker::popifpossible(txn_src v_type) {
+    if (v_type == txn_src::AXI_CR_AC) {
+        MmrWr &axi_ac_cr_v_front = axi_ac_cr_mmr_v_.front();
+        cvm::log(cvm::HIGH, "[ACLINT CHECKER] Pop if possible: AC_AXI for Core txn addr {:#x} data {:#x} mask {:#x}\n",
+                 axi_ac_cr_v_front.addr, axi_ac_cr_v_front.data, axi_ac_cr_v_front.mask);
         
-        if (cr_ac_q_front == axi_ac_q_front) {
-            cr_ac_mmr_q_[srcid].pop();
-            axi_ac_mmr_q_[srcid].pop();
-            cvm::log(cvm::HIGH, "[ACLINT CHECKER] CR_AC_MMR Popped \n");
+        auto it = std::find(cr_ac_mmr_v_.begin(), cr_ac_mmr_v_.end(), axi_ac_cr_v_front);
+        if (it != cr_ac_mmr_v_.end()) {
+            cvm::log(cvm::HIGH, "[ACLINT CHECKER] Popped: CR_AC_MMR addr {:#x} data {:#x} mask {:#x}\n",
+                     it->addr, it->data, it->mask);
+            cr_ac_mmr_v_.erase(it);
+            axi_ac_cr_mmr_v_.erase(axi_ac_cr_mmr_v_.begin());
+            return;
         }
     }
-    else if (!smc_ac_mmr_v_.empty()) {
-        for (auto it = smc_ac_mmr_v_.begin(); it != smc_ac_mmr_v_.end(); ) {
-            if (*it == axi_ac_q_front) {
-                cvm::log(cvm::HIGH, "[ACLINT CHECKER] SMC_AC_MMR Popped\n");
-                it = smc_ac_mmr_v_.erase(it); // Erase the element and update the iterator
-            } else {
-                ++it; // Move to the next element
-            }
+    else if (v_type == txn_src::AXI_SMC_AC) {
+        MmrWr &axi_ac_smc_v_front = axi_ac_smc_mmr_v_.front();
+        cvm::log(cvm::HIGH, "[ACLINT CHECKER] Pop if possible: AC_AXI for SMC txn addr {:#x} data {:#x} mask {:#x}\n",
+                 axi_ac_smc_v_front.addr, axi_ac_smc_v_front.data, axi_ac_smc_v_front.mask);
+        
+        auto it = std::find(smc_ac_mmr_v_.begin(), smc_ac_mmr_v_.end(), axi_ac_smc_v_front);
+        if (it != smc_ac_mmr_v_.end()) {
+            cvm::log(cvm::HIGH, "[ACLINT CHECKER] Popped: SMC_AC_MMR addr {:#x} data {:#x} mask {:#x}\n",
+                     it->addr, it->data, it->mask);
+            smc_ac_mmr_v_.erase(it);
+            axi_ac_smc_mmr_v_.erase(axi_ac_smc_mmr_v_.begin());
+            return;
         }
     }
-    return;
-}
-
-void aclint_checker::popifpossible(const MmrWr& m) {
-    cvm::log(cvm::HIGH, "[ACLINT CHECKER] Came in popifpossible for SMC-AC Addr - {:#x} \n", m.addr);
-
-    for (auto& [srcid, queue] : axi_ac_mmr_q_) {
-        if (!queue.empty()) {
-            MmrWr & axi_ac_q_front = queue.front();
-            if (m == axi_ac_q_front){
-                cvm::log(cvm::HIGH, "[ACLINT CHECKER] Match found: AC_AXI srcid {} addr {:#x} data {:#x} mask {:#x} \n", srcid, axi_ac_q_front.addr, axi_ac_q_front.data, axi_ac_q_front.mask);
-                cvm::log(cvm::HIGH, "[ACLINT CHECKER] SMC_AC_MMR Popped\n");
-                queue.pop();
-                smc_ac_mmr_v_.pop_back();
-                return;
-            }
+    else if (v_type == txn_src::CR_AC) {
+        MmrWr &cr_ac_v_front = cr_ac_mmr_v_.front();
+        cvm::log(cvm::HIGH, "[ACLINT CHECKER] Pop if possible: CR_AC addr {:#x} data {:#x} mask {:#x}\n",
+                 cr_ac_v_front.addr, cr_ac_v_front.data, cr_ac_v_front.mask);
+        
+        auto it = std::find(axi_ac_cr_mmr_v_.begin(), axi_ac_cr_mmr_v_.end(), cr_ac_v_front);
+        if (it != axi_ac_cr_mmr_v_.end()) {
+            cvm::log(cvm::HIGH, "[ACLINT CHECKER] Popped: AC_AXI for core txn addr {:#x} data {:#x} mask {:#x}\n",
+                     it->addr, it->data, it->mask);
+            axi_ac_cr_mmr_v_.erase(it);
+            cr_ac_mmr_v_.erase(cr_ac_mmr_v_.begin());
+            return;
+        }
+    }
+    else if (v_type == txn_src::SMC_AC) {
+        MmrWr &smc_ac_v_front = smc_ac_mmr_v_.front();
+        cvm::log(cvm::HIGH, "[ACLINT CHECKER] Pop if possible: SMC_AC addr {:#x} data {:#x} mask {:#x}\n",
+                 smc_ac_v_front.addr, smc_ac_v_front.data, smc_ac_v_front.mask);
+        
+        auto it = std::find(axi_ac_smc_mmr_v_.begin(), axi_ac_smc_mmr_v_.end(), smc_ac_v_front);
+        if (it != axi_ac_smc_mmr_v_.end()) {
+            cvm::log(cvm::HIGH, "[ACLINT CHECKER] Popped: AC_AXI for SMC txn addr {:#x} data {:#x} mask {:#x}\n",
+                     it->addr, it->data, it->mask);
+            axi_ac_smc_mmr_v_.erase(it);
+            smc_ac_mmr_v_.erase(smc_ac_mmr_v_.begin());
+            return;
         }
     }
 }
@@ -283,19 +304,23 @@ void aclint_checker::set_scope(svScope s) {
 void aclint_checker::check_outstanding_transactions(uint64_t signal) {
     cvm::log(cvm::HIGH, "[ACLINT CHECKER] Checking for outstanding MMR writes...\n");
     if (!signal) return;
-    for (const auto& [key, queue] : cr_ac_mmr_q_) {
-        if (!queue.empty()) {
-            cvm::log(cvm::ERROR, "Error: {} Outstanding CORE-ACLINT MMR writes for srcid {}\n", queue.size(), key);
-            return; 
-        }
-    }
-    cvm::log(cvm::MEDIUM, "[ACLINT CHECKER] No outstanding CORE-ACLINT MMR writes\n");
     
-    if (!smc_ac_mmr_v_.empty()) {
-        cvm::log(cvm::ERROR, "Error: {} Outstanding SMC-ACLINT MMR writes\n", smc_ac_mmr_v_.size());
-        return; 
+    std::string error_str = "";
+    if (!cr_ac_mmr_v_.empty()) {
+        error_str += fmt::format("Error: {} Outstanding CORE-ACLINT MMR writes\n", cr_ac_mmr_v_.size());
+    } else {
+        cvm::log(cvm::MEDIUM, "[ACLINT CHECKER] No outstanding CORE-ACLINT MMR writes\n");
     }
-    cvm::log(cvm::MEDIUM, "[ACLINT CHECKER] No outstanding SMC-ACLINT MMR writes\n");
+
+    if (!smc_ac_mmr_v_.empty()) {
+        error_str += fmt::format("Error: {} Outstanding SMC-ACLINT MMR writes\n", smc_ac_mmr_v_.size());
+    } else {
+        cvm::log(cvm::MEDIUM, "[ACLINT CHECKER] No outstanding SMC-ACLINT MMR writes\n");
+    }
+
+    if (!error_str.empty()) {
+        cvm::log(cvm::ERROR, "{}", error_str);
+    }
 }
 
 extern "C" void check_outstanding_transactions(cvm::topology::loc_t loc) {

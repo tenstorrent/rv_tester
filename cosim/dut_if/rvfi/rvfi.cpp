@@ -53,7 +53,6 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     rv_tester_transactions::cosim::m_trap<>,
     rv_tester_transactions::cosim::m_core_nmi<>,
     rv_tester_transactions::cosim::m_interrupt_pend<>,
-    rv_tester_transactions::cosim::m_mtime<>,
     rv_tester_transactions::cosim::m_imsic_msi<>,
     rv_tester_transactions::cosim::m_mcmi_read<>,
     rv_tester_transactions::cosim::m_mcmi_insert<>,
@@ -65,6 +64,11 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     rv_tester_transactions::cosim::m_debug<>,
     bridge::error_loc
   >(loc);
+
+  // Special case: Subscribe to mtime packets from all cores
+  for (const auto& cosim_loc : cvm::topology::get_from_type("COSIM")) {
+    connect< rv_tester_transactions::cosim::m_mtime<> >(cosim_loc);
+  }
 
   connect<
     rv_tester::terminate_called
@@ -268,7 +272,6 @@ void rvfi::process(const rv_tester_transactions::cosim::m_interrupt_pend<>& m_in
   intr.seip = m_interrupt_pend.seip;
   intr.seip_set = m_interrupt_pend.seip_set;
   intr.seip_clr = m_interrupt_pend.seip_clr;
-  intr.mtime = m_interrupt_pend.mtime;
 
   std::string dut_log;
   dut_log += fmt::format("#NA {} {} ({} : mip={:#x} : ", intr.cycle, id_, intr.hw ? "hw" : "sw", intr.mip.to_ullong());
@@ -283,7 +286,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_interrupt_pend<>& m_in
       dut_log += fmt::format("{},", v);
   }
   dut_log += fmt::format(" : seip={}{}", intr.seip ? 1 : 0, intr.seip_set ? " : SEIpin+" : intr.seip_clr ? " : SEIpin-" : "");
-  dut_log += fmt::format(" : mtime={:#x})\n", intr.mtime);
+  dut_log += fmt::format(")\n");
 
   if (FLAGS_rvfi_log)
     log(cvm::NONE, fmt::to_string(dut_log));
@@ -298,17 +301,13 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mtime<>& m_mtime) {
   if (terminated_ || in_reset_)
     return;
 
-  if (loc_ != m_mtime.location)
-    return;
-
   rv_intr_t intr;
   intr.cycle = m_mtime.cycle;
   intr.mip = std::bitset<64>(m_mtime.mip);
   intr.mtime = m_mtime.mtime;
 
   if (FLAGS_rvfi_log)
-    log(cvm::NONE, "#NA {} {} ({}timecmp={:#x} : mtime={:#x})\n", intr.cycle, id_,
-      intr.mip[MTI] ? "m" : intr.mip[STI] ? "s" : intr.mip[VSTI] ? "vs" : "x", m_mtime.timecmp, intr.mtime);
+    log(cvm::NONE, "#NA {} {} (mtime={:#x})\n", intr.cycle, id_, intr.mtime);
 
   if (!FLAGS_cosim)
     return;
@@ -943,8 +942,14 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
   uint64_t consecutiveOnes = std::countr_zero(~mask);  // Count ones until the first zero
   if (numones == consecutiveOnes) {
       if (m_mcmi_read.v_ext & m_mcmi_read.splat){
-        uint16_t total_elements = (numones / elemsize) ? (numones / elemsize) : 1;
-        m.size = elemsize;
+        uint16_t total_elements;
+        if (numones / elemsize) {
+          total_elements = numones / elemsize;
+          m.size = elemsize;
+        } else {
+          total_elements = 1;
+          m.size = numones;
+        }
         for (int i=0; i<total_elements; i++){
           uint64_t value = 0;
           // Extract the bits for the current element
@@ -998,12 +1003,24 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
               m.v_ext = m_mcmi_read.v_ext;
               m.field = m_mcmi_read.field;
               if (m_mcmi_read.v_ext & m_mcmi_read.splat){
-                uint16_t total_elements = (size / elemsize) ? (size / elemsize) : 1;
+                uint16_t total_elements;
+                if (size / elemsize) {
+                  total_elements = size / elemsize;
+                  m.size = elemsize;
+                } else {
+                  total_elements = 1;
+                  m.size = size;
+                }
                 m.pa = m_mcmi_read.addr;
-                m.size = elemsize;
                 for (int i=0; i<total_elements; i++){
-                  size_t start = dataAccumulated.size() - (i + 1) * 2 * elemsize;
-                  size_t end = dataAccumulated.size() - i * 2 * elemsize;
+                  size_t start, end;
+                  if (size / elemsize) {
+                    start = dataAccumulated.size() - (i + 1) * 2 * elemsize;
+                    end = dataAccumulated.size() - i * 2 * elemsize;
+                  } else {
+                    start = 0;
+                    end = dataAccumulated.size();
+                  }
                   std::bitset<256> value = stringToBitset(dataAccumulated.substr(start, end - start));
                   m.data_vec = value;
                   m.elem_idx = ((start_addr - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx + i;
@@ -1031,12 +1048,24 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
       m.size   = std::popcount(m_mcmi_read.mask);
       m.field = m_mcmi_read.field;
       if (m_mcmi_read.v_ext & m_mcmi_read.splat){
-        uint16_t total_elements = (size / elemsize) ? (size / elemsize) : 1;
+        uint16_t total_elements;
+        if (size / elemsize) {
+          total_elements = size / elemsize;
+          m.size = elemsize;
+        } else {
+          total_elements = 1;
+          m.size = size;
+        }
         m.pa = m_mcmi_read.addr;
-        m.size = elemsize;
         for (int i=0; i<total_elements; i++){
-          size_t start = dataAccumulated.size() - (i + 1) * 2 * elemsize;
-          size_t end = dataAccumulated.size() - i * 2 * elemsize;
+          size_t start, end;
+          if (size / elemsize) {
+            start = dataAccumulated.size() - (i + 1) * 2 * elemsize;
+            end = dataAccumulated.size() - i * 2 * elemsize;
+          } else {
+            start = 0;
+            end = dataAccumulated.size();
+          }
           std::bitset<256> value = stringToBitset(dataAccumulated.substr(start, end - start));          m.data_vec = value;
           m.elem_idx = ((start_addr - m_mcmi_read.addr) / elemsize) + m_mcmi_read.elem_idx + i;
           bridge_->process_dut_mcm_read(m_mcmi_read.hart, m);
@@ -1057,17 +1086,17 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
 
 // Helper function to convert a hex string into a bitset
 std::bitset<256> rvfi::stringToBitset(const std::string& hexString) {
-    std::bitset<256> bits;
-    size_t len = hexString.length();
-    for (size_t i = 0; i < len; ++i) {
-        int hexDigit = (hexString[len - 1 - i] >= '0' && hexString[len - 1 - i] <= '9') 
-                       ? hexString[len - 1 - i] - '0' 
-                       : hexString[len - 1 - i] - 'a' + 10;
-        for (int j = 3; j >= 0; --j) {
-            bits[(i * 4) + j] = (hexDigit >> j) & 1;
-        }
-    }
-    return bits;
+  std::bitset<256> bits;
+  size_t len = hexString.length();
+  for (size_t i = 0; i < len; ++i) {
+      int hexDigit = (hexString[len - 1 - i] >= '0' && hexString[len - 1 - i] <= '9') 
+                     ? hexString[len - 1 - i] - '0' 
+                     : hexString[len - 1 - i] - 'a' + 10;
+      for (int j = 3; j >= 0; --j) {
+          bits[(i * 4) + j] = (hexDigit >> j) & 1;
+      }
+  }
+  return bits;
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_insert) {

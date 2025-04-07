@@ -25,6 +25,17 @@ cosim:
             cycle:
                 width: 64
 
+    m_mtime:
+        domain: 1
+        num: ${max(TOP.PLATFORM.COSIM.RVFI.NRETS) + 1}
+        fields:
+            cycle:
+                width: 64
+            mip:
+                width: 64
+            mtime:
+                width: ${TOP.PLATFORM.XLEN}
+
     m_csri:
         domain: 1
         num: ${max(TOP.PLATFORM.COSIM.RVFI.NRETS) + TOP.PLATFORM.MAX_CSR_AFTER_NRET}
@@ -381,21 +392,6 @@ cosim:
                 width: 1
             seip_clr:
                 width: 1
-            mtime:
-                width: 64
-
-    m_mtime:
-        domain: 1
-        num: 1
-        fields:
-            cycle:
-                width: 64
-            mip:
-                width: 64
-            mtime:
-                width: ${TOP.PLATFORM.XLEN}
-            timecmp:
-                width: ${TOP.PLATFORM.XLEN}
 
     m_core_nmi:
         domain: 1
@@ -597,11 +593,19 @@ axi_sw_mst:
 
 logger:
     num: 1
+
     cycle:
         domain: 1
         num: 1
         fields:
             clock:
+                width: 64
+
+    timestamp:
+        domain: 1
+        num: 1
+        fields:
+            timeval:
                 width: 64
 
 pmu_core:
@@ -1637,10 +1641,6 @@ aclint_checker:
         domain: 1
         num: ${TOP.PLATFORM.COSIM.RVFI.TOTAL_NRETS}
         fields:
-            srcid:
-                width: 14
-            order:
-                width: 64
             addr:
                 qualify: "{data}.mask != '0"
                 width: ${TOP.PLATFORM.PALEN}
@@ -1801,6 +1801,12 @@ triggers:
             per_core_evt_vector:
                 width: 32
             event_trigger:
+                width: 32
+    m_tick:
+        domain: 2
+        num: 1
+        fields:
+            cycle:
                 width: 32
 
 __domains:
