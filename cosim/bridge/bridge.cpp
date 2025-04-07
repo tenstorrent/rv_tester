@@ -1908,12 +1908,8 @@ bool bridge::is_renamed_csr(const std::string& instr) {
 
 
 bool bridge::is_cracked_csr(const std::string& instr) {
-  // Check for "mhpmevent3" to "mhpmevent10" and "csr.*c80x"
-  if (instr.find("mhpmevent31") != std::string::npos) {
-    return false; // Explicitly exclude mhpmevent31
-  }
-  if (std::regex_search(instr, std::regex(R"(mhpmevent[3-9]|mhpmevent10|csr.*c80[3-9]|csr.*c810)"))) {
-    return true;
+  if (std::regex_search(instr, std::regex(R"(\bmhpmevent([3-9]|10)\b|csr.*\bc(80[3-9]|810)\b)"))) {
+      return true;
   }
   return false;
 }
