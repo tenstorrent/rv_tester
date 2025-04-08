@@ -1626,12 +1626,6 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
             mask = 0x1444;
             update_csr(hart, src_t::dut, MIDELEG, 0x1444, mask, false, false);
           } else {
-            if (misa_h_) {
-              // Save CSR values to the temporary map when misa.H becomes zero, rvde-20315
-              for (const auto& [addr, value] : hypervisor_masked_csr_map_) {
-                hypervisor_masked_csrs_[addr] = get_csr(id_, src_t::dut, addr);
-              }
-            }
             misa_h_ = 0;
             mask = 0xF00400;
             update_csr(hart, src_t::dut, MEDELEG, 0, mask, false, false);
