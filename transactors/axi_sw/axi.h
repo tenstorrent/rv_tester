@@ -198,6 +198,7 @@ class axi : public transactor {
         std::vector<std::pair<uint64_t, uint64_t>> parse_hex_ranges(const std::string& input);
 
         // Metric counts
+        std::string tag_;
         int num_slverr_resp_;
         int num_decerr_resp_;
 

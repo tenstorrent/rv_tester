@@ -105,10 +105,10 @@ protected:
   void checkUsage();
 
 private:
-  uint64_t ras_helper_base = 0x9000000;
+  uint64_t ras_helper_base = 0x9089800;
 
   mem_manager m_;
-  uint64_t local64BStorage[100];
+  uint64_t local64BStorage[256];
   
   pcg_extras::seed_seq_from<std::random_device> seed_source;
   pcg32 rng;
