@@ -171,7 +171,7 @@ import rv_tester_params:: * ;
     always @(posedge rf_clk) begin
         /* verilator lint_off BLKSEQ */
         if (dut_reset) AcChkCtime <= 0;
-        else if ((AcCrSynci[0].data !== AcChkCtime_updated) && AcCrSynci[0].valid) AcChkCtime <= AcChkMtime;
+        else if (mtime_wr_valid) AcChkCtime <= ((AcReqPktRfClki.mask == 'hf) ? {AcChkMtime[63:32], AcReqPktRfClki.data[31:0]} : AcReqPktRfClki.data);
         else if (AcChkCtime_write) AcChkCtime <= AcChkCtime_updated;
         else AcChkCtime <= AcChkCtime;
         /* verilator lint_on BLKSEQ */
