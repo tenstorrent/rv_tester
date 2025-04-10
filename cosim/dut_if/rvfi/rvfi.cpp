@@ -16,7 +16,6 @@
 DEFINE_bool(rvfi, true, "Enable rvfi");
 DEFINE_bool(rvfi_log,  true, "Enable rvfi logging");
 DEFINE_bool(rvfi_log_36b_uop, true, "rvfi log - print 36b uop instead of default 32b riscv opcode");
-DEFINE_bool(monitor, true, "Enable monitoring in different checkers - useful for no_rvfi runs");
 DEFINE_bool(mcm, true, "Enable mcm");
 DEFINE_bool(cosim, true, "Enable cosim checking");
 DEFINE_bool(emulate_amo_arithmetic, true, "Emulate amo arithmetic if dut harness does not provide amo outputs");
