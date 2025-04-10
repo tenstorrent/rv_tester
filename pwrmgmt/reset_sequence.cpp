@@ -13,6 +13,7 @@
 REGISTRY_register(reset_sequence, PWRMGMT, cvm::registry::all);
 
 DEFINE_bool(pwrmgmt, false, "Runtime disable for pwrmgmt");
+DEFINE_bool(cpl_core_en, false, "Enable reset, bootup flow via CPL FW");
 DEFINE_uint32(pll_pwrup_timeout, 50, "Number of soc cycles expected for pll power up to complete");
 DEFINE_bool(pll_dfs, false, "Enable dfs sequence during cold boot");
 DEFINE_uint32(pll_dfs_freq, 1200, "Clock freq for dfs");
@@ -151,14 +152,18 @@ cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
     co_await tick();
 
   // PLL cold powerup sequence
-  co_await pll_startup_sequence();
+  if(!FLAGS_cpl_core_en) co_await pll_startup_sequence();
 
   // PLL dfs sequence
   if (FLAGS_pll_dfs| (FLAGS_clk_profile!=0))
     co_await pll_dfs_sequence();
 
   // Reset controller sequence
-  co_await cpl_reset_sequence(COLD);
+  if(FLAGS_cpl_core_en) {
+    co_await cpl_fw_reset_sequence(COLD);
+  } else {
+    co_await cpl_reset_sequence(COLD);
+  }
 
   // Wait for next tick
   co_await tick();
@@ -212,13 +217,17 @@ cvm::messenger::task<void> reset_sequence::warm_reset_sequence() {
     co_await tick();
 
   // PLL cold powerup sequence
-  co_await pll_startup_sequence();
+  if(!FLAGS_cpl_core_en) co_await pll_startup_sequence();
 
   // PLL dfs sequence
   if (FLAGS_pll_dfs| (FLAGS_clk_profile!=0))
     co_await pll_dfs_sequence();
 
-  co_await cpl_reset_sequence(WARM);
+  if(FLAGS_cpl_core_en) {
+    co_await cpl_fw_reset_sequence(WARM);
+  } else {
+    co_await cpl_reset_sequence(WARM);
+  }
 
   // Wait for next tick
   co_await tick();
@@ -228,8 +237,7 @@ cvm::messenger::task<void> reset_sequence::warm_reset_sequence() {
 
 cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
   co_await release_cpl_reset();
-  //if (FLAGS_fuse_mmr_check)
-  //  co_await fuse_mmr_check(rst_type);
+
   if (rst_type == COLD){  
     co_await program_fuses();
     if (FLAGS_fuse_mmr_check)
@@ -239,8 +247,9 @@ cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
     co_await disabled_mmr_csr_check();
   
   co_await program_thub_threshold();
+
   if(FLAGS_init_smc_infilters) {
-   co_await init_smc_filters();
+    co_await init_smc_filters();
   }
 
   if (FLAGS_patch_en && rst_type == COLD) { 
@@ -254,6 +263,59 @@ cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
   co_await rmw_mmr();
   co_await program_fe_resetvector();
   co_await release_cpl_nofetch();
+  co_await tick();
+  co_return;
+}
+
+
+cvm::messenger::task<void> reset_sequence::cpl_fw_reset_sequence(rst_t rst_type) {
+  uint64_t fuse =  fuse_val();
+  co_await write(cpl_sram_core_fuse, SZ_8B, fuse, boot_interface);
+  co_await write(cpl_core_reset_csr, SZ_4B, 0xFFFFFFFF, boot_interface);
+  co_await wait_reset_release();
+  // CPL co_await check_system_ready();
+  co_await program_thub_threshold();
+
+  if(FLAGS_init_smc_infilters) {
+    co_await init_smc_filters();
+  }
+  co_await init_csr();
+  co_await rmw_csr();
+  co_await init_mmr();
+  co_await rmw_mmr();
+  // CPL co_await send_start_of_execution_to_cpl();
+  co_await wait_nofetch_release();
+  co_await tick();
+  co_return;
+}
+
+cvm::messenger::task<void> reset_sequence::send_start_of_execution_to_cpl() {
+  uint32_t count = 0;
+  while (true) {
+    co_await tick();
+    auto data = co_await read(pll_interrupts, SZ_4B, boot_interface);
+    if (data & (1 << cold_powerup_idx))
+      break;
+
+    count++;
+    if (count > FLAGS_pll_pwrup_timeout)
+      cvm::log(cvm::ERROR, "Error: PLL cold power up not done after {} soc clocks\n", FLAGS_pll_pwrup_timeout);
+  }
+  co_return;
+}
+
+cvm::messenger::task<void> reset_sequence::check_system_ready() {
+  uint32_t count = 0;
+  while (true) {
+    co_await tick();
+    auto data = co_await read(pll_interrupts, SZ_4B, boot_interface);
+    if (data & (1 << cold_powerup_idx))
+      break;
+
+    count++;
+    if (count > FLAGS_pll_pwrup_timeout)
+      cvm::log(cvm::ERROR, "Error: PLL cold power up not done after {} soc clocks\n", FLAGS_pll_pwrup_timeout);
+  }
   co_return;
 }
 
@@ -277,7 +339,6 @@ cvm::messenger::task<void> reset_sequence::check_pll_status() {
     if (count > FLAGS_pll_pwrup_timeout)
       cvm::log(cvm::ERROR, "Error: PLL cold power up not done after {} soc clocks\n", FLAGS_pll_pwrup_timeout);
   }
-
   co_return;
 }
 
@@ -332,6 +393,42 @@ cvm::messenger::task<void> reset_sequence::release_cpl_reset() {
   co_await tick();
 
   co_await write(rst_ctl_warm, SZ_4B, (1 << cpl_force_ss_to_ref_clock_n | 1 << cpl_cl_warm_reset_n), boot_interface);
+
+  co_return;
+}
+
+cvm::messenger::task<void> reset_sequence::wait_reset_release() {
+  
+  cvm::log(cvm::NONE, "Wait for warm reset release by CPL...\n");
+  while (true) {
+    // Wait for 16 clock ticks
+    for (int i=0; i<50; ++i)
+      co_await tick();
+
+    auto data = co_await read(rst_ctl_warm, SZ_4B, boot_interface);
+    if ((data & (1 << cpl_force_ss_to_ref_clock_n)) && (data & (1 << cpl_cl_warm_reset_n))) {
+      cvm::log(cvm::NONE, "Wait for warm reset release by CPL... {}, {} , {} \n",data,cpl_force_ss_to_ref_clock_n,cpl_cl_warm_reset_n);
+      break;
+    }
+  }
+
+  co_return;
+}
+
+cvm::messenger::task<void> reset_sequence::wait_nofetch_release() {
+  
+  cvm::log(cvm::NONE, "Wait for no-fetch release by CPL...\n");
+  while (true) {
+    // Wait for 16 clock ticks
+    for (int i=0; i<50; ++i)
+      co_await tick();
+
+    auto data = co_await read(rst_ctl_nofetch, SZ_4B, boot_interface);
+    if ((data & 0xFF) != 0xFF) {
+      cvm::log(cvm::NONE, "Wait for no-fetch release by CPL... {} \n",data);
+      break;
+    }
+  }
 
   co_return;
 }
