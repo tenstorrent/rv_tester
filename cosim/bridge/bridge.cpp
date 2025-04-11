@@ -188,6 +188,8 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
         FLAGS_max_instr = (100000 + (nharts-1)*20000);
         print(cvm::LOW, "Overwriting max_instr to {} cycles\n",FLAGS_max_instr );
     }
+
+    FLAGS_metrics = FLAGS_monitor & FLAGS_metrics;
 }
 
 // Destructor

@@ -10,5 +10,6 @@ DECLARE_bool(bypass_mem);
 DECLARE_bool(rand_snoop_en);
 DECLARE_string(set_mmr);
 DECLARE_bool(metrics);
+DECLARE_bool(monitor);
 DECLARE_string(axi_resp_slverr_addr);
 DECLARE_string(axi_resp_decerr_addr);
