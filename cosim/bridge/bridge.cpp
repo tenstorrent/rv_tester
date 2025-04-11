@@ -2022,6 +2022,12 @@ bool bridge::resynch_on_instr(const std::string& instr, const uint64_t& cycle) {
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[topei_mismatch]\n", cycle);
     return true;
   }
+  if (instr.find("seed") != std::string::npos) {
+    IF_DEBUG("csr:seed condition");
+    bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[seed csr]\n", cycle);
+    return true;
+  }
+
   if (unsupported_csr_access(instr)) {
     IF_DEBUG("csr condition");
     bridge_log_(cvm::MEDIUM, "<{}> Resynch: Reason=[unsupported_csr_access]\n", cycle);
@@ -2529,9 +2535,8 @@ void bridge::process_dut_interrupt(hart_id_t hart, rv_intr_t& i) {
       bridge_log_(cvm::MEDIUM, "<{}> Timer interrupt cleared: mip={} time={:#x}\n", i.cycle, to_string(i), i.mtime);
     poke_mip(hart, i.cycle, mip_);
   }
-
   // Local
-  if (i.mip_set[LCOFI] || i.mip_set[BUS_ERRI] || i.mip_set[C_HWAI] || i.mip_set[LO_PRI_RASI] || i.mip_set[HI_PRI_RASI]) {
+  if (i.mip_set[LCOFI] || i.mip_set[BUS_ERRI] || i.mip_set[C_HWAI] || i.mip_set[LO_PRI_RASI] || i.mip_set[HI_PRI_RASI] || i.mip_set[C_ENTROPY]) {
     if (FLAGS_bridge_log)
       bridge_log_(cvm::MEDIUM, "<{}> Local interrupt set: mip={}\n", i.cycle, to_string(i));
 
