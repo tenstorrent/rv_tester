@@ -203,7 +203,7 @@ import rv_tester_params:: * ;
       single_step_ahead_command_queue_backup.delete();
       single_step_quit_command_queue_backup .delete();
 
-      $display("[DMI Driver] Reset State Cleaned-up \n");
+      //$display("[DMI Driver] Reset State Cleaned-up \n");
     end
   endtask : reset_cleanup 
       

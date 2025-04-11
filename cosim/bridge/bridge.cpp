@@ -38,6 +38,7 @@ DEFINE_string(cosim_resynch_csr, "", "List of csr mnemonics to resynch whisper w
 DEFINE_string(cosim_resynch_excp, "", "List of exception codes on which we should resynch whisper with dut state");
 DEFINE_string(cosim_resynch_excp_addr, "", "List of exception codes on which we should resynch whisper with dut state only if address matches provided list. Format: 5:0x1000,9:0x2000-0x3000");
 DEFINE_string(cosim_error_excp, "", "List of exception codes on which we should terminate with an error");
+DEFINE_uint64(cosim_resynch_intr_x_csr_threshold, 1, "Evaluate check/defer mechanism for these many instructions post detection");
 DEFINE_bool(poke_mip_timer, false, "Poke mip timer bits to handle timer interrupts instead of poking time csr");
 DEFINE_bool(mip_resynch, true, "Resynch whisper with dut state on mip mismatch condition");
 DEFINE_uint64(mip_resynch_threshold, 256, "Resynch whisper with dut state on mip mismatch if within threshold number of instructions");
@@ -1000,7 +1001,7 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
   // Set mip ages for resynch cases
   if (prev_hw_mip_ != hw_mip_)
     hw_mip_age_ = 0;
-  if (prev_e_mip_ != e_mip_)
+  if (prev_e_mip_ != e_mip_ || msi_.size() != 0)
     e_mip_age_ = 0;
 
   // Proceed only if DUT takes interrupt
@@ -1122,6 +1123,14 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
 }
 
 void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w) {
+
+  // Timing sensitive case: interrupt x csr instr
+  if (!d.intr && !w_.intr && (e_mip_age_ <= FLAGS_cosim_resynch_intr_x_csr_threshold) && (w.disasm.find("csr") != std::string::npos)) {
+    if (check_and_defer_interrupt(hart, d.cycle, e_mip_)) {
+      bridge_log_(cvm::MEDIUM, "<{}> Timing sensitive case: deferring on interrupt x csr instr: {}\n", w.time, w.disasm);
+      return;
+    }
+  }
 
   if (!d.intr && !w_.intr) {
     IF_DEBUG("d.intr==0 and w.intr==0  .. return");
@@ -2073,21 +2082,21 @@ bool bridge::boot_read(const uint64_t& pa) {
 
 bool bridge::mip_mismatch(const std::string& instr) {
   if ((instr.find("mip") != std::string::npos) &&
-      (hw_mip_age_ < FLAGS_mip_resynch_threshold))
+      (hw_mip_age_ < FLAGS_mip_resynch_threshold || msi_.size() != 0))
     return true;
   return false;
 }
 
 bool bridge::topi_mismatch(const std::string& instr) {
   if ((instr.find("topi") != std::string::npos) &&
-      (hw_mip_age_ < FLAGS_mip_resynch_threshold))
+      (hw_mip_age_ < FLAGS_mip_resynch_threshold || msi_.size() != 0))
     return true;
   return false;
 }
 
 bool bridge::topei_mismatch(const std::string& instr) {
   if ((instr.find("topei") != std::string::npos) &&
-      (e_mip_age_ < FLAGS_mip_resynch_threshold))
+      (e_mip_age_ < FLAGS_mip_resynch_threshold || msi_.size() != 0))
     return true;
   return false;
 }
@@ -2598,7 +2607,7 @@ void bridge::process_imsic_msi(hart_id_t hart, const mem_t& m) {
   }
 }
 
-void bridge::check_and_defer_interrupt(hart_id_t hart, uint64_t time, std::bitset<64> mip) {
+bool bridge::check_and_defer_interrupt(hart_id_t hart, uint64_t time, std::bitset<64> mip) {
   bool w_intr;
   uint64_t w_cause, w_cause_mip = 0;
   check_interrupt(hart, time, w_intr, w_cause);
@@ -2607,16 +2616,17 @@ void bridge::check_and_defer_interrupt(hart_id_t hart, uint64_t time, std::bitse
     w_cause_mip = 1 << w_cause;
 
   if (!w_intr)
-    return;
+    return false;
 
   uint64_t w_defer_mip;
   bool valid;
   if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 's', WhisperSpecialResource::DeferredInterrupts, w_defer_mip, valid)|| !valid) && FLAGS_whisper_client_check) {
     error("Hart {}: Failed whisper API call - whisperGetDeferredInterrupts\n", hart);
-    return;
+    return false;
   }
 
    defer_interrupt(hart, time, mip.to_ullong() | w_cause_mip | w_defer_mip);
+   return true;
 }
 
 void bridge::defer_interrupt(hart_id_t hart, uint64_t cycle, uint64_t mip) {
