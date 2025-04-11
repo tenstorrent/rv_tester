@@ -299,7 +299,7 @@ if (dm_req.dm_ms_req) {
   // Validate that the PID for the selected VID is included in the dm_ms_req mask
   uint32_t expected_pid = hart_pid[dmcontrol.hartsel];
   if (dm_req.dm_ms_req & (1U << expected_pid)) {
-    cvm::log(cvm::NONE, "DM VID/PID CHECKER :: Correct DM req includes Physical Hart ID :{:#x} dmcontrol.hartsel: {} hart_pid[dmcontrol.hartsel]: {}\n",
+    cvm::log(cvm::MEDIUM, "DM VID/PID CHECKER :: Correct DM req includes Physical Hart ID :{:#x} dmcontrol.hartsel: {} hart_pid[dmcontrol.hartsel]: {}\n",
              dm_req.dm_ms_req, dmcontrol.hartsel, expected_pid);
   } else {
     cvm::log(cvm::ERROR, "ERROR: DM VID/PID CHECKER :: Incorrect DM req does not include Physical Hart ID :{:#x} dmcontrol.hartsel: {} hart_pid[dmcontrol.hartsel]: {}\n",
