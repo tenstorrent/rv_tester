@@ -1003,8 +1003,6 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
     hw_mip_age_ = 0;
   if (prev_e_mip_ != e_mip_ || msi_.size() != 0)
     e_mip_age_ = 0;
-  bridge_log_(cvm::MEDIUM, "<{}> hw_mip={:#x} prev_hw_mip={:#x} hw_mip_age:{}\n", w.time, hw_mip_.to_ullong(), hw_mip_.to_ullong(), hw_mip_age_);
-  bridge_log_(cvm::MEDIUM, "<{}> e_mip={:#x} prev_e_mip={:#x} e_mip_age={}\n", w.time, e_mip_.to_ullong(), e_mip_.to_ullong(), e_mip_age_);
 
   // Proceed only if DUT takes interrupt
   if (hw_mip_ == 0 && prev_hw_mip_ == 0 && !d.intr) {
@@ -1025,7 +1023,7 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
     IF_DEBUG("no dut intr ... but whisper has intr");
     intr_age_[w_cause]++;
     if (FLAGS_bridge_log)
-      bridge_log_(cvm::MEDIUM, "<{}> intr_age_[{}][{}]++={}\n", w.time, hart, w_cause, intr_age_[w_cause]);
+      bridge_log_(cvm::HIGH, "<{}> intr_age_[{}][{}]++={}\n", w.time, hart, w_cause, intr_age_[w_cause]);
 
     // Check that interrupt age is not beyond threshold
     if ((intr_age_[w_cause] > FLAGS_max_pend_intr_age) && !FLAGS_cosim_resynch && !FLAGS_intr_timeout_resynch) {
