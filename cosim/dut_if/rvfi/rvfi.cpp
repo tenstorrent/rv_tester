@@ -831,14 +831,16 @@ void rvfi::enter_debug_mode(rv_instr_t& instr) {
     rv_debug_t debug;
 
     debug.cycle = instr.cycle;
-    debug.enter = true;
+    debug.enter = false;
     debug.exit  = false;
     debug.hart  = instr.hart;
 
     if (FLAGS_rvfi_log) {
       log(cvm::NONE, "#{} {} 0 (enter debug mode)\n", count_, debug.cycle);
     }
-
+    if (instr.intr && (instr.icause == 0)){
+      debug.enter = true;
+    }
     bridge_->enter_debug_mode(debug);
     in_debug_mode_ = true;
   }
