@@ -38,7 +38,7 @@ extern "C" {
 
 template <typename W, typename AW, typename AR, typename RQ>
 axi_sw<W,AW,AR,RQ>::axi_sw(cvm::topology::loc_t loc, unsigned id)
-  : scope_(nullptr), loc_(loc), id_(id),
+  : scope_(nullptr), loc_(loc), id_(id), name_(to_lower(cvm::topology::name(loc_)) + std::to_string(id)),
     id_width_(cvm::topology::attr(loc_, "ID_WIDTH").second),
     data_width_(cvm::topology::attr(loc_, "DATA_WIDTH").second),
     strb_width_(cvm::topology::attr(loc_, "STRB_WIDTH").second),
@@ -51,7 +51,7 @@ axi_sw<W,AW,AR,RQ>::axi_sw(cvm::topology::loc_t loc, unsigned id)
     ::destroyed = false;
 
     auto data_width = cvm::topology::attr(loc, "DATA_WIDTH").second;
-    axi_ = new axi(data_width, loc, "axi" + std::to_string(id));
+    axi_ = new axi(data_width, loc, name_);
     cvm::registry::messenger.connect<svScope>(
         loc_,
         [this](svScope s) {
@@ -67,10 +67,8 @@ axi_sw<W,AW,AR,RQ>::axi_sw(cvm::topology::loc_t loc, unsigned id)
 template <typename W, typename AW, typename AR, typename RQ>
 axi_sw<W,AW,AR,RQ>::~axi_sw() {
 
-    std::string name = cvm::topology::name(loc_);
-    std::transform(name.begin(), name.end(), name.begin(), [](unsigned char c){ return std::tolower(c); });
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"{}{}_read_bytes\": {}}}\n", name, id_, read_bytes_);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"{}{}_write_bytes\": {}}}\n", name, id_, write_bytes_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"{}_read_bytes\": {}}}\n", name_, read_bytes_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"{}_write_bytes\": {}}}\n", name_, write_bytes_);
 
     if (axi_) {
         delete axi_;

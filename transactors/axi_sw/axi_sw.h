@@ -73,6 +73,7 @@ class axi_sw {
         svScope scope_;
         cvm::topology::loc_t loc_;
         unsigned id_;
+        std::string name_;
         size_t id_width_;
         size_t data_width_;
         size_t strb_width_;
@@ -109,4 +110,10 @@ class axi_sw {
         axi::data_width_t   data_width()   const { return axi_->data_width()  ; }
         axi::strobe_width_t strobe_width() const { return axi_->strobe_width(); }
 
+        // Helper function to convert a string to lowercase.
+        static std::string to_lower(const std::string& s) {
+          std::string result = s;
+          std::transform(result.begin(), result.end(), result.begin(), [](unsigned char c) { return std::tolower(c); });
+          return result;
+        }
 };
