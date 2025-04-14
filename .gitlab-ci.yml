@@ -37,10 +37,10 @@ notify_riscv_cluster:
         - .notify-template
     trigger:
         project: riscv/riscv_cluster
-        branch: ascalon/work/infra
+        branch: ascalon/work/core
     variables:
         UPDATE_DIRECTORY: rv-common
-        UPDATE_TARGET_BRANCH: ascalon/work/infra
+        UPDATE_TARGET_BRANCH: ascalon/work/core
 
 
 asan+ubsan:
