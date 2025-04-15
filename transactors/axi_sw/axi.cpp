@@ -171,15 +171,18 @@ std::pair<bool, axi::r_t> axi::r(bool block) {
     return r_q_.try_dequeue();
 }
 
+std::pair<bool, axi::b_t> axi::b() {
+    return b_q_.try_dequeue();
+}
+
 cvm::messenger::task<void> axi::operator()() {
     while (1)  {
         a_t a;
 
         bool valid;
         std::tie(valid, a) = a_q_.try_peek();
-        if (!valid) {
+        if (!valid)
             co_return;
-        }
 
         addr_t burst_len            = a.len + 1;
 
@@ -263,6 +266,8 @@ cvm::messenger::task<void> axi::operator()() {
                             w.data,
                             w.strb
                     );
+
+                    b_q_.enqueue(b_t(a.id, RESP_OKAY));
                 }
 
                 if (!a.w || (a.atop.transaction != NON_ATOMIC && a.atop.transaction != ATOMIC_STORE)) {

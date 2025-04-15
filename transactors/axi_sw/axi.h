@@ -177,6 +177,11 @@ class axi : public transactor {
             id_t   id;
             resp_t resp;
             b_t(const id_t& id, const resp_t& resp) : id(id), resp(resp) {}
+            b_t() = default;
+            b_t(b_t&&) = default;
+            b_t& operator=(b_t&&) = default;
+            b_t(const b_t&) = default;
+            b_t& operator=(const b_t&) = default;
         };
 
     private:
@@ -192,6 +197,7 @@ class axi : public transactor {
         SafeQueue<a_t> a_q_;
         SafeQueue<w_t> w_q_;
         SafeQueue<r_t> r_q_;
+        SafeQueue<b_t> b_q_;
 
         cvm::messenger::task<void> operator()();
         void atop_modify_write_data(const atop_t& atop, const data_t& read_data, data_t& write_data, const len_t& len);
@@ -220,4 +226,5 @@ class axi : public transactor {
         cvm::messenger::task<void> a(const a_t&);
         cvm::messenger::task<void> w (w_t &&);
         std::pair<bool, r_t> r(bool block = false);
+        std::pair<bool, b_t> b();
 };

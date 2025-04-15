@@ -81,6 +81,15 @@ axi_sw:
             clock:
                 widths: [64, 64]
 
+    b_q_ptr:
+        domain: [2,2]
+        num: 1
+        fields:
+            r_ptr:
+                widths: [${TOP.PLATFORM.AXI.B_Q_PTR_MAX_LOG2},${TOP.PLATFORM.NCIO_AXI.B_Q_PTR_MAX_LOG2}]
+            clock:
+                widths: [64, 64]
+
 
 axi_sw_mst:
     num: [${TOP.PLATFORM.AXI_MST.TOTAL}, ${TOP.PLATFORM.SMC_AXI_MST.TOTAL}]

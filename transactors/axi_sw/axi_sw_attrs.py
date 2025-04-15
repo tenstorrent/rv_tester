@@ -8,6 +8,7 @@ def clog2(x):
 if __name__ == "__main__":
     queues = {
         "R_Q": 8,
+        "B_Q": 8,
         "AR_Q": 8,
         "AW_Q": 8,
         "W_Q" : 8,
@@ -24,10 +25,10 @@ if __name__ == "__main__":
 
     print("axi_sw: &rv_tester_axi_sw")
     for k,v in cfg.items():
-        if k.startswith("R_Q"):
+        if k.startswith("R_Q") or k.startswith("B_Q"):
             print(f"  {k}: {v}")
 
     print("axi_sw_mst: &rv_tester_axi_sw_mst")
     for k,v in cfg.items():
-        if not k.startswith("R_Q"):
+        if not k.startswith("R_Q") and not k.startswith("B_Q"):
             print(f"  {k}: {v}")
