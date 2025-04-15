@@ -565,6 +565,10 @@ import rv_tester_params:: * ;
           poll = 1;
           check_cmisa_sdtrig = 0;
           read_cmisa_sdtrig = 1;
+        end else if(disable_abscmdpoll && cmd.addr === 'h16 && cmd.op === 'h1) begin
+          abstr_cmd_req = 1;
+          poll = 1;
+          $display("Check if abscmd is executed and busy is cleared");
         end
       end
     end
