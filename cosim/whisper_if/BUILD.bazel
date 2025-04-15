@@ -2,7 +2,6 @@ cc_library(
     name     = "whisper_if",
     hdrs     = [
         "whisper_client.h",
-        "iss_utils.h",
     ],
     srcs     = [
         "whisper_client.cpp",
@@ -15,17 +14,15 @@ cc_library(
         "//cosim/bridge:bridge_plusargs",
         "//cosim/utils/eot:eot_plusargs",
         "//cosim/utils/general:util",
-        "@rv_tester//cosim/whisper_if:whisper_decoder",
         "//:plusargs",
         "//:structs",
         "@cvm//:registry",
         "@cvm//:messenger",
     ],
     alwayslink = True,
-    linkopts = ["-lrt", "-lboost_program_options"],
+    linkopts = ["-lrt"],
     visibility = ["//visibility:public"],
     strip_include_prefix = ".",
-    local_defines = ["LZ4_COMPRESS"],
 )
 
 cc_library(
