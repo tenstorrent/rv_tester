@@ -51,3 +51,5 @@ DECLARE_bool(dbg_rnmi_ebreak_trigger);
 DECLARE_bool(dbg_rnmi_priority_trigger); 
 DECLARE_bool(dbg_rnmi_priv_de_trigger); 
 DECLARE_bool(dbg_rnmi_priv_dp_trigger); 
+DECLARE_bool(aplic_is_memory); 
+DECLARE_string(stee_secure_region); 
