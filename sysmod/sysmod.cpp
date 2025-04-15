@@ -1028,7 +1028,7 @@ sysmod::bin_load(const std::string load, bool lz4_compressed)
                             dynamic_cast<sysmod_mem&>(*dev("memory")).init_bin(file, offset)
           )
      ) {
-    cvm::log(cvm::ERROR, "No memory defined");
+    cvm::log(cvm::ERROR, "Error: No memory defined\n");
     return false;
   }
 
@@ -1056,7 +1056,7 @@ sysmod::load_prog(const std::string& hex, const std::string& load, const std::st
     if (hex != "") {
       cvm::log(cvm::MEDIUM, "Loading {}\n", hex);
       if (not dev(tag) or not dynamic_cast<sysmod_mem&>(*dev(tag)).init_hex(hex)) {
-        cvm::log(cvm::ERROR, "No memory defined");
+        cvm::log(cvm::ERROR, "Error: No memory defined\n");
         return;
       }
       cvm::log(cvm::MEDIUM, "Loading {} complete\n", hex);
@@ -1088,7 +1088,7 @@ sysmod::load_prog(const std::string& hex, const std::string& load, const std::st
     return;
   }
 
-  cvm::log(cvm::ERROR, "No memory found\n");
+  cvm::log(cvm::ERROR, "Error: No memory found\n");
 }
 
 void
