@@ -58,6 +58,7 @@ namespace {
       CSR(FFLAGS,           0x001, "fflags"        ,true)                      \
       CSR(FRM,              0x002, "frm")                                      \
       CSR(FCSR,             0x003, "fcsr")                                     \
+      CSR(SEED,             0x015, "seed")                                     \
       CSR(SSTATUS,          0x100, "sstatus"       ,true, true, MSTATUS)       \
       CSR(SIE,              0x104, "sie"           ,true)                      \
       CSR(STVEC,            0x105, "stvec"         ,true)                      \
