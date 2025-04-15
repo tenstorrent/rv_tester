@@ -301,7 +301,7 @@ sysmod::sc_harvest_plusargs()
 
   FLAGS_rand_sp_ways = FLAGS_rand_sp_ways || FLAGS_enable_sp_init;
   // Plusargs: num_sc_dis_ways, sc_dis_ways_mask, num_sp_ways
-  int32_t nways = cvm::topology::attr(cvm::topology::get_from_type("CORE", 0), "SC_NUM_WAYS").second;
+  int32_t nways = cvm::topology::attr(cvm::topology::get_from_type("SC", 0), "SC_NUM_WAYS").second;
   int32_t dis_ways = FLAGS_num_sc_dis_ways;
   int32_t sp_ways = FLAGS_num_sp_ways;
   int32_t mask = FLAGS_sc_dis_ways_mask;
