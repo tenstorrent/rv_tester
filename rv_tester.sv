@@ -1072,6 +1072,7 @@ module rv_tester
             .ID_WIDTH(AxiIdWidthMstRv),
             .STRB_WIDTH(topology.TOP.PLATFORM.AXI.STRB_WIDTH),
             .R_Q_MAX(topology.TOP.PLATFORM.AXI.R_Q_MAX),
+            .B_Q_MAX(topology.TOP.PLATFORM.AXI.B_Q_MAX),
             .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.AXI.ID, p)),
             .tag(tag),
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(0)
@@ -1144,6 +1145,7 @@ module rv_tester
             .ID_WIDTH(topology.TOP.PLATFORM.NCIO_AXI.ID_WIDTH),
             .STRB_WIDTH(topology.TOP.PLATFORM.NCIO_AXI.STRB_WIDTH),
             .R_Q_MAX(topology.TOP.PLATFORM.AXI.R_Q_MAX),
+            .B_Q_MAX(topology.TOP.PLATFORM.AXI.B_Q_MAX),
             .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.NCIO_AXI.ID, p)),
             .tag(tag),
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(1)
