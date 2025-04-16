@@ -2902,12 +2902,13 @@ uint64_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, uint64_t data, u
   }
 
   if(addr == SRMCFG){
+    uint64_t eff_data = data & mask;
     result = 0xfff0fff;
-    if(!(((data & result)&0xFFF) <= 0xF) || (!(((data & result)&0xFFF0000) == 0x0))){
+    if(!(((eff_data & result)&0xFFF) <= 0xF) && (((eff_data & result)&0xFFF0000) != 0x0)){
       result = 0x0;
     }
   }
-  return result;
+  return (result & mask);
 }
 
 bool bridge::is_custom_csr(uint64_t addr) {

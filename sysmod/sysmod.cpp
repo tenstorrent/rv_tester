@@ -301,7 +301,7 @@ sysmod::sc_harvest_plusargs()
 
   FLAGS_rand_sp_ways = FLAGS_rand_sp_ways || FLAGS_enable_sp_init;
   // Plusargs: num_sc_dis_ways, sc_dis_ways_mask, num_sp_ways
-  int32_t nways = cvm::topology::attr(cvm::topology::get_from_type("CORE", 0), "SC_NUM_WAYS").second;
+  int32_t nways = cvm::topology::attr(cvm::topology::get_from_type("SC", 0), "SC_NUM_WAYS").second;
   int32_t dis_ways = FLAGS_num_sc_dis_ways;
   int32_t sp_ways = FLAGS_num_sp_ways;
   int32_t mask = FLAGS_sc_dis_ways_mask;
@@ -1028,7 +1028,7 @@ sysmod::bin_load(const std::string load, bool lz4_compressed)
                             dynamic_cast<sysmod_mem&>(*dev("memory")).init_bin(file, offset)
           )
      ) {
-    cvm::log(cvm::ERROR, "No memory defined");
+    cvm::log(cvm::ERROR, "Error: No memory defined\n");
     return false;
   }
 
@@ -1056,7 +1056,7 @@ sysmod::load_prog(const std::string& hex, const std::string& load, const std::st
     if (hex != "") {
       cvm::log(cvm::MEDIUM, "Loading {}\n", hex);
       if (not dev(tag) or not dynamic_cast<sysmod_mem&>(*dev(tag)).init_hex(hex)) {
-        cvm::log(cvm::ERROR, "No memory defined");
+        cvm::log(cvm::ERROR, "Error: No memory defined\n");
         return;
       }
       cvm::log(cvm::MEDIUM, "Loading {} complete\n", hex);
@@ -1088,7 +1088,7 @@ sysmod::load_prog(const std::string& hex, const std::string& load, const std::st
     return;
   }
 
-  cvm::log(cvm::ERROR, "No memory found\n");
+  cvm::log(cvm::ERROR, "Error: No memory found\n");
 }
 
 void
