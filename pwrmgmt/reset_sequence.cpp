@@ -690,7 +690,7 @@ uint64_t reset_sequence::export_control_fuse_val() {
 uint64_t reset_sequence::sc_fuse_val() {
   uint64_t sc_fuse = 0;
 
-  int32_t nways = cvm::topology::attr(cvm::topology::get_from_type("CORE", 0), "SC_NUM_WAYS").second;
+  int32_t nways = cvm::topology::attr(cvm::topology::get_from_type("SC", 0), "SC_NUM_WAYS").second;
   for (int i=0; i<nways/4; ++i) {
     uint32_t segment = (~FLAGS_sc_dis_ways_mask >> (4*i)) & 0xf;
     if (segment == 0xf)
