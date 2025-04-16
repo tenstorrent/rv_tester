@@ -85,7 +85,10 @@ axi_sw<W,AW,AR,RQ,BQ>::~axi_sw() {
 template <typename W, typename AW, typename AR, typename RQ, typename BQ>
 cvm::messenger::task<bool> axi_sw<W,AW,AR,RQ,BQ>::pop_reorder_q() {
 
-  unsigned position = cvm::rand::lcg::generate(FLAGS_axi_sw_reorder_window);
+  if (!a_window_.size())
+    co_return false;
+
+  unsigned position = cvm::rand::lcg::generate(a_window_.size());
   axi::id_t id = a_window_[position].id;
   bool w = a_window_[position].w;
 
@@ -95,25 +98,29 @@ cvm::messenger::task<bool> axi_sw<W,AW,AR,RQ,BQ>::pop_reorder_q() {
       });
 
   position = std::distance(a_window_.begin(), it);
-
-  // stupid way to check write data is available
-  unsigned w_in_front = std::count_if(a_window_.begin(), a_window_.begin() + position, [] (const auto& p) {
-        return p.w;
-      });
-
-  if (w_in_front >= w_window_.size())
-    co_return false;
-
   axi::a_t aaa = *it;
-  a_window_.erase(it);
-  co_await a(std::move(aaa));
 
   if (aaa.w) {
+    // stupid way to check write data is available
+    unsigned w_in_front = std::count_if(a_window_.begin(), a_window_.begin() + position, [] (const auto& p) {
+          return p.w;
+        });
+
+    if (w_in_front >= w_window_.size())
+      co_return false;
+
+    a_window_.erase(it);
+    co_await a(std::move(aaa));
+
     // we're guaranteed to not co_await in a() if aw, so this is safe to do
     auto it2 = w_window_.begin() + w_in_front;
     axi::w_t ww = *it2;
     w_window_.erase(it2);
     co_await this->w(std::move(ww));
+  }
+  else {
+    a_window_.erase(it);
+    co_await a(std::move(aaa));
   }
 
   co_return true;
@@ -369,7 +376,7 @@ extern "C" {
   }
 
   void axi_sw_reorder_flush(cvm::topology::loc_t loc) {
-    cvm::registry::messenger.signal_async<axi_sw_defs::reorder_q_flush_t>(loc, axi_sw_defs::reorder_q_flush_t{});
+    cvm::registry::messenger.signal<axi_sw_defs::reorder_q_flush_t>(loc, axi_sw_defs::reorder_q_flush_t{});
     return;
   }
 

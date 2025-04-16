@@ -318,7 +318,6 @@ module axi_sw #(
             /* verilator lint_off BLKSEQ */
             automatic int unsigned max     = cvm_plusargs::get_int("axi_sw_read_latency_max");
             automatic int unsigned fixed   = cvm_plusargs::get_int("axi_sw_read_latency_fixed");
-            automatic int unsigned reorder = cvm_plusargs::get_int("axi_sw_reorder_window");
             read_latency_timeout_threshold = cvm_plusargs::get_int("axi_sw_read_latency_timeout_threshold");
             read_latency_fifo_threshold    = cvm_plusargs::get_int("axi_sw_read_latency_fifo_threshold");
             reorder_latency_timeout        = cvm_plusargs::get_int("axi_sw_reorder_timeout");
@@ -345,9 +344,9 @@ module axi_sw #(
     ) ar_history (
         .clk,
         .reset_n,
-        .push(axi_mst_ar_valid && axi_slv_ar_ready && read_latency != '0),
+        .push(axi_mst_ar_valid && axi_slv_ar_ready),
         .d(CW'(clocks)),
-        .pop (axi_slv_r_valid  && axi_mst_r_ready  && read_latency != '0 && axi_slv_r_last), // axi_sw_r_wptr != axi_sw_r_wptr_nxt
+        .pop (axi_slv_r_valid  && axi_mst_r_ready && axi_slv_r_last), // axi_sw_r_wptr != axi_sw_r_wptr_nxt
         .q(ar_history_q),
         .full(ar_history_full),
         .size(ar_history_size),
@@ -411,7 +410,7 @@ module axi_sw #(
 
     int unsigned reorder_timeout;
     always_ff @(posedge clk) begin
-      if (!reset_n || (reorder_window != '0)) begin
+      if (!reset_n || (reorder_window == '0)) begin
         reorder_timeout <= '0;
       end
       else begin
