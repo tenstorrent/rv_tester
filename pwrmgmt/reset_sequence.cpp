@@ -270,7 +270,8 @@ cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
 
 cvm::messenger::task<void> reset_sequence::cpl_fw_reset_sequence(rst_t rst_type) {
   uint64_t fuse =  fuse_val();
-  co_await write(cpl_sram_core_fuse, SZ_8B, fuse, boot_interface);
+  co_await write(cpl_sram_fuse_cfg, SZ_8B, fuse, boot_interface);
+  co_await write(cpl_sram_core_reset_vector_cfg, SZ_8B, FLAGS_resetpc, boot_interface);
   co_await write(cpl_core_reset_csr, SZ_4B, 0xFFFFFFFF, boot_interface);
   co_await wait_reset_release();
   // CPL co_await check_system_ready();
