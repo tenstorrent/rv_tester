@@ -6,6 +6,8 @@
 #include <cassert>
 #include <vector>
 
+DECLARE_bool(perf);
+
 class pmu {
 
 public:
