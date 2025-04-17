@@ -14,7 +14,7 @@
 #include <fmt/format.h>
 #include "cosim/utils/eot/eot_plusargs.h"
 #include "preload_axi_llc/preload_axi_llc.hpp"
-#include "pmu/pmu_plusargs.hpp"
+#include "pmu/pmu_plusargs.h"
 
 
 static bool validate_ge0(const char* flagname, const int value) {
