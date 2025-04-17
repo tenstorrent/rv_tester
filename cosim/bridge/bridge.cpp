@@ -2748,7 +2748,7 @@ void bridge::enter_debug_mode(rv_debug_t& d) {
   };
   if (FLAGS_bridge_log)
     bridge_log_(cvm::NONE, "<{}> Enter debug mode\n", d.cycle);
-  if (!debug_mode_) {
+  if (!debug_mode_ && d.enter) {
     IF_DEBUG("Sending message to whisper to enable debug mode");
     if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperEnterDebugRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), d.hart)) {
       error("Hart {}: Failed to enter debug mode\n", id_);
