@@ -50,8 +50,12 @@ void aclint_checker::process(const rv_tester_transactions::aclint_checker::cr_ac
     MmrWr m;
     
     m.addr = cr_ac_mmrwrite.addr;
-    m.data = cr_ac_mmrwrite.data;
     m.mask = cr_ac_mmrwrite.mask;
+    size_t sz = (cr_ac_mmrwrite.mask == 0xFF) ?  3 :
+                (cr_ac_mmrwrite.mask == 0x0F) ?  2 :
+                (cr_ac_mmrwrite.mask == 0x03) ?  1 : 0;
+    uint64_t sz_mask = (sz == 3) ? ~uint64_t(0) : ((uint64_t)1 << ((1<<sz)*8)) - 1;
+    m.data = cr_ac_mmrwrite.data & sz_mask;
     m.datavalid = false;
 
     cvm::log(cvm::HIGH, "[ACLINT CHECKER] AC MMR WRITES: location {} addr {:#x} data {:#x} mask {:#x} \n", cr_ac_mmrwrite.location, cr_ac_mmrwrite.addr, cr_ac_mmrwrite.data, cr_ac_mmrwrite.mask);
