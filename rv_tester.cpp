@@ -14,6 +14,7 @@
 #include <fmt/format.h>
 #include "cosim/utils/eot/eot_plusargs.h"
 #include "preload_axi_llc/preload_axi_llc.hpp"
+#include "pmu/pmu_plusargs.h"
 
 
 static bool validate_ge0(const char* flagname, const int value) {
@@ -298,11 +299,14 @@ extern "C" {
             FLAGS_rv_tester_terminate = false;
             FLAGS_signal_async = false;
             FLAGS_hw_eot_enable = false;
+            FLAGS_perf = false;
 
             rv_tester_cvm_error_handler();
             rv_tester_build_registry();
             std::atexit([] () {
-                while(!rv_tester_shutdown_registry());
+                if (!rv_tester_shutdown_registry()) {
+                    cvm::log(cvm::ERROR, "[offline_dpi] failed to shutdown registry\n");
+                }
                 rv_tester_dm_shutdown_registry();
             });
         }
