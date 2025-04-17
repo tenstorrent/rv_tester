@@ -77,6 +77,7 @@ import rv_tester_params:: * ;
     typedef enum bit {idle,check} checker_state;
     checker_state [8:0] st;
     logic [8:0] [63:0] counter,counter_check,counter_next, mtimecmpval;
+    logic [63:0] counter_mtip8;
     logic [8:0] mtimecmp_wr_valid;
     logic wtimecmp_wr_valid;
     logic mtime_wr_valid;
@@ -145,9 +146,10 @@ import rv_tester_params:: * ;
                         : (counter[k] < 'd10 ? 64'b0 : 64'(counter[k] - 'd10));
     always @(posedge rf_clk) begin
     if (dut_reset) counter[k] <= 'hffffffff;
-    else counter[k] <= (k == 8) ? min(counter_next) : counter_next[k];
+    else counter[k] <= counter_next[k];
     end
     always @(posedge rf_clk) begin
+    counter_mtip8 <= min(counter_next);
     if (dut_reset) mtimecmpval[k] <= 'hffffffff;
     else if(mtimecmp_wr_valid[k]) mtimecmpval[k] <= ((AcReqPktRfClki.mask == 'hf) ? {mtimecmpval[k][63:32], AcReqPktRfClki.data[31:0]} : AcReqPktRfClki.data);
     end
@@ -204,8 +206,8 @@ import rv_tester_params:: * ;
     assign coredisabled = disablef[asserti];
     assign coreid = vid[asserti];
     logic fail_mtishouldbeON, fail_mtishouldbeOFF;
-    assign fail_mtishouldbeON = (AcMtipi[asserti] === '0) &&  (counter[coreid] == 0 && ~coredisabled);
-    assign fail_mtishouldbeOFF =(AcMtipi[asserti] === '1) && ~(counter[coreid] == 0 && ~coredisabled);
+    assign fail_mtishouldbeON = (AcMtipi[asserti] === '0) &&  ((coreid == 8) ? counter_mtip8 == 0 : (counter[coreid] == 0 && ~coredisabled));
+    assign fail_mtishouldbeOFF =(AcMtipi[asserti] === '1) && ~((coreid == 8) ? counter_mtip8 == 0 : (counter[coreid] == 0 && ~coredisabled));
 
     logic [4:0] cycles_in_fail_mtishouldbeON, cycles_in_fail_mtishouldbeOFF;
     always @(posedge rf_clk) begin
