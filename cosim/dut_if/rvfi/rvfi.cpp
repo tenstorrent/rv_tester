@@ -147,7 +147,6 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   if (loc_ != m_rvfi.location)
     return;
 
-
   // Construct rv_instr_t and send to bridge
   rv_instr_t instr;
   make_instr(m_rvfi, instr);
@@ -161,14 +160,18 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
 
   prev_uop_tag_ = m_rvfi.order;
 
-  if (vec_cmode_)
-    if (vec_cmode_tags_.find(m_rvfi.order) == vec_cmode_tags_.end())
+  if (vec_cmode_ && vec_cmode_tags_.find(m_rvfi.order) == vec_cmode_tags_.end())
       vec_cmode_tags_.emplace(m_rvfi.order, vec_cmode_first_tag_);
 
-  if (patch_mode_ && FLAGS_patch_mode_tag_override)
+  if (patch_mode_) {
+    if (!patch_mode_first_tag_) {
+      patch_mode_first_tag_ = m_rvfi.order;
+      instr.tag = patch_mode_first_tag_;
+    }
     if (patch_mode_tags_.find(m_rvfi.order) == patch_mode_tags_.end())
       patch_mode_tags_.emplace(m_rvfi.order, patch_mode_first_tag_);
-
+    log(cvm::HIGH, "Patch mode tag={} first_tag={}\n", m_rvfi.order, patch_mode_first_tag_);
+  }
 
   if (!m_rvfi.last_uop)
     return;
@@ -226,32 +229,20 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
     icause_ = m_trap.cause & 0x3f;
 
   } else if (m_trap.id == EXCP) {
-    
-    if (FLAGS_cosim) {
-      if (m_trap.cause == 60) { // Patch special case
-        cvm::log(cvm::HIGH, "Enter patch via exception\n");
-        bridge_->set_patch_mode(ENTER_PATCH);
-        patch_mode_ = true;
-        if (FLAGS_patch_mode_tag_override)
-          patch_mode_first_tag_ = m_trap.order;
-      }
-    }
-    // Set exception state
+
     nmi_ = false;
     intr_ = false;
     excp_ = true;
     ecause_ = m_trap.cause & 0xff;
-    // RVTOOLS-3265, RVTOOLS-3479: Adjust tag for conservative mode vector instructions
-    // Capture the tag and use it for all activity related to
-    // the vector instruction
-    if (FLAGS_vec_cmode_tag_override && (ecause_ == CUSTOM_VEC_CMODE)) {
-      vec_cmode_ = true;
-      vec_cmode_first_tag_ = m_trap.order;
-    } else {
-      // Capture the tag of any exceptions that happen in the shadow of conservative mode
-      if (vec_cmode_)
-        if (vec_cmode_tags_.find(m_trap.order) == vec_cmode_tags_.end())
-          vec_cmode_tags_.emplace(m_trap.order, vec_cmode_first_tag_);
+    if (FLAGS_cosim && ecause_ == 60) {
+      cvm::log(cvm::HIGH, "Enter patch via exception\n");
+      bridge_->set_patch_mode(ENTER_PATCH);
+      patch_mode_ = true;
+    } else if (FLAGS_vec_cmode_tag_override && (ecause_ == CUSTOM_VEC_CMODE)) {
+      vec_cmode_ = true;                      // RVTOOLS-3265, RVTOOLS-3479: Adjust tag for conservative mode vector instructions
+      vec_cmode_first_tag_ = m_trap.order;    // Capture the tag and use it for all activity related to the vector instruction
+    } else if (vec_cmode_ && (vec_cmode_tags_.find(m_trap.order) == vec_cmode_tags_.end())) {
+      vec_cmode_tags_.emplace(m_trap.order, vec_cmode_first_tag_); // Capture the tag of any exceptions that happen in the shadow of conservative mode
     }
   }
 }
@@ -459,6 +450,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
     cvm::log(cvm::HIGH, "CLOCK={}: Patch mode turned OFF\n",m_rvfi.cycle);
     bridge_->set_patch_mode(EXIT_PATCH);
     patch_mode_ = false;
+    patch_mode_first_tag_ = 0;
   }
 
   if ((instr.priv & 0x7) == 0x3)
@@ -503,6 +495,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
       cvm::log(cvm::HIGH, "Patch mode: turned OFF with Ucode instruction={} time={}\n",m_rvfi.insn,m_rvfi.cycle);
       bridge_->set_patch_mode(EXIT_PATCH);
       patch_mode_ = false;
+      patch_mode_first_tag_ = 0;
     }
     priv_ = m_rvfi.mode;
     if (!priv_to_string.count(static_cast<priv>(instr.priv))) {
