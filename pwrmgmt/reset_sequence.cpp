@@ -12,7 +12,6 @@
 
 REGISTRY_register(reset_sequence, PWRMGMT, cvm::registry::all);
 
-DECLARE_bool(low_power_seq);
 DEFINE_bool(pwrmgmt, false, "Runtime disable for pwrmgmt");
 DEFINE_bool(cpl_core_en, false, "Enable reset, bootup flow via CPL FW");
 DEFINE_uint32(pll_pwrup_timeout, 50, "Number of soc cycles expected for pll power up to complete");

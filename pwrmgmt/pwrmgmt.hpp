@@ -4,6 +4,8 @@
 #include "cvm/logger.hpp"
 #include <map>
 
+DECLARE_bool(low_power_seq);
+
 namespace {
   constexpr uint32_t pll_ip_ver             = 0x210'3000;
   constexpr uint32_t pll_control            = 0x210'3004;
