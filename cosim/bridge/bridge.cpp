@@ -2908,7 +2908,7 @@ uint64_t bridge::modify_csr_mask(hart_id_t hart, uint64_t addr, uint64_t data, u
       result = 0x0;
     }
     else
-      result = result & eff_data;
+      result = result & get_csr_mask(hart, addr); // Similar to HGATP handling
   }
   return result;
 }
