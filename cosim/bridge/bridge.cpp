@@ -2317,12 +2317,12 @@ void bridge::process_dut_mcm_insert(hart_id_t hart, mem_t& m) {
   }
   if (m.v_ext){
     std::vector<uint64_t> data_vec = create_dword_vec(m.data_vec);
-    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmVecInsertRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, data_vec, valid)|| !valid) && FLAGS_whisper_client_check) {
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmVecInsertRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, data_vec, m.elem_idx, m.field, valid)|| !valid) && FLAGS_whisper_client_check) {
       error("Hart {}: Failed mcm load insert\n", hart);
       return;
     }
   } else {
-    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmInsertRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, m.data, valid)|| !valid) && FLAGS_whisper_client_check) {
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmInsertRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, m.data, m.elem_idx, m.field, valid)|| !valid) && FLAGS_whisper_client_check) {
       error("Hart {}: Failed mcm load insert\n", hart);
       return;
     }
@@ -2345,12 +2345,12 @@ void bridge::process_dut_mcm_bypass(hart_id_t hart, mem_t& m) {
 
   if (m.v_ext){
     std::vector<uint64_t> data_vec = create_dword_vec(m.data_vec);
-    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmVecBypassRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, data_vec, valid)|| !valid) && FLAGS_whisper_client_check) {
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmVecBypassRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, data_vec, m.elem_idx, m.field, valid)|| !valid) && FLAGS_whisper_client_check) {
       error("Hart {}: Failed mcm store bypass\n", hart);
       return;
     }
   } else {
-    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmBypassRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, m.data, valid)|| !valid) && FLAGS_whisper_client_check) {
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmBypassRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, m.data, m.elem_idx, m.field, valid)|| !valid) && FLAGS_whisper_client_check) {
       error("Hart {}: Failed mcm store bypass\n", hart);
       return;
     }
