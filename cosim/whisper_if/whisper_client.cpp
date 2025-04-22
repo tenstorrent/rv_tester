@@ -118,10 +118,10 @@ whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) : loc_(loc
   cvm::registry::messenger.procedure<whisperChangeRPC>(loc, [this] (int hart, uint32_t& resource, uint64_t& addr, uint64_t& value, bool& valid) {return this->whisperChange(hart, resource, addr, value, valid);});
   cvm::registry::messenger.procedure<whisperMcmReadRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, unsigned elemIx, unsigned field, bool& valid) {return this->whisperMcmRead(hart, time, instrTag, addr, size, value, elemIx, field, valid);});
   cvm::registry::messenger.procedure<whisperMcmVecReadRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, unsigned elemIx, unsigned field, bool& valid) {return this->whisperMcmVecRead(hart, time, instrTag, addr, size, value, elemIx, field, valid);});  
-  cvm::registry::messenger.procedure<whisperMcmVecInsertRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, bool& valid) {return this->whisperMcmVecInsert(hart, time, instrTag, addr, size, value, valid);});
-  cvm::registry::messenger.procedure<whisperMcmInsertRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, bool& valid) {return this->whisperMcmInsert(hart, time, instrTag, addr, size, value, valid);});
-  cvm::registry::messenger.procedure<whisperMcmVecBypassRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, bool& valid) {return this->whisperMcmVecBypass(hart, time, instrTag, addr, size, value, valid);});
-  cvm::registry::messenger.procedure<whisperMcmBypassRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, bool& valid) {return this->whisperMcmBypass(hart, time, instrTag, addr, size, value, valid);});
+  cvm::registry::messenger.procedure<whisperMcmVecInsertRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, unsigned elemIx, unsigned field, bool& valid) {return this->whisperMcmVecInsert(hart, time, instrTag, addr, size, value, elemIx, field, valid);});
+  cvm::registry::messenger.procedure<whisperMcmInsertRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, unsigned elemIx, unsigned field, bool& valid) {return this->whisperMcmInsert(hart, time, instrTag, addr, size, value, elemIx, field, valid);});
+  cvm::registry::messenger.procedure<whisperMcmVecBypassRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, unsigned elemIx, unsigned field, bool& valid) {return this->whisperMcmVecBypass(hart, time, instrTag, addr, size, value, elemIx, field, valid);});
+  cvm::registry::messenger.procedure<whisperMcmBypassRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, unsigned elemIx, unsigned field, bool& valid) {return this->whisperMcmBypass(hart, time, instrTag, addr, size, value, elemIx, field, valid);});
   cvm::registry::messenger.procedure<whisperMcmWriteRPC>(loc, [this] (int hart, uint64_t time, uint64_t addr, unsigned size, svOpenArrayHandle handle, uint64_t mask, bool& valid) {return this->whisperMcmWrite(hart, time, addr, size, handle, mask, valid);});
   cvm::registry::messenger.procedure<whisperMcmIFetchRPC>(loc, [this] (int hart, uint64_t time, uint64_t addr, bool& valid) {return this->whisperMcmIFetch(hart, time, addr, valid);});
   cvm::registry::messenger.procedure<whisperMcmIEvictRPC>(loc, [this] (int hart, uint64_t time, uint64_t addr, bool& valid) {return this->whisperMcmIEvict(hart, time, addr, valid);});
@@ -817,7 +817,7 @@ whisperClient<URV>::whisperMcmVecRead(int hart, uint64_t time, uint64_t instrTag
 template <typename URV>
 bool
 whisperClient<URV>::whisperMcmVecInsert(int hart, uint64_t time, uint64_t instrTag, uint64_t addr,
-		    unsigned size, std::vector<uint64_t> value, bool& valid)
+		    unsigned size, std::vector<uint64_t> value, unsigned elemIx, unsigned field, bool& valid)
 {
   req.hart = hart;
   req.type = WhisperMessageType::McmInsert;
@@ -825,6 +825,7 @@ whisperClient<URV>::whisperMcmVecInsert(int hart, uint64_t time, uint64_t instrT
   req.instrTag = instrTag;
   req.address = addr;
   req.size = size;   // Total size in bytes
+  req.resource = (elemIx << 16) | (field & 0xffff);  // Pack elemIx and field into resource.
 
   std::vector<uint8_t> byte_value = convert_to_byte_array(value);
 
@@ -836,7 +837,7 @@ whisperClient<URV>::whisperMcmVecInsert(int hart, uint64_t time, uint64_t instrT
       uint8_t byte = byte_value[i];
       u64 = (u64 << 8) | byte;
     }
-    return whisperMcmInsert(hart, time, instrTag, addr, size, value[0], valid);
+    return whisperMcmInsert(hart, time, instrTag, addr, size, value[0], elemIx, field, valid);
   }
 
   for (unsigned i = 0; i < size; ++i) {
@@ -854,7 +855,7 @@ whisperClient<URV>::whisperMcmVecInsert(int hart, uint64_t time, uint64_t instrT
 template <typename URV>
 bool
 whisperClient<URV>::whisperMcmInsert(int hart, uint64_t time, uint64_t instrTag, uint64_t addr,
-		 unsigned size, uint64_t value, bool& valid)
+		 unsigned size, uint64_t value, unsigned elemIx, unsigned field, bool& valid)
 {
   req.hart = hart;
   req.type = WhisperMessageType::McmInsert;
@@ -863,6 +864,7 @@ whisperClient<URV>::whisperMcmInsert(int hart, uint64_t time, uint64_t instrTag,
   req.address  = addr;
   req.value    = value;
   req.size     = size;
+  req.resource = (elemIx << 16) | (field & 0xffff);  // Pack elemIx and field into resource.
 
   if (size > 8)
     {
@@ -883,7 +885,7 @@ whisperClient<URV>::whisperMcmInsert(int hart, uint64_t time, uint64_t instrTag,
 template <typename URV>
 bool
 whisperClient<URV>::whisperMcmVecBypass(int hart, uint64_t time, uint64_t instrTag, uint64_t addr,
-		    unsigned size, std::vector<uint64_t> value, bool& valid)
+		    unsigned size, std::vector<uint64_t> value, unsigned elemIx, unsigned field, bool& valid)
 {
   req.hart = hart;
   req.type = WhisperMessageType::McmBypass;
@@ -891,6 +893,7 @@ whisperClient<URV>::whisperMcmVecBypass(int hart, uint64_t time, uint64_t instrT
   req.instrTag = instrTag;
   req.address = addr;
   req.size = size;   // Total size in bytes
+  req.resource = (elemIx << 16) | (field & 0xffff);  // Pack elemIx and field into resource.
 
   std::vector<uint8_t> byte_value = convert_to_byte_array(value);
 
@@ -902,7 +905,7 @@ whisperClient<URV>::whisperMcmVecBypass(int hart, uint64_t time, uint64_t instrT
       uint8_t byte = byte_value[i];
       u64 = (u64 << 8) | byte;
     }
-    return whisperMcmBypass(hart, time, instrTag, addr, size, value[0], valid);
+    return whisperMcmBypass(hart, time, instrTag, addr, size, value[0], elemIx, field, valid);
   }
 
   for (unsigned i = 0; i < size; ++i) {
@@ -921,7 +924,7 @@ whisperClient<URV>::whisperMcmVecBypass(int hart, uint64_t time, uint64_t instrT
 template <typename URV>
 bool
 whisperClient<URV>::whisperMcmBypass(int hart, uint64_t time, uint64_t instrTag, uint64_t addr,
-		 unsigned size, uint64_t value, bool& valid)
+		 unsigned size, uint64_t value, unsigned elemIx, unsigned field, bool& valid)
 {
   req.hart = hart;
   req.type = WhisperMessageType::McmBypass;
@@ -930,6 +933,7 @@ whisperClient<URV>::whisperMcmBypass(int hart, uint64_t time, uint64_t instrTag,
   req.address = addr;
   req.value = value;
   req.size = size;
+  req.resource = (elemIx << 16) | (field & 0xffff);  // Pack elemIx and field into resource.
 
   if (size > 8)
     {
