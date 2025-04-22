@@ -165,11 +165,13 @@ cvm::messenger::task<uint64_t> scratchpad_random_sequence::axi_read_mmr_granular
   ar_txn.region = 0;
   ar_txn.atop   = 0;
   ar_txn.user   = 0;
+  ar_txn.seqid  =SCRATCHPAD_MEM_SEQ_ID;
 
   cvm::log(cvm::LOW, "[scratchpad_random_sequence] AXI READ MMR GRANULAR (read req):- addr={:#x} SEND SYSMOD SIGNAL\n", ar_txn.addr);
 
-  if (!cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_mst_loc_l, ar_txn , id))
-    co_return rdata;
+  if (!cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_mst_loc_l, ar_txn, id)) {
+    check_axi_rresp_timeout(ar_txn, id);
+  }
 
   auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(r_channel, [&id](const auto& r) { return r.id == id;});
   rdata = convert_to_dword_array(resp.data, 8, 8);
@@ -197,12 +199,14 @@ cvm::messenger::task<void> scratchpad_random_sequence::axi_read_granular(const t
   ar_txn.region  =0;
   ar_txn.atop  =0;
   ar_txn.user  =0;
+  ar_txn.seqid  =SCRATCHPAD_MEM_SEQ_ID;
   
   sp_xtor_num_accesses++;
   cvm::log(cvm::LOW, "[scratchpad_random_sequence] SP_XTOR AXI READ GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", ar_txn.addr);
 
-  if (!cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_mst_loc_l, ar_txn , id))
-    co_return;
+  if (!cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_mst_loc_l, ar_txn , id)) {
+    check_axi_rresp_timeout(ar_txn, id);
+  }
 
   auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(r_channel, [&id](const auto& r) { return r.id == id;});
   scratchpad_xtor_read_req_t scratchpad_xtor_rd;
@@ -211,17 +215,17 @@ cvm::messenger::task<void> scratchpad_random_sequence::axi_read_granular(const t
   scratchpad_xtor_rd.id = id;
   scratchpad_xtor_rd.data = resp.data;  
   for (int i = 0; i < int(resp.data.size()); ++i) {
-    cvm::log(cvm::FULL, "[scratchpad] read resp byte {} =  {:#X} \n",i,uint32_t(resp.data[i]));
+    cvm::log(cvm::FULL, "[scratchpad_random_sequence] read resp byte {} =  {:#X} \n",i,uint32_t(resp.data[i]));
   }
 
   scratchpad_read_resp_q.push(scratchpad_xtor_rd); 
-  cvm::log(cvm::FULL, "[scratchpad] read addr {:#X} completed\n",scratchpad_xtor_rd.addr);
+  cvm::log(cvm::FULL, "[scratchpad_random_sequence] read addr {:#X} completed\n",scratchpad_xtor_rd.addr);
 
   co_return;
 }
 
 cvm::messenger::task<void> scratchpad_random_sequence::axi_read(uint64_t addr, size_t length, uint32_t id) {
-  cvm::log(cvm::FULL, "[scratchpad] axi read addr= {:#X} id = {} length = {}  \n",addr,id,length);
+  cvm::log(cvm::FULL, "[scratchpad_random_sequence] axi read addr= {:#X} id = {} length = {}  \n",addr,id,length);
   transactor::read_t r ;
   r.addr = addr;
   r.length = length;
@@ -244,12 +248,13 @@ cvm::messenger::task<void> scratchpad_random_sequence::axi_write_mmr_granular() 
   aw_txn.region  =0;
   aw_txn.atop  =0;
   aw_txn.user  =8;
-  
+  aw_txn.seqid  =SCRATCHPAD_MEM_SEQ_ID;
  
-  cvm::log(cvm::LOW, "[Trickbox] SP_XTOR AXI MMR WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
+  cvm::log(cvm::LOW, "[scratchpad_random_sequence] SP_XTOR AXI MMR WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
 
-  if (!cvm::registry::messenger.call<overlay_mst_t::push_aw_no_id_rpc>(axi_mst_loc_l, aw_txn, id))
-    co_return;
+  if (!cvm::registry::messenger.call<overlay_mst_t::push_aw_no_id_rpc>(axi_mst_loc_l, aw_txn, id)) {
+    check_axi_bresp_timeout(aw_txn, id);
+  }
   
   co_return;
 }
@@ -282,6 +287,7 @@ cvm::messenger::task<void> scratchpad_random_sequence::axi_write_granular(uint64
   aw_txn.region  =0;
   aw_txn.atop  =0;
   aw_txn.user  =0;
+  aw_txn.seqid  =SCRATCHPAD_MEM_SEQ_ID;
   
   sp_xtor_num_accesses++;
   cvm::log(cvm::LOW, "[scratchpad_random_sequence] SP_XTOR AXI WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
@@ -292,8 +298,9 @@ cvm::messenger::task<void> scratchpad_random_sequence::axi_write_granular(uint64
     co_await tick();
   }
 
-  if (!cvm::registry::messenger.call<overlay_mst_t::push_aw_no_id_rpc>(axi_mst_loc_l, aw_txn, id))
-    co_return;
+  if (!cvm::registry::messenger.call<overlay_mst_t::push_aw_no_id_rpc>(axi_mst_loc_l, aw_txn, id)) {
+    check_axi_bresp_timeout(aw_txn, id);
+  }
   co_return;
 }
 
@@ -308,14 +315,14 @@ cvm::messenger::task<void> scratchpad_random_sequence::axi_write_data_granular()
   // Poke data to SP memory
   int hart = 0;
   bool valid;
-  cvm::log(cvm::HIGH, "[scratchpad_xtor] Backdoor whisper poke addr{:#x} poke_data {:#x} \n", scratchpad_addr_in_flight, w_txn.data[0]);
+  cvm::log(cvm::HIGH, "[scratchpad_random_sequence] Backdoor whisper poke addr{:#x} poke_data {:#x} \n", scratchpad_addr_in_flight, w_txn.data[0]);
   for (uint8_t i = 0; i < 64; ++i) {
     if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0, 'm', scratchpad_addr_in_flight+i, 1, w_txn.data[i], valid) || !valid) {
       cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
       co_return;
     }
     else {
-      cvm::log(cvm::HIGH, "[scratchpad_xtor] backdoor whisper poke  Successful for addr{:#x} poke_data {:#x} \n",scratchpad_addr_in_flight+i,w_txn.data[i]);
+      cvm::log(cvm::HIGH, "[scratchpad_random_sequence] backdoor whisper poke  Successful for addr{:#x} poke_data {:#x} \n",scratchpad_addr_in_flight+i,w_txn.data[i]);
     }
   }
 
@@ -357,4 +364,42 @@ cvm::messenger::task<void> scratchpad_random_sequence::trigger() {
   co_return;
 }
 
+cvm::messenger::task<void> scratchpad_random_sequence::check_axi_bresp_timeout(axi::a_no_id_t aw_txn, unsigned& id) {
 
+  uint32_t axi_bresp_cycle_cnt = 0;
+
+  while (true) {
+    co_await tick();
+
+    if (axi_bresp_cycle_cnt >= FLAGS_axi_resp_timeout) {
+      cvm::log(cvm::ERROR, "[scratchpad_random_sequence] [axi_mst] Error: No free id's remaining for axi master\n");
+      co_return;
+    }
+    axi_bresp_cycle_cnt++;
+
+    if (cvm::registry::messenger.call<overlay_mst_t::push_aw_no_id_rpc>(axi_mst_loc_l, aw_txn, id)) {
+      co_return;
+    }
+  }
+
+}
+
+cvm::messenger::task<void> scratchpad_random_sequence::check_axi_rresp_timeout(axi::a_no_id_t ar_txn, unsigned& id) {
+
+  uint32_t axi_rresp_cycle_cnt = 0;
+
+  while (true) {
+    co_await tick();
+
+    if (axi_rresp_cycle_cnt >= FLAGS_axi_resp_timeout) {
+      cvm::log(cvm::ERROR, "[scratchpad_random_sequence] [axi_mst] Error: No free id's remaining for axi master\n");
+      co_return;
+    }
+    axi_rresp_cycle_cnt++;
+
+    if (cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_mst_loc_l, ar_txn, id)) {
+      co_return;
+    }
+  }
+
+}

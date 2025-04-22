@@ -13,6 +13,7 @@
 DECLARE_bool(cla_clk_halt);
 DECLARE_bool(cla_nmi);
 DECLARE_bool(cla_rand_nmi_trig_en);
+DECLARE_uint32(axi_resp_timeout);
 
 class cla_cfg_seq {
 
@@ -67,6 +68,9 @@ class cla_cfg_seq {
 
     uint64_t convert_to_dword_array(const std::vector<uint8_t>& byte_array, uint8_t shift, size_t sz);
     std::vector<uint8_t> convert_to_byte_array(uint64_t data, uint8_t shift);
+
+    cvm::messenger::task<void> check_axi_bresp_timeout(axi::a_no_id_t aw_txn, unsigned& id);
+    cvm::messenger::task<void> check_axi_rresp_timeout(axi::a_no_id_t ar_txn, unsigned& id);
 
   private:
 
