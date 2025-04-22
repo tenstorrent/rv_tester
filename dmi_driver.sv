@@ -16,6 +16,8 @@ import rv_tester_params:: * ;
     input logic [31:0]              trigger_config,
     input logic                     priority_singlestep,
     input logic                     disable_haltpoll,
+    input logic                     disable_abscmdpoll,
+    input logic                     disable_triggerpoll,
 
     
     input logic                     dmi_req_ready,
@@ -201,7 +203,7 @@ import rv_tester_params:: * ;
       single_step_ahead_command_queue_backup.delete();
       single_step_quit_command_queue_backup .delete();
 
-      $display("[DMI Driver] Reset State Cleaned-up \n");
+      //$display("[DMI Driver] Reset State Cleaned-up \n");
     end
   endtask : reset_cleanup 
       
@@ -378,7 +380,7 @@ import rv_tester_params:: * ;
             ss_ndmreset = 1;
             $display("[Poll] SS_Ndmreset is set");
           end
-        end else if (cmd.addr === 'h17 && cmd.op === 'h2) begin
+        end else if (cmd.addr === 'h17 && cmd.op === 'h2 && ~disable_abscmdpoll) begin
           $display("[Poll] Seen Abstract Command Req, Doing Poll");
           abstr_cmd_req = 1;
           poll = 1;
@@ -538,7 +540,7 @@ import rv_tester_params:: * ;
           poll = 1;
           to_check_tselect = 0;
           read_tselect = 1;
-        end else if(check_hit_bit && cmd.addr === 'h4 && cmd.op === 'h1) begin
+        end else if((check_hit_bit || disable_triggerpoll) && cmd.addr === 'h4 && cmd.op === 'h1) begin
           poll = 1;
           check_hit_bit = 0;
           read_tdata1_hit = 1;
@@ -563,6 +565,10 @@ import rv_tester_params:: * ;
           poll = 1;
           check_cmisa_sdtrig = 0;
           read_cmisa_sdtrig = 1;
+        end else if(disable_abscmdpoll && cmd.addr === 'h16 && cmd.op === 'h1) begin
+          abstr_cmd_req = 1;
+          poll = 1;
+          $display("Check if abscmd is executed and busy is cleared");
         end
       end
     end
@@ -693,7 +699,7 @@ import rv_tester_params:: * ;
             if(dmi_resp.data[17:16] === 2'b11 && ~ss_ndmreset) begin
               resume_req = 0;
               poll = 0;
-              if(mcontrol6_trigger) begin
+              if(mcontrol6_trigger && ~disable_triggerpoll) begin
                 trigger_to_fire = 1;
                 mcontrol6_trigger = 0;
                 $display("[Poll] trigger_to_fire is set");
@@ -1036,12 +1042,19 @@ import rv_tester_params:: * ;
         end else if(read_tdata1_hit) begin
           trigger_index = tselect_value;
           read_tdata1_hit = 0;
-          poll = 0;
-          if(dmi_resp.data[22])begin
-            trigger_hit[trigger_index]= 1;
-            $display("hit is set for teslect:%h", tselect_value);
+          if(disable_triggerpoll)begin
+            if(~dmi_resp.data[22])begin
+              $display("hit is zero as trigger shouldn't be fired in Debug Mode");
+              poll = 0;
+            end
           end else begin
-            $display("hit not set for teslect:%h", tselect_value);
+            if(dmi_resp.data[22])begin
+              trigger_hit[trigger_index]= 1;
+              $display("hit is set for teslect:%h", tselect_value);
+            end else begin
+              $display("hit not set for teslect:%h", tselect_value);
+            end
+            poll = 0;
           end
         end else if(check_data0) begin
           data0_value = dmi_resp.data;

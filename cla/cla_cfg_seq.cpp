@@ -184,7 +184,7 @@ cvm::messenger::task<void> cla_cfg_seq::configure_cla_rand_nmi_trig_en() {
   wait_on_count = (rng()% 201) + 1000;    // On Delay 1000-1200 CLK cycle
   wait_off_count = (rng()% 101) + 300;    // Off Delay 300-400 CLK cycle
   event_count = (rng()% 71) + 200;       // Event on Delay 200-270 CLK cycle
-  eap_ctrl = (15 << 7);                   // Considering 15 value as per waves
+  eap_ctrl = (54 << 7);                   // Considering 15 value as per waves
   active_core = (FLAGS_num_harts == 1) ? 0 : (rng() % FLAGS_num_harts);
   reenable_rand_trig = 0;
   core_offset = (0x10000 * active_core);
@@ -359,11 +359,13 @@ cvm::messenger::task<void> cla_cfg_seq::axi_write_mmr_granular(uint64_t addr) {
   aw_txn.region  =0;
   aw_txn.atop  =0;
   aw_txn.user  =3;
+  aw_txn.seqid  =CLA_SEQ_ID;
   
   cvm::log(cvm::MEDIUM, "[cla] cla_cfg_seq WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
 
-  if (!cvm::registry::messenger.call<overlay_mst_t::push_aw_no_id_rpc>(axi_mst_loc_, aw_txn, id))
-    co_return;
+  if (!cvm::registry::messenger.call<overlay_mst_t::push_aw_no_id_rpc>(axi_mst_loc_, aw_txn, id)) {
+    check_axi_bresp_timeout(aw_txn, id);
+  }
   co_return;
  
 }
@@ -407,11 +409,14 @@ cvm::messenger::task<uint64_t> cla_cfg_seq::axi_read_mmr_granular(const transact
   ar_txn.region  =0;
   ar_txn.atop  =0;
   ar_txn.user  =3;
+  ar_txn.seqid  =CLA_SEQ_ID;
+
   
   cvm::log(cvm::FULL, "[cla] cla_cfg_seq AXI READ GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", ar_txn.addr);
 
-   if (!cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_mst_loc_, ar_txn , id))
-     co_return rdata;
+  if (!cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_mst_loc_, ar_txn , id)) {
+    check_axi_rresp_timeout(ar_txn, id);
+  }
 
   auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(channel);
 
@@ -451,4 +456,44 @@ void cla_cfg_seq::terminate_test(uint8_t terminate_test)
       cvm::log(cvm::NONE, "[cla] Test {} \n", terminate_test ? " terminated" : "not terminated");
       terminate_cla_cfg_seq_func(terminate_test);
     });
+}
+
+cvm::messenger::task<void> cla_cfg_seq::check_axi_bresp_timeout(axi::a_no_id_t aw_txn, unsigned& id) {
+
+  uint32_t axi_bresp_cycle_cnt = 0;
+
+  while (true) {
+    co_await tick();
+
+    if (axi_bresp_cycle_cnt >= FLAGS_axi_resp_timeout) {
+      cvm::log(cvm::ERROR, "[cla] [axi_mst] Error: No free id's remaining for axi master\n");
+      co_return;
+    }
+    axi_bresp_cycle_cnt++;
+
+    if (cvm::registry::messenger.call<overlay_mst_t::push_aw_no_id_rpc>(axi_mst_loc_, aw_txn, id)) {
+      co_return;
+    }
+  }
+
+}
+
+cvm::messenger::task<void> cla_cfg_seq::check_axi_rresp_timeout(axi::a_no_id_t ar_txn, unsigned& id) {
+
+  uint32_t axi_rresp_cycle_cnt = 0;
+
+  while (true) {
+    co_await tick();
+
+    if (axi_rresp_cycle_cnt >= FLAGS_axi_resp_timeout) {
+      cvm::log(cvm::ERROR, "[cla] [axi_mst] Error: No free id's remaining for axi master\n");
+      co_return;
+    }
+    axi_rresp_cycle_cnt++;
+
+    if (cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_mst_loc_, ar_txn, id)) {
+      co_return;
+    }
+  }
+
 }

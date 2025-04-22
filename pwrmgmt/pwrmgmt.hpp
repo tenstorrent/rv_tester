@@ -4,6 +4,8 @@
 #include "cvm/logger.hpp"
 #include <map>
 
+DECLARE_bool(low_power_seq);
+
 namespace {
   constexpr uint32_t pll_ip_ver             = 0x210'3000;
   constexpr uint32_t pll_control            = 0x210'3004;
@@ -21,6 +23,7 @@ namespace {
   constexpr uint32_t main_divider_div_idx   = 6;
   constexpr uint32_t pre_divider_div_idx    = 0;
 
+  constexpr uint32_t cpl_core_reset_csr     = 0x211'0020;
   constexpr uint32_t rst_ctl_ip_ver         = 0x210'2000;
   constexpr uint32_t rst_ctl_cold           = 0x210'2004;
   constexpr uint32_t rst_ctl_warm           = 0x210'2008;
@@ -71,6 +74,8 @@ namespace {
 
   constexpr uint32_t smc_local_base             =  0x0210'0000;
   constexpr uint32_t cpl_sram_base              =  smc_local_base + 0x40000;
+  constexpr uint32_t cpl_sram_fuse_cfg          =  smc_local_base + 0x49000;
+  constexpr uint32_t cpl_sram_core_reset_vector_cfg  =  smc_local_base + 0x49008;
   constexpr uint32_t cpl_sram_limit             =  smc_local_base + 0x4FFFF;
   constexpr uint32_t cpl_patch_ram_base         =  cpl_sram_base + 0x0c000;
   constexpr uint32_t cpl_patch_ram_ptrig_0      =  cpl_patch_ram_base + 0x0400;

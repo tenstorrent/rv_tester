@@ -82,7 +82,7 @@ module rv_tester
     import "DPI-C" function int rv_tester_parse_flags(); // dummy return value so that this gets called immediately. need this to happen before any other DPIs are called.
     import "DPI-C" function void rv_tester_set_seed();
     import "DPI-C" context function void rv_tester_cvm_error_handler();
-    import "DPI-C" context function void rv_tester_parse_memmap(int unsigned no_addr_rules, int numWays, int index_bits, int block_offset_bits);
+    import "DPI-C" context function void rv_tester_parse_memmap(int unsigned no_addr_rules, int num_ways, int num_sets, int num_blocks, int addr_width, int data_width);
     import "DPI-C" context function void rv_tester_build_registry();
     import "DPI-C" context function void rv_tester_no_dm_build_registry();
     import "DPI-C" function byte unsigned rv_tester_shutdown_registry();
@@ -152,7 +152,6 @@ module rv_tester
 
     logic terminate_1T = '0;
     logic terminated_1T = '0;
-    logic terminate_now;
     logic rerun_now;
     /* verilator lint_off UNOPTFLAT */
     rv_tester_pkg::terminate_t rv_tester_error_terminate;
@@ -183,6 +182,8 @@ module rv_tester
     int trigger_config = 0;
     bit priority_singlestep = 0;
     bit disable_haltpoll = 0;
+    bit disable_abscmdpoll = 0;
+    bit disable_triggerpoll = 0;
     int dm_single_step_count = 0;
     int dmi_poll_counter = 0;
     int dmi_poll_timeout = 50000;
@@ -199,7 +200,11 @@ module rv_tester
     
     localparam int AxiLLC_SetAssociativity = 32'd4;
     localparam int AxiLLC_NumLines = 32'd128;
-    localparam int AxiLLC_NumBlocks = 32'd4;
+    localparam int blocks_in_cacheline = 512/topology.TOP.PLATFORM.AXI.DATA_WIDTH;
+    localparam int AxiLLC_NumBlocks = blocks_in_cacheline < 2 ? 2 : blocks_in_cacheline;
+    if (topology.TOP.PLATFORM.AXI.DATA_WIDTH > 512 || (512 % topology.TOP.PLATFORM.AXI.DATA_WIDTH) != 0) begin
+        $error("axi data width %0d larger than 64 byts or not divisible into 64 bytes", topology.TOP.PLATFORM.AXI.DATA_WIDTH);
+    end
 
 
     bit gen_clocks = '0;
@@ -390,7 +395,7 @@ module rv_tester
                $display("[RVTESTER]: constructing registry without DM Model");
                rv_tester_no_dm_build_registry();
             end
-            rv_tester_parse_memmap(NoAddrRules, AxiLLC_SetAssociativity, $clog2(AxiLLC_NumLines), $clog2(AxiLLC_NumBlocks * 8));
+            rv_tester_parse_memmap(NoAddrRules, AxiLLC_SetAssociativity, AxiLLC_NumLines, AxiLLC_NumBlocks, topology.TOP.PLATFORM.AXI.ADDR_WIDTH + 1 /* cache has one more bit */, topology.TOP.PLATFORM.AXI.DATA_WIDTH);
 
             /* verilator lint_off BLKSEQ */
             // zebu bug doesn't allow nested function calls, so create intermediate variables
@@ -418,6 +423,8 @@ module rv_tester
             trigger_config       <= cvm_plusargs::get_int("trigger_config");
             priority_singlestep  <= cvm_plusargs::get_bool("priority_singlestep") != '0;
             disable_haltpoll     <= cvm_plusargs::get_bool("disable_haltpoll") != '0;
+            disable_abscmdpoll   <= cvm_plusargs::get_bool("disable_abscmdpoll") != '0;
+            disable_triggerpoll  <= cvm_plusargs::get_bool("disable_triggerpoll") != '0;
             sdtrig_multitrigger  <= cvm_plusargs::get_int("sdtrig_multitrigger");
             dm_single_step_count <= cvm_plusargs::get_int("dm_single_step_count");
             cb_poll              <= cvm_plusargs::get_bool("cb_async") == '0;
@@ -617,29 +624,32 @@ module rv_tester
     //ndmreset ack delay logic
     LU ndmreset_ack_clocks;
     logic ndmreset_ack_clocks_latched = 1'b0;
-    always@(posedge dut_clk[TB_CLK_IDX]) begin
-         /* verilator lint_off BLKSEQ */
-        if(!dut_reset_req)begin
-            ndmreset_ack_clocks_latched = 1'b0;
-             /* verilator lint_off ASSIGNIN */
-            ndmreset_ack = 1'b0;
-             /* verilator lint_on ASSIGNIN */
-        end
-          /* verilator lint_off WIDTH */
-        if(dut_reset_req & !ndmreset_ack_clocks_latched )begin
-           ndmreset_ack_clocks = clocks;
-           ndmreset_ack_clocks_latched = 1'b1;
-        end
 
-        if(clocks >= (ndmreset_ack_clocks + ndmreset_ack_delay))begin
-           /* verilator lint_off ASSIGNIN */
-           ndmreset_ack = 1'b1;
-            /* verilator lint_on ASSIGNIN */
+    always @(posedge dut_clk[TB_CLK_IDX]) begin
+        if(cold_reset === 1'b0)begin
+        if (!dut_reset_req) begin
+            ndmreset_ack_clocks_latched <= 1'b0;
+            ndmreset_ack <= 1'b0;
+        end else if (dut_reset_req && !ndmreset_ack_clocks_latched) begin
+            ndmreset_ack_clocks <= clocks;
+            ndmreset_ack_clocks_latched <= 1'b1;
+        end 
+        //else begin
+        //    ndmreset_ack_clocks_latched <= 1'b0;
+        //    ndmreset_ack <= 1'b0;
+        //end
+     /* verilator lint_off WIDTHEXPAND */
+        if (ndmreset_ack_clocks_latched && (clocks >= (ndmreset_ack_clocks + ndmreset_ack_delay))) begin
+        /* verilator lint_on WIDTHEXPAND */
+            ndmreset_ack <= 1'b1;
         end
-          /* verilator lint_on WIDTH */
-           /* verilator lint_on BLKSEQ */
-    
+        end
+        else begin
+            ndmreset_ack_clocks_latched <= 1'b0;
+            ndmreset_ack <= 1'b0;
+        end
     end
+
 
 `ifdef NEGEDGE_UNSUPPORTED
     always@(posedge dut_clk[TB_CLK_IDX]) begin
@@ -707,6 +717,8 @@ module rv_tester
         .trigger_config,
         .priority_singlestep,
         .disable_haltpoll,
+        .disable_abscmdpoll,
+        .disable_triggerpoll,
 
         .dmi_req_ready,
         .dmi_resp_valid,
@@ -1060,6 +1072,7 @@ module rv_tester
             .ID_WIDTH(AxiIdWidthMstRv),
             .STRB_WIDTH(topology.TOP.PLATFORM.AXI.STRB_WIDTH),
             .R_Q_MAX(topology.TOP.PLATFORM.AXI.R_Q_MAX),
+            .B_Q_MAX(topology.TOP.PLATFORM.AXI.B_Q_MAX),
             .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.AXI.ID, p)),
             .tag(tag),
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(0)
@@ -1132,6 +1145,7 @@ module rv_tester
             .ID_WIDTH(topology.TOP.PLATFORM.NCIO_AXI.ID_WIDTH),
             .STRB_WIDTH(topology.TOP.PLATFORM.NCIO_AXI.STRB_WIDTH),
             .R_Q_MAX(topology.TOP.PLATFORM.AXI.R_Q_MAX),
+            .B_Q_MAX(topology.TOP.PLATFORM.AXI.B_Q_MAX),
             .LOCATION(cvm_topology_gen::get_location(topology.TOP.PLATFORM.NCIO_AXI.ID, p)),
             .tag(tag),
             `RV_TESTER_TRANSACTIONS_AXI_SW_SOURCE_PARAMS(1)
@@ -1365,7 +1379,7 @@ module rv_tester
     `ifndef NO_PRELOAD
         if (way < AxiLLC_SetAssociativity) begin
             preload_data_file_arr[way] = file;
-            $display("Preload data file for way %0d set to: %s", way, file);
+            $display("%0t Preload data file for way %0d set to: %s", $time, way, file);
         end else begin
             $display("Error: Attempted to set preload file for invalid way %0d", way);
         end
@@ -1415,7 +1429,7 @@ module rv_tester
         .axi_resp_mst_up        ( axi_rsp_llc ),
         .addr_map               ( addr_map_final ),
         .bypass_mem             ( bypass_mem ),
-        .flush_cache            ( quiesced ),
+        .flush_cache            ( terminate && quiesced ),
         .flush_complete         ( flush_complete ),
         .bist_status_done       ()
         `ifndef NO_PRELOAD

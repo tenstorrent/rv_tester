@@ -10,6 +10,7 @@
 #include "svdpi.h"
 #include "axi_sw_mst.h"
 
+DECLARE_uint32(axi_resp_timeout); // Cycles to wait after Transactor-id pool overflow condition before raising no free ids error
 
 class reset_sequence {
 
@@ -53,11 +54,16 @@ class reset_sequence {
     cvm::messenger::task<void> tick();
     cvm::messenger::task<void> trigger();
     cvm::messenger::task<void> cpl_reset_sequence(rst_t );
+    cvm::messenger::task<void> cpl_fw_reset_sequence(rst_t );
+    cvm::messenger::task<void> check_system_ready();
+    cvm::messenger::task<void> send_start_of_execution_to_cpl();
     cvm::messenger::task<void> pll_startup_sequence();
     cvm::messenger::task<void> check_pll_status();
     cvm::messenger::task<void> clear_pll_status();
     cvm::messenger::task<void> pll_dfs_sequence();
     cvm::messenger::task<void> release_cpl_reset();
+    cvm::messenger::task<void> wait_reset_release();
+    cvm::messenger::task<void> wait_nofetch_release();
     cvm::messenger::task<void> program_fuses();
     cvm::messenger::task<void> program_patch();
     cvm::messenger::task<void> release_cpl_nofetch();
@@ -85,6 +91,9 @@ class reset_sequence {
     std::vector<uint64_t> convert_to_dword_array(const std::vector<uint8_t>& byte_array);
     std::vector<uint8_t> convert_to_byte_array(const std::vector<uint64_t>& dword_array);
     std::vector<uint64_t> concatenate_uint32_to_uint64(const std::vector<uint32_t>& input); 
+
+    cvm::messenger::task<void> check_axi_bresp_timeout(interface_t interface, unsigned& id, uint64_t addr, size_t sz, bool rsp_err_chk = true);
+    cvm::messenger::task<void> check_axi_rresp_timeout(interface_t interface, unsigned& id, uint64_t addr, size_t sz, bool rsp_err_chk = true);
 
     uint64_t fuse_val();
     uint64_t core_fuse_val();

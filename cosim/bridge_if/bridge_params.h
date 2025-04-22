@@ -58,6 +58,7 @@ namespace {
       CSR(FFLAGS,           0x001, "fflags"        ,true)                      \
       CSR(FRM,              0x002, "frm")                                      \
       CSR(FCSR,             0x003, "fcsr")                                     \
+      CSR(SEED,             0x015, "seed")                                     \
       CSR(SSTATUS,          0x100, "sstatus"       ,true, true, MSTATUS)       \
       CSR(SIE,              0x104, "sie"           ,true)                      \
       CSR(STVEC,            0x105, "stvec"         ,true)                      \
@@ -970,6 +971,7 @@ namespace {
         LCOFI       = 13,
         BUS_ERRI    = 23,
         C_HWAI      = 24,
+        C_ENTROPY   = 25,
         LO_PRI_RASI = 35,
         HI_PRI_RASI = 43
     } intr;
@@ -987,6 +989,7 @@ namespace {
         {MEI            , "MEI"}  ,
         {SGEI           , "SGEI"} ,
         {LCOFI          , "LCOFI"},
+        {C_ENTROPY      , "ENTROPY_SEED"},
         {BUS_ERRI       , "BUS_ERRI"},
         {C_HWAI         , "C_HWAI"} ,
         {LO_PRI_RASI    , "LO_PRI_RASI"},

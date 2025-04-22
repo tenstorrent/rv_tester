@@ -29,7 +29,7 @@ DEFINE_int32(axi_mst_brdy_low, 4, "Maximum  cycles of axi bready de-assertion");
 DEFINE_int32(axi_mst_rrdy_high, 4, "Maximum  cycles of axi rready assertion");
 DEFINE_int32(axi_mst_rrdy_low, 4, "Maximum  cycles of axi rready de-assertion");
 DEFINE_int64(axi_sw_rsp_toggle_start, 1000, "cycles of axi clock for axi_sw_rsp_toggle_start ");
-
+DEFINE_uint32(axi_resp_timeout, 10000, "Cycles to wait after Transactor-id pool overflow condition before raising no free ids error");
 
 
 
@@ -220,9 +220,8 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::a_wrapper(uint64_t req_addr, size_t req_length, 
     a.addr = req_addr;
     a.burst =axi::BURST_INCR; a.atop = false; a.lock = false;
 
-
-    if (!next_id(a.id)) {
-        cvm::log(cvm::ERROR, "[{}] Error: No free id's remaining for axi master\n", name_);
+    if (!next_id(a.id, a.seqid)) {
+        cvm::log(cvm::NONE, "[{}] No free id's remaining for axi master\n", name_);
         return false;
     }
 
@@ -246,8 +245,8 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_a_no_id(const bool& aw, const axi::a_no_id_
     axi::a_t a {a_no_id};
     a.w = aw;
 
-    if (!next_id(id)) {
-        cvm::log(cvm::NONE, "[{}] Error: No free id's remaining for axi master\n", name_);
+    if (!next_id(id, a.seqid)) {
+        cvm::log(cvm::NONE, "[{}] No free id's remaining for axi master\n", name_);
         return false;
     }
     a.id = id;

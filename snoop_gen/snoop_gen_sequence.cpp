@@ -9,7 +9,7 @@ DEFINE_bool(rand_snoop_size_en, true, "Enable random snoops of different size on
 DEFINE_bool(rand_snoop_unaligned_addr_en, true, "Enable random snoops of unaligned on overlay path in the sim");
 DEFINE_string(max_snoop_count, "7:10", "Number of snoops to be sent if  enabled");
 DEFINE_string(rand_snoop_mode, "single", "snoop req modes: burst:single:single_shuffled");
-DEFINE_int32(snoop_start_delay, 1000, "TB cycle after which snoop driving random mode enabled");
+DEFINE_int32(snoop_start_delay, 500, "TB cycle after which snoop driving random mode enabled");
 DEFINE_int32(snoop_trigger_threshold, 5, "Number of snoops to populate in queue before triggering snoop request");
 DEFINE_int32(snoop_max_burst_size, 2, "Number of b2b snoop request");
 
@@ -71,10 +71,12 @@ void snoop_gen_sequence::rand_mode_thread() {
 cvm::messenger::task<void> snoop_gen_sequence::rand_mode() {
    while(1){
       cvm::log(cvm::HIGH, "[SNOOP_GEN_SEQUENCE] rand_mode thread wait for tick \n");
-      co_await tick();
+      for(int delay_cnt=0; delay_cnt < int(FLAGS_snoop_start_delay); delay_cnt++){
+        co_await tick();
+      }
       
       cvm::log(cvm::HIGH, "[SNOOP_GEN_SEQUENCE] snoops driven {} max snoop count {} \n",snoops_driven,max_snoop_count);
-     if(snoops_driven <  3){//max_snoop_count){
+     if(snoops_driven < max_snoop_count){//max_snoop_count){
         if(FLAGS_rand_snoop_mode == "burst"){
           cvm::log(cvm::HIGH, "[SNOOP_GEN_SEQUENCE] burst mode : snoops_driven {} max_snoop_count {}  \n",snoops_driven,max_snoop_count);
           if(int(snoop_addrs.size()) > FLAGS_snoop_trigger_threshold ){
@@ -92,7 +94,7 @@ cvm::messenger::task<void> snoop_gen_sequence::rand_mode() {
         }
         if(FLAGS_rand_snoop_mode == "single"){
           cvm::log(cvm::HIGH, "[SNOOP_GEN_SEQUENCE] single mode : snoops_driven {} max_snoop_count {}  \n",snoops_driven,max_snoop_count);
-          if(snoop_addrs.size() > 4){
+          if(int(snoop_addrs.size()) > FLAGS_snoop_trigger_threshold){
                cvm::log(cvm::HIGH, "[SNOOP_GEN_SEQUENCE] single mode : snoop_loop selected addr: {:#x} \n",snoop_addrs[0]);
                overlay_read(snoop_addrs[0]);
                snoop_addrs.erase(snoop_addrs.begin()); 
@@ -140,6 +142,7 @@ void snoop_gen_sequence::overlay_read(uint64_t addr) {
    };
    cvm::registry::messenger.fork(l, r, this);
 }
+
 cvm::messenger::task<void> snoop_gen_sequence::blocking_read(const transactor::read_t& r ) {
 
   axi::a_no_id_t ar_txn;
@@ -164,13 +167,15 @@ cvm::messenger::task<void> snoop_gen_sequence::blocking_read(const transactor::r
   ar_txn.region  =0;
   ar_txn.atop  =0;
   ar_txn.user  =0;
+  ar_txn.seqid  =SNOOP_GEN_SEQ_ID;
   
   cvm::log(cvm::HIGH, "[snoop_gen_sequence] blocking read data begin: \n");
 
   read_in_flight = true;
   //cvm::registry::messenger.signal(axi_mst_loc_l, ar_txn);
-  if (!cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_mst_loc_l, ar_txn , id))
-    co_return;
+  if (!cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_mst_loc_l, ar_txn , id)) {
+    check_axi_rresp_timeout(ar_txn, id);
+  }
 
   //auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(axi_mst_loc_l);
   auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(channel, [&id](const auto& r) { return r.id == id; });
@@ -190,4 +195,24 @@ cvm::messenger::task<void> snoop_gen_sequence::blocking_read(const transactor::r
   // cvm::log(cvm::HIGH, "[snoop_gen_sequence] blocking read data end:  {}\n",output);
   co_return;
  
+}
+
+cvm::messenger::task<void> snoop_gen_sequence::check_axi_rresp_timeout(axi::a_no_id_t ar_txn, unsigned& id) {
+
+  uint32_t axi_rresp_cycle_cnt = 0;
+
+  while (true) {
+    co_await tick();
+
+    if (axi_rresp_cycle_cnt >= FLAGS_axi_resp_timeout) {
+      cvm::log(cvm::ERROR, "[snoop_gen_sequence] [axi_mst] Error: No free id's remaining for axi master\n");
+      co_return;
+    }
+    axi_rresp_cycle_cnt++;
+
+    if (cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_mst_loc_l, ar_txn, id)) {
+      co_return;
+    }
+  }
+
 }

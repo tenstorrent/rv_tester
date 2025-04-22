@@ -7,7 +7,7 @@
 
 
 ras_helper::ras_helper(const std::string& tag, uint64_t addr, unsigned, cvm::topology::loc_t loc, mem_manager &m_)
-  : subdevice(tag, addr, 0x200, loc),m_(m_)
+  : subdevice(tag, addr, 0x800, loc),m_(m_)
 {
   rng.seed(FLAGS_seed);
   ras_helper_base = addr;
@@ -70,7 +70,7 @@ bool ras_helper::ras_helper_backdoor_read(uint64_t addr,uint64_t& data){
     cvm::log(cvm::HIGH, "[ras_helper] Descarding read request at ras_helper since tag {} is not matching \n",tag());
    return false;
   }
-   data = local64BStorage[addr - ras_helper_base];
+   data = local64BStorage[(addr - ras_helper_base)/8];
    cvm::log(cvm::HIGH, "[ras_helper]  Backdoor Read addr {:#x}  resp Data {:#x} \n",addr,data);
    return true;
 }
@@ -87,7 +87,7 @@ bool ras_helper::ras_helper_backdoor_write(uint64_t addr,uint64_t data){
       mem::datum_t m_data_p = (mem::datum_t) local_data[j];
       m_.write(addr+j, 1, &m_data_p);
   }
-  local64BStorage[addr - ras_helper_base] = data;
+  local64BStorage[(addr - ras_helper_base)/8] = data;
   return true;
 }
 
@@ -109,5 +109,5 @@ void
       m_.write(addr+j, 1, &m_data_p);
   }
   
-  local64BStorage[addr - ras_helper_base ] = t_data; 
+  local64BStorage[(addr - ras_helper_base)/8] = t_data;
 }

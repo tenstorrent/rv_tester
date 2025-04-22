@@ -460,6 +460,35 @@ package rv_tester_params;
         MHPMEVENT29,
         MHPMEVENT30,
         MHPMEVENT31,
+        MHPMCOUNTER3,
+        MHPMCOUNTER4,
+        MHPMCOUNTER5,
+        MHPMCOUNTER6,
+        MHPMCOUNTER7,
+        MHPMCOUNTER8,
+        MHPMCOUNTER9,
+        MHPMCOUNTER10,
+        MHPMCOUNTER11,
+        MHPMCOUNTER12,
+        MHPMCOUNTER13,
+        MHPMCOUNTER14,
+        MHPMCOUNTER15,
+        MHPMCOUNTER16,
+        MHPMCOUNTER17,
+        MHPMCOUNTER18,
+        MHPMCOUNTER19,
+        MHPMCOUNTER20,
+        MHPMCOUNTER21,
+        MHPMCOUNTER22,
+        MHPMCOUNTER23,
+        MHPMCOUNTER24,
+        MHPMCOUNTER25,
+        MHPMCOUNTER26,
+        MHPMCOUNTER27,
+        MHPMCOUNTER28,
+        MHPMCOUNTER29,
+        MHPMCOUNTER30,
+        MHPMCOUNTER31,
         MSCRATCH,
         MEPC,
         MCAUSE,
@@ -500,6 +529,33 @@ package rv_tester_params;
         MTOPI,
         MTINST,
         CMCTHRCFG0,
+        CPINSTR,
+        CPSTATUS,
+        CPCAUSE,
+        CXINSTSPEC,
+        CXEPCSPEC,
+        CXCAUSESPEC,
+        CMCRESOURCEERROR,
+        CASYNCINTSTATUS,
+        CXSTATUSSPEC,
+        MCYCLE,
+        MINSTRET,
+        CENTROPY,
+        CFECFG,
+        SEED,
+        SIE,
+        MISA,
+        MIE,
+        MVIP,
+        HVIP,
+        STOPEI,
+        VSTOPEI,
+        MTOPEI,
+        TIME,
+        SCOUNTOVF,
+        HGEIP,
+        CNMIVEC,
+        CNMEVEC,
         CSR_COUNT
     } csr_list_t;
     typedef struct packed {
@@ -971,6 +1027,7 @@ package rv_tester_params;
     output                                   dut_terminate,                                         \
     input                                    terminate,                                             \
     input  logic                             terminated,                                            \
+    input  logic                             terminate_now,                                            \
     output                                   quiesced,                                              \
     input logic [64-1:0]                     cosim_eot_addr,                                        \
     input  rv_tester_pkg::dm_write_t         dmi_write,                                             \
@@ -1055,6 +1112,7 @@ package rv_tester_params;
     logic                                    dut_terminate;                                         \
     logic                                    terminate;                                             \
     logic                                    terminated;                                            \
+    logic                                    terminate_now;                                            \
     logic                                    quiesced;                                              \
     logic [64-1:0]                           cosim_eot_addr;                                        \
     rv_tester_pkg::dm_write_t                dmi_write;                                             \

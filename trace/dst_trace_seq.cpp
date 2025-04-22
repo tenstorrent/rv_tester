@@ -407,11 +407,13 @@ cvm::messenger::task<void> dst_trace_seq::axi_write_mmr_granular(uint64_t addr) 
   aw_txn.region  =0;
   aw_txn.atop  =0;
   aw_txn.user  =3;
+  aw_txn.seqid  =DST_TRACE_SEQ_ID;
   
   cvm::log(cvm::MEDIUM, "[dst_trace_seq] dst_trace_seq WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
 
-  if (!cvm::registry::messenger.call<overlay_mst_t::push_aw_no_id_rpc>(axi_mst_loc_, aw_txn, id))
-    co_return;
+  if (!cvm::registry::messenger.call<overlay_mst_t::push_aw_no_id_rpc>(axi_mst_loc_, aw_txn, id)) {
+    check_axi_bresp_timeout(aw_txn, id);
+  }
   co_return;
  
 }
@@ -455,11 +457,13 @@ cvm::messenger::task<uint64_t> dst_trace_seq::axi_read_mmr_granular(const transa
   ar_txn.region  =0;
   ar_txn.atop  =0;
   ar_txn.user  =3;
+  ar_txn.seqid  =DST_TRACE_SEQ_ID;
   
   cvm::log(cvm::MEDIUM, "[dst_trace_seq] dst_trace_seq AXI READ GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", ar_txn.addr);
 
-   if (!cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_mst_loc_, ar_txn , id))
-     co_return rdata;
+  if (!cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_mst_loc_, ar_txn , id)) {
+    check_axi_rresp_timeout(ar_txn, id);
+  }
 
   auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(channel);
 
@@ -499,4 +503,44 @@ void dst_trace_seq::terminate_test(uint8_t terminate_test)
       cvm::log(cvm::NONE, "[dst_trace_seq] Test {} \n", terminate_test ? " terminated" : "not terminated");
       terminate_dst_trace_seq_func(terminate_test);
     });
+}
+
+cvm::messenger::task<void> dst_trace_seq::check_axi_bresp_timeout(axi::a_no_id_t aw_txn, unsigned& id) {
+
+  uint32_t axi_bresp_cycle_cnt = 0;
+
+  while (true) {
+    co_await tick();
+
+    if (axi_bresp_cycle_cnt >= FLAGS_axi_resp_timeout) {
+      cvm::log(cvm::ERROR, "[dst_trace_seq] [axi_mst] Error: No free id's remaining for axi master\n");
+      co_return;
+    }
+    axi_bresp_cycle_cnt++;
+
+    if (cvm::registry::messenger.call<overlay_mst_t::push_aw_no_id_rpc>(axi_mst_loc_, aw_txn, id)) {
+      co_return;
+    }
+  }
+
+}
+
+cvm::messenger::task<void> dst_trace_seq::check_axi_rresp_timeout(axi::a_no_id_t ar_txn, unsigned& id) {
+
+  uint32_t axi_rresp_cycle_cnt = 0;
+
+  while (true) {
+    co_await tick();
+
+    if (axi_rresp_cycle_cnt >= FLAGS_axi_resp_timeout) {
+      cvm::log(cvm::ERROR, "[dst_trace_seq] [axi_mst] Error: No free id's remaining for axi master\n");
+      co_return;
+    }
+    axi_rresp_cycle_cnt++;
+
+    if (cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_mst_loc_, ar_txn, id)) {
+      co_return;
+    }
+  }
+
 }

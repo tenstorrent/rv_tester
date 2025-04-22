@@ -16,6 +16,7 @@ class axi : public transactor {
         typedef std::uint64_t addr_t      ;
         typedef std::uint8_t  len_t       ;
         typedef std::uint8_t  sz_t        ;
+        typedef std::uint32_t  seqid_t     ;
 
         typedef enum : std::uint8_t {
             BURST_FIXED,
@@ -104,12 +105,17 @@ class axi : public transactor {
             atop_t            atop = atop_t(0);
             user_t            user = user_t(0);
             bool              rsp_err_chk = true;
+            seqid_t           seqid = seqid_t(0);
 
             a_no_id_t(const bool& w, const addr_t& addr, const sz_t& size) : w(w), addr(addr), size(size) {}
             a_no_id_t(const addr_t& addr, const sz_t& size) : addr(addr), size(size) {}
             a_no_id_t(const addr_t& addr, const sz_t& size, const bool& rsp_err_chk) : addr(addr), size(size), rsp_err_chk(rsp_err_chk) {}
             a_no_id_t(const addr_t& addr, const sz_t& size, const user_t& user) : addr(addr), size(size), user(user) {}
             a_no_id_t(const addr_t& addr, const sz_t& size, const user_t& user, const bool& rsp_err_chk) : addr(addr), size(size), user(user), rsp_err_chk(rsp_err_chk) {}
+            a_no_id_t(const addr_t& addr, const sz_t& size, const seqid_t& seqid) : addr(addr), size(size), seqid(seqid) {}
+            a_no_id_t(const addr_t& addr, const sz_t& size, const bool& rsp_err_chk, const seqid_t& seqid) : addr(addr), size(size), rsp_err_chk(rsp_err_chk), seqid(seqid) {}
+            a_no_id_t(const addr_t& addr, const sz_t& size, const user_t& user, const seqid_t& seqid) : addr(addr), size(size), user(user), seqid(seqid) {}
+            a_no_id_t(const addr_t& addr, const sz_t& size, const user_t& user, const bool& rsp_err_chk, const seqid_t& seqid) : addr(addr), size(size), user(user), rsp_err_chk(rsp_err_chk), seqid(seqid) {}
             a_no_id_t() = default;
             a_no_id_t(a_no_id_t&&) = default;
             a_no_id_t& operator=(a_no_id_t&&) = default;
@@ -132,13 +138,14 @@ class axi : public transactor {
             atop_t            atop = atop_t(0);
             user_t            user = user_t(0);
             bool              rsp_err_chk = true;
+            seqid_t           seqid = seqid_t(0);
 
             a_t(const bool& w, const id_t& id, const addr_t& addr, const len_t& len, const sz_t& size, const burst_t& burst, const bool& lock,
                 const cache_mem_attr_t& cache, const prot_t& prot, const qos_t& qos, const region_t& region, const atop_t& atop, const user_t& user) :
                 w(w), id(id), addr(addr), len(len), size(size), burst(burst), lock(lock), cache(cache), prot(prot), qos(qos), region(region), atop(atop), user(user) {}
             a_t(const bool& w, const addr_t& addr, const sz_t& size) : w(w), addr(addr), size(size) {}
             a_t(const a_no_id_t& a) : w(a.w), addr(a.addr), len(a.len), size(a.size), burst(a.burst), lock(a.lock),
-              cache(a.cache), prot(a.prot), qos(a.qos), region(a.region), atop(a.atop), user(a.user), rsp_err_chk(a.rsp_err_chk) {}
+              cache(a.cache), prot(a.prot), qos(a.qos), region(a.region), atop(a.atop), user(a.user), rsp_err_chk(a.rsp_err_chk), seqid(a.seqid) {}
             a_t() = default;
             a_t(a_t&&) = default;
             a_t& operator=(a_t&&) = default;
@@ -177,6 +184,11 @@ class axi : public transactor {
             id_t   id;
             resp_t resp;
             b_t(const id_t& id, const resp_t& resp) : id(id), resp(resp) {}
+            b_t() = default;
+            b_t(b_t&&) = default;
+            b_t& operator=(b_t&&) = default;
+            b_t(const b_t&) = default;
+            b_t& operator=(const b_t&) = default;
         };
 
     private:
@@ -192,12 +204,14 @@ class axi : public transactor {
         SafeQueue<a_t> a_q_;
         SafeQueue<w_t> w_q_;
         SafeQueue<r_t> r_q_;
+        SafeQueue<b_t> b_q_;
 
         cvm::messenger::task<void> operator()();
         void atop_modify_write_data(const atop_t& atop, const data_t& read_data, data_t& write_data, const len_t& len);
         std::vector<std::pair<uint64_t, uint64_t>> parse_hex_ranges(const std::string& input);
 
         // Metric counts
+        std::string tag_;
         int num_slverr_resp_;
         int num_decerr_resp_;
 
@@ -219,4 +233,5 @@ class axi : public transactor {
         cvm::messenger::task<void> a(const a_t&);
         cvm::messenger::task<void> w (w_t &&);
         std::pair<bool, r_t> r(bool block = false);
+        std::pair<bool, b_t> b();
 };

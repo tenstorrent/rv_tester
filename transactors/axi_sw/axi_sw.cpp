@@ -10,12 +10,14 @@
 REGISTRY_register((axi_sw<rv_tester_transactions::axi_sw::w<>,
                          rv_tester_transactions::axi_sw::aw<>,
                          rv_tester_transactions::axi_sw::ar<>,
-                         rv_tester_transactions::axi_sw::r_q_ptr<>>), AXI, cvm::registry::all);
+                         rv_tester_transactions::axi_sw::r_q_ptr<>,
+                         rv_tester_transactions::axi_sw::b_q_ptr<>>), AXI, cvm::registry::all);
 
 REGISTRY_register((axi_sw<rv_tester_transactions::axi_sw::w<1>,
                          rv_tester_transactions::axi_sw::aw<1>,
                          rv_tester_transactions::axi_sw::ar<1>,
-                         rv_tester_transactions::axi_sw::r_q_ptr<1>>), NCIO_AXI, cvm::registry::all);
+                         rv_tester_transactions::axi_sw::r_q_ptr<1>,
+                         rv_tester_transactions::axi_sw::b_q_ptr<1>>), NCIO_AXI, cvm::registry::all);
 
 DEFINE_int32(axi_sw_read_latency_max, 0, "Maximum latency of axi reads");
 DEFINE_int32(axi_sw_read_latency_timeout_threshold, 1, "How many cycles under axi_sw_read_latency_max before stopping the clock on zebu. This should usually be more than zero to prevent race conditions on the zebu");
@@ -23,7 +25,8 @@ DEFINE_int32(axi_sw_read_latency_fifo_threshold, 1, "How many remaining fifo ent
 DEFINE_int32(axi_sw_read_latency_fixed, 0, "Fixed latency of axi reads");
 DEFINE_bool(axi_sw_read_no_callbacks, false, "Plusarg to test synchronous read flushes are working by turning off asynchronous callbacks. Must use with +axi_sw_read_latenxy_*");
 DEFINE_int32(axi_sw_read_consecutive_spurious_calls_allowed, -1, "Ignore N spurious call after a non-spurious call. Set to -1 to ignore all spurious calls. Spurious calls should not break function but slow down emulation.");
-DEFINE_bool(axi_sw_reorder_r, false, "Will randomly sample read response queue, when generating read response.");
+DEFINE_uint32(axi_sw_reorder_window, 0, "If reorder window > 1, will randomly attempt to reorder ar/aw requests within the window. Otherwise, transactions are handled in-order.");
+DEFINE_uint32(axi_sw_reorder_timeout, 100, "If reorder window > 1, will attempt to flush transaction every N cycles while window is not drained (prevent stalls).");
 
 namespace {
     bool destroyed = false;
@@ -32,26 +35,28 @@ namespace {
 extern "C" {
 
   void axi_sw_r_reset();
+  void axi_sw_b_reset();
+  void axi_sw_b(axi::id_t id, axi::resp_t resp);
   void axi_sw_r_8(axi::id_t id, axi::resp_t resp, const axi::datum_t* data, axi::last_t last);
   void axi_sw_r_64(axi::id_t id, axi::resp_t resp, const axi::datum_t* data, axi::last_t last);
 }
 
-template <typename W, typename AW, typename AR, typename RQ>
-axi_sw<W,AW,AR,RQ>::axi_sw(cvm::topology::loc_t loc, unsigned id)
-  : scope_(nullptr), loc_(loc), id_(id),
+template <typename W, typename AW, typename AR, typename RQ, typename BQ>
+axi_sw<W,AW,AR,RQ,BQ>::axi_sw(cvm::topology::loc_t loc, unsigned id)
+  : scope_(nullptr), loc_(loc), id_(id), name_(to_lower(cvm::topology::name(loc_)) + std::to_string(id)),
     id_width_(cvm::topology::attr(loc_, "ID_WIDTH").second),
     data_width_(cvm::topology::attr(loc_, "DATA_WIDTH").second),
     strb_width_(cvm::topology::attr(loc_, "STRB_WIDTH").second),
-    r_q_max_(cvm::topology::attr(loc, "R_Q_MAX").second), r_q_ptr_max_(cvm::topology::attr(loc, "R_Q_PTR_MAX").second),
-    r_q_rptr_(0), r_q_wptr_(r_q_max_), r_q_rptr_update_time_(0),
-    read_bytes_(0), write_bytes_(0)
-    {
+    r_dpi_fifo_(cvm::topology::attr(loc, "R_Q_MAX").second, cvm::topology::attr(loc, "R_Q_PTR_MAX").second, 0, 0, 0),
+    b_dpi_fifo_(cvm::topology::attr(loc, "B_Q_MAX").second, cvm::topology::attr(loc, "B_Q_PTR_MAX").second, 0, 0, 0),
+    read_bytes_(0), write_bytes_(0) {
+
     cvm::log(cvm::FULL, "[axi_sw] Constructing axi_sw for loc={} id={}\n", loc,id);
 
     ::destroyed = false;
 
     auto data_width = cvm::topology::attr(loc, "DATA_WIDTH").second;
-    axi_ = new axi(data_width, loc, "axi" + std::to_string(id));
+    axi_ = new axi(data_width, loc, name_);
     cvm::registry::messenger.connect<svScope>(
         loc_,
         [this](svScope s) {
@@ -59,18 +64,16 @@ axi_sw<W,AW,AR,RQ>::axi_sw(cvm::topology::loc_t loc, unsigned id)
         return reset_ptrs();
     });
 
-   connect_task<W,AW,AR>();
+   connect_task<W,AW,AR,axi_sw_defs::reorder_q_flush_t>();
 
-   connect<RQ,axi_sw_defs::r_q_ptr_blocking_update_t>();
+   connect<RQ,BQ,axi_sw_defs::r_q_ptr_blocking_update_t>();
 }
 
-template <typename W, typename AW, typename AR, typename RQ>
-axi_sw<W,AW,AR,RQ>::~axi_sw() {
+template <typename W, typename AW, typename AR, typename RQ, typename BQ>
+axi_sw<W,AW,AR,RQ,BQ>::~axi_sw() {
 
-    std::string name = cvm::topology::name(loc_);
-    std::transform(name.begin(), name.end(), name.begin(), [](unsigned char c){ return std::tolower(c); });
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"{}{}_read_bytes\": {}}}\n", name, id_, read_bytes_);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"{}{}_write_bytes\": {}}}\n", name, id_, write_bytes_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"{}_read_bytes\": {}}}\n", name_, read_bytes_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"{}_write_bytes\": {}}}\n", name_, write_bytes_);
 
     if (axi_) {
         delete axi_;
@@ -79,42 +82,106 @@ axi_sw<W,AW,AR,RQ>::~axi_sw() {
     ::destroyed = true;
 }
 
-template <typename W, typename AW, typename AR, typename RQ>
-cvm::messenger::task<void> axi_sw<W,AW,AR,RQ>::process(const AW& aw) {
+template <typename W, typename AW, typename AR, typename RQ, typename BQ>
+cvm::messenger::task<bool> axi_sw<W,AW,AR,RQ,BQ>::pop_reorder_q() {
+
+  if (!a_window_.size())
+    co_return false;
+
+  unsigned position = cvm::rand::lcg::generate(a_window_.size());
+  axi::id_t id = a_window_[position].id;
+  bool w = a_window_[position].w;
+
+  // check for same ID in queue, pick lowest number
+  auto it = std::find_if(a_window_.begin(), a_window_.end(), [id, w](const auto& p) {
+        return p.id == id and p.w == w;
+      });
+
+  position = std::distance(a_window_.begin(), it);
+  axi::a_t aaa = *it;
+
+  if (aaa.w) {
+    // stupid way to check write data is available
+    unsigned w_in_front = std::count_if(a_window_.begin(), a_window_.begin() + position, [] (const auto& p) {
+          return p.w;
+        });
+
+    if (w_in_front >= w_window_.size())
+      co_return false;
+
+    a_window_.erase(it);
+    co_await a(std::move(aaa));
+
+    // we're guaranteed to not co_await in a() if aw, so this is safe to do
+    auto it2 = w_window_.begin() + w_in_front;
+    axi::w_t ww = *it2;
+    w_window_.erase(it2);
+    co_await this->w(std::move(ww));
+  }
+  else {
+    a_window_.erase(it);
+    co_await a(std::move(aaa));
+  }
+
+  co_return true;
+}
+
+template <typename W, typename AW, typename AR, typename RQ, typename BQ>
+cvm::messenger::task<void> axi_sw<W,AW,AR,RQ,BQ>::process(const AW& aw) {
     cvm::log(cvm::FULL, "[axi_sw] aw: [id={}, addr={:#x}, size={}]\n", aw.id, aw.addr, aw.size);
     write_bytes_ = write_bytes_ + (1ull << aw.size);
-    co_await a(axi::a_t{true, aw.id, aw.addr, aw.len, aw.size, axi::burst_t(aw.burst), aw.lock != 0,axi::cache_mem_attr_t(aw.cache),aw.prot,aw.qos,aw.region, aw.atop,aw.user});
-    r_resp();
+
+    axi::a_t aa = axi::a_t{true, aw.id, aw.addr, aw.len, aw.size, axi::burst_t(aw.burst), aw.lock != 0,axi::cache_mem_attr_t(aw.cache),aw.prot,aw.qos,aw.region, aw.atop,aw.user};
+
+    if (FLAGS_axi_sw_reorder_window <= 1)
+      co_await a(std::move(aa));
+    else {
+      a_window_.push_back(std::move(aa));
+      if (a_window_.size() >= FLAGS_axi_sw_reorder_window)
+        co_await pop_reorder_q();
+    }
+    all_resp();
     co_return;
 }
 
-template <typename W, typename AW, typename AR, typename RQ>
-cvm::messenger::task<void> axi_sw<W,AW,AR,RQ>::process(const AR& ar) {
+template <typename W, typename AW, typename AR, typename RQ, typename BQ>
+cvm::messenger::task<void> axi_sw<W,AW,AR,RQ,BQ>::process(const AR& ar) {
     cvm::log(cvm::FULL, "[axi_sw] ar: [id={}, addr={:#x}, size={}]\n", ar.id, ar.addr, ar.size);
     read_bytes_ = read_bytes_ + (1ull << ar.size);
-    co_await a(axi::a_t{false, ar.id, ar.addr, ar.len, ar.size, axi::burst_t(ar.burst), ar.lock != 0,axi::cache_mem_attr_t(ar.cache),ar.prot,ar.qos,ar.region, 0,ar.user});
-    r_resp();
+
+    axi::a_t aa = axi::a_t{false, ar.id, ar.addr, ar.len, ar.size, axi::burst_t(ar.burst), ar.lock != 0,axi::cache_mem_attr_t(ar.cache),ar.prot,ar.qos,ar.region, 0,ar.user};
+    if (FLAGS_axi_sw_reorder_window <= 1)
+      co_await a(std::move(aa));
+    else {
+      a_window_.push_back(std::move(aa));
+      if (a_window_.size() >= FLAGS_axi_sw_reorder_window)
+        co_await pop_reorder_q();
+    }
+    all_resp();
     co_return;
 }
 
-template <typename W, typename AW, typename AR, typename RQ>
-cvm::messenger::task<void> axi_sw<W,AW,AR,RQ>::process(const W& w) {
+template <typename W, typename AW, typename AR, typename RQ, typename BQ>
+cvm::messenger::task<void> axi_sw<W,AW,AR,RQ,BQ>::process(const W& w) {
     cvm::log(cvm::FULL, "[axi_sw] w: [strb={:#x}, last={}]\n", w.strb, w.last);
     axi::data_t vdata = cvm::bitmanip::slice<decltype(w.data), axi::data_t>(w.data);
     axi::strb_t vstrb = cvm::bitmanip::slice<decltype(w.strb), axi::strb_t>(w.strb);
 
-    co_await this->w(axi::w_t(
-                      vdata,
-                      vstrb,
-                      w.last
-                      )
-    );
-    r_resp();
+    axi::w_t ww = axi::w_t(vdata, vstrb, w.last);
+
+    if (FLAGS_axi_sw_reorder_window <= 1)
+      co_await this->w(std::move(ww));
+    else {
+      w_window_.push_back(ww);
+      if (a_window_.size() >= FLAGS_axi_sw_reorder_window)
+        co_await pop_reorder_q();
+    }
+    all_resp();
     co_return;
 }
 
-template <typename W, typename AW, typename AR, typename RQ>
-void axi_sw<W,AW,AR,RQ>::process(const axi_sw_defs::r_q_ptr_blocking_update_t& r_q_ptr) {
+template <typename W, typename AW, typename AR, typename RQ, typename BQ>
+void axi_sw<W,AW,AR,RQ,BQ>::process(const axi_sw_defs::r_q_ptr_blocking_update_t& r_q_ptr) {
     struct _t {
         std::atomic<bool>& d;
         _t(std::atomic<bool>& d) : d(d) {}
@@ -125,9 +192,9 @@ void axi_sw<W,AW,AR,RQ>::process(const axi_sw_defs::r_q_ptr_blocking_update_t& r
     } _(*r_q_ptr.done);
 
     cvm::log(cvm::FULL, "[axi_sw] r_q_ptr_blocking_update: [rptr={} clock={}]\n", r_q_ptr.r_ptr, r_q_ptr.clock);
-    assert(r_q_ptr.clock > r_q_rptr_update_time_);
-    r_q_rptr_update_time_ = r_q_ptr.clock;
-    r_q_rptr_ = r_q_ptr.r_ptr;
+    assert(r_q_ptr.clock > r_dpi_fifo_.rptr_update_time_);
+    r_dpi_fifo_.rptr_update_time_ = r_q_ptr.clock;
+    r_dpi_fifo_.rptr_ = r_q_ptr.r_ptr;
     r_resp();
 
     *r_q_ptr.successful = false;
@@ -148,31 +215,42 @@ void axi_sw<W,AW,AR,RQ>::process(const axi_sw_defs::r_q_ptr_blocking_update_t& r
     *r_q_ptr.successful = sent != 0;
 }
 
-template < typename W,typename AW,typename AR, typename RQ>
-void axi_sw<W,AW,AR,RQ>::process(const RQ& r_q_ptr) {
+template < typename W,typename AW,typename AR, typename RQ, typename BQ>
+void axi_sw<W,AW,AR,RQ,BQ>::process(const RQ& r_q_ptr) {
     cvm::log(cvm::FULL, "[axi_sw] r_q_ptr: [rptr={} clock={}]\n", r_q_ptr.r_ptr, r_q_ptr.clock);
-    if (r_q_ptr.clock > r_q_rptr_update_time_) {
-        r_q_rptr_update_time_ = r_q_ptr.clock;
-        r_q_rptr_ = r_q_ptr.r_ptr;
+    if (r_q_ptr.clock > r_dpi_fifo_.rptr_update_time_) {
+        r_dpi_fifo_.rptr_update_time_ = r_q_ptr.clock;
+        r_dpi_fifo_.rptr_ = r_q_ptr.r_ptr;
         r_resp();
     }
 }
 
-template < typename W,typename AW,typename AR, typename RQ>
-bool axi_sw<W,AW,AR,RQ>::r_dpi() {
+template < typename W,typename AW,typename AR, typename RQ, typename BQ>
+void axi_sw<W,AW,AR,RQ,BQ>::process(const BQ& b_q_ptr) {
+    cvm::log(cvm::FULL, "[axi_sw] b_q_ptr: [bptr={} clock={}]\n", b_q_ptr.r_ptr, b_q_ptr.clock);
+    if (b_q_ptr.clock > b_dpi_fifo_.rptr_update_time_) {
+        b_dpi_fifo_.rptr_update_time_ = b_q_ptr.clock;
+        b_dpi_fifo_.rptr_ = b_q_ptr.r_ptr;
+        b_resp();
+    }
+}
+
+template < typename W,typename AW,typename AR, typename RQ, typename BQ>
+cvm::messenger::task<void> axi_sw<W,AW,AR,RQ,BQ>::process(const axi_sw_defs::reorder_q_flush_t&) {
+    if (a_window_.size() != 0) {
+      co_await pop_reorder_q();
+      all_resp();
+    }
+}
+
+template < typename W,typename AW,typename AR, typename RQ, typename BQ>
+bool axi_sw<W,AW,AR,RQ,BQ>::r_dpi() {
     axi::r_t r;
     {
         std::lock_guard<std::mutex> l(r_q_mutex_);
         if (r_q_.empty()) return false;
-        unsigned position = FLAGS_axi_sw_reorder_r? cvm::rand::lcg::generate(r_q_.size()) : 0;
-        axi::id_t id = r_q_[position].id;
-
-        // Same IDs must be in-order, but this means our probability distribution will be biased towards IDs which repeat
-        auto it = std::find_if(r_q_.begin(), r_q_.end(), [id](const auto& p) {
-              return p.id == id;
-            });
-        r = *it;
-        r_q_.erase(it);
+        r = r_q_.front();
+        r_q_.pop();
     }
 
     std::string d;
@@ -190,17 +268,17 @@ bool axi_sw<W,AW,AR,RQ>::r_dpi() {
     return true;
 }
 
-template <typename W, typename AW, typename AR, typename RQ>
-void axi_sw<W,AW,AR,RQ>::r_resp() {
-    while ( (r_q_wptr_ - r_q_rptr_) < r_q_max_ ) {
+template <typename W, typename AW, typename AR, typename RQ, typename BQ>
+void axi_sw<W,AW,AR,RQ,BQ>::r_resp() {
+    while ( (r_dpi_fifo_.wptr_ - r_dpi_fifo_.rptr_) < r_dpi_fifo_.max_ ) {
       auto [valid, result] = axi_->r(false);
-      cvm::log(cvm::FULL, "[axi_sw] r_resp: [r_q dequeue valid={} wptr={} rptr={}]\n", valid, r_q_wptr_, r_q_rptr_);
       if (!valid)
         break;
-      r_q_wptr_ = (r_q_wptr_ + 1) % r_q_ptr_max_;
+      cvm::log(cvm::FULL, "[axi_sw] r_resp: [r_q dequeue valid={} wptr={} rptr={}]\n", valid, r_dpi_fifo_.wptr_, r_dpi_fifo_.rptr_);
+      r_dpi_fifo_.wptr_ = (r_dpi_fifo_.wptr_ + 1) % r_dpi_fifo_.ptr_max_;
       {
           std::lock_guard<std::mutex> l(r_q_mutex_);
-          r_q_.emplace_back(std::move(result));
+          r_q_.emplace(std::move(result));
       }
 
       if (!FLAGS_axi_sw_read_no_callbacks) {
@@ -215,16 +293,61 @@ void axi_sw<W,AW,AR,RQ>::r_resp() {
     }
 }
 
-template <typename W, typename AW, typename AR, typename RQ>
-void axi_sw<W,AW,AR,RQ>::reset_ptrs() {
-    cvm::log(cvm::HIGH, "[axi_sw] reset_ptrs loc={}\n", loc_);
-    r_q_rptr_ = 0;
-    r_q_wptr_ = 0;
-    r_q_rptr_update_time_ = 0;
+template < typename W,typename AW,typename AR, typename RQ, typename BQ>
+bool axi_sw<W,AW,AR,RQ,BQ>::b_dpi() {
+    axi::b_t b;
+    {
+        std::lock_guard<std::mutex> l(b_q_mutex_);
+        if (b_q_.empty()) return false;
+        b = b_q_.front();
+        b_q_.pop();
+    }
+
+    cvm::log(cvm::FULL, "[axi_sw] axi_sw_b: id={}\n", b.id);
+
+    axi_sw_b(b.id, b.resp);
+    return true;
 }
 
-template <typename W, typename AW, typename AR, typename RQ>
-void axi_sw<W,AW,AR,RQ>::set_scope(svScope scope) {
+
+template <typename W, typename AW, typename AR, typename RQ, typename BQ>
+void axi_sw<W,AW,AR,RQ,BQ>::b_resp() {
+    while ( (b_dpi_fifo_.wptr_ - b_dpi_fifo_.rptr_) < b_dpi_fifo_.max_ ) {
+      // We don't need this, this is more for future-proofing if writes ever becomes a coroutine
+      auto [valid, result] = axi_->b();
+      if (!valid)
+        break;
+      cvm::log(cvm::FULL, "[axi_sw] b_resp: [b_q dequeue wptr={} rptr={}]\n", b_dpi_fifo_.wptr_, b_dpi_fifo_.rptr_);
+      b_dpi_fifo_.wptr_ = (b_dpi_fifo_.wptr_ + 1) % b_dpi_fifo_.ptr_max_;
+      {
+          std::lock_guard<std::mutex> l(b_q_mutex_);
+          b_q_.emplace(std::move(result));
+      }
+
+      cvm::registry::callbacks.push(
+          scope_,
+            [this]() {
+                std::lock_guard<std::mutex> l(b_dpi_mutex_);
+                b_dpi();
+            }
+      );
+    }
+}
+
+template <typename W, typename AW, typename AR, typename RQ, typename BQ>
+void axi_sw<W,AW,AR,RQ,BQ>::reset_ptrs() {
+    cvm::log(cvm::HIGH, "[axi_sw] reset_ptrs loc={}\n", loc_);
+    r_dpi_fifo_.rptr_ = 0;
+    r_dpi_fifo_.wptr_ = 0;
+    r_dpi_fifo_.rptr_update_time_ = 0;
+
+    b_dpi_fifo_.rptr_ = 0;
+    b_dpi_fifo_.wptr_ = 0;
+    b_dpi_fifo_.rptr_update_time_ = 0;
+}
+
+template <typename W, typename AW, typename AR, typename RQ, typename BQ>
+void axi_sw<W,AW,AR,RQ,BQ>::set_scope(svScope scope) {
     scope_ = scope;
 }
 
@@ -234,6 +357,7 @@ extern "C" {
     svScope scope = svGetScope();
 
     axi_sw_r_reset();
+    axi_sw_b_reset();
 
     cvm::registry::messenger.signal<svScope>(
         loc,
@@ -249,6 +373,11 @@ extern "C" {
     cvm::registry::messenger.signal_async<axi_sw_defs::r_q_ptr_blocking_update_t>(loc, axi_sw_defs::r_q_ptr_blocking_update_t{clock, ptr, &successful, &done}, cvm::messenger::highest_priority);
     done.wait(false);
     return successful;
+  }
+
+  void axi_sw_reorder_flush(cvm::topology::loc_t loc) {
+    cvm::registry::messenger.signal<axi_sw_defs::reorder_q_flush_t>(loc, axi_sw_defs::reorder_q_flush_t{});
+    return;
   }
 
 }

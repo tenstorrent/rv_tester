@@ -53,6 +53,7 @@ module axi_sw #(
     parameter int unsigned LOCATION   =     0,
     parameter string tag = "notag",
     parameter int unsigned R_Q_MAX    = 32'd0,
+    parameter int unsigned B_Q_MAX    = 32'd0,
 
     parameter type addr_t   = logic [ADDR_WIDTH-1:0],
     parameter type data_t   = logic [DATA_WIDTH-1:0],
@@ -142,6 +143,11 @@ module axi_sw #(
         logic  last;
     } r_t;
 
+    typedef struct packed {
+        id_t   id  ;
+        resp_t resp;
+    } b_t;
+
     typedef byte unsigned dpi_data[DATA_WIDTH/$bits(byte)];
     typedef byte unsigned dpi_strb[STRB_WIDTH/$bits(byte)];
 
@@ -149,8 +155,7 @@ module axi_sw #(
     typedef byte    unsigned UB;
     typedef longint unsigned UL;
 
-    logic b_queue_full     , b_queue_empty     ;
-    logic w_last_queue_full, w_last_queue_empty;
+    logic b_queue_empty     ;
     logic r_queue_empty     ;
 
     // dummy return value to make sure it's not zDPI
@@ -199,44 +204,31 @@ module axi_sw #(
         axi_slv_r_last  = r.last;
     end
 
-    logic b_queue_aw_lock;
     logic ar_history_full;
+    logic aw_history_full;
     logic read_latency_requirement_met;
 
-    assign axi_slv_aw_ready = !b_queue_full;
+    assign axi_slv_aw_ready = !aw_history_full;
     assign axi_slv_ar_ready = !ar_history_full;
-    assign axi_slv_w_ready  = !axi_mst_w_last || !w_last_queue_full;
-    assign axi_slv_b_valid  = reset_n ? (!b_queue_empty && !w_last_queue_empty) : '0;
-    assign axi_slv_b_resp   = b_queue_aw_lock ? RESP_EXOKAY : RESP_OKAY;
+    assign axi_slv_w_ready  = !aw_history_full;
+    assign axi_slv_b_valid  = reset_n ? !b_queue_empty  : '0;
     assign axi_slv_r_valid  = reset_n ? (!r_queue_empty && read_latency_requirement_met) : '0;
 
-    axi_sw_fifo #(
-        .D         (1),
-        .T         (logic[$bits(id_t)+1-1:0])
-    ) b_queue (
-        .clk         (clk                                 ),
-        .reset_n     (reset_n                             ),
-        .full        (b_queue_full                        ),
-        .empty       (b_queue_empty                       ),
-        .d           ({axi_mst_aw_id, axi_mst_aw_lock}    ),
-        .push        (axi_mst_aw_valid && axi_slv_aw_ready),
-        .q           ({axi_slv_b_id , b_queue_aw_lock}    ),
-        .pop         (axi_slv_b_valid && axi_mst_b_ready  )
-    );
+    logic b_queue_rptr_incremented;
+    logic [$clog2(B_Q_MAX+1)-1:0] b_queue_rptr;
+    b_t b;
+    `AXI_SW_DPI_FIFO(axi_sw_b, b_t, B_Q_MAX, clk, sys_reset, reset_n, axi_slv_b_valid && axi_mst_b_ready, b_queue_rptr_incremented, b_queue_empty, b, b_queue_rptr)
 
-    axi_sw_fifo #(
-        .D         (1),
-        .T         (logic)
-    ) w_last_queue (
-        .clk         (clk                                                 ),
-        .reset_n     (reset_n                                             ),
-        .full        (w_last_queue_full                                   ),
-        .empty       (w_last_queue_empty                                  ),
-        .d           (1'b1                                                ),
-        .push        (axi_mst_w_valid && axi_slv_w_ready && axi_mst_w_last),
-        .q           (                                                    ),
-        .pop         (axi_slv_b_valid && axi_mst_b_ready                  )
-    );
+    function automatic void axi_sw_b (int unsigned id, byte unsigned resp);
+      b_t bd = '{id: id_t'(id), resp: 2'(resp)};
+      `AXI_SW_DPI_FIFO_PUSH(axi_sw_b,B_Q_MAX,bd,b_queue_rptr);
+    endfunction
+    export "DPI-C" function axi_sw_b;
+
+    always_comb begin
+        axi_slv_b_id    = b.id  ;
+        axi_slv_b_resp  = b.resp;
+    end
 
     logic [64-1:0] clocks;
     always_ff @(posedge clk) begin
@@ -252,6 +244,7 @@ module axi_sw #(
         ars[0].valid      <= '0;
         ws[0].valid       <= '0;
         r_q_ptrs[0].valid <= '0;
+        b_q_ptrs[0].valid <= '0;
 
         if (reset_n) begin
             if (r_queue_rptr_incremented) begin
@@ -259,6 +252,12 @@ module axi_sw #(
                 r_q_ptrs[0].data.location <= LOCATION;
                 r_q_ptrs[0].data.r_ptr    <= r_queue_rptr;
                 r_q_ptrs[0].data.clock    <= clocks;
+            end
+            if (b_queue_rptr_incremented) begin
+                b_q_ptrs[0].valid         <= '1 & (LOCATION != cvm_topology::nil);
+                b_q_ptrs[0].data.location <= LOCATION;
+                b_q_ptrs[0].data.r_ptr    <= b_queue_rptr;
+                b_q_ptrs[0].data.clock    <= clocks;
             end
         end
 
@@ -312,6 +311,8 @@ module axi_sw #(
     int unsigned read_latency_timeout_threshold = '0;
     int unsigned read_latency_fifo_threshold    = '0;
     bit          read_latency_fixed             = '0;
+    int unsigned reorder_latency_timeout        = '0;
+    bit          reorder_window                 = '0;
     always @(posedge clk) begin
         if (sys_reset) begin
             /* verilator lint_off BLKSEQ */
@@ -319,15 +320,19 @@ module axi_sw #(
             automatic int unsigned fixed   = cvm_plusargs::get_int("axi_sw_read_latency_fixed");
             read_latency_timeout_threshold = cvm_plusargs::get_int("axi_sw_read_latency_timeout_threshold");
             read_latency_fifo_threshold    = cvm_plusargs::get_int("axi_sw_read_latency_fifo_threshold");
+            reorder_latency_timeout        = cvm_plusargs::get_int("axi_sw_reorder_timeout");
+            reorder_window                 = (cvm_plusargs::get_int("axi_sw_reorder_window") != 0);
             read_latency       = (fixed != 0) ? fixed : max;
             read_latency_fixed = fixed != 0;
             /* verilator lint_on BLKSEQ */
             if (read_latency     >= (32'(1)) << CW                                ) $error("Error: +axi_sw_read_latency_max/+axi_sw_read_latency_fixed (%0d) overflows counter width (%0d)", read_latency, CW);
             if (read_latency != 0 && read_latency_timeout_threshold > read_latency) $error("Error: +axi_flush_threshold (%0d) > +axi_sw_read_latency_max/+axi_sw_read_latency_fixed (%0d)", read_latency_timeout_threshold, read_latency);
+            if (read_latency != 0 && reorder_window != 0) $error("Error: can't specify both max/fixed latency and reorder window");
         end
     end
 
     localparam AR_HISTORY_Q_MAX = 128;
+    localparam AW_HISTORY_Q_MAX = 128;
 
     logic                   ar_history_empty;
     logic [CW         -1:0] ar_history_q;
@@ -339,13 +344,32 @@ module axi_sw #(
     ) ar_history (
         .clk,
         .reset_n,
-        .push(axi_mst_ar_valid && axi_slv_ar_ready && read_latency != '0),
+        .push(axi_mst_ar_valid && axi_slv_ar_ready),
         .d(CW'(clocks)),
-        .pop (axi_slv_r_valid  && axi_mst_r_ready  && read_latency != '0 && axi_slv_r_last), // axi_sw_r_wptr != axi_sw_r_wptr_nxt
+        .pop (axi_slv_r_valid  && axi_mst_r_ready && axi_slv_r_last), // axi_sw_r_wptr != axi_sw_r_wptr_nxt
         .q(ar_history_q),
         .full(ar_history_full),
         .size(ar_history_size),
         .empty(ar_history_empty)
+    );
+
+    logic                   aw_history_empty;
+    logic [CW         -1:0] aw_history_q;
+    logic [$clog2(AW_HISTORY_Q_MAX+1)-1:0] aw_history_size;
+
+    axi_sw_fifo #(
+        .D(AW_HISTORY_Q_MAX),
+        .T(logic[CW-1:0])
+    ) aw_history (
+        .clk,
+        .reset_n,
+        .push(axi_mst_aw_valid && axi_slv_aw_ready),
+        .d(CW'(clocks)),
+        .pop (axi_slv_b_valid  && axi_mst_b_ready), // axi_sw_r_wptr != axi_sw_r_wptr_nxt
+        .q(aw_history_q),
+        .full(aw_history_full),
+        .size(aw_history_size),
+        .empty(aw_history_empty)
     );
 
     assign read_latency_requirement_met = !read_latency_fixed || ar_history_empty || (CW'(clocks) - ar_history_q) >= CW'(read_latency);
@@ -380,6 +404,29 @@ module axi_sw #(
                 end
             end
         end
+    end
+
+    import "DPI-C" function void axi_sw_reorder_flush(int unsigned location);
+
+    int unsigned reorder_timeout;
+    always_ff @(posedge clk) begin
+      if (!reset_n || (reorder_window == '0)) begin
+        reorder_timeout <= '0;
+      end
+      else begin
+        // FIXME: aw_history will no longer be in order, on zebu would want to
+        // prevent timing out while waiting for resp back
+        if (reorder_timeout >= reorder_latency_timeout) begin
+          axi_sw_reorder_flush(LOCATION);
+          reorder_timeout <= '0;
+        end
+        else if ((axi_mst_b_ready && !axi_slv_b_valid && !aw_history_empty) || (axi_mst_r_ready && !axi_slv_r_valid && !ar_history_empty)) begin
+          reorder_timeout <= reorder_timeout + 1;
+        end
+        else begin
+          reorder_timeout <= '0;
+        end
+      end
     end
 
 endmodule
@@ -684,11 +731,11 @@ module axi_sw_mst #(
 
     //assign axi_mst_b_ready = '1;
     //assign axi_mst_r_ready = '1;
-    
-    int unsigned brdy_hi ;  
-    int unsigned brdy_low;  
-    int unsigned rrdy_hi ;  
-    int unsigned rrdy_low;  
+
+    int unsigned brdy_hi ;
+    int unsigned brdy_low;
+    int unsigned rrdy_hi ;
+    int unsigned rrdy_low;
     longint unsigned  axi_sw_rsp_toggle_start;
     bit axi_sw_rsp_toggle_en;
     //bit [63:0] clocks;
@@ -741,8 +788,8 @@ module axi_sw_mst #(
 
     // Assign output based on state
     //assign axi_mst_b_ready = axi_sw_rsp_toggle_en ? (axi_sw_rsp_toggle_start < clocks )? brdy_state: 1 : 1;
-    assign axi_mst_b_ready = axi_sw_rsp_toggle_en ? 
-                         ((axi_sw_rsp_toggle_start < clocks) ? brdy_state : 1'b1) : 
+    assign axi_mst_b_ready = axi_sw_rsp_toggle_en ?
+                         ((axi_sw_rsp_toggle_start < clocks) ? brdy_state : 1'b1) :
                          1'b1;
      // Internal counters
     logic [31:0] rrdy_counter;
@@ -774,7 +821,7 @@ module axi_sw_mst #(
 
     // Assign output based on state
     //assign axi_mst_r_ready = rrdy_state;
-    assign axi_mst_r_ready = axi_sw_rsp_toggle_en ? 
+    assign axi_mst_r_ready = axi_sw_rsp_toggle_en ?
                          ((axi_sw_rsp_toggle_start < clocks) ? rrdy_state : 1'b1) : 1'b1;
 
     always @(posedge clk) begin

@@ -42,7 +42,7 @@ template <typename T> void atop_arithmetic(const axi::data_t& read_data, axi::da
 }
 
 axi::axi(const data_width_t& data_width, const cvm::topology::loc_t loc, const std::string& tag)
-  : transactor(loc, tag), data_width_(data_width), num_slverr_resp_(0), num_decerr_resp_(0)
+  : transactor(loc, tag), data_width_(data_width), tag_(tag), num_slverr_resp_(0), num_decerr_resp_(0)
 {
     cvm::log(cvm::MEDIUM, "[axi] Constructing axi for loc={} id={}\n", loc, tag);
 
@@ -69,8 +69,8 @@ void axi::configure_resp() {
 }
 
 axi::~axi() {
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"axi_resp_slverr_count\": \"{}\"}}\n", num_slverr_resp_);
-    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"axi_resp_decerr_count\": \"{}\"}}\n", num_decerr_resp_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"{}_resp_slverr_count\": \"{}\"}}\n", tag_, num_slverr_resp_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"{}_resp_decerr_count\": \"{}\"}}\n", tag_, num_decerr_resp_);
 }
 
 // Function to parse a string containing hexadecimal numbers and ranges
@@ -171,15 +171,18 @@ std::pair<bool, axi::r_t> axi::r(bool block) {
     return r_q_.try_dequeue();
 }
 
+std::pair<bool, axi::b_t> axi::b() {
+    return b_q_.try_dequeue();
+}
+
 cvm::messenger::task<void> axi::operator()() {
     while (1)  {
         a_t a;
 
         bool valid;
         std::tie(valid, a) = a_q_.try_peek();
-        if (!valid) {
+        if (!valid)
             co_return;
-        }
 
         addr_t burst_len            = a.len + 1;
 
@@ -263,6 +266,8 @@ cvm::messenger::task<void> axi::operator()() {
                             w.data,
                             w.strb
                     );
+
+                    b_q_.enqueue(b_t(a.id, RESP_OKAY));
                 }
 
                 if (!a.w || (a.atop.transaction != NON_ATOMIC && a.atop.transaction != ATOMIC_STORE)) {

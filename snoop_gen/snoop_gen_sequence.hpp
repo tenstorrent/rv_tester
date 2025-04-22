@@ -15,6 +15,8 @@
 //#include "transactors/axi_sw/axi.h"
 #include "axi_sw_mst.h"
 
+DECLARE_uint32(axi_resp_timeout); // Cycles to wait after Transactor-id pool overflow condition before raising no free ids error
+
 class snoop_gen_sequence {
 
   public:
@@ -41,6 +43,8 @@ class snoop_gen_sequence {
 
     cvm::messenger::task<void> tick();
     cvm::messenger::task<void> trigger();
+
+    cvm::messenger::task<void> check_axi_rresp_timeout(axi::a_no_id_t ar_txn, unsigned& id);
 
     void init();
     void push_snoop_info(uint64_t push_addr);

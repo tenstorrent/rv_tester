@@ -18,6 +18,7 @@ import rv_tester_params::*;
 
   logic [TRIGGER_COUNT-1:0] hart_specific_event_trigger;
   logic [NHARTS-1:0] event_trigger_vlds;
+  logic low_power_seq_en;
   
   genvar i;
   generate
@@ -40,9 +41,12 @@ import rv_tester_params::*;
   // SV->C++ Messages/Packets
   // -------------------------
   logic reset_d1;
+  int unsigned tb_clocks = 0;
   always @(posedge tb_clk) begin
+    tb_clocks <= tb_clocks + 1;
     reset_d1 <= reset;
     if (~reset & reset_d1) begin
+      low_power_seq_en <= $test$plusargs("low_power_seq") ?  1'b1 : 1'b0;
       if (location != cvm_topology::nil) begin
         triggers_set_scope(location);
       end
@@ -109,5 +113,12 @@ end
   /* verilator lint_on WIDTHEXPAND */
   assign m_event_trigger_delayed_ticks[0].valid = (uarch_event_based_interrupt_delayed | patch_event_based_interrupt_delayed) & (location != cvm_topology::nil);
   assign m_event_trigger_delayed_ticks[0].data.location = location;
+
+
+  // C-Sequence
+  // m_tick
+  assign m_ticks[0].valid = (low_power_seq_en) & (location != cvm_topology::nil);
+  assign m_ticks[0].data.location = location;
+  assign m_ticks[0].data.cycle = tb_clocks;
 
 endmodule
