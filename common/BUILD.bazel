@@ -6,6 +6,7 @@ cc_library(
     ],
     hdrs = [
         "svdpi.h",
+        "axi_seqids.hpp",
         "transactor.h",
         "pcg_random.hpp",
         "pcg_extras.hpp",
@@ -28,7 +29,7 @@ cc_library(
 
 cc_library(
     name = "transactor",
-    hdrs = [ "transactor.h" ],
+    hdrs = [ "axi_seqids.hpp", "transactor.h" ],
     deps = [
         "@cvm//:plusargs",
         "@cvm//:logger",

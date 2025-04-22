@@ -5,6 +5,7 @@
 #include "cvm/registry.hpp"
 #include "cvm/logger.hpp"
 #include "fmt/format.h"
+#include "axi_seqids.hpp"
 
 class transactor {
 

@@ -19,6 +19,8 @@
 #include "whisper_client.h"
 #include "axi_sw_mst.h"
 
+DECLARE_uint32(axi_resp_timeout); // Cycles to wait after Transactor-id pool overflow condition before raising no free ids error
+
 class scratchpad_random_sequence {
 
   public:
@@ -60,6 +62,8 @@ class scratchpad_random_sequence {
     cvm::messenger::task<void>check_sc_slice_status(sc_slice_status_t sc_slice_status_type);
     cvm::messenger::task<void> axi_read(uint64_t addr, size_t length, uint32_t id);
 
+    cvm::messenger::task<void> check_axi_bresp_timeout(axi::a_no_id_t aw_txn, unsigned& id);
+    cvm::messenger::task<void> check_axi_rresp_timeout(axi::a_no_id_t ar_txn, unsigned& id);
 
     using overlay_mst_t = axi_sw_mst<
         rv_tester_transactions::axi_sw_mst::b<>,

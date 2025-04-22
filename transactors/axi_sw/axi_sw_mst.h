@@ -61,33 +61,33 @@ class axi_sw_mst {
             ids_[id] = true;
         }
 
-
-        bool next_id(uint32_t& id) {
-            std::vector<size_t> valid_indices;
-            for (size_t i = 0; i < ids_.size(); ++i) {
-                if (ids_[i]) {
-                    valid_indices.push_back(i);
-                }
+        bool next_id(uint32_t& id,  axi::seqid_t seqid) {
+          std::vector<size_t> valid_indices;
+          size_t ids_start = seqid_width_ ? (seqid << (id_width_ - seqid_width_)) : 0;
+          size_t ids_end = ids_start + ids_.size() / (1<<seqid_width_);
+          for (size_t i = ids_start; i < ids_end; ++i) {
+            if (ids_[i]) {
+              valid_indices.push_back(i);
             }
+          }
 
-            if (valid_indices.empty()){
-                return false;
-            }
+          if (valid_indices.empty()){
+            return false;
+          }
 
-            // Randomly select one of the valid indices
-            //std::uniform_int_distribution<size_t> dis(0, valid_indices.size() - 1);
-            size_t random_index;
-            if(FLAGS_axi_rand_id_alloc){
-              uint32_t idx =  (rng() % valid_indices.size()) & 0xffffff;
-	      random_index = valid_indices[idx];
-	     
-	    }
-            else
-             random_index = valid_indices[0];
+          // Randomly select one of the valid indices
+          size_t random_index;
+          if(FLAGS_axi_rand_id_alloc){
+            uint32_t idx =  (rng() % valid_indices.size()) & 0xffffff;
+            random_index = valid_indices[idx];	     
+          }
+          else {
+            random_index = valid_indices[0];
+          }
 
-	    id = random_index;
-            ids_[random_index] = false; // Mark as used
-            return true;
+          id = random_index;
+          ids_[random_index] = false; // Mark as used
+          return true;
         }
 
         void process(const B& b);

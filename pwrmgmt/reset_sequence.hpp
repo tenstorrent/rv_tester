@@ -10,6 +10,7 @@
 #include "svdpi.h"
 #include "axi_sw_mst.h"
 
+DECLARE_uint32(axi_resp_timeout); // Cycles to wait after Transactor-id pool overflow condition before raising no free ids error
 
 class reset_sequence {
 
@@ -90,6 +91,9 @@ class reset_sequence {
     std::vector<uint64_t> convert_to_dword_array(const std::vector<uint8_t>& byte_array);
     std::vector<uint8_t> convert_to_byte_array(const std::vector<uint64_t>& dword_array);
     std::vector<uint64_t> concatenate_uint32_to_uint64(const std::vector<uint32_t>& input); 
+
+    cvm::messenger::task<void> check_axi_bresp_timeout(interface_t interface, unsigned& id, uint64_t addr, size_t sz, bool rsp_err_chk = true);
+    cvm::messenger::task<void> check_axi_rresp_timeout(interface_t interface, unsigned& id, uint64_t addr, size_t sz, bool rsp_err_chk = true);
 
     uint64_t fuse_val();
     uint64_t core_fuse_val();
