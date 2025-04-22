@@ -78,6 +78,10 @@ reset_sequence::reset_sequence(cvm::topology::loc_t loc, unsigned) : loc_(loc), 
   // Reset count
   cvm::registry::messenger.connect<int>(loc_, [this](int c) { return this->start(c); });
 
+  // ID Widths
+  id_width_[SMC] = cvm::topology::attr(axi_loc_[SMC], "ID_WIDTH").second;
+  id_width_[OVERLAY] = cvm::topology::attr(axi_loc_[OVERLAY], "ID_WIDTH").second;
+
   boot_interface = FLAGS_boot_from_smc ? SMC: OVERLAY;
 }
 
@@ -618,6 +622,22 @@ cvm::messenger::task<void> reset_sequence::write(uint64_t addr, size_t sz, const
   co_return;
 };
 
+cvm::messenger::task<void> reset_sequence::batch_write(uint64_t addr, size_t sz, const std::vector<uint64_t>& data, bool rsp_err_chk /* = true */ ) {
+
+  size_t batch_size = 1 << (id_width_[SMC] - seqid_width_ - 1);
+  size_t batches_count = std::ceil(static_cast<double>(data.size()) / batch_size);
+  for (size_t i = 0; i < batches_count; i++) {
+    auto batch_start_indx = i * batch_size;
+    uint64_t addr_n = addr + (batch_start_indx * sz);
+    batch_size = std::min(batch_size, data.size() - batch_start_indx);
+    std::vector<uint64_t> batch_data(batch_size);
+    std::copy(data.begin() + batch_start_indx, data.begin() + batch_start_indx + batch_size, batch_data.begin());
+    co_await write(addr_n, sz, batch_data, rsp_err_chk);
+  }
+
+  co_return;
+};
+
 cvm::messenger::task<void> reset_sequence::csr_write(uint32_t core_id, uint32_t unit, uint64_t addr, uint64_t data) {
   uint64_t cmd = 0;
   uint32_t offset = core_id * core_fuse_offset;
@@ -762,18 +782,18 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
 
   patch_header.insert(patch_header.end(), patches["patch_epilouge"].ucodes.begin(), patches["patch_epilouge"].ucodes.end()); 
 
-  co_await write(cpl_patch_ram_base, SZ_8B, concatenate_uint32_to_uint64(patch_header) );
-  co_await write(cpl_patch_ram_ptrig_0, SZ_8B, concatenate_uint32_to_uint64(patch_trig_0) );
-  co_await write(cpl_patch_ram_ptrig_1, SZ_8B, concatenate_uint32_to_uint64(patch_trig_1) );
-  co_await write(cpl_patch_ram_ptrig_2, SZ_8B, concatenate_uint32_to_uint64(patch_trig_2) );
-  co_await write(cpl_patch_ram_ptrig_3, SZ_8B, concatenate_uint32_to_uint64(patch_trig_3) );
+  co_await batch_write(cpl_patch_ram_base, SZ_8B, concatenate_uint32_to_uint64(patch_header));
+  co_await batch_write(cpl_patch_ram_ptrig_0, SZ_8B, concatenate_uint32_to_uint64(patch_trig_0));
+  co_await batch_write(cpl_patch_ram_ptrig_1, SZ_8B, concatenate_uint32_to_uint64(patch_trig_1));
+  co_await batch_write(cpl_patch_ram_ptrig_2, SZ_8B, concatenate_uint32_to_uint64(patch_trig_2));
+  co_await batch_write(cpl_patch_ram_ptrig_3, SZ_8B, concatenate_uint32_to_uint64(patch_trig_3));
 
   for (int i = 0; i < (int)patch_instr.size(); ++i) { 
     std::string patchTag = patch_instr[i];
     cvm::log(cvm::MEDIUM, "[pwrmgmt] Patching instruction: {} , patchMask: 0x{:x}, Opcode: 0x{:x}, enableMask: 0x{:x}\n", patchTag, patches[patchTag].patchMask, patches[patchTag].patchInstruction, patches[patchTag].enableMask);
     patch_cfg[core_preg0_mmr+(i*8)] = ((uint64_t)patches[patchTag].patchMask<<32 | patches[patchTag].patchInstruction); 
     std::vector<uint32_t> ucode_body = patches[patchTag].ucodes;
-    co_await write(cpl_patch_ram_pbody_0+(i*0x400), SZ_8B, concatenate_uint32_to_uint64(ucode_body) );
+    co_await batch_write(cpl_patch_ram_pbody_0+(i*0x400), SZ_8B, concatenate_uint32_to_uint64(ucode_body) );
     if (FLAGS_patch_ram_check) populate_patch_ram(cpl_patch_ram_pbody_0+(i*0x400), concatenate_uint32_to_uint64(ucode_body));
     pcontrol_data =  pcontrol_data | (((uint64_t)patches[patchTag].enableMask | 1) << i*16); // enable patch 
     if (i == 3) break;

@@ -38,6 +38,8 @@ class reset_sequence {
 
     std::array<cvm::messenger::pool<axi::b_t>::channel_info, INTF_COUNT> b_channel_;
     std::array<cvm::messenger::pool<axi::r_t>::channel_info, INTF_COUNT> r_channel_;
+    
+    std::array<size_t, INTF_COUNT> id_width_;
 
     void set_scope(svScope s) { scope_ = s; }
     void start(int reset_count);
@@ -78,6 +80,7 @@ class reset_sequence {
 
     cvm::messenger::task<void> init_smc_filters();
 
+    cvm::messenger::task<void> batch_write(uint64_t addr, size_t sz, const std::vector<uint64_t>& data, bool rsp_err_chk = true );
     cvm::messenger::task<uint64_t> read(uint64_t addr, size_t sz, interface_t interface = SMC, bool rsp_err_chk = true);
     cvm::messenger::task<void> write(uint64_t addr, size_t sz, uint64_t data, interface_t interface = SMC, bool rsp_err_chk = true);
     cvm::messenger::task<void> write(uint64_t addr, size_t sz, const std::vector<uint64_t>& data, bool rsp_err_chk = true);
