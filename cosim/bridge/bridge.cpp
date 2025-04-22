@@ -1928,11 +1928,35 @@ bool bridge::is_renamed_csr(const std::string& instr) {
 
 
 bool bridge::is_cracked_csr(const std::string& instr) {
-  if (std::regex_search(instr, std::regex(R"(\bmhpmevent([3-9]|10)\b|csr.*\bc(80[3-9]|810)\b)"))) {
-      return true;
+  for (int i = 3; i <= 10; ++i) {
+      std::string t = "mhpmevent" + std::to_string(i);
+      size_t pos = instr.find(t);
+      if (pos != std::string::npos &&
+          (pos == 0 || !std::isalnum(instr[pos - 1])) &&
+          (pos + t.size() == instr.size() || !std::isalnum(instr[pos + t.size()]))) {
+          return true;
+      }
   }
+
+  size_t csr_pos = instr.find("csr");
+  if (csr_pos != std::string::npos) {
+      for (size_t i = 0; i + 4 < instr.size(); ++i) {
+          if (instr[i] == 'c') {
+              int val = 0;
+              for (int j = 1; j <= 3; ++j) {
+                  char ch = instr[i + j];
+                  if (!isxdigit(ch)) break;
+                  val = val * 16 + (isdigit(ch) ? ch - '0' : tolower(ch) - 'a' + 10);
+              }
+              if (val >= 0x803 && val <= 0x810)
+                  return true;
+          }
+      }
+  }
+
   return false;
 }
+
 
 bool bridge::resynch_needed(const hart_id_t&, const rv_instr_t& d, const std::string& instr, const whisper_state_t&) {
 
