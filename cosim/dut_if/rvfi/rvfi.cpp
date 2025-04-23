@@ -21,7 +21,7 @@ DEFINE_bool(cosim, true, "Enable cosim checking");
 DEFINE_bool(emulate_amo_arithmetic, true, "Emulate amo arithmetic if dut harness does not provide amo outputs");
 DEFINE_bool(vec_cmode_tag_override, true, "If vector instruction enters conservative mode, override subsequent rvfi/mcmi tags with original instruction tag");
 DEFINE_bool(patch_mode_tag_override, true, "In Patch mode, override subsequent rvfi/mcmi tag with original instruction tag");
-DEFINE_bool(offline_cosim, false , "Enables Offline DPI capture of COSIM");
+DEFINE_bool(offline_dpi, false , "Enables Offline DPI capture");
 
 DEFINE_uint64(debug_entry_pc, 0x42190800, "Debug Mode entry PC");
 DEFINE_uint64(debug_exit_pc, 0x421908cc, "Debug Mode exit PC");
@@ -87,7 +87,7 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
 
 rvfi::~rvfi() {
   uint32_t ncores = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
-  if (FLAGS_rvfi && ncores == 1 && (count_ == 1) && (FLAGS_offline_cosim == false))
+  if (FLAGS_rvfi && ncores == 1 && (count_ == 1) && (FLAGS_offline_dpi == false))
     cvm::log(cvm::ERROR, "Error: rvfi termination without processing any instructions\n");
 }
 
