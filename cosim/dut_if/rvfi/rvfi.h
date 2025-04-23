@@ -131,6 +131,8 @@ class rvfi {
     bool nmi_ = false;
     bool intr_ = false;
     bool excp_ = false;
+    bool pc_error_ = false;
+    bool mem_error_ = false;
     uint64_t ncause_ = 0;
     uint64_t icause_ = 0;
     uint64_t ecause_ = 0;
