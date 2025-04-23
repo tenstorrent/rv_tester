@@ -45,11 +45,9 @@ namespace {
   constexpr uint32_t sw_fuse_default_val    = 0x4200'2FF8;
 
   constexpr uint32_t lock_idx               = 63;
-  constexpr uint32_t jtag_axi_fuse_idx      = 53;
   constexpr uint32_t dst_fuse_idx           = 52;
   constexpr uint32_t trace_fuse_idx         = 51;
   constexpr uint32_t cla_fuse_idx           = 50;
-  constexpr uint32_t dm_axi_fuse_idx        = 49;
   constexpr uint32_t dm_fuse_idx            = 48;
   constexpr uint32_t core_fuse_idx          = 16;
   constexpr uint32_t io_cohr_fuse_idx       = 11;
