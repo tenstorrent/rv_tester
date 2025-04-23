@@ -155,6 +155,8 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   if (m_rvfi.trap) {
     trap_insn_ = m_rvfi.insn;
     trap_addr_ = (m_rvfi.insn == 0) ? m_rvfi.pc_rdata : ((m_rvfi.mem_rmask != 0) || (m_rvfi.mem_wmask != 0)) ? m_rvfi.mem_addr : 0x0;
+    pc_error_ = m_rvfi.pc_error;
+    mem_error_ = m_rvfi.mem_error;
     return;
   }
 
@@ -206,6 +208,10 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   excp_ = false;
   nmi_ = false;
   vec_cmode_ = false;
+  trap_insn_ = 0;
+  trap_addr_ = 0;
+  pc_error_ = false;
+  mem_error_ = false;
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
@@ -518,6 +524,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   // PC
   instr.pc.valid = true;
   instr.pc.pc_rdata = m_rvfi.pc_rdata;
+  instr.pc.error = m_rvfi.pc_error || pc_error_;
 
   // GPR
   if ((m_rvfi.rd_addr > 0) && (m_rvfi.rd_addr <= 31)) {
@@ -596,6 +603,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.mem_read.data = m_rvfi.mem_rdata;
   instr.mem_read.size = log2(m_rvfi.mem_rmask + 1);
   instr.mem_read.attr = m_rvfi.mem_attr;
+  instr.mem_read.error = m_rvfi.mem_error || mem_error_;
 
   // Mem writes
   instr.mem_write.valid = (m_rvfi.mem_wmask != 0);
@@ -604,6 +612,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.mem_write.data = m_rvfi.mem_wdata;
   instr.mem_write.size = log2(m_rvfi.mem_wmask + 1);
   instr.mem_write.attr = m_rvfi.mem_attr;
+  instr.mem_write.error = m_rvfi.mem_error || mem_error_;
 }
 
 void rvfi::append_uop_changes_to_instr(rv_instr_t& instr) {
@@ -716,13 +725,13 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
     dut_log += fmt::format(" (flags:{:#x})", instr.flags);
 
   if (instr.mem_write.valid)
-    dut_log += fmt::format(" [{:#x}:{:#x}:{}]", instr.mem_write.va, instr.mem_write.pa, mem_attr_to_string(instr.mem_write.attr));
+    dut_log += fmt::format(" [{:#x}:{:#x}:{}{}]", instr.mem_write.va, instr.mem_write.pa, mem_attr_to_string(instr.mem_write.attr), instr.mem_write.error ? ":ras/bus_error" : "");
 
   if (instr.mem_read.valid)
-    dut_log += fmt::format(" [{:#x}:{:#x}:{}]", instr.mem_read.va, instr.mem_read.pa, mem_attr_to_string(instr.mem_read.attr));
+    dut_log += fmt::format(" [{:#x}:{:#x}:{}{}]", instr.mem_read.va, instr.mem_read.pa, mem_attr_to_string(instr.mem_read.attr), instr.mem_read.error ? ":ras/bus_error" : "");
 
   if (instr.trap_valid)
-    dut_log += fmt::format(" (trap)");
+    dut_log += fmt::format(" {}(trap)", instr.pc.error ? "[ras/bus_error] " : "");
 
   if (instr.nmi)
     dut_log += fmt::format(" (nmi: {})", nmi_to_string.count(static_cast<nmi>(instr.ncause)) ? nmi_to_string.at(static_cast<nmi>(instr.ncause)) : std::to_string(instr.ncause));

@@ -13,6 +13,7 @@ cc_library(
         "pcg_uint128.hpp",
         "remote_bitbang.h",
         "memmap.h",
+        "address_range.h",
     ],
     deps = [
         "@opensrc-nlohmann-json//:json",
@@ -29,7 +30,7 @@ cc_library(
 
 cc_library(
     name = "transactor",
-    hdrs = [ "axi_seqids.hpp", "transactor.h" ],
+    hdrs = [ "transactor.h", "address_range.h", "axi_seqids.hpp" ],
     deps = [
         "@cvm//:plusargs",
         "@cvm//:logger",

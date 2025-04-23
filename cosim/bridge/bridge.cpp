@@ -935,7 +935,9 @@ void bridge::pre_step_exception_poke(hart_id_t hart, const rv_instr_t& d) {
   }
 
   if (!find(cosim_resynch_excp_addr_, d.ecause, d.trap_addr) &&
-      !find(cosim_resynch_excp_, d.ecause))
+      !find(cosim_resynch_excp_, d.ecause) &&
+      !d.pc.error &&
+      !d.mem_read.error)
     return;
 
   bool valid;
@@ -945,6 +947,13 @@ void bridge::pre_step_exception_poke(hart_id_t hart, const rv_instr_t& d) {
     hart, is_load, d.ecause, 0, valid) || !valid) && FLAGS_whisper_client_check) {
     error("Hart {}: Failed whisper API InjectException\n", hart);
   }
+
+  if (d.pc.error && d.ecause == INSN_ACCESS_FAULT)
+    num_exceptions_iaf_nderr_++;
+  if (d.mem_read.error && d.ecause == LD_ACCESS_FAULT)
+    num_exceptions_laf_nderr_++;
+  if (d.mem_read.error && d.ecause == ST_AMO_ACCESS_FAULT)
+    num_exceptions_saf_nderr_++;
 }
 
 void bridge::pre_step_lrsc_poke(hart_id_t hart, const rv_instr_t& d) {
@@ -3209,6 +3218,9 @@ void bridge::report_metrics() {
     std::transform(es_lower.begin(), es_lower.end(), es_lower.begin(), [](unsigned char c){ return std::tolower(c); });
     print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_{}\": {}}}\n", id_, es_lower, num_exceptions_[e]);
   }
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_insn_access_fault_nderr\": {}}}\n", id_, num_exceptions_iaf_nderr_);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_ld_access_fault_nderr\": {}}}\n", id_, num_exceptions_laf_nderr_);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_st_amo_access_fault_nderr\": {}}}\n", id_, num_exceptions_saf_nderr_);
   for (const auto& [p,ps] : priv_to_string) {
     for (const auto& [i,is] : intr_to_string) {
       if (num_taken_interrupts_[p][i] != 0) {
