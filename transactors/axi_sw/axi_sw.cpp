@@ -27,6 +27,7 @@ DEFINE_bool(axi_sw_read_no_callbacks, false, "Plusarg to test synchronous read f
 DEFINE_int32(axi_sw_read_consecutive_spurious_calls_allowed, -1, "Ignore N spurious call after a non-spurious call. Set to -1 to ignore all spurious calls. Spurious calls should not break function but slow down emulation.");
 DEFINE_uint32(axi_sw_reorder_window, 0, "If reorder window > 1, will randomly attempt to reorder ar/aw requests within the window. Otherwise, transactions are handled in-order.");
 DEFINE_uint32(axi_sw_reorder_timeout, 100, "If reorder window > 1, will attempt to flush transaction every N cycles while window is not drained (prevent stalls).");
+DEFINE_bool(axi_sw_fast_write_response, false, "If fast write response, SV will immediately return write response without going through DPI.");
 
 namespace {
     bool destroyed = false;
@@ -312,6 +313,9 @@ bool axi_sw<W,AW,AR,RQ,BQ>::b_dpi() {
 
 template <typename W, typename AW, typename AR, typename RQ, typename BQ>
 void axi_sw<W,AW,AR,RQ,BQ>::b_resp() {
+    if (FLAGS_axi_sw_fast_write_response)
+      return;
+
     while ( (b_dpi_fifo_.wptr_ - b_dpi_fifo_.rptr_) < b_dpi_fifo_.max_ ) {
       // We don't need this, this is more for future-proofing if writes ever becomes a coroutine
       auto [valid, result] = axi_->b();
