@@ -152,7 +152,6 @@ import rv_tester_pkg::*;
     parameter OVERFLOW_BIT_EXTRA = 2;
     logic overflow;
     logic [EVENT_COUNT + SC_EVENT_COUNT + OVERFLOW_BIT_EXTRA -1 : 0] pmcounter_overflow_bit;
-
     assign pmcounters_cores[0].valid = !reset && perf_enabled && (overflow || (|mhpm_write) || terminate || (cycle_sync_en && (sync_cycles % period) == 0) || (instruction_sync_en && (((prev_sync_instructions % instructions) > nret) && ((sync_instructions % instructions) < nret))) || perf_start || perf_end);
     assign pmcounters_cores[0].data.location = location;
     assign pmcounters_cores[0].data.tb_cycles = 24'(clocks - tb_cycles_offset);
@@ -519,7 +518,6 @@ import rv_tester_pkg::*;
     assign pmcounters_cores[0].data.sc_miss_prefetch = 24'(pmcounter[SC_MISS_PREFETCH]);
     assign pmcounters_cores[0].data.ldq_missq_full_delay = 24'(pmcounter[LDQ_MISSQ_FULL_DELAY]);
     assign pmcounters_cores[0].data.stq_missq_full_delay = 24'(pmcounter[STQ_MISSQ_FULL_DELAY]);
-
     generate
         if (SC_PMCI_ENABLED == 1) begin
              assign  pmcounters_scs[0].valid = pmcounters_cores[0].valid;
