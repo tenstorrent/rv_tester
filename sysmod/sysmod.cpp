@@ -21,6 +21,7 @@
 #include "Uart8250.hpp"
 #include "io_device.h"
 #include "trickbox/trickbox.h"
+#include "sep_entropy_fifo/sep_entropy_fifo.h"
 #include "rv_tester/rv_tester_structs.h"
 #include "rv_tester/rv_tester_plusargs.h"
 #include "cosim/bridge_if/bridge_params.h"
@@ -877,6 +878,8 @@ sysmod::compose() {
       if (type == "memory") {
         device = std::make_unique<sysmod_mem>(tag, base, size, loc_, mm);
 
+      } else if (type == "sep") {
+        device = std::make_unique<sep_entropy_fifo>(tag, base, size, loc_);
       } else if (type == "io_dev") {
         device = std::make_unique<io_dev>(tag, base, size, loc_);
 

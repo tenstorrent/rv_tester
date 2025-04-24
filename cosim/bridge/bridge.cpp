@@ -195,12 +195,17 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
 // Destructor
 bridge::~bridge() {}
 
-void bridge::reset() {
+  void bridge::reset() {
 
   // Get memmap instance
   if (!cvm::registry::messenger.call<memmap::getRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.MEMMAP", 0), memmap_)) {
     error("Getting Memmap failed");
     return;
+  }
+  auto it = memmap_.find("sep_entropy_fifo");
+  if (it != memmap_.end()) {
+    sep_base_ = it->second.base;
+    sep_end_ = it->second.end;
   }
 
   // Construct whisper for cosim API calls
@@ -2145,6 +2150,9 @@ bool bridge::debug_mem_access(const uint64_t& pa){
 bool bridge::unsupported_mmr_access(const uint64_t& pa){
   if ( pa >= mmr_lo_addr && pa < mmr_hi_addr)
     return true;
+  if (pa >= sep_base_ && pa < sep_end_)
+    return true;
+
   return false;
 }
 
@@ -2315,7 +2323,8 @@ void bridge::process_dut_mcm_read(hart_id_t hart, mem_t& m) {
         mcm_orders_.insert( std::pair<uint64_t,int>(m.tag,1) );
      }
   }
-  if (debug_mode_) {
+
+  if (debug_mode_ || (m.pa>=sep_base_ && ((m.pa + m.size) < sep_end_))) {
     if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, 'm', m.pa, m.size, m.data, valid)|| !valid) && FLAGS_whisper_client_check) {
       error("Hart {}: Failed to poke memory\n", hart);
       return;
