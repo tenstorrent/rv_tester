@@ -56,6 +56,7 @@ DEFINE_string(hart_enable_id, "", "Hart id sequence corresponding to physical co
 DEFINE_bool(rand_sc_harvest, false, "Randomize sc harvest options");
 DEFINE_int32(num_sc_dis_ways, -1, "Number of disabled SC ways - upto 24 in multiples of 4");
 DEFINE_int32(sc_dis_ways_mask, -1, "SC way enable mask. Ex: With 20 enabled ways out of 24, could be 0xF0_FFFF.");
+DEFINE_int32(num_sc_enabled_ways, 24, "Number of SC enabled ways"); // internal arg
 // scratchpad 
 DEFINE_bool(enable_sp_init, false, "Enable sharedcache scratchpad initilization from bootrom");
 DEFINE_bool(rand_sp_ways, false, "Randomize number of SC ways reserved for scratchpad");
@@ -390,8 +391,9 @@ sysmod::sc_harvest_plusargs()
         cvm::log(cvm::ERROR, "Error: Incompatible plusargs: +num_sc_dis_ways {} + +num_sp_ways {}, should be between [0,{}]\n", dis_ways, sp_ways, nways);
       break;
   }
-  cvm::log(cvm::NONE, "[plusargs] +num_sc_dis_ways {} +sc_dis_ways_mask {:#x} +num_sp_ways {}\n",
-    FLAGS_num_sc_dis_ways, FLAGS_sc_dis_ways_mask, FLAGS_num_sp_ways);
+  FLAGS_num_sc_enabled_ways = nways - FLAGS_num_sc_dis_ways;
+  cvm::log(cvm::NONE, "[plusargs] +num_sc_dis_ways {} +sc_dis_ways_mask {:#x} +num_sp_ways {} +num_sc_enabled_ways {}\n",
+    FLAGS_num_sc_dis_ways, FLAGS_sc_dis_ways_mask, FLAGS_num_sp_ways, FLAGS_num_sc_enabled_ways);
 }
 
 uint32_t
@@ -1117,6 +1119,7 @@ sysmod::load_boot(const std::string& boot) {
     // Write SP init
     // Write SP ways
     // Write STEE swid
+    // Write SC enabled ways
     device::data_t data(8);
     device::strb_t strb(8);
     for (size_t i = 0; i < 8; i++) data[i] = 0;
@@ -1141,6 +1144,9 @@ sysmod::load_boot(const std::string& boot) {
 
     data[0] = FLAGS_matp_swid;
     dev("boot")->backdoor_write(dev("boot")->addr() + boot_matp_swid_offset, 8, data, strb);
+
+    data[0] = FLAGS_num_sc_enabled_ways; // sc enabled ways
+    dev("boot")->backdoor_write(dev("boot")->addr() + boot_sc_enabled_ways_offset, 8, data, strb);
   }
 }
 

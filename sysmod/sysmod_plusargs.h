@@ -17,6 +17,7 @@ DECLARE_uint32(hart_enable_mask);
 DECLARE_bool(hart_sync_en);
 DECLARE_string(hart_enable_id);
 DECLARE_int32(num_sc_dis_ways);
+DECLARE_int32(num_sc_enabled_ways);
 DECLARE_int32(sc_dis_ways_mask);
 DECLARE_uint32(trace_enable);
 DECLARE_uint32(debug_enable);

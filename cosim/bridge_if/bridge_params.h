@@ -31,6 +31,7 @@ namespace {
     constexpr uint64_t boot_sp_ways_offset = 0x9010;
     constexpr uint64_t boot_hart_sync_en_offset = 0x9018;
     constexpr uint64_t boot_matp_swid_offset = 0x9020;
+    constexpr uint64_t boot_sc_enabled_ways_offset = 0x9028;
 
     constexpr uint32_t opcode_nop    = 0x13;
     constexpr uint32_t opcode_ret    = 0x8067;

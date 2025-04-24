@@ -249,7 +249,12 @@ bridge::~bridge() {}
       error("Hart {}: Failed to poke boot memory to write matp\n", id_);
       return;
     }
-
+  }
+  if (FLAGS_num_sc_enabled_ways) {
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', memmap_.at("boot").base + boot_sc_enabled_ways_offset, 8, uint64_t(FLAGS_num_sc_enabled_ways), valid)|| !valid) && FLAGS_whisper_client_check){
+      error("Hart {}: Failed to poke boot memory to write matp\n", id_);
+      return;
+    }
   }
 
   // Parse plusargs and store in containers
