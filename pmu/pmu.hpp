@@ -1968,6 +1968,15 @@ public:
             {0x0002,counter_core::UWP_INVALIDATE_TAP_DFP},
             }
       },
+      {0x2542,{
+            {0x0011,counter_core::SC_HIT_READ},
+            {0x0012,counter_core::SC_HIT_WRITE},
+            {0x0014,counter_core::SC_HIT_PREFETCH},
+            {0x0021,counter_core::SC_MISS_READ},
+            {0x0022,counter_core::SC_MISS_WRITE},
+            {0x0024,counter_core::SC_MISS_PREFETCH},
+            }
+      },
       {0x1862,{
             {0x0001,counter_core::OP_COMPLETE_LD},
             {0x0002,counter_core::OP_COMPLETE_ST},
