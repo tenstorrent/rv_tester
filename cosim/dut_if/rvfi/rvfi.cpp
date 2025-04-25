@@ -1409,6 +1409,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write<>& m_mcmi_w
   m.pa = m_mcmi_write.addr;
   m.mask = m_mcmi_write.mask;
   m.data = m_mcmi_write.data;
+  m.error = m_mcmi_write.error;
 
   bridge_->process_dut_mcm_write(m_mcmi_write.hart, m);
 }
