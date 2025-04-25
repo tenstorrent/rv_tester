@@ -455,6 +455,8 @@ private:
   std::vector<std::string> cosim_resynch_csr_defaults;
 
   bool terminated_ = false;
+  bool check_nmi_at_patch_exit_ = false;
+  uint64_t check_nmi_at_patch_cause_ = 0;
   enum patch_mode patch_mode_ = NO_PATCH;
 
   // Containers for storing result of parsing plusargs

@@ -1211,6 +1211,21 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
 }
 
 void bridge::post_step_nmi_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
+
+  if (w_.nmi && patch_mode_ == EXIT_PATCH && check_nmi_at_patch_exit_) {
+    if (check_nmi_at_patch_cause_ != w_.ncause)
+      error("Hart {}: NMI cause mismatch, whisper:{} dut: {}\n", hart, w_.ncause, check_nmi_at_patch_cause_);
+    check_nmi_at_patch_exit_ = false;
+    return;
+  }
+
+  if (d.nmi && !w_.nmi && patch_mode_ == ENTER_PATCH) {
+    check_nmi_at_patch_exit_ = true;
+    check_nmi_at_patch_cause_ = d.ncause;
+    bridge_log_(cvm::MEDIUM, "<{}> NMI detected. dut: whisper:[{}, {}]\n", w.time, check_nmi_at_patch_exit_, check_nmi_at_patch_cause_);
+    return;
+  }
+
   if (!d.nmi && !w_.nmi)
     return;
 
