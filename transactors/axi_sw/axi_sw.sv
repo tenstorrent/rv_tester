@@ -204,14 +204,51 @@ module axi_sw #(
         axi_slv_r_last  = r.last;
     end
 
+    logic fast_b_response, fast_b_queue_full, fast_b_queue_empty;
+    id_t fast_axi_slv_b_id;
+    logic [1:0] fast_axi_slv_b_resp;
+    axi_sw_fifo #(
+        .D         (1),
+        .T         (logic[$bits(id_t)+2-1:0])
+    ) fast_b_queue (
+        .clk         (clk                                 ),
+        .reset_n     (reset_n                             ),
+        .full        (fast_b_queue_full                        ),
+        .empty       (fast_b_queue_empty                       ),
+        .d           ({axi_mst_aw_id, axi_mst_aw_lock? RESP_EXOKAY : RESP_OKAY}    ),
+        .push        (axi_mst_aw_valid && axi_slv_aw_ready && fast_b_response),
+        .q           ({fast_axi_slv_b_id , fast_axi_slv_b_resp}    ),
+        .pop         (axi_slv_b_valid && axi_mst_b_ready && fast_b_response)
+    );
+
+    logic w_last_queue_full, w_last_queue_empty;
+    axi_sw_fifo #(
+        .D         (1),
+        .T         (logic)
+    ) w_last_queue (
+        .clk         (clk                                                 ),
+        .reset_n     (reset_n                                             ),
+        .full        (w_last_queue_full                                   ),
+        .empty       (w_last_queue_empty                                  ),
+        .d           (1'b1                                                ),
+        .push        (axi_mst_w_valid && axi_slv_w_ready && axi_mst_w_last && fast_b_response),
+        .q           (                                                    ),
+        .pop         (axi_slv_b_valid && axi_mst_b_ready && fast_b_response)
+    );
+
+    always_comb begin
+        axi_slv_b_id    = fast_b_response ? fast_axi_slv_b_id : b.id  ;
+        axi_slv_b_resp  = fast_b_response ? fast_axi_slv_b_resp : b.resp;
+    end
+
     logic ar_history_full;
     logic aw_history_full;
     logic read_latency_requirement_met;
 
-    assign axi_slv_aw_ready = !aw_history_full;
+    assign axi_slv_aw_ready = fast_b_response ? !fast_b_queue_full : !aw_history_full;
     assign axi_slv_ar_ready = !ar_history_full;
-    assign axi_slv_w_ready  = !aw_history_full;
-    assign axi_slv_b_valid  = reset_n ? !b_queue_empty  : '0;
+    assign axi_slv_w_ready  = fast_b_response ? (!axi_mst_w_last || !w_last_queue_full) : !aw_history_full;
+    assign axi_slv_b_valid  = reset_n ? fast_b_response ? (!fast_b_queue_empty && !w_last_queue_empty) : !b_queue_empty : '0;
     assign axi_slv_r_valid  = reset_n ? (!r_queue_empty && read_latency_requirement_met) : '0;
 
     logic b_queue_rptr_incremented;
@@ -224,11 +261,6 @@ module axi_sw #(
       `AXI_SW_DPI_FIFO_PUSH(axi_sw_b,B_Q_MAX,bd,b_queue_rptr);
     endfunction
     export "DPI-C" function axi_sw_b;
-
-    always_comb begin
-        axi_slv_b_id    = b.id  ;
-        axi_slv_b_resp  = b.resp;
-    end
 
     logic [64-1:0] clocks;
     always_ff @(posedge clk) begin
@@ -321,13 +353,15 @@ module axi_sw #(
             read_latency_timeout_threshold = cvm_plusargs::get_int("axi_sw_read_latency_timeout_threshold");
             read_latency_fifo_threshold    = cvm_plusargs::get_int("axi_sw_read_latency_fifo_threshold");
             reorder_latency_timeout        = cvm_plusargs::get_int("axi_sw_reorder_timeout");
-            reorder_window                 = (cvm_plusargs::get_int("axi_sw_reorder_window") != 0);
+            reorder_window                 = cvm_plusargs::get_int("axi_sw_reorder_window") != 0;
+            fast_b_response                = cvm_plusargs::get_bool("axi_sw_fast_write_response") != 0;
             read_latency       = (fixed != 0) ? fixed : max;
             read_latency_fixed = fixed != 0;
             /* verilator lint_on BLKSEQ */
             if (read_latency     >= (32'(1)) << CW                                ) $error("Error: +axi_sw_read_latency_max/+axi_sw_read_latency_fixed (%0d) overflows counter width (%0d)", read_latency, CW);
             if (read_latency != 0 && read_latency_timeout_threshold > read_latency) $error("Error: +axi_flush_threshold (%0d) > +axi_sw_read_latency_max/+axi_sw_read_latency_fixed (%0d)", read_latency_timeout_threshold, read_latency);
             if (read_latency != 0 && reorder_window != 0) $error("Error: can't specify both max/fixed latency and reorder window");
+            if (fast_b_response != 0 && reorder_window != 0) $error("Error: can't specify both fast write response and reorder window");
         end
     end
 
@@ -363,9 +397,9 @@ module axi_sw #(
     ) aw_history (
         .clk,
         .reset_n,
-        .push(axi_mst_aw_valid && axi_slv_aw_ready),
+        .push(axi_mst_aw_valid && axi_slv_aw_ready && !fast_b_response),
         .d(CW'(clocks)),
-        .pop (axi_slv_b_valid  && axi_mst_b_ready), // axi_sw_r_wptr != axi_sw_r_wptr_nxt
+        .pop (axi_slv_b_valid  && axi_mst_b_ready && !fast_b_response), // axi_sw_r_wptr != axi_sw_r_wptr_nxt
         .q(aw_history_q),
         .full(aw_history_full),
         .size(aw_history_size),
