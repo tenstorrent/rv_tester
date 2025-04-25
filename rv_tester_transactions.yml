@@ -326,6 +326,8 @@ cosim:
                 width: 64
             data:
                 width: ${TOP.PLATFORM.CLLEN}
+            error:
+                width: 1
 
     m_mcmi_ifetch_req:
         domain: 1

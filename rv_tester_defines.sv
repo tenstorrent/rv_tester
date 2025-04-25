@@ -357,6 +357,7 @@ package rv_tester_params;
         logic [(CLLEN/8)-1:0]       mask ;
         logic [CLLEN-1:0]           data ;
         logic [31:0]                attr ;
+        logic                       error;
         logic                       cbo  ;
         logic                       amo  ;
         logic [4:0]                 amo_op;

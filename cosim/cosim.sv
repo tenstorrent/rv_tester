@@ -1105,6 +1105,7 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign m_mcmi_writes[n].data.addr = mcmi_write[n].addr;
         assign m_mcmi_writes[n].data.mask = mcmi_write[n].mask;
         assign m_mcmi_writes[n].data.data = mcmi_write[n].data;
+        assign m_mcmi_writes[n].data.error = mcmi_write[n].error;
 
         assign mcmi_write_pokes[n] = mcmi_write[n].valid;
 
