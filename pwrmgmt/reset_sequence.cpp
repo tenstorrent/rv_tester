@@ -162,6 +162,7 @@ cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
   if (FLAGS_pll_dfs| (FLAGS_clk_profile!=0))
     co_await pll_dfs_sequence();
 
+  co_await cpl_sram_fuse_configuration();
   // Reset controller sequence
   if(FLAGS_cpl_core_en) {
     co_await cpl_fw_reset_sequence(COLD);
@@ -227,6 +228,8 @@ cvm::messenger::task<void> reset_sequence::warm_reset_sequence() {
   if (FLAGS_pll_dfs| (FLAGS_clk_profile!=0))
     co_await pll_dfs_sequence();
 
+  co_await cpl_sram_fuse_configuration();
+
   if(FLAGS_cpl_core_en) {
     co_await cpl_fw_reset_sequence(WARM);
   } else {
@@ -266,27 +269,21 @@ cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
   co_await init_mmr();
   co_await rmw_mmr();
   co_await program_fe_resetvector();
-
-  // For CLC3 FW needs to be enabled once actual merged FW is there no need to do this additionally 
-  if(FLAGS_low_power_seq){
-    uint64_t fuse =  fuse_val();
-    co_await write(0x42170078, SZ_8B, 0xC001, boot_interface);  // DB event configurations
-    co_await write(cpl_sram_fuse_cfg, SZ_8B, fuse, boot_interface);
-    co_await write(cpl_core_reset_csr, SZ_4B, 0xFFFFFFFF, boot_interface);
-  }  
   co_await release_cpl_nofetch();
   co_await tick();
   co_return;
 }
 
-
-cvm::messenger::task<void> reset_sequence::cpl_fw_reset_sequence(rst_t rst_type) {
+cvm::messenger::task<void> reset_sequence::cpl_sram_fuse_configuration() {
   uint64_t fuse =  fuse_val();
   co_await write(cpl_sram_fuse_cfg, SZ_8B, fuse, boot_interface);
   co_await write(cpl_sram_core_reset_vector_cfg, SZ_8B, FLAGS_resetpc, boot_interface);
+  co_return;
+}
+
+cvm::messenger::task<void> reset_sequence::cpl_fw_reset_sequence(rst_t rst_type) {
   co_await write(cpl_core_reset_csr, SZ_4B, 0xFFFFFFFF, boot_interface);
   co_await wait_reset_release();
-  // CPL co_await check_system_ready();
   co_await program_thub_threshold();
 
   if(FLAGS_init_smc_infilters) {
@@ -296,38 +293,35 @@ cvm::messenger::task<void> reset_sequence::cpl_fw_reset_sequence(rst_t rst_type)
   co_await rmw_csr();
   co_await init_mmr();
   co_await rmw_mmr();
-  // CPL co_await send_start_of_execution_to_cpl();
+  co_await check_system_config_done();
+  co_await send_start_of_execution_to_cpl();
   co_await wait_nofetch_release();
   co_await tick();
   co_return;
 }
 
 cvm::messenger::task<void> reset_sequence::send_start_of_execution_to_cpl() {
-  uint32_t count = 0;
-  while (true) {
-    co_await tick();
-    auto data = co_await read(pll_interrupts, SZ_4B, boot_interface);
-    if (data & (1 << cold_powerup_idx))
-      break;
-
-    count++;
-    if (count > FLAGS_pll_pwrup_timeout)
-      cvm::log(cvm::ERROR, "Error: PLL cold power up not done after {} soc clocks\n", FLAGS_pll_pwrup_timeout);
-  }
+  auto data = co_await read(rst_ctl_nofetch, SZ_4B, boot_interface);
+  data = data | (1 << rst_ctl_nofetch_clustercorego_idx);
+  data = data & (~(1 << rst_ctl_nofetch_cfg_done_idx));
+  co_await write(rst_ctl_nofetch, SZ_4B, data, boot_interface);
   co_return;
 }
 
-cvm::messenger::task<void> reset_sequence::check_system_ready() {
+cvm::messenger::task<void> reset_sequence::check_system_config_done() {
   uint32_t count = 0;
   while (true) {
-    co_await tick();
-    auto data = co_await read(pll_interrupts, SZ_4B, boot_interface);
-    if (data & (1 << cold_powerup_idx))
+    
+    for (int i=0; i<10; ++i)
+      co_await tick();
+
+    auto data = co_await read(rst_ctl_nofetch, SZ_4B, boot_interface);
+    if (data & (1 << rst_ctl_nofetch_cfg_done_idx))
       break;
 
     count++;
-    if (count > FLAGS_pll_pwrup_timeout)
-      cvm::log(cvm::ERROR, "Error: PLL cold power up not done after {} soc clocks\n", FLAGS_pll_pwrup_timeout);
+    if (count > 2000)
+      cvm::log(cvm::ERROR, "Error: System check config not done... \n");
   }
   co_return;
 }

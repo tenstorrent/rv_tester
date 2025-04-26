@@ -56,8 +56,9 @@ class reset_sequence {
     cvm::messenger::task<void> tick();
     cvm::messenger::task<void> trigger();
     cvm::messenger::task<void> cpl_reset_sequence(rst_t );
+    cvm::messenger::task<void> cpl_sram_fuse_configuration();
     cvm::messenger::task<void> cpl_fw_reset_sequence(rst_t );
-    cvm::messenger::task<void> check_system_ready();
+    cvm::messenger::task<void> check_system_config_done();
     cvm::messenger::task<void> send_start_of_execution_to_cpl();
     cvm::messenger::task<void> pll_startup_sequence();
     cvm::messenger::task<void> check_pll_status();
