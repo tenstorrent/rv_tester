@@ -135,6 +135,8 @@ module rv_tester
     logic warm_reset_req;
     logic warm_reset_req_d1;
     logic warm_reset_now = 0;
+    logic warm_reset_sdtrig;
+
     int num_resets = -1;
     int num_builds = -1;
     int target_num_resets = 0;
@@ -706,6 +708,7 @@ module rv_tester
     dmi_driver i_dmi_driver(
         .clk(dut_clk[AXI_CLK_IDX]),
         .reset_n(~(reset[WARM_RESET_IDX] || reset[COLD_RESET_IDX]) || reset_hold[DEBUG_HOLD_IDX]),
+        .warm_reset_sdtrig(~reset[WARM_RESET_IDX]),
         .dmi_driver_dbg_enable,
         .rand_dmi_driver_dly,
         .hart_enable_mask,

@@ -4,6 +4,7 @@ import rv_tester_params:: * ;
 (
     input logic                     clk,
     input logic                     reset_n,
+    input logic                     warm_reset_sdtrig,
 
     input logic                     dmi_driver_dbg_enable,
     input logic [31:0]              rand_dmi_driver_dly,
@@ -203,7 +204,7 @@ import rv_tester_params:: * ;
       single_step_ahead_command_queue_backup.delete();
       single_step_quit_command_queue_backup .delete();
 
-      //$display("[DMI Driver] Reset State Cleaned-up \n");
+      $display("[DMI Driver] Reset State Cleaned-up \n");
     end
   endtask : reset_cleanup 
       
@@ -224,7 +225,7 @@ import rv_tester_params:: * ;
   always @(posedge clk) begin
     dmi_commands_in_queue = command_queue.size();
 
-    if (~reset_n || end_of_test_cleanup) begin
+    if ((~reset_n || end_of_test_cleanup) || (~warm_reset_sdtrig && (trigger_config != 0))) begin
       reset_cleanup();
     end
   end
@@ -500,7 +501,7 @@ import rv_tester_params:: * ;
         end else if(trigger_to_fire && cmd.addr === 'h11 && cmd.op === 'h1 && ~priority_singlestep) begin
           $display("[Sdtrig] Core resuming after sdtrig configuration");
           if(!rvfi_sdtrig) begin
-            @(rvfi_sdtrig);
+            @(rvfi_sdtrig or negedge reset_n);
           end
           poll = 1;
           trigger_fired_halted = 1;
