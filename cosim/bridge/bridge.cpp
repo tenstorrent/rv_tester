@@ -950,11 +950,17 @@ void bridge::pre_step_exception_poke(hart_id_t hart, const rv_instr_t& d) {
       !d.mem_read.error)
     return;
 
+  uint64_t mtval_addr = 0;
+  for (auto & c : d.csr) {
+    if (c.csr_addr == MTVAL) {
+      mtval_addr = c.csr_wdata;
+    }
+  }
   bool valid;
   bool is_load = (d.trap_opcode != 0);
-  bridge_log_(cvm::MEDIUM, "<{}> Inject Exception with code:{} is_load: {}\n", d.cycle, d.ecause, is_load);
+  bridge_log_(cvm::MEDIUM, "<{}> Inject Exception with code:{} is_load: {} addr:{:#x}\n", d.cycle, d.ecause, is_load, mtval_addr);
   if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperInjectExceptionRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0),
-    hart, is_load, d.ecause, 0, valid) || !valid) && FLAGS_whisper_client_check) {
+    hart, is_load, d.ecause, 0, mtval_addr, valid) || !valid) && FLAGS_whisper_client_check) {
     error("Hart {}: Failed whisper API InjectException\n", hart);
   }
 
