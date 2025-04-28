@@ -719,6 +719,7 @@ module rv_tester
         .disable_haltpoll,
         .disable_abscmdpoll,
         .disable_triggerpoll,
+        .terminate,
 
         .dmi_req_ready,
         .dmi_resp_valid,

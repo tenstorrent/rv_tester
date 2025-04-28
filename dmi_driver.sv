@@ -18,6 +18,7 @@ import rv_tester_params:: * ;
     input logic                     disable_haltpoll,
     input logic                     disable_abscmdpoll,
     input logic                     disable_triggerpoll,
+    input logic                     terminate,
 
     
     input logic                     dmi_req_ready,
@@ -51,6 +52,7 @@ import rv_tester_params:: * ;
       single_step_ahead_command_queue_backup[$], single_step_quit_command_queue_backup[$];
 
   logic command_trigger, response_trigger;
+  logic terminate_d1, terminate_align;
   logic [31:0] clk_cnt = '0;
   logic halt_req, resume_req, abstr_cmd_req, poll, poll_p2, ndm_reset_init, ndm_reset_ack, ndm_reset_assert_done, ndm_reset_priority, poll_reset_completion, ndmreset_halt_req;
   logic [31:0] ext_trig_delay;
@@ -73,7 +75,7 @@ import rv_tester_params:: * ;
   logic rvfi_sdtrig, disable_mem_access_checker;
   int file_descr, count_hart_enable_mask, dmi_command_in_step_ahead_queue_size, dmi_command_in_step_quit_queue_size, single_step_instr_cnt_plusarg, total_triggers_plusarg,num_dm_randpc_plsg, num_dm_randload_plsg, num_dm_randstore_plsg, tselect_conf_plusarg, multitriggers_plusarg;
   int trigger_counter, command_in_sdtrig_entry_queue_size, command_in_sdtrig_trigger_queue_size, total_command_in_sdtrig_trigger_queue_size, command_in_sdtrig_progbuf_queue_size;
-  int tselect_value, trigger_index, trigger_hit, command_in_trigger_disable_queue_size, total_command_in_sdtrig_progbuf_queue_size;
+  int tselect_value, trigger_index, trigger_hit, command_in_trigger_disable_queue_size, total_command_in_sdtrig_progbuf_queue_size, trigger_hit_chk;
   logic check_hit_for_tselect, to_check_tselect, read_tselect, to_check_hit, check_hit_bit, read_tdata1_hit;
 
   logic mmr_write_32bits, mmr_write_64bits, check_data0, check_data1, get_data1, mmr_read_32bits, mmr_read_64bits, mmr_access_rd, read_data1, read_data0_comp, read_data1_comp;
@@ -191,7 +193,9 @@ import rv_tester_params:: * ;
       ss_ndmreset <= 0;
       end_of_test_cleanup <= 0;
       core_ignore_resumepoll <= 0;
-
+      terminate_d1 <= 0;
+      terminate_align <= 0;
+      
       command_queue.delete();
       response_queue.delete();
       single_step_ahead_command_queue.delete();
@@ -226,6 +230,25 @@ import rv_tester_params:: * ;
 
     if (~reset_n || end_of_test_cleanup) begin
       reset_cleanup();
+    end
+  end
+
+  always @(posedge clk) begin
+    if (~reset_n) begin
+      terminate_align <= '0;
+      terminate_d1 <= '0;
+    end
+    else begin
+      terminate_align <= terminate;
+      terminate_d1 <= terminate_align;
+    
+      if(trigger_config != 0 && (terminate_align && ~terminate_d1)) begin
+        if((trigger_hit_chk[0] || trigger_hit_chk[1]) && (trigger_hit_chk[2] || trigger_hit_chk[3]) && (trigger_hit_chk[4] || trigger_hit_chk[5]) && (trigger_hit_chk[6] || trigger_hit_chk[7])) begin
+          $display("[DMI Driver trigger checker] Expected triggers are hit");
+        end else begin
+          $display("[Error:] Expected triggers are not hit, terminate_d1: %h, terminate_align:%h", terminate_d1, terminate_align);
+        end
+      end
     end
   end
 
@@ -1050,6 +1073,7 @@ import rv_tester_params:: * ;
           end else begin
             if(dmi_resp.data[22])begin
               trigger_hit[trigger_index]= 1;
+              trigger_hit_chk[trigger_index] = 1;
               $display("hit is set for teslect:%h", tselect_value);
             end else begin
               $display("hit not set for teslect:%h", tselect_value);
