@@ -15,6 +15,8 @@ cc_library(
     srcs = [ "axi.cpp" ],
     hdrs = [ "axi.h", "safe_queue.h" ],
     deps = [
+        "@rv_tester//sysmod:sysmod_plusargs",
+        "@rv_tester//:structs",
         "@rv_tester//common:transactor",
         "@rv_tester//:plusargs",
         "@cvm//:plusargs",

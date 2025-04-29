@@ -22,7 +22,6 @@
 #include "io_device.h"
 #include "trickbox/trickbox.h"
 #include "sep_entropy_fifo/sep_entropy_fifo.h"
-#include "rv_tester/rv_tester_structs.h"
 #include "rv_tester/rv_tester_plusargs.h"
 #include "cosim/bridge_if/bridge_params.h"
 #include "cosim/dut_if/rvfi/rvfi_plusargs.h"
@@ -81,6 +80,8 @@ DEFINE_uint32(aplic_sources, 127, "Number of APLIC interrupt sources");
 // Uart8250
 DEFINE_bool(uart8250, false, "Whether to enable uart8250 devices found in the memory map");
 DEFINE_uint32(uart8250_iid, 1, "Interrupt identity of the uart8250 device");
+
+DEFINE_string(test_start_label, "", "Actual test starts from here(after kernel and initial setup), in case of MP, provide comma separated labels for each hart"); // used in SOT
 
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 
@@ -194,6 +195,9 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
  cvm::registry::messenger.connect<htif::terminate_t>(
      cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0),
      [this] (htif::terminate_t t) { return this->terminate(t); });
+ cvm::registry::messenger.connect<rv_tester::started_t>(
+     cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0),
+     [this] (rv_tester::started_t t) { return this->actual_test_started(t); });
 }
 
 void sysmod::configure()
@@ -763,6 +767,12 @@ sysmod::terminate(htif::terminate_t t) {
           sysmod_terminate
       );
   }
+}
+
+void
+sysmod::actual_test_started(rv_tester::started_t) {
+  cvm::log(cvm::HIGH, "[SYSMOD] actual_test_start\n");
+  cvm::registry::messenger.signal<rv_tester::actual_test_start>(cvm::topology::get_from_type("PLATFORM", 0), rv_tester::actual_test_start{});
 }
 
 void
@@ -1375,7 +1385,6 @@ void sysmod::overlay_tick(uint64_t advance) {
      for (auto& d : devices_)
        d->overlay_tick(advance);
 }
-
 
 extern "C" {
   void sysmod_set_scope(cvm::topology::loc_t loc) {
