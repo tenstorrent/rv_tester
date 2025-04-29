@@ -30,6 +30,7 @@ DEFINE_bool(l, false, "l");
 DEFINE_string(sml, "", "sml");
 DEFINE_bool(ucli, false, "ucli");
 DEFINE_bool(ucli2Proc, false, "ucli2Proc");
+DEFINE_string(test_start_label, "", "Actual test starts from here(after kernel and initial setup), in case of MP, provide comma separated labels for each hart"); // dummy used for smoke test to pass , original defined in sysmod
 
 extern "C" void get_stim(
         std::uint32_t  clocks,
