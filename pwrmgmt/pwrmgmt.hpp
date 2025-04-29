@@ -4,8 +4,6 @@
 #include "cvm/logger.hpp"
 #include <map>
 
-DECLARE_bool(low_power_seq);
-
 namespace {
   constexpr uint32_t pll_ip_ver             = 0x210'3000;
   constexpr uint32_t pll_control            = 0x210'3004;
@@ -14,6 +12,8 @@ namespace {
   constexpr uint32_t pll_parameters0        = 0x210'3010;
   constexpr uint32_t pll_parameters1        = 0x210'3014;
 
+  constexpr uint32_t rst_ctl_nofetch_cfg_done_idx = 31;
+  constexpr uint32_t rst_ctl_nofetch_clustercorego_idx = 27;
   constexpr uint32_t cold_powerup_idx       = 4;
   constexpr uint32_t dfs_done_idx           = 0;
   constexpr uint32_t dfs_req_idx            = 0;

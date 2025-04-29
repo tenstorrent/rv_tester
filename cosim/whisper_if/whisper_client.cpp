@@ -122,11 +122,11 @@ whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) : loc_(loc
   cvm::registry::messenger.procedure<whisperMcmInsertRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, unsigned elemIx, unsigned field, bool& valid) {return this->whisperMcmInsert(hart, time, instrTag, addr, size, value, elemIx, field, valid);});
   cvm::registry::messenger.procedure<whisperMcmVecBypassRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, std::vector<uint64_t> value, unsigned elemIx, unsigned field, bool& valid) {return this->whisperMcmVecBypass(hart, time, instrTag, addr, size, value, elemIx, field, valid);});
   cvm::registry::messenger.procedure<whisperMcmBypassRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, unsigned elemIx, unsigned field, bool& valid) {return this->whisperMcmBypass(hart, time, instrTag, addr, size, value, elemIx, field, valid);});
-  cvm::registry::messenger.procedure<whisperMcmWriteRPC>(loc, [this] (int hart, uint64_t time, uint64_t addr, unsigned size, svOpenArrayHandle handle, uint64_t mask, bool& valid) {return this->whisperMcmWrite(hart, time, addr, size, handle, mask, valid);});
+  cvm::registry::messenger.procedure<whisperMcmWriteRPC>(loc, [this] (int hart, uint64_t time, uint64_t addr, unsigned size, svOpenArrayHandle handle, uint64_t mask, bool error, bool& valid) {return this->whisperMcmWrite(hart, time, addr, size, handle, mask, error, valid);});
   cvm::registry::messenger.procedure<whisperMcmIFetchRPC>(loc, [this] (int hart, uint64_t time, uint64_t addr, bool& valid) {return this->whisperMcmIFetch(hart, time, addr, valid);});
   cvm::registry::messenger.procedure<whisperMcmIEvictRPC>(loc, [this] (int hart, uint64_t time, uint64_t addr, bool& valid) {return this->whisperMcmIEvict(hart, time, addr, valid);});
   cvm::registry::messenger.procedure<whisperMcmEndRPC>(loc, [this] (int hart, uint64_t time, bool& valid) {return this->whisperMcmEnd(hart, time, valid);});
-  cvm::registry::messenger.procedure<whisperInjectExceptionRPC>(loc, [this] (int hart, bool isLoad, uint64_t code, unsigned elemIx, bool& valid) {return this->whisperInjectException(hart, isLoad, code, elemIx, valid);});
+  cvm::registry::messenger.procedure<whisperInjectExceptionRPC>(loc, [this] (int hart, bool isLoad, uint64_t code, unsigned elemIx, uint64_t addr, bool& valid) {return this->whisperInjectException(hart, isLoad, code, elemIx, addr, valid);});
   cvm::registry::messenger.procedure<whisperPokeRPC>(loc, [this] (int hart, uint64_t time, char resource, uint64_t addr, uint64_t value, bool& valid) {return this->whisperPoke(hart, time, resource, addr, value, valid);});
   cvm::registry::messenger.procedure<whisperPokeMemRPC>(loc, [this] (int hart, uint64_t time, char resource, uint64_t addr, unsigned size, uint64_t value, bool& valid) {return this->whisperPokeMem(hart, time, resource, addr, size, value, valid);});
   cvm::registry::messenger.procedure<whisperPeekRPC>(loc, [this] (int hart, char resource, uint64_t addr, uint64_t& value, bool& valid) {return this->whisperPeek(hart, resource, addr, value, valid);});
@@ -586,7 +586,7 @@ whisperClient<URV>::whisperPeekVpr(int hart, uint64_t addr, std::array<std::uint
 template <typename URV>
 bool
 whisperClient<URV>::whisperInjectException(int hart, bool isLoad, uint64_t code, unsigned elemIx,
-	    bool& valid)
+	    uint64_t addr, bool& valid)
 {
   req.hart = hart;
   req.type = WhisperMessageType::InjectException;
@@ -595,6 +595,7 @@ whisperClient<URV>::whisperInjectException(int hart, bool isLoad, uint64_t code,
   req.flags = wflags.value;
   req.address = code;
   req.resource = elemIx;
+  req.value = addr;
 
   if (not whisperCommand(req, reply))
     return false;
@@ -954,7 +955,7 @@ whisperClient<URV>::whisperMcmBypass(int hart, uint64_t time, uint64_t instrTag,
 template <typename URV>
 bool
 whisperClient<URV>::whisperMcmWrite(int hart, uint64_t time, uint64_t addr,
-		unsigned size, svOpenArrayHandle handle, uint64_t mask, bool& valid)
+		unsigned size, svOpenArrayHandle handle, uint64_t mask, bool error, bool& valid)
 {
   req.hart = hart;
   req.type = WhisperMessageType::McmWrite;
@@ -962,6 +963,7 @@ whisperClient<URV>::whisperMcmWrite(int hart, uint64_t time, uint64_t addr,
   req.address = addr;
   req.size = size;
   req.flags = 1;
+  req.flags |= (error << 1);
   for (uint8_t i = 0; i < req.size/8; ++i)
     req.tag[i] = (uint8_t)((mask >> (i*8)) & 0xff);
 

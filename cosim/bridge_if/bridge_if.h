@@ -38,6 +38,7 @@ typedef struct whisper_state_s {
 typedef struct pc_s {
   bool valid = false;
   uint64_t pc_rdata = 0;
+  bool error = false;
 
   pc_s() {
     clear();
@@ -149,6 +150,7 @@ typedef struct mem_s {
   uint8_t amo_op;
   bool v_ext;
   uint32_t attr;
+  bool error;
   uint8_t field;
   uint8_t elem_idx;
   bool splat;
@@ -177,6 +179,7 @@ typedef struct mem_cl_s {
   uint8_t size;
   std::bitset<512> data;
   uint64_t mask;
+  bool error;
 
   mem_cl_s() {
     clear();

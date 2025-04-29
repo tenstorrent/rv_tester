@@ -42,55 +42,31 @@ template <typename T> void atop_arithmetic(const axi::data_t& read_data, axi::da
 }
 
 axi::axi(const data_width_t& data_width, const cvm::topology::loc_t loc, const std::string& tag)
-  : transactor(loc, tag), data_width_(data_width), tag_(tag), num_slverr_resp_(0), num_decerr_resp_(0)
+  : transactor(loc, tag), tag_(tag), data_width_(data_width)
 {
     cvm::log(cvm::MEDIUM, "[axi] Constructing axi for loc={} id={}\n", loc, tag);
 
     // RPC to allow external components to configure responses
     cvm::registry::messenger.procedure<configure_resp_rpc>(loc, [this] () { return this->configure_resp(); });
 
-    hang_addr_   = parse_hex_ranges(FLAGS_axi_resp_hang_addr);
-    slverr_addr_ = parse_hex_ranges(FLAGS_axi_resp_slverr_addr);
-    decerr_addr_ = parse_hex_ranges(FLAGS_axi_resp_decerr_addr);
-    // Resize the counter vector to match the number of address ranges
-    slverr_count_.resize(slverr_addr_.size(), 0);
-    decerr_count_.resize(decerr_addr_.size(), 0);
+    hang_range_.parse(FLAGS_axi_resp_hang_addr);
+    slverr_range_.parse(FLAGS_axi_resp_slverr_addr);
+    decerr_range_.parse(FLAGS_axi_resp_decerr_addr);
+    slverr_threshold_ = FLAGS_axi_resp_slverr_threshold;
+    decerr_threshold_ = FLAGS_axi_resp_decerr_threshold;
 }
 
 void axi::configure_resp() {
     cvm::log(cvm::HIGH, "[axi] configure axi err resp: slverr={}\n", FLAGS_axi_resp_slverr_addr);
     cvm::log(cvm::HIGH, "[axi] configure axi err resp: decerr={}\n", FLAGS_axi_resp_decerr_addr);
 
-    slverr_addr_ = parse_hex_ranges(FLAGS_axi_resp_slverr_addr);
-    decerr_addr_ = parse_hex_ranges(FLAGS_axi_resp_decerr_addr);
-    // Resize the counter vector to match the number of address ranges
-    slverr_count_.resize(slverr_addr_.size(), 0);
-    decerr_count_.resize(decerr_addr_.size(), 0);
+    slverr_range_.parse(FLAGS_axi_resp_slverr_addr);
+    decerr_range_.parse(FLAGS_axi_resp_decerr_addr);
 }
 
 axi::~axi() {
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"{}_resp_slverr_count\": \"{}\"}}\n", tag_, num_slverr_resp_);
     cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"{}_resp_decerr_count\": \"{}\"}}\n", tag_, num_decerr_resp_);
-}
-
-// Function to parse a string containing hexadecimal numbers and ranges
-std::vector<std::pair<uint64_t, uint64_t>> axi::parse_hex_ranges(const std::string& input) {
-    std::vector<std::pair<uint64_t, uint64_t>> result;
-    std::regex hex_range_regex(R"((0x[0-9a-fA-F]+)(?:-(0x[0-9a-fA-F]+))?)");
-    std::smatch match;
-    auto search_start = input.cbegin();
-
-    // Loop through all matches found in the input string
-    while (regex_search(search_start, input.cend(), match, hex_range_regex)) {
-        uint64_t min = stoull(match[1].str(), nullptr, 16);
-        uint64_t max = match[2].matched ? stoull(match[2].str(), nullptr, 16) : min;
-
-        result.emplace_back(min, max);
-        // Move search start to remaining part of the string
-        search_start = match.suffix().first;
-    }
-
-    return result;
 }
 
 void axi::atop_modify_write_data(const atop_t& atop, const data_t& read_data, data_t& write_data, const len_t& len) {
@@ -223,17 +199,10 @@ cvm::messenger::task<void> axi::operator()() {
                 addr_t start  = (addr / strobe_width()) * strobe_width() + lower_byte_lane;
                 addr_t len    = upper_byte_lane - lower_byte_lane + 1;
 
-                std::string d;
-                std::string s;
                 axi::data_t read_data;
-                axi::resp_t read_resp;
                 if (!a.w || a.atop.transaction != NON_ATOMIC) {
                     cvm::log(cvm::FULL, "[axi] ar: id={}, addr={:#x}, len={}, size={}. tr: len={}\n", a.id, start, a.len, a.size, len);
                     read_data = co_await transactor::read(start, len);
-                    if (cvm::logger::check_verbosity(cvm::FULL))
-                      for (int i=read_data.size()-1; i>=0; i--)
-                        d += fmt::format("{:02x}", read_data[i]);
-                    cvm::log(cvm::FULL, "[axi] r: id={}, last={}, len={}, size={}, data={}\n", a.id, last, len, read_data.size(), d);
                     read_data.resize(data_bus_bytes, 0);
                 }
 
@@ -257,7 +226,6 @@ cvm::messenger::task<void> axi::operator()() {
                             std::end(w.strb)
                             );
 
-
                     atop_modify_write_data(a.atop, read_data, w.data, len);
 
                     transactor::write(
@@ -267,7 +235,23 @@ cvm::messenger::task<void> axi::operator()() {
                             w.strb
                     );
 
-                    b_q_.enqueue(b_t(a.id, RESP_OKAY));
+                    // Resp
+                    axi::resp_t write_resp = RESP_OKAY;
+                    if (slverr_range_.is_count_below_threshold(addr, WRITE, slverr_threshold_)) {
+                        write_resp = RESP_SLVERR;
+                        auto count = slverr_range_.incr_count(addr, WRITE);
+                        num_slverr_resp_++;
+                        cvm::log(cvm::HIGH, "[axi] slverr write resp addr={:#x} count={}\n", addr, count.value());
+                    }
+                    if (decerr_range_.is_count_below_threshold(addr, WRITE, decerr_threshold_)) {
+                        write_resp = RESP_DECERR;
+                        auto count = decerr_range_.incr_count(addr, WRITE);
+                        num_decerr_resp_++;
+                        cvm::log(cvm::HIGH, "[axi] decerr write resp addr={:#x} count={}\n", addr, count.value());
+                    }
+
+                    b_q_.enqueue(b_t(a.id, write_resp));
+                    cvm::log(cvm::FULL, "[axi] b: id={}, resp={}\n", a.id, write_resp);
                 }
 
                 if (!a.w || (a.atop.transaction != NON_ATOMIC && a.atop.transaction != ATOMIC_STORE)) {
@@ -278,37 +262,30 @@ cvm::messenger::task<void> axi::operator()() {
                             std::end(read_data)
                             );
 
-                    read_resp = a.lock ? RESP_EXOKAY : RESP_OKAY;
-                    // Error responses
-                    int idx = 0;
-                    for (const auto& [min, max] : slverr_addr_) {
-                        if (addr >= min && addr <= max && slverr_count_[idx] <= FLAGS_axi_resp_slverr_threshold) {
-                            read_resp = RESP_SLVERR;
-                            slverr_count_[idx]++;
-                            num_slverr_resp_++;
-                            cvm::log(cvm::HIGH, "[axi] slverr resp addr={:#x} count={}\n", addr, slverr_count_[idx]);
-                        }
-                        idx++;
+                    // Resp
+                    axi::resp_t read_resp = a.lock ? RESP_EXOKAY : RESP_OKAY;
+                    if (slverr_range_.is_count_below_threshold(addr, READ, slverr_threshold_)) {
+                        read_resp = RESP_SLVERR;
+                        auto count = slverr_range_.incr_count(addr, READ);
+                        num_slverr_resp_++;
+                        cvm::log(cvm::HIGH, "[axi] slverr read resp addr={:#x} count={}\n", addr, count.value());
                     }
-                    idx = 0;
-                    for (const auto& [min, max] : decerr_addr_) {
-                        if (addr >= min && addr <= max && decerr_count_[idx] <= FLAGS_axi_resp_decerr_threshold) {
-                            read_resp = RESP_DECERR;
-                            decerr_count_[idx]++;
-                            num_decerr_resp_++;
-                            cvm::log(cvm::HIGH, "[axi] decerr resp addr={:#x} count={}\n", addr, decerr_count_[idx]);
-                        }
-                        idx++;
+                    if (decerr_range_.is_count_below_threshold(addr, READ, decerr_threshold_)) {
+                        read_resp = RESP_DECERR;
+                        auto count = decerr_range_.incr_count(addr, READ);
+                        num_decerr_resp_++;
+                        cvm::log(cvm::HIGH, "[axi] decerr read resp addr={:#x} count={}\n", addr, count.value());
                     }
-                    // Drop responses (artificial hang scenario)
-                    bool drop_resp = false;
-                    for (const auto& [min, max] : hang_addr_) {
-                        if (addr >= min && addr <= max) {
-                            drop_resp = true;
-                        }
-                    }
-                    if(!drop_resp)
+                    // Drop response (artificial hang scenario)
+                    bool drop_resp = hang_range_.find(addr);
+                    if(!drop_resp) {
                         r_q_.enqueue(r_t(a.id, read_resp, read_data, last));
+                    }
+                    std::string d;
+                    if (cvm::logger::check_verbosity(cvm::FULL))
+                      for (int i=read_data.size()-1; i>=0; i--)
+                        d += fmt::format("{:02x}", read_data[i]);
+                    cvm::log(cvm::FULL, "[axi] r: id={}, resp={}, last={}, len={}, size={}, data={}\n", a.id, read_resp, last, len, read_data.size(), d);
                 }
             }
 

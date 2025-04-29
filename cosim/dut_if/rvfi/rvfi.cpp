@@ -21,7 +21,7 @@ DEFINE_bool(cosim, true, "Enable cosim checking");
 DEFINE_bool(emulate_amo_arithmetic, true, "Emulate amo arithmetic if dut harness does not provide amo outputs");
 DEFINE_bool(vec_cmode_tag_override, true, "If vector instruction enters conservative mode, override subsequent rvfi/mcmi tags with original instruction tag");
 DEFINE_bool(patch_mode_tag_override, true, "In Patch mode, override subsequent rvfi/mcmi tag with original instruction tag");
-DEFINE_bool(offline_cosim, false , "Enables Offline DPI capture of COSIM");
+DEFINE_bool(offline_dpi, false , "Enables Offline DPI capture");
 
 DEFINE_uint64(debug_entry_pc, 0x42190800, "Debug Mode entry PC");
 DEFINE_uint64(debug_exit_pc, 0x421908cc, "Debug Mode exit PC");
@@ -87,7 +87,7 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
 
 rvfi::~rvfi() {
   uint32_t ncores = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
-  if (FLAGS_rvfi && ncores == 1 && (count_ == 1) && (FLAGS_offline_cosim == false))
+  if (FLAGS_rvfi && ncores == 1 && (count_ == 1) && (FLAGS_offline_dpi == false))
     cvm::log(cvm::ERROR, "Error: rvfi termination without processing any instructions\n");
 }
 
@@ -155,6 +155,8 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   if (m_rvfi.trap) {
     trap_insn_ = m_rvfi.insn;
     trap_addr_ = (m_rvfi.insn == 0) ? m_rvfi.pc_rdata : ((m_rvfi.mem_rmask != 0) || (m_rvfi.mem_wmask != 0)) ? m_rvfi.mem_addr : 0x0;
+    pc_error_ = m_rvfi.pc_error;
+    mem_error_ = m_rvfi.mem_error;
     return;
   }
 
@@ -206,6 +208,10 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   excp_ = false;
   nmi_ = false;
   vec_cmode_ = false;
+  trap_insn_ = 0;
+  trap_addr_ = 0;
+  pc_error_ = false;
+  mem_error_ = false;
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
@@ -236,7 +242,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
     ecause_ = m_trap.cause & 0xff;
     if (FLAGS_cosim && ecause_ == 60) {
       cvm::log(cvm::HIGH, "Enter patch via exception\n");
-      bridge_->set_patch_mode(ENTER_PATCH);
+      if (FLAGS_cosim) bridge_->set_patch_mode(ENTER_PATCH);
       patch_mode_ = true;
     } else if (FLAGS_vec_cmode_tag_override && (ecause_ == CUSTOM_VEC_CMODE)) {
       vec_cmode_ = true;                      // RVTOOLS-3265, RVTOOLS-3479: Adjust tag for conservative mode vector instructions
@@ -439,7 +445,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
 
   if (m_rvfi.set_pmode) { // when we enter patch mode via ucode
     cvm::log(cvm::HIGH, "CLOCK={}: Patch mode turned ON\n",m_rvfi.cycle);
-    bridge_->set_patch_mode(ENTER_PATCH);
+    if (FLAGS_cosim) bridge_->set_patch_mode(ENTER_PATCH);
     patch_mode_ = true;
     if (FLAGS_patch_mode_tag_override) {
       patch_mode_first_tag_ = m_rvfi.order;
@@ -448,7 +454,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   }
   if (m_rvfi.clr_pmode) {
     cvm::log(cvm::HIGH, "CLOCK={}: Patch mode turned OFF\n",m_rvfi.cycle);
-    bridge_->set_patch_mode(EXIT_PATCH);
+    if (FLAGS_cosim) bridge_->set_patch_mode(EXIT_PATCH);
     patch_mode_ = false;
     patch_mode_first_tag_ = 0;
   }
@@ -474,7 +480,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   // Priv mode
   if (FLAGS_cosim && priv_ == 0x4 && !patch_mode_) { // when we enter patch mode via ucode
     cvm::log(cvm::HIGH, "Patch mode: turned ON with Ucode instruction={} time={}\n", m_rvfi.insn, m_rvfi.cycle);
-    bridge_->set_patch_mode(ENTER_PATCH);
+    if (FLAGS_cosim) bridge_->set_patch_mode(ENTER_PATCH);
     patch_mode_ = true;
   }
   instr.priv = m_rvfi.mode;
@@ -493,7 +499,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
     }
     if (m_rvfi.mode == 0x4 && patch_mode_) { // dret changes mode from D to M/S/U (exit from patch mode)
       cvm::log(cvm::HIGH, "Patch mode: turned OFF with Ucode instruction={} time={}\n",m_rvfi.insn,m_rvfi.cycle);
-      bridge_->set_patch_mode(EXIT_PATCH);
+      if (FLAGS_cosim) bridge_->set_patch_mode(EXIT_PATCH);
       patch_mode_ = false;
       patch_mode_first_tag_ = 0;
     }
@@ -518,6 +524,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   // PC
   instr.pc.valid = true;
   instr.pc.pc_rdata = m_rvfi.pc_rdata;
+  instr.pc.error = m_rvfi.pc_error || pc_error_;
 
   // GPR
   if ((m_rvfi.rd_addr > 0) && (m_rvfi.rd_addr <= 31)) {
@@ -596,6 +603,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.mem_read.data = m_rvfi.mem_rdata;
   instr.mem_read.size = log2(m_rvfi.mem_rmask + 1);
   instr.mem_read.attr = m_rvfi.mem_attr;
+  instr.mem_read.error = m_rvfi.mem_error || mem_error_;
 
   // Mem writes
   instr.mem_write.valid = (m_rvfi.mem_wmask != 0);
@@ -604,6 +612,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
   instr.mem_write.data = m_rvfi.mem_wdata;
   instr.mem_write.size = log2(m_rvfi.mem_wmask + 1);
   instr.mem_write.attr = m_rvfi.mem_attr;
+  instr.mem_write.error = m_rvfi.mem_error || mem_error_;
 }
 
 void rvfi::append_uop_changes_to_instr(rv_instr_t& instr) {
@@ -716,13 +725,13 @@ void rvfi::print_instr_resource(const rv_instr_t& instr, std::string resource_st
     dut_log += fmt::format(" (flags:{:#x})", instr.flags);
 
   if (instr.mem_write.valid)
-    dut_log += fmt::format(" [{:#x}:{:#x}:{}]", instr.mem_write.va, instr.mem_write.pa, mem_attr_to_string(instr.mem_write.attr));
+    dut_log += fmt::format(" [{:#x}:{:#x}:{}{}]", instr.mem_write.va, instr.mem_write.pa, mem_attr_to_string(instr.mem_write.attr), instr.mem_write.error ? ":ras/bus_error" : "");
 
   if (instr.mem_read.valid)
-    dut_log += fmt::format(" [{:#x}:{:#x}:{}]", instr.mem_read.va, instr.mem_read.pa, mem_attr_to_string(instr.mem_read.attr));
+    dut_log += fmt::format(" [{:#x}:{:#x}:{}{}]", instr.mem_read.va, instr.mem_read.pa, mem_attr_to_string(instr.mem_read.attr), instr.mem_read.error ? ":ras/bus_error" : "");
 
   if (instr.trap_valid)
-    dut_log += fmt::format(" (trap)");
+    dut_log += fmt::format(" {}(trap)", instr.pc.error ? "[ras/bus_error] " : "");
 
   if (instr.nmi)
     dut_log += fmt::format(" (nmi: {})", nmi_to_string.count(static_cast<nmi>(instr.ncause)) ? nmi_to_string.at(static_cast<nmi>(instr.ncause)) : std::to_string(instr.ncause));
@@ -1400,6 +1409,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write<>& m_mcmi_w
   m.pa = m_mcmi_write.addr;
   m.mask = m_mcmi_write.mask;
   m.data = m_mcmi_write.data;
+  m.error = m_mcmi_write.error;
 
   bridge_->process_dut_mcm_write(m_mcmi_write.hart, m);
 }

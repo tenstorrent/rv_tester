@@ -195,12 +195,17 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
 // Destructor
 bridge::~bridge() {}
 
-void bridge::reset() {
+  void bridge::reset() {
 
   // Get memmap instance
   if (!cvm::registry::messenger.call<memmap::getRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.MEMMAP", 0), memmap_)) {
     error("Getting Memmap failed");
     return;
+  }
+  auto it = memmap_.find("sep_entropy_fifo");
+  if (it != memmap_.end()) {
+    sep_base_ = it->second.base;
+    sep_end_ = it->second.end;
   }
 
   // Construct whisper for cosim API calls
@@ -244,7 +249,12 @@ void bridge::reset() {
       error("Hart {}: Failed to poke boot memory to write matp\n", id_);
       return;
     }
-
+  }
+  if (FLAGS_num_sc_enabled_ways) {
+    if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', memmap_.at("boot").base + boot_sc_enabled_ways_offset, 8, uint64_t(FLAGS_num_sc_enabled_ways), valid)|| !valid) && FLAGS_whisper_client_check){
+      error("Hart {}: Failed to poke boot memory to write matp\n", id_);
+      return;
+    }
   }
 
   // Parse plusargs and store in containers
@@ -894,10 +904,10 @@ void bridge::post_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
 void bridge::check_debug_mode_entry_via_ebreak(const rv_instr_t& instr) {
   dtvec_ebreak_ = false;
   for (auto& csr : instr.csr) {
-    if (csr.csr_addr == c_dtvec_spec_csr && (csr.csr_wdata & 0x10)==0) {
+    if (instr.valid && csr.valid && (csr.csr_addr == c_dtvec_spec_csr) && (csr.csr_wdata & 0x10)==0) {
       dtvec_ebreak_ = true;
       if (!debug_mode_){
-          debug_mode_ = !instr.excp && (instr.ecause == 0);
+          debug_mode_ = !instr.excp && !(instr.priv == 6);
         }
       break;
     }
@@ -935,16 +945,31 @@ void bridge::pre_step_exception_poke(hart_id_t hart, const rv_instr_t& d) {
   }
 
   if (!find(cosim_resynch_excp_addr_, d.ecause, d.trap_addr) &&
-      !find(cosim_resynch_excp_, d.ecause))
+      !find(cosim_resynch_excp_, d.ecause) &&
+      !d.pc.error &&
+      !d.mem_read.error)
     return;
 
+  uint64_t mtval_addr = 0;
+  for (auto & c : d.csr) {
+    if (c.csr_addr == MTVAL) {
+      mtval_addr = c.csr_wdata;
+    }
+  }
   bool valid;
   bool is_load = (d.trap_opcode != 0);
-  bridge_log_(cvm::MEDIUM, "<{}> Inject Exception with code:{} is_load: {}\n", d.cycle, d.ecause, is_load);
+  bridge_log_(cvm::MEDIUM, "<{}> Inject Exception with code:{} is_load: {} addr:{:#x}\n", d.cycle, d.ecause, is_load, mtval_addr);
   if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperInjectExceptionRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0),
-    hart, is_load, d.ecause, 0, valid) || !valid) && FLAGS_whisper_client_check) {
+    hart, is_load, d.ecause, 0, mtval_addr, valid) || !valid) && FLAGS_whisper_client_check) {
     error("Hart {}: Failed whisper API InjectException\n", hart);
   }
+
+  if (d.pc.error && d.ecause == INSN_ACCESS_FAULT)
+    num_exceptions_iaf_nderr_++;
+  if (d.mem_read.error && d.ecause == LD_ACCESS_FAULT)
+    num_exceptions_laf_nderr_++;
+  if (d.mem_read.error && d.ecause == ST_AMO_ACCESS_FAULT)
+    num_exceptions_saf_nderr_++;
 }
 
 void bridge::pre_step_lrsc_poke(hart_id_t hart, const rv_instr_t& d) {
@@ -1192,6 +1217,21 @@ void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, cons
 }
 
 void bridge::post_step_nmi_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w) {
+
+  if (w_.nmi && patch_mode_ == EXIT_PATCH && check_nmi_at_patch_exit_) {
+    if (check_nmi_at_patch_cause_ != w_.ncause)
+      error("Hart {}: NMI cause mismatch, whisper:{} dut: {}\n", hart, w_.ncause, check_nmi_at_patch_cause_);
+    check_nmi_at_patch_exit_ = false;
+    return;
+  }
+
+  if (d.nmi && !w_.nmi && patch_mode_ == ENTER_PATCH) {
+    check_nmi_at_patch_exit_ = true;
+    check_nmi_at_patch_cause_ = d.ncause;
+    bridge_log_(cvm::MEDIUM, "<{}> NMI detected. dut: whisper:[{}, {}]\n", w.time, check_nmi_at_patch_exit_, check_nmi_at_patch_cause_);
+    return;
+  }
+
   if (!d.nmi && !w_.nmi)
     return;
 
@@ -2136,6 +2176,9 @@ bool bridge::debug_mem_access(const uint64_t& pa){
 bool bridge::unsupported_mmr_access(const uint64_t& pa){
   if ( pa >= mmr_lo_addr && pa < mmr_hi_addr)
     return true;
+  if (pa >= sep_base_ && pa < sep_end_)
+    return true;
+
   return false;
 }
 
@@ -2306,7 +2349,8 @@ void bridge::process_dut_mcm_read(hart_id_t hart, mem_t& m) {
         mcm_orders_.insert( std::pair<uint64_t,int>(m.tag,1) );
      }
   }
-  if (debug_mode_) {
+
+  if (debug_mode_ || (m.pa>=sep_base_ && ((m.pa + m.size) < sep_end_))) {
     if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, 'm', m.pa, m.size, m.data, valid)|| !valid) && FLAGS_whisper_client_check) {
       error("Hart {}: Failed to poke memory\n", hart);
       return;
@@ -2392,7 +2436,7 @@ void bridge::process_dut_mcm_write(hart_id_t hart, mem_cl_t& m) {
     data[i] = (uint8_t)((m.data >> (i*8)) & std::bitset<512>(0xff)).to_ulong();
   }
   bool valid = false;
-  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmWriteRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.pa, 64, data, m.mask, valid)|| !valid) && FLAGS_whisper_client_check) {
+  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmWriteRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.pa, 64, data, m.mask, m.error, valid)|| !valid) && FLAGS_whisper_client_check) {
     error("Hart {}: Failed mcm store drain\n", hart);
     return;
   }
@@ -3209,6 +3253,9 @@ void bridge::report_metrics() {
     std::transform(es_lower.begin(), es_lower.end(), es_lower.begin(), [](unsigned char c){ return std::tolower(c); });
     print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_{}\": {}}}\n", id_, es_lower, num_exceptions_[e]);
   }
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_insn_access_fault_nderr\": {}}}\n", id_, num_exceptions_iaf_nderr_);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_ld_access_fault_nderr\": {}}}\n", id_, num_exceptions_laf_nderr_);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_st_amo_access_fault_nderr\": {}}}\n", id_, num_exceptions_saf_nderr_);
   for (const auto& [p,ps] : priv_to_string) {
     for (const auto& [i,is] : intr_to_string) {
       if (num_taken_interrupts_[p][i] != 0) {

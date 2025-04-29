@@ -440,9 +440,13 @@ private:
 
   // Memmap
   std::map<std::string, memmap_entry_t> memmap_;
+  uint64_t sep_base_=0, sep_end_=0;
 
   std::unordered_map<priv, std::unordered_map<intr, int>> num_taken_interrupts_{};
   std::unordered_map<excp, int> num_exceptions_{};
+  int num_exceptions_iaf_nderr_ = 0;
+  int num_exceptions_laf_nderr_ = 0;
+  int num_exceptions_saf_nderr_ = 0;
   int num_trig_breakpoint_ = 0;
   int num_sp_accesses_ = 0;
 
@@ -451,6 +455,8 @@ private:
   std::vector<std::string> cosim_resynch_csr_defaults;
 
   bool terminated_ = false;
+  bool check_nmi_at_patch_exit_ = false;
+  uint64_t check_nmi_at_patch_cause_ = 0;
   enum patch_mode patch_mode_ = NO_PATCH;
 
   // Containers for storing result of parsing plusargs

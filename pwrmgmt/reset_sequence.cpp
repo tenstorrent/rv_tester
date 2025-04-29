@@ -78,6 +78,10 @@ reset_sequence::reset_sequence(cvm::topology::loc_t loc, unsigned) : loc_(loc), 
   // Reset count
   cvm::registry::messenger.connect<int>(loc_, [this](int c) { return this->start(c); });
 
+  // ID Widths
+  id_width_[SMC] = cvm::topology::attr(axi_loc_[SMC], "ID_WIDTH").second;
+  id_width_[OVERLAY] = cvm::topology::attr(axi_loc_[OVERLAY], "ID_WIDTH").second;
+
   boot_interface = FLAGS_boot_from_smc ? SMC: OVERLAY;
 }
 
@@ -158,6 +162,7 @@ cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
   if (FLAGS_pll_dfs| (FLAGS_clk_profile!=0))
     co_await pll_dfs_sequence();
 
+  co_await cpl_sram_fuse_configuration();
   // Reset controller sequence
   if(FLAGS_cpl_core_en) {
     co_await cpl_fw_reset_sequence(COLD);
@@ -223,6 +228,8 @@ cvm::messenger::task<void> reset_sequence::warm_reset_sequence() {
   if (FLAGS_pll_dfs| (FLAGS_clk_profile!=0))
     co_await pll_dfs_sequence();
 
+  co_await cpl_sram_fuse_configuration();
+
   if(FLAGS_cpl_core_en) {
     co_await cpl_fw_reset_sequence(WARM);
   } else {
@@ -262,27 +269,21 @@ cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
   co_await init_mmr();
   co_await rmw_mmr();
   co_await program_fe_resetvector();
-
-  // For CLC3 FW needs to be enabled once actual merged FW is there no need to do this additionally 
-  if(FLAGS_low_power_seq){
-    uint64_t fuse =  fuse_val();
-    co_await write(0x42170078, SZ_8B, 0xC001, boot_interface);  // DB event configurations
-    co_await write(cpl_sram_fuse_cfg, SZ_8B, fuse, boot_interface);
-    co_await write(cpl_core_reset_csr, SZ_4B, 0xFFFFFFFF, boot_interface);
-  }  
   co_await release_cpl_nofetch();
   co_await tick();
   co_return;
 }
 
-
-cvm::messenger::task<void> reset_sequence::cpl_fw_reset_sequence(rst_t rst_type) {
+cvm::messenger::task<void> reset_sequence::cpl_sram_fuse_configuration() {
   uint64_t fuse =  fuse_val();
   co_await write(cpl_sram_fuse_cfg, SZ_8B, fuse, boot_interface);
   co_await write(cpl_sram_core_reset_vector_cfg, SZ_8B, FLAGS_resetpc, boot_interface);
+  co_return;
+}
+
+cvm::messenger::task<void> reset_sequence::cpl_fw_reset_sequence(rst_t rst_type) {
   co_await write(cpl_core_reset_csr, SZ_4B, 0xFFFFFFFF, boot_interface);
   co_await wait_reset_release();
-  // CPL co_await check_system_ready();
   co_await program_thub_threshold();
 
   if(FLAGS_init_smc_infilters) {
@@ -292,38 +293,35 @@ cvm::messenger::task<void> reset_sequence::cpl_fw_reset_sequence(rst_t rst_type)
   co_await rmw_csr();
   co_await init_mmr();
   co_await rmw_mmr();
-  // CPL co_await send_start_of_execution_to_cpl();
+  co_await check_system_config_done();
+  co_await send_start_of_execution_to_cpl();
   co_await wait_nofetch_release();
   co_await tick();
   co_return;
 }
 
 cvm::messenger::task<void> reset_sequence::send_start_of_execution_to_cpl() {
-  uint32_t count = 0;
-  while (true) {
-    co_await tick();
-    auto data = co_await read(pll_interrupts, SZ_4B, boot_interface);
-    if (data & (1 << cold_powerup_idx))
-      break;
-
-    count++;
-    if (count > FLAGS_pll_pwrup_timeout)
-      cvm::log(cvm::ERROR, "Error: PLL cold power up not done after {} soc clocks\n", FLAGS_pll_pwrup_timeout);
-  }
+  auto data = co_await read(rst_ctl_nofetch, SZ_4B, boot_interface);
+  data = data | (1 << rst_ctl_nofetch_clustercorego_idx);
+  data = data & (~(1 << rst_ctl_nofetch_cfg_done_idx));
+  co_await write(rst_ctl_nofetch, SZ_4B, data, boot_interface);
   co_return;
 }
 
-cvm::messenger::task<void> reset_sequence::check_system_ready() {
+cvm::messenger::task<void> reset_sequence::check_system_config_done() {
   uint32_t count = 0;
   while (true) {
-    co_await tick();
-    auto data = co_await read(pll_interrupts, SZ_4B, boot_interface);
-    if (data & (1 << cold_powerup_idx))
+    
+    for (int i=0; i<10; ++i)
+      co_await tick();
+
+    auto data = co_await read(rst_ctl_nofetch, SZ_4B, boot_interface);
+    if (data & (1 << rst_ctl_nofetch_cfg_done_idx))
       break;
 
     count++;
-    if (count > FLAGS_pll_pwrup_timeout)
-      cvm::log(cvm::ERROR, "Error: PLL cold power up not done after {} soc clocks\n", FLAGS_pll_pwrup_timeout);
+    if (count > 2000)
+      cvm::log(cvm::ERROR, "Error: System check config not done... \n");
   }
   co_return;
 }
@@ -618,6 +616,22 @@ cvm::messenger::task<void> reset_sequence::write(uint64_t addr, size_t sz, const
   co_return;
 };
 
+cvm::messenger::task<void> reset_sequence::batch_write(uint64_t addr, size_t sz, const std::vector<uint64_t>& data, bool rsp_err_chk /* = true */ ) {
+
+  size_t batch_size = 1 << (id_width_[SMC] - seqid_width_ - 1);
+  size_t batches_count = std::ceil(static_cast<double>(data.size()) / batch_size);
+  for (size_t i = 0; i < batches_count; i++) {
+    auto batch_start_indx = i * batch_size;
+    uint64_t addr_n = addr + (batch_start_indx * sz);
+    batch_size = std::min(batch_size, data.size() - batch_start_indx);
+    std::vector<uint64_t> batch_data(batch_size);
+    std::copy(data.begin() + batch_start_indx, data.begin() + batch_start_indx + batch_size, batch_data.begin());
+    co_await write(addr_n, sz, batch_data, rsp_err_chk);
+  }
+
+  co_return;
+};
+
 cvm::messenger::task<void> reset_sequence::csr_write(uint32_t core_id, uint32_t unit, uint64_t addr, uint64_t data) {
   uint64_t cmd = 0;
   uint32_t offset = core_id * core_fuse_offset;
@@ -774,18 +788,18 @@ cvm::messenger::task<void> reset_sequence::program_patch() {
 
   patch_header.insert(patch_header.end(), patches["patch_epilouge"].ucodes.begin(), patches["patch_epilouge"].ucodes.end()); 
 
-  co_await write(cpl_patch_ram_base, SZ_8B, concatenate_uint32_to_uint64(patch_header) );
-  co_await write(cpl_patch_ram_ptrig_0, SZ_8B, concatenate_uint32_to_uint64(patch_trig_0) );
-  co_await write(cpl_patch_ram_ptrig_1, SZ_8B, concatenate_uint32_to_uint64(patch_trig_1) );
-  co_await write(cpl_patch_ram_ptrig_2, SZ_8B, concatenate_uint32_to_uint64(patch_trig_2) );
-  co_await write(cpl_patch_ram_ptrig_3, SZ_8B, concatenate_uint32_to_uint64(patch_trig_3) );
+  co_await batch_write(cpl_patch_ram_base, SZ_8B, concatenate_uint32_to_uint64(patch_header));
+  co_await batch_write(cpl_patch_ram_ptrig_0, SZ_8B, concatenate_uint32_to_uint64(patch_trig_0));
+  co_await batch_write(cpl_patch_ram_ptrig_1, SZ_8B, concatenate_uint32_to_uint64(patch_trig_1));
+  co_await batch_write(cpl_patch_ram_ptrig_2, SZ_8B, concatenate_uint32_to_uint64(patch_trig_2));
+  co_await batch_write(cpl_patch_ram_ptrig_3, SZ_8B, concatenate_uint32_to_uint64(patch_trig_3));
 
   for (int i = 0; i < (int)patch_instr.size(); ++i) { 
     std::string patchTag = patch_instr[i];
     cvm::log(cvm::MEDIUM, "[pwrmgmt] Patching instruction: {} , patchMask: 0x{:x}, Opcode: 0x{:x}, enableMask: 0x{:x}\n", patchTag, patches[patchTag].patchMask, patches[patchTag].patchInstruction, patches[patchTag].enableMask);
     patch_cfg[core_preg0_mmr+(i*8)] = ((uint64_t)patches[patchTag].patchMask<<32 | patches[patchTag].patchInstruction); 
     std::vector<uint32_t> ucode_body = patches[patchTag].ucodes;
-    co_await write(cpl_patch_ram_pbody_0+(i*0x400), SZ_8B, concatenate_uint32_to_uint64(ucode_body) );
+    co_await batch_write(cpl_patch_ram_pbody_0+(i*0x400), SZ_8B, concatenate_uint32_to_uint64(ucode_body) );
     if (FLAGS_patch_ram_check) populate_patch_ram(cpl_patch_ram_pbody_0+(i*0x400), concatenate_uint32_to_uint64(ucode_body));
     pcontrol_data =  pcontrol_data | (((uint64_t)patches[patchTag].enableMask | 1) << i*16); // enable patch 
     if (i == 3) break;

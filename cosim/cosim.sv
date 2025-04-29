@@ -787,8 +787,10 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign m_rvfis[n].data.csr_wmask   = rvfi[n].csr_wmask;
         assign m_rvfis[n].data.pc_rdata    = rvfi[n].pc_rdata;
         assign m_rvfis[n].data.pc_wdata    = rvfi[n].pc_wdata;
+        assign m_rvfis[n].data.pc_error    = rvfi[n].pc_error;
         assign m_rvfis[n].data.mem_addr    = rvfi[n].mem_addr;
         assign m_rvfis[n].data.mem_paddr   = rvfi[n].mem_paddr;
+        assign m_rvfis[n].data.mem_error   = rvfi[n].mem_error;
         assign m_rvfis[n].data.mem_rmask   = rvfi[n].mem_rmask;
         assign m_rvfis[n].data.mem_rdata   = rvfi[n].mem_rdata;
         assign m_rvfis[n].data.mem_wmask   = rvfi[n].mem_wmask;
@@ -1103,6 +1105,7 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign m_mcmi_writes[n].data.addr = mcmi_write[n].addr;
         assign m_mcmi_writes[n].data.mask = mcmi_write[n].mask;
         assign m_mcmi_writes[n].data.data = mcmi_write[n].data;
+        assign m_mcmi_writes[n].data.error = mcmi_write[n].error;
 
         assign mcmi_write_pokes[n] = mcmi_write[n].valid;
 
