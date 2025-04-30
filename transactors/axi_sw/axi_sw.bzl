@@ -40,8 +40,6 @@ def axi_sw_gen(name, packet, visibility = None, cc_attrs = {}, **kwargs):
             "@rv_tester//transactors/axi_sw:safe_queue.h",
         ],
         deps = [
-          "@rv_tester//sysmod:sysmod_plusargs",
-          "@rv_tester//:structs",
           "@rv_tester//common:common",
           "@rv_tester//:plusargs",
           "@cvm//:plusargs",
