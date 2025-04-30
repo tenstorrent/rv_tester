@@ -9,11 +9,34 @@
 #include "WhisperMessage.h"
 #include "cvm/messenger.hpp"
 #include "cvm/registry.hpp"
+#include "HartConfig.hpp"
+#include "Hart.hpp"
+#include "Args.hpp"
+#include "Session.hpp"
+
 
 template <typename URV>
 class whisperClient {
 
   public:
+    enum AddrCategory {
+      PC = 0,
+      LOAD = 1,
+      STORE = 2, // AMOs will be returned as Store
+      NONE = 3
+    };
+    struct iss_select_s {
+      AddrCategory categ;
+      std::string disasm;
+      uint64_t virt_addr;
+      uint64_t phys_addr;
+      bool is_fetch;
+      iss_select_s() {}
+      iss_select_s(AddrCategory c, const std::string d, uint64_t v, uint64_t p) { init(c, d, v, p);}
+      void init(AddrCategory c, const std::string d, uint64_t v, uint64_t p) { categ=c; disasm=d; virt_addr=v; phys_addr=p;   }
+      bool operator==(const iss_select_s& other) const { return virt_addr == other.virt_addr && phys_addr == other.phys_addr; }
+    };
+
 
     whisperClient(cvm::topology::loc_t loc, unsigned);
 
@@ -36,12 +59,15 @@ class whisperClient {
 
     // getter and setter to access class variable through procedure calls
     // 
+    std::vector<iss_select_s> get_iss_select()  { return rand_addrs_; }
     std::vector<uint64_t> get_dm_rand_val(void)  { return dm_rand_val_; }
     uint64_t              get_dm_rand_addr(void) { return dm_rand_addr_;}
 
+    static bool constructSystem(std::shared_ptr<WdRiscv::Session<URV>>&, std::shared_ptr<WdRiscv::System<URV>>&, WdRiscv::Args&, uint16_t ncores, bool standalone, std::string logfile="");
     int whisperConnect();
     bool whisperConnected();
     int whisperStandalone();
+    int processStandaloneInfo();
     bool whisperStep(int hart, uint64_t time, uint64_t instrTag, uint64_t& pc, uint32_t& instruction, unsigned& changeCount, std::string& disasm, uint32_t& privMode, uint32_t& fpFlags, bool& hasTrap, bool& hasStop, bool& isLoad, bool& valid);
     bool whisperSimpleStep(int hart, uint64_t& pc, uint32_t& instruction, unsigned& changeCount);
     bool whisperChange(int hart, uint32_t& resource, uint64_t& addr, uint64_t& value, bool& valid);
@@ -84,8 +110,10 @@ class whisperClient {
 
     bool whisperCommand(const WhisperMessage& req, WhisperMessage& reply);
 
+    std::shared_ptr<WdRiscv::Session<URV>> session_;
     std::shared_ptr<WdRiscv::System<URV>> system_;
     std::unique_ptr<WdRiscv::Server<URV>> server_;
+    WdRiscv::Args args_ ;
     FILE* traceFile_ = nullptr;
     FILE* commandLog_ = nullptr;
     WhisperMessage req {};
@@ -95,9 +123,11 @@ class whisperClient {
     uint32_t ncores_ = 0;
     uint64_t dm_rand_addr_ = 0;
     std::vector<uint64_t> dm_rand_val_;
+    std::vector<iss_select_s> rand_addrs_;
     uint64_t secure_region_start_=0, secure_region_end_=0;
 
   public:
+    CVM_MESSENGER_procedure_call(iss_select_rand_RPC, std::vector<iss_select_s> (void));
     CVM_MESSENGER_procedure_call(get_dm_rand_addr_RPC, uint64_t (void));
     CVM_MESSENGER_procedure_call(get_dm_rand_val_RPC, std::vector<uint64_t> (void));
 

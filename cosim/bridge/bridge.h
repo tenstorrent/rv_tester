@@ -441,6 +441,9 @@ private:
   // Memmap
   std::map<std::string, memmap_entry_t> memmap_;
   uint64_t sep_base_=0, sep_end_=0;
+  uint64_t maplic_base_=0, maplic_end_=0;
+  uint64_t saplic_base_=0, saplic_end_=0;
+
 
   std::unordered_map<priv, std::unordered_map<intr, int>> num_taken_interrupts_{};
   std::unordered_map<excp, int> num_exceptions_{};
