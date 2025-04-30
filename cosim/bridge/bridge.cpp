@@ -154,7 +154,8 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
       "dcsr","dpc","dscratch0", "dscratch1", // Permanent: Debug events
       "sstateen0", "sstateen1", "sstateen2", "sstateen3","hstateen0", "hstateen1", "hstateen2", "hstateen3" // Smstateen CSRs
       "seed",
-      "mhpmevent"// TODO: re-enable when RVDE-22160 is fixed, mhpmeventx.OF bit is implicitly udpated in ms
+      "mhpmevent",// TODO: re-enable when RVDE-22160 is fixed, mhpmeventx.OF bit is implicitly udpated in ms
+      "scountovf",
     };
 
     std::istringstream iss(FLAGS_cosim_resynch_csr);
@@ -822,8 +823,6 @@ void bridge::compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w,
 }
 
 void bridge::process_dut_csr_hw_update(hart_id_t hart, csr_t& c) {
-  if (c.csr_addr == MIP)
-    return;
 
   uint64_t mask = c.csr_wmask & static_cast<uint64_t>(get_csr_poke_mask(hart, c.csr_addr));
   update_csr(hart, src_t::dut, c.csr_addr, c.csr_wdata, mask);
