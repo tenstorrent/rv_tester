@@ -9,6 +9,7 @@ DEFINE_bool(sp_xtor_mmr_prog_en, false, "Enable scratchpad transactor acceses ")
 DEFINE_bool(sp_xtor_rnd_traffic_en, false, "Enable programming of SP mmr from Scraptchpad transactor ");
 DEFINE_bool(sp_xtor_test_cwfr, false, "Read SP data written by core ");
 DEFINE_bool(sp_xtor_test_fwcr, false, "Write SP data for core to read ");
+DEFINE_bool(sp_xtor_test_fs, false, "false sharing test ");
 
 scratchpad_random_sequence::scratchpad_random_sequence(cvm::topology::loc_t loc, unsigned id) : loc_(loc), id_(id), scope_(nullptr) {
   // Scope
@@ -96,6 +97,18 @@ cvm::messenger::task<void> scratchpad_random_sequence::random_mode() {
         uint64_t addr = sp_base;
         co_await axi_write_granular(addr);
         co_await axi_write_data_granular();
+      }
+    }
+      else if (FLAGS_sp_xtor_test_fs) {
+      if (cnt_tick == 34) {
+        cvm::log(cvm::HIGH, " **** [scratchpad_random_sequence] Fabric Write Core Read Test **** \n");
+        uint64_t addr = sp_base;
+        co_await axi_write_granular(addr);
+        co_await axi_write_data_granular();
+      }
+       if(cnt_tick == 60){
+        cvm::log(cvm::HIGH, " **** [scratchpad_random_sequence] CORE Write Fabric Read Test **** \n");
+        co_await axi_read(sp_base+16, 4, 4); 
       }
     }
     else {
