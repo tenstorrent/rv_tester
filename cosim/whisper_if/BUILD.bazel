@@ -45,3 +45,11 @@ cc_library(
     visibility = ["//visibility:public"],
     strip_include_prefix = ".",
 )
+
+cc_library(
+    name    = "whisper_client_plusargs",
+    hdrs    = ["whisper_client_plusargs.h"],
+    deps    = ["@cvm//:plusargs"],
+
+    visibility = ["//visibility:public"],
+)

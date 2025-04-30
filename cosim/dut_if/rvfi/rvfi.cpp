@@ -71,7 +71,8 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
   }
 
   connect<
-    rv_tester::terminate_called
+    rv_tester::terminate_called,
+    rv_tester::terminate_called_mem_checks
   >(cvm::topology::get_from_type("PLATFORM", 0));
 
   // Flags configuration
@@ -1520,6 +1521,11 @@ std::bitset<256> rvfi::extract_bits_as_bitset(const std::bitset<256>& bitset, si
     }
 
     return result;
+}
+
+void rvfi::process(const rv_tester::terminate_called_mem_checks&) {
+  cvm::log(cvm::HIGH, "[RVFI] termination signaled by EOT memory checks, stopping further rvfi processing\n");
+  terminated_ = true;
 }
 
 void rvfi::process(const rv_tester::terminate_called&) {

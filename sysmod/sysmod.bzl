@@ -25,7 +25,8 @@ def sysmod_gen(name, packet, topology, visibility = None, cc_attrs = {}, **kwarg
           "@rv_tester//sysmod:sysmod.cpp",
         ],
         hdrs = [
-          "@rv_tester//sysmod:sysmod.h"
+          "@rv_tester//sysmod:sysmod.h",
+          "@rv_tester//sysmod:sysmod_rpc.h"
         ],
         deps = [
           "@rv_tester//:plusargs",

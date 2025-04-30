@@ -109,6 +109,19 @@ std::vector<std::string> cosim_util::split_string (const std::string& input, con
     return tokens;
 }
 
+std::string cosim_util::hex_string_to_binary_string (const std::string& hex) {
+  std::string binary;
+  for (char c : hex) {
+    std::stringstream ss;
+    ss << std::hex << c;
+    unsigned n;
+    ss >> n;
+    for (int i=3; i>=0; --i)
+      binary.push_back(((n >> i) & 1) ? '1' : '0');
+  }
+  return binary;
+}
+
 bool cosim_util::has_substring(const std::vector<std::string>& vec, const std::string& substring) {
     if (vec.size() == 0)
         return false;
