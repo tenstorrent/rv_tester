@@ -4,6 +4,10 @@
 #include <iostream>
 #include "common/memmap.h"
 #include "sysmod/sysmod_plusargs.h"
+#include "cosim/whisper_if/whisper_client_plusargs.h"
+#include "cosim/dut_if/rvfi/rvfi_plusargs.h"
+#include "sysmod/sysmod_rpc.h"
+#include "rv_tester_structs.h"
 
 constexpr std::uint64_t recent_pc_default = std::numeric_limits<std::uint64_t>::max();
 
@@ -16,8 +20,32 @@ DEFINE_uint64(recent_pc_instr, 100000, "+recent_pc should have been seen within 
 DEFINE_uint64(psc_off_high, 0, "Turn Period-Cosim mode BACK ON when clocks > psc_off_high");
 DEFINE_uint64(psc_off_low,  0, "Turn Period-Cosim mode OFF     when clocks > psc_off_low");
 DEFINE_bool(hw_eot_enable,  false, "Enable hardware termination of the EOT (useful for offline DPI testing when rvfi is not sent to cosim)");
-
+DEFINE_bool(eot_mem_check,  false, "Do End of Test memory checks");
 REGISTRY_register(eot, TOP.PLATFORM, cvm::registry::all);
+
+eot::eot(cvm::topology::loc_t loc, unsigned id) {
+  id_ = id;
+  for (uint32_t i = 0; i < num_harts_; i++) {
+    instr_count_.push_back(0);
+    connect<
+      rv_tester_transactions::cosim::m_rvfi<>,
+      rv_tester_transactions::cosim::m_steps<>,
+      rv_tester_transactions::cosim::m_mcmi_insert<>,
+      rv_tester_transactions::cosim::m_mcmi_bypass<>
+    >(cvm::topology::get_from_type("COSIM", i));
+  }
+  loc_ = loc;
+  cvm::registry::messenger.procedure<get_tohost_addr_RPC>(loc, [this] () {return this->get_tohost_addr();});
+  cvm::registry::messenger.procedure<process_tohost_RPC>(loc, [this]
+        (std::uint64_t hart, std::uint64_t cycle, std::uint64_t addr, std::uint64_t data) {this->process_tohost(hart,cycle,addr,data);});
+  cvm::registry::messenger.procedure<check_max_instr_RPC>(loc, [this]
+        (std::uint64_t cycle, std::uint64_t count) {this->check_max_instr(cycle,count);});
+  cvm::registry::messenger.connect<rv_tester::snoop_mem>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SNOOP_GEN", 0), [this] (rv_tester::snoop_mem) {
+    bool passed = this->mem_checks();
+    eot_mem_checks_done_ = true;
+    this->eot_terminate(passed);
+  });
+}
 
 void eot::init_tohost_addr() {
 
@@ -178,9 +206,119 @@ void eot::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_b
    }
 }
 
-void eot::eot_terminate(bool) {
-  cvm::registry::messenger.signal<htif::terminate_t>(loc_, htif::terminate_t{.low_priority_based = true});
+void eot::eot_terminate(bool passed) {
+  bool terminate = false;
+  FLAGS_eot_mem_check = FLAGS_eot_mem_check & FLAGS_mcm;
+  if (!FLAGS_eot_mem_check || !passed || eot_mem_checks_done_)
+    terminate = true;
+  else if (FLAGS_eot_mem_check && !eot_mem_checks_done_)
+    mem_checks_snoop();
+  if (terminate)
+    cvm::registry::messenger.signal<htif::terminate_t>(loc_, htif::terminate_t{.low_priority_based = true});
 }
+
+void eot::mem_checks_snoop() {
+  std::map<std::string, memmap_entry_t> m;
+  if (!cvm::registry::messenger.call<memmap::getRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.MEMMAP", 0), m))
+    cvm::log(cvm::ERROR, "Unable to get memmap\n");
+  uint64_t mem_base = m.at("memory").base;
+  uint64_t mem_size = m.at("memory").size;
+
+  cvm::log(cvm::MEDIUM, "EOT MEMORY CHECKS: Parsing Whisper Data Lines\n");
+  cvm::registry::messenger.signal_async<rv_tester::terminate_called_mem_checks>(cvm::topology::get_from_type("PLATFORM", 0), rv_tester::terminate_called_mem_checks{});
+  std::ifstream file(FLAGS_whisper_data_lines);
+  std::string line;
+  while (std::getline(file, line)) {
+    std::stringstream ss(line);
+    std::string token;
+    uint64_t addr;
+    std::bitset<512> value;
+    bool ignore_addr = false;
+    int count = 0;
+    try {
+      while (std::getline(ss, token, ':')) {
+        switch (count++) {
+          case 0: break;
+          case 1:
+              addr = std::stoul(token, nullptr, 16);
+              addr = addr * 64;
+              if (!(addr >= mem_base && addr < (mem_base + mem_size)))
+                ignore_addr = true;
+             break;
+          case 2:
+           if (ignore_addr) break;
+           value = std::bitset<512>(cosim_util::hex_string_to_binary_string(token));
+           mem_lines_.push_back({addr, value});
+           default: break;
+        }
+      }
+    } catch (...) {
+        cvm::log(cvm::ERROR, "Error: parsing whisper token:{}\n", token);
+    }
+  }
+  if (mem_lines_.size() == 0) {
+    cvm::log(cvm::MEDIUM, "Done with Memory Checks: No Whisper lines\n");
+    eot_mem_checks_done_ = true;
+    eot_terminate(true);
+    return;
+  }
+  rv_tester::snoop_addrs_eot addrs_eot;
+  for (auto &w : mem_lines_) {
+    cvm::log(cvm::MEDIUM, "Snoop Address: {:#x}\n", w.first);
+    addrs_eot.address.push(w.first);
+  }
+  cvm::registry::messenger.signal<rv_tester::snoop_addrs_eot>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0), addrs_eot);
+}
+
+bool eot::mem_checks() {
+  // The data from Caches are flushed out and written back to memory of Sysmod
+  // Begin Actual Checking
+  auto vec_to_bitset = [] (std::vector<uint8_t> t) {
+    std::bitset<512> value;
+    std::reverse(t.begin(), t.end());
+    for (const auto& i : t) {
+      value = value << 8;
+      std::bitset<512> val2(i);
+      value |= val2;
+    }
+    return value;
+  };
+  auto bitset_to_hex_str = [](std::bitset<512> t) {
+    std::string ret = "";
+    while (t.any()) {
+      std::bitset<512> tmp = t & std::bitset<512>(0xffffffffffffffff);
+      std::ostringstream ss;
+      ss << std::setw(16) << std::setfill('0') <<std::hex<< tmp.to_ulong();
+      std::string s = ss.str();
+      ret = s + ret;
+      t >>= 64;
+    }
+    if (ret == "")
+      ret = "0";
+    return "0x" + ret;
+  };
+  auto first_differing_addr = [] (std::bitset<512> a, std::bitset<512> b) {
+    std::bitset<512> diff = a ^ b;
+    int i = 0;
+    while(!diff[i++]);
+    return --i/8;
+  };
+  cvm::log(cvm::MEDIUM, "[EOT] Memory Checks: Actual Check\n");
+  eot_mem_checks_done_ = true;
+  for (auto &w : mem_lines_) {
+    device::data_t data(64);
+    cvm::registry::messenger.call<sysmod_eot>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0), w.first, 64, data);
+    auto dut = vec_to_bitset(data);
+    if (!(dut == w.second)) {
+      cvm::log(cvm::ERROR, "Error: [EOT] Memory Mismatch Addr: 0x{:x}\nDUT:{}\nISS:{}\n", w.first+first_differing_addr(dut, w.second), bitset_to_hex_str(dut), bitset_to_hex_str(w.second));
+      return false;
+    } else {
+      cvm::log(cvm::MEDIUM, "[EOT] Memory Check: Data at Addr: 0x{:x} consistent\n", w.first);
+    }
+  }
+  return true;
+}
+
 
 eot::~eot() {
     int h = 0;

@@ -165,6 +165,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
     previous_cycle_ = 0;
     auto platform = cvm::topology::get_from_type("PLATFORM", 0);
     cvm::registry::messenger.connect<rv_tester::terminate_called>(platform, [this] (const auto& v) { return this->process(v); });
+    cvm::registry::messenger.connect<rv_tester::terminate_called_mem_checks>(platform, [this] (const auto& v) { return this->process(v); });
     if(FLAGS_random_imsic_intr){
        FLAGS_max_cycle = 2*FLAGS_max_cycle;
        print(cvm::LOW, "Doubling max_cycles for sim run to {}\n",FLAGS_max_cycle );
@@ -3162,24 +3163,38 @@ void bridge::final_phase() {
   // report_metrics();
 }
 
-void bridge::process(const rv_tester::terminate_called&) {
+void bridge::process(const rv_tester::terminate_called_mem_checks&) {
   if (terminated_)
     return;
-
   terminated_ = true;
-  report_metrics();
+  if (FLAGS_mcm) {
+    end_mcm_ = true;
+    bool valid;
+    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmEndRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, pw_.time, valid) || !valid) {
+      error("Hart {}: Failed to disable MCM\n", id_);
+    }
+  }
+}
+
+void bridge::process(const rv_tester::terminate_called&) {
+  if (!metrics_reported_)
+    report_metrics();
+  terminated_ = true;
 }
 
 void bridge::report_metrics() {
+  metrics_reported_ = true;
   if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperConnectedRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0)))
     return;
 
   // Need to end mcm before manipulating whisper state for metrics
   whisper_state_t w;
   if (FLAGS_mcm) {
-    bool valid;
-    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmEndRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, pw_.time, valid) || !valid) {
-      error("Hart {}: Failed to disable MCM\n", id_);
+    if (!end_mcm_) {
+      bool valid;
+      if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmEndRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, pw_.time, valid) || !valid) {
+        error("Hart {}: Failed to disable MCM\n", id_);
+      }
     }
     w = { .tag = pw_.tag+1, .time = pw_.time+1 };
   }
