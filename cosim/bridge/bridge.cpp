@@ -207,6 +207,16 @@ bridge::~bridge() {}
     sep_base_ = it->second.base;
     sep_end_ = it->second.end;
   }
+  it = memmap_.find("maplic");
+  if (it != memmap_.end()) {
+    maplic_base_ = it->second.base;
+    maplic_end_  = it->second.end;
+  }
+  it = memmap_.find("saplic");
+  if (it != memmap_.end()) {
+    saplic_base_ = it->second.base;
+    saplic_end_  = it->second.end;
+  }
 
   // Construct whisper for cosim API calls
   // API called "connect" due to legacy usage of whisper client/server connection made using sockets
@@ -2356,6 +2366,12 @@ void bridge::process_dut_mcm_read(hart_id_t hart, mem_t& m) {
       return;
     }
   }
+  if (((m.pa >= maplic_base_ && (m.pa + m.size) < maplic_end_) ||
+       (m.pa >= saplic_base_ && (m.pa + m.size) < saplic_end_)
+      ) && m.size > 4) {
+    m.size = 4; // FIXME: hack for now, APLIC reads from zebu are returned as 8 bytes
+  }
+
   if (m.v_ext){
     std::vector<uint64_t> data_vec = create_dword_vec(m.data_vec);
     if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmVecReadRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, data_vec, m.elem_idx, m.field, valid)|| !valid) && FLAGS_whisper_client_check) {
