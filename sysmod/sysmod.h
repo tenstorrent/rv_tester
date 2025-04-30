@@ -13,7 +13,6 @@
 #include "trickbox/uc_helper.h"
 #include "trickbox/debugger.h"
 #include "cvm/topology.hpp"
-#include "rv_tester/rv_tester_structs.h"
 #include "sysmod_params.hpp"
 #include <string>
 #include "rv_tester_transactions.hpp"
@@ -94,7 +93,6 @@ class sysmod {
     void uc_helper_backdoor_write(uc_helper::uc_helper_write_t w);
     void uc_helper_backdoor_read(uc_helper::uc_helper_read_req_t w);
     void terminate(htif::terminate_t t);
-    void actual_test_started(rv_tester::started_t);
     cvm::messenger::task<uint64_t> backdoor_read(uint64_t address);
     cvm::messenger::task<uint64_t> backdoor_write(backdoor_write_t);
 
