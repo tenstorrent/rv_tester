@@ -15,6 +15,7 @@ void heartbeat::tick(std::uint64_t advance) {
 
     if (print) {
         log_(cvm::LOW, "[HEARTBEAT] cycle {}\n", count_);
+        log_.flush();
     }
 
 }
