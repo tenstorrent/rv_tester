@@ -57,6 +57,9 @@ DEFINE_string(rv_tester_mem_preload_file, "", "Preload file for AXI LLC. The fil
 DEFINE_bool(disable_abscmdpoll, false, "Disable poll for abscmd read, Ndm/Dm Reset while performing debug op");
 DEFINE_bool(disable_triggerpoll, false, "Disable poll for trigger in Debug mode");
 DEFINE_bool(monitor, true, "Enable monitoring in different checkers - useful for no_rvfi runs");
+DEFINE_bool(offline_dpi, false, "Enable OFFLINE DPI capture for emulation");
+DEFINE_bool(offline_dpi_test, false, "Enable OFFLINE DPI capture for test mode for simulation");
+
 
 extern "C" void rv_tester_terminate();
 extern "C" void rv_tester_set_address_map(std::uint32_t i, std::uint64_t start_addr, std::uint64_t end_addr, std::uint32_t device);
@@ -298,7 +301,6 @@ extern "C" {
             FLAGS_sysmod_terminate = false;
             FLAGS_rv_tester_terminate = false;
             FLAGS_signal_async = false;
-            FLAGS_hw_eot_enable = false;
             FLAGS_perf = false;
 
             rv_tester_cvm_error_handler();
