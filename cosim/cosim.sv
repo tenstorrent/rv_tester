@@ -829,7 +829,9 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign m_rvfis[n].data.mem_wdata   = rvfi[n].mem_wdata;
         assign m_rvfis[n].data.mem_attr    = rvfi[n].mem_attr;
 
+        /* verilator lint_off WIDTHTRUNC */
         assign valid_icnt[n]   = valid_count(rvfi_valids, rvfi_orders,rvfi_luops,n+1);    // count of valid-unique rvfi orders from 0 to N+1
+        /* verilator lint_on WIDTHTRUNC */
         assign instr_icnt[n]   = instruction_cnt + 64'(valid_icnt[n]);
         assign instr_imax[n]   = ((max_instructions > 0) & (instr_icnt[n] == max_instructions)) ? 1'b1 : 1'b0;
 
@@ -935,7 +937,9 @@ localparam CAM_IHBIT = CAM_IBITS;
     //       - an instruction order was OUT-of-order...
     //---------------------------------------------------------------
 
+    /* verilator lint_off WIDTHTRUNC */
     assign valid_cnt   = valid_count(rvfi_valids, rvfi_orders,rvfi_luops,NRET);    // count of valid-unique rvfi orders
+    /* verilator lint_on WIDTHTRUNC */
     assign rvmax_order = max_order(rvfi_valids, rvfi_orders);                 // highest order valid-unique rvfi
 
     //----------------------------------------------------------------------
