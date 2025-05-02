@@ -219,6 +219,7 @@ class axi : public transactor {
 
         int num_slverr_resp_{0};
         int num_decerr_resp_{0};
+        bool err_resp_ready_ = false;
 
     public:
 
