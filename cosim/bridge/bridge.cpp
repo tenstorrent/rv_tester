@@ -960,17 +960,22 @@ void bridge::pre_step_exception_poke(hart_id_t hart, const rv_instr_t& d) {
       !d.mem_read.error)
     return;
 
-  uint64_t mtval_addr = 0;
+  uint64_t xtval_addr = 0;
   for (auto & c : d.csr) {
-    if (c.csr_addr == MTVAL) {
-      mtval_addr = c.csr_wdata;
+    for (const auto& xtval : {MTVAL, STVAL, HTVAL, VSTVAL}) {
+      if (c.csr_addr == xtval)
+        xtval_addr = c.csr_wdata;
     }
+  }
+  // Check that trap address matches xtval address or is a cacheline away
+  if ((d.trap_addr != xtval_addr) && (((d.trap_addr & ~0x3f) + 0x40) != xtval_addr)) {
+    error("Hart {}: Trap address mismatch. actual: {:#x} expected: {:#x}\n", hart, xtval_addr, d.trap_addr);
   }
   bool valid;
   bool is_load = (d.trap_opcode != 0);
-  bridge_log_(cvm::MEDIUM, "<{}> Inject Exception with code:{} is_load: {} addr:{:#x}\n", d.cycle, d.ecause, is_load, mtval_addr);
+  bridge_log_(cvm::MEDIUM, "<{}> Inject Exception with code={} is_load={} addr={:#x}\n", d.cycle, d.ecause, is_load, xtval_addr);
   if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperInjectExceptionRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0),
-    hart, is_load, d.ecause, 0, mtval_addr, valid) || !valid) && FLAGS_whisper_client_check) {
+    hart, is_load, d.ecause, 0, xtval_addr, valid) || !valid) && FLAGS_whisper_client_check) {
     error("Hart {}: Failed whisper API InjectException\n", hart);
   }
 
