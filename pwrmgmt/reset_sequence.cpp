@@ -448,17 +448,10 @@ cvm::messenger::task<void> reset_sequence::program_fuses() {
   uint32_t ncores = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
 
   cvm::log(cvm::HIGH, "[pwrmgmt] Programming fuse MMRs\n", trace_fuse_mmr);
-
   for (uint32_t i = 0; i < ncores; ++i)
     co_await write(core_fuse_mmr + i * core_fuse_offset,   SZ_8B, fuse);
-  
-  if (FLAGS_trace_fuse_4B_access) {
-    co_await write(trace_fuse_mmr+4, SZ_4B, (fuse >> 32) & 0xFFFFFFFF, boot_interface );
-    co_await write(trace_fuse_mmr, SZ_4B, fuse & 0xFFFFFFFF, boot_interface );
-  } else {
-    co_await write(trace_fuse_mmr, SZ_8B, fuse & 0xFFFFFFFFFFF7FFF , boot_interface);//Workaround defined in RVDE-17674 
-    co_await write(trace_fuse_mmr, SZ_8B, fuse, boot_interface );
-  }
+   
+  co_await write(trace_fuse_mmr, SZ_8B, fuse, boot_interface );
   co_await write(aclint_fuse_mmr, SZ_8B, fuse);
   co_await write(dm_fuse_mmr,     SZ_8B, fuse);
   co_await write(sc_fuse_mmr,     SZ_8B, fuse);
@@ -720,7 +713,7 @@ uint64_t reset_sequence::cla_fuse_val() {
 }
 
 uint64_t reset_sequence::io_coherency_fuse_val() {
-  return static_cast<uint64_t>(FLAGS_io_coherency_enable) << io_cohr_fuse_idx;
+  return static_cast<uint64_t>(FLAGS_io_coherency_disable) << io_cohr_fuse_idx;
 }
 
 uint64_t reset_sequence::dst_fuse_val() {
@@ -954,30 +947,44 @@ cvm::messenger::task<void> reset_sequence::fuse_mmr_check(rst_t rst_type) {
   //  fuse = fuse_val();
   //else
   //  fuse = co_await read(dm_fuse_mmr, SZ_8B, boot_interface);
-  std::vector<uint64_t> fuse_registers = { 
+  std::vector<uint64_t> registers = { 
     sw_fuse_mmr,
-    trace_fuse_mmr,
+    //trace_fuse_mmr,
     aclint_fuse_mmr,
     dm_fuse_mmr,
-    sc_fuse_mmr
+    sc_fuse_mmr,
+    dst_control_mmr,
+    trace_control_mmr,
+    core_cla_ctrl_status_mmr
   };
 
   for (uint32_t i=0; i<ncores; ++i)
-    fuse_registers.push_back(core_fuse_mmr + i * core_fuse_offset);
+    registers.push_back(core_fuse_mmr + i * core_fuse_offset);
   uint64_t actual_data, exp_data;
   bool rsp_err_chk = true;
-  for (auto addr : fuse_registers) {
-    rsp_err_chk = (addr == trace_fuse_mmr)? FLAGS_ntrace_enable : true ;
-    rsp_err_chk =  addr > (core_fuse_mmr + (FLAGS_num_harts-1) * core_fuse_offset) ? false : rsp_err_chk;
-    actual_data = co_await read(addr, SZ_8B, boot_interface, rsp_err_chk);
-    if (rsp_err_chk) {
+  for (auto addr : registers) {
+    rsp_err_chk = (addr == dst_control_mmr)? FLAGS_dst_enable : true ;
+    rsp_err_chk = (addr == trace_control_mmr)? FLAGS_ntrace_enable : true ;
+    rsp_err_chk = (addr == core_cla_ctrl_status_mmr)? FLAGS_cla_enable : true ;
+    actual_data = co_await read(addr, SZ_8B, boot_interface, false);
+    bool ignore_check = (addr==dst_control_mmr) || (addr==trace_control_mmr) || (addr==core_cla_ctrl_status_mmr);
+    if (rsp_err_chk && !ignore_check ) {
       exp_data = (addr == sw_fuse_mmr)? ((rst_type == COLD) ? sw_fuse_default_val: fuse): fuse;
       if ((exp_data != actual_data))
         cvm::log(cvm::ERROR, "[pwrmgmt] Fuse reg read check ERROR : addr 0x{:x} ,  Expected :0x{:x}, Actual : 0x{:x} \n", addr, exp_data, actual_data );
       else
         cvm::log(cvm::NONE, "[pwrmgmt]  Fuse reg read check : addr 0x{:x} , data 0x{:x} \n", addr, actual_data );
-      }
-    };
+    }
+  };
+  std::vector<uint64_t> fuse_registers = { 
+    sw_fuse_mmr,
+    trace_fuse_mmr,
+    aclint_fuse_mmr,
+    dm_fuse_mmr,
+    sc_fuse_mmr,
+  };
+  for (uint32_t i=0; i<ncores; ++i)
+    fuse_registers.push_back(core_fuse_mmr + i * core_fuse_offset);  
   for (auto addr : fuse_registers) {
     rsp_err_chk = (addr == trace_fuse_mmr)? FLAGS_ntrace_enable : true ;
     rsp_err_chk =  addr > (core_fuse_mmr + (FLAGS_num_harts-1) * core_fuse_offset) ? false : rsp_err_chk;
@@ -1020,21 +1027,17 @@ cvm::messenger::task<void> reset_sequence::disabled_mmr_csr_check() {
     cvm::log(cvm::MEDIUM, "[pwrmgmt]  Disabled MMR check from {} interface  \n", get_intf_name(interface) );
     bool rsp_err_chk = true;
     for (uint32_t i = 0; i < ncores; ++i) {
-      rsp_err_chk = i<FLAGS_num_harts;
+      rsp_err_chk = true;
       mmr_read_write_check(cr_scratchpad + i * core_fuse_offset, interface, rsp_err_chk);
       rsp_err_chk = (interface==SMC) ? rsp_err_chk : false;
       co_await read(core_fuse_mmr + i * core_fuse_offset,   SZ_8B, interface, rsp_err_chk);
     }
 
-    rsp_err_chk = FLAGS_ntrace_enable;
+    rsp_err_chk = FLAGS_dst_enable;
     mmr_read_write_check(tr_scratchpad, interface, rsp_err_chk);
-    rsp_err_chk = (interface==SMC) ? rsp_err_chk : false;
-    co_await read(trace_fuse_mmr, SZ_8B, interface, rsp_err_chk);
 
     rsp_err_chk = FLAGS_debug_enable>1;
     mmr_read_write_check(dm_scratchpad, interface, rsp_err_chk);
-    rsp_err_chk = (interface==SMC) ? rsp_err_chk : false;
-    co_await read(dm_fuse_mmr, SZ_8B, interface, rsp_err_chk);
   }
 
   co_return;

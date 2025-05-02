@@ -23,7 +23,7 @@ DECLARE_uint32(debug_enable);
 DECLARE_bool(ntrace_enable);
 DECLARE_bool(dst_enable);
 DECLARE_bool(cla_enable);
-DECLARE_bool(io_coherency_enable);
+DECLARE_bool(io_coherency_disable);
 DECLARE_int32(num_sp_ways);
 DECLARE_int32(imsic_intr_delay_min);//, 4, "Minimum Delay between 2 consecutive interrupts");
 DECLARE_int32(imsic_intr_delay_max);//, 7, "Maximum Delay between 2 consecutive interrupts");

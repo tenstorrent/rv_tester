@@ -110,7 +110,7 @@ void aclint_checker::process(const rv_tester_transactions::aclint_checker::axi_a
         }
 
         if (mmr_addr == aclint_addr::AC_CLUSTERFUSE && (aclint_mmrs[mmr_addr].lock_bit == 0) &&
-            (((aclint_mmrs[mmr_addr].data >> 15) & 1) == 1)){
+            (((aclint_mmrs[mmr_addr].data >> 63) & 1) == 1)){
             // Lock bit set hence write_mask is zero
             aclint_mmrs[mmr_addr].lock_bit = 1;
             cvm::log(cvm::HIGH, "[ACLINT CHECKER] AC_CLUSTERFUSE Locked.\n");

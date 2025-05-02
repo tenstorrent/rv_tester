@@ -66,8 +66,7 @@ DEFINE_uint32(debug_enable, 3, "Debug enable fuse");
 DEFINE_bool(ntrace_enable, true, "Trace enable fuse");
 DEFINE_bool(dst_enable, true, "Enable DST fuse");
 DEFINE_bool(cla_enable, true, "Enable CLA fuse");
-DEFINE_bool(io_coherency_enable, true, "Enable io coherency fuse");
-
+DEFINE_bool(io_coherency_disable, false, "Disable io coherency");
 DEFINE_int32(strobe_type,4, "strobe type need to be driven for random access");
 DEFINE_uint32(overlay_num_times,3, "Maximum number of debug snippets to be driven");
 DEFINE_int32(overlay_idle,5, "Number of idle cycles between each transfer");

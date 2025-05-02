@@ -43,6 +43,9 @@ namespace {
   constexpr uint32_t core_fuse_offset       = 0x0001'0000;
   constexpr uint32_t core_physical_id_mmr   = 0x4200'2FF8;
   constexpr uint32_t sw_fuse_default_val    = 0x4200'2FF8;
+  constexpr uint32_t dst_control_mmr        = 0x4200'2000;
+  constexpr uint32_t trace_control_mmr      = 0x4200'1000;
+  constexpr uint32_t core_cla_ctrl_status_mmr = 0x4200'2190;
 
   constexpr uint32_t lock_idx               = 63;
   constexpr uint32_t dst_fuse_idx           = 52;
