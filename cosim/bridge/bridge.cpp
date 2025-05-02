@@ -1167,8 +1167,13 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
 void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w) {
 
   // Timing sensitive case: interrupt x csr instr
-  if (!d.intr && !w_.intr && (e_mip_age_ <= FLAGS_cosim_resynch_intr_x_csr_threshold) && (w.disasm.find("csr") != std::string::npos)) {
-    if (check_and_defer_interrupt(hart, d.cycle, e_mip_)) {
+  if (!d.intr && !w_.intr && (w.disasm.find("csr") != std::string::npos)) {
+    std::bitset<64> mip = 0;
+    if (e_mip_age_ <= FLAGS_cosim_resynch_intr_x_csr_threshold)
+      mip = e_mip_;
+    else if (hw_mip_age_ <= FLAGS_cosim_resynch_intr_x_csr_threshold)
+      mip = hw_mip_;
+    if (check_and_defer_interrupt(hart, d.cycle, mip)) {
       bridge_log_(cvm::MEDIUM, "<{}> Timing sensitive case: deferring on interrupt x csr instr: {}\n", w.time, w.disasm);
       return;
     }
