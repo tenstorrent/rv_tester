@@ -966,6 +966,7 @@ cvm::messenger::task<void> reset_sequence::fuse_mmr_check(rst_t rst_type) {
     rsp_err_chk = (addr == dst_control_mmr)? FLAGS_dst_enable : true ;
     rsp_err_chk = (addr == trace_control_mmr)? FLAGS_ntrace_enable : true ;
     rsp_err_chk = (addr == core_cla_ctrl_status_mmr)? FLAGS_cla_enable : true ;
+    rsp_err_chk =  addr > (core_fuse_mmr + (FLAGS_num_harts-1) * core_fuse_offset) ? false : rsp_err_chk;
     actual_data = co_await read(addr, SZ_8B, boot_interface, false);
     bool ignore_check = (addr==dst_control_mmr) || (addr==trace_control_mmr) || (addr==core_cla_ctrl_status_mmr);
     if (rsp_err_chk && !ignore_check ) {
@@ -986,7 +987,6 @@ cvm::messenger::task<void> reset_sequence::fuse_mmr_check(rst_t rst_type) {
   for (uint32_t i=0; i<ncores; ++i)
     fuse_registers.push_back(core_fuse_mmr + i * core_fuse_offset);  
   for (auto addr : fuse_registers) {
-    rsp_err_chk = (addr == trace_fuse_mmr)? FLAGS_ntrace_enable : true ;
     rsp_err_chk =  addr > (core_fuse_mmr + (FLAGS_num_harts-1) * core_fuse_offset) ? false : rsp_err_chk;
     co_await write(addr, SZ_8B, rand()%0xFFFF'FFFF'FFFF'FFFF, boot_interface, rsp_err_chk);
     if (rsp_err_chk) {
@@ -1027,7 +1027,7 @@ cvm::messenger::task<void> reset_sequence::disabled_mmr_csr_check() {
     cvm::log(cvm::MEDIUM, "[pwrmgmt]  Disabled MMR check from {} interface  \n", get_intf_name(interface) );
     bool rsp_err_chk = true;
     for (uint32_t i = 0; i < ncores; ++i) {
-      rsp_err_chk = true;
+      rsp_err_chk = i < FLAGS_num_harts;
       mmr_read_write_check(cr_scratchpad + i * core_fuse_offset, interface, rsp_err_chk);
       rsp_err_chk = (interface==SMC) ? rsp_err_chk : false;
       co_await read(core_fuse_mmr + i * core_fuse_offset,   SZ_8B, interface, rsp_err_chk);
