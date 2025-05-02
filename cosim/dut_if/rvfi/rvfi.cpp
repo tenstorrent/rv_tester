@@ -647,7 +647,7 @@ void rvfi::append_uop_changes_to_instr(rv_instr_t& instr) {
 }
 
 void rvfi::print_csr(csr_t& csr) {
-  if (!FLAGS_rvfi_log)
+  if (FLAGS_rvfi_log)
     log(cvm::NONE, "#NA {} {} {} {:016x} {:09x} c {:016x} {:016x} {:016x} (hw update)\n",
       csr.cycle, csr.hart, priv_to_string.at(static_cast<priv>(priv_)), 0, 0, csr.csr_addr, csr.csr_wdata, csr.csr_wmask);
 }
