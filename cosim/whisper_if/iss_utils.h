@@ -15,6 +15,8 @@ DEFINE_uint32(iss_select_test_stage_pct, 50, "Percentage of test run, after whic
 DEFINE_uint32(iss_select_test_range, 200, "Number of steps to get data from");
 DEFINE_string(iss_select_bias_instr, "", "these instruction/opcodes will be picked with higher probability");
 DEFINE_string(iss_select_priv_mode, "", "(comma separated)select only from these privilege modes: M/S/U/VS/VU (no HS)");
+DEFINE_bool(randpc_handler, true, "Select random PCs from handlers");
+DEFINE_bool(randldst_pte, false, "Select random ld/st addresses from PTEs");
 DEFINE_bool(randpc_phy,   false, "Random PCs selected are phys address");
 DEFINE_bool(randldst_phy, false, "Random Ld/St addresses selected are phys address");
 DEFINE_uint32(num_dm_randpc,    0, "Number of Random PCs to DM");
@@ -75,7 +77,7 @@ whisperClient<URV>::processStandaloneInfo() {
 
       if (cosim_util::has_substring(bias_instrs, instr))
         matches_bias_instrs = true;
-      if (hart_iss->lastInstructionTrapped()) {
+      if (FLAGS_randpc_handler && hart_iss->lastInstructionTrapped()) {
         trapped = true;
         auto curr_pc = hart_iss->pc(); // Exception PC
         hart_iss->readInst(curr_pc, curr_phys_pc, curr_inst);
@@ -88,18 +90,20 @@ whisperClient<URV>::processStandaloneInfo() {
         if (hart_iss->lastStore(phys_addr, value))
           categ = STORE;
       }
-      // Page Table entries
-      for (unsigned i = 0; i<2; i++) { // assume always page crosses
-        std::vector<uint64_t> ptes;
-        hart_iss->getPageTableWalkEntries(true/*isinstr*/,i, ptes);
-        for (auto &pte_pa: ptes) {
-          iss_select_s pte(PC, instr, virt_pc, pte_pa);
-          rands.push_back(pte);
-        }
-        hart_iss->getPageTableWalkEntries(false,i, ptes);
-        for (auto &pte_pa: ptes) {
-          iss_select_s pte(categ, instr, virt_pc, pte_pa);
-          rands.push_back(pte);
+      if (FLAGS_randldst_pte) {
+        // Page Table entries
+        for (unsigned i = 0; i<2; i++) { // assume always page crosses
+          std::vector<uint64_t> ptes;
+          hart_iss->getPageTableWalkEntries(true/*isinstr*/,i, ptes);
+          for (auto &pte_pa: ptes) {
+            iss_select_s pte(PC, instr, virt_pc, pte_pa);
+            rands.push_back(pte);
+          }
+          hart_iss->getPageTableWalkEntries(false,i, ptes);
+          for (auto &pte_pa: ptes) {
+            iss_select_s pte(categ, instr, virt_pc, pte_pa);
+            rands.push_back(pte);
+          }
         }
       }
 
