@@ -256,7 +256,7 @@ cosim:
                 qualify: v_ext
                 width: 8
 
-    m_eoti_normal:
+    m_eoti_normal: &eot
         domain: 1
         num: 1 
         fields:
@@ -272,20 +272,7 @@ cosim:
                 width: 1
 
     m_eoti_offline:
-        domain: 1
-        num: 1 
-        fields:
-            cycle:
-                width: 64
-            hart:
-                width: 32
-            icount:
-                width: 64
-            data:
-                width: 64
-            max_instr:
-                width: 1
-
+        <<: *eot
 
     m_mcmi_insert:
         domain: 1
