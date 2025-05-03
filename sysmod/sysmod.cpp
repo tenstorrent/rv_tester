@@ -82,8 +82,6 @@ DEFINE_uint32(aplic_sources, 127, "Number of APLIC interrupt sources");
 DEFINE_bool(uart8250, false, "Whether to enable uart8250 devices found in the memory map");
 DEFINE_uint32(uart8250_iid, 1, "Interrupt identity of the uart8250 device");
 
-DEFINE_string(test_start_label, "", "Actual test starts from here(after kernel and initial setup), in case of MP, provide comma separated labels for each hart"); // used in SOT
-
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 
 extern "C" {
@@ -198,7 +196,7 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
  auto platform_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0);
  cvm::registry::messenger.connect<transactor::write_t>(snoop_gen_loc, [this] (transactor::write_t w)  { return this->eot_backdoor_write(w);});
  cvm::registry::messenger.connect<htif::terminate_t>(  platform_loc,  [this] (htif::terminate_t t)    { return this->terminate(t);});
- cvm::registry::messenger.connect<rv_tester::started_t>(platform_loc, [this] (rv_tester::started_t t) { return this->actual_test_started(t);});
+ cvm::registry::messenger.connect<rv_tester::test_started>(platform_loc, [this] (rv_tester::test_started t) { return this->actual_test_started(t);});
 }
 
 void sysmod::eot_backdoor_write(transactor::write_t& w) {
@@ -783,7 +781,7 @@ sysmod::terminate(htif::terminate_t t) {
 }
 
 void
-sysmod::actual_test_started(rv_tester::started_t) {
+sysmod::actual_test_started(rv_tester::test_started) {
   cvm::log(cvm::HIGH, "[SYSMOD] actual_test_start\n");
   cvm::registry::messenger.signal<rv_tester::actual_test_start>(cvm::topology::get_from_type("PLATFORM", 0), rv_tester::actual_test_start{});
 }

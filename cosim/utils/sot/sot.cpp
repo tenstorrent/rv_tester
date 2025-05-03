@@ -5,6 +5,7 @@
 #include "common/memmap.h"
 #include "cosim/utils/general/util.h"
 #include "rv_tester_structs.h"
+#include "rv_tester/rv_tester_plusargs.h"
 #include "sysmod/sysmod_plusargs.h"
 
 REGISTRY_register(sot, TOP.PLATFORM, cvm::registry::all);
@@ -44,7 +45,7 @@ void sot::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
   if (result.size() == num_harts_) {
     already_started_ = 1;
     cvm::log(cvm::HIGH, "[SOT] Actual test started for all harts\n");
-    cvm::registry::messenger.signal<rv_tester::started_t>(loc_, rv_tester::started_t{});
+    cvm::registry::messenger.signal<rv_tester::test_started>(loc_, rv_tester::test_started{});
   }
 }
 

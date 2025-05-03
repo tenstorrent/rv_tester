@@ -7,8 +7,6 @@
 #include <regex>
 #include "axi.h"
 #include "cvm/logger.hpp"
-#include "sysmod/sysmod_plusargs.h"
-#include "rv_tester/rv_tester_structs.h"
 
 // Error responses
 DEFINE_string(axi_resp_slverr_addr, "", "List of addresses that need slverr response, can be a single value or a range. Ex: 0x1000,0x2000-0x3000");
@@ -48,10 +46,6 @@ axi::axi(const data_width_t& data_width, const cvm::topology::loc_t loc, const s
 {
     cvm::log(cvm::MEDIUM, "[axi] Constructing axi for loc={} id={}\n", loc, tag);
 
-    // Test start indication that's useful to know when to start error responses
-    auto platform_loc = cvm::topology::get_from_type("PLATFORM", 0);
-    cvm::registry::messenger.connect<rv_tester::started_t>(platform_loc, [this] (const auto&) { return this->test_start(); });
-
     // RPC to allow external components to configure responses
     cvm::registry::messenger.procedure<configure_resp_rpc>(loc, [this] () { return this->configure_resp(); });
 
@@ -60,13 +54,6 @@ axi::axi(const data_width_t& data_width, const cvm::topology::loc_t loc, const s
     decerr_range_.parse(FLAGS_axi_resp_decerr_addr);
     slverr_threshold_ = FLAGS_axi_resp_slverr_threshold;
     decerr_threshold_ = FLAGS_axi_resp_decerr_threshold;
-    if (FLAGS_test_start_label == "")
-      err_resp_ready_ = true;
-}
-
-void axi::test_start() {
-    cvm::log(cvm::HIGH, "[axi] test_start\n");
-    err_resp_ready_ = true;
 }
 
 void axi::configure_resp() {
@@ -250,13 +237,13 @@ cvm::messenger::task<void> axi::operator()() {
 
                     // Resp
                     axi::resp_t write_resp = RESP_OKAY;
-                    if (err_resp_ready_ && slverr_range_.is_count_below_threshold(addr, WRITE, slverr_threshold_)) {
+                    if (slverr_range_.is_count_below_threshold(addr, WRITE, slverr_threshold_)) {
                         write_resp = RESP_SLVERR;
                         auto count = slverr_range_.incr_count(addr, WRITE);
                         num_slverr_resp_++;
                         cvm::log(cvm::HIGH, "[axi] slverr write resp addr={:#x} count={}\n", addr, count.value());
                     }
-                    if (err_resp_ready_ && decerr_range_.is_count_below_threshold(addr, WRITE, decerr_threshold_)) {
+                    if (decerr_range_.is_count_below_threshold(addr, WRITE, decerr_threshold_)) {
                         write_resp = RESP_DECERR;
                         auto count = decerr_range_.incr_count(addr, WRITE);
                         num_decerr_resp_++;
@@ -277,13 +264,13 @@ cvm::messenger::task<void> axi::operator()() {
 
                     // Resp
                     axi::resp_t read_resp = a.lock ? RESP_EXOKAY : RESP_OKAY;
-                    if (err_resp_ready_ && slverr_range_.is_count_below_threshold(addr, READ, slverr_threshold_)) {
+                    if (slverr_range_.is_count_below_threshold(addr, READ, slverr_threshold_)) {
                         read_resp = RESP_SLVERR;
                         auto count = slverr_range_.incr_count(addr, READ);
                         num_slverr_resp_++;
                         cvm::log(cvm::HIGH, "[axi] slverr read resp addr={:#x} count={}\n", addr, count.value());
                     }
-                    if (err_resp_ready_ && decerr_range_.is_count_below_threshold(addr, READ, decerr_threshold_)) {
+                    if (decerr_range_.is_count_below_threshold(addr, READ, decerr_threshold_)) {
                         read_resp = RESP_DECERR;
                         auto count = decerr_range_.incr_count(addr, READ);
                         num_decerr_resp_++;

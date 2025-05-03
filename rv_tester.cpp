@@ -57,6 +57,7 @@ DEFINE_string(rv_tester_mem_preload_file, "", "Preload file for AXI LLC. The fil
 DEFINE_bool(disable_abscmdpoll, false, "Disable poll for abscmd read, Ndm/Dm Reset while performing debug op");
 DEFINE_bool(disable_triggerpoll, false, "Disable poll for trigger in Debug mode");
 DEFINE_bool(monitor, true, "Enable monitoring in different checkers - useful for no_rvfi runs");
+DEFINE_string(test_start_label, "", "Actual test starts from here(after kernel and initial setup), in case of MP, provide comma separated labels for each hart"); // used in SOT
 
 extern "C" void rv_tester_terminate();
 extern "C" void rv_tester_set_address_map(std::uint32_t i, std::uint64_t start_addr, std::uint64_t end_addr, std::uint32_t device);
