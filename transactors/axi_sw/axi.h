@@ -231,6 +231,7 @@ class axi : public transactor {
 
         CVM_MESSENGER_procedure_call(configure_resp_rpc, void ());
         void configure_resp();
+        void test_start();
 
         data_width_t   data_width()   const { return data_width_   ; }
         strobe_width_t strobe_width() const { return data_width()/8; }

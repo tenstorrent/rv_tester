@@ -23,7 +23,6 @@
 #include "io_device.h"
 #include "trickbox/trickbox.h"
 #include "sep_entropy_fifo/sep_entropy_fifo.h"
-#include "rv_tester/rv_tester_structs.h"
 #include "rv_tester/rv_tester_plusargs.h"
 #include "cosim/bridge_if/bridge_params.h"
 #include "cosim/dut_if/rvfi/rvfi_plusargs.h"
@@ -197,7 +196,7 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
  auto platform_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0);
  cvm::registry::messenger.connect<transactor::write_t>(snoop_gen_loc, [this] (transactor::write_t w)  { return this->eot_backdoor_write(w);});
  cvm::registry::messenger.connect<htif::terminate_t>(  platform_loc,  [this] (htif::terminate_t t)    { return this->terminate(t);});
- // cvm::registry::messenger.connect<rv_tester::started_t>(platform_loc, [this] (rv_tester::started_t t) { return this->actual_test_started(t);});
+ cvm::registry::messenger.connect<rv_tester::test_started>(platform_loc, [this] (rv_tester::test_started t) { return this->actual_test_started(t);});
 }
 
 void sysmod::eot_backdoor_write(transactor::write_t& w) {
@@ -779,6 +778,12 @@ sysmod::terminate(htif::terminate_t t) {
           sysmod_terminate
       );
   }
+}
+
+void
+sysmod::actual_test_started(rv_tester::test_started) {
+  cvm::log(cvm::HIGH, "[SYSMOD] actual_test_start\n");
+  cvm::registry::messenger.signal<rv_tester::actual_test_start>(cvm::topology::get_from_type("PLATFORM", 0), rv_tester::actual_test_start{});
 }
 
 void
@@ -1391,7 +1396,6 @@ void sysmod::overlay_tick(uint64_t advance) {
      for (auto& d : devices_)
        d->overlay_tick(advance);
 }
-
 
 extern "C" {
   void sysmod_set_scope(cvm::topology::loc_t loc) {

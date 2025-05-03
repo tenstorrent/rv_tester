@@ -14,4 +14,8 @@ namespace rv_tester{
 
     // used to signal when whisper is ready for cosim calls
     struct whisper_connected {};
+
+    // used to signal when actual test starts
+    struct actual_test_start{};
+    struct test_started {};
 }
