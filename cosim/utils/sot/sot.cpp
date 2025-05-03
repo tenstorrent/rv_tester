@@ -20,8 +20,9 @@ void sot::init_label() {
     for (auto& res : results) {
       try {
         std::string addr_str = res.substr(0, 16);
-        auto foo = std::stoul(addr_str, nullptr, 16);
-        execution_labels_.push_back(foo);
+        auto addr = std::stoul(addr_str, nullptr, 16);
+        execution_labels_.push_back(addr);
+        cvm::log(cvm::HIGH, "[SOT] Test start Label={} PC={:#x}\n", label, addr);
       } catch (...) {
           continue;
       }

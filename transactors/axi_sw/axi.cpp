@@ -48,9 +48,12 @@ axi::axi(const data_width_t& data_width, const cvm::topology::loc_t loc, const s
 {
     cvm::log(cvm::MEDIUM, "[axi] Constructing axi for loc={} id={}\n", loc, tag);
 
+    // Test start indication that's useful to know when to start error responses
+    auto platform_loc = cvm::topology::get_from_type("PLATFORM", 0);
+    cvm::registry::messenger.connect<rv_tester::started_t>(platform_loc, [this] (const auto&) { return this->test_start(); });
+
     // RPC to allow external components to configure responses
     cvm::registry::messenger.procedure<configure_resp_rpc>(loc, [this] () { return this->configure_resp(); });
-    cvm::registry::messenger.connect<rv_tester::started_t>(loc, [this] (const auto&) {return this->err_resp_ready_ = true;});
 
     hang_range_.parse(FLAGS_axi_resp_hang_addr);
     slverr_range_.parse(FLAGS_axi_resp_slverr_addr);
@@ -59,6 +62,11 @@ axi::axi(const data_width_t& data_width, const cvm::topology::loc_t loc, const s
     decerr_threshold_ = FLAGS_axi_resp_decerr_threshold;
     if (FLAGS_test_start_label == "")
       err_resp_ready_ = true;
+}
+
+void axi::test_start() {
+    cvm::log(cvm::HIGH, "[axi] test_start\n");
+    err_resp_ready_ = true;
 }
 
 void axi::configure_resp() {
