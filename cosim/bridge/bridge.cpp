@@ -2469,8 +2469,8 @@ void bridge::process_dut_mcm_write(hart_id_t hart, mem_cl_t& m) {
 
   if (FLAGS_bridge_log) {
     std::string log_str;
-    log_str += fmt::format("<{}> mcm_write [valid={}, addr={:#x}, mask={:016x}, data=",
-      m.cycle, valid, m.pa, m.mask);
+    log_str += fmt::format("<{}> mcm_write [valid={}, addr={:#x}, mask={:016x}, error={}, data=",
+      m.cycle, valid, m.pa, m.mask, m.error);
     for (int i=63; i>=0; i--)
       log_str += fmt::format("{:02x}", data[i]);
     log_str += fmt::format("]\n");
