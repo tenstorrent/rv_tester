@@ -3014,7 +3014,11 @@ bool bridge::is_custom_csr(uint64_t addr) {
           (addr >= 0x800 && addr <= 0x8FF) ||
           (addr >= 0x9C0 && addr <= 0x9FF) ||
           (addr >= 0xAC0 && addr <= 0xAFF) ||
-          (addr >= 0xBC0 && addr <= 0xBFF));
+          (addr >= 0xBC0 && addr <= 0xBFF) ||
+          (addr >= 0xCC0 && addr <= 0xCFF) ||
+          (addr >= 0xDC0 && addr <= 0xDFF) ||
+          (addr >= 0xEC0 && addr <= 0xEFF) ||
+          (addr >= 0xFC0 && addr <= 0xFFF));
 }
 
 bool bridge::is_pmacfg_csr(uint64_t addr) {
