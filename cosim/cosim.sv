@@ -194,6 +194,27 @@ localparam CAM_IHBIT = CAM_IBITS;
         /* verilator lint_on WIDTH */
     endfunction
 
+    function automatic bit [CSR_COUNT-1:0] get_csr_mask();
+      bit [CSR_COUNT-1:0] mask = '1;
+      mask[MIP]             = 0; //sepearate AIA flow takes care of mip update
+      mask[TIME]            = 0; //time csr gets updated evey clock cycle
+      mask[MCYCLE]          = 0; //mcycle csr gets updated evey clock cycle
+      mask[MINSTRET]        = 0; //whisper models this instruction retire counter
+      mask[CXTVALSPEC]      = 0; // fe,mc,ls holds copy of same and are not updated across
+      mask[CXINSTSPEC]      = 0; //-------------------""----------------------------------
+      mask[CMCTHRCFG0]      = 0; //thermal throttle csr not important fucntionally
+      mask[VSTOPEI]         = 0; //interrupt csr update are handled separately
+      mask[MHPMCOUNTER3]    = 0; //perf counter 
+      mask[MHPMCOUNTER4]    = 0; //perf counter 
+      mask[MHPMCOUNTER5]    = 0; //perf counter 
+      mask[MHPMCOUNTER6]    = 0; //perf counter 
+      mask[MHPMCOUNTER7]    = 0; //perf counter 
+      mask[MHPMCOUNTER8]    = 0; //perf counter 
+      mask[MHPMCOUNTER9]    = 0; //perf counter 
+      mask[MHPMCOUNTER10]   = 0; //perf counter 
+      return mask;
+    endfunction
+
     //---------------------------------------------------------------
     // Function to return the count of VALIDS with UNIQUE ORDER bits
     //---------------------------------------------------------------
@@ -1020,8 +1041,10 @@ localparam CAM_IHBIT = CAM_IBITS;
     end
 
     bit [MAXCSR:0][CSR_SBITS-1:0] csr_sel;
+    bit [CSR_COUNT-1:0]           csr_ignore_mask;
 
-    assign csr_sel = retsel(m_csris_valid);
+    assign csr_sel          =   retsel(m_csris_valid);
+    assign csr_ignore_mask  =   get_csr_mask();
 
     //-------------------------------------------------------------------------------------------
     // if csr_sel[MAXCSR] == 1 then we went 1 past the MAX number of DPI calls we can make
@@ -1033,7 +1056,10 @@ localparam CAM_IHBIT = CAM_IBITS;
 
 
     for (genvar n = 0; n < CSR_COUNT; n++) begin
-        assign m_csris_valid[n] = rvfi_enabled & ~dut_reset & ((csri[n].valid & ~valid_d1[n]) | (csri[n].valid & (((csri[n].data & csri[n].mask) !== (data_d1[n] & mask_d1[n])) | (csri[n].mask !== mask_d1[n]))));
+        assign m_csris_valid[n] = rvfi_enabled & ~dut_reset & csr_ignore_mask[n] &
+                                  ((csri[n].valid & ~valid_d1[n]) | 
+                                    (csri[n].valid & (((csri[n].data & csri[n].mask) !== (data_d1[n] & mask_d1[n])) |
+                                    (csri[n].mask !== mask_d1[n]))));
     end
     for (genvar n = 0; n < MAXCSR; n++) begin
         assign m_csris[n].valid         = (csr_sel[n] != '1) ? 1'b1 : 1'b0;

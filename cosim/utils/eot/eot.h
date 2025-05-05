@@ -24,37 +24,15 @@ class eot {
   }
 
   public:
-
     // End-of-test (eot) options:
     // eot=tohost -- Look for mem store to 'tohost' address = success/fail
-    eot(cvm::topology::loc_t loc, unsigned id) {
-      // Read tohost symbol address from elf
-      id_ = id;
-      for (uint32_t i = 0; i < num_harts_; i++) {
-        instr_count_.push_back(0);
-        connect<
-          rv_tester_transactions::cosim::m_rvfi<>,
-          rv_tester_transactions::cosim::m_steps<>,
-          rv_tester_transactions::cosim::m_mcmi_insert<>,
-          rv_tester_transactions::cosim::m_mcmi_bypass<>
-        >(cvm::topology::get_from_type("COSIM", i));
-      }
-      loc_ = loc;
-      auto sysmod_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0);
-      cvm::registry::messenger.connect<htif::terminate_t>(sysmod_loc, [this] (htif::terminate_t t) {this->eot_terminate(t.passed);});
-      cvm::registry::messenger.procedure<get_tohost_addr_RPC>(loc, [this] () {return this->get_tohost_addr();});
-      cvm::registry::messenger.procedure<process_tohost_RPC>(loc, [this] 
-            (std::uint64_t hart, std::uint64_t cycle, std::uint64_t addr, std::uint64_t data) {this->process_tohost(hart,cycle,addr,data);});
-      cvm::registry::messenger.procedure<check_max_instr_RPC>(loc, [this] 
-            (std::uint64_t cycle, std::uint64_t count) {this->check_max_instr(cycle,count);});
-    }
     CVM_MESSENGER_procedure_call(process_tohost_RPC, void (std::uint64_t hart, std::uint64_t cycle, std::uint64_t addr, std::uint64_t data));
     CVM_MESSENGER_procedure_call(check_max_instr_RPC, void (std::uint64_t cycle, std::uint64_t count));
 
     void configure() {
       init_tohost_addr();
     }
-    eot(cvm::topology::loc_t loc): eot(loc, 1){}
+    eot(cvm::topology::loc_t loc, unsigned id=1);
     ~eot();
 
     std::uint64_t get_tohost_addr();
@@ -70,6 +48,9 @@ class eot {
     void process_tohost(uint64_t hartid, uint64_t cycle, uint64_t address, uint64_t data);
     void check_max_instr(uint64_t cycle, uint64_t count);
     void eot_terminate(bool passed);
+    void mem_checks_snoop();
+    bool mem_checks();
+
 
   private:
 
@@ -86,5 +67,7 @@ class eot {
     std::chrono::time_point<std::chrono::system_clock> start, end;
     std::uint64_t recent_pc_instr_count_ = 0;
     int recent_pc_hart_ = -1;
+    std::vector<std::pair<uint64_t, std::bitset<512>>> mem_lines_;
+    bool eot_mem_checks_done_ = false;
 };
 

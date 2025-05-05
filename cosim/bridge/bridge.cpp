@@ -154,7 +154,8 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
       "dcsr","dpc","dscratch0", "dscratch1", // Permanent: Debug events
       "sstateen0", "sstateen1", "sstateen2", "sstateen3","hstateen0", "hstateen1", "hstateen2", "hstateen3" // Smstateen CSRs
       "seed",
-      "mhpmevent"// TODO: re-enable when RVDE-22160 is fixed, mhpmeventx.OF bit is implicitly udpated in ms
+      "mhpmevent",// TODO: re-enable when RVDE-22160 is fixed, mhpmeventx.OF bit is implicitly udpated in ms
+      "scountovf",
     };
 
     std::istringstream iss(FLAGS_cosim_resynch_csr);
@@ -165,6 +166,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
     previous_cycle_ = 0;
     auto platform = cvm::topology::get_from_type("PLATFORM", 0);
     cvm::registry::messenger.connect<rv_tester::terminate_called>(platform, [this] (const auto& v) { return this->process(v); });
+    cvm::registry::messenger.connect<rv_tester::terminate_called_mem_checks>(platform, [this] (const auto& v) { return this->process(v); });
     if(FLAGS_random_imsic_intr){
        FLAGS_max_cycle = 2*FLAGS_max_cycle;
        print(cvm::LOW, "Doubling max_cycles for sim run to {}\n",FLAGS_max_cycle );
@@ -206,6 +208,16 @@ bridge::~bridge() {}
   if (it != memmap_.end()) {
     sep_base_ = it->second.base;
     sep_end_ = it->second.end;
+  }
+  it = memmap_.find("maplic");
+  if (it != memmap_.end()) {
+    maplic_base_ = it->second.base;
+    maplic_end_  = it->second.end;
+  }
+  it = memmap_.find("saplic");
+  if (it != memmap_.end()) {
+    saplic_base_ = it->second.base;
+    saplic_end_  = it->second.end;
   }
 
   // Construct whisper for cosim API calls
@@ -811,8 +823,6 @@ void bridge::compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w,
 }
 
 void bridge::process_dut_csr_hw_update(hart_id_t hart, csr_t& c) {
-  if (c.csr_addr == MIP)
-    return;
 
   uint64_t mask = c.csr_wmask & static_cast<uint64_t>(get_csr_poke_mask(hart, c.csr_addr));
   update_csr(hart, src_t::dut, c.csr_addr, c.csr_wdata, mask);
@@ -950,17 +960,22 @@ void bridge::pre_step_exception_poke(hart_id_t hart, const rv_instr_t& d) {
       !d.mem_read.error)
     return;
 
-  uint64_t mtval_addr = 0;
+  uint64_t xtval_addr = 0;
   for (auto & c : d.csr) {
-    if (c.csr_addr == MTVAL) {
-      mtval_addr = c.csr_wdata;
+    if (c.csr_addr == MTVAL || c.csr_addr == STVAL || c.csr_addr == VSTVAL) {
+      xtval_addr = c.csr_wdata;
+      break;
     }
+  }
+  // Check that trap address matches xtval address or is a cacheline away
+  if ((d.trap_addr != xtval_addr) && (((d.trap_addr & ~0x3f) + 0x40) != xtval_addr)) {
+    error("Hart {}: Trap address mismatch. actual: {:#x} expected: {:#x}\n", hart, xtval_addr, d.trap_addr);
   }
   bool valid;
   bool is_load = (d.trap_opcode != 0);
-  bridge_log_(cvm::MEDIUM, "<{}> Inject Exception with code:{} is_load: {} addr:{:#x}\n", d.cycle, d.ecause, is_load, mtval_addr);
+  bridge_log_(cvm::MEDIUM, "<{}> Inject Exception with code={} is_load={} addr={:#x}\n", d.cycle, d.ecause, is_load, xtval_addr);
   if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperInjectExceptionRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0),
-    hart, is_load, d.ecause, 0, mtval_addr, valid) || !valid) && FLAGS_whisper_client_check) {
+    hart, is_load, d.ecause, 0, xtval_addr, valid) || !valid) && FLAGS_whisper_client_check) {
     error("Hart {}: Failed whisper API InjectException\n", hart);
   }
 
@@ -1152,8 +1167,13 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
 void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w) {
 
   // Timing sensitive case: interrupt x csr instr
-  if (!d.intr && !w_.intr && (e_mip_age_ <= FLAGS_cosim_resynch_intr_x_csr_threshold) && (w.disasm.find("csr") != std::string::npos)) {
-    if (check_and_defer_interrupt(hart, d.cycle, e_mip_)) {
+  if (!d.intr && !w_.intr && (w.disasm.find("csr") != std::string::npos)) {
+    std::bitset<64> mip = 0;
+    if (e_mip_age_ <= FLAGS_cosim_resynch_intr_x_csr_threshold)
+      mip = e_mip_;
+    else if (hw_mip_age_ <= FLAGS_cosim_resynch_intr_x_csr_threshold)
+      mip = hw_mip_;
+    if (check_and_defer_interrupt(hart, d.cycle, mip)) {
       bridge_log_(cvm::MEDIUM, "<{}> Timing sensitive case: deferring on interrupt x csr instr: {}\n", w.time, w.disasm);
       return;
     }
@@ -2356,6 +2376,12 @@ void bridge::process_dut_mcm_read(hart_id_t hart, mem_t& m) {
       return;
     }
   }
+  if (((m.pa >= maplic_base_ && (m.pa + m.size) < maplic_end_) ||
+       (m.pa >= saplic_base_ && (m.pa + m.size) < saplic_end_)
+      ) && m.size > 4) {
+    m.size = 4; // FIXME: hack for now, APLIC reads from zebu are returned as 8 bytes
+  }
+
   if (m.v_ext){
     std::vector<uint64_t> data_vec = create_dword_vec(m.data_vec);
     if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmVecReadRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m.cycle, m.tag, m.pa, m.size, data_vec, m.elem_idx, m.field, valid)|| !valid) && FLAGS_whisper_client_check) {
@@ -2988,7 +3014,11 @@ bool bridge::is_custom_csr(uint64_t addr) {
           (addr >= 0x800 && addr <= 0x8FF) ||
           (addr >= 0x9C0 && addr <= 0x9FF) ||
           (addr >= 0xAC0 && addr <= 0xAFF) ||
-          (addr >= 0xBC0 && addr <= 0xBFF));
+          (addr >= 0xBC0 && addr <= 0xBFF) ||
+          (addr >= 0xCC0 && addr <= 0xCFF) ||
+          (addr >= 0xDC0 && addr <= 0xDFF) ||
+          (addr >= 0xEC0 && addr <= 0xEFF) ||
+          (addr >= 0xFC0 && addr <= 0xFFF));
 }
 
 bool bridge::is_pmacfg_csr(uint64_t addr) {
@@ -3146,24 +3176,38 @@ void bridge::final_phase() {
   // report_metrics();
 }
 
-void bridge::process(const rv_tester::terminate_called&) {
+void bridge::process(const rv_tester::terminate_called_mem_checks&) {
   if (terminated_)
     return;
-
   terminated_ = true;
-  report_metrics();
+  if (FLAGS_mcm) {
+    end_mcm_ = true;
+    bool valid;
+    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmEndRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, pw_.time, valid) || !valid) {
+      error("Hart {}: Failed to disable MCM\n", id_);
+    }
+  }
+}
+
+void bridge::process(const rv_tester::terminate_called&) {
+  if (!metrics_reported_)
+    report_metrics();
+  terminated_ = true;
 }
 
 void bridge::report_metrics() {
+  metrics_reported_ = true;
   if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperConnectedRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0)))
     return;
 
   // Need to end mcm before manipulating whisper state for metrics
   whisper_state_t w;
   if (FLAGS_mcm) {
-    bool valid;
-    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmEndRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, pw_.time, valid) || !valid) {
-      error("Hart {}: Failed to disable MCM\n", id_);
+    if (!end_mcm_) {
+      bool valid;
+      if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmEndRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, pw_.time, valid) || !valid) {
+        error("Hart {}: Failed to disable MCM\n", id_);
+      }
     }
     w = { .tag = pw_.tag+1, .time = pw_.time+1 };
   }
