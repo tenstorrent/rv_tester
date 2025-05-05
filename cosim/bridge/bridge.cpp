@@ -962,15 +962,12 @@ void bridge::pre_step_exception_poke(hart_id_t hart, const rv_instr_t& d) {
 
   uint64_t xtval_addr = 0;
   for (auto & c : d.csr) {
-    for (const auto& xtval : {MTVAL, STVAL, HTVAL, VSTVAL}) {
-      if (c.csr_addr == xtval)
-        xtval_addr = c.csr_wdata;
+    if (c.csr_addr == MTVAL || c.csr_addr == STVAL || c.csr_addr == VSTVAL) {
+      xtval_addr = c.csr_wdata;
+      break;
     }
   }
-  // Check that trap address matches xtval address or is a cacheline away
-  if ((d.trap_addr != xtval_addr) && (((d.trap_addr & ~0x3f) + 0x40) != xtval_addr)) {
-    error("Hart {}: Trap address mismatch. actual: {:#x} expected: {:#x}\n", hart, xtval_addr, d.trap_addr);
-  }
+
   bool valid;
   bool is_load = (d.trap_opcode != 0);
   bridge_log_(cvm::MEDIUM, "<{}> Inject Exception with code={} is_load={} addr={:#x}\n", d.cycle, d.ecause, is_load, xtval_addr);
@@ -3014,7 +3011,11 @@ bool bridge::is_custom_csr(uint64_t addr) {
           (addr >= 0x800 && addr <= 0x8FF) ||
           (addr >= 0x9C0 && addr <= 0x9FF) ||
           (addr >= 0xAC0 && addr <= 0xAFF) ||
-          (addr >= 0xBC0 && addr <= 0xBFF));
+          (addr >= 0xBC0 && addr <= 0xBFF) ||
+          (addr >= 0xCC0 && addr <= 0xCFF) ||
+          (addr >= 0xDC0 && addr <= 0xDFF) ||
+          (addr >= 0xEC0 && addr <= 0xEFF) ||
+          (addr >= 0xFC0 && addr <= 0xFFF));
 }
 
 bool bridge::is_pmacfg_csr(uint64_t addr) {

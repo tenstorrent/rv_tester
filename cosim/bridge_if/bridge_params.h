@@ -405,6 +405,7 @@ namespace {
       CSR(C_FECFG3,         0xBC3, "c_fecfg3"    ,  true)                      \
       CSR(C_FECFG4,         0xBC4, "c_fecfg4"    ,  true)                      \
       CSR(C_MCCFG,          0xBC5, "c_mccfg"     ,  true, true)                \
+      CSR(C_MCCFG1,         0xBCE, "c_mccfg1"    ,  true, true)                \
       CSR(C_MCTHRCFG0,      0xBC6, "c_mcthrcfg0" ,  true, true)                \
       CSR(C_MCTHRCFG1,      0xBC7, "c_mcthrcfg1" ,  true, true)                \
       CSR(C_WFITIMER,       0xBC8, "c_wfitimer"  ,  true, true)                \
