@@ -9,6 +9,7 @@
 #include <fmt/ranges.h>
 #include "cvm/random.hpp"
 #include "sysmod.h"
+#include "sysmod_rpc.h"
 #include "mem/sysmod_mem.h"
 #include "clint/clint.h"
 #include "aclint/aclint.h"
@@ -22,7 +23,6 @@
 #include "io_device.h"
 #include "trickbox/trickbox.h"
 #include "sep_entropy_fifo/sep_entropy_fifo.h"
-#include "rv_tester/rv_tester_structs.h"
 #include "rv_tester/rv_tester_plusargs.h"
 #include "cosim/bridge_if/bridge_params.h"
 #include "cosim/dut_if/rvfi/rvfi_plusargs.h"
@@ -114,6 +114,7 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
       cosim_init_ = true;
       return;
       });
+  cvm::registry::messenger.procedure<sysmod_eot>(loc, [this] (uint64_t addr, size_t length, device::data_t& data){ return this->dev("memory")->backdoor_read(addr, length, data);});
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::tick<>>(
       loc_,
       [this](const rv_tester_transactions::sysmod::tick<>& t) { return this->tick(t.advance); });
@@ -194,9 +195,23 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
                 }
         });
   }
- cvm::registry::messenger.connect<htif::terminate_t>(
-     cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0),
-     [this] (htif::terminate_t t) { return this->terminate(t); });
+ auto snoop_gen_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.SNOOP_GEN", 0);
+ auto platform_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0);
+ cvm::registry::messenger.connect<transactor::write_t>(snoop_gen_loc, [this] (transactor::write_t w)  { return this->eot_backdoor_write(w);});
+ cvm::registry::messenger.connect<htif::terminate_t>(  platform_loc,  [this] (htif::terminate_t t)    { return this->terminate(t);});
+ cvm::registry::messenger.connect<rv_tester::test_started>(platform_loc, [this] (rv_tester::test_started t) { return this->actual_test_started(t);});
+}
+
+void sysmod::eot_backdoor_write(transactor::write_t& w) {
+  device::strb_t strb(8);
+  device::data_t data(8);
+  for(size_t i=0; i<64; i+=8) {
+    for (size_t j=0; j<8; j++) {
+      data[j] = w.data[i+j];
+      strb[j] = true;
+    }
+    this->dev("memory")->backdoor_write((w.addr + i), 8, data, strb);
+  }
 }
 
 void sysmod::configure()
@@ -766,6 +781,12 @@ sysmod::terminate(htif::terminate_t t) {
           sysmod_terminate
       );
   }
+}
+
+void
+sysmod::actual_test_started(rv_tester::test_started) {
+  cvm::log(cvm::HIGH, "[SYSMOD] actual_test_start\n");
+  cvm::registry::messenger.signal<rv_tester::actual_test_start>(cvm::topology::get_from_type("PLATFORM", 0), rv_tester::actual_test_start{});
 }
 
 void
@@ -1378,7 +1399,6 @@ void sysmod::overlay_tick(uint64_t advance) {
      for (auto& d : devices_)
        d->overlay_tick(advance);
 }
-
 
 extern "C" {
   void sysmod_set_scope(cvm::topology::loc_t loc) {

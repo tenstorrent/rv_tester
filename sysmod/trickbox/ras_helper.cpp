@@ -36,7 +36,7 @@ ras_helper::read(uint64_t addr, size_t length, data_t& data)
   mem::datum_t m_data;
   m_.read(addr, length, &m_data);
   uint32_t word = (uint32_t)m_data;
-  cvm::log(cvm::HIGH, "[ras_helper] couroutine read addr {:#x} data {:#x} \n",addr,word);
+  cvm::log(cvm::FULL, "[ras_helper] couroutine read addr {:#x} data {:#x} \n",addr,word);
   serializeInt(word, length, data);
 
   co_return;
@@ -46,30 +46,27 @@ void
 ras_helper::read_dev(uint64_t addr, size_t length, data_t& data)
 {
  if (not has_addr(addr)){
-    cvm::log(cvm::HIGH, "[ras_helper] Descarding read request at ras_helper since tag {} is not matching \n",tag());
    return;
   }
 
   m_.read(addr, length, data.data());
 
   for (unsigned i = 0; i < length; i++)
-      cvm::log(cvm::HIGH, "[ras_helper] read_dev addr {:#x} data {:#x} \n", addr, (uint32_t)data[i]);
+      cvm::log(cvm::FULL, "[ras_helper] read_dev addr {:#x} data {:#x} \n", addr, (uint32_t)data[i]);
   return;
 }
 
 bool ras_helper::ras_helper_backdoor_read(uint64_t addr,uint64_t& data){
    if (not has_addr(addr)){
-    cvm::log(cvm::HIGH, "[ras_helper] Descarding read request at ras_helper since tag {} is not matching \n",tag());
    return false;
   }
    data = local64BStorage[(addr - ras_helper_base)/8];
-   cvm::log(cvm::HIGH, "[ras_helper]  Backdoor Read addr {:#x} resp data {:#x} \n",addr,data);
+   cvm::log(cvm::FULL, "[ras_helper]  Backdoor Read addr {:#x} resp data {:#x} \n",addr,data);
    return true;
 }
 
 bool ras_helper::ras_helper_backdoor_write(uint64_t addr,uint64_t data){
    if (not has_addr(addr)){
-    cvm::log(cvm::HIGH, "[ras_helper] Descarding read request at ras_helper since tag {} is not matching \n",tag());
    return false;
   }
   data_t local_data = {0, 0, 0, 0, 0, 0, 0, 0};
@@ -91,7 +88,7 @@ void
   uint64_t t_data = 0;
   deserializeInt(data, t_data);
   
-  cvm::log(cvm::HIGH, "[ras_helper] addr={:#x} data={:#x} \n", addr, t_data);
+  cvm::log(cvm::FULL, "[ras_helper] addr={:#x} data={:#x} \n", addr, t_data);
   
   for (int j=0; j<8; j++) {
       mem::datum_t m_data_p = (mem::datum_t) data[j];

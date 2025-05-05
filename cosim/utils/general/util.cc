@@ -38,7 +38,7 @@ std::string cosim_util::get_nth_word(const std::string& s, int n) {
     std::string word;
     for (int i = 0; i < n; i++) {
         if (!(iss >> word))
-            return ""; // Return an empty string if there are fewer than 3 words
+            return "";
     }
     // Remove trailing comma if present
     if (!word.empty() && word.back() == ',') {
@@ -107,4 +107,26 @@ std::vector<std::string> cosim_util::split_string (const std::string& input, con
     }
     tokens.push_back(input.substr(start));  // Add the last part of the string
     return tokens;
+}
+
+std::string cosim_util::hex_string_to_binary_string (const std::string& hex) {
+  std::string binary;
+  for (char c : hex) {
+    std::stringstream ss;
+    ss << std::hex << c;
+    unsigned n;
+    ss >> n;
+    for (int i=3; i>=0; --i)
+      binary.push_back(((n >> i) & 1) ? '1' : '0');
+  }
+  return binary;
+}
+
+bool cosim_util::has_substring(const std::vector<std::string>& vec, const std::string& substring) {
+    if (vec.size() == 0)
+        return false;
+
+    return std::any_of(vec.begin(), vec.end(), [&](const std::string& s) {
+        return s.find(substring) != std::string::npos;
+    });
 }

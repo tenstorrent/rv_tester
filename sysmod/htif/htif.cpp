@@ -225,7 +225,7 @@ htif::write(const transactor::write_t& w)
       if (passed_ == 0) {
         cvm::log(cvm::NONE, "Pass condition detected - tohost[0] = 1, tohost[47:1] = 0\n");
         if (FLAGS_eot != "tohost_all") {
-          cvm::registry::messenger.signal<terminate_t>(loc(), terminate_t{.low_priority_based = true, .passed=true});
+          cvm::registry::messenger.signal<terminate_t>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0), terminate_t{.low_priority_based = true, .passed=true});
         }
       }
       else if(passed_ == 1) {

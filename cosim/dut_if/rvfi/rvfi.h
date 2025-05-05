@@ -66,6 +66,7 @@ class rvfi {
     void process(const rv_tester_transactions::cosim::m_mcmi_ievict<>& m_mcmi_ievict);
 
     void process(const rv_tester::terminate_called&);
+    void process(const rv_tester::terminate_called_mem_checks&);
     void process(const bridge::error_loc &);
 
     void process_ncio_fetches(const rv_instr_t& instr);

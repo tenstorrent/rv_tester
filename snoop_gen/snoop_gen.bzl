@@ -15,6 +15,7 @@ def snoop_gen_gen(name, packet, topology, harness, visibility = None, cc_attrs =
             "@rv_tester//transactors/axi_sw:safe_queue.h",
             "@rv_tester//transactors/axi_sw:axi.h",
             "@rv_tester//sysmod:device.h",
+            "@rv_tester//sysmod:sysmod_rpc.h",
             "@rv_tester//snoop_gen:snoop_gen.hpp",
             "@rv_tester//snoop_gen:snoop_gen_sequence.hpp",
         ],
