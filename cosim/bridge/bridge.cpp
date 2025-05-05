@@ -962,9 +962,9 @@ void bridge::pre_step_exception_poke(hart_id_t hart, const rv_instr_t& d) {
 
   uint64_t xtval_addr = 0;
   for (auto & c : d.csr) {
-    for (const auto& xtval : {MTVAL, STVAL, HTVAL, VSTVAL}) {
-      if (c.csr_addr == xtval)
-        xtval_addr = c.csr_wdata;
+    if (c.csr_addr == MTVAL || c.csr_addr == STVAL || c.csr_addr == VSTVAL) {
+      xtval_addr = c.csr_wdata;
+      break;
     }
   }
   // Check that trap address matches xtval address or is a cacheline away
