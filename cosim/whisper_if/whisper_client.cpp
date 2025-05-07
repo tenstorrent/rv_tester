@@ -162,11 +162,22 @@ whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>& sess
   if (FLAGS_load != "")                           args_str.push_back(FLAGS_load);
   if (FLAGS_traceptw)                             args_str.push_back("--traceptw");
   if (FLAGS_whisper_csv_log)                      args_str.push_back("--csv");
-
+  if (FLAGS_hex      != "") {
+    auto hex_files = cosim_util::split_string(FLAGS_hex, ",");
+    for (const auto& hex: hex_files)
+      args_str.insert(args_str.end(), {"--hex", hex});
+  }
+  if (FLAGS_load_lz4 != "") {
+    auto lz4_files = cosim_util::split_string(FLAGS_load_lz4, ",");
+    for (const auto& lz4: lz4_files)
+      args_str.insert(args_str.end(), {"--lz4", lz4});
+  }
+  if (FLAGS_load_bin != "") {
+    auto bin_files = cosim_util::split_string(FLAGS_load_bin, ",");
+    for (const auto& bin: bin_files)
+      args_str.insert(args_str.end(), {"--binary", bin});
+  }
   if (FLAGS_isa      != "")            args_str.insert(args_str.end(), {"--isa", FLAGS_isa});
-  if (FLAGS_hex      != "")            args_str.insert(args_str.end(), {"--hex", FLAGS_hex});
-  if (FLAGS_load_lz4 != "")            args_str.insert(args_str.end(), {"--lz4", FLAGS_load_lz4});
-  if (FLAGS_load_bin != "")            args_str.insert(args_str.end(), {"--binary", FLAGS_load_bin});
   if (FLAGS_whisper_stdout_null)       args_str.insert(args_str.end(), {"--stdout", "/dev/null"});
   if (FLAGS_whisper_stdin_null)        args_str.insert(args_str.end(), {"--stdin",  "/dev/null"});
   if (FLAGS_stee_secure_region  != "") args_str.insert(args_str.end(), {"--steesr",     FLAGS_stee_secure_region});
