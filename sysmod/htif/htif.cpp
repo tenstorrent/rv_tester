@@ -234,7 +234,7 @@ htif::write(const transactor::write_t& w)
       passed_++;
     }
     else {
-      cvm::log(cvm::ERROR, "Error: Fail condition detected - tohost[0]={:#x}, tohost[47:1]={:#x}",(payload & 1), (payload >> 1));
+      cvm::log(cvm::ERROR, "Error: Fail condition detected - tohost[0]={:#x}, tohost[47:1]={:#x}\n",(payload & 1), (payload >> 1));
     }
   }
   else {
