@@ -179,7 +179,7 @@ cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
 cvm::messenger::task<void> reset_sequence::warm_reset_sequence() {
 
   cvm::log(cvm::FULL, "[reset_sequence] Flushing callbacks from rv_tester\n");
-  rv_tester_flush_callbacks();
+  co_await rv_tester_flush_callbacks();
   // Assert force_ref_clk
   force_ref_clk(1);
 
