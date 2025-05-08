@@ -79,6 +79,7 @@ module rv_tester
      end
 
     import "DPI-C" function void rv_tester_streaming_dpi_init();
+    import "DPI-C" function void rv_tester_streaming_dpi_shutdown();
     import "DPI-C" function int rv_tester_parse_flags(); // dummy return value so that this gets called immediately. need this to happen before any other DPIs are called.
     import "DPI-C" function void rv_tester_set_seed();
     import "DPI-C" context function void rv_tester_cvm_error_handler();
@@ -197,6 +198,8 @@ module rv_tester
     int clk_profile = 0;
 
     int assertion_test_cycle = 0;
+
+    logic streaming_dpi_shutdowned = 0;
 
     parameter int unsigned location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.ID, 0);
     
@@ -324,6 +327,10 @@ module rv_tester
         if (rv_tester_reset) begin
             // Used for offine DPI
             rv_tester_streaming_dpi_init();
+        end
+        if (terminated) begin
+            rv_tester_streaming_dpi_shutdown();
+            streaming_dpi_shutdowned = 1;
         end
     end
     /*

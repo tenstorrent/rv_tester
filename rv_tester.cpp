@@ -303,13 +303,19 @@ extern "C" {
 
             rv_tester_cvm_error_handler();
             rv_tester_build_registry();
-            std::atexit([] () {
-                if (!rv_tester_shutdown_registry()) {
-                    cvm::log(cvm::ERROR, "[offline_dpi] failed to shutdown registry\n");
-                }
-                rv_tester_dm_shutdown_registry();
-            });
         }
+    }
+
+    void rv_tester_streaming_dpi_shutdown() {
+        char *env_var = std::getenv("ZEBU_OFFLINE_DPI");
+        if ((env_var != nullptr && std::string(env_var) == "1")) {
+            cvm::log(cvm::NONE, "Offline DPI shutdown\n");
+
+            if (!rv_tester_shutdown_registry()) {
+                cvm::log(cvm::ERROR, "[offline_dpi] failed to shutdown registry\n");
+            }
+            rv_tester_dm_shutdown_registry();
+       }
     }
 }
 
