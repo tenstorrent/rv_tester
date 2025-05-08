@@ -53,7 +53,7 @@ extern "C" {
   void pwrmgmt_warm_reset(uint8_t val);
   void pwrmgmt_reset_hold(uint8_t sram, uint8_t debug, uint8_t critical);
   void pwrmgmt_force_ref_clk(uint8_t val);
-
+  void rv_tester_flush_callbacks();
   uint8_t pwrmgmt_get_warm_reset_en(const char* mode) {
     return (std::string(mode) != "off");
   }
@@ -177,6 +177,9 @@ cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
 }
 
 cvm::messenger::task<void> reset_sequence::warm_reset_sequence() {
+
+  cvm::log(cvm::FULL, "[reset_sequence] Flushing callbacks from rv_tester\n");
+  rv_tester_flush_callbacks();
   // Assert force_ref_clk
   force_ref_clk(1);
 
