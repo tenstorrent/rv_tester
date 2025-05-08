@@ -83,7 +83,7 @@ reset_sequence::reset_sequence(cvm::topology::loc_t loc, unsigned) : loc_(loc), 
   id_width_[OVERLAY] = cvm::topology::attr(axi_loc_[OVERLAY], "ID_WIDTH").second;
 
   boot_interface = FLAGS_boot_from_smc ? SMC: OVERLAY;
-}
+}callback
 
 void reset_sequence::start(int reset_count) {
 
@@ -179,7 +179,7 @@ cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
 cvm::messenger::task<void> reset_sequence::warm_reset_sequence() {
 
   cvm::log(cvm::FULL, "[reset_sequence] Flushing callbacks from rv_tester\n");
-  co_await rv_tester_flush_callbacks();
+  rv_tester_flush_callbacks();
   // Assert force_ref_clk
   force_ref_clk(1);
 
