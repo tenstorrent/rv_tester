@@ -325,12 +325,15 @@ module rv_tester
     */
     always @(posedge dut_clk[TB_CLK_IDX]) begin
         if (rv_tester_reset) begin
+            streaming_dpi_shutdowned <= 0;
+
             // Used for offine DPI
             rv_tester_streaming_dpi_init();
         end
-        if (terminated) begin
+        if (terminated && !streaming_dpi_shutdowned) begin
+            // Used for zebu offline DPI to shutdown the registry
             rv_tester_streaming_dpi_shutdown();
-            streaming_dpi_shutdowned = 1;
+            streaming_dpi_shutdowned <= 1;
         end
     end
     /*
