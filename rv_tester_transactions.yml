@@ -152,7 +152,7 @@ cosim:
             csr_wmask:
                 qualify: csr_valid
                 width: ${TOP.PLATFORM.XLEN}
-            pc_pa:
+            pc_paddr:
                 width: ${TOP.PLATFORM.VALEN}
             pc_rdata:
                 width: ${TOP.PLATFORM.VALEN}

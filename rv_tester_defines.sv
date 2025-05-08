@@ -308,7 +308,7 @@ package rv_tester_params;
         logic [XLEN-1:0]            csr_wmask;
         logic [XLEN-1:0]            csr_rdata;
         logic [XLEN-1:0]            csr_rmask;
-        logic [VALEN-1:0]           pc_pa    ;
+        logic [VALEN-1:0]           pc_paddr ;
         logic [VALEN-1:0]           pc_rdata ;
         logic [VALEN-1:0]           pc_wdata ;
         logic                       pc_error ;
