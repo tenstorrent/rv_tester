@@ -3,4 +3,3 @@ filegroup(
     srcs = ["offline_dpi.select"],
     visibility = ["//visibility:public"],
 )
-    
