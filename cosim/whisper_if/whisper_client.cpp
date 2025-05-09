@@ -224,7 +224,7 @@ whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>& sess
   bool ok = session->configureSystem(args, config);
   if (ok) {
     if (standalone)
-      // system->setAplicAutoForwardViaMsi(false);
+      system->setAplicAutoForwardViaMsi(false);
     for (unsigned i=0; i<system->hartCount(); ++i) {
       WdRiscv::Hart<URV>* hart = system->ithHart(i).get();
       if (standalone) {
