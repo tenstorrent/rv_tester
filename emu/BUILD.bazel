@@ -1,0 +1,5 @@
+filegroup(
+    name = "offline_dpi_spec",
+    srcs = ["offline_dpi.select"],
+    visibility = ["//visibility:public"],
+)
