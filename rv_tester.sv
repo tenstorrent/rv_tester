@@ -903,7 +903,8 @@ module rv_tester
         )jtag_driver
         (
             .clk(dut_clk[REF_CLK_IDX]),
-            .reset(reset[COLD_RESET_IDX]),
+            /*.reset(reset[COLD_RESET_IDX]),*/
+            .reset(sys_reset[REF_CLK_IDX]), /*for both warm and cold reset*/
             .dut_clk(dut_clk[TB_CLK_IDX]),
             .dut_reset(dut_reset[TB_CLK_IDX]),
             .no_fetch(core_no_fetch[0]),
