@@ -919,7 +919,7 @@ void jtag_sequence::trickboxJtagWrite(unsigned hart, unsigned jtag_cmd, unsigned
   // cvm::messenger::send(jtag_t, jtag_pkt);
   if (jtag_quit != 0)
     stall_jtag_xtor = false;
-  cvm::log(cvm::FULL, "[jtag_sequence] TrickboxJtagWrite scope={}\n", s);
+  cvm::log(cvm::FULL, "[jtag_sequence] TrickboxJtagWrite scope={}\n", scope_);
 
   cvm::registry::callbacks.push(
     scope_,
@@ -940,7 +940,7 @@ void jtag_sequence::trickboxJtagWriteSocket(unsigned hart, unsigned jtag_cmd, un
     jtag_ip_array[i] = lower_jtag_data[i];
     cond_log(cvm::HIGH, " trickboxJtagWriteSocket JTAGDRIVER Socket Data[{}]:{:#x} \n", i, lower_jtag_data[i]);
   }
-  cvm::log(cvm::FULL, "[jtag_sequence] TrickboxJtagWriteSocket scope={}\n", s);
+  cvm::log(cvm::FULL, "[jtag_sequence] TrickboxJtagWriteSocket scope={}\n", scope_);
   cvm::registry::callbacks.push(
     scope_,
     [jtag_cmd, jtag_ip_array, reg_length_data, jtag_quit, tap_cfg_sel]() {
