@@ -429,9 +429,9 @@ module rv_tester
             perf                 <= cvm_plusargs::get_bool("perf") != '0;
             flag_force_ref_clk   <= cvm_plusargs::get_bool("force_ref_clk") != '0;
             rand_dmi_driver_dly  <= cvm_plusargs::get_int("rand_dmi_driver_dly");
-            num_dm_randpc        <= cvm_plusargs::get_int("num_dm_randpc");
-            num_dm_randload      <= cvm_plusargs::get_int("num_dm_randload");
-            num_dm_randstore     <= cvm_plusargs::get_int("num_dm_randstore");
+            num_dm_randpc        <= cvm_plusargs::get_int("iss_select_num_randpc");
+            num_dm_randload      <= cvm_plusargs::get_int("iss_select_num_randload");
+            num_dm_randstore     <= cvm_plusargs::get_int("iss_select_num_randstore");
             trigger_config       <= cvm_plusargs::get_int("trigger_config");
             priority_singlestep  <= cvm_plusargs::get_bool("priority_singlestep") != '0;
             disable_haltpoll     <= cvm_plusargs::get_bool("disable_haltpoll") != '0;
