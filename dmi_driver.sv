@@ -1359,7 +1359,7 @@ import rv_tester_params:: * ;
       end
       command_trigger = 0;
       $display("[DMI Execution] Clear the Execution Trigger\n");
-      if((command_queue.size() | single_step_quit_command_queue.size()) == 0) begin
+      if((command_queue.size() | dmi_command_in_step_quit_queue_size) == 0) begin
         end_of_test_cleanup = 1;
         $display("[DMI Driver] Initializing driver variables at End of Test");
       end
