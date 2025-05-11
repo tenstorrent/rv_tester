@@ -81,6 +81,7 @@ DEFINE_uint32(aplic_sources, 127, "Number of APLIC interrupt sources");
 // Uart8250
 DEFINE_bool(uart8250, false, "Whether to enable uart8250 devices found in the memory map");
 DEFINE_uint32(uart8250_iid, 1, "Interrupt identity of the uart8250 device");
+DEFINE_uint64(dm_rand_addr, 0x9080500, "(Trickbox) Random address for DM: PC/Load/Store");;
 
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 
@@ -1329,17 +1330,37 @@ sysmod::load_cplfw(const std::string& cplfw) {
 void
 sysmod::store_dm_rand() {
 
-  uint64_t addr = cvm::registry::messenger.call<whisperClient<uint64_t>::get_dm_rand_addr_RPC>(wc_loc_);
-  auto dm_rand_values = cvm::registry::messenger.call<whisperClient<uint64_t>::get_dm_rand_val_RPC>(wc_loc_);
   device::data_t dataw(8);
   device::strb_t strb(8);
-  for (const auto &val:dm_rand_values) {
-    for (size_t i=0; i<8; i++) {
-      dataw[i] = (val >> 8*i) & 0xff;
-      strb[i]  = true;
+  for (unsigned h=0; h<FLAGS_num_harts; h++) {
+    auto dm_rand_values = cvm::registry::messenger.call<whisperClient<uint64_t>::iss_select_rand_RPC>(wc_loc_, h);
+    std::vector<uint64_t> stores, loads, pcs;
+    for (const auto &iss: dm_rand_values) {
+      switch (iss.type) {
+        case 0:
+          pcs.push_back(iss.phys_addr);
+          break;
+        case 1:
+          loads.push_back(iss.phys_addr);
+          break;
+        default:
+          stores.push_back(iss.phys_addr);
+      }
     }
-    dev("trickbox")->backdoor_write(addr, 8, dataw, strb);
-    addr += 8;
+    std::vector<uint64_t> result;
+    result.insert(result.end(), pcs.begin(), pcs.end());
+    result.insert(result.end(), loads.begin(), loads.end());
+    result.insert(result.end(), stores.begin(), stores.end());
+    uint64_t addr = FLAGS_dm_rand_addr + (h * 0x40); // offset per hart (maximum 8 addresses)
+    cvm::log(cvm::HIGH, "Backdoor writes to DM rand addresses for Hart:{}, starting address:{:x}\n", h, addr);
+    for (const auto &val: result) {
+      for (size_t i=0; i<8; i++) {
+        dataw[i] = (val >> 8*i) & 0xff;
+        strb[i]  = true;
+      }
+      dev("trickbox")->backdoor_write(addr, 8, dataw, strb);
+      addr += 8;
+    }
   }
 }
 
