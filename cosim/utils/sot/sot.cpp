@@ -14,6 +14,7 @@ void sot::init_label() {
   if (FLAGS_test_start_label == "")
     return;
   std::vector<std::string> labels = cosim_util::split_string(FLAGS_test_start_label, ",");
+  bool found = false;
   for (auto& label : labels) {
     std::string cmd = "nm " + FLAGS_load + " | grep " + label;
     std::string result = cosim_util::exec(cmd.c_str());
@@ -23,11 +24,15 @@ void sot::init_label() {
         std::string addr_str = res.substr(0, 16);
         auto addr = std::stoul(addr_str, nullptr, 16);
         execution_labels_.push_back(addr);
-        cvm::log(cvm::HIGH, "[SOT] Test start Label={} PC={:#x}\n", label, addr);
+        found = true;
+        cvm::log(cvm::MEDIUM, "[SOT] Test start Label={} PC={:#x}\n", label, addr);
       } catch (...) {
           continue;
       }
     }
+  }
+  if (!found) {
+    cvm::log(cvm::ERROR, "Error: test_start_label={} not found in elf\n", FLAGS_test_start_label);
   }
 }
 
@@ -37,7 +42,7 @@ void sot::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
 
   if (std::find(execution_labels_.begin(), execution_labels_.end(), m_rvfi.pc_rdata) != execution_labels_.end()) {
     actual_test_started_[m_rvfi.hart] = 1;
-    cvm::log(cvm::HIGH, "[SOT] Found test start PC: {:#x}\n", m_rvfi.pc_rdata);
+    cvm::log(cvm::MEDIUM, "[SOT] Found test start PC: {:#x}\n", m_rvfi.pc_rdata);
   }
 
   std::vector<int> result;

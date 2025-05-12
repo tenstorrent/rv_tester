@@ -79,6 +79,7 @@ module rv_tester
      end
 
     import "DPI-C" function void rv_tester_streaming_dpi_init();
+    import "DPI-C" function void rv_tester_streaming_dpi_shutdown();
     import "DPI-C" function int rv_tester_parse_flags(); // dummy return value so that this gets called immediately. need this to happen before any other DPIs are called.
     import "DPI-C" function void rv_tester_set_seed();
     import "DPI-C" context function void rv_tester_cvm_error_handler();
@@ -197,6 +198,8 @@ module rv_tester
     int clk_profile = 0;
 
     int assertion_test_cycle = 0;
+
+    logic streaming_dpi_shutdowned = 0;
 
     parameter int unsigned location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.ID, 0);
     
@@ -322,8 +325,15 @@ module rv_tester
     */
     always @(posedge dut_clk[TB_CLK_IDX]) begin
         if (rv_tester_reset) begin
+            streaming_dpi_shutdowned <= 0;
+
             // Used for offine DPI
             rv_tester_streaming_dpi_init();
+        end
+        if (terminated && !streaming_dpi_shutdowned) begin
+            // Used for zebu offline DPI to shutdown the registry
+            rv_tester_streaming_dpi_shutdown();
+            streaming_dpi_shutdowned <= 1;
         end
     end
     /*
@@ -419,9 +429,9 @@ module rv_tester
             perf                 <= cvm_plusargs::get_bool("perf") != '0;
             flag_force_ref_clk   <= cvm_plusargs::get_bool("force_ref_clk") != '0;
             rand_dmi_driver_dly  <= cvm_plusargs::get_int("rand_dmi_driver_dly");
-            num_dm_randpc        <= cvm_plusargs::get_int("num_dm_randpc");
-            num_dm_randload      <= cvm_plusargs::get_int("num_dm_randload");
-            num_dm_randstore     <= cvm_plusargs::get_int("num_dm_randstore");
+            num_dm_randpc        <= cvm_plusargs::get_int("iss_select_num_randpc");
+            num_dm_randload      <= cvm_plusargs::get_int("iss_select_num_randload");
+            num_dm_randstore     <= cvm_plusargs::get_int("iss_select_num_randstore");
             trigger_config       <= cvm_plusargs::get_int("trigger_config");
             priority_singlestep  <= cvm_plusargs::get_bool("priority_singlestep") != '0;
             disable_haltpoll     <= cvm_plusargs::get_bool("disable_haltpoll") != '0;
