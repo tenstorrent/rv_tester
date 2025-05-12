@@ -84,11 +84,11 @@ import rv_tester_params::*;
   ////////////////////////////////////
 
   always @(posedge clk) begin
-    reset_d1 <= reset;
-    if (reset) begin
+    reset_d1 <= reset | warm_reset;
+    if (reset|warm_reset) begin
       jtag_driver_init();
     end
-    if (~reset & reset_d1) begin
+    if (~(reset|warm_reset) & reset_d1) begin
       if (location != cvm_topology::nil) begin
         jtag_driver_set_scope(location);
         jtag_socket_en <= jtag_driver_get_en(jtag_driver_mode);
