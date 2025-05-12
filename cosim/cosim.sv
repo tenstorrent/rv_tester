@@ -1134,7 +1134,7 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign eot_insert_found[n] = ((to_host == 1) & (eot_addr != '0) &  
                                       mcmi_insert[n].valid & (mcmi_insert[n].addr == $bits(mcmi_insert[n].addr)'(eot_addr)) & 
                                       mcmi_insert[n].data[0] & (mcmi_insert[n].data[63:56] == '0)) ? 1'b1 : 1'b0;
-        assign eot_insert_data[n] = mcmi_insert[n].data[63:0]; 
+        assign eot_insert_data[n] = (eot_insert_found[n]) ? mcmi_insert[n].data[63:0] :'0; 
 /* verilator lint_off WIDTHEXPAND */
         assign mcmi_insert_addr[n] = mcmi_insert[n].addr;
 /* verilator lint_on WIDTHEXPAND */
