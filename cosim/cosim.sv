@@ -1156,7 +1156,7 @@ localparam CAM_IHBIT = CAM_IBITS;
 
         assign mcmi_write_pokes[n] = mcmi_write[n].valid;
 
-        assign mcmi_write_data[n] = mcmi_write[n].data[63:0]; 
+        assign mcmi_write_data[n] = (eot_write_found[n]) ? mcmi_write[n].data[63:0] : '0'; 
 /* verilator lint_off WIDTHEXPAND */
         assign mcmi_write_addr[n] = mcmi_write[n].addr; 
 /* verilator lint_on WIDTHEXPAND */
