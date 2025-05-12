@@ -12,7 +12,6 @@ DEFINE_string(nmi_start_interval, "1000:4000", "TB cycle interval between reset 
 DEFINE_string(nmi_width, "1:1", "TB cycle width of nmi pulses in the sim if random mode enabled");
 DEFINE_int32(patch_mode_nmi_interval,10,"Number of Maximum cycles between two nmi while entering patch mode");
 DEFINE_int32(nmi_interval, 1, "TB cycle interval between Low Power Entry and NMI assertion");
-DECLARE_bool(low_power_seq);
 
 extern "C" {
   void drive_nmi(uint8_t val);
