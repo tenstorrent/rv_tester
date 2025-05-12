@@ -13,6 +13,7 @@ import rv_tester_params::*;
 (
   input logic clk,
   input logic reset,
+  input logic warm_reset,
   input logic dut_clk,
   input logic dut_reset,
   input logic no_fetch,
