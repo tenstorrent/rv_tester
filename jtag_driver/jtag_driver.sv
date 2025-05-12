@@ -103,8 +103,8 @@ import rv_tester_params::*;
   ////////////////////////////////////
 
   always @(posedge clk) begin
-    reset_d1 <= reset;
-    if (warm_reset || reset || jtag_test_reset || jtag_hard_reset  || !jtag_driver_en) begin
+    reset_d1 <= reset|warm_reset;
+    if (reset || jtag_test_reset || jtag_hard_reset  || !jtag_driver_en) begin
       jtag_driver_init();
       jtag_req.tms <= '0;
       jtag_req.tdi <= '0;
@@ -272,7 +272,7 @@ typedef enum logic [1:0] {
   assign pos_tdo_en= ~jtag_resp.tdo_en;
 
   assign jtag_tck_trst.tck = jtag_driver_en ? clk: 1'b0;
-  assign jtag_tck_trst.trst = (reset & ~((dut_clocks > 30) && (dut_clocks <100))) || trst_active || warm_reset;
+  assign jtag_tck_trst.trst = (reset & ~((dut_clocks > 30) && (dut_clocks <100))) || trst_active;
 
 assign jtag_enable_begin = jtag_enable_begin_cpp ^ jtag_enable_begin_sv;
 assign jtag_reset_begin = jtag_reset_begin_cpp ^ jtag_reset_begin_sv;

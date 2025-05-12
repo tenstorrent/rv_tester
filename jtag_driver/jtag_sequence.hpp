@@ -193,6 +193,7 @@ class jtag_sequence {
 
   void reset() {
     cvm::log(cvm::HIGH, "[jtag_sequence]: Reset jtag_sequence\n");
+    trickboxJtagWrite(0, 13, 0, 1 ,0,2,tap_cfg_sel);
 
     if (FLAGS_random_jtag_entry) {
       cvm::log(cvm::HIGH, "[jtag_sequence]: Enable random injection of debug mode :: {}\n", FLAGS_random_jtag_entry);
