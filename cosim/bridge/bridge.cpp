@@ -982,6 +982,10 @@ void bridge::pre_step_exception_poke(hart_id_t hart, const rv_instr_t& d) {
     num_exceptions_laf_nderr_++;
   if (d.mem_read.error && d.ecause == ST_AMO_ACCESS_FAULT)
     num_exceptions_saf_nderr_++;
+  if (d.pc.error && d.ecause == HARDWARE_ERROR)
+    num_exceptions_iside_hwerr_++;
+  if (d.mem_read.error && d.ecause == HARDWARE_ERROR)
+    num_exceptions_dside_hwerr_++;
 }
 
 void bridge::pre_step_lrsc_poke(hart_id_t hart, const rv_instr_t& d) {
@@ -3296,7 +3300,10 @@ void bridge::report_metrics() {
   }
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_insn_access_fault_nderr\": {}}}\n", id_, num_exceptions_iaf_nderr_);
   print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_ld_access_fault_nderr\": {}}}\n", id_, num_exceptions_laf_nderr_);
-  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_st_amo_access_fault_nderr\": {}}}\n", id_, num_exceptions_saf_nderr_);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_early_st_access_fault_nderr\": {}}}\n", id_, num_exceptions_saf_nderr_);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_iside_hwerr_fault\": {}}}\n", id_, num_exceptions_iside_hwerr_);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_dside_hwerr_fault\": {}}}\n", id_, num_exceptions_dside_hwerr_);
+
   for (const auto& [p,ps] : priv_to_string) {
     for (const auto& [i,is] : intr_to_string) {
       if (num_taken_interrupts_[p][i] != 0) {

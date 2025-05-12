@@ -69,6 +69,7 @@ class reset_sequence {
     cvm::messenger::task<void> wait_nofetch_release();
     cvm::messenger::task<void> program_fuses();
     cvm::messenger::task<void> program_patch();
+    cvm::messenger::task<void> program_mtime();
     cvm::messenger::task<void> release_cpl_nofetch();
     cvm::messenger::task<void> patch_ram_check();
     cvm::messenger::task<void> fuse_mmr_check( rst_t rst_type = WARM);
@@ -105,6 +106,9 @@ class reset_sequence {
     uint64_t dm_fuse_val();
     uint64_t sc_fuse_val();
     uint64_t export_control_fuse_val();
+    uint64_t cla_fuse_val();
+    uint64_t io_coherency_fuse_val();
+    uint64_t dst_fuse_val();
     uint64_t core_en(uint32_t c);
     std::vector<uint64_t> mhartid();
 

@@ -86,7 +86,7 @@ class jtag_sequence {
     cond_log(cvm::HIGH, "[jtag_sequence]: JTAG Tick {}, advance interval: {}\n",num_ticks, advance);
     timer_ += advance;
     timer_advance = advance;
-    if ( num_ticks > 30) {
+    if ( num_ticks > 2) {
       checkJtagEvents();
 
       if (executing_nop) {
@@ -181,15 +181,13 @@ class jtag_sequence {
             cond_log(cvm::LOW, "[jtag_sequence]: Ignoring jtag Maximum number of polling attempts reached {}\n",loop_execution_cnt);
          } else {
             cvm::log(cvm::ERROR, "[jtag_sequence]: ERROR: Maximum number of polling attempts reached {}\n",loop_execution_cnt);
-            cvm::log(cvm::HIGH, "[JTAGDRIVER] ******************* \n");
-            cvm::log(cvm::HIGH, "[JTAGDRIVER] Sending Quit signal \n");
-            cvm::log(cvm::HIGH, "[JTAGDRIVER] ******************* \n");
-            trickboxJtagWrite(0, 7, 0, 0,0,1,tap_cfg_sel);
+            jtag_quit();
           }
         }
       }
    } else {
       cvm::log(cvm::ERROR, "[jtag_sequence]: Unsupported keyword in jtag csv loop {}\n",jtag_cmd);
+      jtag_quit();
     }
   }
 
@@ -276,14 +274,18 @@ class jtag_sequence {
           genNextJtagEvents();
           snippets_driven++;
         } else {
-          cvm::log(cvm::HIGH, "[JTAGDRIVER] ******************* \n");
-          cvm::log(cvm::HIGH, "[JTAGDRIVER] Sending Quit signal \n");
-          cvm::log(cvm::HIGH, "[JTAGDRIVER] ******************* \n");
-          trickboxJtagWrite(0, 7, 0, 0,0,1,tap_cfg_sel);
+          jtag_quit();
           //arg1 hart = 0, arg2 jtag_cmd = 7(qt)
         }
       }
     }
+  }
+
+  void jtag_quit(){
+    cvm::log(cvm::HIGH, "[JTAGDRIVER] ******************* \n");
+    cvm::log(cvm::HIGH, "[JTAGDRIVER] Sending Quit signal \n");
+    cvm::log(cvm::HIGH, "[JTAGDRIVER] ******************* \n");
+    trickboxJtagWrite(0, 7, 0, 0,0,1,tap_cfg_sel);
   }
 
   void genNextJtagEvents() {
@@ -372,6 +374,7 @@ class jtag_sequence {
       jtag_rdata_shifted = jtag_rdata_shifted & mask_64;
     } else { //
       cvm::log(cvm::ERROR, "\n[jtag_sequence] Data check not allowed for tap {}\n", tap_cfg_sel);
+      jtag_quit();
     }
 
     if (FLAGS_reverse_jtag_rdata) {

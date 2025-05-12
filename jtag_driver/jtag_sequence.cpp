@@ -224,14 +224,20 @@ void jtag_sequence::parse_jtag_from_csv() {
         jtag_req.jtag_cmd = 11;
       } else if (jtag_cmd == "cm") {
         jtag_req.jtag_cmd = 12;
+      } else if(jtag_cmd == "rh"){
+        jtag_req.jtag_cmd = 13;        
+      } else if(jtag_cmd == "rs"){
+        jtag_req.jtag_cmd = 14;        
       } else {
         cond_log(cvm::ERROR, "[jtag_sequence]Error: unknown command {} in jtag cfg file {}\n", jtag_cmd, FLAGS_jtag_input_file_path);
+        jtag_quit();
       }
 
       if (jtag_req.jtag_cmd < 3 || jtag_req.jtag_cmd == 4 || jtag_req.jtag_cmd == 12) {
         cond_log(cvm::FULL, "[Trickbox] Jtag_sequence :jtag_req.jtag_cmd {}\n", jtag_req.jtag_cmd);
         length = row[2];  // length NA for nop
       }
+      
       cond_log(cvm::FULL, "[Trickbox] Jtag_sequence : data_length_2: {}\n", data_s);
 
       data_s.erase(std::remove_if(data_s.begin(), data_s.end(), ::isspace), data_s.end());
@@ -297,6 +303,7 @@ void jtag_sequence::parse_jtag_from_csv() {
     }
   } else {
     cvm::log(cvm::ERROR, "[jtag_sequence]Error: Could not open jtag cfg file {}\n", FLAGS_jtag_input_file_path);
+    jtag_quit();
   }
 
   jtag_file_mode = 1;  // Clean up later
@@ -444,48 +451,67 @@ void jtag_sequence::drive_csv_jtag_cmds() {
       unsigned reg_length_data = 0;
       unsigned hart = 0;
 
-      jtag_cmd = jtag_req.jtag_cmd;
+
+      jtag_cmd        = jtag_req.jtag_cmd;
       upper_jtag_data = jtag_req.jtag_ip_data_upper;
       lower_jtag_data = jtag_req.jtag_ip_data_lower;
       reg_length_data = jtag_req.jtag_length_data;
-      padding_length = reg_length_data;
-      jtag_cm_value = jtag_req.jtag_cm_value;
-      if (FLAGS_en_jtag_driver_logs) {
-        cvm::log(cvm::HIGH, "[jtag_sequence] Driving jtag cmd {}\n", jtag_cmd);
-        cvm::log(cvm::HIGH, "[jtag_sequence] Driving jtag upper_jtag_data {}\n", upper_jtag_data);
-        cvm::log(cvm::HIGH, "[jtag_sequence] Driving jtag lower_jtag_data {}\n", lower_jtag_data);
-        cvm::log(cvm::HIGH, "[jtag_sequence] Driving jtag reg_length_data {}\n", reg_length_data);
-        cvm::log(cvm::HIGH, "[jtag_sequence] Driving jtag padding_length  {}\n", padding_length);
-        cvm::log(cvm::HIGH, "[jtag_sequence] Driving jtag jtag_cm_value   {}\n", jtag_cm_value);
-        cvm::log(cvm::HIGH, "[jtag_sequence] Length of jtag_cmd queue     {}\n", jtag_cmd_q.size());
-        cvm::log(cvm::HIGH, "[jtag_sequence] Snippet     {}\n", jtag_req.snippet);
-      }
-      if (jtag_cmd < 3) {
-        // if(!stall_jtag_xtor){
+      padding_length  = reg_length_data; 
+      jtag_cm_value    = jtag_req.jtag_cm_value;
+      cond_log(cvm::HIGH, "[jtag_sequence] Driving jtag cmd {}\n", jtag_cmd);
+      cond_log(cvm::HIGH, "[jtag_sequence] Driving jtag upper_jtag_data {}\n", upper_jtag_data);
+      cond_log(cvm::HIGH, "[jtag_sequence] Driving jtag lower_jtag_data {}\n", lower_jtag_data);
+      cond_log(cvm::HIGH, "[jtag_sequence] Driving jtag reg_length_data {}\n", reg_length_data);
+      cond_log(cvm::HIGH, "[jtag_sequence] Driving jtag padding_length  {}\n", padding_length);
+      cond_log(cvm::HIGH, "[jtag_sequence] Driving jtag jtag_cm_value   {}\n", jtag_cm_value);
+      cond_log(cvm::HIGH, "[jtag_sequence] Length of jtag_cmd queue     {}\n", jtag_cmd_q.size());
+      cond_log(cvm::HIGH, "[jtag_sequence] Snippet     {}\n", jtag_req.snippet);
+      if(jtag_cmd<3){
+        //if(!stall_jtag_xtor){
         //   stall_jtag_xtor = true;
         //}else{
-        // cvm::log(cvm::LOW, "[jtag_sequence] Stall Observed Not: Driving jtag cmd {}\n", jtag_cmd);
-        // cvm::log(cvm::LOW, "[jtag_sequence] Stall Observed! Length of jtag_cmd queue     {}\n", jtag_cmd_q.size());
-        // return;
+        //cvm::log(cvm::LOW, "[jtag_sequence] Stall Observed Not: Driving jtag cmd {}\n", jtag_cmd);
+        //cvm::log(cvm::LOW, "[jtag_sequence] Stall Observed! Length of jtag_cmd queue     {}\n", jtag_cmd_q.size());
+        //return;
         //}
-        hart = 0;  // hart bits position TBD, till TBD it is always zero
-        jtag_cmd_q.pop();  // pop front element
+        hart = 0; // hart bits position TBD, till TBD it is always zero
+        jtag_cmd_q.pop(); // pop front element
         cvm::log(cvm::MEDIUM, "[jtag_sequence] Driving cmd [{}] from {}\n", jtag_req.csv_row, jtag_req.snippet);
-        trickboxJtagWrite(hart, jtag_cmd, upper_jtag_data, lower_jtag_data, reg_length_data, 0, tap_cfg_sel);
+        trickboxJtagWrite(hart, jtag_cmd, upper_jtag_data, lower_jtag_data,reg_length_data,0,tap_cfg_sel);
       }
 
-      if (jtag_cmd == 3) {  // nop
+      if(jtag_cmd == 3){ //nop
         executing_nop = true;
         nop_count = lower_jtag_data;
+        cvm::log(cvm::MEDIUM, "[jtag_sequence] Driving cmd [{}] from {}\n", jtag_req.csv_row, jtag_req.snippet);
         cond_log(cvm::MEDIUM, "[jtag_sequence] Pushing jtag nops for {} ticks\n", nop_count);
-        jtag_cmd_q.pop();  // pop front eleme7t
+        jtag_cmd_q.pop(); // pop front eleme7t
+      }
+      if(jtag_cmd == 13){ //rs reset
+         cvm::log(cvm::MEDIUM, "[jtag_sequence] Driving cmd [{}] from {}\n", jtag_req.csv_row, jtag_req.snippet);
+         cvm::log(cvm::HIGH, "[jtag_sequence] ******************* \n");
+         cvm::log(cvm::HIGH, "[jtag_sequence] Sending Hard Reset signal \n");
+         cvm::log(cvm::HIGH, "[jtag_sequence] ******************* \n");
+         trickboxJtagWrite(hart, jtag_cmd, 0, lower_jtag_data ,0,2,tap_cfg_sel);
+         jtag_ack(true);
+         tap_cfg_sel = 0;
+         jtag_cmd_q.pop();
+      }
+      if(jtag_cmd == 14){ //rs reset
+         cvm::log(cvm::MEDIUM, "[jtag_sequence] Driving cmd [{}] from {}\n", jtag_req.csv_row, jtag_req.snippet);
+         cvm::log(cvm::HIGH, "[jtag_sequence] ******************* \n");
+         cvm::log(cvm::HIGH, "[jtag_sequence] Sending Soft Reset signal \n");
+         cvm::log(cvm::HIGH, "[jtag_sequence] ******************* \n");
+         trickboxJtagWrite(hart, jtag_cmd, 0, lower_jtag_data,0,3,tap_cfg_sel);
+         jtag_ack(true);
+         tap_cfg_sel = 0;
+         jtag_cmd_q.pop();
       }
       if (jtag_cmd == 7 && !FLAGS_random_jtag_entry) {  // JTAG quit, signal to end simulation once csv ends
 
-        cvm::log(cvm::HIGH, "[jtag_sequence] ******************* \n");
-        cvm::log(cvm::HIGH, "[jtag_sequence] Sending Quit signal \n");
-        cvm::log(cvm::HIGH, "[jtag_sequence] ******************* \n");
-        trickboxJtagWrite(hart, jtag_cmd, 0, 0, 0, 1, tap_cfg_sel);
+        jtag_quit();
+        csv_completed = 1;
+        jtag_cmd_q.pop();
 
       } else if (jtag_cmd == 7) {
         csv_completed = 1;
@@ -505,6 +531,7 @@ void jtag_sequence::drive_csv_jtag_cmds() {
           } else {
             // FAIL
             cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check opcode failed! expected 0x{:x} got 0x{:x} tap_select is {} \n", lower_jtag_data, convertedArray[0], tapToString(tap_cfg_sel));
+            jtag_quit();
           }
         } else if (jtag_cmd == 12) {
           if ((convertedArray[0] & lower_jtag_data) == jtag_cm_value) {
@@ -514,6 +541,7 @@ void jtag_sequence::drive_csv_jtag_cmds() {
             // FAIL
             cvm::log(cvm::NONE, "\n[jtag_sequence] jtag check mask opcode: result {:#x} mask 0x{:x} expected 0x{:x} tap_select is {} \n", convertedArray[0], lower_jtag_data, jtag_cm_value, tapToString(tap_cfg_sel));
             cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check mask opcode failed! expected 0x{:x} got 0x{:x} tap_select is {} \n", jtag_cm_value, (convertedArray[0] & lower_jtag_data), tapToString(tap_cfg_sel));
+            jtag_quit();
           }
         }
         jtag_cmd_q.pop();  // pop front eleme7t
@@ -593,6 +621,7 @@ void jtag_sequence::drive_csv_jtag_cmds() {
 
       if (jtag_cmd == 6) {  // le loop end, checkbitNum, CheckbitValue
         cvm::log(cvm::ERROR, "ERROR: [jtag_sequence] jtag loop end detected without loop start \n");
+        jtag_quit();
       }
 
     } else {
@@ -666,6 +695,7 @@ void jtag_sequence::drive_jtag_cmds() {
           // FAIL
           cvm::log(cvm::NONE, "[jtag_sequence] reg_length_data {} loop_rdata {} lower_jtag_data {} mask {} expression {}\n", reg_length_data, loop_rdata, lower_jtag_data, mask, (1 << reg_length_data));
           cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check opcode failed! expected {} got {} tap_sel{} \n", lower_jtag_data, result, tapToString(tap_cfg_sel));
+          jtag_quit();
         }
         jtag_cmd_q.pop();  // pop front eleme7t
       }

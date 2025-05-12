@@ -34,6 +34,7 @@ namespace {
   constexpr uint32_t cpl_cl_no_fetch        = 0;
   constexpr uint32_t cpl_force_ss_to_ref_clock_n = 1;
 
+  constexpr uint32_t aclint_mtime_mmr       = 0x4218'0000;
   constexpr uint32_t core_fuse_mmr          = 0x4200'FFF8;
   constexpr uint32_t trace_fuse_mmr         = 0x4208'FFF8;
   constexpr uint32_t aclint_fuse_mmr        = 0x4218'FFF8;
@@ -43,13 +44,19 @@ namespace {
   constexpr uint32_t core_fuse_offset       = 0x0001'0000;
   constexpr uint32_t core_physical_id_mmr   = 0x4200'2FF8;
   constexpr uint32_t sw_fuse_default_val    = 0x4200'2FF8;
+  constexpr uint32_t dst_control_mmr        = 0x4200'2000;
+  constexpr uint32_t trace_control_mmr      = 0x4200'1000;
+  constexpr uint32_t core_cla_ctrl_status_mmr = 0x4200'2190;
 
+  constexpr uint32_t lock_idx               = 63;
+  constexpr uint32_t dst_fuse_idx           = 52;
+  constexpr uint32_t trace_fuse_idx         = 51;
+  constexpr uint32_t cla_fuse_idx           = 50;
+  constexpr uint32_t dm_fuse_idx            = 48;
   constexpr uint32_t core_fuse_idx          = 16;
-  constexpr uint32_t exp_ctrl_fuse_idx      = 11;
-  constexpr uint32_t trace_fuse_idx         = 8;
-  constexpr uint32_t dm_fuse_idx            = 9;
+  constexpr uint32_t io_cohr_fuse_idx       = 11;
+  constexpr uint32_t exp_ctrl_fuse_idx      = 10;
   constexpr uint32_t sc_fuse_idx            = 0;
-  constexpr uint32_t lock_idx               = 15;
 
   constexpr uint32_t core_pversion_mmr          = 0x4200'5000;
   constexpr uint32_t core_pcontrol_mmr          = 0x4200'5040;
