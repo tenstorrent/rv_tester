@@ -451,6 +451,8 @@ private:
   int num_exceptions_iaf_nderr_ = 0;
   int num_exceptions_laf_nderr_ = 0;
   int num_exceptions_saf_nderr_ = 0;
+  int num_exceptions_iside_hwerr_ = 0;
+  int num_exceptions_dside_hwerr_ = 0;
   int num_trig_breakpoint_ = 0;
   int num_sp_accesses_ = 0;
 
