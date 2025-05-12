@@ -917,6 +917,7 @@ module rv_tester
             .dut_clk(dut_clk[TB_CLK_IDX]),
             .dut_reset(dut_reset[TB_CLK_IDX]),
             .no_fetch(core_no_fetch[0]),
+            .jtag_driver_en(jtag_en||dmi_driver_dbg_enable),
             .jtag_quiesced(jtag_quiesced),
             .jtag_req,
             .jtag_tck_trst,
