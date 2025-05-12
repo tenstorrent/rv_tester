@@ -960,17 +960,19 @@ void bridge::pre_step_exception_poke(hart_id_t hart, const rv_instr_t& d) {
       !d.mem_read.error)
     return;
 
-  uint64_t mtval_addr = 0;
+  uint64_t xtval_addr = 0;
   for (auto & c : d.csr) {
-    if (c.csr_addr == MTVAL) {
-      mtval_addr = c.csr_wdata;
+    if (c.csr_addr == MTVAL || c.csr_addr == STVAL || c.csr_addr == VSTVAL) {
+      xtval_addr = c.csr_wdata;
+      break;
     }
   }
+
   bool valid;
   bool is_load = (d.trap_opcode != 0);
-  bridge_log_(cvm::MEDIUM, "<{}> Inject Exception with code:{} is_load: {} addr:{:#x}\n", d.cycle, d.ecause, is_load, mtval_addr);
+  bridge_log_(cvm::MEDIUM, "<{}> Inject Exception with code={} is_load={} addr={:#x}\n", d.cycle, d.ecause, is_load, xtval_addr);
   if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperInjectExceptionRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0),
-    hart, is_load, d.ecause, 0, mtval_addr, valid) || !valid) && FLAGS_whisper_client_check) {
+    hart, is_load, d.ecause, 0, xtval_addr, valid) || !valid) && FLAGS_whisper_client_check) {
     error("Hart {}: Failed whisper API InjectException\n", hart);
   }
 
@@ -1162,8 +1164,13 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
 void bridge::post_step_interrupt_check(hart_id_t hart, const rv_instr_t& d, const whisper_state_t& w) {
 
   // Timing sensitive case: interrupt x csr instr
-  if (!d.intr && !w_.intr && (e_mip_age_ <= FLAGS_cosim_resynch_intr_x_csr_threshold) && (w.disasm.find("csr") != std::string::npos)) {
-    if (check_and_defer_interrupt(hart, d.cycle, e_mip_)) {
+  if (!d.intr && !w_.intr && (w.disasm.find("csr") != std::string::npos)) {
+    std::bitset<64> mip = 0;
+    if (e_mip_age_ <= FLAGS_cosim_resynch_intr_x_csr_threshold)
+      mip = e_mip_;
+    else if (hw_mip_age_ <= FLAGS_cosim_resynch_intr_x_csr_threshold)
+      mip = hw_mip_;
+    if (check_and_defer_interrupt(hart, d.cycle, mip)) {
       bridge_log_(cvm::MEDIUM, "<{}> Timing sensitive case: deferring on interrupt x csr instr: {}\n", w.time, w.disasm);
       return;
     }
@@ -2459,8 +2466,8 @@ void bridge::process_dut_mcm_write(hart_id_t hart, mem_cl_t& m) {
 
   if (FLAGS_bridge_log) {
     std::string log_str;
-    log_str += fmt::format("<{}> mcm_write [valid={}, addr={:#x}, mask={:016x}, data=",
-      m.cycle, valid, m.pa, m.mask);
+    log_str += fmt::format("<{}> mcm_write [valid={}, addr={:#x}, mask={:016x}, error={}, data=",
+      m.cycle, valid, m.pa, m.mask, m.error);
     for (int i=63; i>=0; i--)
       log_str += fmt::format("{:02x}", data[i]);
     log_str += fmt::format("]\n");
@@ -3004,7 +3011,11 @@ bool bridge::is_custom_csr(uint64_t addr) {
           (addr >= 0x800 && addr <= 0x8FF) ||
           (addr >= 0x9C0 && addr <= 0x9FF) ||
           (addr >= 0xAC0 && addr <= 0xAFF) ||
-          (addr >= 0xBC0 && addr <= 0xBFF));
+          (addr >= 0xBC0 && addr <= 0xBFF) ||
+          (addr >= 0xCC0 && addr <= 0xCFF) ||
+          (addr >= 0xDC0 && addr <= 0xDFF) ||
+          (addr >= 0xEC0 && addr <= 0xEFF) ||
+          (addr >= 0xFC0 && addr <= 0xFFF));
 }
 
 bool bridge::is_pmacfg_csr(uint64_t addr) {

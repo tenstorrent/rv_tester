@@ -61,6 +61,7 @@ class rvfi {
     void process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_insert);
     void process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_bypass);
     void process(const rv_tester_transactions::cosim::m_mcmi_write<>& m_mcmi_write);
+    void process(const rv_tester_transactions::cosim::m_mcmi_write_error<>& m_mcmi_write_error);
     void process(const rv_tester_transactions::cosim::m_mcmi_ifetch_req<>& m_mcmi_ifetch_req);
     void process(const rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>& m_mcmi_ifetch_resp);
     void process(const rv_tester_transactions::cosim::m_mcmi_ievict<>& m_mcmi_ievict);
@@ -122,6 +123,7 @@ class rvfi {
     bool ncio_mem_transition_ = false;
     std::vector<mem_t> ncio_fetches_;
     std::vector<mem_t> active_ncio_fetches_;
+    uint64_t mcm_write_error_pa_ = 0;
 
     //---------------------------------------------------------------------------------------------------------
     // USE_OLD_CODE selects C code for priv_, first_uop,ucode_ generation instead of SV code (for debug ONLY)

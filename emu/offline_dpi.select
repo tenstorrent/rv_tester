@@ -1,7 +1,2 @@
-rv_tester_streaming_dpi_init
-rv_tester_transactions_message_cosim_m_rvfi.*
-rv_tester_transactions_message_cosim_m_mcmi.*
-rv_tester_transactions_message_cosim_m_reset.*
-rv_tester_transactions_message_cosim_m_trap.*
-rv_tester_transactions_message_cosim_m_core.*
-rv_tester_transactions_message_cosim_m_imsic_msi.*
+rv_tester_streaming_dpi.*
+rv_tester_transactions_message_cosim.*
