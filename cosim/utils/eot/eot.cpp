@@ -181,12 +181,18 @@ void eot::process_eoti(uint64_t hartid, uint64_t cycle, uint64_t instr_count, ui
 // ONLINE DPI EOT calls (sent in normal/offline-replay)
 //---------------------------------------------------------------------
 void eot::process(const rv_tester_transactions::cosim::m_eoti_normal<>& m_eoti_normal) {
-     int max_instr = m_eoti_normal.max_instr;
+     int max_instr = 0;
+     if (m_eoti_normal.max_instr) {
+        max_instr  = 1;
+     } 
      process_eoti(m_eoti_normal.hart, m_eoti_normal.cycle, m_eoti_normal.icount, m_eoti_normal.data, max_instr);
 }
 
 void eot::process(const rv_tester_transactions::cosim::m_eoti_offline<>& m_eoti_offline) {
-     int max_instr = m_eoti_offline.max_instr;
+     int max_instr = 0;
+     if (m_eoti_offline.max_instr) {
+        max_instr  = 1;
+     } 
      process_eoti(m_eoti_offline.hart, m_eoti_offline.cycle, m_eoti_offline.icount, m_eoti_offline.data, max_instr);
 }
 

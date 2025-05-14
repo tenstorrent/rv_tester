@@ -302,6 +302,7 @@ extern "C" {
             FLAGS_rv_tester_terminate = false;
             FLAGS_signal_async = false;
             FLAGS_perf = false;
+            FLAGS_offline_dpi = false;
 
             rv_tester_cvm_error_handler();
             rv_tester_build_registry();
