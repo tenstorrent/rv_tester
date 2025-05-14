@@ -195,7 +195,7 @@ cvm::messenger::task<void> snoop_gen_sequence::blocking_read(const transactor::r
     ar_txn.addr = r.addr + (rng1() % 64);
   if (FLAGS_rand_snoop_size_en)
     ar_txn.size = rng1() % 7;
-  ar_txn.rsp_err_chk = ((ar_txn.addr & 0x3) == 0) && (ar_txn.size != 0 && ar_txn.size != 1);
+  ar_txn.rsp_err_chk = ((ar_txn.addr & 0x3) == 0) && (ar_txn.size != 0 && ar_txn.size != 1) && !((ar_txn.addr & 0x7) == 4 && ar_txn.size >= 3);
 
   cvm::log(cvm::HIGH, "[snoop_gen_sequence] blocking read data begin: \n");
 
