@@ -34,6 +34,7 @@ namespace {
   constexpr uint32_t cpl_cl_no_fetch        = 0;
   constexpr uint32_t cpl_force_ss_to_ref_clock_n = 1;
 
+  constexpr uint32_t aclint_mtime_mmr       = 0x4218'0000;
   constexpr uint32_t core_fuse_mmr          = 0x4200'FFF8;
   constexpr uint32_t trace_fuse_mmr         = 0x4208'FFF8;
   constexpr uint32_t aclint_fuse_mmr        = 0x4218'FFF8;

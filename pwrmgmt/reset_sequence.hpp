@@ -69,6 +69,7 @@ class reset_sequence {
     cvm::messenger::task<void> wait_nofetch_release();
     cvm::messenger::task<void> program_fuses();
     cvm::messenger::task<void> program_patch();
+    cvm::messenger::task<void> program_mtime();
     cvm::messenger::task<void> release_cpl_nofetch();
     cvm::messenger::task<void> patch_ram_check();
     cvm::messenger::task<void> fuse_mmr_check( rst_t rst_type = WARM);

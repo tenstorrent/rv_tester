@@ -14,6 +14,8 @@ DEFINE_string(axi_resp_decerr_addr, "", "List of addresses that need decerr resp
 DEFINE_string(axi_resp_hang_addr, "", "List of addresses that give no response causing core hang, can be a single value or a range. Ex: 0x1000,0x2000-0x3000");
 DEFINE_int32(axi_resp_slverr_threshold, 2, "Threshold upto which  slverr injection happens for a particular address");
 DEFINE_int32(axi_resp_decerr_threshold, 2, "Threshold upto which decerr injection happens for a particular address");
+DEFINE_string(axi_resp_slverr_pattern, "", "Pattern for alternating slverr responses in format 'n:e' where n is normal responses and e is error responses");
+DEFINE_string(axi_resp_decerr_pattern, "", "Pattern for alternating decerr responses in format 'n:e' where n is normal responses and e is error responses");
 
 template <typename T> void atop_arithmetic(const axi::data_t& read_data, axi::data_t& write_data, const axi::atop_operation operation, const axi::len_t& len) {
 
@@ -52,16 +54,40 @@ axi::axi(const data_width_t& data_width, const cvm::topology::loc_t loc, const s
     hang_range_.parse(FLAGS_axi_resp_hang_addr);
     slverr_range_.parse(FLAGS_axi_resp_slverr_addr);
     decerr_range_.parse(FLAGS_axi_resp_decerr_addr);
-    slverr_threshold_ = FLAGS_axi_resp_slverr_threshold;
-    decerr_threshold_ = FLAGS_axi_resp_decerr_threshold;
+
+    // Set thresholds
+    slverr_range_.set_threshold(READ, FLAGS_axi_resp_slverr_threshold);
+    slverr_range_.set_threshold(WRITE, FLAGS_axi_resp_slverr_threshold);
+    decerr_range_.set_threshold(READ, FLAGS_axi_resp_decerr_threshold);
+    decerr_range_.set_threshold(WRITE, FLAGS_axi_resp_decerr_threshold);
+
+    // Set patterns for slverr and decerr
+    slverr_range_.set_pattern(READ, FLAGS_axi_resp_slverr_pattern);
+    slverr_range_.set_pattern(WRITE, FLAGS_axi_resp_slverr_pattern);
+    decerr_range_.set_pattern(READ, FLAGS_axi_resp_decerr_pattern);
+    decerr_range_.set_pattern(WRITE, FLAGS_axi_resp_decerr_pattern);
 }
 
 void axi::configure_resp() {
     cvm::log(cvm::HIGH, "[axi] configure axi err resp: slverr={}\n", FLAGS_axi_resp_slverr_addr);
     cvm::log(cvm::HIGH, "[axi] configure axi err resp: decerr={}\n", FLAGS_axi_resp_decerr_addr);
+    cvm::log(cvm::HIGH, "[axi] configure axi err resp: slverr_pattern={}\n", FLAGS_axi_resp_slverr_pattern);
+    cvm::log(cvm::HIGH, "[axi] configure axi err resp: decerr_pattern={}\n", FLAGS_axi_resp_decerr_pattern);
 
     slverr_range_.parse(FLAGS_axi_resp_slverr_addr);
     decerr_range_.parse(FLAGS_axi_resp_decerr_addr);
+
+    // Update thresholds
+    slverr_range_.set_threshold(READ, FLAGS_axi_resp_slverr_threshold);
+    slverr_range_.set_threshold(WRITE, FLAGS_axi_resp_slverr_threshold);
+    decerr_range_.set_threshold(READ, FLAGS_axi_resp_decerr_threshold);
+    decerr_range_.set_threshold(WRITE, FLAGS_axi_resp_decerr_threshold);
+
+    // Update patterns
+    slverr_range_.set_pattern(READ, FLAGS_axi_resp_slverr_pattern);
+    slverr_range_.set_pattern(WRITE, FLAGS_axi_resp_slverr_pattern);
+    decerr_range_.set_pattern(READ, FLAGS_axi_resp_decerr_pattern);
+    decerr_range_.set_pattern(WRITE, FLAGS_axi_resp_decerr_pattern);
 }
 
 axi::~axi() {
@@ -237,17 +263,19 @@ cvm::messenger::task<void> axi::operator()() {
 
                     // Resp
                     axi::resp_t write_resp = RESP_OKAY;
-                    if (slverr_range_.is_count_below_threshold(addr, WRITE, slverr_threshold_)) {
+                    if (slverr_range_.should_inject_error(addr, WRITE)) {
                         write_resp = RESP_SLVERR;
+                        // Always increment the counter for tracking purposes
                         auto count = slverr_range_.incr_count(addr, WRITE);
-                        num_slverr_resp_++;
                         cvm::log(cvm::HIGH, "[axi] slverr write resp addr={:#x} count={}\n", addr, count.value());
+                        num_slverr_resp_++;
                     }
-                    if (decerr_range_.is_count_below_threshold(addr, WRITE, decerr_threshold_)) {
+                    if (decerr_range_.should_inject_error(addr, WRITE)) {
                         write_resp = RESP_DECERR;
+                        // Always increment the counter for tracking purposes
                         auto count = decerr_range_.incr_count(addr, WRITE);
-                        num_decerr_resp_++;
                         cvm::log(cvm::HIGH, "[axi] decerr write resp addr={:#x} count={}\n", addr, count.value());
+                        num_decerr_resp_++;
                     }
 
                     b_q_.enqueue(b_t(a.id, write_resp));
@@ -264,17 +292,19 @@ cvm::messenger::task<void> axi::operator()() {
 
                     // Resp
                     axi::resp_t read_resp = a.lock ? RESP_EXOKAY : RESP_OKAY;
-                    if (slverr_range_.is_count_below_threshold(addr, READ, slverr_threshold_)) {
+                    if (slverr_range_.should_inject_error(addr, READ)) {
                         read_resp = RESP_SLVERR;
+                        // Always increment the counter for tracking purposes
                         auto count = slverr_range_.incr_count(addr, READ);
-                        num_slverr_resp_++;
                         cvm::log(cvm::HIGH, "[axi] slverr read resp addr={:#x} count={}\n", addr, count.value());
+                        num_slverr_resp_++;
                     }
-                    if (decerr_range_.is_count_below_threshold(addr, READ, decerr_threshold_)) {
+                    if (decerr_range_.should_inject_error(addr, READ)) {
                         read_resp = RESP_DECERR;
+                        // Always increment the counter for tracking purposes
                         auto count = decerr_range_.incr_count(addr, READ);
-                        num_decerr_resp_++;
                         cvm::log(cvm::HIGH, "[axi] decerr read resp addr={:#x} count={}\n", addr, count.value());
+                        num_decerr_resp_++;
                     }
                     // Drop response (artificial hang scenario)
                     bool drop_resp = hang_range_.find(addr);
