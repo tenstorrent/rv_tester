@@ -1414,10 +1414,15 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write<>& m_mcmi_w
   m.data = m_mcmi_write.data;
   m.error = m_mcmi_write.error;
 
-  if ((m.pa & ~0x3f) == (mcm_write_error_pa_ & ~0x3f)) {
-    cvm::log(cvm::HIGH, "[MCM] mcm_write matches error PA: {:#x}\n", mcm_write_error_pa_);
-    m.error = 1;
-    mcm_write_error_pa_ = 0;
+  for (auto it = mcm_write_error_pas_.begin(); it != mcm_write_error_pas_.end(); ) {
+    if ((m.pa & ~0x3f) == (*it & ~0x3f)) {
+      cvm::log(cvm::HIGH, "[MCM] mcm_write matches error PA: {:#x}\n", *it);
+      m.error = 1;
+      it = mcm_write_error_pas_.erase(it);
+      break;
+    } else {
+      ++it;
+    }
   }
 
   bridge_->process_dut_mcm_write(m_mcmi_write.hart, m);
@@ -1430,8 +1435,8 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write_error<>& m_
   if (terminated_ || in_reset_)
     return;
 
-  mcm_write_error_pa_ = m_mcmi_write_error.addr;
-  cvm::log(cvm::HIGH, "[MCM] mcm_write_error. PA: {:#x}\n", mcm_write_error_pa_);
+  mcm_write_error_pas_.push_back(m_mcmi_write_error.addr);
+  cvm::log(cvm::HIGH, "[MCM] mcm_write_error. PA: {:#x}\n", m_mcmi_write_error.addr);
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_req<>& m_mcmi_ifetch_req) {
