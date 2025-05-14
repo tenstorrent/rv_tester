@@ -35,9 +35,7 @@ extern "C" {
 
 jtag_sequence::jtag_sequence(cvm::topology::loc_t loc, unsigned id) : loc_(loc), id_(id), scope_(nullptr) {
   // Scope
-  cvm::registry::messenger.connect<svScope>(loc_, [this](svScope s) { 
-    cvm::log(cvm::FULL, "[scope_received] loc = {}, scope={}\n", loc_, s);
-    return this->set_scope(s); });
+  cvm::registry::messenger.connect<svScope>(loc_, [this](svScope s) { return this->set_scope(s); });
   cvm::registry::messenger.connect<rv_tester_transactions::jtag_driver::jtag_rdata<>>(
     loc_,
     [this](const rv_tester_transactions::jtag_driver::jtag_rdata<>& t) { return this->jtag_resp(t.rdata); });
@@ -949,8 +947,6 @@ void jtag_sequence::trickboxJtagWrite(unsigned hart, unsigned jtag_cmd, unsigned
   // cvm::messenger::send(jtag_t, jtag_pkt);
   if (jtag_quit != 0)
     stall_jtag_xtor = false;
-  cvm::log(cvm::FULL, "[jtag_sequence] TrickboxJtagWrite scope={}\n", scope_);
-
   cvm::registry::callbacks.push(
     scope_,
     [jtag_cmd, upper_jtag_data, lower_jtag_data, reg_length_data, jtag_quit, tap_cfg_sel]() {
@@ -970,7 +966,6 @@ void jtag_sequence::trickboxJtagWriteSocket(unsigned hart, unsigned jtag_cmd, un
     jtag_ip_array[i] = lower_jtag_data[i];
     cond_log(cvm::HIGH, " trickboxJtagWriteSocket JTAGDRIVER Socket Data[{}]:{:#x} \n", i, lower_jtag_data[i]);
   }
-  cvm::log(cvm::FULL, "[jtag_sequence] TrickboxJtagWriteSocket scope={}\n", scope_);
   cvm::registry::callbacks.push(
     scope_,
     [jtag_cmd, jtag_ip_array, reg_length_data, jtag_quit, tap_cfg_sel]() {

@@ -800,7 +800,8 @@ void rvfi::send_instr(rv_instr_t& instr) {
   if (terminated_ || in_reset_)
     return;
 
-  bridge_->process_dut_instr_retire(instr.hart, instr);
+  if (!instr.trap_valid)
+    bridge_->process_dut_instr_retire(instr.hart, instr);
 }
 
 void rvfi::send_instr_group(hart_id_t hart, rv_instr_group_t& group) {
