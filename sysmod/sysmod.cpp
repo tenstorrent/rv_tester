@@ -23,7 +23,6 @@
 #include "io_device.h"
 #include "trickbox/trickbox.h"
 #include "sep_entropy_fifo/sep_entropy_fifo.h"
-#include "rv_tester/rv_tester_structs.h"
 #include "rv_tester/rv_tester_plusargs.h"
 #include "cosim/bridge_if/bridge_params.h"
 #include "cosim/dut_if/rvfi/rvfi_plusargs.h"
@@ -62,13 +61,16 @@ DEFINE_int32(num_sc_enabled_ways, 24, "Number of SC enabled ways"); // internal 
 DEFINE_bool(enable_sp_init, false, "Enable sharedcache scratchpad initilization from bootrom");
 DEFINE_bool(rand_sp_ways, false, "Randomize number of SC ways reserved for scratchpad");
 DEFINE_int32(num_sp_ways, -1, "Number of SC ways reserved for scratchpad");
-
-DEFINE_uint32(trace_enable, 1, "Trace enable fuse");
+//Fuse
+DEFINE_uint32(debug_enable, 3, "Debug enable fuse");
+DEFINE_bool(ntrace_enable, true, "Trace enable fuse");
+DEFINE_bool(dst_enable, true, "Enable DST fuse");
+DEFINE_bool(cla_enable, true, "Enable CLA fuse");
+DEFINE_bool(io_coherency_disable, false, "Disable io coherency");
 DEFINE_int32(strobe_type,4, "strobe type need to be driven for random access");
 DEFINE_uint32(overlay_num_times,3, "Maximum number of debug snippets to be driven");
 DEFINE_int32(overlay_idle,5, "Number of idle cycles between each transfer");
 DEFINE_int32(start_overlay_access,10, "Start tick point for starting overlay access");
-DEFINE_uint32(debug_enable, 3, "Debug enable fuse");
 DEFINE_bool(hart_sync_en, true, "Enable hart sync routine in bootrom");
 DEFINE_bool(export_control_en, false, "Enable export control to reduce FP double precision");
 DEFINE_uint32(mem_manager_page_size, 4096, "Mem manager internal page size");
@@ -82,6 +84,7 @@ DEFINE_uint32(aplic_sources, 127, "Number of APLIC interrupt sources");
 // Uart8250
 DEFINE_bool(uart8250, false, "Whether to enable uart8250 devices found in the memory map");
 DEFINE_uint32(uart8250_iid, 1, "Interrupt identity of the uart8250 device");
+DEFINE_uint64(dm_rand_addr, 0x9080500, "(Trickbox) Random address for DM: PC/Load/Store");;
 
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 
@@ -197,7 +200,7 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
  auto platform_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0);
  cvm::registry::messenger.connect<transactor::write_t>(snoop_gen_loc, [this] (transactor::write_t w)  { return this->eot_backdoor_write(w);});
  cvm::registry::messenger.connect<htif::terminate_t>(  platform_loc,  [this] (htif::terminate_t t)    { return this->terminate(t);});
- // cvm::registry::messenger.connect<rv_tester::started_t>(platform_loc, [this] (rv_tester::started_t t) { return this->actual_test_started(t);});
+ cvm::registry::messenger.connect<rv_tester::test_started>(platform_loc, [this] (rv_tester::test_started t) { return this->actual_test_started(t);});
 }
 
 void sysmod::eot_backdoor_write(transactor::write_t& w) {
@@ -782,6 +785,12 @@ sysmod::terminate(htif::terminate_t t) {
 }
 
 void
+sysmod::actual_test_started(rv_tester::test_started) {
+  cvm::log(cvm::HIGH, "[SYSMOD] actual_test_start\n");
+  cvm::registry::messenger.signal<rv_tester::actual_test_start>(cvm::topology::get_from_type("PLATFORM", 0), rv_tester::actual_test_start{});
+}
+
+void
 sysmod::reset() {
   compose();
   load_prog(FLAGS_hex, FLAGS_load, FLAGS_load_lz4, FLAGS_load_bin);
@@ -1324,17 +1333,37 @@ sysmod::load_cplfw(const std::string& cplfw) {
 void
 sysmod::store_dm_rand() {
 
-  uint64_t addr = cvm::registry::messenger.call<whisperClient<uint64_t>::get_dm_rand_addr_RPC>(wc_loc_);
-  auto dm_rand_values = cvm::registry::messenger.call<whisperClient<uint64_t>::get_dm_rand_val_RPC>(wc_loc_);
   device::data_t dataw(8);
   device::strb_t strb(8);
-  for (const auto &val:dm_rand_values) {
-    for (size_t i=0; i<8; i++) {
-      dataw[i] = (val >> 8*i) & 0xff;
-      strb[i]  = true;
+  for (unsigned h=0; h<FLAGS_num_harts; h++) {
+    auto dm_rand_values = cvm::registry::messenger.call<whisperClient<uint64_t>::iss_select_rand_RPC>(wc_loc_, h);
+    std::vector<uint64_t> stores, loads, pcs;
+    for (const auto &iss: dm_rand_values) {
+      switch (iss.type) {
+        case 0:
+          pcs.push_back(iss.phys_addr);
+          break;
+        case 1:
+          loads.push_back(iss.phys_addr);
+          break;
+        default:
+          stores.push_back(iss.phys_addr);
+      }
     }
-    dev("trickbox")->backdoor_write(addr, 8, dataw, strb);
-    addr += 8;
+    std::vector<uint64_t> result;
+    result.insert(result.end(), pcs.begin(), pcs.end());
+    result.insert(result.end(), loads.begin(), loads.end());
+    result.insert(result.end(), stores.begin(), stores.end());
+    uint64_t addr = FLAGS_dm_rand_addr + (h * 0x40); // offset per hart (maximum 8 addresses)
+    cvm::log(cvm::HIGH, "Backdoor writes to DM rand addresses for Hart:{}, starting address:{:x}\n", h, addr);
+    for (const auto &val: result) {
+      for (size_t i=0; i<8; i++) {
+        dataw[i] = (val >> 8*i) & 0xff;
+        strb[i]  = true;
+      }
+      dev("trickbox")->backdoor_write(addr, 8, dataw, strb);
+      addr += 8;
+    }
   }
 }
 
@@ -1391,7 +1420,6 @@ void sysmod::overlay_tick(uint64_t advance) {
      for (auto& d : devices_)
        d->overlay_tick(advance);
 }
-
 
 extern "C" {
   void sysmod_set_scope(cvm::topology::loc_t loc) {

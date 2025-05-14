@@ -152,6 +152,8 @@ cosim:
             csr_wmask:
                 qualify: csr_valid
                 width: ${TOP.PLATFORM.XLEN}
+            pc_paddr:
+                width: ${TOP.PLATFORM.VALEN}
             pc_rdata:
                 width: ${TOP.PLATFORM.VALEN}
             pc_wdata:
@@ -359,6 +361,17 @@ cosim:
                 width: ${TOP.PLATFORM.CLLEN}
             error:
                 width: 1
+
+    m_mcmi_write_error:
+        domain: 1
+        num: 1
+        fields:
+            cycle:
+                width: 64
+            hart:
+                width: 32
+            addr:
+                width: ${TOP.PLATFORM.PALEN}
 
     m_mcmi_ifetch_req:
         domain: 1

@@ -817,6 +817,7 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign m_rvfis[n].data.csr_addr    = rvfi[n].csr_addr;
         assign m_rvfis[n].data.csr_wdata   = rvfi[n].csr_wdata;
         assign m_rvfis[n].data.csr_wmask   = rvfi[n].csr_wmask;
+        assign m_rvfis[n].data.pc_paddr       = rvfi[n].pc_paddr;
         assign m_rvfis[n].data.pc_rdata    = rvfi[n].pc_rdata;
         assign m_rvfis[n].data.pc_wdata    = rvfi[n].pc_wdata;
         assign m_rvfis[n].data.pc_error    = rvfi[n].pc_error;

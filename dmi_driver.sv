@@ -1216,16 +1216,13 @@ import rv_tester_params:: * ;
             end
           end
           else begin
-            dmi_command_in_step_quit_queue_size = single_step_quit_command_queue.size();
-            while(dmi_command_in_step_quit_queue_size > 0) begin
+            while(single_step_quit_command_queue.size() > 0) begin
               command = single_step_quit_command_queue.pop_front();
               drive_dmi_cmd(command);
               is_poll_needed(command);
               if (poll) begin
                 do_polling();
               end
-              dmi_command_in_step_quit_queue_size--;
-              single_step_quit_command_queue.push_back(command);
             end
           end
         end

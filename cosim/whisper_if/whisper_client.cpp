@@ -14,7 +14,6 @@
 #include "cvm/random.hpp"
 
 #include "whisper_client.h"
-#include "iss_utils.h"
 #include "cosim/dut_if/rvfi/rvfi_plusargs.h"
 #include "sysmod/sysmod_plusargs.h"
 #include "cosim/bridge/bridge_plusargs.h"
@@ -38,7 +37,7 @@ DEFINE_bool(whisper_cmd_log, false, "Enable whisper logging to iss_cmd.log");
 DEFINE_bool(whisper_stdin_null, false, "Redirect whisper stdin to null");
 DEFINE_bool(whisper_stdout_null, false, "Redirect whisoer stdout to null");
 DEFINE_string(whisper_json_path, "", "Path to whisper json config");
-DEFINE_string(whisper_deterministic, "100", "Equivalent to Whisper's deterministic");
+DEFINE_uint32(whisper_deterministic, 100, "Equivalent to Whisper's deterministic");
 DEFINE_uint64(nmi_vec, 0, "NMI handler PC");
 DEFINE_uint64(nme_vec, 0, "NMI exception handler PC");
 DEFINE_bool(ppo, true, "Enable ppo checks");
@@ -46,6 +45,7 @@ DEFINE_bool(traceptw, true, "Enable page table walk tracing");
 DEFINE_bool(whisper_auto_increment_timer, false, "Enable whisper auto_increment_timer");
 DEFINE_bool(whisper_aclint_deliver_interrupts, true, "Enable whisper aclint deliver_interrupts");
 DEFINE_uint64(whisper_aclint_time_adjust, 0, "Set aclint adjust time compare offset");
+#include "iss_utils.h"
 
 REGISTRY_register(whisperClient<uint64_t>, TOP.PLATFORM.WHISPER_CLIENT, 0);
 
@@ -101,11 +101,7 @@ whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) : loc_(loc
 
   traceFile_ = traceFile.empty() ? nullptr : fopen(traceFile.c_str(), "w");
   commandLog_ = commandLog.empty() ? nullptr : fopen(commandLog.c_str(), "w");
-  cvm::registry::messenger.procedure<iss_select_rand_RPC>(loc, [this] () { return this->get_iss_select();});
-  // remove below two
-  cvm::registry::messenger.procedure<get_dm_rand_addr_RPC>(loc, [this] () { return this->get_dm_rand_addr();});
-  cvm::registry::messenger.procedure<get_dm_rand_val_RPC>(loc, [this] ()  { return this->get_dm_rand_val();});
-
+  cvm::registry::messenger.procedure<iss_select_rand_RPC>(loc, [this] (uint32_t hart=0) { return this->get_iss_select(hart);});
   cvm::registry::messenger.procedure<whisperConnectRPC>(loc, [this] () {return this->whisperConnect();});
   cvm::registry::messenger.procedure<whisperConnectedRPC>(loc, [this] () {return this->whisperConnected();});
   cvm::registry::messenger.procedure<whisperStepRPC>(loc, [this] (int hart, uint64_t time, uint64_t instrTag, uint64_t& pc, uint32_t& instruction, unsigned& changeCount, std::string& disasm, uint32_t& privMode, uint32_t& fpFlags, bool& hasTrap, bool& hasStop, bool& isLoad, bool& valid) {return this->whisperStep(hart, time, instrTag, pc, instruction, changeCount, disasm, privMode, fpFlags, hasTrap, hasStop, isLoad, valid);});
@@ -162,11 +158,22 @@ whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>& sess
   if (FLAGS_load != "")                           args_str.push_back(FLAGS_load);
   if (FLAGS_traceptw)                             args_str.push_back("--traceptw");
   if (FLAGS_whisper_csv_log)                      args_str.push_back("--csv");
-
+  if (FLAGS_hex      != "") {
+    auto hex_files = cosim_util::split_string(FLAGS_hex, ",");
+    for (const auto& hex: hex_files)
+      args_str.insert(args_str.end(), {"--hex", hex});
+  }
+  if (FLAGS_load_lz4 != "") {
+    auto lz4_files = cosim_util::split_string(FLAGS_load_lz4, ",");
+    for (const auto& lz4: lz4_files)
+      args_str.insert(args_str.end(), {"--lz4", lz4});
+  }
+  if (FLAGS_load_bin != "") {
+    auto bin_files = cosim_util::split_string(FLAGS_load_bin, ",");
+    for (const auto& bin: bin_files)
+      args_str.insert(args_str.end(), {"--binary", bin});
+  }
   if (FLAGS_isa      != "")            args_str.insert(args_str.end(), {"--isa", FLAGS_isa});
-  if (FLAGS_hex      != "")            args_str.insert(args_str.end(), {"--hex", FLAGS_hex});
-  if (FLAGS_load_lz4 != "")            args_str.insert(args_str.end(), {"--lz4", FLAGS_load_lz4});
-  if (FLAGS_load_bin != "")            args_str.insert(args_str.end(), {"--binary", FLAGS_load_bin});
   if (FLAGS_whisper_stdout_null)       args_str.insert(args_str.end(), {"--stdout", "/dev/null"});
   if (FLAGS_whisper_stdin_null)        args_str.insert(args_str.end(), {"--stdin",  "/dev/null"});
   if (FLAGS_stee_secure_region  != "") args_str.insert(args_str.end(), {"--steesr",     FLAGS_stee_secure_region});
@@ -190,7 +197,7 @@ whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>& sess
     if (FLAGS_max_instr)              args_str.insert(args_str.end(), {"--maxinst", std::to_string(FLAGS_max_instr)});
     if (FLAGS_tohost)                 args_str.insert(args_str.end(), {"--tohost",  std::to_string(FLAGS_tohost)});
     if (FLAGS_eot != "tohost_all")    args_str.push_back("--quitany");
-    if (ncores > 1)                   args_str.insert(args_str.end(), {"--deterministic", FLAGS_whisper_deterministic});
+    if (ncores > 1)                   args_str.insert(args_str.end(), {"--deterministic", std::to_string(FLAGS_whisper_deterministic)});
   } else {
     if (FLAGS_mcm) {                  args_str.push_back("--mcm");
       if (!FLAGS_ppo)                 args_str.push_back("--noppo");
@@ -257,7 +264,6 @@ whisperClient<URV>::whisperConnect()
     if (!(FLAGS_standalone && ncores_ == 1))
       cvm::log(cvm::ERROR, "Error: Preloading works only on single core runs and +standalone plusarg enabled\n");
 
-  // Construct and run whisper standalone
   if (FLAGS_standalone) {
     cvm::log(cvm::MEDIUM, "Running Whisper standalone\n");
     args_ = WdRiscv::Args();

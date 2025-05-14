@@ -134,7 +134,7 @@ cvm::messenger::task<void> io_coh_helper::blocking_write(uint64_t addr) {
   aw_txn.region  =0;
   aw_txn.atop  =0;
   aw_txn.user  =8;
-  
+  aw_txn.rsp_err_chk = ((aw_txn.addr & 0x3) == 0) && (aw_txn.size != 0 && aw_txn.size != 1) && !((aw_txn.addr & 0x7) == 4 && aw_txn.size >= 3);
  
   cvm::log(cvm::LOW, "[io_coh_helper] SP_XTOR AXI MMR WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
 
@@ -223,6 +223,7 @@ cvm::messenger::task<void> io_coh_helper::blocking_read(const transactor::read_t
   ar_txn.region  =0;
   ar_txn.atop  =0;
   ar_txn.user  =0;
+  ar_txn.rsp_err_chk = ((ar_txn.addr & 0x3) == 0) && (ar_txn.size != 0 && ar_txn.size != 1) && !((ar_txn.addr & 0x7) == 4 && ar_txn.size >= 3);
   
   cvm::log(cvm::HIGH, "[io_coh_helper] blocking read data begin: \n");
 

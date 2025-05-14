@@ -195,6 +195,7 @@ cvm::messenger::task<void> snoop_gen_sequence::blocking_read(const transactor::r
     ar_txn.addr = r.addr + (rng1() % 64);
   if (FLAGS_rand_snoop_size_en)
     ar_txn.size = rng1() % 7;
+  ar_txn.rsp_err_chk = ((ar_txn.addr & 0x3) == 0) && (ar_txn.size != 0 && ar_txn.size != 1) && !((ar_txn.addr & 0x7) == 4 && ar_txn.size >= 3);
 
   cvm::log(cvm::HIGH, "[snoop_gen_sequence] blocking read data begin: \n");
 
@@ -207,7 +208,10 @@ cvm::messenger::task<void> snoop_gen_sequence::blocking_read(const transactor::r
       rv_tester_transactions::axi_sw_mst::w_q_ptr<>
   >;
   if (!cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_mst_loc_, ar_txn, id)) {
-    check_axi_rresp_timeout(ar_txn, id);
+    auto axi_idalloc_done = co_await check_axi_rresp_timeout(ar_txn, id);
+    if (!axi_idalloc_done) {
+      co_return;
+    }
   }
 
   auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(channel, [&id](const auto& r) { return r.id == id; });
@@ -216,7 +220,7 @@ cvm::messenger::task<void> snoop_gen_sequence::blocking_read(const transactor::r
   co_return;
 }
 
-cvm::messenger::task<void> snoop_gen_sequence::check_axi_rresp_timeout(axi::a_no_id_t ar_txn, unsigned& id) {
+cvm::messenger::task<bool> snoop_gen_sequence::check_axi_rresp_timeout(axi::a_no_id_t ar_txn, unsigned& id) {
 
   uint32_t axi_rresp_cycle_cnt = 0;
 
@@ -225,13 +229,14 @@ cvm::messenger::task<void> snoop_gen_sequence::check_axi_rresp_timeout(axi::a_no
 
     if (axi_rresp_cycle_cnt >= FLAGS_axi_resp_timeout) {
       cvm::log(cvm::ERROR, "[snoop_gen_sequence] [axi_mst] Error: No free id's remaining for axi master\n");
-      co_return;
+      co_return false;
     }
     axi_rresp_cycle_cnt++;
 
     if (cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_mst_loc_, ar_txn, id)) {
-      co_return;
+      co_return true;
     }
   }
 
+  co_return true;
 }
