@@ -85,6 +85,7 @@ public:
   void final_phase();
   void report_metrics();
   void process(const rv_tester::terminate_called &);
+  void process(const rv_tester::terminate_called_mem_checks &);
   void set_patch_mode(int patch) { patch_mode_ = static_cast<patch_mode> (patch); }
 
 private:
@@ -228,6 +229,7 @@ private:
   bool is_mtime_mmr(uint64_t addr);
   void peek_resource(hart_id_t hart, char resource, uint64_t addr, uint64_t& data);
   void poke_resource(hart_id_t hart, uint64_t cycle, char resource, uint64_t addr, uint64_t data);
+  void poke_mem(hart_id_t hart, uint64_t cycle, uint64_t addr, unsigned size, uint64_t data);
 
   void translation_check(hart_id_t hart, const rv_instr_t& d, whisper_state_t& w);
   uint64_t translate(hart_id_t hart, uint64_t va, uint8_t priv, memclass_t memclass);
@@ -300,16 +302,16 @@ private:
 
   // CSRs where some bits are masked by misa.H
   std::map<uint64_t, std::string> hypervisor_masked_csr_map_ = {
-    {0x300, "mstatus"},     
-    {0x302, "medeleg"}, 
-    {0x303, "mideleg"}, 
-    {0x344, "mip"}, 
-    {0x304, "mie"}, 
-    {0x244, "sip"}, 
+    {0x300, "mstatus"},
+    {0x302, "medeleg"},
+    {0x303, "mideleg"},
+    {0x344, "mip"},
+    {0x304, "mie"},
+    {0x244, "sip"},
     // {0x60A, "henvcfg"},  // henvcfg will be disabled when misa.H is zero
     // {0x244, "vsip"},     // vsip will be disabled when misa.H is zero
-    {0x30C, "mstateen0"},    
-    {0x60C, "hstateen0"},    
+    {0x30C, "mstateen0"},
+    {0x60C, "hstateen0"},
     {0x10C, "sstateen0"}
   };
 
@@ -437,16 +439,22 @@ private:
   bool debug_on_ = false;
   bool cvm_debug_ = false;
   uint64_t previous_cycle_;
+  uint64_t csr_value_before_update_ = 0;
 
   // Memmap
   std::map<std::string, memmap_entry_t> memmap_;
   uint64_t sep_base_=0, sep_end_=0;
+  uint64_t maplic_base_=0, maplic_end_=0;
+  uint64_t saplic_base_=0, saplic_end_=0;
+
 
   std::unordered_map<priv, std::unordered_map<intr, int>> num_taken_interrupts_{};
   std::unordered_map<excp, int> num_exceptions_{};
   int num_exceptions_iaf_nderr_ = 0;
   int num_exceptions_laf_nderr_ = 0;
   int num_exceptions_saf_nderr_ = 0;
+  int num_exceptions_iside_hwerr_ = 0;
+  int num_exceptions_dside_hwerr_ = 0;
   int num_trig_breakpoint_ = 0;
   int num_sp_accesses_ = 0;
 
@@ -454,7 +462,8 @@ private:
   int unmask_bits_instr, unmask_bits_uop = 0;
   std::vector<std::string> cosim_resynch_csr_defaults;
 
-  bool terminated_ = false;
+
+  bool terminated_=false, end_mcm_=false, metrics_reported_=false;
   bool check_nmi_at_patch_exit_ = false;
   uint64_t check_nmi_at_patch_cause_ = 0;
   enum patch_mode patch_mode_ = NO_PATCH;

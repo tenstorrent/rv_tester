@@ -4,8 +4,9 @@
 #include "safe_queue.h"
 #include <iostream>
 #include <functional>
+#include <unordered_map>
 #include "transactor.h"
-#include "address_range.h"
+#include "address_error_policy.h"
 #include "cvm/bitmanip.hpp"
 #include "cvm/messenger.hpp"
 
@@ -207,18 +208,17 @@ class axi : public transactor {
         void atop_modify_write_data(const atop_t& atop, const data_t& read_data, data_t& write_data, const len_t& len);
 
        enum access_type : size_t {
-            READ  = 0,
-            WRITE = 1,
-            NUM_ACCESS_TYPES
-        };
-        address_range<0> hang_range_;
-        address_range<NUM_ACCESS_TYPES> slverr_range_;
-        address_range<NUM_ACCESS_TYPES> decerr_range_;
-        int slverr_threshold_{0};
-        int decerr_threshold_{0};
+           READ  = 0,
+           WRITE = 1,
+           NUM_ACCESS_TYPES
+       };
 
-        int num_slverr_resp_{0};
-        int num_decerr_resp_{0};
+       address_error_policy<0> hang_range_;
+       address_error_policy<NUM_ACCESS_TYPES> slverr_range_;
+       address_error_policy<NUM_ACCESS_TYPES> decerr_range_;
+
+       int num_slverr_resp_{0};
+       int num_decerr_resp_{0};
 
     public:
 
@@ -231,6 +231,7 @@ class axi : public transactor {
 
         CVM_MESSENGER_procedure_call(configure_resp_rpc, void ());
         void configure_resp();
+        void test_start();
 
         data_width_t   data_width()   const { return data_width_   ; }
         strobe_width_t strobe_width() const { return data_width()/8; }

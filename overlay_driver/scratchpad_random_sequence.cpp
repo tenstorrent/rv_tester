@@ -9,6 +9,7 @@ DEFINE_bool(sp_xtor_mmr_prog_en, false, "Enable scratchpad transactor acceses ")
 DEFINE_bool(sp_xtor_rnd_traffic_en, false, "Enable programming of SP mmr from Scraptchpad transactor ");
 DEFINE_bool(sp_xtor_test_cwfr, false, "Read SP data written by core ");
 DEFINE_bool(sp_xtor_test_fwcr, false, "Write SP data for core to read ");
+DEFINE_bool(sp_xtor_test_false_sharing, false, "false sharing test ");
 
 scratchpad_random_sequence::scratchpad_random_sequence(cvm::topology::loc_t loc, unsigned id) : loc_(loc), id_(id), scope_(nullptr) {
   // Scope
@@ -98,6 +99,18 @@ cvm::messenger::task<void> scratchpad_random_sequence::random_mode() {
         co_await axi_write_data_granular();
       }
     }
+      else if (FLAGS_sp_xtor_test_false_sharing) {
+      if (cnt_tick == 34) {
+        cvm::log(cvm::HIGH, " **** [scratchpad_random_sequence] Fabric Write Core Read Test **** \n");
+        uint64_t addr = sp_base;
+        co_await axi_write_granular(addr);
+        co_await axi_write_data_granular();
+      }
+       if(cnt_tick == 60){
+        cvm::log(cvm::HIGH, " **** [scratchpad_random_sequence] CORE Write Fabric Read Test **** \n");
+        co_await axi_read(sp_base+16, 4, 4); 
+      }
+    }
     else {
       cvm::log(cvm::HIGH, " [scratchpad_random_sequence] tick {}\n",cnt_tick);
       if(cnt_tick == 60) {
@@ -170,7 +183,10 @@ cvm::messenger::task<uint64_t> scratchpad_random_sequence::axi_read_mmr_granular
   cvm::log(cvm::LOW, "[scratchpad_random_sequence] AXI READ MMR GRANULAR (read req):- addr={:#x} SEND SYSMOD SIGNAL\n", ar_txn.addr);
 
   if (!cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_mst_loc_l, ar_txn, id)) {
-    check_axi_rresp_timeout(ar_txn, id);
+    auto axi_idalloc_done = co_await check_axi_rresp_timeout(ar_txn, id);
+    if (!axi_idalloc_done) {
+      co_return 0;
+    }
   }
 
   auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(r_channel, [&id](const auto& r) { return r.id == id;});
@@ -205,7 +221,10 @@ cvm::messenger::task<void> scratchpad_random_sequence::axi_read_granular(const t
   cvm::log(cvm::LOW, "[scratchpad_random_sequence] SP_XTOR AXI READ GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", ar_txn.addr);
 
   if (!cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_mst_loc_l, ar_txn , id)) {
-    check_axi_rresp_timeout(ar_txn, id);
+    auto axi_idalloc_done = co_await check_axi_rresp_timeout(ar_txn, id);
+    if (!axi_idalloc_done) {
+      co_return;
+    }
   }
 
   auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(r_channel, [&id](const auto& r) { return r.id == id;});
@@ -253,7 +272,10 @@ cvm::messenger::task<void> scratchpad_random_sequence::axi_write_mmr_granular() 
   cvm::log(cvm::LOW, "[scratchpad_random_sequence] SP_XTOR AXI MMR WRITE GRANULAR - addr={:#x} SEND SYSMOD SIGNAL\n", aw_txn.addr);
 
   if (!cvm::registry::messenger.call<overlay_mst_t::push_aw_no_id_rpc>(axi_mst_loc_l, aw_txn, id)) {
-    check_axi_bresp_timeout(aw_txn, id);
+    auto axi_idalloc_done = co_await check_axi_bresp_timeout(aw_txn, id);
+    if (!axi_idalloc_done) {
+      co_return;
+    }
   }
   
   co_return;
@@ -299,7 +321,10 @@ cvm::messenger::task<void> scratchpad_random_sequence::axi_write_granular(uint64
   }
 
   if (!cvm::registry::messenger.call<overlay_mst_t::push_aw_no_id_rpc>(axi_mst_loc_l, aw_txn, id)) {
-    check_axi_bresp_timeout(aw_txn, id);
+    auto axi_idalloc_done = co_await check_axi_bresp_timeout(aw_txn, id);
+    if (!axi_idalloc_done) {
+      co_return;
+    }
   }
   co_return;
 }
@@ -364,7 +389,7 @@ cvm::messenger::task<void> scratchpad_random_sequence::trigger() {
   co_return;
 }
 
-cvm::messenger::task<void> scratchpad_random_sequence::check_axi_bresp_timeout(axi::a_no_id_t aw_txn, unsigned& id) {
+cvm::messenger::task<bool> scratchpad_random_sequence::check_axi_bresp_timeout(axi::a_no_id_t aw_txn, unsigned& id) {
 
   uint32_t axi_bresp_cycle_cnt = 0;
 
@@ -373,18 +398,19 @@ cvm::messenger::task<void> scratchpad_random_sequence::check_axi_bresp_timeout(a
 
     if (axi_bresp_cycle_cnt >= FLAGS_axi_resp_timeout) {
       cvm::log(cvm::ERROR, "[scratchpad_random_sequence] [axi_mst] Error: No free id's remaining for axi master\n");
-      co_return;
+      co_return false;
     }
     axi_bresp_cycle_cnt++;
 
     if (cvm::registry::messenger.call<overlay_mst_t::push_aw_no_id_rpc>(axi_mst_loc_l, aw_txn, id)) {
-      co_return;
+      co_return true;
     }
   }
 
+  co_return true;
 }
 
-cvm::messenger::task<void> scratchpad_random_sequence::check_axi_rresp_timeout(axi::a_no_id_t ar_txn, unsigned& id) {
+cvm::messenger::task<bool> scratchpad_random_sequence::check_axi_rresp_timeout(axi::a_no_id_t ar_txn, unsigned& id) {
 
   uint32_t axi_rresp_cycle_cnt = 0;
 
@@ -393,13 +419,14 @@ cvm::messenger::task<void> scratchpad_random_sequence::check_axi_rresp_timeout(a
 
     if (axi_rresp_cycle_cnt >= FLAGS_axi_resp_timeout) {
       cvm::log(cvm::ERROR, "[scratchpad_random_sequence] [axi_mst] Error: No free id's remaining for axi master\n");
-      co_return;
+      co_return false;
     }
     axi_rresp_cycle_cnt++;
 
     if (cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_mst_loc_l, ar_txn, id)) {
-      co_return;
+      co_return true;
     }
   }
 
+  co_return true;
 }

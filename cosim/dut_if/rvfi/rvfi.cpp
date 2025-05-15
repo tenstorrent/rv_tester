@@ -57,6 +57,7 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     rv_tester_transactions::cosim::m_mcmi_read<>,
     rv_tester_transactions::cosim::m_mcmi_insert<>,
     rv_tester_transactions::cosim::m_mcmi_write<>,
+    rv_tester_transactions::cosim::m_mcmi_write_error<>,
     rv_tester_transactions::cosim::m_mcmi_bypass<>,
     rv_tester_transactions::cosim::m_mcmi_ifetch_req<>,
     rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>,
@@ -71,7 +72,8 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
   }
 
   connect<
-    rv_tester::terminate_called
+    rv_tester::terminate_called,
+    rv_tester::terminate_called_mem_checks
   >(cvm::topology::get_from_type("PLATFORM", 0));
 
   // Flags configuration
@@ -646,7 +648,7 @@ void rvfi::append_uop_changes_to_instr(rv_instr_t& instr) {
 }
 
 void rvfi::print_csr(csr_t& csr) {
-  if (!FLAGS_rvfi_log)
+  if (FLAGS_rvfi_log)
     log(cvm::NONE, "#NA {} {} {} {:016x} {:09x} c {:016x} {:016x} {:016x} (hw update)\n",
       csr.cycle, csr.hart, priv_to_string.at(static_cast<priv>(priv_)), 0, 0, csr.csr_addr, csr.csr_wdata, csr.csr_wmask);
 }
@@ -798,7 +800,8 @@ void rvfi::send_instr(rv_instr_t& instr) {
   if (terminated_ || in_reset_)
     return;
 
-  bridge_->process_dut_instr_retire(instr.hart, instr);
+  if (!instr.trap_valid)
+    bridge_->process_dut_instr_retire(instr.hart, instr);
 }
 
 void rvfi::send_instr_group(hart_id_t hart, rv_instr_group_t& group) {
@@ -1409,8 +1412,31 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write<>& m_mcmi_w
   m.pa = m_mcmi_write.addr;
   m.mask = m_mcmi_write.mask;
   m.data = m_mcmi_write.data;
+  m.error = m_mcmi_write.error;
+
+  for (auto it = mcm_write_error_pas_.begin(); it != mcm_write_error_pas_.end(); ) {
+    if ((m.pa & ~0x3f) == (*it & ~0x3f)) {
+      cvm::log(cvm::HIGH, "[MCM] mcm_write matches error PA: {:#x}\n", *it);
+      m.error = 1;
+      it = mcm_write_error_pas_.erase(it);
+      break;
+    } else {
+      ++it;
+    }
+  }
 
   bridge_->process_dut_mcm_write(m_mcmi_write.hart, m);
+}
+
+void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write_error<>& m_mcmi_write_error) {
+  if (!FLAGS_cosim || !FLAGS_mcm)
+    return;
+
+  if (terminated_ || in_reset_)
+    return;
+
+  mcm_write_error_pas_.push_back(m_mcmi_write_error.addr);
+  cvm::log(cvm::HIGH, "[MCM] mcm_write_error. PA: {:#x}\n", m_mcmi_write_error.addr);
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_req<>& m_mcmi_ifetch_req) {
@@ -1519,6 +1545,11 @@ std::bitset<256> rvfi::extract_bits_as_bitset(const std::bitset<256>& bitset, si
     }
 
     return result;
+}
+
+void rvfi::process(const rv_tester::terminate_called_mem_checks&) {
+  cvm::log(cvm::HIGH, "[RVFI] termination signaled by EOT memory checks, stopping further rvfi processing\n");
+  terminated_ = true;
 }
 
 void rvfi::process(const rv_tester::terminate_called&) {

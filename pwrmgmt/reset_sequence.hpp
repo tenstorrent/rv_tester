@@ -97,8 +97,8 @@ class reset_sequence {
     std::vector<uint8_t> convert_to_byte_array(const std::vector<uint64_t>& dword_array);
     std::vector<uint64_t> concatenate_uint32_to_uint64(const std::vector<uint32_t>& input); 
 
-    cvm::messenger::task<void> check_axi_bresp_timeout(interface_t interface, unsigned& id, uint64_t addr, size_t sz, bool rsp_err_chk = true);
-    cvm::messenger::task<void> check_axi_rresp_timeout(interface_t interface, unsigned& id, uint64_t addr, size_t sz, bool rsp_err_chk = true);
+    cvm::messenger::task<bool> check_axi_bresp_timeout(interface_t interface, unsigned& id, uint64_t addr, size_t sz, bool rsp_err_chk = true);
+    cvm::messenger::task<bool> check_axi_rresp_timeout(interface_t interface, unsigned& id, uint64_t addr, size_t sz, bool rsp_err_chk = true);
 
     uint64_t fuse_val();
     uint64_t core_fuse_val();
@@ -106,6 +106,9 @@ class reset_sequence {
     uint64_t dm_fuse_val();
     uint64_t sc_fuse_val();
     uint64_t export_control_fuse_val();
+    uint64_t cla_fuse_val();
+    uint64_t io_coherency_fuse_val();
+    uint64_t dst_fuse_val();
     uint64_t core_en(uint32_t c);
     std::vector<uint64_t> mhartid();
 

@@ -464,17 +464,10 @@ cvm::messenger::task<void> reset_sequence::program_fuses() {
   uint32_t ncores = cvm::topology::attr(cvm::topology::get_from_type("PLATFORM", 0), "NHARTS").second;
 
   cvm::log(cvm::HIGH, "[pwrmgmt] Programming fuse MMRs\n", trace_fuse_mmr);
-
   for (uint32_t i = 0; i < ncores; ++i)
     co_await write(core_fuse_mmr + i * core_fuse_offset,   SZ_8B, fuse);
-  
-  if (FLAGS_trace_fuse_4B_access) {
-    co_await write(trace_fuse_mmr+4, SZ_4B, (fuse >> 32) & 0xFFFFFFFF, boot_interface );
-    co_await write(trace_fuse_mmr, SZ_4B, fuse & 0xFFFFFFFF, boot_interface );
-  } else {
-    co_await write(trace_fuse_mmr, SZ_8B, fuse & 0xFFFFFFFFFFF7FFF , boot_interface);//Workaround defined in RVDE-17674 
-    co_await write(trace_fuse_mmr, SZ_8B, fuse, boot_interface );
-  }
+   
+  co_await write(trace_fuse_mmr, SZ_8B, fuse, boot_interface );
   co_await write(aclint_fuse_mmr, SZ_8B, fuse);
   co_await write(dm_fuse_mmr,     SZ_8B, fuse);
   co_await write(sc_fuse_mmr,     SZ_8B, fuse);
@@ -520,11 +513,17 @@ cvm::messenger::task<uint64_t> reset_sequence::read(uint64_t addr, size_t sz, in
   unsigned id;
   if (interface == SMC) {
     if (!cvm::registry::messenger.call<smc_mst_t::push_ar_no_id_rpc>(axi_loc_[interface], axi::a_no_id_t{addr, log2(sz), rsp_err_chk, RESET_SEQ_ID}, id)) {
-      check_axi_rresp_timeout(interface, id, addr, sz, rsp_err_chk);
+      auto axi_idalloc_done = co_await check_axi_rresp_timeout(interface, id, addr, sz, rsp_err_chk);
+      if(!axi_idalloc_done) {
+        co_return 0;
+      }
     }
   } else {
     if (!cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_loc_[interface], axi::a_no_id_t{addr, log2(sz), uint8_t(0xF), rsp_err_chk, RESET_SEQ_ID}, id)) {
-      check_axi_rresp_timeout(interface, id, addr, sz, rsp_err_chk);
+      auto axi_idalloc_done = co_await check_axi_rresp_timeout(interface, id, addr, sz, rsp_err_chk);
+      if (!axi_idalloc_done) {
+        co_return 0;
+      }
     }
   }
   auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(r_channel_[interface], [&id](const auto& r) { return r.id == id; });
@@ -579,14 +578,20 @@ cvm::messenger::task<void> reset_sequence::write(uint64_t addr, size_t sz, uint6
   if (interface == SMC)
   {
     if (!cvm::registry::messenger.call<smc_mst_t::push_aw_no_id_rpc>(axi_loc_[interface], axi::a_no_id_t{addr, log2(sz), rsp_err_chk, RESET_SEQ_ID}, id)) {
-      check_axi_bresp_timeout(interface, id, addr, sz, rsp_err_chk);
+      auto axi_idalloc_done = co_await check_axi_bresp_timeout(interface, id, addr, sz, rsp_err_chk);
+      if (!axi_idalloc_done) {
+        co_return;
+      }
     }
     cvm::registry::messenger.call<smc_mst_t::push_w_rpc>(axi_loc_[interface], axi::w_t{byte_array, strb, 1});
   }
   else
   {
     if (!cvm::registry::messenger.call<overlay_mst_t::push_aw_no_id_rpc>(axi_loc_[interface], axi::a_no_id_t{addr, log2(sz), uint8_t(0xF), rsp_err_chk, RESET_SEQ_ID}, id)) {
-      check_axi_bresp_timeout(interface, id, addr, sz, rsp_err_chk);
+      auto axi_idalloc_done = co_await check_axi_bresp_timeout(interface, id, addr, sz, rsp_err_chk);
+      if (!axi_idalloc_done) {
+        co_return;
+      }
     }
     cvm::registry::messenger.call<overlay_mst_t::push_w_rpc>(axi_loc_[interface], axi::w_t{byte_array, strb, 1});
   }
@@ -615,7 +620,10 @@ cvm::messenger::task<void> reset_sequence::write(uint64_t addr, size_t sz, const
 
     cvm::log(cvm::MEDIUM, "[pwrmgmt] batch write req : {} - addr={:#x}, sz={}, data={:#x}, dword={:#x} mask={:#x}\n", i, addr_n, sz, data[i], dword, mask);
     if (!cvm::registry::messenger.call<smc_mst_t::push_aw_no_id_rpc>(axi_loc_[SMC], axi::a_no_id_t{addr_n, log2(sz), rsp_err_chk, RESET_SEQ_ID}, id)) {
-      check_axi_bresp_timeout(SMC, id, addr_n, sz, rsp_err_chk);
+      auto axi_idalloc_done = co_await check_axi_bresp_timeout(SMC, id, addr, sz, rsp_err_chk);
+      if (!axi_idalloc_done) {
+        co_return;
+      }
     }
     cvm::registry::messenger.call<smc_mst_t::push_w_rpc>(axi_loc_[SMC], axi::w_t{byte_array, strb, 1});
     ids.push_back(id);
@@ -720,15 +728,27 @@ std::vector<uint64_t> reset_sequence::mhartid() {
 }
 
 uint64_t reset_sequence::trace_fuse_val() {
-  return static_cast<uint64_t>(FLAGS_trace_enable << trace_fuse_idx);
+  return static_cast<uint64_t>(FLAGS_ntrace_enable) << trace_fuse_idx;
 }
 
 uint64_t reset_sequence::dm_fuse_val() {
-  return static_cast<uint64_t>(FLAGS_debug_enable << dm_fuse_idx);
+  return static_cast<uint64_t>(FLAGS_debug_enable) << dm_fuse_idx;
 }
 
 uint64_t reset_sequence::export_control_fuse_val() {
-  return static_cast<uint64_t>(FLAGS_export_control_en << exp_ctrl_fuse_idx);
+  return static_cast<uint64_t>(FLAGS_export_control_en) << exp_ctrl_fuse_idx;
+}
+
+uint64_t reset_sequence::cla_fuse_val() {
+  return static_cast<uint64_t>(FLAGS_cla_enable) << cla_fuse_idx;
+}
+
+uint64_t reset_sequence::io_coherency_fuse_val() {
+  return static_cast<uint64_t>(FLAGS_io_coherency_disable) << io_cohr_fuse_idx;
+}
+
+uint64_t reset_sequence::dst_fuse_val() {
+  return static_cast<uint64_t>(FLAGS_dst_enable) << dst_fuse_idx;
 }
 
 uint64_t reset_sequence::sc_fuse_val() {
@@ -744,7 +764,7 @@ uint64_t reset_sequence::sc_fuse_val() {
 }
 
 uint64_t reset_sequence::fuse_val() {
-  return core_fuse_val() | trace_fuse_val() | dm_fuse_val() | sc_fuse_val() | export_control_fuse_val() | (1ull << lock_idx);
+  return core_fuse_val() | trace_fuse_val() | dm_fuse_val() | sc_fuse_val() | export_control_fuse_val() |  cla_fuse_val() | io_coherency_fuse_val() | dst_fuse_val() | (1ull << lock_idx);
 }
 
 
@@ -958,32 +978,46 @@ cvm::messenger::task<void> reset_sequence::fuse_mmr_check(rst_t rst_type) {
   //  fuse = fuse_val();
   //else
   //  fuse = co_await read(dm_fuse_mmr, SZ_8B, boot_interface);
-  std::vector<uint64_t> fuse_registers = { 
+  std::vector<uint64_t> registers = { 
     sw_fuse_mmr,
-    trace_fuse_mmr,
+    //trace_fuse_mmr,
     aclint_fuse_mmr,
     dm_fuse_mmr,
-    sc_fuse_mmr
+    sc_fuse_mmr,
+    dst_control_mmr,
+    trace_control_mmr,
+    core_cla_ctrl_status_mmr
   };
 
   for (uint32_t i=0; i<ncores; ++i)
-    fuse_registers.push_back(core_fuse_mmr + i * core_fuse_offset);
+    registers.push_back(core_fuse_mmr + i * core_fuse_offset);
   uint64_t actual_data, exp_data;
   bool rsp_err_chk = true;
-  for (auto addr : fuse_registers) {
-    rsp_err_chk = (addr == trace_fuse_mmr)? FLAGS_trace_enable : true ;
+  for (auto addr : registers) {
+    rsp_err_chk = (addr == dst_control_mmr)? FLAGS_dst_enable : true ;
+    rsp_err_chk = (addr == trace_control_mmr)? FLAGS_ntrace_enable : true ;
+    rsp_err_chk = (addr == core_cla_ctrl_status_mmr)? FLAGS_cla_enable : true ;
     rsp_err_chk =  addr > (core_fuse_mmr + (FLAGS_num_harts-1) * core_fuse_offset) ? false : rsp_err_chk;
-    actual_data = co_await read(addr, SZ_8B, boot_interface, rsp_err_chk);
-    if (rsp_err_chk) {
+    actual_data = co_await read(addr, SZ_8B, boot_interface, false);
+    bool ignore_check = (addr==dst_control_mmr) || (addr==trace_control_mmr) || (addr==core_cla_ctrl_status_mmr);
+    if (rsp_err_chk && !ignore_check ) {
       exp_data = (addr == sw_fuse_mmr)? ((rst_type == COLD) ? sw_fuse_default_val: fuse): fuse;
       if ((exp_data != actual_data))
         cvm::log(cvm::ERROR, "[pwrmgmt] Fuse reg read check ERROR : addr 0x{:x} ,  Expected :0x{:x}, Actual : 0x{:x} \n", addr, exp_data, actual_data );
       else
         cvm::log(cvm::NONE, "[pwrmgmt]  Fuse reg read check : addr 0x{:x} , data 0x{:x} \n", addr, actual_data );
-      }
-    };
+    }
+  };
+  std::vector<uint64_t> fuse_registers = { 
+    sw_fuse_mmr,
+    trace_fuse_mmr,
+    aclint_fuse_mmr,
+    dm_fuse_mmr,
+    sc_fuse_mmr,
+  };
+  for (uint32_t i=0; i<ncores; ++i)
+    fuse_registers.push_back(core_fuse_mmr + i * core_fuse_offset);  
   for (auto addr : fuse_registers) {
-    rsp_err_chk = (addr == trace_fuse_mmr)? FLAGS_trace_enable : true ;
     rsp_err_chk =  addr > (core_fuse_mmr + (FLAGS_num_harts-1) * core_fuse_offset) ? false : rsp_err_chk;
     co_await write(addr, SZ_8B, rand()%0xFFFF'FFFF'FFFF'FFFF, boot_interface, rsp_err_chk);
     if (rsp_err_chk) {
@@ -1024,21 +1058,17 @@ cvm::messenger::task<void> reset_sequence::disabled_mmr_csr_check() {
     cvm::log(cvm::MEDIUM, "[pwrmgmt]  Disabled MMR check from {} interface  \n", get_intf_name(interface) );
     bool rsp_err_chk = true;
     for (uint32_t i = 0; i < ncores; ++i) {
-      rsp_err_chk = i<FLAGS_num_harts;
+      rsp_err_chk = i < FLAGS_num_harts;
       mmr_read_write_check(cr_scratchpad + i * core_fuse_offset, interface, rsp_err_chk);
       rsp_err_chk = (interface==SMC) ? rsp_err_chk : false;
       co_await read(core_fuse_mmr + i * core_fuse_offset,   SZ_8B, interface, rsp_err_chk);
     }
 
-    rsp_err_chk = FLAGS_trace_enable;
+    rsp_err_chk = FLAGS_dst_enable;
     mmr_read_write_check(tr_scratchpad, interface, rsp_err_chk);
-    rsp_err_chk = (interface==SMC) ? rsp_err_chk : false;
-    co_await read(trace_fuse_mmr, SZ_8B, interface, rsp_err_chk);
 
     rsp_err_chk = FLAGS_debug_enable>1;
     mmr_read_write_check(dm_scratchpad, interface, rsp_err_chk);
-    rsp_err_chk = (interface==SMC) ? rsp_err_chk : false;
-    co_await read(dm_fuse_mmr, SZ_8B, interface, rsp_err_chk);
   }
 
   co_return;
@@ -1351,7 +1381,7 @@ cvm::messenger::task<void> reset_sequence::rmw_csr()
   co_return;
 }
 
-cvm::messenger::task<void> reset_sequence::check_axi_bresp_timeout(interface_t interface, unsigned& id, uint64_t addr, size_t sz, bool rsp_err_chk) {
+cvm::messenger::task<bool> reset_sequence::check_axi_bresp_timeout(interface_t interface, unsigned& id, uint64_t addr, size_t sz, bool rsp_err_chk) {
 
   uint32_t axi_bresp_cycle_cnt = 0;
 
@@ -1360,25 +1390,27 @@ cvm::messenger::task<void> reset_sequence::check_axi_bresp_timeout(interface_t i
     
     if (axi_bresp_cycle_cnt >= FLAGS_axi_resp_timeout) {
       cvm::log(cvm::ERROR, "[pwrmgmt] [{}] Error: No free id's remaining for {} axi master\n", interface==SMC?"smc_axi_mst":"axi_mst", interface==SMC?"smc":"");
-      co_return;
+      co_return false;
     }
     axi_bresp_cycle_cnt++;
 
     if (interface == SMC) {
       if (cvm::registry::messenger.call<smc_mst_t::push_aw_no_id_rpc>(axi_loc_[interface], axi::a_no_id_t{addr, log2(sz), rsp_err_chk}, id)) {
-        co_return;
+        co_return true;
       }
     }
     else {
       if (cvm::registry::messenger.call<overlay_mst_t::push_aw_no_id_rpc>(axi_loc_[interface], axi::a_no_id_t{addr, log2(sz), uint8_t(0xF), rsp_err_chk}, id)) {
-        co_return;
+        co_return true;
       }
     }
   }
 
+  co_return true;
+
 }
 
-cvm::messenger::task<void> reset_sequence::check_axi_rresp_timeout(interface_t interface, unsigned& id, uint64_t addr, size_t sz, bool rsp_err_chk) {
+cvm::messenger::task<bool> reset_sequence::check_axi_rresp_timeout(interface_t interface, unsigned& id, uint64_t addr, size_t sz, bool rsp_err_chk) {
 
   uint32_t axi_rresp_cycle_cnt = 0;
 
@@ -1387,20 +1419,21 @@ cvm::messenger::task<void> reset_sequence::check_axi_rresp_timeout(interface_t i
 
     if (axi_rresp_cycle_cnt >= FLAGS_axi_resp_timeout) {
       cvm::log(cvm::ERROR, "[pwrmgmt] [{}] Error: No free id's remaining for {} axi master\n", interface==SMC?"smc_axi_mst":"axi_mst", interface==SMC?"smc":"");
-      co_return;
+      co_return false;
     }
     axi_rresp_cycle_cnt++;
 
     if (interface == SMC) {
       if (cvm::registry::messenger.call<smc_mst_t::push_ar_no_id_rpc>(axi_loc_[interface], axi::a_no_id_t{addr, log2(sz), rsp_err_chk}, id)) {
-        co_return;
+        co_return true;
       }
     }
     else {
       if (cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_loc_[interface], axi::a_no_id_t{addr, log2(sz), uint8_t(0xF), rsp_err_chk}, id)) {
-          co_return;
-        }
+        co_return true;
+      }
     }
   }
 
+  co_return true;
 }

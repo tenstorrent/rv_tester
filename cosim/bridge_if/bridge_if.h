@@ -179,6 +179,7 @@ typedef struct mem_cl_s {
   uint8_t size;
   std::bitset<512> data;
   uint64_t mask;
+  bool error;
 
   mem_cl_s() {
     clear();

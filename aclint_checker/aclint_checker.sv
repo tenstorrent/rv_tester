@@ -102,7 +102,7 @@ import rv_tester_params:: * ;
             vid[8] <= 'd8;
         end else if ((AcReqPktRfClki.addr == DISABLEFUSE) && AcReqPktRfClki.valid) begin
             if(!disablelocked) begin
-            disablelocked <= AcReqPktRfClki.data[15];
+            disablelocked <= AcReqPktRfClki.data[63];
             disablefuse[0] <= ~AcReqPktRfClki.data[16];
             vid[0] <= AcReqPktRfClki.data[19:17];
             disablefuse[1] <= ~AcReqPktRfClki.data[20];

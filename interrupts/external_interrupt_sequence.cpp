@@ -10,6 +10,7 @@ DEFINE_bool(uarch_interrupt_trigger_en, false, "Enable event based external_inte
 DEFINE_string(trigger_interrupt_count, "7:10", "Number of MSI in the sim if random mode enabled");
 DEFINE_string(trigger_interrupt_weight_ratio, "6:2:2", "Ratio of Number of interrupts randomly driven  in phases after trigger event");
 DEFINE_int32(interrupt_trigger_interval,10, "Max TB cycle interval between MSI random mode enabled");
+DEFINE_int32(lpx_msi_interval, 60000, "Max TB cycle interval between MSI and LPX");
 
 
 external_interrupt_sequence::external_interrupt_sequence(cvm::topology::loc_t loc, unsigned id) : loc_(loc), id_(id), scope_(nullptr) {
@@ -117,7 +118,7 @@ cvm::messenger::task<void> external_interrupt_sequence::uarch_trigger_mode() {
     co_await delayed_trigger(); // As trigger and capture_info on same event, using a delayed trigger to drive interrupt
     if(FLAGS_low_power_seq) {
       cvm::log(cvm::LOW,"[ExtInterruptSeq] waiting for random time before driving external interrupt as part of low power sequence");
-      for(int wait_clk=0; wait_clk < 50000; wait_clk ++) {
+      for(int wait_clk=0; wait_clk < FLAGS_lpx_msi_interval; wait_clk ++) {
         co_await trigger_tick();
       }
     }

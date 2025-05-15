@@ -1,6 +1,7 @@
 #include "snoop_gen_sequence.hpp"
 #include "sysmod/sysmod_plusargs.h"
 #include "rv_tester/rv_tester_plusargs.h"
+#include "sysmod/sysmod_rpc.h"
 
 REGISTRY_register(snoop_gen_sequence, SNOOP_GEN, cvm::registry::all);
 
@@ -24,13 +25,10 @@ snoop_gen_sequence::snoop_gen_sequence(cvm::topology::loc_t loc, unsigned id) : 
   // Scope
   cvm::registry::messenger.connect<svScope>(loc_, [this](svScope s) { return this->set_scope(s); });
 
-  axi_mst_loc_l = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST", 0);
-  channel = cvm::registry::messenger.channel<axi::r_t>(axi_mst_loc_l);
+  axi_mst_loc_ = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST", 0);
+  channel = cvm::registry::messenger.channel<axi::r_t>(axi_mst_loc_);
   
-  snoop_gen_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.SNOOP_GEN", 0);
-  cvm::registry::messenger.connect<uint64_t>(
-            snoop_gen_loc,
-            [&](uint64_t i) { return this->push_snoop_info(i); });
+  cvm::registry::messenger.connect<uint64_t>(loc_, [this](uint64_t i) { return this->push_snoop_info(i); });
 
   max_snoop_count =  cvm::rand::get<uint32_t>(FLAGS_max_snoop_count);
   // trigger sequence threads`
@@ -38,6 +36,7 @@ snoop_gen_sequence::snoop_gen_sequence(cvm::topology::loc_t loc, unsigned id) : 
   if (FLAGS_rand_snoop_en) {
     rand_mode_thread();
   }
+  cvm::registry::messenger.connect<rv_tester::snoop_addrs_eot>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0), [this](rv_tester::snoop_addrs_eot addrs) { return this->eot_addr_queue(addrs);});
 }
 
 snoop_gen_sequence::~snoop_gen_sequence() {
@@ -67,6 +66,38 @@ void snoop_gen_sequence::rand_mode_thread() {
   cvm::registry::messenger.fork(task, this);
 };
 
+void snoop_gen_sequence::eot_addr_queue(rv_tester::snoop_addrs_eot addrs) {
+  cvm::log(cvm::MEDIUM, "Calling co-routine for Snoop to addresses\n");
+  auto *task = +[] (rv_tester::snoop_addrs_eot addrs , snoop_gen_sequence* m) -> cvm::messenger::task<void> {
+    co_await m->eot_snoop_addr(addrs.address);
+    co_return;
+  };
+  cvm::registry::messenger.fork(task, addrs, this);
+};
+
+cvm::messenger::task<void>
+snoop_gen_sequence::eot_snoop_addr(std::queue<uint64_t>& addr_q) {
+  uint32_t id1 = rng1();
+  while(!addr_q.empty()) {
+    transactor::read_t r;
+    r.id = id1++;
+    r.addr = addr_q.front();
+    r.length = 0x40;
+    cvm::log(cvm::MEDIUM, "[EOT_SNOOP] Address to Snoop {:#x} via Overlay Read\n", r.addr);
+    co_await blocking_read(r);
+    transactor::write_t w;
+    w.data = resp_.data;
+    w.length = 64;
+    w.addr = (r.addr >> 6) << 6;
+    for(size_t i=0; i<w.strb.size(); i++)
+      w.strb[i] = true;
+    cvm::registry::messenger.signal<transactor::write_t>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SNOOP_GEN", 0), w);
+    addr_q.pop();
+  }
+  
+  cvm::registry::messenger.signal<rv_tester::snoop_mem>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SNOOP_GEN", 0), rv_tester::snoop_mem {.done = true});
+  co_return;
+}
 
 cvm::messenger::task<void> snoop_gen_sequence::rand_mode() {
    while(1){
@@ -147,57 +178,49 @@ cvm::messenger::task<void> snoop_gen_sequence::blocking_read(const transactor::r
 
   axi::a_no_id_t ar_txn;
   unsigned id;
-  ar_txn.w    = false;
-  //ar_txn.id   = axi_id++;
-  //ar_txn.addr = 0x60000000;
-  ar_txn.addr = r.addr;
-  if(FLAGS_rand_snoop_unaligned_addr_en){
-    ar_txn.addr = r.addr + (rng1() % 64);
-  }
-  ar_txn.len  = 0;
-  ar_txn.size = 6;
-  if(FLAGS_rand_snoop_size_en){
-    ar_txn.size = rng1() % 7;
-  }
+  ar_txn.w     = false;
+  ar_txn.addr  = r.addr;
+  ar_txn.size  = 6;
+  ar_txn.len   = 0;
   ar_txn.burst = axi::burst_t(0);
-  ar_txn.lock  =0;
-  ar_txn.cache  =axi::cache_mem_attr_t(0);
-  ar_txn.prot  =2;
-  ar_txn.qos  =0;
-  ar_txn.region  =0;
-  ar_txn.atop  =0;
-  ar_txn.user  =0;
-  ar_txn.seqid  =SNOOP_GEN_SEQ_ID;
-  
+  ar_txn.lock  = 0;
+  ar_txn.cache = axi::cache_mem_attr_t(0);
+  ar_txn.prot  = 2;
+  ar_txn.qos   = 0;
+  ar_txn.region= 0;
+  ar_txn.atop  = 0;
+  ar_txn.user  = 0;
+  ar_txn.seqid = SNOOP_GEN_SEQ_ID;
+  if (FLAGS_rand_snoop_unaligned_addr_en)
+    ar_txn.addr = r.addr + (rng1() % 64);
+  if (FLAGS_rand_snoop_size_en)
+    ar_txn.size = rng1() % 7;
+  ar_txn.rsp_err_chk = ((ar_txn.addr & 0x3) == 0) && (ar_txn.size != 0 && ar_txn.size != 1) && !((ar_txn.addr & 0x7) == 4 && ar_txn.size >= 3);
+
   cvm::log(cvm::HIGH, "[snoop_gen_sequence] blocking read data begin: \n");
 
   read_in_flight = true;
-  //cvm::registry::messenger.signal(axi_mst_loc_l, ar_txn);
-  if (!cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_mst_loc_l, ar_txn , id)) {
-    check_axi_rresp_timeout(ar_txn, id);
+  using overlay_mst_t = axi_sw_mst<
+      rv_tester_transactions::axi_sw_mst::b<>,
+      rv_tester_transactions::axi_sw_mst::r<>,
+      rv_tester_transactions::axi_sw_mst::ar_q_ptr<>,
+      rv_tester_transactions::axi_sw_mst::aw_q_ptr<>,
+      rv_tester_transactions::axi_sw_mst::w_q_ptr<>
+  >;
+  if (!cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_mst_loc_, ar_txn, id)) {
+    auto axi_idalloc_done = co_await check_axi_rresp_timeout(ar_txn, id);
+    if (!axi_idalloc_done) {
+      co_return;
+    }
   }
 
-  //auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(axi_mst_loc_l);
   auto resp = co_await cvm::registry::messenger.wait<axi::r_t>(channel, [&id](const auto& r) { return r.id == id; });
-
+  resp_ = resp;
   read_in_flight = false;
-
-  // cvm::log(cvm::HIGH, "[snoop_gen_sequence] blocking read data begin: \n");
-  // backdoor_read_data = 0;
-  //   for (size_t i = 0; i < 8; ++i) {
-  //       backdoor_read_data |= static_cast<uint64_t>(resp.data[i]) << (8 *  i);
-  //   }
-  // std::stringstream ss;
-  //   for (const auto &byte : resp.data) {
-  //   ss << static_cast<int>(byte) << " ";
-  // }
-  // std::string output = ss.str();
-  // cvm::log(cvm::HIGH, "[snoop_gen_sequence] blocking read data end:  {}\n",output);
   co_return;
- 
 }
 
-cvm::messenger::task<void> snoop_gen_sequence::check_axi_rresp_timeout(axi::a_no_id_t ar_txn, unsigned& id) {
+cvm::messenger::task<bool> snoop_gen_sequence::check_axi_rresp_timeout(axi::a_no_id_t ar_txn, unsigned& id) {
 
   uint32_t axi_rresp_cycle_cnt = 0;
 
@@ -206,13 +229,14 @@ cvm::messenger::task<void> snoop_gen_sequence::check_axi_rresp_timeout(axi::a_no
 
     if (axi_rresp_cycle_cnt >= FLAGS_axi_resp_timeout) {
       cvm::log(cvm::ERROR, "[snoop_gen_sequence] [axi_mst] Error: No free id's remaining for axi master\n");
-      co_return;
+      co_return false;
     }
     axi_rresp_cycle_cnt++;
 
-    if (cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_mst_loc_l, ar_txn, id)) {
-      co_return;
+    if (cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_mst_loc_, ar_txn, id)) {
+      co_return true;
     }
   }
 
+  co_return true;
 }
