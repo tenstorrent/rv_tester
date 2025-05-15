@@ -821,7 +821,7 @@ module rv_tester
           .clk(dut_clk[CORE_CLK_IDX]),
           .reset(sys_reset[TB_CLK_IDX] | reset_window),
           .dut_core_reset(dut_reset[CORE_CLK_IDX]),
-          .dut_reset(dut_reset[SOC_CLK_IDX]),
+          .dut_reset(dut_reset[TB_CLK_IDX]),
           .clocks,
           .rvfi(rvfi[NRETS_CUMSUM[c] +: NRETS[c]]),
           .csri(csri[c]),
