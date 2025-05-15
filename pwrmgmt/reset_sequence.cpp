@@ -269,6 +269,7 @@ cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
   co_await init_mmr();
   co_await rmw_mmr();
   co_await program_fe_resetvector();
+  co_await program_mtime(rst_type);
   co_await release_cpl_nofetch();
   co_await tick();
   co_return;
@@ -294,6 +295,7 @@ cvm::messenger::task<void> reset_sequence::cpl_fw_reset_sequence(rst_t rst_type)
   co_await init_mmr();
   co_await rmw_mmr();
   co_await check_system_config_done();
+  co_await program_mtime(rst_type);
   co_await send_start_of_execution_to_cpl();
   co_await wait_nofetch_release();
   co_await tick();
@@ -345,6 +347,20 @@ cvm::messenger::task<void> reset_sequence::check_pll_status() {
     count++;
     if (count > FLAGS_pll_pwrup_timeout)
       cvm::log(cvm::ERROR, "Error: PLL cold power up not done after {} soc clocks\n", FLAGS_pll_pwrup_timeout);
+  }
+  co_return;
+}
+
+cvm::messenger::task<void> reset_sequence::program_mtime(rst_t rst_type) {
+  // Writing random non-zero time value to ACLINT Mtime before No-fetch release
+  uint64_t rand_mtime = ((rand()%1000) + 500) * 10;
+
+  if(rst_type == WARM) {
+    rand_mtime = ((rand()%9999) + 50000) * 10;
+    co_await write(aclint_mtime_mmr, SZ_8B, rand_mtime);
+  }
+  else { // COLD Reset
+    co_await write(aclint_mtime_mmr, SZ_8B, rand_mtime);
   }
   co_return;
 }
