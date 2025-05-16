@@ -63,7 +63,7 @@ void log_metrics(unsigned id, const StringType& to_string, const ContainerType& 
 
 pmu::pmu(cvm::topology::loc_t loc, unsigned id)
   : log_core("h" + std::to_string(id) + "_pmcounters_core.log"),
-    log_sc("h" + std::to_string(id) + "_pmcounters_sc.log"),
+    log_sc("pmcounters_sc.log"),
     loc_(loc), id_(id),
     counters_core{}, counters_sc{}, perf_region_core{}, perf_region_sc{}
 {
