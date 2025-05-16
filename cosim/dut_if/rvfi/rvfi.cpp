@@ -62,6 +62,7 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     rv_tester_transactions::cosim::m_mcmi_ifetch_req<>,
     rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>,
     rv_tester_transactions::cosim::m_mcmi_ievict<>,
+    rv_tester_transactions::cosim::m_mcmi_devict<>,
     rv_tester_transactions::cosim::m_debug<>,
     bridge::error_loc
   >(loc);
@@ -1506,6 +1507,22 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ievict<>& m_mcmi_
 
   bridge_->process_dut_mcm_ievict(m_mcmi_ievict.hart, m);
 }
+
+void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_devict<>& m_mcmi_devict) {
+  if (!FLAGS_cosim || !FLAGS_mcm)
+    return;
+
+  if (terminated_ || in_reset_)
+    return;
+
+  bool valid = false;
+  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmDEvictRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m_mcmi_devict.cycle, m_mcmi_devict.addr, valid)|| !valid) && FLAGS_whisper_client_check) {
+    error("Hart {}: Failed mcm devict\n", hart);
+    return;
+  }
+
+}
+
 
 void rvfi::process_ncio_fetches(const rv_instr_t& instr) {
   if (!FLAGS_cosim || !FLAGS_mcm)

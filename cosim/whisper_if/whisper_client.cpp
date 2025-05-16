@@ -116,6 +116,7 @@ whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) : loc_(loc
   cvm::registry::messenger.procedure<whisperMcmWriteRPC>(loc, [this] (int hart, uint64_t time, uint64_t addr, unsigned size, svOpenArrayHandle handle, uint64_t mask, bool error, bool& valid) {return this->whisperMcmWrite(hart, time, addr, size, handle, mask, error, valid);});
   cvm::registry::messenger.procedure<whisperMcmIFetchRPC>(loc, [this] (int hart, uint64_t time, uint64_t addr, bool& valid) {return this->whisperMcmIFetch(hart, time, addr, valid);});
   cvm::registry::messenger.procedure<whisperMcmIEvictRPC>(loc, [this] (int hart, uint64_t time, uint64_t addr, bool& valid) {return this->whisperMcmIEvict(hart, time, addr, valid);});
+  cvm::registry::messenger.procedure<whisperMcmDEvictRPC>(loc, [this] (int hart, uint64_t time, uint64_t addr, bool& valid) {return this->whisperMcmDEvict(hart, time, addr, valid);});
   cvm::registry::messenger.procedure<whisperMcmEndRPC>(loc, [this] (int hart, uint64_t time, bool& valid) {return this->whisperMcmEnd(hart, time, valid);});
   cvm::registry::messenger.procedure<whisperInjectExceptionRPC>(loc, [this] (int hart, bool isLoad, uint64_t code, unsigned elemIx, uint64_t addr, bool& valid) {return this->whisperInjectException(hart, isLoad, code, elemIx, addr, valid);});
   cvm::registry::messenger.procedure<whisperPokeRPC>(loc, [this] (int hart, uint64_t time, char resource, uint64_t addr, uint64_t value, bool& valid) {return this->whisperPoke(hart, time, resource, addr, value, valid);});
@@ -878,6 +879,24 @@ whisperClient<URV>::whisperMcmIEvict(int hart, uint64_t time, uint64_t addr, boo
   valid = reply.type != WhisperMessageType::Invalid;
   return true;
 }
+
+// Remote Procedural Call for MCM Devict
+template <typename URV>
+bool
+whisperClient<URV>::whisperMcmDEvict(int hart, uint64_t time, uint64_t addr, bool& valid)
+{
+  req.hart = hart;
+  req.type = WhisperMessageType::McmDEvict;
+  req.time = time;
+  req.address = addr;
+
+  if (not whisperCommand(req, reply))
+    return false;
+
+  valid = reply.type != WhisperMessageType::Invalid;
+  return true;
+}
+
 
 template <typename URV>
 bool

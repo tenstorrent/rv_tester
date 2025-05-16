@@ -110,6 +110,7 @@ class whisperClient {
     bool whisperMcmWrite(int hart, uint64_t time, uint64_t addr, unsigned size, svOpenArrayHandle handle, uint64_t mask, bool error, bool& valid);
     bool whisperMcmIFetch(int hart, uint64_t time, uint64_t addr, bool& valid);
     bool whisperMcmIEvict(int hart, uint64_t time, uint64_t addr, bool& valid);
+    bool whisperMcmDEvict(int hart, uint64_t time, uint64_t addr, bool& valid);
     bool whisperMcmEnd(int hart, uint64_t time, bool& valid);
     bool whisperInjectException(int hart, bool isLoad, uint64_t code, unsigned elemIx, uint64_t addr, bool& valid);
     bool whisperPoke(int hart, uint64_t time, char resource, uint64_t addr, uint64_t value, bool& valid);
@@ -171,6 +172,7 @@ class whisperClient {
     CVM_MESSENGER_procedure_call(whisperMcmWriteRPC, bool (int, uint64_t, uint64_t, unsigned, svOpenArrayHandle, uint64_t, bool, bool&));
     CVM_MESSENGER_procedure_call(whisperMcmIFetchRPC, bool (int, uint64_t, uint64_t, bool&));
     CVM_MESSENGER_procedure_call(whisperMcmIEvictRPC, bool (int, uint64_t, uint64_t, bool&));
+    CVM_MESSENGER_procedure_call(whisperMcmDEvictRPC, bool (int, uint64_t, uint64_t, bool&));
     CVM_MESSENGER_procedure_call(whisperMcmEndRPC, bool (int, uint64_t, bool&));
     CVM_MESSENGER_procedure_call(whisperInjectExceptionRPC, bool (int, bool, uint64_t, unsigned, uint64_t, bool&));
     CVM_MESSENGER_procedure_call(whisperPokeRPC, bool (int, uint64_t, char, uint64_t, uint64_t, bool&));
