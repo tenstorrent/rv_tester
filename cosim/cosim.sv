@@ -140,7 +140,7 @@ import rv_tester_params::*;
     input logic disable_checks,
     output logic boot_done,
     input  logic             devict_cl_valid [NHARTS-1:0],
-    input  logic [51:0]      devict_cl_addr  [NHARTS-1:0]
+    input  logic [51:0]      devict_cl_addr  [NHARTS-1:0],
     `RV_TESTER_TRANSACTIONS_COSIM_OUTPUT_PORTS
 );
 
