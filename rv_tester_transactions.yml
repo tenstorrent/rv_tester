@@ -378,6 +378,18 @@ cosim:
                 width: 32
             addr:
                 width: ${TOP.PLATFORM.PALEN}
+    
+    m_mcmi_devict:
+        domain: 2
+        num: ${TOP.PLATFORM.NHARTS}
+        fields:
+            cycle:
+                width: 64
+            hart:
+                width: 32
+            addr:
+                width: ${TOP.PLATFORM.PALEN}
+
 
     m_trap:
         domain: 1

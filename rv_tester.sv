@@ -687,6 +687,19 @@ module rv_tester
 
     rv_tester_pkg::dm_write_t  trickbox_dmi_write;
 
+    logic devict_cl_valid_axi [rv_tester_params::NHARTS-1:0]; // Output of Synchroniser
+
+    for (genvar i = 0; i <  NHARTS; i++) begin
+        rv_tester_cdc_pulse cdc_pulse (
+            .clk_a (dut_clk[CORE_CLK_IDX]),
+            .clk_b (dut_clk[AXI_CLK_IDX]),
+            .pulse_a (devict_cl_valid[i]),
+            .pulse_b (devict_cl_valid_axi[i]),
+            .pulse_pending_or_asserted_a() // leaving unconnected
+        );
+    end
+
+
     localparam int AXI_CLOCK_PERIOD = 1000000 / CLOCK_FREQ_MHZ[AXI_CLK_IDX];
     localparam int JTAG_CLOCK_PERIOD = 10*100;
     localparam int OVERLAY_CLOCK_PERIOD = 2*AXI_CLOCK_PERIOD;
@@ -845,6 +858,8 @@ module rv_tester
           .poke_event_in(poke_event_in),
           .disable_checks(disable_checks),
           .boot_done(boot_done[c]),
+          .devict_cl_valid(devict_cl_valid_axi),
+          .devict_cl_addr(devict_cl_addr),
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PORTS(1, c, 0)
       );
     end
