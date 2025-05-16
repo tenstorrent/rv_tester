@@ -21,4 +21,3 @@ rv_tester_transactions_message_cosim_m_rvfi.*
 rv_tester_transactions_message_cosim_m_steps.*
 rv_tester_transactions_message_cosim_m_trap.*
 rv_tester_transactions_message_cosim_m_vc_regs.*
-core_rv_tester_transactions_message_cbo_inval_monitor.*
