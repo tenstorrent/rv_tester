@@ -1586,6 +1586,8 @@ pmu_sc:
                 width: 24
             sc_cancel_piperesult:
                 width: 24
+            sc_tb_cycles:
+                width: 24
             perf_start_sc:
                 width: 1
             perf_end_sc:

@@ -1316,7 +1316,7 @@ bool rvfi::sc_failed(mem_t& write) {
 void rvfi::process_amo(mem_t& read) {
 
   if (amo_writes_.find(read.tag) == amo_writes_.end()) {
-    cvm::log(cvm::ERROR, "Error: Amo read with no matching bypass write - inst tag={}\n", read.tag);
+    cvm::log(cvm::ERROR, "Error: [mcmi] Amo read with no matching bypass write - inst tag={}\n", read.tag);
     return;
   }
 
@@ -1350,7 +1350,7 @@ void rvfi::amo_modify_write_data(amo_op op, uint64_t& read_data, uint64_t& write
       else      amo_arithmetic<uint64_t>(op, read_data, write_data, size);
       break;
     default:
-      cvm::log(cvm::ERROR, "Error: Invalid amo op size - [op={}, size={}]\n", amo_op_to_string.at(op), size);
+      cvm::log(cvm::ERROR, "Error: [mcmi] Invalid amo op size - [op={}, size={}]\n", amo_op_to_string.at(op), size);
       break;
   }
 }
@@ -1389,7 +1389,7 @@ void rvfi::amo_arithmetic(amo_op op, uint64_t& read_data, uint64_t& write_data, 
       result = std::max(read, write);
       break;
     default:
-      assert(false && "Error: Unknown amo operation");
+      assert(false && "Error: [mcmi] Unknown amo operation");
       break;
   }
 
@@ -1463,7 +1463,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>& m_
     return;
 
   if (ifetch_reqs_.find(m_mcmi_ifetch_resp.order) == ifetch_reqs_.end()) {
-    cvm::log(cvm::ERROR, "Error: Ifetch resp with no matching req - [id={}]\n", m_mcmi_ifetch_resp.order);
+    cvm::log(cvm::ERROR, "Error: [mcmi] Ifetch resp with no matching req - [id={}]\n", m_mcmi_ifetch_resp.order);
   }
 
   mem_t m;
