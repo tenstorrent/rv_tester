@@ -123,7 +123,7 @@ class rvfi {
     bool ncio_mem_transition_ = false;
     std::vector<mem_t> ncio_fetches_;
     std::vector<mem_t> active_ncio_fetches_;
-    uint64_t mcm_write_error_pa_ = 0;
+    std::vector<uint64_t> mcm_write_error_pas_;
 
     //---------------------------------------------------------------------------------------------------------
     // USE_OLD_CODE selects C code for priv_, first_uop,ucode_ generation instead of SV code (for debug ONLY)
