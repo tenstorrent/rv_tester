@@ -1516,7 +1516,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_devict<>& m_mcmi_
     return;
 
   bool valid = false;
-  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmDEvictRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, m_mcmi_devict.cycle, m_mcmi_devict.addr, valid)|| !valid) && FLAGS_whisper_client_check) {
+  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmDEvictRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), m_mcmi_devict.hart, m_mcmi_devict.cycle, m_mcmi_devict.addr, valid)|| !valid) && FLAGS_whisper_client_check) {
     error("Hart {}: Failed mcm devict\n", hart);
     return;
   }

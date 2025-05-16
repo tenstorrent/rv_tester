@@ -1100,7 +1100,7 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     end
 
-    // m_mcmi_devict
+    // m_mcmi_writeback
     
 
 
