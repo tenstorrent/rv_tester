@@ -31,6 +31,7 @@ import rv_tester_params:: * ;
     localparam  ACLINT_START = 'h42180000;
     localparam  ACLINT_END = 'h4218ffff;
     logic enable_checks;
+    bit [63:0] clocks;
 
     import "DPI-C" context function void aclint_checker_scope(int unsigned location);
 
@@ -45,6 +46,7 @@ import rv_tester_params:: * ;
             reset_done = 1'b1;
             /* verilator lint_on BLKSEQ */
         end
+        clocks <= clocks + 1;
     end
 
     //ACLINT force SYNC message checker
@@ -70,7 +72,7 @@ import rv_tester_params:: * ;
         end
     end
     assign violation_forcesync =  (count >  'd4) && enable_checks;
-    always_comb assert (~violation_forcesync) else $error("Error: Not recieved aclint force sync");
+    always_comb assert (~violation_forcesync) else $error("[%0d] Error: Not recieved aclint force sync", clocks);
     end
 
     //ACLINT MTIP generation checker
@@ -123,10 +125,14 @@ import rv_tester_params:: * ;
         end
     end
     always_comb begin
-        for (int j = 0; j < 9; j++) begin
-            mtimecmp_wr_valid[j] = AcReqPktRfClki.valid && (AcReqPktRfClki.mask=='hff || AcReqPktRfClki.mask=='hf) && AcReqPktRfClki.addr == (MTIMECMP0 + (j<<3));
-        end
+    for (int j = 0; j < 9; j++) begin
+        // Check if the write request is valid
+        mtimecmp_wr_valid[j] = AcReqPktRfClki.valid &&
+                               ((AcReqPktRfClki.mask == 'hff && AcReqPktRfClki.addr == MTIMECMP0 + (j << 3)) ||
+                                (AcReqPktRfClki.mask == 'hf && ((AcReqPktRfClki.addr == MTIMECMP0 + (j << 3)) || 
+                                                                (AcReqPktRfClki.addr == MTIMECMP0 + (j << 3) + 4))));
     end
+end
 
     logic [63:0] data_mask;
     assign data_mask = (AcReqPktRfClki.mask == 'hF) ? {32'b0, {32{1'b1}}} : {64{1'b1}};
@@ -139,19 +145,24 @@ import rv_tester_params:: * ;
     generate
     genvar k;
     for ( k = 0; k < 9; k++) begin : mtip_counters
-    assign mtimecmp_data[k] = mtimecmp_wr_valid[k] ? ((AcReqPktRfClki.mask == 'hf) ? {mtimecmpval[k][63:32], AcReqPktRfClki.data[31:0]} : AcReqPktRfClki.data) : mtimecmpval[k];
-    assign counter_next[k] = mtimecmp_wr_valid[k] ? (mtimecmp_data[k] > AcMtimei ? 64'(mtimecmp_data[k] - AcMtimei) : 64'b0)
-                        : mtime_wr_valid ? (mtimecmpval[k] > mtime_data ? 64'(mtimecmpval[k] - mtime_data) : 64'b0)
-                        : (AcMtimei < AcMtimei_delay) ? (mtimecmpval[k] > AcMtimei ? 64'(mtimecmpval[k] - AcMtimei) : 64'b0)
-                        : (counter[k] < 'd10 ? 64'b0 : 64'(counter[k] - 'd10));
-    always @(posedge rf_clk) begin
-    if (dut_reset) counter[k] <= 'hffffffff;
-    else counter[k] <= counter_next[k];
-    end
-    always @(posedge rf_clk) begin
-    if (dut_reset) mtimecmpval[k] <= 'hffffffff;
-    else if(mtimecmp_wr_valid[k]) mtimecmpval[k] <= ((AcReqPktRfClki.mask == 'hf) ? {mtimecmpval[k][63:32], AcReqPktRfClki.data[31:0]} : AcReqPktRfClki.data);
-    end
+        assign mtimecmp_data[k] = mtimecmp_wr_valid[k] ? ((AcReqPktRfClki.addr == MTIMECMP0 + (k << 3) && AcReqPktRfClki.mask == 'hf) ? {mtimecmpval[k][63:32], AcReqPktRfClki.data[31:0]} :
+                                                        (AcReqPktRfClki.addr == MTIMECMP0 + (k << 3) && AcReqPktRfClki.mask == 'hff) ? AcReqPktRfClki.data :
+                                                        ((AcReqPktRfClki.addr == MTIMECMP0 + (k << 3) + 4 && AcReqPktRfClki.mask == 'hf) ? {AcReqPktRfClki.data[31:0], mtimecmpval[k][31:0]} :
+                                                            mtimecmpval[k])) :
+                                                        mtimecmpval[k];
+        assign counter_next[k] = mtimecmp_wr_valid[k] ? (mtimecmp_data[k] > AcMtimei ? 64'(mtimecmp_data[k] - AcMtimei) : 64'b0)
+                            : mtime_wr_valid ? (mtimecmpval[k] > mtime_data ? 64'(mtimecmpval[k] - mtime_data) : 64'b0)
+                            : (AcMtimei < AcMtimei_delay) ? (mtimecmpval[k] > AcMtimei ? 64'(mtimecmpval[k] - AcMtimei) : 64'b0)
+                            : (counter[k] < 'd10 ? 64'b0 : 64'(counter[k] - 'd10));
+        always @(posedge rf_clk) begin
+            if (dut_reset) counter[k] <= 'hffffffff;
+            else counter[k] <= counter_next[k];
+        end
+        always @(posedge rf_clk) begin
+            counter_mtip8 <= min(counter_next);
+            if (dut_reset) mtimecmpval[k] <= 'hffffffff;
+            else if(mtimecmp_wr_valid[k]) mtimecmpval[k] <= ((AcReqPktRfClki.mask == 'hf) ? {mtimecmpval[k][63:32], AcReqPktRfClki.data[31:0]} : AcReqPktRfClki.data);
+        end
 
     end
     endgenerate
@@ -222,8 +233,8 @@ import rv_tester_params:: * ;
     if(dut_reset || ~fail_mtishouldbeOFF) cycles_in_fail_mtishouldbeOFF <= 0;
     else if(fail_mtishouldbeOFF) cycles_in_fail_mtishouldbeOFF <= cycles_in_fail_mtishouldbeOFF + 1;
     end
-    always_comb assert(~(cycles_in_fail_mtishouldbeOFF > 5)) else $error("Error: Did not expect MTIP, but MTIP %d generated", asserti);
-    always_comb assert(~(cycles_in_fail_mtishouldbeON > 5)) else $error("Error: Expected MTIP, but MTIP %d not generated", asserti);    
+    always_comb assert(~(cycles_in_fail_mtishouldbeOFF > 5)) else $error("[%0d] Error: Did not expect MTIP, but MTIP %d generated", clocks, asserti);
+    always_comb assert(~(cycles_in_fail_mtishouldbeON > 5)) else $error("[%0d] Error: Expected MTIP, but MTIP %d not generated", clocks, asserti);    
     end
     endgenerate
 
@@ -235,7 +246,7 @@ import rv_tester_params:: * ;
         else if(AcMtipi[8] & ~SmcMtipi) mtip8_delay_counter <= mtip8_delay_counter + 1;
         else mtip8_delay_counter <= 0;
     end
-    always_comb assert (mtip8_delay_counter < max_mtip8_delay) else $error("Error: MTIP[8] generated by Aclint but not seen at SMC port");
+    always_comb assert (mtip8_delay_counter < max_mtip8_delay) else $error("[%0d] Error: MTIP[8] generated by Aclint but not seen at SMC port", clocks);
 
     //ACLINT core MMR - ac_mmrwrite
     for (genvar n = 0; n < TOTAL_NRETS; n++) begin
