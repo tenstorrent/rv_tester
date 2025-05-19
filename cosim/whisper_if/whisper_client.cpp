@@ -225,6 +225,7 @@ whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>& sess
       WdRiscv::Hart<URV>* hart = system->ithHart(i).get();
       if (standalone) {
         hart->setWfiTimeout(0);
+        hart->setAclintDeliverInterrupts(false); 
       } else {
         hart->setAclintDeliverInterrupts(FLAGS_whisper_aclint_deliver_interrupts);
         hart->autoIncrementTimer(FLAGS_whisper_auto_increment_timer);
