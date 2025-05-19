@@ -380,7 +380,7 @@ cosim:
                 width: ${TOP.PLATFORM.PALEN}
     
     m_mcmi_devict:
-        domain: 2
+        domain: 1
         num: ${TOP.PLATFORM.NHARTS}
         fields:
             cycle:
@@ -388,7 +388,7 @@ cosim:
             hart:
                 width: 32
             addr:
-                width: ${TOP.PLATFORM.PALEN}
+                width: 52
 
 
     m_trap:

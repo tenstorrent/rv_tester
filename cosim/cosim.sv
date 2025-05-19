@@ -1220,7 +1220,7 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign m_mcmi_devicts[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_core_reset & devict_cl_valid[n];
         assign m_mcmi_devicts[n].data.location = location;
         assign m_mcmi_devicts[n].data.cycle = devict_cl_valid[n] ? clocks : '0;
-        assign m_mcmi_devicts[n].data.hart = n;
+        assign m_mcmi_devicts[n].data.hart = NUM;
         assign m_mcmi_devicts[n].data.addr = devict_cl_addr[n];
     end
 
