@@ -21,6 +21,7 @@ import rv_tester_params:: * ;
     input logic                     disable_triggerpoll,
     input logic                     terminate,
     input logic [31:0]              num_harts,
+    input logic                     sdtrig_display,
     
     input logic                     dmi_req_ready,
     input logic                     dmi_resp_valid,
@@ -472,7 +473,8 @@ import rv_tester_params:: * ;
                 $display("[Poll] check_cause_trigger is set");
               end else if(to_check_hit && cmd.data[15:0] === 'h07a1) begin
                 to_check_hit = 0;
-                check_hit_bit = 1;
+                if(trigger_config != 0)
+                  check_hit_bit = 1;
                 $display("[Poll] check_hit_bit is set");
               end else if(cmd.data[15:0] === 'h07a1) begin
                 $display("[sdtrig:Poll] Seen an abstract command read on tdata1");
@@ -1327,7 +1329,7 @@ import rv_tester_params:: * ;
   end
 
   always @(posedge rvfi_sdtrig) begin
-    while(rvfi_sdtrig) begin
+    while(rvfi_sdtrig && trigger_config != 0) begin
       if(sdtrig_progbuf_exec)begin //fixme: use command_trigger
         $display("waiting for core to exit debug mode");
         repeat(5)
@@ -1437,13 +1439,17 @@ import rv_tester_params:: * ;
             $display("clearing the rvfi_sdtrig for core: %0d", core_id);
           end
         end
-        $display("#1457 Before posedge rvfi_sdtrig: %0d rvfi_sdtrig_core: %0d", rvfi_sdtrig, rvfi_sdtrig_core);
+        if(sdtrig_display)
+          $display("#1457 Before posedge rvfi_sdtrig: %0d rvfi_sdtrig_core: %0d", rvfi_sdtrig, rvfi_sdtrig_core);
         @(posedge clk);
-        $display("#1459 After posedge rvfi_sdtrig: %0d rvfi_sdtrig_core: %0d", rvfi_sdtrig, rvfi_sdtrig_core);
+        if(sdtrig_display)
+          $display("#1459 After posedge rvfi_sdtrig: %0d rvfi_sdtrig_core: %0d", rvfi_sdtrig, rvfi_sdtrig_core);
       end
-      $display("Before posedge rvfi_sdtrig: %0d rvfi_sdtrig_core: %0d", rvfi_sdtrig, rvfi_sdtrig_core);
+      if(sdtrig_display)
+        $display("Before posedge rvfi_sdtrig: %0d rvfi_sdtrig_core: %0d", rvfi_sdtrig, rvfi_sdtrig_core);
       @(posedge clk);
-      $display("After posedge rvfi_sdtrig: %0d rvfi_sdtrig_core: %0d", rvfi_sdtrig, rvfi_sdtrig_core);
+      if(sdtrig_display)
+        $display("After posedge rvfi_sdtrig: %0d rvfi_sdtrig_core: %0d", rvfi_sdtrig, rvfi_sdtrig_core);
     end
     $display("Hit and cause for all the triggers that fired has been verified and triggers disabled");
     @(posedge clk);
