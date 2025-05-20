@@ -1397,33 +1397,35 @@ module rv_tester
 
     export "DPI-C" function rv_tester_set_address_map;
 
-
-    function void set_preload_data_file(int unsigned way, string file);
     `ifndef NO_PRELOAD
+    function void set_preload_data_file(int unsigned way, string file);
         if (way < AxiLLC_SetAssociativity) begin
             preload_data_file_arr[way] = file;
             $display("%0t Preload data file for way %0d set to: %s", $time, way, file);
         end else begin
             $display("Error: Attempted to set preload file for invalid way %0d", way);
         end
+    endfunction
     `else
         $display("Error: Compiled with NO_PRELOAD defined");
     `endif
-    endfunction
+
     export "DPI-C" function set_preload_data_file;
 
-    function void set_preload_tag_file(int unsigned way, string file);
+
     `ifndef NO_PRELOAD
-    if (way < AxiLLC_SetAssociativity) begin
-        preload_tag_file_arr[way] = file;
-        $display("Preload data file for way %0d set to: %s", way, file);
-    end else begin
-        $display("Error: Attempted to set preload file for invalid way %0d", way);
-    end
+    function void set_preload_tag_file(int unsigned way, string file);
+        if (way < AxiLLC_SetAssociativity) begin
+            preload_tag_file_arr[way] = file;
+            $display("Preload data file for way %0d set to: %s", way, file);
+        end else begin
+            $display("Error: Attempted to set preload file for invalid way %0d", way);
+        end
+    endfunction
     `else
         $display("Error: Compiled with NO_PRELOAD defined");
     `endif
-    endfunction
+
     export "DPI-C" function set_preload_tag_file;
 
     rv_tester_mem #(
