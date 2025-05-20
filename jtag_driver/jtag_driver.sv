@@ -13,7 +13,6 @@ import rv_tester_params::*;
 (
   input logic clk,
   input logic reset,
-  input logic warm_reset,
   input logic dut_clk,
   input logic dut_reset,
   input logic no_fetch,
@@ -103,13 +102,13 @@ import rv_tester_params::*;
   ////////////////////////////////////
 
   always @(posedge clk) begin
-    reset_d1 <= reset|warm_reset;
+    reset_d1 <= reset;
     if (reset || jtag_test_reset || jtag_hard_reset  || !jtag_driver_en) begin
       jtag_driver_init();
       jtag_req.tms <= '0;
       jtag_req.tdi <= '0;
     end
-    if (~(reset|warm_reset) & reset_d1) begin
+    if (~reset & reset_d1) begin
       if (location != cvm_topology::nil) begin
         jtag_driver_set_scope(location);
         jtag_socket_en <= jtag_driver_get_en(jtag_driver_mode);
