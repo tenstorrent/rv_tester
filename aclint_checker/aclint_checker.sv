@@ -149,13 +149,17 @@ import rv_tester_params:: * ;
     else counter[k] <= counter_next[k];
     end
     always @(posedge rf_clk) begin
-    counter_mtip8 <= min(counter_next);
     if (dut_reset) mtimecmpval[k] <= 'hffffffff;
     else if(mtimecmp_wr_valid[k]) mtimecmpval[k] <= ((AcReqPktRfClki.mask == 'hf) ? {mtimecmpval[k][63:32], AcReqPktRfClki.data[31:0]} : AcReqPktRfClki.data);
     end
 
     end
     endgenerate
+
+    // Counter_mtip8 calculation moved outside the generate block
+    always @(posedge rf_clk) begin
+        counter_mtip8 <= min(counter_next);
+    end
 
     assign mtime_wr_valid = AcReqPktRfClki.valid && AcReqPktRfClki.addr == MTIME && (AcReqPktRfClki.mask=='hff || AcReqPktRfClki.mask=='hf);
 
