@@ -18,7 +18,6 @@ extern "C" {
     uint64_t get_mtime_value();
     uint64_t get_ctime_value();
     void update_ctime_value(uint64_t value);
-    void get_hart_enable_ids(const char* input_str, int* result);
 }
 
 aclint_checker::aclint_checker(cvm::topology::loc_t loc, unsigned) {
@@ -336,26 +335,4 @@ extern "C" void aclint_checker_scope(cvm::topology::loc_t loc) {
     cvm::log(cvm::HIGH, "Getting ACLINT CHECKER scope\n");
     svScope scope = svGetScope();
     cvm::registry::messenger.signal<svScope>(loc, scope);
-}
-
-extern "C" void get_hart_enable_ids(const char* input_str, int* result) {
-    // Initialize the numbers vector with num_cores elements, all set to 0
-    std::vector<int32_t> numbers(8, -1);
-
-    std::istringstream ss(input_str);
-    std::string token;
-
-    size_t index = 0; // To track the current position in the vector
-    while (std::getline(ss, token, ',')) {
-        if (!token.empty() && index < 8) {
-            uint32_t t = std::stoull(token);
-            numbers[index] = t;
-            ++index;
-        }
-    }
-
-    // Copy the values of the numbers vector into the result array
-    for (size_t i = 0; i < 8; ++i) {
-        result[i] = numbers[i];
-    }
 }
