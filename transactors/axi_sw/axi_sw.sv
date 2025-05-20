@@ -345,11 +345,13 @@ module axi_sw #(
     bit          read_latency_fixed             = '0;
     int unsigned reorder_latency_timeout        = '0;
     bit          reorder_window                 = '0;
+    int unsigned read_latency_max               = '0;
+    int unsigned read_latency_fixed             = '0;
     always @(posedge clk) begin
         if (sys_reset) begin
             /* verilator lint_off BLKSEQ */
-            automatic int unsigned max     = cvm_plusargs::get_int("axi_sw_read_latency_max");
-            automatic int unsigned fixed   = cvm_plusargs::get_int("axi_sw_read_latency_fixed");
+            read_latency_max = cvm_plusargs::get_int("axi_sw_read_latency_max");
+            read_latency_fixed  = cvm_plusargs::get_int("axi_sw_read_latency_fixed");
             read_latency_timeout_threshold = cvm_plusargs::get_int("axi_sw_read_latency_timeout_threshold");
             read_latency_fifo_threshold    = cvm_plusargs::get_int("axi_sw_read_latency_fifo_threshold");
             reorder_latency_timeout        = cvm_plusargs::get_int("axi_sw_reorder_timeout");
