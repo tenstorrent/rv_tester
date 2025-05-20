@@ -915,7 +915,6 @@ module rv_tester
         (
             .clk(dut_clk[REF_CLK_IDX]),
             .reset(reset[COLD_RESET_IDX]),
-            .warm_reset(reset[WARM_RESET_IDX]),
             .dut_clk(dut_clk[TB_CLK_IDX]),
             .dut_reset(dut_reset[TB_CLK_IDX]),
             .no_fetch(core_no_fetch[0]),
