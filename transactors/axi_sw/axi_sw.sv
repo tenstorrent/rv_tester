@@ -345,20 +345,20 @@ module axi_sw #(
     bit          read_latency_fixed             = '0;
     int unsigned reorder_latency_timeout        = '0;
     bit          reorder_window                 = '0;
-    int unsigned read_latency_max               = '0;
-    int unsigned read_latency_fixed             = '0;
+    int unsigned axi_sw_read_latency_max       = '0;
+    int unsigned axi_sw_read_latency_fixed     = '0;
     always @(posedge clk) begin
         if (sys_reset) begin
             /* verilator lint_off BLKSEQ */
-            read_latency_max = cvm_plusargs::get_int("axi_sw_read_latency_max");
-            read_latency_fixed  = cvm_plusargs::get_int("axi_sw_read_latency_fixed");
+            axi_sw_read_latency_max       = cvm_plusargs::get_int("axi_sw_read_latency_max");
+            axi_sw_read_latency_fixed     = cvm_plusargs::get_int("axi_sw_read_latency_fixed");
             read_latency_timeout_threshold = cvm_plusargs::get_int("axi_sw_read_latency_timeout_threshold");
             read_latency_fifo_threshold    = cvm_plusargs::get_int("axi_sw_read_latency_fifo_threshold");
             reorder_latency_timeout        = cvm_plusargs::get_int("axi_sw_reorder_timeout");
             reorder_window                 = cvm_plusargs::get_int("axi_sw_reorder_window") != 0;
             fast_b_response                = cvm_plusargs::get_bool("axi_sw_fast_write_response") != 0;
-            read_latency       = (fixed != 0) ? fixed : max;
-            read_latency_fixed = fixed != 0;
+            read_latency       = (axi_sw_read_latency_fixed != 0) ? axi_sw_read_latency_fixed : axi_sw_read_latency_max;
+            read_latency_fixed = axi_sw_read_latency_fixed != 0;
             /* verilator lint_on BLKSEQ */
             if (read_latency     >= (32'(1)) << CW                                ) $error("Error: +axi_sw_read_latency_max/+axi_sw_read_latency_fixed (%0d) overflows counter width (%0d)", read_latency, CW);
             if (read_latency != 0 && read_latency_timeout_threshold > read_latency) $error("Error: +axi_flush_threshold (%0d) > +axi_sw_read_latency_max/+axi_sw_read_latency_fixed (%0d)", read_latency_timeout_threshold, read_latency);
