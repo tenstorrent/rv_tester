@@ -176,6 +176,7 @@ module rv_tester
     int debug_enable = 0;
     bit dmi_driver_dbg_enable;
     int hart_enable_mask = 0;
+    int num_harts = 0;
     bit ntrace_stop_on_wrap = 0;
     int rand_dmi_driver_dly = 0;
     int sdtrig_multitrigger = 0;
@@ -192,6 +193,7 @@ module rv_tester
     int dmi_poll_timeout = 50000;
     logic dmi_poll_timeout_terminate;
     logic [31:0] dmi_commands_in_queue;
+    bit sdtrig_display = 0;
 
     int trace_timeout = 50000;
     int freq_switch_ncycles = 7000;
@@ -454,6 +456,7 @@ module rv_tester
             bypass_mem           <= cvm_plusargs::get_bool("bypass_mem") != '0;
             bypass_cache         <= cvm_plusargs::get_bool("bypass_cache") != '0;
             assertion_test_cycle <= cvm_plusargs::get_int("assertion_test_cycle");
+            sdtrig_display       <= cvm_plusargs::get_bool("sdtrig_display") != '0;
 
             dm_model_bypass      <= cvm_plusargs::get_bool("dm_model_check_bypass") != '0;
             debug_enable         <= cvm_plusargs::get_int("debug_enable");
@@ -465,6 +468,7 @@ module rv_tester
             hart_enable_mask     <= cvm_plusargs::get_int("hart_enable_mask");
             perf_count           <= '0;
             ntrace_stop_on_wrap  <= cvm_plusargs::get_bool("ntrace_stop_on_wrap_seq_en") != '0;
+            num_harts            <= cvm_plusargs::get_int("num_harts");
 
         end
         clock_mode      <= clk_profile[2:0];
@@ -733,6 +737,8 @@ module rv_tester
         .disable_abscmdpoll,
         .disable_triggerpoll,
         .terminate,
+        .num_harts,
+        .sdtrig_display,
 
         .dmi_req_ready,
         .dmi_resp_valid,
