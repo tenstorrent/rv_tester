@@ -32,7 +32,6 @@ import rv_tester_params::*;
   // C++->SV Callbacks
   // -------------------------
 
-  export "DPI-C" function jtag_driver_init;
   export "DPI-C" function jtag_driver_jtag_socket;
   export "DPI-C" function drive_jtag_req; 
   export "DPI-C" function drive_jtag_req_socket; 
