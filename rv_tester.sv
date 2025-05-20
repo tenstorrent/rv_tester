@@ -1407,7 +1407,9 @@ module rv_tester
         end
     endfunction
     `else
-        $display("Error: Compiled with NO_PRELOAD defined");
+        function void set_preload_data_file(); // some tools have problems with string arguments
+            $display("Error: Compiled with NO_PRELOAD defined");
+        endfunction
     `endif
 
     export "DPI-C" function set_preload_data_file;
@@ -1423,7 +1425,9 @@ module rv_tester
         end
     endfunction
     `else
-        $display("Error: Compiled with NO_PRELOAD defined");
+        function void set_preload_tag_file(); // some tools have problems with string arguments
+            $display("Error: Compiled with NO_PRELOAD defined");
+        endfunction
     `endif
 
     export "DPI-C" function set_preload_tag_file;
