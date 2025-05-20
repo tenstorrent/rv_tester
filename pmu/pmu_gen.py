@@ -60,6 +60,7 @@ for event in sc_events:
     if event:
         desc = event.split(',')
         sc_data_dict.append({"name": desc[1], "description": desc[2], "event_id": desc[0]})
+sc_data_dict.append({"name": "sc_tb_cycles", "description": "Event for each TB cycle", "event_id": -1})
 
 data_dict = core_data_dict + sc_data_dict
 
@@ -210,6 +211,7 @@ def create_sv_frag(events: List[Dict[Any, Any]], path="gen_events.sv", prefix=""
         if (SC_PMCI_ENABLED == 1) begin
              assign  pmcounters_scs[0].valid = pmcounters_cores[0].valid;
              assign pmcounters_scs[0].data.location = pmcounters_cores[0].data.location;
+             assign pmcounters_scs[0].data.sc_tb_cycles = 24'(clocks - tb_cycles_offset);
              assign pmcounters_scs[0].data.perf_start_sc = pmcounters_cores[0].data.perf_start;
              assign pmcounters_scs[0].data.perf_end_sc = pmcounters_cores[0].data.perf_end;
              assign pmcounters_scs[0].data.terminate_sc = terminate;

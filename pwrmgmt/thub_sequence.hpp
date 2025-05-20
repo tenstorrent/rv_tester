@@ -9,6 +9,8 @@
 #include "transactor.h"
 #include "svdpi.h"
 
+DECLARE_uint32(num_harts);
+
 namespace {
   constexpr uint32_t core_mcountinhibit         = 0x0000'0320;
   constexpr uint32_t core_mhpmevent10           = 0x0000'032A;

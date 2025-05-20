@@ -20,6 +20,7 @@ DEFINE_string(jtag_socket_ip, "", "Server's local IP address");
 DEFINE_int32(jtag_max_snippets, 1, "Maximum number of debug snippets to be driven");
 DEFINE_string(jtag_template_dir_path, "", "Path to file containing jtag_driver commands");
 DEFINE_string(jtag_txn_file, "", "File containing jtag transaction requests");
+DEFINE_string(jtag_disabled_snippets,"", "List of jtag snippets that needs to be disabled in randoms");
 
 extern "C" {
   void jtag_driver_init();
@@ -125,13 +126,22 @@ void jtag_sequence::get_all_csv_templates() {
   if (!std::filesystem::exists(directoryPath) || !std::filesystem::is_directory(directoryPath)) {
     throw std::invalid_argument("Invalid directory path");
   }
-
+  std::vector<std::string> jtag_disabled_snippets = {};
+  std::string token;
+  std::istringstream ss1(FLAGS_jtag_disabled_snippets);
+  while (std::getline(ss1, token, ',')) {
+    jtag_disabled_snippets.push_back(token);
+  }
   for (const auto& entry : std::filesystem::directory_iterator(directoryPath)) {
     if (entry.is_regular_file()) {
       std::string filename = entry.path().filename().string();
       if (filename.size() >= 4 && filename.substr(filename.size() - 4) == ".csv") {
-        csvFilePaths.push_back(entry.path().string());
-        cvm::log(cvm::NONE, "[jtag_sequence]Pushing file:{}\n", filename);
+        if (std::find(jtag_disabled_snippets.begin(), jtag_disabled_snippets.end(), filename) == jtag_disabled_snippets.end()) {
+          csvFilePaths.push_back(entry.path().string());
+          cvm::log(cvm::MEDIUM, "[jtag_sequence]Pushing file:{}\n", filename);
+        } else {
+          cvm::log(cvm::MEDIUM, "[jtag_sequence] Disabling snippet file:{}\n", filename);
+        }
       }
     }
   }
@@ -149,7 +159,7 @@ void jtag_sequence::parse_jtag_from_csv() {
   std::filesystem::path p(file_path);
   std::string filename = p.filename().string();
 
-  cvm::log(cvm::NONE, "[jtag_sequence]Parse JTAG Commands from CSV:{}\n", filename);
+  cvm::log(cvm::MEDIUM, "[jtag_sequence]Parse JTAG Commands from CSV:{}\n", filename);
   // std::fstream file (FLAGS_jtag_input_file_path, std::ios::in);
   std::fstream file(file_path, std::ios::in);
 
@@ -539,7 +549,7 @@ void jtag_sequence::drive_csv_jtag_cmds() {
             cond_log(cvm::MEDIUM, "[jtag_sequence] jtag check mask opcode Passed! expected 0x{:x} got 0x{:x} tap_select is {} \n", jtag_cm_value, (convertedArray[0] & lower_jtag_data), tapToString(tap_cfg_sel));
           } else {
             // FAIL
-            cvm::log(cvm::NONE, "\n[jtag_sequence] jtag check mask opcode: result {:#x} mask 0x{:x} expected 0x{:x} tap_select is {} \n", convertedArray[0], lower_jtag_data, jtag_cm_value, tapToString(tap_cfg_sel));
+            cvm::log(cvm::MEDIUM, "\n[jtag_sequence] jtag check mask opcode: result {:#x} mask 0x{:x} expected 0x{:x} tap_select is {} \n", convertedArray[0], lower_jtag_data, jtag_cm_value, tapToString(tap_cfg_sel));
             cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check mask opcode failed! expected 0x{:x} got 0x{:x} tap_select is {} \n", jtag_cm_value, (convertedArray[0] & lower_jtag_data), tapToString(tap_cfg_sel));
             jtag_quit();
           }
@@ -693,7 +703,7 @@ void jtag_sequence::drive_jtag_cmds() {
           cvm::log(cvm::MEDIUM, "[jtag_sequence] jtag check opcode Passed! expected {} got {} tap_sel is {}\n", lower_jtag_data, result, tapToString(tap_cfg_sel));
         } else {
           // FAIL
-          cvm::log(cvm::NONE, "[jtag_sequence] reg_length_data {} loop_rdata {} lower_jtag_data {} mask {} expression {}\n", reg_length_data, loop_rdata, lower_jtag_data, mask, (1 << reg_length_data));
+          cvm::log(cvm::MEDIUM, "[jtag_sequence] reg_length_data {} loop_rdata {} lower_jtag_data {} mask {} expression {}\n", reg_length_data, loop_rdata, lower_jtag_data, mask, (1 << reg_length_data));
           cvm::log(cvm::ERROR, "\nERROR: [jtag_sequence] jtag check opcode failed! expected {} got {} tap_sel{} \n", lower_jtag_data, result, tapToString(tap_cfg_sel));
           jtag_quit();
         }

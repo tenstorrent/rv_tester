@@ -522,6 +522,7 @@ import rv_tester_pkg::*;
         if (SC_PMCI_ENABLED == 1) begin
              assign  pmcounters_scs[0].valid = pmcounters_cores[0].valid;
              assign pmcounters_scs[0].data.location = pmcounters_cores[0].data.location;
+             assign pmcounters_scs[0].data.sc_tb_cycles = 24'(clocks - tb_cycles_offset);
              assign pmcounters_scs[0].data.perf_start_sc = pmcounters_cores[0].data.perf_start;
              assign pmcounters_scs[0].data.perf_end_sc = pmcounters_cores[0].data.perf_end;
              assign pmcounters_scs[0].data.terminate_sc = terminate;

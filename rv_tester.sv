@@ -203,7 +203,7 @@ module rv_tester
     logic streaming_dpi_shutdowned = 0;
 
     parameter int unsigned location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.ID, 0);
-    
+
     localparam int AxiLLC_SetAssociativity = 32'd4;
     localparam int AxiLLC_NumLines = 32'd128;
     localparam int blocks_in_cacheline = 512/topology.TOP.PLATFORM.AXI.DATA_WIDTH;
@@ -222,12 +222,12 @@ module rv_tester
     logic ntrace_terminate;
 
     reg [9:0] dut_reset_req_shift_reg;
-    
+
     always @(posedge dut_clk[AXI_CLK_IDX] or posedge cold_reset) begin
         /* verilator lint_off SYNCASYNCNET */
-        if (cold_reset) 
+        if (cold_reset)
             dut_reset_req_shift_reg <= {10{1'b0}};
-        else 
+        else
             dut_reset_req_shift_reg <= {dut_reset_req_shift_reg[8:0], dut_reset_req};
             /* verilator lint_on SYNCASYNCNET */
     end
@@ -256,7 +256,7 @@ module rv_tester
         clock_mode <= clock_mode + 1'b1;
         if(clock_mode == 3'b111)
           clock_mode <= '0;
-      end 
+      end
       /* verilator lint_on WIDTH */
     end
     `endif
@@ -273,7 +273,7 @@ module rv_tester
         clocks          <= clocks + 1;
 
         `ifndef NO_TIMESTAMP
-            current_time <= $time;    
+            current_time <= $time;
         `else
             current_time <= '0;
         `endif
@@ -298,7 +298,7 @@ module rv_tester
         num_resets <= num_resets + int'(warm_reset_now);
         if (warm_reset_en && (num_resets < 0)) begin
             num_resets          <= 0;
-        end 
+        end
 
         if (terminate && terminated) begin
             num_resets      <= -1;
@@ -338,7 +338,7 @@ module rv_tester
         end
     end
     /*
-    * 2-way DPI call used to periodically calculate the model performance 
+    * 2-way DPI call used to periodically calculate the model performance
     *   - perf_period: controls how often performance measurement it made.
     *       perf_period >  0 : measurement occurs periodically AND at the end of the test (termination)
     *       perf_period <= 0 : measurement only occurs at the end of the test (termination)
@@ -346,7 +346,7 @@ module rv_tester
     always @(posedge dut_clk[TB_CLK_IDX]) begin
         if (perf_init_done == 1'b0) begin
             if (rv_tester_reset) begin
-                perf_count <= perf_period - 32'h1; 
+                perf_count <= perf_period - 32'h1;
                 perf_retn  <= rv_tester_perf_calc(1,0,0, clocks);
                 perf_init_done <= 1'b1;
                 perf_reset_done <= 1'b0;
@@ -360,7 +360,7 @@ module rv_tester
                    perf_count <= perf_period - 32'h1;
                 end
             end
-            else 
+            else
             if (perf_reset_done == 1'b1) begin
                 perf_init_done <= 1'b0;
             end
@@ -371,7 +371,7 @@ module rv_tester
             end
             else begin
                 if (((perf_count == '0) & (perf_period > '0))) begin
-                    perf_count <= perf_period - 32'h1; 
+                    perf_count <= perf_period - 32'h1;
                     perf_retn  <= rv_tester_perf_calc(0,0,0, clocks);
                 end
                 else begin
@@ -399,11 +399,11 @@ module rv_tester
                 rv_tester_set_seed();
             rv_tester_cvm_error_handler();
 
-            if(num_builds < 0) begin 
+            if(num_builds < 0) begin
                $display("[RVTESTER]: constructing Full registry");
                rv_tester_build_registry();
                num_builds <= 0;
-            end 
+            end
             else begin
                $display("[RVTESTER]: constructing registry without DM Model");
                rv_tester_no_dm_build_registry();
@@ -455,9 +455,9 @@ module rv_tester
             bypass_mem           <= cvm_plusargs::get_bool("bypass_mem") != '0;
             bypass_cache         <= cvm_plusargs::get_bool("bypass_cache") != '0;
             assertion_test_cycle <= cvm_plusargs::get_int("assertion_test_cycle");
-            
+
             dm_model_bypass      <= cvm_plusargs::get_bool("dm_model_check_bypass") != '0;
-            debug_enable         <= cvm_plusargs::get_int("debug_enable"); 
+            debug_enable         <= cvm_plusargs::get_int("debug_enable");
             trace_en             <= cvm_plusargs::get_bool("trace_en") != '0;
             cla_en               <= (cvm_plusargs::get_bool("cla_rand_nmi_trig_en") != '0 ||  cvm_plusargs::get_bool("cla_nmi") != '0);
             overlay_mmr_en       <= cvm_plusargs::get_bool("overlay_mmr_en") != '0;
@@ -478,7 +478,7 @@ module rv_tester
         if (warm_reset_en && (num_resets < 0)) begin
             target_num_resets   <= cvm_rand::get("warm_reset_count");
         end
-        
+
     end
 
     /*
@@ -497,7 +497,7 @@ module rv_tester
             print_terminate_message <= '1;
         end
         if(cold_reset) begin //
-          dm_registery_terminate_message <= '1; 
+          dm_registery_terminate_message <= '1;
         end
         if (terminate_now && !terminated) begin
 
@@ -647,7 +647,7 @@ module rv_tester
         end else if (dut_reset_req && !ndmreset_ack_clocks_latched) begin
             ndmreset_ack_clocks <= clocks;
             ndmreset_ack_clocks_latched <= 1'b1;
-        end 
+        end
         //else begin
         //    ndmreset_ack_clocks_latched <= 1'b0;
         //    ndmreset_ack <= 1'b0;
@@ -823,7 +823,8 @@ module rv_tester
           .tb_clk(dut_clk[TB_CLK_IDX]),
           .clk(dut_clk[CORE_CLK_IDX]),
           .reset(sys_reset[TB_CLK_IDX] | reset_window),
-          .dut_reset(dut_reset[CORE_CLK_IDX]),
+          .dut_core_reset(dut_reset[CORE_CLK_IDX]),
+          .dut_reset(dut_reset[TB_CLK_IDX]),
           .clocks,
           .rvfi(rvfi[NRETS_CUMSUM[c] +: NRETS[c]]),
           .csri(csri[c]),
@@ -917,6 +918,7 @@ module rv_tester
         (
             .clk(dut_clk[REF_CLK_IDX]),
             .reset(reset[COLD_RESET_IDX]),
+            .warm_reset(reset[WARM_RESET_IDX]),
             .dut_clk(dut_clk[TB_CLK_IDX]),
             .dut_reset(dut_reset[TB_CLK_IDX]),
             .no_fetch(core_no_fetch[0]),
@@ -927,7 +929,7 @@ module rv_tester
             .jtag_resp,
           `RV_TESTER_TRANSACTIONS_JTAG_DRIVER_SOURCE_PORTS(2,0,0)
         );
-        
+
 
     overlay_driver #(
           .NUM(0),
@@ -942,7 +944,7 @@ module rv_tester
             .no_fetch(core_no_fetch[0]),
           `RV_TESTER_TRANSACTIONS_OVERLAY_DRIVER_SOURCE_PORTS(2,0,0)
         );
-        
+
     snoop_gen #(
             .NUM(0),
             `TOPOLOGY_CFG,
@@ -955,7 +957,7 @@ module rv_tester
             .core_no_fetch(core_no_fetch),
             `RV_TESTER_TRANSACTIONS_SNOOP_GEN_SOURCE_PORTS(2,0,0)
     );
-    
+
     trace #(
        .NUM(0),
        `TOPOLOGY_CFG,
@@ -970,7 +972,7 @@ module rv_tester
         .terminate_dst_trace_seq(terminate_dst_trace_seq),
         `RV_TESTER_TRANSACTIONS_TRACE_SOURCE_PORTS(2,0,0)
     );
-    
+
     cla #(
        .NUM(0),
        `TOPOLOGY_CFG,
@@ -1051,7 +1053,7 @@ module rv_tester
             `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PORTS(1, p, 0),
             `RV_TESTER_TRANSACTIONS_PMU_SC_SOURCE_PORTS(1, p, 0)
         );
-      end else begin : pmu_cX 
+      end else begin : pmu_cX
         pmu #(
             .NUM(p),
             .NRET(NRETS[p]),
