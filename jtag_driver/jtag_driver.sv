@@ -32,14 +32,9 @@ import rv_tester_params::*;
   // C++->SV Callbacks
   // -------------------------
 
-  export "DPI-C" function jtag_driver_init;
   export "DPI-C" function jtag_driver_jtag_socket;
   export "DPI-C" function drive_jtag_req; 
   export "DPI-C" function drive_jtag_req_socket; 
-
-  function void jtag_driver_init();
- 
-  endfunction
 
   function void jtag_driver_jtag_socket(bit val);
   endfunction
@@ -104,7 +99,6 @@ import rv_tester_params::*;
   always @(posedge clk) begin
     reset_d1 <= reset;
     if (reset || jtag_test_reset || jtag_hard_reset  || !jtag_driver_en) begin
-      jtag_driver_init();
       jtag_req.tms <= '0;
       jtag_req.tdi <= '0;
     end

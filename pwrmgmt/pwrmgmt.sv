@@ -33,11 +33,11 @@ import rv_tester_params::*;
       if (location != cvm_topology::nil) begin
         pwrmgmt_set_scope(location);
         pwrmgmt_set_reset_count(location, reset_count);
-        smc_axi_blocking_sequence_tick(0);
-        thub_blocking_sequence_tick(0);
+        smc_axi_blocking_sequence_tick_internal(0);
+        thub_blocking_sequence_tick_internal(0);
         if (reset_count < 0)
           //FIXME pwrmgmt_force_ref_clk(1);
-          pwrmgmt_init();
+          pwrmgmt_init_internal();
         if (warm_reset_en) begin
           warm_reset_interval = cvm_rand::get("warm_reset_interval");
           $display("[%0d] [pwrmgmt] Target warm reset count: %0d, current count: %0d, current interval: %0d TB clocks",
@@ -136,7 +136,7 @@ import rv_tester_params::*;
   export "DPI-C" function pwrmgmt_reset_hold;
   export "DPI-C" function pwrmgmt_force_ref_clk;
 
-  function void pwrmgmt_init();
+  function void pwrmgmt_init_internal();
       /* verilator lint_off BLKSEQ */
       force_ref_clk = '1;
       cold_reset    = '1;
@@ -144,6 +144,12 @@ import rv_tester_params::*;
       reset_hold    = '0;
       /* verilator lint_on BLKSEQ */
   endfunction
+
+
+  function void pwrmgmt_init();
+      pwrmgmt_init_internal();
+  endfunction
+
 
   function void pwrmgmt_cold_reset(bit val);
       cold_reset = val;
@@ -168,16 +174,25 @@ import rv_tester_params::*;
   export "DPI-C" function smc_axi_blocking_sequence_tick;
   export "DPI-C" function thub_blocking_sequence_tick;
 
-  function void smc_axi_blocking_sequence_tick(bit val);
+  function void smc_axi_blocking_sequence_tick_internal(bit val);
       /* verilator lint_off BLKSEQ */
       smc_axi_blocking_seq_tick = val;
       /* verilator lint_on BLKSEQ */
   endfunction
 
-  function void thub_blocking_sequence_tick(bit val);
+  function void smc_axi_blocking_sequence_tick(bit val);
+      smc_axi_blocking_sequence_tick_internal(val);
+  endfunction
+
+  function void thub_blocking_sequence_tick_internal(bit val);
       /* verilator lint_off BLKSEQ */
       thub_blocking_seq_tick = val;
       /* verilator lint_on BLKSEQ */
   endfunction
+
+  function void thub_blocking_sequence_tick(bit val);
+      thub_blocking_sequence_tick_internal(val);
+  endfunction
+
 
 endmodule

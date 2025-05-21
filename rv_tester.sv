@@ -1379,18 +1379,19 @@ module rv_tester
     string preload_data_file_arr [0:AxiLLC_SetAssociativity - 1]; // Declare an array for the preload data file names
     string preload_tag_file_arr [0:AxiLLC_SetAssociativity - 1]; // Declare an array for the preload tag file names
 
+    // Palladium doesn't want localparam int unsigned inside a function
+    localparam int unsigned AXI_AW = topology.TOP.PLATFORM.AXI.ADDR_WIDTH;
     function automatic void rv_tester_set_address_map(int unsigned i, longint unsigned start_addr, longint unsigned end_addr, int unsigned device);
-        localparam int unsigned AW = topology.TOP.PLATFORM.AXI.ADDR_WIDTH;
         addr_map[i] = '{
             idx       : device         ,
-            start_addr: AW'(start_addr),
-            end_addr  : AW'(end_addr  )
+            start_addr: AXI_AW'(start_addr),
+            end_addr  : AXI_AW'(end_addr  )
         };
 
         addr_map_idx1[i] = '{
             idx       : 1              ,
-            start_addr: AW'(start_addr),
-            end_addr  : AW'(end_addr  )
+            start_addr: AXI_AW'(start_addr),
+            end_addr  : AXI_AW'(end_addr  )
         };
 
     endfunction
@@ -1399,33 +1400,39 @@ module rv_tester
 
     export "DPI-C" function rv_tester_set_address_map;
 
-
-    function void set_preload_data_file(int unsigned way, string file);
     `ifndef NO_PRELOAD
+    function void set_preload_data_file(int unsigned way, string file);
         if (way < AxiLLC_SetAssociativity) begin
             preload_data_file_arr[way] = file;
             $display("%0t Preload data file for way %0d set to: %s", $time, way, file);
         end else begin
             $display("Error: Attempted to set preload file for invalid way %0d", way);
         end
-    `else
-        $display("Error: Compiled with NO_PRELOAD defined");
-    `endif
     endfunction
+    `else
+        function void set_preload_data_file(); // some tools have problems with string arguments
+            $display("Error: Compiled with NO_PRELOAD defined");
+        endfunction
+    `endif
+
     export "DPI-C" function set_preload_data_file;
 
-    function void set_preload_tag_file(int unsigned way, string file);
+
     `ifndef NO_PRELOAD
-    if (way < AxiLLC_SetAssociativity) begin
-        preload_tag_file_arr[way] = file;
-        $display("Preload data file for way %0d set to: %s", way, file);
-    end else begin
-        $display("Error: Attempted to set preload file for invalid way %0d", way);
-    end
-    `else
-        $display("Error: Compiled with NO_PRELOAD defined");
-    `endif
+    function void set_preload_tag_file(int unsigned way, string file);
+        if (way < AxiLLC_SetAssociativity) begin
+            preload_tag_file_arr[way] = file;
+            $display("Preload data file for way %0d set to: %s", way, file);
+        end else begin
+            $display("Error: Attempted to set preload file for invalid way %0d", way);
+        end
     endfunction
+    `else
+        function void set_preload_tag_file(); // some tools have problems with string arguments
+            $display("Error: Compiled with NO_PRELOAD defined");
+        endfunction
+    `endif
+
     export "DPI-C" function set_preload_tag_file;
 
     rv_tester_mem #(
