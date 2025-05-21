@@ -194,6 +194,7 @@ module rv_tester
     logic dmi_poll_timeout_terminate;
     logic [31:0] dmi_commands_in_queue;
     bit sdtrig_display = 0;
+    bit nonexistent_hart = 0;
 
     int trace_timeout = 50000;
     int freq_switch_ncycles = 7000;
@@ -439,6 +440,7 @@ module rv_tester
             disable_haltpoll     <= cvm_plusargs::get_bool("disable_haltpoll") != '0;
             disable_abscmdpoll   <= cvm_plusargs::get_bool("disable_abscmdpoll") != '0;
             disable_triggerpoll  <= cvm_plusargs::get_bool("disable_triggerpoll") != '0;
+            nonexistent_hart     <= cvm_plusargs::get_bool("nonexistent_hart") != '0;
             sdtrig_multitrigger  <= cvm_plusargs::get_int("sdtrig_multitrigger");
             dm_single_step_count <= cvm_plusargs::get_int("dm_single_step_count");
             cb_poll              <= cvm_plusargs::get_bool("cb_async") == '0;
@@ -739,6 +741,7 @@ module rv_tester
         .terminate,
         .num_harts,
         .sdtrig_display,
+        .nonexistent_hart,
 
         .dmi_req_ready,
         .dmi_resp_valid,

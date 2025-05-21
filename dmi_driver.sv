@@ -22,6 +22,8 @@ import rv_tester_params:: * ;
     input logic                     terminate,
     input logic [31:0]              num_harts,
     input logic                     sdtrig_display,
+    input logic                     nonexistent_hart,
+
     
     input logic                     dmi_req_ready,
     input logic                     dmi_resp_valid,
@@ -75,7 +77,7 @@ import rv_tester_params:: * ;
   logic check_hartsellen, check_dmstatus_disc, hart_discovery, dmcontrol_hartsel;
   logic expect_cmd_err_excp, exception_illegal, read_cmisa_sdtrig, check_cmisa_sdtrig, cmisa_sdtrig_disabled;
 
-  logic rvfi_sdtrig, disable_mem_access_checker, sdtrig_progbuf_exec;
+  logic rvfi_sdtrig, disable_mem_access_checker, sdtrig_progbuf_exec, read_hartsel;
   logic [7:0] rvfi_sdtrig_core;
   int file_descr, count_hart_enable_mask, dmi_command_in_step_ahead_queue_size, dmi_command_in_step_quit_queue_size, single_step_instr_cnt_plusarg, total_triggers_plusarg,num_dm_randpc_plsg, num_dm_randload_plsg, num_dm_randstore_plsg, tselect_conf_plusarg, multitriggers_plusarg;
   int trigger_counter, command_in_sdtrig_entry_queue_size, command_in_sdtrig_trigger_queue_size, total_command_in_sdtrig_trigger_queue_size, command_in_sdtrig_progbuf_queue_size;
@@ -83,7 +85,7 @@ import rv_tester_params:: * ;
   logic check_hit_for_tselect, to_check_tselect, read_tselect, to_check_hit, check_hit_bit, read_tdata1_hit;
 
   logic mmr_write_32bits, mmr_write_64bits, check_data0, check_data1, get_data1, mmr_read_32bits, mmr_read_64bits, mmr_access_rd, read_data1, read_data0_comp, read_data1_comp;
-  logic ss_ndmreset;
+  logic ss_ndmreset, modify_hartsel;
   logic read_data2, read_data3, get_data2, get_data3, end_of_test_cleanup;
   int data0_value, data1_value, hart_enable_mask_value, data2_value, data3_value, core_id_hit, core_hartsel_hit;
   logic [7:0] DM_DebugReq_Valids_q;
@@ -205,6 +207,8 @@ import rv_tester_params:: * ;
       terminate_align <= 0;
       tdata1_write <= 0;
       sdtrig_progbuf_exec <= 0;
+      read_hartsel <= 0;
+      modify_hartsel <= 0;
       
       command_queue.delete();
       response_queue.delete();
@@ -420,6 +424,10 @@ import rv_tester_params:: * ;
             core_haltg_hreq = 1;
             poll = 1;
           end
+        end else if(nonexistent_hart && cmd.addr === 'h10 && cmd.op === 'h1) begin
+          read_hartsel = 1;
+          poll = 1;
+          $display("[Poll] Poll for core0 to be halted");
         end else if (cmd.addr === 'h10 && cmd.op === 'h2 && cmd.data[30] === '1) begin
           core_rg_check = cmd.data[25:16];
           if(~core_in_resume_grp[core_rg_check]) begin
@@ -741,6 +749,9 @@ import rv_tester_params:: * ;
         end else if(read_cmisa_sdtrig) begin
           $display("[Poll] data0 read value to check sdtrig field in cmisa csr");
           dmi_req <= 41'h1100000000;
+        end else if (read_hartsel) begin
+          $display("[Poll] Read dmcontrol to check hartsel to be 0");
+          dmi_req <= 41'h4100000000;
         end
         wait (dmi_req_ready == 1);
         @(posedge clk) dmi_req_valid <= '0;
@@ -800,6 +811,11 @@ import rv_tester_params:: * ;
               $display("[Poll] Clear Halt Req Poll");
             end
           end
+        end else if (read_hartsel) begin
+          dm_hartsel = dmi_resp.data[25:16];
+          $display("[Poll] read dm_hartsel: %0d after sending haltreq to core8", dm_hartsel);
+          modify_hartsel = 1;
+          poll = 0;
         end else if (abstr_cmd_req) begin
           if(hart_enable_mask_value[dm_hartsel]) begin
             $display("[Poll] Selected hart is enabled and busy should be cleared");
@@ -1231,6 +1247,11 @@ import rv_tester_params:: * ;
         end
         $display("[DMI Execution] Popped Cmd ==> addr:%h op:%h data:%h", command.addr, command.op,
                  command.data);
+        if(modify_hartsel) begin
+          command.data[25:16] = dm_hartsel;
+          modify_hartsel = 0;
+          $display("[DMI Execution] Modified dmcontrol after selecting nonexistent core ==> data:%h", command.data);
+        end
         if (command.op == 'h3) begin
           $display("[DMI Execution] Encountered Debug Checkopoint, Switching Control to Assembly");
           break;
