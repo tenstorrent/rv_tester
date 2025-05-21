@@ -113,8 +113,8 @@ class whisperClient {
     bool whisperMcmDEvict(int hart, uint64_t time, uint64_t addr, bool& valid);
     bool whisperMcmEnd(int hart, uint64_t time, bool& valid);
     bool whisperInjectException(int hart, bool isLoad, uint64_t code, unsigned elemIx, uint64_t addr, bool& valid);
-    bool whisperPoke(int hart, uint64_t time, char resource, uint64_t addr, uint64_t value, bool& valid);
-    bool whisperPokeMem(int hart, uint64_t time, char resource, uint64_t addr, unsigned size, uint64_t value, bool& valid);
+    bool whisperPoke(int hart, uint64_t time, char resource, uint64_t addr, uint64_t value, bool cache, bool& valid);
+    bool whisperPokeMem(int hart, uint64_t time, char resource, uint64_t addr, unsigned size, uint64_t value, bool cache, bool& valid);
     bool whisperPeek(int hart, char resource, uint64_t addr, uint64_t& value, bool& valid);
     bool whisperPeekPc(int hart, uint64_t& value);
     bool whisperPeekCsr(int hart, uint64_t addr, uint64_t& value, uint64_t& mask, uint64_t& reset_value, uint64_t& read_mask, bool& valid);
@@ -175,8 +175,8 @@ class whisperClient {
     CVM_MESSENGER_procedure_call(whisperMcmDEvictRPC, bool (int, uint64_t, uint64_t, bool&));
     CVM_MESSENGER_procedure_call(whisperMcmEndRPC, bool (int, uint64_t, bool&));
     CVM_MESSENGER_procedure_call(whisperInjectExceptionRPC, bool (int, bool, uint64_t, unsigned, uint64_t, bool&));
-    CVM_MESSENGER_procedure_call(whisperPokeRPC, bool (int, uint64_t, char, uint64_t, uint64_t, bool&));
-    CVM_MESSENGER_procedure_call(whisperPokeMemRPC, bool (int, uint64_t, char, uint64_t, unsigned, uint64_t, bool&));
+    CVM_MESSENGER_procedure_call(whisperPokeRPC, bool (int, uint64_t, char, uint64_t, uint64_t, bool, bool&));
+    CVM_MESSENGER_procedure_call(whisperPokeMemRPC, bool (int, uint64_t, char, uint64_t, unsigned, uint64_t, bool, bool&));
     CVM_MESSENGER_procedure_call(whisperPeekRPC, bool (int, char, uint64_t, uint64_t&, bool&));
     CVM_MESSENGER_procedure_call(whisperPeekPcRPC, bool (int, uint64_t& value));
     CVM_MESSENGER_procedure_call(whisperPeekCsrRPC, bool (int, uint64_t, uint64_t&, uint64_t&, uint64_t&, uint64_t&, bool&));
