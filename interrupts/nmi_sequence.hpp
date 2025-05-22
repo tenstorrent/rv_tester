@@ -29,7 +29,6 @@ class nmi_sequence {
     cvm::messenger::task<void> uarch_trigger_mode();
 
     cvm::messenger::task<void> assert_tick();
-    cvm::messenger::task<void> trigger_tick();
     cvm::messenger::task<void> trigger();
     cvm::messenger::task<void> reset();
 
@@ -47,5 +46,4 @@ class nmi_sequence {
     svScope scope_;
 
     uint32_t nmi_count_ = 0;
-//    uint32_t nmi_interval = 0;
 };
