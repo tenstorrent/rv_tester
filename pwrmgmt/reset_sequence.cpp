@@ -269,7 +269,7 @@ cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
   co_await init_mmr();
   co_await rmw_mmr();
   co_await program_fe_resetvector();
-  co_await program_mtime(rst_type);
+  // co_await program_mtime(rst_type); FIXME
   co_await release_cpl_nofetch();
   co_await tick();
   co_return;
