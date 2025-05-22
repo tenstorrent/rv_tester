@@ -57,6 +57,14 @@ extern "C" {
   uint8_t pwrmgmt_get_warm_reset_en(const char* mode) {
     return (std::string(mode) != "off");
   }
+
+  uint8_t pwrmgmt_get_pwrmgmt_en_from_plusargs(const char* m) {
+    const char* mode = cvm_plusargs_get_string(m);
+    if (!mode) {
+      return false;
+    }
+    return (std::string(mode) != "off");
+  }
 }
 
 reset_sequence::reset_sequence(cvm::topology::loc_t loc, unsigned) : loc_(loc), scope_(nullptr) {
