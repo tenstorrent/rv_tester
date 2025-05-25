@@ -1016,6 +1016,7 @@ module rv_tester
         .cl_clk(dut_clk[CORE_CLK_IDX]),
         .rf_clk(dut_clk[REF_CLK_IDX]),
         .reset(sys_reset[TB_CLK_IDX]),
+        .cold_resetn(~cold_reset),
         .warm_reset(AcWarmReset),
         .dut_reset(dut_reset[REF_CLK_IDX]),
         .terminate,
