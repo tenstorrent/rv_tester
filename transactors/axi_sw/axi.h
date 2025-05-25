@@ -6,7 +6,7 @@
 #include <functional>
 #include <unordered_map>
 #include "transactor.h"
-#include "address_error_policy.h"
+#include "bus_error_list.h"
 #include "cvm/bitmanip.hpp"
 #include "cvm/messenger.hpp"
 
