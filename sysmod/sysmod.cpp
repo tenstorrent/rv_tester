@@ -31,6 +31,8 @@
 #include "sysmod_params.hpp"
 #include "cosim/bridge/bridge_plusargs.h"
 #include "rv_tester_transactions.hpp"
+#include <sys/socket.h>
+#include <sys/un.h>
 
 // internal flags
 DEFINE_uint64(seed, 1, "Simulation seed passed down for randomization");
@@ -82,7 +84,7 @@ DEFINE_bool(sysmod_terminate, true, "Set to false for offline DPI mode");
 // APLIC
 DEFINE_uint32(aplic_sources, 127, "Number of APLIC interrupt sources");
 // Uart8250
-DEFINE_bool(uart8250, false, "Whether to enable uart8250 devices found in the memory map");
+DEFINE_bool(uart8250_sock, false, "Enable uart8250 spawning a unix domain socket server for I/O");
 DEFINE_uint32(uart8250_iid, 1, "Interrupt identity of the uart8250 device");
 DEFINE_uint64(dm_rand_addr, 0x9080500, "(Trickbox) Random address for DM: PC/Load/Store");;
 
@@ -917,10 +919,51 @@ sysmod::compose() {
         device = std::make_unique<htif>(tag, base, loc_);
 
       } else if (type == "uart8250") {
-        if (FLAGS_uart8250)
-          device = std::make_unique<io_device<WdRiscv::Uart8250>>(tag, loc_,
-              base, 32, aplic, FLAGS_uart8250_iid,
-              std::make_unique<WdRiscv::PTYChannel>());
+        std::unique_ptr<WdRiscv::UartChannel> channel;
+        if (FLAGS_uart8250_sock) {
+          auto absolutePath = std::filesystem::absolute("uart8250.sock").string();
+          // Create unix socket at this path and accept connection
+          auto sock = socket(AF_UNIX, SOCK_STREAM, 0);
+          if (sock < 0) {
+            cvm::log(cvm::ERROR, "Error: failed to create uart8250 socket\n");
+            return;
+          }
+          struct sockaddr_un addr;
+          memset(&addr, 0, sizeof(addr));
+          addr.sun_family = AF_UNIX;
+          strncpy(addr.sun_path, absolutePath.c_str(), sizeof(addr.sun_path) - 1);
+          if (bind(sock, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+            cvm::log(cvm::ERROR, "Error: failed to bind uart8250 socket\n");
+            return;
+          }
+          if (listen(sock, 1) < 0) {
+            cvm::log(cvm::ERROR, "Error: failed to listen on uart8250 socket\n");
+            return;
+          }
+
+          cvm::log(cvm::NONE, "TEE_IO:{}\n", absolutePath);
+          cvm::log(cvm::NONE, "TTY_RAW\n", absolutePath);
+          // Flush to guarantee simtest sees the above output
+          std::flush(std::cout);
+
+          channel = std::make_unique<WdRiscv::SocketChannel>(sock);
+
+          if (close(sock) < 0) {
+            cvm::log(cvm::ERROR, "Error: failed to close uart8250 socket\n");
+            return;
+          }
+          if (unlink(absolutePath.c_str()) < 0) {
+            cvm::log(cvm::ERROR, "Error: failed to unlink uart8250 socket\n");
+            return;
+          }
+        } else {
+          channel = std::make_unique<WdRiscv::FDChannel>(STDIN_FILENO, STDOUT_FILENO);
+        }
+
+        device = std::make_unique<io_device<WdRiscv::Uart8250>>(tag, loc_,
+            base, 32, aplic, FLAGS_uart8250_iid, std::move(channel),
+            // We only enable input when using a socket; When using stdio, we only output
+            FLAGS_uart8250_sock);
       } else if (type == "dm") {
         // TODO: cvm::ERROR
        // assert(masters.size() > 0);
