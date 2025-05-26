@@ -409,167 +409,20 @@ package rv_tester_params;
     // --------------------------------------
     // CSRI - Control Status Registers
     // --------------------------------------
-    typedef enum {
-        FFLAGS,
-        FRM,
-        FCSR,
-        VSTART,
-        VXSAT,
-        VXRM,
-        VCSR,
-        SSTATUS,
-        STVEC,
-        SCOUNTEREN,
-        SSCRATCH,
-        SEPC,
-        SCAUSE,
-        STVAL,
-        SIP,
-        SATP,
-        VSSTATUS,
-        VSEPC,
-        VSCAUSE,
-        VSATP,
-        MSTATUS,
-        MEDELEG,
-        MIDELEG,
-        MTVEC,
-        MCOUNTEREN,
-        MHPMEVENT3,
-        MHPMEVENT4,
-        MHPMEVENT5,
-        MHPMEVENT6,
-        MHPMEVENT7,
-        MHPMEVENT8,
-        MHPMEVENT9,
-        MHPMEVENT10,
-        MHPMEVENT11,
-        MHPMEVENT12,
-        MHPMEVENT13,
-        MHPMEVENT14,
-        MHPMEVENT15,
-        MHPMEVENT16,
-        MHPMEVENT17,
-        MHPMEVENT18,
-        MHPMEVENT19,
-        MHPMEVENT20,
-        MHPMEVENT21,
-        MHPMEVENT22,
-        MHPMEVENT23,
-        MHPMEVENT24,
-        MHPMEVENT25,
-        MHPMEVENT26,
-        MHPMEVENT27,
-        MHPMEVENT28,
-        MHPMEVENT29,
-        MHPMEVENT30,
-        MHPMEVENT31,
-        MHPMCOUNTER3,
-        MHPMCOUNTER4,
-        MHPMCOUNTER5,
-        MHPMCOUNTER6,
-        MHPMCOUNTER7,
-        MHPMCOUNTER8,
-        MHPMCOUNTER9,
-        MHPMCOUNTER10,
-        MHPMCOUNTER11,
-        MHPMCOUNTER12,
-        MHPMCOUNTER13,
-        MHPMCOUNTER14,
-        MHPMCOUNTER15,
-        MHPMCOUNTER16,
-        MHPMCOUNTER17,
-        MHPMCOUNTER18,
-        MHPMCOUNTER19,
-        MHPMCOUNTER20,
-        MHPMCOUNTER21,
-        MHPMCOUNTER22,
-        MHPMCOUNTER23,
-        MHPMCOUNTER24,
-        MHPMCOUNTER25,
-        MHPMCOUNTER26,
-        MHPMCOUNTER27,
-        MHPMCOUNTER28,
-        MHPMCOUNTER29,
-        MHPMCOUNTER30,
-        MHPMCOUNTER31,
-        MSCRATCH,
-        MEPC,
-        MCAUSE,
-        MTVAL,
-        MIP,
-        SCONTEXT,
-        CSATPSPEC,
-        CXTVALSPEC,
-        CXTVAL2SPEC,
-        HSTATUS,
-        HIDELEG,
-        HTINST,
-        HCONTEXT,
-        MSECCFG,
-        TSELECT,
-        TDATA1,
-        TDATA2,
-        TDATA3,
-        TINFO,
-        TCONTROL,
-        MCONTEXT,
-        DCSR,
-        DPC,
-        DSCRATCH0,
-        DSCRATCH1,
-        CDTVEC,
-        CPRIV,
-        VL_CSR,
-        VTYPE_CSR,
-        VLENB,
-        STOPI,
-        VSTOPI,
-        MVENDORID,
-        MARCHID,
-        MIMPID,
-        MHARTID,
-        MCONFIGPTR,
-        MTOPI,
-        MTINST,
-        CMCTHRCFG0,
-        CPINSTR,
-        CPSTATUS,
-        CPCAUSE,
-        CXINSTSPEC,
-        CXEPCSPEC,
-        CXCAUSESPEC,
-        CMCRESOURCEERROR,
-        CASYNCINTSTATUS,
-        CXSTATUSSPEC,
-        MCYCLE,
-        MINSTRET,
-        CENTROPY,
-        CFECFG,
-        SEED,
-        SIE,
-        MISA,
-        MIE,
-        MVIP,
-        HVIP,
-        STOPEI,
-        VSTOPEI,
-        MTOPEI,
-        TIME,
-        SCOUNTOVF,
-        HGEIP,
-        CNMIVEC,
-        CNMEVEC,
-        CSR_COUNT
-    } csr_list_t;
+    parameter bit [31:0] NCSRI = mods.TOP.PLATFORM.CSRI.NCSRI;
+
     typedef struct packed {
-        logic                       valid;
-        logic [CSRLEN-1:0]          addr;
-        logic [XLEN-1:0]            data;
-        logic [XLEN-1:0]            mask;
+    logic [CSRLEN-1:0] addr;
+    logic [XLEN-1:0]   mask;
+    logic [XLEN-1:0]   data;
+    } csri_data_pkt_t;
+
+    typedef struct packed {
+        csri_data_pkt_t data; 
+        logic           valid;
     } csr_entry_t;
 
-    typedef csr_entry_t [CSR_COUNT-1:0] csri_t;
+    typedef csr_entry_t [NCSRI-1:0] csri_t;
 
     // --------------------------------------
     // PMCI - Performance Monitoring Counters
@@ -1044,7 +897,7 @@ package rv_tester_params;
     input                                    dmi_req_valid,                                         \
     input  rv_tester_pkg::dmi_req_t          dmi_req,                                               \
     input                                    dmi_resp_ready,                                        \
-    output [7:0]                             DM_DebugReq_Valids,                                  \
+    output [7:0]                             DM_DebugReq_Valids,                                    \
     output rv_tester_params::rvfi_t          [rv_tester_params::TOTAL_NRETS-1:0]      rvfi,         \
     output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NREADS-1:0]     mcmi_read,    \
     output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NINSERTS-1:0]   mcmi_insert,  \

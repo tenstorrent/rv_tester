@@ -38,7 +38,7 @@ cosim:
 
     m_csri:
         domain: 1
-        num: ${max(TOP.PLATFORM.COSIM.RVFI.NRETS) + TOP.PLATFORM.MAX_CSR_AFTER_NRET}
+        num: ${TOP.PLATFORM.CSRI.NCSRI}
         fields:
             cycle:
                 width: 64
