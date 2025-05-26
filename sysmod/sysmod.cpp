@@ -192,7 +192,8 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
                       }
                     }
                     cvm::log(cvm::HIGH, "[sysmod] write: src={} addr={:#x}, data={}\n", source, w.addr,d);
-                    cvm::registry::messenger.signal<device::write_t>(this->loc_, {w.addr & ~FLAGS_pa_mask, w.length, w.data, w.strb});
+                    w.addr = w.addr & ~FLAGS_pa_mask; // STEE : RVDE-24052
+                    cvm::registry::messenger.signal<device::write_t>(this->loc_, {w});
                 }
         });
         cvm::registry::messenger.connect<transactor::read_t>(
