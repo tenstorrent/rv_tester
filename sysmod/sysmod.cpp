@@ -185,7 +185,13 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
             source,
             [this, source](const auto& w) {
                 if (this->dev(w.addr)) {
-                    cvm::log(cvm::HIGH, "[sysmod] write: src={} addr={:#x}\n", source, w.addr);
+                    std::string d;
+                    if (cvm::logger::check_verbosity(cvm::FULL)) {
+                      for (int i=w.data.size()-1; i>=0; i--) {
+                        d += fmt::format("{:02x}", w.data[i]);
+                      }
+                    }
+                    cvm::log(cvm::HIGH, "[sysmod] write: src={} addr={:#x}, data={}\n", source, w.addr,d);
                     cvm::registry::messenger.signal<device::write_t>(this->loc_, {w});
                 }
         });
