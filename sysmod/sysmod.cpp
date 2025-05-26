@@ -189,7 +189,7 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
                     for (int i=w.data.size()-1; i>=0; i--) {
                       d += fmt::format("{:02x}", w.data[i]);
                     }
-                    cvm::log(cvm::HIGH, "[sysmod] write: src={} addr={:#x, data={}\n", source, w.addr,d);
+                    cvm::log(cvm::HIGH, "[sysmod] write: src={} addr={:#x}, data={}\n", source, w.addr,d);
                     cvm::registry::messenger.signal<device::write_t>(this->loc_, {w});
                 }
         });
