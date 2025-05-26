@@ -409,7 +409,7 @@ package rv_tester_params;
     // --------------------------------------
     // CSRI - Control Status Registers
     // --------------------------------------
-    parameter bit [31:0] NCSRI = mods.TOP.PLATFORM.CSRI.NCSRI;
+    parameter bit [31:0] MAX_NCSRI = mods.TOP.PLATFORM.CSRI.NCSRI;
 
     typedef struct packed {
     logic [CSRLEN-1:0] addr;
@@ -422,7 +422,7 @@ package rv_tester_params;
         logic           valid;
     } csr_entry_t;
 
-    typedef csr_entry_t [NCSRI-1:0] csri_t;
+    typedef csr_entry_t [MAX_NCSRI-1:0] csri_t;
 
     // --------------------------------------
     // PMCI - Performance Monitoring Counters
