@@ -58,6 +58,9 @@ axi::axi(const data_width_t& data_width, const cvm::topology::loc_t loc, const s
 }
 
 void axi::setup_error_lists() {
+    cvm::log(cvm::HIGH, "[axi] configure error resp: slverr={}\n", FLAGS_axi_resp_slverr_addr);
+    cvm::log(cvm::HIGH, "[axi] configure error resp: decerr={}\n", FLAGS_axi_resp_decerr_addr);
+
     slverr_list_.parse(FLAGS_axi_resp_slverr_addr);
     decerr_list_.parse(FLAGS_axi_resp_decerr_addr);
 
@@ -75,9 +78,6 @@ void axi::setup_error_lists() {
 }
 
 void axi::configure_error() {
-    cvm::log(cvm::HIGH, "[axi] configure error resp: slverr={}\n", FLAGS_axi_resp_slverr_addr);
-    cvm::log(cvm::HIGH, "[axi] configure error resp: decerr={}\n", FLAGS_axi_resp_decerr_addr);
-
     // Clear existing ranges before parsing new ones to avoid accumulation
     slverr_list_ = bus_error_list<NUM_ACCESS_TYPES>();
     decerr_list_ = bus_error_list<NUM_ACCESS_TYPES>();
@@ -87,12 +87,12 @@ void axi::configure_error() {
 
 void axi::enable_error() {
     error_en_ = true;
-    cvm::log(cvm::HIGH, "[axi] enable error resp\n");
+    cvm::log(cvm::HIGH, "[axi] enable error resp for {}\n", tag_);
 }
 
 void axi::disable_error() {
     error_en_ = false;
-    cvm::log(cvm::HIGH, "[axi] disable error resp\n");
+    cvm::log(cvm::HIGH, "[axi] disable error resp for {}\n", tag_);
 }
 
 axi::~axi() {
