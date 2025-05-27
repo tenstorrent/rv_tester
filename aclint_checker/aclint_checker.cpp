@@ -18,6 +18,7 @@ extern "C" {
     uint64_t get_mtime_value();
     uint64_t get_ctime_value();
     void update_ctime_value(uint64_t value);
+    int get_hart_enable_ids(const char* input_str, int* result);
 }
 
 aclint_checker::aclint_checker(cvm::topology::loc_t loc, unsigned) {
@@ -342,4 +343,20 @@ extern "C" void aclint_checker_scope(cvm::topology::loc_t loc) {
     cvm::log(cvm::HIGH, "Getting ACLINT CHECKER scope\n");
     svScope scope = svGetScope();
     cvm::registry::messenger.signal<svScope>(loc, scope);
+}
+
+extern "C" int get_hart_enable_ids(const char* input_str, int* result) {
+    std::vector<uint32_t> numbers;
+    std::istringstream ss(input_str);
+    std::string token;
+    while (std::getline(ss, token, ',')) {
+      if (token != "") {
+        uint32_t t = std::stoull(token);
+        numbers.push_back(t);
+      }
+    }
+    for (size_t i = 0; i < numbers.size(); ++i) {
+      result[i] = numbers[i];
+    }
+    return numbers.size();
 }

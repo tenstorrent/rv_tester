@@ -185,8 +185,17 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
             source,
             [this, source](const auto& w) {
                 if (this->dev(w.addr)) {
-                    cvm::log(cvm::HIGH, "[sysmod] write: src={} addr={:#x}\n", source, w.addr);
-                    cvm::registry::messenger.signal<device::write_t>(this->loc_, {w});
+                    std::string d;
+                    if (cvm::logger::check_verbosity(cvm::FULL)) {
+                      for (int i=w.data.size()-1; i>=0; i--) {
+                        d += fmt::format("{:02x}", w.data[i]);
+                      }
+                    }
+                    cvm::log(cvm::HIGH, "[sysmod] write: src={} addr={:#x}, data={}\n", source, w.addr,d);
+                    transactor::write_t w_pkt;
+                    w_pkt = w;
+                    w_pkt.addr = w.addr & ~FLAGS_pa_mask; // STEE : RVDE-24052
+                    cvm::registry::messenger.signal<device::write_t>(this->loc_, {w_pkt});
                 }
         });
         cvm::registry::messenger.connect<transactor::read_t>(

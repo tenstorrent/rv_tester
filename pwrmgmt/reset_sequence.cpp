@@ -269,7 +269,7 @@ cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
   co_await init_mmr();
   co_await rmw_mmr();
   co_await program_fe_resetvector();
-  // co_await program_mtime(rst_type); FIXME causing reproducibility issue for interrrupts
+  co_await program_mtime(rst_type);
   co_await release_cpl_nofetch();
   co_await tick();
   co_return;
@@ -353,10 +353,12 @@ cvm::messenger::task<void> reset_sequence::check_pll_status() {
 
 cvm::messenger::task<void> reset_sequence::program_mtime(rst_t rst_type) {
   // Writing random non-zero time value to ACLINT Mtime before No-fetch release
-  uint64_t rand_mtime = ((rand()%1000) + 500) * 10;
+  cvm::rand::uniform_dist<uint32_t> aclint_mtime(5000, 10000);
+  uint64_t rand_mtime  = aclint_mtime();
 
   if(rst_type == WARM) {
-    rand_mtime = ((rand()%9999) + 50000) * 10;
+    cvm::rand::uniform_dist<uint32_t> aclint_mtime(50000, 100000);
+    rand_mtime = aclint_mtime();
     co_await write(aclint_mtime_mmr, SZ_8B, rand_mtime);
   }
   else { // COLD Reset
