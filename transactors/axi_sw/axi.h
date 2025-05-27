@@ -220,7 +220,7 @@ class axi : public transactor {
 
        int num_slverr_resp_{0};
        int num_decerr_resp_{0};
-       bool error_en_{false};
+       bool error_en_{true};
 
     public:
 

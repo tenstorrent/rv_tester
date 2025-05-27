@@ -7,6 +7,7 @@
 #include <regex>
 #include "axi.h"
 #include "cvm/logger.hpp"
+#include "rv_tester/rv_tester_plusargs.h"
 
 // Error responses
 DEFINE_string(axi_resp_slverr_addr, "", "List of addresses that need slverr response, can be a single value or a range. Ex: 0x1000,0x2000-0x3000");
@@ -55,11 +56,15 @@ axi::axi(const data_width_t& data_width, const cvm::topology::loc_t loc, const s
 
     hang_list_.parse(FLAGS_axi_resp_hang_addr);
     setup_error_lists();
+    // Enable when test start label is observed
+    if (FLAGS_test_start_label != "") {
+        disable_error();
+    }
 }
 
 void axi::setup_error_lists() {
-    cvm::log(cvm::HIGH, "[axi] configure error resp: slverr={}\n", FLAGS_axi_resp_slverr_addr);
-    cvm::log(cvm::HIGH, "[axi] configure error resp: decerr={}\n", FLAGS_axi_resp_decerr_addr);
+    cvm::log(cvm::MEDIUM, "[axi] configure error resp: slverr={}\n", FLAGS_axi_resp_slverr_addr);
+    cvm::log(cvm::MEDIUM, "[axi] configure error resp: decerr={}\n", FLAGS_axi_resp_decerr_addr);
 
     slverr_list_.parse(FLAGS_axi_resp_slverr_addr);
     decerr_list_.parse(FLAGS_axi_resp_decerr_addr);
