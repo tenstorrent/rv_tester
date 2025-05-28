@@ -644,7 +644,7 @@ sysmod::store_inval_crsp(const inval_crsp_s& payld, bool mcm) {
      bool valid = true;
      cvm::log(cvm::FULL, "[CBO_INVAL_MONITOR - CRSP POKE] Whisper Poke to Address : {:#x}, with data : {:#x}\n",(ld_addr + (offset*8)),read_data);
      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(wc_loc_, 0, 0, 'm', (ld_addr + (offset*8)), 8, read_data, valid) || !valid) && FLAGS_whisper_client_check) {
-       cvm::log(cvm::ERROR, "Error: store_inval_crsp failed to poke whisper memory");
+       cvm::log(cvm::ERROR, "Error: [sysmod] store_inval_crsp failed to poke whisper memory");
     }
   }
 }
@@ -671,7 +671,7 @@ sysmod::store_inval_load(const inval_load_s& payload) {
     for (int i = 0; i < 8; i++) {
       if (byte_mask & (1 << i)) {
         if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', (ld_addr + i), 1, ((inval_load_.data >> (i*8)) & 0xff), valid)) && FLAGS_whisper_client_check) {
-          cvm::log(cvm::ERROR, "Error: store_inval_load failed to poke whisper memory in AMO MB Bypass case\n"); 
+          cvm::log(cvm::ERROR, "Error: [sysmod] store_inval_load failed to poke whisper memory in AMO MB Bypass case\n"); 
         }
       }
     }
@@ -691,7 +691,7 @@ sysmod::store_inval_load(const inval_load_s& payload) {
     for (int i = 0; i < 8; i++) {
       if (byte_mask & (1 << i)) {
         if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', (ld_addr + i), 1, (read_data >> (i*8)), valid) || !valid) && FLAGS_whisper_client_check) {
-          cvm::log(cvm::ERROR, "Error: store_inval_load failed to poke whisper memory\n"); 
+          cvm::log(cvm::ERROR, "Error: [sysmod] store_inval_load failed to poke whisper memory\n"); 
         }
       }
     }
@@ -708,7 +708,7 @@ sysmod::backdoor_write(sysmod::backdoor_write_t t) {
   if (FLAGS_cosim) {
     bool valid = true;
     if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(wc_loc_, 0, 0, 'm', t.address, 8, t.data, valid) || !valid) && FLAGS_whisper_client_check)
-      cvm::log(cvm::ERROR, "Error: backdoor_write failed to poke whisper memory\n");
+      cvm::log(cvm::ERROR, "Error: [sysmod] backdoor_write failed to poke whisper memory\n");
   }
     
   for (int i=0; i<t.size; ++i, t.data>>=8) {
@@ -970,7 +970,7 @@ sysmod::compose() {
       } else if (type == "aplic_domain") {
         device = std::make_unique<aplic_device>(tag, base, size, loc_, aplic);
       } else {
-        cvm::log(cvm::ERROR, "Error: unknown sysmod type {} \n", type);
+        cvm::log(cvm::ERROR, "Error: [sysmod] unknown sysmod type {} \n", type);
       }
 
       if (device)
@@ -982,7 +982,7 @@ sysmod::compose() {
     assert(masters.size() > 0);
   }
   catch (std::exception& e) {
-    std::cerr << "Error: Memmap access exception.\n" << "  Message: " << e.what() << "\n";
+    std::cerr << "Error: [sysmod] Memmap access exception.\n" << "  Message: " << e.what() << "\n";
   }
 }
 
@@ -996,7 +996,7 @@ sysmod::dev(uint64_t addr) {
     if (d->has_addr(addr))
       return d.get();
   }
-  cvm::log(cvm::ERROR, "Error: Address not mapped: {:#x}\n", addr);
+  cvm::log(cvm::ERROR, "Error: [sysmod] Address not mapped: {:#x}\n", addr);
   return nullptr;
 }
 
@@ -1007,7 +1007,7 @@ sysmod::dev(const std::string& tag) {
     if (d->tag() == tag)
       return d.get();
   }
-  cvm::log(cvm::ERROR, "Error: Tag not mapped: {}\n", tag);
+  cvm::log(cvm::ERROR, "Error: [sysmod] Tag not mapped: {}\n", tag);
   return nullptr;
 }
 
@@ -1058,7 +1058,7 @@ sysmod::bin_load(const std::string load, bool lz4_compressed)
                             dynamic_cast<sysmod_mem&>(*dev("memory")).init_bin(file, offset)
           )
      ) {
-    cvm::log(cvm::ERROR, "Error: No memory defined\n");
+    cvm::log(cvm::ERROR, "Error: [sysmod] No memory defined\n");
     return false;
   }
 
@@ -1077,7 +1077,7 @@ sysmod::load_prog(const std::string& hex, const std::string& load, const std::st
     if (load != "") {
       cvm::log(cvm::MEDIUM, "Loading {}\n", load);
       if (not dev(tag) or not dynamic_cast<sysmod_mem&>(*dev(tag)).init_elf(load)) {
-        cvm::log(cvm::ERROR, "Error: Failed to load program\n");
+        cvm::log(cvm::ERROR, "Error: [sysmod] Failed to load program\n");
         return;
       }
       cvm::log(cvm::MEDIUM, "Loading {} complete\n", load);
@@ -1086,7 +1086,7 @@ sysmod::load_prog(const std::string& hex, const std::string& load, const std::st
     if (hex != "") {
       cvm::log(cvm::MEDIUM, "Loading {}\n", hex);
       if (not dev(tag) or not dynamic_cast<sysmod_mem&>(*dev(tag)).init_hex(hex)) {
-        cvm::log(cvm::ERROR, "Error: No memory defined\n");
+        cvm::log(cvm::ERROR, "Error: [sysmod] No memory defined\n");
         return;
       }
       cvm::log(cvm::MEDIUM, "Loading {} complete\n", hex);
@@ -1118,7 +1118,7 @@ sysmod::load_prog(const std::string& hex, const std::string& load, const std::st
     return;
   }
 
-  cvm::log(cvm::ERROR, "Error: No memory found\n");
+  cvm::log(cvm::ERROR, "Error: [sysmod] No memory found\n");
 }
 
 void
@@ -1128,13 +1128,13 @@ sysmod::load_boot(const std::string& boot) {
     cvm::log(cvm::MEDIUM, "Loading {}\n", boot);
     if (boot.substr(boot.length() - 3) == "elf") {
       if (not dev("boot") or not dynamic_cast<sysmod_mem&>(*dev("boot")).init_elf(boot)) {
-        cvm::log(cvm::ERROR, "No boot defined");
+        cvm::log(cvm::ERROR, "Error: [sysmod] No boot defined");
         return;
       }
     }
     if (boot.substr(boot.length() - 3) == "hex") {
       if (not dev("boot") or not dynamic_cast<sysmod_mem&>(*dev("boot")).init_hex(boot)) {
-        cvm::log(cvm::ERROR, "No boot defined");
+        cvm::log(cvm::ERROR, "Error: [sysmod] No boot defined");
         return;
       }
     }
@@ -1193,7 +1193,7 @@ sysmod::load_csr_mmr_boot(uint64_t dut) {
     } else {
       bool valid = true;
       if (FLAGS_cosim && (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeRPC>(wc_loc_, 0, 0, 'm', addr, op, valid) || !valid) && FLAGS_whisper_client_check)
-        cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
+        cvm::log(cvm::ERROR, "Error: [sysmod] Failed to poke whisper memory\n");
     }
     addr += 4;
   };
@@ -1226,14 +1226,14 @@ sysmod::load_csr_mmr_boot(uint64_t dut) {
         auto size  = std::stoull(mmr_val.at(1), nullptr, 0);
         auto value = std::stoull(mmr_val.at(2), nullptr, 0);
         if (!size || size>8 || (size & (size-1))) {
-          cvm::log(cvm::ERROR, "Error: MMR size should be 1,2,4,8. see string:{}\n", entry);
+          cvm::log(cvm::ERROR, "Error: [sysmod] MMR size should be 1,2,4,8. see string:{}\n", entry);
           return;
         }
         mmr_data.push_back(std::make_tuple(addr, size, value));
       }
     }
     catch (...) {
-      cvm::log(cvm::ERROR, "Error: unable to parse +set_mmr={}\n", FLAGS_set_mmr);
+      cvm::log(cvm::ERROR, "Error: [sysmod] unable to parse +set_mmr={}\n", FLAGS_set_mmr);
       return;
     }
     int dest_gpr_addr = 28, dest_gpr_value = 29, temp_gpr2 = 30, temp_gpr3 = 31;
@@ -1281,14 +1281,14 @@ sysmod::load_csr_mmr_boot(uint64_t dut) {
           if (*p == 0)
             csr_data[csrn] = value;
           else {
-            cvm::log(cvm::ERROR, "Error: csr_name:{} undefined see +set_csr switch\n", csr);
+            cvm::log(cvm::ERROR, "Error: [sysmod] csr_name:{} undefined see +set_csr switch\n", csr);
             return;
           }
         }
       }
     }
     catch (...) {
-      cvm::log(cvm::ERROR, "Error: unable to parse +set_csr={}\n", FLAGS_set_csr);
+      cvm::log(cvm::ERROR, "Error: [sysmod] unable to parse +set_csr={}\n", FLAGS_set_csr);
       return;
     }
 
@@ -1317,13 +1317,13 @@ sysmod::load_cplfw(const std::string& cplfw) {
     cvm::log(cvm::MEDIUM, "Loading {}\n", cplfw);
     if (cplfw.substr(cplfw.length() - 3) == "elf") {
       if (not dev("memory") or not dynamic_cast<sysmod_mem&>(*dev("memory")).init_elf(cplfw)) {
-        cvm::log(cvm::ERROR, "No cpl firmware defined");
+        cvm::log(cvm::ERROR, "Error: [sysmod] No cpl firmware defined");
         return;
       }
     }
     if (cplfw.substr(cplfw.length() - 3) == "hex") {
       if (not dev("memory") or not dynamic_cast<sysmod_mem&>(*dev("memory")).init_hex(cplfw)) {
-        cvm::log(cvm::ERROR, "No cpl firmware defined");
+        cvm::log(cvm::ERROR, "Error: [sysmod] No cpl firmware defined");
         return;
       }
     }
