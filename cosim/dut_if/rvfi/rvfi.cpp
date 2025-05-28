@@ -1435,9 +1435,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write_error<>& m_
   if (terminated_ || in_reset_)
     return;
 
-  // Store cacheline-aligned address to ensure consistent matching
-  uint64_t aligned_addr = m_mcmi_write_error.addr & ~0x3f;
-  mcm_write_error_pas_.push_back(aligned_addr);
+  mcm_write_error_pas_.push_back(m_mcmi_write_error.addr);
   cvm::log(cvm::HIGH, "[MCM] mcm_write_error. PA: {:#x}\n", m_mcmi_write_error.addr);
 }
 

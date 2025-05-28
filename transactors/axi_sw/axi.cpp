@@ -7,7 +7,6 @@
 #include <regex>
 #include "axi.h"
 #include "cvm/logger.hpp"
-#include "rv_tester/rv_tester_plusargs.h"
 
 // Error responses
 DEFINE_string(axi_resp_slverr_addr, "", "List of addresses that need slverr response, can be a single value or a range. Ex: 0x1000,0x2000-0x3000");
@@ -17,6 +16,7 @@ DEFINE_int32(axi_resp_slverr_threshold, 2, "Threshold upto which  slverr injecti
 DEFINE_int32(axi_resp_decerr_threshold, 2, "Threshold upto which decerr injection happens for a particular address");
 DEFINE_string(axi_resp_slverr_pattern, "", "Pattern for alternating slverr responses in format 'n:e' where n is normal responses and e is error responses");
 DEFINE_string(axi_resp_decerr_pattern, "", "Pattern for alternating decerr responses in format 'n:e' where n is normal responses and e is error responses");
+DEFINE_bool(axi_resp_en_on_test_start_label, false, "Keep axi errors disabled till test_start_label");
 
 template <typename T> void atop_arithmetic(const axi::data_t& read_data, axi::data_t& write_data, const axi::atop_operation operation, const axi::len_t& len) {
 
@@ -57,7 +57,7 @@ axi::axi(const data_width_t& data_width, const cvm::topology::loc_t loc, const s
     hang_list_.parse(FLAGS_axi_resp_hang_addr);
     setup_error_lists();
     // Enable when test start label is observed
-    if (FLAGS_test_start_label != "") {
+    if (FLAGS_axi_resp_en_on_test_start_label) {
         disable_error();
     }
 }
