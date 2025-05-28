@@ -143,6 +143,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
       //"mtinst","htinst", // RVDE-10005
       "sstatus","mstatus","hstatus","mie","hie","vsie","sie", // RVDE-11840
       "vxsat", // Vectors RVDE-17338
+      "srmcfg",
       "tselect","tdata1","tdata2","tdata3","mcontext","tinfo", // Unimplemented: RVDE-7518, RVTOOLS-3124
       "fflags","fcsr", // Unimplemented
       "menvcfg","senvcfg","henvcfg", // FIXME: pointer masking change
@@ -1709,7 +1710,7 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
         uint64_t sie_data = (((~sie_unspecified_mask & sie_iss)) | ((sie_unspecified_mask & get_csr(hart, src_t::dut, SIE))));
         poke_resource(hart, d.cycle, 'c', SIE, sie_data);
         // when mvien[1] == 0 -> 1, then mvip[1] is UNSPECIFIED
-        if (((data & mask) << 1) == 1) {
+        if (((csr_value_before_update_ & (1 << 1)) == 0) && ((data & mask & (1 << 1)) != 0)) {
           uint64_t mvip_data = (0x2 & get_csr(hart, src_t::dut, MVIP)) | (0xfffffffffffffffdULL & get_csr(hart, src_t::iss, MVIP));
           poke_resource(hart, d.cycle, 'c', MVIP, mvip_data);
         }

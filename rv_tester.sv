@@ -176,6 +176,7 @@ module rv_tester
     int debug_enable = 0;
     bit dmi_driver_dbg_enable;
     int hart_enable_mask = 0;
+    int num_harts = 0;
     bit ntrace_stop_on_wrap = 0;
     int rand_dmi_driver_dly = 0;
     int sdtrig_multitrigger = 0;
@@ -192,6 +193,8 @@ module rv_tester
     int dmi_poll_timeout = 50000;
     logic dmi_poll_timeout_terminate;
     logic [31:0] dmi_commands_in_queue;
+    bit sdtrig_display = 0;
+    bit nonexistent_hart = 0;
 
     int trace_timeout = 50000;
     int freq_switch_ncycles = 7000;
@@ -437,6 +440,7 @@ module rv_tester
             disable_haltpoll     <= cvm_plusargs::get_bool("disable_haltpoll") != '0;
             disable_abscmdpoll   <= cvm_plusargs::get_bool("disable_abscmdpoll") != '0;
             disable_triggerpoll  <= cvm_plusargs::get_bool("disable_triggerpoll") != '0;
+            nonexistent_hart     <= cvm_plusargs::get_bool("nonexistent_hart") != '0;
             sdtrig_multitrigger  <= cvm_plusargs::get_int("sdtrig_multitrigger");
             dm_single_step_count <= cvm_plusargs::get_int("dm_single_step_count");
             cb_poll              <= cvm_plusargs::get_bool("cb_async") == '0;
@@ -454,6 +458,7 @@ module rv_tester
             bypass_mem           <= cvm_plusargs::get_bool("bypass_mem") != '0;
             bypass_cache         <= cvm_plusargs::get_bool("bypass_cache") != '0;
             assertion_test_cycle <= cvm_plusargs::get_int("assertion_test_cycle");
+            sdtrig_display       <= cvm_plusargs::get_bool("sdtrig_display") != '0;
 
             dm_model_bypass      <= cvm_plusargs::get_bool("dm_model_check_bypass") != '0;
             debug_enable         <= cvm_plusargs::get_int("debug_enable");
@@ -465,6 +470,7 @@ module rv_tester
             hart_enable_mask     <= cvm_plusargs::get_int("hart_enable_mask");
             perf_count           <= '0;
             ntrace_stop_on_wrap  <= cvm_plusargs::get_bool("ntrace_stop_on_wrap_seq_en") != '0;
+            num_harts            <= cvm_plusargs::get_int("num_harts");
 
         end
         clock_mode      <= clk_profile[2:0];
@@ -733,6 +739,9 @@ module rv_tester
         .disable_abscmdpoll,
         .disable_triggerpoll,
         .terminate,
+        .num_harts,
+        .sdtrig_display,
+        .nonexistent_hart,
 
         .dmi_req_ready,
         .dmi_resp_valid,
@@ -1008,6 +1017,7 @@ module rv_tester
         .cl_clk(dut_clk[CORE_CLK_IDX]),
         .rf_clk(dut_clk[REF_CLK_IDX]),
         .reset(sys_reset[TB_CLK_IDX]),
+        .cold_resetn(~cold_reset),
         .warm_reset(AcWarmReset),
         .dut_reset(dut_reset[REF_CLK_IDX]),
         .terminate,
@@ -1371,18 +1381,19 @@ module rv_tester
     string preload_data_file_arr [0:AxiLLC_SetAssociativity - 1]; // Declare an array for the preload data file names
     string preload_tag_file_arr [0:AxiLLC_SetAssociativity - 1]; // Declare an array for the preload tag file names
 
+    // Palladium doesn't want localparam int unsigned inside a function
+    localparam int unsigned AXI_AW = topology.TOP.PLATFORM.AXI.ADDR_WIDTH;
     function automatic void rv_tester_set_address_map(int unsigned i, longint unsigned start_addr, longint unsigned end_addr, int unsigned device);
-        localparam int unsigned AW = topology.TOP.PLATFORM.AXI.ADDR_WIDTH;
         addr_map[i] = '{
             idx       : device         ,
-            start_addr: AW'(start_addr),
-            end_addr  : AW'(end_addr  )
+            start_addr: AXI_AW'(start_addr),
+            end_addr  : AXI_AW'(end_addr  )
         };
 
         addr_map_idx1[i] = '{
             idx       : 1              ,
-            start_addr: AW'(start_addr),
-            end_addr  : AW'(end_addr  )
+            start_addr: AXI_AW'(start_addr),
+            end_addr  : AXI_AW'(end_addr  )
         };
 
     endfunction
@@ -1391,33 +1402,39 @@ module rv_tester
 
     export "DPI-C" function rv_tester_set_address_map;
 
-
-    function void set_preload_data_file(int unsigned way, string file);
     `ifndef NO_PRELOAD
+    function void set_preload_data_file(int unsigned way, string file);
         if (way < AxiLLC_SetAssociativity) begin
             preload_data_file_arr[way] = file;
             $display("%0t Preload data file for way %0d set to: %s", $time, way, file);
         end else begin
             $display("Error: Attempted to set preload file for invalid way %0d", way);
         end
-    `else
-        $display("Error: Compiled with NO_PRELOAD defined");
-    `endif
     endfunction
+    `else
+        function void set_preload_data_file(); // some tools have problems with string arguments
+            $display("Error: Compiled with NO_PRELOAD defined");
+        endfunction
+    `endif
+
     export "DPI-C" function set_preload_data_file;
 
-    function void set_preload_tag_file(int unsigned way, string file);
+
     `ifndef NO_PRELOAD
-    if (way < AxiLLC_SetAssociativity) begin
-        preload_tag_file_arr[way] = file;
-        $display("Preload data file for way %0d set to: %s", way, file);
-    end else begin
-        $display("Error: Attempted to set preload file for invalid way %0d", way);
-    end
-    `else
-        $display("Error: Compiled with NO_PRELOAD defined");
-    `endif
+    function void set_preload_tag_file(int unsigned way, string file);
+        if (way < AxiLLC_SetAssociativity) begin
+            preload_tag_file_arr[way] = file;
+            $display("Preload data file for way %0d set to: %s", way, file);
+        end else begin
+            $display("Error: Attempted to set preload file for invalid way %0d", way);
+        end
     endfunction
+    `else
+        function void set_preload_tag_file(); // some tools have problems with string arguments
+            $display("Error: Compiled with NO_PRELOAD defined");
+        endfunction
+    `endif
+
     export "DPI-C" function set_preload_tag_file;
 
     rv_tester_mem #(

@@ -54,6 +54,7 @@ cosim:
     m_steps:
         domain: 1
         num: 1 
+        disabling_defines: ["DISABLE_PERIODIC_COSIM"]
         fields:
             hart:
                 width: 32
@@ -188,6 +189,7 @@ cosim:
     m_gp_regs:
         domain: 1
         num: 1 
+        disabling_defines: ["DISABLE_PERIODIC_COSIM"]
         fields:
             hart:
                 width: 32
@@ -199,6 +201,7 @@ cosim:
     m_fp_regs:
         domain: 1
         num: 1 
+        disabling_defines: ["DISABLE_PERIODIC_COSIM"]
         fields:
             hart:
                 width: 32
@@ -210,6 +213,7 @@ cosim:
     m_vc_regs:
         domain: 1
         num: 1 
+        disabling_defines: ["DISABLE_PERIODIC_COSIM"]
         fields:
             hart:
                 width: 32
