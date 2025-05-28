@@ -46,33 +46,57 @@ import rv_tester_pkg::*;
     end
 
     longint unsigned cpu_cycles = 0;
-    longint unsigned sync_cycles = 0;
-    longint unsigned sync_instructions = 0;
-    longint unsigned prev_sync_instructions = 0;
+    longint unsigned cycle_period_counter = 0;
+    longint unsigned instruction_period_counter = 0;
     longint unsigned nret = {32'h0, NRET};
     longint unsigned pmcounter [EVENT_COUNT] = '{default:0};
     longint unsigned branch_instructions;
 
+    // Create shared sync condition signals
+    logic cycle_sync_condition;
+    logic instruction_sync_condition;
+    assign cycle_sync_condition = cycle_sync_en && cycle_period_counter == 0;
+
     always @(posedge clk) begin
+
+      instruction_sync_condition <= '0;
+
       if (reset) begin
         pmcounter[0] <= 0;
         cpu_cycles <= 0;
-        sync_cycles <= 0;
-        sync_instructions <= 1;
+        cycle_period_counter <= 0;
+        instruction_period_counter <= instructions;
       end else begin
         if (perf_start) begin
-          sync_cycles <= 1;
-          sync_instructions <= nret;
-        end else if (perf_end) begin
-          sync_cycles <= cpu_cycles;
-          sync_instructions <= pmcounter[INSTRUCTIONS];
+          cycle_period_counter <= 1;  // Start counting from 1 to get full period before first sync
+          instruction_period_counter <= instructions;
         end else begin
-          sync_cycles <= sync_cycles + 1;
-          sync_instructions <= sync_instructions + {60'h0, pmci[INSTRUCTIONS]};
+          // Update period counters
+          if (cycle_sync_en) begin
+            if (cycle_period_counter >= (period - 1)) begin
+              cycle_period_counter <= 0;
+            end else begin
+              cycle_period_counter <= cycle_period_counter + 1;
+            end
+          end
+
+          if (instruction_sync_en) begin
+            if (instruction_period_counter <= {60'h0, pmci[INSTRUCTIONS]}) begin
+              // When syncing, start next period but account for extra instructions executed
+              // If instructions is smaller than the extra instructions executed, start from instructions
+              instruction_period_counter <= instructions - (
+                                         ({60'h0, pmci[INSTRUCTIONS]} - instruction_period_counter) > instructions ?
+                                         '0 :
+                                         ({60'h0, pmci[INSTRUCTIONS]} - instruction_period_counter)
+              );
+              instruction_sync_condition <= '1;
+            end else begin
+              instruction_period_counter <= instruction_period_counter - {60'h0, pmci[INSTRUCTIONS]};
+            end
+          end
         end
         cpu_cycles <= cpu_cycles + 1;
       end
-      prev_sync_instructions <= sync_instructions;
       terminate_1T <= terminate;
     end
 
@@ -152,7 +176,7 @@ import rv_tester_pkg::*;
     parameter OVERFLOW_BIT_EXTRA = 2;
     logic overflow;
     logic [EVENT_COUNT + SC_EVENT_COUNT + OVERFLOW_BIT_EXTRA -1 : 0] pmcounter_overflow_bit;
-    assign pmcounters_cores[0].valid = !reset && perf_enabled && (overflow || (|mhpm_write) || terminate || (cycle_sync_en && (sync_cycles % period) == 0) || (instruction_sync_en && (((prev_sync_instructions % instructions) > nret) && ((sync_instructions % instructions) < nret))) || perf_start || perf_end);
+    assign pmcounters_cores[0].valid = !reset && perf_enabled && (overflow || (|mhpm_write) || terminate || cycle_sync_condition || instruction_sync_condition || perf_start || perf_end);
     assign pmcounters_cores[0].data.location = location;
     assign pmcounters_cores[0].data.tb_cycles = 24'(clocks - tb_cycles_offset);
     assign pmcounters_cores[0].data.cpu_cycles = 24'(cpu_cycles);
@@ -162,7 +186,7 @@ import rv_tester_pkg::*;
     assign pmcounters_cores[0].data.perf_end = perf_end;
     assign pmcounters_cores[0].data.terminate = terminate;
     assign pmcounters_cores[0].data.overflow = overflow;
-    assign pmcounters_cores[0].data.sync = (cycle_sync_en && (sync_cycles % period) == 0) || (instruction_sync_en && (((prev_sync_instructions % instructions) > nret) && ((sync_instructions % instructions) < nret)));
+    assign pmcounters_cores[0].data.sync = cycle_sync_condition || instruction_sync_condition;
     assign pmcounters_cores[0].data.m_mode_cycles = 24'(pmcounter[M_MODE_CYCLES]);
     assign pmcounters_cores[0].data.m_mode_instret = 24'(pmcounter[M_MODE_INSTRET]);
     assign pmcounters_cores[0].data.s_mode_cycles = 24'(pmcounter[S_MODE_CYCLES]);

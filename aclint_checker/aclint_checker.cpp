@@ -18,6 +18,7 @@ extern "C" {
     uint64_t get_mtime_value();
     uint64_t get_ctime_value();
     void update_ctime_value(uint64_t value);
+    int get_hart_enable_ids(const char* input_str, int* result);
 }
 
 aclint_checker::aclint_checker(cvm::topology::loc_t loc, unsigned) {
@@ -95,7 +96,10 @@ void aclint_checker::process(const rv_tester_transactions::aclint_checker::axi_a
         size_t sz = (axi_ac_write.mask == 0xFF) ?  3 :
                     (axi_ac_write.mask == 0x0F) ?  2 :
                     (axi_ac_write.mask == 0x03) ?  1 : 0;
-        if (mmrReadReqFlag[mmr_addr].first) mmrReadReqFlag[mmr_addr].second = true;
+        if (mmrReadReqFlag[mmr_addr].first != 0 && mmrReadReqFlag[mmr_addr].second == 0) 
+            mmrReadReqFlag[mmr_addr].second = mmrReadReqFlag[mmr_addr].first;
+        else if (mmrReadReqFlag[mmr_addr].first != 0) 
+            ++mmrReadReqFlag[mmr_addr].second;
         aclint_mmrs[mmr_addr].write(axi_ac_write.data, sz);
         
         if (user == 3) {
@@ -157,7 +161,7 @@ void aclint_checker::process(const smc_req_pkt & read_req) {
     }
     cvm::log(cvm::HIGH, "[ACLINT CHECKER] SMC-AC READ REQ: addr {:#x}\n", read_req.addr);
     // If read req is true, check for any writes when true, if write happens then set the second to true
-    mmrReadReqFlag[mmr_addr].first = true;
+    ++mmrReadReqFlag[mmr_addr].first;
     return;
 }
 
@@ -166,11 +170,15 @@ void aclint_checker::process(const smc_read_pkt & r) {
     if (aclint_mmrs.find(mmr_addr) == aclint_mmrs.end()) return;
     // Ignore read check if write happened after the read req is issued from smc
     if (mmrReadReqFlag[mmr_addr].first && mmrReadReqFlag[mmr_addr].second) {
-        mmrReadReqFlag[mmr_addr] = {false, false};
+        --mmrReadReqFlag[mmr_addr].first;
+        --mmrReadReqFlag[mmr_addr].second;
         cvm::log(cvm::HIGH, "[ACLINT CHECKER] Ignore SMC-AC READ: addr {:#x} data {:#x}, Data overwritten\n", r.addr, r.data);
         return;
     }
-    mmrReadReqFlag[mmr_addr].first = false;     // Read carried without in between writes hence deasserting guard
+    if (mmrReadReqFlag[mmr_addr].first > 0) {
+        if (--mmrReadReqFlag[mmr_addr].first == 0)     // Read carried without in between writes hence deasserting guard
+            mmrReadReqFlag[mmr_addr].second = 0;
+    }
     cvm::log(cvm::HIGH, "[ACLINT CHECKER] SMC-AC READ: addr {:#x} data {:#x} size {:#x}B resp {}\n", r.addr, r.data, (1 << r.size), r.resp);
     if (r.size == 1 || r.size == 0) {
         if (r.data == 0 && r.resp == 3) return;
@@ -335,4 +343,20 @@ extern "C" void aclint_checker_scope(cvm::topology::loc_t loc) {
     cvm::log(cvm::HIGH, "Getting ACLINT CHECKER scope\n");
     svScope scope = svGetScope();
     cvm::registry::messenger.signal<svScope>(loc, scope);
+}
+
+extern "C" int get_hart_enable_ids(const char* input_str, int* result) {
+    std::vector<uint32_t> numbers;
+    std::istringstream ss(input_str);
+    std::string token;
+    while (std::getline(ss, token, ',')) {
+      if (token != "") {
+        uint32_t t = std::stoull(token);
+        numbers.push_back(t);
+      }
+    }
+    for (size_t i = 0; i < numbers.size(); ++i) {
+      result[i] = numbers[i];
+    }
+    return numbers.size();
 }
