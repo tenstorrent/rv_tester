@@ -10,6 +10,7 @@
 #include "aclint_checker.hpp"
 #include <queue>
 #include <unordered_map>
+#include "cvm/logger.hpp"
 
 REGISTRY_register(aclint_checker, TOP.PLATFORM.ACLINT_CHECKER, 0);
 DEFINE_bool(aclint, false, "Enable aclint checks");
