@@ -8,10 +8,9 @@ DEFINE_string(nmi, "off", "Enable nmi_sequence in the sim - off/random/patch_tri
 DEFINE_bool(nmi_rand_en, false, "Enable nmi_sequence tick");
 DEFINE_string(nmi_count, "0:4", "Number of nmi sequences in the sim if random mode enabled");
 DEFINE_string(nmi_start_interval, "1000:4000", "TB cycle interval between reset and first nmi sequence in the sim if random mode enabled");
-//DEFINE_string(nmi_interval, "1000:4000", "TB cycle interval between nmi sequences in the sim if random mode enabled");
+DEFINE_string(nmi_interval, "1000:4000", "TB cycle interval between nmi sequences in the sim if random mode enabled");
 DEFINE_string(nmi_width, "1:1", "TB cycle width of nmi pulses in the sim if random mode enabled");
 DEFINE_int32(patch_mode_nmi_interval,10,"Number of Maximum cycles between two nmi while entering patch mode");
-DEFINE_int32(nmi_interval, 1, "TB cycle interval between Low Power Entry and NMI assertion");
 
 extern "C" {
   void drive_nmi(uint8_t val);
@@ -98,16 +97,7 @@ cvm::messenger::task<void> nmi_sequence::uarch_trigger_mode() {
   while(1){
      // Wait for next selected trigger
      co_await trigger();
-     cvm::log(cvm::LOW,"[NMIInterruptSeq] waiting for random time before driving external NMI interrupt as part of low power sequence");
-     // Wait for random ticks after trigger
-    if(FLAGS_low_power_seq){
-    	for(int i=0;i<FLAGS_nmi_interval;i++){
-     //  co_await assert_tick();
-        co_await trigger_tick();
-	   }
-    }
-    
-	 cvm::log(cvm::NONE, "[NMIInterruptSeq][h{}] Starting event triggered NMI sequence\n", id_);
+
      nmi(ASSERT);
   }
 }
@@ -128,12 +118,6 @@ cvm::messenger::task<void> nmi_sequence::assert_tick() {
 
 cvm::messenger::task<void> nmi_sequence::trigger() {
   co_await cvm::registry::messenger.wait<rv_tester_transactions::triggers::m_event_trigger_tick<>>(triggers_loc);
-  co_return;
-}
-
-
-cvm::messenger::task<void> nmi_sequence::trigger_tick() {
-  co_await cvm::registry::messenger.wait<rv_tester_transactions::triggers::m_tick<>>(triggers_loc);
   co_return;
 }
 

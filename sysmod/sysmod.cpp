@@ -59,7 +59,7 @@ DEFINE_bool(rand_sc_harvest, false, "Randomize sc harvest options");
 DEFINE_int32(num_sc_dis_ways, -1, "Number of disabled SC ways - upto 24 in multiples of 4");
 DEFINE_int32(sc_dis_ways_mask, -1, "SC way enable mask. Ex: With 20 enabled ways out of 24, could be 0xF0_FFFF.");
 DEFINE_int32(num_sc_enabled_ways, 24, "Number of SC enabled ways"); // internal arg
-// scratchpad 
+// scratchpad
 DEFINE_bool(enable_sp_init, false, "Enable sharedcache scratchpad initilization from bootrom");
 DEFINE_bool(rand_sp_ways, false, "Randomize number of SC ways reserved for scratchpad");
 DEFINE_int32(num_sp_ways, -1, "Number of SC ways reserved for scratchpad");
@@ -167,7 +167,7 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
 
   cvm::registry::messenger.connect<sysmod::backdoor_write_t>(
       loc_,
-      [this](sysmod::backdoor_write_t t) { 
+      [this](sysmod::backdoor_write_t t) {
       auto *task = +[] (sysmod* m, backdoor_write_t w) -> cvm::messenger::task<void> {
           co_await m->backdoor_write(w);
           *w.flag = true;
@@ -185,8 +185,17 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
             source,
             [this, source](const auto& w) {
                 if (this->dev(w.addr)) {
-                    cvm::log(cvm::HIGH, "[sysmod] write: src={} addr={:#x}\n", source, w.addr);
-                    cvm::registry::messenger.signal<device::write_t>(this->loc_, {w});
+                    std::string d;
+                    if (cvm::logger::check_verbosity(cvm::FULL)) {
+                      for (int i=w.data.size()-1; i>=0; i--) {
+                        d += fmt::format("{:02x}", w.data[i]);
+                      }
+                    }
+                    cvm::log(cvm::HIGH, "[sysmod] write: src={} addr={:#x}, data={}\n", source, w.addr,d);
+                    transactor::write_t w_pkt;
+                    w_pkt = w;
+                    w_pkt.addr = w.addr & ~FLAGS_pa_mask; // STEE : RVDE-24052
+                    cvm::registry::messenger.signal<device::write_t>(this->loc_, {w_pkt});
                 }
         });
         cvm::registry::messenger.connect<transactor::read_t>(
@@ -444,7 +453,31 @@ sysmod::get_rand_id(uint32_t mask, uint32_t ncores)
 
   // Ex: input: mask=0x9a - available cores: 1,3,4,7
   // Ex: output: hart_enable_id ex: 4,7,1,3 - can be in any order
+  std::ifstream jsonFile("reset_state.json");
+  if (jsonFile.good()) {
+    // Read the entire file content
+    std::string jsonContent((std::istreambuf_iterator<char>(jsonFile)),
+                          std::istreambuf_iterator<char>());
+    jsonFile.close();
 
+    // Simple parsing to find hart_enable_id value
+    size_t pos = jsonContent.find("\"hart_enable_id\":");
+    if (pos != std::string::npos) {
+        pos = jsonContent.find("\"", pos + 16); // Skip to the value
+        if (pos != std::string::npos) {
+            size_t start = pos + 1;
+            size_t end = jsonContent.find("\"", start);
+            if (end != std::string::npos) {
+                std::string hartEnableIds = jsonContent.substr(start, end - start);
+                cvm::log(cvm::HIGH, "[Debugger]: Found hart_enable_id values: {}\n", hartEnableIds);
+                return hartEnableIds;
+            }
+        }
+    }
+  }
+
+  // Create new JSON file if it doesn't exist
+  std::ofstream newJsonFile("reset_state.json");
   // Create and fill a vector with positions from the mask
   std::vector<uint32_t> positions{};
   for (uint32_t i = 0; i < ncores; ++i)
@@ -458,9 +491,12 @@ sysmod::get_rand_id(uint32_t mask, uint32_t ncores)
   std::string result;
   for (size_t i = 0; i < positions.size(); ++i) {
     result += std::to_string(positions[i]);
-    if (i < positions.size() - 1) 
+    if (i < positions.size() - 1)
       result += ",";
   }
+  newJsonFile << "{\"hart_enable_id\": \"" << result << "\"}";
+  newJsonFile.close();
+  cvm::log(cvm::HIGH, "[Debugger]: Created new hart_enable.json file\n");
   return result;
 }
 
@@ -480,7 +516,7 @@ sysmod::get_id(uint32_t mask, uint32_t ncores)
   std::string result;
   for (size_t i = 0; i < positions.size(); ++i) {
     result += std::to_string(positions[i]);
-    if (i < positions.size() - 1) 
+    if (i < positions.size() - 1)
       result += ",";
   }
   return result;
@@ -531,7 +567,7 @@ sysmod::get_rand_sp_ways(int32_t max)
 
   // Discrete distribution for sp_ways
   // In SC, scratch pad ways can be anywhere from 0 to max
-  // Let probabilities be biased towards a smaller scratch pad 
+  // Let probabilities be biased towards a smaller scratch pad
   // with mostly up to 4 ways
   // Ex: max = 24, weights = {1.0} upto 4 ways and {0.1} after that
   std::vector<double> weights(max);
@@ -587,7 +623,7 @@ sysmod::tbox_interrupt(interrupter::interrupt_t i) {
 //void
 // sysmod::scratchpad_xtor_read_req_router(scratchpad_xtor::scratchpad_xtor_read_t r) {
 
-//     transactor::read_t rd; 
+//     transactor::read_t rd;
 //     rd.addr = r.addr;
 //     rd.length = r.length;
 //     rd.id =  r.id;
@@ -641,7 +677,7 @@ sysmod::store_inval_crsp(const inval_crsp_s& payld, bool mcm) {
   for (int offset=0; offset<8; offset++) {
     read_data = 0;
     dev("memory")->backdoor_read(ld_addr + (offset*8), 8, data);
-    for (int i=0; i<8; ++i) 
+    for (int i=0; i<8; ++i)
       read_data |= uint64_t(data[i]) << (i*8);
      bool valid = true;
      cvm::log(cvm::FULL, "[CBO_INVAL_MONITOR - CRSP POKE] Whisper Poke to Address : {:#x}, with data : {:#x}\n",(ld_addr + (offset*8)),read_data);
@@ -657,7 +693,7 @@ sysmod::store_inval_load(const inval_load_s& payload) {
   // Do a backdoor read for the load's address
   device::data_t data(8);
   uint64_t read_data = 0;
-  uint64_t ld_addr = inval_load_.address; 
+  uint64_t ld_addr = inval_load_.address;
   uint8_t byte_mask = inval_load_.size;
   // length = inval_load_.size;
   // int size = (1 << length)/8;
@@ -673,7 +709,7 @@ sysmod::store_inval_load(const inval_load_s& payload) {
     for (int i = 0; i < 8; i++) {
       if (byte_mask & (1 << i)) {
         if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', (ld_addr + i), 1, ((inval_load_.data >> (i*8)) & 0xff), valid)) && FLAGS_whisper_client_check) {
-          cvm::log(cvm::ERROR, "Error: [sysmod] store_inval_load failed to poke whisper memory in AMO MB Bypass case\n"); 
+          cvm::log(cvm::ERROR, "Error: [sysmod] store_inval_load failed to poke whisper memory in AMO MB Bypass case\n");
         }
       }
     }
@@ -693,7 +729,7 @@ sysmod::store_inval_load(const inval_load_s& payload) {
     for (int i = 0; i < 8; i++) {
       if (byte_mask & (1 << i)) {
         if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, 'm', (ld_addr + i), 1, (read_data >> (i*8)), valid) || !valid) && FLAGS_whisper_client_check) {
-          cvm::log(cvm::ERROR, "Error: [sysmod] store_inval_load failed to poke whisper memory\n"); 
+          cvm::log(cvm::ERROR, "Error: [sysmod] store_inval_load failed to poke whisper memory\n");
         }
       }
     }
@@ -712,7 +748,7 @@ sysmod::backdoor_write(sysmod::backdoor_write_t t) {
     if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(wc_loc_, 0, 0, 'm', t.address, 8, t.data, valid) || !valid) && FLAGS_whisper_client_check)
       cvm::log(cvm::ERROR, "Error: [sysmod] backdoor_write failed to poke whisper memory\n");
   }
-    
+
   for (int i=0; i<t.size; ++i, t.data>>=8) {
     datax[i] = t.data & 0xff;
     strbx[i] = true;
@@ -968,7 +1004,7 @@ sysmod::compose() {
         // TODO: cvm::ERROR
        // assert(masters.size() > 0);
        // device = std::make_unique<dm>(tag, base, size, loc_, masters[0]);
-       
+
       // } else if (type == "scratchpad_xtor") {
       //   // TODO: cvm::ERROR
       //   assert(masters.size() > 0);
@@ -1429,7 +1465,7 @@ sysmod::tick(uint64_t advance) {
 }
 
 void
-sysmod::is_dut_reset_req(bool dut_reset_req,uint64_t clocks,uint64_t divisor) { 
+sysmod::is_dut_reset_req(bool dut_reset_req,uint64_t clocks,uint64_t divisor) {
 
   cvm::log(cvm::FULL,"Value of dut_reset_req in sysmod is : {}\n",dut_reset_req);
   if (dut_reset_req)

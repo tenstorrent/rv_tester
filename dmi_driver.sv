@@ -276,7 +276,7 @@ import rv_tester_params:: * ;
     end
   end
 
-  always @(posedge clk) begin
+  always @(posedge clk or negedge clk) begin
     if(~reset_n)begin
       rvfi_sdtrig =0;
     end else begin
@@ -1415,9 +1415,9 @@ import rv_tester_params:: * ;
                 end
                 command = sdtrig_debug_mode_entry_queue.pop_front();
                 $display("#973 Executing from sdtrig_debug_mode_entry_queue");
+                command.data[25:16] = core_id;
                 $display("[DMI Execution] Popped Cmd ==> addr:%h op:%h data:%h", command.addr, command.op,
                   command.data);
-                command.data[25:16] = core_id;
                 drive_dmi_cmd(command);
                 is_poll_needed(command);
                 if (poll) begin
