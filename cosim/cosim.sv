@@ -1221,7 +1221,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     logic eot_valid;
     assign eot_valid = MCMI_EN &  ~dut_reset & eot_found;
 
-    assign m_eoti_normals[0].valid =  ~offline_dpi_test & eot_found;
+    assign m_eoti_normals[0].valid =  ~offline_dpi_test & eot_valid;
     assign m_eoti_normals[0].data.location = location;
     assign m_eoti_normals[0].data.cycle = clocks;
     assign m_eoti_normals[0].data.hart = NUM;
@@ -1229,7 +1229,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign m_eoti_normals[0].data.data = eoti_data;
     assign m_eoti_normals[0].data.max_instr = eot_max_instr;
 
-    assign m_eoti_offlines[0].valid =  eot_found & (offline_dpi | offline_dpi_test);
+    assign m_eoti_offlines[0].valid =  eot_valid & (offline_dpi | offline_dpi_test);
     assign m_eoti_offlines[0].data.location = location;
     assign m_eoti_offlines[0].data.cycle = clocks;
     assign m_eoti_offlines[0].data.hart = NUM;
