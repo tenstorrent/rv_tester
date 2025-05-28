@@ -345,7 +345,8 @@ extern "C" void aclint_checker_scope(cvm::topology::loc_t loc) {
     cvm::registry::messenger.signal<svScope>(loc, scope);
 }
 
-extern "C" int get_hart_enable_ids(const char* input_str, int* result) {
+extern "C" int get_hart_enable_ids_from_plusargs(const char* input_str, int* result, const char* plusargs_name) {
+    std::string hart_enable_ids = cvm_plusargs::get_string(plusargs_name);
     std::vector<uint32_t> numbers;
     std::istringstream ss(input_str);
     std::string token;
