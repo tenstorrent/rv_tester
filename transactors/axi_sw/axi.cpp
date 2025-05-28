@@ -16,7 +16,7 @@ DEFINE_int32(axi_resp_slverr_threshold, 2, "Threshold upto which  slverr injecti
 DEFINE_int32(axi_resp_decerr_threshold, 2, "Threshold upto which decerr injection happens for a particular address");
 DEFINE_string(axi_resp_slverr_pattern, "", "Pattern for alternating slverr responses in format 'n:e' where n is normal responses and e is error responses");
 DEFINE_string(axi_resp_decerr_pattern, "", "Pattern for alternating decerr responses in format 'n:e' where n is normal responses and e is error responses");
-DEFINE_bool(axi_resp_en_on_test_start_label, false, "Keep axi errors disabled till test_start_label");
+DEFINE_bool(axi_err_after_test_start, false, "Keep axi errors disabled till test_start_label");
 
 template <typename T> void atop_arithmetic(const axi::data_t& read_data, axi::data_t& write_data, const axi::atop_operation operation, const axi::len_t& len) {
 
@@ -57,7 +57,7 @@ axi::axi(const data_width_t& data_width, const cvm::topology::loc_t loc, const s
     hang_list_.parse(FLAGS_axi_resp_hang_addr);
     setup_error_lists();
     // Enable when test start label is observed
-    if (FLAGS_axi_resp_en_on_test_start_label) {
+    if (FLAGS_axi_err_after_test_start) {
         disable_error();
     }
 }
