@@ -10,6 +10,7 @@
 #include "aclint_checker.hpp"
 #include <queue>
 #include <unordered_map>
+#include "cvm/logger.hpp"
 
 REGISTRY_register(aclint_checker, TOP.PLATFORM.ACLINT_CHECKER, 0);
 DEFINE_bool(aclint, false, "Enable aclint checks");
@@ -18,7 +19,7 @@ extern "C" {
     uint64_t get_mtime_value();
     uint64_t get_ctime_value();
     void update_ctime_value(uint64_t value);
-    int get_hart_enable_ids(const char* input_str, int* result);
+    int get_hart_enable_ids_from_plusargs(int* result, const char* plusargs_name);
 }
 
 aclint_checker::aclint_checker(cvm::topology::loc_t loc, unsigned) {
@@ -345,9 +346,10 @@ extern "C" void aclint_checker_scope(cvm::topology::loc_t loc) {
     cvm::registry::messenger.signal<svScope>(loc, scope);
 }
 
-extern "C" int get_hart_enable_ids(const char* input_str, int* result) {
+extern "C" int get_hart_enable_ids_from_plusargs(int* result, const char* plusargs_name) {
+    std::string hart_enable_ids = cvm_plusargs_get_string(plusargs_name);
     std::vector<uint32_t> numbers;
-    std::istringstream ss(input_str);
+    std::istringstream ss(hart_enable_ids);
     std::string token;
     while (std::getline(ss, token, ',')) {
       if (token != "") {
