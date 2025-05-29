@@ -497,7 +497,7 @@ whisperClient<URV>::whisperPokeMem(int hart, uint64_t time, char resource, uint6
   req.size = size;
   req.tag[0] = 0;
 
-  cvm::log(cvm::MEDIUM, "Poke address : {:#x}, cache flag : {}, size : {}, DATA : {:#X}\n",addr,cache,size,value);
+  cvm::log(cvm::MEDIUM, "Poke Mem address : {:#x}, cache flag : {}, size : {}, DATA : {:#X}\n",addr,cache,size,value);
 
   if (not whisperCommand(req, reply))
     return false;
