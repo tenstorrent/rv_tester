@@ -60,6 +60,7 @@ for event in sc_events:
     if event:
         desc = event.split(',')
         sc_data_dict.append({"name": desc[1], "description": desc[2], "event_id": desc[0]})
+sc_data_dict.append({"name": "sc_tb_cycles", "description": "Event for each TB cycle", "event_id": -1})
 
 data_dict = core_data_dict + sc_data_dict
 
@@ -77,13 +78,13 @@ def create_cpp_frag(core_events: List[Dict[Any, Any]],sc_events: List[Dict[Any, 
 
     to_vec_pre_core = f"""
     void core_to_vector(const rv_tester_transactions::pmu_core::pmcounters_core<>& pmcounters){{
-    
+
       const uint64_t casting_size_term = uint64_t(1) << {pmcounter_dpi_width};
 
 """
     to_vec_pre_sc = f"""
     void sc_to_vector(const rv_tester_transactions::pmu_sc::pmcounters_sc<>& pmcounters){{
-    
+
       const uint64_t casting_size_term = uint64_t(1) << {pmcounter_dpi_width};
 
 """
@@ -109,7 +110,7 @@ def create_cpp_frag(core_events: List[Dict[Any, Any]],sc_events: List[Dict[Any, 
           f.write(f"      {name.upper()},")
           f.write("\n")
       f.write(enum_post)
-  
+
       to_vec_post = """
     }
 
@@ -121,7 +122,7 @@ def create_cpp_frag(core_events: List[Dict[Any, Any]],sc_events: List[Dict[Any, 
           f.write(f"{tab}{counter_config}[{rv_tester_transaction_config}::{name.upper()}] = {counter_config}[{rv_tester_transaction_config}::{name.upper()}] + ((pmcounters.{name} - ({counter_config}[{rv_tester_transaction_config}::{name.upper()}] % casting_size_term)) % casting_size_term);")
           f.write("\n")
       f.write(to_vec_post)
-      
+
       reflection_pre = f"""
     const std::map<{rv_tester_transaction_config}, std::string_view> {to_string} = {{
 """
@@ -143,7 +144,7 @@ def create_cpp_frag(core_events: List[Dict[Any, Any]],sc_events: List[Dict[Any, 
             f.write(f'{tab}{{{event_id},counter_core::{name.upper()}}},')
             f.write('\n')
         f.write('    };')
-      
+
         filtered_event_map_pre = """
 
     const std::unordered_map<uint64_t, std::unordered_map<uint16_t, size_t>> filtered_event_map = {
@@ -163,8 +164,8 @@ def create_cpp_frag(core_events: List[Dict[Any, Any]],sc_events: List[Dict[Any, 
             if parent not in filter_event_dict:
                 filter_event_dict[parent] = {}
             filter_event_dict[parent][row['event_15_0']] = row['name']
-        if '0x1462' in filter_event_dict: filter_event_dict['0x1862'] = filter_event_dict.pop('0x1462') #op_complete filtered event granularity should be 16 
-        if '0x1440' in filter_event_dict: filter_event_dict['0x1840'] = filter_event_dict.pop('0x1440') #op_issued filtered event granularity should be 16 
+        if '0x1462' in filter_event_dict: filter_event_dict['0x1862'] = filter_event_dict.pop('0x1462') #op_complete filtered event granularity should be 16
+        if '0x1440' in filter_event_dict: filter_event_dict['0x1840'] = filter_event_dict.pop('0x1440') #op_issued filtered event granularity should be 16
         for parent, child_dict in filter_event_dict.items():
             filter_map_str = f"{tab}{{{parent}," + "{"
             for child, event_name in child_dict.items():
@@ -193,7 +194,7 @@ def create_sv_frag(events: List[Dict[Any, Any]], path="gen_events.sv", prefix=""
     parameter OVERFLOW_BIT_EXTRA = 2;
     logic overflow;
     logic [EVENT_COUNT + SC_EVENT_COUNT + OVERFLOW_BIT_EXTRA -1 : 0] pmcounter_overflow_bit;
-    assign pmcounters_cores[0].valid = !reset && perf_enabled && (overflow || (|mhpm_write) || terminate || (cycle_sync_en && (sync_cycles % period) == 0) || (instruction_sync_en && (((prev_sync_instructions % instructions) > nret) && ((sync_instructions % instructions) < nret))) || perf_start || perf_end);
+    assign pmcounters_cores[0].valid = !reset && perf_enabled && (overflow || (|mhpm_write) || terminate || cycle_sync_condition || instruction_sync_condition || perf_start || perf_end);
     assign pmcounters_cores[0].data.location = location;
     assign pmcounters_cores[0].data.tb_cycles = 24'(clocks - tb_cycles_offset);
     assign pmcounters_cores[0].data.cpu_cycles = {pmcounter_dpi_width}'(cpu_cycles);
@@ -203,13 +204,14 @@ def create_sv_frag(events: List[Dict[Any, Any]], path="gen_events.sv", prefix=""
     assign pmcounters_cores[0].data.perf_end = perf_end;
     assign pmcounters_cores[0].data.terminate = terminate;
     assign pmcounters_cores[0].data.overflow = overflow;
-    assign pmcounters_cores[0].data.sync = (cycle_sync_en && (sync_cycles % period) == 0) || (instruction_sync_en && (((prev_sync_instructions % instructions) > nret) && ((sync_instructions % instructions) < nret)));
+    assign pmcounters_cores[0].data.sync = cycle_sync_condition || instruction_sync_condition;
 """
     pre_sc = f"""
     generate
         if (SC_PMCI_ENABLED == 1) begin
              assign  pmcounters_scs[0].valid = pmcounters_cores[0].valid;
              assign pmcounters_scs[0].data.location = pmcounters_cores[0].data.location;
+             assign pmcounters_scs[0].data.sc_tb_cycles = 24'(clocks - tb_cycles_offset);
              assign pmcounters_scs[0].data.perf_start_sc = pmcounters_cores[0].data.perf_start;
              assign pmcounters_scs[0].data.perf_end_sc = pmcounters_cores[0].data.perf_end;
              assign pmcounters_scs[0].data.terminate_sc = terminate;

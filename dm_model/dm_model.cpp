@@ -27,7 +27,7 @@ static unsigned field_width(unsigned n)
 }
 
 bool ndm_reset_assert, hartsel_stable;
-uint32_t hart_haltreq_hg, hart_abscmd;
+uint32_t hart_haltreq_hg, hart_abscmd, hartsel;
 
 REGISTRY_register(debug_module_t, TOP.PLATFORM.DM_MODEL, 0);
 DEFINE_bool(dm_model_check_bypass, false, "Bypass the DM Model checks");
@@ -1256,8 +1256,13 @@ bool debug_module_t::dmi_write(unsigned address, uint32_t value)
         dmcontrol.hasel = get_field(value, DM_DMCONTROL_HASEL);
       else
         dmcontrol.hasel = 0;
-      dmcontrol.hartsel = get_field(value, DM_DMCONTROL_HARTSELHI) << DM_DMCONTROL_HARTSELLO_LENGTH;
-      dmcontrol.hartsel |= get_field(value, DM_DMCONTROL_HARTSELLO);
+      hartsel = get_field(value, DM_DMCONTROL_HARTSELHI) << DM_DMCONTROL_HARTSELLO_LENGTH;
+      hartsel |= get_field(value, DM_DMCONTROL_HARTSELLO);
+      if (hartsel < max_hartid) {
+        dmcontrol.hartsel = hartsel;
+      } else {
+        dmcontrol.hartsel = 0;
+      }
       //dmcontrol.hartsel = std::min(size_t(dmcontrol.hartsel), max_hartid - 1); //FIXME
       // dmcontrol.hartsel = max_hartid - 1;
 

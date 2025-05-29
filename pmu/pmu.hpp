@@ -159,6 +159,22 @@ public:
       CYCLES_NO_VM_PRN,
       //Event (speculative) for each cycle Mapper is stalled due to no reorder buffer entries
       CYCLES_NO_ROB,
+      //Event (speculative) for each cycle Mapper is stalled due to no DB0 entries
+      CYCLES_DB0_STALL,
+      //Event (speculative) for each cycle Mapper is stalled due to no DB1 entries
+      CYCLES_DB1_STALL,
+      //Event (speculative) for each cycle Mapper is stalled due to no DB2 entries
+      CYCLES_DB2_STALL,
+      //Event (speculative) for each cycle Mapper is stalled due to no DB3 entries
+      CYCLES_DB3_STALL,
+      //Event (speculative) for each cycle Mapper is stalled due to no DB4 entries
+      CYCLES_DB4_STALL,
+      //Event (speculative) for each cycle Mapper is stalled due to no DB5 entries
+      CYCLES_DB5_STALL,
+      //Event (speculative) for each cycle Mapper is stalled due to no DB6 entries
+      CYCLES_DB6_STALL,
+      //Event (speculative) for each cycle Mapper is stalled due to no DB7 entries
+      CYCLES_DB7_STALL,
       //Event for every NOP instruction dispatched
       DISPATCHED_NOPS,
       //Event for each retired direct control flow instruction
@@ -309,6 +325,8 @@ public:
       DTLB_PREFETCH_MISS,
       //Event (speculative) for 4k l1 dTLB refill caused by all operation
       DTLB_MISS_4K,
+      //Event (speculative) for 64k l1 dTLB refill caused by all operation
+      DTLB_MISS_64K,
       //Event (speculative) for huge page l1 dTLB refill caused by all operation
       DTLB_MISS_HUGEPAGE,
       //Event (speculative) for both 4k and huge page l1 dTLB refill caused by all operation
@@ -423,6 +441,18 @@ public:
       FILLBUF_HIT_REPLAY_MMU,
       //Event for any LS replay caused by hitting on a fillbuffer entry
       FILLBUF_HIT_REPLAY_ALL,
+      //Event (speculative) for any demand memory-read replay caused by incorrect cache hit prediction
+      CACHE_HIT_PREDICTOR_REPLAY_LOAD,
+      //Event (speculative) for any demand memory-write replay caused by incorrect cache hit prediction
+      CACHE_HIT_PREDICTOR_REPLAY_STORE,
+      //Event (speculative) for any LS replay caused by incorrect cache hit prediction
+      CACHE_HIT_PREDICTOR_REPLAY_ALL,
+      //Event for micro-TLB miss when micro-TLB hit mode predictor is active
+      UTLB_MISS_IN_HIT_MODE,
+      //Event for each cycle the micro-TLB hit mode predictor is active
+      UTLB_HIT_PREDICTOR_ACTIVE,
+      //Event for each time the micro-TLB hit mode predictor enters active mode
+      UTLB_HIT_PREDICTOR_ENTRANCE,
       //Event (speculative) for every instance of a load l1d_cache miss that links in the request buffer
       L1D_MISS_REQBUF_LINK_LOAD,
       //Event (speculative) for every instance of a store l1d_cache miss that links in the request buffer
@@ -665,10 +695,44 @@ public:
       TLP_ACCESS_AGP,
       //Event (speculative) for tlp pipe access from ARB
       TLP_ACCESS_ARB,
+      //Event (speculative) for any TLB pipe access that hits on a 4k page
+      TLP_ACCESS_HIT_4K,
+      //Event (speculative) for any TLB pipe access that hits on a 64k page
+      TLP_ACCESS_HIT_64K,
+      //Event (speculative) for any TLB pipe access that hits on a huge (>64k) page
+      TLP_ACCESS_HIT_HUGEPAGE,
       //Event (speculative) for tlp pipe access
       TLP_ACCESS_ALL,
       //Event for every instance of a failed FillBuffer allocation
       FILLBUF_CANNOT_ALLOC,
+      //Event to count each time an arb slot granted to LDC is canceled
+      LS_ARB_GRANT_CANCEL_LDC,
+      //Event to count each time an arb slot granted to STC is canceled
+      LS_ARB_GRANT_CANCEL_STC,
+      //Event to count each time an arb slot granted to MMU is canceled
+      LS_ARB_GRANT_CANCEL_MMU,
+      //Event to count each time an arb slot granted to PFC is canceled
+      LS_ARB_GRANT_CANCEL_PFC,
+      //Event to count each time an arb slot granted to AGP is canceled
+      LS_ARB_GRANT_CANCEL_AGP,
+      //Event to count each time an arb slot granted to a fill request is canceled
+      LS_ARB_GRANT_CANCEL_FILL,
+      //Event to count each time an arb slot granted to a victim request is canceled
+      LS_ARB_GRANT_CANCEL_VICTIM,
+      //Event to count each time a granted arb slot is canceled due to requestor-initiated late cancel
+      LS_ARB_GRANT_CANCEL_REQUESTOR,
+      //Event to count each time a granted arb slot is canceled due to ARB-internal cancel
+      LS_ARB_GRANT_CANCEL_INTERNAL,
+      //Event to count each time a granted arb slot is canceled
+      LS_ARB_GRANT_CANCEL_ALL,
+      //Event to count the number of cycles the LS arbiter is in round robin mode due to timeout
+      LS_ARB_ROUND_ROBIN_CYCLES,
+      //Event to count the number of times the LS arbiter enters round robin mode due to timeout
+      LS_ARB_ROUND_ROBIN_ENTRANCES,
+      //Event for each cycle the cache hit mode predictor is active
+      CACHE_HIT_PREDICTOR_ACTIVE,
+      //Event for each time the cache hit mode predictor enters active mode
+      CACHE_HIT_PREDICTOR_ENTRANCE,
       //Event for every failed instance a new Active Generation Table allocation
       PFC_AGT_CANNOT_ALLOC,
       //Event for every instance of AGT entry allocation
@@ -736,7 +800,7 @@ public:
 
 
     void core_to_vector(const rv_tester_transactions::pmu_core::pmcounters_core<>& pmcounters){
-    
+
       const uint64_t casting_size_term = uint64_t(1) << 24;
 
       counters_core[counter_core::CPU_CYCLES] = counters_core[counter_core::CPU_CYCLES] + ((pmcounters.cpu_cycles - (counters_core[counter_core::CPU_CYCLES] % casting_size_term)) % casting_size_term);
@@ -812,6 +876,14 @@ public:
       counters_core[counter_core::CYCLES_NO_VL_PRN] = counters_core[counter_core::CYCLES_NO_VL_PRN] + ((pmcounters.cycles_no_vl_prn - (counters_core[counter_core::CYCLES_NO_VL_PRN] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::CYCLES_NO_VM_PRN] = counters_core[counter_core::CYCLES_NO_VM_PRN] + ((pmcounters.cycles_no_vm_prn - (counters_core[counter_core::CYCLES_NO_VM_PRN] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::CYCLES_NO_ROB] = counters_core[counter_core::CYCLES_NO_ROB] + ((pmcounters.cycles_no_rob - (counters_core[counter_core::CYCLES_NO_ROB] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::CYCLES_DB0_STALL] = counters_core[counter_core::CYCLES_DB0_STALL] + ((pmcounters.cycles_db0_stall - (counters_core[counter_core::CYCLES_DB0_STALL] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::CYCLES_DB1_STALL] = counters_core[counter_core::CYCLES_DB1_STALL] + ((pmcounters.cycles_db1_stall - (counters_core[counter_core::CYCLES_DB1_STALL] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::CYCLES_DB2_STALL] = counters_core[counter_core::CYCLES_DB2_STALL] + ((pmcounters.cycles_db2_stall - (counters_core[counter_core::CYCLES_DB2_STALL] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::CYCLES_DB3_STALL] = counters_core[counter_core::CYCLES_DB3_STALL] + ((pmcounters.cycles_db3_stall - (counters_core[counter_core::CYCLES_DB3_STALL] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::CYCLES_DB4_STALL] = counters_core[counter_core::CYCLES_DB4_STALL] + ((pmcounters.cycles_db4_stall - (counters_core[counter_core::CYCLES_DB4_STALL] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::CYCLES_DB5_STALL] = counters_core[counter_core::CYCLES_DB5_STALL] + ((pmcounters.cycles_db5_stall - (counters_core[counter_core::CYCLES_DB5_STALL] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::CYCLES_DB6_STALL] = counters_core[counter_core::CYCLES_DB6_STALL] + ((pmcounters.cycles_db6_stall - (counters_core[counter_core::CYCLES_DB6_STALL] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::CYCLES_DB7_STALL] = counters_core[counter_core::CYCLES_DB7_STALL] + ((pmcounters.cycles_db7_stall - (counters_core[counter_core::CYCLES_DB7_STALL] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::DISPATCHED_NOPS] = counters_core[counter_core::DISPATCHED_NOPS] + ((pmcounters.dispatched_nops - (counters_core[counter_core::DISPATCHED_NOPS] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::OP_RETIRED_DIRECT_BRANCH] = counters_core[counter_core::OP_RETIRED_DIRECT_BRANCH] + ((pmcounters.op_retired_direct_branch - (counters_core[counter_core::OP_RETIRED_DIRECT_BRANCH] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::OP_RETIRED_RET_BRANCH] = counters_core[counter_core::OP_RETIRED_RET_BRANCH] + ((pmcounters.op_retired_ret_branch - (counters_core[counter_core::OP_RETIRED_RET_BRANCH] % casting_size_term)) % casting_size_term);
@@ -887,6 +959,7 @@ public:
       counters_core[counter_core::DTLB_WRITE_MISS] = counters_core[counter_core::DTLB_WRITE_MISS] + ((pmcounters.dtlb_write_miss - (counters_core[counter_core::DTLB_WRITE_MISS] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::DTLB_PREFETCH_MISS] = counters_core[counter_core::DTLB_PREFETCH_MISS] + ((pmcounters.dtlb_prefetch_miss - (counters_core[counter_core::DTLB_PREFETCH_MISS] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::DTLB_MISS_4K] = counters_core[counter_core::DTLB_MISS_4K] + ((pmcounters.dtlb_miss_4k - (counters_core[counter_core::DTLB_MISS_4K] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::DTLB_MISS_64K] = counters_core[counter_core::DTLB_MISS_64K] + ((pmcounters.dtlb_miss_64k - (counters_core[counter_core::DTLB_MISS_64K] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::DTLB_MISS_HUGEPAGE] = counters_core[counter_core::DTLB_MISS_HUGEPAGE] + ((pmcounters.dtlb_miss_hugepage - (counters_core[counter_core::DTLB_MISS_HUGEPAGE] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::DTLB_MISS_ALL] = counters_core[counter_core::DTLB_MISS_ALL] + ((pmcounters.dtlb_miss_all - (counters_core[counter_core::DTLB_MISS_ALL] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::LEAF_TLB_ACCESS_LS] = counters_core[counter_core::LEAF_TLB_ACCESS_LS] + ((pmcounters.leaf_tlb_access_ls - (counters_core[counter_core::LEAF_TLB_ACCESS_LS] % casting_size_term)) % casting_size_term);
@@ -944,6 +1017,12 @@ public:
       counters_core[counter_core::FILLBUF_HIT_REPLAY_STORE] = counters_core[counter_core::FILLBUF_HIT_REPLAY_STORE] + ((pmcounters.fillbuf_hit_replay_store - (counters_core[counter_core::FILLBUF_HIT_REPLAY_STORE] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::FILLBUF_HIT_REPLAY_MMU] = counters_core[counter_core::FILLBUF_HIT_REPLAY_MMU] + ((pmcounters.fillbuf_hit_replay_mmu - (counters_core[counter_core::FILLBUF_HIT_REPLAY_MMU] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::FILLBUF_HIT_REPLAY_ALL] = counters_core[counter_core::FILLBUF_HIT_REPLAY_ALL] + ((pmcounters.fillbuf_hit_replay_all - (counters_core[counter_core::FILLBUF_HIT_REPLAY_ALL] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::CACHE_HIT_PREDICTOR_REPLAY_LOAD] = counters_core[counter_core::CACHE_HIT_PREDICTOR_REPLAY_LOAD] + ((pmcounters.cache_hit_predictor_replay_load - (counters_core[counter_core::CACHE_HIT_PREDICTOR_REPLAY_LOAD] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::CACHE_HIT_PREDICTOR_REPLAY_STORE] = counters_core[counter_core::CACHE_HIT_PREDICTOR_REPLAY_STORE] + ((pmcounters.cache_hit_predictor_replay_store - (counters_core[counter_core::CACHE_HIT_PREDICTOR_REPLAY_STORE] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::CACHE_HIT_PREDICTOR_REPLAY_ALL] = counters_core[counter_core::CACHE_HIT_PREDICTOR_REPLAY_ALL] + ((pmcounters.cache_hit_predictor_replay_all - (counters_core[counter_core::CACHE_HIT_PREDICTOR_REPLAY_ALL] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::UTLB_MISS_IN_HIT_MODE] = counters_core[counter_core::UTLB_MISS_IN_HIT_MODE] + ((pmcounters.utlb_miss_in_hit_mode - (counters_core[counter_core::UTLB_MISS_IN_HIT_MODE] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::UTLB_HIT_PREDICTOR_ACTIVE] = counters_core[counter_core::UTLB_HIT_PREDICTOR_ACTIVE] + ((pmcounters.utlb_hit_predictor_active - (counters_core[counter_core::UTLB_HIT_PREDICTOR_ACTIVE] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::UTLB_HIT_PREDICTOR_ENTRANCE] = counters_core[counter_core::UTLB_HIT_PREDICTOR_ENTRANCE] + ((pmcounters.utlb_hit_predictor_entrance - (counters_core[counter_core::UTLB_HIT_PREDICTOR_ENTRANCE] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::L1D_MISS_REQBUF_LINK_LOAD] = counters_core[counter_core::L1D_MISS_REQBUF_LINK_LOAD] + ((pmcounters.l1d_miss_reqbuf_link_load - (counters_core[counter_core::L1D_MISS_REQBUF_LINK_LOAD] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::L1D_MISS_REQBUF_LINK_STORE] = counters_core[counter_core::L1D_MISS_REQBUF_LINK_STORE] + ((pmcounters.l1d_miss_reqbuf_link_store - (counters_core[counter_core::L1D_MISS_REQBUF_LINK_STORE] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::L1D_MISS_REQBUF_LINK_MMU] = counters_core[counter_core::L1D_MISS_REQBUF_LINK_MMU] + ((pmcounters.l1d_miss_reqbuf_link_mmu - (counters_core[counter_core::L1D_MISS_REQBUF_LINK_MMU] % casting_size_term)) % casting_size_term);
@@ -1065,8 +1144,25 @@ public:
       counters_core[counter_core::TLP_ACCESS_PREFETCH] = counters_core[counter_core::TLP_ACCESS_PREFETCH] + ((pmcounters.tlp_access_prefetch - (counters_core[counter_core::TLP_ACCESS_PREFETCH] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::TLP_ACCESS_AGP] = counters_core[counter_core::TLP_ACCESS_AGP] + ((pmcounters.tlp_access_agp - (counters_core[counter_core::TLP_ACCESS_AGP] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::TLP_ACCESS_ARB] = counters_core[counter_core::TLP_ACCESS_ARB] + ((pmcounters.tlp_access_arb - (counters_core[counter_core::TLP_ACCESS_ARB] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::TLP_ACCESS_HIT_4K] = counters_core[counter_core::TLP_ACCESS_HIT_4K] + ((pmcounters.tlp_access_hit_4k - (counters_core[counter_core::TLP_ACCESS_HIT_4K] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::TLP_ACCESS_HIT_64K] = counters_core[counter_core::TLP_ACCESS_HIT_64K] + ((pmcounters.tlp_access_hit_64k - (counters_core[counter_core::TLP_ACCESS_HIT_64K] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::TLP_ACCESS_HIT_HUGEPAGE] = counters_core[counter_core::TLP_ACCESS_HIT_HUGEPAGE] + ((pmcounters.tlp_access_hit_hugepage - (counters_core[counter_core::TLP_ACCESS_HIT_HUGEPAGE] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::TLP_ACCESS_ALL] = counters_core[counter_core::TLP_ACCESS_ALL] + ((pmcounters.tlp_access_all - (counters_core[counter_core::TLP_ACCESS_ALL] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::FILLBUF_CANNOT_ALLOC] = counters_core[counter_core::FILLBUF_CANNOT_ALLOC] + ((pmcounters.fillbuf_cannot_alloc - (counters_core[counter_core::FILLBUF_CANNOT_ALLOC] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::LS_ARB_GRANT_CANCEL_LDC] = counters_core[counter_core::LS_ARB_GRANT_CANCEL_LDC] + ((pmcounters.ls_arb_grant_cancel_ldc - (counters_core[counter_core::LS_ARB_GRANT_CANCEL_LDC] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::LS_ARB_GRANT_CANCEL_STC] = counters_core[counter_core::LS_ARB_GRANT_CANCEL_STC] + ((pmcounters.ls_arb_grant_cancel_stc - (counters_core[counter_core::LS_ARB_GRANT_CANCEL_STC] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::LS_ARB_GRANT_CANCEL_MMU] = counters_core[counter_core::LS_ARB_GRANT_CANCEL_MMU] + ((pmcounters.ls_arb_grant_cancel_mmu - (counters_core[counter_core::LS_ARB_GRANT_CANCEL_MMU] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::LS_ARB_GRANT_CANCEL_PFC] = counters_core[counter_core::LS_ARB_GRANT_CANCEL_PFC] + ((pmcounters.ls_arb_grant_cancel_pfc - (counters_core[counter_core::LS_ARB_GRANT_CANCEL_PFC] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::LS_ARB_GRANT_CANCEL_AGP] = counters_core[counter_core::LS_ARB_GRANT_CANCEL_AGP] + ((pmcounters.ls_arb_grant_cancel_agp - (counters_core[counter_core::LS_ARB_GRANT_CANCEL_AGP] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::LS_ARB_GRANT_CANCEL_FILL] = counters_core[counter_core::LS_ARB_GRANT_CANCEL_FILL] + ((pmcounters.ls_arb_grant_cancel_fill - (counters_core[counter_core::LS_ARB_GRANT_CANCEL_FILL] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::LS_ARB_GRANT_CANCEL_VICTIM] = counters_core[counter_core::LS_ARB_GRANT_CANCEL_VICTIM] + ((pmcounters.ls_arb_grant_cancel_victim - (counters_core[counter_core::LS_ARB_GRANT_CANCEL_VICTIM] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::LS_ARB_GRANT_CANCEL_REQUESTOR] = counters_core[counter_core::LS_ARB_GRANT_CANCEL_REQUESTOR] + ((pmcounters.ls_arb_grant_cancel_requestor - (counters_core[counter_core::LS_ARB_GRANT_CANCEL_REQUESTOR] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::LS_ARB_GRANT_CANCEL_INTERNAL] = counters_core[counter_core::LS_ARB_GRANT_CANCEL_INTERNAL] + ((pmcounters.ls_arb_grant_cancel_internal - (counters_core[counter_core::LS_ARB_GRANT_CANCEL_INTERNAL] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::LS_ARB_GRANT_CANCEL_ALL] = counters_core[counter_core::LS_ARB_GRANT_CANCEL_ALL] + ((pmcounters.ls_arb_grant_cancel_all - (counters_core[counter_core::LS_ARB_GRANT_CANCEL_ALL] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::LS_ARB_ROUND_ROBIN_CYCLES] = counters_core[counter_core::LS_ARB_ROUND_ROBIN_CYCLES] + ((pmcounters.ls_arb_round_robin_cycles - (counters_core[counter_core::LS_ARB_ROUND_ROBIN_CYCLES] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::LS_ARB_ROUND_ROBIN_ENTRANCES] = counters_core[counter_core::LS_ARB_ROUND_ROBIN_ENTRANCES] + ((pmcounters.ls_arb_round_robin_entrances - (counters_core[counter_core::LS_ARB_ROUND_ROBIN_ENTRANCES] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::CACHE_HIT_PREDICTOR_ACTIVE] = counters_core[counter_core::CACHE_HIT_PREDICTOR_ACTIVE] + ((pmcounters.cache_hit_predictor_active - (counters_core[counter_core::CACHE_HIT_PREDICTOR_ACTIVE] % casting_size_term)) % casting_size_term);
+      counters_core[counter_core::CACHE_HIT_PREDICTOR_ENTRANCE] = counters_core[counter_core::CACHE_HIT_PREDICTOR_ENTRANCE] + ((pmcounters.cache_hit_predictor_entrance - (counters_core[counter_core::CACHE_HIT_PREDICTOR_ENTRANCE] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::PFC_AGT_CANNOT_ALLOC] = counters_core[counter_core::PFC_AGT_CANNOT_ALLOC] + ((pmcounters.pfc_agt_cannot_alloc - (counters_core[counter_core::PFC_AGT_CANNOT_ALLOC] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::PFC_AGT_TRAINING_ALLOC] = counters_core[counter_core::PFC_AGT_TRAINING_ALLOC] + ((pmcounters.pfc_agt_training_alloc - (counters_core[counter_core::PFC_AGT_TRAINING_ALLOC] % casting_size_term)) % casting_size_term);
       counters_core[counter_core::PFC_AGT_TRAINING_UPDATE] = counters_core[counter_core::PFC_AGT_TRAINING_UPDATE] + ((pmcounters.pfc_agt_training_update - (counters_core[counter_core::PFC_AGT_TRAINING_UPDATE] % casting_size_term)) % casting_size_term);
@@ -1176,6 +1272,14 @@ public:
       {CYCLES_NO_VL_PRN,"cycles_no_vl_prn"},
       {CYCLES_NO_VM_PRN,"cycles_no_vm_prn"},
       {CYCLES_NO_ROB,"cycles_no_rob"},
+      {CYCLES_DB0_STALL,"cycles_db0_stall"},
+      {CYCLES_DB1_STALL,"cycles_db1_stall"},
+      {CYCLES_DB2_STALL,"cycles_db2_stall"},
+      {CYCLES_DB3_STALL,"cycles_db3_stall"},
+      {CYCLES_DB4_STALL,"cycles_db4_stall"},
+      {CYCLES_DB5_STALL,"cycles_db5_stall"},
+      {CYCLES_DB6_STALL,"cycles_db6_stall"},
+      {CYCLES_DB7_STALL,"cycles_db7_stall"},
       {DISPATCHED_NOPS,"dispatched_nops"},
       {OP_RETIRED_DIRECT_BRANCH,"op_retired_direct_branch"},
       {OP_RETIRED_RET_BRANCH,"op_retired_ret_branch"},
@@ -1251,6 +1355,7 @@ public:
       {DTLB_WRITE_MISS,"dtlb_write_miss"},
       {DTLB_PREFETCH_MISS,"dtlb_prefetch_miss"},
       {DTLB_MISS_4K,"dtlb_miss_4k"},
+      {DTLB_MISS_64K,"dtlb_miss_64k"},
       {DTLB_MISS_HUGEPAGE,"dtlb_miss_hugepage"},
       {DTLB_MISS_ALL,"dtlb_miss_all"},
       {LEAF_TLB_ACCESS_LS,"leaf_tlb_access_ls"},
@@ -1308,6 +1413,12 @@ public:
       {FILLBUF_HIT_REPLAY_STORE,"fillbuf_hit_replay_store"},
       {FILLBUF_HIT_REPLAY_MMU,"fillbuf_hit_replay_mmu"},
       {FILLBUF_HIT_REPLAY_ALL,"fillbuf_hit_replay_all"},
+      {CACHE_HIT_PREDICTOR_REPLAY_LOAD,"cache_hit_predictor_replay_load"},
+      {CACHE_HIT_PREDICTOR_REPLAY_STORE,"cache_hit_predictor_replay_store"},
+      {CACHE_HIT_PREDICTOR_REPLAY_ALL,"cache_hit_predictor_replay_all"},
+      {UTLB_MISS_IN_HIT_MODE,"utlb_miss_in_hit_mode"},
+      {UTLB_HIT_PREDICTOR_ACTIVE,"utlb_hit_predictor_active"},
+      {UTLB_HIT_PREDICTOR_ENTRANCE,"utlb_hit_predictor_entrance"},
       {L1D_MISS_REQBUF_LINK_LOAD,"l1d_miss_reqbuf_link_load"},
       {L1D_MISS_REQBUF_LINK_STORE,"l1d_miss_reqbuf_link_store"},
       {L1D_MISS_REQBUF_LINK_MMU,"l1d_miss_reqbuf_link_mmu"},
@@ -1429,8 +1540,25 @@ public:
       {TLP_ACCESS_PREFETCH,"tlp_access_prefetch"},
       {TLP_ACCESS_AGP,"tlp_access_agp"},
       {TLP_ACCESS_ARB,"tlp_access_arb"},
+      {TLP_ACCESS_HIT_4K,"tlp_access_hit_4k"},
+      {TLP_ACCESS_HIT_64K,"tlp_access_hit_64k"},
+      {TLP_ACCESS_HIT_HUGEPAGE,"tlp_access_hit_hugepage"},
       {TLP_ACCESS_ALL,"tlp_access_all"},
       {FILLBUF_CANNOT_ALLOC,"fillbuf_cannot_alloc"},
+      {LS_ARB_GRANT_CANCEL_LDC,"ls_arb_grant_cancel_ldc"},
+      {LS_ARB_GRANT_CANCEL_STC,"ls_arb_grant_cancel_stc"},
+      {LS_ARB_GRANT_CANCEL_MMU,"ls_arb_grant_cancel_mmu"},
+      {LS_ARB_GRANT_CANCEL_PFC,"ls_arb_grant_cancel_pfc"},
+      {LS_ARB_GRANT_CANCEL_AGP,"ls_arb_grant_cancel_agp"},
+      {LS_ARB_GRANT_CANCEL_FILL,"ls_arb_grant_cancel_fill"},
+      {LS_ARB_GRANT_CANCEL_VICTIM,"ls_arb_grant_cancel_victim"},
+      {LS_ARB_GRANT_CANCEL_REQUESTOR,"ls_arb_grant_cancel_requestor"},
+      {LS_ARB_GRANT_CANCEL_INTERNAL,"ls_arb_grant_cancel_internal"},
+      {LS_ARB_GRANT_CANCEL_ALL,"ls_arb_grant_cancel_all"},
+      {LS_ARB_ROUND_ROBIN_CYCLES,"ls_arb_round_robin_cycles"},
+      {LS_ARB_ROUND_ROBIN_ENTRANCES,"ls_arb_round_robin_entrances"},
+      {CACHE_HIT_PREDICTOR_ACTIVE,"cache_hit_predictor_active"},
+      {CACHE_HIT_PREDICTOR_ENTRANCE,"cache_hit_predictor_entrance"},
       {PFC_AGT_CANNOT_ALLOC,"pfc_agt_cannot_alloc"},
       {PFC_AGT_TRAINING_ALLOC,"pfc_agt_training_alloc"},
       {PFC_AGT_TRAINING_UPDATE,"pfc_agt_training_update"},
@@ -1538,6 +1666,14 @@ public:
       {0x90200003,counter_core::CYCLES_NO_VL_PRN},
       {0x90200004,counter_core::CYCLES_NO_VM_PRN},
       {0x90200005,counter_core::CYCLES_NO_ROB},
+      {0x90210000,counter_core::CYCLES_DB0_STALL},
+      {0x90210001,counter_core::CYCLES_DB1_STALL},
+      {0x90210002,counter_core::CYCLES_DB2_STALL},
+      {0x90210003,counter_core::CYCLES_DB3_STALL},
+      {0x90210004,counter_core::CYCLES_DB4_STALL},
+      {0x90210005,counter_core::CYCLES_DB5_STALL},
+      {0x90210006,counter_core::CYCLES_DB6_STALL},
+      {0x90210007,counter_core::CYCLES_DB7_STALL},
       {0x14600000,counter_core::DISPATCHED_NOPS},
       {0x14610001,counter_core::OP_RETIRED_DIRECT_BRANCH},
       {0x14610002,counter_core::OP_RETIRED_RET_BRANCH},
@@ -1609,12 +1745,13 @@ public:
       {0x2bc1000a,counter_core::DTLB_WRITE_ACCESS_CACHEABLE},
       {0x2bc10012,counter_core::DTLB_WRITE_ACCESS_NONCACHEABLE},
       {0x2bc1001f,counter_core::DTLB_ACCESS_ALL},
-      {0x25010019,counter_core::DTLB_READ_MISS},
-      {0x2501001a,counter_core::DTLB_WRITE_MISS},
-      {0x2501001c,counter_core::DTLB_PREFETCH_MISS},
+      {0x25010039,counter_core::DTLB_READ_MISS},
+      {0x2501003a,counter_core::DTLB_WRITE_MISS},
+      {0x2501003c,counter_core::DTLB_PREFETCH_MISS},
       {0x2501000f,counter_core::DTLB_MISS_4K},
-      {0x25010017,counter_core::DTLB_MISS_HUGEPAGE},
-      {0x2501001f,counter_core::DTLB_MISS_ALL},
+      {0x25010017,counter_core::DTLB_MISS_64K},
+      {0x25010037,counter_core::DTLB_MISS_HUGEPAGE},
+      {0x2501003f,counter_core::DTLB_MISS_ALL},
       {0x21800001,counter_core::LEAF_TLB_ACCESS_LS},
       {0x21800002,counter_core::LEAF_TLB_ACCESS_FE},
       {0x21800004,counter_core::LEAF_TLB_ACCESS_MMU_PREFETCH},
@@ -1655,10 +1792,10 @@ public:
       {0xafc20104,counter_core::TAG_BANK_CONFLICT_REPLAY_PREFETCH},
       {0xafc20108,counter_core::TAG_BANK_CONFLICT_REPLAY_MMU},
       {0xafc2010f,counter_core::TAG_BANK_CONFLICT_REPLAY_ALL},
-      {0xafc20401,counter_core::DTLB_REPLAY_LOAD},
-      {0xafc20402,counter_core::DTLB_REPLAY_STORE},
-      {0xafc20404,counter_core::DTLB_REPLAY_PREFETCH},
-      {0xafc2040f,counter_core::DTLB_REPLAY_ALL},
+      {0xafc20801,counter_core::DTLB_REPLAY_LOAD},
+      {0xafc20802,counter_core::DTLB_REPLAY_STORE},
+      {0xafc20804,counter_core::DTLB_REPLAY_PREFETCH},
+      {0xafc2080f,counter_core::DTLB_REPLAY_ALL},
       {0xafc20201,counter_core::SIPT_REPLAY_LOAD},
       {0xafc20202,counter_core::SIPT_REPLAY_STORE},
       {0xafc2020f,counter_core::SIPT_REPLAY_ALL},
@@ -1670,6 +1807,12 @@ public:
       {0xafc22002,counter_core::FILLBUF_HIT_REPLAY_STORE},
       {0xafc22008,counter_core::FILLBUF_HIT_REPLAY_MMU},
       {0xafc2200f,counter_core::FILLBUF_HIT_REPLAY_ALL},
+      {0xafc20401,counter_core::CACHE_HIT_PREDICTOR_REPLAY_LOAD},
+      {0xafc20402,counter_core::CACHE_HIT_PREDICTOR_REPLAY_STORE},
+      {0xafc2040f,counter_core::CACHE_HIT_PREDICTOR_REPLAY_ALL},
+      {0xa4070000,counter_core::UTLB_MISS_IN_HIT_MODE},
+      {0xa0080000,counter_core::UTLB_HIT_PREDICTOR_ACTIVE},
+      {0xa0090000,counter_core::UTLB_HIT_PREDICTOR_ENTRANCE},
       {0x25400021,counter_core::L1D_MISS_REQBUF_LINK_LOAD},
       {0x25400022,counter_core::L1D_MISS_REQBUF_LINK_STORE},
       {0x25400028,counter_core::L1D_MISS_REQBUF_LINK_MMU},
@@ -1786,13 +1929,30 @@ public:
       {0xa4c60000,counter_core::WP_TRUE_HIT},
       {0x24c70000,counter_core::PFC_PREFETCHES_HIT},
       {0x24c80000,counter_core::PFC_USELESS_PREFETCHES},
-      {0xa5000031,counter_core::TLP_ACCESS_LOAD},
-      {0xa5000032,counter_core::TLP_ACCESS_STORE},
-      {0xa5000034,counter_core::TLP_ACCESS_PREFETCH},
-      {0xa5000017,counter_core::TLP_ACCESS_AGP},
-      {0xa5000027,counter_core::TLP_ACCESS_ARB},
-      {0xa5000037,counter_core::TLP_ACCESS_ALL},
+      {0xa5000ff1,counter_core::TLP_ACCESS_LOAD},
+      {0xa5000ff2,counter_core::TLP_ACCESS_STORE},
+      {0xa5000ff4,counter_core::TLP_ACCESS_PREFETCH},
+      {0xa5000fd7,counter_core::TLP_ACCESS_AGP},
+      {0xa5000fe7,counter_core::TLP_ACCESS_ARB},
+      {0xa5000277,counter_core::TLP_ACCESS_HIT_4K},
+      {0xa5000477,counter_core::TLP_ACCESS_HIT_64K},
+      {0xa5000877,counter_core::TLP_ACCESS_HIT_HUGEPAGE},
+      {0xa5000ff7,counter_core::TLP_ACCESS_ALL},
       {0xa5410000,counter_core::FILLBUF_CANNOT_ALLOC},
+      {0xaa030013,counter_core::LS_ARB_GRANT_CANCEL_LDC},
+      {0xaa030023,counter_core::LS_ARB_GRANT_CANCEL_STC},
+      {0xaa030043,counter_core::LS_ARB_GRANT_CANCEL_MMU},
+      {0xaa030083,counter_core::LS_ARB_GRANT_CANCEL_PFC},
+      {0xaa030103,counter_core::LS_ARB_GRANT_CANCEL_AGP},
+      {0xaa030203,counter_core::LS_ARB_GRANT_CANCEL_FILL},
+      {0xaa030403,counter_core::LS_ARB_GRANT_CANCEL_VICTIM},
+      {0xaa0307f1,counter_core::LS_ARB_GRANT_CANCEL_REQUESTOR},
+      {0xaa0307f2,counter_core::LS_ARB_GRANT_CANCEL_INTERNAL},
+      {0xaa0307f3,counter_core::LS_ARB_GRANT_CANCEL_ALL},
+      {0xa2040000,counter_core::LS_ARB_ROUND_ROBIN_CYCLES},
+      {0xa2050000,counter_core::LS_ARB_ROUND_ROBIN_ENTRANCES},
+      {0xa0cc0000,counter_core::CACHE_HIT_PREDICTOR_ACTIVE},
+      {0xa0cd0000,counter_core::CACHE_HIT_PREDICTOR_ENTRANCE},
       {0xa5c00000,counter_core::PFC_AGT_CANNOT_ALLOC},
       {0xa5c200fd,counter_core::PFC_AGT_TRAINING_ALLOC},
       {0xa5c200fe,counter_core::PFC_AGT_TRAINING_UPDATE},
@@ -2185,6 +2345,8 @@ public:
       NO_ALLOC_SRRIP,
       //SC pipeline cancellation in TA4. It can result from b2b same-set access and other conditions
       SC_CANCEL_PIPERESULT,
+      //Event for each TB cycle
+      SC_TB_CYCLES,
     COUNT_SC
     } counter_sc;
 
@@ -2280,6 +2442,7 @@ public:
       counters_sc[counter_sc::SC_VICTIM] = counters_sc[counter_sc::SC_VICTIM] + ((pmcounters.sc_victim - (counters_sc[counter_sc::SC_VICTIM] % casting_size_term)) % casting_size_term);
       counters_sc[counter_sc::NO_ALLOC_SRRIP] = counters_sc[counter_sc::NO_ALLOC_SRRIP] + ((pmcounters.no_alloc_srrip - (counters_sc[counter_sc::NO_ALLOC_SRRIP] % casting_size_term)) % casting_size_term);
       counters_sc[counter_sc::SC_CANCEL_PIPERESULT] = counters_sc[counter_sc::SC_CANCEL_PIPERESULT] + ((pmcounters.sc_cancel_piperesult - (counters_sc[counter_sc::SC_CANCEL_PIPERESULT] % casting_size_term)) % casting_size_term);
+      counters_sc[counter_sc::SC_TB_CYCLES] = counters_sc[counter_sc::SC_TB_CYCLES] + ((pmcounters.sc_tb_cycles - (counters_sc[counter_sc::SC_TB_CYCLES] % casting_size_term)) % casting_size_term);
 
     }
 
@@ -2372,6 +2535,7 @@ public:
       {SC_VICTIM,"sc_victim"},
       {NO_ALLOC_SRRIP,"no_alloc_srrip"},
       {SC_CANCEL_PIPERESULT,"sc_cancel_piperesult"},
+      {SC_TB_CYCLES,"sc_tb_cycles"},
     };
 
 //AUTOGENERATED -- END

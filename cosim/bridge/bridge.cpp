@@ -143,6 +143,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
       //"mtinst","htinst", // RVDE-10005
       "sstatus","mstatus","hstatus","mie","hie","vsie","sie", // RVDE-11840
       "vxsat", // Vectors RVDE-17338
+      "srmcfg",
       "tselect","tdata1","tdata2","tdata3","mcontext","tinfo", // Unimplemented: RVDE-7518, RVTOOLS-3124
       "fflags","fcsr", // Unimplemented
       "menvcfg","senvcfg","henvcfg", // FIXME: pointer masking change
@@ -903,7 +904,7 @@ void bridge::post_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
 void bridge::check_debug_mode_entry_via_ebreak(const rv_instr_t& instr) {
   dtvec_ebreak_ = false;
   for (auto& csr : instr.csr) {
-    if (instr.valid && csr.valid && (csr.csr_addr == c_dtvec_spec_csr) && (csr.csr_wdata & 0x10)==0) {
+    if (instr.valid && instr.ucode && csr.valid && (csr.csr_addr == c_dtvec_csr) && (csr.csr_wdata & 0x10)==0) {
       dtvec_ebreak_ = true;
       if (!debug_mode_){
           debug_mode_ = !instr.excp && !(instr.priv == 6);
@@ -1638,7 +1639,6 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
     uint64_t data = modify_csr_data(hart, c.csr_addr, c.csr_wdata, d.priv);
     uint64_t mask = modify_csr_mask(hart, c.csr_addr, c.csr_wdata, c.csr_wmask);
     if (FLAGS_csr_rd_check) {
-      csr_value_before_update_ = get_csr(hart, src_t::dut, c.csr_addr);
       if ((hypervisor_csr_map_.find(c.csr_addr) != hypervisor_csr_map_.end()) && (!hyp_enabled())) {
       } else {
         update_csr(hart, src_t::dut, c.csr_addr, data, mask);
@@ -1697,55 +1697,6 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
             update_csr(hart, src_t::dut, MIDELEG, 0, mask, false, false);
           }
         }
-      }
-      else if (c.csr_addr == MVIEN){
-        bool valid;
-        uint64_t sie_iss, mask, poke_mask, read_mask;
-        if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, SIE, sie_iss, mask, poke_mask, read_mask, valid)|| !valid) && FLAGS_whisper_client_check) {
-          error("Hart {}: Failed to peek csr : {:#x} in get_csr()\n", hart, SIE);
-        }
-        // when mideleg[n] == 0 and mvien[n] == 0 -> 1, then sie[n] is UNSPECIFIED
-        uint64_t sie_unspecified_mask = (~csr_value_before_update_) & (get_csr(hart, src_t::dut, MVIEN)) & (~get_csr(hart, src_t::dut, MIDELEG));
-        uint64_t sie_data = (((~sie_unspecified_mask & sie_iss)) | ((sie_unspecified_mask & get_csr(hart, src_t::dut, SIE))));
-        poke_resource(hart, d.cycle, 'c', SIE, sie_data);
-        // when mvien[1] == 0 -> 1, then mvip[1] is UNSPECIFIED
-        if (((data & mask) << 1) == 1) {
-          uint64_t mvip_data = (0x2 & get_csr(hart, src_t::dut, MVIP)) | (0xfffffffffffffffdULL & get_csr(hart, src_t::iss, MVIP));
-          poke_resource(hart, d.cycle, 'c', MVIP, mvip_data);
-        }
-      }
-      else if (c.csr_addr == MIDELEG) {
-        bool valid;
-        uint64_t sie_iss, mask, poke_mask, read_mask;
-        if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, SIE, sie_iss, mask, poke_mask, read_mask, valid)|| !valid) && FLAGS_whisper_client_check) {
-          error("Hart {}: Failed to peek csr : {:#x} in get_csr()\n", hart, SIE);
-        }
-        // when mideleg[n] == 1 -> 0 and mvien[n] == 1, then sie[n] is UNSPECIFIED
-        uint64_t sie_unspecified_mask = (csr_value_before_update_) & (~get_csr(hart, src_t::dut, MIDELEG)) & get_csr(hart, src_t::dut, MVIEN);
-        uint64_t sie_data = (((~sie_unspecified_mask & sie_iss)) | ((sie_unspecified_mask & get_csr(hart, src_t::dut, SIE))));
-        poke_resource(hart, d.cycle, 'c', SIE, sie_data);
-      }
-      else if (c.csr_addr == HVIEN){
-        bool valid;
-        uint64_t vsie_iss, mask, poke_mask, read_mask;
-        if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, VSIE, vsie_iss, mask, poke_mask, read_mask, valid)|| !valid) && FLAGS_whisper_client_check) {
-          error("Hart {}: Failed to peek csr : {:#x} in get_csr()\n", hart, VSIE);
-        }
-        // when hideleg[n] == 0 and hvien[n] == 0 -> 1, then vsie[n] is UNSPECIFIED
-        uint64_t vsie_unspecified_mask = (~csr_value_before_update_) & (get_csr(hart, src_t::dut, HVIEN)) & (~get_csr(hart, src_t::dut, HIDELEG));
-        uint64_t vsie_data = (((~vsie_unspecified_mask & vsie_iss)) | ((vsie_unspecified_mask & get_csr(hart, src_t::dut, VSIE))));
-        poke_resource(hart, d.cycle, 'c', VSIE, vsie_data);
-      }
-      else if (c.csr_addr == HIDELEG) {
-        bool valid;
-        uint64_t vsie_iss, mask, poke_mask, read_mask;
-        if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, VSIE, vsie_iss, mask, poke_mask, read_mask, valid)|| !valid) && FLAGS_whisper_client_check) {
-          error("Hart {}: Failed to peek csr : {:#x} in get_csr()\n", hart, VSIE);
-        }
-        // when hideleg[n] == 1 -> 0 and hvien[n] == 1, then vsie[n] is UNSPECIFIED
-        uint64_t vsie_unspecified_mask = (csr_value_before_update_) & (~get_csr(hart, src_t::dut, HIDELEG)) & get_csr(hart, src_t::dut, HVIEN);
-        uint64_t vsie_data = (((~vsie_unspecified_mask & vsie_iss)) | ((vsie_unspecified_mask & get_csr(hart, src_t::dut, VSIE))));
-        poke_resource(hart, d.cycle, 'c', VSIE, vsie_data);
       }
       if ((hypervisor_masked_csr_map_.find(c.csr_addr) != hypervisor_masked_csr_map_.end())) {
         hypervisor_masked_csrs_[c.csr_addr] = (data & modify_csr_mask(hart, c.csr_addr, c.csr_wdata, c.csr_wmask)) | (hypervisor_masked_csrs_[c.csr_addr] & ~modify_csr_mask(hart, c.csr_addr, c.csr_wdata, c.csr_wmask));

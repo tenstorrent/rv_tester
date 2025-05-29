@@ -43,7 +43,6 @@ DEFINE_uint64(nme_vec, 0, "NMI exception handler PC");
 DEFINE_bool(ppo, true, "Enable ppo checks");
 DEFINE_bool(traceptw, true, "Enable page table walk tracing");
 DEFINE_bool(whisper_auto_increment_timer, false, "Enable whisper auto_increment_timer");
-DEFINE_bool(whisper_aclint_deliver_interrupts, true, "Enable whisper aclint deliver_interrupts");
 DEFINE_uint64(whisper_aclint_time_adjust, 0, "Set aclint adjust time compare offset");
 #include "iss_utils.h"
 
@@ -225,8 +224,8 @@ whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>& sess
       WdRiscv::Hart<URV>* hart = system->ithHart(i).get();
       if (standalone) {
         hart->setWfiTimeout(0);
+        hart->setAclintDeliverInterrupts(false); 
       } else {
-        hart->setAclintDeliverInterrupts(FLAGS_whisper_aclint_deliver_interrupts);
         hart->autoIncrementTimer(FLAGS_whisper_auto_increment_timer);
         hart->setAclintAdjustTimeCompare(FLAGS_whisper_aclint_time_adjust);
       }

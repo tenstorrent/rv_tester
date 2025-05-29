@@ -7,33 +7,33 @@
 //      ENABLING:
 //          - +cosim_period=<n>  where <n> > 0
 //          - +debug_cycle=<n>   where <n> > 0   -- turns ON extra C++ messages to aid in debug
-//          - +debug_high=<n>    where <n> > 0   -- DISABLES PSC mode when clock count >= debug_low and <= debug_high and debug_high>0 
-//          - +debug_low=<n>     where <n> > 0   -- See debug_high (this is useful in debugging why whisper is miscomparing) 
+//          - +debug_high=<n>    where <n> > 0   -- DISABLES PSC mode when clock count >= debug_low and <= debug_high and debug_high>0
+//          - +debug_low=<n>     where <n> > 0   -- See debug_high (this is useful in debugging why whisper is miscomparing)
 //
 //      USAGE
 //          - sends RVFI packets only when necessary to keep COSIM model in-sync.
 //                - packets that require COSIM to be updated are refered to as 'pokes'
 //                - Poke events are:
 //                     - CSR read/writes
-//                     - SC read/writes  
-//                     - INTERRUPT memory writes  
-//                     - Exceptions 
-//                     - PC==debug_entry_pc or PC==debug_exit_c (or ANY instruction in between) 
-//                     - if any of the above cause a POKE.. but last_uop=0...then POKE again when last_uop=1 for that 'order' 
+//                     - SC read/writes
+//                     - INTERRUPT memory writes
+//                     - Exceptions
+//                     - PC==debug_entry_pc or PC==debug_exit_c (or ANY instruction in between)
+//                     - if any of the above cause a POKE.. but last_uop=0...then POKE again when last_uop=1 for that 'order'
 //          - sends STEP packets to push the COSIM model along when needed:
-//                - when an RVFI has to be sent and step count > 0 
+//                - when an RVFI has to be sent and step count > 0
 //                - when instruction orders 'skip' values
-//          - sends GP/FP/VP registers for comparison       
+//          - sends GP/FP/VP registers for comparison
 //                - sent when # of retired instructions > 'cosim_period'  AND
 //                - when there are no retiring instructions with last_uop=0  AND
-//                - a register value has been written since the last update 
+//                - a register value has been written since the last update
 //
 //      ERROR CONDITIONS:
 //          - Feature cannot be used with any mode requiring every instruction to be sent
 //                - emulate_debug_mode=1
 //                - cosim_resynch=1
-//                - mcm=1   (not yet validated for MCM testing) 
-//           
+//                - mcm=1   (not yet validated for MCM testing)
+//
 //==============================================================================================================================
 module cosim_reg_bank
 #(
@@ -114,6 +114,7 @@ import rv_tester_params::*;
     input tb_clk,
     input clk,
     input reset,
+    input dut_core_reset,
     input dut_reset,
     input logic [63:0] clocks,
     input rule_t [NoAddrRules-1:0] addr_map,
@@ -204,14 +205,14 @@ localparam CAM_IHBIT = CAM_IBITS;
       mask[CXINSTSPEC]      = 0; //-------------------""----------------------------------
       mask[CMCTHRCFG0]      = 0; //thermal throttle csr not important fucntionally
       mask[VSTOPEI]         = 0; //interrupt csr update are handled separately
-      mask[MHPMCOUNTER3]    = 0; //perf counter 
-      mask[MHPMCOUNTER4]    = 0; //perf counter 
-      mask[MHPMCOUNTER5]    = 0; //perf counter 
-      mask[MHPMCOUNTER6]    = 0; //perf counter 
-      mask[MHPMCOUNTER7]    = 0; //perf counter 
-      mask[MHPMCOUNTER8]    = 0; //perf counter 
-      mask[MHPMCOUNTER9]    = 0; //perf counter 
-      mask[MHPMCOUNTER10]   = 0; //perf counter 
+      mask[MHPMCOUNTER3]    = 0; //perf counter
+      mask[MHPMCOUNTER4]    = 0; //perf counter
+      mask[MHPMCOUNTER5]    = 0; //perf counter
+      mask[MHPMCOUNTER6]    = 0; //perf counter
+      mask[MHPMCOUNTER7]    = 0; //perf counter
+      mask[MHPMCOUNTER8]    = 0; //perf counter
+      mask[MHPMCOUNTER9]    = 0; //perf counter
+      mask[MHPMCOUNTER10]   = 0; //perf counter
       return mask;
     endfunction
 
@@ -245,9 +246,9 @@ localparam CAM_IHBIT = CAM_IBITS;
     endfunction
 
     //----------------------------------------------------------------------------
-    // function memmap_decode: compares address to memory map ranges 
+    // function memmap_decode: compares address to memory map ranges
     //----------------------------------------------------------------------------
-    
+
     function automatic bit memmap_decode(input rule_t [NoAddrRules-1:0] mem_map, input bit [PA_WIDTH-1:0] address );
         memmap_decode = 1'b0;
         if ((address < mmr_hi_addr_const) & (address >= mmr_lo_addr_const))
@@ -357,7 +358,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     bit [NRET-1:0]         fence;
     bit [NRET-1:0]         rvfi_excps;
     bit [NRET-1:0]         vec_crack;                       // cracked vector operation
-    bit [NRET-1:0]         mem_write;                       // poke all memory writes IF mcm enabled 
+    bit [NRET-1:0]         mem_write;                       // poke all memory writes IF mcm enabled
     bit [NRET-1:0]         mem_read;                        // poke all memory read IF  mcm enabled
     bit [NRET-1:0]         intr_memw;
     bit [NRET-1:0]         cmp_memw;
@@ -368,12 +369,12 @@ localparam CAM_IHBIT = CAM_IBITS;
     bit                    reg_waddr5_event;
     bit                    rvfi_excp_ip;                    // rvfi exeption packets beging processed
     bit                    rvfi_dbg_excp;
-    bit [NRET-1:0]         poke_events;                     // events that should cause a Poke in Whisper 
+    bit [NRET-1:0]         poke_events;                     // events that should cause a Poke in Whisper
     bit [NRET-1:0]         enter_dbg;                       // event when PC == debug_entry_pc
     bit [NRET-1:0]         exit_dbg;                        // event when PC == debug_exit_pc
     bit [NRET-1:0]         debug_read;                      // event when reading memory in debug_entry_pc and debug_exit_pc range
-    bit [NRET-1:0]         device_read;                     // event memory read to a device in our address map 
-    bit [NRET-1:0]         poke_no_uop;                     // events that should cause a Poke in Whisper 
+    bit [NRET-1:0]         device_read;                     // event memory read to a device in our address map
+    bit [NRET-1:0]         poke_no_uop;                     // events that should cause a Poke in Whisper
     bit                    mintr;                           // event when m_trap senns an interrupt/exception
     bit                    poke_interrupt;                  // event when m_trap senns an interrupt/exception
     bit                    mtrap_valid;                     // event when m_trap senns an interrupt/exception
@@ -417,9 +418,9 @@ localparam CAM_IHBIT = CAM_IBITS;
     bit                    rvfi_valid;
     bit                    send_rvfi;
     bit                    send_regs;
-    bit                    gp_changed; 
-    bit                    fp_changed; 
-    bit                    vc_changed; 
+    bit                    gp_changed;
+    bit                    fp_changed;
+    bit                    vc_changed;
 
     /* verilator lint_off UNOPTFLAT */
     bit [NRET-1:0]      rvfi_ucode;
@@ -526,8 +527,8 @@ localparam CAM_IHBIT = CAM_IBITS;
     end
 
     always @(posedge clk) begin
-       if (reset) 
-          rvfi_val_luops_d1 <= '0; 
+       if (reset)
+          rvfi_val_luops_d1 <= '0;
        else
           rvfi_val_luops_d1 <= rvfi_val_luops;
     end
@@ -539,10 +540,10 @@ localparam CAM_IHBIT = CAM_IBITS;
     //   - Several cases where we need to send the RVFI packet...
     //        1) SC instruction decoded
     //        2) CSR instruction decoded
-    //        3) Execptions 
-    //        4) Interrupts 
-    //        5) Interrupts Causes 
-    //        6) Multi-cycle UOPS (where last_uop == 0) 
+    //        3) Execptions
+    //        4) Interrupts
+    //        5) Interrupts Causes
+    //        6) Multi-cycle UOPS (where last_uop == 0)
     //
     //---------------------------------------------------------------------------------
     for(genvar n=0;n<NRET;n=n+1) begin
@@ -560,8 +561,8 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign exit_dbg[n]     = rvfi[n].valid & (rvfi[n].pc_rdata == 64'(debug_exit_pc));
         assign device_read[n]  = rvfi[n].valid & (rvfi[n].mem_rmask != '0) & memmap_decode(addr_map, rvfi[n].mem_paddr);
 
-        assign mflags[n]       = rvfi[n].flags_valid; 
-        assign rvfi_excps[n]   = ~rvfi[n].cause[63] & (rvfi[n].cause != '0); 
+        assign mflags[n]       = rvfi[n].flags_valid;
+        assign rvfi_excps[n]   = ~rvfi[n].cause[63] & (rvfi[n].cause != '0);
         assign vec_crack[n]   = rvfi[n].valid & rvfi[n].vec & !rvfi[n].last_uop;
         assign mem_write[n]   = rvfi[n].valid & (rvfi[n].mem_wmask !=0) & mcm_enabled;
         assign mem_read[n]    = rvfi[n].valid & (rvfi[n].mem_rmask !=0) & mcm_enabled;
@@ -591,11 +592,11 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     assign imsic_valid = m_imsic_msis[0].valid;
     assign mtrap_valid = m_traps[0].valid;
-    assign csrrw_valid = (csr_rw != '0); 
-    assign scrw_valid  = (sc_rw != '0); 
-    assign gpwa5_valid = (gp_waddr5 != '0); 
-    assign mflag_valid = (mflags != '0); 
-    assign devrd_valid = (device_read != '0); 
+    assign csrrw_valid = (csr_rw != '0);
+    assign scrw_valid  = (sc_rw != '0);
+    assign gpwa5_valid = (gp_waddr5 != '0);
+    assign mflag_valid = (mflags != '0);
+    assign devrd_valid = (device_read != '0);
 
     for(genvar n=0;n<NRET;n=n+1) begin
         always @(posedge clk)
@@ -603,7 +604,7 @@ localparam CAM_IHBIT = CAM_IBITS;
             if (reset | (rvfi[n].last_uop & rvfi[n].valid)) begin
                rvfi_last_uop_orders[n] <= '0;
             end
-            else begin  
+            else begin
                if (rvfi[n].valid & ~rvfi[n].last_uop & poke_event_out)
                   rvfi_last_uop_orders[n] <= rvfi[n].order;
             end
@@ -611,21 +612,21 @@ localparam CAM_IHBIT = CAM_IBITS;
             if (reset | (rvfi[n].last_insn & rvfi[n].valid)) begin
                rvfi_last_insn_orders[n] <= '0;
             end
-            else begin  
+            else begin
                if (rvfi[n].valid & ~rvfi[n].last_insn & poke_event_out)
                   rvfi_last_insn_orders[n] <= rvfi[n].order;
             end
         end
- 
-        
-        
+
+
+
         //----------------------------------------------------------------------------------------------------------
         // Match current order with last clocks rvfi orders that had a "poke" but last_uop=0 .. now last_up==1
         //----------------------------------------------------------------------------------------------------------
         for(genvar m=0;m<NRET;m=m+1) begin
             //assign rvfi_last_uop_events[n][m] = rvfi[n].valid & (rvfi[n].order == rvfi_last_uop_orders[m]);
-            assign rvfi_last_uop_events[n][m] = rvfi[n].valid & (rvfi[n].order == rvfi_last_uop_orders[m]) & rvfi[n].last_uop ;  
-            assign rvfi_last_insn_events[n][m] = rvfi[n].valid & (rvfi[n].order == rvfi_last_insn_orders[m]) & rvfi[n].last_insn;  
+            assign rvfi_last_uop_events[n][m] = rvfi[n].valid & (rvfi[n].order == rvfi_last_uop_orders[m]) & rvfi[n].last_uop ;
+            assign rvfi_last_insn_events[n][m] = rvfi[n].valid & (rvfi[n].order == rvfi_last_insn_orders[m]) & rvfi[n].last_insn;
         end
 
     end
@@ -634,13 +635,13 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     always @(posedge clk)
     begin
-        if (reset) 
+        if (reset)
            rvfi_debug_mode_s <= 1'b0;
         else
-        if (enter_dbg != '0) 
+        if (enter_dbg != '0)
            rvfi_debug_mode_s <= 1'b1;
         else
-        if (exit_dbg != '0) 
+        if (exit_dbg != '0)
            rvfi_debug_mode_s <= 1'b0;
 
         //---------------------------------------------------------------
@@ -662,11 +663,11 @@ localparam CAM_IHBIT = CAM_IBITS;
         end
         else begin
            if (rvfi_excps != '0) begin
-              rvfi_excp_ip <=  1'b1; 
+              rvfi_excp_ip <=  1'b1;
            end
            else begin
               if ((rvfi_val_luops == '0) & rvfi_valid) begin
-                 rvfi_excp_ip <=  1'b0; 
+                 rvfi_excp_ip <=  1'b0;
               end
            end
            if (mtrap_valid | (m_interrupt_pends[0].valid) | imsic_valid) begin
@@ -677,15 +678,15 @@ localparam CAM_IHBIT = CAM_IBITS;
                   mintr <= 1'b0;
               end
            end
-           if ( mintr & ~csrrw_valid & ~scrw_valid & ~devrd_valid & ~mflag_valid & ~gpwa5_valid ) mintr_cnt <= mintr_cnt + 1; 
-           if (~mintr &  csrrw_valid & ~scrw_valid & ~devrd_valid & ~mflag_valid & ~gpwa5_valid ) csrrw_cnt <= csrrw_cnt + 1; 
-           if (~mintr & ~csrrw_valid &  scrw_valid & ~devrd_valid & ~mflag_valid & ~gpwa5_valid ) scrw_cnt  <= scrw_cnt + 1; 
-           if (~mintr & ~csrrw_valid & ~scrw_valid &  devrd_valid & ~mflag_valid & ~gpwa5_valid ) devrd_cnt <= devrd_cnt + 1; 
-           if (~mintr & ~csrrw_valid & ~scrw_valid & ~devrd_valid &  mflag_valid & ~gpwa5_valid ) mflag_cnt <= mflag_cnt + 1; 
-           if (~mintr & ~csrrw_valid & ~scrw_valid & ~devrd_valid & ~mflag_valid &  gpwa5_valid ) gpwa5_cnt <= gpwa5_cnt + 1; 
+           if ( mintr & ~csrrw_valid & ~scrw_valid & ~devrd_valid & ~mflag_valid & ~gpwa5_valid ) mintr_cnt <= mintr_cnt + 1;
+           if (~mintr &  csrrw_valid & ~scrw_valid & ~devrd_valid & ~mflag_valid & ~gpwa5_valid ) csrrw_cnt <= csrrw_cnt + 1;
+           if (~mintr & ~csrrw_valid &  scrw_valid & ~devrd_valid & ~mflag_valid & ~gpwa5_valid ) scrw_cnt  <= scrw_cnt + 1;
+           if (~mintr & ~csrrw_valid & ~scrw_valid &  devrd_valid & ~mflag_valid & ~gpwa5_valid ) devrd_cnt <= devrd_cnt + 1;
+           if (~mintr & ~csrrw_valid & ~scrw_valid & ~devrd_valid &  mflag_valid & ~gpwa5_valid ) mflag_cnt <= mflag_cnt + 1;
+           if (~mintr & ~csrrw_valid & ~scrw_valid & ~devrd_valid & ~mflag_valid &  gpwa5_valid ) gpwa5_cnt <= gpwa5_cnt + 1;
 
-           if (rvfi_valid) rvfi_cnt <= rvfi_cnt + 1; 
-           if (m_rvfis[0].valid) mrvfi_cnt <= mrvfi_cnt + 1; 
+           if (rvfi_valid) rvfi_cnt <= rvfi_cnt + 1;
+           if (m_rvfis[0].valid) mrvfi_cnt <= mrvfi_cnt + 1;
 
            eot_found_d1 <= (eot_found | eot_found_d1);
 
@@ -707,13 +708,13 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign poke_last_insn_event= ((rvfi_last_insn_events != '0)) ? 1'b1 : 1'b0;
     assign poke_debug_event=  ((psc_off_high !=0) & (clocks >= psc_off_low) & (clocks <= psc_off_high)) ? 1'b1 : 1'b0;
 
-    assign poke_event_out = (poke_events != '0) | send_regs | poke_last_uop_event | poke_last_insn_event | rvfi_debug_mode | poke_debug_event; 
+    assign poke_event_out = (poke_events != '0) | send_regs | poke_last_uop_event | poke_last_insn_event | rvfi_debug_mode | poke_debug_event;
 
     assign send_rvfi =  poke_event_out | ~PSC_enabled;
 
     assign m_gp_regss[0].valid      = send_regs;
     assign m_gp_regss[0].data.hart  = NUM;
-    assign m_gp_regss[0].data.cycle = clocks; 
+    assign m_gp_regss[0].data.cycle = clocks;
     assign m_gp_regss[0].data.location = location;
     for(genvar n=0;n<NGP_REGS;n=n+1) begin
         assign m_gp_regss[0].data.value[n][63:0] = gp_wdata_in[n];
@@ -721,7 +722,7 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     assign m_fp_regss[0].valid = send_regs & fp_changed;
     assign m_fp_regss[0].data.hart  = NUM;
-    assign m_fp_regss[0].data.cycle = clocks; 
+    assign m_fp_regss[0].data.cycle = clocks;
     assign m_fp_regss[0].data.location = location;
     for(genvar n=0;n<NFP_REGS;n=n+1) begin
         assign m_fp_regss[0].data.value[n][63:0] = fp_wdata_in[n];
@@ -729,7 +730,7 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     assign m_vc_regss[0].valid = send_regs & vc_changed;
     assign m_vc_regss[0].data.hart  = NUM;
-    assign m_vc_regss[0].data.cycle = clocks; 
+    assign m_vc_regss[0].data.cycle = clocks;
     assign m_vc_regss[0].data.location = location;
     for(genvar n=0;n<NVC_REGS;n=n+1) begin
         assign m_vc_regss[0].data.value[n] = vc_wdata_in[n];
@@ -780,7 +781,7 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     // m_rvfi
     for (genvar n = 0; n < NRET; n++) begin
-        assign m_rvfis[n].valid            = (RVFI_EN & rvfi_enabled & ~dut_reset & (rvfi[n].valid | rvfi[n].trap) & send_rvfi);
+        assign m_rvfis[n].valid            = (RVFI_EN & rvfi_enabled & ~dut_core_reset & (rvfi[n].valid | rvfi[n].trap) & send_rvfi);
         assign m_rvfis[n].data.location    = location;
         assign m_rvfis[n].data.cycle       = clocks;
         assign m_rvfis[n].data.hart        = NUM;
@@ -837,7 +838,7 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign instr_imax[n]   = ((max_instructions > 0) & (instr_icnt[n] == max_instructions)) ? 1'b1 : 1'b0;
 
         //--------------------------------------------------------------------------------------------------------------------------------------
-        // Logic to generate first_uop, ucode, priv[3:0] and priv_change signals (formerly generated in C++ 
+        // Logic to generate first_uop, ucode, priv[3:0] and priv_change signals (formerly generated in C++
         //--------------------------------------------------------------------------------------------------------------------------------------
         //                               rvfi[0].valid          rvfi[1].valid      rvfi[2].valid      rvfi[7].valid                           //
         //               ____                         |                  |                   |                  |                             //
@@ -853,15 +854,15 @@ localparam CAM_IHBIT = CAM_IBITS;
         //                     |            \---o|  \__first_uop[0]                                                                           //
         //                     \-----------------|__/                                                                                         //
         //                                                                                     Example serial chain logic                     //
-        //                                                                                                                                    // 
-        // rvfi_ucode:       sequence is a microcode ops                                                                                      // 
-        // rvfi_instr_ucode: this value is sent to C++ for instr.ucode value                                                                  // 
-        // rvfi_first_uop:   first operation of microcode (this is when rvfi_priv is latched)                                                 // 
-        // rvfi_priv:        mode bits loaded into latch on first ucode op (used for comparison needed for patch mode)                        // 
-        // rvfi_instr_priv:  non-ucode gets mode bits, ucode sequence it gets latched mode bits on first_uop                                  // 
-        // rvfi_priv_change: if priv mode bits change during a microcode sequence then this bit is SET, CLEAREd on last_uop=1                 // 
-        // rvfi_set_patch:   if last uop and mode is  4 (patch) then set patch_mode=1                                                         // 
-        // rvfi_clr_patch:   if last uop and mode is !4 (but previously was) 4 then set patch_mode=0                                          // 
+        //                                                                                                                                    //
+        // rvfi_ucode:       sequence is a microcode ops                                                                                      //
+        // rvfi_instr_ucode: this value is sent to C++ for instr.ucode value                                                                  //
+        // rvfi_first_uop:   first operation of microcode (this is when rvfi_priv is latched)                                                 //
+        // rvfi_priv:        mode bits loaded into latch on first ucode op (used for comparison needed for patch mode)                        //
+        // rvfi_instr_priv:  non-ucode gets mode bits, ucode sequence it gets latched mode bits on first_uop                                  //
+        // rvfi_priv_change: if priv mode bits change during a microcode sequence then this bit is SET, CLEAREd on last_uop=1                 //
+        // rvfi_set_patch:   if last uop and mode is  4 (patch) then set patch_mode=1                                                         //
+        // rvfi_clr_patch:   if last uop and mode is !4 (but previously was) 4 then set patch_mode=0                                          //
         //------------------------------------------------------------------------------------------------------------------------------------//
 
         assign rvfi_mode[n]                = rvfi[n].mode;
@@ -872,13 +873,13 @@ localparam CAM_IHBIT = CAM_IBITS;
            assign rvfi_last_uop[n]            = (rvfi[n].valid) ? rvfi[n].last_uop : rvfi_last_uop_S;
            assign rvfi_first_uop[n]           = (rvfi[n].valid) ? ((~rvfi[n].last_uop) & rvfi_last_uop_S) : 1'b0;
            assign rvfi_priv_change[n]         = (rvfi[n].valid==1'b0) ?  rvfi_priv_change_S :(
-                                                   (rvfi_last_uop[n]==1'b1) ? 1'b0 : ( 
+                                                   (rvfi_last_uop[n]==1'b1) ? 1'b0 : (
                                                    (~rvfi_first_uop[n] & rvfi_instr_ucode[n] & (rvfi_mode[n] != rvfi_priv_S)) ? 1'b1 : rvfi_priv_change_S));
-           assign rvfi_priv[n]                = (rvfi[n].valid==1'b0) ? rvfi_priv_S : ((rvfi_last_uop[n] | (rvfi_first_uop[n] & rvfi_instr_ucode[n])) ? rvfi_mode[n] : rvfi_priv_S);  
+           assign rvfi_priv[n]                = (rvfi[n].valid==1'b0) ? rvfi_priv_S : ((rvfi_last_uop[n] | (rvfi_first_uop[n] & rvfi_instr_ucode[n])) ? rvfi_mode[n] : rvfi_priv_S);
            assign rvfi_instr_priv[n]          = (~rvfi_instr_ucode[n] | rvfi_first_uop[n]) ? rvfi_mode[n] : rvfi_priv_S;
-           assign rvfi_set_patch[n]           = (rvfi[n].valid & rvfi_last_uop[n] & (rvfi_mode[n] == 4'h4) & ~rvfi_patch_mode_S) ? 1'b1 : 1'b0; 
+           assign rvfi_set_patch[n]           = (rvfi[n].valid & rvfi_last_uop[n] & (rvfi_mode[n] == 4'h4) & ~rvfi_patch_mode_S) ? 1'b1 : 1'b0;
            assign rvfi_clr_patch[n]           = (rvfi[n].valid & rvfi_last_uop[n] & (rvfi_mode[n] != 4'h4) &  rvfi_patch_mode_S) ? 1'b1 : 1'b0;
-           assign rvfi_patch_mode[n]          = (rvfi[n].valid==1'b0) ? rvfi_patch_mode_S : (rvfi_clr_patch[n] ? 1'b0 : (rvfi_set_patch[n] ? 1'b1 : rvfi_patch_mode_S)); 
+           assign rvfi_patch_mode[n]          = (rvfi[n].valid==1'b0) ? rvfi_patch_mode_S : (rvfi_clr_patch[n] ? 1'b0 : (rvfi_set_patch[n] ? 1'b1 : rvfi_patch_mode_S));
         end
         else begin
            assign rvfi_ucode[n]               = (rvfi[n].valid) ? ~rvfi[n].last_uop : rvfi_ucode[n-1];
@@ -886,18 +887,18 @@ localparam CAM_IHBIT = CAM_IBITS;
            assign rvfi_last_uop[n]            = (rvfi[n].valid) ? rvfi[n].last_uop : rvfi_last_uop[n-1];
            assign rvfi_first_uop[n]           = (rvfi[n].valid) ? ((~rvfi[n].last_uop) & rvfi_last_uop[n-1]) : 1'b0 ;
            assign rvfi_priv_change[n]         = (rvfi[n].valid==1'b0) ?  rvfi_priv_change[n-1] :(
-                                                   (rvfi_last_uop[n]==1'b1) ? 1'b0 : ( 
+                                                   (rvfi_last_uop[n]==1'b1) ? 1'b0 : (
                                                    (~rvfi_first_uop[n] & rvfi_instr_ucode[n] & (rvfi_mode[n] != rvfi_priv[n-1])) ? 1'b1 : rvfi_priv_change[n-1]));
-           assign rvfi_priv[n]                = (rvfi[n].valid==1'b0) ? rvfi_priv[n-1] : ((rvfi_last_uop[n] | (rvfi_first_uop[n] & rvfi_instr_ucode[n])) ? rvfi_mode[n] : rvfi_priv[n-1]);  
+           assign rvfi_priv[n]                = (rvfi[n].valid==1'b0) ? rvfi_priv[n-1] : ((rvfi_last_uop[n] | (rvfi_first_uop[n] & rvfi_instr_ucode[n])) ? rvfi_mode[n] : rvfi_priv[n-1]);
            assign rvfi_instr_priv[n]          = (~rvfi_instr_ucode[n] | rvfi_first_uop[n]) ? rvfi_mode[n] : rvfi_priv[n-1];
-           assign rvfi_set_patch[n]           = (rvfi[n].valid & rvfi_last_uop[n] & (rvfi_mode[n] == 4'h4) & ~rvfi_patch_mode_S & ~rvfi_set_patch[n-1]) ? 1'b1 : 1'b0; 
+           assign rvfi_set_patch[n]           = (rvfi[n].valid & rvfi_last_uop[n] & (rvfi_mode[n] == 4'h4) & ~rvfi_patch_mode_S & ~rvfi_set_patch[n-1]) ? 1'b1 : 1'b0;
            assign rvfi_clr_patch[n]           = (rvfi[n].valid & rvfi_last_uop[n] & (rvfi_mode[n] != 4'h4) & rvfi_patch_mode_S & ~rvfi_clr_patch[n-1]) ? 1'b1 : 1'b0;
-           assign rvfi_patch_mode[n]          = (rvfi[n].valid==1'b0) ? rvfi_patch_mode[n-1] : (rvfi_clr_patch[n] ? 1'b0 : (rvfi_set_patch[n] ? 1'b1 : rvfi_patch_mode[n-1])); 
+           assign rvfi_patch_mode[n]          = (rvfi[n].valid==1'b0) ? rvfi_patch_mode[n-1] : (rvfi_clr_patch[n] ? 1'b0 : (rvfi_set_patch[n] ? 1'b1 : rvfi_patch_mode[n-1]));
         end
     end   // for loop n
 
     always @(posedge clk)  begin
-        if (dut_reset) begin
+        if (dut_core_reset) begin
            rvfi_ucode_S           <= 1'b0;
            rvfi_last_uop_S        <= 1'b1;
            rvfi_priv_change_S     <= 1'b0;
@@ -926,7 +927,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     end
 
 
-    assign poke_patch_mode = (rvfi_trap_patch != '0) | rvfi_trap_pmode | (rvfi_set_patch != '0) | (rvfi_clr_patch != '0) | (rvfi_patch_mode != '0); 
+    assign poke_patch_mode = (rvfi_trap_patch != '0) | rvfi_trap_pmode | (rvfi_set_patch != '0) | (rvfi_clr_patch != '0) | (rvfi_patch_mode != '0);
 
 
     //---------------------------------------------------------------
@@ -947,10 +948,10 @@ localparam CAM_IHBIT = CAM_IBITS;
     // order skip is when either order[0] does not equal expected-order  OR
     // when the orders in current RVFI packets is not sequential
     //----------------------------------------------------------------------
-    //assign order_skip  = (mcm_enabled & ((rvfi_valids != '0) & (rvfi_skips != '0) & ~rvfi_first_valid)) ? 1'b1 : 1'b0; 
-    assign order_skip  = 1'b0; 
+    //assign order_skip  = (mcm_enabled & ((rvfi_valids != '0) & (rvfi_skips != '0) & ~rvfi_first_valid)) ? 1'b1 : 1'b0;
+    assign order_skip  = 1'b0;
 
-    assign val0_order   = rvfi_orders[0]; 
+    assign val0_order   = rvfi_orders[0];
     assign rvfi_skips   = (rvfi_exp_order != rvfi_orders[0]) & ((val0_order > rvfi_exp_order)) ? val0_order - rvfi_exp_order - 1 : '0;               // number of missing orders
 
 
@@ -968,7 +969,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     //assign send_steps   = (send_rvfi & (rvfi_steps != '0)) & rvfi_valid | order_skip | ((poke_event_in & ~poke_event_out) & (rvfi_steps != '0));
     assign send_steps   = (send_rvfi & (rvfi_steps != '0)) ;
 
-    assign m_stepss[0].valid            = RVFI_EN & rvfi_enabled & ~dut_reset & send_steps & PSC_enabled;
+    assign m_stepss[0].valid            = RVFI_EN & rvfi_enabled & ~dut_core_reset & send_steps & PSC_enabled;
     assign m_stepss[0].data.location    = location;
     assign m_stepss[0].data.n_retire    = NRET;
     assign m_stepss[0].data.hart        = NUM;
@@ -978,7 +979,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign m_stepss[0].data.final_steps = (send_rvfi==1'b1) ? '0 : 64'(valid_cnt);        // No final steps IF rvfi is being sent too
 
     always @(posedge clk) begin
-        if (dut_reset) begin
+        if (dut_core_reset) begin
             rvfi_steps      <= '0;
             rvfi_scheck_cnt <= '0;
             rvfi_exp_order  <= '0;
@@ -994,21 +995,21 @@ localparam CAM_IHBIT = CAM_IBITS;
                 instruction_cnt <= instruction_cnt + 64'(valid_cnt);
                 rvfi_first_valid  <= 1'b0;
                 rvfi_exp_order <= rvmax_order + 1;                   // compute next clocks rvfi order start to find dropped instruction orders
-            end 
+            end
 
-            if (send_regs)  
+            if (send_regs)
                rvfi_scheck_cnt <= '0;                           // clear counter
             else
-            if (rvfi_valid)  
-               rvfi_scheck_cnt <= rvfi_scheck_cnt + 32'(valid_cnt);          
+            if (rvfi_valid)
+               rvfi_scheck_cnt <= rvfi_scheck_cnt + 32'(valid_cnt);
 
-            if (rvfi_valid & ~send_steps & ~send_rvfi)                        // we dno not need to STEP whisper  
+            if (rvfi_valid & ~send_steps & ~send_rvfi)                        // we dno not need to STEP whisper
                rvfi_steps <= rvfi_steps + 64'(valid_cnt);       // increment how many valids we did NOT send
             else
-            if (send_steps) 
+            if (send_steps)
                rvfi_steps <= 0;                                 // we sent the step-count to whisper .... reset the step counter
 
-        end      
+        end
     end
 
     //-----------------------------------------------------------------------------------------------------------------
@@ -1020,10 +1021,10 @@ localparam CAM_IHBIT = CAM_IBITS;
     //              - and we are not in the middle of a multi-clock op (last_uop==0)
     //        - An event occurs that we need to FORCE an RVFI message
     //              - End of test (EOT)
-    //              - MCM poke events (if enabled) 
+    //              - MCM poke events (if enabled)
     //        - A RVFI is writing a register > 31 (reg_waddr5_event)
-    //  - This will trigger 2 events 
-    //        1) DPI call to send current state of GP/FP/VC register (fp and vc only if they have changed)  
+    //  - This will trigger 2 events
+    //        1) DPI call to send current state of GP/FP/VC register (fp and vc only if they have changed)
     //              because this ifc is later in YML it will get received AFTER the RVFI packets are processed
     //        2) DPI call to end  RVFI packet via poke_events with the following flags:
     //              - force_steps:  only used during EOT to force the ISS to execute its remaining steps
@@ -1035,11 +1036,11 @@ localparam CAM_IHBIT = CAM_IBITS;
     //       - compares registers
     //-----------------------------------------------------------------------------------------------------------------
 
-    //assign send_regs = ((rvfi_valid & (rvfi_scheck_cnt >= cosim_period) & (rvfi_val_luops == 0)) | eot_found | reg_waddr5_event) & PSC_enabled & RVFI_EN & rvfi_enabled & ~dut_reset;
+    //assign send_regs = ((rvfi_valid & (rvfi_scheck_cnt >= cosim_period) & (rvfi_val_luops == 0)) | eot_found | reg_waddr5_event) & PSC_enabled & RVFI_EN & rvfi_enabled & ~dut_core_reset;
 
-    assign send_regs = ((rvfi_valid & (rvfi_scheck_cnt >= cosim_period) & (rvfi_val_luops == 0) & ~rvfi_debug_mode & ~rvfi_trap_pmode) | eot_found) & PSC_enabled & RVFI_EN & rvfi_enabled & ~dut_reset; 
- 
-    //assign send_regs_i = ((~rvfi_valid & (rvfi_scheck_cnt >= cosim_period))  | eot_found) & PSC_enabled & RVFI_EN & rvfi_enabled & ~dut_reset;
+    assign send_regs = ((rvfi_valid & (rvfi_scheck_cnt >= cosim_period) & (rvfi_val_luops == 0) & ~rvfi_debug_mode & ~rvfi_trap_pmode) | eot_found) & PSC_enabled & RVFI_EN & rvfi_enabled & ~dut_core_reset;
+
+    //assign send_regs_i = ((~rvfi_valid & (rvfi_scheck_cnt >= cosim_period))  | eot_found) & PSC_enabled & RVFI_EN & rvfi_enabled & ~dut_core_reset;
 
     //assign send_regs = send_regs_i & ~send_regs_d1;
 
@@ -1076,8 +1077,8 @@ localparam CAM_IHBIT = CAM_IBITS;
 
 
     for (genvar n = 0; n < CSR_COUNT; n++) begin
-        assign m_csris_valid[n] = rvfi_enabled & ~dut_reset & csr_ignore_mask[n] &
-                                  ((csri[n].valid & ~valid_d1[n]) | 
+        assign m_csris_valid[n] = rvfi_enabled & ~dut_core_reset & csr_ignore_mask[n] &
+                                  ((csri[n].valid & ~valid_d1[n]) |
                                     (csri[n].valid & (((csri[n].data & csri[n].mask) !== (data_d1[n] & mask_d1[n])) |
                                     (csri[n].mask !== mask_d1[n]))));
     end
@@ -1093,7 +1094,7 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     // m_mcmi_read
     for (genvar n = 0; n < NREAD; n++) begin
-        assign m_mcmi_reads[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_reset & mcmi_read[n].valid;
+        assign m_mcmi_reads[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_core_reset & mcmi_read[n].valid;
         assign m_mcmi_reads[n].data.location = location;
         /* verilator lint_off WIDTH */
         assign m_mcmi_reads[n].data.cycle = mcmi_read[n].valid ? clocks : '0;
@@ -1120,7 +1121,7 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     // m_mcmi_insert
     for (genvar n = 0; n < NINSERT; n++) begin
-        assign m_mcmi_inserts[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_reset & mcmi_insert[n].valid;
+        assign m_mcmi_inserts[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_core_reset & mcmi_insert[n].valid;
         assign m_mcmi_inserts[n].data.location = location;
         assign m_mcmi_inserts[n].data.cycle = mcmi_insert[n].valid ? clocks : '0;
         assign m_mcmi_inserts[n].data.hart = NUM;
@@ -1145,7 +1146,7 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     // m_mcmi_write
     for (genvar n = 0; n < NWRITE; n++) begin
-        assign m_mcmi_writes[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_reset & mcmi_write[n].valid;
+        assign m_mcmi_writes[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_core_reset & mcmi_write[n].valid;
         assign m_mcmi_writes[n].data.location = location;
         assign m_mcmi_writes[n].data.cycle = mcmi_write[n].valid ? clocks : '0;
         assign m_mcmi_writes[n].data.hart = NUM;
@@ -1158,7 +1159,7 @@ localparam CAM_IHBIT = CAM_IBITS;
 
         assign mcmi_write_data[n] = mcmi_write[n].data[63:0]; 
 /* verilator lint_off WIDTHEXPAND */
-        assign mcmi_write_addr[n] = mcmi_write[n].addr; 
+        assign mcmi_write_addr[n] = mcmi_write[n].addr;
 /* verilator lint_on WIDTHEXPAND */
         assign eot_write_found[n] = ((to_host == 1) & (eot_addr != '0) &  
                                       mcmi_write[n].valid & (mcmi_write[n].addr == $bits(mcmi_write[n].addr)'(eot_addr)) & 
@@ -1169,7 +1170,7 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     // m_mcmi_bypass
     for (genvar n = 0; n < NBYPASS; n++) begin
-        assign m_mcmi_bypasss[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_reset & mcmi_bypass[n].valid;
+        assign m_mcmi_bypasss[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_core_reset & mcmi_bypass[n].valid;
         assign m_mcmi_bypasss[n].data.location = location;
         assign m_mcmi_bypasss[n].data.cycle = mcmi_bypass[n].valid ? clocks : '0;
         assign m_mcmi_bypasss[n].data.hart = NUM;
@@ -1186,8 +1187,8 @@ localparam CAM_IHBIT = CAM_IBITS;
         // End-Of-Test logic:  memory write to designated address
         //    - will cause a save-state event (force-steps=1 if NO instrs being retired currently
         //-------------------------------------------------------------------------------------------
-        assign eot_bypass_found[n] = ((to_host == 1) & (eot_addr != '0) &  
-                                      mcmi_bypass[n].valid & (mcmi_bypass[n].addr == $bits(mcmi_bypass[n].addr)'(eot_addr)) & 
+        assign eot_bypass_found[n] = ((to_host == 1) & (eot_addr != '0) &
+                                      mcmi_bypass[n].valid & (mcmi_bypass[n].addr == $bits(mcmi_bypass[n].addr)'(eot_addr)) &
                                       mcmi_bypass[n].data[0] & (mcmi_bypass[n].data[63:56] == '0)) ? 1'b1 : 1'b0;
         assign eot_bypass_data[n] = (eot_bypass_found[n]) ? mcmi_bypass[n].data[63:0] : 64'h0; 
 /* verilator lint_off WIDTHEXPAND */
@@ -1203,7 +1204,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     //   eoti-offline : for offline_dpi capture  (only sent during offline_dpi caputure)
     //----------------------------------------------------------------------------------------------------
 
-    assign eot_found      = ~dut_reset & ((eot_write_found != 0) | (eot_bypass_found != 0) | (eot_insert_found != '0) | eot_max_instr) ? 1'b1 : 1'b0; 
+    assign eot_found      = ~dut_core_reset & ((eot_write_found != 0) | (eot_bypass_found != 0) | (eot_insert_found != '0) | eot_max_instr) ? 1'b1 : 1'b0; 
 
     always_comb begin
         eoti_data = '0; 
@@ -1240,7 +1241,7 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     // m_mcmi_ifetch
     for (genvar n = 0; n < NIFETCH; n++) begin
-        assign m_mcmi_ifetch_reqs[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_reset & mcmi_ifetch_req[n].valid;
+        assign m_mcmi_ifetch_reqs[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_core_reset & mcmi_ifetch_req[n].valid;
         assign m_mcmi_ifetch_reqs[n].data.location = location;
         assign m_mcmi_ifetch_reqs[n].data.cycle = mcmi_ifetch_req[n].valid ? clocks : '0;
         assign m_mcmi_ifetch_reqs[n].data.hart = NUM;
@@ -1250,7 +1251,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     end
 
     for (genvar n = 0; n < NIFETCH; n++) begin
-        assign m_mcmi_ifetch_resps[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_reset & mcmi_ifetch_resp[n].valid;
+        assign m_mcmi_ifetch_resps[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_core_reset & mcmi_ifetch_resp[n].valid;
         assign m_mcmi_ifetch_resps[n].data.location = location;
         assign m_mcmi_ifetch_resps[n].data.cycle = mcmi_ifetch_resp[n].valid ? clocks : '0;
         assign m_mcmi_ifetch_resps[n].data.hart = NUM;
@@ -1259,7 +1260,7 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     // m_mcmi_ievict
     for (genvar n = 0; n < NIEVICT; n++) begin
-        assign m_mcmi_ievicts[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_reset & mcmi_ievict[n].valid;
+        assign m_mcmi_ievicts[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_core_reset & mcmi_ievict[n].valid;
         assign m_mcmi_ievicts[n].data.location = location;
         assign m_mcmi_ievicts[n].data.cycle = mcmi_ievict[n].valid ? clocks : '0;
         assign m_mcmi_ievicts[n].data.hart = NUM;
@@ -1274,15 +1275,15 @@ localparam CAM_IHBIT = CAM_IBITS;
       cause_d2 <= cause_d1;
       cause_d3 <= cause_d2;
     end
-    assign m_traps[0].valid = RVFI_EN & rvfi_enabled & ~dut_reset & (cause_d3 != 0);
+    assign m_traps[0].valid = RVFI_EN & rvfi_enabled & ~dut_core_reset & (cause_d3 != 0);
     assign m_traps[0].data.location = location;
     assign m_traps[0].data.cycle = clocks;
     assign m_traps[0].data.id = get_trap_id(cause_d3);
     assign m_traps[0].data.cause = cause_d3;
     assign m_traps[0].data.order = rvfi[0].order;
-    assign rvfi_trap_patch =  RVFI_EN & rvfi_enabled & ~dut_reset & (cause_d3 != 0) & (cause_d3 >= 58) & ~cause_d3[63];
-   
-    
+    assign rvfi_trap_patch =  RVFI_EN & rvfi_enabled & ~dut_core_reset & (cause_d3 != 0) & (cause_d3 >= 58) & ~cause_d3[63];
+
+
 
     function automatic rv_tester_pkg::trap_e get_trap_id(logic [XLEN-1:0] cause);
       if (cause[63:62] == 'h3)
@@ -1305,7 +1306,7 @@ localparam CAM_IHBIT = CAM_IBITS;
       debug_mode_d1 <= debug_mode;
       haltreq_d1 <= haltreq;
     end
-    assign m_debugs[0].valid = ~dut_reset & ((debug_mode & ~debug_mode_d1) | (~debug_mode & debug_mode_d1) | (haltreq & ~haltreq_d1) | (~haltreq & haltreq_d1)) & rvfi_enabled;
+    assign m_debugs[0].valid = ~dut_core_reset & ((debug_mode & ~debug_mode_d1) | (~debug_mode & debug_mode_d1) | (haltreq & ~haltreq_d1) | (~haltreq & haltreq_d1)) & rvfi_enabled;
     assign m_debugs[0].data.location = location;
     assign m_debugs[0].data.cycle = clocks;
     assign m_debugs[0].data.enter = debug_mode;
@@ -1315,7 +1316,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     // m_nmi_pend
     rv_tester_pkg::nmi_t nmi_pend_d1;
     always @(posedge clk) begin
-      if(dut_reset) begin
+      if(dut_core_reset) begin
         nmi_pend_d1 <= nmi_pend;
       end
       if(~nmi_pend_d1.nmi) begin
@@ -1325,7 +1326,7 @@ localparam CAM_IHBIT = CAM_IBITS;
         nmi_pend_d1.nmi <= nmi_pend.nmi;
       end
     end
-    assign m_core_nmis[0].valid = ~dut_reset & ((nmi_pend.nmi & ~nmi_pend_d1.nmi) || (nmi_pend.clai & ~nmi_pend_d1.clai) || (~nmi_pend.nmi & nmi_pend_d1.nmi) || (~nmi_pend.clai & nmi_pend_d1.clai)) & rvfi_enabled;
+    assign m_core_nmis[0].valid = ~dut_core_reset & ((nmi_pend.nmi & ~nmi_pend_d1.nmi) || (nmi_pend.clai & ~nmi_pend_d1.clai) || (~nmi_pend.nmi & nmi_pend_d1.nmi) || (~nmi_pend.clai & nmi_pend_d1.clai)) & rvfi_enabled;
     assign m_core_nmis[0].data.location = location;
     assign m_core_nmis[0].data.cycle = clocks;
     assign m_core_nmis[0].data.nmi_assert = (nmi_pend.nmi & ~nmi_pend_d1.nmi & ~nmi_pend.clai) || (nmi_pend.clai & ~nmi_pend_d1.clai & ~nmi_pend.nmi);
@@ -1349,7 +1350,7 @@ localparam CAM_IHBIT = CAM_IBITS;
       mip_d1 <= interrupt_pend.mip;
       seip_d1 <= interrupt_pend.seip;
     end
-    assign m_interrupt_pends[0].valid = ~dut_reset & interrupt_pend.valid & rvfi_enabled;
+    assign m_interrupt_pends[0].valid = ~dut_core_reset & interrupt_pend.valid & rvfi_enabled;
     assign m_interrupt_pends[0].data.location = location;
     assign m_interrupt_pends[0].data.cycle = clocks;
     assign m_interrupt_pends[0].data.hw = interrupt_pend.hw;
@@ -1361,7 +1362,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign m_interrupt_pends[0].data.seip_clr = ~interrupt_pend.seip & seip_d1;
 
     // m_imsic_msi
-    assign m_imsic_msis[0].valid = ~dut_reset && imsic_msi.valid && rvfi_enabled;
+    assign m_imsic_msis[0].valid = ~dut_core_reset && imsic_msi.valid && rvfi_enabled;
     assign m_imsic_msis[0].data.location = location;
     assign m_imsic_msis[0].data.cycle = clocks;
     assign m_imsic_msis[0].data.addr = imsic_msi.addr;
@@ -1381,7 +1382,7 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     // mtime packets from csr reads/writes
     for (genvar n = 0; n < NRET; n++) begin
-      assign m_mtimes[n].valid = ~dut_reset && rvfi_enabled && !poke_mip_timer && (rvfi[n].valid &&
+      assign m_mtimes[n].valid = ~dut_core_reset && rvfi_enabled && !poke_mip_timer && (rvfi[n].valid &&
          ((|rvfi[n].csr_wmask && (rvfi[n].csr_addr inside {C_STIMECMP, C_VSTIMECMP, C_HTIMEDELTA})) ||
           (|rvfi[n].csr_rmask && (rvfi[n].csr_addr inside {C_TIME, C_MIP, C_MTOPI, C_SIP, C_STOPI, C_VSIP, C_VSTOPI}))));
       assign m_mtimes[n].data.location = location;
@@ -1391,7 +1392,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     end
 
     // mtime packets from mip bits
-      assign m_mtimes[NRET].valid = ~dut_reset && rvfi_enabled && |(mip_timer & ~mip_timer_d1);
+      assign m_mtimes[NRET].valid = ~dut_core_reset && rvfi_enabled && |(mip_timer & ~mip_timer_d1);
       assign m_mtimes[NRET].data.location = location;
       assign m_mtimes[NRET].data.cycle = clocks;
       assign m_mtimes[NRET].data.mtime = mtime;
@@ -1401,7 +1402,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     // set debug entry/exit values to defaults it NOT specificed by user
     //--------------------------------------------------------------------
     assign debug_entry_pc = (debug_entry_pc_arg != '0) ? PA_WIDTH'(debug_entry_pc_arg) : debug_entry_pc_const;
-    assign debug_exit_pc  = (debug_exit_pc_arg != '0)  ? PA_WIDTH'(debug_exit_pc_arg) : debug_exit_pc_const; 
+    assign debug_exit_pc  = (debug_exit_pc_arg != '0)  ? PA_WIDTH'(debug_exit_pc_arg) : debug_exit_pc_const;
 
 /* verilator lint_off WIDTHEXPAND */
     assign hart = NUM;
@@ -1422,6 +1423,7 @@ localparam CAM_IHBIT = CAM_IBITS;
         //mcm_value  = cvm_plusargs::get_int("mcm");
         psc_off_low  = cvm_plusargs::get_ulongint("psc_off_low");
         psc_off_high = cvm_plusargs::get_ulongint("psc_off_high");
+
 
         /* verilator lint_on BLKSEQ */
         boot_wfi <= '0;

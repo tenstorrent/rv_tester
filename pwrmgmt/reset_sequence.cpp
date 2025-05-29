@@ -57,6 +57,14 @@ extern "C" {
   uint8_t pwrmgmt_get_warm_reset_en(const char* mode) {
     return (std::string(mode) != "off");
   }
+
+  uint8_t pwrmgmt_get_pwrmgmt_en_from_plusargs(const char* m) {
+    const char* mode = cvm_plusargs_get_string(m);
+    if (!mode) {
+      return false;
+    }
+    return (std::string(mode) != "off");
+  }
 }
 
 reset_sequence::reset_sequence(cvm::topology::loc_t loc, unsigned) : loc_(loc), scope_(nullptr) {
@@ -269,7 +277,7 @@ cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
   co_await init_mmr();
   co_await rmw_mmr();
   co_await program_fe_resetvector();
-  co_await program_mtime();
+  co_await program_mtime(rst_type);
   co_await release_cpl_nofetch();
   co_await tick();
   co_return;
@@ -295,6 +303,7 @@ cvm::messenger::task<void> reset_sequence::cpl_fw_reset_sequence(rst_t rst_type)
   co_await init_mmr();
   co_await rmw_mmr();
   co_await check_system_config_done();
+  co_await program_mtime(rst_type);
   co_await send_start_of_execution_to_cpl();
   co_await wait_nofetch_release();
   co_await tick();
@@ -350,9 +359,19 @@ cvm::messenger::task<void> reset_sequence::check_pll_status() {
   co_return;
 }
 
-cvm::messenger::task<void> reset_sequence::program_mtime() {
-  uint64_t rand_mtime = ((rand()%100) + 200) * 10;    // Writing random non-zero time value to ACLINT Mtime before No-fetch release
-  co_await write(aclint_mtime_mmr, SZ_8B, rand_mtime);
+cvm::messenger::task<void> reset_sequence::program_mtime(rst_t rst_type) {
+  // Writing random non-zero time value to ACLINT Mtime before No-fetch release
+  cvm::rand::uniform_dist<uint32_t> aclint_mtime(5000, 10000);
+  uint64_t rand_mtime  = aclint_mtime();
+
+  if(rst_type == WARM) {
+    cvm::rand::uniform_dist<uint32_t> aclint_mtime(50000, 100000);
+    rand_mtime = aclint_mtime();
+    co_await write(aclint_mtime_mmr, SZ_8B, rand_mtime);
+  }
+  else { // COLD Reset
+    co_await write(aclint_mtime_mmr, SZ_8B, rand_mtime);
+  }
   co_return;
 }
 
@@ -1386,12 +1405,12 @@ cvm::messenger::task<bool> reset_sequence::check_axi_bresp_timeout(interface_t i
     axi_bresp_cycle_cnt++;
 
     if (interface == SMC) {
-      if (cvm::registry::messenger.call<smc_mst_t::push_aw_no_id_rpc>(axi_loc_[interface], axi::a_no_id_t{addr, log2(sz), rsp_err_chk}, id)) {
+      if (cvm::registry::messenger.call<smc_mst_t::push_aw_no_id_rpc>(axi_loc_[interface], axi::a_no_id_t{addr, log2(sz), rsp_err_chk, RESET_SEQ_ID}, id)) {
         co_return true;
       }
     }
     else {
-      if (cvm::registry::messenger.call<overlay_mst_t::push_aw_no_id_rpc>(axi_loc_[interface], axi::a_no_id_t{addr, log2(sz), uint8_t(0xF), rsp_err_chk}, id)) {
+      if (cvm::registry::messenger.call<overlay_mst_t::push_aw_no_id_rpc>(axi_loc_[interface], axi::a_no_id_t{addr, log2(sz), uint8_t(0xF), rsp_err_chk, RESET_SEQ_ID}, id)) {
         co_return true;
       }
     }
@@ -1415,12 +1434,12 @@ cvm::messenger::task<bool> reset_sequence::check_axi_rresp_timeout(interface_t i
     axi_rresp_cycle_cnt++;
 
     if (interface == SMC) {
-      if (cvm::registry::messenger.call<smc_mst_t::push_ar_no_id_rpc>(axi_loc_[interface], axi::a_no_id_t{addr, log2(sz), rsp_err_chk}, id)) {
+      if (cvm::registry::messenger.call<smc_mst_t::push_ar_no_id_rpc>(axi_loc_[interface], axi::a_no_id_t{addr, log2(sz), rsp_err_chk, RESET_SEQ_ID}, id)) {
         co_return true;
       }
     }
     else {
-      if (cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_loc_[interface], axi::a_no_id_t{addr, log2(sz), uint8_t(0xF), rsp_err_chk}, id)) {
+      if (cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_loc_[interface], axi::a_no_id_t{addr, log2(sz), uint8_t(0xF), rsp_err_chk, RESET_SEQ_ID}, id)) {
         co_return true;
       }
     }
