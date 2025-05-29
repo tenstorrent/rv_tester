@@ -106,6 +106,7 @@ module rv_tester
     logic sys_reset_any;
     logic shifted_dut_reset_req, shifted_dut_reset_req_d1;
     logic dut_reset_req_d1;
+    logic fml_shutdowned;
     logic init_pulse;
     logic warm_reset_pulse;
     int unsigned warm_reset_clocks = 0;
@@ -491,7 +492,9 @@ module rv_tester
 
         automatic logic shutdowned = '0;
         automatic logic dm_shutdowned = '0;
-
+        `ifndef SVA_S_EVENTUALLY_UNSUPPORTED
+        fml_shutdowned = 1'b0;
+        `endif
         if (rv_tester_reset) begin
             print_terminate_message <= '1;
         end
@@ -516,6 +519,9 @@ module rv_tester
             end
 
             shutdowned = rv_tester_shutdown_registry() != '0;
+            `ifndef SVA_S_EVENTUALLY_UNSUPPORTED
+            fml_shutdowned = shutdowned;
+            `endif
             if(num_resets > target_num_resets)begin
             dm_shutdowned = rv_tester_dm_shutdown_registry() != '0;
             end
