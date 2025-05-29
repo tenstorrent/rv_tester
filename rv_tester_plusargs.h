@@ -20,3 +20,6 @@ DECLARE_bool(offline_dpi_test);
 DECLARE_string(axi_resp_slverr_pattern);
 DECLARE_string(axi_resp_decerr_pattern);
 DECLARE_string(test_start_label);
+// FIXME Temporary solution; need to revisit
+DECLARE_bool(vip);
+DECLARE_bool(vip_axi_dpi);
