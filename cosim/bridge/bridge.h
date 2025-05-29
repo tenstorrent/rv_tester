@@ -439,7 +439,6 @@ private:
   bool debug_on_ = false;
   bool cvm_debug_ = false;
   uint64_t previous_cycle_;
-  uint64_t csr_value_before_update_ = 0;
 
   // Memmap
   std::map<std::string, memmap_entry_t> memmap_;
