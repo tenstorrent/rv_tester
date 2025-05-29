@@ -53,6 +53,7 @@ axi::axi(const data_width_t& data_width, const cvm::topology::loc_t loc, const s
     cvm::registry::messenger.procedure<configure_error_rpc>(loc, [this] () { return this->configure_error(); });
     cvm::registry::messenger.procedure<enable_error_rpc>(loc, [this] () { return this->enable_error(); });
     cvm::registry::messenger.procedure<disable_error_rpc>(loc, [this] () { return this->disable_error(); });
+    cvm::registry::messenger.procedure<check_error_rpc>(loc, [this] (addr_t addr) { return this->check_error(addr); });
 
     hang_list_.parse(FLAGS_axi_resp_hang_addr);
     setup_error_lists();
@@ -98,6 +99,15 @@ void axi::enable_error() {
 void axi::disable_error() {
     error_en_ = false;
     cvm::log(cvm::HIGH, "[axi] disable error resp for {}\n", tag_);
+}
+
+bool axi::check_error(addr_t addr) {
+    bool has_slverr = slverr_list_.check_inject_error(addr, READ);
+    bool has_decerr = decerr_list_.check_inject_error(addr, READ);
+    
+    cvm::log(cvm::HIGH, "[axi] check_error for addr={:#x}: slverr={}, decerr={}\n", addr, has_slverr, has_decerr);
+    
+    return has_slverr || has_decerr;
 }
 
 axi::~axi() {

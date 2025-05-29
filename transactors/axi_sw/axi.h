@@ -234,9 +234,11 @@ class axi : public transactor {
         CVM_MESSENGER_procedure_call(configure_error_rpc, void ());
         CVM_MESSENGER_procedure_call(enable_error_rpc, void ());
         CVM_MESSENGER_procedure_call(disable_error_rpc, void ());
+        CVM_MESSENGER_procedure_call(check_error_rpc, bool (addr_t));
         void configure_error();
         void enable_error();
         void disable_error();
+        bool check_error(addr_t addr);
 
         data_width_t   data_width()   const { return data_width_   ; }
         strobe_width_t strobe_width() const { return data_width()/8; }
