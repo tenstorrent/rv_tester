@@ -93,7 +93,7 @@ import rv_tester_params:: * ;
     bit [3:0] vid [8:0];
     always @(posedge rf_clk) begin
         if(cold_resetn) begin
-            for (int i = 0; i < nharts ; i++) begin
+            for (int i = 0; i < NHARTS ; i++) begin
                 vid[i] <= hart_id[i];
                 enablefuse[i] <= 1;
             end
