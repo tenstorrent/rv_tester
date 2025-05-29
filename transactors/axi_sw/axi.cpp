@@ -104,10 +104,19 @@ void axi::disable_error() {
 bool axi::check_error(addr_t addr) {
     bool has_slverr = slverr_list_.check_inject_error(addr, READ);
     bool has_decerr = decerr_list_.check_inject_error(addr, READ);
-    
-    cvm::log(cvm::HIGH, "[axi] check_error for addr={:#x}: slverr={}, decerr={}\n", addr, has_slverr, has_decerr);
-    
-    return has_slverr || has_decerr;
+
+    // Get counts for both error types
+    auto slverr_count = slverr_list_.get_count(addr, READ);
+    auto decerr_count = decerr_list_.get_count(addr, READ);
+
+    // Check if counts are non-zero
+    bool slverr_count_nonzero = slverr_count.has_value() && slverr_count.value().get() > 0;
+    bool decerr_count_nonzero = decerr_count.has_value() && decerr_count.value().get() > 0;
+
+    cvm::log(cvm::HIGH, "[axi] check_error for addr={:#x}: slverr={}, decerr={}, slverr_count={}, decerr_count={}\n", addr, has_slverr,
+      has_decerr, slverr_count.has_value() ? slverr_count.value().get() : 0, decerr_count.has_value() ? decerr_count.value().get() : 0);
+
+    return (error_en_ && ((has_slverr && slverr_count_nonzero) || (has_decerr && decerr_count_nonzero)));
 }
 
 axi::~axi() {
@@ -289,7 +298,7 @@ cvm::messenger::task<void> axi::operator()() {
                     bool inject_decerr = error_en_ && decerr_list_.check_inject_error(addr, WRITE);
 
                     // Always increment counters for addresses in error ranges (regardless of injection)
-                    if (slverr_list_.find(addr)) {
+                    if (error_en_ && slverr_list_.find(addr)) {
                         auto count = slverr_list_.incr_count(addr, WRITE);
                         if (inject_slverr) {
                             write_resp = RESP_SLVERR;
@@ -297,7 +306,7 @@ cvm::messenger::task<void> axi::operator()() {
                             num_slverr_resp_++;
                         }
                     }
-                    if (decerr_list_.find(addr)) {
+                    if (error_en_ && decerr_list_.find(addr)) {
                         auto count = decerr_list_.incr_count(addr, WRITE);
                         if (inject_decerr) {
                             write_resp = RESP_DECERR;
@@ -326,7 +335,7 @@ cvm::messenger::task<void> axi::operator()() {
                     bool inject_decerr = error_en_ && decerr_list_.check_inject_error(addr, READ);
 
                     // Always increment counters for addresses in error ranges (regardless of injection)
-                    if (slverr_list_.find(addr)) {
+                    if (error_en_ && slverr_list_.find(addr)) {
                         auto count = slverr_list_.incr_count(addr, READ);
                         if (inject_slverr) {
                             read_resp = RESP_SLVERR;
@@ -334,7 +343,7 @@ cvm::messenger::task<void> axi::operator()() {
                             num_slverr_resp_++;
                         }
                     }
-                    if (decerr_list_.find(addr)) {
+                    if (error_en_ && decerr_list_.find(addr)) {
                         auto count = decerr_list_.incr_count(addr, READ);
                         if (inject_decerr) {
                             read_resp = RESP_DECERR;

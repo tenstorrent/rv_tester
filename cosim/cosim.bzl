@@ -21,6 +21,7 @@ def cosim_gen(name, packet, topology, harness, visibility = None, cc_attrs = {},
         ],
         deps = [
             "@rv_tester//:structs",
+            "@rv_tester//:plusargs",
             "@rv_tester//cosim/utils/eot:eot_plusargs",
             "@rv_tester//cosim/whisper_if:whisper_client_plusargs",
             "@rv_tester//cosim/dut_if/rvfi:rvfi_plusargs",

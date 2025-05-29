@@ -1,6 +1,7 @@
 #include "rvfi.h"
 #include "util.h"
 #include "whisper_decoder.h"
+#include "rv_tester_plusargs.h"
 #include "cvm/plusargs.hpp"
 #include "cvm/bitmanip.hpp"
 #include "cvm/callbacks.hpp"
@@ -29,10 +30,6 @@ DEFINE_uint64(debug_exit_pc, 0x421908cc, "Debug Mode exit PC");
 DEFINE_uint64(debug_mem_base, 0x42190000, "Debug Memory Base Address");
 DEFINE_uint64(debug_mem_size, 0x1000, "Debug Memory Size");
 DEFINE_bool(use_sw_priv, false, "Enable use of SW generation of priv/patch_mode values instead of hw");
-
-// FIXME Temporary solution; need to revisit
-DECLARE_bool(vip);
-DECLARE_bool(vip_axi_dpi);
 
 bool get_csr_name_instr(const std::string& input, std::string& modified_string);
 
@@ -1546,17 +1543,6 @@ bool rvfi::check_axi_error(uint64_t addr) {
             bool has_error = cvm::registry::messenger.call<axi::check_error_rpc>(loc, addr);
             if (has_error) {
                 cvm::log(cvm::HIGH, "[rvfi] check_axi_error: addr={:#x} has error response configured\n", addr);
-                return true;
-            }
-        }
-    }
-
-    // Check NCIO_AXI instances
-    for (const auto& loc : cvm::topology::get_from_type("NCIO_AXI")) {
-        if (loc != cvm::topology::null) {
-            bool has_error = cvm::registry::messenger.call<axi::check_error_rpc>(loc, addr);
-            if (has_error) {
-                cvm::log(cvm::HIGH, "[rvfi] check_axi_error: addr={:#x} has error response configured (NCIO_AXI)\n", addr);
                 return true;
             }
         }
