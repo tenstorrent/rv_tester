@@ -90,7 +90,7 @@ module rv_tester
     import "DPI-C" context function void rv_tester_dm_build_registry();
     import "DPI-C" function byte unsigned rv_tester_dm_shutdown_registry();
     import "DPI-C" context function bit rv_tester_flush_callbacks();
-    import "DPI-C" function bit pwrmgmt_get_warm_reset_en(string mode);
+    import "DPI-C" function bit pwrmgmt_get_pwrmgmt_en_from_plusargs(string mode);
     import "DPI-C" function longint unsigned eot_get_addr();
     import "DPI-C" context function bit rv_tester_perf_calc(int init, int reset_done, int term, LU clocks);
 
@@ -131,7 +131,6 @@ module rv_tester
     int num_reruns = -1;
     int dm_build_count = 0;
 
-    string warm_reset_string;
     logic warm_reset_en = 0;
     logic warm_reset_req;
     logic warm_reset_req_d1;
@@ -218,7 +217,6 @@ module rv_tester
     bit gen_clocks = '0;
     bit gen_timestamp = '0;
     logic [63:0] current_time;
-    string cvm_verbosity_string, gen_clocks_verbosity_string, gen_timestamp_verbosity_string;
     int unsigned cvm_verbosity, gen_clocks_verbosity, gen_timestamp_verbosity;
     logic dut_terminate_any;
     logic ntrace_terminate;
@@ -414,14 +412,11 @@ module rv_tester
 
             /* verilator lint_off BLKSEQ */
             // zebu bug doesn't allow nested function calls, so create intermediate variables
-            cvm_verbosity_string        = cvm_plusargs::get_string("cvm_verbosity");
-            gen_clocks_verbosity_string = cvm_plusargs::get_string("gen_clocks_verbosity");
-            gen_timestamp_verbosity_string  = cvm_plusargs::get_string("gen_timestamp_verbosity");
-            cvm_verbosity               = cvm_logger::get_verbosity(cvm_verbosity_string);
-            gen_clocks_verbosity        = cvm_logger::get_verbosity(gen_clocks_verbosity_string);
-            gen_timestamp_verbosity         = cvm_logger::get_verbosity(gen_timestamp_verbosity_string);
-            warm_reset_string           = cvm_plusargs::get_string("warm_reset");
-            warm_reset_en               = pwrmgmt_get_warm_reset_en(warm_reset_string);
+            // Using nested function calls in cvm as Palladium doesn't support strings
+            cvm_verbosity               = cvm_logger::get_verbosity_from_plusargs("cvm_verbosity");
+            gen_clocks_verbosity        = cvm_logger::get_verbosity_from_plusargs("gen_clocks_verbosity");
+            gen_timestamp_verbosity         = cvm_logger::get_verbosity_from_plusargs("gen_timestamp_verbosity");
+            warm_reset_en               = pwrmgmt_get_pwrmgmt_en_from_plusargs("warm_reset");
             rv_tester_error_terminate.terminate = '0;
             perf_period                 = cvm_plusargs::get_int("perf_period");
             /* verilator lint_on BLKSEQ */

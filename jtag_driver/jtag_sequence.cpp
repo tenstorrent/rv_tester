@@ -31,6 +31,14 @@ extern "C" {
   uint8_t jtag_driver_get_en(const char* mode) {
     return (std::string(mode) != "off");
   }
+
+  uint8_t jtag_driver_get_en_from_plusargs(const char* mode) {
+    const char* p = cvm_plusargs_get_string(mode);
+    if (!p) {
+      return 0;
+    }
+    return (std::string(p) != "off");
+  }
 }
 
 jtag_sequence::jtag_sequence(cvm::topology::loc_t loc, unsigned id) : loc_(loc), id_(id), scope_(nullptr) {
