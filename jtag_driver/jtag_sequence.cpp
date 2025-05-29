@@ -23,7 +23,6 @@ DEFINE_string(jtag_txn_file, "", "File containing jtag transaction requests");
 DEFINE_string(jtag_disabled_snippets,"", "List of jtag snippets that needs to be disabled in randoms");
 
 extern "C" {
-  void jtag_driver_init();
   void jtag_driver_jtag_socket(uint8_t val);
   void drive_jtag_req(unsigned cmd, unsigned long upper_val, unsigned long lower_val, unsigned length, unsigned quit, unsigned tap_cfg_sel);
   //void drive_jtag_req_socket(unsigned cmd, const unsigned long* lower_val, unsigned length, unsigned quit, unsigned tap_cfg_sel);
@@ -31,6 +30,14 @@ extern "C" {
 
   uint8_t jtag_driver_get_en(const char* mode) {
     return (std::string(mode) != "off");
+  }
+
+  uint8_t jtag_driver_get_en_from_plusargs(const char* mode) {
+    const char* p = cvm_plusargs_get_string(mode);
+    if (!p) {
+      return 0;
+    }
+    return (std::string(p) != "off");
   }
 }
 
@@ -83,11 +90,6 @@ cvm::messenger::task<void> jtag_sequence::random_mode() {
 }
 
 void jtag_sequence::init() {
-  cvm::registry::callbacks.push(
-    scope_,
-    []() {
-      jtag_driver_init();
-    });
 }
 
 void jtag_sequence::jtag_socket(unsigned hart, uint8_t assert) {

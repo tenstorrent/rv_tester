@@ -117,21 +117,21 @@ std::unordered_map<aclint_addr, mmr> aclint_mmrs = {
     {CR_CTIME,       {"CR_CTIME", 0x4200'0008, 8, 0x0, 0x0, 0xffffffffffffffff}}
 };
 
-std::unordered_map<aclint_addr, std::pair<bool, bool>> mmrReadReqFlag = {
-    {AC_MTIMECMP0   , {false, false}},
-    {AC_MTIMECMP1   , {false, false}},
-    {AC_MTIMECMP2   , {false, false}},
-    {AC_MTIMECMP3   , {false, false}},
-    {AC_MTIMECMP4   , {false, false}},
-    {AC_MTIMECMP5   , {false, false}},
-    {AC_MTIMECMP6   , {false, false}},
-    {AC_MTIMECMP7   , {false, false}},
-    {AC_MTIMECMP8   , {false, false}},
-    {AC_MTIME       , {false, false}},
-    {AC_TIMESYNC    , {false, false}},
-    {AC_CLUSTERFUSE , {false, false}},
-    {CR_WTIME       , {false, false}},
-    {CR_CTIME       , {false, false}}
+std::unordered_map<aclint_addr, std::pair<uint32_t, uint32_t>> mmrReadReqFlag = {
+    {AC_MTIMECMP0   , {0, 0}},
+    {AC_MTIMECMP1   , {0, 0}},
+    {AC_MTIMECMP2   , {0, 0}},
+    {AC_MTIMECMP3   , {0, 0}},
+    {AC_MTIMECMP4   , {0, 0}},
+    {AC_MTIMECMP5   , {0, 0}},
+    {AC_MTIMECMP6   , {0, 0}},
+    {AC_MTIMECMP7   , {0, 0}},
+    {AC_MTIMECMP8   , {0, 0}},
+    {AC_MTIME       , {0, 0}},
+    {AC_TIMESYNC    , {0, 0}},
+    {AC_CLUSTERFUSE , {0, 0}},
+    {CR_WTIME       , {0, 0}},
+    {CR_CTIME       , {0, 0}}
 };
 
 

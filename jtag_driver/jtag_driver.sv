@@ -27,19 +27,14 @@ import rv_tester_params::*;
 );
   parameter int unsigned location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.JTAG_DRIVER.ID, NUM);
   import "DPI-C" context function void jtag_driver_set_scope(int unsigned location);
-  import "DPI-C" function bit jtag_driver_get_en(string mode);
+  import "DPI-C" function bit jtag_driver_get_en_from_plusargs(string mode);
    // -------------------------
   // C++->SV Callbacks
   // -------------------------
 
-  export "DPI-C" function jtag_driver_init;
   export "DPI-C" function jtag_driver_jtag_socket;
   export "DPI-C" function drive_jtag_req; 
   export "DPI-C" function drive_jtag_req_socket; 
-
-  function void jtag_driver_init();
- 
-  endfunction
 
   function void jtag_driver_jtag_socket(bit val);
   endfunction
@@ -47,7 +42,6 @@ import rv_tester_params::*;
   int unsigned push_idx;
   logic reset_d1;
   bit jtag_socket_en;
-  string jtag_driver_mode;
   int unsigned jtag_socket_count;
   int unsigned jtag_socket_interval;
   int unsigned jtag_socket_width;
@@ -85,7 +79,6 @@ import rv_tester_params::*;
 
 
    initial begin
-     jtag_driver_mode = cvm_plusargs::get_string("jtag_driver_mode");
      jtag_enable_end = 0;
      jtag_enable_begin_cpp = 0;
      jtag_enable_begin_sv = 0;
@@ -104,14 +97,13 @@ import rv_tester_params::*;
   always @(posedge clk) begin
     reset_d1 <= reset;
     if (reset || jtag_test_reset || jtag_hard_reset  || !jtag_driver_en) begin
-      jtag_driver_init();
       jtag_req.tms <= '0;
       jtag_req.tdi <= '0;
     end
     if (~reset & reset_d1) begin
       if (location != cvm_topology::nil) begin
         jtag_driver_set_scope(location);
-        jtag_socket_en <= jtag_driver_get_en(jtag_driver_mode);
+        jtag_socket_en <= jtag_driver_get_en_from_plusargs("jtag_driver_mode");
       end
     end
   end

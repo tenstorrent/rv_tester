@@ -46,33 +46,57 @@ import rv_tester_pkg::*;
     end
 
     longint unsigned cpu_cycles = 0;
-    longint unsigned sync_cycles = 0;
-    longint unsigned sync_instructions = 0;
-    longint unsigned prev_sync_instructions = 0;
+    longint unsigned cycle_period_counter = 0;
+    longint unsigned instruction_period_counter = 0;
     longint unsigned nret = {32'h0, NRET};
     longint unsigned pmcounter [EVENT_COUNT] = '{default:0};
     longint unsigned branch_instructions;
 
+    // Create shared sync condition signals
+    logic cycle_sync_condition;
+    logic instruction_sync_condition;
+    assign cycle_sync_condition = cycle_sync_en && cycle_period_counter == 0;
+
     always @(posedge clk) begin
+
+      instruction_sync_condition <= '0;
+
       if (reset) begin
         pmcounter[0] <= 0;
         cpu_cycles <= 0;
-        sync_cycles <= 0;
-        sync_instructions <= 1;
+        cycle_period_counter <= 0;
+        instruction_period_counter <= instructions;
       end else begin
         if (perf_start) begin
-          sync_cycles <= 1;
-          sync_instructions <= nret;
-        end else if (perf_end) begin
-          sync_cycles <= cpu_cycles;
-          sync_instructions <= pmcounter[INSTRUCTIONS];
+          cycle_period_counter <= 1;  // Start counting from 1 to get full period before first sync
+          instruction_period_counter <= instructions;
         end else begin
-          sync_cycles <= sync_cycles + 1;
-          sync_instructions <= sync_instructions + {60'h0, pmci[INSTRUCTIONS]};
+          // Update period counters
+          if (cycle_sync_en) begin
+            if (cycle_period_counter >= (period - 1)) begin
+              cycle_period_counter <= 0;
+            end else begin
+              cycle_period_counter <= cycle_period_counter + 1;
+            end
+          end
+
+          if (instruction_sync_en) begin
+            if (instruction_period_counter <= {60'h0, pmci[INSTRUCTIONS]}) begin
+              // When syncing, start next period but account for extra instructions executed
+              // If instructions is smaller than the extra instructions executed, start from instructions
+              instruction_period_counter <= instructions - (
+                                         ({60'h0, pmci[INSTRUCTIONS]} - instruction_period_counter) > instructions ?
+                                         '0 :
+                                         ({60'h0, pmci[INSTRUCTIONS]} - instruction_period_counter)
+              );
+              instruction_sync_condition <= '1;
+            end else begin
+              instruction_period_counter <= instruction_period_counter - {60'h0, pmci[INSTRUCTIONS]};
+            end
+          end
         end
         cpu_cycles <= cpu_cycles + 1;
       end
-      prev_sync_instructions <= sync_instructions;
       terminate_1T <= terminate;
     end
 
@@ -152,7 +176,7 @@ import rv_tester_pkg::*;
     parameter OVERFLOW_BIT_EXTRA = 2;
     logic overflow;
     logic [EVENT_COUNT + SC_EVENT_COUNT + OVERFLOW_BIT_EXTRA -1 : 0] pmcounter_overflow_bit;
-    assign pmcounters_cores[0].valid = !reset && perf_enabled && (overflow || (|mhpm_write) || terminate || (cycle_sync_en && (sync_cycles % period) == 0) || (instruction_sync_en && (((prev_sync_instructions % instructions) > nret) && ((sync_instructions % instructions) < nret))) || perf_start || perf_end);
+    assign pmcounters_cores[0].valid = !reset && perf_enabled && (overflow || (|mhpm_write) || terminate || cycle_sync_condition || instruction_sync_condition || perf_start || perf_end);
     assign pmcounters_cores[0].data.location = location;
     assign pmcounters_cores[0].data.tb_cycles = 24'(clocks - tb_cycles_offset);
     assign pmcounters_cores[0].data.cpu_cycles = 24'(cpu_cycles);
@@ -162,7 +186,7 @@ import rv_tester_pkg::*;
     assign pmcounters_cores[0].data.perf_end = perf_end;
     assign pmcounters_cores[0].data.terminate = terminate;
     assign pmcounters_cores[0].data.overflow = overflow;
-    assign pmcounters_cores[0].data.sync = (cycle_sync_en && (sync_cycles % period) == 0) || (instruction_sync_en && (((prev_sync_instructions % instructions) > nret) && ((sync_instructions % instructions) < nret)));
+    assign pmcounters_cores[0].data.sync = cycle_sync_condition || instruction_sync_condition;
     assign pmcounters_cores[0].data.m_mode_cycles = 24'(pmcounter[M_MODE_CYCLES]);
     assign pmcounters_cores[0].data.m_mode_instret = 24'(pmcounter[M_MODE_INSTRET]);
     assign pmcounters_cores[0].data.s_mode_cycles = 24'(pmcounter[S_MODE_CYCLES]);
@@ -234,6 +258,14 @@ import rv_tester_pkg::*;
     assign pmcounters_cores[0].data.cycles_no_vl_prn = 24'(pmcounter[CYCLES_NO_VL_PRN]);
     assign pmcounters_cores[0].data.cycles_no_vm_prn = 24'(pmcounter[CYCLES_NO_VM_PRN]);
     assign pmcounters_cores[0].data.cycles_no_rob = 24'(pmcounter[CYCLES_NO_ROB]);
+    assign pmcounters_cores[0].data.cycles_db0_stall = 24'(pmcounter[CYCLES_DB0_STALL]);
+    assign pmcounters_cores[0].data.cycles_db1_stall = 24'(pmcounter[CYCLES_DB1_STALL]);
+    assign pmcounters_cores[0].data.cycles_db2_stall = 24'(pmcounter[CYCLES_DB2_STALL]);
+    assign pmcounters_cores[0].data.cycles_db3_stall = 24'(pmcounter[CYCLES_DB3_STALL]);
+    assign pmcounters_cores[0].data.cycles_db4_stall = 24'(pmcounter[CYCLES_DB4_STALL]);
+    assign pmcounters_cores[0].data.cycles_db5_stall = 24'(pmcounter[CYCLES_DB5_STALL]);
+    assign pmcounters_cores[0].data.cycles_db6_stall = 24'(pmcounter[CYCLES_DB6_STALL]);
+    assign pmcounters_cores[0].data.cycles_db7_stall = 24'(pmcounter[CYCLES_DB7_STALL]);
     assign pmcounters_cores[0].data.dispatched_nops = 24'(pmcounter[DISPATCHED_NOPS]);
     assign pmcounters_cores[0].data.op_retired_direct_branch = 24'(pmcounter[OP_RETIRED_DIRECT_BRANCH]);
     assign pmcounters_cores[0].data.op_retired_ret_branch = 24'(pmcounter[OP_RETIRED_RET_BRANCH]);
@@ -309,6 +341,7 @@ import rv_tester_pkg::*;
     assign pmcounters_cores[0].data.dtlb_write_miss = 24'(pmcounter[DTLB_WRITE_MISS]);
     assign pmcounters_cores[0].data.dtlb_prefetch_miss = 24'(pmcounter[DTLB_PREFETCH_MISS]);
     assign pmcounters_cores[0].data.dtlb_miss_4k = 24'(pmcounter[DTLB_MISS_4K]);
+    assign pmcounters_cores[0].data.dtlb_miss_64k = 24'(pmcounter[DTLB_MISS_64K]);
     assign pmcounters_cores[0].data.dtlb_miss_hugepage = 24'(pmcounter[DTLB_MISS_HUGEPAGE]);
     assign pmcounters_cores[0].data.dtlb_miss_all = 24'(pmcounter[DTLB_MISS_ALL]);
     assign pmcounters_cores[0].data.leaf_tlb_access_ls = 24'(pmcounter[LEAF_TLB_ACCESS_LS]);
@@ -366,6 +399,12 @@ import rv_tester_pkg::*;
     assign pmcounters_cores[0].data.fillbuf_hit_replay_store = 24'(pmcounter[FILLBUF_HIT_REPLAY_STORE]);
     assign pmcounters_cores[0].data.fillbuf_hit_replay_mmu = 24'(pmcounter[FILLBUF_HIT_REPLAY_MMU]);
     assign pmcounters_cores[0].data.fillbuf_hit_replay_all = 24'(pmcounter[FILLBUF_HIT_REPLAY_ALL]);
+    assign pmcounters_cores[0].data.cache_hit_predictor_replay_load = 24'(pmcounter[CACHE_HIT_PREDICTOR_REPLAY_LOAD]);
+    assign pmcounters_cores[0].data.cache_hit_predictor_replay_store = 24'(pmcounter[CACHE_HIT_PREDICTOR_REPLAY_STORE]);
+    assign pmcounters_cores[0].data.cache_hit_predictor_replay_all = 24'(pmcounter[CACHE_HIT_PREDICTOR_REPLAY_ALL]);
+    assign pmcounters_cores[0].data.utlb_miss_in_hit_mode = 24'(pmcounter[UTLB_MISS_IN_HIT_MODE]);
+    assign pmcounters_cores[0].data.utlb_hit_predictor_active = 24'(pmcounter[UTLB_HIT_PREDICTOR_ACTIVE]);
+    assign pmcounters_cores[0].data.utlb_hit_predictor_entrance = 24'(pmcounter[UTLB_HIT_PREDICTOR_ENTRANCE]);
     assign pmcounters_cores[0].data.l1d_miss_reqbuf_link_load = 24'(pmcounter[L1D_MISS_REQBUF_LINK_LOAD]);
     assign pmcounters_cores[0].data.l1d_miss_reqbuf_link_store = 24'(pmcounter[L1D_MISS_REQBUF_LINK_STORE]);
     assign pmcounters_cores[0].data.l1d_miss_reqbuf_link_mmu = 24'(pmcounter[L1D_MISS_REQBUF_LINK_MMU]);
@@ -487,8 +526,25 @@ import rv_tester_pkg::*;
     assign pmcounters_cores[0].data.tlp_access_prefetch = 24'(pmcounter[TLP_ACCESS_PREFETCH]);
     assign pmcounters_cores[0].data.tlp_access_agp = 24'(pmcounter[TLP_ACCESS_AGP]);
     assign pmcounters_cores[0].data.tlp_access_arb = 24'(pmcounter[TLP_ACCESS_ARB]);
+    assign pmcounters_cores[0].data.tlp_access_hit_4k = 24'(pmcounter[TLP_ACCESS_HIT_4K]);
+    assign pmcounters_cores[0].data.tlp_access_hit_64k = 24'(pmcounter[TLP_ACCESS_HIT_64K]);
+    assign pmcounters_cores[0].data.tlp_access_hit_hugepage = 24'(pmcounter[TLP_ACCESS_HIT_HUGEPAGE]);
     assign pmcounters_cores[0].data.tlp_access_all = 24'(pmcounter[TLP_ACCESS_ALL]);
     assign pmcounters_cores[0].data.fillbuf_cannot_alloc = 24'(pmcounter[FILLBUF_CANNOT_ALLOC]);
+    assign pmcounters_cores[0].data.ls_arb_grant_cancel_ldc = 24'(pmcounter[LS_ARB_GRANT_CANCEL_LDC]);
+    assign pmcounters_cores[0].data.ls_arb_grant_cancel_stc = 24'(pmcounter[LS_ARB_GRANT_CANCEL_STC]);
+    assign pmcounters_cores[0].data.ls_arb_grant_cancel_mmu = 24'(pmcounter[LS_ARB_GRANT_CANCEL_MMU]);
+    assign pmcounters_cores[0].data.ls_arb_grant_cancel_pfc = 24'(pmcounter[LS_ARB_GRANT_CANCEL_PFC]);
+    assign pmcounters_cores[0].data.ls_arb_grant_cancel_agp = 24'(pmcounter[LS_ARB_GRANT_CANCEL_AGP]);
+    assign pmcounters_cores[0].data.ls_arb_grant_cancel_fill = 24'(pmcounter[LS_ARB_GRANT_CANCEL_FILL]);
+    assign pmcounters_cores[0].data.ls_arb_grant_cancel_victim = 24'(pmcounter[LS_ARB_GRANT_CANCEL_VICTIM]);
+    assign pmcounters_cores[0].data.ls_arb_grant_cancel_requestor = 24'(pmcounter[LS_ARB_GRANT_CANCEL_REQUESTOR]);
+    assign pmcounters_cores[0].data.ls_arb_grant_cancel_internal = 24'(pmcounter[LS_ARB_GRANT_CANCEL_INTERNAL]);
+    assign pmcounters_cores[0].data.ls_arb_grant_cancel_all = 24'(pmcounter[LS_ARB_GRANT_CANCEL_ALL]);
+    assign pmcounters_cores[0].data.ls_arb_round_robin_cycles = 24'(pmcounter[LS_ARB_ROUND_ROBIN_CYCLES]);
+    assign pmcounters_cores[0].data.ls_arb_round_robin_entrances = 24'(pmcounter[LS_ARB_ROUND_ROBIN_ENTRANCES]);
+    assign pmcounters_cores[0].data.cache_hit_predictor_active = 24'(pmcounter[CACHE_HIT_PREDICTOR_ACTIVE]);
+    assign pmcounters_cores[0].data.cache_hit_predictor_entrance = 24'(pmcounter[CACHE_HIT_PREDICTOR_ENTRANCE]);
     assign pmcounters_cores[0].data.pfc_agt_cannot_alloc = 24'(pmcounter[PFC_AGT_CANNOT_ALLOC]);
     assign pmcounters_cores[0].data.pfc_agt_training_alloc = 24'(pmcounter[PFC_AGT_TRAINING_ALLOC]);
     assign pmcounters_cores[0].data.pfc_agt_training_update = 24'(pmcounter[PFC_AGT_TRAINING_UPDATE]);
@@ -522,6 +578,7 @@ import rv_tester_pkg::*;
         if (SC_PMCI_ENABLED == 1) begin
              assign  pmcounters_scs[0].valid = pmcounters_cores[0].valid;
              assign pmcounters_scs[0].data.location = pmcounters_cores[0].data.location;
+             assign pmcounters_scs[0].data.sc_tb_cycles = 24'(clocks - tb_cycles_offset);
              assign pmcounters_scs[0].data.perf_start_sc = pmcounters_cores[0].data.perf_start;
              assign pmcounters_scs[0].data.perf_end_sc = pmcounters_cores[0].data.perf_end;
              assign pmcounters_scs[0].data.terminate_sc = terminate;

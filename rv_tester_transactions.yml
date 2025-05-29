@@ -54,6 +54,7 @@ cosim:
     m_steps:
         domain: 1
         num: 1 
+        disabling_defines: ["DISABLE_PERIODIC_COSIM"]
         fields:
             hart:
                 width: 32
@@ -188,6 +189,7 @@ cosim:
     m_gp_regs:
         domain: 1
         num: 1 
+        disabling_defines: ["DISABLE_PERIODIC_COSIM"]
         fields:
             hart:
                 width: 32
@@ -199,6 +201,7 @@ cosim:
     m_fp_regs:
         domain: 1
         num: 1 
+        disabling_defines: ["DISABLE_PERIODIC_COSIM"]
         fields:
             hart:
                 width: 32
@@ -210,6 +213,7 @@ cosim:
     m_vc_regs:
         domain: 1
         num: 1 
+        disabling_defines: ["DISABLE_PERIODIC_COSIM"]
         fields:
             hart:
                 width: 32
@@ -802,6 +806,22 @@ pmu_core:
                 width: 24
             cycles_no_rob:
                 width: 24
+            cycles_db0_stall:
+                width: 24
+            cycles_db1_stall:
+                width: 24
+            cycles_db2_stall:
+                width: 24
+            cycles_db3_stall:
+                width: 24
+            cycles_db4_stall:
+                width: 24
+            cycles_db5_stall:
+                width: 24
+            cycles_db6_stall:
+                width: 24
+            cycles_db7_stall:
+                width: 24
             dispatched_nops:
                 width: 24
             op_retired_direct_branch:
@@ -952,6 +972,8 @@ pmu_core:
                 width: 24
             dtlb_miss_4k:
                 width: 24
+            dtlb_miss_64k:
+                width: 24
             dtlb_miss_hugepage:
                 width: 24
             dtlb_miss_all:
@@ -1065,6 +1087,18 @@ pmu_core:
             fillbuf_hit_replay_mmu:
                 width: 24
             fillbuf_hit_replay_all:
+                width: 24
+            cache_hit_predictor_replay_load:
+                width: 24
+            cache_hit_predictor_replay_store:
+                width: 24
+            cache_hit_predictor_replay_all:
+                width: 24
+            utlb_miss_in_hit_mode:
+                width: 24
+            utlb_hit_predictor_active:
+                width: 24
+            utlb_hit_predictor_entrance:
                 width: 24
             l1d_miss_reqbuf_link_load:
                 width: 24
@@ -1308,9 +1342,43 @@ pmu_core:
                 width: 24
             tlp_access_arb:
                 width: 24
+            tlp_access_hit_4k:
+                width: 24
+            tlp_access_hit_64k:
+                width: 24
+            tlp_access_hit_hugepage:
+                width: 24
             tlp_access_all:
                 width: 24
             fillbuf_cannot_alloc:
+                width: 24
+            ls_arb_grant_cancel_ldc:
+                width: 24
+            ls_arb_grant_cancel_stc:
+                width: 24
+            ls_arb_grant_cancel_mmu:
+                width: 24
+            ls_arb_grant_cancel_pfc:
+                width: 24
+            ls_arb_grant_cancel_agp:
+                width: 24
+            ls_arb_grant_cancel_fill:
+                width: 24
+            ls_arb_grant_cancel_victim:
+                width: 24
+            ls_arb_grant_cancel_requestor:
+                width: 24
+            ls_arb_grant_cancel_internal:
+                width: 24
+            ls_arb_grant_cancel_all:
+                width: 24
+            ls_arb_round_robin_cycles:
+                width: 24
+            ls_arb_round_robin_entrances:
+                width: 24
+            cache_hit_predictor_active:
+                width: 24
+            cache_hit_predictor_entrance:
                 width: 24
             pfc_agt_cannot_alloc:
                 width: 24
@@ -1597,6 +1665,8 @@ pmu_sc:
             no_alloc_srrip:
                 width: 24
             sc_cancel_piperesult:
+                width: 24
+            sc_tb_cycles:
                 width: 24
             perf_start_sc:
                 width: 1
