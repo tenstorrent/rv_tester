@@ -1,8 +1,11 @@
 #include "cvm/logger.hpp"
 #include "cvm/plusargs.hpp"
 
-DEFINE_int32(max_stall_cycle, 20000, "Max stall cycle limit to terminate the sim");
+// FIXME Temporary solution; need to revisit
+DEFINE_bool(vip, false, "Set for vip builds");
+DEFINE_bool(vip_axi_dpi, false, "C++ vip <-> DPI <-> SV ports <-> DPI <-> C++ axi or C++ vip <-> C++ axi");
 
+DEFINE_int32(max_stall_cycle, 20000, "Max stall cycle limit to terminate the sim");
 DEFINE_double(ext_mem_stall_factor, 0.8, "Apply mult factor for shared cache to max_stall_cycle");
 
 extern "C" {
