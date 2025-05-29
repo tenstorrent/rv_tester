@@ -1,3 +1,2 @@
 rv_tester_streaming_dpi_init
 rv_tester_transactions_message_cosim_m_.*
-core_rv_tester_transactions_message_cbo_inval_monitor.*
