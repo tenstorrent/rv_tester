@@ -277,7 +277,7 @@ cosim:
             max_instr:
                 width: 1
 
-    m_eoti_offline:
+    offline_eoti:
         <<: *eot
 
     m_mcmi_insert:
