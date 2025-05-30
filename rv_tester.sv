@@ -822,6 +822,7 @@ module rv_tester
           .NBYPASS(NBYPASSES[c]),
           .NIFETCH(NIFETCHES[c]),
           .NIEVICT(NIEVICTS[c]),
+          .NCSRI(MAX_NCSRI),
           .NoAddrRules(NoAddrRules),
           .rule_t(xbar_rule_t),
           `TOPOLOGY_CFG,
