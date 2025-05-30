@@ -342,7 +342,7 @@ cvm::messenger::task<void> scratchpad_random_sequence::axi_write_data_granular()
   bool valid;
   cvm::log(cvm::HIGH, "[scratchpad_random_sequence] Backdoor whisper poke addr{:#x} poke_data {:#x} \n", scratchpad_addr_in_flight, w_txn.data[0]);
   for (uint8_t i = 0; i < 64; ++i) {
-    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0, 'm', scratchpad_addr_in_flight+i, 1, w_txn.data[i], false, valid) || !valid) {
+    if (!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPokeMemRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), hart, 0, 'm', scratchpad_addr_in_flight+i, 1, w_txn.data[i], false, false, valid) || !valid) {
       cvm::log(cvm::ERROR, "Error: Failed to poke whisper memory\n");
       co_return;
     }
