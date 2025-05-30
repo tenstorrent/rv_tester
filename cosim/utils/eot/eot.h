@@ -44,7 +44,7 @@ class eot {
     void process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi);
     void process(const rv_tester_transactions::cosim::m_steps<>& m_steps);
     void process(const rv_tester_transactions::cosim::m_eoti_normal<>& m_eoti_normal);
-    void process(const rv_tester_transactions::cosim::m_eoti_offline<>& m_eoti_offline);
+    void process(const rv_tester_transactions::cosim::offline_eoti<>& offline_eoti);
     void process_eoti(uint64_t hartid, uint64_t cycle, uint64_t instr_count, uint64_t data, int max_instr);
     void check_max_instr(uint64_t cycle, uint64_t count);
     void eot_terminate(bool passed);
