@@ -1231,7 +1231,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign m_eoti_normals[0].data.max_instr = eot_max_instr;
 
     assign m_eoti_offlines[0].valid =  eot_valid & (offline_dpi | offline_dpi_test);
-    assign m_eoti_offlines[0].data = m_eoti_normals[0];
+    assign m_eoti_offlines[0].data = m_eoti_normals[0].data;
     
 
 
