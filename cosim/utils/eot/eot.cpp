@@ -32,7 +32,7 @@ eot::eot(cvm::topology::loc_t loc, unsigned id) {
       rv_tester_transactions::cosim::m_rvfi<>,
       rv_tester_transactions::cosim::m_steps<>,
       rv_tester_transactions::cosim::m_eoti_normal<>,
-      rv_tester_transactions::cosim::m_eoti_offline<>
+      rv_tester_transactions::cosim::offline_eoti<>
     >(cvm::topology::get_from_type("COSIM", i));
   }
   loc_ = loc;
