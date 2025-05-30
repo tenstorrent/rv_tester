@@ -189,12 +189,12 @@ void eot::process(const rv_tester_transactions::cosim::m_eoti_normal<>& m_eoti_n
      process_eoti(m_eoti_normal.hart, m_eoti_normal.cycle, m_eoti_normal.icount, m_eoti_normal.data, max_instr);
 }
 
-void eot::process(const rv_tester_transactions::cosim::m_eoti_offline<>& m_eoti_offline) {
+void eot::process(const rv_tester_transactions::cosim::offline_eoti<>& offline_eoti) {
      int max_instr = 0;
-     if (m_eoti_offline.max_instr) {
+     if (offline_eoti.max_instr) {
         max_instr  = 1;
      } 
-     process_eoti(m_eoti_offline.hart, m_eoti_offline.cycle, m_eoti_offline.icount, m_eoti_offline.data, max_instr);
+     process_eoti(offline_eoti.hart, offline_eoti.cycle, offline_eoti.icount, offline_eoti.data, max_instr);
 }
 
 void eot::eot_terminate(bool passed) {
