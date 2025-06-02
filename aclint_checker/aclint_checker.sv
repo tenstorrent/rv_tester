@@ -38,7 +38,7 @@ import rv_tester_params:: * ;
     bit [63:0] clocks;
 
     import "DPI-C" context function void aclint_checker_scope(int unsigned location);
-    import "DPI-C" function int get_hart_enable_ids_from_plusargs(output int result[8], input string plusargs_name);
+    import "DPI-C" function int get_hart_enable_ids_from_plusargs(output int result[8], input string plusargs_name, int NHARTS);
     always @(posedge tb_clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */
@@ -46,7 +46,8 @@ import rv_tester_params:: * ;
             $display("SV: ACLINT_CHECKER location %d time %t\n",location,$time);
             aclint_checker_scope(location);
             reset_done = 1'b1;
-            nharts = get_hart_enable_ids_from_plusargs(hart_id, "hart_enable_id");
+            // Last argument needs to match the size of the hart_id array
+            nharts = get_hart_enable_ids_from_plusargs(hart_id, "hart_enable_id", 8);
             /* verilator lint_on BLKSEQ */
         end
         clocks <= clocks + 1;
@@ -93,9 +94,11 @@ import rv_tester_params:: * ;
     bit [3:0] vid [8:0];
     always @(posedge rf_clk) begin
         if(cold_resetn) begin
-            for (int i = 0; i < nharts ; i++) begin
-                vid[i] <= hart_id[i];
-                enablefuse[i] <= 1;
+            for (int i = 0; i < NHARTS ; i++) begin
+                if (i < nharts) begin
+                    vid[i] <= hart_id[i];
+                    enablefuse[i] <= 1;
+                end
             end
             vid[8] <= 'd8;
             enablefuse[8] <= 1;
@@ -137,7 +140,6 @@ import rv_tester_params:: * ;
             else counter[k] <= counter_next[k];
         end
         always @(posedge rf_clk) begin
-            counter_mtip8 <= min(counter_next);
             if (dut_reset) mtimecmpval[k] <= 'hffffffff;
             else if(mtimecmp_wr_valid[k]) mtimecmpval[k] <= ((AcReqPktRfClki.mask == 'hf) ? {mtimecmpval[k][63:32], AcReqPktRfClki.data[31:0]} : AcReqPktRfClki.data);
         end
