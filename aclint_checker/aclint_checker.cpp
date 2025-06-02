@@ -359,7 +359,7 @@ extern "C" int get_hart_enable_ids_from_plusargs(int* result, const char* plusar
     }
 
     for (size_t i = 0; i < numbers.size(); ++i) {
-        if (i < NHARTS) {
+        if ((int)i < NHARTS) {
             result[i] = numbers[i];
         }
     }
