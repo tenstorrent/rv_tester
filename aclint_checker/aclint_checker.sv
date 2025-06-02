@@ -33,7 +33,7 @@ import rv_tester_params:: * ;
     localparam  ACLINT_END = 'h4218ffff;
 
     logic enable_checks;
-    int hart_id[8];
+    int hart_id[NHARTS];
     int nharts = 0;
     bit [63:0] clocks;
 
@@ -94,8 +94,10 @@ import rv_tester_params:: * ;
     always @(posedge rf_clk) begin
         if(cold_resetn) begin
             for (int i = 0; i < NHARTS ; i++) begin
-                vid[i] <= hart_id[i];
-                enablefuse[i] <= 1;
+                if (i < nharts) begin
+                    vid[i] <= hart_id[i];
+                    enablefuse[i] <= 1;
+                end
             end
             vid[8] <= 'd8;
             enablefuse[8] <= 1;
