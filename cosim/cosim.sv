@@ -215,6 +215,7 @@ localparam CAM_IHBIT = CAM_IBITS;
         /* verilator lint_on WIDTH */
     endfunction
 
+    import "DPI-C" function longint get_max_cycle();
     import "DPI-C" context function void cosim_set_scope(int unsigned location);
     import "DPI-C" context function int is_eot_tohost();
     import "DPI-C" context function void eot_hw_process(longint unsigned hart, longint unsigned cycles, longint unsigned addr, longint unsigned data);
@@ -393,6 +394,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     // Timeout checks
     int max_stall_cycle = 50000;
     longint unsigned max_cycle;
+    longint unsigned new_max_cycle;
     longint unsigned max_instructions;
     longint unsigned instruction_cnt;
     longint unsigned instr_count;
@@ -1317,9 +1319,15 @@ localparam CAM_IHBIT = CAM_IBITS;
           cosim_terminate_sent <= '1;
         end
         if (max_cycle > 0 && clocks > max_cycle && NUM < nharts && cosim_terminate_sent == '0) begin
-          $display("\nError: Hart %0d:  Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", NUM, max_cycle);
-          cosim_terminate();
-          cosim_terminate_sent <= '1;
+          new_max_cycle = get_max_cycle();
+          if (max_cycle < new_max_cycle) begin
+            max_cycle <= new_max_cycle;
+            $display("\nHart %0d:  Increased max_cycles to (%0d) cycles due to dynamic change", NUM, new_max_cycle);
+          end else begin
+            $display("\nError: Hart %0d:  Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", NUM, max_cycle);
+            cosim_terminate();
+            cosim_terminate_sent <= '1;
+          end
         end
         if (rvfi[0].valid == '1 && NUM > nharts && cosim_terminate_sent == '0) begin
           $display("\nError: Core %0d: Instruction retire seen on disabled/harvested core", NUM);
