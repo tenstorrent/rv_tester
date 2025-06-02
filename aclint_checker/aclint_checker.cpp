@@ -11,6 +11,7 @@
 #include <queue>
 #include <unordered_map>
 #include "cvm/logger.hpp"
+#include <cassert>
 
 REGISTRY_register(aclint_checker, TOP.PLATFORM.ACLINT_CHECKER, 0);
 DEFINE_bool(aclint, false, "Enable aclint checks");
@@ -356,6 +357,12 @@ extern "C" int get_hart_enable_ids_from_plusargs(int* result, const char* plusar
         uint32_t t = std::stoull(token);
         numbers.push_back(t);
       }
+    }
+
+    if (numbers.size() > NHARTS) {
+        cvm::log(cvm::ERROR, "Error: {} hart enable ids provided, but only {} harts are supported\n", numbers.size(), NHARTS);
+        assert(false);
+        return 0;
     }
 
     for (size_t i = 0; i < numbers.size(); ++i) {
