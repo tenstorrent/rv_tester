@@ -359,7 +359,7 @@ extern "C" int get_hart_enable_ids_from_plusargs(int* result, const char* plusar
       }
     }
 
-    if (numbers.size() > NHARTS) {
+    if ((int)numbers.size() > NHARTS) {
         cvm::log(cvm::ERROR, "Error: {} hart enable ids provided, but only {} harts are supported\n", numbers.size(), NHARTS);
         assert(false);
         return 0;
