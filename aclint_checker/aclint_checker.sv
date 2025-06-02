@@ -38,7 +38,7 @@ import rv_tester_params:: * ;
     bit [63:0] clocks;
 
     import "DPI-C" context function void aclint_checker_scope(int unsigned location);
-    import "DPI-C" function int get_hart_enable_ids_from_plusargs(output int result[NHARTS], input string plusargs_name);
+    import "DPI-C" function int get_hart_enable_ids_from_plusargs(output int result[8], input string plusargs_name, int NHARTS);
     always @(posedge tb_clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */
@@ -46,7 +46,7 @@ import rv_tester_params:: * ;
             $display("SV: ACLINT_CHECKER location %d time %t\n",location,$time);
             aclint_checker_scope(location);
             reset_done = 1'b1;
-            nharts = get_hart_enable_ids_from_plusargs(hart_id, "hart_enable_id");
+            nharts = get_hart_enable_ids_from_plusargs(hart_id, "hart_enable_id", NHARTS);
             /* verilator lint_on BLKSEQ */
         end
         clocks <= clocks + 1;
