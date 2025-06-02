@@ -9,6 +9,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <cassert>
 
 REGISTRY_register(reset_sequence, PWRMGMT, cvm::registry::all);
 
@@ -61,6 +62,7 @@ extern "C" {
   uint8_t pwrmgmt_get_pwrmgmt_en_from_plusargs(const char* m) {
     const char* mode = cvm_plusargs_get_string(m);
     if (!mode) {
+      assert(false);
       return false;
     }
     return (std::string(mode) != "off");

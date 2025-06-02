@@ -346,7 +346,7 @@ extern "C" void aclint_checker_scope(cvm::topology::loc_t loc) {
     cvm::registry::messenger.signal<svScope>(loc, scope);
 }
 
-extern "C" int get_hart_enable_ids_from_plusargs(int* result, const char* plusargs_name) {
+extern "C" int get_hart_enable_ids_from_plusargs(int* result, const char* plusargs_name, int NHARTS) {
     std::string hart_enable_ids = cvm_plusargs_get_string(plusargs_name);
     std::vector<uint32_t> numbers;
     std::istringstream ss(hart_enable_ids);
@@ -358,7 +358,9 @@ extern "C" int get_hart_enable_ids_from_plusargs(int* result, const char* plusar
       }
     }
     for (size_t i = 0; i < numbers.size(); ++i) {
-      result[i] = numbers[i];
+        if (numbers[i] < NHARTS) {
+            result[i] = numbers[i];
+        }
     }
     return numbers.size();
 }
