@@ -19,7 +19,7 @@ extern "C" {
     uint64_t get_mtime_value();
     uint64_t get_ctime_value();
     void update_ctime_value(uint64_t value);
-    int get_hart_enable_ids_from_plusargs(int* result, const char* plusargs_name);
+    int get_hart_enable_ids_from_plusargs(int* result, const char* plusargs_name, int NHARTS);
 }
 
 aclint_checker::aclint_checker(cvm::topology::loc_t loc, unsigned) {
@@ -358,7 +358,7 @@ extern "C" int get_hart_enable_ids_from_plusargs(int* result, const char* plusar
       }
     }
     for (size_t i = 0; i < numbers.size(); ++i) {
-        if (numbers[i] < NHARTS) {
+        if (i < NHARTS) {
             result[i] = numbers[i];
         }
     }
