@@ -38,7 +38,7 @@ import rv_tester_params:: * ;
     bit [63:0] clocks;
 
     import "DPI-C" context function void aclint_checker_scope(int unsigned location);
-    import "DPI-C" function int get_hart_enable_ids_from_plusargs(output int result[8], input string plusargs_name);
+    import "DPI-C" function int get_hart_enable_ids_from_plusargs(output int result[NHARTS], input string plusargs_name);
     always @(posedge tb_clk) begin
         if (reset) begin
             /* verilator lint_off BLKSEQ */
