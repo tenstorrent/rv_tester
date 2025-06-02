@@ -10,6 +10,7 @@
 #include <fstream>
 #include <vector>
 #include <cassert>
+#include "cvm/logger.hpp"
 
 REGISTRY_register(reset_sequence, PWRMGMT, cvm::registry::all);
 
@@ -62,6 +63,7 @@ extern "C" {
   uint8_t pwrmgmt_get_pwrmgmt_en_from_plusargs(const char* m) {
     const char* mode = cvm_plusargs_get_string(m);
     if (!mode) {
+      cvm::log(cvm::ERROR, "Error: pwrmgmt mode is not set\n");
       assert(false);
       return false;
     }

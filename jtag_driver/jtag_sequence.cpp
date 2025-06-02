@@ -1,5 +1,6 @@
 #include "jtag_sequence.hpp"
 #include <cassert>
+#include "cvm/logger.hpp"
 //#include "sysmod/sysmod_plusargs.h"
 
 REGISTRY_register(jtag_sequence, JTAG_DRIVER, cvm::registry::all);
@@ -36,6 +37,7 @@ extern "C" {
   uint8_t jtag_driver_get_en_from_plusargs(const char* mode) {
     const char* p = cvm_plusargs_get_string(mode);
     if (!p) {
+      cvm::log(cvm::ERROR, "Error: jtag_driver mode is not set\n");
       assert(false);
       return 0;
     }
