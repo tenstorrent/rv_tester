@@ -1318,6 +1318,7 @@ localparam CAM_IHBIT = CAM_IBITS;
           cosim_terminate();
           cosim_terminate_sent <= '1;
         end
+        /* verilator lint_off BLKSEQ */
         if (max_cycle > 0 && clocks > max_cycle && NUM < nharts && cosim_terminate_sent == '0) begin
           new_max_cycle = get_max_cycle();
           if (max_cycle < new_max_cycle) begin
@@ -1329,6 +1330,7 @@ localparam CAM_IHBIT = CAM_IBITS;
             cosim_terminate_sent <= '1;
           end
         end
+        /* verilator lint_on BLKSEQ */
         if (rvfi[0].valid == '1 && NUM > nharts && cosim_terminate_sent == '0) begin
           $display("\nError: Core %0d: Instruction retire seen on disabled/harvested core", NUM);
           cosim_terminate();
