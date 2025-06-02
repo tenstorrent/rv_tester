@@ -46,7 +46,8 @@ import rv_tester_params:: * ;
             $display("SV: ACLINT_CHECKER location %d time %t\n",location,$time);
             aclint_checker_scope(location);
             reset_done = 1'b1;
-            nharts = get_hart_enable_ids_from_plusargs(hart_id, "hart_enable_id", NHARTS);
+            // Last argument needs to match the size of the hart_id array
+            nharts = get_hart_enable_ids_from_plusargs(hart_id, "hart_enable_id", 8);
             /* verilator lint_on BLKSEQ */
         end
         clocks <= clocks + 1;
