@@ -33,7 +33,7 @@ import rv_tester_params:: * ;
     localparam  ACLINT_END = 'h4218ffff;
 
     logic enable_checks;
-    int hart_id[NHARTS];
+    int hart_id[8];
     int nharts = 0;
     bit [63:0] clocks;
 
