@@ -4,7 +4,7 @@ load("@bazel_tools//tools/build_defs/repo:utils.bzl", "maybe")
 
 def rv_tester_repositories2():
 
-    checkin_script_hash="0494a6d3e7ecbd413dca47d6ca3c1e0334bf7619"
+    checkin_script_hash="a7f0e1356ab02e4502fcb20a62074da9c55d74ce"
     maybe(
         git_repository,
         name = "checkin-script",

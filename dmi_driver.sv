@@ -1361,6 +1361,9 @@ import rv_tester_params:: * ;
         $display("trigger_counter= %h", trigger_counter);
         for(int core_id=0; core_id < num_harts; core_id++) begin
           if(core_id_hit[core_id]) begin
+            rvfi_sdtrig_core[core_id] = 0;
+            core_id_hit[core_id] = 0;
+            $display("clearing the rvfi_sdtrig for core: %0d", core_id);
             trigger_to_fire = 1;
             $display("trigger_to_fire is set after seeing exception: 33 for core:%0d", core_id);
             command_in_sdtrig_entry_queue_size = sdtrig_debug_mode_entry_queue.size();
@@ -1455,9 +1458,6 @@ import rv_tester_params:: * ;
                 sdtrig_debug_mode_entry_queue.push_back(command);
               end
             end
-            rvfi_sdtrig_core[core_id] = 0;
-            core_id_hit[core_id] = 0;
-            $display("clearing the rvfi_sdtrig for core: %0d", core_id);
           end
         end
         if(sdtrig_display)

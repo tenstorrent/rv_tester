@@ -11,6 +11,7 @@
 #include <queue>
 #include <unordered_map>
 #include "cvm/logger.hpp"
+#include <cassert>
 
 REGISTRY_register(aclint_checker, TOP.PLATFORM.ACLINT_CHECKER, 0);
 DEFINE_bool(aclint, false, "Enable aclint checks");
@@ -19,7 +20,7 @@ extern "C" {
     uint64_t get_mtime_value();
     uint64_t get_ctime_value();
     void update_ctime_value(uint64_t value);
-    int get_hart_enable_ids_from_plusargs(int* result, const char* plusargs_name);
+    int get_hart_enable_ids_from_plusargs(int* result, const char* plusargs_name, int NHARTS);
 }
 
 aclint_checker::aclint_checker(cvm::topology::loc_t loc, unsigned) {
@@ -346,7 +347,7 @@ extern "C" void aclint_checker_scope(cvm::topology::loc_t loc) {
     cvm::registry::messenger.signal<svScope>(loc, scope);
 }
 
-extern "C" int get_hart_enable_ids_from_plusargs(int* result, const char* plusargs_name) {
+extern "C" int get_hart_enable_ids_from_plusargs(int* result, const char* plusargs_name, int NHARTS) {
     std::string hart_enable_ids = cvm_plusargs_get_string(plusargs_name);
     std::vector<uint32_t> numbers;
     std::istringstream ss(hart_enable_ids);
@@ -357,8 +358,17 @@ extern "C" int get_hart_enable_ids_from_plusargs(int* result, const char* plusar
         numbers.push_back(t);
       }
     }
+
+    if ((int)numbers.size() > NHARTS) {
+        cvm::log(cvm::ERROR, "Error: {} hart enable ids provided, but only {} harts are supported\n", numbers.size(), NHARTS);
+        assert(false);
+        return 0;
+    }
+
     for (size_t i = 0; i < numbers.size(); ++i) {
-      result[i] = numbers[i];
+        if ((int)i < NHARTS) {
+            result[i] = numbers[i];
+        }
     }
     return numbers.size();
 }

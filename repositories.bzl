@@ -14,7 +14,7 @@ def rv_tester_repositories():
         #sha256 = "af87959afe497dc8dfd4c6cb66e1279cb98ccc84284619ebfec27d9c09a903de",
     )
 
-    corearchcoverage_hash="57a9dd8983f849edb786f52927ae236d98a58be3"
+    corearchcoverage_hash="6124615cfdc2625b32e3852308b63f8e11a71c20"
     maybe(
         git_repository,
         name = "corearchcoverage",
@@ -84,7 +84,7 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-wall_clock_profiler.git",
     )
 
-    checkin_script_hash="a7f0e1356ab02e4502fcb20a62074da9c55d74ce"
+    checkin_script_hash="54f1fd377a20c5085ca244f6c404b56839f5d866"
     maybe(
         git_repository,
         name = "checkin-script",
