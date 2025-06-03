@@ -940,7 +940,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
       sc_result_.emplace(m.tag, m);
     } else {
       if (!sc_failed(sc_bypass_.at(m.tag))) {
-        bridge_->process_dut_mcm_bypass(m.hart, sc_bypass_.at(m.tag));
+        bridge_->process_dut_mcm_bypass(m.hart, sc_bypass_.at(m.tag), true);
         sc_bypass_.erase(m.tag);
       }
     }
@@ -1247,7 +1247,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
         return;
       }
 
-      bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m);
+      bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m, false);
   } else {
       std::bitset<32> mask = m_mcmi_bypass.mask;
       std::vector<uint64_t> addresses;
@@ -1286,7 +1286,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
               m.data_vec = value;
               m.v_ext = m_mcmi_bypass.v_ext;
               m.elem_idx = m_mcmi_bypass.elem_idx;
-              bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m);
+              bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m, false);
               start_addr = addresses[i];
               size = 1;
               dataAccumulated = fmt::format("{:02x}", datas[i]);
@@ -1302,7 +1302,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
       m.data_vec = stringToBitset(dataAccumulated);  // Final range processing
       m.v_ext = m_mcmi_bypass.v_ext;
       m.elem_idx = m_mcmi_bypass.elem_idx;
-      bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m);
+      bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m, false);
   }
 }
 
@@ -1332,7 +1332,7 @@ void rvfi::process_amo(mem_t& read) {
   m.cycle = read.cycle;
   amo_modify_write_data(static_cast<amo_op>(m.amo_op), read.data, m.data, m.size);
 
-  bridge_->process_dut_mcm_bypass(m.hart, m);
+  bridge_->process_dut_mcm_bypass(m.hart, m, true);
 
   amo_writes_.erase(read.tag);
 }
