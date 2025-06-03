@@ -33,6 +33,8 @@ class rvfi {
 
   public:
 
+    cvm::topology::loc_t axi_loc_; // Location for AXI SW Signals
+
     rvfi(cvm::topology::loc_t loc, unsigned id);
     ~rvfi();
     void check();
@@ -55,6 +57,7 @@ class rvfi {
     void process(const rv_tester_transactions::cosim::m_imsic_msi<>& m_imsic_msi);
     void process(const rv_tester_transactions::cosim::m_debug<>& m_debug);
     void process(const rv_tester_transactions::cosim::m_csri<>& m_csri);
+    void process(const rv_tester_transactions::axi_sw::aw<>& aw); // RVTOOLS-4178
 
     // FIXME Move out to a different file?
     void process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_read);
