@@ -751,6 +751,7 @@ whisperClient<URV>::whisperMcmVecBypass(int hart, uint64_t time, uint64_t instrT
 {
   WhisperFlags wflags;
   wflags.bits.cache = cache;
+  req.flags = wflags.value;
   req.hart = hart;
   req.type = WhisperMessageType::McmBypass;
   req.time = time;
@@ -792,6 +793,7 @@ whisperClient<URV>::whisperMcmBypass(int hart, uint64_t time, uint64_t instrTag,
 {
   WhisperFlags wflags;
   wflags.bits.cache = cache;
+  req.flags = wflags.value;
   req.hart = hart;
   req.type = WhisperMessageType::McmBypass;
   req.time = time;
