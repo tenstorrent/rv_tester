@@ -147,7 +147,7 @@ import rv_tester_params::*;
   int unsigned cycles = 0;
   always @(posedge dut_clk) begin
     dut_clocks <= dut_clocks + 1;
-    if (m_jtag_driver_ticks[0].valid)
+    if ((m_jtag_driver_ticks[0].valid) || warm_reset)
       cycles <= 0;
     else
       cycles <= cycles+1;
