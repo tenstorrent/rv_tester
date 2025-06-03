@@ -157,7 +157,6 @@ rv_tester: &rv_tester
         type:
           - rvfi
         attrs:
-          max_csr_after_nret: 3
           <<: *rv_tester_rvfi_attrs
       mcmi:
         count: 1
@@ -169,6 +168,13 @@ rv_tester: &rv_tester
         count: 1
         type:
           - bridge
+
+    csri:
+        count: *rv_tester_nharts
+        type:
+          - csri
+        attrs:
+          <<: *rv_tester_csri_attrs
 
     pmci:
       count : *rv_tester_nharts

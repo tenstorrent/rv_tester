@@ -1,12 +1,14 @@
 #include "rvfi.h"
 #include "util.h"
 #include "whisper_decoder.h"
+#include "rv_tester_plusargs.h"
 #include "cvm/plusargs.hpp"
 #include "cvm/bitmanip.hpp"
 #include "cvm/callbacks.hpp"
 #include "cvm/registry.hpp"
 #include "sysmod/sysmod_plusargs.h"
 #include "cosim/bridge/bridge_plusargs.h"
+#include "transactors/axi_sw/axi.h"
 
 #include <iostream>
 #include <chrono>
@@ -57,7 +59,6 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     rv_tester_transactions::cosim::m_mcmi_read<>,
     rv_tester_transactions::cosim::m_mcmi_insert<>,
     rv_tester_transactions::cosim::m_mcmi_write<>,
-    rv_tester_transactions::cosim::m_mcmi_write_error<>,
     rv_tester_transactions::cosim::m_mcmi_bypass<>,
     rv_tester_transactions::cosim::m_mcmi_ifetch_req<>,
     rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>,
@@ -188,7 +189,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
     return;
 
   // Append accumulated uop changes for ucode instructions
-  append_uop_changes_to_instr(instr); 
+  append_uop_changes_to_instr(instr);
   enter_debug_mode(instr);
   send_instr(instr);
   exit_debug_mode(instr);
@@ -372,7 +373,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_debug<>& m_debug) {
   if (!FLAGS_cosim)
     return;
 
-  bridge_->process_debug_haltreq(m_debug.haltreq); 
+  bridge_->process_debug_haltreq(m_debug.haltreq);
 }
 
 void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_instr_t& instr) {
@@ -446,7 +447,7 @@ void rvfi::make_instr(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi, rv_
 
   if (m_rvfi.last_uop)
     priv_ = m_rvfi.mode;
-  
+
   if (!priv_to_string.count(static_cast<priv>(instr.priv))) {
     cvm::log(cvm::ERROR, "Error: Invalid rvfi privilege mode: {:#x}\n", instr.priv);
     return;
@@ -1002,7 +1003,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
 
       uint64_t start_addr = addresses[0];
       size_t size = 1;
-      std::string dataAccumulated = fmt::format("{:02x}", datas[0]);  
+      std::string dataAccumulated = fmt::format("{:02x}", datas[0]);
 
       for (size_t i = 1; i < addresses.size(); ++i) {
           if (addresses[i] == addresses[i - 1] + 1) {
@@ -1103,8 +1104,8 @@ std::bitset<256> rvfi::stringToBitset(const std::string& hexString) {
   std::bitset<256> bits;
   size_t len = hexString.length();
   for (size_t i = 0; i < len; ++i) {
-      int hexDigit = (hexString[len - 1 - i] >= '0' && hexString[len - 1 - i] <= '9') 
-                     ? hexString[len - 1 - i] - '0' 
+      int hexDigit = (hexString[len - 1 - i] >= '0' && hexString[len - 1 - i] <= '9')
+                     ? hexString[len - 1 - i] - '0'
                      : hexString[len - 1 - i] - 'a' + 10;
       for (int j = 3; j >= 0; --j) {
           bits[(i * 4) + j] = (hexDigit >> j) & 1;
@@ -1135,7 +1136,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
       mem_t m;
       m.valid = true;
       m.cycle = m_mcmi_insert.cycle;
-      m.tag = vec_cmode_tags_.contains(m_mcmi_insert.order) ? vec_cmode_tags_[m_mcmi_insert.order] :  
+      m.tag = vec_cmode_tags_.contains(m_mcmi_insert.order) ? vec_cmode_tags_[m_mcmi_insert.order] :
                 patch_mode_tags_.contains(m_mcmi_insert.order)? patch_mode_tags_[m_mcmi_insert.order] : m_mcmi_insert.order;
       m.pa = m_mcmi_insert.addr;
       m.size = numones;
@@ -1164,7 +1165,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
 
       uint64_t start_addr = addresses[0];
       size_t size = 1;
-      std::string dataAccumulated = fmt::format("{:02x}", datas[0]);  
+      std::string dataAccumulated = fmt::format("{:02x}", datas[0]);
 
       for (size_t i = 1; i < addresses.size(); ++i) {
           if (addresses[i] == addresses[i - 1] + 1) {
@@ -1219,7 +1220,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
   uint64_t leadingZeros = std::countr_zero(mask);  // Find the number of trailing zeros
   mask >>= leadingZeros;
   uint64_t consecutiveOnes = std::countr_zero(~mask);  // Count ones until the first zero
-  
+
   if (numones == consecutiveOnes) {
       mem_t m;
       m.valid  = true;
@@ -1267,7 +1268,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
 
       uint64_t start_addr = addresses[0];
       size_t size = 1;
-      std::string dataAccumulated = fmt::format("{:02x}", datas[0]);  
+      std::string dataAccumulated = fmt::format("{:02x}", datas[0]);
 
       for (size_t i = 1; i < addresses.size(); ++i) {
           if (addresses[i] == addresses[i - 1] + 1) {
@@ -1421,29 +1422,11 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write<>& m_mcmi_w
   m.data = m_mcmi_write.data;
   m.error = m_mcmi_write.error;
 
-  for (auto it = mcm_write_error_pas_.begin(); it != mcm_write_error_pas_.end(); ) {
-    if ((m.pa & ~0x3f) == (*it & ~0x3f)) {
-      cvm::log(cvm::HIGH, "[MCM] mcm_write matches error PA: {:#x}\n", *it);
-      m.error = 1;
-      it = mcm_write_error_pas_.erase(it);
-      break;
-    } else {
-      ++it;
-    }
+  if (check_axi_error(m.pa & ~0x3f)) {
+    m.error = 1;
   }
 
   bridge_->process_dut_mcm_write(m_mcmi_write.hart, m);
-}
-
-void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_write_error<>& m_mcmi_write_error) {
-  if (!FLAGS_cosim || !FLAGS_mcm)
-    return;
-
-  if (terminated_ || in_reset_)
-    return;
-
-  mcm_write_error_pas_.push_back(m_mcmi_write_error.addr);
-  cvm::log(cvm::HIGH, "[MCM] mcm_write_error. PA: {:#x}\n", m_mcmi_write_error.addr);
 }
 
 void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ifetch_req<>& m_mcmi_ifetch_req) {
@@ -1582,6 +1565,27 @@ std::bitset<256> rvfi::extract_bits_as_bitset(const std::bitset<256>& bitset, si
     }
 
     return result;
+}
+
+bool rvfi::check_axi_error(uint64_t addr) {
+    // Check if the address is expected to have error response by calling AXI instances
+    // Similar logic to enable_axi_error in bus_error_agent.cpp
+
+    // Determine AXI type based on VIP flags (same logic as bus_error_agent)
+    auto type = (FLAGS_vip && !FLAGS_vip_axi_dpi) ? "VIP_AXI" : "AXI";
+
+    // Check all AXI instances
+    for (const auto& loc : cvm::topology::get_from_type(type)) {
+        if (loc != cvm::topology::null) {
+            bool has_error = cvm::registry::messenger.call<axi::check_error_rpc>(loc, addr);
+            if (has_error) {
+                cvm::log(cvm::HIGH, "[rvfi] check_axi_error: addr={:#x} has error response configured\n", addr);
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 
 void rvfi::process(const rv_tester::terminate_called_mem_checks&) {

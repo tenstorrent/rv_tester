@@ -76,12 +76,12 @@ namespace {
       CSR(HSTATUS,          0x600, "hstatus"       ,false, true)               \
       CSR(HEDELEG,          0x602, "hedeleg")                                  \
       CSR(HIDELEG,          0x603, "hideleg")                                  \
-      CSR(HIE,              0x604, "hie")                                      \
+      CSR(HIE,              0x604, "hie"           ,true)                      \
       CSR(HCOUNTEREN,       0x606, "hcounteren")                               \
       CSR(HGEIE,            0x607, "hgeie")                                    \
       CSR(HTVAL,            0x643, "htval")                                    \
-      CSR(HIP,              0x644, "hip")                                      \
-      CSR(HVIP,             0x645, "hvip")                                     \
+      CSR(HIP,              0x644, "hip"           ,true)                      \
+      CSR(HVIP,             0x645, "hvip"          ,true)                      \
       CSR(HTINST,           0x64A, "htinst")                                   \
       CSR(HGEIP,            0xE12, "hgeip")                                    \
       CSR(HENVCFG,          0x60A, "henvcfg")                                  \
@@ -95,13 +95,13 @@ namespace {
       CSR(HVIPRIO1,         0x646, "hviprio1")                                 \
       CSR(HVIPRIO2,         0x647, "hviprio2")                                 \
       CSR(VSSTATUS,         0x200, "vsstatus"      ,false, true)               \
-      CSR(VSIE,             0x204, "vsie")                                     \
+      CSR(VSIE,             0x204, "vsie"          ,true)                      \
       CSR(VSTVEC,           0x205, "vstvec")                                   \
       CSR(VSSCRATCH,        0x240, "vsscratch")                                \
       CSR(VSEPC,            0x241, "vsepc")                                    \
       CSR(VSCAUSE,          0x242, "vscause")                                  \
       CSR(VSTVAL,           0x243, "vstval")                                   \
-      CSR(VSIP,             0x244, "vsip")                                     \
+      CSR(VSIP,             0x244, "vsip"          ,true)                      \
       CSR(VSATP,            0x280, "vsatp")                                    \
       CSR(MVENDORID,        0xF11, "mvendorid")                                \
       CSR(MARCHID,          0xF12, "marchid")                                  \
@@ -391,9 +391,9 @@ namespace {
       CSR(VSIREG,           0x251, "vsireg")                                   \
       CSR(MIREG,            0x351, "mireg")                                    \
       CSR(STOPEI,           0x15c, "stopei", true)                             \
-      CSR(VSTOPEI,          0x25c, "vstopei")                                  \
+      CSR(VSTOPEI,          0x25c, "vstopei"       ,true)                      \
       CSR(STOPI,            0xDB0, "stopi")                                    \
-      CSR(VSTOPI,           0xEB0, "vstopi")                                   \
+      CSR(VSTOPI,           0xEB0, "vstopi"        ,true)                      \
       CSR(MISELECT,         0x350, "miselect")                                 \
       CSR(MTOPEI,           0x35C, "mtopei"      ,  true)                      \
       CSR(MTOPI,            0xFB0, "mtopi")                                    \

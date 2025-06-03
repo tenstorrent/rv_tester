@@ -3247,7 +3247,9 @@ void bridge::report_metrics() {
     if (!csr.metric)
       continue;
     uint64_t csr_data;
-    if((hypervisor_csr_map_.find(csr.addr) != hypervisor_csr_map_.end()) && (!hyp_enabled())) {
+    if((!hyp_enabled()) && (hypervisor_csr_map_.find(csr.addr) != hypervisor_csr_map_.end())) {
+    }
+    else if ((MayPeekCSR_map_.find(csr.addr) != MayPeekCSR_map_.end()) && may_peek_csr(csr_data, csr.addr)) {
     }
     else {
       if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, 'c', csr.addr, csr_data, valid)|| !valid) && FLAGS_whisper_client_check) {
@@ -3300,4 +3302,9 @@ void bridge::report_metrics() {
   // Regression level metrics from hart 0
   if (id_ == 0)
     print(cvm::NONE, "INFO_PASS_REGR_METRIC:{{\"name\": \"ipc\", \"value\": {:.2f}, \"type\": \"d\", \"action\": \"avg\"}}\n", ipc); // Average ipc
+}
+
+bool bridge::may_peek_csr(uint64_t& data, uint64_t addr) {
+  bool valid;
+  return ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), id_, 'c', addr, data, valid)|| !valid) && FLAGS_whisper_client_check);
 }
