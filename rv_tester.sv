@@ -133,7 +133,6 @@ module rv_tester
     int dm_build_count = 0;
 
     logic warm_reset_en = 0;
-    logic warm_reset_req;
     logic warm_reset_req_d1;
     logic warm_reset_now = 0;
     logic warm_reset_sdtrig;
