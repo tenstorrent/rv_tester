@@ -34,14 +34,14 @@ extern "C" {
     return (std::string(mode) != "off");
   }
 
-  uint8_t jtag_driver_get_en_from_plusargs(const char* mode) {
+  uint8_t jtag_driver_get_socket_en_from_plusargs(const char* mode) {
     const char* p = cvm_plusargs_get_string(mode);
     if (!p) {
       cvm::log(cvm::ERROR, "Error: jtag_driver mode is not set\n");
       assert(false);
       return 0;
     }
-    return (std::string(p) != "off");
+    return (std::string(p) == "socket");
   }
 }
 

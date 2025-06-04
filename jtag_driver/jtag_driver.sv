@@ -28,7 +28,7 @@ import rv_tester_params::*;
 );
   parameter int unsigned location = cvm_topology_gen::get_location (cvm_topology_gen::mods.TOP.PLATFORM.JTAG_DRIVER.ID, NUM);
   import "DPI-C" context function void jtag_driver_set_scope(int unsigned location);
-  import "DPI-C" function bit jtag_driver_get_en_from_plusargs(string mode);
+  import "DPI-C" function bit jtag_driver_get_socket_en_from_plusargs(string mode);
    // -------------------------
   // C++->SV Callbacks
   // -------------------------
@@ -104,7 +104,7 @@ import rv_tester_params::*;
     if (~(reset|warm_reset) & reset_d1) begin
       if (location != cvm_topology::nil) begin
         jtag_driver_set_scope(location);
-        jtag_socket_en <= jtag_driver_get_en_from_plusargs("jtag_driver_mode");
+        jtag_socket_en <= jtag_driver_get_socket_en_from_plusargs("jtag_driver_mode");
       end
     end
   end
@@ -152,7 +152,7 @@ import rv_tester_params::*;
   end
 
   // m_jtag_driver_tick
-  assign m_jtag_driver_ticks[0].valid = ~dut_reset & ((dut_clocks % 200) == 0) & ~(jtag_busy | jtag_enable_begin) & (cycles!=0) ;
+  assign m_jtag_driver_ticks[0].valid = ~dut_reset & ~no_fetch & ((dut_clocks % 200) == 0) & ~(jtag_busy | jtag_enable_begin) & (cycles!=0) ;
   assign m_jtag_driver_ticks[0].data.location = location;
   assign m_jtag_driver_ticks[0].data.cycle = jtag_socket_en?((jtag_socket_start | jtag_socket_end) ? dut_clocks : '0):cycles;
   
