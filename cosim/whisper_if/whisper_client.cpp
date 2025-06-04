@@ -473,7 +473,7 @@ whisperClient<URV>::whisperPoke(int hart, uint64_t time, char resource, uint64_t
   req.time = time;
   req.tag[0] = 0;
 
-  cvm::log(cvm::MEDIUM, "Poke address : {:#x}, cache flag : {}, skipMem flag: {} DATA: {:#x}\n",addr, cache, skipmem, value);
+  // cvm::log(cvm::MEDIUM, "Poke address : {:#x}, cache flag : {}, skipMem flag: {} DATA: {:#x}\n",addr, cache, skipmem, value);
 
   if (not whisperCommand(req, reply))
     return false;
@@ -501,7 +501,7 @@ whisperClient<URV>::whisperPokeMem(int hart, uint64_t time, char resource, uint6
   req.size = size;
   req.tag[0] = 0;
 
-  cvm::log(cvm::MEDIUM, "Poke Mem address : {:#x}, cache flag : {}, skipMem flag : {}, size : {}, DATA : {:#X}\n",addr,cache, skipmem, size, value);
+  //cvm::log(cvm::MEDIUM, "Poke Mem address : {:#x}, cache flag : {}, skipMem flag : {}, size : {}, DATA : {:#X}\n",addr,cache, skipmem, size, value);
 
   if (not whisperCommand(req, reply))
     return false;
@@ -924,12 +924,15 @@ whisperClient<URV>::whisperMcmDWriteback(int hart, uint64_t time, uint64_t addr,
   req.hart = hart;
   req.type = WhisperMessageType::McmDWriteback;
   req.time = time;
+  req.size = 64;
   req.address = addr;
 
-  if (not whisperCommand(req, reply))
+  if (not whisperCommand(req, reply)) {
     return false;
+  }
 
   valid = reply.type != WhisperMessageType::Invalid;
+  cvm::log(cvm::MEDIUM, "valid : {}\n",valid);
   return true;
 }
 
