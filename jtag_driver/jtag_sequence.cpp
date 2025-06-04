@@ -45,7 +45,7 @@ extern "C" {
   }
 }
 
-jtag_sequence::jtag_sequence(cvm::topology::loc_t loc, unsigned id) : loc_(loc), id_(id), scope_(nullptr) {
+jtag_sequence::jtag_sequence(cvm::topology::loc_t loc, unsigned id) : loc_(loc), id_(id), scope_(nullptr), num_ticks(0) {
   // Scope
   cvm::registry::messenger.connect<svScope>(loc_, [this](svScope s) { return this->set_scope(s); });
   cvm::registry::messenger.connect<rv_tester_transactions::jtag_driver::jtag_rdata<>>(

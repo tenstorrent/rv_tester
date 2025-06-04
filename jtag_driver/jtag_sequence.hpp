@@ -75,6 +75,11 @@ class jtag_sequence {
   }
 
   virtual void jtag_tick(uint64_t advance) {
+    if (scope_ == nullptr){
+      cvm::log(cvm::FULL, "[jtag_sequence] Warning! NULL scope found in jtag_tick.\n");
+      return;
+    }
+
     if (stall_jtag_xtor) {
       cvm::log(cvm::LOW, "[jtag_sequence] Stall Observed! Not Driving jtag cmd \n");
       return;
@@ -193,6 +198,7 @@ class jtag_sequence {
 
   void reset() {
     cvm::log(cvm::HIGH, "[jtag_sequence]: Reset jtag_sequence\n");
+    trickboxJtagWrite(0, 13, 0, 1 ,0,2,tap_cfg_sel);
 
     if (FLAGS_random_jtag_entry) {
       cvm::log(cvm::HIGH, "[jtag_sequence]: Enable random injection of debug mode :: {}\n", FLAGS_random_jtag_entry);
