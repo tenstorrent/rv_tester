@@ -900,6 +900,7 @@ package rv_tester_params;
     output                                   dut_reset_req,                                         \
     input   logic                            ndmreset_ack,                                          \
     input                                    dut_reset_req_active,                                  \
+    input                                    warm_reset_req,                                        \
     input                                    force_ref_clk,                                         \
     output [rv_tester_params::NHARTS-1:0]    core_no_fetch,                                         \
     input  [rv_tester_params::NRESETS-1:0]   reset, /*Packed so zebu can easily force*/             \
@@ -985,6 +986,7 @@ package rv_tester_params;
     logic                                    dut_reset_req;                                         \
     logic                                    ndmreset_ack;                                          \
     logic                                    dut_reset_req_active;                                  \
+    logic                                    warm_reset_req;                                        \
     logic                                    force_ref_clk;                                         \
     logic [rv_tester_params::NHARTS-1:0]     core_no_fetch;                                         \
     logic [rv_tester_params::NRESETS-1:0]    reset           /* Packed so zebu can force easily */; \
