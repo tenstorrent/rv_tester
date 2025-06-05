@@ -105,7 +105,7 @@ import rv_tester_params::*;
     parameter int NBYPASS = 1,
     parameter int NIFETCH = 1,
     parameter int NIEVICT = 1,
-    parameter int MAX_CSR_AFTER_NRET = 3,
+    parameter int NCSRI = 1,
     parameter type rule_t = axi_pkg::xbar_rule_64_t,
     parameter int unsigned NoAddrRules = 20,
     `TOPOLOGY,
@@ -143,8 +143,6 @@ import rv_tester_params::*;
 );
 
 
-localparam CSR_SBITS = $clog2(CSR_COUNT);
-localparam MAXCSR = NRET + MAX_CSR_AFTER_NRET;
 localparam NGP_REGS  = 32;
 localparam NFP_REGS  = 32;
 localparam NVC_REGS  = 32;
@@ -170,51 +168,6 @@ localparam CAM_WIDTH = 16;
 localparam CAM_IBITS = $clog2(CAM_DEPTH);
 localparam CAM_ILBIT = 0;
 localparam CAM_IHBIT = CAM_IBITS;
-
-
-    //----------------------------------------------------------------------------
-    // function retsel compresses CSR_COUNT down into MAXCSR+1 DPI calls
-    //   we make the retsel function have MAXCSR+1 values to catch if we have too
-    //   many CSR updates.  If s=MAXCSR then we went past the number DPIs we can
-    //   accomodate  (0 .. MAXCSR-1)
-    //----------------------------------------------------------------------------
-
-    function automatic bit [MAXCSR:0][CSR_SBITS-1:0] retsel(input bit [CSR_COUNT-1:0] valid);
-        int s = 0;
-        int i = 0;
-        retsel = '1;
-        /* verilator lint_off WIDTH */
-        for(i=0;i<CSR_COUNT;i=i+1) begin
-            if (valid[i] == 1) begin
-                retsel[s] = i;
-                if (s < MAXCSR) begin
-                    s = s + 1;
-                end
-            end
-        end
-        /* verilator lint_on WIDTH */
-    endfunction
-
-    function automatic bit [CSR_COUNT-1:0] get_csr_mask();
-      bit [CSR_COUNT-1:0] mask = '1;
-      mask[MIP]             = 0; //sepearate AIA flow takes care of mip update
-      mask[TIME]            = 0; //time csr gets updated evey clock cycle
-      mask[MCYCLE]          = 0; //mcycle csr gets updated evey clock cycle
-      mask[MINSTRET]        = 0; //whisper models this instruction retire counter
-      mask[CXTVALSPEC]      = 0; // fe,mc,ls holds copy of same and are not updated across
-      mask[CXINSTSPEC]      = 0; //-------------------""----------------------------------
-      mask[CMCTHRCFG0]      = 0; //thermal throttle csr not important fucntionally
-      mask[VSTOPEI]         = 0; //interrupt csr update are handled separately
-      mask[MHPMCOUNTER3]    = 0; //perf counter
-      mask[MHPMCOUNTER4]    = 0; //perf counter
-      mask[MHPMCOUNTER5]    = 0; //perf counter
-      mask[MHPMCOUNTER6]    = 0; //perf counter
-      mask[MHPMCOUNTER7]    = 0; //perf counter
-      mask[MHPMCOUNTER8]    = 0; //perf counter
-      mask[MHPMCOUNTER9]    = 0; //perf counter
-      mask[MHPMCOUNTER10]   = 0; //perf counter
-      return mask;
-    endfunction
 
     //---------------------------------------------------------------
     // Function to return the count of VALIDS with UNIQUE ORDER bits
@@ -262,6 +215,7 @@ localparam CAM_IHBIT = CAM_IBITS;
         /* verilator lint_on WIDTH */
     endfunction
 
+    import "DPI-C" function longint get_max_cycle();
     import "DPI-C" context function void cosim_set_scope(int unsigned location);
     import "DPI-C" context function int is_eot_tohost();
     //import "DPI-C" context function void eot_hw_process(longint unsigned hart, longint unsigned cycles, longint unsigned addr, longint unsigned data);
@@ -449,6 +403,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     // Timeout checks
     int max_stall_cycle = 50000;
     longint unsigned max_cycle;
+    longint unsigned new_max_cycle;
     longint unsigned max_instructions;
     longint unsigned instruction_cnt;
     longint unsigned instr_count;
@@ -1045,51 +1000,15 @@ localparam CAM_IHBIT = CAM_IBITS;
     //assign send_regs = send_regs_i & ~send_regs_d1;
 
     // m_csri
-    logic [CSR_COUNT-1:0] m_csris_valid;
-    logic [CSR_COUNT-1:0] valid_d0;
-    logic [CSR_COUNT-1:0] valid_d1;
-    logic [CSR_COUNT-1:0][CSRLEN-1:0] addr_d1;
-    logic [CSR_COUNT-1:0][63:0] data_d1;
-    logic [CSR_COUNT-1:0][63:0] mask_d1;
 
-    always @(posedge clk) begin
-      for (int n = 0; n < CSR_COUNT; n++) begin
-        valid_d1[n] <= csri[n].valid;
-        addr_d1[n] <= csri[n].addr;
-        data_d1[n] <= csri[n].data;
-        mask_d1[n] <= csri[n].mask;
-      end
-    end
-
-    bit [MAXCSR:0][CSR_SBITS-1:0] csr_sel;
-    bit [CSR_COUNT-1:0]           csr_ignore_mask;
-
-    assign csr_sel          =   retsel(m_csris_valid);
-    assign csr_ignore_mask  =   get_csr_mask();
-
-    //-------------------------------------------------------------------------------------------
-    // if csr_sel[MAXCSR] == 1 then we went 1 past the MAX number of DPI calls we can make
-    //    only csr_sel[MAXCSR-1:0] are valid.
-    //-------------------------------------------------------------------------------------------
-    always @(posedge clk) begin
-        assert (csr_sel[MAXCSR] == '1) else $error("More than %d CSR valids == 1",MAXCSR-1);
-    end
-
-
-    for (genvar n = 0; n < CSR_COUNT; n++) begin
-        assign m_csris_valid[n] = rvfi_enabled & ~dut_core_reset & csr_ignore_mask[n] &
-                                  ((csri[n].valid & ~valid_d1[n]) |
-                                    (csri[n].valid & (((csri[n].data & csri[n].mask) !== (data_d1[n] & mask_d1[n])) |
-                                    (csri[n].mask !== mask_d1[n]))));
-    end
-    for (genvar n = 0; n < MAXCSR; n++) begin
-        assign m_csris[n].valid         = (csr_sel[n] != '1) ? 1'b1 : 1'b0;
+    for (genvar n = 0; n < NCSRI; n++) begin
+        assign m_csris[n].valid         = rvfi_enabled & ~dut_core_reset & csri[n].valid;
         assign m_csris[n].data.location = location;
         assign m_csris[n].data.cycle    = clocks;
         assign m_csris[n].data.hart     = NUM;
-        assign m_csris[n].data.addr     = (csr_sel[n] != '1) ? csri[csr_sel[n]].addr : '0;
-        assign m_csris[n].data.mask     = (csr_sel[n] != '1) ? csri[csr_sel[n]].mask : '0;
-        assign m_csris[n].data.data     = (csr_sel[n] != '1) ? csri[csr_sel[n]].data : '0;
+        assign m_csris[n].data.addr     = csri[n].data.addr;
+        assign m_csris[n].data.mask     = csri[n].data.mask;
+        assign m_csris[n].data.data     = csri[n].data.data;
     end
 
     // m_mcmi_read
@@ -1405,10 +1324,33 @@ localparam CAM_IHBIT = CAM_IBITS;
 /* verilator lint_on WIDTHEXPAND */
 
     localparam bit [63:0] DRAM_BASE = 64'h8000_0000;
+    logic        trigger_max_cycle_update;
+    logic [63:0] dpi_max_cycle;
+    logic        dpi_update_valid;
+
+    always_ff @(posedge tb_clk) begin
+      if (reset) begin
+        trigger_max_cycle_update <= 0;
+      end else if (max_cycle > 0 && clocks > max_cycle && NUM < nharts && cosim_terminate_sent == '0) begin
+        trigger_max_cycle_update <= 1;
+      end else begin
+        trigger_max_cycle_update <= 0;
+      end
+    end
+
+    // Capture DPI result only when triggered
+    always_ff @(posedge tb_clk) begin
+      if (trigger_max_cycle_update) begin
+        dpi_max_cycle     <= get_max_cycle();
+        dpi_update_valid  <= 1;
+      end else begin
+        dpi_update_valid  <= 0;
+      end
+    end
+
     always @(posedge tb_clk) begin
       if (reset) begin
         /* verilator lint_off BLKSEQ */
-        max_cycle = cvm_plusargs::get_ulongint("max_cycle");
         max_stall_cycle = cvm_plusargs::get_int("max_stall_cycle");
         cosim_period = cvm_plusargs::get_int("cosim_period");
         max_instructions = cvm_plusargs::get_ulongint("max_instr");

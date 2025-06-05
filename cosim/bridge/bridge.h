@@ -295,6 +295,7 @@ private:
   void resynch(hart_id_t hart, const rv_instr_t& d);
   std::string get_nth_word(const std::string& s, int n);
   bool hyp_enabled() { return  (get_csr(id_, src_t::dut, MISA) & 0x80) == 0x80; }
+  bool may_peek_csr(uint64_t& csr_data, uint64_t csr_addr);
 
 private:
 
@@ -345,11 +346,17 @@ private:
         {0x243, "vstval"}, // -
         {0x24D, "vstimecmp"},
         {0x244, "vsip"}, // -
-        {0x280, "vsatp"} // -
+        {0x280, "vsatp"}, // -
+        {0x25C, "vstopei"},         // Virtual Supervisor Top External Interrupt 
+        {0xEB0, "vstopi"},          // Virtual Supervisor Top Interrupt 
     };
 
   // MCM order map needed for periodic cosim
   std::unordered_map<uint64_t , int> mcm_orders_;
+
+  std::map<uint64_t, std::string> MayPeekCSR_map_ = {
+    {0x25C, "vstopei"}        // Virtual Supervisor Top External Interrupt 
+  };
 
 
   cvm::file_logger bridge_log_;
