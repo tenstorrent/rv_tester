@@ -739,7 +739,7 @@ module rv_tester
         .disable_haltpoll,
         .disable_abscmdpoll,
         .disable_triggerpoll,
-        .terminate,
+        .terminate(sysmod_terminate.terminate),
         .num_harts,
         .sdtrig_display,
         .nonexistent_hart,
