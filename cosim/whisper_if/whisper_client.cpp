@@ -924,7 +924,9 @@ whisperClient<URV>::whisperMcmDWriteback(int hart, uint64_t time, uint64_t addr,
   req.hart = hart;
   req.type = WhisperMessageType::McmDWriteback;
   req.time = time;
-  req.size = 64;
+  req.size = 0; // currently not sending data as a a part of writeback
+  req.buffer.fill(0);
+  req.value = 0;
   req.address = addr;
 
   if (not whisperCommand(req, reply)) {
