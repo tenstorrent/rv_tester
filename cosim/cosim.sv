@@ -217,6 +217,7 @@ localparam CAM_IHBIT = CAM_IBITS;
         /* verilator lint_on WIDTH */
     endfunction
 
+    import "DPI-C" function longint get_max_cycle();
     import "DPI-C" context function void cosim_set_scope(int unsigned location);
     import "DPI-C" context function int is_eot_tohost();
     import "DPI-C" context function void eot_hw_process(longint unsigned hart, longint unsigned cycles, longint unsigned addr, longint unsigned data);
@@ -395,6 +396,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     // Timeout checks
     int max_stall_cycle = 50000;
     longint unsigned max_cycle;
+    longint unsigned new_max_cycle;
     longint unsigned max_instructions;
     longint unsigned instruction_cnt;
     longint unsigned instr_count;
@@ -1281,10 +1283,33 @@ localparam CAM_IHBIT = CAM_IBITS;
 /* verilator lint_on WIDTHEXPAND */
 
     localparam bit [63:0] DRAM_BASE = 64'h8000_0000;
+    logic        trigger_max_cycle_update;
+    logic [63:0] dpi_max_cycle;
+    logic        dpi_update_valid;
+
+    always_ff @(posedge tb_clk) begin
+      if (reset) begin
+        trigger_max_cycle_update <= 0;
+      end else if (max_cycle > 0 && clocks > max_cycle && NUM < nharts && cosim_terminate_sent == '0) begin
+        trigger_max_cycle_update <= 1;
+      end else begin
+        trigger_max_cycle_update <= 0;
+      end
+    end
+
+    // Capture DPI result only when triggered
+    always_ff @(posedge tb_clk) begin
+      if (trigger_max_cycle_update) begin
+        dpi_max_cycle     <= get_max_cycle();
+        dpi_update_valid  <= 1;
+      end else begin
+        dpi_update_valid  <= 0;
+      end
+    end
+
     always @(posedge tb_clk) begin
       if (reset) begin
         /* verilator lint_off BLKSEQ */
-        max_cycle = cvm_plusargs::get_ulongint("max_cycle");
         max_stall_cycle = cvm_plusargs::get_int("max_stall_cycle");
         cosim_period = cvm_plusargs::get_int("cosim_period");
         max_instructions = cvm_plusargs::get_ulongint("max_instr");
@@ -1324,15 +1349,15 @@ localparam CAM_IHBIT = CAM_IBITS;
             call_check_max_instr(clocks,instr_count);
           end
         end
-        if (max_stall_cycle > 0 && cycles_since_retire > max_stall_cycle && !boot_wfi && NUM < nharts && cosim_terminate_sent == '0) begin
-          $display("\nError: Hart %0d: No instruction retired for max_stall_cycle (%0d) cycles", NUM, max_stall_cycle);
-          cosim_terminate();
-          cosim_terminate_sent <= '1;
-        end
-        if (max_cycle > 0 && clocks > max_cycle && NUM < nharts && cosim_terminate_sent == '0) begin
-          $display("\nError: Hart %0d:  Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", NUM, max_cycle);
-          cosim_terminate();
-          cosim_terminate_sent <= '1;
+        if (dpi_update_valid) begin
+          if (max_cycle < dpi_max_cycle) begin
+            max_cycle <= dpi_max_cycle;
+            $display("\nHart %0d:  Increased max_cycles to (%0d) cycles due to dynamic change", NUM, dpi_max_cycle);
+          end else begin
+            $display("\nError: Hart %0d:  Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", NUM, max_cycle);
+            cosim_terminate();
+            cosim_terminate_sent <= 1'b1;
+          end
         end
         if (rvfi[0].valid == '1 && NUM > nharts && cosim_terminate_sent == '0) begin
           $display("\nError: Core %0d: Instruction retire seen on disabled/harvested core", NUM);

@@ -133,7 +133,6 @@ module rv_tester
     int dm_build_count = 0;
 
     logic warm_reset_en = 0;
-    logic warm_reset_req;
     logic warm_reset_req_d1;
     logic warm_reset_now = 0;
     logic warm_reset_sdtrig;
@@ -941,6 +940,7 @@ module rv_tester
         (
             .clk(dut_clk[REF_CLK_IDX]),
             .reset(reset[COLD_RESET_IDX]),
+            .warm_reset(reset[WARM_RESET_IDX]),
             .dut_clk(dut_clk[TB_CLK_IDX]),
             .dut_reset(dut_reset[TB_CLK_IDX]),
             .no_fetch(core_no_fetch[0]),

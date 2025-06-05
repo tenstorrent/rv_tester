@@ -33,7 +33,6 @@ import rv_tester_params::*;
       if (location != cvm_topology::nil) begin
         pwrmgmt_set_scope(location);
         pwrmgmt_set_reset_count(location, reset_count);
-        smc_axi_blocking_sequence_tick_internal(0);
         thub_blocking_sequence_tick_internal(0);
         if (reset_count < 0)
           //FIXME pwrmgmt_force_ref_clk(1);
@@ -87,30 +86,18 @@ import rv_tester_params::*;
   assign m_ticks[0].data.location = location;
   assign m_ticks[0].data.cycle = tick_valid ? soc_clocks : 0;
 
-  logic smc_axi_blocking_seq_tick;
   logic thub_blocking_seq_tick;
+  logic tick_reset = core_no_fetch | force_ref_clk | warm_reset_req;
 
-  // m_smc_axi_sp_tick
-  logic smc_axi_sp_tick;
-  rv_tester_tick_generator #(.NAME("smc_axi_sp")) smc_axi_sp_tick_generator (.clk(clk[SOC_CLK_IDX]), .reset(core_no_fetch), .inhibit('0), .tick(smc_axi_sp_tick), .last());
-  assign m_smc_axi_sp_ticks[0].valid = smc_axi_sp_tick && (location != cvm_topology::nil);
-  assign m_smc_axi_sp_ticks[0].data.location = location;
-
-  // m_smc_axi_csr_tick
-  logic smc_axi_csr_tick;
-  rv_tester_tick_generator #(.NAME("smc_axi_csr")) smc_axi_csr_tick_generator (.clk(clk[SOC_CLK_IDX]), .reset(core_no_fetch), .inhibit(smc_axi_blocking_seq_tick), .tick(smc_axi_csr_tick), .last());
-  assign m_smc_axi_csr_ticks[0].valid = smc_axi_csr_tick && (location != cvm_topology::nil);
-  assign m_smc_axi_csr_ticks[0].data.location = location;
-
-   // m_pcontrol_tick
+  // m_pcontrol_tick
   logic pcontrol_tick;
-  rv_tester_tick_generator #(.NAME("pcontrol")) pcontrol_tick_generator (.clk(clk[SOC_CLK_IDX]), .reset(core_no_fetch), .inhibit('0), .tick(pcontrol_tick), .last());
+  rv_tester_tick_generator #(.NAME("pcontrol")) pcontrol_tick_generator (.clk(clk[SOC_CLK_IDX]), .reset(tick_reset), .inhibit('0), .tick(pcontrol_tick), .last());
   assign m_pcontrol_ticks[0].valid = pcontrol_tick && (location != cvm_topology::nil);
   assign m_pcontrol_ticks[0].data.location = location;
 
    // m_thub_tick
   logic thub_tick;
-  rv_tester_tick_generator #(.NAME("thub")) thub_tick_generator (.clk(clk[SOC_CLK_IDX]), .reset(core_no_fetch), .inhibit(thub_blocking_seq_tick), .tick(thub_tick), .last());
+  rv_tester_tick_generator #(.NAME("thub")) thub_tick_generator (.clk(clk[SOC_CLK_IDX]), .reset(tick_reset), .inhibit(thub_blocking_seq_tick), .tick(thub_tick), .last());
   assign m_thub_ticks[0].valid = thub_tick && (location != cvm_topology::nil);
   assign m_thub_ticks[0].data.location = location;
 
@@ -171,18 +158,7 @@ import rv_tester_params::*;
       /* verilator lint_on BLKSEQ */
   endfunction
 
-  export "DPI-C" function smc_axi_blocking_sequence_tick;
   export "DPI-C" function thub_blocking_sequence_tick;
-
-  function void smc_axi_blocking_sequence_tick_internal(bit val);
-      /* verilator lint_off BLKSEQ */
-      smc_axi_blocking_seq_tick = val;
-      /* verilator lint_on BLKSEQ */
-  endfunction
-
-  function void smc_axi_blocking_sequence_tick(bit val);
-      smc_axi_blocking_sequence_tick_internal(val);
-  endfunction
 
   function void thub_blocking_sequence_tick_internal(bit val);
       /* verilator lint_off BLKSEQ */

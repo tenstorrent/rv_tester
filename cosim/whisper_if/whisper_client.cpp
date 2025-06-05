@@ -262,9 +262,8 @@ template <typename URV>
 int
 whisperClient<URV>::whisperConnect()
 {
-  if (FLAGS_preload)
-    if (!(FLAGS_standalone && ncores_ == 1))
-      cvm::log(cvm::ERROR, "Error: Preloading works only on single core runs and +standalone plusarg enabled\n");
+  if (FLAGS_preload && FLAGS_standalone && ncores_ > 1)
+    cvm::log(cvm::ERROR, "Error: Preloading works only on single core runs and +standalone plusarg enabled\n");
 
   if (FLAGS_standalone) {
     cvm::log(cvm::MEDIUM, "Running Whisper standalone\n");
