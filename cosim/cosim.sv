@@ -404,7 +404,7 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     // Timeout checks
     int max_stall_cycle = 50000;
-    longint unsigned max_cycle;
+    longint unsigned max_cycle = 0;
     longint unsigned new_max_cycle;
     longint unsigned max_instructions;
     longint unsigned instruction_cnt;
