@@ -400,7 +400,15 @@ cosim:
                 width: 32
             addr:
                 width: 52
-
+    
+    m_mcmi_writeback:
+        domain: 1
+        num: 1
+        fields:
+            cycle:
+                width: 64
+            addr:
+                width: 52
 
     m_trap:
         domain: 1

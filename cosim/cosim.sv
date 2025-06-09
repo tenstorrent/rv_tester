@@ -141,6 +141,8 @@ import rv_tester_params::*;
     output logic boot_done,
     input  logic             devict_cl_valid [NHARTS-1:0],
     input  logic [51:0]      devict_cl_addr  [NHARTS-1:0],
+    input  logic             writeback_cl_valid,
+    input  logic [51:0]      writeback_cl_addr,
     `RV_TESTER_TRANSACTIONS_COSIM_OUTPUT_PORTS
 );
 
@@ -1195,6 +1197,12 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign m_mcmi_devicts[n].data.hart = NUM;
         assign m_mcmi_devicts[n].data.addr = devict_cl_addr[n];
     end
+
+    // m_mcmi_writeback
+    assign m_mcmi_writebacks[0].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_core_reset & writeback_cl_valid;
+    assign m_mcmi_writebacks[0].data.location = location;
+    assign m_mcmi_writebacks[0].data.cycle = writeback_cl_valid ? clocks : '0;
+    assign m_mcmi_writebacks[0].data.addr = writeback_cl_addr;
 
     // m_trap
     logic [63:0] cause_d1, cause_d2, cause_d3;

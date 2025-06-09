@@ -64,6 +64,7 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>,
     rv_tester_transactions::cosim::m_mcmi_ievict<>,
     rv_tester_transactions::cosim::m_mcmi_devict<>,
+    rv_tester_transactions::cosim::m_mcmi_writeback<>,
     rv_tester_transactions::cosim::m_debug<>,
     bridge::error_loc
   >(loc);
@@ -1515,6 +1516,23 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_devict<>& m_mcmi_
 
 }
 
+void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_writeback<>& m_mcmi_writeback) {
+  if (!FLAGS_cosim || !FLAGS_mcm)
+    return;
+
+  if (terminated_ || in_reset_)
+    return;
+
+  cvm::log(cvm::MEDIUM, "Remote Procedural Call to Whisper for mcm writeback [sv implementation] to addr : {:#x}\n",m_mcmi_writeback.addr);
+
+  bool valid = false;
+  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmDWritebackRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, m_mcmi_writeback.cycle, m_mcmi_writeback.addr , valid)|| !valid) && FLAGS_whisper_client_check) {
+    cvm::log(cvm::ERROR,"Failed mcm dwriteback\n");
+    return;
+  }
+
+}
+
 
 void rvfi::process_ncio_fetches(const rv_instr_t& instr) {
   if (!FLAGS_cosim || !FLAGS_mcm)
@@ -1534,15 +1552,15 @@ void rvfi::process_ncio_fetches(const rv_instr_t& instr) {
 }
 
 void rvfi::mcm_writeback(const uint64_t& payload) {
-  cvm::log(cvm::MEDIUM, "Received Address for MCM Writeback : {:#x}\n",payload);
-  uint64_t dw_addr = (payload >> 6) << 6; // Making the address cacheline aligned
+  cvm::log(cvm::MEDIUM, "Received Address for MCM Writeback  from vip: {:#x}\n",payload);
+  // uint64_t dw_addr = (payload >> 6) << 6; // Making the address cacheline aligned
 
-  cvm::log(cvm::MEDIUM, "Remote Procedural Call to Whisper for mcm dwriteback to addr : {:#x}\n",dw_addr);
-  bool valid = false;
-  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmDWritebackRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, dw_addr, valid)|| !valid) && FLAGS_whisper_client_check) {
-    cvm::log(cvm::ERROR,"Failed mcm dwriteback\n");
-    return;
-  }
+  // cvm::log(cvm::MEDIUM, "Remote Procedural Call to Whisper for mcm dwriteback to addr : {:#x}\n",dw_addr);
+  // bool valid = false;
+  // if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmDWritebackRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, dw_addr, valid)|| !valid) && FLAGS_whisper_client_check) {
+  //   cvm::log(cvm::ERROR,"Failed mcm dwriteback\n");
+  //   return;
+  // }
 
 }
 
