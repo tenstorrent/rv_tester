@@ -1324,27 +1324,27 @@ localparam CAM_IHBIT = CAM_IBITS;
 /* verilator lint_on WIDTHEXPAND */
 
     localparam bit [63:0] DRAM_BASE = 64'h8000_0000;
-    logic        trigger_max_cycle_update;
-    logic [63:0] dpi_max_cycle;
-    logic        dpi_update_valid;
+    logic        should_update_max_cycle;
+    logic [63:0] updated_max_cycle;
+    logic        max_cycle_update_valid;
 
     always_ff @(posedge tb_clk) begin
       if (reset) begin
-        trigger_max_cycle_update <= 0;
+        should_update_max_cycle <= 0;
       end else if (max_cycle > 0 && clocks > max_cycle && NUM < nharts && cosim_terminate_sent == '0) begin
-        trigger_max_cycle_update <= 1;
+        should_update_max_cycle <= 1;
       end else begin
-        trigger_max_cycle_update <= 0;
+        should_update_max_cycle <= 0;
       end
     end
 
     // Capture DPI result only when triggered
     always_ff @(posedge tb_clk) begin
-      if (trigger_max_cycle_update) begin
-        dpi_max_cycle     <= get_max_cycle();
-        dpi_update_valid  <= 1;
+      if (should_update_max_cycle) begin
+        updated_max_cycle       <= get_max_cycle();
+        max_cycle_update_valid  <= 1;
       end else begin
-        dpi_update_valid  <= 0;
+        max_cycle_update_valid  <= 0;
       end
     end
 
@@ -1379,7 +1379,15 @@ localparam CAM_IHBIT = CAM_IBITS;
           cosim_terminate();
           cosim_terminate_sent <= '1;
         end
-        if (max_cycle > 0 && clocks > max_cycle && NUM < nharts && cosim_terminate_sent == '0) begin
+        if (max_cycle_update_valid) begin
+          if (max_cycle < updated_max_cycle) begin
+            max_cycle <= updated_max_cycle;
+            $display("\nHart %0d:  Updated max_cycle=%0d", NUM, updated_max_cycle);
+          end else begin
+            $display("\nError: Hart %0d:  Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", NUM, max_cycle);
+            cosim_terminate();
+            cosim_terminate_sent <= 1'b1;
+          end
           $display("\nError: Hart %0d:  Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", NUM, max_cycle);
           cosim_terminate();
           cosim_terminate_sent <= '1;
