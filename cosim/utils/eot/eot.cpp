@@ -220,7 +220,7 @@ void eot::mem_checks_snoop() {
   uint64_t mem_base = m.at("memory").base;
   uint64_t mem_size = m.at("memory").size;
 
-  cvm::log(cvm::MEDIUM, "EOT MEMORY CHECKS: Parsing Whisper Data Lines\n");
+  cvm::log(cvm::HIGH, "EOT MEMORY CHECKS: Parsing Whisper Data Lines\n");
   cvm::registry::messenger.signal_async<rv_tester::terminate_called_mem_checks>(cvm::topology::get_from_type("PLATFORM", 0), rv_tester::terminate_called_mem_checks{});
   std::ifstream file(FLAGS_whisper_data_lines);
   std::string line;
@@ -253,14 +253,14 @@ void eot::mem_checks_snoop() {
     }
   }
   if (mem_lines_.size() == 0) {
-    cvm::log(cvm::MEDIUM, "Done with Memory Checks: No Whisper lines\n");
+    cvm::log(cvm::HIGH, "Done with Memory Checks: No Whisper lines\n");
     eot_mem_checks_done_ = true;
     eot_terminate(true);
     return;
   }
   rv_tester::snoop_addrs_eot addrs_eot;
   for (auto &w : mem_lines_) {
-    cvm::log(cvm::MEDIUM, "Snoop Address: {:#x}\n", w.first);
+    cvm::log(cvm::HIGH, "Snoop Address: {:#x}\n", w.first);
     addrs_eot.address.push(w.first);
   }
   cvm::registry::messenger.signal<rv_tester::snoop_addrs_eot>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0), addrs_eot);
@@ -299,7 +299,7 @@ bool eot::mem_checks() {
     while(!diff[i++]);
     return --i/8;
   };
-  cvm::log(cvm::MEDIUM, "[EOT] Memory Checks: Actual Check\n");
+  cvm::log(cvm::HIGH, "[EOT] Memory Checks: Actual Check\n");
   eot_mem_checks_done_ = true;
   for (auto &w : mem_lines_) {
     device::data_t data(64);
@@ -309,7 +309,7 @@ bool eot::mem_checks() {
       cvm::log(cvm::ERROR, "Error: [EOT] Memory Mismatch Addr: 0x{:x}\nDUT:{}\nISS:{}\n", w.first+first_differing_addr(dut, w.second), bitset_to_hex_str(dut), bitset_to_hex_str(w.second));
       return false;
     } else {
-      cvm::log(cvm::MEDIUM, "[EOT] Memory Check: Data at Addr: 0x{:x} consistent\n", w.first);
+      cvm::log(cvm::HIGH, "[EOT] Memory Check: Data at Addr: 0x{:x} consistent\n", w.first);
     }
   }
   return true;
