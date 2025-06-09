@@ -71,10 +71,6 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
 
   // Connect to AXI_SW AW channel for signalling MCM Writeback : Cache Model -> RVTOOLS-4178
   vip_loc_ = cvm::topology::get_from_type("VIP_AXI", id);
-  // connect<
-  //   rv_tester_transactions::axi_sw::aw<>
-  // >(axi_loc_);
-
   cvm::registry::messenger.connect<uint64_t>(vip_loc_ , [this] (const auto& payload) { return this->mcm_writeback(payload); }); // Signalled from axi.cpp
 
   // Special case: Subscribe to mtime packets from all cores
@@ -1563,18 +1559,6 @@ void rvfi::mcm_writeback(const uint64_t& payload) {
   // }
 
 }
-
-// void rvfi::process(const rv_tester_transactions::axi_sw::aw<>& aw) {
-//   cvm::log(cvm::MEDIUM, "AXI_SW signal with address : {:#x}\n",aw.addr);
-//   uint64_t dw_addr = (aw.addr >> 6) << 6; // Making the address cacheline aligned
-
-//   cvm::log(cvm::MEDIUM, "Remote Procedural Call to Whisper for mcm dwriteback to addr : {:#x}\n",dw_addr);
-//   bool valid = false;
-//   if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmDWritebackRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, 0, dw_addr, valid)|| !valid) && FLAGS_whisper_client_check) {
-//     cvm::log(cvm::ERROR,"Failed mcm dwriteback\n");
-//     return;
-//   }
-// }
 
 bool rvfi::is_ncio(uint32_t mem_attr) {
   return ((mem_attr & 0x800) != 0) || ((mem_attr & 0x1000) == 0);
