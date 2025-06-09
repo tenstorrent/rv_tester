@@ -177,7 +177,7 @@ whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>& sess
   if (FLAGS_whisper_stdin_null)        args_str.insert(args_str.end(), {"--stdin",  "/dev/null"});
   if (FLAGS_stee_secure_region  != "") args_str.insert(args_str.end(), {"--steesr",     FLAGS_stee_secure_region});
 
-  if (FLAGS_eot_mem_check && FLAGS_whisper_data_lines == "")
+  if (!standalone && FLAGS_eot_mem_check && FLAGS_whisper_data_lines == "")
     FLAGS_whisper_data_lines = "whisper_data_lines.log";
   if (FLAGS_whisper_data_lines  != "") args_str.insert(args_str.end(), {"--datalines",  FLAGS_whisper_data_lines});
   if (FLAGS_whisper_instr_lines != "") args_str.insert(args_str.end(), {"--instrlines", FLAGS_whisper_instr_lines});
