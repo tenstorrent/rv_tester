@@ -220,7 +220,7 @@ void eot::mem_checks_snoop() {
   uint64_t mem_base = m.at("memory").base;
   uint64_t mem_size = m.at("memory").size;
 
-  cvm::log(cvm::HIGH, "EOT MEMORY CHECKS: Parsing Whisper Data Lines\n");
+  cvm::log(cvm::HIGH, "Initiating EOT MEMORY CHECKS\n");
   cvm::registry::messenger.signal_async<rv_tester::terminate_called_mem_checks>(cvm::topology::get_from_type("PLATFORM", 0), rv_tester::terminate_called_mem_checks{});
   std::ifstream file(FLAGS_whisper_data_lines);
   std::string line;
