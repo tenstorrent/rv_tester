@@ -58,7 +58,11 @@ import rv_tester_pkg::*;
     assign cycle_sync_condition = cycle_sync_en && cycle_period_counter == 0;
 
     `ifdef IXCOM_COMPILE
-      initial $ixc_ctrl("map_to_reg", pmcounter);        // map to reg
+	    // Palladium creates memories instead of flip flops for large
+	    // arrays. This created a memory with 1955 ports for pmcounter,
+	    // which caused a timing slowdown. We are using $ixc_control to 
+	    // force ixcom to synthesize flip flops to improve timing
+	    initial $ixc_ctrl("map_to_reg", pmcounter);
     `endif
 
     always @(posedge clk) begin
