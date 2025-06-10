@@ -799,6 +799,10 @@ module rv_tester
         `RV_TESTER_TRANSACTIONS_DM_MODEL_SOURCE_PORTS(2,0,0)
     );
 
+    logic [7:0] mcm_writeback_valid; // since it can be present for 8 cosim instances
+    assign mcm_writeback_valid[0] = writeback_cl_valid;
+    assign mcm_writeback_valid[7:1] = 7'h0;
+
     always @(posedge dut_clk[AXI_CLK_IDX]) begin
         if (sys_reset[TB_CLK_IDX] | !dmi_status)
             dmi_poll_counter <= 0;
@@ -870,6 +874,8 @@ module rv_tester
           .boot_done(boot_done[c]),
           .devict_cl_valid(devict_cl_valid_axi),
           .devict_cl_addr(devict_cl_addr),
+          .writeback_cl_valid(mcm_writeback_valid[c]),
+          .writeback_cl_addr(writeback_cl_addr),
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PORTS(1, c, 0)
       );
     end

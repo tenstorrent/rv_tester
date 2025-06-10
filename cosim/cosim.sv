@@ -422,6 +422,9 @@ localparam CAM_IHBIT = CAM_IBITS;
     bit boot_wfi;
     bit cosim_terminate_sent;
 
+    // MCM Writeback
+    logic writeback_cl_valid_d1;
+
     assign cpu_id = NUM;
 
     //--------------------------------------------------------------------------------------------
@@ -594,6 +597,7 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     always @(posedge clk)
     begin
+        writeback_cl_valid_d1 <= writeback_cl_valid;
         if (reset)
            rvfi_debug_mode_s <= 1'b0;
         else
@@ -1040,10 +1044,6 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     end
 
-    // m_mcmi_writeback
-    
-
-
     // m_mcmi_insert
     for (genvar n = 0; n < NINSERT; n++) begin
         assign m_mcmi_inserts[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_core_reset & mcmi_insert[n].valid;
@@ -1199,7 +1199,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     end
 
     // m_mcmi_writeback
-    assign m_mcmi_writebacks[0].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_core_reset & writeback_cl_valid;
+    assign m_mcmi_writebacks[0].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_core_reset & (writeback_cl_valid & ~writeback_cl_valid_d1);
     assign m_mcmi_writebacks[0].data.location = location;
     assign m_mcmi_writebacks[0].data.cycle = writeback_cl_valid ? clocks : '0;
     assign m_mcmi_writebacks[0].data.addr = writeback_cl_addr;
