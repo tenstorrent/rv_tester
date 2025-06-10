@@ -12,6 +12,10 @@ verilator_defines = {
         "dbg": [
             '+define+DMI_TB_WRITES_UNSUPPORTED',
             '+define+TRACE_CHECKS_UNSUPPORTED',
+        ],
+        "opt": [
+            '+define+DMI_TB_WRITES_UNSUPPORTED',
+            '+define+TRACE_CHECKS_UNSUPPORTED',
         ]
     }
 }
