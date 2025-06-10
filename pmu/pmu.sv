@@ -57,6 +57,10 @@ import rv_tester_pkg::*;
     logic instruction_sync_condition;
     assign cycle_sync_condition = cycle_sync_en && cycle_period_counter == 0;
 
+    `ifdef IXCOM_COMPILE
+      initial $ixc_ctrl("map_to_reg", pmcounter);        // map to reg
+    `endif
+
     always @(posedge clk) begin
 
       instruction_sync_condition <= '0;
