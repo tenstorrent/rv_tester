@@ -2556,8 +2556,7 @@ void bridge::process_dut_nmi(hart_id_t hart, rv_nmi_t& n) {
 
   if (n.valid) {
     nmi_poke_pending_ = true;
-    bridge_log_(cvm::HIGH, "Valud of is_priv_debug_mode_ is {}", is_priv_debug_mode_);
-    if (debug_mode_ || is_priv_debug_mode_ || debug_haltreq_asserted) {
+    if (debug_mode_ && !nmi_poke_in_debug_mode_) {
       poke_nmi(hart, nmi_.cycle, nmi_.cause);
       nmi_poke_in_debug_mode_ = true;
     }
@@ -2826,6 +2825,10 @@ void bridge::enter_debug_mode(rv_debug_t& d) {
   for(int i=25; i>=0; i--) {
     uint64_t debugROM_loc = FLAGS_debug_entry_pc + (25-i)*8;
     poke_mem(d.hart, 0, debugROM_loc, 8, debugROM[i]);
+  }
+  if (nmi_poke_pending_ && !nmi_poke_in_debug_mode_) {
+    poke_nmi(d.hart, d.cycle, nmi_.cause); // If NMI was pending before entering debug mode, poke it now
+    nmi_poke_in_debug_mode_ = true;
   }
 }
 
