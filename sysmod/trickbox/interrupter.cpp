@@ -90,8 +90,12 @@ interrupter::write(uint64_t addr, size_t, const data_t& data,
   }
   else if ((addr >= (interrupter_base + 0x2000)) && (addr < (interrupter_base + 0x3000))) {
     // mnscratch write
-    int index = (addr - (interrupter_base + 0x2000)) / 8;
-    mnscratch_array[index] = t_data;
+	int index = (addr - (interrupter_base + 0x2000)) / 8;
+    
+	/* Bounds-check to avoid writing past the 256-entry array */
+    if (index >= 0 && index < 256)
+        mnscratch_array[index] = t_data;
+	
   }
   else if (addr == (interrupter_base + 0x4000)) { // FIXME missing functionality
      cvm::log(cvm::HIGH, "[Trickbox] IMSIC write - no match - addr={:#x} data={:#x}\n", addr, t_data);
