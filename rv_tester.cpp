@@ -39,7 +39,7 @@ DEFINE_bool(smc_sweep_test ,false, "Set this while running small core sram sweep
 DEFINE_int32(dmi_poll_timeout, 50000, "Debug poll timeout after to host end call");
 DEFINE_int32(ndmreset_ack_delay, 0, "Delay after which ndmreset ack is asserted");
 DEFINE_int32(trace_timeout, 50000, "trace test end timeout after to host end call");
-DEFINE_int32(freq_switch_ncycles, 5000, "Switch clk frequencies after freq_switch_ncycles");
+DEFINE_int32(freq_switch_ncycles, 20000, "Switch clk frequencies after freq_switch_ncycles");
 DEFINE_int32(clk_profile, 0, "Clk profile to drive various clocks");
 DEFINE_bool(dyn_clk_switch, false, "Enable dynamic clk switching");
 DEFINE_validator(num_reruns, &validate_ge0);
