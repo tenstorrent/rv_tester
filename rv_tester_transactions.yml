@@ -1799,6 +1799,9 @@ pwrmgmt:
     m_pcontrol_tick:
         domain: 3
         num: 1
+    m_dfs_tick:
+        domain: 3
+        num: 1
     m_thub_tick:
         domain: 3
         num: 1
