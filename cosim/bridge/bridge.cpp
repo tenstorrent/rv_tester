@@ -2631,7 +2631,7 @@ void bridge::process_dut_timer(hart_id_t hart, rv_intr_t& i) {
   if (FLAGS_poke_mip_timer) {
     poke_mip(hart, i.cycle, mip_);
   } else {
-    poke_resource(hart, i.cycle, 'c', time_csr, i.mtime+16); // FIXME Investigate why the capture is off by 1 pulse (count of 16)
+    poke_resource(hart, i.cycle, 'c', time_csr, i.mtime);
   }
 
   check_and_defer_interrupt(hart, i.cycle, i.mip);

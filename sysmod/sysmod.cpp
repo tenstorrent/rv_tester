@@ -222,7 +222,7 @@ void sysmod::eot_backdoor_write(transactor::write_t& w) {
       data[j] = w.data[i+j];
       strb[j] = true;
     }
-    this->dev("memory")->backdoor_write((w.addr + i), 8, data, strb);
+    this->dev("memory")->backdoor_write(((w.addr + i)& ~FLAGS_pa_mask), 8, data, strb);
   }
 }
 
