@@ -223,8 +223,6 @@ module rv_tester
 
     reg [9:0] dut_reset_req_shift_reg;
 
-    logic rerun_now_ff;
-
     always @(posedge dut_clk[AXI_CLK_IDX] or posedge cold_reset) begin
         /* verilator lint_off SYNCASYNCNET */
         if (cold_reset)
@@ -248,18 +246,17 @@ module rv_tester
 
   `ifndef CLK_MUX_UNSUPPORTED
     always @(posedge dut_clk[TB_CLK_IDX])begin
-      if (rv_tester_reset & !rerun_now_ff)begin
+      if (rv_tester_reset)begin
             clock_mode <= clk_profile[2:0];
       end
       /* verilator lint_off WIDTH */
-      else if(dyn_clk_switch & (clocks >10) &  ((clocks % freq_switch_ncycles) == 0)) begin
+      if(dyn_clk_switch & (clocks >10) &  ((clocks % freq_switch_ncycles) == 0)) begin
         //dynamically select clk from available profiles
         //this logic will generate the select pins of the mux ,which will switch between clks
-        if(clock_mode == 3'b110)
-            clock_mode <= 'b1;
-        else
-            clock_mode <= clock_mode + 1'b1;
-      end 
+        clock_mode <= clock_mode + 1'b1;
+        if(clock_mode == 3'b111)
+          clock_mode <= '0;
+      end
       /* verilator lint_on WIDTH */
     end
     `endif
@@ -273,7 +270,6 @@ module rv_tester
     always @(posedge dut_clk[TB_CLK_IDX]) begin
 
         rv_tester_reset <= rerun_now;
-        rerun_now_ff <= rerun_now;
         clocks          <= clocks + 1;
 
         `ifndef NO_TIMESTAMP
@@ -469,10 +465,10 @@ module rv_tester
             hart_enable_mask     <= cvm_plusargs::get_int("hart_enable_mask");
             perf_count           <= '0;
             ntrace_stop_on_wrap  <= cvm_plusargs::get_bool("ntrace_stop_on_wrap_seq_en") != '0;
-            clock_mode           <= clk_profile[2:0];
             num_harts            <= cvm_plusargs::get_int("num_harts");
 
         end
+        clock_mode      <= clk_profile[2:0];
         num_reruns      <= num_reruns - int'(rerun_now);
         if (num_reruns < 0) begin
             num_reruns  <= cvm_plusargs::get_int("num_reruns");
