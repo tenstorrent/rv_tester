@@ -1136,14 +1136,6 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
   m.elem_idx = m_mcmi_insert.elem_idx;
 
   if (numones == consecutiveOnes) {
-<<<<<<< Updated upstream
-      mem_t m;
-      m.valid = true;
-      m.cycle = m_mcmi_insert.cycle;
-      m.tag = vec_cmode_tags_.contains(m_mcmi_insert.order) ? vec_cmode_tags_[m_mcmi_insert.order] :
-                patch_mode_tags_.contains(m_mcmi_insert.order)? patch_mode_tags_[m_mcmi_insert.order] : m_mcmi_insert.order;
-=======
->>>>>>> Stashed changes
       m.pa = m_mcmi_insert.addr;
       m.size = numones;
       m.data = m_mcmi_insert.data;
@@ -1211,8 +1203,6 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
   mask >>= leadingZeros;
   uint64_t consecutiveOnes = std::countr_zero(~mask);  // Count ones until the first zero
 
-<<<<<<< Updated upstream
-=======
   mem_t m;
   m.valid = true;
   // Handle tags
@@ -1236,7 +1226,6 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
   m.amo    = m_mcmi_bypass.amo;
   m.amo_op = m_mcmi_bypass.amo_op;
 
->>>>>>> Stashed changes
   if (numones == consecutiveOnes) {
       m.pa     = m_mcmi_bypass.addr;
       m.size   = std::popcount(m_mcmi_bypass.mask);
