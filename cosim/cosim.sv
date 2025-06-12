@@ -717,9 +717,10 @@ localparam CAM_IHBIT = CAM_IBITS;
     endfunction
 
      // m_reset
-    logic dut_reset_d1;
+    logic dut_reset_d1, dut_core_reset_d1;
     always @(posedge clk) begin
         dut_reset_d1 <= dut_reset;
+        dut_core_reset_d1 <= dut_core_reset;
     end
     assign m_resets[0].valid            = RVFI_EN & rvfi_enabled & (dut_reset_d1 & ~dut_reset);
     assign m_resets[0].data.location    = location;
@@ -1241,11 +1242,11 @@ localparam CAM_IHBIT = CAM_IBITS;
         nmi_pend_d1.nmi <= nmi_pend.nmi;
       end
     end
-    assign m_core_nmis[0].valid = ~dut_core_reset & ((nmi_pend.nmi & ~nmi_pend_d1.nmi) || (nmi_pend.clai & ~nmi_pend_d1.clai) || (~nmi_pend.nmi & nmi_pend_d1.nmi) || (~nmi_pend.clai & nmi_pend_d1.clai)) & rvfi_enabled;
+    assign m_core_nmis[0].valid = ~dut_core_reset & ((nmi_pend.nmi & ~nmi_pend_d1.nmi) || (nmi_pend.clai & ~nmi_pend_d1.clai) || (~nmi_pend.nmi & nmi_pend_d1.nmi) || (~nmi_pend.clai & nmi_pend_d1.clai) || (dut_core_reset_d1 & (nmi_pend.clai || nmi_pend.nmi))) & rvfi_enabled;
     assign m_core_nmis[0].data.location = location;
     assign m_core_nmis[0].data.cycle = clocks;
-    assign m_core_nmis[0].data.nmi_assert = (nmi_pend.nmi & ~nmi_pend_d1.nmi & ~nmi_pend.clai) || (nmi_pend.clai & ~nmi_pend_d1.clai & ~nmi_pend.nmi);
-    assign m_core_nmis[0].data.nmi_cause = (nmi_pend.nmi & ~nmi_pend_d1.nmi & ~nmi_pend.clai) ? 2 : ((nmi_pend.clai & ~nmi_pend_d1.clai & ~nmi_pend.nmi) ? 3 : 0);
+    assign m_core_nmis[0].data.nmi_assert = (nmi_pend.nmi & ~nmi_pend_d1.nmi & ~nmi_pend.clai) || (nmi_pend.clai & ~nmi_pend_d1.clai & ~nmi_pend.nmi) || (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.nmi) || (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.clai);
+    assign m_core_nmis[0].data.nmi_cause = (nmi_pend.nmi & ~nmi_pend_d1.nmi & ~nmi_pend.clai) ? 2 : (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.nmi) ? 2 : (nmi_pend.clai & ~nmi_pend_d1.clai & ~nmi_pend.nmi) ? 3 : (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.clai) ? 3 : 0;
 
     function automatic bit [63:0] get_nmi_cause(rv_tester_pkg::nmi_t n);
       bit [63:0] cause = '0;
