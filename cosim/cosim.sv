@@ -143,6 +143,8 @@ import rv_tester_params::*;
     input  logic [51:0]      devict_cl_addr  [NHARTS-1:0],
     input  logic             writeback_cl_valid,
     input  logic [51:0]      writeback_cl_addr,
+    input  logic             dfetch_cl_valid,
+    input  logic [51:0]      dfetch_cl_addr,
     `RV_TESTER_TRANSACTIONS_COSIM_OUTPUT_PORTS
 );
 
@@ -425,6 +427,9 @@ localparam CAM_IHBIT = CAM_IBITS;
     // MCM Writeback
     logic writeback_cl_valid_d1;
 
+    //MCM Dfetch
+    logic dfetch_cl_valid_d1;
+
     assign cpu_id = NUM;
 
     //--------------------------------------------------------------------------------------------
@@ -598,6 +603,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     always @(posedge clk)
     begin
         writeback_cl_valid_d1 <= writeback_cl_valid;
+        dfetch_cl_valid_d1 <= dfetch_cl_valid;
         if (reset)
            rvfi_debug_mode_s <= 1'b0;
         else
@@ -1203,6 +1209,12 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign m_mcmi_writebacks[0].data.location = location;
     assign m_mcmi_writebacks[0].data.cycle = writeback_cl_valid ? clocks : '0;
     assign m_mcmi_writebacks[0].data.addr = writeback_cl_addr;
+
+    // m_mcmi_dfetch
+    assign m_mcmi_dfetchs[0].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_core_reset & (dfetch_cl_valid & ~dfetch_cl_valid_d1);
+    assign m_mcmi_dfetchs[0].data.location = location;
+    assign m_mcmi_dfetchs[0].data.cycle = dfetch_cl_valid ? clocks : '0;
+    assign m_mcmi_dfetchs[0].data.addr = dfetch_cl_addr;
 
     // m_trap
     logic [63:0] cause_d1, cause_d2, cause_d3;

@@ -65,6 +65,7 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     rv_tester_transactions::cosim::m_mcmi_ievict<>,
     rv_tester_transactions::cosim::m_mcmi_devict<>,
     rv_tester_transactions::cosim::m_mcmi_writeback<>,
+    rv_tester_transactions::cosim::m_mcmi_dfetch<>,
     rv_tester_transactions::cosim::m_debug<>,
     bridge::error_loc
   >(loc);
@@ -1523,6 +1524,23 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_writeback<>& m_mc
 
   bool valid = false;
   if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmDWritebackRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, m_mcmi_writeback.cycle, m_mcmi_writeback.addr , valid)|| !valid) && FLAGS_whisper_client_check) {
+    cvm::log(cvm::ERROR,"Failed mcm dwriteback\n");
+    return;
+  }
+
+}
+
+void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_dfetch<>& m_mcmi_dfetch) {
+  if (!FLAGS_cosim || !FLAGS_mcm)
+    return;
+
+  if (terminated_ || in_reset_)
+    return;
+
+  cvm::log(cvm::MEDIUM, "Remote Procedural Call to Whisper for mcm dfetch [sv implementation] to addr : {:#x}\n",m_mcmi_dfetch.addr);
+
+  bool valid = false;
+  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmDFetchRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, m_mcmi_dfetch.cycle, m_mcmi_dfetch.addr , valid)|| !valid) && FLAGS_whisper_client_check) {
     cvm::log(cvm::ERROR,"Failed mcm dwriteback\n");
     return;
   }
