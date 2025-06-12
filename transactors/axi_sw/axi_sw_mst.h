@@ -7,6 +7,7 @@
 #include "rv_tester_transactions.hpp"
 
 DECLARE_bool(axi_rand_id_alloc);
+DECLARE_int32(axi_seqid_width);
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 class axi_sw_mst {
 
@@ -63,7 +64,7 @@ class axi_sw_mst {
 
         bool next_id(uint32_t& id,  axi::seqid_t seqid) {
           std::vector<size_t> valid_indices;
-          size_t ids_start = seqid_width_ ? (seqid << (id_width_ - seqid_width_)) : 0;
+          size_t ids_start = FLAGS_axi_seqid_width ? (seqid << (id_width_ - seqid_width_)) : 0;
           size_t ids_end = ids_start + ids_.size() / (1<<seqid_width_);
           for (size_t i = ids_start; i < ids_end; ++i) {
             if (ids_[i]) {

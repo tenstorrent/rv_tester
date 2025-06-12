@@ -20,6 +20,12 @@
 #include "axi_sw_mst.h"
 
 DECLARE_uint32(axi_resp_timeout); // Cycles to wait after Transactor-id pool overflow condition before raising no free ids error
+DECLARE_bool(cosim);
+
+namespace {
+  typedef enum : size_t { SZ_1B = 1, SZ_2B = 2, SZ_4B = 4, SZ_8B = 8, SZ_16B = 16 } sz_t;
+  typedef enum : bool { BLOCK = true, NO_BLOCK = false } block_t;
+}
 
 class scratchpad_random_sequence {
 
@@ -57,10 +63,10 @@ class scratchpad_random_sequence {
     cvm::messenger::task<void> axi_write_data_granular();
     cvm::messenger::task<void> sp_rand_traffic();
     cvm::messenger::task<void> sp_mmr_prog();
-    cvm::messenger::task<void> axi_read_granular(const transactor::read_t& r );
+    cvm::messenger::task<void> axi_read_granular(const transactor::read_t& r, bool block = BLOCK);
     cvm::messenger::task<uint64_t> axi_read_mmr_granular(const transactor::read_t& r );
     cvm::messenger::task<void>check_sc_slice_status(sc_slice_status_t sc_slice_status_type);
-    cvm::messenger::task<void> axi_read(uint64_t addr, size_t length, uint32_t id);
+    cvm::messenger::task<void> axi_read(uint64_t addr, size_t length, uint32_t id, bool block = BLOCK);
 
     cvm::messenger::task<bool> check_axi_bresp_timeout(axi::a_no_id_t aw_txn, unsigned& id);
     cvm::messenger::task<bool> check_axi_rresp_timeout(axi::a_no_id_t ar_txn, unsigned& id);
@@ -79,7 +85,7 @@ class scratchpad_random_sequence {
     uint32_t cnt_tick=0;
     uint32_t start_scratchpad_cnt, read_ram;
     uint32_t rnd_traffic_cnt_tick=32;
-    uint32_t rnd_traffic_cnt_tick_1=32;
+    uint32_t rnd_traffic_cnt_tick_1=100;
     uint64_t sp_base = 0x60000000;
     uint64_t sp_addr = 0x60000000;
     uint64_t sp_prog_addr = 0x421A'0008;
@@ -88,6 +94,8 @@ class scratchpad_random_sequence {
     bool  slice_chk_done = false;
     bool  sc_slice_array_initial_done = false;
     bool  sc_polling_done = false;
+    bool  send_wr_to_odd_network = false;
+
 
     cvm::topology::loc_t axi_mst_loc_l;
             struct scratchpad_wr_t {
