@@ -723,6 +723,7 @@ module rv_tester
 
     dmi_driver i_dmi_driver(
         .clk(dut_clk[AXI_CLK_IDX]),
+        .core_clk(dut_clk[CORE_CLK_IDX]),
         .reset_n(~(reset[WARM_RESET_IDX] || reset[COLD_RESET_IDX]) || reset_hold[DEBUG_HOLD_IDX]),
         .warm_reset_sdtrig(~reset[WARM_RESET_IDX]),
         .dmi_driver_dbg_enable,
