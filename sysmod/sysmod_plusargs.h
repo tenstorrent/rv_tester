@@ -56,3 +56,4 @@ DECLARE_bool(dbg_rnmi_priority_trigger);
 DECLARE_bool(dbg_rnmi_priv_de_trigger); 
 DECLARE_bool(dbg_rnmi_priv_dp_trigger); 
 DECLARE_string(stee_secure_region); 
+DECLARE_bool(overlay_mmr_check);

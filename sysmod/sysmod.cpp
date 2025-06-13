@@ -87,6 +87,8 @@ DEFINE_uint32(aplic_sources, 127, "Number of APLIC interrupt sources");
 DEFINE_bool(uart8250_sock, false, "Enable uart8250 spawning a unix domain socket server for I/O");
 DEFINE_uint32(uart8250_iid, 1, "Interrupt identity of the uart8250 device");
 DEFINE_uint64(dm_rand_addr, 0x9080500, "(Trickbox) Random address for DM: PC/Load/Store");;
+// Overlay MMR Checker
+DEFINE_bool(overlay_mmr_check, true, "Enable Scratchpad MMR read/write data checks from Overlay port");
 
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 
