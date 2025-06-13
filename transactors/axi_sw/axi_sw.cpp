@@ -83,13 +83,16 @@ axi_sw<W,AW,AR,RQ,BQ>::~axi_sw() {
     ::destroyed = true;
 }
 
+// What I would really like to do instead, is pick a delay ahead-of-time and re-order
+// by randomizing this delay. This also means we wouldn't need to buffer like this. We
+// would also have much better guarantees.
 template <typename W, typename AW, typename AR, typename RQ, typename BQ>
-cvm::messenger::task<bool> axi_sw<W,AW,AR,RQ,BQ>::pop_reorder_q() {
+cvm::messenger::task<bool> axi_sw<W,AW,AR,RQ,BQ>::pop_reorder_q(bool oldest) {
 
   if (!a_window_.size())
     co_return false;
 
-  unsigned position = cvm::rand::lcg::generate(a_window_.size());
+  unsigned position = oldest? 0 : cvm::rand::lcg::generate(a_window_.size());
   axi::id_t id = a_window_[position].id;
   bool w = a_window_[position].w;
 
@@ -139,7 +142,7 @@ cvm::messenger::task<void> axi_sw<W,AW,AR,RQ,BQ>::process(const AW& aw) {
     else {
       a_window_.push_back(std::move(aa));
       if (a_window_.size() >= FLAGS_axi_sw_reorder_window)
-        co_await pop_reorder_q();
+        co_await pop_reorder_q(false);
     }
     all_resp();
     co_return;
@@ -156,7 +159,7 @@ cvm::messenger::task<void> axi_sw<W,AW,AR,RQ,BQ>::process(const AR& ar) {
     else {
       a_window_.push_back(std::move(aa));
       if (a_window_.size() >= FLAGS_axi_sw_reorder_window)
-        co_await pop_reorder_q();
+        co_await pop_reorder_q(false);
     }
     all_resp();
     co_return;
@@ -175,7 +178,7 @@ cvm::messenger::task<void> axi_sw<W,AW,AR,RQ,BQ>::process(const W& w) {
     else {
       w_window_.push_back(ww);
       if (a_window_.size() >= FLAGS_axi_sw_reorder_window)
-        co_await pop_reorder_q();
+        co_await pop_reorder_q(false);
     }
     all_resp();
     co_return;
@@ -239,7 +242,7 @@ void axi_sw<W,AW,AR,RQ,BQ>::process(const BQ& b_q_ptr) {
 template < typename W,typename AW,typename AR, typename RQ, typename BQ>
 cvm::messenger::task<void> axi_sw<W,AW,AR,RQ,BQ>::process(const axi_sw_defs::reorder_q_flush_t&) {
     if (a_window_.size() != 0) {
-      co_await pop_reorder_q();
+      co_await pop_reorder_q(true);
       all_resp();
     }
 }
