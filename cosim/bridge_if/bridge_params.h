@@ -36,7 +36,7 @@ namespace {
     constexpr uint32_t opcode_nop    = 0x13;
     constexpr uint32_t opcode_ret    = 0x8067;
     constexpr uint32_t opcode_ebreak = 0x00100073;
-    struct csr_reg { 
+    struct csr_reg {
       uint32_t addr       = 0;
       std::string name    = "";
       bool metric         = false;
@@ -460,15 +460,15 @@ namespace {
       CSR(C_MISA_RVA23S64_O,           0xBCD, "c_misa_rva23s64_O", true, true, 0, true)              \
 
     enum csr : unsigned {
-#define CSR(name, value, ...) \
+#define CSR(name, value, name_str, ...) \
         name = value,
         CSRS
 #undef CSR
     };
 
     const std::unordered_map<unsigned, csr_reg> csrs = {
-#define CSR(name, value, ...) \
-        {  name,  csr_reg{value, ##__VA_ARGS__}},
+#define CSR(name, value, name_str, ...) \
+        {  name,  csr_reg{value, name_str, ##__VA_ARGS__}},
         CSRS
 #undef CSR
     };

@@ -25,7 +25,7 @@
 
 interrupter::interrupter(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc,cvm::topology::loc_t axi_mst_loc)
   : subdevice(tag, addr, 0x50000 /* size */, loc), axi_mst_loc_l(axi_mst_loc),
-    timeCompare_(6),IntrHart_(6),delayedRandomIntValid_(6),IntrValue_(6), timerIntPrev_(hartCount), timer_(0) 
+    timeCompare_(6),IntrHart_(6),delayedRandomIntValid_(6),IntrValue_(6), timerIntPrev_(hartCount), timer_(0)
 {
   rng.seed(FLAGS_seed);
   interrupter_base = addr;
@@ -40,6 +40,9 @@ interrupter::interrupter(const std::string& tag, uint64_t addr, unsigned hartCou
 
 interrupter::~interrupter()
 {
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"guest_external_interrupt_count_vgein\": \"{}\"}}\n", intr_vs_id_vgein_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"guest_external_interrupt_count_random\": \"{}\"}}\n", intr_vs_id_random_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"guest_external_interrupt_count_two\": \"{}\"}}\n", intr_vs_id_two_);
 }
 
 uint64_t mnscratch_array[256];
@@ -60,7 +63,7 @@ void interrupter::read_dev(uint64_t addr, size_t length,  data_t& data){
 void
 interrupter::checkUsage()
 {
-  
+
 }
 
 
@@ -80,7 +83,7 @@ interrupter::write(uint64_t addr, size_t, const data_t& data,
   uint64_t t_data=0;
   deserializeInt(data, t_data);
   if (addr == interrupter_base) {
-    //63:0 -> supervisor/hypervisor id hart[], mode_h_s_m[3-> 1:0 ],interrupt_num[1024->9:0] 
+    //63:0 -> supervisor/hypervisor id hart[], mode_h_s_m[3-> 1:0 ],interrupt_num[1024->9:0]
     //mask:    0xfff                   0xfff        0xf                  0xfff
     cvm::log(cvm::HIGH, "[Trickbox] IMSIC write - addr={:#x} data={:#x}\n", addr, t_data);
     driveMSIInterrupt(t_data);
