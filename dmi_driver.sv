@@ -3,7 +3,6 @@ module dmi_driver
 import rv_tester_params:: * ;
 (
     input logic                     clk,
-    input logic                     core_clk,
     input logic                     reset_n,
     input logic                     warm_reset_sdtrig,
 
@@ -79,7 +78,7 @@ import rv_tester_params:: * ;
   logic expect_cmd_err_excp, exception_illegal, read_cmisa_sdtrig, check_cmisa_sdtrig, cmisa_sdtrig_disabled;
 
   logic rvfi_sdtrig, disable_mem_access_checker, sdtrig_progbuf_exec, read_hartsel;
-  logic [7:0] rvfi_sdtrig_core, cause_event_latched, cause_event_sync, cause_event_ff1, cause_event_ff2;
+  logic [7:0] rvfi_sdtrig_core;
   int file_descr, count_hart_enable_mask, dmi_command_in_step_ahead_queue_size, dmi_command_in_step_quit_queue_size, single_step_instr_cnt_plusarg, total_triggers_plusarg,num_dm_randpc_plsg, num_dm_randload_plsg, num_dm_randstore_plsg, tselect_conf_plusarg, multitriggers_plusarg;
   int trigger_counter, command_in_sdtrig_entry_queue_size, command_in_sdtrig_trigger_queue_size, total_command_in_sdtrig_trigger_queue_size, command_in_sdtrig_progbuf_queue_size;
   int trigger_index, command_in_trigger_disable_queue_size, total_command_in_sdtrig_progbuf_queue_size;
@@ -169,6 +168,8 @@ import rv_tester_params:: * ;
       dmcontrol_hartsel <= 0;
       dmi_command_in_step_ahead_queue_size <= 0;
       dmi_command_in_step_quit_queue_size <= 0;
+      rvfi_sdtrig <= 0;
+      rvfi_sdtrig_core <= 0;
       check_hit_for_tselect <= 0;
       to_check_tselect <= 0;
       read_tselect <= 0;
@@ -275,7 +276,23 @@ import rv_tester_params:: * ;
     end
   end
 
+  always @(posedge clk or negedge clk) begin
+    if(~reset_n)begin
+      rvfi_sdtrig =0;
+    end else begin
+      rvfi_sdtrig = |rvfi_sdtrig_core;
+    end
+  end
+
   always @(posedge clk or negedge clk) begin //sync the clk and use just posedge
+    for(int core_id=0; core_id<num_harts; core_id++) begin
+      if(rvfi[core_id*8].cause[63:0] === 'h21) begin
+        rvfi_sdtrig_core[core_id] = 1;
+        core_id_hit[core_id] = 1; //TODO:while for all the cores that got exception at once.
+        $display("[DMI Driver] core:%0d id hit: %0d", core_id, core_id_hit[core_id]);
+        $display("[DMI Driver] core:%0d rvfi_sdtrig_core: %0d", core_id, rvfi_sdtrig_core[core_id]);
+      end
+    end 
     if(abstr_cmd_req && rvfi[0].cause[63:0] === 'h2) begin
       exception_illegal = 1;
       $display("[DMI Driver] Exception:2 is seen while executing an abs_cmd, hence setting exception_illegal");
@@ -284,58 +301,7 @@ import rv_tester_params:: * ;
       $display("[DMI Driver] Exception != 2 during abs_cmd execution, hence clearing exception_illegal");
     end
   end
-
-  //CDC synchronizer between fb_clk and core_clk.
-  //As rvfi runs on core_clk and driver runs on fb_clk we would miss the exceptions, hence clk sync is needed.
-
-  //Flop the cause_event
-  always_ff @(posedge core_clk or negedge reset_n) begin
-    if (!reset_n) begin
-      for (int i = 0; i < num_harts; i++) begin
-          cause_event_latched <= 0;
-      end
-    end else begin
-      for (int core_id = 0; core_id < num_harts; core_id++) begin
-        if(cause_event_latched[core_id] == cause_event_sync[core_id])
-          cause_event_latched[core_id] <= (rvfi[core_id*8].cause[63:0] == 'h21);
-      end
-    end
-  end
-
-  //Flop the latched event
-  always_ff @(posedge clk or negedge reset_n) begin
-    if (!reset_n) begin
-      for (int i = 0; i < num_harts; i++) begin
-          cause_event_ff1 <= 0;
-          cause_event_ff2 <= 0;
-          cause_event_sync <= 0;
-      end
-    end else begin
-      for (int i = 0; i < num_harts; i++) begin
-          cause_event_ff1[i] <= cause_event_latched[i];
-          cause_event_ff2[i] <= cause_event_ff1[i];
-          cause_event_sync[i] <= cause_event_ff2[i];
-      end
-    end
-  end
-
-  always_ff @(posedge clk or negedge reset_n) begin
-    if (!reset_n) begin
-      rvfi_sdtrig_core <= '0;
-      core_id_hit      <= '0;
-      rvfi_sdtrig      <= '0;
-    end else begin
-      for (int i = 0; i < num_harts; i++) begin
-        if (cause_event_sync[i]) begin
-          rvfi_sdtrig_core[i] <= 1;
-          core_id_hit[i]      <= 1;
-          $display("[DMI Driver] core:%0d cause=0x21(excp:33) hit", i);
-        end
-      end
-      rvfi_sdtrig <= |rvfi_sdtrig_core;
-    end
-  end
-
+ 
   always @(posedge clk) begin
       if (!reset_n)
         DM_DebugReq_Valids_q <= 0;
@@ -1395,6 +1361,9 @@ import rv_tester_params:: * ;
         $display("trigger_counter= %h", trigger_counter);
         for(int core_id=0; core_id < num_harts; core_id++) begin
           if(core_id_hit[core_id]) begin
+            rvfi_sdtrig_core[core_id] = 0;
+            core_id_hit[core_id] = 0;
+            $display("clearing the rvfi_sdtrig for core: %0d", core_id);
             trigger_to_fire = 1;
             $display("trigger_to_fire is set after seeing exception: 33 for core:%0d", core_id);
             command_in_sdtrig_entry_queue_size = sdtrig_debug_mode_entry_queue.size();
@@ -1447,10 +1416,6 @@ import rv_tester_params:: * ;
                     end
                   end
                 end
-                // Clearing the rvfi_sdtrig_core before resuming the core
-                rvfi_sdtrig_core[core_id] = 0;
-                core_id_hit[core_id] = 0;
-                $display("clearing the rvfi_sdtrig for core: %0d", core_id);
                 command = sdtrig_debug_mode_entry_queue.pop_front();
                 $display("#973 Executing from sdtrig_debug_mode_entry_queue");
                 command.data[25:16] = core_id;
