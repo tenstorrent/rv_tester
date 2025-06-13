@@ -2209,7 +2209,7 @@ bool bridge::hpm_counter_read(const std::string& instr) {
 
 bool bridge::unsupported_csr_access(const std::string& instr) {
   if ((instr.find("fe_dbg_mux_sel") != std::string::npos) ||
-      ((instr.find("c_") != std::string::npos) && !(is_csr_allowlist(instr)))) {
+      ((instr.find("c_") != std::string::npos) && !(is_csr_allowlist(instr.substr(4))))) {
     IF_DEBUG("CSR instruction") ;
     return true;
   }
