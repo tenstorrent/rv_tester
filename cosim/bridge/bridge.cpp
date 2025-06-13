@@ -153,7 +153,7 @@ bridge::bridge(int num_harts, int xlen, int vlen, cvm::topology::loc_t loc, unsi
       "mtopi", "stopi", "vstopi", // RVTOOLS-3189
       "hpmcounter","mcycle","minstret","minstreth", // Permanent: PMC events
       "dcsr","dpc","dscratch0", "dscratch1", // Permanent: Debug events
-      "sstateen0", "sstateen1", "sstateen2", "sstateen3","hstateen0", "hstateen1", "hstateen2", "hstateen3" // Smstateen CSRs
+      "sstateen0", "sstateen1", "sstateen2", "sstateen3","hstateen0", "hstateen1", "hstateen2", "hstateen3", // Smstateen CSRs
       "seed",
       "mhpmevent",// TODO: re-enable when RVDE-22160 is fixed, mhpmeventx.OF bit is implicitly udpated in ms
       "scountovf",
@@ -2209,7 +2209,7 @@ bool bridge::hpm_counter_read(const std::string& instr) {
 
 bool bridge::unsupported_csr_access(const std::string& instr) {
   if ((instr.find("fe_dbg_mux_sel") != std::string::npos) ||
-      ((instr.find("c_") != std::string::npos) && !(is_csr_allowlist(instr)))) {
+      ((instr.find("c_") != std::string::npos) && !(is_csr_allowlist(instr.substr(4))))) {
     IF_DEBUG("CSR instruction") ;
     return true;
   }
@@ -2556,8 +2556,7 @@ void bridge::process_dut_nmi(hart_id_t hart, rv_nmi_t& n) {
 
   if (n.valid) {
     nmi_poke_pending_ = true;
-    bridge_log_(cvm::HIGH, "Valud of is_priv_debug_mode_ is {}", is_priv_debug_mode_);
-    if (debug_mode_ || is_priv_debug_mode_ || debug_haltreq_asserted) {
+    if (debug_mode_ && !nmi_poke_in_debug_mode_) {
       poke_nmi(hart, nmi_.cycle, nmi_.cause);
       nmi_poke_in_debug_mode_ = true;
     }
@@ -2632,7 +2631,7 @@ void bridge::process_dut_timer(hart_id_t hart, rv_intr_t& i) {
   if (FLAGS_poke_mip_timer) {
     poke_mip(hart, i.cycle, mip_);
   } else {
-    poke_resource(hart, i.cycle, 'c', time_csr, i.mtime+16); // FIXME Investigate why the capture is off by 1 pulse (count of 16)
+    poke_resource(hart, i.cycle, 'c', time_csr, i.mtime);
   }
 
   check_and_defer_interrupt(hart, i.cycle, i.mip);
@@ -2826,6 +2825,10 @@ void bridge::enter_debug_mode(rv_debug_t& d) {
   for(int i=25; i>=0; i--) {
     uint64_t debugROM_loc = FLAGS_debug_entry_pc + (25-i)*8;
     poke_mem(d.hart, 0, debugROM_loc, 8, debugROM[i]);
+  }
+  if (nmi_poke_pending_ && !nmi_poke_in_debug_mode_) {
+    poke_nmi(d.hart, d.cycle, nmi_.cause); // If NMI was pending before entering debug mode, poke it now
+    nmi_poke_in_debug_mode_ = true;
   }
 }
 

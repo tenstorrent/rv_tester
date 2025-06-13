@@ -9,6 +9,8 @@
 #include "util.h"
 #include "sysmod/htif/htif.h"
 
+
+
 class eot {
 
   template<typename T, typename... Args> void connect(cvm::topology::loc_t loc) {
@@ -26,8 +28,6 @@ class eot {
   public:
     // End-of-test (eot) options:
     // eot=tohost -- Look for mem store to 'tohost' address = success/fail
-    CVM_MESSENGER_procedure_call(process_tohost_RPC, void (std::uint64_t hart, std::uint64_t cycle, std::uint64_t addr, std::uint64_t data));
-    CVM_MESSENGER_procedure_call(check_max_instr_RPC, void (std::uint64_t cycle, std::uint64_t count));
 
     void configure() {
       init_tohost_addr();
@@ -43,9 +43,9 @@ class eot {
     void init_tohost_addr();
     void process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi);
     void process(const rv_tester_transactions::cosim::m_steps<>& m_steps);
-    void process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_insert);
-    void process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_bypass);
-    void process_tohost(uint64_t hartid, uint64_t cycle, uint64_t address, uint64_t data);
+    void process(const rv_tester_transactions::cosim::m_eoti_normal<>& m_eoti_normal);
+    void process(const rv_tester_transactions::cosim::offline_eoti<>& offline_eoti);
+    void process_eoti(uint64_t hartid, uint64_t cycle, uint64_t instr_count, uint64_t data, int max_instr);
     void check_max_instr(uint64_t cycle, uint64_t count);
     void eot_terminate(bool passed);
     void mem_checks_snoop();

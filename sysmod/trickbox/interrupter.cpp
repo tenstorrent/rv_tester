@@ -25,7 +25,7 @@
 
 interrupter::interrupter(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc,cvm::topology::loc_t axi_mst_loc)
   : subdevice(tag, addr, 0x50000 /* size */, loc), axi_mst_loc_l(axi_mst_loc),
-    timeCompare_(6),IntrHart_(6),delayedRandomIntValid_(6),IntrValue_(6), timerIntPrev_(hartCount), timer_(0) 
+    timeCompare_(6),IntrHart_(6),delayedRandomIntValid_(6),IntrValue_(6), timerIntPrev_(hartCount), timer_(0)
 {
   rng.seed(FLAGS_seed);
   interrupter_base = addr;
@@ -40,15 +40,21 @@ interrupter::interrupter(const std::string& tag, uint64_t addr, unsigned hartCou
 
 interrupter::~interrupter()
 {
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"guest_external_interrupt_count_vgein\": \"{}\"}}\n", intr_vs_id_vgein_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"guest_external_interrupt_count_random\": \"{}\"}}\n", intr_vs_id_random_);
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"guest_external_interrupt_count_two\": \"{}\"}}\n", intr_vs_id_two_);
 }
 
-uint64_t mnscratch_array[2];
+uint64_t mnscratch_array[256];
 void interrupter::read_dev(uint64_t addr, size_t length,  data_t& data){
-  if(addr==(interrupter_base + 0x2000)){
-    serializeInt(mnscratch_array[0], length, data);
-  }
-  else if(addr==(interrupter_base + 0x2008)){
-    serializeInt(mnscratch_array[1], length, data);
+  uint64_t mnscratch_base = interrupter_base + 0x2000;
+  if ((addr >= mnscratch_base) && (addr < (mnscratch_base + 0x1000))) {
+    int index = (addr - mnscratch_base) / 8;
+    // Read mnscratch
+    if (index < 256)
+      serializeInt(mnscratch_array[index], length, data);
+    else
+      cvm::log(cvm::HIGH, "[Trickbox] IMSIC read - mnscratch index out of bounds: index={}\n", index);
   }
   return;
 }
@@ -57,7 +63,7 @@ void interrupter::read_dev(uint64_t addr, size_t length,  data_t& data){
 void
 interrupter::checkUsage()
 {
-  
+
 }
 
 
@@ -77,7 +83,7 @@ interrupter::write(uint64_t addr, size_t, const data_t& data,
   uint64_t t_data=0;
   deserializeInt(data, t_data);
   if (addr == interrupter_base) {
-    //63:0 -> supervisor/hypervisor id hart[], mode_h_s_m[3-> 1:0 ],interrupt_num[1024->9:0] 
+    //63:0 -> supervisor/hypervisor id hart[], mode_h_s_m[3-> 1:0 ],interrupt_num[1024->9:0]
     //mask:    0xfff                   0xfff        0xf                  0xfff
     cvm::log(cvm::HIGH, "[Trickbox] IMSIC write - addr={:#x} data={:#x}\n", addr, t_data);
     driveMSIInterrupt(t_data);
@@ -85,11 +91,14 @@ interrupter::write(uint64_t addr, size_t, const data_t& data,
   else if ((addr > interrupter_base) && (addr < (interrupter_base + 0x1000))) {
      cvm::log(cvm::HIGH, "[Trickbox] IMSIC write delayed - addr={:#x} data={:#x}\n", addr, t_data);
   }
-  else if(addr==(interrupter_base + 0x2000)){
-    mnscratch_array[0] = t_data;
-  }
-  else if(addr==(interrupter_base + 0x2008)){
-    mnscratch_array[1] = t_data;
+  else if ((addr >= (interrupter_base + 0x2000)) && (addr < (interrupter_base + 0x3000))) {
+    // mnscratch write
+	int index = (addr - (interrupter_base + 0x2000)) / 8;
+    
+	/* Bounds-check to avoid writing past the 256-entry array */
+    if (index >= 0 && index < 256)
+        mnscratch_array[index] = t_data;
+	
   }
   else if (addr == (interrupter_base + 0x4000)) { // FIXME missing functionality
      cvm::log(cvm::HIGH, "[Trickbox] IMSIC write - no match - addr={:#x} data={:#x}\n", addr, t_data);
