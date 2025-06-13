@@ -77,6 +77,10 @@ void snoop_gen_sequence::eot_addr_queue(rv_tester::snoop_addrs_eot addrs) {
 
 cvm::messenger::task<void>
 snoop_gen_sequence::eot_snoop_addr(std::queue<uint64_t>& addr_q) {
+
+  // Disable Overlay checker
+  FLAGS_overlay_mmr_check = false;
+
   uint32_t id1 = rng1();
   while(!addr_q.empty()) {
     transactor::read_t r;
