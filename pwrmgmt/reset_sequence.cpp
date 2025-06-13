@@ -16,6 +16,7 @@ REGISTRY_register(reset_sequence, PWRMGMT, cvm::registry::all);
 
 DEFINE_bool(pwrmgmt, false, "Runtime disable for pwrmgmt");
 DEFINE_bool(cpl_core_en, false, "Enable reset, bootup flow via CPL FW");
+DEFINE_bool(clc4_nack, false, "Configure CPL FW to give nack for CC4 requests, default FW would always gives ack");
 DEFINE_uint32(pll_pwrup_timeout, 50, "Number of soc cycles expected for pll power up to complete");
 DEFINE_bool(pll_dfs, false, "Enable dfs sequence during cold boot");
 DEFINE_uint32(pll_dfs_freq, 1200, "Clock freq for dfs");
@@ -295,6 +296,7 @@ cvm::messenger::task<void> reset_sequence::cpl_sram_fuse_configuration() {
 }
 
 cvm::messenger::task<void> reset_sequence::cpl_fw_reset_sequence(rst_t rst_type) {
+  if(FLAGS_clc4_nack) co_await disable_clc4_entry();
   co_await write(cpl_core_reset_csr, SZ_4B, 0xFFFFFFFF, boot_interface);
   co_await wait_reset_release();
   co_await program_thub_threshold();
@@ -490,6 +492,14 @@ cvm::messenger::task<void> reset_sequence::program_fuses() {
     co_await write(sw_fuse_mmr,     SZ_8B, fuse);
 
 
+  co_return;
+}
+
+cvm::messenger::task<void> reset_sequence::disable_clc4_entry() {
+  co_await tick();
+  auto data = co_await read(cpl_sram_cstate_limit_offset, SZ_4B, boot_interface);
+  data = data & 0xFFFFFF00; 
+  co_await write(cpl_sram_cstate_limit_offset, SZ_4B, data);
   co_return;
 }
 

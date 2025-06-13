@@ -74,10 +74,11 @@ namespace {
   constexpr uint32_t core_crCsrDataPort         = 0x4200'4000;
 
 
-  constexpr uint32_t smc_local_base             =  0x0210'0000;
-  constexpr uint32_t cpl_sram_base              =  smc_local_base + 0x40000;
-  constexpr uint32_t cpl_sram_fuse_cfg          =  smc_local_base + 0x49000;
+  constexpr uint32_t smc_local_base                  =  0x0210'0000;
+  constexpr uint32_t cpl_sram_base                   =  smc_local_base + 0x40000;
+  constexpr uint32_t cpl_sram_fuse_cfg               =  smc_local_base + 0x49000;
   constexpr uint32_t cpl_sram_core_reset_vector_cfg  =  smc_local_base + 0x49008;
+  constexpr uint32_t cpl_sram_cstate_limit_offset    =  smc_local_base + 0x481C0;
   constexpr uint32_t cpl_sram_limit             =  smc_local_base + 0x4FFFF;
   constexpr uint32_t cpl_patch_ram_base         =  cpl_sram_base + 0x0c000;
   constexpr uint32_t cpl_patch_ram_ptrig_0      =  cpl_patch_ram_base + 0x0400;
