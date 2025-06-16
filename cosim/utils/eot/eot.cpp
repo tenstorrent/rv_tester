@@ -219,8 +219,13 @@ void eot::mem_checks_snoop() {
     cvm::log(cvm::ERROR, "Unable to get memmap\n");
   uint64_t mem_base = m.at("memory").base;
   uint64_t mem_size = m.at("memory").size;
+  uint64_t secure_mem_region_start;
+  uint64_t secure_mem_region_end;
+  cvm::registry::messenger.call<sysmod_secure_mem>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0), secure_mem_region_start, secure_mem_region_end);
+  // RPC to get secure region bounds
 
   cvm::log(cvm::MEDIUM, "Initiating EOT MEMORY CHECKS\n");
+  cvm::log(cvm::HIGH, "Secure region start: {:#x}, Secure region end: {:#x}\n", secure_mem_region_start, secure_mem_region_end);
   cvm::registry::messenger.signal_async<rv_tester::terminate_called_mem_checks>(cvm::topology::get_from_type("PLATFORM", 0), rv_tester::terminate_called_mem_checks{});
   std::ifstream file(FLAGS_whisper_data_lines);
   std::string line;
@@ -238,6 +243,9 @@ void eot::mem_checks_snoop() {
           case 1:
               addr = std::stoul(token, nullptr, 16);
               addr = addr * 64;
+              if(addr >= secure_mem_region_start && addr < secure_mem_region_end) {
+                addr = addr | (uint64_t(1) << 55); // set the secure bit
+              }
               if (!(addr >= mem_base && addr < (mem_base + mem_size)))
                 ignore_addr = true;
              break;
