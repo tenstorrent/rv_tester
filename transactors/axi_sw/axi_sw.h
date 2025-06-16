@@ -74,7 +74,7 @@ class axi_sw {
 
     private:
 
-        cvm::messenger::task<bool> pop_reorder_q();
+        cvm::messenger::task<bool> pop_reorder_q(bool oldest);
         cvm::messenger::task<void> process(const AW& aw);
         cvm::messenger::task<void> process(const AR& ar);
         cvm::messenger::task<void> process(const  W& w);
