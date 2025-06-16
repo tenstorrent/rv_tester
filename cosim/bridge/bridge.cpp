@@ -1548,8 +1548,8 @@ void bridge::print_instr_stdout(hart_id_t hart, const rv_instr_t& d) {
 
 void bridge::print_instr(hart_id_t hart, const whisper_state_t& w) {
   if (FLAGS_bridge_log)
-    bridge_log_(cvm::MEDIUM, "<{}> Whisper Step #{}: [Hart={}, Mode={}, Tag={}, Trap={}, ChangeCount={}, PC={:#x}, Opcode={:#x}, Disasm={}]\n",
-      w.time, step_, hart, w.priv_mode, w.tag, w.trap, w.change_count, w.pc, w.opcode, w.disasm);
+    bridge_log_(cvm::MEDIUM, "<{}> Whisper Step #{}: [Hart={}, Mode={}, Tag={}, Trap={}, Cancelled={}, ChangeCount={}, PC={:#x}, Opcode={:#x}, Disasm={}]\n",
+      w.time, step_, hart, w.priv_mode, w.tag, w.trap, w.is_cancelled, w.change_count, w.pc, w.opcode, w.disasm);
 }
 
 void bridge::print_instr_stdout(hart_id_t hart, const whisper_state_t& w) {
