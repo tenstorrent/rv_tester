@@ -931,10 +931,10 @@ package rv_tester_params;
     input  rv_tester_pkg::dmi_req_t          dmi_req,                                               \
     input                                    dmi_resp_ready,                                        \
     output [7:0]                             DM_DebugReq_Valids,                                  \
-    output logic [51:0]                      dfetch_cl_addr,                                       \
-    output logic                             dfetch_cl_valid,                                      \
-    output logic [51:0]                      writeback_cl_addr,                                     \
-    output logic                             writeback_cl_valid,                                    \
+    output logic [51:0]                      dfetch_cl_addr[1:0],                                 \
+    output logic [1:0]                       dfetch_cl_valid,                                      \
+    output logic [51:0]                      writeback_cl_addr[1:0],                               \
+    output logic [1:0]                       writeback_cl_valid,                                    \
     output logic [51:0]                      devict_cl_addr [rv_tester_params::NHARTS-1:0],         \
     output logic                             devict_cl_valid [rv_tester_params::NHARTS-1:0],        \
     output rv_tester_params::rvfi_t          [rv_tester_params::TOTAL_NRETS-1:0]      rvfi,         \
@@ -1036,10 +1036,10 @@ package rv_tester_params;
     rv_tester_pkg::dmi_req_t                         dmi_tx_req;                                    \
     rv_tester_pkg::dmi_resp_t                        dmi_tx_resp;                                   \
                                                                                                     \
-    logic [51:0]                             dfetch_cl_addr;                                        \
-    logic                                    dfetch_cl_valid;                                       \
-    logic [51:0]                             writeback_cl_addr;                                     \
-    logic                                    writeback_cl_valid;                                    \
+    logic [51:0]                             dfetch_cl_addr[1:0];                                        \
+    logic [1:0]                              dfetch_cl_valid;                                       \
+    logic [51:0]                             writeback_cl_addr[1:0];                                     \
+    logic [1:0]                              writeback_cl_valid;                                    \
     logic [51:0]                             devict_cl_addr [rv_tester_params::NHARTS-1:0];         \
     logic                                    devict_cl_valid [rv_tester_params::NHARTS-1:0];        \
     rv_tester_params::rvfi_t                 [rv_tester_params::TOTAL_NRETS-1:0]       rvfi;        \

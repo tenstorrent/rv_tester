@@ -800,14 +800,18 @@ module rv_tester
     );
 
     // Writeback logic
-    logic [7:0] mcm_writeback_valid; // since it can be present for 8 cosim instances
+    logic [1:0] mcm_writeback_valid[7:0]; // since it can be present for 8 cosim instances
     assign mcm_writeback_valid[0] = writeback_cl_valid;
-    assign mcm_writeback_valid[7:1] = 7'h0;
+    for(genvar i = 1; i < 8; i++) begin
+        assign mcm_writeback_valid[i] = 2'b00;
+    end
 
     // Dfetch logic
-    logic [7:0] mcm_dfetch_valid; // since it can be present for 8 cosim instances
+    logic [1:0] mcm_dfetch_valid[7:0]; // since it can be present for 8 cosim instances
     assign mcm_dfetch_valid[0] = dfetch_cl_valid;
-    assign mcm_dfetch_valid[7:1] = 7'h0;
+    for(genvar i = 1; i < 8; i++) begin
+        assign mcm_dfetch_valid[i] = 2'b00;
+    end
 
     always @(posedge dut_clk[AXI_CLK_IDX]) begin
         if (sys_reset[TB_CLK_IDX] | !dmi_status)

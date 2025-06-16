@@ -403,7 +403,7 @@ cosim:
     
     m_mcmi_writeback:
         domain: 1
-        num: 1
+        num: 2
         fields:
             cycle:
                 width: 64
@@ -412,7 +412,7 @@ cosim:
     
     m_mcmi_dfetch:
         domain: 1
-        num: 1
+        num: 2
         fields:
             cycle:
                 width: 64
