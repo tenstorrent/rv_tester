@@ -120,6 +120,10 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
       return;
       });
   cvm::registry::messenger.procedure<sysmod_eot>(loc, [this] (uint64_t addr, size_t length, device::data_t& data){ return this->dev("memory")->backdoor_read(addr, length, data);});
+  cvm::registry::messenger.procedure<sysmod_secure_mem>(loc, [this] (uint64_t& start, uint64_t& end) {
+    start = secure_region_start_;
+    end = secure_region_end_;
+  });
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::tick<>>(
       loc_,
       [this](const rv_tester_transactions::sysmod::tick<>& t) { return this->tick(t.advance); });
