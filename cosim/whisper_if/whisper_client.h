@@ -98,7 +98,7 @@ class whisperClient {
     int whisperStandalone();
     int processStandaloneInfo();
     void collectRands(HartInfo&);
-    bool whisperStep(int hart, uint64_t time, uint64_t instrTag, uint64_t& pc, uint32_t& instruction, unsigned& changeCount, std::string& disasm, uint32_t& privMode, uint32_t& fpFlags, bool& hasTrap, bool& hasStop, bool& isLoad, bool& valid);
+    bool whisperStep(int hart, uint64_t time, uint64_t instrTag, uint64_t& pc, uint32_t& instruction, unsigned& changeCount, std::string& disasm, uint32_t& privMode, uint32_t& fpFlags, bool& hasTrap, bool& hasStop, bool& isLoad, bool& isCancelled, bool& valid);
     bool whisperSimpleStep(int hart, uint64_t& pc, uint32_t& instruction, unsigned& changeCount);
     bool whisperChange(int hart, uint32_t& resource, uint64_t& addr, uint64_t& value, bool& valid);
     bool whisperMcmRead(int hart, uint64_t time, uint64_t instrTag, uint64_t addr, unsigned size, uint64_t value, unsigned elemIx, unsigned field, bool& valid);
@@ -159,7 +159,7 @@ class whisperClient {
     CVM_MESSENGER_procedure_call(iss_select_rand_RPC, std::vector<iss_select_s> (uint32_t));
     CVM_MESSENGER_procedure_call(whisperConnectRPC, int (void));
     CVM_MESSENGER_procedure_call(whisperConnectedRPC, bool (void));
-    CVM_MESSENGER_procedure_call(whisperStepRPC, bool(int, uint64_t, uint64_t, uint64_t&, uint32_t&, unsigned&, std::string&, uint32_t&, uint32_t&, bool&, bool&, bool&, bool&));
+    CVM_MESSENGER_procedure_call(whisperStepRPC, bool(int, uint64_t, uint64_t, uint64_t&, uint32_t&, unsigned&, std::string&, uint32_t&, uint32_t&, bool&, bool&, bool&, bool&, bool&));
     CVM_MESSENGER_procedure_call(whisperSimpleStepRPC, bool (int, uint64_t&, uint32_t&, unsigned&));
     CVM_MESSENGER_procedure_call(whisperChangeRPC, bool (int, uint32_t&, uint64_t&, uint64_t&, bool&));
     CVM_MESSENGER_procedure_call(whisperMcmReadRPC, bool (int, uint64_t, uint64_t, uint64_t, unsigned, uint64_t, unsigned, unsigned, bool&));
