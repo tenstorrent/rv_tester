@@ -208,22 +208,102 @@
           "exists"          : "false"
       },
 
-      "pmpaddr0"            : { "exists" : "false" },
-      "pmpaddr1"            : { "exists" : "false" },
-      "pmpaddr2"            : { "exists" : "false" },
-      "pmpaddr3"            : { "exists" : "false" },
-      "pmpaddr4"            : { "exists" : "false" },
-      "pmpaddr5"            : { "exists" : "false" },
-      "pmpaddr6"            : { "exists" : "false" },
-      "pmpaddr7"            : { "exists" : "false" },
-      "pmpaddr8"            : { "exists" : "false" },
-      "pmpaddr9"            : { "exists" : "false" },
-      "pmpaddr10"           : { "exists" : "false" },
-      "pmpaddr11"           : { "exists" : "false" },
-      "pmpaddr12"           : { "exists" : "false" },
-      "pmpaddr13"           : { "exists" : "false" },
-      "pmpaddr14"           : { "exists" : "false" },
-      "pmpaddr15"           : { "exists" : "false" },
+      "pmpaddr0" : {
+        "reset-comment"   : "2^52 address range is made accessible",
+        "reset"           : "0x00000000000001FF",
+        "mask"            : "0x003ffffffffffe00"
+      },
+
+      "pmpaddr1": {
+        "exists"          : "true",
+        "reset"           : "0x00000000000001FF",
+        "mask"            : "0x003ffffffffffe00"
+      },
+
+      "pmpaddr2": {
+        "exists"          : "true",
+        "reset"           : "0x00000000000001FF",
+        "mask"            : "0x003ffffffffffe00"
+      },
+
+      "pmpaddr3": {
+        "exists"          : "true",
+        "reset"           : "0x00000000000001FF",
+        "mask"            : "0x003ffffffffffe00"
+      },
+
+      "pmpaddr4": {
+        "exists"          : "true",
+        "reset"           : "0x00000000000001FF",
+        "mask"            : "0x003ffffffffffe00"
+      },
+
+      "pmpaddr5": {
+        "exists"          : "true",
+        "reset"           : "0x00000000000001FF",
+        "mask"            : "0x003ffffffffffe00"
+      },
+
+      "pmpaddr6": {
+        "exists"          : "true",
+        "reset"           : "0x00000000000001FF",
+        "mask"            : "0x003ffffffffffe00"
+      },
+
+      "pmpaddr7": {
+        "exists"          : "true",
+        "reset"           : "0x00000000000001FF",
+        "mask"            : "0x003ffffffffffe00"
+      },
+
+      "pmpaddr8" : {
+        "exists"          : "true",
+        "reset"           : "0x00000000000001FF",
+        "mask"            : "0x003ffffffffffe00"
+      },
+
+      "pmpaddr9": {
+        "exists"          : "true",
+        "reset"           : "0x00000000000001FF",
+        "mask"            : "0x003ffffffffffe00"
+      },
+
+      "pmpaddr10": {
+        "exists"          : "true",
+        "reset"           : "0x00000000000001FF",
+        "mask"            : "0x003ffffffffffe00"
+      },
+
+      "pmpaddr11": {
+        "exists"          : "true",
+        "reset"           : "0x00000000000001FF",
+        "mask"            : "0x003ffffffffffe00"
+      },
+
+      "pmpaddr12": {
+        "exists"          : "true",
+        "reset"           : "0x00000000000001FF",
+        "mask"            : "0x003ffffffffffe00"
+      },
+
+      "pmpaddr13": {
+        "exists"          : "true",
+        "reset"           : "0x00000000000001FF",
+        "mask"            : "0x003ffffffffffe00"
+      },
+
+      "pmpaddr14": {
+        "exists"          : "true",
+        "reset"           : "0x00000000000001FF",
+        "mask"            : "0x003ffffffffffe00"
+      },
+
+      "pmpaddr15": {
+        "exists"          : "true",
+        "reset"           : "0x00000000000001FF",
+        "mask"            : "0x003ffffffffffe00"
+      },
+
       "pmpaddr16"           : { "exists" : "false" },
       "pmpaddr17"           : { "exists" : "false" },
       "pmpaddr18"           : { "exists" : "false" },
@@ -271,7 +351,29 @@
       "pmpaddr60"           : { "exists" : "false" },
       "pmpaddr61"           : { "exists" : "false" },
       "pmpaddr62"           : { "exists" : "false" },
-      "pmpaddr63"           : { "exists" : "false" }
+      "pmpaddr63"           : { "exists" : "false" },
+      "pmpcfg0": {
+        "exists"          : "true",
+        "reset"           : "0x0"
+      },
+      "pmpcfg1"           : { "exists" : "false" },
+      "pmpcfg2": {
+        "exists"          : "true",
+        "reset"           : "0x0"
+      },
+      "pmpcfg3"             : { "exists" : "false" },
+      "pmpcfg4"             : { "exists" : "false" },
+      "pmpcfg5"             : { "exists" : "false" },
+      "pmpcfg6"             : { "exists" : "false" },
+      "pmpcfg7"             : { "exists" : "false" },
+      "pmpcfg8"             : { "exists" : "false" },
+      "pmpcfg9"             : { "exists" : "false" },
+      "pmpcfg10"            : { "exists" : "false" },
+      "pmpcfg11"            : { "exists" : "false" },
+      "pmpcfg12"            : { "exists" : "false" },
+      "pmpcfg13"            : { "exists" : "false"},
+      "pmpcfg14"            : { "exists" : "false" },
+      "pmpcfg15"            : { "exists" : "false" }
     },
 
     "enable_performance_counters"   : "true",
