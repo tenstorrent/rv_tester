@@ -2660,7 +2660,7 @@ void bridge::process_imsic_msi(hart_id_t hart, const mem_t& m) {
   bool w_seip;
   peek_mip(hart, m.cycle, w_mip);
   peek_seip(hart, m.cycle, w_seip);
-  e_mip_ = (w_mip[MEI] << MEI) | ((w_mip[SEI] | w_seip) << SEI);
+  e_mip_ = (w_mip[MEI] << MEI) | ((w_mip[SEI] | w_seip) << SEI) | (w_mip[VSEI] << VSEI) | (w_mip[SGEI] << SGEI);
 
   if (FLAGS_bridge_log) {
     bridge_log_(cvm::MEDIUM, "<{}> IMSIC write: mip[MEI]={} mip[SEI]={} seip={}\n", m.cycle, w_mip[MEI], w_mip[SEI], w_seip);
