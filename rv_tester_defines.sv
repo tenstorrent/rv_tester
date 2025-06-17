@@ -265,6 +265,7 @@ package rv_tester_params;
         logic                      hw;
         logic [XLEN-1:0]           mip;
         logic                      seip;
+        logic [5:0]                buserr_bit;
     } interrupt_pend_t;
 
     // --------------------------------------
