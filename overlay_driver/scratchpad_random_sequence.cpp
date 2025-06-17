@@ -338,6 +338,7 @@ cvm::messenger::task<void> scratchpad_random_sequence::axi_write_data_granular()
   cvm::registry::messenger.signal(axi_mst_loc_l, w_txn);
 
   // Poke data to SP memory
+  if(FLAGS_cosim){
   int hart = 0;
   bool valid;
   cvm::log(cvm::HIGH, "[scratchpad_random_sequence] Backdoor whisper poke addr{:#x} poke_data {:#x} \n", scratchpad_addr_in_flight, w_txn.data[0]);
@@ -350,7 +351,7 @@ cvm::messenger::task<void> scratchpad_random_sequence::axi_write_data_granular()
       cvm::log(cvm::HIGH, "[scratchpad_random_sequence] backdoor whisper poke  Successful for addr{:#x} poke_data {:#x} \n",scratchpad_addr_in_flight+i,w_txn.data[i]);
     }
   }
-
+  }
   co_return;
 }
 
