@@ -18,7 +18,6 @@
 #include "sysmod/sysmod_plusargs.h"
 #include "whisper_client.h"
 #include "axi_sw_mst.h"
-
 DECLARE_uint32(axi_resp_timeout); // Cycles to wait after Transactor-id pool overflow condition before raising no free ids error
 
 class scratchpad_random_sequence {
