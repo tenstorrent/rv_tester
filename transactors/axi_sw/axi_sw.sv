@@ -141,11 +141,13 @@ module axi_sw #(
         data_t data;
         resp_t resp;
         logic  last;
+        shortint unsigned latency;
     } r_t;
 
     typedef struct packed {
         id_t   id  ;
         resp_t resp;
+        shortint unsigned latency;
     } b_t;
 
     typedef byte unsigned dpi_data[DATA_WIDTH/$bits(byte)];
@@ -177,19 +179,19 @@ module axi_sw #(
     r_t r;
     `AXI_SW_DPI_FIFO(axi_sw_r, r_t, R_Q_MAX, clk, sys_reset, reset_n, axi_slv_r_valid && axi_mst_r_ready, r_queue_rptr_incremented, r_queue_empty, r, r_queue_rptr)
 
-    `define AXI_SW_R_SIZED(S)                                                                                        \
-        function void axi_sw_r_``S (int unsigned id, byte unsigned resp, byte unsigned data[S], byte unsigned last); \
-            data_t d;                                                                                                \
-            r_t rd;                                                                                                  \
-            if ($size(dpi_data) == S) begin                                                                          \
-                // stream pack unsupported by verilator                                                              \
-                for (int i = 0; i < S; i++) begin                                                                    \
-                    d[8*i +: 8] = data[i];                                                                           \
-                end                                                                                                  \
-                rd = '{id: id_t'(id), data: data_t'(d), resp: 2'(resp), last: 1'(last)};                             \
-                `AXI_SW_DPI_FIFO_PUSH(axi_sw_r,R_Q_MAX,rd,r_queue_rptr)                                              \
-            end                                                                                                      \
-        endfunction                                                                                                  \
+    `define AXI_SW_R_SIZED(S)                                                                                                                   \
+        function void axi_sw_r_``S (int unsigned id, byte unsigned resp, byte unsigned data[S], byte unsigned last, shortint unsigned latency); \
+            data_t d;                                                                                                                           \
+            r_t rd;                                                                                                                             \
+            if ($size(dpi_data) == S) begin                                                                                                     \
+                // stream pack unsupported by verilator                                                                                         \
+                for (int i = 0; i < S; i++) begin                                                                                               \
+                    d[8*i +: 8] = data[i];                                                                                                      \
+                end                                                                                                                             \
+                rd = '{id: id_t'(id), data: data_t'(d), resp: 2'(resp), last: 1'(last), latency: 16'(latency)};                                 \
+                `AXI_SW_DPI_FIFO_PUSH(axi_sw_r,R_Q_MAX,rd,r_queue_rptr)                                                                         \
+            end                                                                                                                                 \
+        endfunction                                                                                                                             \
         export "DPI-C" function axi_sw_r_``S;
 
     `AXI_SW_R_SIZED(8)
@@ -248,19 +250,28 @@ module axi_sw #(
     assign axi_slv_aw_ready = fast_b_response ? !fast_b_queue_full : !aw_history_full;
     assign axi_slv_ar_ready = !ar_history_full;
     assign axi_slv_w_ready  = fast_b_response ? (!axi_mst_w_last || !w_last_queue_full) : !aw_history_full;
-    assign axi_slv_b_valid  = reset_n ? fast_b_response ? (!fast_b_queue_empty && !w_last_queue_empty) : !b_queue_empty : '0;
-    assign axi_slv_r_valid  = reset_n ? (!r_queue_empty && read_latency_requirement_met) : '0;
+
+    shortint unsigned axi_slv_b_delay = '0;
+    shortint unsigned axi_slv_r_delay = '0;
+
+    assign axi_slv_b_valid  = reset_n ? fast_b_response ? (!fast_b_queue_empty && !w_last_queue_empty) : (!b_queue_empty && (axi_slv_b_delay == 0)): '0;
+    assign axi_slv_r_valid  = reset_n ? (!r_queue_empty && read_latency_requirement_met && (axi_slv_r_delay == 0)) : '0;
 
     logic b_queue_rptr_incremented;
     logic [$clog2(B_Q_MAX+1)-1:0] b_queue_rptr;
     b_t b;
     `AXI_SW_DPI_FIFO(axi_sw_b, b_t, B_Q_MAX, clk, sys_reset, reset_n, axi_slv_b_valid && axi_mst_b_ready, b_queue_rptr_incremented, b_queue_empty, b, b_queue_rptr)
 
-    function automatic void axi_sw_b (int unsigned id, byte unsigned resp);
-      b_t bd = '{id: id_t'(id), resp: 2'(resp)};
+    function automatic void axi_sw_b (int unsigned id, byte unsigned resp, shortint unsigned latency);
+      b_t bd = '{id: id_t'(id), resp: 2'(resp), latency: 16'(latency)};
       `AXI_SW_DPI_FIFO_PUSH(axi_sw_b,B_Q_MAX,bd,b_queue_rptr);
     endfunction
     export "DPI-C" function axi_sw_b;
+
+    always @(posedge clk) begin
+        axi_slv_b_delay <= (axi_slv_b_delay != 0) ? axi_slv_b_delay - 1 : b.latency;
+        axi_slv_r_delay <= (axi_slv_r_delay != 0) ? axi_slv_r_delay - 1 : r.latency;
+    end
 
     logic [64-1:0] clocks;
     always_ff @(posedge clk) begin
@@ -345,8 +356,8 @@ module axi_sw #(
     bit          read_latency_fixed             = '0;
     int unsigned reorder_latency_timeout        = '0;
     bit          reorder_window                 = '0;
-    int unsigned axi_sw_read_latency_max       = '0;
-    int unsigned axi_sw_read_latency_fixed     = '0;
+    int unsigned axi_sw_read_latency_max        = '0;
+    int unsigned axi_sw_read_latency_fixed      = '0;
     always @(posedge clk) begin
         if (sys_reset) begin
             /* verilator lint_off BLKSEQ */
@@ -362,8 +373,6 @@ module axi_sw #(
             /* verilator lint_on BLKSEQ */
             if (read_latency     >= (32'(1)) << CW                                ) $error("Error: +axi_sw_read_latency_max/+axi_sw_read_latency_fixed (%0d) overflows counter width (%0d)", read_latency, CW);
             if (read_latency != 0 && read_latency_timeout_threshold > read_latency) $error("Error: +axi_flush_threshold (%0d) > +axi_sw_read_latency_max/+axi_sw_read_latency_fixed (%0d)", read_latency_timeout_threshold, read_latency);
-            if (read_latency != 0 && reorder_window != 0) $error("Error: can't specify both max/fixed latency and reorder window");
-            if (fast_b_response != 0 && reorder_window != 0) $error("Error: can't specify both fast write response and reorder window");
         end
     end
 
