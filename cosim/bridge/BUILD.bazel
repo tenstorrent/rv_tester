@@ -9,6 +9,7 @@ cc_library(
                 "//cosim/whisper_if:whisper_decoder",
                 "//cosim/bridge_if:bridge_if",
                 "//common:common",
+                "//common:parser",
                 "@CoreArchChecker//src:cac_core",
                 "@CoreArchChecker//src:cac_lib",
                 "@cvm//:plusargs",
