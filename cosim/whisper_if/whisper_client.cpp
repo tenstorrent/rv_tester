@@ -122,7 +122,7 @@ whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) : loc_(loc
   cvm::registry::messenger.procedure<whisperMcmEndRPC>(loc, [this] (int hart, uint64_t time, bool& valid) {return this->whisperMcmEnd(hart, time, valid);});
   cvm::registry::messenger.procedure<whisperInjectExceptionRPC>(loc, [this] (int hart, bool isLoad, uint64_t code, unsigned elemIx, uint64_t addr, bool& valid) {return this->whisperInjectException(hart, isLoad, code, elemIx, addr, valid);});
   cvm::registry::messenger.procedure<whisperPokeRPC>(loc, [this] (int hart, uint64_t time, char resource, uint64_t addr, uint64_t value, bool cache, bool skipmem, bool& valid) {return this->whisperPoke(hart, time, resource, addr, value, cache, skipmem, valid);});
-  cvm::registry::messenger.procedure<whisperPokeMemRPC>(loc, [this] (int hart, uint64_t time, char resource, uint64_t addr, unsigned size, bool cache, bool skipmem, uint64_t value, bool& valid) {return this->whisperPokeMem(hart, time, resource, addr, size, value, cache, skipmem, valid);});
+  cvm::registry::messenger.procedure<whisperPokeMemRPC>(loc, [this] (int hart, uint64_t time, char resource, uint64_t addr, unsigned size, uint64_t value, bool cache, bool skipmem, bool& valid) {return this->whisperPokeMem(hart, time, resource, addr, size, value, cache, skipmem, valid);});
   cvm::registry::messenger.procedure<whisperPeekRPC>(loc, [this] (int hart, char resource, uint64_t addr, uint64_t& value, bool& valid) {return this->whisperPeek(hart, resource, addr, value, valid);});
   cvm::registry::messenger.procedure<whisperPeekPcRPC>(loc, [this] (int hart, uint64_t& value) {return this->whisperPeekPc(hart, value);});
   cvm::registry::messenger.procedure<whisperPeekCsrRPC>(loc, [this] (int hart, uint64_t addr, uint64_t& value, uint64_t& mask, uint64_t& reset_value, uint64_t& read_mask, bool& valid) {return this->whisperPeekCsr(hart, addr, value, mask, reset_value, read_mask, valid);});
@@ -501,7 +501,7 @@ whisperClient<URV>::whisperPokeMem(int hart, uint64_t time, char resource, uint6
   req.size = size;
   req.tag[0] = 0;
 
-  //cvm::log(cvm::MEDIUM, "Poke Mem address : {:#x}, cache flag : {}, skipMem flag : {}, size : {}, DATA : {:#X}\n",addr,cache, skipmem, size, value);
+  cvm::log(cvm::MEDIUM, "Poke Mem address : {:#x}, cache flag : {}, skipMem flag : {}, size : {}, DATA : {:#X}\n",addr,cache, skipmem, size, value);
 
   if (not whisperCommand(req, reply))
     return false;

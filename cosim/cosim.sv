@@ -602,13 +602,23 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     always @(posedge clk)
     begin
-
         for(int i = 0; i < 2; i = i+1) begin
+          if(reset) begin
+            writeback_cl_addr_d1[i] <= '0;
+            dfetch_cl_addr_d1[i] <= '0;          
+          end
           if(writeback_cl_valid[i]) begin
             writeback_cl_addr_d1[i] <= writeback_cl_addr[i];
           end
+          else begin
+            writeback_cl_addr_d1[i] <= '0;
+          end
+
           if(dfetch_cl_valid[i]) begin
             dfetch_cl_addr_d1[i] <= dfetch_cl_addr[i];
+          end
+          else begin
+            dfetch_cl_addr_d1[i] <= '0;
           end
         end
 
