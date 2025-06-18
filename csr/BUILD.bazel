@@ -1,0 +1,17 @@
+load("@rules_hdl//verilog:providers.bzl", "verilog_library")
+
+cc_library(
+    name     = "csr_map",
+    hdrs     = [
+                "csr_map.hpp",
+               ],
+    alwayslink = True,
+    visibility = ["//visibility:public"],
+    strip_include_prefix = ".",
+)
+
+verilog_library(
+    name = "csr_map_pkg",
+    srcs = ["csr_map_pkg.sv"],
+    visibility = ["//visibility:public"],
+)
