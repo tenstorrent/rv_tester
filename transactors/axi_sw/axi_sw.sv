@@ -200,10 +200,18 @@ module axi_sw #(
     `undef AXI_SW_R_SIZED
 
     always_comb begin
+      if (axi_slv_r_valid) begin
         axi_slv_r_id    = r.id  ;
         axi_slv_r_data  = r.data;
         axi_slv_r_resp  = r.resp;
         axi_slv_r_last  = r.last;
+      end
+      else begin
+        axi_slv_r_id    = 'X;
+        axi_slv_r_data  = 'X;
+        axi_slv_r_resp  = 'X;
+        axi_slv_r_last  = 'X;
+      end
     end
 
     logic fast_b_response, fast_b_queue_full, fast_b_queue_empty;
@@ -239,8 +247,14 @@ module axi_sw #(
     );
 
     always_comb begin
+      if (axi_slv_b_valid) begin
         axi_slv_b_id    = fast_b_response ? fast_axi_slv_b_id : b.id  ;
         axi_slv_b_resp  = fast_b_response ? fast_axi_slv_b_resp : b.resp;
+      end
+      else begin
+        axi_slv_b_id = 'X;
+        axi_slv_b_resp = 'X;
+      end
     end
 
     logic ar_history_full;
