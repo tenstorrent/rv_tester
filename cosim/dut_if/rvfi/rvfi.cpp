@@ -1246,8 +1246,13 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
         sc_bypass_.emplace(m.tag, m);
         return;
       }
-
-      bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m, false);
+      if(m_mcmi_bypass.cbo) {
+        bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m, true); 
+        // Setting the Cache flag to true for CBO
+      }
+      else {
+        bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m, false);
+      }
   } else {
       std::bitset<32> mask = m_mcmi_bypass.mask;
       std::vector<uint64_t> addresses;
