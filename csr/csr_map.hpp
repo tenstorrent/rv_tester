@@ -9801,8 +9801,7 @@ extern sstateen1_csr sstateen1;
 extern sstateen2_csr sstateen2;
 extern sstateen3_csr sstateen3;
 
-// CSR instance definitions (include in one .cpp file)
-#ifdef CSR_IMPLEMENTATIONS
+// CSR instance definitions
 cycle_csr cycle;
 time__csr time_;
 instret_csr instret;
@@ -10019,7 +10018,6 @@ sstateen0_csr sstateen0;
 sstateen1_csr sstateen1;
 sstateen2_csr sstateen2;
 sstateen3_csr sstateen3;
-#endif // CSR_IMPLEMENTATIONS
 
 // Function to initialize alias pointers
 // Call this after all CSR instances are created to set up CSR aliases

@@ -235,14 +235,13 @@ class CsrMap:
             
             f.write("\n")
             
-            f.write("// CSR instance definitions (include in one .cpp file)\n")
-            f.write("#ifdef CSR_IMPLEMENTATIONS\n")
+            f.write("// CSR instance definitions\n")
             for csr_name in self.csr_property_dict.keys():
                 sanitized_csr_name = sanitize_name(csr_name).lower()
                 struct_name = f"{sanitized_csr_name}_csr"
                 instance_name = sanitized_csr_name
                 f.write(f"{struct_name} {instance_name};\n")
-            f.write("#endif // CSR_IMPLEMENTATIONS\n\n")
+            f.write("\n")
             
             f.write("// Function to initialize alias pointers\n")
             f.write("// Call this after all CSR instances are created to set up CSR aliases\n")
