@@ -907,6 +907,10 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
   // Handle tags
   if (vec_cmode_tags_.contains(m_mcmi_read.order))
       m.tag = vec_cmode_tags_[m_mcmi_read.order];
+  else if (vec_cmode_ && (m_mcmi_read.order > vec_cmode_first_tag_)) {
+    vec_cmode_tags_.emplace(m_mcmi_read.order, vec_cmode_first_tag_);
+    m.tag = vec_cmode_first_tag_;
+  }
   else if (patch_mode_tags_.contains(m_mcmi_read.order))
       m.tag = patch_mode_tags_[m_mcmi_read.order];
   else if (patch_mode_) {
@@ -1004,13 +1008,6 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
               ++size;
               dataAccumulated = fmt::format("{:02x}", datas[i]) + dataAccumulated;
           } else {
-              mem_t m;
-              m.valid = true;
-              m.cycle = m_mcmi_read.cycle;
-              m.tag = vec_cmode_tags_.contains(m_mcmi_read.order) ? vec_cmode_tags_[m_mcmi_read.order] :
-                        patch_mode_tags_.contains(m_mcmi_read.order)? patch_mode_tags_[m_mcmi_read.order] : m_mcmi_read.order;
-              m.v_ext = m_mcmi_read.v_ext;
-              m.field = m_mcmi_read.field;
               if (m_mcmi_read.v_ext & m_mcmi_read.splat){
                 uint16_t total_elements;
                 if (size / elemsize) {
@@ -1048,14 +1045,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
               dataAccumulated = fmt::format("{:02x}", datas[i]);
           }
       }
-      mem_t m;
-      m.valid = true;
-      m.cycle = m_mcmi_read.cycle;
-      m.tag = vec_cmode_tags_.contains(m_mcmi_read.order) ? vec_cmode_tags_[m_mcmi_read.order] :
-                patch_mode_tags_.contains(m_mcmi_read.order)? patch_mode_tags_[m_mcmi_read.order] : m_mcmi_read.order;
-      m.v_ext = m_mcmi_read.v_ext;
       m.size   = std::popcount(m_mcmi_read.mask);
-      m.field = m_mcmi_read.field;
       if (m_mcmi_read.v_ext & m_mcmi_read.splat){
         uint16_t total_elements;
         if (size / elemsize) {
@@ -1126,18 +1116,31 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
   mask >>= leadingZeros;
   uint64_t consecutiveOnes = std::countr_zero(~mask);  // Count ones until the first zero
 
+  mem_t m;
+  m.valid = true;
+  // Handle tags
+  if (vec_cmode_tags_.contains(m_mcmi_insert.order))
+      m.tag = vec_cmode_tags_[m_mcmi_insert.order];
+  else if (vec_cmode_ && (m_mcmi_insert.order > vec_cmode_first_tag_)) {
+    vec_cmode_tags_.emplace(m_mcmi_insert.order, vec_cmode_first_tag_);
+    m.tag = vec_cmode_first_tag_;
+  }
+  else if (patch_mode_tags_.contains(m_mcmi_insert.order))
+      m.tag = patch_mode_tags_[m_mcmi_insert.order];
+  else if (patch_mode_) {
+      patch_mode_tags_.emplace(m_mcmi_insert.order, patch_mode_first_tag_);
+      m.tag = patch_mode_first_tag_;
+  } else
+      m.tag = m_mcmi_insert.order;
+  m.cycle = m_mcmi_insert.cycle;
+  m.v_ext = m_mcmi_insert.v_ext;
+  m.elem_idx = m_mcmi_insert.elem_idx;
+
   if (numones == consecutiveOnes) {
-      mem_t m;
-      m.valid = true;
-      m.cycle = m_mcmi_insert.cycle;
-      m.tag = vec_cmode_tags_.contains(m_mcmi_insert.order) ? vec_cmode_tags_[m_mcmi_insert.order] :
-                patch_mode_tags_.contains(m_mcmi_insert.order)? patch_mode_tags_[m_mcmi_insert.order] : m_mcmi_insert.order;
       m.pa = m_mcmi_insert.addr;
       m.size = numones;
       m.data = m_mcmi_insert.data;
       m.data_vec = m_mcmi_insert.data_vec;
-      m.v_ext = m_mcmi_insert.v_ext;
-      m.elem_idx = m_mcmi_insert.elem_idx;
       bridge_->process_dut_mcm_insert(m_mcmi_insert.hart, m);
   } else {
       std::bitset<32> mask = m_mcmi_insert.mask;
@@ -1166,33 +1169,19 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_
               ++size;
               dataAccumulated = fmt::format("{:02x}", datas[i]) + dataAccumulated;
           } else {
-              mem_t m;
-              m.valid = true;
-              m.cycle = m_mcmi_insert.cycle;
-              m.tag = vec_cmode_tags_.contains(m_mcmi_insert.order) ? vec_cmode_tags_[m_mcmi_insert.order] :
-                        patch_mode_tags_.contains(m_mcmi_insert.order)? patch_mode_tags_[m_mcmi_insert.order] : m_mcmi_insert.order;
               m.pa = start_addr;
               m.size = size;
               std::bitset<256> value = stringToBitset(dataAccumulated);  // Use a helper to convert the accumulated string
               m.data_vec = value;
-              m.v_ext = m_mcmi_insert.v_ext;
-              m.elem_idx = m_mcmi_insert.elem_idx;
               bridge_->process_dut_mcm_insert(m_mcmi_insert.hart, m);
               start_addr = addresses[i];
               size = 1;
               dataAccumulated = fmt::format("{:02x}", datas[i]);
           }
       }
-      mem_t m;
-      m.valid = true;
-      m.cycle = m_mcmi_insert.cycle;
-      m.tag = vec_cmode_tags_.contains(m_mcmi_insert.order) ? vec_cmode_tags_[m_mcmi_insert.order] :
-                patch_mode_tags_.contains(m_mcmi_insert.order)? patch_mode_tags_[m_mcmi_insert.order] : m_mcmi_insert.order;
       m.pa = start_addr;
       m.size = size;
       m.data_vec = stringToBitset(dataAccumulated);  // Final range processing
-      m.v_ext = m_mcmi_insert.v_ext;
-      m.elem_idx = m_mcmi_insert.elem_idx;
       bridge_->process_dut_mcm_insert(m_mcmi_insert.hart, m);
   }
 }
@@ -1215,21 +1204,34 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
   mask >>= leadingZeros;
   uint64_t consecutiveOnes = std::countr_zero(~mask);  // Count ones until the first zero
 
+  mem_t m;
+  m.valid = true;
+  // Handle tags
+  if (vec_cmode_tags_.contains(m_mcmi_bypass.order))
+      m.tag = vec_cmode_tags_[m_mcmi_bypass.order];
+  else if (vec_cmode_ && (m_mcmi_bypass.order > vec_cmode_first_tag_)) {
+    vec_cmode_tags_.emplace(m_mcmi_bypass.order, vec_cmode_first_tag_);
+    m.tag = vec_cmode_first_tag_;
+  }
+  else if (patch_mode_tags_.contains(m_mcmi_bypass.order))
+      m.tag = patch_mode_tags_[m_mcmi_bypass.order];
+  else if (patch_mode_) {
+      patch_mode_tags_.emplace(m_mcmi_bypass.order, patch_mode_first_tag_);
+      m.tag = patch_mode_first_tag_;
+  } else
+      m.tag = m_mcmi_bypass.order;
+  m.hart   = m_mcmi_bypass.hart;
+  m.cycle  = m_mcmi_bypass.cycle;
+  m.v_ext  = m_mcmi_bypass.v_ext;
+  m.elem_idx = m_mcmi_bypass.elem_idx;
+  m.amo    = m_mcmi_bypass.amo;
+  m.amo_op = m_mcmi_bypass.amo_op;
+
   if (numones == consecutiveOnes) {
-      mem_t m;
-      m.valid  = true;
-      m.hart   = m_mcmi_bypass.hart;
-      m.cycle  = m_mcmi_bypass.cycle;
-      m.tag    = vec_cmode_tags_.contains(m_mcmi_bypass.order) ? vec_cmode_tags_[m_mcmi_bypass.order] :
-                    patch_mode_tags_.contains(m_mcmi_bypass.order)? patch_mode_tags_[m_mcmi_bypass.order] : m_mcmi_bypass.order;
       m.pa     = m_mcmi_bypass.addr;
       m.size   = std::popcount(m_mcmi_bypass.mask);
       m.data   = m_mcmi_bypass.data;
       m.data_vec = extract_bits_as_bitset(m_mcmi_bypass.data_vec, m.size*8, 0);
-      m.v_ext  = m_mcmi_bypass.v_ext;
-      m.amo    = m_mcmi_bypass.amo;
-      m.amo_op = m_mcmi_bypass.amo_op;
-      m.elem_idx = m_mcmi_bypass.elem_idx;
 
       if (m.amo && m.amo_op != SC && FLAGS_emulate_amo_arithmetic) {
         amo_writes_.emplace(m.tag, m);
@@ -1269,33 +1271,19 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
               ++size;
               dataAccumulated = fmt::format("{:02x}", datas[i]) + dataAccumulated;
           } else {
-              mem_t m;
-              m.valid = true;
-              m.cycle = m_mcmi_bypass.cycle;
-              m.tag = vec_cmode_tags_.contains(m_mcmi_bypass.order) ? vec_cmode_tags_[m_mcmi_bypass.order] :
-                        patch_mode_tags_.contains(m_mcmi_bypass.order)? patch_mode_tags_[m_mcmi_bypass.order] : m_mcmi_bypass.order;
               m.pa = start_addr;
               m.size = size;
               std::bitset<256> value = stringToBitset(dataAccumulated);  // Use a helper to convert the accumulated string
               m.data_vec = value;
-              m.v_ext = m_mcmi_bypass.v_ext;
-              m.elem_idx = m_mcmi_bypass.elem_idx;
               bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m);
               start_addr = addresses[i];
               size = 1;
               dataAccumulated = fmt::format("{:02x}", datas[i]);
           }
       }
-      mem_t m;
-      m.valid = true;
-      m.cycle = m_mcmi_bypass.cycle;
-      m.tag = vec_cmode_tags_.contains(m_mcmi_bypass.order) ? vec_cmode_tags_[m_mcmi_bypass.order] :
-                patch_mode_tags_.contains(m_mcmi_bypass.order)? patch_mode_tags_[m_mcmi_bypass.order] : m_mcmi_bypass.order;
       m.pa = start_addr;
       m.size = size;
       m.data_vec = stringToBitset(dataAccumulated);  // Final range processing
-      m.v_ext = m_mcmi_bypass.v_ext;
-      m.elem_idx = m_mcmi_bypass.elem_idx;
       bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m);
   }
 }
