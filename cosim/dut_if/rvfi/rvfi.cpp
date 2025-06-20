@@ -248,11 +248,9 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
       if (FLAGS_cosim) bridge_->set_patch_mode(ENTER_PATCH);
       patch_mode_ = true;
     } else if (FLAGS_vec_cmode_tag_override && (ecause_ == CUSTOM_VEC_CMODE)) {
-      cvm::log(cvm::MEDIUM, "{} Enter vec cmode via exception\n", m_trap.cycle);
       vec_cmode_ = true;                      // RVTOOLS-3265, RVTOOLS-3479: Adjust tag for conservative mode vector instructions
       vec_cmode_first_tag_ = m_trap.order;    // Capture the tag and use it for all activity related to the vector instruction
     } else if (vec_cmode_ && (vec_cmode_tags_.find(m_trap.order) == vec_cmode_tags_.end())) {
-      cvm::log(cvm::MEDIUM, "{} Enter excp inside cmode\n", m_trap.cycle);
       vec_cmode_tags_.emplace(m_trap.order, vec_cmode_first_tag_); // Capture the tag of any exceptions that happen in the shadow of conservative mode
     }
   }
