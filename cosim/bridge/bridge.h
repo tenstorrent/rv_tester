@@ -388,11 +388,12 @@ private:
 
   std::unordered_map<priv, std::unordered_map<intr, int>> num_taken_interrupts_{};
   std::unordered_map<excp, int> num_exceptions_{};
-  int num_exceptions_iaf_nderr_ = 0;
-  int num_exceptions_laf_nderr_ = 0;
-  int num_exceptions_saf_nderr_ = 0;
-  int num_exceptions_iside_hwerr_ = 0;
-  int num_exceptions_dside_hwerr_ = 0;
+  int num_exceptions_insn_err_access_fault_ = 0;
+  int num_exceptions_ld_err_access_fault_ = 0;
+  int num_exceptions_late_st_err_access_fault_ = 0;
+  int num_exceptions_insn_hwerr_fault_ = 0;
+  int num_exceptions_ld_hwerr_fault_ = 0;
+  int num_exceptions_late_st_hwerr_fault_ = 0;
   int num_trig_breakpoint_ = 0;
   int num_sp_accesses_ = 0;
 

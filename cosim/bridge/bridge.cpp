@@ -946,15 +946,17 @@ void bridge::pre_step_exception_poke(hart_id_t hart, const rv_instr_t& d) {
   }
 
   if (d.pc.error && d.ecause == INSN_ACCESS_FAULT)
-    num_exceptions_iaf_nderr_++;
+    num_exceptions_insn_err_access_fault_++;
   if (d.mem_read.error && d.ecause == LD_ACCESS_FAULT)
-    num_exceptions_laf_nderr_++;
+    num_exceptions_ld_err_access_fault_++;
   if (d.mem_read.error && d.ecause == ST_AMO_ACCESS_FAULT)
-    num_exceptions_saf_nderr_++;
+    num_exceptions_late_st_err_access_fault_++;
   if (d.pc.error && d.ecause == HARDWARE_ERROR)
-    num_exceptions_iside_hwerr_++;
-  if (d.mem_read.error && d.ecause == HARDWARE_ERROR)
-    num_exceptions_dside_hwerr_++;
+    num_exceptions_insn_hwerr_fault_++;
+  if (d.mem_read.error && d.mem_read.valid && !d.mem_write.valid && d.ecause == HARDWARE_ERROR)
+    num_exceptions_ld_hwerr_fault_++;
+  if (d.mem_write.error && d.mem_write.valid && d.ecause == HARDWARE_ERROR)
+    num_exceptions_late_st_hwerr_fault_++;
 }
 
 void bridge::pre_step_lrsc_poke(hart_id_t hart, const rv_instr_t& d) {
@@ -3261,11 +3263,12 @@ void bridge::report_metrics() {
     std::transform(es_lower.begin(), es_lower.end(), es_lower.begin(), [](unsigned char c){ return std::tolower(c); });
     print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_{}\": {}}}\n", id_, es_lower, num_exceptions_[e]);
   }
-  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_insn_access_fault_nderr\": {}}}\n", id_, num_exceptions_iaf_nderr_);
-  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_ld_access_fault_nderr\": {}}}\n", id_, num_exceptions_laf_nderr_);
-  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_early_st_access_fault_nderr\": {}}}\n", id_, num_exceptions_saf_nderr_);
-  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_iside_hwerr_fault\": {}}}\n", id_, num_exceptions_iside_hwerr_);
-  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_dside_hwerr_fault\": {}}}\n", id_, num_exceptions_dside_hwerr_);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_insn_err_access_fault\": {}}}\n", id_, num_exceptions_insn_err_access_fault_);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_ld_err_access_fault\": {}}}\n", id_, num_exceptions_ld_err_access_fault_);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_late_st_err_access_fault\": {}}}\n", id_, num_exceptions_late_st_err_access_fault_);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_insn_hwerr_fault\": {}}}\n", id_, num_exceptions_insn_hwerr_fault_);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_ld_hwerr_fault\": {}}}\n", id_, num_exceptions_ld_hwerr_fault_);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_late_st_hwerr_fault\": {}}}\n", id_, num_exceptions_late_st_hwerr_fault_);
 
   for (const auto& [p,ps] : priv_to_string) {
     for (const auto& [i,is] : intr_to_string) {
