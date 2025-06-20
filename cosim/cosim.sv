@@ -139,8 +139,10 @@ import rv_tester_params::*;
     output rv_tester_pkg::terminate_t terminate,
     input logic disable_checks,
     output logic boot_done,
-    input  logic             devict_cl_valid [NHARTS-1:0],
-    input  logic [51:0]      devict_cl_addr  [NHARTS-1:0],
+    input  logic             devict_cl_valid,
+    input  logic [51:0]      devict_cl_addr,
+    input  logic             flush_cl_valid,
+    input  logic [51:0]      flush_cl_addr,
     input  logic [1:0]       writeback_cl_valid,
     input  logic [51:0]      writeback_cl_addr[1:0],
     input  logic [1:0]       dfetch_cl_valid,
@@ -430,6 +432,12 @@ localparam CAM_IHBIT = CAM_IBITS;
     //MCM Dfetch
     logic [51:0] dfetch_cl_addr_d1[1:0];
 
+    // MCM Flush
+    logic [51:0] flush_cl_addr_d1;
+
+    // MCM Devict
+    logic [51:0] devict_cl_addr_d1;
+
     assign cpu_id = NUM;
 
     //--------------------------------------------------------------------------------------------
@@ -605,8 +613,25 @@ localparam CAM_IHBIT = CAM_IBITS;
         for(int i = 0; i < 2; i = i+1) begin
           if(reset) begin
             writeback_cl_addr_d1[i] <= '0;
-            dfetch_cl_addr_d1[i] <= '0;          
+            dfetch_cl_addr_d1[i] <= '0; 
+            flush_cl_addr_d1 <= '0; 
+            devict_cl_addr_d1 <= '0;        
           end
+
+          if(devict_cl_valid) begin
+            devict_cl_addr_d1 <= devict_cl_addr;
+          end
+          else begin
+            devict_cl_addr_d1 <= '0;
+          end
+
+          if(flush_cl_valid) begin
+            flush_cl_addr_d1 <= flush_cl_addr;
+          end
+          else begin
+            flush_cl_addr_d1 <= '0;
+          end
+
           if(writeback_cl_valid[i]) begin
             writeback_cl_addr_d1[i] <= writeback_cl_addr[i];
           end
@@ -1214,13 +1239,18 @@ localparam CAM_IHBIT = CAM_IBITS;
     end
 
     // m_mcmi_devict
-    for (genvar n = 0; n < NHARTS; n++) begin
-        assign m_mcmi_devicts[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_core_reset & devict_cl_valid[n];
-        assign m_mcmi_devicts[n].data.location = location;
-        assign m_mcmi_devicts[n].data.cycle = devict_cl_valid[n] ? clocks : '0;
-        assign m_mcmi_devicts[n].data.hart = NUM;
-        assign m_mcmi_devicts[n].data.addr = (devict_cl_addr[n] >> 6) << 6; // align to cacheline boundary
-    end
+    assign m_mcmi_devicts[0].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_core_reset & devict_cl_valid & (devict_cl_addr != devict_cl_addr_d1);
+    assign m_mcmi_devicts[0].data.location = location;
+    assign m_mcmi_devicts[0].data.cycle = devict_cl_valid ? clocks : '0;
+    assign m_mcmi_devicts[0].data.hart = NUM;        
+    assign m_mcmi_devicts[0].data.addr = (devict_cl_addr >> 6) << 6; // align to cacheline boundary
+
+    // m_mcmi_flush
+    assign m_mcmi_flushs[0].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_core_reset & flush_cl_valid & (flush_cl_addr != flush_cl_addr_d1);
+    assign m_mcmi_flushs[0].data.location = location;
+    assign m_mcmi_flushs[0].data.cycle = flush_cl_valid ? clocks : '0;
+    assign m_mcmi_flushs[0].data.hart = NUM;
+    assign m_mcmi_flushs[0].data.addr = (flush_cl_addr >> 6) << 6; // align to cacheline boundary
 
     // m_mcmi_writeback
     for(genvar n = 0; n < 2; n++) begin

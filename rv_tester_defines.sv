@@ -937,6 +937,8 @@ package rv_tester_params;
     output logic [1:0]                       writeback_cl_valid,                                    \
     output logic [51:0]                      devict_cl_addr [rv_tester_params::NHARTS-1:0],         \
     output logic                             devict_cl_valid [rv_tester_params::NHARTS-1:0],        \
+    output logic [51:0]                      flush_cl_addr [rv_tester_params::NHARTS-1:0],         \
+    output logic                             flush_cl_valid [rv_tester_params::NHARTS-1:0],        \
     output rv_tester_params::rvfi_t          [rv_tester_params::TOTAL_NRETS-1:0]      rvfi,         \
     output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NREADS-1:0]     mcmi_read,    \
     output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NINSERTS-1:0]   mcmi_insert,  \
@@ -1042,6 +1044,8 @@ package rv_tester_params;
     logic [1:0]                              writeback_cl_valid;                                    \
     logic [51:0]                             devict_cl_addr [rv_tester_params::NHARTS-1:0];         \
     logic                                    devict_cl_valid [rv_tester_params::NHARTS-1:0];        \
+    logic [51:0]                             flush_cl_addr  [rv_tester_params::NHARTS-1:0];         \
+    logic                                    flush_cl_valid [rv_tester_params::NHARTS-1:0];        \
     rv_tester_params::rvfi_t                 [rv_tester_params::TOTAL_NRETS-1:0]       rvfi;        \
     rv_tester_params::mcmi_t                 [rv_tester_params::TOTAL_NREADS-1:0]      mcmi_read;   \
     rv_tester_params::mcmi_t                 [rv_tester_params::TOTAL_NINSERTS-1:0]    mcmi_insert; \

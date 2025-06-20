@@ -392,7 +392,18 @@ cosim:
     
     m_mcmi_devict:
         domain: 1
-        num: ${TOP.PLATFORM.NHARTS}
+        num: 1
+        fields:
+            cycle:
+                width: 64
+            hart:
+                width: 32
+            addr:
+                width: 52
+    
+    m_mcmi_flush:
+        domain: 1
+        num: 1
         fields:
             cycle:
                 width: 64

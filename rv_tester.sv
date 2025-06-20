@@ -694,6 +694,7 @@ module rv_tester
     rv_tester_pkg::dm_write_t  trickbox_dmi_write;
 
     logic devict_cl_valid_axi [rv_tester_params::NHARTS-1:0]; // Output of Synchroniser
+    logic flush_cl_valid_axi  [rv_tester_params::NHARTS-1:0]; // Output of Synchroniser
 
     for (genvar i = 0; i <  NHARTS; i++) begin
         rv_tester_cdc_pulse cdc_pulse (
@@ -701,6 +702,16 @@ module rv_tester
             .clk_b (dut_clk[AXI_CLK_IDX]),
             .pulse_a (devict_cl_valid[i]),
             .pulse_b (devict_cl_valid_axi[i]),
+            .pulse_pending_or_asserted_a() // leaving unconnected
+        );
+    end
+
+    for (genvar i = 0; i <  NHARTS; i++) begin
+        rv_tester_cdc_pulse cdc_pulse (
+            .clk_a (dut_clk[CORE_CLK_IDX]),
+            .clk_b (dut_clk[AXI_CLK_IDX]),
+            .pulse_a (flush_cl_valid[i]),
+            .pulse_b (flush_cl_valid_axi[i]),
             .pulse_pending_or_asserted_a() // leaving unconnected
         );
     end
@@ -882,8 +893,10 @@ module rv_tester
           .poke_event_in(poke_event_in),
           .disable_checks(disable_checks),
           .boot_done(boot_done[c]),
-          .devict_cl_valid(devict_cl_valid_axi),
-          .devict_cl_addr(devict_cl_addr),
+          .devict_cl_valid(devict_cl_valid_axi[c]),
+          .devict_cl_addr(devict_cl_addr[c]),
+          .flush_cl_valid(flush_cl_valid_axi[c]),
+          .flush_cl_addr(flush_cl_addr[c]),
           .writeback_cl_valid(mcm_writeback_valid[c]),
           .writeback_cl_addr(writeback_cl_addr),
           .dfetch_cl_valid(mcm_dfetch_valid[c]),
