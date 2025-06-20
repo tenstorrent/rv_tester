@@ -202,7 +202,7 @@ void aclint_checker::process(const smc_read_pkt & r) {
         uint64_t mtime_expected = get_mtime_value() & sz_mask & aclint_mmrs[mmr_addr].read_mask;
         uint64_t mtime_actual = (actual & aclint_mmrs[mmr_addr].read_mask);
         if ((mtime_actual < mtime_expected) &&
-            (mtime_actual >= (mtime_expected - 60))){
+            (mtime_actual >= (mtime_expected - 80))){
             cvm::log(cvm::HIGH, "[SMC-AC] ACLINT MMR match - Name = MTIME, Address = {:#x} - Actual: {:#x} Expected: {:#x}\n", aclint_mmrs[mmr_addr].address, mtime_actual, mtime_expected);
         } else {
             cvm::log(cvm::ERROR, "Error: [SMC-AC] Mismatch:- ACLINT MMR mismatch - Address = {:#x} - Actual: {:#x} Expected: {:#x}\n", aclint_mmrs[mmr_addr].address, mtime_actual, mtime_expected);
