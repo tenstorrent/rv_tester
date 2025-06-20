@@ -205,6 +205,139 @@ namespace {
     0x100f8f9b,         //addiw	t6,t6,256 # 4214d100 <tohost-0x2deb2f00>
     0x000f8067,         //jr	t6
   };
+
+  struct pll_status_reg_s {
+    // Common data for the register
+    static constexpr uint16_t ADDRESS = 0x008;
+    static constexpr uint32_t CPL_REG_SIZE = 32;
+    static constexpr const char* DESCRIPTION = "CPL PLL status Register";
+  
+    union {
+      struct {
+        uint32_t pll0_active : 1;       // [0:0]   - Indicates PLL0 active status 0: PLL0 is shutdown, 1: PLL0 is active
+        uint32_t pll0_locked : 1;       // [1:1]   - Indicates PLL0 lock status 0: PLL0 is not locked, 1: PLL0 is locked
+        uint32_t pll0_reset : 1;        // [2:2]   - Indicates PLL0 Reset Status 0: PLL0 is not in Reset, 1: PLL0 is in Reset
+        uint32_t pll0_spare_status : 13; // [15:3]
+        uint32_t pll1_active : 1;       // [16:16] - Indicates PLL1 active status 0: PLL1 is shutdown, 1: PLL1 is active
+        uint32_t pll1_locked : 1;       // [17:17] - Indicates PLL1 lock status 0: PLL1 is not locked, 1: PLL1 is locked
+        uint32_t pll1_reset : 1;        // [18:18] - Indicates PLL1 Reset Status 0: PLL1 is not in Reset, 1: PLL1 is in Reset
+        uint32_t pll1_spare_status : 13; // [31:19]
+      };
+      uint32_t value;
+    };
+  
+    // Constructor to initialize the register value
+    pll_status_reg_s() : value(0) {}
+  
+    // Function to pack the register into a uint32_t with bit reversal
+    uint32_t pack() const {
+      return value;
+    }
+  
+    // Function to unpack the register from a uint32_t
+    void unpack(uint32_t packed_value) {
+      value = packed_value;
+    }
+  };
+
+  struct pll_control_reg_s {
+    // Common data for the register
+    static constexpr uint16_t ADDRESS = 0x004;
+    static constexpr uint32_t CPL_REG_SIZE = 32;
+    static constexpr const char* DESCRIPTION = "CPL PLL Control Register";
+  
+    union {
+      struct {
+        uint32_t spare : 13;                   // [31:19] - Spare Bits
+        uint32_t ext_dfs_ongoing : 1;         // [18:18] - Indicates CPL initiated DFS request based on EXT DFS request.
+        uint32_t p_state : 4;                   // [17:14] - P-State Request from SMC.
+        uint32_t ext_pll_dfs_req : 1;         // [13:13] - DFS request from External agent.
+        uint32_t pll_sel_override : 1;        // [12:12] - PLL mux sel override control
+        uint32_t pll_sel : 4;                   // [11:8]  - PLL mux sel override
+        uint32_t dis_inactive_pll_shutdown : 1; // [7:7]   - Inactive PLL shutdown override
+        uint32_t pll_resetb_override : 1;       // [6:6]   - PLL reset override control
+        uint32_t pll_resetb : 1;                // [5:5]   - PLL reset override
+        uint32_t pll_scalar_mode : 1;          // [4:4]   - Glitch free scalr mode frequency switch.
+        uint32_t pll_bypass : 1;                // [3:3]   - Bypass mode control
+        uint32_t pll_wakeup_req : 1;            // [2:2]   - SW initiated PLL wakeup request
+        uint32_t pll_shutdown_req : 1;          // [1:1]   - SW initiated PLL shutdown request
+        uint32_t pll_dfs_req : 1;               // [0:0]   - Trigger to change PLL frequency.
+      };
+      uint32_t value;
+    };
+  
+    // Constructor
+    pll_control_reg_s() : value(0) {}  
+  
+    // Function to pack the register into a uint32_t with bit reversal
+    uint32_t pack() const {
+      uint32_t reversed_value = 0;
+      for (int i = 0; i < 32; ++i) {
+        if ((value >> i) & 1) {
+          reversed_value |= (1 << (31 - i));
+        }
+      }
+      return reversed_value;
+    }
+  
+    // Function to unpack the register from a uint32_t
+    void unpack(uint32_t packed_value) {
+      uint32_t reversed_value = 0;
+       for (int i = 0; i < 32; ++i) {
+        if ((packed_value >> i) & 1) {
+          reversed_value |= (1 << (31 - i));
+        }
+      }
+      value = reversed_value;
+    }
+  };
+
+  struct pll_interrupts_reg_s {
+    // Common data for the register
+    static constexpr uint16_t ADDRESS = 0x00C;
+    static constexpr uint32_t CPL_REG_SIZE = 32;
+    static constexpr const char* DESCRIPTION = "CPL PLL interrupts";
+  
+    union {
+      struct {
+        uint32_t spare : 25;             // [31:7] - Spare Bits
+        uint32_t ext_dfs_req : 1;       // [6:6]  - HW to set this bit when pll_control_reg[ext_pll_dfs_req] is set
+        uint32_t ext_dfs_done : 1;      // [5:5]  - External initiated DFS completion indication to SMC
+        uint32_t cold_powerup_done : 1; // [4:4]  - Cold powerup done interrupt to SMC
+        uint32_t pll_lock_lost : 1;     // [3:3]  - Indicates if active PLL lost its lock
+        uint32_t wakeup_done : 1;        // [2:2]  - Wake interrupt to uC on C4 exit
+        uint32_t shutdown_done : 1;      // [1:1]  - shutdown status interrupt to uC on thermal
+        uint32_t dfs_done : 1;          // [0:0]  - Parameter update done interrupt to uC on on DFS done
+      };
+      uint32_t value;
+    };
+  
+    // Constructor
+    pll_interrupts_reg_s() : value(0) {}
+  
+    // Function to pack the register into a uint32_t with bit reversal
+    uint32_t pack() const {
+      uint32_t reversed_value = 0;
+      for (int i = 0; i < 32; ++i) {
+        if ((value >> i) & 1) {
+          reversed_value |= (1 << (31 - i));
+        }
+      }
+      return reversed_value;
+    }
+  
+    // Function to unpack the register from a uint32_t
+    void unpack(uint32_t packed_value) {
+      uint32_t reversed_value = 0;
+      for (int i = 0; i < 32; ++i) {
+        if ((packed_value >> i) & 1) {
+          reversed_value |= (1 << (31 - i));
+        }
+      }
+      value = reversed_value;
+    }
+  };
+  
 }
 
 class pwrmgmt {
