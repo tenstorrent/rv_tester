@@ -25,6 +25,7 @@ import rv_tester_params:: * ;
     input logic                     sdtrig_display,
     input logic                     nonexistent_hart,
     input logic [31:0]              axi_resp_hang_addr,
+    input logic [31:0]              abscmd_hang_counter,
 
     
     input logic                     dmi_req_ready,
@@ -872,7 +873,7 @@ import rv_tester_params:: * ;
                 poll = 0;
               end
             end else if(axi_resp_hang_addr) begin
-              if(abscmd_counter=='h1000)begin
+              if(abscmd_counter == abscmd_hang_counter)begin
                 abstr_cmd_req = 0;
                 poll = 0;
                 $display("[Poll] Clearing abc cmd poll as the core is hung; abscmd_counter: %0d", abscmd_counter);
