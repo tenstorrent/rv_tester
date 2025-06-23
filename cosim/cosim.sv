@@ -1239,14 +1239,14 @@ localparam CAM_IHBIT = CAM_IBITS;
     end
 
     // m_mcmi_devict
-    assign m_mcmi_devicts[0].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_core_reset & devict_cl_valid & (devict_cl_addr != devict_cl_addr_d1);
+    assign m_mcmi_devicts[0].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_core_reset & devict_cl_valid & (devict_cl_addr !== devict_cl_addr_d1);
     assign m_mcmi_devicts[0].data.location = location;
     assign m_mcmi_devicts[0].data.cycle = devict_cl_valid ? clocks : '0;
     assign m_mcmi_devicts[0].data.hart = NUM;        
     assign m_mcmi_devicts[0].data.addr = (devict_cl_addr >> 6) << 6; // align to cacheline boundary
 
     // m_mcmi_flush
-    assign m_mcmi_flushs[0].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_core_reset & flush_cl_valid & (flush_cl_addr != flush_cl_addr_d1);
+    assign m_mcmi_flushs[0].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_core_reset & flush_cl_valid & (flush_cl_addr !== flush_cl_addr_d1);
     assign m_mcmi_flushs[0].data.location = location;
     assign m_mcmi_flushs[0].data.cycle = flush_cl_valid ? clocks : '0;
     assign m_mcmi_flushs[0].data.hart = NUM;
@@ -1254,7 +1254,7 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     // m_mcmi_writeback
     for(genvar n = 0; n < 2; n++) begin
-      assign m_mcmi_writebacks[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_core_reset & (writeback_cl_valid[n]) & (writeback_cl_addr[n] != writeback_cl_addr_d1[n]);
+      assign m_mcmi_writebacks[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_core_reset & (writeback_cl_valid[n]) & (writeback_cl_addr[n] !== writeback_cl_addr_d1[n]);
       assign m_mcmi_writebacks[n].data.location = location;
       assign m_mcmi_writebacks[n].data.cycle = writeback_cl_valid[n] ? clocks : '0;
       assign m_mcmi_writebacks[n].data.addr = writeback_cl_addr[n];
@@ -1262,7 +1262,7 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     // m_mcmi_dfetch
     for(genvar n = 0; n < 2; n++) begin
-      assign m_mcmi_dfetchs[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_core_reset & (dfetch_cl_valid[n]) & (dfetch_cl_addr[n] != dfetch_cl_addr_d1[n]);
+      assign m_mcmi_dfetchs[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_core_reset & (dfetch_cl_valid[n]) & (dfetch_cl_addr[n] !== dfetch_cl_addr_d1[n]);
       assign m_mcmi_dfetchs[n].data.location = location;
       assign m_mcmi_dfetchs[n].data.cycle = dfetch_cl_valid[n] ? clocks : '0;
       assign m_mcmi_dfetchs[n].data.addr = dfetch_cl_addr[n];

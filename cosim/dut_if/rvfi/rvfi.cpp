@@ -1593,7 +1593,7 @@ void rvfi::process_ncio_fetches(const rv_instr_t& instr) {
 }
 
 void rvfi::mcm_writeback(const uint64_t& payload) {
-  cvm::log(cvm::MEDIUM, "Received Address for MCM Writeback  from vip: {:#x}\n",payload);
+  cvm::log(cvm::FULL, "Received Address for MCM Writeback  from vip: {:#x}\n",payload);
   // uint64_t dw_addr = (payload >> 6) << 6; // Making the address cacheline aligned
 
   // cvm::log(cvm::MEDIUM, "Remote Procedural Call to Whisper for mcm dwriteback to addr : {:#x}\n",dw_addr);
