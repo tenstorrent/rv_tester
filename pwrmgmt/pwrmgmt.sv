@@ -12,6 +12,8 @@ import rv_tester_params::*;
   input int reset_count,
   input int target_reset_count,
   input logic warm_reset_en,
+  input logic tj_shutdown,
+  input logic pll_dfs_done,
   output logic cold_reset,
   output logic warm_reset,
   output logic warm_reset_req,
@@ -55,6 +57,7 @@ import rv_tester_params::*;
   logic warm_reset_tick = 0;
   logic force_ref_clk_d1;
   logic cold_reset_d1;
+  logic pll_dfs_done_d1;
 
   always @(posedge clk[TB_CLK_IDX]) begin
     if (warm_reset_tick) begin
@@ -69,6 +72,7 @@ import rv_tester_params::*;
     force_ref_clk_d1 <= force_ref_clk;
     soc_clocks <= soc_clocks + 1;
     warm_reset_tick <= 0;
+    pll_dfs_done_d1 <= pll_dfs_done;
     if (warm_reset_en & (reset_count < target_reset_count) & (warm_reset_clocks > warm_reset_interval) & ~core_no_fetch) begin
       $display("[%0d] [pwrmgmt] Warm reset now", warm_reset_clocks);
       warm_reset_tick <= 1;
@@ -86,8 +90,8 @@ import rv_tester_params::*;
   assign m_ticks[0].data.location = location;
   assign m_ticks[0].data.cycle = tick_valid ? soc_clocks : 0;
 
-  logic thub_blocking_seq_tick;
-  logic tick_reset = core_no_fetch | force_ref_clk | warm_reset_req;
+  logic thub_blocking_seq_tick,tick_reset;
+  assign tick_reset = core_no_fetch | force_ref_clk | warm_reset_req;
 
   // m_pcontrol_tick
   logic pcontrol_tick;
@@ -112,6 +116,12 @@ import rv_tester_params::*;
   assign force_ref_clk_ack_valid = (force_ref_clk_d1 && ~force_ref_clk);
   assign m_force_ref_clk_acks[0].valid = force_ref_clk_ack_valid && (location != cvm_topology::nil);
   assign m_force_ref_clk_acks[0].data.location = location;
+
+   // m_tj_shutdown_ack
+  logic pll_dfs_done_valid;
+  assign pll_dfs_done_valid = (~pll_dfs_done_d1 && pll_dfs_done);
+  assign m_tj_shutdown_acks[0].valid = tj_shutdown && pll_dfs_done_valid && (location != cvm_topology::nil);
+  assign m_tj_shutdown_acks[0].data.location = location;
 
   // -------------------------
   // C++->SV Callbacks

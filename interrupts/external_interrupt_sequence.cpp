@@ -7,6 +7,7 @@
 REGISTRY_register(external_interrupt_sequence, INTERRUPTS, cvm::registry::all);
 
 DEFINE_bool(lpx_msi, false, "Enable delayed interrupt generation in case of CLC3/CLC4 ");
+DEFINE_bool(lpx_pllsd, false, "Enable interrupt after PLL Shutdown for Cluster C3/C4");
 DEFINE_bool(patch_interrupt_trigger_en, false, "Enable patch event based external_interrupt_sequence in the sim");
 DEFINE_bool(uarch_interrupt_trigger_en, false, "Enable event based external_interrupt_sequence in the sim");
 DEFINE_string(trigger_interrupt_count, "7:10", "Number of MSI in the sim if random mode enabled");
@@ -34,7 +35,7 @@ external_interrupt_sequence::external_interrupt_sequence(cvm::topology::loc_t lo
   if (FLAGS_patch_interrupt_trigger_en) {
     patch_trigger_mode_thread();
   }
-  if (FLAGS_uarch_interrupt_trigger_en || FLAGS_lpx_msi) {
+  if (FLAGS_uarch_interrupt_trigger_en || FLAGS_lpx_msi || FLAGS_lpx_pllsd) {
     uarch_trigger_mode_thread();
   }
 }
@@ -123,7 +124,7 @@ cvm::messenger::task<void> external_interrupt_sequence::patch_trigger_mode() {
 cvm::messenger::task<void> external_interrupt_sequence::uarch_trigger_mode() {
   while(1){
     co_await delayed_trigger(); // As trigger and capture_info on same event, using a delayed trigger to drive interrupt
-    if(FLAGS_lpx_msi) {
+    if(FLAGS_lpx_msi || FLAGS_lpx_pllsd) {
       cvm::log(cvm::LOW,"[ExtInterruptSeq] waiting for random time before driving external interrupt as part of low power sequence \n");
       for(int wait_clk=0; wait_clk < FLAGS_lpx_msi_interval; wait_clk ++) {
         co_await trigger_tick();
