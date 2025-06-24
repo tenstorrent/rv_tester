@@ -87,7 +87,9 @@ import rv_tester_params::*;
   assign m_ticks[0].data.cycle = tick_valid ? soc_clocks : 0;
 
   logic thub_blocking_seq_tick;
-  logic tick_reset = core_no_fetch | force_ref_clk | warm_reset_req;
+  logic tick_reset;
+  
+  assign tick_reset = core_no_fetch | force_ref_clk | warm_reset_req;
 
   // m_pcontrol_tick
   logic pcontrol_tick;
