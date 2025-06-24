@@ -565,6 +565,7 @@ module rv_tester
 
     // sys_reset per clock domain
     logic sys_reset_pending [NCLKS-1:0];
+    logic terminate_sync    [NCLKS-1:0];
     for (genvar c = 0; c < NCLKS; c++) begin
         if (c != TB_CLK_IDX) begin
             rv_tester_cdc_pulse cdc_pulse (
@@ -574,11 +575,19 @@ module rv_tester
                 .pulse_b (sys_reset[c]),
                 .pulse_pending_or_asserted_a (sys_reset_pending[c])
             );
+ 
+            rv_tester_sync3 terminate_sync3 (
+                .clk (dut_clk[c]),
+                .d   (terminate),
+                .q   (terminate_sync[c])
+            );
+
         end else begin
             always_ff @(posedge dut_clk[TB_CLK_IDX]) begin
                 sys_reset[c] <= rv_tester_reset;
             end
             assign sys_reset_pending[c] = sys_reset[c];
+            assign terminate_sync   [c] = terminate;
         end
     end
 
@@ -1067,7 +1076,7 @@ module rv_tester
             .hpmi(hpmi[p]),
             .sc_pmci(sc_pmci),
             .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
-            .terminate,
+            .terminate(terminate_sync[CORE_CLK_IDX]),
             `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PORTS(1, p, 0),
             `RV_TESTER_TRANSACTIONS_PMU_SC_SOURCE_PORTS(1, p, 0)
         );
@@ -1087,7 +1096,7 @@ module rv_tester
             .hpmi(hpmi[p]),
             .sc_pmci(),
             .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
-            .terminate,
+            .terminate(terminate_sync[CORE_CLK_IDX]),
             `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PORTS(1, p, 0)
         );
       end
