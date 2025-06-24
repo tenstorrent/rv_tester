@@ -699,6 +699,20 @@ module rv_tester
 
     rv_tester_pkg::dm_write_t  trickbox_dmi_write;
 
+    // Writeback logic
+    logic [1:0] mcm_writeback_valid[7:0]; // since it can be present for 8 cosim instances
+    assign mcm_writeback_valid[0] = writeback_cl_valid;
+    for(genvar i = 1; i < 8; i++) begin
+        assign mcm_writeback_valid[i] = 2'b00;
+    end
+
+    // Dfetch logic
+    logic [1:0] mcm_dfetch_valid[7:0]; // since it can be present for 8 cosim instances
+    assign mcm_dfetch_valid[0] = dfetch_cl_valid;
+    for(genvar i = 1; i < 8; i++) begin
+        assign mcm_dfetch_valid[i] = 2'b00;
+    end
+
     logic devict_cl_valid_axi [rv_tester_params::NHARTS-1:0]; // Output of Synchroniser
     logic flush_cl_valid_axi  [rv_tester_params::NHARTS-1:0]; // Output of Synchroniser
 
@@ -818,20 +832,6 @@ module rv_tester
         `RV_TESTER_TRANSACTIONS_DM_MODEL_SOURCE_PORTS(2,0,0)
     );
 
-    // Writeback logic
-    logic [1:0] mcm_writeback_valid[7:0]; // since it can be present for 8 cosim instances
-    assign mcm_writeback_valid[0] = writeback_cl_valid;
-    for(genvar i = 1; i < 8; i++) begin
-        assign mcm_writeback_valid[i] = 2'b00;
-    end
-
-    // Dfetch logic
-    logic [1:0] mcm_dfetch_valid[7:0]; // since it can be present for 8 cosim instances
-    assign mcm_dfetch_valid[0] = dfetch_cl_valid;
-    for(genvar i = 1; i < 8; i++) begin
-        assign mcm_dfetch_valid[i] = 2'b00;
-    end
-
     always @(posedge dut_clk[AXI_CLK_IDX]) begin
         if (sys_reset[TB_CLK_IDX] | !dmi_status)
             dmi_poll_counter <= 0;
@@ -849,6 +849,8 @@ module rv_tester
     end
 
 `endif
+
+
 
     // coverage
     arch_sample arch_sample ();
