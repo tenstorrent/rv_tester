@@ -7,6 +7,19 @@ load("@bzsim//:sim.bzl", "sim_test_suite")
 
 exports_files(["pulp_platform_verilator_waiver.vlt"])
 
+verilator_defines = {
+    "debug": {
+        "dbg": [
+            '+define+DMI_TB_WRITES_UNSUPPORTED',
+            '+define+TRACE_CHECKS_UNSUPPORTED',
+        ],
+        "opt": [
+            '+define+DMI_TB_WRITES_UNSUPPORTED',
+            '+define+TRACE_CHECKS_UNSUPPORTED',
+        ]
+    }
+}
+
 harnesses = [ "sw_1c", "sw_2c"]
 
 [
@@ -67,7 +80,8 @@ harnesses = [ "sw_1c", "sw_2c"]
         run_args   = ["+nowhisper_client_check"],
         verilator_top = "sw_tb.cpp",
         bzsimconfig = "//infra/bzsim-config:bzsimconfig",
-        verilator_configs = [":pulp_platform_verilator_waiver.vlt"]
+        verilator_configs = [":pulp_platform_verilator_waiver.vlt"],
+        user_verilator_opts = verilator_defines,
     )
   ] for name in harnesses
 ]

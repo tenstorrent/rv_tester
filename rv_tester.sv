@@ -51,7 +51,11 @@ module rv_tester
             `ifdef CLK_MUX_UNSUPPORTED
              rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(clk[c]));
             `else
-             if(c != REF_CLK_IDX) begin
+            if(c == REF_CLK_IDX) begin
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[REF_CLK_IDX])) clkgen(.clk(clk[REF_CLK_IDX]));
+            end else if (c == TB_CLK_IDX ) begin
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[TB_CLK_IDX])) clkgen(.clk(clk[TB_CLK_IDX]));
+            end else begin 
                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(def_clk[c]));
                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE1_CLOCK_FREQ_MHZ[c])) profile1_clkgen(.clk(profile1_clk[c]));
                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE2_CLOCK_FREQ_MHZ[c])) profile2_clkgen(.clk(profile2_clk[c]));
@@ -71,8 +75,6 @@ module rv_tester
                     .async_sel_i    (clock_mode),
                     .clk_o          (clk[c])
                 );
-            end else begin
-                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[REF_CLK_IDX])) clkgen(.clk(clk[REF_CLK_IDX]));
             end
             `endif
          end
@@ -223,6 +225,8 @@ module rv_tester
 
     reg [9:0] dut_reset_req_shift_reg;
 
+    logic rerun_now_ff;
+
     always @(posedge dut_clk[AXI_CLK_IDX] or posedge cold_reset) begin
         /* verilator lint_off SYNCASYNCNET */
         if (cold_reset)
@@ -246,17 +250,18 @@ module rv_tester
 
   `ifndef CLK_MUX_UNSUPPORTED
     always @(posedge dut_clk[TB_CLK_IDX])begin
-      if (rv_tester_reset)begin
+      if (rv_tester_reset & !rerun_now_ff)begin
             clock_mode <= clk_profile[2:0];
       end
       /* verilator lint_off WIDTH */
-      if(dyn_clk_switch & (clocks >10) &  ((clocks % freq_switch_ncycles) == 0)) begin
+      else if(dyn_clk_switch & (clocks >10) &  ((clocks % freq_switch_ncycles) == 0)) begin
         //dynamically select clk from available profiles
         //this logic will generate the select pins of the mux ,which will switch between clks
-        clock_mode <= clock_mode + 1'b1;
-        if(clock_mode == 3'b111)
-          clock_mode <= '0;
-      end
+        if(clock_mode == 3'b110)
+            clock_mode <= 'b1;
+        else
+            clock_mode <= clock_mode + 1'b1;
+      end 
       /* verilator lint_on WIDTH */
     end
     `endif
@@ -270,6 +275,7 @@ module rv_tester
     always @(posedge dut_clk[TB_CLK_IDX]) begin
 
         rv_tester_reset <= rerun_now;
+        rerun_now_ff <= rerun_now;
         clocks          <= clocks + 1;
 
         `ifndef NO_TIMESTAMP
@@ -465,10 +471,10 @@ module rv_tester
             hart_enable_mask     <= cvm_plusargs::get_int("hart_enable_mask");
             perf_count           <= '0;
             ntrace_stop_on_wrap  <= cvm_plusargs::get_bool("ntrace_stop_on_wrap_seq_en") != '0;
+            clock_mode           <= clk_profile[2:0];
             num_harts            <= cvm_plusargs::get_int("num_harts");
 
         end
-        clock_mode      <= clk_profile[2:0];
         num_reruns      <= num_reruns - int'(rerun_now);
         if (num_reruns < 0) begin
             num_reruns  <= cvm_plusargs::get_int("num_reruns");
@@ -732,6 +738,7 @@ module rv_tester
         .clk(dut_clk[AXI_CLK_IDX]),
         .reset(sys_reset[AXI_CLK_IDX]),
         .dut_reset_req,
+        .dut_core_reset(dut_reset[CORE_CLK_IDX]),
         .trace_quiesced(trace_quiesced),
         .bootstrap,
         .dmi_write(trickbox_dmi_write),
@@ -747,6 +754,7 @@ module rv_tester
 
     dmi_driver i_dmi_driver(
         .clk(dut_clk[AXI_CLK_IDX]),
+        .core_clk(dut_clk[CORE_CLK_IDX]),
         .reset_n(~(reset[WARM_RESET_IDX] || reset[COLD_RESET_IDX]) || reset_hold[DEBUG_HOLD_IDX]),
         .warm_reset_sdtrig(~reset[WARM_RESET_IDX]),
         .dmi_driver_dbg_enable,
@@ -762,7 +770,7 @@ module rv_tester
         .disable_haltpoll,
         .disable_abscmdpoll,
         .disable_triggerpoll,
-        .terminate,
+        .terminate(sysmod_terminate.terminate),
         .num_harts,
         .sdtrig_display,
         .nonexistent_hart,
@@ -937,6 +945,8 @@ module rv_tester
                 .reset_hold(reset_hold),
                 .force_ref_clk(pwrmgmt_force_ref_clk),
                 .core_no_fetch(|core_no_fetch),
+                .tj_shutdown(tj_shutdown),
+                .pll_dfs_done(pll_dfs_done),
                 `RV_TESTER_TRANSACTIONS_PWRMGMT_SOURCE_PORTS(3,0,0)
             );
             assign reset_window = pwrmgmt_force_ref_clk || init_pulse || warm_reset_pulse;

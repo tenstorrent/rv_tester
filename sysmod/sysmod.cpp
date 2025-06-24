@@ -87,6 +87,8 @@ DEFINE_uint32(aplic_sources, 127, "Number of APLIC interrupt sources");
 DEFINE_bool(uart8250_sock, false, "Enable uart8250 spawning a unix domain socket server for I/O");
 DEFINE_uint32(uart8250_iid, 1, "Interrupt identity of the uart8250 device");
 DEFINE_uint64(dm_rand_addr, 0x9080500, "(Trickbox) Random address for DM: PC/Load/Store");;
+// Overlay MMR Checker
+DEFINE_bool(overlay_mmr_check, true, "Enable Scratchpad MMR read/write data checks from Overlay port");
 
 REGISTRY_register(sysmod, TOP.PLATFORM.SYSMOD, 0);
 
@@ -118,6 +120,10 @@ sysmod::sysmod(cvm::topology::loc_t loc, unsigned id)
       return;
       });
   cvm::registry::messenger.procedure<sysmod_eot>(loc, [this] (uint64_t addr, size_t length, device::data_t& data){ return this->dev("memory")->backdoor_read(addr, length, data);});
+  cvm::registry::messenger.procedure<sysmod_secure_mem>(loc, [this] (uint64_t& start, uint64_t& end) {
+    start = secure_region_start_;
+    end = secure_region_end_;
+  });
   cvm::registry::messenger.connect<rv_tester_transactions::sysmod::tick<>>(
       loc_,
       [this](const rv_tester_transactions::sysmod::tick<>& t) { return this->tick(t.advance); });
@@ -222,7 +228,7 @@ void sysmod::eot_backdoor_write(transactor::write_t& w) {
       data[j] = w.data[i+j];
       strb[j] = true;
     }
-    this->dev("memory")->backdoor_write((w.addr + i), 8, data, strb);
+    this->dev("memory")->backdoor_write(((w.addr + i)& ~FLAGS_pa_mask), 8, data, strb);
   }
 }
 

@@ -14,7 +14,7 @@ def rv_tester_repositories():
         #sha256 = "af87959afe497dc8dfd4c6cb66e1279cb98ccc84284619ebfec27d9c09a903de",
     )
 
-    corearchcoverage_hash="8e54223a2de0c2640f931f91791f9e3ad68e9b60"
+    corearchcoverage_hash="adac616892d576eb860554c53a884bb1f1d3df40"
     maybe(
         git_repository,
         name = "corearchcoverage",
@@ -40,7 +40,7 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-nlohmann-json.git",
     )
 
-    whisper_hash="e9969e54151b110a18e2ca6cb16fdbf93c6a8236"
+    whisper_hash="89917b18fc49a2f6afeb41431ac06d89c0fbdfac"
     maybe(
         git_repository,
         name = "whisper",
@@ -49,11 +49,11 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:riscv/swerv-iss.git",
     )
 
-    CoreArchChecker_hash="d0b4f6c60815966a4ef182fb623caba2132cfca9"
+    CoreArchChecker_hash="7e9c0c182cd3f192d634c84f469269ae51516f5b"
     maybe(
         http_archive,
         name = "CoreArchChecker",
-        sha256 = "2a556f3ccc458b67cff523076f7f7dc1fc07dede85fe04e5199a2bb5fe467bb8",
+        sha256 = "2c182d5538e710a341a8a9361f6b6fbf6f51cb2692528a3dde4622f71c5b7c61",
         strip_prefix = "CoreArchChecker-{commit}".format(commit=CoreArchChecker_hash),
         url = "https://aus-gitlab.local.tenstorrent.com/riscv/dv/CoreArchChecker/-/archive/{commit}/CoreArchChecker-{commit}.tar.bz2".format(commit=CoreArchChecker_hash),
     )
@@ -84,7 +84,7 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-wall_clock_profiler.git",
     )
 
-    checkin_script_hash="54f1fd377a20c5085ca244f6c404b56839f5d866"
+    checkin_script_hash="756fa9be702ab44a9d69ab6f111026b5889f0420"
     maybe(
         git_repository,
         name = "checkin-script",

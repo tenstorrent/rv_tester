@@ -32,6 +32,7 @@ typedef struct whisper_state_s {
   bool trap = false;
   bool stop = false;
   bool is_load = false;
+  bool is_cancelled = false;
 } whisper_state_t;
 
 // dut <-> bridge
@@ -304,6 +305,7 @@ typedef struct rv_intr_s {
   bool seip_set;
   bool seip_clr;
   uint64_t mtime;
+  uint8_t buserr_bit;
 } rv_intr_t;
 
 typedef struct rv_nmi_s {

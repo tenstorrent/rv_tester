@@ -774,9 +774,10 @@ localparam CAM_IHBIT = CAM_IBITS;
     endfunction
 
      // m_reset
-    logic dut_reset_d1;
+    logic dut_reset_d1, dut_core_reset_d1;
     always @(posedge clk) begin
         dut_reset_d1 <= dut_reset;
+        dut_core_reset_d1 <= dut_core_reset;
     end
     assign m_resets[0].valid            = RVFI_EN & rvfi_enabled & (dut_reset_d1 & ~dut_reset);
     assign m_resets[0].data.location    = location;
@@ -1326,11 +1327,11 @@ localparam CAM_IHBIT = CAM_IBITS;
         nmi_pend_d1.nmi <= nmi_pend.nmi;
       end
     end
-    assign m_core_nmis[0].valid = ~dut_core_reset & ((nmi_pend.nmi & ~nmi_pend_d1.nmi) || (nmi_pend.clai & ~nmi_pend_d1.clai) || (~nmi_pend.nmi & nmi_pend_d1.nmi) || (~nmi_pend.clai & nmi_pend_d1.clai)) & rvfi_enabled;
+    assign m_core_nmis[0].valid = ~dut_core_reset & ((nmi_pend.nmi & ~nmi_pend_d1.nmi) || (nmi_pend.clai & ~nmi_pend_d1.clai) || (~nmi_pend.nmi & nmi_pend_d1.nmi) || (~nmi_pend.clai & nmi_pend_d1.clai) || (dut_core_reset_d1 & (nmi_pend.clai || nmi_pend.nmi))) & rvfi_enabled;
     assign m_core_nmis[0].data.location = location;
     assign m_core_nmis[0].data.cycle = clocks;
-    assign m_core_nmis[0].data.nmi_assert = (nmi_pend.nmi & ~nmi_pend_d1.nmi & ~nmi_pend.clai) || (nmi_pend.clai & ~nmi_pend_d1.clai & ~nmi_pend.nmi);
-    assign m_core_nmis[0].data.nmi_cause = (nmi_pend.nmi & ~nmi_pend_d1.nmi & ~nmi_pend.clai) ? 2 : ((nmi_pend.clai & ~nmi_pend_d1.clai & ~nmi_pend.nmi) ? 3 : 0);
+    assign m_core_nmis[0].data.nmi_assert = (nmi_pend.nmi & ~nmi_pend_d1.nmi & ~nmi_pend.clai) || (nmi_pend.clai & ~nmi_pend_d1.clai & ~nmi_pend.nmi) || (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.nmi) || (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.clai);
+    assign m_core_nmis[0].data.nmi_cause = (nmi_pend.nmi & ~nmi_pend_d1.nmi & ~nmi_pend.clai) ? 2 : (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.nmi) ? 2 : (nmi_pend.clai & ~nmi_pend_d1.clai & ~nmi_pend.nmi) ? 3 : (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.clai) ? 3 : 0;
 
     function automatic bit [63:0] get_nmi_cause(rv_tester_pkg::nmi_t n);
       bit [63:0] cause = '0;
@@ -1360,6 +1361,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign m_interrupt_pends[0].data.seip = interrupt_pend.seip;
     assign m_interrupt_pends[0].data.seip_set = interrupt_pend.seip & ~seip_d1;
     assign m_interrupt_pends[0].data.seip_clr = ~interrupt_pend.seip & seip_d1;
+    assign m_interrupt_pends[0].data.buserr_bit = interrupt_pend.buserr_bit;
 
     // m_imsic_msi
     assign m_imsic_msis[0].valid = ~dut_core_reset && imsic_msi.valid && rvfi_enabled;
@@ -1379,11 +1381,12 @@ localparam CAM_IHBIT = CAM_IBITS;
     localparam logic [CSRLEN-1:0] C_MTOPI      = 'hFB0;
     localparam logic [CSRLEN-1:0] C_STOPI      = 'hDB0;
     localparam logic [CSRLEN-1:0] C_VSTOPI     = 'hEB0;
+    localparam logic [CSRLEN-1:0] C_MENVCFG    = 'h30A;
 
     // mtime packets from csr reads/writes
     for (genvar n = 0; n < NRET; n++) begin
       assign m_mtimes[n].valid = ~dut_core_reset && rvfi_enabled && !poke_mip_timer && (rvfi[n].valid &&
-         ((|rvfi[n].csr_wmask && (rvfi[n].csr_addr inside {C_STIMECMP, C_VSTIMECMP, C_HTIMEDELTA})) ||
+         ((|rvfi[n].csr_wmask && (rvfi[n].csr_addr inside {C_STIMECMP, C_VSTIMECMP, C_HTIMEDELTA, C_MENVCFG})) ||
           (|rvfi[n].csr_rmask && (rvfi[n].csr_addr inside {C_TIME, C_MIP, C_MTOPI, C_SIP, C_STOPI, C_VSIP, C_VSTOPI}))));
       assign m_mtimes[n].data.location = location;
       assign m_mtimes[n].data.cycle = clocks;
@@ -1409,27 +1412,27 @@ localparam CAM_IHBIT = CAM_IBITS;
 /* verilator lint_on WIDTHEXPAND */
 
     localparam bit [63:0] DRAM_BASE = 64'h8000_0000;
-    logic        trigger_max_cycle_update;
-    logic [63:0] dpi_max_cycle;
-    logic        dpi_update_valid;
+    logic        should_update_max_cycle;
+    logic [63:0] updated_max_cycle;
+    logic        max_cycle_update_valid;
 
     always_ff @(posedge tb_clk) begin
       if (reset) begin
-        trigger_max_cycle_update <= 0;
+        should_update_max_cycle <= 0;
       end else if (max_cycle > 0 && clocks > max_cycle && NUM < nharts && cosim_terminate_sent == '0) begin
-        trigger_max_cycle_update <= 1;
+        should_update_max_cycle <= 1;
       end else begin
-        trigger_max_cycle_update <= 0;
+        should_update_max_cycle <= 0;
       end
     end
 
     // Capture DPI result only when triggered
     always_ff @(posedge tb_clk) begin
-      if (trigger_max_cycle_update) begin
-        dpi_max_cycle     <= get_max_cycle();
-        dpi_update_valid  <= 1;
+      if (should_update_max_cycle) begin
+        updated_max_cycle       <= get_max_cycle();
+        max_cycle_update_valid  <= 1;
       end else begin
-        dpi_update_valid  <= 0;
+        max_cycle_update_valid  <= 0;
       end
     end
 
@@ -1464,7 +1467,15 @@ localparam CAM_IHBIT = CAM_IBITS;
           cosim_terminate();
           cosim_terminate_sent <= '1;
         end
-        if (max_cycle > 0 && clocks > max_cycle && NUM < nharts && cosim_terminate_sent == '0) begin
+        if (max_cycle_update_valid) begin
+          if (max_cycle < updated_max_cycle) begin
+            max_cycle <= updated_max_cycle;
+            $display("\nHart %0d:  Updated max_cycle=%0d", NUM, updated_max_cycle);
+          end else begin
+            $display("\nError: Hart %0d:  Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", NUM, max_cycle);
+            cosim_terminate();
+            cosim_terminate_sent <= 1'b1;
+          end
           $display("\nError: Hart %0d:  Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", NUM, max_cycle);
           cosim_terminate();
           cosim_terminate_sent <= '1;
