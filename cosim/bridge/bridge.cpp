@@ -853,13 +853,18 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
   if (FLAGS_insn_check && !d.comp && !d.ucode && !is_vector(d.disasm) && !is_cracked_csr(d.disasm) && !(d.disasm.substr(0,7)=="illegal") && !d.csr_renamed && (patch_mode_ == NO_PATCH  || patch_mode_ == ENTER_PATCH)) {
     uint32_t opcode = d.opcode;
     // Apply opcode remapping if configured and enabled
+    bool skip_update_insn = false;
     if (cosim_remap_opcode_enabled_) {
       auto remap_it = cosim_remap_opcode_.find(d.opcode);
       if (remap_it != cosim_remap_opcode_.end()) {
         opcode = remap_it->second;
+        // Skip calling update_insn when opcode remapping is applied
+        skip_update_insn = true;
       }
     }
-    update_insn(hart, src_t::dut, opcode);
+    if (!skip_update_insn) {
+      update_insn(hart, src_t::dut, opcode);
+    }
   }
   if (FLAGS_flags_check && (d.flags != 0)) {
     update_flags(hart, src_t::dut, d.flags);
