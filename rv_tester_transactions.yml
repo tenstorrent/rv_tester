@@ -423,6 +423,8 @@ cosim:
                 width: 1
             seip_clr:
                 width: 1
+            buserr_bit:
+                width: 6
 
     m_core_nmi:
         domain: 1
@@ -1797,6 +1799,9 @@ pwrmgmt:
         domain: 3
         num: 1
     m_pcontrol_tick:
+        domain: 3
+        num: 1
+    m_dfs_tick:
         domain: 3
         num: 1
     m_thub_tick:

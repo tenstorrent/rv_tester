@@ -39,7 +39,7 @@ DEFINE_bool(smc_sweep_test ,false, "Set this while running small core sram sweep
 DEFINE_int32(dmi_poll_timeout, 50000, "Debug poll timeout after to host end call");
 DEFINE_int32(ndmreset_ack_delay, 0, "Delay after which ndmreset ack is asserted");
 DEFINE_int32(trace_timeout, 50000, "trace test end timeout after to host end call");
-DEFINE_int32(freq_switch_ncycles, 20000, "Switch clk frequencies after freq_switch_ncycles");
+DEFINE_int32(freq_switch_ncycles, 5000, "Switch clk frequencies after freq_switch_ncycles");
 DEFINE_int32(clk_profile, 0, "Clk profile to drive various clocks");
 DEFINE_bool(dyn_clk_switch, false, "Enable dynamic clk switching");
 DEFINE_validator(num_reruns, &validate_ge0);
@@ -62,6 +62,7 @@ DEFINE_bool(offline_dpi_test, false, "Enable OFFLINE DPI capture for test mode f
 DEFINE_string(test_start_label, "", "Actual test starts from here(after kernel and initial setup), in case of MP, provide comma separated labels for each hart"); // used in SOT
 DEFINE_bool(sdtrig_display, false, "Enable displays for sdtrig constraint-random test");
 DEFINE_bool(nonexistent_hart, false, "Core0 to be halted for nonexistent haltreq");
+DEFINE_int32(abscmd_hang_counter, 0, "delay value for abscmd hang");
 
 extern "C" void rv_tester_terminate();
 extern "C" void rv_tester_set_address_map(std::uint32_t i, std::uint64_t start_addr, std::uint64_t end_addr, std::uint32_t device);

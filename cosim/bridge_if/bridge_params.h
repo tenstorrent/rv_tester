@@ -975,7 +975,7 @@ namespace {
         MEI         = 11,
         SGEI        = 12,
         LCOFI       = 13,
-        BUS_ERRI    = 23,
+        BUS_ERRI    = 23, // NOTE: This is now configurable - use dynamic value from interrupt_pend_t.buserr_bit
         C_HWAI      = 24,
         C_ENTROPY   = 25,
         LO_PRI_RASI = 35,

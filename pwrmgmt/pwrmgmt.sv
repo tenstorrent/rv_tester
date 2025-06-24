@@ -99,6 +99,12 @@ import rv_tester_params::*;
   assign m_pcontrol_ticks[0].valid = pcontrol_tick && (location != cvm_topology::nil);
   assign m_pcontrol_ticks[0].data.location = location;
 
+  // m_dfs_tick
+  logic dfs_tick;
+  rv_tester_tick_generator #(.NAME("dfs")) dfs_tick_generator (.clk(clk[SOC_CLK_IDX]), .reset(core_no_fetch), .inhibit('0), .tick(dfs_tick), .last());
+  assign m_dfs_ticks[0].valid = dfs_tick && (location != cvm_topology::nil);
+  assign m_dfs_ticks[0].data.location = location;
+
    // m_thub_tick
   logic thub_tick;
   rv_tester_tick_generator #(.NAME("thub")) thub_tick_generator (.clk(clk[SOC_CLK_IDX]), .reset(tick_reset), .inhibit(thub_blocking_seq_tick), .tick(thub_tick), .last());
