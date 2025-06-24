@@ -726,7 +726,8 @@ void bridge::compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w,
   if (FLAGS_bridge_log)
     bridge_log_(cvm::MEDIUM, "{}", cac_.GetStatusStr(hart));
 
-  std::string resource = cac_.GetResourceStr(hart);
+  std::string resource, dut, iss;
+  cac_.GetResourceStr(hart, resource, dut, iss);
   std::string instr = cosim_util::get_nth_word(w.disasm, 1);
   if (instr.substr(0,3) == "csr") {
     instr = "csr:" + cosim_util::get_nth_word(w.disasm, 3);
@@ -753,7 +754,10 @@ void bridge::compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w,
     } else {
       print_instr_stdout(hart, w);
       print(cvm::NONE, "{}", cac_.GetStatusStr(hart));
-      error("Hart {}: Core Arch Checker Mismatch - {} - {}\n", hart, resource,  instr);
+      mismatch_res_ = resource; mismatch_dut_ = dut; mismatch_iss_ = iss;
+      if (dut == "") dut = "none";
+      if (iss == "") iss = "none";
+      error("Hart {}: Core Arch Checker Mismatch - {} - {} DUT: {} ISS: {}\n", hart, resource,  instr, dut, iss);
       return;
     }
   }
@@ -808,7 +812,9 @@ void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d)
 
   // error on mismatch
   if (!csr_cac_.GetStatus(hart)) {
-    std::string csr = get_csr_name(csr_cac_.GetResourceStr(hart).substr(2));
+    std::string csr, dut, iss;
+    csr_cac_.GetResourceStr(hart, csr, dut, iss);
+    csr = get_csr_name(csr.substr(2));
     csr_cac_.ResetStatus(hart);
     if (resynch_csr_) {
       if (FLAGS_bridge_log)
@@ -825,12 +831,14 @@ void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d)
       for (auto & i : d.instrs)
         print_instr_stdout(hart, i);
       print(cvm::NONE, "{}", csr_cac_.GetStatusStr(hart));
-      if(FLAGS_whisper_client_check)
-        error("Hart {}: CSR Write Mismatch - {}\n", hart, csr);
-      return;
+      if (FLAGS_whisper_client_check) {
+        mismatch_res_ = csr, mismatch_dut_ = dut, mismatch_iss_ = iss;
+        if (dut == "") dut = "none";
+        if (iss == "") iss = "none";
+        error("Hart {}: CSR Write Mismatch - {} DUT: {} ISS: {}\n", hart, csr, dut, iss);
+      }
     }
   }
-
 }
 
 void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
@@ -3246,6 +3254,11 @@ void bridge::report_metrics() {
       }
     print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_iss_csr_{}\": \"0x{:x}\"}}\n", id_, csr.name, csr_data);
     }
+  }
+  if (mismatch_res_ != "") {
+    print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_mismatch_resource\": \"{}\"}}\n", id_, mismatch_res_);
+    print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_mismatch_dut_val\": \"{}\"}}\n", id_, mismatch_dut_);
+    print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_mismatch_iss_val\": \"{}\"}}\n", id_, mismatch_iss_);
   }
 
   // DUT csr values

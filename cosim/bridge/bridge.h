@@ -417,4 +417,6 @@ private:
 
   std::map<uint64_t, uint64_t> hypervisor_masked_csrs_;
   bool misa_h_ = true;
+
+  std::string mismatch_res_ = "", mismatch_dut_, mismatch_iss_;
 };
