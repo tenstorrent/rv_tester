@@ -1816,6 +1816,9 @@ pwrmgmt:
     m_force_ref_clk_ack:
         domain: 3
         num: 1
+    m_tj_shutdown_ack:
+        domain: 3
+        num: 1
 
 snoop_gen:
     num: 1

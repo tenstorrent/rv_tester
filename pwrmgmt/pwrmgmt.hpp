@@ -80,6 +80,7 @@ namespace {
   constexpr uint32_t cpl_sram_core_reset_vector_cfg  =  smc_local_base + 0x49008;
   constexpr uint32_t cpl_sram_cstate_limit_offset    =  smc_local_base + 0x481C0;
   constexpr uint32_t cpl_sram_limit             =  smc_local_base + 0x4FFFF;
+  constexpr uint32_t cpl_sram_thub_config_base  =  cpl_sram_base + 0x81D0;
   constexpr uint32_t cpl_patch_ram_base         =  cpl_sram_base + 0x0c000;
   constexpr uint32_t cpl_patch_ram_ptrig_0      =  cpl_patch_ram_base + 0x0400;
   constexpr uint32_t cpl_patch_ram_ptrig_1      =  cpl_patch_ram_base + 0x0440;
@@ -119,8 +120,8 @@ namespace {
   constexpr uint32_t pm_mbox_regdata       =  pm_mbox_base + 0x10;
 
   constexpr uint8_t thub_reg_base           =  0x0;
+  constexpr uint8_t thub_control_reg        =  thub_reg_base + 0x4;
   constexpr uint8_t thub_threhold_param_reg =  thub_reg_base + 0x50;
-
 
   typedef enum : bool { COLD = true, WARM = false } rst_t;
   typedef enum : size_t { SZ_4B = 4, SZ_8B = 8 } sz_t;

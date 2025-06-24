@@ -916,6 +916,8 @@ package rv_tester_params;
     output                                   debug_mode         [rv_tester_params::NHARTS-1:0],     \
     output                                   disable_checks,                                        \
     output                                   dut_terminate,                                         \
+    output                                   tj_shutdown,                                           \
+    output                                   pll_dfs_done,                                          \
     input                                    terminate,                                             \
     input  logic                             terminated,                                            \
     input  logic                             terminate_now,                                            \
@@ -1002,6 +1004,8 @@ package rv_tester_params;
     logic                                    debug_mode      [rv_tester_params::NHARTS-1:0];        \
     logic                                    disable_checks;                                        \
     logic                                    dut_terminate;                                         \
+    logic                                    tj_shutdown;                                           \
+    logic                                    pll_dfs_done;                                          \
     logic                                    terminate;                                             \
     logic                                    terminated;                                            \
     logic                                    terminate_now;                                            \
