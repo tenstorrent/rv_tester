@@ -216,6 +216,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     endfunction
 
     import "DPI-C" function longint get_max_cycle();
+    import "DPI-C" function longint get_max_stall_cycle();
     import "DPI-C" context function void cosim_set_scope(int unsigned location);
     import "DPI-C" context function int is_eot_tohost();
     //import "DPI-C" context function void eot_hw_process(longint unsigned hart, longint unsigned cycles, longint unsigned addr, longint unsigned data);
@@ -347,23 +348,23 @@ localparam CAM_IHBIT = CAM_IBITS;
     bit [NBYPASS-1:0][63:0]  eot_bypass_data;                // end-of-test event found in mcmi_bypass ifc
     bit [NINSERT-1:0]      eot_insert_found;                // end-of-test event found in mcmi_insert ifc
     bit [NINSERT-1:0][63:0]  eot_insert_data;                // end-of-test event found in mcmi_insert ifc
-    longint unsigned       mcmi_write_addr[NWRITE-1:0]; 
-    longint unsigned       mcmi_write_data[NWRITE-1:0];  
-    longint unsigned       mcmi_insert_addr[NINSERT-1:0];  
-    longint unsigned       mci_insert_data[NINSERT-1:0];   
-    longint unsigned       mcmi_bypass_addr[NBYPASS-1:0];    
-    longint unsigned       mcmi_bypass_data[NBYPASS-1:0];     
+    longint unsigned       mcmi_write_addr[NWRITE-1:0];
+    longint unsigned       mcmi_write_data[NWRITE-1:0];
+    longint unsigned       mcmi_insert_addr[NINSERT-1:0];
+    longint unsigned       mci_insert_data[NINSERT-1:0];
+    longint unsigned       mcmi_bypass_addr[NBYPASS-1:0];
+    longint unsigned       mcmi_bypass_data[NBYPASS-1:0];
     bit [46:0]             eot_write_fail;                 // end-of-test code mcm_writes
     bit [46:0]             eot_insert_fail;                // end-of-test code mcm_inserts
     bit [46:0]             eot_bypass_fail;                 // end-of-test code mcm_byapss
     bit                    eot_write_pass;                 // end-of-test code mcm_writes
     bit                    eot_insert_pass;                // end-of-test code mcm_inserts
     bit                    eot_bypass_pass;                 // end-of-test code mcm_byapss
-    bit                    eot_exit_pass;                  
-    bit [46:0]             eot_exit_fail;                  
-    bit [$clog2(NRET+1)-1:0] valid_cnt;                     // number of instructioncs retired this clock 
-    bit [$clog2(NRET+1)-1:0] valid_icnt[NRET-1:0];          // number of instructions retired up to this retire index 
-    bit [63:0]             instr_icnt[NRET-1:0];          // number of instructions retired up to this retire index 
+    bit                    eot_exit_pass;
+    bit [46:0]             eot_exit_fail;
+    bit [$clog2(NRET+1)-1:0] valid_cnt;                     // number of instructioncs retired this clock
+    bit [$clog2(NRET+1)-1:0] valid_icnt[NRET-1:0];          // number of instructions retired up to this retire index
+    bit [63:0]             instr_icnt[NRET-1:0];          // number of instructions retired up to this retire index
     bit [NRET-1:0]         instr_imax;
 
     bit                    eot_found;                       // end-of-test event found
@@ -1052,10 +1053,10 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign m_mcmi_inserts[n].data.data_vec = mcmi_insert[n].data[255:0];
         assign m_mcmi_inserts[n].data.v_ext = mcmi_insert[n].v_ext;
         assign m_mcmi_inserts[n].data.elem_idx = mcmi_insert[n].elem_idx;
-        assign eot_insert_found[n] = ((to_host == 1) & (eot_addr != '0) &  
-                                      mcmi_insert[n].valid & (mcmi_insert[n].addr == $bits(mcmi_insert[n].addr)'(eot_addr)) & 
+        assign eot_insert_found[n] = ((to_host == 1) & (eot_addr != '0) &
+                                      mcmi_insert[n].valid & (mcmi_insert[n].addr == $bits(mcmi_insert[n].addr)'(eot_addr)) &
                                       mcmi_insert[n].data[0] & (mcmi_insert[n].data[63:56] == '0)) ? 1'b1 : 1'b0;
-        assign eot_insert_data[n] = (eot_insert_found[n] == 1'b1) ?  mcmi_insert[n].data[63:0] : '0; 
+        assign eot_insert_data[n] = (eot_insert_found[n] == 1'b1) ?  mcmi_insert[n].data[63:0] : '0;
 /* verilator lint_off WIDTHEXPAND */
         assign mcmi_insert_addr[n] = mcmi_insert[n].addr;
 /* verilator lint_on WIDTHEXPAND */
@@ -1077,14 +1078,14 @@ localparam CAM_IHBIT = CAM_IBITS;
 
         assign mcmi_write_pokes[n] = mcmi_write[n].valid;
 
-        assign mcmi_write_data[n] = mcmi_write[n].data[63:0]; 
+        assign mcmi_write_data[n] = mcmi_write[n].data[63:0];
 /* verilator lint_off WIDTHEXPAND */
         assign mcmi_write_addr[n] = mcmi_write[n].addr;
 /* verilator lint_on WIDTHEXPAND */
-        assign eot_write_found[n] = ((to_host == 1) & (eot_addr != '0) &  
-                                      mcmi_write[n].valid & (mcmi_write[n].addr == $bits(mcmi_write[n].addr)'(eot_addr)) & 
+        assign eot_write_found[n] = ((to_host == 1) & (eot_addr != '0) &
+                                      mcmi_write[n].valid & (mcmi_write[n].addr == $bits(mcmi_write[n].addr)'(eot_addr)) &
                                       mcmi_write[n].data[0] & (mcmi_write[n].data[63:56] == '0)) ? 1'b1 : 1'b0;
-        assign eot_write_data[n] = (eot_write_found[n] == 1'b1) ?  mcmi_write[n].data[63:0] : '0; 
+        assign eot_write_data[n] = (eot_write_found[n] == 1'b1) ?  mcmi_write[n].data[63:0] : '0;
     end
 
 
@@ -1110,7 +1111,7 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign eot_bypass_found[n] = ((to_host == 1) & (eot_addr != '0) &
                                       mcmi_bypass[n].valid & (mcmi_bypass[n].addr == $bits(mcmi_bypass[n].addr)'(eot_addr)) &
                                       mcmi_bypass[n].data[0] & (mcmi_bypass[n].data[63:56] == '0)) ? 1'b1 : 1'b0;
-        assign eot_bypass_data[n] = (eot_bypass_found[n]) ? mcmi_bypass[n].data[63:0] : 64'h0; 
+        assign eot_bypass_data[n] = (eot_bypass_found[n]) ? mcmi_bypass[n].data[63:0] : 64'h0;
 /* verilator lint_off WIDTHEXPAND */
         assign mcmi_bypass_addr[n] = mcmi_bypass[n].addr;
 /* verilator lint_on WIDTHEXPAND */
@@ -1124,10 +1125,10 @@ localparam CAM_IHBIT = CAM_IBITS;
     //   eoti-offline : for offline_dpi capture  (only sent during offline_dpi caputure)
     //----------------------------------------------------------------------------------------------------
 
-    assign eot_found      = ~dut_core_reset & ((eot_write_found != 0) | (eot_bypass_found != 0) | (eot_insert_found != '0) | eot_max_instr) ? 1'b1 : 1'b0; 
+    assign eot_found      = ~dut_core_reset & ((eot_write_found != 0) | (eot_bypass_found != 0) | (eot_insert_found != '0) | eot_max_instr) ? 1'b1 : 1'b0;
 
     always_comb begin
-        eoti_data = '0; 
+        eoti_data = '0;
         for (int n = 0; n < NWRITE; n++) begin
            eoti_data |= eot_write_data[n];
         end
@@ -1138,7 +1139,7 @@ localparam CAM_IHBIT = CAM_IBITS;
            eoti_data |= eot_bypass_data[n];
         end
     end
-    
+
     logic eot_valid;
     assign eot_valid = MCMI_EN &  ~dut_reset & eot_found;
 
@@ -1152,7 +1153,7 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     assign offline_eotis[0].valid =  eot_valid & (offline_dpi | offline_dpi_test);
     assign offline_eotis[0].data = m_eoti_normals[0].data;
-    
+
 
 
     // m_mcmi_ifetch
@@ -1330,14 +1331,21 @@ localparam CAM_IHBIT = CAM_IBITS;
     logic        should_update_max_cycle;
     logic [63:0] updated_max_cycle;
     logic        max_cycle_update_valid;
+    logic        should_update_max_stall_cycle;
+    logic [63:0] updated_max_stall_cycle;
+    logic        max_stall_cycle_update_valid;
 
     always_ff @(posedge tb_clk) begin
       if (reset) begin
         should_update_max_cycle <= 0;
+        should_update_max_stall_cycle <= 0;
       end else if (max_cycle > 0 && clocks > max_cycle && NUM < nharts && cosim_terminate_sent == '0) begin
         should_update_max_cycle <= 1;
+      end else if (max_stall_cycle > 0 && cycles_since_retire > max_stall_cycle && NUM < nharts && cosim_terminate_sent == '0) begin
+        should_update_max_stall_cycle <= 1;
       end else begin
         should_update_max_cycle <= 0;
+        should_update_max_stall_cycle <= 0;
       end
     end
 
@@ -1346,8 +1354,12 @@ localparam CAM_IHBIT = CAM_IBITS;
       if (should_update_max_cycle) begin
         updated_max_cycle       <= get_max_cycle();
         max_cycle_update_valid  <= 1;
+      end else if (should_update_max_stall_cycle) begin
+        updated_max_stall_cycle <= get_max_stall_cycle();
+        max_stall_cycle_update_valid <= 1;
       end else begin
         max_cycle_update_valid  <= 0;
+        max_stall_cycle_update_valid <= 0;
       end
     end
 
@@ -1377,11 +1389,6 @@ localparam CAM_IHBIT = CAM_IBITS;
         if (rvfi[0].valid == '1 && rvfi[0].pc_rdata == DRAM_BASE) begin
           boot_done <= '1;
         end
-        if (max_stall_cycle > 0 && cycles_since_retire > max_stall_cycle && !boot_wfi && NUM < nharts && cosim_terminate_sent == '0) begin
-          $display("\nError: Hart %0d: No instruction retired for max_stall_cycle (%0d) cycles", NUM, max_stall_cycle);
-          cosim_terminate();
-          cosim_terminate_sent <= '1;
-        end
         if (max_cycle_update_valid) begin
           if (max_cycle < updated_max_cycle) begin
             max_cycle <= updated_max_cycle;
@@ -1391,9 +1398,16 @@ localparam CAM_IHBIT = CAM_IBITS;
             cosim_terminate();
             cosim_terminate_sent <= 1'b1;
           end
-          $display("\nError: Hart %0d:  Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", NUM, max_cycle);
-          cosim_terminate();
-          cosim_terminate_sent <= '1;
+        end
+        if (max_stall_cycle_update_valid) begin
+          if (max_stall_cycle < updated_max_stall_cycle) begin
+            max_stall_cycle <= updated_max_stall_cycle;
+            $display("\nHart %0d:  Updated max_stall_cycle=%0d", NUM, updated_max_stall_cycle);
+          end else begin
+            $display("\nError: Hart %0d: No instruction retired for max_stall_cycle (%0d) cycles", NUM, max_stall_cycle);
+            cosim_terminate();
+            cosim_terminate_sent <= 1'b1;
+          end
         end
         if (rvfi[0].valid == '1 && NUM > nharts && cosim_terminate_sent == '0) begin
           $display("\nError: Core %0d: Instruction retire seen on disabled/harvested core", NUM);
