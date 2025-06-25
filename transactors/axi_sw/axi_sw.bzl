@@ -14,6 +14,7 @@ def axi_sw_gen(name, packet, visibility = None, cc_attrs = {}, **kwargs):
         deps = [
             "@cvm//:plusargs_sv",
             "@cvm//:topology_sv",
+            "@cvm//:random_sv",
             packet + "_sv",
         ],
         visibility = ["//visibility:public"],

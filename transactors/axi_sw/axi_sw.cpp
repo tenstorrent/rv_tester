@@ -34,6 +34,14 @@ DEFINE_uint32(axi_sw_reorder_timeout, 100, "If reorder window > 1, will attempt 
 
 DEFINE_bool(axi_sw_fast_write_response, false, "If fast write response, SV will immediately return write response without going through DPI.");
 
+
+DEFINE_uint32(axi_sw_lfsr_seed_aw_rdy, 0, "LFSR seed for aw ready toggling.");
+DEFINE_uint32(axi_sw_lfsr_mask_aw_rdy, 0, "LFSR mask for aw ready toggling. When the LFSR value AND-ed with the mask is 0, we toggle ready high.");
+DEFINE_uint32(axi_sw_lfsr_seed_ar_rdy, 0, "LFSR seed for ar ready toggling.");
+DEFINE_uint32(axi_sw_lfsr_mask_ar_rdy, 0, "LFSR mask for ar ready toggling. When the LFSR value AND-ed with the mask is 0, we toggle ready high.");
+DEFINE_uint32(axi_sw_lfsr_seed_w_rdy, 0, "LFSR seed for w ready toggling.");
+DEFINE_uint32(axi_sw_lfsr_mask_w_rdy, 0, "LFSR mask for w ready toggling. When the LFSR value AND-ed with the mask is 0, we toggle ready high.");
+
 static std::tuple<bool, uint64_t, uint64_t> get_uint64_pair(std::string_view value) {
     using std::operator""sv;
     auto range = std::views::split(value, ":"sv);
