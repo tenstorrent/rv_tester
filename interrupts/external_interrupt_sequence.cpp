@@ -22,7 +22,7 @@ external_interrupt_sequence::external_interrupt_sequence(cvm::topology::loc_t lo
   cvm::registry::messenger.connect<svScope>(loc_, [this](svScope s) { return this->set_scope(s); });
 
   axi_mst_loc_l = cvm::topology::get_from_type("PLATFORM_TRANSACTOR_MST", 0);
-  triggers_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.TRIGGERS", 0);
+  triggers_loc = cvm::topology::get_from_hierarchy("TOP.PLATFORM.TRIGGERS", id_);
 
   cvm::registry::messenger.connect<rv_tester_transactions::triggers::m_event_trigger_tick<>>(
       triggers_loc,
@@ -131,7 +131,7 @@ cvm::messenger::task<void> external_interrupt_sequence::uarch_trigger_mode() {
       }
     }
     if(drive_msi_in_curr_hart){
-      cvm::log(cvm::LOW,"[ExtInterruptSeq] driving external interrupt due to uarch_trigger");
+      cvm::log(cvm::LOW,"[ExtInterruptSeq] driving external interrupt due to uarch_trigger \n");
       drive_interrupt();
       interrupts_driven++;
     }
