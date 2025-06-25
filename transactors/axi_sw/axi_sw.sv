@@ -200,17 +200,16 @@ module axi_sw #(
     `undef AXI_SW_R_SIZED
 
     always_comb begin
+      axi_slv_r_id    = 'X;
+      axi_slv_r_data  = 'X;
+      axi_slv_r_resp  = 'X;
+      axi_slv_r_last  = 'X;
+
       if (axi_slv_r_valid) begin
         axi_slv_r_id    = r.id  ;
         axi_slv_r_data  = r.data;
         axi_slv_r_resp  = r.resp;
         axi_slv_r_last  = r.last;
-      end
-      else begin
-        axi_slv_r_id    = 'X;
-        axi_slv_r_data  = 'X;
-        axi_slv_r_resp  = 'X;
-        axi_slv_r_last  = 'X;
       end
     end
 
@@ -247,23 +246,53 @@ module axi_sw #(
     );
 
     always_comb begin
+      axi_slv_b_id = 'X;
+      axi_slv_b_resp = 'X;
+
       if (axi_slv_b_valid) begin
         axi_slv_b_id    = fast_b_response ? fast_axi_slv_b_id : b.id  ;
         axi_slv_b_resp  = fast_b_response ? fast_axi_slv_b_resp : b.resp;
       end
-      else begin
-        axi_slv_b_id = 'X;
-        axi_slv_b_resp = 'X;
-      end
     end
+
+    `define AXI_SW_TOGGLE_READY(tx)                                                  \
+      int unsigned lfsr_seed_``tx = '0;                                              \
+      int unsigned lfsr_mask_``tx = '0;                                              \
+      int unsigned lfsr_out_``tx;                                                    \
+      logic tx``_ready_random = (lfsr_out_``tx & lfsr_mask_``tx``) == 32'd0;           \
+      cvm_lfsr #(                                                                    \
+          .WIDTH(32'd32),                                                            \
+          .NUM_TAPS(32'd4),                                                          \
+          .TAPS({32'd31, 32'd6, 32'd5, 32'd1})                                       \
+      ) ready_toggle_lfsr_``tx (                                                     \
+          .clk(clk),                                                                 \
+          .rst(sys_reset),                                                           \
+          .seed(lfsr_seed_``tx``),                                                   \
+          .step(1'b1),                                                               \
+          .out_state(lfsr_out_``tx``)                                                \
+      );                                                                             \
+      always @(posedge clk) begin                                                    \
+          if (sys_reset) begin                                                       \
+              /* verilator lint_off BLKSEQ */                                        \
+              lfsr_seed_``tx = cvm_plusargs::get_int({"axi_sw_lfsr_seed_", `"tx`", "_rdy"}); \
+              lfsr_mask_``tx = cvm_plusargs::get_int({"axi_sw_lfsr_mask_", `"tx`", "_rdy"}); \
+              /* verilator lint_on BLKSEQ */                                         \
+          end                                                                        \
+      end
+
+    `AXI_SW_TOGGLE_READY(aw)
+    `AXI_SW_TOGGLE_READY(ar)
+    `AXI_SW_TOGGLE_READY(w)
+
+    `undef AXI_SW_TOGGLE_READY
 
     logic ar_history_full;
     logic aw_history_full;
     logic read_latency_requirement_met;
 
-    assign axi_slv_aw_ready = fast_b_response ? !fast_b_queue_full : !aw_history_full;
-    assign axi_slv_ar_ready = !ar_history_full;
-    assign axi_slv_w_ready  = fast_b_response ? (!axi_mst_w_last || !w_last_queue_full) : !aw_history_full;
+    assign axi_slv_aw_ready = fast_b_response ? !fast_b_queue_full : (aw_ready_random & !aw_history_full);
+    assign axi_slv_ar_ready = ar_ready_random & !ar_history_full;
+    assign axi_slv_w_ready  = fast_b_response ? (!axi_mst_w_last || !w_last_queue_full) : (w_ready_random & !aw_history_full);
 
     shortint unsigned axi_slv_b_delay = '0;
     shortint unsigned axi_slv_r_delay = '0;
@@ -375,8 +404,8 @@ module axi_sw #(
     always @(posedge clk) begin
         if (sys_reset) begin
             /* verilator lint_off BLKSEQ */
-            axi_sw_read_latency_max       = cvm_plusargs::get_int("axi_sw_read_latency_max");
-            axi_sw_read_latency_fixed     = cvm_plusargs::get_int("axi_sw_read_latency_fixed");
+            axi_sw_read_latency_max        = cvm_plusargs::get_int("axi_sw_read_latency_max");
+            axi_sw_read_latency_fixed      = cvm_plusargs::get_int("axi_sw_read_latency_fixed");
             read_latency_timeout_threshold = cvm_plusargs::get_int("axi_sw_read_latency_timeout_threshold");
             read_latency_fifo_threshold    = cvm_plusargs::get_int("axi_sw_read_latency_fifo_threshold");
             reorder_latency_timeout        = cvm_plusargs::get_int("axi_sw_reorder_timeout");
