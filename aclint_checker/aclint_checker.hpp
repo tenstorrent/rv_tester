@@ -152,6 +152,7 @@ class aclint_checker {
 
     void process(const rv_tester_transactions::aclint_checker::cr_ac_mmrwrite < > & cr_ac_mmrwrite);
     void process(const rv_tester_transactions::aclint_checker::axi_ac_write < > & axi_ac_write);
+    void process(const rv_tester_transactions::aclint_checker::mtip_check < > & mtip_check);
     void process(const smc_write_pkt & w);
     void process(const smc_read_pkt & r);
     void process(const smc_req_pkt & read_req);
@@ -160,6 +161,7 @@ class aclint_checker {
     void initializevqueue(std::vector < std::queue < MmrWr >> & q, int size);
     void initializevhash(std::vector < std::unordered_map < int, MmrWr >> & q, int size);
     void check_outstanding_transactions(uint64_t signal);
+    void clear_core_outstanding_transactions(uint64_t signal);
     void set_scope(svScope scope);
     private:
         // cvm::file_logger log;
