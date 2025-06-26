@@ -1246,7 +1246,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
         sc_bypass_.emplace(m.tag, m);
         return;
       }
-      if(m_mcmi_bypass.cbo || ((m.amo && m.amo_op == SC) && !sc_failed(m))) {
+      if(m_mcmi_bypass.attr == 0x1000) {
         bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m, true); 
         // Setting the Cache flag to true for CBO
       }

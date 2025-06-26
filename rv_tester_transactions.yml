@@ -327,6 +327,8 @@ cosim:
                 width: 5
             cbo:
                 width: 1
+            attr:
+                width: 32
             v_ext:
                 width: 1
             data_vec:

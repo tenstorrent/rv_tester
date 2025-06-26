@@ -1158,6 +1158,7 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign m_mcmi_bypasss[n].data.elem_idx = mcmi_bypass[n].elem_idx;
         assign m_mcmi_bypasss[n].data.amo = mcmi_bypass[n].amo;
         assign m_mcmi_bypasss[n].data.amo_op = mcmi_bypass[n].amo_op;
+        assign m_mcmi_bypasss[n].data.attr = mcmi_bypass[n].attr;
         //-------------------------------------------------------------------------------------------
         // End-Of-Test logic:  memory write to designated address
         //    - will cause a save-state event (force-steps=1 if NO instrs being retired currently
