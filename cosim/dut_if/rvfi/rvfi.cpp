@@ -247,6 +247,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_trap<>& m_trap) {
       cvm::log(cvm::HIGH, "Enter patch via exception\n");
       if (FLAGS_cosim) bridge_->set_patch_mode(ENTER_PATCH);
       patch_mode_ = true;
+      patch_mode_first_tag_ = m_trap.order;
     } else if (FLAGS_vec_cmode_tag_override && (ecause_ == CUSTOM_VEC_CMODE)) {
       vec_cmode_ = true;                      // RVTOOLS-3265, RVTOOLS-3479: Adjust tag for conservative mode vector instructions
       vec_cmode_first_tag_ = m_trap.order;    // Capture the tag and use it for all activity related to the vector instruction
@@ -1207,19 +1208,24 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
   mem_t m;
   m.valid = true;
   // Handle tags
-  if (vec_cmode_tags_.contains(m_mcmi_bypass.order))
-      m.tag = vec_cmode_tags_[m_mcmi_bypass.order];
-  else if (vec_cmode_ && (m_mcmi_bypass.order > vec_cmode_first_tag_)) {
+  if (vec_cmode_tags_.contains(m_mcmi_bypass.order)) {
+    m.tag = vec_cmode_tags_[m_mcmi_bypass.order];
+
+  } else if (vec_cmode_ && (m_mcmi_bypass.order > vec_cmode_first_tag_)) {
     vec_cmode_tags_.emplace(m_mcmi_bypass.order, vec_cmode_first_tag_);
     m.tag = vec_cmode_first_tag_;
+
+  } else if (patch_mode_tags_.contains(m_mcmi_bypass.order)) {
+    m.tag = patch_mode_tags_[m_mcmi_bypass.order];
+
+  } else if (patch_mode_ && (m_mcmi_bypass.order >= patch_mode_first_tag_)) {
+    patch_mode_tags_.emplace(m_mcmi_bypass.order, patch_mode_first_tag_);
+    m.tag = patch_mode_first_tag_;
+
+  } else {
+    m.tag = m_mcmi_bypass.order;
   }
-  else if (patch_mode_tags_.contains(m_mcmi_bypass.order))
-      m.tag = patch_mode_tags_[m_mcmi_bypass.order];
-  else if (patch_mode_) {
-      patch_mode_tags_.emplace(m_mcmi_bypass.order, patch_mode_first_tag_);
-      m.tag = patch_mode_first_tag_;
-  } else
-      m.tag = m_mcmi_bypass.order;
+
   m.hart   = m_mcmi_bypass.hart;
   m.cycle  = m_mcmi_bypass.cycle;
   m.v_ext  = m_mcmi_bypass.v_ext;
