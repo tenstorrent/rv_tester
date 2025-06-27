@@ -8,3 +8,4 @@ repositories.bzl
 repositories2.bzl
 infra/container/gitlab-container.yml
 infra/container/container-id.sh
+infra/bzsim-config/sha.json
