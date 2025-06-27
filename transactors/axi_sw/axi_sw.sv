@@ -195,6 +195,7 @@ module axi_sw #(
         export "DPI-C" function axi_sw_r_``S;
 
     `AXI_SW_R_SIZED(8)
+    `AXI_SW_R_SIZED(32)
     `AXI_SW_R_SIZED(64)
 
     `undef AXI_SW_R_SIZED
