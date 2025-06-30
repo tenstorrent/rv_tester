@@ -1098,8 +1098,11 @@ void bridge::pre_step_interrupt_poke(hart_id_t hart, const rv_instr_t& d, whispe
       bridge_log_(cvm::MEDIUM, "<{}> DUT took interrupt, Whisper did not. dcause:[{}] prev_mip:{}\n", w.time, d.icause, prev_hw_mip_[d.icause]);
     if (prev_hw_mip_[d.icause]) {
       bridge_log_(cvm::MEDIUM, "<{}> Timing sensitive mismatch: Resynch and keep going. cause: {})\n", w.time, d.icause);
-      if(d.icause != 9)
-        poke_mip(hart, w.time, (uint64_t)1 << d.icause);
+      if (d.icause != 9) { 
+        std::bitset<64> mip = 0;
+        peek_mip(hart, w.time, mip);
+        poke_mip(hart, w.time, mip| std::bitset<64> ((uint64_t)1 << d.icause));
+      }
       resynch_icause_ = d.icause;
       // Undefer all interrupts
       if (deferred_intr_) {
