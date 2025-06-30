@@ -234,6 +234,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     typedef longint unsigned LU;
     parameter int unsigned location = cvm_topology_gen::get_location (topology.TOP.PLATFORM.COSIM.ID, NUM);
     bit rvfi_enabled,mcm_enabled,offline_dpi;
+    bit cache_model_enabled;
     bit offline_dpi_test;                          // this disables the sending of mcmi_bypass and mcmi_insert even when to_host == 1
     bit poke_mip_timer;
 
@@ -753,6 +754,7 @@ localparam CAM_IHBIT = CAM_IBITS;
         if (reset) begin
             /* verilator lint_off BLKSEQ */
             rvfi_enabled = (cvm_plusargs::get_bool("rvfi") != '0) & (location != cvm_topology::nil);
+            cache_model_enabled = (cvm_plusargs::get_bool("cache_model_en") != '0);
             mcm_enabled = (cvm_plusargs::get_bool("mcm") != '0);
             offline_dpi = (cvm_plusargs::get_bool("offline_dpi") != '0);
             offline_dpi_test = (cvm_plusargs::get_bool("offline_dpi_test") != '0);
@@ -1241,14 +1243,14 @@ localparam CAM_IHBIT = CAM_IBITS;
     end
 
     // m_mcmi_devict
-    assign m_mcmi_devicts[0].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_core_reset & devict_cl_valid & (devict_cl_addr !== devict_cl_addr_d1);
+    assign m_mcmi_devicts[0].valid = MCMI_EN & mcm_enabled & rvfi_enabled & cache_model_enabled & ~dut_core_reset & devict_cl_valid & (devict_cl_addr !== devict_cl_addr_d1);
     assign m_mcmi_devicts[0].data.location = location;
     assign m_mcmi_devicts[0].data.cycle = devict_cl_valid ? clocks : '0;
     assign m_mcmi_devicts[0].data.hart = NUM;        
     assign m_mcmi_devicts[0].data.addr = (devict_cl_addr >> 6) << 6; // align to cacheline boundary
 
     // m_mcmi_flush
-    assign m_mcmi_flushs[0].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_core_reset & flush_cl_valid & (flush_cl_addr !== flush_cl_addr_d1);
+    assign m_mcmi_flushs[0].valid = MCMI_EN & mcm_enabled & rvfi_enabled & cache_model_enabled & ~dut_core_reset & flush_cl_valid & (flush_cl_addr !== flush_cl_addr_d1);
     assign m_mcmi_flushs[0].data.location = location;
     assign m_mcmi_flushs[0].data.cycle = flush_cl_valid ? clocks : '0;
     assign m_mcmi_flushs[0].data.hart = NUM;
@@ -1256,7 +1258,7 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     // m_mcmi_writeback
     for(genvar n = 0; n < 2; n++) begin
-      assign m_mcmi_writebacks[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_core_reset & (writeback_cl_valid[n]) & (writeback_cl_addr[n] !== writeback_cl_addr_d1[n]);
+      assign m_mcmi_writebacks[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & cache_model_enabled & ~dut_core_reset & (writeback_cl_valid[n]) & (writeback_cl_addr[n] !== writeback_cl_addr_d1[n]);
       assign m_mcmi_writebacks[n].data.location = location;
       assign m_mcmi_writebacks[n].data.cycle = writeback_cl_valid[n] ? clocks : '0;
       assign m_mcmi_writebacks[n].data.addr = writeback_cl_addr[n];
@@ -1264,7 +1266,7 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     // m_mcmi_dfetch
     for(genvar n = 0; n < 2; n++) begin
-      assign m_mcmi_dfetchs[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_core_reset & (dfetch_cl_valid[n]) & (dfetch_cl_addr[n] !== dfetch_cl_addr_d1[n]);
+      assign m_mcmi_dfetchs[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & cache_model_enabled & ~dut_core_reset & (dfetch_cl_valid[n]) & (dfetch_cl_addr[n] !== dfetch_cl_addr_d1[n]);
       assign m_mcmi_dfetchs[n].data.location = location;
       assign m_mcmi_dfetchs[n].data.cycle = dfetch_cl_valid[n] ? clocks : '0;
       assign m_mcmi_dfetchs[n].data.addr = dfetch_cl_addr[n];

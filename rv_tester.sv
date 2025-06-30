@@ -880,6 +880,7 @@ module rv_tester
           .poke_event_in(poke_event_in),
           .disable_checks(disable_checks),
           .boot_done(boot_done[c]),
+          `ifdef CACHE_MODEL_EN
           .devict_cl_valid(devict_cl_valid[c]),
           .devict_cl_addr(devict_cl_addr[c]),
           .flush_cl_valid(flush_cl_valid[c]),
@@ -888,6 +889,19 @@ module rv_tester
           .writeback_cl_addr(writeback_cl_addr),
           .dfetch_cl_valid(mcm_dfetch_valid[c]),
           .dfetch_cl_addr(dfetch_cl_addr),
+          `else
+          .devict_cl_valid('0),
+          .devict_cl_addr('0),
+          .flush_cl_valid('0),
+          .flush_cl_addr('0),
+          .writeback_cl_valid('0),
+          .writeback_cl_addr('0),
+          .dfetch_cl_valid('0),
+          .dfetch_cl_addr('0),
+          // Tying to 0 to prevent X-propagation
+          `endif
+
+          
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PORTS(1, c, 0)
       );
     end

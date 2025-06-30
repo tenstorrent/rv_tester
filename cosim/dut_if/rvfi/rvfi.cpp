@@ -21,6 +21,7 @@ DEFINE_bool(rvfi_log,  true, "Enable rvfi logging");
 DEFINE_bool(rvfi_log_36b_uop, true, "rvfi log - print 36b uop instead of default 32b riscv opcode");
 DEFINE_bool(mcm, true, "Enable mcm");
 DEFINE_bool(cosim, true, "Enable cosim checking");
+DEFINE_bool(cache_model_en, false, "Enable MCM Cache Model");
 DEFINE_bool(emulate_amo_arithmetic, true, "Emulate amo arithmetic if dut harness does not provide amo outputs");
 DEFINE_bool(vec_cmode_tag_override, true, "If vector instruction enters conservative mode, override subsequent rvfi/mcmi tags with original instruction tag");
 DEFINE_bool(patch_mode_tag_override, true, "In Patch mode, override subsequent rvfi/mcmi tag with original instruction tag");
