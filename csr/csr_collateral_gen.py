@@ -71,7 +71,7 @@ class CsrMap:
         """Generate C++ header file with CSR structures"""
         def sanitize_name(name):
             """Sanitize names to be valid C++ identifiers"""
-            sanitized = name.replace("-", "_").replace(".", "_")
+            sanitized = name.replace("-", "_").replace(".", "_").replace(" ","_")
             if sanitized and sanitized[0].isdigit():
                 sanitized = "_" + sanitized
             cpp_keywords = {

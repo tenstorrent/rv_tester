@@ -902,7 +902,7 @@ void bridge::post_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
 void bridge::check_debug_mode_entry_via_ebreak(const rv_instr_t& instr) {
   dtvec_ebreak_ = false;
   for (auto& csr : instr.csr) {
-    if (instr.valid && instr.ucode && csr.valid && (csr.csr_addr == c_dtvec_csr) && (csr.csr_wdata & 0x10)==0) {
+    if (instr.valid && instr.ucode && csr.valid && (csr.csr_addr == c_dtvec_csr_addr) && (csr.csr_wdata & 0x10)==0) {
       dtvec_ebreak_ = true;
       if (!debug_mode_){
           debug_mode_ = !instr.excp && !(instr.priv == 6);
