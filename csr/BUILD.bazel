@@ -1,17 +1,13 @@
-load("@rules_hdl//verilog:providers.bzl", "verilog_library")
+load(":csr_collateral_gen.bzl", "csr_collateral_gen")
 
-cc_library(
-    name     = "csr_map",
-    hdrs     = [
-                "csr_map.hpp",
-               ],
-    alwayslink = True,
+py_binary(
+    name = "csr_collateral_gen",
+    srcs = ["csr_collateral_gen.py"],
     visibility = ["//visibility:public"],
-    strip_include_prefix = ".",
 )
 
-verilog_library(
-    name = "csr_map_pkg",
-    srcs = ["csr_map_pkg.sv"],
+filegroup(
+    name = "csr_spec",
+    srcs = ["csr_spec.yaml"],
     visibility = ["//visibility:public"],
 )

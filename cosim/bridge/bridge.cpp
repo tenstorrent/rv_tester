@@ -17,7 +17,7 @@
 #include "sysmod/sysmod_params.hpp"
 #include "cosim/utils/eot/eot_plusargs.h"
 #include "whisper_client.h"
-#include "csr/csr_map.hpp"
+#include "csr_collateral.hpp"
 using namespace CSR;
 
 #include <cstring>          // strlen

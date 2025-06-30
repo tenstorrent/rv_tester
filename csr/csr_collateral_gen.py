@@ -341,8 +341,20 @@ class CsrMap:
                     f.write(f"parameter int {prefix}_LSB = {lsb};\n")
                     f.write(f"parameter int {prefix}_WIDTH = {width};\n")
                     
-                    # Field reset value
-                    f.write(f"parameter logic [{width-1}:0] {prefix}_RESET = {reset_val}[{msb}:{lsb}];\n")
+                    # Field reset value - extract field value from full reset value
+                    field_reset_val = 0
+                    if field.reset_val:
+                        reset_str = str(field.reset_val).strip()
+                        if reset_str.lower().startswith("0x"):
+                            reset_str = reset_str[2:]
+                        try:
+                            full_reset_val = int(reset_str, 16)
+                            # Extract the field bits
+                            field_reset_val = (full_reset_val >> lsb) & ((1 << width) - 1)
+                        except ValueError:
+                            field_reset_val = 0
+                    
+                    f.write(f"parameter logic [{width-1}:0] {prefix}_RESET = {width}'h{field_reset_val:0{(width+3)//4}X};\n")
                     
                     # Field bit mask (for extracting field from full CSR value)
                     bit_mask = 0
@@ -428,7 +440,7 @@ class CsrMap:
                     f.write(f"parameter logic [11:0] {sanitized_csr_name}_ALIAS_OF_ADDR = {alias_csr_name}_ADDR;\n")
                 f.write("\n")
             
-            f.write("endpackage : csr_defines_pkg\n")
+            f.write("endpackage : csr_map_pkg\n")
 
         print(f"Generated SystemVerilog defines file: {output_file}")
 
@@ -436,8 +448,8 @@ class CsrMap:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--csr_spec", type=str, help="Path to CSR specification YAML file")
-    parser.add_argument("--output_hpp", type=str, default="csr_map.hpp", help="Output C++ header file")
-    parser.add_argument("--output_sv", type=str, default="csr_map_pkg.sv", help="Output SystemVerilog defines file")
+    parser.add_argument("--csr_map_hpp", type=str, default="csr_map.hpp", help="Output C++ header file")
+    parser.add_argument("--csr_map_sv", type=str, default="csr_map_pkg.sv", help="Output SystemVerilog defines file")
     args = parser.parse_args()
     
     if not args.csr_spec:
@@ -445,8 +457,8 @@ if __name__ == "__main__":
         exit(1)
         
     csr_map = CsrMap(args.csr_spec)
-    csr_map.generate_hpp_file(args.output_hpp)
-    csr_map.generate_sv_file(args.output_sv)
+    csr_map.generate_hpp_file(args.csr_map_hpp)
+    csr_map.generate_sv_file(args.csr_map_sv)
 
 
 
