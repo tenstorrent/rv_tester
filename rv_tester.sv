@@ -842,7 +842,7 @@ module rv_tester
     logic [51:0] writeback_addr [1:0];
     logic [51:0] dfetch_addr [1:0];
     assign devict_addr = '0;
-    for(int i = 0; i < 2; i++) begin
+    for(genvar i = 0; i < 2; i++) begin : no_cache_model_init
         assign writeback_addr[i] = '0;
         assign dfetch_addr[i] = '0;
     end
