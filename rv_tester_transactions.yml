@@ -1816,6 +1816,18 @@ aclint_checker:
                 width: ${TOP.PLATFORM.XLEN}
             user:
                 width: 8
+    mtip_check:
+        domain: 1
+        num: 9
+        fields:
+            check_1:
+                width: 1
+            check_2:
+                width: 1
+            clock:
+                width: 64
+            hart:
+                width: 32
 
 reset_driver:
     num: 1

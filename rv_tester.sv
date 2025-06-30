@@ -471,10 +471,10 @@ module rv_tester
             hart_enable_mask     <= cvm_plusargs::get_int("hart_enable_mask");
             perf_count           <= '0;
             ntrace_stop_on_wrap  <= cvm_plusargs::get_bool("ntrace_stop_on_wrap_seq_en") != '0;
-            clock_mode           <= clk_profile[2:0];
             num_harts            <= cvm_plusargs::get_int("num_harts");
 
         end
+        clock_mode           <= clk_profile[2:0];//TODO: dynamic clock swith unsupported if the clock_mode is always assigned with clk profile
         num_reruns      <= num_reruns - int'(rerun_now);
         if (num_reruns < 0) begin
             num_reruns  <= cvm_plusargs::get_int("num_reruns");
@@ -565,6 +565,7 @@ module rv_tester
 
     // sys_reset per clock domain
     logic sys_reset_pending [NCLKS-1:0];
+    logic terminate_sync    [NCLKS-1:0];
     for (genvar c = 0; c < NCLKS; c++) begin
         if (c != TB_CLK_IDX) begin
             rv_tester_cdc_pulse cdc_pulse (
@@ -574,11 +575,19 @@ module rv_tester
                 .pulse_b (sys_reset[c]),
                 .pulse_pending_or_asserted_a (sys_reset_pending[c])
             );
+ 
+            rv_tester_sync3 terminate_sync3 (
+                .clk (dut_clk[c]),
+                .d   (terminate),
+                .q   (terminate_sync[c])
+            );
+
         end else begin
             always_ff @(posedge dut_clk[TB_CLK_IDX]) begin
                 sys_reset[c] <= rv_tester_reset;
             end
             assign sys_reset_pending[c] = sys_reset[c];
+            assign terminate_sync   [c] = terminate;
         end
     end
 
@@ -916,6 +925,8 @@ module rv_tester
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PORTS(1, c, 0)
       );
     end
+    
+    assign boot_done_all = &boot_done;
 `endif
 
     always @(posedge dut_clk[TB_CLK_IDX]) begin
@@ -1117,7 +1128,7 @@ module rv_tester
             .hpmi(hpmi[p]),
             .sc_pmci(sc_pmci),
             .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
-            .terminate,
+            .terminate(terminate_sync[CORE_CLK_IDX]),
             `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PORTS(1, p, 0),
             `RV_TESTER_TRANSACTIONS_PMU_SC_SOURCE_PORTS(1, p, 0)
         );
@@ -1137,7 +1148,7 @@ module rv_tester
             .hpmi(hpmi[p]),
             .sc_pmci(),
             .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
-            .terminate,
+            .terminate(terminate_sync[CORE_CLK_IDX]),
             `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PORTS(1, p, 0)
         );
       end

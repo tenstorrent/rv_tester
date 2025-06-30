@@ -922,6 +922,7 @@ package rv_tester_params;
     input  logic                             terminated,                                            \
     input  logic                             terminate_now,                                            \
     output                                   quiesced,                                              \
+    input                                    boot_done_all,                                         \
     input logic [64-1:0]                     cosim_eot_addr,                                        \
     input  rv_tester_pkg::dm_write_t         dmi_write,                                             \
     input  rv_tester_pkg::jtag_if_t          jtag_req,                                              \
@@ -1018,6 +1019,7 @@ package rv_tester_params;
     logic                                    terminated;                                            \
     logic                                    terminate_now;                                            \
     logic                                    quiesced;                                              \
+    logic                                    boot_done_all;                                         \
     logic [64-1:0]                           cosim_eot_addr;                                        \
     rv_tester_pkg::dm_write_t                dmi_write;                                             \
     rv_tester_pkg::jtag_if_t                 jtag_req;                                              \
