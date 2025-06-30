@@ -203,7 +203,15 @@ whisperClient<URV>::constructSystem(std::shared_ptr<WdRiscv::Session<URV>>& sess
     if (ncores > 1)                   args_str.insert(args_str.end(), {"--deterministic", std::to_string(FLAGS_whisper_deterministic)});
   } else {
     if (FLAGS_mcm) {                  args_str.push_back("--mcm");
-      if (!FLAGS_ppo)                 args_str.push_back("--noppo");
+      if(!FLAGS_cache_model_en) {
+        args_str.push_back("--dismcmcache");
+      }
+      if (!FLAGS_ppo) {              
+        args_str.push_back("--noppo");
+      }
+    }
+    else {
+      args_str.push_back("--dismcmcache");
     }
   }
   std::string string_ = "";
