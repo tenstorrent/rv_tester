@@ -183,7 +183,7 @@ cvm::messenger::task<void> snoop_gen_sequence::blocking_read(const transactor::r
   axi::a_no_id_t ar_txn;
   unsigned id;
   ar_txn.w     = false;
-  ar_txn.addr  = r.addr & 0xFFFFFFF8;
+  ar_txn.addr  = r.addr & 0xFFFFFFFFFFFFFFF8;
   ar_txn.size  = FLAGS_rand_snoop_size_en ? (rng1() % 5) + 2 : 6;
   ar_txn.len   = 0;
   ar_txn.burst = axi::burst_t(0);
