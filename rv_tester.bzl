@@ -14,24 +14,19 @@ load("@rv_tester//cla:cla.bzl", "cla_gen")
 load("@rv_tester//triggers:triggers.bzl", "triggers_gen")
 load("@rv_tester//aclint_checker:aclint_checker.bzl", "aclint_checker_gen")
 load("@rv_tester//transactors/axi_sw:axi_sw.bzl", "axi_sw_gen")
-load("@rv_tester//csr:csr_collateral_gen.bzl", "csr_collateral_gen")
+load("@rv_tester//csr:csr_param_gen.bzl", "csr_param_gen")
 
 def rv_tester_gen(name, topology, csr_spec, visibility = None, cc_attrs = {}, **kwargs):
     """Generate rv_tester build targets with CSR collateral available to all modules.
     
     This function generates CSR collateral files and makes them available as dependencies:
-    - {name}_csr_collateral_hpp: C++ header file for CSR definitions ({name}_csr_map.hpp)
-    - {name}_csr_collateral_sv: SystemVerilog file for CSR definitions ({name}_csr_map.sv)
+    - csr_param_hpp: C++ header file for CSR definitions ({name}_csr_param.hpp)
+    - {name}_csr_param_sv: SystemVerilog file for CSR definitions ({name}_csr_param.sv)
     
     The CSR collateral is automatically included in:
-    - SystemVerilog modules: {name}_csr_collateral_sv is added to verilog_library deps
-    - C++ modules: {name}_csr_collateral_hpp is added to cc_library deps
+    - SystemVerilog modules: {name}_csr_param_sv is added to verilog_library deps
+    - C++ modules: {name}_csr_param_hpp is added to cc_library deps
     
-    Generated files use instance-specific names to avoid conflicts:
-    - C++ code can #include CSR_MAP_HEADER (preprocessor define)
-    - SystemVerilog code can import {name}_csr_map.sv
-    
-    The CSR_MAP_HEADER define contains the correct filename for the instance.
     
     Args:
         name: Base name for generated targets
@@ -46,10 +41,10 @@ def rv_tester_gen(name, topology, csr_spec, visibility = None, cc_attrs = {}, **
     rv_tester_assert_dpi = name + "_assert_dpi"
     rv_tester_sv = name + "_sv"
 
-    csr_collateral_gen(
-        name = name + "_csr_map",
+    csr_param_gen(
+        name = name + "_csr_param",
         csr_spec = csr_spec,
-        package = "csr_collateral",
+        package = "csr_param",
         cc_attrs = cc_attrs,
     )
 
@@ -79,7 +74,7 @@ def rv_tester_gen(name, topology, csr_spec, visibility = None, cc_attrs = {}, **
     cosim_gen(
         name = name + "_cosim",
         packet = name + "_transactions",
-        csr_collateral = name + "_csr_map",
+        csr_param = name + "_csr_param",
         topology = topology,
         harness = name + "_harness",
         cc_attrs = cc_attrs,

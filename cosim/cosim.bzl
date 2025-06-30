@@ -1,6 +1,6 @@
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
 
-def cosim_gen(name, packet, csr_collateral, topology, harness, visibility = None, cc_attrs = {}, **kwargs):
+def cosim_gen(name, packet, csr_param, topology, harness, visibility = None, cc_attrs = {}, **kwargs):
 
     cosim_dpi = name + "_dpi"
     cosim_sv = name + "_sv"
@@ -51,7 +51,7 @@ def cosim_gen(name, packet, csr_collateral, topology, harness, visibility = None
                 "@rv_tester//cosim/bridge:bridge.cpp",
     ],
      deps    = [
-                csr_collateral + "_cc",
+                csr_param + "_cc",
                 "@rv_tester//common:parser",
                 "@rv_tester//:structs",
                 "@rv_tester//cosim/utils/general:util",

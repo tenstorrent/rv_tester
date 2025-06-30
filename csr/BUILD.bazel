@@ -1,8 +1,8 @@
-load(":csr_collateral_gen.bzl", "csr_collateral_gen")
+load(":csr_param_gen.bzl", "csr_param_gen")
 
 py_binary(
-    name = "csr_collateral_gen",
-    srcs = ["csr_collateral_gen.py"],
+    name = "csr_param_gen",
+    srcs = ["csr_param_gen.py"],
     visibility = ["//visibility:public"],
 )
 

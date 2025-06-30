@@ -1,6 +1,6 @@
 load("@rules_hdl//verilog:providers.bzl", "verilog_library")
 
-def _csr_collateral_gen_impl(ctx):
+def _csr_param_gen_impl(ctx):
     
     name = ctx.attr.name    
     csr_map_hpp = ctx.outputs.csr_map_hpp
@@ -16,10 +16,10 @@ def _csr_collateral_gen_impl(ctx):
 
     ctx.actions.run(
         arguments = [args],
-        executable = ctx.executable._csr_collateral_gen,
+        executable = ctx.executable._csr_param_gen,
         inputs = inputs,
         outputs = outputs,
-        mnemonic = "CSRCollateralGen"
+        mnemonic = "CSRParamGen"
     )
 
     return [
@@ -28,8 +28,8 @@ def _csr_collateral_gen_impl(ctx):
         ),
     ]
 
-_csr_collateral_gen = rule(
-    _csr_collateral_gen_impl,
+_csr_param_gen = rule(
+    _csr_param_gen_impl,
     attrs = {
         "csr_spec": attr.label(
             allow_single_file = True,
@@ -44,8 +44,8 @@ _csr_collateral_gen = rule(
             mandatory = True,
             doc = "Output SystemVerilog defines file",
         ),
-        "_csr_collateral_gen": attr.label(
-            default = "@rv_tester//csr:csr_collateral_gen",
+        "_csr_param_gen": attr.label(
+            default = "@rv_tester//csr:csr_param_gen",
             executable = True,
             cfg = "exec",
         ),
@@ -55,7 +55,7 @@ _csr_collateral_gen = rule(
     ],
 )
 
-def csr_collateral_gen(name, csr_spec, package = "", visibility = None, cc_attrs = {}, **kwargs):
+def csr_param_gen(name, csr_spec = "@rv_tester//csr:csr_spec", package = "", visibility = None, cc_attrs = {}, **kwargs):
 
     csr_map_hpp = name + ".hpp"
     csr_map_sv = name + ".sv"
@@ -64,7 +64,7 @@ def csr_collateral_gen(name, csr_spec, package = "", visibility = None, cc_attrs
       csr_map_hpp = name + "/" + package + ".hpp"
       csr_map_sv = name + "/" + package + ".sv"
 
-    _csr_collateral_gen(
+    _csr_param_gen(
         name = name,
         csr_spec = csr_spec,
         csr_map_hpp = csr_map_hpp,
