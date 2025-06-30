@@ -875,6 +875,8 @@ module rv_tester
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PORTS(1, c, 0)
       );
     end
+    
+    assign boot_done_all = &boot_done;
 `endif
 
     always @(posedge dut_clk[TB_CLK_IDX]) begin
