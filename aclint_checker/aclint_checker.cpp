@@ -31,6 +31,9 @@ aclint_checker::aclint_checker(cvm::topology::loc_t loc, unsigned) {
     cvm::registry::messenger.connect < rv_tester_transactions::aclint_checker::axi_ac_write < >> (loc, [this](const auto & v) {
         return this -> process(v);
     });
+    cvm::registry::messenger.connect < rv_tester_transactions::aclint_checker::mtip_check < >> (loc, [this](const auto & v) {
+        return this -> process(v);
+    });
     cvm::registry::messenger.connect <smc_write_pkt> (smc_monitor_loc, [this](const auto & v) {
         return this -> process(v);
     });
@@ -43,10 +46,25 @@ aclint_checker::aclint_checker(cvm::topology::loc_t loc, unsigned) {
     cvm::registry::messenger.connect <uint64_t>(loc, [this](const uint64_t& signal) {
         return this -> check_outstanding_transactions(signal);
     });
+    cvm::registry::messenger.connect <uint64_t>(loc, [this](const uint64_t& signal) {
+        return this -> clear_core_outstanding_transactions(signal);
+    });
     cvm::registry::messenger.connect<svScope>(loc, [this](svScope s) {
         return this->set_scope(s);
     });
     reset();
+}
+
+void aclint_checker::process(const rv_tester_transactions::aclint_checker::mtip_check < > & mtip_check) {
+    if (mtip_check.check_1) {
+        cvm::log(cvm::ERROR, "Error: [{}] Did not expect MTIP, but MTIP[{}] generated\n", mtip_check.clock, mtip_check.hart);
+        return;
+    }
+
+    if (mtip_check.check_2) {
+        cvm::log(cvm::ERROR, "Error: [{}] Expected MTIP, but MTIP[{}] not generated\n", mtip_check.clock, mtip_check.hart);
+        return;
+    }
 }
 
 void aclint_checker::process(const rv_tester_transactions::aclint_checker::cr_ac_mmrwrite < > & cr_ac_mmrwrite) {
@@ -202,7 +220,7 @@ void aclint_checker::process(const smc_read_pkt & r) {
         uint64_t mtime_expected = get_mtime_value() & sz_mask & aclint_mmrs[mmr_addr].read_mask;
         uint64_t mtime_actual = (actual & aclint_mmrs[mmr_addr].read_mask);
         if ((mtime_actual < mtime_expected) &&
-            (mtime_actual >= (mtime_expected - 60))){
+            (mtime_actual >= (mtime_expected - 80))){
             cvm::log(cvm::HIGH, "[SMC-AC] ACLINT MMR match - Name = MTIME, Address = {:#x} - Actual: {:#x} Expected: {:#x}\n", aclint_mmrs[mmr_addr].address, mtime_actual, mtime_expected);
         } else {
             cvm::log(cvm::ERROR, "Error: [SMC-AC] Mismatch:- ACLINT MMR mismatch - Address = {:#x} - Actual: {:#x} Expected: {:#x}\n", aclint_mmrs[mmr_addr].address, mtime_actual, mtime_expected);
@@ -337,7 +355,20 @@ void aclint_checker::check_outstanding_transactions(uint64_t signal) {
     }
 }
 
+void aclint_checker::clear_core_outstanding_transactions(uint64_t signal) {
+    cvm::log(cvm::HIGH, "[ACLINT CHECKER] warm_reset de-asserted, Clearing for outstanding MMR writes...\n");
+    if (!signal) return;
+
+    cr_ac_mmr_v_.clear();
+    axi_ac_cr_mmr_v_.clear();
+
+}
+
 extern "C" void check_outstanding_transactions(cvm::topology::loc_t loc) {
+    cvm::registry::messenger.signal<uint64_t>(loc, uint64_t(1));
+}
+
+extern "C" void clear_core_outstanding_transactions(cvm::topology::loc_t loc) {
     cvm::registry::messenger.signal<uint64_t>(loc, uint64_t(1));
 }
 

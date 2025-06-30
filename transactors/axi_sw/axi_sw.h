@@ -120,6 +120,9 @@ class axi_sw {
         uint64_t read_bytes_;
         uint64_t write_bytes_;
 
+        uint16_t add_latency_min_ = 0;
+        uint16_t add_latency_max_ = 1;
+
     public:
 
         axi_sw(cvm::topology::loc_t loc, unsigned id);
@@ -134,11 +137,4 @@ class axi_sw {
 
         axi::data_width_t   data_width()   const { return axi_->data_width()  ; }
         axi::strobe_width_t strobe_width() const { return axi_->strobe_width(); }
-
-        // Helper function to convert a string to lowercase.
-        static std::string to_lower(const std::string& s) {
-          std::string result = s;
-          std::transform(result.begin(), result.end(), result.begin(), [](unsigned char c) { return std::tolower(c); });
-          return result;
-        }
 };

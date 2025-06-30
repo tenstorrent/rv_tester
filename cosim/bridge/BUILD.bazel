@@ -10,6 +10,7 @@ cc_library(
                 "//cosim/bridge_if:bridge_if",
                 "//common:common",
                 "//csr:csr_map",
+                "//common:parser",
                 "@CoreArchChecker//src:cac_core",
                 "@CoreArchChecker//src:cac_lib",
                 "@cvm//:plusargs",

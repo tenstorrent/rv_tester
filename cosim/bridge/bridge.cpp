@@ -40,6 +40,7 @@ DEFINE_string(cosim_resynch_csr, "", "List of csr mnemonics to resynch whisper w
 DEFINE_string(cosim_resynch_excp, "", "List of exception codes on which we should resynch whisper with dut state");
 DEFINE_string(cosim_resynch_excp_addr, "", "List of exception codes on which we should resynch whisper with dut state only if address matches provided list. Format: 5:0x1000,9:0x2000-0x3000");
 DEFINE_string(cosim_error_excp, "", "List of exception codes on which we should terminate with an error");
+DEFINE_string(cosim_remap_opcode, "", "Map of old:new opcode remapping. Format: 0x12345678:0x87654321,0xabcd:0xdcba");
 DEFINE_uint64(cosim_resynch_intr_x_csr_threshold, 1, "Evaluate check/defer mechanism for these many instructions post detection");
 DEFINE_bool(poke_mip_timer, false, "Poke mip timer bits to handle timer interrupts instead of poking time csr");
 DEFINE_bool(mip_resynch, true, "Resynch whisper with dut state on mip mismatch condition");
@@ -262,45 +263,19 @@ bridge::~bridge() {}
   }
 
   // Parse plusargs and store in containers
-  cosim_resynch_excp_addr_  = parse_input(FLAGS_cosim_resynch_excp_addr , type_tag<key_hex_map>{});
-  cosim_resynch_excp_       = parse_input(FLAGS_cosim_resynch_excp      , type_tag<std::vector<int>>{});
-  cosim_error_excp_         = parse_input(FLAGS_cosim_error_excp        , type_tag<std::vector<int>>{});
-  cosim_error_instr_        = parse_input(FLAGS_cosim_error_instr       , type_tag<std::vector<std::string>>{});
+  cosim_resynch_excp_addr_  = parser::parse_input(FLAGS_cosim_resynch_excp_addr , parser::type_tag<parser::pair_map<uint64_t, uint64_t>>{});
+  cosim_resynch_excp_       = parser::parse_input(FLAGS_cosim_resynch_excp      , parser::type_tag<parser::vector<uint64_t>>{});
+  cosim_error_excp_         = parser::parse_input(FLAGS_cosim_error_excp        , parser::type_tag<parser::vector<uint64_t>>{});
+  cosim_error_instr_        = parser::parse_input(FLAGS_cosim_error_instr       , parser::type_tag<parser::vector<std::string>>{});
+
+  // Only parse and enable opcode remapping if the plusarg is non-empty
+  if (!FLAGS_cosim_remap_opcode.empty()) {
+    cosim_remap_opcode_       = parser::parse_input(FLAGS_cosim_remap_opcode    , parser::type_tag<parser::map<uint32_t, uint32_t>>{});
+    cosim_remap_opcode_enabled_ = true;
+  }
 }
 
-// Parses a string containing key-to-hex-range mappings with a strict format (no whitespace).
-// Format examples:
-//   "5:0x1000"         -> key 5 with a single hexadecimal value (0x1000)
-//   "6:0x2000-0x3000"   -> key 6 with a range from 0x2000 to 0x3000
-bridge::key_hex_map bridge::parse_key_with_hex_ranges(const std::string &input) {
-    key_hex_map mapping;
 
-    if (input.empty())
-        return mapping;
-
-    // Regex breakdown:
-    //   (\d+)             - key: one or more digits (capture group 1)
-    //   :                 - a colon
-    //   (0x[0-9a-fA-F]+)  - a hexadecimal number (capture group 2)
-    //   (?:-(0x[0-9a-fA-F]+))? - an optional dash and another hexadecimal number (capture group 3)
-    //   (?:,|$)           - either a comma or the end-of-string
-    std::regex entry_regex(R"((\d+):(0x[0-9a-fA-F]+)(?:-(0x[0-9a-fA-F]+))?(?:,|$))");
-
-    auto begin = std::sregex_iterator(input.begin(), input.end(), entry_regex);
-    auto end = std::sregex_iterator();
-
-    for (auto it = begin; it != end; ++it) {
-        std::smatch match = *it;
-        int key = std::stoi(match[1].str());
-        uint64_t start_val = std::stoull(match[2].str(), nullptr, 0);
-        uint64_t end_val = start_val;  // If no range is provided, the range is just a single value.
-        if (match[3].matched) {
-            end_val = std::stoull(match[3].str(), nullptr, 0);
-        }
-        mapping[key].push_back({start_val, end_val});
-    }
-    return mapping;
-}
 
 void bridge::store_cbo_inv_addr(const uint64_t& payload) {
   curr_cbo_inv_addr_ = payload;
@@ -663,7 +638,7 @@ void bridge::process_dut_instr_retire(hart_id_t hart, rv_instr_t& d) {
   // Fail right away if unexpected instruction as per plusarg
   // Don't fail on instruction page faults
   std::string instr = cosim_util::get_nth_word(w.disasm, 1);
-  if (find(cosim_error_instr_, instr)) {
+  if (parser::find(cosim_error_instr_, instr)) {
     if (instr == "illegal" && d.excp && d.ecause == INSN_PAGE_FAULT) {
       IF_DEBUG("skipping illegal instruction error");
       // Skip the error
@@ -753,7 +728,8 @@ void bridge::compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w,
   if (FLAGS_bridge_log)
     bridge_log_(cvm::MEDIUM, "{}", cac_.GetStatusStr(hart));
 
-  std::string resource = cac_.GetResourceStr(hart);
+  std::string resource, dut, iss;
+  cac_.GetResourceStr(hart, resource, dut, iss);
   std::string instr = cosim_util::get_nth_word(w.disasm, 1);
   if (instr.substr(0,3) == "csr") {
     instr = "csr:" + cosim_util::get_nth_word(w.disasm, 3);
@@ -780,7 +756,10 @@ void bridge::compare_dut_whisper_state(hart_id_t hart, const whisper_state_t& w,
     } else {
       print_instr_stdout(hart, w);
       print(cvm::NONE, "{}", cac_.GetStatusStr(hart));
-      error("Hart {}: Core Arch Checker Mismatch - {} - {}\n", hart, resource,  instr);
+      mismatch_res_ = resource; mismatch_dut_ = dut; mismatch_iss_ = iss;
+      if (dut == "") dut = "none";
+      if (iss == "") iss = "none";
+      error("Hart {}: Core Arch Checker Mismatch - {} - {} DUT: {} ISS: {}\n", hart, resource,  instr, dut, iss);
       return;
     }
   }
@@ -835,7 +814,9 @@ void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d)
 
   // error on mismatch
   if (!csr_cac_.GetStatus(hart)) {
-    std::string csr = get_csr_name(csr_cac_.GetResourceStr(hart).substr(2));
+    std::string csr, dut, iss;
+    csr_cac_.GetResourceStr(hart, csr, dut, iss);
+    csr = get_csr_name(csr.substr(2));
     csr_cac_.ResetStatus(hart);
     if (resynch_csr_) {
       if (FLAGS_bridge_log)
@@ -852,12 +833,14 @@ void bridge::process_dut_instr_group_retire(hart_id_t hart, rv_instr_group_t& d)
       for (auto & i : d.instrs)
         print_instr_stdout(hart, i);
       print(cvm::NONE, "{}", csr_cac_.GetStatusStr(hart));
-      if(FLAGS_whisper_client_check)
-        error("Hart {}: CSR Write Mismatch - {}\n", hart, csr);
-      return;
+      if (FLAGS_whisper_client_check) {
+        mismatch_res_ = csr, mismatch_dut_ = dut, mismatch_iss_ = iss;
+        if (dut == "") dut = "none";
+        if (iss == "") iss = "none";
+        error("Hart {}: CSR Write Mismatch - {} DUT: {} ISS: {}\n", hart, csr, dut, iss);
+      }
     }
   }
-
 }
 
 void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
@@ -870,7 +853,20 @@ void bridge::update_dut_state(hart_id_t hart, rv_instr_t& d) {
     update_priv(hart, src_t::dut, d.priv);
   }
   if (FLAGS_insn_check && !d.comp && !d.ucode && !is_vector(d.disasm) && !is_cracked_csr(d.disasm) && !(d.disasm.substr(0,7)=="illegal") && !d.csr_renamed && (patch_mode_ == NO_PATCH  || patch_mode_ == ENTER_PATCH)) {
-    update_insn(hart, src_t::dut, d.opcode);
+    uint32_t opcode = d.opcode;
+    // Apply opcode remapping if configured and enabled
+    bool skip_update_insn = false;
+    if (cosim_remap_opcode_enabled_) {
+      auto remap_it = cosim_remap_opcode_.find(d.opcode);
+      if (remap_it != cosim_remap_opcode_.end()) {
+        opcode = remap_it->second;
+        // Skip calling update_insn when opcode remapping is applied
+        skip_update_insn = true;
+      }
+    }
+    if (!skip_update_insn) {
+      update_insn(hart, src_t::dut, opcode);
+    }
   }
   if (FLAGS_flags_check && (d.flags != 0)) {
     update_flags(hart, src_t::dut, d.flags);
@@ -942,8 +938,8 @@ void bridge::pre_step_exception_poke(hart_id_t hart, const rv_instr_t& d) {
     return;
   }
 
-  if (!find(cosim_resynch_excp_addr_, d.ecause, d.trap_addr) &&
-      !find(cosim_resynch_excp_, d.ecause) &&
+  if (!parser::find(cosim_resynch_excp_addr_, d.ecause, d.trap_addr) &&
+      !parser::find(cosim_resynch_excp_, d.ecause) &&
       !d.pc.error &&
       !d.mem_read.error)
     return;
@@ -965,15 +961,17 @@ void bridge::pre_step_exception_poke(hart_id_t hart, const rv_instr_t& d) {
   }
 
   if (d.pc.error && d.ecause == INSN_ACCESS_FAULT)
-    num_exceptions_iaf_nderr_++;
+    num_exceptions_insn_err_access_fault_++;
   if (d.mem_read.error && d.ecause == LD_ACCESS_FAULT)
-    num_exceptions_laf_nderr_++;
+    num_exceptions_ld_err_access_fault_++;
   if (d.mem_read.error && d.ecause == ST_AMO_ACCESS_FAULT)
-    num_exceptions_saf_nderr_++;
+    num_exceptions_late_st_err_access_fault_++;
   if (d.pc.error && d.ecause == HARDWARE_ERROR)
-    num_exceptions_iside_hwerr_++;
-  if (d.mem_read.error && d.ecause == HARDWARE_ERROR)
-    num_exceptions_dside_hwerr_++;
+    num_exceptions_insn_hwerr_fault_++;
+  if (d.mem_read.error && d.mem_read.valid && !d.mem_write.valid && d.ecause == HARDWARE_ERROR)
+    num_exceptions_ld_hwerr_fault_++;
+  if (d.mem_write.error && d.mem_write.valid && d.ecause == HARDWARE_ERROR)
+    num_exceptions_late_st_hwerr_fault_++;
 }
 
 void bridge::pre_step_lrsc_poke(hart_id_t hart, const rv_instr_t& d) {
@@ -1292,7 +1290,7 @@ void bridge::post_step_exception_check(hart_id_t hart, const rv_instr_t& d, whis
     return;
   }
 
-  if (d.excp && find(cosim_error_excp_, d.ecause)) {
+  if (d.excp && parser::find(cosim_error_excp_, d.ecause)) {
     error("Hart {}: Unexpected exception: +cosim_error_excp {} ({})\n", hart, d.ecause,
       excp_to_string.count(static_cast<excp>(d.ecause)) ? excp_to_string.at(static_cast<excp>(d.ecause)) : std::to_string(d.ecause));
     return;
@@ -3264,6 +3262,11 @@ void bridge::report_metrics() {
     print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_iss_csr_{}\": \"0x{:x}\"}}\n", id_, csr.name, csr_data);
     }
   }
+  if (mismatch_res_ != "") {
+    print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_mismatch_resource\": \"{}\"}}\n", id_, mismatch_res_);
+    print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_mismatch_dut_val\": \"{}\"}}\n", id_, mismatch_dut_);
+    print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_mismatch_iss_val\": \"{}\"}}\n", id_, mismatch_iss_);
+  }
 
   // DUT csr values
   for (auto& csr_ : csrs) {
@@ -3280,11 +3283,12 @@ void bridge::report_metrics() {
     std::transform(es_lower.begin(), es_lower.end(), es_lower.begin(), [](unsigned char c){ return std::tolower(c); });
     print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_{}\": {}}}\n", id_, es_lower, num_exceptions_[e]);
   }
-  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_insn_access_fault_nderr\": {}}}\n", id_, num_exceptions_iaf_nderr_);
-  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_ld_access_fault_nderr\": {}}}\n", id_, num_exceptions_laf_nderr_);
-  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_early_st_access_fault_nderr\": {}}}\n", id_, num_exceptions_saf_nderr_);
-  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_iside_hwerr_fault\": {}}}\n", id_, num_exceptions_iside_hwerr_);
-  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_dside_hwerr_fault\": {}}}\n", id_, num_exceptions_dside_hwerr_);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_insn_err_access_fault\": {}}}\n", id_, num_exceptions_insn_err_access_fault_);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_ld_err_access_fault\": {}}}\n", id_, num_exceptions_ld_err_access_fault_);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_late_st_err_access_fault\": {}}}\n", id_, num_exceptions_late_st_err_access_fault_);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_insn_hwerr_fault\": {}}}\n", id_, num_exceptions_insn_hwerr_fault_);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_ld_hwerr_fault\": {}}}\n", id_, num_exceptions_ld_hwerr_fault_);
+  print(cvm::NONE, "INFO_PASS_METRIC:{{\"hart{}_num_exceptions_late_st_hwerr_fault\": {}}}\n", id_, num_exceptions_late_st_hwerr_fault_);
 
   for (const auto& [p,ps] : priv_to_string) {
     for (const auto& [i,is] : intr_to_string) {
