@@ -471,10 +471,10 @@ module rv_tester
             hart_enable_mask     <= cvm_plusargs::get_int("hart_enable_mask");
             perf_count           <= '0;
             ntrace_stop_on_wrap  <= cvm_plusargs::get_bool("ntrace_stop_on_wrap_seq_en") != '0;
-            clock_mode           <= clk_profile[2:0];
             num_harts            <= cvm_plusargs::get_int("num_harts");
 
         end
+        clock_mode           <= clk_profile[2:0];//TODO: dynamic clock swith unsupported if the clock_mode is always assigned with clk profile
         num_reruns      <= num_reruns - int'(rerun_now);
         if (num_reruns < 0) begin
             num_reruns  <= cvm_plusargs::get_int("num_reruns");
