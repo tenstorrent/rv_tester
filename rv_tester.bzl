@@ -16,7 +16,7 @@ load("@rv_tester//aclint_checker:aclint_checker.bzl", "aclint_checker_gen")
 load("@rv_tester//transactors/axi_sw:axi_sw.bzl", "axi_sw_gen")
 load("@rv_tester//csr:csr_param_gen.bzl", "csr_param_gen")
 
-def rv_tester_gen(name, topology, csr_spec, visibility = None, cc_attrs = {}, **kwargs):
+def rv_tester_gen(name, topology, csr_spec = "@rv_tester//csr:csr_spec", visibility = None, cc_attrs = {}, **kwargs):
     """Generate rv_tester build targets with CSR collateral available to all modules.
     
     This function generates CSR collateral files and makes them available as dependencies:

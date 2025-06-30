@@ -55,7 +55,7 @@ _csr_param_gen = rule(
     ],
 )
 
-def csr_param_gen(name, csr_spec = "@rv_tester//csr:csr_spec", package = "", visibility = None, cc_attrs = {}, **kwargs):
+def csr_param_gen(name, csr_spec, package = "", visibility = None, cc_attrs = {}, **kwargs):
 
     csr_map_hpp = name + ".hpp"
     csr_map_sv = name + ".sv"
