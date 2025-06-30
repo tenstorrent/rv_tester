@@ -53,6 +53,7 @@ harnesses = [ "sw_1c", "sw_2c"]
     rv_tester_gen(
         name = name + "_rv_tester",
         topology = name + "_topology",
+        csr_spec = "@rv_tester//csr:csr_spec",
         cc_attrs = {
             'alwayslink': True,
             'linkstatic': True,
