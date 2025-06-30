@@ -279,7 +279,7 @@ protected:
 private:
  //unsigned numMSIs_ = 6;
   cvm::topology::loc_t axi_mst_loc_l;
-  cvm::topology::loc_t intr_loc_;
+  //cvm::topology::loc_t intr_loc_;
   std::vector<uint64_t> timeCompare_;  // One per interrupt type.
   std::vector<uint32_t> IntrHart_;  // Hart to be interrupted.
   std::vector<bool> delayedRandomIntValid_; // Valid bit for interrupt
