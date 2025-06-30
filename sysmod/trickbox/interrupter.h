@@ -85,6 +85,7 @@ public:
     unsigned interrupt_file = (t_data>>12) & 0xf;
     unsigned interrupt_hart = (t_data>>16) & 0xfff;
     unsigned vs_id = (t_data>>28) & 0xfff;
+    bool is_vgien_intr = false;
     bool rsp_err_chk = (interrupt_hart < FLAGS_num_harts)? true: false;
 
     cvm::log(cvm::HIGH,"[Trickbox] IMSIC interrupt num: {} interrupt file: {} Interrupt hart:{} hypervisor/supervisor id : {}\n", static_cast<uint32_t>(interrupt_num), interrupt_file, interrupt_hart, vs_id);
@@ -96,91 +97,105 @@ public:
        addr1 = msi_s_file_addr + (interrupt_hart << 18);
     }else if(interrupt_file == 0x02){
       cvm::log(cvm::MEDIUM,"[Trickbox] Driving VS interrupt for hart: {}, intr_num: {}\n", interrupt_hart, interrupt_num);
-      uint64_t data;
+      uint64_t data_misa;
       uint64_t mask;
       uint64_t poke_mask;
       uint64_t read_mask;
       bool valid;
-      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), interrupt_hart, 0x600, data, mask, poke_mask, read_mask, valid)|| !valid) && FLAGS_whisper_client_check)
-        cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek csr : HSTATUS in drive_interrupt()\n", interrupt_hart);
-      uint32_t vgein = (data >> 12) & 0x3F;
+      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), interrupt_hart, 0x301, data, mask, poke_mask, read_mask, valid)|| !valid) && FLAGS_whisper_client_check)
+        cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek csr : MISA in drive_interrupt()\n", interrupt_hart);
 
-      // Get HGEIE value
-      uint64_t hgeie_data;
-      if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), interrupt_hart, 0x607, hgeie_data, mask, poke_mask, read_mask, valid)|| !valid) && FLAGS_whisper_client_check)
-        cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek csr : HGEIE in drive_interrupt()\n", interrupt_hart);
+      if ((data_misa >> 7) & 0x1) { // guest external interrupts based on hstatus.VGEIN
+        is_vgien_intr = true;
+        uint64_t data;
+        uint64_t mask;
+        uint64_t poke_mask;
+        uint64_t read_mask;
+        bool valid;
+        if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), interrupt_hart, 0x600, data, mask, poke_mask, read_mask, valid)|| !valid) && FLAGS_whisper_client_check)
+          cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek csr : HSTATUS in drive_interrupt()\n", interrupt_hart);
+        uint32_t vgein = (data >> 12) & 0x3F;
 
-      // 50% chance for single vs dual interrupt
-      bool generate_dual_interrupt = (rng() % 2) == 0;
+        // Get HGEIE value
+        uint64_t hgeie_data;
+        if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperPeekCsrRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), interrupt_hart, 0x607, hgeie_data, mask, poke_mask, read_mask, valid)|| !valid) && FLAGS_whisper_client_check)
+          cvm::log(cvm::ERROR, "Error: Hart {}: Failed to peek csr : HGEIE in drive_interrupt()\n", interrupt_hart);
 
-      if (!generate_dual_interrupt) {
-        // Single interrupt case
-        if ((rng() % 100) < 70) {
-          // 70% chance to use VGEIN
-          vs_id = vgein;
-          intr_vs_id_vgein_++;
+        // 50% chance for single vs dual interrupt
+        bool generate_dual_interrupt = (rng() % 2) == 0;
+
+        if (!generate_dual_interrupt) {
+          // Single interrupt case
+          if ((rng() % 100) < 70) {
+            // 70% chance to use VGEIN
+            vs_id = vgein;
+            intr_vs_id_vgein_++;
+          } else {
+            // 30% chance to use random VS ID != VGEIN
+            do {
+              vs_id = (rng() % 5) + 1; // Range [1,5]
+            } while (vs_id == vgein);
+            intr_vs_id_random_++;
+          }
+
+          // Drive single interrupt
+          addr1 = msi_vs_file_addr + (vs_id << 12) + (interrupt_hart << 18);
+          uint32_t length = 0x40;
+          std::vector<uint8_t> data;
+          std::vector<bool> strb;
+          for (uint8_t i = 0; i < 64; ++i) {
+            data.push_back(0x0);
+            strb.push_back(0x0);
+          }
+          for (uint8_t i = 0; i < 4; ++i) {
+            uint8_t currentByte = static_cast<uint8_t>((interrupt_num >> (8 * i)) & 0xFF);
+            data[i] = currentByte;
+            strb[i] = 0x1;
+          }
+          cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length, data, strb});
         } else {
-          // 30% chance to use random VS ID != VGEIN
-          do {
-            vs_id = (rng() % 5) + 1; // Range [1,5]
-          } while (vs_id == vgein);
-          intr_vs_id_random_++;
-        }
+          // Dual interrupt case
+          // First interrupt with VGEIN
+          addr1 = msi_vs_file_addr + (vgein << 12) + (interrupt_hart << 18);
+          uint32_t length = 0x40;
+          std::vector<uint8_t> data;
+          std::vector<bool> strb;
+          for (uint8_t i = 0; i < 64; ++i) {
+            data.push_back(0x0);
+            strb.push_back(0x0);
+          }
+          for (uint8_t i = 0; i < 4; ++i) {
+            uint8_t currentByte = static_cast<uint8_t>((interrupt_num >> (8 * i)) & 0xFF);
+            data[i] = currentByte;
+            strb[i] = 0x1;
+          }
+          cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length, data, strb});
 
-        // Drive single interrupt
-        addr1 = msi_vs_file_addr + (vs_id << 12) + (interrupt_hart << 18);
-        uint32_t length = 0x40;
-        std::vector<uint8_t> data;
-        std::vector<bool> strb;
-        for (uint8_t i = 0; i < 64; ++i) {
-          data.push_back(0x0);
-          strb.push_back(0x0);
+          // Second interrupt with different VS ID
+          uint32_t second_vs_id;
+          if ((rng() % 100) < 70) {
+            // 70% chance to pick VS ID with HGEIE set
+            do {
+              second_vs_id = (rng() % 5) + 1; // Range [1,5]
+            } while ((second_vs_id == vgein) || ((hgeie_data & 0x3E) != 0 && !(hgeie_data & (1ULL << second_vs_id))));
+          } else {
+            // 30% chance to pick VS ID with HGEIE not set
+            do {
+              second_vs_id = (rng() % 5) + 1; // Range [1,5]
+            } while ((second_vs_id == vgein) || ((hgeie_data & 0x3E) != 0x3E && (hgeie_data & (1ULL << second_vs_id))));
+          }
+
+          // Drive second interrupt
+          addr1 = msi_vs_file_addr + (second_vs_id << 12) + (interrupt_hart << 18);
+          cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length, data, strb});
+          intr_vs_id_two_++;
         }
-        for (uint8_t i = 0; i < 4; ++i) {
-          uint8_t currentByte = static_cast<uint8_t>((interrupt_num >> (8 * i)) & 0xFF);
-          data[i] = currentByte;
-          strb[i] = 0x1;
-        }
-        cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length, data, strb});
       } else {
-        // Dual interrupt case
-        // First interrupt with VGEIN
-        addr1 = msi_vs_file_addr + (vgein << 12) + (interrupt_hart << 18);
-        uint32_t length = 0x40;
-        std::vector<uint8_t> data;
-        std::vector<bool> strb;
-        for (uint8_t i = 0; i < 64; ++i) {
-          data.push_back(0x0);
-          strb.push_back(0x0);
-        }
-        for (uint8_t i = 0; i < 4; ++i) {
-          uint8_t currentByte = static_cast<uint8_t>((interrupt_num >> (8 * i)) & 0xFF);
-          data[i] = currentByte;
-          strb[i] = 0x1;
-        }
-        cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length, data, strb});
-
-        // Second interrupt with different VS ID
-        uint32_t second_vs_id;
-        if ((rng() % 100) < 70) {
-          // 70% chance to pick VS ID with HGEIE set
-          do {
-            second_vs_id = (rng() % 5) + 1; // Range [1,5]
-          } while ((second_vs_id == vgein) || ((hgeie_data & 0x3E) != 0 && !(hgeie_data & (1ULL << second_vs_id))));
-        } else {
-          // 30% chance to pick VS ID with HGEIE not set
-          do {
-            second_vs_id = (rng() % 5) + 1; // Range [1,5]
-          } while ((second_vs_id == vgein) || ((hgeie_data & 0x3E) != 0x3E && (hgeie_data & (1ULL << second_vs_id))));
-        }
-
-        // Drive second interrupt
-        addr1 = msi_vs_file_addr + (second_vs_id << 12) + (interrupt_hart << 18);
-        cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length, data, strb});
-        intr_vs_id_two_++;
+        is_vgien_intr = false;
+        vs_id = (rng() % 5) + 1; // Range [1,5]
+        addr1 = msi_vs_file_addr+ (vs_id << 12) + (interrupt_hart << 18);
       }
 
-      //  addr1 = msi_vs_file_addr+ (vs_id << 12) + (interrupt_hart << 18);
     }else{
        cvm::log(cvm::ERROR, "[Trickbox] Wrong IMSIC interrupt file specified\n");
     }
@@ -199,7 +214,7 @@ public:
       data1[i] = currentByte;
       strb1[i] = 0x1;
     }
-    if (interrupt_file != 0x02) {
+    if (!is_vgien_intr) {
       cvm::registry::messenger.signal(axi_mst_loc_l, transactor::write_request_t{addr1, length1, data1, strb1, rsp_err_chk});
     }
 
