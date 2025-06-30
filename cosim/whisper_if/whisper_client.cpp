@@ -462,8 +462,8 @@ whisperClient<URV>::whisperPoke(int hart, uint64_t time, char resource, uint64_t
 	    bool& valid)
 {
   WhisperFlags wflags;
-  wflags.bits.cache = cache;
-  wflags.bits.skipMem = skipmem;
+  wflags.bits.cache = cache & FLAGS_cache_model_en;
+  wflags.bits.skipMem = skipmem & FLAGS_cache_model_en;
   req.flags = wflags.value;
   req.hart = hart;
   req.type = WhisperMessageType::Poke;
