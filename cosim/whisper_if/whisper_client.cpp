@@ -119,6 +119,7 @@ whisperClient<URV>::whisperClient(cvm::topology::loc_t loc, unsigned) : loc_(loc
   cvm::registry::messenger.procedure<whisperInjectExceptionRPC>(loc, [this] (int hart, bool isLoad, uint64_t code, unsigned elemIx, uint64_t addr, bool& valid) {return this->whisperInjectException(hart, isLoad, code, elemIx, addr, valid);});
   cvm::registry::messenger.procedure<whisperPokeRPC>(loc, [this] (int hart, uint64_t time, char resource, uint64_t addr, uint64_t value, bool& valid) {return this->whisperPoke(hart, time, resource, addr, value, valid);});
   cvm::registry::messenger.procedure<whisperPokeMemRPC>(loc, [this] (int hart, uint64_t time, char resource, uint64_t addr, unsigned size, uint64_t value, bool& valid) {return this->whisperPokeMem(hart, time, resource, addr, size, value, valid);});
+  cvm::registry::messenger.procedure<whisperPokeMemBatchRPC>(loc, [this](int hart, uint64_t time, char resource, uint64_t addr, const std::vector<uint8_t> &data, bool &valid) { return this->whisperPokeMemBatch(hart, time, resource, addr, data, valid); });
   cvm::registry::messenger.procedure<whisperPeekRPC>(loc, [this] (int hart, char resource, uint64_t addr, uint64_t& value, bool& valid) {return this->whisperPeek(hart, resource, addr, value, valid);});
   cvm::registry::messenger.procedure<whisperPeekPcRPC>(loc, [this] (int hart, uint64_t& value) {return this->whisperPeekPc(hart, value);});
   cvm::registry::messenger.procedure<whisperPeekCsrRPC>(loc, [this] (int hart, uint64_t addr, uint64_t& value, uint64_t& mask, uint64_t& reset_value, uint64_t& read_mask, bool& valid) {return this->whisperPeekCsr(hart, addr, value, mask, reset_value, read_mask, valid);});
@@ -491,6 +492,40 @@ whisperClient<URV>::whisperPokeMem(int hart, uint64_t time, char resource, uint6
     return false;
 
   valid = reply.type != WhisperMessageType::Invalid;
+  return true;
+}
+
+template <typename URV>
+bool whisperClient<URV>::whisperPokeMemBatch(int hart, uint64_t time, char resource, uint64_t addr,
+                                             const std::vector<uint8_t> &data, bool &valid)
+{
+  valid = true;
+
+  // Process data in 8-byte (uint64_t) chunks
+  for (size_t i = 0; i < data.size(); i += 8)
+  {
+    uint64_t value = 0;
+    unsigned chunk_size = std::min(static_cast<size_t>(8), data.size() - i);
+
+    // Pack bytes into uint64_t (little-endian)
+    for (unsigned j = 0; j < chunk_size; ++j)
+    {
+      value |= static_cast<uint64_t>(data[i + j]) << (j * 8);
+    }
+
+    bool chunk_valid = true;
+    if (!whisperPokeMem(hart, time, resource, addr + i, chunk_size, value, chunk_valid))
+    {
+      valid = false;
+      return false;
+    }
+
+    if (!chunk_valid)
+    {
+      valid = false;
+    }
+  }
+
   return true;
 }
 
