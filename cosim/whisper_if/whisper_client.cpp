@@ -538,8 +538,9 @@ bool whisperClient<URV>::whisperPokeMemBatch(int hart, uint64_t time, char resou
     }
 
     bool chunk_valid = true;
-    if (!whisperPokeMem(hart, time, resource, addr + i, chunk_size, value, chunk_valid))
+    if (!whisperPokeMem(hart, time, resource, addr + i, chunk_size, value, false, false, chunk_valid))
     {
+      // #FIXME : Currently cache and skip mem flag are marked as false - fix while enabling MCM caches
       valid = false;
       return false;
     }
