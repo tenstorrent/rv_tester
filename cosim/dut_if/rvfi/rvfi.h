@@ -10,7 +10,7 @@
 
 #include "svdpi.h"
 #include "bridge_if.h"
-#include "bridge.h"
+#include "cosim/bridge/bridge.h"
 #include "cosim/utils/eot/eot.h"
 
 #include "rv_tester/rv_tester_structs.h"

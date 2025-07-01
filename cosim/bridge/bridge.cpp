@@ -17,6 +17,8 @@
 #include "sysmod/sysmod_params.hpp"
 #include "cosim/utils/eot/eot_plusargs.h"
 #include "whisper_client.h"
+#include "csr_param.hpp"
+using namespace CSR;
 
 #include <cstring>          // strlen
 #include <sstream>          // stringstream
@@ -900,7 +902,7 @@ void bridge::post_step_debug_poke(hart_id_t hart, const rv_instr_t& instr) {
 void bridge::check_debug_mode_entry_via_ebreak(const rv_instr_t& instr) {
   dtvec_ebreak_ = false;
   for (auto& csr : instr.csr) {
-    if (instr.valid && instr.ucode && csr.valid && (csr.csr_addr == c_dtvec_csr) && (csr.csr_wdata & 0x10)==0) {
+    if (instr.valid && instr.ucode && csr.valid && (csr.csr_addr == c_dtvec_csr_addr) && (csr.csr_wdata & 0x10)==0) {
       dtvec_ebreak_ = true;
       if (!debug_mode_){
           debug_mode_ = !instr.excp && !(instr.priv == 6);
@@ -1652,21 +1654,21 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
         }
         update_csr(hart, src_t::iss, c.csr_addr, data, mask);
       }
-      if (c.csr_addr == FFLAGS)
-        update_csr(hart, src_t::dut, FCSR, data, mask);
-      else if (c.csr_addr == FRM) {
+      if (c.csr_addr == fflags.address)
+        update_csr(hart, src_t::dut, fcsr.address, data, mask);
+      else if (c.csr_addr == frm.address) {
         data = data << 5;
         mask = mask << 5;
-        update_csr(hart, src_t::dut, FCSR, data, mask, false, false);
-      } else if (c.csr_addr == FCSR) {
+        update_csr(hart, src_t::dut, fcsr.address, data, mask, false, false);
+      } else if (c.csr_addr == fcsr.address) {
         uint64_t mask_fcsr = mask;
         mask = mask_fcsr & 0x1f;
-        update_csr(hart, src_t::dut, FFLAGS, data, mask, false, false);
+        update_csr(hart, src_t::dut, fflags.address, data, mask, false, false);
         data = data >> 5;
         mask = (mask_fcsr >> 5) & 0x7;
-        update_csr(hart, src_t::dut, FRM, data, mask, false, false);
+        update_csr(hart, src_t::dut, frm.address, data, mask, false, false);
       }
-      else if (c.csr_addr == MISA) {  // misa.H update changes
+      else if (c.csr_addr == misa.address) {  // misa.H update changes
         if (c.csr_wmask & 0x80) {
           if (c.csr_wdata & 0x80) {
             if (!misa_h_) {
@@ -1683,7 +1685,7 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
             }
             misa_h_ = 1;
             mask = 0x1444;
-            update_csr(hart, src_t::dut, MIDELEG, 0x1444, mask, false, false);
+            update_csr(hart, src_t::dut, mideleg.address, 0x1444, mask, false, false);
           } else {
             if (misa_h_) {
               // Save CSR values to the temporary map when misa.H becomes zero, rvde-20315
@@ -1693,9 +1695,9 @@ void bridge::update_regs(hart_id_t hart, const rv_instr_t& d) {
             }
             misa_h_ = 0;
             mask = 0xF00400;
-            update_csr(hart, src_t::dut, MEDELEG, 0, mask, false, false);
+            update_csr(hart, src_t::dut, medeleg.address, 0, mask, false, false);
             mask = 0x1444;
-            update_csr(hart, src_t::dut, MIDELEG, 0, mask, false, false);
+            update_csr(hart, src_t::dut, mideleg.address, 0, mask, false, false);
           }
         }
       }
@@ -1895,7 +1897,7 @@ return false;
 void bridge::arch_state(whisper_state_t& w) {
 
   if (w.resource == 'c') {
-    if (w.address == MSTATUS) {
+    if (w.address == mstatus.address) {
       if (w.value & 0x20000) {
         mprv_ = 1;
         mpp_ = ((w.value) & 0x1800) >> 11;
@@ -2633,7 +2635,7 @@ void bridge::process_dut_timer(hart_id_t hart, rv_intr_t& i) {
   if (FLAGS_poke_mip_timer) {
     poke_mip(hart, i.cycle, mip_);
   } else {
-    poke_resource(hart, i.cycle, 'c', time_csr, i.mtime);
+    poke_resource(hart, i.cycle, 'c', time_.address, i.mtime);
   }
 
   check_and_defer_interrupt(hart, i.cycle, i.mip);

@@ -36,4 +36,6 @@ class sysmod_mem : public device {
         /// Initialize memory with binary file.
         bool init_bin(const std::string& path, uint64_t offset = 0);
 
+        /// Set callback for uninitialized memory reads.
+        void uninitialized_read_data_cb(std::function<std::vector<std::uint8_t>(std::uint64_t, std::uint64_t)> cb);
 };

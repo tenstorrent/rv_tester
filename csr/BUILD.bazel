@@ -1,0 +1,13 @@
+load(":csr_param_gen.bzl", "csr_param_gen")
+
+py_binary(
+    name = "csr_param_gen",
+    srcs = ["csr_param_gen.py"],
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "csr_spec",
+    srcs = ["csr_spec.yaml"],
+    visibility = ["//visibility:public"],
+)

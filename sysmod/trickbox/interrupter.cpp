@@ -25,8 +25,10 @@
 
 interrupter::interrupter(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc,cvm::topology::loc_t axi_mst_loc)
   : subdevice(tag, addr, 0x50000 /* size */, loc), axi_mst_loc_l(axi_mst_loc),
-    timeCompare_(6),IntrHart_(6),delayedRandomIntValid_(6),IntrValue_(6), timerIntPrev_(hartCount), timer_(0)
+    timeCompare_(6),IntrHart_(6),delayedRandomIntValid_(6),IntrValue_(6), timerIntPrev_(hartCount), timer_(0), hart_count_(hartCount)
 {
+   cvm::log(cvm::HIGH, "[Trickbox] Constructor: hart_count = {} interrupter_base = {:#x}\n", hart_count_, interrupter_base);
+
   rng.seed(FLAGS_seed);
   interrupter_base = addr;
   reset();
@@ -34,7 +36,7 @@ interrupter::interrupter(const std::string& tag, uint64_t addr, unsigned hartCou
    if(FLAGS_max_intr_count>0){
      limit_interrupts = 1;
    }
-  intr_loc_ = cvm::topology::get_from_type("INTERRUPTS", 0);
+ // intr_loc_ = cvm::topology::get_from_type("INTERRUPTS", 0);
 }
 
 
@@ -82,6 +84,9 @@ interrupter::write(uint64_t addr, size_t, const data_t& data,
     return;
   uint64_t t_data=0;
   deserializeInt(data, t_data);
+  const uint64_t nmi_deassert_base = interrupter_base + 0x5000;
+  const uint64_t nmi_stride = 0x100;  //256-byte stride per hart
+  
   if (addr == interrupter_base) {
     //63:0 -> supervisor/hypervisor id hart[], mode_h_s_m[3-> 1:0 ],interrupt_num[1024->9:0]
     //mask:    0xfff                   0xfff        0xf                  0xfff
@@ -103,9 +108,20 @@ interrupter::write(uint64_t addr, size_t, const data_t& data,
   else if (addr == (interrupter_base + 0x4000)) { // FIXME missing functionality
      cvm::log(cvm::HIGH, "[Trickbox] IMSIC write - no match - addr={:#x} data={:#x}\n", addr, t_data);
   }
-  else if (addr == (interrupter_base + 0x5000)) {
-     cvm::registry::messenger.signal<uint8_t>(intr_loc_, 0);
-     cvm::log(cvm::HIGH, "[Trickbox] NMI deassert\n");
+  // ---- NMI deassert ----
+  else if ((addr >= nmi_deassert_base) && (addr <= nmi_deassert_base +(hart_count_*nmi_stride))) {
+	  uint64_t offset = addr - nmi_deassert_base;
+	  unsigned hart_id = offset / nmi_stride;
+
+	  auto target_loc = cvm::topology::get_from_type("INTERRUPTS", hart_id);
+	  cvm::registry::messenger.signal<uint8_t>(target_loc, 0);
+	  cvm::log(cvm::HIGH, "[Trickbox] NMI deassert for hart {} at addr {:#x}\n", hart_id, addr);
   }
+
+  // ---- Unknown write ----
+  else {
+	  cvm::log(cvm::ERROR, "[Trickbox] Unknown write to addr {:#x} data={:#x}\n", addr, t_data);
+  }
+
 
 }
