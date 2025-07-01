@@ -296,7 +296,7 @@ private:
   // IMSIC_ADDR_TARGET_S   = 32'h0180_0000,//32'h0A00_0000;
   int      intr_count = 0;
   int      limit_interrupts = 0;
-
+  const unsigned hart_count_;
   pcg_extras::seed_seq_from<std::random_device> seed_source;
   pcg32 rng;
 

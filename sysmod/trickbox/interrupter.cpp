@@ -25,9 +25,9 @@
 
 interrupter::interrupter(const std::string& tag, uint64_t addr, unsigned hartCount, cvm::topology::loc_t loc,cvm::topology::loc_t axi_mst_loc)
   : subdevice(tag, addr, 0x50000 /* size */, loc), axi_mst_loc_l(axi_mst_loc),
-    timeCompare_(6),IntrHart_(6),delayedRandomIntValid_(6),IntrValue_(6), timerIntPrev_(hartCount), timer_(0)
+    timeCompare_(6),IntrHart_(6),delayedRandomIntValid_(6),IntrValue_(6), timerIntPrev_(hartCount), timer_(0), hart_count_(hartCount)
 {
-   cvm::log(cvm::HIGH, "[Trickbox] Constructor: hart_count = {} interrupter_base = {:#x}\n", hartCount, interrupter_base);
+   cvm::log(cvm::HIGH, "[Trickbox] Constructor: hart_count = {} interrupter_base = {:#x}\n", hart_count_, interrupter_base);
 
   rng.seed(FLAGS_seed);
   interrupter_base = addr;
@@ -109,7 +109,7 @@ interrupter::write(uint64_t addr, size_t, const data_t& data,
      cvm::log(cvm::HIGH, "[Trickbox] IMSIC write - no match - addr={:#x} data={:#x}\n", addr, t_data);
   }
   // ---- NMI deassert ----
-  else if ((addr >= nmi_deassert_base) && (addr <= nmi_deassert_base + nmi_stride)) {
+  else if ((addr >= nmi_deassert_base) && (addr <= nmi_deassert_base +(hart_count_*nmi_stride))) {
 	  uint64_t offset = addr - nmi_deassert_base;
 	  unsigned hart_id = offset / nmi_stride;
 
