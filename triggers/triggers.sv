@@ -18,7 +18,7 @@ import rv_tester_params::*;
 
   logic [TRIGGER_COUNT-1:0] hart_specific_event_trigger;
   logic [NHARTS-1:0] event_trigger_vlds;
-  logic lpx_msi_en;
+  logic lpx_msi_en,lpx_pllsd_en;
   
   genvar i;
   generate
@@ -47,6 +47,7 @@ import rv_tester_params::*;
     reset_d1 <= reset;
     if (~reset & reset_d1) begin
       lpx_msi_en <= cvm_plusargs::get_bool("lpx_msi") != '0;
+      lpx_pllsd_en <= cvm_plusargs::get_bool("lpx_pllsd") != '0;
       if (location != cvm_topology::nil) begin
         triggers_set_scope(location);
       end
@@ -117,7 +118,7 @@ end
 
   // C-Sequence
   // m_tick
-  assign m_ticks[0].valid = (lpx_msi_en) & (location != cvm_topology::nil);
+  assign m_ticks[0].valid = (lpx_msi_en || lpx_pllsd_en) & (location != cvm_topology::nil);
   assign m_ticks[0].data.location = location;
   assign m_ticks[0].data.cycle = tb_clocks;
 
