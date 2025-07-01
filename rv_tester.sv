@@ -708,6 +708,21 @@ module rv_tester
 
     rv_tester_pkg::dm_write_t  trickbox_dmi_write;
 
+    // Writeback logic
+    logic [1:0] mcm_writeback_valid[7:0]; // since it can be present for 8 cosim instances
+    assign mcm_writeback_valid[0] = writeback_cl_valid;
+    for(genvar i = 1; i < 8; i++) begin
+        assign mcm_writeback_valid[i] = 2'b00;
+    end
+
+    // Dfetch logic
+    logic [1:0] mcm_dfetch_valid[7:0]; // since it can be present for 8 cosim instances
+    assign mcm_dfetch_valid[0] = dfetch_cl_valid;
+    for(genvar i = 1; i < 8; i++) begin
+        assign mcm_dfetch_valid[i] = 2'b00;
+    end
+    
+
     localparam int AXI_CLOCK_PERIOD = 1000000 / CLOCK_FREQ_MHZ[AXI_CLK_IDX];
     localparam int JTAG_CLOCK_PERIOD = 10*100;
     localparam int OVERLAY_CLOCK_PERIOD = 2*AXI_CLOCK_PERIOD;
@@ -821,6 +836,8 @@ module rv_tester
 
 `endif
 
+
+
     // coverage
     arch_sample arch_sample ();
 
@@ -828,6 +845,17 @@ module rv_tester
 
     logic [NHARTS-1:0] boot_done;
 `ifndef NO_COSIM
+    `ifndef CACHE_MODEL_EN
+    // Dummy variables to prevent X - props #FIXME : remove later when making cache model default
+    logic [51:0] devict_addr;
+    logic [51:0] writeback_addr [1:0];
+    logic [51:0] dfetch_addr [1:0];
+    assign devict_addr = '0;
+    for(genvar i = 0; i < 2; i++) begin : no_cache_model_init
+        assign writeback_addr[i] = '0;
+        assign dfetch_addr[i] = '0;
+    end
+    `endif 
     for (genvar c = 0; c < NHARTS; c++) begin: cosim_inst
       cosim #(
           .NUM(c),
@@ -872,6 +900,28 @@ module rv_tester
           .poke_event_in(poke_event_in),
           .disable_checks(disable_checks),
           .boot_done(boot_done[c]),
+          `ifdef CACHE_MODEL_EN
+          .devict_cl_valid(devict_cl_valid[c]),
+          .devict_cl_addr(devict_cl_addr[c]),
+          .flush_cl_valid(flush_cl_valid[c]),
+          .flush_cl_addr(flush_cl_addr[c]),
+          .writeback_cl_valid(mcm_writeback_valid[c]),
+          .writeback_cl_addr(writeback_cl_addr),
+          .dfetch_cl_valid(mcm_dfetch_valid[c]),
+          .dfetch_cl_addr(dfetch_cl_addr),
+          `else
+          .devict_cl_valid(),
+          .devict_cl_addr(devict_addr),
+          .flush_cl_valid('0),
+          .flush_cl_addr('0),
+          .writeback_cl_valid('0),
+          .writeback_cl_addr(writeback_addr),
+          .dfetch_cl_valid('0),
+          .dfetch_cl_addr(dfetch_addr),
+          // Tying to 0 to prevent X-propagation
+          `endif
+
+          
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PORTS(1, c, 0)
       );
     end

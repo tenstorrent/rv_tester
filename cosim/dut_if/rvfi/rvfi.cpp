@@ -21,6 +21,7 @@ DEFINE_bool(rvfi_log,  true, "Enable rvfi logging");
 DEFINE_bool(rvfi_log_36b_uop, true, "rvfi log - print 36b uop instead of default 32b riscv opcode");
 DEFINE_bool(mcm, true, "Enable mcm");
 DEFINE_bool(cosim, true, "Enable cosim checking");
+DEFINE_bool(cache_model_en, false, "Enable MCM Cache Model");
 DEFINE_bool(emulate_amo_arithmetic, true, "Emulate amo arithmetic if dut harness does not provide amo outputs");
 DEFINE_bool(vec_cmode_tag_override, true, "If vector instruction enters conservative mode, override subsequent rvfi/mcmi tags with original instruction tag");
 DEFINE_bool(patch_mode_tag_override, true, "In Patch mode, override subsequent rvfi/mcmi tag with original instruction tag");
@@ -63,6 +64,10 @@ rvfi::rvfi(cvm::topology::loc_t loc, unsigned id)
     rv_tester_transactions::cosim::m_mcmi_ifetch_req<>,
     rv_tester_transactions::cosim::m_mcmi_ifetch_resp<>,
     rv_tester_transactions::cosim::m_mcmi_ievict<>,
+    rv_tester_transactions::cosim::m_mcmi_devict<>,
+    rv_tester_transactions::cosim::m_mcmi_flush<>,
+    rv_tester_transactions::cosim::m_mcmi_writeback<>,
+    rv_tester_transactions::cosim::m_mcmi_dfetch<>,
     rv_tester_transactions::cosim::m_debug<>,
     bridge::error_loc
   >(loc);
@@ -939,7 +944,7 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_read<>& m_mcmi_re
       sc_result_.emplace(m.tag, m);
     } else {
       if (!sc_failed(sc_bypass_.at(m.tag))) {
-        bridge_->process_dut_mcm_bypass(m.hart, sc_bypass_.at(m.tag));
+        bridge_->process_dut_mcm_bypass(m.hart, sc_bypass_.at(m.tag), true);
         sc_bypass_.erase(m.tag);
       }
     }
@@ -1248,8 +1253,13 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
         sc_bypass_.emplace(m.tag, m);
         return;
       }
-
-      bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m);
+      if(m_mcmi_bypass.attr == 0x1000) {
+        bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m, true); 
+        // Setting the Cache flag to true for CBO
+      }
+      else {
+        bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m, false);
+      }
   } else {
       std::bitset<32> mask = m_mcmi_bypass.mask;
       std::vector<uint64_t> addresses;
@@ -1281,7 +1291,9 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
               m.size = size;
               std::bitset<256> value = stringToBitset(dataAccumulated);  // Use a helper to convert the accumulated string
               m.data_vec = value;
-              bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m);
+              m.v_ext = m_mcmi_bypass.v_ext;
+              m.elem_idx = m_mcmi_bypass.elem_idx;
+              bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m, false);
               start_addr = addresses[i];
               size = 1;
               dataAccumulated = fmt::format("{:02x}", datas[i]);
@@ -1290,7 +1302,9 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_
       m.pa = start_addr;
       m.size = size;
       m.data_vec = stringToBitset(dataAccumulated);  // Final range processing
-      bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m);
+      m.v_ext = m_mcmi_bypass.v_ext;
+      m.elem_idx = m_mcmi_bypass.elem_idx;
+      bridge_->process_dut_mcm_bypass(m_mcmi_bypass.hart, m, false);
   }
 }
 
@@ -1320,8 +1334,8 @@ void rvfi::process_amo(mem_t& read) {
   m.cycle = read.cycle;
   amo_modify_write_data(static_cast<amo_op>(m.amo_op), read.data, m.data, m.size);
 
-  bridge_->process_dut_mcm_bypass(m.hart, m);
-
+  
+bridge_->process_dut_mcm_bypass(m.hart, m, true);
   amo_writes_.erase(read.tag);
 }
 
@@ -1484,6 +1498,78 @@ void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_ievict<>& m_mcmi_
 
   bridge_->process_dut_mcm_ievict(m_mcmi_ievict.hart, m);
 }
+
+void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_devict<>& m_mcmi_devict) {
+  if (!FLAGS_cosim || !FLAGS_mcm)
+    return;
+
+  if (terminated_ || in_reset_)
+    return;
+  
+  cvm::log(cvm::FULL, "Remote Procedural Call to Whisper for mcm devict to addr : {:#x}\n",m_mcmi_devict.addr);
+  bool valid = false;
+  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmDEvictRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), m_mcmi_devict.hart, m_mcmi_devict.cycle, m_mcmi_devict.addr, valid)|| !valid) && FLAGS_whisper_client_check) {
+    cvm::log(cvm::ERROR,"Hart {}: Failed mcm devict\n", m_mcmi_devict.hart);
+    return;
+  }
+
+}
+
+void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_flush<>& m_mcmi_flush) {
+  if (!FLAGS_cosim || !FLAGS_mcm)
+    return;
+
+  if (terminated_ || in_reset_)
+    return;
+
+  cvm::log(cvm::FULL, "Remote Procedural Calls to Whisper for mcm flush (combination of writeback + evict) to addr : {:#x}\n",m_mcmi_flush.addr);
+  bool valid = false;
+
+  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmDWritebackRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), m_mcmi_flush.hart , m_mcmi_flush.cycle, m_mcmi_flush.addr , valid)|| !valid) && FLAGS_whisper_client_check) {
+    cvm::log(cvm::HIGH,"Hart: {} No mcm dwriteback for cbo flush , since cacheline not present\n",m_mcmi_flush.hart);
+    return;
+  }
+
+  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmDEvictRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), m_mcmi_flush.hart, m_mcmi_flush.cycle, m_mcmi_flush.addr, valid)|| !valid) && FLAGS_whisper_client_check) {
+    cvm::log(cvm::ERROR,"Hart {}: Failed mcm devict\n", m_mcmi_flush.hart);
+    return;
+  }
+}
+
+void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_writeback<>& m_mcmi_writeback) {
+  if (!FLAGS_cosim || !FLAGS_mcm)
+    return;
+
+  if (terminated_ || in_reset_)
+    return;
+
+  cvm::log(cvm::FULL, "Remote Procedural Call to Whisper for mcm writeback [sv implementation] to addr : {:#x}\n",m_mcmi_writeback.addr);
+
+  bool valid = false;
+  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmDWritebackRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, m_mcmi_writeback.cycle, m_mcmi_writeback.addr , valid)|| !valid) && FLAGS_whisper_client_check) {
+    cvm::log(cvm::ERROR,"Failed mcm dwriteback\n");
+    return;
+  }
+
+}
+
+void rvfi::process(const rv_tester_transactions::cosim::m_mcmi_dfetch<>& m_mcmi_dfetch) {
+  if (!FLAGS_cosim || !FLAGS_mcm)
+    return;
+
+  if (terminated_ || in_reset_)
+    return;
+
+  cvm::log(cvm::FULL, "Remote Procedural Call to Whisper for mcm dfetch [sv implementation] to addr : {:#x}\n",m_mcmi_dfetch.addr);
+
+  bool valid = false;
+  if ((!cvm::registry::messenger.call<whisperClient<uint64_t>::whisperMcmDFetchRPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.WHISPER_CLIENT", 0), 0, m_mcmi_dfetch.cycle, m_mcmi_dfetch.addr , valid)|| !valid) && FLAGS_whisper_client_check) {
+    cvm::log(cvm::ERROR,"Failed mcm dwriteback\n");
+    return;
+  }
+
+}
+
 
 void rvfi::process_ncio_fetches(const rv_instr_t& instr) {
   if (!FLAGS_cosim || !FLAGS_mcm)

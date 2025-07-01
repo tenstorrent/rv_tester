@@ -40,7 +40,7 @@ def rv_tester_repositories():
         remote = "git@aus-gitlab.local.tenstorrent.com:opensrc/opensrc-nlohmann-json.git",
     )
 
-    whisper_hash="89917b18fc49a2f6afeb41431ac06d89c0fbdfac"
+    whisper_hash="b6f2e494273cd69293123817e2760c3e113f9ac7"
     maybe(
         git_repository,
         name = "whisper",
