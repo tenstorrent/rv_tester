@@ -133,6 +133,8 @@ cvm::messenger::task<void> thub_sequence::temp_throttle_configuration()
   co_await temp_throttle_enable();
   //Delay before temp throttle is disabled
   co_await wait_for_ticks();
+  co_await wait_for_ticks();
+  co_await wait_for_ticks();
   co_await temp_throttle_disable();
   co_await wait_for_ticks();
   cvm::log(cvm::NONE, "[THUB THROTTLE]  Completed into throttle for Core {} ...... \n", core_throttle);
@@ -154,31 +156,34 @@ cvm::messenger::task<void> thub_sequence::temp_throttle_enable()
     // Configure HPMEVENT10/HPMCOUNTER10 to monitor throttle
     co_await csr_write(core_throttle, 0x4, core_mhpmevent10 , 0x94400000); // MS Event
     co_await csr_write(core_throttle, 0x8, core_mhpmevent10 , 0x94400000); // MC Event
-    cntr_data = co_await csr_read(core_throttle, 0x8, core_mhpmcounter10);
-    if(cntr_data != 0)
-      cvm::log(cvm::ERROR, "[THROTTLE] Before Enabling Throttle HPMCOUNTER is non-zero {} .... \n",cntr_data);
-    else
-      cvm::log(cvm::NONE, "[THROTTLE] Before Enabling Throttle HPMCOUNTER is {} .... \n",cntr_data);
+    
 
-    // Write to MC/MS power config
-    co_await csr_write(core_throttle, 0x8,core_pwr_throttle_cfg_0 , 0x000078830372a211);
-    co_await csr_write(core_throttle, 0x8,core_pwr_throttle_cfg_1 , 0x1041017ecb594129);
+    // Removing checks as it would be on MC side for throttling 
+    // cntr_data = co_await csr_read(core_throttle, 0x8, core_mhpmcounter10);
+    // if(cntr_data != 0)
+    //   cvm::log(cvm::ERROR, "[THROTTLE] ERROR: Before Enabling Throttle HPMCOUNTER is non-zero {} .... \n",cntr_data);
+    // else
+    //   cvm::log(cvm::NONE, "[THROTTLE] Before Enabling Throttle HPMCOUNTER is {} .... \n",cntr_data);
+
+    // Write to MC/MS power config lower threshold to 10 (0xA) for temp throttle
+    co_await csr_write(core_throttle, 0x8,core_pwr_throttle_cfg_0 , 0x000078820372a210); // Disabling Preset, Didt throttling
+    co_await csr_write(core_throttle, 0x8,core_pwr_throttle_cfg_1 , 0x1015017ecb594128); // Disabling max power throttle, Enable Thermal Adjust Enable
     co_return;
 };
 
 cvm::messenger::task<void> thub_sequence::temp_throttle_disable()
 {
-  uint64_t cntr_data;
+  // Removing checks as it would be on MC side for throttling 
+  // uint64_t cntr_data;
 
-  cntr_data = co_await csr_read(core_throttle, 0x4, core_mhpmcounter10);
-  if(cntr_data == 0)
-    cvm::log(cvm::ERROR, "[THROTTLE] After Enabling Throttle HPMCOUNTER is zero {} .... \n",cntr_data);
-  else
-  cvm::log(cvm::NONE, "[THROTTLE] After Enabling Throttle HPMCOUNTER is {} .... \n",cntr_data);
+  // cntr_data = co_await csr_read(core_throttle, 0x4, core_mhpmcounter10);
+  // if(cntr_data == 0)
+  //   cvm::log(cvm::ERROR, "[THROTTLE] ERROR: After Enabling Throttle HPMCOUNTER is zero {} .... \n",cntr_data);
+  // else
+  // cvm::log(cvm::NONE, "[THROTTLE] After Enabling Throttle HPMCOUNTER is {} .... \n",cntr_data);
 
   // Write to MC/MS power config
-  co_await csr_write(core_throttle, 0x8,core_pwr_throttle_cfg_0 , 0x000078830372a211);
-  co_await csr_write(core_throttle, 0x8,core_pwr_throttle_cfg_1 , 0x11ff017ecb594129);
+  co_await csr_write(core_throttle, 0x8,core_pwr_throttle_cfg_1 , 0x11fe017ecb594128); // Disable Thermal Adjust end
 
   co_await csr_write(core_throttle, 0x4, core_mhpmevent10 , 0x0); // MS Event
   co_await csr_write(core_throttle, 0x8, core_mhpmevent10 , 0x0); // MC Event
