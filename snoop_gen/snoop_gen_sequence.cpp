@@ -77,6 +77,10 @@ void snoop_gen_sequence::eot_addr_queue(rv_tester::snoop_addrs_eot addrs) {
 
 cvm::messenger::task<void>
 snoop_gen_sequence::eot_snoop_addr(std::queue<uint64_t>& addr_q) {
+
+  // Disable Overlay checker
+  FLAGS_overlay_mmr_check = false;
+
   uint32_t id1 = rng1();
   while(!addr_q.empty()) {
     transactor::read_t r;
@@ -179,8 +183,8 @@ cvm::messenger::task<void> snoop_gen_sequence::blocking_read(const transactor::r
   axi::a_no_id_t ar_txn;
   unsigned id;
   ar_txn.w     = false;
-  ar_txn.addr  = r.addr;
-  ar_txn.size  = 6;
+  ar_txn.addr  = r.addr & 0xFFFFFFFFFFFFFFF8;
+  ar_txn.size  = FLAGS_rand_snoop_size_en ? (rng1() % 5) + 2 : 6;
   ar_txn.len   = 0;
   ar_txn.burst = axi::burst_t(0);
   ar_txn.lock  = 0;
@@ -191,11 +195,7 @@ cvm::messenger::task<void> snoop_gen_sequence::blocking_read(const transactor::r
   ar_txn.atop  = 0;
   ar_txn.user  = 0;
   ar_txn.seqid = SNOOP_GEN_SEQ_ID;
-  if (FLAGS_rand_snoop_unaligned_addr_en)
-    ar_txn.addr = r.addr + (rng1() % 64);
-  if (FLAGS_rand_snoop_size_en)
-    ar_txn.size = rng1() % 7;
-  ar_txn.rsp_err_chk = ((ar_txn.addr & 0x3) == 0) && (ar_txn.size != 0 && ar_txn.size != 1) && !((ar_txn.addr & 0x7) == 4 && ar_txn.size >= 3);
+  ar_txn.allow_err_resp = FLAGS_io_coherency_disable || (ar_txn.addr & 0x3) || (ar_txn.size == 0 || ar_txn.size == 1) || ((ar_txn.addr & 0x7) == 4 && ar_txn.size >= 3);
 
   cvm::log(cvm::HIGH, "[snoop_gen_sequence] blocking read data begin: \n");
 

@@ -62,6 +62,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::axi_sw_mst(cvm::topology::loc_t loc, unsigned id
       w_q_rptr_(0), w_q_wptr_(w_q_max_),
       ids_(size_t(1) << id_width_, true),
       chk_rsp_err_ids_(size_t(1) << id_width_, true),
+      allow_err_resp_ids_(size_t(1) << id_width_, false),
       read_bytes_(0), write_bytes_(0)
 {
     name_ = cvm::topology::name(loc_);
@@ -107,15 +108,16 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::~axi_sw_mst() {
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const B& b) {
-    if (b.resp != axi::RESP_OKAY /* or not used_id(b.id) */) {
-         //could have EXOKAY if it was locked, but assume not for now
-         if(!FLAGS_axi_allow_err_resp && chk_rsp_err_ids_[b.id]){
-             cvm::log(cvm::ERROR, "[{}] Error: bad b.response id:{} resp: {}\n", name_, b.id, b.resp);
-             return;
-         } else {
-             cvm::log(cvm::HIGH, "[{}] Allowing error b.response id:{} resp: {}\n", name_, b.id, b.resp);
-         }
+    if (used_id(b.id) && ((chk_rsp_err_ids_[b.id] && b.resp != axi::RESP_OKAY) || (!chk_rsp_err_ids_[b.id] && b.resp == axi::RESP_OKAY))) {
+        if (!FLAGS_axi_allow_err_resp || !allow_err_resp_ids_[b.id]) {
+            cvm::log(cvm::ERROR, "[{}] Error: bad b.response id: {} Expected: {} Actual: {} \n", name_, b.id, chk_rsp_err_ids_[b.id] ? uint8_t(axi::RESP_OKAY) : uint8_t(axi::RESP_DECERR), uint8_t(b.resp));
+            return;
+        } else {
+            cvm::log(cvm::HIGH, "[{}] Allowing error b.response id: {} resp: {}\n", name_, b.id, b.resp);
+        }
     }
+
+    cvm::log(cvm::FULL, "[axi_sw_mst]  b.response id: {} resp: {}\n", b.id, b.resp);
 
     cvm::registry::messenger.signal<axi::b_t>(
         loc_,
@@ -133,14 +135,14 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const B& b) {
 template <typename B, typename R, typename ARQ, typename AWQ, typename WQ>
 void
 axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const R& r) {
-     if (r.resp != axi::RESP_OKAY /* or not used_id(r.id) */) {
-         if(!FLAGS_axi_allow_err_resp && chk_rsp_err_ids_[r.id]){
-             cvm::log(cvm::ERROR, "[{}] Error: bad r.response id: {} resp: {} last: {}\n", name_, r.id, r.resp, r.last);
-             return;
-         } else {
-             cvm::log(cvm::HIGH, "[{}] Allowing error r.response id: {} resp: {} last: {}\n", name_, r.id, r.resp, r.last);
-         }
-     }
+    if (used_id(r.id) && ((chk_rsp_err_ids_[r.id] && r.resp != axi::RESP_OKAY) || (!chk_rsp_err_ids_[r.id] && r.resp == axi::RESP_OKAY))) {
+        if (!FLAGS_axi_allow_err_resp || !allow_err_resp_ids_[r.id]) {
+            cvm::log(cvm::ERROR, "[{}] Error: bad r.response id: {} Expected: {} Actual: {} \n", name_, r.id, chk_rsp_err_ids_[r.id] ? uint8_t(axi::RESP_OKAY) : uint8_t(axi::RESP_DECERR), uint8_t(r.resp));
+            return;
+        } else {
+            cvm::log(cvm::HIGH, "[{}] Allowing error r.response id: {} resp: {} last: {}\n", name_, r.id, r.resp, r.last);
+        }
+    }
 
     cvm::log(cvm::FULL, "[axi_sw_mst]  r.response id: {} resp: {} last: {}\n", r.id, r.resp, r.last);
 
@@ -202,6 +204,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const axi::a_t& a) {
     }
     alloc_id(a.id);
     chk_rsp_err_ids_[a.id] = a.rsp_err_chk;
+    allow_err_resp_ids_[a.id] = a.allow_err_resp;
 
     transactions_.emplace_back(a);
     push_transactions();
@@ -256,6 +259,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::push_a_no_id(const bool& aw, const axi::a_no_id_
     }
     a.id = id;
     chk_rsp_err_ids_[a.id] = a.rsp_err_chk;
+    allow_err_resp_ids_[a.id] = a.allow_err_resp;
 
     transactions_.emplace_back(a);
     push_transactions();
@@ -387,6 +391,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const transactor::read_request_t& req) {
      if (!a_wrapper(req.addr, req.length, a))
         return;
     chk_rsp_err_ids_[a.id] = a.rsp_err_chk;
+    allow_err_resp_ids_[a.id] = a.allow_err_resp;
     transactions_.emplace_back(a);
     push_transactions();
 }
@@ -401,6 +406,7 @@ axi_sw_mst<B, R, ARQ, AWQ, WQ>::process(const transactor::write_request_t& req) 
     if (!a_wrapper(req.addr, req.length, a))
         return;
     chk_rsp_err_ids_[a.id] = a.rsp_err_chk;
+    allow_err_resp_ids_[a.id] = a.allow_err_resp;
     transactions_.emplace_back(a);
 
     size_t pow2size = size_t(1) << a.size;

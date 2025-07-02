@@ -38,7 +38,7 @@ cosim:
 
     m_csri:
         domain: 1
-        num: ${max(TOP.PLATFORM.COSIM.RVFI.NRETS) + TOP.PLATFORM.MAX_CSR_AFTER_NRET}
+        num: ${TOP.PLATFORM.CSRI.NCSRI}
         fields:
             cycle:
                 width: 64
@@ -54,6 +54,7 @@ cosim:
     m_steps:
         domain: 1
         num: 1 
+        disabling_defines: ["DISABLE_PERIODIC_COSIM"]
         fields:
             hart:
                 width: 32
@@ -188,6 +189,7 @@ cosim:
     m_gp_regs:
         domain: 1
         num: 1 
+        disabling_defines: ["DISABLE_PERIODIC_COSIM"]
         fields:
             hart:
                 width: 32
@@ -199,6 +201,7 @@ cosim:
     m_fp_regs:
         domain: 1
         num: 1 
+        disabling_defines: ["DISABLE_PERIODIC_COSIM"]
         fields:
             hart:
                 width: 32
@@ -210,6 +213,7 @@ cosim:
     m_vc_regs:
         domain: 1
         num: 1 
+        disabling_defines: ["DISABLE_PERIODIC_COSIM"]
         fields:
             hart:
                 width: 32
@@ -257,6 +261,24 @@ cosim:
             elem_size:
                 qualify: v_ext
                 width: 8
+
+    m_eoti_normal: &eot
+        domain: 1
+        num: 1 
+        fields:
+            cycle:
+                width: 64
+            hart:
+                width: 32
+            icount:
+                width: 64
+            data:
+                width: 64
+            max_instr:
+                width: 1
+
+    offline_eoti:
+        <<: *eot
 
     m_mcmi_insert:
         domain: 1
@@ -331,17 +353,6 @@ cosim:
             error:
                 width: 1
 
-    m_mcmi_write_error:
-        domain: 1
-        num: 1
-        fields:
-            cycle:
-                width: 64
-            hart:
-                width: 32
-            addr:
-                width: ${TOP.PLATFORM.PALEN}
-
     m_mcmi_ifetch_req:
         domain: 1
         num: ${max(TOP.PLATFORM.COSIM.MCMI.NIFETCHES)}
@@ -412,6 +423,8 @@ cosim:
                 width: 1
             seip_clr:
                 width: 1
+            buserr_bit:
+                width: 6
 
     m_core_nmi:
         domain: 1
@@ -790,6 +803,22 @@ pmu_core:
                 width: 24
             cycles_no_rob:
                 width: 24
+            cycles_db0_stall:
+                width: 24
+            cycles_db1_stall:
+                width: 24
+            cycles_db2_stall:
+                width: 24
+            cycles_db3_stall:
+                width: 24
+            cycles_db4_stall:
+                width: 24
+            cycles_db5_stall:
+                width: 24
+            cycles_db6_stall:
+                width: 24
+            cycles_db7_stall:
+                width: 24
             dispatched_nops:
                 width: 24
             op_retired_direct_branch:
@@ -940,6 +969,8 @@ pmu_core:
                 width: 24
             dtlb_miss_4k:
                 width: 24
+            dtlb_miss_64k:
+                width: 24
             dtlb_miss_hugepage:
                 width: 24
             dtlb_miss_all:
@@ -1053,6 +1084,18 @@ pmu_core:
             fillbuf_hit_replay_mmu:
                 width: 24
             fillbuf_hit_replay_all:
+                width: 24
+            cache_hit_predictor_replay_load:
+                width: 24
+            cache_hit_predictor_replay_store:
+                width: 24
+            cache_hit_predictor_replay_all:
+                width: 24
+            utlb_miss_in_hit_mode:
+                width: 24
+            utlb_hit_predictor_active:
+                width: 24
+            utlb_hit_predictor_entrance:
                 width: 24
             l1d_miss_reqbuf_link_load:
                 width: 24
@@ -1296,9 +1339,43 @@ pmu_core:
                 width: 24
             tlp_access_arb:
                 width: 24
+            tlp_access_hit_4k:
+                width: 24
+            tlp_access_hit_64k:
+                width: 24
+            tlp_access_hit_hugepage:
+                width: 24
             tlp_access_all:
                 width: 24
             fillbuf_cannot_alloc:
+                width: 24
+            ls_arb_grant_cancel_ldc:
+                width: 24
+            ls_arb_grant_cancel_stc:
+                width: 24
+            ls_arb_grant_cancel_mmu:
+                width: 24
+            ls_arb_grant_cancel_pfc:
+                width: 24
+            ls_arb_grant_cancel_agp:
+                width: 24
+            ls_arb_grant_cancel_fill:
+                width: 24
+            ls_arb_grant_cancel_victim:
+                width: 24
+            ls_arb_grant_cancel_requestor:
+                width: 24
+            ls_arb_grant_cancel_internal:
+                width: 24
+            ls_arb_grant_cancel_all:
+                width: 24
+            ls_arb_round_robin_cycles:
+                width: 24
+            ls_arb_round_robin_entrances:
+                width: 24
+            cache_hit_predictor_active:
+                width: 24
+            cache_hit_predictor_entrance:
                 width: 24
             pfc_agt_cannot_alloc:
                 width: 24
@@ -1697,6 +1774,18 @@ aclint_checker:
                 width: ${TOP.PLATFORM.XLEN}
             user:
                 width: 8
+    mtip_check:
+        domain: 1
+        num: 9
+        fields:
+            check_1:
+                width: 1
+            check_2:
+                width: 1
+            clock:
+                width: 64
+            hart:
+                width: 32
 
 reset_driver:
     num: 1
@@ -1724,6 +1813,9 @@ pwrmgmt:
     m_pcontrol_tick:
         domain: 3
         num: 1
+    m_dfs_tick:
+        domain: 3
+        num: 1
     m_thub_tick:
         domain: 3
         num: 1
@@ -1734,6 +1826,9 @@ pwrmgmt:
         domain: 3
         num: 1
     m_force_ref_clk_ack:
+        domain: 3
+        num: 1
+    m_tj_shutdown_ack:
         domain: 3
         num: 1
 

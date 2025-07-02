@@ -105,7 +105,7 @@ import rv_tester_params::*;
     parameter int NBYPASS = 1,
     parameter int NIFETCH = 1,
     parameter int NIEVICT = 1,
-    parameter int MAX_CSR_AFTER_NRET = 3,
+    parameter int NCSRI = 1,
     parameter type rule_t = axi_pkg::xbar_rule_64_t,
     parameter int unsigned NoAddrRules = 20,
     `TOPOLOGY,
@@ -143,8 +143,6 @@ import rv_tester_params::*;
 );
 
 
-localparam CSR_SBITS = $clog2(CSR_COUNT);
-localparam MAXCSR = NRET + MAX_CSR_AFTER_NRET;
 localparam NGP_REGS  = 32;
 localparam NFP_REGS  = 32;
 localparam NVC_REGS  = 32;
@@ -171,59 +169,14 @@ localparam CAM_IBITS = $clog2(CAM_DEPTH);
 localparam CAM_ILBIT = 0;
 localparam CAM_IHBIT = CAM_IBITS;
 
-
-    //----------------------------------------------------------------------------
-    // function retsel compresses CSR_COUNT down into MAXCSR+1 DPI calls
-    //   we make the retsel function have MAXCSR+1 values to catch if we have too
-    //   many CSR updates.  If s=MAXCSR then we went past the number DPIs we can
-    //   accomodate  (0 .. MAXCSR-1)
-    //----------------------------------------------------------------------------
-
-    function automatic bit [MAXCSR:0][CSR_SBITS-1:0] retsel(input bit [CSR_COUNT-1:0] valid);
-        int s = 0;
-        int i = 0;
-        retsel = '1;
-        /* verilator lint_off WIDTH */
-        for(i=0;i<CSR_COUNT;i=i+1) begin
-            if (valid[i] == 1) begin
-                retsel[s] = i;
-                if (s < MAXCSR) begin
-                    s = s + 1;
-                end
-            end
-        end
-        /* verilator lint_on WIDTH */
-    endfunction
-
-    function automatic bit [CSR_COUNT-1:0] get_csr_mask();
-      bit [CSR_COUNT-1:0] mask = '1;
-      mask[MIP]             = 0; //sepearate AIA flow takes care of mip update
-      mask[TIME]            = 0; //time csr gets updated evey clock cycle
-      mask[MCYCLE]          = 0; //mcycle csr gets updated evey clock cycle
-      mask[MINSTRET]        = 0; //whisper models this instruction retire counter
-      mask[CXTVALSPEC]      = 0; // fe,mc,ls holds copy of same and are not updated across
-      mask[CXINSTSPEC]      = 0; //-------------------""----------------------------------
-      mask[CMCTHRCFG0]      = 0; //thermal throttle csr not important fucntionally
-      mask[VSTOPEI]         = 0; //interrupt csr update are handled separately
-      mask[MHPMCOUNTER3]    = 0; //perf counter
-      mask[MHPMCOUNTER4]    = 0; //perf counter
-      mask[MHPMCOUNTER5]    = 0; //perf counter
-      mask[MHPMCOUNTER6]    = 0; //perf counter
-      mask[MHPMCOUNTER7]    = 0; //perf counter
-      mask[MHPMCOUNTER8]    = 0; //perf counter
-      mask[MHPMCOUNTER9]    = 0; //perf counter
-      mask[MHPMCOUNTER10]   = 0; //perf counter
-      return mask;
-    endfunction
-
     //---------------------------------------------------------------
     // Function to return the count of VALIDS with UNIQUE ORDER bits
     //---------------------------------------------------------------
-    function automatic [$clog2(NRET+1)-1:0] valid_count(input bit [NRET-1:0] valid, input bit [NRET-1:0][63:0] order, input bit [NRET-1:0] last_uops);
+    function automatic [$clog2(NRET+1)-1:0] valid_count(input bit [NRET-1:0] valid, input bit [NRET-1:0][63:0] order, input bit [NRET-1:0] last_uops,num);
         bit [63:0] corder=0;
         valid_count = 0;
         /* verilator lint_off WIDTH */
-        for(int i=0;i<NRET;i=i+1) begin
+        for(int i=0;i<num;i=i+1) begin
             if ((valid[i] == 1'b1) & (last_uops[i] == 1'b1)) begin
                valid_count = valid_count + 1;
             end
@@ -262,16 +215,18 @@ localparam CAM_IHBIT = CAM_IBITS;
         /* verilator lint_on WIDTH */
     endfunction
 
+    import "DPI-C" function longint get_max_cycle();
     import "DPI-C" context function void cosim_set_scope(int unsigned location);
     import "DPI-C" context function int is_eot_tohost();
-    import "DPI-C" context function void eot_hw_process(longint unsigned hart, longint unsigned cycles, longint unsigned addr, longint unsigned data);
-    import "DPI-C" context function void call_check_max_instr(longint unsigned cycles, longint unsigned instr_count);
+    //import "DPI-C" context function void eot_hw_process(longint unsigned hart, longint unsigned cycles, longint unsigned addr, longint unsigned data);
+    //import "DPI-C" context function void call_check_max_instr(longint unsigned cycles, longint unsigned instr_count);
 
 
     bit PSC_enabled;
     typedef longint unsigned LU;
     parameter int unsigned location = cvm_topology_gen::get_location (topology.TOP.PLATFORM.COSIM.ID, NUM);
-    bit rvfi_enabled,mcm_enabled,hw_eot_enabled;
+    bit rvfi_enabled,mcm_enabled,offline_dpi;
+    bit offline_dpi_test;                          // this disables the sending of mcmi_bypass and mcmi_insert even when to_host == 1
     bit poke_mip_timer;
 
     //int mcm_value;
@@ -387,23 +342,29 @@ localparam CAM_IHBIT = CAM_IBITS;
     bit [NRET-1:0][NRET-1:0]  rvfi_last_insn_events;           // matchs current order to previous last_poke_orders that last_uop=1 now
     bit                    poke_last_insn_event;
     bit [NWRITE-1:0]       eot_write_found;                // end-of-test event found in mcmi_writes ifc
+    bit [NWRITE-1:0][63:0] eot_write_data;                // end-of-test event found in mcmi_bypass ifc
     bit [NBYPASS-1:0]      eot_bypass_found;                // end-of-test event found in mcmi_bypass ifc
+    bit [NBYPASS-1:0][63:0]  eot_bypass_data;                // end-of-test event found in mcmi_bypass ifc
     bit [NINSERT-1:0]      eot_insert_found;                // end-of-test event found in mcmi_insert ifc
-    longint unsigned       mcmi_write_addr[NWRITE-1:0];
-    longint unsigned       mcmi_write_data[NWRITE-1:0];
-    longint unsigned       mcmi_insert_addr[NINSERT-1:0];
-    longint unsigned       mci_insert_data[NINSERT-1:0];
-    longint unsigned       mcmi_bypass_addr[NBYPASS-1:0];
-    longint unsigned       mcmi_bypass_data[NBYPASS-1:0];
+    bit [NINSERT-1:0][63:0]  eot_insert_data;                // end-of-test event found in mcmi_insert ifc
+    longint unsigned       mcmi_write_addr[NWRITE-1:0]; 
+    longint unsigned       mcmi_write_data[NWRITE-1:0];  
+    longint unsigned       mcmi_insert_addr[NINSERT-1:0];  
+    longint unsigned       mci_insert_data[NINSERT-1:0];   
+    longint unsigned       mcmi_bypass_addr[NBYPASS-1:0];    
+    longint unsigned       mcmi_bypass_data[NBYPASS-1:0];     
     bit [46:0]             eot_write_fail;                 // end-of-test code mcm_writes
     bit [46:0]             eot_insert_fail;                // end-of-test code mcm_inserts
     bit [46:0]             eot_bypass_fail;                 // end-of-test code mcm_byapss
     bit                    eot_write_pass;                 // end-of-test code mcm_writes
     bit                    eot_insert_pass;                // end-of-test code mcm_inserts
     bit                    eot_bypass_pass;                 // end-of-test code mcm_byapss
-    bit                    eot_exit_pass;
-    bit [46:0]             eot_exit_fail;
-    bit [$clog2(NRET+1)-1:0] valid_cnt;                     // number of rvfi_valids == 1 in 1 clock
+    bit                    eot_exit_pass;                  
+    bit [46:0]             eot_exit_fail;                  
+    bit [$clog2(NRET+1)-1:0] valid_cnt;                     // number of instructioncs retired this clock 
+    bit [$clog2(NRET+1)-1:0] valid_icnt[NRET-1:0];          // number of instructions retired up to this retire index 
+    bit [63:0]             instr_icnt[NRET-1:0];          // number of instructions retired up to this retire index 
+    bit [NRET-1:0]         instr_imax;
 
     bit                    eot_found;                       // end-of-test event found
     bit                    eot_found_d1;                       // end-of-test event found
@@ -437,9 +398,12 @@ localparam CAM_IHBIT = CAM_IBITS;
     bit                 rvfi_trap_pmode;
     bit                 poke_patch_mode;
 
+    bit [63:0]          eoti_data;
+
     // Timeout checks
     int max_stall_cycle = 50000;
     longint unsigned max_cycle;
+    longint unsigned new_max_cycle;
     longint unsigned max_instructions;
     longint unsigned instruction_cnt;
     longint unsigned instr_count;
@@ -733,6 +697,8 @@ localparam CAM_IHBIT = CAM_IBITS;
             /* verilator lint_off BLKSEQ */
             rvfi_enabled = (cvm_plusargs::get_bool("rvfi") != '0) & (location != cvm_topology::nil);
             mcm_enabled = (cvm_plusargs::get_bool("mcm") != '0);
+            offline_dpi = (cvm_plusargs::get_bool("offline_dpi") != '0);
+            offline_dpi_test = (cvm_plusargs::get_bool("offline_dpi_test") != '0);
             to_host = ((is_eot_tohost() == 1) | (eot_addr != '0));
             poke_mip_timer = (cvm_plusargs::get_bool("poke_mip_timer") != '0);
             if (rvfi_enabled) begin
@@ -751,9 +717,10 @@ localparam CAM_IHBIT = CAM_IBITS;
     endfunction
 
      // m_reset
-    logic dut_reset_d1;
+    logic dut_reset_d1, dut_core_reset_d1;
     always @(posedge clk) begin
         dut_reset_d1 <= dut_reset;
+        dut_core_reset_d1 <= dut_core_reset;
     end
     assign m_resets[0].valid            = RVFI_EN & rvfi_enabled & (dut_reset_d1 & ~dut_reset);
     assign m_resets[0].data.location    = location;
@@ -819,6 +786,12 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign m_rvfis[n].data.mem_wmask   = rvfi[n].mem_wmask;
         assign m_rvfis[n].data.mem_wdata   = rvfi[n].mem_wdata;
         assign m_rvfis[n].data.mem_attr    = rvfi[n].mem_attr;
+
+        /* verilator lint_off WIDTHTRUNC */
+        assign valid_icnt[n]   = valid_count(rvfi_valids, rvfi_orders,rvfi_luops,n+1);    // count of valid-unique rvfi orders from 0 to N+1
+        /* verilator lint_on WIDTHTRUNC */
+        assign instr_icnt[n]   = instruction_cnt + 64'(valid_icnt[n]);
+        assign instr_imax[n]   = ((max_instructions > 0) & (instr_icnt[n] == max_instructions)) ? 1'b1 : 1'b0;
 
         //--------------------------------------------------------------------------------------------------------------------------------------
         // Logic to generate first_uop, ucode, priv[3:0] and priv_change signals (formerly generated in C++
@@ -922,7 +895,9 @@ localparam CAM_IHBIT = CAM_IBITS;
     //       - an instruction order was OUT-of-order...
     //---------------------------------------------------------------
 
-    assign valid_cnt   = valid_count(rvfi_valids, rvfi_orders,rvfi_luops);    // count of valid-unique rvfi orders
+    /* verilator lint_off WIDTHTRUNC */
+    assign valid_cnt   = valid_count(rvfi_valids, rvfi_orders,rvfi_luops,NRET);    // count of valid-unique rvfi orders
+    /* verilator lint_on WIDTHTRUNC */
     assign rvmax_order = max_order(rvfi_valids, rvfi_orders);                 // highest order valid-unique rvfi
 
     //----------------------------------------------------------------------
@@ -1026,51 +1001,15 @@ localparam CAM_IHBIT = CAM_IBITS;
     //assign send_regs = send_regs_i & ~send_regs_d1;
 
     // m_csri
-    logic [CSR_COUNT-1:0] m_csris_valid;
-    logic [CSR_COUNT-1:0] valid_d0;
-    logic [CSR_COUNT-1:0] valid_d1;
-    logic [CSR_COUNT-1:0][CSRLEN-1:0] addr_d1;
-    logic [CSR_COUNT-1:0][63:0] data_d1;
-    logic [CSR_COUNT-1:0][63:0] mask_d1;
 
-    always @(posedge clk) begin
-      for (int n = 0; n < CSR_COUNT; n++) begin
-        valid_d1[n] <= csri[n].valid;
-        addr_d1[n] <= csri[n].addr;
-        data_d1[n] <= csri[n].data;
-        mask_d1[n] <= csri[n].mask;
-      end
-    end
-
-    bit [MAXCSR:0][CSR_SBITS-1:0] csr_sel;
-    bit [CSR_COUNT-1:0]           csr_ignore_mask;
-
-    assign csr_sel          =   retsel(m_csris_valid);
-    assign csr_ignore_mask  =   get_csr_mask();
-
-    //-------------------------------------------------------------------------------------------
-    // if csr_sel[MAXCSR] == 1 then we went 1 past the MAX number of DPI calls we can make
-    //    only csr_sel[MAXCSR-1:0] are valid.
-    //-------------------------------------------------------------------------------------------
-    always @(posedge clk) begin
-        assert (csr_sel[MAXCSR] == '1) else $error("More than %d CSR valids == 1",MAXCSR-1);
-    end
-
-
-    for (genvar n = 0; n < CSR_COUNT; n++) begin
-        assign m_csris_valid[n] = rvfi_enabled & ~dut_core_reset & csr_ignore_mask[n] &
-                                  ((csri[n].valid & ~valid_d1[n]) |
-                                    (csri[n].valid & (((csri[n].data & csri[n].mask) !== (data_d1[n] & mask_d1[n])) |
-                                    (csri[n].mask !== mask_d1[n]))));
-    end
-    for (genvar n = 0; n < MAXCSR; n++) begin
-        assign m_csris[n].valid         = (csr_sel[n] != '1) ? 1'b1 : 1'b0;
+    for (genvar n = 0; n < NCSRI; n++) begin
+        assign m_csris[n].valid         = rvfi_enabled & ~dut_core_reset & csri[n].valid;
         assign m_csris[n].data.location = location;
         assign m_csris[n].data.cycle    = clocks;
         assign m_csris[n].data.hart     = NUM;
-        assign m_csris[n].data.addr     = (csr_sel[n] != '1) ? csri[csr_sel[n]].addr : '0;
-        assign m_csris[n].data.mask     = (csr_sel[n] != '1) ? csri[csr_sel[n]].mask : '0;
-        assign m_csris[n].data.data     = (csr_sel[n] != '1) ? csri[csr_sel[n]].data : '0;
+        assign m_csris[n].data.addr     = csri[n].data.addr;
+        assign m_csris[n].data.mask     = csri[n].data.mask;
+        assign m_csris[n].data.data     = csri[n].data.data;
     end
 
     // m_mcmi_read
@@ -1102,7 +1041,7 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     // m_mcmi_insert
     for (genvar n = 0; n < NINSERT; n++) begin
-        assign m_mcmi_inserts[n].valid = MCMI_EN & (mcm_enabled || (to_host == 'b1)) & rvfi_enabled & ~dut_core_reset & mcmi_insert[n].valid;
+        assign m_mcmi_inserts[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_core_reset & mcmi_insert[n].valid;
         assign m_mcmi_inserts[n].data.location = location;
         assign m_mcmi_inserts[n].data.cycle = mcmi_insert[n].valid ? clocks : '0;
         assign m_mcmi_inserts[n].data.hart = NUM;
@@ -1113,14 +1052,15 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign m_mcmi_inserts[n].data.data_vec = mcmi_insert[n].data[255:0];
         assign m_mcmi_inserts[n].data.v_ext = mcmi_insert[n].v_ext;
         assign m_mcmi_inserts[n].data.elem_idx = mcmi_insert[n].elem_idx;
-        assign mcmi_insert_pokes[n] = mcmi_insert[n].valid;
-        assign eot_insert_found[n] = ((to_host == 1) & (eot_addr != '0) &
-                                      mcmi_insert[n].valid & (mcmi_insert[n].addr == $bits(mcmi_insert[n].addr)'(eot_addr)) &
+        assign eot_insert_found[n] = ((to_host == 1) & (eot_addr != '0) &  
+                                      mcmi_insert[n].valid & (mcmi_insert[n].addr == $bits(mcmi_insert[n].addr)'(eot_addr)) & 
                                       mcmi_insert[n].data[0] & (mcmi_insert[n].data[63:56] == '0)) ? 1'b1 : 1'b0;
-        assign mci_insert_data[n] = mcmi_insert[n].data[63:0];
+        assign eot_insert_data[n] = (eot_insert_found[n] == 1'b1) ?  mcmi_insert[n].data[63:0] : '0; 
 /* verilator lint_off WIDTHEXPAND */
         assign mcmi_insert_addr[n] = mcmi_insert[n].addr;
 /* verilator lint_on WIDTHEXPAND */
+
+        assign mcmi_insert_pokes[n] = mcmi_insert[n].valid;
     end
 
 
@@ -1137,23 +1077,20 @@ localparam CAM_IHBIT = CAM_IBITS;
 
         assign mcmi_write_pokes[n] = mcmi_write[n].valid;
 
-        //-------------------------------------------------------------------------------------------
-        // End-Of-Test logic:  memory write to designated address
-        //    - will cause a save-state event (force-steps=1 if NO instrs being retired currently
-        //-------------------------------------------------------------------------------------------
-        assign eot_write_found[n] = ((to_host == 1) & (eot_addr != '0) &
-                                      mcmi_write[n].valid & (mcmi_write[n].addr == $bits(mcmi_write[n].addr)'(eot_addr)) &
-                                      mcmi_write[n].data[0] & (mcmi_write[n].data[63:56] == '0)) ? 1'b1 : 1'b0;
-        assign mcmi_write_data[n] = mcmi_write[n].data[63:0];
+        assign mcmi_write_data[n] = mcmi_write[n].data[63:0]; 
 /* verilator lint_off WIDTHEXPAND */
         assign mcmi_write_addr[n] = mcmi_write[n].addr;
 /* verilator lint_on WIDTHEXPAND */
+        assign eot_write_found[n] = ((to_host == 1) & (eot_addr != '0) &  
+                                      mcmi_write[n].valid & (mcmi_write[n].addr == $bits(mcmi_write[n].addr)'(eot_addr)) & 
+                                      mcmi_write[n].data[0] & (mcmi_write[n].data[63:56] == '0)) ? 1'b1 : 1'b0;
+        assign eot_write_data[n] = (eot_write_found[n] == 1'b1) ?  mcmi_write[n].data[63:0] : '0; 
     end
 
 
     // m_mcmi_bypass
     for (genvar n = 0; n < NBYPASS; n++) begin
-        assign m_mcmi_bypasss[n].valid = MCMI_EN & (mcm_enabled || (to_host == 'b1)) & rvfi_enabled & ~dut_core_reset & mcmi_bypass[n].valid;
+        assign m_mcmi_bypasss[n].valid = MCMI_EN & mcm_enabled & rvfi_enabled & ~dut_core_reset & mcmi_bypass[n].valid;
         assign m_mcmi_bypasss[n].data.location = location;
         assign m_mcmi_bypasss[n].data.cycle = mcmi_bypass[n].valid ? clocks : '0;
         assign m_mcmi_bypasss[n].data.hart = NUM;
@@ -1173,14 +1110,50 @@ localparam CAM_IHBIT = CAM_IBITS;
         assign eot_bypass_found[n] = ((to_host == 1) & (eot_addr != '0) &
                                       mcmi_bypass[n].valid & (mcmi_bypass[n].addr == $bits(mcmi_bypass[n].addr)'(eot_addr)) &
                                       mcmi_bypass[n].data[0] & (mcmi_bypass[n].data[63:56] == '0)) ? 1'b1 : 1'b0;
-        assign mcmi_bypass_data[n] = mcmi_bypass[n].data[63:0];
+        assign eot_bypass_data[n] = (eot_bypass_found[n]) ? mcmi_bypass[n].data[63:0] : 64'h0; 
 /* verilator lint_off WIDTHEXPAND */
         assign mcmi_bypass_addr[n] = mcmi_bypass[n].addr;
 /* verilator lint_on WIDTHEXPAND */
         assign mcmi_bypass_pokes[n] = mcmi_bypass[n].valid;
+
     end
 
-    assign eot_found      = ~dut_core_reset & ((eot_write_found != 0) | (eot_bypass_found != 0) | (eot_insert_found != '0) | eot_max_instr) ? 1'b1 : 1'b0;
+    //----------------------------------------------------------------------------------------------------
+    // EOT INTERFACES: only sends packet when it matches an EOT.  Needed for OFFLINE COSIM
+    //   eoti-normal  : for normal runs AND offline_dpi replay
+    //   eoti-offline : for offline_dpi capture  (only sent during offline_dpi caputure)
+    //----------------------------------------------------------------------------------------------------
+
+    assign eot_found      = ~dut_core_reset & ((eot_write_found != 0) | (eot_bypass_found != 0) | (eot_insert_found != '0) | eot_max_instr) ? 1'b1 : 1'b0; 
+
+    always_comb begin
+        eoti_data = '0; 
+        for (int n = 0; n < NWRITE; n++) begin
+           eoti_data |= eot_write_data[n];
+        end
+        for (int n = 0; n < NINSERT; n++) begin
+           eoti_data |= eot_insert_data[n];
+        end
+        for (int n = 0; n < NBYPASS; n++) begin
+           eoti_data |= eot_bypass_data[n];
+        end
+    end
+    
+    logic eot_valid;
+    assign eot_valid = MCMI_EN &  ~dut_reset & eot_found;
+
+    assign m_eoti_normals[0].valid =  ~offline_dpi_test & eot_valid;
+    assign m_eoti_normals[0].data.location = location;
+    assign m_eoti_normals[0].data.cycle = clocks;
+    assign m_eoti_normals[0].data.hart = NUM;
+    assign m_eoti_normals[0].data.icount = instr_count;
+    assign m_eoti_normals[0].data.data = eoti_data;
+    assign m_eoti_normals[0].data.max_instr = eot_max_instr;
+
+    assign offline_eotis[0].valid =  eot_valid & (offline_dpi | offline_dpi_test);
+    assign offline_eotis[0].data = m_eoti_normals[0].data;
+    
+
 
     // m_mcmi_ifetch
     for (genvar n = 0; n < NIFETCH; n++) begin
@@ -1239,7 +1212,8 @@ localparam CAM_IHBIT = CAM_IBITS;
 
     // When using periodic whisper updates... check for eot if max instruction method is used
     assign instr_count = instruction_cnt + 64'(valid_cnt);
-    assign eot_max_instr = ((max_instructions > 0) &  (instr_count > max_instructions)) ? 1'b1: 1'b0;
+    assign eot_max_instr = (instr_imax != '0) ? 1'b1: 1'b0;
+
 
     // m_debug
     logic debug_mode_d1;
@@ -1268,11 +1242,11 @@ localparam CAM_IHBIT = CAM_IBITS;
         nmi_pend_d1.nmi <= nmi_pend.nmi;
       end
     end
-    assign m_core_nmis[0].valid = ~dut_core_reset & ((nmi_pend.nmi & ~nmi_pend_d1.nmi) || (nmi_pend.clai & ~nmi_pend_d1.clai) || (~nmi_pend.nmi & nmi_pend_d1.nmi) || (~nmi_pend.clai & nmi_pend_d1.clai)) & rvfi_enabled;
+    assign m_core_nmis[0].valid = ~dut_core_reset & ((nmi_pend.nmi & ~nmi_pend_d1.nmi) || (nmi_pend.clai & ~nmi_pend_d1.clai) || (~nmi_pend.nmi & nmi_pend_d1.nmi) || (~nmi_pend.clai & nmi_pend_d1.clai) || (dut_core_reset_d1 & (nmi_pend.clai || nmi_pend.nmi))) & rvfi_enabled;
     assign m_core_nmis[0].data.location = location;
     assign m_core_nmis[0].data.cycle = clocks;
-    assign m_core_nmis[0].data.nmi_assert = (nmi_pend.nmi & ~nmi_pend_d1.nmi & ~nmi_pend.clai) || (nmi_pend.clai & ~nmi_pend_d1.clai & ~nmi_pend.nmi);
-    assign m_core_nmis[0].data.nmi_cause = (nmi_pend.nmi & ~nmi_pend_d1.nmi & ~nmi_pend.clai) ? 2 : ((nmi_pend.clai & ~nmi_pend_d1.clai & ~nmi_pend.nmi) ? 3 : 0);
+    assign m_core_nmis[0].data.nmi_assert = (nmi_pend.nmi & ~nmi_pend_d1.nmi & ~nmi_pend.clai) || (nmi_pend.clai & ~nmi_pend_d1.clai & ~nmi_pend.nmi) || (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.nmi) || (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.clai);
+    assign m_core_nmis[0].data.nmi_cause = (nmi_pend.nmi & ~nmi_pend_d1.nmi & ~nmi_pend.clai) ? 2 : (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.nmi) ? 2 : (nmi_pend.clai & ~nmi_pend_d1.clai & ~nmi_pend.nmi) ? 3 : (dut_core_reset_d1 & ~dut_core_reset & nmi_pend.clai) ? 3 : 0;
 
     function automatic bit [63:0] get_nmi_cause(rv_tester_pkg::nmi_t n);
       bit [63:0] cause = '0;
@@ -1302,6 +1276,7 @@ localparam CAM_IHBIT = CAM_IBITS;
     assign m_interrupt_pends[0].data.seip = interrupt_pend.seip;
     assign m_interrupt_pends[0].data.seip_set = interrupt_pend.seip & ~seip_d1;
     assign m_interrupt_pends[0].data.seip_clr = ~interrupt_pend.seip & seip_d1;
+    assign m_interrupt_pends[0].data.buserr_bit = interrupt_pend.buserr_bit;
 
     // m_imsic_msi
     assign m_imsic_msis[0].valid = ~dut_core_reset && imsic_msi.valid && rvfi_enabled;
@@ -1321,11 +1296,12 @@ localparam CAM_IHBIT = CAM_IBITS;
     localparam logic [CSRLEN-1:0] C_MTOPI      = 'hFB0;
     localparam logic [CSRLEN-1:0] C_STOPI      = 'hDB0;
     localparam logic [CSRLEN-1:0] C_VSTOPI     = 'hEB0;
+    localparam logic [CSRLEN-1:0] C_MENVCFG    = 'h30A;
 
     // mtime packets from csr reads/writes
     for (genvar n = 0; n < NRET; n++) begin
       assign m_mtimes[n].valid = ~dut_core_reset && rvfi_enabled && !poke_mip_timer && (rvfi[n].valid &&
-         ((|rvfi[n].csr_wmask && (rvfi[n].csr_addr inside {C_STIMECMP, C_VSTIMECMP, C_HTIMEDELTA})) ||
+         ((|rvfi[n].csr_wmask && (rvfi[n].csr_addr inside {C_STIMECMP, C_VSTIMECMP, C_HTIMEDELTA, C_MENVCFG})) ||
           (|rvfi[n].csr_rmask && (rvfi[n].csr_addr inside {C_TIME, C_MIP, C_MTOPI, C_SIP, C_STOPI, C_VSIP, C_VSTOPI}))));
       assign m_mtimes[n].data.location = location;
       assign m_mtimes[n].data.cycle = clocks;
@@ -1351,10 +1327,33 @@ localparam CAM_IHBIT = CAM_IBITS;
 /* verilator lint_on WIDTHEXPAND */
 
     localparam bit [63:0] DRAM_BASE = 64'h8000_0000;
+    logic        should_update_max_cycle;
+    logic [63:0] updated_max_cycle;
+    logic        max_cycle_update_valid;
+
+    always_ff @(posedge tb_clk) begin
+      if (reset) begin
+        should_update_max_cycle <= 0;
+      end else if (max_cycle > 0 && clocks > max_cycle && NUM < nharts && cosim_terminate_sent == '0) begin
+        should_update_max_cycle <= 1;
+      end else begin
+        should_update_max_cycle <= 0;
+      end
+    end
+
+    // Capture DPI result only when triggered
+    always_ff @(posedge tb_clk) begin
+      if (should_update_max_cycle) begin
+        updated_max_cycle       <= get_max_cycle();
+        max_cycle_update_valid  <= 1;
+      end else begin
+        max_cycle_update_valid  <= 0;
+      end
+    end
+
     always @(posedge tb_clk) begin
       if (reset) begin
         /* verilator lint_off BLKSEQ */
-        max_cycle = cvm_plusargs::get_ulongint("max_cycle");
         max_stall_cycle = cvm_plusargs::get_int("max_stall_cycle");
         cosim_period = cvm_plusargs::get_int("cosim_period");
         max_instructions = cvm_plusargs::get_ulongint("max_instr");
@@ -1365,7 +1364,7 @@ localparam CAM_IHBIT = CAM_IBITS;
         //mcm_value  = cvm_plusargs::get_int("mcm");
         psc_off_low  = cvm_plusargs::get_ulongint("psc_off_low");
         psc_off_high = cvm_plusargs::get_ulongint("psc_off_high");
-        hw_eot_enabled= (cvm_plusargs::get_bool("hw_eot_enable") != '0) ? 1'b1 : 1'b0;
+
 
         /* verilator lint_on BLKSEQ */
         boot_wfi <= '0;
@@ -1378,28 +1377,20 @@ localparam CAM_IHBIT = CAM_IBITS;
         if (rvfi[0].valid == '1 && rvfi[0].pc_rdata == DRAM_BASE) begin
           boot_done <= '1;
         end
-        if (hw_eot_enabled) begin
-          if (eot_found) begin
-            for(int i=0; i < NWRITE; i++)
-              if (eot_write_found[i])
-                 eot_hw_process(hart, clocks, mcmi_write_addr[i], mcmi_write_data[i]);
-            for(int i=0; i < NBYPASS; i++)
-              if (eot_bypass_found[i])
-                 eot_hw_process(hart, clocks, mcmi_bypass_addr[i], mcmi_bypass_data[i]);
-            for(int i=0; i < NINSERT; i++)
-              if (eot_insert_found[i])
-                 eot_hw_process(hart, clocks, mcmi_insert_addr[i], mci_insert_data[i]);
-          end
-          if (eot_max_instr) begin
-            call_check_max_instr(clocks,instr_count);
-          end
-        end
         if (max_stall_cycle > 0 && cycles_since_retire > max_stall_cycle && !boot_wfi && NUM < nharts && cosim_terminate_sent == '0) begin
           $display("\nError: Hart %0d: No instruction retired for max_stall_cycle (%0d) cycles", NUM, max_stall_cycle);
           cosim_terminate();
           cosim_terminate_sent <= '1;
         end
-        if (max_cycle > 0 && clocks > max_cycle && NUM < nharts && cosim_terminate_sent == '0) begin
+        if (max_cycle_update_valid) begin
+          if (max_cycle < updated_max_cycle) begin
+            max_cycle <= updated_max_cycle;
+            $display("\nHart %0d:  Updated max_cycle=%0d", NUM, updated_max_cycle);
+          end else begin
+            $display("\nError: Hart %0d:  Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", NUM, max_cycle);
+            cosim_terminate();
+            cosim_terminate_sent <= 1'b1;
+          end
           $display("\nError: Hart %0d:  Test running for max_cycle (%0d) cycles - stuck in a loop, or too long", NUM, max_cycle);
           cosim_terminate();
           cosim_terminate_sent <= '1;

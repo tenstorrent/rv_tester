@@ -23,7 +23,7 @@ namespace {
     constexpr uint64_t boot_rand_mmr_offset = 0x7000;
     constexpr uint64_t boot_rand_csr_offset = 0x8000;
     constexpr uint64_t time_csr = 0xC01;
-    constexpr uint64_t c_dtvec_csr = 0x7DA;
+    constexpr uint64_t c_dtvec_csr_addr = 0x7DA;
     constexpr uint64_t mtime_mmr = 0x4218'0000;
     constexpr uint64_t mtimecmp_mmr = 0x4218'8000;
     constexpr uint64_t boot_num_harts_offset = 0x9000;
@@ -36,7 +36,7 @@ namespace {
     constexpr uint32_t opcode_nop    = 0x13;
     constexpr uint32_t opcode_ret    = 0x8067;
     constexpr uint32_t opcode_ebreak = 0x00100073;
-    struct csr_reg { 
+    struct csr_reg {
       uint32_t addr       = 0;
       std::string name    = "";
       bool metric         = false;
@@ -76,12 +76,12 @@ namespace {
       CSR(HSTATUS,          0x600, "hstatus"       ,false, true)               \
       CSR(HEDELEG,          0x602, "hedeleg")                                  \
       CSR(HIDELEG,          0x603, "hideleg")                                  \
-      CSR(HIE,              0x604, "hie")                                      \
+      CSR(HIE,              0x604, "hie"           ,true)                      \
       CSR(HCOUNTEREN,       0x606, "hcounteren")                               \
       CSR(HGEIE,            0x607, "hgeie")                                    \
       CSR(HTVAL,            0x643, "htval")                                    \
-      CSR(HIP,              0x644, "hip")                                      \
-      CSR(HVIP,             0x645, "hvip")                                     \
+      CSR(HIP,              0x644, "hip"           ,true)                      \
+      CSR(HVIP,             0x645, "hvip"          ,true)                      \
       CSR(HTINST,           0x64A, "htinst")                                   \
       CSR(HGEIP,            0xE12, "hgeip")                                    \
       CSR(HENVCFG,          0x60A, "henvcfg")                                  \
@@ -95,13 +95,13 @@ namespace {
       CSR(HVIPRIO1,         0x646, "hviprio1")                                 \
       CSR(HVIPRIO2,         0x647, "hviprio2")                                 \
       CSR(VSSTATUS,         0x200, "vsstatus"      ,false, true)               \
-      CSR(VSIE,             0x204, "vsie")                                     \
+      CSR(VSIE,             0x204, "vsie"          ,true)                      \
       CSR(VSTVEC,           0x205, "vstvec")                                   \
       CSR(VSSCRATCH,        0x240, "vsscratch")                                \
       CSR(VSEPC,            0x241, "vsepc")                                    \
       CSR(VSCAUSE,          0x242, "vscause")                                  \
       CSR(VSTVAL,           0x243, "vstval")                                   \
-      CSR(VSIP,             0x244, "vsip")                                     \
+      CSR(VSIP,             0x244, "vsip"          ,true)                      \
       CSR(VSATP,            0x280, "vsatp")                                    \
       CSR(MVENDORID,        0xF11, "mvendorid")                                \
       CSR(MARCHID,          0xF12, "marchid")                                  \
@@ -391,9 +391,9 @@ namespace {
       CSR(VSIREG,           0x251, "vsireg")                                   \
       CSR(MIREG,            0x351, "mireg")                                    \
       CSR(STOPEI,           0x15c, "stopei", true)                             \
-      CSR(VSTOPEI,          0x25c, "vstopei")                                  \
+      CSR(VSTOPEI,          0x25c, "vstopei"       ,true)                      \
       CSR(STOPI,            0xDB0, "stopi")                                    \
-      CSR(VSTOPI,           0xEB0, "vstopi")                                   \
+      CSR(VSTOPI,           0xEB0, "vstopi"        ,true)                      \
       CSR(MISELECT,         0x350, "miselect")                                 \
       CSR(MTOPEI,           0x35C, "mtopei"      ,  true)                      \
       CSR(MTOPI,            0xFB0, "mtopi")                                    \
@@ -454,17 +454,21 @@ namespace {
       CSR(STIMECMP,         0x14D, "stimecmp")                                 \
       CSR(VSTIMECMP,        0x24D, "vstimecmp")                                \
       CSR(C_MATP,           0x7C7, "c_matp", true, true, 0, true)              \
+      CSR(C_MISA_RVA23U64_M,           0xBCA, "c_misa_rva23u64_M", true, true, 0, true)              \
+      CSR(C_MISA_RVA23U64_O,           0xBCB, "c_misa_rva23u64_O", true, true, 0, true)              \
+      CSR(C_MISA_RVA23S64_M,           0xBCC, "c_misa_rva23s64_M", true, true, 0, true)              \
+      CSR(C_MISA_RVA23S64_O,           0xBCD, "c_misa_rva23s64_O", true, true, 0, true)              \
 
     enum csr : unsigned {
-#define CSR(name, value, ...) \
+#define CSR(name, value, name_str, ...) \
         name = value,
         CSRS
 #undef CSR
     };
 
     const std::unordered_map<unsigned, csr_reg> csrs = {
-#define CSR(name, value, ...) \
-        {  name,  csr_reg{value, ##__VA_ARGS__}},
+#define CSR(name, value, name_str, ...) \
+        {  name,  csr_reg{value, name_str, ##__VA_ARGS__}},
         CSRS
 #undef CSR
     };
@@ -971,7 +975,7 @@ namespace {
         MEI         = 11,
         SGEI        = 12,
         LCOFI       = 13,
-        BUS_ERRI    = 23,
+        BUS_ERRI    = 23, // NOTE: This is now configurable - use dynamic value from interrupt_pend_t.buserr_bit
         C_HWAI      = 24,
         C_ENTROPY   = 25,
         LO_PRI_RASI = 35,

@@ -117,21 +117,21 @@ std::unordered_map<aclint_addr, mmr> aclint_mmrs = {
     {CR_CTIME,       {"CR_CTIME", 0x4200'0008, 8, 0x0, 0x0, 0xffffffffffffffff}}
 };
 
-std::unordered_map<aclint_addr, std::pair<bool, bool>> mmrReadReqFlag = {
-    {AC_MTIMECMP0   , {false, false}},
-    {AC_MTIMECMP1   , {false, false}},
-    {AC_MTIMECMP2   , {false, false}},
-    {AC_MTIMECMP3   , {false, false}},
-    {AC_MTIMECMP4   , {false, false}},
-    {AC_MTIMECMP5   , {false, false}},
-    {AC_MTIMECMP6   , {false, false}},
-    {AC_MTIMECMP7   , {false, false}},
-    {AC_MTIMECMP8   , {false, false}},
-    {AC_MTIME       , {false, false}},
-    {AC_TIMESYNC    , {false, false}},
-    {AC_CLUSTERFUSE , {false, false}},
-    {CR_WTIME       , {false, false}},
-    {CR_CTIME       , {false, false}}
+std::unordered_map<aclint_addr, std::pair<uint32_t, uint32_t>> mmrReadReqFlag = {
+    {AC_MTIMECMP0   , {0, 0}},
+    {AC_MTIMECMP1   , {0, 0}},
+    {AC_MTIMECMP2   , {0, 0}},
+    {AC_MTIMECMP3   , {0, 0}},
+    {AC_MTIMECMP4   , {0, 0}},
+    {AC_MTIMECMP5   , {0, 0}},
+    {AC_MTIMECMP6   , {0, 0}},
+    {AC_MTIMECMP7   , {0, 0}},
+    {AC_MTIMECMP8   , {0, 0}},
+    {AC_MTIME       , {0, 0}},
+    {AC_TIMESYNC    , {0, 0}},
+    {AC_CLUSTERFUSE , {0, 0}},
+    {CR_WTIME       , {0, 0}},
+    {CR_CTIME       , {0, 0}}
 };
 
 
@@ -152,6 +152,7 @@ class aclint_checker {
 
     void process(const rv_tester_transactions::aclint_checker::cr_ac_mmrwrite < > & cr_ac_mmrwrite);
     void process(const rv_tester_transactions::aclint_checker::axi_ac_write < > & axi_ac_write);
+    void process(const rv_tester_transactions::aclint_checker::mtip_check < > & mtip_check);
     void process(const smc_write_pkt & w);
     void process(const smc_read_pkt & r);
     void process(const smc_req_pkt & read_req);
@@ -160,6 +161,7 @@ class aclint_checker {
     void initializevqueue(std::vector < std::queue < MmrWr >> & q, int size);
     void initializevhash(std::vector < std::unordered_map < int, MmrWr >> & q, int size);
     void check_outstanding_transactions(uint64_t signal);
+    void clear_core_outstanding_transactions(uint64_t signal);
     void set_scope(svScope scope);
     private:
         // cvm::file_logger log;

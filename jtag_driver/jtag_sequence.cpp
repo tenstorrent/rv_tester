@@ -1,4 +1,6 @@
 #include "jtag_sequence.hpp"
+#include <cassert>
+#include "cvm/logger.hpp"
 //#include "sysmod/sysmod_plusargs.h"
 
 REGISTRY_register(jtag_sequence, JTAG_DRIVER, cvm::registry::all);
@@ -23,7 +25,6 @@ DEFINE_string(jtag_txn_file, "", "File containing jtag transaction requests");
 DEFINE_string(jtag_disabled_snippets,"", "List of jtag snippets that needs to be disabled in randoms");
 
 extern "C" {
-  void jtag_driver_init();
   void jtag_driver_jtag_socket(uint8_t val);
   void drive_jtag_req(unsigned cmd, unsigned long upper_val, unsigned long lower_val, unsigned length, unsigned quit, unsigned tap_cfg_sel);
   //void drive_jtag_req_socket(unsigned cmd, const unsigned long* lower_val, unsigned length, unsigned quit, unsigned tap_cfg_sel);
@@ -32,9 +33,19 @@ extern "C" {
   uint8_t jtag_driver_get_en(const char* mode) {
     return (std::string(mode) != "off");
   }
+
+  uint8_t jtag_driver_get_socket_en_from_plusargs(const char* mode) {
+    const char* p = cvm_plusargs_get_string(mode);
+    if (!p) {
+      cvm::log(cvm::ERROR, "Error: jtag_driver mode is not set\n");
+      assert(false);
+      return 0;
+    }
+    return (std::string(p) == "socket");
+  }
 }
 
-jtag_sequence::jtag_sequence(cvm::topology::loc_t loc, unsigned id) : loc_(loc), id_(id), scope_(nullptr) {
+jtag_sequence::jtag_sequence(cvm::topology::loc_t loc, unsigned id) : loc_(loc), id_(id), scope_(nullptr), num_ticks(0) {
   // Scope
   cvm::registry::messenger.connect<svScope>(loc_, [this](svScope s) { return this->set_scope(s); });
   cvm::registry::messenger.connect<rv_tester_transactions::jtag_driver::jtag_rdata<>>(
@@ -83,11 +94,6 @@ cvm::messenger::task<void> jtag_sequence::random_mode() {
 }
 
 void jtag_sequence::init() {
-  cvm::registry::callbacks.push(
-    scope_,
-    []() {
-      jtag_driver_init();
-    });
 }
 
 void jtag_sequence::jtag_socket(unsigned hart, uint8_t assert) {

@@ -6,7 +6,7 @@
 #include <functional>
 #include <unordered_map>
 #include "transactor.h"
-#include "address_error_policy.h"
+#include "bus_error_list.h"
 #include "cvm/bitmanip.hpp"
 #include "cvm/messenger.hpp"
 
@@ -107,6 +107,7 @@ class axi : public transactor {
             atop_t            atop = atop_t(0);
             user_t            user = user_t(0);
             bool              rsp_err_chk = true;
+            bool              allow_err_resp = false;
             seqid_t           seqid = seqid_t(0);
             bool              is_manual_id = false;
             id_t              manual_id = id_t(0);
@@ -142,6 +143,7 @@ class axi : public transactor {
             atop_t            atop = atop_t(0);
             user_t            user = user_t(0);
             bool              rsp_err_chk = true;
+            bool              allow_err_resp = false;
             seqid_t           seqid = seqid_t(0);
 
             a_t(const bool& w, const id_t& id, const addr_t& addr, const len_t& len, const sz_t& size, const burst_t& burst, const bool& lock,
@@ -208,6 +210,7 @@ class axi : public transactor {
 
         cvm::messenger::task<void> operator()();
         void atop_modify_write_data(const atop_t& atop, const data_t& read_data, data_t& write_data, const len_t& len);
+        void setup_error_lists();
 
        enum access_type : size_t {
            READ  = 0,
@@ -215,12 +218,13 @@ class axi : public transactor {
            NUM_ACCESS_TYPES
        };
 
-       address_error_policy<0> hang_range_;
-       address_error_policy<NUM_ACCESS_TYPES> slverr_range_;
-       address_error_policy<NUM_ACCESS_TYPES> decerr_range_;
+       bus_error_list<0> hang_list_;
+       bus_error_list<NUM_ACCESS_TYPES> slverr_list_;
+       bus_error_list<NUM_ACCESS_TYPES> decerr_list_;
 
        int num_slverr_resp_{0};
        int num_decerr_resp_{0};
+       bool error_en_{true};
 
     public:
 
@@ -231,9 +235,14 @@ class axi : public transactor {
         axi& operator=(const axi&) = delete;
         ~axi();
 
-        CVM_MESSENGER_procedure_call(configure_resp_rpc, void ());
-        void configure_resp();
-        void test_start();
+        CVM_MESSENGER_procedure_call(configure_error_rpc, void ());
+        CVM_MESSENGER_procedure_call(enable_error_rpc, void ());
+        CVM_MESSENGER_procedure_call(disable_error_rpc, void ());
+        CVM_MESSENGER_procedure_call(check_error_rpc, bool (addr_t));
+        void configure_error();
+        void enable_error();
+        void disable_error();
+        bool check_error(addr_t addr);
 
         data_width_t   data_width()   const { return data_width_   ; }
         strobe_width_t strobe_width() const { return data_width()/8; }

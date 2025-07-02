@@ -265,6 +265,7 @@ package rv_tester_params;
         logic                      hw;
         logic [XLEN-1:0]           mip;
         logic                      seip;
+        logic [5:0]                buserr_bit;
     } interrupt_pend_t;
 
     // --------------------------------------
@@ -409,167 +410,20 @@ package rv_tester_params;
     // --------------------------------------
     // CSRI - Control Status Registers
     // --------------------------------------
-    typedef enum {
-        FFLAGS,
-        FRM,
-        FCSR,
-        VSTART,
-        VXSAT,
-        VXRM,
-        VCSR,
-        SSTATUS,
-        STVEC,
-        SCOUNTEREN,
-        SSCRATCH,
-        SEPC,
-        SCAUSE,
-        STVAL,
-        SIP,
-        SATP,
-        VSSTATUS,
-        VSEPC,
-        VSCAUSE,
-        VSATP,
-        MSTATUS,
-        MEDELEG,
-        MIDELEG,
-        MTVEC,
-        MCOUNTEREN,
-        MHPMEVENT3,
-        MHPMEVENT4,
-        MHPMEVENT5,
-        MHPMEVENT6,
-        MHPMEVENT7,
-        MHPMEVENT8,
-        MHPMEVENT9,
-        MHPMEVENT10,
-        MHPMEVENT11,
-        MHPMEVENT12,
-        MHPMEVENT13,
-        MHPMEVENT14,
-        MHPMEVENT15,
-        MHPMEVENT16,
-        MHPMEVENT17,
-        MHPMEVENT18,
-        MHPMEVENT19,
-        MHPMEVENT20,
-        MHPMEVENT21,
-        MHPMEVENT22,
-        MHPMEVENT23,
-        MHPMEVENT24,
-        MHPMEVENT25,
-        MHPMEVENT26,
-        MHPMEVENT27,
-        MHPMEVENT28,
-        MHPMEVENT29,
-        MHPMEVENT30,
-        MHPMEVENT31,
-        MHPMCOUNTER3,
-        MHPMCOUNTER4,
-        MHPMCOUNTER5,
-        MHPMCOUNTER6,
-        MHPMCOUNTER7,
-        MHPMCOUNTER8,
-        MHPMCOUNTER9,
-        MHPMCOUNTER10,
-        MHPMCOUNTER11,
-        MHPMCOUNTER12,
-        MHPMCOUNTER13,
-        MHPMCOUNTER14,
-        MHPMCOUNTER15,
-        MHPMCOUNTER16,
-        MHPMCOUNTER17,
-        MHPMCOUNTER18,
-        MHPMCOUNTER19,
-        MHPMCOUNTER20,
-        MHPMCOUNTER21,
-        MHPMCOUNTER22,
-        MHPMCOUNTER23,
-        MHPMCOUNTER24,
-        MHPMCOUNTER25,
-        MHPMCOUNTER26,
-        MHPMCOUNTER27,
-        MHPMCOUNTER28,
-        MHPMCOUNTER29,
-        MHPMCOUNTER30,
-        MHPMCOUNTER31,
-        MSCRATCH,
-        MEPC,
-        MCAUSE,
-        MTVAL,
-        MIP,
-        SCONTEXT,
-        CSATPSPEC,
-        CXTVALSPEC,
-        CXTVAL2SPEC,
-        HSTATUS,
-        HIDELEG,
-        HTINST,
-        HCONTEXT,
-        MSECCFG,
-        TSELECT,
-        TDATA1,
-        TDATA2,
-        TDATA3,
-        TINFO,
-        TCONTROL,
-        MCONTEXT,
-        DCSR,
-        DPC,
-        DSCRATCH0,
-        DSCRATCH1,
-        CDTVEC,
-        CPRIV,
-        VL_CSR,
-        VTYPE_CSR,
-        VLENB,
-        STOPI,
-        VSTOPI,
-        MVENDORID,
-        MARCHID,
-        MIMPID,
-        MHARTID,
-        MCONFIGPTR,
-        MTOPI,
-        MTINST,
-        CMCTHRCFG0,
-        CPINSTR,
-        CPSTATUS,
-        CPCAUSE,
-        CXINSTSPEC,
-        CXEPCSPEC,
-        CXCAUSESPEC,
-        CMCRESOURCEERROR,
-        CASYNCINTSTATUS,
-        CXSTATUSSPEC,
-        MCYCLE,
-        MINSTRET,
-        CENTROPY,
-        CFECFG,
-        SEED,
-        SIE,
-        MISA,
-        MIE,
-        MVIP,
-        HVIP,
-        STOPEI,
-        VSTOPEI,
-        MTOPEI,
-        TIME,
-        SCOUNTOVF,
-        HGEIP,
-        CNMIVEC,
-        CNMEVEC,
-        CSR_COUNT
-    } csr_list_t;
+    parameter bit [31:0] MAX_NCSRI = mods.TOP.PLATFORM.CSRI.NCSRI;
+
     typedef struct packed {
-        logic                       valid;
-        logic [CSRLEN-1:0]          addr;
-        logic [XLEN-1:0]            data;
-        logic [XLEN-1:0]            mask;
+    logic [CSRLEN-1:0] addr;
+    logic [XLEN-1:0]   mask;
+    logic [XLEN-1:0]   data;
+    } csri_data_pkt_t;
+
+    typedef struct packed {
+        csri_data_pkt_t data; 
+        logic           valid;
     } csr_entry_t;
 
-    typedef csr_entry_t [CSR_COUNT-1:0] csri_t;
+    typedef csr_entry_t [MAX_NCSRI-1:0] csri_t;
 
     // --------------------------------------
     // PMCI - Performance Monitoring Counters
@@ -652,6 +506,14 @@ package rv_tester_params;
         CYCLES_NO_VL_PRN,
         CYCLES_NO_VM_PRN,
         CYCLES_NO_ROB,
+        CYCLES_DB0_STALL,
+        CYCLES_DB1_STALL,
+        CYCLES_DB2_STALL,
+        CYCLES_DB3_STALL,
+        CYCLES_DB4_STALL,
+        CYCLES_DB5_STALL,
+        CYCLES_DB6_STALL,
+        CYCLES_DB7_STALL,
         DISPATCHED_NOPS,
         OP_RETIRED_DIRECT_BRANCH,
         OP_RETIRED_RET_BRANCH,
@@ -727,6 +589,7 @@ package rv_tester_params;
         DTLB_WRITE_MISS,
         DTLB_PREFETCH_MISS,
         DTLB_MISS_4K,
+        DTLB_MISS_64K,
         DTLB_MISS_HUGEPAGE,
         DTLB_MISS_ALL,
         LEAF_TLB_ACCESS_LS,
@@ -784,6 +647,12 @@ package rv_tester_params;
         FILLBUF_HIT_REPLAY_STORE,
         FILLBUF_HIT_REPLAY_MMU,
         FILLBUF_HIT_REPLAY_ALL,
+        CACHE_HIT_PREDICTOR_REPLAY_LOAD,
+        CACHE_HIT_PREDICTOR_REPLAY_STORE,
+        CACHE_HIT_PREDICTOR_REPLAY_ALL,
+        UTLB_MISS_IN_HIT_MODE,
+        UTLB_HIT_PREDICTOR_ACTIVE,
+        UTLB_HIT_PREDICTOR_ENTRANCE,
         L1D_MISS_REQBUF_LINK_LOAD,
         L1D_MISS_REQBUF_LINK_STORE,
         L1D_MISS_REQBUF_LINK_MMU,
@@ -905,8 +774,25 @@ package rv_tester_params;
         TLP_ACCESS_PREFETCH,
         TLP_ACCESS_AGP,
         TLP_ACCESS_ARB,
+        TLP_ACCESS_HIT_4K,
+        TLP_ACCESS_HIT_64K,
+        TLP_ACCESS_HIT_HUGEPAGE,
         TLP_ACCESS_ALL,
         FILLBUF_CANNOT_ALLOC,
+        LS_ARB_GRANT_CANCEL_LDC,
+        LS_ARB_GRANT_CANCEL_STC,
+        LS_ARB_GRANT_CANCEL_MMU,
+        LS_ARB_GRANT_CANCEL_PFC,
+        LS_ARB_GRANT_CANCEL_AGP,
+        LS_ARB_GRANT_CANCEL_FILL,
+        LS_ARB_GRANT_CANCEL_VICTIM,
+        LS_ARB_GRANT_CANCEL_REQUESTOR,
+        LS_ARB_GRANT_CANCEL_INTERNAL,
+        LS_ARB_GRANT_CANCEL_ALL,
+        LS_ARB_ROUND_ROBIN_CYCLES,
+        LS_ARB_ROUND_ROBIN_ENTRANCES,
+        CACHE_HIT_PREDICTOR_ACTIVE,
+        CACHE_HIT_PREDICTOR_ENTRANCE,
         PFC_AGT_CANNOT_ALLOC,
         PFC_AGT_TRAINING_ALLOC,
         PFC_AGT_TRAINING_UPDATE,
@@ -939,7 +825,7 @@ package rv_tester_params;
         BRANCH_INSTRUCTIONS,
         TB_CYCLES,
         EVENT_COUNT
-    } pmc_event_t;   
+    } pmc_event_t; 
     //AUTOGENERATED -- END 
 
     typedef logic [3:0] pmc_counter_t;
@@ -1015,6 +901,7 @@ package rv_tester_params;
     output                                   dut_reset_req,                                         \
     input   logic                            ndmreset_ack,                                          \
     input                                    dut_reset_req_active,                                  \
+    input                                    warm_reset_req,                                        \
     input                                    force_ref_clk,                                         \
     output [rv_tester_params::NHARTS-1:0]    core_no_fetch,                                         \
     input  [rv_tester_params::NRESETS-1:0]   reset, /*Packed so zebu can easily force*/             \
@@ -1029,10 +916,13 @@ package rv_tester_params;
     output                                   debug_mode         [rv_tester_params::NHARTS-1:0],     \
     output                                   disable_checks,                                        \
     output                                   dut_terminate,                                         \
+    output                                   tj_shutdown,                                           \
+    output                                   pll_dfs_done,                                          \
     input                                    terminate,                                             \
     input  logic                             terminated,                                            \
     input  logic                             terminate_now,                                            \
     output                                   quiesced,                                              \
+    input                                    boot_done_all,                                         \
     input logic [64-1:0]                     cosim_eot_addr,                                        \
     input  rv_tester_pkg::dm_write_t         dmi_write,                                             \
     input  rv_tester_pkg::jtag_if_t          jtag_req,                                              \
@@ -1044,7 +934,7 @@ package rv_tester_params;
     input                                    dmi_req_valid,                                         \
     input  rv_tester_pkg::dmi_req_t          dmi_req,                                               \
     input                                    dmi_resp_ready,                                        \
-    output [7:0]                             DM_DebugReq_Valids,                                  \
+    output [7:0]                             DM_DebugReq_Valids,                                    \
     output rv_tester_params::rvfi_t          [rv_tester_params::TOTAL_NRETS-1:0]      rvfi,         \
     output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NREADS-1:0]     mcmi_read,    \
     output rv_tester_params::mcmi_t          [rv_tester_params::TOTAL_NINSERTS-1:0]   mcmi_insert,  \
@@ -1100,6 +990,7 @@ package rv_tester_params;
     logic                                    dut_reset_req;                                         \
     logic                                    ndmreset_ack;                                          \
     logic                                    dut_reset_req_active;                                  \
+    logic                                    warm_reset_req;                                        \
     logic                                    force_ref_clk;                                         \
     logic [rv_tester_params::NHARTS-1:0]     core_no_fetch;                                         \
     logic [rv_tester_params::NRESETS-1:0]    reset           /* Packed so zebu can force easily */; \
@@ -1114,10 +1005,13 @@ package rv_tester_params;
     logic                                    debug_mode      [rv_tester_params::NHARTS-1:0];        \
     logic                                    disable_checks;                                        \
     logic                                    dut_terminate;                                         \
+    logic                                    tj_shutdown;                                           \
+    logic                                    pll_dfs_done;                                          \
     logic                                    terminate;                                             \
     logic                                    terminated;                                            \
     logic                                    terminate_now;                                            \
     logic                                    quiesced;                                              \
+    logic                                    boot_done_all;                                         \
     logic [64-1:0]                           cosim_eot_addr;                                        \
     rv_tester_pkg::dm_write_t                dmi_write;                                             \
     rv_tester_pkg::jtag_if_t                 jtag_req;                                              \

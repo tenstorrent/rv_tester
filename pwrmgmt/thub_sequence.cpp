@@ -4,10 +4,10 @@
 
 REGISTRY_register(thub_sequence, PWRMGMT, cvm::registry::all);
 
-DEFINE_bool(thub_rand_en, false, "Enable random smc axi accesses in the sim");
-DEFINE_string(thub_count, "10000:10000", "Number of smc axi sequences in the sim");
-DEFINE_string(thub_interval, "5:5", "soc cycle interval between smc axi sequences in the sim");
-DEFINE_string(thub_width, "1:1", "soc cycle width of smc axi sequences in the sim");
+DEFINE_bool(thub_rand_en, false, "Enable random temp hub accesses in the sim");
+DEFINE_string(thub_count, "10000:10000", "Number of temp hub sequence tick in the sim");
+DEFINE_string(thub_interval, "5:5", "soc cycle interval between thub tick in the sim");
+DEFINE_string(thub_width, "1:1", "soc cycle width of thub tick in the sim");
 DEFINE_bool(temp_throttle, false, "Program lower Temp throttle for core");
 
 extern "C" {
@@ -30,6 +30,12 @@ thub_sequence::thub_sequence
 }
 
 thub_sequence::~thub_sequence() {
+  if(FLAGS_tj_shutdown && (tj_shutdown_ack_rcvd == 0)){
+    cvm::log(cvm::ERROR,"[tj_shutdown]:- ERROR: Expected to have TJ_SHUTDOWN followed by DFS \n");
+  }
+  if(FLAGS_tj_shutdown){
+    cvm::log(cvm::NONE, "INFO_PASS_METRIC:{{\"tj_shutdown_ack\": \"{}\"}}\n", tj_shutdown_ack_rcvd);
+  }
 }
 
 void thub_sequence::main_thread() {
@@ -50,7 +56,12 @@ cvm::messenger::task<void> thub_sequence::main() {
     {
       cvm::log(cvm::NONE, "[THUB THROTTLE]  Throttle Enabled ...... \n");
       co_await temp_throttle_configuration();
-    };
+    }
+    else {break;}
+  };
+  if(FLAGS_tj_shutdown){
+    cvm::log(cvm::NONE, "[TJ Shutdow] Enabled TJ shutdown via override ...... \n");
+    co_await tj_shutdown_config();
   }
   co_return;
 }
@@ -58,12 +69,60 @@ cvm::messenger::task<void> thub_sequence::main() {
 cvm::messenger::task<void> thub_sequence::wait_for_ticks()
 {
   cvm::rand::uniform_dist<uint32_t> smc_mmr_index_dist(400, 500);
-  uint32_t thub_throttle_on = smc_mmr_index_dist();
+  uint32_t thub_wait_clk = smc_mmr_index_dist();
 
-  for(uint32_t i =0; i< thub_throttle_on; i++)
+  for(uint32_t i =0; i< thub_wait_clk; i++)
   {
     co_await tick();
   };
+};
+
+/*
+Sequence of steps for TJ Shudown cases would be as below.
+
+1. Select from available THUBs to inject snapshot override
+2. wait for few SC Clks before configuring snapshot override
+3. Wait for Tj Shutdown Ack includes PLL_DFS_DONE + TJ_SHUTDOWN
+4. Release snapshot override to deassert interrupt
+
+*/
+cvm::messenger::task<void> thub_sequence::tj_shutdown_config()
+{
+  cvm::rand::uniform_dist<uint8_t> thub_dist_8c(9,12); // PMNW ID for THUB-0,1 is 9 to 12
+  cvm::rand::uniform_dist<uint8_t> thub_dist_3c(0,2); // PMNW ID for THUB-0,1 is 12,9
+  uint8_t thub_select;
+  uint32_t wdata=1;
+
+  switch (FLAGS_num_harts-1) {
+      case 0:
+          thub_select = 12;     // PMNW ID for THUB-0
+          break;
+      case 1:
+          thub_select = 12;     // PMNW ID for THUB-0
+          break;
+      case 2:
+          thub_select = thub_dist_3c();
+          if(thub_select != 0x1) { thub_select = 12; }
+          else { thub_select = 9;} 
+          break;
+      case 7:
+          thub_select = thub_dist_8c();
+          break;
+      default:
+          cvm::log(cvm::ERROR, "ERROR: [tj_shutdown] Invalid FLGAS_num_harts seen.. {} .... \n",FLAGS_num_harts);
+  }
+
+  cvm::log(cvm::NONE, "[tj_shutdown] Overriding sensor data for Temp HUB {} ...... \n", thub_select);
+  co_await wait_for_ticks();
+  co_await wait_for_ticks();
+  wdata |= (0xA00 << 5);      // Programming a high value compared to threshold paraneters
+  wdata |= (1 << 22);         // Set snapshot override control
+  co_await write_thub_reg(thub_control_reg,wdata,thub_select,7);
+  cvm::log(cvm::NONE, "[tj_shutdown] Set Snapshot Overriding sensor data for Temp HUB {} ...... \n", thub_select);
+  co_await tj_shutdown_ack();
+  wdata = 0x1;                // Clear snapshot override control
+  co_await write_thub_reg(thub_control_reg,wdata,thub_select,7);
+  co_return;
 };
 
 cvm::messenger::task<void> thub_sequence::temp_throttle_configuration()
@@ -77,6 +136,7 @@ cvm::messenger::task<void> thub_sequence::temp_throttle_configuration()
   co_await temp_throttle_disable();
   co_await wait_for_ticks();
   cvm::log(cvm::NONE, "[THUB THROTTLE]  Completed into throttle for Core {} ...... \n", core_throttle);
+  co_return;
 };
 
 cvm::messenger::task<void> thub_sequence::temp_throttle_enable()
@@ -103,6 +163,7 @@ cvm::messenger::task<void> thub_sequence::temp_throttle_enable()
     // Write to MC/MS power config
     co_await csr_write(core_throttle, 0x8,core_pwr_throttle_cfg_0 , 0x000078830372a211);
     co_await csr_write(core_throttle, 0x8,core_pwr_throttle_cfg_1 , 0x1041017ecb594129);
+    co_return;
 };
 
 cvm::messenger::task<void> thub_sequence::temp_throttle_disable()
@@ -122,6 +183,7 @@ cvm::messenger::task<void> thub_sequence::temp_throttle_disable()
   co_await csr_write(core_throttle, 0x4, core_mhpmevent10 , 0x0); // MS Event
   co_await csr_write(core_throttle, 0x8, core_mhpmevent10 , 0x0); // MC Event
   co_await csr_write(core_throttle, 0x4, core_mhpmcounter10 , 0x0); // MS Event
+  co_return;
 };
 
 cvm::messenger::task<void> thub_sequence::tick() {
@@ -129,13 +191,10 @@ cvm::messenger::task<void> thub_sequence::tick() {
   co_return;
 }
 
-cvm::messenger::task<uint64_t> thub_sequence::read(uint64_t addr, size_t sz, block_t block /* = BLOCK */) {
+cvm::messenger::task<uint64_t> thub_sequence::read(uint64_t addr, size_t sz) {
   assert(sz <= 8);
   cvm::log(cvm::MEDIUM, "[smc] read req - addr={:#x}, sz={}\n", addr, sz);
   cvm::registry::messenger.signal(smc_axi_loc_, transactor::read_request_t{addr, sz});
-
-  if (!block)
-    co_return 0;
 
   auto resp = co_await cvm::registry::messenger.wait<transactor::read_response_t>(smc_axi_loc_);
   auto data = convert_to_dword_array(resp.data);
@@ -147,7 +206,7 @@ cvm::messenger::task<uint64_t> thub_sequence::read(uint64_t addr, size_t sz, blo
   co_return dword;
 }
 
-cvm::messenger::task<void> thub_sequence::write(uint64_t addr, size_t sz, uint64_t data, block_t block /* = BLOCK */) {
+cvm::messenger::task<void> thub_sequence::write(uint64_t addr, size_t sz, uint64_t data) {
   assert(sz <= 8);
   // FIXME - check why this alignment is needed
   uint64_t dword = (addr % 8) ? (data << 32) : data;
@@ -159,9 +218,6 @@ cvm::messenger::task<void> thub_sequence::write(uint64_t addr, size_t sz, uint64
     strb[i] = (mask & (0xFFull << (i*8))) != 0;
   cvm::log(cvm::MEDIUM, "[thub] write req - addr={:#x}, sz={}, data={:#x}, dword={:#x} mask={:#x}\n", addr, sz, data, dword, mask);
   cvm::registry::messenger.signal(smc_axi_loc_, transactor::write_request_t{addr, SZ_8B, byte_array, strb});
-
-  if (!block)
-    co_return;
 
   auto resp = co_await cvm::registry::messenger.wait<transactor::write_response_t>(smc_axi_loc_);
   cvm::log(cvm::MEDIUM, "[thub] write resp - id={}, addr={:#x}, sz={}, data={:#x}, dword={:#x} mask={:#x}\n", resp.id, addr, sz, data, dword, mask);
@@ -200,6 +256,26 @@ cvm::messenger::task<uint64_t> thub_sequence::csr_read(uint32_t core_id, uint32_
   co_return data;
 }
 
+cvm::messenger::task<void> thub_sequence::write_thub_reg(uint8_t addr, uint32_t data, uint8_t satellite_num, uint8_t mbox_num) {
+
+    uint64_t w_data;
+    uint8_t pkt_type = 0x8;
+    uint8_t ext_pkt = 0x3;
+    uint8_t int_addr;
+    
+    // Divide address by 4
+    int_addr = addr >> 2;
+    w_data = ((uint64_t)int_addr << 28) | ((0xF << 24) | (data >> 8 ) );
+    co_await tick();
+    // Write to REGDATA
+    co_await write(pm_mbox_regdata, SZ_8B, w_data);
+
+    w_data = 0;
+    w_data |= (0 << 26) | (1 << 23) | (ext_pkt << 20) | (mbox_num << 16) | ((data & 0xff)<<8) | (satellite_num << 4) | pkt_type;
+    co_await write(pm_mbox_reg, SZ_8B, w_data);
+    co_return;
+}
+
 std::vector<uint64_t> thub_sequence::convert_to_dword_array(const std::vector<uint8_t>& byte_array) {
   std::vector<uint64_t> result(byte_array.size() / sizeof(uint64_t));
   std::copy(reinterpret_cast<const uint64_t*>(byte_array.data()),
@@ -223,4 +299,10 @@ void thub_sequence::blocking_seq_tick(uint8_t val) {
       cvm::log(cvm::FULL, "[thub] {} blocking seq \n", val ? "start" : "end");
       thub_blocking_sequence_tick(val);
     });
+}
+
+cvm::messenger::task<void> thub_sequence::tj_shutdown_ack() {
+  co_await cvm::registry::messenger.wait<rv_tester_transactions::pwrmgmt::m_tj_shutdown_ack<>>(loc_);
+  tj_shutdown_ack_rcvd = 1;
+  co_return;
 }

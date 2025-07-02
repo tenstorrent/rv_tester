@@ -51,7 +51,11 @@ module rv_tester
             `ifdef CLK_MUX_UNSUPPORTED
              rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(clk[c]));
             `else
-             if(c != REF_CLK_IDX) begin
+            if(c == REF_CLK_IDX) begin
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[REF_CLK_IDX])) clkgen(.clk(clk[REF_CLK_IDX]));
+            end else if (c == TB_CLK_IDX ) begin
+                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[TB_CLK_IDX])) clkgen(.clk(clk[TB_CLK_IDX]));
+            end else begin 
                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[c])) clkgen(.clk(def_clk[c]));
                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE1_CLOCK_FREQ_MHZ[c])) profile1_clkgen(.clk(profile1_clk[c]));
                 rv_tester_clkgen #(.CLOCK_FREQ_MHZ(PROFILE2_CLOCK_FREQ_MHZ[c])) profile2_clkgen(.clk(profile2_clk[c]));
@@ -71,8 +75,6 @@ module rv_tester
                     .async_sel_i    (clock_mode),
                     .clk_o          (clk[c])
                 );
-            end else begin
-                rv_tester_clkgen #(.CLOCK_FREQ_MHZ(CLOCK_FREQ_MHZ[REF_CLK_IDX])) clkgen(.clk(clk[REF_CLK_IDX]));
             end
             `endif
          end
@@ -90,7 +92,7 @@ module rv_tester
     import "DPI-C" context function void rv_tester_dm_build_registry();
     import "DPI-C" function byte unsigned rv_tester_dm_shutdown_registry();
     import "DPI-C" context function bit rv_tester_flush_callbacks();
-    import "DPI-C" function bit pwrmgmt_get_warm_reset_en(string mode);
+    import "DPI-C" function bit pwrmgmt_get_pwrmgmt_en_from_plusargs(string mode);
     import "DPI-C" function longint unsigned eot_get_addr();
     import "DPI-C" context function bit rv_tester_perf_calc(int init, int reset_done, int term, LU clocks);
 
@@ -106,6 +108,7 @@ module rv_tester
     logic sys_reset_any;
     logic shifted_dut_reset_req, shifted_dut_reset_req_d1;
     logic dut_reset_req_d1;
+    logic fml_shutdowned;
     logic init_pulse;
     logic warm_reset_pulse;
     int unsigned warm_reset_clocks = 0;
@@ -131,9 +134,7 @@ module rv_tester
     int num_reruns = -1;
     int dm_build_count = 0;
 
-    string warm_reset_string;
     logic warm_reset_en = 0;
-    logic warm_reset_req;
     logic warm_reset_req_d1;
     logic warm_reset_now = 0;
     logic warm_reset_sdtrig;
@@ -194,6 +195,7 @@ module rv_tester
     logic dmi_poll_timeout_terminate;
     logic [31:0] dmi_commands_in_queue;
     bit sdtrig_display = 0;
+    bit nonexistent_hart = 0;
 
     int trace_timeout = 50000;
     int freq_switch_ncycles = 7000;
@@ -217,12 +219,13 @@ module rv_tester
     bit gen_clocks = '0;
     bit gen_timestamp = '0;
     logic [63:0] current_time;
-    string cvm_verbosity_string, gen_clocks_verbosity_string, gen_timestamp_verbosity_string;
     int unsigned cvm_verbosity, gen_clocks_verbosity, gen_timestamp_verbosity;
     logic dut_terminate_any;
     logic ntrace_terminate;
 
     reg [9:0] dut_reset_req_shift_reg;
+
+    logic rerun_now_ff;
 
     always @(posedge dut_clk[AXI_CLK_IDX] or posedge cold_reset) begin
         /* verilator lint_off SYNCASYNCNET */
@@ -247,17 +250,18 @@ module rv_tester
 
   `ifndef CLK_MUX_UNSUPPORTED
     always @(posedge dut_clk[TB_CLK_IDX])begin
-      if (rv_tester_reset)begin
+      if (rv_tester_reset & !rerun_now_ff)begin
             clock_mode <= clk_profile[2:0];
       end
       /* verilator lint_off WIDTH */
-      if(dyn_clk_switch & (clocks >10) &  ((clocks % freq_switch_ncycles) == 0)) begin
+      else if(dyn_clk_switch & (clocks >10) &  ((clocks % freq_switch_ncycles) == 0)) begin
         //dynamically select clk from available profiles
         //this logic will generate the select pins of the mux ,which will switch between clks
-        clock_mode <= clock_mode + 1'b1;
-        if(clock_mode == 3'b111)
-          clock_mode <= '0;
-      end
+        if(clock_mode == 3'b110)
+            clock_mode <= 'b1;
+        else
+            clock_mode <= clock_mode + 1'b1;
+      end 
       /* verilator lint_on WIDTH */
     end
     `endif
@@ -271,6 +275,7 @@ module rv_tester
     always @(posedge dut_clk[TB_CLK_IDX]) begin
 
         rv_tester_reset <= rerun_now;
+        rerun_now_ff <= rerun_now;
         clocks          <= clocks + 1;
 
         `ifndef NO_TIMESTAMP
@@ -413,14 +418,11 @@ module rv_tester
 
             /* verilator lint_off BLKSEQ */
             // zebu bug doesn't allow nested function calls, so create intermediate variables
-            cvm_verbosity_string        = cvm_plusargs::get_string("cvm_verbosity");
-            gen_clocks_verbosity_string = cvm_plusargs::get_string("gen_clocks_verbosity");
-            gen_timestamp_verbosity_string  = cvm_plusargs::get_string("gen_timestamp_verbosity");
-            cvm_verbosity               = cvm_logger::get_verbosity(cvm_verbosity_string);
-            gen_clocks_verbosity        = cvm_logger::get_verbosity(gen_clocks_verbosity_string);
-            gen_timestamp_verbosity         = cvm_logger::get_verbosity(gen_timestamp_verbosity_string);
-            warm_reset_string           = cvm_plusargs::get_string("warm_reset");
-            warm_reset_en               = pwrmgmt_get_warm_reset_en(warm_reset_string);
+            // Using nested function calls in cvm as Palladium doesn't support strings
+            cvm_verbosity               = cvm_logger::get_verbosity_from_plusargs("cvm_verbosity");
+            gen_clocks_verbosity        = cvm_logger::get_verbosity_from_plusargs("gen_clocks_verbosity");
+            gen_timestamp_verbosity         = cvm_logger::get_verbosity_from_plusargs("gen_timestamp_verbosity");
+            warm_reset_en               = pwrmgmt_get_pwrmgmt_en_from_plusargs("warm_reset");
             rv_tester_error_terminate.terminate = '0;
             perf_period                 = cvm_plusargs::get_int("perf_period");
             /* verilator lint_on BLKSEQ */
@@ -439,6 +441,7 @@ module rv_tester
             disable_haltpoll     <= cvm_plusargs::get_bool("disable_haltpoll") != '0;
             disable_abscmdpoll   <= cvm_plusargs::get_bool("disable_abscmdpoll") != '0;
             disable_triggerpoll  <= cvm_plusargs::get_bool("disable_triggerpoll") != '0;
+            nonexistent_hart     <= cvm_plusargs::get_bool("nonexistent_hart") != '0;
             sdtrig_multitrigger  <= cvm_plusargs::get_int("sdtrig_multitrigger");
             dm_single_step_count <= cvm_plusargs::get_int("dm_single_step_count");
             cb_poll              <= cvm_plusargs::get_bool("cb_async") == '0;
@@ -471,7 +474,7 @@ module rv_tester
             num_harts            <= cvm_plusargs::get_int("num_harts");
 
         end
-        clock_mode      <= clk_profile[2:0];
+        clock_mode           <= clk_profile[2:0];//TODO: dynamic clock swith unsupported if the clock_mode is always assigned with clk profile
         num_reruns      <= num_reruns - int'(rerun_now);
         if (num_reruns < 0) begin
             num_reruns  <= cvm_plusargs::get_int("num_reruns");
@@ -494,7 +497,9 @@ module rv_tester
 
         automatic logic shutdowned = '0;
         automatic logic dm_shutdowned = '0;
-
+        `ifndef SVA_S_EVENTUALLY_UNSUPPORTED
+        fml_shutdowned = 1'b0;
+        `endif
         if (rv_tester_reset) begin
             print_terminate_message <= '1;
         end
@@ -519,6 +524,9 @@ module rv_tester
             end
 
             shutdowned = rv_tester_shutdown_registry() != '0;
+            `ifndef SVA_S_EVENTUALLY_UNSUPPORTED
+            fml_shutdowned = shutdowned;
+            `endif
             if(num_resets > target_num_resets)begin
             dm_shutdowned = rv_tester_dm_shutdown_registry() != '0;
             end
@@ -557,6 +565,7 @@ module rv_tester
 
     // sys_reset per clock domain
     logic sys_reset_pending [NCLKS-1:0];
+    logic terminate_sync    [NCLKS-1:0];
     for (genvar c = 0; c < NCLKS; c++) begin
         if (c != TB_CLK_IDX) begin
             rv_tester_cdc_pulse cdc_pulse (
@@ -566,11 +575,19 @@ module rv_tester
                 .pulse_b (sys_reset[c]),
                 .pulse_pending_or_asserted_a (sys_reset_pending[c])
             );
+ 
+            rv_tester_sync3 terminate_sync3 (
+                .clk (dut_clk[c]),
+                .d   (terminate),
+                .q   (terminate_sync[c])
+            );
+
         end else begin
             always_ff @(posedge dut_clk[TB_CLK_IDX]) begin
                 sys_reset[c] <= rv_tester_reset;
             end
             assign sys_reset_pending[c] = sys_reset[c];
+            assign terminate_sync   [c] = terminate;
         end
     end
 
@@ -706,6 +723,7 @@ module rv_tester
         .clk(dut_clk[AXI_CLK_IDX]),
         .reset(sys_reset[AXI_CLK_IDX]),
         .dut_reset_req,
+        .dut_core_reset(dut_reset[CORE_CLK_IDX]),
         .trace_quiesced(trace_quiesced),
         .bootstrap,
         .dmi_write(trickbox_dmi_write),
@@ -721,6 +739,7 @@ module rv_tester
 
     dmi_driver i_dmi_driver(
         .clk(dut_clk[AXI_CLK_IDX]),
+        .core_clk(dut_clk[CORE_CLK_IDX]),
         .reset_n(~(reset[WARM_RESET_IDX] || reset[COLD_RESET_IDX]) || reset_hold[DEBUG_HOLD_IDX]),
         .warm_reset_sdtrig(~reset[WARM_RESET_IDX]),
         .dmi_driver_dbg_enable,
@@ -736,9 +755,10 @@ module rv_tester
         .disable_haltpoll,
         .disable_abscmdpoll,
         .disable_triggerpoll,
-        .terminate,
+        .terminate(sysmod_terminate.terminate),
         .num_harts,
         .sdtrig_display,
+        .nonexistent_hart,
 
         .dmi_req_ready,
         .dmi_resp_valid,
@@ -818,6 +838,7 @@ module rv_tester
           .NBYPASS(NBYPASSES[c]),
           .NIFETCH(NIFETCHES[c]),
           .NIEVICT(NIEVICTS[c]),
+          .NCSRI(MAX_NCSRI),
           .NoAddrRules(NoAddrRules),
           .rule_t(xbar_rule_t),
           `TOPOLOGY_CFG,
@@ -854,6 +875,8 @@ module rv_tester
           `RV_TESTER_TRANSACTIONS_COSIM_SOURCE_PORTS(1, c, 0)
       );
     end
+    
+    assign boot_done_all = &boot_done;
 `endif
 
     always @(posedge dut_clk[TB_CLK_IDX]) begin
@@ -887,6 +910,8 @@ module rv_tester
                 .reset_hold(reset_hold),
                 .force_ref_clk(pwrmgmt_force_ref_clk),
                 .core_no_fetch(|core_no_fetch),
+                .tj_shutdown(tj_shutdown),
+                .pll_dfs_done(pll_dfs_done),
                 `RV_TESTER_TRANSACTIONS_PWRMGMT_SOURCE_PORTS(3,0,0)
             );
             assign reset_window = pwrmgmt_force_ref_clk || init_pulse || warm_reset_pulse;
@@ -921,6 +946,7 @@ module rv_tester
         (
             .clk(dut_clk[REF_CLK_IDX]),
             .reset(reset[COLD_RESET_IDX]),
+            .warm_reset(reset[WARM_RESET_IDX]),
             .dut_clk(dut_clk[TB_CLK_IDX]),
             .dut_reset(dut_reset[TB_CLK_IDX]),
             .no_fetch(core_no_fetch[0]),
@@ -1013,6 +1039,7 @@ module rv_tester
         .cl_clk(dut_clk[CORE_CLK_IDX]),
         .rf_clk(dut_clk[REF_CLK_IDX]),
         .reset(sys_reset[TB_CLK_IDX]),
+        .cold_resetn(~cold_reset),
         .warm_reset(AcWarmReset),
         .dut_reset(dut_reset[REF_CLK_IDX]),
         .terminate,
@@ -1051,7 +1078,7 @@ module rv_tester
             .hpmi(hpmi[p]),
             .sc_pmci(sc_pmci),
             .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
-            .terminate,
+            .terminate(terminate_sync[CORE_CLK_IDX]),
             `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PORTS(1, p, 0),
             `RV_TESTER_TRANSACTIONS_PMU_SC_SOURCE_PORTS(1, p, 0)
         );
@@ -1071,7 +1098,7 @@ module rv_tester
             .hpmi(hpmi[p]),
             .sc_pmci(),
             .rvfi(rvfi[NRETS_CUMSUM[p] +: NRETS[p]]),
-            .terminate,
+            .terminate(terminate_sync[CORE_CLK_IDX]),
             `RV_TESTER_TRANSACTIONS_PMU_CORE_SOURCE_PORTS(1, p, 0)
         );
       end
@@ -1376,18 +1403,19 @@ module rv_tester
     string preload_data_file_arr [0:AxiLLC_SetAssociativity - 1]; // Declare an array for the preload data file names
     string preload_tag_file_arr [0:AxiLLC_SetAssociativity - 1]; // Declare an array for the preload tag file names
 
+    // Palladium doesn't want localparam int unsigned inside a function
+    localparam int unsigned AXI_AW = topology.TOP.PLATFORM.AXI.ADDR_WIDTH;
     function automatic void rv_tester_set_address_map(int unsigned i, longint unsigned start_addr, longint unsigned end_addr, int unsigned device);
-        localparam int unsigned AW = topology.TOP.PLATFORM.AXI.ADDR_WIDTH;
         addr_map[i] = '{
             idx       : device         ,
-            start_addr: AW'(start_addr),
-            end_addr  : AW'(end_addr  )
+            start_addr: AXI_AW'(start_addr),
+            end_addr  : AXI_AW'(end_addr  )
         };
 
         addr_map_idx1[i] = '{
             idx       : 1              ,
-            start_addr: AW'(start_addr),
-            end_addr  : AW'(end_addr  )
+            start_addr: AXI_AW'(start_addr),
+            end_addr  : AXI_AW'(end_addr  )
         };
 
     endfunction
@@ -1396,33 +1424,39 @@ module rv_tester
 
     export "DPI-C" function rv_tester_set_address_map;
 
-
-    function void set_preload_data_file(int unsigned way, string file);
     `ifndef NO_PRELOAD
+    function void set_preload_data_file(int unsigned way, string file);
         if (way < AxiLLC_SetAssociativity) begin
             preload_data_file_arr[way] = file;
             $display("%0t Preload data file for way %0d set to: %s", $time, way, file);
         end else begin
             $display("Error: Attempted to set preload file for invalid way %0d", way);
         end
-    `else
-        $display("Error: Compiled with NO_PRELOAD defined");
-    `endif
     endfunction
+    `else
+        function void set_preload_data_file(); // some tools have problems with string arguments
+            $display("Error: Compiled with NO_PRELOAD defined");
+        endfunction
+    `endif
+
     export "DPI-C" function set_preload_data_file;
 
-    function void set_preload_tag_file(int unsigned way, string file);
+
     `ifndef NO_PRELOAD
-    if (way < AxiLLC_SetAssociativity) begin
-        preload_tag_file_arr[way] = file;
-        $display("Preload data file for way %0d set to: %s", way, file);
-    end else begin
-        $display("Error: Attempted to set preload file for invalid way %0d", way);
-    end
-    `else
-        $display("Error: Compiled with NO_PRELOAD defined");
-    `endif
+    function void set_preload_tag_file(int unsigned way, string file);
+        if (way < AxiLLC_SetAssociativity) begin
+            preload_tag_file_arr[way] = file;
+            $display("Preload data file for way %0d set to: %s", way, file);
+        end else begin
+            $display("Error: Attempted to set preload file for invalid way %0d", way);
+        end
     endfunction
+    `else
+        function void set_preload_tag_file(); // some tools have problems with string arguments
+            $display("Error: Compiled with NO_PRELOAD defined");
+        endfunction
+    `endif
+
     export "DPI-C" function set_preload_tag_file;
 
     rv_tester_mem #(

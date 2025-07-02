@@ -9,11 +9,15 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <cassert>
+#include "cvm/logger.hpp"
 
 REGISTRY_register(reset_sequence, PWRMGMT, cvm::registry::all);
 
 DEFINE_bool(pwrmgmt, false, "Runtime disable for pwrmgmt");
 DEFINE_bool(cpl_core_en, false, "Enable reset, bootup flow via CPL FW");
+DEFINE_bool(clc4_nack, false, "Configure CPL FW to give nack for CC4 requests, default FW would always gives ack");
+DEFINE_bool(tj_shutdown, false, "Enable CPL SRAM TjShutdown programming...");
 DEFINE_uint32(pll_pwrup_timeout, 50, "Number of soc cycles expected for pll power up to complete");
 DEFINE_bool(pll_dfs, false, "Enable dfs sequence during cold boot");
 DEFINE_uint32(pll_dfs_freq, 1200, "Clock freq for dfs");
@@ -55,6 +59,16 @@ extern "C" {
   void pwrmgmt_force_ref_clk(uint8_t val);
 
   uint8_t pwrmgmt_get_warm_reset_en(const char* mode) {
+    return (std::string(mode) != "off");
+  }
+
+  uint8_t pwrmgmt_get_pwrmgmt_en_from_plusargs(const char* m) {
+    const char* mode = cvm_plusargs_get_string(m);
+    if (!mode) {
+      cvm::log(cvm::ERROR, "Error: pwrmgmt mode is not set\n");
+      assert(false);
+      return false;
+    }
     return (std::string(mode) != "off");
   }
 }
@@ -165,6 +179,7 @@ cvm::messenger::task<void> reset_sequence::cold_reset_sequence() {
   co_await cpl_sram_fuse_configuration();
   // Reset controller sequence
   if(FLAGS_cpl_core_en) {
+    co_await program_tjshutdown_in_cpl_sram();
     co_await cpl_fw_reset_sequence(COLD);
   } else {
     co_await cpl_reset_sequence(COLD);
@@ -283,6 +298,7 @@ cvm::messenger::task<void> reset_sequence::cpl_sram_fuse_configuration() {
 }
 
 cvm::messenger::task<void> reset_sequence::cpl_fw_reset_sequence(rst_t rst_type) {
+  if(FLAGS_clc4_nack) co_await disable_clc4_entry();
   co_await write(cpl_core_reset_csr, SZ_4B, 0xFFFFFFFF, boot_interface);
   co_await wait_reset_release();
   co_await program_thub_threshold();
@@ -301,6 +317,46 @@ cvm::messenger::task<void> reset_sequence::cpl_fw_reset_sequence(rst_t rst_type)
   co_await tick();
   co_return;
 }
+/*
+ ------------------- FW reference struct -----------------
+ struct s_smc_cpl_comm_req {
+    uint64_t smc_cpl_req_valid : 1;
+    uint64_t smc_cpl_req_read_req : 1;
+    uint64_t smc_cpl_req_rsvd : 18;
+    uint64_t smc_cpl_req_addr: 8;
+    uint64_t smc_cpl_req_thub_id: 4;
+    uint64_t smc_cpl_req_data : 32;
+}; 
+ ------------------- FW reference struct -----------------
+*/
+cvm::messenger::task<void> reset_sequence::program_tjshutdown_in_cpl_sram() {
+  if(FLAGS_tj_shutdown){
+    // THUB-0
+    cvm::rand::uniform_dist<uint64_t> tj_shutdown_threshold(200, 400);
+    uint64_t mmr_data = 0x80000FFF | (tj_shutdown_threshold() << 16);
+    uint64_t data = 0x1400001 | (mmr_data << 32);
+    co_await write(cpl_sram_thub_config_base, SZ_8B, data, boot_interface);
+
+    if(FLAGS_num_harts > 2){
+      // THUB-1
+      mmr_data = 0x80000FFF | (tj_shutdown_threshold() << 16);
+      data = 0x11400001 | (mmr_data << 32);
+      co_await write((cpl_sram_thub_config_base + 8), SZ_8B, data, boot_interface);
+    }
+    if(FLAGS_num_harts==8) {
+      // THUB-2
+      mmr_data = 0x80000FFF | (tj_shutdown_threshold() << 16);
+      data = 0x21400001 | (mmr_data << 32);
+      co_await write((cpl_sram_thub_config_base + 16), SZ_8B, data, boot_interface);
+      
+      // THUB-3
+      mmr_data = 0x80000FFF | (tj_shutdown_threshold() << 16);
+      data = 0x31400001 | (mmr_data << 32);
+      co_await write((cpl_sram_thub_config_base + 24), SZ_8B, data, boot_interface);
+    }
+  }
+  co_return;
+};
 
 cvm::messenger::task<void> reset_sequence::send_start_of_execution_to_cpl() {
   auto data = co_await read(rst_ctl_nofetch, SZ_4B, boot_interface);
@@ -353,10 +409,12 @@ cvm::messenger::task<void> reset_sequence::check_pll_status() {
 
 cvm::messenger::task<void> reset_sequence::program_mtime(rst_t rst_type) {
   // Writing random non-zero time value to ACLINT Mtime before No-fetch release
-  uint64_t rand_mtime = ((rand()%1000) + 500) * 10;
+  cvm::rand::uniform_dist<uint32_t> aclint_mtime(5000, 10000);
+  uint64_t rand_mtime  = aclint_mtime();
 
   if(rst_type == WARM) {
-    rand_mtime = ((rand()%9999) + 50000) * 10;
+    cvm::rand::uniform_dist<uint32_t> aclint_mtime(50000, 100000);
+    rand_mtime = aclint_mtime();
     co_await write(aclint_mtime_mmr, SZ_8B, rand_mtime);
   }
   else { // COLD Reset
@@ -476,6 +534,14 @@ cvm::messenger::task<void> reset_sequence::program_fuses() {
     co_await write(sw_fuse_mmr,     SZ_8B, fuse);
 
 
+  co_return;
+}
+
+cvm::messenger::task<void> reset_sequence::disable_clc4_entry() {
+  co_await tick();
+  auto data = co_await read(cpl_sram_cstate_limit_offset, SZ_4B, boot_interface);
+  data = data & 0xFFFFFF00; 
+  co_await write(cpl_sram_cstate_limit_offset, SZ_4B, data);
   co_return;
 }
 
@@ -992,15 +1058,15 @@ cvm::messenger::task<void> reset_sequence::fuse_mmr_check(rst_t rst_type) {
   for (uint32_t i=0; i<ncores; ++i)
     registers.push_back(core_fuse_mmr + i * core_fuse_offset);
   uint64_t actual_data, exp_data;
-  bool rsp_err_chk = true;
   for (auto addr : registers) {
-    rsp_err_chk = (addr == dst_control_mmr)? FLAGS_dst_enable : true ;
-    rsp_err_chk = (addr == trace_control_mmr)? FLAGS_ntrace_enable : true ;
-    rsp_err_chk = (addr == core_cla_ctrl_status_mmr)? FLAGS_cla_enable : true ;
-    rsp_err_chk =  addr > (core_fuse_mmr + (FLAGS_num_harts-1) * core_fuse_offset) ? false : rsp_err_chk;
-    actual_data = co_await read(addr, SZ_8B, boot_interface, false);
+    bool rsp_err_chk = true;
+    rsp_err_chk = (addr == dst_control_mmr) ? FLAGS_dst_enable : rsp_err_chk;
+    rsp_err_chk = (addr == trace_control_mmr) ? FLAGS_ntrace_enable : rsp_err_chk;
+    rsp_err_chk = (addr == core_cla_ctrl_status_mmr) ? FLAGS_cla_enable : rsp_err_chk;
+    rsp_err_chk = (addr >= (core_fuse_mmr + FLAGS_num_harts * core_fuse_offset) && addr < (core_fuse_mmr + ncores * core_fuse_offset)) ? false : rsp_err_chk;
+    actual_data = co_await read(addr, SZ_8B, boot_interface, rsp_err_chk);
     bool ignore_check = (addr==dst_control_mmr) || (addr==trace_control_mmr) || (addr==core_cla_ctrl_status_mmr);
-    if (rsp_err_chk && !ignore_check ) {
+    if (rsp_err_chk && !ignore_check) {
       exp_data = (addr == sw_fuse_mmr)? ((rst_type == COLD) ? sw_fuse_default_val: fuse): fuse;
       if ((exp_data != actual_data))
         cvm::log(cvm::ERROR, "[pwrmgmt] Fuse reg read check ERROR : addr 0x{:x} ,  Expected :0x{:x}, Actual : 0x{:x} \n", addr, exp_data, actual_data );
@@ -1018,7 +1084,11 @@ cvm::messenger::task<void> reset_sequence::fuse_mmr_check(rst_t rst_type) {
   for (uint32_t i=0; i<ncores; ++i)
     fuse_registers.push_back(core_fuse_mmr + i * core_fuse_offset);  
   for (auto addr : fuse_registers) {
-    rsp_err_chk =  addr > (core_fuse_mmr + (FLAGS_num_harts-1) * core_fuse_offset) ? false : rsp_err_chk;
+    bool rsp_err_chk = true;
+    rsp_err_chk = (addr == dst_control_mmr) ? FLAGS_dst_enable : rsp_err_chk;
+    rsp_err_chk = (addr == trace_control_mmr) ? FLAGS_ntrace_enable : rsp_err_chk;
+    rsp_err_chk = (addr == core_cla_ctrl_status_mmr) ? FLAGS_cla_enable : rsp_err_chk;
+    rsp_err_chk = (addr >= (core_fuse_mmr + FLAGS_num_harts * core_fuse_offset) && addr < (core_fuse_mmr + ncores * core_fuse_offset)) ? false : rsp_err_chk;
     co_await write(addr, SZ_8B, rand()%0xFFFF'FFFF'FFFF'FFFF, boot_interface, rsp_err_chk);
     if (rsp_err_chk) {
       actual_data = co_await read(addr, SZ_8B, boot_interface);
@@ -1060,7 +1130,6 @@ cvm::messenger::task<void> reset_sequence::disabled_mmr_csr_check() {
     for (uint32_t i = 0; i < ncores; ++i) {
       rsp_err_chk = i < FLAGS_num_harts;
       mmr_read_write_check(cr_scratchpad + i * core_fuse_offset, interface, rsp_err_chk);
-      rsp_err_chk = (interface==SMC) ? rsp_err_chk : false;
       co_await read(core_fuse_mmr + i * core_fuse_offset,   SZ_8B, interface, rsp_err_chk);
     }
 
@@ -1395,12 +1464,12 @@ cvm::messenger::task<bool> reset_sequence::check_axi_bresp_timeout(interface_t i
     axi_bresp_cycle_cnt++;
 
     if (interface == SMC) {
-      if (cvm::registry::messenger.call<smc_mst_t::push_aw_no_id_rpc>(axi_loc_[interface], axi::a_no_id_t{addr, log2(sz), rsp_err_chk}, id)) {
+      if (cvm::registry::messenger.call<smc_mst_t::push_aw_no_id_rpc>(axi_loc_[interface], axi::a_no_id_t{addr, log2(sz), rsp_err_chk, RESET_SEQ_ID}, id)) {
         co_return true;
       }
     }
     else {
-      if (cvm::registry::messenger.call<overlay_mst_t::push_aw_no_id_rpc>(axi_loc_[interface], axi::a_no_id_t{addr, log2(sz), uint8_t(0xF), rsp_err_chk}, id)) {
+      if (cvm::registry::messenger.call<overlay_mst_t::push_aw_no_id_rpc>(axi_loc_[interface], axi::a_no_id_t{addr, log2(sz), uint8_t(0xF), rsp_err_chk, RESET_SEQ_ID}, id)) {
         co_return true;
       }
     }
@@ -1424,12 +1493,12 @@ cvm::messenger::task<bool> reset_sequence::check_axi_rresp_timeout(interface_t i
     axi_rresp_cycle_cnt++;
 
     if (interface == SMC) {
-      if (cvm::registry::messenger.call<smc_mst_t::push_ar_no_id_rpc>(axi_loc_[interface], axi::a_no_id_t{addr, log2(sz), rsp_err_chk}, id)) {
+      if (cvm::registry::messenger.call<smc_mst_t::push_ar_no_id_rpc>(axi_loc_[interface], axi::a_no_id_t{addr, log2(sz), rsp_err_chk, RESET_SEQ_ID}, id)) {
         co_return true;
       }
     }
     else {
-      if (cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_loc_[interface], axi::a_no_id_t{addr, log2(sz), uint8_t(0xF), rsp_err_chk}, id)) {
+      if (cvm::registry::messenger.call<overlay_mst_t::push_ar_no_id_rpc>(axi_loc_[interface], axi::a_no_id_t{addr, log2(sz), uint8_t(0xF), rsp_err_chk, RESET_SEQ_ID}, id)) {
         co_return true;
       }
     }

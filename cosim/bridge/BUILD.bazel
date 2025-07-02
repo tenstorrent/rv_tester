@@ -1,41 +1,9 @@
-cc_library(
-    name     = "bridge",
-    hdrs     = ["bridge_base.h", "bridge.h"],
-    srcs     = ["bridge.cpp"],
-    deps     = [
-                "//:structs",
-                "//cosim/utils/general:util",
-                "//cosim/whisper_if:whisper_if",
-                "//cosim/whisper_if:whisper_decoder",
-                "//cosim/bridge_if:bridge_if",
-                "//common:common",
-                "@CoreArchChecker//src:cac_core",
-                "@CoreArchChecker//src:cac_lib",
-                "@cvm//:plusargs",
-                "@cvm//:logger",
-                "@cvm//:random",
-                "@cvm//:topology",
-                "@fmt//:fmt",
-                "//sysmod/htif:htif",
-                "//:plusargs",
-                "//cosim/dut_if/rvfi:rvfi_plusargs",
-                "//cosim/utils/eot:eot_plusargs",
-                "//sysmod:sysmod_plusargs",
-                "//sysmod:sysmod_params",
-                "//sysmod/trickbox:trickbox",
-               ],
-    data     = [
-                "@whisper//:whisper",
-               ],
-    alwayslink = True,
-    visibility = ["//visibility:public"],
-    strip_include_prefix = ".",
-)
+exports_files(["bridge.cpp", "bridge.h", "bridge_base.h"])
 
 cc_library(
-    name    = "bridge_plusargs",
-    hdrs    = ["bridge_plusargs.h"],
-    deps    = ["@cvm//:plusargs"],
+        name    = "bridge_plusargs",
+        hdrs    = ["bridge_plusargs.h"],
+        deps    = ["@cvm//:plusargs"],
 
-    visibility = ["//visibility:public"],
-)
+        visibility = ["//visibility:public"],
+    )

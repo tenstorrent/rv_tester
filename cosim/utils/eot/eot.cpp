@@ -6,6 +6,7 @@
 #include "sysmod/sysmod_plusargs.h"
 #include "cosim/whisper_if/whisper_client_plusargs.h"
 #include "cosim/dut_if/rvfi/rvfi_plusargs.h"
+#include "rv_tester_plusargs.h"
 #include "sysmod/sysmod_rpc.h"
 #include "rv_tester_structs.h"
 
@@ -30,16 +31,12 @@ eot::eot(cvm::topology::loc_t loc, unsigned id) {
     connect<
       rv_tester_transactions::cosim::m_rvfi<>,
       rv_tester_transactions::cosim::m_steps<>,
-      rv_tester_transactions::cosim::m_mcmi_insert<>,
-      rv_tester_transactions::cosim::m_mcmi_bypass<>
+      rv_tester_transactions::cosim::m_eoti_normal<>,
+      rv_tester_transactions::cosim::offline_eoti<>
     >(cvm::topology::get_from_type("COSIM", i));
   }
   loc_ = loc;
   cvm::registry::messenger.procedure<get_tohost_addr_RPC>(loc, [this] () {return this->get_tohost_addr();});
-  cvm::registry::messenger.procedure<process_tohost_RPC>(loc, [this]
-        (std::uint64_t hart, std::uint64_t cycle, std::uint64_t addr, std::uint64_t data) {this->process_tohost(hart,cycle,addr,data);});
-  cvm::registry::messenger.procedure<check_max_instr_RPC>(loc, [this]
-        (std::uint64_t cycle, std::uint64_t count) {this->check_max_instr(cycle,count);});
   cvm::registry::messenger.connect<rv_tester::snoop_mem>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SNOOP_GEN", 0), [this] (rv_tester::snoop_mem) {
     bool passed = this->mem_checks();
     eot_mem_checks_done_ = true;
@@ -125,49 +122,36 @@ void eot::process(const rv_tester_transactions::cosim::m_rvfi<>& m_rvfi) {
       recent_pc_instr_count_ = instr_count_[m_rvfi.hart];
       recent_pc_hart_        = m_rvfi.hart;
   }
-  if (!FLAGS_hw_eot_enable) {
-    for (uint32_t i = 0; i < num_harts_; i++) {
-      check_max_instr(m_rvfi.cycle,instr_count_[i]);
-    }
-  }
+  //for (uint32_t i = 0; i < num_harts_; i++) {
+  //    check_max_instr(m_rvfi.cycle,instr_count_[i]);
+  //}
 }
 
-void eot::check_max_instr(std::uint64_t cycle, std::uint64_t instr_count)
-{
+
+void eot::process_eoti(uint64_t hartid, uint64_t cycle, uint64_t instr_count, uint64_t data, int max_instr) {
   if (ended_)
      return;
-  // End test on max_instr
-  if (FLAGS_max_instr > 0 && instr_count > FLAGS_max_instr) {
-    ended_ = true;
-    end = std::chrono::system_clock::now();
-    if (FLAGS_eot == "max_instr") {
-      cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
-      cvm::log(cvm::NONE, "<{}> Pass condition detected: +eot=max_instr +max_instr={}\n", cycle, FLAGS_max_instr);
-      cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
-      eot_terminate(true);
-      return;
-    } else {
-      cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
-      cvm::log(cvm::ERROR, "<{}> Error: max_instr limit reached: {}\n", cycle, FLAGS_max_instr);
-      cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n",cycle);
-      eot_terminate(true);
-      return;
-    }
+
+  if (max_instr == 1) {
+     if (FLAGS_max_instr > 0 && instr_count > FLAGS_max_instr) {
+        ended_ = true;
+        if (FLAGS_eot == "max_instr") {
+           cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
+           cvm::log(cvm::NONE, "<{}> Pass condition detected: +eot=max_instr +max_instr={}\n", cycle, FLAGS_max_instr);
+           cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
+           eot_terminate(true);
+           return;
+        } else {
+           cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
+           cvm::log(cvm::ERROR, "<{}> Error: max_instr limit reached: {}\n", cycle, FLAGS_max_instr);
+           cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n",cycle);
+           eot_terminate(true);
+           return;
+        }
+     }
   }
-}
 
-void eot::process_tohost(uint64_t hartid, uint64_t cycle, uint64_t address, uint64_t data) {
-  if (ended_)
-      return;
 
-  if (tohost_addr_ != address)
-    return;
-
-  if (tohost_status_ != (data & 0x1))
-    return;
-
-  if (tohost_device_syscall_ != ((data >> 56) & 0xff))
-    return;
 
   uint64_t exit_code = (data >> 1) & 0x7fffffffffff;
 
@@ -187,32 +171,44 @@ void eot::process_tohost(uint64_t hartid, uint64_t cycle, uint64_t address, uint
   } else {
     ended_ = true;
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
-    cvm::log(cvm::ERROR, "<{}> Hart:<{}>Error: Fail condition detected - tohost[0]=1, tohost[47:1]={:#x}\n", cycle,
-      hartid, exit_code);
+    cvm::log(cvm::ERROR, "<{}> Hart:<{}>Error: Fail condition detected - tohost[0]=1, tohost[47:1]={:#x}\n", cycle, hartid, exit_code);
     cvm::log(cvm::NONE, "<{}> ---------------------------------------------\n", cycle);
     eot_terminate(false);
   }
 }
 
-void eot::process(const rv_tester_transactions::cosim::m_mcmi_insert<>& m_mcmi_insert) {
-   if (!FLAGS_hw_eot_enable) {
-     process_tohost(m_mcmi_insert.hart, m_mcmi_insert.cycle, m_mcmi_insert.addr, m_mcmi_insert.data);
-   }
+
+//---------------------------------------------------------------------
+// ONLINE DPI EOT calls (sent in normal/offline-replay)
+//---------------------------------------------------------------------
+void eot::process(const rv_tester_transactions::cosim::m_eoti_normal<>& m_eoti_normal) {
+     int max_instr = 0;
+     if (m_eoti_normal.max_instr) {
+        max_instr  = 1;
+     } 
+     process_eoti(m_eoti_normal.hart, m_eoti_normal.cycle, m_eoti_normal.icount, m_eoti_normal.data, max_instr);
 }
 
-void eot::process(const rv_tester_transactions::cosim::m_mcmi_bypass<>& m_mcmi_bypass) {
-   if (!FLAGS_hw_eot_enable) {
-     process_tohost(m_mcmi_bypass.hart, m_mcmi_bypass.cycle, m_mcmi_bypass.addr, m_mcmi_bypass.data);
-   }
+void eot::process(const rv_tester_transactions::cosim::offline_eoti<>& offline_eoti) {
+     int max_instr = 0;
+     if (offline_eoti.max_instr) {
+        max_instr  = 1;
+     } 
+     process_eoti(offline_eoti.hart, offline_eoti.cycle, offline_eoti.icount, offline_eoti.data, max_instr);
 }
 
 void eot::eot_terminate(bool passed) {
   bool terminate = false;
-  FLAGS_eot_mem_check = FLAGS_eot_mem_check & FLAGS_mcm;
-  if (!FLAGS_eot_mem_check || !passed || eot_mem_checks_done_)
-    terminate = true;
-  else if (FLAGS_eot_mem_check && !eot_mem_checks_done_)
-    mem_checks_snoop();
+  if (!(FLAGS_offline_dpi | FLAGS_offline_dpi_test)) {
+     FLAGS_eot_mem_check = FLAGS_eot_mem_check & FLAGS_mcm;
+     if (!FLAGS_eot_mem_check || !passed || eot_mem_checks_done_)
+       terminate = true;
+     else if (FLAGS_eot_mem_check && !eot_mem_checks_done_)
+       mem_checks_snoop();
+  }
+  else {
+     terminate = true;
+  }
   if (terminate)
     cvm::registry::messenger.signal<htif::terminate_t>(loc_, htif::terminate_t{.low_priority_based = true});
 }
@@ -223,8 +219,13 @@ void eot::mem_checks_snoop() {
     cvm::log(cvm::ERROR, "Unable to get memmap\n");
   uint64_t mem_base = m.at("memory").base;
   uint64_t mem_size = m.at("memory").size;
+  uint64_t secure_mem_region_start;
+  uint64_t secure_mem_region_end;
+  cvm::registry::messenger.call<sysmod_secure_mem>(cvm::topology::get_from_hierarchy("TOP.PLATFORM.SYSMOD", 0), secure_mem_region_start, secure_mem_region_end);
+  // RPC to get secure region bounds
 
-  cvm::log(cvm::MEDIUM, "EOT MEMORY CHECKS: Parsing Whisper Data Lines\n");
+  cvm::log(cvm::MEDIUM, "Initiating EOT MEMORY CHECKS\n");
+  cvm::log(cvm::HIGH, "Secure region start: {:#x}, Secure region end: {:#x}\n", secure_mem_region_start, secure_mem_region_end);
   cvm::registry::messenger.signal_async<rv_tester::terminate_called_mem_checks>(cvm::topology::get_from_type("PLATFORM", 0), rv_tester::terminate_called_mem_checks{});
   std::ifstream file(FLAGS_whisper_data_lines);
   std::string line;
@@ -242,6 +243,9 @@ void eot::mem_checks_snoop() {
           case 1:
               addr = std::stoul(token, nullptr, 16);
               addr = addr * 64;
+              if(addr >= secure_mem_region_start && addr < secure_mem_region_end) {
+                addr = addr | (uint64_t(1) << 55); // set the secure bit
+              }
               if (!(addr >= mem_base && addr < (mem_base + mem_size)))
                 ignore_addr = true;
              break;
@@ -257,14 +261,14 @@ void eot::mem_checks_snoop() {
     }
   }
   if (mem_lines_.size() == 0) {
-    cvm::log(cvm::MEDIUM, "Done with Memory Checks: No Whisper lines\n");
+    cvm::log(cvm::HIGH, "Done with Memory Checks: No Whisper lines\n");
     eot_mem_checks_done_ = true;
     eot_terminate(true);
     return;
   }
   rv_tester::snoop_addrs_eot addrs_eot;
   for (auto &w : mem_lines_) {
-    cvm::log(cvm::MEDIUM, "Snoop Address: {:#x}\n", w.first);
+    cvm::log(cvm::HIGH, "Snoop Address: {:#x}\n", w.first);
     addrs_eot.address.push(w.first);
   }
   cvm::registry::messenger.signal<rv_tester::snoop_addrs_eot>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0), addrs_eot);
@@ -303,7 +307,7 @@ bool eot::mem_checks() {
     while(!diff[i++]);
     return --i/8;
   };
-  cvm::log(cvm::MEDIUM, "[EOT] Memory Checks: Actual Check\n");
+  cvm::log(cvm::HIGH, "[EOT] Memory Checks: Actual Check\n");
   eot_mem_checks_done_ = true;
   for (auto &w : mem_lines_) {
     device::data_t data(64);
@@ -313,7 +317,7 @@ bool eot::mem_checks() {
       cvm::log(cvm::ERROR, "Error: [EOT] Memory Mismatch Addr: 0x{:x}\nDUT:{}\nISS:{}\n", w.first+first_differing_addr(dut, w.second), bitset_to_hex_str(dut), bitset_to_hex_str(w.second));
       return false;
     } else {
-      cvm::log(cvm::MEDIUM, "[EOT] Memory Check: Data at Addr: 0x{:x} consistent\n", w.first);
+      cvm::log(cvm::HIGH, "[EOT] Memory Check: Data at Addr: 0x{:x} consistent\n", w.first);
     }
   }
   return true;
@@ -322,6 +326,11 @@ bool eot::mem_checks() {
 
 eot::~eot() {
     int h = 0;
+    //----------------------------------------------------------------
+    // during offline_dpi we cannot do these checks so just return
+    //----------------------------------------------------------------
+    if (FLAGS_offline_dpi | FLAGS_offline_dpi_test) 
+       return; 
     for(const auto i : instr_count_) {
         if (i < FLAGS_min_instr) {
             cvm::log(cvm::ERROR, "Hart:<{}> Error: instruction count {} did not meet +min_instr={}\n", h, i, FLAGS_min_instr);
@@ -340,17 +349,6 @@ extern "C" {
   std::uint64_t eot_get_addr() {
     hw_eot_terminated = false;
     return cvm::registry::messenger.call<eot::get_tohost_addr_RPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0));
-  }
-  void eot_hw_process(std::uint64_t hart, std::uint64_t cycle, std::uint64_t addr, std::uint64_t data) {
-     cvm::registry::messenger.call<eot::process_tohost_RPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0),hart, cycle, addr, data);
-  }
-  void call_check_max_instr(std::uint64_t cycle, std::uint64_t count) {
-    if ((FLAGS_eot == "max_instr") && !hw_eot_terminated) {
-      if (FLAGS_max_instr > 0 && count > FLAGS_max_instr) {
-        cvm::registry::messenger.call<eot::check_max_instr_RPC>(cvm::topology::get_from_hierarchy("TOP.PLATFORM", 0),cycle, count);
-        hw_eot_terminated = true;
-      }
-    }
   }
   int is_eot_tohost() {
     if (FLAGS_eot == "tohost")

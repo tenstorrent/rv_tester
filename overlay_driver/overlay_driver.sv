@@ -24,10 +24,6 @@ import rv_tester_params::*;
   // C++->SV Callbacks
   // -------------------------
 
-  export "DPI-C" function overlay_driver_init;
-
-  function void overlay_driver_init();
-  endfunction
 
   
   int unsigned push_idx;
@@ -43,9 +39,6 @@ import rv_tester_params::*;
 
   always @(posedge clk) begin
     reset_d1 <= reset;
-    if (reset) begin
-      overlay_driver_init();
-    end
     if (~reset & reset_d1) begin
       if (location != cvm_topology::nil) begin
         overlay_driver_set_scope(location);
