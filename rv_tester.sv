@@ -219,7 +219,8 @@ module rv_tester
     bit gen_clocks = '0;
     bit gen_timestamp = '0;
     logic [63:0] current_time;
-    int unsigned cvm_verbosity, gen_clocks_verbosity, gen_timestamp_verbosity;
+    int unsigned cvm_verbosity, gen_clocks_verbosity, gen_timestamp_verbosity, cvm_debug_verbosity;
+    LU cvm_debug_cycle_on, cvm_debug_cycle_off;
     logic dut_terminate_any;
     logic ntrace_terminate;
 
@@ -277,6 +278,21 @@ module rv_tester
         rv_tester_reset <= rerun_now;
         rerun_now_ff <= rerun_now;
         clocks          <= clocks + 1;
+
+        /* verilator lint_off BLKSEQ */
+        cvm_verbosity              = cvm_logger::get_verbosity_from_plusargs("cvm_verbosity");
+        cvm_debug_verbosity        = cvm_logger::get_verbosity_from_plusargs("cvm_debug_verbosity");
+        cvm_debug_cycle_on         = cvm_plusargs::get_ulongint("cvm_debug_cycle_on");
+        cvm_debug_cycle_off        = cvm_plusargs::get_ulongint("cvm_debug_cycle_off");
+        /* verilator lint_on BLKSEQ */
+         if ((cvm_debug_cycle_off>0) && (clocks >= cvm_debug_cycle_on) && (clocks <= cvm_debug_cycle_off)) begin
+             if (cvm_verbosity != cvm_debug_verbosity)
+               cvm_logger::set_verbosity(cvm_debug_verbosity);
+         end else begin
+             if (cvm_verbosity != cvm_debug_verbosity)
+               cvm_logger::set_verbosity(cvm_verbosity);
+         end
+
 
         `ifndef NO_TIMESTAMP
             current_time <= $time;
@@ -421,7 +437,7 @@ module rv_tester
             // Using nested function calls in cvm as Palladium doesn't support strings
             cvm_verbosity               = cvm_logger::get_verbosity_from_plusargs("cvm_verbosity");
             gen_clocks_verbosity        = cvm_logger::get_verbosity_from_plusargs("gen_clocks_verbosity");
-            gen_timestamp_verbosity         = cvm_logger::get_verbosity_from_plusargs("gen_timestamp_verbosity");
+            gen_timestamp_verbosity     = cvm_logger::get_verbosity_from_plusargs("gen_timestamp_verbosity");
             warm_reset_en               = pwrmgmt_get_pwrmgmt_en_from_plusargs("warm_reset");
             rv_tester_error_terminate.terminate = '0;
             perf_period                 = cvm_plusargs::get_int("perf_period");
@@ -455,7 +471,7 @@ module rv_tester
             dyn_clk_switch       <= cvm_plusargs::get_bool("dyn_clk_switch") != '0;
             call_finish          <= cvm_plusargs::get_bool("terminate_call_finish") != '0;
             gen_clocks           <= cvm_verbosity >= gen_clocks_verbosity;
-            gen_timestamp            <= cvm_verbosity >= gen_timestamp_verbosity;
+            gen_timestamp        <= cvm_verbosity >= gen_timestamp_verbosity;
             bypass_mem           <= cvm_plusargs::get_bool("bypass_mem") != '0;
             bypass_cache         <= cvm_plusargs::get_bool("bypass_cache") != '0;
             assertion_test_cycle <= cvm_plusargs::get_int("assertion_test_cycle");
