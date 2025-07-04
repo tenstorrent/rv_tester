@@ -10,6 +10,7 @@
 #include "svdpi.h"
 
 // DECLARE_uint32(num_harts);
+DECLARE_bool(tj_max);
 DECLARE_bool(tj_shutdown);
 
 namespace {

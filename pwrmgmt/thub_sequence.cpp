@@ -9,7 +9,6 @@ DEFINE_string(thub_count, "10000:10000", "Number of temp hub sequence tick in th
 DEFINE_string(thub_interval, "5:5", "soc cycle interval between thub tick in the sim");
 DEFINE_string(thub_width, "1:1", "soc cycle width of thub tick in the sim");
 DEFINE_bool(temp_throttle, false, "Program lower Temp throttle for core");
-DECLARE_bool(tj_max);
 
 extern "C" {
   void thub_blocking_sequence_tick(uint8_t val);
