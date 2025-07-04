@@ -1873,6 +1873,9 @@ pwrmgmt:
     m_tj_shutdown_ack:
         domain: 3
         num: 1
+    m_tj_max_ack:
+        domain: 3
+        num: 1
 
 snoop_gen:
     num: 1

@@ -917,7 +917,9 @@ package rv_tester_params;
     output                                   disable_checks,                                        \
     output                                   dut_terminate,                                         \
     output                                   tj_shutdown,                                           \
+    output                                   tj_max,                                                \
     output                                   pll_dfs_done,                                          \
+    output                                   pll_shutdown_done,                                     \
     input                                    terminate,                                             \
     input  logic                             terminated,                                            \
     input  logic                             terminate_now,                                            \
@@ -1014,7 +1016,9 @@ package rv_tester_params;
     logic                                    disable_checks;                                        \
     logic                                    dut_terminate;                                         \
     logic                                    tj_shutdown;                                           \
+    logic                                    tj_max;                                                \
     logic                                    pll_dfs_done;                                          \
+    logic                                    pll_shutdown_done;                                     \
     logic                                    terminate;                                             \
     logic                                    terminated;                                            \
     logic                                    terminate_now;                                            \

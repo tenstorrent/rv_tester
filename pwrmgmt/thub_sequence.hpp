@@ -36,9 +36,12 @@ class thub_sequence {
     cvm::messenger::task<void> temp_throttle_enable();
     cvm::messenger::task<void> temp_throttle_disable();
     cvm::messenger::task<void> tj_shutdown_config();
+    cvm::messenger::task<void> tj_max_config();
 
     cvm::messenger::task<void> tick();
     cvm::messenger::task<void> wait_for_ticks();
+    cvm::messenger::task<void> wait_for_tj_max_ticks();
+    cvm::messenger::task<void> tj_max_ack();
     cvm::messenger::task<void> tj_shutdown_ack();
     cvm::messenger::task<uint64_t>  read(uint64_t addr, size_t sz);
     cvm::messenger::task<void>      write(uint64_t addr, size_t sz, uint64_t data);
@@ -55,6 +58,7 @@ class thub_sequence {
     svScope scope_;
     cvm::topology::loc_t loc_, smc_axi_loc_;
     uint32_t core_throttle;
+    bool tj_max_ack_rcvd=0;
     bool tj_shutdown_ack_rcvd=0;
 
 };

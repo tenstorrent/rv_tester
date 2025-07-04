@@ -268,7 +268,7 @@ cvm::messenger::task<void> reset_sequence::cpl_reset_sequence(rst_t rst_type) {
   if (FLAGS_fuse_mmr_check)
     co_await disabled_mmr_csr_check();
   
-  co_await program_thub_threshold();
+  co_await program_thub_max_threshold();
 
   if(FLAGS_init_smc_infilters) {
     co_await init_smc_filters();
@@ -301,7 +301,7 @@ cvm::messenger::task<void> reset_sequence::cpl_fw_reset_sequence(rst_t rst_type)
   if(FLAGS_clc4_nack) co_await disable_clc4_entry();
   co_await write(cpl_core_reset_csr, SZ_4B, 0xFFFFFFFF, boot_interface);
   co_await wait_reset_release();
-  co_await program_thub_threshold();
+  co_await program_thub_max_threshold();
 
   if(FLAGS_init_smc_infilters) {
     co_await init_smc_filters();
@@ -954,13 +954,31 @@ cvm::messenger::task<void> reset_sequence::write_thub_reg(uint8_t addr, uint32_t
     co_await write(pm_mbox_reg, SZ_8B, w_data);
 }
 
-cvm::messenger::task<void> reset_sequence::program_thub_threshold() {
+cvm::messenger::task<void> reset_sequence::program_thub_max_threshold() {
   co_await tick();
   if(FLAGS_tj_max){
-    for (uint8_t i=0; i<FLAGS_num_thubs; ++i) {
-      co_await write_thub_reg(thub_threhold_param_reg,0x05400640,i+9,i);
-    };
-  };
+      switch (FLAGS_num_harts-1) {
+          case 0:
+              co_await write_thub_reg(thub_threhold_param_reg,0x8FFF0400,12,0);   // PMNW ID for THUB-0 
+              break;
+          case 1:
+              co_await write_thub_reg(thub_threhold_param_reg,0x8FFF0400,12,0);   // PMNW ID for THUB-0 
+              break;
+          case 2:
+              co_await write_thub_reg(thub_threhold_param_reg,0x8FFF0400,12,0);   // PMNW ID for THUB-0 
+              co_await write_thub_reg(thub_threhold_param_reg,0x8FFF0400,9,1);   // PMNW ID for THUB-1 
+              break;
+          case 7:
+              co_await write_thub_reg(thub_threhold_param_reg,0x8FFF0400,9,0);   // PMNW ID for THUB-0 
+              co_await write_thub_reg(thub_threhold_param_reg,0x8FFF0400,10,1);   // PMNW ID for THUB-1 
+              co_await write_thub_reg(thub_threhold_param_reg,0x8FFF0400,11,2);   // PMNW ID for THUB-2 
+              co_await write_thub_reg(thub_threhold_param_reg,0x8FFF0400,12,3);   // PMNW ID for THUB-3 
+              break;
+          default:
+              cvm::log(cvm::ERROR, "ERROR: [tj_shutdown] Invalid FLGAS_num_harts seen.. {} .... \n",FLAGS_num_harts);
+      }
+  }
+  co_return;
 
  
 };
